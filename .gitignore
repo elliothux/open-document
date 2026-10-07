@@ -1,8 +1,6 @@
 # Local run artifacts and independent upstream research checkouts.
 /.temp/
 /references/
-# Local private checkout; replace with a gitlink only after an authorized commit.
-/test-lab/
 node_modules/
 dist/
 _build/
