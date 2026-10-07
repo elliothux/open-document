@@ -1,0 +1,31 @@
+{
+  "name": "open-document",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.4.2",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "check:moon": "moon check --target wasm-gc --deny-warn",
+    "build:moon": "moon build --target wasm-gc --release --deny-warn",
+    "build": "bun run build:moon && bun run --filter '@open-document/*' build && cp _build/wasm-gc/release/build/open_document/bridge/bridge.wasm packages/wasm/dist/engine.wasm",
+    "typecheck": "bun run --filter '@open-document/*' typecheck",
+    "lint": "oxlint --deny-warnings packages",
+    "format": "moon fmt && prettier --write package.json tsconfig.json .oxlintrc.json packages",
+    "format:check": "moon fmt --check && prettier --check package.json tsconfig.json .oxlintrc.json packages",
+    "check": "bun run check:moon && bun run typecheck && bun run lint && bun run format:check",
+    "test": "cd test-lab && bun run test",
+    "hooks:install": "simple-git-hooks",
+    "api": "moon info"
+  },
+  "devDependencies": {
+    "oxlint": "1.81.0",
+    "prettier": "3.9.6",
+    "typescript": "7.0.2",
+    "simple-git-hooks": "2.14.0"
+  },
+  "simple-git-hooks": {
+    "pre-commit": "bun run check"
+  }
+}

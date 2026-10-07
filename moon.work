@@ -1,0 +1,6 @@
+members = [
+  "modules/core",
+  "modules/layout",
+  "modules/formats",
+  "modules/bridge",
+]

@@ -1,0 +1,25 @@
+{
+  "name": "@open-document/web",
+  "version": "0.0.1",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "files": [
+    "src",
+    "dist"
+  ],
+  "exports": {
+    "./client": {
+      "types": "./src/client.ts",
+      "default": "./dist/client.js"
+    },
+    "./worker": "./dist/worker.js"
+  },
+  "dependencies": {
+    "@open-document/wasm": "workspace:*"
+  },
+  "scripts": {
+    "build": "bun build src/client.ts src/worker.ts --target browser --outdir dist && cp ../../LICENSE dist/LICENSE",
+    "typecheck": "tsc --project tsconfig.json"
+  }
+}

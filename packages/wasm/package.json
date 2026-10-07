@@ -1,0 +1,22 @@
+{
+  "name": "@open-document/wasm",
+  "version": "0.0.1",
+  "private": true,
+  "license": "Apache-2.0",
+  "type": "module",
+  "files": [
+    "src",
+    "dist"
+  ],
+  "exports": {
+    "./engine": {
+      "types": "./src/engine.ts",
+      "default": "./dist/engine.js"
+    },
+    "./engine.wasm": "./dist/engine.wasm"
+  },
+  "scripts": {
+    "build": "bun build src/engine.ts --target browser --outdir dist && cp ../../LICENSE dist/LICENSE",
+    "typecheck": "tsc --project tsconfig.json"
+  }
+}

@@ -1,0 +1,20 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "open_document/core/text"
+
+// Values
+
+// Errors
+
+// Types and methods
+pub struct Session {
+  // private fields
+}
+pub fn Session::close(Self) -> Unit
+pub fn Session::content(Self) -> String
+pub fn Session::new(String) -> Self
+pub fn Session::replace(Self, Int, Int, String) -> Int
+pub fn Session::undo(Self) -> Int
+
+// Type aliases
+
+// Traits
