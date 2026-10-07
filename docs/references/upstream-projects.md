@@ -7,23 +7,23 @@
 ## BetterOffice：架构与核心/宿主边界
 
 - [上游仓库](https://github.com/openooxml/betteroffice)
-- [本地研究副本](../../../lynx-os/references/betteroffice/)，本地 HEAD：`c10db4b848c1e74c920416986ec2e34bf95ee7f3`。
+- [固定源码快照](https://github.com/elliothux/betteroffice/tree/c10db4b848c1e74c920416986ec2e34bf95ee7f3/)，研究 revision：`c10db4b848c1e74c920416986ec2e34bf95ee7f3`。
 - 重点参考：OOXML 基础模块、文档会话、WASM 边界、布局与绘制分离、Worker 接入和无 DOM 计算入口。
 - 不照搬其 Rust 技术栈，不把现有功能和兼容性覆盖当作最终目标。
 - 其字体基础依赖 `skrifa`、`rustybuzz`、`unicode-linebreak`、`unicode-bidi`；换用 MoonBit 后需要验证对应能力，不能假设换语言后自动继承。
 
 阅读入口：
 
-- [字体与文本依赖](../../../lynx-os/references/betteroffice/crates/ooxml-text/Cargo.toml)
-- [DOCX Canvas 后端](../../../lynx-os/references/betteroffice/packages/docx/src/layout/render/canvasBackend.ts)
-- [DOCX Worker 接入](../../../lynx-os/references/betteroffice/packages/docx/src/yrs/residentEngineWorkerClient.ts)
-- [DOCX 输入适配](../../../lynx-os/references/betteroffice/packages/docx-react/src/components/DocxEditor/YrsInput.tsx)
-- [XLSX 无 DOM 计算入口](../../../lynx-os/references/betteroffice/packages/xlsx/src/headless.ts)
+- [字体与文本依赖](https://github.com/elliothux/betteroffice/blob/c10db4b848c1e74c920416986ec2e34bf95ee7f3/crates/ooxml-text/Cargo.toml)
+- [DOCX Canvas 后端](https://github.com/elliothux/betteroffice/blob/c10db4b848c1e74c920416986ec2e34bf95ee7f3/packages/docx/src/layout/render/canvasBackend.ts)
+- [DOCX Worker 接入](https://github.com/elliothux/betteroffice/blob/c10db4b848c1e74c920416986ec2e34bf95ee7f3/packages/docx/src/yrs/residentEngineWorkerClient.ts)
+- [DOCX 输入适配](https://github.com/elliothux/betteroffice/blob/c10db4b848c1e74c920416986ec2e34bf95ee7f3/packages/docx-react/src/components/DocxEditor/YrsInput.tsx)
+- [XLSX 无 DOM 计算入口](https://github.com/elliothux/betteroffice/blob/c10db4b848c1e74c920416986ec2e34bf95ee7f3/packages/xlsx/src/headless.ts)
 
 ## GenOffice：功能语义与格式兼容性
 
 - [上游仓库](https://github.com/genspark-ai/genoffice)
-- [本地研究副本](../../../lynx-os/references/genoffice/)，本地 HEAD：`70e5149e814b4c8b46ae1304ea5f6c5ae39ceef0`。
+- [固定源码快照](https://github.com/genspark-ai/genoffice/tree/70e5149e814b4c8b46ae1304ea5f6c5ae39ceef0/)，研究 revision：`70e5149e814b4c8b46ae1304ea5f6c5ae39ceef0`。
 - 重点参考：DOCX/PPTX 解析与生成、样式和布局规则、编辑功能、兼容性测试与案例。
 - PPTX 的模型、RenderTree、文本布局和字体度量接口比较适合作为可移植计算管线的参考。
 - DOCX 部分分页依赖 DOM 测量，headless 导出依赖隐藏的 Electron renderer。迁移这一部分需要重建计算能力，不是替换 I/O 即可。
@@ -32,18 +32,18 @@
 
 阅读入口：
 
-- [DOCX 引擎](../../../lynx-os/references/genoffice/packages/docx-engine/src/)
-- [PPTX 引擎](../../../lynx-os/references/genoffice/packages/pptx-engine/src/)
-- [PPTX 文本布局](../../../lynx-os/references/genoffice/packages/pptx-render/src/text-layout.ts)
-- [PPTX 字体度量](../../../lynx-os/references/genoffice/packages/pptx-render/src/metrics.ts)
-- [DOCX 浏览器分页测量](../../../lynx-os/references/genoffice/apps/docs/src/renderer/pagination-measure.ts)
-- [DOCX headless 导出](../../../lynx-os/references/genoffice/apps/docs/src/renderer/headless-export.ts)
-- [Sheets 依赖清单](../../../lynx-os/references/genoffice/apps/sheets/package.json)
+- [DOCX 引擎](https://github.com/genspark-ai/genoffice/tree/70e5149e814b4c8b46ae1304ea5f6c5ae39ceef0/packages/docx-engine/src/)
+- [PPTX 引擎](https://github.com/genspark-ai/genoffice/tree/70e5149e814b4c8b46ae1304ea5f6c5ae39ceef0/packages/pptx-engine/src/)
+- [PPTX 文本布局](https://github.com/genspark-ai/genoffice/blob/70e5149e814b4c8b46ae1304ea5f6c5ae39ceef0/packages/pptx-render/src/text-layout.ts)
+- [PPTX 字体度量](https://github.com/genspark-ai/genoffice/blob/70e5149e814b4c8b46ae1304ea5f6c5ae39ceef0/packages/pptx-render/src/metrics.ts)
+- [DOCX 浏览器分页测量](https://github.com/genspark-ai/genoffice/blob/70e5149e814b4c8b46ae1304ea5f6c5ae39ceef0/apps/docs/src/renderer/pagination-measure.ts)
+- [DOCX headless 导出](https://github.com/genspark-ai/genoffice/blob/70e5149e814b4c8b46ae1304ea5f6c5ae39ceef0/apps/docs/src/renderer/headless-export.ts)
+- [Sheets 依赖清单](https://github.com/genspark-ai/genoffice/blob/70e5149e814b4c8b46ae1304ea5f6c5ae39ceef0/apps/sheets/package.json)
 
 ## Univer：SDK 目标与能力组织
 
 - [上游仓库](https://github.com/dream-num/univer)
-- [本地源码](../../../lynx-os/references/univer/)，本地 HEAD：`d61608dace76b0db299c552eb3d1dccf0f8986dc`。
+- [固定源码快照](https://github.com/dream-num/univer/tree/d61608dace76b0db299c552eb3d1dccf0f8986dc/)，研究 revision：`d61608dace76b0db299c552eb3d1dccf0f8986dc`。
 - 重点参考：开发者 API、命令与模型的组织、公式计算、渲染/交互分层和可嵌入体验。
 - 本地 `univer` 目录确实是源码，不是单纯的安装产物或 API 文档。
 - 不依赖 Univer PRO 作为必需能力，不承诺兼容其全部 API 或插件协议。
@@ -51,10 +51,10 @@
 
 阅读入口：
 
-- [核心](../../../lynx-os/references/univer/packages/core/src/)
-- [公式引擎](../../../lynx-os/references/univer/packages/engine-formula/src/)
-- [渲染引擎](../../../lynx-os/references/univer/packages/engine-render/src/)
-- [文档交互层](../../../lynx-os/references/univer/packages/docs-ui/src/)
-- [表格交互层](../../../lynx-os/references/univer/packages/sheets-ui/src/)
+- [核心](https://github.com/dream-num/univer/tree/d61608dace76b0db299c552eb3d1dccf0f8986dc/packages/core/src/)
+- [公式引擎](https://github.com/dream-num/univer/tree/d61608dace76b0db299c552eb3d1dccf0f8986dc/packages/engine-formula/src/)
+- [渲染引擎](https://github.com/dream-num/univer/tree/d61608dace76b0db299c552eb3d1dccf0f8986dc/packages/engine-render/src/)
+- [文档交互层](https://github.com/dream-num/univer/tree/d61608dace76b0db299c552eb3d1dccf0f8986dc/packages/docs-ui/src/)
+- [表格交互层](https://github.com/dream-num/univer/tree/d61608dace76b0db299c552eb3d1dccf0f8986dc/packages/sheets-ui/src/)
 
-本地链接依赖当前与 `lynx-os` 并列的工作区布局；它们仅供研究，不是构建依赖。这三个原有项目未复制到本仓库；后续新增研究副本位于仓库根 `references/`，清单见 [G0](../g0-foundation-review.md)。复用源码、字体和测试文件前，应分别核对许可证与来源，保留必要声明；不以仓库顶层许可证代替逐项依赖核查。
+阅读入口使用固定 commit 的上游链接，新检出不需要本机研究目录。这三个原有项目的本地副本仍位于相邻 `lynx-os/references/`；后续新增研究副本位于仓库根 `references/`，都不是构建或测试依赖，清单见 [G0](../g0-foundation-review.md)。复用源码、字体和测试文件前，应分别核对许可证与来源，保留必要声明；不以仓库顶层许可证代替逐项依赖核查。

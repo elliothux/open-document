@@ -45,14 +45,14 @@
 
 但有两个决定性限制：
 
-1. 当前仓库 [LICENSE.md](../references/unioffice/LICENSE.md) 明确标注商业产品和授权要求，不是看到 GitHub 源码就能自由移植。
-2. [document/document.go](../references/unioffice/document/document.go) 等实现注明由 `unitwist` 混淆生成。大量混淆标识符和压缩代码不适合逐步理解、维护或作为 Agent 翻译底稿。
+1. 当前仓库 [LICENSE.md](https://github.com/unidoc/unioffice/blob/7b4037da94004ef23fd6cdc927caa51c06210dff/LICENSE.md) 明确标注商业产品和授权要求，不是看到 GitHub 源码就能自由移植。
+2. [document/document.go](https://github.com/unidoc/unioffice/blob/7b4037da94004ef23fd6cdc927caa51c06210dff/document/document.go) 等实现注明由 `unitwist` 混淆生成。大量混淆标识符和压缩代码不适合逐步理解、维护或作为 Agent 翻译底稿。
 
 结论：参考公开 API 的职责设计；不选作代码移植源。若实际复用代码，必须先单独核对授权，不能认为“换成 MoonBit”消除了原代码授权条件。
 
 ### 3.2 UniPDF：属于 PDF 层，且有同样的授权与可读性障碍
 
-[LICENSE.md](../references/unipdf/LICENSE.md) 同样是商业授权；[model/model.go](../references/unipdf/model/model.go) 也有混淆生成标识。`core` / `model` / `creator` 等层次可以帮助理解 PDF 原语与高层生成 API 的区别。
+[LICENSE.md](https://github.com/unidoc/unipdf/blob/e279a3aa2c1ac0d5b55581e2a9b990b851eb5406/LICENSE.md) 同样是商业授权；[model/model.go](https://github.com/unidoc/unipdf/blob/e279a3aa2c1ac0d5b55581e2a9b990b851eb5406/model/model.go) 也有混淆生成标识。`core` / `model` / `creator` 等层次可以帮助理解 PDF 原语与高层生成 API 的区别。
 
 PDF 库不替我们解决 DOCX 分页、表格公式或 PPT 母版继承。对于“把已布局的页面写成 PDF”，Krilla 是更适合深入阅读的开放参考。
 
@@ -60,11 +60,11 @@ PDF 库不替我们解决 DOCX 分页、表格公式或 PPT 母版继承。对�
 
 ### 3.3 AnyDoc：好的提取管线，不是可编辑文档内核
 
-其核心方向是多格式转 Markdown。[src/model/block.rs](../references/anydoc/src/model/block.rs) 的统一模型围绕段落、标题、列表、表格、代码块等内容组织。这很适合搜索、RAG、文本提取，却不能表示完整的工作簿、幻灯片与 Word 编辑语义。
+其核心方向是多格式转 Markdown。[src/model/block.rs](https://github.com/firecrawl/anydoc/blob/261fc257d17c3eab0f673be31c408fd9fdc2171a/src/model/block.rs) 的统一模型围绕段落、标题、列表、表格、代码块等内容组织。这很适合搜索、RAG、文本提取，却不能表示完整的工作簿、幻灯片与 Word 编辑语义。
 
-[src/lib.rs](../references/anydoc/src/lib.rs) 中的 PDF Markdown 路径还直接走 `pdf-inspector`，没有强行经过统一 `Document` 模型。这也说明“支持很多格式”不代表存在一个可逆的通用编辑模型。
+[src/lib.rs](https://github.com/firecrawl/anydoc/blob/261fc257d17c3eab0f673be31c408fd9fdc2171a/src/lib.rs) 中的 PDF Markdown 路径还直接走 `pdf-inspector`，没有强行经过统一 `Document` 模型。这也说明“支持很多格式”不代表存在一个可逆的通用编辑模型。
 
-最值得参考的是 [src/package/archive.rs](../references/anydoc/src/package/archive.rs)：
+最值得参考的是 [src/package/archive.rs](https://github.com/firecrawl/anydoc/blob/261fc257d17c3eab0f673be31c408fd9fdc2171a/src/package/archive.rs)：
 
 - 按需读取 ZIP 部件，缓存重复读取的结果。
 - 对实际读取/解压出来的字节施加预算，不只相信 ZIP 头部声明。
@@ -78,7 +78,7 @@ PDF 库不替我们解决 DOCX 分页、表格公式或 PPT 母版继承。对�
 
 Calamine 的定位是表格读取。解析到公式字符串不等于计算公式，也不包含交互编辑、撤销和布局。
 
-[src/lib.rs](../references/calamine/src/lib.rs) 的 `Reader<RS: Read + Seek>`、`ReaderRef` 和 [XLSX 单元格读取器](../references/calamine/src/xlsx/cells_reader.rs) 值得参考：读取和存储介质分离，部分路径减少字符串复制。
+[src/lib.rs](https://github.com/tafia/calamine/blob/0af05f4f6030351e3b8a999ea0810c8618368776/src/lib.rs) 的 `Reader<RS: Read + Seek>`、`ReaderRef` 和 [XLSX 单元格读取器](https://github.com/tafia/calamine/blob/0af05f4f6030351e3b8a999ea0810c8618368776/src/xlsx/cells_reader.rs) 值得参考：读取和存储介质分离，部分路径减少字符串复制。
 
 需要特别防止误用 `Range<T>`：它的内部是矩形范围对应的 `Vec<T>`；`Range::from_sparse` 最后仍按矩形面积分配 `vec![T::default(); len]`。这不是持久的稀疏存储。两个距离很远的单元格也可能形成巨大矩形。
 
@@ -86,9 +86,9 @@ Calamine 的定位是表格读取。解析到公式字符串不等于计算公�
 
 ### 3.5 Office Oxide：比 AnyDoc 更接近文件操作 SDK，仍不是 Office 编辑器底座
 
-这个项目值得认真读，不能简单归类为“只有提取”。除了读取，它还有结构化 IR、创建和有限的原文件编辑；[WASM 接口](../references/office_oxide/src/wasm.rs) 包含文本替换、设置单元格和返回保存字节。
+这个项目值得认真读，不能简单归类为“只有提取”。除了读取，它还有结构化 IR、创建和有限的原文件编辑；[WASM 接口](https://github.com/yfedoseev/office_oxide/blob/7fce6094b46c6a7afd133fedbffe305ddb1929a1/src/wasm.rs) 包含文本替换、设置单元格和返回保存字节。
 
-其中 [EditablePackage](../references/office_oxide/src/core/editable.rs) 的原始部件保留和局部修改思路适合我们：不认识的文件不必因为没有建模就丢掉。DOCX 文本替换也考虑了文字跨 run 的情况，见 [src/docx/edit.rs](../references/office_oxide/src/docx/edit.rs)。
+其中 [EditablePackage](https://github.com/yfedoseev/office_oxide/blob/7fce6094b46c6a7afd133fedbffe305ddb1929a1/src/core/editable.rs) 的原始部件保留和局部修改思路适合我们：不认识的文件不必因为没有建模就丢掉。DOCX 文本替换也考虑了文字跨 run 的情况，见 [src/docx/edit.rs](https://github.com/yfedoseev/office_oxide/blob/7fce6094b46c6a7afd133fedbffe305ddb1929a1/src/docx/edit.rs)。
 
 但检查实现后，有以下边界：
 
@@ -98,7 +98,7 @@ Calamine 的定位是表格读取。解析到公式字符串不等于计算公�
 - 当前 WASM 接口明确没有涵盖全部 native builder / 创建 / `saveAs` 能力。不能从 native API 数量推导浏览器可用范围。
 - README 的大规模样本结果主要服务解析/提取回归，并不证明 Word 视觉保真或交互编辑保真。
 
-其 [regression-sweep](../references/office_oxide/scripts/regression-sweep/README.md) 区分解析状态与内容差异，也讨论词频而不是只比词集合，很值得学习。真实 corpus 没有随库完整分发，我们没有复现其总体兼容率。
+其 [regression-sweep](https://github.com/yfedoseev/office_oxide/blob/7fce6094b46c6a7afd133fedbffe305ddb1929a1/scripts/regression-sweep/README.md) 区分解析状态与内容差异，也讨论词频而不是只比词集合，很值得学习。真实 corpus 没有随库完整分发，我们没有复现其总体兼容率。
 
 结论：在用户列出的五个项目里，它最值得作为“开放的多 Office 格式读写实现”继续研究；但作为整体底座，优先级仍低于下面的分层组合。
 
@@ -108,9 +108,9 @@ Calamine 的定位是表格读取。解析到公式字符串不等于计算公�
 
 Typst 的价值不在于 Rust 语法，而在于它把“从语义内容得到页面”和“获取外部资源/输出页面”分开。
 
-- [World](../references/typst/crates/typst-library/src/lib.rs) 明确列出 source、file、font 等外部资源访问，缓存归属也有说明。我们的宿主可以预先提供资源字节，核心不必直接读文件或调用 DOM。
-- [Frame](../references/typst/crates/typst-library/src/layout/frame.rs) 保存已定位的文本、形状、图片、分组等内容。布局结果不是某个浏览器 DOM 的副作用。
-- [inline](../references/typst/crates/typst-layout/src/inline/mod.rs) 与 [flow](../references/typst/crates/typst-layout/src/flow/mod.rs) 有实际的 `comemo::memoize` 边界。缓存与输入依赖相关，而不只是渲染结果全量重用。
+- [World](https://github.com/typst/typst/blob/e58a63af09032a486b12241d08ebd04131483221/crates/typst-library/src/lib.rs) 明确列出 source、file、font 等外部资源访问，缓存归属也有说明。我们的宿主可以预先提供资源字节，核心不必直接读文件或调用 DOM。
+- [Frame](https://github.com/typst/typst/blob/e58a63af09032a486b12241d08ebd04131483221/crates/typst-library/src/layout/frame.rs) 保存已定位的文本、形状、图片、分组等内容。布局结果不是某个浏览器 DOM 的副作用。
+- [inline](https://github.com/typst/typst/blob/e58a63af09032a486b12241d08ebd04131483221/crates/typst-layout/src/inline/mod.rs) 与 [flow](https://github.com/typst/typst/blob/e58a63af09032a486b12241d08ebd04131483221/crates/typst-layout/src/flow/mod.rs) 有实际的 `comemo::memoize` 边界。缓存与输入依赖相关，而不只是渲染结果全量重用。
 
 我们应该学习这些边界，不应该移植其脚本语言、求值器、宏系统或完整 `comemo` 框架。Typst 的内容语义也不是 Word 的内容语义；把 DOCX 转成 Typst 再转回，不会自动保留原文档。
 
@@ -120,9 +120,9 @@ Typst 的价值不在于 Rust 语法，而在于它把“从语义内容得到�
 
 这是 OPC/OOXML 保真设计最有价值的参考之一。
 
-- [OpenXmlPart](../references/Open-XML-SDK/src/DocumentFormat.OpenXml.Framework/Packaging/OpenXmlPart.cs) 区分部件存在与 root DOM 已加载，支持需要时才解析。
-- [OpenXmlUnknownElement](../references/Open-XML-SDK/src/DocumentFormat.OpenXml.Framework/OpenXmlUnknownElement.cs) 可以保存 `RawOuterXml`，未解析时直接写出；已解析时按结构写出。
-- [OpenXmlPartReader](../references/Open-XML-SDK/src/DocumentFormat.OpenXml.Framework/OpenXmlPartReader.cs) 提供另一种读取形态，不要求所有操作都建立完整 DOM。
+- [OpenXmlPart](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/src/DocumentFormat.OpenXml.Framework/Packaging/OpenXmlPart.cs) 区分部件存在与 root DOM 已加载，支持需要时才解析。
+- [OpenXmlUnknownElement](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/src/DocumentFormat.OpenXml.Framework/OpenXmlUnknownElement.cs) 可以保存 `RawOuterXml`，未解析时直接写出；已解析时按结构写出。
+- [OpenXmlPartReader](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/src/DocumentFormat.OpenXml.Framework/OpenXmlPartReader.cs) 提供另一种读取形态，不要求所有操作都建立完整 DOM。
 
 值得采用的是“已理解内容的类型化操作 + 未理解内容的保留”以及 OPC 包图。没有必要一次生成全部 schema，也不要承诺所有 XML/ZIP 字节原封不动。
 
@@ -134,7 +134,7 @@ Typst 的价值不在于 Rust 语法，而在于它把“从语义内容得到�
 
 Parley 将字体、塑形、文本布局与编辑几何作为专门问题处理，不把它们埋在某种 Office 格式中。
 
-[LayoutContext](../references/parley/parley/src/context.rs) 复用分析、塑形与样式构建的 scratch space；[Cursor](../references/parley/parley/src/editing/cursor.rs) 处理 affinity、字形簇、RTL 和视觉移动，而不是简单用字符数量决定光标坐标。
+[LayoutContext](https://github.com/linebender/parley/blob/80faa617c851679c2a925293224cd7cda4a17877/parley/src/context.rs) 复用分析、塑形与样式构建的 scratch space；[Cursor](https://github.com/linebender/parley/blob/80faa617c851679c2a925293224cd7cda4a17877/parley/src/editing/cursor.rs) 处理 affinity、字形簇、RTL 和视觉移动，而不是简单用字符数量决定光标坐标。
 
 这些设计对 MoonBit 仍然有价值：GC 不会消除短命数组、重复字符串和临时对象的成本。但 Rust 里的生命周期、借用和共享所有权不需要逐字翻译。
 
@@ -142,15 +142,15 @@ Parley 将字体、塑形、文本布局与编辑几何作为专门问题处理�
 
 ### 4.4 IronCalc：表格业务内核参考，不是现成的最优增量计算器
 
-[Model](../references/IronCalc/base/src/model.rs) 管理工作簿、解析公式及计算状态；[UserModel](../references/IronCalc/base/src/user_model/common.rs) 将用户修改、diff、历史和撤销重做放在核心。这种“编辑动作改变同一核心状态”的方向适合薄 TS。
+[Model](https://github.com/ironcalc/IronCalc/blob/09e81f53f4c021fc0ec212e95fb353a1c6c5c704/base/src/model.rs) 管理工作簿、解析公式及计算状态；[UserModel](https://github.com/ironcalc/IronCalc/blob/09e81f53f4c021fc0ec212e95fb353a1c6c5c704/base/src/user_model/common.rs) 将用户修改、diff、历史和撤销重做放在核心。这种“编辑动作改变同一核心状态”的方向适合薄 TS。
 
-需要避免夸大其增量能力：[evaluation.rs](../references/IronCalc/base/src/evaluation.rs) 的 `evaluate` 路径遍历公式并处理动态数组等情形，不能说它已经只重算 dirty 依赖子图。我们可以先采用其公式语义和测试思路，但必须单独测量改单元格的成本。
+需要避免夸大其增量能力：[evaluation.rs](https://github.com/ironcalc/IronCalc/blob/09e81f53f4c021fc0ec212e95fb353a1c6c5c704/base/src/evaluation.rs) 的 `evaluate` 路径遍历公式并处理动态数组等情形，不能说它已经只重算 dirty 依赖子图。我们可以先采用其公式语义和测试思路，但必须单独测量改单元格的成本。
 
 不应把它的同步队列、所有用户操作外围机制或前端相关高度启发式一起移植。我们当前没有协作服务目标。
 
 ### 4.5 Excelize：Go 项目同样能提供重要的格式经验
 
-Excelize 将结构化工作表对象、包中原始内容和流式写入结合使用。[file.go](../references/excelize/file.go) 的保存路径会处理已改动的模型与保留的包内容；流式能力适合批量读写，而不是要求所有数据常驻同一种完整 DOM。
+Excelize 将结构化工作表对象、包中原始内容和流式写入结合使用。[file.go](https://github.com/qax-os/excelize/blob/efb59188b3f56bbffdd614408ad85634292642db/file.go) 的保存路径会处理已改动的模型与保留的包内容；流式能力适合批量读写，而不是要求所有数据常驻同一种完整 DOM。
 
 它使用文件系统临时文件等 native 能力，不能原样搬到浏览器。值得取的是部件级处理、XLSX 兼容规则与测试，不是照搬 Go 的 runtime、锁和文件缓存机制。
 
@@ -158,7 +158,7 @@ Excelize 将结构化工作表对象、包中原始内容和流式写入结合�
 
 ### 4.6 Krilla：布局结束后，PDF 后端该做什么
 
-[Surface](../references/krilla/crates/krilla/src/surface.rs) 同时提供高层文字绘制与接受既定字形位置的 `draw_glyphs`。对我们而言，后者更重要：PDF 后端消费同一份排版结果，不应该再次决定换行。
+[Surface](https://github.com/LaurenzV/krilla/blob/ce83e37f2913623b9283f7cb75c21b21d9c59a8a/crates/krilla/src/surface.rs) 同时提供高层文字绘制与接受既定字形位置的 `draw_glyphs`。对我们而言，后者更重要：PDF 后端消费同一份排版结果，不应该再次决定换行。
 
 字体嵌入/子集、文字提取映射、图片、PDF 结构与验证都有独立复杂性，不能简化成“把 Canvas 画面截图进 PDF”。Krilla 的测试组织也提示我们同时检查渲染与 PDF 结构。
 
@@ -181,12 +181,12 @@ Excelize 将结构化工作表对象、包中原始内容和流式写入结合�
 
 ### 5.1 flate：最有希望直接使用，但默认行为不是我们的最终包策略
 
-[ZIP API](../references/flate/flate/zip/pkg.generated.mbti) 包含读取预算、取消、流式 Writer，以及 `write_preserving` / `write_preserving_limited`，可以复用未修改条目的原始记录。
+[ZIP API](https://github.com/moonbit-community/flate/blob/63f4f9fe51356670ca951f2b5da1d726a0bba52e/flate/zip/pkg.generated.mbti) 包含读取预算、取消、流式 Writer，以及 `write_preserving` / `write_preserving_limited`，可以复用未修改条目的原始记录。
 
 几个不能省略的限制：
 
-- [read](../references/flate/flate/zip/reader.mbt) 明确解码每个 entry。压缩器支持流式处理，不等于 ZIP 包读取已经懒解压。
-- [ReadLimits::default](../references/flate/flate/zip/types.mbt) 使用接近 Int 上限的默认值，不是适合浏览器的资源预算。SDK 必须显式传入限制。
+- [read](https://github.com/moonbit-community/flate/blob/63f4f9fe51356670ca951f2b5da1d726a0bba52e/flate/zip/reader.mbt) 明确解码每个 entry。压缩器支持流式处理，不等于 ZIP 包读取已经懒解压。
+- [ReadLimits::default](https://github.com/moonbit-community/flate/blob/63f4f9fe51356670ca951f2b5da1d726a0bba52e/flate/zip/types.mbt) 使用接近 Int 上限的默认值，不是适合浏览器的资源预算。SDK 必须显式传入限制。
 - 当前 `read` 返回 CRC 信息但不验证 CRC。需要完整性检查时，应使用 checksum API 校验，而不是以“成功解压”代替 CRC 校验。
 - 保留原始压缩数据可能增加驻留内存；需要同时限制解压内容和保留的源记录。
 
@@ -194,7 +194,7 @@ P0 小样本可以先用有明确预算的现有读取路径。真正面向大�
 
 ### 5.2 XML：pull 事件不等于字节流解析，语法正确不等于保真
 
-[xml-mbt](../references/xml-mbt/README.md) 当前接受 UTF-8 输入，不覆盖所有 XML 编码。事件与属性 span 使用 UTF-16 code unit，方便切 MoonBit String；它们不是源文件 UTF-8 字节偏移。
+[xml-mbt](https://github.com/moonbit-community/xml-mbt/blob/2468d70e4c49e3b017cabe7d5d8ef7b29bcff141/README.md) 当前接受 UTF-8 输入，不覆盖所有 XML 编码。事件与属性 span 使用 UTF-16 code unit，方便切 MoonBit String；它们不是源文件 UTF-8 字节偏移。
 
 对于保留未知 XML，这比完全丢失源位置信息更有用。但仍需选择：保留未变更部件字节；对修改部件保留未触及的原始片段及命名空间上下文；或者完整解析并保证扩展节点可逆。不能只接一个 parser 就宣称无损。
 
@@ -204,16 +204,16 @@ P0 小样本可以先用有明确预算的现有读取路径。真正面向大�
 
 它是 Rust cosmic-text 的 MoonBit 移植。比单独找到字体 parser 更重要的是，它已经把布局、字形和编辑几何接在一起。
 
-- [LayoutGlyph](../references/moon_cosmic/src/layout.mbt) 有 `glyph_id`、`font_id`、文本 `start/end`、`x/y`、`x_offset/y_offset` 和 BiDi level。
-- [shape.mbt](../references/moon_cosmic/src/shape.mbt) 当前通过 harfbuzz.mbt 进行塑形，构建 cluster 映射；README 中仅强调 moon_swash 的文字不足以描述当前实现。
-- [SwashCache](../references/moon_cosmic/src/swash.mbt) 可以获取字形图像和轮廓命令，不必每次把字符串交给浏览器重新塑形。
+- [LayoutGlyph](https://github.com/moonbit-community/moon_cosmic/blob/b307f2599accac591199a7cd16ab6594067ba272/src/layout.mbt) 有 `glyph_id`、`font_id`、文本 `start/end`、`x/y`、`x_offset/y_offset` 和 BiDi level。
+- [shape.mbt](https://github.com/moonbit-community/moon_cosmic/blob/b307f2599accac591199a7cd16ab6594067ba272/src/shape.mbt) 当前通过 harfbuzz.mbt 进行塑形，构建 cluster 映射；README 中仅强调 moon_swash 的文字不足以描述当前实现。
+- [SwashCache](https://github.com/moonbit-community/moon_cosmic/blob/b307f2599accac591199a7cd16ab6594067ba272/src/swash.mbt) 可以获取字形图像和轮廓命令，不必每次把字符串交给浏览器重新塑形。
 - 自带 Buffer、命中测试、编辑动作与缓存，可参考文本段落内的行为，但不把其 Editor 直接变成整个 DOCX 编辑模型。
 
 仍需验证：
 
 1. transitive dependencies 的固定版本在浏览器 WasmGC 下能构建、链接并运行；`moon test --target all` 不是浏览器 Worker 集成测试。
-2. [unicode_linebreak](../references/moon_cosmic/src/unicode_linebreak/unicode_linebreak_test.mbt) 的向量测试存在显式跳过集合；分段源码也有简化规则，不能宣称完整 Unicode 一致性。
-3. [该子包 manifest](../references/moon_cosmic/src/unicode_linebreak/moon.pkg) 将 `moonbitlang/x/fs` 列为普通 import，而其测试读取本地文件。需要检查最终浏览器 imports 是否剔除了无关 I/O；不能只看库声明。
+2. [unicode_linebreak](https://github.com/moonbit-community/moon_cosmic/blob/b307f2599accac591199a7cd16ab6594067ba272/src/unicode_linebreak/unicode_linebreak_test.mbt) 的向量测试存在显式跳过集合；分段源码也有简化规则，不能宣称完整 Unicode 一致性。
+3. [该子包 manifest](https://github.com/moonbit-community/moon_cosmic/blob/b307f2599accac591199a7cd16ab6594067ba272/src/unicode_linebreak/moon.pkg) 将 `moonbitlang/x/fs` 列为普通 import，而其测试读取本地文件。需要检查最终浏览器 imports 是否剔除了无关 I/O；不能只看库声明。
 4. 实际塑形路径使用默认语言 `und`。语言相关替换、CJK 字形、不同字体与变体轴须单独检查。
 5. 绘制 API 有逐像素回调形式；不能把回调逐次跨到 TS。应在 WASM 内组装位图/图集或轮廓资源，再批量传输。
 
@@ -221,23 +221,23 @@ P0 小样本可以先用有明确预算的现有读取路径。真正面向大�
 
 ### 5.4 harfbuzz、Unicode 和 font：功能重叠需要收敛
 
-[harfbuzz.mbt](../references/harfbuzz.mbt/) 已有阿拉伯、Indic 等脚本相关实现，不能说 MoonBit 完全缺少复杂塑形。也不能从名字或移植清单推断与上游 HarfBuzz 全量等价；应使用相同字体和文本比对 glyph、cluster、advance 与 offset。
+[harfbuzz.mbt](https://github.com/moonbit-community/harfbuzz.mbt/tree/143eb274d414145dd9ee4d402ad25b2085f220a1/) 已有阿拉伯、Indic 等脚本相关实现，不能说 MoonBit 完全缺少复杂塑形。也不能从名字或移植清单推断与上游 HarfBuzz 全量等价；应使用相同字体和文本比对 glyph、cluster、advance 与 offset。
 
-[Unicode 仓库](../references/unicode/) 带 `BidiTest.txt` / `BidiCharacterTest.txt` 等向量，发布模块与测试文件 I/O 分开，这是好的测试组织。需要验证它如何衔接段落分析、软换行后的行级重排和编辑位置；并核对它与 shaping 库的 Unicode 数据版本。
+[Unicode 仓库](https://github.com/moonbit-community/tonyfettes-unicode/tree/6ebcc801a8251e81b2b78b00b40edc9bcd7ad4bc/) 带 `BidiTest.txt` / `BidiCharacterTest.txt` 等向量，发布模块与测试文件 I/O 分开，这是好的测试组织。需要验证它如何衔接段落分析、软换行后的行级重排和编辑位置；并核对它与 shaping 库的 Unicode 数据版本。
 
-[mizchi/font](../references/font/README.md) 可提取字体轮廓与度量，但明确没有 GSUB/GPOS/GDEF，因此不能代替 HarfBuzz，也不单独解决双向文本和换行。`moon_cosmic` 已依赖 swash/skrifa 路线，不应再为了“生态完整”把另一套字体 parser 全部引入。
+[mizchi/font](https://github.com/mizchi/font/blob/59ffb553b04d4334326ed073e562c430d23685ee/README.md) 可提取字体轮廓与度量，但明确没有 GSUB/GPOS/GDEF，因此不能代替 HarfBuzz，也不单独解决双向文本和换行。`moon_cosmic` 已依赖 swash/skrifa 路线，不应再为了“生态完整”把另一套字体 parser 全部引入。
 
 ### 5.5 office.mbt：非常相关，但不能因为官方组织维护就整体采用
 
-它已经有与我们需求重叠的模块，也在复用 flate 和 xml；[PPTX 来源记录](../references/office.mbt/pptx/UPSTREAM.md) 清楚记录了移植来源和改动。这些代码比另起炉灶实现所有 Office 解析器更值得先看。
+它已经有与我们需求重叠的模块，也在复用 flate 和 xml；[PPTX 来源记录](https://github.com/moonbitlang/office.mbt/blob/2f08f3b8041d9098d258969fe3902b34585163cc/pptx/UPSTREAM.md) 清楚记录了移植来源和改动。这些代码比另起炉灶实现所有 Office 解析器更值得先看。
 
 但当前底座仍有需要回避的实现选择：
 
-- [ooxml/opc/package.mbt](../references/office.mbt/ooxml/opc/package.mbt) 先 `zip.read`，再复制所有 entry 数据到 parts；保存新建 Archive，不走 flate 的 preserving write。增加内存和重写成本。
-- [ooxml XML adapter](../references/office.mbt/ooxml/README.md) 明确不保留注释、PI、命名空间声明拼写，以及属性值里的前缀等内容。不能把它直接当高保真编辑底座。
-- [pagelayout 的 GlyphRun](../references/office.mbt/pagelayout/page_model.mbt) 是 `text + advances_pt`，advance 按 UTF-16 code unit 索引，没有完整的 glyph ID / cluster / offset。命名叫 GlyphRun，不代表已满足复杂塑形后的通用输出合同。
-- [pagelayout/pdf/moon.pkg](../references/office.mbt/pagelayout/pdf/moon.pkg) 明确 `supported_targets = "native+wasm"`，不包含 `wasm-gc`。不能把“MoonBit PDF 后端存在”当作我们的 P0 PDF 已解决，也不能因此推断整个 pdflite 都不支持 GC。
-- 当前 [XLSX 存储](../references/office.mbt/mbtexcel/xlsx/worksheet_types.mbt) 已有 cell index；[索引实现](../references/office.mbt/mbtexcel/xlsx/worksheet_cell_index.mbt) 使用字符串坐标键。旧文档里没有索引的描述不能代替当前源码，索引分配成本也需要实测。
+- [ooxml/opc/package.mbt](https://github.com/moonbitlang/office.mbt/blob/2f08f3b8041d9098d258969fe3902b34585163cc/ooxml/opc/package.mbt) 先 `zip.read`，再复制所有 entry 数据到 parts；保存新建 Archive，不走 flate 的 preserving write。增加内存和重写成本。
+- [ooxml XML adapter](https://github.com/moonbitlang/office.mbt/blob/2f08f3b8041d9098d258969fe3902b34585163cc/ooxml/README.md) 明确不保留注释、PI、命名空间声明拼写，以及属性值里的前缀等内容。不能把它直接当高保真编辑底座。
+- [pagelayout 的 GlyphRun](https://github.com/moonbitlang/office.mbt/blob/2f08f3b8041d9098d258969fe3902b34585163cc/pagelayout/page_model.mbt) 是 `text + advances_pt`，advance 按 UTF-16 code unit 索引，没有完整的 glyph ID / cluster / offset。命名叫 GlyphRun，不代表已满足复杂塑形后的通用输出合同。
+- [pagelayout/pdf/moon.pkg](https://github.com/moonbitlang/office.mbt/blob/2f08f3b8041d9098d258969fe3902b34585163cc/pagelayout/pdf/moon.pkg) 明确 `supported_targets = "native+wasm"`，不包含 `wasm-gc`。不能把“MoonBit PDF 后端存在”当作我们的 P0 PDF 已解决，也不能因此推断整个 pdflite 都不支持 GC。
+- 当前 [XLSX 存储](https://github.com/moonbitlang/office.mbt/blob/2f08f3b8041d9098d258969fe3902b34585163cc/mbtexcel/xlsx/worksheet_types.mbt) 已有 cell index；[索引实现](https://github.com/moonbitlang/office.mbt/blob/2f08f3b8041d9098d258969fe3902b34585163cc/mbtexcel/xlsx/worksheet_cell_index.mbt) 使用字符串坐标键。旧文档里没有索引的描述不能代替当前源码，索引分配成本也需要实测。
 
 建议按格式读取、写入、URI、样式、字体与测试分别筛选。选择它的现成算法，不自动接受它所有中间表示和依赖边界。
 
