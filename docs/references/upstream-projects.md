@@ -57,4 +57,4 @@
 - [文档交互层](https://github.com/dream-num/univer/tree/d61608dace76b0db299c552eb3d1dccf0f8986dc/packages/docs-ui/src/)
 - [表格交互层](https://github.com/dream-num/univer/tree/d61608dace76b0db299c552eb3d1dccf0f8986dc/packages/sheets-ui/src/)
 
-阅读入口使用固定 commit 的上游链接，新检出不需要本机研究目录。这三个原有项目的本地副本仍位于相邻 `lynx-os/references/`；后续新增研究副本位于仓库根 `references/`，都不是构建或测试依赖，清单见 [G0](../g0-foundation-review.md)。复用源码、字体和测试文件前，应分别核对许可证与来源，保留必要声明；不以仓库顶层许可证代替逐项依赖核查。
+阅读入口使用固定 commit 的上游链接，新检出不需要本机研究目录。其他上游项目清单见 [G0](../g0-foundation-review.md)。复用源码、字体和测试文件前，应分别核对许可证与来源，保留必要声明；不以仓库顶层许可证代替逐项依赖核查。

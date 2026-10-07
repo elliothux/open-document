@@ -361,11 +361,11 @@ MoonBit 的字符串与 FFI 以 [语言文档](https://docs.moonbitlang.com/en/s
 运行结果：
 
 ```text
-references/anydoc
+AnyDoc @ 261fc257d17c3eab0f673be31c408fd9fdc2171a
 cargo test --locked --lib package::archive::tests -- --nocapture
 3 passed; 0 failed
 
-references/office_oxide
+Office Oxide @ 7fce6094b46c6a7afd133fedbffe305ddb1929a1
 cargo test --locked --lib core::editable:: -- --nocapture
 4 passed; 0 failed
 ```
@@ -378,7 +378,7 @@ Office Oxide 第一次使用 `core::editable::tests` 过滤得到 0 tests；不�
 
 下面的许可证是所查仓库顶层声明，不能替代依赖、字体、测试样本及移植代码的逐项核查；UniDoc 商业授权项目不作为可自由移植来源。
 
-| 本地目录 / 上游 | 本轮固定 HEAD | 顶层授权 |
+| 上游 | 本轮固定 HEAD | 顶层授权 |
 | --- | --- | --- |
 | [unioffice](https://github.com/unidoc/unioffice) | `7b4037da94004ef23fd6cdc927caa51c06210dff` | 商业 |
 | [unipdf](https://github.com/unidoc/unipdf) | `e279a3aa2c1ac0d5b55581e2a9b990b851eb5406` | 商业 |
@@ -400,4 +400,4 @@ Office Oxide 第一次使用 `core::editable::tests` 过滤得到 0 tests；不�
 | [unicode](https://github.com/moonbit-community/tonyfettes-unicode) | `6ebcc801a8251e81b2b78b00b40edc9bcd7ad4bc` | Apache-2.0，另核对 Unicode 数据声明 |
 | [moon_cosmic](https://github.com/moonbit-community/moon_cosmic) | `b307f2599accac591199a7cd16ab6594067ba272` | Apache-2.0，另保留移植来源声明 |
 
-原有三个项目的本地路径和 HEAD 见[上游参考项目](references/upstream-projects.md)。所有副本只供研究，不是当前项目构建依赖。
+原有三个项目的固定源码链接见[上游参考项目](references/upstream-projects.md)。研究源码不是当前项目构建依赖。
