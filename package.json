@@ -12,10 +12,10 @@
     "build": "bun run build:moon && bun run --filter '@open-document/*' build && cp _build/wasm-gc/release/build/open_document/bridge/bridge.wasm packages/wasm/dist/engine.wasm",
     "typecheck": "bun run --filter '@open-document/*' typecheck",
     "lint": "oxlint --deny-warnings packages",
-    "format": "moon fmt && prettier --write package.json tsconfig.json .oxlintrc.json packages",
-    "format:check": "moon fmt --check && prettier --check package.json tsconfig.json .oxlintrc.json packages",
+    "format": "moon fmt && prettier --write package.json tsconfig.json .oxlintrc.json .vscode packages",
+    "format:check": "moon fmt --check && prettier --check package.json tsconfig.json .oxlintrc.json .vscode packages",
     "check": "bun run check:moon && bun run typecheck && bun run lint && bun run format:check",
-    "test": "cd test-lab && bun run test",
+    "test": "test -f test-lab/package.json && cd test-lab && bun run test",
     "hooks:install": "simple-git-hooks",
     "api": "moon info"
   },

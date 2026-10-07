@@ -48,6 +48,8 @@ bun run api
 
 完成私有仓库的依赖与浏览器安装后，在根目录运行 `bun run test` 即可直接执行 `test-lab` 的完整测试入口。该命令必须依赖私有 checkout，缺失目录或任一步骤失败都会返回失败，不静默跳过。使用 `bun run test`，而不是调用 Bun 内置 runner 的 `bun test`；根 `check` / `build` 和 pre-commit 不依赖此测试入口。
 
+空的、尚未初始化的 submodule 目录也会在入口失败。VS Code/Cursor 共用 `.vscode/settings.json`，显式扫描 `test-lab` 并启用 submodule 检测；没有私有权限的公开使用者仍可正常 check/build。
+
 维护者获取私有仓库权限后，在根目录执行 `git submodule update --init --recursive`，按私有文档安装测试依赖。不自动跟踪远端分支；更新测试时先提交私有仓库，再提交主仓库的 gitlink。普通公开使用者不需要初始化私有 submodule。
 
 当前仅完成本地提交，尚未推送。其他机器能从远端初始化的前提是：先推送被引用的私有 commit，再推送主仓库提交；不要发布远端尚不可获取的 submodule 引用。
