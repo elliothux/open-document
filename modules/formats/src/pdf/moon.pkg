@@ -1,1 +1,11 @@
-// Placeholder: PDF writer in P3; reader in P7.
+import {
+  "open_document/core/failure",
+  "open_document/layout",
+  "moonbitlang/pdflite",
+  "moonbitlang/pdflite/core" @pdfcore,
+  "moonbitlang/pdflite/syntax",
+  "moonbitlang/pdflite/page",
+  "moonbitlang/pdflite/content",
+  "moonbitlang/pdflite/subsetter",
+  "moonbitlang/core/encoding/utf8",
+}

@@ -1,1 +1,22 @@
-// Placeholder: shaping and layout, planned in P3. No fake layout API.
+import {
+  "open_document/core/failure",
+  "moonbit-community/harfbuzz/font",
+  "moonbit-community/harfbuzz/face",
+  "moonbit-community/harfbuzz/sfnt",
+  "moonbit-community/harfbuzz/buffer",
+  "moonbit-community/harfbuzz/common",
+  "moonbit-community/harfbuzz/unicode",
+  "moonbit-community/harfbuzz/ot/shape" @shaper,
+  "moonbit-community/harfbuzz/draw",
+  "moonbit-community/bidi",
+  "Milky2018/moon_cosmic/unicode_linebreak" @linebreak,
+  "moonbitlang/x/crypto",
+}
+
+import {
+  "moonbitlang/x/fs",
+  "moonbitlang/core/env",
+  "moonbitlang/core/string",
+  "moonbit-community/harfbuzz/blob",
+  "moonbit-community/harfbuzz/ot/tables",
+} for "wbtest"

@@ -1,0 +1,16 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "open_document/core/failure"
+
+// Values
+pub fn[T] reject(String, String, part? : String, offset? : Int) -> T raise Failure
+
+// Errors
+pub(all) suberror Failure {
+  Failure(code~ : String, part~ : String, offset~ : Int, message~ : String)
+}
+
+// Types and methods
+
+// Type aliases
+
+// Traits

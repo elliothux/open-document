@@ -1,3 +1,5 @@
+import { FoundationSession } from "./foundation";
+
 /** Browser ABI adapter. Document state lives only in WasmGC. */
 export class TextSession {
   private closed = false;
@@ -48,6 +50,7 @@ export class TextSession {
 
 export async function loadEngine(wasm: BufferSource): Promise<{
   openText(text: string): TextSession;
+  openFoundation(): FoundationSession;
 }> {
   const { instance } = await WebAssembly.instantiate(
     wasm,
@@ -63,6 +66,12 @@ export async function loadEngine(wasm: BufferSource): Promise<{
   return {
     openText(text) {
       return new TextSession(instance.exports, open(text));
+    },
+    openFoundation() {
+      const create = instance.exports.new_foundation;
+      if (typeof create !== "function")
+        throw new Error("Missing new_foundation export");
+      return new FoundationSession(instance.exports, create());
     },
   };
 }

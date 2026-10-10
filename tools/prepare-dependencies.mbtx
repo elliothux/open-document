@@ -1,0 +1,37 @@
+///|
+import {
+  "moonbitlang/async@0.22.4",
+  "moonbitlang/async@0.22.4/fs",
+  "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/x@0.5.5/crypto",
+}
+
+///|
+async fn main {
+  @shell.Cmd("moon", ["check", "--target", "wasm-gc", "--dry-run"])
+  .output()
+  .check()
+  let path = ".mooncakes/moonbit-community/harfbuzz/src/ot/tables/gdef.mbt"
+  let source = @fs.read_file(path)
+  let hash = StringBuilder()
+  for byte in @crypto.sha256(source.binary()) {
+    hash.write_string(byte.to_int().to_string(radix=16).pad_start(2, '0'))
+  }
+  if hash.to_string() ==
+    "2c48f426f0a8f5baf767c1b09746f4b1c1ea9ea1cf9a4725ff29658c575fbfbb" {
+    return
+  }
+  guard hash.to_string() ==
+    "ff75d107183fac2fe5498f4f0cdf6237d821f7e1b1d83477856aed4ffa13ec3d" else {
+    fail("HarfBuzz 0.1.0 source changed; review the GDEF Offset32 patch")
+  }
+  // shortcut: patch GDEF Offset32 until a pinned upstream release fixes mark glyph sets.
+  let patched = source
+    .text()
+    .replace(old="list_base + set_count * 2", new="list_base + set_count * 4")
+    .replace(
+      old="read_u16_int(self.data, list_base + set_index * 2)",
+      new="read_u32_int(self.data, list_base + set_index * 4)",
+    )
+  @fs.write_file(path, patched)
+}

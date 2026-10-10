@@ -1,11 +1,46 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "open_document/core/opc"
 
+import {
+  "open_document/core/archive",
+  "open_document/core/failure",
+  "open_document/core/xml",
+}
+
 // Values
+pub fn part_name(String) -> Unit raise @failure.Failure
+
+pub fn resolve_target(String, String) -> String raise @failure.Failure
 
 // Errors
 
 // Types and methods
+pub struct Package {
+  archive : @archive.Package
+  names : Map[String, String]
+  types : Map[String, String]
+  relationships : Array[Relationship]
+  budget : @archive.Budget
+  signed : Bool
+  mut closed : Bool
+}
+pub fn Package::close(Self) -> Unit
+pub fn Package::content_type(Self, String) -> String? raise @failure.Failure
+pub fn Package::decoded_bytes(Self) -> Int raise @failure.Failure
+pub fn Package::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
+pub fn Package::read(Self, String) -> Bytes raise @failure.Failure
+pub fn Package::relationships(Self) -> ReadOnlyArray[Relationship] raise @failure.Failure
+pub fn Package::save(Self, Map[String, Bytes]) -> Bytes raise @failure.Failure
+pub fn Package::validate_replacements(Self, Map[String, Bytes]) -> Unit raise @failure.Failure
+pub fn Package::xml(Self, String) -> @xml.Document raise @failure.Failure
+
+pub(all) struct Relationship {
+  owner : String
+  id : String
+  kind : String
+  target : String
+  external : Bool
+}
 
 // Type aliases
 

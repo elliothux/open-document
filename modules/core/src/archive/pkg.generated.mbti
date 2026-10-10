@@ -1,11 +1,43 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "open_document/core/archive"
 
+import {
+  "open_document/core/failure",
+}
+
 // Values
 
 // Errors
 
 // Types and methods
+pub(all) struct Budget {
+  file_bytes : Int
+  entry_bytes : Int
+  total_bytes : Int
+  retained_bytes : Int
+  entries : Int
+  xml_depth : Int
+  output_bytes : Int
+}
+pub fn Budget::default() -> Self
+
+type Entry
+
+pub struct Package {
+  mut source : Bytes
+  index : Map[String, Entry]
+  cache : Map[String, Bytes]
+  budget : Budget
+  mut inflated : Int
+  mut closed : Bool
+}
+pub fn Package::close(Self) -> Unit
+pub fn Package::decoded_bytes(Self) -> Int raise @failure.Failure
+pub fn Package::names(Self) -> Array[String] raise @failure.Failure
+pub fn Package::open(Bytes, Budget) -> Self raise @failure.Failure
+pub fn Package::read(Self, String) -> Bytes raise @failure.Failure
+pub fn Package::save(Self, Map[String, Bytes]) -> Bytes raise @failure.Failure
+pub fn Package::validate_replacements(Self, Map[String, Bytes]) -> Int raise @failure.Failure
 
 // Type aliases
 

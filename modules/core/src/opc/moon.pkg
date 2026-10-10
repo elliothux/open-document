@@ -1,1 +1,10 @@
-// Placeholder: OPC package ownership and preservation, planned in P2.
+import {
+  "open_document/core/archive",
+  "open_document/core/xml",
+  "open_document/core/failure",
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "moonbit-community/flate/zip",
+} for "wbtest"

@@ -9,6 +9,14 @@
     "dist"
   ],
   "exports": {
+    "./preview": {
+      "types": "./src/preview.ts",
+      "default": "./dist/preview.js"
+    },
+    "./foundation": {
+      "types": "./src/foundation.ts",
+      "default": "./dist/foundation.js"
+    },
     "./client": {
       "types": "./src/client.ts",
       "default": "./dist/client.js"
@@ -19,7 +27,7 @@
     "@open-document/wasm": "workspace:*"
   },
   "scripts": {
-    "build": "bun build src/client.ts src/worker.ts --target browser --outdir dist && cp ../../LICENSE dist/LICENSE",
+    "build": "bun build src/client.ts src/worker.ts src/foundation.ts src/preview.ts --target browser --outdir dist && cp ../../LICENSE dist/LICENSE",
     "typecheck": "tsc --project tsconfig.json"
   }
 }

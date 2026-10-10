@@ -1,11 +1,38 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "open_document/formats/docx"
 
+import {
+  "open_document/core/archive",
+  "open_document/core/failure",
+  "open_document/core/opc",
+  "open_document/core/xml",
+  "open_document/layout",
+}
+
 // Values
 
 // Errors
 
 // Types and methods
+pub struct Session {
+  opc : @opc.Package
+  main : String
+  mut document : @xml.Document?
+  texts : Array[TextNode]
+  replacements : Map[Int, String]
+  mut revision : Int
+  mut closed : Bool
+  diagnostics : Array[String]
+}
+pub fn Session::close(Self) -> Unit
+pub fn Session::flow(Self) -> @layout.Flow raise @failure.Failure
+pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
+pub fn Session::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
+pub fn Session::query(Self) -> Json raise @failure.Failure
+pub fn Session::replace(Self, Int, Int, String) -> Int raise @failure.Failure
+pub fn Session::save(Self) -> Bytes raise @failure.Failure
+
+type TextNode
 
 // Type aliases
 

@@ -1,8 +1,14 @@
 # G0 — Office SDK 底座参考项目研究
 
-研究日期：2026-10-07。状态：`research`。源码调查与局部验证已完成，架构建议仍待决策及 WasmGC 验证；不是实现完成声明，也不替代 [P0 中已确定的选型与目标](p0-sdk-foundation.md)。MoonBit + WasmGC + 薄 TS 保持不变。
+研究日期：2026-10-07。状态：`research`。源码调查与局部验证已完成，部分职责边界已纳入阶段方案；不是实现完成声明，也不替代 [SDK 中已确定的选型与目标](references/sdk.md)。P1/P2 已选依赖的当前验证与具体缺口见[依赖记录](references/dependencies.md)，其他候选与后续能力仍待验证。MoonBit + WasmGC + 薄 TS 保持不变。
 
-本轮新克隆 19 个仓库，检查关键源码、依赖、目标声明、测试和许可证，并对两个 Rust 项目运行聚焦测试。原有 BetterOffice、GenOffice、Univer 继续使用相邻 `lynx-os/references` 中的源码。仓库快照见文末。
+本轮研究 19 个新增仓库快照，检查关键源码、依赖、目标声明、测试和许可证，并对两个 Rust 项目运行聚焦测试。原有 BetterOffice、GenOffice、Univer 的固定入口见[上游参考项目](references/upstream-projects.md)，其余快照见文末；不依赖本机研究目录存在。
+
+## 与实施阶段的关系
+
+本报告是参考证据，不是名为 foundation 的独立实施阶段，也不要求先搭完整通用框架。当前采纳范围、模块归属、前置顺序与延后项统一见[路线图的 G0 → P0–P3 映射](references/roadmap.md)。P0 已实现会话/宿主工程边界；P1 拥有目标/选型与字体、塑形、字形输出探针；P2 实现 ZIP/XML/OPC 与保真保存；P3 实现 DOCX 布局、预览和 PDF。依次完成 P0 → P1 → P2 → P3，不再跳号执行前置任务。
+
+下文的 World、Frame、DocumentSession、Workbook 等是研究中的职责或候选设计，不表示已创建对应 API。库版本、性能限制与实验结论保留调查当时口径；是否接入生产依赖必须通过所属阶段的 WasmGC 探针。P1 已选 DOCX 为首个完整格式，下文 §8 的格式选择讨论属于历史建议。
 
 ## 1. 结论
 
@@ -21,7 +27,7 @@
 | PDF 输出、字体子集和可验证的导出 | Krilla | 学习布局之后的 PDF 后端，不把 PDF 库当 Office 排版引擎 |
 | MoonBit 中可以复用的实现 | flate、Milky2018/xml、moon_cosmic 等 | 小范围接入验证，避免重新实现已有底层算法 |
 
-这是一组阅读与实现参考，不是一组需要同时引入的运行时依赖。P0 不引入 Rust 引擎拼盘，也不为这些参考项目分别建设适配框架。
+这是一组阅读与实现参考，不是一组需要同时引入的运行时依赖。浏览器阶段不引入 Rust 引擎拼盘，也不为这些参考项目分别建设适配框架。
 
 对 GenOffice 的判断应更具体：其 DOCX 分页和导出带有 DOM/Electron 耦合，表格集成 Univer，因而不适合作为纯计算 SDK 的总体底座；PPTX 的 RenderTree、度量接口和格式处理仍值得研究。不能从“功能多”“文件大”直接推出整个项目代码质量差。
 
@@ -138,7 +144,7 @@ Parley 将字体、塑形、文本布局与编辑几何作为专门问题处理�
 
 这些设计对 MoonBit 仍然有价值：GC 不会消除短命数组、重复字符串和临时对象的成本。但 Rust 里的生命周期、借用和共享所有权不需要逐字翻译。
 
-由于已找到 `moon_cosmic`，P0 应先验证它是否满足这些合同，不直接开启 Parley 全量移植。Parley 保留为发现接口缺口与检查复杂文本行为的参考。
+由于已找到 `moon_cosmic`，P1 应先验证它是否满足这些合同，不直接开启 Parley 全量移植。Parley 保留为发现接口缺口与检查复杂文本行为的参考。
 
 ### 4.4 IronCalc：表格业务内核参考，不是现成的最优增量计算器
 
@@ -190,7 +196,7 @@ Excelize 将结构化工作表对象、包中原始内容和流式写入结合�
 - 当前 `read` 返回 CRC 信息但不验证 CRC。需要完整性检查时，应使用 checksum API 校验，而不是以“成功解压”代替 CRC 校验。
 - 保留原始压缩数据可能增加驻留内存；需要同时限制解压内容和保留的源记录。
 
-P0 小样本可以先用有明确预算的现有读取路径。真正面向大文档的底座应将 ZIP 索引与部件解压分开；这是待实现/验证的能力，不能在文档里写成已获得。
+前期小样本可以先用有明确预算的现有读取路径。真正面向大文档的底座应将 ZIP 索引与部件解压分开；这是待实现/验证的能力，不能在文档里写成已获得。
 
 ### 5.2 XML：pull 事件不等于字节流解析，语法正确不等于保真
 
@@ -236,7 +242,7 @@ P0 小样本可以先用有明确预算的现有读取路径。真正面向大�
 - [ooxml/opc/package.mbt](https://github.com/moonbitlang/office.mbt/blob/2f08f3b8041d9098d258969fe3902b34585163cc/ooxml/opc/package.mbt) 先 `zip.read`，再复制所有 entry 数据到 parts；保存新建 Archive，不走 flate 的 preserving write。增加内存和重写成本。
 - [ooxml XML adapter](https://github.com/moonbitlang/office.mbt/blob/2f08f3b8041d9098d258969fe3902b34585163cc/ooxml/README.md) 明确不保留注释、PI、命名空间声明拼写，以及属性值里的前缀等内容。不能把它直接当高保真编辑底座。
 - [pagelayout 的 GlyphRun](https://github.com/moonbitlang/office.mbt/blob/2f08f3b8041d9098d258969fe3902b34585163cc/pagelayout/page_model.mbt) 是 `text + advances_pt`，advance 按 UTF-16 code unit 索引，没有完整的 glyph ID / cluster / offset。命名叫 GlyphRun，不代表已满足复杂塑形后的通用输出合同。
-- [pagelayout/pdf/moon.pkg](https://github.com/moonbitlang/office.mbt/blob/2f08f3b8041d9098d258969fe3902b34585163cc/pagelayout/pdf/moon.pkg) 明确 `supported_targets = "native+wasm"`，不包含 `wasm-gc`。不能把“MoonBit PDF 后端存在”当作我们的 P0 PDF 已解决，也不能因此推断整个 pdflite 都不支持 GC。
+- [pagelayout/pdf/moon.pkg](https://github.com/moonbitlang/office.mbt/blob/2f08f3b8041d9098d258969fe3902b34585163cc/pagelayout/pdf/moon.pkg) 明确 `supported_targets = "native+wasm"`，不包含 `wasm-gc`。不能把“MoonBit PDF 后端存在”当作我们的浏览器 PDF 输出已解决，也不能因此推断整个 pdflite 都不支持 GC。
 - 当前 [XLSX 存储](https://github.com/moonbitlang/office.mbt/blob/2f08f3b8041d9098d258969fe3902b34585163cc/mbtexcel/xlsx/worksheet_types.mbt) 已有 cell index；[索引实现](https://github.com/moonbitlang/office.mbt/blob/2f08f3b8041d9098d258969fe3902b34585163cc/mbtexcel/xlsx/worksheet_cell_index.mbt) 使用字符串坐标键。旧文档里没有索引的描述不能代替当前源码，索引分配成本也需要实测。
 
 建议按格式读取、写入、URI、样式、字体与测试分别筛选。选择它的现成算法，不自动接受它所有中间表示和依赖边界。
@@ -246,7 +252,7 @@ P0 小样本可以先用有明确预算的现有读取路径。真正面向大�
 下面是职责划分，不是预先要创建的 package 清单。
 
 ```text
-Web TS / Worker bridge                         CLI host（P1）
+Web TS / Worker bridge                         CLI host（后续 P9）
 文件、字体、IME、指针、无障碍、绘制执行             文件/参数/输出
                  │                                 │
                  └────── bytes / commands ──────────┘
@@ -317,7 +323,7 @@ PDF 属于固定版面，Markdown 属于信息投影，也不应反向成为所�
 | UTF-8 字符串与 byte offset | MoonBit String 使用 UTF-16；外部字节、code unit、code point、grapheme、glyph cluster 必须区分 |
 | `usize`、大文件寻址、mmap | MoonBit 数值范围、WASM 内存和浏览器输入缓冲约束；不能直接平移大小计算 |
 | 宏、derive、trait blanket impl | 保留业务合同，减少依赖语言技巧的框架机制 |
-| Rayon、锁、多线程缓存 | P0 单 Worker owner 和批量任务先成立，不复制 native 并行结构 |
+| Rayon、锁、多线程缓存 | 浏览器单 Worker owner 和批量任务先成立，不复制 native 并行结构 |
 | wasm-bindgen 的 JS ABI | 不能拿来直接暴露 WasmGC 对象；需要我们自己的小型批量数据边界 |
 
 MoonBit 的字符串与 FFI 以 [语言文档](https://docs.moonbitlang.com/en/stable/language/fundamentals.html) 和 [FFI 文档](https://docs.moonbitlang.com/en/stable/language/ffi.html) 为准。Rust 项目能编译成传统 WASM，也不代表它能作为 WasmGC 对象库直接链接进 MoonBit。
@@ -356,7 +362,7 @@ MoonBit 的字符串与 FFI 以 [语言文档](https://docs.moonbitlang.com/en/s
 
 ## 9. 本轮证据与限制
 
-实际运行环境：macOS；Cargo 1.98.0。当前 PATH 未发现 `moon` / `moonc`，所以没有运行 MoonBit 测试或浏览器 WasmGC 集成，未安装新的工具链。
+本轮调查当时的运行环境：macOS；Cargo 1.98.0。当时 PATH 未发现 `moon` / `moonc`，所以该轮没有运行 MoonBit 测试或浏览器 WasmGC 集成；之后的工程验证见 [P0](implemented/p0-project-foundation.md)，不据此改写历史实验结论。
 
 运行结果：
 

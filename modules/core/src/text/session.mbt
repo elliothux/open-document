@@ -33,7 +33,7 @@ pub fn Session::replace(
   }
   guard self.text.get_view(end=start) is Some(before) else { return 1 }
   guard self.text.get_view(start=end) is Some(after) else { return 1 }
-  // P1 probe: bound snapshot undo; replace with edit records in the editor phase.
+  // P0 probe: bound snapshot undo; replace with edit records in the editor phase.
   if self.history.length() >= 100 {
     return 3
   }

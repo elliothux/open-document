@@ -1,21 +1,33 @@
 # 开发与模块边界
 
-当前只有工程底座和纯文本 POC。`archive`、`xml`、`opc`、`layout` 及四种格式包是明确的占位包，没有解析、排版或转换实现。
+当前实现工程/文本 POC、字体塑形与轮廓 probe、有界 ZIP/XML/OPC、Transitional DOCX 的正文文本节点查询/替换/保存，以及限定 DOCX 分页预览和 PDF 输出。`xlsx`、`pptx` 仍为占位包；PDF reader 尚未实现。当前支持面见[格式合同](formats.md)，固定第三方依赖见[依赖记录](dependencies.md)。
 
 ## Workspace
 
 | 位置 | 所有权 | 允许依赖 |
 | --- | --- | --- |
-| `modules/core` | 纯计算基础能力；当前实现 `text.Session` | MoonBit 标准库，后续审核的基础库；不依赖宿主 |
+| `modules/core` | text、failure、archive、XML 源片段与 OPC 图 | 标准库、固定 flate/xml；不依赖宿主 |
 | `modules/layout` | 字体塑形、几何、分页与绘制结果 | core；不通过 DOM 决定布局 |
 | `modules/formats` | docx/xlsx/pptx/pdf 的独立语义与读写 | core；需要输出布局时依赖 layout |
-| `modules/bridge` | Wasm 导出、核心到宿主的 ABI | 当前只依赖 core/text |
+| `modules/bridge` | Wasm 导出、核心到宿主的批量 ABI | core、layout、formats/docx、formats/pdf |
 | `packages/wasm` | 实例化与 ABI 校验 | WasmGC 产物；不拥有第二份文档模型 |
 | `packages/web` | Worker 请求与生命周期 | wasm 包；不实现文本替换、撤销或排版 |
 
 根 `moon.work` 明确列举四个 module，各 module 内以 package 划分真实 concern。暂不为每种格式创建独立发布 module，也不创建 CLI 空壳。根 Bun workspace 只包含 `packages/*`，一个公开 `bun.lock`；私有工具是独立仓库和独立依赖域，不加入公开 workspace。
 
 文本 POC 使用 UTF-16 范围，不允许切断 surrogate pair；它不是字素导航或富文本编辑器。核心保留最多 100 条文本快照用于 POC 撤销，正式编辑阶段再基于测量改为编辑记录。当前 ABI 使用 JS string builtins，尚不承诺其他 WasmGC runtime 等价运行。
+
+## 当前 Foundation API
+
+公开源码入口为 `packages/wasm/src/foundation.ts` 和 `packages/web/src/foundation.ts`，与既有文本 POC 分属真实职责。底层 `loadEngine(wasm).openFoundation()` 适用于受控同步调用；浏览器使用 `FoundationClient.open(wasm, workerUrl)`。宿主提供实际 release Wasm 字节和 bundle 后 Worker 的 URL，不依赖测试服务器。
+
+客户端提供 `defaultBudget()`、`addFont(bytes, identity)`、`shape(text, size, language)`、`openDocx(bytes, budget)`、`query()`、`replaceNode(id, revision, text)`、`saveDocx()`、`flow()`、`imageBytes(key)`、`addImage(key,width,height,rgba)`、`layout(profile)`、`exportPdf(outputBytes,layoutId?)` 与 `dispose()`。DOCX 打开要求显式预算，可从核心默认值复制并收紧。`ShapeBatch` 包含字体身份、font units 度量、CSS px 位置和 UTF-16 clusters；布局使用 point。一个 `OutlineCanvas` 持有同会话派生 Path2D 并在结束时 `dispose()`。
+
+`@open-document/web/preview` 的 `DocumentPreview` 复用 caller 的 `FoundationClient`，创建和关闭边界见[格式合同](formats.md)。宿主先加载所需授权字体；预览准备包内图片、请求核心布局、执行绘制及下载。TS 不持有可编辑文档树，不再塑形。
+
+`tools/prepare-dependencies.mbtx` 是公开构建准备步骤，不依赖私有测试库。它让 Moon 下载精确固定依赖，校验 HarfBuzz 0.1.0 原文件 SHA-256，再修复 GDEF MarkGlyphSets 的 Offset32 读取；重复运行核对已补丁 hash。未知源码直接失败。`check`、`build`、`api` 调用此步骤；直接运行 Moon 命令前也需先运行它。补丁依据、移除条件和许可归[依赖记录](dependencies.md)。
+
+连接代码只拥有一个 in-flight 请求和 Worker 生命周期；不包含通用 RPC 或可独立编辑的文档树。用户字节经 structured clone/JSON/base64 批量穿过边界，已作为当前切片的可测成本；后续只有实测证明它阻碍文档使用时才更换 ABI。
 
 ## 工具与命令
 
@@ -44,13 +56,13 @@ bun run api
 
 ## 开源与私有边界
 
-所有一方测试、数据、预期结果和执行 loop 属于私有 `open-document-test`。公开构建完全不依赖它。`test-lab/` 作为 Git submodule 固定到私有仓库的一个 commit；主仓库只保存 `.gitmodules` 和 gitlink，不包含私有文件。
+所有一方测试代码、数据、具体预期结果、原始报告和执行 loop 属于私有 `open-document-test`。产品、架构与测试文档统一在父仓库 `docs/`，不在子仓库重复维护。公开构建完全不依赖私有仓库。`test-lab/` 作为 Git submodule 固定到私有仓库的一个 commit；主仓库只保存 `.gitmodules` 和 gitlink，不包含私有文件。
 
 完成私有仓库的依赖与浏览器安装后，在根目录运行 `bun run test` 即可直接执行 `test-lab` 的完整测试入口。该命令必须依赖私有 checkout，缺失目录或任一步骤失败都会返回失败，不静默跳过。使用 `bun run test`，而不是调用 Bun 内置 runner 的 `bun test`；根 `check` / `build` 和 pre-commit 不依赖此测试入口。
 
 空的、尚未初始化的 submodule 目录也会在入口失败。VS Code/Cursor 共用 `.vscode/settings.json`，显式扫描 `test-lab` 并启用 submodule 检测；没有私有权限的公开使用者仍可正常 check/build。
 
-维护者获取私有仓库权限后，在根目录执行 `git submodule update --init --recursive`，按私有文档安装测试依赖。不自动跟踪远端分支；更新测试时先提交私有仓库，再提交主仓库的 gitlink。普通公开使用者不需要初始化私有 submodule。
+维护者获取私有仓库权限后，在根目录执行 `git submodule update --init --recursive`，按[测试说明](testing.md)安装测试依赖。不自动跟踪远端分支；更新测试时先提交私有仓库，再提交主仓库的 gitlink。普通公开使用者不需要初始化私有 submodule。
 
 当前仅完成本地提交，尚未推送。其他机器能从远端初始化的前提是：先推送被引用的私有 commit，再推送主仓库提交；不要发布远端尚不可获取的 submodule 引用。
 

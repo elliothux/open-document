@@ -3,10 +3,18 @@ package "open_document/bridge"
 
 import {
   "open_document/core/text",
+  "open_document/formats/docx",
+  "open_document/layout",
 }
 
 // Values
 pub fn close(@text.Session) -> Unit
+
+pub fn foundation_call(Foundation, String) -> String
+
+pub fn foundation_close(Foundation) -> Unit
+
+pub fn new_foundation() -> Foundation
 
 pub fn open_text(String) -> @text.Session
 
@@ -19,6 +27,14 @@ pub fn undo(@text.Session) -> Int
 // Errors
 
 // Types and methods
+pub struct Foundation {
+  probe : @layout.TextProbe
+  mut docx : @docx.Session?
+  mut closed : Bool
+  mut layout : @layout.Layout?
+  images : @layout.Images
+  mut layout_id : Int
+}
 
 // Type aliases
 

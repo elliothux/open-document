@@ -1,11 +1,52 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "open_document/core/xml"
 
+import {
+  "open_document/core/failure",
+}
+
 // Values
+pub fn valid_text(String) -> Bool
 
 // Errors
 
 // Types and methods
+pub(all) struct Attribute {
+  uri : String
+  name : String
+  value : String
+  start : Int
+  end : Int
+}
+
+pub struct Document {
+  source : String
+  nodes : Array[Node]
+  text_spans : Array[Array[(Int, Int)]]
+  declaration_end : Int
+  declaration : String
+  part : String
+  depth_limit : Int
+  byte_limit : Int
+}
+pub fn Document::nodes(Self) -> ReadOnlyArray[Node]
+pub fn Document::parse(Bytes, String, Int, Int) -> Self raise @failure.Failure
+pub fn Document::replace(Self, Map[Int, String]) -> Bytes raise @failure.Failure
+
+pub(all) struct Node {
+  uri : String
+  name : String
+  qualified : String
+  parent : Int
+  start : Int
+  opening_end : Int
+  closing_start : Int
+  end : Int
+  text : String
+  attributes : ReadOnlyArray[Attribute]
+  empty : Bool
+}
+pub fn Node::attribute(Self, String, uri? : String) -> String?
 
 // Type aliases
 

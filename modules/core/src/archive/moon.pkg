@@ -1,1 +1,10 @@
-// Placeholder: bounded ZIP reading and writing, planned in P2.
+import {
+  "open_document/core/failure",
+  "moonbit-community/flate",
+  "moonbit-community/flate/checksum",
+  "moonbitlang/core/encoding/utf8",
+}
+
+import {
+  "moonbit-community/flate/zip",
+} for "wbtest"

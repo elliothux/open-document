@@ -1,11 +1,265 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "open_document/layout"
 
+import {
+  "open_document/core/failure",
+}
+
 // Values
+pub fn paginate(TextProbe, Flow, Map[String, String], Images) -> Layout raise @failure.Failure
 
 // Errors
 
 // Types and methods
+pub(all) struct Border {
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+} derive(ToJson)
+pub fn Border::to_json(Self) -> Json
+
+pub(all) struct Fill {
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+  color : String
+} derive(ToJson)
+pub fn Fill::to_json(Self) -> Json
+
+pub(all) struct Flow {
+  revision : Int
+  page : PageSetup
+  paragraphs : Array[Paragraph]
+  diagnostics : Array[String]
+  tables : Array[Table]
+  headers : Array[Array[Paragraph]]
+  headerDistance : Double
+} derive(ToJson)
+pub fn Flow::to_json(Self) -> Json
+
+type Font
+
+pub(all) struct FontInfo {
+  identity : String
+  face : Int
+  variation : String
+  upem : Int
+  sha256 : String
+  ascent : Int
+  descent : Int
+  bbox : Array[Int]
+  capHeight : Int
+  italicAngle : Double
+} derive(ToJson)
+pub fn FontInfo::to_json(Self) -> Json
+
+pub(all) struct Glyph {
+  id : UInt
+  cluster : Int
+  font : Int
+  outline : String
+  x : Double
+  y : Double
+  scale : Double
+  advance : Int
+  yAdvance : Int
+  xOffset : Int
+  yOffset : Int
+} derive(ToJson)
+pub fn Glyph::to_json(Self) -> Json
+
+pub(all) struct GlyphDiagnostic {
+  code : String
+  cluster : Int
+  codepoint : Int
+} derive(ToJson)
+pub fn GlyphDiagnostic::to_json(Self) -> Json
+
+pub(all) struct GlyphRun {
+  start : Int
+  end : Int
+  level : Int
+  font : Int
+  script : String
+  language : String
+} derive(ToJson)
+pub fn GlyphRun::to_json(Self) -> Json
+
+pub(all) struct ImageResource {
+  width : Int
+  height : Int
+  rgba : Bytes
+}
+
+pub struct Images {
+  entries : Map[String, ImageResource]
+  mut retained : Int
+}
+pub fn Images::add(Self, String, Int, Int, Bytes) -> Unit raise @failure.Failure
+pub fn Images::clear(Self) -> Unit
+pub fn Images::get(Self, String) -> ImageResource raise @failure.Failure
+pub fn Images::new() -> Self
+
+pub(all) struct InlineImage {
+  key : String
+  width : Double
+  height : Double
+} derive(ToJson)
+pub fn InlineImage::to_json(Self) -> Json
+
+pub(all) struct Layout {
+  revision : Int
+  profile : Map[String, String]
+  pages : Array[PageFrame]
+  diagnostics : Array[String]
+  outlines : Array[Outline]
+  fonts : Array[FontInfo]
+} derive(ToJson)
+pub fn Layout::to_json(Self) -> Json
+
+pub(all) struct Line {
+  paragraph : Int
+  text : String
+  start : Int
+  end : Int
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+  runs : Array[PlacedRun]
+  images : Array[PlacedImage]
+} derive(ToJson)
+pub fn Line::to_json(Self) -> Json
+
+pub(all) struct Outline {
+  key : String
+  path : String
+} derive(ToJson)
+pub fn Outline::to_json(Self) -> Json
+
+pub(all) struct PageFrame {
+  width : Double
+  height : Double
+  lines : Array[Line]
+  borders : Array[Border]
+  fills : Array[Fill]
+} derive(ToJson)
+pub fn PageFrame::to_json(Self) -> Json
+
+pub(all) struct PageSetup {
+  width : Double
+  height : Double
+  top : Double
+  right : Double
+  bottom : Double
+  left : Double
+} derive(ToJson)
+pub fn PageSetup::to_json(Self) -> Json
+
+pub(all) struct Paragraph {
+  id : Int
+  spans : Array[Span]
+  before : Double
+  after : Double
+  line : Double
+  exact : Bool
+  minimum : Double
+  left : Double
+  right : Double
+  first : Double
+  align : String
+  pageBreakBefore : Bool
+} derive(ToJson)
+pub fn Paragraph::to_json(Self) -> Json
+
+pub(all) struct PlacedImage {
+  key : String
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+} derive(ToJson)
+pub fn PlacedImage::to_json(Self) -> Json
+
+pub(all) struct PlacedRun {
+  sources : Array[SourceRange]
+  color : String
+  text : String
+  glyphs : Array[Glyph]
+  bidi : Array[GlyphRun]
+  x : Double
+  baseline : Double
+} derive(ToJson)
+pub fn PlacedRun::to_json(Self) -> Json
+
+pub(all) struct ShapeBatch {
+  text : String
+  glyphs : Array[Glyph]
+  outlines : Array[Outline]
+  runs : Array[GlyphRun]
+  fonts : Array[FontInfo]
+  diagnostics : Array[GlyphDiagnostic]
+  width : Double
+  fontBytes : Int
+  outlineBytes : Int
+} derive(ToJson)
+pub fn ShapeBatch::to_json(Self) -> Json
+
+pub(all) struct SourceRange {
+  node : Int
+  start : Int
+  end : Int
+  offset : Int
+} derive(ToJson)
+pub fn SourceRange::to_json(Self) -> Json
+
+pub(all) struct Span {
+  node : Int
+  text : String
+  style : TextStyle
+  image : InlineImage?
+}
+pub fn Span::to_json(Self) -> Json
+pub impl ToJson for Span
+
+pub(all) struct Table {
+  id : Int
+  rows : Array[Array[Array[Paragraph]]]
+  widths : Array[Double]
+  align : String
+  borders : Bool
+  padding : Double
+  verticalPadding : Double
+  heights : Array[Double]
+  fills : Array[Array[String]]
+} derive(ToJson)
+pub fn Table::to_json(Self) -> Json
+
+pub struct TextProbe {
+  fonts : Array[Font]
+  outlines : Map[String, String]
+  mut font_bytes : Int
+  mut outline_bytes : Int
+  mut closed : Bool
+}
+pub fn TextProbe::add_font(Self, Bytes, String) -> Int raise @failure.Failure
+pub fn TextProbe::close(Self) -> Unit
+pub fn TextProbe::font_bytes(Self, Int) -> Bytes raise @failure.Failure
+pub fn TextProbe::font_index(Self, String) -> Int raise @failure.Failure
+pub fn TextProbe::font_info(Self) -> Array[FontInfo] raise @failure.Failure
+pub fn TextProbe::glyph_width(Self, Int, UInt) -> Double raise @failure.Failure
+pub fn TextProbe::new() -> Self
+pub fn TextProbe::outline_resources(Self) -> Array[Outline] raise @failure.Failure
+pub fn TextProbe::shape(Self, String, Double, String, primary? : Int, base? : Int) -> ShapeBatch raise @failure.Failure
+
+pub(all) struct TextStyle {
+  font : String
+  size : Double
+  color : String
+} derive(ToJson)
+pub fn TextStyle::to_json(Self) -> Json
 
 // Type aliases
 

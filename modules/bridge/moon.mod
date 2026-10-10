@@ -10,4 +10,6 @@ preferred_target = "wasm-gc"
 
 import {
   "open_document/core@0.0.1",
+  "open_document/formats@0.0.1",
+  "open_document/layout@0.0.1",
 }

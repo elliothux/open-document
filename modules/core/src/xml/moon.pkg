@@ -1,1 +1,6 @@
-// Placeholder: namespace-aware XML, planned in P2.
+import {
+  "Milky2018/xml" @parser,
+  "open_document/core/failure",
+  "moonbitlang/core/encoding/utf8",
+  "moonbitlang/core/encoding/utf16",
+}

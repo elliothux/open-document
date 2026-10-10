@@ -12,7 +12,7 @@
 
 ## Product and Day 1 design
 
-- [P0](docs/p0-sdk-foundation.md) owns current product goals, technology choices, and core/host responsibilities. Research conclusions do not automatically become approved designs or dependencies.
+- [SDK contract](docs/references/sdk.md) owns current product goals, technology choices, and core/host responsibilities. [P1](docs/implemented/p1-sdk-foundation.md), [P2](docs/implemented/p2-format-foundation.md), and [P3](docs/implemented/p3-docx-preview.md) record completed foundation and limited preview work. Research conclusions do not automatically become approved designs or dependencies.
 - Build one final implementation path for current requirements. Do not prebuild compatibility layers, dual writes, backfills, or alternate engines for this project's unpublished old models, APIs, or development data.
 - Day 1 does not waive compatibility obligations for user documents, declared file formats, or published public contracts. Explain changes to support scope; never silently corrupt or discard content or disguise failure as success.
 - Keep one authority per concern. Fix root causes, update affected producers, consumers, tests, and documentation together, and remove implementations superseded by the change.
@@ -21,9 +21,9 @@
 
 ## Source, dependencies, and reference projects
 
-- Follow P0's responsibility boundary between the MoonBit core and TypeScript hosts. Do not maintain independently editable document models on both sides.
+- Follow P1's responsibility boundary between the MoonBit core and TypeScript hosts. Do not maintain independently editable document models on both sides.
 - Use strict TypeScript for first-party functional JavaScript-family source. Do not bypass type problems with `any`, `@ts-ignore`, `@ts-nocheck`, double assertions, or relaxed compiler options.
-- Organize modules by actual responsibility. All first-party test code, fixtures, expected results, and repair-loop design are private in the pinned `test-lab/` submodule. Public builds must not require it. Authorized maintainers read its `AGENTS.md` before test work. Explicitly requested placeholder packages expose no fake capabilities.
+- Organize modules by actual responsibility. All first-party test code, fixtures, expected results, reports, and executable loop tooling are private in the pinned `test-lab/` submodule. Product plans, research, and testing documentation belong only in the parent `docs/`. Public builds must not require the private checkout. Authorized maintainers read its `AGENTS.md` before test work. Explicitly requested placeholder packages expose no fake capabilities.
 - Keep first-party source files within 800 lines. Split by responsibility rather than mechanically. Do not add barrel files that only aggregate or forward exports.
 - Use the project's actual pinned toolchain, dependency manifests, and single lockfile for each dependency ecosystem. Do not hand-edit generated output or lockfiles. Do not describe unselected package managers or commands as established facts.
 - Use `bun run check`, `bun run build`, and `bun run api` from the root. Maintainers run `bun run test` from the root to invoke the private `test-lab` loop; a missing checkout or any test failure must fail the command. Pin Bun in `packageManager` / `.bun-version` and MoonBit in `moon-toolchain`. Development setup and module boundaries live in `docs/references/development.md`.
@@ -33,7 +33,7 @@
 ## Testing and evidence
 
 - Choose the smallest sufficient checks for the risk. Cover key success and failure paths for behavior changes; add recovery checks when lifecycle or persistence changes require them.
-- Preserve the first real failure cause and rerun after fixing it. Different browsers, configurations, or inputs are distinct checks; do not omit required coverage to reduce run counts. Keep the detailed selection and verification policy in the private repository.
+- Preserve the first real failure cause and rerun after fixing it. Different browsers, configurations, or inputs are distinct checks; do not omit required coverage to reduce run counts. Keep testing policy in `docs/references/testing.md` and executable case selection in the private repository.
 - Validate real-browser behavior, WasmGC execution, and file round trips separately. Native results, mocks, CI configuration, and upstream READMEs do not replace evidence from the target environment.
 - Never special-case fixture names, test IDs, sample hashes, or expected results in product code. General format rules must follow actual inputs and format contracts. Fault injection and fake data belong only in tests.
 - Do not obtain a pass by weakening assertions, ignoring failures, lowering thresholds, or moving product logic outside the checked scope. Report missing tools or resources as limitations, not passes.

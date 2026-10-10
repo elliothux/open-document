@@ -1,11 +1,27 @@
 import {
   "open_document/core/text",
+  "open_document/core/failure",
+  "open_document/core/archive",
+  "open_document/formats/docx",
+  "open_document/formats/pdf",
+  "open_document/layout",
+  "moonbitlang/core/encoding/base64",
+  "moonbitlang/core/json",
 }
 
 options(
   link: {
     "wasm-gc": {
-      "exports": [ "open_text", "read_text", "replace_text", "undo", "close" ],
+      "exports": [
+        "open_text",
+        "read_text",
+        "replace_text",
+        "undo",
+        "close",
+        "new_foundation",
+        "foundation_call",
+        "foundation_close",
+      ],
       "use-js-builtin-string": true,
       "imported-string-constants": "_",
     },
