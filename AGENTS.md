@@ -5,6 +5,7 @@
 - This file governs first-party work in this repository. Read any more specific `AGENTS.md` before editing its directory. Reference-repository instructions apply only within those repositories and do not authorize publishing, pushing, or changing external resources.
 - Inspect relevant source, tests, documentation, and runtime evidence before answering, diagnosing, reviewing, or planning. Those requests do not automatically authorize implementation. Change requests authorize in-scope local edits and the smallest sufficient validation.
 - External writes, deployment, publishing, destructive actions, permission or credential changes, and material scope expansion require explicit user authorization. Do not automatically commit, push, create pull requests, or clean the workspace.
+- The user authorizes direct use of local Docker for development and testing, including pulling or building test images and running bounded containers, without further confirmation. Keep private inputs and evidence local; preserve unrelated Docker resources. This does not authorize remote Docker services, publishing images, deployment, or credential changes.
 - Preserve uncommitted changes, reference checkouts, and failure evidence. Cleanup and Day 1 design do not authorize deleting user data, resetting repositories, or rewriting Git history.
 - Keep changes within this repository. Adjacent `lynx-os`, `open-compute`, and upstream repositories are references, not automatically part of the edit scope.
 - Converse in Chinese. Lead with the result, followed by evidence, limitations, and necessary next steps. Write code identifiers, comments, API documentation, commit messages, and GitHub-facing text in English.
@@ -18,6 +19,7 @@
 - Keep one authority per concern. Fix root causes, update affected producers, consumers, tests, and documentation together, and remove implementations superseded by the change.
 - Before adding an abstraction, cache, protocol, state machine, dependency, or plugin mechanism, identify its current user and the concrete capability gap. Prefer the standard library, platform facilities, and validated dependencies over frameworks for hypothetical scale or extension points.
 - For complex changes, define a lightweight contract: goals, non-goals, constraints, side effects, completion evidence, and stop conditions. Simplification must preserve security, document integrity, error handling, and accessibility.
+- Every new or materially revised P-numbered proposal, including subphases, must define its tests, fixtures, compatibility expectations, performance/resource checks, and acceptance evidence before implementation, following the [P-proposal verification contract](docs/references/README.md#p-编号方案的验证合同). Map each promised capability to concrete verification; explain non-applicable items and unresolved prerequisites. A generic promise to add tests or a link to the shared pipeline is not sufficient.
 
 ## Source, dependencies, and reference projects
 

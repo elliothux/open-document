@@ -6,6 +6,10 @@
 
 ## 当前数据
 
+G2 另增加 `cases/lo-docx.json` 的 20 个 LibreOffice/core 固定回归 DOCX，revision 为 `1746b16a564f59fcaf8c5670bb292748408da54e`。原文件、对应上游断言源码和完整许可保留在私有目录；独立 unzip/xmllint 提取的正文文本及逐 part 字节保留是当前 oracle。生产工具及版本无法确认时记 unknown；列表的 CJK 特征不冒充正文语言。模板家族按特征保守归组，不作为来源多样性的额外数量。这批只验收 read/preserve，不把样式、编号、RTL 或 shape 的保留提升为布局支持。
+
+`bun run test:office-candidates` 从成功 snapshot 复制原输入和 SDK 输出，生成待 Word 重开/导出/人工审核的候选字段，不创建 golden。SDK 输出是审核对象；必须另外记录 Word 版本、OS、字体 hash、profile、重开诊断、对应 PDF 和审核人。本机无 Word，全部候选仍未验证。新的 G2 Latin 原子输入与原含 emoji seed 分开保留；没有替换原文件来掩盖缺字。
+
 - 17 个自建文本操作：ASCII、中文、emoji、空串、删除、追加、换行、RTL、组合字符、NUL、非法范围与 i32 边界。
 - 一个自建 DOCX，源 XML 也保留：正文中英/emoji、未知属性、customXml 及关系，stored ZIP、固定日期。`unzip -t` 已检查包完整性；尚未做 Word/schema/layout 验证。
 - 一个自建单页 PDF 1.4：独立对象/xref、标准 Helvetica、已知文本。qpdf 只作结构检查，不代表渲染或 PDF/A 验证。

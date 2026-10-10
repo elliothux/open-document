@@ -15,15 +15,17 @@ bun run browsers
 bun run test
 ```
 
-`moon update` 更新工具的包索引，不升级脚本中固定的 async@0.22.4。公开 module 固定 flate/xml/harfbuzz/bidi、cosmic 的 Unicode 断行包及 PDF writer pdflite；版本、许可和固定 GDEF 修补见[依赖记录](dependencies.md)。测试脚本的 async 与独立 PDF probe 不进入 SDK；P3 的 pdflite writer 已进入公开构建。
+`moon update` 更新工具的包索引，不升级脚本中固定的 async@0.22.4。公开 module 固定 flate/xml/harfbuzz/bidi、cosmic 的 Unicode 断行包及 PDF writer pdflite；版本、许可和固定 GDEF 修补见[依赖记录](dependencies.md)。测试脚本的 async 与独立 PDF probe 不进入 SDK；P3 的 pdflite writer 已进入公开构建。私有实际包合同固定 Node 24.21.0；直接运行 `.mbtx` 时也须在 PATH 选中这个版本，不能依赖 Bun 命令对 PATH 的调整。
 
-目前只验收随 Playwright 1.63.0 安装的 Chromium；没有冒充 Firefox/Safari 或任意 runtime 已验证。P1/P3 使用私有固定 Noto 字节，不依赖浏览器系统字体。P3 的 LibreOffice 参考使用相同的四个 Noto Sans 样式文件与固定字体替换 profile。
+当前硬门禁是随 Playwright 1.63.0 安装的 Chromium；Firefox/WebKit 能力与合同试跑单独记录，不自动扩展支持矩阵。P1/P3 使用私有固定 Noto 字节，不依赖浏览器系统字体。P3 的 LibreOffice 参考使用相同的四个 Noto Sans 样式文件与固定字体替换 profile。
 
 P3 的段落级双向文字回归另需 FriBidi 1.0.16（Unicode 16.0.0）。完整 loop 记录其版本，浏览器测试先取得整段层级，再对实际选定行应用独立的 UAX #9 L1/L2 判定。缺少工具会失败，不能改用 SDK 的片段算法生成预期。
 
-`tools/loop.mbtx` 单次执行检查、构建、临时 MoonBit 测试组装、判定器/语料检查与浏览器验收，不自动写源码、更新 golden 或无限重试。修复循环由维护者或授权 Agent 调用这个确定性执行器构成。
+`tools/loop.mbtx` 在构建前冻结源码、测试、语料与预期，复制前后及副本必须具有相同内容身份；SDK 只构建一次。算法 overlay、实际 tarball Node 合同与 Chromium Worker 消费该副本和同次产物，不读取活动工作树的 dist。运行不自动写源码、更新 golden 或无限重试。修复循环由维护者或授权 Agent 调用这个确定性执行器构成。
 
-完整运行还在私有临时目录组装一个仅含公开源码的独立 Git 工作区，排除旧 dist/node_modules，安装锁定依赖并重新检查/构建。两包实际生成 tarball，读取 archive entries，与 `cases/suites.json` 的公开文件清单精确比对：多出私有文件、遗漏 Wasm、重复或越界路径均失败。临时 Git 边界避免父目录 ignore 规则导致 lint 零文件。执行器不创建 commit，也不触及真实仓库 index。
+当前 G2 本地执行已生成 `run.json`、冻结 `plan.json`、实时追加的 `events.jsonl`、规范化 `results.jsonl`、`summary.md`、`index.html` 与 `failures/*.json`。摘要分别显示已绑定文件、独立 case、执行和已记录断言数，直接链接失败任务及输出。先读 summary 和首个失败阶段日志，再按任务中的程序、参数数组、目录与非秘密环境，在冻结执行器新建的 attempt 中复现；不得直接重放保留目录的 RUN_DIR 或覆盖旧输出，任务的假设不作为判定依据。未执行、缺 oracle、超时、崩溃和环境失败不得进入完整通过。现有框架用例保留原断言日志，新 DOCX 双路径合同另记录具体 expected/actual、数值 actual−expected 差值、part/XPath 和输出 hash；非数值或不可计算的差值为 null。源码覆盖率、未绑定的旧用例文件覆盖及可靠峰值内存仍未测量。建设结果归 [G2](../implemented/g2-test-pipeline.md)。
+
+完整运行在私有临时目录组装独立 Git 工作区，公开源码和私有测试分别复制，排除旧 dist/node_modules，安装锁定依赖后检查和构建。两包实际生成 tarball，读取 archive entries，与 `cases/suites.json` 的公开文件清单精确比对：多出私有文件、遗漏 Wasm、重复或越界路径均失败；安装后的 Node 包字节另与同次公开产物比对。临时 Git 边界避免父目录 ignore 规则导致 lint 零文件。执行器不创建 commit，也不触及真实仓库 index。
 
 `cases/suites.json` 拥有 Moon 测试 overlay、必选名称、P0–P3 浏览器案例与包文件清单。新增 Moon 包测试在这里登记 source/destination/names；执行器组装后核对 outline 和实际执行数量。浏览器核对所有必选案例的精确集合及一次通过；Bun 产出 JUnit，禁止零用例、skip/failure/error，私有 lint 拒绝 focused/disabled tests。所有维护的 `.mbtx` 都做 deny-warn 检查和格式检查。完整入口不接受筛选参数；P1–P3 是 SDK 行为验收，P7 仍只有语料准备检查。
 
@@ -75,7 +77,7 @@ P3 修复回归还覆盖原始行距继承、段尾空行与小/大固定行距�
 
 P0 应实际执行一次错误预期探针，并确认非零退出、具体差异及 failure artifact：
 
-`bun run test:negative` 自动执行两次独立探针：全选案例但故意改错一个 expected，必须恰好失败一项；只选一个正确案例，该案例通过但完整验收必须失败。每次使用唯一 `.temp/failures/<id>/`，保留底层非零退出和报告，包装命令只有确认这些预期失败后才成功。先运行正常完整 loop 生成当前构建，探针后再跑完整 loop。
+`bun run test:negative` 消费最新成功的冻结产物。错误 expected 必须恰好失败一项；只选一个正确案例，该案例通过但完整验收必须失败；私有适配器破坏导出 OPC part，Node 和 browser 都必须发现文档损坏。另对新的执行器运行注入构建失败和超时，确认前置失败仍生成部分报告。每次使用唯一 `.temp/failures/<id>/`，保留底层非零退出和报告，包装命令只有确认全部预期失败后才成功。报告单元检查另覆盖缺 oracle、重复结果和截断日志恢复。先跑正常完整 loop；探针后再跑完整 loop。
 
 ```sh
 OPEN_DOCUMENT_ORACLE_PROBE=1 OPEN_DOCUMENT_RUN_DIR=.temp/oracle-probe bun run test:browser
@@ -84,6 +86,32 @@ OPEN_DOCUMENT_ORACLE_PROBE=1 OPEN_DOCUMENT_RUN_DIR=.temp/oracle-probe bun run te
 此开关只在私有测试端改变一个断言的 expected，不改产品实现或冻结的数据。它用于证明判定器会失败，不算产品缺陷，不允许放宽断言后对外声称通过。随后正常完整运行应通过。
 
 根入口另有回归测试：私有目录不存在和空 submodule 目录均须在 2 秒内正常返回非零，而不是向父目录递归查找同名 script。判定器单元测试覆盖空清单、重复项、缺项、额外文件与零执行。
+
+公开 check/build/api 的执行窗口暂时将冻结私有目录移至同次运行的 `private-build-inputs/`，用 MoonBit defer 恢复，证明公开构建不需要私有 checkout。异常被系统强杀时，输入不会删除；若正常的 `sdk/test-lab/tools/run-report.ts` 尚未恢复，可调用同次 `private-build-inputs/tools/run-report.ts recover <run-directory>` 生成未完成报告，再按保存的路径恢复目录。恢复命令不能授予完整通过，须重新运行完整入口。
+
+## 独立执行档
+
+下列命令消费最新完整通过的冻结 snapshot，使用独立目录，不能替代根 `bun run test`。性能及浏览器试跑控制脚本须与该 snapshot 的字节一致；修改执行器后先重新完整验收，不能用旧版本身份描述新脚本：
+
+| 入口 | 作用与限制 |
+| --- | --- |
+| `bun run test:performance` | 固定空闲机器串行运行 8 个 workload；每侧 5 次预热、20 对 A/A、冻结预算后 20 对交错 A/B，每个输出在计时后独立检查。另测 20 个新 Node 进程启动，并检查 50 ms 私有延迟探针。相同产物的控制实验不证明产品提速 |
+| `bun run test:profiles` | Chromium/Firefox/WebKit 各执行实际 GC/js-string 能力及两份 DOCX 合同。精确选择集、无重试；缺 runtime 或能力失败。先显式安装固定 Playwright 的 Firefox/WebKit，WebKit 不能代替真实 Safari/移动端 |
+| `bun run test:explore` | 对 20 份 LO 文件观测额外布局行为；既有 read/preserve 断言仍须通过，缺独立布局 oracle 的观测保持未确定，不计兼容 PASS |
+| `bun run test:isolation` | 本地 Docker 的 Linux arm64 Node 档消费冻结 library、语料和判定器；实际校验隔离边界、全部 library 合同及父子进程超时回收。独立输出不替代根完整验收 |
+| `bun run test:office-candidates` | 准备 Office 重开输入、未审核的 SDK 输出和采集字段；不调用 Word，不覆盖 golden，具体审核步骤见[语料规则](corpus.md) |
+
+性能记录原始样本、median、离散度、仅供描述的 p95、输入/产物 hash、机器与计时区间。Node 区间含 JSON bridge，browser 区间含 RPC/JSON；进程/engine 冷启动单列，Worker 初始化在操作区间之外，纯 MoonBit 和 Canvas 首屏仍未测。缺 WasmGC 总内存或可靠峰值必须记 null；逐样本后的 Node RSS 包含 V8/输入缓冲，不等于峰值，也不含外部工具进程。高噪声记未确定，不放宽阈值换 PASS。
+
+受控修复 POC 使用 `moon run tools/repair-probe.mbtx .temp/failures/<id>/damaged-package`：保持同一 SDK、输入和判定器，关闭私有损坏适配器，保留原失败任务、修复后结果、比较与控制变更 patch。它验证真实原文件和自建最小样本在两个宿主恢复，不冒充产品缺陷修复；最后仍跑完整入口。显式 `bun tools/run-report.ts compare <before> <after>` 拒绝改变预期清单或私有评价代码/输入版本，新增执行不算修复。
+
+显式比较生成 `comparison-<before-runId>.json/.md/.html`，并在当前摘要与索引添加入口。视图链接前后原始报告和失败任务，展示 fixed/new-failure/still-failing/missing/blocked 等分类；不重跑或改写两次执行结果，也不由判定变化自动归因于 SDK 改善。性能比较仍归独立的校准通道。
+
+本地 Docker 使用固定 Node 基础镜像 digest；准备镜像可联网安装独立文档工具，执行前记录最终不可变 image ID。Linux 工具版本与 macOS 档分别记录，不冒充同一环境。容器以宿主非 root UID 运行，`network=none`、只读根与输入、清空 capabilities、禁止新增权限，限制 1 CPU、1 GiB 内存、128 进程和 128 MiB 临时空间；只挂载冻结私有输入、实际安装的 library 和当次输出，不挂载 HOME、凭据或 Docker socket。运行时检查 loopback、cgroup、权限与写入拒绝；超时停止整个命名容器，保留已停止容器、配置、原始日志和文档输出。`OPEN_DOCUMENT_PIPELINE_PROBE=build bun run test:isolation` 验证镜像前置失败仍生成未完成 Markdown/HTML；这个故障开关仅属于测试端。
+
+隔离档的 `isolation-summary.md` 记录边界验收；共同合同报告保持 focused，不能授予根完整通过。默认 macOS loop 仍只运行固定、已审查语料，直接子进程超时不提供浏览器或原生工具的 OS 隔离保证；新增 Docker 档只证明 Node 与其原生校验工具的边界。未知或未经审查文档应先交给隔离档，不以浏览器 request 拦截代替宿主隔离。
+
+私有 workflow template 是本地审核草案，尚未放入可触发目录。草案只允许人工提交审核过的两个确切 SHA、不保存 checkout 凭据、不上传私有报告；执行入口拒绝不干净或身份不符的 checkout，完整 loop 成功后执行 Docker 隔离档。远端启用前需要授权、干净且可获取的两个 commit，以及已配置的可销毁隔离 runner；本地 Docker 验收不能证明这些远端条件已具备。
 
 ## 干净检出复现
 
