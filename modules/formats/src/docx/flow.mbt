@@ -1,10 +1,10 @@
 ///|
 pub fn Session::flow(self : Session) -> @layout.Flow raise @failure.Failure {
   let tree = WordTree::new(self.document())
-  let styles = self.styles()
   let paragraphs : Array[@layout.Paragraph] = []
   let tables : Array[@layout.Table] = []
   let diagnostics : Array[String] = []
+  let styles = self.styles(diagnostics)
   let headers : Array[Array[@layout.Paragraph]] = []
   let mut header_distance = 0.0
   let mut page : @layout.PageSetup = {
@@ -73,6 +73,9 @@ pub fn Session::flow(self : Session) -> @layout.Flow raise @failure.Failure {
           }
         }
         let paragraphs : Array[@layout.Paragraph] = []
+        for item, _ in header.nodes {
+          header.diagnose_properties(item, relation.target, diagnostics)
+        }
         for item in header.children[0] {
           guard header.nodes[item].name == "p" else {
             @failure.reject("unsupported-layout", "Header body is unsupported")
@@ -131,28 +134,7 @@ pub fn Session::flow(self : Session) -> @layout.Flow raise @failure.Failure {
     if node.uri != word_uri {
       continue
     }
-    let supported = match node.name {
-      "pPr" => ["pStyle", "rPr", "spacing", "ind", "jc", "pageBreakBefore"]
-      "rPr" =>
-        [
-          "rStyle", "rFonts", "sz", "color", "b", "i", "lang", "bCs", "iCs", "szCs",
-        ]
-      "sectPr" => ["pgSz", "pgMar", "headerReference"]
-      "tcPr" => ["tcW", "shd", "gridSpan", "vMerge"]
-      "tblPr" =>
-        ["tblStyle", "tblW", "jc", "tblBorders", "tblCellMar", "tblLook"]
-      "trPr" => ["trHeight"]
-      _ => continue
-    }
-    for child in tree.children[id] {
-      let feature = tree.nodes[child]
-      if !supported.contains(feature.name) {
-        let message = "unsupported-layout:" + feature.qualified
-        if !diagnostics.contains(message) {
-          diagnostics.push(message)
-        }
-      }
-    }
+    tree.diagnose_properties(id, self.main, diagnostics)
   }
   {
     revision: self.revision,
@@ -162,6 +144,7 @@ pub fn Session::flow(self : Session) -> @layout.Flow raise @failure.Failure {
     tables,
     headers,
     headerDistance: header_distance,
+    additiveSpacing: self.additive_spacing(),
   }
 }
 
@@ -183,7 +166,7 @@ fn Session::paragraph(
   let mut paragraph = { ..styles.paragraph, id, }
   let mut run_style = styles.defaults
   if key is Some(key) && styles.tree is Some(style_tree) {
-    for style in styles.chain(key) {
+    for style in styles.chain(key, diagnostics) {
       if style_tree.child(style, "pPr") is Some(p) {
         paragraph = paragraph_properties(style_tree, p, paragraph)
       }
@@ -212,7 +195,7 @@ fn Session::paragraph(
     let mut style = run_style
     if tree.child(run, "rPr") is Some(r) {
       if tree.value(r, "rStyle") is Some(key) && styles.tree is Some(style_tree) {
-        for style_id in styles.chain(key) {
+        for style_id in styles.chain(key, diagnostics) {
           if style_tree.child(style_id, "rPr") is Some(r) {
             style = run_properties(
               style_tree,

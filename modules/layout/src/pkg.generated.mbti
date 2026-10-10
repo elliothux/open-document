@@ -36,6 +36,7 @@ pub(all) struct Flow {
   tables : Array[Table]
   headers : Array[Array[Paragraph]]
   headerDistance : Double
+  additiveSpacing : Bool
 } derive(ToJson)
 pub fn Flow::to_json(Self) -> Json
 
@@ -128,10 +129,19 @@ pub(all) struct Line {
   y : Double
   width : Double
   height : Double
+  clip : Bool
   runs : Array[PlacedRun]
   images : Array[PlacedImage]
 } derive(ToJson)
 pub fn Line::to_json(Self) -> Json
+
+pub(all) enum LineSpacing {
+  Auto(Double)
+  Exact(Double)
+  AtLeast(Double)
+}
+pub fn LineSpacing::to_json(Self) -> Json
+pub impl ToJson for LineSpacing
 
 pub(all) struct Outline {
   key : String
@@ -163,9 +173,7 @@ pub(all) struct Paragraph {
   spans : Array[Span]
   before : Double
   after : Double
-  line : Double
-  exact : Bool
-  minimum : Double
+  line : LineSpacing
   left : Double
   right : Double
   first : Double

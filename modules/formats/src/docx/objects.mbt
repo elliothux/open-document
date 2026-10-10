@@ -118,7 +118,7 @@ fn Session::table(
   if tree.child(id, "tblPr").bind(props => tree.value(props, "tblStyle"))
     is Some(key) &&
     styles.tree is Some(source) {
-    for style in styles.chain(key) {
+    for style in styles.chain(key, diagnostics) {
       if source.child(style, "pPr") is Some(p) {
         styles = {
           ..styles,
@@ -248,7 +248,7 @@ fn Session::table(
   let properties : Array[(WordTree, Int)] = []
   if props.bind(props => tree.value(props, "tblStyle")) is Some(key) &&
     styles.tree is Some(style_tree) {
-    for style in styles.chain(key) {
+    for style in styles.chain(key, diagnostics) {
       if style_tree.child(style, "tblPr") is Some(p) {
         properties.push((style_tree, p))
       }

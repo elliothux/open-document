@@ -4,6 +4,7 @@ priv struct Pagination {
   pages : Array[PageFrame]
   mut y : Double
   mut count : Int
+  mut after : Double
 }
 
 ///|
@@ -21,6 +22,7 @@ fn Pagination::new(page : PageSetup) -> Pagination {
     ],
     y: page.top,
     count: 0,
+    after: 0,
   }
 }
 
@@ -37,6 +39,7 @@ fn Pagination::next_page(self : Pagination) -> Unit raise @failure.Failure {
     fills: [],
   })
   self.y = self.page.top
+  self.after = 0
 }
 
 ///|
@@ -109,6 +112,7 @@ fn Pagination::paragraph(
   paragraph : Paragraph,
   profile : Map[String, String],
   images : Images,
+  additive : Bool,
 ) -> Unit raise @failure.Failure {
   if paragraph.pageBreakBefore &&
     (
@@ -118,7 +122,12 @@ fn Pagination::paragraph(
     self.next_page()
   }
   paragraph.validate_spacing(self.page.height)
-  self.y += paragraph.before
+  self.y += if additive {
+    self.after + paragraph.before
+  } else {
+    self.after.max(paragraph.before)
+  }
+  self.after = 0
   let mut ended_with_break = false
   for
     line in paragraph_lines(
@@ -141,7 +150,7 @@ fn Pagination::paragraph(
     }
   }
   if !ended_with_break {
-    self.y += paragraph.after
+    self.after = paragraph.after
   }
 }
 
@@ -152,7 +161,10 @@ fn Pagination::table(
   table : Table,
   profile : Map[String, String],
   images : Images,
+  additive : Bool,
 ) -> Unit raise @failure.Failure {
+  self.y += self.after
+  self.after = 0
   let width = table.widths
     .iter()
     .fold(init=0.0, (total, width) => total + width)
@@ -181,6 +193,7 @@ fn Pagination::table(
     for column, paragraphs in row {
       let lines : Array[(Line, Double)] = []
       let mut y = table.verticalPadding + border
+      let mut after = 0.0
       for paragraph in paragraphs {
         paragraph.validate_spacing(self.page.height)
         guard !paragraph.pageBreakBefore else {
@@ -188,7 +201,11 @@ fn Pagination::table(
             "unsupported-layout", "Page breaks inside table rows are unsupported",
           )
         }
-        y += paragraph.before
+        y += if additive {
+          after + paragraph.before
+        } else {
+          after.max(paragraph.before)
+        }
         for
           line in paragraph_lines(
             probe,
@@ -204,9 +221,9 @@ fn Pagination::table(
           lines.push((line, y))
           y += line.height
         }
-        y += paragraph.after
+        after = paragraph.after
       }
-      height = height.max(y + table.verticalPadding + border)
+      height = height.max(y + after + table.verticalPadding + border)
       cells.push(lines)
     }
     self.fit(height)
@@ -287,10 +304,22 @@ pub fn paginate(
         table == flow.tables.length() ||
         flow.paragraphs[paragraph].id < flow.tables[table].id
       ) {
-      pagination.paragraph(probe, flow.paragraphs[paragraph], profile, images)
+      pagination.paragraph(
+        probe,
+        flow.paragraphs[paragraph],
+        profile,
+        images,
+        flow.additiveSpacing,
+      )
       paragraph += 1
     } else {
-      pagination.table(probe, flow.tables[table], profile, images)
+      pagination.table(
+        probe,
+        flow.tables[table],
+        profile,
+        images,
+        flow.additiveSpacing,
+      )
       table += 1
     }
   }

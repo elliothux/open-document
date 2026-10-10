@@ -26,7 +26,7 @@
     "./engine.wasm": "./dist/engine.wasm"
   },
   "scripts": {
-    "build": "bun build src/engine.ts src/foundation.ts src/preview.ts --target browser --outdir dist && cp ../../LICENSE dist/LICENSE",
+    "build": "bun build src/engine.ts src/foundation.ts src/preview.ts src/validation.ts --no-bundle --target browser --outdir dist && cp ../../LICENSE dist/LICENSE",
     "typecheck": "tsc --project tsconfig.json"
   }
 }

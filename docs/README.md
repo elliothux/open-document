@@ -29,7 +29,7 @@
 | 编号 | 文档 | 当前状态 |
 | --- | --- | --- |
 | G0 | [底座参考项目研究](g0-foundation-review.md) | `research`：部分职责边界已纳入路线图；候选库集成与性能仍待验证 |
-| G1 | [兼容性测试与反馈研究](g1-compatibility-pipeline.md) | `research`：上游研究；当前执行合同归测试说明 |
+| G1 | [兼容性测试与反馈研究](g1-compatibility-pipeline.md) | `research`：含 library/browser、真实语料、性能、Agent 反馈报告与 A–F 建设顺序；当前执行合同归测试说明 |
 
 先读[路线图](references/roadmap.md)中的 G0 → 阶段映射，再按 P0 → P1 → P2 → P3 进入产品与验收合同；P4–P9 的范围在路线图中。全部文档统一在这里；测试实现、数据与原始证据仍在私有 `test-lab/`。P0–P9 阶段编号已分配，新增阶段不得复用。
 

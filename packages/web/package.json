@@ -27,7 +27,7 @@
     "@open-document/wasm": "workspace:*"
   },
   "scripts": {
-    "build": "bun build src/client.ts src/worker.ts src/foundation.ts src/preview.ts --target browser --outdir dist && cp ../../LICENSE dist/LICENSE",
+    "build": "bun build src/client.ts src/foundation.ts src/preview.ts src/connection.ts src/image.ts --no-bundle --target browser --outdir dist && bun build src/worker.ts --target browser --outdir dist && cp ../../LICENSE dist/LICENSE",
     "typecheck": "tsc --project tsconfig.json"
   }
 }

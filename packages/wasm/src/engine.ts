@@ -1,4 +1,4 @@
-import { FoundationSession } from "./foundation";
+import { FoundationSession } from "./foundation.js";
 
 /** Browser ABI adapter. Document state lives only in WasmGC. */
 export class TextSession {

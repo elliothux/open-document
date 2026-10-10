@@ -16,6 +16,14 @@ Ponytail Review 沿 DOCX → Worker → layout → Canvas/PDF 的实际调用检
 
 ## 验证证据
 
+2026-10-10 修复审查发现的七项 P3 问题：原始行距规则与数值共同继承；自动断行保留段落级 BiDi；固定行距与段尾空行共享基线和裁剪；公开构建入口共享错误类；实际应用的样式给部件/特性诊断；PNG/JPEG/GIF 在原生解码前核对尺寸；段距明确区分 settings 与分页/单元格边界。当前具体规则归[格式合同](../references/formats.md)。没有新增兼容层、可编辑模型或渲染引擎。
+
+最终完整 loop `1791647542205` 执行 19 个 MoonBit、17 个 Bun 单元、6 个集成和 65 个 Chromium 案例，全部通过，无 skip/retry。公开源码摘要为 `b5a50879c87c12bcde44675558082faebbd3e50c0affe5b445b51f57a50c39b8`，浏览器期间源码和产物不变；根 check/build、公开源码独立安装构建及 tarball 清单检查同时通过，`bun run api` 另成功生成接口。负向探针 `1791647465991` 全选 65 项恰好失败 1 项，单选 1 项即使通过也被完整判定拒绝，随后完成上述正常重跑。
+
+固定 LibreOffice 25.8.2.2 的参考扩大至 20 页，校准 `1791646799003` 的两次转换和冻结参考栅格 hash 一致。整段 BiDi 使用 FriBidi 1.0.16 的独立层级。原始 `testN778140` 和 `testTdf145716_nonHTMLspacing` 文档保留全部部件；自动间距给诊断、带内容页眉拒绝布局，未将参考引擎的完整布局算成 SDK 支持。Ponytail Review 核对生产者、消费者、公开入口和测试，未发现当前范围内的剩余修复项。
+
+以下为初次 P3 验证记录，保留其输入与环境口径，不代表后续代码自动通过：
+
 根 `bun run api` 与 `bun run test` 成功；完整 loop 同时执行根 `bun run check`、`bun run build`、仅公开源码的独立安装/检查/构建、真实 tarball 清单和浏览器期间源码/产物不变检查。17 个 MoonBit、16 个 Bun 单元、6 个集成与 55 个 Chromium 案例全部执行，无 skip/retry。私有运行 `1791634601274`，公开源码清单摘要 `294bdb005a5da2a51998c58041fc46b6fb64ab066a6dde8556552faffe10489f`；未提交工作树以文件 hash 记录，不冒充 HEAD。
 
 环境为 macOS 27.0.1 (26A434) arm64、Bun 1.4.2、Node 24.21.0、Moon 0.1.20260920 / moonc 0.10.14+7d59c7ec9、Playwright 1.63.0 / Chromium 153.0.8010.12、qpdf 12.4.1、HarfBuzz 14.4.0 与 Poppler 26.05.0。

@@ -1,5 +1,5 @@
-import type { ShapeBatch } from "./foundation";
-import { record, glyphs } from "./validation";
+import type { ShapeBatch } from "./foundation.js";
+import { record, glyphs } from "./validation.js";
 
 export interface TextStyle {
   font: string;
@@ -8,6 +8,7 @@ export interface TextStyle {
 }
 
 export interface DocxFlow {
+  additiveSpacing: boolean;
   revision: number;
   page: {
     width: number;
@@ -27,9 +28,7 @@ export interface DocxFlow {
     }[];
     before: number;
     after: number;
-    line: number;
-    minimum: number;
-    exact: boolean;
+    line: { rule: "auto" | "exact" | "atLeast"; value: number };
     left: number;
     right: number;
     first: number;
@@ -88,6 +87,7 @@ export interface PageFrame {
     y: number;
     width: number;
     height: number;
+    clip: boolean;
     images: (InlineImage & { x: number; y: number })[];
     runs: {
       sources: { node: number; start: number; end: number; offset: number }[];
@@ -129,18 +129,20 @@ function diagnostics(value: unknown): void {
 
 export function docxFlow(value: unknown): DocxFlow {
   const flow = fields(value, ["revision", "headerDistance"]);
+  if (typeof flow.additiveSpacing !== "boolean")
+    throw new Error("Invalid paragraph spacing mode");
   fields(flow.page, ["width", "height", "top", "right", "bottom", "left"]);
   diagnostics(flow.diagnostics);
   function paragraph(value: unknown): void {
     const paragraph = fields(
       value,
-      ["id", "before", "after", "line", "minimum", "left", "right", "first"],
+      ["id", "before", "after", "left", "right", "first"],
       ["align"],
     );
-    if (
-      typeof paragraph.exact !== "boolean" ||
-      typeof paragraph.pageBreakBefore !== "boolean"
-    )
+    const spacing = fields(paragraph.line, ["value"], ["rule"]);
+    if (!["auto", "exact", "atLeast"].includes(String(spacing.rule)))
+      throw new Error("Invalid line spacing rule");
+    if (typeof paragraph.pageBreakBefore !== "boolean")
       throw new Error("Invalid paragraph flags");
     for (const value of entries(paragraph.spans)) {
       const span = fields(value, ["node"], ["text"]);
@@ -206,6 +208,8 @@ export function pageLayout(value: unknown): PageLayout {
         ["paragraph", "start", "end", "x", "y", "width", "height"],
         ["text"],
       );
+      if (typeof line.clip !== "boolean")
+        throw new Error("Invalid line clipping");
       for (const value of entries(line.images))
         fields(value, ["x", "y", "width", "height"], ["key"]);
       for (const value of entries(line.runs)) {

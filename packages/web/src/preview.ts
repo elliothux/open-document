@@ -1,5 +1,6 @@
-import { type FoundationClient, OutlineCanvas } from "./foundation";
+import { type FoundationClient, OutlineCanvas } from "./foundation.js";
 import type { PageLayout } from "@open-document/wasm/preview";
+import { imageDimensions } from "./image.js";
 
 /** Read-only page host. Font loading and the DOCX session stay with the caller. */
 export class DocumentPreview {
@@ -80,8 +81,10 @@ export class DocumentPreview {
         if (!span.image || images.has(span.image.key)) continue;
         signal?.throwIfAborted();
         const bytes = await client.imageBytes(span.image.key);
+        const declared = imageDimensions(bytes);
         const bitmap = await createImageBitmap(
           new Blob([new Uint8Array(bytes).buffer]),
+          { imageOrientation: "none" },
         );
         images.set(span.image.key, bitmap);
         signal?.throwIfAborted();
@@ -91,6 +94,11 @@ export class DocumentPreview {
           bitmap.height > 4096
         )
           throw new Error("Decoded image exceeds budget");
+        if (
+          bitmap.width !== declared.width ||
+          bitmap.height !== declared.height
+        )
+          throw new Error("Decoded image dimensions differ from its header");
         const canvas = document.createElement("canvas");
         canvas.width = bitmap.width;
         canvas.height = bitmap.height;

@@ -179,27 +179,21 @@ fn paragraph_properties(
   id : Int,
   base : @layout.Paragraph,
 ) -> @layout.Paragraph raise @failure.Failure {
-  let line = tree
-    .number(id, "spacing", "line")
-    .map(value => {
-      if tree.child(id, "spacing") is Some(spacing) &&
-        tree.nodes[spacing].attribute("lineRule", uri=word_uri) is Some("exact") {
-        value / 20
-      } else if tree
-        .child(id, "spacing")
-        .bind(node => tree.nodes[node].attribute("lineRule", uri=word_uri)) ==
-        Some("atLeast") {
-        1
-      } else {
-        value / 240
-      }
-    })
-    .unwrap_or(base.line)
-  let exact = if tree.child(id, "spacing") is Some(spacing) &&
-    tree.nodes[spacing].attribute("lineRule", uri=word_uri) is Some(rule) {
-    rule == "exact"
-  } else {
-    base.exact
+  let (inherited_rule, inherited_value) = match base.line {
+    @layout.Auto(value) => ("auto", value)
+    @layout.Exact(value) => ("exact", value)
+    @layout.AtLeast(value) => ("atLeast", value)
+  }
+  let rule = tree
+    .child(id, "spacing")
+    .bind(node => tree.nodes[node].attribute("lineRule", uri=word_uri))
+    .unwrap_or(inherited_rule)
+  let value = tree.number(id, "spacing", "line").unwrap_or(inherited_value)
+  let line = match rule {
+    "auto" => @layout.Auto(value)
+    "exact" => @layout.Exact(value)
+    "atLeast" => @layout.AtLeast(value)
+    _ => @failure.reject("invalid-style", "Unknown line spacing rule")
   }
   {
     ..base,
@@ -212,20 +206,6 @@ fn paragraph_properties(
     .map(value => value / 20)
     .unwrap_or(base.after),
     line,
-    exact,
-    minimum: if tree.child(id, "spacing") is Some(spacing) {
-      if tree.nodes[spacing].attribute("lineRule", uri=word_uri) ==
-        Some("atLeast") {
-        tree
-        .number(id, "spacing", "line")
-        .map(value => value / 20)
-        .unwrap_or(base.minimum)
-      } else {
-        0
-      }
-    } else {
-      base.minimum
-    },
     left: tree
     .number(id, "ind", "left")
     .map(value => value / 20)
@@ -258,6 +238,7 @@ fn paragraph_properties(
 ///|
 priv struct Styles {
   tree : WordTree?
+  part : String
   ids : Map[String, Int]
   defaults : RunStyle
   paragraph : @layout.Paragraph
@@ -266,7 +247,10 @@ priv struct Styles {
 }
 
 ///|
-fn Session::styles(self : Session) -> Styles raise @failure.Failure {
+fn Session::styles(
+  self : Session,
+  diagnostics : Array[String],
+) -> Styles raise @failure.Failure {
   let themes = self.theme_fonts()
   let defaults : RunStyle = {
     family: "Times New Roman",
@@ -280,9 +264,7 @@ fn Session::styles(self : Session) -> Styles raise @failure.Failure {
     spans: [],
     before: 0,
     after: 0,
-    line: 1.2,
-    exact: false,
-    minimum: 0,
+    line: @layout.Auto(288),
     left: 0,
     right: 0,
     first: 0,
@@ -301,6 +283,7 @@ fn Session::styles(self : Session) -> Styles raise @failure.Failure {
   guard path is Some(path) else {
     return {
       tree: None,
+      part: "",
       ids: Map([]),
       defaults,
       paragraph,
@@ -335,13 +318,23 @@ fn Session::styles(self : Session) -> Styles raise @failure.Failure {
     if tree.child(doc_defaults, "rPrDefault").bind(id => tree.child(id, "rPr"))
       is Some(id) {
       defaults = run_properties(tree, id, defaults, themes)
+      tree.diagnose_properties(id, path.target, diagnostics)
     }
     if tree.child(doc_defaults, "pPrDefault").bind(id => tree.child(id, "pPr"))
       is Some(id) {
       paragraph = paragraph_properties(tree, id, paragraph)
+      tree.diagnose_properties(id, path.target, diagnostics)
     }
   }
-  { tree: Some(tree), ids, defaults, paragraph, default_paragraph, themes, }
+  {
+    tree: Some(tree),
+    part: path.target,
+    ids,
+    defaults,
+    paragraph,
+    default_paragraph,
+    themes,
+  }
 }
 
 ///|
@@ -381,6 +374,7 @@ fn Session::theme_fonts(
 fn Styles::chain(
   self : Styles,
   key : String,
+  diagnostics : Array[String],
 ) -> Array[Int] raise @failure.Failure {
   let result = []
   let mut current = Some(key)
@@ -392,6 +386,18 @@ fn Styles::chain(
       @failure.reject("invalid-style", "Cyclic or over-deep style inheritance")
     }
     result.push(id)
+    for child in tree.children[id] {
+      tree.diagnose_properties(child, self.part, diagnostics)
+      if tree.nodes[child].name == "tblStylePr" {
+        let message = "unsupported-layout:" +
+          self.part +
+          ":" +
+          tree.nodes[child].qualified
+        if !diagnostics.contains(message) {
+          diagnostics.push(message)
+        }
+      }
+    }
     current = tree.value(id, "basedOn")
   }
   result.rev()

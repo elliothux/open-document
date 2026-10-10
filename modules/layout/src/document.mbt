@@ -29,14 +29,32 @@ pub impl ToJson for Span with fn to_json(self) {
 pub extend Span with ToJson::{to_json}
 
 ///|
+pub(all) enum LineSpacing {
+  Auto(Double)
+  Exact(Double)
+  AtLeast(Double)
+}
+
+///|
+pub impl ToJson for LineSpacing with fn to_json(self) {
+  let (rule, value) = match self {
+    Auto(value) => ("auto", value)
+    Exact(value) => ("exact", value)
+    AtLeast(value) => ("atLeast", value)
+  }
+  { "rule": rule, "value": value }
+}
+
+///|
+pub extend LineSpacing with ToJson::{to_json}
+
+///|
 pub(all) struct Paragraph {
   id : Int
   spans : Array[Span]
   before : Double
   after : Double
-  line : Double
-  exact : Bool
-  minimum : Double
+  line : LineSpacing
   left : Double
   right : Double
   first : Double
@@ -69,6 +87,7 @@ pub(all) struct Flow {
   tables : Array[Table]
   headers : Array[Array[Paragraph]]
   headerDistance : Double
+  additiveSpacing : Bool
 } derive(ToJson)
 
 ///|
@@ -109,6 +128,7 @@ pub(all) struct Line {
   y : Double
   width : Double
   height : Double
+  clip : Bool
   runs : Array[PlacedRun]
   images : Array[PlacedImage]
 } derive(ToJson)

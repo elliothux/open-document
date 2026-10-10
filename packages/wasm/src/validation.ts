@@ -1,4 +1,4 @@
-import type { ShapeBatch } from "./foundation";
+import type { ShapeBatch } from "./foundation.js";
 
 export function record(value: unknown): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value))

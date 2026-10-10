@@ -19,7 +19,7 @@
 
 ## 当前 Foundation API
 
-公开源码入口为 `packages/wasm/src/foundation.ts` 和 `packages/web/src/foundation.ts`，与既有文本 POC 分属真实职责。底层 `loadEngine(wasm).openFoundation()` 适用于受控同步调用；浏览器使用 `FoundationClient.open(wasm, workerUrl)`。宿主提供实际 release Wasm 字节和 bundle 后 Worker 的 URL，不依赖测试服务器。
+公开源码入口为 `packages/wasm/src/foundation.ts` 和 `packages/web/src/foundation.ts`，与既有文本 POC 分属真实职责。底层 `(await loadEngine(wasm)).openFoundation()` 适用于受控同步调用；浏览器使用 `FoundationClient.open(wasm, workerUrl)`。宿主提供实际 release Wasm 字节和 bundle 后 Worker 的 URL，不依赖测试服务器。
 
 客户端提供 `defaultBudget()`、`addFont(bytes, identity)`、`shape(text, size, language)`、`openDocx(bytes, budget)`、`query()`、`replaceNode(id, revision, text)`、`saveDocx()`、`flow()`、`imageBytes(key)`、`addImage(key,width,height,rgba)`、`layout(profile)`、`exportPdf(outputBytes,layoutId?)` 与 `dispose()`。DOCX 打开要求显式预算，可从核心默认值复制并收紧。`ShapeBatch` 包含字体身份、font units 度量、CSS px 位置和 UTF-16 clusters；布局使用 point。一个 `OutlineCanvas` 持有同会话派生 Path2D 并在结束时 `dispose()`。
 
@@ -28,6 +28,8 @@
 `tools/prepare-dependencies.mbtx` 是公开构建准备步骤，不依赖私有测试库。它让 Moon 下载精确固定依赖，校验 HarfBuzz 0.1.0 原文件 SHA-256，再修复 GDEF MarkGlyphSets 的 Offset32 读取；重复运行核对已补丁 hash。未知源码直接失败。`check`、`build`、`api` 调用此步骤；直接运行 Moon 命令前也需先运行它。补丁依据、移除条件和许可归[依赖记录](dependencies.md)。
 
 连接代码只拥有一个 in-flight 请求和 Worker 生命周期；不包含通用 RPC 或可独立编辑的文档树。用户字节经 structured clone/JSON/base64 批量穿过边界，已作为当前切片的可测成本；后续只有实测证明它阻碍文档使用时才更换 ABI。
+
+公开主线程入口保留 ESM 模块导入，`engine`、Wasm `foundation` 与 Web client 使用同一份 `DocumentError` 构造函数。应用构建器需要解析 `@open-document/wasm` 的公开子路径；直接加载浏览器 ESM 时，需要 import map 将 `foundation`、`preview`、`engine` 子路径映射到对应产物。内部运行时导入使用 `.js` 扩展名。Worker 单独打包，因此不依赖主页面的 import map。公开 tarball 包含这些模块及其内部依赖，测试服务器只提供资源路由。
 
 ## 工具与命令
 

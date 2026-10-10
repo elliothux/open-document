@@ -7,9 +7,24 @@ priv struct MeasuredSpan {
 }
 
 ///|
+fn LineSpacing::metrics(
+  self : LineSpacing,
+  ascent : Double,
+  descent : Double,
+) -> (Double, Double, Bool) {
+  match self {
+    Auto(value) => ((ascent + descent) * value / 240, ascent, false)
+    AtLeast(value) => ((ascent + descent).max(value / 20), ascent, false)
+    // Match the fixed LibreOffice profile: exact lines place the baseline at 4/5 height.
+    Exact(value) => (value / 20, value / 25, true)
+  }
+}
+
+///|
 fn measure_line(
   probe : TextProbe,
   spans : Array[MeasuredSpan],
+  paragraph : @bidi.BidiParagraph,
   start : Int,
   end : Int,
 ) -> (Double, Array[PlacedRun], Array[PlacedImage]) raise @failure.Failure {
@@ -26,7 +41,7 @@ fn measure_line(
     }
   }
   let text = text.to_string()
-  let bidi = @bidi.process(text)
+  let bidi = bidi_line(paragraph, start, end)
   let groups : Array[LineGroup] = []
   let char_groups : Array[Int] = []
   let mut offset = 0
@@ -82,12 +97,12 @@ fn measure_line(
       continue
     }
     let fragment = text[group.start:group.end].to_owned()
-    let batch = probe.shape(
+    let batch = probe.shape_paragraph(
       fragment,
       group.style.size,
       "und",
-      primary=group.font,
-      base=group.level,
+      group.font,
+      bidi_slice(bidi, group.start, group.end),
     )
     guard batch.diagnostics.is_empty() else {
       @failure.reject(
@@ -112,7 +127,7 @@ fn measure_line(
       color: group.style.color,
       text: fragment,
       glyphs: batch.glyphs,
-      bidi: batch.runs.map(run => { ..run, level: group.level, }),
+      bidi: batch.runs,
       x: width,
       baseline: 0,
     })
@@ -173,14 +188,25 @@ fn paragraph_lines(
     @failure.reject("limit-exceeded", "Paragraph exceeds 4096 UTF-16 units")
   }
   let text = text.to_string()
+  let bidi = @bidi.process(text)
   let size = if size > 0 { size } else { 11 }
-  let line_height = if paragraph.exact {
-    paragraph.line
-  } else {
-    ((ascent + descent).max(size) * paragraph.line).max(paragraph.minimum)
-  }
+  let (line_height, _, clip) = paragraph.line.metrics(
+    if ascent > 0 {
+      ascent
+    } else {
+      size * 0.8
+    },
+    if descent > 0 {
+      descent
+    } else {
+      size * 0.2
+    },
+  )
   guard line_height > 0 &&
-    paragraph.minimum >= 0 &&
+    (match paragraph.line {
+      Auto(value) | Exact(value) => value > 0
+      AtLeast(value) => value >= 0
+    }) &&
     paragraph.left >= 0 &&
     paragraph.right >= 0 &&
     available - paragraph.left - paragraph.right - paragraph.first.max(0) > 0 else {
@@ -205,7 +231,7 @@ fn paragraph_lines(
         (text[boundary - 1] == 10 || text[boundary - 1] == 12) {
         visible_end -= 1
       }
-      let (width, _, _) = measure_line(probe, spans, start, visible_end)
+      let (width, _, _) = measure_line(probe, spans, bidi, start, visible_end)
       if width > limit {
         break
       }
@@ -221,7 +247,7 @@ fn paragraph_lines(
         if a < start {
           continue
         }
-        let (width, _, _) = measure_line(probe, spans, start, b)
+        let (width, _, _) = measure_line(probe, spans, bidi, start, b)
         if width > limit && end > start {
           break
         }
@@ -239,7 +265,9 @@ fn paragraph_lines(
     } else {
       end
     }
-    let (width, runs, images) = measure_line(probe, spans, start, visible_end)
+    let (width, runs, images) = measure_line(
+      probe, spans, bidi, start, visible_end,
+    )
     guard width <= limit else {
       @failure.reject(
         "layout-overflow", "A grapheme or inline image exceeds line width",
@@ -261,18 +289,20 @@ fn paragraph_lines(
       line_ascent = if ascent > 0 { ascent } else { size * 0.8 }
       line_descent = if descent > 0 { descent } else { size * 0.2 }
     }
-    let line_height = if paragraph.exact {
-      paragraph.line
+    let (line_height, line_baseline, _) = paragraph.line.metrics(
+      line_ascent, line_descent,
+    )
+    let height = if clip {
+      line_height
     } else {
-      ((line_ascent + line_descent) * paragraph.line).max(paragraph.minimum)
-    }
-    let height = images
+      images
       .iter()
       .fold(init=line_height, (height, image) => {
         height.max(image.height + line_descent)
       })
-    let baseline = if images.is_empty() {
-      line_ascent
+    }
+    let baseline = if clip || images.is_empty() {
+      line_baseline
     } else {
       height - line_descent
     }
@@ -294,6 +324,7 @@ fn paragraph_lines(
       },
       width,
       height,
+      clip,
       runs: runs.map(run => { ..run, baseline, }),
       images: images.map(image => { ..image, y: baseline - image.height, }),
     })
@@ -311,7 +342,8 @@ fn paragraph_lines(
       x: paragraph.left,
       y: 0,
       width: 0,
-      height: line_height.max(size),
+      height: line_height,
+      clip,
       runs: [],
       images: [],
     })

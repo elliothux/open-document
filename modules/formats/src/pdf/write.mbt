@@ -75,6 +75,19 @@ pub fn write(
         ops.push(@content.Op_S)
       }
       for line in frame.lines {
+        if line.clip {
+          ops.push(@content.Op_q)
+          ops.push(
+            @content.Op_re(
+              0,
+              frame.height - line.y - line.height,
+              frame.width,
+              line.height,
+            ),
+          )
+          ops.push(@content.Op_W)
+          ops.push(@content.Op_n)
+        }
         for image in line.images {
           let entry = if installed_images.get(image.key) is Some(entry) {
             entry
@@ -139,6 +152,9 @@ pub fn write(
           ops.push(@content.Op_Q)
         }
         if line.text.is_empty() {
+          if line.clip {
+            ops.push(@content.Op_Q)
+          }
           continue
         }
         let actual = dict([
@@ -186,6 +202,9 @@ pub fn write(
           }
         }
         ops.push(@content.Op_EMC)
+        if line.clip {
+          ops.push(@content.Op_Q)
+        }
       }
       let bytes = @pdflite.pdf_content_bytes_of_ops(ops)
       content_bytes += bytes.length()

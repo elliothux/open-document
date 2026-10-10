@@ -1,4 +1,4 @@
-import { Connection } from "./connection";
+import { Connection } from "./connection.js";
 import type { Operation } from "./protocol";
 
 /** Plain-text POC host. This is not a DOCX/XLSX/PPTX editor. */

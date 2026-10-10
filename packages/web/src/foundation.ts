@@ -1,4 +1,4 @@
-import { Connection } from "./connection";
+import { Connection } from "./connection.js";
 import {
   docxFlow,
   pageLayout,
@@ -156,20 +156,30 @@ export class OutlineCanvas {
       for (const border of page.borders)
         context.strokeRect(border.x, border.y, border.width, border.height);
       for (const line of page.lines) {
-        for (const image of line.images) {
-          const bitmap = images.get(image.key);
-          if (!bitmap) throw new Error(`Missing image: ${image.key}`);
-          context.drawImage(
-            bitmap,
-            image.x,
-            image.y,
-            image.width,
-            image.height,
-          );
-        }
-        for (const run of line.runs) {
-          context.fillStyle = `#${run.color}`;
-          this.drawGlyphs(context, run.glyphs, run.x, run.baseline);
+        context.save();
+        try {
+          if (line.clip) {
+            context.beginPath();
+            context.rect(0, line.y, page.width, line.height);
+            context.clip();
+          }
+          for (const image of line.images) {
+            const bitmap = images.get(image.key);
+            if (!bitmap) throw new Error(`Missing image: ${image.key}`);
+            context.drawImage(
+              bitmap,
+              image.x,
+              image.y,
+              image.width,
+              image.height,
+            );
+          }
+          for (const run of line.runs) {
+            context.fillStyle = `#${run.color}`;
+            this.drawGlyphs(context, run.glyphs, run.x, run.baseline);
+          }
+        } finally {
+          context.restore();
         }
       }
     } finally {

@@ -3,8 +3,8 @@ import {
   pageLayout,
   type DocxFlow,
   type PageLayout,
-} from "./preview";
-import { record, hasFields, arrayOf, glyphs } from "./validation";
+} from "./preview.js";
+import { record, hasFields, arrayOf, glyphs } from "./validation.js";
 
 export interface Budget {
   fileBytes: number;

@@ -19,6 +19,8 @@ bun run test
 
 目前只验收随 Playwright 1.63.0 安装的 Chromium；没有冒充 Firefox/Safari 或任意 runtime 已验证。P1/P3 使用私有固定 Noto 字节，不依赖浏览器系统字体。P3 的 LibreOffice 参考使用相同的四个 Noto Sans 样式文件与固定字体替换 profile。
 
+P3 的段落级双向文字回归另需 FriBidi 1.0.16（Unicode 16.0.0）。完整 loop 记录其版本，浏览器测试先取得整段层级，再对实际选定行应用独立的 UAX #9 L1/L2 判定。缺少工具会失败，不能改用 SDK 的片段算法生成预期。
+
 `tools/loop.mbtx` 单次执行检查、构建、临时 MoonBit 测试组装、判定器/语料检查与浏览器验收，不自动写源码、更新 golden 或无限重试。修复循环由维护者或授权 Agent 调用这个确定性执行器构成。
 
 完整运行还在私有临时目录组装一个仅含公开源码的独立 Git 工作区，排除旧 dist/node_modules，安装锁定依赖并重新检查/构建。两包实际生成 tarball，读取 archive entries，与 `cases/suites.json` 的公开文件清单精确比对：多出私有文件、遗漏 Wasm、重复或越界路径均失败。临时 Git 边界避免父目录 ignore 规则导致 lint 零文件。执行器不创建 commit，也不触及真实仓库 index。
@@ -42,6 +44,10 @@ Canvas/PDF 在相同 72 DPI 下双向检查实体墨迹的一像素邻域覆盖�
 `bun run test:unit` 可独立运行，不要求旧运行目录；其中 corpus readiness 仍需独立 XML/PDF 工具。需要当次构建证据的 qualification/entrypoint 测试归 `tests/integration`，由完整入口提供新构建、tarball 和 Moon 日志后执行，并有独立 JUnit。`bun run test:corpus` 只验证样本完整性与独立基线，不能替代 SDK 兼容性测试。
 
 ## 证据与正确性
+
+P3 修复回归还覆盖原始行距继承、段尾空行与小/大固定行距、Canvas/PDF 垂直裁剪、实际构建入口的错误类身份、已应用样式诊断和解码前的图片预算。PNG/JPEG/GIF 均执行真实浏览器解码，超尺寸探针记录解码调用次数为零，尺寸不符检查位图释放和宿主保留。
+
+`cases/p3.json` 还固定九个精简间距/边界输入及两个原始 LibreOffice 回归输入的参考 PDF。原 `testN778140` 只验证自动段距诊断与部件保留；`testTdf145716_nonHTMLspacing` 含页眉内容，SDK 明确拒绝布局并保留文件，不把参考引擎两页结果计作 SDK 布局通过。原上游路径、revision 和许可保留在私有输入的 NOTICE。扩展后的 `reference-p3.mbtx` 使用相同字体/profile 校准全部 20 页；2026-10-10 校准 `1791646799003` 的两次转换和冻结参考 PNG 相同。正文/单元格 gap 与 settings 缺失、标志缺省/false/true 分别测试，contextual/自动段距/编号组合仍给不支持诊断。
 
 - 私有 `.temp/runs/<id>/` 保存各阶段 log、`status.json`、浏览器 JSON/HTML、失败 trace 和截图；首次失败保留，不以重跑覆盖。
 - `evidence.json` 记录真实源码文件 hash、私有测试/输入 hash、Wasm/JS 产物 hash、锁文件、工具链与环境；未提交源码不冒充已提交 HEAD。浏览器实际版本在 Playwright annotations。

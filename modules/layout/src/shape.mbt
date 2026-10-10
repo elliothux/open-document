@@ -17,6 +17,33 @@ pub fn TextProbe::shape(
   base? : Int = -1,
 ) -> ShapeBatch raise @failure.Failure {
   self.check()
+  guard text.length() <= 4096 else {
+    @failure.reject("limit-exceeded", "Text probe input exceeds budget")
+  }
+  guard base >= -1 && base <= 125 else {
+    @failure.reject("invalid-operation", "Invalid bidi base level")
+  }
+  let paragraph = if base < 0 {
+    @bidi.process(text)
+  } else {
+    @bidi.process(
+      text,
+      direction=if base % 2 == 0 { @bidi.LTR } else { @bidi.RTL },
+    )
+  }
+  self.shape_paragraph(text, size, language, primary, paragraph)
+}
+
+///|
+fn TextProbe::shape_paragraph(
+  self : TextProbe,
+  text : String,
+  size : Double,
+  language : String,
+  primary : Int,
+  paragraph : @bidi.BidiParagraph,
+) -> ShapeBatch raise @failure.Failure {
+  self.check()
   let inserted : Array[String] = []
   let original_outline_bytes = self.outline_bytes
   errdefer {
@@ -36,17 +63,6 @@ pub fn TextProbe::shape(
     size <= 1024 &&
     language.length() <= 64 else {
     @failure.reject("limit-exceeded", "Text probe input exceeds budget")
-  }
-  guard base >= -1 && base <= 125 else {
-    @failure.reject("invalid-operation", "Invalid bidi base level")
-  }
-  let paragraph = if base < 0 {
-    @bidi.process(text)
-  } else {
-    @bidi.process(
-      text,
-      direction=if base % 2 == 0 { @bidi.LTR } else { @bidi.RTL },
-    )
   }
   let chars = paragraph.chars
   let offsets : Array[Int] = []
