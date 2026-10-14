@@ -23,7 +23,7 @@ export class PresentationEditor {
   private readonly viewport = document.createElement("div");
   private readonly holder = document.createElement("div");
   private readonly input = document.createElement("textarea");
-  private readonly semantics = document.createElement("ol");
+  readonly objectList = document.createElement("ol");
   private readonly surface = new PresentationCanvas();
   private readonly listeners = new AbortController();
   private readonly observable: EditorState<PptxQuery>;
@@ -79,7 +79,7 @@ export class PresentationEditor {
     });
     this.container.setAttribute("role", "region");
     this.container.setAttribute("aria-label", "Presentation editor");
-    this.semantics.setAttribute("aria-label", "Slide objects");
+    this.objectList.setAttribute("aria-label", "Slide objects");
     Object.assign(this.viewport.style, {
       overflow: "auto",
       flex: "1",
@@ -176,7 +176,7 @@ export class PresentationEditor {
       },
       { signal: this.listeners.signal },
     );
-    this.container.append(this.viewport, this.semantics);
+    this.container.append(this.viewport, this.objectList);
     root.append(this.container);
   }
   static async create(
@@ -229,6 +229,7 @@ export class PresentationEditor {
     if (this.closed || this.closing) throw new Error("Editor is disposed");
     this.paused = paused;
     this.container.inert = paused;
+    this.objectList.inert = paused;
     this.input.readOnly = paused || this.blocked;
     this.publish();
     if (paused) await this.tail;
@@ -353,7 +354,7 @@ export class PresentationEditor {
   private updateSemantics(): void {
     const state = this.state;
     updatePresentationObjects(
-      this.semantics,
+      this.objectList,
       state,
       this.listeners.signal,
       (object, mode) => this.handle(() => this.select(object, mode)),
@@ -790,6 +791,7 @@ export class PresentationEditor {
         this.surface.dispose();
         this.drawing = undefined;
         this.geometry = undefined;
+        this.objectList.remove();
         this.container.remove();
       }
     })();

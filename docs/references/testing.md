@@ -20,6 +20,8 @@
 
 浏览器只覆盖 Chrome/Chromium，另保留独立 Node 和文件检查。普通系统输入使用现有输入法。其他浏览器引擎、Windows/Word 和 VoiceOver 验收在当前范围之外。
 
+P9 的默认 UI 检查使用 `web-sdk-ui.spec.ts` 四条现有能力流程，复用 XLSX/PPTX/PDF 宿主回归及 DOCX 键盘/输出屏障。保存回调、候选失败/取消、草稿、释放和多实例检查放在这些流程中。安装包检查由 `ui-package.test.ts` 验证无 DOM 导入、严格类型和普通 JS 构建；包清单沿用现有 qualification。输入、视觉与原始失败/复验边界见 [P9](../implemented/p9-web-sdk-ui.md)及私有 `cases/p9-ui.json`，不授予完整 loop 通过。
+
 ## 环境与入口
 
 使用仓库固定的 Bun、MoonBit、Node 和私有依赖版本，安装说明见[开发文档](development.md)。`test-lab/` 是项目的私有测试资源目录，由[根 AGENTS.md](../../AGENTS.md)统一管理；目录内保留测试源码、输入、预期与执行工具。

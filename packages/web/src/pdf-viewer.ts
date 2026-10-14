@@ -76,7 +76,7 @@ export class PdfViewer {
       canRedo: state.canRedo,
       page: state.pages.findIndex((page) => page.id === state.page),
       pageCount: state.pages.length,
-      selection: "0:0",
+      selection: "",
       readOnlyReason: state.readOnlyReason,
       diagnostics: state.diagnostics,
       data: {
@@ -217,7 +217,10 @@ export class PdfViewer {
       page: this.state.pages.findIndex((page) => page.id === this.state.page),
       pageCount: this.state.pages.length,
       zoom: this.zoom,
-      selection: `${this.selection.anchor}:${this.selection.focus}`,
+      selection:
+        this.selection.anchor === this.selection.focus
+          ? ""
+          : `${this.selection.anchor}:${this.selection.focus}`,
       composition: input.composition,
       dragging: this.dragging,
       draft: input.draft,

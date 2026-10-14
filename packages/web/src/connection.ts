@@ -66,6 +66,9 @@ export class Connection {
     try {
       await this.request(operation);
       signal?.throwIfAborted();
+    } catch (error) {
+      signal?.throwIfAborted();
+      throw error;
     } finally {
       signal?.removeEventListener("abort", abort);
     }

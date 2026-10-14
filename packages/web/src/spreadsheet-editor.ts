@@ -1,7 +1,7 @@
 import { updateGridSemantics } from "./spreadsheet-semantics.js";
 import { SpreadsheetPrint, defaultPrintOptions } from "./spreadsheet-print.js";
 import { CanvasSurface } from "./canvas-surface.js";
-import { spreadsheetKey } from "./spreadsheet-input.js";
+import { spreadsheetKey, styleCellDraft } from "./spreadsheet-input.js";
 import { bindClipboard } from "./clipboard-input.js";
 import {
   EditorState,
@@ -253,14 +253,7 @@ export class SpreadsheetEditor {
           this.report(new Error("Cut is unsupported; copy or clear cells"));
           return;
         }
-        this.handle(() =>
-          this.enqueue(async () => {
-            this.requireFinished();
-            await navigator.clipboard.writeText(
-              await this.client.copy(this.state.revision),
-            );
-          }),
-        );
+        this.handle(() => this.copy());
       },
       (text) => this.handle(() => this.paste(text)),
       (error) => this.report(error),
@@ -273,7 +266,6 @@ export class SpreadsheetEditor {
     this.publish();
     this.styleInput();
   }
-
   static async mount(
     root: HTMLElement,
     client: XlsxClient,
@@ -348,10 +340,8 @@ export class SpreadsheetEditor {
     this.pending++;
     this.publish();
     const task = this.tail.then(async () => {
-      if (this.closed) throw new Error("Spreadsheet editor is disposed");
       try {
         const result = await action();
-        if (this.closed) throw new Error("Spreadsheet editor is disposed");
         return result;
       } catch (error) {
         this.report(error);
@@ -582,19 +572,16 @@ export class SpreadsheetEditor {
       );
   }
   private styleInput(): void {
-    this.input.style.opacity = this.draft ? "1" : "0";
-    this.input.style.pointerEvents = this.draft ? "auto" : "none";
-    this.input.style.border = this.draft ? "2px solid #2563eb" : "0";
-    if (this.draft) {
-      const rect = this.layout?.cells.find(
-        (item) => item.cell.address === this.draft?.address,
-      )?.rect;
-      this.input.style.width = `${Math.max(120, Math.min((rect?.width ?? 90) * this.scale, this.viewport.clientWidth - parseFloat(this.input.style.left)))}px`;
-      this.input.style.height = `${Math.max(24, (rect?.height ?? 18) * this.scale)}px`;
-    } else {
-      this.input.style.width = "1px";
-      this.input.style.height = "1px";
-    }
+    const rect = this.layout?.cells.find(
+      (item) => item.cell.address === this.draft?.address,
+    )?.rect;
+    styleCellDraft(
+      this.input,
+      !!this.draft,
+      this.scale,
+      rect,
+      this.viewport.clientWidth,
+    );
   }
   private publish(): void {
     if (!this.observable) return;
@@ -626,7 +613,8 @@ export class SpreadsheetEditor {
       stopped: this.blocked,
       closed: this.closed,
       error: this.errorMessage,
-      readOnlyReason: this.state.readOnlyReason,
+      readOnlyReason:
+        this.state.readOnlyReason || this.active()?.readOnlyReason || "",
       diagnostics: this.state.diagnostics,
       data,
     });
@@ -662,6 +650,14 @@ export class SpreadsheetEditor {
       this.generation++;
       await this.present(true);
       this.input.focus({ preventScroll: true });
+    });
+  }
+  copy(): Promise<void> {
+    return this.enqueue(async () => {
+      this.requireFinished();
+      await navigator.clipboard.writeText(
+        await this.client.copy(this.state.revision),
+      );
     });
   }
   private history(redo: boolean): Promise<void> {
@@ -784,13 +780,14 @@ export class SpreadsheetEditor {
   dispose(): Promise<void> {
     if (this.cleanup) return this.cleanup;
     this.closed = true;
+    this.container.inert = true;
     this.listeners.abort();
     this.resize.disconnect();
     cancelAnimationFrame(this.frame);
-    this.draft = undefined;
     this.draftIntent = undefined;
     this.observable.close();
     this.cleanup = this.tail.finally(() => {
+      this.draft = undefined;
       this.surface.dispose();
       this.printView.dispose();
       this.container.remove();

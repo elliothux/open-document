@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Open Document SDK example</title>
+  <style>
+    body {
+      margin: 20px;
+      font:
+        14px Arial,
+        sans-serif;
+    }
+    form {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    textarea {
+      width: 300px;
+      height: 50px;
+    }
+    #editor {
+      height: 650px;
+      border: 1px solid #ddd;
+    }
+  </style>
+  <h1>Open Document — WIP SDK</h1>
+  <form id="open-form">
+    <label
+      >Document<input
+        id="document"
+        type="file"
+        accept=".docx,.xlsx,.pptx,.pdf"
+        required
+    /></label>
+    <label
+      >Licensed fonts<input id="fonts" type="file" accept=".ttf,.otf" multiple
+    /></label>
+    <label
+      >Font profile (font key → font filename without extension)<textarea
+        id="profile"
+      >
+{}</textarea>
+    </label>
+    <label
+      ><span>Host save callback</span
+      ><span
+        ><input id="host-save" type="checkbox" /> Save into a chosen
+        folder</span
+      ></label
+    >
+    <button type="submit">Mount editor</button>
+    <button type="button" id="close">Close</button>
+  </form>
+  <p id="host-status" role="status">
+    Supply a document and any fonts it needs. Files stay in this browser.
+  </p>
+  <div id="editor"></div>
+  <script type="module" src="./dist/app.js"></script>
+</html>

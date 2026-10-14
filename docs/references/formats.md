@@ -1,6 +1,6 @@
 # 当前字体与格式合同
 
-本文维护 P1–P8 的当前支持面；产品目标与核心/宿主职责归 [SDK 合同](sdk.md)。公开包仍为 private/WIP，API 尚未发布。内部架构直接按当前需求修改，删除旧模型与旧路径；兼容处理仅限文档格式。
+本文维护 P1–P9 的当前支持面；产品目标与核心/宿主职责归 [SDK 合同](sdk.md)。公开包仍为 private/WIP，API 尚未发布。内部架构直接按当前需求修改，删除旧模型与旧路径；兼容处理仅限文档格式。
 
 XLSX 的网格、值/公式编辑、保真保存与基础打印见 [P5](../implemented/p5-xlsx-editing.md)。以下分别声明文件读取、计算、显示和编辑边界。
 
@@ -15,6 +15,33 @@ P4 已完成限定 DOCX 编辑，只对声明范围负责。已验证输入不�
 U+202A–U+202E 与 U+2066–U+2069 保留在逻辑文字中，不要求可见字体字形，也不输出控制符轮廓。核心保留这些零宽区段的方向、字体和字号。十类输入的全部 234 个 Right/Left 矩形及真实输入框在 Node/Worker 匹配重复 LibreOffice 参考；原 51 处差异已修复。五组反向阿拉伯塑形向量在两个宿主匹配原生字形。内部 `PlacedRun.size` 以 pt 提供区段字号；完整布局留在核心。固定源码见[依赖记录](dependencies.md)，阶段验证范围见 [P4](../implemented/p4-docx-editing.md#验证依据与边界)。
 
 DOCX 文字区段的实际宽度和后续起点按固定 LibreOffice 的整数 twip 放置，初始断行 advance 和公开 `shape()` 保留浮点设计值。具体未支持范围与历史差异由私有 case 记录维护，不用行宽通过代替光标和选区验证。
+
+## 默认 UI 与编辑宿主
+
+`@open-document/ui` 的 `mountEditor(container, options)` 挂载 DOCX、XLSX、PPTX 或 PDF 默认 UI。`container` 由宿主提供可测量的高度。`options.format` 区分格式；`document` 为 `{ name, bytes }`，`resources` 明确提供 `{ wasm, workerUrl, fonts, profile }`，可传对应 `budget`、`theme: "light" | "dark"`、`locale: "zh-CN" | "en-US"`、异步 `onSave`、初始 `signal` 和 `styleNonce`。接入代码与普通 JS 示例归[开发说明](development.md#默认-web-ui)。
+
+返回的 `MountedEditor` 按 `format` 区分，`editor` 是当前文件的对应 Web 编辑宿主，只读属性在替换成功后指向新宿主。旧宿主释放后拒绝操作。实例提供以下方法：
+
+| 方法 | 行为 |
+| --- | --- |
+| `open({ name, bytes })` | 只替换同格式文件；处理草稿/未保存修改，暂停新编辑并等待已接受队列；独立候选完成字体和首屏后替换，失败或取消保留旧会话；成功 `true`，用户取消 `false`，失败拒绝 Promise |
+| `save()` | 产生原格式输出，等待 `onSave`；重复调用复用同一在途结果，回调期间可以继续编辑 |
+| `getSnapshot()` / `subscribe(listener)` | 转发当前宿主的稳定快照；外部订阅跨文件替换保持，监听器异常不改变事务 |
+| `close()` | 询问草稿和未保存修改；取消 `false`，完成关闭 `true`；等待在途保存回调后重新检查 |
+| `dispose()` | 明确放弃内存会话，不弹确认；取消候选、等待已接受核心操作、释放 Worker/Canvas/React/自建 DOM；重复调用等待同一个 Promise，清理失败仍继续其他清理 |
+| `setTheme()` / `setLocale()` | 更新 UI；保留文档会话、Canvas 和原生输入节点 |
+
+每个实例追加一个自建容器与 open ShadowRoot，保留调用者原有 DOM。菜单与 Dialog 的 Portal 位于实例内；关闭确认是模态，会暂时限制整个页面交互。主题、关键尺寸与基础样式在实例内定义，宿主无需 Tailwind。当前目标只有 Chrome/Chromium。
+
+框架无关的四类编辑宿主提供 `getSnapshot()`、`subscribe()`、`focus()`、`setPaused()`、`markSaved(output)` 和 `markDownloaded(output)`。快照包含会话身份、revision、导航、缩放、选区摘要、历史、诊断、停止/错误、在途操作及组合/拖动/草稿状态，并附格式当前查询。未变化时保持对象身份；已提交但绘制失败仍发布新 revision，保留保存与恢复入口。低层宿主借用 client，调用者等待宿主释放后另行关闭 client。
+
+编辑宿主的原格式保存和 Office PDF 输出统一返回 `EditorOutput = { documentId, revision, format, bytes }`。默认 UI 另加文件名 `name`。此约定不改变原始 Wasm/client 的保存结果。只有该宿主实际产生的原格式输出可以 `markSaved`；旧会话、其他格式和任意裸 revision 都不能确认保存。确认的是输出 revision，其后新编辑仍显示未保存。导航、缩放和 UI 变化不修改文档。
+
+`onSave` 成功才确认保存基线；失败保留修改并允许重试。缺省下载只提示“已生成下载”，不确认磁盘持久化，也不清除修改。PDF 导出不清除 Office 修改。关闭前选择“导出并继续”明确包含放弃内存会话。`dispose` 不等待宿主存储回调，晚到回执不更新已释放实例。
+
+保存回调期间若又有编辑，关闭/替换保留会话并返回 `false`。候选已经切换后，旧宿主清理失败只发布清理提示；新会话保持可用，`open` 返回 `true`。
+
+DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持的单格草稿；PDF 属性草稿须显式应用/取消。替换最多准备一个独立候选，加载界面的“取消”释放候选并恢复旧会话。核心保留原有文档校验、只读规则和预算。
 
 ## 会话与宿主
 
@@ -316,26 +343,26 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 ### Web 嵌入与生命周期
 
-`@open-document/web/pdf-viewer` 提供 `PdfViewer.create(options)`；`@open-document/web/pdf-editor` 提供 `PdfEditor.create(options)`，复用同一视图。宿主供应 release Wasm、Worker URL、本地文件字节及显式字体：
+`@open-document/web/pdf-viewer` 提供 `PdfViewer.create(root, client, profile?, signal?)`；`@open-document/web/pdf-editor` 提供相同所有权规则的 `PdfEditor.create`。先由调用者打开 client、供应文件和字体：
 
 ```ts
 import { PdfEditor } from "@open-document/web/pdf-editor";
+import { PdfClient } from "@open-document/web/pdf";
 
-const editor = await PdfEditor.create({
-  container,
-  wasm,
-  workerUrl,
-  bytes,
-  fonts: [{ bytes: fontBytes, identity: "regular" }],
-  profile: { form: "regular" },
-});
-const savedBytes = await editor.save();
-await editor.close();
+const client = await PdfClient.open(wasm, workerUrl);
+await client.execute({ operation: "openPdf", bytes, budget: await client.defaultBudget() });
+await client.addFont(fontBytes, "regular");
+const editor = await PdfEditor.create(container, client, { form: "regular" });
+propertyPanel.append(editor.propertyInput);
+const saved = await editor.save();
+// Persist saved.bytes, then editor.markSaved(saved) to confirm the output.
+await editor.dispose();
+client.dispose();
 ```
 
-viewer 提供 `snapshot`、`displayedPage`、`open`、`refresh`、`goToPage`、`navigatePage`、`setZoom`、`selectText`、`selectedText`、`extractText`、`search`、`cancelSearch` 和 `nextMatch`。editor 增加 `movePage`、`rotate`、`deletePage`、`highlight`、`deleteAnnotation`、`applyDraft`、`cancelDraft`、`undo`、`redo` 和 `save`。便笺/字段通过可访问原生面板形成草稿；切页/换文档/刷新/输出前应用或取消，组合期间禁止提交。
+viewer 提供 `snapshot`、`displayedPage`、`refresh`、`goToPage`、`navigatePage`、`setZoom`、`selectText`、`selectedText`、`copy`、`extractText`、`search`、`cancelSearch` 和 `nextMatch`。editor 增加 `movePage`、`rotate`、`deletePage`、`highlight`、`addNote`、`setFieldValue`、`updateAnnotation`、`deleteAnnotation`、`chooseProperty`、`beginNote`、`applyDraft`、`cancelDraft`、`undo`、`redo` 和 `save`。自定义 UI 可以挂入稳定的 `propertyInput`，不另存一份属性草稿；切页/换文档/刷新/输出前应用或取消，组合期间禁止提交。默认 UI 的文件替换使用前述 `MountedEditor.open`。
 
-队列最多 128 个已接受意图，保存排在已接受编辑之后。`close()` 等待在途操作并释放 UI/Worker；未提交草稿先明确处理。`dispose()` 立即取消会话并释放资源，不能假定在途修改已完成。呈现失败保留已提交源，停止新编辑，允许保存、刷新或显式撤销。Canvas 与派生资源只保留当前页；取消搜索及关闭后旧回复不能重绘。
+队列最多 128 个已接受意图，保存排在已接受编辑之后。低层 `close()` 校验草稿并等待已接受操作后释放表面；`dispose()` 停止接收新操作和搜索，等待已接受操作后释放表面，两者都保留调用者的 client。呈现失败保留已提交源，停止新编辑，允许保存、刷新或显式撤销。Canvas 与派生资源只保留当前页；取消搜索及关闭后旧回复不能重绘。
 
 ### PDF 默认预算
 

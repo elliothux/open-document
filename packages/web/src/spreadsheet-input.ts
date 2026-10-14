@@ -1,3 +1,23 @@
+import type { DrawRect } from "@open-document/wasm/drawing";
+
+export function styleCellDraft(
+  input: HTMLTextAreaElement,
+  draft: boolean,
+  scale: number,
+  rect: DrawRect | undefined,
+  viewportWidth: number,
+): void {
+  input.style.opacity = draft ? "1" : "0";
+  input.style.pointerEvents = draft ? "auto" : "none";
+  input.style.border = draft ? "2px solid #2563eb" : "0";
+  input.style.width = draft
+    ? `${Math.max(120, Math.min((rect?.width ?? 90) * scale, viewportWidth - parseFloat(input.style.left)))}px`
+    : "1px";
+  input.style.height = draft
+    ? `${Math.max(24, (rect?.height ?? 18) * scale)}px`
+    : "1px";
+}
+
 interface SpreadsheetKeyHost {
   paused: boolean;
   composing: boolean;

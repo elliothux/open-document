@@ -2,7 +2,7 @@
 
 项目未发布，当前有 0 个用户。目标是复刻 GenOffice 的文档、表格、PPT、PDF 全功能 SDK。GenOffice 提供功能与 UI 参考；Office 实现、布局和算法仍优先参考 ONLYOFFICE，其次 LibreOffice。
 
-阶段 P0–P8 已完成各自有限范围，四类格式共用 [R0](implemented/r0-renderer-foundation.md)。后续按“功能优先级 P0 核心功能、P1 兼容与性能、P2 次要与外围能力”推进；与历史阶段编号分开。只覆盖 Chrome/Chromium，文档完整性、恢复、资源安全和无障碍随功能保留。按风险选择[最小检查](references/testing.md)。
+阶段 P0–P9 已完成各自有限范围，四类格式共用 [R0](implemented/r0-renderer-foundation.md)。后续按“功能优先级 P0 核心功能、P1 兼容与性能、P2 次要与外围能力”推进；与历史阶段编号分开。只覆盖 Chrome/Chromium，文档完整性、恢复、资源安全和无障碍随功能保留。按风险选择[最小检查](references/testing.md)。
 
 | 内容 | 权威入口 |
 | --- | --- |
@@ -32,14 +32,13 @@
 | P6 | [PPTX 预览、编辑与保真保存](implemented/p6-pptx-editing.md) | `implemented`：限定主题/版式、基础图文、单对象/文本框编辑、保存重开与静态 PDF |
 | P7 | [PDF 输入、预览与文字查询](implemented/p7-pdf-input.md) | `implemented`：有界读取、限定图文预览、页内选择、提取与搜索 |
 | P8 | [PDF 页面操作、批注与表单保存](implemented/p8-pdf-operations.md) | `implemented`：页面整理、便笺/高亮、文本字段/复选框与保留源对象的保存 |
+| P9 | [Web SDK 与默认 UI](implemented/p9-web-sdk-ui.md) | `implemented`：四格式现有操作、稳定状态、保存回调、候选替换、Shadow DOM 与普通 JS 接入 |
 
-后续阶段均为 `planned`：P9 Web SDK/UI，P10–P13 四类核心功能，P14 兼容与性能，P15 次要与外围能力，P16 跨宿主。跨宿主按功能优先级 P2 最后实施。具体顺序和范围只在[路线图](references/roadmap.md#后续阶段与顺序)维护。
+后续阶段均为 `planned`：P10–P13 四类核心功能，P14 兼容与性能，P15 次要与外围能力，P16 跨宿主。跨宿主按功能优先级 P2 最后实施。具体顺序和范围只在[路线图](references/roadmap.md#后续阶段与顺序)维护。
 
 ## 待实现方案
 
-| 编号 | 文档 | 当前状态 |
-| --- | --- | --- |
-| P9 | [Web SDK 与默认 UI](p9-web-sdk-ui.md) | `planned`：独立 UI 包、四格式现有操作、状态通知、保存/关闭、Shadow DOM 与普通 JS 接入 |
+当前待实现阶段归[路线图](references/roadmap.md#后续阶段与顺序)。
 
 ## 活动研究
 

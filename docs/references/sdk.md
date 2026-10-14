@@ -1,6 +1,6 @@
 # SDK 目标、技术选型与核心/宿主合同
 
-**当前目标（2026-10-14）：复刻 GenOffice 的文档、表格、PPT、PDF，交付全功能 SDK。** 本地 `references/genoffice` 源码用于核对功能与 UI 交互，App 仅用于视觉对比验收和交互参考。Office 能力、布局、算法与兼容行为仍优先参考 ONLYOFFICE，其次 LibreOffice。目标覆盖读取、呈现、交互编辑、程序化操作、保存及转换；P0–P8 是已交付的基础阶段，其限定范围不构成最终产品上限。
+**当前目标（2026-10-14）：复刻 GenOffice 的文档、表格、PPT、PDF，交付全功能 SDK。** 本地 `references/genoffice` 源码用于核对功能与 UI 交互，App 仅用于视觉对比验收和交互参考。Office 能力、布局、算法与兼容行为仍优先参考 ONLYOFFICE，其次 LibreOffice。目标覆盖读取、呈现、交互编辑、程序化操作、保存及转换；P0–P9 是已交付的基础阶段，其限定范围不构成最终产品上限。
 
 项目未发布，当前有 0 个用户。现有基础包括 [P0 文本 POC](../implemented/p0-project-foundation.md)、[P1 字体/塑形](../implemented/p1-sdk-foundation.md)、[P2 窄 DOCX 读写](../implemented/p2-format-foundation.md)、[P3 有限预览/PDF](../implemented/p3-docx-preview.md)及 [P4 限定 DOCX 编辑](../implemented/p4-docx-editing.md)。实际 API 与支持面见[开发说明](development.md)和[格式合同](formats.md)。未发布 API、模型和开发数据沿单一实现路径直接修改。
 
@@ -30,7 +30,7 @@
 | P1 兼容与性能 | 扩大真实文件、格式变体、复杂排版、公式与效果覆盖，改善大文件交互和资源占用 | 基于功能差距和实测瓶颈优化，不先建性能平台或扩大浏览器矩阵 |
 | P2 次要与外围能力 | AI 集成、协作、Diff、外部服务及次要平台接入 | 保留在完整目标中，独立于 P0/P1 交付；本地批注和修订编辑属于 P0 |
 
-“功能优先级 P0/P1/P2”与“阶段 P0–P16”是两套标记。已完成的阶段 P0–P8 保留编号，待实现阶段按实施顺序编号；阶段顺序和任务归属只在[路线图](roadmap.md)维护。逐项差距见 [G3 功能对照](../g3-genoffice-sdk-gap.md)。
+“功能优先级 P0/P1/P2”与“阶段 P0–P16”是两套标记。已完成阶段保留编号，待实现阶段按实施顺序编号；阶段顺序和任务归属只在[路线图](roadmap.md)维护。逐项差距见 [G3 功能对照](../g3-genoffice-sdk-gap.md)。
 
 ### 首要平台：WASM + Web 浏览器
 
@@ -72,11 +72,11 @@
 
 Rust、Zig、Go 不作为当前核心主语言。选择 MoonBit 不意味着为了“全 MoonBit”重写所有成熟底层库：遇到字体塑形、图像或编解码能力缺口，先评估可复用的 WASM 组件、调用成本及授权，再决定引入或移植；不默认把缺失算法搬到 TS。
 
-### 默认 Web UI：已决策，待实现
+### 默认 Web UI：现有能力已接入
 
-2026-10-14 确定 React + Shadow DOM + Tailwind CSS + [Base UI](https://base-ui.com/react/overview/quick-start)。Base UI 指 `@base-ui/react` 无样式组件库。当前 `packages/web` 仍使用命令式 DOM 与 Canvas，尚未接入这些 UI 依赖；选型确定不代表 UI 已交付。
+`packages/ui` 使用 React + open Shadow DOM + Tailwind CSS + [Base UI](https://base-ui.com/react/overview/quick-start)，接通四类格式已有操作。`packages/web` 保持框架无关，拥有原生输入、语义节点、Canvas 和操作队列；已移出四类编辑宿主的旧工具栏。
 
-具体包划分、挂载接口、状态通知、保存/关闭与 Shadow DOM 接入归 [P9 技术方案](../p9-web-sdk-ui.md)。新接口处于计划状态，当前 API 仍以格式合同为准。
+交付与检查边界见 [P9](../implemented/p9-web-sdk-ui.md)。挂载、状态、保存/关闭与资源所有权归[格式合同](formats.md#默认-ui-与编辑宿主)，实际入口与普通 JS 示例归[开发说明](development.md#默认-web-ui)。新建和缺失格式操作继续按 P10–P13 实施。
 
 | 层 | 职责 |
 | --- | --- |

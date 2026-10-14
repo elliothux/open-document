@@ -18,6 +18,7 @@ PDF 输入和文档操作见 [P7](../implemented/p7-pdf-input.md) 与 [P8](../im
 | `modules/bridge` | Wasm 导出、核心到宿主的批量 ABI | core、layout、formats/docx、formats/xlsx、formats/pptx、formats/pdf |
 | `packages/wasm` | 实例化与 ABI 校验 | WasmGC 产物；不拥有第二份文档模型 |
 | `packages/web` | Worker 请求、输入事件排序、页面呈现与生命周期 | wasm 包；不实现文本替换、撤销或排版 |
+| `packages/ui` | 默认 React UI、ShadowRoot、文件候选、宿主保存回调 | web、React、Base UI；文档操作复用编辑宿主队列 |
 
 根 `moon.work` 明确列举四个 module，各 module 内以 package 划分真实 concern。暂不为每种格式创建独立发布 module，也不创建 CLI 空壳。根 Bun workspace 只包含 `packages/*`，一个公开 `bun.lock`；私有工具是独立仓库和独立依赖域，不加入公开 workspace。
 
@@ -41,7 +42,7 @@ P4 编辑 API 提供 `editState()`、`selectDocx(revision, selection)`、`select
 
 `@open-document/web/editor` 提供 `DocumentEditor.create(root, client, profile, signal?)`。调用者先供应字体并打开 DOCX，组件存活期间独占 client 操作。`dispose(): Promise<void>` 关闭 UI/监听器，等待在途回复并取消自身未提交组合；调用方须 await 后再复用或关闭 client。已发送的最终提交可能成功，不自动回滚。
 
-`whenIdle()` 等待已接受意图；`saveDocx()` 和 `exportPdf(outputBytes?)` 返回屏障处的 `{ revision, bytes }`，PDF 绑定已显示 layout ID。`downloadDocx()` / `downloadPdf()` 下载输出，`setZoom()` 调整显示。组件已有点击/拖选、键盘输入与导航、拆合普通段落、撤销/重做、纯文本剪贴板及组合输入。范围、分组、队列、保护与恢复规则统一见[格式合同](formats.md#p4-当前编辑-api-切片)，平台接入见[输入事件模块](../../packages/web/src/text-input.ts)。Shift+Enter 和富 HTML/RTF 粘贴不支持。
+`whenIdle()` 等待已接受意图；`saveDocx()` 和 `exportPdf(outputBytes?)` 返回屏障处的 `EditorOutput`，PDF 绑定已显示 layout ID。`downloadDocx()` / `downloadPdf()` 记录下载生成，`setZoom()` 调整显示。公开 `undo/redo`、`goToPage`、`copy(cut?)`、`paste(text)` 使用同一队列。组件保留点击/拖选、键盘输入与导航、拆合普通段落和组合输入。输出/状态归[格式合同](formats.md#默认-ui-与编辑宿主)，输入范围与恢复归 [P4 合同](formats.md#p4-当前编辑-api-切片)。Shift+Enter 和富 HTML/RTF 粘贴不支持。
 
 普通 Chrome 系统输入的绑定产物与独立保存记录在私有 `cases/p4-native-input-current.json`。这不授予所有输入法或完整布局支持。[P4](../implemented/p4-docx-editing.md) 已按限定范围归档，性能专项延后。
 
@@ -52,6 +53,35 @@ P4 编辑 API 提供 `editState()`、`selectDocx(revision, selection)`、`select
 连接代码只拥有一个 in-flight 请求和 Worker 生命周期。用户字节经 structured clone 进入 Worker。字体以八位字符串调用内部 `foundation_add_font`，核心构造字节后使用原字体校验与资源拥有者。公开 `addFont` 和 32 MiB 预算保持，旧 JSON font 分支已删除。DOCX 和图片仍使用原 JSON/Base64 路径。两种路径共用响应及错误解析；连接代码不维护可编辑文档树。
 
 公开主线程入口保留 ESM 模块导入，`engine`、Wasm `foundation` 与 Web client 使用同一份 `DocumentError` 构造函数。应用构建器需要解析 `@open-document/wasm` 的公开子路径；直接加载浏览器 ESM 时，需要 import map 将使用的 `foundation`、`preview`、`drawing`、`engine` 子路径映射到对应产物。内部运行时导入使用 `.js` 扩展名。Worker 单独打包，因此不依赖主页面的 import map。公开 tarball 包含这些模块及其内部依赖，测试服务器只提供资源路由。
+
+## 默认 Web UI
+
+[`@open-document/ui`](../../packages/ui/package.json) 提供 `mountEditor`，普通 JS 和 TS 使用同一个入口。调用者显式供应文档、release Wasm、已打包 Worker URL、授权字体及 profile。容器需要可测量的高度；SDK 追加自己的 open ShadowRoot，不替换调用者 DOM。
+
+```js
+import { mountEditor } from "@open-document/ui";
+
+const mounted = await mountEditor(container, {
+  format: "docx",
+  document: { name: "example.docx", bytes: docxBytes },
+  resources: { wasm: wasmBytes, workerUrl, fonts, profile },
+  locale: "zh-CN",
+  theme: "light",
+  onSave: persistDocument,
+});
+const unsubscribe = mounted.subscribe(() => updateStatus(mounted.getSnapshot()));
+await mounted.save();
+unsubscribe();
+await mounted.close();
+```
+
+示例资源变量及 `persistDocument` 由宿主提供。`editor` 按返回值的 `format` 区分类型，文件替换后重新获取当前宿主。保存回执、未保存提示、取消和释放的实际合同归[格式说明](formats.md#默认-ui-与编辑宿主)。自定义 UI 直接使用 Web 编辑宿主，不需要 React。
+
+`packages/ui` 以 React `useSyncExternalStore` 观察宿主。Tailwind 只在构建时运行，省略 Preflight，CSS 文本随 ESM 入口进入实例 `<style>`。Base UI 的 Tabs/Menu/Dialog 使用实例内 Portal；`styleNonce` 同时供应自建样式和 Base UI CSP provider。关键尺寸为本地 px token，light/dark 不改变文档颜色。普通菜单非模态；关闭确认暂时限制整个页面交互并恢复焦点/滚动。
+
+`bun run build` 生成三个包的 JS/types/样式、Wasm、Worker 和 [`examples/web-sdk`](../../examples/web-sdk/index.html) 普通 JS 示例。只重建示例时运行 `bun run build:example`，前提是三个包已有当前构建。使用已有静态 HTTP 服务托管示例目录，选择本地文档、授权字体和 profile。缺省输出下载；勾选宿主保存后，Chrome 选择目录，示例回调在文件流关闭成功后确认保存。示例没有私有路径、字体或测试服务器依赖。
+
+三个包仍为 private/WIP，可分别用 `bun pm pack` 生成本地 tarball。消费项目将 `@open-document/wasm`、`@open-document/web`、`@open-document/ui` 指向这些 tarball，并将 Wasm/Web 的 overrides 指向同一份本地包；安装固定 React/React DOM peer 版本。主线程由消费项目构建器解析公开子路径；Worker 和 Wasm 由宿主部署到明确 URL，不自动加载字体。
 
 ## XLSX 嵌入入口
 
@@ -74,13 +104,13 @@ const pdf = await editor.exportPdf({
   top: 36, right: 36, bottom: 36, left: 36,
   range: "A1:F40",
 });
-editor.dispose();
+await editor.dispose();
 client.dispose();
 ```
 
 示例变量由应用提供。实际字体映射以 `workbook.fontKeys` 为准；可继续添加 CJK 等后备字体，字体身份与既有字体/嵌入预算保持。字体缺失返回明确错误，不使用浏览器字体度量代替核心。
 
-编辑器独占 client 的在途请求。使用 `select`、`move`、`paste`、`undo/redo`、`setZoom`、`save`、`printLayout`、`exportPdf` 与 `refresh`；读取 `currentState/currentLayout` 获取已呈现状态。`whenIdle()` 等待已接受队列，不代表未来滚动请求或新平台事件已结束。调用者若直接修改 client，应等待队列结束，取消旧草稿后刷新；revision 冲突不会静默覆盖修改。
+编辑器独占 client 的在途请求。使用 `select`、`move`、`copy`、`paste`、`clear`、`undo/redo`、`setZoom`、`save`、`printLayout`、`showPrintPage`、`closePrintPreview`、`exportPdf` 与 `refresh`；读取 `currentState/currentLayout` 获取已呈现状态。保存/PDF 返回 `EditorOutput`。`whenIdle()` 等待已接受队列，不代表未来滚动请求或新平台事件已结束。调用者若直接修改 client，应等待队列结束，取消旧草稿后刷新；revision 冲突不会静默覆盖修改。
 
 `XlsxClient.query/replace/copy/paste/clear/viewport/hit/selectionGeometry/printLayout` 的细节、输入语义、保真和资源上限归[格式合同](formats.md#p5-xlsx-合同)。同步会话结束用 `close()`，Worker 客户端结束用 `dispose()`。宿主自行打包 Worker 并提供 WASM、文件及字体，不依赖私有服务器。打印预览与 PDF 使用同一核心页面；PDF 不截取屏幕 Canvas。
 
@@ -110,7 +140,7 @@ client.dispose();
 
 调用者应按实际字体样式提供映射；示例把全部键映射到一份字体，仅演示接入顺序。先供应所需脚本字体，缺失映射或字形时明确失败。组件存活期间独占 client；`dispose()` 等待已接受操作、取消未提交候选并释放画布/资源，调用者随后复用或关闭 client。
 
-`PresentationEditor` 提供 `select()`、`showSlide()`、`setZoom()`、`paste()`、`undo()`、`redo()`、`save()`、`exportPdf(all = true, hidden = false, outputBytes?)`、`refresh()` 与异步 `dispose()`。`query` 返回展示状态副本，`layout` 为当前单页绘制结果。UI 提供页列表、对象列表、模式切换、鼠标/键盘编辑、保存和 PDF。保存/PDF 等待已接受队列，未结束的组合或拖动拒绝输出。呈现失败保留核心提交，刷新重取状态，Undo 显式撤销。
+`PresentationEditor` 提供 `select()`、`showSlide()`、`setZoom()`、`transform(dx, dy, handle?)`、`copy(cut?)`、`paste()`、`undo()`、`redo()`、`save()`、`exportPdf(all = true, hidden = false, outputBytes?)`、`refresh()` 与异步 `dispose()`。`query` 返回展示状态，`layout` 为当前单页绘制结果；默认 UI 挂入稳定的 `objectList` 语义节点。保存/PDF 返回 `EditorOutput`，等待已接受队列，未结束的组合或拖动拒绝输出。呈现失败保留核心提交，刷新重取状态，Undo 显式撤销。
 
 格式核心位于 `modules/formats/src/pptx`，按关系/继承、图文读取、文本框布局、源编辑、历史和几何拆分。共享定位输入归 `modules/layout/src/positioned.mbt`，PDF writer 按同一图元顺序输出。`NativeTextInput` 共用平台事件与组合机制；`decodeImage` 共用图片头校验、解码及 RGBA 接入。实际能力与上限归[格式合同](formats.md#pptx)。
 
@@ -133,7 +163,7 @@ bun run api
 - `lint`：固定版 Oxlint，警告阻止通过。
 - `format` / `format:check`：Moon 原生 formatter + Prettier。前者修改格式，后者只检查。
 - `api`：Moon 自动生成 `.mbti`，应审阅并跟随源码提交，禁止手改。
-- `build`：正常 release WasmGC + 浏览器 JS，输出到各包 `dist/`。目前包为 private，未发布。
+- `build`：release WasmGC、浏览器 JS、UI 类型/内联样式和普通 JS 示例；包输出到各自 `dist/`，示例输出到 `examples/web-sdk/dist/`。目前包为 private，未发布。
 
 当前开发先补功能、修正确性和保真问题，不主动运行原生性能测量、A/B 或 CPU profile。现有测量入口保留为后续或实际卡死/不可交互问题的最小诊断工具，命令和边界见[独立执行档](testing.md#独立执行档)；测量状态不阻塞当前功能交付，资源安全和释放回归继续执行。
 

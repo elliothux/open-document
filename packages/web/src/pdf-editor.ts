@@ -76,7 +76,19 @@ export class PdfEditor extends PdfViewer {
       },
       { signal },
     );
-    this.propertyInput.append(this.text, this.checked, this.x, this.y);
+    for (const [key, input] of [
+      ["text", this.text],
+      ["checked", this.checked],
+      ["x", this.x],
+      ["y", this.y],
+    ] as const) {
+      const label = document.createElement("label"),
+        caption = document.createElement("span");
+      label.dataset.pdfControl = key;
+      caption.textContent = input.getAttribute("aria-label");
+      label.append(caption, input);
+      this.propertyInput.append(label);
+    }
     for (const node of [this.text, this.checked, this.x, this.y]) {
       node.addEventListener("input", () => this.publish(), { signal });
       node.addEventListener("change", () => this.publish(), { signal });
@@ -234,6 +246,8 @@ export class PdfEditor extends PdfViewer {
     this.text.hidden = !draft || typeof draft.original === "boolean";
     this.checked.hidden = !draft || typeof draft.original !== "boolean";
     this.x.hidden = this.y.hidden = draft?.kind !== "note";
+    for (const input of [this.text, this.checked, this.x, this.y])
+      if (input.parentElement) input.parentElement.hidden = input.hidden;
     this.text.rows = field?.multiline ? 4 : 2;
     this.text.maxLength = field?.maxLength ?? 32767;
     this.text.disabled = this.checked.disabled =

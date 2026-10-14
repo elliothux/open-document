@@ -746,17 +746,19 @@ export class DocumentEditor {
     filename = "document.pdf",
     outputBytes = 67108864,
   ): Promise<void> {
-    const { bytes } = await this.exportPdf(outputBytes);
-    this.downloadBytes(bytes, "application/pdf", filename);
+    const output = await this.exportPdf(outputBytes);
+    this.downloadBytes(output.bytes, "application/pdf", filename);
+    this.observable.markDownloaded(output);
   }
 
   async downloadDocx(filename = "document.docx"): Promise<void> {
-    const { bytes } = await this.saveDocx();
+    const output = await this.saveDocx();
     this.downloadBytes(
-      bytes,
+      output.bytes,
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       filename,
     );
+    this.observable.markDownloaded(output);
   }
 
   private downloadBytes(
@@ -776,7 +778,7 @@ export class DocumentEditor {
     }
   }
 
-  /** Removes UI immediately; await cancellation before reusing or closing the caller's client. */
+  /** Stop input; await accepted work and cancellation before closing the caller's client. */
   dispose(): Promise<void> {
     if (this.cleanup) return this.cleanup;
     this.closed = true;

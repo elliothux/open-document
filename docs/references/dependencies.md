@@ -85,3 +85,16 @@ GPOS 的合并补丁身份见上表；原版权头、Apache-2.0 及公开包 not
 一次 `shape_paragraph` 调用的所有字体/script run 共用 67108864 单位的递减计数器。特性选择、GSUB/GPOS、Coverage/ClassDef、GDEF 过滤及嵌套查表的 Result 函数入口和循环迭代计一单位；批量数组初始化、辅助线性扫描及数组移位按处理长度预扣。耗尽状态保持失败，Indic/USE 等试探路径即使忽略中间错误，公共塑形出口仍返回 `WorkLimitExceeded`；SDK 转为 `limit-exceeded` 并回收本次新增轮廓。
 
 字体表初次解析另用同限额。此计数器约束指定查表路径，不是整个文档操作的时间上限，也不覆盖全部字体解析、轮廓分配或进程峰值内存。极端但合法的字体也可能超限；SDK 不截断布局或增加可关闭该限制的公开选项。私有回归覆盖边界、跨阶段/跨 run 共享、完整派生字体和独立恢复字形；当前实际通过情况归[测试记录](testing.md)。固定上游具备等效约束后移除补丁。
+
+## 默认 Web UI 依赖
+
+`packages/ui` 单向依赖 Web 包；Web/Wasm 不引入 React。版本由根 `bun.lock` 固定，UI 包把 React/React DOM 声明为 peer，根开发依赖使用相同精确版本。
+
+| 依赖 | 版本与用途 | 许可 |
+| --- | --- | --- |
+| React / React DOM | 19.3.1；UI 与挂载 | MIT |
+| `@types/react` / `@types/react-dom` | 19.3.0；严格类型检查 | MIT |
+| `@base-ui/react` | 1.9.0；Tabs、非模态 Menu、模态 Dialog 与 CSP provider | MIT |
+| Tailwind CSS / `@tailwindcss/cli` | 4.3.3；构建 CSS，宿主不需要运行时 Tailwind | MIT |
+
+GenOffice 固定源码 `5eab98adc8d0ebf6ecea687e42400a791ef58d64` 的设计变量、功能区分组与选定剪贴板/历史 SVG 用于 UI。复用文件保留 Mainfunc 2026 版权与 Apache-2.0 来源，详见 [`packages/ui/NOTICE`](../../packages/ui/NOTICE)。未引入其 Electron、Tiptap、Univer 或 AI 引擎。UI 包分发自身 Apache LICENSE；依赖分发保留原许可。

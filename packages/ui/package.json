@@ -24,7 +24,7 @@
     "react-dom": "19.3.1"
   },
   "scripts": {
-    "build": "tailwindcss -i src/styles/ui.css -o dist/styles.css --minify && bun build src/index.ts --target browser --outdir dist --external react --external 'react-dom/*' --external '@base-ui/react/*' --external '@open-document/web/*' && tsc --project tsconfig.json --declaration --emitDeclarationOnly --noEmit false --outDir dist/types && cp ../../LICENSE dist/LICENSE",
+    "build": "tailwindcss -i src/styles/ui.css -o dist/styles.css --minify && bun build src/index.ts --target browser --outdir dist --external react --external 'react-dom/*' --external '@base-ui/react/*' --external '@open-document/web/*' && rm -rf dist/types && tsc --project tsconfig.json --declaration --emitDeclarationOnly --noEmit false --outDir dist/types && cp ../../LICENSE dist/LICENSE",
     "typecheck": "tsc --project tsconfig.json"
   }
 }
