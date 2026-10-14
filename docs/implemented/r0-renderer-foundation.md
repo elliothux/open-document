@@ -1,6 +1,6 @@
 # R0 通用渲染架构与薄 Renderer
 
-状态：`implemented`，2026-10-14。首次落地完成 DOCX 与 Web Canvas；其他格式和平台尚未接入，未验证性能收益。
+状态：`implemented`，2026-10-14。首次落地完成 DOCX 与 Web Canvas，后续 [P5](p5-xlsx-editing.md) 已接入 XLSX 并补齐共享表面与 PDF 输出所需定位数据。[P6](p6-pptx-editing.md)进一步接入 PPTX、有序定位图元、基础路径及仿射矩阵。其他平台尚未接入，未验证性能收益。
 
 MoonBit/WASM 输出定位后的绘制指令，平台 Renderer 执行绘制。内容与交互覆盖层独立更新。内部布局继续负责命中、选区和 PDF，宿主保留输入顺序、资源接入与生命周期。
 
@@ -97,6 +97,10 @@ Chromium 的 17 项现有功能用例分次通过，覆盖点击/拖选、空白
 ## P5 接入
 
 [P5](p5-xlsx-editing.md)已将绘制批次统一为 `regions` / `drawRegion`，抽出共用 `CanvasSurface`。DOCX 保留图片准备和分页语义，XLSX 提供核心网格语义。PDF writer 消费两种格式共有的 `PositionedDocument`，包含定位文字、glyph/Unicode、图形与页面；表格打印独立于屏幕视口。当前合同见[格式说明](../references/formats.md#通用绘制输出)。
+
+## P6 接入
+
+[P6](p6-pptx-editing.md)已用 `PositionedPage.primitives` 统一有序矩形、路径、文字、独立图片、矩阵和裁剪。Canvas/PDF 按同一序列执行；DOCX/XLSX 保持原顺序，PPTX 可表达图文任意叠放。基础路径仅含 move、line、cubic、close，未引入场景图或效果系统。三种格式仍分别拥有语义与命中规则。
 
 ## 后续能力的进入条件
 

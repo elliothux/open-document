@@ -5,8 +5,11 @@ import type {
   NavigationDirection,
 } from "@open-document/wasm/foundation";
 import type { GridViewport, PrintOptions } from "@open-document/wasm/xlsx";
+import type { PptxCommand } from "@open-document/wasm/pptx";
 
 export type Operation =
+  | PptxCommand
+  | { operation: "openPresentation"; wasm: ArrayBuffer }
   | { operation: "open"; text: string; wasm: ArrayBuffer }
   | { operation: "read" | "undo" }
   | {

@@ -27,7 +27,7 @@ fn Sheet::cell_range(self : Sheet, address : Address) -> Range {
 
 ///|
 fn place_block(
-  page : @layout.PositionedPage,
+  page : PagePaint,
   block : @layout.TextBlock,
   rect : @layout.Border,
   horizontal : String,
@@ -52,15 +52,19 @@ fn place_block(
       } else {
         0.0
       }).max(0)
-    page.texts.push({
-      ..text,
-      clip: Some(rect),
-      runs: text.runs.map(run => {
-        ..run,
-        x: run.x + x,
-        baseline: run.baseline + top,
-      }),
-    })
+    page.texts.push(
+      (
+        {
+          ..text,
+          runs: text.runs.map(run => {
+            ..run,
+            x: run.x + x,
+            baseline: run.baseline + top,
+          }),
+        },
+        rect,
+      ),
+    )
   }
 }
 
@@ -104,7 +108,7 @@ fn Session::paint_cells(
   dimensions : Dimensions,
   rows : Array[Int],
   columns : Array[Int],
-  page : @layout.PositionedPage,
+  page : PagePaint,
   dx : Double,
   dy : Double,
   probe : @layout.TextProbe,
@@ -174,7 +178,7 @@ fn Session::paint_cells(
         })
       }
       if !printing {
-        page.strokes.push({ rect, color: "d9dce1", width: 0.5, })
+        page.strokes.push((rect, "d9dce1", 0.5))
       }
       for side, edge in style.borders {
         if edge.1 == 0 {
@@ -186,7 +190,7 @@ fn Session::paint_cells(
           2 => { ..rect, height: 0, }
           _ => { ..rect, y: rect.y + rect.height, height: 0, }
         }
-        page.strokes.push({ rect: edge_rect, color: edge.0, width: edge.1, })
+        page.strokes.push((edge_rect, edge.0, edge.1))
       }
       if !text.is_empty() && rect.width > 4.5 && rect.height > 3 {
         let mut block = probe.text_block(
@@ -244,7 +248,7 @@ fn Session::paint_cells(
             ),
           }
           for i in start..<page.texts.length() {
-            page.texts[i] = { ..page.texts[i], clip: Some(clip), }
+            page.texts[i] = (page.texts[i].0, clip)
           }
         }
       }
@@ -349,13 +353,7 @@ pub fn Session::viewport(
     dimensions.columns.locate(x),
     dimensions.columns.locate(x + width - 36).min(extent_column),
   )
-  let page : @layout.PositionedPage = {
-    width,
-    height,
-    texts: [],
-    fills: [],
-    strokes: [],
-  }
+  let page : PagePaint = { width, height, texts: [], fills: [], strokes: [], }
   let cells = self.paint_cells(
     index,
     dimensions,
@@ -377,7 +375,7 @@ pub fn Session::viewport(
       height: rect.height,
       color: "f1f3f5",
     })
-    page.strokes.push({ rect, color: "d9dce1", width: 0.5, })
+    page.strokes.push((rect, "d9dce1", 0.5))
     place_block(
       page,
       probe.text_block(
@@ -415,7 +413,7 @@ pub fn Session::viewport(
   }
   header("", { x: 0, y: 0, width: 36, height: 18, })
   let document : @layout.PositionedDocument = {
-    pages: [page],
+    pages: [page.positioned()],
     fonts: probe.font_info(),
   }
   guard self.grid_id < 2147483647 else {

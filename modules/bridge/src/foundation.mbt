@@ -3,6 +3,7 @@ pub struct Foundation {
   probe : @layout.TextProbe
   mut docx : @docx.Session?
   mut xlsx : @xlsx.Session?
+  mut pptx : @pptx.Session?
   mut closed : Bool
   mut layout : @layout.Layout?
   images : @layout.Images
@@ -16,6 +17,7 @@ pub fn new_foundation() -> Foundation {
     probe: @layout.TextProbe::new(),
     docx: None,
     xlsx: None,
+    pptx: None,
     closed: false,
     layout: None,
     images: @layout.Images::new(),
@@ -178,7 +180,7 @@ fn Foundation::dispatch(
       .to_json()
     }
     "openDocx" => {
-      guard self.docx is None && self.xlsx is None else {
+      guard self.docx is None && self.xlsx is None && self.pptx is None else {
         @failure.reject("invalid-operation", "DOCX session is already open")
       }
       guard request is { "budget": budget, .. } else {
@@ -216,6 +218,28 @@ fn Foundation::dispatch(
     | "clearXlsx"
     | "printXlsx"
     | "exportXlsxPdf" => self.xlsx_operation(operation, request)
+    "openPptx"
+    | "queryPptx"
+    | "selectPptx"
+    | "replacePptx"
+    | "deletePptx"
+    | "undoPptx"
+    | "redoPptx"
+    | "savePptx"
+    | "layoutPptx"
+    | "hitPptx"
+    | "selectionPptx"
+    | "navigatePptx"
+    | "beginPptx"
+    | "transformPptx"
+    | "dragPptx"
+    | "finishPptx"
+    | "cancelPptx"
+    | "imageBytesPptx"
+    | "imagePptx"
+    | "imageKeysPptx"
+    | "copyPptx"
+    | "exportPptxPdf" => self.pptx_operation(operation, request)
     "query"
     | "editState"
     | "selectDocx"
@@ -518,6 +542,10 @@ pub fn foundation_close(context : Foundation) -> Unit {
     session.close()
   }
   context.xlsx = None
+  if context.pptx is Some(session) {
+    session.close()
+  }
+  context.pptx = None
   context.layout = None
   context.xlsx_print = None
   context.images.clear()

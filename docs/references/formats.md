@@ -1,8 +1,12 @@
-# 当前字体与 DOCX 合同
+# 当前字体与格式合同
 
-本文维护 P1–P4 的当前支持面；产品目标与核心/宿主职责归 [SDK 合同](sdk.md)。公开包仍为 private/WIP，API 尚未发布。内部架构直接按当前需求修改，删除旧模型与旧路径；兼容处理仅限文档格式。
+本文维护 P1–P6 的当前支持面；产品目标与核心/宿主职责归 [SDK 合同](sdk.md)。公开包仍为 private/WIP，API 尚未发布。内部架构直接按当前需求修改，删除旧模型与旧路径；兼容处理仅限文档格式。
 
 XLSX 的网格、值/公式编辑、保真保存与基础打印见 [P5](../implemented/p5-xlsx-editing.md)。以下分别声明文件读取、计算、显示和编辑边界。
+
+PPTX 已交付限定幻灯片编辑、源保留及静态 PDF，结果与检查依据见 [P6](../implemented/p6-pptx-editing.md)。
+
+PDF 当前仅支持下文声明的 Office 布局输出。输入、预览与文字查询见待实现的 [P7](../p7-pdf-input.md)；页面操作、选定批注/表单及对象保存见 [P8](../p8-pdf-operations.md)。计划中的支持范围与预算不属于本合同的已实现能力。
 
 后续实现与测试基准优先使用 ONLYOFFICE core/sdkjs，其次使用 LibreOffice。下文 LibreOffice profile 记录已有实现和证据；对应功能调整时按当前优先级核对，并保留历史结果的真实来源。
 
@@ -66,7 +70,7 @@ DOCX 文字区段的实际宽度和后续起点按固定 LibreOffice 的整数 t
 
 ## 通用绘制输出
 
-`@open-document/wasm/drawing` 定义 `DrawingBatch`、`DrawingRegion`、`DrawCommand` 和批量校验。`DrawingBatch.regions` 是绘制区域数组；DOCX 中每个区域对应一页，XLSX 屏幕结果对应一个视口。区域只包含 `width`、`height` 和有序 `commands`，不包含段落或表格模型。区域原点在左上，坐标为 point，x 向右、y 向下。Renderer 使用 `drawRegion`，旧的页字段与方法已删除。
+`@open-document/wasm/drawing` 定义 `DrawingBatch`、`DrawingRegion`、`DrawCommand` 和批量校验。`DrawingBatch.regions` 是绘制区域数组；DOCX 中每个区域对应一页，XLSX 屏幕结果对应一个视口，PPTX 对应当前幻灯片。区域只包含 `width`、`height` 和有序 `commands`，不包含段落或表格模型。区域原点在左上，坐标为 point，x 向右、y 向下。Renderer 使用 `drawRegion`，旧的页字段与方法已删除。
 
 当前指令如下：
 
@@ -76,17 +80,19 @@ DOCX 文字区段的实际宽度和后续起点按固定 LibreOffice 的整数 t
 | `strokeRect` | `rect`、`color`、point 单位的 `lineWidth` |
 | `glyphs` | 批次原点 `x/y`、`color` 和 `glyphs`；每个字形给出 `outline`、相对 `x/y`、`scaleX/scaleY`，核心已确定方向与位置 |
 | `image` | `image: { key, x, y, width, height }`，消费已解码的图片 |
-| `clipRect` / `restoreClip` | 压入矩形裁剪与恢复上一裁剪；批次须平衡 |
+| `path` | `path` 为 move/line/cubic/close 数值段；`fill`/`stroke` 为 RGB 或空串，`lineWidth` 为 point |
+| `transform` | 压入有限、可逆的仿射 `matrix: { a, b, c, d, e, f }`；与当前矩阵合成 |
+| `clipRect` / `restore` | 压入矩形裁剪 / 恢复最近矩阵或裁剪；批次须平衡 |
 
 核心生成完整区域的绘制顺序和裁剪。`outlines: { key, path }[]` 与 `images: string[]` 独立于区域；批次中每个轮廓仅保留一份。字体身份和轮廓键在会话内稳定。`addImage(key,width,height,rgba)` 返回由尺寸及 RGBA SHA-256 组成的资源身份；同一源键替换像素后返回新身份。平台位图按此身份缓存。
 
 `layout(profile)` 返回 `PageLayout`：绘制批次、会话内 `id`、`revision`、复用计数、字体信息、profile、诊断，以及独立的 `semantics`。语义页按阅读顺序保留行文字、源位置、方向、只读原因与文字边界。宿主用它展示文本并初始化焦点；命中、光标和选区仍查询核心。完整 run、carets、图片布局和表格模型留在内部 `Layout`，供编辑几何及 PDF 使用。
 
-宿主校验有限数值、尺寸、颜色、裁剪栈和全部资源引用。未知指令、无效输出及缺资源明确失败。`@open-document/web/drawing` 的 `CanvasRenderer` 只执行这些指令，并保留独立 `shape()` 探针的绘制入口。
+宿主校验有限数值、尺寸、颜色、路径、矩阵、嵌套栈和全部资源引用。每批指令/路径段/glyph 累计最多 1048576 项，栈深度最多 32，数值绝对值最多 1e9；轮廓仍最多 8 MiB。未知指令、无效输出及缺资源明确失败。`@open-document/web/drawing` 的 `CanvasRenderer` 只执行这些指令，并保留独立 `shape()` 探针的绘制入口。
 
 `CanvasSurface` 共用尺寸、DPR、透明覆盖层、绘制身份与资源释放。DOCX 的 `PageCanvas` 继续准备文档图片。相同 `id`、区域、zoom 和 DPR 下，只清除并重画覆盖层；仅像素尺寸变化时重设画布尺寸。缩放与窗口 DPR 变化重新呈现，覆盖层几何须匹配当前布局身份与 revision。
 
-预览与编辑共用此路径。宿主在关闭时释放 Canvas、Path2D 和 ImageBitmap；内容与覆盖层共同计入像素预算。JSON/Worker 仍按批次传输。PDF writer 消费 `PositionedDocument` 的定位文字、页面、边框、填充及图片；DOCX 从内部布局转换，XLSX 从独立打印布局生成。字体嵌入、Unicode 与裁剪仍由核心处理。
+预览与编辑共用此路径。宿主在关闭时释放 Canvas、Path2D 和 ImageBitmap；内容与覆盖层共同计入像素预算。JSON/Worker 仍按批次传输。PDF writer 消费 `PositionedDocument.pages[].primitives` 的有序矩形、边框、文字、独立图片、路径、矩阵、裁剪和恢复操作。DOCX 从内部布局转换，XLSX 从独立打印布局生成，PPTX 从幻灯片布局生成；旧分组结构已删除。字体嵌入、Unicode 与裁剪仍由核心处理。
 
 ## 预算
 
@@ -236,3 +242,45 @@ PDF 使用同一字形坐标、TrueType 子集、字体宽度、CIDToGIDMap、To
 | 打印 | 32768 可见格、单轴 4096 项、1024 页；每页继续受视口绘制文字/单元格上限约束 |
 
 当前范围不含空白工作簿向导、表/行列增删、样式编辑、填充、排序筛选、冻结窗格交互、图表/透视表/图片编辑、协作和整本工作簿打印。XLS/XLSB/XLSM、其他浏览器、Windows/Excel、VoiceOver、性能专项与发布验收未进入本期验证。
+
+## PPTX
+
+`PptxSession.execute()` 与 `PptxClient.execute()` 使用独立的 `PptxCommand`，不复用 DOCX/XLSX 位置模型。`PptxQuery` 返回 revision、声明页序/尺寸/隐藏状态、当前页对象、有效字体键、图片键、选区、历史状态与诊断。幻灯片 ID 为源部件路径，对象 ID 为所属部件与源 `cNvPr.id`；未知对象使用只读源节点身份。
+
+| 命令 | 作用 |
+| --- | --- |
+| `openPptx` / `queryPptx` | 显式预算打开 Transitional PPTX / 查询当前状态 |
+| `selectPptx` / `navigatePptx` | 页/对象/文字选择、对象顺序及字素/行导航；文字使用对象内 UTF-16 offset |
+| `replacePptx` / `deletePptx` / `copyPptx` | 普通文字范围编辑、方向删除及纯文本复制；编辑需要字体 profile |
+| `beginPptx` / `finishPptx` / `cancelPptx` | 开始、提交、取消 `text` 或 `transform` 候选；匹配 revision 与 candidateId |
+| `transformPptx` / `dragPptx` | 绝对位置/尺寸，或基于手势开始几何的 point 增量与核心手柄编号 |
+| `undoPptx` / `redoPptx` / `savePptx` | 原子历史及绑定 revision 的源保存 |
+| `layoutPptx` / `hitPptx` / `selectionPptx` | 当前页绘制、最上层命中、对象轮廓/手柄及文字光标/选区；几何绑定 layoutId |
+| `imageKeysPptx` / `imageBytesPptx` / `imagePptx` | 准备当前页或导出范围的资源键、读压缩源、接入经过宿主校验的 RGBA |
+| `exportPptxPdf` | 绑定 revision、字体 profile、当前页/整稿、隐藏页选择与输出预算的静态 PDF |
+
+文字与变换候选基于原范围重算，不写入已提交 XML，不累积中间历史。暂态查询/布局读取候选；提交一项历史，取消恢复原选择。保存、PDF 和普通编辑在候选期间失败。Enter 是普通段落分隔 `\n`，Shift+Enter 使用对象内软换行 `U+2028`；保存为 DrawingML `p` / `br`。跨 run/段落保留范围外字符与段落属性，不重建整个 `spTree` 或 `txBody`。普通逐字符输入目前各自成项。
+
+主题颜色支持 sRGB、带 `lastClr` 的系统色、主题/颜色映射以及 tint、shade、lumMod、lumOff。支持无填充、纯色填充、实线、主题填充/边框/背景引用和无效果样式。未知颜色变换、填充或可见效果保留源并诊断，不静默宣称完整。占位符依类型/索引匹配，当前属性按具体声明覆盖继承值；写回不修改共享主题、母版或版式。
+
+字体键为有效 family，按需附加 `|bold` / `|italic`。主/次字体、显式 Latin/EA/CS 字体及当前常见脚本映射参与解析；自动推断覆盖 Latin、简中 Han 缺省、Kana、Hangul、Arabic、Hebrew、Devanagari 和 Thai。语言敏感的 Han 区域字体推断尚未扩展；不声明全语言主题字体一致性。调用者提供授权字体及实际样式映射，缺失时明确失败。
+
+文本框支持基本字号、粗体/斜体、文字色、段落对齐、内边距、缩进、点值/百分比段距及行距、软换行和字符项目符号的字体/大小/颜色。固定框越界诊断并裁剪；无法建立文字几何时保留边界占位和对象文本查询。`normAutofit` 以 10 次有界搜索求解 10%–100% 字号缩放，保存必要 `fontScale` 并保留基准字号。字段所在框、自动编号、图片项目符号、多栏、纵排、文字变形和 `spAutoFit` 诊断或保护。
+
+支持矩形、椭圆、直线与文本框的核心路径；PNG/JPEG、矩形源裁剪、旋转/翻转和组合坐标变换。组合成员与继承对象只读；未提供旋转控件。图片不发起外链请求，源压缩字节与关系不改；只为当前页准备屏幕资源。全稿 PDF 临时准备所选页资源，仍受累计图片/输出预算约束，失败不返回截断文件。
+
+未知可见对象阻止点穿；无确定边界时，该页直接画布编辑只读，查询/保存及其他页仍可用。静态 PDF 遇到可见未支持内容、效果或未解决适配时返回页/对象原因。动画/切换只保留源。保存及全部撤销保留原解压部件；输出重新校验 ZIP/XML/OPC，不承诺整个 ZIP 字节一致。
+
+沿用文件、字体、图片、Canvas 和 PDF 预算，另有以下上限。预算不等同于堆峰值或性能保证。
+
+| 对象 | 上限 |
+| --- | --- |
+| 页数 / 每页对象身份 / 全稿可见对象 | 256 / 4096 / 16384 |
+| 依赖树 / 组合层级 | 2048 个源部件 / 16 层 |
+| 幻灯片或对象尺寸、位置绝对值 | 14400 point；线可有一个零尺寸轴 |
+| 文本框 / 单段 / 全稿文字 | 32767 / 4096 / 1048576 UTF-16；每框最多 256 段 |
+| 字体键 / 图片资源 | 各 256；图片最大 4096×4096、单图 4194304 像素、RGBA 累计 16 MiB |
+| 布局 / PDF 图元 | 每页 262144 glyph；整稿 PDF 1048576 图元；通用绘制仍受前述批次预算约束 |
+| 历史 / 宿主队列 | undo+redo 共 100 项、4 MiB 源补丁 payload；编辑与指针意图队列各 64 项，指针预览只保留待发送末次坐标 |
+
+未支持内容、产品操作和本次检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)。Chromium 受控输入事件已验证；没有追加系统输入源、Windows/PowerPoint、VoiceOver、其他浏览器或性能验收。

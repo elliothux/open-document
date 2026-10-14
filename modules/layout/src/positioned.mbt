@@ -11,24 +11,25 @@ pub(all) struct PositionedRun {
 pub(all) struct PositionedText {
   text : String
   runs : Array[PositionedRun]
-  clip : Border?
-  images : Array[PlacedImage]
 }
 
 ///|
-pub(all) struct PositionedStroke {
-  rect : Border
-  color : String
-  width : Double
+pub(all) enum PositionedPrimitive {
+  Rectangle(Fill)
+  Stroke(Border, String, Double)
+  Text(PositionedText)
+  Image(PlacedImage)
+  Path(Array[PathSegment], String, String, Double)
+  Transform(Matrix)
+  Clip(Border)
+  Restore
 }
 
 ///|
 pub(all) struct PositionedPage {
   width : Double
   height : Double
-  texts : Array[PositionedText]
-  fills : Array[Fill]
-  strokes : Array[PositionedStroke]
+  primitives : Array[PositionedPrimitive]
 }
 
 ///|
@@ -42,26 +43,39 @@ pub fn Layout::positioned(self : Layout) -> PositionedDocument {
   {
     fonts: self.fonts,
     pages: self.pages.map(page => {
-      width: page.width,
-      height: page.height,
-      fills: page.fills,
-      strokes: page.borders.map(rect => { rect, color: "000000", width: 0.5, }),
-      texts: page.lines.map(line => {
-        text: line.text,
-        images: line.images,
-        clip: if line.clip {
-          Some({ x: 0, y: line.y, width: page.width, height: line.height, })
-        } else {
-          None
-        },
-        runs: line.runs.map(run => {
-          color: run.color,
-          text: run.text,
-          glyphs: run.glyphs,
-          x: run.x,
-          baseline: run.baseline,
-        }),
-      }),
+      let primitives : Array[PositionedPrimitive] = []
+      for fill in page.fills {
+        primitives.push(Rectangle(fill))
+      }
+      for rect in page.borders {
+        primitives.push(Stroke(rect, "000000", 0.5))
+      }
+      for line in page.lines {
+        if line.clip {
+          primitives.push(
+            Clip({ x: 0, y: line.y, width: page.width, height: line.height, }),
+          )
+        }
+        for image in line.images {
+          primitives.push(Image(image))
+        }
+        primitives.push(
+          Text({
+            text: line.text,
+            runs: line.runs.map(run => {
+              color: run.color,
+              text: run.text,
+              glyphs: run.glyphs,
+              x: run.x,
+              baseline: run.baseline,
+            }),
+          }),
+        )
+        if line.clip {
+          primitives.push(Restore)
+        }
+      }
+      { width: page.width, height: page.height, primitives, }
     }),
   }
 }
@@ -82,40 +96,40 @@ pub fn PositionedDocument::drawing(
         color: "ffffff",
       }),
     ]
-    for fill in page.fills {
-      commands.push(FillRect(fill))
+    for primitive in page.primitives {
+      match primitive {
+        Rectangle(fill) => commands.push(FillRect(fill))
+        Stroke(rect, color, width) =>
+          commands.push(StrokeRect(rect, color, width))
+        Image(image) =>
+          commands.push(
+            Image({ ..image, key: images.get(image.key).identity, }),
+          )
+        Path(path, fill, stroke, width) =>
+          commands.push(Path(path, fill, stroke, width))
+        Transform(matrix) => commands.push(Transform(matrix))
+        Clip(rect) => commands.push(ClipRect(rect))
+        Restore => commands.push(Restore)
+        Text(text) =>
+          for run in text.runs {
+            commands.push(
+              Glyphs(
+                run.x,
+                run.baseline,
+                run.color,
+                run.glyphs.map(glyph => {
+                  outline: glyph.outline,
+                  x: glyph.x,
+                  y: glyph.y,
+                  scaleX: glyph.scale,
+                  scaleY: -glyph.scale,
+                }),
+              ),
+            )
+          }
+      }
     }
-    for stroke in page.strokes {
-      commands.push(StrokeRect(stroke.rect, stroke.color, stroke.width))
-    }
-    for text in page.texts {
-      if text.clip is Some(rect) {
-        commands.push(ClipRect(rect))
-      }
-      for image in text.images {
-        commands.push(Image({ ..image, key: images.get(image.key).identity, }))
-      }
-      for run in text.runs {
-        commands.push(
-          Glyphs(
-            run.x,
-            run.baseline,
-            run.color,
-            run.glyphs.map(glyph => {
-              outline: glyph.outline,
-              x: glyph.x,
-              y: glyph.y,
-              scaleX: glyph.scale,
-              scaleY: -glyph.scale,
-            }),
-          ),
-        )
-      }
-      if text.clip is Some(_) {
-        commands.push(RestoreClip)
-      }
-    }
-    commands.push(RestoreClip)
+    commands.push(Restore)
     { width: page.width, height: page.height, commands, }
   })
 }
@@ -184,8 +198,6 @@ pub fn TextProbe::text_block(
     let line = item.line
     texts.push({
       text: line.text,
-      clip: None,
-      images: [],
       runs: line.runs.map(run => {
         color: run.color,
         text: run.text,

@@ -33,8 +33,10 @@ pub(all) enum DrawCommand {
   StrokeRect(Border, String, Double)
   Glyphs(Double, Double, String, Array[DrawGlyph])
   Image(PlacedImage)
+  Path(Array[PathSegment], String, String, Double)
+  Transform(Matrix)
   ClipRect(Border)
-  RestoreClip
+  Restore
 }
 pub fn DrawCommand::to_json(Self) -> Json
 pub impl ToJson for DrawCommand
@@ -154,6 +156,7 @@ pub fn Images::add(Self, String, Int, Int, Bytes) -> Unit raise @failure.Failure
 pub fn Images::clear(Self) -> Unit
 pub fn Images::get(Self, String) -> ImageResource raise @failure.Failure
 pub fn Images::new() -> Self
+pub fn Images::retain(Self, Array[String]) -> Unit
 
 pub(all) struct InlineImage {
   key : String
@@ -214,6 +217,20 @@ pub(all) enum LineSpacing {
 pub fn LineSpacing::to_json(Self) -> Json
 pub impl ToJson for LineSpacing
 
+pub(all) struct Matrix {
+  a : Double
+  b : Double
+  c : Double
+  d : Double
+  e : Double
+  f : Double
+} derive(ToJson)
+pub fn Matrix::identity() -> Self
+pub fn Matrix::inverse(Self) -> Self raise @failure.Failure
+pub fn Matrix::point(Self, Double, Double) -> (Double, Double)
+pub fn Matrix::then(Self, Self) -> Self
+pub fn Matrix::to_json(Self) -> Json
+
 type MeasuredLine
 
 pub(all) struct Outline {
@@ -260,6 +277,15 @@ pub(all) struct Paragraph {
 } derive(ToJson)
 pub fn Paragraph::to_json(Self) -> Json
 
+pub(all) enum PathSegment {
+  Move(Double, Double)
+  Line(Double, Double)
+  Cubic(Double, Double, Double, Double, Double, Double)
+  Close
+}
+pub fn PathSegment::to_json(Self) -> Json
+pub impl ToJson for PathSegment
+
 pub(all) struct PlacedImage {
   key : String
   x : Double
@@ -291,9 +317,18 @@ pub fn PositionedDocument::drawing(Self, Images) -> Array[DrawingRegion] raise @
 pub(all) struct PositionedPage {
   width : Double
   height : Double
-  texts : Array[PositionedText]
-  fills : Array[Fill]
-  strokes : Array[PositionedStroke]
+  primitives : Array[PositionedPrimitive]
+}
+
+pub(all) enum PositionedPrimitive {
+  Rectangle(Fill)
+  Stroke(Border, String, Double)
+  Text(PositionedText)
+  Image(PlacedImage)
+  Path(Array[PathSegment], String, String, Double)
+  Transform(Matrix)
+  Clip(Border)
+  Restore
 }
 
 pub(all) struct PositionedRun {
@@ -304,17 +339,9 @@ pub(all) struct PositionedRun {
   baseline : Double
 }
 
-pub(all) struct PositionedStroke {
-  rect : Border
-  color : String
-  width : Double
-}
-
 pub(all) struct PositionedText {
   text : String
   runs : Array[PositionedRun]
-  clip : Border?
-  images : Array[PlacedImage]
 }
 
 pub(all) struct SelectionRect {
@@ -418,6 +445,7 @@ pub fn TextProbe::font_info(Self) -> Array[FontInfo] raise @failure.Failure
 pub fn TextProbe::glyph_width(Self, Int, UInt) -> Double raise @failure.Failure
 pub fn TextProbe::new() -> Self
 pub fn TextProbe::outline_resources(Self) -> Array[Outline] raise @failure.Failure
+pub fn TextProbe::paragraph_lines(Self, Paragraph, Map[String, String], Double, Bool) -> Array[Line] raise @failure.Failure
 pub fn TextProbe::shape(Self, String, Double, String, primary? : Int, base? : Int) -> ShapeBatch raise @failure.Failure
 pub fn TextProbe::text_block(Self, String, TextStyle, Map[String, String], Double, Bool) -> TextBlock raise @failure.Failure
 

@@ -1,8 +1,12 @@
 # 开发与模块边界
 
-当前实现工程/文本 POC、字体塑形、有界 ZIP/XML/OPC，以及限定 DOCX/XLSX 编辑与 PDF 输出。DOCX 覆盖普通正文和单个表格单元格；XLSX 覆盖稀疏网格、值/首批公式、历史、剪贴板、保真保存与独立打印。`pptx` 仍为占位包；PDF reader 尚未实现。当前支持面见[格式合同](formats.md)，固定第三方依赖见[依赖记录](dependencies.md)。
+当前实现工程/文本 POC、字体塑形、有界 ZIP/XML/OPC，以及限定 DOCX/XLSX/PPTX 编辑与 PDF 输出。DOCX 覆盖普通正文和单个表格单元格；XLSX 覆盖稀疏网格、值/首批公式、历史、剪贴板、保真保存与独立打印。PPTX 提供限定图文编辑、保真保存和静态 PDF；PDF reader 尚未实现。当前支持面见[格式合同](formats.md)，固定第三方依赖见[依赖记录](dependencies.md)。
 
 XLSX 交付及检查范围见 [P5](../implemented/p5-xlsx-editing.md)。MoonBit 负责源内容、计算及布局；平台绘制和事件继续由 TS 处理。
+
+PPTX 的交付范围与检查依据见 [P6](../implemented/p6-pptx-editing.md)。三种格式共用有序定位图元、基础路径/矩阵及 PDF；原生输入事件与图片解码复用现有模块。
+
+PDF 输入和文档操作的待实现方案见 [P7](../p7-pdf-input.md) 与 [P8](../p8-pdf-operations.md)。拟复用现有 formats/pdf、pdflite 和 R0；其中 `PdfSession`、`PdfClient`、viewer/editor 及读取预算均尚未交付，不能按计划中的名称调用当前包。
 
 ## Workspace
 
@@ -11,7 +15,7 @@ XLSX 交付及检查范围见 [P5](../implemented/p5-xlsx-editing.md)。MoonBit 
 | `modules/core` | text、failure、archive、XML 源片段与 OPC 图 | 标准库、固定 flate/xml；不依赖宿主 |
 | `modules/layout` | 字体塑形、几何、分页与绘制结果 | core；不通过 DOM 决定布局 |
 | `modules/formats` | docx/xlsx/pptx/pdf 的独立语义与读写 | core；需要输出布局时依赖 layout |
-| `modules/bridge` | Wasm 导出、核心到宿主的批量 ABI | core、layout、formats/docx、formats/xlsx、formats/pdf |
+| `modules/bridge` | Wasm 导出、核心到宿主的批量 ABI | core、layout、formats/docx、formats/xlsx、formats/pptx、formats/pdf |
 | `packages/wasm` | 实例化与 ABI 校验 | WasmGC 产物；不拥有第二份文档模型 |
 | `packages/web` | Worker 请求、输入事件排序、页面呈现与生命周期 | wasm 包；不实现文本替换、撤销或排版 |
 
@@ -80,6 +84,36 @@ client.dispose();
 
 `XlsxClient.query/replace/copy/paste/clear/viewport/hit/selectionGeometry/printLayout` 的细节、输入语义、保真和资源上限归[格式合同](formats.md#p5-xlsx-合同)。同步会话结束用 `close()`，Worker 客户端结束用 `dispose()`。宿主自行打包 Worker 并提供 WASM、文件及字体，不依赖私有服务器。打印预览与 PDF 使用同一核心页面；PDF 不截取屏幕 Canvas。
 
+## PPTX 入口
+
+`@open-document/wasm/pptx` 提供 `PptxSession`、`PptxCommand` 及严格结果校验。同步会话通过 `loadEngine(wasm).openPptx()` 创建；浏览器用 `@open-document/web/pptx` 的 `PptxClient`，两者执行相同的类型化 `execute(command)`。一个会话只打开一种格式，所有修改携带当前 revision。
+
+```ts
+import { PptxClient } from "@open-document/web/pptx";
+import { PresentationEditor } from "@open-document/web/presentation-editor";
+
+const client = await PptxClient.open(wasmBytes, workerUrl);
+const state = await client.execute({
+  operation: "openPptx",
+  bytes: pptxBytes,
+  budget: await client.defaultBudget(),
+});
+// Supply licensed fonts and mappings for the document and intended input scripts.
+await client.addFont(fontBytes, "regular");
+const profile = Object.fromEntries(state.fontKeys.map(key => [key, "regular"]));
+const editor = await PresentationEditor.create(root, client, profile);
+const saved = await editor.save();
+const pdf = await editor.exportPdf(true, false);
+await editor.dispose();
+client.dispose();
+```
+
+调用者应按实际字体样式提供映射；示例把全部键映射到一份字体，仅演示接入顺序。先供应所需脚本字体，缺失映射或字形时明确失败。组件存活期间独占 client；`dispose()` 等待已接受操作、取消未提交候选并释放画布/资源，调用者随后复用或关闭 client。
+
+`PresentationEditor` 提供 `select()`、`showSlide()`、`setZoom()`、`paste()`、`undo()`、`redo()`、`save()`、`exportPdf(all = true, hidden = false, outputBytes?)`、`refresh()` 与异步 `dispose()`。`query` 返回展示状态副本，`layout` 为当前单页绘制结果。UI 提供页列表、对象列表、模式切换、鼠标/键盘编辑、保存和 PDF。保存/PDF 等待已接受队列，未结束的组合或拖动拒绝输出。呈现失败保留核心提交，刷新重取状态，Undo 显式撤销。
+
+格式核心位于 `modules/formats/src/pptx`，按关系/继承、图文读取、文本框布局、源编辑、历史和几何拆分。共享定位输入归 `modules/layout/src/positioned.mbt`，PDF writer 按同一图元顺序输出。`NativeTextInput` 共用平台事件与组合机制；`decodeImage` 共用图片头校验、解码及 RGBA 接入。实际能力与上限归[格式合同](formats.md#pptx)。
+
 ## 工具与命令
 
 固定 Bun 1.4.2；Moon 工具链 0.1.20261010（moonc v0.10.14+7080b3792-nightly）。本次按维护者选择使用已安装版本。使用官方工具链并将 `~/.moon/bin` 加入 PATH；`moon-toolchain` 是本项目的版本约定，不声称 Moon 会自动安装该版本。
@@ -119,6 +153,6 @@ bun run api
 
 维护者获取私有仓库权限后，在根目录执行 `git submodule update --init --recursive`，按[测试说明](testing.md)安装测试依赖。不自动跟踪远端分支；更新测试时先提交私有仓库，再提交主仓库的 gitlink。普通公开使用者不需要初始化私有 submodule。
 
-当前仅完成本地提交，尚未推送。获用户提交/推送授权后，先推送被引用的私有 commit，再推送主仓库提交，确保其他机器能获取对应 gitlink。
+提交/推送需用户授权。先推送被引用的私有 commit，再推送主仓库提交，确保其他机器能获取对应 gitlink。
 
 参考：[Moon workspace](https://docs.moonbitlang.com/en/latest/toolchain/moon/workspace.html)、[MoonBit FFI](https://docs.moonbitlang.com/en/stable/language/ffi.html)、[Bun workspaces](https://bun.sh/docs/pm/workspaces)。

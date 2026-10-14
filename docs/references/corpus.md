@@ -41,3 +41,9 @@ P4 验证范围与证据入口见 [P4](../implemented/p4-docx-editing.md#验证�
 ## P5 XLSX 输入
 
 私有 `cases/p5-xlsx.json` 登记 ONLYOFFICE document-templates 固定 revision 的 `new/en-US/new.xlsx` 与 `sample/sample.xlsx`。原始输入、Apache-2.0 LICENSE 与 AUTHORS 保留在 `fixtures/upstream/onlyoffice-p5/`；前者验证值编辑，后者验证未支持结构化公式的缓存/只读边界。手工构造的公式、样式、日期和网格输入及独立预期在对应功能用例中维护。运行范围见 [P5](../implemented/p5-xlsx-editing.md#足够检查与依据)，准备状态与 SDK 通过分开记录。
+
+## P6 PPTX 输入
+
+私有 `cases/p6-pptx.json` 登记相同固定 ONLYOFFICE revision 的 `new/en-US/new.pptx` 与 `sample/sample.pptx`，原件、Apache-2.0 LICENSE 和 AUTHORS 位于 `fixtures/upstream/onlyoffice-p6/`。基础原件验证占位符、无编辑保存；复杂示例验证诊断与源保留，不能作为整稿正向渲染输入。
+
+双页共用母版、跨 run 编辑、图文覆盖、裁剪/旋转、组合、字段和失败输入在私有功能用例中从原件及独立源属性构造。Canvas/PDF 预期取自固定源几何、手工 RGBA 色块和独立文件工具；不由 SDK writer 生成自身预期。执行范围及 LibreOffice 独立重开依据见 [P6](../implemented/p6-pptx-editing.md#足够检查与依据)。

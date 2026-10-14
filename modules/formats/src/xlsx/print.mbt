@@ -89,7 +89,7 @@ pub fn Session::print_layout(
   let pages : Array[@layout.PositionedPage] = []
   for cols in column_groups {
     for rows in row_groups {
-      let page : @layout.PositionedPage = {
+      let page : PagePaint = {
         width: setup.width,
         height: setup.height,
         fills: [],
@@ -129,7 +129,7 @@ pub fn Session::print_layout(
           ),
         )
       }
-      pages.push(page)
+      pages.push(page.positioned())
     }
   }
   { pages, fonts: probe.font_info(), }

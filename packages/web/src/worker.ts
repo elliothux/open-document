@@ -1,22 +1,29 @@
 import { loadEngine, type TextSession } from "@open-document/wasm/engine";
 import type { FoundationSession } from "@open-document/wasm/foundation";
 import type { XlsxSession } from "@open-document/wasm/xlsx";
+import { isPptxCommand, type PptxSession } from "@open-document/wasm/pptx";
 import type { Request, Response } from "./protocol";
 
 let text: TextSession | undefined;
 let foundation: FoundationSession | undefined;
 let workbook: XlsxSession | undefined;
+let presentation: PptxSession | undefined;
 let busy = false;
 
 async function dispatch(request: Request): Promise<unknown> {
   if (
     request.operation === "open" ||
     request.operation === "openFoundation" ||
-    request.operation === "openSpreadsheet"
+    request.operation === "openSpreadsheet" ||
+    request.operation === "openPresentation"
   ) {
-    if (text || foundation || workbook)
+    if (text || foundation || workbook || presentation)
       throw new Error("Session is already open");
     const engine = await loadEngine(request.wasm);
+    if (request.operation === "openPresentation") {
+      presentation = engine.openPptx();
+      return null;
+    }
     if (request.operation === "open") {
       text = engine.openText(request.text);
       return text.read();
@@ -27,6 +34,15 @@ async function dispatch(request: Request): Promise<unknown> {
     }
     foundation = engine.openFoundation();
     return null;
+  }
+  if (presentation) {
+    if (request.operation === "budget") return presentation.defaultBudget();
+    if (request.operation === "font") {
+      presentation.addFont(request.bytes, request.identity);
+      return null;
+    }
+    if (isPptxCommand(request)) return presentation.execute(request);
+    throw new Error("Operation is unavailable in a PPTX session");
   }
   if (workbook) {
     switch (request.operation) {

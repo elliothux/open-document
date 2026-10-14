@@ -15,13 +15,43 @@ export interface DrawGlyph {
   scaleY: number;
 }
 
+export interface DrawMatrix {
+  a: number;
+  b: number;
+  c: number;
+  d: number;
+  e: number;
+  f: number;
+}
+
+export type PathSegment =
+  | { op: "move" | "line"; x: number; y: number }
+  | {
+      op: "cubic";
+      x1: number;
+      y1: number;
+      x2: number;
+      y2: number;
+      x: number;
+      y: number;
+    }
+  | { op: "close" };
+
 export type DrawCommand =
   | { op: "fillRect"; rect: DrawRect & { color: string } }
   | { op: "strokeRect"; rect: DrawRect; color: string; lineWidth: number }
   | { op: "glyphs"; x: number; y: number; color: string; glyphs: DrawGlyph[] }
   | { op: "image"; image: DrawRect & { key: string } }
+  | {
+      op: "path";
+      path: PathSegment[];
+      fill: string;
+      stroke: string;
+      lineWidth: number;
+    }
+  | { op: "transform"; matrix: DrawMatrix }
   | { op: "clipRect"; rect: DrawRect }
-  | { op: "restoreClip" };
+  | { op: "restore" };
 
 /** Platform-independent drawing, with resources shared across regions. */
 export interface DrawingBatch {
@@ -37,9 +67,25 @@ export interface DrawingRegion {
 }
 
 function finite(value: unknown): number {
-  if (typeof value !== "number" || !Number.isFinite(value))
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    Math.abs(value) > 1e9
+  )
     throw new Error("Invalid drawing number");
   return value;
+}
+
+export function drawingMatrix(value: unknown): DrawMatrix {
+  const matrix = record(value);
+  for (const key of ["a", "b", "c", "d", "e", "f"]) finite(matrix[key]);
+  const a = finite(matrix.a),
+    b = finite(matrix.b),
+    c = finite(matrix.c),
+    d = finite(matrix.d);
+  if (Math.abs(a * d - b * c) < 1e-9)
+    throw new Error("Noninvertible drawing matrix");
+  return value as DrawMatrix;
 }
 
 function rect(value: unknown): void {
@@ -87,6 +133,7 @@ export function drawingBatch(value: unknown): DrawingBatch {
       throw new Error("Invalid drawing image resource");
     images.add(key);
   }
+  let payload = 0;
   for (const value of batch.regions) {
     const page = record(value);
     if (
@@ -99,6 +146,8 @@ export function drawingBatch(value: unknown): DrawingBatch {
       throw new Error("Invalid drawing region");
     let clips = 0;
     for (const value of page.commands) {
+      if (++payload > 1048576)
+        throw new Error("Drawing payload exceeds budget");
       const command = record(value);
       switch (command.op) {
         case "fillRect":
@@ -118,6 +167,8 @@ export function drawingBatch(value: unknown): DrawingBatch {
           if (!Array.isArray(command.glyphs))
             throw new Error("Invalid drawing glyph batch");
           for (const value of command.glyphs) {
+            if (++payload > 1048576)
+              throw new Error("Drawing glyphs exceed budget");
             const glyph = record(value);
             if (
               typeof glyph.outline !== "string" ||
@@ -137,11 +188,40 @@ export function drawingBatch(value: unknown): DrawingBatch {
             throw new Error("Missing drawing image");
           break;
         }
+        case "path": {
+          if (command.fill !== "") color(command.fill);
+          if (command.stroke !== "") color(command.stroke);
+          if (
+            finite(command.lineWidth) < 0 ||
+            (command.stroke !== "" && command.lineWidth === 0) ||
+            !Array.isArray(command.path) ||
+            command.path.length === 0 ||
+            record(command.path[0]).op !== "move"
+          )
+            throw new Error("Invalid drawing path");
+          for (const value of command.path) {
+            if (++payload > 1048576)
+              throw new Error("Drawing path exceeds budget");
+            const segment = record(value);
+            if (segment.op === "close") continue;
+            if (!["move", "line", "cubic"].includes(String(segment.op)))
+              throw new Error("Unknown path operation");
+            finite(segment.x);
+            finite(segment.y);
+            if (segment.op === "cubic")
+              for (const key of ["x1", "y1", "x2", "y2"]) finite(segment[key]);
+          }
+          break;
+        }
+        case "transform":
+          drawingMatrix(command.matrix);
+          if (++clips > 32) throw new Error("Drawing nesting exceeds budget");
+          break;
         case "clipRect":
           rect(command.rect);
-          clips++;
+          if (++clips > 32) throw new Error("Drawing nesting exceeds budget");
           break;
-        case "restoreClip":
+        case "restore":
           if (--clips < 0) throw new Error("Invalid drawing clip stack");
           break;
         default:

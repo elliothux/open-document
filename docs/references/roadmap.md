@@ -2,7 +2,7 @@
 
 项目未发布，当前有 0 个用户。按当前需求从 Day One 设计，可以直接修改最底层架构，只保留一条实现路径。兼容代码仅限文档格式。浏览器只覆盖 Chrome/Chromium，发布和规模化建设按真实需求安排。
 
-[P4 DOCX 编辑](../implemented/p4-docx-editing.md)和 [R0 通用渲染架构](../implemented/r0-renderer-foundation.md)已完成声明范围。[P5 XLSX](../implemented/p5-xlsx-editing.md)已完成限定网格、编辑、六个函数、保存重开与基础打印。后续阶段按实际需求进入。性能专项延后，保真、错误恢复和资源安全继续保留。
+[P4 DOCX 编辑](../implemented/p4-docx-editing.md)、[P5 XLSX](../implemented/p5-xlsx-editing.md)和 [R0 通用渲染架构](../implemented/r0-renderer-foundation.md)已完成声明范围。[P6 PPTX](../implemented/p6-pptx-editing.md)也已完成限定主题/版式、基础图文、单对象/文本框编辑、保真保存和静态 PDF。性能专项延后，保真、错误恢复和资源安全继续保留。
 
 | 阶段 | 用户结果 | 状态 |
 | --- | --- | --- |
@@ -12,12 +12,14 @@
 | [P3 DOCX 预览与 PDF](../implemented/p3-docx-preview.md) | 嵌入有限分页预览与同布局 PDF | implemented；非完整 Word 排版 |
 | [P4 DOCX 编辑](../implemented/p4-docx-editing.md) | 限定正文/单个表格单元格编辑、撤销、剪贴板、保存重开 | implemented；非完整 Word 编辑器 |
 | [P5 XLSX](../implemented/p5-xlsx-editing.md) | 网格、值、首批公式依赖、编辑、保存、基础打印 | implemented；限定公式与基础打印，非完整 Excel 兼容 |
-| P6 PPTX | 主题/版式、基础形状/文字/图片、编辑、保存/PDF | planned；复用 P2 与已有布局/绘图能力 |
-| P7 PDF 输入 | 解析、预览、提取与搜索 | planned；不要求先完成 Office 编辑 |
-| P8 PDF 文档操作 | 页面操作、选定批注与表单、保存 | planned；依赖 P7 |
+| [P6 PPTX](../implemented/p6-pptx-editing.md) | 主题/版式、基础形状/文字/图片、编辑、保存/PDF | implemented；限定图文与静态 PDF，非完整 PowerPoint 兼容 |
+| [P7 PDF 输入](../p7-pdf-input.md) | 有界解析、限定图文预览、页内选择、提取与搜索 | planned；下一实施阶段，复用 P6/R0 和固定 pdflite |
+| [P8 PDF 文档操作](../p8-pdf-operations.md) | 页面重排/旋转/删除、便笺/高亮、文本字段/复选框、保存重开 | planned；依赖 P7 的源对象图、坐标与文字查询 |
 | P9 跨宿主 | CLI 和一个明确的非浏览器宿主 | planned；后续按实际需求实施 |
 
-P5 的交付、限制与足够检查归所属结果。P6–P9 进入开发时再确定最小范围与对应检查。当前不做全公式库、动画播放、OCR、任意 PDF 正文编辑、数字签名、全语言绑定或发布流水线。P3 PDF writer 不依赖尚未实现的 P7 reader。
+P5/P6 的交付与限制归所属结果。P7/P8 已细化首版范围、实现路径和足够检查，仍为待实现方案；P9 进入开发时再确定宿主与操作。当前不做全公式库、动画播放、OCR、任意 PDF 正文编辑、数字签名、全语言绑定或发布流水线。
+
+已有 Office → PDF writer 不依赖 P7 reader。P7 复用通用绘制，按 PDF 原坐标显示；P8 在原对象图上修改和保存，不通过页面重绘替代文档写回。共用同一核心/宿主合同，不按格式新建 Renderer。
 
 ## 研究与实施
 

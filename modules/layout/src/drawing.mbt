@@ -16,8 +16,10 @@ pub(all) enum DrawCommand {
   StrokeRect(Border, String, Double)
   Glyphs(Double, Double, String, Array[DrawGlyph])
   Image(PlacedImage)
+  Path(Array[PathSegment], String, String, Double)
+  Transform(Matrix)
   ClipRect(Border)
-  RestoreClip
+  Restore
 }
 
 ///|
@@ -29,8 +31,17 @@ pub impl ToJson for DrawCommand with fn to_json(self) {
     Glyphs(x, y, color, glyphs) =>
       { "op": "glyphs", "x": x, "y": y, "color": color, "glyphs": glyphs }
     Image(image) => { "op": "image", "image": image }
+    Path(path, fill, stroke, width) =>
+      {
+        "op": "path",
+        "path": path,
+        "fill": fill,
+        "stroke": stroke,
+        "lineWidth": width,
+      }
+    Transform(matrix) => { "op": "transform", "matrix": matrix }
     ClipRect(rect) => { "op": "clipRect", "rect": rect }
-    RestoreClip => { "op": "restoreClip" }
+    Restore => { "op": "restore" }
   }
 }
 

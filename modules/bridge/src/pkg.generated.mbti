@@ -4,6 +4,7 @@ package "open_document/bridge"
 import {
   "open_document/core/text",
   "open_document/formats/docx",
+  "open_document/formats/pptx",
   "open_document/formats/xlsx",
   "open_document/layout",
 }
@@ -34,6 +35,7 @@ pub struct Foundation {
   probe : @layout.TextProbe
   mut docx : @docx.Session?
   mut xlsx : @xlsx.Session?
+  mut pptx : @pptx.Session?
   mut closed : Bool
   mut layout : @layout.Layout?
   images : @layout.Images

@@ -15,6 +15,31 @@ interface InputHost {
   stop(error: Error): void;
 }
 
+export interface NativeInputHost<State extends { revision: number }> {
+  state(): State;
+  limit(): number;
+  available(): boolean;
+  enqueue(operation: () => Promise<void>, composition?: boolean): Promise<void>;
+  changed(state: State, relayout?: boolean): Promise<void>;
+  history(redo: boolean): Promise<void>;
+  stop(error: Error): void;
+}
+
+export interface NativeInputCommands<State> {
+  begin(revision: number): Promise<{ state: State; id: number }>;
+  update(revision: number, id: number, text: string): Promise<State>;
+  commit(revision: number, id: number, text: string): Promise<State>;
+  cancel(revision: number, id: number): Promise<unknown>;
+  replace(revision: number, text: string, group?: number): Promise<State>;
+  delete(revision: number, direction: "backward" | "forward"): Promise<State>;
+  navigate(
+    revision: number,
+    direction: NavigationDirection,
+    extend: boolean,
+  ): Promise<State>;
+  softBreak: string | null;
+}
+
 interface Composition {
   token?: { revision: number; id: number };
   pending?: string;
@@ -22,7 +47,7 @@ interface Composition {
 }
 
 /** Translates native text events into the editor's existing ordered core commands. */
-export class TextInput {
+export class NativeTextInput<State extends { revision: number }> {
   private group: number | undefined;
   private groups = 0;
   private gesture: Composition | undefined;
@@ -32,8 +57,8 @@ export class TextInput {
   constructor(
     private readonly input: HTMLTextAreaElement,
     signal: AbortSignal,
-    private readonly client: FoundationClient,
-    private readonly host: InputHost,
+    private readonly commands: NativeInputCommands<State>,
+    private readonly host: NativeInputHost<State>,
   ) {
     const options = { signal };
     input.addEventListener("keydown", this.key, options);
@@ -59,19 +84,13 @@ export class TextInput {
     this.endGroup();
     this.input.value = "";
     if (this.owned) {
-      await this.client.cancelComposition(this.owned.revision, this.owned.id);
+      await this.commands.cancel(this.owned.revision, this.owned.id);
       this.owned = undefined;
     }
   }
 
-  private get state(): EditState {
+  private get state(): State {
     return this.host.state();
-  }
-
-  private selection(): DocxSelection {
-    const selection = this.state.selection;
-    if (!selection) throw new Error("Click a document position first");
-    return selection;
   }
 
   private send(operation: () => Promise<void>, ordinaryInput = false): void {
@@ -90,13 +109,11 @@ export class TextInput {
     this.gesture = gesture;
     void this.host
       .enqueue(async () => {
-        const state = await this.client.beginComposition(this.state.revision);
-        if (state.compositionId === null)
-          throw new Error("Core did not begin composition");
+        const { state, id } = await this.commands.begin(this.state.revision);
         // Keep the token before presentation so disposal can cancel a late reply.
         this.owned = gesture.token = {
           revision: state.revision,
-          id: state.compositionId,
+          id,
         };
         await this.host.changed(state, true);
       }, true)
@@ -106,7 +123,7 @@ export class TextInput {
   private readonly update = (event: CompositionEvent): void => {
     const gesture = this.gesture;
     if (!gesture || !this.host.available()) return;
-    if (event.data.length > this.state.commandLimit) {
+    if (event.data.length > this.host.limit()) {
       this.host.stop(new Error("Input exceeds command budget"));
       return;
     }
@@ -122,7 +139,7 @@ export class TextInput {
         if (text === undefined) return;
         if (!token) throw new Error("Composition has not begun");
         await this.host.changed(
-          await this.client.updateComposition(token.revision, token.id, text),
+          await this.commands.update(token.revision, token.id, text),
           true,
         );
       }, true)
@@ -136,12 +153,12 @@ export class TextInput {
     this.input.value = "";
     if (!this.host.available()) return;
     const text = event.data;
-    if (text.length <= this.state.commandLimit) this.completed = text;
+    if (text.length <= this.host.limit()) this.completed = text;
     void this.host
       .enqueue(async () => {
         const token = gesture.token;
         if (!token) throw new Error("Composition has not begun");
-        const state = await this.client.commitComposition(
+        const state = await this.commands.commit(
           token.revision,
           token.id,
           text,
@@ -198,12 +215,14 @@ export class TextInput {
     const text =
       event.inputType === "insertParagraph" ||
       event.inputType === "insertLineBreak"
-        ? "\n"
+        ? event.inputType === "insertLineBreak"
+          ? this.commands.softBreak
+          : "\n"
         : event.inputType === "insertText"
           ? event.data
           : null;
     if (text !== null) {
-      if (text.length > this.state.commandLimit) {
+      if (text.length > this.host.limit()) {
         this.host.stop(new Error("Input exceeds command budget"));
         return;
       }
@@ -225,12 +244,7 @@ export class TextInput {
       this.send(
         async () =>
           this.host.changed(
-            await this.client.replaceRange(
-              this.state.revision,
-              this.selection(),
-              text,
-              inputGroup,
-            ),
+            await this.commands.replace(this.state.revision, text, inputGroup),
           ),
         inputGroup !== undefined,
       );
@@ -242,7 +256,7 @@ export class TextInput {
         event.inputType === "deleteContentBackward" ? "backward" : "forward";
       this.send(async () =>
         this.host.changed(
-          await this.client.deleteDocx(this.state.revision, direction),
+          await this.commands.delete(this.state.revision, direction),
         ),
       );
     } else
@@ -262,13 +276,31 @@ export class TextInput {
       void this.host.history(redo).catch(() => {});
       return;
     }
+    if (!this.host.available()) return;
     if (command || event.altKey) {
       this.endGroup();
       return;
     }
     if (event.key === "Enter" && event.shiftKey) {
       event.preventDefault();
-      this.host.stop(new Error("Soft line breaks are not available yet"));
+      const text = this.commands.softBreak;
+      if (text === null)
+        this.host.stop(new Error("Soft line breaks are not available yet"));
+      else
+        this.send(async () =>
+          this.host.changed(
+            await this.commands.replace(this.state.revision, text),
+          ),
+        );
+      return;
+    }
+    if (event.key === "Enter" && this.commands.softBreak !== null) {
+      event.preventDefault();
+      this.send(async () =>
+        this.host.changed(
+          await this.commands.replace(this.state.revision, "\n"),
+        ),
+      );
       return;
     }
     const directions: Record<string, NavigationDirection> = {
@@ -284,22 +316,68 @@ export class TextInput {
       event.preventDefault();
       const extend = event.shiftKey;
       this.send(async () => {
-        const result = await this.client.navigateDocx(
+        const result = await this.commands.navigate(
           this.state.revision,
-          this.host.layoutId(),
           direction,
           extend,
         );
-        await this.host.changed(result.state);
+        await this.host.changed(result);
       });
     } else if (event.key === "Backspace" || event.key === "Delete") {
       event.preventDefault();
       const direction = event.key === "Backspace" ? "backward" : "forward";
       this.send(async () =>
         this.host.changed(
-          await this.client.deleteDocx(this.state.revision, direction),
+          await this.commands.delete(this.state.revision, direction),
         ),
       );
     }
   };
+}
+
+/** DOCX positions stay in the DOCX adapter; native event handling is shared. */
+export class TextInput extends NativeTextInput<EditState> {
+  constructor(
+    input: HTMLTextAreaElement,
+    signal: AbortSignal,
+    client: FoundationClient,
+    host: InputHost,
+  ) {
+    const selection = (): DocxSelection => {
+      const value = host.state().selection;
+      if (!value) throw new Error("Click a document position first");
+      return value;
+    };
+    super(
+      input,
+      signal,
+      {
+        async begin(revision) {
+          const state = await client.beginComposition(revision);
+          if (state.compositionId === null)
+            throw new Error("Core did not begin composition");
+          return { state, id: state.compositionId };
+        },
+        update: (revision, id, text) =>
+          client.updateComposition(revision, id, text),
+        commit: (revision, id, text) =>
+          client.commitComposition(revision, id, text),
+        cancel: (revision, id) => client.cancelComposition(revision, id),
+        replace: (revision, text, group) =>
+          client.replaceRange(revision, selection(), text, group),
+        delete: (revision, direction) => client.deleteDocx(revision, direction),
+        navigate: async (revision, direction, extend) =>
+          (
+            await client.navigateDocx(
+              revision,
+              host.layoutId(),
+              direction,
+              extend,
+            )
+          ).state,
+        softBreak: null,
+      },
+      { ...host, limit: () => host.state().commandLimit },
+    );
+  }
 }

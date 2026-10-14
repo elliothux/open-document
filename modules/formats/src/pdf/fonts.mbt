@@ -37,7 +37,8 @@ fn collect_fonts(
 ) -> Map[Int, FontSubset] raise @failure.Failure {
   let fonts : Map[Int, FontSubset] = Map([])
   for page in layout.pages {
-    for line in page.texts {
+    for primitive in page.primitives {
+      guard primitive is Text(line) else { continue }
       for run in line.runs {
         for index, glyph in run.glyphs {
           let subset = fonts.get_or_init(glyph.font, () => {

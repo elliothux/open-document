@@ -82,3 +82,13 @@ pub fn Images::clear(self : Images) -> Unit {
   self.entries.clear()
   self.retained = 0
 }
+
+///|
+pub fn Images::retain(self : Images, keys : Array[String]) -> Unit {
+  for key in self.entries.keys().collect() {
+    if !keys.contains(key) {
+      self.retained -= self.entries[key].rgba.length()
+      self.entries.remove(key)
+    }
+  }
+}

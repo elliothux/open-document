@@ -4,6 +4,10 @@
 
 [P5 XLSX](../implemented/p5-xlsx-editing.md)已交付限定网格、值/公式编辑、保存与基础打印。XLSX 沿用本合同与 [R0](../implemented/r0-renderer-foundation.md) 的核心/Renderer 分工，支持边界归格式合同。
 
+[P6 PPTX](../implemented/p6-pptx-editing.md)已交付限定图文、单对象/文本框编辑、保真保存和静态 PDF。MoonBit 拥有主题继承、对象、文本、变换与命中；三种格式共用有序绘制与 PDF 底层。
+
+[P7 PDF 输入](../p7-pdf-input.md)与 [P8 PDF 文档操作](../p8-pdf-operations.md)已细化，尚未实现。PDF 解析、原始坐标解释、文字查询、对象修改和保存继续归 MoonBit；Web 复用通用 Renderer 和平台输入，不另建 PDF 引擎。
+
 按当前需求从 Day One 设计。需求可以直接改变最底层架构、模型、接口和数据流；选择合理实现，同步修改调用方、测试和文档，删除被替代的路径。兼容代码仅限文档格式；禁止保留旧接口、内部模型、配置或开发数据的兼容层、迁移垫片、双写和旧实现回退。
 
 本文件拥有当前产品目标、技术选型和核心/宿主合同，参考源码入口见[上游项目](upstream-projects.md)。新增依赖或机制按当前功能缺口确定。
@@ -92,7 +96,7 @@ Rust、Zig、Go 不作为当前核心主语言。选择 MoonBit 不意味着为�
 - IME、焦点和无障碍仍需要真实平台适配。TS 薄层不等于删除这些能力，也不等于用 MoonBit 包装每个 DOM 调用。
 - 不引入 Tiptap、Univer 等第二套编辑模型来临时承担核心语义；如需借鉴它们，提取规则和验证样本，而不是维持双向模型同步作为最终架构。
 
-[R0 通用渲染架构](../implemented/r0-renderer-foundation.md)细化本节的绘制职责，统一各格式核心与平台 Renderer 的数据、资源和更新设计。DOCX/Web 已完成首次接入，后续格式与宿主沿用同一合同。
+[R0 通用渲染架构](../implemented/r0-renderer-foundation.md)细化本节的绘制职责，统一各格式核心与平台 Renderer 的数据、资源和更新设计。DOCX、XLSX 与 PPTX 已接入 Web，后续格式与宿主沿用同一合同。
 
 ### 调用边界
 

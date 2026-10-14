@@ -44,174 +44,250 @@ pub fn write(
     for frame in layout.pages {
       let ops : Array[@content.PdfContentOp] = []
       let image_objects : Array[(String, @syntax.PdfObject)] = []
-      for fill in frame.fills {
-        ops.push(
-          @content.Op_rg(
-            channel(fill.color, 0),
-            channel(fill.color, 2),
-            channel(fill.color, 4),
-          ),
-        )
-        ops.push(
-          @content.Op_re(
-            fill.x,
-            frame.height - fill.y - fill.height,
-            fill.width,
-            fill.height,
-          ),
-        )
-        ops.push(@content.Op_f)
-      }
-      for border in frame.strokes {
-        ops.push(@content.Op_w(border.width))
-        ops.push(
-          @content.Op_RG(
-            channel(border.color, 0),
-            channel(border.color, 2),
-            channel(border.color, 4),
-          ),
-        )
-        ops.push(
-          @content.Op_re(
-            border.rect.x,
-            frame.height - border.rect.y - border.rect.height,
-            border.rect.width,
-            border.rect.height,
-          ),
-        )
-        ops.push(@content.Op_S)
-      }
-      for line in frame.texts {
-        if line.clip is Some(clip) {
-          ops.push(@content.Op_q)
-          ops.push(
-            @content.Op_re(
-              clip.x,
-              frame.height - clip.y - clip.height,
-              clip.width,
-              clip.height,
-            ),
-          )
-          ops.push(@content.Op_W)
-          ops.push(@content.Op_n)
-        }
-        for image in line.images {
-          let entry = if installed_images.get(image.key) is Some(entry) {
-            entry
-          } else {
-            let source = images.get(image.key)
-            guard source.rgba.length() <= output_limit else {
-              @failure.reject(
-                "limit-exceeded", "PDF image exceeds output budget",
-              )
-            }
-            let id = "I\{installed_images.length()}"
-            let rgb : Array[Byte] = []
-            let alpha : Array[Byte] = []
-            for pixel in 0..<(source.width * source.height) {
-              rgb.push(source.rgba[pixel * 4])
-              rgb.push(source.rgba[pixel * 4 + 1])
-              rgb.push(source.rgba[pixel * 4 + 2])
-              alpha.push(source.rgba[pixel * 4 + 3])
-            }
-            let common : Array[(String, @syntax.PdfObject)] = [
-              ("Type", tag("XObject")),
-              ("Subtype", tag("Image")),
-              ("Width", @syntax.PdfInteger(source.width)),
-              ("Height", @syntax.PdfInteger(source.height)),
-              ("BitsPerComponent", @syntax.PdfInteger(8)),
-            ]
-            let mask = document.add_object(
-              stream(
-                Bytes::from_array(alpha),
-                common + [("ColorSpace", tag("DeviceGray"))],
-              ),
-            )
-            let object = document.add_object(
-              stream(
-                Bytes::from_array(rgb),
-                common +
-                [
-                  ("ColorSpace", tag("DeviceRGB")),
-                  ("SMask", @syntax.PdfIndirect(mask)),
-                ],
-              ),
-            )
-            let entry = (id, @syntax.PdfIndirect(object))
-            installed_images[image.key] = entry
-            entry
-          }
-          if !image_objects.iter().any(item => item.0 == entry.0) {
-            image_objects.push(entry)
-          }
-          ops.push(@content.Op_q)
-          ops.push(
-            @content.Op_cm({
-              a: image.width,
-              b: 0,
-              c: 0,
-              d: image.height,
-              e: image.x,
-              f: frame.height - image.y - image.height,
-            }),
-          )
-          ops.push(@content.Op_Do(name(entry.0)))
-          ops.push(@content.Op_Q)
-        }
-        if line.text.is_empty() {
-          if line.clip is Some(_) {
-            ops.push(@content.Op_Q)
-          }
-          continue
-        }
-        let actual = dict([
-          ("ActualText", @syntax.PdfString(utf16_bytes(line.text))),
-        ])
-        ops.push(@content.Op_BDC(name("Span"), actual))
-        for run in line.runs {
-          let color = run.color
-          ops.push(
-            @content.Op_rg(
-              channel(color, 0),
-              channel(color, 2),
-              channel(color, 4),
-            ),
-          )
-          for index, glyph in run.glyphs {
-            let subset = fonts[glyph.font]
-            let cid = subset.codes[cid_key(
-                glyph.id.reinterpret_as_int(),
-                glyph_text(run, index),
-              )]
-            ops.push(@content.Op_BT)
+      let mut scopes = 0
+      for primitive in frame.primitives {
+        match primitive {
+          Transform(matrix) => {
+            ops.push(@content.Op_q)
+            scopes += 1
+            // Conjugate the top-left coordinate transform by the PDF page flip.
             ops.push(
-              @content.Op_Tf(
-                name("F\{glyph.font}"),
-                glyph.scale * layout.fonts[glyph.font].upem.to_double(),
-              ),
-            )
-            ops.push(
-              @content.Op_Tm({
-                a: 1,
-                b: 0,
-                c: 0,
-                d: 1,
-                e: run.x + glyph.x,
-                f: frame.height - run.baseline - glyph.y,
+              @content.Op_cm({
+                a: matrix.a,
+                b: -matrix.b,
+                c: -matrix.c,
+                d: matrix.d,
+                e: matrix.c * frame.height + matrix.e,
+                f: frame.height * (1 - matrix.d) - matrix.f,
               }),
             )
+          }
+          Clip(clip) => {
+            ops.push(@content.Op_q)
+            scopes += 1
             ops.push(
-              @content.Op_Tj(
-                Bytes::from_array([(cid >> 8).to_byte(), (cid & 255).to_byte()]),
+              @content.Op_re(
+                clip.x,
+                frame.height - clip.y - clip.height,
+                clip.width,
+                clip.height,
               ),
             )
-            ops.push(@content.Op_ET)
+            ops.push(@content.Op_W)
+            ops.push(@content.Op_n)
+          }
+          Restore => {
+            guard scopes > 0 else {
+              @failure.reject("invalid-drawing", "Unbalanced PDF scope")
+            }
+            scopes -= 1
+            ops.push(@content.Op_Q)
+          }
+          Path(path, fill, stroke, width) => {
+            if !fill.is_empty() {
+              ops.push(
+                @content.Op_rg(
+                  channel(fill, 0),
+                  channel(fill, 2),
+                  channel(fill, 4),
+                ),
+              )
+            }
+            if !stroke.is_empty() {
+              ops.push(
+                @content.Op_RG(
+                  channel(stroke, 0),
+                  channel(stroke, 2),
+                  channel(stroke, 4),
+                ),
+              )
+              ops.push(@content.Op_w(width))
+            }
+            for segment in path {
+              match segment {
+                Move(x, y) => ops.push(@content.Op_m(x, frame.height - y))
+                Line(x, y) => ops.push(@content.Op_l(x, frame.height - y))
+                Cubic(x1, y1, x2, y2, x, y) =>
+                  ops.push(
+                    @content.Op_c(
+                      x1,
+                      frame.height - y1,
+                      x2,
+                      frame.height - y2,
+                      x,
+                      frame.height - y,
+                    ),
+                  )
+                Close => ops.push(@content.Op_h)
+              }
+            }
+            if !fill.is_empty() && !stroke.is_empty() {
+              ops.push(@content.Op_B)
+            } else if !fill.is_empty() {
+              ops.push(@content.Op_f)
+            } else if !stroke.is_empty() {
+              ops.push(@content.Op_S)
+            } else {
+              ops.push(@content.Op_n)
+            }
+          }
+          Rectangle(fill) => {
+            ops.push(
+              @content.Op_rg(
+                channel(fill.color, 0),
+                channel(fill.color, 2),
+                channel(fill.color, 4),
+              ),
+            )
+            ops.push(
+              @content.Op_re(
+                fill.x,
+                frame.height - fill.y - fill.height,
+                fill.width,
+                fill.height,
+              ),
+            )
+            ops.push(@content.Op_f)
+          }
+          Stroke(rect, color, width) => {
+            ops.push(@content.Op_w(width))
+            ops.push(
+              @content.Op_RG(
+                channel(color, 0),
+                channel(color, 2),
+                channel(color, 4),
+              ),
+            )
+            ops.push(
+              @content.Op_re(
+                rect.x,
+                frame.height - rect.y - rect.height,
+                rect.width,
+                rect.height,
+              ),
+            )
+            ops.push(@content.Op_S)
+          }
+          Image(image) => {
+            let entry = if installed_images.get(image.key) is Some(entry) {
+              entry
+            } else {
+              let source = images.get(image.key)
+              guard source.rgba.length() <= output_limit else {
+                @failure.reject(
+                  "limit-exceeded", "PDF image exceeds output budget",
+                )
+              }
+              let id = "I\{installed_images.length()}"
+              let rgb : Array[Byte] = []
+              let alpha : Array[Byte] = []
+              for pixel in 0..<(source.width * source.height) {
+                rgb.push(source.rgba[pixel * 4])
+                rgb.push(source.rgba[pixel * 4 + 1])
+                rgb.push(source.rgba[pixel * 4 + 2])
+                alpha.push(source.rgba[pixel * 4 + 3])
+              }
+              let common : Array[(String, @syntax.PdfObject)] = [
+                ("Type", tag("XObject")),
+                ("Subtype", tag("Image")),
+                ("Width", @syntax.PdfInteger(source.width)),
+                ("Height", @syntax.PdfInteger(source.height)),
+                ("BitsPerComponent", @syntax.PdfInteger(8)),
+              ]
+              let mask = document.add_object(
+                stream(
+                  Bytes::from_array(alpha),
+                  common + [("ColorSpace", tag("DeviceGray"))],
+                ),
+              )
+              let object = document.add_object(
+                stream(
+                  Bytes::from_array(rgb),
+                  common +
+                  [
+                    ("ColorSpace", tag("DeviceRGB")),
+                    ("SMask", @syntax.PdfIndirect(mask)),
+                  ],
+                ),
+              )
+              let entry = (id, @syntax.PdfIndirect(object))
+              installed_images[image.key] = entry
+              entry
+            }
+            if !image_objects.iter().any(item => item.0 == entry.0) {
+              image_objects.push(entry)
+            }
+            ops.push(@content.Op_q)
+            ops.push(
+              @content.Op_cm({
+                a: image.width,
+                b: 0,
+                c: 0,
+                d: image.height,
+                e: image.x,
+                f: frame.height - image.y - image.height,
+              }),
+            )
+            ops.push(@content.Op_Do(name(entry.0)))
+            ops.push(@content.Op_Q)
+          }
+          Text(line) => {
+            if line.text.is_empty() {
+              continue
+            }
+            let actual = dict([
+              ("ActualText", @syntax.PdfString(utf16_bytes(line.text))),
+            ])
+            ops.push(@content.Op_BDC(name("Span"), actual))
+            for run in line.runs {
+              let color = run.color
+              ops.push(
+                @content.Op_rg(
+                  channel(color, 0),
+                  channel(color, 2),
+                  channel(color, 4),
+                ),
+              )
+              for index, glyph in run.glyphs {
+                let subset = fonts[glyph.font]
+                let cid = subset.codes[cid_key(
+                    glyph.id.reinterpret_as_int(),
+                    glyph_text(run, index),
+                  )]
+                ops.push(@content.Op_BT)
+                ops.push(
+                  @content.Op_Tf(
+                    name("F\{glyph.font}"),
+                    glyph.scale * layout.fonts[glyph.font].upem.to_double(),
+                  ),
+                )
+                ops.push(
+                  @content.Op_Tm({
+                    a: 1,
+                    b: 0,
+                    c: 0,
+                    d: 1,
+                    e: run.x + glyph.x,
+                    f: frame.height - run.baseline - glyph.y,
+                  }),
+                )
+                ops.push(
+                  @content.Op_Tj(
+                    Bytes::from_array([
+                      (cid >> 8).to_byte(),
+                      (cid & 255).to_byte(),
+                    ]),
+                  ),
+                )
+                ops.push(@content.Op_ET)
+              }
+            }
+            ops.push(@content.Op_EMC)
           }
         }
-        ops.push(@content.Op_EMC)
-        if line.clip is Some(_) {
-          ops.push(@content.Op_Q)
-        }
+      }
+      guard scopes == 0 else {
+        @failure.reject("invalid-drawing", "Unclosed PDF scope")
       }
       let bytes = @pdflite.pdf_content_bytes_of_ops(ops)
       content_bytes += bytes.length()

@@ -57,6 +57,49 @@ export class CanvasRenderer {
             );
             break;
           }
+          case "path": {
+            const path = new Path2D();
+            for (const segment of command.path) {
+              switch (segment.op) {
+                case "move":
+                  path.moveTo(segment.x, segment.y);
+                  break;
+                case "line":
+                  path.lineTo(segment.x, segment.y);
+                  break;
+                case "cubic":
+                  path.bezierCurveTo(
+                    segment.x1,
+                    segment.y1,
+                    segment.x2,
+                    segment.y2,
+                    segment.x,
+                    segment.y,
+                  );
+                  break;
+                case "close":
+                  path.closePath();
+                  break;
+              }
+            }
+            if (command.fill) {
+              context.fillStyle = `#${command.fill}`;
+              context.fill(path);
+            }
+            if (command.stroke) {
+              context.strokeStyle = `#${command.stroke}`;
+              context.lineWidth = command.lineWidth;
+              context.stroke(path);
+            }
+            break;
+          }
+          case "transform": {
+            const m = command.matrix;
+            context.save();
+            clips++;
+            context.transform(m.a, m.b, m.c, m.d, m.e, m.f);
+            break;
+          }
           case "clipRect": {
             const rect = command.rect;
             context.save();
@@ -66,7 +109,7 @@ export class CanvasRenderer {
             context.clip();
             break;
           }
-          case "restoreClip":
+          case "restore":
             if (clips === 0) throw new Error("Invalid drawing clip stack");
             context.restore();
             clips--;

@@ -54,3 +54,38 @@ export function imageDimensions(bytes: Uint8Array): {
     throw new Error("Decoded image exceeds budget");
   return { width, height };
 }
+
+/** Decode only validated local raster bytes; retain alpha for the shared core. */
+export async function decodeImage(
+  bytes: Uint8Array,
+  signal?: AbortSignal,
+): Promise<{ bitmap: ImageBitmap; rgba: Uint8Array }> {
+  signal?.throwIfAborted();
+  const declared = imageDimensions(bytes);
+  const bitmap = await createImageBitmap(
+    new Blob([new Uint8Array(bytes).buffer]),
+    { imageOrientation: "none" },
+  );
+  const canvas = document.createElement("canvas");
+  try {
+    signal?.throwIfAborted();
+    if (bitmap.width !== declared.width || bitmap.height !== declared.height)
+      throw new Error("Decoded image dimensions differ from its header");
+    canvas.width = bitmap.width;
+    canvas.height = bitmap.height;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Canvas is unavailable");
+    context.drawImage(bitmap, 0, 0);
+    return {
+      bitmap,
+      rgba: new Uint8Array(
+        context.getImageData(0, 0, bitmap.width, bitmap.height).data,
+      ),
+    };
+  } catch (error) {
+    bitmap.close();
+    throw error;
+  } finally {
+    canvas.width = canvas.height = 0;
+  }
+}

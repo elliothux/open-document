@@ -1,11 +1,43 @@
 // Generated using `moon info`, DON'T EDIT IT
 package "open_document/formats/pptx"
 
+import {
+  "open_document/core/archive",
+  "open_document/core/failure",
+  "open_document/layout",
+}
+
 // Values
 
 // Errors
 
 // Types and methods
+pub struct Session {
+  // private fields
+}
+pub fn Session::begin(Self, Int, String) -> Json raise @failure.Failure
+pub fn Session::cancel(Self, Int, Int) -> Json raise @failure.Failure
+pub fn Session::check_idle(Self) -> Unit raise @failure.Failure
+pub fn Session::close(Self) -> Unit
+pub fn Session::copy(Self, Int) -> String raise @failure.Failure
+pub fn Session::delete(Self, Int, Bool, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn Session::drag(Self, Int, Int, Double, Double, Int) -> Json raise @failure.Failure
+pub fn Session::finish(Self, Int, Int, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn Session::hit(Self, Int, Double, Double, Double) -> Json raise @failure.Failure
+pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
+pub fn Session::image_keys(Self, Bool, Bool) -> Array[String] raise @failure.Failure
+pub fn Session::invalidate_geometry(Self) -> Unit
+pub fn Session::layout(Self, @layout.TextProbe, Map[String, String], @layout.Images) -> Json raise @failure.Failure
+pub fn Session::navigate(Self, Int, Int, String, Bool) -> Json raise @failure.Failure
+pub fn Session::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
+pub fn Session::print_layout(Self, Int, Bool, Bool, @layout.TextProbe, Map[String, String]) -> @layout.PositionedDocument raise @failure.Failure
+pub fn Session::query(Self) -> Json raise @failure.Failure
+pub fn Session::replace(Self, Int, String, @layout.TextProbe, Map[String, String], candidate_id? : Int?) -> Json raise @failure.Failure
+pub fn Session::save(Self, Int) -> Bytes raise @failure.Failure
+pub fn Session::select(Self, Int, String, String, String, Int, Int) -> Json raise @failure.Failure
+pub fn Session::selection_geometry(Self, Int) -> Json raise @failure.Failure
+pub fn Session::transform(Self, Int, Int, Double, Double, Double, Double) -> Json raise @failure.Failure
+pub fn Session::undo(Self, Int, redo? : Bool) -> Json raise @failure.Failure
 
 // Type aliases
 

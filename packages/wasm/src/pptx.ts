@@ -1,0 +1,406 @@
+import { WasmSession, encodeBytes } from "./session.js";
+import { record, hasFields } from "./validation.js";
+import {
+  drawingBatch,
+  drawingMatrix,
+  type DrawingBatch,
+  type DrawMatrix,
+  type DrawRect,
+} from "./drawing.js";
+import type { Budget } from "./foundation.js";
+
+export interface PptxSelection {
+  slide: string;
+  object: string;
+  mode: "object" | "text";
+  anchor: number;
+  focus: number;
+}
+export interface PptxObject {
+  id: string;
+  name: string;
+  kind: string;
+  text: string;
+  readOnlyReason: string;
+  textReadOnlyReason: string;
+  geometry: (DrawRect & { matrix: DrawMatrix }) | null;
+}
+export interface PptxQuery {
+  revision: number;
+  width: number;
+  height: number;
+  slide: string;
+  slides: { id: string; hidden: boolean; title: string }[];
+  objects: PptxObject[];
+  fontKeys: string[];
+  imageKeys: string[];
+  selection: PptxSelection;
+  canUndo: boolean;
+  canRedo: boolean;
+  historyBytes: number;
+  candidateId: number | null;
+  readOnlyReason: string;
+  diagnostics: string[];
+}
+export interface PptxLayout extends DrawingBatch {
+  id: number;
+  revision: number;
+  slide: string;
+  diagnostics: string[];
+}
+export interface PptxPoint {
+  x: number;
+  y: number;
+}
+export interface PptxGeometry {
+  layoutId: number;
+  revision: number;
+  outline: PptxPoint[];
+  handles: PptxPoint[];
+  rects: PptxPoint[][];
+  caret: (PptxPoint & { endX: number; endY: number; height: number }) | null;
+}
+export interface PptxHit {
+  object: string;
+  offset: number;
+  readOnlyReason: string;
+  textReadOnlyReason: string;
+}
+
+export type PptxCommand =
+  | { operation: "openPptx"; bytes: Uint8Array; budget: Budget }
+  | { operation: "queryPptx" }
+  | ({ operation: "selectPptx"; revision: number } & PptxSelection)
+  | {
+      operation: "replacePptx";
+      revision: number;
+      text: string;
+      profile: Record<string, string>;
+      candidateId?: number;
+    }
+  | {
+      operation: "deletePptx";
+      revision: number;
+      backward: boolean;
+      profile: Record<string, string>;
+    }
+  | {
+      operation: "undoPptx" | "redoPptx" | "savePptx" | "copyPptx";
+      revision: number;
+    }
+  | { operation: "layoutPptx"; profile: Record<string, string> }
+  | {
+      operation: "hitPptx";
+      layoutId: number;
+      x: number;
+      y: number;
+      tolerance: number;
+    }
+  | { operation: "selectionPptx"; layoutId: number }
+  | {
+      operation: "navigatePptx";
+      revision: number;
+      layoutId: number;
+      direction:
+        "next" | "previous" | "left" | "right" | "up" | "down" | "home" | "end";
+      extend: boolean;
+    }
+  | { operation: "beginPptx"; revision: number; kind: "text" | "transform" }
+  | ({
+      operation: "transformPptx";
+      revision: number;
+      candidateId: number;
+    } & DrawRect)
+  | {
+      operation: "dragPptx";
+      revision: number;
+      candidateId: number;
+      dx: number;
+      dy: number;
+      handle: number;
+    }
+  | {
+      operation: "finishPptx";
+      revision: number;
+      candidateId: number;
+      profile: Record<string, string>;
+    }
+  | { operation: "cancelPptx"; revision: number; candidateId: number }
+  | { operation: "imageBytesPptx"; key: string }
+  | {
+      operation: "imagePptx";
+      key: string;
+      width: number;
+      height: number;
+      bytes: Uint8Array;
+    }
+  | { operation: "imageKeysPptx"; all: boolean; hidden: boolean }
+  | {
+      operation: "exportPptxPdf";
+      revision: number;
+      all: boolean;
+      hidden: boolean;
+      profile: Record<string, string>;
+      outputBytes: number;
+    };
+
+type Result<C extends PptxCommand> = C["operation"] extends "layoutPptx"
+  ? PptxLayout
+  : C["operation"] extends "hitPptx"
+    ? PptxHit
+    : C["operation"] extends "selectionPptx"
+      ? PptxGeometry
+      : C["operation"] extends "savePptx" | "imageBytesPptx" | "exportPptxPdf"
+        ? Uint8Array
+        : C["operation"] extends "imageKeysPptx"
+          ? string[]
+          : C["operation"] extends "copyPptx"
+            ? { text: string }
+            : C["operation"] extends "imagePptx"
+              ? { key: string }
+              : PptxQuery;
+export type PptxResult<C extends PptxCommand> = Result<C>;
+
+const names: ReadonlySet<string> = new Set([
+  "openPptx",
+  "queryPptx",
+  "selectPptx",
+  "replacePptx",
+  "deletePptx",
+  "undoPptx",
+  "redoPptx",
+  "savePptx",
+  "copyPptx",
+  "layoutPptx",
+  "hitPptx",
+  "selectionPptx",
+  "navigatePptx",
+  "beginPptx",
+  "transformPptx",
+  "dragPptx",
+  "finishPptx",
+  "cancelPptx",
+  "imageBytesPptx",
+  "imagePptx",
+  "imageKeysPptx",
+  "copyPptx",
+  "exportPptxPdf",
+]);
+export function isPptxCommand(value: {
+  operation: string;
+}): value is PptxCommand {
+  return names.has(value.operation);
+}
+
+function number(value: unknown, low = 0, high = 0x7fffffff): number {
+  if (
+    typeof value !== "number" ||
+    !Number.isFinite(value) ||
+    value < low ||
+    value > high
+  )
+    throw new Error("Invalid PPTX number");
+  return value;
+}
+function integer(value: unknown, high = 0x7fffffff): void {
+  if (!Number.isInteger(number(value, 0, high)))
+    throw new Error("Invalid PPTX integer");
+}
+function strings(value: unknown, count: number, units: number): void {
+  if (
+    !Array.isArray(value) ||
+    value.length > count ||
+    value.some((item) => typeof item !== "string" || item.length > units)
+  )
+    throw new Error("Invalid PPTX string array");
+}
+function geometry(value: unknown): void {
+  const rect = record(value);
+  number(rect.x, -14400, 14400);
+  number(rect.y, -14400, 14400);
+  number(rect.width, 0, 14400);
+  number(rect.height, 0, 14400);
+  drawingMatrix(rect.matrix);
+}
+function points(value: unknown, max = 4): void {
+  if (!Array.isArray(value) || value.length > max)
+    throw new Error("Invalid PPTX polygon");
+  for (const point of value) {
+    const p = record(point);
+    number(p.x, -1e9, 1e9);
+    number(p.y, -1e9, 1e9);
+  }
+}
+export function pptxQuery(value: unknown): PptxQuery {
+  const query = record(value);
+  if (
+    !hasFields(
+      query,
+      ["slide", "readOnlyReason"],
+      ["revision", "width", "height", "historyBytes"],
+    ) ||
+    typeof query.canUndo !== "boolean" ||
+    typeof query.canRedo !== "boolean" ||
+    !Array.isArray(query.slides) ||
+    query.slides.length === 0 ||
+    query.slides.length > 256 ||
+    !Array.isArray(query.objects) ||
+    query.objects.length > 4096
+  )
+    throw new Error("Invalid PPTX query");
+  integer(query.revision);
+  integer(query.historyBytes, 4194304);
+  number(query.width, 1, 14400);
+  number(query.height, 1, 14400);
+  if (query.candidateId !== null) integer(query.candidateId);
+  const ids = new Set<string>();
+  for (const item of query.slides) {
+    const slide = record(item);
+    if (
+      !hasFields(slide, ["id", "title"], []) ||
+      typeof slide.id !== "string" ||
+      ids.has(slide.id) ||
+      typeof slide.hidden !== "boolean"
+    )
+      throw new Error("Invalid PPTX slide");
+    ids.add(slide.id);
+  }
+  if (typeof query.slide !== "string" || !ids.has(query.slide))
+    throw new Error("Invalid current slide");
+  ids.clear();
+  let units = 0;
+  for (const item of query.objects) {
+    const object = record(item);
+    if (
+      !hasFields(
+        object,
+        ["id", "name", "kind", "text", "readOnlyReason", "textReadOnlyReason"],
+        [],
+      ) ||
+      typeof object.id !== "string" ||
+      ids.has(object.id) ||
+      typeof object.text !== "string" ||
+      object.text.length > 32767
+    )
+      throw new Error("Invalid PPTX object");
+    ids.add(object.id);
+    units += object.text.length;
+    if (object.geometry !== null) geometry(object.geometry);
+  }
+  if (units > 1048576) throw new Error("PPTX query text exceeds budget");
+  const selection = record(query.selection);
+  if (
+    !hasFields(selection, ["slide", "object", "mode"], ["anchor", "focus"]) ||
+    selection.slide !== query.slide ||
+    (selection.object !== "" &&
+      (typeof selection.object !== "string" || !ids.has(selection.object))) ||
+    !["object", "text"].includes(String(selection.mode))
+  )
+    throw new Error("Invalid PPTX selection");
+  integer(selection.anchor, 32767);
+  integer(selection.focus, 32767);
+  strings(query.fontKeys, 256, 256);
+  strings(query.imageKeys, 256, 256);
+  strings(query.diagnostics, 8192, 4096);
+  return value as PptxQuery;
+}
+
+/** Validate responses from both the Wasm ABI and Worker transport. */
+export function pptxResult<C extends PptxCommand>(
+  command: C,
+  value: unknown,
+): PptxResult<C> {
+  switch (command.operation) {
+    case "savePptx":
+    case "imageBytesPptx":
+    case "exportPptxPdf":
+      if (!(value instanceof Uint8Array) || value.length > 67108864)
+        throw new Error("Invalid PPTX output bytes");
+      break;
+    case "imageKeysPptx":
+      strings(value, 256, 256);
+      break;
+    case "copyPptx":
+    case "imagePptx": {
+      const object = record(value);
+      const field = command.operation === "copyPptx" ? "text" : "key";
+      if (typeof object[field] !== "string" || object[field].length > 32767)
+        throw new Error("Invalid PPTX text response");
+      break;
+    }
+    case "layoutPptx": {
+      drawingBatch(value);
+      const layout = record(value);
+      integer(layout.id);
+      integer(layout.revision);
+      if (
+        typeof layout.slide !== "string" ||
+        !Array.isArray(layout.regions) ||
+        layout.regions.length !== 1
+      )
+        throw new Error("Invalid slide layout");
+      strings(layout.diagnostics, 8192, 4096);
+      break;
+    }
+    case "hitPptx": {
+      const hit = record(value);
+      if (
+        !hasFields(
+          hit,
+          ["object", "readOnlyReason", "textReadOnlyReason"],
+          ["offset"],
+        )
+      )
+        throw new Error("Invalid PPTX hit");
+      integer(hit.offset, 32767);
+      break;
+    }
+    case "selectionPptx": {
+      const selection = record(value);
+      integer(selection.layoutId);
+      integer(selection.revision);
+      points(selection.outline);
+      points(selection.handles);
+      if (!Array.isArray(selection.rects) || selection.rects.length > 32767)
+        throw new Error("Invalid PPTX selection rectangles");
+      for (const rect of selection.rects) points(rect);
+      if (selection.caret !== null) {
+        const caret = record(selection.caret);
+        for (const key of ["x", "y", "endX", "endY"])
+          number(caret[key], -1e9, 1e9);
+        number(caret.height, 0, 14400);
+      }
+      break;
+    }
+    default:
+      pptxQuery(value);
+  }
+  return value as PptxResult<C>;
+}
+
+/** One presentation per core session. Commands retain format-specific semantics. */
+export class PptxSession extends WasmSession {
+  execute<C extends PptxCommand>(command: C): PptxResult<C> {
+    let value: unknown;
+    if (
+      command.operation === "savePptx" ||
+      command.operation === "imageBytesPptx" ||
+      command.operation === "exportPptxPdf"
+    )
+      value = this.bytes(command);
+    else if (
+      command.operation === "openPptx" ||
+      command.operation === "imagePptx"
+    ) {
+      if (
+        command.bytes.length >
+        (command.operation === "openPptx"
+          ? Math.min(command.budget.fileBytes, command.budget.retainedBytes)
+          : 16777216)
+      )
+        throw new Error("PPTX input exceeds budget");
+      value = this.call({ ...command, bytes: encodeBytes(command.bytes) });
+    } else value = this.call(command);
+    return pptxResult(command, value);
+  }
+}

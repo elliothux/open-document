@@ -1,1 +1,9 @@
-// Placeholder: PPTX adapter, planned in P6.
+import {
+  "open_document/core/archive",
+  "open_document/core/opc",
+  "open_document/core/xml",
+  "open_document/core/failure",
+  "open_document/layout",
+  "moonbitlang/core/string",
+  "moonbitlang/core/math",
+}

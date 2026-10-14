@@ -28,6 +28,9 @@ pub fn foundation_add_font(
     if context.xlsx is Some(session) {
       session.invalidate_geometry()
     }
+    if context.pptx is Some(session) {
+      session.invalidate_geometry()
+    }
     { "font": index }
   })
 }
