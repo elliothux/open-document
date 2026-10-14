@@ -6,7 +6,7 @@
 
 [P6 PPTX](../implemented/p6-pptx-editing.md)已交付限定图文、单对象/文本框编辑、保真保存和静态 PDF。MoonBit 拥有主题继承、对象、文本、变换与命中；三种格式共用有序绘制与 PDF 底层。
 
-[P7 PDF 输入](../p7-pdf-input.md)与 [P8 PDF 文档操作](../p8-pdf-operations.md)已细化，尚未实现。PDF 解析、原始坐标解释、文字查询、对象修改和保存继续归 MoonBit；Web 复用通用 Renderer 和平台输入，不另建 PDF 引擎。
+[P7 PDF 输入](../implemented/p7-pdf-input.md)与 [P8 PDF 文档操作](../implemented/p8-pdf-operations.md)已交付限定读取、源图文、文字查询、页面整理、批注/普通字段和保存。PDF 解析、原始坐标解释、文字查询、对象修改和保存归 MoonBit；Web 复用通用 Renderer 和原生草稿输入，不另建 PDF 引擎。
 
 按当前需求从 Day One 设计。需求可以直接改变最底层架构、模型、接口和数据流；选择合理实现，同步修改调用方、测试和文档，删除被替代的路径。兼容代码仅限文档格式；禁止保留旧接口、内部模型、配置或开发数据的兼容层、迁移垫片、双写和旧实现回退。
 

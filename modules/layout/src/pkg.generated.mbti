@@ -36,6 +36,8 @@ pub(all) enum DrawCommand {
   Path(Array[PathSegment], String, String, Double)
   Transform(Matrix)
   ClipRect(Border)
+  Style(DrawStyle)
+  ClipPath(Array[PathSegment], Bool)
   Restore
 }
 pub fn DrawCommand::to_json(Self) -> Json
@@ -49,6 +51,21 @@ pub(all) struct DrawGlyph {
   scaleY : Double
 } derive(ToJson)
 pub fn DrawGlyph::to_json(Self) -> Json
+
+pub(all) struct DrawStyle {
+  fillAlpha : Double
+  strokeAlpha : Double
+  evenOdd : Bool
+  cap : Int
+  join : Int
+  miter : Double
+  dash : Array[Double]
+  dashOffset : Double
+  multiply : Bool
+  imageSmoothing : Bool
+} derive(ToJson)
+pub fn DrawStyle::default() -> Self
+pub fn DrawStyle::to_json(Self) -> Json
 
 pub(all) struct DrawingRegion {
   width : Double
@@ -438,6 +455,7 @@ pub struct TextProbe {
   mut pagination : PaginationCache?
 }
 pub fn TextProbe::add_font(Self, Bytes, String) -> Int raise @failure.Failure
+pub fn TextProbe::add_source_font(Self, Bytes, String) -> Int raise @failure.Failure
 pub fn TextProbe::close(Self) -> Unit
 pub fn TextProbe::font_bytes(Self, Int) -> Bytes raise @failure.Failure
 pub fn TextProbe::font_index(Self, String) -> Int raise @failure.Failure
@@ -447,6 +465,7 @@ pub fn TextProbe::new() -> Self
 pub fn TextProbe::outline_resources(Self) -> Array[Outline] raise @failure.Failure
 pub fn TextProbe::paragraph_lines(Self, Paragraph, Map[String, String], Double, Bool) -> Array[Line] raise @failure.Failure
 pub fn TextProbe::shape(Self, String, Double, String, primary? : Int, base? : Int) -> ShapeBatch raise @failure.Failure
+pub fn TextProbe::source_glyph(Self, Int, Int, String, Int, Bool) -> (String, Int) raise @failure.Failure
 pub fn TextProbe::text_block(Self, String, TextStyle, Map[String, String], Double, Bool) -> TextBlock raise @failure.Failure
 
 pub(all) struct TextStyle {

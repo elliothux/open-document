@@ -12,7 +12,7 @@ MoonBit 0.1.20261010 要求新配置格式。[依赖准备工具](../../tools/pr
 | [moonbit-community/bidi](https://github.com/moonbit-community/tonyfettes-unicode) 0.5.2 | UAX #9，目标 Unicode 16.0.0；Apache-2.0 与 Unicode 数据许可 | 复用顺序/镜像 API；不重写 Unicode 表，不扩展到完整字素导航 |
 | Milky2018/moon_cosmic 0.3.7 | 仅 unicode_linebreak 的断行与字素分段；Apache-2.0 与 Unicode 数据许可 | 复用换行位置和 Unicode 13.0.0 扩展字素，不使用其 editor、排版或字体 owner；断行的 Unicode 15 向量沿用上游 tailoring；字素单独检查完整 Unicode 13 的 602 条标准向量，不声明较新版本 |
 | moonbitlang/x 0.5.5 | SHA-256；Apache-2.0 | 字体字节身份与构建补丁核验，不增加全局资源服务 |
-| moonbitlang/pdflite 0.3.8 | PDF 对象、序列化、字体子集；Apache-2.0，Typst subsetter 0.2.6 为 MIT OR Apache-2.0 | 当前复用 writer 与 subsetter，将共同 PositionedDocument 编码成 PDF，不创建第二套布局 |
+| moonbitlang/pdflite 0.3.8 | 严格 reader、源对象、内容/字体映射、序列化、字体子集；Apache-2.0，Typst subsetter 0.2.6 为 MIT OR Apache-2.0 | Office 输出复用 PositionedDocument；PDF 输入复用严格 reader 与源位置，编辑复用对象 writer |
 
 公开 Wasm 包分发项目 Apache LICENSE、完整 HarfBuzz NOTICE 与 UNICODE-LICENSE。固定 Noto 字体、W3C XML 和 POI 测试材料仅保存在私有语料库，保留各自许可和来源；公开 SDK 不打包字体或 fixtures。
 
@@ -26,7 +26,13 @@ P4 复用已安装的字素分段，没有新增生产依赖。formats module �
 
 P1 的私有 pdflite content/path 探针继续保留；P3 产品 writer 复用同一固定版本，不依赖探针产物或私有 checkout。授权 notices 随公开 Wasm 包分发，字体和 DOCX/参考 PDF 留在私有库，不捆绑进 SDK。没有 PDF/A 或任意 PDF 编辑承诺。
 
-固定 pdflite 另含严格读取、页树、内容操作符和文字映射；SDK 尚未接入。[P7](../p7-pdf-input.md) 计划复用这些能力并补读取/解码预算，[P8](../p8-pdf-operations.md) 计划复用对象 writer。现有默认解码限制不能当作 SDK 的输入安全合同；本次方案未新增依赖或应用补丁。
+## pdflite 输入预算与源映射补丁
+
+[P7](../implemented/p7-pdf-input.md)/[P8](../implemented/p8-pdf-operations.md)复用固定 0.3.8；没有新增生产依赖。来源为 office.mbt `2f08f3b8041d9098d258969fe3902b34585163cc` 下的 `pdflite/`，保留 Apache-2.0 与原版权。准备工具按[公开清单](../../tools/pdflite-patches/index.json)核对原始/结果 SHA-256，再应用固定行编辑；新 SDK 入口也登记结果身份。构建不依赖研究 checkout。
+
+补丁覆盖词法/字节读取、对象深度、classic/xref stream 容量和修订链、流物化、Flate、TIFF/PNG Predictor、CMap/CID 展开与内容/宽度循环。SDK 同步操作共享预算，嵌套调用和依赖回退不重置耗尽状态；未加密严格入口在装载前拒绝 Encrypt。SDK 模式以外保留原入口策略。TIFF 解码补齐 1/2/4/8/16-bit 水平差分和完整行检查。
+
+字体入口区分可信 Unicode 和缺项，独立返回源编码字形名；PDF 符号字体使用嵌入 cmap，CID 子集可省略 cmap。源显示不塑形，重新生成字段外观才走现有文本框布局。会话使用自己的局部历史，清除依赖未使用的变更日志；关闭释放源表。上游固定版本覆盖这些缺口后删除对应补丁并保留定向回归。
 
 ## HarfBuzz GDEF 补丁
 

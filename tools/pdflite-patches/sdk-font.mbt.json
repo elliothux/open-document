@@ -1,0 +1,39 @@
+{
+  "file": "sdk-font.mbt",
+  "originalSha256": null,
+  "patchedSha256": "4a23fdaa2730768e7c9ec22c31fa4b5ed018bde01eefa66225c720a2da741f94",
+  "lineEdits": [
+    [
+      0,
+      0,
+      [
+        "///|",
+        "/// Keep missing Unicode distinct from an encoded character code.",
+        "pub fn PdfFont::sdk_unicode(self : PdfFont, code : Int) -> Array[Int]? {",
+        "  match self.pdf_text_tounicode() {",
+        "    Some(entries) => {",
+        "      for (key, bytes) in entries {",
+        "        guard @core.sdk_allow(1) else { return None }",
+        "        if key == code { return try pdf_codepoints_of_utf16be(bytes) catch { _ => None } noraise { value => Some(value) } }",
+        "      }",
+        "      None",
+        "    }",
+        "    None => match self.pdf_text_glyphname_of_charcode(code) {",
+        "      Some(name) => self.pdf_text_codepoints_of_glyphname(name)",
+        "      None => None",
+        "    }",
+        "  }",
+        "}",
+        "",
+        "///|",
+        "/// Glyph identity comes from the encoding, independently of ToUnicode.",
+        "pub fn PdfFont::sdk_glyph_name(self : PdfFont, code : Int) -> String {",
+        "  match self.pdf_text_glyphname_of_charcode(code) {",
+        "    Some(name) => @ascii.decode_lossy(name.bytes())[1:].to_owned()",
+        "    None => \"\"",
+        "  }",
+        "}"
+      ]
+    ]
+  ]
+}

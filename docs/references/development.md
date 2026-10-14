@@ -1,12 +1,12 @@
 # 开发与模块边界
 
-当前实现工程/文本 POC、字体塑形、有界 ZIP/XML/OPC，以及限定 DOCX/XLSX/PPTX 编辑与 PDF 输出。DOCX 覆盖普通正文和单个表格单元格；XLSX 覆盖稀疏网格、值/首批公式、历史、剪贴板、保真保存与独立打印。PPTX 提供限定图文编辑、保真保存和静态 PDF；PDF reader 尚未实现。当前支持面见[格式合同](formats.md)，固定第三方依赖见[依赖记录](dependencies.md)。
+当前实现工程/文本 POC、字体塑形、有界 ZIP/XML/OPC，以及限定 DOCX/XLSX/PPTX 编辑与 PDF 输入输出。DOCX 覆盖普通正文和单个表格单元格；XLSX 覆盖稀疏网格、值/首批公式、历史、剪贴板、保真保存与独立打印。PPTX 提供限定图文编辑、保真保存和静态 PDF；PDF 提供限定预览/查询、页面整理、批注、普通字段与源对象保存。当前支持面见[格式合同](formats.md)，固定第三方依赖见[依赖记录](dependencies.md)。
 
 XLSX 交付及检查范围见 [P5](../implemented/p5-xlsx-editing.md)。MoonBit 负责源内容、计算及布局；平台绘制和事件继续由 TS 处理。
 
 PPTX 的交付范围与检查依据见 [P6](../implemented/p6-pptx-editing.md)。三种格式共用有序定位图元、基础路径/矩阵及 PDF；原生输入事件与图片解码复用现有模块。
 
-PDF 输入和文档操作的待实现方案见 [P7](../p7-pdf-input.md) 与 [P8](../p8-pdf-operations.md)。拟复用现有 formats/pdf、pdflite 和 R0；其中 `PdfSession`、`PdfClient`、viewer/editor 及读取预算均尚未交付，不能按计划中的名称调用当前包。
+PDF 输入和文档操作见 [P7](../implemented/p7-pdf-input.md) 与 [P8](../implemented/p8-pdf-operations.md)。`formats/pdf/input-*` 按读取、内容、文字、资源、事务、页面、批注和字段分工；`modules/bridge/src/pdf.mbt` 分发类型化命令。`@open-document/wasm/pdf` 提供 `PdfSession`，`loadEngine(wasm).openPdf()` 创建同步会话；`@open-document/web/pdf` 提供 Worker `PdfClient`。`pdf-viewer`、`pdf-editor`、`pdf-canvas` 复用现有表面、绘制与剪贴板入口。API、嵌入示例和生命周期归[格式合同](formats.md#pdf-输入与文档操作)。
 
 ## Workspace
 

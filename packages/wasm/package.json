@@ -11,6 +11,10 @@
     "UNICODE-LICENSE"
   ],
   "exports": {
+    "./pdf": {
+      "types": "./src/pdf.ts",
+      "default": "./dist/pdf.js"
+    },
     "./pptx": {
       "types": "./src/pptx.ts",
       "default": "./dist/pptx.js"
@@ -38,7 +42,7 @@
     "./engine.wasm": "./dist/engine.wasm"
   },
   "scripts": {
-    "build": "bun build src/engine.ts src/foundation.ts src/preview.ts src/drawing.ts src/validation.ts src/session.ts src/xlsx.ts src/pptx.ts --no-bundle --target browser --outdir dist && cp ../../LICENSE dist/LICENSE",
+    "build": "bun build src/engine.ts src/foundation.ts src/preview.ts src/drawing.ts src/validation.ts src/session.ts src/xlsx.ts src/pptx.ts src/pdf.ts --no-bundle --target browser --root src --outdir dist && cp ../../LICENSE dist/LICENSE",
     "typecheck": "tsc --project tsconfig.json"
   }
 }

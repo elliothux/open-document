@@ -1,0 +1,27 @@
+{
+  "file": "sdk-document.mbt",
+  "originalSha256": null,
+  "patchedSha256": "b6b4059d2ab404adb1a36af60119e3b3c02f359ba4136e6f8380e2bcdbcab4f9",
+  "lineEdits": [
+    [
+      0,
+      0,
+      [
+        "///|",
+        "/// Full-file SDK writes use their own bounded patch history, not incremental events.",
+        "pub fn PdfDocument::sdk_clear_events(self : PdfDocument) -> Unit { self.objects.log.clear() }",
+        "",
+        "///|",
+        "pub fn PdfDocument::sdk_clear(self : PdfDocument) -> Unit {",
+        "  self.objects.object_map.entries.clear()",
+        "  self.objects.object_stream_ids.clear()",
+        "  self.objects.log.clear()",
+        "  self.objects.max_object_number=0",
+        "  self.trailer_dict=PdfDictionary([])",
+        "  self.root=0",
+        "  self.saved_encryption=None",
+        "}"
+      ]
+    ]
+  ]
+}

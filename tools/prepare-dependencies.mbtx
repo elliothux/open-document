@@ -76,15 +76,28 @@ async fn main {
   } else {
     resolution.check()
   }
-  let directory = "tools/harfbuzz-patches/"
+  apply_patches(
+    "tools/harfbuzz-patches/", "moonbit-community/harfbuzz@0.1.0", ".mooncakes/moonbit-community/harfbuzz/src/",
+  )
+  apply_patches(
+    "tools/pdflite-patches/", "moonbitlang/pdflite@0.3.8", ".mooncakes/moonbitlang/pdflite/",
+  )
+  @shell.Cmd("moon", ["check", "--target", "wasm-gc", "--dry-run"])
+  .output()
+  .check()
+}
+
+///|
+async fn apply_patches(
+  directory : String,
+  dependency_id : String,
+  root : String,
+) -> Unit {
   guard @fs.read_file(directory + "index.json").json()
-    is {
-      "package": String("moonbit-community/harfbuzz@0.1.0"),
-      "patches": Array(patches),
-      ..
-    } &&
+    is { "package": String(name), "patches": Array(patches), .. } &&
+    name == dependency_id &&
     !patches.is_empty() else {
-    fail("Invalid HarfBuzz patch index")
+    fail("Invalid dependency patch index: " + dependency_id)
   }
   let writes : Array[(String, String)] = []
   let files : Map[String, Bool] = Map([])
@@ -114,7 +127,7 @@ async fn main {
       fail("Duplicate HarfBuzz patch: " + file)
     }
     files[file] = true
-    let path = ".mooncakes/moonbit-community/harfbuzz/src/" + file
+    let path = root + file
     let source = if @fs.exists(path) {
       let source = @fs.read_file(path)
       let identity = hash(source.binary())
@@ -122,7 +135,7 @@ async fn main {
         continue
       }
       guard original == Json(identity) else {
-        fail("HarfBuzz 0.1.0 source changed; review the patch for " + file)
+        fail(dependency_id + " source changed; review the patch for " + file)
       }
       source.text()
     } else {
@@ -139,7 +152,4 @@ async fn main {
   for (path, patched) in writes {
     @fs.write_file(path, patched)
   }
-  @shell.Cmd("moon", ["check", "--target", "wasm-gc", "--dry-run"])
-  .output()
-  .check()
 }

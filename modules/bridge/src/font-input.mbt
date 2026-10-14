@@ -31,6 +31,9 @@ pub fn foundation_add_font(
     if context.pptx is Some(session) {
       session.invalidate_geometry()
     }
+    if context.pdf is Some(session) {
+      session.invalidate()
+    }
     { "font": index }
   })
 }

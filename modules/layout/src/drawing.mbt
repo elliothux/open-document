@@ -11,6 +11,39 @@ pub(all) struct DrawGlyph {
 pub extend DrawGlyph with ToJson::{to_json}
 
 ///|
+pub(all) struct DrawStyle {
+  fillAlpha : Double
+  strokeAlpha : Double
+  evenOdd : Bool
+  cap : Int
+  join : Int
+  miter : Double
+  dash : Array[Double]
+  dashOffset : Double
+  multiply : Bool
+  imageSmoothing : Bool
+} derive(ToJson)
+
+///|
+pub extend DrawStyle with ToJson::{to_json}
+
+///|
+pub fn DrawStyle::default() -> DrawStyle {
+  {
+    fillAlpha: 1,
+    strokeAlpha: 1,
+    evenOdd: false,
+    cap: 0,
+    join: 0,
+    miter: 10,
+    dash: [],
+    dashOffset: 0,
+    multiply: false,
+    imageSmoothing: true,
+  }
+}
+
+///|
 pub(all) enum DrawCommand {
   FillRect(Fill)
   StrokeRect(Border, String, Double)
@@ -19,6 +52,8 @@ pub(all) enum DrawCommand {
   Path(Array[PathSegment], String, String, Double)
   Transform(Matrix)
   ClipRect(Border)
+  Style(DrawStyle)
+  ClipPath(Array[PathSegment], Bool)
   Restore
 }
 
@@ -41,6 +76,9 @@ pub impl ToJson for DrawCommand with fn to_json(self) {
       }
     Transform(matrix) => { "op": "transform", "matrix": matrix }
     ClipRect(rect) => { "op": "clipRect", "rect": rect }
+    Style(style) => { "op": "style", "style": style }
+    ClipPath(path, even_odd) =>
+      { "op": "clipPath", "path": path, "evenOdd": even_odd }
     Restore => { "op": "restore" }
   }
 }

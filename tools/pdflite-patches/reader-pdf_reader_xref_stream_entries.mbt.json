@@ -1,0 +1,15 @@
+{
+  "file": "reader/pdf_reader_xref_stream_entries.mbt",
+  "originalSha256": "f51b6a76953a7f56a67a581edecec49118f68da67ccbb80dab6f3651bba67394",
+  "patchedSha256": "dd888291cdf46a6f6b77b0f08eefb4b969c953df3016e934856406aeea44fd93",
+  "lineEdits": [
+    [
+      83,
+      0,
+      [
+        "  @core.sdk_xref(declared_capacity, 0, 0)",
+        "  for (start, count) in index_pairs { @core.sdk_xref(count, start + count, 0) }"
+      ]
+    ]
+  ]
+}

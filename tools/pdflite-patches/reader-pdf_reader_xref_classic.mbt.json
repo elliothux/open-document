@@ -1,0 +1,14 @@
+{
+  "file": "reader/pdf_reader_xref_classic.mbt",
+  "originalSha256": "bd2146f8a7c4e2ce81b9206d4782cdbef6cb69212b923b788ddb32c00c3d5040",
+  "patchedSha256": "022bd4aefaad7ce6e147bb5c2fff711b0f05c826cf8c47fe9f6ff99cf65d0ddf",
+  "lineEdits": [
+    [
+      108,
+      0,
+      [
+        "    @core.sdk_xref(entries.length(), object_number, 0)"
+      ]
+    ]
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "file": "flate/pdf_flate.mbt",
+  "originalSha256": "c2263144524e8ed422b32088ef9c6212343d2e93243f63a05f49bd925b9ea27c",
+  "patchedSha256": "a9c9834c1f6e320a9705754d8f915eebc12e8363ee42017e94679d0f71ca7070",
+  "lineEdits": [
+    [
+      109,
+      13,
+      [
+        "  let result = pdf_flate_decode_prefix_limited(data, @core.sdk_decode_limit(1 << 30))",
+        "  @core.sdk_decoded(result.0.length())",
+        "  result",
+        "}",
+        "",
+        "///|",
+        "fn pdf_flate_decode_prefix_limited(",
+        "  data : BytesView,",
+        "  max_output : Int,",
+        ") -> (Bytes, Int) raise @core.PdfError {",
+        "  guard data.length() > 0 else { return (b\"\", 0) }",
+        "  let decoder = @zlib.Decoder()",
+        "  let scratch = FixedArray::make(32768, b'\\x00')",
+        "  let output = @buffer.Buffer()",
+        "  for pos = 0 {",
+        "    @core.sdk_check(1)"
+      ]
+    ]
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "file": "pdf_codec_predictor_decode_png.mbt",
+  "originalSha256": "48dcd7b5be2bd178d7a733b34d087d2bf3f67c13183c926fe02f4b38418671c1",
+  "patchedSha256": "53cd3ff3fd91bfedd1a8efc38803c3d4ee4472d8651b758f664f378eaf395f57",
+  "lineEdits": [
+    [
+      112,
+      0,
+      [
+        "  if @core.sdk_active() && data.length() % (scanline_width + 1) != 0 { raise PredictorExpected }",
+        "  @core.sdk_decoded(data.length() / (scanline_width + 1) * scanline_width)"
+      ]
+    ]
+  ]
+}

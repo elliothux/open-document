@@ -1,6 +1,7 @@
 import { FoundationSession } from "./foundation.js";
 import { XlsxSession } from "./xlsx.js";
 import { PptxSession } from "./pptx.js";
+import { PdfSession } from "./pdf.js";
 
 /** Browser ABI adapter. Document state lives only in WasmGC. */
 export class TextSession {
@@ -55,6 +56,7 @@ export async function loadEngine(wasm: BufferSource): Promise<{
   openFoundation(): FoundationSession;
   openXlsx(): XlsxSession;
   openPptx(): PptxSession;
+  openPdf(): PdfSession;
 }> {
   const { instance } = await WebAssembly.instantiate(
     wasm,
@@ -68,6 +70,12 @@ export async function loadEngine(wasm: BufferSource): Promise<{
   if (typeof open !== "function")
     throw new Error("Missing Wasm export: open_text");
   return {
+    openPdf() {
+      const create = instance.exports.new_foundation;
+      if (typeof create !== "function")
+        throw new Error("Missing new_foundation export");
+      return new PdfSession(instance.exports, create());
+    },
     openPptx() {
       const create = instance.exports.new_foundation;
       if (typeof create !== "function")

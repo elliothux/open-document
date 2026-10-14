@@ -2,7 +2,7 @@
 
 ## Goal
 
-- This unreleased project has **zero users**. Deliver usable features first. Latest delivered phase is [P6 PPTX](docs/implemented/p6-pptx-editing.md); follow the [roadmap](docs/references/roadmap.md) for phase status.
+- This unreleased project has **zero users**. Deliver usable features first. Latest delivered phase is [P8 PDF operations](docs/implemented/p8-pdf-operations.md); follow the [roadmap](docs/references/roadmap.md) for phase status.
 - Design from Day One for current requirements. Change the lowest affected layer directly. Update affected callers, tests, and docs; remove superseded implementations.
 - Keep compatibility code only for document formats. Do not retain compatibility paths for old APIs, models, configuration, or development data.
 - Build the smallest complete feature. Reuse existing code and add structure for a demonstrated gap.

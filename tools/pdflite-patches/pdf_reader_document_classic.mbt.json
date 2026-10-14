@@ -1,0 +1,14 @@
+{
+  "file": "pdf_reader_document_classic.mbt",
+  "originalSha256": "c410b47575f27ea8ded6fc2f70b6e89fa92eb393baeb634153329d2d3558abe3",
+  "patchedSha256": "48bee50ba1b02bc10f9d9123bbbe524811b9d20c6058b6a46e594de1365cd2c9",
+  "lineEdits": [
+    [
+      13,
+      0,
+      [
+        "  if @core.sdk_active() && plan.trailer.lookup_immediate(@core.pdf_name_of_bytes(b\"/Encrypt\")) is Some(_) { @core.pdf_error(\"Encrypted PDF is unsupported by the SDK strict reader\") }"
+      ]
+    ]
+  ]
+}

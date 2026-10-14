@@ -1,5 +1,7 @@
 # 语料管理
 
+P7/P8 的 PDF 输入、许可、固定 SHA-256、操作和证据统一登记在私有 `cases/p7-p8-pdf.json`。ONLYOFFICE `document-templates` 固定 `71430c9f183489e8912f54f9dc859e369cf0dfb4` 的 new/sample PDF 保留 LICENSE/AUTHORS；LibreOffice 补充输入复用已归档 P6 输出及其来源。独立 PDF fixture writer 只在私有测试中生成组合输入；qpdf/Poppler 提供结构、文字和像素预期，公开构建不读取这些资源。
+
 复用现有私有输入、字体和独立预期，按内容身份去重。新增样本直接覆盖当前功能缺口。
 
 ## 当前数据

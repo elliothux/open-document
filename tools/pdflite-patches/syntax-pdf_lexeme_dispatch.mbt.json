@@ -1,0 +1,14 @@
+{
+  "file": "syntax/pdf_lexeme_dispatch.mbt",
+  "originalSha256": "b425f4664ec34ed4c190d9b326ef76a2ba96d3870687a6f5a2101227f0c8f56f",
+  "patchedSha256": "21081792b024f32876dd55388cce3c6e9040fdc4e72e85a9b4bcb86d41718cc7",
+  "lineEdits": [
+    [
+      41,
+      0,
+      [
+        "  @core.sdk_check(1)"
+      ]
+    ]
+  ]
+}

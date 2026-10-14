@@ -38,6 +38,8 @@ export type PathSegment =
   | { op: "close" };
 
 export type DrawCommand =
+  | { op: "style"; style: DrawStyle }
+  | { op: "clipPath"; path: PathSegment[]; evenOdd: boolean }
   | { op: "fillRect"; rect: DrawRect & { color: string } }
   | { op: "strokeRect"; rect: DrawRect; color: string; lineWidth: number }
   | { op: "glyphs"; x: number; y: number; color: string; glyphs: DrawGlyph[] }
@@ -52,6 +54,19 @@ export type DrawCommand =
   | { op: "transform"; matrix: DrawMatrix }
   | { op: "clipRect"; rect: DrawRect }
   | { op: "restore" };
+
+export interface DrawStyle {
+  fillAlpha: number;
+  strokeAlpha: number;
+  evenOdd: boolean;
+  cap: number;
+  join: number;
+  miter: number;
+  dash: number[];
+  dashOffset: number;
+  multiply: boolean;
+  imageSmoothing: boolean;
+}
 
 /** Platform-independent drawing, with resources shared across regions. */
 export interface DrawingBatch {
@@ -188,15 +203,46 @@ export function drawingBatch(value: unknown): DrawingBatch {
             throw new Error("Missing drawing image");
           break;
         }
-        case "path": {
-          if (command.fill !== "") color(command.fill);
-          if (command.stroke !== "") color(command.stroke);
+        case "style": {
+          const style = record(command.style);
+          for (const key of ["fillAlpha", "strokeAlpha"]) {
+            const alpha = finite(style[key]);
+            if (alpha < 0 || alpha > 1)
+              throw new Error("Invalid drawing alpha");
+          }
           if (
-            finite(command.lineWidth) < 0 ||
-            (command.stroke !== "" && command.lineWidth === 0) ||
+            ![0, 1, 2].includes(finite(style.cap)) ||
+            ![0, 1, 2].includes(finite(style.join)) ||
+            finite(style.miter) < 1 ||
+            typeof style.evenOdd !== "boolean" ||
+            typeof style.multiply !== "boolean" ||
+            typeof style.imageSmoothing !== "boolean" ||
+            !Array.isArray(style.dash) ||
+            style.dash.length > 256
+          )
+            throw new Error("Invalid drawing style");
+          finite(style.dashOffset);
+          for (const item of style.dash)
+            if (finite(item) < 0) throw new Error("Invalid drawing dash");
+          if (style.dash.length && style.dash.every((item) => item === 0))
+            throw new Error("Empty drawing dash");
+          break;
+        }
+        case "clipPath":
+        case "path": {
+          if (command.op === "path") {
+            if (command.fill !== "") color(command.fill);
+            if (command.stroke !== "") color(command.stroke);
+            if (finite(command.lineWidth) < 0)
+              throw new Error("Invalid drawing width");
+          } else {
+            if (typeof command.evenOdd !== "boolean" || ++clips > 32)
+              throw new Error("Invalid drawing clip");
+          }
+          if (
             !Array.isArray(command.path) ||
-            command.path.length === 0 ||
-            record(command.path[0]).op !== "move"
+            (command.op === "path" && command.path.length === 0) ||
+            (command.path.length > 0 && record(command.path[0]).op !== "move")
           )
             throw new Error("Invalid drawing path");
           for (const value of command.path) {

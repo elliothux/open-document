@@ -1,0 +1,40 @@
+{
+  "file": "pdf_codec_predictor_tiff.mbt",
+  "originalSha256": "26614adc2894e5e3ab334b1f8f798a2b08991007921df9193354d5982278973b",
+  "patchedSha256": "d9f22b57d9bf1f61746d78e71c7972dcfba72ab54779216bac402e30108a0c15",
+  "lineEdits": [
+    [
+      7,
+      17,
+      [
+        "  if ![1, 2, 4, 8, 16].contains(bits_per_component) {",
+        "    raise PredictorNotSupported(2)",
+        "  }",
+        "  let scanline_width = pdf_predictor_scanline_width(",
+        "    colors, bits_per_component, columns,",
+        "  )",
+        "  guard data.length() % scanline_width == 0 else { raise PredictorNotSupported(2) }",
+        "  @core.sdk_decoded(data.length())",
+        "  let output : Array[Byte] = [ for byte in data => byte ]",
+        "  for line in 0..<(data.length() / scanline_width) {",
+        "    let line_start = line * scanline_width",
+        "    let previous = Array::make(colors, 0)",
+        "    for sample in 0..<(colors * columns) {",
+        "      @core.sdk_check(1)",
+        "      let bit = sample * bits_per_component",
+        "      let mut value = 0",
+        "      for shift in 0..<bits_per_component {",
+        "        let index = line_start + (bit + shift) / 8",
+        "        value = (value << 1) | ((data[index].to_int() >> (7 - (bit + shift) % 8)) & 1)",
+        "      }",
+        "      value = (value + previous[sample % colors]) & ((1 << bits_per_component) - 1)",
+        "      previous[sample % colors] = value",
+        "      for shift in 0..<bits_per_component {",
+        "        let index = line_start + (bit + shift) / 8",
+        "        let mask = 1 << (7 - (bit + shift) % 8)",
+        "        output[index] = ((output[index].to_int() & (255 ^ mask)) | (((value >> (bits_per_component - 1 - shift)) & 1) * mask)).to_byte()",
+        "      }"
+      ]
+    ]
+  ]
+}

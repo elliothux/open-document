@@ -4,6 +4,7 @@ pub struct Foundation {
   mut docx : @docx.Session?
   mut xlsx : @xlsx.Session?
   mut pptx : @pptx.Session?
+  mut pdf : @pdf.PdfSession?
   mut closed : Bool
   mut layout : @layout.Layout?
   images : @layout.Images
@@ -18,6 +19,7 @@ pub fn new_foundation() -> Foundation {
     docx: None,
     xlsx: None,
     pptx: None,
+    pdf: None,
     closed: false,
     layout: None,
     images: @layout.Images::new(),
@@ -180,7 +182,10 @@ fn Foundation::dispatch(
       .to_json()
     }
     "openDocx" => {
-      guard self.docx is None && self.xlsx is None && self.pptx is None else {
+      guard self.docx is None &&
+        self.xlsx is None &&
+        self.pptx is None &&
+        self.pdf is None else {
         @failure.reject("invalid-operation", "DOCX session is already open")
       }
       guard request is { "budget": budget, .. } else {
@@ -240,6 +245,28 @@ fn Foundation::dispatch(
     | "imageKeysPptx"
     | "copyPptx"
     | "exportPptxPdf" => self.pptx_operation(operation, request)
+    "defaultPdfBudget"
+    | "openPdf"
+    | "queryPdf"
+    | "renderPdfPage"
+    | "extractPdfText"
+    | "searchPdfPage"
+    | "hitTestPdf"
+    | "selectPdf"
+    | "selectedPdfText"
+    | "imagePdf"
+    | "decodedImagePdf"
+    | "reorderPdfPages"
+    | "rotatePdfPages"
+    | "deletePdfPages"
+    | "addPdfNote"
+    | "highlightPdfText"
+    | "updatePdfAnnotation"
+    | "deletePdfAnnotation"
+    | "setPdfFieldValue"
+    | "undoPdf"
+    | "redoPdf"
+    | "savePdf" => self.pdf_operation(operation, request)
     "query"
     | "editState"
     | "selectDocx"
@@ -520,7 +547,7 @@ fn foundation_response(operation : () -> Json raise @failure.Failure) -> String 
 ///|
 pub fn foundation_call(context : Foundation, input : String) -> String {
   foundation_response(() => {
-    guard input.length() <= 50000000 else {
+    guard input.length() <= 100000000 else {
       @failure.reject("limit-exceeded", "ABI input exceeds budget")
     }
     let request = @json.parse(input) catch {
@@ -546,6 +573,10 @@ pub fn foundation_close(context : Foundation) -> Unit {
     session.close()
   }
   context.pptx = None
+  if context.pdf is Some(session) {
+    session.close()
+  }
+  context.pdf = None
   context.layout = None
   context.xlsx_print = None
   context.images.clear()

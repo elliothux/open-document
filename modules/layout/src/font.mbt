@@ -16,7 +16,7 @@ struct Font {
 ///|
 fn font_line_extents(
   face : @face.Face,
-  os2 : @sfnt.Os2Table,
+  os2 : @sfnt.Os2Table?,
 ) -> (Int, Int) raise @failure.Failure {
   let hhea = match face.reference_table(@common.Tag::from_string("hhea")) {
     Ok(blob) => blob.as_view()
@@ -35,20 +35,25 @@ fn font_line_extents(
   }
   let ascent = signed(4)
   let descent = signed(6)
-  let table = face
-    .reference_table(@common.Tag::from_string("OS/2"))
-    .unwrap()
-    .as_view()
   // Win metrics bound clipping; USE_TYPO_METRICS overrides valid hhea line metrics.
-  if ((table[62].to_int() * 256 + table[63].to_int()) & 128) != 0 &&
-    os2.typo_ascender >= 0 &&
-    os2.typo_descender <= 0 &&
-    os2.typo_ascender > os2.typo_descender {
-    (os2.typo_ascender, -os2.typo_descender)
-  } else if ascent >= 0 && descent <= 0 && ascent > descent {
+  if os2 is Some(os2) {
+    let table = face
+      .reference_table(@common.Tag::from_string("OS/2"))
+      .unwrap()
+      .as_view()
+    if ((table[62].to_int() * 256 + table[63].to_int()) & 128) != 0 &&
+      os2.typo_ascender >= 0 &&
+      os2.typo_descender <= 0 &&
+      os2.typo_ascender > os2.typo_descender {
+      return (os2.typo_ascender, -os2.typo_descender)
+    }
+  }
+  if ascent >= 0 && descent <= 0 && ascent > descent {
     (ascent, -descent)
-  } else {
+  } else if os2 is Some(os2) {
     (os2.win_ascent, os2.win_descent)
+  } else {
+    @failure.reject("malformed-font", "Source font has no valid line metrics")
   }
 }
 
@@ -92,6 +97,26 @@ pub fn TextProbe::add_font(
   bytes : Bytes,
   identity : String,
 ) -> Int raise @failure.Failure {
+  self.add_font_data(bytes, identity, true)
+}
+
+///|
+/// Positioned glyph fonts may omit cmap and OS/2; their source mapping owns Unicode.
+pub fn TextProbe::add_source_font(
+  self : TextProbe,
+  bytes : Bytes,
+  identity : String,
+) -> Int raise @failure.Failure {
+  self.add_font_data(bytes, identity, false)
+}
+
+///|
+fn TextProbe::add_font_data(
+  self : TextProbe,
+  bytes : Bytes,
+  identity : String,
+  unicode : Bool,
+) -> Int raise @failure.Failure {
   self.check()
   guard self.fonts.length() < 8 && bytes.length() <= 33554432 - self.font_bytes else {
     @failure.reject("limit-exceeded", "Font budget exceeded")
@@ -126,13 +151,16 @@ pub fn TextProbe::add_font(
   guard upem >= 16 && upem <= 16384 else {
     @failure.reject("malformed-font", "Invalid font metrics")
   }
-  match font.glyph_for_codepoint(32U) {
-    Err(_) => @failure.reject("malformed-font", "Invalid font cmap")
-    Ok(_) => ()
+  if unicode {
+    match font.glyph_for_codepoint(32U) {
+      Err(_) => @failure.reject("malformed-font", "Invalid font cmap")
+      Ok(_) => ()
+    }
   }
   font.set_scale(upem, upem)
   let os2 = match font.os2() {
-    Ok(Some(table)) => table
+    Ok(Some(table)) => Some(table)
+    Ok(None) if !unicode => None
     _ => @failure.reject("malformed-font", "Missing or invalid OS/2 metrics")
   }
   let digest = @crypto.sha256(bytes)
@@ -140,7 +168,11 @@ pub fn TextProbe::add_font(
     .reference_table(@common.Tag::from_string("head"))
     .unwrap()
     .as_view()
-  guard head_bytes.length() >= 54 && os2.win_ascent + os2.win_descent > 0 else {
+  guard head_bytes.length() >= 54 &&
+    (
+      os2 is None ||
+      (os2 is Some(table) && table.win_ascent + table.win_descent > 0)
+    ) else {
     @failure.reject("malformed-font", "Invalid line or bounding metrics")
   }
   let (ascent, descent) = font_line_extents(face, os2)
@@ -167,9 +199,11 @@ pub fn TextProbe::add_font(
     sha256: hash.to_string(),
     ascent,
     descent,
-    fs_type: os2.fs_type,
+    fs_type: os2.map(table => table.fs_type).unwrap_or(2),
     bbox,
-    cap_height: os2.cap_height.unwrap_or(os2.win_ascent),
+    cap_height: os2
+    .map(table => table.cap_height.unwrap_or(table.win_ascent))
+    .unwrap_or(ascent),
     italic_angle: match font.post() {
       Ok(Some(post)) => post.italic_angle.to_double() / 65536
       _ => 0
@@ -290,7 +324,7 @@ fn TextProbe::outline(
   index : Int,
   glyph : UInt,
 ) -> (String, String, Bool) raise @failure.Failure {
-  let key = "\{index}:\{glyph}"
+  let key = "\{self.fonts[index].sha256}:\{glyph}"
   if self.outlines.get(key) is Some(path) {
     return (key, path, false)
   }

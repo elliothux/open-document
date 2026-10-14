@@ -1,0 +1,29 @@
+{
+  "file": "pdf_content_text_width.mbt",
+  "originalSha256": "117ee0baeca3e3fb59b527e17fc4e842f5ebde04a9b3fa23262d4dec8e0a0227",
+  "patchedSha256": "6bce19ab905115bd4bbecafcdd172e84af04cb95c45708f0d7a71682543797f7",
+  "lineEdits": [
+    [
+      6,
+      14,
+      [
+        "    guard @core.sdk_allow(1) else { return None }",
+        "    if entry.0 == charcode {",
+        "      break Some(entry.1)",
+        "    }",
+        "  } nobreak {",
+        "    None",
+        "  }",
+        "}",
+        "",
+        "///|",
+        "fn pdf_content_cid_vertical_width_lookup(",
+        "  widths : ArrayView[(Int, PdfCIDVerticalWidth)],",
+        "  charcode : Int,",
+        ") -> PdfCIDVerticalWidth? {",
+        "  for entry in widths {",
+        "    guard @core.sdk_allow(1) else { return None }"
+      ]
+    ]
+  ]
+}

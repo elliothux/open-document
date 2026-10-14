@@ -6,9 +6,12 @@ import type {
 } from "@open-document/wasm/foundation";
 import type { GridViewport, PrintOptions } from "@open-document/wasm/xlsx";
 import type { PptxCommand } from "@open-document/wasm/pptx";
+import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
   | PptxCommand
+  | PdfCommand
+  | { operation: "openPdfWorker"; wasm: ArrayBuffer }
   | { operation: "openPresentation"; wasm: ArrayBuffer }
   | { operation: "open"; text: string; wasm: ArrayBuffer }
   | { operation: "read" | "undo" }

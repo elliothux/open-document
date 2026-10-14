@@ -2,12 +2,14 @@ import { loadEngine, type TextSession } from "@open-document/wasm/engine";
 import type { FoundationSession } from "@open-document/wasm/foundation";
 import type { XlsxSession } from "@open-document/wasm/xlsx";
 import { isPptxCommand, type PptxSession } from "@open-document/wasm/pptx";
+import { isPdfCommand, type PdfSession } from "@open-document/wasm/pdf";
 import type { Request, Response } from "./protocol";
 
 let text: TextSession | undefined;
 let foundation: FoundationSession | undefined;
 let workbook: XlsxSession | undefined;
 let presentation: PptxSession | undefined;
+let pdf: PdfSession | undefined;
 let busy = false;
 
 async function dispatch(request: Request): Promise<unknown> {
@@ -15,11 +17,16 @@ async function dispatch(request: Request): Promise<unknown> {
     request.operation === "open" ||
     request.operation === "openFoundation" ||
     request.operation === "openSpreadsheet" ||
-    request.operation === "openPresentation"
+    request.operation === "openPresentation" ||
+    request.operation === "openPdfWorker"
   ) {
-    if (text || foundation || workbook || presentation)
+    if (text || foundation || workbook || presentation || pdf)
       throw new Error("Session is already open");
     const engine = await loadEngine(request.wasm);
+    if (request.operation === "openPdfWorker") {
+      pdf = engine.openPdf();
+      return null;
+    }
     if (request.operation === "openPresentation") {
       presentation = engine.openPptx();
       return null;
@@ -35,6 +42,15 @@ async function dispatch(request: Request): Promise<unknown> {
     foundation = engine.openFoundation();
     return null;
   }
+  if (pdf) {
+    if (request.operation === "font") {
+      pdf.addFont(request.bytes, request.identity);
+      return null;
+    }
+    if (isPdfCommand(request)) return pdf.execute(request);
+    throw new Error("Operation is unavailable in a PDF session");
+  }
+  if (isPdfCommand(request)) throw new Error("Open a PDF client first");
   if (presentation) {
     if (request.operation === "budget") return presentation.defaultBudget();
     if (request.operation === "font") {

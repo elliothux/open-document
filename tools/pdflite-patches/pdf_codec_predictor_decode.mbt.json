@@ -1,0 +1,15 @@
+{
+  "file": "pdf_codec_predictor_decode.mbt",
+  "originalSha256": "c85c1ffe54a2a6fc47413ef7d980185a58c4028d92bbd8c0f495028ad565f2b8",
+  "patchedSha256": "42ee0b4284943e428b1991bac81b4f16f91048e15e15365597d166785222cd8e",
+  "lineEdits": [
+    [
+      13,
+      0,
+      [
+        "  @core.sdk_predictor(columns, colors, bits_per_component)",
+        "  @core.sdk_decoded(data.length())"
+      ]
+    ]
+  ]
+}

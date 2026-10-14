@@ -5,7 +5,10 @@ fn Foundation::xlsx_operation(
   request : Json,
 ) -> Json raise @failure.Failure {
   if operation == "openXlsx" {
-    guard self.xlsx is None && self.docx is None && self.pptx is None else {
+    guard self.xlsx is None &&
+      self.docx is None &&
+      self.pptx is None &&
+      self.pdf is None else {
       @failure.reject("invalid-operation", "A document session is already open")
     }
     guard request is { "budget": budget, .. } else {

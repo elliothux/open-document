@@ -1,12 +1,12 @@
 # 当前字体与格式合同
 
-本文维护 P1–P6 的当前支持面；产品目标与核心/宿主职责归 [SDK 合同](sdk.md)。公开包仍为 private/WIP，API 尚未发布。内部架构直接按当前需求修改，删除旧模型与旧路径；兼容处理仅限文档格式。
+本文维护 P1–P8 的当前支持面；产品目标与核心/宿主职责归 [SDK 合同](sdk.md)。公开包仍为 private/WIP，API 尚未发布。内部架构直接按当前需求修改，删除旧模型与旧路径；兼容处理仅限文档格式。
 
 XLSX 的网格、值/公式编辑、保真保存与基础打印见 [P5](../implemented/p5-xlsx-editing.md)。以下分别声明文件读取、计算、显示和编辑边界。
 
 PPTX 已交付限定幻灯片编辑、源保留及静态 PDF，结果与检查依据见 [P6](../implemented/p6-pptx-editing.md)。
 
-PDF 当前仅支持下文声明的 Office 布局输出。输入、预览与文字查询见待实现的 [P7](../p7-pdf-input.md)；页面操作、选定批注/表单及对象保存见 [P8](../p8-pdf-operations.md)。计划中的支持范围与预算不属于本合同的已实现能力。
+PDF 包含 Office 布局输出，以及 [P7](../implemented/p7-pdf-input.md) 的限定输入/查询和 [P8](../implemented/p8-pdf-operations.md) 的页面、批注、普通字段与源对象保存。两种保存入口各自维护源语义。
 
 后续实现与测试基准优先使用 ONLYOFFICE core/sdkjs，其次使用 LibreOffice。下文 LibreOffice profile 记录已有实现和证据；对应功能调整时按当前优先级核对，并保留历史结果的真实来源。
 
@@ -82,9 +82,11 @@ DOCX 文字区段的实际宽度和后续起点按固定 LibreOffice 的整数 t
 | `image` | `image: { key, x, y, width, height }`，消费已解码的图片 |
 | `path` | `path` 为 move/line/cubic/close 数值段；`fill`/`stroke` 为 RGB 或空串，`lineWidth` 为 point |
 | `transform` | 压入有限、可逆的仿射 `matrix: { a, b, c, d, e, f }`；与当前矩阵合成 |
-| `clipRect` / `restore` | 压入矩形裁剪 / 恢复最近矩阵或裁剪；批次须平衡 |
+| `style` | fillAlpha/strokeAlpha、evenOdd、cap/join/miter、dash/dashOffset、multiply、imageSmoothing；设置当前图形状态 |
+| `clipPath` | 路径与 evenOdd；压入路径裁剪，空路径产生空裁剪 |
+| `clipRect` / `restore` | 压入矩形裁剪 / 恢复最近矩阵、裁剪及样式；批次须平衡 |
 
-核心生成完整区域的绘制顺序和裁剪。`outlines: { key, path }[]` 与 `images: string[]` 独立于区域；批次中每个轮廓仅保留一份。字体身份和轮廓键在会话内稳定。`addImage(key,width,height,rgba)` 返回由尺寸及 RGBA SHA-256 组成的资源身份；同一源键替换像素后返回新身份。平台位图按此身份缓存。
+核心生成完整区域的绘制顺序和裁剪。`outlines: { key, path }[]` 与 `images: string[]` 独立于区域；批次中每个轮廓仅保留一份，键为字体 SHA-256 与 glyph ID。`addImage(key,width,height,rgba)` 返回由尺寸及 RGBA SHA-256 组成的资源身份；同一源键替换像素后返回新身份。平台位图按此身份缓存。Canvas 按完整批次淘汰上一页轮廓，开始绘制时重设样式；路径 `lineWidth: 0` 表示设备细线，非均匀变换时按最大尺度近似。
 
 `layout(profile)` 返回 `PageLayout`：绘制批次、会话内 `id`、`revision`、复用计数、字体信息、profile、诊断，以及独立的 `semantics`。语义页按阅读顺序保留行文字、源位置、方向、只读原因与文字边界。宿主用它展示文本并初始化焦点；命中、光标和选区仍查询核心。完整 run、carets、图片布局和表格模型留在内部 `Layout`，供编辑几何及 PDF 使用。
 
@@ -168,7 +170,7 @@ DOCX 的显式页面宽、高按固定 LibreOffice 25.8.2.2 的[导入规则](ht
 
 `PageLayout.shapedParagraphs` / `reusedParagraphs` 是本次实际塑形/复用的段落几何数量（含表头、单元格及复用页面内的段落）；`reflowedPages` / `reusedPages` 是重新处理分页状态及直接复用的整页数，二者之和等于当前页数。它们不是耗时指标。完整源输入和字体/page/profile/间距依赖匹配时，核心复用局部行及页面前缀，在首个变化边界所在页继续原分页规则；只有未变后缀和纵坐标、段后间距及页内文字/边框有无全部匹配，才接回旧几何。表格按行检查稳定点，显式空白页规则不变；旧后缀仍检查当前图片及行/页预算。仅保留上次成功布局：塑形和分页各自最多 1024 条输入、1048576 个载荷单位，超限仍正常塑形/分页，不缩减文档支持。一个原始字段或字符串 UTF-16 单元计一单位，不代表堆字节或峰值内存；失败不提交候选缓存，成功增加字体后清空，关闭释放，返回的可变数组与缓存隔离。阶段范围与性能边界见 [P4](../implemented/p4-docx-editing.md#保留限制)。
 
-PDF 使用同一字形坐标、TrueType 子集、字体宽度、CIDToGIDMap、ToUnicode 与行级 ActualText，支持图片及 alpha mask。字体 fsType 禁止嵌入/子集时失败。默认 variation 坐标与 face 0；不支持 CFF、PDF 输入编辑、PDF/A、PDF/UA、签名或浏览器打印。PDF outputBytes 是 1–67,108,864 字节的产物上限；在最终文档序列化前核对已构建对象 payload，再核对最终确切大小。它不是字体子集、临时对象或整个进程的内存上限。
+Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CIDToGIDMap、ToUnicode 与行级 ActualText，支持图片及 alpha mask。字体 fsType 禁止嵌入/子集时失败。默认 variation 坐标与 face 0；不支持 CFF、PDF/A、PDF/UA、签名或浏览器打印。PDF outputBytes 是 1–67,108,864 字节的产物上限；在最终文档序列化前核对已构建对象 payload，再核对最终确切大小。它不是字体子集、临时对象或整个进程的内存上限。
 
 一次段落布局内的候选测宽另保留最多 128 个成功宽度，每个精确键最多 4096 UTF-16 单元，键合计不超过 524288 单元，另有 128 个 Double。键绑定文本、字号、主字体和当前 BiDi 上下文；字体集合在该同步调用内不变。超限重新测量，图片和最终绘制不使用此表；返回或失败即释放，不形成跨段落或跨编辑的持久缓存。此载荷计数不代表实际堆峰值。
 
@@ -284,3 +286,69 @@ PDF 使用同一字形坐标、TrueType 子集、字体宽度、CIDToGIDMap、To
 | 历史 / 宿主队列 | undo+redo 共 100 项、4 MiB 源补丁 payload；编辑与指针意图队列各 64 项，指针预览只保留待发送末次坐标 |
 
 未支持内容、产品操作和本次检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)。Chromium 受控输入事件已验证；没有追加系统输入源、Windows/PowerPoint、VoiceOver、其他浏览器或性能验收。
+
+## PDF 输入与文档操作
+
+`@open-document/wasm/pdf` 的 `PdfSession` 与 `@open-document/web/pdf` 的 `PdfClient` 共用类型化 `execute(command)`。同步入口由 `loadEngine(wasm).openPdf()` 创建，Worker 入口为 `PdfClient.open(wasm, workerUrl)`。字体使用 `addFont(bytes, identity)`。一个 UI 独占一个 client；低层调用方逐条 await 请求。
+
+| 命令 | 输入与结果 |
+| --- | --- |
+| `defaultPdfBudget` / `openPdf` / `queryPdf` | 默认预算；显式 bytes/budget 打开；查询当前源快照 |
+| `renderPdfPage` | revision、page、profile；当前页 `PdfLayout`、DrawingBatch、文字 spans 与独立完整性/诊断 |
+| `extractPdfText` / `searchPdfPage` | revision、page、profile；提取或给出 query 的字面命中与 quads，不切换展示页 |
+| `hitTestPdf` / `selectPdf` / `selectedPdfText` | layoutId；point 命中、UTF-16 anchor/focus 选区和复制文字；未知映射明确失败 |
+| `imagePdf` / `decodedImagePdf` | layoutId/key；RGBA 或经过核心验证的 JPEG；宿主解码后提交匹配尺寸的 RGBA，核心应用 Decode/SMask |
+| `reorderPdfPages` / `rotatePdfPages` / `deletePdfPages` | revision、稳定 pages；完整排列、degrees 或删除列表；返回新快照 |
+| `addPdfNote` / `highlightPdfText` | revision；page/x/y/text 便笺，或当前 layoutId 的核心选区高亮 |
+| `updatePdfAnnotation` / `deletePdfAnnotation` | revision、page、annotation；更新 text 或删除受支持批注 |
+| `setPdfFieldValue` | revision、field、value、profile；文本或 boolean，同步所有 widget |
+| `undoPdf` / `redoPdf` / `savePdf` | revision；历史操作返回快照，保存返回 `{ revision, bytes }` |
+
+`PdfClient.defaultBudget()` 包装 `defaultPdfBudget`；同步 session 为 `defaultPdfBudget()`。page/field/annotation 身份绑定对象号和代数，页序单独返回。revision 单调递增，失败不提交；layoutId 在换页、编辑、字体变化和换文档后失效。`PdfQuery` 包含 pages、annotations、fields、当前 page、历史状态、modified 和 readOnlyReason/pageOrderReason。字段和批注另给各自的只读原因。
+
+核心严格读取未加密 PDF 1.0–1.7，不修复损坏引用或回退旧修订。显示支持源坐标 TrueType、基础路径/裁剪、RGB/Gray、常量 alpha/Multiply、限定图片/Form 和 normal appearance。ActualText/ToUnicode/可信编码独立生成语义；未知 Unicode 使用 U+FFFC，不匹配未知范围，含未知范围的复制失败。显示与提取完整性分别返回。
+
+未支持的图形状态、透明组、可选内容、颜色/字体/图片编码明确诊断；已知图片/批注可以局部限制，未知影响使整页预览不完整。完整正向范围和排除项见 [P7](../implemented/p7-pdf-input.md#已交付范围)。签名只读且未验证，非零代数保护改写，不执行脚本或外部资源。
+
+编辑在原对象图上构造局部候选，检查后原子提交。页面关联、Tagged PDF 批注、锁定/富文本/动作、复杂字段和无法同步的 widget 受保护，范围见 [P8](../implemented/p8-pdf-operations.md#保护规则与限制)。`profile.form` 可指定已供应的可嵌入字体；新字段外观才进行塑形和文本框布局，PDF 正文保持源字距。
+
+保存保留非目标字典及 stream 压缩 payload，重建 xref/trailer 并去掉旧增量/线性化声明。无编辑或全部撤销返回原字节。保存不替换基线、不清空历史；输出失败不改源。未引用对象仍保留，删除不能用于安全擦除、涂黑或脱敏。
+
+### Web 嵌入与生命周期
+
+`@open-document/web/pdf-viewer` 提供 `PdfViewer.create(options)`；`@open-document/web/pdf-editor` 提供 `PdfEditor.create(options)`，复用同一视图。宿主供应 release Wasm、Worker URL、本地文件字节及显式字体：
+
+```ts
+import { PdfEditor } from "@open-document/web/pdf-editor";
+
+const editor = await PdfEditor.create({
+  container,
+  wasm,
+  workerUrl,
+  bytes,
+  fonts: [{ bytes: fontBytes, identity: "regular" }],
+  profile: { form: "regular" },
+});
+const savedBytes = await editor.save();
+await editor.close();
+```
+
+viewer 提供 `snapshot`、`displayedPage`、`open`、`refresh`、`goToPage`、`navigatePage`、`setZoom`、`selectText`、`selectedText`、`extractText`、`search`、`cancelSearch` 和 `nextMatch`。editor 增加 `movePage`、`rotate`、`deletePage`、`highlight`、`deleteAnnotation`、`applyDraft`、`cancelDraft`、`undo`、`redo` 和 `save`。便笺/字段通过可访问原生面板形成草稿；切页/换文档/刷新/输出前应用或取消，组合期间禁止提交。
+
+队列最多 128 个已接受意图，保存排在已接受编辑之后。`close()` 等待在途操作并释放 UI/Worker；未提交草稿先明确处理。`dispose()` 立即取消会话并释放资源，不能假定在途修改已完成。呈现失败保留已提交源，停止新编辑，允许保存、刷新或显式撤销。Canvas 与派生资源只保留当前页；取消搜索及关闭后旧回复不能重绘。
+
+### PDF 默认预算
+
+预算必须为正且不大于核心默认值。可从默认值复制并收紧：
+
+| 字段或资源 | 默认上限 |
+| --- | --- |
+| fileBytes / outputBytes | 各 64 MiB |
+| objects / objectNumber / pages | 100000 / 1000000 / 1024 |
+| revisions / depth / Form 与绘制栈 | 128 / 64 / 32 |
+| streamBytes / decodedBytes / steps | 16 MiB / 64 MiB / 10000000；同次操作共享耗尽状态 |
+| 当前页文字 / 查询 / 命中 | 262144 / 1024 UTF-16 单元 / 每页及 viewer 各 10000 |
+| 批注 / widget / 字段树深度 | 每文档各 4096 / 64 |
+| 字段/便笺 / 高亮 / 候选与历史 | 32767 UTF-16 单元 / 4096 quad / 8 MiB，undo+redo 共 100 项 |
+
+字体、RGBA、图元、轮廓与 Canvas 沿用前述共同限制。PDF 源字体只显示时允许合法子集省略 cmap/OS2；需要重新嵌入时仍检查字体权限，未知权限拒绝。预算检查覆盖分配和循环，保存先保守估计编码大小，再核对确切大小；不保证总堆峰值或延迟。同步 Wasm 不可抢占，宿主只能在异步步骤间取消或终止 Worker。

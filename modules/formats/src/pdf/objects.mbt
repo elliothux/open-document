@@ -1,6 +1,8 @@
 ///|
 fn name(text : String) -> @pdfcore.PdfName {
-  @pdfcore.pdf_name_of_bytes(@utf8.encode(text))
+  @pdfcore.pdf_name_of_bytes(
+    @utf8.encode(if text.has_prefix("/") { text } else { "/" + text }),
+  )
 }
 
 ///|

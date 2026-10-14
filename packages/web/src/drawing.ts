@@ -1,4 +1,8 @@
-import type { DrawingBatch, DrawGlyph } from "@open-document/wasm/drawing";
+import type {
+  DrawingBatch,
+  DrawGlyph,
+  DrawStyle,
+} from "@open-document/wasm/drawing";
 import type { ShapeBatch } from "@open-document/wasm/foundation";
 
 /** One renderer per core session. Platform resources never cross sessions. */
@@ -15,19 +19,38 @@ export class CanvasRenderer {
     if (this.closed) throw new Error("Renderer is disposed");
     const region = batch.regions[index];
     if (!region) throw new Error("Unknown drawing region");
+    const retained = new Set(batch.outlines.map((outline) => outline.key));
+    for (const key of this.paths.keys())
+      if (!retained.has(key)) this.paths.delete(key);
     this.prepare(batch.outlines);
     let clips = 0;
+    let style: DrawStyle = {
+      fillAlpha: 1,
+      strokeAlpha: 1,
+      evenOdd: false,
+      cap: 0,
+      join: 0,
+      miter: 10,
+      dash: [],
+      dashOffset: 0,
+      multiply: false,
+      imageSmoothing: true,
+    };
+    const styles: DrawStyle[] = [];
     context.save();
     try {
+      this.applyStyle(context, style);
       for (const command of region.commands) {
         switch (command.op) {
           case "fillRect": {
+            context.globalAlpha = style.fillAlpha;
             const rect = command.rect;
             context.fillStyle = `#${rect.color}`;
             context.fillRect(rect.x, rect.y, rect.width, rect.height);
             break;
           }
           case "strokeRect": {
+            context.globalAlpha = style.strokeAlpha;
             const rect = command.rect;
             context.strokeStyle = `#${command.color}`;
             context.lineWidth = command.lineWidth;
@@ -35,6 +58,7 @@ export class CanvasRenderer {
             break;
           }
           case "glyphs":
+            context.globalAlpha = style.fillAlpha;
             context.fillStyle = `#${command.color}`;
             context.save();
             try {
@@ -45,6 +69,7 @@ export class CanvasRenderer {
             }
             break;
           case "image": {
+            context.globalAlpha = style.fillAlpha;
             const image = command.image;
             const bitmap = images.get(image.key);
             if (!bitmap) throw new Error(`Missing image: ${image.key}`);
@@ -57,6 +82,11 @@ export class CanvasRenderer {
             );
             break;
           }
+          case "style":
+            style = command.style;
+            this.applyStyle(context, style);
+            break;
+          case "clipPath":
           case "path": {
             const path = new Path2D();
             for (const segment of command.path) {
@@ -82,13 +112,26 @@ export class CanvasRenderer {
                   break;
               }
             }
+            if (command.op === "clipPath") {
+              context.save();
+              clips++;
+              styles.push(style);
+              context.clip(path, command.evenOdd ? "evenodd" : "nonzero");
+              break;
+            }
             if (command.fill) {
+              context.globalAlpha = style.fillAlpha;
               context.fillStyle = `#${command.fill}`;
-              context.fill(path);
+              context.fill(path, style.evenOdd ? "evenodd" : "nonzero");
             }
             if (command.stroke) {
+              context.globalAlpha = style.strokeAlpha;
               context.strokeStyle = `#${command.stroke}`;
-              context.lineWidth = command.lineWidth;
+              const m = context.getTransform();
+              // shortcut: nonuniform hairlines use the largest scale; use device paths if required.
+              context.lineWidth =
+                command.lineWidth ||
+                1 / Math.max(Math.hypot(m.a, m.b), Math.hypot(m.c, m.d));
               context.stroke(path);
             }
             break;
@@ -97,6 +140,7 @@ export class CanvasRenderer {
             const m = command.matrix;
             context.save();
             clips++;
+            styles.push(style);
             context.transform(m.a, m.b, m.c, m.d, m.e, m.f);
             break;
           }
@@ -104,6 +148,7 @@ export class CanvasRenderer {
             const rect = command.rect;
             context.save();
             clips++;
+            styles.push(style);
             context.beginPath();
             context.rect(rect.x, rect.y, rect.width, rect.height);
             context.clip();
@@ -112,6 +157,7 @@ export class CanvasRenderer {
           case "restore":
             if (clips === 0) throw new Error("Invalid drawing clip stack");
             context.restore();
+            style = styles.pop() ?? style;
             clips--;
             break;
           default:
@@ -150,6 +196,21 @@ export class CanvasRenderer {
     for (const outline of outlines)
       if (!this.paths.has(outline.key))
         this.paths.set(outline.key, new Path2D(outline.path));
+  }
+
+  private applyStyle(
+    context: CanvasRenderingContext2D,
+    style: DrawStyle,
+  ): void {
+    context.imageSmoothingEnabled = style.imageSmoothing;
+    context.lineCap = (["butt", "round", "square"] as const)[style.cap]!;
+    context.lineJoin = (["miter", "round", "bevel"] as const)[style.join]!;
+    context.miterLimit = style.miter;
+    context.setLineDash(style.dash);
+    context.lineDashOffset = style.dashOffset;
+    context.globalCompositeOperation = style.multiply
+      ? "multiply"
+      : "source-over";
   }
 
   private glyphs(context: CanvasRenderingContext2D, glyphs: DrawGlyph[]): void {

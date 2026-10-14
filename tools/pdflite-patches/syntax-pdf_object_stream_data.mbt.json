@@ -1,0 +1,35 @@
+{
+  "file": "syntax/pdf_object_stream_data.mbt",
+  "originalSha256": "729c077444e9333fba7e0598c6938646b07009a6581b0b4efa81d061b07c053e",
+  "patchedSha256": "02ebee689b755136acaa42aa0ab0dcf0a198e3d641fa941423b597f8cff393e9",
+  "lineEdits": [
+    [
+      65,
+      18,
+      [
+        "  let length = match data { StreamGot(bytes) => bytes.length(); StreamToGet(value) => value.length() }",
+        "  @core.sdk_decoded(length)",
+        "  match data {",
+        "    StreamGot(bytes) => bytes",
+        "    StreamToGet(to_get) => {",
+        "      let raw = pdf_stream_to_get_raw_view(to_get)",
+        "      if to_get.crypt().is_identity() {",
+        "        raw",
+        "      } else {",
+        "        to_get.crypt().decrypt(raw)",
+        "      }",
+        "    }",
+        "  }",
+        "}",
+        "",
+        "///|",
+        "/// Return stream data as owned bytes, decrypting deferred data when needed.",
+        "pub fn pdf_stream_data_bytes(",
+        "  data : PdfStreamData,",
+        ") -> @core.PdfBytes raise @core.PdfError {",
+        "  let length = match data { StreamGot(bytes) => bytes.length(); StreamToGet(value) => value.length() }",
+        "  @core.sdk_decoded(length)"
+      ]
+    ]
+  ]
+}

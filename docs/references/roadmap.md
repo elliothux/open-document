@@ -13,11 +13,11 @@
 | [P4 DOCX 编辑](../implemented/p4-docx-editing.md) | 限定正文/单个表格单元格编辑、撤销、剪贴板、保存重开 | implemented；非完整 Word 编辑器 |
 | [P5 XLSX](../implemented/p5-xlsx-editing.md) | 网格、值、首批公式依赖、编辑、保存、基础打印 | implemented；限定公式与基础打印，非完整 Excel 兼容 |
 | [P6 PPTX](../implemented/p6-pptx-editing.md) | 主题/版式、基础形状/文字/图片、编辑、保存/PDF | implemented；限定图文与静态 PDF，非完整 PowerPoint 兼容 |
-| [P7 PDF 输入](../p7-pdf-input.md) | 有界解析、限定图文预览、页内选择、提取与搜索 | planned；下一实施阶段，复用 P6/R0 和固定 pdflite |
-| [P8 PDF 文档操作](../p8-pdf-operations.md) | 页面重排/旋转/删除、便笺/高亮、文本字段/复选框、保存重开 | planned；依赖 P7 的源对象图、坐标与文字查询 |
+| [P7 PDF 输入](../implemented/p7-pdf-input.md) | 有界解析、限定图文预览、页内选择、提取与搜索 | implemented；源坐标与独立文字映射，复用 R0 和固定 pdflite |
+| [P8 PDF 文档操作](../implemented/p8-pdf-operations.md) | 页面重排/旋转/删除、便笺/高亮、文本字段/复选框、保存重开 | implemented；源对象图局部事务、保护规则与有界历史 |
 | P9 跨宿主 | CLI 和一个明确的非浏览器宿主 | planned；后续按实际需求实施 |
 
-P5/P6 的交付与限制归所属结果。P7/P8 已细化首版范围、实现路径和足够检查，仍为待实现方案；P9 进入开发时再确定宿主与操作。当前不做全公式库、动画播放、OCR、任意 PDF 正文编辑、数字签名、全语言绑定或发布流水线。
+P5–P8 的交付与限制归所属结果。P7/P8 已完成限定范围与定向检查；P9 进入开发时再确定宿主与操作。当前不做全公式库、动画播放、OCR、任意 PDF 正文编辑、数字签名、全语言绑定或发布流水线。
 
 已有 Office → PDF writer 不依赖 P7 reader。P7 复用通用绘制，按 PDF 原坐标显示；P8 在原对象图上修改和保存，不通过页面重绘替代文档写回。共用同一核心/宿主合同，不按格式新建 Renderer。
 

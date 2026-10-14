@@ -1,0 +1,14 @@
+{
+  "file": "syntax/pdf_parser_object.mbt",
+  "originalSha256": "6eeacc4edddb262ca6132f2bedfeceb0571cb0abed9c2b58ee363516096c19fb",
+  "patchedSha256": "e8606dce6c06b155b6da059f0231bbe5c8406985446fa448fcf847d1416da1ef",
+  "lineEdits": [
+    [
+      235,
+      0,
+      [
+        "  @core.sdk_depth(depth)"
+      ]
+    ]
+  ]
+}

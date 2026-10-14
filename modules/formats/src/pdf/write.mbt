@@ -193,6 +193,7 @@ pub fn write(
                 ("Width", @syntax.PdfInteger(source.width)),
                 ("Height", @syntax.PdfInteger(source.height)),
                 ("BitsPerComponent", @syntax.PdfInteger(8)),
+                ("Interpolate", @syntax.PdfBoolean(true)),
               ]
               let mask = document.add_object(
                 stream(

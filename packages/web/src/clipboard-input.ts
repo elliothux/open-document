@@ -1,6 +1,6 @@
 /** Uses native paste data and one queued asynchronous copy/cut path. */
 export function bindClipboard(
-  input: HTMLTextAreaElement,
+  input: HTMLElement,
   signal: AbortSignal,
   copy: (cut: boolean) => void,
   paste: (text: string) => void,

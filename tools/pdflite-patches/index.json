@@ -1,0 +1,25 @@
+{
+  "package": "moonbitlang/pdflite@0.3.8",
+  "patches": [
+    "pdf_content.mbt.json",
+    "core-sdk-budget.mbt.json",
+    "flate-pdf_flate.mbt.json",
+    "pdf_reader_classic_plan.mbt.json",
+    "syntax-pdf_parser_object.mbt.json",
+    "pdf_codec_predictor_decode.mbt.json",
+    "syntax-pdf_lexeme_dispatch.mbt.json",
+    "reader-pdf_reader_xref_classic.mbt.json",
+    "pdf_text_cmap_tounicode_bfrange.mbt.json",
+    "reader-pdf_reader_xref_stream_entries.mbt.json",
+    "sdk-font.mbt.json",
+    "pdf_reader_document_classic.mbt.json",
+    "core-byte_cursor.mbt.json",
+    "syntax-pdf_object_stream_data.mbt.json",
+    "pdf_codec_predictor_decode_png.mbt.json",
+    "pdf_codec_filter.mbt.json",
+    "sdk-document.mbt.json",
+    "pdf_text_cid_font_read.mbt.json",
+    "pdf_content_text_width.mbt.json",
+    "pdf_codec_predictor_tiff.mbt.json"
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "file": "pdf_content.mbt",
+  "originalSha256": "3add9b17902fbf11e6b2b432bc1f587a015d23238e75b9a99001be84010895b1",
+  "patchedSha256": "2c7bcc3ed5cfd20352002c14d0d1cf025d2bad3400e3a9f34cb73bf011b692f3",
+  "lineEdits": [
+    [
+      53,
+      0,
+      [
+        "    @core.sdk_check(1)"
+      ]
+    ]
+  ]
+}
