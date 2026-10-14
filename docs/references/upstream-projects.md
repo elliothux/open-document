@@ -2,7 +2,7 @@
 
 参考实现、兼容行为、测试设计与基准的优先级：**ONLYOFFICE（[core](https://github.com/ONLYOFFICE/core)、[sdkjs](https://github.com/ONLYOFFICE/sdkjs)）优先，[LibreOffice](https://github.com/LibreOffice/core) 其次**。其他项目仅补充具体能力。
 
-下文保留其他 Office 项目的阅读入口；扩展研究与固定快照见 [G0 底座研究](../g0-foundation-review.md)。研究来源不等于构建依赖或已验证能力。
+下文保留按具体能力选读的补充入口。研究来源不等于构建依赖或已验证能力，当前采用的依赖见[依赖记录](dependencies.md)。
 
 参考关系不是整体 fork，也不是逐行翻译。优先参考功能语义、数据结构、格式兼容规则、测试样本和真实行为，再按照本项目边界实现。
 
@@ -59,4 +59,19 @@
 - [文档交互层](https://github.com/dream-num/univer/tree/d61608dace76b0db299c552eb3d1dccf0f8986dc/packages/docs-ui/src/)
 - [表格交互层](https://github.com/dream-num/univer/tree/d61608dace76b0db299c552eb3d1dccf0f8986dc/packages/sheets-ui/src/)
 
-阅读入口使用固定 commit 的上游链接，新检出不需要本机研究目录。其他上游项目清单见 [G0](../g0-foundation-review.md)。复用源码、字体和测试文件前，应分别核对许可证与来源，保留必要声明；不以仓库顶层许可证代替逐项依赖核查。
+## 其他能力参考
+
+以下固定源码入口供对应功能需要时选读，不构成待实施清单：
+
+| 项目 | 阅读范围 |
+| --- | --- |
+| [Open XML SDK](https://github.com/dotnet/Open-XML-SDK/tree/431ab05cf160248cc3885a4a766026d4f8243792) | OPC、类型化操作与未知内容保留 |
+| [Typst](https://github.com/typst/typst/tree/e58a63af09032a486b12241d08ebd04131483221) | 核心/宿主边界与布局产物 |
+| [Parley](https://github.com/linebender/parley/tree/80faa617c851679c2a925293224cd7cda4a17877) | 文本布局与编辑几何 |
+| [IronCalc](https://github.com/ironcalc/IronCalc/tree/09e81f53f4c021fc0ec212e95fb353a1c6c5c704) | 表格、公式与编辑事务 |
+| [Excelize](https://github.com/qax-os/excelize/tree/efb59188b3f56bbffdd614408ad85634292642db) | XLSX 读写与格式规则 |
+| [Krilla](https://github.com/LaurenzV/krilla/tree/ce83e37f2913623b9283f7cb75c21b21d9c59a8a) | PDF 输出与字体子集 |
+| [PDF.js](https://github.com/mozilla/pdf.js/tree/24de17e81b3357b30ffd710ec080be00d65ac98d) | PDF 浏览器参考 |
+| [PDFium](https://github.com/chromium/pdfium/tree/a84323421e94f484faca52dd9d027934eba42ab8) | PDF 独立读取与渲染参考 |
+
+阅读入口使用固定 commit 的上游链接，新检出不需要本机研究目录。复用源码、字体和测试文件前，应分别核对许可证与来源，保留必要声明；不以仓库顶层许可证代替逐项依赖核查。

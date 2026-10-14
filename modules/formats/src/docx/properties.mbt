@@ -136,7 +136,7 @@ fn run_properties(
   id : Int,
   base : RunStyle,
   themes : Map[String, String],
-  inherited? : Bool = false,
+  inherited~ : Bool = false,
 ) -> RunStyle raise @failure.Failure {
   let mut family = base.family
   if tree.child(id, "rFonts") is Some(fonts) {

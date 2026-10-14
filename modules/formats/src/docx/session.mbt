@@ -160,7 +160,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
   {
     "revision": self.revision,
     "compositionId": self.composition
-    .map(composition => composition.id.to_json())
+    .map(composition => Json(composition.id))
     .unwrap_or(Json::null()),
     "mainPart": self.main,
     "texts": texts,

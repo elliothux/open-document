@@ -2,6 +2,8 @@
 
 生产依赖用 `moon.mod` 固定精确版本，不使用根 `references/` 研究副本构建。MoonBit 标准库随工具链固定；下表列直接依赖，传递依赖由 Moon 固定版本解析。
 
+MoonBit 0.1.20261010 要求新配置格式。[依赖准备工具](../../tools/prepare-dependencies.mbtx)先用官方 `moonfmt` 转换固定 HarfBuzz 发布包的 JSON 配置，再核对并应用补丁。源码内容不参与配置转换。颜色结构中与新关键字冲突的 `extend` 改为 `extendMode`，调用方一并修改；两份源码补丁保留原始与结果 hash。依赖版本和许可证保持原值。
+
 | 固定 module | 用到的能力 / 许可 | 必要本地工作 |
 | --- | --- | --- |
 | [moonbit-community/flate](https://github.com/moonbit-community/flate) 0.8.5 | limited raw DEFLATE、CRC32；Apache-2.0 | 现成 ZIP `read` 急切读取且不承担本项目 CRC/源记录/预算合同；archive 只补 checked ZIP32 索引、缓存与保真封装，不复制压缩器 |
@@ -18,7 +20,7 @@ P1 使用 harfbuzz/bidi；P3 才因断行需要引入 moon_cosmic 的 unicode_li
 
 P4 复用已安装的字素分段，没有新增生产依赖。formats module 显式引用已有 flate 0.8.5，只有 DOCX 私有 wbtest overlay 使用其 ZIP writer 构造独立输入，不进入生产 docx 包的 imports。输入生成不使用 SDK 的 archive/XML writer。
 
-固定 HarfBuzz 的 GDEF API 只暴露 header/class/mark-set，没有 LigCaretList 读取方法。P4 的 [局部 reader](../../modules/layout/src/ligature.mbt) 仅补 coverage 和 caret 格式的预算内读取；轮廓点仍复用 `glyph_contour_point_for_origin`，不维护另一套字体解析或 shaping。格式规则与回退依据见 [P4 光标合同](../p4-docx-editing.md#32-位置选区与命中)；上游提供相同能力后替换该 reader 并保留回归。
+固定 HarfBuzz 的 GDEF API 只暴露 header/class/mark-set，没有 LigCaretList 读取方法。P4 的 [局部 reader](../../modules/layout/src/ligature.mbt) 仅补 coverage 和 caret 格式的预算内读取；轮廓点仍复用 `glyph_contour_point_for_origin`，不维护另一套字体解析或 shaping。格式规则与回退依据见 [DOCX 光标合同](formats.md#p4-当前编辑-api-切片)；上游提供相同能力后替换该 reader 并保留回归。
 
 共享布局的选区区域由 SDK 构造。现有字体和 BiDi 依赖不提供 Writer 的段落 frame 区域，故复用已有区段和字形边界计算。跨页规则依据 [LibreOffice 首尾 frame](https://github.com/LibreOffice/core/blob/d401f2107ccab8f924a8e2df40f573aab7605b6f/sw/source/core/layout/trvlfrm.cxx#L2565-L2651)，原生采集方式参考其[选区句柄回归](https://github.com/LibreOffice/core/blob/d401f2107ccab8f924a8e2df40f573aab7605b6f/desktop/qa/desktop_lib/test_desktop_lib.cxx#L3270-L3305)。与 [ONLYOFFICE 视觉区段选区](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/draw-selection.js#L155-L197)交叉核对；通过范围限已登记同段输入，跨段和跨来源样式另验。此处未移植上游可执行代码或增加依赖；上游依赖提供相同区域合同后替换本地计算并保留回归。
 
@@ -32,7 +34,7 @@ P1 的私有 pdflite content/path 探针继续保留；P3 产品 writer 复用�
 
 ## OpenType 查询读取精简
 
-一次 `LayoutWork` 内最多复用 128 项成功的 Coverage/ClassDef 查询。键包含种类、offset 和 glyph；正引用提示必须指向同一不可变 `BytesView`，其他情况重算。命中仍扣除原查询工作量，错误不登记，不跨塑形调用。私有回归覆盖多源、截断、冷/暖预算、容量和释放；不新增公开 API 或依赖。上游提供等效能力后移除补丁。性能专项按 [P4](../p4-docx-editing.md#7-性能与资源验收)延后。
+一次 `LayoutWork` 内最多复用 128 项成功的 Coverage/ClassDef 查询。键包含种类、offset 和 glyph；正引用提示必须指向同一不可变 `BytesView`，其他情况重算。命中仍扣除原查询工作量，错误不登记，不跨塑形调用。私有回归覆盖多源、截断、冷/暖预算、容量和释放；不新增公开 API 或依赖。上游提供等效能力后移除补丁。性能专项按[测试说明](testing.md#独立执行档)延后。
 
 固定 0.1.0 的 [Coverage 循环](https://github.com/moonbit-community/harfbuzz.mbt/blob/143eb274d414145dd9ee4d402ad25b2085f220a1/src/ot/tables/coverage.mbt)和 [ClassDef 格式 2](https://github.com/moonbit-community/harfbuzz.mbt/blob/143eb274d414145dd9ee4d402ad25b2085f220a1/src/ot/tables/gpos.mbt)已检查完整数组，补丁复用这一边界检查，避免逐字段重复验证。
 
@@ -48,9 +50,9 @@ P4 实际原件发现固定 HarfBuzz 0.1.0 默认把 `frac/numr/dnom` 全局启�
 
 ## 阿拉伯塑形与附着修复
 
-显式 LTR 排版暴露了固定依赖的反向塑形缺口。现有 Arabic 补丁按原生方向塑形并恢复输出，保留字素内部顺序、行外上下文及原 sticky 工作上限；数字串不做方向反转。依据 [HarfBuzz 原生方向处理](https://github.com/harfbuzz/harfbuzz/blob/11.5.1/src/hb-ot-shape.cc#L549-L603)，主引擎入口另对照 [ONLYOFFICE core](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/DesktopEditor/fontengine/TextShaper.cpp#L727-L744)。GPOS 原有后向查找不再越过未覆盖的最近基字，mark-to-base/ligature 跳过附加符号后停止；依据[最近基字与 coverage 检查](https://github.com/harfbuzz/harfbuzz/blob/11.5.1/src/OT/Layout/GPOS/MarkBasePosFormat1.hh#L108-L152)。五组独立原生向量包含附加符号、连字、混合数字和纯数字；原 44 组及直接/上下文附着回归保持。补丁沿用原许可证头和分发 NOTICE；固定上游覆盖这些缺口后移除本地修改。当前完整验收归 [P4](../p4-docx-editing.md)，核心通过不代替安装包和浏览器证据。
+显式 LTR 排版暴露了固定依赖的反向塑形缺口。现有 Arabic 补丁按原生方向塑形并恢复输出，保留字素内部顺序、行外上下文及原 sticky 工作上限；数字串不做方向反转。依据 [HarfBuzz 原生方向处理](https://github.com/harfbuzz/harfbuzz/blob/11.5.1/src/hb-ot-shape.cc#L549-L603)，主引擎入口另对照 [ONLYOFFICE core](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/DesktopEditor/fontengine/TextShaper.cpp#L727-L744)。GPOS 原有后向查找不再越过未覆盖的最近基字，mark-to-base/ligature 跳过附加符号后停止；依据[最近基字与 coverage 检查](https://github.com/harfbuzz/harfbuzz/blob/11.5.1/src/OT/Layout/GPOS/MarkBasePosFormat1.hh#L108-L152)。五组独立原生向量包含附加符号、连字、混合数字和纯数字；原 44 组及直接/上下文附着回归保持。补丁沿用原许可证头和分发 NOTICE；固定上游覆盖这些缺口后移除本地修改。阶段验证范围见 [P4](../implemented/p4-docx-editing.md#验证依据与边界)，核心通过不代替安装包和浏览器证据。
 
-行外连接上下文补丁复用原 Arabic 状态表，也更新 USE 分支的同一调用者。Buffer 只借用当前段落字符 view 和范围；非法范围先拒绝，clear 清除引用。按 [LibreOffice 的完整字符串与范围调用](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/vcl/source/gdi/CommonSalLayout.cxx#L574-L606)保留行外信息，按 [HarfBuzz 五字符上下文上限](https://github.com/harfbuzz/harfbuzz/blob/14.4.0/src/hb-buffer.hh#L98-L103)与 [joining 状态更新](https://github.com/harfbuzz/harfbuzz/blob/14.4.0/src/hb-ot-shaper-arabic.cc#L276-L346)处理前后文。每个被检查字符扣除现有 sticky 工作预算，不把行外字符加入当前 glyph 或公开 SDK 数据。补丁不新增依赖或 SDK API；原版权头与 notices 保留。固定上游具备同等上下文输入和预算约束后删除对应补丁，保留独立原生及 HarfBuzz 回归。当前完整运行 `1791829124994` 为 344/344，17 组独立 HarfBuzz 向量及四组重复 LibreOffice 行几何通过；跨版本实际按键 3/3，4K 删除/恢复约减少 89%，原布局和保存保持。该结果不授予完整 P4、产品延迟预算或可靠峰值通过，详见[测试证据](testing.md)。
+行外连接上下文补丁复用原 Arabic 状态表，也更新 USE 分支的同一调用者。Buffer 只借用当前段落字符 view 和范围；非法范围先拒绝，clear 清除引用。按 [LibreOffice 的完整字符串与范围调用](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/vcl/source/gdi/CommonSalLayout.cxx#L574-L606)保留行外信息，按 [HarfBuzz 五字符上下文上限](https://github.com/harfbuzz/harfbuzz/blob/14.4.0/src/hb-buffer.hh#L98-L103)与 [joining 状态更新](https://github.com/harfbuzz/harfbuzz/blob/14.4.0/src/hb-ot-shaper-arabic.cc#L276-L346)处理前后文。每个被检查字符扣除现有 sticky 工作预算，不把行外字符加入当前 glyph 或公开 SDK 数据。补丁不新增依赖或 SDK API；原版权头与 notices 保留。固定上游具备同等上下文输入和预算约束后删除对应补丁，保留独立原生及 HarfBuzz 回归。历史完整运行 `1791829124994` 为 344/344，17 组独立 HarfBuzz 向量及四组重复 LibreOffice 行几何通过；跨版本实际按键 3/3，4K 删除/恢复约减少 89%，原布局和保存保持。该结果不授予完整 P4、产品延迟预算或可靠峰值通过，详见[测试证据](testing.md)。
 
 固定版本的阿拉伯分支只执行连接形态，没有执行已启用的 `ccmp/locl` 和后续 `rlig/calt/liga/clig`。准备补丁沿用原 GSUB 查表函数，在连接形态前后加入相应阶段；替换后的掩码继续传入下一阶段。GSUB 原有 cluster 传递规则先携带源索引，结束后恢复外部 cluster 与 Unicode，避免一对多替换清空整段 Unicode 属性。Hangul 仍使用的共享形态掩码函数保留。[上游阶段顺序](https://github.com/harfbuzz/harfbuzz/blob/14.4.0/src/hb-ot-shaper-arabic.cc#L251-L320)与固定 LibreOffice 的 HarfBuzz 调用是参考，不增加另一塑形器或按字体特判。
 
@@ -58,7 +60,7 @@ GPOS 在查表期间记录 mark-to-base、mark-to-ligature、mark-to-mark 的相
 
 当前身份见 [Arabic 补丁](../../tools/harfbuzz-patches/buffer--arabic.mbt.json)和 [Buffer 合并补丁](../../tools/harfbuzz-patches/buffer--buffer.mbt.json)。
 
-GPOS 的合并补丁身份见上表；原版权头、Apache-2.0 及公开包 notices 保留。上游固定发布覆盖这些缺口后删除对应补丁并保留回归。两份原字体的 44 项独立向量、混排坐标、直接/上下文双向附着与截断检查见[测试记录](testing.md)。这些有限输入不证明任意字体的替换扩张资源上限或完整阿拉伯文字支持；扩张及工作量边界仍须在 P4 资源验收中关闭。
+GPOS 的合并补丁身份见上表；原版权头、Apache-2.0 及公开包 notices 保留。上游固定发布覆盖这些缺口后删除对应补丁并保留回归。两份原字体的 44 项独立向量、混排坐标、直接/上下文双向附着与截断检查见[测试记录](testing.md)。这些有限输入不证明任意字体的替换扩张资源上限或完整阿拉伯文字支持；现有资源上限归[格式合同](formats.md)，未覆盖的扩张与工作量边界不算已验证。
 
 ### GSUB 字形分配边界
 
@@ -68,7 +70,7 @@ GPOS 的合并补丁身份见上表；原版权头、Apache-2.0 及公开包 not
 
 当前身份见 [Layout 合并补丁](../../tools/harfbuzz-patches/ot--tables--layout.mbt.json)和 [GSUB 合并补丁](../../tools/harfbuzz-patches/ot--tables--gsub.mbt.json)。
 
-`layout.mbt` 的当前身份还包含两个特性选择入口的索引去重优化。原 `push_unique_int` 每次线性扫描已收集数组；现在按 FeatureList/LookupList 的数量分配局部布尔标记，结果数组继续保留首次出现顺序。无效索引仍忽略，两个不同索引即使指向相同 offset 也继续分别保留。标记长度各不超过 UInt16 表头数量，去重成本按表头数量与已遍历索引数线性增长；没有跨调用缓存、新依赖或 SDK API。固定上游尚无此优化；升级后须重新核对并删除等效补丁。16384 项、required feature、allowlist、指定特性、空表和截断回归归 [P4](../p4-docx-editing.md)。这一优化不限制所有特性表累计解析或 GSUB/GPOS 总工作量。
+`layout.mbt` 的当前身份还包含两个特性选择入口的索引去重优化。原 `push_unique_int` 每次线性扫描已收集数组；现在按 FeatureList/LookupList 的数量分配局部布尔标记，结果数组继续保留首次出现顺序。无效索引仍忽略，两个不同索引即使指向相同 offset 也继续分别保留。标记长度各不超过 UInt16 表头数量，去重成本按表头数量与已遍历索引数线性增长；没有跨调用缓存、新依赖或 SDK API。固定上游尚无此优化；升级后须重新核对并删除等效补丁。16384 项、required feature、allowlist、指定特性、空表和截断回归的阶段范围见 [P4](../implemented/p4-docx-editing.md#验证依据与边界)。这一优化不限制所有特性表累计解析或 GSUB/GPOS 总工作量。
 
 ### 累计查表工作量
 

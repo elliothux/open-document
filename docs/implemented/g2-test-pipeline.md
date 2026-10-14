@@ -4,7 +4,7 @@
 
 同一冻结源码、真实文件、操作和独立预期现在能走实际 tarball library 与真实 Chromium Worker 两条路径。失败保留原始证据、可复现任务和前后比较；性能独立串行采样，不以单次测试耗时证明提速。全部测试代码、fixture、判定器、执行工具和报告仍在私有 `test-lab/`。
 
-当前执行合同归[测试说明](../references/testing.md)，输入来源与 Office 候选审核归[语料管理](../references/corpus.md)。产品支持范围归 [SDK 合同](../references/sdk.md)及[格式合同](../references/formats.md)；研究依据归 [G1](../g1-compatibility-pipeline.md)。本结果不替代各 P 阶段的具体验证设计。
+当前执行合同归[测试说明](../references/testing.md)，输入来源与 Office 候选审核归[语料管理](../references/corpus.md)。产品支持范围归 [SDK 合同](../references/sdk.md)及[格式合同](../references/formats.md)。本结果不替代各 P 阶段的具体验证设计。
 
 ## 实现结果与边界
 
@@ -19,7 +19,7 @@
 
 报告按 `caseId + operationId + surface + runtimeProfile + attempt` 定位执行，区分执行状态与判定；按格式、特征、操作和宿主显示各分母。失败任务保留来源、输入、断言位置、首个失败阶段、同 case 的两个宿主结果、原始复现调用、相关回归与停止条件。症状分组不是共同根因，假设与事实分开。报告文本转义，artifact 链接固定为相对路径。
 
-Agent 使用私有 `document-test-loop` skill 读取摘要与原始任务，在新 attempt 复现并修复通用规则。按变更风险验证受影响输入和宿主，通过后交付；功能里程碑或具体跨模块风险需要时再跑完整入口。保留原始预期与失败记录，沿用用户已给出的决定和授权；执行范围以当前[测试说明](../references/testing.md)为准。
+Agent 按[测试说明](../references/testing.md)读取摘要与原始任务，在新 attempt 复现并修复通用规则。按变更风险验证受影响输入和宿主，通过后交付。完整入口的选择、原始预期与失败记录的保留统一由该文档维护；沿用用户已给出的决定和授权。
 
 本地 Docker 的准备阶段可联网，文档执行使用固定 image ID、非 root、无网络、只读根与输入、清空 capabilities、禁止新增权限及有界 CPU／内存／进程／临时空间；不挂载 HOME、凭据或 Docker socket。原始日志、配置和已停止的测试容器保留。用户已授权后续直接运行本地 Docker，授权同步到根 AGENTS.md。
 

@@ -178,7 +178,7 @@ fn Session::paragraph(
   styles : Styles,
   id : Int,
   document_diagnostics : Array[String],
-  background? : String = "ffffff",
+  background~ : String = "ffffff",
 ) -> @layout.Paragraph raise @failure.Failure {
   let diagnostics : Array[String] = []
   for item in tree.descendants(id) {

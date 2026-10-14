@@ -18,7 +18,7 @@
 | Unicode LineBreakTest 选定向量 | 与所用 Unicode 数据及声明 tailoring 对齐，不代表完整 UAX #14 |
 | PDFium PDF 与原始 `.in` | 独立 PDF 输入；有修复警告的文件不作为合法 writer golden |
 
-P4 具体数据组见 [P4 fixture 表](../p4-docx-editing.md)。只读、拒绝、准备完成、SDK 正向编辑和参考重开分别记录，不能互相抵扣。Windows/Word 验收跳过；Office 候选工具不创建已审核 golden。
+P4 验证范围与证据入口见 [P4](../implemented/p4-docx-editing.md#验证依据与边界)。只读、拒绝、准备完成、SDK 正向编辑和参考重开分别记录，不能互相抵扣。Windows/Word 验收跳过；Office 候选工具不创建已审核 golden。
 
 普通 Chrome 系统输入、LibreOffice GUI 观察和最新功能运行分别索引在私有 `cases/p4-native-input-current.json`、`cases/p4-office-gui-current.json`、`cases/p4-input-transport.json`。保留已有紧凑证据；不把历史记录作为未来构建的自动 PASS。
 

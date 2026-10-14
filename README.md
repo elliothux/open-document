@@ -1,6 +1,6 @@
 # Open Document
 
-> **WIP — Work in progress.** Local prototypes support bounded DOCX queries and edits, basic browser text input, paragraph splitting/merging and range replacement with grouped undo/redo and preservation on save, and a limited paginated preview with PDF export. Local drag selection and plain-text clipboard input are available. No SDK has been released. IME, accessibility, incremental layout, and broader format support remain goals.
+> **WIP — Work in progress.** The local SDK supports limited DOCX editing in Chrome/Chromium: selection, text and composition input, paragraph splitting/merging, undo/redo, plain-text clipboard, preservation on save, and paginated preview/PDF export. See [P4](docs/implemented/p4-docx-editing.md) for supported scope and verification limits. No SDK has been released; broader format and platform support remain planned.
 
 Open Document is a cross-platform Office SDK project for developers who want to embed document preview, editing, reading, writing, and format conversion into their applications.
 
@@ -11,7 +11,6 @@ It targets Word, Excel, and PowerPoint documents, with Chromium browser support 
 - [Documentation index](docs/README.md)
 - [Goals and core/host contract](docs/references/sdk.md)
 - [Product roadmap](docs/references/roadmap.md)
-- [Foundation research](docs/g0-foundation-review.md)
 - [Documentation structure and numbering](docs/references/README.md)
 - [Development guidelines](AGENTS.md)
 

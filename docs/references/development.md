@@ -1,6 +1,8 @@
 # 开发与模块边界
 
-当前实现工程/文本 POC、字体塑形与轮廓 probe、有界 ZIP/XML/OPC、Transitional DOCX 的正文文本节点查询/替换/保存，以及限定 DOCX 分页预览和 PDF 输出。`xlsx`、`pptx` 仍为占位包；PDF reader 尚未实现。当前支持面见[格式合同](formats.md)，固定第三方依赖见[依赖记录](dependencies.md)。
+当前实现工程/文本 POC、字体塑形与轮廓 probe、有界 ZIP/XML/OPC，以及限定 DOCX 分页预览、编辑与 PDF 输出。DOCX 编辑覆盖普通正文和单个表格单元格内纯文本，包含段落拆合、历史、组合输入、纯文本剪贴板与保真保存。`xlsx`、`pptx` 仍为占位包；PDF reader 尚未实现。当前支持面见[格式合同](formats.md)，固定第三方依赖见[依赖记录](dependencies.md)。
+
+XLSX 的待实现范围与代码归属见 [P5](../p5-xlsx-editing.md)。实际 API、命令和模块变化在实现后更新到本文。
 
 ## Workspace
 
@@ -15,7 +17,7 @@
 
 根 `moon.work` 明确列举四个 module，各 module 内以 package 划分真实 concern。暂不为每种格式创建独立发布 module，也不创建 CLI 空壳。根 Bun workspace 只包含 `packages/*`，一个公开 `bun.lock`；私有工具是独立仓库和独立依赖域，不加入公开 workspace。
 
-文本 POC 使用 UTF-16 范围，不允许切断 surrogate pair；它不是字素导航或富文本编辑器。核心保留最多 100 条文本快照用于 POC 撤销，正式编辑阶段再基于测量改为编辑记录。当前 ABI 使用 JS string builtins，尚不承诺其他 WasmGC runtime 等价运行。
+文本 POC 使用 UTF-16 范围，不允许切断 surrogate pair；它不是字素导航或富文本编辑器。核心保留最多 100 条文本快照用于 POC 撤销；DOCX 编辑使用独立的局部源补丁历史。当前 ABI 使用 JS string builtins，尚不承诺其他 WasmGC runtime 等价运行。
 
 ## 当前 Foundation API
 
@@ -23,21 +25,21 @@ XML `Document.nodes()` 按当前文档顺序返回只读节点，数组位置不
 
 公开源码入口为 `packages/wasm/src/foundation.ts` 和 `packages/web/src/foundation.ts`，与既有文本 POC 分属真实职责。底层 `(await loadEngine(wasm)).openFoundation()` 适用于受控同步调用；浏览器使用 `FoundationClient.open(wasm, workerUrl)`。宿主提供实际 release Wasm 字节和 bundle 后 Worker 的 URL，不依赖测试服务器。
 
-客户端提供 `defaultBudget()`、`addFont(bytes, identity)`、`shape(text, size, language)`、`openDocx(bytes, budget)`、`query()`、`replaceNode(id, revision, text)`、`saveDocx()`、`flow()`、`imageBytes(key)`、`addImage(key,width,height,rgba)`、`layout(profile)`、`exportPdf(outputBytes,layoutId?)` 与 `dispose()`。DOCX 打开要求显式预算，可从核心默认值复制并收紧。`ShapeBatch` 包含字体身份、font units 度量、CSS px 位置和 UTF-16 clusters；布局使用 point。一个 `OutlineCanvas` 持有同会话派生 Path2D 并在结束时 `dispose()`。
+客户端提供 `defaultBudget()`、`addFont(bytes, identity)`、`shape(text, size, language)`、`openDocx(bytes, budget)`、`query()`、`replaceNode(id, revision, text)`、`saveDocx()`、`flow()`、`imageBytes(key)`、`addImage(key,width,height,rgba)`、`layout(profile)`、`exportPdf(outputBytes,layoutId?)` 与 `dispose()`。DOCX 打开要求显式预算，可从核心默认值复制并收紧。`ShapeBatch` 包含字体身份、font units 度量、CSS px 位置和 UTF-16 clusters；布局使用 point。`addImage()` 返回内容绑定的资源标识。`layout()` 返回绘制指令、资源及独立语义信息；内部完整布局留在核心。`@open-document/web/drawing` 的 `CanvasRenderer` 执行指令，持有同会话派生的 Path2D，并在结束时 `dispose()`。数据类型和校验位于 `@open-document/wasm/drawing`，合同归[格式说明](formats.md#通用绘制输出)。
 
-实施中的 P4 另提供 `editState()`、`selectDocx(revision, selection)`、`selectedText(revision, selection)`、`replaceRange(revision, selection, text)`、`deleteDocx(revision, direction)`、`undoDocx(revision)` 与 `redoDocx(revision)`，Node 同步 API 和 Worker Promise API 使用同一核心事务。页面几何查询为 `hitTest(layoutId, page, x, y)`、`caret(layoutId, position)`、`selectionGeometry(layoutId, selection)`；`navigateDocx(revision, layoutId, direction, extend = false)` 更新核心选区并返回光标，同样由核心计算。位置、导航、范围、保护规则及临时上限归[格式合同](formats.md#p4-当前编辑-api-切片)，完整交付目标归 [P4](../p4-docx-editing.md)。
+P4 编辑 API 提供 `editState()`、`selectDocx(revision, selection)`、`selectedText(revision, selection)`、`replaceRange(revision, selection, text)`、`deleteDocx(revision, direction)`、`undoDocx(revision)` 与 `redoDocx(revision)`，Node 同步 API 和 Worker Promise API 使用同一核心事务。页面几何查询为 `hitTest(layoutId, page, x, y)`、`caret(layoutId, position)`、`selectionGeometry(layoutId, selection)`；`navigateDocx(revision, layoutId, direction, extend = false)` 更新核心选区并返回光标，同样由核心计算。位置、导航、范围、保护规则及资源上限归[格式合同](formats.md#p4-当前编辑-api-切片)，交付范围与验证边界见 [P4](../implemented/p4-docx-editing.md)。
 
 导航返回的 `DocxPosition` 可含 `bidiLevel` 和 `frameStart`。调用者重放光标时保留这些核心元数据；编辑和选区范围始终使用 `offset`。具体校验、清除和历史恢复规则归[格式合同](formats.md#p4-当前编辑-api-切片)。
 
 编辑器停止后，普通 Undo 按钮或快捷键可以显式撤销已提交的编辑并恢复布局；不自动回滚。Redo 与新输入仍停止，外部 revision 变化须先调用 `resume()`，不能撤销未知外部编辑。恢复沿用同一队列，`whenIdle()` 和 `dispose()` 等待已接受的恢复工作；销毁后不重绘。剪切在写剪贴板成功后比较 revision 及完整位置元数据，不因逻辑范围相同而忽略方向或页框变化。
 
-核心组合 API 为 `beginComposition(revision)`、`updateComposition(revision, compositionId, text)`、`commitComposition(revision, compositionId, text)` 与 `cancelComposition(revision, compositionId)`；同步 Node 与 Promise Worker 使用同一 MoonBit 候选/提交入口。`EditState` 和 `DocxQuery` 增加 `compositionId: number | null`。开始绑定当前选区，每次更新重算原范围，query/Flow/几何读取暂态；revision 与历史不变。结束使用显式最终文字，最多一条历史，取消或空结束保留原状态；过期组合身份明确失败。更新/结束/取消使旧 layout 失效，保存/PDF/普通编辑返回 busy。核心、正式 API 与 Chromium CDP composition 事件已有验证；此前固定产物在 macOS/Chromium 使用现有豆包拼音完成中文提交、取消、撤销重做和保存。当前冻结产物已完成普通 Chrome 系统输入、撤销/重做及独立保存复验，证据归 [P4](../p4-docx-editing.md)。按用户决定不切换输入源，不追加系统简体拼音或 VoiceOver 验收；历史中文组合证据不扩大为当前所有输入法或候选窗几何支持。
+核心组合 API 为 `beginComposition(revision)`、`updateComposition(revision, compositionId, text)`、`commitComposition(revision, compositionId, text)` 与 `cancelComposition(revision, compositionId)`；同步 Node 与 Promise Worker 使用同一 MoonBit 候选/提交入口。`EditState` 和 `DocxQuery` 增加 `compositionId: number | null`。开始绑定当前选区，每次更新重算原范围，query/Flow/几何读取暂态；revision 与历史不变。结束使用显式最终文字，最多一条历史，取消或空结束保留原状态；过期组合身份明确失败。更新/结束/取消使旧 layout 失效，保存/PDF/普通编辑返回 busy。核心、正式 API 与 Chromium CDP composition 事件已有验证；此前固定产物在 macOS/Chromium 使用现有豆包拼音完成中文提交、取消、撤销重做和保存。归档产物另完成普通 Chrome 系统输入、撤销/重做及独立保存复验。R0 后的定向检查覆盖组合候选与取消，未重做系统中文输入验收；各记录的产物与范围见 [P4](../implemented/p4-docx-editing.md#验证依据与边界)。按用户决定不切换输入源，不追加系统简体拼音或 VoiceOver 验收；历史中文组合证据不扩大为当前所有输入法或候选窗几何支持。
 
 `@open-document/web/editor` 提供 `DocumentEditor.create(root, client, profile, signal?)`。调用者先供应字体并打开 DOCX，组件存活期间独占 client 操作。`dispose(): Promise<void>` 关闭 UI/监听器，等待在途回复并取消自身未提交组合；调用方须 await 后再复用或关闭 client。已发送的最终提交可能成功，不自动回滚。
 
 `whenIdle()` 等待已接受意图；`saveDocx()` 和 `exportPdf(outputBytes?)` 返回屏障处的 `{ revision, bytes }`，PDF 绑定已显示 layout ID。`downloadDocx()` / `downloadPdf()` 下载输出，`setZoom()` 调整显示。组件已有点击/拖选、键盘输入与导航、拆合普通段落、撤销/重做、纯文本剪贴板及组合输入。范围、分组、队列、保护与恢复规则统一见[格式合同](formats.md#p4-当前编辑-api-切片)，平台接入见[输入事件模块](../../packages/web/src/text-input.ts)。Shift+Enter 和富 HTML/RTF 粘贴不支持。
 
-普通 Chrome 系统输入的绑定产物与独立保存记录在私有 `cases/p4-native-input-current.json`。这不授予所有输入法或完整布局支持。当前按 [P4](../p4-docx-editing.md)补齐可操作功能，性能专项延后。
+普通 Chrome 系统输入的绑定产物与独立保存记录在私有 `cases/p4-native-input-current.json`。这不授予所有输入法或完整布局支持。[P4](../implemented/p4-docx-editing.md) 已按限定范围归档，性能专项延后。
 
 `@open-document/web/preview` 的 `DocumentPreview` 复用 caller 的 `FoundationClient`，创建和关闭边界见[格式合同](formats.md)。宿主先加载所需授权字体；预览准备包内图片、请求核心布局、执行绘制及下载。TS 不持有可编辑文档树，不再塑形。
 
@@ -45,11 +47,11 @@ XML `Document.nodes()` 按当前文档顺序返回只读节点，数组位置不
 
 连接代码只拥有一个 in-flight 请求和 Worker 生命周期。用户字节经 structured clone 进入 Worker。字体以八位字符串调用内部 `foundation_add_font`，核心构造字节后使用原字体校验与资源拥有者。公开 `addFont` 和 32 MiB 预算保持，旧 JSON font 分支已删除。DOCX 和图片仍使用原 JSON/Base64 路径。两种路径共用响应及错误解析；连接代码不维护可编辑文档树。
 
-公开主线程入口保留 ESM 模块导入，`engine`、Wasm `foundation` 与 Web client 使用同一份 `DocumentError` 构造函数。应用构建器需要解析 `@open-document/wasm` 的公开子路径；直接加载浏览器 ESM 时，需要 import map 将 `foundation`、`preview`、`engine` 子路径映射到对应产物。内部运行时导入使用 `.js` 扩展名。Worker 单独打包，因此不依赖主页面的 import map。公开 tarball 包含这些模块及其内部依赖，测试服务器只提供资源路由。
+公开主线程入口保留 ESM 模块导入，`engine`、Wasm `foundation` 与 Web client 使用同一份 `DocumentError` 构造函数。应用构建器需要解析 `@open-document/wasm` 的公开子路径；直接加载浏览器 ESM 时，需要 import map 将使用的 `foundation`、`preview`、`drawing`、`engine` 子路径映射到对应产物。内部运行时导入使用 `.js` 扩展名。Worker 单独打包，因此不依赖主页面的 import map。公开 tarball 包含这些模块及其内部依赖，测试服务器只提供资源路由。
 
 ## 工具与命令
 
-固定 Bun 1.4.2；Moon 工具链 0.1.20260920（moonc v0.10.14+7d59c7ec9）。使用官方工具链并将 `~/.moon/bin` 加入 PATH；`moon-toolchain` 是本项目的版本约定，不声称 Moon 会自动安装该版本。
+固定 Bun 1.4.2；Moon 工具链 0.1.20261010（moonc v0.10.14+7080b3792-nightly）。本次按维护者选择使用已安装版本。使用官方工具链并将 `~/.moon/bin` 加入 PATH；`moon-toolchain` 是本项目的版本约定，不声称 Moon 会自动安装该版本。
 
 [项目编辑器设置](../../.vscode/settings.json)排除 `.temp`、`.mooncakes` 和 `_build` 的文件监视。生成的测试 SDK 副本不应被语言服务器作为独立工程反复检查或同步依赖；否则后台同步会覆盖已验证的补丁，并与编译争用文件。若编辑器已登记这些临时工程，应用项目设置后重启该项目的 MoonBit 语言服务器。保留失败记录，不删除测试证据，也不通过升级全局工具链修复本项目的固定版本验证。
 
@@ -80,7 +82,7 @@ bun run api
 
 所有一方测试代码、数据、具体预期结果、原始报告和执行 loop 属于私有 `open-document-test`。产品、架构与测试文档统一在父仓库 `docs/`，不在子仓库重复维护。公开构建完全不依赖私有仓库。`test-lab/` 作为 Git submodule 固定到私有仓库的一个 commit；主仓库只保存 `.gitmodules` 和 gitlink，不包含私有文件。
 
-首次准备私有测试环境时，在 `test-lab/` 执行 `bun install --frozen-lockfile` 和 `bun run browsers`，后者只安装固定 Chromium。日常按[测试说明](testing.md)选择受影响检查。功能里程碑或具体跨模块风险需要完整运行时，在根目录执行 `bun run test`；它调用私有 loop，缺失 checkout 或任一步骤失败都会返回失败。根 `check` / `build` 和 pre-commit 独立于该测试入口。
+首次准备私有测试环境时，在 `test-lab/` 执行 `bun install --frozen-lockfile` 和 `bun run browsers`，后者只安装固定 Chromium。日常按[测试说明](testing.md)选择受影响检查。需要覆盖局部检查无法验证的多条功能链风险时，在根目录执行 `bun run test`；它调用私有 loop，缺失 checkout 或任一步骤失败都会返回失败。根 `check` / `build` 和 pre-commit 独立于该测试入口。
 
 空的、尚未初始化的 submodule 目录也会在入口失败。VS Code/Cursor 共用 `.vscode/settings.json`，显式扫描 `test-lab` 并启用 submodule 检测；没有私有权限的公开使用者仍可正常 check/build。
 

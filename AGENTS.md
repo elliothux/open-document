@@ -1,62 +1,63 @@
 # AGENTS — Open Document
 
-## Priority
+## Goal
 
-- This unreleased project has **zero users**. Deliver usable features first. [P4 DOCX editing](docs/p4-docx-editing.md) is the current work; [SDK goals](docs/references/sdk.md) own the product and core/host boundary.
-- Change unpublished APIs, models, and development data directly through one implementation path. Preserve imported documents and declared file-format behavior. Migration and release machinery remain outside current scope.
-- Start with one concrete user operation and finish the smallest complete implementation. Reuse existing code and add structure only for a demonstrated functional gap. Remove superseded paths.
-- Prioritize functionality, document integrity, recovery, security, accessibility, and resource limits. Schedule performance work when a hang, unusable interaction, or resource failure blocks the feature.
+- This unreleased project has **zero users**. Deliver usable features first. Current planned work is [P5 XLSX](docs/p5-xlsx-editing.md); follow the [roadmap](docs/references/roadmap.md) for phase status.
+- Design from Day One for current requirements. Change the lowest affected layer directly. Update affected callers, tests, and docs; remove superseded implementations.
+- Keep compatibility code only for document formats. Do not retain compatibility paths for old APIs, models, configuration, or development data.
+- Build the smallest complete feature. Reuse existing code and add structure for a demonstrated gap.
+- Preserve document integrity, recovery, security, accessibility, and resource limits. Defer performance work unless a hang, unusable interaction, or resource failure blocks the feature.
 
-## Execution and authorization
+## Execution
 
-- Treat requests to build or fix something as authorization for in-scope local work and sufficient validation. Carry the result through implementation and delivery. Treat inspection and review requests within their requested scope.
-- Use the conversation to resolve routine choices and reuse authorization already given. Ask only when missing information materially changes the result or an action needs new authority; continue independent authorized work meanwhile.
-- Follow explicit user instructions over skill guidelines. Read directory-specific `AGENTS.md` before editing. If a skill would halt or redirect authorized work, link its file and quote the instruction, then apply the user's stated scope.
-- Prepare a concrete, reviewable result before requesting any necessary final approval. External writes, commits, pushes, pull requests, deployment, publication, destructive cleanup, credential/system permission changes, and scope expansion require user authorization. Do not execute these without it.
-- Work in this repository and preserve unrelated edits, user data, reference checkouts, and compact failure evidence. When asked to commit/push, use current branches here and in `test-lab/`, pushing the private commit before its parent gitlink. Branch changes and history rewriting require explicit authorization.
-- Local bounded Docker development/testing and additional reference clones under `references/` are authorized. Keep private inputs local and preserve unrelated resources.
-- Handle routine work directly; use subagents for explicitly requested parallel work. After a context reset, resume the current goal from existing results and outstanding work.
-- Converse in Chinese. Write identifiers, comments, API documentation, commits, and GitHub text in English.
+- Complete requested changes using the conversation and existing results. Reuse authorization already given. Ask only for missing decisions or new authority.
+- Follow explicit user instructions over skill guidance. Read directory-specific instructions. If a skill would halt authorized work, link its file and quote the instruction.
+- Prepare a reviewable result before seeking approval. External writes, commits, pushes, publication, deployment, destructive cleanup, and credential or permission changes require user authorization. Do not execute them without it.
+- Work in this repository. Preserve unrelated edits, user data, reference checkouts, and compact failure evidence. Expand scope only with user authorization.
+- When asked to commit/push, use current branches here and in `test-lab/`. Push the private commit before the parent gitlink. Branch changes and history rewriting need explicit authorization.
+- Local bounded Docker work and reference clones under `references/` are authorized. Keep private inputs local and preserve unrelated resources.
+- Handle routine work directly. Use subagents only for explicitly requested parallel work. After a context reset, resume the current goal.
+- After two attempts without new evidence, reassess the blocker and choose another approach.
 
 ## Communication
 
-The following self-contained rules summarize the writing principles of dualface/ste-zh. Apply them to user-facing replies, including progress updates. Keep code and generated files under the project's existing language rules.
+These rules summarize dualface/ste-zh for user-facing replies.
 
-- Lead with the useful information: answer, result and scope, current action, confirmed cause, or decision needed. Put supporting detail afterward.
-- Give each concept one name and explain unfamiliar terms on first use. Preserve identifiers, commands, paths, error messages, and quoted output exactly.
-- Use familiar words and direct verbs: write "changed the setting", not "performed an adjustment". Name who acts and what changes. Prefer positive instructions.
-- Keep one action or fact per sentence. Put conditions before actions. For Chinese, aim for steps within 30 characters and descriptions within 40; split longer sentences naturally. Keep each paragraph to one topic.
-- Separate work status from verification status. Use precise labels: completed, partial, not started, in progress, verified, unverified, failed, skipped, blocked, or unknown. State the scope. A finished edit does not establish that its behavior works.
-- Support behavior and check results with the method, outcome, and coverage. Distinguish checks not run from missing evidence; preserve known failures. Reading source or documentation establishes what it says, not that runtime behavior passed.
-- State uncertainty explicitly and give a way to resolve it. Label hypotheses and use only facts supported by user input, files, or tool output.
-- Cite evidence where it helps assessment: file and line, full command and result, or source. Consolidate repeated evidence and report the result instead of narrating each tool call.
-- Use short paragraphs for ordinary answers, lists for parallel facts, and numbered steps for procedures. Include only sections with content. Present numbered choices and consequences when a real user decision is needed, with the recommendation first.
-- Before sending, check that the reply answers the question, uses consistent terms, separates completion from verification, and preserves the evidence. Keep the explanation natural and proportional to the request.
+- Answer first, then give necessary evidence and limitations. Describe results rather than each tool call.
+- Use familiar words, concrete verbs, and active voice. Keep one fact or action per sentence. Put conditions before actions.
+- Use one name per concept. Explain unfamiliar terms once. Preserve identifiers, commands, paths, and quoted output exactly.
+- Separate completed work from verified behavior. Give the check method, result, and scope. Distinguish failure, unexecuted checks, and missing evidence.
+- Label hypotheses and unknown facts. State how to resolve uncertainty.
+- Use short paragraphs for ordinary answers. Use lists for parallel facts and numbered steps for procedures. Offer choices only for an actual user decision.
+- Prefer positive instructions. For Chinese, aim for 30 characters per step and 40 per descriptive sentence.
+- Converse in Chinese. Keep code, comments, API docs, commits, GitHub text, root `README.md`, and `AGENTS.md` in English. Preserve other documents' language.
 
 ## Implementation
 
-- MoonBit owns document state, editing, layout, and serialization. TypeScript hosts platform events, Worker communication, and rendering of derived output. Follow [development](docs/references/development.md) and [format contracts](docs/references/formats.md).
-- Use strict TypeScript and fix types at their source. Do not bypass errors with `any`, `@ts-ignore`, `@ts-nocheck`, double assertions, or relaxed compiler options. Keep first-party source files within 800 lines, split by responsibility, and export from the owning module.
-- Use pinned toolchains, manifests, and one lockfile per ecosystem. Regenerate generated output and lockfiles with their tools. Root commands are `bun run check`, `bun run build`, `bun run api`, and, when justified, `bun run test`.
-- Prefer ONLYOFFICE ([core](https://github.com/ONLYOFFICE/core), [sdkjs](https://github.com/ONLYOFFICE/sdkjs)) for implementation, compatibility behavior, test design, and baselines; use [LibreOffice](https://github.com/LibreOffice/core) second and [Collabora](https://github.com/CollaboraOnline/online.mirror) for supplementary browser cases. Resolve reference conflicts in that order within the format scope, honoring explicit user choices.
-- Inspect the feature's upstream behavior and tests, reuse suitable implementations, and retain licenses/provenance. Independent `references/` checkouts are optional research inputs; maintained docs cite upstream file links.
+- MoonBit owns document state, editing, layout, and serialization. TypeScript handles platform events, Worker communication, and rendering. Follow the [SDK contract](docs/references/sdk.md).
+- Use strict TypeScript. Do not bypass errors with `any`, `@ts-ignore`, `@ts-nocheck`, double assertions, or relaxed compiler options.
+- Keep first-party source files within 800 lines. Split by responsibility and export from the owning module.
+- Use pinned toolchains and one lockfile per ecosystem. Regenerate generated files with their tools. Commands and module boundaries belong in [development](docs/references/development.md).
+- Prefer ONLYOFFICE [core](https://github.com/ONLYOFFICE/core) and [sdkjs](https://github.com/ONLYOFFICE/sdkjs) for implementation, compatibility behavior, and test baselines. Use [LibreOffice](https://github.com/LibreOffice/core) second. Use [Collabora](https://github.com/CollaboraOnline/online.mirror) for supplementary browser cases.
+- Resolve reference conflicts in that order within the format scope, honoring explicit user choices. Inspect upstream behavior and tests; preserve licenses and source attribution.
 
 ## Validation and resources
 
-- Target **Chrome/Chromium only**, with the existing system input method. Keep Windows/Word, VoiceOver, and other browser-engine acceptance outside current scope.
-- Select checks for the behavior changed. Documentation/comments/behavior-neutral metadata need diff and consistency checks. Local behavior needs nearby success/failure checks; persistence and lifecycle changes also need preservation/recovery checks.
-- Use a full run for a functional milestone or a concrete cross-module risk, stating the reason first. Reuse applicable passing results. Once sufficient checks pass, deliver; expand or repeat only for a new change, failure, or unresolved concern.
-- Treat `test-lab/` as this project's private test resource directory, governed by this root `AGENTS.md`. Keep tests, fixtures, independent expectations, reports, and tooling there; keep public builds independent of it. Maintain product/testing documents in `docs/`; [Testing](docs/references/testing.md) owns execution details.
-- Register provenance/license, input hash, operation, independent expectation, and support scope in case manifests. Preserve actual reference identities and update them with the corresponding feature. This visible local resource directory is not a blind holdout.
-- Use `.mbtx` for test process automation and Bun/Playwright for TypeScript tests. `test-lab/cases/suites.json` owns full-loop selection and package inventory; `test-lab/.agents/skills/document-test-loop/SKILL.md` provides loop/corpus execution details within the user's scope.
-- Implement general format rules and keep assertions independent of product output. Never special-case fixtures in product code or weaken checks to obtain a pass. Report actual executed scope and distinguish pass, failure, skipped, and unverified; browser and independent file checks need their own evidence.
-- Keep temporary output under `.temp/<purpose>/`, with one current run and one necessary baseline. Check combined root/private usage before expensive work; stop new runs at 2 GiB. Preserve compact reproductions and clean authorized task-owned output. Keep standard build output in its normal location.
-- After two attempts without new evidence, reassess the functional blocker and choose a different approach. Report the usable operation, its entry point/output, and the exact remaining gap.
+- Target **Chrome/Chromium only**, using the existing input method. Other browser engines, Windows/Word, and VoiceOver acceptance remain outside scope.
+- Test user feature flows and observable results. Add checks for changed behavior or concrete integrity, security, recovery, and accessibility risks. Extend existing feature cases where possible.
+- Review copy, labels, colors, styling, docs, and mechanical renames directly. Add no dedicated test or snapshot unless behavior, document fidelity, or accessibility changes.
+- Use focused checks by default. Run the full suite only when focused checks cannot cover a named risk across the affected feature flows. Explain that risk first. Reuse applicable results and deliver once sufficient checks pass.
+- Keep expectations independent. Never special-case fixtures in product code, weaken assertions, or hide failures to obtain a pass.
+- Treat `test-lab/` as private resources governed by this file. Keep public builds independent of it. Execution details belong in [testing](docs/references/testing.md).
+- Keep temporary output in `.temp/<purpose>/`, with one current run and one necessary baseline. Check combined root/private usage before expensive work; stop new runs at 2 GiB. Clean authorized task-owned output while preserving compact failure evidence. Keep standard build output in its normal location.
 
 ## Documentation
 
-- Before writing or updating documentation, goals, plans, prompts, or `AGENTS.md`, read https://developers.openai.com/api/docs/guides/latest-model and apply its current best practices. Use the original page as the source. Express desired actions and results positively; retain explicit prohibitions for safety, authorization, and document integrity.
-- Maintain plans and documentation in parent `docs/`, following its [organization rules](docs/references/README.md). Edit the existing authority and link to it from other documents.
-- Keep a proposal to its user result, scope, implementation, and sufficient checks. Keep future work in its own phase and detailed run records in the private repository.
-- Root `README.md` and `AGENTS.md` are English; preserve other documents' language. Keep the root README to introduction, **WIP**/actual availability, documentation links, and license.
-- Keep unfinished work active. Update indexes and inbound links when moving completed docs. For documentation changes, check `git diff --check`, affected links, commands, and status; finish after those checks.
+- Before writing docs, goals, plans, prompts, or `AGENTS.md`, read https://developers.openai.com/api/docs/guides/latest-model and apply its current best practices.
+- Maintain docs in `docs/` under its [organization rules](docs/references/README.md). Edit the owning document and link to it elsewhere. Keep proposals to user results, scope, implementation, and sufficient checks.
+- Keep root `README.md` to introduction, **WIP** status, documentation links, and license. Move completed plans only after updating indexes and inbound links.
+- For docs-only changes, check `git diff --check`, affected links, commands, and status claims. Finish after these checks.
+
+## Updating this file
+
+Read this file in full and follow the guide above. Edit existing rules, merge duplicates, and remove conflicts. Use short, positive instructions. Keep implementation details in their owning docs. Review the diff and run `git diff --check`.

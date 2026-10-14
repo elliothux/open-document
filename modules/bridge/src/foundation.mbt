@@ -254,12 +254,12 @@ fn Foundation::dispatch(
           result
         }
         "selectedText" =>
-          session
-          .selected_text(
-            field_int(request, "revision"),
-            field_selection(request),
+          Json(
+            session.selected_text(
+              field_int(request, "revision"),
+              field_selection(request),
+            ),
           )
-          .to_json()
         "selectDocx" =>
           session.select(
             field_int(request, "revision"),
@@ -369,7 +369,7 @@ fn Foundation::dispatch(
             input_bytes(request, 16777216),
           )
           self.layout = None
-          { "ready": true }
+          { "key": self.images.get(field_string(request, "key")).identity }
         }
         "layout" => {
           guard request is { "profile": Object(fields), .. } &&
@@ -396,11 +396,21 @@ fn Foundation::dispatch(
           )
           self.layout = Some(result)
           self.layout_id += 1
-          let json = result.to_json()
-          if json is Object(fields) {
-            fields["id"] = self.layout_id.to_json()
+          {
+            "id": self.layout_id,
+            "revision": result.revision,
+            "shapedParagraphs": result.shapedParagraphs,
+            "reusedParagraphs": result.reusedParagraphs,
+            "reflowedPages": result.reflowedPages,
+            "reusedPages": result.reusedPages,
+            "profile": result.profile,
+            "pages": result.drawing(self.images),
+            "images": result.drawing_images(self.images),
+            "semantics": result.semantics(),
+            "diagnostics": result.diagnostics,
+            "outlines": result.outlines,
+            "fonts": result.fonts,
           }
-          json
         }
         "exportPdf" => {
           session.check_idle()

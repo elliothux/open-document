@@ -75,7 +75,7 @@ export class DocumentEditor {
       overflow: "auto",
       maxHeight: "80vh",
     });
-    this.viewport.append(this.surface.canvas, this.input);
+    this.viewport.append(this.surface.canvas, this.surface.overlay, this.input);
     this.container.append(
       this.previous,
       this.next,
@@ -90,6 +90,14 @@ export class DocumentEditor {
       this.diagnostics,
     );
     const options = { signal: this.listeners.signal };
+    window.addEventListener(
+      "resize",
+      () => {
+        if (!this.closed && !this.blocked && !this.resuming)
+          this.handle(() => this.presentSelection());
+      },
+      options,
+    );
     const button = (
       element: HTMLButtonElement,
       label: string,
@@ -162,7 +170,7 @@ export class DocumentEditor {
           return;
         this.handle(async () => {
           if (this.state.selection) return;
-          const line = this.currentLayout.pages[this.page]?.lines.find(
+          const line = this.currentLayout.semantics[this.page]?.lines.find(
             (line) => !line.readOnlyReason,
           );
           if (!line) throw new Error("This page has no editable text position");
@@ -414,7 +422,11 @@ export class DocumentEditor {
       if (!initial) this.scrollPointer(point, elapsed);
       const frame = this.currentLayout.pages[this.page];
       if (!frame) throw new Error("Unknown page");
-      if (!initial && frame.lines.length === 0) return;
+      if (
+        !initial &&
+        this.currentLayout.semantics[this.page]?.lines.length === 0
+      )
+        return;
       const current = this.surface.canvas.getBoundingClientRect();
       const hit = await this.client.hitTest(
         initial ? layoutId : this.currentLayout.id,
@@ -540,19 +552,27 @@ export class DocumentEditor {
   private async presentSelection(reveal = true): Promise<void> {
     this.assertOpen();
     const selection = this.state.selection;
+    const layoutId = this.currentLayout.id;
+    const revision = this.currentLayout.revision;
     const caret = selection
-      ? await this.client.caret(this.currentLayout.id, selection.focus)
+      ? await this.client.caret(layoutId, selection.focus)
       : undefined;
     this.assertOpen();
     const geometry = selection
-      ? await this.client.selectionGeometry(this.currentLayout.id, selection)
+      ? await this.client.selectionGeometry(layoutId, selection)
       : undefined;
     this.assertOpen();
+    if (
+      this.currentLayout.id !== layoutId ||
+      (caret && (caret.layoutId !== layoutId || caret.revision !== revision)) ||
+      (geometry &&
+        (geometry.layoutId !== layoutId || geometry.revision !== revision))
+    )
+      throw new Error("Selection geometry belongs to a stale layout");
     if (caret) this.page = caret.page;
     await this.describeSelection();
     this.paint();
-    const context = this.surface.canvas.getContext("2d");
-    if (!context) throw new Error("Canvas is unavailable");
+    const context = this.surface.clearOverlay(this.cssScale);
     context.fillStyle = "rgba(30, 100, 220, 0.25)";
     for (const rect of geometry?.rects ?? []) {
       if (rect.page === this.page)
@@ -631,7 +651,7 @@ export class DocumentEditor {
     this.previous.disabled = this.page === 0;
     this.next.disabled = this.page === this.currentLayout.pages.length - 1;
     this.text.textContent =
-      this.currentLayout.pages[this.page]?.lines
+      this.currentLayout.semantics[this.page]?.lines
         .map((line) => line.text.replaceAll("\ufffc", "[image]"))
         .join("\n") ?? "";
     this.updateStatus();
@@ -657,14 +677,23 @@ export class DocumentEditor {
       Math.min(this.currentLayout.pages.length - 1, index),
     );
     this.paint();
+    this.surface.clearOverlay(this.cssScale);
   }
 
   setZoom(zoom: number): Promise<void> {
     return this.enqueue(async () => {
       if (!Number.isFinite(zoom) || zoom < 0.25 || zoom > 4)
         throw new Error("Invalid zoom");
+      const previousZoom = this.zoom;
+      const previousPage = this.page;
       this.zoom = zoom;
-      await this.presentSelection();
+      try {
+        await this.presentSelection();
+      } catch (error) {
+        this.zoom = previousZoom;
+        this.page = previousPage;
+        throw error;
+      }
     });
   }
 

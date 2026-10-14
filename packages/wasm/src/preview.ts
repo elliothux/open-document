@@ -1,5 +1,6 @@
 import type { ShapeBatch } from "./foundation.js";
-import { record, glyphs } from "./validation.js";
+import { record } from "./validation.js";
+import { drawingBatch, type DrawingBatch } from "./drawing.js";
 
 export interface TextStyle {
   font: string;
@@ -61,7 +62,7 @@ export interface InlineImage {
   height: number;
 }
 
-export interface PageLayout {
+export interface PageLayout extends DrawingBatch {
   id: number;
   revision: number;
   shapedParagraphs: number;
@@ -69,23 +70,12 @@ export interface PageLayout {
   reflowedPages: number;
   reusedPages: number;
   profile: Record<string, string>;
-  pages: PageFrame[];
+  semantics: SemanticPage[];
   diagnostics: string[];
-  outlines: ShapeBatch["outlines"];
   fonts: ShapeBatch["fonts"];
 }
 
-export interface PageFrame {
-  width: number;
-  height: number;
-  borders: { x: number; y: number; width: number; height: number }[];
-  fills: {
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    color: string;
-  }[];
+export interface SemanticPage {
   lines: {
     paragraph: number;
     container: number;
@@ -99,21 +89,7 @@ export interface PageFrame {
     y: number;
     width: number;
     height: number;
-    clip: boolean;
     readOnlyReason: string;
-    carets: ShapeBatch["carets"];
-    images: (InlineImage & { x: number; y: number })[];
-    runs: {
-      start: number;
-      sources: { node: number; start: number; end: number; offset: number }[];
-      color: string;
-      size: number;
-      text: string;
-      glyphs: ShapeBatch["glyphs"];
-      bidi: ShapeBatch["runs"];
-      x: number;
-      baseline: number;
-    }[];
   }[];
 }
 
@@ -219,7 +195,15 @@ export function docxFlow(value: unknown): DocxFlow {
 }
 
 export function pageLayout(value: unknown): PageLayout {
+  const drawing = drawingBatch(value);
   const layout = fields(value, ["revision", "id"]);
+  if (
+    !Number.isInteger(layout.id) ||
+    Number(layout.id) <= 0 ||
+    !Number.isInteger(layout.revision) ||
+    Number(layout.revision) < 0
+  )
+    throw new Error("Invalid layout identity");
   const counts = fields(value, [
     "shapedParagraphs",
     "reusedParagraphs",
@@ -248,29 +232,24 @@ export function pageLayout(value: unknown): PageLayout {
   )
     throw new Error("Invalid font profile");
   diagnostics(layout.diagnostics);
-  for (const value of entries(layout.outlines))
-    fields(value, [], ["key", "path"]);
   for (const value of entries(layout.fonts))
     fields(
       value,
       ["face", "upem", "ascent", "descent", "capHeight", "italicAngle"],
       ["identity", "variation", "sha256"],
     );
-  const pages = entries(layout.pages);
-  if (pages.length === 0) throw new Error("Layout has no pages");
   if (
     Number(counts.reflowedPages) + Number(counts.reusedPages) !==
-    pages.length
+    drawing.pages.length
   )
     throw new Error("Invalid page reuse counts");
-  for (const value of pages) {
-    const page = fields(value, ["width", "height"]);
-    for (const value of entries(page.fills))
-      fields(value, ["x", "y", "width", "height"], ["color"]);
-    for (const value of entries(page.borders))
-      fields(value, ["x", "y", "width", "height"]);
+  const semantics = entries(layout.semantics);
+  if (semantics.length !== drawing.pages.length)
+    throw new Error("Invalid semantic page count");
+  for (const value of semantics) {
+    const page = record(value);
     for (const value of entries(page.lines)) {
-      const line = fields(
+      fields(
         value,
         [
           "paragraph",
@@ -287,28 +266,6 @@ export function pageLayout(value: unknown): PageLayout {
         ],
         ["text", "readOnlyReason"],
       );
-      if (typeof line.clip !== "boolean")
-        throw new Error("Invalid line clipping");
-      for (const value of entries(line.carets))
-        fields(value, ["offset", "before", "after"]);
-      for (const value of entries(line.images))
-        fields(value, ["x", "y", "width", "height"], ["key"]);
-      for (const value of entries(line.runs)) {
-        const run = fields(
-          value,
-          ["start", "x", "baseline", "size"],
-          ["color", "text"],
-        );
-        glyphs(run.glyphs);
-        for (const value of entries(run.sources))
-          fields(value, ["node", "start", "end", "offset"]);
-        for (const value of entries(run.bidi))
-          fields(
-            value,
-            ["start", "end", "level", "font"],
-            ["script", "language"],
-          );
-      }
     }
   }
   return value as PageLayout;

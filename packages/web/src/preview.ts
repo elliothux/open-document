@@ -58,6 +58,7 @@ export class DocumentPreview {
     this.previous.addEventListener("click", this.back);
     this.next.addEventListener("click", this.forward);
     root.addEventListener("keydown", this.key);
+    window.addEventListener("resize", this.resize);
   }
 
   static async create(
@@ -79,6 +80,7 @@ export class DocumentPreview {
 
   private readonly back = (): void => this.goTo(this.page - 1);
   private readonly forward = (): void => this.goTo(this.page + 1);
+  private readonly resize = (): void => this.paint();
   private readonly key = (event: KeyboardEvent): void => {
     if (event.target !== this.root) return;
     if (event.key === "PageDown" || event.key === "ArrowRight") this.forward();
@@ -111,9 +113,10 @@ export class DocumentPreview {
     this.surface.draw(this.layout, index, zoom);
     this.page = index;
     this.zoom = zoom;
-    this.text.textContent = page.lines
-      .map((line) => line.text.replaceAll("\ufffc", "[image]"))
-      .join("\n");
+    this.text.textContent =
+      this.layout.semantics[index]?.lines
+        .map((line) => line.text.replaceAll("\ufffc", "[image]"))
+        .join("\n") ?? "";
     this.status.textContent = `Page ${this.page + 1} of ${this.layout.pages.length}; ${Math.round(this.zoom * 100)}%`;
     this.previous.disabled = this.page === 0;
     this.next.disabled = this.page === this.layout.pages.length - 1;
@@ -144,6 +147,7 @@ export class DocumentPreview {
     if (this.closed) return;
     this.closed = true;
     this.root.removeEventListener("keydown", this.key);
+    window.removeEventListener("resize", this.resize);
     this.previous.removeEventListener("click", this.back);
     this.next.removeEventListener("click", this.forward);
     this.surface.dispose();

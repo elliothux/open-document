@@ -1,0 +1,14 @@
+{
+  "file": "paint/types.mbt",
+  "originalSha256": "e86ce0dbd15166ac9b0012d757b097750c98f98ab62f8bb36a1796c9bca51422",
+  "patchedSha256": "bb42355d0c071287597266925bb08e167c9091c8b36aa9562e3b16db27a2b3fc",
+  "lineEdits": [
+    [
+      49,
+      1,
+      [
+        "  extendMode : Int"
+      ]
+    ]
+  ]
+}

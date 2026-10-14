@@ -216,7 +216,7 @@ pub fn Document::nodes(self : Document) -> ReadOnlyArray[Node] {
 pub fn Node::attribute(
   self : Node,
   name : String,
-  uri? : String = "",
+  uri~ : String = "",
 ) -> String? {
   for attribute in self.attributes {
     if attribute.name == name && attribute.uri == uri {
@@ -247,7 +247,7 @@ pub fn valid_text(text : String) -> Bool {
 pub fn Document::edit_text(
   self : Document,
   replacements : Map[Int, String],
-  source? : Array[SourceChange] = [],
+  source~ : Array[SourceChange] = [],
 ) -> (Document, Edit) raise @failure.Failure {
   let patches = self.source_patches(source)
   let mut added = 0

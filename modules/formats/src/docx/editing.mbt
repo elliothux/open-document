@@ -19,15 +19,15 @@ pub(all) struct Position {
 ///|
 pub impl ToJson for Position with fn to_json(self) -> Json {
   let fields = {
-    "paragraph": self.paragraph.to_json(),
-    "offset": self.offset.to_json(),
-    "affinity": self.affinity.to_json(),
+    "paragraph": Json(self.paragraph),
+    "offset": Json(self.offset),
+    "affinity": Json(self.affinity),
   }
   if self.bidiLevel is Some(level) {
-    fields["bidiLevel"] = level.to_json()
+    fields["bidiLevel"] = Json(level)
   }
   if self.frameStart is Some(start) {
-    fields["frameStart"] = start.to_json()
+    fields["frameStart"] = Json(start)
   }
   Json::object(fields)
 }
@@ -145,7 +145,7 @@ fn Session::edit_result(
     "historyByteLimit": history_byte_limit,
     "commandLimit": command_limit,
     "compositionId": self.composition
-    .map(composition => composition.id.to_json())
+    .map(composition => Json(composition.id))
     .unwrap_or(Json::null()),
   }
 }
@@ -206,7 +206,7 @@ pub fn Session::replace_range(
   revision : Int,
   selection : Selection,
   text : String,
-  input_group? : Int? = None,
+  input_group~ : Int? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let prepared = self.prepare_range(selection, text, input_group~)
@@ -232,7 +232,7 @@ fn Session::prepare_range(
   self : Session,
   selection : Selection,
   text : String,
-  input_group? : Int? = None,
+  input_group~ : Int? = None,
 ) -> PreparedEdit? raise @failure.Failure {
   guard text.length() <= command_limit else {
     @failure.reject("limit-exceeded", "Command input exceeds UTF-16 budget")
@@ -348,8 +348,8 @@ fn Session::commit_text(
   changes : Map[Int, String],
   after : Selection?,
   paragraph : Int,
-  input_group? : Int? = None,
-  join_group? : Bool = false,
+  input_group~ : Int? = None,
+  join_group~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   let prepared = self.prepare_text(changes, after, paragraph)
   self.commit_edit(prepared.edit, prepared.document, input_group~, join_group~)
@@ -382,8 +382,8 @@ fn Session::commit_edit(
   self : Session,
   edit : Edit,
   candidate : @xml.Document,
-  input_group? : Int? = None,
-  join_group? : Bool = false,
+  input_group~ : Int? = None,
+  join_group~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   let previous = if join_group &&
     input_group is Some(_) &&

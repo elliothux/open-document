@@ -1,0 +1,35 @@
+{
+  "file": "ot/color/colr_paint_parse.mbt",
+  "originalSha256": "196f90a6f96c115d615664253f820714090ab1fc9aa4c38c214fbe10f3832790",
+  "patchedSha256": "e0412eca46d634704adb2162500b611dd963648a492ec3d482b9a11c8337ae45",
+  "lineEdits": [
+    [
+      61,
+      1,
+      [
+        "  let extendMode = read_u8_int(data, offset)"
+      ]
+    ],
+    [
+      63,
+      1,
+      [
+        "  match (extendMode, count) {"
+      ]
+    ],
+    [
+      66,
+      1,
+      [
+        "    (Ok(extendMode), Ok(count)) => {"
+      ]
+    ],
+    [
+      83,
+      1,
+      [
+        "      Ok(@paint.ColorLine::{ extendMode, stops })"
+      ]
+    ]
+  ]
+}

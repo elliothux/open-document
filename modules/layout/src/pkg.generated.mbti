@@ -28,6 +28,33 @@ pub(all) struct Caret {
 } derive(ToJson)
 pub fn Caret::to_json(Self) -> Json
 
+pub(all) enum DrawCommand {
+  FillRect(Fill)
+  StrokeRect(Border, String, Double)
+  Glyphs(Double, Double, String, Array[DrawGlyph])
+  Image(PlacedImage)
+  ClipRect(Border)
+  RestoreClip
+}
+pub fn DrawCommand::to_json(Self) -> Json
+pub impl ToJson for DrawCommand
+
+pub(all) struct DrawGlyph {
+  outline : String
+  x : Double
+  y : Double
+  scaleX : Double
+  scaleY : Double
+} derive(ToJson)
+pub fn DrawGlyph::to_json(Self) -> Json
+
+pub(all) struct DrawingRegion {
+  width : Double
+  height : Double
+  commands : Array[DrawCommand]
+} derive(ToJson)
+pub fn DrawingRegion::to_json(Self) -> Json
+
 pub(all) struct Fill {
   x : Double
   y : Double
@@ -113,6 +140,7 @@ pub(all) struct Hit {
 pub fn Hit::to_json(Self) -> Json
 
 pub(all) struct ImageResource {
+  identity : String
   width : Int
   height : Int
   rgba : Bytes
@@ -148,9 +176,12 @@ pub(all) struct Layout {
 } derive(ToJson)
 pub fn Layout::caret(Self, Int, Int, String, bidi_level? : Int, frame_start? : Int) -> Hit raise @failure.Failure
 pub fn Layout::compare_positions(Self, (Int, Int), (Int, Int)) -> Int raise @failure.Failure
+pub fn Layout::drawing(Self, Images) -> Array[DrawingRegion] raise @failure.Failure
+pub fn Layout::drawing_images(Self, Images) -> Array[String] raise @failure.Failure
 pub fn Layout::hit_test(Self, Int, Double, Double) -> Hit raise @failure.Failure
 pub fn Layout::move_caret(Self, (Int, Int, String), String, goal_x? : Double, bidi_level? : Int, frame_start? : Int) -> Hit raise @failure.Failure
 pub fn Layout::selection_rects(Self, (Int, Int, String), (Int, Int, String)) -> Array[SelectionRect] raise @failure.Failure
+pub fn Layout::semantics(Self) -> Array[SemanticPage]
 pub fn Layout::to_json(Self) -> Json
 
 pub(all) struct Line {
@@ -259,6 +290,28 @@ pub(all) struct SelectionRect {
   height : Double
 } derive(ToJson)
 pub fn SelectionRect::to_json(Self) -> Json
+
+pub(all) struct SemanticLine {
+  paragraph : Int
+  container : Int
+  baseLevel : Int
+  text : String
+  start : Int
+  end : Int
+  x : Double
+  areaX : Double
+  areaWidth : Double
+  y : Double
+  width : Double
+  height : Double
+  readOnlyReason : String
+} derive(ToJson)
+pub fn SemanticLine::to_json(Self) -> Json
+
+pub(all) struct SemanticPage {
+  lines : Array[SemanticLine]
+} derive(ToJson)
+pub fn SemanticPage::to_json(Self) -> Json
 
 pub(all) struct ShapeBatch {
   text : String

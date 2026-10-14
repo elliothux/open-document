@@ -1,7 +1,7 @@
 interface:
   display_name: "Anti-Cheating Audit"
-  short_description: "Detect scenario-tuned production logic and prompts"
-  default_prompt: "Use $anti-cheating to strictly audit the current branch for test-specific or scenario-tuned logic in production code, prompts, skills, and tool descriptions."
+  short_description: "Audit fixture coupling and test verdicts"
+  default_prompt: "Use $anti-cheating to audit Open Document changes for fixture-specific product behavior, circular expectations, and hidden test failures."
 
 policy:
   allow_implicit_invocation: false

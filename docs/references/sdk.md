@@ -1,14 +1,18 @@
 # SDK 目标、技术选型与核心/宿主合同
 
-项目未发布，当前有 0 个用户。现有基础包括 [P0 文本 POC](../implemented/p0-project-foundation.md)、[P1 字体/塑形](../implemented/p1-sdk-foundation.md)、[P2 窄 DOCX 读写](../implemented/p2-format-foundation.md)及 [P3 有限预览/PDF](../implemented/p3-docx-preview.md)；P4 编辑仍在开发。实际 API 与支持面见[开发说明](development.md)和[格式合同](formats.md)。未发布 API、模型和开发数据沿单一实现路径直接修改。
+项目未发布，当前有 0 个用户。现有基础包括 [P0 文本 POC](../implemented/p0-project-foundation.md)、[P1 字体/塑形](../implemented/p1-sdk-foundation.md)、[P2 窄 DOCX 读写](../implemented/p2-format-foundation.md)、[P3 有限预览/PDF](../implemented/p3-docx-preview.md)及 [P4 限定 DOCX 编辑](../implemented/p4-docx-editing.md)。实际 API 与支持面见[开发说明](development.md)和[格式合同](formats.md)。未发布 API、模型和开发数据沿单一实现路径直接修改。
 
-本文件拥有当前产品目标、技术选型和核心/宿主合同；实现建议与待验证的生态选择见 [G0 底座研究](../g0-foundation-review.md)，参考源码入口见[上游项目](upstream-projects.md)。研究建议不自动成为新决策或依赖承诺。
+下一阶段范围归 [P5 XLSX 方案](../p5-xlsx-editing.md)。XLSX 沿用本合同与 [R0](../implemented/r0-renderer-foundation.md) 的核心/Renderer 分工；方案中的能力尚未实现。
+
+按当前需求从 Day One 设计。需求可以直接改变最底层架构、模型、接口和数据流；选择合理实现，同步修改调用方、测试和文档，删除被替代的路径。兼容代码仅限文档格式；禁止保留旧接口、内部模型、配置或开发数据的兼容层、迁移垫片、双写和旧实现回退。
+
+本文件拥有当前产品目标、技术选型和核心/宿主合同，参考源码入口见[上游项目](upstream-projects.md)。新增依赖或机制按当前功能缺口确定。
 
 **已确定选型：MoonBit + WasmGC + TypeScript。文档逻辑尽可能在 WASM 内实现，Web/TS 层尽可能薄。**
 
 参考实现、兼容行为、测试设计与基准优先使用 ONLYOFFICE core/sdkjs，其次使用 LibreOffice。已有证据保留真实来源，具体执行见[测试说明](testing.md)。
 
-当前交付优先级是功能可用：每次完成真实文件的一项操作及所需保存/重开，修复功能和文档完整性问题。完成足够检查后交付可操作入口与输出。保留资源安全上限、原子拒绝、错误恢复、键盘/焦点语义及执行超时；实际卡死或持续不可交互时做最小诊断。性能专项留待后续，具体范围与完成条件归 [P4](../p4-docx-editing.md)。
+当前交付优先级是功能可用：每次完成真实文件的一项操作及所需保存/重开，修复功能和文档完整性问题。完成足够检查后交付可操作入口与输出。保留资源安全上限、原子拒绝、错误恢复、键盘/焦点语义及执行超时；实际卡死或持续不可交互时做最小诊断。性能专项留待后续，现有 DOCX 交付范围归 [P4](../implemented/p4-docx-editing.md)。
 
 ## 1. 产品目标与优先级
 
@@ -87,6 +91,8 @@ Rust、Zig、Go 不作为当前核心主语言。选择 MoonBit 不意味着为�
 - 若某项能力暂时依赖浏览器度量或平台编解码器，必须标明支持边界；不能据此宣称无浏览器环境等价支持。
 - IME、焦点和无障碍仍需要真实平台适配。TS 薄层不等于删除这些能力，也不等于用 MoonBit 包装每个 DOM 调用。
 - 不引入 Tiptap、Univer 等第二套编辑模型来临时承担核心语义；如需借鉴它们，提取规则和验证样本，而不是维持双向模型同步作为最终架构。
+
+[R0 通用渲染架构](../implemented/r0-renderer-foundation.md)细化本节的绘制职责，统一各格式核心与平台 Renderer 的数据、资源和更新设计。DOCX/Web 已完成首次接入，后续格式与宿主沿用同一合同。
 
 ### 调用边界
 

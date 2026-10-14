@@ -595,14 +595,24 @@ export class FoundationSession {
     return this.bytes({ operation: "imageBytes", key });
   }
 
-  addImage(key: string, width: number, height: number, rgba: Uint8Array): void {
-    this.call({
-      operation: "image",
-      key,
-      width,
-      height,
-      bytes: encodeBytes(rgba),
-    });
+  addImage(
+    key: string,
+    width: number,
+    height: number,
+    rgba: Uint8Array,
+  ): string {
+    const result = record(
+      this.call({
+        operation: "image",
+        key,
+        width,
+        height,
+        bytes: encodeBytes(rgba),
+      }),
+    );
+    if (typeof result.key !== "string" || !result.key)
+      throw new Error("Invalid image resource identity");
+    return result.key;
   }
 
   private bytes(request: Record<string, unknown>): Uint8Array {

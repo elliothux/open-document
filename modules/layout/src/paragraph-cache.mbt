@@ -19,7 +19,7 @@ fn ParagraphCache::new(
     previous: probe.paragraphs,
     current: Map([]),
     profile: Json::array(
-      keys.map(key => Json::array([key.to_json(), profile[key].to_json()])),
+      keys.map(key => Json::array([Json(key), Json(profile[key])])),
     ).stringify(),
     units: 0,
     shaped: 0,
@@ -89,7 +89,7 @@ fn ParagraphCache::key(
   paragraph : Paragraph,
   available : Double,
 ) -> String {
-  Json::array([paragraph.to_json(), available.to_json(), self.profile.to_json()]).stringify()
+  Json::array([paragraph.to_json(), Json(available), Json(self.profile)]).stringify()
 }
 
 ///|

@@ -1,8 +1,0 @@
-{
-  "file": "ot/shape/moon.pkg.json",
-  "originalSha256": "c37a9224bdb8ce21562605edfe66759860d11e09ff8d7db67fe2617365240aea",
-  "patchedSha256": "e7f6c90a1552c6555502beafba355a8ae4a8ababaf4887861821e6a8fb5b42c6",
-  "lineEdits": [
-    [13,0,["    },","    {","      \"path\": \"moonbit-community/harfbuzz/ot/tables\",","      \"alias\": \"ot_tables\""]]
-  ]
-}

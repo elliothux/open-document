@@ -7,8 +7,8 @@ pub(all) suberror Failure {
 pub fn[T] reject(
   code : String,
   message : String,
-  part? : String = "",
-  offset? : Int = -1,
+  part~ : String = "",
+  offset~ : Int = -1,
 ) -> T raise Failure {
   raise Failure(code~, part~, offset~, message~)
 }

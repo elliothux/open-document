@@ -44,7 +44,7 @@ fn BodyBlock::key(self : BodyBlock) -> String? {
   let value : Json = match self {
     BodyParagraph(paragraph) => {
       guard paragraph.finite_geometry() else { return None }
-      Json::array(["paragraph".to_json(), paragraph.to_json()])
+      Json::array([Json("paragraph"), paragraph.to_json()])
     }
     TableStart(table) => {
       guard table.finite_geometry() else { return None }
@@ -54,7 +54,7 @@ fn BodyBlock::key(self : BodyBlock) -> String? {
           fields.remove(key)
         }
       }
-      Json::array(["table-start".to_json(), value])
+      Json::array([Json("table-start"), value])
     }
     TableRow(table, row) => {
       guard table.finite_geometry() &&
@@ -65,24 +65,20 @@ fn BodyBlock::key(self : BodyBlock) -> String? {
         return None
       }
       Json::array([
-        "table-row".to_json(),
-        table.id.to_json(),
-        table.widths.to_json(),
-        table.align.to_json(),
-        table.borders.to_json(),
-        table.padding.to_json(),
-        table.verticalPadding.to_json(),
-        table.rows[row].to_json(),
-        table.heights.get(row).to_json(),
-        table.fills.get(row).to_json(),
+        Json("table-row"),
+        Json(table.id),
+        Json(table.widths),
+        Json(table.align),
+        Json(table.borders),
+        Json(table.padding),
+        Json(table.verticalPadding),
+        Json(table.rows[row]),
+        Json(table.heights.get(row)),
+        Json(table.fills.get(row)),
       ])
     }
     TableEnd(table) =>
-      Json::array([
-        "table-end".to_json(),
-        table.id.to_json(),
-        table.borders.to_json(),
-      ])
+      Json::array([Json("table-end"), Json(table.id), Json(table.borders)])
   }
   Some(value.stringify())
 }

@@ -116,13 +116,12 @@ async function dispatch(request: Request): Promise<unknown> {
         case "imageBytes":
           return foundation.imageBytes(request.key);
         case "image":
-          foundation.addImage(
+          return foundation.addImage(
             request.key,
             request.width,
             request.height,
             request.bytes,
           );
-          return null;
       }
   }
 }

@@ -11,8 +11,8 @@ fn Pagination::body(
   let keys = pagination_keys(blocks)
   let context = Json::array([
     self.page.to_json(),
-    flow.additiveSpacing.to_json(),
-    cache.profile.to_json(),
+    Json(flow.additiveSpacing),
+    Json(cache.profile),
   ]).stringify()
   let previous = match probe.pagination {
     Some(old) if old.context == context && keys is Some(_) => Some(old)

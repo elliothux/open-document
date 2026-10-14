@@ -30,7 +30,7 @@ fn measure_line(
   boundaries : Array[Int],
   spaces : Map[Int, Double],
   geometry~ : Bool,
-  trailing? : Double = 0,
+  trailing~ : Double = 0,
   advances? : Array[(Double, Double)],
 ) -> (Double, Array[PlacedRun], Array[PlacedImage], Array[Caret]) raise @failure.Failure {
   probe.check()

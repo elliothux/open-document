@@ -16,10 +16,12 @@
     "buffer--syllabic.mbt.json",
     "ot--tables--layout.mbt.json",
     "ot--tables--lookup.mbt.json",
-    "ot--shape--moon.pkg.json.json",
+    "ot--shape--moon.pkg.json",
     "ot--tables--coverage.mbt.json",
     "buffer--mark_fallback.mbt.json",
     "ot--tables--layout_work.mbt.json",
-    "ot--tables--lookup_filter.mbt.json"
+    "ot--tables--lookup_filter.mbt.json",
+    "paint--types.mbt.json",
+    "ot--color--colr_paint_parse.mbt.json"
   ]
 }

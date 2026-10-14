@@ -11,6 +11,10 @@
     "UNICODE-LICENSE"
   ],
   "exports": {
+    "./drawing": {
+      "types": "./src/drawing.ts",
+      "default": "./dist/drawing.js"
+    },
     "./preview": {
       "types": "./src/preview.ts",
       "default": "./dist/preview.js"
@@ -26,7 +30,7 @@
     "./engine.wasm": "./dist/engine.wasm"
   },
   "scripts": {
-    "build": "bun build src/engine.ts src/foundation.ts src/preview.ts src/validation.ts --no-bundle --target browser --outdir dist && cp ../../LICENSE dist/LICENSE",
+    "build": "bun build src/engine.ts src/foundation.ts src/preview.ts src/drawing.ts src/validation.ts --no-bundle --target browser --outdir dist && cp ../../LICENSE dist/LICENSE",
     "typecheck": "tsc --project tsconfig.json"
   }
 }

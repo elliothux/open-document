@@ -58,10 +58,24 @@ async fn main {
   let resolution = @shell.Cmd("moon", [
     "check", "--target", "wasm-gc", "--dry-run",
   ]).output()
-  if !resolution.stderr().is_empty() {
-    println(resolution.stderr())
+  // Pinned third-party releases still ship JSON manifests. Migrate metadata only.
+  let dependency = ".mooncakes/moonbit-community/harfbuzz"
+  if @fs.exists(dependency) {
+    @fs.walk(dependency, (directory, files) => {
+      for filename in files {
+        if filename == "moon.mod.json" || filename == "moon.pkg.json" {
+          let source = directory + "/" + filename
+          let target = source[:source.length() - 5].to_owned()
+          let formatted = @shell.Cmd("moonfmt", [source]).output()
+          formatted.check()
+          @fs.write_file(target, formatted.stdout() + "\n")
+          @fs.remove(source)
+        }
+      }
+    })
+  } else {
+    resolution.check()
   }
-  resolution.check()
   let directory = "tools/harfbuzz-patches/"
   guard @fs.read_file(directory + "index.json").json()
     is {
@@ -107,7 +121,7 @@ async fn main {
       if identity == patched_hash {
         continue
       }
-      guard original == identity.to_json() else {
+      guard original == Json(identity) else {
         fail("HarfBuzz 0.1.0 source changed; review the patch for " + file)
       }
       source.text()
@@ -125,4 +139,7 @@ async fn main {
   for (path, patched) in writes {
     @fs.write_file(path, patched)
   }
+  @shell.Cmd("moon", ["check", "--target", "wasm-gc", "--dry-run"])
+  .output()
+  .check()
 }

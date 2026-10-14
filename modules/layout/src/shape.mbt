@@ -13,8 +13,8 @@ pub fn TextProbe::shape(
   text : String,
   size : Double,
   language : String,
-  primary? : Int = 0,
-  base? : Int = -1,
+  primary~ : Int = 0,
+  base~ : Int = -1,
 ) -> ShapeBatch raise @failure.Failure {
   self.check()
   guard text.length() <= 4096 else {
@@ -51,7 +51,7 @@ fn TextProbe::shape_paragraph(
   paragraph : @bidi.BidiParagraph,
   geometry~ : Bool,
   caret_units? : Double,
-  spacing? : Map[Int, Double] = Map([]),
+  spacing~ : Map[Int, Double] = Map([]),
   advances? : (Array[(Double, Double)], Int),
   context? : (Array[Char], Int),
 ) -> ShapeBatch raise @failure.Failure {

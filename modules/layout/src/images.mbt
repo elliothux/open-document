@@ -1,5 +1,6 @@
 ///|
 pub(all) struct ImageResource {
+  identity : String
   width : Int
   height : Int
   rgba : Bytes
@@ -45,7 +46,17 @@ pub fn Images::add(
   guard rgba.length() <= 16777216 - self.retained + previous else {
     @failure.reject("limit-exceeded", "Decoded image budget exceeded")
   }
-  self.entries[key] = { width, height, rgba, }
+  let identity = StringBuilder()
+  identity <+ "\{width}x\{height}:"
+  for byte in @crypto.sha256(rgba) {
+    identity.write_char(
+      "0123456789abcdef"[byte.to_int() >> 4].to_char().unwrap(),
+    )
+    identity.write_char(
+      "0123456789abcdef"[byte.to_int() & 15].to_char().unwrap(),
+    )
+  }
+  self.entries[key] = { identity: identity.to_string(), width, height, rgba, }
   self.retained += rgba.length() - previous
 }
 
