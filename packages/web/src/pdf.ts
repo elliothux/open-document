@@ -9,12 +9,19 @@ import {
 /** One Worker owns the PDF source, page interpretation and editing history. */
 export class PdfClient {
   private constructor(private readonly connection: Connection) {}
-  static async open(wasm: ArrayBuffer, workerUrl: URL): Promise<PdfClient> {
+  static async open(
+    wasm: ArrayBuffer,
+    workerUrl: URL,
+    signal?: AbortSignal,
+  ): Promise<PdfClient> {
     const client = new PdfClient(
       new Connection(new Worker(workerUrl, { type: "module" })),
     );
     try {
-      await client.connection.request({ operation: "openPdfWorker", wasm });
+      await client.connection.initialize(
+        { operation: "openPdfWorker", wasm },
+        signal,
+      );
       return client;
     } catch (error) {
       client.dispose();

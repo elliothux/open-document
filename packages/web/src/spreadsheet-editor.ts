@@ -1,8 +1,13 @@
 import { updateGridSemantics } from "./spreadsheet-semantics.js";
-import { downloadBytes } from "./download.js";
 import { SpreadsheetPrint, defaultPrintOptions } from "./spreadsheet-print.js";
 import { CanvasSurface } from "./canvas-surface.js";
+import { spreadsheetKey } from "./spreadsheet-input.js";
 import { bindClipboard } from "./clipboard-input.js";
+import {
+  EditorState,
+  type EditorOutput,
+  type EditorSnapshot,
+} from "./editor-state.js";
 import type { XlsxClient } from "./xlsx.js";
 import type {
   XlsxQuery,
@@ -10,6 +15,13 @@ import type {
   XlsxPrintLayout,
   PrintOptions,
 } from "@open-document/wasm/xlsx";
+
+export interface SpreadsheetEditorData {
+  readonly query: XlsxQuery;
+  readonly printPage: number;
+  readonly printPages: number;
+  readonly printVisible: boolean;
+}
 
 /** One native cell draft; MoonBit owns committed cells, selection and geometry. */
 export class SpreadsheetEditor {
@@ -19,16 +31,13 @@ export class SpreadsheetEditor {
   private readonly spacer = document.createElement("div");
   private readonly input = document.createElement("textarea");
   private readonly semantics = document.createElement("div");
-  private readonly sheet = document.createElement("select");
-  private readonly zoom = document.createElement("select");
-  private readonly status = document.createElement("p");
-  private readonly error = document.createElement("p");
-  private readonly undoButton = document.createElement("button");
-  private readonly redoButton = document.createElement("button");
   private readonly surface = new CanvasSurface();
-  private readonly printView = new SpreadsheetPrint(() =>
-    this.input.focus({ preventScroll: true }),
-  );
+  private readonly printView = new SpreadsheetPrint(() => this.publish());
+  private readonly observable: EditorState<SpreadsheetEditorData>;
+  private paused = false;
+  private blocked = false;
+  private errorMessage = "";
+  private cleanup: Promise<void> | undefined;
   private readonly listeners = new AbortController();
   private readonly resize: ResizeObserver;
   private state: XlsxQuery;
@@ -54,21 +63,31 @@ export class SpreadsheetEditor {
     state: XlsxQuery,
   ) {
     this.state = state;
+    this.observable = new EditorState("xlsx", {
+      revision: state.revision,
+      canUndo: state.canUndo,
+      canRedo: state.canRedo,
+      readOnlyReason: state.readOnlyReason,
+      diagnostics: state.diagnostics,
+      data: { query: state, printPage: 0, printPages: 0, printVisible: false },
+    });
+    Object.assign(this.container.style, {
+      display: "flex",
+      flexDirection: "column",
+      flex: "1",
+      minHeight: "0",
+    });
     this.container.setAttribute("role", "region");
     this.container.setAttribute("aria-label", "Spreadsheet editor");
-    this.status.setAttribute("role", "status");
-    this.error.setAttribute("role", "alert");
-    this.sheet.setAttribute("aria-label", "Worksheet");
-    this.zoom.setAttribute("aria-label", "Zoom");
     this.viewport.setAttribute("role", "grid");
     this.viewport.setAttribute("aria-label", "Worksheet cells");
     this.viewport.tabIndex = 0;
     Object.assign(this.viewport.style, {
       position: "relative",
       overflow: "auto",
-      height: "400px",
+      flex: "1",
+      minHeight: "0",
       width: "100%",
-      border: "1px solid #9ca3af",
     });
     Object.assign(this.holder.style, {
       position: "sticky",
@@ -107,79 +126,9 @@ export class SpreadsheetEditor {
     this.semantics.setAttribute("role", "rowgroup");
     this.holder.append(this.surface.canvas, this.surface.overlay, this.input);
     this.viewport.append(this.holder, this.spacer, this.semantics);
-    const toolbar = document.createElement("div");
-    const save = document.createElement("button"),
-      print = document.createElement("button"),
-      pdf = document.createElement("button"),
-      refresh = document.createElement("button");
-    this.undoButton.textContent = "Undo";
-    this.redoButton.textContent = "Redo";
-    save.textContent = "Save XLSX";
-    print.textContent = "Print preview";
-    pdf.textContent = "Export PDF";
-    refresh.textContent = "Refresh";
-    toolbar.append(
-      this.sheet,
-      this.zoom,
-      this.undoButton,
-      this.redoButton,
-      save,
-      print,
-      pdf,
-      refresh,
-    );
-    for (const value of [0.5, 0.75, 1, 1.25, 1.5, 2]) {
-      const option = document.createElement("option");
-      option.value = String(value);
-      option.textContent = `${value * 100}%`;
-      option.selected = value === 1;
-      this.zoom.append(option);
-    }
-    this.container.append(
-      toolbar,
-      this.status,
-      this.error,
-      this.viewport,
-      this.printView.element,
-    );
+    this.container.append(this.viewport, this.printView.element);
     this.root.append(this.container);
     const options = { signal: this.listeners.signal };
-    const button = (
-      element: HTMLButtonElement,
-      action: () => Promise<unknown>,
-    ) => {
-      element.type = "button";
-      element.addEventListener(
-        "pointerdown",
-        (event) => event.preventDefault(),
-        options,
-      );
-      element.addEventListener("click", () => this.handle(action), options);
-    };
-    button(this.undoButton, () => this.undo());
-    button(this.redoButton, () => this.redo());
-    button(save, async () =>
-      downloadBytes(
-        await this.save(),
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "document.xlsx",
-      ),
-    );
-    button(print, () => this.printLayout());
-    button(pdf, async () =>
-      downloadBytes(await this.exportPdf(), "application/pdf", "document.pdf"),
-    );
-    button(refresh, () => this.refresh());
-    this.sheet.addEventListener(
-      "change",
-      () => this.handle(() => this.select("A1", this.sheet.value)),
-      options,
-    );
-    this.zoom.addEventListener(
-      "change",
-      () => this.handle(() => this.setZoom(Number(this.zoom.value))),
-      options,
-    );
     this.viewport.addEventListener(
       "focus",
       () => this.input.focus({ preventScroll: true }),
@@ -187,7 +136,19 @@ export class SpreadsheetEditor {
     );
     this.viewport.addEventListener(
       "keydown",
-      (event) => this.key(event),
+      (event) =>
+        spreadsheetKey(event, {
+          paused: this.paused,
+          composing: this.composing,
+          draft: !!this.draft || !!this.draftIntent,
+          cancelDraft: () => this.cancelDraft(),
+          handle: (action) => this.handle(action),
+          move: (direction, extend) => this.move(direction, extend),
+          undo: () => this.undo(),
+          redo: () => this.redo(),
+          edit: () => this.enqueue(async () => this.beginDraft(false)),
+          clear: () => this.clear(),
+        }),
       options,
     );
     this.viewport.addEventListener(
@@ -256,6 +217,7 @@ export class SpreadsheetEditor {
         try {
           if (!this.draft) this.queueDraft();
           this.composing = true;
+          this.publish();
         } catch (error) {
           this.report(error);
         }
@@ -266,9 +228,11 @@ export class SpreadsheetEditor {
       "compositionend",
       () => {
         this.composing = false;
+        this.publish();
       },
       options,
     );
+    this.input.addEventListener("input", () => this.publish(), options);
     this.input.addEventListener(
       "blur",
       () => {
@@ -306,7 +270,7 @@ export class SpreadsheetEditor {
     this.resize = new ResizeObserver(() => this.requestRender());
     this.resize.observe(this.viewport);
     window.addEventListener("resize", () => this.requestRender(), options);
-    this.updateControls();
+    this.publish();
     this.styleInput();
   }
 
@@ -325,7 +289,7 @@ export class SpreadsheetEditor {
       await editor.enqueue(() => editor.present(true));
       return editor;
     } catch (error) {
-      editor.dispose();
+      await editor.dispose();
       throw error;
     }
   }
@@ -336,23 +300,63 @@ export class SpreadsheetEditor {
   get currentLayout(): XlsxViewport | undefined {
     return this.layout;
   }
+  readonly getSnapshot = (): EditorSnapshot<SpreadsheetEditorData> =>
+    this.observable.getSnapshot();
+  readonly subscribe = (listener: () => void): (() => void) =>
+    this.observable.subscribe(listener);
+  markSaved(output: EditorOutput): void {
+    this.observable.markSaved(output);
+  }
+  markDownloaded(output: EditorOutput): void {
+    this.observable.markDownloaded(output);
+  }
+  focus(): void {
+    if (this.closed) throw new Error("Editor is disposed");
+    this.input.focus({ preventScroll: true });
+  }
+  async setPaused(paused: boolean): Promise<void> {
+    if (this.closed) throw new Error("Editor is disposed");
+    this.paused = paused;
+    this.container.inert = paused;
+    this.input.readOnly = paused || this.committing;
+    this.publish();
+    if (paused) await this.tail;
+  }
   whenIdle(): Promise<void> {
     return this.tail;
   }
 
-  private enqueue<T>(action: () => Promise<T>): Promise<T> {
+  private enqueue<T>(
+    action: () => Promise<T>,
+    recovery = false,
+    output = false,
+  ): Promise<T> {
     if (this.closed)
       return Promise.reject(new Error("Spreadsheet editor is disposed"));
+    if ((this.paused && !output) || (this.blocked && !recovery && !output))
+      return Promise.reject(
+        new Error(
+          this.paused
+            ? "Editor input is paused"
+            : "Refresh or undo before editing",
+        ),
+      );
     if (this.pending >= 64)
       return Promise.reject(
         new Error("Spreadsheet command queue exceeds budget"),
       );
     this.pending++;
+    this.publish();
     const task = this.tail.then(async () => {
       if (this.closed) throw new Error("Spreadsheet editor is disposed");
-      const result = await action();
-      if (this.closed) throw new Error("Spreadsheet editor is disposed");
-      return result;
+      try {
+        const result = await action();
+        if (this.closed) throw new Error("Spreadsheet editor is disposed");
+        return result;
+      } catch (error) {
+        this.report(error);
+        throw error;
+      }
     });
     this.tail = task
       .then(
@@ -361,6 +365,7 @@ export class SpreadsheetEditor {
       )
       .finally(() => {
         this.pending--;
+        this.publish();
       });
     return task;
   }
@@ -368,7 +373,10 @@ export class SpreadsheetEditor {
   private handle(action: () => Promise<unknown>): void {
     void action().then(
       () => {
-        if (!this.closed) this.error.textContent = "";
+        if (!this.closed && !this.blocked) {
+          this.errorMessage = "";
+          this.publish();
+        }
       },
       (error) => this.report(error),
     );
@@ -376,10 +384,10 @@ export class SpreadsheetEditor {
 
   private report(error: unknown): void {
     if (!this.closed) {
-      this.error.textContent =
+      this.errorMessage =
         error instanceof Error ? error.message : String(error);
-      this.updateControls();
-      if (this.draft) this.input.focus({ preventScroll: true });
+      this.publish();
+      if (this.draft && !this.paused) this.input.focus({ preventScroll: true });
     }
   }
 
@@ -424,7 +432,8 @@ export class SpreadsheetEditor {
   }
 
   private beginDraft(replace: boolean, retainValue = false): void {
-    if (this.closed || this.committing) throw new Error("Cell input is busy");
+    if (this.closed || this.paused || this.committing)
+      throw new Error("Cell input is busy");
     const cell = this.active();
     if (!cell) throw new Error("Select a visible cell first");
     if (cell.readOnlyReason) throw new Error(cell.readOnlyReason);
@@ -442,17 +451,19 @@ export class SpreadsheetEditor {
         this.input.value.length,
       );
     }
-    this.updateControls();
+    this.publish();
   }
 
-  private cancelDraft(): void {
+  cancelDraft(): void {
+    if (this.closed || this.committing || this.composing)
+      throw new Error("Finish the accepted edit or composition first");
     this.composing = false;
     this.draft = undefined;
     this.draftIntent = undefined;
     this.input.value = "";
-    this.error.textContent = "";
+    this.errorMessage = "";
     this.styleInput();
-    this.updateControls();
+    this.publish();
   }
 
   private async commitDraft(): Promise<void> {
@@ -474,78 +485,14 @@ export class SpreadsheetEditor {
       await this.present(true);
     } finally {
       this.committing = false;
-      this.input.readOnly = false;
+      this.input.readOnly = this.paused;
       this.styleInput();
-      this.updateControls();
-    }
-  }
-
-  private key(event: KeyboardEvent): void {
-    if (event.isComposing || this.composing) return;
-    if (event.key === "Escape") {
-      event.preventDefault();
-      this.cancelDraft();
-      return;
-    }
-    if (this.draft || this.draftIntent) {
-      if ((event.key === "Enter" && !event.shiftKey) || event.key === "Tab") {
-        event.preventDefault();
-        this.handle(() =>
-          this.move(
-            event.key === "Tab" ? (event.shiftKey ? "left" : "right") : "down",
-          ),
-        );
-      }
-      return;
-    }
-    const modifier = event.ctrlKey || event.metaKey;
-    if (
-      modifier &&
-      !event.altKey &&
-      (event.key.toLowerCase() === "z" || event.key.toLowerCase() === "y")
-    ) {
-      event.preventDefault();
-      this.handle(() =>
-        event.shiftKey || event.key.toLowerCase() === "y"
-          ? this.redo()
-          : this.undo(),
-      );
-      return;
-    }
-    const directions: Record<
-      string,
-      "left" | "right" | "up" | "down" | "home" | undefined
-    > = {
-      ArrowLeft: "left",
-      ArrowRight: "right",
-      ArrowUp: "up",
-      ArrowDown: "down",
-      Home: "home",
-      Enter: "down",
-      Tab: event.shiftKey ? "left" : "right",
-    };
-    const direction = directions[event.key];
-    if (direction) {
-      event.preventDefault();
-      this.handle(() =>
-        this.move(direction, event.shiftKey && event.key !== "Tab"),
-      );
-    } else if (event.key === "F2") {
-      event.preventDefault();
-      this.handle(() => this.enqueue(async () => this.beginDraft(false)));
-    } else if (event.key === "Delete" || event.key === "Backspace") {
-      event.preventDefault();
-      this.handle(() =>
-        this.enqueue(async () => {
-          this.state = await this.client.clear(this.state.revision);
-          await this.present(true);
-        }),
-      );
+      this.publish();
     }
   }
 
   private requestRender(): void {
-    if (this.closed) return;
+    if (this.closed || this.paused || this.blocked) return;
     this.generation++;
     if (this.frame || this.rendering) return;
     this.frame = requestAnimationFrame(() => {
@@ -562,28 +509,35 @@ export class SpreadsheetEditor {
   }
 
   private async present(reveal = false): Promise<void> {
-    const generation = this.generation;
-    const width = Math.max(120, this.viewport.clientWidth) / this.scale;
-    const height = this.viewport.clientHeight / this.scale;
-    const layout = await this.client.viewport({
-      sheet: this.state.sheet,
-      scrollX: this.viewport.scrollLeft / this.scale,
-      scrollY: this.viewport.scrollTop / this.scale,
-      width,
-      height,
-      profile: this.profile,
-      reveal,
-    });
-    if (this.closed || generation !== this.generation) return;
-    this.layout = layout;
-    this.scale = this.surface.draw(layout, 0, this.zoomValue);
-    this.spacer.style.width = `${layout.extentWidth * this.scale + 36 * this.scale}px`;
-    this.spacer.style.height = `${layout.extentHeight * this.scale + 18 * this.scale}px`;
-    this.viewport.scrollLeft = layout.scrollX * this.scale;
-    this.viewport.scrollTop = layout.scrollY * this.scale;
-    updateGridSemantics(this.semantics, layout.cells);
-    this.updateControls();
-    await this.presentSelection();
+    this.publish();
+    try {
+      const generation = this.generation;
+      const width = Math.max(120, this.viewport.clientWidth) / this.scale;
+      const height = this.viewport.clientHeight / this.scale;
+      const layout = await this.client.viewport({
+        sheet: this.state.sheet,
+        scrollX: this.viewport.scrollLeft / this.scale,
+        scrollY: this.viewport.scrollTop / this.scale,
+        width,
+        height,
+        profile: this.profile,
+        reveal,
+      });
+      if (this.closed || generation !== this.generation) return;
+      this.layout = layout;
+      this.scale = this.surface.draw(layout, 0, this.zoomValue);
+      this.spacer.style.width = `${layout.extentWidth * this.scale + 36 * this.scale}px`;
+      this.spacer.style.height = `${layout.extentHeight * this.scale + 18 * this.scale}px`;
+      this.viewport.scrollLeft = layout.scrollX * this.scale;
+      this.viewport.scrollTop = layout.scrollY * this.scale;
+      updateGridSemantics(this.semantics, layout.cells);
+      this.publish();
+      await this.presentSelection();
+    } catch (error) {
+      this.blocked = true;
+      this.report(error);
+      throw error;
+    }
   }
 
   private async presentSelection(): Promise<void> {
@@ -627,7 +581,6 @@ export class SpreadsheetEditor {
         String(cell.dataset.address === active?.address),
       );
   }
-
   private styleInput(): void {
     this.input.style.opacity = this.draft ? "1" : "0";
     this.input.style.pointerEvents = this.draft ? "auto" : "none";
@@ -643,29 +596,41 @@ export class SpreadsheetEditor {
       this.input.style.height = "1px";
     }
   }
-
-  private updateControls(): void {
-    this.sheet.replaceChildren();
-    for (const sheet of this.state.sheets) {
-      if (sheet.state !== "visible") continue;
-      const option = document.createElement("option");
-      option.value = sheet.id;
-      option.textContent = sheet.name;
-      this.sheet.append(option);
-    }
-    this.sheet.value = this.state.sheet;
-    this.undoButton.disabled = !this.state.canUndo || !!this.draft;
-    this.redoButton.disabled = !this.state.canRedo || !!this.draft;
-    const active = this.active();
-    const diagnostics = [
-      ...this.state.diagnostics,
-      ...new Set(
-        this.layout?.cells.map((item) => item.diagnostic).filter(Boolean) ?? [],
-      ),
-    ];
-    this.status.textContent = `${this.state.sheets.find((sheet) => sheet.id === this.state.sheet)?.name ?? ""}; ${active?.address ?? ""}; revision ${this.state.revision}; ${Math.round(this.zoomValue * 100)}%${this.draft ? "; editing cell" : ""}${this.state.readOnlyReason ? "; " + this.state.readOnlyReason : ""}${diagnostics.length ? "; " + diagnostics.join("; ") : ""}`;
+  private publish(): void {
+    if (!this.observable) return;
+    const old = this.observable.getSnapshot().data;
+    const data =
+      old.query === this.state &&
+      old.printPage === this.printView.page &&
+      old.printPages === this.printView.pageCount &&
+      old.printVisible === this.printView.visible
+        ? old
+        : {
+            query: this.state,
+            printPage: this.printView.page,
+            printPages: this.printView.pageCount,
+            printVisible: this.printView.visible,
+          };
+    this.observable.update({
+      revision: this.state.revision,
+      canUndo: this.state.canUndo,
+      canRedo: this.state.canRedo,
+      page: this.printView.visible ? this.printView.page : 0,
+      pageCount: this.printView.visible ? this.printView.pageCount : 1,
+      zoom: this.zoomValue,
+      selection: this.active()?.address ?? "",
+      composition: this.composing,
+      draft: !!this.draft || !!this.draftIntent,
+      busy: this.pending,
+      paused: this.paused,
+      stopped: this.blocked,
+      closed: this.closed,
+      error: this.errorMessage,
+      readOnlyReason: this.state.readOnlyReason,
+      diagnostics: this.state.diagnostics,
+      data,
+    });
   }
-
   select(range: string, sheet = this.state.sheet): Promise<void> {
     return this.enqueue(async () => {
       await this.commitDraft();
@@ -709,10 +674,11 @@ export class SpreadsheetEditor {
       this.state = redo
         ? await this.client.redo(this.state.revision)
         : await this.client.undo(this.state.revision);
+      this.blocked = false;
       this.generation++;
       await this.present(true);
       this.input.focus({ preventScroll: true });
-    });
+    }, !redo);
   }
   undo(): Promise<void> {
     return this.history(false);
@@ -723,27 +689,35 @@ export class SpreadsheetEditor {
   refresh(): Promise<void> {
     return this.enqueue(async () => {
       this.state = await this.client.query();
+      this.blocked = false;
       this.generation++;
       await this.present(true);
-    });
+    }, true);
   }
   setZoom(zoom: number): Promise<void> {
     if (!Number.isFinite(zoom) || zoom < 0.25 || zoom > 4)
       return Promise.reject(new Error("Invalid zoom"));
     return this.enqueue(async () => {
       this.zoomValue = zoom;
-      this.zoom.value = String(zoom);
       this.scale = (zoom * 96) / 72;
       this.generation++;
       await this.present(true);
     });
   }
-  save(): Promise<Uint8Array> {
-    return this.enqueue(async () => {
-      this.requireFinished();
-      await this.commitDraft();
-      return this.client.save();
-    });
+  save(): Promise<EditorOutput> {
+    return this.enqueue(
+      async () => {
+        this.requireFinished();
+        await this.commitDraft();
+        return this.observable.output(
+          this.state.revision,
+          "xlsx",
+          await this.client.save(),
+        );
+      },
+      false,
+      true,
+    );
   }
   printLayout(
     options: PrintOptions = defaultPrintOptions,
@@ -759,36 +733,68 @@ export class SpreadsheetEditor {
         this.profile,
       );
       this.printView.show(layout);
+      this.viewport.hidden = true;
       return layout;
     });
   }
   exportPdf(
     options: PrintOptions = defaultPrintOptions,
     outputBytes = 67108864,
-  ): Promise<Uint8Array> {
+  ): Promise<EditorOutput> {
+    return this.enqueue(
+      async () => {
+        this.requireFinished();
+        await this.commitDraft();
+        const layout = await this.printView.prepare(
+          this.client,
+          this.state.revision,
+          this.state.sheet,
+          options,
+          this.profile,
+        );
+        return this.observable.output(
+          this.state.revision,
+          "pdf",
+          await this.client.exportPdf(layout.id, outputBytes),
+        );
+      },
+      false,
+      true,
+    );
+  }
+  clear(): Promise<void> {
     return this.enqueue(async () => {
       this.requireFinished();
       await this.commitDraft();
-      const layout = await this.printView.prepare(
-        this.client,
-        this.state.revision,
-        this.state.sheet,
-        options,
-        this.profile,
-      );
-      return this.client.exportPdf(layout.id, outputBytes);
+      this.state = await this.client.clear(this.state.revision);
+      this.generation++;
+      await this.present(true);
     });
   }
-  dispose(): void {
-    if (this.closed) return;
+  showPrintPage(index: number): Promise<void> {
+    return this.enqueue(async () => this.printView.showPage(index));
+  }
+  closePrintPreview(): Promise<void> {
+    return this.enqueue(async () => {
+      this.printView.hide();
+      this.viewport.hidden = false;
+      this.focus();
+    });
+  }
+  dispose(): Promise<void> {
+    if (this.cleanup) return this.cleanup;
     this.closed = true;
     this.listeners.abort();
     this.resize.disconnect();
     cancelAnimationFrame(this.frame);
     this.draft = undefined;
-    this.surface.dispose();
     this.draftIntent = undefined;
-    this.printView.dispose();
-    this.container.remove();
+    this.observable.close();
+    this.cleanup = this.tail.finally(() => {
+      this.surface.dispose();
+      this.printView.dispose();
+      this.container.remove();
+    });
+    return this.cleanup;
   }
 }

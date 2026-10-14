@@ -3,7 +3,11 @@ import { PresentationCanvas } from "./presentation-canvas.js";
 import { PresentationInput } from "./presentation-input.js";
 import { PresentationPointer } from "./presentation-pointer.js";
 import { bindClipboard } from "./clipboard-input.js";
-import { downloadBytes } from "./download.js";
+import {
+  EditorState,
+  type EditorOutput,
+  type EditorSnapshot,
+} from "./editor-state.js";
 import type { PptxClient } from "./pptx.js";
 import type {
   PptxQuery,
@@ -19,15 +23,13 @@ export class PresentationEditor {
   private readonly viewport = document.createElement("div");
   private readonly holder = document.createElement("div");
   private readonly input = document.createElement("textarea");
-  private readonly slides = document.createElement("select");
-  private readonly zoom = document.createElement("select");
   private readonly semantics = document.createElement("ol");
-  private readonly status = document.createElement("p");
-  private readonly error = document.createElement("p");
-  private readonly undoButton = document.createElement("button");
-  private readonly redoButton = document.createElement("button");
   private readonly surface = new PresentationCanvas();
   private readonly listeners = new AbortController();
+  private readonly observable: EditorState<PptxQuery>;
+  private paused = false;
+  private errorMessage = "";
+  private cleanup: Promise<void> | undefined;
   private readonly inputEvents: PresentationInput;
   private readonly pointer: PresentationPointer;
   private state: PptxQuery;
@@ -58,17 +60,30 @@ export class PresentationEditor {
     state: PptxQuery,
   ) {
     this.state = state;
+    this.observable = new EditorState("pptx", {
+      revision: state.revision,
+      canUndo: state.canUndo,
+      canRedo: state.canRedo,
+      page: state.slides.findIndex((slide) => slide.id === state.slide),
+      pageCount: state.slides.length,
+      selection: state.selection.object,
+      readOnlyReason: state.readOnlyReason,
+      diagnostics: [],
+      data: state,
+    });
+    Object.assign(this.container.style, {
+      display: "flex",
+      flexDirection: "column",
+      flex: "1",
+      minHeight: "0",
+    });
     this.container.setAttribute("role", "region");
     this.container.setAttribute("aria-label", "Presentation editor");
-    this.status.setAttribute("role", "status");
-    this.error.setAttribute("role", "alert");
-    this.slides.setAttribute("aria-label", "Slide");
-    this.zoom.setAttribute("aria-label", "Zoom");
     this.semantics.setAttribute("aria-label", "Slide objects");
     Object.assign(this.viewport.style, {
       overflow: "auto",
-      maxHeight: "70vh",
-      border: "1px solid #9ca3af",
+      flex: "1",
+      minHeight: "0",
     });
     Object.assign(this.holder.style, {
       position: "relative",
@@ -90,72 +105,6 @@ export class PresentationEditor {
     this.input.tabIndex = -1;
     this.holder.append(this.surface.canvas, this.surface.overlay, this.input);
     this.viewport.append(this.holder);
-    const toolbar = document.createElement("div");
-    toolbar.append(this.slides, this.zoom);
-    const button = (
-      element: HTMLButtonElement,
-      label: string,
-      action: () => Promise<unknown>,
-    ) => {
-      element.type = "button";
-      element.textContent = label;
-      element.addEventListener(
-        "pointerdown",
-        (event) => event.preventDefault(),
-        { signal: this.listeners.signal },
-      );
-      element.addEventListener("click", () => this.handle(action), {
-        signal: this.listeners.signal,
-      });
-      toolbar.append(element);
-    };
-    button(this.undoButton, "Undo", () => this.undo());
-    button(this.redoButton, "Redo", () => this.redo());
-    button(document.createElement("button"), "Save PPTX", async () =>
-      downloadBytes(
-        await this.save(),
-        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        "document.pptx",
-      ),
-    );
-    button(
-      document.createElement("button"),
-      "Export current slide PDF",
-      async () =>
-        downloadBytes(
-          await this.exportPdf(false),
-          "application/pdf",
-          "slide.pdf",
-        ),
-    );
-    button(
-      document.createElement("button"),
-      "Export presentation PDF",
-      async () =>
-        downloadBytes(
-          await this.exportPdf(true),
-          "application/pdf",
-          "presentation.pdf",
-        ),
-    );
-    button(document.createElement("button"), "Refresh", () => this.refresh());
-    for (const value of [0.5, 0.75, 1, 1.25, 1.5, 2]) {
-      const option = document.createElement("option");
-      option.value = String(value);
-      option.textContent = `${value * 100}%`;
-      option.selected = value === 1;
-      this.zoom.append(option);
-    }
-    this.slides.addEventListener(
-      "change",
-      () => this.handle(() => this.showSlide(this.slides.value)),
-      { signal: this.listeners.signal },
-    );
-    this.zoom.addEventListener(
-      "change",
-      () => this.handle(() => this.setZoom(Number(this.zoom.value))),
-      { signal: this.listeners.signal },
-    );
     this.inputEvents = new PresentationInput(
       this.input,
       this.listeners.signal,
@@ -227,13 +176,7 @@ export class PresentationEditor {
       },
       { signal: this.listeners.signal },
     );
-    this.container.append(
-      toolbar,
-      this.status,
-      this.error,
-      this.viewport,
-      this.semantics,
-    );
+    this.container.append(this.viewport, this.semantics);
     root.append(this.container);
   }
   static async create(
@@ -259,7 +202,7 @@ export class PresentationEditor {
     }
   }
   private get available(): boolean {
-    return !this.closed && !this.closing && !this.blocked;
+    return !this.closed && !this.closing && !this.paused && !this.blocked;
   }
   get layout(): PptxLayout {
     if (!this.drawing) throw new Error("Presentation layout is unavailable");
@@ -267,6 +210,51 @@ export class PresentationEditor {
   }
   get query(): PptxQuery {
     return structuredClone(this.state);
+  }
+  readonly getSnapshot = (): EditorSnapshot<PptxQuery> =>
+    this.observable.getSnapshot();
+  readonly subscribe = (listener: () => void): (() => void) =>
+    this.observable.subscribe(listener);
+  markSaved(output: EditorOutput): void {
+    this.observable.markSaved(output);
+  }
+  markDownloaded(output: EditorOutput): void {
+    this.observable.markDownloaded(output);
+  }
+  focus(): void {
+    if (this.closed || this.closing) throw new Error("Editor is disposed");
+    this.input.focus({ preventScroll: true });
+  }
+  async setPaused(paused: boolean): Promise<void> {
+    if (this.closed || this.closing) throw new Error("Editor is disposed");
+    this.paused = paused;
+    this.container.inert = paused;
+    this.input.readOnly = paused || this.blocked;
+    this.publish();
+    if (paused) await this.tail;
+  }
+  private publish(): void {
+    this.observable.update({
+      revision: this.state.revision,
+      canUndo: this.state.canUndo,
+      canRedo: this.state.canRedo,
+      page: this.state.slides.findIndex(
+        (slide) => slide.id === this.state.slide,
+      ),
+      pageCount: this.state.slides.length,
+      zoom: this.zoomValue,
+      selection: this.state.selection.object,
+      composition: this.inputEvents?.active ?? false,
+      dragging: !!this.gesture || (this.pointer?.active ?? false),
+      busy: this.pending,
+      paused: this.paused,
+      stopped: this.blocked,
+      closed: this.closed,
+      error: this.errorMessage,
+      readOnlyReason: this.state.readOnlyReason,
+      diagnostics: this.drawing?.diagnostics ?? this.state.diagnostics,
+      data: this.state,
+    });
   }
   private handle(operation: () => Promise<unknown>): void {
     void operation().catch((error) =>
@@ -276,16 +264,20 @@ export class PresentationEditor {
   private fail(error: Error): void {
     if (this.closed) return;
     this.blocked = true;
-    this.error.textContent = `${error.message}. Committed edits remain available. Refresh or undo to recover.`;
+    this.errorMessage = `${error.message}. Committed edits remain available. Refresh or undo to recover.`;
+    this.publish();
   }
   private enqueue<T>(
     operation: () => Promise<T>,
     gesture = false,
     recovery = false,
+    output = false,
   ): Promise<T> {
     if (this.closed || this.closing)
       return Promise.reject(new Error("Editor is disposed"));
-    if (this.blocked && !recovery)
+    if (this.paused && !output)
+      return Promise.reject(new Error("Editor input is paused"));
+    if (this.blocked && !recovery && !output)
       return Promise.reject(new Error("Refresh or undo before editing"));
     if (
       !gesture &&
@@ -297,10 +289,12 @@ export class PresentationEditor {
     if (this.pending >= 64)
       return Promise.reject(new Error("Editor queue exceeds budget"));
     this.pending++;
+    this.publish();
     const result = this.tail.then(operation);
     this.tail = result.then(
       () => {
         this.pending--;
+        this.publish();
       },
       (error) => {
         this.pending--;
@@ -315,6 +309,7 @@ export class PresentationEditor {
       this.state.revision !== state.revision ||
       this.state.slide !== state.slide;
     this.state = state;
+    this.publish();
     if (content) await this.present();
     else {
       this.updateSemantics();
@@ -347,6 +342,7 @@ export class PresentationEditor {
     });
     this.geometry = geometry;
     this.surface.drawSelection(geometry, this.scale);
+    this.publish();
     const caret = geometry.caret;
     if (caret) {
       this.input.style.left = `${caret.x * this.scale}px`;
@@ -356,24 +352,13 @@ export class PresentationEditor {
   }
   private updateSemantics(): void {
     const state = this.state;
-    this.slides.replaceChildren(
-      ...state.slides.map((slide, index) => {
-        const option = document.createElement("option");
-        option.value = slide.id;
-        option.textContent = `${index + 1}. ${slide.title.slice(0, 80) || "Slide"}${slide.hidden ? " (hidden)" : ""}`;
-        option.selected = slide.id === state.slide;
-        return option;
-      }),
-    );
     updatePresentationObjects(
       this.semantics,
       state,
       this.listeners.signal,
       (object, mode) => this.handle(() => this.select(object, mode)),
     );
-    this.undoButton.disabled = !state.canUndo;
-    this.redoButton.disabled = !state.canRedo;
-    this.status.textContent = `Slide ${state.slides.findIndex((slide) => slide.id === state.slide) + 1} of ${state.slides.length}. ${state.selection.mode} mode. ${state.readOnlyReason || this.drawing?.diagnostics.join("; ") || ""}`;
+    this.publish();
     this.input.setAttribute(
       "aria-label",
       `${state.selection.mode === "text" ? "Text" : "Object"} input: ${state.objects.find((object) => object.id === state.selection.object)?.name || "slide"}`,
@@ -422,38 +407,84 @@ export class PresentationEditor {
       if (!Number.isFinite(zoom) || zoom < 0.25 || zoom > 4)
         throw new Error("Invalid zoom");
       this.zoomValue = zoom;
-      this.zoom.value = String(zoom);
       await this.paint();
     });
   }
-  save(): Promise<Uint8Array> {
-    return this.enqueue(() =>
-      this.client.execute({
-        operation: "savePptx",
+  transform(dx: number, dy: number, handle = 0): Promise<void> {
+    return this.enqueue(async () => {
+      const state = await this.client.execute({
+        operation: "beginPptx",
         revision: this.state.revision,
-      }),
+        kind: "transform",
+      });
+      if (state.candidateId === null)
+        throw new Error("Core did not begin move");
+      try {
+        await this.client.execute({
+          operation: "dragPptx",
+          revision: state.revision,
+          candidateId: state.candidateId,
+          dx,
+          dy,
+          handle,
+        });
+        await this.changed(
+          await this.client.execute({
+            operation: "finishPptx",
+            revision: state.revision,
+            candidateId: state.candidateId,
+            profile: this.profile,
+          }),
+        );
+      } catch (error) {
+        await this.cancelNow();
+        throw error;
+      }
+    });
+  }
+  save(): Promise<EditorOutput> {
+    return this.enqueue(
+      async () =>
+        this.observable.output(
+          this.state.revision,
+          "pptx",
+          await this.client.execute({
+            operation: "savePptx",
+            revision: this.state.revision,
+          }),
+        ),
+      false,
+      false,
+      true,
     );
   }
   exportPdf(
     all = true,
     hidden = false,
     outputBytes = 67108864,
-  ): Promise<Uint8Array> {
-    return this.enqueue(async () => {
-      try {
-        await this.surface.prepare(this.client, all, hidden);
-        return await this.client.execute({
-          operation: "exportPptxPdf",
-          revision: this.state.revision,
-          all,
-          hidden,
-          outputBytes,
-          profile: this.profile,
-        });
-      } finally {
-        await this.surface.prepare(this.client);
-      }
-    });
+  ): Promise<EditorOutput> {
+    return this.enqueue(
+      async () => {
+        try {
+          await this.surface.prepare(this.client, all, hidden);
+          const revision = this.state.revision;
+          const bytes = await this.client.execute({
+            operation: "exportPptxPdf",
+            revision: this.state.revision,
+            all,
+            hidden,
+            outputBytes,
+            profile: this.profile,
+          });
+          return this.observable.output(revision, "pdf", bytes);
+        } finally {
+          await this.surface.prepare(this.client);
+        }
+      },
+      false,
+      false,
+      true,
+    );
   }
   private async cancelNow(): Promise<void> {
     this.pointer.reset();
@@ -484,7 +515,7 @@ export class PresentationEditor {
           revision: this.state.revision,
         });
         this.blocked = false;
-        this.error.textContent = "";
+        this.errorMessage = "";
         await this.present();
       },
       true,
@@ -496,14 +527,14 @@ export class PresentationEditor {
       async () => {
         await this.cancelNow();
         this.blocked = false;
-        this.error.textContent = "";
+        this.errorMessage = "";
         await this.present();
       },
       true,
       true,
     );
   }
-  private copy(cut: boolean): Promise<void> {
+  copy(cut = false): Promise<void> {
     return this.enqueue(async () => {
       const revision = this.state.revision,
         selection = { ...this.state.selection };
@@ -739,51 +770,29 @@ export class PresentationEditor {
             : event.key === "ArrowDown"
               ? step
               : 0;
-      this.handle(() =>
-        this.enqueue(async () => {
-          const state = await this.client.execute({
-            operation: "beginPptx",
-            revision: this.state.revision,
-            kind: "transform",
-          });
-          if (state.candidateId === null)
-            throw new Error("Core did not begin move");
-          await this.client.execute({
-            operation: "dragPptx",
-            revision: state.revision,
-            candidateId: state.candidateId,
-            dx,
-            dy,
-            handle: 0,
-          });
-          await this.changed(
-            await this.client.execute({
-              operation: "finishPptx",
-              revision: state.revision,
-              candidateId: state.candidateId,
-              profile: this.profile,
-            }),
-          );
-        }),
-      );
+      this.handle(() => this.transform(dx, dy));
     } else if (event.key === "Delete" || event.key === "Backspace")
       event.preventDefault();
   };
-  async dispose(): Promise<void> {
-    if (this.closed || this.closing) return;
+  dispose(): Promise<void> {
+    if (this.cleanup) return this.cleanup;
     this.closing = true;
     this.listeners.abort();
     cancelAnimationFrame(this.frame);
     this.pointer.reset();
-    try {
-      await this.tail;
-      await this.cancelNow();
-    } finally {
-      this.closed = true;
-      this.surface.dispose();
-      this.drawing = undefined;
-      this.geometry = undefined;
-      this.container.remove();
-    }
+    this.observable.close();
+    this.cleanup = (async () => {
+      try {
+        await this.tail;
+        await this.cancelNow();
+      } finally {
+        this.closed = true;
+        this.surface.dispose();
+        this.drawing = undefined;
+        this.geometry = undefined;
+        this.container.remove();
+      }
+    })();
+    return this.cleanup;
   }
 }

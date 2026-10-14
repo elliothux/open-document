@@ -32,12 +32,16 @@ export class FoundationClient {
   static async open(
     wasm: ArrayBuffer,
     workerUrl: URL,
+    signal?: AbortSignal,
   ): Promise<FoundationClient> {
     const client = new FoundationClient(
       new Connection(new Worker(workerUrl, { type: "module" })),
     );
     try {
-      await client.connection.request({ operation: "openFoundation", wasm });
+      await client.connection.initialize(
+        { operation: "openFoundation", wasm },
+        signal,
+      );
       return client;
     } catch (error) {
       client.dispose();

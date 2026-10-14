@@ -9,12 +9,19 @@ import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 /** A Worker owns presentation state, layout, history and source bytes. */
 export class PptxClient {
   private constructor(private readonly connection: Connection) {}
-  static async open(wasm: ArrayBuffer, workerUrl: URL): Promise<PptxClient> {
+  static async open(
+    wasm: ArrayBuffer,
+    workerUrl: URL,
+    signal?: AbortSignal,
+  ): Promise<PptxClient> {
     const client = new PptxClient(
       new Connection(new Worker(workerUrl, { type: "module" })),
     );
     try {
-      await client.connection.request({ operation: "openPresentation", wasm });
+      await client.connection.initialize(
+        { operation: "openPresentation", wasm },
+        signal,
+      );
       return client;
     } catch (error) {
       client.dispose();

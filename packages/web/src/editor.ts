@@ -1,10 +1,19 @@
 import { downloadBytes } from "./download.js";
 import type { FoundationClient } from "./foundation.js";
 import { PageCanvas } from "./page-canvas.js";
-import { PointerSelection, type PointerPoint } from "./pointer-selection.js";
+import {
+  PointerSelection,
+  revealInput,
+  type PointerPoint,
+} from "./pointer-selection.js";
 import { TextInput } from "./text-input.js";
 import { DocumentError } from "@open-document/wasm/foundation";
 import { bindClipboard } from "./clipboard-input.js";
+import {
+  EditorState,
+  type EditorOutput,
+  type EditorSnapshot,
+} from "./editor-state.js";
 import type { PageLayout } from "@open-document/wasm/preview";
 import type {
   DocxPosition,
@@ -17,16 +26,9 @@ export class DocumentEditor {
   private readonly container = document.createElement("div");
   private readonly viewport = document.createElement("div");
   private readonly input = document.createElement("textarea");
-  private readonly status = document.createElement("p");
   private readonly text = document.createElement("pre");
-  private readonly diagnostics = document.createElement("ul");
-  private readonly undo = document.createElement("button");
-  private readonly redo = document.createElement("button");
-  private readonly previous = document.createElement("button");
-  private readonly next = document.createElement("button");
-  private readonly retry = document.createElement("button");
-  private readonly download = document.createElement("button");
-  private readonly pdf = document.createElement("button");
+  private readonly observable: EditorState<EditState>;
+  private paused = false;
   private readonly listeners = new AbortController();
   private tail: Promise<void> = Promise.resolve();
   private pending = 0;
@@ -34,7 +36,6 @@ export class DocumentEditor {
   private blocked: Error | undefined;
   private closed = false;
   private resuming = false;
-  private outputRevision: number | undefined;
   private page = 0;
   private zoom = 1;
   private cssScale = 96 / 72;
@@ -54,9 +55,17 @@ export class DocumentEditor {
   ) {
     this.container.setAttribute("role", "region");
     this.container.setAttribute("aria-label", "Document editor");
-    this.status.setAttribute("role", "status");
+    this.observable = new EditorState("docx", {
+      revision: state.revision,
+      canUndo: state.canUndo,
+      canRedo: state.canRedo,
+      pageCount: currentLayout.regions.length,
+      selection: this.selectionDescription,
+
+      diagnostics: currentLayout.diagnostics,
+      data: state,
+    });
     this.text.setAttribute("aria-label", "Current page text");
-    this.diagnostics.setAttribute("aria-label", "Document diagnostics");
     this.input.setAttribute("aria-label", "Document text input");
     this.input.setAttribute("aria-description", this.selectionDescription);
     this.input.autocomplete = "off";
@@ -74,61 +83,33 @@ export class DocumentEditor {
     Object.assign(this.viewport.style, {
       position: "relative",
       overflow: "auto",
-      maxHeight: "80vh",
+      flex: "1",
+      minHeight: "0",
     });
     this.viewport.append(this.surface.canvas, this.surface.overlay, this.input);
-    this.container.append(
-      this.previous,
-      this.next,
-      this.undo,
-      this.redo,
-      this.download,
-      this.pdf,
-      this.retry,
-      this.status,
-      this.viewport,
-      this.text,
-      this.diagnostics,
-    );
+    Object.assign(this.container.style, {
+      display: "flex",
+      flexDirection: "column",
+      flex: "1",
+      minHeight: "0",
+    });
+    Object.assign(this.text.style, {
+      position: "absolute",
+      width: "1px",
+      height: "1px",
+      overflow: "hidden",
+      clipPath: "inset(50%)",
+    });
+    this.container.append(this.viewport, this.text);
     const options = { signal: this.listeners.signal };
     window.addEventListener(
       "resize",
       () => {
-        if (!this.closed && !this.blocked && !this.resuming)
+        if (!this.closed && !this.paused && !this.blocked && !this.resuming)
           this.handle(() => this.presentSelection());
       },
       options,
     );
-    const button = (
-      element: HTMLButtonElement,
-      label: string,
-      action: () => void,
-    ) => {
-      element.type = "button";
-      element.textContent = label;
-      element.addEventListener("click", action, options);
-    };
-    button(this.previous, "Previous page", () =>
-      this.handle(() => this.showPage(this.page - 1)),
-    );
-    button(this.next, "Next page", () =>
-      this.handle(() => this.showPage(this.page + 1)),
-    );
-    button(this.undo, "Undo", () => {
-      void this.history(false).catch(() => {});
-    });
-    button(this.redo, "Redo", () => {
-      void this.history(true).catch(() => {});
-    });
-    button(this.download, "Save DOCX", () => {
-      void this.downloadDocx().catch(() => {});
-    });
-    button(this.pdf, "Export PDF", () => {
-      void this.downloadPdf().catch(() => {});
-    });
-    button(this.retry, "Resume editing", () => {
-      void this.resume().catch(() => {});
-    });
     this.pointerSelection = new PointerSelection(
       this.surface.canvas,
       this.viewport,
@@ -137,6 +118,7 @@ export class DocumentEditor {
         this.selectPointer(point, initial, extend, elapsed),
       () =>
         !this.closed &&
+        !this.paused &&
         !this.blocked &&
         !this.resuming &&
         !this.inputEvents.active,
@@ -146,7 +128,9 @@ export class DocumentEditor {
       this.input,
       this.listeners.signal,
       (cut) => this.handle(() => this.copySelection(cut)),
-      (text) => this.pasteText(text),
+      (text) => {
+        void this.paste(text).catch(() => {});
+      },
       (error) => this.stop(error),
       () => this.inputEvents.active,
     );
@@ -196,7 +180,8 @@ export class DocumentEditor {
       {
         state: () => this.state,
         layoutId: () => this.currentLayout.id,
-        available: () => !this.closed && !this.blocked && !this.resuming,
+        available: () =>
+          !this.closed && !this.paused && !this.blocked && !this.resuming,
         enqueue: (operation, composition) =>
           this.enqueue(operation, false, composition),
         changed: (state, relayout) => this.changed(state, relayout),
@@ -244,6 +229,42 @@ export class DocumentEditor {
     return this.currentLayout;
   }
 
+  readonly getSnapshot = (): EditorSnapshot<EditState> =>
+    this.observable.getSnapshot();
+  readonly subscribe = (listener: () => void): (() => void) =>
+    this.observable.subscribe(listener);
+  markSaved(output: EditorOutput): void {
+    this.observable.markSaved(output);
+  }
+  markDownloaded(output: EditorOutput): void {
+    this.observable.markDownloaded(output);
+  }
+  focus(): void {
+    this.assertOpen();
+    this.input.focus({ preventScroll: true });
+  }
+  async setPaused(paused: boolean): Promise<void> {
+    this.assertOpen();
+    this.paused = paused;
+    this.container.inert = paused;
+    if (paused) this.pointerSelection.finish();
+    this.input.readOnly = paused || !!this.blocked || this.resuming;
+    this.publish();
+    if (paused) await this.tail;
+  }
+  undo(): Promise<void> {
+    return this.history(false);
+  }
+  redo(): Promise<void> {
+    return this.history(true);
+  }
+  goToPage(index: number): Promise<void> {
+    return this.enqueue(() => this.showPage(index));
+  }
+  copy(cut = false): Promise<void> {
+    return this.enqueue(() => this.copySelection(cut));
+  }
+
   private assertOpen(): void {
     if (this.closed) throw new Error("Editor is disposed");
   }
@@ -259,25 +280,22 @@ export class DocumentEditor {
     this.selectionDescription =
       "Selection unavailable while editing is stopped";
     this.input.setAttribute("aria-description", this.selectionDescription);
-    this.retry.hidden = false;
-    this.undo.disabled = !this.state.canUndo;
-    this.redo.disabled = true;
-    this.status.textContent = `${error.message}. Editing stopped; ${cancelQueued ? "queued input was cancelled" : "accepted input will finish; new input was rejected"}. Resume to reload the current document.`;
+    this.publish();
   }
 
   private enqueue<T>(
     operation: () => Promise<T>,
     pointer = false,
     composition = false,
+    output = false,
   ): Promise<T> {
     if (!pointer) this.pointerSelection.finish();
     try {
       this.assertOpen();
-      if (this.blocked) throw this.blocked;
+      if (this.paused && !output) throw new Error("Editor input is paused");
+      if (this.blocked && !output) throw this.blocked;
       if (this.resuming) throw new Error("Wait for editing to resume");
       if (!composition && this.inputEvents.active) {
-        this.status.textContent =
-          "Complete or cancel composition before this operation";
         throw new DocumentError(
           "busy",
           "Complete or cancel composition before this operation",
@@ -294,6 +312,7 @@ export class DocumentEditor {
     }
     const generation = this.generation;
     this.pending++;
+    this.publish();
     const result = this.tail.then(async () => {
       this.assertOpen();
       if (generation !== this.generation)
@@ -306,7 +325,7 @@ export class DocumentEditor {
         return value;
       } catch (error) {
         if (error instanceof DocumentError && error.code === "busy") {
-          this.status.textContent = error.message;
+          this.observable.update({ error: error.message });
         } else if (generation === this.generation)
           this.stop(
             error instanceof Error ? error : new Error(String(error)),
@@ -322,6 +341,7 @@ export class DocumentEditor {
       )
       .finally(() => {
         this.pending--;
+        this.publish();
       });
     return result;
   }
@@ -361,6 +381,7 @@ export class DocumentEditor {
     if (!this.blocked || this.resuming)
       throw new Error("Resume is only available after editing stops");
     this.resuming = true;
+    this.publish();
     const result = this.tail.then(async () => {
       try {
         this.assertOpen();
@@ -388,6 +409,7 @@ export class DocumentEditor {
       } finally {
         this.resuming = false;
         this.input.readOnly = this.closed || !!this.blocked;
+        this.publish();
       }
     });
     this.tail = result.then(
@@ -489,6 +511,7 @@ export class DocumentEditor {
     this.assertOpen();
     const revision = this.state.revision;
     this.state = state;
+    this.publish();
     if (relayout || state.revision !== revision)
       this.currentLayout = await this.client.layout(this.profile);
     this.assertOpen();
@@ -526,19 +549,15 @@ export class DocumentEditor {
     }
   }
 
-  private pasteText(text: string): void {
+  paste(text: string): Promise<void> {
     this.inputEvents.endGroup();
-    if (this.blocked || this.closed) return;
-    if (this.inputEvents.active) {
-      this.handle(async () => {});
-      return;
-    }
     if (text.length > this.state.commandLimit || text.includes("\t")) {
-      this.stop(new Error("Paste contains tabs or exceeds command budget"));
-      return;
+      const error = new Error("Paste contains tabs or exceeds command budget");
+      this.stop(error);
+      return Promise.reject(error);
     }
     const normalized = text.replace(/\r\n?/g, "\n");
-    this.handle(async () => {
+    return this.enqueue(async () => {
       if (normalized.length === 0) return;
       await this.changed(
         await this.client.replaceRange(
@@ -585,7 +604,7 @@ export class DocumentEditor {
       this.input.style.left = `${caret.x * this.cssScale}px`;
       this.input.style.top = `${caret.y * this.cssScale}px`;
       this.input.style.height = `${caret.height * this.cssScale}px`;
-      if (reveal) this.revealInput();
+      if (reveal) revealInput(this.input, this.viewport);
     }
   }
 
@@ -621,55 +640,37 @@ export class DocumentEditor {
     this.input.setAttribute("aria-description", description);
   }
 
-  private revealInput(): void {
-    this.input.scrollIntoView({ block: "nearest", inline: "nearest" });
-    const target = this.input.getBoundingClientRect();
-    const view = this.viewport;
-    const box = view.getBoundingClientRect();
-    const top = box.top + view.clientTop;
-    const left = box.left + view.clientLeft;
-    // Native nearest scrolling rounds fractional caret coordinates to CSS pixels.
-    if (target.height <= view.clientHeight) {
-      if (target.top < top) view.scrollTop -= Math.ceil(top - target.top);
-      else if (target.bottom > top + view.clientHeight)
-        view.scrollTop += Math.ceil(target.bottom - top - view.clientHeight);
-    }
-    if (target.width <= view.clientWidth) {
-      if (target.left < left) view.scrollLeft -= Math.ceil(left - target.left);
-      else if (target.right > left + view.clientWidth)
-        view.scrollLeft += Math.ceil(target.right - left - view.clientWidth);
-    }
-  }
-
   private paint(): void {
     this.page = Math.min(this.page, this.currentLayout.regions.length - 1);
     this.cssScale = this.surface.draw(this.currentLayout, this.page, this.zoom);
     // Focus and pointer selection run before text intents in the same queue.
-    this.input.readOnly = !!this.blocked || this.resuming;
-    this.retry.hidden = !this.blocked;
-    this.undo.disabled = !this.state.canUndo;
-    this.redo.disabled = !this.state.canRedo;
-    this.previous.disabled = this.page === 0;
-    this.next.disabled = this.page === this.currentLayout.regions.length - 1;
+    this.input.readOnly = this.paused || !!this.blocked || this.resuming;
     this.text.textContent =
       this.currentLayout.semantics[this.page]?.lines
         .map((line) => line.text.replaceAll("\ufffc", "[image]"))
         .join("\n") ?? "";
-    this.updateStatus();
-    this.diagnostics.replaceChildren(
-      ...this.currentLayout.diagnostics.map((message) => {
-        const item = document.createElement("li");
-        item.textContent = message;
-        return item;
-      }),
-    );
+    this.publish();
   }
 
-  private updateStatus(): void {
-    if (!this.blocked) {
-      const text = `Page ${this.page + 1} of ${this.currentLayout.regions.length}; revision ${this.state.revision}; last output ${this.outputRevision ?? "none"}; ${this.selectionDescription}`;
-      if (this.status.textContent !== text) this.status.textContent = text;
-    }
+  private publish(): void {
+    this.observable.update({
+      revision: this.state.revision,
+      canUndo: this.state.canUndo,
+      canRedo: this.state.canRedo,
+      page: this.page,
+      pageCount: this.currentLayout.regions.length,
+      zoom: this.zoom,
+      selection: this.selectionDescription,
+      composition: this.inputEvents?.active ?? false,
+      dragging: this.pointerSelection?.active ?? false,
+      busy: this.pending,
+      paused: this.paused,
+      stopped: !!this.blocked || this.resuming,
+      closed: this.closed,
+      error: this.blocked?.message ?? "",
+      diagnostics: this.currentLayout.diagnostics,
+      data: this.state,
+    });
   }
 
   private async showPage(index: number): Promise<void> {
@@ -699,15 +700,19 @@ export class DocumentEditor {
   }
 
   /** A barrier: later input cannot change the returned revision or bytes. */
-  saveDocx(): Promise<{ revision: number; bytes: Uint8Array }> {
+  saveDocx(): Promise<EditorOutput> {
     this.inputEvents.endGroup();
-    return this.enqueue(async () => {
-      const revision = await this.checkRevision();
-      const bytes = await this.client.saveDocx();
-      this.outputRevision = revision;
-      this.updateStatus();
-      return { revision, bytes };
-    });
+    return this.enqueue(
+      async () => {
+        const revision = await this.checkRevision();
+        const bytes = await this.client.saveDocx();
+        this.publish();
+        return this.observable.output(revision, "docx", bytes);
+      },
+      false,
+      false,
+      true,
+    );
   }
 
   private async checkRevision(): Promise<number> {
@@ -719,20 +724,22 @@ export class DocumentEditor {
   }
 
   /** Exports the completed layout at this input barrier. */
-  exportPdf(
-    outputBytes = 67108864,
-  ): Promise<{ revision: number; bytes: Uint8Array }> {
+  exportPdf(outputBytes = 67108864): Promise<EditorOutput> {
     this.inputEvents.endGroup();
-    return this.enqueue(async () => {
-      const revision = await this.checkRevision();
-      const bytes = await this.client.exportPdf(
-        outputBytes,
-        this.currentLayout.id,
-      );
-      this.outputRevision = revision;
-      this.updateStatus();
-      return { revision, bytes };
-    });
+    return this.enqueue(
+      async () => {
+        const revision = await this.checkRevision();
+        const bytes = await this.client.exportPdf(
+          outputBytes,
+          this.currentLayout.id,
+        );
+        this.publish();
+        return this.observable.output(revision, "pdf", bytes);
+      },
+      false,
+      false,
+      true,
+    );
   }
 
   async downloadPdf(
@@ -762,8 +769,9 @@ export class DocumentEditor {
       downloadBytes(bytes, type, filename);
     } catch (error) {
       if (!this.blocked)
-        this.status.textContent =
-          "Download failed. The current document is available to save again.";
+        this.observable.update({
+          error: "Download failed. The document can be saved again.",
+        });
       throw error;
     }
   }
@@ -776,9 +784,13 @@ export class DocumentEditor {
     this.listeners.abort();
     this.selectionDescription = "";
     this.input.removeAttribute("aria-description");
-    this.surface.dispose();
-    this.container.remove();
-    this.cleanup = this.tail.then(() => this.inputEvents.cancel());
+    this.observable.close();
+    this.cleanup = this.tail
+      .then(() => this.inputEvents.cancel())
+      .finally(() => {
+        this.surface.dispose();
+        this.container.remove();
+      });
     return this.cleanup;
   }
 }

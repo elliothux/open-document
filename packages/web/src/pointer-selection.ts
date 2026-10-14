@@ -139,3 +139,26 @@ export class PointerSelection {
       this.canvas.releasePointerCapture(id);
   }
 }
+
+export function revealInput(
+  input: HTMLTextAreaElement,
+  viewport: HTMLElement,
+): void {
+  input.scrollIntoView({ block: "nearest", inline: "nearest" });
+  const target = input.getBoundingClientRect();
+  const view = viewport;
+  const box = view.getBoundingClientRect();
+  const top = box.top + view.clientTop;
+  const left = box.left + view.clientLeft;
+  // Native nearest scrolling rounds fractional caret coordinates to CSS pixels.
+  if (target.height <= view.clientHeight) {
+    if (target.top < top) view.scrollTop -= Math.ceil(top - target.top);
+    else if (target.bottom > top + view.clientHeight)
+      view.scrollTop += Math.ceil(target.bottom - top - view.clientHeight);
+  }
+  if (target.width <= view.clientWidth) {
+    if (target.left < left) view.scrollLeft -= Math.ceil(left - target.left);
+    else if (target.right > left + view.clientWidth)
+      view.scrollLeft += Math.ceil(target.right - left - view.clientWidth);
+  }
+}

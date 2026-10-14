@@ -1,4 +1,5 @@
 import type { PptxQuery } from "@open-document/wasm/pptx";
+import { focusedElement } from "./editor-state.js";
 
 export function updatePresentationObjects(
   list: HTMLOListElement,
@@ -6,10 +7,9 @@ export function updatePresentationObjects(
   signal: AbortSignal,
   select: (object: string, mode?: "text") => void,
 ): void {
+  const focused = focusedElement(list);
   const active =
-    document.activeElement instanceof HTMLElement
-      ? document.activeElement.dataset.object
-      : undefined;
+    focused instanceof HTMLElement ? focused.dataset.object : undefined;
   list.replaceChildren(
     ...state.objects.map((object) => {
       const item = document.createElement("li"),

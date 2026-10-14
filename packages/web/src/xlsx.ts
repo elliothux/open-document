@@ -17,12 +17,19 @@ import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export class XlsxClient {
   private constructor(private readonly connection: Connection) {}
 
-  static async open(wasm: ArrayBuffer, workerUrl: URL): Promise<XlsxClient> {
+  static async open(
+    wasm: ArrayBuffer,
+    workerUrl: URL,
+    signal?: AbortSignal,
+  ): Promise<XlsxClient> {
     const client = new XlsxClient(
       new Connection(new Worker(workerUrl, { type: "module" })),
     );
     try {
-      await client.connection.request({ operation: "openSpreadsheet", wasm });
+      await client.connection.initialize(
+        { operation: "openSpreadsheet", wasm },
+        signal,
+      );
       return client;
     } catch (error) {
       client.dispose();

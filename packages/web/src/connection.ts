@@ -59,6 +59,18 @@ export class Connection {
     });
   }
 
+  async initialize(operation: Operation, signal?: AbortSignal): Promise<void> {
+    signal?.throwIfAborted();
+    const abort = () => this.dispose();
+    signal?.addEventListener("abort", abort, { once: true });
+    try {
+      await this.request(operation);
+      signal?.throwIfAborted();
+    } finally {
+      signal?.removeEventListener("abort", abort);
+    }
+  }
+
   dispose(): void {
     if (this.closed) return;
     this.closed = true;

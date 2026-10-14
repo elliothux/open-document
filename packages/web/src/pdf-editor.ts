@@ -1,7 +1,7 @@
 import type { PdfCommand, PdfQuery } from "@open-document/wasm/pdf";
-import { PdfViewer, type PdfViewerOptions } from "./pdf-viewer.js";
-import { downloadBytes } from "./download.js";
+import { PdfViewer } from "./pdf-viewer.js";
 import type { PdfClient } from "./pdf.js";
+import type { EditorOutput } from "./editor-state.js";
 
 type EditCommand = Extract<
   PdfCommand,
@@ -28,15 +28,12 @@ type Draft = {
 
 /** Page operations and a native draft panel; PDF body text remains positioned. */
 export class PdfEditor extends PdfViewer {
-  private readonly panel = document.createElement("fieldset");
-  private readonly target = document.createElement("select");
+  readonly propertyInput = document.createElement("div");
+  private propertyReason = "";
   private readonly text = document.createElement("textarea");
   private readonly checked = document.createElement("input");
   private readonly x = document.createElement("input");
   private readonly y = document.createElement("input");
-  private readonly reason = document.createElement("p");
-  private readonly applyButton: HTMLButtonElement;
-  private readonly saveButton: HTMLButtonElement;
   private readonly editEvents = new AbortController();
   private draft: Draft | undefined;
   private composing = false;
@@ -45,13 +42,11 @@ export class PdfEditor extends PdfViewer {
   private constructor(
     client: PdfClient,
     state: PdfQuery,
-    options: PdfViewerOptions,
+    root: HTMLElement,
+    profile: Record<string, string>,
   ) {
-    super(client, state, options);
+    super(client, state, root, profile);
     const signal = this.editEvents.signal;
-    const legend = document.createElement("legend");
-    legend.textContent = "PDF annotations and form fields";
-    this.target.setAttribute("aria-label", "PDF annotation or field");
     this.text.setAttribute("aria-label", "PDF property text");
     this.text.maxLength = 32767;
     this.checked.type = "checkbox";
@@ -81,80 +76,108 @@ export class PdfEditor extends PdfViewer {
       },
       { signal },
     );
-    this.target.addEventListener(
-      "change",
-      () =>
-        this.perform(async () => {
-          try {
-            this.checkDraft();
-          } catch (error) {
-            this.target.value =
-              this.draft && this.draft.kind !== "note"
-                ? `${this.draft.kind}:${this.draft.id}`
-                : "";
-            throw error;
-          }
-          await this.choose(this.target.value);
-        }),
-      { signal },
-    );
-    this.applyButton = this.button("Apply PDF property", () =>
-      this.applyDraft(),
-    );
-    this.saveButton = this.button("Save PDF", async () => {
-      const bytes = await this.save();
-      downloadBytes(bytes, "application/pdf", "document.pdf");
-    });
-    this.panel.append(
-      legend,
-      this.target,
-      this.reason,
-      this.text,
-      this.checked,
-      this.x,
-      this.y,
-      this.applyButton,
-      this.button("Cancel PDF property", async () => {
-        this.cancelDraft();
-      }),
-      this.button("Delete annotation", () => this.deleteAnnotation()),
-    );
-    this.toolbar.append(
-      this.button("Move page earlier", () => this.movePage(-1)),
-      this.button("Move page later", () => this.movePage(1)),
-      this.button("Rotate page clockwise", () => this.rotate(90)),
-      this.button("Delete page", () => this.deletePage()),
-      this.button("Add note", async () => {
-        this.checkDraft();
-        this.draft = {
-          kind: "note",
-          id: "",
-          page: this.state.page,
-          original: "",
-        };
-        this.text.value = "";
-        this.showDraft();
-        this.text.focus();
-      }),
-      this.button("Highlight selected text", () => this.highlight()),
-      this.button("Undo PDF edit", () => this.undo()),
-      this.button("Redo PDF edit", () => this.redo()),
-      this.saveButton,
-    );
-    this.element.append(this.panel);
+    this.propertyInput.append(this.text, this.checked, this.x, this.y);
+    for (const node of [this.text, this.checked, this.x, this.y]) {
+      node.addEventListener("input", () => this.publish(), { signal });
+      node.addEventListener("change", () => this.publish(), { signal });
+    }
+    this.showDraft();
   }
 
-  static override async create(options: PdfViewerOptions): Promise<PdfEditor> {
-    const { client, state } = await this.connect(options);
-    const editor = new PdfEditor(client, state, options);
+  static override async create(
+    root: HTMLElement,
+    client: PdfClient,
+    profile: Record<string, string> = {},
+    signal?: AbortSignal,
+  ): Promise<PdfEditor> {
+    signal?.throwIfAborted();
+    const editor = new PdfEditor(
+      client,
+      await client.execute({ operation: "queryPdf" }),
+      root,
+      profile,
+    );
     try {
       await editor.refresh();
+      signal?.throwIfAborted();
       return editor;
     } catch (error) {
-      editor.dispose();
+      await editor.dispose();
       throw error;
     }
   }
+  protected override inputState() {
+    return {
+      draft: this.dirty(),
+      composition: this.composing,
+      property: this.draft
+        ? this.draft.kind === "note"
+          ? "note"
+          : `${this.draft.kind}:${this.draft.id}`
+        : "",
+      propertyReason: this.propertyReason,
+      applying: this.applying,
+    };
+  }
+  protected override pauseChanged(): void {
+    this.propertyInput.inert = this.paused;
+    this.showDraft();
+  }
+  chooseProperty(value: string): Promise<void> {
+    this.checkDraft();
+    return this.enqueue(() => this.chooseNow(value));
+  }
+  beginNote(): Promise<void> {
+    this.checkDraft();
+    return this.enqueue(async () => {
+      this.draft = {
+        kind: "note",
+        id: "",
+        page: this.state.page,
+        original: "",
+      };
+      this.text.value = "";
+      this.x.value = this.y.value = "20";
+      this.showDraft();
+      this.text.focus();
+    });
+  }
+  addNote(page: string, x: number, y: number, text: string): Promise<PdfQuery> {
+    this.checkDraft();
+    return this.commit((revision) => ({
+      operation: "addPdfNote",
+      revision,
+      page,
+      x,
+      y,
+      text,
+    }));
+  }
+  setFieldValue(field: string, value: string | boolean): Promise<PdfQuery> {
+    this.checkDraft();
+    return this.commit((revision) => ({
+      operation: "setPdfFieldValue",
+      revision,
+      field,
+      value,
+      profile: this.profile,
+    }));
+  }
+  updateAnnotation(
+    page: string,
+    annotation: string,
+    text: string,
+  ): Promise<PdfQuery> {
+    this.checkDraft();
+    return this.commit((revision) => ({
+      operation: "updatePdfAnnotation",
+      revision,
+      page,
+      annotation,
+      text,
+    }));
+  }
+
   private dirty(): boolean {
     if (!this.draft) return false;
     const value =
@@ -185,38 +208,13 @@ export class PdfEditor extends PdfViewer {
       throw new Error("Finish or cancel composition before closing");
   }
   protected override stateChanged(): void {
-    const options = [new Option("Choose a field or annotation", "")];
-    for (const field of this.state.fields)
-      options.push(
-        new Option(
-          `${field.name || field.id} (${field.kind})`,
-          `field:${field.id}`,
-        ),
-      );
-    for (const annotation of this.state.annotations.filter(
-      (item) => item.kind !== "Widget",
-    ))
-      options.push(
-        new Option(
-          `${annotation.kind}: ${annotation.text.slice(0, 80)}`,
-          `annotation:${annotation.id}`,
-        ),
-      );
-    this.target.replaceChildren(...options);
     this.draft = undefined;
     this.text.value = "";
     this.showDraft();
     this.updateButtons();
   }
   private updateButtons(): void {
-    this.applyButton.disabled =
-      this.composing ||
-      this.applying ||
-      !this.draft ||
-      !!this.state.readOnlyReason ||
-      this.stopped ||
-      !!this.reason.textContent;
-    this.saveButton.disabled = this.composing || this.applying;
+    this.publish();
   }
   private showDraft(): void {
     const draft = this.draft;
@@ -228,7 +226,7 @@ export class PdfEditor extends PdfViewer {
       draft?.kind === "annotation"
         ? this.state.annotations.find((item) => item.id === draft.id)
         : undefined;
-    this.reason.textContent =
+    this.propertyReason =
       this.state.readOnlyReason ||
       field?.readOnlyReason ||
       annotation?.readOnlyReason ||
@@ -239,17 +237,18 @@ export class PdfEditor extends PdfViewer {
     this.text.rows = field?.multiline ? 4 : 2;
     this.text.maxLength = field?.maxLength ?? 32767;
     this.text.disabled = this.checked.disabled =
-      this.applying || !!this.reason.textContent;
+      this.paused || this.applying || !!this.propertyReason;
+    this.x.disabled = this.y.disabled = this.text.disabled;
     this.updateButtons();
   }
-  private async choose(value: string): Promise<void> {
+  private async chooseNow(value: string): Promise<void> {
     if (value.startsWith("field:")) {
       const field = this.state.fields.find(
         (field) => `field:${field.id}` === value,
       );
       if (!field) throw new Error("Unknown PDF field");
       const page = field.widgets[0]?.page || this.state.page;
-      if (page !== this.state.page) await this.goToPage(page);
+      if (page !== this.state.page) await this.paint(page);
       this.draft = {
         kind: "field",
         id: field.id,
@@ -267,7 +266,7 @@ export class PdfEditor extends PdfViewer {
       );
       if (!annotation) throw new Error("Unknown PDF annotation");
       if (annotation.page !== this.state.page)
-        await this.goToPage(annotation.page);
+        await this.paint(annotation.page);
       this.draft = {
         kind: "annotation",
         id: annotation.id,
@@ -276,7 +275,6 @@ export class PdfEditor extends PdfViewer {
       };
       this.text.value = annotation.text;
     } else this.draft = undefined;
-    this.target.value = value;
     this.showDraft();
   }
   cancelDraft(): void {
@@ -287,7 +285,6 @@ export class PdfEditor extends PdfViewer {
     this.draft = undefined;
     this.text.value = "";
     this.checked.checked = false;
-    this.target.value = "";
     this.x.value = this.y.value = "20";
     this.showDraft();
   }
@@ -303,7 +300,6 @@ export class PdfEditor extends PdfViewer {
       this.retainSearch();
       this.draft = undefined;
       this.text.value = "";
-      this.target.value = "";
       if (!this.closing && !this.closed) await this.paint();
       return state;
     });
@@ -421,19 +417,18 @@ export class PdfEditor extends PdfViewer {
     this.cancelSearch();
     return this.commit((revision) => ({ operation: "redoPdf", revision }));
   }
-  async save(): Promise<Uint8Array> {
+  async save(): Promise<EditorOutput> {
     if (!this.applying) this.checkDraft();
     if (this.composing)
       throw new Error("Finish or cancel composition before saving");
     return this.enqueue(async () => {
       this.checkDraft();
-      return (
-        await this.client.execute({
-          operation: "savePdf",
-          revision: this.state.revision,
-        })
-      ).bytes;
-    });
+      const output = await this.client.execute({
+        operation: "savePdf",
+        revision: this.state.revision,
+      });
+      return this.observable.output(output.revision, "pdf", output.bytes);
+    }, true);
   }
   override async close(): Promise<void> {
     try {
@@ -442,8 +437,8 @@ export class PdfEditor extends PdfViewer {
       if (!this.closed) this.showDraft();
     }
   }
-  override dispose(): void {
+  override dispose(): Promise<void> {
     this.editEvents.abort();
-    super.dispose();
+    return super.dispose().finally(() => this.propertyInput.remove());
   }
 }
