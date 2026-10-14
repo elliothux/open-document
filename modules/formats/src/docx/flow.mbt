@@ -1,10 +1,18 @@
 ///|
 pub fn Session::flow(self : Session) -> @layout.Flow raise @failure.Failure {
-  let tree = WordTree::new(self.document())
+  self.flow_from(self.display_document())
+}
+
+///|
+fn Session::flow_from(
+  self : Session,
+  document : @xml.Document,
+) -> @layout.Flow raise @failure.Failure {
+  let tree = WordTree::new(document)
   let paragraphs : Array[@layout.Paragraph] = []
   let tables : Array[@layout.Table] = []
   let diagnostics : Array[String] = []
-  let styles = self.styles(diagnostics)
+  let mut styles = self.styles(diagnostics)
   let headers : Array[Array[@layout.Paragraph]] = []
   let mut header_distance = 0.0
   let mut page : @layout.PageSetup = {
@@ -16,11 +24,23 @@ pub fn Session::flow(self : Session) -> @layout.Flow raise @failure.Failure {
     left: 72,
   }
   let body = tree.child(0, "body").unwrap()
-  for id, node in tree.nodes {
+  for id in tree.order {
+    let node = tree.nodes[id]
     if node.uri != word_uri {
       continue
     }
     if node.name == "sectPr" {
+      let section_diagnostics : Array[String] = []
+      tree.diagnose_properties(id, self.main, section_diagnostics)
+      if node.parent != body {
+        section_diagnostics.push("unsupported-layout:multiple-sections")
+      }
+      if section_diagnostics.get(0) is Some(reason) {
+        styles = {
+          ..styles,
+          paragraph: { ..styles.paragraph, readOnlyReason: reason, },
+        }
+      }
       header_distance = tree
         .number(id, "pgMar", "header")
         .map(v => v / 20)
@@ -56,7 +76,8 @@ pub fn Session::flow(self : Session) -> @layout.Flow raise @failure.Failure {
           @failure.reject("invalid-docx", "Invalid header root")
         }
         // shortcut: only empty headers reserve space; render header content in a later phase.
-        for item in header.nodes {
+        for id in header.order {
+          let item = header.nodes[id]
           guard item.name != "t" || item.text.is_empty() else {
             @failure.reject(
               "unsupported-layout", "Header content is unsupported",
@@ -73,16 +94,14 @@ pub fn Session::flow(self : Session) -> @layout.Flow raise @failure.Failure {
           }
         }
         let paragraphs : Array[@layout.Paragraph] = []
-        for item, _ in header.nodes {
+        for item in header.order {
           header.diagnose_properties(item, relation.target, diagnostics)
         }
         for item in header.children[0] {
           guard header.nodes[item].name == "p" else {
             @failure.reject("unsupported-layout", "Header body is unsupported")
           }
-          paragraphs.push(
-            self.paragraph(header, styles, item, diagnostics, edits=false),
-          )
+          paragraphs.push(self.paragraph(header, styles, item, diagnostics))
         }
         headers.push(paragraphs)
       }
@@ -92,11 +111,11 @@ pub fn Session::flow(self : Session) -> @layout.Flow raise @failure.Failure {
       page = {
         width: tree
         .number(id, "pgSz", "w")
-        .map(v => v / 20)
+        .map(page_dimension)
         .unwrap_or(page.width),
         height: tree
         .number(id, "pgSz", "h")
-        .map(v => v / 20)
+        .map(page_dimension)
         .unwrap_or(page.height),
         top: tree
         .number(id, "pgMar", "top")
@@ -125,12 +144,16 @@ pub fn Session::flow(self : Session) -> @layout.Flow raise @failure.Failure {
     }
     match node.name {
       "p" => paragraphs.push(self.paragraph(tree, styles, id, diagnostics))
-      "tbl" => tables.push(self.table(tree, styles, id, diagnostics))
+      "tbl" =>
+        tables.push(
+          self.table(tree, styles, id, paragraphs.length(), diagnostics),
+        )
       "sectPr" => ()
       _ => diagnostics.push("unsupported-layout:" + node.qualified)
     }
   }
-  for id, node in tree.nodes {
+  for id in tree.order {
+    let node = tree.nodes[id]
     if node.uri != word_uri {
       continue
     }
@@ -154,30 +177,25 @@ fn Session::paragraph(
   tree : WordTree,
   styles : Styles,
   id : Int,
-  diagnostics : Array[String],
-  edits? : Bool = true,
+  document_diagnostics : Array[String],
   background? : String = "ffffff",
 ) -> @layout.Paragraph raise @failure.Failure {
+  let diagnostics : Array[String] = []
+  for item in tree.descendants(id) {
+    tree.diagnose_properties(item, self.main, diagnostics)
+  }
   let props = tree.child(id, "pPr")
   let key = match props.bind(props => tree.value(props, "pStyle")) {
     Some(key) => Some(key)
     None => styles.default_paragraph
   }
   let mut paragraph = { ..styles.paragraph, id, }
-  let mut run_style = styles.defaults
+  let mut run_style = styles.character_style(tree, id, None, diagnostics)
+  let nominal_size = run_style.size
   if key is Some(key) && styles.tree is Some(style_tree) {
     for style in styles.chain(key, diagnostics) {
       if style_tree.child(style, "pPr") is Some(p) {
         paragraph = paragraph_properties(style_tree, p, paragraph)
-      }
-      if style_tree.child(style, "rPr") is Some(r) {
-        run_style = run_properties(
-          style_tree,
-          r,
-          run_style,
-          styles.themes,
-          inherited=true,
-        )
       }
     }
   }
@@ -192,23 +210,7 @@ fn Session::paragraph(
       }
       continue
     }
-    let mut style = run_style
-    if tree.child(run, "rPr") is Some(r) {
-      if tree.value(r, "rStyle") is Some(key) && styles.tree is Some(style_tree) {
-        for style_id in styles.chain(key, diagnostics) {
-          if style_tree.child(style_id, "rPr") is Some(r) {
-            style = run_properties(
-              style_tree,
-              r,
-              style,
-              styles.themes,
-              inherited=true,
-            )
-          }
-        }
-      }
-      style = run_properties(tree, r, style, styles.themes)
-    }
+    let style = styles.run_character_style(tree, run, run_style, diagnostics)
     for content in tree.children[run] {
       let item = tree.nodes[content]
       if item.uri != word_uri {
@@ -221,12 +223,7 @@ fn Session::paragraph(
         None
       }
       let text = match item.name {
-        "t" =>
-          if edits {
-            self.replacements.get(content).unwrap_or(item.text)
-          } else {
-            item.text
-          }
+        "t" => item.text
         "br" =>
           if item.attribute("type", uri=word_uri) == Some("page") {
             "\u000c"
@@ -276,5 +273,22 @@ fn Session::paragraph(
       diagnostics.push(message)
     }
   }
-  { ..paragraph, spans, }
+  for message in diagnostics {
+    if !document_diagnostics.contains(message) {
+      document_diagnostics.push(message)
+    }
+  }
+  {
+    ..paragraph,
+    nominalSize: nominal_size,
+    spans,
+    container: if tree.nodes[id].parent >= 0 &&
+      tree.nodes[tree.nodes[id].parent].name == "tc" &&
+      tree.nodes[tree.nodes[id].parent].uri == word_uri {
+      tree.nodes[id].parent
+    } else {
+      0
+    },
+    readOnlyReason: diagnostics.get(0).unwrap_or(paragraph.readOnlyReason),
+  }
 }

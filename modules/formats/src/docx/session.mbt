@@ -2,7 +2,7 @@
 let word_uri = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 
 ///|
-struct TextNode {
+priv struct TextNode {
   id : Int
   paragraph : Int
   run : Int
@@ -10,14 +10,23 @@ struct TextNode {
 
 ///|
 pub struct Session {
-  opc : @opc.Package
-  main : String
-  mut document : @xml.Document?
-  texts : Array[TextNode]
-  replacements : Map[Int, String]
-  mut revision : Int
-  mut closed : Bool
-  diagnostics : Array[String]
+  priv opc : @opc.Package
+  priv main : String
+  priv mut document : @xml.Document?
+  priv mut texts : Array[TextNode]
+  priv mut selection : Selection?
+  priv mut typing_text : Int?
+  priv mut input_group : Int?
+  priv mut vertical_x : Double?
+  priv mut navigation_layout : Int
+  priv history : Array[Edit]
+  priv redo : Array[Edit]
+  priv mut history_bytes : Int
+  priv mut revision : Int
+  priv mut composition : Composition?
+  priv mut composition_id : Int
+  priv mut closed : Bool
+  priv diagnostics : Array[String]
 }
 
 ///|
@@ -71,58 +80,41 @@ pub fn Session::open(
       part=main,
     )
   }
-  let texts : Array[TextNode] = []
   let diagnostics : Array[String] = []
   let mut body = -1
-  for id, node in nodes {
+  for node in nodes {
     if node.parent == 0 && node.uri == word_uri && node.name == "body" {
       guard body < 0 else {
         @failure.reject("malformed-docx", "Duplicate document body", part=main)
       }
-      body = id
+      body = node.id
     }
   }
   guard body >= 0 else {
     @failure.reject("malformed-docx", "Missing document body", part=main)
   }
-  for id, node in nodes {
+  for node in nodes {
     if node.parent == body &&
       !(node.uri == word_uri && (node.name == "p" || node.name == "sectPr")) {
       diagnostics.push("preserved-structure:" + node.qualified)
-    }
-    if node.uri != word_uri || node.name != "t" {
-      continue
-    }
-    let run = node.parent
-    if run < 0 || nodes[run].uri != word_uri || nodes[run].name != "r" {
-      continue
-    }
-    let paragraph = nodes[run].parent
-    if paragraph < 0 ||
-      nodes[paragraph].uri != word_uri ||
-      nodes[paragraph].name != "p" {
-      continue
-    }
-    let in_body = for ancestor = paragraph
-                      ancestor >= 0
-                      ancestor = nodes[ancestor].parent {
-      if ancestor == body {
-        break true
-      }
-    } nobreak {
-      false
-    }
-    if in_body {
-      texts.push({ id, paragraph, run, })
     }
   }
   {
     opc,
     main,
     document: Some(document),
-    texts,
-    replacements: Map([]),
+    texts: docx_texts(WordTree::new(document)),
+    selection: None,
+    typing_text: None,
+    input_group: None,
+    vertical_x: None,
+    navigation_layout: -1,
+    history: [],
+    redo: [],
+    history_bytes: 0,
     revision: 0,
+    composition: None,
+    composition_id: 0,
     closed: false,
     diagnostics,
   }
@@ -138,14 +130,21 @@ fn Session::document(self : Session) -> @xml.Document raise @failure.Failure {
 
 ///|
 pub fn Session::query(self : Session) -> Json raise @failure.Failure {
-  let nodes = self.document().nodes()
+  let document = self.display_document()
+  let tree = WordTree::new(document)
+  let nodes = tree.nodes
   let texts : Array[Json] = []
-  for node in self.texts {
+  for
+    node in (if self.composition is Some(_) {
+      docx_texts(tree)
+    } else {
+      self.texts
+    }) {
     texts.push({
       "id": node.id,
       "paragraph": node.paragraph,
       "run": node.run,
-      "text": self.replacements.get(node.id).unwrap_or(nodes[node.id].text),
+      "text": nodes[node.id].text,
     })
   }
   let rels : Array[Json] = []
@@ -160,6 +159,9 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
   }
   {
     "revision": self.revision,
+    "compositionId": self.composition
+    .map(composition => composition.id.to_json())
+    .unwrap_or(Json::null()),
     "mainPart": self.main,
     "texts": texts,
     "relationships": rels,
@@ -175,31 +177,75 @@ pub fn Session::replace(
   revision : Int,
   text : String,
 ) -> Int raise @failure.Failure {
+  self.check_revision(revision)
   let document = self.document()
-  guard revision == self.revision else {
-    @failure.reject("stale-revision", "Revision does not match current session")
-  }
-  guard self.revision < 0x7fffffff else {
-    @failure.reject("limit-exceeded", "Revision exhausted")
-  }
-  guard self.texts.iter().any(node => node.id == id) else {
+  guard self.texts.iter().filter(node => node.id == id).next() is Some(node) else {
     @failure.reject("invalid-operation", "Unknown or unsupported text node")
   }
-  let candidate = self.replacements.copy()
-  candidate[id] = text
-  let bytes = document.replace(candidate)
-  self.opc.validate_replacements(Map::from_array([(self.main, bytes)]))
-  self.replacements[id] = text
-  self.revision += 1
+  let nodes = WordTree::new(document).nodes
+  let texts = self.texts.filter(item => item.paragraph == node.paragraph)
+  let before = nodes[id].text
+  guard text.length() <= command_limit else {
+    @failure.reject("limit-exceeded", "Command input exceeds UTF-16 budget")
+  }
+  if before == text {
+    self.input_group = None
+    return self.revision
+  }
+  let mut offset = 0
+  for item in texts {
+    if item.id == id {
+      break
+    }
+    offset += nodes[item.id].text.length()
+  }
+  let after = self.selection.map(selection => {
+    if selection.anchor.paragraph != node.paragraph &&
+      selection.focus.paragraph != node.paragraph {
+      return {
+        anchor: { ..selection.anchor, frameStart: None, },
+        focus: { ..selection.focus, frameStart: None, },
+      }
+    }
+    let content = texts.map(item => nodes[item.id].text).join("")
+    let updated = content[:offset].to_owned() +
+      text +
+      content[offset + before.length():].to_owned()
+    let boundaries = @layout.grapheme_boundaries(updated)
+    fn mapped(position : Position) -> Position {
+      if position.paragraph != node.paragraph {
+        return { ..position, frameStart: None, }
+      }
+      let mapped = if position.offset < offset {
+        position.offset
+      } else if position.offset <= offset + before.length() {
+        offset + text.length()
+      } else {
+        position.offset - before.length() + text.length()
+      }
+      {
+        ..position,
+        bidiLevel: None,
+        frameStart: None,
+        offset: boundaries
+        .iter()
+        .find_first(boundary => boundary >= mapped)
+        .unwrap(),
+      }
+    }
+    { anchor: mapped(selection.anchor), focus: mapped(selection.focus), }
+  })
+  self.commit_text(Map::from_array([(id, text)]), after, node.paragraph)
   self.revision
 }
 
 ///|
 pub fn Session::save(self : Session) -> Bytes raise @failure.Failure {
+  self.check_idle()
   let document = self.document()
   let replacements : Map[String, Bytes] = Map([])
-  if !self.replacements.is_empty() {
-    replacements[self.main] = document.replace(self.replacements)
+  if !document.is_original() {
+    replacements[self.main] = document.bytes()
   }
   self.opc.save(replacements)
 }
@@ -207,9 +253,17 @@ pub fn Session::save(self : Session) -> Bytes raise @failure.Failure {
 ///|
 pub fn Session::close(self : Session) -> Unit {
   self.closed = true
+  self.composition = None
   self.opc.close()
   self.document = None
   self.texts.clear()
-  self.replacements.clear()
+  self.selection = None
+  self.typing_text = None
+  self.input_group = None
+  self.vertical_x = None
+  self.navigation_layout = -1
+  self.history.clear()
+  self.redo.clear()
+  self.history_bytes = 0
   self.diagnostics.clear()
 }

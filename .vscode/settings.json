@@ -1,5 +1,10 @@
 {
   "git.autoRepositoryDetection": "subFolders",
   "git.scanRepositories": ["test-lab"],
-  "git.detectSubmodules": true
+  "git.detectSubmodules": true,
+  "files.watcherExclude": {
+    "**/.mooncakes/**": true,
+    "**/.temp/**": true,
+    "**/_build/**": true
+  }
 }

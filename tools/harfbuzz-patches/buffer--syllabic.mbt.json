@@ -1,0 +1,19 @@
+{
+  "file": "buffer/syllabic.mbt",
+  "originalSha256": "f4866c50f0ea9a92a22ed999ae75336b35bee6d6e571ea7e9e5b9f2c15ab80e5",
+  "patchedSha256": "dbbf37e3da0b163b8c7b66062a151ea20ff87779033c50963965f942c30f83be",
+  "lineEdits": [
+    [17,0,["///|"]],
+    [26,1,["  let has_dotted_circle = match","    font.glyph_for_codepoint(dotted_circle_codepoint) {"]],
+    [48,1,["      next_positions.push(GlyphPosition::{","        x_advance: 0,","        y_advance: 0,","        x_offset: 0,","        y_offset: 0,","      })"]],
+    [61,0,["///|"]],
+    [69,1,["  if buffer.infos.length() != syllables.length() ||","    buffer.infos.is_empty() ||"]],
+    [73,1,["  let has_dotted_circle = match","    font.glyph_for_codepoint(dotted_circle_codepoint) {"]],
+    [93,2,["            syllables[j] == syllable &&","            categories[j] == repha_category {"]],
+    [104,2,["      next_infos.push(GlyphInfo::{","        codepoint: dotted_circle_codepoint,","        cluster,","        unicode: dotted_circle_codepoint,","      })","      next_positions.push(GlyphPosition::{","        x_advance: 0,","        y_advance: 0,","        x_offset: 0,","        y_offset: 0,","      })"]],
+    [151,6,["    let lookup_offsets = match","      gsub","      .layout()","      .select_lookup_offsets_for_feature(","        script_tag,","        feature_tag,","        language_tag=lang_tag,","        include_required=false,","        work=buffer.layout_work,","      ) {"]],
+    [222,7,["          match","            gsub.apply_with_lookups_and_masks(","              sub_glyphs,","              sub_clusters,","              lookup_offsets[:],","              masks=sub_masks,","              lookup_mask~,","              work=buffer.layout_work,","            ) {"]],
+    [233,8,["          match","            gsub.apply_with_lookups_and_masks(","              sub_glyphs,","              sub_clusters,","              lookup_offsets[:],","              gdef~,","              masks=sub_masks,","              lookup_mask~,","              work=buffer.layout_work,","            ) {"]],
+    [315,1,["      infos.push(GlyphInfo::{","        codepoint: glyph,","        cluster: current_clusters[idx],","        unicode,","      })"]]
+  ]
+}

@@ -20,6 +20,8 @@ export interface DocxFlow {
   };
   paragraphs: {
     id: number;
+    container: number;
+    nominalSize: number;
     spans: {
       node: number;
       text: string;
@@ -34,12 +36,14 @@ export interface DocxFlow {
     first: number;
     align: string;
     pageBreakBefore: boolean;
+    readOnlyReason: string;
   }[];
   diagnostics: string[];
   headers: DocxFlow["paragraphs"][];
   headerDistance: number;
   tables: {
     id: number;
+    beforeParagraph: number;
     rows: DocxFlow["paragraphs"][][];
     widths: number[];
     align: string;
@@ -60,6 +64,10 @@ export interface InlineImage {
 export interface PageLayout {
   id: number;
   revision: number;
+  shapedParagraphs: number;
+  reusedParagraphs: number;
+  reflowedPages: number;
+  reusedPages: number;
   profile: Record<string, string>;
   pages: PageFrame[];
   diagnostics: string[];
@@ -80,18 +88,26 @@ export interface PageFrame {
   }[];
   lines: {
     paragraph: number;
+    container: number;
+    baseLevel: number;
     text: string;
     start: number;
     end: number;
     x: number;
+    areaX: number;
+    areaWidth: number;
     y: number;
     width: number;
     height: number;
     clip: boolean;
+    readOnlyReason: string;
+    carets: ShapeBatch["carets"];
     images: (InlineImage & { x: number; y: number })[];
     runs: {
+      start: number;
       sources: { node: number; start: number; end: number; offset: number }[];
       color: string;
+      size: number;
       text: string;
       glyphs: ShapeBatch["glyphs"];
       bidi: ShapeBatch["runs"];
@@ -136,10 +152,25 @@ export function docxFlow(value: unknown): DocxFlow {
   function paragraph(value: unknown): void {
     const paragraph = fields(
       value,
-      ["id", "before", "after", "left", "right", "first"],
-      ["align"],
+      [
+        "id",
+        "container",
+        "nominalSize",
+        "before",
+        "after",
+        "left",
+        "right",
+        "first",
+      ],
+      ["align", "readOnlyReason"],
     );
     const spacing = fields(paragraph.line, ["value"], ["rule"]);
+    if (
+      typeof paragraph.nominalSize !== "number" ||
+      paragraph.nominalSize <= 0 ||
+      paragraph.nominalSize > 1024
+    )
+      throw new Error("Invalid nominal paragraph font size");
     if (!["auto", "exact", "atLeast"].includes(String(spacing.rule)))
       throw new Error("Invalid line spacing rule");
     if (typeof paragraph.pageBreakBefore !== "boolean")
@@ -150,15 +181,25 @@ export function docxFlow(value: unknown): DocxFlow {
       if (span.image !== null) fields(span.image, ["width", "height"], ["key"]);
     }
   }
-  for (const value of entries(flow.paragraphs)) paragraph(value);
+  const paragraphs = entries(flow.paragraphs);
+  for (const value of paragraphs) paragraph(value);
   for (const header of entries(flow.headers))
     for (const value of entries(header)) paragraph(value);
+  let previousPosition = 0;
   for (const value of entries(flow.tables)) {
     const table = fields(
       value,
-      ["id", "padding", "verticalPadding"],
+      ["id", "beforeParagraph", "padding", "verticalPadding"],
       ["align"],
     );
+    if (
+      typeof table.beforeParagraph !== "number" ||
+      !Number.isInteger(table.beforeParagraph) ||
+      table.beforeParagraph < previousPosition ||
+      table.beforeParagraph > paragraphs.length
+    )
+      throw new Error("Invalid table body position");
+    previousPosition = table.beforeParagraph;
     for (const height of entries(table.heights))
       if (typeof height !== "number" || !Number.isFinite(height))
         throw new Error("Invalid row height");
@@ -179,6 +220,27 @@ export function docxFlow(value: unknown): DocxFlow {
 
 export function pageLayout(value: unknown): PageLayout {
   const layout = fields(value, ["revision", "id"]);
+  const counts = fields(value, [
+    "shapedParagraphs",
+    "reusedParagraphs",
+    "reflowedPages",
+    "reusedPages",
+  ]);
+  if (
+    ![
+      counts.shapedParagraphs,
+      counts.reusedParagraphs,
+      counts.reflowedPages,
+      counts.reusedPages,
+    ].every(
+      (count) =>
+        typeof count === "number" &&
+        Number.isInteger(count) &&
+        count >= 0 &&
+        count <= 2147483647,
+    )
+  )
+    throw new Error("Invalid paragraph shaping counts");
   if (
     !Object.values(record(layout.profile)).every(
       (item) => typeof item === "string",
@@ -196,6 +258,11 @@ export function pageLayout(value: unknown): PageLayout {
     );
   const pages = entries(layout.pages);
   if (pages.length === 0) throw new Error("Layout has no pages");
+  if (
+    Number(counts.reflowedPages) + Number(counts.reusedPages) !==
+    pages.length
+  )
+    throw new Error("Invalid page reuse counts");
   for (const value of pages) {
     const page = fields(value, ["width", "height"]);
     for (const value of entries(page.fills))
@@ -205,15 +272,33 @@ export function pageLayout(value: unknown): PageLayout {
     for (const value of entries(page.lines)) {
       const line = fields(
         value,
-        ["paragraph", "start", "end", "x", "y", "width", "height"],
-        ["text"],
+        [
+          "paragraph",
+          "container",
+          "baseLevel",
+          "start",
+          "end",
+          "x",
+          "areaX",
+          "areaWidth",
+          "y",
+          "width",
+          "height",
+        ],
+        ["text", "readOnlyReason"],
       );
       if (typeof line.clip !== "boolean")
         throw new Error("Invalid line clipping");
+      for (const value of entries(line.carets))
+        fields(value, ["offset", "before", "after"]);
       for (const value of entries(line.images))
         fields(value, ["x", "y", "width", "height"], ["key"]);
       for (const value of entries(line.runs)) {
-        const run = fields(value, ["x", "baseline"], ["color", "text"]);
+        const run = fields(
+          value,
+          ["start", "x", "baseline", "size"],
+          ["color", "text"],
+        );
         glyphs(run.glyphs);
         for (const value of entries(run.sources))
           fields(value, ["node", "start", "end", "offset"]);

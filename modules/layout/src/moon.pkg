@@ -7,6 +7,7 @@ import {
   "moonbit-community/harfbuzz/common",
   "moonbit-community/harfbuzz/unicode",
   "moonbit-community/harfbuzz/ot/shape" @shaper,
+  "moonbit-community/harfbuzz/ot/tables",
   "moonbit-community/harfbuzz/draw",
   "moonbit-community/bidi",
   "Milky2018/moon_cosmic/unicode_linebreak" @linebreak,
@@ -15,8 +16,8 @@ import {
 
 import {
   "moonbitlang/x/fs",
+  "moonbitlang/core/json",
   "moonbitlang/core/env",
   "moonbitlang/core/string",
   "moonbit-community/harfbuzz/blob",
-  "moonbit-community/harfbuzz/ot/tables",
 } for "wbtest"

@@ -41,6 +41,90 @@ fn field_string(json : Json, key : String) -> String raise @failure.Failure {
 }
 
 ///|
+fn field_selection(json : Json) -> @docx.Selection raise @failure.Failure {
+  guard json is { "selection": { "anchor": anchor, "focus": focus, .. }, .. } else {
+    @failure.reject("invalid-operation", "Explicit selection is required")
+  }
+  { anchor: field_position(anchor), focus: field_position(focus), }
+}
+
+///|
+fn field_position(json : Json) -> @docx.Position raise @failure.Failure {
+  {
+    paragraph: field_int(json, "paragraph"),
+    offset: field_int(json, "offset"),
+    affinity: field_string(json, "affinity"),
+    bidiLevel: if json is Object(fields) && fields.contains("bidiLevel") {
+      Some(field_int(json, "bidiLevel"))
+    } else {
+      None
+    },
+    frameStart: if json is Object(fields) && fields.contains("frameStart") {
+      Some(field_int(json, "frameStart"))
+    } else {
+      None
+    },
+  }
+}
+
+///|
+fn Foundation::current_layout(
+  self : Foundation,
+  request : Json,
+) -> @layout.Layout raise @failure.Failure {
+  guard field_int(request, "layoutId") == self.layout_id &&
+    self.layout is Some(layout) else {
+    @failure.reject(
+      "stale-layout", "Geometry requires the current displayed layout",
+    )
+  }
+  layout
+}
+
+///|
+fn Foundation::hit_result(
+  self : Foundation,
+  session : @docx.Session,
+  hit : @layout.Hit,
+) -> Json raise @failure.Failure {
+  let position : @docx.Position = {
+    paragraph: hit.paragraph,
+    offset: hit.offset,
+    affinity: hit.affinity,
+    bidiLevel: hit.bidiLevel,
+    frameStart: hit.frameStart,
+  }
+  let reason = if !hit.reason.is_empty() {
+    hit.reason
+  } else {
+    try {
+      session.check_position(position)
+      ""
+    } catch {
+      @failure.Failure(code="protected-content", message~, ..) => message
+      error => raise error
+    }
+  }
+  let logical : Json = if reason.is_empty() {
+    position.to_json()
+  } else {
+    Json::null()
+  }
+  {
+    "layoutId": self.layout_id,
+    "revision": self.layout.unwrap().revision,
+    "page": hit.page,
+    "line": hit.line,
+    "position": logical,
+    "editable": reason.is_empty(),
+    "reason": reason,
+    "x": hit.x,
+    "y": hit.y,
+    "height": hit.height,
+  }
+}
+
+///|
 fn input_bytes(json : Json, ceiling : Int) -> Bytes raise @failure.Failure {
   let encoded = field_string(json, "bytes")
   guard encoded.length().to_int64() <= (ceiling.to_int64() + 2) / 3 * 4 else {
@@ -76,14 +160,6 @@ fn Foundation::dispatch(
         "xmlDepth": budget.xml_depth,
         "outputBytes": budget.output_bytes,
       }
-    }
-    "font" => {
-      let index = self.probe.add_font(
-        input_bytes(request, 33554432),
-        field_string(request, "identity"),
-      )
-      self.layout = None
-      { "font": index }
     }
     "shape" => {
       guard request is { "size": Number(size, ..), .. } else {
@@ -121,10 +197,25 @@ fn Foundation::dispatch(
       session.query()
     }
     "query"
+    | "editState"
+    | "selectDocx"
+    | "selectedText"
+    | "beginComposition"
+    | "updateComposition"
+    | "commitComposition"
+    | "cancelComposition"
+    | "replaceRange"
+    | "deleteDocx"
+    | "undoDocx"
+    | "redoDocx"
     | "replaceNode"
     | "saveDocx"
     | "flow"
     | "layout"
+    | "hitTest"
+    | "caret"
+    | "selectionGeometry"
+    | "navigateDocx"
     | "exportPdf"
     | "imageBytes"
     | "image" => {
@@ -133,7 +224,137 @@ fn Foundation::dispatch(
       }
       match operation {
         "query" => session.query()
+        "editState" => session.edit_state()
+        "beginComposition"
+        | "updateComposition"
+        | "commitComposition"
+        | "cancelComposition" => {
+          let revision = field_int(request, "revision")
+          let result = match operation {
+            "beginComposition" => session.begin_composition(revision)
+            "updateComposition" =>
+              session.update_composition(
+                revision,
+                field_int(request, "compositionId"),
+                field_string(request, "text"),
+              )
+            "commitComposition" =>
+              session.commit_composition(
+                revision,
+                field_int(request, "compositionId"),
+                field_string(request, "text"),
+              )
+            _ =>
+              session.cancel_composition(
+                revision,
+                field_int(request, "compositionId"),
+              )
+          }
+          self.layout = None
+          result
+        }
+        "selectedText" =>
+          session
+          .selected_text(
+            field_int(request, "revision"),
+            field_selection(request),
+          )
+          .to_json()
+        "selectDocx" =>
+          session.select(
+            field_int(request, "revision"),
+            field_selection(request),
+          )
+        "replaceRange" | "deleteDocx" | "undoDocx" | "redoDocx" => {
+          let revision = field_int(request, "revision")
+          let result = match operation {
+            "replaceRange" =>
+              session.replace_range(
+                revision,
+                field_selection(request),
+                field_string(request, "text"),
+                input_group=if request is Object(fields) &&
+                  fields.get("inputGroup") is Some(_) {
+                  Some(field_int(request, "inputGroup"))
+                } else {
+                  None
+                },
+              )
+            "undoDocx" => session.undo_edit(revision)
+            "deleteDocx" =>
+              session.delete(revision, field_string(request, "direction"))
+            _ => session.redo_edit(revision)
+          }
+          if result is { "revision": Number(current, ..), .. } &&
+            current != revision.to_double() {
+            self.layout = None
+          }
+          result
+        }
         "flow" => session.flow().to_json()
+        "hitTest" => {
+          let layout = self.current_layout(request)
+          guard request is { "x": Number(x, ..), "y": Number(y, ..), .. } else {
+            @failure.reject("invalid-position", "Hit coordinates are required")
+          }
+          self.hit_result(
+            session,
+            layout.hit_test(field_int(request, "page"), x, y),
+          )
+        }
+        "caret" => {
+          let layout = self.current_layout(request)
+          guard request is { "position": position, .. } else {
+            @failure.reject("invalid-position", "Caret position is required")
+          }
+          let position = field_position(position)
+          session.check_position(position)
+          self.hit_result(
+            session,
+            layout.caret(
+              position.paragraph,
+              position.offset,
+              position.affinity,
+              bidi_level?=position.bidiLevel,
+              frame_start?=position.frameStart,
+            ),
+          )
+        }
+        "navigateDocx" => {
+          let layout = self.current_layout(request)
+          guard request is { "extend": True | False as extend_flag, .. } else {
+            @failure.reject(
+              "invalid-operation", "Navigation requires an extend flag",
+            )
+          }
+          let hit = session.navigate(
+            field_int(request, "revision"),
+            layout,
+            self.layout_id,
+            field_string(request, "direction"),
+            extend_selection=extend_flag is True,
+          )
+          {
+            "state": session.edit_state(),
+            "caret": self.hit_result(session, hit),
+          }
+        }
+        "selectionGeometry" => {
+          let layout = self.current_layout(request)
+          let selection = field_selection(request)
+          session.check_position(selection.anchor)
+          session.check_position(selection.focus)
+          let anchor = selection.anchor
+          let focus = selection.focus
+          {
+            "layoutId": self.layout_id,
+            "revision": layout.revision,
+            "rects": layout.selection_rects(
+              (anchor.paragraph, anchor.offset, anchor.affinity),
+              (focus.paragraph, focus.offset, focus.affinity),
+            ),
+          }
+        }
         "imageBytes" =>
           {
             "bytes": @base64.encode(
@@ -182,6 +403,7 @@ fn Foundation::dispatch(
           json
         }
         "exportPdf" => {
+          session.check_idle()
           if request is Object(fields) && fields.get("layoutId") is Some(_) {
             guard field_int(request, "layoutId") == self.layout_id else {
               @failure.reject(
@@ -206,12 +428,15 @@ fn Foundation::dispatch(
           }
         }
         "replaceNode" => {
+          let previous = field_int(request, "revision")
           let revision = session.replace(
             field_int(request, "node"),
-            field_int(request, "revision"),
+            previous,
             field_string(request, "text"),
           )
-          self.layout = None
+          if previous != revision {
+            self.layout = None
+          }
           { "revision": revision }
         }
         _ => { "bytes": @base64.encode(session.save()) }
@@ -222,16 +447,8 @@ fn Foundation::dispatch(
 }
 
 ///|
-pub fn foundation_call(context : Foundation, input : String) -> String {
-  let result : Json = try {
-    guard input.length() <= 50000000 else {
-      @failure.reject("limit-exceeded", "ABI input exceeds budget")
-    }
-    let request = @json.parse(input) catch {
-      _ => @failure.reject("invalid-operation", "Invalid request JSON")
-    }
-    { "ok": true, "value": context.dispatch(request) }
-  } catch {
+fn foundation_response(operation : () -> Json raise @failure.Failure) -> String {
+  let result : Json = { "ok": true, "value": operation() } catch {
     @failure.Failure(code~, part~, offset~, message~) =>
       {
         "ok": false,
@@ -244,6 +461,19 @@ pub fn foundation_call(context : Foundation, input : String) -> String {
       }
   }
   result.stringify()
+}
+
+///|
+pub fn foundation_call(context : Foundation, input : String) -> String {
+  foundation_response(() => {
+    guard input.length() <= 50000000 else {
+      @failure.reject("limit-exceeded", "ABI input exceeds budget")
+    }
+    let request = @json.parse(input) catch {
+      _ => @failure.reject("invalid-operation", "Invalid request JSON")
+    }
+    context.dispatch(request)
+  })
 }
 
 ///|

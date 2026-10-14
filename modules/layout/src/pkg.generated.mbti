@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub fn grapheme_boundaries(String) -> Array[Int]
+
 pub fn paginate(TextProbe, Flow, Map[String, String], Images) -> Layout raise @failure.Failure
 
 // Errors
@@ -18,6 +20,13 @@ pub(all) struct Border {
   height : Double
 } derive(ToJson)
 pub fn Border::to_json(Self) -> Json
+
+pub(all) struct Caret {
+  offset : Int
+  before : Double
+  after : Double
+} derive(ToJson)
+pub fn Caret::to_json(Self) -> Json
 
 pub(all) struct Fill {
   x : Double
@@ -88,6 +97,21 @@ pub(all) struct GlyphRun {
 } derive(ToJson)
 pub fn GlyphRun::to_json(Self) -> Json
 
+pub(all) struct Hit {
+  paragraph : Int
+  offset : Int
+  affinity : String
+  bidiLevel : Int?
+  frameStart : Int?
+  page : Int
+  line : Int
+  x : Double
+  y : Double
+  height : Double
+  reason : String
+} derive(ToJson)
+pub fn Hit::to_json(Self) -> Json
+
 pub(all) struct ImageResource {
   width : Int
   height : Int
@@ -112,26 +136,41 @@ pub fn InlineImage::to_json(Self) -> Json
 
 pub(all) struct Layout {
   revision : Int
+  shapedParagraphs : Int
+  reusedParagraphs : Int
+  reflowedPages : Int
+  reusedPages : Int
   profile : Map[String, String]
   pages : Array[PageFrame]
   diagnostics : Array[String]
   outlines : Array[Outline]
   fonts : Array[FontInfo]
 } derive(ToJson)
+pub fn Layout::caret(Self, Int, Int, String, bidi_level? : Int, frame_start? : Int) -> Hit raise @failure.Failure
+pub fn Layout::compare_positions(Self, (Int, Int), (Int, Int)) -> Int raise @failure.Failure
+pub fn Layout::hit_test(Self, Int, Double, Double) -> Hit raise @failure.Failure
+pub fn Layout::move_caret(Self, (Int, Int, String), String, goal_x? : Double, bidi_level? : Int, frame_start? : Int) -> Hit raise @failure.Failure
+pub fn Layout::selection_rects(Self, (Int, Int, String), (Int, Int, String)) -> Array[SelectionRect] raise @failure.Failure
 pub fn Layout::to_json(Self) -> Json
 
 pub(all) struct Line {
   paragraph : Int
+  container : Int
+  baseLevel : Int
   text : String
   start : Int
   end : Int
   x : Double
+  areaX : Double
+  areaWidth : Double
   y : Double
   width : Double
   height : Double
   clip : Bool
   runs : Array[PlacedRun]
   images : Array[PlacedImage]
+  carets : Array[Caret]
+  readOnlyReason : String
 } derive(ToJson)
 pub fn Line::to_json(Self) -> Json
 
@@ -142,6 +181,8 @@ pub(all) enum LineSpacing {
 }
 pub fn LineSpacing::to_json(Self) -> Json
 pub impl ToJson for LineSpacing
+
+type MeasuredLine
 
 pub(all) struct Outline {
   key : String
@@ -168,8 +209,12 @@ pub(all) struct PageSetup {
 } derive(ToJson)
 pub fn PageSetup::to_json(Self) -> Json
 
+type PaginationCache
+
 pub(all) struct Paragraph {
   id : Int
+  container : Int
+  nominalSize : Double
   spans : Array[Span]
   before : Double
   after : Double
@@ -179,6 +224,7 @@ pub(all) struct Paragraph {
   first : Double
   align : String
   pageBreakBefore : Bool
+  readOnlyReason : String
 } derive(ToJson)
 pub fn Paragraph::to_json(Self) -> Json
 
@@ -192,8 +238,10 @@ pub(all) struct PlacedImage {
 pub fn PlacedImage::to_json(Self) -> Json
 
 pub(all) struct PlacedRun {
+  start : Int
   sources : Array[SourceRange]
   color : String
+  size : Double
   text : String
   glyphs : Array[Glyph]
   bidi : Array[GlyphRun]
@@ -202,8 +250,19 @@ pub(all) struct PlacedRun {
 } derive(ToJson)
 pub fn PlacedRun::to_json(Self) -> Json
 
+pub(all) struct SelectionRect {
+  page : Int
+  line : Int
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+} derive(ToJson)
+pub fn SelectionRect::to_json(Self) -> Json
+
 pub(all) struct ShapeBatch {
   text : String
+  carets : Array[Caret]
   glyphs : Array[Glyph]
   outlines : Array[Outline]
   runs : Array[GlyphRun]
@@ -234,6 +293,7 @@ pub impl ToJson for Span
 
 pub(all) struct Table {
   id : Int
+  beforeParagraph : Int
   rows : Array[Array[Array[Paragraph]]]
   widths : Array[Double]
   align : String
@@ -251,6 +311,8 @@ pub struct TextProbe {
   mut font_bytes : Int
   mut outline_bytes : Int
   mut closed : Bool
+  mut paragraphs : Map[String, Array[MeasuredLine]]
+  mut pagination : PaginationCache?
 }
 pub fn TextProbe::add_font(Self, Bytes, String) -> Int raise @failure.Failure
 pub fn TextProbe::close(Self) -> Unit

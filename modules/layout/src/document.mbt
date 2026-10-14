@@ -51,6 +51,8 @@ pub extend LineSpacing with ToJson::{to_json}
 ///|
 pub(all) struct Paragraph {
   id : Int
+  container : Int
+  nominalSize : Double
   spans : Array[Span]
   before : Double
   after : Double
@@ -60,6 +62,7 @@ pub(all) struct Paragraph {
   first : Double
   align : String
   pageBreakBefore : Bool
+  readOnlyReason : String
 } derive(ToJson)
 
 ///|
@@ -95,8 +98,10 @@ pub extend Flow with ToJson::{to_json}
 
 ///|
 pub(all) struct PlacedRun {
+  start : Int
   sources : Array[SourceRange]
   color : String
+  size : Double
   text : String
   glyphs : Array[Glyph]
   bidi : Array[GlyphRun]
@@ -121,16 +126,22 @@ pub extend SourceRange with ToJson::{to_json}
 ///|
 pub(all) struct Line {
   paragraph : Int
+  container : Int
+  baseLevel : Int
   text : String
   start : Int
   end : Int
   x : Double
+  areaX : Double
+  areaWidth : Double
   y : Double
   width : Double
   height : Double
   clip : Bool
   runs : Array[PlacedRun]
   images : Array[PlacedImage]
+  carets : Array[Caret]
+  readOnlyReason : String
 } derive(ToJson)
 
 ///|
@@ -151,6 +162,10 @@ pub extend PageFrame with ToJson::{to_json}
 ///|
 pub(all) struct Layout {
   revision : Int
+  shapedParagraphs : Int
+  reusedParagraphs : Int
+  reflowedPages : Int
+  reusedPages : Int
   profile : Map[String, String]
   pages : Array[PageFrame]
   diagnostics : Array[String]
@@ -227,6 +242,7 @@ pub extend Fill with ToJson::{to_json}
 ///|
 pub(all) struct Table {
   id : Int
+  beforeParagraph : Int
   rows : Array[Array[Array[Paragraph]]]
   widths : Array[Double]
   align : String

@@ -1,19 +1,41 @@
 ///|
 priv struct WordTree {
-  nodes : ReadOnlyArray[@xml.Node]
-  children : Array[Array[Int]]
+  nodes : Map[Int, @xml.Node]
+  order : Array[Int]
+  children : Map[Int, Array[Int]]
 }
 
 ///|
 fn WordTree::new(document : @xml.Document) -> WordTree {
-  let nodes = document.nodes()
-  let children = Array::makei(nodes.length(), _ => [])
-  for id, node in nodes {
+  let nodes : Map[Int, @xml.Node] = Map([])
+  let order : Array[Int] = []
+  let children : Map[Int, Array[Int]] = Map([])
+  for node in document.nodes() {
+    nodes[node.id] = node
+    order.push(node.id)
+    children[node.id] = []
+  }
+  for id in order {
+    let node = nodes[id]
     if node.parent >= 0 {
       children[node.parent].push(id)
     }
   }
-  { nodes, children, }
+  { nodes, order, children, }
+}
+
+///|
+fn WordTree::descendants(self : WordTree, id : Int) -> Array[Int] {
+  let stack = [id]
+  let result : Array[Int] = []
+  while stack.pop() is Some(item) {
+    result.push(item)
+    let children = self.children[item]
+    for i = children.length() - 1; i >= 0; i = i - 1 {
+      stack.push(children[i])
+    }
+  }
+  result
 }
 
 ///|
@@ -65,7 +87,7 @@ priv struct RunStyle {
   color : String
   bold : Bool
   italic : Bool
-}
+} derive(Eq)
 
 ///|
 fn RunStyle::key(self : RunStyle) -> String {
@@ -138,38 +160,40 @@ fn run_properties(
     (color.length() == 6 && color.iter().all(ch => ch.is_ascii_hexdigit())) else {
     @failure.reject("invalid-style", "Invalid text color")
   }
-  fn toggle(
-    tree : WordTree,
-    id : Int,
-    name : String,
-    fallback : Bool,
-    inherited : Bool,
-  ) -> Bool {
-    match tree.child(id, name) {
-      None => fallback
-      Some(item) => {
-        let value = tree.nodes[item]
-          .attribute("val", uri=word_uri)
-          .unwrap_or("true")
-        let enabled = value != "0" && value != "false" && value != "off"
-        if inherited {
-          if enabled {
-            !fallback
-          } else {
-            fallback
-          }
-        } else {
-          enabled
-        }
-      }
-    }
-  }
   {
     family,
     size,
     color,
-    bold: toggle(tree, id, "b", base.bold, inherited),
-    italic: toggle(tree, id, "i", base.italic, inherited),
+    bold: tree.character_toggle(id, "b", base.bold, inherited),
+    italic: tree.character_toggle(id, "i", base.italic, inherited),
+  }
+}
+
+///|
+fn WordTree::character_toggle(
+  self : WordTree,
+  id : Int,
+  name : String,
+  fallback : Bool,
+  inherited : Bool,
+) -> Bool {
+  match self.child(id, name) {
+    None => fallback
+    Some(item) => {
+      let value = self.nodes[item]
+        .attribute("val", uri=word_uri)
+        .unwrap_or("true")
+      let enabled = value != "0" && value != "false" && value != "off"
+      if inherited {
+        if enabled {
+          !fallback
+        } else {
+          fallback
+        }
+      } else {
+        enabled
+      }
+    }
   }
 }
 
@@ -261,6 +285,8 @@ fn Session::styles(
   }
   let paragraph : @layout.Paragraph = {
     id: -1,
+    container: 0,
+    nominalSize: defaults.size,
     spans: [],
     before: 0,
     after: 0,
@@ -270,6 +296,7 @@ fn Session::styles(
     first: 0,
     align: "left",
     pageBreakBefore: false,
+    readOnlyReason: "",
   }
   let path = for rel in self.opc.relationships() {
     if rel.owner == self.main &&
@@ -331,7 +358,10 @@ fn Session::styles(
     part: path.target,
     ids,
     defaults,
-    paragraph,
+    paragraph: {
+      ..paragraph,
+      readOnlyReason: diagnostics.get(0).unwrap_or(""),
+    },
     default_paragraph,
     themes,
   }
@@ -352,7 +382,8 @@ fn Session::theme_fonts(
       @failure.reject("unsupported-layout", "External themes are unsupported")
     }
     let tree = WordTree::new(self.opc.xml(rel.target))
-    for id, node in tree.nodes {
+    for id in tree.order {
+      let node = tree.nodes[id]
       if node.uri == "http://schemas.openxmlformats.org/drawingml/2006/main" &&
         node.name == "latin" &&
         node.parent >= 0 &&
@@ -364,7 +395,6 @@ fn Session::theme_fonts(
           result[prefix + "HAnsi"] = family
         }
       }
-      ignore(id)
     }
   }
   result

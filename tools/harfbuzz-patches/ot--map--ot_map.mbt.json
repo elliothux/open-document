@@ -1,0 +1,11 @@
+{
+  "file": "ot/map/ot_map.mbt",
+  "originalSha256": "574ea34033d21df4051cd3cc000ff462e0f86b91fd1e48c7595bd4215a403dea",
+  "patchedSha256": "b58fb1f45ee2eb3a0f0cc68b489d99be995d8b944bd67f3df64584ad079d706d",
+  "lineEdits": [
+    [30,0,["  work? : @ot_tables.LayoutWork = @ot_tables.layout_work_budget(),"]],
+    [34,5,["      match","        gsub","        .layout()","        .select_lookup_offsets_with_features(","          script_tag,","          language_tag~,","          feature_tags=gsub_features,","          work~,","        ) {"]],
+    [46,5,["      match","        gpos","        .layout()","        .select_lookup_offsets_with_features(","          script_tag,","          language_tag~,","          feature_tags=gpos_features,","          work~,","        ) {"]],
+    [55,1,["  Ok(OtMap::{ gsub_lookups, gpos_lookups, })"]]
+  ]
+}

@@ -1,6 +1,8 @@
 # 上游参考项目
 
-本文件维护原有 Office 项目的参考范围、源码位置与阅读入口；新增 19 个仓库的研究结论与固定快照见 [G0 底座研究](../g0-foundation-review.md)。这些是研究来源，不是构建依赖或已通过资格验证的依赖清单。
+参考实现、兼容行为、测试设计与基准的优先级：**ONLYOFFICE（[core](https://github.com/ONLYOFFICE/core)、[sdkjs](https://github.com/ONLYOFFICE/sdkjs)）优先，[LibreOffice](https://github.com/LibreOffice/core) 其次**。其他项目仅补充具体能力。
+
+下文保留其他 Office 项目的阅读入口；扩展研究与固定快照见 [G0 底座研究](../g0-foundation-review.md)。研究来源不等于构建依赖或已验证能力。
 
 参考关系不是整体 fork，也不是逐行翻译。优先参考功能语义、数据结构、格式兼容规则、测试样本和真实行为，再按照本项目边界实现。
 

@@ -1,0 +1,13 @@
+{
+  "file": "buffer/hebrew.mbt",
+  "originalSha256": "b761a2597d355496b150ff4343538bb55b8032f33f1f97164e0890377f48a712",
+  "patchedSha256": "2778b5af6fa1b3687d3ab996a4625fb6e0a35a098ce94a55b7aa8ffe5a456c83",
+  "lineEdits": [
+    [19,1,["  let (unicode_mark_flags, combining_classes) = collect_mark_fallback_data(","    self.infos,","  )"]],
+    [30,8,["  let map = match","    @ot_map.OtMap::new(","      gsub,","      None,","      script_tag,","      language_tag=lang_tag,","      gsub_features=self.gsub_features,","      gpos_features=self.gpos_features,","    ) {"]],
+    [54,5,["        match","          gsub.apply_with_lookups(","            glyphs,","            clusters,","            map.gsub_lookups(),","            work=self.layout_work,","          ) {"]],
+    [63,6,["        match","          gsub.apply_with_lookups(","            glyphs,","            clusters,","            map.gsub_lookups(),","            gdef~,","            work=self.layout_work,","          ) {"]],
+    [86,1,["        new_infos.push(GlyphInfo::{ codepoint: glyph, cluster, unicode, })"]],
+    [99,2,["    unicode_mark_flags~,","    combining_classes~,"]]
+  ]
+}

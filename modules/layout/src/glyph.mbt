@@ -68,6 +68,7 @@ pub extend GlyphDiagnostic with ToJson::{to_json}
 ///|
 pub(all) struct ShapeBatch {
   text : String
+  carets : Array[Caret]
   glyphs : Array[Glyph]
   outlines : Array[Outline]
   runs : Array[GlyphRun]

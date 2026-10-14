@@ -1,11 +1,9 @@
-import { type FoundationClient, OutlineCanvas } from "./foundation.js";
+import type { FoundationClient } from "./foundation.js";
 import type { PageLayout } from "@open-document/wasm/preview";
-import { imageDimensions } from "./image.js";
+import { PageCanvas } from "./page-canvas.js";
 
 /** Read-only page host. Font loading and the DOCX session stay with the caller. */
 export class DocumentPreview {
-  private readonly renderer = new OutlineCanvas();
-  private readonly canvas = document.createElement("canvas");
   private readonly text = document.createElement("pre");
   private readonly status = document.createElement("p");
   private readonly previous = document.createElement("button");
@@ -20,20 +18,19 @@ export class DocumentPreview {
     private readonly root: HTMLElement,
     private readonly client: FoundationClient,
     readonly layout: PageLayout,
-    private readonly images: Map<string, ImageBitmap>,
+    private readonly surface: PageCanvas,
   ) {
     this.attributes = ["tabindex", "role", "aria-label"].map((name) => [
       name,
       root.getAttribute(name),
     ]);
-    this.canvas.setAttribute("aria-hidden", "true");
     this.previous.textContent = "Previous page";
     this.next.textContent = "Next page";
     this.status.setAttribute("role", "status");
     const viewport = document.createElement("div");
     viewport.style.overflow = "auto";
     viewport.style.maxHeight = "80vh";
-    viewport.append(this.canvas);
+    viewport.append(surface.canvas);
     const semantic = document.createElement("details");
     const summary = document.createElement("summary");
     summary.textContent = "Page text";
@@ -69,62 +66,13 @@ export class DocumentPreview {
     profile: Record<string, string>,
     signal?: AbortSignal,
   ): Promise<DocumentPreview> {
-    const images = new Map<string, ImageBitmap>();
+    const surface = await PageCanvas.create(client, signal);
     try {
-      signal?.throwIfAborted();
-      const flow = await client.flow();
-      const paragraphs = [
-        ...flow.paragraphs,
-        ...flow.tables.flatMap((table) => table.rows.flat(2)),
-      ];
-      for (const span of paragraphs.flatMap((paragraph) => paragraph.spans)) {
-        if (!span.image || images.has(span.image.key)) continue;
-        signal?.throwIfAborted();
-        const bytes = await client.imageBytes(span.image.key);
-        const declared = imageDimensions(bytes);
-        const bitmap = await createImageBitmap(
-          new Blob([new Uint8Array(bytes).buffer]),
-          { imageOrientation: "none" },
-        );
-        images.set(span.image.key, bitmap);
-        signal?.throwIfAborted();
-        if (
-          bitmap.width * bitmap.height > 4194304 ||
-          bitmap.width > 4096 ||
-          bitmap.height > 4096
-        )
-          throw new Error("Decoded image exceeds budget");
-        if (
-          bitmap.width !== declared.width ||
-          bitmap.height !== declared.height
-        )
-          throw new Error("Decoded image dimensions differ from its header");
-        const canvas = document.createElement("canvas");
-        canvas.width = bitmap.width;
-        canvas.height = bitmap.height;
-        const context = canvas.getContext("2d");
-        if (!context) throw new Error("Canvas is unavailable");
-        context.drawImage(bitmap, 0, 0);
-        const rgba = context.getImageData(
-          0,
-          0,
-          canvas.width,
-          canvas.height,
-        ).data;
-        canvas.width = canvas.height = 0;
-        await client.addImage(
-          span.image.key,
-          bitmap.width,
-          bitmap.height,
-          new Uint8Array(rgba),
-        );
-      }
-      signal?.throwIfAborted();
       const layout = await client.layout(profile);
       signal?.throwIfAborted();
-      return new DocumentPreview(root, client, layout, images);
+      return new DocumentPreview(root, client, layout, surface);
     } catch (error) {
-      for (const image of images.values()) image.close();
+      surface.dispose();
       throw error;
     }
   }
@@ -160,20 +108,7 @@ export class DocumentPreview {
   private paint(index = this.page, zoom = this.zoom): void {
     const page = this.layout.pages[index];
     if (!page) throw new Error("Unknown page");
-    const cssScale = (zoom * 96) / 72;
-    const scale = cssScale * window.devicePixelRatio;
-    const width = Math.ceil(page.width * scale);
-    const height = Math.ceil(page.height * scale);
-    if (width * height > 16777216)
-      throw new Error("Preview canvas exceeds budget");
-    this.canvas.width = width;
-    this.canvas.height = height;
-    this.canvas.style.width = `${page.width * cssScale}px`;
-    this.canvas.style.height = `${page.height * cssScale}px`;
-    const context = this.canvas.getContext("2d");
-    if (!context) throw new Error("Canvas is unavailable");
-    context.scale(scale, scale);
-    this.renderer.drawPage(context, this.layout, index, this.images);
+    this.surface.draw(this.layout, index, zoom);
     this.page = index;
     this.zoom = zoom;
     this.text.textContent = page.lines
@@ -211,10 +146,7 @@ export class DocumentPreview {
     this.root.removeEventListener("keydown", this.key);
     this.previous.removeEventListener("click", this.back);
     this.next.removeEventListener("click", this.forward);
-    this.canvas.width = this.canvas.height = 0;
-    this.renderer.dispose();
-    for (const image of this.images.values()) image.close();
-    this.images.clear();
+    this.surface.dispose();
     this.container.remove();
     for (const [name, value] of this.attributes) {
       if (value === null) this.root.removeAttribute(name);

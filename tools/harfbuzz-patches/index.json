@@ -1,0 +1,25 @@
+{
+  "package": "moonbit-community/harfbuzz@0.1.0",
+  "license": "Apache-2.0; original notices retained; Open Document additions use the repository license",
+  "patches": [
+    "buffer--use.mbt.json",
+    "buffer--indic.mbt.json",
+    "buffer--arabic.mbt.json",
+    "buffer--buffer.mbt.json",
+    "buffer--hangul.mbt.json",
+    "buffer--hebrew.mbt.json",
+    "ot--map--ot_map.mbt.json",
+    "ot--shape--shape.mbt.json",
+    "ot--tables--gdef.mbt.json",
+    "ot--tables--gpos.mbt.json",
+    "ot--tables--gsub.mbt.json",
+    "buffer--syllabic.mbt.json",
+    "ot--tables--layout.mbt.json",
+    "ot--tables--lookup.mbt.json",
+    "ot--shape--moon.pkg.json.json",
+    "ot--tables--coverage.mbt.json",
+    "buffer--mark_fallback.mbt.json",
+    "ot--tables--layout_work.mbt.json",
+    "ot--tables--lookup_filter.mbt.json"
+  ]
+}

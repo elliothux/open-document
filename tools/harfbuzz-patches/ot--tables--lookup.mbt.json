@@ -1,0 +1,18 @@
+{
+  "file": "ot/tables/lookup.mbt",
+  "originalSha256": "ca1d56c7be9373ed04a4dc3f2daccbc2a53675d310ea5350ece43e66e6714fcf",
+  "patchedSha256": "5e327f732a0d57d9257db1931030d828beff8cd66df2cb6ec74726af8d5999a1",
+  "lineEdits": [
+    [19,0,["  work~ : LayoutWork,"]],
+    [20,0,["  if !work.spend(1) {","    return Err(WorkLimitExceeded)","  }",""]],
+    [23,3,["  let lookup_type = read_u16_int(data, offset, work~)","  let lookup_flag = read_u16_int(data, offset + 2, work~)","  let subtable_count = read_u16_int(data, offset + 4, work~)"]],
+    [40,1,["        if !work.spend(1) {","          return Err(WorkLimitExceeded)","        }","","        let sub_offset = read_u16_int(data, base + i * 2, work~)"]],
+    [52,1,["              let ext = parse_extension_subtable(data, abs_offset, work~)"]],
+    [58,1,["                    Some(prev) =>","                      if prev != ext_type {","                        return Err(InvalidFormat)","                      }"]],
+    [75,12,["      let mark_filtering_set = if (lookup_flag & 0x0010) != 0 {","        let mark_offset = offset + header_len","        if mark_offset + 2 > data.length() {","          return Err(UnexpectedEof)"]],
+    [88,0,["        match read_u16_int(data, mark_offset, work~) {","          Err(err) => return Err(err)","          Ok(value) => Some(value)","        }","      } else {","        None","      }"]],
+    [97,0,["  work~ : LayoutWork,"]],
+    [98,0,["  if !work.spend(1) {","    return Err(WorkLimitExceeded)","  }",""]],
+    [101,3,["  let format = read_u16_int(data, offset, work~)","  let lookup_type = read_u16_int(data, offset + 2, work~)","  let extension_offset = read_u32_int(data, offset + 4, work~)"]]
+  ]
+}

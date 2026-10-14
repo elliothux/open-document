@@ -3,35 +3,126 @@ import {
   "moonbitlang/async@0.22.4",
   "moonbitlang/async@0.22.4/fs",
   "moonbitlang/async@0.22.4/shell",
+  "moonbitlang/core/encoding/utf8",
   "moonbitlang/x@0.5.5/crypto",
 }
 
 ///|
+fn hash(bytes : Bytes) -> String {
+  let result = StringBuilder()
+  for byte in @crypto.sha256(bytes) {
+    result.write_string(byte.to_int().to_string(radix=16).pad_start(2, '0'))
+  }
+  result.to_string()
+}
+
+///|
+fn apply_edits(source : String, edits : Array[Json]) -> String raise {
+  let original = source.split("\n").map(line => line.to_owned()).collect()
+  let output : Array[String] = []
+  let mut cursor = 0
+  for edit in edits {
+    guard edit is Array([Number(start, ..), Number(count, ..), Array(lines)]) else {
+      fail("Invalid HarfBuzz line edit")
+    }
+    let begin = start.to_int()
+    let length = count.to_int()
+    guard begin.to_double() == start &&
+      length.to_double() == count &&
+      begin >= cursor &&
+      begin <= original.length() &&
+      length >= 0 &&
+      length <= original.length() - begin else {
+      fail("Invalid HarfBuzz edit range")
+    }
+    for line in original[cursor:begin] {
+      output.push(line)
+    }
+    for line in lines {
+      guard line is String(text) && !text.contains("\n") else {
+        fail("Invalid HarfBuzz replacement line")
+      }
+      output.push(text)
+    }
+    cursor = begin + length
+  }
+  for line in original[cursor:] {
+    output.push(line)
+  }
+  output.join("\n")
+}
+
+///|
+// shortcut: remove these patches when a pinned upstream release covers the documented gaps.
 async fn main {
-  @shell.Cmd("moon", ["check", "--target", "wasm-gc", "--dry-run"])
-  .output()
-  .check()
-  let path = ".mooncakes/moonbit-community/harfbuzz/src/ot/tables/gdef.mbt"
-  let source = @fs.read_file(path)
-  let hash = StringBuilder()
-  for byte in @crypto.sha256(source.binary()) {
-    hash.write_string(byte.to_int().to_string(radix=16).pad_start(2, '0'))
+  let resolution = @shell.Cmd("moon", [
+    "check", "--target", "wasm-gc", "--dry-run",
+  ]).output()
+  if !resolution.stderr().is_empty() {
+    println(resolution.stderr())
   }
-  if hash.to_string() ==
-    "2c48f426f0a8f5baf767c1b09746f4b1c1ea9ea1cf9a4725ff29658c575fbfbb" {
-    return
+  resolution.check()
+  let directory = "tools/harfbuzz-patches/"
+  guard @fs.read_file(directory + "index.json").json()
+    is {
+      "package": String("moonbit-community/harfbuzz@0.1.0"),
+      "patches": Array(patches),
+      ..
+    } &&
+    !patches.is_empty() else {
+    fail("Invalid HarfBuzz patch index")
   }
-  guard hash.to_string() ==
-    "ff75d107183fac2fe5498f4f0cdf6237d821f7e1b1d83477856aed4ffa13ec3d" else {
-    fail("HarfBuzz 0.1.0 source changed; review the GDEF Offset32 patch")
+  let writes : Array[(String, String)] = []
+  let files : Map[String, Bool] = Map([])
+  for entry in patches {
+    guard entry is String(filename) &&
+      filename.has_suffix(".json") &&
+      !filename.contains("/") &&
+      !filename.contains("..") else {
+      fail("Invalid HarfBuzz patch filename")
+    }
+    guard @fs.read_file(directory + filename).json()
+      is {
+        "file": String(file),
+        "originalSha256": original,
+        "patchedSha256": String(patched_hash),
+        "lineEdits": Array(edits),
+        ..
+      } else {
+      fail("Invalid HarfBuzz patch: " + filename)
+    }
+    for part in file.split("/") {
+      guard !part.is_empty() && part != "." && part != ".." else {
+        fail("Invalid HarfBuzz source path")
+      }
+    }
+    guard !files.contains(file) else {
+      fail("Duplicate HarfBuzz patch: " + file)
+    }
+    files[file] = true
+    let path = ".mooncakes/moonbit-community/harfbuzz/src/" + file
+    let source = if @fs.exists(path) {
+      let source = @fs.read_file(path)
+      let identity = hash(source.binary())
+      if identity == patched_hash {
+        continue
+      }
+      guard original == identity.to_json() else {
+        fail("HarfBuzz 0.1.0 source changed; review the patch for " + file)
+      }
+      source.text()
+    } else {
+      guard original is Null else { fail("Missing HarfBuzz source: " + file) }
+      ""
+    }
+    let patched = apply_edits(source, edits)
+    guard hash(@utf8.encode(patched)) == patched_hash else {
+      fail("HarfBuzz patch verification failed for " + file)
+    }
+    writes.push((path, patched))
   }
-  // shortcut: patch GDEF Offset32 until a pinned upstream release fixes mark glyph sets.
-  let patched = source
-    .text()
-    .replace(old="list_base + set_count * 2", new="list_base + set_count * 4")
-    .replace(
-      old="read_u16_int(self.data, list_base + set_index * 2)",
-      new="read_u32_int(self.data, list_base + set_index * 4)",
-    )
-  @fs.write_file(path, patched)
+  // Validate every input and result before changing any dependency file.
+  for (path, patched) in writes {
+    @fs.write_file(path, patched)
+  }
 }

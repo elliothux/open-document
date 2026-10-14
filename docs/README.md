@@ -1,5 +1,7 @@
 # 文档索引
 
+项目未发布，当前有 0 个用户。先完成功能：真实 DOCX 的打开、编辑、撤销、剪贴板、保存重开和 PDF。只覆盖 Chrome/Chromium；性能专项延后，保留文档保真、错误恢复和资源安全。具体范围见 [P4](p4-docx-editing.md)，按变更风险选择[最小检查](references/testing.md)。
+
 | 内容 | 权威入口 |
 | --- | --- |
 | 当前目标、选型与核心/宿主合同 | [SDK 合同](references/sdk.md) |
@@ -23,7 +25,7 @@
 | P1 | [字体、塑形与字形输出](implemented/p1-sdk-foundation.md) | `implemented`：独立参考、真实 Worker/Canvas 与 PDF 候选探针 |
 | P2 | [文件与格式公共底座](implemented/p2-format-foundation.md) | `implemented`：有界 ZIP/XML/OPC、窄 DOCX 查询/替换/保真保存 |
 | P3 | [DOCX 预览与 PDF 输出](implemented/p3-docx-preview.md) | `implemented`：有限段落/页面/表格/内联图片、只读 Canvas 与同布局 PDF |
-| P4 | [DOCX 编辑与保真保存](p4-docx-editing.md) | `planned`：P4.1–P4.4 明确位置/事务、范围编辑、输入宿主、保真与性能验收；尚未实现 |
+| P4 | [DOCX 编辑与保真保存](p4-docx-editing.md) | `planned`：已有实现，继续修通实际操作链；仅 Chromium，性能专项延后 |
 
 ## 研究依据
 
@@ -33,7 +35,7 @@
 | G1 | [兼容性测试与反馈研究](g1-compatibility-pipeline.md) | `research`：上游项目、数据集与判定方法的调研依据 |
 | G2 | [测试流水线与 Agent 改进闭环](implemented/g2-test-pipeline.md) | `implemented`：授权的本地 A–F、双路径报告、受控恢复、性能及 Docker 验收；不包含远端启用或盲测 |
 
-先读[路线图](references/roadmap.md)中的 G0 → 阶段映射，再按 P0 → P1 → P2 → P3 → P4 进入产品与验收合同；P5–P9 的待细化范围在路线图中。全部文档统一在这里；测试实现、数据与原始证据仍在私有 `test-lab/`。P0–P9 阶段编号已分配，新增阶段不得复用。
+当前开发从 P4 的一个具体用户操作进入，完成对应实现、必要检查和操作说明。按实际缺口查阅已完成基础和研究依据。P5–P9 见[路线图](references/roadmap.md)。测试实现、数据与详细证据在私有 `test-lab/`。
 
 索引只维护入口与状态；产品合同归所属方案，文档规则归维护规范。历史测试结果不代表当前工作树已经验收。
 

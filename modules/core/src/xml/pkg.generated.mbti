@@ -6,6 +6,8 @@ import {
 }
 
 // Values
+pub fn escape_text(String) -> String raise @failure.Failure
+
 pub fn valid_text(String) -> Bool
 
 // Errors
@@ -20,20 +22,26 @@ pub(all) struct Attribute {
 }
 
 pub struct Document {
-  source : String
-  nodes : Array[Node]
-  text_spans : Array[Array[(Int, Int)]]
-  declaration_end : Int
-  declaration : String
-  part : String
-  depth_limit : Int
-  byte_limit : Int
+  // private fields
 }
+pub fn Document::apply(Self, Edit, forward~ : Bool) -> Self raise @failure.Failure
+pub fn Document::bytes(Self) -> Bytes
+pub fn Document::edit_source(Self, Array[SourceChange]) -> (Self, Edit) raise @failure.Failure
+pub fn Document::edit_text(Self, Map[Int, String], source? : Array[SourceChange]) -> (Self, Edit) raise @failure.Failure
+pub fn Document::is_original(Self) -> Bool
+pub fn Document::node(Self, Int) -> Node raise @failure.Failure
 pub fn Document::nodes(Self) -> ReadOnlyArray[Node]
 pub fn Document::parse(Bytes, String, Int, Int) -> Self raise @failure.Failure
 pub fn Document::replace(Self, Map[Int, String]) -> Bytes raise @failure.Failure
+pub fn Document::source(Self) -> String
+
+pub struct Edit {
+  // private fields
+}
+pub fn Edit::payload_bytes(Self) -> Int64
 
 pub(all) struct Node {
+  id : Int
   uri : String
   name : String
   qualified : String
@@ -44,9 +52,17 @@ pub(all) struct Node {
   end : Int
   text : String
   attributes : ReadOnlyArray[Attribute]
+  namespaces : ReadOnlyArray[(String, String)]
   empty : Bool
 }
 pub fn Node::attribute(Self, String, uri? : String) -> String?
+
+pub(all) struct SourceChange {
+  node : Int
+  offset : Int
+  length : Int
+  xml : String
+}
 
 // Type aliases
 

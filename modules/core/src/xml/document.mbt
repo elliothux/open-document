@@ -9,6 +9,7 @@ pub(all) struct Attribute {
 
 ///|
 pub(all) struct Node {
+  id : Int
   uri : String
   name : String
   qualified : String
@@ -19,19 +20,22 @@ pub(all) struct Node {
   end : Int
   text : String
   attributes : ReadOnlyArray[Attribute]
+  namespaces : ReadOnlyArray[(String, String)]
   empty : Bool
 }
 
 ///|
 pub struct Document {
-  source : String
-  nodes : Array[Node]
-  text_spans : Array[Array[(Int, Int)]]
-  declaration_end : Int
-  declaration : String
-  part : String
-  depth_limit : Int
-  byte_limit : Int
+  priv source : String
+  priv nodes : Array[Node]
+  priv text_spans : Array[Array[(Int, Int)]]
+  priv declaration_end : Int
+  priv declaration : String
+  priv part : String
+  priv depth_limit : Int
+  priv byte_limit : Int
+  priv origin : String
+  priv next_id : Int
 }
 
 ///|
@@ -128,6 +132,7 @@ pub fn Document::parse(
         }
         let empty = event.kind is Empty(_)
         nodes.push({
+          id: nodes.length(),
           uri: element.name.namespace_uri.unwrap_or(""),
           name: element.name.local_name,
           qualified: element.name.qualified_name,
@@ -138,6 +143,11 @@ pub fn Document::parse(
           end: event.span.end.offset,
           text: "",
           attributes: ReadOnlyArray::from_array(attributes),
+          namespaces: ReadOnlyArray::from_array(
+            element.namespace_declarations.map(declaration => {
+              (declaration.prefix.unwrap_or(""), declaration.namespace_uri)
+            }),
+          ),
           empty,
         })
         text_spans.push([])
@@ -188,6 +198,12 @@ pub fn Document::parse(
     part,
     depth_limit,
     byte_limit,
+    origin: if declaration_end > 0 && source[:declaration_end] != declaration {
+      declaration + source[declaration_end:].to_owned()
+    } else {
+      source
+    },
+    next_id: nodes.length(),
   }
 }
 
@@ -228,22 +244,24 @@ pub fn valid_text(text : String) -> Bool {
 
 ///|
 /// Splices source spans; unknown markup and namespace bindings stay in place.
-pub fn Document::replace(
+pub fn Document::edit_text(
   self : Document,
   replacements : Map[Int, String],
-) -> Bytes raise @failure.Failure {
-  let patches : Array[(Int, Int, String)] = []
+  source? : Array[SourceChange] = [],
+) -> (Document, Edit) raise @failure.Failure {
+  let patches = self.source_patches(source)
   let mut added = 0
   for id, text in replacements {
-    guard id >= 0 && id < self.nodes.length() && valid_text(text) else {
+    guard valid_text(text) else {
       @failure.reject(
         "invalid-operation",
         "Invalid XML text replacement",
         part=self.part,
       )
     }
-    let node = self.nodes[id]
-    guard id + 1 >= self.nodes.length() || self.nodes[id + 1].parent != id else {
+    let index = self.node_index(id)
+    let node = self.nodes[index]
+    guard !self.nodes.iter().any(child => child.parent == id) else {
       @failure.reject(
         "invalid-operation",
         "Cannot replace element with children",
@@ -268,17 +286,22 @@ pub fn Document::replace(
     added += escaped.length()
     if node.empty {
       patches.push(
-        (
+        self.source_patch(
+          id,
           node.opening_end - 2,
           node.end,
           ">" + escaped + "</" + node.qualified + ">",
         ),
       )
-    } else if self.text_spans[id].is_empty() {
-      patches.push((node.opening_end, node.opening_end, escaped))
+    } else if self.text_spans[index].is_empty() {
+      patches.push(
+        self.source_patch(id, node.opening_end, node.opening_end, escaped),
+      )
     } else {
-      for i, (start, end) in self.text_spans[id] {
-        patches.push((start, end, if i == 0 { escaped } else { "" }))
+      for i, (start, end) in self.text_spans[index] {
+        patches.push(
+          self.source_patch(id, start, end, if i == 0 { escaped } else { "" }),
+        )
       }
     }
     let xml_uri = "http://www.w3.org/XML/1998/namespace"
@@ -290,38 +313,25 @@ pub fn Document::replace(
       None
     }
     if space is Some(attribute) {
-      patches.push((attribute.start, attribute.end, "preserve"))
+      if attribute.value != "preserve" {
+        patches.push(
+          self.source_patch(id, attribute.start, attribute.end, "preserve"),
+        )
+      }
     } else {
       let insertion = node.opening_end - (if node.empty { 2 } else { 1 })
-      patches.push((insertion, insertion, " xml:space=\"preserve\""))
-    }
-  }
-  if self.declaration_end > 0 {
-    patches.push((0, self.declaration_end, self.declaration))
-  }
-  patches.sort_by((a, b) => {
-    if a.0 == b.0 {
-      a.1.compare(b.1)
-    } else {
-      a.0.compare(b.0)
-    }
-  })
-  let output = StringBuilder()
-  let mut cursor = 0
-  for patch in patches {
-    guard patch.0 >= cursor else {
-      @failure.reject(
-        "invalid-operation",
-        "Overlapping XML replacements",
-        part=self.part,
+      patches.push(
+        self.source_patch(id, insertion, insertion, " xml:space=\"preserve\""),
       )
     }
-    output.write_view(self.source[cursor:patch.0])
-    output.write_string(patch.2)
-    cursor = patch.1
   }
-  output.write_view(self.source[cursor:])
-  let bytes = @utf8.encode(output.to_string())
-  ignore(Document::parse(bytes, self.part, self.depth_limit, self.byte_limit))
-  bytes
+  self.prepare_edit(patches, forward=true, record=true)
+}
+
+///|
+pub fn Document::replace(
+  self : Document,
+  replacements : Map[Int, String],
+) -> Bytes raise @failure.Failure {
+  self.edit_text(replacements).0.bytes()
 }

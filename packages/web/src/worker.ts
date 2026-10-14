@@ -40,6 +40,44 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.openDocx(request.bytes, request.budget);
         case "query":
           return foundation.query();
+        case "editState":
+          return foundation.editState();
+        case "beginComposition":
+          return foundation.beginComposition(request.revision);
+        case "updateComposition":
+          return foundation.updateComposition(
+            request.revision,
+            request.compositionId,
+            request.text,
+          );
+        case "commitComposition":
+          return foundation.commitComposition(
+            request.revision,
+            request.compositionId,
+            request.text,
+          );
+        case "cancelComposition":
+          return foundation.cancelComposition(
+            request.revision,
+            request.compositionId,
+          );
+        case "selectDocx":
+          return foundation.selectDocx(request.revision, request.selection);
+        case "selectedText":
+          return foundation.selectedText(request.revision, request.selection);
+        case "replaceRange":
+          return foundation.replaceRange(
+            request.revision,
+            request.selection,
+            request.text,
+            request.inputGroup,
+          );
+        case "undoDocx":
+          return foundation.undoDocx(request.revision);
+        case "deleteDocx":
+          return foundation.deleteDocx(request.revision, request.direction);
+        case "redoDocx":
+          return foundation.redoDocx(request.revision);
         case "replaceNode":
           return foundation.replaceNode(
             request.node,
@@ -52,6 +90,27 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.flow();
         case "layout":
           return foundation.layout(request.profile);
+        case "hitTest":
+          return foundation.hitTest(
+            request.layoutId,
+            request.page,
+            request.x,
+            request.y,
+          );
+        case "caret":
+          return foundation.caret(request.layoutId, request.position);
+        case "navigateDocx":
+          return foundation.navigateDocx(
+            request.revision,
+            request.layoutId,
+            request.direction,
+            request.extend,
+          );
+        case "selectionGeometry":
+          return foundation.selectionGeometry(
+            request.layoutId,
+            request.selection,
+          );
         case "exportPdf":
           return foundation.exportPdf(request.outputBytes, request.layoutId);
         case "imageBytes":

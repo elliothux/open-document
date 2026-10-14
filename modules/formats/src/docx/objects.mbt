@@ -11,7 +11,8 @@ fn Session::inline_image(
   let mut height = None
   let mut target = None
   let mut inline = false
-  for node in tree.nodes {
+  for item in tree.descendants(id) {
+    let node = tree.nodes[item]
     if node.start < tree.nodes[id].start || node.end > tree.nodes[id].end {
       continue
     }
@@ -111,14 +112,23 @@ fn Session::table(
   tree : WordTree,
   styles : Styles,
   id : Int,
+  before_paragraph : Int,
   diagnostics : Array[String],
 ) -> @layout.Table raise @failure.Failure {
   let widths : Array[Double] = []
   let mut styles = styles
+  let inherited_diagnostics : Array[String] = []
+  for item in tree.descendants(id) {
+    if tree.nodes[item].name == "tblPr" ||
+      tree.nodes[item].name == "trPr" ||
+      tree.nodes[item].name == "tcPr" {
+      tree.diagnose_properties(item, self.main, inherited_diagnostics)
+    }
+  }
   if tree.child(id, "tblPr").bind(props => tree.value(props, "tblStyle"))
     is Some(key) &&
     styles.tree is Some(source) {
-    for style in styles.chain(key, diagnostics) {
+    for style in styles.chain(key, inherited_diagnostics) {
       if source.child(style, "pPr") is Some(p) {
         styles = {
           ..styles,
@@ -137,6 +147,17 @@ fn Session::table(
           ),
         }
       }
+    }
+  }
+  for message in inherited_diagnostics {
+    if !diagnostics.contains(message) {
+      diagnostics.push(message)
+    }
+  }
+  if inherited_diagnostics.get(0) is Some(reason) {
+    styles = {
+      ..styles,
+      paragraph: { ..styles.paragraph, readOnlyReason: reason, },
     }
   }
   if tree.child(id, "tblGrid") is Some(grid) {
@@ -236,12 +257,7 @@ fn Session::table(
     @failure.reject("invalid-table", "Empty table or unusable grid")
   }
   let props = tree.child(id, "tblPr")
-  let align = match
-    props.bind(props => tree.value(props, "jc")).unwrap_or("left") {
-    "start" => "left"
-    "end" => "right"
-    value => value
-  }
+  let mut align = "left"
   let mut borders = false
   let mut padding = 5.4
   let mut vertical_padding = 0.0
@@ -258,6 +274,13 @@ fn Session::table(
     properties.push((tree, props))
   }
   for (source, p) in properties {
+    if source.value(p, "jc") is Some(value) {
+      align = match value {
+        "start" => "left"
+        "end" => "right"
+        value => value
+      }
+    }
     if source.child(p, "tblBorders") is Some(b) {
       borders = source.children[b]
         .iter()
@@ -321,8 +344,12 @@ fn Session::table(
       }
     }
   }
+  guard ["left", "center", "right"].contains(align) else {
+    @failure.reject("unsupported-layout", "Unsupported table alignment")
+  }
   {
     id,
+    beforeParagraph: before_paragraph,
     rows,
     widths,
     align,

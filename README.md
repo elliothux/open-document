@@ -1,10 +1,10 @@
 # Open Document
 
-> **WIP — Work in progress.** Local prototypes support bounded DOCX text queries and edits, preservation on save, and a limited paginated preview with PDF export. No SDK has been released. Interactive Office editing and broader format support remain goals.
+> **WIP — Work in progress.** Local prototypes support bounded DOCX queries and edits, basic browser text input, paragraph splitting/merging and range replacement with grouped undo/redo and preservation on save, and a limited paginated preview with PDF export. Local drag selection and plain-text clipboard input are available. No SDK has been released. IME, accessibility, incremental layout, and broader format support remain goals.
 
 Open Document is a cross-platform Office SDK project for developers who want to embed document preview, editing, reading, writing, and format conversion into their applications.
 
-It targets Word, Excel, and PowerPoint documents, with browser support first and server-side and command-line use to follow.
+It targets Word, Excel, and PowerPoint documents, with Chromium browser support first and server-side and command-line use to follow.
 
 ## Documentation
 

@@ -16,8 +16,170 @@ export interface Budget {
   outputBytes: number;
 }
 
+export interface DocxPosition {
+  paragraph: number;
+  offset: number;
+  affinity: "before" | "after";
+  bidiLevel?: number;
+  /** Start offset of the retained follow frame; editing still uses offset. */
+  frameStart?: number;
+}
+
+export interface DocxSelection {
+  anchor: DocxPosition;
+  focus: DocxPosition;
+}
+
+export interface DocxHit {
+  layoutId: number;
+  revision: number;
+  page: number;
+  line: number;
+  position: DocxPosition | null;
+  editable: boolean;
+  reason: string;
+  x: number;
+  y: number;
+  height: number;
+}
+
+export function docxHit(value: unknown): DocxHit {
+  const object = record(value);
+  const position = object.position === null ? null : record(object.position);
+  if (
+    !hasFields(
+      value,
+      ["reason"],
+      ["layoutId", "revision", "page", "line", "x", "y", "height"],
+    ) ||
+    typeof object.editable !== "boolean" ||
+    (position !== null &&
+      (!hasFields(position, ["affinity"], ["paragraph", "offset"]) ||
+        (position.bidiLevel !== undefined &&
+          (typeof position.bidiLevel !== "number" ||
+            !Number.isInteger(position.bidiLevel) ||
+            position.bidiLevel < 0 ||
+            position.bidiLevel > 126)) ||
+        (position.frameStart !== undefined &&
+          (typeof position.frameStart !== "number" ||
+            !Number.isSafeInteger(position.frameStart) ||
+            position.frameStart > 2147483647 ||
+            position.frameStart <= Number(position.offset))) ||
+        (position.affinity !== "before" && position.affinity !== "after"))) ||
+    (object.editable === true && position === null)
+  )
+    throw new Error("Invalid DOCX hit returned by Wasm");
+  return value as DocxHit;
+}
+
+export interface DocxSelectionGeometry {
+  layoutId: number;
+  revision: number;
+  rects: {
+    page: number;
+    line: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }[];
+}
+
+export function docxSelectionGeometry(value: unknown): DocxSelectionGeometry {
+  const object = record(value);
+  const integer = (value: unknown): boolean =>
+    typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+  if (
+    !integer(object.layoutId) ||
+    !integer(object.revision) ||
+    !Array.isArray(object.rects) ||
+    !object.rects.every((value: unknown) => {
+      const rect = record(value);
+      return (
+        integer(rect.page) &&
+        integer(rect.line) &&
+        hasFields(rect, [], ["x", "y", "width", "height"]) &&
+        typeof rect.width === "number" &&
+        rect.width >= 0 &&
+        typeof rect.height === "number" &&
+        rect.height > 0
+      );
+    })
+  )
+    throw new Error("Invalid DOCX selection geometry returned by Wasm");
+  return value as DocxSelectionGeometry;
+}
+
+export type NavigationDirection =
+  "left" | "right" | "up" | "down" | "home" | "end";
+
+export interface DocxNavigation {
+  state: EditState;
+  caret: DocxHit;
+}
+
+export function docxNavigation(value: unknown): DocxNavigation {
+  const object = record(value);
+  return { state: editState(object.state), caret: docxHit(object.caret) };
+}
+
+export interface EditState {
+  revision: number;
+  compositionId: number | null;
+  selection: DocxSelection | null;
+  canUndo: boolean;
+  canRedo: boolean;
+  affectedParagraphs: number[];
+  historyBytes: number;
+  historyEntries: number;
+  historyEntryLimit: number;
+  historyByteLimit: number;
+  commandLimit: number;
+}
+
+export function editState(value: unknown): EditState {
+  const object = record(value);
+  const integer = (value: unknown): boolean =>
+    typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+  const position = (value: unknown): boolean => {
+    const object = record(value);
+    return (
+      integer(object.paragraph) &&
+      integer(object.offset) &&
+      (object.bidiLevel === undefined ||
+        (integer(object.bidiLevel) && Number(object.bidiLevel) <= 126)) &&
+      (object.frameStart === undefined ||
+        (integer(object.frameStart) &&
+          Number(object.frameStart) <= 2147483647 &&
+          Number(object.frameStart) > Number(object.offset))) &&
+      (object.affinity === "before" || object.affinity === "after")
+    );
+  };
+  const selection = object.selection === null ? null : record(object.selection);
+  if (
+    ![
+      "revision",
+      "historyBytes",
+      "historyEntries",
+      "historyEntryLimit",
+      "historyByteLimit",
+      "commandLimit",
+    ].every((key) => integer(object[key])) ||
+    (object.compositionId !== null &&
+      (!integer(object.compositionId) || Number(object.compositionId) === 0)) ||
+    typeof object.canUndo !== "boolean" ||
+    typeof object.canRedo !== "boolean" ||
+    !arrayOf(object.affectedParagraphs, integer) ||
+    (selection !== null &&
+      (!position(selection.anchor) || !position(selection.focus)))
+  )
+    throw new Error("Invalid DOCX editing state returned by Wasm");
+  return value as EditState;
+}
+
 export interface DocxQuery {
   revision: number;
+  compositionId: number | null;
   mainPart: string;
   texts: { id: number; paragraph: number; run: number; text: string }[];
   relationships: {
@@ -33,6 +195,7 @@ export interface DocxQuery {
 
 export interface ShapeBatch {
   text: string;
+  carets: { offset: number; before: number; after: number }[];
   glyphs: {
     id: number;
     cluster: number;
@@ -89,6 +252,10 @@ export function docxQuery(value: unknown): DocxQuery {
   const object = record(value);
   if (
     !hasFields(value, ["mainPart"], ["revision", "decodedBytes"]) ||
+    (object.compositionId !== null &&
+      (typeof object.compositionId !== "number" ||
+        !Number.isSafeInteger(object.compositionId) ||
+        object.compositionId <= 0)) ||
     !arrayOf(object.texts, (entry) =>
       hasFields(entry, ["text"], ["id", "paragraph", "run"]),
     ) ||
@@ -129,6 +296,13 @@ export function shapeBatch(value: unknown): ShapeBatch {
   if (
     !hasFields(value, ["text"], ["width", "fontBytes", "outlineBytes"]) ||
     !glyphs(object.glyphs) ||
+    !arrayOf(
+      object.carets,
+      (entry) =>
+        hasFields(entry, [], ["offset", "before", "after"]) &&
+        Number.isSafeInteger(record(entry).offset) &&
+        Number(record(entry).offset) >= 0,
+    ) ||
     !arrayOf(object.outlines, (entry) =>
       hasFields(entry, ["key", "path"], []),
     ) ||
@@ -160,11 +334,19 @@ export function shapeBatch(value: unknown): ShapeBatch {
   return value as ShapeBatch;
 }
 
-function encodeBytes(bytes: Uint8Array): string {
+function binaryString(bytes: Uint8Array): string {
   let binary = "";
   for (let start = 0; start < bytes.length; start += 32768)
-    binary += String.fromCharCode(...bytes.subarray(start, start + 32768));
-  return btoa(binary);
+    binary += Reflect.apply(
+      String.fromCharCode,
+      null,
+      bytes.subarray(start, start + 32768),
+    ) as string;
+  return binary;
+}
+
+function encodeBytes(bytes: Uint8Array): string {
+  return btoa(binaryString(bytes));
 }
 
 export class FoundationSession {
@@ -175,12 +357,15 @@ export class FoundationSession {
     private readonly handle: unknown,
   ) {}
 
-  private call(request: object): unknown {
+  private checkOpen(): void {
     if (this.closed) throw new Error("Session is closed");
-    const fn = this.exports.foundation_call;
-    if (typeof fn !== "function")
-      throw new Error("Missing foundation_call export");
-    const output: unknown = fn(this.handle, JSON.stringify(request));
+  }
+
+  private invoke(name: string, ...args: unknown[]): unknown {
+    this.checkOpen();
+    const fn = this.exports[name];
+    if (typeof fn !== "function") throw new Error(`Missing ${name} export`);
+    const output: unknown = fn(this.handle, ...args);
     if (typeof output !== "string") throw new Error("Invalid Wasm response");
     const result = record(JSON.parse(output));
     if (result.ok === true) return result.value;
@@ -205,6 +390,11 @@ export class FoundationSession {
     throw new Error("Invalid Wasm error");
   }
 
+  private call(request: object): unknown {
+    this.checkOpen();
+    return this.invoke("foundation_call", JSON.stringify(request));
+  }
+
   addFont(bytes: Uint8Array, identity: string): void {
     if (bytes.length > 33554432)
       throw new DocumentError(
@@ -213,7 +403,15 @@ export class FoundationSession {
         "",
         -1,
       );
-    this.call({ operation: "font", bytes: encodeBytes(bytes), identity });
+    this.checkOpen();
+    if (typeof identity !== "string")
+      throw new DocumentError(
+        "invalid-operation",
+        "Invalid string field: identity",
+        "",
+        -1,
+      );
+    this.invoke("foundation_add_font", binaryString(bytes), identity);
   }
 
   defaultBudget(): Budget {
@@ -241,6 +439,99 @@ export class FoundationSession {
     return docxQuery(this.call({ operation: "query" }));
   }
 
+  editState(): EditState {
+    return editState(this.call({ operation: "editState" }));
+  }
+
+  beginComposition(revision: number): EditState {
+    return editState(this.call({ operation: "beginComposition", revision }));
+  }
+
+  updateComposition(
+    revision: number,
+    compositionId: number,
+    text: string,
+  ): EditState {
+    return editState(
+      this.call({
+        operation: "updateComposition",
+        revision,
+        compositionId,
+        text,
+      }),
+    );
+  }
+
+  commitComposition(
+    revision: number,
+    compositionId: number,
+    text: string,
+  ): EditState {
+    return editState(
+      this.call({
+        operation: "commitComposition",
+        revision,
+        compositionId,
+        text,
+      }),
+    );
+  }
+
+  cancelComposition(revision: number, compositionId: number): EditState {
+    return editState(
+      this.call({ operation: "cancelComposition", revision, compositionId }),
+    );
+  }
+
+  selectDocx(revision: number, selection: DocxSelection): EditState {
+    return editState(
+      this.call({ operation: "selectDocx", revision, selection }),
+    );
+  }
+
+  /** Reads bounded plain text in document order without changing core state. */
+  selectedText(revision: number, selection: DocxSelection): string {
+    const result = this.call({
+      operation: "selectedText",
+      revision,
+      selection,
+    });
+    if (typeof result !== "string")
+      throw new Error("Invalid selection text returned by Wasm");
+    return result;
+  }
+
+  replaceRange(
+    revision: number,
+    selection: DocxSelection,
+    text: string,
+    inputGroup?: number,
+  ): EditState {
+    return editState(
+      this.call({
+        operation: "replaceRange",
+        revision,
+        selection,
+        text,
+        inputGroup,
+      }),
+    );
+  }
+
+  undoDocx(revision: number): EditState {
+    return editState(this.call({ operation: "undoDocx", revision }));
+  }
+
+  deleteDocx(revision: number, direction: "backward" | "forward"): EditState {
+    return editState(
+      this.call({ operation: "deleteDocx", revision, direction }),
+    );
+  }
+
+  redoDocx(revision: number): EditState {
+    return editState(this.call({ operation: "redoDocx", revision }));
+  }
+
   replaceNode(node: number, revision: number, text: string): number {
     const result = record(
       this.call({ operation: "replaceNode", node, revision, text }),
@@ -260,6 +551,40 @@ export class FoundationSession {
 
   layout(profile: Record<string, string>): PageLayout {
     return pageLayout(this.call({ operation: "layout", profile }));
+  }
+
+  hitTest(layoutId: number, page: number, x: number, y: number): DocxHit {
+    return docxHit(this.call({ operation: "hitTest", layoutId, page, x, y }));
+  }
+
+  caret(layoutId: number, position: DocxPosition): DocxHit {
+    return docxHit(this.call({ operation: "caret", layoutId, position }));
+  }
+
+  navigateDocx(
+    revision: number,
+    layoutId: number,
+    direction: NavigationDirection,
+    extend = false,
+  ): DocxNavigation {
+    return docxNavigation(
+      this.call({
+        operation: "navigateDocx",
+        revision,
+        layoutId,
+        direction,
+        extend,
+      }),
+    );
+  }
+
+  selectionGeometry(
+    layoutId: number,
+    selection: DocxSelection,
+  ): DocxSelectionGeometry {
+    return docxSelectionGeometry(
+      this.call({ operation: "selectionGeometry", layoutId, selection }),
+    );
   }
 
   exportPdf(outputBytes: number, layoutId?: number): Uint8Array {

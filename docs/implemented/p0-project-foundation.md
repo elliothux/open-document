@@ -27,7 +27,7 @@
 - 核心状态码：0 成功；1 非法范围；2 已关闭；3 撤销历史预算超限；4 无可撤销记录。失败不改文本或历史。
 - 撤销使用最多 100 条整串快照；这是有界 POC，不承诺大文档增量编辑性能。P4 再以实际编辑负载确定记录和重排策略。
 - Web 同时只允许一个操作在途；重叠请求失败，不自动排队重试。dispose 销毁 Worker 并拒绝未完成请求。
-- 使用 JS string builtins；目前只验证固定 Chromium，不代表任意 WasmGC runtime、Safari/Firefox 或 CLI 可用。
+- 使用 JS string builtins；目前只验证固定 Chromium，不代表任意 WasmGC runtime 或 CLI 可用；浏览器验收仅覆盖 Chromium。
 - layout 与格式包明确占位，不暴露伪能力。缺少私有 submodule 时根测试失败，公开 check/build 仍可运行。
 
 ## 验证证据与交接

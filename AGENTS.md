@@ -1,55 +1,62 @@
 # AGENTS — Open Document
 
-## Working agreement
+## Priority
 
-- This file governs first-party work in this repository. Read any more specific `AGENTS.md` before editing its directory. Reference-repository instructions apply only within those repositories and do not authorize publishing, pushing, or changing external resources.
-- Inspect relevant source, tests, documentation, and runtime evidence before answering, diagnosing, reviewing, or planning. Those requests do not automatically authorize implementation. Change requests authorize in-scope local edits and the smallest sufficient validation.
-- External writes, deployment, publishing, destructive actions, permission or credential changes, and material scope expansion require explicit user authorization. Do not automatically commit, push, create pull requests, or clean the workspace.
-- When the user requests a commit or push, use the current branch in this repository and `test-lab/`. Do not create or switch branches unless the user explicitly requests it. Push the private submodule commit before pushing the parent gitlink; do not force-push or rewrite history.
-- The user authorizes direct use of local Docker for development and testing, including pulling or building test images and running bounded containers, without further confirmation. Keep private inputs and evidence local; preserve unrelated Docker resources. This does not authorize remote Docker services, publishing images, deployment, or credential changes.
-- Preserve uncommitted changes, reference checkouts, and failure evidence. Cleanup and Day 1 design do not authorize deleting user data, resetting repositories, or rewriting Git history.
-- Keep changes within this repository. Adjacent `lynx-os`, `open-compute`, and upstream repositories are references, not automatically part of the edit scope.
-- Converse in Chinese. Lead with the result, followed by evidence, limitations, and necessary next steps. Write code identifiers, comments, API documentation, commit messages, and GitHub-facing text in English.
-- Challenge incorrect premises, logical gaps, and overlooked costs. Verify rather than merely agree.
+- This unreleased project has **zero users**. Deliver usable features first. [P4 DOCX editing](docs/p4-docx-editing.md) is the current work; [SDK goals](docs/references/sdk.md) own the product and core/host boundary.
+- Change unpublished APIs, models, and development data directly through one implementation path. Preserve imported documents and declared file-format behavior. Migration and release machinery remain outside current scope.
+- Start with one concrete user operation and finish the smallest complete implementation. Reuse existing code and add structure only for a demonstrated functional gap. Remove superseded paths.
+- Prioritize functionality, document integrity, recovery, security, accessibility, and resource limits. Schedule performance work when a hang, unusable interaction, or resource failure blocks the feature.
 
-## Product and Day 1 design
+## Execution and authorization
 
-- [SDK contract](docs/references/sdk.md) owns current product goals, technology choices, and core/host responsibilities. [P1](docs/implemented/p1-sdk-foundation.md), [P2](docs/implemented/p2-format-foundation.md), and [P3](docs/implemented/p3-docx-preview.md) record completed foundation and limited preview work. Research conclusions do not automatically become approved designs or dependencies.
-- Build one final implementation path for current requirements. Do not prebuild compatibility layers, dual writes, backfills, or alternate engines for this project's unpublished old models, APIs, or development data.
-- Day 1 does not waive compatibility obligations for user documents, declared file formats, or published public contracts. Explain changes to support scope; never silently corrupt or discard content or disguise failure as success.
-- Keep one authority per concern. Fix root causes, update affected producers, consumers, tests, and documentation together, and remove implementations superseded by the change.
-- Before adding an abstraction, cache, protocol, state machine, dependency, or plugin mechanism, identify its current user and the concrete capability gap. Prefer the standard library, platform facilities, and validated dependencies over frameworks for hypothetical scale or extension points.
-- For complex changes, define a lightweight contract: goals, non-goals, constraints, side effects, completion evidence, and stop conditions. Simplification must preserve security, document integrity, error handling, and accessibility.
-- Every new or materially revised P-numbered proposal, including subphases, must define its tests, fixtures, compatibility expectations, performance/resource checks, and acceptance evidence before implementation, following the [P-proposal verification contract](docs/references/README.md#p-编号方案的验证合同). Map each promised capability to concrete verification; explain non-applicable items and unresolved prerequisites. A generic promise to add tests or a link to the shared pipeline is not sufficient.
+- Treat requests to build or fix something as authorization for in-scope local work and sufficient validation. Carry the result through implementation and delivery. Treat inspection and review requests within their requested scope.
+- Use the conversation to resolve routine choices and reuse authorization already given. Ask only when missing information materially changes the result or an action needs new authority; continue independent authorized work meanwhile.
+- Follow explicit user instructions over skill guidelines. Read directory-specific `AGENTS.md` before editing. If a skill would halt or redirect authorized work, link its file and quote the instruction, then apply the user's stated scope.
+- Prepare a concrete, reviewable result before requesting any necessary final approval. External writes, commits, pushes, pull requests, deployment, publication, destructive cleanup, credential/system permission changes, and scope expansion require user authorization. Do not execute these without it.
+- Work in this repository and preserve unrelated edits, user data, reference checkouts, and compact failure evidence. When asked to commit/push, use current branches here and in `test-lab/`, pushing the private commit before its parent gitlink. Branch changes and history rewriting require explicit authorization.
+- Local bounded Docker development/testing and additional reference clones under `references/` are authorized. Keep private inputs local and preserve unrelated resources.
+- Handle routine work directly; use subagents for explicitly requested parallel work. After a context reset, resume the current goal from existing results and outstanding work.
+- Converse in Chinese. Write identifiers, comments, API documentation, commits, and GitHub text in English.
 
-## Source, dependencies, and reference projects
+## Communication
 
-- Follow P1's responsibility boundary between the MoonBit core and TypeScript hosts. Do not maintain independently editable document models on both sides.
-- Use strict TypeScript for first-party functional JavaScript-family source. Do not bypass type problems with `any`, `@ts-ignore`, `@ts-nocheck`, double assertions, or relaxed compiler options.
-- Organize modules by actual responsibility. All first-party test code, fixtures, expected results, reports, and executable loop tooling are private in the pinned `test-lab/` submodule. Product plans, research, and testing documentation belong only in the parent `docs/`. Public builds must not require the private checkout. Authorized maintainers read its `AGENTS.md` before test work. Explicitly requested placeholder packages expose no fake capabilities.
-- Keep first-party source files within 800 lines. Split by responsibility rather than mechanically. Do not add barrel files that only aggregate or forward exports.
-- Use the project's actual pinned toolchain, dependency manifests, and single lockfile for each dependency ecosystem. Do not hand-edit generated output or lockfiles. Do not describe unselected package managers or commands as established facts.
-- Use `bun run check`, `bun run build`, and `bun run api` from the root. Maintainers run `bun run test` from the root to invoke the private `test-lab` loop; a missing checkout or any test failure must fail the command. Pin Bun in `packageManager` / `.bun-version` and MoonBit in `moon-toolchain`. Development setup and module boundaries live in `docs/references/development.md`.
-- Use [LibreOffice](https://github.com/LibreOffice/core) and ONLYOFFICE ([core](https://github.com/ONLYOFFICE/core), [sdkjs](https://github.com/ONLYOFFICE/sdkjs)) as the primary references for document compatibility and implementation logic. Inspect the relevant upstream behavior and tests before adapting an implementation; upstream behavior is not automatically the Microsoft Office compatibility oracle.
-- Root `references/` contains independent upstream research checkouts, including the primary reference repositories. It is ignored, may be absent in other checkouts, is distinct from `docs/references/`, and is not a build dependency. Cite upstream GitHub file links in maintained documentation instead of local `references/` paths. Preserve independent Git state; check source, dependency, font, and fixture licenses before porting, and retain required provenance notices.
-- The user authorizes cloning additional reference repositories into root `references/` when needed for research, without further confirmation. Reuse existing checkouts where suitable; this authorization does not include overwriting or resetting them, adding product dependencies, or committing or pushing upstream changes.
-- Prefer existing upstream implementations. Document the concrete gap when maintaining a patch; remove superseded local implementations when upstream covers it rather than retaining parallel paths.
+The following self-contained rules summarize the writing principles of dualface/ste-zh. Apply them to user-facing replies, including progress updates. Keep code and generated files under the project's existing language rules.
 
-## Testing and evidence
+- Lead with the useful information: answer, result and scope, current action, confirmed cause, or decision needed. Put supporting detail afterward.
+- Give each concept one name and explain unfamiliar terms on first use. Preserve identifiers, commands, paths, error messages, and quoted output exactly.
+- Use familiar words and direct verbs: write "changed the setting", not "performed an adjustment". Name who acts and what changes. Prefer positive instructions.
+- Keep one action or fact per sentence. Put conditions before actions. For Chinese, aim for steps within 30 characters and descriptions within 40; split longer sentences naturally. Keep each paragraph to one topic.
+- Separate work status from verification status. Use precise labels: completed, partial, not started, in progress, verified, unverified, failed, skipped, blocked, or unknown. State the scope. A finished edit does not establish that its behavior works.
+- Support behavior and check results with the method, outcome, and coverage. Distinguish checks not run from missing evidence; preserve known failures. Reading source or documentation establishes what it says, not that runtime behavior passed.
+- State uncertainty explicitly and give a way to resolve it. Label hypotheses and use only facts supported by user input, files, or tool output.
+- Cite evidence where it helps assessment: file and line, full command and result, or source. Consolidate repeated evidence and report the result instead of narrating each tool call.
+- Use short paragraphs for ordinary answers, lists for parallel facts, and numbered steps for procedures. Include only sections with content. Present numbered choices and consequences when a real user decision is needed, with the recommendation first.
+- Before sending, check that the reply answers the question, uses consistent terms, separates completion from verification, and preserves the evidence. Keep the explanation natural and proportional to the request.
 
-- Prefer LibreOffice and [Collabora Online](https://github.com/CollaboraOnline/online.mirror) as references for test cases and test design: use LibreOffice for document-model, layout, import/export, and round-trip assertions, and Collabora for browser interaction tests. Adapt relevant cases to the SDK's declared scope, verify fixture licenses and provenance, and keep all adapted test assets in private `test-lab/`.
-- Choose the smallest sufficient checks for the risk. Cover key success and failure paths for behavior changes; add recovery checks when lifecycle or persistence changes require them.
-- Preserve the first real failure cause and rerun after fixing it. Different browsers, configurations, or inputs are distinct checks; do not omit required coverage to reduce run counts. Keep testing policy in `docs/references/testing.md` and executable case selection in the private repository.
-- Validate real-browser behavior, WasmGC execution, and file round trips separately. Native results, mocks, CI configuration, and upstream READMEs do not replace evidence from the target environment.
-- Never special-case fixture names, test IDs, sample hashes, or expected results in product code. General format rules must follow actual inputs and format contracts. Fault injection and fake data belong only in tests.
-- Do not obtain a pass by weakening assertions, ignoring failures, lowering thresholds, or moving product logic outside the checked scope. Report missing tools or resources as limitations, not passes.
-- Report a check as passing only after it exits successfully and executes the intended cases. Zero cases do not verify behavior. Record versions, inputs, and runtime environment; historical PASS results are not current acceptance.
-- For documentation and policy changes, run at least `git diff --check` and verify local links, numbering, status, commands, and evidence claims. Documentation-only changes do not require compiling reference repositories.
-- Keep raw logs, temporary run directories, caches, and retained failure evidence under `.temp/<purpose>/`. Leave standard build output in its tool-defined location. Do not delete failure evidence as cleanup or commit credentials, caches, or generated artifacts.
+## Implementation
+
+- MoonBit owns document state, editing, layout, and serialization. TypeScript hosts platform events, Worker communication, and rendering of derived output. Follow [development](docs/references/development.md) and [format contracts](docs/references/formats.md).
+- Use strict TypeScript and fix types at their source. Do not bypass errors with `any`, `@ts-ignore`, `@ts-nocheck`, double assertions, or relaxed compiler options. Keep first-party source files within 800 lines, split by responsibility, and export from the owning module.
+- Use pinned toolchains, manifests, and one lockfile per ecosystem. Regenerate generated output and lockfiles with their tools. Root commands are `bun run check`, `bun run build`, `bun run api`, and, when justified, `bun run test`.
+- Prefer ONLYOFFICE ([core](https://github.com/ONLYOFFICE/core), [sdkjs](https://github.com/ONLYOFFICE/sdkjs)) for implementation, compatibility behavior, test design, and baselines; use [LibreOffice](https://github.com/LibreOffice/core) second and [Collabora](https://github.com/CollaboraOnline/online.mirror) for supplementary browser cases. Resolve reference conflicts in that order within the format scope, honoring explicit user choices.
+- Inspect the feature's upstream behavior and tests, reuse suitable implementations, and retain licenses/provenance. Independent `references/` checkouts are optional research inputs; maintained docs cite upstream file links.
+
+## Validation and resources
+
+- Target **Chrome/Chromium only**, with the existing system input method. Keep Windows/Word, VoiceOver, and other browser-engine acceptance outside current scope.
+- Select checks for the behavior changed. Documentation/comments/behavior-neutral metadata need diff and consistency checks. Local behavior needs nearby success/failure checks; persistence and lifecycle changes also need preservation/recovery checks.
+- Use a full run for a functional milestone or a concrete cross-module risk, stating the reason first. Reuse applicable passing results. Once sufficient checks pass, deliver; expand or repeat only for a new change, failure, or unresolved concern.
+- Treat `test-lab/` as this project's private test resource directory, governed by this root `AGENTS.md`. Keep tests, fixtures, independent expectations, reports, and tooling there; keep public builds independent of it. Maintain product/testing documents in `docs/`; [Testing](docs/references/testing.md) owns execution details.
+- Register provenance/license, input hash, operation, independent expectation, and support scope in case manifests. Preserve actual reference identities and update them with the corresponding feature. This visible local resource directory is not a blind holdout.
+- Use `.mbtx` for test process automation and Bun/Playwright for TypeScript tests. `test-lab/cases/suites.json` owns full-loop selection and package inventory; `test-lab/.agents/skills/document-test-loop/SKILL.md` provides loop/corpus execution details within the user's scope.
+- Implement general format rules and keep assertions independent of product output. Never special-case fixtures in product code or weaken checks to obtain a pass. Report actual executed scope and distinguish pass, failure, skipped, and unverified; browser and independent file checks need their own evidence.
+- Keep temporary output under `.temp/<purpose>/`, with one current run and one necessary baseline. Check combined root/private usage before expensive work; stop new runs at 2 GiB. Preserve compact reproductions and clean authorized task-owned output. Keep standard build output in its normal location.
+- After two attempts without new evidence, reassess the functional blocker and choose a different approach. Report the usable operation, its entry point/output, and the exact remaining gap.
 
 ## Documentation
 
-- [docs/references/README.md](docs/references/README.md) is the sole authority for documentation location, numbering, lifecycle, content, and evidence rules. Start navigation from [docs/README.md](docs/README.md).
-- Write the root `AGENTS.md` and `README.md` in English. Preserve the language of other documents unless a translation is requested. While the SDK remains work in progress, prominently state **WIP** and the actual availability status in the root README.
-- Keep the root README limited to the product introduction, current status, documentation links, and license. Put technology choices, architecture, interfaces, commands, validation, and detailed reference material in `docs/`.
-- Update all inbound links and indexes when adding or moving documents. Do not retain old copies, redirects, or stubs. Do not move unimplemented capabilities into the completed directory.
+- Before writing or updating documentation, goals, plans, prompts, or `AGENTS.md`, read https://developers.openai.com/api/docs/guides/latest-model and apply its current best practices. Use the original page as the source. Express desired actions and results positively; retain explicit prohibitions for safety, authorization, and document integrity.
+- Maintain plans and documentation in parent `docs/`, following its [organization rules](docs/references/README.md). Edit the existing authority and link to it from other documents.
+- Keep a proposal to its user result, scope, implementation, and sufficient checks. Keep future work in its own phase and detailed run records in the private repository.
+- Root `README.md` and `AGENTS.md` are English; preserve other documents' language. Keep the root README to introduction, **WIP**/actual availability, documentation links, and license.
+- Keep unfinished work active. Update indexes and inbound links when moving completed docs. For documentation changes, check `git diff --check`, affected links, commands, and status; finish after those checks.

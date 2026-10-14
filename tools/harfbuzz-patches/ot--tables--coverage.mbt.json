@@ -1,0 +1,24 @@
+{
+  "file": "ot/tables/coverage.mbt",
+  "originalSha256": "fa618270c5184fecd4ee424d622b33183bdf0cd81acc9549297e6b50a5f0de21",
+  "patchedSha256": "68fbe22b3dee96d41c3e2854a9078a03c48bd6c2bc45179f43c03a3b1579f840",
+  "lineEdits": [
+    [19,0,["  work~ : LayoutWork,"]],
+    [20,0,["  if work.cached(data, false, offset, glyph) is Some((value, cost)) {","    if !work.spend(cost) {","      return Err(WorkLimitExceeded)","    }","    return Ok(value)","  }","  let remaining = work.remaining()","  let result = coverage_index_uncached(data, offset, glyph, work~)","  if result is Ok(value) {","    work.remember(data, false, offset, glyph, value, remaining - work.remaining())","  }","  result","}","","///|","fn coverage_index_uncached(","  data : BytesView,","  offset : Int,","  glyph : UInt,","  work~ : LayoutWork,",") -> Result[Int?, OtLayoutError] {","  if !work.spend(1) {","    return Err(WorkLimitExceeded)","  }",""]],
+    [24,1,["  let format = read_u16_int(data, offset, work~)"]],
+    [29,1,["        coverage_format1(data, offset, glyph_int, work~)"]],
+    [31,1,["        coverage_format2(data, offset, glyph_int, work~)"]],
+    [43,0,["  work~ : LayoutWork,"]],
+    [44,0,["  if !work.spend(1) {","    return Err(WorkLimitExceeded)","  }",""]],
+    [47,1,["  let count = read_u16_int(data, offset + 2, work~)"]],
+    [55,5,["      // Scan only affordable records; charge their exact total before returning.","      let scanned = count.min(work.remaining())","      for i in 0..<scanned {","        // The complete array was validated above.","        let base = list_offset + i * 2","        let value = data.unsafe_read_uint16_be(base).to_int()","        if value == glyph {","          if !work.spend(i + 1) {","            return Err(WorkLimitExceeded)","          }","          return Ok(Some(i))"]],
+    [62,0,["      if !work.spend(count) {","        return Err(WorkLimitExceeded)","      }"]],
+    [72,0,["  work~ : LayoutWork,"]],
+    [73,0,["  if !work.spend(1) {","    return Err(WorkLimitExceeded)","  }",""]],
+    [76,1,["  let count = read_u16_int(data, offset + 2, work~)"]],
+    [82,1,["      if record_offset < 0 ||","        record_offset + count * record_size > data.length() {"]],
+    [85,1,["      // Scan only affordable records; charge their exact total before returning.","      let scanned = count.min(work.remaining())","      for i in 0..<scanned {","        // The complete array was validated above."]],
+    [87,11,["        let start = data.unsafe_read_uint16_be(base).to_int()","        if glyph >= start &&","          glyph <= data.unsafe_read_uint16_be(base + 2).to_int() {","          let start_index = data.unsafe_read_uint16_be(base + 4).to_int()","          if !work.spend(i + 1) {","            return Err(WorkLimitExceeded)","          }","          return Ok(Some(start_index + (glyph - start)))"]],
+    [100,0,["      if !work.spend(count) {","        return Err(WorkLimitExceeded)","      }"]]
+  ]
+}

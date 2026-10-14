@@ -1,0 +1,16 @@
+{
+  "file": "buffer/hangul.mbt",
+  "originalSha256": "6fa1f89e78acbd70fe5c102e983799e67fe9d87e7c79f499bf34c4d1912bab1d",
+  "patchedSha256": "8a1ba6ddc38e005ed1ac8adf13c75e1284042a6fa7b622bebd536d5bc54c5a45",
+  "lineEdits": [
+    [35,1,["  let actions : Array[Int] = Array::make(","    buffer.infos.length(),","    hangul_action_none,","  )"]],
+    [63,7,["          Some((l, v)) => if v == 0U { [a, b] } else { [l, v, b] }"]],
+    [120,1,["                next_infos.push(GlyphInfo::{","                  codepoint: component,","                  cluster: info.cluster,","                  unicode: component,","                })"]],
+    [145,1,["  let (unicode_mark_flags, combining_classes) = collect_mark_fallback_data(","    self.infos,","  )"]],
+    [173,6,["      let lookup_offsets = match","        gsub","        .layout()","        .select_lookup_offsets_for_feature(","          script_tag,","          feature_tag,","          language_tag=lang_tag,","          include_required=false,","          work=self.layout_work,","        ) {"]],
+    [188,7,["          match","            gsub.apply_with_lookups(","              current_glyphs,","              current_clusters,","              lookup_offsets[:],","              masks~,","              lookup_mask=1U,","              work=self.layout_work,","            ) {"]],
+    [199,8,["          match","            gsub.apply_with_lookups(","              current_glyphs,","              current_clusters,","              lookup_offsets[:],","              gdef~,","              masks~,","              lookup_mask=1U,","              work=self.layout_work,","            ) {"]],
+    [236,1,["      infos.push(GlyphInfo::{","        codepoint: glyph,","        cluster: current_clusters[i],","        unicode,","      })"]],
+    [247,2,["    unicode_mark_flags~,","    combining_classes~,"]]
+  ]
+}

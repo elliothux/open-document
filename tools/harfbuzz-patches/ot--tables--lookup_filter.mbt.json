@@ -1,0 +1,28 @@
+{
+  "file": "ot/tables/lookup_filter.mbt",
+  "originalSha256": "a61de65de9b12fe2f64a493da792071a1665a45a90a4b968de2d935c7f68025b",
+  "patchedSha256": "6aca75ae9abb6b6f236dc6441dc469a1f43056efcb02ae03d2bbf027383257a6",
+  "lineEdits": [
+    [23,0,["  work~ : LayoutWork,"]],
+    [24,0,["  if !work.spend(1) {","    return Err(WorkLimitExceeded)","  }",""]],
+    [35,1,["      let glyph_class = gdef.glyph_class(glyph, work~)"]],
+    [51,1,["              let mark_class = gdef.mark_attach_class(glyph, work~)"]],
+    [54,1,["                Ok(mark_class) =>","                  if mark_class != attach_type {","                    return Ok(true)","                  }"]],
+    [61,1,["                  let in_set = gdef.mark_glyph_set_contains(","                    set_index,","                    glyph,","                    work~,","                  )"]],
+    [89,0,["  work~ : LayoutWork,"]],
+    [90,0,["  if !work.spend(1) {","    return Err(WorkLimitExceeded)","  }",""]],
+    [99,0,["      if !work.spend(1) {","        return Err(WorkLimitExceeded)","      }",""]],
+    [104,1,["        masks~,"]],
+    [106,1,["        lookup_mask~,","        work~,"]],
+    [123,1,["    masks~,"]],
+    [125,1,["    lookup_mask~,","    work~,"]],
+    [135,0,["        if !work.spend(1) {","          return Err(WorkLimitExceeded)","        }",""]],
+    [143,1,["          masks~,"]],
+    [145,1,["          lookup_mask~,","          work~,"]],
+    [171,0,["  work~ : LayoutWork,"]],
+    [172,0,["  if !work.spend(1) {","    return Err(WorkLimitExceeded)","  }",""]],
+    [181,0,["    if !work.spend(1) {","      return Err(WorkLimitExceeded)","    }",""]],
+    [189,1,["      masks~,"]],
+    [191,1,["      lookup_mask~,","      work~,"]]
+  ]
+}

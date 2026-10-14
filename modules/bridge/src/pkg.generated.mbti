@@ -10,6 +10,8 @@ import {
 // Values
 pub fn close(@text.Session) -> Unit
 
+pub fn foundation_add_font(Foundation, String, String) -> String
+
 pub fn foundation_call(Foundation, String) -> String
 
 pub fn foundation_close(Foundation) -> Unit

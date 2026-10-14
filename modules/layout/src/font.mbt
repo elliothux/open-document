@@ -14,12 +14,53 @@ struct Font {
 }
 
 ///|
+fn font_line_extents(
+  face : @face.Face,
+  os2 : @sfnt.Os2Table,
+) -> (Int, Int) raise @failure.Failure {
+  let hhea = match face.reference_table(@common.Tag::from_string("hhea")) {
+    Ok(blob) => blob.as_view()
+    Err(_) => @failure.reject("malformed-font", "Missing hhea metrics")
+  }
+  guard hhea.length() >= 36 else {
+    @failure.reject("malformed-font", "Invalid hhea metrics")
+  }
+  let signed = fn(offset) {
+    let value = hhea[offset].to_int() * 256 + hhea[offset + 1].to_int()
+    if value >= 32768 {
+      value - 65536
+    } else {
+      value
+    }
+  }
+  let ascent = signed(4)
+  let descent = signed(6)
+  let table = face
+    .reference_table(@common.Tag::from_string("OS/2"))
+    .unwrap()
+    .as_view()
+  // Win metrics bound clipping; USE_TYPO_METRICS overrides valid hhea line metrics.
+  if ((table[62].to_int() * 256 + table[63].to_int()) & 128) != 0 &&
+    os2.typo_ascender >= 0 &&
+    os2.typo_descender <= 0 &&
+    os2.typo_ascender > os2.typo_descender {
+    (os2.typo_ascender, -os2.typo_descender)
+  } else if ascent >= 0 && descent <= 0 && ascent > descent {
+    (ascent, -descent)
+  } else {
+    (os2.win_ascent, os2.win_descent)
+  }
+}
+
+///|
 pub struct TextProbe {
   fonts : Array[Font]
   outlines : Map[String, String]
   mut font_bytes : Int
   mut outline_bytes : Int
   mut closed : Bool
+  mut paragraphs : Map[String, Array[MeasuredLine]]
+  mut pagination : PaginationCache?
 }
 
 ///|
@@ -30,6 +71,8 @@ pub fn TextProbe::new() -> TextProbe {
     font_bytes: 0,
     outline_bytes: 0,
     closed: false,
+    paragraphs: Map([]),
+    pagination: None,
   }
 }
 
@@ -98,6 +141,7 @@ pub fn TextProbe::add_font(
   guard head_bytes.length() >= 54 && os2.win_ascent + os2.win_descent > 0 else {
     @failure.reject("malformed-font", "Invalid line or bounding metrics")
   }
+  let (ascent, descent) = font_line_extents(face, os2)
   let bbox = [36, 38, 40, 42].map(offset => {
     let value = head_bytes[offset].to_int() * 256 +
       head_bytes[offset + 1].to_int()
@@ -119,8 +163,8 @@ pub fn TextProbe::add_font(
     upem,
     bytes,
     sha256: hash.to_string(),
-    ascent: os2.win_ascent,
-    descent: os2.win_descent,
+    ascent,
+    descent,
     fs_type: os2.fs_type,
     bbox,
     cap_height: os2.cap_height.unwrap_or(os2.win_ascent),
@@ -130,6 +174,8 @@ pub fn TextProbe::add_font(
     },
   })
   self.font_bytes += bytes.length()
+  self.paragraphs.clear()
+  self.pagination = None
   self.fonts.length() - 1
 }
 
@@ -216,10 +262,23 @@ fn TextProbe::line_metrics(
   size : Double,
 ) -> (Double, Double) {
   let font = self.fonts[index]
-  (
-    font.ascent.to_double() * size / font.upem.to_double(),
-    font.descent.to_double() * size / font.upem.to_double(),
-  )
+  scaled_line_metrics(font.ascent, font.descent, font.upem, size)
+}
+
+///|
+fn scaled_line_metrics(
+  ascent : Int,
+  descent : Int,
+  upem : Int,
+  size : Double,
+) -> (Double, Double) {
+  // LibreOffice MSO1 rounds font metrics at 8640 DPI before converting to twips.
+  let scale = (size * 120).round() / upem.to_double()
+  let ascent = (ascent.to_double() * scale).round()
+  let descent = (descent.to_double() * scale).round()
+  let baseline = (ascent / 6).round() / 20
+  let height = ((ascent + descent) / 6).round() / 20
+  (baseline, height - baseline)
 }
 
 ///|
@@ -265,6 +324,8 @@ pub fn TextProbe::close(self : TextProbe) -> Unit {
   self.closed = true
   self.fonts.clear()
   self.outlines.clear()
+  self.paragraphs.clear()
+  self.pagination = None
   self.font_bytes = 0
   self.outline_bytes = 0
 }

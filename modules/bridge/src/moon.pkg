@@ -20,6 +20,7 @@ options(
         "close",
         "new_foundation",
         "foundation_call",
+        "foundation_add_font",
         "foundation_close",
       ],
       "use-js-builtin-string": true,

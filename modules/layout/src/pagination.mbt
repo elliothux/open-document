@@ -5,6 +5,7 @@ priv struct Pagination {
   mut y : Double
   mut count : Int
   mut after : Double
+  mut gap : Double
 }
 
 ///|
@@ -23,6 +24,7 @@ fn Pagination::new(page : PageSetup) -> Pagination {
     y: page.top,
     count: 0,
     after: 0,
+    gap: 0,
   }
 }
 
@@ -40,6 +42,7 @@ fn Pagination::next_page(self : Pagination) -> Unit raise @failure.Failure {
   })
   self.y = self.page.top
   self.after = 0
+  self.gap = 0
 }
 
 ///|
@@ -79,8 +82,14 @@ fn Pagination::place(
     ..line,
     x,
     y,
+    areaX: left + line.areaX,
+    carets: line.carets.map(caret => {
+      ..caret,
+      before: x + caret.before,
+      after: x + caret.after,
+    }),
     runs: line.runs.map(run => {
-      ..run,
+      ..run.copy_geometry(),
       x: x + run.x,
       baseline: top + run.baseline,
     }),
@@ -97,7 +106,9 @@ fn Paragraph::validate_spacing(
   self : Paragraph,
   page_height : Double,
 ) -> Unit raise @failure.Failure {
-  guard self.before >= 0 &&
+  guard self.nominalSize > 0 &&
+    self.nominalSize <= 1024 &&
+    self.before >= 0 &&
     self.after >= 0 &&
     self.before <= page_height &&
     self.after <= page_height else {
@@ -108,6 +119,7 @@ fn Paragraph::validate_spacing(
 ///|
 fn Pagination::paragraph(
   self : Pagination,
+  cache : ParagraphCache,
   probe : TextProbe,
   paragraph : Paragraph,
   profile : Map[String, String],
@@ -127,26 +139,40 @@ fn Pagination::paragraph(
   } else {
     self.after.max(paragraph.before)
   }
+  self.y += self.gap
   self.after = 0
+  self.gap = 0
   let mut ended_with_break = false
+  let mut first = true
   for
-    line in paragraph_lines(
+    measured in cache.lines(
       probe,
       paragraph,
       profile,
       self.page.width - self.page.left - self.page.right,
     ) {
+    let mut line = measured.spaced(paragraph.line, first)
     if line.text.is_empty() && line.y == -1 {
-      self.next_page()
+      if !ended_with_break {
+        self.next_page()
+      }
       ended_with_break = true
+      first = true
       continue
+    }
+    if self.y + line.height > self.page.height - self.page.bottom {
+      self.next_page()
+      line = measured.spaced(paragraph.line, true)
     }
     self.fit(line.height)
     self.place(line, self.page.left, self.y, images)
     self.y += line.height
+    self.gap = paragraph.line.gap(measured.textHeight)
+    first = false
     ended_with_break = line.y == -1
     if line.y == -1 {
       self.next_page()
+      first = true
     }
   }
   if !ended_with_break {
@@ -155,108 +181,121 @@ fn Pagination::paragraph(
 }
 
 ///|
-fn Pagination::table(
-  self : Pagination,
-  probe : TextProbe,
+fn Table::left(
   table : Table,
-  profile : Map[String, String],
-  images : Images,
-  additive : Bool,
-) -> Unit raise @failure.Failure {
-  self.y += self.after
-  self.after = 0
+  page : PageSetup,
+) -> Double raise @failure.Failure {
   let width = table.widths
     .iter()
     .fold(init=0.0, (total, width) => total + width)
-  let available = self.page.width - self.page.left - self.page.right
+  let available = page.width - page.left - page.right
   guard table.padding >= 0 && table.verticalPadding >= 0 else {
     @failure.reject("invalid-style", "Negative table cell margins")
   }
   guard width > 0 && width <= available else {
     @failure.reject("layout-overflow", "Table exceeds page width")
   }
-  let left = self.page.left +
-    (match table.align {
-      "center" => (available - width) / 2
-      "right" => available - width
-      _ => 0
-    })
-  for row_index, row in table.rows {
-    guard row.length() == table.widths.length() else {
-      @failure.reject("invalid-table", "Table grid differs from row")
-    }
-    let cells : Array[Array[(Line, Double)]] = []
-    let border = if table.borders { 0.5 } else { 0 }
-    let mut height = (table.heights[row_index] + border).max(
-      table.verticalPadding * 2 + border,
-    )
-    for column, paragraphs in row {
-      let lines : Array[(Line, Double)] = []
-      let mut y = table.verticalPadding + border
-      let mut after = 0.0
-      for paragraph in paragraphs {
-        paragraph.validate_spacing(self.page.height)
-        guard !paragraph.pageBreakBefore else {
+  page.left +
+  (match table.align {
+    "center" => (available - width) / 2
+    "right" => available - width
+    _ => 0
+  })
+}
+
+///|
+fn Pagination::table_row(
+  self : Pagination,
+  cache : ParagraphCache,
+  probe : TextProbe,
+  table : Table,
+  row_index : Int,
+  profile : Map[String, String],
+  images : Images,
+  additive : Bool,
+) -> Unit raise @failure.Failure {
+  let left = table.left(self.page)
+  let row = table.rows[row_index]
+  guard row.length() == table.widths.length() else {
+    @failure.reject("invalid-table", "Table grid differs from row")
+  }
+  let cells : Array[Array[(Line, Double)]] = []
+  let border = if table.borders { 0.5 } else { 0 }
+  let mut height = (table.heights[row_index] + border).max(
+    table.verticalPadding * 2 + border,
+  )
+  for column, paragraphs in row {
+    let lines : Array[(Line, Double)] = []
+    let mut y = table.verticalPadding + border
+    let mut after = 0.0
+    let mut gap = 0.0
+    let mut terminal_gap = 0.0
+    for paragraph in paragraphs {
+      paragraph.validate_spacing(self.page.height)
+      guard !paragraph.pageBreakBefore else {
+        @failure.reject(
+          "unsupported-layout", "Page breaks inside table rows are unsupported",
+        )
+      }
+      y += if additive {
+        after + paragraph.before
+      } else {
+        after.max(paragraph.before)
+      }
+      y += gap
+      let mut first = true
+      for
+        measured in cache.lines(
+          probe,
+          paragraph,
+          profile,
+          table.widths[column] - table.padding * 2,
+        ) {
+        let line = measured.spaced(paragraph.line, first)
+        guard line.y != -1 else {
           @failure.reject(
             "unsupported-layout", "Page breaks inside table rows are unsupported",
           )
         }
-        y += if additive {
-          after + paragraph.before
-        } else {
-          after.max(paragraph.before)
-        }
-        for
-          line in paragraph_lines(
-            probe,
-            paragraph,
-            profile,
-            table.widths[column] - table.padding * 2,
-          ) {
-          guard line.y != -1 else {
-            @failure.reject(
-              "unsupported-layout", "Page breaks inside table rows are unsupported",
-            )
-          }
-          lines.push((line, y))
-          y += line.height
-        }
-        after = paragraph.after
+        lines.push((line, y))
+        y += line.height
+        gap = paragraph.line.gap(measured.textHeight)
+        first = false
       }
-      height = height.max(y + after + table.verticalPadding + border)
-      cells.push(lines)
+      after = paragraph.after
+      terminal_gap = paragraph.line.terminal_gap(paragraph.nominalSize)
     }
-    self.fit(height)
-    let mut x = left
-    for column, cell in cells {
-      let color = table.fills[row_index][column]
-      if !color.is_empty() {
-        self.pages.last().unwrap().fills.push({
-          x,
-          y: self.y,
-          width: table.widths[column],
-          height,
-          color,
-        })
-      }
-      for (line, offset) in cell {
-        self.place(line, x + table.padding, self.y + offset, images)
-      }
-      if table.borders {
-        self.pages.last().unwrap().borders.push({
-          x,
-          y: self.y,
-          width: table.widths[column],
-          height,
-        })
-      }
-      x += table.widths[column]
+    height = height.max(y + after + terminal_gap + table.verticalPadding)
+    cells.push(lines)
+  }
+  // Reserve the bottom edge without charging it again before the next row.
+  self.fit(height + border)
+  let mut x = left
+  for column, cell in cells {
+    let color = table.fills[row_index][column]
+    if !color.is_empty() {
+      self.pages.last().unwrap().fills.push({
+        x,
+        y: self.y,
+        width: table.widths[column],
+        height,
+        color,
+      })
     }
-    self.y += height
+    for (line, offset) in cell {
+      self.place(line, x + table.padding, self.y + offset, images)
+    }
+    if table.borders {
+      self.pages.last().unwrap().borders.push({
+        x,
+        y: self.y,
+        width: table.widths[column],
+        height,
+      })
+    }
+    x += table.widths[column]
   }
-  if table.borders {
-    self.y += 0.5
-  }
+  self.y += height
 }
 
 ///|
@@ -266,13 +305,27 @@ pub fn paginate(
   profile : Map[String, String],
   images : Images,
 ) -> Layout raise @failure.Failure {
+  probe.check()
   flow.page.validate()
+  for index, table in flow.tables {
+    guard table.beforeParagraph >= 0 &&
+      table.beforeParagraph <= flow.paragraphs.length() &&
+      (
+        index == 0 ||
+        flow.tables[index - 1].beforeParagraph <= table.beforeParagraph
+      ) else {
+      @failure.reject("invalid-table", "Table body position is invalid")
+    }
+  }
   guard flow.headerDistance >= 0 && flow.headerDistance <= flow.page.height else {
     @failure.reject("invalid-style", "Invalid header distance")
   }
+  let cache = ParagraphCache::new(probe, profile)
   let mut top = flow.page.top
   for header in flow.headers {
     let mut height = flow.headerDistance
+    let mut gap = 0.0
+    let mut last_gap = 0.0
     for paragraph in header {
       paragraph.validate_spacing(flow.page.height)
       guard !paragraph.pageBreakBefore else {
@@ -281,54 +334,43 @@ pub fn paginate(
         )
       }
       height += paragraph.before + paragraph.after
+      height += gap
+      last_gap = paragraph.line.terminal_gap(paragraph.nominalSize)
+      let mut first = true
       for
-        line in paragraph_lines(
+        measured in cache.lines(
           probe,
           paragraph,
           profile,
           flow.page.width - flow.page.left - flow.page.right,
         ) {
+        let line = measured.spaced(paragraph.line, first)
         height += line.height
+        gap = paragraph.line.gap(measured.textHeight)
+        first = false
       }
     }
-    top = top.max(height)
+    top = top.max(height + last_gap)
   }
   let page = { ..flow.page, top, }
   page.validate()
   let pagination = Pagination::new(page)
-  let mut paragraph = 0
-  let mut table = 0
-  while paragraph < flow.paragraphs.length() || table < flow.tables.length() {
-    if paragraph < flow.paragraphs.length() &&
-      (
-        table == flow.tables.length() ||
-        flow.paragraphs[paragraph].id < flow.tables[table].id
-      ) {
-      pagination.paragraph(
-        probe,
-        flow.paragraphs[paragraph],
-        profile,
-        images,
-        flow.additiveSpacing,
-      )
-      paragraph += 1
-    } else {
-      pagination.table(
-        probe,
-        flow.tables[table],
-        profile,
-        images,
-        flow.additiveSpacing,
-      )
-      table += 1
-    }
-  }
-  {
+  let (reflowed, reused, next) = pagination.body(
+    probe, flow, cache, profile, images,
+  )
+  let result : Layout = {
     revision: flow.revision,
+    shapedParagraphs: cache.shaped,
+    reusedParagraphs: cache.reused,
+    reflowedPages: reflowed,
+    reusedPages: reused,
     profile: profile.copy(),
     pages: pagination.pages,
     diagnostics: flow.diagnostics.copy(),
     outlines: probe.outline_resources(),
     fonts: probe.font_info(),
   }
+  probe.paragraphs = cache.current
+  probe.pagination = next
+  result
 }

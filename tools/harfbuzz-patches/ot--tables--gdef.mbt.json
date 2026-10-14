@@ -1,0 +1,26 @@
+{
+  "file": "ot/tables/gdef.mbt",
+  "originalSha256": "ff75d107183fac2fe5498f4f0cdf6237d821f7e1b1d83477856aed4ffa13ec3d",
+  "patchedSha256": "08de21b861ad4750e0f2fa84d9e874b4e872baa7e7624d4465e0ec8df9b8777b",
+  "lineEdits": [
+    [31,1,["pub fn GdefTable::parse(","  blob : @blob.Blob,","  work? : LayoutWork = layout_work_budget(),",") -> Result[GdefTable, OtLayoutError] {","  if !work.spend(1) {","    return Err(WorkLimitExceeded)","  }",""]],
+    [33,1,["  let version = read_u32(data, 0, work~)"]],
+    [41,1,["      match check_range(data, 0, header_len, work~) {"]],
+    [45,10,["      let glyph_class_def_offset = read_u16_int(data, 4, work~)","      let attach_list_offset = read_u16_int(data, 6, work~)","      let lig_caret_list_offset = read_u16_int(data, 8, work~)","      let mark_attach_class_def_offset = read_u16_int(data, 10, work~)","      match","        (","          glyph_class_def_offset, attach_list_offset, lig_caret_list_offset, mark_attach_class_def_offset,","        ) {"]],
+    [65,8,["          let mark_glyph_sets_def_offset = if version >= 0x00010002U {","            match read_u16_int(data, 12, work~) {","              Err(err) => return Err(err)","              Ok(value) => if value == 0 { None } else { Some(value) }"]],
+    [74,0,["          } else {","            None","          }"]],
+    [98,1,["          Ok(GdefTable::{ data, header, })"]],
+    [114,0,["  work? : LayoutWork = layout_work_budget(),"]],
+    [115,0,["  if !work.spend(1) {","    return Err(WorkLimitExceeded)","  }",""]],
+    [117,1,["    Some(offset) => class_def_value(self.data, offset, glyph, work~)"]],
+    [125,0,["  work? : LayoutWork = layout_work_budget(),"]],
+    [126,0,["  if !work.spend(1) {","    return Err(WorkLimitExceeded)","  }",""]],
+    [128,1,["    Some(offset) => class_def_value(self.data, offset, glyph, work~)"]],
+    [137,0,["  work? : LayoutWork = layout_work_budget(),"]],
+    [138,0,["  if !work.spend(1) {","    return Err(WorkLimitExceeded)","  }",""]],
+    [144,2,["      let format = read_u16_int(self.data, offset, work~)","      let set_count = read_u16_int(self.data, offset + 2, work~)"]],
+    [157,1,["          if list_base < 0 || list_base + set_count * 4 > self.data.length() {"]],
+    [160,1,["          let cov_offset = read_u32_int(","            self.data,","            list_base + set_index * 4,","            work~,","          )"]],
+    [168,1,["              let covered = coverage_index(self.data, cov_base, glyph, work~)"]]
+  ]
+}
