@@ -180,6 +180,7 @@ pub fn Layout::drawing(Self, Images) -> Array[DrawingRegion] raise @failure.Fail
 pub fn Layout::drawing_images(Self, Images) -> Array[String] raise @failure.Failure
 pub fn Layout::hit_test(Self, Int, Double, Double) -> Hit raise @failure.Failure
 pub fn Layout::move_caret(Self, (Int, Int, String), String, goal_x? : Double, bidi_level? : Int, frame_start? : Int) -> Hit raise @failure.Failure
+pub fn Layout::positioned(Self) -> PositionedDocument
 pub fn Layout::selection_rects(Self, (Int, Int, String), (Int, Int, String)) -> Array[SelectionRect] raise @failure.Failure
 pub fn Layout::semantics(Self) -> Array[SemanticPage]
 pub fn Layout::to_json(Self) -> Json
@@ -281,6 +282,41 @@ pub(all) struct PlacedRun {
 } derive(ToJson)
 pub fn PlacedRun::to_json(Self) -> Json
 
+pub(all) struct PositionedDocument {
+  pages : Array[PositionedPage]
+  fonts : Array[FontInfo]
+}
+pub fn PositionedDocument::drawing(Self, Images) -> Array[DrawingRegion] raise @failure.Failure
+
+pub(all) struct PositionedPage {
+  width : Double
+  height : Double
+  texts : Array[PositionedText]
+  fills : Array[Fill]
+  strokes : Array[PositionedStroke]
+}
+
+pub(all) struct PositionedRun {
+  color : String
+  text : String
+  glyphs : Array[Glyph]
+  x : Double
+  baseline : Double
+}
+
+pub(all) struct PositionedStroke {
+  rect : Border
+  color : String
+  width : Double
+}
+
+pub(all) struct PositionedText {
+  text : String
+  runs : Array[PositionedRun]
+  clip : Border?
+  images : Array[PlacedImage]
+}
+
 pub(all) struct SelectionRect {
   page : Int
   line : Int
@@ -358,6 +394,12 @@ pub(all) struct Table {
 } derive(ToJson)
 pub fn Table::to_json(Self) -> Json
 
+pub(all) struct TextBlock {
+  texts : Array[PositionedText]
+  widths : Array[Double]
+  height : Double
+}
+
 pub struct TextProbe {
   fonts : Array[Font]
   outlines : Map[String, String]
@@ -365,6 +407,7 @@ pub struct TextProbe {
   mut outline_bytes : Int
   mut closed : Bool
   mut paragraphs : Map[String, Array[MeasuredLine]]
+  mut text_units : Int
   mut pagination : PaginationCache?
 }
 pub fn TextProbe::add_font(Self, Bytes, String) -> Int raise @failure.Failure
@@ -376,6 +419,7 @@ pub fn TextProbe::glyph_width(Self, Int, UInt) -> Double raise @failure.Failure
 pub fn TextProbe::new() -> Self
 pub fn TextProbe::outline_resources(Self) -> Array[Outline] raise @failure.Failure
 pub fn TextProbe::shape(Self, String, Double, String, primary? : Int, base? : Int) -> ShapeBatch raise @failure.Failure
+pub fn TextProbe::text_block(Self, String, TextStyle, Map[String, String], Double, Bool) -> TextBlock raise @failure.Failure
 
 pub(all) struct TextStyle {
   font : String

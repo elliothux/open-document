@@ -82,55 +82,7 @@ pub fn Layout::drawing(
   self : Layout,
   images : Images,
 ) -> Array[DrawingRegion] raise @failure.Failure {
-  self.pages.map(page => {
-    let commands : Array[DrawCommand] = [
-      ClipRect({ x: 0, y: 0, width: page.width, height: page.height, }),
-      FillRect({
-        x: 0,
-        y: 0,
-        width: page.width,
-        height: page.height,
-        color: "ffffff",
-      }),
-    ]
-    for fill in page.fills {
-      commands.push(FillRect(fill))
-    }
-    for border in page.borders {
-      commands.push(StrokeRect(border, "000000", 0.5))
-    }
-    for line in page.lines {
-      if line.clip {
-        commands.push(
-          ClipRect({ x: 0, y: line.y, width: page.width, height: line.height, }),
-        )
-      }
-      for image in line.images {
-        commands.push(Image({ ..image, key: images.get(image.key).identity, }))
-      }
-      for run in line.runs {
-        commands.push(
-          Glyphs(
-            run.x,
-            run.baseline,
-            run.color,
-            run.glyphs.map(glyph => {
-              outline: glyph.outline,
-              x: glyph.x,
-              y: glyph.y,
-              scaleX: glyph.scale,
-              scaleY: -glyph.scale,
-            }),
-          ),
-        )
-      }
-      if line.clip {
-        commands.push(RestoreClip)
-      }
-    }
-    commands.push(RestoreClip)
-    { width: page.width, height: page.height, commands, }
-  })
+  self.positioned().drawing(images)
 }
 
 ///|

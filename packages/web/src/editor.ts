@@ -1,3 +1,4 @@
+import { downloadBytes } from "./download.js";
 import type { FoundationClient } from "./foundation.js";
 import { PageCanvas } from "./page-canvas.js";
 import { PointerSelection, type PointerPoint } from "./pointer-selection.js";
@@ -420,7 +421,7 @@ export class DocumentEditor {
     }
     return this.enqueue(async () => {
       if (!initial) this.scrollPointer(point, elapsed);
-      const frame = this.currentLayout.pages[this.page];
+      const frame = this.currentLayout.regions[this.page];
       if (!frame) throw new Error("Unknown page");
       if (
         !initial &&
@@ -477,7 +478,7 @@ export class DocumentEditor {
     )
       return;
     const next = this.page + Math.sign(dy);
-    if (next < 0 || next >= this.currentLayout.pages.length) return;
+    if (next < 0 || next >= this.currentLayout.regions.length) return;
     this.page = next;
     this.paint();
     view.scrollTop = dy < 0 ? view.scrollHeight - view.clientHeight : 0;
@@ -641,7 +642,7 @@ export class DocumentEditor {
   }
 
   private paint(): void {
-    this.page = Math.min(this.page, this.currentLayout.pages.length - 1);
+    this.page = Math.min(this.page, this.currentLayout.regions.length - 1);
     this.cssScale = this.surface.draw(this.currentLayout, this.page, this.zoom);
     // Focus and pointer selection run before text intents in the same queue.
     this.input.readOnly = !!this.blocked || this.resuming;
@@ -649,7 +650,7 @@ export class DocumentEditor {
     this.undo.disabled = !this.state.canUndo;
     this.redo.disabled = !this.state.canRedo;
     this.previous.disabled = this.page === 0;
-    this.next.disabled = this.page === this.currentLayout.pages.length - 1;
+    this.next.disabled = this.page === this.currentLayout.regions.length - 1;
     this.text.textContent =
       this.currentLayout.semantics[this.page]?.lines
         .map((line) => line.text.replaceAll("\ufffc", "[image]"))
@@ -666,7 +667,7 @@ export class DocumentEditor {
 
   private updateStatus(): void {
     if (!this.blocked) {
-      const text = `Page ${this.page + 1} of ${this.currentLayout.pages.length}; revision ${this.state.revision}; last output ${this.outputRevision ?? "none"}; ${this.selectionDescription}`;
+      const text = `Page ${this.page + 1} of ${this.currentLayout.regions.length}; revision ${this.state.revision}; last output ${this.outputRevision ?? "none"}; ${this.selectionDescription}`;
       if (this.status.textContent !== text) this.status.textContent = text;
     }
   }
@@ -674,7 +675,7 @@ export class DocumentEditor {
   private async showPage(index: number): Promise<void> {
     this.page = Math.max(
       0,
-      Math.min(this.currentLayout.pages.length - 1, index),
+      Math.min(this.currentLayout.regions.length - 1, index),
     );
     this.paint();
     this.surface.clearOverlay(this.cssScale);
@@ -757,22 +758,13 @@ export class DocumentEditor {
     filename: string,
   ): void {
     this.assertOpen();
-    let url: string | undefined;
     try {
-      url = URL.createObjectURL(
-        new Blob([new Uint8Array(bytes).buffer], { type }),
-      );
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = filename;
-      link.click();
+      downloadBytes(bytes, type, filename);
     } catch (error) {
       if (!this.blocked)
         this.status.textContent =
           "Download failed. The current document is available to save again.";
       throw error;
-    } finally {
-      if (url) URL.revokeObjectURL(url);
     }
   }
 

@@ -1,1 +1,8 @@
-// Placeholder: XLSX adapter, planned in P5.
+import {
+  "open_document/core/archive",
+  "open_document/core/opc",
+  "open_document/core/xml",
+  "open_document/core/failure",
+  "open_document/layout",
+  "moonbitlang/core/string",
+}

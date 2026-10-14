@@ -60,6 +60,7 @@ pub struct TextProbe {
   mut outline_bytes : Int
   mut closed : Bool
   mut paragraphs : Map[String, Array[MeasuredLine]]
+  mut text_units : Int
   mut pagination : PaginationCache?
 }
 
@@ -72,6 +73,7 @@ pub fn TextProbe::new() -> TextProbe {
     outline_bytes: 0,
     closed: false,
     paragraphs: Map([]),
+    text_units: 0,
     pagination: None,
   }
 }
@@ -175,6 +177,7 @@ pub fn TextProbe::add_font(
   })
   self.font_bytes += bytes.length()
   self.paragraphs.clear()
+  self.text_units = 0
   self.pagination = None
   self.fonts.length() - 1
 }
@@ -325,6 +328,7 @@ pub fn TextProbe::close(self : TextProbe) -> Unit {
   self.fonts.clear()
   self.outlines.clear()
   self.paragraphs.clear()
+  self.text_units = 0
   self.pagination = None
   self.font_bytes = 0
   self.outline_bytes = 0

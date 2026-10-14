@@ -7,7 +7,7 @@ import {
 }
 
 // Values
-pub fn write(@layout.Layout, @layout.TextProbe, @layout.Images, Int) -> Bytes raise @failure.Failure
+pub fn write(@layout.PositionedDocument, @layout.TextProbe, @layout.Images, Int) -> Bytes raise @failure.Failure
 
 // Errors
 

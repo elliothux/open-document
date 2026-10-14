@@ -1,21 +1,90 @@
 import { loadEngine, type TextSession } from "@open-document/wasm/engine";
 import type { FoundationSession } from "@open-document/wasm/foundation";
+import type { XlsxSession } from "@open-document/wasm/xlsx";
 import type { Request, Response } from "./protocol";
 
 let text: TextSession | undefined;
 let foundation: FoundationSession | undefined;
+let workbook: XlsxSession | undefined;
 let busy = false;
 
 async function dispatch(request: Request): Promise<unknown> {
-  if (request.operation === "open" || request.operation === "openFoundation") {
-    if (text || foundation) throw new Error("Session is already open");
+  if (
+    request.operation === "open" ||
+    request.operation === "openFoundation" ||
+    request.operation === "openSpreadsheet"
+  ) {
+    if (text || foundation || workbook)
+      throw new Error("Session is already open");
     const engine = await loadEngine(request.wasm);
     if (request.operation === "open") {
       text = engine.openText(request.text);
       return text.read();
     }
+    if (request.operation === "openSpreadsheet") {
+      workbook = engine.openXlsx();
+      return null;
+    }
     foundation = engine.openFoundation();
     return null;
+  }
+  if (workbook) {
+    switch (request.operation) {
+      case "budget":
+        return workbook.defaultBudget();
+      case "font":
+        workbook.addFont(request.bytes, request.identity);
+        return null;
+      case "openXlsx":
+        return workbook.open(request.bytes, request.budget);
+      case "queryXlsx":
+        return workbook.query(request.sheet, request.range);
+      case "selectXlsx":
+        return workbook.select(request.revision, request.sheet, request.range);
+      case "replaceXlsx":
+        return workbook.replace(
+          request.revision,
+          request.sheet,
+          request.range,
+          request.values,
+          request.literal,
+        );
+      case "undoXlsx":
+        return workbook.undo(request.revision);
+      case "redoXlsx":
+        return workbook.redo(request.revision);
+      case "saveXlsx":
+        return workbook.save();
+      case "viewportXlsx":
+        return workbook.viewport(request);
+      case "hitXlsx":
+        return workbook.hit(request.layoutId, request.x, request.y);
+      case "selectionXlsx":
+        return workbook.selectionGeometry(request.layoutId);
+      case "navigateXlsx":
+        return workbook.navigate(
+          request.revision,
+          request.direction,
+          request.extend,
+        );
+      case "copyXlsx":
+        return workbook.copy(request.revision);
+      case "pasteXlsx":
+        return workbook.paste(request.revision, request.text);
+      case "clearXlsx":
+        return workbook.clear(request.revision);
+      case "printXlsx":
+        return workbook.printLayout(
+          request.revision,
+          request.sheet,
+          request,
+          request.profile,
+        );
+      case "exportXlsxPdf":
+        return workbook.exportPdf(request.layoutId, request.outputBytes);
+      default:
+        throw new Error("Operation is unavailable in an XLSX session");
+    }
   }
   switch (request.operation) {
     case "read":
@@ -29,6 +98,23 @@ async function dispatch(request: Request): Promise<unknown> {
     default:
       if (!foundation) throw new Error("Foundation session is not open");
       switch (request.operation) {
+        case "openXlsx":
+        case "queryXlsx":
+        case "selectXlsx":
+        case "replaceXlsx":
+        case "undoXlsx":
+        case "redoXlsx":
+        case "saveXlsx":
+        case "viewportXlsx":
+        case "hitXlsx":
+        case "selectionXlsx":
+        case "navigateXlsx":
+        case "copyXlsx":
+        case "pasteXlsx":
+        case "clearXlsx":
+        case "printXlsx":
+        case "exportXlsxPdf":
+          throw new Error("Open an XLSX client first");
         case "budget":
           return foundation.defaultBudget();
         case "font":

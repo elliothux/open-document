@@ -6,14 +6,14 @@ export class CanvasRenderer {
   private readonly paths = new Map<string, Path2D>();
   private closed = false;
 
-  drawPage(
+  drawRegion(
     context: CanvasRenderingContext2D,
     batch: DrawingBatch,
     index: number,
     images: ReadonlyMap<string, ImageBitmap> = new Map(),
   ): void {
     if (this.closed) throw new Error("Renderer is disposed");
-    const region = batch.pages[index];
+    const region = batch.regions[index];
     if (!region) throw new Error("Unknown drawing region");
     this.prepare(batch.outlines);
     let clips = 0;

@@ -2,7 +2,7 @@
 
 项目未发布，当前有 0 个用户。现有基础包括 [P0 文本 POC](../implemented/p0-project-foundation.md)、[P1 字体/塑形](../implemented/p1-sdk-foundation.md)、[P2 窄 DOCX 读写](../implemented/p2-format-foundation.md)、[P3 有限预览/PDF](../implemented/p3-docx-preview.md)及 [P4 限定 DOCX 编辑](../implemented/p4-docx-editing.md)。实际 API 与支持面见[开发说明](development.md)和[格式合同](formats.md)。未发布 API、模型和开发数据沿单一实现路径直接修改。
 
-下一阶段范围归 [P5 XLSX 方案](../p5-xlsx-editing.md)。XLSX 沿用本合同与 [R0](../implemented/r0-renderer-foundation.md) 的核心/Renderer 分工；方案中的能力尚未实现。
+[P5 XLSX](../implemented/p5-xlsx-editing.md)已交付限定网格、值/公式编辑、保存与基础打印。XLSX 沿用本合同与 [R0](../implemented/r0-renderer-foundation.md) 的核心/Renderer 分工，支持边界归格式合同。
 
 按当前需求从 Day One 设计。需求可以直接改变最底层架构、模型、接口和数据流；选择合理实现，同步修改调用方、测试和文档，删除被替代的路径。兼容代码仅限文档格式；禁止保留旧接口、内部模型、配置或开发数据的兼容层、迁移垫片、双写和旧实现回退。
 

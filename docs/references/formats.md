@@ -2,7 +2,7 @@
 
 本文维护 P1–P4 的当前支持面；产品目标与核心/宿主职责归 [SDK 合同](sdk.md)。公开包仍为 private/WIP，API 尚未发布。内部架构直接按当前需求修改，删除旧模型与旧路径；兼容处理仅限文档格式。
 
-XLSX 的待实现范围见 [P5](../p5-xlsx-editing.md)，当前尚无 XLSX 运行证据；不将方案内容记为已支持 API。
+XLSX 的网格、值/公式编辑、保真保存与基础打印见 [P5](../implemented/p5-xlsx-editing.md)。以下分别声明文件读取、计算、显示和编辑边界。
 
 后续实现与测试基准优先使用 ONLYOFFICE core/sdkjs，其次使用 LibreOffice。下文 LibreOffice profile 记录已有实现和证据；对应功能调整时按当前优先级核对，并保留历史结果的真实来源。
 
@@ -66,7 +66,7 @@ DOCX 文字区段的实际宽度和后续起点按固定 LibreOffice 的整数 t
 
 ## 通用绘制输出
 
-`@open-document/wasm/drawing` 定义 `DrawingBatch`、`DrawingRegion`、`DrawCommand` 和批量校验。`DrawingBatch.pages` 是绘制区域数组；当前 DOCX 中每个区域对应一页。区域只包含 `width`、`height` 和有序 `commands`，不包含段落或表格模型。区域原点在左上，坐标为 point，x 向右、y 向下。
+`@open-document/wasm/drawing` 定义 `DrawingBatch`、`DrawingRegion`、`DrawCommand` 和批量校验。`DrawingBatch.regions` 是绘制区域数组；DOCX 中每个区域对应一页，XLSX 屏幕结果对应一个视口。区域只包含 `width`、`height` 和有序 `commands`，不包含段落或表格模型。区域原点在左上，坐标为 point，x 向右、y 向下。Renderer 使用 `drawRegion`，旧的页字段与方法已删除。
 
 当前指令如下：
 
@@ -84,9 +84,9 @@ DOCX 文字区段的实际宽度和后续起点按固定 LibreOffice 的整数 t
 
 宿主校验有限数值、尺寸、颜色、裁剪栈和全部资源引用。未知指令、无效输出及缺资源明确失败。`@open-document/web/drawing` 的 `CanvasRenderer` 只执行这些指令，并保留独立 `shape()` 探针的绘制入口。
 
-`PageCanvas` 只保留当前页内容。编辑器另有透明覆盖层，指针事件仍由内容画布接收。同一 `id`、页码、zoom 和 DPR 下，光标与选区只清除并重画覆盖层。内容失效时重置变换并重绘；仅像素尺寸变化时重设画布尺寸。缩放与窗口 DPR 变化重新呈现，固定纸张布局继续复用。覆盖层几何须匹配当前布局身份与 revision。
+`CanvasSurface` 共用尺寸、DPR、透明覆盖层、绘制身份与资源释放。DOCX 的 `PageCanvas` 继续准备文档图片。相同 `id`、区域、zoom 和 DPR 下，只清除并重画覆盖层；仅像素尺寸变化时重设画布尺寸。缩放与窗口 DPR 变化重新呈现，覆盖层几何须匹配当前布局身份与 revision。
 
-预览与编辑共用此路径。宿主在关闭时释放 Canvas、Path2D 和 ImageBitmap；两个编辑画布的像素共同计入预算。JSON/Worker 仍按批次传输。DOCX 保存读取核心文档状态；PDF 继续读取内部布局，保留字体嵌入、Unicode 文字、图片与裁剪。
+预览与编辑共用此路径。宿主在关闭时释放 Canvas、Path2D 和 ImageBitmap；内容与覆盖层共同计入像素预算。JSON/Worker 仍按批次传输。PDF writer 消费 `PositionedDocument` 的定位文字、页面、边框、填充及图片；DOCX 从内部布局转换，XLSX 从独立打印布局生成。字体嵌入、Unicode 与裁剪仍由核心处理。
 
 ## 预算
 
@@ -173,3 +173,66 @@ PDF 使用同一字形坐标、TrueType 子集、字体宽度、CIDToGIDMap、To
 性能校准和进一步优化延后。已有输入/字形/历史/队列/布局/Canvas 上限、拒绝恢复和释放要求保持。
 
 `DocumentPreview.create(root, client, profile, signal?)` 显示只读页面、文本和诊断，支持滚动、切页、缩放、键盘与 PDF 下载。`dispose()` 释放自己持有的 Canvas、Path2D、ImageBitmap、监听器和 DOM，保留宿主其他子节点并恢复属性；调用方另需 `client.dispose()` 释放 Worker/核心。取消在异步准备步骤之间检查，不能抢占正在执行的同步 Wasm。基础文本语义与可达按钮不是完整文档无障碍认证。
+
+## P5 XLSX 合同
+
+`XlsxSession` 和 `XlsxClient` 分别提供同步 WASM 与 Worker Promise API。核心持有 OPC/XML、稀疏单元格、公式依赖、选区、历史及几何；TS 只处理平台输入与呈现。工作表 `id` 来自包内关系目标。查询包含隐藏表，界面只列出可见表。
+
+| API | 结果与约束 |
+| --- | --- |
+| `open(bytes,budget)` / `openXlsx(bytes,budget)` | 打开 Transitional XLSX；签名、Strict、加密和其他扩展格式拒绝 |
+| `query(sheet?,range?)` | 默认当前选区；返回实际存在的稀疏单元格，单格查询包含空格；A1 地址，查询矩形端点有序 |
+| `select(revision,sheet,range)` | 更新核心选区；单格合并区域定位锚点 |
+| `replace(revision,sheet,range,values,literal=false)` | 一项矩形事务；字段为输入字符串，核心识别值与公式；清空保留样式 |
+| `navigate(revision,direction,extend=false)` | `left/right/up/down/home`；跳过隐藏行列，Shift 扩展选区 |
+| `copy(revision)` / `paste(revision,text)` / `clear(revision)` | 核心显示值 TSV、矩形粘贴及清空；核心识别数值/布尔，`=` 不执行 |
+| `undo(revision)` / `redo(revision)` | 源片段、选区和计算结果原子恢复；revision 每次成功修改递增 |
+| `save()` | 返回完整 XLSX；无编辑及全部撤销后保留原解压部件字节 |
+| `viewport(options)` | 逻辑滚动、point 尺寸、sheet、字体 profile、可选 `reveal`；一个绘制区域及可见网格语义 |
+| `hit(layoutId,x,y)` / `selectionGeometry(layoutId)` | 核心地址命中与选区矩形；旧布局身份或 revision 拒绝 |
+| `printLayout(revision,sheet,options,profile)` | 独立打印区域，返回有身份的页面绘制批次 |
+| `exportPdf(layoutId,outputBytes)` | 使用当前打印布局；编辑、字体变更或新打印布局使旧输出身份失效 |
+
+`XlsxQuery` 返回 `sheets`、`sheet`、`selection`、`revision`、历史状态、`date1904`、`fontKeys` 和诊断。每格分别返回 `value`、`formula`、`cached`、`calculated`、`calculation`、`display`、`input` 与 `readOnlyReason`。空格、空字符串、零、布尔值与错误独立表示。`input` 是核心生成的可编辑源码，文字带前导单引号，避免重新提交时误作公式或数值。
+
+### 显示与计算
+
+读取共享/内联字符串、数值、布尔值、错误、公式及缓存。富文本读出文字，保留原 XML并保护编辑。受保护工作表及含未知编辑语义的单元格只读。图表、条件格式、绘图等未呈现内容给出诊断，继续保留源部件。
+
+网格读取行高、列宽、隐藏行列与合并区域。核心使用默认字体最大数字宽度换算列宽；不依赖 DOM 度量。字体键沿用 `family|bold|italic`，宿主明确映射到已添加的字体身份。支持字体大小、粗斜体、基本文字色、纯色填充、实线边框、左中右/上中下对齐与换行。行列尺寸使用声明值，不自动调整。数字宽度不足时显示 `#`；文字按单元格裁剪。
+
+数字格式覆盖 General、`@`、整数、两位小数、千分位、百分比、`yyyy-mm-dd`、`hh:mm:ss`，以及内置 1–4、9–10、14–22、49。日期保留数值，核心解释 1900/1904 系统，1900 序号 60 显示虚构的 2 月 29 日，序号 0 显示 1900-01-00。不经过宿主时区。其他格式、颜色 tint、渐变/图案、非实线边框及额外字体装饰保留声明并诊断，不承诺显示等价。
+
+公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF`。范围端点可以反向，核心按矩形解释。引用中的文字、布尔、空值和错误按函数规则处理；IF 只求值选中分支，依赖仍包含两侧声明引用。
+
+首次打开计算支持的公式，编辑只重新求值受影响公式。首次有效事务同步与已计算结果不同的导入缓存，包括未受本次输入影响的陈旧缓存；无编辑打开不写回。语法、越界引用、未支持公式、新建循环和预算超限整体拒绝；除零等是带类型的公式结果。共享公式按锚点派生；编辑命中组时有界展开该组，其他组保留。
+
+名称、结构化/外部/三维/整行整列引用、数组、动态数组、易变函数及迭代计算未支持。导入存在未支持公式、无法解析依赖或原有循环时，整个工作簿只读，显示导入缓存；缺缓存显示未计算。公式不访问网络、宏或宿主脚本。
+
+### 输入与保存
+
+前导 `=` 进入公式，单引号强制文字。未做日期自动识别与地区化输入推断。TSV 粘贴保留以 `=` 或单引号开头的文字，其余字段由核心识别数值、布尔或文字。CRLF/CR 统一为 LF，支持带引号的字段、字段内换行和双引号转义；不等宽行或未闭合引号拒绝。矩形写入、粘贴和清空与任意合并区域相交时拒绝，单格按锚点修改。
+
+候选源片段、依赖、计算缓存和历史一起提交。新文字使用内联字符串；共享字符串顺序不变，同步计数。保存保留非目标源内容，移除失效 `calcChain`、其关系与 content type，并设置 `calcPr` 重算属性。输出重新检查 OPC 完整性；失败保留会话，不返回部分文件。不承诺整个 ZIP 字节相等。
+
+`SpreadsheetEditor` 持有一个原生 textarea 草稿。双击/F2 编辑，Enter/Tab 提交并移动，Shift+Enter 在草稿内换行，Esc 取消。草稿开始与导航进入同一队列，快速输入绑定确认后的单元格，保留原生文字与选择。离格或切表先提交；错误保留草稿与旧值。组合结束只更新草稿，提交产生一项历史。草稿中使用原生文本撤销，退出后使用核心工作簿历史。保存/打印等待命令队列，组合未结束拒绝输出。外部 revision 冲突需取消草稿并刷新，不覆盖外部修改。
+
+屏幕使用固定视口 Canvas 与独立覆盖层。滚动/尺寸/缩放请求按动画帧合并，过期结果丢弃；成功几何、文字和轮廓在预算内复用。选区只更新覆盖层。可见单元格提供有界 grid 语义、地址、值和只读原因，保留焦点和键盘入口。调用者拥有 client 生命周期；关闭 editor 后另行关闭 client。
+
+### 打印与资源边界
+
+`PrintOptions` 明确给出 point 纸张宽高与四边距，可给 `range`。方向通过宽高表示，固定 100%；默认范围是当前表有内容的矩形。编辑器默认 A4 纵向、36 point 边距，提供预览切页与 PDF。分页先向下再向右，沿行列边界分割；空表一页，超宽单列、超高单行、跨页/范围合并、未计算公式、未支持显示或未呈现内容明确拒绝。屏幕滚动、缩放、DPR 不改变打印布局。复杂文件打印设置保留，不自动套用。
+
+继续使用前文文件、字体、输出与 Canvas 上限，另有以下操作上限。载荷计数不代表进程峰值或性能保证。
+
+| 对象 | 上限 |
+| --- | --- |
+| 工作表 / 实际单元格 / 样式 | 256 / 100000 / 4096 |
+| 单格文字 / 全部文字或共享字符串载荷 | 32767 UTF-16 / 4 Mi UTF-16 |
+| 单次查询、写入、剪贴板、视口 | 4096 格；编辑/剪贴板 1 Mi UTF-16；可见文字 262144 UTF-16 |
+| 合并区域 / 单个共享公式组 | 1024 / 4096 格 |
+| 公式 | 单格 8192 UTF-16、4096 token；语法深度 64；依赖链 256；工作簿源码 1 Mi、引用 32768、一次计算工作量 1048576 |
+| 历史 / 队列 | undo+redo 共 100 项、4 MiB 源补丁 payload；宿主 64 项 |
+| 打印 | 32768 可见格、单轴 4096 项、1024 页；每页继续受视口绘制文字/单元格上限约束 |
+
+当前范围不含空白工作簿向导、表/行列增删、样式编辑、填充、排序筛选、冻结窗格交互、图表/透视表/图片编辑、协作和整本工作簿打印。XLS/XLSB/XLSM、其他浏览器、Windows/Excel、VoiceOver、性能专项与发布验收未进入本期验证。

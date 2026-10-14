@@ -1,7 +1,7 @@
 ///|
 /// Export the exact preview glyph positions. PDF has no text layout authority.
 pub fn write(
-  layout : @layout.Layout,
+  layout : @layout.PositionedDocument,
   probe : @layout.TextProbe,
   images : @layout.Images,
   output_limit : Int,
@@ -62,27 +62,34 @@ pub fn write(
         )
         ops.push(@content.Op_f)
       }
-      for border in frame.borders {
-        ops.push(@content.Op_w(0.5))
+      for border in frame.strokes {
+        ops.push(@content.Op_w(border.width))
+        ops.push(
+          @content.Op_RG(
+            channel(border.color, 0),
+            channel(border.color, 2),
+            channel(border.color, 4),
+          ),
+        )
         ops.push(
           @content.Op_re(
-            border.x,
-            frame.height - border.y - border.height,
-            border.width,
-            border.height,
+            border.rect.x,
+            frame.height - border.rect.y - border.rect.height,
+            border.rect.width,
+            border.rect.height,
           ),
         )
         ops.push(@content.Op_S)
       }
-      for line in frame.lines {
-        if line.clip {
+      for line in frame.texts {
+        if line.clip is Some(clip) {
           ops.push(@content.Op_q)
           ops.push(
             @content.Op_re(
-              0,
-              frame.height - line.y - line.height,
-              frame.width,
-              line.height,
+              clip.x,
+              frame.height - clip.y - clip.height,
+              clip.width,
+              clip.height,
             ),
           )
           ops.push(@content.Op_W)
@@ -152,7 +159,7 @@ pub fn write(
           ops.push(@content.Op_Q)
         }
         if line.text.is_empty() {
-          if line.clip {
+          if line.clip is Some(_) {
             ops.push(@content.Op_Q)
           }
           continue
@@ -202,7 +209,7 @@ pub fn write(
           }
         }
         ops.push(@content.Op_EMC)
-        if line.clip {
+        if line.clip is Some(_) {
           ops.push(@content.Op_Q)
         }
       }

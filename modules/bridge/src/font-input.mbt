@@ -24,6 +24,10 @@ pub fn foundation_add_font(
     }
     let index = context.probe.add_font(font_input_bytes(input), identity)
     context.layout = None
+    context.xlsx_print = None
+    if context.xlsx is Some(session) {
+      session.invalidate_geometry()
+    }
     { "font": index }
   })
 }

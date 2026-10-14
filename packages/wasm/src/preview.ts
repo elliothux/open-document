@@ -240,11 +240,11 @@ export function pageLayout(value: unknown): PageLayout {
     );
   if (
     Number(counts.reflowedPages) + Number(counts.reusedPages) !==
-    drawing.pages.length
+    drawing.regions.length
   )
     throw new Error("Invalid page reuse counts");
   const semantics = entries(layout.semantics);
-  if (semantics.length !== drawing.pages.length)
+  if (semantics.length !== drawing.regions.length)
     throw new Error("Invalid semantic page count");
   for (const value of semantics) {
     const page = record(value);

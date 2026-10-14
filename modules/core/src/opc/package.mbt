@@ -266,6 +266,7 @@ pub fn Package::xml(
 pub fn Package::save(
   self : Package,
   replacements : Map[String, Bytes],
+  removed~ : Array[String] = [],
 ) -> Bytes raise @failure.Failure {
   self.check()
   guard !self.signed else {
@@ -273,7 +274,7 @@ pub fn Package::save(
       "unsupported-package", "Signed packages cannot be safely rewritten",
     )
   }
-  self.archive.save(replacements)
+  self.archive.save(replacements, removed~)
 }
 
 ///|

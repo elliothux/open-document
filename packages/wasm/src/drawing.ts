@@ -25,7 +25,7 @@ export type DrawCommand =
 
 /** Platform-independent drawing, with resources shared across regions. */
 export interface DrawingBatch {
-  pages: DrawingRegion[];
+  regions: DrawingRegion[];
   outlines: { key: string; path: string }[];
   images: string[];
 }
@@ -60,9 +60,9 @@ export function drawingBatch(value: unknown): DrawingBatch {
   if (
     !Array.isArray(batch.outlines) ||
     !Array.isArray(batch.images) ||
-    !Array.isArray(batch.pages) ||
-    batch.pages.length === 0 ||
-    batch.pages.length > 1024 ||
+    !Array.isArray(batch.regions) ||
+    batch.regions.length === 0 ||
+    batch.regions.length > 1024 ||
     batch.images.length > 256
   )
     throw new Error("Invalid drawing batch");
@@ -87,7 +87,7 @@ export function drawingBatch(value: unknown): DrawingBatch {
       throw new Error("Invalid drawing image resource");
     images.add(key);
   }
-  for (const value of batch.pages) {
+  for (const value of batch.regions) {
     const page = record(value);
     if (
       finite(page.width) <= 0 ||

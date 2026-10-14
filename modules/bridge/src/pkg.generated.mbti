@@ -4,6 +4,7 @@ package "open_document/bridge"
 import {
   "open_document/core/text",
   "open_document/formats/docx",
+  "open_document/formats/xlsx",
   "open_document/layout",
 }
 
@@ -32,10 +33,12 @@ pub fn undo(@text.Session) -> Int
 pub struct Foundation {
   probe : @layout.TextProbe
   mut docx : @docx.Session?
+  mut xlsx : @xlsx.Session?
   mut closed : Bool
   mut layout : @layout.Layout?
   images : @layout.Images
   mut layout_id : Int
+  mut xlsx_print : (@layout.PositionedDocument, Int, Int)?
 }
 
 // Type aliases

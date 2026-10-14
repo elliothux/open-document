@@ -12,7 +12,7 @@ priv struct FontSubset {
 }
 
 ///|
-fn glyph_text(run : @layout.PlacedRun, index : Int) -> String {
+fn glyph_text(run : @layout.PositionedRun, index : Int) -> String {
   let cluster = run.glyphs[index].cluster
   if index > 0 && run.glyphs[index - 1].cluster == cluster {
     return ""
@@ -33,11 +33,11 @@ fn cid_key(glyph : Int, text : String) -> String {
 
 ///|
 fn collect_fonts(
-  layout : @layout.Layout,
+  layout : @layout.PositionedDocument,
 ) -> Map[Int, FontSubset] raise @failure.Failure {
   let fonts : Map[Int, FontSubset] = Map([])
   for page in layout.pages {
-    for line in page.lines {
+    for line in page.texts {
       for run in line.runs {
         for index, glyph in run.glyphs {
           let subset = fonts.get_or_init(glyph.font, () => {

@@ -2,10 +2,12 @@
 pub struct Foundation {
   probe : @layout.TextProbe
   mut docx : @docx.Session?
+  mut xlsx : @xlsx.Session?
   mut closed : Bool
   mut layout : @layout.Layout?
   images : @layout.Images
   mut layout_id : Int
+  mut xlsx_print : (@layout.PositionedDocument, Int, Int)?
 }
 
 ///|
@@ -13,10 +15,12 @@ pub fn new_foundation() -> Foundation {
   {
     probe: @layout.TextProbe::new(),
     docx: None,
+    xlsx: None,
     closed: false,
     layout: None,
     images: @layout.Images::new(),
     layout_id: 0,
+    xlsx_print: None,
   }
 }
 
@@ -174,7 +178,7 @@ fn Foundation::dispatch(
       .to_json()
     }
     "openDocx" => {
-      guard self.docx is None else {
+      guard self.docx is None && self.xlsx is None else {
         @failure.reject("invalid-operation", "DOCX session is already open")
       }
       guard request is { "budget": budget, .. } else {
@@ -196,6 +200,22 @@ fn Foundation::dispatch(
       self.docx = Some(session)
       session.query()
     }
+    "openXlsx"
+    | "queryXlsx"
+    | "selectXlsx"
+    | "replaceXlsx"
+    | "undoXlsx"
+    | "redoXlsx"
+    | "saveXlsx"
+    | "viewportXlsx"
+    | "hitXlsx"
+    | "selectionXlsx"
+    | "navigateXlsx"
+    | "copyXlsx"
+    | "pasteXlsx"
+    | "clearXlsx"
+    | "printXlsx"
+    | "exportXlsxPdf" => self.xlsx_operation(operation, request)
     "query"
     | "editState"
     | "selectDocx"
@@ -404,7 +424,7 @@ fn Foundation::dispatch(
             "reflowedPages": result.reflowedPages,
             "reusedPages": result.reusedPages,
             "profile": result.profile,
-            "pages": result.drawing(self.images),
+            "regions": result.drawing(self.images),
             "images": result.drawing_images(self.images),
             "semantics": result.semantics(),
             "diagnostics": result.diagnostics,
@@ -429,7 +449,7 @@ fn Foundation::dispatch(
           {
             "bytes": @base64.encode(
               @pdf.write(
-                layout,
+                layout.positioned(),
                 self.probe,
                 self.images,
                 field_int(request, "outputBytes"),
@@ -494,6 +514,11 @@ pub fn foundation_close(context : Foundation) -> Unit {
     session.close()
   }
   context.docx = None
+  if context.xlsx is Some(session) {
+    session.close()
+  }
+  context.xlsx = None
   context.layout = None
+  context.xlsx_print = None
   context.images.clear()
 }

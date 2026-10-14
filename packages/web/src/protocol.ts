@@ -4,6 +4,7 @@ import type {
   DocxPosition,
   NavigationDirection,
 } from "@open-document/wasm/foundation";
+import type { GridViewport, PrintOptions } from "@open-document/wasm/xlsx";
 
 export type Operation =
   | { operation: "open"; text: string; wasm: ArrayBuffer }
@@ -15,6 +16,42 @@ export type Operation =
       text: string;
     }
   | { operation: "openFoundation"; wasm: ArrayBuffer }
+  | { operation: "openSpreadsheet"; wasm: ArrayBuffer }
+  | { operation: "openXlsx"; bytes: Uint8Array; budget: Budget }
+  | {
+      operation: "queryXlsx";
+      sheet?: string | undefined;
+      range?: string | undefined;
+    }
+  | { operation: "selectXlsx"; revision: number; sheet: string; range: string }
+  | {
+      operation: "replaceXlsx";
+      revision: number;
+      sheet: string;
+      range: string;
+      values: string[][];
+      literal: boolean;
+    }
+  | { operation: "undoXlsx" | "redoXlsx"; revision: number }
+  | { operation: "saveXlsx" }
+  | ({ operation: "viewportXlsx" } & GridViewport)
+  | { operation: "hitXlsx"; layoutId: number; x: number; y: number }
+  | { operation: "selectionXlsx"; layoutId: number }
+  | {
+      operation: "navigateXlsx";
+      revision: number;
+      direction: "left" | "right" | "up" | "down" | "home";
+      extend: boolean;
+    }
+  | { operation: "copyXlsx" | "clearXlsx"; revision: number }
+  | { operation: "pasteXlsx"; revision: number; text: string }
+  | ({
+      operation: "printXlsx";
+      revision: number;
+      sheet: string;
+      profile: Record<string, string>;
+    } & PrintOptions)
+  | { operation: "exportXlsxPdf"; layoutId: number; outputBytes: number }
   | { operation: "font"; bytes: Uint8Array; identity: string }
   | { operation: "shape"; text: string; size: number; language: string }
   | { operation: "openDocx"; bytes: Uint8Array; budget: Budget }

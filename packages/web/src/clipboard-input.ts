@@ -6,12 +6,14 @@ export function bindClipboard(
   paste: (text: string) => void,
   reject: (error: Error) => void,
   composing: () => boolean,
+  native: () => boolean = () => false,
 ): void {
   const options = { signal };
   for (const type of ["copy", "cut"] as const)
     input.addEventListener(
       type,
       (event) => {
+        if (native()) return;
         event.preventDefault();
         if (composing() || event.cancelable) copy(type === "cut");
         else reject(new Error("Clipboard event cannot be cancelled"));
@@ -21,6 +23,7 @@ export function bindClipboard(
   input.addEventListener(
     "keydown",
     (event) => {
+      if (native()) return;
       if (event.isComposing || composing()) return;
       const key = event.key.toLowerCase();
       if (
@@ -55,6 +58,7 @@ export function bindClipboard(
   input.addEventListener(
     "paste",
     (event) => {
+      if (native()) return;
       event.preventDefault();
       if (composing()) {
         paste("");

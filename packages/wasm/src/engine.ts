@@ -1,4 +1,5 @@
 import { FoundationSession } from "./foundation.js";
+import { XlsxSession } from "./xlsx.js";
 
 /** Browser ABI adapter. Document state lives only in WasmGC. */
 export class TextSession {
@@ -51,6 +52,7 @@ export class TextSession {
 export async function loadEngine(wasm: BufferSource): Promise<{
   openText(text: string): TextSession;
   openFoundation(): FoundationSession;
+  openXlsx(): XlsxSession;
 }> {
   const { instance } = await WebAssembly.instantiate(
     wasm,
@@ -72,6 +74,12 @@ export async function loadEngine(wasm: BufferSource): Promise<{
       if (typeof create !== "function")
         throw new Error("Missing new_foundation export");
       return new FoundationSession(instance.exports, create());
+    },
+    openXlsx() {
+      const create = instance.exports.new_foundation;
+      if (typeof create !== "function")
+        throw new Error("Missing new_foundation export");
+      return new XlsxSession(instance.exports, create());
     },
   };
 }

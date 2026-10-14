@@ -3,6 +3,7 @@ import {
   "open_document/core/failure",
   "open_document/core/archive",
   "open_document/formats/docx",
+  "open_document/formats/xlsx",
   "open_document/formats/pdf",
   "open_document/layout",
   "moonbitlang/core/encoding/base64",

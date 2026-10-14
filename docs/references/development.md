@@ -1,8 +1,8 @@
 # 开发与模块边界
 
-当前实现工程/文本 POC、字体塑形与轮廓 probe、有界 ZIP/XML/OPC，以及限定 DOCX 分页预览、编辑与 PDF 输出。DOCX 编辑覆盖普通正文和单个表格单元格内纯文本，包含段落拆合、历史、组合输入、纯文本剪贴板与保真保存。`xlsx`、`pptx` 仍为占位包；PDF reader 尚未实现。当前支持面见[格式合同](formats.md)，固定第三方依赖见[依赖记录](dependencies.md)。
+当前实现工程/文本 POC、字体塑形、有界 ZIP/XML/OPC，以及限定 DOCX/XLSX 编辑与 PDF 输出。DOCX 覆盖普通正文和单个表格单元格；XLSX 覆盖稀疏网格、值/首批公式、历史、剪贴板、保真保存与独立打印。`pptx` 仍为占位包；PDF reader 尚未实现。当前支持面见[格式合同](formats.md)，固定第三方依赖见[依赖记录](dependencies.md)。
 
-XLSX 的待实现范围与代码归属见 [P5](../p5-xlsx-editing.md)。实际 API、命令和模块变化在实现后更新到本文。
+XLSX 交付及检查范围见 [P5](../implemented/p5-xlsx-editing.md)。MoonBit 负责源内容、计算及布局；平台绘制和事件继续由 TS 处理。
 
 ## Workspace
 
@@ -11,7 +11,7 @@ XLSX 的待实现范围与代码归属见 [P5](../p5-xlsx-editing.md)。实际 A
 | `modules/core` | text、failure、archive、XML 源片段与 OPC 图 | 标准库、固定 flate/xml；不依赖宿主 |
 | `modules/layout` | 字体塑形、几何、分页与绘制结果 | core；不通过 DOM 决定布局 |
 | `modules/formats` | docx/xlsx/pptx/pdf 的独立语义与读写 | core；需要输出布局时依赖 layout |
-| `modules/bridge` | Wasm 导出、核心到宿主的批量 ABI | core、layout、formats/docx、formats/pdf |
+| `modules/bridge` | Wasm 导出、核心到宿主的批量 ABI | core、layout、formats/docx、formats/xlsx、formats/pdf |
 | `packages/wasm` | 实例化与 ABI 校验 | WasmGC 产物；不拥有第二份文档模型 |
 | `packages/web` | Worker 请求、输入事件排序、页面呈现与生命周期 | wasm 包；不实现文本替换、撤销或排版 |
 
@@ -48,6 +48,37 @@ P4 编辑 API 提供 `editState()`、`selectDocx(revision, selection)`、`select
 连接代码只拥有一个 in-flight 请求和 Worker 生命周期。用户字节经 structured clone 进入 Worker。字体以八位字符串调用内部 `foundation_add_font`，核心构造字节后使用原字体校验与资源拥有者。公开 `addFont` 和 32 MiB 预算保持，旧 JSON font 分支已删除。DOCX 和图片仍使用原 JSON/Base64 路径。两种路径共用响应及错误解析；连接代码不维护可编辑文档树。
 
 公开主线程入口保留 ESM 模块导入，`engine`、Wasm `foundation` 与 Web client 使用同一份 `DocumentError` 构造函数。应用构建器需要解析 `@open-document/wasm` 的公开子路径；直接加载浏览器 ESM 时，需要 import map 将使用的 `foundation`、`preview`、`drawing`、`engine` 子路径映射到对应产物。内部运行时导入使用 `.js` 扩展名。Worker 单独打包，因此不依赖主页面的 import map。公开 tarball 包含这些模块及其内部依赖，测试服务器只提供资源路由。
+
+## XLSX 嵌入入口
+
+同步入口是 `(await loadEngine(wasm)).openXlsx()`，返回 `@open-document/wasm/xlsx` 的 `XlsxSession`。浏览器使用 `@open-document/web/xlsx` 的 `XlsxClient`，再挂载 `@open-document/web/spreadsheet-editor`。两个格式共用基础 WASM 调用、Worker 连接、Renderer、Canvas 表面与 PDF writer；同一个核心会话只打开一种格式。
+
+```ts
+import { XlsxClient } from "@open-document/web/xlsx";
+import { SpreadsheetEditor } from "@open-document/web/spreadsheet-editor";
+
+const client = await XlsxClient.open(wasmBytes, workerUrl);
+const workbook = await client.openXlsx(xlsxBytes, await client.defaultBudget());
+await client.addFont(regularFontBytes, "regular");
+await client.addFont(boldFontBytes, "bold");
+const profile = { Calibri: "regular", "Calibri|bold": "bold" };
+const editor = await SpreadsheetEditor.mount(root, client, profile);
+await editor.select("A2");
+const saved = await editor.save();
+const pdf = await editor.exportPdf({
+  width: 595.28, height: 841.89,
+  top: 36, right: 36, bottom: 36, left: 36,
+  range: "A1:F40",
+});
+editor.dispose();
+client.dispose();
+```
+
+示例变量由应用提供。实际字体映射以 `workbook.fontKeys` 为准；可继续添加 CJK 等后备字体，字体身份与既有字体/嵌入预算保持。字体缺失返回明确错误，不使用浏览器字体度量代替核心。
+
+编辑器独占 client 的在途请求。使用 `select`、`move`、`paste`、`undo/redo`、`setZoom`、`save`、`printLayout`、`exportPdf` 与 `refresh`；读取 `currentState/currentLayout` 获取已呈现状态。`whenIdle()` 等待已接受队列，不代表未来滚动请求或新平台事件已结束。调用者若直接修改 client，应等待队列结束，取消旧草稿后刷新；revision 冲突不会静默覆盖修改。
+
+`XlsxClient.query/replace/copy/paste/clear/viewport/hit/selectionGeometry/printLayout` 的细节、输入语义、保真和资源上限归[格式合同](formats.md#p5-xlsx-合同)。同步会话结束用 `close()`，Worker 客户端结束用 `dispose()`。宿主自行打包 Worker 并提供 WASM、文件及字体，不依赖私有服务器。打印预览与 PDF 使用同一核心页面；PDF 不截取屏幕 Canvas。
 
 ## 工具与命令
 

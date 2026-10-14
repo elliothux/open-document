@@ -1,3 +1,4 @@
+import { downloadBytes } from "./download.js";
 import type { FoundationClient } from "./foundation.js";
 import type { PageLayout } from "@open-document/wasm/preview";
 import { PageCanvas } from "./page-canvas.js";
@@ -95,7 +96,7 @@ export class DocumentPreview {
     if (this.closed) throw new Error("Preview is disposed");
     if (!Number.isInteger(index)) throw new Error("Invalid page index");
     this.paint(
-      Math.max(0, Math.min(this.layout.pages.length - 1, index)),
+      Math.max(0, Math.min(this.layout.regions.length - 1, index)),
       this.zoom,
     );
   }
@@ -108,7 +109,7 @@ export class DocumentPreview {
   }
 
   private paint(index = this.page, zoom = this.zoom): void {
-    const page = this.layout.pages[index];
+    const page = this.layout.regions[index];
     if (!page) throw new Error("Unknown page");
     this.surface.draw(this.layout, index, zoom);
     this.page = index;
@@ -117,9 +118,9 @@ export class DocumentPreview {
       this.layout.semantics[index]?.lines
         .map((line) => line.text.replaceAll("\ufffc", "[image]"))
         .join("\n") ?? "";
-    this.status.textContent = `Page ${this.page + 1} of ${this.layout.pages.length}; ${Math.round(this.zoom * 100)}%`;
+    this.status.textContent = `Page ${this.page + 1} of ${this.layout.regions.length}; ${Math.round(this.zoom * 100)}%`;
     this.previous.disabled = this.page === 0;
-    this.next.disabled = this.page === this.layout.pages.length - 1;
+    this.next.disabled = this.page === this.layout.regions.length - 1;
   }
 
   /** The core rejects export after another layout or edit replaces this view. */
@@ -130,17 +131,7 @@ export class DocumentPreview {
     if (this.closed) throw new Error("Preview is disposed");
     const bytes = await this.client.exportPdf(outputBytes, this.layout.id);
     if (this.closed) throw new Error("Preview is disposed");
-    const url = URL.createObjectURL(
-      new Blob([new Uint8Array(bytes).buffer], { type: "application/pdf" }),
-    );
-    const link = document.createElement("a");
-    try {
-      link.href = url;
-      link.download = filename;
-      link.click();
-    } finally {
-      URL.revokeObjectURL(url);
-    }
+    downloadBytes(bytes, "application/pdf", filename);
   }
 
   dispose(): void {

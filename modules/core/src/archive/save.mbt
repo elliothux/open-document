@@ -3,8 +3,22 @@
 pub fn Package::validate_replacements(
   self : Package,
   replacements : Map[String, Bytes],
+  removed~ : Array[String] = [],
 ) -> Int raise @failure.Failure {
   self.check()
+  let names : Map[String, Bool] = Map([])
+  for name in removed {
+    guard self.index.contains(name) &&
+      !names.contains(name) &&
+      !replacements.contains(name) else {
+      @failure.reject(
+        "invalid-operation",
+        "Invalid, duplicate or replaced removal entry",
+        part=name,
+      )
+    }
+    names[name] = true
+  }
   for name, bytes in replacements {
     guard self.index.contains(name) else {
       @failure.reject("missing-part", "Cannot replace missing entry", part=name)
@@ -20,6 +34,9 @@ pub fn Package::validate_replacements(
   let mut size = 22
   let mut total = 0
   for name, entry in self.index {
+    if names.contains(name) {
+      continue
+    }
     let bytes = replacements.get(name)
     let local_size = match bytes {
       Some(bytes) => {
@@ -63,8 +80,9 @@ pub fn Package::validate_replacements(
 pub fn Package::save(
   self : Package,
   replacements : Map[String, Bytes],
+  removed~ : Array[String] = [],
 ) -> Bytes raise @failure.Failure {
-  let size = self.validate_replacements(replacements)
+  let size = self.validate_replacements(replacements, removed~)
   // Saving verifies integrity even for entries not queried by the caller.
   for name, _ in self.index {
     ignore(self.read(name))
@@ -73,6 +91,9 @@ pub fn Package::save(
   let offsets : Map[String, Int] = Map([])
   let mut cursor = 0
   for name, entry in self.index {
+    if removed.contains(name) {
+      continue
+    }
     offsets[name] = cursor
     if replacements.get(name) is Some(bytes) {
       let encoded = @utf8.encode(name)
@@ -100,6 +121,9 @@ pub fn Package::save(
   }
   let central_start = cursor
   for name, entry in self.index {
+    if removed.contains(name) {
+      continue
+    }
     out.blit_from_bytesview(
       cursor,
       span(self.source, entry.central, entry.central_size),
@@ -116,8 +140,8 @@ pub fn Package::save(
     cursor += entry.central_size
   }
   put32(out, cursor, 0x06054b50U)
-  put16(out, cursor + 8, self.index.length())
-  put16(out, cursor + 10, self.index.length())
+  put16(out, cursor + 8, self.index.length() - removed.length())
+  put16(out, cursor + 10, self.index.length() - removed.length())
   put32(out, cursor + 12, (cursor - central_start).reinterpret_as_uint())
   put32(out, cursor + 16, central_start.reinterpret_as_uint())
   Bytes::from_array(out)
