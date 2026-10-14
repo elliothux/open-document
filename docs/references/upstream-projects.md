@@ -1,6 +1,6 @@
 # 上游参考项目
 
-参考实现、兼容行为、测试设计与基准的优先级：**ONLYOFFICE（[core](https://github.com/ONLYOFFICE/core)、[sdkjs](https://github.com/ONLYOFFICE/sdkjs)）优先，[LibreOffice](https://github.com/LibreOffice/core) 其次**。其他项目仅补充具体能力。
+**功能与 UI 参考：本地 `references/genoffice` 源码。目标是复刻文档、表格、PPT、PDF 的全功能 SDK。** GenOffice App 仅用于视觉对比验收和交互参考。Office 能力、布局、算法、兼容行为与独立测试基准优先参考 ONLYOFFICE（[core](https://github.com/ONLYOFFICE/core)、[sdkjs](https://github.com/ONLYOFFICE/sdkjs)），其次 [LibreOffice](https://github.com/LibreOffice/core)。技术选型与边界归 [SDK 合同](sdk.md)。
 
 下文保留按具体能力选读的补充入口。研究来源不等于构建依赖或已验证能力，当前采用的依赖见[依赖记录](dependencies.md)。
 
@@ -22,15 +22,25 @@
 - [DOCX 输入适配](https://github.com/elliothux/betteroffice/blob/c10db4b848c1e74c920416986ec2e34bf95ee7f3/packages/docx-react/src/components/DocxEditor/YrsInput.tsx)
 - [XLSX 无 DOM 计算入口](https://github.com/elliothux/betteroffice/blob/c10db4b848c1e74c920416986ec2e34bf95ee7f3/packages/xlsx/src/headless.ts)
 
-## GenOffice：功能语义与格式兼容性
+## GenOffice：功能清单、默认 UI 与交互参考
 
 - [上游仓库](https://github.com/genspark-ai/genoffice)
 - [固定源码快照](https://github.com/genspark-ai/genoffice/tree/70e5149e814b4c8b46ae1304ea5f6c5ae39ceef0/)，研究 revision：`70e5149e814b4c8b46ae1304ea5f6c5ae39ceef0`。
-- 重点参考：DOCX/PPTX 解析与生成、样式和布局规则、编辑功能、兼容性测试与案例。
-- PPTX 的模型、RenderTree、文本布局和字体度量接口比较适合作为可移植计算管线的参考。
+- 重点核对：四类编辑器的实际功能、操作入口、默认 UI、保存结果与源码限制。详细差距见 [G3](../g3-genoffice-sdk-gap.md)。
+- 早期研究中的模型、RenderTree、布局和字体度量入口保留来源；不据此改变 ONLYOFFICE、LibreOffice 的实现参考顺序。
 - DOCX 部分分页依赖 DOM 测量，headless 导出依赖隐藏的 Electron renderer。迁移这一部分需要重建计算能力，不是替换 I/O 即可。
 - Sheets 集成了 Univer OSS 包；不能把 GenOffice 表格功能全部当成其自研且可独立搬走的引擎。已检查的集成不是以 Univer PRO 作为这套功能来源。
-- 不移植桌面外壳、AI 面板、Electron IPC 和其他非 SDK 产品机制。
+- 桌面外壳和 Electron IPC 不移植；AI 等外围功能按路线图的功能优先级 P2 接入 SDK。
+
+功能与 UI 研究以本地 `references/genoffice` 为依据，2026-10-14 核对的 revision 为 `5eab98adc8d0ebf6ecea687e42400a791ef58d64`。上面的早期格式研究快照继续保留原始依据。GenOffice App 仅用于视觉对比验收和交互参考；出现差异时先检查版本，不假定已安装 App 与源码版本相同。
+
+UI 阅读入口：
+
+- [共享 UI 与依赖](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/packages/ui/package.json)：现有共享组件使用 React，并包含 AI 等应用依赖，按需提取而非整体依赖。
+- [设计变量](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/packages/ui/src/tokens.css)：颜色、圆角、文字尺寸与主题；UI 缩放和文档缩放分离。
+- [DOCX Ribbon](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/docs/src/renderer/components/Ribbon.tsx)：分组与操作参考；其中 Tiptap 命令改接本项目 SDK。
+- [PPTX Ribbon](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/slides/src/renderer/components/Ribbon.tsx)：标签、分组、图文控件与编辑选区恢复参考。
+- [Sheets 界面](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/sheets/src/renderer/App.tsx)与[样式](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/sheets/src/renderer/styles.css)：参考外观和操作流程，保留本项目的 XLSX 核心与通用 Renderer。
 
 阅读入口：
 

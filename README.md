@@ -1,10 +1,10 @@
 # Open Document
 
-> **WIP — Work in progress.** The local SDK supports limited DOCX and XLSX editing in Chrome/Chromium, with native text input, history, plain-text clipboard, preservation on save, and PDF output. XLSX includes a sparse grid and six formula functions. See [P4](docs/implemented/p4-docx-editing.md) and [P5](docs/implemented/p5-xlsx-editing.md) for scope and verification limits. No SDK has been released; broader format and platform support remain planned.
+> **WIP — Work in progress.** No SDK has been released. The local implementation provides limited DOCX, XLSX, PPTX, and PDF capabilities in Chrome/Chromium. See the [format contract](docs/references/formats.md) for current support and verification limits.
 
 Open Document is a cross-platform Office SDK project for developers who want to embed document preview, editing, reading, writing, and format conversion into their applications.
 
-It targets Word, Excel, and PowerPoint documents, with Chromium browser support first and server-side and command-line use to follow.
+The goal is an embeddable SDK covering GenOffice's document, spreadsheet, presentation, and PDF features. Chromium browser support comes first; other hosts and command-line use follow the [roadmap](docs/references/roadmap.md).
 
 ## Documentation
 

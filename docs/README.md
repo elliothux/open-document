@@ -1,6 +1,8 @@
 # 文档索引
 
-项目未发布，当前有 0 个用户。[P4](implemented/p4-docx-editing.md) 与 [P5](implemented/p5-xlsx-editing.md) 已完成限定 DOCX/XLSX 编辑，共用 [R0](implemented/r0-renderer-foundation.md) 绘制底层。[P6 PPTX](implemented/p6-pptx-editing.md) 已完成限定幻灯片编辑和静态 PDF。只覆盖 Chrome/Chromium；性能专项延后，保留文档保真、错误恢复和资源安全。后续变更按风险选择[最小检查](references/testing.md)。
+项目未发布，当前有 0 个用户。目标是复刻 GenOffice 的文档、表格、PPT、PDF 全功能 SDK。GenOffice 提供功能与 UI 参考；Office 实现、布局和算法仍优先参考 ONLYOFFICE，其次 LibreOffice。
+
+阶段 P0–P8 已完成各自有限范围，四类格式共用 [R0](implemented/r0-renderer-foundation.md)。后续按“功能优先级 P0 核心功能、P1 兼容与性能、P2 次要与外围能力”推进；与历史阶段编号分开。只覆盖 Chrome/Chromium，文档完整性、恢复、资源安全和无障碍随功能保留。按风险选择[最小检查](references/testing.md)。
 
 | 内容 | 权威入口 |
 | --- | --- |
@@ -8,6 +10,7 @@
 | 当前字体、DOCX/XLSX/PPTX/PDF 支持面与预算 | [格式合同](references/formats.md) |
 | 固定依赖、许可与本地缺口 | [依赖记录](references/dependencies.md) |
 | 产品阶段与依赖关系 | [Roadmap](references/roadmap.md) |
+| GenOffice 四类功能、当前缺口与优先级 | [G3 功能对照](g3-genoffice-sdk-gap.md) |
 | 实际模块、工具链与开发命令 | [开发说明](references/development.md) |
 | 文档组织、编号与维护资料 | [文档与参考规范](references/README.md) |
 | 上游源码阅读入口 | [上游参考项目](references/upstream-projects.md) |
@@ -16,7 +19,7 @@
 | 已实现需求的结果 | [完成索引](implemented/README.md) |
 | 外部条件阻塞的事项 | [阻塞索引](blocked/README.md) |
 
-## 产品阶段（按实施顺序）
+## 已完成产品阶段
 
 | 编号 | 文档 | 当前状态 |
 | --- | --- | --- |
@@ -30,6 +33,20 @@
 | P7 | [PDF 输入、预览与文字查询](implemented/p7-pdf-input.md) | `implemented`：有界读取、限定图文预览、页内选择、提取与搜索 |
 | P8 | [PDF 页面操作、批注与表单保存](implemented/p8-pdf-operations.md) | `implemented`：页面整理、便笺/高亮、文本字段/复选框与保留源对象的保存 |
 
+后续阶段均为 `planned`：P9 Web SDK/UI，P10–P13 四类核心功能，P14 兼容与性能，P15 次要与外围能力，P16 跨宿主。跨宿主按功能优先级 P2 最后实施。具体顺序和范围只在[路线图](references/roadmap.md#后续阶段与顺序)维护。
+
+## 待实现方案
+
+| 编号 | 文档 | 当前状态 |
+| --- | --- | --- |
+| P9 | [Web SDK 与默认 UI](p9-web-sdk-ui.md) | `planned`：独立 UI 包、四格式现有操作、状态通知、保存/关闭、Shadow DOM 与普通 JS 接入 |
+
+## 活动研究
+
+| 编号 | 文档 | 当前状态 |
+| --- | --- | --- |
+| G3 | [GenOffice 功能对照与全功能 SDK 差距](g3-genoffice-sdk-gap.md) | `research`：本地源码对照，分别记录功能证据、当前缺口和 P0/P1/P2 优先级；不是运行验收 |
+
 ## 通用架构
 
 | 编号 | 文档 | 当前状态 |
@@ -42,7 +59,7 @@
 | --- | --- | --- |
 | G2 | [测试流水线与 Agent 改进闭环](implemented/g2-test-pipeline.md) | `implemented`：授权的本地 A–F、双路径报告、受控恢复、性能及 Docker 验收；不包含远端启用或盲测 |
 
-[P7](implemented/p7-pdf-input.md) 与 [P8](implemented/p8-pdf-operations.md) 已完成限定 PDF 输入和操作；P9 跨宿主仍按[路线图](references/roadmap.md)延后。测试实现、数据与详细证据在私有 `test-lab/`。
+[P7](implemented/p7-pdf-input.md) 与 [P8](implemented/p8-pdf-operations.md) 已完成限定 PDF 输入和操作；P16 跨宿主仍按[路线图](references/roadmap.md)延后。测试实现、数据与详细证据在私有 `test-lab/`。
 
 索引只维护入口与状态；产品合同归所属方案，文档规则归维护规范。历史测试结果不代表当前工作树已经验收。
 

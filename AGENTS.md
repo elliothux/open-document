@@ -2,11 +2,12 @@
 
 ## Goal
 
+- Replicate GenOffice's full document, spreadsheet, presentation, and PDF capabilities as an embeddable SDK. Use local `references/genoffice` for the feature inventory and UI interactions; use the App only for visual comparison acceptance and interaction reference. The target and boundaries belong in the [SDK contract](docs/references/sdk.md).
 - This unreleased project has **zero users**. Deliver usable features first. Latest delivered phase is [P8 PDF operations](docs/implemented/p8-pdf-operations.md); follow the [roadmap](docs/references/roadmap.md) for phase status.
 - Design from Day One for current requirements. Change the lowest affected layer directly. Update affected callers, tests, and docs; remove superseded implementations.
 - Keep compatibility code only for document formats. Do not retain compatibility paths for old APIs, models, configuration, or development data.
-- Build the smallest complete feature. Reuse existing code and add structure for a demonstrated gap.
-- Preserve document integrity, recovery, security, accessibility, and resource limits. Defer performance work unless a hang, unusable interaction, or resource failure blocks the feature.
+- Build the smallest complete feature. Reuse existing code and add structure for a demonstrated gap. Feature priorities are P0 for core functionality, P1 for broader compatibility and performance, and P2 for secondary integrations such as AI, collaboration, and diff. These priorities are separate from roadmap phase IDs.
+- Preserve document integrity, recovery, security, accessibility, and resource limits in every priority. During P0 feature work, address performance when a hang, unusable interaction, or resource failure blocks the feature.
 
 ## Execution
 
@@ -38,8 +39,8 @@ These rules summarize dualface/ste-zh for user-facing replies.
 - Use strict TypeScript. Do not bypass errors with `any`, `@ts-ignore`, `@ts-nocheck`, double assertions, or relaxed compiler options.
 - Keep first-party source files within 800 lines. Split by responsibility and export from the owning module.
 - Use pinned toolchains and one lockfile per ecosystem. Regenerate generated files with their tools. Commands and module boundaries belong in [development](docs/references/development.md).
-- Prefer ONLYOFFICE [core](https://github.com/ONLYOFFICE/core) and [sdkjs](https://github.com/ONLYOFFICE/sdkjs) for implementation, compatibility behavior, and test baselines. Use [LibreOffice](https://github.com/LibreOffice/core) second. Use [Collabora](https://github.com/CollaboraOnline/online.mirror) for supplementary browser cases.
-- Resolve reference conflicts in that order within the format scope, honoring explicit user choices. Inspect upstream behavior and tests; preserve licenses and source attribution.
+- Prefer ONLYOFFICE [core](https://github.com/ONLYOFFICE/core) and [sdkjs](https://github.com/ONLYOFFICE/sdkjs) for Office implementation, layout, algorithms, compatibility behavior, and independent test baselines. Use [LibreOffice](https://github.com/LibreOffice/core) second and [Collabora](https://github.com/CollaboraOnline/online.mirror) for supplementary browser cases. GenOffice defines feature and UI targets, not the Office engine implementation.
+- Resolve implementation reference conflicts in that order within the format scope, honoring explicit user choices. Inspect upstream behavior and tests; preserve licenses and source attribution.
 
 ## Validation and resources
 
