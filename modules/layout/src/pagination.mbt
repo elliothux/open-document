@@ -83,6 +83,7 @@ fn Pagination::place(
     x,
     y,
     areaX: left + line.areaX,
+    bars: line.bars.map(position => left + position),
     carets: line.carets.map(caret => {
       ..caret,
       before: x + caret.before,

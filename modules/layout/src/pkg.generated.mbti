@@ -10,6 +10,8 @@ pub fn grapheme_boundaries(String) -> Array[Int]
 
 pub fn paginate(TextProbe, Flow, Map[String, String], Images) -> Layout raise @failure.Failure
 
+pub fn validate_tabs(Array[TabStop]) -> Unit raise @failure.Failure
+
 // Errors
 
 // Types and methods
@@ -219,6 +221,8 @@ pub(all) struct Line {
   width : Double
   height : Double
   clip : Bool
+  justified : Bool
+  bars : Array[Double]
   runs : Array[PlacedRun]
   images : Array[PlacedImage]
   carets : Array[Caret]
@@ -283,6 +287,9 @@ pub(all) struct Paragraph {
   nominalSize : Double
   spans : Array[Span]
   defaultTab : Double
+  tabs : Array[TabStop]
+  decimalSymbol : String
+  expandSoftBreak : Bool
   before : Double
   after : Double
   line : LineSpacing
@@ -427,6 +434,15 @@ pub(all) struct Span {
 }
 pub fn Span::to_json(Self) -> Json
 pub impl ToJson for Span
+
+pub(all) struct TabStop {
+  position : Double
+  align : String
+  leader : String
+} derive(Eq, ToJson)
+pub fn TabStop::equal(Self, Self) -> Bool
+pub fn TabStop::not_equal(Self, Self) -> Bool
+pub fn TabStop::to_json(Self) -> Json
 
 pub(all) struct Table {
   id : Int

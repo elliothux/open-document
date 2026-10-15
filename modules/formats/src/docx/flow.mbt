@@ -185,20 +185,9 @@ fn Session::paragraph(
     tree.diagnose_properties(item, self.main, diagnostics)
   }
   let props = tree.child(id, "pPr")
-  let key = match props.bind(props => tree.value(props, "pStyle")) {
-    Some(key) => Some(key)
-    None => styles.default_paragraph
-  }
-  let mut paragraph = { ..styles.paragraph, id, }
+  let mut paragraph = styles.paragraph_style(tree, id, diagnostics)
   let mut run_style = styles.character_style(tree, id, None, diagnostics)
   let nominal_size = run_style.size
-  if key is Some(key) && styles.tree is Some(style_tree) {
-    for style in styles.chain(key, diagnostics) {
-      if style_tree.child(style, "pPr") is Some(p) {
-        paragraph = paragraph_properties(style_tree, p, paragraph)
-      }
-    }
-  }
   if props is Some(props) {
     paragraph = paragraph_properties(tree, props, paragraph)
   }
@@ -276,7 +265,8 @@ fn Session::paragraph(
   }
   if paragraph.align != "left" &&
     paragraph.align != "center" &&
-    paragraph.align != "right" {
+    paragraph.align != "right" &&
+    paragraph.align != "both" {
     let message = "unsupported-layout:alignment-" + paragraph.align
     if !diagnostics.contains(message) {
       diagnostics.push(message)

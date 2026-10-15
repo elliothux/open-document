@@ -107,23 +107,80 @@ fn measure_line(
     }
   }
   let mut width = 0.0
+  let mut leader_glyphs = 0
   for index in visual {
     let group = groups[index]
     if group.tab {
       let stop = tabs.unwrap_or({
         interval: 36,
+        stops: [],
+        decimalSymbol: ".",
         origin: 0,
         left: 0,
         limit: 1000000000,
       })
-      let advance = stop.advance(width)
+      let (following, decimal) = if stop.needs_following(width) {
+        let segment_end = tab_segment_end(text, group.end)
+        let point = tab_decimal(
+          text,
+          group.end,
+          segment_end,
+          stop.decimalSymbol,
+        )
+        let following = if group.end == segment_end {
+          0.0
+        } else {
+          measure_line(
+            probe,
+            spans,
+            paragraph,
+            start + group.end,
+            start + segment_end,
+            boundaries,
+            spaces,
+            geometry=false,
+          ).0
+        }
+        let decimal = if point == segment_end {
+          following
+        } else if point == group.end {
+          0.0
+        } else {
+          measure_line(
+            probe,
+            spans,
+            paragraph,
+            start + group.end,
+            start + point,
+            boundaries,
+            spaces,
+            geometry=false,
+          ).0
+        }
+        (following, decimal)
+      } else {
+        (0.0, 0.0)
+      }
+      let advance = stop.advance(width, following~, decimal~)
       if advances is Some(values) {
         values[start + group.start] = (advance, 0)
       }
       if geometry {
         after[start + group.start] = width
         before[start + group.end] = width + advance
-        runs.push(group.tab_run(advance, width, start + group.start, spans))
+        let run = group.tab_run(
+          probe,
+          advance,
+          width,
+          start + group.start,
+          spans,
+          stop.next(width).leader,
+        )
+        leader_glyphs += run.glyphs.length()
+        guard leader_glyphs <= 16384 else {
+          @failure.reject("limit-exceeded", "Line leader glyph budget exceeded")
+        }
+        runs.push(run)
       }
       width += advance
       continue
@@ -265,6 +322,13 @@ fn paragraph_lines(
   guard paragraph.defaultTab >= 0 && paragraph.defaultTab <= 1584 else {
     @failure.reject("invalid-style", "Invalid default tab interval")
   }
+  validate_tabs(paragraph.tabs)
+  guard paragraph.decimalSymbol.iter().count() == 1 &&
+    !paragraph.decimalSymbol.trim().is_empty() &&
+    !paragraph.decimalSymbol.contains("\t") &&
+    !paragraph.decimalSymbol.contains("\n") else {
+    @failure.reject("invalid-style", "Invalid decimal tab symbol")
+  }
   let spans : Array[MeasuredSpan] = []
   let text = StringBuilder()
   let mut length = 0
@@ -336,6 +400,10 @@ fn paragraph_lines(
     @failure.reject("invalid-style", "Paragraph has no usable line area")
   }
   let lines : Array[MeasuredLine] = []
+  let bars = paragraph.tabs
+    .filter(stop => stop.align == "bar" && stop.position <= available)
+    .map(stop => stop.position)
+  let mut leader_glyphs = 0
   let breaks = @linebreak.linebreaks(text)
   let graphemes = @linebreak.grapheme_indices_uax29(text)
   let boundaries = [0, ..graphemes.map(range => range.1)]
@@ -373,6 +441,8 @@ fn paragraph_lines(
           advances~,
           tabs=Some({
             interval: paragraph.defaultTab,
+            stops: paragraph.tabs,
+            decimalSymbol: paragraph.decimalSymbol,
             origin: paragraph.left +
             (if segment == 0 { paragraph.first } else { 0 }),
             left: paragraph.left,
@@ -397,6 +467,8 @@ fn paragraph_lines(
         advances~,
         tabs=Some({
           interval: paragraph.defaultTab,
+          stops: paragraph.tabs,
+          decimalSymbol: paragraph.decimalSymbol,
           origin: paragraph.left +
           (if segment == 0 { paragraph.first } else { 0 }),
           left: paragraph.left,
@@ -421,10 +493,12 @@ fn paragraph_lines(
           width += (
             {
               interval: paragraph.defaultTab,
+              stops: paragraph.tabs,
+              decimalSymbol: paragraph.decimalSymbol,
               origin: indent,
               left: paragraph.left,
               limit: available - paragraph.right,
-            } : TabLayout).advance(width)
+            } : TabLayout).estimated_advance(width, text, offset, advances)
           continue
         }
         width += advances[offset].0
@@ -469,6 +543,8 @@ fn paragraph_lines(
           geometry=false,
           tabs=Some({
             interval: paragraph.defaultTab,
+            stops: paragraph.tabs,
+            decimalSymbol: paragraph.decimalSymbol,
             origin: indent,
             left: paragraph.left,
             limit: available - paragraph.right,
@@ -521,6 +597,8 @@ fn paragraph_lines(
       geometry=true,
       tabs=Some({
         interval: paragraph.defaultTab,
+        stops: paragraph.tabs,
+        decimalSymbol: paragraph.decimalSymbol,
         origin: indent,
         left: paragraph.left,
         limit: available - paragraph.right,
@@ -529,6 +607,16 @@ fn paragraph_lines(
     guard width <= limit else {
       @failure.reject(
         "layout-overflow", "A grapheme or inline image exceeds line width",
+      )
+    }
+    for run in runs {
+      if run.text == "\t" {
+        leader_glyphs += run.glyphs.length()
+      }
+    }
+    guard leader_glyphs <= 65536 else {
+      @failure.reject(
+        "limit-exceeded", "Paragraph leader glyph budget exceeded",
       )
     }
     let mut line_ascent = 0.0
@@ -594,12 +682,33 @@ fn paragraph_lines(
         width,
         height,
         clip,
+        justified: false,
+        bars,
         runs: runs.map(run => { ..run, baseline: baseline - run.rise, }),
         images: images.map(image => { ..image, y: baseline - image.height, }),
         carets,
         readOnlyReason: paragraph.readOnlyReason,
       },
     })
+    if paragraph.align == "both" &&
+      !page_break &&
+      (end < text.length() || (end > start && text[end - 1] == 10)) &&
+      !(end > start && text[end - 1] == 10 && !paragraph.expandSoftBreak) {
+      let last = lines.length() - 1
+      lines[last] = {
+        ..lines[last],
+        line: justified_line(lines[last].line, limit),
+      }
+    }
+    if paragraph.align == "both" &&
+      bidi.base_level % 2 == 1 &&
+      !lines.last().unwrap().line.justified {
+      let last = lines.length() - 1
+      lines[last] = {
+        ..lines[last],
+        line: { ..lines[last].line, x: indent + (limit - width).max(0), },
+      }
+    }
     guard end > start || start == text.length() else {
       @failure.reject("layout-failed", "Line breaker made no progress")
     }
@@ -626,6 +735,8 @@ fn paragraph_lines(
         width: 0,
         height: line_height,
         clip,
+        justified: false,
+        bars,
         runs: [],
         images: [],
         carets: [{ offset: start, before: 0, after: 0, }],

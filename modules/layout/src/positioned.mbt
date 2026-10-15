@@ -59,6 +59,17 @@ pub fn Layout::positioned(self : Layout) -> PositionedDocument {
         for image in line.images {
           primitives.push(Image(image))
         }
+        for x in line.bars {
+          primitives.push(
+            Rectangle({
+              x: x - 0.25,
+              y: line.y,
+              width: 0.5,
+              height: line.height,
+              color: "000000",
+            }),
+          )
+        }
         for run in line.runs {
           for decoration in run.decorations {
             if !decoration.highlight.is_empty() {
@@ -221,6 +232,9 @@ pub fn TextProbe::text_block(
     container: 0,
     nominalSize: style.size,
     defaultTab: 36,
+    tabs: [],
+    decimalSymbol: ".",
+    expandSoftBreak: true,
     spans: [{ node: 0, text, style, image: None, }],
     before: 0,
     after: 0,

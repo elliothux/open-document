@@ -1,3 +1,15 @@
+import {
+  checkFormatPatch,
+  paragraphStyleCatalog,
+  type ParagraphStyleCatalog,
+  docxFormatting,
+  copiedFormat,
+  type CopiedFormat,
+  type DocxFormatting,
+  type CharacterFormatPatch,
+  type ParagraphFormatPatch,
+} from "./docx-format.js";
+export * from "./docx-format.js";
 import { WasmSession, encodeBytes } from "./session.js";
 /** Logical soft line break; DOCX serializes it as w:br, while LF creates a paragraph. */
 export const DOCX_SOFT_BREAK = "\u2028";
@@ -152,166 +164,6 @@ export interface EditState {
   historyByteLimit: number;
   commandLimit: number;
   formatting: DocxFormatting | null;
-}
-
-export type FormatValue<T> =
-  | { kind: "value"; value: T }
-  | { kind: "mixed" }
-  | { kind: "unavailable"; reason: string };
-export interface CharacterFormatPatch {
-  family?: string | null;
-  size?: number | null;
-  color?: string | null;
-  bold?: boolean | null;
-  italic?: boolean | null;
-  underline?: boolean | null;
-  strike?: boolean | null;
-  highlight?: HighlightColor | null;
-  vertAlign?: "baseline" | "superscript" | "subscript" | null;
-}
-export const highlightColors = [
-  "none",
-  "black",
-  "blue",
-  "cyan",
-  "green",
-  "magenta",
-  "red",
-  "yellow",
-  "white",
-  "darkBlue",
-  "darkCyan",
-  "darkGreen",
-  "darkMagenta",
-  "darkRed",
-  "darkYellow",
-  "darkGray",
-  "lightGray",
-] as const;
-export type HighlightColor = (typeof highlightColors)[number];
-export interface ParagraphFormatPatch {
-  align?: "left" | "center" | "right" | null;
-  before?: number | null;
-  after?: number | null;
-  left?: number | null;
-  right?: number | null;
-  first?: number | null;
-  /** OOXML units: auto uses 240 per line; exact/atLeast use twips. */
-  line?: { rule: "auto" | "exact" | "atLeast"; value: number } | null;
-  pageBreakBefore?: boolean | null;
-}
-export interface DocxFormatting {
-  revision: number;
-  reason: string;
-  character: {
-    family: FormatValue<string>;
-    size: FormatValue<number>;
-    color: FormatValue<string>;
-    bold: FormatValue<boolean>;
-    italic: FormatValue<boolean>;
-    underline: FormatValue<boolean>;
-    strike: FormatValue<boolean>;
-    highlight: FormatValue<HighlightColor>;
-    vertAlign: FormatValue<"baseline" | "superscript" | "subscript">;
-  };
-  paragraph: {
-    align: FormatValue<string>;
-    before: FormatValue<number>;
-    after: FormatValue<number>;
-    left: FormatValue<number>;
-    right: FormatValue<number>;
-    first: FormatValue<number>;
-    line: FormatValue<{ rule: "auto" | "exact" | "atLeast"; value: number }>;
-    pageBreakBefore: FormatValue<boolean>;
-  };
-}
-export function checkFormatPatch(
-  format: CharacterFormatPatch | ParagraphFormatPatch,
-  paragraph = false,
-): void {
-  const fields = paragraph
-    ? {
-        align: "string",
-        before: "number",
-        after: "number",
-        left: "number",
-        right: "number",
-        first: "number",
-        line: "object",
-        pageBreakBefore: "boolean",
-      }
-    : {
-        family: "string",
-        size: "number",
-        color: "string",
-        bold: "boolean",
-        italic: "boolean",
-        underline: "boolean",
-        strike: "boolean",
-        highlight: "string",
-        vertAlign: "string",
-      };
-  for (const [key, value] of Object.entries(record(format))) {
-    if (paragraph && key === "line" && value !== null && value !== undefined) {
-      const spacing = record(value);
-      if (!lineSpacing(spacing) || Object.keys(spacing).length !== 2)
-        throw new Error("Invalid line spacing");
-    }
-    if (
-      !Object.hasOwn(fields, key) ||
-      (value !== null &&
-        value !== undefined &&
-        (typeof value !== Reflect.get(fields, key) ||
-          (typeof value === "number" && !Number.isFinite(value))))
-    )
-      throw new Error("Invalid formatting property: " + key);
-  }
-}
-function lineSpacing(value: unknown): boolean {
-  const spacing = record(value);
-  return (
-    (spacing.rule === "auto" ||
-      spacing.rule === "exact" ||
-      spacing.rule === "atLeast") &&
-    typeof spacing.value === "number" &&
-    Number.isFinite(spacing.value)
-  );
-}
-export function docxFormatting(value: unknown): DocxFormatting {
-  const result = record(value),
-    character = record(result.character),
-    paragraph = record(result.paragraph);
-  const field = (value: unknown, type: string): boolean => {
-    const item = record(value);
-    return (
-      item.kind === "mixed" ||
-      (item.kind === "unavailable" && typeof item.reason === "string") ||
-      (item.kind === "value" &&
-        typeof item.value === type &&
-        (type !== "number" || Number.isFinite(item.value)) &&
-        (type !== "object" || lineSpacing(item.value)))
-    );
-  };
-  if (
-    !Number.isSafeInteger(result.revision) ||
-    Number(result.revision) < 0 ||
-    typeof result.reason !== "string" ||
-    !["family", "color", "highlight", "vertAlign"].every((key) =>
-      field(character[key], "string"),
-    ) ||
-    !field(character.size, "number") ||
-    !["bold", "italic", "underline", "strike"].every((key) =>
-      field(character[key], "boolean"),
-    ) ||
-    !field(paragraph.align, "string") ||
-    !["before", "after", "left", "right", "first"].every((key) =>
-      field(paragraph[key], "number"),
-    ) ||
-    !field(paragraph.pageBreakBefore, "boolean") ||
-    !field(paragraph.line, "object")
-  )
-    throw new Error("Invalid DOCX formatting returned by Wasm");
-  return value as DocxFormatting;
 }
 
 export function editState(value: unknown): EditState {
@@ -524,6 +376,26 @@ export class FoundationSession extends WasmSession {
   queryFormatting(revision: number, selection: DocxSelection): DocxFormatting {
     return docxFormatting(
       this.call({ operation: "queryFormatting", revision, selection }),
+    );
+  }
+  paragraphStyles(revision: number): ParagraphStyleCatalog {
+    return paragraphStyleCatalog(
+      this.call({ operation: "paragraphStyles", revision }),
+    );
+  }
+  captureFormat(revision: number, selection: DocxSelection): CopiedFormat {
+    return copiedFormat(
+      this.call({ operation: "captureFormat", revision, selection }),
+    );
+  }
+  applyFormat(
+    revision: number,
+    selection: DocxSelection,
+    format: CopiedFormat,
+  ): EditState {
+    copiedFormat(format);
+    return editState(
+      this.call({ operation: "applyFormat", revision, selection, format }),
     );
   }
   setCharacterFormat(

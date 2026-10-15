@@ -165,8 +165,9 @@ fn WordTree::check_structure_properties(
       "pPr" =>
         [
           "pStyle", "rPr", "spacing", "ind", "jc", "pageBreakBefore", "autoSpaceDE",
-          "autoSpaceDN",
+          "autoSpaceDN", "tabs",
         ]
+      "tabs" => ["tab"]
       "rPr" =>
         [
           "rStyle", "rFonts", "sz", "color", "b", "i", "lang", "bCs", "iCs", "szCs",
@@ -177,7 +178,8 @@ fn WordTree::check_structure_properties(
     let names : Array[String] = []
     for child in self.children[id] {
       let name = self.nodes[child].name
-      guard children.contains(name) && !names.contains(name) else {
+      guard children.contains(name) &&
+        (node.name == "tabs" || !names.contains(name)) else {
         @failure.reject(
           "protected-content",
           "Duplicate or misplaced structural property: " + name,
@@ -189,7 +191,8 @@ fn WordTree::check_structure_properties(
       @failure.reject("protected-content", "Structural properties contain text")
     }
     let attributes = match node.name {
-      "pPr" | "rPr" => []
+      "pPr" | "rPr" | "tabs" => []
+      "tab" => ["pos", "val", "leader"]
       "pStyle"
       | "rStyle"
       | "jc"
@@ -236,6 +239,9 @@ fn WordTree::check_structure_properties(
           "Invalid script spacing property: " + node.qualified,
         )
       }
+    }
+    if node.name == "tabs" && !self.valid_tabs(id) {
+      @failure.reject("protected-content", "Unsupported tab stop properties")
     }
   }
 }

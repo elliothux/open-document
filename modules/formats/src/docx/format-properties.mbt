@@ -43,6 +43,7 @@ fn formatted_properties(
   parent : Int,
   kind : String,
   patch : Map[String, Map[String, String?]?],
+  nested~ : Map[String, String] = Map([]),
 ) -> String raise @failure.Failure {
   let container = tree.child(parent, kind)
   let source = document.source()
@@ -56,7 +57,10 @@ fn formatted_properties(
     for child in tree.children[id] {
       let item = tree.nodes[child]
       gaps[item.name] = source[cursor:item.start].to_owned()
-      fields[item.name] = if patch.get(item.name) is Some(value) {
+      fields[item.name] = if nested.get(item.name) is Some(markup) {
+        changed = changed || markup != source[item.start:item.end].to_owned()
+        markup
+      } else if patch.get(item.name) is Some(value) {
         let markup = property_markup(
           tree,
           document,
@@ -82,6 +86,12 @@ fn formatted_properties(
       fields[name] = markup
     }
   }
+  for name, markup in nested {
+    if !fields.contains(name) {
+      fields[name] = markup
+      changed = changed || !markup.is_empty()
+    }
+  }
   if !changed {
     return container
       .map(id => {
@@ -97,8 +107,8 @@ fn formatted_properties(
     ]
   } else {
     [
-      "pStyle", "pageBreakBefore", "spacing", "ind", "jc", "autoSpaceDE", "autoSpaceDN",
-      "rPr",
+      "pStyle", "pageBreakBefore", "tabs", "spacing", "ind", "jc", "autoSpaceDE",
+      "autoSpaceDN", "rPr",
     ]
   }
   let out = StringBuilder()

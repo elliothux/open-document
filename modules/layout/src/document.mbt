@@ -92,6 +92,9 @@ pub(all) struct Paragraph {
   nominalSize : Double
   spans : Array[Span]
   defaultTab : Double
+  tabs : Array[TabStop]
+  decimalSymbol : String
+  expandSoftBreak : Bool
   before : Double
   after : Double
   line : LineSpacing
@@ -191,6 +194,8 @@ pub(all) struct Line {
   width : Double
   height : Double
   clip : Bool
+  justified : Bool
+  bars : Array[Double]
   runs : Array[PlacedRun]
   images : Array[PlacedImage]
   carets : Array[Caret]

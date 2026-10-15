@@ -7,6 +7,9 @@ export type {
   DocxFindOptions,
   DocxSearchResult,
   HighlightColor,
+  CopiedFormat,
+  TabStop,
+  ParagraphStyleCatalog,
 } from "@open-document/wasm/foundation";
 export {
   highlightColors,
@@ -24,6 +27,10 @@ import {
   resourceBudget,
   editState,
   docxFormatting,
+  paragraphStyleCatalog,
+  type ParagraphStyleCatalog,
+  copiedFormat,
+  type CopiedFormat,
   checkFormatPatch,
   checkFindOptions,
   docxSearchResult,
@@ -110,6 +117,38 @@ export class FoundationClient {
         operation: "queryFormatting",
         revision,
         selection,
+      }),
+    );
+  }
+  async paragraphStyles(revision: number): Promise<ParagraphStyleCatalog> {
+    return paragraphStyleCatalog(
+      await this.connection.request({ operation: "paragraphStyles", revision }),
+    );
+  }
+  async captureFormat(
+    revision: number,
+    selection: DocxSelection,
+  ): Promise<CopiedFormat> {
+    return copiedFormat(
+      await this.connection.request({
+        operation: "captureFormat",
+        revision,
+        selection,
+      }),
+    );
+  }
+  async applyFormat(
+    revision: number,
+    selection: DocxSelection,
+    format: CopiedFormat,
+  ): Promise<EditState> {
+    copiedFormat(format);
+    return editState(
+      await this.connection.request({
+        operation: "applyFormat",
+        revision,
+        selection,
+        format,
       }),
     );
   }

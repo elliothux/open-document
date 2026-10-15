@@ -1,6 +1,7 @@
 ///|
 /// Paragraph distances are points; negative first-line indent creates a hanging indent.
 pub(all) struct ParagraphFormat {
+  style : FormatChange[String]
   align : FormatChange[String]
   before : FormatChange[Double]
   after : FormatChange[Double]
@@ -8,11 +9,13 @@ pub(all) struct ParagraphFormat {
   right : FormatChange[Double]
   first : FormatChange[Double]
   line : FormatChange[@layout.LineSpacing]
+  tabs : FormatChange[Array[@layout.TabStop]]
   pageBreakBefore : FormatChange[Bool]
 }
 
 ///|
 pub fn ParagraphFormat::new(
+  style~ : FormatChange[String] = Keep,
   align~ : FormatChange[String] = Keep,
   before~ : FormatChange[Double] = Keep,
   after~ : FormatChange[Double] = Keep,
@@ -20,9 +23,21 @@ pub fn ParagraphFormat::new(
   right~ : FormatChange[Double] = Keep,
   first~ : FormatChange[Double] = Keep,
   line~ : FormatChange[@layout.LineSpacing] = Keep,
+  tabs~ : FormatChange[Array[@layout.TabStop]] = Keep,
   pageBreakBefore~ : FormatChange[Bool] = Keep,
 ) -> ParagraphFormat {
-  { align, before, after, left, right, first, line, pageBreakBefore, }
+  {
+    style,
+    align,
+    before,
+    after,
+    left,
+    right,
+    first,
+    line,
+    tabs,
+    pageBreakBefore,
+  }
 }
 
 ///|
@@ -30,11 +45,24 @@ fn ParagraphFormat::properties(
   self : ParagraphFormat,
 ) -> Map[String, Map[String, String?]?] raise @failure.Failure {
   let result : Map[String, Map[String, String?]?] = Map([])
+  match self.style {
+    Keep => ()
+    Clear => result["pStyle"] = None
+    Set(value) => {
+      for name in ["jc", "spacing", "ind", "pageBreakBefore"] {
+        result[name] = None
+      }
+      result["pStyle"] = Some(Map::from_array([("val", Some(value))]))
+    }
+  }
+  if self.tabs is Set(stops) {
+    @layout.validate_tabs(stops)
+  }
   match self.align {
     Keep => ()
     Clear => result["jc"] = None
     Set(value) => {
-      guard ["left", "center", "right"].contains(value) else {
+      guard ["left", "center", "right", "both"].contains(value) else {
         @failure.reject("invalid-operation", "Unsupported paragraph alignment")
       }
       result["jc"] = Some(Map::from_array([("val", Some(value))]))
@@ -118,6 +146,68 @@ fn ParagraphFormat::properties(
 }
 
 ///|
+fn Session::format_paragraph_document(
+  self : Session,
+  document : @xml.Document,
+  selection : Selection,
+  patch : ParagraphFormat,
+) -> (@xml.Document, @xml.Edit)? raise @failure.Failure {
+  let properties = patch.properties()
+  let tree = WordTree::new(document)
+  if patch.style is Set(key) {
+    let styles = self.styles([])
+    styles.validate_paragraph_style(key)
+    if styles.default_paragraph == Some(key) {
+      properties["pStyle"] = None
+    }
+  }
+  let range = self.formatting_range(document, selection)
+  let changes : Array[@xml.SourceChange] = []
+  for paragraph in range.paragraphs {
+    let nested : Map[String, String] = Map([])
+    match patch.tabs {
+      Keep => if patch.style is Set(_) { nested["tabs"] = "" }
+      Clear => nested["tabs"] = ""
+      Set(stops) =>
+        nested["tabs"] = self.tab_markup(
+          tree,
+          paragraph,
+          stops,
+          style=patch.style,
+        )
+    }
+    let markup = formatted_properties(
+      tree,
+      document,
+      paragraph,
+      "pPr",
+      properties,
+      nested~,
+    )
+    if properties_change(tree, document, paragraph, "pPr", markup)
+      is Some(change) {
+      changes.push(change)
+    }
+  }
+  if changes.is_empty() {
+    None
+  } else {
+    let (candidate, edit) = document.edit_source(changes)
+    if patch.style is (Set(_) | Clear) {
+      let tree = WordTree::new(candidate)
+      let styles = self.styles([])
+      for paragraph in range.paragraphs {
+        let value = self.paragraph(tree, styles, paragraph, [])
+        guard value.readOnlyReason.is_empty() else {
+          @failure.reject("protected-content", value.readOnlyReason)
+        }
+      }
+    }
+    Some((candidate, edit))
+  }
+}
+
+///|
 /// Applies paragraph properties to every paragraph touched by the explicit range.
 pub fn Session::set_paragraph_format(
   self : Session,
@@ -125,39 +215,5 @@ pub fn Session::set_paragraph_format(
   selection : Selection,
   patch : ParagraphFormat,
 ) -> Json raise @failure.Failure {
-  self.check_revision(revision)
-  let properties = patch.properties()
-  let document = self.document()
-  let tree = WordTree::new(document)
-  let range = self.formatting_range(document, selection)
-  let changes : Array[@xml.SourceChange] = []
-  for paragraph in range.paragraphs {
-    let markup = formatted_properties(
-      tree, document, paragraph, "pPr", properties,
-    )
-    if properties_change(tree, document, paragraph, "pPr", markup)
-      is Some(change) {
-      changes.push(change)
-    }
-  }
-  if !changes.is_empty() {
-    let (candidate, xml) = document.edit_source(changes)
-    let pending = if self.selection == Some(selection) {
-      self.typing_format
-    } else {
-      None
-    }
-    self.commit_edit(
-      {
-        xml: [xml],
-        before: self.selection,
-        after: Some(selection),
-        paragraphs: range.paragraphs,
-        bytes: edit_bytes(xml),
-      },
-      candidate,
-    )
-    self.typing_format = pending
-  }
-  self.edit_result(range.paragraphs)
+  self.apply_format(revision, selection, CharacterFormat::new(), patch)
 }

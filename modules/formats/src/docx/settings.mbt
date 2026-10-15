@@ -1,4 +1,56 @@
 ///|
+fn Session::decimal_symbol(self : Session) -> String raise @failure.Failure {
+  for rel in self.opc.relationships() {
+    if rel.owner == self.main &&
+      rel.kind ==
+      "http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" {
+      guard !rel.external else {
+        @failure.reject(
+          "unsupported-layout", "External settings are unsupported",
+        )
+      }
+      let value = WordTree::new(self.opc.xml(rel.target))
+        .value(0, "decimalSymbol")
+        .unwrap_or(".")
+      guard value.iter().count() == 1 &&
+        !value.trim().is_empty() &&
+        !value.contains("\t") &&
+        !value.contains("\n") else {
+        @failure.reject("invalid-style", "Invalid decimal tab symbol")
+      }
+      return value
+    }
+  }
+  "."
+}
+
+///|
+fn Session::expand_soft_break(self : Session) -> Bool raise @failure.Failure {
+  for rel in self.opc.relationships() {
+    if rel.owner == self.main &&
+      rel.kind ==
+      "http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" {
+      guard !rel.external else {
+        @failure.reject(
+          "unsupported-layout", "External settings are unsupported",
+        )
+      }
+      let tree = WordTree::new(self.opc.xml(rel.target))
+      if tree
+        .child(0, "compat")
+        .bind(id => tree.child(id, "doNotExpandShiftReturn"))
+        is Some(id) {
+        return match tree.nodes[id].attribute("val", uri=word_uri) {
+          Some("0" | "false" | "off") => true
+          _ => false
+        }
+      }
+    }
+  }
+  true
+}
+
+///|
 fn Session::default_tab(self : Session) -> Double raise @failure.Failure {
   for rel in self.opc.relationships() {
     if rel.owner == self.main &&

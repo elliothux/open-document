@@ -275,6 +275,9 @@ fn Foundation::dispatch(
     | "editState"
     | "selectDocx"
     | "queryFormatting"
+    | "paragraphStyles"
+    | "captureFormat"
+    | "applyFormat"
     | "setCharacterFormat"
     | "setParagraphFormat"
     | "findDocx"
@@ -382,6 +385,32 @@ fn Foundation::dispatch(
             field_int(request, "revision"),
             field_selection(request),
           )
+        "paragraphStyles" =>
+          session.paragraph_styles(field_int(request, "revision"))
+        "captureFormat" =>
+          session.capture_format(
+            field_int(request, "revision"),
+            field_selection(request),
+          )
+        "applyFormat" => {
+          guard request is { "format": Object(fields) as format, .. } &&
+            fields.length() == 2 &&
+            format is { "character": character, "paragraph": paragraph, .. } else {
+            @failure.reject("invalid-operation", "Invalid copied format")
+          }
+          let revision = field_int(request, "revision")
+          let result = session.apply_format(
+            revision,
+            field_selection(request),
+            character_format({ "format": character }),
+            paragraph_format({ "format": paragraph }),
+          )
+          if result is { "revision": Number(current, ..), .. } &&
+            current != revision.to_double() {
+            self.layout = None
+          }
+          result
+        }
         "setCharacterFormat" | "setParagraphFormat" => {
           let revision = field_int(request, "revision")
           let result = if operation == "setCharacterFormat" {

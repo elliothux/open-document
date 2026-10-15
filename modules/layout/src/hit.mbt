@@ -278,7 +278,11 @@ fn nearest_caret(line : Line, page : Int, index : Int, x : Double) -> Hit {
     let mut middle = (left.x + right.x) / 2
     let gap = right.x - left.x - advance
     // Extra script spacing moves the stop but not the glyph's hit midpoint.
-    if advance > 0 && gap > 0.1 {
+    if !line.justified &&
+      !(start - line.start < line.text.length() &&
+      line.text[start - line.start] == 9) &&
+      advance > 0 &&
+      gap > 0.1 {
       middle += if left.offset < right.offset { -gap / 2 } else { gap / 2 }
     }
     let candidate = if x > middle { right } else { left }

@@ -1,5 +1,6 @@
 ///|
 priv struct WordTree {
+  source : String
   nodes : Map[Int, @xml.Node]
   order : Array[Int]
   children : Map[Int, Array[Int]]
@@ -21,7 +22,7 @@ fn WordTree::new(document : @xml.Document) -> WordTree {
       children[node.parent].push(id)
     }
   }
-  { nodes, order, children, }
+  { source: document.source(), nodes, order, children, }
 }
 
 ///|
@@ -248,6 +249,7 @@ fn paragraph_properties(
   }
   {
     ..base,
+    tabs: tree.paragraph_tabs(id, base.tabs),
     before: tree
     .number(id, "spacing", "before")
     .map(value => value / 20)
@@ -319,6 +321,9 @@ fn Session::styles(
     container: 0,
     nominalSize: defaults.size,
     defaultTab: self.default_tab(),
+    tabs: [],
+    decimalSymbol: self.decimal_symbol(),
+    expandSoftBreak: self.expand_soft_break(),
     spans: [],
     before: 0,
     after: 0,

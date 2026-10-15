@@ -193,6 +193,21 @@ pub fn Session::query_formatting(
       ),
     },
     "paragraph": {
+      "style": format_summary(
+        match range {
+          Some(range) => {
+            let default_style = self.styles([]).default_paragraph.unwrap_or("")
+            range.paragraphs.map(id => {
+              tree
+              .child(id, "pPr")
+              .bind(p => tree.value(p, "pStyle"))
+              .unwrap_or(default_style)
+            })
+          }
+          None => []
+        },
+        reason,
+      ),
       "align": format_summary(paragraphs.map(p => p.align), reason),
       "before": format_summary(paragraphs.map(p => p.before), reason),
       "after": format_summary(paragraphs.map(p => p.after), reason),
@@ -200,6 +215,7 @@ pub fn Session::query_formatting(
       "right": format_summary(paragraphs.map(p => p.right), reason),
       "first": format_summary(paragraphs.map(p => p.first), reason),
       "line": format_summary(paragraphs.map(p => p.line.to_json()), reason),
+      "tabs": format_summary(paragraphs.map(p => Json(p.tabs)), reason),
       "pageBreakBefore": format_summary(
         paragraphs.map(p => p.pageBreakBefore),
         reason,

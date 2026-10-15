@@ -33,6 +33,9 @@ fn measure_text(
       spans,
       nominalSize: spans[0].style.size,
       defaultTab: 36,
+      tabs: [],
+      decimalSymbol: ".",
+      expandSoftBreak: true,
       left: paragraph.left,
       right: paragraph.right,
       first: if paragraph.bullet.is_empty() {

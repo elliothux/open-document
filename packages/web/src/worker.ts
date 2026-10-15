@@ -163,6 +163,16 @@ async function dispatch(request: Request): Promise<unknown> {
             request.revision,
             request.selection,
           );
+        case "paragraphStyles":
+          return foundation.paragraphStyles(request.revision);
+        case "captureFormat":
+          return foundation.captureFormat(request.revision, request.selection);
+        case "applyFormat":
+          return foundation.applyFormat(
+            request.revision,
+            request.selection,
+            request.format,
+          );
         case "setCharacterFormat":
           return foundation.setCharacterFormat(
             request.revision,

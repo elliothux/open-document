@@ -9,7 +9,7 @@ fn WordTree::diagnose_properties(
     "pPr" =>
       [
         "pStyle", "rPr", "spacing", "ind", "jc", "pageBreakBefore", "autoSpaceDE",
-        "autoSpaceDN",
+        "autoSpaceDN", "tabs",
       ]
     "rPr" =>
       [
@@ -38,6 +38,7 @@ fn WordTree::diagnose_properties(
   for child in self.children[id] {
     let feature = self.nodes[child]
     let inactive = match feature.name {
+      "tabs" => self.valid_tabs(child)
       // The fixed Writer DOCX importer preserves these flags without applying them.
       "autoSpaceDE" | "autoSpaceDN" => self.valid_script_spacing_property(child)
       "u" =>

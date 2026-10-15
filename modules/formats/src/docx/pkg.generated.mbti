@@ -42,6 +42,7 @@ pub fn[T : Eq] FormatChange::equal(Self[T], Self[T]) -> Bool
 pub fn[T : Eq] FormatChange::not_equal(Self[T], Self[T]) -> Bool
 
 pub(all) struct ParagraphFormat {
+  style : FormatChange[String]
   align : FormatChange[String]
   before : FormatChange[Double]
   after : FormatChange[Double]
@@ -49,9 +50,10 @@ pub(all) struct ParagraphFormat {
   right : FormatChange[Double]
   first : FormatChange[Double]
   line : FormatChange[@layout.LineSpacing]
+  tabs : FormatChange[Array[@layout.TabStop]]
   pageBreakBefore : FormatChange[Bool]
 }
-pub fn ParagraphFormat::new(align? : FormatChange[String], before? : FormatChange[Double], after? : FormatChange[Double], left? : FormatChange[Double], right? : FormatChange[Double], first? : FormatChange[Double], line? : FormatChange[@layout.LineSpacing], pageBreakBefore? : FormatChange[Bool]) -> Self
+pub fn ParagraphFormat::new(style? : FormatChange[String], align? : FormatChange[String], before? : FormatChange[Double], after? : FormatChange[Double], left? : FormatChange[Double], right? : FormatChange[Double], first? : FormatChange[Double], line? : FormatChange[@layout.LineSpacing], tabs? : FormatChange[Array[@layout.TabStop]], pageBreakBefore? : FormatChange[Bool]) -> Self
 
 pub(all) struct Position {
   paragraph : Int
@@ -76,8 +78,10 @@ pub fn Selection::to_json(Self) -> Json
 pub struct Session {
   // private fields
 }
+pub fn Session::apply_format(Self, Int, Selection, CharacterFormat, ParagraphFormat) -> Json raise @failure.Failure
 pub fn Session::begin_composition(Self, Int) -> Json raise @failure.Failure
 pub fn Session::cancel_composition(Self, Int, Int) -> Json raise @failure.Failure
+pub fn Session::capture_format(Self, Int, Selection) -> Json raise @failure.Failure
 pub fn Session::check_idle(Self) -> Unit raise @failure.Failure
 pub fn Session::check_position(Self, Position) -> Unit raise @failure.Failure
 pub fn Session::close(Self) -> Unit
@@ -90,6 +94,7 @@ pub fn Session::flow(Self) -> @layout.Flow raise @failure.Failure
 pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
 pub fn Session::navigate(Self, Int, @layout.Layout, Int, String, extend_selection~ : Bool) -> @layout.Hit raise @failure.Failure
 pub fn Session::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
+pub fn Session::paragraph_styles(Self, Int) -> Json raise @failure.Failure
 pub fn Session::query(Self) -> Json raise @failure.Failure
 pub fn Session::query_formatting(Self, Int, Selection) -> Json raise @failure.Failure
 pub fn Session::redo_edit(Self, Int) -> Json raise @failure.Failure

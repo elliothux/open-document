@@ -88,15 +88,49 @@ fn paragraph_format(
   request : Json,
 ) -> @docx.ParagraphFormat raise @failure.Failure {
   let fields = format_fields(request, [
-    "align", "before", "after", "left", "right", "first", "line", "pageBreakBefore",
+    "style", "align", "before", "after", "left", "right", "first", "line", "tabs",
+    "pageBreakBefore",
   ])
   @docx.ParagraphFormat::new(
+    style=format_string(fields, "style"),
     align=format_string(fields, "align"),
     before=format_number(fields, "before"),
     after=format_number(fields, "after"),
     left=format_number(fields, "left"),
     right=format_number(fields, "right"),
     first=format_number(fields, "first"),
+    tabs=match fields.get("tabs") {
+      None => @docx.Keep
+      Some(Null) => @docx.Clear
+      Some(Array(values)) => {
+        guard values.length() <= 64 else {
+          @failure.reject("limit-exceeded", "Too many tab stops")
+        }
+        @docx.Set(
+          values.map(value => {
+            guard value is Object(fields) &&
+              fields
+              .keys()
+              .all(key => ["position", "align", "leader"].contains(key)) &&
+              value
+              is {
+                "position": Number(position, ..),
+                "align": String(align),
+                ..
+              } else {
+              @failure.reject("invalid-operation", "Invalid tab stop")
+            }
+            let leader = match fields.get("leader") {
+              None => "none"
+              Some(String(value)) => value
+              _ => @failure.reject("invalid-operation", "Invalid tab leader")
+            }
+            { position, align, leader, }
+          }),
+        )
+      }
+      _ => @failure.reject("invalid-operation", "Invalid tab stops")
+    },
     line=match fields.get("line") {
       None => @docx.Keep
       Some(Null) => @docx.Clear

@@ -1,5 +1,5 @@
 import { downloadBytes } from "./download.js";
-import { createDocumentElements } from "./document-elements.js";
+import { createDocumentElements, docxPageText } from "./document-elements.js";
 import type { FoundationClient } from "./foundation.js";
 import { PageCanvas } from "./page-canvas.js";
 import {
@@ -28,6 +28,8 @@ import type {
   EditState,
   CharacterFormatPatch,
   ParagraphFormatPatch,
+  ParagraphStyleCatalog,
+  CopiedFormat,
   DocxFindOptions,
 } from "@open-document/wasm/foundation";
 
@@ -437,21 +439,23 @@ export class DocumentEditor {
     );
   }
   setCharacterFormat(format: CharacterFormatPatch): Promise<void> {
-    return this.format(() =>
-      this.client.setCharacterFormat(
-        this.state.revision,
-        this.selection(),
-        format,
-      ),
-    );
+    return this.applyFormat({ character: format, paragraph: {} });
   }
   setParagraphFormat(format: ParagraphFormatPatch): Promise<void> {
+    return this.applyFormat({ character: {}, paragraph: format });
+  }
+  paragraphStyles(): Promise<ParagraphStyleCatalog> {
+    return this.enqueue(() => this.client.paragraphStyles(this.state.revision));
+  }
+  captureFormat(): Promise<CopiedFormat> {
+    this.inputEvents.endGroup();
+    return this.enqueue(() =>
+      this.client.captureFormat(this.state.revision, this.selection()),
+    );
+  }
+  applyFormat(format: CopiedFormat): Promise<void> {
     return this.format(() =>
-      this.client.setParagraphFormat(
-        this.state.revision,
-        this.selection(),
-        format,
-      ),
+      this.client.applyFormat(this.state.revision, this.selection(), format),
     );
   }
   private format(operation: () => Promise<EditState>): Promise<void> {
@@ -461,7 +465,6 @@ export class DocumentEditor {
       this.focus();
     });
   }
-
   private selectPointer(
     point: PointerPoint,
     initial: boolean,
@@ -648,10 +651,7 @@ export class DocumentEditor {
     this.cssScale = this.surface.draw(this.currentLayout, this.page, this.zoom);
     // Focus and pointer selection run before text intents in the same queue.
     this.input.readOnly = this.paused || !!this.blocked || this.resuming;
-    this.text.textContent =
-      this.currentLayout.semantics[this.page]?.lines
-        .map((line) => line.text.replaceAll("\ufffc", "[image]"))
-        .join("\n") ?? "";
+    this.text.textContent = docxPageText(this.currentLayout, this.page);
     this.publish();
   }
   private publish(): void {

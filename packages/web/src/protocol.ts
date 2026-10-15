@@ -6,6 +6,7 @@ import type {
   CharacterFormatPatch,
   ParagraphFormatPatch,
   DocxFindOptions,
+  CopiedFormat,
 } from "@open-document/wasm/foundation";
 import type { GridViewport, PrintOptions } from "@open-document/wasm/xlsx";
 import type { PptxCommand } from "@open-document/wasm/pptx";
@@ -66,6 +67,7 @@ export type Operation =
   | { operation: "openDocx"; bytes: Uint8Array; budget: Budget }
   | { operation: "createDocx"; budget: Budget }
   | { operation: "tabDocx"; revision: number; backward: boolean }
+  | { operation: "paragraphStyles"; revision: number }
   | {
       operation: "findDocx";
       revision: number;
@@ -78,7 +80,17 @@ export type Operation =
       matches: DocxSelection[];
       text: string;
     }
-  | { operation: "queryFormatting"; revision: number; selection: DocxSelection }
+  | {
+      operation: "queryFormatting" | "captureFormat";
+      revision: number;
+      selection: DocxSelection;
+    }
+  | {
+      operation: "applyFormat";
+      revision: number;
+      selection: DocxSelection;
+      format: CopiedFormat;
+    }
   | {
       operation: "setCharacterFormat";
       revision: number;

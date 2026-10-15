@@ -1,3 +1,13 @@
+import type { PageLayout } from "@open-document/wasm/preview";
+
+export function docxPageText(layout: PageLayout, page: number): string {
+  return (
+    layout.semantics[page]?.lines
+      .map((line) => line.text.replaceAll("\ufffc", "[image]"))
+      .join("\n") ?? ""
+  );
+}
+
 /** Native input and accessible text remain stable for the editor's lifetime. */
 export function createDocumentElements(
   canvas: HTMLCanvasElement,

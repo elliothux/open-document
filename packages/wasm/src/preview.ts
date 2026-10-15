@@ -1,4 +1,5 @@
 import type { ShapeBatch } from "./foundation.js";
+import { checkTabStops, type TabStop } from "./docx-format.js";
 import { record } from "./validation.js";
 import { drawingBatch, type DrawingBatch } from "./drawing.js";
 
@@ -28,6 +29,9 @@ export interface DocxFlow {
     container: number;
     nominalSize: number;
     defaultTab: number;
+    tabs: TabStop[];
+    decimalSymbol: string;
+    expandSoftBreak: boolean;
     spans: {
       node: number;
       text: string;
@@ -144,8 +148,9 @@ export function docxFlow(value: unknown): DocxFlow {
         "right",
         "first",
       ],
-      ["align", "readOnlyReason"],
+      ["align", "readOnlyReason", "decimalSymbol"],
     );
+    checkTabStops(paragraph.tabs);
     const spacing = fields(paragraph.line, ["value"], ["rule"]);
     if (
       typeof paragraph.nominalSize !== "number" ||
@@ -155,7 +160,10 @@ export function docxFlow(value: unknown): DocxFlow {
       throw new Error("Invalid nominal paragraph font size");
     if (!["auto", "exact", "atLeast"].includes(String(spacing.rule)))
       throw new Error("Invalid line spacing rule");
-    if (typeof paragraph.pageBreakBefore !== "boolean")
+    if (
+      typeof paragraph.pageBreakBefore !== "boolean" ||
+      typeof paragraph.expandSoftBreak !== "boolean"
+    )
       throw new Error("Invalid paragraph flags");
     for (const value of entries(paragraph.spans)) {
       const span = fields(value, ["node"], ["text"]);

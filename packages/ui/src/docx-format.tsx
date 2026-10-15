@@ -4,12 +4,15 @@ import type {
   FormatValue,
   CharacterFormatPatch,
   ParagraphFormatPatch,
+  CopiedFormat,
 } from "@open-document/web/foundation";
 import { highlightColors } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { Command, Group } from "./controls.js";
 import { messages } from "./messages.js";
 import { DocxSearch } from "./docx-search.js";
+import { DocxTabs } from "./docx-tabs.js";
+import { DocxStyles } from "./docx-styles.js";
 
 interface Props {
   controller: EditorController;
@@ -102,11 +105,29 @@ export function DocxFormatCommands({
       ? character.color.value
       : "000000";
   const [color, setColor] = useState(currentColor);
+  const [copied, setCopied] = useState<CopiedFormat>();
+  useEffect(() => setCopied(undefined), [editor]);
   useEffect(() => setColor(currentColor), [currentColor]);
   const align = formatting?.paragraph.align;
   return (
     <>
       <Group label={t.font}>
+        <Command
+          label={t.copyFormat}
+          disabled={disabled}
+          action={() =>
+            controller.run(async () => setCopied(await editor.captureFormat()))
+          }
+        />
+        <Command
+          label={t.applyFormat}
+          disabled={disabled || !copied}
+          action={() =>
+            controller.run(() =>
+              copied ? editor.applyFormat(copied) : Promise.resolve(),
+            )
+          }
+        />
         <label>
           {t.fontFamily}
           <select
@@ -255,7 +276,7 @@ export function DocxFormatCommands({
           disabled={disabled}
           action={() => controller.run(() => editor.paste("\t"))}
         />
-        {(["left", "center", "right"] as const).map((value) => (
+        {(["left", "center", "right", "both"] as const).map((value) => (
           <button
             key={value}
             type="button"
@@ -273,7 +294,9 @@ export function DocxFormatCommands({
                   ? "alignLeft"
                   : value === "center"
                     ? "alignCenter"
-                    : "alignRight"
+                    : value === "right"
+                      ? "alignRight"
+                      : "alignJustify"
               ]
             }
           </button>
@@ -290,6 +313,7 @@ export function DocxFormatCommands({
               right: null,
               first: null,
               line: null,
+              tabs: null,
               pageBreakBefore: null,
             })
           }
@@ -308,6 +332,18 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
       <h2>{t.paragraph}</h2>
       <p>{formatting?.reason}</p>
       <LineSpacing
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
+      <DocxTabs
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
+      <DocxStyles
         controller={controller}
         state={state}
         editor={editor}

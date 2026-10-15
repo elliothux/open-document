@@ -34,10 +34,11 @@ fn paragraph_cache_units(key : String, lines : Array[Line]) -> Int {
     return 1048577
   }
   for line in lines {
-    units += 12 +
+    units += 13 +
       line.text.length() +
       line.readOnlyReason.length() +
-      line.carets.length() * 3
+      line.carets.length() * 3 +
+      line.bars.length()
     for image in line.images {
       units += 4 + image.key.length()
     }
@@ -77,6 +78,9 @@ fn Paragraph::finite_geometry(paragraph : Paragraph) -> Bool {
       Auto(value) | Exact(value) | AtLeast(value) => value
     },
   ]
+  for stop in paragraph.tabs {
+    numbers.push(stop.position)
+  }
   for span in paragraph.spans {
     numbers.push(span.style.size)
     if span.image is Some(image) {

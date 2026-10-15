@@ -35,5 +35,5 @@ pub fn TextProbe::paragraph_lines(
       }
     }
   }
-  lines.map(item => item.line)
+  lines.map(item => item.line.copy_geometry())
 }
