@@ -159,12 +159,36 @@ fn Session::flow_from(
     }
     tree.diagnose_properties(id, self.main, diagnostics)
   }
+  let numbered : Map[Int, @layout.Paragraph] = Map([])
+  let backgrounds : Map[Int, String] = Map([])
+  for p in paragraphs {
+    numbered[p.id] = p
+    backgrounds[p.id] = "ffffff"
+  }
+  for table in tables {
+    for row_index, row in table.rows {
+      for cell_index, cell in row {
+        let background = table.fills
+          .get(row_index)
+          .bind(row => row.get(cell_index))
+          .unwrap_or("ffffff")
+        for p in cell {
+          numbered[p.id] = p
+          backgrounds[p.id] = background
+        }
+      }
+    }
+  }
+  self.apply_numbering(tree, styles, numbered, backgrounds)
   {
     revision: self.revision,
     page,
-    paragraphs,
+    paragraphs: paragraphs.map(p => numbered[p.id]),
     diagnostics,
-    tables,
+    tables: tables.map(table => {
+      ..table,
+      rows: table.rows.map(row => row.map(cell => cell.map(p => numbered[p.id]))),
+    }),
     headers,
     headerDistance: header_distance,
     additiveSpacing: self.additive_spacing(),

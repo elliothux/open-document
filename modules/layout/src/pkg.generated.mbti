@@ -223,6 +223,8 @@ pub(all) struct Line {
   clip : Bool
   justified : Bool
   bars : Array[Double]
+  marker : Array[PlacedRun]
+  markerText : String
   runs : Array[PlacedRun]
   images : Array[PlacedImage]
   carets : Array[Caret]
@@ -298,10 +300,19 @@ pub(all) struct Paragraph {
   first : Double
   align : String
   rtl : Bool
+  marker : ParagraphMarker?
   pageBreakBefore : Bool
   readOnlyReason : String
 } derive(ToJson)
 pub fn Paragraph::to_json(Self) -> Json
+
+pub(all) struct ParagraphMarker {
+  text : String
+  style : TextStyle
+  align : String
+  suffix : String
+} derive(ToJson)
+pub fn ParagraphMarker::to_json(Self) -> Json
 
 pub(all) enum PathSegment {
   Move(Double, Double)
@@ -388,6 +399,7 @@ pub(all) struct SemanticLine {
   container : Int
   baseLevel : Int
   text : String
+  marker : String?
   start : Int
   end : Int
   x : Double

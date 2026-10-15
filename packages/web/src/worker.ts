@@ -170,6 +170,14 @@ async function dispatch(request: Request): Promise<unknown> {
             request.revision,
             request.interval,
           );
+        case "listCatalog":
+          return foundation.lists(request.revision);
+        case "editList":
+          return foundation.editList(
+            request.revision,
+            request.selection,
+            request.change,
+          );
         case "createStyle":
           return foundation.createStyle(request.revision, request.style);
         case "deleteStyle":

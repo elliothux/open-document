@@ -276,6 +276,8 @@ fn Foundation::dispatch(
     | "selectDocx"
     | "queryFormatting"
     | "styleCatalog"
+    | "listCatalog"
+    | "editList"
     | "updateStyle"
     | "createStyle"
     | "deleteStyle"
@@ -394,6 +396,16 @@ fn Foundation::dispatch(
             field_int(request, "revision"),
             field_string(request, "kind"),
           )
+        "listCatalog" => session.list_catalog(field_int(request, "revision"))
+        "editList" => {
+          let result = session.edit_list(
+            field_int(request, "revision"),
+            field_selection(request),
+            list_edit(request),
+          )
+          self.layout = None
+          result
+        }
         "setDefaultTabStop" => {
           let interval = match request {
             { "interval": Null, .. } => None

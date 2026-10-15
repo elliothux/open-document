@@ -42,6 +42,12 @@ fn paragraph_lines(
     @failure.reject("invalid-style", "Invalid default tab interval")
   }
   validate_tabs(paragraph.tabs)
+  let marker = probe.paragraph_marker(paragraph, profile, available)
+  let paragraph = if marker is Some(marker) {
+    { ..paragraph, first: marker.indent - paragraph.left, }
+  } else {
+    paragraph
+  }
   guard paragraph.decimalSymbol.iter().count() == 1 &&
     !paragraph.decimalSymbol.trim().is_empty() &&
     !paragraph.decimalSymbol.contains("\t") &&
@@ -354,8 +360,16 @@ fn paragraph_lines(
         "limit-exceeded", "Paragraph leader glyph budget exceeded",
       )
     }
-    let mut line_ascent = 0.0
-    let mut line_descent = 0.0
+    let mut line_ascent = if start == 0 {
+      marker.map(m => m.ascent).unwrap_or(0)
+    } else {
+      0
+    }
+    let mut line_descent = if start == 0 {
+      marker.map(m => m.descent).unwrap_or(0)
+    } else {
+      0
+    }
     for run in runs {
       for range in run.bidi {
         let (a, d) = probe.line_metrics(range.font, run.size)
@@ -422,6 +436,8 @@ fn paragraph_lines(
         height,
         clip,
         justified: false,
+        marker: [],
+        markerText: "",
         bars,
         runs: runs.map(run => { ..run, baseline: baseline - run.rise, }),
         images: images.map(image => { ..image, y: baseline - image.height, }),
@@ -487,6 +503,8 @@ fn paragraph_lines(
         height: line_height,
         clip,
         justified: false,
+        marker: [],
+        markerText: "",
         bars,
         runs: [],
         images: [],
@@ -494,6 +512,31 @@ fn paragraph_lines(
         readOnlyReason: paragraph.readOnlyReason,
       },
     })
+  }
+  if marker is Some(marker) {
+    let line = lines[0].line
+    let baseline = line.runs
+      .get(0)
+      .map(run => run.baseline + run.rise)
+      .unwrap_or(paragraph.line.metrics(marker.ascent, marker.descent).1)
+    lines[0] = {
+      ..lines[0],
+      line: {
+        ..line,
+        markerText: marker.text,
+        marker: [
+          {
+            ..marker.run,
+            x: if paragraph.rtl {
+              line.width - marker.delta - marker.width
+            } else {
+              marker.delta
+            },
+            baseline: baseline - marker.run.rise,
+          },
+        ],
+      },
+    }
   }
   lines
 }

@@ -11,6 +11,31 @@ fn format_fields(
 }
 
 ///|
+fn list_edit(request : Json) -> @docx.ListEdit raise @failure.Failure {
+  guard request is { "change": Object(fields) as change, .. } else {
+    @failure.reject("invalid-operation", "Invalid list edit")
+  }
+  let action = field_string(change, "action")
+  let allowed = match action {
+    "create" => ["action", "format"]
+    "apply" => ["action", "id", "level"]
+    "remove" => ["action"]
+    "restart" => ["action", "start"]
+    _ => @failure.reject("invalid-operation", "Invalid list edit action")
+  }
+  guard fields.length() == allowed.length() &&
+    fields.keys().all(key => allowed.contains(key)) else {
+    @failure.reject("invalid-operation", "Invalid list edit fields")
+  }
+  match action {
+    "create" => @docx.Create(field_string(change, "format"))
+    "apply" => @docx.Apply(field_int(change, "id"), field_int(change, "level"))
+    "remove" => @docx.Remove
+    _ => @docx.Restart(field_int(change, "start"))
+  }
+}
+
+///|
 fn format_string(
   fields : Map[String, Json],
   key : String,

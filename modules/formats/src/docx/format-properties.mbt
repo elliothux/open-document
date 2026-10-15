@@ -107,8 +107,8 @@ fn formatted_properties(
     ]
   } else {
     [
-      "pStyle", "pageBreakBefore", "tabs", "bidi", "spacing", "ind", "jc", "autoSpaceDE",
-      "autoSpaceDN", "rPr",
+      "pStyle", "pageBreakBefore", "numPr", "tabs", "bidi", "spacing", "ind", "jc",
+      "autoSpaceDE", "autoSpaceDN", "rPr",
     ]
   }
   let out = StringBuilder()

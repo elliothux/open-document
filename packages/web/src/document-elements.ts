@@ -3,7 +3,9 @@ import type { PageLayout } from "@open-document/wasm/preview";
 export function docxPageText(layout: PageLayout, page: number): string {
   return (
     layout.semantics[page]?.lines
-      .map((line) => line.text.replaceAll("\ufffc", "[image]"))
+      .map((line) =>
+        ((line.marker ?? "") + line.text).replaceAll("\ufffc", "[image]"),
+      )
       .join("\n") ?? ""
   );
 }

@@ -344,6 +344,7 @@ fn Session::styles(
     align: "left",
     pageBreakBefore: false,
     rtl: false,
+    marker: None,
     readOnlyReason: "",
   }
   let path = for rel in self.relationships() {

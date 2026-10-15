@@ -103,6 +103,7 @@ pub(all) struct SemanticLine {
   container : Int
   baseLevel : Int
   text : String
+  marker : String?
   start : Int
   end : Int
   x : Double
@@ -142,6 +143,11 @@ pub fn Layout::semantics(self : Layout) -> Array[SemanticPage] {
       container: line.container,
       baseLevel: line.baseLevel,
       text: line.text,
+      marker: if line.markerText.is_empty() {
+        None
+      } else {
+        Some(line.markerText)
+      },
       start: line.start,
       end: line.end,
       x: line.x,

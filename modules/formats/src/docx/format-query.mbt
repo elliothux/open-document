@@ -147,9 +147,7 @@ fn Session::formatting_range(
     structural=true,
     check_layout=false,
   )
-  let styles = self.styles([])
-  for paragraph in range.paragraphs {
-    let p = self.paragraph(tree, styles, paragraph, [])
+  for p in self.formatting_paragraphs(document, range.paragraphs) {
     guard p.readOnlyReason.is_empty() else {
       @failure.reject("protected-content", p.readOnlyReason)
     }
@@ -187,15 +185,27 @@ pub fn Session::query_formatting(
     None => ([], [])
   }
   let paragraphs = match range {
-    Some(range) => {
-      let styles = self.styles([])
-      range.paragraphs.map(id => self.paragraph(tree, styles, id, []))
-    }
+    Some(range) => self.formatting_paragraphs(self.document(), range.paragraphs)
     None => []
   }
   {
     "revision": revision,
     "reason": reason,
+    "list": format_summary(
+      match range {
+        None => []
+        Some(range) => {
+          let styles = self.styles([])
+          range.paragraphs.map(id => {
+            match styles.numbering_reference(tree, id) {
+              None => Json::null()
+              Some((id, level)) => { "id": id, "level": level }
+            }
+          })
+        }
+      },
+      reason,
+    ),
     "character": {
       "style": format_summary(character_styles, reason),
       "family": format_summary(characters.map(style => style.family), reason),

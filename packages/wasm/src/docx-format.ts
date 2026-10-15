@@ -1,4 +1,5 @@
 import { record } from "./validation.js";
+import { isListReference, type DocxListReference } from "./docx-list.js";
 
 /** Uniform effective values captured by the core; mixed properties are omitted. */
 export interface CopiedFormat {
@@ -180,6 +181,7 @@ export interface ParagraphFormatPatch {
 export interface DocxFormatting {
   revision: number;
   reason: string;
+  list: FormatValue<DocxListReference | null>;
   character: {
     style: FormatValue<string>;
     family: FormatValue<string>;
@@ -270,6 +272,8 @@ export function docxFormatting(value: unknown): DocxFormatting {
     paragraph = record(result.paragraph);
   const field = (value: unknown, type: string): boolean => {
     const item = record(value);
+    if (item.kind === "value" && type === "list")
+      return item.value === null || isListReference(item.value);
     if (item.kind === "value" && type === "tabs") {
       checkTabStops(item.value);
       return true;
@@ -287,6 +291,7 @@ export function docxFormatting(value: unknown): DocxFormatting {
     !Number.isSafeInteger(result.revision) ||
     Number(result.revision) < 0 ||
     typeof result.reason !== "string" ||
+    !field(result.list, "list") ||
     !["style", "family", "color", "highlight", "vertAlign"].every((key) =>
       field(character[key], "string"),
     ) ||

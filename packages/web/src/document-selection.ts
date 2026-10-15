@@ -6,6 +6,28 @@ import type {
   DocxSearchResult,
 } from "@open-document/wasm/foundation";
 import type { EditorSnapshot } from "./editor-state.js";
+import type { PageLayout } from "@open-document/wasm/preview";
+
+export async function selectFirstDocxPosition(
+  client: FoundationClient,
+  state: EditState,
+  layout: PageLayout,
+  page: number,
+): Promise<EditState> {
+  const line = layout.semantics[page]?.lines.find(
+    (line) => !line.readOnlyReason,
+  );
+  if (!line) throw new Error("This page has no editable text position");
+  const position = {
+    paragraph: line.paragraph,
+    offset: line.start,
+    affinity: "after" as const,
+  };
+  return client.selectDocx(state.revision, {
+    anchor: position,
+    focus: position,
+  });
+}
 
 export interface DocumentSearchResult extends DocxSearchResult {
   documentId: string;

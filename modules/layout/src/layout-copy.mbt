@@ -14,6 +14,7 @@ fn Line::copy_geometry(self : Line) -> Line {
   {
     ..self,
     runs: self.runs.map(run => run.copy_geometry()),
+    marker: self.marker.map(run => run.copy_geometry()),
     carets: self.carets.copy(),
     bars: self.bars.copy(),
     images: self.images.copy(),

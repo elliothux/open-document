@@ -205,10 +205,7 @@ fn Session::format_paragraph_document(
   } else {
     let (candidate, edit) = document.edit_source(changes)
     if patch.style is (Set(_) | Clear) {
-      let tree = WordTree::new(candidate)
-      let styles = self.styles([])
-      for paragraph in range.paragraphs {
-        let value = self.paragraph(tree, styles, paragraph, [])
+      for value in self.formatting_paragraphs(candidate, range.paragraphs) {
         guard value.readOnlyReason.is_empty() else {
           @failure.reject("protected-content", value.readOnlyReason)
         }

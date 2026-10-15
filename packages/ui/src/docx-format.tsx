@@ -13,6 +13,7 @@ import { messages } from "./messages.js";
 import { DocxSearch } from "./docx-search.js";
 import { DocxTabs, DocxDefaultTab } from "./docx-tabs.js";
 import { DocxStyles } from "./docx-styles.js";
+import { DocxLists } from "./docx-lists.js";
 
 interface Props {
   controller: EditorController;
@@ -364,6 +365,12 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
         disabled={disabled}
       />
       <DocxDefaultTab
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={stylesDisabled}
+      />
+      <DocxLists
         controller={controller}
         state={state}
         editor={editor}

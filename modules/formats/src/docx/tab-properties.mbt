@@ -96,8 +96,15 @@ fn Session::tab_markup(
   stops : Array[@layout.TabStop],
   style~ : FormatChange[String] = Keep,
 ) -> String raise @failure.Failure {
-  let inherited = self.styles([]).paragraph_style(tree, paragraph, [], style~).tabs
-  tabs_markup(inherited, stops)
+  let styles = self.styles([])
+  let mut inherited = styles.paragraph_style(tree, paragraph, [], style~)
+  if styles.numbering_reference(tree, paragraph, style~)
+    is Some((instance, level)) {
+    inherited = self
+      .numbering_context()
+      .level_properties(inherited, instance, level)
+  }
+  tabs_markup(inherited.tabs, stops)
 }
 
 ///|

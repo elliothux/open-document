@@ -46,6 +46,12 @@ export interface DocxFlow {
     first: number;
     align: string;
     rtl: boolean;
+    marker?: {
+      text: string;
+      style: TextStyle;
+      align: "left" | "right" | "center";
+      suffix: "tab" | "space" | "nothing";
+    };
     pageBreakBefore: boolean;
     readOnlyReason: string;
   }[];
@@ -91,6 +97,7 @@ export interface SemanticPage {
     container: number;
     baseLevel: number;
     text: string;
+    marker?: string;
     start: number;
     end: number;
     x: number;
@@ -152,6 +159,25 @@ export function docxFlow(value: unknown): DocxFlow {
       ["align", "readOnlyReason", "decimalSymbol"],
     );
     checkTabStops(paragraph.tabs);
+    if (paragraph.marker !== undefined) {
+      const marker = fields(paragraph.marker, [], ["text", "align", "suffix"]);
+      if (
+        !["left", "right", "center"].includes(String(marker.align)) ||
+        !["tab", "space", "nothing"].includes(String(marker.suffix))
+      )
+        throw new Error("Invalid paragraph marker");
+      const style = fields(
+        marker.style,
+        ["size"],
+        ["font", "color", "highlight", "script"],
+      );
+      if (
+        typeof style.underline !== "boolean" ||
+        typeof style.strike !== "boolean" ||
+        !["baseline", "superscript", "subscript"].includes(String(style.script))
+      )
+        throw new Error("Invalid paragraph marker style");
+    }
     const spacing = fields(paragraph.line, ["value"], ["rule"]);
     if (
       typeof paragraph.nominalSize !== "number" ||
@@ -275,6 +301,9 @@ export function pageLayout(value: unknown): PageLayout {
   for (const value of semantics) {
     const page = record(value);
     for (const value of entries(page.lines)) {
+      const line = record(value);
+      if (line.marker !== undefined && typeof line.marker !== "string")
+        throw new Error("Invalid semantic marker");
       fields(
         value,
         [

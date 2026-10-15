@@ -15,6 +15,13 @@ import {
   type ParagraphFormatPatch,
 } from "./docx-format.js";
 export * from "./docx-format.js";
+export * from "./docx-list.js";
+import {
+  checkListEdit,
+  docxListCatalog,
+  type DocxListEdit,
+  type DocxListCatalog,
+} from "./docx-list.js";
 import { WasmSession, encodeBytes } from "./session.js";
 /** Logical soft line break; DOCX serializes it as w:br, while LF creates a paragraph. */
 export const DOCX_SOFT_BREAK = "\u2028";
@@ -403,6 +410,19 @@ export class FoundationSession extends WasmSession {
   styles(revision: number, kind: "paragraph" | "character"): DocxStyleCatalog {
     return docxStyleCatalog(
       this.call({ operation: "styleCatalog", revision, kind }),
+    );
+  }
+  lists(revision: number): DocxListCatalog {
+    return docxListCatalog(this.call({ operation: "listCatalog", revision }));
+  }
+  editList(
+    revision: number,
+    selection: DocxSelection,
+    change: DocxListEdit,
+  ): EditState {
+    checkListEdit(change);
+    return editState(
+      this.call({ operation: "editList", revision, selection, change }),
     );
   }
   createStyle(revision: number, style: DocxStyleCreation): CreatedDocxStyle {

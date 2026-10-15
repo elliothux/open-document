@@ -70,7 +70,7 @@ pub fn Layout::positioned(self : Layout) -> PositionedDocument {
             }),
           )
         }
-        for run in line.runs {
+        for run in line.paint_runs() {
           for decoration in run.decorations {
             if !decoration.highlight.is_empty() {
               primitives.push(
@@ -87,8 +87,10 @@ pub fn Layout::positioned(self : Layout) -> PositionedDocument {
         }
         primitives.push(
           Text({
-            text: line.text,
-            runs: line.runs.map(run => {
+            text: line.markerText + line.text,
+            runs: line
+            .paint_runs()
+            .map(run => {
               color: run.color,
               text: run.text,
               glyphs: run.glyphs,
@@ -98,7 +100,7 @@ pub fn Layout::positioned(self : Layout) -> PositionedDocument {
           }),
         )
         let mut descent = 0.0
-        for run in line.runs {
+        for run in line.paint_runs() {
           for range in run.bidi {
             let font = self.fonts[range.font]
             descent = descent.max(
@@ -111,7 +113,7 @@ pub fn Layout::positioned(self : Layout) -> PositionedDocument {
             )
           }
         }
-        for run in line.runs {
+        for run in line.paint_runs() {
           let thickness = run.nominalSize / 18
           let baseline = run.baseline + run.rise
           for decoration in run.decorations {
@@ -245,6 +247,7 @@ pub fn TextProbe::text_block(
     align: "left",
     pageBreakBefore: false,
     rtl: false,
+    marker: None,
     readOnlyReason: "",
   }
   let cache = ParagraphCache::new(self, profile)
@@ -274,8 +277,10 @@ pub fn TextProbe::text_block(
   for item in measured {
     let line = item.line
     texts.push({
-      text: line.text,
-      runs: line.runs.map(run => {
+      text: line.markerText + line.text,
+      runs: line
+      .paint_runs()
+      .map(run => {
         color: run.color,
         text: run.text,
         glyphs: run.glyphs,

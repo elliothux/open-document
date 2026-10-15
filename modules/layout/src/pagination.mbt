@@ -84,6 +84,11 @@ fn Pagination::place(
     y,
     areaX: left + line.areaX,
     bars: line.bars.map(position => left + position),
+    marker: line.marker.map(run => {
+      ..run.copy_geometry(),
+      x: x + run.x,
+      baseline: top + run.baseline,
+    }),
     carets: line.carets.map(caret => {
       ..caret,
       before: x + caret.before,
@@ -153,7 +158,7 @@ fn Pagination::paragraph(
       self.page.width - self.page.left - self.page.right,
     ) {
     let mut line = measured.spaced(paragraph.line, first)
-    if line.text.is_empty() && line.y == -1 {
+    if line.text.is_empty() && line.marker.is_empty() && line.y == -1 {
       if !ended_with_break {
         self.next_page()
       }

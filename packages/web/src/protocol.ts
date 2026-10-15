@@ -9,12 +9,20 @@ import type {
   CopiedFormat,
   DocxStyleUpdate,
   DocxStyleCreation,
+  DocxListEdit,
 } from "@open-document/wasm/foundation";
 import type { GridViewport, PrintOptions } from "@open-document/wasm/xlsx";
 import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
+  | { operation: "listCatalog"; revision: number }
+  | {
+      operation: "editList";
+      revision: number;
+      selection: DocxSelection;
+      change: DocxListEdit;
+    }
   | {
       operation: "setDefaultTabStop";
       revision: number;

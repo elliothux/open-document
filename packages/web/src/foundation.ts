@@ -13,10 +13,15 @@ export type {
   TabStop,
   DocxStyleCatalog,
   CreatedDocxStyle,
+  DocxListReference,
+  DocxListEdit,
+  DocxListCatalog,
+  ListFormat,
 } from "@open-document/wasm/foundation";
 export {
   highlightColors,
   DOCX_SOFT_BREAK,
+  listFormats,
 } from "@open-document/wasm/foundation";
 import {
   docxFlow,
@@ -41,6 +46,9 @@ import {
   checkStyleCreation,
   checkDefaultTabStop,
   checkFormatPatch,
+  checkListEdit,
+  docxListCatalog,
+  type DocxListEdit,
   checkFindOptions,
   docxSearchResult,
   type DocxFindOptions,
@@ -126,6 +134,26 @@ export class FoundationClient {
         operation: "queryFormatting",
         revision,
         selection,
+      }),
+    );
+  }
+  async lists(revision: number) {
+    return docxListCatalog(
+      await this.connection.request({ operation: "listCatalog", revision }),
+    );
+  }
+  async editList(
+    revision: number,
+    selection: DocxSelection,
+    change: DocxListEdit,
+  ): Promise<EditState> {
+    checkListEdit(change);
+    return editState(
+      await this.connection.request({
+        operation: "editList",
+        revision,
+        selection,
+        change,
       }),
     );
   }

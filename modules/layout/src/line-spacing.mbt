@@ -80,6 +80,7 @@ fn MeasuredLine::spaced(
     ..line,
     height,
     runs: line.runs.map(run => { ..run, baseline: run.baseline + delta, }),
+    marker: line.marker.map(run => { ..run, baseline: run.baseline + delta, }),
     images: line.images.map(image => { ..image, y: image.y + delta, }),
   }
 }

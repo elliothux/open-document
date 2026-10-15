@@ -167,9 +167,10 @@ fn WordTree::check_structure_properties(
       "pPr" =>
         [
           "pStyle", "rPr", "spacing", "ind", "jc", "pageBreakBefore", "autoSpaceDE",
-          "autoSpaceDN", "tabs", "bidi",
+          "autoSpaceDN", "tabs", "bidi", "numPr",
         ]
       "tabs" => ["tab"]
+      "numPr" => ["ilvl", "numId"]
       "rPr" =>
         [
           "rStyle", "rFonts", "sz", "color", "b", "i", "lang", "bCs", "iCs", "szCs",
@@ -193,9 +194,11 @@ fn WordTree::check_structure_properties(
       @failure.reject("protected-content", "Structural properties contain text")
     }
     let attributes = match node.name {
-      "pPr" | "rPr" | "tabs" => []
+      "pPr" | "rPr" | "tabs" | "numPr" => []
       "tab" => ["pos", "val", "leader"]
       "pStyle"
+      | "ilvl"
+      | "numId"
       | "rStyle"
       | "jc"
       | "pageBreakBefore"
@@ -245,6 +248,9 @@ fn WordTree::check_structure_properties(
     }
     if node.name == "tabs" && !self.valid_tabs(id) {
       @failure.reject("protected-content", "Unsupported tab stop properties")
+    }
+    if node.name == "numPr" && !self.valid_numbering_properties(id) {
+      @failure.reject("protected-content", "Invalid numbering properties")
     }
   }
 }

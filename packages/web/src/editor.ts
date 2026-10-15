@@ -19,6 +19,7 @@ import type { PageLayout } from "@open-document/wasm/preview";
 import {
   docxSelectionDescription,
   searchSelections,
+  selectFirstDocxPosition,
   type DocumentSearchResult,
 } from "./document-selection.js";
 export type { DocumentSearchResult } from "./document-selection.js";
@@ -31,6 +32,7 @@ import type {
   DocxStyleUpdate,
   DocxStyleCreation,
   DocxFindOptions,
+  DocxListEdit,
 } from "@open-document/wasm/foundation";
 /** Owns browser input order. The caller owns fonts, the opened DOCX and client lifetime. */
 export class DocumentEditor {
@@ -135,19 +137,12 @@ export class DocumentEditor {
           return;
         this.handle(async () => {
           if (this.state.selection) return;
-          const line = this.currentLayout.semantics[this.page]?.lines.find(
-            (line) => !line.readOnlyReason,
+          this.state = await selectFirstDocxPosition(
+            this.client,
+            this.state,
+            this.currentLayout,
+            this.page,
           );
-          if (!line) throw new Error("This page has no editable text position");
-          const position = {
-            paragraph: line.paragraph,
-            offset: line.start,
-            affinity: "after" as const,
-          };
-          this.state = await this.client.selectDocx(this.state.revision, {
-            anchor: position,
-            focus: position,
-          });
           await this.presentSelection();
         });
       },
@@ -172,7 +167,6 @@ export class DocumentEditor {
     this.paint();
     root.append(this.container);
   }
-
   static async create(
     root: HTMLElement,
     client: FoundationClient,
@@ -204,11 +198,9 @@ export class DocumentEditor {
       throw error;
     }
   }
-
   get layout(): PageLayout {
     return this.currentLayout;
   }
-
   readonly getSnapshot = (): EditorSnapshot<EditState> =>
     this.observable.getSnapshot();
   readonly subscribe = (listener: () => void): (() => void) =>
@@ -437,6 +429,14 @@ export class DocumentEditor {
   }
   setCharacterFormat(format: CharacterFormatPatch): Promise<void> {
     return this.applyFormat({ character: format, paragraph: {} });
+  }
+  lists() {
+    return this.enqueue(() => this.client.lists(this.state.revision));
+  }
+  editList(change: DocxListEdit): Promise<void> {
+    return this.format(() =>
+      this.client.editList(this.state.revision, this.selection(), change),
+    );
   }
   setParagraphFormat(format: ParagraphFormatPatch): Promise<void> {
     return this.applyFormat({ character: {}, paragraph: format });

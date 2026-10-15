@@ -86,6 +86,17 @@ pub impl ToJson for LineSpacing with fn to_json(self) {
 pub extend LineSpacing with ToJson::{to_json}
 
 ///|
+pub(all) struct ParagraphMarker {
+  text : String
+  style : TextStyle
+  align : String
+  suffix : String
+} derive(ToJson)
+
+///|
+pub extend ParagraphMarker with ToJson::{to_json}
+
+///|
 pub(all) struct Paragraph {
   id : Int
   container : Int
@@ -103,6 +114,7 @@ pub(all) struct Paragraph {
   first : Double
   align : String
   rtl : Bool
+  marker : ParagraphMarker?
   pageBreakBefore : Bool
   readOnlyReason : String
 } derive(ToJson)
@@ -197,6 +209,8 @@ pub(all) struct Line {
   clip : Bool
   justified : Bool
   bars : Array[Double]
+  marker : Array[PlacedRun]
+  markerText : String
   runs : Array[PlacedRun]
   images : Array[PlacedImage]
   carets : Array[Caret]

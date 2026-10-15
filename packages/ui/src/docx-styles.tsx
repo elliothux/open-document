@@ -37,6 +37,15 @@ export function DocxStyles({
   useEffect(() => setNewName(""), [editor, kind]);
   useEffect(() => setSelected(currentId), [currentId]);
   const choice = catalog?.styles.find((style) => style.id === selected);
+  const [replacement, setReplacement] = useState("");
+  useEffect(
+    () => setReplacement(choice?.basedOn ?? ""),
+    [choice?.id, choice?.basedOn, editor],
+  );
+  const replacements = (catalog?.styles ?? []).filter(
+    (style) => style.id !== choice?.id && !style.reason,
+  );
+  const canReplace = replacements.some((style) => style.id === replacement);
   return (
     <fieldset disabled={disabled}>
       <legend>{paragraph ? t.paragraphStyle : t.characterStyle}</legend>
@@ -118,22 +127,33 @@ export function DocxStyles({
           </button>
         </fieldset>
       </form>
-      {choice?.canDelete && choice.basedOn && (
-        <p>
-          {t.styleReplacement}:{" "}
-          {catalog?.styles.find((style) => style.id === choice.basedOn)?.name ??
-            choice.basedOn}
-        </p>
-      )}
+      <label>
+        {t.styleReplacement}
+        <select
+          aria-label={`${paragraph ? t.paragraphStyle : t.characterStyle}: ${t.styleReplacement}`}
+          disabled={!choice?.canDelete}
+          value={canReplace ? replacement : ""}
+          onChange={(event) => setReplacement(event.currentTarget.value)}
+        >
+          <option value="" disabled>
+            {t.chooseStyle}
+          </option>
+          {replacements.map((style) => (
+            <option key={style.id} value={style.id}>
+              {style.name}
+            </option>
+          ))}
+        </select>
+      </label>
       <button
         type="button"
-        disabled={!choice?.canDelete || !choice.basedOn}
+        disabled={!choice?.canDelete || !canReplace}
         onClick={() =>
           controller.run(async () => {
-            if (!choice?.basedOn) return;
-            await editor.deleteStyle(choice.id, choice.basedOn);
+            if (!choice || !canReplace) return;
+            await editor.deleteStyle(choice.id, replacement);
             setCatalog(await editor.styles(kind));
-            setSelected(choice.basedOn);
+            setSelected(replacement);
           })
         }
       >
