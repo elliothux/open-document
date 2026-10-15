@@ -62,6 +62,7 @@ fn Session::prepare_empty(
   {
     edit: {
       xml: [xml],
+      parts: Map([]),
       before: self.selection,
       after: Some({ anchor: position, focus: position, }),
       paragraphs: [paragraph],

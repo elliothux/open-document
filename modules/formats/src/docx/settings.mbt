@@ -9,7 +9,7 @@ fn Session::decimal_symbol(self : Session) -> String raise @failure.Failure {
           "unsupported-layout", "External settings are unsupported",
         )
       }
-      let value = WordTree::new(self.opc.xml(rel.target))
+      let value = WordTree::new(self.part_xml(rel.target))
         .value(0, "decimalSymbol")
         .unwrap_or(".")
       guard value.iter().count() == 1 &&
@@ -35,7 +35,7 @@ fn Session::expand_soft_break(self : Session) -> Bool raise @failure.Failure {
           "unsupported-layout", "External settings are unsupported",
         )
       }
-      let tree = WordTree::new(self.opc.xml(rel.target))
+      let tree = WordTree::new(self.part_xml(rel.target))
       if tree
         .child(0, "compat")
         .bind(id => tree.child(id, "doNotExpandShiftReturn"))
@@ -61,7 +61,7 @@ fn Session::default_tab(self : Session) -> Double raise @failure.Failure {
           "unsupported-layout", "External settings are unsupported",
         )
       }
-      let tree = WordTree::new(self.opc.xml(rel.target))
+      let tree = WordTree::new(self.part_xml(rel.target))
       let value = tree.number(0, "defaultTabStop", "val").unwrap_or(720)
       guard value >= 0 && value <= 31680 else {
         @failure.reject("invalid-style", "Invalid default tab interval")
@@ -83,7 +83,7 @@ fn Session::additive_spacing(self : Session) -> Bool raise @failure.Failure {
           "unsupported-layout", "External settings are unsupported",
         )
       }
-      let tree = WordTree::new(self.opc.xml(rel.target))
+      let tree = WordTree::new(self.part_xml(rel.target))
       if tree
         .child(0, "compat")
         .bind(id => tree.child(id, "doNotUseHTMLParagraphAutoSpacing"))

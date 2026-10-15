@@ -109,7 +109,21 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 `setParagraphFormat` 支持 `align: "left" | "center" | "right" | "both"`、`before/after/left/right/first`、`line` 和 `pageBreakBefore`。`both` 为两端对齐，写回 OOXML `w:jc`；默认 UI 提供同名按钮。距离单位为 pt，须能表示成整数 twip；范围 0–1584 pt，`first` 可为负值以设置悬挂缩进。`line: { rule, value }` 使用 OOXML 整数单位：`auto` 为每行 240，取值 120–2400；`exact/atLeast` 为 twip，取值 1–31680。UI 显示多倍行距或 pt，确认后转换为这些单位；清除段落直接格式也清除行距。
 
-`FoundationSession/Client.paragraphStyles(revision)` 与 `DocumentEditor.paragraphStyles()` 返回现有段落样式目录：`{ revision, truncated, styles: [{ id, name, reason }] }`，最多 1024 项。不可应用的样式带原因，默认 UI 禁用对应选项。`setParagraphFormat({ style: id })` 校验样式及继承链，清除已支持的段落直接属性后应用样式；保留文字直接字符格式。同一补丁中的显式属性继续覆盖样式。应用默认样式时省略直接 `w:pStyle`；`style: null` 只清除样式引用并恢复默认样式继承。查询包含样式 ID 与混合状态，格式复制只捕获属性值，不复制样式 ID。未知属性、循环继承及不支持的值拒绝应用，文档与历史保持原状。样式应用可一次撤销，支持保存重开；字符样式和样式新建、修改、删除仍未实现。行为依据 [ONLYOFFICE 的段落样式应用](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js)。
+`FoundationSession/Client.styles(revision, kind)` 与 `DocumentEditor.styles(kind)` 返回现有样式目录：`{ revision, truncated, styles: [{ id, name, reason, basedOn, canDelete }] }`，`kind` 为 `"paragraph" | "character"`，每类最多 1024 项。`basedOn` 为直接基础样式 ID，无继承时为空串；`canDelete` 表示已支持、未链接且未标为默认的自定义样式。不可应用的样式带原因，默认 UI 禁用对应选项。该接口替代原段落专用目录入口。
+
+`setParagraphFormat({ style: id })` 校验样式及继承链，清除已支持的段落直接属性后应用样式；保留文字直接字符格式。同一补丁中的显式属性继续覆盖样式。应用默认样式时省略直接 `w:pStyle`；`style: null` 只清除样式引用并恢复默认样式继承。行为依据 [ONLYOFFICE 的段落样式应用](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js)。
+
+`setCharacterFormat({ style: id })` 在目标范围写 `w:rStyle`，保留直接字符属性；`style: null` 清除引用，恢复段落继承和原有直接属性。跨 run 范围沿原边界拆分，折叠范围只设置后续输入样式，随实际输入或组合提交一项历史；取消组合保留输入意图。空段落标记的字符样式也参与查询与显示。行为依据 [ONLYOFFICE 的 Run 字符样式设置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js)。新建文档带 `DefaultParagraphFont`、`Emphasis` 和 `Strong`，继承与粗斜体切换沿已有 OOXML 规则；宿主须为最终组合提供字体 profile，不能只准备样式单独使用的字形。
+
+两类查询均包含样式 ID 与混合状态，格式复制只捕获属性值，不复制样式 ID。未知属性、循环继承、跨类型继承及不支持的值拒绝应用，文档与历史保持原状。应用可一次撤销，支持保存重开和相同布局的 PDF；已有样式的继承关系修改仍未实现。
+
+`FoundationSession/Client.updateStyle(revision, id, format, name?)` 与 `DocumentEditor.updateStyle(id, format, name?)` 修改现有样式。`format` 使用 `{ character, paragraph }`，支持现有格式字段，不能包含 `style` 引用。字符样式只接受空的段落补丁。省略字段保留直接定义，null 清除定义并恢复继承。粗体、斜体和删除线的布尔值表示样式在文档默认值及 `basedOn` 链上的有效值，核心换算 OOXML toggle，分别处理复杂文字的粗斜体。名称只改变显示名，保留稳定样式 ID；名称须为非空、最多 200 UTF-16 单元的有效 XML 文字。
+
+样式修改保留元数据、注释与未改正文。核心先检查候选、原本可用的依赖样式及正文直接属性的组合，再合并正文和样式 XML 校验包预算，一次提交 revision 和有界历史。失败不改变正文、部件、选择或历史；撤销/重做也先完整回放全部候选。输入、组合和保存使用同一组已提交部件。共享修改最多处理 4096 个样式，继承链沿既有 64 层上限。默认 UI 可修改所选样式的名称、字号、段落对齐和恢复继承字号；其他已支持格式可通过 API 修改。目录按按钮显式刷新。DOCX 历史目前支持正文和现有样式 XML 修改，新增/删除部件、关系及二进制资源的编辑历史仍待后续操作接入。
+
+`FoundationSession/Client.createStyle(revision, name, basedOn)` 从现有、已支持的段落或字符样式创建自定义样式，返回 `{ id, state }`。Web 编辑宿主的 `createStyle(name, basedOn)` 返回新 ID。核心分配身份，并避开 Word 部件中已有定义和引用；同类型样式不接受重复显示名。新定义继承基础样式，不改变选区或立即应用到文字，之后可用现有应用和修改方法。默认 UI 从所选样式创建，并选中新定义。新建定义本身是一项可撤销历史，保存重开后保留同一身份。没有可用基础样式或样式部件的导入文件，目前不能创建首个样式。
+
+`deleteStyle(revision, id, replacement)` 删除自定义样式，替代样式必须已支持且类型相同，也不能依赖被删样式。Web 编辑宿主省略 revision。核心同步移除定义并替换 WordprocessingML 部件中的样式引用，包括正文、页眉和编号；保留直接格式、文字、其他样式及未知内容。折叠处待输入的样式引用也映射到替代项。命令至多替换 65536 个引用，继续受包与历史预算约束。全部候选成功后一次提交，撤销同时恢复各部件与选择。默认 UI 显示并使用所选样式的基础样式作为替代。默认/内置样式及链接样式保留保护，不按删除命令重置其定义。
 
 两端对齐在塑形后扩展词间空格；无空格中文使用合法断行处的字形簇间隙，接近满行的普通单词可使用字形簇间距。连字与字形不重塑，末尾空格不参与扩展，最后一个 Tab 之前的位置保留。段落末行与显式分页行保留自然宽度，RTL 末行靠右。软换行默认参与对齐；派生 `Paragraph.expandSoftBreak` 读取设置中的 `compat/doNotExpandShiftReturn`。光标、命中、选区、装饰与 PDF 消费相同位置；阿拉伯文使用词间距，未新增 kashida 字形。规则参考 [ONLYOFFICE 的段落对齐计算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph_Recalculate.js)。
 

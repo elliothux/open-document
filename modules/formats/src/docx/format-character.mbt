@@ -221,38 +221,7 @@ pub fn Session::set_character_format(
   selection : Selection,
   patch : CharacterFormat,
 ) -> Json raise @failure.Failure {
-  self.check_revision(revision)
-  patch.validate()
-  let document = self.document()
-  let range = self.formatting_range(document, selection)
-  if range.start.paragraph == range.end.paragraph &&
-    range.start.offset == range.end.offset {
-    self.typing_format = Some(
-      if self.selection == Some(selection) {
-        self.typing_format.unwrap_or(CharacterFormat::new()).merge(patch)
-      } else {
-        patch
-      },
-    )
-    self.selection = Some(selection)
-    self.typing_text = None
-    self.input_group = None
-    return self.edit_state()
-  }
-  if self.format_character_document(document, selection, patch)
-    is Some((candidate, xml)) {
-    self.commit_edit(
-      {
-        xml: [xml],
-        before: self.selection,
-        after: Some(selection),
-        paragraphs: range.paragraphs,
-        bytes: edit_bytes(xml),
-      },
-      candidate,
-    )
-  }
-  self.edit_result(range.paragraphs)
+  self.apply_format(revision, selection, patch, ParagraphFormat::new())
 }
 
 ///|

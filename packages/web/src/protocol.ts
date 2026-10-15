@@ -67,7 +67,11 @@ export type Operation =
   | { operation: "openDocx"; bytes: Uint8Array; budget: Budget }
   | { operation: "createDocx"; budget: Budget }
   | { operation: "tabDocx"; revision: number; backward: boolean }
-  | { operation: "paragraphStyles"; revision: number }
+  | {
+      operation: "styleCatalog";
+      revision: number;
+      kind: "paragraph" | "character";
+    }
   | {
       operation: "findDocx";
       revision: number;
@@ -90,6 +94,25 @@ export type Operation =
       revision: number;
       selection: DocxSelection;
       format: CopiedFormat;
+    }
+  | {
+      operation: "updateStyle";
+      revision: number;
+      key: string;
+      format: CopiedFormat;
+      name?: string;
+    }
+  | {
+      operation: "createStyle";
+      revision: number;
+      name: string;
+      basedOn: string;
+    }
+  | {
+      operation: "deleteStyle";
+      revision: number;
+      key: string;
+      replacement: string;
     }
   | {
       operation: "setCharacterFormat";

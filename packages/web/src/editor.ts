@@ -1,4 +1,4 @@
-import { downloadBytes } from "./download.js";
+import { downloadBytes, docxContentType } from "./download.js";
 import { createDocumentElements, docxPageText } from "./document-elements.js";
 import type { FoundationClient } from "./foundation.js";
 import { PageCanvas } from "./page-canvas.js";
@@ -9,7 +9,7 @@ import {
 } from "./pointer-selection.js";
 import { TextInput } from "./text-input.js";
 import { DocumentError, DOCX_SOFT_BREAK } from "@open-document/wasm/foundation";
-import { bindClipboard } from "./clipboard-input.js";
+import { bindClipboard, copyDocxSelection } from "./clipboard-input.js";
 import {
   EditorState,
   type EditorOutput,
@@ -18,7 +18,6 @@ import {
 import type { PageLayout } from "@open-document/wasm/preview";
 import {
   docxSelectionDescription,
-  sameDocxSelection,
   searchSelections,
   type DocumentSearchResult,
 } from "./document-selection.js";
@@ -28,7 +27,6 @@ import type {
   EditState,
   CharacterFormatPatch,
   ParagraphFormatPatch,
-  ParagraphStyleCatalog,
   CopiedFormat,
   DocxFindOptions,
 } from "@open-document/wasm/foundation";
@@ -444,8 +442,30 @@ export class DocumentEditor {
   setParagraphFormat(format: ParagraphFormatPatch): Promise<void> {
     return this.applyFormat({ character: {}, paragraph: format });
   }
-  paragraphStyles(): Promise<ParagraphStyleCatalog> {
-    return this.enqueue(() => this.client.paragraphStyles(this.state.revision));
+  styles(kind: "paragraph" | "character") {
+    return this.enqueue(() => this.client.styles(this.state.revision, kind));
+  }
+  updateStyle(key: string, format: CopiedFormat, name?: string): Promise<void> {
+    return this.format(() =>
+      this.client.updateStyle(this.state.revision, key, format, name),
+    );
+  }
+  createStyle(name: string, basedOn: string): Promise<string> {
+    this.inputEvents.endGroup();
+    return this.enqueue(async () => {
+      const result = await this.client.createStyle(
+        this.state.revision,
+        name,
+        basedOn,
+      );
+      await this.changed(result.state);
+      return result.id;
+    });
+  }
+  deleteStyle(key: string, replacement: string): Promise<void> {
+    return this.format(() =>
+      this.client.deleteStyle(this.state.revision, key, replacement),
+    );
   }
   captureFormat(): Promise<CopiedFormat> {
     this.inputEvents.endGroup();
@@ -559,26 +579,10 @@ export class DocumentEditor {
   }
 
   private async copySelection(cut: boolean): Promise<void> {
-    const revision = this.state.revision;
-    const selection = this.selection();
-    const text = await this.client.selectedText(revision, selection);
-    this.assertOpen();
-    if (text.length === 0) return;
-    if (!navigator.clipboard) throw new Error("Clipboard API is unavailable");
-    await navigator.clipboard.writeText(text);
-    this.assertOpen();
-    if (cut) {
-      const current = await this.client.editState();
-      this.assertOpen();
-      if (
-        current.revision !== revision ||
-        !sameDocxSelection(current.selection, selection)
-      )
-        throw new Error("Document or selection changed during clipboard write");
-      await this.changed(
-        await this.client.replaceRange(revision, selection, ""),
-      );
-    }
+    const state = await copyDocxSelection(this.client, this.state, cut, () =>
+      this.assertOpen(),
+    );
+    if (state) await this.changed(state);
   }
 
   paste(text: string): Promise<void> {
@@ -755,11 +759,7 @@ export class DocumentEditor {
 
   async downloadDocx(filename = "document.docx"): Promise<void> {
     const output = await this.saveDocx();
-    this.downloadBytes(
-      output.bytes,
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      filename,
-    );
+    this.downloadBytes(output.bytes, docxContentType, filename);
     this.observable.markDownloaded(output);
   }
 

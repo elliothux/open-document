@@ -71,7 +71,7 @@ fn Session::flow_from(
             "unsupported-layout", "External headers are unsupported",
           )
         }
-        let header = WordTree::new(self.opc.xml(relation.target))
+        let header = WordTree::new(self.part_xml(relation.target))
         guard header.nodes[0].name == "hdr" else {
           @failure.reject("invalid-docx", "Invalid header root")
         }
@@ -245,8 +245,12 @@ fn Session::paragraph(
     }
   }
   if spans.is_empty() {
-    if props.bind(props => tree.child(props, "rPr")) is Some(r) {
-      run_style = run_properties(tree, r, run_style, styles.themes)
+    let run = match tree.child(id, "r") {
+      Some(run) => Some(run)
+      None => props
+    }
+    if run is Some(run) {
+      run_style = styles.run_character_style(tree, run, run_style, diagnostics)
     }
     spans.push({
       node: id,

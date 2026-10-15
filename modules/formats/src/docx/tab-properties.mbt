@@ -97,6 +97,14 @@ fn Session::tab_markup(
   style~ : FormatChange[String] = Keep,
 ) -> String raise @failure.Failure {
   let inherited = self.styles([]).paragraph_style(tree, paragraph, [], style~).tabs
+  tabs_markup(inherited, stops)
+}
+
+///|
+fn tabs_markup(
+  inherited : Array[@layout.TabStop],
+  stops : Array[@layout.TabStop],
+) -> String {
   let values = stops.copy()
   for stop in inherited {
     if !stops.iter().any(other => other.position == stop.position) {

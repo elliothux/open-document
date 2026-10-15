@@ -35,17 +35,25 @@ export function searchSelections(
   });
 }
 
-export function sameDocxSelection(
-  a: DocxSelection | null,
+export function assertDocxSelection(
+  current: EditState,
+  revision: number,
   b: DocxSelection,
-): boolean {
+): void {
+  const a = current.selection;
   const same = (a: DocxPosition, b: DocxPosition) =>
     a.paragraph === b.paragraph &&
     a.offset === b.offset &&
     a.affinity === b.affinity &&
     a.bidiLevel === b.bidiLevel &&
     a.frameStart === b.frameStart;
-  return a !== null && same(a.anchor, b.anchor) && same(a.focus, b.focus);
+  if (
+    current.revision !== revision ||
+    a === null ||
+    !same(a.anchor, b.anchor) ||
+    !same(a.focus, b.focus)
+  )
+    throw new Error("Document or selection changed during clipboard write");
 }
 
 export async function docxSelectionDescription(

@@ -9,7 +9,8 @@ export type {
   HighlightColor,
   CopiedFormat,
   TabStop,
-  ParagraphStyleCatalog,
+  DocxStyleCatalog,
+  CreatedDocxStyle,
 } from "@open-document/wasm/foundation";
 export {
   highlightColors,
@@ -27,9 +28,11 @@ import {
   resourceBudget,
   editState,
   docxFormatting,
-  paragraphStyleCatalog,
-  type ParagraphStyleCatalog,
+  docxStyleCatalog,
+  createdDocxStyle,
+  type DocxStyleCatalog,
   copiedFormat,
+  checkStyleUpdate,
   type CopiedFormat,
   checkFormatPatch,
   checkFindOptions,
@@ -120,9 +123,16 @@ export class FoundationClient {
       }),
     );
   }
-  async paragraphStyles(revision: number): Promise<ParagraphStyleCatalog> {
-    return paragraphStyleCatalog(
-      await this.connection.request({ operation: "paragraphStyles", revision }),
+  async styles(
+    revision: number,
+    kind: "paragraph" | "character",
+  ): Promise<DocxStyleCatalog> {
+    return docxStyleCatalog(
+      await this.connection.request({
+        operation: "styleCatalog",
+        revision,
+        kind,
+      }),
     );
   }
   async captureFormat(
@@ -134,6 +144,48 @@ export class FoundationClient {
         operation: "captureFormat",
         revision,
         selection,
+      }),
+    );
+  }
+  async updateStyle(
+    revision: number,
+    key: string,
+    format: CopiedFormat,
+    name?: string,
+  ): Promise<EditState> {
+    checkStyleUpdate(format, name);
+    return editState(
+      await this.connection.request({
+        operation: "updateStyle",
+        revision,
+        key,
+        format,
+        ...(name === undefined ? {} : { name }),
+      }),
+    );
+  }
+  async createStyle(revision: number, name: string, basedOn: string) {
+    checkStyleUpdate({ character: {}, paragraph: {} }, name);
+    return createdDocxStyle(
+      await this.connection.request({
+        operation: "createStyle",
+        revision,
+        name,
+        basedOn,
+      }),
+    );
+  }
+  async deleteStyle(
+    revision: number,
+    key: string,
+    replacement: string,
+  ): Promise<EditState> {
+    return editState(
+      await this.connection.request({
+        operation: "deleteStyle",
+        revision,
+        key,
+        replacement,
       }),
     );
   }

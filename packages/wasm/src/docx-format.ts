@@ -15,11 +15,26 @@ export function copiedFormat(value: unknown): CopiedFormat {
   return value as CopiedFormat;
 }
 
+export function checkStyleUpdate(format: CopiedFormat, name?: string): void {
+  copiedFormat(format);
+  if (
+    format.character.style !== undefined ||
+    format.paragraph.style !== undefined
+  )
+    throw new Error("Style updates cannot change style references");
+  if (
+    name !== undefined &&
+    (typeof name !== "string" || !name.trim() || name.length > 200)
+  )
+    throw new Error("Invalid style name");
+}
+
 export type FormatValue<T> =
   | { kind: "value"; value: T }
   | { kind: "mixed" }
   | { kind: "unavailable"; reason: string };
 export interface CharacterFormatPatch {
+  style?: string | null;
   family?: string | null;
   size?: number | null;
   color?: string | null;
@@ -108,6 +123,7 @@ export interface DocxFormatting {
   revision: number;
   reason: string;
   character: {
+    style: FormatValue<string>;
     family: FormatValue<string>;
     size: FormatValue<number>;
     color: FormatValue<string>;
@@ -149,6 +165,7 @@ export function checkFormatPatch(
         pageBreakBefore: "boolean",
       }
     : {
+        style: "string",
         family: "string",
         size: "number",
         color: "string",
@@ -210,7 +227,7 @@ export function docxFormatting(value: unknown): DocxFormatting {
     !Number.isSafeInteger(result.revision) ||
     Number(result.revision) < 0 ||
     typeof result.reason !== "string" ||
-    !["family", "color", "highlight", "vertAlign"].every((key) =>
+    !["style", "family", "color", "highlight", "vertAlign"].every((key) =>
       field(character[key], "string"),
     ) ||
     !field(character.size, "number") ||
@@ -230,13 +247,19 @@ export function docxFormatting(value: unknown): DocxFormatting {
   return value as DocxFormatting;
 }
 
-export interface ParagraphStyleCatalog {
+export interface DocxStyleCatalog {
   revision: number;
   truncated: boolean;
-  styles: { id: string; name: string; reason: string }[];
+  styles: {
+    id: string;
+    name: string;
+    reason: string;
+    basedOn: string;
+    canDelete: boolean;
+  }[];
 }
 
-export function paragraphStyleCatalog(value: unknown): ParagraphStyleCatalog {
+export function docxStyleCatalog(value: unknown): DocxStyleCatalog {
   const catalog = record(value);
   if (
     !Number.isSafeInteger(catalog.revision) ||
@@ -249,10 +272,12 @@ export function paragraphStyleCatalog(value: unknown): ParagraphStyleCatalog {
       return (
         typeof style.id === "string" &&
         typeof style.name === "string" &&
-        typeof style.reason === "string"
+        typeof style.reason === "string" &&
+        typeof style.basedOn === "string" &&
+        typeof style.canDelete === "boolean"
       );
     })
   )
-    throw new Error("Invalid paragraph style catalog");
-  return value as ParagraphStyleCatalog;
+    throw new Error("Invalid DOCX style catalog");
+  return value as DocxStyleCatalog;
 }

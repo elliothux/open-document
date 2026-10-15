@@ -53,6 +53,7 @@ pub extend Selection with ToJson::{to_json}
 ///|
 priv struct Edit {
   xml : Array[@xml.Edit]
+  parts : Map[String, Array[@xml.Edit]]
   before : Selection?
   after : Selection?
   paragraphs : Array[Int]
@@ -419,6 +420,7 @@ fn Session::prepare_text(
   {
     edit: {
       xml: [xml],
+      parts: Map([]),
       before: self.selection,
       after,
       paragraphs: [paragraph],
@@ -437,20 +439,24 @@ fn Session::commit_edit(
   candidate : @xml.Document,
   input_group~ : Int? = None,
   join_group~ : Bool = false,
+  parts~ : Map[String, @xml.Document] = self.parts,
 ) -> Unit raise @failure.Failure {
   let previous = if join_group &&
+    edit.parts.is_empty() &&
     input_group is Some(_) &&
     self.input_group == input_group &&
     self.redo.is_empty() {
     self.history
     .last()
     .filter(old => {
-      old.after == edit.before && old.bytes <= history_byte_limit - edit.bytes
+      old.parts.is_empty() &&
+      old.after == edit.before &&
+      old.bytes <= history_byte_limit - edit.bytes
     })
   } else {
     None
   }
-  self.accept_document(candidate, edit.after)
+  self.accept_document(candidate, edit.after, parts~)
   for old in self.redo {
     self.history_bytes -= old.bytes
   }
@@ -496,6 +502,15 @@ fn Session::apply_edit(
     let step = if forward { index } else { edit.xml.length() - 1 - index }
     candidate = candidate.apply(edit.xml[step], forward~)
   }
+  let parts = self.parts.copy()
+  for name, steps in edit.parts {
+    let mut document = self.part_xml(name)
+    for index in 0..<steps.length() {
+      let step = if forward { index } else { steps.length() - 1 - index }
+      document = document.apply(steps[step], forward~)
+    }
+    parts[name] = document
+  }
   self.accept_document(
     candidate,
     if forward {
@@ -503,6 +518,7 @@ fn Session::apply_edit(
     } else {
       edit.before
     },
+    parts~,
   )
 }
 
@@ -511,14 +527,15 @@ fn Session::accept_document(
   self : Session,
   candidate : @xml.Document,
   selection : Selection?,
+  parts~ : Map[String, @xml.Document] = self.parts,
 ) -> Unit raise @failure.Failure {
   guard self.revision < 0x7fffffff else {
     @failure.reject("limit-exceeded", "Revision exhausted")
   }
-  let bytes = candidate.bytes()
-  self.opc.validate_changes(Map::from_array([(self.main, bytes)]))
+  self.opc.validate_changes(self.replacements(candidate, parts))
   let texts = docx_texts(WordTree::new(candidate))
   self.document = Some(candidate)
+  self.parts = parts
   self.texts = texts
   self.selection = selection
   self.typing_text = None

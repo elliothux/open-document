@@ -156,7 +156,7 @@ fn Session::format_paragraph_document(
   let tree = WordTree::new(document)
   if patch.style is Set(key) {
     let styles = self.styles([])
-    styles.validate_paragraph_style(key)
+    styles.validate_style(key, "paragraph")
     if styles.default_paragraph == Some(key) {
       properties["pStyle"] = None
     }

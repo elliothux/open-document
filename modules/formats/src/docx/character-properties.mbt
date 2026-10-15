@@ -5,6 +5,7 @@ fn Styles::character_layers(
   paragraph : Int,
   run : Int?,
   diagnostics : Array[String],
+  style~ : FormatChange[String] = Keep,
 ) -> Array[(WordTree, Int, Bool)] raise @failure.Failure {
   let layers = []
   if self.tree is Some(styles) {
@@ -29,8 +30,14 @@ fn Styles::character_layers(
     }
   }
   if run is Some(run) {
-    for layer in self.run_layers(tree, run, diagnostics) {
+    for layer in self.run_layers(tree, run, diagnostics, style~) {
       layers.push(layer)
+    }
+  } else if style is Set(key) && self.tree is Some(styles) {
+    for id in self.chain(key, diagnostics) {
+      if styles.child(id, "rPr") is Some(id) {
+        layers.push((styles, id, true))
+      }
     }
   }
   layers
@@ -42,16 +49,23 @@ fn Styles::run_layers(
   tree : WordTree,
   run : Int,
   diagnostics : Array[String],
+  style~ : FormatChange[String] = Keep,
 ) -> Array[(WordTree, Int, Bool)] raise @failure.Failure {
   let layers = []
-  if tree.child(run, "rPr") is Some(id) {
-    if tree.value(id, "rStyle") is Some(key) && self.tree is Some(styles) {
-      for style in self.chain(key, diagnostics) {
-        if styles.child(style, "rPr") is Some(id) {
-          layers.push((styles, id, true))
-        }
+  let properties = tree.child(run, "rPr")
+  let key = match style {
+    Keep => properties.bind(id => tree.value(id, "rStyle"))
+    Clear => None
+    Set(key) => Some(key)
+  }
+  if key is Some(key) && self.tree is Some(styles) {
+    for style in self.chain(key, diagnostics) {
+      if styles.child(style, "rPr") is Some(id) {
+        layers.push((styles, id, true))
       }
     }
+  }
+  if properties is Some(id) {
     layers.push((tree, id, false))
   }
   layers
@@ -79,11 +93,16 @@ fn Styles::character_style(
   paragraph : Int,
   run : Int?,
   diagnostics : Array[String],
+  style~ : FormatChange[String] = Keep,
 ) -> RunStyle raise @failure.Failure {
   let mut result = self.defaults
   for
     (tree, id, inherited) in self.character_layers(
-      tree, paragraph, run, diagnostics,
+      tree,
+      paragraph,
+      run,
+      diagnostics,
+      style~,
     ) {
     result = run_properties(tree, id, result, self.themes, inherited~)
   }

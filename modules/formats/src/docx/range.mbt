@@ -270,6 +270,7 @@ fn Session::prepare_structural_range(
   {
     edit: {
       xml: [xml],
+      parts: Map([]),
       before: self.selection,
       after: Some({ anchor: focus, focus, }),
       paragraphs: affected,

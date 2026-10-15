@@ -1,3 +1,29 @@
+import type { FoundationClient } from "./foundation.js";
+import type { EditState } from "@open-document/wasm/foundation";
+import { assertDocxSelection } from "./document-selection.js";
+
+export async function copyDocxSelection(
+  client: FoundationClient,
+  state: EditState,
+  cut: boolean,
+  assertOpen: () => void,
+): Promise<EditState | null> {
+  const revision = state.revision,
+    selection = state.selection;
+  if (!selection) throw new Error("Click a document position first");
+  const text = await client.selectedText(revision, selection);
+  assertOpen();
+  if (text.length === 0) return null;
+  if (!navigator.clipboard) throw new Error("Clipboard API is unavailable");
+  await navigator.clipboard.writeText(text);
+  assertOpen();
+  if (!cut) return null;
+  const current = await client.editState();
+  assertOpen();
+  assertDocxSelection(current, revision, selection);
+  return client.replaceRange(revision, selection, "");
+}
+
 /** Uses native paste data and one queued asynchronous copy/cut path. */
 export function bindClipboard(
   input: HTMLElement,

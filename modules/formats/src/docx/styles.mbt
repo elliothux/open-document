@@ -1,41 +1,44 @@
 ///|
-fn Styles::validate_paragraph_style(
+fn Styles::validate_style(
   self : Styles,
   key : String,
+  kind : String,
 ) -> Unit raise @failure.Failure {
   guard !key.is_empty() &&
     key.length() <= 200 &&
     @xml.valid_text(key) &&
     self.tree is Some(tree) &&
     self.ids.contains(key) else {
-    @failure.reject("invalid-style", "Unknown paragraph style: " + key)
+    @failure.reject("invalid-style", "Unknown style: " + key)
   }
   let diagnostics : Array[String] = []
   let chain = self.chain(key, diagnostics)
   for id in chain {
     guard tree.nodes[id].attribute("type", uri=word_uri).unwrap_or("paragraph") ==
-      "paragraph" else {
+      kind else {
       @failure.reject(
-        "invalid-style", "A paragraph style cannot inherit a different style type",
+        "invalid-style", "A style cannot inherit a different style type",
       )
     }
   }
   guard diagnostics.is_empty() else {
     @failure.reject("protected-content", diagnostics[0])
   }
-  let paragraph = self.paragraph_style(tree, self.ids[key], [], style=Set(key))
-  ignore(
-    ParagraphFormat::new(
-      align=Set(paragraph.align),
-      before=Set(paragraph.before),
-      after=Set(paragraph.after),
-      left=Set(paragraph.left),
-      right=Set(paragraph.right),
-      first=Set(paragraph.first),
-      line=Set(paragraph.line),
-      tabs=Set(paragraph.tabs),
-    ).properties(),
-  )
+  if kind == "character" {
+    guard chain.iter().all(id => tree.child(id, "pPr") is None) else {
+      @failure.reject(
+        "invalid-style", "Character styles cannot define paragraph properties",
+      )
+    }
+  } else {
+    let paragraph = self.paragraph_style(
+      tree,
+      self.ids[key],
+      [],
+      style=Set(key),
+    )
+    validate_paragraph_style_values(paragraph)
+  }
   let mut character = self.defaults
   for id in chain {
     if tree.child(id, "rPr") is Some(properties) {
@@ -62,12 +65,34 @@ fn Styles::validate_paragraph_style(
 }
 
 ///|
-/// Lists existing paragraph styles without changing document state.
-pub fn Session::paragraph_styles(
+fn validate_paragraph_style_values(
+  paragraph : @layout.Paragraph,
+) -> Unit raise @failure.Failure {
+  ignore(
+    ParagraphFormat::new(
+      align=Set(paragraph.align),
+      before=Set(paragraph.before),
+      after=Set(paragraph.after),
+      left=Set(paragraph.left),
+      right=Set(paragraph.right),
+      first=Set(paragraph.first),
+      line=Set(paragraph.line),
+      tabs=Set(paragraph.tabs),
+    ).properties(),
+  )
+}
+
+///|
+/// Lists existing paragraph or character styles without changing document state.
+pub fn Session::style_catalog(
   self : Session,
   revision : Int,
+  kind : String,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  guard ["paragraph", "character"].contains(kind) else {
+    @failure.reject("invalid-operation", "Unsupported style catalog kind")
+  }
   let styles = self.styles([])
   let result : Array[Json] = []
   let mut truncated = false
@@ -77,8 +102,7 @@ pub fn Session::paragraph_styles(
       if node.uri != word_uri ||
         node.name != "style" ||
         node.parent != 0 ||
-        node.attribute("type", uri=word_uri).unwrap_or("paragraph") !=
-        "paragraph" {
+        node.attribute("type", uri=word_uri).unwrap_or("paragraph") != kind {
         continue
       }
       guard node.attribute("styleId", uri=word_uri) is Some(key) else {
@@ -89,7 +113,7 @@ pub fn Session::paragraph_styles(
         break
       }
       let reason = try {
-        styles.validate_paragraph_style(key)
+        styles.validate_style(key, kind)
         ""
       } catch {
         @failure.Failure(message~, ..) => message
@@ -98,6 +122,8 @@ pub fn Session::paragraph_styles(
         "id": key,
         "name": tree.value(id, "name").unwrap_or(key),
         "reason": reason,
+        "basedOn": tree.value(id, "basedOn").unwrap_or(""),
+        "canDelete": reason.is_empty() && styles.can_delete(key),
       })
     }
   }

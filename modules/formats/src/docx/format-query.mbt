@@ -17,8 +17,9 @@ fn Styles::inherited_character(
   tree : WordTree,
   paragraph : Int,
   run : Int?,
+  style~ : FormatChange[String] = Keep,
 ) -> RunStyle raise @failure.Failure {
-  let layers = self.character_layers(tree, paragraph, run, [])
+  let layers = self.character_layers(tree, paragraph, run, [], style~)
   if run is Some(run) && tree.child(run, "rPr") is Some(_) {
     ignore(layers.pop())
   }
@@ -34,10 +35,11 @@ fn Session::formatting_styles(
   self : Session,
   tree : WordTree,
   range : ParagraphRange,
-) -> Array[RunStyle] raise @failure.Failure {
+) -> (Array[RunStyle], Array[String]) raise @failure.Failure {
   let styles = self.styles([])
   let all_texts = docx_texts(tree)
   let result : Array[RunStyle] = []
+  let identifiers : Array[String] = []
   let collapsed = range.start.paragraph == range.end.paragraph &&
     range.start.offset == range.end.offset
   let pending = if self.selection ==
@@ -70,16 +72,15 @@ fn Session::formatting_styles(
         first < end && last > cursor
       }
       if hit {
-        let style = styles.character_style(tree, paragraph, Some(item.run), [])
-        let style = if collapsed && pending is Some(patch) {
-          style.formatted(
-            styles.inherited_character(tree, paragraph, Some(item.run)),
-            patch,
-          )
-        } else {
-          style
-        }
-        result.push(style)
+        let patch = if collapsed { pending } else { None }
+        let (value, key) = styles.queried_character(
+          tree,
+          paragraph,
+          Some(item.run),
+          patch,
+        )
+        result.push(value)
+        identifiers.push(key)
         selected = true
         if collapsed {
           break
@@ -88,25 +89,48 @@ fn Session::formatting_styles(
       cursor = end
     }
     if !selected && texts.is_empty() {
-      let inherited = styles.character_style(tree, paragraph, None, [])
-      let style = if tree
-        .child(paragraph, "pPr")
-        .bind(id => tree.child(id, "rPr"))
-        is Some(id) {
-        run_properties(tree, id, inherited, styles.themes)
-      } else {
-        inherited
+      let patch = if collapsed { pending } else { None }
+      let run = match tree.child(paragraph, "r") {
+        Some(run) => Some(run)
+        None => tree.child(paragraph, "pPr")
       }
-      result.push(
-        if collapsed && pending is Some(patch) {
-          style.formatted(inherited, patch)
-        } else {
-          style
-        },
-      )
+      let (value, key) = styles.queried_character(tree, paragraph, run, patch)
+      result.push(value)
+      identifiers.push(key)
     }
   }
-  result
+  (result, identifiers)
+}
+
+///|
+fn Styles::queried_character(
+  self : Styles,
+  tree : WordTree,
+  paragraph : Int,
+  run : Int?,
+  pending : CharacterFormat?,
+) -> (RunStyle, String) raise @failure.Failure {
+  let patch = pending.unwrap_or(CharacterFormat::new())
+  let value = self.character_style(tree, paragraph, run, [], style=patch.style)
+  let key = format_value(
+    run
+    .bind(id => tree.child(id, "rPr"))
+    .bind(id => tree.value(id, "rStyle"))
+    .unwrap_or(""),
+    "",
+    patch.style,
+  )
+  (
+    if pending is Some(_) {
+      value.formatted(
+        self.inherited_character(tree, paragraph, run, style=patch.style),
+        patch,
+      )
+    } else {
+      value
+    },
+    key,
+  )
 }
 
 ///|
@@ -158,9 +182,9 @@ pub fn Session::query_formatting(
   } noraise {
     value => Some(value)
   }
-  let characters = match range {
+  let (characters, character_styles) = match range {
     Some(range) => self.formatting_styles(tree, range)
-    None => []
+    None => ([], [])
   }
   let paragraphs = match range {
     Some(range) => {
@@ -173,6 +197,7 @@ pub fn Session::query_formatting(
     "revision": revision,
     "reason": reason,
     "character": {
+      "style": format_summary(character_styles, reason),
       "family": format_summary(characters.map(style => style.family), reason),
       "size": format_summary(characters.map(style => style.size), reason),
       "color": format_summary(characters.map(style => style.color), reason),

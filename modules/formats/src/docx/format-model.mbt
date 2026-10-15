@@ -11,6 +11,7 @@ pub extend FormatChange with Eq::{equal, not_equal}
 
 ///|
 pub(all) struct CharacterFormat {
+  style : FormatChange[String]
   family : FormatChange[String]
   size : FormatChange[Double]
   color : FormatChange[String]
@@ -27,6 +28,7 @@ pub extend CharacterFormat with Eq::{equal, not_equal}
 
 ///|
 pub fn CharacterFormat::new(
+  style~ : FormatChange[String] = Keep,
   family~ : FormatChange[String] = Keep,
   size~ : FormatChange[Double] = Keep,
   color~ : FormatChange[String] = Keep,
@@ -38,6 +40,7 @@ pub fn CharacterFormat::new(
   vertAlign~ : FormatChange[String] = Keep,
 ) -> CharacterFormat {
   {
+    style,
     family,
     size,
     color,
@@ -107,6 +110,7 @@ fn CharacterFormat::merge(
   patch : CharacterFormat,
 ) -> CharacterFormat {
   {
+    style: merge_format(self.style, patch.style),
     family: merge_format(self.family, patch.family),
     size: merge_format(self.size, patch.size),
     color: merge_format(self.color, patch.color),
@@ -164,6 +168,12 @@ fn CharacterFormat::properties(
   self : CharacterFormat,
 ) -> Map[String, Map[String, String?]?] {
   let result = Map([])
+  match self.style {
+    Keep => ()
+    Clear => result["rStyle"] = None
+    Set(value) =>
+      result["rStyle"] = Some(Map::from_array([("val", Some(value))]))
+  }
   for
     (name, change) in [
       (

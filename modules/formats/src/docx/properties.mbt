@@ -358,7 +358,10 @@ fn Session::styles(
   guard !path.external else {
     @failure.reject("unsupported-layout", "External styles are unsupported")
   }
-  let tree = WordTree::new(self.opc.xml(path.target))
+  let tree = WordTree::new(self.part_xml(path.target))
+  guard tree.nodes[0].uri == word_uri && tree.nodes[0].name == "styles" else {
+    @failure.reject("invalid-style", "Invalid styles root", part=path.target)
+  }
   let ids : Map[String, Int] = Map([])
   let mut default_paragraph = None
   for id in tree.children[0] {
@@ -418,7 +421,7 @@ fn Session::theme_fonts(
     guard !rel.external else {
       @failure.reject("unsupported-layout", "External themes are unsupported")
     }
-    let tree = WordTree::new(self.opc.xml(rel.target))
+    let tree = WordTree::new(self.part_xml(rel.target))
     for id in tree.order {
       let node = tree.nodes[id]
       if node.uri == "http://schemas.openxmlformats.org/drawingml/2006/main" &&

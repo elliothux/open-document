@@ -344,6 +344,14 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
         disabled={disabled}
       />
       <DocxStyles
+        kind="paragraph"
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
+      <DocxStyles
+        kind="character"
         controller={controller}
         state={state}
         editor={editor}

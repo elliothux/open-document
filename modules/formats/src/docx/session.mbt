@@ -13,6 +13,7 @@ pub struct Session {
   priv opc : @opc.Package
   priv main : String
   priv mut document : @xml.Document?
+  priv mut parts : Map[String, @xml.Document]
   priv mut texts : Array[TextNode]
   priv mut selection : Selection?
   priv mut typing_text : Int?
@@ -109,6 +110,7 @@ fn Session::from_package(opc : @opc.Package) -> Session raise @failure.Failure {
     opc,
     main,
     document: Some(document),
+    parts: Map([]),
     texts: docx_texts(WordTree::new(document)),
     selection: None,
     typing_text: None,
@@ -250,11 +252,7 @@ pub fn Session::replace(
 pub fn Session::save(self : Session) -> Bytes raise @failure.Failure {
   self.check_idle()
   let document = self.document()
-  let replacements : Map[String, Bytes] = Map([])
-  if !document.is_original() {
-    replacements[self.main] = document.bytes()
-  }
-  self.opc.save(replacements)
+  self.opc.save(self.replacements(document, self.parts))
 }
 
 ///|
@@ -263,6 +261,7 @@ pub fn Session::close(self : Session) -> Unit {
   self.composition = None
   self.opc.close()
   self.document = None
+  self.parts.clear()
   self.texts.clear()
   self.selection = None
   self.typing_text = None

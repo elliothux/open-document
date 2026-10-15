@@ -1,43 +1,55 @@
 import { useEffect, useState } from "react";
 import type { DocumentEditor } from "@open-document/web/editor";
-import type { ParagraphStyleCatalog } from "@open-document/web/foundation";
+import type { DocxStyleCatalog } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { DocxStyleEdit } from "./docx-style-edit.js";
 
 export function DocxStyles({
   controller,
   state,
   editor,
   disabled,
+  kind,
 }: {
   controller: EditorController;
   state: UiSnapshot;
   editor: DocumentEditor;
   disabled: boolean;
+  kind: "paragraph" | "character";
 }) {
   const t = messages(state.locale);
-  const current = editor.getSnapshot().data.formatting?.paragraph.style;
+  const current = editor.getSnapshot().data.formatting?.[kind].style;
+  const paragraph = kind === "paragraph";
+  const apply = (style: string | null) =>
+    controller.run(() =>
+      paragraph
+        ? editor.setParagraphFormat({ style })
+        : editor.setCharacterFormat({ style }),
+    );
   const currentId = current?.kind === "value" ? current.value : "";
-  const [catalog, setCatalog] = useState<ParagraphStyleCatalog>();
+  const [catalog, setCatalog] = useState<DocxStyleCatalog>();
   const [selected, setSelected] = useState(currentId);
-  useEffect(() => setCatalog(undefined), [editor]);
+  const [newName, setNewName] = useState("");
+  useEffect(() => setCatalog(undefined), [editor, kind]);
+  useEffect(() => setNewName(""), [editor, kind]);
   useEffect(() => setSelected(currentId), [currentId]);
   const choice = catalog?.styles.find((style) => style.id === selected);
   return (
     <fieldset disabled={disabled}>
-      <legend>{t.paragraphStyle}</legend>
+      <legend>{paragraph ? t.paragraphStyle : t.characterStyle}</legend>
       <button
         type="button"
         onClick={() =>
-          controller.run(async () => setCatalog(await editor.paragraphStyles()))
+          controller.run(async () => setCatalog(await editor.styles(kind)))
         }
       >
-        {t.loadStyles}
+        {paragraph ? t.loadStyles : t.loadCharacterStyles}
       </button>
       <label>
-        {t.paragraphStyle}
+        {paragraph ? t.paragraphStyle : t.characterStyle}
         <select
-          aria-label={t.paragraphStyle}
+          aria-label={paragraph ? t.paragraphStyle : t.characterStyle}
           value={choice ? selected : ""}
           onChange={(event) => setSelected(event.currentTarget.value)}
         >
@@ -56,19 +68,70 @@ export function DocxStyles({
       <button
         type="button"
         disabled={!choice || !!choice.reason}
-        onClick={() =>
-          controller.run(() => editor.setParagraphFormat({ style: selected }))
-        }
+        onClick={() => apply(selected)}
       >
-        {t.applyStyle}
+        {paragraph ? t.applyStyle : t.applyCharacterStyle}
       </button>
+      <button type="button" onClick={() => apply(null)}>
+        {paragraph ? t.restoreDefaultStyle : t.clearCharacterStyle}
+      </button>
+      <DocxStyleEdit
+        controller={controller}
+        state={state}
+        editor={editor}
+        kind={kind}
+        choice={choice}
+        refresh={async () => setCatalog(await editor.styles(kind))}
+      />
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!choice) return;
+          controller.run(async () => {
+            const id = await editor.createStyle(newName, choice.id);
+            setCatalog(await editor.styles(kind));
+            setSelected(id);
+            setNewName("");
+          });
+        }}
+      >
+        <fieldset disabled={!choice || !!choice.reason}>
+          <legend>{t.createBasedStyle}</legend>
+          <label>
+            {t.newStyleName}
+            <input
+              aria-label={`${paragraph ? t.paragraphStyle : t.characterStyle}: ${t.newStyleName}`}
+              required
+              maxLength={200}
+              value={newName}
+              onChange={(event) => setNewName(event.currentTarget.value)}
+            />
+          </label>
+          <button type="submit">
+            {paragraph ? t.createParagraphStyle : t.createCharacterStyle}
+          </button>
+        </fieldset>
+      </form>
+      {choice?.canDelete && choice.basedOn && (
+        <p>
+          {t.styleReplacement}:{" "}
+          {catalog?.styles.find((style) => style.id === choice.basedOn)?.name ??
+            choice.basedOn}
+        </p>
+      )}
       <button
         type="button"
+        disabled={!choice?.canDelete || !choice.basedOn}
         onClick={() =>
-          controller.run(() => editor.setParagraphFormat({ style: null }))
+          controller.run(async () => {
+            if (!choice?.basedOn) return;
+            await editor.deleteStyle(choice.id, choice.basedOn);
+            setCatalog(await editor.styles(kind));
+            setSelected(choice.basedOn);
+          })
         }
       >
-        {t.restoreDefaultStyle}
+        {paragraph ? t.deleteParagraphStyle : t.deleteCharacterStyle}
       </button>
     </fieldset>
   );

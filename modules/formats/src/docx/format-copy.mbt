@@ -41,6 +41,9 @@ pub fn Session::apply_format(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   character.validate()
+  if character.style is Set(key) {
+    self.styles([]).validate_style(key, "character")
+  }
   ignore(paragraph.properties())
   let document = self.document()
   let range = self.formatting_range(document, selection)
@@ -76,6 +79,7 @@ pub fn Session::apply_format(
     self.commit_edit(
       {
         xml: edits,
+        parts: Map([]),
         before: self.selection,
         after: Some(selection),
         paragraphs: range.paragraphs,

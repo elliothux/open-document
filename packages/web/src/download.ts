@@ -16,3 +16,5 @@ export function downloadBytes(
     URL.revokeObjectURL(url);
   }
 }
+export const docxContentType =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";

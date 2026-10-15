@@ -163,8 +163,27 @@ async function dispatch(request: Request): Promise<unknown> {
             request.revision,
             request.selection,
           );
-        case "paragraphStyles":
-          return foundation.paragraphStyles(request.revision);
+        case "styleCatalog":
+          return foundation.styles(request.revision, request.kind);
+        case "createStyle":
+          return foundation.createStyle(
+            request.revision,
+            request.name,
+            request.basedOn,
+          );
+        case "deleteStyle":
+          return foundation.deleteStyle(
+            request.revision,
+            request.key,
+            request.replacement,
+          );
+        case "updateStyle":
+          return foundation.updateStyle(
+            request.revision,
+            request.key,
+            request.format,
+            request.name,
+          );
         case "captureFormat":
           return foundation.captureFormat(request.revision, request.selection);
         case "applyFormat":

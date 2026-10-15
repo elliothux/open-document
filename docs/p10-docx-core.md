@@ -4,7 +4,7 @@
 
 当前进度：ZIP/OPC 已支持显式创建，以及一次保存中的新增、替换和删除。DOCX 已接通空白创建、首次保存与另存。字体、字号、颜色、粗斜体、单下划线、删除线、高亮和上下标，以及段落左右/居中/两端对齐、缩进、段前后距、行距、段前分页已有核心/API/UI、混合查询、清除直接属性与历史。装饰不拆开塑形，上下标参与字号、基线与选区计算；预览与 PDF 使用相同绘制结果。软换行与 Tab 已接入逻辑位置、格式、删除、历史和保存；Tab 支持文档默认间隔和左/右/居中/小数点自定义位置，包含属性继承、显式清除与历史，表格原生 Tab 移动到相邻单元格，参数面板保持焦点切换。折叠处的格式随实际输入一起提交，取消组合保留输入格式。字面查找、大小写/全词选项、结果定位、单项和全部替换已接通同一队列，旧结果拒绝且不停止编辑。格式复制已通过核心属性片段接通 API/UI，两类格式合为一次历史；混合属性不覆盖目标。竖线与五类引导线也已接通相同格式事务、核心绘制与 PDF；引导线不进入逻辑文字。RTL 制表位、默认间隔编辑与标尺、样式编辑、列表及后续批次仍未完成，不标记第 1 批或整个 P10 完成。实际签名与边界归[格式合同](references/formats.md#p10-当前格式编辑)。
 
-现有段落样式目录与应用已接通核心、API 和默认 UI，支持继承、混合查询、撤销和保存重开。应用时清除段落直接属性并保留文字直接字符格式。字符样式、样式新建/修改/删除仍未实现。
+现有段落与字符样式目录、应用、清除、修改，以及基于现有样式新建和删除自定义样式，已接通核心、API 和默认 UI。它们支持继承、混合查询、撤销和保存重开。应用段落样式时清除段落直接属性；字符样式保留文字直接字符格式。折叠处的字符样式随后续输入提交历史。新建文档提供 Emphasis 和 Strong 字符样式。样式管理使用正文与其他 Word XML 的同一历史，保留直接覆盖和未改源内容；删除会同步映射样式引用。默认 UI 当前提供名称、字号、段落对齐修改，以及基于所选样式创建、使用基础样式替代后删除。缺少样式部件时的首个样式创建、默认/链接样式的删除或重置、既有继承关系修改及其他属性控件仍待实现。
 
 ## 1. 用户结果与交付范围
 
@@ -29,10 +29,10 @@ P10 分批交付，每批包含核心、API、UI、历史与保存。第一批�
 
 | 当前实现 | 已有能力与本阶段改动 |
 | --- | --- |
-| [`docx/session.mbt`](../modules/formats/src/docx/session.mbt)、[`editing.mbt`](../modules/formats/src/docx/editing.mbt) | 当前以正文 XML、稳定节点身份和源片段历史支持有限文字事务；扩展到多部件、属性与结构事务 |
+| [`docx/session.mbt`](../modules/formats/src/docx/session.mbt)、[`editing.mbt`](../modules/formats/src/docx/editing.mbt)、[`parts.mbt`](../modules/formats/src/docx/parts.mbt) | 已以稳定节点身份和源片段历史支持正文、样式及其 Word 引用修改；后续扩展部件增删、关系、资源与结构事务 |
 | [`range.mbt`](../modules/formats/src/docx/range.mbt)、[`flow.mbt`](../modules/formats/src/docx/flow.mbt)、[`properties.mbt`](../modules/formats/src/docx/properties.mbt) | 范围、只读 Flow 和样式解析可复用；补正文之外的编辑位置、对象/表格选择和格式查询 |
 | [`modules/layout/src`](../modules/layout/src) | 已有塑形、分页、光标与局部缓存；补节/栏、页眉页脚、表格、浮动对象和注释区域的实际布局 |
-| [`archive/save.mbt`](../modules/core/src/archive/save.mbt)、[`opc/package.mbt`](../modules/core/src/opc/package.mbt) | 已支持显式创建及一次保存中的增删改；文档多部件历史仍待接入 |
+| [`archive/save.mbt`](../modules/core/src/archive/save.mbt)、[`opc/package.mbt`](../modules/core/src/opc/package.mbt) | 已支持显式创建及一次保存中的增删改；DOCX 已接入正文、样式与引用所在 Word XML 的历史，部件增删、关系与二进制资源历史待后续接入 |
 | [`bridge/foundation.mbt`](../modules/bridge/src/foundation.mbt)、[`wasm/foundation.ts`](../packages/wasm/src/foundation.ts)、[`web/foundation.ts`](../packages/web/src/foundation.ts) | 增加类型明确的创建、查询与修改入口；修改结果继续带 revision 和必要失效信息 |
 | [`web/editor.ts`](../packages/web/src/editor.ts)、[`ui/panels.tsx`](../packages/ui/src/panels.tsx) | 沿 P9 队列、原生输入、状态和保存接入；格式 UI 按职责拆文件，不继续塞入单个面板文件 |
 
@@ -46,7 +46,7 @@ P10 分批交付，每批包含核心、API、UI、历史与保存。第一批�
 
 DOCX 创建入口生成最小合法包：根关系、主文档、所需样式/设置、内容类型及一个空段落。编号、图片、页眉页脚等部件按实际操作创建。模板由 MoonBit 的格式代码生成，不在 React 中拼 OOXML，也不维护一份只能打开的 base64 空文件。
 
-当前编辑历史主要记录正文 XML。扩展为一次文档操作涉及的部件变化：XML 源片段、部件增删、关系/内容类型、前后选择及新节点身份。候选全部校验成功后，提交一次 revision 和一项历史。失败保留已提交文档与历史；撤销同时恢复关系、资源和节点身份。
+当前编辑历史已记录正文、现有样式及其他 Word 部件中样式引用的源片段，合并校验候选并原子回放。继续扩展一次文档操作涉及的部件变化：部件增删、关系/内容类型、二进制资源、前后选择及新节点身份。候选全部校验成功后，提交一次 revision 和一项历史。失败保留已提交文档与历史；撤销同时恢复关系、资源和节点身份。
 
 原始包与已提交部件用于保真；类型化样式、段落和对象视图由它们派生。不能另建可独立编辑的 TS 文档树。历史继续有界；新增二进制资源计入资源和历史持有预算，复用不可变字节，不能以只计句柄隐藏内存。仅删除本次操作创建且已确认没有引用的资源；不扫描删除未知部件。
 

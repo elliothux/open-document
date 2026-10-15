@@ -1,9 +1,10 @@
 import {
   checkFormatPatch,
-  paragraphStyleCatalog,
-  type ParagraphStyleCatalog,
+  docxStyleCatalog,
+  type DocxStyleCatalog,
   docxFormatting,
   copiedFormat,
+  checkStyleUpdate,
   type CopiedFormat,
   type DocxFormatting,
   type CharacterFormatPatch,
@@ -164,6 +165,18 @@ export interface EditState {
   historyByteLimit: number;
   commandLimit: number;
   formatting: DocxFormatting | null;
+}
+
+export interface CreatedDocxStyle {
+  id: string;
+  state: EditState;
+}
+
+export function createdDocxStyle(value: unknown): CreatedDocxStyle {
+  const result = record(value);
+  if (typeof result.id !== "string" || !result.id || result.id.length > 200)
+    throw new Error("Invalid created style identity");
+  return { id: result.id, state: editState(result.state) };
 }
 
 export function editState(value: unknown): EditState {
@@ -378,9 +391,35 @@ export class FoundationSession extends WasmSession {
       this.call({ operation: "queryFormatting", revision, selection }),
     );
   }
-  paragraphStyles(revision: number): ParagraphStyleCatalog {
-    return paragraphStyleCatalog(
-      this.call({ operation: "paragraphStyles", revision }),
+  styles(revision: number, kind: "paragraph" | "character"): DocxStyleCatalog {
+    return docxStyleCatalog(
+      this.call({ operation: "styleCatalog", revision, kind }),
+    );
+  }
+  createStyle(
+    revision: number,
+    name: string,
+    basedOn: string,
+  ): CreatedDocxStyle {
+    checkStyleUpdate({ character: {}, paragraph: {} }, name);
+    return createdDocxStyle(
+      this.call({ operation: "createStyle", revision, name, basedOn }),
+    );
+  }
+  deleteStyle(revision: number, key: string, replacement: string): EditState {
+    return editState(
+      this.call({ operation: "deleteStyle", revision, key, replacement }),
+    );
+  }
+  updateStyle(
+    revision: number,
+    key: string,
+    format: CopiedFormat,
+    name?: string,
+  ): EditState {
+    checkStyleUpdate(format, name);
+    return editState(
+      this.call({ operation: "updateStyle", revision, key, format, name }),
     );
   }
   captureFormat(revision: number, selection: DocxSelection): CopiedFormat {

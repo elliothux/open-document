@@ -275,7 +275,10 @@ fn Foundation::dispatch(
     | "editState"
     | "selectDocx"
     | "queryFormatting"
-    | "paragraphStyles"
+    | "styleCatalog"
+    | "updateStyle"
+    | "createStyle"
+    | "deleteStyle"
     | "captureFormat"
     | "applyFormat"
     | "setCharacterFormat"
@@ -385,26 +388,62 @@ fn Foundation::dispatch(
             field_int(request, "revision"),
             field_selection(request),
           )
-        "paragraphStyles" =>
-          session.paragraph_styles(field_int(request, "revision"))
+        "styleCatalog" =>
+          session.style_catalog(
+            field_int(request, "revision"),
+            field_string(request, "kind"),
+          )
+        "createStyle" | "deleteStyle" => {
+          let revision = field_int(request, "revision")
+          let result = if operation == "createStyle" {
+            session.create_style(
+              revision,
+              field_string(request, "name"),
+              field_string(request, "basedOn"),
+            )
+          } else {
+            session.delete_style(
+              revision,
+              field_string(request, "key"),
+              field_string(request, "replacement"),
+            )
+          }
+          self.layout = None
+          result
+        }
         "captureFormat" =>
           session.capture_format(
             field_int(request, "revision"),
             field_selection(request),
           )
-        "applyFormat" => {
+        "applyFormat" | "updateStyle" => {
           guard request is { "format": Object(fields) as format, .. } &&
             fields.length() == 2 &&
             format is { "character": character, "paragraph": paragraph, .. } else {
             @failure.reject("invalid-operation", "Invalid copied format")
           }
           let revision = field_int(request, "revision")
-          let result = session.apply_format(
-            revision,
-            field_selection(request),
-            character_format({ "format": character }),
-            paragraph_format({ "format": paragraph }),
-          )
+          let result = if operation == "updateStyle" {
+            let name = match request {
+              { "name": String(name), .. } => Some(name)
+              Object(fields) if !fields.contains("name") => None
+              _ => @failure.reject("invalid-operation", "Invalid style name")
+            }
+            session.update_style(
+              revision,
+              field_string(request, "key"),
+              character_format({ "format": character }),
+              paragraph_format({ "format": paragraph }),
+              name~,
+            )
+          } else {
+            session.apply_format(
+              revision,
+              field_selection(request),
+              character_format({ "format": character }),
+              paragraph_format({ "format": paragraph }),
+            )
+          }
           if result is { "revision": Number(current, ..), .. } &&
             current != revision.to_double() {
             self.layout = None
