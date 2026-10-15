@@ -39,6 +39,22 @@ fn Foundation::xlsx_operation(
     @failure.reject("session-required", "Open an XLSX workbook first")
   }
   match operation {
+    "editXlsxSheet" => {
+      guard request is { "change": change, .. } else {
+        @failure.reject("invalid-operation", "Worksheet edit is required")
+      }
+      let change = match field_string(change, "action") {
+        "move" => @xlsx.Move(field_int(change, "index"))
+        "visibility" => @xlsx.Visibility(field_string(change, "state"))
+        "rename" => @xlsx.Rename(field_string(change, "name"))
+        _ => @failure.reject("invalid-operation", "Unknown worksheet edit")
+      }
+      session.edit_sheet(
+        field_int(request, "revision"),
+        field_string(request, "sheet"),
+        change,
+      )
+    }
     "queryXlsx" =>
       session.query(
         sheet=if request is Object(fields) && fields.contains("sheet") {

@@ -328,7 +328,7 @@ pub fn Session::replace(
     self.strings,
     self.style_count,
   )
-  let edits : Array[(Int, @xml.Edit)] = [(index, edit)]
+  let edits : Array[(String, @xml.Edit)] = [(current.id, edit)]
   let changed = updates
     .keys()
     .collect()
@@ -348,36 +348,7 @@ pub fn Session::replace(
   for entry in self.cache_edits(candidate, calculation) {
     edits.push(entry)
   }
-  let payload = edits
-    .iter()
-    .fold(init=0L, (sum, entry) => sum + entry.1.payload_bytes())
-  guard payload <= 4194304 else {
-    @failure.reject("limit-exceeded", "Edit exceeds history payload budget")
-  }
-  self.validate(candidate)
-  for item in self.redo {
-    self.history_bytes -= item.bytes
-  }
-  self.redo.clear()
-  let after = (sheet, target)
-  let entry : History = {
-    edits,
-    bytes: payload.to_int(),
-    before: self.selection,
-    after,
-  }
-  while self.history.length() >= 100 ||
-        entry.bytes > 4194304 - self.history_bytes {
-    self.history_bytes -= self.history.remove(0).bytes
-  }
-  self.history.push(entry)
-  self.history_bytes += entry.bytes
-  self.sheets = candidate
-  self.calculation = Some(calculation)
-  self.selection = after
-  self.anchor = { row: target.top, column: target.left, }
-  self.focus = { row: target.bottom, column: target.right, }
-  self.revision += 1
+  self.commit(candidate, self.workbook, calculation, edits, (sheet, target))
   self.query(sheet=Some(sheet), range=Some(target.name()))
 }
 
@@ -385,10 +356,15 @@ pub fn Session::replace(
 fn Session::validate(
   self : Session,
   sheets : Array[Sheet],
+  workbook? : @xml.Document,
 ) -> Unit raise @failure.Failure {
   let mut cells = 0
   let mut units = 0
   let replacements : Map[String, Bytes] = Map([])
+  let workbook = workbook.unwrap_or(self.workbook)
+  if !workbook.is_original() {
+    replacements[self.main] = workbook.bytes()
+  }
   for sheet in sheets {
     cells += sheet.cells.length()
     for cell in sheet.cells.values() {
@@ -421,7 +397,13 @@ pub fn Session::undo(
     @failure.reject("limit-exceeded", "Workbook revision exhausted")
   }
   let sheets = self.sheets.copy()
-  for (index, edit) in (if redo { entry.edits } else { entry.edits.rev() }) {
+  let mut workbook = self.workbook
+  for (part, edit) in (if redo { entry.edits } else { entry.edits.rev() }) {
+    if part == self.main {
+      workbook = workbook.apply(edit, forward=redo)
+      continue
+    }
+    let index = sheets.search_by(sheet => sheet.id == part).unwrap()
     let sheet = sheets[index]
     let document = sheet.document.apply(edit, forward=redo)
     sheets[index] = Sheet::read(
@@ -433,13 +415,16 @@ pub fn Session::undo(
       self.style_count,
     )
   }
-  self.validate(sheets)
+  let sheets = self.ordered_sheets(workbook, sheets)
+  self.validate(sheets, workbook~)
   let calculation = Calculation::build(sheets, None, [])
+  self.workbook = workbook
   self.sheets = sheets
   self.calculation = Some(calculation)
   self.selection = if redo { entry.after } else { entry.before }
   self.anchor = { row: self.selection.1.top, column: self.selection.1.left, }
   self.focus = { row: self.selection.1.bottom, column: self.selection.1.right, }
+  self.grid = None
   ignore(source.pop())
   target.push(entry)
   self.revision += 1
@@ -450,12 +435,23 @@ pub fn Session::undo(
 pub fn Session::save(self : Session) -> Bytes raise @failure.Failure {
   self.check()
   let replacements : Map[String, Bytes] = Map([])
+  if !self.workbook.is_original() {
+    replacements[self.main] = self.workbook.bytes()
+  }
   let mut modified = false
   let mut shared_count = 0
   for sheet in self.sheets {
     if !sheet.document.is_original() {
       replacements[sheet.id] = sheet.document.bytes()
-      modified = true
+      let original = Tree::new(self.opc.xml(sheet.id))
+      let data = original
+        .one(original.root("worksheet").id, "sheetData")
+        .unwrap()
+      let current = sheet.document.node(sheet.data)
+      if original.document.source()[data.start:data.end] !=
+        sheet.document.source()[current.start:current.end] {
+        modified = true
+      }
     }
     for cell in sheet.cells.values() {
       if cell.shared is Some(_) {

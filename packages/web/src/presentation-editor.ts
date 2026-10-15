@@ -2,7 +2,7 @@ import { updatePresentationObjects } from "./presentation-semantics.js";
 import { PresentationCanvas } from "./presentation-canvas.js";
 import { PresentationInput } from "./presentation-input.js";
 import { PresentationPointer } from "./presentation-pointer.js";
-import { bindClipboard } from "./clipboard-input.js";
+import { bindClipboard, copyPptxSelection } from "./clipboard-input.js";
 import {
   EditorState,
   type EditorOutput,
@@ -15,6 +15,7 @@ import type {
   PptxGeometry,
   PptxSelection,
   PptxPoint,
+  PptxObjectEdit,
 } from "@open-document/wasm/pptx";
 
 /** Embed one slide surface; all document semantics and editable geometry come from MoonBit. */
@@ -502,31 +503,23 @@ export class PresentationEditor {
           });
   }
   undo(): Promise<void> {
-    return this.history(false);
+    return this.recover(false);
   }
   redo(): Promise<void> {
-    return this.history(true);
-  }
-  private history(redo: boolean): Promise<void> {
-    return this.enqueue(
-      async () => {
-        await this.cancelNow();
-        this.state = await this.client.execute({
-          operation: redo ? "redoPptx" : "undoPptx",
-          revision: this.state.revision,
-        });
-        this.blocked = false;
-        this.errorMessage = "";
-        await this.present();
-      },
-      true,
-      true,
-    );
+    return this.recover(true);
   }
   refresh(): Promise<void> {
+    return this.recover();
+  }
+  private recover(redo?: boolean): Promise<void> {
     return this.enqueue(
       async () => {
         await this.cancelNow();
+        if (redo !== undefined)
+          this.state = await this.client.execute({
+            operation: redo ? "redoPptx" : "undoPptx",
+            revision: this.state.revision,
+          });
         this.blocked = false;
         this.errorMessage = "";
         await this.present();
@@ -537,30 +530,26 @@ export class PresentationEditor {
   }
   copy(cut = false): Promise<void> {
     return this.enqueue(async () => {
-      const revision = this.state.revision,
-        selection = { ...this.state.selection };
-      const { text } = await this.client.execute({
-        operation: "copyPptx",
-        revision,
-      });
-      await navigator.clipboard.writeText(text);
-      if (cut) {
-        const state = await this.client.execute({ operation: "queryPptx" });
-        if (
-          state.revision !== revision ||
-          JSON.stringify(state.selection) !== JSON.stringify(selection)
-        )
-          throw new Error("Selection changed during clipboard write");
-        await this.changed(
-          await this.client.execute({
-            operation: "replacePptx",
-            revision,
-            text: "",
-            profile: this.profile,
-          }),
-        );
-      }
+      const state = await copyPptxSelection(
+        this.client,
+        this.state,
+        cut,
+        this.profile,
+      );
+      if (state) await this.changed(state);
     });
+  }
+  editObjects(change: PptxObjectEdit): Promise<void> {
+    return this.enqueue(async () =>
+      this.changed(
+        await this.client.execute({
+          operation: "editPptxObjects",
+          revision: this.state.revision,
+          change,
+          profile: this.profile,
+        }),
+      ),
+    );
   }
   paste(text: string): Promise<void> {
     return this.enqueue(async () =>
@@ -736,7 +725,16 @@ export class PresentationEditor {
       this.handle(() => (event.shiftKey ? this.redo() : this.undo()));
       return;
     }
-    if (event.key === "Tab") {
+    if (
+      (event.ctrlKey || event.metaKey) &&
+      !event.altKey &&
+      event.key.toLowerCase() === "d"
+    ) {
+      event.preventDefault();
+      this.handle(() =>
+        this.editObjects({ action: "duplicate", dx: 18, dy: 18 }),
+      );
+    } else if (event.key === "Tab") {
       event.preventDefault();
       this.handle(() =>
         this.enqueue(async () =>
@@ -772,8 +770,10 @@ export class PresentationEditor {
               ? step
               : 0;
       this.handle(() => this.transform(dx, dy));
-    } else if (event.key === "Delete" || event.key === "Backspace")
+    } else if (event.key === "Delete" || event.key === "Backspace") {
       event.preventDefault();
+      this.handle(() => this.editObjects({ action: "delete" }));
+    }
   };
   dispose(): Promise<void> {
     if (this.cleanup) return this.cleanup;

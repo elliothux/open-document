@@ -1,4 +1,8 @@
-import { updateGridSemantics } from "./spreadsheet-semantics.js";
+import {
+  updateGridSemantics,
+  updateGridSelection,
+  activeGridCell,
+} from "./spreadsheet-semantics.js";
 import { SpreadsheetPrint, defaultPrintOptions } from "./spreadsheet-print.js";
 import { CanvasSurface } from "./canvas-surface.js";
 import { spreadsheetKey, styleCellDraft } from "./spreadsheet-input.js";
@@ -14,6 +18,7 @@ import type {
   XlsxViewport,
   XlsxPrintLayout,
   PrintOptions,
+  XlsxSheetEdit,
 } from "@open-document/wasm/xlsx";
 
 export interface SpreadsheetEditorData {
@@ -389,17 +394,7 @@ export class SpreadsheetEditor {
   }
 
   private active() {
-    const selection = this.state.selection.range;
-    return (
-      this.state.cells.find(
-        (cell) => cell.row === selection.top && cell.column === selection.left,
-      ) ??
-      this.layout?.cells.find(
-        (item) =>
-          item.cell.row === selection.top &&
-          item.cell.column === selection.left,
-      )?.cell
-    );
+    return activeGridCell(this.state, this.layout);
   }
 
   private queueDraft(): void {
@@ -554,22 +549,7 @@ export class SpreadsheetEditor {
     this.input.style.left = `${Math.max(36, rect.x) * this.scale}px`;
     this.input.style.top = `${Math.max(18, rect.y) * this.scale}px`;
     this.styleInput();
-    const active = this.active();
-    this.input.setAttribute(
-      "aria-label",
-      `Cell ${active?.address ?? ""} input`,
-    );
-    this.input.setAttribute(
-      "aria-description",
-      `${active?.display ?? ""}${active?.readOnlyReason ? "; " + active.readOnlyReason : ""}`,
-    );
-    for (const cell of this.semantics.querySelectorAll<HTMLElement>(
-      "[role=gridcell]",
-    ))
-      cell.setAttribute(
-        "aria-selected",
-        String(cell.dataset.address === active?.address),
-      );
+    updateGridSelection(this.semantics, this.input, this.active());
   }
   private styleInput(): void {
     const rect = this.layout?.cells.find(
@@ -623,6 +603,19 @@ export class SpreadsheetEditor {
     return this.enqueue(async () => {
       await this.commitDraft();
       this.state = await this.client.select(this.state.revision, sheet, range);
+      this.generation++;
+      await this.present(true);
+      this.input.focus({ preventScroll: true });
+    });
+  }
+  editSheet(change: XlsxSheetEdit, sheet?: string): Promise<void> {
+    return this.enqueue(async () => {
+      await this.commitDraft();
+      this.state = await this.client.editSheet(
+        this.state.revision,
+        sheet ?? this.state.sheet,
+        change,
+      );
       this.generation++;
       await this.present(true);
       this.input.focus({ preventScroll: true });

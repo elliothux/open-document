@@ -40,6 +40,40 @@ fn Foundation::pptx_operation(
   }
   match operation {
     "queryPptx" => session.query()
+    "editPptxObjects" => {
+      guard request is { "change": change, .. } else {
+        @failure.reject("invalid-operation", "Object edit is required")
+      }
+      let change = match field_string(change, "action") {
+        "insert" =>
+          @pptx.Insert(
+            field_string(change, "kind"),
+            xlsx_number(change, "x"),
+            xlsx_number(change, "y"),
+            xlsx_number(change, "width"),
+            xlsx_number(change, "height"),
+            field_string(change, "text"),
+          )
+        "delete" => @pptx.Remove
+        "duplicate" =>
+          @pptx.Duplicate(xlsx_number(change, "dx"), xlsx_number(change, "dy"))
+        "rotate" => @pptx.Rotate(xlsx_number(change, "angle"))
+        "flip" =>
+          match field_string(change, "axis") {
+            "horizontal" => @pptx.Flip(true)
+            "vertical" => @pptx.Flip(false)
+            _ => @failure.reject("invalid-operation", "Unknown flip axis")
+          }
+        "layer" => @pptx.Layer(field_string(change, "order"))
+        _ => @failure.reject("invalid-operation", "Unknown object edit")
+      }
+      session.edit_objects(
+        field_int(request, "revision"),
+        change,
+        self.probe,
+        xlsx_profile(request),
+      )
+    }
     "selectPptx" =>
       session.select(
         field_int(request, "revision"),

@@ -1,4 +1,36 @@
-import type { XlsxViewport } from "@open-document/wasm/xlsx";
+import type { XlsxViewport, XlsxQuery } from "@open-document/wasm/xlsx";
+
+export function activeGridCell(
+  state: XlsxQuery,
+  layout: XlsxViewport | undefined,
+) {
+  const range = state.selection.range;
+  return (
+    state.cells.find(
+      (cell) => cell.row === range.top && cell.column === range.left,
+    ) ??
+    layout?.cells.find(
+      (item) => item.cell.row === range.top && item.cell.column === range.left,
+    )?.cell
+  );
+}
+
+export function updateGridSelection(
+  root: HTMLElement,
+  input: HTMLTextAreaElement,
+  active: XlsxQuery["cells"][number] | undefined,
+): void {
+  input.setAttribute("aria-label", `Cell ${active?.address ?? ""} input`);
+  input.setAttribute(
+    "aria-description",
+    `${active?.display ?? ""}${active?.readOnlyReason ? "; " + active.readOnlyReason : ""}`,
+  );
+  for (const cell of root.querySelectorAll<HTMLElement>("[role=gridcell]"))
+    cell.setAttribute(
+      "aria-selected",
+      String(cell.dataset.address === active?.address),
+    );
+}
 
 /** Expose only the bounded, core-provided visible grid to assistive technology. */
 export function updateGridSemantics(

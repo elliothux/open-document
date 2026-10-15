@@ -2,7 +2,7 @@
 
 状态：`planned`，第 1 批实施中。基于 [P5 XLSX](implemented/p5-xlsx-editing.md)、已完成的 [P9](implemented/p9-web-sdk-ui.md)及 [P10 的包创建与多部件事务设计](p10-docx-core.md#31-新建与多部件事务)。属于功能优先级 P0。空白创建已接通，其余扩展仍按下面的范围实施。阶段顺序归[路线图](references/roadmap.md)，现有 API 归[格式合同](references/formats.md#p5-xlsx-合同)，功能依据归 [G3](g3-genoffice-sdk-gap.md#表格xlsx)。
 
-当前进度：核心生成带一张可见 Sheet1、A1 选区和基础样式的空白工作簿，复用既有公式、编辑、历史、保存及打印路径。同步 Wasm、Worker、默认 UI 均提供创建；新建、替换确认、首次保存与另存复用 P9。已检查原生输入、SUM 计算、撤销/重做、保存重开，以及保存失败/取消时的状态保留。工作表结构、格式与后续批次尚未完成，不标记第 1 批或整个 P11 完成。
+当前进度：核心生成带一张可见 Sheet1、A1 选区和基础样式的空白工作簿，复用既有公式、编辑、历史、保存及打印路径。同步 Wasm、Worker、默认 UI 均提供创建；新建、替换确认、首次保存与另存复用 P9。已接通工作表重排、改名与隐藏/显示，历史使用稳定部件路径，同步名称作用域、活动页和工作表视图。改名同步已支持的引用，保留字符串常量和共享公式组。表增删/复制、行列结构、格式与后续批次尚未完成，不标记第 1 批或整个 P11 完成。
 
 ## 1. 用户结果与交付范围
 
@@ -24,7 +24,7 @@
 
 | 当前位置 | 已有能力与改动 |
 | --- | --- |
-| [`xlsx/session.mbt`](../modules/formats/src/xlsx/session.mbt)、[`worksheet.mbt`](../modules/formats/src/xlsx/worksheet.mbt)、[`editing.mbt`](../modules/formats/src/xlsx/editing.mbt) | 稀疏单元格、源 XML、选区与范围事务；历史按工作表索引保存 XML 编辑，须扩展为稳定部件身份及多部件事务 |
+| [`xlsx/session.mbt`](../modules/formats/src/xlsx/session.mbt)、[`sheet-order.mbt`](../modules/formats/src/xlsx/sheet-order.mbt)、[`transaction.mbt`](../modules/formats/src/xlsx/transaction.mbt)、[`editing.mbt`](../modules/formats/src/xlsx/editing.mbt) | 稀疏单元格、源 XML、选区与稳定部件历史；已支持 workbook/worksheet 视图一起提交，增删部件事务继续扩展 |
 | [`formula-parser.mbt`](../modules/formats/src/xlsx/formula-parser.mbt)、[`formula-shift.mbt`](../modules/formats/src/xlsx/formula-shift.mbt)、[`calculation.mbt`](../modules/formats/src/xlsx/calculation.mbt) | 已有公式解析、共享公式平移、六函数与受影响重算；扩展引用变换、名称、函数与不确定依赖处理 |
 | [`styles.mbt`](../modules/formats/src/xlsx/styles.mbt)、[`number-format.mbt`](../modules/formats/src/xlsx/number-format.mbt) | 有限格式读取/显示；补局部样式创建、修改和格式代码解释 |
 | [`grid.mbt`](../modules/formats/src/xlsx/grid.mbt)、[`print.mbt`](../modules/formats/src/xlsx/print.mbt) | 可见网格与独立打印布局；补冻结区域、筛选可见性、绘图锚点与打印设置 |
@@ -41,7 +41,11 @@
 
 工作表以稳定身份定位，顺序和名称是可变属性。复制/新增分配新的 sheetId、部件路径和关系 ID；移动不改变身份。至少保留一个可见工作表；删除最后可见表、非法名称和名称冲突在核心拒绝。删除活动表后返回新的有效选区。
 
-每项结构操作先形成候选：工作簿/工作表、公式、名称、范围属性、绘图关系、计算结果与选择一起校验，再提交一次 revision/历史。旧历史的工作表索引不能在重排后指向另一张表；改为稳定身份，增删部件也进入同一历史。撤销同时恢复引用、资源和计算状态。
+每项结构操作先形成候选：工作簿/工作表、公式、名称、范围属性、绘图关系、计算结果与选择一起校验，再提交一次 revision/历史。历史已按稳定部件路径定位 XML 编辑，工作簿与工作表共同撤销；后续增删部件也进入同一历史。撤销同时恢复引用、资源和计算状态。
+
+当前 `editXlsxSheet` 与 `SpreadsheetEditor.editSheet` 支持目标索引重排及 visible/hidden/veryHidden 状态。移动不改变名称、sheetId、关系或公式文本；核心重建计算索引并同步 `localSheetId`、`activeTab/firstSheet` 和所需 `tabSelected`。隐藏活动表时优先选择右侧可见表，再向左查找；显示表会激活该表。保存重开使用首个 workbook view 的活动页。只改视图时保留公式缓存、共享字符串计数和 calcChain。默认 UI 提供前移/后移、隐藏及普通隐藏表的显示入口。完整参数与保护边界归[格式合同](references/formats.md#p5-xlsx-合同)。
+
+同一入口支持改名，默认 UI 提供名称输入和提交。核心按公式词法位置更新跨表引用、定义名称、既有条件格式/数据验证公式和内部超链接；支持中文、空格和名称内的单引号。字符串常量、共享公式组、表身份、顺序与选区保持不变。含尚未接入引用更新的资源关系或扩展内容时拒绝改名，保留源文件。核心与 Chromium 已检查引用结果、保存重开、精确撤销，以及非法名称、重复名称和预算失败后的恢复。
 
 结构操作遍历实际存在的稀疏单元格和区间。整行/整列选择是范围描述，不展开百万个空单元格。操作前检查单元格、公式工作量、历史、资源和输出预算，不能先创建巨大矩阵再报超限。
 

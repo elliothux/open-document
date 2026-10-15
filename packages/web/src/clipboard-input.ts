@@ -1,6 +1,33 @@
 import type { FoundationClient } from "./foundation.js";
 import type { EditState } from "@open-document/wasm/foundation";
 import { assertDocxSelection } from "./document-selection.js";
+import type { PptxClient } from "./pptx.js";
+import type { PptxQuery } from "@open-document/wasm/pptx";
+
+export async function copyPptxSelection(
+  client: PptxClient,
+  state: PptxQuery,
+  cut: boolean,
+  profile: Record<string, string>,
+): Promise<PptxQuery | undefined> {
+  const revision = state.revision,
+    selection = { ...state.selection };
+  const { text } = await client.execute({ operation: "copyPptx", revision });
+  await navigator.clipboard.writeText(text);
+  if (!cut) return;
+  const current = await client.execute({ operation: "queryPptx" });
+  if (
+    current.revision !== revision ||
+    JSON.stringify(current.selection) !== JSON.stringify(selection)
+  )
+    throw new Error("Selection changed during clipboard write");
+  return client.execute({
+    operation: "replacePptx",
+    revision,
+    text: "",
+    profile,
+  });
+}
 
 export async function copyDocxSelection(
   client: FoundationClient,

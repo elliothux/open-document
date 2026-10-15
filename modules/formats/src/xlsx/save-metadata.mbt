@@ -1,9 +1,8 @@
 ///|
-fn metadata_attributes(
-  document : @xml.Document,
+fn metadata_changes(
   node : @xml.Node,
   values : Array[(String, String)],
-) -> @xml.Document raise @failure.Failure {
+) -> Array[@xml.SourceChange] raise @failure.Failure {
   let changes : Array[@xml.SourceChange] = []
   let additions = StringBuilder()
   for (name, value) in values {
@@ -34,6 +33,16 @@ fn metadata_attributes(
       xml: additions.to_string(),
     })
   }
+  changes
+}
+
+///|
+fn metadata_attributes(
+  document : @xml.Document,
+  node : @xml.Node,
+  values : Array[(String, String)],
+) -> @xml.Document raise @failure.Failure {
+  let changes = metadata_changes(node, values)
   if changes.is_empty() {
     document
   } else {

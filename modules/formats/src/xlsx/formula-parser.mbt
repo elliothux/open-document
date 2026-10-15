@@ -30,7 +30,10 @@ priv struct FormulaParser {
 }
 
 ///|
-fn formula_tokens(text : String) -> Array[Token] raise @failure.Failure {
+fn formula_tokens(
+  text : String,
+  spans? : Array[(Int, Int)],
+) -> Array[Token] raise @failure.Failure {
   guard text.length() <= 8192 else {
     @failure.reject("limit-exceeded", "Formula source exceeds budget")
   }
@@ -45,6 +48,7 @@ fn formula_tokens(text : String) -> Array[Token] raise @failure.Failure {
       index += if character.to_int() > 0xffff { 2 } else { 1 }
       continue
     }
+    let token_start = index
     if character == '"' || character == '\'' {
       let quote = character
       index += 1
@@ -71,6 +75,9 @@ fn formula_tokens(text : String) -> Array[Token] raise @failure.Failure {
         )
       }
       tokens.push(Quoted(output.to_string(), quote == '\''))
+      if spans is Some(spans) {
+        spans.push((token_start, index))
+      }
       continue
     }
     if (character >= '0' && character <= '9') ||
@@ -101,6 +108,9 @@ fn formula_tokens(text : String) -> Array[Token] raise @failure.Failure {
         @failure.reject("formula-syntax", "Non-finite numeric constant")
       }
       tokens.push(Numeric(value))
+      if spans is Some(spans) {
+        spans.push((token_start, index))
+      }
       continue
     }
     let one = String::from_array([character])
@@ -118,6 +128,9 @@ fn formula_tokens(text : String) -> Array[Token] raise @failure.Failure {
         index += 1
       }
       tokens.push(Operator(operator))
+      if spans is Some(spans) {
+        spans.push((token_start, index))
+      }
       continue
     }
     guard character != '[' &&
@@ -144,8 +157,14 @@ fn formula_tokens(text : String) -> Array[Token] raise @failure.Failure {
       @failure.reject("formula-syntax", "Invalid formula token")
     }
     tokens.push(Word(text[start:index].to_owned()))
+    if spans is Some(spans) {
+      spans.push((token_start, index))
+    }
   }
   tokens.push(End)
+  if spans is Some(spans) {
+    spans.push((text.length(), text.length()))
+  }
   tokens
 }
 

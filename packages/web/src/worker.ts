@@ -83,6 +83,12 @@ async function dispatch(request: Request): Promise<unknown> {
           request.values,
           request.literal,
         );
+      case "editXlsxSheet":
+        return workbook.editSheet(
+          request.revision,
+          request.sheet,
+          request.change,
+        );
       case "undoXlsx":
         return workbook.undo(request.revision);
       case "redoXlsx":
@@ -134,6 +140,7 @@ async function dispatch(request: Request): Promise<unknown> {
       switch (request.operation) {
         case "openXlsx":
         case "createXlsx":
+        case "editXlsxSheet":
         case "queryXlsx":
         case "selectXlsx":
         case "replaceXlsx":

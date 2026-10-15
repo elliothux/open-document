@@ -4,6 +4,9 @@ import { Command, Group, NativeSlot } from "./controls.js";
 import { messages } from "./messages.js";
 import type { OwnedFile } from "./types.js";
 import { DocxFormatCommands, DocxProperties } from "./docx-format.js";
+import { PptxObjects } from "./pptx-objects.js";
+import { PptxArrange } from "./pptx-arrange.js";
+import { XlsxSheets } from "./xlsx-sheets.js";
 
 interface PanelProps {
   controller: EditorController;
@@ -200,25 +203,14 @@ export function PageList({ controller, state, file, disabled }: PanelProps) {
 
 export function Sheets({ controller, state, file, disabled }: PanelProps) {
   if (file.format !== "xlsx") return null;
-  const editor = file.editor,
-    t = messages(state.locale),
-    query = editor.currentState;
   return (
-    <nav className="od-sheets" aria-label={t.sheet}>
-      {query.sheets
-        .filter((sheet) => sheet.state === "visible")
-        .map((sheet) => (
-          <button
-            type="button"
-            key={sheet.id}
-            aria-current={sheet.id === query.sheet ? "page" : undefined}
-            disabled={disabled}
-            onClick={() => controller.run(() => editor.select("A1", sheet.id))}
-          >
-            {sheet.name}
-          </button>
-        ))}
-    </nav>
+    <XlsxSheets
+      key={state.document?.documentId}
+      controller={controller}
+      state={state}
+      editor={file.editor}
+      disabled={disabled}
+    />
   );
 }
 
@@ -275,6 +267,13 @@ function SlideProperties({ controller, state, file, disabled }: PanelProps) {
         </button>
       </div>
       <p>{selected?.readOnlyReason || selected?.textReadOnlyReason}</p>
+      <PptxObjects
+        key={state.document?.documentId}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
       <fieldset disabled={disabled || !selected || !!selected.readOnlyReason}>
         <legend>{t.transform}</legend>
         <label>
@@ -310,6 +309,13 @@ function SlideProperties({ controller, state, file, disabled }: PanelProps) {
           {t.resize}
         </button>
       </fieldset>
+      <PptxArrange
+        key={`${state.document?.documentId}:${query.selection.object}:${query.revision}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
     </aside>
   );
 }

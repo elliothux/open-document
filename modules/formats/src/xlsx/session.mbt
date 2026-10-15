@@ -1,6 +1,6 @@
 ///|
 priv struct History {
-  edits : Array[(Int, @xml.Edit)]
+  edits : Array[(String, @xml.Edit)]
   bytes : Int
   before : (String, Range)
   after : (String, Range)
@@ -10,7 +10,7 @@ priv struct History {
 pub struct Session {
   priv opc : @opc.Package
   priv main : String
-  priv workbook : @xml.Document
+  priv mut workbook : @xml.Document
   priv budget : @archive.Budget
   priv strings : Array[(String, Bool)]
   priv strings_part : String?
@@ -211,10 +211,14 @@ fn Session::from_package(
   guard !sheets.is_empty() && sheets.any(sheet => sheet.state == "visible") else {
     @failure.reject("malformed-xlsx", "Workbook has no visible worksheet")
   }
-  let active = sheets
-    .iter()
-    .find_first(sheet => sheet.state == "visible")
-    .unwrap().id
+  let active = tree
+    .one(root.id, "bookViews")
+    .bind(node => tree.all(node.id, "workbookView").get(0))
+    .map(node => {
+      natural(node.attribute("activeTab").unwrap_or("0"), sheets.length() - 1)
+    })
+    .unwrap_or(0)
+  let active = sheets[visible_sheet(sheets, active)].id
   let session : Session = {
     opc,
     main,
@@ -381,6 +385,8 @@ pub fn Session::query(
     "canRedo": !self.redo.is_empty(),
     "historyBytes": self.history_bytes,
     "readOnlyReason": self.read_only,
+    "sheetEditReason": self.sheet_edit_reason(),
+    "sheetRenameReason": self.sheet_rename_reason(),
     "diagnostics": self.diagnostics,
     "date1904": self.date1904,
   }
@@ -395,6 +401,11 @@ pub fn Session::select(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let index = self.sheet_index(sheet)
+  guard self.sheets[index].state == "visible" else {
+    @failure.reject(
+      "invalid-sheet", "Show a hidden worksheet before selecting it",
+    )
+  }
   let parsed = Range::parse(range)
   let selected = if parsed.top == parsed.bottom && parsed.left == parsed.right {
     let merged = self.sheets[index].cell_range({

@@ -94,8 +94,42 @@ export interface XlsxQuery {
   canRedo: boolean;
   historyBytes: number;
   readOnlyReason: string;
+  sheetEditReason: string;
+  sheetRenameReason: string;
   diagnostics: string[];
   date1904: boolean;
+}
+
+export type XlsxSheetEdit =
+  | { action: "move"; index: number }
+  | { action: "rename"; name: string }
+  | { action: "visibility"; state: "visible" | "hidden" | "veryHidden" };
+
+export function checkXlsxSheetEdit(value: unknown): void {
+  const change = record(value);
+  if (
+    change.action === "rename" &&
+    typeof change.name === "string" &&
+    change.name.length > 0 &&
+    change.name.length <= 31 &&
+    change.name.isWellFormed() &&
+    !change.name.startsWith("'") &&
+    !change.name.endsWith("'") &&
+    !Array.from(change.name).some(
+      (character) =>
+        character.charCodeAt(0) < 32 || "[]:*?/\\".includes(character),
+    ) &&
+    !change.name.includes("\ufffe") &&
+    !change.name.includes("\uffff")
+  )
+    return;
+  if (change.action === "move" && integer(change.index, 0, 255)) return;
+  if (
+    change.action === "visibility" &&
+    ["visible", "hidden", "veryHidden"].includes(String(change.state))
+  )
+    return;
+  throw new Error("Invalid worksheet edit");
 }
 
 function integer(value: unknown, min: number, max: number): boolean {
@@ -126,6 +160,11 @@ function cellValue(value: unknown): boolean {
 
 export function xlsxQuery(value: unknown): XlsxQuery {
   const query = record(value);
+  if (
+    typeof query.sheetEditReason !== "string" ||
+    typeof query.sheetRenameReason !== "string"
+  )
+    throw new Error("Invalid worksheet edit reason");
   if (
     !hasFields(query, ["mainPart", "sheet", "readOnlyReason"], []) ||
     !integer(query.revision, 0, 2147483647) ||
@@ -298,6 +337,12 @@ export function xlsxViewport(value: unknown): XlsxViewport {
 
 /** One workbook owner; values, XML transactions and history stay in MoonBit. */
 export class XlsxSession extends WasmSession {
+  editSheet(revision: number, sheet: string, change: XlsxSheetEdit): XlsxQuery {
+    checkXlsxSheetEdit(change);
+    return xlsxQuery(
+      this.call({ operation: "editXlsxSheet", revision, sheet, change }),
+    );
+  }
   create(budget: Budget): XlsxQuery {
     return xlsxQuery(this.call({ operation: "createXlsx", budget }));
   }

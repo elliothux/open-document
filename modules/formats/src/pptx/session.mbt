@@ -15,6 +15,7 @@ pub struct Session {
   priv mut candidate : Candidate?
   priv mut view : View?
   priv mut sequence : Int
+  priv mut object_sequence : Int64
   priv mut closed : Bool
 }
 
@@ -289,6 +290,7 @@ fn Session::from_package(
     candidate: None,
     view: None,
     sequence: 0,
+    object_sequence: 1,
     closed: false,
   }
   session.validate(slides[0])
@@ -411,6 +413,10 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
         "text": object.text(),
         "readOnlyReason": object.read_only,
         "textReadOnlyReason": object.text_reason,
+        "deleteReason": self.object_edit_reason(object, "delete"),
+        "duplicateReason": self.object_edit_reason(object, "duplicate"),
+        "rotateReason": self.object_edit_reason(object, "rotate"),
+        "arrangeReason": self.object_edit_reason(object, "arrange"),
         "geometry": object.geometry
         .map(value => {
           let json : Json = {
@@ -418,6 +424,9 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
             "y": value.y,
             "width": value.width,
             "height": value.height,
+            "rotation": value.rotation,
+            "flipX": value.flip_x,
+            "flipY": value.flip_y,
             "matrix": value.matrix,
           }
           json

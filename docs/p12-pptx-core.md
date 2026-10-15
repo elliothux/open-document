@@ -2,7 +2,7 @@
 
 状态：`planned`，第 1 批实施中。基于 [P6 PPTX](implemented/p6-pptx-editing.md)和已完成的 [P9](implemented/p9-web-sdk-ui.md)。复用 [P10](p10-docx-core.md) 已交付的包写入，并按实际需要复用 P10 / [P11](p11-xlsx-core.md) 的文字、图形和图表能力。属于功能优先级 P0。空白创建已接通，其余能力仍按下面的范围实施。顺序归[路线图](references/roadmap.md)，当前 API 归[格式合同](references/formats.md#pptx)，功能依据归 [G3](g3-genoffice-sdk-gap.md#演示pptx)。
 
-当前进度：核心创建 960×540 pt 的单页空白文稿，包含版式、母版、主题和完整部件关系。同步 Wasm、Worker 和默认 UI 接通创建、首次保存、另存、保存重开与单页静态 PDF；新文稿尚无对象。保存失败与替换取消保留当前会话。页面结构、对象插入和后续批次尚未完成，不标记第 1 批或整个 P12 完成。
+当前进度：核心创建 960×540 pt 的单页空白文稿，包含版式、母版、主题和完整部件关系。同步 Wasm、Worker 和默认 UI 接通创建、首次保存、另存、保存重开与静态 PDF。支持插入文本框、矩形、椭圆和直线；支持本地顶层形状/图片的单对象复制、删除、旋转、水平/垂直翻转及层次调整，保留源格式、关系及撤销重做。保存失败与替换取消保留当前会话。页面结构、多选、更多几何和后续批次尚未完成，不标记第 1 批或整个 P12 完成。
 
 ## 1. 用户结果与范围
 
@@ -52,6 +52,10 @@
 组合将成员从页面坐标转换到组内坐标，并保留层次与对象身份；取消组合用完整矩阵还原，不能只加减 x/y。对齐/分布由核心计算，区分相对于页面、选区和关键对象。连接线保存端点对象/连接点，目标移动时更新；目标删除时执行明确的断开或删除规则。
 
 插入首批支持矩形、圆角矩形、椭圆、线、箭头、文本框与墨迹路径；再按实际工具组扩展几何。未知形状保留源和只读原因，不能改成矩形后覆盖源对象。
+
+当前已接通 `editPptxObjects` 与 `PresentationEditor.editObjects`，具体合同归[格式说明](references/formats.md#pptx)。新对象在最上层；复制分配会话内未使用的新身份，保留旋转、翻转、格式与图片关系，默认 UI 平移 18 pt。删除清空对象选择，撤销恢复原身份与选择。锁定、继承、组成员、未知扩展复制及带连接/计时引用的删除仍受保护；待对应事务实现后开放。当前操作仅修改所属 slide XML，保留其他部件及资源。
+
+单对象角度输入为绝对角度，翻转切换对象局部轴状态。置顶/置底及前移/后移一层按所属 `spTree` 顺序操作，不改变对象身份或位于其间的注释。相同角度、已到达层次边界时不新增历史。旋转遵守 `noRot`，翻转和层次操作继续使用各自保护；组/母版编辑与多选操作尚未接通。
 
 ### 3.3 原子保存和资源
 
@@ -141,6 +145,7 @@ P9 shell 增加页标签菜单、插入、文本/形状/图片、母版、动画
 | --- | --- |
 | [GenOffice 页面操作][gen-slides]、[播放实现][gen-animation] | 核对页面、动画、触发和媒体的用户能力；其中效果近似不作为 Office 算法标准 |
 | [ONLYOFFICE Presentation][oo-presentation]、[Slide][oo-slide] | 页面复制/移动、版式/母版与对象的首要实现入口；已核对页重排中的历史及身份处理 |
+| [ONLYOFFICE CommonController][oo-controller] | 核对层次按对象序列移动、相邻操作到达边界即停止的规则 |
 | [LibreOffice PPTX 输出用例][lo-pptx] | 次要参考；已阅读占位符身份在输出中保留的检查，不用“形状看起来一样”代替继承验证 |
 
 每批选择能证明新操作的输入，复用既有 PPTX/P9 功能流程和资源上限；不预设全效果、全编码或全动画矩阵。
@@ -162,4 +167,5 @@ P9 shell 增加页标签菜单、插入、文本/形状/图片、母版、动画
 [gen-animation]: https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/slides/src/renderer/animation-play.ts
 [oo-presentation]: https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js
 [oo-slide]: https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js
+[oo-controller]: https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js
 [lo-pptx]: https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sd/qa/unit/export-tests-ooxml1.cxx

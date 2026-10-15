@@ -23,7 +23,18 @@ export interface PptxObject {
   text: string;
   readOnlyReason: string;
   textReadOnlyReason: string;
-  geometry: (DrawRect & { matrix: DrawMatrix }) | null;
+  deleteReason: string;
+  duplicateReason: string;
+  rotateReason: string;
+  arrangeReason: string;
+  geometry:
+    | (DrawRect & {
+        matrix: DrawMatrix;
+        rotation: number;
+        flipX: boolean;
+        flipY: boolean;
+      })
+    | null;
 }
 export interface PptxQuery {
   revision: number;
@@ -67,10 +78,32 @@ export interface PptxHit {
   textReadOnlyReason: string;
 }
 
+export type PptxObjectEdit =
+  | {
+      action: "insert";
+      kind: "text" | "rect" | "ellipse" | "line";
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      text: string;
+    }
+  | { action: "delete" }
+  | { action: "duplicate"; dx: number; dy: number }
+  | { action: "rotate"; angle: number }
+  | { action: "flip"; axis: "horizontal" | "vertical" }
+  | { action: "layer"; order: "front" | "back" | "forward" | "backward" };
+
 export type PptxCommand =
   | { operation: "createPptx"; budget: Budget }
   | { operation: "openPptx"; bytes: Uint8Array; budget: Budget }
   | { operation: "queryPptx" }
+  | {
+      operation: "editPptxObjects";
+      revision: number;
+      change: PptxObjectEdit;
+      profile: Record<string, string>;
+    }
   | ({ operation: "selectPptx"; revision: number } & PptxSelection)
   | {
       operation: "replacePptx";
@@ -166,6 +199,7 @@ const names: ReadonlySet<string> = new Set([
   "openPptx",
   "createPptx",
   "queryPptx",
+  "editPptxObjects",
   "selectPptx",
   "replacePptx",
   "deletePptx",
@@ -208,6 +242,61 @@ function integer(value: unknown, high = 0x7fffffff): void {
   if (!Number.isInteger(number(value, 0, high)))
     throw new Error("Invalid PPTX integer");
 }
+export function checkPptxObjectEdit(value: unknown): void {
+  const change = record(value);
+  if (change.action === "delete") return;
+  if (change.action === "rotate") {
+    number(change.angle, -360, 360);
+    return;
+  }
+  if (
+    change.action === "flip" &&
+    ["horizontal", "vertical"].includes(String(change.axis))
+  )
+    return;
+  if (
+    change.action === "layer" &&
+    ["front", "back", "forward", "backward"].includes(String(change.order))
+  )
+    return;
+  if (change.action === "duplicate") {
+    number(change.dx, -14400, 14400);
+    number(change.dy, -14400, 14400);
+    return;
+  }
+  if (
+    change.action !== "insert" ||
+    !["text", "rect", "ellipse", "line"].includes(String(change.kind))
+  )
+    throw new Error("Invalid PPTX object edit");
+  number(change.x, -14400, 14400);
+  number(change.y, -14400, 14400);
+  const width = number(change.width, 0, 14400),
+    height = number(change.height, 0, 14400);
+  if (!(
+    (width >= 0.1 && height >= 0.1) ||
+    (change.kind === "line" && width + height >= 0.1)
+  ))
+    throw new Error("Invalid PPTX object size");
+  const text = change.text;
+  if (
+    typeof text !== "string" ||
+    !text.isWellFormed() ||
+    text.length > 32767 ||
+    Array.from(text).some((character) => {
+      const code = character.charCodeAt(0);
+      return (
+        (code < 32 && code !== 9 && code !== 10) ||
+        code === 65534 ||
+        code === 65535
+      );
+    }) ||
+    text.split("\n").length > 256 ||
+    text.split("\n").some((p) => p.length > 4096) ||
+    (change.kind === "line" && text !== "")
+  )
+    throw new Error("Invalid PPTX object text");
+}
 function strings(value: unknown, count: number, units: number): void {
   if (
     !Array.isArray(value) ||
@@ -222,6 +311,9 @@ function geometry(value: unknown): void {
   number(rect.y, -14400, 14400);
   number(rect.width, 0, 14400);
   number(rect.height, 0, 14400);
+  number(rect.rotation, -360, 360);
+  if (typeof rect.flipX !== "boolean" || typeof rect.flipY !== "boolean")
+    throw new Error("Invalid PPTX orientation");
   drawingMatrix(rect.matrix);
 }
 function points(value: unknown, max = 4): void {
@@ -276,7 +368,18 @@ export function pptxQuery(value: unknown): PptxQuery {
     if (
       !hasFields(
         object,
-        ["id", "name", "kind", "text", "readOnlyReason", "textReadOnlyReason"],
+        [
+          "id",
+          "name",
+          "kind",
+          "text",
+          "readOnlyReason",
+          "textReadOnlyReason",
+          "deleteReason",
+          "duplicateReason",
+          "rotateReason",
+          "arrangeReason",
+        ],
         [],
       ) ||
       typeof object.id !== "string" ||
@@ -383,6 +486,8 @@ export function pptxResult<C extends PptxCommand>(
 /** One presentation per core session. Commands retain format-specific semantics. */
 export class PptxSession extends WasmSession {
   execute<C extends PptxCommand>(command: C): PptxResult<C> {
+    if (command.operation === "editPptxObjects")
+      checkPptxObjectEdit(command.change);
     let value: unknown;
     if (
       command.operation === "savePptx" ||

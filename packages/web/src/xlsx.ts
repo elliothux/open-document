@@ -1,6 +1,8 @@
 import { Connection } from "./connection.js";
 import {
   xlsxQuery,
+  checkXlsxSheetEdit,
+  type XlsxSheetEdit,
   xlsxViewport,
   xlsxPrintLayout,
   xlsxSelection,
@@ -12,6 +14,7 @@ import {
 } from "@open-document/wasm/xlsx";
 import type { DrawRect } from "@open-document/wasm/drawing";
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
+export type { XlsxSheetEdit } from "@open-document/wasm/xlsx";
 
 /** Browser workbook transport; one Worker owns the complete core session. */
 export class XlsxClient {
@@ -70,6 +73,21 @@ export class XlsxClient {
         revision,
         sheet,
         range,
+      }),
+    );
+  }
+  async editSheet(
+    revision: number,
+    sheet: string,
+    change: XlsxSheetEdit,
+  ): Promise<XlsxQuery> {
+    checkXlsxSheetEdit(change);
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "editXlsxSheet",
+        revision,
+        sheet,
+        change,
       }),
     );
   }

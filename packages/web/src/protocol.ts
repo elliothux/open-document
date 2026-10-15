@@ -13,7 +13,11 @@ import type {
   DocxListLevelUpdate,
   DocxPageSetup,
 } from "@open-document/wasm/foundation";
-import type { GridViewport, PrintOptions } from "@open-document/wasm/xlsx";
+import type {
+  GridViewport,
+  PrintOptions,
+  XlsxSheetEdit,
+} from "@open-document/wasm/xlsx";
 import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
 
@@ -55,6 +59,12 @@ export type Operation =
   | { operation: "openSpreadsheet"; wasm: ArrayBuffer }
   | { operation: "openXlsx"; bytes: Uint8Array; budget: Budget }
   | { operation: "createXlsx"; budget: Budget }
+  | {
+      operation: "editXlsxSheet";
+      revision: number;
+      sheet: string;
+      change: XlsxSheetEdit;
+    }
   | {
       operation: "queryXlsx";
       sheet?: string | undefined;
