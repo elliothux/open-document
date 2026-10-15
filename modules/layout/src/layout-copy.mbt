@@ -5,6 +5,7 @@ fn PlacedRun::copy_geometry(self : PlacedRun) -> PlacedRun {
     sources: self.sources.copy(),
     glyphs: self.glyphs.copy(),
     bidi: self.bidi.copy(),
+    decorations: self.decorations.copy(),
   }
 }
 

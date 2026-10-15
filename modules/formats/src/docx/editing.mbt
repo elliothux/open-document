@@ -202,7 +202,7 @@ fn Session::check_position_in(
   let texts = docx_texts(tree).filter(node => {
     node.paragraph == position.paragraph
   })
-  let text = texts.map(node => nodes[node.id].text).join("")
+  let text = texts.map(node => inline_text(nodes[node.id])).join("")
   validate_position(position, editing_boundaries(text, check_graphemes))
 }
 
@@ -284,15 +284,19 @@ fn Session::prepare_plain_range(
   guard text.length() <= command_limit else {
     @failure.reject("limit-exceeded", "Command input exceeds UTF-16 budget")
   }
-  guard @xml.valid_text(text) && !text.contains("\r") && !text.contains("\t") else {
+  guard @xml.valid_text(text) && !text.contains("\r") else {
     @failure.reject(
-      "invalid-operation", "Paragraph input must be valid XML text without CR or tab",
+      "invalid-operation", "Paragraph input must be valid XML text without CR",
     )
   }
   let anchor = selection.anchor
   let focus = selection.focus
   if input_group is Some(group) {
-    guard group > 0 && !text.is_empty() && !text.contains("\n") else {
+    guard group > 0 &&
+      !text.is_empty() &&
+      !text.contains("\n") &&
+      !text.contains("\u2028") &&
+      !text.contains("\t") else {
       @failure.reject(
         "invalid-operation", "Input group requires a positive id and ordinary input without LF",
       )
@@ -305,7 +309,7 @@ fn Session::prepare_plain_range(
   }
   let nodes = WordTree::new(self.document()).nodes
   let texts = self.editable_texts(anchor.paragraph)
-  let content = texts.map(node => nodes[node.id].text).join("")
+  let content = texts.map(node => inline_text(nodes[node.id])).join("")
   let boundaries = editing_boundaries(content, check_graphemes)
   validate_position(anchor, boundaries)
   validate_position(focus, boundaries)
@@ -326,7 +330,7 @@ fn Session::prepare_plain_range(
     self.selection == Some(selection) &&
     !text.is_empty()
   let insertion = for node in texts; offset = 0 {
-    let length = nodes[node.id].text.length()
+    let length = inline_text(nodes[node.id]).length()
     if continuing &&
       self.typing_text == Some(node.id) &&
       start >= offset &&
@@ -344,7 +348,7 @@ fn Session::prepare_plain_range(
   let changes : Map[Int, String] = Map([])
   let mut offset = 0
   for node in texts {
-    let before = nodes[node.id].text
+    let before = inline_text(nodes[node.id])
     let length = before.length()
     let left = (start - offset).clamp(min=0, max=length)
     let right = (end - offset).clamp(min=0, max=length)
@@ -411,7 +415,7 @@ fn Session::prepare_text(
   after : Selection?,
   paragraph : Int,
 ) -> PreparedEdit raise @failure.Failure {
-  let (candidate, xml) = self.document().edit_text(changes)
+  let (candidate, xml) = self.edit_inline_text(self.document(), changes)
   {
     edit: {
       xml: [xml],

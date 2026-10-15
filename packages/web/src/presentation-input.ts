@@ -75,6 +75,7 @@ export class PresentationInput extends NativeTextInput<PptxQuery> {
             extend,
           }),
         softBreak: "\u2028",
+        nativeEnter: false,
       },
       host,
     );

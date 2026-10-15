@@ -4,6 +4,13 @@ export type {
   CharacterFormatPatch,
   ParagraphFormatPatch,
   DocxFormatting,
+  DocxFindOptions,
+  DocxSearchResult,
+  HighlightColor,
+} from "@open-document/wasm/foundation";
+export {
+  highlightColors,
+  DOCX_SOFT_BREAK,
 } from "@open-document/wasm/foundation";
 import {
   docxFlow,
@@ -18,6 +25,10 @@ import {
   editState,
   docxFormatting,
   checkFormatPatch,
+  checkFindOptions,
+  docxSearchResult,
+  type DocxFindOptions,
+  type DocxSearchResult,
   type DocxFormatting,
   type CharacterFormatPatch,
   type ParagraphFormatPatch,
@@ -134,6 +145,45 @@ export class FoundationClient {
   }
   async editState(): Promise<EditState> {
     return editState(await this.connection.request({ operation: "editState" }));
+  }
+  async tabDocx(revision: number, backward = false): Promise<EditState> {
+    return editState(
+      await this.connection.request({
+        operation: "tabDocx",
+        revision,
+        backward,
+      }),
+    );
+  }
+
+  async findDocx(
+    revision: number,
+    text: string,
+    options: DocxFindOptions = {},
+  ): Promise<DocxSearchResult> {
+    checkFindOptions(options);
+    return docxSearchResult(
+      await this.connection.request({
+        operation: "findDocx",
+        revision,
+        text,
+        options,
+      }),
+    );
+  }
+  async replaceDocxMatches(
+    revision: number,
+    matches: DocxSelection[],
+    text: string,
+  ): Promise<EditState> {
+    return editState(
+      await this.connection.request({
+        operation: "replaceDocxMatches",
+        revision,
+        matches,
+        text,
+      }),
+    );
   }
 
   async beginComposition(revision: number): Promise<EditState> {

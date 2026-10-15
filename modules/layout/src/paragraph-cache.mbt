@@ -42,10 +42,13 @@ fn paragraph_cache_units(key : String, lines : Array[Line]) -> Int {
       units += 4 + image.key.length()
     }
     for run in line.runs {
-      units += 3 +
+      units += 5 +
         run.text.length() +
         run.color.length() +
         run.sources.length() * 4
+      for decoration in run.decorations {
+        units += 4 + decoration.highlight.length()
+      }
       for glyph in run.glyphs {
         units += 10 + glyph.outline.length()
       }
@@ -64,6 +67,7 @@ fn paragraph_cache_units(key : String, lines : Array[Line]) -> Int {
 fn Paragraph::finite_geometry(paragraph : Paragraph) -> Bool {
   let numbers = [
     paragraph.nominalSize,
+    paragraph.defaultTab,
     paragraph.before,
     paragraph.after,
     paragraph.left,

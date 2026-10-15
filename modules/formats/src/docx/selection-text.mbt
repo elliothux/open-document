@@ -93,7 +93,7 @@ pub fn Session::selected_text(
   for index, paragraph in range.paragraphs {
     let text = self
       .editable_texts(paragraph)
-      .map(node => tree.nodes[node.id].text)
+      .map(node => inline_text(tree.nodes[node.id]))
       .join("")
     let start = if paragraph == range.start.paragraph {
       range.start.offset
@@ -112,7 +112,9 @@ pub fn Session::selected_text(
     if index > 0 {
       output.write_string("\n")
     }
-    output.write_string(text[start:end].to_owned())
+    output.write_string(
+      text[start:end].to_owned().replace_all(old="\u2028", new="\n"),
+    )
   }
   output.to_string()
 }

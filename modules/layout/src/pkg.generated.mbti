@@ -282,6 +282,7 @@ pub(all) struct Paragraph {
   container : Int
   nominalSize : Double
   spans : Array[Span]
+  defaultTab : Double
   before : Double
   after : Double
   line : LineSpacing
@@ -322,6 +323,9 @@ pub(all) struct PlacedRun {
   bidi : Array[GlyphRun]
   x : Double
   baseline : Double
+  nominalSize : Double
+  rise : Double
+  decorations : Array[TextDecoration]
 } derive(ToJson)
 pub fn PlacedRun::to_json(Self) -> Json
 
@@ -444,6 +448,15 @@ pub(all) struct TextBlock {
   height : Double
 }
 
+pub(all) struct TextDecoration {
+  x : Double
+  width : Double
+  underline : Bool
+  strike : Bool
+  highlight : String
+} derive(ToJson)
+pub fn TextDecoration::to_json(Self) -> Json
+
 pub struct TextProbe {
   fonts : Array[Font]
   outlines : Map[String, String]
@@ -472,7 +485,12 @@ pub(all) struct TextStyle {
   font : String
   size : Double
   color : String
+  underline : Bool
+  strike : Bool
+  highlight : String
+  script : String
 } derive(ToJson)
+pub fn TextStyle::new(String, Double, String) -> Self
 pub fn TextStyle::to_json(Self) -> Json
 
 // Type aliases

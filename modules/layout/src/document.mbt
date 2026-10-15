@@ -3,7 +3,44 @@ pub(all) struct TextStyle {
   font : String
   size : Double
   color : String
+  underline : Bool
+  strike : Bool
+  highlight : String
+  script : String
 } derive(ToJson)
+
+///|
+pub fn TextStyle::new(
+  font : String,
+  size : Double,
+  color : String,
+) -> TextStyle {
+  {
+    font,
+    size,
+    color,
+    underline: false,
+    strike: false,
+    highlight: "",
+    script: "baseline",
+  }
+}
+
+///|
+fn TextStyle::render_size(self : TextStyle) -> Double {
+  self.size * (if self.script == "baseline" { 1.0 } else { 0.65 })
+}
+
+///|
+fn TextStyle::rise(self : TextStyle) -> Double {
+  // ONLYOFFICE commonDefines.js: vaKSuper/vaKSub, in units of nominal font size.
+  self.size *
+  (match self.script {
+    "superscript" => 0.35
+    "subscript" => -0.141
+    _ => 0.0
+  })
+}
 
 ///|
 pub extend TextStyle with ToJson::{to_json}
@@ -54,6 +91,7 @@ pub(all) struct Paragraph {
   container : Int
   nominalSize : Double
   spans : Array[Span]
+  defaultTab : Double
   before : Double
   after : Double
   line : LineSpacing
@@ -107,7 +145,22 @@ pub(all) struct PlacedRun {
   bidi : Array[GlyphRun]
   x : Double
   baseline : Double
+  nominalSize : Double
+  rise : Double
+  decorations : Array[TextDecoration]
 } derive(ToJson)
+
+///|
+pub(all) struct TextDecoration {
+  x : Double
+  width : Double
+  underline : Bool
+  strike : Bool
+  highlight : String
+} derive(ToJson)
+
+///|
+pub extend TextDecoration with ToJson::{to_json}
 
 ///|
 pub extend PlacedRun with ToJson::{to_json}

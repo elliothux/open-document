@@ -232,7 +232,7 @@ fn field_appearance(
     }
     let block = probe.text_block(
       text,
-      { font: "form", size: current, color, },
+      @layout.TextStyle::new("form", current, color),
       font_profile,
       width - padding * 2,
       field.multiline,

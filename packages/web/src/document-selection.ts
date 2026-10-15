@@ -3,7 +3,37 @@ import type { FoundationClient } from "./foundation.js";
 import type {
   DocxPosition,
   DocxSelection,
+  DocxSearchResult,
 } from "@open-document/wasm/foundation";
+import type { EditorSnapshot } from "./editor-state.js";
+
+export interface DocumentSearchResult extends DocxSearchResult {
+  documentId: string;
+}
+
+export function searchSelections(
+  result: DocumentSearchResult,
+  snapshot: EditorSnapshot,
+  index?: number,
+): DocxSelection[] {
+  const reject = (message: string): never => {
+    throw new DocumentError("stale-search", message, "", -1);
+  };
+  if (
+    result.documentId !== snapshot.documentId ||
+    result.revision !== snapshot.revision
+  )
+    reject("Document changed; find again before using this result");
+  if (index === undefined && result.truncated)
+    reject("Narrow the search before replacing all matches");
+  const matches =
+    index === undefined ? result.matches : [result.matches[index]];
+  return matches.map((item) => {
+    if (!item || item.reason)
+      return reject(item?.reason || "Search match is missing");
+    return item.selection;
+  });
+}
 
 export function sameDocxSelection(
   a: DocxSelection | null,

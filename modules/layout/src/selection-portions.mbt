@@ -28,9 +28,8 @@ fn Line::selection_portion(
 ) -> SelectionBox {
   let mut left = 1.0 / 0.0
   let mut right = -1.0 / 0.0
-  let mut ascent = 0.0
-  let mut descent = 0.0
-  let mut baseline = self.y
+  let mut top = 1.0 / 0.0
+  let mut bottom = -1.0 / 0.0
   for i = 0; i + 1 < self.carets.length(); i = i + 1 {
     let a = self.carets[i]
     let b = self.carets[i + 1]
@@ -50,17 +49,16 @@ fn Line::selection_portion(
           font.upem,
           glyph.scale * font.upem.to_double(),
         )
-        ascent = ascent.max(a)
-        descent = descent.max(d)
-        baseline = run.baseline
+        top = top.min(run.baseline - a)
+        bottom = bottom.max(run.baseline + d)
       }
     }
   }
   {
     left: selection_twips(left),
     right: selection_twips(right),
-    top: selection_twips(baseline - ascent),
-    bottom: selection_twips(baseline + descent),
+    top: selection_twips(if top.is_inf() { self.y } else { top }),
+    bottom: selection_twips(if bottom.is_inf() { self.y } else { bottom }),
   }
 }
 

@@ -1,4 +1,6 @@
 import { WasmSession, encodeBytes } from "./session.js";
+/** Logical soft line break; DOCX serializes it as w:br, while LF creates a paragraph. */
+export const DOCX_SOFT_BREAK = "\u2028";
 import {
   docxFlow,
   pageLayout,
@@ -6,6 +8,19 @@ import {
   type PageLayout,
 } from "./preview.js";
 import { record, hasFields, arrayOf, glyphs } from "./validation.js";
+import {
+  checkFindOptions,
+  docxSearchResult,
+  isDocxSelection,
+  type DocxFindOptions,
+  type DocxSearchResult,
+} from "./docx-search.js";
+export {
+  checkFindOptions,
+  docxSearchResult,
+  type DocxFindOptions,
+  type DocxSearchResult,
+} from "./docx-search.js";
 
 export interface Budget {
   fileBytes: number;
@@ -149,7 +164,31 @@ export interface CharacterFormatPatch {
   color?: string | null;
   bold?: boolean | null;
   italic?: boolean | null;
+  underline?: boolean | null;
+  strike?: boolean | null;
+  highlight?: HighlightColor | null;
+  vertAlign?: "baseline" | "superscript" | "subscript" | null;
 }
+export const highlightColors = [
+  "none",
+  "black",
+  "blue",
+  "cyan",
+  "green",
+  "magenta",
+  "red",
+  "yellow",
+  "white",
+  "darkBlue",
+  "darkCyan",
+  "darkGreen",
+  "darkMagenta",
+  "darkRed",
+  "darkYellow",
+  "darkGray",
+  "lightGray",
+] as const;
+export type HighlightColor = (typeof highlightColors)[number];
 export interface ParagraphFormatPatch {
   align?: "left" | "center" | "right" | null;
   before?: number | null;
@@ -170,6 +209,10 @@ export interface DocxFormatting {
     color: FormatValue<string>;
     bold: FormatValue<boolean>;
     italic: FormatValue<boolean>;
+    underline: FormatValue<boolean>;
+    strike: FormatValue<boolean>;
+    highlight: FormatValue<HighlightColor>;
+    vertAlign: FormatValue<"baseline" | "superscript" | "subscript">;
   };
   paragraph: {
     align: FormatValue<string>;
@@ -203,6 +246,10 @@ export function checkFormatPatch(
         color: "string",
         bold: "boolean",
         italic: "boolean",
+        underline: "boolean",
+        strike: "boolean",
+        highlight: "string",
+        vertAlign: "string",
       };
   for (const [key, value] of Object.entries(record(format))) {
     if (paragraph && key === "line" && value !== null && value !== undefined) {
@@ -249,9 +296,13 @@ export function docxFormatting(value: unknown): DocxFormatting {
     !Number.isSafeInteger(result.revision) ||
     Number(result.revision) < 0 ||
     typeof result.reason !== "string" ||
-    !["family", "color"].every((key) => field(character[key], "string")) ||
+    !["family", "color", "highlight", "vertAlign"].every((key) =>
+      field(character[key], "string"),
+    ) ||
     !field(character.size, "number") ||
-    !["bold", "italic"].every((key) => field(character[key], "boolean")) ||
+    !["bold", "italic", "underline", "strike"].every((key) =>
+      field(character[key], "boolean"),
+    ) ||
     !field(paragraph.align, "string") ||
     !["before", "after", "left", "right", "first"].every((key) =>
       field(paragraph[key], "number"),
@@ -267,21 +318,6 @@ export function editState(value: unknown): EditState {
   const object = record(value);
   const integer = (value: unknown): boolean =>
     typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-  const position = (value: unknown): boolean => {
-    const object = record(value);
-    return (
-      integer(object.paragraph) &&
-      integer(object.offset) &&
-      (object.bidiLevel === undefined ||
-        (integer(object.bidiLevel) && Number(object.bidiLevel) <= 126)) &&
-      (object.frameStart === undefined ||
-        (integer(object.frameStart) &&
-          Number(object.frameStart) <= 2147483647 &&
-          Number(object.frameStart) > Number(object.offset))) &&
-      (object.affinity === "before" || object.affinity === "after")
-    );
-  };
-  const selection = object.selection === null ? null : record(object.selection);
   if (object.formatting !== null) docxFormatting(object.formatting);
   if (
     ![
@@ -297,8 +333,7 @@ export function editState(value: unknown): EditState {
     typeof object.canUndo !== "boolean" ||
     typeof object.canRedo !== "boolean" ||
     !arrayOf(object.affectedParagraphs, integer) ||
-    (selection !== null &&
-      (!position(selection.anchor) || !position(selection.focus)))
+    (object.selection !== null && !isDocxSelection(object.selection))
   )
     throw new Error("Invalid DOCX editing state returned by Wasm");
   return value as EditState;
@@ -524,6 +559,29 @@ export class FoundationSession extends WasmSession {
 
   editState(): EditState {
     return editState(this.call({ operation: "editState" }));
+  }
+  tabDocx(revision: number, backward = false): EditState {
+    return editState(this.call({ operation: "tabDocx", revision, backward }));
+  }
+
+  findDocx(
+    revision: number,
+    text: string,
+    options: DocxFindOptions = {},
+  ): DocxSearchResult {
+    checkFindOptions(options);
+    return docxSearchResult(
+      this.call({ operation: "findDocx", revision, text, options }),
+    );
+  }
+  replaceDocxMatches(
+    revision: number,
+    matches: DocxSelection[],
+    text: string,
+  ): EditState {
+    return editState(
+      this.call({ operation: "replaceDocxMatches", revision, matches, text }),
+    );
   }
 
   beginComposition(revision: number): EditState {

@@ -91,7 +91,10 @@ fn formatted_properties(
       .unwrap_or("")
   }
   let order = if kind == "rPr" {
-    ["rStyle", "rFonts", "b", "bCs", "i", "iCs", "color", "sz", "szCs", "lang"]
+    [
+      "rStyle", "rFonts", "b", "bCs", "i", "iCs", "strike", "color", "sz", "szCs",
+      "highlight", "u", "vertAlign", "lang",
+    ]
   } else {
     [
       "pStyle", "pageBreakBefore", "spacing", "ind", "jc", "autoSpaceDE", "autoSpaceDN",

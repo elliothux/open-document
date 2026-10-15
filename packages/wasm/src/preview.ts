@@ -6,6 +6,10 @@ export interface TextStyle {
   font: string;
   size: number;
   color: string;
+  underline: boolean;
+  strike: boolean;
+  highlight: string;
+  script: "baseline" | "superscript" | "subscript";
 }
 
 export interface DocxFlow {
@@ -23,6 +27,7 @@ export interface DocxFlow {
     id: number;
     container: number;
     nominalSize: number;
+    defaultTab: number;
     spans: {
       node: number;
       text: string;
@@ -132,6 +137,7 @@ export function docxFlow(value: unknown): DocxFlow {
         "id",
         "container",
         "nominalSize",
+        "defaultTab",
         "before",
         "after",
         "left",
@@ -153,7 +159,17 @@ export function docxFlow(value: unknown): DocxFlow {
       throw new Error("Invalid paragraph flags");
     for (const value of entries(paragraph.spans)) {
       const span = fields(value, ["node"], ["text"]);
-      fields(span.style, ["size"], ["font", "color"]);
+      const style = fields(
+        span.style,
+        ["size"],
+        ["font", "color", "highlight", "script"],
+      );
+      if (
+        typeof style.underline !== "boolean" ||
+        typeof style.strike !== "boolean" ||
+        !["baseline", "superscript", "subscript"].includes(String(style.script))
+      )
+        throw new Error("Invalid preview text decoration");
       if (span.image !== null) fields(span.image, ["width", "height"], ["key"]);
     }
   }

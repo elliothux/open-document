@@ -199,6 +199,10 @@ fn Session::preserve_run_style(
       ("iCs", extras["iCs.val"]),
       ("color", before.color),
       ("sz", (before.size * 2).to_int().to_string()),
+      ("u", if before.underline { "single" } else { "none" }),
+      ("strike", if before.strike { "1" } else { "0" }),
+      ("highlight", before.highlight),
+      ("vertAlign", before.vertAlign),
     ] {
     fields.write_string(
       "<od:\{name} xmlns:od=\"\{word_uri}\" od:val=\"\{value}\"/>",

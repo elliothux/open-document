@@ -11,14 +11,14 @@ fn replacement_paragraph(
   tree : WordTree,
   nodes : Array[TextNode],
 ) -> ReplaceParagraph {
-  let nodes = nodes.filter(node => !tree.nodes[node.id].text.is_empty())
+  let nodes = nodes.filter(node => !inline_text(tree.nodes[node.id]).is_empty())
   let starts : Array[Int] = []
   let ends : Array[Int] = []
   let out = StringBuilder()
   let mut offset = 0
   for item in nodes {
     starts.push(offset)
-    let text = tree.nodes[item.id].text
+    let text = inline_text(tree.nodes[item.id])
     offset += text.length()
     ends.push(offset)
     out.write_string(text)
@@ -65,7 +65,7 @@ fn Session::plain_replacements(
       let item = frame.nodes[index]
       let start = (target.anchor.offset - frame.starts[index]).max(0)
       let end = (target.focus.offset - frame.starts[index]).min(
-        tree.nodes[item.id].text.length(),
+        inline_text(tree.nodes[item.id]).length(),
       )
       let values = edits.get(item.id).unwrap_or([])
       values.push((start, end, if index == first { text } else { "" }))
@@ -74,7 +74,7 @@ fn Session::plain_replacements(
   }
   let changes : Map[Int, String] = Map([])
   for id, values in edits {
-    let before = tree.nodes[id].text
+    let before = inline_text(tree.nodes[id])
     let out = StringBuilder()
     let mut cursor = 0
     for (start, end, value) in values {
@@ -91,12 +91,12 @@ fn Session::plain_replacements(
   if changes.is_empty() {
     return None
   }
-  let (document, xml) = self.document().edit_text(changes)
+  let (document, xml) = self.edit_inline_text(self.document(), changes)
   let tree = WordTree::new(document)
   let first = targets[0].anchor
   let updated = docx_texts(tree)
     .filter(node => node.paragraph == first.paragraph)
-    .map(node => tree.nodes[node.id].text)
+    .map(node => inline_text(tree.nodes[node.id]))
     .join("")
   let boundaries = @layout.grapheme_boundaries(updated)
   let offset = first.offset + text.length()
@@ -132,8 +132,7 @@ pub fn Session::replace_matches(
   guard matches.length() <= 1000 &&
     text.length() <= command_limit &&
     @xml.valid_text(text) &&
-    !text.contains("\r") &&
-    !text.contains("\t") else {
+    !text.contains("\r") else {
     @failure.reject(
       "invalid-operation", "Invalid replacement input or match count",
     )

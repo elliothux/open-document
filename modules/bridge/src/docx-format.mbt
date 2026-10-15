@@ -67,7 +67,8 @@ fn character_format(
   request : Json,
 ) -> @docx.CharacterFormat raise @failure.Failure {
   let fields = format_fields(request, [
-    "family", "size", "color", "bold", "italic",
+    "family", "size", "color", "bold", "italic", "underline", "strike", "highlight",
+    "vertAlign",
   ])
   @docx.CharacterFormat::new(
     family=format_string(fields, "family"),
@@ -75,6 +76,10 @@ fn character_format(
     color=format_string(fields, "color"),
     bold=format_boolean(fields, "bold"),
     italic=format_boolean(fields, "italic"),
+    underline=format_boolean(fields, "underline"),
+    strike=format_boolean(fields, "strike"),
+    highlight=format_string(fields, "highlight"),
+    vertAlign=format_string(fields, "vertAlign"),
   )
 }
 

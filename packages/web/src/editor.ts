@@ -1,4 +1,5 @@
 import { downloadBytes } from "./download.js";
+import { createDocumentElements } from "./document-elements.js";
 import type { FoundationClient } from "./foundation.js";
 import { PageCanvas } from "./page-canvas.js";
 import {
@@ -7,7 +8,7 @@ import {
   type PointerPoint,
 } from "./pointer-selection.js";
 import { TextInput } from "./text-input.js";
-import { DocumentError } from "@open-document/wasm/foundation";
+import { DocumentError, DOCX_SOFT_BREAK } from "@open-document/wasm/foundation";
 import { bindClipboard } from "./clipboard-input.js";
 import {
   EditorState,
@@ -18,20 +19,24 @@ import type { PageLayout } from "@open-document/wasm/preview";
 import {
   docxSelectionDescription,
   sameDocxSelection,
+  searchSelections,
+  type DocumentSearchResult,
 } from "./document-selection.js";
+export type { DocumentSearchResult } from "./document-selection.js";
 import type {
   DocxSelection,
   EditState,
   CharacterFormatPatch,
   ParagraphFormatPatch,
+  DocxFindOptions,
 } from "@open-document/wasm/foundation";
 
 /** Owns browser input order. The caller owns fonts, the opened DOCX and client lifetime. */
 export class DocumentEditor {
-  private readonly container = document.createElement("div");
-  private readonly viewport = document.createElement("div");
-  private readonly input = document.createElement("textarea");
-  private readonly text = document.createElement("pre");
+  private readonly container: HTMLDivElement;
+  private readonly viewport: HTMLDivElement;
+  private readonly input: HTMLTextAreaElement;
+  private readonly text: HTMLPreElement;
   private readonly observable: EditorState<EditState>;
   private paused = false;
   private readonly listeners = new AbortController();
@@ -58,8 +63,15 @@ export class DocumentEditor {
     private currentLayout: PageLayout,
     private state: EditState,
   ) {
-    this.container.setAttribute("role", "region");
-    this.container.setAttribute("aria-label", "Document editor");
+    const elements = createDocumentElements(
+      surface.canvas,
+      surface.overlay,
+      this.selectionDescription,
+    );
+    this.container = elements.container;
+    this.viewport = elements.viewport;
+    this.input = elements.input;
+    this.text = elements.text;
     this.observable = new EditorState("docx", {
       revision: state.revision,
       canUndo: state.canUndo,
@@ -70,42 +82,6 @@ export class DocumentEditor {
       diagnostics: currentLayout.diagnostics,
       data: state,
     });
-    this.text.setAttribute("aria-label", "Current page text");
-    this.input.setAttribute("aria-label", "Document text input");
-    this.input.setAttribute("aria-description", this.selectionDescription);
-    this.input.autocomplete = "off";
-    this.input.spellcheck = false;
-    this.input.setAttribute("autocapitalize", "off");
-    Object.assign(this.input.style, {
-      position: "absolute",
-      width: "1px",
-      padding: "0",
-      border: "0",
-      opacity: "0",
-      pointerEvents: "none",
-      resize: "none",
-    });
-    Object.assign(this.viewport.style, {
-      position: "relative",
-      overflow: "auto",
-      flex: "1",
-      minHeight: "0",
-    });
-    this.viewport.append(this.surface.canvas, this.surface.overlay, this.input);
-    Object.assign(this.container.style, {
-      display: "flex",
-      flexDirection: "column",
-      flex: "1",
-      minHeight: "0",
-    });
-    Object.assign(this.text.style, {
-      position: "absolute",
-      width: "1px",
-      height: "1px",
-      overflow: "hidden",
-      clipPath: "inset(50%)",
-    });
-    this.container.append(this.viewport, this.text);
     const options = { signal: this.listeners.signal };
     window.addEventListener(
       "resize",
@@ -269,11 +245,9 @@ export class DocumentEditor {
   copy(cut = false): Promise<void> {
     return this.enqueue(() => this.copySelection(cut));
   }
-
   private assertOpen(): void {
     if (this.closed) throw new Error("Editor is disposed");
   }
-
   private stop(error: Error, cancelQueued = false): void {
     if (this.closed) return;
     this.pointerSelection.cancel();
@@ -287,7 +261,6 @@ export class DocumentEditor {
     this.input.setAttribute("aria-description", this.selectionDescription);
     this.publish();
   }
-
   private enqueue<T>(
     operation: () => Promise<T>,
     pointer = false,
@@ -329,7 +302,10 @@ export class DocumentEditor {
           throw new Error("Input was interrupted; reload the current document");
         return value;
       } catch (error) {
-        if (error instanceof DocumentError && error.code === "busy") {
+        if (
+          error instanceof DocumentError &&
+          ["busy", "stale-search"].includes(error.code)
+        ) {
           this.observable.update({ error: error.message });
         } else if (generation === this.generation)
           this.stop(
@@ -428,6 +404,37 @@ export class DocumentEditor {
     const selection = this.state.selection;
     if (!selection) throw new Error("Click a document position first");
     return selection;
+  }
+  find(
+    text: string,
+    options: DocxFindOptions = {},
+  ): Promise<DocumentSearchResult> {
+    this.inputEvents.endGroup();
+    return this.enqueue(async () => ({
+      ...(await this.client.findDocx(this.state.revision, text, options)),
+      documentId: this.getSnapshot().documentId,
+    }));
+  }
+  selectMatch(result: DocumentSearchResult, index: number): Promise<void> {
+    return this.format(() =>
+      this.client.selectDocx(
+        result.revision,
+        searchSelections(result, this.getSnapshot(), index)[0]!,
+      ),
+    );
+  }
+  replaceMatches(
+    result: DocumentSearchResult,
+    text: string,
+    index?: number,
+  ): Promise<void> {
+    return this.format(() =>
+      this.client.replaceDocxMatches(
+        result.revision,
+        searchSelections(result, this.getSnapshot(), index),
+        text,
+      ),
+    );
   }
   setCharacterFormat(format: CharacterFormatPatch): Promise<void> {
     return this.format(() =>
@@ -573,8 +580,8 @@ export class DocumentEditor {
 
   paste(text: string): Promise<void> {
     this.inputEvents.endGroup();
-    if (text.length > this.state.commandLimit || text.includes("\t")) {
-      const error = new Error("Paste contains tabs or exceeds command budget");
+    if (text.length > this.state.commandLimit) {
+      const error = new Error("Paste exceeds command budget");
       this.stop(error);
       return Promise.reject(error);
     }
@@ -589,6 +596,9 @@ export class DocumentEditor {
         ),
       );
     });
+  }
+  insertSoftBreak(): Promise<void> {
+    return this.paste(DOCX_SOFT_BREAK);
   }
 
   private async presentSelection(reveal = true): Promise<void> {
@@ -614,22 +624,14 @@ export class DocumentEditor {
     if (caret) this.page = caret.page;
     await this.describeSelection();
     this.paint();
-    const context = this.surface.clearOverlay(this.cssScale);
-    context.fillStyle = "rgba(30, 100, 220, 0.25)";
-    for (const rect of geometry?.rects ?? []) {
-      if (rect.page === this.page)
-        context.fillRect(rect.x, rect.y, rect.width, rect.height);
-    }
+    this.surface.drawSelection(this.page, this.cssScale, geometry, caret);
     if (caret) {
-      context.fillStyle = "#174ca0";
-      context.fillRect(caret.x, caret.y, 1 / this.cssScale, caret.height);
       this.input.style.left = `${caret.x * this.cssScale}px`;
       this.input.style.top = `${caret.y * this.cssScale}px`;
       this.input.style.height = `${caret.height * this.cssScale}px`;
       if (reveal) revealInput(this.input, this.viewport);
     }
   }
-
   private async describeSelection(): Promise<void> {
     const description = await docxSelectionDescription(
       this.client,
@@ -641,7 +643,6 @@ export class DocumentEditor {
     this.selectionDescription = description;
     this.input.setAttribute("aria-description", description);
   }
-
   private paint(): void {
     this.page = Math.min(this.page, this.currentLayout.regions.length - 1);
     this.cssScale = this.surface.draw(this.currentLayout, this.page, this.zoom);
@@ -653,7 +654,6 @@ export class DocumentEditor {
         .join("\n") ?? "";
     this.publish();
   }
-
   private publish(): void {
     this.observable.update({
       revision: this.state.revision,
@@ -789,11 +789,11 @@ export class DocumentEditor {
     this.selectionDescription = "";
     this.input.removeAttribute("aria-description");
     this.observable.close();
+    this.container.remove();
     this.cleanup = this.tail
       .then(() => this.inputEvents.cancel())
       .finally(() => {
         this.surface.dispose();
-        this.container.remove();
       });
     return this.cleanup;
   }

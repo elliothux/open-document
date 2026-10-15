@@ -29,7 +29,11 @@ fn Session::prepare_empty(
   let parent = run.map(id => tree.nodes[id]).unwrap_or(p)
   let prefix = parent.qualified[:parent.qualified.length() - 1].to_owned()
   let escaped = @xml.escape_text(text)
-  let t = "<\{prefix}t xml:space=\"preserve\">\{escaped}</\{prefix}t>"
+  let t = if text.contains("\u2028") || text.contains("\t") {
+    inline_markup(text, self.opc.budget.entry_bytes.min(history_byte_limit / 2))
+  } else {
+    "<\{prefix}t xml:space=\"preserve\">\{escaped}</\{prefix}t>"
+  }
   let content = if run is Some(_) {
     t
   } else {
@@ -166,6 +170,7 @@ fn WordTree::check_structure_properties(
       "rPr" =>
         [
           "rStyle", "rFonts", "sz", "color", "b", "i", "lang", "bCs", "iCs", "szCs",
+          "u", "strike", "highlight", "vertAlign",
         ]
       _ => []
     }
@@ -198,6 +203,7 @@ fn WordTree::check_structure_properties(
       | "i"
       | "bCs"
       | "iCs" => ["val"]
+      "u" | "strike" | "highlight" | "vertAlign" => ["val"]
       "spacing" => ["before", "after", "line", "lineRule"]
       "ind" => ["left", "right", "firstLine", "hanging"]
       "rFonts" =>
@@ -342,6 +348,9 @@ fn WordTree::check_editable_paragraph(
         (
           node.name == "rPr" ||
           node.name == "t" ||
+          node.name == "br" ||
+          node.name == "cr" ||
+          node.name == "tab" ||
           node.name == "lastRenderedPageBreak"
         ) else {
         @failure.reject(
@@ -350,6 +359,27 @@ fn WordTree::check_editable_paragraph(
           part~,
           offset=paragraph,
         )
+      }
+      if node.name == "br" || node.name == "cr" || node.name == "tab" {
+        guard self.children[content].is_empty() &&
+          node.text.trim().is_empty() &&
+          node.attribute("type", uri=word_uri).unwrap_or("textWrapping") ==
+          "textWrapping" &&
+          node.attribute("clear", uri=word_uri).unwrap_or("none") == "none" &&
+          node.attributes
+          .iter()
+          .all(attribute => {
+            node.name == "br" &&
+            attribute.uri == word_uri &&
+            ["type", "clear"].contains(attribute.name)
+          }) else {
+          @failure.reject(
+            "protected-content",
+            "Unsupported inline break prevents editing",
+            part~,
+            offset=paragraph,
+          )
+        }
       }
       if node.name == "t" {
         guard self.children[content].is_empty() else {

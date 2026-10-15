@@ -63,10 +63,32 @@ fn Session::search_groups(
   tree : WordTree,
 ) -> Array[SearchGroup] raise @failure.Failure {
   let by_paragraph : Map[Int, StringBuilder] = Map([])
-  for node in self.texts {
-    let out = by_paragraph.get(node.paragraph).unwrap_or(StringBuilder())
-    out.write_string(tree.nodes[node.id].text)
-    by_paragraph[node.paragraph] = out
+  for id in tree.order {
+    let node = tree.nodes[id]
+    if node.uri != word_uri || !["t", "tab", "br", "cr"].contains(node.name) {
+      continue
+    }
+    let paragraph = for ancestor = node.parent
+                        ancestor >= 0
+                        ancestor = tree.nodes[ancestor].parent {
+      let parent = tree.nodes[ancestor]
+      if parent.uri == word_uri && parent.name == "p" {
+        break Some(ancestor)
+      }
+    } nobreak {
+      None
+    }
+    if paragraph is Some(paragraph) {
+      let out = by_paragraph.get(paragraph).unwrap_or(StringBuilder())
+      out.write_string(
+        match node.name {
+          "t" => node.text
+          "tab" => "\t"
+          _ => "\n"
+        },
+      )
+      by_paragraph[paragraph] = out
+    }
   }
   let body = tree.child(0, "body").unwrap()
   let groups : Array[SearchGroup] = []

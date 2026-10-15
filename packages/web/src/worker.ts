@@ -177,6 +177,20 @@ async function dispatch(request: Request): Promise<unknown> {
           );
         case "query":
           return foundation.query();
+        case "findDocx":
+          return foundation.findDocx(
+            request.revision,
+            request.text,
+            request.options,
+          );
+        case "replaceDocxMatches":
+          return foundation.replaceDocxMatches(
+            request.revision,
+            request.matches,
+            request.text,
+          );
+        case "tabDocx":
+          return foundation.tabDocx(request.revision, request.backward);
         case "editState":
           return foundation.editState();
         case "beginComposition":

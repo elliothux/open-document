@@ -5,9 +5,11 @@ import type {
   CharacterFormatPatch,
   ParagraphFormatPatch,
 } from "@open-document/web/foundation";
+import { highlightColors } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { Command, Group } from "./controls.js";
 import { messages } from "./messages.js";
+import { DocxSearch } from "./docx-search.js";
 
 interface Props {
   controller: EditorController;
@@ -132,7 +134,7 @@ export function DocxFormatCommands({
           mixed={t.mixed}
           onApply={(size) => set({ size })}
         />
-        {(["bold", "italic"] as const).map((key) => {
+        {(["bold", "italic", "underline", "strike"] as const).map((key) => {
           const value = character?.[key];
           return (
             <button
@@ -181,11 +183,78 @@ export function DocxFormatCommands({
               color: null,
               bold: null,
               italic: null,
+              underline: null,
+              strike: null,
+              highlight: null,
+              vertAlign: null,
             })
           }
         />
       </Group>
+      <Group label={t.textEffects}>
+        <label>
+          {t.highlightColor}
+          <select
+            aria-label={t.highlightColor}
+            disabled={disabled}
+            value={
+              character?.highlight.kind === "value"
+                ? character.highlight.value
+                : ""
+            }
+            onChange={(event) => {
+              const value = highlightColors.find(
+                (value) => value === event.currentTarget.value,
+              );
+              if (value !== undefined) set({ highlight: value });
+            }}
+          >
+            <option value="" disabled>
+              {t.mixed}
+            </option>
+            {highlightColors.map((value) => (
+              <option key={value} value={value}>
+                {t[`highlight_${value}`]}
+              </option>
+            ))}
+          </select>
+        </label>
+        {(["superscript", "subscript"] as const).map((value) => (
+          <button
+            key={value}
+            type="button"
+            disabled={disabled}
+            aria-pressed={
+              character?.vertAlign.kind === "mixed"
+                ? "mixed"
+                : character?.vertAlign.kind === "value" &&
+                  character.vertAlign.value === value
+            }
+            onClick={() =>
+              set({
+                vertAlign:
+                  character?.vertAlign.kind === "value" &&
+                  character.vertAlign.value === value
+                    ? "baseline"
+                    : value,
+              })
+            }
+          >
+            {t[value]}
+          </button>
+        ))}
+      </Group>
       <Group label={t.paragraph}>
+        <Command
+          label={t.softBreak}
+          disabled={disabled}
+          action={() => controller.run(() => editor.insertSoftBreak())}
+        />
+        <Command
+          label={t.insertTab}
+          disabled={disabled}
+          action={() => controller.run(() => editor.paste("\t"))}
+        />
         {(["left", "center", "right"] as const).map((value) => (
           <button
             key={value}
@@ -220,6 +289,7 @@ export function DocxFormatCommands({
               left: null,
               right: null,
               first: null,
+              line: null,
               pageBreakBefore: null,
             })
           }
@@ -237,6 +307,12 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
     <aside className="od-properties" aria-label={t.paragraph}>
       <h2>{t.paragraph}</h2>
       <p>{formatting?.reason}</p>
+      <LineSpacing
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
       {(["before", "after", "left", "right", "first"] as const).map((key) => (
         <NumericFormat
           key={key}
@@ -288,6 +364,78 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
         />
         {t.pageBreakBefore}
       </label>
+      <DocxSearch
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={
+          !!state.document?.busy ||
+          !!state.document?.composition ||
+          !!state.document?.paused ||
+          state.loading
+        }
+      />
     </aside>
+  );
+}
+
+function LineSpacing({ controller, state, editor, disabled }: Props) {
+  const t = messages(state.locale),
+    line = editor.getSnapshot().data.formatting?.paragraph.line;
+  const current = line?.kind === "value" ? line.value : undefined;
+  const [rule, setRule] = useState<"auto" | "exact" | "atLeast">(
+    current?.rule ?? "auto",
+  );
+  useEffect(() => {
+    setRule(current?.rule ?? "auto");
+  }, [current?.rule]);
+  const value: FormatValue<number> | undefined =
+    line?.kind === "value"
+      ? {
+          kind: "value",
+          value: line.value.value / (line.value.rule === "auto" ? 240 : 20),
+        }
+      : line;
+  return (
+    <fieldset disabled={disabled}>
+      <legend>{t.lineSpacing}</legend>
+      <label>
+        {t.lineRule}
+        <select
+          aria-label={t.lineRule}
+          value={rule}
+          onChange={(event) => {
+            const value = event.currentTarget.value;
+            if (value === "auto" || value === "exact" || value === "atLeast")
+              setRule(value);
+          }}
+        >
+          <option value="auto">{t.lineAuto}</option>
+          <option value="exact">{t.lineExact}</option>
+          <option value="atLeast">{t.lineAtLeast}</option>
+        </select>
+      </label>
+      {line?.kind === "mixed" && <p>{t.mixed}</p>}
+      <NumericFormat
+        label={rule === "auto" ? t.lineMultiple : t.linePoints}
+        value={value}
+        min={rule === "auto" ? 0.5 : 0.05}
+        max={rule === "auto" ? 10 : 1584}
+        step={rule === "auto" ? 0.1 : 0.05}
+        apply={t.apply}
+        mixed={t.mixed}
+        disabled={disabled}
+        onApply={(amount) =>
+          controller.run(() =>
+            editor.setParagraphFormat({
+              line: {
+                rule,
+                value: Math.round(amount * (rule === "auto" ? 240 : 20)),
+              },
+            }),
+          )
+        }
+      />
+    </fieldset>
   );
 }

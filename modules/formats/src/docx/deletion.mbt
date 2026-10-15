@@ -21,7 +21,7 @@ pub fn Session::delete(
   let document = self.document()
   let text = self
     .editable_texts(focus.paragraph)
-    .map(node => document.node(node.id).text)
+    .map(node => inline_text(document.node(node.id)))
     .join("")
   let boundaries = @layout.grapheme_boundaries(text)
   let index = boundaries.search(focus.offset).unwrap()
@@ -55,7 +55,7 @@ pub fn Session::delete(
     let offset = if direction == "backward" {
       self
       .editable_texts(node.id)
-      .map(node => document.node(node.id).text)
+      .map(node => inline_text(document.node(node.id)))
       .join("")
       .length()
     } else {

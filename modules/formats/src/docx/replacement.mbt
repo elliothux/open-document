@@ -10,6 +10,11 @@ fn WordTree::split_input(
   merge~ : Bool,
   source_limit~ : Int,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
+  if insertion is Some(id) && self.nodes[id].name != "t" {
+    return self.split_control_input(
+      document, paragraph, id, offset, parts, tail, source_limit,
+    )
+  }
   let p = self.nodes[paragraph]
   let parent = self.nodes[p.parent]
   let source = document.source()
@@ -65,9 +70,21 @@ fn WordTree::split_input(
         "limit-exceeded", "Multiline source fragment budget exceeded",
       )
     }
-    let values = parts.map(value => @xml.escape_text(value))
-    let left = @xml.escape_text(node.text[:offset].to_owned())
-    let tail = @xml.escape_text(tail)
+    let values = parts.map(value => {
+      inline_content(value, opening, "</\{node.qualified}>", source_limit)
+    })
+    let left = inline_content(
+      node.text[:offset].to_owned(),
+      opening,
+      "</\{node.qualified}>",
+      source_limit,
+    )
+    let tail = inline_content(
+      tail,
+      opening,
+      "</\{node.qualified}>",
+      source_limit,
+    )
     let ending = if node.empty { "</\{node.qualified}>" } else { "" }
     let units = frames +
       left.length().to_int64() +
@@ -136,7 +153,10 @@ fn WordTree::split_input(
         "limit-exceeded", "Multiline source fragment budget exceeded",
       )
     }
-    let values = parts.map(value => @xml.escape_text(value))
+    let text_opening = "<\{name} xml:space=\"preserve\">"
+    let values = parts.map(value => {
+      inline_content(value, text_opening, "</\{name}>", source_limit)
+    })
     let ending = if p.empty && !merge { "</\{p.qualified}>" } else { "" }
     let units = frame_units +
       ending.length().to_int64() +

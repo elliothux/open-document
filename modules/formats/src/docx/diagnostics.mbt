@@ -14,6 +14,7 @@ fn WordTree::diagnose_properties(
     "rPr" =>
       [
         "rStyle", "rFonts", "sz", "color", "b", "i", "lang", "bCs", "iCs", "szCs",
+        "u", "strike", "highlight", "vertAlign",
       ]
     "sectPr" => ["pgSz", "pgMar", "headerReference", "cols", "docGrid"]
     "tcPr" => ["tcW", "shd", "gridSpan", "vMerge"]
@@ -39,6 +40,15 @@ fn WordTree::diagnose_properties(
     let inactive = match feature.name {
       // The fixed Writer DOCX importer preserves these flags without applying them.
       "autoSpaceDE" | "autoSpaceDN" => self.valid_script_spacing_property(child)
+      "u" =>
+        self.children[child].is_empty() &&
+        feature.text.trim().is_empty() &&
+        ["none", "single"].contains(
+          feature.attribute("val", uri=word_uri).unwrap_or("single"),
+        ) &&
+        feature.attributes
+        .iter()
+        .all(attribute => attribute.uri == word_uri && attribute.name == "val")
       "tblInd" =>
         self.children[child].is_empty() &&
         feature.text.is_empty() &&

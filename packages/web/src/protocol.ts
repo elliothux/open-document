@@ -5,6 +5,7 @@ import type {
   NavigationDirection,
   CharacterFormatPatch,
   ParagraphFormatPatch,
+  DocxFindOptions,
 } from "@open-document/wasm/foundation";
 import type { GridViewport, PrintOptions } from "@open-document/wasm/xlsx";
 import type { PptxCommand } from "@open-document/wasm/pptx";
@@ -64,6 +65,19 @@ export type Operation =
   | { operation: "shape"; text: string; size: number; language: string }
   | { operation: "openDocx"; bytes: Uint8Array; budget: Budget }
   | { operation: "createDocx"; budget: Budget }
+  | { operation: "tabDocx"; revision: number; backward: boolean }
+  | {
+      operation: "findDocx";
+      revision: number;
+      text: string;
+      options: DocxFindOptions;
+    }
+  | {
+      operation: "replaceDocxMatches";
+      revision: number;
+      matches: DocxSelection[];
+      text: string;
+    }
   | { operation: "queryFormatting"; revision: number; selection: DocxSelection }
   | {
       operation: "setCharacterFormat";

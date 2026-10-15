@@ -277,6 +277,9 @@ fn Foundation::dispatch(
     | "queryFormatting"
     | "setCharacterFormat"
     | "setParagraphFormat"
+    | "findDocx"
+    | "replaceDocxMatches"
+    | "tabDocx"
     | "selectedText"
     | "beginComposition"
     | "updateComposition"
@@ -303,6 +306,37 @@ fn Foundation::dispatch(
       match operation {
         "query" => session.query()
         "editState" => session.edit_state()
+        "tabDocx" => {
+          guard request is { "backward": True | False as backward, .. } else {
+            @failure.reject("invalid-operation", "Invalid tab direction")
+          }
+          let revision = field_int(request, "revision")
+          let result = session.tab(revision, backward is True)
+          if result is { "revision": Number(current, ..), .. } &&
+            current != revision.to_double() {
+            self.layout = None
+          }
+          result
+        }
+        "findDocx" =>
+          session.find(
+            field_int(request, "revision"),
+            field_string(request, "text"),
+            find_options(request),
+          )
+        "replaceDocxMatches" => {
+          let revision = field_int(request, "revision")
+          let result = session.replace_matches(
+            revision,
+            replacement_matches(request),
+            field_string(request, "text"),
+          )
+          if result is { "revision": Number(current, ..), .. } &&
+            current != revision.to_double() {
+            self.layout = None
+          }
+          result
+        }
         "beginComposition"
         | "updateComposition"
         | "commitComposition"

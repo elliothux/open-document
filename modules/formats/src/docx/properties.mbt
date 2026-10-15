@@ -87,6 +87,10 @@ priv struct RunStyle {
   color : String
   bold : Bool
   italic : Bool
+  underline : Bool
+  strike : Bool
+  highlight : String
+  vertAlign : String
 } derive(Eq)
 
 ///|
@@ -166,6 +170,29 @@ fn run_properties(
     color,
     bold: tree.character_toggle(id, "b", base.bold, inherited),
     italic: tree.character_toggle(id, "i", base.italic, inherited),
+    underline: match tree.value(id, "u") {
+      None => if tree.child(id, "u") is Some(_) { true } else { base.underline }
+      Some("none") => false
+      Some("single") => true
+      Some(_) => false
+    },
+    strike: tree.character_toggle(id, "strike", base.strike, inherited),
+    highlight: match tree.value(id, "highlight") {
+      None => base.highlight
+      Some(value) => {
+        ignore(highlight_color(value))
+        value
+      }
+    },
+    vertAlign: match tree.value(id, "vertAlign") {
+      None => base.vertAlign
+      Some(value) => {
+        guard ["baseline", "superscript", "subscript"].contains(value) else {
+          @failure.reject("invalid-style", "Invalid vertical alignment")
+        }
+        value
+      }
+    },
   }
 }
 
@@ -282,11 +309,16 @@ fn Session::styles(
     color: "auto",
     bold: false,
     italic: false,
+    underline: false,
+    strike: false,
+    highlight: "none",
+    vertAlign: "baseline",
   }
   let paragraph : @layout.Paragraph = {
     id: -1,
     container: 0,
     nominalSize: defaults.size,
+    defaultTab: self.default_tab(),
     spans: [],
     before: 0,
     after: 0,

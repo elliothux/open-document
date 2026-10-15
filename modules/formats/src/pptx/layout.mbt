@@ -32,6 +32,7 @@ fn measure_text(
       container: 0,
       spans,
       nominalSize: spans[0].style.size,
+      defaultTab: 36,
       left: paragraph.left,
       right: paragraph.right,
       first: if paragraph.bullet.is_empty() {

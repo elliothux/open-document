@@ -48,5 +48,5 @@ fn bullet_style(
       break
     }
   }
-  { font, size, color: paint, }
+  @layout.TextStyle::new(font, size, paint)
 }

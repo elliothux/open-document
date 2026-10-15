@@ -59,6 +59,21 @@ pub fn Layout::positioned(self : Layout) -> PositionedDocument {
         for image in line.images {
           primitives.push(Image(image))
         }
+        for run in line.runs {
+          for decoration in run.decorations {
+            if !decoration.highlight.is_empty() {
+              primitives.push(
+                Rectangle({
+                  x: run.x + decoration.x,
+                  y: line.y,
+                  width: decoration.width,
+                  height: line.height,
+                  color: decoration.highlight,
+                }),
+              )
+            }
+          }
+        }
         primitives.push(
           Text({
             text: line.text,
@@ -71,6 +86,46 @@ pub fn Layout::positioned(self : Layout) -> PositionedDocument {
             }),
           }),
         )
+        let mut descent = 0.0
+        for run in line.runs {
+          for range in run.bidi {
+            let font = self.fonts[range.font]
+            descent = descent.max(
+              scaled_line_metrics(
+                font.ascent,
+                font.descent,
+                font.upem,
+                run.nominalSize,
+              ).1,
+            )
+          }
+        }
+        for run in line.runs {
+          let thickness = run.nominalSize / 18
+          let baseline = run.baseline + run.rise
+          for decoration in run.decorations {
+            for
+              (enabled, y) in [
+                (
+                  decoration.underline,
+                  baseline + descent * 0.4 - run.rise.min(0),
+                ),
+                (decoration.strike, run.baseline - run.size * 0.27),
+              ] {
+              if enabled {
+                primitives.push(
+                  Rectangle({
+                    x: run.x + decoration.x,
+                    y: y - thickness / 2,
+                    width: decoration.width,
+                    height: thickness,
+                    color: run.color,
+                  }),
+                )
+              }
+            }
+          }
+        }
         if line.clip {
           primitives.push(Restore)
         }
@@ -152,6 +207,12 @@ pub fn TextProbe::text_block(
   wrap : Bool,
 ) -> TextBlock raise @failure.Failure {
   self.check()
+  // shortcut: Text blocks carry only text; add effect primitives when XLSX/PPTX expose them.
+  guard !style.underline && !style.strike && style.highlight.is_empty() else {
+    @failure.reject(
+      "unsupported-text", "Text block decorations require positioned primitives",
+    )
+  }
   guard text.length() <= 32767 && width > 0 && width <= 14400 else {
     @failure.reject("limit-exceeded", "Cell text layout exceeds budget")
   }
@@ -159,6 +220,7 @@ pub fn TextProbe::text_block(
     id: 0,
     container: 0,
     nominalSize: style.size,
+    defaultTab: 36,
     spans: [{ node: 0, text, style, image: None, }],
     before: 0,
     after: 0,

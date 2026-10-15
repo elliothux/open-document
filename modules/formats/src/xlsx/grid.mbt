@@ -195,7 +195,7 @@ fn Session::paint_cells(
       if !text.is_empty() && rect.width > 4.5 && rect.height > 3 {
         let mut block = probe.text_block(
           text,
-          { font: style.font, size: style.size, color: style.color, },
+          @layout.TextStyle::new(style.font, style.size, style.color),
           profile,
           (rect.width - 4.5).min(14400),
           style.wrap,
@@ -205,7 +205,7 @@ fn Session::paint_cells(
           block.widths.any(width => width > rect.width - 4.5) {
           let hash = probe.text_block(
             "#",
-            { font: style.font, size: style.size, color: style.color, },
+            @layout.TextStyle::new(style.font, style.size, style.color),
             profile,
             14400,
             false,
@@ -219,7 +219,7 @@ fn Session::paint_cells(
           )
           block = probe.text_block(
             text,
-            { font: style.font, size: style.size, color: style.color, },
+            @layout.TextStyle::new(style.font, style.size, style.color),
             profile,
             (rect.width - 4.5).min(14400),
             false,
@@ -380,7 +380,7 @@ pub fn Session::viewport(
       page,
       probe.text_block(
         text,
-        { font: style.font, size: 9, color: "333333", },
+        @layout.TextStyle::new(style.font, 9, "333333"),
         profile,
         (rect.width - 4.5).max(1).min(14400),
         false,

@@ -5,7 +5,7 @@ fn formatting_boundary(
   offset : Int,
 ) -> (Int, Int) {
   for item in texts; cursor = 0 {
-    let length = tree.nodes[item.id].text.length()
+    let length = inline_text(tree.nodes[item.id]).length()
     if offset <= cursor + length {
       break (item.id, offset - cursor)
     }
@@ -34,7 +34,9 @@ fn Session::format_character_document(
     let texts = docx_texts(tree).filter(item => item.paragraph == paragraph)
     let length = texts
       .iter()
-      .fold(init=0, (sum, item) => sum + tree.nodes[item.id].text.length())
+      .fold(init=0, (sum, item) => {
+        sum + inline_text(tree.nodes[item.id]).length()
+      })
     let start = if paragraph == range.start.paragraph {
       range.start.offset
     } else {
@@ -93,7 +95,9 @@ fn Session::format_character_document(
       let run_texts = texts.filter(item => item.run == id)
       let count = run_texts
         .iter()
-        .fold(init=0, (sum, item) => sum + tree.nodes[item.id].text.length())
+        .fold(init=0, (sum, item) => {
+          sum + inline_text(tree.nodes[item.id]).length()
+        })
       let left = (start - cursor).clamp(min=0, max=count)
       let right = (end - cursor).clamp(min=0, max=count)
       cursor += count
@@ -147,7 +151,7 @@ fn Session::format_character_document(
               "limit-exceeded", "Formatting source budget exceeded",
             )
           }
-          if offset == 0 || offset == node.text.length() {
+          if offset == 0 || offset == inline_text(node).length() {
             let position = if offset == 0 { node.start } else { node.end }
             changes.push({
               node: paragraph,

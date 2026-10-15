@@ -231,6 +231,7 @@ fn Session::paragraph(
             "\n"
           }
         "cr" => "\n"
+        "tab" => "\t"
         "drawing" => "\ufffc"
         "rPr" | "lastRenderedPageBreak" => continue
         _ => {
@@ -245,6 +246,10 @@ fn Session::paragraph(
           font: style.key(),
           size: style.size,
           color: style.text_color(background),
+          underline: style.underline,
+          strike: style.strike,
+          highlight: highlight_color(style.highlight),
+          script: style.vertAlign,
         },
         image,
       })
@@ -261,6 +266,10 @@ fn Session::paragraph(
         font: run_style.key(),
         size: run_style.size,
         color: run_style.text_color(background),
+        underline: run_style.underline,
+        strike: run_style.strike,
+        highlight: highlight_color(run_style.highlight),
+        script: run_style.vertAlign,
       },
       image: None,
     })

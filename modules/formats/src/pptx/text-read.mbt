@@ -59,6 +59,10 @@ fn text_style(
   }
   {
     font: font_key(theme, family, text, bold, italic),
+    underline: false,
+    strike: false,
+    highlight: "",
+    script: "baseline",
     size,
     color: if color.is_empty() {
       "000000"

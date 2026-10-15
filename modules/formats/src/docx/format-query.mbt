@@ -61,7 +61,7 @@ fn Session::formatting_styles(
       0x7fffffff
     }
     for index, item in texts {
-      let end = cursor + tree.nodes[item.id].text.length()
+      let end = cursor + inline_text(tree.nodes[item.id]).length()
       let hit = if collapsed {
         first < end ||
         (first == end && range.start.affinity == "before") ||
@@ -178,6 +178,19 @@ pub fn Session::query_formatting(
       "color": format_summary(characters.map(style => style.color), reason),
       "bold": format_summary(characters.map(style => style.bold), reason),
       "italic": format_summary(characters.map(style => style.italic), reason),
+      "underline": format_summary(
+        characters.map(style => style.underline),
+        reason,
+      ),
+      "strike": format_summary(characters.map(style => style.strike), reason),
+      "highlight": format_summary(
+        characters.map(style => style.highlight),
+        reason,
+      ),
+      "vertAlign": format_summary(
+        characters.map(style => style.vertAlign),
+        reason,
+      ),
     },
     "paragraph": {
       "align": format_summary(paragraphs.map(p => p.align), reason),

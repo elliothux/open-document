@@ -1,4 +1,26 @@
 ///|
+fn Session::default_tab(self : Session) -> Double raise @failure.Failure {
+  for rel in self.opc.relationships() {
+    if rel.owner == self.main &&
+      rel.kind ==
+      "http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings" {
+      guard !rel.external else {
+        @failure.reject(
+          "unsupported-layout", "External settings are unsupported",
+        )
+      }
+      let tree = WordTree::new(self.opc.xml(rel.target))
+      let value = tree.number(0, "defaultTabStop", "val").unwrap_or(720)
+      guard value >= 0 && value <= 31680 else {
+        @failure.reject("invalid-style", "Invalid default tab interval")
+      }
+      return value / 20
+    }
+  }
+  36
+}
+
+///|
 fn Session::additive_spacing(self : Session) -> Bool raise @failure.Failure {
   for rel in self.opc.relationships() {
     if rel.owner == self.main &&

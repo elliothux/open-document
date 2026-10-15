@@ -27,10 +27,10 @@ fn Session::prepare_structural_range(
   let first_texts = self.editable_texts(first.id)
   let last_texts = self.editable_texts(last.id)
   let parts = text.split("\n").map(part => part.to_owned()).collect()
-  let left = first_texts.map(node => tree.nodes[node.id].text).join("")
-  let right = last_texts.map(node => tree.nodes[node.id].text).join("")
+  let left = first_texts.map(node => inline_text(tree.nodes[node.id])).join("")
+  let right = last_texts.map(node => inline_text(tree.nodes[node.id])).join("")
   let insertion = for node in first_texts; offset = 0 {
-    let length = tree.nodes[node.id].text.length()
+    let length = inline_text(tree.nodes[node.id]).length()
     if start.offset < offset + length ||
       (start.offset == offset + length && start.affinity == "before") {
       break Some(node.id)
@@ -42,7 +42,7 @@ fn Session::prepare_structural_range(
   let replacements : Map[Int, String] = Map([])
   let mut insertion_offset = 0
   for node in first_texts; offset = 0 {
-    let before = tree.nodes[node.id].text
+    let before = inline_text(tree.nodes[node.id])
     let keep = (start.offset - offset).clamp(min=0, max=before.length())
     let remove = if first.id == last.id {
       (end.offset - offset).clamp(min=0, max=before.length())
@@ -61,7 +61,7 @@ fn Session::prepare_structural_range(
     continue offset + before.length()
   }
   for node in (if first.id == last.id { [] } else { last_texts }); offset = 0 {
-    let before = tree.nodes[node.id].text
+    let before = inline_text(tree.nodes[node.id])
     let remove = (end.offset - offset).clamp(min=0, max=before.length())
     let after = before[remove:].to_owned()
     if before != after {
@@ -73,7 +73,7 @@ fn Session::prepare_structural_range(
   if parts.length() > 1 {
     let tail = match insertion {
       Some(id) if first.id == last.id => {
-        let before = tree.nodes[id].text
+        let before = inline_text(tree.nodes[id])
         let end_offset = (insertion_offset + end.offset - start.offset).min(
           before.length(),
         )
@@ -100,8 +100,10 @@ fn Session::prepare_structural_range(
   let empty_content = if parts.length() == 1 &&
     first_texts.is_empty() &&
     !text.is_empty() {
-    let escaped = @xml.escape_text(text)
-    let content = "<od:t xmlns:od=\"\{word_uri}\" xml:space=\"preserve\">\{escaped}</od:t>"
+    let content = inline_markup(
+      text,
+      self.opc.budget.entry_bytes.min(history_byte_limit / 2),
+    )
     if tree.child(first.id, "r") is Some(run) {
       let run = tree.nodes[run]
       changes.push(
@@ -243,7 +245,11 @@ fn Session::prepare_structural_range(
       parts.last().unwrap().length()
     })
     .unwrap()
-  let (candidate, xml) = document.edit_text(replacements, source=changes)
+  let (candidate, xml) = self.edit_inline_text(
+    document,
+    replacements,
+    source=changes,
+  )
   let updated_tree = WordTree::new(candidate)
   let paragraph = updated_tree.children[parent.id][first_index +
     parts.length() -

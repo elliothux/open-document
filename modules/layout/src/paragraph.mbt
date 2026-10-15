@@ -32,6 +32,7 @@ fn measure_line(
   geometry~ : Bool,
   trailing~ : Double = 0,
   advances? : Array[(Double, Double)],
+  tabs~ : TabLayout? = None,
 ) -> (Double, Array[PlacedRun], Array[PlacedImage], Array[Caret]) raise @failure.Failure {
   probe.check()
   let runs : Array[PlacedRun] = []
@@ -76,9 +77,12 @@ fn measure_line(
     if groups.last() is Some(group) &&
       group.image is None &&
       item.span.image is None &&
+      !group.tab &&
+      ch != '\t' &&
       group.font == item.font &&
       group.style.size == item.span.style.size &&
       group.style.color == item.span.style.color &&
+      group.style.script == item.span.style.script &&
       group.level == bidi.levels[i] {
       groups[groups.length() - 1] = { ..group, end: next, }
     } else {
@@ -90,6 +94,7 @@ fn measure_line(
         style: item.span.style,
         level: bidi.levels[i],
         image: item.span.image,
+        tab: ch == '\t',
       })
     }
     char_groups.push(groups.length() - 1)
@@ -104,6 +109,25 @@ fn measure_line(
   let mut width = 0.0
   for index in visual {
     let group = groups[index]
+    if group.tab {
+      let stop = tabs.unwrap_or({
+        interval: 36,
+        origin: 0,
+        left: 0,
+        limit: 1000000000,
+      })
+      let advance = stop.advance(width)
+      if advances is Some(values) {
+        values[start + group.start] = (advance, 0)
+      }
+      if geometry {
+        after[start + group.start] = width
+        before[start + group.end] = width + advance
+        runs.push(group.tab_run(advance, width, start + group.start, spans))
+      }
+      width += advance
+      continue
+    }
     if group.image is Some(image) {
       if advances is Some(values) {
         let index = start + group.start
@@ -138,7 +162,7 @@ fn measure_line(
     let advances = advances.map(values => (values, start + group.start))
     let batch = probe.shape_paragraph(
       fragment,
-      group.style.size,
+      group.style.render_size(),
       "und",
       group.font,
       bidi_slice(bidi, group.start, group.end),
@@ -185,7 +209,15 @@ fn measure_line(
       start: start + group.start,
       sources,
       color: group.style.color,
-      size: group.style.size,
+      size: group.style.render_size(),
+      nominalSize: group.style.size,
+      rise: group.style.rise(),
+      decorations: line_decorations(
+        batch.carets,
+        spans,
+        start + group.start,
+        portion_width,
+      ),
       text: fragment,
       glyphs: batch.glyphs,
       bidi: batch.runs,
@@ -220,6 +252,7 @@ priv struct LineGroup {
   style : TextStyle
   level : Int
   image : InlineImage?
+  tab : Bool
 }
 
 ///|
@@ -229,6 +262,9 @@ fn paragraph_lines(
   profile : Map[String, String],
   available : Double,
 ) -> Array[MeasuredLine] raise @failure.Failure {
+  guard paragraph.defaultTab >= 0 && paragraph.defaultTab <= 1584 else {
+    @failure.reject("invalid-style", "Invalid default tab interval")
+  }
   let spans : Array[MeasuredSpan] = []
   let text = StringBuilder()
   let mut length = 0
@@ -236,6 +272,16 @@ fn paragraph_lines(
   let mut ascent = 0.0
   let mut descent = 0.0
   for span in paragraph.spans {
+    guard ["baseline", "subscript", "superscript"].contains(span.style.script) &&
+      (
+        span.style.highlight.is_empty() ||
+        (
+          span.style.highlight.length() == 6 &&
+          span.style.highlight.iter().all(ch => ch.is_ascii_hexdigit())
+        )
+      ) else {
+      @failure.reject("invalid-style", "Invalid text decoration")
+    }
     guard span.style.size > 0 && span.style.size <= 1024 else {
       @failure.reject("invalid-style", "Invalid font size")
     }
@@ -325,6 +371,13 @@ fn paragraph_lines(
           spaces,
           geometry=false,
           advances~,
+          tabs=Some({
+            interval: paragraph.defaultTab,
+            origin: paragraph.left +
+            (if segment == 0 { paragraph.first } else { 0 }),
+            left: paragraph.left,
+            limit: available - paragraph.right,
+          }),
         ),
       )
       segment = boundary
@@ -342,6 +395,13 @@ fn paragraph_lines(
         spaces,
         geometry=false,
         advances~,
+        tabs=Some({
+          interval: paragraph.defaultTab,
+          origin: paragraph.left +
+          (if segment == 0 { paragraph.first } else { 0 }),
+          left: paragraph.left,
+          limit: available - paragraph.right,
+        }),
       ),
     )
   }
@@ -357,6 +417,16 @@ fn paragraph_lines(
     for i in first_grapheme..<graphemes.length() {
       let (a, b) = graphemes[i]
       for offset in a..<b {
+        if text[offset] == 9 {
+          width += (
+            {
+              interval: paragraph.defaultTab,
+              origin: indent,
+              left: paragraph.left,
+              limit: available - paragraph.right,
+            } : TabLayout).advance(width)
+          continue
+        }
         width += advances[offset].0
         if offset > start {
           width += advances[offset].1
@@ -397,6 +467,12 @@ fn paragraph_lines(
           boundaries,
           spaces,
           geometry=false,
+          tabs=Some({
+            interval: paragraph.defaultTab,
+            origin: indent,
+            left: paragraph.left,
+            limit: available - paragraph.right,
+          }),
         ).0
       if actual <= limit {
         break actual
@@ -443,6 +519,12 @@ fn paragraph_lines(
         0.0
       },
       geometry=true,
+      tabs=Some({
+        interval: paragraph.defaultTab,
+        origin: indent,
+        left: paragraph.left,
+        limit: available - paragraph.right,
+      }),
     )
     guard width <= limit else {
       @failure.reject(
@@ -456,6 +538,14 @@ fn paragraph_lines(
         let (a, d) = probe.line_metrics(range.font, run.size)
         line_ascent = line_ascent.max(a)
         line_descent = line_descent.max(d)
+        if run.rise != 0 {
+          let (nominal_ascent, nominal_descent) = probe.line_metrics(
+            range.font,
+            run.nominalSize,
+          )
+          line_ascent = line_ascent.max(nominal_ascent).max(a + run.rise)
+          line_descent = line_descent.max(nominal_descent).max(d - run.rise)
+        }
       }
     }
     if line_ascent + line_descent == 0 && images.is_empty() {
@@ -504,7 +594,7 @@ fn paragraph_lines(
         width,
         height,
         clip,
-        runs: runs.map(run => { ..run, baseline, }),
+        runs: runs.map(run => { ..run, baseline: baseline - run.rise, }),
         images: images.map(image => { ..image, y: baseline - image.height, }),
         carets,
         readOnlyReason: paragraph.readOnlyReason,

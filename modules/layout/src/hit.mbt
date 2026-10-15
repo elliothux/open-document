@@ -74,7 +74,7 @@ fn Layout::caret_geometry(self : Layout, hit : Hit) -> Hit {
     let index = hit.offset - run.start - 1
     if index >= 0 &&
       index < run.text.length() &&
-      bidi_control(run.text[index].to_uint()) {
+      (bidi_control(run.text[index].to_uint()) || run.text[index] == 9) {
       for range in run.bidi {
         if range.start <= index && index < range.end {
           control = Some((run, range.font))

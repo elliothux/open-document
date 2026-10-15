@@ -68,7 +68,7 @@ fn MeasuredLine::spaced(
   }
   let delta = if percent < 100 {
     let ascent = match line.runs.get(0) {
-      Some(run) => run.baseline
+      Some(run) => run.baseline + run.rise
       None =>
         line.images.get(0).map(image => image.y + image.height).unwrap_or(0)
     }

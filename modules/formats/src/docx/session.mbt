@@ -151,7 +151,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
       "id": node.id,
       "paragraph": node.paragraph,
       "run": node.run,
-      "text": nodes[node.id].text,
+      "text": inline_text(nodes[node.id]),
     })
   }
   let rels : Array[Json] = []
@@ -191,7 +191,7 @@ pub fn Session::replace(
   }
   let nodes = WordTree::new(document).nodes
   let texts = self.texts.filter(item => item.paragraph == node.paragraph)
-  let before = nodes[id].text
+  let before = inline_text(nodes[id])
   guard text.length() <= command_limit else {
     @failure.reject("limit-exceeded", "Command input exceeds UTF-16 budget")
   }
@@ -204,7 +204,7 @@ pub fn Session::replace(
     if item.id == id {
       break
     }
-    offset += nodes[item.id].text.length()
+    offset += inline_text(nodes[item.id]).length()
   }
   let after = self.selection.map(selection => {
     if selection.anchor.paragraph != node.paragraph &&
@@ -214,7 +214,7 @@ pub fn Session::replace(
         focus: { ..selection.focus, frameStart: None, },
       }
     }
-    let content = texts.map(item => nodes[item.id].text).join("")
+    let content = texts.map(item => inline_text(nodes[item.id])).join("")
     let updated = content[:offset].to_owned() +
       text +
       content[offset + before.length():].to_owned()

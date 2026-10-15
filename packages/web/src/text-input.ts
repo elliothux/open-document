@@ -1,4 +1,5 @@
 import type { FoundationClient } from "./foundation.js";
+import { DOCX_SOFT_BREAK } from "@open-document/wasm/foundation";
 import type {
   EditState,
   DocxSelection,
@@ -37,7 +38,9 @@ export interface NativeInputCommands<State> {
     direction: NavigationDirection,
     extend: boolean,
   ): Promise<State>;
-  softBreak: string | null;
+  softBreak: string;
+  nativeEnter: boolean;
+  tab?(revision: number, backward: boolean): Promise<State>;
 }
 
 interface Composition {
@@ -215,7 +218,7 @@ export class NativeTextInput<State extends { revision: number }> {
     const text =
       event.inputType === "insertParagraph" ||
       event.inputType === "insertLineBreak"
-        ? event.inputType === "insertLineBreak"
+        ? event.inputType === "insertLineBreak" && !this.commands.nativeEnter
           ? this.commands.softBreak
           : "\n"
         : event.inputType === "insertText"
@@ -230,7 +233,9 @@ export class NativeTextInput<State extends { revision: number }> {
       if (
         event.inputType === "insertText" &&
         text.length > 0 &&
-        !text.includes("\n")
+        !text.includes("\n") &&
+        !text.includes("\u2028") &&
+        !text.includes("\t")
       ) {
         if (this.group === undefined) {
           if (this.groups === 2147483647) {
@@ -277,6 +282,25 @@ export class NativeTextInput<State extends { revision: number }> {
       return;
     }
     if (!this.host.available()) return;
+    if (
+      event.key === "Tab" &&
+      !event.altKey &&
+      !event.metaKey &&
+      this.commands.tab
+    ) {
+      event.preventDefault();
+      const tab = this.commands.tab,
+        literal = event.ctrlKey,
+        backward = event.shiftKey;
+      this.send(async () =>
+        this.host.changed(
+          await (literal
+            ? this.commands.replace(this.state.revision, "\t")
+            : tab(this.state.revision, backward)),
+        ),
+      );
+      return;
+    }
     if (command || event.altKey) {
       this.endGroup();
       return;
@@ -284,17 +308,14 @@ export class NativeTextInput<State extends { revision: number }> {
     if (event.key === "Enter" && event.shiftKey) {
       event.preventDefault();
       const text = this.commands.softBreak;
-      if (text === null)
-        this.host.stop(new Error("Soft line breaks are not available yet"));
-      else
-        this.send(async () =>
-          this.host.changed(
-            await this.commands.replace(this.state.revision, text),
-          ),
-        );
+      this.send(async () =>
+        this.host.changed(
+          await this.commands.replace(this.state.revision, text),
+        ),
+      );
       return;
     }
-    if (event.key === "Enter" && this.commands.softBreak !== null) {
+    if (event.key === "Enter" && !this.commands.nativeEnter) {
       event.preventDefault();
       this.send(async () =>
         this.host.changed(
@@ -375,9 +396,20 @@ export class TextInput extends NativeTextInput<EditState> {
               extend,
             )
           ).state,
-        softBreak: null,
+        softBreak: DOCX_SOFT_BREAK,
+        nativeEnter: true,
+        tab: (revision, backward) => client.tabDocx(revision, backward),
       },
       { ...host, limit: () => host.state().commandLimit },
+    );
+    input.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key === "Escape" && !event.isComposing && !this.active) {
+          input.closest<HTMLElement>('[role="region"]')?.focus();
+        }
+      },
+      { signal },
     );
   }
 }

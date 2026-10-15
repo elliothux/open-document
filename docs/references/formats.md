@@ -79,7 +79,7 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 `selectedText(revision, selection)` 返回核心只读纯文本，按 XML 顺序提取正/反向普通范围，跨段以 LF 分隔并保留空段，折叠范围返回空串。它沿用字素、位置、revision、容器及内容保护检查，跨单元格或未知内容整体拒绝；不改变选区、revision、历史或布局。输出最多 65536 UTF-16 单元（包括 LF），超限报错而不截断。复制与结构写回共用范围顺序/保护检查；只有写回额外检查移动结构及格式。宿主不从页面文字重建选区。
 
-段内边界使用 Unicode 13.0.0 扩展字素，跨文本节点的组合符与 ZWJ 不可拆开；修改后重新合并的字素会将光标推进到合法边界。普通空段支持 offset 0 的输入：优先在第一个已有空 run 创建 text，保留其格式；没有 run 时在段末创建普通 run/text，保留段落属性、现有前缀和非目标源片段。空段身份来自正文 `flow().paragraphs` 或 `flow().tables` 的单元格段落，不能从尚无 text 的 `query().texts` 推断。跨单元格/表格、CR/tab、内联图片所在段、域/书签/修订/未知内联标记及受保护容器目前整体拒绝，未修改的内容仍保留。普通正文与顶层表格单元格内的事务可用；不表示带布局诊断的文件已经可视编辑。
+段内边界使用 Unicode 13.0.0 扩展字素，跨文本节点的组合符与 ZWJ 不可拆开；修改后重新合并的字素会将光标推进到合法边界。普通空段支持 offset 0 的输入：优先在第一个已有空 run 创建 text，保留其格式；没有 run 时在段末创建普通 run/text，保留段落属性、现有前缀和非目标源片段。空段身份来自正文 `flow().paragraphs` 或 `flow().tables` 的单元格段落，不能从尚无 text 的 `query().texts` 推断。跨单元格/表格、CR、内联图片所在段、域/书签/修订/未知内联标记及受保护容器目前整体拒绝，未修改的内容仍保留。普通正文与顶层表格单元格内的事务可用；不表示带布局诊断的文件已经可视编辑。
 
 `replaceRange` 将实际 LF 作为段落分隔，可替换折叠、段内或跨段正反向范围，首尾/连续 LF 产生空段；新段仍在原 body/单元格内，光标到最后插入文字末尾，并对字素拼接推进到合法边界。原段及移到新段的存量节点保留身份；新节点获得单调 ID。新段继承已支持的段落属性和边界 affinity 选中的字符格式，显式关闭直接或继承的段前分页。未知属性、编号、节或不可安全编辑内容整体拒绝。多分隔替换是单条历史，返回原范围与全部新增段的受影响 ID；撤销删除新段并恢复原字节，重做恢复同一组新 ID。连续输入使用核心保留的目标 text ID 继续同一字符格式；显式选择/导航、删除、外部修改、undo/redo 和关闭终止它，保存或失败不终止。字符格式的连续目标与显式输入组分工不同，均不维护第二份文档内容。
 
@@ -105,13 +105,33 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 `FoundationSession/Client.queryFormatting(revision, selection)` 返回字符与段落属性。每项使用 `{ kind: "value", value }`、`{ kind: "mixed" }` 或 `{ kind: "unavailable", reason }`，同时返回 revision 和限制原因。`EditState.formatting` 包含当前选区的同一查询；没有选区或组合进行中为 null。查询只读取目标段落与继承样式，不要求解析无关图片。
 
-`setCharacterFormat(revision, selection, format)` 支持 `family`、`size`、`color`、`bold`、`italic`。字号为 0.5–1024 pt 的半点增量；颜色为六位 RGB 或 `"auto"`。`setParagraphFormat` 支持 `align: "left" | "center" | "right"`、`before/after/left/right/first` 和 `pageBreakBefore`。距离单位为 pt，须能表示成整数 twip；范围 0–1584 pt，`first` 可为负值以设置悬挂缩进。
+`setCharacterFormat(revision, selection, format)` 支持 `family`、`size`、`color`、`bold`、`italic`、`underline`、`strike`、`highlight` 和 `vertAlign`。字号为 0.5–1024 pt 的半点增量；颜色为六位 RGB 或 `"auto"`。`underline/strike` 为布尔值，写单下划线与单删除线；`vertAlign` 为 `"baseline" | "superscript" | "subscript"`。`highlight` 使用 OOXML 的 `none` 和十六种命名颜色，Wasm/Web 的 `HighlightColor` 与 `highlightColors` 提供类型和完整选项；`none` 关闭高亮，null 恢复继承。
+
+`setParagraphFormat` 支持 `align: "left" | "center" | "right"`、`before/after/left/right/first`、`line` 和 `pageBreakBefore`。距离单位为 pt，须能表示成整数 twip；范围 0–1584 pt，`first` 可为负值以设置悬挂缩进。`line: { rule, value }` 使用 OOXML 整数单位：`auto` 为每行 240，取值 120–2400；`exact/atLeast` 为 twip，取值 1–31680。UI 显示多倍行距或 pt，确认后转换为这些单位；清除段落直接格式也清除行距。
 
 字段省略表示不修改，null 清除对应直接属性并恢复继承。MoonBit 使用 `FormatChange::{Keep, Clear, Set}` 和类型化属性结构。字符范围在边界处拆分 run，范围外文字与未知部件保留；段落属性覆盖范围接触的段落。一次修改提交一项有界历史，保存与 PDF 沿现有布局。无效位置、过期 revision、属性和预算失败不提交部分修改。
 
 折叠范围只改变后续输入属性，不增加 revision、历史或空文字。实际输入及格式一起提交；组合预览沿候选处理，取消仍保留输入属性。显式选择/导航结束该输入属性，保存本身不改变它。默认 UI 的字体/段落控件调用同一 Web 队列，数字与颜色确认后提交；字体仍需宿主供应对应 profile 和字节。
 
-当前未接通下划线/删除线、高亮、上下标、两端对齐、行距、制表位、样式 CRUD 与列表。剩余范围归 [P10](../p10-docx-core.md)，不把本切片记作完整格式编辑。
+核心在连续塑形的光标位置上划分装饰，先绘制高亮背景，再绘制文字与下划线/删除线；编辑装饰不改变连字与断行宽度。上下标沿 ONLYOFFICE 的 0.65 字号比例、上移 0.35 / 下移 0.141 个原字号计算，保持逻辑文字、源 offset 和原字号属性。行高与选区包含实际基线。相同图元用于 Canvas 与 PDF，不由 DOM 或 CSS 计算文字几何。其他下划线类型或颜色变体保留源并诊断、保护编辑，未宣称完整装饰兼容。
+
+派生 `TextStyle` 增加 `underline/strike`、RGB `highlight`（无高亮为空串）和 `script`；MoonBit 的 `TextStyle::new(font, size, color)` 创建普通样式。当前 `TextProbe::text_block` 只返回文本块，上下标可排版，装饰明确拒绝；XLSX/PPTX 仍使用普通样式，后续各自编辑功能接入效果图元。
+
+`FoundationSession/Client.findDocx(revision, text, options?)` 进行字面查找；`options` 为可选的 `matchCase`、`wholeWord` 布尔值。返回 `{ revision, truncated, matches: [{ selection, snippet, reason }] }`。结果按正文与表格单元格顺序排列，相邻同容器段落以 LF 相连。受保护文字也返回命中与原因，不能替换。查询最多 65536 UTF-16 单元，最多返回 1000 个不重叠命中；超过上限设置 `truncated`。
+
+查找使用 Unicode 简单小写映射，不做规范化、语言定制或正则匹配。全词边界按字母/数字和非 ASCII Unicode 标识符延续字符判断，ASCII 下划线作为分隔符。命中不能切开字素或代理对。范围暂限主文档正文与单元格，页眉、脚注等内容区域待对应编辑能力接入。
+
+`replaceDocxMatches(revision, selections, text)` 一次校验全部范围后提交一项历史；空数组无变化，重叠、空范围、保护、过期 revision 和预算失败不部分提交。替换最多 1000 个范围，文本最多 65536 UTF-16 单元，允许 LF 段落分隔、U+2028 软换行与 Tab，不接受 CR。插入文字沿用目标起点 run 格式。结构替换另限源 XML UTF-16 长度乘命中数不超过 67108864，避免逐项解析阻断操作。
+
+`DocumentEditor.find(text, options?)` 在原队列中查询，并给结果增加 `documentId`。`selectMatch(result, index)` 定位可编辑命中；`replaceMatches(result, text, index?)` 替换指定项，省略 index 时替换全部结果。全部替换拒绝 `truncated` 或含受保护内容的结果。旧文档或旧 revision 的结果拒绝后仍可继续编辑。默认 UI 提供同一组操作，编辑后提示重新查找并禁用旧结果。
+
+`DOCX_SOFT_BREAK` 为 U+2028，由 Wasm/Web foundation 导出。`replaceRange`、组合候选和批量替换用它表示段内换行，保存为 `w:br`；实际 LF 仍创建段落。`DocumentEditor.insertSoftBreak()` 与默认 UI 按钮、Shift+Enter 调用同一范围事务。`query().texts` 包含普通文字与内联控制节点；换行逻辑长度为一个 UTF-16 单元，`w:cr` 同样读取为 U+2028。Flow 用 LF 排版，`selectedText` 与剪贴板将软换行转为 LF。普通换行可删除、选中、设置格式及跨段移动；页/栏换行、环绕清除和未知内联属性继续保护。
+
+Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Client.tabDocx(revision, backward?)` 在正文插入 Tab，反向时减少正的首行/左缩进；在现有表格中只移动到相邻单元格，不增加 revision 或历史。默认 UI 的插入制表符按钮与 `DocumentEditor.paste("\t")` 总是插入字符，原生 Ctrl+Tab 也在单元格中插入。Tab/Shift+Tab 只由文档原生输入处理；参数控件使用浏览器焦点切换，Escape 将焦点移出文档输入。
+
+`Paragraph.defaultTab` 为 point，来自 `settings/defaultTabStop` 的整数 twip，默认 36 pt，范围 0–1584 pt；0 表示零宽。核心根据当前行位置与缩进计算下一默认制表位，断行、光标、预览与 PDF 消费同一宽度。当前使用物理左边框作为原点；自定义/对齐制表位、RTL 镜像制表位与间隔修改尚未接通。末格 Tab 保持原位置，自动追加表格行归表格编辑批次。
+
+当前未接通两端对齐、自定义制表位、样式 CRUD 与列表。剩余范围归 [P10](../p10-docx-core.md)，不把本切片记作完整格式编辑。
 
 ## 通用绘制输出
 

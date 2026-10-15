@@ -16,6 +16,10 @@ pub(all) struct CharacterFormat {
   color : FormatChange[String]
   bold : FormatChange[Bool]
   italic : FormatChange[Bool]
+  underline : FormatChange[Bool]
+  strike : FormatChange[Bool]
+  highlight : FormatChange[String]
+  vertAlign : FormatChange[String]
 } derive(Eq)
 
 ///|
@@ -28,14 +32,40 @@ pub fn CharacterFormat::new(
   color~ : FormatChange[String] = Keep,
   bold~ : FormatChange[Bool] = Keep,
   italic~ : FormatChange[Bool] = Keep,
+  underline~ : FormatChange[Bool] = Keep,
+  strike~ : FormatChange[Bool] = Keep,
+  highlight~ : FormatChange[String] = Keep,
+  vertAlign~ : FormatChange[String] = Keep,
 ) -> CharacterFormat {
-  { family, size, color, bold, italic, }
+  {
+    family,
+    size,
+    color,
+    bold,
+    italic,
+    underline,
+    strike,
+    highlight,
+    vertAlign,
+  }
 }
 
 ///|
 fn CharacterFormat::validate(
   self : CharacterFormat,
 ) -> Unit raise @failure.Failure {
+  if self.highlight is Set(value) {
+    ignore(
+      highlight_color(value) catch {
+        _ => @failure.reject("invalid-operation", "Invalid highlight color")
+      },
+    )
+  }
+  if self.vertAlign is Set(value) {
+    guard ["baseline", "superscript", "subscript"].contains(value) else {
+      @failure.reject("invalid-operation", "Invalid vertical alignment")
+    }
+  }
   if self.family is Set(family) {
     guard !family.trim().is_empty() &&
       family.length() <= 200 &&
@@ -82,6 +112,10 @@ fn CharacterFormat::merge(
     color: merge_format(self.color, patch.color),
     bold: merge_format(self.bold, patch.bold),
     italic: merge_format(self.italic, patch.italic),
+    underline: merge_format(self.underline, patch.underline),
+    strike: merge_format(self.strike, patch.strike),
+    highlight: merge_format(self.highlight, patch.highlight),
+    vertAlign: merge_format(self.vertAlign, patch.vertAlign),
   }
 }
 
@@ -106,6 +140,22 @@ fn RunStyle::formatted(
     color: format_value(self.color, inherited.color, patch.color),
     bold: format_value(self.bold, inherited.bold, patch.bold),
     italic: format_value(self.italic, inherited.italic, patch.italic),
+    underline: format_value(
+      self.underline,
+      inherited.underline,
+      patch.underline,
+    ),
+    strike: format_value(self.strike, inherited.strike, patch.strike),
+    highlight: format_value(
+      self.highlight,
+      inherited.highlight,
+      patch.highlight,
+    ),
+    vertAlign: format_value(
+      self.vertAlign,
+      inherited.vertAlign,
+      patch.vertAlign,
+    ),
   }
 }
 
@@ -114,6 +164,33 @@ fn CharacterFormat::properties(
   self : CharacterFormat,
 ) -> Map[String, Map[String, String?]?] {
   let result = Map([])
+  for
+    (name, change) in [
+      (
+        "u",
+        match self.underline {
+          Keep => Keep
+          Clear => Clear
+          Set(value) => Set(if value { "single" } else { "none" })
+        },
+      ),
+      (
+        "strike",
+        match self.strike {
+          Keep => Keep
+          Clear => Clear
+          Set(value) => Set(if value { "1" } else { "0" })
+        },
+      ),
+      ("highlight", self.highlight),
+      ("vertAlign", self.vertAlign),
+    ] {
+    match change {
+      Keep => ()
+      Clear => result[name] = None
+      Set(value) => result[name] = Some(Map::from_array([("val", Some(value))]))
+    }
+  }
   match self.family {
     Keep => ()
     Clear => result["rFonts"] = None
