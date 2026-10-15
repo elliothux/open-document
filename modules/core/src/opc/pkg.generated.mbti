@@ -30,7 +30,7 @@ pub fn Package::create(Map[String, Bytes], @archive.Budget) -> Self raise @failu
 pub fn Package::decoded_bytes(Self) -> Int raise @failure.Failure
 pub fn Package::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
 pub fn Package::read(Self, String) -> Bytes raise @failure.Failure
-pub fn Package::relationships(Self) -> ReadOnlyArray[Relationship] raise @failure.Failure
+pub fn Package::relationships(Self, replacements? : Map[String, Bytes]) -> ReadOnlyArray[Relationship] raise @failure.Failure
 pub fn Package::save(Self, Map[String, Bytes], removed? : Array[String]) -> Bytes raise @failure.Failure
 pub fn Package::validate_changes(Self, Map[String, Bytes], removed? : Array[String]) -> Unit raise @failure.Failure
 pub fn Package::xml(Self, String) -> @xml.Document raise @failure.Failure

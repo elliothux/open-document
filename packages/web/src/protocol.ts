@@ -7,12 +7,19 @@ import type {
   ParagraphFormatPatch,
   DocxFindOptions,
   CopiedFormat,
+  DocxStyleUpdate,
+  DocxStyleCreation,
 } from "@open-document/wasm/foundation";
 import type { GridViewport, PrintOptions } from "@open-document/wasm/xlsx";
 import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
+  | {
+      operation: "setDefaultTabStop";
+      revision: number;
+      interval: number | null;
+    }
   | PptxCommand
   | PdfCommand
   | { operation: "openPdfWorker"; wasm: ArrayBuffer }
@@ -99,14 +106,12 @@ export type Operation =
       operation: "updateStyle";
       revision: number;
       key: string;
-      format: CopiedFormat;
-      name?: string;
+      format: DocxStyleUpdate;
     }
   | {
       operation: "createStyle";
       revision: number;
-      name: string;
-      basedOn: string;
+      style: DocxStyleCreation;
     }
   | {
       operation: "deleteStyle";

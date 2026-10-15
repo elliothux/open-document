@@ -131,8 +131,9 @@ pub fn Session::delete_style(
     {
       xml: main_edits,
       parts: edits,
+      created: Map([]),
       before: self.selection,
-      after: self.selection,
+      after: self.selection.map(selection => selection.without_visual_hints()),
       paragraphs: affected,
       bytes,
     },

@@ -111,6 +111,7 @@ fn Session::plain_replacements(
     edit: {
       xml: [xml],
       parts: Map([]),
+      created: Map([]),
       before: self.selection,
       after: Some({ anchor: focus, focus, }),
       paragraphs: affected,
@@ -263,6 +264,7 @@ pub fn Session::replace_matches(
         edit: {
           xml: edits,
           parts: Map([]),
+          created: Map([]),
           before: self.selection,
           after: selection,
           paragraphs: affected,

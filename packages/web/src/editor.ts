@@ -28,9 +28,10 @@ import type {
   CharacterFormatPatch,
   ParagraphFormatPatch,
   CopiedFormat,
+  DocxStyleUpdate,
+  DocxStyleCreation,
   DocxFindOptions,
 } from "@open-document/wasm/foundation";
-
 /** Owns browser input order. The caller owns fonts, the opened DOCX and client lifetime. */
 export class DocumentEditor {
   private readonly container: HTMLDivElement;
@@ -78,7 +79,6 @@ export class DocumentEditor {
       canRedo: state.canRedo,
       pageCount: currentLayout.regions.length,
       selection: this.selectionDescription,
-
       diagnostics: currentLayout.diagnostics,
       data: state,
     });
@@ -115,7 +115,6 @@ export class DocumentEditor {
       (error) => this.stop(error),
       () => this.inputEvents.active,
     );
-
     this.input.addEventListener(
       "blur",
       () => {
@@ -442,22 +441,23 @@ export class DocumentEditor {
   setParagraphFormat(format: ParagraphFormatPatch): Promise<void> {
     return this.applyFormat({ character: {}, paragraph: format });
   }
+  setDefaultTabStop(interval: number | null): Promise<void> {
+    return this.format(() =>
+      this.client.setDefaultTabStop(this.state.revision, interval),
+    );
+  }
   styles(kind: "paragraph" | "character") {
     return this.enqueue(() => this.client.styles(this.state.revision, kind));
   }
-  updateStyle(key: string, format: CopiedFormat, name?: string): Promise<void> {
+  updateStyle(key: string, format: DocxStyleUpdate): Promise<void> {
     return this.format(() =>
-      this.client.updateStyle(this.state.revision, key, format, name),
+      this.client.updateStyle(this.state.revision, key, format),
     );
   }
-  createStyle(name: string, basedOn: string): Promise<string> {
+  createStyle(style: DocxStyleCreation): Promise<string> {
     this.inputEvents.endGroup();
     return this.enqueue(async () => {
-      const result = await this.client.createStyle(
-        this.state.revision,
-        name,
-        basedOn,
-      );
+      const result = await this.client.createStyle(this.state.revision, style);
       await this.changed(result.state);
       return result.id;
     });

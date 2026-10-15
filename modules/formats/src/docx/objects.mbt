@@ -81,7 +81,7 @@ fn Session::image_relationship(
   key : String,
 ) -> @opc.Relationship raise @failure.Failure {
   ignore(self.document())
-  for rel in self.opc.relationships() {
+  for rel in self.relationships() {
     if rel.owner == self.main &&
       rel.id == key &&
       rel.kind ==

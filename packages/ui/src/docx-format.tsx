@@ -11,7 +11,7 @@ import type { EditorController, UiSnapshot } from "./controller.js";
 import { Command, Group } from "./controls.js";
 import { messages } from "./messages.js";
 import { DocxSearch } from "./docx-search.js";
-import { DocxTabs } from "./docx-tabs.js";
+import { DocxTabs, DocxDefaultTab } from "./docx-tabs.js";
 import { DocxStyles } from "./docx-styles.js";
 
 interface Props {
@@ -301,12 +301,31 @@ export function DocxFormatCommands({
             }
           </button>
         ))}
+        <label>
+          <input
+            type="checkbox"
+            disabled={disabled}
+            checked={
+              formatting?.paragraph.rtl.kind === "value" &&
+              formatting.paragraph.rtl.value
+            }
+            ref={(node) => {
+              if (node)
+                node.indeterminate = formatting?.paragraph.rtl.kind === "mixed";
+            }}
+            onChange={(event) =>
+              paragraph({ rtl: event.currentTarget.checked })
+            }
+          />
+          {t.paragraphRtl}
+        </label>
         <Command
           label={t.clearParagraph}
           disabled={disabled}
           action={() =>
             paragraph({
               align: null,
+              rtl: null,
               before: null,
               after: null,
               left: null,
@@ -326,6 +345,7 @@ export function DocxFormatCommands({
 export function DocxProperties({ controller, state, editor, disabled }: Props) {
   const t = messages(state.locale),
     formatting = editor.getSnapshot().data.formatting;
+  const stylesDisabled = disabled;
   disabled ||= !formatting || !!formatting.reason;
   return (
     <aside className="od-properties" aria-label={t.paragraph}>
@@ -343,19 +363,25 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
         editor={editor}
         disabled={disabled}
       />
+      <DocxDefaultTab
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={stylesDisabled}
+      />
       <DocxStyles
         kind="paragraph"
         controller={controller}
         state={state}
         editor={editor}
-        disabled={disabled}
+        disabled={stylesDisabled}
       />
       <DocxStyles
         kind="character"
         controller={controller}
         state={state}
         editor={editor}
-        disabled={disabled}
+        disabled={stylesDisabled}
       />
       {(["before", "after", "left", "right", "first"] as const).map((key) => (
         <NumericFormat

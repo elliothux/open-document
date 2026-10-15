@@ -13,6 +13,7 @@ export function DocxStyleEdit({
   editor,
   kind,
   choice,
+  styles,
   refresh,
 }: {
   controller: EditorController;
@@ -20,6 +21,7 @@ export function DocxStyleEdit({
   editor: DocumentEditor;
   kind: "paragraph" | "character";
   choice: DocxStyleCatalog["styles"][number] | undefined;
+  styles: DocxStyleCatalog["styles"];
   refresh: () => Promise<void>;
 }) {
   const t = messages(state.locale);
@@ -27,11 +29,13 @@ export function DocxStyleEdit({
   const [name, setName] = useState(choice?.name ?? "");
   const [size, setSize] = useState("");
   const [align, setAlign] = useState("");
+  const [basedOn, setBasedOn] = useState(choice?.basedOn ?? "");
   useEffect(() => {
     setName(choice?.name ?? "");
     setSize("");
     setAlign("");
-  }, [choice?.id, choice?.name, editor]);
+    setBasedOn(choice?.basedOn ?? "");
+  }, [choice?.id, choice?.name, choice?.basedOn, editor]);
   return (
     <form
       onSubmit={(event) => {
@@ -44,11 +48,12 @@ export function DocxStyleEdit({
         if (alignment) paragraph.align = alignment;
         if (align === "inherit") paragraph.align = null;
         controller.run(async () => {
-          await editor.updateStyle(
-            choice.id,
-            { character: size === "" ? {} : { size: Number(size) }, paragraph },
+          await editor.updateStyle(choice.id, {
+            character: size === "" ? {} : { size: Number(size) },
+            paragraph,
             name,
-          );
+            basedOn: basedOn || null,
+          });
           setSize("");
           setAlign("");
           await refresh();
@@ -66,6 +71,27 @@ export function DocxStyleEdit({
             value={name}
             onChange={(event) => setName(event.currentTarget.value)}
           />
+        </label>
+        <label>
+          {t.styleBasedOn}
+          <select
+            aria-label={`${label}: ${t.styleBasedOn}`}
+            value={basedOn}
+            onChange={(event) => setBasedOn(event.currentTarget.value)}
+          >
+            <option value="">{t.noBaseStyle}</option>
+            {styles
+              .filter((style) => style.id !== choice?.id)
+              .map((style) => (
+                <option
+                  key={style.id}
+                  value={style.id}
+                  disabled={!!style.reason}
+                >
+                  {style.name}
+                </option>
+              ))}
+          </select>
         </label>
         <label>
           {t.fontSize}

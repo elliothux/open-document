@@ -107,7 +107,7 @@ fn formatted_properties(
     ]
   } else {
     [
-      "pStyle", "pageBreakBefore", "tabs", "spacing", "ind", "jc", "autoSpaceDE",
+      "pStyle", "pageBreakBefore", "tabs", "bidi", "spacing", "ind", "jc", "autoSpaceDE",
       "autoSpaceDN", "rPr",
     ]
   }

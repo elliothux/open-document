@@ -15,18 +15,64 @@ export function copiedFormat(value: unknown): CopiedFormat {
   return value as CopiedFormat;
 }
 
-export function checkStyleUpdate(format: CopiedFormat, name?: string): void {
-  copiedFormat(format);
+/** Omitted metadata is retained; null basedOn removes the direct base reference. */
+export interface DocxStyleUpdate extends CopiedFormat {
+  name?: string;
+  basedOn?: string | null;
+}
+
+export interface DocxStyleCreation {
+  name: string;
+  kind: "paragraph" | "character";
+  basedOn?: string;
+}
+
+export function checkStyleCreation(style: DocxStyleCreation): void {
+  const fields = record(style);
+  if (
+    !Object.keys(fields).every((key) =>
+      ["name", "kind", "basedOn"].includes(key),
+    ) ||
+    !["paragraph", "character"].includes(style.kind) ||
+    (style.basedOn !== undefined &&
+      (typeof style.basedOn !== "string" ||
+        !style.basedOn ||
+        style.basedOn.length > 200))
+  )
+    throw new Error("Invalid style creation");
+  checkStyleUpdate({ character: {}, paragraph: {}, name: style.name });
+  if (typeof style.name !== "string") throw new Error("Invalid style name");
+}
+
+export function checkStyleUpdate(format: DocxStyleUpdate): void {
+  const fields = record(format);
+  if (
+    !Object.keys(fields).every((key) =>
+      ["character", "paragraph", "name", "basedOn"].includes(key),
+    )
+  )
+    throw new Error("Invalid style update");
+  copiedFormat({ character: format.character, paragraph: format.paragraph });
   if (
     format.character.style !== undefined ||
     format.paragraph.style !== undefined
   )
     throw new Error("Style updates cannot change style references");
   if (
-    name !== undefined &&
-    (typeof name !== "string" || !name.trim() || name.length > 200)
+    format.name !== undefined &&
+    (typeof format.name !== "string" ||
+      !format.name.trim() ||
+      format.name.length > 200)
   )
     throw new Error("Invalid style name");
+  if (
+    format.basedOn !== undefined &&
+    format.basedOn !== null &&
+    (typeof format.basedOn !== "string" ||
+      !format.basedOn ||
+      format.basedOn.length > 200)
+  )
+    throw new Error("Invalid base style");
 }
 
 export type FormatValue<T> =
@@ -71,6 +117,17 @@ export interface TabStop {
   leader?: "none" | "dot" | "hyphen" | "underscore" | "heavy" | "middleDot";
 }
 
+export function checkDefaultTabStop(value: unknown): void {
+  if (
+    value !== null &&
+    (typeof value !== "number" ||
+      value < 0 ||
+      value > 1584 ||
+      !Number.isInteger(value * 20))
+  )
+    throw new Error("Invalid default tab interval");
+}
+
 export function checkTabStops(value: unknown): void {
   if (!Array.isArray(value) || value.length > 64)
     throw new Error("Invalid tab stops");
@@ -109,6 +166,7 @@ export function checkTabStops(value: unknown): void {
 export interface ParagraphFormatPatch {
   style?: string | null;
   align?: "left" | "center" | "right" | "both" | null;
+  rtl?: boolean | null;
   before?: number | null;
   after?: number | null;
   left?: number | null;
@@ -137,6 +195,7 @@ export interface DocxFormatting {
   paragraph: {
     style: FormatValue<string>;
     align: FormatValue<string>;
+    rtl: FormatValue<boolean>;
     before: FormatValue<number>;
     after: FormatValue<number>;
     left: FormatValue<number>;
@@ -155,6 +214,7 @@ export function checkFormatPatch(
     ? {
         style: "string",
         align: "string",
+        rtl: "boolean",
         before: "number",
         after: "number",
         left: "number",
@@ -236,6 +296,7 @@ export function docxFormatting(value: unknown): DocxFormatting {
     ) ||
     !field(paragraph.style, "string") ||
     !field(paragraph.align, "string") ||
+    !field(paragraph.rtl, "boolean") ||
     !["before", "after", "left", "right", "first"].every((key) =>
       field(paragraph[key], "number"),
     ) ||

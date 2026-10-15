@@ -63,6 +63,7 @@ fn Session::prepare_empty(
     edit: {
       xml: [xml],
       parts: Map([]),
+      created: Map([]),
       before: self.selection,
       after: Some({ anchor: position, focus: position, }),
       paragraphs: [paragraph],
@@ -166,7 +167,7 @@ fn WordTree::check_structure_properties(
       "pPr" =>
         [
           "pStyle", "rPr", "spacing", "ind", "jc", "pageBreakBefore", "autoSpaceDE",
-          "autoSpaceDN", "tabs",
+          "autoSpaceDN", "tabs", "bidi",
         ]
       "tabs" => ["tab"]
       "rPr" =>
@@ -198,6 +199,7 @@ fn WordTree::check_structure_properties(
       | "rStyle"
       | "jc"
       | "pageBreakBefore"
+      | "bidi"
       | "autoSpaceDE"
       | "autoSpaceDN"
       | "sz"
@@ -233,8 +235,8 @@ fn WordTree::check_structure_properties(
         "Unknown structural attribute: " + node.qualified,
       )
     }
-    if node.name == "autoSpaceDE" || node.name == "autoSpaceDN" {
-      guard self.valid_script_spacing_property(id) else {
+    if ["autoSpaceDE", "autoSpaceDN", "bidi"].contains(node.name) {
+      guard self.valid_on_off_property(id) else {
         @failure.reject(
           "protected-content",
           "Invalid script spacing property: " + node.qualified,

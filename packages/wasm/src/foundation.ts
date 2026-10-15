@@ -6,6 +6,10 @@ import {
   copiedFormat,
   checkStyleUpdate,
   type CopiedFormat,
+  type DocxStyleUpdate,
+  type DocxStyleCreation,
+  checkStyleCreation,
+  checkDefaultTabStop,
   type DocxFormatting,
   type CharacterFormatPatch,
   type ParagraphFormatPatch,
@@ -154,6 +158,7 @@ export function docxNavigation(value: unknown): DocxNavigation {
 
 export interface EditState {
   revision: number;
+  defaultTabStop: number;
   compositionId: number | null;
   selection: DocxSelection | null;
   canUndo: boolean;
@@ -197,6 +202,10 @@ export function editState(value: unknown): EditState {
       (!integer(object.compositionId) || Number(object.compositionId) === 0)) ||
     typeof object.canUndo !== "boolean" ||
     typeof object.canRedo !== "boolean" ||
+    typeof object.defaultTabStop !== "number" ||
+    object.defaultTabStop < 0 ||
+    object.defaultTabStop > 1584 ||
+    !Number.isInteger(object.defaultTabStop * 20) ||
     !arrayOf(object.affectedParagraphs, integer) ||
     (object.selection !== null && !isDocxSelection(object.selection))
   )
@@ -396,14 +405,10 @@ export class FoundationSession extends WasmSession {
       this.call({ operation: "styleCatalog", revision, kind }),
     );
   }
-  createStyle(
-    revision: number,
-    name: string,
-    basedOn: string,
-  ): CreatedDocxStyle {
-    checkStyleUpdate({ character: {}, paragraph: {} }, name);
+  createStyle(revision: number, style: DocxStyleCreation): CreatedDocxStyle {
+    checkStyleCreation(style);
     return createdDocxStyle(
-      this.call({ operation: "createStyle", revision, name, basedOn }),
+      this.call({ operation: "createStyle", revision, ...style }),
     );
   }
   deleteStyle(revision: number, key: string, replacement: string): EditState {
@@ -414,12 +419,11 @@ export class FoundationSession extends WasmSession {
   updateStyle(
     revision: number,
     key: string,
-    format: CopiedFormat,
-    name?: string,
+    format: DocxStyleUpdate,
   ): EditState {
-    checkStyleUpdate(format, name);
+    checkStyleUpdate(format);
     return editState(
-      this.call({ operation: "updateStyle", revision, key, format, name }),
+      this.call({ operation: "updateStyle", revision, key, format }),
     );
   }
   captureFormat(revision: number, selection: DocxSelection): CopiedFormat {
@@ -470,6 +474,12 @@ export class FoundationSession extends WasmSession {
 
   editState(): EditState {
     return editState(this.call({ operation: "editState" }));
+  }
+  setDefaultTabStop(revision: number, interval: number | null): EditState {
+    checkDefaultTabStop(interval);
+    return editState(
+      this.call({ operation: "setDefaultTabStop", revision, interval }),
+    );
   }
   tabDocx(revision: number, backward = false): EditState {
     return editState(this.call({ operation: "tabDocx", revision, backward }));

@@ -56,7 +56,7 @@ fn Session::flow_from(
             uri="http://schemas.openxmlformats.org/officeDocument/2006/relationships",
           )
           .unwrap_or("")
-        let relation = for rel in self.opc.relationships() {
+        let relation = for rel in self.relationships() {
           if rel.owner == self.main &&
             rel.id == key &&
             rel.kind ==

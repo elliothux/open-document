@@ -21,287 +21,6 @@ fn LineSpacing::metrics(
 }
 
 ///|
-fn measure_line(
-  probe : TextProbe,
-  spans : Array[MeasuredSpan],
-  paragraph : @bidi.BidiParagraph,
-  start : Int,
-  end : Int,
-  boundaries : Array[Int],
-  spaces : Map[Int, Double],
-  geometry~ : Bool,
-  trailing~ : Double = 0,
-  advances? : Array[(Double, Double)],
-  tabs~ : TabLayout? = None,
-) -> (Double, Array[PlacedRun], Array[PlacedImage], Array[Caret]) raise @failure.Failure {
-  probe.check()
-  let runs : Array[PlacedRun] = []
-  let images : Array[PlacedImage] = []
-  let before : Map[Int, Double] = Map([])
-  let after : Map[Int, Double] = Map([])
-  let text = StringBuilder()
-  for item in spans {
-    let a = start.max(item.start)
-    let b = end.min(item.end)
-    if a < b {
-      text.write_string(
-        item.span.text[a - item.start:b - item.start].to_owned(),
-      )
-    }
-  }
-  let text = text.to_string()
-  let bidi = bidi_line(paragraph, start, end)
-  let mut context_start = 0
-  let mut source_offset = 0
-  for ch in paragraph.chars {
-    if source_offset >= start {
-      break
-    }
-    source_offset += if ch.to_int() > 0xffff { 2 } else { 1 }
-    context_start += 1
-  }
-  let groups : Array[LineGroup] = []
-  let group_chars : Array[Int] = []
-  let char_groups : Array[Int] = []
-  let mut offset = 0
-  let mut span_index = 0
-  for i, ch in bidi.chars {
-    while span_index < spans.length() && spans[span_index].end <= start + offset {
-      span_index += 1
-    }
-    guard span_index < spans.length() else {
-      @failure.reject("layout-failed", "Missing source span")
-    }
-    let item = spans[span_index]
-    let next = offset + (if ch.to_int() > 0xffff { 2 } else { 1 })
-    if groups.last() is Some(group) &&
-      group.image is None &&
-      item.span.image is None &&
-      !group.tab &&
-      ch != '\t' &&
-      group.font == item.font &&
-      group.style.size == item.span.style.size &&
-      group.style.color == item.span.style.color &&
-      group.style.script == item.span.style.script &&
-      group.level == bidi.levels[i] {
-      groups[groups.length() - 1] = { ..group, end: next, }
-    } else {
-      group_chars.push(i)
-      groups.push({
-        start: offset,
-        end: next,
-        font: item.font,
-        style: item.span.style,
-        level: bidi.levels[i],
-        image: item.span.image,
-        tab: ch == '\t',
-      })
-    }
-    char_groups.push(groups.length() - 1)
-    offset = next
-  }
-  let visual : Array[Int] = []
-  for i in bidi_order(bidi) {
-    if visual.last() != Some(char_groups[i]) {
-      visual.push(char_groups[i])
-    }
-  }
-  let mut width = 0.0
-  let mut leader_glyphs = 0
-  for index in visual {
-    let group = groups[index]
-    if group.tab {
-      let stop = tabs.unwrap_or({
-        interval: 36,
-        stops: [],
-        decimalSymbol: ".",
-        origin: 0,
-        left: 0,
-        limit: 1000000000,
-      })
-      let (following, decimal) = if stop.needs_following(width) {
-        let segment_end = tab_segment_end(text, group.end)
-        let point = tab_decimal(
-          text,
-          group.end,
-          segment_end,
-          stop.decimalSymbol,
-        )
-        let following = if group.end == segment_end {
-          0.0
-        } else {
-          measure_line(
-            probe,
-            spans,
-            paragraph,
-            start + group.end,
-            start + segment_end,
-            boundaries,
-            spaces,
-            geometry=false,
-          ).0
-        }
-        let decimal = if point == segment_end {
-          following
-        } else if point == group.end {
-          0.0
-        } else {
-          measure_line(
-            probe,
-            spans,
-            paragraph,
-            start + group.end,
-            start + point,
-            boundaries,
-            spaces,
-            geometry=false,
-          ).0
-        }
-        (following, decimal)
-      } else {
-        (0.0, 0.0)
-      }
-      let advance = stop.advance(width, following~, decimal~)
-      if advances is Some(values) {
-        values[start + group.start] = (advance, 0)
-      }
-      if geometry {
-        after[start + group.start] = width
-        before[start + group.end] = width + advance
-        let run = group.tab_run(
-          probe,
-          advance,
-          width,
-          start + group.start,
-          spans,
-          stop.next(width).leader,
-        )
-        leader_glyphs += run.glyphs.length()
-        guard leader_glyphs <= 16384 else {
-          @failure.reject("limit-exceeded", "Line leader glyph budget exceeded")
-        }
-        runs.push(run)
-      }
-      width += advance
-      continue
-    }
-    if group.image is Some(image) {
-      if advances is Some(values) {
-        let index = start + group.start
-        let (width, gap) = values[index]
-        values[index] = (width + image.width, gap)
-      }
-      if geometry {
-        after[start + group.start] = width +
-          (if group.level % 2 == 0 { 0.0 } else { image.width })
-        before[start + group.end] = width +
-          (if group.level % 2 == 0 { image.width } else { 0.0 })
-        images.push({
-          key: image.key,
-          x: width,
-          y: 0,
-          width: image.width,
-          height: image.height,
-        })
-      }
-      width += image.width
-      continue
-    }
-    let fragment = text[group.start:group.end].to_owned()
-    let spacing : Map[Int, Double] = Map([])
-    for offset, gap in spaces {
-      if offset > start + group.start &&
-        offset <= start + group.end &&
-        (offset < end || (offset == end && trailing > 0)) {
-        spacing[offset - start - group.start] = gap
-      }
-    }
-    let advances = advances.map(values => (values, start + group.start))
-    let batch = probe.shape_paragraph(
-      fragment,
-      group.style.render_size(),
-      "und",
-      group.font,
-      bidi_slice(bidi, group.start, group.end),
-      geometry~,
-      caret_units=120,
-      spacing~,
-      advances?,
-      context=(paragraph.chars, context_start + group_chars[index]),
-    )
-    guard batch.diagnostics.is_empty() else {
-      @failure.reject(
-        "missing-glyph", "Preview requires every glyph; unsupported or missing glyph in paragraph",
-      )
-    }
-    // Writer places integer-twip text portions; break-query advances stay floating.
-    let portion_width = (batch.width * 20).floor() / 20
-    if !geometry {
-      width += portion_width
-      continue
-    }
-    for caret in batch.carets {
-      let offset = start + group.start + caret.offset
-      if caret.offset > 0 {
-        before[offset] = width + caret.before
-      }
-      if caret.offset < fragment.length() {
-        after[offset] = width + caret.after
-      }
-    }
-    let sources : Array[SourceRange] = []
-    for item in spans {
-      let a = (start + group.start).max(item.start)
-      let b = (start + group.end).min(item.end)
-      if a < b {
-        sources.push({
-          node: item.span.node,
-          start: a - item.start,
-          end: b - item.start,
-          offset: a - start - group.start,
-        })
-      }
-    }
-    runs.push({
-      start: start + group.start,
-      sources,
-      color: group.style.color,
-      size: group.style.render_size(),
-      nominalSize: group.style.size,
-      rise: group.style.rise(),
-      decorations: line_decorations(
-        batch.carets,
-        spans,
-        start + group.start,
-        portion_width,
-      ),
-      text: fragment,
-      glyphs: batch.glyphs,
-      bidi: batch.runs,
-      x: width,
-      baseline: 0,
-    })
-    width += portion_width
-  }
-  let carets = if geometry {
-    boundaries
-    .filter(offset => offset >= start && offset <= end)
-    .map(offset => {
-      let a = after.get(offset).unwrap_or(before.get(offset).unwrap_or(0))
-      let b = before.get(offset).unwrap_or(a)
-      {
-        offset,
-        before: (if b < 0 { (b * 20).ceil() } else { (b * 20).floor() }) / 20,
-        after: (if a < 0 { (a * 20).ceil() } else { (a * 20).floor() }) / 20,
-      }
-    })
-  } else {
-    []
-  }
-  (width, runs, images, carets)
-}
-
-///|
 priv struct LineGroup {
   start : Int
   end : Int
@@ -374,7 +93,13 @@ fn paragraph_lines(
     @failure.reject("limit-exceeded", "Paragraph exceeds 4096 UTF-16 units")
   }
   let text = text.to_string()
-  let bidi = bidi_controls(@bidi.process(text))
+  let bidi = bidi_controls(
+    if paragraph.rtl {
+      @bidi.process(text, direction=@bidi.RTL)
+    } else {
+      @bidi.process(text)
+    },
+  )
   let spaces = script_spaces(spans, text, bidi)
   let size = if size > 0 { size } else { 11 }
   let (line_height, _, clip) = paragraph.line.metrics(
@@ -402,7 +127,13 @@ fn paragraph_lines(
   let lines : Array[MeasuredLine] = []
   let bars = paragraph.tabs
     .filter(stop => stop.align == "bar" && stop.position <= available)
-    .map(stop => stop.position)
+    .map(stop => {
+      if paragraph.rtl {
+        available - stop.position
+      } else {
+        stop.position
+      }
+    })
   let mut leader_glyphs = 0
   let breaks = @linebreak.linebreaks(text)
   let graphemes = @linebreak.grapheme_indices_uax29(text)
@@ -439,6 +170,7 @@ fn paragraph_lines(
           spaces,
           geometry=false,
           advances~,
+          rtl=paragraph.rtl,
           tabs=Some({
             interval: paragraph.defaultTab,
             stops: paragraph.tabs,
@@ -465,6 +197,7 @@ fn paragraph_lines(
         spaces,
         geometry=false,
         advances~,
+        rtl=paragraph.rtl,
         tabs=Some({
           interval: paragraph.defaultTab,
           stops: paragraph.tabs,
@@ -541,6 +274,7 @@ fn paragraph_lines(
           boundaries,
           spaces,
           geometry=false,
+          rtl=paragraph.rtl,
           tabs=Some({
             interval: paragraph.defaultTab,
             stops: paragraph.tabs,
@@ -595,6 +329,7 @@ fn paragraph_lines(
         0.0
       },
       geometry=true,
+      rtl=paragraph.rtl,
       tabs=Some({
         interval: paragraph.defaultTab,
         stops: paragraph.tabs,
@@ -671,7 +406,11 @@ fn paragraph_lines(
         text: text[start:visible_end].to_owned(),
         start,
         end,
-        x: indent + alignment,
+        x: if paragraph.rtl {
+          available - indent - alignment - width
+        } else {
+          indent + alignment
+        },
         areaX: 0,
         areaWidth: available,
         y: if page_break {
@@ -697,10 +436,18 @@ fn paragraph_lines(
       let last = lines.length() - 1
       lines[last] = {
         ..lines[last],
-        line: justified_line(lines[last].line, limit),
+        line: {
+          let line = justified_line(lines[last].line, limit)
+          if paragraph.rtl && line.justified {
+            { ..line, x: paragraph.right, }
+          } else {
+            line
+          }
+        },
       }
     }
     if paragraph.align == "both" &&
+      !paragraph.rtl &&
       bidi.base_level % 2 == 1 &&
       !lines.last().unwrap().line.justified {
       let last = lines.length() - 1
@@ -728,7 +475,11 @@ fn paragraph_lines(
         text: "",
         start,
         end: start,
-        x: paragraph.left,
+        x: if paragraph.rtl {
+          available - paragraph.left
+        } else {
+          paragraph.left
+        },
         areaX: 0,
         areaWidth: available,
         y: 0,

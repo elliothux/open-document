@@ -277,6 +277,16 @@ fn paragraph_properties(
       .unwrap_or(base.first),
     ),
     align: tree.value(id, "jc").unwrap_or(base.align),
+    rtl: if tree.child(id, "bidi") is Some(item) {
+      guard tree.valid_on_off_property(item) else {
+        @failure.reject("protected-content", "Unsupported paragraph direction")
+      }
+      !["0", "false", "off"].contains(
+        tree.nodes[item].attribute("val", uri=word_uri).unwrap_or("1"),
+      )
+    } else {
+      base.rtl
+    },
     pageBreakBefore: if tree.child(id, "pageBreakBefore") is Some(item) {
       match tree.nodes[item].attribute("val", uri=word_uri) {
         Some("0" | "false" | "off") => false
@@ -333,9 +343,10 @@ fn Session::styles(
     first: 0,
     align: "left",
     pageBreakBefore: false,
+    rtl: false,
     readOnlyReason: "",
   }
-  let path = for rel in self.opc.relationships() {
+  let path = for rel in self.relationships() {
     if rel.owner == self.main &&
       rel.kind ==
       "http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" {
@@ -412,7 +423,7 @@ fn Session::theme_fonts(
   self : Session,
 ) -> Map[String, String] raise @failure.Failure {
   let result : Map[String, String] = Map([])
-  for rel in self.opc.relationships() {
+  for rel in self.relationships() {
     if rel.owner != self.main ||
       rel.kind !=
       "http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" {

@@ -1,10 +1,11 @@
 ///|
-/// Creates a custom style derived from an existing supported style; returns its stable id and state.
+/// Creates a custom paragraph or character style; missing styles metadata is created atomically.
 pub fn Session::create_style(
   self : Session,
   revision : Int,
   name : String,
-  based_on : String,
+  kind : String,
+  based_on~ : String? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard !name.trim().is_empty() && name.length() <= 200 && @xml.valid_text(name) else {
@@ -14,24 +15,26 @@ pub fn Session::create_style(
   guard styles.ids.length() < 4096 else {
     @failure.reject("limit-exceeded", "Too many styles")
   }
-  guard styles.tree is Some(tree) && styles.ids.get(based_on) is Some(base) else {
-    @failure.reject("invalid-style", "Choose an existing base style")
-  }
-  let kind = tree.nodes[base]
-    .attribute("type", uri=word_uri)
-    .unwrap_or("paragraph")
   guard ["paragraph", "character"].contains(kind) else {
     @failure.reject("invalid-style", "Unsupported style type")
   }
-  styles.validate_style(based_on, kind)
-  for id in styles.ids.values() {
-    guard tree.nodes[id].attribute("type", uri=word_uri).unwrap_or("paragraph") !=
-      kind ||
-      tree
-      .value(id, "name")
-      .unwrap_or(tree.nodes[id].attribute("styleId", uri=word_uri).unwrap()) !=
-      name else {
-      @failure.reject("invalid-style", "A style with this name already exists")
+  if based_on is Some(base) {
+    styles.validate_style(base, kind)
+  }
+  if styles.tree is Some(tree) {
+    for id in styles.ids.values() {
+      guard tree.nodes[id]
+        .attribute("type", uri=word_uri)
+        .unwrap_or("paragraph") !=
+        kind ||
+        tree
+        .value(id, "name")
+        .unwrap_or(tree.nodes[id].attribute("styleId", uri=word_uri).unwrap()) !=
+        name else {
+        @failure.reject(
+          "invalid-style", "A style with this name already exists",
+        )
+      }
     }
   }
   let reserved : Map[String, Bool] = Map([])
@@ -62,21 +65,32 @@ pub fn Session::create_style(
   }
   let markup = "<od:style xmlns:od=\"\{word_uri}\" od:type=\"\{kind}\" od:customStyle=\"1\" od:styleId=\"\{key}\"><od:name od:val=\"" +
     property_attribute(name) +
-    "\"/><od:basedOn od:val=\"" +
-    property_attribute(based_on) +
-    "\"/></od:style>"
-  let document = self.part_xml(styles.part)
-  let root = document.nodes()[0]
-  let (candidate, edit) = document.edit_source([
-    {
-      node: root.id,
-      offset: root.closing_start - root.start,
-      length: 0,
-      xml: markup,
-    },
-  ])
+    "\"/>" +
+    (match based_on {
+      Some(base) => "<od:basedOn od:val=\"" + property_attribute(base) + "\"/>"
+      None => ""
+    }) +
+    "</od:style>"
   let parts = self.parts.copy()
-  parts[styles.part] = candidate
+  let edits : Map[String, Array[@xml.Edit]] = Map([])
+  let created : Map[String, @xml.Document] = Map([])
+  let part = if styles.tree is Some(_) {
+    styles.part
+  } else {
+    self.new_word_part("styles", parts, edits, created)
+  }
+  let document = match parts.get(part) {
+    Some(document) => document
+    None => self.part_xml(part)
+  }
+  let (candidate, edit) = append_part_xml(document, markup)
+  parts[part] = candidate
+  if created.contains(part) {
+    created[part] = candidate
+  } else {
+    edits[part] = [edit]
+  }
+  let bytes = xml_part_edit_bytes(edits, created)
   let view = { ..self, parts, }
   let updated = view.styles([])
   updated.validate_style(key, kind)
@@ -89,11 +103,12 @@ pub fn Session::create_style(
   self.commit_edit(
     {
       xml: [],
-      parts: Map::from_array([(styles.part, [edit])]),
+      parts: edits,
+      created,
       before: self.selection,
       after: self.selection,
       paragraphs: affected,
-      bytes: edit_bytes(edit),
+      bytes,
     },
     self.document(),
     parts~,

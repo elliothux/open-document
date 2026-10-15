@@ -115,13 +115,17 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 `setCharacterFormat({ style: id })` 在目标范围写 `w:rStyle`，保留直接字符属性；`style: null` 清除引用，恢复段落继承和原有直接属性。跨 run 范围沿原边界拆分，折叠范围只设置后续输入样式，随实际输入或组合提交一项历史；取消组合保留输入意图。空段落标记的字符样式也参与查询与显示。行为依据 [ONLYOFFICE 的 Run 字符样式设置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js)。新建文档带 `DefaultParagraphFont`、`Emphasis` 和 `Strong`，继承与粗斜体切换沿已有 OOXML 规则；宿主须为最终组合提供字体 profile，不能只准备样式单独使用的字形。
 
-两类查询均包含样式 ID 与混合状态，格式复制只捕获属性值，不复制样式 ID。未知属性、循环继承、跨类型继承及不支持的值拒绝应用，文档与历史保持原状。应用可一次撤销，支持保存重开和相同布局的 PDF；已有样式的继承关系修改仍未实现。
+两类查询均包含样式 ID 与混合状态，格式复制只捕获属性值，不复制样式 ID。未知属性、循环继承、跨类型继承及不支持的值拒绝应用，文档与历史保持原状。应用可一次撤销，支持保存重开和相同布局的 PDF。
 
-`FoundationSession/Client.updateStyle(revision, id, format, name?)` 与 `DocumentEditor.updateStyle(id, format, name?)` 修改现有样式。`format` 使用 `{ character, paragraph }`，支持现有格式字段，不能包含 `style` 引用。字符样式只接受空的段落补丁。省略字段保留直接定义，null 清除定义并恢复继承。粗体、斜体和删除线的布尔值表示样式在文档默认值及 `basedOn` 链上的有效值，核心换算 OOXML toggle，分别处理复杂文字的粗斜体。名称只改变显示名，保留稳定样式 ID；名称须为非空、最多 200 UTF-16 单元的有效 XML 文字。
+`FoundationSession/Client.updateStyle(revision, id, update)` 与 `DocumentEditor.updateStyle(id, update)` 修改现有样式。`DocxStyleUpdate` 使用 `{ character, paragraph, name?, basedOn? }`。两类格式支持现有字段，不能包含 `style` 引用。字符样式只接受空的段落补丁。省略字段保留直接定义，null 清除定义并恢复继承。粗体、斜体和删除线的布尔值表示样式在文档默认值及 `basedOn` 链上的有效值，核心换算 OOXML toggle，分别处理复杂文字的粗斜体。名称只改变显示名，保留稳定样式 ID；名称须为非空、最多 200 UTF-16 单元的有效 XML 文字。
 
-样式修改保留元数据、注释与未改正文。核心先检查候选、原本可用的依赖样式及正文直接属性的组合，再合并正文和样式 XML 校验包预算，一次提交 revision 和有界历史。失败不改变正文、部件、选择或历史；撤销/重做也先完整回放全部候选。输入、组合和保存使用同一组已提交部件。共享修改最多处理 4096 个样式，继承链沿既有 64 层上限。默认 UI 可修改所选样式的名称、字号、段落对齐和恢复继承字号；其他已支持格式可通过 API 修改。目录按按钮显式刷新。DOCX 历史目前支持正文和现有样式 XML 修改，新增/删除部件、关系及二进制资源的编辑历史仍待后续操作接入。
+`basedOn` 指定同类型、已支持的基础样式；null 移除直接继承引用，省略时保留。更换基础样式保留原有直接定义，不固定旧基础样式的有效值。同一补丁的粗斜体、删除线和制表位按新基础样式计算。核心拒绝循环、跨类型、未知及超过 64 层的继承，并检查原本可用的依赖样式和正文组合。继承、名称与格式修改合为一项历史，撤销恢复完整源内容。行为参考 [ONLYOFFICE 样式继承与历史](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js)。默认 UI 的基础样式列表与当前样式类型一致，也可选“无基础样式”。
 
-`FoundationSession/Client.createStyle(revision, name, basedOn)` 从现有、已支持的段落或字符样式创建自定义样式，返回 `{ id, state }`。Web 编辑宿主的 `createStyle(name, basedOn)` 返回新 ID。核心分配身份，并避开 Word 部件中已有定义和引用；同类型样式不接受重复显示名。新定义继承基础样式，不改变选区或立即应用到文字，之后可用现有应用和修改方法。默认 UI 从所选样式创建，并选中新定义。新建定义本身是一项可撤销历史，保存重开后保留同一身份。没有可用基础样式或样式部件的导入文件，目前不能创建首个样式。
+样式修改保留元数据、注释与未改正文。核心先检查候选、原本可用的依赖样式及正文直接属性的组合，再合并正文和样式 XML 校验包预算，一次提交 revision 和有界历史。失败不改变正文、部件、选择或历史；撤销/重做也先完整回放全部候选。输入、组合和保存使用同一组已提交部件。共享修改最多处理 4096 个样式，继承链沿既有 64 层上限。默认 UI 可修改所选样式的名称、基础样式、字号、段落对齐和恢复继承字号；其他已支持格式可通过 API 修改。目录按按钮显式刷新。DOCX 历史目前支持正文、样式及其他 Word XML 的修改，以及样式或设置创建所需的 XML 部件新增、关系和内容类型修改。已有部件的任意删除及二进制资源历史仍待对应操作接入。
+
+`FoundationSession/Client.createStyle(revision, style)` 创建自定义样式，返回 `{ id, state }`。`DocxStyleCreation` 使用 `{ name, kind, basedOn? }`；`kind` 为 `"paragraph" | "character"`，可选的基础样式必须同类型且已支持。省略 `basedOn` 创建无直接继承的定义。Web 编辑宿主的 `createStyle(style)` 返回新 ID。核心分配身份，并避开 Word 部件中已有定义和引用；同类型样式不接受重复显示名。创建不改变选区或立即应用到文字，之后可用现有应用和修改方法。默认 UI 读取目录后可新建；有选中项时以它为基础，没有选中项时不设基础样式。样式管理不要求正文选区，应用和清除仍需要有效选区。
+
+导入文件缺少样式部件时，核心在主文档旁创建唯一 XML 部件，原子补齐主文档关系和内容类型。原有同名部件、关系 ID、外链和未知内容保留。新定义和包元数据合为一项有界历史，新增 XML 的源内容计入历史预算；包图、输出或历史预算失败不改变状态。撤销移除本次新增部件并恢复原包，重做保留后续修改所需的节点身份。保存重开后使用同一关系与样式 ID。
 
 `deleteStyle(revision, id, replacement)` 删除自定义样式，替代样式必须已支持且类型相同，也不能依赖被删样式。Web 编辑宿主省略 revision。核心同步移除定义并替换 WordprocessingML 部件中的样式引用，包括正文、页眉和编号；保留直接格式、文字、其他样式及未知内容。折叠处待输入的样式引用也映射到替代项。命令至多替换 65536 个引用，继续受包与历史预算约束。全部候选成功后一次提交，撤销同时恢复各部件与选择。默认 UI 显示并使用所选样式的基础样式作为替代。默认/内置样式及链接样式保留保护，不按删除命令重置其定义。
 
@@ -151,9 +155,11 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `Paragraph.defaultTab` 为 point，来自 `settings/defaultTabStop` 的整数 twip，默认 36 pt，范围 0–1584 pt；0 表示零宽。核心根据当前行位置与缩进计算下一默认制表位，断行、光标、预览与 PDF 消费同一宽度。末格 Tab 保持原位置，自动追加表格行归表格编辑批次。
 
+`FoundationSession/Client.setDefaultTabStop(revision, interval)` 与 `DocumentEditor.setDefaultTabStop(interval)` 修改文档默认间隔，不要求正文选区。`interval` 为 0–1584 pt，须能表示成整数 twip；null 清除显式设置并恢复 36 pt。`EditState.defaultTabStop` 提供当前有效值，默认 UI 可修改或恢复。修改保留自定义制表位、逻辑 Tab、待输入格式与未知设置；现有相同值不产生历史。缺少设置部件时，XML、关系与内容类型一并创建。设置修改或创建合为一项有界历史，失败保留已提交包，撤销和重做恢复各部件及选择。候选先验证设置值和包预算，再提交并使相关布局失效。未知目标标记、重复设置、外部/重复设置关系，以及强制保护的文档设置拒绝修改。行为参考 [ONLYOFFICE 的文档默认制表位历史](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js)。
+
 `setParagraphFormat({ tabs })` 使用 `TabStop[]`：每项为 `{ position, align, leader? }`，位置单位为 pt，须为 0–1584 pt 的整数 twip，按位置递增且不重复，最多 64 个有效位置。`align` 支持 `left/right/center/decimal/bar`。`leader` 省略时为 `none`，也支持 `dot/hyphen/underscore/heavy/middleDot`；`bar` 只接受无引导线。MoonBit `TabStop.leader` 与核心返回值总带明确值。字段省略保留；null 清除段落直接定义并恢复继承；空数组清除全部有效位置，核心为移除的继承位置写 `w:tab w:val="clear"`。格式查询与格式复制包含有效制表位。默认 UI 可添加、修改、移除、应用、清除全部与恢复继承，使用同一历史与保存路径。
 
-派生 `Paragraph.tabs` 提供合并后的有效位置。核心按后续片段宽度放置右/居中制表位，小数点使用文档 `settings/decimalSymbol`（派生 `Paragraph.decimalSymbol`，默认 `.`）；越过可用边缘的自定义位置按右边缘放置，悬挂缩进保留隐式左边界位置。规则参考 [ONLYOFFICE 的制表位合并](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js)与 [Tab 后续文字定位](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js)。未知标记仍保留源并保护编辑。当前使用物理左边框作为制表原点，RTL 镜像、默认间隔修改与标尺交互仍待实现。
+派生 `Paragraph.tabs` 提供合并后的有效位置。核心按后续片段宽度放置右/居中制表位，小数点使用文档 `settings/decimalSymbol`（派生 `Paragraph.decimalSymbol`，默认 `.`）；越过可用边缘的自定义位置按右边缘放置，悬挂缩进保留隐式左边界位置。规则参考 [ONLYOFFICE 的制表位合并](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js)与 [Tab 后续文字定位](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js)。未知标记仍保留源并保护编辑。当前使用物理左边框作为制表原点，RTL 镜像与标尺交互仍待实现。
 
 引导线按 [ONLYOFFICE 的 Tab 字形绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/RunContent/Tab.js)使用当前字体与字号，重复字形居中放入间隔；短划线使用 1.5 倍步长，`heavy` 与 `underscore` 使用下划线字形。逻辑文字、光标与复制内容仍为一个 Tab，PDF 的 ActualText 不加入装饰字符。每个 Tab 最多 4096 个引导字形，每行 16384 个、每段 65536 个；超过预算明确拒绝布局。
 

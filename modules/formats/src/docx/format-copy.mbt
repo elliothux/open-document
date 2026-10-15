@@ -1,4 +1,12 @@
 ///|
+fn Selection::without_visual_hints(self : Selection) -> Selection {
+  {
+    anchor: { ..self.anchor, bidiLevel: None, frameStart: None, },
+    focus: { ..self.focus, bidiLevel: None, frameStart: None, },
+  }
+}
+
+///|
 /// Captures uniform effective properties; mixed properties are omitted.
 pub fn Session::capture_format(
   self : Session,
@@ -75,11 +83,17 @@ pub fn Session::apply_format(
     }
     bytes += count
   }
+  let selection = if edits.is_empty() {
+    selection
+  } else {
+    selection.without_visual_hints()
+  }
   if !edits.is_empty() {
     self.commit_edit(
       {
         xml: edits,
         parts: Map([]),
+        created: Map([]),
         before: self.selection,
         after: Some(selection),
         paragraphs: range.paragraphs,

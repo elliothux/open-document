@@ -90,11 +90,12 @@ fn paragraph_format(
 ) -> @docx.ParagraphFormat raise @failure.Failure {
   let fields = format_fields(request, [
     "style", "align", "before", "after", "left", "right", "first", "line", "tabs",
-    "pageBreakBefore",
+    "pageBreakBefore", "rtl",
   ])
   @docx.ParagraphFormat::new(
     style=format_string(fields, "style"),
     align=format_string(fields, "align"),
+    rtl=format_boolean(fields, "rtl"),
     before=format_number(fields, "before"),
     after=format_number(fields, "after"),
     left=format_number(fields, "left"),

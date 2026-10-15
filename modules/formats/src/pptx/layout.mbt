@@ -48,6 +48,7 @@ fn measure_text(
       after: 0,
       line: spacing,
       pageBreakBefore: false,
+      rtl: false,
       readOnlyReason: object.text_reason,
     }
     let measured = probe.paragraph_lines(flow, profile, width, object.body.wrap)

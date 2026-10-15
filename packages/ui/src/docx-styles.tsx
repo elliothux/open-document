@@ -19,7 +19,9 @@ export function DocxStyles({
   kind: "paragraph" | "character";
 }) {
   const t = messages(state.locale);
-  const current = editor.getSnapshot().data.formatting?.[kind].style;
+  const formatting = editor.getSnapshot().data.formatting;
+  const current = formatting?.[kind].style;
+  const cannotApply = !formatting || !!formatting.reason;
   const paragraph = kind === "paragraph";
   const apply = (style: string | null) =>
     controller.run(() =>
@@ -67,12 +69,12 @@ export function DocxStyles({
       {catalog?.truncated && <p role="status">{t.styleLimit}</p>}
       <button
         type="button"
-        disabled={!choice || !!choice.reason}
+        disabled={cannotApply || !choice || !!choice.reason}
         onClick={() => apply(selected)}
       >
         {paragraph ? t.applyStyle : t.applyCharacterStyle}
       </button>
-      <button type="button" onClick={() => apply(null)}>
+      <button type="button" disabled={cannotApply} onClick={() => apply(null)}>
         {paragraph ? t.restoreDefaultStyle : t.clearCharacterStyle}
       </button>
       <DocxStyleEdit
@@ -81,21 +83,25 @@ export function DocxStyles({
         editor={editor}
         kind={kind}
         choice={choice}
+        styles={catalog?.styles ?? []}
         refresh={async () => setCatalog(await editor.styles(kind))}
       />
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          if (!choice) return;
           controller.run(async () => {
-            const id = await editor.createStyle(newName, choice.id);
+            const id = await editor.createStyle({
+              name: newName,
+              kind,
+              ...(choice ? { basedOn: choice.id } : {}),
+            });
             setCatalog(await editor.styles(kind));
             setSelected(id);
             setNewName("");
           });
         }}
       >
-        <fieldset disabled={!choice || !!choice.reason}>
+        <fieldset disabled={!catalog || !!choice?.reason}>
           <legend>{t.createBasedStyle}</legend>
           <label>
             {t.newStyleName}

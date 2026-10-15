@@ -165,12 +165,13 @@ async function dispatch(request: Request): Promise<unknown> {
           );
         case "styleCatalog":
           return foundation.styles(request.revision, request.kind);
-        case "createStyle":
-          return foundation.createStyle(
+        case "setDefaultTabStop":
+          return foundation.setDefaultTabStop(
             request.revision,
-            request.name,
-            request.basedOn,
+            request.interval,
           );
+        case "createStyle":
+          return foundation.createStyle(request.revision, request.style);
         case "deleteStyle":
           return foundation.deleteStyle(
             request.revision,
@@ -182,7 +183,6 @@ async function dispatch(request: Request): Promise<unknown> {
             request.revision,
             request.key,
             request.format,
-            request.name,
           );
         case "captureFormat":
           return foundation.captureFormat(request.revision, request.selection);

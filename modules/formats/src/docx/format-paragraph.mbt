@@ -3,6 +3,7 @@
 pub(all) struct ParagraphFormat {
   style : FormatChange[String]
   align : FormatChange[String]
+  rtl : FormatChange[Bool]
   before : FormatChange[Double]
   after : FormatChange[Double]
   left : FormatChange[Double]
@@ -17,6 +18,7 @@ pub(all) struct ParagraphFormat {
 pub fn ParagraphFormat::new(
   style~ : FormatChange[String] = Keep,
   align~ : FormatChange[String] = Keep,
+  rtl~ : FormatChange[Bool] = Keep,
   before~ : FormatChange[Double] = Keep,
   after~ : FormatChange[Double] = Keep,
   left~ : FormatChange[Double] = Keep,
@@ -29,6 +31,7 @@ pub fn ParagraphFormat::new(
   {
     style,
     align,
+    rtl,
     before,
     after,
     left,
@@ -49,7 +52,7 @@ fn ParagraphFormat::properties(
     Keep => ()
     Clear => result["pStyle"] = None
     Set(value) => {
-      for name in ["jc", "spacing", "ind", "pageBreakBefore"] {
+      for name in ["jc", "spacing", "ind", "pageBreakBefore", "bidi"] {
         result[name] = None
       }
       result["pStyle"] = Some(Map::from_array([("val", Some(value))]))
@@ -115,6 +118,14 @@ fn ParagraphFormat::properties(
     Clear => result["pageBreakBefore"] = None
     Set(value) =>
       result["pageBreakBefore"] = Some(
+        Map::from_array([("val", Some(if value { "1" } else { "0" }))]),
+      )
+  }
+  match self.rtl {
+    Keep => ()
+    Clear => result["bidi"] = None
+    Set(value) =>
+      result["bidi"] = Some(
         Map::from_array([("val", Some(if value { "1" } else { "0" }))]),
       )
   }

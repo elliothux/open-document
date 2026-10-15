@@ -234,6 +234,7 @@ pub fn Session::query_formatting(
         reason,
       ),
       "align": format_summary(paragraphs.map(p => p.align), reason),
+      "rtl": format_summary(paragraphs.map(p => p.rtl), reason),
       "before": format_summary(paragraphs.map(p => p.before), reason),
       "after": format_summary(paragraphs.map(p => p.after), reason),
       "left": format_summary(paragraphs.map(p => p.left), reason),

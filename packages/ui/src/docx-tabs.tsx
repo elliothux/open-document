@@ -4,17 +4,14 @@ import type { TabStop } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 
-export function DocxTabs({
-  controller,
-  state,
-  editor,
-  disabled,
-}: {
+interface Props {
   controller: EditorController;
   state: UiSnapshot;
   editor: DocumentEditor;
   disabled: boolean;
-}) {
+}
+
+export function DocxTabs({ controller, state, editor, disabled }: Props) {
   const t = messages(state.locale);
   const current = editor.getSnapshot().data.formatting?.paragraph.tabs;
   const value = current?.kind === "value" ? current.value : undefined;
@@ -155,6 +152,45 @@ export function DocxTabs({
           }
         >
           {t.restoreTabStops}
+        </button>
+      </fieldset>
+    </form>
+  );
+}
+
+export function DocxDefaultTab({ controller, state, editor, disabled }: Props) {
+  const t = messages(state.locale);
+  const current = editor.getSnapshot().data.defaultTabStop;
+  const [draft, setDraft] = useState(String(current));
+  useEffect(() => setDraft(String(current)), [current, editor]);
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        controller.run(() => editor.setDefaultTabStop(Number(draft)));
+      }}
+    >
+      <fieldset disabled={disabled}>
+        <legend>{t.defaultTabStop}</legend>
+        <label>
+          {t.defaultTabInterval}
+          <input
+            aria-label={t.defaultTabInterval}
+            type="number"
+            required
+            min={0}
+            max={1584}
+            step={0.05}
+            value={draft}
+            onChange={(event) => setDraft(event.currentTarget.value)}
+          />
+        </label>
+        <button type="submit">{t.applyDefaultTab}</button>
+        <button
+          type="button"
+          onClick={() => controller.run(() => editor.setDefaultTabStop(null))}
+        >
+          {t.restoreDefaultTab}
         </button>
       </fieldset>
     </form>

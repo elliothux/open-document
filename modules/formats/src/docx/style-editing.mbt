@@ -60,7 +60,13 @@ fn style_property_change(
   if tree.child(id, field) is Some(_) || parent.empty || markup.is_empty() {
     return properties_change(tree, document, id, field, markup)
   }
-  let later = if field == "pPr" {
+  let later = if field == "basedOn" {
+    [
+      "next", "link", "autoRedefine", "hidden", "uiPriority", "semiHidden", "unhideWhenUsed",
+      "qFormat", "locked", "personal", "personalCompose", "personalReply", "rsid",
+      "pPr", "rPr", "tblPr", "trPr", "tcPr", "tblStylePr",
+    ]
+  } else if field == "pPr" {
     ["rPr", "tblPr", "trPr", "tcPr", "tblStylePr"]
   } else {
     ["tblPr", "trPr", "tcPr", "tblStylePr"]
@@ -78,7 +84,7 @@ fn style_property_change(
 }
 
 ///|
-/// Updates an existing style's name or supported properties as one document edit.
+/// Updates an existing style's name, inheritance or supported properties as one edit.
 /// Boolean values describe the style's effective value above its basedOn chain.
 pub fn Session::update_style(
   self : Session,
@@ -87,6 +93,7 @@ pub fn Session::update_style(
   character : CharacterFormat,
   paragraph : ParagraphFormat,
   name~ : String? = None,
+  based_on~ : FormatChange[String] = Keep,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard character.style is Keep && paragraph.style is Keep else {
@@ -121,7 +128,7 @@ pub fn Session::update_style(
       "invalid-operation", "Character styles cannot define paragraph properties",
     )
   }
-  for field in ["name", "rPr", "pPr"] {
+  for field in ["name", "basedOn", "rPr", "pPr"] {
     guard tree.children[id]
       .filter(child => {
         tree.nodes[child].uri == word_uri && tree.nodes[child].name == field
@@ -130,7 +137,8 @@ pub fn Session::update_style(
       1 else {
       @failure.reject("protected-content", "Duplicate style property: " + field)
     }
-    if field != "name" && tree.child(id, field) is Some(properties) {
+    if ["rPr", "pPr"].contains(field) &&
+      tree.child(id, field) is Some(properties) {
       tree.check_structure_properties(properties)
     }
   }
@@ -149,7 +157,50 @@ pub fn Session::update_style(
       }
     }
   }
-  let (base, inherited_paragraph, complex) = styles.inherited_style(key)
+  let mut candidate = self.part_xml(styles.part)
+  let edits : Array[@xml.Edit] = []
+  let mut bytes = 0
+  if !(based_on is Keep) {
+    if tree.child(id, "basedOn") is Some(property) {
+      let node = tree.nodes[property]
+      guard tree.children[property].is_empty() &&
+        node.text.trim().is_empty() &&
+        node.attributes.iter().all(a => a.uri == word_uri && a.name == "val") else {
+        @failure.reject("protected-content", "Unknown style inheritance markup")
+      }
+    }
+    let property = match based_on {
+      Set(parent) => {
+        styles.validate_style(parent, kind)
+        guard !styles.chain(parent, []).contains(id) else {
+          @failure.reject(
+            "invalid-style", "Style inheritance cannot contain a cycle",
+          )
+        }
+        Some(Map::from_array([("val", Some(parent))]))
+      }
+      _ => None
+    }
+    let markup = property_markup(
+      tree,
+      candidate,
+      tree.child(id, "basedOn"),
+      "basedOn",
+      property,
+    )
+    if style_property_change(tree, candidate, id, "basedOn", markup)
+      is Some(change) {
+      let (updated, edit) = candidate.edit_source([change])
+      bytes = edit_bytes(edit)
+      guard bytes <= history_byte_limit else {
+        @failure.reject("limit-exceeded", "Style update exceeds history budget")
+      }
+      candidate = updated
+      edits.push(edit)
+    }
+  }
+  let inherited = { ..styles, tree: Some(WordTree::new(candidate)), }
+  let (base, inherited_paragraph, complex) = inherited.inherited_style(key)
   let character_patch = {
     ..character,
     bold: style_toggle(character.bold, base.bold),
@@ -171,9 +222,6 @@ pub fn Session::update_style(
     Clear => nested["tabs"] = ""
     Set(stops) => nested["tabs"] = tabs_markup(inherited_paragraph.tabs, stops)
   }
-  let mut candidate = self.part_xml(styles.part)
-  let edits : Array[@xml.Edit] = []
-  let mut bytes = 0
   for field in ["name", "rPr", "pPr"] {
     let tree = WordTree::new(candidate)
     let markup = match field {
@@ -228,8 +276,9 @@ pub fn Session::update_style(
     {
       xml: [],
       parts: Map::from_array([(styles.part, edits)]),
+      created: Map([]),
       before: self.selection,
-      after: self.selection,
+      after: self.selection.map(selection => selection.without_visual_hints()),
       paragraphs: affected,
       bytes,
     },

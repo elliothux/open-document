@@ -283,6 +283,7 @@ fn Foundation::dispatch(
     | "applyFormat"
     | "setCharacterFormat"
     | "setParagraphFormat"
+    | "setDefaultTabStop"
     | "findDocx"
     | "replaceDocxMatches"
     | "tabDocx"
@@ -393,13 +394,34 @@ fn Foundation::dispatch(
             field_int(request, "revision"),
             field_string(request, "kind"),
           )
+        "setDefaultTabStop" => {
+          let interval = match request {
+            { "interval": Null, .. } => None
+            { "interval": Number(value, ..), .. } => Some(value)
+            _ =>
+              @failure.reject(
+                "invalid-operation", "Invalid default tab interval",
+              )
+          }
+          let result = session.set_default_tab_stop(
+            field_int(request, "revision"),
+            interval,
+          )
+          self.layout = None
+          result
+        }
         "createStyle" | "deleteStyle" => {
           let revision = field_int(request, "revision")
           let result = if operation == "createStyle" {
             session.create_style(
               revision,
               field_string(request, "name"),
-              field_string(request, "basedOn"),
+              field_string(request, "kind"),
+              based_on=match request {
+                { "basedOn": String(base), .. } => Some(base)
+                Object(fields) if !fields.contains("basedOn") => None
+                _ => @failure.reject("invalid-operation", "Invalid base style")
+              },
             )
           } else {
             session.delete_style(
@@ -418,15 +440,23 @@ fn Foundation::dispatch(
           )
         "applyFormat" | "updateStyle" => {
           guard request is { "format": Object(fields) as format, .. } &&
-            fields.length() == 2 &&
+            fields
+            .keys()
+            .all(key => {
+              (if operation == "updateStyle" {
+                ["character", "paragraph", "name", "basedOn"]
+              } else {
+                ["character", "paragraph"]
+              }).contains(key)
+            }) &&
             format is { "character": character, "paragraph": paragraph, .. } else {
             @failure.reject("invalid-operation", "Invalid copied format")
           }
           let revision = field_int(request, "revision")
           let result = if operation == "updateStyle" {
-            let name = match request {
-              { "name": String(name), .. } => Some(name)
-              Object(fields) if !fields.contains("name") => None
+            let name = match fields.get("name") {
+              Some(String(name)) => Some(name)
+              None => None
               _ => @failure.reject("invalid-operation", "Invalid style name")
             }
             session.update_style(
@@ -435,6 +465,7 @@ fn Foundation::dispatch(
               character_format({ "format": character }),
               paragraph_format({ "format": paragraph }),
               name~,
+              based_on=format_string(fields, "basedOn"),
             )
           } else {
             session.apply_format(

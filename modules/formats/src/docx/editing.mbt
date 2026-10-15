@@ -54,6 +54,7 @@ pub extend Selection with ToJson::{to_json}
 priv struct Edit {
   xml : Array[@xml.Edit]
   parts : Map[String, Array[@xml.Edit]]
+  created : Map[String, @xml.Document]
   before : Selection?
   after : Selection?
   paragraphs : Array[Int]
@@ -136,6 +137,7 @@ fn Session::edit_result(
   }
   {
     "revision": self.revision,
+    "defaultTabStop": self.default_tab(),
     "formatting": if self.composition is None &&
       self.selection is Some(selection) {
       self.query_formatting(self.revision, selection)
@@ -421,6 +423,7 @@ fn Session::prepare_text(
     edit: {
       xml: [xml],
       parts: Map([]),
+      created: Map([]),
       before: self.selection,
       after,
       paragraphs: [paragraph],
@@ -443,6 +446,7 @@ fn Session::commit_edit(
 ) -> Unit raise @failure.Failure {
   let previous = if join_group &&
     edit.parts.is_empty() &&
+    edit.created.is_empty() &&
     input_group is Some(_) &&
     self.input_group == input_group &&
     self.redo.is_empty() {
@@ -450,6 +454,7 @@ fn Session::commit_edit(
     .last()
     .filter(old => {
       old.parts.is_empty() &&
+      old.created.is_empty() &&
       old.after == edit.before &&
       old.bytes <= history_byte_limit - edit.bytes
     })
@@ -496,6 +501,7 @@ fn Session::apply_edit(
   edit : Edit,
   forward~ : Bool,
 ) -> Unit raise @failure.Failure {
+  let original_parts = self.parts
   let mut candidate = self.document()
   // shortcut: Replay reparses XML per step; compact patches during P4 latency work.
   for index in 0..<edit.xml.length() {
@@ -511,6 +517,27 @@ fn Session::apply_edit(
     }
     parts[name] = document
   }
+  for name, document in edit.created {
+    guard !self.opc.names.contains(name.to_lower()) else {
+      @failure.reject(
+        "invalid-operation", "History cannot replace an original part",
+      )
+    }
+    if forward {
+      guard !parts.contains(name) else {
+        @failure.reject(
+          "invalid-operation", "Created history part already exists",
+        )
+      }
+      parts[name] = document
+    } else {
+      guard parts.get(name) is Some(current) &&
+        current.source() == document.source() else {
+        @failure.reject("invalid-operation", "Created history part has changed")
+      }
+      parts.remove(name)
+    }
+  }
   self.accept_document(
     candidate,
     if forward {
@@ -520,6 +547,12 @@ fn Session::apply_edit(
     },
     parts~,
   )
+  if !forward {
+    // Retain identity allocation after later edits were undone, for their next redo.
+    for name, _ in edit.created {
+      edit.created[name] = original_parts[name]
+    }
+  }
 }
 
 ///|
@@ -533,6 +566,7 @@ fn Session::accept_document(
     @failure.reject("limit-exceeded", "Revision exhausted")
   }
   self.opc.validate_changes(self.replacements(candidate, parts))
+  ignore({ ..self, document: Some(candidate), parts, }.default_tab())
   let texts = docx_texts(WordTree::new(candidate))
   self.document = Some(candidate)
   self.parts = parts

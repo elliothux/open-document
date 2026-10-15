@@ -157,7 +157,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
     })
   }
   let rels : Array[Json] = []
-  for rel in self.opc.relationships() {
+  for rel in self.relationships() {
     rels.push({
       "owner": rel.owner,
       "id": rel.id,

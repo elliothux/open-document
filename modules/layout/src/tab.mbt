@@ -47,7 +47,6 @@ priv struct TabLayout {
 
 ///|
 fn TabLayout::next(self : TabLayout, width : Double) -> TabStop {
-  // shortcut: Stops use the physical left frame; mirror stops with RTL paragraph direction support.
   let x = width + self.origin
   for stop in self.stops {
     if stop.align != "bar" &&

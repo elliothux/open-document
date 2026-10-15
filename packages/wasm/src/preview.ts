@@ -45,6 +45,7 @@ export interface DocxFlow {
     right: number;
     first: number;
     align: string;
+    rtl: boolean;
     pageBreakBefore: boolean;
     readOnlyReason: string;
   }[];
@@ -162,6 +163,7 @@ export function docxFlow(value: unknown): DocxFlow {
       throw new Error("Invalid line spacing rule");
     if (
       typeof paragraph.pageBreakBefore !== "boolean" ||
+      typeof paragraph.rtl !== "boolean" ||
       typeof paragraph.expandSoftBreak !== "boolean"
     )
       throw new Error("Invalid paragraph flags");

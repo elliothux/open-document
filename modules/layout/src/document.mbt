@@ -102,6 +102,7 @@ pub(all) struct Paragraph {
   right : Double
   first : Double
   align : String
+  rtl : Bool
   pageBreakBefore : Bool
   readOnlyReason : String
 } derive(ToJson)

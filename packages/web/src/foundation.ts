@@ -8,6 +8,8 @@ export type {
   DocxSearchResult,
   HighlightColor,
   CopiedFormat,
+  DocxStyleUpdate,
+  DocxStyleCreation,
   TabStop,
   DocxStyleCatalog,
   CreatedDocxStyle,
@@ -34,6 +36,10 @@ import {
   copiedFormat,
   checkStyleUpdate,
   type CopiedFormat,
+  type DocxStyleUpdate,
+  type DocxStyleCreation,
+  checkStyleCreation,
+  checkDefaultTabStop,
   checkFormatPatch,
   checkFindOptions,
   docxSearchResult,
@@ -150,28 +156,38 @@ export class FoundationClient {
   async updateStyle(
     revision: number,
     key: string,
-    format: CopiedFormat,
-    name?: string,
+    format: DocxStyleUpdate,
   ): Promise<EditState> {
-    checkStyleUpdate(format, name);
+    checkStyleUpdate(format);
     return editState(
       await this.connection.request({
         operation: "updateStyle",
         revision,
         key,
         format,
-        ...(name === undefined ? {} : { name }),
       }),
     );
   }
-  async createStyle(revision: number, name: string, basedOn: string) {
-    checkStyleUpdate({ character: {}, paragraph: {} }, name);
+  async createStyle(revision: number, style: DocxStyleCreation) {
+    checkStyleCreation(style);
     return createdDocxStyle(
       await this.connection.request({
         operation: "createStyle",
         revision,
-        name,
-        basedOn,
+        style,
+      }),
+    );
+  }
+  async setDefaultTabStop(
+    revision: number,
+    interval: number | null,
+  ): Promise<EditState> {
+    checkDefaultTabStop(interval);
+    return editState(
+      await this.connection.request({
+        operation: "setDefaultTabStop",
+        revision,
+        interval,
       }),
     );
   }

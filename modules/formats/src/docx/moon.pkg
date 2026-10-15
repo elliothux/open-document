@@ -7,10 +7,10 @@ import {
   "moonbitlang/core/string",
   "moonbitlang/core/math",
   "moonbitlang/x/unicode",
+  "moonbitlang/core/encoding/utf8",
 }
 
 import {
   "moonbit-community/flate/zip",
-  "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/encoding/utf16",
 } for "wbtest"

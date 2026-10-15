@@ -244,6 +244,7 @@ pub fn TextProbe::text_block(
     first: 0,
     align: "left",
     pageBreakBefore: false,
+    rtl: false,
     readOnlyReason: "",
   }
   let cache = ParagraphCache::new(self, profile)
