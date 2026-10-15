@@ -109,7 +109,7 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 `setParagraphFormat` 支持 `align: "left" | "center" | "right" | "both"`、`before/after/left/right/first`、`line`、`pageBreakBefore` 和 `rtl`。`both` 为两端对齐，写回 OOXML `w:jc`；默认 UI 提供同名按钮。距离单位为 pt，须能表示成整数 twip；范围 0–1584 pt，`first` 可为负值以设置悬挂缩进。`line: { rule, value }` 使用 OOXML 整数单位：`auto` 为每行 240，取值 120–2400；`exact/atLeast` 为 twip，取值 1–31680。UI 显示多倍行距或 pt，确认后转换为这些单位；清除段落直接格式也清除行距。
 
-`FoundationSession/Client.styles(revision, kind)` 与 `DocumentEditor.styles(kind)` 返回现有样式目录：`{ revision, truncated, styles: [{ id, name, reason, basedOn, canDelete }] }`，`kind` 为 `"paragraph" | "character"`，每类最多 1024 项。`basedOn` 为直接基础样式 ID，无继承时为空串；`canDelete` 表示已支持、未链接且未标为默认的自定义样式。不可应用的样式带原因，默认 UI 禁用对应选项。该接口替代原段落专用目录入口。
+`FoundationSession/Client.styles(revision, kind)` 与 `DocumentEditor.styles(kind)` 返回现有样式目录：`{ revision, truncated, styles: [{ id, name, reason, basedOn, canDelete, canReset, linked }] }`，`kind` 为 `"paragraph" | "character"`，每类最多 1024 项。`basedOn` 为直接基础样式 ID，无继承时为空串；`canDelete` 表示已支持且未标为默认的自定义样式；`linked` 表示存在样式链接，`canReset` 表示有已支持的格式重置规则。不可应用的样式带原因，默认 UI 禁用对应选项。该接口替代原段落专用目录入口。
 
 `rtl` 使用布尔值写回 `w:bidi`，null 清除直接定义并恢复继承。有效方向参与混合查询、格式复制、样式修改、拆段、历史与保存；默认 UI 提供方向开关。派生 `Paragraph.rtl=true` 指定 RTL 段落基准方向，false 保留既有的 Unicode 自动双向文字计算；本次未增加 run 级方向覆盖。制表与边界坐标归下文。格式、样式或设置修改引起重排时，核心清除已失效的双向层级与跨帧提示；撤销保留修改前选择。双向边界的 `before` 光标跟随前一片段，`after` 跟随后一片段，两者可位于不同视觉位置。
 
@@ -119,7 +119,7 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 两类查询均包含样式 ID 与混合状态，格式复制只捕获属性值，不复制样式 ID。未知属性、循环继承、跨类型继承及不支持的值拒绝应用，文档与历史保持原状。应用可一次撤销，支持保存重开和相同布局的 PDF。
 
-`FoundationSession/Client.updateStyle(revision, id, update)` 与 `DocumentEditor.updateStyle(id, update)` 修改现有样式。`DocxStyleUpdate` 使用 `{ character, paragraph, name?, basedOn? }`。两类格式支持现有字段，不能包含 `style` 引用。字符样式只接受空的段落补丁。省略字段保留直接定义，null 清除定义并恢复继承。粗体、斜体和删除线的布尔值表示样式在文档默认值及 `basedOn` 链上的有效值，核心换算 OOXML toggle，分别处理复杂文字的粗斜体。名称只改变显示名，保留稳定样式 ID；名称须为非空、最多 200 UTF-16 单元的有效 XML 文字。
+`FoundationSession/Client.updateStyle(revision, id, update)` 与 `DocumentEditor.updateStyle(id, update)` 修改现有样式。`DocxStyleUpdate` 使用 `{ character, paragraph, name?, basedOn?, reset? }`。两类格式支持现有字段，不能包含 `style` 引用。字符样式只接受空的段落补丁。省略字段保留直接定义，null 清除定义并恢复继承。粗体、斜体和删除线的布尔值表示样式在文档默认值及 `basedOn` 链上的有效值，核心换算 OOXML toggle，分别处理复杂文字的粗斜体。名称只改变显示名，保留稳定样式 ID；名称须为非空、最多 200 UTF-16 单元的有效 XML 文字。
 
 `basedOn` 指定同类型、已支持的基础样式；null 移除直接继承引用，省略时保留。更换基础样式保留原有直接定义，不固定旧基础样式的有效值。同一补丁的粗斜体、删除线和制表位按新基础样式计算。核心拒绝循环、跨类型、未知及超过 64 层的继承，并检查原本可用的依赖样式和正文组合。继承、名称与格式修改合为一项历史，撤销恢复完整源内容。行为参考 [ONLYOFFICE 样式继承与历史](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js)。默认 UI 的基础样式列表与当前样式类型一致，也可选“无基础样式”。
 
@@ -129,7 +129,9 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 导入文件缺少样式部件时，核心在主文档旁创建唯一 XML 部件，原子补齐主文档关系和内容类型。原有同名部件、关系 ID、外链和未知内容保留。新定义和包元数据合为一项有界历史，新增 XML 的源内容计入历史预算；包图、输出或历史预算失败不改变状态。撤销移除本次新增部件并恢复原包，重做保留后续修改所需的节点身份。保存重开后使用同一关系与样式 ID。
 
-`deleteStyle(revision, id, replacement)` 删除自定义样式，替代样式必须已支持且类型相同，也不能依赖被删样式。Web 编辑宿主省略 revision。核心同步移除定义并替换 WordprocessingML 部件中的样式引用，包括正文、页眉和编号；保留直接格式、文字、其他样式及未知内容。折叠处待输入的样式引用也映射到替代项。命令至多替换 65536 个引用，继续受包与历史预算约束。全部候选成功后一次提交，撤销同时恢复各部件与选择。默认 UI 可显式选择同类型替代样式，初始使用基础样式；无基础样式时须先选择替代项。没有有效替代项时不能删除。默认/内置样式及链接样式保留保护，不按删除命令重置其定义。
+`deleteStyle(revision, id, replacement)` 删除自定义样式，替代样式必须已支持且类型相同，也不能依赖被删样式。Web 编辑宿主省略 revision。核心同步移除定义并替换 WordprocessingML 部件中的样式引用，包括正文、页眉和编号；保留直接格式、文字、其他样式及未知内容。折叠处待输入的样式引用也映射到替代项。命令至多替换 65536 个引用，继续受包与历史预算约束。全部候选成功后一次提交，撤销同时恢复各部件与选择。默认 UI 可显式选择同类型替代样式，初始使用基础样式；无基础样式时须先选择替代项。没有有效替代项时不能删除。删除链接自定义样式时保留对端样式，解除指向被删样式的链接，再替换普通引用；未知链接内容明确拒绝。默认及内置样式不能删除。
+
+`updateStyle(id, { character: {}, paragraph: {}, reset: true })` 显式重置格式，不能同时传其他修改。当前支持文档默认段落/字符样式，以及 Normal、DefaultParagraphFont、Strong、Emphasis。默认样式恢复文档默认属性；Strong/Emphasis 继承当前默认字符样式并恢复粗体/斜体。稳定 ID、名称、默认标志、next/link 和正文直接格式保留；其他内置样式的重置规则尚未实现。默认 UI 提供同一操作。重置沿上述候选校验及单项历史提交，撤销恢复完整源内容。行为参考 [ONLYOFFICE 样式重置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js#L8854-L8889)。样式修改与删除还会校验正文继承的编号引用、有效级别属性和标记结果，失败保留原包。
 
 两端对齐在塑形后扩展词间空格；无空格中文使用合法断行处的字形簇间隙，接近满行的普通单词可使用字形簇间距。连字与字形不重塑，末尾空格不参与扩展，最后一个 Tab 之前的位置保留。段落末行与显式分页行保留自然宽度，RTL 末行靠右。软换行默认参与对齐；派生 `Paragraph.expandSoftBreak` 读取设置中的 `compat/doNotExpandShiftReturn`。光标、命中、选区、装饰与 PDF 消费相同位置；阿拉伯文使用词间距，未新增 kashida 字形。规则参考 [ONLYOFFICE 的段落对齐计算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph_Recalculate.js)。
 
@@ -153,7 +155,7 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 `DOCX_SOFT_BREAK` 为 U+2028，由 Wasm/Web foundation 导出。`replaceRange`、组合候选和批量替换用它表示段内换行，保存为 `w:br`；实际 LF 仍创建段落。`DocumentEditor.insertSoftBreak()` 与默认 UI 按钮、Shift+Enter 调用同一范围事务。`query().texts` 包含普通文字与内联控制节点；换行逻辑长度为一个 UTF-16 单元，`w:cr` 同样读取为 U+2028。Flow 用 LF 排版，`selectedText` 与剪贴板将软换行转为 LF。普通换行可删除、选中、设置格式及跨段移动；页/栏换行、环绕清除和未知内联属性继续保护。
 
-Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Client.tabDocx(revision, backward?)` 在正文插入 Tab，反向时减少正的首行/左缩进；在现有表格中只移动到相邻单元格，不增加 revision 或历史。默认 UI 的插入制表符按钮与 `DocumentEditor.paste("\t")` 总是插入字符，原生 Ctrl+Tab 也在单元格中插入。Tab/Shift+Tab 只由文档原生输入处理；参数控件使用浏览器焦点切换，Escape 将焦点移出文档输入。
+Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Client.tabDocx(revision, backward?)` 在列表正文执行下述列表规则；普通正文插入 Tab，反向时减少正的首行/左缩进；在现有表格中只移动到相邻单元格，不增加 revision 或历史。默认 UI 的插入制表符按钮与 `DocumentEditor.paste("\t")` 总是插入字符，原生 Ctrl+Tab 也在单元格中插入。Tab/Shift+Tab 只由文档原生输入处理；参数控件使用浏览器焦点切换，Escape 将焦点移出文档输入。
 
 `Paragraph.defaultTab` 为 point，来自 `settings/defaultTabStop` 的整数 twip，默认 36 pt，范围 0–1584 pt；0 表示零宽。核心根据当前行位置与缩进计算下一默认制表位，断行、光标、预览与 PDF 消费同一宽度。末格 Tab 保持原位置，自动追加表格行归表格编辑批次。
 
@@ -167,11 +169,11 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `bar` 遵循 [Word 的竖线制表位语义](https://support.microsoft.com/en-us/word/using-the-ruler-in-word)，在每一行的指定位置绘制竖线，不改变文字或 Tab 定位。当前核心绘制 0.5 pt 黑线，沿行高延伸，预览与 PDF 共用图元；未宣称与 Word 的全部显示细节一致。派生 `Line.bars` 随分页定位，缓存与公开行结果各自持有数组副本。
 
-当前未接通标尺、默认/链接样式删除或重置、主题编辑、自定义列表定义与列表原生输入规则。剩余范围归 [P10](../p10-docx-core.md)，不把本切片记作完整格式编辑。
+当前未接通标尺、其他内置样式重置规则和主题编辑。剩余范围归 [P10](../p10-docx-core.md)，不把本切片记作完整格式编辑。
 
 ### 列表读取与标记排版
 
-核心读取主文档及表格中的 `numPr`，合并默认/段落样式和直接 `numId/ilvl`；`numId=0` 取消继承。编号部件使用独立抽象定义、实例及 0–8 级别。支持 `decimal`、`decimalZero`、大小写字母、大小写罗马数字和 Unicode 项目符号；读取级别的起始值、父级重启、`startOverride`、文字模板、对齐、后缀、段落及字符属性。正文与表格按源顺序计数，同一抽象定义的实例共享计数；首次遇到实例时应用当前级别的起始覆盖。行为依据 [ONLYOFFICE 的编号计数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L28708-L28931)。
+核心读取主文档及表格中的 `numPr`，合并默认/段落样式和直接 `numId/ilvl`；`numId=0` 取消继承。编号部件使用独立抽象定义、实例及 0–8 级别。支持 `decimal`、`decimalZero`、大小写字母、大小写罗马数字和 Unicode 项目符号；读取级别的起始值、父级重启、`startOverride`、文字模板、对齐、后缀、段落及字符属性。正文与表格按源顺序计数，同一抽象定义的实例共享计数；首次遇到实例时应用当前级别的起始覆盖。`lvlOverride` 可覆盖已支持的级别属性，外层与内层 `ilvl` 必须一致。模板、文字和几何使用有效级别；计数起点及父级重启仍取抽象定义，缺失抽象级别的默认起点为 0。行为依据 [ONLYOFFICE 的编号计数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L28708-L28931)。
 
 标记字符格式合并段落样式、段落标记直接属性和级别属性；级别定义最后覆盖。段落标记的直接下划线不传给列表标记，级别显式下划线仍可生效。依据 [ONLYOFFICE 的编号文字属性](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L1877-L1918)。
 
@@ -179,13 +181,27 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 派生 `Paragraph.marker` 为可选的 `{ text, style, align, suffix }`，只用于布局。`suffix` 为 tab、space 或 nothing。核心独立塑形标记，按首行位置和级别对齐放置，再计算正文的首行起点；续行使用段落缩进。RTL 按右侧起点定位，保留字形顺序；标记的字号和装饰参与行高及绘制，自动颜色沿正文/单元格背景计算。标记不进入正文 spans、光标 offset、命中区段或文字选区。`Line.marker` 保存其绘制区段，`markerText` 带输出后缀；缓存分别复制标记几何并计入原有预算。段首显式分页保留分页前标记，后续行不重复。
 
-预览和 PDF 消费相同标记图元。PDF 的 ActualText 和默认 UI 的页面文字包含标记；`SemanticLine.marker` 是可选文字前缀，`text/start/end` 仍对应正文。支持的 `numPr` 已接入文字、段落格式与结构编辑；非空段落的 Enter 保留列表引用并重新计数。未知编号属性继续保护。空项 Enter 退出/降级、段首 Backspace 和 Tab 的列表规则仍待实现。
+预览和 PDF 消费相同标记图元。PDF 的 ActualText 和默认 UI 的页面文字包含标记；`SemanticLine.marker` 是可选文字前缀，`text/start/end` 仍对应正文。支持的 `numPr` 已接入文字、段落格式与结构编辑；非空段落的 Enter 保留列表引用并重新计数。未知编号属性继续保护。
 
-`FoundationSession/Client.lists(revision)` 返回 `{ revision, truncated, lists: [{ id, preview, reason, levels: [{ level, format }] }] }`，最多 1024 项。不可编辑定义提供原因。`editList(revision, selection, change)` 支持 `{ action: "create", format }`、`{ action: "apply", id, level }`、`{ action: "remove" }` 和 `{ action: "restart", start }`。`format` 为上述七种格式，`level` 为 0–8；`start` 为 0–2147483646，重启要求折叠选择且不接受项目符号。`DocxFormatting.list` 提供列表身份/级别的一致值、混合或不可用状态。
+`FoundationSession/Client.enterDocx(revision)` 与原生 Enter 使用同一核心操作。空项在第一级退出列表并清除直接左/首行缩进，在更深级别降低一级。Enter 先删除已有选区，再判断空项规则；删除和列表变化合为一次历史。粘贴 LF 仍拆分段落，不触发空项退出。段首 Backspace 在更深级别降低一级并清除直接左/首行缩进；第一级退出时保留有效正文左边界 `max(left, left + first)`，首行缩进置零。右缩进和其他段落属性保留。规则依据 [ONLYOFFICE Enter](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L19421-L19463) 与 [Backspace](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L4315-L4345)。
 
-`DocumentEditor.lists()` 与 `editList(change)` 沿现有队列执行，默认 UI 提供目录、创建、应用、移除、级别调整和重启。创建提供九级默认定义；缺少编号部件时同步创建关系与内容类型。移除以 `numId=0` 取消继承并保留直接段落格式。重启复制独立定义，保留当前父级计数，并更新受影响的后续项目；依据 [ONLYOFFICE 重启编号](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L25105-L25218)。每次命令合为一项有界历史，失败保留原包；撤销、重做和保存重开恢复相同结果。自定义级别模板及定义属性编辑尚未实现。
+列表段首或从段首开始的选择使用 Tab/Shift+Tab 调整层级，范围限制为 0–8，触及边界不增加历史；跨段选择按各自级别调整。混合选择中的普通段落按 12.5 mm 网格调整左缩进，写回整数 twip。折叠在第一级且当前计数不大于 1 时，改为按文档默认制表间隔平移全部已定义级别，并清除当前段落的直接左/首行缩进；反向移动保持非负的标记位置。存在完整级别覆盖时修改该覆盖，否则修改共享抽象定义，相关实例一同重排。该特例要求有效零级定义有左缩进；缺少时保持原样。列表文字中间的 Tab/Shift+Tab 插入字面 Tab；原生 Ctrl+Tab、粘贴和表格导航仍沿原路径。编号部件与段落属性合为一项历史。规则依据 [ONLYOFFICE Tab](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L5146-L5205) 和 [编号缩进](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Numbering/Num.js#L461-L474)。修改或删除含未知注释/处理指令的属性时明确拒绝，保留源内容。
 
-当前不解释图片项目符号、编号样式链接、完整级别覆盖、法律编号、修订编号及其他地区格式。使用中的定义含这些结构时明确失败，未知源内容照常保留；字体或字形缺失也不静默替换。页眉等内容区域仍受原有范围限制。
+`FoundationSession/Client.lists(revision)` 返回 `{ revision, truncated, lists: [{ id, preview, reason, levels: [{ level, format, pattern, start, restart, align, suffix }] }] }`，最多 1024 项。不可编辑定义提供原因。`editList(revision, selection, change)` 支持 `{ action: "create", format }`、`{ action: "apply", id, level }`、`{ action: "remove" }`、`{ action: "restart", start }` 和 `{ action: "level", increase }`。`format` 为上述七种格式，`level` 为 0–8；`start` 为 0–2147483646，重启要求折叠选择且不接受项目符号。
+
+`level` 命令要求选择包含列表，按各段当前级别升降一级并清除直接左/首行缩进；同选的普通段落按上述网格调整，合为一项历史。默认 UI 的级别按钮使用同一命令，支持混合状态。`DocxFormatting.list` 提供列表身份/级别的一致值、混合或不可用状态。
+
+`DocumentEditor.lists()` 与 `editList(change)` 沿现有队列执行，默认 UI 提供目录、创建、应用、移除、级别调整和重启。创建提供九级默认定义；缺少编号部件时同步创建关系与内容类型。移除以 `numId=0` 取消继承并保留直接段落格式。重启复制独立定义，保留当前父级计数，并更新受影响的后续项目；依据 [ONLYOFFICE 重启编号](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L25105-L25218)。每次命令合为一项有界历史，失败保留原包；撤销、重做和保存重开恢复相同结果。自定义级别编辑归下文。
+
+`FoundationSession/Client.updateListLevel(revision, listId, level, definition)` 与 `DocumentEditor.updateListLevel(listId, level, definition)` 修改已有级别，不要求正文选择。`DocxListLevelUpdate` 包含格式、模板、起点、父级重启、标记对齐和后缀；可同时修改左/首行缩进与标记字符属性。默认 UI 从列表目录读取这些参数，并提供同一修改入口。读取后若文档已改变，需重新读取列表再修改定义，防止旧参数覆盖新值。
+
+`definition` 必须提供 `format`、`pattern`、`start`、`restart`、`align` 和 `suffix`。`pattern` 为 1–256 UTF-16 单元，`%1`–`%9` 只引用当前或之前已定义的级别，其他文字原样输出；拒绝控制字符和非法 XML 文字。引用项目符号级别时数字片段为空，模板标点保留，依据 [ONLYOFFICE 数字格式化](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/editorscommon.js#L10428-L10439)。`start` 为 0–2147483646；`restart` 为 null（缺省父级规则）、0（永不重启），或 1–当前级别索引（对应从 1 开始的父级）。`align` 为 left/center/right，`suffix` 为 tab/space/nothing。
+
+可选 `left/first` 沿用整数 twip 可表示的 pt 范围，null 清除级别上的直接值。可选 `character` 接受已有字符属性片段，禁止 `style` 引用；省略属性保持，null 清除。定义修改不覆盖正文直接格式，待输入字符格式也保留。已有完整级别覆盖时修改该覆盖，否则修改共享抽象定义；依据 [ONLYOFFICE SetLvl](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Numbering/Num.js#L131-L147)。改变级别起点不会删除实例的 `startOverride`；计数仍遵守前述抽象定义和实例覆盖规则。
+
+编号 XML 的所有变化合为一项有界历史，主文档源内容不变。核心在提交前验证级别引用、已有编号结果、相关段落属性、包与历史预算；失败保留文档、选择和历史。修改会使相关编号重排，撤销/重做及保存重开保留相同模板、标记样式与缩进；预览和 PDF 沿已有标记路径输出。
+
+当前不解释图片项目符号、编号样式链接、级别中的样式绑定、法律编号、修订编号及其他地区格式。使用中的定义含这些结构时明确失败，未知源内容照常保留；字体或字形缺失也不静默替换。页眉等内容区域仍受原有范围限制。
 
 ## 通用绘制输出
 

@@ -124,6 +124,8 @@ pub fn Session::style_catalog(
         "reason": reason,
         "basedOn": tree.value(id, "basedOn").unwrap_or(""),
         "canDelete": reason.is_empty() && styles.can_delete(key),
+        "canReset": reason.is_empty() && styles.reset_profile(key) is Some(_),
+        "linked": styles.is_linked(key),
       })
     }
   }

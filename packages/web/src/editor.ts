@@ -18,6 +18,7 @@ import {
 import type { PageLayout } from "@open-document/wasm/preview";
 import {
   docxSelectionDescription,
+  queryDocxSelectionGeometry,
   searchSelections,
   selectFirstDocxPosition,
   type DocumentSearchResult,
@@ -33,6 +34,7 @@ import type {
   DocxStyleCreation,
   DocxFindOptions,
   DocxListEdit,
+  DocxListLevelUpdate,
 } from "@open-document/wasm/foundation";
 /** Owns browser input order. The caller owns fonts, the opened DOCX and client lifetime. */
 export class DocumentEditor {
@@ -57,7 +59,6 @@ export class DocumentEditor {
   private readonly pointerSelection: PointerSelection;
   private pointerPageTime = 0;
   private selectionDescription = "Focus document text input to start editing";
-
   private constructor(
     private readonly root: HTMLElement,
     private readonly client: FoundationClient,
@@ -390,7 +391,6 @@ export class DocumentEditor {
     );
     return result;
   }
-
   private selection(): DocxSelection {
     const selection = this.state.selection;
     if (!selection) throw new Error("Click a document position first");
@@ -432,6 +432,15 @@ export class DocumentEditor {
   }
   lists() {
     return this.enqueue(() => this.client.lists(this.state.revision));
+  }
+  updateListLevel(
+    id: number,
+    level: number,
+    definition: DocxListLevelUpdate,
+  ): Promise<void> {
+    return this.format(() =>
+      this.client.updateListLevel(this.state.revision, id, level, definition),
+    );
   }
   editList(change: DocxListEdit): Promise<void> {
     return this.format(() =>
@@ -607,26 +616,17 @@ export class DocumentEditor {
   insertSoftBreak(): Promise<void> {
     return this.paste(DOCX_SOFT_BREAK);
   }
-
   private async presentSelection(reveal = true): Promise<void> {
     this.assertOpen();
-    const selection = this.state.selection;
     const layoutId = this.currentLayout.id;
-    const revision = this.currentLayout.revision;
-    const caret = selection
-      ? await this.client.caret(layoutId, selection.focus)
-      : undefined;
+    const { caret, geometry } = await queryDocxSelectionGeometry(
+      this.client,
+      this.state,
+      this.currentLayout,
+      () => this.assertOpen(),
+    );
     this.assertOpen();
-    const geometry = selection
-      ? await this.client.selectionGeometry(layoutId, selection)
-      : undefined;
-    this.assertOpen();
-    if (
-      this.currentLayout.id !== layoutId ||
-      (caret && (caret.layoutId !== layoutId || caret.revision !== revision)) ||
-      (geometry &&
-        (geometry.layoutId !== layoutId || geometry.revision !== revision))
-    )
+    if (this.currentLayout.id !== layoutId)
       throw new Error("Selection geometry belongs to a stale layout");
     if (caret) this.page = caret.page;
     await this.describeSelection();

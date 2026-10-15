@@ -12,6 +12,7 @@ priv struct NumberLevel {
 ///|
 priv struct NumberDefinition {
   abstract_id : Int
+  base_levels : Map[Int, NumberLevel]
   levels : Map[Int, NumberLevel]
   overrides : Map[Int, Int]
 }
@@ -167,84 +168,45 @@ fn WordTree::number_definition(
     repeated="lvl",
   )
   let levels : Map[Int, NumberLevel] = Map([])
-  for level in self.children[definition] {
-    if self.nodes[level].name != "lvl" {
-      continue
-    }
-    self.numbering_shape(level, ["ilvl", "tplc", "tentative"], [
-      "start", "numFmt", "lvlRestart", "lvlText", "lvlJc", "suff", "pPr", "rPr",
-    ])
-    let index = numbering_integer(
-      self.nodes[level].attribute("ilvl", uri=word_uri).unwrap_or("-1"),
-      8,
-    )
-    guard !levels.contains(index) &&
-      self.numbering_value(level, "numFmt") is Some(format) &&
-      [
-        "decimal", "decimalZero", "lowerLetter", "upperLetter", "lowerRoman", "upperRoman",
-        "bullet",
-      ].contains(format) &&
-      self.numbering_value(level, "lvlText") is Some(pattern) &&
-      !pattern.is_empty() &&
-      pattern.length() <= 256 else {
-      @failure.reject(
-        "unsupported-numbering", "Unsupported or duplicate numbering level",
-      )
-    }
-    let align = self.numbering_value(level, "lvlJc").unwrap_or("left")
-    let suffix = self.numbering_value(level, "suff").unwrap_or("tab")
-    guard ["left", "right", "center"].contains(align) &&
-      ["tab", "space", "nothing"].contains(suffix) else {
-      @failure.reject(
-        "unsupported-numbering", "Unsupported numbering alignment or suffix",
-      )
-    }
-    if self.child(level, "pPr") is Some(p) {
-      self.check_structure_properties(p)
-    }
-    if self.child(level, "rPr") is Some(p) {
-      self.check_structure_properties(p)
-      guard self.child(p, "rStyle") is None else {
-        @failure.reject(
-          "unsupported-numbering", "Numbering character style references are unsupported",
-        )
+  for node in self.children[definition] {
+    if self.nodes[node].name == "lvl" {
+      let (index, level) = self.number_level(node)
+      guard !levels.contains(index) else {
+        @failure.reject("invalid-numbering", "Duplicate numbering level")
       }
-    }
-    levels[index] = {
-      node: level,
-      start: self
-      .numbering_value(level, "start")
-      .map(v => numbering_integer(v, 2147483646))
-      .unwrap_or(0),
-      restart: self
-      .numbering_value(level, "lvlRestart")
-      .map(v => numbering_integer(v, index))
-      .unwrap_or(-1),
-      format,
-      pattern,
-      align,
-      suffix,
+      levels[index] = level
     }
   }
+  let base_levels = levels.copy()
   let overrides : Map[Int, Int] = Map([])
+  let seen : Map[Int, Bool] = Map([])
   for item in self.children[instance] {
     if self.nodes[item].name != "lvlOverride" {
       continue
     }
-    self.numbering_shape(item, ["ilvl"], ["startOverride"])
+    self.numbering_shape(item, ["ilvl"], ["startOverride", "lvl"])
     let index = numbering_integer(
       self.nodes[item].attribute("ilvl", uri=word_uri).unwrap_or("-1"),
       8,
     )
-    guard !overrides.contains(index) &&
-      self.numbering_value(item, "startOverride") is Some(start) else {
-      @failure.reject(
-        "invalid-numbering", "Missing or duplicate numbering start override",
-      )
+    guard !seen.contains(index) else {
+      @failure.reject("invalid-numbering", "Duplicate numbering level override")
     }
-    overrides[index] = numbering_integer(start, 2147483646)
+    seen[index] = true
+    if self.numbering_value(item, "startOverride") is Some(start) {
+      overrides[index] = numbering_integer(start, 2147483646)
+    }
+    if self.child(item, "lvl") is Some(node) {
+      let (actual, level) = self.number_level(node)
+      guard actual == index else {
+        @failure.reject(
+          "invalid-numbering", "Mismatched numbering level override",
+        )
+      }
+      levels[index] = level
+    }
   }
-  { abstract_id, levels, overrides, }
+  { abstract_id, base_levels, levels, overrides, }
 }
 
 ///|
@@ -257,14 +219,23 @@ fn NumberCounter::advance(
   // ONLYOFFICE DocumentNumberingInfoEngine: parent resets and first-instance overrides.
   if self.previous < 0 {
     for i in 0..<9 {
-      self.values[i] = definition.levels.get(i).map(l => l.start).unwrap_or(1) -
+      self.values[i] = definition.base_levels
+        .get(i)
+        .map(l => l.start)
+        .unwrap_or(0) -
         1
     }
   } else if level < self.previous {
     for i in (level + 1)..<9 {
-      let restart = definition.levels.get(i).map(l => l.restart).unwrap_or(-1)
+      let restart = definition.base_levels
+        .get(i)
+        .map(l => l.restart)
+        .unwrap_or(-1)
       if restart != 0 && (restart < 0 || level < restart) {
-        self.values[i] = definition.levels.get(i).map(l => l.start).unwrap_or(1) -
+        self.values[i] = definition.base_levels
+          .get(i)
+          .map(l => l.start)
+          .unwrap_or(0) -
           1
       }
     }

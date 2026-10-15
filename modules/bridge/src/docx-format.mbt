@@ -21,6 +21,7 @@ fn list_edit(request : Json) -> @docx.ListEdit raise @failure.Failure {
     "apply" => ["action", "id", "level"]
     "remove" => ["action"]
     "restart" => ["action", "start"]
+    "level" => ["action", "increase"]
     _ => @failure.reject("invalid-operation", "Invalid list edit action")
   }
   guard fields.length() == allowed.length() &&
@@ -31,8 +32,49 @@ fn list_edit(request : Json) -> @docx.ListEdit raise @failure.Failure {
     "create" => @docx.Create(field_string(change, "format"))
     "apply" => @docx.Apply(field_int(change, "id"), field_int(change, "level"))
     "remove" => @docx.Remove
+    "level" =>
+      match fields.get("increase") {
+        Some(True) => @docx.Level(true)
+        Some(False) => @docx.Level(false)
+        _ =>
+          @failure.reject("invalid-operation", "Invalid list level direction")
+      }
     _ => @docx.Restart(field_int(change, "start"))
   }
+}
+
+///|
+fn list_level_format(
+  request : Json,
+) -> @docx.ListLevelFormat raise @failure.Failure {
+  guard request is { "definition": Object(fields) as definition, .. } &&
+    fields
+    .keys()
+    .all(key => {
+      [
+        "format", "pattern", "start", "restart", "align", "suffix", "left", "first",
+        "character",
+      ].contains(key)
+    }) else {
+    @failure.reject("invalid-operation", "Invalid list level fields")
+  }
+  @docx.ListLevelFormat::new(
+    field_string(definition, "format"),
+    field_string(definition, "pattern"),
+    start=field_int(definition, "start"),
+    restart=match fields.get("restart") {
+      Some(Null) => None
+      Some(_) => Some(field_int(definition, "restart"))
+      None => @failure.reject("invalid-operation", "Missing restart rule")
+    },
+    align=field_string(definition, "align"),
+    suffix=field_string(definition, "suffix"),
+    left=format_number(fields, "left"),
+    first=format_number(fields, "first"),
+    character=character_format({
+      "format": fields.get("character").unwrap_or({}),
+    }),
+  )
 }
 
 ///|

@@ -47,7 +47,21 @@ pub(all) enum ListEdit {
   Apply(Int, Int)
   Remove
   Restart(Int)
+  Level(Bool)
 }
+
+pub(all) struct ListLevelFormat {
+  format : String
+  pattern : String
+  start : Int
+  restart : Int?
+  align : String
+  suffix : String
+  left : FormatChange[Double]
+  first : FormatChange[Double]
+  character : CharacterFormat
+}
+pub fn ListLevelFormat::new(String, String, start? : Int, restart? : Int?, align? : String, suffix? : String, left? : FormatChange[Double], first? : FormatChange[Double], character? : CharacterFormat) -> Self
 
 pub(all) struct ParagraphFormat {
   style : FormatChange[String]
@@ -101,6 +115,7 @@ pub fn Session::delete(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::delete_style(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::edit_list(Self, Int, Selection, ListEdit) -> Json raise @failure.Failure
 pub fn Session::edit_state(Self) -> Json raise @failure.Failure
+pub fn Session::enter(Self, Int) -> Json raise @failure.Failure
 pub fn Session::find(Self, Int, String, FindOptions) -> Json raise @failure.Failure
 pub fn Session::flow(Self) -> @layout.Flow raise @failure.Failure
 pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
@@ -124,7 +139,8 @@ pub fn Session::style_catalog(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::tab(Self, Int, Bool) -> Json raise @failure.Failure
 pub fn Session::undo_edit(Self, Int) -> Json raise @failure.Failure
 pub fn Session::update_composition(Self, Int, Int, String) -> Json raise @failure.Failure
-pub fn Session::update_style(Self, Int, String, CharacterFormat, ParagraphFormat, name? : String?, based_on? : FormatChange[String]) -> Json raise @failure.Failure
+pub fn Session::update_list_level(Self, Int, Int, Int, ListLevelFormat) -> Json raise @failure.Failure
+pub fn Session::update_style(Self, Int, String, CharacterFormat, ParagraphFormat, name? : String?, based_on? : FormatChange[String], reset? : Bool) -> Json raise @failure.Failure
 
 // Type aliases
 

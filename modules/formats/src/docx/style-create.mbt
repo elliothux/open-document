@@ -98,6 +98,7 @@ pub fn Session::create_style(
     styles,
     updated,
     self.document(),
+    parts~,
   )
   let pending = self.typing_format
   self.commit_edit(

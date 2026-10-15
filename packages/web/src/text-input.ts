@@ -41,6 +41,7 @@ export interface NativeInputCommands<State> {
   softBreak: string;
   nativeEnter: boolean;
   tab?(revision: number, backward: boolean): Promise<State>;
+  enter?(revision: number): Promise<State>;
 }
 
 interface Composition {
@@ -249,7 +250,13 @@ export class NativeTextInput<State extends { revision: number }> {
       this.send(
         async () =>
           this.host.changed(
-            await this.commands.replace(this.state.revision, text, inputGroup),
+            await (text === "\n" &&
+            this.commands.nativeEnter &&
+            (event.inputType === "insertParagraph" ||
+              event.inputType === "insertLineBreak") &&
+            this.commands.enter
+              ? this.commands.enter(this.state.revision)
+              : this.commands.replace(this.state.revision, text, inputGroup)),
           ),
         inputGroup !== undefined,
       );
@@ -398,6 +405,7 @@ export class TextInput extends NativeTextInput<EditState> {
           ).state,
         softBreak: DOCX_SOFT_BREAK,
         nativeEnter: true,
+        enter: (revision) => client.enterDocx(revision),
         tab: (revision, backward) => client.tabDocx(revision, backward),
       },
       { ...host, limit: () => host.state().commandLimit },

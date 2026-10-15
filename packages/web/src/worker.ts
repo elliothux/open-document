@@ -178,6 +178,13 @@ async function dispatch(request: Request): Promise<unknown> {
             request.selection,
             request.change,
           );
+        case "updateListLevel":
+          return foundation.updateListLevel(
+            request.revision,
+            request.listId,
+            request.level,
+            request.definition,
+          );
         case "createStyle":
           return foundation.createStyle(request.revision, request.style);
         case "deleteStyle":
@@ -228,6 +235,8 @@ async function dispatch(request: Request): Promise<unknown> {
           );
         case "tabDocx":
           return foundation.tabDocx(request.revision, request.backward);
+        case "enterDocx":
+          return foundation.enterDocx(request.revision);
         case "editState":
           return foundation.editState();
         case "beginComposition":

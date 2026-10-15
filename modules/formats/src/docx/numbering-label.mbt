@@ -7,6 +7,7 @@ fn numbering_value(
     @failure.reject("invalid-numbering", "Negative numbering value")
   }
   match format {
+    "bullet" => ""
     "decimal" => value.to_string()
     "decimalZero" => (if value < 10 { "0" } else { "" }) + value.to_string()
     "lowerLetter" | "upperLetter" => {
@@ -71,9 +72,6 @@ fn numbering_label(
   level : Int,
 ) -> String raise @failure.Failure {
   let definition = levels[level]
-  if definition.format == "bullet" {
-    return definition.pattern
-  }
   let output = StringBuilder()
   let mut i = 0
   let mut units = 0

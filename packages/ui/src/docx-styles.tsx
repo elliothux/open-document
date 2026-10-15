@@ -86,6 +86,23 @@ export function DocxStyles({
       <button type="button" disabled={cannotApply} onClick={() => apply(null)}>
         {paragraph ? t.restoreDefaultStyle : t.clearCharacterStyle}
       </button>
+      <button
+        type="button"
+        disabled={!choice?.canReset}
+        onClick={() =>
+          controller.run(async () => {
+            if (!choice) return;
+            await editor.updateStyle(choice.id, {
+              character: {},
+              paragraph: {},
+              reset: true,
+            });
+            setCatalog(await editor.styles(kind));
+          })
+        }
+      >
+        {paragraph ? t.resetParagraphStyle : t.resetCharacterStyle}
+      </button>
       <DocxStyleEdit
         controller={controller}
         state={state}
@@ -145,6 +162,7 @@ export function DocxStyles({
           ))}
         </select>
       </label>
+      {choice?.linked && choice.canDelete && <p>{t.deleteLinkedStyle}</p>}
       <button
         type="button"
         disabled={!choice?.canDelete || !canReplace}

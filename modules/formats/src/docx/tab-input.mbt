@@ -1,5 +1,5 @@
 ///|
-/// Body Tab inserts a tab; cell Tab changes selection without editing content.
+/// Body Tab applies list rules or inserts a tab; cell Tab changes selection.
 pub fn Session::tab(
   self : Session,
   revision : Int,
@@ -15,6 +15,9 @@ pub fn Session::tab(
   let p = tree.nodes[selection.focus.paragraph]
   let parent = tree.nodes[p.parent]
   if parent.name == "body" {
+    if self.list_tab(revision, selection, backward) is Some(result) {
+      return result
+    }
     if !backward {
       return self.replace_range(revision, selection, "\t")
     }

@@ -33,9 +33,16 @@ fn Styles::can_delete(self : Styles, key : String) -> Bool {
   ) &&
   !["1", "true", "on"].contains(
     node.attribute("default", uri=word_uri).unwrap_or("0"),
-  ) &&
-  tree.child(id, "link") is None &&
-  !self.ids.values().any(other => tree.value(other, "link") == Some(key))
+  )
+}
+
+///|
+fn Styles::is_linked(self : Styles, key : String) -> Bool {
+  guard self.tree is Some(tree) && self.ids.get(key) is Some(id) else {
+    return false
+  }
+  tree.child(id, "link") is Some(_) ||
+  self.ids.values().any(other => tree.value(other, "link") == Some(key))
 }
 
 ///|
@@ -44,6 +51,7 @@ fn Session::validate_style_transition(
   before : Styles,
   after : Styles,
   document : @xml.Document,
+  parts~ : Map[String, @xml.Document] = self.parts,
 ) -> Array[Int] raise @failure.Failure {
   guard after.ids.length() <= 4096 else {
     @failure.reject("limit-exceeded", "Too many styles for a shared style edit")
@@ -68,15 +76,29 @@ fn Session::validate_style_transition(
   }
   let old = WordTree::new(self.document())
   let current = WordTree::new(document)
+  let after_session = { ..self, document: Some(document), parts, }
+  let mut before_numbers : NumberingContext? = None
+  let mut after_numbers : NumberingContext? = None
   let paragraphs = old.order.filter(id => {
     old.nodes[id].uri == word_uri && old.nodes[id].name == "p"
   })
   for paragraph in paragraphs {
     let supported = try {
       let base = before.paragraph_style(old, paragraph, [])
-      let value = match old.child(paragraph, "pPr") {
+      let mut value = match old.child(paragraph, "pPr") {
         None => base
         Some(id) => paragraph_properties(old, id, base)
+      }
+      if before.numbering_reference(old, paragraph) is Some((id, level)) {
+        let numbers = match before_numbers {
+          Some(numbers) => numbers
+          None => {
+            let numbers = self.numbering_context()
+            before_numbers = Some(numbers)
+            numbers
+          }
+        }
+        value = numbers.properties(old, value, id, level)
       }
       validate_paragraph_style_values(value)
       true
@@ -85,12 +107,30 @@ fn Session::validate_style_transition(
     }
     if supported {
       let base = after.paragraph_style(current, paragraph, [])
-      let value = match current.child(paragraph, "pPr") {
+      let mut value = match current.child(paragraph, "pPr") {
         None => base
         Some(id) => paragraph_properties(current, id, base)
       }
+      if after.numbering_reference(current, paragraph) is Some((id, level)) {
+        let numbers = match after_numbers {
+          Some(numbers) => numbers
+          None => {
+            let numbers = after_session.numbering_context()
+            after_numbers = Some(numbers)
+            numbers
+          }
+        }
+        value = numbers.properties(current, value, id, level)
+      }
       validate_paragraph_style_values(value)
     }
+  }
+  if after_numbers is Some(numbers) {
+    let abstracts : Map[Int, Bool] = Map([])
+    for definition in numbers.definitions.values() {
+      abstracts[definition.abstract_id] = true
+    }
+    ignore(numbers.validate_level_labels(current, after, abstracts))
   }
   paragraphs
 }

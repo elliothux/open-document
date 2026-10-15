@@ -278,6 +278,7 @@ fn Foundation::dispatch(
     | "styleCatalog"
     | "listCatalog"
     | "editList"
+    | "updateListLevel"
     | "updateStyle"
     | "createStyle"
     | "deleteStyle"
@@ -289,6 +290,7 @@ fn Foundation::dispatch(
     | "findDocx"
     | "replaceDocxMatches"
     | "tabDocx"
+    | "enterDocx"
     | "selectedText"
     | "beginComposition"
     | "updateComposition"
@@ -315,6 +317,11 @@ fn Foundation::dispatch(
       match operation {
         "query" => session.query()
         "editState" => session.edit_state()
+        "enterDocx" => {
+          let result = session.enter(field_int(request, "revision"))
+          self.layout = None
+          result
+        }
         "tabDocx" => {
           guard request is { "backward": True | False as backward, .. } else {
             @failure.reject("invalid-operation", "Invalid tab direction")
@@ -397,6 +404,16 @@ fn Foundation::dispatch(
             field_string(request, "kind"),
           )
         "listCatalog" => session.list_catalog(field_int(request, "revision"))
+        "updateListLevel" => {
+          let result = session.update_list_level(
+            field_int(request, "revision"),
+            field_int(request, "listId"),
+            field_int(request, "level"),
+            list_level_format(request),
+          )
+          self.layout = None
+          result
+        }
         "editList" => {
           let result = session.edit_list(
             field_int(request, "revision"),
@@ -456,7 +473,7 @@ fn Foundation::dispatch(
             .keys()
             .all(key => {
               (if operation == "updateStyle" {
-                ["character", "paragraph", "name", "basedOn"]
+                ["character", "paragraph", "name", "basedOn", "reset"]
               } else {
                 ["character", "paragraph"]
               }).contains(key)
@@ -478,6 +495,14 @@ fn Foundation::dispatch(
               paragraph_format({ "format": paragraph }),
               name~,
               based_on=format_string(fields, "basedOn"),
+              reset=match fields.get("reset") {
+                None => false
+                Some(True) => true
+                _ =>
+                  @failure.reject(
+                    "invalid-operation", "Invalid style reset flag",
+                  )
+              },
             )
           } else {
             session.apply_format(

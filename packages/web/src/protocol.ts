@@ -10,12 +10,20 @@ import type {
   DocxStyleUpdate,
   DocxStyleCreation,
   DocxListEdit,
+  DocxListLevelUpdate,
 } from "@open-document/wasm/foundation";
 import type { GridViewport, PrintOptions } from "@open-document/wasm/xlsx";
 import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
+  | {
+      operation: "updateListLevel";
+      revision: number;
+      listId: number;
+      level: number;
+      definition: DocxListLevelUpdate;
+    }
   | { operation: "listCatalog"; revision: number }
   | {
       operation: "editList";
@@ -82,6 +90,7 @@ export type Operation =
   | { operation: "openDocx"; bytes: Uint8Array; budget: Budget }
   | { operation: "createDocx"; budget: Budget }
   | { operation: "tabDocx"; revision: number; backward: boolean }
+  | { operation: "enterDocx"; revision: number }
   | {
       operation: "styleCatalog";
       revision: number;

@@ -23,6 +23,11 @@ pub fn Session::delete(
     .editable_texts(focus.paragraph)
     .map(node => inline_text(document.node(node.id)))
     .join("")
+  if direction == "backward" &&
+    focus.offset == 0 &&
+    self.list_boundary_input(revision, selection, enter=false) is Some(result) {
+    return result
+  }
   let boundaries = @layout.grapheme_boundaries(text)
   let index = boundaries.search(focus.offset).unwrap()
   let target = if direction == "backward" { index - 1 } else { index + 1 }

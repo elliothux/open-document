@@ -20,6 +20,7 @@ export function copiedFormat(value: unknown): CopiedFormat {
 export interface DocxStyleUpdate extends CopiedFormat {
   name?: string;
   basedOn?: string | null;
+  reset?: true;
 }
 
 export interface DocxStyleCreation {
@@ -49,11 +50,20 @@ export function checkStyleUpdate(format: DocxStyleUpdate): void {
   const fields = record(format);
   if (
     !Object.keys(fields).every((key) =>
-      ["character", "paragraph", "name", "basedOn"].includes(key),
+      ["character", "paragraph", "name", "basedOn", "reset"].includes(key),
     )
   )
     throw new Error("Invalid style update");
   copiedFormat({ character: format.character, paragraph: format.paragraph });
+  if (
+    format.reset !== undefined &&
+    (format.reset !== true ||
+      format.name !== undefined ||
+      format.basedOn !== undefined ||
+      Object.keys(format.character).length > 0 ||
+      Object.keys(format.paragraph).length > 0)
+  )
+    throw new Error("Style reset cannot include other changes");
   if (
     format.character.style !== undefined ||
     format.paragraph.style !== undefined
@@ -322,6 +332,8 @@ export interface DocxStyleCatalog {
     reason: string;
     basedOn: string;
     canDelete: boolean;
+    canReset: boolean;
+    linked: boolean;
   }[];
 }
 
@@ -340,7 +352,9 @@ export function docxStyleCatalog(value: unknown): DocxStyleCatalog {
         typeof style.name === "string" &&
         typeof style.reason === "string" &&
         typeof style.basedOn === "string" &&
-        typeof style.canDelete === "boolean"
+        typeof style.canDelete === "boolean" &&
+        typeof style.canReset === "boolean" &&
+        typeof style.linked === "boolean"
       );
     })
   )

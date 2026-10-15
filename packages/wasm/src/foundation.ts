@@ -16,6 +16,11 @@ import {
 } from "./docx-format.js";
 export * from "./docx-format.js";
 export * from "./docx-list.js";
+export * from "./docx-list-level.js";
+import {
+  checkListLevelUpdate,
+  type DocxListLevelUpdate,
+} from "./docx-list-level.js";
 import {
   checkListEdit,
   docxListCatalog,
@@ -425,6 +430,23 @@ export class FoundationSession extends WasmSession {
       this.call({ operation: "editList", revision, selection, change }),
     );
   }
+  updateListLevel(
+    revision: number,
+    id: number,
+    level: number,
+    definition: DocxListLevelUpdate,
+  ): EditState {
+    checkListLevelUpdate(id, level, definition);
+    return editState(
+      this.call({
+        operation: "updateListLevel",
+        revision,
+        listId: id,
+        level,
+        definition,
+      }),
+    );
+  }
   createStyle(revision: number, style: DocxStyleCreation): CreatedDocxStyle {
     checkStyleCreation(style);
     return createdDocxStyle(
@@ -503,6 +525,9 @@ export class FoundationSession extends WasmSession {
   }
   tabDocx(revision: number, backward = false): EditState {
     return editState(this.call({ operation: "tabDocx", revision, backward }));
+  }
+  enterDocx(revision: number): EditState {
+    return editState(this.call({ operation: "enterDocx", revision }));
   }
 
   findDocx(

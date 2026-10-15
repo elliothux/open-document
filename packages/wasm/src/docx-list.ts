@@ -18,9 +18,10 @@ export type DocxListEdit =
   | { action: "create"; format: ListFormat }
   | { action: "apply"; id: number; level: number }
   | { action: "remove" }
-  | { action: "restart"; start: number };
+  | { action: "restart"; start: number }
+  | { action: "level"; increase: boolean };
 
-const integer = (value: unknown, min: number, max: number): boolean =>
+const integer = (value: unknown, min: number, max: number): value is number =>
   typeof value === "number" &&
   Number.isInteger(value) &&
   value >= min &&
@@ -44,7 +45,9 @@ export function checkListEdit(value: DocxListEdit): void {
           ? keys.length === 1
           : value.action === "restart"
             ? keys.length === 2 && integer(value.start, 0, 2147483646)
-            : false;
+            : value.action === "level"
+              ? keys.length === 2 && typeof value.increase === "boolean"
+              : false;
   if (!valid) throw new Error("Invalid list edit");
 }
 
@@ -55,8 +58,49 @@ export interface DocxListCatalog {
     id: number;
     preview: string;
     reason: string;
-    levels: { level: number; format: ListFormat }[];
+    levels: DocxListLevel[];
   }[];
+}
+
+export interface ListLevelSettings {
+  format: ListFormat;
+  pattern: string;
+  start: number;
+  restart: number | null;
+  align: "left" | "center" | "right";
+  suffix: "tab" | "space" | "nothing";
+}
+export interface DocxListLevel extends ListLevelSettings {
+  level: number;
+}
+
+export function validListLevelSettings(
+  value: Record<string, unknown>,
+  level: number,
+): boolean {
+  return (
+    integer(level, 0, 8) &&
+    listFormats.some((format) => format === value.format) &&
+    typeof value.pattern === "string" &&
+    value.pattern.length > 0 &&
+    value.pattern.length <= 256 &&
+    value.pattern.isWellFormed() &&
+    !Array.from(value.pattern).some((character) => {
+      const code = character.charCodeAt(0);
+      return (
+        code < 32 ||
+        code === 127 ||
+        code === 8232 ||
+        code === 8233 ||
+        code === 65534 ||
+        code === 65535
+      );
+    }) &&
+    integer(value.start, 0, 2147483646) &&
+    (value.restart === null || integer(value.restart, 0, level)) &&
+    ["left", "center", "right"].some((align) => align === value.align) &&
+    ["tab", "space", "nothing"].some((suffix) => suffix === value.suffix)
+  );
 }
 
 export function docxListCatalog(value: unknown): DocxListCatalog {
@@ -78,7 +122,7 @@ export function docxListCatalog(value: unknown): DocxListCatalog {
           const level = record(value);
           return (
             integer(level.level, 0, 8) &&
-            listFormats.some((format) => format === level.format)
+            validListLevelSettings(level, level.level)
           );
         })
       );

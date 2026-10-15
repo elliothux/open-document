@@ -23,7 +23,7 @@ pub fn Session::delete_style(
   styles.validate_style(replacement, kind)
   guard styles.can_delete(key) else {
     @failure.reject(
-      "protected-content", "Only unlinked custom styles can be deleted",
+      "protected-content", "Only non-default custom styles can be deleted",
     )
   }
   guard !styles.chain(replacement, []).contains(id) else {
@@ -81,7 +81,32 @@ pub fn Session::delete_style(
         continue
       }
       if node.name == "link" && node.attribute("val", uri=word_uri) == Some(key) {
-        @failure.reject("protected-content", "Linked styles cannot be deleted")
+        guard tree.nodes[node.parent].uri == word_uri &&
+          tree.nodes[node.parent].name == "style" &&
+          node.attributes.iter().all(a => a.uri == word_uri && a.name == "val") &&
+          tree.children[id].is_empty() &&
+          node.text.trim().is_empty() &&
+          tree.children[node.parent]
+          .filter(child => {
+            tree.nodes[child].uri == word_uri &&
+            tree.nodes[child].name == "link"
+          })
+          .length() ==
+          1 else {
+          @failure.reject(
+            "protected-content", "Unknown style link markup prevents deletion",
+          )
+        }
+        let markup = property_markup(tree, document, Some(id), "link", None)
+        if properties_change(tree, document, node.parent, "link", markup)
+          is Some(change) {
+          changes.push(change)
+        }
+        references += 1
+        guard references <= 65536 else {
+          @failure.reject("limit-exceeded", "Too many style references")
+        }
+        continue
       }
       for attribute in node.attributes {
         if attribute.uri == word_uri &&
@@ -119,7 +144,7 @@ pub fn Session::delete_style(
   }
   let view = { ..self, parts, document: Some(main), }
   let updated = view.styles([])
-  let affected = self.validate_style_transition(styles, updated, main)
+  let affected = self.validate_style_transition(styles, updated, main, parts~)
   let pending = self.typing_format.map(patch => {
     if patch.style == Set(key) {
       { ..patch, style: Set(replacement), }

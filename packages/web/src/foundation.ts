@@ -16,6 +16,8 @@ export type {
   DocxListReference,
   DocxListEdit,
   DocxListCatalog,
+  DocxListLevel,
+  DocxListLevelUpdate,
   ListFormat,
 } from "@open-document/wasm/foundation";
 export {
@@ -49,6 +51,8 @@ import {
   checkListEdit,
   docxListCatalog,
   type DocxListEdit,
+  checkListLevelUpdate,
+  type DocxListLevelUpdate,
   checkFindOptions,
   docxSearchResult,
   type DocxFindOptions,
@@ -154,6 +158,23 @@ export class FoundationClient {
         revision,
         selection,
         change,
+      }),
+    );
+  }
+  async updateListLevel(
+    revision: number,
+    id: number,
+    level: number,
+    definition: DocxListLevelUpdate,
+  ): Promise<EditState> {
+    checkListLevelUpdate(id, level, definition);
+    return editState(
+      await this.connection.request({
+        operation: "updateListLevel",
+        revision,
+        listId: id,
+        level,
+        definition,
       }),
     );
   }
@@ -288,6 +309,11 @@ export class FoundationClient {
         revision,
         backward,
       }),
+    );
+  }
+  async enterDocx(revision: number): Promise<EditState> {
+    return editState(
+      await this.connection.request({ operation: "enterDocx", revision }),
     );
   }
 

@@ -6,7 +6,8 @@ fn property_markup(
   name : String,
   patch : Map[String, String?]?,
 ) -> String raise @failure.Failure {
-  guard patch is Some(patch) else { return "" }
+  let remove = patch is None
+  let patch = patch.unwrap_or(Map([]))
   let values : Map[String, String] = Map([])
   if node is Some(id) {
     for attribute in tree.nodes[id].attributes {
@@ -20,11 +21,20 @@ fn property_markup(
       Some(value) => values[key] = value
     }
   }
-  if node is Some(id) && before == values {
+  if node is Some(id) && !remove && before == values {
     let node = tree.nodes[id]
     return document.source()[node.start:node.end].to_owned()
   }
-  if values.is_empty() {
+  if node is Some(id) {
+    let node = tree.nodes[id]
+    let source = document.source()[node.start:node.end]
+    guard !source.contains("<!--") && !source.contains("<?") else {
+      @failure.reject(
+        "protected-content", "Unknown property markup prevents formatting",
+      )
+    }
+  }
+  if remove || values.is_empty() {
     return ""
   }
   let out = StringBuilder()

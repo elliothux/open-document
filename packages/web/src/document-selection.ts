@@ -8,6 +8,32 @@ import type {
 import type { EditorSnapshot } from "./editor-state.js";
 import type { PageLayout } from "@open-document/wasm/preview";
 
+export async function queryDocxSelectionGeometry(
+  client: FoundationClient,
+  state: EditState,
+  layout: PageLayout,
+  assertOpen: () => void,
+) {
+  const selection = state.selection;
+  const layoutId = layout.id,
+    revision = layout.revision;
+  const caret = selection
+    ? await client.caret(layoutId, selection.focus)
+    : undefined;
+  assertOpen();
+  const geometry = selection
+    ? await client.selectionGeometry(layoutId, selection)
+    : undefined;
+  assertOpen();
+  if (
+    (caret && (caret.layoutId !== layoutId || caret.revision !== revision)) ||
+    (geometry &&
+      (geometry.layoutId !== layoutId || geometry.revision !== revision))
+  )
+    throw new Error("Selection geometry belongs to a stale layout");
+  return { caret, geometry };
+}
+
 export async function selectFirstDocxPosition(
   client: FoundationClient,
   state: EditState,

@@ -94,8 +94,23 @@ pub fn Session::update_style(
   paragraph : ParagraphFormat,
   name~ : String? = None,
   based_on~ : FormatChange[String] = Keep,
+  reset~ : Bool = false,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  if reset {
+    guard name is None &&
+      based_on is Keep &&
+      character.style is Keep &&
+      paragraph.style is Keep &&
+      character.properties().is_empty() &&
+      paragraph.properties().is_empty() &&
+      paragraph.tabs is Keep else {
+      @failure.reject(
+        "invalid-operation", "Style reset cannot include other changes",
+      )
+    }
+    return self.reset_style_format(key)
+  }
   guard character.style is Keep && paragraph.style is Keep else {
     @failure.reject(
       "invalid-operation", "Style updates cannot change style references",
@@ -264,13 +279,14 @@ pub fn Session::update_style(
   }
   let updated_styles = { ..styles, tree: Some(WordTree::new(candidate)), }
   updated_styles.validate_style(key, kind)
+  let parts = self.parts.copy()
+  parts[styles.part] = candidate
   let affected = self.validate_style_transition(
     styles,
     updated_styles,
     self.document(),
+    parts~,
   )
-  let parts = self.parts.copy()
-  parts[styles.part] = candidate
   let pending = self.typing_format
   self.commit_edit(
     {

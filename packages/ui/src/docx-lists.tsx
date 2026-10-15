@@ -8,6 +8,7 @@ import {
 } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { DocxListLevelEdit } from "./docx-list-level.js";
 
 export function DocxLists({
   controller,
@@ -154,19 +155,15 @@ export function DocxLists({
           type="button"
           disabled={
             cannotEdit ||
-            !current ||
-            !catalog?.lists
-              .find((list) => list.id === current.id)
-              ?.levels.some((item) => item.level === current.level + delta)
+            (value?.kind !== "mixed" &&
+              (!current ||
+                !catalog?.lists
+                  .find((list) => list.id === current.id)
+                  ?.levels.some(
+                    (item) => item.level === current.level + delta,
+                  )))
           }
-          onClick={() => {
-            if (current)
-              change({
-                action: "apply",
-                id: current.id,
-                level: current.level + delta,
-              });
-          }}
+          onClick={() => change({ action: "level", increase: delta > 0 })}
         >
           {delta < 0 ? t.decreaseListLevel : t.increaseListLevel}
         </button>
@@ -210,6 +207,23 @@ export function DocxLists({
           {t.restartList}
         </button>
       </form>
+      {choice &&
+        !choice.reason &&
+        choice.levels
+          .filter((item) => item.level === level)
+          .map((item) => (
+            <DocxListLevelEdit
+              key={`${editor.getSnapshot().documentId}:${choice.id}:${level}:${catalog?.revision}`}
+              controller={controller}
+              state={state}
+              editor={editor}
+              id={choice.id}
+              level={item}
+              availableLevels={choice.levels.map((level) => level.level)}
+              stale={catalog?.revision !== data.revision}
+              refresh={async () => setCatalog(await editor.lists())}
+            />
+          ))}
     </fieldset>
   );
 }

@@ -17,6 +17,27 @@ fn WordTree::namespace_bindings(
 }
 
 ///|
+fn WordTree::standalone_markup(
+  self : WordTree,
+  document : @xml.Document,
+  id : Int,
+) -> String raise @failure.Failure {
+  let node = self.nodes[id]
+  let attributes = StringBuilder()
+  for prefix, uri in self.namespace_bindings(node.parent) {
+    if !node.namespaces.iter().any(binding => binding.0 == prefix) {
+      let name = if prefix.is_empty() { "xmlns" } else { "xmlns:" + prefix }
+      attributes.write_string(" \{name}=\"" + property_attribute(uri) + "\"")
+    }
+  }
+  let source = document.source()
+  let offset = node.opening_end - (if node.empty { 2 } else { 1 })
+  source[node.start:offset].to_owned() +
+  attributes.to_string() +
+  source[offset:node.end].to_owned()
+}
+
+///|
 fn Session::prepare_empty(
   self : Session,
   paragraph : Int,
