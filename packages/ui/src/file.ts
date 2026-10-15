@@ -7,7 +7,7 @@ import { SpreadsheetEditor } from "@open-document/web/spreadsheet-editor";
 import { PresentationEditor } from "@open-document/web/presentation-editor";
 import { PdfEditor } from "@open-document/web/pdf-editor";
 import type {
-  DocxDocument,
+  OfficeDocument,
   EditorFile,
   EditorOptions,
   OwnedFile,
@@ -49,13 +49,13 @@ export function readFile(file: File, signal: AbortSignal): Promise<Uint8Array> {
 /** A current file or one candidate owns its Worker; low-level editors borrow it. */
 export async function prepareFile(
   options: EditorOptions,
-  document: DocxDocument,
+  document: OfficeDocument,
   parent: HTMLElement,
   signal: AbortSignal,
 ): Promise<OwnedFile> {
   signal.throwIfAborted();
-  if (document.blank && options.format !== "docx")
-    throw new Error("Blank creation is available only for DOCX");
+  if (document.blank && options.format === "pdf")
+    throw new Error("Blank creation is unavailable for PDF");
   const surface = parent.ownerDocument.createElement("div");
   surface.className = "od-surface";
   surface.dataset.format = options.format;
@@ -106,7 +106,6 @@ export async function prepareFile(
         break;
       }
       case "xlsx": {
-        if (!document.bytes) throw new Error("XLSX input bytes are required");
         const connection = (client = await XlsxClient.open(
           options.resources.wasm,
           options.resources.workerUrl,
@@ -114,9 +113,10 @@ export async function prepareFile(
         ));
         const budget = options.budget ?? (await connection.defaultBudget());
         inputLimit = Math.min(budget.fileBytes, budget.retainedBytes);
-        if (document.bytes.length > inputLimit)
+        if ((document.bytes?.length ?? 0) > inputLimit)
           throw new Error("Document input exceeds budget");
-        await connection.openXlsx(document.bytes, budget);
+        if (document.blank) await connection.create(budget);
+        else await connection.openXlsx(document.bytes, budget);
         await fonts(connection);
         file = {
           format: "xlsx",
@@ -125,7 +125,6 @@ export async function prepareFile(
         break;
       }
       case "pptx": {
-        if (!document.bytes) throw new Error("PPTX input bytes are required");
         const connection = (client = await PptxClient.open(
           options.resources.wasm,
           options.resources.workerUrl,
@@ -133,13 +132,16 @@ export async function prepareFile(
         ));
         const budget = options.budget ?? (await connection.defaultBudget());
         inputLimit = Math.min(budget.fileBytes, budget.retainedBytes);
-        if (document.bytes.length > inputLimit)
+        if ((document.bytes?.length ?? 0) > inputLimit)
           throw new Error("Document input exceeds budget");
-        await connection.execute({
-          operation: "openPptx",
-          bytes: document.bytes,
-          budget,
-        });
+        if (document.blank)
+          await connection.execute({ operation: "createPptx", budget });
+        else
+          await connection.execute({
+            operation: "openPptx",
+            bytes: document.bytes,
+            budget,
+          });
         await fonts(connection);
         file = {
           format: "pptx",

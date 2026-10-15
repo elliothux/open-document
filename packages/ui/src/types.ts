@@ -17,7 +17,7 @@ export interface EditorDocument {
   readonly bytes: Uint8Array;
   readonly blank?: never;
 }
-export type DocxDocument =
+export type OfficeDocument =
   | EditorDocument
   | {
       readonly name: string;
@@ -48,15 +48,11 @@ type OfficeBudget = Awaited<ReturnType<FoundationClient["defaultBudget"]>>;
 type PdfBudget = Awaited<ReturnType<PdfClient["defaultBudget"]>>;
 export type EditorOptions = CommonOptions &
   (
-    | ({
+    | {
         readonly budget?: OfficeBudget;
-      } & (
-        | { readonly format: "docx"; readonly document: DocxDocument }
-        | {
-            readonly format: "xlsx" | "pptx";
-            readonly document: EditorDocument;
-          }
-      ))
+        readonly format: "docx" | "xlsx" | "pptx";
+        readonly document: OfficeDocument;
+      }
     | {
         readonly format: "pdf";
         readonly document: EditorDocument;
@@ -83,14 +79,14 @@ export interface MountedMethods {
 }
 export type MountedEditor = MountedMethods &
   (
-    | {
-        readonly format: "docx";
-        readonly editor: DocumentEditor;
+    | ({
         create(document: { readonly name: string }): Promise<boolean>;
-        open(document: DocxDocument): Promise<boolean>;
-      }
-    | { readonly format: "xlsx"; readonly editor: SpreadsheetEditor }
-    | { readonly format: "pptx"; readonly editor: PresentationEditor }
+        open(document: OfficeDocument): Promise<boolean>;
+      } & (
+        | { readonly format: "docx"; readonly editor: DocumentEditor }
+        | { readonly format: "xlsx"; readonly editor: SpreadsheetEditor }
+        | { readonly format: "pptx"; readonly editor: PresentationEditor }
+      ))
     | { readonly format: "pdf"; readonly editor: PdfEditor }
   );
 export type EditorFile =

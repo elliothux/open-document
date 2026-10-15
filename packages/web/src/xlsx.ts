@@ -44,6 +44,11 @@ export class XlsxClient {
   async addFont(bytes: Uint8Array, identity: string): Promise<void> {
     await this.connection.request({ operation: "font", bytes, identity });
   }
+  async create(budget: Budget): Promise<XlsxQuery> {
+    return xlsxQuery(
+      await this.connection.request({ operation: "createXlsx", budget }),
+    );
+  }
   async openXlsx(bytes: Uint8Array, budget: Budget): Promise<XlsxQuery> {
     return xlsxQuery(
       await this.connection.request({ operation: "openXlsx", bytes, budget }),

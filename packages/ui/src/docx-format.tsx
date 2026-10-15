@@ -14,6 +14,7 @@ import { DocxSearch } from "./docx-search.js";
 import { DocxTabs, DocxDefaultTab } from "./docx-tabs.js";
 import { DocxStyles } from "./docx-styles.js";
 import { DocxLists } from "./docx-lists.js";
+import { DocxPage } from "./docx-page.js";
 
 interface Props {
   controller: EditorController;
@@ -350,6 +351,12 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
   disabled ||= !formatting || !!formatting.reason;
   return (
     <aside className="od-properties" aria-label={t.paragraph}>
+      <DocxPage
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={stylesDisabled}
+      />
       <h2>{t.paragraph}</h2>
       <p>{formatting?.reason}</p>
       <LineSpacing

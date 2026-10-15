@@ -8,7 +8,7 @@ import type { EditorOptions, MountedEditor } from "./types.js";
 
 export type {
   EditorDocument,
-  DocxDocument,
+  OfficeDocument,
   EditorOptions,
   EditorResources,
   Locale,
@@ -88,6 +88,8 @@ export async function mountEditor(
     case "xlsx":
       return {
         ...methods,
+        create: (document: { readonly name: string }) =>
+          controller.create(document),
         format: "xlsx",
         get editor() {
           const file = controller.getUiSnapshot().file;
@@ -99,6 +101,8 @@ export async function mountEditor(
     case "pptx":
       return {
         ...methods,
+        create: (document: { readonly name: string }) =>
+          controller.create(document),
         format: "pptx",
         get editor() {
           const file = controller.getUiSnapshot().file;

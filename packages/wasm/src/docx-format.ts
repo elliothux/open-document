@@ -16,6 +16,83 @@ export function copiedFormat(value: unknown): CopiedFormat {
   return value as CopiedFormat;
 }
 
+export interface DocxPageSetup {
+  width: number;
+  height: number;
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+  /** Rotates dimensions and margins in core when the requested orientation differs. */
+  orientation?: "portrait" | "landscape";
+}
+
+export interface DocxPageSettings {
+  revision: number;
+  page: DocxPageSetup | null;
+  reason: string;
+}
+
+export function checkPageSetup(value: DocxPageSetup): void {
+  const page = record(value);
+  const fields = ["width", "height", "top", "right", "bottom", "left"];
+  if (
+    !Object.keys(page).every(
+      (key) => fields.includes(key) || key === "orientation",
+    ) ||
+    (value.orientation !== undefined &&
+      !["portrait", "landscape"].includes(value.orientation)) ||
+    !fields.every(
+      (key) =>
+        typeof page[key] === "number" &&
+        Number.isFinite(page[key]) &&
+        Number(page[key]) >= 0 &&
+        Number(page[key]) <= 14400 &&
+        Number.isInteger(Number(page[key]) * 20),
+    ) ||
+    value.width < 36 ||
+    value.height < 36 ||
+    value.width - value.left - value.right < 12 ||
+    value.height - value.top - value.bottom < 12
+  )
+    throw new Error("Invalid DOCX page dimensions or margins");
+}
+
+export function docxPageSettings(value: unknown): DocxPageSettings {
+  const result = record(value);
+  if (
+    !Number.isSafeInteger(result.revision) ||
+    Number(result.revision) < 0 ||
+    typeof result.reason !== "string"
+  )
+    throw new Error("Invalid DOCX page settings");
+  if (result.page === null) {
+    if (!result.reason) throw new Error("Missing page setup reason");
+    return {
+      revision: Number(result.revision),
+      page: null,
+      reason: result.reason,
+    };
+  }
+  const page = record(result.page);
+  const setup: DocxPageSetup = {
+    width: Number(page.width),
+    height: Number(page.height),
+    top: Number(page.top),
+    right: Number(page.right),
+    bottom: Number(page.bottom),
+    left: Number(page.left),
+  };
+  if (
+    Object.keys(page).length !== 6 ||
+    !Object.values(page).every((value) => typeof value === "number") ||
+    result.reason
+  )
+    throw new Error("Invalid DOCX page settings");
+  checkPageSetup(setup);
+  return { revision: Number(result.revision), page: setup, reason: "" };
+}
+
 /** Omitted metadata is retained; null basedOn removes the direct base reference. */
 export interface DocxStyleUpdate extends CopiedFormat {
   name?: string;

@@ -4,7 +4,7 @@ import { prepareFile, readFile } from "./file.js";
 import { messages } from "./messages.js";
 import { mime } from "./types.js";
 import type {
-  DocxDocument,
+  OfficeDocument,
   EditorOptions,
   Locale,
   MountedSnapshot,
@@ -143,7 +143,7 @@ export class EditorController {
     }
   }
 
-  private async prepare(document: DocxDocument): Promise<OwnedFile> {
+  private async prepare(document: OfficeDocument): Promise<OwnedFile> {
     if (this.candidate) throw new Error("A file is already opening");
     this.candidateAbort ??= new AbortController();
     this.candidate = prepareFile(
@@ -348,19 +348,17 @@ export class EditorController {
     return true;
   }
 
-  readonly open = (document: DocxDocument): Promise<boolean> =>
+  readonly open = (document: OfficeDocument): Promise<boolean> =>
     this.change(() => this.replace(document));
   create(document: { readonly name: string }): Promise<boolean> {
-    if (this.options.format !== "docx")
-      return Promise.reject(
-        new Error("Blank creation is available only for DOCX"),
-      );
+    if (this.options.format === "pdf")
+      return Promise.reject(new Error("Blank creation is unavailable for PDF"));
     return this.open({ name: this.fileName(document.name), blank: true });
   }
   openFile(file: File): Promise<boolean> {
     return this.change(() => this.replace(file));
   }
-  private async replace(source: DocxDocument | File): Promise<boolean> {
+  private async replace(source: OfficeDocument | File): Promise<boolean> {
     const previous = this.current();
     if (
       (source instanceof File ? source.size : (source.bytes?.length ?? 0)) >

@@ -69,6 +69,8 @@ async function dispatch(request: Request): Promise<unknown> {
         return null;
       case "openXlsx":
         return workbook.open(request.bytes, request.budget);
+      case "createXlsx":
+        return workbook.create(request.budget);
       case "queryXlsx":
         return workbook.query(request.sheet, request.range);
       case "selectXlsx":
@@ -131,6 +133,7 @@ async function dispatch(request: Request): Promise<unknown> {
       if (!foundation) throw new Error("Foundation session is not open");
       switch (request.operation) {
         case "openXlsx":
+        case "createXlsx":
         case "queryXlsx":
         case "selectXlsx":
         case "replaceXlsx":
@@ -165,6 +168,10 @@ async function dispatch(request: Request): Promise<unknown> {
           );
         case "styleCatalog":
           return foundation.styles(request.revision, request.kind);
+        case "pageSetup":
+          return foundation.pageSetup(request.revision);
+        case "setPageSetup":
+          return foundation.setPageSetup(request.revision, request.page);
         case "setDefaultTabStop":
           return foundation.setDefaultTabStop(
             request.revision,

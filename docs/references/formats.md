@@ -20,7 +20,7 @@ DOCX 文字区段的实际宽度和后续起点按固定 LibreOffice 的整数 t
 
 `@open-document/ui` 的 `mountEditor(container, options)` 挂载 DOCX、XLSX、PPTX 或 PDF 默认 UI。`container` 由宿主提供可测量的高度。`options.format` 区分格式；`document` 为 `{ name, bytes }`，`resources` 明确提供 `{ wasm, workerUrl, fonts, profile }`，可传对应 `budget`、`theme: "light" | "dark"`、`locale: "zh-CN" | "en-US"`、异步 `onSave`、初始 `signal` 和 `styleNonce`。接入代码与普通 JS 示例归[开发说明](development.md#默认-web-ui)。
 
-DOCX 也接受 `document: { name, blank: true }`，类型排除同时传入 `bytes`。`FoundationSession/Client.createDocx(budget)` 创建与打开一致的空白会话。包与模板由 MoonBit 生成，默认 Letter 页面、一英寸边距、11 pt Times New Roman 和一个空段落；字体仍由宿主显式提供。当前 XLSX/PPTX/PDF 要求已有文件字节。
+DOCX、XLSX、PPTX 也接受 `document: { name, blank: true }`，`OfficeDocument` 类型排除同时传入 `bytes`。包与模板由各自 MoonBit 格式模块生成，继续使用现有输入、包与输出预算；字体仍由宿主显式提供。DOCX 的 `FoundationSession/Client.createDocx(budget)` 使用 Letter 页面、一英寸边距、11 pt Times New Roman 和一个空段落。XLSX/PPTX 的具体入口和默认值归下文各格式合同。PDF 仍要求已有文件字节。
 
 返回的 `MountedEditor` 按 `format` 区分，`editor` 是当前文件的对应 Web 编辑宿主，只读属性在替换成功后指向新宿主。旧宿主释放后拒绝操作。实例提供以下方法：
 
@@ -28,7 +28,7 @@ DOCX 也接受 `document: { name, blank: true }`，类型排除同时传入 `byt
 | --- | --- |
 | `open({ name, bytes })` | 只替换同格式文件；处理草稿/未保存修改，暂停新编辑并等待已接受队列；独立候选完成字体和首屏后替换，失败或取消保留旧会话；成功 `true`，用户取消 `false`，失败拒绝 Promise |
 | `save()` | 产生原格式输出，等待 `onSave`；重复调用复用同一在途结果，回调期间可以继续编辑 |
-| DOCX `create({ name })` / `open({ name, blank: true })` | 复用替换确认与独立候选，成功后成为新文件；其他格式没有新建入口 |
+| Office `create({ name })` / `open({ name, blank: true })` | DOCX、XLSX、PPTX 复用替换确认与独立候选，成功后成为新文件；PDF 没有新建入口 |
 | `saveAs(name)` | 使用新名称产生原格式输出；目标由宿主决定。失败保留旧名称和修改状态；成功后更新名称。不同名称不复用同一个在途输出 |
 | `getSnapshot()` / `subscribe(listener)` | 转发当前宿主的稳定快照；外部订阅跨文件替换保持，监听器异常不改变事务 |
 | `close()` | 询问草稿和未保存修改；取消 `false`，完成关闭 `true`；等待在途保存回调后重新检查 |
@@ -170,6 +170,16 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 `bar` 遵循 [Word 的竖线制表位语义](https://support.microsoft.com/en-us/word/using-the-ruler-in-word)，在每一行的指定位置绘制竖线，不改变文字或 Tab 定位。当前核心绘制 0.5 pt 黑线，沿行高延伸，预览与 PDF 共用图元；未宣称与 Word 的全部显示细节一致。派生 `Line.bars` 随分页定位，缓存与公开行结果各自持有数组副本。
 
 当前未接通标尺、其他内置样式重置规则和主题编辑。剩余范围归 [P10](../p10-docx-core.md)，不把本切片记作完整格式编辑。
+
+### 页面设置
+
+`FoundationSession/Client.pageSetup(revision)` 与 `DocumentEditor.pageSetup()` 返回 `{ revision, page, reason }`。`page` 是主文档单节的源尺寸，字段为 `width/height/top/right/bottom/left`，单位为 pt；缺少节属性时使用 612×792 pt、四边 72 pt。不支持的多节、分栏、镜像页边距、装订线或保护返回 `page: null` 与原因，不返回伪造的可编辑参数。查询不要求正文选区。
+
+`setPageSetup(revision, page)` 同时修改尺寸与四边距，Web 编辑宿主省略 revision。`DocxPageSetup` 要求上述六个值，可选 `orientation: "portrait" | "landscape"`。省略方向时使用指定宽高；给出方向且与宽高不一致时，核心交换宽高并旋转四边距。横向时新左/上/右/下依次为原下/左/上/右，纵向反向旋转；正方形不旋转。规则依据 [ONLYOFFICE 的方向修改](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/sections/sect-pr.js#L1148-L1180)。
+
+尺寸为 36–14400 pt，边距非负；所有数值须能表示为整数 twip，并为正文留下至少 12×12 pt。源尺寸原样写回 `pgSz/pgMar`；`Flow.page`、预览和 PDF 继续采用下文既有纸型解释规则，可能与源尺寸不同，例如 500 pt 的显示尺寸为 498.9 pt。再次应用相同源参数不产生历史，不能把显示尺寸自动写回源文档。
+
+缺少节属性时在正文末尾创建，缺少页面属性时按 OOXML 顺序插入。修改保留段落、稳定节点身份、节元数据、其他部件、页眉/页脚距离和零装订线；清除与新尺寸不一致的旧打印机纸型代码。尺寸与边距合为一项有界历史，保留待输入格式，撤销/重做及保存重开恢复相同源参数。非法值、过期 revision、未知目标属性/注释、多节或预算失败保留已提交包。默认 UI 提供相同的读取、修改和方向选项；文档改变后要求重新读取，防止旧参数覆盖新状态。多节、实际分栏及页眉页脚编辑仍属于后续页面批次。
 
 ### 列表读取与标记排版
 
@@ -319,6 +329,8 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 ## P5 XLSX 合同
 
+`XlsxSession.create(budget)` 与 `XlsxClient.create(budget)` 创建一张可见的空白 `Sheet1`，选区为 A1，revision 与历史为 0。基础样式为 11 pt Calibri、General 数字格式、黑字、无填充/边框；工作簿使用自动计算。核心创建 workbook、worksheet、styles、关系与内容类型，之后沿相同读取、计算、编辑、历史及保存路径运行。默认 UI 与 `mountEditor`、实例 `create/open` 接通该入口；首次保存规则见上文。工作表和单元格身份由核心生成，不从文件名推导。
+
 `XlsxSession` 和 `XlsxClient` 分别提供同步 WASM 与 Worker Promise API。核心持有 OPC/XML、稀疏单元格、公式依赖、选区、历史及几何；TS 只处理平台输入与呈现。工作表 `id` 来自包内关系目标。查询包含隐藏表，界面只列出可见表。
 
 | API | 结果与约束 |
@@ -378,9 +390,11 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 | 历史 / 队列 | undo+redo 共 100 项、4 MiB 源补丁 payload；宿主 64 项 |
 | 打印 | 32768 可见格、单轴 4096 项、1024 页；每页继续受视口绘制文字/单元格上限约束 |
 
-当前范围不含空白工作簿向导、表/行列增删、样式编辑、填充、排序筛选、冻结窗格交互、图表/透视表/图片编辑、协作和整本工作簿打印。XLS/XLSB/XLSM、其他浏览器、Windows/Excel、VoiceOver、性能专项与发布验收未进入本期验证。
+当前范围不含模板向导、表/行列增删、样式编辑、填充、排序筛选、冻结窗格交互、图表/透视表/图片编辑、协作和整本工作簿打印。XLS/XLSB/XLSM、其他浏览器、Windows/Excel、VoiceOver、性能专项与发布验收未进入本期验证。
 
 ## PPTX
+
+`PptxSession.execute({ operation: "createPptx", budget })` 与 `PptxClient.execute` 创建 960×540 pt 的空白演示文稿，包含一张无对象页面及其空白版式、母版、主题、关系和内容类型。主题使用 Arial 和显式颜色/无效果样式；当前页为该空白页，revision 与历史为 0。创建后可显示、保存、重开及输出单页静态 PDF。默认 UI 与 `mountEditor`、实例 `create/open` 使用同一入口及首次保存规则。添加对象、管理页面和修改主题仍按 P12 后续范围实施；创建不生成占位文字或不可编辑的背景图片。
 
 `PptxSession.execute()` 与 `PptxClient.execute()` 使用独立的 `PptxCommand`，不复用 DOCX/XLSX 位置模型。`PptxQuery` 返回 revision、声明页序/尺寸/隐藏状态、当前页对象、有效字体键、图片键、选区、历史状态与诊断。幻灯片 ID 为源部件路径，对象 ID 为所属部件与源 `cNvPr.id`；未知对象使用只读源节点身份。
 

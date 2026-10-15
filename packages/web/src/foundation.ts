@@ -18,6 +18,8 @@ export type {
   DocxListCatalog,
   DocxListLevel,
   DocxListLevelUpdate,
+  DocxPageSetup,
+  DocxPageSettings,
   ListFormat,
 } from "@open-document/wasm/foundation";
 export {
@@ -47,6 +49,10 @@ import {
   type DocxStyleCreation,
   checkStyleCreation,
   checkDefaultTabStop,
+  checkPageSetup,
+  docxPageSettings,
+  type DocxPageSetup,
+  type DocxPageSettings,
   checkFormatPatch,
   checkListEdit,
   docxListCatalog,
@@ -224,6 +230,24 @@ export class FoundationClient {
         operation: "createStyle",
         revision,
         style,
+      }),
+    );
+  }
+  async pageSetup(revision: number): Promise<DocxPageSettings> {
+    return docxPageSettings(
+      await this.connection.request({ operation: "pageSetup", revision }),
+    );
+  }
+  async setPageSetup(
+    revision: number,
+    page: DocxPageSetup,
+  ): Promise<EditState> {
+    checkPageSetup(page);
+    return editState(
+      await this.connection.request({
+        operation: "setPageSetup",
+        revision,
+        page,
       }),
     );
   }

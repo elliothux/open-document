@@ -15,14 +15,7 @@ fn Session::flow_from(
   let mut styles = self.styles(diagnostics)
   let headers : Array[Array[@layout.Paragraph]] = []
   let mut header_distance = 0.0
-  let mut page : @layout.PageSetup = {
-    width: 612,
-    height: 792,
-    top: 72,
-    right: 72,
-    bottom: 72,
-    left: 72,
-  }
+  let mut page = default_page_setup()
   let body = tree.child(0, "body").unwrap()
   for id in tree.order {
     let node = tree.nodes[id]
@@ -108,7 +101,9 @@ fn Session::flow_from(
       if node.parent != body {
         diagnostics.push("unsupported-layout:multiple-sections")
       }
+      let source_page = tree.page_values(id, page)
       page = {
+        ..source_page,
         width: tree
         .number(id, "pgSz", "w")
         .map(page_dimension)
@@ -117,22 +112,6 @@ fn Session::flow_from(
         .number(id, "pgSz", "h")
         .map(page_dimension)
         .unwrap_or(page.height),
-        top: tree
-        .number(id, "pgMar", "top")
-        .map(v => v / 20)
-        .unwrap_or(page.top),
-        right: tree
-        .number(id, "pgMar", "right")
-        .map(v => v / 20)
-        .unwrap_or(page.right),
-        bottom: tree
-        .number(id, "pgMar", "bottom")
-        .map(v => v / 20)
-        .unwrap_or(page.bottom),
-        left: tree
-        .number(id, "pgMar", "left")
-        .map(v => v / 20)
-        .unwrap_or(page.left),
       }
     }
   }

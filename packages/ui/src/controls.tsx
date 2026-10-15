@@ -83,12 +83,12 @@ export function FileMenu({
         <Menu.Portal container={portal}>
           <Menu.Positioner sideOffset={4} align="start">
             <Menu.Popup className="od-menu">
-              {controller.options.format === "docx" && (
+              {controller.options.format !== "pdf" && (
                 <Menu.Item
                   className="od-menu-item"
                   disabled={unavailable}
                   onClick={() => {
-                    setName("Untitled.docx");
+                    setName(`Untitled.${controller.options.format}`);
                     setAction("new");
                   }}
                 >

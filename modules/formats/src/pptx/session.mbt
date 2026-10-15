@@ -187,7 +187,14 @@ pub fn Session::open(
   bytes : Bytes,
   budget : @archive.Budget,
 ) -> Session raise @failure.Failure {
-  let opc = @opc.Package::open(bytes, budget)
+  Session::from_package(@opc.Package::open(bytes, budget), budget)
+}
+
+///|
+fn Session::from_package(
+  opc : @opc.Package,
+  budget : @archive.Budget,
+) -> Session raise @failure.Failure {
   errdefer opc.close()
   guard !opc.signed else {
     @failure.reject("unsupported-pptx", "Signed presentations are unsupported")

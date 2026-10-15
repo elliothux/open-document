@@ -56,6 +56,8 @@ P4 编辑 API 提供 `editState()`、`selectDocx(revision, selection)`、`select
 
 ## 默认 Web UI
 
+DOCX、XLSX、PPTX 可用 `document: { name, blank: true }` 空白挂载，也可调用已挂载实例的 `create({ name })`。`OfficeDocument` 统一表示 Office 字节或空白输入，PDF 继续使用带字节的 `EditorDocument`。核心默认文档、创建 API 与首次保存规则归[格式合同](formats.md#默认-ui-与编辑宿主)。
+
 [`@open-document/ui`](../../packages/ui/package.json) 提供 `mountEditor`，普通 JS 和 TS 使用同一个入口。调用者显式供应文档、release Wasm、已打包 Worker URL、授权字体及 profile。容器需要可测量的高度；SDK 追加自己的 open ShadowRoot，不替换调用者 DOM。
 
 ```js

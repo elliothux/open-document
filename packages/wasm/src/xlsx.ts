@@ -298,6 +298,9 @@ export function xlsxViewport(value: unknown): XlsxViewport {
 
 /** One workbook owner; values, XML transactions and history stay in MoonBit. */
 export class XlsxSession extends WasmSession {
+  create(budget: Budget): XlsxQuery {
+    return xlsxQuery(this.call({ operation: "createXlsx", budget }));
+  }
   open(bytes: Uint8Array, budget: Budget): XlsxQuery {
     if (bytes.length > budget.fileBytes || bytes.length > budget.retainedBytes)
       throw new DocumentError(

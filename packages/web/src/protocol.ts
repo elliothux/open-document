@@ -11,12 +11,15 @@ import type {
   DocxStyleCreation,
   DocxListEdit,
   DocxListLevelUpdate,
+  DocxPageSetup,
 } from "@open-document/wasm/foundation";
 import type { GridViewport, PrintOptions } from "@open-document/wasm/xlsx";
 import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
+  | { operation: "pageSetup"; revision: number }
+  | { operation: "setPageSetup"; revision: number; page: DocxPageSetup }
   | {
       operation: "updateListLevel";
       revision: number;
@@ -51,6 +54,7 @@ export type Operation =
   | { operation: "openFoundation"; wasm: ArrayBuffer }
   | { operation: "openSpreadsheet"; wasm: ArrayBuffer }
   | { operation: "openXlsx"; bytes: Uint8Array; budget: Budget }
+  | { operation: "createXlsx"; budget: Budget }
   | {
       operation: "queryXlsx";
       sheet?: string | undefined;

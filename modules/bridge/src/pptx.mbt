@@ -4,7 +4,7 @@ fn Foundation::pptx_operation(
   operation : String,
   request : Json,
 ) -> Json raise @failure.Failure {
-  if operation == "openPptx" {
+  if operation == "openPptx" || operation == "createPptx" {
     guard self.docx is None &&
       self.xlsx is None &&
       self.pptx is None &&
@@ -23,10 +23,14 @@ fn Foundation::pptx_operation(
       xml_depth: field_int(budget, "xmlDepth"),
       output_bytes: field_int(budget, "outputBytes"),
     }
-    let session = @pptx.Session::open(
-      input_bytes(request, budget.file_bytes.min(budget.retained_bytes)),
-      budget,
-    )
+    let session = if operation == "createPptx" {
+      @pptx.Session::create(budget)
+    } else {
+      @pptx.Session::open(
+        input_bytes(request, budget.file_bytes.min(budget.retained_bytes)),
+        budget,
+      )
+    }
     let result = session.query()
     self.pptx = Some(session)
     return result

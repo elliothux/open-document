@@ -68,6 +68,7 @@ export interface PptxHit {
 }
 
 export type PptxCommand =
+  | { operation: "createPptx"; budget: Budget }
   | { operation: "openPptx"; bytes: Uint8Array; budget: Budget }
   | { operation: "queryPptx" }
   | ({ operation: "selectPptx"; revision: number } & PptxSelection)
@@ -163,6 +164,7 @@ export type PptxResult<C extends PptxCommand> = Result<C>;
 
 const names: ReadonlySet<string> = new Set([
   "openPptx",
+  "createPptx",
   "queryPptx",
   "selectPptx",
   "replacePptx",

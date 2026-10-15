@@ -10,6 +10,10 @@ import {
   type DocxStyleCreation,
   checkStyleCreation,
   checkDefaultTabStop,
+  checkPageSetup,
+  docxPageSettings,
+  type DocxPageSetup,
+  type DocxPageSettings,
   type DocxFormatting,
   type CharacterFormatPatch,
   type ParagraphFormatPatch,
@@ -516,6 +520,13 @@ export class FoundationSession extends WasmSession {
 
   editState(): EditState {
     return editState(this.call({ operation: "editState" }));
+  }
+  pageSetup(revision: number): DocxPageSettings {
+    return docxPageSettings(this.call({ operation: "pageSetup", revision }));
+  }
+  setPageSetup(revision: number, page: DocxPageSetup): EditState {
+    checkPageSetup(page);
+    return editState(this.call({ operation: "setPageSetup", revision, page }));
   }
   setDefaultTabStop(revision: number, interval: number | null): EditState {
     checkDefaultTabStop(interval);

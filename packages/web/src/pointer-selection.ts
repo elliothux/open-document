@@ -3,6 +3,32 @@ export interface PointerPoint {
   readonly y: number;
 }
 
+/** Scrolls the selection viewport and returns a page-turn direction at its boundary. */
+export function scrollPointerViewport(
+  view: HTMLElement,
+  point: PointerPoint,
+  elapsed: number,
+  previousPageTime: number,
+): number {
+  const rect = view.getBoundingClientRect();
+  const velocity = (position: number, start: number, length: number) =>
+    Math.max(-1, Math.min(0, (position - start - 32) / 32)) +
+    Math.max(0, Math.min(1, (position - start - length + 32) / 32));
+  const dx = velocity(point.x, rect.left + view.clientLeft, view.clientWidth);
+  const dy = velocity(point.y, rect.top + view.clientTop, view.clientHeight);
+  view.scrollLeft += dx * elapsed * 0.6;
+  view.scrollTop += dy * elapsed * 0.6;
+  if (
+    dy === 0 ||
+    (dy < 0
+      ? view.scrollTop > 0
+      : view.scrollTop < view.scrollHeight - view.clientHeight) ||
+    performance.now() - previousPageTime < 250
+  )
+    return 0;
+  return Math.sign(dy);
+}
+
 /** Captures a gesture and coalesces unsent moves without buffering document state. */
 export class PointerSelection {
   private pointerId: number | undefined;

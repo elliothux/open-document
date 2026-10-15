@@ -4,7 +4,7 @@ fn Foundation::xlsx_operation(
   operation : String,
   request : Json,
 ) -> Json raise @failure.Failure {
-  if operation == "openXlsx" {
+  if operation == "openXlsx" || operation == "createXlsx" {
     guard self.xlsx is None &&
       self.docx is None &&
       self.pptx is None &&
@@ -23,10 +23,14 @@ fn Foundation::xlsx_operation(
       xml_depth: field_int(budget, "xmlDepth"),
       output_bytes: field_int(budget, "outputBytes"),
     }
-    let session = @xlsx.Session::open(
-      input_bytes(request, budget.file_bytes.min(budget.retained_bytes)),
-      budget,
-    )
+    let session = if operation == "createXlsx" {
+      @xlsx.Session::create(budget)
+    } else {
+      @xlsx.Session::open(
+        input_bytes(request, budget.file_bytes.min(budget.retained_bytes)),
+        budget,
+      )
+    }
     let result = session.query()
     self.xlsx = Some(session)
     return result

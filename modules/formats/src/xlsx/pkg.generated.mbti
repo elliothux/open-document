@@ -39,6 +39,7 @@ pub struct Session {
 pub fn Session::clear(Self, Int) -> Json raise @failure.Failure
 pub fn Session::close(Self) -> Unit
 pub fn Session::copy(Self, Int) -> String raise @failure.Failure
+pub fn Session::create(@archive.Budget) -> Self raise @failure.Failure
 pub fn Session::hit(Self, Int, Double, Double) -> String raise @failure.Failure
 pub fn Session::invalidate_geometry(Self) -> Unit
 pub fn Session::navigate(Self, Int, String, Bool) -> Json raise @failure.Failure

@@ -212,6 +212,7 @@ fn Foundation::dispatch(
       session.query()
     }
     "openXlsx"
+    | "createXlsx"
     | "queryXlsx"
     | "selectXlsx"
     | "replaceXlsx"
@@ -228,6 +229,7 @@ fn Foundation::dispatch(
     | "printXlsx"
     | "exportXlsxPdf" => self.xlsx_operation(operation, request)
     "openPptx"
+    | "createPptx"
     | "queryPptx"
     | "selectPptx"
     | "replacePptx"
@@ -275,6 +277,8 @@ fn Foundation::dispatch(
     | "editState"
     | "selectDocx"
     | "queryFormatting"
+    | "pageSetup"
+    | "setPageSetup"
     | "styleCatalog"
     | "listCatalog"
     | "editList"
@@ -403,6 +407,16 @@ fn Foundation::dispatch(
             field_int(request, "revision"),
             field_string(request, "kind"),
           )
+        "pageSetup" => session.page_setup(field_int(request, "revision"))
+        "setPageSetup" => {
+          let result = session.set_page_setup(
+            field_int(request, "revision"),
+            page_setup_format(request),
+            orientation=page_orientation(request),
+          )
+          self.layout = None
+          result
+        }
         "listCatalog" => session.list_catalog(field_int(request, "revision"))
         "updateListLevel" => {
           let result = session.update_list_level(

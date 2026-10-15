@@ -5,6 +5,7 @@ import { PageCanvas } from "./page-canvas.js";
 import {
   PointerSelection,
   revealInput,
+  scrollPointerViewport,
   type PointerPoint,
 } from "./pointer-selection.js";
 import { TextInput } from "./text-input.js";
@@ -35,6 +36,7 @@ import type {
   DocxFindOptions,
   DocxListEdit,
   DocxListLevelUpdate,
+  DocxPageSetup,
 } from "@open-document/wasm/foundation";
 /** Owns browser input order. The caller owns fonts, the opened DOCX and client lifetime. */
 export class DocumentEditor {
@@ -348,7 +350,6 @@ export class DocumentEditor {
   async resume(): Promise<void> {
     return this.recover(false);
   }
-
   private async recover(undo: boolean): Promise<void> {
     this.assertOpen();
     if (!this.blocked || this.resuming)
@@ -449,6 +450,14 @@ export class DocumentEditor {
   }
   setParagraphFormat(format: ParagraphFormatPatch): Promise<void> {
     return this.applyFormat({ character: {}, paragraph: format });
+  }
+  pageSetup() {
+    return this.enqueue(() => this.client.pageSetup(this.state.revision));
+  }
+  setPageSetup(page: DocxPageSetup): Promise<void> {
+    return this.format(() =>
+      this.client.setPageSetup(this.state.revision, page),
+    );
   }
   setDefaultTabStop(interval: number | null): Promise<void> {
     return this.format(() =>
@@ -552,27 +561,18 @@ export class DocumentEditor {
   private scrollPointer(point: PointerPoint, elapsed: number): void {
     if (elapsed === 0) return;
     const view = this.viewport;
-    const rect = view.getBoundingClientRect();
-    const velocity = (position: number, start: number, length: number) =>
-      Math.max(-1, Math.min(0, (position - start - 32) / 32)) +
-      Math.max(0, Math.min(1, (position - start - length + 32) / 32));
-    const dx = velocity(point.x, rect.left + view.clientLeft, view.clientWidth);
-    const dy = velocity(point.y, rect.top + view.clientTop, view.clientHeight);
-    view.scrollLeft += dx * elapsed * 0.6;
-    view.scrollTop += dy * elapsed * 0.6;
-    if (
-      dy === 0 ||
-      (dy < 0
-        ? view.scrollTop > 0
-        : view.scrollTop < view.scrollHeight - view.clientHeight) ||
-      performance.now() - this.pointerPageTime < 250
-    )
-      return;
-    const next = this.page + Math.sign(dy);
+    const direction = scrollPointerViewport(
+      view,
+      point,
+      elapsed,
+      this.pointerPageTime,
+    );
+    if (direction === 0) return;
+    const next = this.page + direction;
     if (next < 0 || next >= this.currentLayout.regions.length) return;
     this.page = next;
     this.paint();
-    view.scrollTop = dy < 0 ? view.scrollHeight - view.clientHeight : 0;
+    view.scrollTop = direction < 0 ? view.scrollHeight - view.clientHeight : 0;
     this.pointerPageTime = performance.now();
   }
 
