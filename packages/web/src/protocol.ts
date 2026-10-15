@@ -3,6 +3,8 @@ import type {
   DocxSelection,
   DocxPosition,
   NavigationDirection,
+  CharacterFormatPatch,
+  ParagraphFormatPatch,
 } from "@open-document/wasm/foundation";
 import type { GridViewport, PrintOptions } from "@open-document/wasm/xlsx";
 import type { PptxCommand } from "@open-document/wasm/pptx";
@@ -61,6 +63,20 @@ export type Operation =
   | { operation: "font"; bytes: Uint8Array; identity: string }
   | { operation: "shape"; text: string; size: number; language: string }
   | { operation: "openDocx"; bytes: Uint8Array; budget: Budget }
+  | { operation: "createDocx"; budget: Budget }
+  | { operation: "queryFormatting"; revision: number; selection: DocxSelection }
+  | {
+      operation: "setCharacterFormat";
+      revision: number;
+      selection: DocxSelection;
+      format: CharacterFormatPatch;
+    }
+  | {
+      operation: "setParagraphFormat";
+      revision: number;
+      selection: DocxSelection;
+      format: ParagraphFormatPatch;
+    }
   | { operation: "budget" | "query" | "saveDocx" | "flow" | "editState" }
   | {
       operation: "selectDocx" | "selectedText";

@@ -42,7 +42,7 @@ fn Session::validate(
       "limit-exceeded", "Presentation objects or text exceed budget",
     )
   }
-  self.opc.validate_replacements(replacements)
+  self.opc.validate_changes(replacements)
 }
 
 ///|

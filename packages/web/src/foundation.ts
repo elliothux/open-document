@@ -1,4 +1,10 @@
 import { Connection } from "./connection.js";
+export type {
+  FormatValue,
+  CharacterFormatPatch,
+  ParagraphFormatPatch,
+  DocxFormatting,
+} from "@open-document/wasm/foundation";
 import {
   docxFlow,
   pageLayout,
@@ -10,6 +16,11 @@ import {
   shapeBatch,
   resourceBudget,
   editState,
+  docxFormatting,
+  checkFormatPatch,
+  type DocxFormatting,
+  type CharacterFormatPatch,
+  type ParagraphFormatPatch,
   docxHit,
   docxSelectionGeometry,
   docxNavigation,
@@ -73,6 +84,53 @@ export class FoundationClient {
   }
   async query(): Promise<DocxQuery> {
     return docxQuery(await this.connection.request({ operation: "query" }));
+  }
+  async createDocx(budget: Budget): Promise<DocxQuery> {
+    return docxQuery(
+      await this.connection.request({ operation: "createDocx", budget }),
+    );
+  }
+  async queryFormatting(
+    revision: number,
+    selection: DocxSelection,
+  ): Promise<DocxFormatting> {
+    return docxFormatting(
+      await this.connection.request({
+        operation: "queryFormatting",
+        revision,
+        selection,
+      }),
+    );
+  }
+  async setCharacterFormat(
+    revision: number,
+    selection: DocxSelection,
+    format: CharacterFormatPatch,
+  ): Promise<EditState> {
+    checkFormatPatch(format);
+    return editState(
+      await this.connection.request({
+        operation: "setCharacterFormat",
+        revision,
+        selection,
+        format,
+      }),
+    );
+  }
+  async setParagraphFormat(
+    revision: number,
+    selection: DocxSelection,
+    format: ParagraphFormatPatch,
+  ): Promise<EditState> {
+    checkFormatPatch(format, true);
+    return editState(
+      await this.connection.request({
+        operation: "setParagraphFormat",
+        revision,
+        selection,
+        format,
+      }),
+    );
   }
   async editState(): Promise<EditState> {
     return editState(await this.connection.request({ operation: "editState" }));

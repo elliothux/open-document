@@ -85,14 +85,14 @@ fn validate_position(
   boundaries : Array[Int],
 ) -> Unit raise @failure.Failure {
   if position.frameStart is Some(start) &&
-    (start <= position.offset || !boundaries.contains(start)) {
+    (start <= position.offset || boundaries.binary_search(start) is Err(_)) {
     @failure.reject("invalid-position", "Invalid preferred frame boundary")
   }
   if position.bidiLevel is Some(level) && (level < 0 || level > 126) {
     @failure.reject("invalid-position", "Invalid cursor direction level")
   }
   guard (position.affinity == "before" || position.affinity == "after") &&
-    boundaries.contains(position.offset) else {
+    boundaries.binary_search(position.offset) is Ok(_) else {
     @failure.reject(
       "invalid-position", "Position must be an extended grapheme boundary",
     )
@@ -135,6 +135,12 @@ fn Session::edit_result(
   }
   {
     "revision": self.revision,
+    "formatting": if self.composition is None &&
+      self.selection is Some(selection) {
+      self.query_formatting(self.revision, selection)
+    } else {
+      Json::null()
+    },
     "selection": selection,
     "canUndo": !self.history.is_empty(),
     "canRedo": !self.redo.is_empty(),
@@ -168,6 +174,7 @@ pub fn Session::select(
   self.selection = Some(selection)
   self.input_group = None
   self.typing_text = None
+  self.typing_format = None
   self.vertical_x = None
   self.navigation_layout = -1
   self.edit_state()
@@ -187,6 +194,7 @@ fn Session::check_position_in(
   self : Session,
   document : @xml.Document,
   position : Position,
+  check_graphemes~ : Bool = true,
 ) -> Unit raise @failure.Failure {
   let tree = WordTree::new(document)
   tree.check_editable_paragraph(position.paragraph, part=self.main)
@@ -195,7 +203,20 @@ fn Session::check_position_in(
     node.paragraph == position.paragraph
   })
   let text = texts.map(node => nodes[node.id].text).join("")
-  validate_position(position, @layout.grapheme_boundaries(text))
+  validate_position(position, editing_boundaries(text, check_graphemes))
+}
+
+///|
+fn editing_boundaries(text : String, graphemes : Bool) -> Array[Int] {
+  if graphemes {
+    return @layout.grapheme_boundaries(text)
+  }
+  let result : Array[Int] = []
+  for offset, _ in text.iter2() {
+    result.push(offset)
+  }
+  result.push(text.length())
+  result
 }
 
 ///|
@@ -233,6 +254,32 @@ fn Session::prepare_range(
   selection : Selection,
   text : String,
   input_group~ : Int? = None,
+  check_graphemes~ : Bool = true,
+) -> PreparedEdit? raise @failure.Failure {
+  let prepared = self.prepare_plain_range(
+    selection,
+    text,
+    input_group~,
+    check_graphemes~,
+  )
+  if self.typing_format is Some(patch) &&
+    self.selection == Some(selection) &&
+    selection.anchor.paragraph == selection.focus.paragraph &&
+    selection.anchor.offset == selection.focus.offset &&
+    !text.is_empty() &&
+    prepared is Some(prepared) {
+    return Some(self.prepare_formatted_input(selection, prepared, patch))
+  }
+  prepared
+}
+
+///|
+fn Session::prepare_plain_range(
+  self : Session,
+  selection : Selection,
+  text : String,
+  input_group~ : Int? = None,
+  check_graphemes~ : Bool = true,
 ) -> PreparedEdit? raise @failure.Failure {
   guard text.length() <= command_limit else {
     @failure.reject("limit-exceeded", "Command input exceeds UTF-16 budget")
@@ -252,12 +299,14 @@ fn Session::prepare_range(
     }
   }
   if anchor.paragraph != focus.paragraph || text.contains("\n") {
-    return Some(self.prepare_structural_range(selection, text))
+    return Some(
+      self.prepare_structural_range(selection, text, check_graphemes~),
+    )
   }
   let nodes = WordTree::new(self.document()).nodes
   let texts = self.editable_texts(anchor.paragraph)
   let content = texts.map(node => nodes[node.id].text).join("")
-  let boundaries = @layout.grapheme_boundaries(content)
+  let boundaries = editing_boundaries(content, check_graphemes)
   validate_position(anchor, boundaries)
   validate_position(focus, boundaries)
   let start = anchor.offset.min(focus.offset)
@@ -463,12 +512,13 @@ fn Session::accept_document(
     @failure.reject("limit-exceeded", "Revision exhausted")
   }
   let bytes = candidate.bytes()
-  self.opc.validate_replacements(Map::from_array([(self.main, bytes)]))
+  self.opc.validate_changes(Map::from_array([(self.main, bytes)]))
   let texts = docx_texts(WordTree::new(candidate))
   self.document = Some(candidate)
   self.texts = texts
   self.selection = selection
   self.typing_text = None
+  self.typing_format = None
   self.input_group = None
   self.vertical_x = None
   self.navigation_layout = -1

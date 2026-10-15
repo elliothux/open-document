@@ -3,6 +3,7 @@ import type { EditorController, UiSnapshot } from "./controller.js";
 import { Command, Group, NativeSlot } from "./controls.js";
 import { messages } from "./messages.js";
 import type { OwnedFile } from "./types.js";
+import { DocxFormatCommands, DocxProperties } from "./docx-format.js";
 
 interface PanelProps {
   controller: EditorController;
@@ -51,6 +52,16 @@ export function Navigation({ controller, state, file, disabled }: PanelProps) {
 export function FormatCommands(props: PanelProps & { tab: string }) {
   const { controller, state, file, disabled, tab } = props;
   const t = messages(state.locale);
+  if (file.format === "docx" && tab === "edit")
+    return (
+      <DocxFormatCommands
+        key={file.editor.getSnapshot().documentId}
+        controller={controller}
+        state={state}
+        editor={file.editor}
+        disabled={disabled}
+      />
+    );
   if (file.format === "xlsx") {
     const data = file.editor.getSnapshot().data;
     return (
@@ -212,6 +223,16 @@ export function Sheets({ controller, state, file, disabled }: PanelProps) {
 }
 
 export function Properties(props: PanelProps) {
+  if (props.file.format === "docx")
+    return (
+      <DocxProperties
+        key={props.file.editor.getSnapshot().documentId}
+        controller={props.controller}
+        state={props.state}
+        editor={props.file.editor}
+        disabled={props.disabled}
+      />
+    );
   if (props.file.format === "pptx") return <SlideProperties {...props} />;
   if (props.file.format === "pdf") return <PdfProperties {...props} />;
   return null;

@@ -13,4 +13,5 @@ import {
   "moonbitlang/pdflite@0.3.8",
   "open_document/layout@0.0.1",
   "moonbit-community/flate@0.8.5",
+  "moonbitlang/x@0.5.5",
 }

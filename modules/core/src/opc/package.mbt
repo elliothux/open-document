@@ -268,19 +268,23 @@ pub fn Package::save(
   replacements : Map[String, Bytes],
   removed~ : Array[String] = [],
 ) -> Bytes raise @failure.Failure {
-  self.check()
-  guard !self.signed else {
-    @failure.reject(
-      "unsupported-package", "Signed packages cannot be safely rewritten",
-    )
-  }
-  self.archive.save(replacements, removed~)
+  self.validate_changes(replacements, removed~)
+  let output = self.archive.save(replacements, removed~)
+  let candidate = Package::open(output, {
+    ..self.budget,
+    file_bytes: self.budget.output_bytes,
+    retained_bytes: self.budget.output_bytes,
+  })
+  defer candidate.close()
+  candidate.validate_xml(replacements)
+  output
 }
 
 ///|
-pub fn Package::validate_replacements(
+pub fn Package::validate_changes(
   self : Package,
   replacements : Map[String, Bytes],
+  removed~ : Array[String] = [],
 ) -> Unit raise @failure.Failure {
   self.check()
   guard !self.signed else {
@@ -288,7 +292,57 @@ pub fn Package::validate_replacements(
       "unsupported-package", "Signed packages cannot be safely rewritten",
     )
   }
-  ignore(self.archive.validate_replacements(replacements))
+  let names : Map[String, Bool] = Map([])
+  for key, name in self.names {
+    if !removed.contains(name) {
+      names[key] = true
+    }
+  }
+  for name, _ in replacements {
+    if name != "[Content_Types].xml" {
+      part_name(name)
+    }
+    let key = name.to_lower()
+    guard !names.contains(key) || self.names.get(key) == Some(name) else {
+      @failure.reject(
+        "malformed-opc",
+        "Part names collide ignoring case",
+        part=name,
+      )
+    }
+    names[key] = true
+  }
+  ignore(self.archive.validate_changes(replacements, removed~))
+}
+
+///|
+fn Package::validate_xml(
+  self : Package,
+  changed : Map[String, Bytes],
+) -> Unit raise @failure.Failure {
+  guard !self.signed else {
+    @failure.reject("unsupported-package", "Cannot introduce signature parts")
+  }
+  for name, _ in changed {
+    if self.content_type(name) is Some(kind) &&
+      (kind.has_suffix("+xml") || kind.has_suffix("/xml")) {
+      ignore(self.xml(name))
+    }
+  }
+}
+
+///|
+/// Creates and validates an OPC package from its explicit parts.
+pub fn Package::create(
+  parts : Map[String, Bytes],
+  budget : @archive.Budget,
+) -> Package raise @failure.Failure {
+  let archive = @archive.Package::create(parts, budget)
+  defer archive.close()
+  let candidate = Package::open(archive.save(Map([])), budget)
+  errdefer candidate.close()
+  candidate.validate_xml(parts)
+  candidate
 }
 
 ///|

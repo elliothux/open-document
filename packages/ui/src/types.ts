@@ -15,7 +15,15 @@ export type Theme = "light" | "dark";
 export interface EditorDocument {
   readonly name: string;
   readonly bytes: Uint8Array;
+  readonly blank?: never;
 }
+export type DocxDocument =
+  | EditorDocument
+  | {
+      readonly name: string;
+      readonly blank: true;
+      readonly bytes?: never;
+    };
 export interface EditorResources {
   readonly wasm: ArrayBuffer;
   readonly workerUrl: URL;
@@ -29,7 +37,6 @@ export interface SavedDocument extends EditorOutput {
   readonly name: string;
 }
 interface CommonOptions {
-  readonly document: EditorDocument;
   readonly resources: EditorResources;
   readonly theme?: Theme;
   readonly locale?: Locale;
@@ -41,23 +48,34 @@ type OfficeBudget = Awaited<ReturnType<FoundationClient["defaultBudget"]>>;
 type PdfBudget = Awaited<ReturnType<PdfClient["defaultBudget"]>>;
 export type EditorOptions = CommonOptions &
   (
-    | {
-        readonly format: "docx" | "xlsx" | "pptx";
+    | ({
         readonly budget?: OfficeBudget;
+      } & (
+        | { readonly format: "docx"; readonly document: DocxDocument }
+        | {
+            readonly format: "xlsx" | "pptx";
+            readonly document: EditorDocument;
+          }
+      ))
+    | {
+        readonly format: "pdf";
+        readonly document: EditorDocument;
+        readonly budget?: PdfBudget;
       }
-    | { readonly format: "pdf"; readonly budget?: PdfBudget }
   );
 export type MountedSnapshot = EditorSnapshot & {
   readonly name: string;
   readonly saving: boolean;
   readonly loading: boolean;
   readonly message: string;
+  readonly newDocument: boolean;
 };
 export interface MountedMethods {
   getSnapshot(): MountedSnapshot;
   subscribe(listener: () => void): () => void;
   open(document: EditorDocument): Promise<boolean>;
   save(): Promise<SavedDocument>;
+  saveAs(name: string): Promise<SavedDocument>;
   close(): Promise<boolean>;
   dispose(): Promise<void>;
   setTheme(theme: Theme): void;
@@ -65,7 +83,12 @@ export interface MountedMethods {
 }
 export type MountedEditor = MountedMethods &
   (
-    | { readonly format: "docx"; readonly editor: DocumentEditor }
+    | {
+        readonly format: "docx";
+        readonly editor: DocumentEditor;
+        create(document: { readonly name: string }): Promise<boolean>;
+        open(document: DocxDocument): Promise<boolean>;
+      }
     | { readonly format: "xlsx"; readonly editor: SpreadsheetEditor }
     | { readonly format: "pptx"; readonly editor: PresentationEditor }
     | { readonly format: "pdf"; readonly editor: PdfEditor }

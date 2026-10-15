@@ -4,7 +4,7 @@ import { prepareFile, readFile } from "./file.js";
 import { messages } from "./messages.js";
 import { mime } from "./types.js";
 import type {
-  EditorDocument,
+  DocxDocument,
   EditorOptions,
   Locale,
   MountedSnapshot,
@@ -36,7 +36,8 @@ export class EditorController {
   private value: UiSnapshot;
   private readonly listeners = new Set<() => void>();
   private unsubscribe: (() => void) | undefined;
-  private saving: { kind: string; promise: Promise<SavedDocument> } | undefined;
+  private saving:
+    { kind: string; name: string; promise: Promise<SavedDocument> } | undefined;
   private changing: Promise<boolean> | undefined;
   private candidate: Promise<OwnedFile> | undefined;
   private candidateAbort: AbortController | undefined;
@@ -44,6 +45,7 @@ export class EditorController {
   private answer: ((choice: LeaveChoice) => void) | undefined;
   private cleanup: Promise<void> | undefined;
   private disposed = false;
+  private newDocumentId: string | undefined;
 
   constructor(
     readonly options: EditorOptions,
@@ -85,6 +87,9 @@ export class EditorController {
       const snapshot = value.file.editor.getSnapshot();
       const next = {
         ...snapshot,
+        newDocument: snapshot.documentId === this.newDocumentId,
+        modified:
+          snapshot.modified || snapshot.documentId === this.newDocumentId,
         error: value.error || snapshot.error,
         name: value.name,
         saving: value.saving,
@@ -128,13 +133,17 @@ export class EditorController {
       const file = await this.prepare(this.options.document);
       this.options.signal?.throwIfAborted();
       this.assertOpen();
-      this.install(file, this.options.document.name);
+      this.install(
+        file,
+        this.options.document.name,
+        !!this.options.document.blank,
+      );
     } finally {
       this.options.signal?.removeEventListener("abort", abort);
     }
   }
 
-  private async prepare(document: EditorDocument): Promise<OwnedFile> {
+  private async prepare(document: DocxDocument): Promise<OwnedFile> {
     if (this.candidate) throw new Error("A file is already opening");
     this.candidateAbort ??= new AbortController();
     this.candidate = prepareFile(
@@ -163,7 +172,10 @@ export class EditorController {
     );
   }
 
-  private install(file: OwnedFile, name: string): void {
+  private install(file: OwnedFile, name: string, isNew = false): void {
+    this.newDocumentId = isNew
+      ? file.editor.getSnapshot().documentId
+      : undefined;
     this.prepared = undefined;
     this.unsubscribe?.();
     Object.assign(file.surface.style, {
@@ -176,17 +188,41 @@ export class EditorController {
   }
 
   readonly save = (): Promise<SavedDocument> => this.output("original");
+  saveAs(name: string): Promise<SavedDocument> {
+    return this.output("original", false, this.fileName(name));
+  }
+  private fileName(name: string): string {
+    name = name.trim();
+    if (
+      !name ||
+      name.length > 255 ||
+      [...name].some(
+        (character) =>
+          character.charCodeAt(0) < 32 ||
+          character === "/" ||
+          character === "\\",
+      )
+    )
+      throw new Error("A valid file name is required");
+    return name.toLowerCase().endsWith(`.${this.options.format}`)
+      ? name
+      : `${name}.${this.options.format}`;
+  }
   exportPdf(all = true): Promise<SavedDocument> {
     return this.output(all ? "pdf" : "pdf-current");
   }
-  private output(kind: string, leaving = false): Promise<SavedDocument> {
+  private output(
+    kind: string,
+    leaving = false,
+    targetName = this.value.name,
+  ): Promise<SavedDocument> {
     try {
       this.assertOpen();
     } catch (error) {
       return Promise.reject(error);
     }
     if (this.saving)
-      return this.saving.kind === kind
+      return this.saving.kind === kind && this.saving.name === targetName
         ? this.saving.promise
         : Promise.reject(new Error("Another output is in progress"));
     if (this.changing && !leaving)
@@ -194,7 +230,7 @@ export class EditorController {
     const file = this.current();
     const name =
       kind === "original"
-        ? this.value.name
+        ? targetName
         : this.value.name.replace(/\.[^.]*$/, "") + ".pdf";
     const operation = async (): Promise<SavedDocument> => {
       let output: EditorOutput;
@@ -213,13 +249,22 @@ export class EditorController {
       if (this.options.onSave) {
         await this.options.onSave(result);
         if (!this.disposed && this.value.file === file) {
-          if (kind === "original") file.editor.markSaved(output);
-          this.publish({ message: messages(this.value.locale).outputSaved });
+          if (kind === "original") {
+            file.editor.markSaved(output);
+            this.newDocumentId = undefined;
+          }
+          this.publish({
+            name: kind === "original" ? name : this.value.name,
+            message: messages(this.value.locale).outputSaved,
+          });
         }
       } else {
         downloadBytes(output.bytes, mime[output.format], name);
         file.editor.markDownloaded(output);
-        this.publish({ message: messages(this.value.locale).generated });
+        this.publish({
+          name: kind === "original" ? name : this.value.name,
+          message: messages(this.value.locale).generated,
+        });
       }
       return result;
     };
@@ -234,7 +279,7 @@ export class EditorController {
         this.saving = undefined;
         if (!this.disposed) this.publish({ saving: false });
       });
-    this.saving = { kind, promise };
+    this.saving = { kind, name: targetName, promise };
     this.publish({ saving: true, message: "", error: "" });
     return promise;
   }
@@ -278,7 +323,11 @@ export class EditorController {
         file.editor.cancelDraft();
       else return false;
     }
-    if (!leavingOutput && file.editor.getSnapshot().modified) {
+    if (
+      !leavingOutput &&
+      (file.editor.getSnapshot().modified ||
+        file.editor.getSnapshot().documentId === this.newDocumentId)
+    ) {
       const choice = await this.ask({ kind: "unsaved", canSave: true });
       this.assertOpen();
       if (choice === "cancel") return false;
@@ -299,15 +348,22 @@ export class EditorController {
     return true;
   }
 
-  readonly open = (document: EditorDocument): Promise<boolean> =>
+  readonly open = (document: DocxDocument): Promise<boolean> =>
     this.change(() => this.replace(document));
+  create(document: { readonly name: string }): Promise<boolean> {
+    if (this.options.format !== "docx")
+      return Promise.reject(
+        new Error("Blank creation is available only for DOCX"),
+      );
+    return this.open({ name: this.fileName(document.name), blank: true });
+  }
   openFile(file: File): Promise<boolean> {
     return this.change(() => this.replace(file));
   }
-  private async replace(source: EditorDocument | File): Promise<boolean> {
+  private async replace(source: DocxDocument | File): Promise<boolean> {
     const previous = this.current();
     if (
-      (source instanceof File ? source.size : source.bytes.length) >
+      (source instanceof File ? source.size : (source.bytes?.length ?? 0)) >
       previous.inputLimit
     )
       throw new Error("Document input exceeds budget");
@@ -324,7 +380,7 @@ export class EditorController {
       this.assertOpen();
       const candidate = await this.prepare(document);
       this.assertOpen();
-      this.install(candidate, document.name);
+      this.install(candidate, document.name, !!document.blank);
       try {
         await previous.dispose();
       } catch (error) {

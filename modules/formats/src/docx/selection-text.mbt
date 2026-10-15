@@ -12,8 +12,21 @@ fn Session::paragraph_range(
   selection : Selection,
   structural~ : Bool,
 ) -> ParagraphRange raise @failure.Failure {
-  self.check_position_in(self.document(), selection.anchor)
-  self.check_position_in(self.document(), selection.focus)
+  self.paragraph_range_in(self.document(), tree, selection, structural~)
+}
+
+///|
+fn Session::paragraph_range_in(
+  self : Session,
+  document : @xml.Document,
+  tree : WordTree,
+  selection : Selection,
+  structural~ : Bool,
+  check_layout~ : Bool = true,
+  check_graphemes~ : Bool = true,
+) -> ParagraphRange raise @failure.Failure {
+  self.check_position_in(document, selection.anchor, check_graphemes~)
+  self.check_position_in(document, selection.focus, check_graphemes~)
   let (start, end) = if tree.nodes[selection.anchor.paragraph].start <
     tree.nodes[selection.focus.paragraph].start ||
     (
@@ -43,7 +56,10 @@ fn Session::paragraph_range(
       tree.check_structure_paragraph(id)
     }
   }
-  let flow = self.flow_from(self.document())
+  if !check_layout {
+    return { start, end, paragraphs, }
+  }
+  let flow = self.flow_from(document)
   let all = flow.paragraphs.copy()
   for table in flow.tables {
     for row in table.rows {

@@ -404,7 +404,7 @@ fn Session::validate(
   guard cells <= 100000 && units <= 4194304 else {
     @failure.reject("limit-exceeded", "Workbook cells or text exceed budget")
   }
-  self.opc.validate_replacements(replacements)
+  self.opc.validate_changes(replacements)
 }
 
 ///|

@@ -12,6 +12,43 @@ import {
 // Errors
 
 // Types and methods
+pub(all) struct CharacterFormat {
+  family : FormatChange[String]
+  size : FormatChange[Double]
+  color : FormatChange[String]
+  bold : FormatChange[Bool]
+  italic : FormatChange[Bool]
+} derive(Eq)
+pub fn CharacterFormat::equal(Self, Self) -> Bool
+pub fn CharacterFormat::new(family? : FormatChange[String], size? : FormatChange[Double], color? : FormatChange[String], bold? : FormatChange[Bool], italic? : FormatChange[Bool]) -> Self
+pub fn CharacterFormat::not_equal(Self, Self) -> Bool
+
+pub(all) struct FindOptions {
+  matchCase : Bool
+  wholeWord : Bool
+}
+pub fn FindOptions::new(matchCase? : Bool, wholeWord? : Bool) -> Self
+
+pub(all) enum FormatChange[T] {
+  Keep
+  Clear
+  Set(T)
+} derive(Eq)
+pub fn[T : Eq] FormatChange::equal(Self[T], Self[T]) -> Bool
+pub fn[T : Eq] FormatChange::not_equal(Self[T], Self[T]) -> Bool
+
+pub(all) struct ParagraphFormat {
+  align : FormatChange[String]
+  before : FormatChange[Double]
+  after : FormatChange[Double]
+  left : FormatChange[Double]
+  right : FormatChange[Double]
+  first : FormatChange[Double]
+  line : FormatChange[@layout.LineSpacing]
+  pageBreakBefore : FormatChange[Bool]
+}
+pub fn ParagraphFormat::new(align? : FormatChange[String], before? : FormatChange[Double], after? : FormatChange[Double], left? : FormatChange[Double], right? : FormatChange[Double], first? : FormatChange[Double], line? : FormatChange[@layout.LineSpacing], pageBreakBefore? : FormatChange[Bool]) -> Self
+
 pub(all) struct Position {
   paragraph : Int
   offset : Int
@@ -41,19 +78,26 @@ pub fn Session::check_idle(Self) -> Unit raise @failure.Failure
 pub fn Session::check_position(Self, Position) -> Unit raise @failure.Failure
 pub fn Session::close(Self) -> Unit
 pub fn Session::commit_composition(Self, Int, Int, String) -> Json raise @failure.Failure
+pub fn Session::create(@archive.Budget) -> Self raise @failure.Failure
 pub fn Session::delete(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::edit_state(Self) -> Json raise @failure.Failure
+pub fn Session::find(Self, Int, String, FindOptions) -> Json raise @failure.Failure
 pub fn Session::flow(Self) -> @layout.Flow raise @failure.Failure
 pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
 pub fn Session::navigate(Self, Int, @layout.Layout, Int, String, extend_selection~ : Bool) -> @layout.Hit raise @failure.Failure
 pub fn Session::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
 pub fn Session::query(Self) -> Json raise @failure.Failure
+pub fn Session::query_formatting(Self, Int, Selection) -> Json raise @failure.Failure
 pub fn Session::redo_edit(Self, Int) -> Json raise @failure.Failure
 pub fn Session::replace(Self, Int, Int, String) -> Int raise @failure.Failure
+pub fn Session::replace_all(Self, Int, String, FindOptions, String) -> Json raise @failure.Failure
+pub fn Session::replace_matches(Self, Int, Array[Selection], String) -> Json raise @failure.Failure
 pub fn Session::replace_range(Self, Int, Selection, String, input_group? : Int?) -> Json raise @failure.Failure
 pub fn Session::save(Self) -> Bytes raise @failure.Failure
 pub fn Session::select(Self, Int, Selection) -> Json raise @failure.Failure
 pub fn Session::selected_text(Self, Int, Selection) -> String raise @failure.Failure
+pub fn Session::set_character_format(Self, Int, Selection, CharacterFormat) -> Json raise @failure.Failure
+pub fn Session::set_paragraph_format(Self, Int, Selection, ParagraphFormat) -> Json raise @failure.Failure
 pub fn Session::undo_edit(Self, Int) -> Json raise @failure.Failure
 pub fn Session::update_composition(Self, Int, Int, String) -> Json raise @failure.Failure
 

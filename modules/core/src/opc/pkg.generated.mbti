@@ -26,12 +26,13 @@ pub struct Package {
 }
 pub fn Package::close(Self) -> Unit
 pub fn Package::content_type(Self, String) -> String? raise @failure.Failure
+pub fn Package::create(Map[String, Bytes], @archive.Budget) -> Self raise @failure.Failure
 pub fn Package::decoded_bytes(Self) -> Int raise @failure.Failure
 pub fn Package::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
 pub fn Package::read(Self, String) -> Bytes raise @failure.Failure
 pub fn Package::relationships(Self) -> ReadOnlyArray[Relationship] raise @failure.Failure
 pub fn Package::save(Self, Map[String, Bytes], removed? : Array[String]) -> Bytes raise @failure.Failure
-pub fn Package::validate_replacements(Self, Map[String, Bytes]) -> Unit raise @failure.Failure
+pub fn Package::validate_changes(Self, Map[String, Bytes], removed? : Array[String]) -> Unit raise @failure.Failure
 pub fn Package::xml(Self, String) -> @xml.Document raise @failure.Failure
 
 pub(all) struct Relationship {

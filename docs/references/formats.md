@@ -20,12 +20,16 @@ DOCX 文字区段的实际宽度和后续起点按固定 LibreOffice 的整数 t
 
 `@open-document/ui` 的 `mountEditor(container, options)` 挂载 DOCX、XLSX、PPTX 或 PDF 默认 UI。`container` 由宿主提供可测量的高度。`options.format` 区分格式；`document` 为 `{ name, bytes }`，`resources` 明确提供 `{ wasm, workerUrl, fonts, profile }`，可传对应 `budget`、`theme: "light" | "dark"`、`locale: "zh-CN" | "en-US"`、异步 `onSave`、初始 `signal` 和 `styleNonce`。接入代码与普通 JS 示例归[开发说明](development.md#默认-web-ui)。
 
+DOCX 也接受 `document: { name, blank: true }`，类型排除同时传入 `bytes`。`FoundationSession/Client.createDocx(budget)` 创建与打开一致的空白会话。包与模板由 MoonBit 生成，默认 Letter 页面、一英寸边距、11 pt Times New Roman 和一个空段落；字体仍由宿主显式提供。当前 XLSX/PPTX/PDF 要求已有文件字节。
+
 返回的 `MountedEditor` 按 `format` 区分，`editor` 是当前文件的对应 Web 编辑宿主，只读属性在替换成功后指向新宿主。旧宿主释放后拒绝操作。实例提供以下方法：
 
 | 方法 | 行为 |
 | --- | --- |
 | `open({ name, bytes })` | 只替换同格式文件；处理草稿/未保存修改，暂停新编辑并等待已接受队列；独立候选完成字体和首屏后替换，失败或取消保留旧会话；成功 `true`，用户取消 `false`，失败拒绝 Promise |
 | `save()` | 产生原格式输出，等待 `onSave`；重复调用复用同一在途结果，回调期间可以继续编辑 |
+| DOCX `create({ name })` / `open({ name, blank: true })` | 复用替换确认与独立候选，成功后成为新文件；其他格式没有新建入口 |
+| `saveAs(name)` | 使用新名称产生原格式输出；目标由宿主决定。失败保留旧名称和修改状态；成功后更新名称。不同名称不复用同一个在途输出 |
 | `getSnapshot()` / `subscribe(listener)` | 转发当前宿主的稳定快照；外部订阅跨文件替换保持，监听器异常不改变事务 |
 | `close()` | 询问草稿和未保存修改；取消 `false`，完成关闭 `true`；等待在途保存回调后重新检查 |
 | `dispose()` | 明确放弃内存会话，不弹确认；取消候选、等待已接受核心操作、释放 Worker/Canvas/React/自建 DOM；重复调用等待同一个 Promise，清理失败仍继续其他清理 |
@@ -38,6 +42,8 @@ DOCX 文字区段的实际宽度和后续起点按固定 LibreOffice 的整数 t
 编辑宿主的原格式保存和 Office PDF 输出统一返回 `EditorOutput = { documentId, revision, format, bytes }`。默认 UI 另加文件名 `name`。此约定不改变原始 Wasm/client 的保存结果。只有该宿主实际产生的原格式输出可以 `markSaved`；旧会话、其他格式和任意裸 revision 都不能确认保存。确认的是输出 revision，其后新编辑仍显示未保存。导航、缩放和 UI 变化不修改文档。
 
 `onSave` 成功才确认保存基线；失败保留修改并允许重试。缺省下载只提示“已生成下载”，不确认磁盘持久化，也不清除修改。PDF 导出不清除 Office 修改。关闭前选择“导出并继续”明确包含放弃内存会话。`dispose` 不等待宿主存储回调，晚到回执不更新已释放实例。
+
+默认 UI 快照增加 `newDocument`。空白创建后即使 revision 为 0，`modified` 仍为 true；首次原格式 `onSave` 成功才清除此标记。下载不清除它，关闭与替换仍需确认。文件名去首尾空白、拒绝空名、路径分隔和控制字符；缺少当前格式扩展名时补齐。
 
 保存回调期间若又有编辑，关闭/替换保留会话并返回 `false`。候选已经切换后，旧宿主清理失败只发布清理提示；新会话保持可用，`open` 返回 `true`。
 
@@ -94,6 +100,18 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 节的 `w:cols` 只识别无子列、`num` 缺省/1、`equalWidth` 缺省/true 的单栏声明；`w:docGrid` 只识别无子节点、`type` 缺省/default 的未启用模式。这些声明与单栏无网格布局一致，源内容保留；未知属性/子节点、自定义列和启用网格仍诊断并保护。此改动让原始 POI 普通正文可进入输入宿主，不增加多栏或网格排版引擎，验证范围见 [P4](../implemented/p4-docx-editing.md#验证依据与边界)。
 
 字节在 Worker 边界使用 structured clone。字体通过内部 `foundation_add_font` 导出，以每字符一个八位值的字符串传入核心。DOCX 和图片继续使用每操作一个 JSON/Base64 批次，输出反向转换。两种输入均需临时字符串和核心字节，不是零拷贝；原预算保持。轮廓通过 ASCII path 批量发送：`shape()` 返回缓存增量，`layout()` 返回可独立绘制的页结果和当前缓存资源；Canvas 按 key 复用 Path2D。一个 `CanvasRenderer` 必须绑定同一个核心会话的完整生命周期；`dispose()` 后不得复用。宿主负责展示诊断及提供可访问的文本/状态，Canvas 探针没有完整文档无障碍导航。
+
+## P10 当前格式编辑
+
+`FoundationSession/Client.queryFormatting(revision, selection)` 返回字符与段落属性。每项使用 `{ kind: "value", value }`、`{ kind: "mixed" }` 或 `{ kind: "unavailable", reason }`，同时返回 revision 和限制原因。`EditState.formatting` 包含当前选区的同一查询；没有选区或组合进行中为 null。查询只读取目标段落与继承样式，不要求解析无关图片。
+
+`setCharacterFormat(revision, selection, format)` 支持 `family`、`size`、`color`、`bold`、`italic`。字号为 0.5–1024 pt 的半点增量；颜色为六位 RGB 或 `"auto"`。`setParagraphFormat` 支持 `align: "left" | "center" | "right"`、`before/after/left/right/first` 和 `pageBreakBefore`。距离单位为 pt，须能表示成整数 twip；范围 0–1584 pt，`first` 可为负值以设置悬挂缩进。
+
+字段省略表示不修改，null 清除对应直接属性并恢复继承。MoonBit 使用 `FormatChange::{Keep, Clear, Set}` 和类型化属性结构。字符范围在边界处拆分 run，范围外文字与未知部件保留；段落属性覆盖范围接触的段落。一次修改提交一项有界历史，保存与 PDF 沿现有布局。无效位置、过期 revision、属性和预算失败不提交部分修改。
+
+折叠范围只改变后续输入属性，不增加 revision、历史或空文字。实际输入及格式一起提交；组合预览沿候选处理，取消仍保留输入属性。显式选择/导航结束该输入属性，保存本身不改变它。默认 UI 的字体/段落控件调用同一 Web 队列，数字与颜色确认后提交；字体仍需宿主供应对应 profile 和字节。
+
+当前未接通下划线/删除线、高亮、上下标、两端对齐、行距、制表位、样式 CRUD 与列表。剩余范围归 [P10](../p10-docx-core.md)，不把本切片记作完整格式编辑。
 
 ## 通用绘制输出
 

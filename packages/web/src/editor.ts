@@ -15,10 +15,15 @@ import {
   type EditorSnapshot,
 } from "./editor-state.js";
 import type { PageLayout } from "@open-document/wasm/preview";
+import {
+  docxSelectionDescription,
+  sameDocxSelection,
+} from "./document-selection.js";
 import type {
-  DocxPosition,
   DocxSelection,
   EditState,
+  CharacterFormatPatch,
+  ParagraphFormatPatch,
 } from "@open-document/wasm/foundation";
 
 /** Owns browser input order. The caller owns fonts, the opened DOCX and client lifetime. */
@@ -424,6 +429,31 @@ export class DocumentEditor {
     if (!selection) throw new Error("Click a document position first");
     return selection;
   }
+  setCharacterFormat(format: CharacterFormatPatch): Promise<void> {
+    return this.format(() =>
+      this.client.setCharacterFormat(
+        this.state.revision,
+        this.selection(),
+        format,
+      ),
+    );
+  }
+  setParagraphFormat(format: ParagraphFormatPatch): Promise<void> {
+    return this.format(() =>
+      this.client.setParagraphFormat(
+        this.state.revision,
+        this.selection(),
+        format,
+      ),
+    );
+  }
+  private format(operation: () => Promise<EditState>): Promise<void> {
+    this.inputEvents.endGroup();
+    return this.enqueue(async () => {
+      await this.changed(await operation());
+      this.focus();
+    });
+  }
 
   private selectPointer(
     point: PointerPoint,
@@ -530,17 +560,9 @@ export class DocumentEditor {
     if (cut) {
       const current = await this.client.editState();
       this.assertOpen();
-      const same = (a: DocxPosition, b: DocxPosition) =>
-        a.paragraph === b.paragraph &&
-        a.offset === b.offset &&
-        a.affinity === b.affinity &&
-        a.bidiLevel === b.bidiLevel &&
-        a.frameStart === b.frameStart;
       if (
         current.revision !== revision ||
-        !current.selection ||
-        !same(current.selection.anchor, selection.anchor) ||
-        !same(current.selection.focus, selection.focus)
+        !sameDocxSelection(current.selection, selection)
       )
         throw new Error("Document or selection changed during clipboard write");
       await this.changed(
@@ -609,32 +631,12 @@ export class DocumentEditor {
   }
 
   private async describeSelection(): Promise<void> {
-    const selection = this.state.selection;
-    let description: string;
-    if (this.blocked)
-      description = "Selection unavailable while editing is stopped";
-    else if (this.state.compositionId !== null)
-      description = "Text composition in progress";
-    else if (!selection)
-      description = "Focus document text input to start editing";
-    else if (
-      selection.anchor.paragraph === selection.focus.paragraph &&
-      selection.anchor.offset === selection.focus.offset
-    )
-      description = `Insertion point on page ${this.page + 1}`;
-    else {
-      try {
-        description = `Selected text: ${await this.client.selectedText(this.state.revision, selection)}`;
-      } catch (error) {
-        if (
-          !(error instanceof DocumentError) ||
-          (error.code !== "protected-content" &&
-            error.code !== "limit-exceeded")
-        )
-          throw error;
-        description = `Selected content is unavailable: ${error.message}`;
-      }
-    }
+    const description = await docxSelectionDescription(
+      this.client,
+      this.state,
+      this.page,
+      !!this.blocked,
+    );
     this.assertOpen();
     this.selectionDescription = description;
     this.input.setAttribute("aria-description", description);

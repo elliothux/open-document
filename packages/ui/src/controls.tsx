@@ -73,6 +73,8 @@ export function FileMenu({
 }) {
   const t = messages(state.locale);
   const input = useRef<HTMLInputElement>(null);
+  const [action, setAction] = useState<"new" | "saveAs">(),
+    [name, setName] = useState(state.name);
   const unavailable = state.loading || state.saving || !state.file;
   return (
     <>
@@ -81,6 +83,18 @@ export function FileMenu({
         <Menu.Portal container={portal}>
           <Menu.Positioner sideOffset={4} align="start">
             <Menu.Popup className="od-menu">
+              {controller.options.format === "docx" && (
+                <Menu.Item
+                  className="od-menu-item"
+                  disabled={unavailable}
+                  onClick={() => {
+                    setName("Untitled.docx");
+                    setAction("new");
+                  }}
+                >
+                  {t.newDocument}
+                </Menu.Item>
+              )}
               <Menu.Item
                 className="od-menu-item"
                 disabled={unavailable}
@@ -120,6 +134,16 @@ export function FileMenu({
               <Menu.Item
                 className="od-menu-item"
                 disabled={unavailable}
+                onClick={() => {
+                  setName(state.name);
+                  setAction("saveAs");
+                }}
+              >
+                {t.saveAs}
+              </Menu.Item>
+              <Menu.Item
+                className="od-menu-item"
+                disabled={unavailable}
                 onClick={() => controller.run(controller.close)}
               >
                 {t.close}
@@ -140,6 +164,50 @@ export function FileMenu({
           controller.run(() => controller.openFile(file));
         }}
       />
+      <Dialog.Root
+        open={!!action}
+        onOpenChange={(open) => {
+          if (!open) setAction(undefined);
+        }}
+      >
+        <Dialog.Portal container={portal}>
+          <Dialog.Backdrop className="od-backdrop" />
+          <Dialog.Popup className="od-dialog">
+            <Dialog.Title className="od-dialog-title">
+              {action === "new" ? t.newDocument : t.saveAs}
+            </Dialog.Title>
+            <Dialog.Description>{t.fileName}</Dialog.Description>
+            <form
+              onSubmit={(event) => {
+                event.preventDefault();
+                const operation = action;
+                setAction(undefined);
+                controller.run(() =>
+                  operation === "new"
+                    ? controller.create({ name })
+                    : controller.saveAs(name),
+                );
+              }}
+            >
+              <label>
+                {t.fileName}
+                <input
+                  autoFocus
+                  required
+                  value={name}
+                  onChange={(event) => setName(event.currentTarget.value)}
+                />
+              </label>
+              <div className="od-dialog-actions">
+                <Dialog.Close>{t.cancel}</Dialog.Close>
+                <button type="submit" disabled={unavailable}>
+                  {action === "new" ? t.createDocument : t.saveAs}
+                </button>
+              </div>
+            </form>
+          </Dialog.Popup>
+        </Dialog.Portal>
+      </Dialog.Root>
     </>
   );
 }

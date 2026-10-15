@@ -181,7 +181,7 @@ fn Foundation::dispatch(
       )
       .to_json()
     }
-    "openDocx" => {
+    "openDocx" | "createDocx" => {
       guard self.docx is None &&
         self.xlsx is None &&
         self.pptx is None &&
@@ -200,10 +200,14 @@ fn Foundation::dispatch(
         xml_depth: field_int(budget, "xmlDepth"),
         output_bytes: field_int(budget, "outputBytes"),
       }
-      let session = @docx.Session::open(
-        input_bytes(request, budget.file_bytes.min(budget.retained_bytes)),
-        budget,
-      )
+      let session = if operation == "createDocx" {
+        @docx.Session::create(budget)
+      } else {
+        @docx.Session::open(
+          input_bytes(request, budget.file_bytes.min(budget.retained_bytes)),
+          budget,
+        )
+      }
       self.docx = Some(session)
       session.query()
     }
@@ -270,6 +274,9 @@ fn Foundation::dispatch(
     "query"
     | "editState"
     | "selectDocx"
+    | "queryFormatting"
+    | "setCharacterFormat"
+    | "setParagraphFormat"
     | "selectedText"
     | "beginComposition"
     | "updateComposition"
@@ -336,6 +343,32 @@ fn Foundation::dispatch(
             field_int(request, "revision"),
             field_selection(request),
           )
+        "queryFormatting" =>
+          session.query_formatting(
+            field_int(request, "revision"),
+            field_selection(request),
+          )
+        "setCharacterFormat" | "setParagraphFormat" => {
+          let revision = field_int(request, "revision")
+          let result = if operation == "setCharacterFormat" {
+            session.set_character_format(
+              revision,
+              field_selection(request),
+              character_format(request),
+            )
+          } else {
+            session.set_paragraph_format(
+              revision,
+              field_selection(request),
+              paragraph_format(request),
+            )
+          }
+          if result is { "revision": Number(current, ..), .. } &&
+            current != revision.to_double() {
+            self.layout = None
+          }
+          result
+        }
         "replaceRange" | "deleteDocx" | "undoDocx" | "redoDocx" => {
           let revision = field_int(request, "revision")
           let result = match operation {

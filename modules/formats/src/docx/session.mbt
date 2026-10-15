@@ -16,6 +16,7 @@ pub struct Session {
   priv mut texts : Array[TextNode]
   priv mut selection : Selection?
   priv mut typing_text : Int?
+  priv mut typing_format : CharacterFormat?
   priv mut input_group : Int?
   priv mut vertical_x : Double?
   priv mut navigation_layout : Int
@@ -34,7 +35,12 @@ pub fn Session::open(
   bytes : Bytes,
   budget : @archive.Budget,
 ) -> Session raise @failure.Failure {
-  let opc = @opc.Package::open(bytes, budget)
+  Session::from_package(@opc.Package::open(bytes, budget))
+}
+
+///|
+fn Session::from_package(opc : @opc.Package) -> Session raise @failure.Failure {
+  errdefer opc.close()
   let mut main : String? = None
   for rel in opc.relationships() {
     if rel.owner.is_empty() &&
@@ -106,6 +112,7 @@ pub fn Session::open(
     texts: docx_texts(WordTree::new(document)),
     selection: None,
     typing_text: None,
+    typing_format: None,
     input_group: None,
     vertical_x: None,
     navigation_layout: -1,
@@ -259,6 +266,7 @@ pub fn Session::close(self : Session) -> Unit {
   self.texts.clear()
   self.selection = None
   self.typing_text = None
+  self.typing_format = None
   self.input_group = None
   self.vertical_x = None
   self.navigation_layout = -1

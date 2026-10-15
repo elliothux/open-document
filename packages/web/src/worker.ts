@@ -156,6 +156,25 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.shape(request.text, request.size, request.language);
         case "openDocx":
           return foundation.openDocx(request.bytes, request.budget);
+        case "createDocx":
+          return foundation.createDocx(request.budget);
+        case "queryFormatting":
+          return foundation.queryFormatting(
+            request.revision,
+            request.selection,
+          );
+        case "setCharacterFormat":
+          return foundation.setCharacterFormat(
+            request.revision,
+            request.selection,
+            request.format,
+          );
+        case "setParagraphFormat":
+          return foundation.setParagraphFormat(
+            request.revision,
+            request.selection,
+            request.format,
+          );
         case "query":
           return foundation.query();
         case "editState":

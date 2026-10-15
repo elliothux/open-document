@@ -101,7 +101,7 @@ pub fn Session::update_composition(
   let composition = self.check_composition(revision, id)
   let prepared = self.prepare_composition(composition, text)
   if prepared is Some(candidate) {
-    self.opc.validate_replacements(
+    self.opc.validate_changes(
       Map::from_array([(self.main, candidate.document.bytes())]),
     )
   }

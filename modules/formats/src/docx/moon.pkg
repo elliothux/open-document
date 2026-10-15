@@ -6,6 +6,7 @@ import {
   "open_document/layout",
   "moonbitlang/core/string",
   "moonbitlang/core/math",
+  "moonbitlang/x/unicode",
 }
 
 import {

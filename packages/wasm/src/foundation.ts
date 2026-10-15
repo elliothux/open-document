@@ -136,6 +136,131 @@ export interface EditState {
   historyEntryLimit: number;
   historyByteLimit: number;
   commandLimit: number;
+  formatting: DocxFormatting | null;
+}
+
+export type FormatValue<T> =
+  | { kind: "value"; value: T }
+  | { kind: "mixed" }
+  | { kind: "unavailable"; reason: string };
+export interface CharacterFormatPatch {
+  family?: string | null;
+  size?: number | null;
+  color?: string | null;
+  bold?: boolean | null;
+  italic?: boolean | null;
+}
+export interface ParagraphFormatPatch {
+  align?: "left" | "center" | "right" | null;
+  before?: number | null;
+  after?: number | null;
+  left?: number | null;
+  right?: number | null;
+  first?: number | null;
+  /** OOXML units: auto uses 240 per line; exact/atLeast use twips. */
+  line?: { rule: "auto" | "exact" | "atLeast"; value: number } | null;
+  pageBreakBefore?: boolean | null;
+}
+export interface DocxFormatting {
+  revision: number;
+  reason: string;
+  character: {
+    family: FormatValue<string>;
+    size: FormatValue<number>;
+    color: FormatValue<string>;
+    bold: FormatValue<boolean>;
+    italic: FormatValue<boolean>;
+  };
+  paragraph: {
+    align: FormatValue<string>;
+    before: FormatValue<number>;
+    after: FormatValue<number>;
+    left: FormatValue<number>;
+    right: FormatValue<number>;
+    first: FormatValue<number>;
+    line: FormatValue<{ rule: "auto" | "exact" | "atLeast"; value: number }>;
+    pageBreakBefore: FormatValue<boolean>;
+  };
+}
+export function checkFormatPatch(
+  format: CharacterFormatPatch | ParagraphFormatPatch,
+  paragraph = false,
+): void {
+  const fields = paragraph
+    ? {
+        align: "string",
+        before: "number",
+        after: "number",
+        left: "number",
+        right: "number",
+        first: "number",
+        line: "object",
+        pageBreakBefore: "boolean",
+      }
+    : {
+        family: "string",
+        size: "number",
+        color: "string",
+        bold: "boolean",
+        italic: "boolean",
+      };
+  for (const [key, value] of Object.entries(record(format))) {
+    if (paragraph && key === "line" && value !== null && value !== undefined) {
+      const spacing = record(value);
+      if (!lineSpacing(spacing) || Object.keys(spacing).length !== 2)
+        throw new Error("Invalid line spacing");
+    }
+    if (
+      !Object.hasOwn(fields, key) ||
+      (value !== null &&
+        value !== undefined &&
+        (typeof value !== Reflect.get(fields, key) ||
+          (typeof value === "number" && !Number.isFinite(value))))
+    )
+      throw new Error("Invalid formatting property: " + key);
+  }
+}
+function lineSpacing(value: unknown): boolean {
+  const spacing = record(value);
+  return (
+    (spacing.rule === "auto" ||
+      spacing.rule === "exact" ||
+      spacing.rule === "atLeast") &&
+    typeof spacing.value === "number" &&
+    Number.isFinite(spacing.value)
+  );
+}
+export function docxFormatting(value: unknown): DocxFormatting {
+  const result = record(value),
+    character = record(result.character),
+    paragraph = record(result.paragraph);
+  const field = (value: unknown, type: string): boolean => {
+    const item = record(value);
+    return (
+      item.kind === "mixed" ||
+      (item.kind === "unavailable" && typeof item.reason === "string") ||
+      (item.kind === "value" &&
+        typeof item.value === type &&
+        (type !== "number" || Number.isFinite(item.value)) &&
+        (type !== "object" || lineSpacing(item.value)))
+    );
+  };
+  if (
+    !Number.isSafeInteger(result.revision) ||
+    Number(result.revision) < 0 ||
+    typeof result.reason !== "string" ||
+    !["family", "color"].every((key) => field(character[key], "string")) ||
+    !field(character.size, "number") ||
+    !["bold", "italic"].every((key) => field(character[key], "boolean")) ||
+    !field(paragraph.align, "string") ||
+    !["before", "after", "left", "right", "first"].every((key) =>
+      field(paragraph[key], "number"),
+    ) ||
+    !field(paragraph.pageBreakBefore, "boolean") ||
+    !field(paragraph.line, "object")
+  )
+    throw new Error("Invalid DOCX formatting returned by Wasm");
+  return value as DocxFormatting;
 }
 
 export function editState(value: unknown): EditState {
@@ -157,6 +282,7 @@ export function editState(value: unknown): EditState {
     );
   };
   const selection = object.selection === null ? null : record(object.selection);
+  if (object.formatting !== null) docxFormatting(object.formatting);
   if (
     ![
       "revision",
@@ -355,6 +481,45 @@ export class FoundationSession extends WasmSession {
 
   query(): DocxQuery {
     return docxQuery(this.call({ operation: "query" }));
+  }
+
+  createDocx(budget: Budget): DocxQuery {
+    return docxQuery(this.call({ operation: "createDocx", budget }));
+  }
+  queryFormatting(revision: number, selection: DocxSelection): DocxFormatting {
+    return docxFormatting(
+      this.call({ operation: "queryFormatting", revision, selection }),
+    );
+  }
+  setCharacterFormat(
+    revision: number,
+    selection: DocxSelection,
+    format: CharacterFormatPatch,
+  ): EditState {
+    checkFormatPatch(format);
+    return editState(
+      this.call({
+        operation: "setCharacterFormat",
+        revision,
+        selection,
+        format,
+      }),
+    );
+  }
+  setParagraphFormat(
+    revision: number,
+    selection: DocxSelection,
+    format: ParagraphFormatPatch,
+  ): EditState {
+    checkFormatPatch(format, true);
+    return editState(
+      this.call({
+        operation: "setParagraphFormat",
+        revision,
+        selection,
+        format,
+      }),
+    );
   }
 
   editState(): EditState {

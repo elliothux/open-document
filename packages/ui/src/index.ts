@@ -8,6 +8,7 @@ import type { EditorOptions, MountedEditor } from "./types.js";
 
 export type {
   EditorDocument,
+  DocxDocument,
   EditorOptions,
   EditorResources,
   Locale,
@@ -64,6 +65,7 @@ export async function mountEditor(
     subscribe: controller.subscribe,
     open: controller.open,
     save: controller.save,
+    saveAs: (name: string) => controller.saveAs(name),
     close: controller.close,
     dispose: controller.dispose,
     setTheme: (theme: "light" | "dark") => controller.setTheme(theme),
@@ -74,6 +76,8 @@ export async function mountEditor(
       return {
         ...methods,
         format: "docx",
+        create: (document: { readonly name: string }) =>
+          controller.create(document),
         get editor() {
           const file = controller.getUiSnapshot().file;
           if (file?.format !== "docx")

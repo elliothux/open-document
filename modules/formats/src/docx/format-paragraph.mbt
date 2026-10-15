@@ -1,0 +1,163 @@
+///|
+/// Paragraph distances are points; negative first-line indent creates a hanging indent.
+pub(all) struct ParagraphFormat {
+  align : FormatChange[String]
+  before : FormatChange[Double]
+  after : FormatChange[Double]
+  left : FormatChange[Double]
+  right : FormatChange[Double]
+  first : FormatChange[Double]
+  line : FormatChange[@layout.LineSpacing]
+  pageBreakBefore : FormatChange[Bool]
+}
+
+///|
+pub fn ParagraphFormat::new(
+  align~ : FormatChange[String] = Keep,
+  before~ : FormatChange[Double] = Keep,
+  after~ : FormatChange[Double] = Keep,
+  left~ : FormatChange[Double] = Keep,
+  right~ : FormatChange[Double] = Keep,
+  first~ : FormatChange[Double] = Keep,
+  line~ : FormatChange[@layout.LineSpacing] = Keep,
+  pageBreakBefore~ : FormatChange[Bool] = Keep,
+) -> ParagraphFormat {
+  { align, before, after, left, right, first, line, pageBreakBefore, }
+}
+
+///|
+fn ParagraphFormat::properties(
+  self : ParagraphFormat,
+) -> Map[String, Map[String, String?]?] raise @failure.Failure {
+  let result : Map[String, Map[String, String?]?] = Map([])
+  match self.align {
+    Keep => ()
+    Clear => result["jc"] = None
+    Set(value) => {
+      guard ["left", "center", "right"].contains(value) else {
+        @failure.reject("invalid-operation", "Unsupported paragraph alignment")
+      }
+      result["jc"] = Some(Map::from_array([("val", Some(value))]))
+    }
+  }
+  for
+    (name, change) in [
+      ("before", self.before),
+      ("after", self.after),
+      ("left", self.left),
+      ("right", self.right),
+      ("firstLine", self.first),
+    ] {
+    let group = if name == "before" || name == "after" {
+      "spacing"
+    } else {
+      "ind"
+    }
+    let values = result.get(group).bind(value => value).unwrap_or(Map([]))
+    match change {
+      Keep => continue
+      Clear => {
+        values[name] = None
+        if name == "firstLine" {
+          values["hanging"] = None
+        }
+      }
+      Set(value) => {
+        guard value >= (if name == "firstLine" { -1584 } else { 0 }) &&
+          value <= 1584 &&
+          value * 20 == (value * 20).to_int().to_double() else {
+          @failure.reject(
+            "invalid-operation", "Paragraph distance must be in twips within 1584 points",
+          )
+        }
+        if name == "firstLine" {
+          values[if value < 0 { "hanging" } else { "firstLine" }] = Some(
+            (value.abs() * 20).to_int().to_string(),
+          )
+          values[if value < 0 { "firstLine" } else { "hanging" }] = None
+        } else {
+          values[name] = Some((value * 20).to_int().to_string())
+        }
+      }
+    }
+    result[group] = Some(values)
+  }
+  match self.pageBreakBefore {
+    Keep => ()
+    Clear => result["pageBreakBefore"] = None
+    Set(value) =>
+      result["pageBreakBefore"] = Some(
+        Map::from_array([("val", Some(if value { "1" } else { "0" }))]),
+      )
+  }
+  let spacing = result.get("spacing").bind(value => value).unwrap_or(Map([]))
+  match self.line {
+    Keep => ()
+    Clear => {
+      spacing["line"] = None
+      spacing["lineRule"] = None
+      result["spacing"] = Some(spacing)
+    }
+    Set(value) => {
+      let (rule, amount) = match value {
+        @layout.Auto(value) => ("auto", value)
+        @layout.Exact(value) => ("exact", value)
+        @layout.AtLeast(value) => ("atLeast", value)
+      }
+      guard amount >= (if rule == "auto" { 120 } else { 1 }) &&
+        amount <= (if rule == "auto" { 2400 } else { 31680 }) &&
+        amount == amount.to_int().to_double() else {
+        @failure.reject("invalid-operation", "Invalid paragraph line spacing")
+      }
+      spacing["line"] = Some(amount.to_int().to_string())
+      spacing["lineRule"] = Some(rule)
+      result["spacing"] = Some(spacing)
+    }
+  }
+  result
+}
+
+///|
+/// Applies paragraph properties to every paragraph touched by the explicit range.
+pub fn Session::set_paragraph_format(
+  self : Session,
+  revision : Int,
+  selection : Selection,
+  patch : ParagraphFormat,
+) -> Json raise @failure.Failure {
+  self.check_revision(revision)
+  let properties = patch.properties()
+  let document = self.document()
+  let tree = WordTree::new(document)
+  let range = self.formatting_range(document, selection)
+  let changes : Array[@xml.SourceChange] = []
+  for paragraph in range.paragraphs {
+    let markup = formatted_properties(
+      tree, document, paragraph, "pPr", properties,
+    )
+    if properties_change(tree, document, paragraph, "pPr", markup)
+      is Some(change) {
+      changes.push(change)
+    }
+  }
+  if !changes.is_empty() {
+    let (candidate, xml) = document.edit_source(changes)
+    let pending = if self.selection == Some(selection) {
+      self.typing_format
+    } else {
+      None
+    }
+    self.commit_edit(
+      {
+        xml: [xml],
+        before: self.selection,
+        after: Some(selection),
+        paragraphs: range.paragraphs,
+        bytes: edit_bytes(xml),
+      },
+      candidate,
+    )
+    self.typing_format = pending
+  }
+  self.edit_result(range.paragraphs)
+}

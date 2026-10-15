@@ -3,11 +3,18 @@ fn Session::prepare_structural_range(
   self : Session,
   selection : Selection,
   text : String,
+  check_graphemes~ : Bool = true,
 ) -> PreparedEdit raise @failure.Failure {
   let document = self.document()
   let source = document.source()
   let tree = WordTree::new(document)
-  let range = self.paragraph_range(tree, selection, structural=true)
+  let range = self.paragraph_range_in(
+    document,
+    tree,
+    selection,
+    structural=true,
+    check_graphemes~,
+  )
   let start = range.start
   let end = range.end
   let first = tree.nodes[start.paragraph]
