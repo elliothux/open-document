@@ -283,6 +283,7 @@ export interface DocxFormatting {
     columnWidths: number[];
     width: number;
     rowHeight: number;
+    rowHeightRule: "atLeast" | "exact";
     rows: number;
     headerRows: number;
     cellFill: string | null;
@@ -438,6 +439,7 @@ export function docxFormatting(value: unknown): DocxFormatting {
             typeof width === "number" && Number.isFinite(width) && width > 0,
         ) ||
         Number(table.headerRows) > Number(table.rows) ||
+        !["atLeast", "exact"].includes(String(table.rowHeightRule)) ||
         !["top", "center", "bottom"].includes(
           String(table.cellVerticalAlign),
         ) ||

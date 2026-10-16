@@ -58,6 +58,7 @@ export function DocxTables({
           disabled={disabled || !!snapshot.data.formatting?.reason}
           width={size.width}
           height={size.rowHeight}
+          heightRule={size.rowHeightRule}
           columns={size.columns}
           column={size.column}
           columnWidths={size.columnWidths}
@@ -199,6 +200,7 @@ function TableProperties({
   disabled,
   width,
   height,
+  heightRule,
   columns,
   column,
   columnWidths,
@@ -218,6 +220,7 @@ function TableProperties({
   disabled: boolean;
   width: number;
   height: number;
+  heightRule: "atLeast" | "exact";
   columns: number;
   column: number;
   columnWidths: number[];
@@ -236,6 +239,7 @@ function TableProperties({
     [headers, setHeaders] = useState(String(headerRows)),
     [rowHeight, setHeight] = useState(String(height)),
     [cellFill, setFill] = useState(`#${fill ?? "ffffff"}`);
+  const [rowRule, setRowRule] = useState(heightRule);
   const [columnIndex, setColumnIndex] = useState(column),
     [columnWidth, setColumnWidth] = useState(String(columnWidths[column]));
   const maximumColumnWidth = maxWidth - width + columnWidths[columnIndex]!;
@@ -410,6 +414,20 @@ function TableProperties({
           {t.clearCellFill}
         </button>
       </form>
+      <label>
+        {t.rowHeightRule}
+        <select
+          aria-label={t.rowHeightRule}
+          value={rowRule}
+          onChange={(event) => {
+            const value = event.currentTarget.value;
+            if (value === "atLeast" || value === "exact") setRowRule(value);
+          }}
+        >
+          <option value="atLeast">{t.rowHeightAtLeast}</option>
+          <option value="exact">{t.rowHeightExact}</option>
+        </select>
+      </label>
       {(
         [
           {
@@ -422,7 +440,8 @@ function TableProperties({
           },
           {
             action: "rowHeight",
-            label: t.rowHeightMinimum,
+            label:
+              rowRule === "exact" ? t.rowHeightExactValue : t.rowHeightMinimum,
             value: rowHeight,
             set: setHeight,
             min: 0,
@@ -436,10 +455,15 @@ function TableProperties({
             event.preventDefault();
             if (field.value !== "")
               controller.run(() =>
-                editor.editTable({
-                  action: field.action,
-                  value: Number(field.value),
-                }),
+                editor.editTable(
+                  field.action === "rowHeight"
+                    ? {
+                        action: "rowHeight",
+                        value: Number(field.value),
+                        rule: rowRule,
+                      }
+                    : { action: "tableWidth", value: Number(field.value) },
+                ),
               );
           }}
         >

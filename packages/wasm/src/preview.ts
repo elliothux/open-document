@@ -73,6 +73,7 @@ export interface DocxFlow {
     borders: { horizontal: DocxBorderStyle[][]; vertical: DocxBorderStyle[][] };
     margins: DocxCellMargins[][];
     heights: number[];
+    exactHeights: boolean[];
     fills: string[][];
     verticalAligns: ("top" | "center" | "bottom")[][];
     headerRows: number;
@@ -237,6 +238,12 @@ export function docxFlow(value: unknown): DocxFlow {
     for (const row of entries(table.fills)) diagnostics(row);
     const rows = entries(table.rows),
       verticalAligns = entries(table.verticalAligns);
+    const exactHeights = entries(table.exactHeights);
+    if (
+      exactHeights.length !== rows.length ||
+      exactHeights.some((value) => typeof value !== "boolean")
+    )
+      throw new Error("Invalid row height rules");
     const margins = entries(table.margins);
     if (
       !Number.isSafeInteger(table.headerRows) ||

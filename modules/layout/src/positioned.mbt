@@ -51,7 +51,13 @@ pub fn Layout::positioned(self : Layout) -> PositionedDocument {
         primitives.push(Stroke(border.rect, border.color, border.width))
       }
       for line in page.lines {
+        if line.cellClip is Some(rect) {
+          primitives.push(Clip(rect))
+        }
         primitives.append(line.positioned(self.fonts, page.width))
+        if line.cellClip is Some(_) {
+          primitives.push(Restore)
+        }
       }
       { width: page.width, height: page.height, primitives, }
     }),

@@ -86,7 +86,8 @@ export type DocxTableEdit =
         | "splitTable";
     }
   | { action: "merge"; rows: number; columns: number }
-  | { action: "tableWidth" | "rowHeight"; value: number }
+  | { action: "tableWidth"; value: number }
+  | { action: "rowHeight"; value: number; rule: "atLeast" | "exact" }
   | { action: "columnWidth"; column: number; value: number }
   | { action: "headerRows"; value: number }
   | { action: "cellFill"; value: string | null }
@@ -144,6 +145,11 @@ export function checkDocxTableEdit(value: unknown): void {
     change.action === "rowHeight" ||
     change.action === "columnWidth"
   ) {
+    if (
+      change.action === "rowHeight" &&
+      !["atLeast", "exact"].includes(String(change.rule))
+    )
+      throw new Error("Invalid row height rule");
     if (
       change.action === "columnWidth" &&
       (typeof change.column !== "number" ||

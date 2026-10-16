@@ -193,6 +193,7 @@ fn Session::table(
   let rows : Array[Array[Array[@layout.Paragraph]]] = []
   let mut header_rows = 0
   let heights : Array[Double] = []
+  let exact_heights : Array[Bool] = []
   let fills : Array[Array[String]] = []
   let vertical_aligns : Array[Array[String]] = []
   let margins : Array[Array[@layout.CellMargins]] = []
@@ -223,25 +224,8 @@ fn Session::table(
     let vertical : Array[Int] = []
     let current : Map[(Int, Int), (Int, Int)] = Map([])
     let mut column = 0
-    let height = if tree.child(row, "trPr") is Some(props) {
-      if tree
-        .child(props, "trHeight")
-        .bind(node => tree.nodes[node].attribute("hRule", uri=word_uri)) ==
-        Some("exact") {
-        @failure.reject(
-          "unsupported-layout", "Exact table row heights are unsupported",
-        )
-      }
-      tree
-      .number(props, "trHeight", "val")
-      .map(value => value / 20)
-      .unwrap_or(0)
-    } else {
-      0
-    }
-    guard height >= 0 else {
-      @failure.reject("invalid-table", "Negative row height")
-    }
+    let (height, exact) = tree.table_row_height(row)
+    exact_heights.push(exact)
     for cell in tree.children[row] {
       if tree.nodes[cell].name != "tc" {
         continue
@@ -414,6 +398,7 @@ fn Session::table(
     borders,
     margins,
     heights,
+    exactHeights: exact_heights,
     fills,
     verticalAligns: vertical_aligns,
   }

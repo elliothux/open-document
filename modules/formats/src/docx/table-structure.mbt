@@ -11,7 +11,7 @@ pub(all) enum TableEdit {
   SplitTable
   TableWidth(Double)
   ColumnWidth(Int, Double)
-  RowHeight(Double)
+  RowHeight(Double, String)
   CellFill(String?)
   CellVerticalAlign(String?)
   CellMargins(@layout.CellMargins?)
@@ -177,8 +177,8 @@ pub fn Session::edit_table(
         width=true,
         column=Some(column),
       )
-    RowHeight(value) =>
-      return self.size_table(revision, selection, value, width=false)
+    RowHeight(value, rule) =>
+      return self.size_table(revision, selection, value, width=false, rule~)
     CellFill(color) => return self.fill_table_cell(revision, selection, color)
     CellMargins(value) =>
       return self.set_table_margins(revision, selection, value)

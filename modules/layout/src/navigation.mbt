@@ -291,7 +291,7 @@ fn Layout::navigate(
     guard x > -1.0 / 0.0 && x < 1.0 / 0.0 else {
       @failure.reject("invalid-position", "Vertical target x must be finite")
     }
-    let mut origin_y = line.y
+    let mut origin_y = if line.cellClip is Some(_) { origin.y } else { line.y }
     for page = 0; page < origin.page; page = page + 1 {
       origin_y += self.pages[page].height
     }
@@ -304,6 +304,13 @@ fn Layout::navigate(
     for page, frame in self.pages {
       for index, candidate in frame.lines {
         if candidate.repeated {
+          continue
+        }
+        if candidate.cellClip is Some(rect) &&
+          (
+            candidate.y >= rect.y + rect.height ||
+            candidate.y + candidate.height <= rect.y
+          ) {
           continue
         }
         if candidate.carets.is_empty() {

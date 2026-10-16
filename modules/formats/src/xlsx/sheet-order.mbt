@@ -8,6 +8,10 @@ pub(all) enum SheetEdit {
   Rename(String)
   RowHeight(Int, Int, Double)
   ColumnWidth(Int, Int, Double)
+  InsertRows(Int, Int)
+  DeleteRows(Int, Int)
+  InsertColumns(Int, Int)
+  DeleteColumns(Int, Int)
   Merge(String, Bool)
   Unmerge(String)
   Freeze(Int, Int)
@@ -71,14 +75,18 @@ fn Session::ordered_sheets(
 }
 
 ///|
-fn Session::sheet_edit_reason(self : Session) -> String {
+fn Session::sheet_edit_reason(
+  self : Session,
+  structure~ : Bool = true,
+) -> String {
   try {
     if !self.read_only.is_empty() {
       return self.read_only
     }
     let tree = Tree::new(self.workbook)
     let root = tree.root("workbook")
-    if tree
+    if structure &&
+      tree
       .one(root.id, "workbookProtection")
       .map(node => flag(node, "lockStructure"))
       .unwrap_or(false) {
@@ -140,6 +148,14 @@ pub fn Session::edit_sheet(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   match change {
+    InsertRows(first, count) =>
+      return self.edit_axes(sheet, { rows: true, first, count, insert: true, })
+    DeleteRows(first, count) =>
+      return self.edit_axes(sheet, { rows: true, first, count, insert: false, })
+    InsertColumns(first, count) =>
+      return self.edit_axes(sheet, { rows: false, first, count, insert: true, })
+    DeleteColumns(first, count) =>
+      return self.edit_axes(sheet, { rows: false, first, count, insert: false, })
     PageSetup(setup) => return self.set_print_setup(sheet, setup)
     PrintRange(settings) => return self.set_print_range(sheet, settings)
     HeaderFooter(settings) => return self.set_header_footer(sheet, settings)
@@ -173,6 +189,10 @@ pub fn Session::edit_sheet(
   let mut next_sheet = self.next_sheet
   match change {
     RowHeight(_, _, _)
+    | InsertRows(_, _)
+    | DeleteRows(_, _)
+    | InsertColumns(_, _)
+    | DeleteColumns(_, _)
     | ColumnWidth(_, _, _)
     | Merge(_, _)
     | Unmerge(_)

@@ -23,6 +23,24 @@ fn Layout::caret_geometry(self : Layout, hit : Hit) -> Hit {
     return { ..visual, offset: hit.offset, frameStart: hit.frameStart, }
   }
   let line = self.pages[hit.page].lines[hit.line]
+  self.clip_cell_hit(self.portion_caret_geometry(hit), line)
+}
+
+///|
+fn Layout::clip_cell_hit(_self : Layout, hit : Hit, line : Line) -> Hit {
+  guard line.cellClip is Some(rect) else { return hit }
+  let y = hit.y.max(rect.y).min(rect.y + rect.height)
+  {
+    ..hit,
+    x: hit.x.max(rect.x).min(rect.x + rect.width),
+    y,
+    height: ((hit.y + hit.height).min(rect.y + rect.height) - y).max(0),
+  }
+}
+
+///|
+fn Layout::portion_caret_geometry(self : Layout, hit : Hit) -> Hit {
+  let line = self.pages[hit.page].lines[hit.line]
   let level = hit.bidiLevel.unwrap_or_else(() => {
     line.bidi_level(hit.offset, hit.affinity)
   })
@@ -202,25 +220,39 @@ pub fn Layout::hit_test(
       (cell is Some(area) && !area.paragraphs.contains(line.paragraph)) {
       continue
     }
+    if line.cellClip is Some(rect) &&
+      (
+        line.y >= rect.y + rect.height ||
+        line.y + line.height <= rect.y ||
+        x < rect.x ||
+        x > rect.x + rect.width ||
+        y < rect.y ||
+        y > rect.y + rect.height
+      ) {
+      continue
+    }
     for image in line.images {
       if x >= image.x &&
         x <= image.x + image.width &&
         y >= image.y &&
         y <= image.y + image.height &&
         (!line.clip || (y >= line.y && y <= line.y + line.height)) {
-        return {
-          paragraph: line.paragraph,
-          offset: 0,
-          affinity: "after",
-          bidiLevel: None,
-          frameStart: None,
-          page,
-          line: index,
-          x: image.x,
-          y: image.y,
-          height: image.height,
-          reason: "Inline image is protected",
-        }
+        return self.clip_cell_hit(
+          {
+            paragraph: line.paragraph,
+            offset: 0,
+            affinity: "after",
+            bidiLevel: None,
+            frameStart: None,
+            page,
+            line: index,
+            x: image.x,
+            y: image.y,
+            height: image.height,
+            reason: "Inline image is protected",
+          },
+          line,
+        )
       }
     }
     if line.carets.is_empty() {

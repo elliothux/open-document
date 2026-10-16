@@ -61,9 +61,12 @@ fn sheet_reference_formula(
 }
 
 ///|
-fn Session::sheet_rename_reason(self : Session) -> String {
+fn Session::sheet_rename_reason(
+  self : Session,
+  structure~ : Bool = true,
+) -> String {
   try {
-    let reason = self.sheet_edit_reason()
+    let reason = self.sheet_edit_reason(structure~)
     if !reason.is_empty() {
       return reason
     }

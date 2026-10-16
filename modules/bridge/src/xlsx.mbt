@@ -181,6 +181,26 @@ fn Foundation::xlsx_operation(
             footerMargin: xlsx_number(change, "footerMargin"),
           })
         "move" => @xlsx.Move(field_int(change, "index"))
+        "insertRows" =>
+          @xlsx.InsertRows(
+            field_int(change, "first"),
+            field_int(change, "count"),
+          )
+        "deleteRows" =>
+          @xlsx.DeleteRows(
+            field_int(change, "first"),
+            field_int(change, "count"),
+          )
+        "insertColumns" =>
+          @xlsx.InsertColumns(
+            field_int(change, "first"),
+            field_int(change, "count"),
+          )
+        "deleteColumns" =>
+          @xlsx.DeleteColumns(
+            field_int(change, "first"),
+            field_int(change, "count"),
+          )
         "visibility" => @xlsx.Visibility(field_string(change, "state"))
         "rename" => @xlsx.Rename(field_string(change, "name"))
         "rowHeight" =>

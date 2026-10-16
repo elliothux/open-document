@@ -28,12 +28,7 @@ fn table_row_height_limit(
     table.border_width(last + 1)
   for r in first..<=last {
     if r != row {
-      let edge = table.border_width(r)
-      available -= (table.heights[r] + edge).max(
-        table.margins[r].iter().fold(init=0.0, (v, m) => v.max(m.top)) +
-        table.margins[r].iter().fold(init=0.0, (v, m) => v.max(m.bottom)) +
-        edge,
-      )
+      available -= table.row_minimum_height(r)
     }
   }
   ((available.max(0) * 20).floor() / 20).min(14400)
@@ -79,6 +74,11 @@ fn Session::table_dimensions(
     "columnWidths": table.widths,
     "width": table.widths.iter().fold(init=0.0, (sum, width) => sum + width),
     "rowHeight": table.heights[index],
+    "rowHeightRule": if table.exactHeights[index] {
+      "exact"
+    } else {
+      "atLeast"
+    },
     "rows": rows.length(),
     "headerRows": table.headerRows,
     "cellVerticalAlign": table.verticalAligns[index][column],
@@ -232,6 +232,7 @@ fn Session::size_table(
   value : Double,
   width~ : Bool,
   column~ : Int? = None,
+  rule~ : String = "atLeast",
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard value >= 0 && value <= 14400 && value * 20 == (value * 20).round() else {
@@ -358,7 +359,8 @@ fn Session::size_table(
       }
     }
   } else {
-    guard value <= table_row_height_limit(model, grid.row, flow.page) else {
+    guard rule == "exact" ||
+      value <= table_row_height_limit(model, grid.row, flow.page) else {
       @failure.reject(
         "invalid-operation", "Minimum row heights exceed one page",
       )
@@ -366,13 +368,15 @@ fn Session::size_table(
     for cell in grid.cells[grid.row] {
       tree.check_merge_cell(cell, self.main)
     }
-    if value != model.heights[grid.row] {
-      let attributes = if twips == 0 {
+    guard ["atLeast", "exact"].contains(rule) else {
+      @failure.reject("invalid-operation", "Unknown table row height rule")
+    }
+    if value != model.heights[grid.row] ||
+      (rule == "exact") != model.exactHeights[grid.row] {
+      let attributes = if twips == 0 && rule == "atLeast" {
         None
       } else {
-        Some(
-          Map([("val", Some(twips.to_string())), ("hRule", Some("atLeast"))]),
-        )
+        Some(Map([("val", Some(twips.to_string())), ("hRule", Some(rule))]))
       }
       if tree.table_property_change(
           document,

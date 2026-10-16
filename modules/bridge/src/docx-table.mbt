@@ -108,7 +108,7 @@ fn Foundation::docx_table(
         } else if action == "tableWidth" {
           @docx.TableWidth(value)
         } else {
-          @docx.RowHeight(value)
+          @docx.RowHeight(value, field_string(fields, "rule"))
         }
       }
       _ => @failure.reject("invalid-operation", "Unknown table edit")

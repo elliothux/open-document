@@ -207,11 +207,11 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `editTable({ action: "columnWidth", column, value })` 设置同表内指定逻辑列的宽度，column 从 0 开始，须小于当前列数。value 为 12–14400 pt 的整数 twip，整表仍须位于可用页宽内。其他列宽度保持，表格总宽随目标列增减；横向合并的格宽按所跨列求和，纵向延续节点一起更新。共享整表宽度的网格/属性序列化、保护、边距及半描边宽度预检、源历史和保存。规则参考 [ONLYOFFICE 列宽设置与网格重建](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L19008-L19039)；本 API 用逻辑列索引明确定位合并格覆盖的各列。默认 UI 显示从 1 开始的列号及对应宽度。
 
-`editTable({ action: "rowHeight", value })` 设置当前格所在行的最小高度，写入 `trHeight hRule="atLeast"`；0 恢复自动高度。内容需要更多空间时，行继续长高。核心按同一纵向合并行组中其他行的最小高度与边距预留一页，拒绝明显超出的下限；实际内容仍沿既有分页与合并行组规则排版。行为参考 [ONLYOFFICE 行高操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L5663-L5674)。两项值均须有限、非负、不超过 14400 pt，且能表示为整数 twip；表宽须大于 0。
+`editTable({ action: "rowHeight", value, rule })` 设置当前格所在行的高度。`rule` 必须为 `atLeast` 或 `exact`，写入相应的 `trHeight hRule`。`atLeast` 允许内容撑高，值为 0 时删除行高属性并恢复自动；`exact` 固定行高并裁剪溢出，完整文字及逻辑位置仍保留。精确值另加同行最大上下边距，包含上边框，最小可见行距为一个 twip。纵向合并以末行模式决定是否允许内容撑高；末行为精确高度时裁剪到整个合并格。预览和 PDF 使用同一裁剪，光标及选区限制在格内，垂直移动跳过完全隐藏的行。重复表头保留相同裁剪。规则参考 [ONLYOFFICE 精确行高与边距](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L2660-L2700)、[内容裁剪](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L2775-L2900)及[合并格末行](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L3150-L3162)。尺寸须有限、非负、不超过 14400 pt，且为整数 twip；表宽须大于 0。核心保留合并行组的一页边界，拒绝超出可用页高的尺寸。
 
-`queryFormatting(...).table` 在支持的表格上下文中返回 `{ id, row, rows, column, columns, columnWidths, headerRows, width, rowHeight, align, tableMargins, tableBorders, cellFill, cellVerticalAlign, cellMargins, cellBorders, maxWidth, maxRowHeight }`，否则为 null。`id` 为当前表节点身份，`row` 从 0 开始，`columns` 为逻辑列数；`column` 为当前格左侧的逻辑列索引，`columnWidths` 为全部逻辑列宽（pt）；`width` 是列网格总宽，`rowHeight` 是最小高度，均不是浏览器测量值。`align` 为整表的 `left`、`center` 或 `right`；`tableMargins` 是表格默认单元格边距，尚未叠加单格覆盖。`cellFill` 为当前格的六位 RGB 底色，无底色时为 null；`cellVerticalAlign` 为有效的 `top`、`center` 或 `bottom`；`cellMargins` 为该格有效的 `{ top, right, bottom, left }`。两类边距均以 pt 表示。默认 UI 读取同一查询，提交后反映实际属性；文档、所选段落或 revision 变化会重置未提交的属性输入。
+`queryFormatting(...).table` 在支持的表格上下文中返回 `{ id, row, rows, column, columns, columnWidths, headerRows, width, rowHeight, rowHeightRule, align, tableMargins, tableBorders, cellFill, cellVerticalAlign, cellMargins, cellBorders, maxWidth, maxRowHeight }`，否则为 null。`id` 为当前表节点身份，`row` 从 0 开始，`columns` 为逻辑列数；`column` 为当前格左侧的逻辑列索引，`columnWidths` 为全部逻辑列宽（pt）；`width` 是列网格总宽，`rowHeight` 是源高度值，`rowHeightRule` 为 `atLeast` 或 `exact`；自动高度返回 `0/atLeast`。这些值均非浏览器测量。`DocxFlow.tables[].exactHeights` 按行携带精确模式。`align` 为整表的 `left`、`center` 或 `right`；`tableMargins` 是表格默认单元格边距，尚未叠加单格覆盖。`cellFill` 为当前格的六位 RGB 底色，无底色时为 null；`cellVerticalAlign` 为有效的 `top`、`center` 或 `bottom`；`cellMargins` 为该格有效的 `{ top, right, bottom, left }`。两类边距均以 pt 表示。默认 UI 读取同一查询，提交后反映实际属性；文档、所选段落或 revision 变化会重置未提交的属性输入。
 
-尺寸操作保留逻辑选区和当前光标处的待输入格式，重排后清除旧布局定位提示，沿已有队列、源历史、保存重开和 PDF。无源变化不增加历史；未知行/格映射、网格标记、属性或预算失败原子拒绝。缺少的尺寸属性按 OOXML 顺序创建；恢复自动高度保留其他行属性。精确行高、自动适配、其余格属性和跨页合并延续仍归 [P10](../p10-docx-core.md)。
+尺寸操作保留逻辑选区和当前光标处的待输入格式，重排后清除旧布局定位提示，沿已有队列、源历史、保存重开和 PDF。无源变化不增加历史；未知行/格映射、网格标记、属性或预算失败原子拒绝。缺少的尺寸属性按 OOXML 顺序创建；恢复自动高度保留其他行属性，并重新显示被裁剪文字。自动适配、其余格属性和跨页合并延续仍归 [P10](../p10-docx-core.md)。
 
 ### 表格边框
 
@@ -453,7 +453,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 工作表身份是 OPC 部件路径，移动保留 sheetId、关系、名称及公式源。历史中的 XML 编辑也按部件路径定位。核心同步名称的 `localSheetId`、窗口的 `activeTab/firstSheet` 与工作表 `tabSelected`，按新顺序重建计算索引。隐藏活动表时先向右查找可见表，再向左查找；显示表会将其激活并定位 A1。打开时沿首个 workbook view 恢复活动表，隐藏活动页则定位邻近可见表。仅改顺序/视图不清除 calcChain 或改写单元格缓存、共享字符串计数；实际单元格编辑继续沿已有计算元数据规则保存。
 
-`XlsxQuery.sheetEditReason` 是结构操作保护原因，空串表示可用。当前继续保护未知单元格公式、锁定结构的 workbookProtection、三维名称引用、无法解释的名称语法、非空工作簿扩展/自定义工作簿视图及未知根内容。源内容保留；不通过放开按钮改变引用语义。默认 UI 提供前移/后移、隐藏与显示普通 hidden 表；veryHidden 仅由显式 API 修改。
+`XlsxQuery.sheetEditReason` 是工作表级管理操作的保护原因，空串表示可用。当前继续保护未知单元格公式、锁定结构的 workbookProtection、三维名称引用、无法解释的名称语法、非空工作簿扩展/自定义工作簿视图及未知根内容。源内容保留；不通过放开按钮改变引用语义。默认 UI 提供前移/后移、隐藏与显示普通 hidden 表；veryHidden 仅由显式 API 修改。
 
 `{ action: "rename", name }` 修改表名，保持 OPC 路径、sheetId、关系、顺序、可见性及选区。名称为 1–31 个 UTF-16 单元，须是有效 XML 文本，不能含控制字符或 `[]:*?/\`，不能以单引号开头或结尾，不能与其他表名大小写不敏感地重复。相同名称不新增历史；无效名称、旧 revision 或预算失败不修改文档。
 
@@ -469,7 +469,17 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 `{ action: "rowHeight" | "columnWidth", first, last, size }` 设置包含两端的行或列范围，索引从 1 开始。行高为 0–409.5 磅，一次最多 4096 行；列宽为 0–255 个 OOXML 字符宽度单位，列索引上限为 16384。零值隐藏并保留已有尺寸；正值设置固定尺寸并显示目标行列，列宽同时取消 bestFit。列宽由核心按 Normal 字体和字号的最大数字宽度换算为实际几何。设置行高可创建空行记录，不展开空单元格；拆分列区间保留各段的样式与轮廓属性。目标列包含未知属性或子元素时拒绝修改，保留源内容。
 
-`XlsxQuery.dimensions` 返回查询范围的 `rowHeight`、`columnWidth` 和 `readOnlyReason`。尺寸不一致时返回 `null`，隐藏行列按 0 参与查询。默认 UI 对所选行/列设置尺寸。未知公式仍沿现有只读边界，受保护工作表拒绝尺寸修改；仅锁定工作簿结构不禁止该操作。一次修改进入既有历史，保持表身份和选区；重复设置相同源状态不增加历史。保存保留单元格源、公式缓存、共享字符串计数和 calcChain；实际单元格或公式变化继续触发原有计算元数据更新。自动适配及持续更新见下节；未编辑导入默认行的首次测量和行列插删仍归 [P11](../p11-xlsx-core.md)。
+`XlsxQuery.dimensions` 返回查询范围的 `rowHeight`、`columnWidth` 和 `readOnlyReason`。尺寸不一致时返回 `null`，隐藏行列按 0 参与查询。默认 UI 对所选行/列设置尺寸。未知公式仍沿现有只读边界，受保护工作表拒绝尺寸修改；仅锁定工作簿结构不禁止该操作。一次修改进入既有历史，保持表身份和选区；重复设置相同源状态不增加历史。保存保留单元格源、公式缓存、共享字符串计数和 calcChain；实际单元格或公式变化继续触发原有计算元数据更新。自动适配及持续更新见下节；未编辑导入默认行的首次测量仍归 [P11](../p11-xlsx-core.md)。
+
+### 行列插入与删除
+
+`editSheet({ action: "insertRows" | "deleteRows" | "insertColumns" | "deleteColumns", first, count })` 操作整行或整列。first 从 1 开始；插入发生在该索引前，删除覆盖从 first 开始的 count 项。count 为 1–4096，区间须位于 1048576 行或 16384 列内。默认 UI 根据当前矩形选区确定行/列区间，先提交已接受的原生草稿。核心遍历实际单元格和区间，不展开整张空表。
+
+核心沿既有词法位置重写受影响的 A1 引用，保留字符串、非目标表的本地引用和范围外源片段。绝对标记只限制复制平移，行列结构变化仍移动绝对引用。相交区域扩展或缩短，全部失去目标则写入 `#REF!`；共享公式涉及结构变化时有界展开为普通公式。名称、打印区域/标题、合并、行列尺寸、冻结边界、滚动/选择位置、既有条件格式/验证范围及公式、内部链接同步更新。删除规则锚点时，先定位存活格原本使用的相对公式，再应用结构变换。完整删除的打印名称或规则移除，普通失效名称保留引用错误。
+
+插入复制上方行或左侧列的已有尺寸与字符/单元格格式，清空新增格的值和公式，并显示新增行列；新增列取消 bestFit。首行/首列无前项时使用缺省格式。单元格、引用、计算缓存和选区合为一次源历史；撤销恢复精确包，保存重开可继续输入和输出 PDF。自动轴沿原有字体与工作量预算更新。规则依据 [ONLYOFFICE 行插入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L8313-L8369)及[列插入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L8473-L8554)。实现归 [`axis-edit.mbt`](../../modules/formats/src/xlsx/axis-edit.mbt)、[`axis-reference.mbt`](../../modules/formats/src/xlsx/axis-reference.mbt)、[`axis-cells.mbt`](../../modules/formats/src/xlsx/axis-cells.mbt)与 [`axis-metadata.mbt`](../../modules/formats/src/xlsx/axis-metadata.mbt)。
+
+插入会推掉实际源行或单元格时拒绝。工作表保护、未知公式/引用/属性、非空扩展、未接入变换的筛选、绘图、表格、批注等资源继续保护，保留文档与历史；仅锁定工作簿结构不禁止行列插删。单元格移位插删及其余引用资源按 [P11](../p11-xlsx-core.md) 继续接入。
 
 ### 自动适配尺寸
 

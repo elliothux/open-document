@@ -209,6 +209,7 @@ pub(all) struct Line {
   width : Double
   height : Double
   clip : Bool
+  cellClip : Border?
   justified : Bool
   bars : Array[Double]
   marker : Array[PlacedRun]
@@ -388,6 +389,7 @@ pub(all) struct Table {
   borders : TableBorders
   margins : Array[Array[CellMargins]]
   heights : Array[Double]
+  exactHeights : Array[Bool]
   fills : Array[Array[String]]
   verticalAligns : Array[Array[String]]
 } derive(ToJson)

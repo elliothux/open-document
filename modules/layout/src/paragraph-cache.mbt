@@ -34,7 +34,8 @@ fn paragraph_cache_units(key : String, lines : Array[Line]) -> Int {
     return 1048577
   }
   for line in lines {
-    units += 14 +
+    units += 15 +
+      (if line.cellClip is Some(_) { 4 } else { 0 }) +
       line.text.length() +
       line.markerText.length() +
       line.readOnlyReason.length() +

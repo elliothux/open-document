@@ -158,7 +158,7 @@ pub(all) enum TableEdit {
   SplitTable
   TableWidth(Double)
   ColumnWidth(Int, Double)
-  RowHeight(Double)
+  RowHeight(Double, String)
   CellFill(String?)
   CellVerticalAlign(String?)
   CellMargins(@layout.CellMargins?)

@@ -46,11 +46,13 @@ pub fn Layout::selection_rects(
         })
       })
     ) {
-    return if !reverse {
-      self.portion_selection(anchor_hit, focus_hit)
-    } else {
-      self.portion_selection(focus_hit, anchor_hit)
-    }
+    return self.clip_cell_selection(
+      if !reverse {
+        self.portion_selection(anchor_hit, focus_hit)
+      } else {
+        self.portion_selection(focus_hit, anchor_hit)
+      },
+    )
   }
   let rects : Array[SelectionRect] = []
   for page, frame in self.pages {
@@ -126,7 +128,27 @@ pub fn Layout::selection_rects(
       }
     }
   }
-  rects
+  self.clip_cell_selection(rects)
+}
+
+///|
+fn Layout::clip_cell_selection(
+  self : Layout,
+  rects : Array[SelectionRect],
+) -> Array[SelectionRect] {
+  rects.filter_map(rect => {
+    let line = self.pages[rect.page].lines[rect.line]
+    guard line.cellClip is Some(clip) else { return Some(rect) }
+    let x = rect.x.max(clip.x)
+    let y = rect.y.max(clip.y)
+    let width = (rect.x + rect.width).min(clip.x + clip.width) - x
+    let height = (rect.y + rect.height).min(clip.y + clip.height) - y
+    if width > 0 && height > 0 {
+      Some({ ..rect, x, y, width, height, })
+    } else {
+      None
+    }
+  })
 }
 
 ///|

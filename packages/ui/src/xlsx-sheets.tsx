@@ -174,6 +174,34 @@ export function XlsxSheets({
       {query.sheetEditReason && <p>{query.sheetEditReason}</p>}
       <fieldset disabled={disabled || !!query.dimensions.readOnlyReason}>
         <legend>{t.dimensions}</legend>
+        {(
+          [
+            ["insertRows", t.insertRows],
+            ["deleteRows", t.deleteRows],
+            ["insertColumns", t.insertColumns],
+            ["deleteColumns", t.deleteColumns],
+          ] as const
+        ).map(([action, label]) => (
+          <button
+            type="button"
+            key={action}
+            onClick={() =>
+              controller.run(() => {
+                const range = editor.currentState.selection.range,
+                  rows = action.endsWith("Rows");
+                return editor.editSheet({
+                  action,
+                  first: rows ? range.top : range.left,
+                  count: rows
+                    ? range.bottom - range.top + 1
+                    : range.right - range.left + 1,
+                });
+              })
+            }
+          >
+            {label}
+          </button>
+        ))}
         <button
           type="button"
           onClick={() => controller.run(() => editor.autoFit("rows"))}

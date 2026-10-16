@@ -1,3 +1,5 @@
+import { checkXlsxSheetEdit, type XlsxSheetEdit } from "./xlsx-sheet.js";
+export { checkXlsxSheetEdit, type XlsxSheetEdit } from "./xlsx-sheet.js";
 import { WasmSession, encodeBytes } from "./session.js";
 import { DocumentError, type Budget } from "./foundation.js";
 import {
@@ -8,18 +10,15 @@ import {
 } from "./xlsx-search.js";
 export { xlsxFindOptions, xlsxSearchResult } from "./xlsx-search.js";
 export type { XlsxFindOptions, XlsxSearchResult } from "./xlsx-search.js";
-import { record, hasFields, arrayOf } from "./validation.js";
+import { record, hasFields, arrayOf, integer } from "./validation.js";
 import {
   checkPrintOptions,
-  checkXlsxPrintSetup,
   xlsxPrintSetup,
   type PrintOptions,
   type XlsxPrintSetup,
   type XlsxPrintRange,
-  checkXlsxPrintRange,
-  xlsxPrintRange,
   type XlsxHeaderFooter,
-  checkXlsxHeaderFooter,
+  xlsxPrintRange,
   xlsxHeaderFooter,
 } from "./xlsx-print.js";
 export { checkXlsxPrintSetup, checkPrintOptions } from "./xlsx-print.js";
@@ -190,108 +189,6 @@ export interface XlsxQuery {
 }
 
 export type XlsxClearMode = "contents" | "formats" | "all";
-
-export type XlsxSheetEdit =
-  | ({ action: "pageSetup" } & XlsxPrintSetup)
-  | ({ action: "printRange" } & XlsxPrintRange)
-  | ({ action: "headerFooter" } & XlsxHeaderFooter)
-  | { action: "freeze"; rows: number; columns: number }
-  | { action: "merge"; range: string; discard: boolean }
-  | { action: "unmerge"; range: string }
-  | { action: "add" }
-  | { action: "copy" }
-  | { action: "delete" }
-  | { action: "move"; index: number }
-  | { action: "rename"; name: string }
-  | {
-      action: "rowHeight" | "columnWidth";
-      first: number;
-      last: number;
-      size: number;
-    }
-  | { action: "visibility"; state: "visible" | "hidden" | "veryHidden" };
-
-export function checkXlsxSheetEdit(value: unknown): void {
-  const change = record(value);
-  if (change.action === "headerFooter") {
-    checkXlsxHeaderFooter(change);
-    return;
-  }
-  if (change.action === "printRange") {
-    checkXlsxPrintRange(change);
-    return;
-  }
-  if (change.action === "pageSetup") {
-    checkXlsxPrintSetup(change);
-    return;
-  }
-  if (
-    change.action === "freeze" &&
-    integer(change.rows, 0, 1048575) &&
-    integer(change.columns, 0, 16383)
-  )
-    return;
-  if (
-    (change.action === "merge" || change.action === "unmerge") &&
-    typeof change.range === "string" &&
-    change.range.length > 0 &&
-    change.range.length <= 64 &&
-    (change.action === "unmerge" || typeof change.discard === "boolean")
-  )
-    return;
-  if (
-    change.action === "add" ||
-    change.action === "copy" ||
-    change.action === "delete"
-  )
-    return;
-  if (
-    (change.action === "rowHeight" || change.action === "columnWidth") &&
-    integer(change.first, 1, change.action === "rowHeight" ? 1048576 : 16384) &&
-    integer(
-      change.last,
-      Number(change.first),
-      change.action === "rowHeight" ? 1048576 : 16384,
-    ) &&
-    typeof change.size === "number" &&
-    Number.isFinite(change.size) &&
-    change.size >= 0 &&
-    change.size <= (change.action === "rowHeight" ? 409.5 : 255)
-  )
-    return;
-  if (
-    change.action === "rename" &&
-    typeof change.name === "string" &&
-    change.name.length > 0 &&
-    change.name.length <= 31 &&
-    change.name.isWellFormed() &&
-    !change.name.startsWith("'") &&
-    !change.name.endsWith("'") &&
-    !Array.from(change.name).some(
-      (character) =>
-        character.charCodeAt(0) < 32 || "[]:*?/\\".includes(character),
-    ) &&
-    !change.name.includes("\ufffe") &&
-    !change.name.includes("\uffff")
-  )
-    return;
-  if (change.action === "move" && integer(change.index, 0, 255)) return;
-  if (
-    change.action === "visibility" &&
-    ["visible", "hidden", "veryHidden"].includes(String(change.state))
-  )
-    return;
-  throw new Error("Invalid worksheet edit");
-}
-
-function integer(value: unknown, min: number, max: number): boolean {
-  return (
-    typeof value === "number" &&
-    Number.isInteger(value) &&
-    value >= min &&
-    value <= max
-  );
-}
 
 function cellValue(value: unknown): boolean {
   const item = record(value);

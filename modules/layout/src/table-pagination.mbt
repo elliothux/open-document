@@ -6,6 +6,7 @@ fn Table::check_grid(self : Table) -> Unit raise @failure.Failure {
     self.headerRows <= count &&
     !self.widths.is_empty() &&
     self.heights.length() == count &&
+    self.exactHeights.length() == count &&
     self.fills.length() == count &&
     self.margins.length() == count &&
     self.verticalAligns.length() == count &&
@@ -137,14 +138,7 @@ fn Pagination::table_rows(
     self.next_page()
   }
   let heights = Array::makei(last_row - first_row + 1, i => {
-    let border = table.border_width(first_row + i)
-    (table.heights[first_row + i] + border).max(
-      table.row_top_margin(first_row + i) +
-      table.margins[first_row + i]
-      .iter()
-      .fold(init=0.0, (value, margin) => value.max(margin.bottom)) +
-      border,
-    )
+    table.row_minimum_height(first_row + i)
   })
   let cells : Array[(Int, Int, Array[(Line, Double)], Double)] = []
   for row in first_row..<=last_row {
@@ -195,7 +189,7 @@ fn Pagination::table_rows(
         terminal_gap = paragraph.line.terminal_gap(paragraph.nominalSize)
       }
       let height = y + after + terminal_gap + margins.bottom
-      if table.rowSpans[row][column] == 1 {
+      if table.rowSpans[row][column] == 1 && !table.exactHeights[row] {
         heights[row - first_row] = heights[row - first_row].max(height)
       }
       cells.push((row, column, lines, height))
@@ -203,7 +197,7 @@ fn Pagination::table_rows(
   }
   for (row, column, _, height) in cells {
     let span = table.rowSpans[row][column]
-    if span > 1 {
+    if span > 1 && !table.exactHeights[row + span - 1] {
       let end = row - first_row + span
       let available = heights[row - first_row:end]
         .iter()
@@ -283,6 +277,11 @@ fn Pagination::table_rows(
       _ => 0
     }
     for (line, offset) in lines {
+      let line = if table.exactHeights[row + table.rowSpans[row][column] - 1] {
+        { ..line, cellClip: Some({ x, y, width, height, }), }
+      } else {
+        line
+      }
       self.place(
         line,
         x + table.cell_insets(row, column).left,

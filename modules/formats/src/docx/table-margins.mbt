@@ -152,12 +152,7 @@ fn Session::check_margin_layout(
     }
     let mut height = table.border_width(last + 1)
     for row in first..<=last {
-      let border = table.border_width(row)
-      let top = table.margins[row].iter().fold(init=0.0, (v, m) => v.max(m.top))
-      let bottom = table.margins[row]
-        .iter()
-        .fold(init=0.0, (v, m) => v.max(m.bottom))
-      height += (table.heights[row] + border).max(top + bottom + border)
+      height += table.row_minimum_height(row)
     }
     guard height < page.height - page.top - page.bottom else {
       @failure.reject(

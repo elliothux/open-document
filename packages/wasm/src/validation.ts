@@ -51,3 +51,12 @@ export function glyphs(value: unknown): ShapeBatch["glyphs"] {
     throw new Error("Invalid glyphs returned by Wasm");
   return value as ShapeBatch["glyphs"];
 }
+
+export function integer(value: unknown, min: number, max: number): boolean {
+  return (
+    typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= min &&
+    value <= max
+  );
+}

@@ -55,7 +55,7 @@ fn BodyBlock::key(self : BodyBlock) -> String? {
         for
           key in [
             "beforeParagraph", "rows", "heights", "fills", "columnSpans", "rowSpans",
-            "verticalAligns", "margins",
+            "verticalAligns", "margins", "exactHeights",
           ] {
           fields.remove(key)
         }
@@ -85,6 +85,7 @@ fn BodyBlock::key(self : BodyBlock) -> String? {
           Json::array([
             Json(table.rows[:table.headerRows].to_owned()),
             Json(table.heights[:table.headerRows].to_owned()),
+            Json(table.exactHeights[:table.headerRows].to_owned()),
             Json(table.margins[:table.headerRows].to_owned()),
             Json(table.fills[:table.headerRows].to_owned()),
             Json(table.verticalAligns[:table.headerRows].to_owned()),
@@ -95,6 +96,7 @@ fn BodyBlock::key(self : BodyBlock) -> String? {
         Json(table.margins[row:end + 1].to_owned()),
         Json(table.rows[row:end + 1].to_owned()),
         Json(table.heights[row:end + 1].to_owned()),
+        Json(table.exactHeights[row:end + 1].to_owned()),
         Json(table.fills[row:end + 1].to_owned()),
         Json(table.verticalAligns[row:end + 1].to_owned()),
         Json(table.columnSpans[row:end + 1].to_owned()),

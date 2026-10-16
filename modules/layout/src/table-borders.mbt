@@ -26,6 +26,19 @@ pub fn Table::cell_insets(self : Table, row : Int, cell : Int) -> CellMargins {
 }
 
 ///|
+pub fn Table::row_minimum_height(self : Table, row : Int) -> Double {
+  let top = self.margins[row].fold(init=0.0, (v, m) => v.max(m.top))
+  let bottom = self.margins[row].fold(init=0.0, (v, m) => v.max(m.bottom))
+  let border = self.border_width(row)
+  // ONLYOFFICE TableRecalculate adds margins; exact heights include the top border.
+  if self.exactHeights[row] {
+    (self.heights[row] + top + bottom).max(border).max(0.05)
+  } else {
+    (self.heights[row] + border).max(top + bottom + border)
+  }
+}
+
+///|
 fn Table::paint_borders(
   self : Table,
   page : PageFrame,
