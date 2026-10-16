@@ -454,11 +454,11 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 数字格式覆盖 General、`@`、整数、两位小数、千分位、百分比、`yyyy-mm-dd`、`hh:mm:ss`，以及内置 1–4、9–10、14–22、49。日期保留数值，核心解释 1900/1904 系统，1900 序号 60 显示虚构的 2 月 29 日，序号 0 显示 1900-01-00。不经过宿主时区。其他格式、颜色 tint、渐变/图案、非实线边框及额外字体装饰保留声明并诊断，不承诺显示等价。
 
-公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
+公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
 
 AND/OR 接受数值和布尔，忽略引用内的文本与空白；没有有效值时返回 `#VALUE!`。文字常量返回 `#VALUE!`，不沿用数学函数的数字转换。稀疏范围只访问已有单元格，不展开整张表；即使已有确定的布尔结果，范围和后续参数中的错误仍参与，范围内按行列顺序保留首个错误。NOT 接受布尔、数值、空白及 TRUE/FALSE 文字，其他文字返回 `#VALUE!`。三项类型判断不转换数字文字，区分空白格与空字符串；当前使用标量参数，多格范围返回 `#VALUE!`。公式结果引用空白格时计算为数值 0。
 
-IF、IFERROR、IFNA 只求值选中的结果分支，依赖仍包含全部声明引用。IFERROR 捕获公式错误值，IFNA 只捕获 `#N/A`；两者不吞未知函数、循环、引用解析失败或资源超限。新输入及生成的 IFNA、CONCAT、TEXTJOIN 按 OOXML 写入对应 `_xlfn.` 函数前缀，读取也接受这些前缀；只替换函数 token，保留同名工作表和文字常量。查询继续返回实际公式源。
+IF、IFERROR、IFNA 只求值选中的结果分支，依赖仍包含全部声明引用。IFERROR 捕获公式错误值，IFNA 只捕获 `#N/A`；两者不吞未知函数、循环、引用解析失败或资源超限。新输入及生成的 IFNA、CONCAT、TEXTJOIN、DAYS、XLOOKUP 按 OOXML 写入对应 `_xlfn.` 函数前缀，读取也接受这些前缀；只替换函数 token，保留同名工作表和文字常量。查询继续返回实际公式源。
 
 ABS 返回绝对值，INT 向负无穷取整；MOD 按 `n - d * floor(n / d)` 计算，零除数返回 `#DIV/0!`。三类舍入按有限 Double 的十进制表示处理，ROUND 的半值远离零，ROUNDUP 远离零，ROUNDDOWN 朝零；位数的小数部分朝零截断。正负位数、进位及 `ROUND(1.005,2)=1.01` 使用同一路径，不先乘十进制倍率。精度至少 324 时保持原值；截断后的精度小于 -308 时，非零 ROUNDUP 返回 `#NUM!`，其余返回 0。结果非有限也返回 `#NUM!`，不按任意精度分配字符串。
 
@@ -471,6 +471,34 @@ FIND 按区分大小写的字面匹配返回从 1 起的位置。SEARCH 不区�
 CONCAT 按行列顺序连接范围，CONCATENATE 当前只接受标量。TEXTJOIN 的 ignore_empty 为 false 时保留首尾与中间空项，为 true 时跳过空项；分隔符范围按顺序循环使用。普通连接和忽略空项的连接只访问已有稀疏单元格。保留空项的范围先按面积检查剩余预算，再遍历，不能展开超大空矩形。
 
 生成的文本最多 32767 个 UTF-16 单元，超过时返回 `#VALUE!`。复制、范围遍历及搜索共用既有 1048576 单位公式工作预算；耗尽返回 `limit-exceeded`，IFERROR 不吞此失败，候选源码、缓存和历史整体回滚。文本规则参考固定 [ONLYOFFICE 文本函数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/textanddataFunctions.js)。MID 的无效起点与 TEXTJOIN 首部空项沿 [MID 合同](https://support.microsoft.com/en-us/excel/functions/mid-function)及 [TEXTJOIN 合同](https://support.microsoft.com/en-us/excel/functions/textjoin-function)处理，未沿用旧版参考的这两处实现缺口。现代 Excel 字符兼容版本、动态数组与更广地区化规则留待 P14。
+
+DATE、YEAR、MONTH、DAY、DAYS 使用工作簿的 1900/1904 日期系统，返回数值。1900 系统保留序号 0 的 1900-01-00 和序号 60 的虚构闰日；1904 系统序号 0 为 1904-01-01。支持到 9999-12-31，当日的小数时间仍有效；负序号或超出末日返回 `#NUM!`。显示和计算复用核心日历转换，按有界查找确定年份，不按输入年份逐年循环。
+
+DATE 的年参数先截断，0–1899 加 1900；月份和日期按公历归一化，显式 1900-02-29 保留虚构序号。年份必须在 0–9999，月份/日期绝对值最多 2147483647，超出返回 `#NUM!`。DAYS 按两个有效序号各自向下取整后相减。TIME 将三个参数分别朝零截断，合计非负时按 24 小时取余；非有限或负合计返回 `#NUM!`。HOUR/MINUTE 返回时分，SECOND 按参考规则舍入到整秒，不向时分进位。函数不自动改变单元格格式；默认 UI 可沿现有数字格式显示日期或时间。
+
+提取和差值函数接受数字文字，以及明确的 `yyyy-mm-dd`、`yyyy/m/d`、`m/d/yyyy` 日期与 `h:mm[:ss[.ffffff]]` 时间，可用空格或 `T` 连接，时间可附 AM/PM。日期必须实际有效；不解释时区、月份名称或两位年份。沿所选参考的引用转换，HOUR/MINUTE/SECOND 的文本引用返回 `#VALUE!`；DAY 的引用可转换数字文字，其余日期文字引用返回 `#VALUE!`。YEAR/MONTH/DAYS 可解释上述日期文字引用。日期系统和转换都在 MoonBit 内执行，不调用宿主 Date 或当地时区。
+
+日期与时间规则参考固定 [ONLYOFFICE 实现](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/dateandtimeFunctions.js)、[日期序号转换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/utils/utils.js#L4007-L4062)及独立[日期时间用例](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/tests/cell/spreadsheet-calculation/formula-tests/dateTimeTests.js)。地区化日期解析、自动日期格式推断及更广历史兼容仍待扩展。
+
+COUNTA 统计非空白值，包括错误和公式返回的空文字。COUNTBLANK 统计空白格及空文字，单格与矩形保持相同规则；参数必须为引用。计数按范围面积和已有单元格求得，不展开空矩阵，支持最大工作表矩形的精确计数。
+
+COUNTIF/COUNTIFS、SUMIF/SUMIFS、AVERAGEIF/AVERAGEIFS 共用有类型的条件。条件支持 `= <> < <= > >=`；省略运算符表示等于。数值等值比较可转换数字文字，数值大小比较只使用数值。空白条件参数按 0 解释，空文字条件匹配空白及空文字。布尔条件保持类型；文字形式的错误条件可匹配相应错误值。文字比较当前使用简单 Unicode 映射和 UTF-16 顺序，地区化排序留待后续。
+
+文字等值条件覆盖整个单元格，不区分大小写；`*`、`?` 与 `~` 转义按有界动态规划匹配，可包含换行。多条件取交集，范围行列数量必须一致，单元格位置及工作表可以不同。范围或条件数组不做隐式求交；非法形状返回 `#VALUE!`。普通条件聚合包含手动隐藏行；SUBTOTAL 将随筛选功能接入隐藏来源的区别。
+
+SUMIF/AVERAGEIF 的可选结果范围从其左上角取与条件范围相同的形状；越过工作表边界返回 `#REF!`。隐含范围也进入依赖图，修改锚点之外的结果单元格会重算。已匹配结果中的数值参与求和/平均，文字和空白不参与；已匹配错误按行列顺序传播，未匹配错误不影响结果。没有数值时 SUMIF/SUMIFS 返回 0，AVERAGEIF/AVERAGEIFS 返回 `#DIV/0!`。非有限结果返回 `#NUM!`。
+
+条件范围遍历、文字比较和通配符共用现有公式工作预算；超限整体回滚，IFERROR 不吞资源失败。实现参考固定 [ONLYOFFICE 统计函数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js)、[条件匹配](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L12325-L12512)与[条件求和](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L5310-L5402)。结果范围投影及错误读取同时对照 [LibreOffice 条件聚合](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/core/tool/interpr1.cxx#L5871-L6094)。单格空文字计数与结果范围形状沿 [COUNTBLANK 合同](https://support.microsoft.com/en-us/excel/functions/countblank-function)及 [SUMIF 合同](https://support.microsoft.com/en-us/excel/functions/sumif-function)，不沿用旧参考中单格/区域及结果矩阵尺寸的不一致。
+
+ROW/COLUMN 返回显式引用的左上角行列，省略参数时返回公式自身位置；ROWS/COLUMNS 返回矩形行列数量，不遍历单元格。四项位置函数只校验引用身份，不依赖引用内的值，`A1=ROW(A1)` 不产生值循环。公式来源位置属于核心求值上下文，不由宿主选区决定。
+
+INDEX 当前返回一个单元格的值，支持二维行列索引、单行/单列简写及标量输入；索引朝零截断，越界返回 `#REF!`，负索引返回 `#VALUE!`，单一区域的 area_num 必须为 1。选中空白格返回 0。零行/列仅在对应维度本来为 1 时返回单格，其余数组结果仍未支持。MATCH 接受一维引用，0 为首个精确匹配，1 为升序的最后一个不大于项，-1 为降序的最后一个不小于项；省略时为 1。精确模式支持整格通配符和转义，不把数字文字与数值等同。
+
+VLOOKUP/HLOOKUP 在首列/首行查找，返回指定列/行的标量值；省略 range_lookup 时沿升序近似规则，false 使用首个精确或通配符匹配。无匹配返回 `#N/A`，结果索引小于 1 返回 `#VALUE!`，超出表格返回 `#REF!`。近似匹配的重复键沿最后一个符合项，精确匹配沿首项。
+
+XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，支持 -1/1 的最近较小/较大项及 2 的通配符模式。search_mode 为 1/-1 时正向/反向扫描，为 2/-2 时按升序/降序二分；二分不接受通配符模式。二分和旧式近似模式要求输入已有正确排序，不替用户排序。未命中时才求值 if_not_found；省略或显式空参数返回 `#N/A`，查找值、查找过程和选中结果中的错误保留类型，不被回退值覆盖。
+
+查找共享既有文字比较与工作预算，二分直接读取稀疏地址；线性或通配符工作超限整体回滚，IFERROR 不吞失败。值依赖目前保留声明的范围和回退分支；动态引用、引用形式 INDEX、整行/列返回及其他数组结果仍待扩展。实现参考固定 [ONLYOFFICE 查找引用函数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/lookupandreferenceFunctions.js)及独立[位置与查找用例](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/tests/cell/spreadsheet-calculation/formula-tests/lookupAndReferenceTests.js)。当前范围是标量计算，不授予完整数组或动态引用兼容。
 
 逻辑、类型和扩展函数前缀参考 [ONLYOFFICE 逻辑函数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/logicalFunctions.js)、[类型函数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/informationFunctions.js)及[公式序列化](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L3586-L3587)。范围迭代和错误参与与固定 [LibreOffice ScAnd/ScOr](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/core/tool/interpr1.cxx#L1234-L1413)交叉核对。独立用例覆盖类型、空白、错误、跨表重算、缓存、精确历史及失败；默认公式栏已检查组合公式、依赖变化、独立 XML、保存重开和 PDF。
 

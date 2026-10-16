@@ -263,7 +263,7 @@ fn Session::rename_sheet(
     edits.push((sheet.id, edit))
   }
   let sheets = self.ordered_sheets(workbook, sheets, self.parts)
-  let calculation = Calculation::build(sheets, None, [])
+  let calculation = Calculation::build(sheets, None, [], self.date1904)
   self.commit(sheets, workbook, calculation, edits, self.selection)
   self.query()
 }

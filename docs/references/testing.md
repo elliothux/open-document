@@ -22,6 +22,8 @@
 
 P9 的默认 UI 检查使用 `web-sdk-ui.spec.ts` 四条现有能力流程，复用 XLSX/PPTX/PDF 宿主回归及 DOCX 键盘/输出屏障。保存回调、候选失败/取消、草稿、释放和多实例检查放在这些流程中。安装包检查由 `ui-package.test.ts` 验证无 DOM 导入、严格类型和普通 JS 构建；包清单沿用现有 qualification。输入、视觉与原始失败/复验边界见 [P9](../implemented/p9-web-sdk-ui.md)及私有 `cases/p9-ui.json`，不授予完整 loop 通过。
 
+P11 的数值、文本、日期、条件聚合和查找流程位于 `xlsx-functions.spec.ts`，与 P9 共用 `ui-mount.ts` 的准备和释放逻辑。按改动的函数族选择用例；用例标题与私有清单保持一致，移动文件不扩大验证范围。
+
 ## 环境与入口
 
 使用仓库固定的 Bun、MoonBit、Node 和私有依赖版本，安装说明见[开发文档](development.md)。`test-lab/` 是项目的私有测试资源目录，由[根 AGENTS.md](../../AGENTS.md)统一管理；目录内保留测试源码、输入、预期与执行工具。

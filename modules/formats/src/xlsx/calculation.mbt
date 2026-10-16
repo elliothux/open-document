@@ -7,6 +7,8 @@ priv struct Dependency {
 ///|
 priv struct FormulaWork {
   mut remaining : Int
+  date1904 : Bool
+  mut origin : Address
 }
 
 ///|
@@ -81,11 +83,33 @@ fn Expression::dependencies(
         "SUM", "AVERAGE", "MIN", "MAX", "COUNT", "IF", "AND", "OR", "NOT", "IFERROR",
         "IFNA", "ISBLANK", "ISNUMBER", "ISTEXT", "ABS", "INT", "MOD", "ROUND", "ROUNDUP",
         "ROUNDDOWN", "LEN", "LEFT", "RIGHT", "MID", "TRIM", "UPPER", "LOWER", "CONCAT",
-        "CONCATENATE", "TEXTJOIN", "FIND", "SEARCH", "SUBSTITUTE",
+        "CONCATENATE", "TEXTJOIN", "FIND", "SEARCH", "SUBSTITUTE", "DATE", "YEAR",
+        "MONTH", "DAY", "TIME", "HOUR", "MINUTE", "SECOND", "DAYS", "COUNTA", "COUNTBLANK",
+        "COUNTIF", "COUNTIFS", "SUMIF", "SUMIFS", "AVERAGEIF", "AVERAGEIFS", "INDEX",
+        "MATCH", "VLOOKUP", "HLOOKUP", "XLOOKUP", "ROW", "COLUMN", "ROWS", "COLUMNS",
       ].contains(name) else {
         @failure.reject("unsupported-formula", "Unsupported function: " + name)
       }
-      for arg in args {
+      for index, arg in args {
+        if ["ROW", "COLUMN", "ROWS", "COLUMNS"].contains(name) &&
+          arg is Reference(_, _, _) {
+          ignore(arg.aggregate_range(sheets, current))
+          continue
+        }
+        if index == 2 &&
+          (name == "SUMIF" || name == "AVERAGEIF") &&
+          args[0].aggregate_range(sheets, current) is Some(base) &&
+          arg.aggregate_range(sheets, current) is Some(target) &&
+          target.fit(base.bounds) is Some(target) {
+          guard output.length() < 4096 else {
+            @failure.reject(
+              "limit-exceeded", "Formula reference budget exceeded",
+            )
+          }
+          work.spend()
+          output.push({ sheet: target.sheet, range: target.bounds, })
+          continue
+        }
         arg.dependencies(sheets, current, work, output, depth + 1)
       }
     }
@@ -131,6 +155,7 @@ fn Calculation::build(
   sheets : Array[Sheet],
   previous : Calculation?,
   changed : Array[(Int, Range)],
+  date1904 : Bool,
 ) -> Calculation raise @failure.Failure {
   let calculation : Calculation = {
     sources: Map([]),
@@ -139,7 +164,11 @@ fn Calculation::build(
     values: Map([]),
     order: [],
   }
-  let work = FormulaWork::{ remaining: 1048576, }
+  let work = FormulaWork::{
+    remaining: 1048576,
+    date1904,
+    origin: { row: 1, column: 1, },
+  }
   let formulas : Map[Int, Array[(Int, String)]] = Map([])
   let mut references = 0
   let mut tokens = 0
@@ -188,6 +217,7 @@ fn Calculation::build(
   }
   let invalid = changed.copy()
   for key in calculation.order {
+    work.origin = Address::parse(key.1)
     let affected = calculation.dependencies[key].any(dependency => {
         invalid.any(item => {
           work.spend()

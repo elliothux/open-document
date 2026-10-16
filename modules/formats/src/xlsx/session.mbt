@@ -249,7 +249,9 @@ fn Session::from_package(
     calculation: None,
   }
   session.validate(session.sheets)
-  session.calculation = Some(Calculation::build(session.sheets, None, [])) catch {
+  session.calculation = Some(
+    Calculation::build(session.sheets, None, [], session.date1904),
+  ) catch {
     @failure.Failure(code~, message~, ..) if code == "unsupported-formula" ||
       code == "formula-syntax" ||
       code == "invalid-address" ||

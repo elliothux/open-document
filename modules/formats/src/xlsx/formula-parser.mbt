@@ -298,6 +298,8 @@ fn FormulaParser::primary(
         "_XLFN.IFNA" => "IFNA"
         "_XLFN.CONCAT" => "CONCAT"
         "_XLFN.TEXTJOIN" => "TEXTJOIN"
+        "_XLFN.DAYS" => "DAYS"
+        "_XLFN.XLOOKUP" => "XLOOKUP"
         name => name
       }
       if self.accept("(") {
@@ -333,6 +335,23 @@ fn FormulaParser::primary(
           "NOT" | "ISBLANK" | "ISNUMBER" | "ISTEXT" | "ABS" | "INT" =>
             args.length() == 1
           "LEN" | "LOWER" | "UPPER" | "TRIM" => args.length() == 1
+          "YEAR" | "MONTH" | "DAY" | "HOUR" | "MINUTE" | "SECOND" =>
+            args.length() == 1
+          "DATE" | "TIME" => args.length() == 3
+          "DAYS" => args.length() == 2
+          "ROW" | "COLUMN" => args.length() <= 1
+          "ROWS" | "COLUMNS" => args.length() == 1
+          "MATCH" => args.length() == 2 || args.length() == 3
+          "INDEX" => args.length() >= 2 && args.length() <= 4
+          "VLOOKUP" | "HLOOKUP" => args.length() == 3 || args.length() == 4
+          "XLOOKUP" => args.length() >= 3 && args.length() <= 6
+          "COUNTBLANK" => args.length() == 1
+          "COUNTIF" => args.length() == 2
+          "COUNTIFS" =>
+            args.length() >= 2 && args.length() <= 254 && args.length() % 2 == 0
+          "SUMIF" | "AVERAGEIF" => args.length() == 2 || args.length() == 3
+          "SUMIFS" | "AVERAGEIFS" =>
+            args.length() >= 3 && args.length() % 2 == 1
           "LEFT" | "RIGHT" => args.length() == 1 || args.length() == 2
           "MID" => args.length() == 3
           "FIND" | "SEARCH" => args.length() == 2 || args.length() == 3

@@ -414,7 +414,7 @@ pub fn Session::edit_sheet(
       }
     }
   }
-  let calculation = Calculation::build(sheets, None, [])
+  let calculation = Calculation::build(sheets, None, [], self.date1904)
   if deleted is Some(_) || change is Copy {
     edits.append(self.cache_edits(sheets, calculation))
   }

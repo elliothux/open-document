@@ -52,12 +52,10 @@ fn search_first(a : Int, b : Int) -> Int {
 }
 
 ///|
-fn formula_search(
+fn formula_pattern(
   needle : String,
-  text : String,
-  start : Int,
   work : FormulaWork,
-) -> Int? raise @failure.Failure {
+) -> Array[FormulaPattern] raise @failure.Failure {
   let pattern : Array[FormulaPattern] = []
   let mut index = 0
   while index < needle.length() {
@@ -79,6 +77,17 @@ fn formula_search(
     }
     index += 1
   }
+  pattern
+}
+
+///|
+fn formula_search(
+  needle : String,
+  text : String,
+  start : Int,
+  work : FormulaWork,
+) -> Int? raise @failure.Failure {
+  let pattern = formula_pattern(needle, work)
   let mut previous = Array::make(pattern.length() + 1, -1)
   let mut next = Array::make(pattern.length() + 1, -1)
   previous[0] = start

@@ -346,7 +346,12 @@ pub fn Session::replace(
         },
       )
     })
-  let calculation = Calculation::build(candidate, self.calculation, changed)
+  let calculation = Calculation::build(
+    candidate,
+    self.calculation,
+    changed,
+    self.date1904,
+  )
   for entry in self.cache_edits(candidate, calculation) {
     edits.push(entry)
   }
@@ -514,7 +519,7 @@ pub fn Session::undo(
   }) else {
     @failure.reject("malformed-xlsx", "Cell style is outside restored styles")
   }
-  let calculation = Calculation::build(sheets, None, [])
+  let calculation = Calculation::build(sheets, None, [], self.date1904)
   // Retain XML identity allocation from later undone edits for their next redo.
   if removed is Some(_) {
     entry.created = removed

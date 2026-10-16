@@ -167,6 +167,10 @@ fn Expression::evaluate(
       ].contains(name) =>
       logical_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if [
+        "DATE", "YEAR", "MONTH", "DAY", "TIME", "HOUR", "MINUTE", "SECOND", "DAYS",
+      ].contains(name) =>
+      date_function(name, args, sheets, sheet, values, work, depth)
+    Function(name, args) if [
         "ABS", "INT", "MOD", "ROUND", "ROUNDUP", "ROUNDDOWN",
       ].contains(name) =>
       numeric_function(name, args, sheets, sheet, values, work, depth)
@@ -175,6 +179,17 @@ fn Expression::evaluate(
         "TEXTJOIN", "FIND", "SEARCH", "SUBSTITUTE",
       ].contains(name) =>
       text_function(name, args, sheets, sheet, values, work, depth)
+    Function(name, args) if ["ROW", "COLUMN", "ROWS", "COLUMNS"].contains(name) =>
+      position_function(name, args, sheets, sheet, work)
+    Function(name, args) if ["INDEX", "MATCH", "VLOOKUP", "HLOOKUP", "XLOOKUP"].contains(
+        name,
+      ) => lookup_function(name, args, sheets, sheet, values, work, depth)
+    Function(name, args) if name == "COUNTA" || name == "COUNTBLANK" =>
+      counting_function(name, args, sheets, sheet, values, work, depth)
+    Function(name, args) if [
+        "COUNTIF", "COUNTIFS", "SUMIF", "SUMIFS", "AVERAGEIF", "AVERAGEIFS",
+      ].contains(name) =>
+      conditional_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) => {
       let numbers : Array[Double] = []
       for arg in args {

@@ -37,63 +37,6 @@ fn decimal(value : Double, places : Int, grouped : Bool) -> String {
 }
 
 ///|
-fn date_parts(serial : Int, date1904 : Bool) -> (Int, Int, Int) {
-  if !date1904 && serial == 60 {
-    return (1900, 2, 29)
-  }
-  if !date1904 && serial == 0 {
-    return (1900, 1, 0)
-  }
-  let mut remaining = if date1904 {
-    serial + 1461
-  } else if serial > 60 {
-    serial - 1
-  } else {
-    serial
-  }
-  let mut year = 1900
-  // Day zero precedes January 1; 1904 starts 1461 real days after 1899-12-31.
-  remaining -= 1
-  while remaining >=
-        (if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) {
-          366
-        } else {
-          365
-        }) {
-    remaining -= if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) {
-      366
-    } else {
-      365
-    }
-    year += 1
-  }
-  let months = [
-    31,
-    if year % 4 == 0 && (year % 100 != 0 || year % 400 == 0) {
-      29
-    } else {
-      28
-    },
-    31,
-    30,
-    31,
-    30,
-    31,
-    31,
-    30,
-    31,
-    30,
-    31,
-  ]
-  let mut month = 0
-  while month < 11 && remaining >= months[month] {
-    remaining -= months[month]
-    month += 1
-  }
-  (year, month + 1, remaining + 1)
-}
-
-///|
 fn formatted(value : Value, format : String, date1904 : Bool) -> String {
   guard value is Number(value) && supported_format(format) else {
     return value.display()
@@ -105,7 +48,7 @@ fn formatted(value : Value, format : String, date1904 : Bool) -> String {
     "0%" | "0.00%" =>
       decimal(value * 100, if format == "0%" { 0 } else { 2 }, false) + "%"
     _ => {
-      if value < 0 || value >= 2957004 {
+      if value < 0 || value >= (if date1904 { 2957004 } else { 2958466 }) {
         return "########"
       }
       let day = value.floor().to_int()

@@ -326,7 +326,7 @@ fn Session::resize_dimensions(
     self.strings,
     self.styles.length(),
   )
-  let calculation = Calculation::build(sheets, None, [])
+  let calculation = Calculation::build(sheets, None, [], self.date1904)
   self.commit(
     sheets,
     self.workbook,
