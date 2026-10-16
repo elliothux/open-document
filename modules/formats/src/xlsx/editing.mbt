@@ -447,9 +447,8 @@ pub fn Session::save(self : Session) -> Bytes raise @failure.Failure {
       let data = original
         .one(original.root("worksheet").id, "sheetData")
         .unwrap()
-      let current = sheet.document.node(sheet.data)
-      if original.document.source()[data.start:data.end] !=
-        sheet.document.source()[current.start:current.end] {
+      if cell_sources(original, data.id) !=
+        cell_sources(Tree::new(sheet.document), sheet.data) {
         modified = true
       }
     }
@@ -472,4 +471,15 @@ pub fn Session::save(self : Session) -> Bytes raise @failure.Failure {
   let checked = @opc.Package::open(output, self.budget)
   checked.close()
   output
+}
+
+///|
+fn cell_sources(tree : Tree, data : Int) -> Array[String] {
+  let cells : Array[String] = []
+  for row in tree.all(data, "row") {
+    for cell in tree.all(row.id, "c") {
+      cells.push(tree.document.source()[cell.start:cell.end].to_owned())
+    }
+  }
+  cells
 }

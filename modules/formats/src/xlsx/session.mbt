@@ -387,6 +387,17 @@ pub fn Session::query(
     "readOnlyReason": self.read_only,
     "sheetEditReason": self.sheet_edit_reason(),
     "sheetRenameReason": self.sheet_rename_reason(),
+    "dimensions": {
+      "rowHeight": current.dimensions.rows
+      .uniform(range.unwrap().top, range.unwrap().bottom)
+      .map(value => Json(value))
+      .unwrap_or(Json::null()),
+      "columnWidth": current.dimensions.columns
+      .uniform(range.unwrap().left, range.unwrap().right)
+      .map(value => Json(value))
+      .unwrap_or(Json::null()),
+      "readOnlyReason": self.dimension_reason(current),
+    },
     "diagnostics": self.diagnostics,
     "date1904": self.date1904,
   }

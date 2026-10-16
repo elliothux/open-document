@@ -40,6 +40,21 @@ fn Foundation::pptx_operation(
   }
   match operation {
     "queryPptx" => session.query()
+    "editPptxSlides" => {
+      guard request is { "change": change, .. } else {
+        @failure.reject("invalid-operation", "Slide edit is required")
+      }
+      let change = match field_string(change, "action") {
+        "move" => @pptx.MoveSlide(field_int(change, "index"))
+        "hidden" => @pptx.HideSlide(xlsx_boolean(change, "hidden"))
+        _ => @failure.reject("invalid-operation", "Unknown slide edit")
+      }
+      session.edit_slides(
+        field_int(request, "revision"),
+        field_string(request, "slide"),
+        change,
+      )
+    }
     "editPptxObjects" => {
       guard request is { "change": change, .. } else {
         @failure.reject("invalid-operation", "Object edit is required")

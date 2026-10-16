@@ -190,6 +190,9 @@ pub fn Layout::hit_test(
   let mut vertical = frame.height + 1
   let mut horizontal = frame.width + 1
   for index, line in frame.lines {
+    if line.caretOnly {
+      continue
+    }
     for image in line.images {
       if x >= image.x &&
         x <= image.x + image.width &&

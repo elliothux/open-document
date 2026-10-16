@@ -216,6 +216,7 @@ fn Foundation::dispatch(
     | "replacePptx"
     | "deletePptx"
     | "editPptxObjects"
+    | "editPptxSlides"
     | "undoPptx"
     | "redoPptx"
     | "savePptx"

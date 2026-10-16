@@ -200,6 +200,7 @@ pub(all) struct Line {
   text : String
   start : Int
   end : Int
+  caretOnly : Bool
   x : Double
   areaX : Double
   areaWidth : Double

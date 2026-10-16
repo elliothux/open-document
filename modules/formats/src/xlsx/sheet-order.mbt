@@ -3,6 +3,8 @@ pub(all) enum SheetEdit {
   Move(Int)
   Visibility(String)
   Rename(String)
+  RowHeight(Int, Int, Double)
+  ColumnWidth(Int, Int, Double)
 }
 
 ///|
@@ -122,6 +124,13 @@ pub fn Session::edit_sheet(
   change : SheetEdit,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  match change {
+    RowHeight(first, last, size) =>
+      return self.resize_dimensions(sheet, first, last, size, rows=true)
+    ColumnWidth(first, last, size) =>
+      return self.resize_dimensions(sheet, first, last, size, rows=false)
+    _ => ()
+  }
   let reason = self.sheet_edit_reason()
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let index = self.sheet_index(sheet)
@@ -133,6 +142,8 @@ pub fn Session::edit_sheet(
   let changes : Array[@xml.SourceChange] = []
   let sheets = self.sheets.copy()
   match change {
+    RowHeight(_, _, _) | ColumnWidth(_, _, _) =>
+      abort("Dimension edit was dispatched")
     Rename(name) => return self.rename_sheet(index, name)
     Move(target) => {
       guard target >= 0 && target < sheets.length() else {

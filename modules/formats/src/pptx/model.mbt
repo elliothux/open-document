@@ -110,8 +110,7 @@ priv struct Selection {
 
 ///|
 priv struct History {
-  slide : Int
-  edit : @xml.Edit
+  edits : Array[(String, @xml.Edit)]
   before : Selection
   after : Selection
   bytes : Int

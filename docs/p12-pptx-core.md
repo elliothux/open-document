@@ -2,7 +2,7 @@
 
 状态：`planned`，第 1 批实施中。基于 [P6 PPTX](implemented/p6-pptx-editing.md)和已完成的 [P9](implemented/p9-web-sdk-ui.md)。复用 [P10](p10-docx-core.md) 已交付的包写入，并按实际需要复用 P10 / [P11](p11-xlsx-core.md) 的文字、图形和图表能力。属于功能优先级 P0。空白创建已接通，其余能力仍按下面的范围实施。顺序归[路线图](references/roadmap.md)，当前 API 归[格式合同](references/formats.md#pptx)，功能依据归 [G3](g3-genoffice-sdk-gap.md#演示pptx)。
 
-当前进度：核心创建 960×540 pt 的单页空白文稿，包含版式、母版、主题和完整部件关系。同步 Wasm、Worker 和默认 UI 接通创建、首次保存、另存、保存重开与静态 PDF。支持插入文本框、矩形、椭圆和直线；支持本地顶层形状/图片的单对象复制、删除、旋转、水平/垂直翻转及层次调整，保留源格式、关系及撤销重做。保存失败与替换取消保留当前会话。页面结构、多选、更多几何和后续批次尚未完成，不标记第 1 批或整个 P12 完成。
+当前进度：核心创建 960×540 pt 的单页空白文稿，包含版式、母版、主题和完整部件关系。同步 Wasm、Worker 和默认 UI 接通创建、首次保存、另存、保存重开与静态 PDF。支持插入文本框、矩形、椭圆和直线；支持本地顶层形状/图片的单对象复制、删除、旋转、水平/垂直翻转及层次调整，保留源格式、关系及撤销重做。已接通页重排与隐藏/显示，保持页/对象身份，历史按稳定部件路径恢复。保存失败与替换取消保留当前会话。页增删/复制、章节、多选、更多几何和后续批次尚未完成，不标记第 1 批或整个 P12 完成。
 
 ## 1. 用户结果与范围
 
@@ -25,7 +25,7 @@
 | 位置 | 当前能力与本阶段改动 |
 | --- | --- |
 | [`pptx/session.mbt`](../modules/formats/src/pptx/session.mbt)、[`tree.mbt`](../modules/formats/src/pptx/tree.mbt) | 解析 slide/layout/master/theme，缓存源树并派生对象；补文稿结构、新建和跨部件事务 |
-| [`model.mbt`](../modules/formats/src/pptx/model.mbt)、[`editing.mbt`](../modules/formats/src/pptx/editing.mbt) | 单对象/文本选择、单页 XML 历史、文字或变换候选；扩展多选、组/母版编辑与相关部件历史 |
+| [`model.mbt`](../modules/formats/src/pptx/model.mbt)、[`editing.mbt`](../modules/formats/src/pptx/editing.mbt)、[`slide-order.mbt`](../modules/formats/src/pptx/slide-order.mbt) | 单对象/文本选择、稳定部件 XML 历史、页重排/隐藏及文字或变换候选；扩展页增删、多选、组/母版编辑 |
 | [`geometry.mbt`](../modules/formats/src/pptx/geometry.mbt)、[`layout.mbt`](../modules/formats/src/pptx/layout.mbt)、[`hit.mbt`](../modules/formats/src/pptx/hit.mbt) | 已有基本形状、图片、矩阵、层次命中；补对象类型、组内选择和播放时显示状态 |
 | [`theme.mbt`](../modules/formats/src/pptx/theme.mbt)、[`text-edit.mbt`](../modules/formats/src/pptx/text-edit.mbt)、[`autofit.mbt`](../modules/formats/src/pptx/autofit.mbt) | 有限主题继承、纯文本和有界字体缩放；补格式/占位符修改和相关失效 |
 | [`bridge/pptx.mbt`](../modules/bridge/src/pptx.mbt)、[`wasm/pptx.ts`](../packages/wasm/src/pptx.ts)、[`web/pptx.ts`](../packages/web/src/pptx.ts) | 延续 `PptxCommand` 与 `execute`；增量加入类型明确的操作与结果 |
@@ -40,6 +40,8 @@
 核心创建最小文稿：presentation、一个空白 slide、关联 layout/master/theme、关系与内容类型。资源与页面尺寸使用明确的核心默认值，不复制桌面应用模板依赖。接通 P10 扩展后的 P9 空白挂载/新建入口与首次保存状态。
 
 当前 slide ID 为源部件路径，对象 ID 为所属部件与 `cNvPr.id`。延续稳定身份：页重排不改变 ID，复制生成新 ID；页索引只作为展示顺序。新增/删除/重排同时维护 `sldIdLst`、关系、章节、页间链接和活动选择。首批保留至少一页；删除最后一页时明确拒绝，不留下不可布局的会话。
+
+当前 `editPptxSlides` 与 `PresentationEditor.editSlides` 已支持指定目标索引重排及隐藏/显示。重排只移动 presentation 中的页引用，隐藏只改 slide 的 `show`；关系、对象、图片、备注及自定义放映保持原样，活动页和对象选择不变。默认 UI 提供前移/后移、隐藏/显示及页列表状态。候选期间、旧 revision、无效目标和预算失败不修改源或历史。章节、位置型放映范围与未知扩展仍保护重排；空参考线列表和已知图片/图表设置扩展可原样保留，完整边界归[格式合同](references/formats.md#pptx)。
 
 复制页重映射对象、批注、动画目标等内部引用。图片等不可变资源可复用，备注和可独立编辑的图表数据需要明确复制所有权。删除仅回收确定由该操作拥有且无引用的部件，保留未知关系；不对整个源包做清理优化。
 
@@ -59,7 +61,7 @@
 
 ### 3.3 原子保存和资源
 
-当前 PPTX 历史主要定位一个 slide 的 XML。改为一次操作涉及的稳定部件变化集合：presentation、slide、layout/master/theme、关系、资源、前后选择和对象身份共同提交。复用核心包新增/删除能力，各格式保留自己的事务规则。
+当前 PPTX 历史已按稳定部件路径记录 XML 变化集合，presentation 页序和 slide 编辑共同使用预算、revision 与前后选择。混合对象编辑、重排与隐藏可以精确撤销和重做。后续增删部件继续扩展同一事务，纳入 layout/master/theme、关系与资源；复用核心包新增/删除能力，各格式保留自己的事务规则。
 
 创建、复制和母版修改先在候选中解析并校验引用和预算，再提交一次 revision/历史。复制大量对象或媒体必须在分配前检查数量、字节和历史持有量；二进制资源复用不可变字节但仍计入预算。失败不留下半页、空关系或已提交的一半对象。
 

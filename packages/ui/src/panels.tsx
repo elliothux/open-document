@@ -65,6 +65,52 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
         disabled={disabled}
       />
     );
+  if (file.format === "pptx" && tab === "edit") {
+    const editor = file.editor,
+      query = editor.query;
+    const index = query.slides.findIndex((slide) => slide.id === query.slide);
+    const hidden = query.slides[index]?.hidden ?? false;
+    return (
+      <Group label={t.manageSlides}>
+        <Command
+          label={t.slideEarlier}
+          disabled={disabled || index <= 0 || !!query.slideOrderReason}
+          action={() =>
+            controller.run(() =>
+              editor.editSlides({ action: "move", index: index - 1 }),
+            )
+          }
+        />
+        <Command
+          label={t.slideLater}
+          disabled={
+            disabled ||
+            index + 1 >= query.slides.length ||
+            !!query.slideOrderReason
+          }
+          action={() =>
+            controller.run(() =>
+              editor.editSlides({ action: "move", index: index + 1 }),
+            )
+          }
+        />
+        <Command
+          label={hidden ? t.showSlide : t.hideSlide}
+          disabled={disabled || !!query.slideVisibilityReason}
+          action={() =>
+            controller.run(() =>
+              editor.editSlides({ action: "hidden", hidden: !hidden }),
+            )
+          }
+        />
+        {query.slideOrderReason && <p>{query.slideOrderReason}</p>}
+        {query.slideVisibilityReason &&
+          query.slideVisibilityReason !== query.slideOrderReason && (
+            <p>{query.slideVisibilityReason}</p>
+          )}
+      </Group>
+    );
+  }
   if (file.format === "xlsx") {
     const data = file.editor.getSnapshot().data;
     return (

@@ -420,6 +420,7 @@ fn paragraph_lines(
         text: text[start:visible_end].to_owned(),
         start,
         end,
+        caretOnly: page_break && visible_end == start,
         x: if paragraph.rtl {
           available - indent - alignment - width
         } else {
@@ -481,7 +482,7 @@ fn paragraph_lines(
       first_grapheme += 1
     }
   }
-  if text.has_suffix("\n") {
+  if text.has_suffix("\n") || text.has_suffix("\u000c") {
     lines.push({
       textHeight: line_height,
       line: {
@@ -491,6 +492,7 @@ fn paragraph_lines(
         text: "",
         start,
         end: start,
+        caretOnly: text.has_suffix("\u000c"),
         x: if paragraph.rtl {
           available - paragraph.left
         } else {
@@ -524,6 +526,7 @@ fn paragraph_lines(
       line: {
         ..line,
         markerText: marker.text,
+        caretOnly: false,
         marker: [
           {
             ..marker.run,

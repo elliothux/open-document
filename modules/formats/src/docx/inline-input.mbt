@@ -1,4 +1,38 @@
 ///|
+fn valid_inline_input(text : String) -> Bool {
+  @xml.valid_text(text.replace_all(old="\u000c", new="")) &&
+  !text.contains("\r")
+}
+
+///|
+fn WordTree::check_page_break_input(
+  self : WordTree,
+  paragraph : Int,
+  text : String,
+) -> Unit raise @failure.Failure {
+  if !text.contains("\u000c") {
+    return
+  }
+  let node = self.nodes
+    .get(paragraph)
+    .unwrap_or_error(
+      @failure.Failure(
+        code="invalid-position",
+        part="",
+        offset=paragraph,
+        message="Unknown paragraph",
+      ),
+    )
+  guard self.nodes.get(node.parent) is Some(parent) &&
+    parent.uri == word_uri &&
+    parent.name == "body" else {
+    @failure.reject(
+      "protected-content", "Page break insertion requires a body paragraph",
+    )
+  }
+}
+
+///|
 fn inline_content(
   text : String,
   opening : String,
@@ -9,11 +43,14 @@ fn inline_content(
   let part = StringBuilder()
   let mut units = 0
   for ch in text {
-    if ch == '\u2028' || ch == '\t' {
+    if ch == '\u2028' || ch == '\t' || ch == '\u000c' {
       let escaped = @xml.escape_text(part.to_string())
       part.reset()
       let tag = if ch == '\t' { "tab" } else { "br" }
-      let frame = closing + "<od:\{tag} xmlns:od=\"\{word_uri}\"/>" + opening
+      let kind = if ch == '\u000c' { " od:type=\"page\"" } else { "" }
+      let frame = closing +
+        "<od:\{tag} xmlns:od=\"\{word_uri}\"\{kind}/>" +
+        opening
       guard escaped.length() + frame.length() <= limit - units else {
         @failure.reject(
           "limit-exceeded", "Inline source fragment exceeds budget",
@@ -60,7 +97,11 @@ fn Session::edit_inline_text(
   let mut units = 0
   for id, text in replacements {
     let node = document.node(id)
-    if node.name == "t" && !text.contains("\u2028") && !text.contains("\t") {
+    tree.check_page_break_input(tree.nodes[node.parent].parent, text)
+    if node.name == "t" &&
+      !text.contains("\u2028") &&
+      !text.contains("\t") &&
+      !text.contains("\u000c") {
       plain[id] = text
       continue
     }

@@ -3,10 +3,15 @@ import { focusedElement } from "./editor-state.js";
 
 export function updatePresentationObjects(
   list: HTMLOListElement,
+  input: HTMLTextAreaElement,
   state: PptxQuery,
   signal: AbortSignal,
   select: (object: string, mode?: "text") => void,
 ): void {
+  input.setAttribute(
+    "aria-label",
+    `${state.selection.mode === "text" ? "Text" : "Object"} input: ${state.objects.find((object) => object.id === state.selection.object)?.name || "slide"}`,
+  );
   const focused = focusedElement(list);
   const active =
     focused instanceof HTMLElement ? focused.dataset.object : undefined;

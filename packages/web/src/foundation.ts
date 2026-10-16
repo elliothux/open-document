@@ -25,6 +25,7 @@ export type {
 export {
   highlightColors,
   DOCX_SOFT_BREAK,
+  DOCX_PAGE_BREAK,
   listFormats,
 } from "@open-document/wasm/foundation";
 import {

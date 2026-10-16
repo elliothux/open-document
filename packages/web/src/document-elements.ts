@@ -25,7 +25,10 @@ export function createDocumentElements(
   container.setAttribute("aria-label", "Document editor");
   text.setAttribute("aria-label", "Current page text");
   input.setAttribute("aria-label", "Document text input");
-  input.setAttribute("aria-keyshortcuts", "Shift+Enter Tab Escape");
+  input.setAttribute(
+    "aria-keyshortcuts",
+    "Shift+Enter Control+Enter Meta+Enter Tab Escape",
+  );
   input.setAttribute("aria-description", description);
   input.autocomplete = "off";
   input.spellcheck = false;

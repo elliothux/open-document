@@ -84,6 +84,8 @@ fn Session::search_groups(
         match node.name {
           "t" => node.text
           "tab" => "\t"
+          "br" if node.attribute("type", uri=word_uri) == Some("page") =>
+            "\u000c"
           _ => "\n"
         },
       )
@@ -161,7 +163,7 @@ fn Session::find_matches(
 ) -> SearchResult raise @failure.Failure {
   guard !text.is_empty() &&
     text.length() <= command_limit &&
-    @xml.valid_text(text) else {
+    @xml.valid_text(text.replace_all(old="\u000c", new="")) else {
     @failure.reject(
       "invalid-operation", "Search requires bounded nonempty literal text",
     )

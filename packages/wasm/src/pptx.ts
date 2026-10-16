@@ -51,6 +51,8 @@ export interface PptxQuery {
   historyBytes: number;
   candidateId: number | null;
   readOnlyReason: string;
+  slideOrderReason: string;
+  slideVisibilityReason: string;
   diagnostics: string[];
 }
 export interface PptxLayout extends DrawingBatch {
@@ -98,6 +100,12 @@ export type PptxCommand =
   | { operation: "createPptx"; budget: Budget }
   | { operation: "openPptx"; bytes: Uint8Array; budget: Budget }
   | { operation: "queryPptx" }
+  | {
+      operation: "editPptxSlides";
+      revision: number;
+      slide: string;
+      change: PptxSlideEdit;
+    }
   | {
       operation: "editPptxObjects";
       revision: number;
@@ -200,6 +208,7 @@ const names: ReadonlySet<string> = new Set([
   "createPptx",
   "queryPptx",
   "editPptxObjects",
+  "editPptxSlides",
   "selectPptx",
   "replacePptx",
   "deletePptx",
@@ -226,6 +235,23 @@ export function isPptxCommand(value: {
   operation: string;
 }): value is PptxCommand {
   return names.has(value.operation);
+}
+
+export type PptxSlideEdit =
+  { action: "move"; index: number } | { action: "hidden"; hidden: boolean };
+
+export function checkPptxSlideEdit(value: unknown): void {
+  const change = record(value);
+  if (
+    change.action === "move" &&
+    typeof change.index === "number" &&
+    Number.isInteger(change.index) &&
+    change.index >= 0 &&
+    change.index < 256
+  )
+    return;
+  if (change.action === "hidden" && typeof change.hidden === "boolean") return;
+  throw new Error("Invalid slide edit");
 }
 
 function number(value: unknown, low = 0, high = 0x7fffffff): number {
@@ -330,7 +356,7 @@ export function pptxQuery(value: unknown): PptxQuery {
   if (
     !hasFields(
       query,
-      ["slide", "readOnlyReason"],
+      ["slide", "readOnlyReason", "slideOrderReason", "slideVisibilityReason"],
       ["revision", "width", "height", "historyBytes"],
     ) ||
     typeof query.canUndo !== "boolean" ||
@@ -488,6 +514,8 @@ export class PptxSession extends WasmSession {
   execute<C extends PptxCommand>(command: C): PptxResult<C> {
     if (command.operation === "editPptxObjects")
       checkPptxObjectEdit(command.change);
+    if (command.operation === "editPptxSlides")
+      checkPptxSlideEdit(command.change);
     let value: unknown;
     if (
       command.operation === "savePptx" ||

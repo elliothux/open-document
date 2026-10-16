@@ -138,7 +138,9 @@ pub fn Layout::drawing(
 ///|
 pub fn Layout::semantics(self : Layout) -> Array[SemanticPage] {
   self.pages.map(page => {
-    lines: page.lines.map(line => {
+    lines: page.lines
+    .filter(line => !line.caretOnly)
+    .map(line => {
       paragraph: line.paragraph,
       container: line.container,
       baseLevel: line.baseLevel,

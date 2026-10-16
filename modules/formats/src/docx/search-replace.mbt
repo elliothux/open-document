@@ -133,8 +133,7 @@ pub fn Session::replace_matches(
   self.check_revision(revision)
   guard matches.length() <= 1000 &&
     text.length() <= command_limit &&
-    @xml.valid_text(text) &&
-    !text.contains("\r") else {
+    valid_inline_input(text) else {
     @failure.reject(
       "invalid-operation", "Invalid replacement input or match count",
     )
@@ -142,7 +141,7 @@ pub fn Session::replace_matches(
   if matches.is_empty() {
     return self.edit_state()
   }
-  let escaped = @xml.escape_text(text)
+  let escaped = inline_content(text, "", "", history_byte_limit / 2)
   guard escaped.length().to_int64() * matches.length().to_int64() <=
     (history_byte_limit / 2).to_int64() else {
     @failure.reject(

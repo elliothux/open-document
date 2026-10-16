@@ -16,6 +16,7 @@ import type {
   PptxSelection,
   PptxPoint,
   PptxObjectEdit,
+  PptxSlideEdit,
 } from "@open-document/wasm/pptx";
 
 /** Embed one slide surface; all document semantics and editable geometry come from MoonBit. */
@@ -120,9 +121,7 @@ export class PresentationEditor {
         enqueue: (operation, composition) =>
           this.enqueue(operation, composition),
         changed: (state, relayout) => this.changed(state, relayout),
-        history: async (redo) => {
-          await (redo ? this.redo() : this.undo());
-        },
+        history: (redo) => (redo ? this.redo() : this.undo()),
         stop: (error) => this.fail(error),
       },
       () => this.layout.id,
@@ -343,28 +342,19 @@ export class PresentationEditor {
       layoutId: this.layout.id,
     });
     this.geometry = geometry;
-    this.surface.drawSelection(geometry, this.scale);
+    this.surface.drawSelection(geometry, this.scale, this.input);
     this.publish();
-    const caret = geometry.caret;
-    if (caret) {
-      this.input.style.left = `${caret.x * this.scale}px`;
-      this.input.style.top = `${caret.y * this.scale}px`;
-      this.input.style.height = `${caret.height * this.scale}px`;
-    }
   }
   private updateSemantics(): void {
     const state = this.state;
     updatePresentationObjects(
       this.objectList,
+      this.input,
       state,
       this.listeners.signal,
       (object, mode) => this.handle(() => this.select(object, mode)),
     );
     this.publish();
-    this.input.setAttribute(
-      "aria-label",
-      `${state.selection.mode === "text" ? "Text" : "Object"} input: ${state.objects.find((object) => object.id === state.selection.object)?.name || "slide"}`,
-    );
   }
   select(
     object: string,
@@ -467,21 +457,16 @@ export class PresentationEditor {
   ): Promise<EditorOutput> {
     return this.enqueue(
       async () => {
-        try {
-          await this.surface.prepare(this.client, all, hidden);
-          const revision = this.state.revision;
-          const bytes = await this.client.execute({
-            operation: "exportPptxPdf",
-            revision: this.state.revision,
-            all,
-            hidden,
-            outputBytes,
-            profile: this.profile,
-          });
-          return this.observable.output(revision, "pdf", bytes);
-        } finally {
-          await this.surface.prepare(this.client);
-        }
+        const revision = this.state.revision;
+        const bytes = await this.surface.exportPdf(
+          this.client,
+          revision,
+          this.profile,
+          all,
+          hidden,
+          outputBytes,
+        );
+        return this.observable.output(revision, "pdf", bytes);
       },
       false,
       false,
@@ -547,6 +532,18 @@ export class PresentationEditor {
           revision: this.state.revision,
           change,
           profile: this.profile,
+        }),
+      ),
+    );
+  }
+  editSlides(change: PptxSlideEdit, slide?: string): Promise<void> {
+    return this.enqueue(async () =>
+      this.changed(
+        await this.client.execute({
+          operation: "editPptxSlides",
+          revision: this.state.revision,
+          slide: slide ?? this.state.slide,
+          change,
         }),
       ),
     );

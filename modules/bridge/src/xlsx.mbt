@@ -47,6 +47,18 @@ fn Foundation::xlsx_operation(
         "move" => @xlsx.Move(field_int(change, "index"))
         "visibility" => @xlsx.Visibility(field_string(change, "state"))
         "rename" => @xlsx.Rename(field_string(change, "name"))
+        "rowHeight" =>
+          @xlsx.RowHeight(
+            field_int(change, "first"),
+            field_int(change, "last"),
+            xlsx_number(change, "size"),
+          )
+        "columnWidth" =>
+          @xlsx.ColumnWidth(
+            field_int(change, "first"),
+            field_int(change, "last"),
+            xlsx_number(change, "size"),
+          )
         _ => @failure.reject("invalid-operation", "Unknown worksheet edit")
       }
       session.edit_sheet(

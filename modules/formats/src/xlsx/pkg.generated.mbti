@@ -59,6 +59,8 @@ pub(all) enum SheetEdit {
   Move(Int)
   Visibility(String)
   Rename(String)
+  RowHeight(Int, Int, Double)
+  ColumnWidth(Int, Int, Double)
 }
 
 pub(all) enum Value {

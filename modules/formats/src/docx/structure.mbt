@@ -49,10 +49,12 @@ fn Session::prepare_empty(
   let run = tree.child(paragraph, "r")
   let parent = run.map(id => tree.nodes[id]).unwrap_or(p)
   let prefix = parent.qualified[:parent.qualified.length() - 1].to_owned()
-  let escaped = @xml.escape_text(text)
-  let t = if text.contains("\u2028") || text.contains("\t") {
+  let t = if text.contains("\u2028") ||
+    text.contains("\t") ||
+    text.contains("\u000c") {
     inline_markup(text, self.opc.budget.entry_bytes.min(history_byte_limit / 2))
   } else {
+    let escaped = @xml.escape_text(text)
     "<\{prefix}t xml:space=\"preserve\">\{escaped}</\{prefix}t>"
   }
   let content = if run is Some(_) {
@@ -399,8 +401,10 @@ fn WordTree::check_editable_paragraph(
       if node.name == "br" || node.name == "cr" || node.name == "tab" {
         guard self.children[content].is_empty() &&
           node.text.trim().is_empty() &&
-          node.attribute("type", uri=word_uri).unwrap_or("textWrapping") ==
-          "textWrapping" &&
+          ["textWrapping", "page"].contains(
+            node.attribute("type", uri=word_uri).unwrap_or("textWrapping"),
+          ) &&
+          (node.attribute("type", uri=word_uri) != Some("page") || in_body) &&
           node.attribute("clear", uri=word_uri).unwrap_or("none") == "none" &&
           node.attributes
           .iter()

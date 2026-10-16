@@ -96,6 +96,11 @@ export interface XlsxQuery {
   readOnlyReason: string;
   sheetEditReason: string;
   sheetRenameReason: string;
+  dimensions: {
+    rowHeight: number | null;
+    columnWidth: number | null;
+    readOnlyReason: string;
+  };
   diagnostics: string[];
   date1904: boolean;
 }
@@ -103,10 +108,30 @@ export interface XlsxQuery {
 export type XlsxSheetEdit =
   | { action: "move"; index: number }
   | { action: "rename"; name: string }
+  | {
+      action: "rowHeight" | "columnWidth";
+      first: number;
+      last: number;
+      size: number;
+    }
   | { action: "visibility"; state: "visible" | "hidden" | "veryHidden" };
 
 export function checkXlsxSheetEdit(value: unknown): void {
   const change = record(value);
+  if (
+    (change.action === "rowHeight" || change.action === "columnWidth") &&
+    integer(change.first, 1, change.action === "rowHeight" ? 1048576 : 16384) &&
+    integer(
+      change.last,
+      Number(change.first),
+      change.action === "rowHeight" ? 1048576 : 16384,
+    ) &&
+    typeof change.size === "number" &&
+    Number.isFinite(change.size) &&
+    change.size >= 0 &&
+    change.size <= (change.action === "rowHeight" ? 409.5 : 255)
+  )
+    return;
   if (
     change.action === "rename" &&
     typeof change.name === "string" &&
@@ -160,6 +185,21 @@ function cellValue(value: unknown): boolean {
 
 export function xlsxQuery(value: unknown): XlsxQuery {
   const query = record(value);
+  const dimensions = record(query.dimensions);
+  if (
+    typeof dimensions.readOnlyReason !== "string" ||
+    !["rowHeight", "columnWidth"].every((key) => {
+      const size = dimensions[key];
+      return (
+        size === null ||
+        (typeof size === "number" &&
+          Number.isFinite(size) &&
+          size >= 0 &&
+          size <= (key === "rowHeight" ? 409.5 : 255))
+      );
+    })
+  )
+    throw new Error("Invalid worksheet dimensions");
   if (
     typeof query.sheetEditReason !== "string" ||
     typeof query.sheetRenameReason !== "string"

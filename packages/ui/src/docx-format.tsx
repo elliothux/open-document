@@ -6,7 +6,10 @@ import type {
   ParagraphFormatPatch,
   CopiedFormat,
 } from "@open-document/web/foundation";
-import { highlightColors } from "@open-document/web/foundation";
+import {
+  highlightColors,
+  DOCX_PAGE_BREAK,
+} from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { Command, Group } from "./controls.js";
 import { messages } from "./messages.js";
@@ -272,6 +275,11 @@ export function DocxFormatCommands({
           label={t.softBreak}
           disabled={disabled}
           action={() => controller.run(() => editor.insertSoftBreak())}
+        />
+        <Command
+          label={t.pageBreak}
+          disabled={disabled}
+          action={() => controller.run(() => editor.paste(DOCX_PAGE_BREAK))}
         />
         <Command
           label={t.insertTab}

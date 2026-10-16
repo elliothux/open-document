@@ -20,15 +20,24 @@ fn Session::validate(
   self : Session,
   candidate : Slide,
 ) -> Unit raise @failure.Failure {
+  let slides = self.slides.copy()
+  slides[self.index(candidate.tree.part)] = candidate
+  self.validate_slides(self.main, slides)
+}
+
+///|
+fn Session::validate_slides(
+  self : Session,
+  main : Tree,
+  slides : Array[Slide],
+) -> Unit raise @failure.Failure {
   let replacements : Map[String, Bytes] = Map([])
+  if !main.document.is_original() {
+    replacements[main.part] = main.document.bytes()
+  }
   let mut count = 0
   let mut units = 0
-  for original in self.slides {
-    let slide = if original.tree.part == candidate.tree.part {
-      candidate
-    } else {
-      original
-    }
+  for slide in slides {
     count += slide.objects.length()
     for object in slide.objects {
       units += object.text().length()
@@ -52,15 +61,29 @@ fn Session::commit(
   edit : @xml.Edit,
   after : Selection,
 ) -> Unit raise @failure.Failure {
+  let slides = self.slides.copy()
+  slides[self.index(slide.tree.part)] = slide
+  self.commit_slides(self.main, slides, [(slide.tree.part, edit)], after)
+}
+
+///|
+fn Session::commit_slides(
+  self : Session,
+  main : Tree,
+  slides : Array[Slide],
+  edits : Array[(String, @xml.Edit)],
+  after : Selection,
+) -> Unit raise @failure.Failure {
   guard self.revision < 2147483647 else {
     @failure.reject("limit-exceeded", "Presentation revision exhausted")
   }
-  let payload = edit.payload_bytes()
+  let payload = edits
+    .iter()
+    .fold(init=0L, (sum, entry) => sum + entry.1.payload_bytes())
   guard payload <= 4194304 else {
     @failure.reject("limit-exceeded", "Edit exceeds history budget")
   }
-  self.validate(slide)
-  let index = self.index(slide.tree.part)
+  self.validate_slides(main, slides)
   for entry in self.redo {
     self.history_bytes -= entry.bytes
   }
@@ -70,14 +93,14 @@ fn Session::commit(
     self.history_bytes -= self.history.remove(0).bytes
   }
   self.history.push({
-    slide: index,
-    edit,
+    edits,
     before: self.selection,
     after,
     bytes: payload.to_int(),
   })
   self.history_bytes += payload.to_int()
-  self.slides[index] = slide
+  self.main = main
+  self.slides = slides
   self.selection = after
   self.revision += 1
   self.view = None
@@ -97,16 +120,27 @@ pub fn Session::undo(
     guard self.revision < 2147483647 else {
       @failure.reject("limit-exceeded", "Presentation revision exhausted")
     }
-    let original = self.slides[entry.slide]
-    let document = original.tree.document.apply(entry.edit, forward=redo)
-    let candidate = read_slide(
-      self.opc,
-      self.main,
-      self.cache,
-      Tree::new(original.tree.part, document),
-    )
-    self.validate(candidate)
-    self.slides[entry.slide] = candidate
+    let slides = self.slides.copy()
+    let mut main = self.main
+    for (part, edit) in (if redo { entry.edits } else { entry.edits.rev() }) {
+      if part == main.part {
+        main = Tree::new(part, main.document.apply(edit, forward=redo))
+      } else {
+        let index = slides.search_by(slide => slide.tree.part == part).unwrap()
+        let original = slides[index]
+        let document = original.tree.document.apply(edit, forward=redo)
+        slides[index] = read_slide(
+          self.opc,
+          main,
+          self.cache,
+          Tree::new(part, document),
+        )
+      }
+    }
+    let slides = self.ordered_slides(main, slides)
+    self.validate_slides(main, slides)
+    self.main = main
+    self.slides = slides
     self.selection = if redo { entry.after } else { entry.before }
     ignore(source.pop())
     target.push(entry)
@@ -124,6 +158,9 @@ pub fn Session::save(
   self.check_revision(revision)
   self.check_idle()
   let replacements : Map[String, Bytes] = Map([])
+  if !self.main.document.is_original() {
+    replacements[self.main.part] = self.main.document.bytes()
+  }
   for slide in self.slides {
     if !slide.tree.document.is_original() {
       replacements[slide.tree.part] = slide.tree.document.bytes()

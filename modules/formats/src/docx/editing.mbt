@@ -287,18 +287,24 @@ fn Session::prepare_plain_range(
   guard text.length() <= command_limit else {
     @failure.reject("limit-exceeded", "Command input exceeds UTF-16 budget")
   }
-  guard @xml.valid_text(text) && !text.contains("\r") else {
+  guard valid_inline_input(text) else {
     @failure.reject(
-      "invalid-operation", "Paragraph input must be valid XML text without CR",
+      "invalid-operation", "Invalid paragraph text or inline control",
     )
   }
   let anchor = selection.anchor
   let focus = selection.focus
+  if text.contains("\u000c") {
+    let tree = WordTree::new(self.document())
+    tree.check_page_break_input(anchor.paragraph, text)
+    tree.check_page_break_input(focus.paragraph, text)
+  }
   if input_group is Some(group) {
     guard group > 0 &&
       !text.is_empty() &&
       !text.contains("\n") &&
       !text.contains("\u2028") &&
+      !text.contains("\u000c") &&
       !text.contains("\t") else {
       @failure.reject(
         "invalid-operation", "Input group requires a positive id and ordinary input without LF",

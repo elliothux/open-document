@@ -36,7 +36,7 @@ fn read_dimensions(
   let format = tree.one(root.id, "sheetFormatPr")
   let row_default = format
     .bind(node => node.attribute("defaultRowHeight"))
-    .map(value => dimension(value, 409))
+    .map(value => dimension(value, 409.5))
     .unwrap_or(15)
   let column_default = format
     .bind(node => node.attribute("defaultColWidth"))
@@ -58,7 +58,7 @@ fn read_dimensions(
     } else {
       row
       .attribute("ht")
-      .map(value => dimension(value, 409))
+      .map(value => dimension(value, 409.5))
       .unwrap_or(row_default)
     }
     let default_height = if format

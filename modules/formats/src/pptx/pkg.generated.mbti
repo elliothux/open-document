@@ -33,6 +33,7 @@ pub fn Session::create(@archive.Budget) -> Self raise @failure.Failure
 pub fn Session::delete(Self, Int, Bool, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::drag(Self, Int, Int, Double, Double, Int) -> Json raise @failure.Failure
 pub fn Session::edit_objects(Self, Int, ObjectEdit, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn Session::edit_slides(Self, Int, String, SlideEdit) -> Json raise @failure.Failure
 pub fn Session::finish(Self, Int, Int, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::hit(Self, Int, Double, Double, Double) -> Json raise @failure.Failure
 pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
@@ -49,6 +50,11 @@ pub fn Session::select(Self, Int, String, String, String, Int, Int) -> Json rais
 pub fn Session::selection_geometry(Self, Int) -> Json raise @failure.Failure
 pub fn Session::transform(Self, Int, Int, Double, Double, Double, Double) -> Json raise @failure.Failure
 pub fn Session::undo(Self, Int, redo? : Bool) -> Json raise @failure.Failure
+
+pub(all) enum SlideEdit {
+  MoveSlide(Int)
+  HideSlide(Bool)
+}
 
 // Type aliases
 

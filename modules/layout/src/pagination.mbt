@@ -134,7 +134,7 @@ fn Pagination::paragraph(
 ) -> Unit raise @failure.Failure {
   if paragraph.pageBreakBefore &&
     (
-      !self.pages.last().unwrap().lines.is_empty() ||
+      self.pages.last().unwrap().lines.iter().any(line => !line.caretOnly) ||
       !self.pages.last().unwrap().borders.is_empty()
     ) {
     self.next_page()
@@ -159,11 +159,16 @@ fn Pagination::paragraph(
     ) {
     let mut line = measured.spaced(paragraph.line, first)
     if line.text.is_empty() && line.marker.is_empty() && line.y == -1 {
+      self.place(line, self.page.left, self.y, images)
       if !ended_with_break {
         self.next_page()
       }
       ended_with_break = true
       first = true
+      continue
+    }
+    if line.caretOnly {
+      self.place(line, self.page.left, self.y, images)
       continue
     }
     if self.y + line.height > self.page.height - self.page.bottom {

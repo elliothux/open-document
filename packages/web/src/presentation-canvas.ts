@@ -44,7 +44,11 @@ export class PresentationCanvas extends CanvasSurface {
       }
     }
   }
-  drawSelection(geometry: PptxGeometry, scale: number): void {
+  drawSelection(
+    geometry: PptxGeometry,
+    scale: number,
+    input: HTMLTextAreaElement,
+  ): void {
     const context = this.clearOverlay(scale);
     const polygon = (points: PptxPoint[]) => {
       context.beginPath();
@@ -73,10 +77,35 @@ export class PresentationCanvas extends CanvasSurface {
 
     const caret = geometry.caret;
     if (caret) {
+      input.style.left = `${caret.x * scale}px`;
+      input.style.top = `${caret.y * scale}px`;
+      input.style.height = `${caret.height * scale}px`;
       context.beginPath();
       context.moveTo(caret.x, caret.y);
       context.lineTo(caret.endX, caret.endY);
       context.stroke();
+    }
+  }
+  async exportPdf(
+    client: PptxClient,
+    revision: number,
+    profile: Record<string, string>,
+    all: boolean,
+    hidden: boolean,
+    outputBytes: number,
+  ): Promise<Uint8Array> {
+    try {
+      await this.prepare(client, all, hidden);
+      return await client.execute({
+        operation: "exportPptxPdf",
+        revision,
+        all,
+        hidden,
+        outputBytes,
+        profile,
+      });
+    } finally {
+      await this.prepare(client);
     }
   }
   override dispose(): void {

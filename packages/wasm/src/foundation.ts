@@ -34,6 +34,8 @@ import {
 import { WasmSession, encodeBytes } from "./session.js";
 /** Logical soft line break; DOCX serializes it as w:br, while LF creates a paragraph. */
 export const DOCX_SOFT_BREAK = "\u2028";
+/** Logical page break; serialized as w:br w:type="page", never as an XML control character. */
+export const DOCX_PAGE_BREAK = "\u000c";
 import {
   docxFlow,
   pageLayout,

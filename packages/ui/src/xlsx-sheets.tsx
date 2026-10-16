@@ -18,6 +18,8 @@ export function XlsxSheets({
     query = editor.currentState;
   const [chosen, setChosen] = useState("");
   const [name, setName] = useState("");
+  const [height, setHeight] = useState("");
+  const [width, setWidth] = useState("");
   const position = query.sheets.findIndex((sheet) => sheet.id === query.sheet);
   const visible = query.sheets.filter((sheet) => sheet.state === "visible");
   const hidden = query.sheets.filter((sheet) => sheet.state === "hidden");
@@ -141,6 +143,84 @@ export function XlsxSheets({
         </button>
       </fieldset>
       {query.sheetEditReason && <p>{query.sheetEditReason}</p>}
+      <fieldset disabled={disabled || !!query.dimensions.readOnlyReason}>
+        <legend>{t.dimensions}</legend>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            controller.run(async () => {
+              const range = editor.currentState.selection.range;
+              await editor.editSheet({
+                action: "rowHeight",
+                first: range.top,
+                last: range.bottom,
+                size: Number(height),
+              });
+              setHeight("");
+            });
+          }}
+        >
+          <label>
+            {t.rowHeight}
+            <input
+              type="number"
+              min={0}
+              max={409.5}
+              step="any"
+              required
+              value={height}
+              placeholder={
+                query.dimensions.rowHeight === null
+                  ? t.mixed
+                  : String(query.dimensions.rowHeight)
+              }
+              onChange={(event) => setHeight(event.currentTarget.value)}
+            />
+          </label>
+          <button type="submit" disabled={!height}>
+            {t.setRowHeight}
+          </button>
+        </form>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            controller.run(async () => {
+              const range = editor.currentState.selection.range;
+              await editor.editSheet({
+                action: "columnWidth",
+                first: range.left,
+                last: range.right,
+                size: Number(width),
+              });
+              setWidth("");
+            });
+          }}
+        >
+          <label>
+            {t.columnWidth}
+            <input
+              type="number"
+              min={0}
+              max={255}
+              step="any"
+              required
+              value={width}
+              placeholder={
+                query.dimensions.columnWidth === null
+                  ? t.mixed
+                  : String(query.dimensions.columnWidth)
+              }
+              onChange={(event) => setWidth(event.currentTarget.value)}
+            />
+          </label>
+          <button type="submit" disabled={!width}>
+            {t.setColumnWidth}
+          </button>
+        </form>
+        {query.dimensions.readOnlyReason && (
+          <p>{query.dimensions.readOnlyReason}</p>
+        )}
+      </fieldset>
     </nav>
   );
 }

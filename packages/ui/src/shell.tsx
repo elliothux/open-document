@@ -207,7 +207,15 @@ export function EditorShell({
                     <Icon name="redo" />
                   </Command>
                 </Group>
-                <FormatCommands {...panel} disabled={editDisabled} tab="edit" />
+                <FormatCommands
+                  {...panel}
+                  disabled={
+                    file.format === "pptx"
+                      ? disabled || !!snapshot?.stopped
+                      : editDisabled
+                  }
+                  tab="edit"
+                />
               </Tabs.Panel>
               <Tabs.Panel value="view" className="od-ribbon">
                 {file.format !== "xlsx" && <Navigation {...panel} />}

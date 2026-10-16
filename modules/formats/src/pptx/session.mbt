@@ -1,12 +1,12 @@
 ///|
 pub struct Session {
   priv opc : @opc.Package
-  priv main : Tree
+  priv mut main : Tree
   priv cache : Map[String, Tree]
   priv budget : @archive.Budget
   priv width : Double
   priv height : Double
-  priv slides : Array[Slide]
+  priv mut slides : Array[Slide]
   priv mut selection : Selection
   priv mut revision : Int
   priv history : Array[History]
@@ -390,6 +390,8 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
   }
   {
     "revision": self.revision,
+    "slideOrderReason": self.slide_order_reason(),
+    "slideVisibilityReason": self.slide_visibility_reason(),
     "width": self.width,
     "height": self.height,
     "slide": self.selection.slide,

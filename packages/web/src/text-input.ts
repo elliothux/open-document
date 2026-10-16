@@ -1,5 +1,8 @@
 import type { FoundationClient } from "./foundation.js";
-import { DOCX_SOFT_BREAK } from "@open-document/wasm/foundation";
+import {
+  DOCX_SOFT_BREAK,
+  DOCX_PAGE_BREAK,
+} from "@open-document/wasm/foundation";
 import type {
   EditState,
   DocxSelection,
@@ -39,6 +42,7 @@ export interface NativeInputCommands<State> {
     extend: boolean,
   ): Promise<State>;
   softBreak: string;
+  pageBreak?: string;
   nativeEnter: boolean;
   tab?(revision: number, backward: boolean): Promise<State>;
   enter?(revision: number): Promise<State>;
@@ -236,6 +240,7 @@ export class NativeTextInput<State extends { revision: number }> {
         text.length > 0 &&
         !text.includes("\n") &&
         !text.includes("\u2028") &&
+        !text.includes("\u000c") &&
         !text.includes("\t")
       ) {
         if (this.group === undefined) {
@@ -304,6 +309,22 @@ export class NativeTextInput<State extends { revision: number }> {
           await (literal
             ? this.commands.replace(this.state.revision, "\t")
             : tab(this.state.revision, backward)),
+        ),
+      );
+      return;
+    }
+    if (
+      command &&
+      !event.altKey &&
+      !event.shiftKey &&
+      event.key === "Enter" &&
+      this.commands.pageBreak !== undefined
+    ) {
+      event.preventDefault();
+      const text = this.commands.pageBreak;
+      this.send(async () =>
+        this.host.changed(
+          await this.commands.replace(this.state.revision, text),
         ),
       );
       return;
@@ -404,6 +425,7 @@ export class TextInput extends NativeTextInput<EditState> {
             )
           ).state,
         softBreak: DOCX_SOFT_BREAK,
+        pageBreak: DOCX_PAGE_BREAK,
         nativeEnter: true,
         enter: (revision) => client.enterDocx(revision),
         tab: (revision, backward) => client.tabDocx(revision, backward),

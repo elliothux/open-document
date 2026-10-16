@@ -2,7 +2,7 @@
 
 状态：`planned`，第 1 批实施中。基于 [P5 XLSX](implemented/p5-xlsx-editing.md)、已完成的 [P9](implemented/p9-web-sdk-ui.md)及 [P10 的包创建与多部件事务设计](p10-docx-core.md#31-新建与多部件事务)。属于功能优先级 P0。空白创建已接通，其余扩展仍按下面的范围实施。阶段顺序归[路线图](references/roadmap.md)，现有 API 归[格式合同](references/formats.md#p5-xlsx-合同)，功能依据归 [G3](g3-genoffice-sdk-gap.md#表格xlsx)。
 
-当前进度：核心生成带一张可见 Sheet1、A1 选区和基础样式的空白工作簿，复用既有公式、编辑、历史、保存及打印路径。同步 Wasm、Worker、默认 UI 均提供创建；新建、替换确认、首次保存与另存复用 P9。已接通工作表重排、改名与隐藏/显示，历史使用稳定部件路径，同步名称作用域、活动页和工作表视图。改名同步已支持的引用，保留字符串常量和共享公式组。表增删/复制、行列结构、格式与后续批次尚未完成，不标记第 1 批或整个 P11 完成。
+当前进度：核心生成带一张可见 Sheet1、A1 选区和基础样式的空白工作簿，复用既有公式、编辑、历史、保存及打印路径。同步 Wasm、Worker、默认 UI 均提供创建；新建、替换确认、首次保存与另存复用 P9。已接通工作表重排、改名与隐藏/显示，历史使用稳定部件路径，同步名称作用域、活动页和工作表视图。改名同步已支持的引用，保留字符串常量和共享公式组。已接通所选行高、列宽及零值隐藏，沿相同事务保存和撤销。表增删/复制、行列插删、自动适配、格式与后续批次尚未完成，不标记第 1 批或整个 P11 完成。
 
 ## 1. 用户结果与交付范围
 
@@ -28,6 +28,7 @@
 | [`formula-parser.mbt`](../modules/formats/src/xlsx/formula-parser.mbt)、[`formula-shift.mbt`](../modules/formats/src/xlsx/formula-shift.mbt)、[`calculation.mbt`](../modules/formats/src/xlsx/calculation.mbt) | 已有公式解析、共享公式平移、六函数与受影响重算；扩展引用变换、名称、函数与不确定依赖处理 |
 | [`styles.mbt`](../modules/formats/src/xlsx/styles.mbt)、[`number-format.mbt`](../modules/formats/src/xlsx/number-format.mbt) | 有限格式读取/显示；补局部样式创建、修改和格式代码解释 |
 | [`grid.mbt`](../modules/formats/src/xlsx/grid.mbt)、[`print.mbt`](../modules/formats/src/xlsx/print.mbt) | 可见网格与独立打印布局；补冻结区域、筛选可见性、绘图锚点与打印设置 |
+| [`dimension-edit.mbt`](../modules/formats/src/xlsx/dimension-edit.mbt)、[`dimensions.mbt`](../modules/formats/src/xlsx/dimensions.mbt) | 行高/列宽事务、区间拆分和混合尺寸查询；网格、命中和打印使用同一几何 |
 | [`bridge/xlsx.mbt`](../modules/bridge/src/xlsx.mbt)、[`wasm/xlsx.ts`](../packages/wasm/src/xlsx.ts)、[`web/xlsx.ts`](../packages/web/src/xlsx.ts) | 扩展现有类型化命令与查询；不增加第二套计算服务 |
 | [`spreadsheet-editor.ts`](../packages/web/src/spreadsheet-editor.ts)、[`spreadsheet-input.ts`](../packages/web/src/spreadsheet-input.ts)、[`ui/panels.tsx`](../packages/ui/src/panels.tsx) | 保留原生单格草稿、队列、Canvas 和 P9 状态；增加公式栏、表标签菜单与数据面板 |
 
@@ -58,6 +59,8 @@
 共享公式命中后沿已有规则有界展开或重新分组。复制表时重映射局部名称、关系与图形身份，工作簿级名称按明确的冲突规则处理；重命名修改引用符号，不改字符串常量。名字和 sheet 名使用核心解析规则，覆盖引号、空格和 Unicode 名称。
 
 ### 3.3 样式、合并与冻结
+
+当前 `editSheet` 已支持行高（磅）与列宽（OOXML 字符宽度单位）。默认 UI 作用于所选范围的行或列，显示当前尺寸；不同尺寸显示混合。零值隐藏，正值设置固定尺寸并显示目标行列。核心保留未选中列的样式、轮廓与尺寸，新增空行不改变后续隐式行号；只改尺寸不清除公式缓存或 calcChain。保护和预算失败不修改文档。范围、上限和接口归[格式合同](references/formats.md#工作表顺序名称与可见性)。自动适配和行列插删仍待实现。
 
 样式修改为目标区域创建或复用等价格式记录，保持其他单元格的共享样式。清除内容、清除格式和全部清除是不同操作。数字格式解析属于核心；显示、导出和输入栏使用同一值/公式语义，延续 1900/1904 日期规则，不通过 JS 时区推断日期。
 
