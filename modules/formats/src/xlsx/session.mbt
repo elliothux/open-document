@@ -388,6 +388,11 @@ pub fn Session::query(
     "readOnlyReason": self.read_only,
     "sheetEditReason": self.sheet_edit_reason(),
     "sheetRenameReason": self.sheet_rename_reason(),
+    "frozen": {
+      "rows": current.frozen.rows,
+      "columns": current.frozen.columns,
+      "readOnlyReason": self.freeze_reason(current),
+    },
     "dimensions": {
       "rowHeight": current.dimensions.rows
       .uniform(range.unwrap().top, range.unwrap().bottom)

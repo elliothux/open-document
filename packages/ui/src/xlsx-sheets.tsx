@@ -3,17 +3,19 @@ import type { SpreadsheetEditor } from "@open-document/web/spreadsheet-editor";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 
+interface SheetProps {
+  controller: EditorController;
+  state: UiSnapshot;
+  editor: SpreadsheetEditor;
+  disabled: boolean;
+}
+
 export function XlsxSheets({
   controller,
   state,
   editor,
   disabled,
-}: {
-  controller: EditorController;
-  state: UiSnapshot;
-  editor: SpreadsheetEditor;
-  disabled: boolean;
-}) {
+}: SheetProps) {
   const t = messages(state.locale),
     query = editor.currentState;
   const [chosen, setChosen] = useState("");
@@ -261,5 +263,69 @@ export function XlsxSheets({
         )}
       </fieldset>
     </nav>
+  );
+}
+
+export function XlsxFrozen({
+  controller,
+  state,
+  editor,
+  disabled,
+}: SheetProps) {
+  const t = messages(state.locale),
+    query = editor.currentState;
+  return (
+    <fieldset disabled={disabled || !!query.frozen.readOnlyReason}>
+      <legend>{t.freezePanes}</legend>
+      <button
+        type="button"
+        disabled={
+          query.selection.range.top === 1 && query.selection.range.left === 1
+        }
+        onClick={() =>
+          controller.run(() =>
+            editor.editSheet({
+              action: "freeze",
+              rows: query.selection.range.top - 1,
+              columns: query.selection.range.left - 1,
+            }),
+          )
+        }
+      >
+        {t.freezeSelection}
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          controller.run(() =>
+            editor.editSheet({ action: "freeze", rows: 1, columns: 0 }),
+          )
+        }
+      >
+        {t.freezeTopRow}
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          controller.run(() =>
+            editor.editSheet({ action: "freeze", rows: 0, columns: 1 }),
+          )
+        }
+      >
+        {t.freezeFirstColumn}
+      </button>
+      <button
+        type="button"
+        disabled={query.frozen.rows === 0 && query.frozen.columns === 0}
+        onClick={() =>
+          controller.run(() =>
+            editor.editSheet({ action: "freeze", rows: 0, columns: 0 }),
+          )
+        }
+      >
+        {t.unfreezePanes}
+      </button>
+      {query.frozen.readOnlyReason && <p>{query.frozen.readOnlyReason}</p>}
+    </fieldset>
   );
 }

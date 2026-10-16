@@ -31,8 +31,11 @@ export function PptxObjects({
   const selected = query.objects.find(
     (object) => object.id === query.selection.object,
   );
-  const objectMode =
-    query.selection.mode === "object" && query.selection.objects.length === 1;
+  const objectMode = query.selection.mode === "object";
+  const duplicationReason = query.objects.find(
+    (object) =>
+      query.selection.objects.includes(object.id) && object.duplicateReason,
+  )?.duplicateReason;
   const deletionReason = query.objects.find(
     (object) =>
       query.selection.objects.includes(object.id) && object.deleteReason,
@@ -131,10 +134,8 @@ export function PptxObjects({
       </form>
       <button
         type="button"
-        disabled={
-          disabled || !objectMode || !selected || !!selected.duplicateReason
-        }
-        title={selected?.duplicateReason}
+        disabled={disabled || !objectMode || !selected || !!duplicationReason}
+        title={duplicationReason}
         onClick={() =>
           controller.run(() =>
             editor.editObjects({ action: "duplicate", dx: 18, dy: 18 }),

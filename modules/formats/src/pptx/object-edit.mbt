@@ -76,9 +76,6 @@ fn Session::object_edit_reason(
     if !slide.read_only.is_empty() {
       return slide.read_only
     }
-    if duplicate && object.kind == "group" {
-      return "Group duplication requires independent member identities"
-    }
     guard ["sp", "pic", "grpSp"].contains(object.source.node.name) &&
       object.source.node.parent == shape_tree(slide.tree).id else {
       return "Only local top-level shapes and pictures support this operation"
@@ -328,61 +325,27 @@ pub fn Session::edit_objects(
       if self.selection.object.is_empty() {
         return self.query()
       }
-      let object = self.editable(false)
-      let reason = self.object_edit_reason(object, "duplicate")
-      guard reason.is_empty() else {
-        @failure.reject("protected-content", reason)
-      }
-      let geometry = object.geometry.unwrap()
-      let target = { ..geometry, x: geometry.x + dx, y: geometry.y + dy, }
-      validate_object_box(
-        target.x,
-        target.y,
-        target.width,
-        target.height,
-        object.preset == "line",
-      )
-      let id = self.next_object_identity()
-      issued = Some(id)
-      let changes = transform_changes(object, target)
-      let identity = object.source
-        .child(
-          if object.kind == "image" {
-            "nvPicPr"
-          } else {
-            "nvSpPr"
-          },
-          uri=presentation_uri,
-        )
-        .unwrap()
-        .child("cNvPr", uri=presentation_uri)
-        .unwrap()
-      changes.push(attribute_change(identity, "id", id))
-      let (copy, _) = original.tree.document.edit_source(changes)
-      let copied = copy.node(object.source.node.id)
-      (
-        [
-          object_insertion(
-            original.tree,
-            copy.source()[copied.start:copied.end].to_owned(),
-          ),
-        ],
-        {
-          ..self.selection,
-          object: original.tree.part + "#" + id,
-          objects: [original.tree.part + "#" + id],
-          anchor: 0,
-          focus: 0,
-        },
-      )
+      let (changes, selection, next) = self.copy_objects(dx, dy)
+      issued = Some((next - 1L).to_string())
+      (changes, selection)
     }
     Align(_, _) | Distribute(_, _) =>
       (self.position_objects(change), self.selection)
-    Rotate(_) | Flip(_) | Layer(_) => {
+    Layer(direction) => {
       if self.selection.object.is_empty() {
         return self.query()
       }
-      (self.arrange_object(self.editable(false), change), self.selection)
+      (self.layer_objects(direction), self.selection)
+    }
+    Rotate(_) | Flip(_) => {
+      if self.selection.object.is_empty() {
+        return self.query()
+      }
+      let changes : Array[@xml.SourceChange] = []
+      for object in self.transform_objects() {
+        changes.append(self.arrange_object(object, change))
+      }
+      (changes, self.selection)
     }
   }
   if changes.is_empty() {
@@ -390,15 +353,17 @@ pub fn Session::edit_objects(
   }
   let (candidate, edit) = self.prepare(original, changes)
   if issued is Some(_) {
-    let object = candidate.object(after.object)
-    let (_, _, diagnostic) = fit_text(
-      object,
-      object.geometry.unwrap(),
-      probe,
-      profile,
-    )
-    guard diagnostic.is_empty() else {
-      @failure.reject("layout-overflow", diagnostic)
+    for id in after.objects {
+      let object = candidate.object(id)
+      let (_, _, diagnostic) = fit_text(
+        object,
+        object.geometry.unwrap(),
+        probe,
+        profile,
+      )
+      guard diagnostic.is_empty() else {
+        @failure.reject("layout-overflow", diagnostic)
+      }
     }
   }
   self.commit(candidate, edit, after)

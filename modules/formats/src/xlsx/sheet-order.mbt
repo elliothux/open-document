@@ -10,6 +10,7 @@ pub(all) enum SheetEdit {
   ColumnWidth(Int, Int, Double)
   Merge(String, Bool)
   Unmerge(String)
+  Freeze(Int, Int)
 }
 
 ///|
@@ -136,6 +137,7 @@ pub fn Session::edit_sheet(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   match change {
+    Freeze(rows, columns) => return self.freeze(sheet, rows, columns)
     Merge(range, discard) =>
       return self.merge_cells(sheet, Range::parse(range), discard, false)
     Unmerge(range) =>
@@ -164,8 +166,11 @@ pub fn Session::edit_sheet(
   let mut removed : Map[String, @xml.Document] = Map([])
   let mut next_sheet = self.next_sheet
   match change {
-    RowHeight(_, _, _) | ColumnWidth(_, _, _) | Merge(_, _) | Unmerge(_) =>
-      abort("Dimension edit was dispatched")
+    RowHeight(_, _, _)
+    | ColumnWidth(_, _, _)
+    | Merge(_, _)
+    | Unmerge(_)
+    | Freeze(_, _) => abort("Dimension edit was dispatched")
     Rename(name) => return self.rename_sheet(index, name)
     Delete => {
       removed = self.prepare_sheet_delete(index, parts, edits)

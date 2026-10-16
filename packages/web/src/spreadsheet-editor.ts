@@ -32,6 +32,7 @@ import type {
   XlsxCellFormat,
   CopiedCellFormat,
   XlsxClearMode,
+  XlsxSelectionGeometry,
 } from "@open-document/wasm/xlsx";
 
 export interface SpreadsheetEditorData {
@@ -525,25 +526,24 @@ export class SpreadsheetEditor {
       throw error;
     }
   }
-
   private async presentSelection(): Promise<void> {
     const layout = this.layout;
     if (!layout) return;
     const rect = await this.client.selectionGeometry(layout.id);
     if (this.closed || layout !== this.layout) return;
     paintGridSelection(this.surface.clearOverlay(this.scale), rect, layout);
-    this.input.style.left = `${Math.max(36, rect.x) * this.scale}px`;
-    this.input.style.top = `${Math.max(18, rect.y) * this.scale}px`;
-    this.styleInput();
+    this.styleInput(rect);
     updateGridSelection(this.semantics, this.input, this.active());
   }
-  private styleInput(): void {
+  private styleInput(selection?: XlsxSelectionGeometry): void {
     styleCellDraft(
       this.input,
       this.draft,
       this.scale,
       this.layout,
       this.viewport.clientWidth,
+      selection,
+      this.active()?.address,
     );
   }
   private publish(): void {

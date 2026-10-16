@@ -19,13 +19,21 @@ export function PptxArrange({
   const object = query.objects.find(
     (object) => object.id === query.selection.object,
   );
-  const [angle, setAngle] = useState(String(object?.geometry?.rotation ?? 0));
+  const objects = query.objects.filter((object) =>
+    query.selection.objects.includes(object.id),
+  );
+  const rotation = object?.geometry?.rotation;
+  const [angle, setAngle] = useState(
+    objects.every((object) => object.geometry?.rotation === rotation)
+      ? String(rotation ?? 0)
+      : "",
+  );
+  const reason = objects.find((object) => object.arrangeReason)?.arrangeReason;
+  const rotateReason = objects.find(
+    (object) => object.rotateReason,
+  )?.rotateReason;
   const unavailable =
-    disabled ||
-    query.selection.objects.length !== 1 ||
-    !object ||
-    query.selection.mode !== "object" ||
-    !!object.arrangeReason;
+    disabled || !object || query.selection.mode !== "object" || !!reason;
   return (
     <fieldset disabled={unavailable}>
       <legend>{t.arrangeObjects}</legend>
@@ -46,20 +54,25 @@ export function PptxArrange({
             step="any"
             required
             value={angle}
-            disabled={!!object?.rotateReason}
+            placeholder={t.mixed}
+            disabled={!!rotateReason}
             onChange={(event) => setAngle(event.currentTarget.value)}
           />
         </label>
-        <button type="submit" disabled={!!object?.rotateReason}>
+        <button type="submit" disabled={!!rotateReason}>
           {t.applyRotation}
         </button>
       </form>
-      {object?.rotateReason && object.rotateReason !== object.arrangeReason && (
-        <p>{object.rotateReason}</p>
-      )}
+      {rotateReason && rotateReason !== reason && <p>{rotateReason}</p>}
       <button
         type="button"
-        aria-pressed={object?.geometry?.flipX ?? false}
+        aria-pressed={
+          objects.every(
+            (item) => item.geometry?.flipX === object?.geometry?.flipX,
+          )
+            ? (object?.geometry?.flipX ?? false)
+            : "mixed"
+        }
         onClick={() =>
           controller.run(() =>
             editor.editObjects({ action: "flip", axis: "horizontal" }),
@@ -70,7 +83,13 @@ export function PptxArrange({
       </button>
       <button
         type="button"
-        aria-pressed={object?.geometry?.flipY ?? false}
+        aria-pressed={
+          objects.every(
+            (item) => item.geometry?.flipY === object?.geometry?.flipY,
+          )
+            ? (object?.geometry?.flipY ?? false)
+            : "mixed"
+        }
         onClick={() =>
           controller.run(() =>
             editor.editObjects({ action: "flip", axis: "vertical" }),
@@ -97,7 +116,7 @@ export function PptxArrange({
           {label}
         </button>
       ))}
-      {object?.arrangeReason && <p>{object.arrangeReason}</p>}
+      {reason && <p>{reason}</p>}
     </fieldset>
   );
 }

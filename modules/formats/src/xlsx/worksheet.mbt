@@ -25,6 +25,7 @@ priv struct Sheet {
   dimensions : Dimensions
   row_styles : Map[Int, Int]
   column_styles : Array[(Int, Int, Int)]
+  frozen : Frozen
 }
 
 ///|
@@ -263,6 +264,7 @@ fn Sheet::read(
     dimensions: read_dimensions(tree, root, data),
     row_styles,
     column_styles,
+    frozen: read_frozen(tree),
   }
   sheet.expand_shared(tree)
   sheet

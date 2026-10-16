@@ -2,7 +2,7 @@
 
 状态：`planned`，第 1 批实施中。基于 [P5 XLSX](implemented/p5-xlsx-editing.md)、已完成的 [P9](implemented/p9-web-sdk-ui.md)及 [P10 的包创建与多部件事务设计](p10-docx-core.md#31-新建与多部件事务)。属于功能优先级 P0。空白创建已接通，其余扩展仍按下面的范围实施。阶段顺序归[路线图](references/roadmap.md)，现有 API 归[格式合同](references/formats.md#p5-xlsx-合同)，功能依据归 [G3](g3-genoffice-sdk-gap.md#表格xlsx)。
 
-当前进度：核心生成带一张可见 Sheet1、A1 选区和基础样式的空白工作簿，复用既有公式、编辑、历史、保存及打印路径。同步 Wasm、Worker、默认 UI 均提供创建；新建、替换确认、首次保存与另存复用 P9。已接通工作表新增、复制、删除、重排、改名与隐藏/显示，历史使用稳定部件路径，同步名称作用域、活动页和工作表视图。新增/复制/删除表的关系、内容类型和源 XML 一起提交与撤销。改名同步已支持的引用，保留字符串常量和共享公式组；删除将失去目标的引用改为 `#REF!`，同步名称、内部链接、计算缓存与 calcChain。已接通所选行高、列宽及零值隐藏，沿相同事务保存和撤销。已接通有限矩形合并与取消合并；已接通自动适配行高/列宽及默认行高随带字体的编辑更新；行列插删、冻结与后续批次尚未完成，不标记第 1 批或整个 P11 完成。
+当前进度：核心生成带一张可见 Sheet1、A1 选区和基础样式的空白工作簿，复用既有公式、编辑、历史、保存及打印路径。同步 Wasm、Worker、默认 UI 均提供创建；新建、替换确认、首次保存与另存复用 P9。已接通工作表新增、复制、删除、重排、改名与隐藏/显示，历史使用稳定部件路径，同步名称作用域、活动页和工作表视图。新增/复制/删除表的关系、内容类型和源 XML 一起提交与撤销。改名同步已支持的引用，保留字符串常量和共享公式组；删除将失去目标的引用改为 `#REF!`，同步名称、内部链接、计算缓存与 calcChain。已接通所选行高、列宽及零值隐藏，沿相同事务保存和撤销。已接通有限矩形合并与取消合并；已接通自动适配行高/列宽及默认行高随带字体的编辑更新；普通从左到右视图的冻结首行、首列、选区左上方及取消冻结已接通；行列插删与后续批次尚未完成，不标记第 1 批或整个 P11 完成。
 
 ## 1. 用户结果与交付范围
 
@@ -27,7 +27,7 @@
 | [`xlsx/session.mbt`](../modules/formats/src/xlsx/session.mbt)、[`sheet-order.mbt`](../modules/formats/src/xlsx/sheet-order.mbt)、[`transaction.mbt`](../modules/formats/src/xlsx/transaction.mbt)、[`editing.mbt`](../modules/formats/src/xlsx/editing.mbt) | 稀疏单元格、源 XML、选区与稳定部件历史；已支持 workbook/worksheet 视图一起提交，增删部件事务继续扩展 |
 | [`formula-parser.mbt`](../modules/formats/src/xlsx/formula-parser.mbt)、[`formula-shift.mbt`](../modules/formats/src/xlsx/formula-shift.mbt)、[`calculation.mbt`](../modules/formats/src/xlsx/calculation.mbt) | 已有公式解析、共享公式平移、六函数与受影响重算；扩展引用变换、名称、函数与不确定依赖处理 |
 | [`styles.mbt`](../modules/formats/src/xlsx/styles.mbt)、[`number-format.mbt`](../modules/formats/src/xlsx/number-format.mbt) | 有限格式读取/显示与局部派生编辑；已有矩形格式刷、三种清除及规则范围拆分；扩展更多格式代码 |
-| [`grid.mbt`](../modules/formats/src/xlsx/grid.mbt)、[`print.mbt`](../modules/formats/src/xlsx/print.mbt) | 可见网格与独立打印布局；补冻结区域、筛选可见性、绘图锚点与打印设置 |
+| [`grid.mbt`](../modules/formats/src/xlsx/grid.mbt)、[`grid-bands.mbt`](../modules/formats/src/xlsx/grid-bands.mbt)、[`frozen.mbt`](../modules/formats/src/xlsx/frozen.mbt)、[`print.mbt`](../modules/formats/src/xlsx/print.mbt) | 已有冻结视图事务、四窗格裁剪与命中、独立打印布局；继续补筛选可见性、绘图锚点与打印设置 |
 | [`dimension-edit.mbt`](../modules/formats/src/xlsx/dimension-edit.mbt)、[`autofit.mbt`](../modules/formats/src/xlsx/autofit.mbt)、[`dimensions.mbt`](../modules/formats/src/xlsx/dimensions.mbt) | 行高/列宽事务、自动适配、区间拆分和混合尺寸查询；网格、命中和打印使用同一几何 |
 | [`bridge/xlsx.mbt`](../modules/bridge/src/xlsx.mbt)、[`wasm/xlsx.ts`](../packages/wasm/src/xlsx.ts)、[`web/xlsx.ts`](../packages/web/src/xlsx.ts) | 扩展现有类型化命令与查询；不增加第二套计算服务 |
 | [`spreadsheet-editor.ts`](../packages/web/src/spreadsheet-editor.ts)、[`spreadsheet-input.ts`](../packages/web/src/spreadsheet-input.ts)、[`ui/panels.tsx`](../packages/ui/src/panels.tsx) | 保留原生单格草稿、队列、Canvas 和 P9 状态；增加公式栏、表标签菜单与数据面板 |
@@ -76,7 +76,7 @@
 
 已有 `editSheet` 矩形合并与取消合并的核心、Wasm、Worker、宿主和默认属性栏。核心统计非左上角的值/公式；默认拒绝丢弃，UI 须明确勾选后才提交。合并保留左上角内容和各格非边框格式，按外围归并边框，清除其余值/公式，更新非锚点验证范围和受影响缓存；共享公式存活成员展开为普通公式。取消合并恢复网格，不虚构已丢弃内容；撤销恢复原值与原合并范围。单格合并锚点可继续设置格式，网格、命中及打印复用既有几何。已检查原生键盘选区、丢弃确认、合并内命中、填充、精确混合历史、保存重开与 PDF。外围边框已支持源颜色关联保留、内线清除及合并后的局部设置；核心、独立 XML、网格和打印已检查。合并格格式刷和更广资源仍待扩展。签名和保护边界归[格式合同](references/formats.md#合并与取消合并)。自动适配由核心字体度量计算，保留换行、合并和最大尺寸边界。
 
-冻结属于可保存的 sheet view 设置。核心生成冻结区与滚动区的裁剪/变换及命中映射，Renderer 复用 R0 绘制多个有界区域。选区仍是一份核心范围，不能为四个窗格分别创建工作表状态。
+冻结首行、首列、选区左上方及取消冻结已接通核心、SDK 和默认属性栏。命令先提交原生草稿，再修改可保存的 sheet view；冻结和输入分别进入历史。核心生成最多四个窗格的裁剪、命中及选区矩形，仍使用一份工作表状态。合并格按地址去重，隐藏行列沿既有尺寸处理。冻结不改变公式缓存、calcChain、其他窗口视图或打印；未知视图内容与窗口保护保持显式限制。完整签名和边界归[格式合同](references/formats.md#冻结窗格)。
 
 ## 4. 计算、输入与剪贴板
 

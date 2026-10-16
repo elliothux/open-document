@@ -88,6 +88,8 @@ fn Foundation::xlsx_operation(
             xlsx_boolean(change, "discard"),
           )
         "unmerge" => @xlsx.Unmerge(field_string(change, "range"))
+        "freeze" =>
+          @xlsx.Freeze(field_int(change, "rows"), field_int(change, "columns"))
         "move" => @xlsx.Move(field_int(change, "index"))
         "visibility" => @xlsx.Visibility(field_string(change, "state"))
         "rename" => @xlsx.Rename(field_string(change, "name"))

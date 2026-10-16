@@ -7,7 +7,7 @@ import { DocxFormatCommands, DocxProperties } from "./docx-format.js";
 import { PptxObjects } from "./pptx-objects.js";
 import { PptxArrange } from "./pptx-arrange.js";
 import { PptxAlignment } from "./pptx-alignment.js";
-import { XlsxSheets } from "./xlsx-sheets.js";
+import { XlsxSheets, XlsxFrozen } from "./xlsx-sheets.js";
 import { XlsxFormat } from "./xlsx-format.js";
 
 interface PanelProps {
@@ -313,6 +313,23 @@ export function Properties(props: PanelProps) {
           editor={props.file.editor}
           disabled={props.disabled || !!props.state.document?.stopped}
         />
+        <div
+          onMouseDown={(event) => {
+            if (
+              event.button === 0 &&
+              event.target instanceof Element &&
+              event.target.closest("button")
+            )
+              event.preventDefault();
+          }}
+        >
+          <XlsxFrozen
+            controller={props.controller}
+            state={props.state}
+            editor={props.file.editor}
+            disabled={props.disabled || !!props.state.document?.stopped}
+          />
+        </div>
       </aside>
     );
   if (props.file.format === "docx")
@@ -425,7 +442,7 @@ function SlideProperties({ controller, state, file, disabled }: PanelProps) {
         </button>
       </fieldset>
       <PptxArrange
-        key={`${state.document?.documentId}:${query.selection.object}:${query.revision}`}
+        key={`${state.document?.documentId}:${JSON.stringify(query.selection.objects)}:${query.selection.object}:${query.revision}`}
         controller={controller}
         state={state}
         editor={editor}

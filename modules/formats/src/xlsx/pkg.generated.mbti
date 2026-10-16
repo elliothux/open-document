@@ -102,6 +102,7 @@ pub(all) enum SheetEdit {
   ColumnWidth(Int, Int, Double)
   Merge(String, Bool)
   Unmerge(String)
+  Freeze(Int, Int)
 }
 
 pub(all) enum Value {

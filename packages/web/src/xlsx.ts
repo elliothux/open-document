@@ -16,8 +16,8 @@ import {
   type XlsxViewport,
   type PrintOptions,
   type XlsxPrintLayout,
+  type XlsxSelectionGeometry,
 } from "@open-document/wasm/xlsx";
-import type { DrawRect } from "@open-document/wasm/drawing";
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type { XlsxSheetEdit, XlsxClearMode } from "@open-document/wasm/xlsx";
 export { xlsxNumberFormats } from "@open-document/wasm/xlsx";
@@ -26,6 +26,7 @@ export type {
   XlsxFormatting,
   XlsxCellBorder,
   CopiedCellFormat,
+  XlsxSelectionGeometry,
 } from "@open-document/wasm/xlsx";
 
 /** Browser workbook transport; one Worker owns the complete core session. */
@@ -210,7 +211,7 @@ export class XlsxClient {
       throw new Error("Invalid grid hit");
     return value;
   }
-  async selectionGeometry(layoutId: number): Promise<DrawRect> {
+  async selectionGeometry(layoutId: number): Promise<XlsxSelectionGeometry> {
     return xlsxSelection(
       await this.connection.request({ operation: "selectionXlsx", layoutId }),
     );

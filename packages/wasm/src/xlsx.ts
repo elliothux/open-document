@@ -44,12 +44,17 @@ export interface XlsxViewport extends DrawingBatch {
     cell: XlsxCell;
     display: string;
     rect: DrawRect;
+    clip: DrawRect;
     range: CellRange;
     diagnostic: string;
   }[];
   rows: { index: number; position: number; size: number }[];
   columns: XlsxViewport["rows"];
   diagnostics: string[];
+}
+
+export interface XlsxSelectionGeometry extends DrawRect {
+  rects: DrawRect[];
 }
 
 export interface PrintOptions {
@@ -128,6 +133,7 @@ export interface XlsxQuery {
     columnWidth: number | null;
     readOnlyReason: string;
   };
+  frozen: { rows: number; columns: number; readOnlyReason: string };
   formatting: XlsxFormatting;
   diagnostics: string[];
   date1904: boolean;
@@ -136,6 +142,7 @@ export interface XlsxQuery {
 export type XlsxClearMode = "contents" | "formats" | "all";
 
 export type XlsxSheetEdit =
+  | { action: "freeze"; rows: number; columns: number }
   | { action: "merge"; range: string; discard: boolean }
   | { action: "unmerge"; range: string }
   | { action: "add" }
@@ -153,6 +160,12 @@ export type XlsxSheetEdit =
 
 export function checkXlsxSheetEdit(value: unknown): void {
   const change = record(value);
+  if (
+    change.action === "freeze" &&
+    integer(change.rows, 0, 1048575) &&
+    integer(change.columns, 0, 16383)
+  )
+    return;
   if (
     (change.action === "merge" || change.action === "unmerge") &&
     typeof change.range === "string" &&
@@ -246,6 +259,13 @@ export function xlsxQuery(value: unknown): XlsxQuery {
     throw new Error("Invalid cell merging state");
   xlsxFormatting(query.formatting);
   const dimensions = record(query.dimensions);
+  const frozen = record(query.frozen);
+  if (
+    !integer(frozen.rows, 0, 1048575) ||
+    !integer(frozen.columns, 0, 16383) ||
+    typeof frozen.readOnlyReason !== "string"
+  )
+    throw new Error("Invalid frozen panes");
   if (
     typeof dimensions.readOnlyReason !== "string" ||
     !["rowHeight", "columnWidth"].every((key) => {
@@ -363,7 +383,7 @@ export function xlsxPrintLayout(value: unknown): XlsxPrintLayout {
   return value as XlsxPrintLayout;
 }
 
-export function xlsxSelection(value: unknown): DrawRect {
+function xlsxRect(value: unknown): DrawRect {
   const rect = record(value);
   for (const key of ["x", "y", "width", "height"])
     if (
@@ -373,6 +393,15 @@ export function xlsxSelection(value: unknown): DrawRect {
     )
       throw new Error("Invalid selection rectangle");
   return value as DrawRect;
+}
+
+export function xlsxSelection(value: unknown): XlsxSelectionGeometry {
+  xlsxRect(value);
+  const selection = record(value);
+  if (!Array.isArray(selection.rects) || selection.rects.length > 4)
+    throw new Error("Invalid selection regions");
+  for (const rect of selection.rects) xlsxRect(rect);
+  return value as XlsxSelectionGeometry;
 }
 
 export function xlsxViewport(value: unknown): XlsxViewport {
@@ -397,6 +426,7 @@ export function xlsxViewport(value: unknown): XlsxViewport {
     const item = record(value),
       cell = xlsxCell(item.cell),
       rect = record(item.rect),
+      clip = xlsxRect(item.clip),
       range = record(item.range);
     if (
       addresses.has(cell.address) ||
@@ -416,6 +446,13 @@ export function xlsxViewport(value: unknown): XlsxViewport {
       )
         throw new Error("Invalid visible cell rectangle");
     addresses.add(cell.address);
+    if (
+      clip.x < 36 ||
+      clip.y < 18 ||
+      clip.x + clip.width > layout.regions[0]!.width + 0.000001 ||
+      clip.y + clip.height > layout.regions[0]!.height + 0.000001
+    )
+      throw new Error("Invalid visible cell clip");
   }
   for (const [key, max] of [
     ["rows", 1048576],
@@ -555,7 +592,7 @@ export class XlsxSession extends WasmSession {
       throw new Error("Invalid grid hit");
     return result.address;
   }
-  selectionGeometry(layoutId: number): DrawRect {
+  selectionGeometry(layoutId: number): XlsxSelectionGeometry {
     return xlsxSelection(this.call({ operation: "selectionXlsx", layoutId }));
   }
   navigate(

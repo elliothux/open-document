@@ -10,6 +10,8 @@ priv struct Grid {
   width : Double
   height : Double
   result : Json
+  rows : Array[GridBand]
+  columns : Array[GridBand]
 }
 
 ///|
@@ -299,43 +301,44 @@ pub fn Session::viewport(
     @failure.reject("invalid-viewport", "Invalid grid viewport")
   }
   let current = self.sheets[index]
+  guard current.frozen.layout_reason.is_empty() else {
+    @failure.reject("unsupported-view", current.frozen.layout_reason)
+  }
   let dimensions = self.resolved_dimensions(current, probe, profile)
   let used = current.used()
-  let extent_row = (used.bottom.max(
-    if self.selection.0 == sheet {
-      self.selection.1.bottom
-    } else {
-      1
-    },
-  ) +
+  let extent_row = (used.bottom
+  .max(current.frozen.rows + 1)
+  .max(if self.selection.0 == sheet { self.selection.1.bottom } else { 1 }) +
   100).min(1048576)
-  let extent_column = (used.right.max(
-    if self.selection.0 == sheet {
-      self.selection.1.right
-    } else {
-      1
-    },
-  ) +
+  let extent_column = (used.right
+  .max(current.frozen.columns + 1)
+  .max(if self.selection.0 == sheet { self.selection.1.right } else { 1 }) +
   20).min(16384)
   let extent_width = dimensions.columns.position(extent_column + 1)
   let extent_height = dimensions.rows.position(extent_row + 1)
   let mut x = scroll_x.min((extent_width - width + 36).max(0))
   let mut y = scroll_y.min((extent_height - height + 18).max(0))
+  let frozen_width = dimensions.columns.position(current.frozen.columns + 1)
+  let frozen_height = dimensions.rows.position(current.frozen.rows + 1)
   if reveal && self.selection.0 == sheet {
     let focus = self.focus
     let left = dimensions.columns.position(focus.column)
     let right = left + dimensions.columns.size(focus.column)
     let top = dimensions.rows.position(focus.row)
     let bottom = top + dimensions.rows.size(focus.row)
-    if left < x {
-      x = left
-    } else if right > x + width - 36 {
-      x = (right - width + 36).max(0)
+    if focus.column > current.frozen.columns && frozen_width < width - 36 {
+      if left < x + frozen_width {
+        x = (left - frozen_width).max(0)
+      } else if right > x + width - 36 {
+        x = (right - width + 36).max(0)
+      }
     }
-    if top < y {
-      y = top
-    } else if bottom > y + height - 18 {
-      y = (bottom - height + 18).max(0)
+    if focus.row > current.frozen.rows && frozen_height < height - 18 {
+      if top < y + frozen_height {
+        y = (top - frozen_height).max(0)
+      } else if bottom > y + height - 18 {
+        y = (bottom - height + 18).max(0)
+      }
     }
   }
   let key = Json::array([
@@ -354,75 +357,23 @@ pub fn Session::viewport(
     self.font_context = Some((probe, profile.copy()))
     return grid.result
   }
-  let rows = dimensions.rows.visible(
-    dimensions.rows.locate(y),
-    dimensions.rows.locate(y + height - 18).min(extent_row),
+  let rows = dimensions.rows.bands(
+    current.frozen.rows,
+    y,
+    height - 18,
+    extent_row,
   )
-  let columns = dimensions.columns.visible(
-    dimensions.columns.locate(x),
-    dimensions.columns.locate(x + width - 36).min(extent_column),
+  let columns = dimensions.columns.bands(
+    current.frozen.columns,
+    x,
+    width - 36,
+    extent_column,
   )
-  let page : PagePaint = { width, height, texts: [], fills: [], strokes: [], }
-  let cells = self.paint_cells(
-    index,
-    dimensions,
-    rows,
-    columns,
-    page,
-    36 - x,
-    18 - y,
-    probe,
-    profile,
-    false,
+  let (primitives, cells, row_headers, column_headers) = self.paint_grid(
+    index, dimensions, rows, columns, width, height, probe, profile,
   )
-  let style = self.styles[0]
-  let header = fn(text : String, rect : @layout.Border) raise @failure.Failure {
-    page.fills.push({
-      x: rect.x,
-      y: rect.y,
-      width: rect.width,
-      height: rect.height,
-      color: "f1f3f5",
-    })
-    page.strokes.push((rect, "d9dce1", 0.5))
-    place_block(
-      page,
-      probe.text_block(
-        text,
-        @layout.TextStyle::new(style.font, 9, "333333"),
-        profile,
-        (rect.width - 4.5).max(1).min(14400),
-        false,
-      ),
-      rect,
-      "center",
-      "center",
-    )
-  }
-  let row_headers : Array[Json] = []
-  let column_headers : Array[Json] = []
-  for row in rows {
-    let position = dimensions.rows.position(row) + 18 - y
-    let size = dimensions.rows.size(row)
-    header(row.to_string(), { x: 0, y: position, width: 36, height: size, })
-    row_headers.push({ "index": row, "position": position, "size": size })
-  }
-  for column in columns {
-    let position = dimensions.columns.position(column) + 36 - x
-    let size = dimensions.columns.size(column)
-    let address : Address = { row: 1, column, }
-    let name = address.name()
-    header(name[:name.length() - 1].to_owned(), {
-      x: position,
-      y: 0,
-      width: size,
-      height: 18,
-    })
-    column_headers.push({ "index": column, "position": position, "size": size })
-  }
-  header("", { x: 0, y: 0, width: 36, height: 18, })
   let document : @layout.PositionedDocument = {
-    pages: [page.positioned()],
+    pages: [{ width, height, primitives, }],
     fonts: probe.font_info(),
   }
   guard self.grid_id < 2147483647 else {
@@ -456,6 +407,8 @@ pub fn Session::viewport(
     width,
     height,
     result,
+    rows,
+    columns,
   })
   self.font_context = Some((probe, profile.copy()))
   result
@@ -478,8 +431,26 @@ pub fn Session::hit(
     @failure.reject("invalid-hit", "Point is outside grid cells")
   }
   let address : Address = {
-    row: grid.dimensions.rows.locate(y - 18 + grid.scroll_y),
-    column: grid.dimensions.columns.locate(x - 36 + grid.scroll_x),
+    row: grid.dimensions.rows.locate(
+      y -
+      18 +
+      grid.rows
+      .iter()
+      .find_first(band => {
+        y >= 18 + band.start && y < 18 + band.start + band.size
+      })
+      .unwrap().scroll,
+    ),
+    column: grid.dimensions.columns.locate(
+      x -
+      36 +
+      grid.columns
+      .iter()
+      .find_first(band => {
+        x >= 36 + band.start && x < 36 + band.start + band.size
+      })
+      .unwrap().scroll,
+    ),
   }
   let range = self.sheets[self.sheet_index(grid.sheet)].cell_range(address)
   let anchor : Address = { row: range.top, column: range.left, }
@@ -512,14 +483,15 @@ pub fn Session::selection_geometry(
     row: range.bottom,
     column: range.right,
   })
-  {
-    "x": grid.dimensions.columns.position(first.left) + 36 - grid.scroll_x,
-    "y": grid.dimensions.rows.position(first.top) + 18 - grid.scroll_y,
-    "width": grid.dimensions.columns.position(last.right + 1) -
-    grid.dimensions.columns.position(first.left),
-    "height": grid.dimensions.rows.position(last.bottom + 1) -
-    grid.dimensions.rows.position(first.top),
-  }
+  grid.range_geometry(
+    {
+      top: first.top,
+      left: first.left,
+      bottom: last.bottom,
+      right: last.right,
+    },
+    self.sheets[self.sheet_index(grid.sheet)].frozen,
+  )
 }
 
 ///|

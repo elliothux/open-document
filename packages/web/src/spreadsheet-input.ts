@@ -1,5 +1,7 @@
-import type { XlsxViewport } from "@open-document/wasm/xlsx";
-import type { DrawRect } from "@open-document/wasm/drawing";
+import type {
+  XlsxViewport,
+  XlsxSelectionGeometry,
+} from "@open-document/wasm/xlsx";
 
 export function prepareGridInput(input: HTMLTextAreaElement): void {
   Object.assign(input.style, {
@@ -9,6 +11,7 @@ export function prepareGridInput(input: HTMLTextAreaElement): void {
     resize: "none",
     font: "14px sans-serif",
     zIndex: "2",
+    boxSizing: "border-box",
   });
   input.tabIndex = -1;
   input.autocomplete = "off";
@@ -19,7 +22,7 @@ export function prepareGridInput(input: HTMLTextAreaElement): void {
 
 export function paintGridSelection(
   context: CanvasRenderingContext2D,
-  rect: DrawRect,
+  rect: XlsxSelectionGeometry,
   layout: XlsxViewport,
 ): void {
   context.save();
@@ -32,10 +35,12 @@ export function paintGridSelection(
   );
   context.clip();
   context.fillStyle = "rgba(37, 99, 235, 0.10)";
-  context.fillRect(rect.x, rect.y, rect.width, rect.height);
   context.strokeStyle = "#2563eb";
   context.lineWidth = 1.5;
-  context.strokeRect(rect.x, rect.y, rect.width, rect.height);
+  for (const piece of rect.rects) {
+    context.fillRect(piece.x, piece.y, piece.width, piece.height);
+    context.strokeRect(piece.x, piece.y, piece.width, piece.height);
+  }
   context.restore();
 }
 
@@ -45,18 +50,25 @@ export function styleCellDraft(
   scale: number,
   layout: XlsxViewport | undefined,
   viewportWidth: number,
+  selection: XlsxSelectionGeometry | undefined,
+  address: string | undefined,
 ): void {
-  const rect = layout?.cells.find(
-    (item) => item.cell.address === draft?.address,
-  )?.rect;
+  const cell = layout?.cells.find(
+    (item) => item.cell.address === (draft?.address ?? address),
+  );
+  const rect = cell?.rect;
+  if (selection) {
+    input.style.left = `${Math.max(cell?.clip.x ?? 36, selection.x) * scale}px`;
+    input.style.top = `${Math.max(cell?.clip.y ?? 18, selection.y) * scale}px`;
+  }
   input.style.opacity = draft ? "1" : "0";
   input.style.pointerEvents = draft ? "auto" : "none";
   input.style.border = draft ? "2px solid #2563eb" : "0";
   input.style.width = draft
-    ? `${Math.max(120, Math.min((rect?.width ?? 90) * scale, viewportWidth - parseFloat(input.style.left)))}px`
+    ? `${Math.max(1, Math.min(Math.max(120, (rect?.width ?? 90) * scale), (cell ? (cell.clip.x + cell.clip.width) * scale : viewportWidth) - parseFloat(input.style.left)))}px`
     : "1px";
   input.style.height = draft
-    ? `${Math.max(24, (rect?.height ?? 18) * scale)}px`
+    ? `${Math.max(1, Math.min(Math.max(24, (rect?.height ?? 18) * scale), cell ? (cell.clip.y + cell.clip.height) * scale - parseFloat(input.style.top) : Infinity))}px`
     : "1px";
 }
 

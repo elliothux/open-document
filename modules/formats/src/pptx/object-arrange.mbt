@@ -9,51 +9,6 @@ fn Session::arrange_object(
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let geometry = object.geometry.unwrap()
   let tree = object.source.tree
-  if change is Layer(direction) {
-    guard ["front", "back", "forward", "backward"].contains(direction) else {
-      @failure.reject("invalid-operation", "Unknown object layer operation")
-    }
-    let parent = shape_tree(tree)
-    let peers = tree.children
-      .get(parent.id)
-      .unwrap_or([])
-      .filter(node => {
-        node.uri != presentation_uri ||
-        !["nvGrpSpPr", "grpSpPr", "extLst"].contains(node.name)
-      })
-    let index = peers
-      .search_by(node => node.start == object.source.node.start)
-      .unwrap()
-    let target = match direction {
-      "front" => peers.length() - 1
-      "back" => 0
-      "forward" => (index + 1).min(peers.length() - 1)
-      _ => (index - 1).max(0)
-    }
-    if target == index {
-      return []
-    }
-    let node = object.source.node
-    let offset = if target < index {
-      peers[target].start
-    } else {
-      peers[target].end
-    }
-    return [
-      {
-        node: parent.id,
-        offset: node.start - parent.start,
-        length: node.end - node.start,
-        xml: "",
-      },
-      {
-        node: parent.id,
-        offset: offset - parent.start,
-        length: 0,
-        xml: source_xml(object.source),
-      },
-    ]
-  }
   let (rotation, flip_x, flip_y) = match change {
     Rotate(angle) => {
       guard !angle.is_nan() && !angle.is_inf() && angle.abs() <= 360 else {
@@ -145,4 +100,103 @@ fn Session::arrange_object(
   } else {
     transform_changes(object, { ..geometry, rotation, flip_x, flip_y, })
   }
+}
+
+///|
+fn Session::layer_objects(
+  self : Session,
+  direction : String,
+) -> Array[@xml.SourceChange] raise @failure.Failure {
+  guard ["front", "back", "forward", "backward"].contains(direction) else {
+    @failure.reject("invalid-operation", "Unknown object layer operation")
+  }
+  let objects = self.transform_objects()
+  let tree = self.current().tree
+  let parent = shape_tree(tree)
+  let peers = tree.children
+    .get(parent.id)
+    .unwrap_or([])
+    .filter(node => {
+      node.uri != presentation_uri ||
+      !["nvGrpSpPr", "grpSpPr", "extLst"].contains(node.name)
+    })
+  let selected : Map[Int, Bool] = Map([])
+  for object in objects {
+    selected[object.source.node.id] = true
+  }
+  let ordered = if direction == "front" {
+    [
+      ..peers.filter(node => !selected.contains(node.id)),
+      ..peers.filter(node => selected.contains(node.id)),
+    ]
+  } else if direction == "back" {
+    [
+      ..peers.filter(node => selected.contains(node.id)),
+      ..peers.filter(node => !selected.contains(node.id)),
+    ]
+  } else {
+    let ordered = peers.copy()
+    for step in 0..<(peers.length() - 1) {
+      let index = if direction == "forward" {
+        peers.length() - 2 - step
+      } else {
+        step
+      }
+      let left = ordered[index]
+      let right = ordered[index + 1]
+      if (
+          direction == "forward" &&
+          selected.contains(left.id) &&
+          !selected.contains(right.id)
+        ) ||
+        (
+          direction == "backward" &&
+          !selected.contains(left.id) &&
+          selected.contains(right.id)
+        ) {
+        ordered[index] = right
+        ordered[index + 1] = left
+      }
+    }
+    ordered
+  }
+  if peers.map(node => node.id) == ordered.map(node => node.id) {
+    return []
+  }
+  let changes : Array[@xml.SourceChange] = objects.map(object => {
+    let node = object.source.node
+    {
+      node: parent.id,
+      offset: node.start - parent.start,
+      length: node.end - node.start,
+      xml: "",
+    }
+  })
+  let pending = StringBuilder()
+  let mut last = parent.opening_end
+  for node in ordered {
+    if selected.contains(node.id) {
+      pending.write_view(tree.document.source()[node.start:node.end])
+    } else {
+      if !pending.is_empty() {
+        changes.push({
+          node: parent.id,
+          offset: node.start - parent.start,
+          length: 0,
+          xml: pending.to_string(),
+        })
+        pending.reset()
+      }
+      last = node.end
+    }
+  }
+  if !pending.is_empty() {
+    changes.push({
+      node: parent.id,
+      offset: last - parent.start,
+      length: 0,
+      xml: pending.to_string(),
+    })
+  }
+  changes
 }
