@@ -19,6 +19,10 @@ pub(all) enum ObjectEdit {
   Rotate(Double)
   Flip(Bool)
   Layer(String)
+  Align(String, String)
+  Distribute(String, String)
+  Group
+  Ungroup
 }
 
 pub struct Session {
@@ -46,7 +50,7 @@ pub fn Session::print_layout(Self, Int, Bool, Bool, @layout.TextProbe, Map[Strin
 pub fn Session::query(Self) -> Json raise @failure.Failure
 pub fn Session::replace(Self, Int, String, @layout.TextProbe, Map[String, String], candidate_id? : Int?) -> Json raise @failure.Failure
 pub fn Session::save(Self, Int) -> Bytes raise @failure.Failure
-pub fn Session::select(Self, Int, String, String, String, Int, Int) -> Json raise @failure.Failure
+pub fn Session::select(Self, Int, String, String, String, Int, Int, objects? : Array[String]?) -> Json raise @failure.Failure
 pub fn Session::selection_geometry(Self, Int) -> Json raise @failure.Failure
 pub fn Session::transform(Self, Int, Int, Double, Double, Double, Double) -> Json raise @failure.Failure
 pub fn Session::undo(Self, Int, redo? : Bool) -> Json raise @failure.Failure

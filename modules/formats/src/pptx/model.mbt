@@ -65,6 +65,7 @@ priv struct Body {
 ///|
 priv struct Object {
   id : String
+  parent : String
   name : String
   kind : String
   source : Ref
@@ -104,6 +105,7 @@ priv struct Slide {
 priv struct Selection {
   slide : String
   object : String
+  objects : Array[String]
   mode : String
   anchor : Int
   focus : Int

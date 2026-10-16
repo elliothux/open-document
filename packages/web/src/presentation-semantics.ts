@@ -6,7 +6,7 @@ export function updatePresentationObjects(
   input: HTMLTextAreaElement,
   state: PptxQuery,
   signal: AbortSignal,
-  select: (object: string, mode?: "text") => void,
+  select: (object: string, mode?: "text", extend?: boolean) => void,
 ): void {
   input.setAttribute(
     "aria-label",
@@ -16,32 +16,38 @@ export function updatePresentationObjects(
   const active =
     focused instanceof HTMLElement ? focused.dataset.object : undefined;
   list.replaceChildren(
-    ...state.objects.map((object) => {
-      const item = document.createElement("li"),
-        button = document.createElement("button");
-      button.type = "button";
-      button.dataset.object = object.id;
-      button.textContent = `${object.name || object.kind}: ${object.text || object.kind}${object.readOnlyReason || object.textReadOnlyReason ? ` (${object.readOnlyReason || object.textReadOnlyReason})` : ""}`;
-      button.setAttribute(
-        "aria-pressed",
-        String(object.id === state.selection.object),
-      );
-      button.addEventListener("click", () => select(object.id), {
-        signal: signal,
-      });
-      button.addEventListener(
-        "keydown",
-        (event) => {
-          if (event.key === "Enter" && !object.textReadOnlyReason) {
-            event.preventDefault();
-            select(object.id, "text");
-          }
-        },
-        { signal: signal },
-      );
-      item.append(button);
-      return item;
-    }),
+    ...state.objects
+      .filter((object) => !object.parent)
+      .map((object) => {
+        const item = document.createElement("li"),
+          button = document.createElement("button");
+        button.type = "button";
+        button.dataset.object = object.id;
+        button.textContent = `${object.name || object.kind}: ${object.text || object.kind}${object.readOnlyReason || object.textReadOnlyReason ? ` (${object.readOnlyReason || object.textReadOnlyReason})` : ""}`;
+        button.setAttribute(
+          "aria-pressed",
+          String(state.selection.objects.includes(object.id)),
+        );
+        button.addEventListener(
+          "click",
+          (event) => select(object.id, undefined, event.shiftKey),
+          {
+            signal: signal,
+          },
+        );
+        button.addEventListener(
+          "keydown",
+          (event) => {
+            if (event.key === "Enter" && !object.textReadOnlyReason) {
+              event.preventDefault();
+              select(object.id, "text");
+            }
+          },
+          { signal: signal },
+        );
+        item.append(button);
+        return item;
+      }),
   );
   if (active)
     for (const button of list.querySelectorAll("button"))

@@ -245,6 +245,7 @@ fn Session::delete_slide(
     {
       slide: slides[index.min(slides.length() - 1)].tree.part,
       object: "",
+      objects: [],
       mode: "object",
       anchor: 0,
       focus: 0,

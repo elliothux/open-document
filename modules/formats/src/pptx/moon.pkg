@@ -8,3 +8,8 @@ import {
   "moonbitlang/core/math",
   "moonbitlang/core/encoding/utf8",
 }
+
+import {
+  "moonbitlang/x/fs",
+  "moonbitlang/core/env",
+} for "wbtest"

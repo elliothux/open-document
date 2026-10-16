@@ -85,7 +85,14 @@ fn Session::arrange_object(
     return []
   }
   let properties = object.source
-    .child("spPr", uri=presentation_uri)
+    .child(
+      if object.kind == "group" {
+        "grpSpPr"
+      } else {
+        "spPr"
+      },
+      uri=presentation_uri,
+    )
     .unwrap_or_error(
       @failure.Failure(
         code="protected-content",

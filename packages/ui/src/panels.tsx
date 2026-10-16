@@ -6,6 +6,7 @@ import type { OwnedFile } from "./types.js";
 import { DocxFormatCommands, DocxProperties } from "./docx-format.js";
 import { PptxObjects } from "./pptx-objects.js";
 import { PptxArrange } from "./pptx-arrange.js";
+import { PptxAlignment } from "./pptx-alignment.js";
 import { XlsxSheets } from "./xlsx-sheets.js";
 import { XlsxFormat } from "./xlsx-format.js";
 
@@ -349,7 +350,12 @@ function SlideProperties({ controller, state, file, disabled }: PanelProps) {
           disabled={disabled || !selected}
           aria-pressed={query.selection.mode === "object"}
           onClick={() =>
-            controller.run(() => editor.select(query.selection.object))
+            controller.run(() =>
+              editor.selectObjects(
+                query.selection.objects,
+                query.selection.object,
+              ),
+            )
           }
         >
           {t.objectMode}
@@ -373,7 +379,17 @@ function SlideProperties({ controller, state, file, disabled }: PanelProps) {
         editor={editor}
         disabled={disabled}
       />
-      <fieldset disabled={disabled || !selected || !!selected.readOnlyReason}>
+      <fieldset
+        disabled={
+          disabled ||
+          !selected ||
+          query.objects.some(
+            (object) =>
+              query.selection.objects.includes(object.id) &&
+              object.arrangeReason,
+          )
+        }
+      >
         <legend>{t.transform}</legend>
         <label>
           {t.deltaX}
@@ -410,6 +426,13 @@ function SlideProperties({ controller, state, file, disabled }: PanelProps) {
       </fieldset>
       <PptxArrange
         key={`${state.document?.documentId}:${query.selection.object}:${query.revision}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
+      <PptxAlignment
+        key={state.document?.documentId}
         controller={controller}
         state={state}
         editor={editor}

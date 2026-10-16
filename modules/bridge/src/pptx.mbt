@@ -1,4 +1,21 @@
 ///|
+fn pptx_objects(request : Json) -> Array[String] raise @failure.Failure {
+  guard request is Object(fields) &&
+    fields.get("objects") is Some(Array(values)) &&
+    values.length() <= 256 else {
+    @failure.reject(
+      "invalid-operation", "A bounded object selection is required",
+    )
+  }
+  values.map(value => {
+    guard value is String(id) && id.length() <= 1024 else {
+      @failure.reject("invalid-object", "Invalid selected object identity")
+    }
+    id
+  })
+}
+
+///|
 fn Foundation::pptx_operation(
   self : Foundation,
   operation : String,
@@ -73,6 +90,8 @@ fn Foundation::pptx_operation(
             field_string(change, "text"),
           )
         "delete" => @pptx.Remove
+        "group" => @pptx.Group
+        "ungroup" => @pptx.Ungroup
         "duplicate" =>
           @pptx.Duplicate(xlsx_number(change, "dx"), xlsx_number(change, "dy"))
         "rotate" => @pptx.Rotate(xlsx_number(change, "angle"))
@@ -83,6 +102,16 @@ fn Foundation::pptx_operation(
             _ => @failure.reject("invalid-operation", "Unknown flip axis")
           }
         "layer" => @pptx.Layer(field_string(change, "order"))
+        "align" =>
+          @pptx.Align(
+            field_string(change, "alignment"),
+            field_string(change, "relativeTo"),
+          )
+        "distribute" =>
+          @pptx.Distribute(
+            field_string(change, "axis"),
+            field_string(change, "relativeTo"),
+          )
         _ => @failure.reject("invalid-operation", "Unknown object edit")
       }
       session.edit_objects(
@@ -100,6 +129,7 @@ fn Foundation::pptx_operation(
         field_string(request, "mode"),
         field_int(request, "anchor"),
         field_int(request, "focus"),
+        objects=Some(pptx_objects(request)),
       )
     "replacePptx" =>
       session.replace(

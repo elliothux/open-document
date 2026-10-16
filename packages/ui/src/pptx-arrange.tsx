@@ -22,6 +22,7 @@ export function PptxArrange({
   const [angle, setAngle] = useState(String(object?.geometry?.rotation ?? 0));
   const unavailable =
     disabled ||
+    query.selection.objects.length !== 1 ||
     !object ||
     query.selection.mode !== "object" ||
     !!object.arrangeReason;

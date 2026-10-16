@@ -183,6 +183,9 @@ fn paint_slide(
   let diagnostics = slide.diagnostics.copy()
   let mut units = 0
   for object in slide.objects {
+    if object.kind == "group" {
+      continue
+    }
     guard object.geometry is Some(geometry) else { continue }
     primitives.push(Transform(geometry.matrix))
     if !object.diagnostic.is_empty() {

@@ -1,0 +1,194 @@
+///|
+fn Ref::parent_group(self : Ref) -> String raise @failure.Failure {
+  if self.tree.nodes.get(self.node.parent) is Some(parent) &&
+    parent.uri == presentation_uri &&
+    parent.name == "grpSp" {
+    let nv = self.tree.required(parent.id, "nvGrpSpPr", uri=presentation_uri)
+    let identity = self.tree.required(nv.id, "cNvPr", uri=presentation_uri)
+    self.tree.part +
+    "#" +
+    source_identity(identity.attribute("id").unwrap_or(""))
+  } else {
+    ""
+  }
+}
+
+///|
+fn Ref::group_problem(self : Ref) -> String raise @failure.Failure {
+  if !self.node.attributes.is_empty() {
+    return "Unsupported group attributes"
+  }
+  for node in self.tree.children.get(self.node.id).unwrap_or([]) {
+    if node.uri != presentation_uri ||
+      !["nvGrpSpPr", "grpSpPr", "sp", "pic", "grpSp"].contains(node.name) {
+      return "Unsupported group member or metadata"
+    }
+    if node.name == "grpSpPr" &&
+      self.tree.children
+      .get(node.id)
+      .unwrap_or([])
+      .any(child => child.uri != drawing_uri || child.name != "xfrm") {
+      return "Group paint and effects require editing support"
+    }
+    if node.name == "nvGrpSpPr" {
+      for child in self.tree.children.get(node.id).unwrap_or([]) {
+        if child.uri != presentation_uri ||
+          !["cNvPr", "cNvGrpSpPr", "nvPr"].contains(child.name) {
+          return "Unsupported group metadata"
+        }
+        if child.name != "cNvGrpSpPr" &&
+          !self.tree.children.get(child.id).unwrap_or([]).is_empty() {
+          return "Group metadata requires editing support"
+        }
+        if child.name == "cNvPr" && flag(child, "hidden") {
+          return "Hidden groups require visibility support"
+        }
+      }
+    }
+  }
+  ""
+}
+
+///|
+fn Slide::group_preview(
+  self : Slide,
+  objects : Array[Object],
+) -> Slide raise @failure.Failure {
+  for index, group in self.objects {
+    if group.kind != "group" || !(group.geometry is Some(_)) {
+      continue
+    }
+    let before = group.geometry.unwrap()
+    let after = objects[index].geometry.unwrap()
+    if before.x == after.x &&
+      before.y == after.y &&
+      before.width == after.width &&
+      before.height == after.height {
+      continue
+    }
+    let delta = group_matrix(group.source, after).then(
+      group_matrix(group.source, before).inverse(),
+    )
+    for member_index, child in self.objects {
+      if child.source.node.start > group.source.node.start &&
+        child.source.node.end < group.source.node.end &&
+        child.source.tree.part == group.source.tree.part &&
+        child.geometry is Some(geometry) {
+        objects[member_index] = {
+          ..objects[member_index],
+          geometry: Some({ ..geometry, matrix: delta.then(geometry.matrix), }),
+        }
+      }
+    }
+  }
+  { ..self, objects, }
+}
+
+///|
+fn Object::ungroup_geometry(
+  self : Object,
+  parent : Geometry,
+) -> Geometry raise @failure.Failure {
+  let geometry = self.geometry.unwrap()
+  let matrix = geometry.matrix
+  guard (matrix.a * matrix.a + matrix.b * matrix.b - 1).abs() < 0.00000001 &&
+    (matrix.c * matrix.c + matrix.d * matrix.d - 1).abs() < 0.00000001 &&
+    (matrix.a * matrix.c + matrix.b * matrix.d).abs() < 0.00000001 else {
+    @failure.reject(
+      "protected-content", "Scaled group members require layout-preserving ungrouping support",
+    )
+  }
+  let flip_x = geometry.flip_x != parent.flip_x
+  let reflected = matrix.a * matrix.d - matrix.b * matrix.c < 0
+  let flip_y = reflected != flip_x
+  let sign = if flip_x { -1.0 } else { 1.0 }
+  let rotation = (@math.atan2(matrix.b * sign, matrix.a * sign) *
+    180 /
+    @math.PI *
+    60000).round() /
+    60000
+  let (cx, cy) = matrix.point(geometry.width / 2, geometry.height / 2)
+  let target = {
+    ..geometry,
+    x: ((cx - geometry.width / 2) * 12700).round() / 12700,
+    y: ((cy - geometry.height / 2) * 12700).round() / 12700,
+    rotation,
+    flip_x,
+    flip_y,
+  }
+  validate_object_box(
+    target.x,
+    target.y,
+    target.width,
+    target.height,
+    self.preset == "line",
+  )
+  target
+}
+
+///|
+fn Tree::standalone_markup(
+  self : Tree,
+  document : @xml.Document,
+  id : Int,
+) -> String raise @failure.Failure {
+  let ancestors : Array[Int] = []
+  for parent = self.nodes[id].parent
+      parent >= 0
+      parent = self.nodes[parent].parent {
+    ancestors.push(parent)
+  }
+  let bindings : Map[String, String] = Map([])
+  for ancestor in ancestors.rev() {
+    for (prefix, uri) in self.nodes[ancestor].namespaces {
+      bindings[prefix] = uri
+    }
+  }
+  let node = document.node(id)
+  let extra = StringBuilder()
+  for prefix, uri in bindings {
+    if !node.namespaces.any(binding => binding.0 == prefix) {
+      extra.write_string(
+        " \{if prefix.is_empty() { "xmlns" } else { "xmlns:" + prefix }}=\"\{xml_attribute(uri)}\"",
+      )
+    }
+  }
+  let offset = node.opening_end - (if node.empty { 2 } else { 1 })
+  document.source()[node.start:offset].to_owned() +
+  extra.to_string() +
+  document.source()[offset:node.end].to_owned()
+}
+
+///|
+fn transformed_markup(
+  original : Slide,
+  objects : Array[(Object, Geometry)],
+) -> @xml.Document raise @failure.Failure {
+  let changes : Array[@xml.SourceChange] = []
+  for (object, target) in objects {
+    changes.append(transform_changes(object, target))
+    let properties = object.source
+      .child(
+        if object.kind == "group" {
+          "grpSpPr"
+        } else {
+          "spPr"
+        },
+        uri=presentation_uri,
+      )
+      .unwrap()
+    if properties.child("xfrm") is Some(transform) {
+      for
+        (key, value) in [
+          ("rot", (target.rotation * 60000).round().to_int64().to_string()),
+          ("flipH", if target.flip_x { "1" } else { "0" }),
+          ("flipV", if target.flip_y { "1" } else { "0" }),
+        ] {
+        if transform.node.attribute(key).unwrap_or("0") != value {
+          changes.push(attribute_change(transform, key, value))
+        }
+      }
+    }
+  }
+  original.tree.document.edit_source(changes).0
+}

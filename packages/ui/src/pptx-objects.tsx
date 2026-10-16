@@ -31,7 +31,12 @@ export function PptxObjects({
   const selected = query.objects.find(
     (object) => object.id === query.selection.object,
   );
-  const objectMode = query.selection.mode === "object";
+  const objectMode =
+    query.selection.mode === "object" && query.selection.objects.length === 1;
+  const deletionReason = query.objects.find(
+    (object) =>
+      query.selection.objects.includes(object.id) && object.deleteReason,
+  )?.deleteReason;
   return (
     <section aria-label={t.insertObject}>
       <form
@@ -141,14 +146,37 @@ export function PptxObjects({
       <button
         type="button"
         disabled={
-          disabled || !objectMode || !selected || !!selected.deleteReason
+          disabled ||
+          query.selection.mode !== "object" ||
+          !selected ||
+          !!deletionReason
         }
-        title={selected?.deleteReason}
+        title={deletionReason}
         onClick={() =>
           controller.run(() => editor.editObjects({ action: "delete" }))
         }
       >
         {t.deleteObject}
+      </button>
+      <button
+        type="button"
+        disabled={disabled || !!query.groupReason}
+        title={query.groupReason}
+        onClick={() =>
+          controller.run(() => editor.editObjects({ action: "group" }))
+        }
+      >
+        {t.groupObjects}
+      </button>
+      <button
+        type="button"
+        disabled={disabled || !!query.ungroupReason}
+        title={query.ungroupReason}
+        onClick={() =>
+          controller.run(() => editor.editObjects({ action: "ungroup" }))
+        }
+      >
+        {t.ungroupObjects}
       </button>
       {selected?.deleteReason && <p>{selected.deleteReason}</p>}
       {selected?.duplicateReason &&

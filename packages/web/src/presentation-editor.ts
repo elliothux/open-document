@@ -1,4 +1,5 @@
 import { updatePresentationObjects } from "./presentation-semantics.js";
+import { objectSelection, pointerSelection } from "./presentation-selection.js";
 import { PresentationCanvas } from "./presentation-canvas.js";
 import { PresentationInput } from "./presentation-input.js";
 import { PresentationPointer } from "./presentation-pointer.js";
@@ -346,13 +347,13 @@ export class PresentationEditor {
     this.publish();
   }
   private updateSemantics(): void {
-    const state = this.state;
     updatePresentationObjects(
       this.objectList,
       this.input,
-      state,
+      this.state,
       this.listeners.signal,
-      (object, mode) => this.handle(() => this.select(object, mode)),
+      (object, mode, extend) =>
+        this.handle(() => this.select(object, mode, 0, 0, extend)),
     );
     this.publish();
   }
@@ -361,16 +362,27 @@ export class PresentationEditor {
     mode: "object" | "text" = "object",
     anchor = 0,
     focus = anchor,
+    extend = false,
   ): Promise<void> {
-    return this.enqueue(async () => {
-      await this.selectNow({
-        slide: this.state.slide,
-        object,
+    return this.enqueue(() =>
+      this.selectNow({
+        ...objectSelection(this.state, object, extend && mode === "object"),
         mode,
         anchor,
         focus,
-      });
-    });
+      }),
+    );
+  }
+  selectObjects(
+    objects: string[],
+    active = objects.at(-1) ?? "",
+  ): Promise<void> {
+    return this.enqueue(() =>
+      this.selectNow({
+        ...objectSelection(this.state, active, false),
+        objects: [...objects],
+      }),
+    );
   }
   private async selectNow(selection: PptxSelection): Promise<void> {
     await this.changed(
@@ -386,11 +398,8 @@ export class PresentationEditor {
     return this.enqueue(async () => {
       await this.cancelNow();
       await this.selectNow({
+        ...objectSelection(this.state, "", false),
         slide,
-        object: "",
-        mode: "object",
-        anchor: 0,
-        focus: 0,
       });
     }, true);
   }
@@ -582,25 +591,14 @@ export class PresentationEditor {
         ...point,
         tolerance: 4 / this.scale,
       });
-      const object = handle ? this.state.selection.object : hit.object;
-      const mode =
-        object &&
-        (text ||
-          (this.state.selection.mode === "text" &&
-            object === this.state.selection.object))
-          ? "text"
-          : "object";
-      const anchor =
-        mode === "text" && extend ? this.state.selection.anchor : hit.offset;
-      await this.selectNow({
-        slide: this.state.slide,
-        object,
-        mode,
-        anchor,
-        focus: hit.offset,
-      });
-      const gesture = { start: point, text: mode === "text", anchor, handle };
-      this.gesture = gesture;
+      const selection = pointerSelection(this.state, hit, handle, text, extend);
+      await this.selectNow(selection);
+      this.gesture = {
+        start: point,
+        text: selection.mode === "text",
+        anchor: selection.anchor,
+        handle,
+      };
     }, true);
   }
   private move(point: PptxPoint): Promise<void> {
@@ -656,20 +654,13 @@ export class PresentationEditor {
       this.gesture = undefined;
       if (gesture?.token)
         await this.changed(
-          await this.client.execute(
-            cancel
-              ? {
-                  operation: "cancelPptx",
-                  revision: gesture.token.revision,
-                  candidateId: gesture.token.id,
-                }
-              : {
-                  operation: "finishPptx",
-                  revision: gesture.token.revision,
-                  candidateId: gesture.token.id,
-                  profile: this.profile,
-                },
-          ),
+          await this.client.execute({
+            revision: gesture.token.revision,
+            candidateId: gesture.token.id,
+            ...(cancel
+              ? { operation: "cancelPptx" as const }
+              : { operation: "finishPptx" as const, profile: this.profile }),
+          }),
           true,
         );
     }, true);
@@ -701,16 +692,20 @@ export class PresentationEditor {
       return;
     }
     if (event.defaultPrevented || !this.available) return;
-    if (
-      (event.ctrlKey || event.metaKey) &&
-      event.key.toLowerCase() === "a" &&
-      this.state.selection.mode === "text"
-    ) {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
       event.preventDefault();
       const object = this.state.objects.find(
         (object) => object.id === this.state.selection.object,
       );
-      if (object)
+      if (this.state.selection.mode === "object")
+        this.handle(() =>
+          this.selectObjects(
+            this.state.objects
+              .filter((object) => !object.parent)
+              .map((object) => object.id),
+          ),
+        );
+      else if (object)
         this.handle(() =>
           this.select(object.id, "text", 0, object.text.length),
         );
@@ -748,6 +743,12 @@ export class PresentationEditor {
       );
     } else if (event.key === "Enter") {
       event.preventDefault();
+      if (
+        this.state.objects.find(
+          (object) => object.id === this.state.selection.object,
+        )?.textReadOnlyReason
+      )
+        return;
       this.handle(() => this.select(this.state.selection.object, "text"));
     } else if (
       ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)

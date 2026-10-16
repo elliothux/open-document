@@ -3,6 +3,7 @@ priv struct SourcePatch {
   node : Int
   offset : Int
   after_offset : Int
+  position : Int
   before : String
   after : String
   before_ids : Array[Int]
@@ -124,6 +125,7 @@ fn Document::source_patch(
     node: id,
     offset: start - node.start,
     after_offset: 0,
+    position: start,
     before: self.source[start:end].to_owned(),
     after: text,
     before_ids: [],
@@ -217,7 +219,14 @@ fn Document::prepare_edit(
   }
   absolute.sort_by((a, b) => {
     if a.start == b.start {
-      a.end.compare(b.end)
+      if a.end != b.end {
+        a.end.compare(b.end)
+      } else if !forward && a.index >= 0 && b.index >= 0 {
+        // Adjacent deletions collapse to one offset; undo restores source order.
+        patches[a.index].position.compare(patches[b.index].position)
+      } else {
+        a.index.compare(b.index)
+      }
     } else {
       a.start.compare(b.start)
     }

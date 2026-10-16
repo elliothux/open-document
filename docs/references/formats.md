@@ -492,14 +492,14 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 `PptxSession.execute({ operation: "createPptx", budget })` 与 `PptxClient.execute` 创建 960×540 pt 的空白演示文稿，包含一张无对象页面及其空白版式、母版、主题、关系和内容类型。主题使用 Arial 和显式颜色/无效果样式；当前页为该空白页，revision 与历史为 0。创建后可显示、插入基本对象、保存、重开及输出静态 PDF。默认 UI 与 `mountEditor`、实例 `create/open` 使用同一入口及首次保存规则。章节和主题编辑仍按 P12 后续范围实施；创建不生成占位文字或不可编辑的背景图片。
 
-`PptxSession.execute()` 与 `PptxClient.execute()` 使用独立的 `PptxCommand`，不复用 DOCX/XLSX 位置模型。`PptxQuery` 返回 revision、声明页序/尺寸/隐藏状态、当前页对象、有效字体键、图片键、选区、历史状态与诊断。幻灯片 ID 为源部件路径，对象 ID 为所属部件与源 `cNvPr.id`；未知对象使用只读源节点身份。
+`PptxSession.execute()` 与 `PptxClient.execute()` 使用独立的 `PptxCommand`，不复用 DOCX/XLSX 位置模型。`PptxQuery` 返回 revision、声明页序/尺寸/隐藏状态、当前页对象、有效字体键、图片键、选区、历史状态与诊断。幻灯片 ID 为源部件路径，对象 ID 为所属部件与源 `cNvPr.id`；未知对象使用只读源节点身份。对象包含 `parent`：顶层为空串，组成员为直接父组身份。组自身以 `kind: "group"` 返回，成员按原顺序绘制；默认列表、对象导航和全选只使用顶层对象。未知组效果仍诊断并阻止点穿。
 
 | 命令 | 作用 |
 | --- | --- |
 | `openPptx` / `queryPptx` | 显式预算打开 Transitional PPTX / 查询当前状态 |
-| `selectPptx` / `navigatePptx` | 页/对象/文字选择、对象顺序及字素/行导航；文字使用对象内 UTF-16 offset |
+| `selectPptx` / `navigatePptx` | 页/有序对象集合/文字选择、对象顺序及字素/行导航；文字使用对象内 UTF-16 offset |
 | `editPptxSlides` | revision、稳定 slide 身份和 `PptxSlideEdit`；新增、删除、重排或隐藏/显示，返回 `PptxQuery` |
-| `editPptxObjects` | revision、字体 profile 和 `PptxObjectEdit`；插入、删除、复制、旋转、翻转或调整当前对象层次，返回 `PptxQuery` |
+| `editPptxObjects` | revision、字体 profile 和 `PptxObjectEdit`；插入、删除、复制、旋转、翻转、层次、对齐/分布或组合/取消组合，返回 `PptxQuery` |
 | `replacePptx` / `deletePptx` / `copyPptx` | 普通文字范围编辑、方向删除及纯文本复制；编辑需要字体 profile |
 | `beginPptx` / `finishPptx` / `cancelPptx` | 开始、提交、取消 `text` 或 `transform` 候选；匹配 revision 与 candidateId |
 | `transformPptx` / `dragPptx` | 绝对位置/尺寸，或基于手势开始几何的 point 增量与核心手柄编号 |
@@ -507,6 +507,10 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 | `layoutPptx` / `hitPptx` / `selectionPptx` | 当前页绘制、最上层命中、对象轮廓/手柄及文字光标/选区；几何绑定 layoutId |
 | `imageKeysPptx` / `imageBytesPptx` / `imagePptx` | 准备当前页或导出范围的资源键、读压缩源、接入经过宿主校验的 RGBA |
 | `exportPptxPdf` | 绑定 revision、字体 profile、当前页/整稿、隐藏页选择与输出预算的静态 PDF |
+
+`PptxSelection` 包含 `slide`、有序且唯一的 `objects: string[]`、活动 `object`、`mode`、`anchor` 和 `focus`。空集合要求活动身份为空；非空集合要求活动身份属于集合。集合最多 256 个当前页对象，身份长度最多 1024。文字模式要求唯一对象及有效字素边界。`selectPptx` 必须提供全部字段，失败保留原选择；选择不新增历史。宿主 `selectObjects(objects, active?)` 默认激活最后一项；`select(object, mode?, anchor?, focus?, extend?)` 默认替换选择，`extend=true` 在对象模式中切换成员。
+
+默认 UI 支持 Shift 点击画布/列表切换成员、点击已选成员保留集合以及 Ctrl/Cmd+A 全选。进入文字模式收敛到活动对象。`selectionPptx` 返回成员 `outlines` 和包围盒 `outline`；本地可变换成员使用四角手柄。多选 `dragPptx` 的移动及角点等比例缩放沿用开始几何；`transformPptx` 对多选接收整组世界坐标包围盒，非等比例尺寸拒绝。旋转、翻转、相对位置和零尺寸线段保留，每个成员继续受原尺寸/位置限制。任一成员受保护时整组拒绝。属性面板使用同一变换路径；候选完成后仅一项历史，取消保持源和选择。
 
 `PptxSlideEdit` 从 `wasm/pptx` 和 `web/pptx` 导出。`{ action: "move", index }` 将目标页移到从 0 开始的索引，索引包括隐藏页；`{ action: "hidden", hidden }` 修改隐藏状态。编辑宿主为 `PresentationEditor.editSlides(change, slide?)`，省略身份时作用于队列执行时的活动页。重排保持页路径、源页 ID、对象身份、关系及活动选择，仅改 `sldIdLst` 顺序；隐藏只改 slide 的 `show`。自定义放映和页间链接仍按原关系指向同一页面。相同位置/状态不新增历史，错误不提交。
 
@@ -524,13 +528,25 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 `PptxObjectEdit` 从 `wasm/pptx` 和 `web/pptx` 导出。`PresentationEditor.editObjects(change)` 使用同一队列与命令。插入参数为 `{ action: "insert", kind: "text" | "rect" | "roundRect" | "ellipse" | "line" | "leftArrow" | "rightArrow" | "upArrow" | "downArrow", x, y, width, height, text }`；坐标和尺寸为 point，绝对值不超过 14400。非线对象宽高至少 0.1；线可有一个零尺寸轴，总尺寸至少 0.1。文本框透明无描边，矩形、圆角矩形、椭圆和箭头白底黑色 1 pt 线，直线黑色 1 pt；文字为 Arial 18 pt 黑色，支持 `\n` 与 `U+2028`，线不接收文字。核心校验文字、字体和固定框容量，失败保留文档和历史。
 
-删除参数为 `{ action: "delete" }`，复制为 `{ action: "duplicate", dx, dy }`。两者要求对象模式；空选区不修改文档。复制放到最上层，保留源内容、几何属性和图片关系，分配本会话尚未使用的新 `cNvPr.id`。删除清空选择；撤销/重做精确恢复源 XML 与选择。`PptxObject.deleteReason/duplicateReason` 返回操作保护原因，空串表示可用。继承/组成员/未知对象继续保护；复制占位符及未知扩展、删除锁定或带连接/计时引用的对象仍拒绝，含未支持所属关系的页面也保护删除。资源和关系不做清理。默认 UI 提供插入面板、复制/删除按钮；对象输入支持 Delete/Backspace 与 Ctrl/Cmd+D，默认复制偏移各 18 pt。
+删除参数为 `{ action: "delete" }`，复制为 `{ action: "duplicate", dx, dy }`。两者要求对象模式；空选区不修改文档。删除作用于整个集合，先校验全部成员，再提交一项历史；任一保护失败不删除其他成员。复制要求单对象，放到最上层，保留源内容、几何属性和图片关系，分配本会话尚未使用的新 `cNvPr.id`。删除清空选择；撤销/重做精确恢复源 XML 与选择。`PptxObject.deleteReason/duplicateReason` 返回操作保护原因，空串表示可用。继承/组成员/未知对象继续保护；复制占位符及未知扩展、删除锁定或带连接/计时引用的对象仍拒绝，含未支持所属关系的页面也保护删除。资源和关系不做清理。默认 UI 提供插入面板、复制/删除按钮；对象输入支持 Delete/Backspace 与 Ctrl/Cmd+D，默认复制偏移各 18 pt。
 
 圆角矩形使用 `roundRect`，实心箭头使用四个方向的标准 DrawingML 预设；新对象使用默认调节点。读取圆角 `adj`、箭头 `adj1/adj2` 的 `val` 数值公式，按预设上下限和实际宽高计算路径、文字矩形及命中；未知调节点或公式保留源并诊断。文字矩形先于 bodyPr 内边距，新增/复制时继续检查实际容量。Canvas 与 PDF 使用同一路径，旋转和局部翻转使用同一矩阵。调节点和任意自定义几何的编辑仍待实现。
 
-旋转使用 `{ action: "rotate", angle }`，绝对角度为 -360°–360°，核心舍入到 1/60000°。`{ action: "flip", axis: "horizontal" | "vertical" }` 切换局部水平/垂直翻转。`{ action: "layer", order: "front" | "back" | "forward" | "backward" }` 调整本地顶层对象的源顺序。三者要求对象模式，保留位置、尺寸、对象身份、文字、裁剪和关系；相同角度与层次边界不新增历史。旋转保持中心点，文字、图形、图片、命中和选区消费同一矩阵。`geometry` 返回源有效 `rotation/flipX/flipY`，`rotateReason/arrangeReason` 返回对应保护原因。`noRot` 仅阻止旋转；继承/组成员与原有变换锁继续保护。默认 UI 提供角度、翻转及四种层次操作。
+旋转使用 `{ action: "rotate", angle }`，绝对角度为 -360°–360°，核心舍入到 1/60000°。`{ action: "flip", axis: "horizontal" | "vertical" }` 切换局部水平/垂直翻转。`{ action: "layer", order: "front" | "back" | "forward" | "backward" }` 调整本地顶层对象的源顺序。三者要求单对象模式，多选时明确拒绝，保留位置、尺寸、对象身份、文字、裁剪和关系；相同角度与层次边界不新增历史。旋转保持中心点，文字、图形、图片、命中和选区消费同一矩阵。`geometry` 返回源有效 `rotation/flipX/flipY`，`rotateReason/arrangeReason` 返回对应保护原因。`noRot` 仅阻止旋转；继承/组成员与原有变换锁继续保护。默认 UI 提供角度、翻转及四种层次操作。
 
 文字与变换候选基于原范围重算，不写入已提交 XML，不累积中间历史。暂态查询/布局读取候选；提交一项历史，取消恢复原选择。保存、PDF 和普通编辑在候选期间失败。Enter 是普通段落分隔 `\n`，Shift+Enter 使用对象内软换行 `U+2028`；保存为 DrawingML `p` / `br`。跨 run/段落保留范围外字符与段落属性，不重建整个 `spTree` 或 `txBody`。普通逐字符输入目前各自成项。
+
+对齐使用 `{ action: "align", alignment: "left" | "center" | "right" | "top" | "middle" | "bottom", relativeTo: "slide" | "selection" | "active" }`。相对页面使用页面边缘或中线；相对选区使用所有成员旋转后的矩形包围盒；相对活动对象使用 `selection.object` 的包围盒并保留该对象的位置。`center` 为水平居中，`middle` 为垂直居中。单对象相对自身选区或活动对象时不修改源。
+
+分布使用 `{ action: "distribute", axis: "horizontal" | "vertical", relativeTo: "slide" | "selection" }`。页面分布至少需要两个对象，选区分布至少需要三个；不足时明确拒绝，不切换参考范围。按世界坐标矩形中心排序，中心相同则按选择顺序。选区分布固定排序后的首尾边缘，其余对象保持相等边缘间距。页面有余量时，内部间距与两端留白相等；总尺寸不小于页面时，两端贴页面边缘，内部间距允许为负。旋转矩形边界包含零尺寸线段，不计描边宽度。
+
+对齐与分布要求对象模式，沿用 256 成员、本地顶层对象及现有锁定/继承/未知资源保护。只改成员位置，保留顺序、活动对象、尺寸、旋转、翻转、文字、裁剪和关系；位置舍入为整数 EMU。成员越界、输出或历史预算失败不提交任何成员，成功只新增一项历史，重复操作无变化时不新增。默认面板提供参考范围、六种对齐和两种分布，活动对象参考下禁用分布。接口复用 `editPptxObjects` / `PresentationEditor.editObjects`。
+
+组合使用 `{ action: "group" }`，至少选择两个可编辑本地顶层对象。核心分配新组身份，保留成员身份、相对顺序、格式及关系，转换局部坐标；新组放在所选最上层对象的位置，选择切到新组。原组也可参与嵌套组合。顶层组沿用整体移动、缩放（含非等比例）、旋转、翻转、层次、对齐和删除事务；候选同步派生成员世界矩阵，不写已提交源。多选集合的非等比例缩放仍拒绝。
+
+取消组合使用 `{ action: "ungroup" }`，选择须全部为受支持顶层组。完整矩阵还原成员的旋转、翻转和子坐标原点，保留成员身份、命名空间绑定和组内注释；成员回到原组所在层次，选择展开为直接成员，最多 256 项。当前仅允许世界矩阵无缩放且无斜切的组；带缩放的组在文字、描边尺寸还原实现前明确拒绝。组内直接编辑与组复制仍保护。
+
+`PptxQuery.groupReason/ungroupReason` 返回当前选择的保护原因，默认 UI 用它禁用按钮。继承占位符、未知组效果/扩展、成员锁定、`noGrp/noUngrp`、组合所涉连接/计时引用和取消组合所移除组的引用继续保护。操作只改所属 slide XML，保留其他部件及资源；一次提交一项有界历史，撤销恢复原源与选择，失败不消耗新身份或提交部分成员。
 
 主题颜色支持 sRGB、带 `lastClr` 的系统色、主题/颜色映射以及 tint、shade、lumMod、lumOff。支持无填充、纯色填充、实线、主题填充/边框/背景引用和无效果样式。未知颜色变换、填充或可见效果保留源并诊断，不静默宣称完整。占位符依类型/索引匹配，当前属性按具体声明覆盖继承值；写回不修改共享主题、母版或版式。
 

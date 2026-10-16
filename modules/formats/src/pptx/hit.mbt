@@ -32,6 +32,7 @@ fn object_hit(
   }
   if !object.diagnostic.is_empty() ||
     object.kind == "image" ||
+    object.kind == "group" ||
     (
       !object.paragraphs.is_empty() &&
       object.fill.is_empty() &&
@@ -132,7 +133,26 @@ pub fn Session::hit(
     @failure.reject("protected-content", slide.read_only)
   }
   for object in slide.objects.rev() {
-    if object_hit(object, x, y, tolerance) {
+    if !object.parent.is_empty() {
+      continue
+    }
+    let hit = if object.kind == "group" && object.diagnostic.is_empty() {
+      let mut found = false
+      for child in slide.objects.rev() {
+        if child.kind != "group" &&
+          child.source.tree.part == object.source.tree.part &&
+          child.source.node.start > object.source.node.start &&
+          child.source.node.end < object.source.node.end &&
+          object_hit(child, x, y, tolerance) {
+          found = true
+          break
+        }
+      }
+      found
+    } else {
+      object_hit(object, x, y, tolerance)
+    }
+    if hit {
       let text = view.texts.iter().find_first(text => text.object == object.id)
       return {
         "object": object.id,
@@ -171,8 +191,14 @@ pub fn Session::selection_geometry(
     .unwrap_or(self.selection)
   let slide = self.current()
   let mut outline : Array[Json] = []
+  let outlines : Array[Array[Json]] = []
   let rects : Array[Array[Json]] = []
   let mut caret : Json = Json::null()
+  for id in selection.objects {
+    if slide.object(id).geometry is Some(g) {
+      outlines.push(polygon(g.matrix, 0, 0, g.width, g.height))
+    }
+  }
   if !selection.object.is_empty() {
     let object = slide.object(selection.object)
     if object.geometry is Some(geometry) {
@@ -223,11 +249,27 @@ pub fn Session::selection_geometry(
       }
     }
   }
+  if selection.objects.length() > 1 {
+    let box = slide.selection_box(selection.objects)
+    outline = polygon(
+      @layout.Matrix::identity(),
+      box.x,
+      box.y,
+      box.width,
+      box.height,
+    )
+  }
   {
     "layoutId": id,
     "revision": self.revision,
     "outline": outline,
-    "handles": if selection.mode == "object" {
+    "outlines": outlines,
+    "handles": if selection.mode == "object" &&
+      selection.objects.all(id => {
+        let object = slide.object(id)
+        object.geometry is Some(_) &&
+        self.object_edit_reason(object, "arrange").is_empty()
+      }) {
       outline
     } else {
       []
@@ -255,7 +297,7 @@ pub fn Session::navigate(
         "invalid-operation", "Object navigation requires next or previous",
       )
     }
-    let objects = current.objects
+    let objects = current.objects.filter(object => object.parent.is_empty())
     if objects.is_empty() {
       return self.query()
     }

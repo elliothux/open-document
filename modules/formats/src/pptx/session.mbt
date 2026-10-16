@@ -173,7 +173,9 @@ fn read_slide(
     if !object.diagnostic.is_empty() {
       diagnostics.push(object.id + ":" + object.diagnostic)
     }
-    if !object.text_reason.is_empty() && object.read_only.is_empty() {
+    if object.kind != "group" &&
+      !object.text_reason.is_empty() &&
+      object.read_only.is_empty() {
       diagnostics.push(object.id + ":" + object.text_reason)
     }
     if object.geometry is None {
@@ -289,6 +291,7 @@ fn Session::from_package(
     selection: {
       slide: slides[0].tree.part,
       object: "",
+      objects: [],
       mode: "object",
       anchor: 0,
       focus: 0,
@@ -400,6 +403,8 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
   }
   {
     "revision": self.revision,
+    "groupReason": self.group_edit_reason(false),
+    "ungroupReason": self.group_edit_reason(true),
     "slideOrderReason": self.slide_order_reason(),
     "slideVisibilityReason": self.slide_visibility_reason(),
     "width": self.width,
@@ -420,6 +425,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
     "objects": current.objects.map(object => {
       let value : Json = {
         "id": object.id,
+        "parent": object.parent,
         "name": object.name,
         "kind": object.kind,
         "text": object.text(),
@@ -472,12 +478,35 @@ pub fn Session::select(
   mode : String,
   anchor : Int,
   focus : Int,
+  objects~ : Array[String]? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   self.check_idle()
   let current = self.slides[self.index(slide)]
   guard ["object", "text"].contains(mode) else {
     @failure.reject("invalid-operation", "Unknown selection mode")
+  }
+  let objects = objects.unwrap_or(if object.is_empty() { [] } else { [object] })
+  guard objects.length() <= 256 else {
+    @failure.reject("limit-exceeded", "Selection exceeds 256 objects")
+  }
+  let seen : Map[String, Bool] = Map([])
+  for id in objects {
+    guard !id.is_empty() && !seen.contains(id) else {
+      @failure.reject(
+        "invalid-object", "Selection contains duplicate or empty identities",
+      )
+    }
+    ignore(current.object(id))
+    seen[id] = true
+  }
+  guard (objects.is_empty() && object.is_empty()) || seen.contains(object) else {
+    @failure.reject(
+      "invalid-object", "Active object must belong to the selection",
+    )
+  }
+  guard mode != "text" || objects.length() == 1 else {
+    @failure.reject("invalid-object", "Text mode requires exactly one object")
   }
   if !object.is_empty() {
     let target = current.object(object)
@@ -504,7 +533,14 @@ pub fn Session::select(
       @failure.reject("invalid-object", "Text mode requires an object")
     }
   }
-  self.selection = { slide, object, mode, anchor, focus, }
+  self.selection = {
+    slide,
+    object,
+    objects: objects.copy(),
+    mode,
+    anchor,
+    focus,
+  }
   if self.view.map(view => view.slide != slide).unwrap_or(false) {
     self.view = None
   }

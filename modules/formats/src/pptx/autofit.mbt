@@ -30,47 +30,49 @@ fn Session::prepare_fitted(
   self : Session,
   original : Slide,
   changes : Array[@xml.SourceChange],
-  id : String,
+  ids : Array[String],
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> (Slide, @xml.Edit) raise @failure.Failure {
   let prepared = self.prepare(original, changes)
-  let target = prepared.0.object(id)
-  if !target.body.fit || target.paragraphs.is_empty() {
-    return prepared
-  }
-  let (_, scale, diagnostic) = fit_text(
-    target,
-    target.geometry.unwrap(),
-    probe,
-    profile,
-  )
-  guard diagnostic.is_empty() else {
-    @failure.reject("layout-overflow", diagnostic, part=original.tree.part)
-  }
-  let source = original.object(id).source
-  let body = source.child("txBody", uri=presentation_uri).unwrap()
-  let properties = body.child("bodyPr")
-  let fit = properties.bind(item => item.child("normAutofit"))
-  let value = (scale * 100000).floor().to_int().to_string()
-  if fit is Some(fit) {
-    if fit.node.attribute("fontScale").unwrap_or("100000") != value {
-      changes.push(attribute_change(fit, "fontScale", value))
+  for id in ids {
+    let target = prepared.0.object(id)
+    if !target.body.fit || target.paragraphs.is_empty() {
+      continue
     }
-    if fit.node.attribute("lnSpcReduction").unwrap_or("0") != "0" {
-      changes.push(attribute_change(fit, "lnSpcReduction", "0"))
+    let (_, scale, diagnostic) = fit_text(
+      target,
+      target.geometry.unwrap(),
+      probe,
+      profile,
+    )
+    guard diagnostic.is_empty() else {
+      @failure.reject("layout-overflow", diagnostic, part=original.tree.part)
     }
-  } else if scale < 1 {
-    let xml = "<a:normAutofit xmlns:a=\"\{drawing_uri}\" fontScale=\"\{value}\"/>"
-    if properties is Some(properties) {
-      changes.push(insertion(properties.node, xml))
-    } else {
-      changes.push({
-        node: body.node.id,
-        offset: body.node.opening_end - body.node.start,
-        length: 0,
-        xml: "<a:bodyPr xmlns:a=\"\{drawing_uri}\">\{xml}</a:bodyPr>",
-      })
+    let source = original.object(id).source
+    let body = source.child("txBody", uri=presentation_uri).unwrap()
+    let properties = body.child("bodyPr")
+    let fit = properties.bind(item => item.child("normAutofit"))
+    let value = (scale * 100000).floor().to_int().to_string()
+    if fit is Some(fit) {
+      if fit.node.attribute("fontScale").unwrap_or("100000") != value {
+        changes.push(attribute_change(fit, "fontScale", value))
+      }
+      if fit.node.attribute("lnSpcReduction").unwrap_or("0") != "0" {
+        changes.push(attribute_change(fit, "lnSpcReduction", "0"))
+      }
+    } else if scale < 1 {
+      let xml = "<a:normAutofit xmlns:a=\"\{drawing_uri}\" fontScale=\"\{value}\"/>"
+      if properties is Some(properties) {
+        changes.push(insertion(properties.node, xml))
+      } else {
+        changes.push({
+          node: body.node.id,
+          offset: body.node.opening_end - body.node.start,
+          length: 0,
+          xml: "<a:bodyPr xmlns:a=\"\{drawing_uri}\">\{xml}</a:bodyPr>",
+        })
+      }
     }
   }
   self.prepare(original, changes)

@@ -343,6 +343,7 @@ fn read_object(
   }
   {
     id: source.tree.part + "#" + id,
+    parent: source.parent_group(),
     name,
     kind,
     source,
@@ -414,6 +415,7 @@ fn read_objects(
     }
     ids[object.id] = true
     if object.kind == "group" && object.geometry is Some(geometry) {
+      let first = output.length()
       read_objects(
         opc,
         tree,
@@ -429,6 +431,33 @@ fn read_objects(
         ids,
         parts,
       )
+      let problem = source.group_problem()
+      let blocked = if !object.read_only.is_empty() {
+        object.read_only
+      } else if !problem.is_empty() {
+        problem
+      } else {
+        output[first:]
+        .iter()
+        .find_first(child => {
+          !child.diagnostic.is_empty() ||
+          child.read_only == "Object transform is locked"
+        })
+        .map(child => {
+          if child.diagnostic.is_empty() {
+            child.read_only
+          } else {
+            child.diagnostic
+          }
+        })
+        .unwrap_or("")
+      }
+      output.push({
+        ..object,
+        read_only: blocked,
+        diagnostic: problem,
+        text_reason: "Groups do not have a text frame",
+      })
     } else {
       output.push(object)
     }

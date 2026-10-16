@@ -64,7 +64,11 @@ export class PresentationCanvas extends CanvasSurface {
     }
     context.strokeStyle = "#2563eb";
     context.lineWidth = 1 / scale;
-    if (geometry.outline.length) {
+    for (const outline of geometry.outlines) {
+      polygon(outline);
+      context.stroke();
+    }
+    if (geometry.outline.length && geometry.outlines.length !== 1) {
       polygon(geometry.outline);
       context.stroke();
     }

@@ -300,6 +300,11 @@ fn Session::editable(
   self : Session,
   text : Bool,
 ) -> Object raise @failure.Failure {
+  guard self.selection.objects.length() == 1 else {
+    @failure.reject(
+      "invalid-operation", "This operation requires one selected object",
+    )
+  }
   let slide = self.slides[self.index(self.selection.slide)]
   let object = slide.object(self.selection.object)
   let reason = if !slide.read_only.is_empty() {
@@ -338,7 +343,11 @@ pub fn Session::begin(
   guard ["text", "transform"].contains(kind) else {
     @failure.reject("invalid-operation", "Unknown gesture kind")
   }
-  ignore(self.editable(kind == "text"))
+  if kind == "transform" {
+    ignore(self.transform_objects())
+  } else {
+    ignore(self.editable(true))
+  }
   guard self.sequence < 2147483647 else {
     @failure.reject("limit-exceeded", "Gesture identity exhausted")
   }
@@ -392,20 +401,26 @@ pub fn Session::finish(
   let candidate = self.gesture(revision, id)
   let original = self.slides[self.index(self.selection.slide)]
   let prepared = if candidate.kind == "transform" {
-    let object = original.object(self.selection.object)
-    let target = candidate.slide.object(self.selection.object).geometry.unwrap()
-    let initial = object.geometry.unwrap()
-    if target.x == initial.x &&
-      target.y == initial.y &&
-      target.width == initial.width &&
-      target.height == initial.height {
+    let changes : Array[@xml.SourceChange] = []
+    for id in self.selection.objects {
+      let object = original.object(id)
+      let target = candidate.slide.object(id).geometry.unwrap()
+      let initial = object.geometry.unwrap()
+      if target.x != initial.x ||
+        target.y != initial.y ||
+        target.width != initial.width ||
+        target.height != initial.height {
+        changes.append(transform_changes(object, target))
+      }
+    }
+    if changes.is_empty() {
       None
     } else {
       Some(
         self.prepare_fitted(
           original,
-          transform_changes(object, target),
-          object.id,
+          changes,
+          self.selection.objects,
           probe,
           profile,
         ),
@@ -435,6 +450,9 @@ pub fn Session::transform(
   let candidate = self.gesture(revision, id)
   guard candidate.kind == "transform" else {
     @failure.reject("invalid-operation", "Not a transform gesture")
+  }
+  if self.selection.objects.length() > 1 {
+    return self.transform_collection(candidate, x, y, width, height)
   }
   for value in [x, y, width, height] {
     guard !value.is_nan() && !value.is_inf() && value.abs() <= 14400 else {
@@ -469,7 +487,7 @@ pub fn Session::transform(
       objects[index] = { ..object, geometry: Some(geometry), }
     }
   }
-  self.candidate = Some({ ..candidate, slide: { ..original, objects, }, })
+  self.candidate = Some({ ..candidate, slide: original.group_preview(objects), })
   self.view = None
   self.query()
 }
@@ -480,7 +498,14 @@ fn transform_changes(
   geometry : Geometry,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let properties = object.source
-    .child("spPr", uri=presentation_uri)
+    .child(
+      if object.kind == "group" {
+        "grpSpPr"
+      } else {
+        "spPr"
+      },
+      uri=presentation_uri,
+    )
     .unwrap_or_error(
       @failure.Failure(
         code="protected-content",
@@ -563,6 +588,9 @@ pub fn Session::drag(
   let object = self.slides[self.index(self.selection.slide)].object(
     self.selection.object,
   )
+  if self.selection.objects.length() > 1 {
+    return self.drag_collection(revision, id, dx, dy, handle)
+  }
   let initial = object.geometry.unwrap()
   if handle == 0 {
     return self.transform(

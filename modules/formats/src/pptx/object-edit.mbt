@@ -6,6 +6,10 @@ pub(all) enum ObjectEdit {
   Rotate(Double)
   Flip(Bool)
   Layer(String)
+  Align(String, String)
+  Distribute(String, String)
+  Group
+  Ungroup
 }
 
 ///|
@@ -72,12 +76,23 @@ fn Session::object_edit_reason(
     if !slide.read_only.is_empty() {
       return slide.read_only
     }
-    guard ["sp", "pic"].contains(object.source.node.name) &&
+    if duplicate && object.kind == "group" {
+      return "Group duplication requires independent member identities"
+    }
+    guard ["sp", "pic", "grpSp"].contains(object.source.node.name) &&
       object.source.node.parent == shape_tree(slide.tree).id else {
       return "Only local top-level shapes and pictures support this operation"
     }
     if ["rotate", "arrange"].contains(action) &&
-      object.source.child("spPr", uri=presentation_uri) is None {
+      object.source.child(
+        if object.kind == "group" {
+          "grpSpPr"
+        } else {
+          "spPr"
+        },
+        uri=presentation_uri,
+      )
+      is None {
       return "Missing editable shape properties"
     }
     if duplicate && placeholder(object.source) is Some(_) {
@@ -85,12 +100,12 @@ fn Session::object_edit_reason(
     }
     let target = object.source.node
     let tree = object.source.tree
-    let mut identity = ""
+    let identities : Map[String, Bool] = Map([])
     for node in tree.document.nodes() {
       let inside = node.start >= target.start && node.end <= target.end
       if inside {
         if node.uri == presentation_uri && node.name == "cNvPr" {
-          identity = source_identity(node.attribute("id").unwrap_or(""))
+          identities[source_identity(node.attribute("id").unwrap_or(""))] = true
         }
         if node.name.has_suffix("Locks") &&
           flag(
@@ -132,7 +147,7 @@ fn Session::object_edit_reason(
         for attribute in node.attributes {
           if ["spid", "spId", "shapeId", "shapeIdRef"].contains(attribute.name) ||
             (["stCxn", "endCxn"].contains(node.name) && attribute.name == "id") {
-            if source_identity(attribute.value) == identity {
+            if identities.contains(source_identity(attribute.value)) {
               return "Referenced objects require connector or timing updates before deletion"
             }
           }
@@ -223,6 +238,13 @@ pub fn Session::edit_objects(
   }
   let mut issued : String? = None
   let (changes, after) = match change {
+    Group => {
+      let id = self.next_object_identity()
+      let result = self.group_changes(id)
+      issued = Some(id)
+      result
+    }
+    Ungroup => self.ungroup_changes()
     Insert(kind, x, y, width, height, text) => {
       guard (kind == "text" || supported_shape(kind)) &&
         @xml.valid_text(text) &&
@@ -255,6 +277,7 @@ pub fn Session::edit_objects(
         {
           ..self.selection,
           object: original.tree.part + "#" + id,
+          objects: [original.tree.part + "#" + id],
           mode: "object",
           anchor: 0,
           focus: 0,
@@ -265,23 +288,37 @@ pub fn Session::edit_objects(
       if self.selection.object.is_empty() {
         return self.query()
       }
-      let object = self.editable(false)
-      let reason = self.object_edit_reason(object, "delete")
-      guard reason.is_empty() else {
-        @failure.reject("protected-content", reason)
+      guard self.selection.mode == "object" else {
+        @failure.reject(
+          "invalid-operation", "Object deletion requires object selection",
+        )
       }
-      let node = object.source.node
-      let parent = original.tree.nodes[node.parent]
+      let changes : Array[@xml.SourceChange] = []
+      for id in self.selection.objects {
+        let object = original.object(id)
+        let reason = self.object_edit_reason(object, "delete")
+        guard reason.is_empty() else {
+          @failure.reject("protected-content", reason)
+        }
+        let node = object.source.node
+        let parent = original.tree.nodes[node.parent]
+        changes.push({
+          node: parent.id,
+          offset: node.start - parent.start,
+          length: node.end - node.start,
+          xml: "",
+        })
+      }
       (
-        [
-          {
-            node: parent.id,
-            offset: node.start - parent.start,
-            length: node.end - node.start,
-            xml: "",
-          },
-        ],
-        { ..self.selection, object: "", mode: "object", anchor: 0, focus: 0, },
+        changes,
+        {
+          ..self.selection,
+          object: "",
+          objects: [],
+          mode: "object",
+          anchor: 0,
+          focus: 0,
+        },
       )
     }
     Duplicate(dx, dy) => {
@@ -333,11 +370,14 @@ pub fn Session::edit_objects(
         {
           ..self.selection,
           object: original.tree.part + "#" + id,
+          objects: [original.tree.part + "#" + id],
           anchor: 0,
           focus: 0,
         },
       )
     }
+    Align(_, _) | Distribute(_, _) =>
+      (self.position_objects(change), self.selection)
     Rotate(_) | Flip(_) | Layer(_) => {
       if self.selection.object.is_empty() {
         return self.query()

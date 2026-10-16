@@ -12,12 +12,14 @@ import type { Budget } from "./foundation.js";
 export interface PptxSelection {
   slide: string;
   object: string;
+  objects: string[];
   mode: "object" | "text";
   anchor: number;
   focus: number;
 }
 export interface PptxObject {
   id: string;
+  parent: string;
   name: string;
   kind: string;
   text: string;
@@ -38,6 +40,8 @@ export interface PptxObject {
 }
 export interface PptxQuery {
   revision: number;
+  groupReason: string;
+  ungroupReason: string;
   width: number;
   height: number;
   slide: string;
@@ -69,6 +73,7 @@ export interface PptxGeometry {
   layoutId: number;
   revision: number;
   outline: PptxPoint[];
+  outlines: PptxPoint[][];
   handles: PptxPoint[];
   rects: PptxPoint[][];
   caret: (PptxPoint & { endX: number; endY: number; height: number }) | null;
@@ -100,10 +105,21 @@ export type PptxObjectEdit =
       text: string;
     }
   | { action: "delete" }
+  | { action: "group" | "ungroup" }
   | { action: "duplicate"; dx: number; dy: number }
   | { action: "rotate"; angle: number }
   | { action: "flip"; axis: "horizontal" | "vertical" }
-  | { action: "layer"; order: "front" | "back" | "forward" | "backward" };
+  | { action: "layer"; order: "front" | "back" | "forward" | "backward" }
+  | {
+      action: "align";
+      alignment: "left" | "center" | "right" | "top" | "middle" | "bottom";
+      relativeTo: "slide" | "selection" | "active";
+    }
+  | {
+      action: "distribute";
+      axis: "horizontal" | "vertical";
+      relativeTo: "slide" | "selection";
+    };
 
 export type PptxCommand =
   | { operation: "createPptx"; budget: Budget }
@@ -288,7 +304,26 @@ function integer(value: unknown, high = 0x7fffffff): void {
 }
 export function checkPptxObjectEdit(value: unknown): void {
   const change = record(value);
-  if (change.action === "delete") return;
+  if (
+    change.action === "delete" ||
+    change.action === "group" ||
+    change.action === "ungroup"
+  )
+    return;
+  if (
+    change.action === "align" &&
+    ["left", "center", "right", "top", "middle", "bottom"].includes(
+      String(change.alignment),
+    ) &&
+    ["slide", "selection", "active"].includes(String(change.relativeTo))
+  )
+    return;
+  if (
+    change.action === "distribute" &&
+    ["horizontal", "vertical"].includes(String(change.axis)) &&
+    ["slide", "selection"].includes(String(change.relativeTo))
+  )
+    return;
   if (change.action === "rotate") {
     number(change.angle, -360, 360);
     return;
@@ -384,7 +419,14 @@ export function pptxQuery(value: unknown): PptxQuery {
   if (
     !hasFields(
       query,
-      ["slide", "readOnlyReason", "slideOrderReason", "slideVisibilityReason"],
+      [
+        "slide",
+        "readOnlyReason",
+        "slideOrderReason",
+        "slideVisibilityReason",
+        "groupReason",
+        "ungroupReason",
+      ],
       ["revision", "width", "height", "historyBytes"],
     ) ||
     typeof query.canUndo !== "boolean" ||
@@ -416,6 +458,8 @@ export function pptxQuery(value: unknown): PptxQuery {
   if (typeof query.slide !== "string" || !ids.has(query.slide))
     throw new Error("Invalid current slide");
   ids.clear();
+  const parents = new Map<string, string>(),
+    groups = new Set<string>();
   let units = 0;
   for (const item of query.objects) {
     const object = record(item);
@@ -424,6 +468,7 @@ export function pptxQuery(value: unknown): PptxQuery {
         object,
         [
           "id",
+          "parent",
           "name",
           "kind",
           "text",
@@ -443,10 +488,20 @@ export function pptxQuery(value: unknown): PptxQuery {
     )
       throw new Error("Invalid PPTX object");
     ids.add(object.id);
+    parents.set(object.id, String(object.parent));
+    if (object.kind === "group") groups.add(object.id);
     units += object.text.length;
     if (object.geometry !== null) geometry(object.geometry);
   }
   if (units > 1048576) throw new Error("PPTX query text exceeds budget");
+  for (const id of ids) {
+    let parent = parents.get(id) ?? "";
+    for (let depth = 0; parent; depth++) {
+      if (depth >= 16 || !groups.has(parent))
+        throw new Error("Invalid PPTX group hierarchy");
+      parent = parents.get(parent) ?? "";
+    }
+  }
   const selection = record(query.selection);
   if (
     !hasFields(selection, ["slide", "object", "mode"], ["anchor", "focus"]) ||
@@ -458,6 +513,17 @@ export function pptxQuery(value: unknown): PptxQuery {
     throw new Error("Invalid PPTX selection");
   integer(selection.anchor, 32767);
   integer(selection.focus, 32767);
+  strings(selection.objects, 256, 1024);
+  const selected = selection.objects as string[];
+  if (
+    new Set(selected).size !== selected.length ||
+    selected.some((id) => !ids.has(id)) ||
+    (selected.length === 0
+      ? selection.object !== ""
+      : !selected.includes(String(selection.object))) ||
+    (selection.mode === "text" && selected.length !== 1)
+  )
+    throw new Error("Invalid PPTX object selection");
   strings(query.fontKeys, 256, 256);
   strings(query.imageKeys, 256, 256);
   strings(query.diagnostics, 8192, 4096);
@@ -520,6 +586,9 @@ export function pptxResult<C extends PptxCommand>(
       integer(selection.revision);
       points(selection.outline);
       points(selection.handles);
+      if (!Array.isArray(selection.outlines) || selection.outlines.length > 256)
+        throw new Error("Invalid PPTX object outlines");
+      for (const outline of selection.outlines) points(outline);
       if (!Array.isArray(selection.rects) || selection.rects.length > 32767)
         throw new Error("Invalid PPTX selection rectangles");
       for (const rect of selection.rects) points(rect);

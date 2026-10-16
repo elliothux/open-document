@@ -201,7 +201,7 @@ pub fn Session::replace(
   let prepared = if changes.is_empty() {
     None
   } else {
-    Some(self.prepare_fitted(original, changes, object.id, probe, profile))
+    Some(self.prepare_fitted(original, changes, [object.id], probe, profile))
   }
   if candidate is Some(candidate) {
     self.candidate = Some({
@@ -246,7 +246,7 @@ pub fn Session::delete(
     let (slide, edit) = self.prepare_fitted(
       self.slides[self.index(old.slide)],
       changes,
-      object.id,
+      [object.id],
       probe,
       profile,
     )

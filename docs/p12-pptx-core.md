@@ -2,7 +2,7 @@
 
 状态：`planned`，第 1 批实施中。基于 [P6 PPTX](implemented/p6-pptx-editing.md)和已完成的 [P9](implemented/p9-web-sdk-ui.md)。复用 [P10](p10-docx-core.md) 已交付的包写入，并按实际需要复用 P10 / [P11](p11-xlsx-core.md) 的文字、图形和图表能力。属于功能优先级 P0。空白创建已接通，其余能力仍按下面的范围实施。顺序归[路线图](references/roadmap.md)，当前 API 归[格式合同](references/formats.md#pptx)，功能依据归 [G3](g3-genoffice-sdk-gap.md#演示pptx)。
 
-当前进度：核心创建 960×540 pt 的单页空白文稿，包含版式、母版、主题和完整部件关系。同步 Wasm、Worker 和默认 UI 接通创建、首次保存、另存、保存重开与静态 PDF。支持插入文本框、矩形、圆角矩形、椭圆、直线和四向实心箭头；支持本地顶层形状/图片的单对象复制、删除、旋转、水平/垂直翻转及层次调整，保留源格式、关系及撤销重做。已接通空白页新增、页复制/删除/重排与隐藏/显示，保持剩余页/对象身份，历史按稳定部件路径恢复。新增页沿用目标页的版式、母版和主题；复制更新对象、计时目标和自身链接，独立复制普通备注与传统批注；删除页同步页引用、自定义放映与已知内部链接，保留共享和未知资源。部件新增/删除与对象编辑共同撤销。保存失败与替换取消保留当前会话。章节、多选、更多几何和后续批次尚未完成，不标记第 1 批或整个 P12 完成。
+当前进度：核心创建 960×540 pt 的单页空白文稿，包含版式、母版、主题和完整部件关系。同步 Wasm、Worker 和默认 UI 接通创建、首次保存、另存、保存重开与静态 PDF。支持插入文本框、矩形、圆角矩形、椭圆、直线和四向实心箭头；支持本地顶层形状/图片的单对象复制、删除、旋转、水平/垂直翻转及层次调整，保留源格式、关系及撤销重做。已接通空白页新增、页复制/删除/重排与隐藏/显示，保持剩余页/对象身份，历史按稳定部件路径恢复。新增页沿用目标页的版式、母版和主题；复制更新对象、计时目标和自身链接，独立复制普通备注与传统批注；删除页同步页引用、自定义放映与已知内部链接，保留共享和未知资源。部件新增/删除与对象编辑共同撤销。保存失败与替换取消保留当前会话。对象多选、成组移动/等比例缩放、删除及对齐/分布已接通；组合及无缩放组的取消组合已接通；章节、缩放组取消组合、组内编辑、更多几何和后续批次尚未完成，不标记第 1 批或整个 P12 完成。
 
 ## 1. 用户结果与范围
 
@@ -25,8 +25,10 @@
 | 位置 | 当前能力与本阶段改动 |
 | --- | --- |
 | [`pptx/session.mbt`](../modules/formats/src/pptx/session.mbt)、[`tree.mbt`](../modules/formats/src/pptx/tree.mbt) | 解析 slide/layout/master/theme，缓存源树并派生对象；补文稿结构、新建和跨部件事务 |
-| [`model.mbt`](../modules/formats/src/pptx/model.mbt)、[`editing.mbt`](../modules/formats/src/pptx/editing.mbt)、[`slide-add.mbt`](../modules/formats/src/pptx/slide-add.mbt)、[`slide-copy.mbt`](../modules/formats/src/pptx/slide-copy.mbt)、[`slide-copy-comments.mbt`](../modules/formats/src/pptx/slide-copy-comments.mbt)、[`slide-order.mbt`](../modules/formats/src/pptx/slide-order.mbt) | 单对象/文本选择、新增部件与 XML 历史、页新增/复制/删除/重排/隐藏及文字或变换候选；扩展资源所有权、多选、组/母版编辑 |
+| [`model.mbt`](../modules/formats/src/pptx/model.mbt)、[`editing.mbt`](../modules/formats/src/pptx/editing.mbt)、[`slide-add.mbt`](../modules/formats/src/pptx/slide-add.mbt)、[`slide-copy.mbt`](../modules/formats/src/pptx/slide-copy.mbt)、[`slide-copy-comments.mbt`](../modules/formats/src/pptx/slide-copy-comments.mbt)、[`slide-order.mbt`](../modules/formats/src/pptx/slide-order.mbt) | 有序对象集合/文本选择、新增部件与 XML 历史、页新增/复制/删除/重排/隐藏及文字或变换候选；扩展资源所有权、多选其余操作、组内/母版编辑 |
 | [`geometry.mbt`](../modules/formats/src/pptx/geometry.mbt)、[`layout.mbt`](../modules/formats/src/pptx/layout.mbt)、[`hit.mbt`](../modules/formats/src/pptx/hit.mbt) | 已有基本形状、图片、矩阵、层次命中；补对象类型、组内选择和播放时显示状态 |
+| [`object-selection.mbt`](../modules/formats/src/pptx/object-selection.mbt)、[`object-alignment.mbt`](../modules/formats/src/pptx/object-alignment.mbt) | 多选包围盒、成组移动/等比例缩放、对齐及分布；保留活动对象、源几何与原子历史 |
+| [`object-group.mbt`](../modules/formats/src/pptx/object-group.mbt)、[`group-geometry.mbt`](../modules/formats/src/pptx/group-geometry.mbt) | 组合、无缩放组的取消组合、父组身份、完整矩阵及命名空间保留 |
 | [`theme.mbt`](../modules/formats/src/pptx/theme.mbt)、[`text-edit.mbt`](../modules/formats/src/pptx/text-edit.mbt)、[`autofit.mbt`](../modules/formats/src/pptx/autofit.mbt) | 有限主题继承、纯文本和有界字体缩放；补格式/占位符修改和相关失效 |
 | [`bridge/pptx.mbt`](../modules/bridge/src/pptx.mbt)、[`wasm/pptx.ts`](../packages/wasm/src/pptx.ts)、[`web/pptx.ts`](../packages/web/src/pptx.ts) | 延续 `PptxCommand` 与 `execute`；增量加入类型明确的操作与结果 |
 | [`presentation-editor.ts`](../packages/web/src/presentation-editor.ts)、[`presentation-pointer.ts`](../packages/web/src/presentation-pointer.ts)、[`ui/panels.tsx`](../packages/ui/src/panels.tsx) | 保留候选、输入、列表/焦点与 P9 状态；增加创作面板和独立放映视图 |
@@ -55,15 +57,21 @@
 
 选择类型明确区分页集合、对象集合、文字范围和表格单元格。对象集合同时记录活动对象与稳定顺序；进入文字编辑时必须有唯一文字目标。核心产生每种选择的命中、轮廓和手柄，Web 不根据 Canvas 像素猜对象。
 
-多选变换使用手势开始时的几何和组包围盒，一次求解每个对象的新矩阵；保持比例、旋转中心和零宽线段规则由核心确定。沿现有 begin/finish/cancel 候选机制：预览不积累历史，结束提交一项，取消恢复选择。属性面板输入使用同一变换路径。
+对象集合现已接通核心、同步 Wasm、Worker 和默认 UI。`selection.objects` 保存最多 256 个稳定身份及选择顺序，`selection.object` 保存集合中的活动对象。Shift 点击画布或对象列表切换成员，普通点击已选成员保留集合并切换活动对象，Ctrl/Cmd+A 选择当前页对象。进入文字模式时收敛到唯一活动目标。核心返回各成员轮廓、整组包围盒与手柄；含只读成员时隐藏变换手柄并保护整组编辑。
 
-组合将成员从页面坐标转换到组内坐标，并保留层次与对象身份；取消组合用完整矩阵还原，不能只加减 x/y。对齐/分布由核心计算，区分相对于页面、选区和关键对象。连接线保存端点对象/连接点，目标移动时更新；目标删除时执行明确的断开或删除规则。
+已支持成组移动、角点等比例缩放及多选删除。缩放保留各成员的旋转、局部翻转和零尺寸线段，整组非等比例变换仍拒绝。变换按手势开始时的几何计算，预览不写源；完成或删除提交一项历史，取消不改变源，撤销恢复原选择集合及活动对象。任一成员锁定、几何越界或预算失败时整项拒绝。核心已检查旋转线段、候选重算、精确历史与保护；Chromium 已检查 Shift 多选、真实拖动、取消、删除、独立 XML、保存重开和宿主调用。复制、旋转、翻转和层次调整暂时要求单对象；组合与受支持的取消组合见下文，组内编辑仍待实现。
+
+移动采用 [ONLYOFFICE MoveShapeImageTrack](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/MoveTracks.js#L103-L145) 的原始位置加增量规则，复用核心旋转/翻转矩阵；属性面板与指针使用相同候选路径。
+
+对齐和分布已接通核心、Wasm、Worker、宿主及默认属性面板。六种对齐支持相对页面、选区包围盒或活动对象。水平/垂直分布支持页面和选区，按旋转后矩形的中心排序，计算相等边缘间距；中心相同时保留选择顺序。页面分布平衡两端留白，内容总尺寸超过页面时允许负间距。规则参考 [ONLYOFFICE CommonController](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L9307-L9587)。各成员保留尺寸、旋转、翻转、文字和身份；一次提交一项历史，无变化不新增历史。保护或预算失败整项拒绝。核心已检查旋转/线段、各参考范围、负间距、精确历史及失败；Chromium 已检查默认按钮、参考范围保持、独立 XML、保存重开和继续编辑。接口和最少对象数归[格式合同](references/formats.md#pptx)。
+
+组合与取消组合已接通核心、Wasm、Worker、宿主及默认 UI。组合保留成员身份和源顺序，将局部坐标写入新组；新组位于所选最上层对象的位置。顶层组可整体移动、缩放、旋转、翻转、对齐、调整层次和删除。取消组合用完整矩阵还原旋转、翻转及子坐标原点，保留命名空间、成员身份和其他资源。当前仅开放无缩放组的取消组合；缩放组需先实现文字、描边等尺寸的完整还原。组内直接编辑和组复制仍受保护。核心已检查嵌套、零尺寸线段、精确历史、锁定、引用和预算失败；Chromium 已检查组合画面不变、真实拖动、旋转翻转后取消组合画面不变、PDF、保存重开与继续输入。连接线端点编辑及目标联动仍待实现。
 
 已支持矩形、圆角矩形、椭圆、线、四向实心箭头和文本框插入；墨迹路径仍待实现。圆角矩形和箭头的路径、命中与文字内框按 [ONLYOFFICE 预设几何](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L6950-L6987)计算，导入的数值调节点参与形状和文字布局，旋转/翻转沿现有矩阵。默认 UI 插入、轮廓外命中、复制、混合精确历史、保存重开及 PDF 已检查。调节点编辑、更多箭头和任意自定义几何仍待扩展；未知公式保留源并诊断，不能改成默认几何覆盖源对象。
 
 当前已接通 `editPptxObjects` 与 `PresentationEditor.editObjects`，具体合同归[格式说明](references/formats.md#pptx)。新对象在最上层；复制分配会话内未使用的新身份，保留旋转、翻转、格式与图片关系，默认 UI 平移 18 pt。删除清空对象选择，撤销恢复原身份与选择。锁定、继承、组成员、未知扩展复制及带连接/计时引用的删除仍受保护；待对应事务实现后开放。当前操作仅修改所属 slide XML，保留其他部件及资源。
 
-单对象角度输入为绝对角度，翻转切换对象局部轴状态。置顶/置底及前移/后移一层按所属 `spTree` 顺序操作，不改变对象身份或位于其间的注释。相同角度、已到达层次边界时不新增历史。旋转遵守 `noRot`，翻转和层次操作继续使用各自保护；组/母版编辑与多选操作尚未接通。
+单对象角度输入为绝对角度，翻转切换对象局部轴状态。置顶/置底及前移/后移一层按所属 `spTree` 顺序操作，不改变对象身份或位于其间的注释。相同角度、已到达层次边界时不新增历史。旋转遵守 `noRot`，翻转和层次操作继续使用各自保护；组内/母版编辑及多选复制、旋转、翻转和层次调整尚未接通。
 
 ### 3.3 原子保存和资源
 
