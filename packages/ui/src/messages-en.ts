@@ -1,4 +1,12 @@
 export const en = {
+  exportCsv: "Export current sheet as CSV",
+  exportCsvSelection: "Export selection as CSV",
+  csvNotice:
+    "CSV/TSV opens as UTF-8 text. CSV exports values from one sheet or selection, without formatting or other sheets. Text with formula prefixes gains an apostrophe; reimport keeps it.",
+  tableHeaderRows: "Repeat header rows",
+  slideSize: "Slide size",
+  scaleSlideContents:
+    "Applies to all slides and scales object positions and sizes.",
   slideBackground: "Slide background",
   file: "File",
   edit: "Edit",

@@ -16,6 +16,7 @@ pub(all) enum TableEdit {
   CellMargins(@layout.CellMargins?)
   TableMargins(@layout.CellMargins?)
   TableAlign(String)
+  HeaderRows(Int)
 }
 
 ///|
@@ -144,6 +145,14 @@ pub fn Session::edit_table(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   match change {
+    HeaderRows(count) =>
+      return self.change_table_property(
+        revision,
+        selection,
+        "tblHeader",
+        None,
+        header_rows=Some(count),
+      )
     MergeCells(rows, columns) =>
       return self.merge_table_cells(revision, selection, rows, columns)
     UnmergeCell => return self.unmerge_table_cell(revision, selection)

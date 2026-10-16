@@ -10,6 +10,9 @@ fn Layout::frame_caret(
   let mut previous : (Int, Line)? = None
   for page, frame in self.pages {
     for index, line in frame.lines {
+      if line.repeated {
+        continue
+      }
       if line.paragraph != paragraph {
         continue
       }

@@ -54,6 +54,8 @@ export function DocxTables({
           margins={size.cellMargins}
           tableMargins={size.tableMargins}
           align={size.align}
+          rows={size.rows}
+          headerRows={size.headerRows}
         />
       )}
       <form
@@ -191,6 +193,8 @@ function TableProperties({
   margins,
   tableMargins,
   align,
+  rows,
+  headerRows,
 }: {
   controller: EditorController;
   state: UiSnapshot;
@@ -206,14 +210,41 @@ function TableProperties({
   margins: DocxCellMargins;
   tableMargins: DocxCellMargins;
   align: "left" | "center" | "right";
+  rows: number;
+  headerRows: number;
 }) {
   const t = messages(state.locale);
   const [tableWidth, setWidth] = useState(String(width)),
+    [headers, setHeaders] = useState(String(headerRows)),
     [rowHeight, setHeight] = useState(String(height)),
     [cellFill, setFill] = useState(`#${fill ?? "ffffff"}`);
   return (
     <fieldset disabled={disabled}>
       <legend>{t.tableProperties}</legend>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          controller.run(() =>
+            editor.editTable({ action: "headerRows", value: Number(headers) }),
+          );
+        }}
+      >
+        <label>
+          {t.tableHeaderRows}
+          <input
+            type="number"
+            required
+            min={0}
+            max={Math.min(rows, 1000)}
+            step={1}
+            value={headers}
+            onChange={(event) => setHeaders(event.currentTarget.value)}
+          />
+        </label>
+        <button type="submit" aria-label={`${t.apply} ${t.tableHeaderRows}`}>
+          {t.apply}
+        </button>
+      </form>
       <fieldset>
         <legend>{t.tableAlignment}</legend>
         {(

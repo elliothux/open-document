@@ -173,6 +173,10 @@ export class EditorController {
   }
 
   private install(file: OwnedFile, name: string, isNew = false): void {
+    if (file.format === "xlsx" && /\.(csv|tsv)$/i.test(name)) {
+      name = name.replace(/\.(csv|tsv)$/i, ".xlsx");
+      isNew = true;
+    }
     this.newDocumentId = isNew
       ? file.editor.getSnapshot().documentId
       : undefined;
@@ -211,6 +215,9 @@ export class EditorController {
   exportPdf(all = true): Promise<SavedDocument> {
     return this.output(all ? "pdf" : "pdf-current");
   }
+  exportCsv(selection = false): Promise<SavedDocument> {
+    return this.output(selection ? "csv-selection" : "csv");
+  }
   private output(
     kind: string,
     leaving = false,
@@ -231,14 +238,19 @@ export class EditorController {
     const name =
       kind === "original"
         ? targetName
-        : this.value.name.replace(/\.[^.]*$/, "") + ".pdf";
+        : this.value.name.replace(/\.[^.]*$/, "") +
+          (kind.startsWith("csv") ? ".csv" : ".pdf");
     const operation = async (): Promise<SavedDocument> => {
       let output: EditorOutput;
       if (kind === "original")
         output = await (file.format === "docx"
           ? file.editor.saveDocx()
           : file.editor.save());
-      else if (file.format === "pdf")
+      else if (kind.startsWith("csv")) {
+        if (file.format !== "xlsx")
+          throw new Error("CSV export requires a workbook");
+        output = await file.editor.exportCsv(kind === "csv-selection");
+      } else if (file.format === "pdf")
         throw new Error("PDF is already the original format");
       else
         output = await (file.format === "pptx"
@@ -360,9 +372,13 @@ export class EditorController {
   }
   private async replace(source: OfficeDocument | File): Promise<boolean> {
     const previous = this.current();
+    const inputLimit =
+      this.options.format === "xlsx" && /\.(csv|tsv)$/i.test(source.name)
+        ? Math.min(previous.inputLimit, 4194304)
+        : previous.inputLimit;
     if (
       (source instanceof File ? source.size : (source.bytes?.length ?? 0)) >
-      previous.inputLimit
+      inputLimit
     )
       throw new Error("Document input exceeds budget");
     if (!(await this.canLeave(previous))) return false;

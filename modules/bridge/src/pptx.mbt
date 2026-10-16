@@ -67,6 +67,11 @@ fn Foundation::pptx_operation(
         "delete" => @pptx.DeleteSlide
         "move" => @pptx.MoveSlide(field_int(change, "index"))
         "hidden" => @pptx.HideSlide(xlsx_boolean(change, "hidden"))
+        "size" =>
+          @pptx.Size(
+            xlsx_number(change, "width"),
+            xlsx_number(change, "height"),
+          )
         "background" => {
           let value = match change {
             { "value": Null, .. } => None

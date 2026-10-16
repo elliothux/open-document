@@ -240,6 +240,9 @@ fn Layout::navigate(
     let mut found = false
     for page, frame in self.pages {
       for index, candidate in frame.lines {
+        if candidate.repeated {
+          continue
+        }
         if page == origin.page && index == origin.line {
           found = true
           if !forward {
@@ -300,6 +303,9 @@ fn Layout::navigate(
     let mut horizontal = 1.0 / 0.0
     for page, frame in self.pages {
       for index, candidate in frame.lines {
+        if candidate.repeated {
+          continue
+        }
         if candidate.carets.is_empty() {
           continue
         }

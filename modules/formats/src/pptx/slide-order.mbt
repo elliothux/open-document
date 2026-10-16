@@ -6,6 +6,7 @@ pub(all) enum SlideEdit {
   MoveSlide(Int)
   HideSlide(Bool)
   Background(String?)
+  Size(Double, Double)
 }
 
 ///|
@@ -187,6 +188,7 @@ pub fn Session::edit_slides(
   }
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   match change {
+    Size(width, height) => return self.set_slide_size(width, height)
     Background(value) => return self.set_background(index, value)
     AddSlide => return self.add_slide(index)
     CopySlide => return self.add_slide(index, copy=true)

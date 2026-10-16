@@ -4,7 +4,9 @@ fn Foundation::xlsx_operation(
   operation : String,
   request : Json,
 ) -> Json raise @failure.Failure {
-  if operation == "openXlsx" || operation == "createXlsx" {
+  if operation == "openXlsx" ||
+    operation == "createXlsx" ||
+    operation == "importXlsxDelimited" {
     guard self.xlsx is None &&
       self.docx is None &&
       self.pptx is None &&
@@ -25,6 +27,15 @@ fn Foundation::xlsx_operation(
     }
     let session = if operation == "createXlsx" {
       @xlsx.Session::create(budget)
+    } else if operation == "importXlsxDelimited" {
+      @xlsx.Session::import_delimited(
+        input_bytes(
+          request,
+          budget.file_bytes.min(budget.retained_bytes).min(4194304),
+        ),
+        field_string(request, "delimiter"),
+        budget,
+      )
     } else {
       @xlsx.Session::open(
         input_bytes(request, budget.file_bytes.min(budget.retained_bytes)),
@@ -39,6 +50,15 @@ fn Foundation::xlsx_operation(
     @failure.reject("session-required", "Open an XLSX workbook first")
   }
   match operation {
+    "exportXlsxCsv" =>
+      {
+        "bytes": @base64.encode(
+          session.export_csv(
+            field_int(request, "revision"),
+            selection=xlsx_boolean(request, "selection"),
+          ),
+        ),
+      }
     "findXlsx" | "replaceXlsxMatches" => {
       guard request is { "options": options, .. } else {
         @failure.reject("invalid-operation", "Search options are required")

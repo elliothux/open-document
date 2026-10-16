@@ -67,6 +67,8 @@ fn Session::table_dimensions(
     "columns": table.widths.length(),
     "width": table.widths.iter().fold(init=0.0, (sum, width) => sum + width),
     "rowHeight": table.heights[index],
+    "rows": rows.length(),
+    "headerRows": table.headerRows,
     "cellVerticalAlign": table.verticalAligns[index][column],
     "cellMargins": Json(table.margins[index][column]),
     "tableMargins": Json(table_margin_defaults(tree, self.styles([]), id, [])),
@@ -107,7 +109,7 @@ fn WordTree::table_property_change(
     let allowed = match name {
       "trHeight" => ["val", "hRule"]
       "shd" => ["val", "color", "fill"]
-      "vAlign" | "jc" => ["val"]
+      "vAlign" | "jc" | "tblHeader" => ["val"]
       "tcMar" | "tblCellMar" => []
       _ => ["w", "type"]
     }
@@ -162,6 +164,10 @@ fn WordTree::table_property_change(
         "shd" => ["tcMar", "vAlign"].contains(self.nodes[child].name)
         "tcMar" => self.nodes[child].name == "vAlign"
         "vAlign" => false
+        "tblHeader" =>
+          ["tblCellSpacing", "jc", "hidden", "ins", "del", "trPrChange"].contains(
+            self.nodes[child].name,
+          )
         "jc" => !["tblStyle", "tblW"].contains(self.nodes[child].name)
         "tblCellMar" => self.nodes[child].name == "tblLook"
         _ => kind != "tblPr" || self.nodes[child].name != "tblStyle"

@@ -1,6 +1,13 @@
 import type { Messages } from "./messages-en.js";
 
 export const zh: Messages = {
+  exportCsv: "导出当前表为 CSV",
+  exportCsvSelection: "导出选区为 CSV",
+  csvNotice:
+    "CSV/TSV 按 UTF-8 文字打开。CSV 只导出一张表或选区的值，不含格式与其他表。公式前缀文字加单引号，重新导入时保留该符号。",
+  tableHeaderRows: "重复表头行数",
+  slideSize: "幻灯片尺寸",
+  scaleSlideContents: "应用到全部幻灯片，同时缩放对象位置和尺寸。",
   slideBackground: "幻灯片背景",
   file: "文件",
   edit: "编辑",

@@ -55,6 +55,9 @@ pub fn Layout::selection_rects(
   let rects : Array[SelectionRect] = []
   for page, frame in self.pages {
     for index, line in frame.lines {
+      if line.repeated {
+        continue
+      }
       let rank = order[line.paragraph]
       if rank < first || rank > last {
         continue

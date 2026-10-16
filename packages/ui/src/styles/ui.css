@@ -376,6 +376,9 @@
 .od-message[data-error="true"] {
   color: var(--od-ui-danger);
 }
+.od-menu-positioner {
+  z-index: 30;
+}
 .od-menu {
   font:
     13px/1.4 Arial,
@@ -384,13 +387,13 @@
     "Segoe UI",
     sans-serif;
   min-width: 180px;
+  max-width: min(360px, calc(100vw - 16px));
   padding: 5px;
   border: 1px solid var(--od-ui-line);
   background: var(--od-ui-surface);
   border-radius: 8px;
   box-shadow: 0 8px 24px #0003;
   color: var(--od-ui-ink);
-  z-index: 30;
 }
 .od-menu-item {
   padding: 7px 10px;

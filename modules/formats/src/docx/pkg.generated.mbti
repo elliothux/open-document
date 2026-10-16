@@ -163,6 +163,7 @@ pub(all) enum TableEdit {
   CellMargins(@layout.CellMargins?)
   TableMargins(@layout.CellMargins?)
   TableAlign(String)
+  HeaderRows(Int)
 }
 
 // Type aliases

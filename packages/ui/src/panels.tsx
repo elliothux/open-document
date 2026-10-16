@@ -145,6 +145,13 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
           file={file}
           disabled={disabled}
         />
+        <PptxSize
+          key={`${file.editor.getSnapshot().documentId}:${query.revision}`}
+          controller={controller}
+          state={state}
+          file={file}
+          disabled={disabled}
+        />
       </Group>
     );
   }
@@ -302,6 +309,83 @@ function PptxBackground({ controller, state, file, disabled }: PanelProps) {
         </button>
       </fieldset>
       {background.reason && <p>{background.reason}</p>}
+    </form>
+  );
+}
+
+function PptxSize({ controller, state, file, disabled }: PanelProps) {
+  const [width, setWidth] = useState(
+    file.format === "pptx" ? String(file.editor.query.width) : "",
+  );
+  const [height, setHeight] = useState(
+    file.format === "pptx" ? String(file.editor.query.height) : "",
+  );
+  if (file.format !== "pptx") return null;
+  const editor = file.editor,
+    t = messages(state.locale);
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        controller.run(() =>
+          editor.editSlides({
+            action: "size",
+            width: Number(width),
+            height: Number(height),
+          }),
+        );
+      }}
+    >
+      <fieldset disabled={disabled || !!editor.query.slideSizeReason}>
+        <legend>{t.slideSize}</legend>
+        <p>{t.scaleSlideContents}</p>
+        <label>
+          {t.pageWidth}
+          <input
+            type="number"
+            min="1"
+            max="14400"
+            step="any"
+            required
+            value={width}
+            onChange={(event) => setWidth(event.currentTarget.value)}
+          />
+        </label>
+        <label>
+          {t.pageHeight}
+          <input
+            type="number"
+            min="1"
+            max="14400"
+            step="any"
+            required
+            value={height}
+            onChange={(event) => setHeight(event.currentTarget.value)}
+          />
+        </label>
+        <button
+          type="button"
+          onClick={() => {
+            setWidth("960");
+            setHeight("540");
+          }}
+        >
+          16:9
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setWidth("720");
+            setHeight("540");
+          }}
+        >
+          4:3
+        </button>
+        <button type="submit" aria-label={`${t.apply} ${t.slideSize}`}>
+          {t.apply}
+        </button>
+      </fieldset>
+      {editor.query.slideSizeReason && <p>{editor.query.slideSizeReason}</p>}
     </form>
   );
 }

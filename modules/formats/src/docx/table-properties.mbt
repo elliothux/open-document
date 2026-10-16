@@ -37,36 +37,63 @@ fn Session::change_table_property(
   attributes : Map[String, String?]?,
   markup~ : String? = None,
   whole_table~ : Bool = false,
+  header_rows~ : Int? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let document = self.document()
   let tree = WordTree::new(document)
   let grid = self.table_grid(tree, selection)
+  if header_rows is Some(count) {
+    guard count >= 0 && count <= 1000 && count <= grid.rows.length() else {
+      @failure.reject(
+        "invalid-operation", "Header row count is outside the table",
+      )
+    }
+    for row in 0..<count {
+      guard grid.model.rowSpans[row].all(span => span <= count - row) else {
+        @failure.reject(
+          "invalid-operation", "Header boundary crosses a vertical merge",
+        )
+      }
+    }
+  }
   let owner = grid.owners[grid.cells[grid.row][grid.column]]
   let changes : TableChanges = {
     items: [],
     bytes: 0,
     limit: self.opc.budget.entry_bytes.min(history_byte_limit / 2),
   }
-  let targets = if whole_table {
+  let targets = if header_rows is Some(_) {
+    grid.rows
+  } else if whole_table {
     [grid.table]
   } else {
     grid.cells.flatten().filter(cell => grid.owners[cell] == owner)
   }
-  for target in targets {
-    if !whole_table {
+  for index, target in targets {
+    if !whole_table && header_rows is None {
       tree.check_merge_cell(target, self.main)
     }
     if tree.table_property_change(
         document,
         target,
-        if whole_table {
+        if header_rows is Some(_) {
+          "trPr"
+        } else if whole_table {
           "tblPr"
         } else {
           "tcPr"
         },
         name,
-        attributes,
+        if header_rows is Some(count) {
+          if index < count {
+            Some(Map([("val", Some("1"))]))
+          } else {
+            None
+          }
+        } else {
+          attributes
+        },
         markup~,
       )
       is Some(change) {
@@ -81,6 +108,11 @@ fn Session::change_table_property(
     .iter()
     .find_first(t => t.id == grid.table)
     .unwrap()
+  if header_rows is Some(count) && updated.headerRows != count {
+    @failure.reject(
+      "invalid-operation", "Header boundary crosses a vertical merge",
+    )
+  }
   if name == "tcMar" || name == "tblCellMar" {
     self.check_margin_layout(updated)
   }

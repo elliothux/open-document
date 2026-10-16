@@ -2,6 +2,8 @@
 fn Table::check_grid(self : Table) -> Unit raise @failure.Failure {
   let count = self.rows.length()
   guard count > 0 &&
+    self.headerRows >= 0 &&
+    self.headerRows <= count &&
     !self.widths.is_empty() &&
     self.heights.length() == count &&
     self.fills.length() == count &&
@@ -40,6 +42,11 @@ fn Table::check_grid(self : Table) -> Unit raise @failure.Failure {
         rows >= 0 &&
         rows <= count - r else {
         @failure.reject("invalid-table", "Invalid merged cell bounds")
+      }
+      guard r >= self.headerRows || rows <= self.headerRows - r else {
+        @failure.reject(
+          "invalid-table", "Header boundary crosses a vertical merge",
+        )
       }
       for index in column..<(column + span) {
         guard (if rows == 0 { active[index] >= r } else { active[index] < r }) else {
@@ -192,6 +199,44 @@ fn Pagination::table_rows(
   let total = heights.iter().fold(init=0.0, (sum, value) => sum + value)
   // shortcut: Vertical-merge groups stay on one page until split-row continuation is implemented.
   self.fit(total + border)
+  if first_row >= table.headerRows &&
+    table.headerRows > 0 &&
+    self.y == self.page.top &&
+    first_row > 0 {
+    let header = Pagination::new(self.page)
+    let ready = try {
+      header.table_rows(
+        cache,
+        probe,
+        table,
+        0,
+        table.headerRows - 1,
+        profile,
+        images,
+        additive,
+      )
+      header.y - self.page.top + total + border <=
+      self.page.height - self.page.top - self.page.bottom
+    } catch {
+      @failure.Failure(code="layout-overflow", ..) => false
+      error => raise error
+    }
+    if ready {
+      let page = header.pages[0]
+      guard page.lines.length() <= 32768 - self.count else {
+        @failure.reject("limit-exceeded", "Repeated headers exceed line budget")
+      }
+      self.count += page.lines.length()
+      let target = self.pages.last().unwrap()
+      target.lines.append(
+        page.lines.map(line => { ..line.copy_geometry(), repeated: true, }),
+      )
+      target.borders.append(page.borders)
+      target.fills.append(page.fills)
+      target.cellAreas.append(page.cellAreas)
+      self.y = header.y
+    }
+  }
   for (row, column, lines, content_height) in cells {
     let start = row - first_row
     let y = self.y +

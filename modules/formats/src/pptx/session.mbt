@@ -7,8 +7,8 @@ pub struct Session {
   priv mut slide_sequence : Int64
   priv cache : Map[String, Tree]
   priv budget : @archive.Budget
-  priv width : Double
-  priv height : Double
+  priv mut width : Double
+  priv mut height : Double
   priv mut slides : Array[Slide]
   priv mut selection : Selection
   priv mut revision : Int
@@ -39,7 +39,7 @@ fn read_slide(
       message="Missing slide layout",
     ),
   )
-  let layout = load_tree(opc, cache, layout_part)
+  let layout = load_tree(opc, cache, layout_part, parts~)
   ignore(layout.root("sldLayout"))
   let master_part = relation(opc, layout.part, "slideMaster").unwrap_or_error(
     @failure.Failure(
@@ -49,7 +49,7 @@ fn read_slide(
       message="Missing slide master",
     ),
   )
-  let master = load_tree(opc, cache, master_part)
+  let master = load_tree(opc, cache, master_part, parts~)
   ignore(master.root("sldMaster"))
   let theme_part = relation(opc, master.part, "theme").unwrap_or_error(
     @failure.Failure(
@@ -67,7 +67,7 @@ fn read_slide(
     layout.part != theme_part else {
     @failure.reject("malformed-pptx", "Cyclic slide inheritance")
   }
-  let theme = read_theme(load_tree(opc, cache, theme_part), [
+  let theme = read_theme(load_tree(opc, cache, theme_part, parts~), [
     tree, layout, master,
   ])
   let defaults = main
@@ -231,11 +231,7 @@ fn Session::from_package(
   let cache = Map([])
   let main = load_tree(opc, cache, main_part)
   let root = main.root("presentation")
-  let size = main.required(root.id, "sldSz", uri=presentation_uri)
-  let width = number(size.attribute("cx").unwrap_or("0"), 12700, 182880000) /
-    12700
-  let height = number(size.attribute("cy").unwrap_or("0"), 12700, 182880000) /
-    12700
+  let (width, height) = presentation_size(main)
   let slides : Array[Slide] = []
   let ids : Map[String, Bool] = Map([])
   let paths : Map[String, Bool] = Map([])
@@ -406,6 +402,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
     "groupReason": self.group_edit_reason(false),
     "ungroupReason": self.group_edit_reason(true),
     "slideOrderReason": self.slide_order_reason(),
+    "slideSizeReason": self.slide_size_reason(),
     "slideVisibilityReason": self.slide_visibility_reason(),
     "background": {
       "color": if current.background.is_empty() {

@@ -32,6 +32,7 @@ export class SpreadsheetFormula {
     if (active === this.active) return;
     this.switching = true;
     const { selectionStart, selectionEnd, selectionDirection } = this.input;
+    const focused = this.input.matches(":focus");
     const gridStyle = (this.active ? this.mirror : this.input).style.cssText;
     try {
       this.active = active;
@@ -41,7 +42,7 @@ export class SpreadsheetFormula {
       this.mirror.style.cssText = "";
       (active ? this.mirror : this.input).style.cssText = gridStyle;
       prepareGridInput(active ? this.mirror : this.input);
-      this.input.focus({ preventScroll: true });
+      if (active || focused) this.input.focus({ preventScroll: true });
       this.input.setSelectionRange(
         selectionStart,
         selectionEnd,

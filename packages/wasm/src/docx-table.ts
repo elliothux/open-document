@@ -38,6 +38,7 @@ export type DocxTableEdit =
     }
   | { action: "merge"; rows: number; columns: number }
   | { action: "tableWidth" | "rowHeight"; value: number }
+  | { action: "headerRows"; value: number }
   | { action: "cellFill"; value: string | null }
   | { action: "cellVerticalAlign"; value: "top" | "center" | "bottom" | null }
   | { action: "cellMargins" | "tableMargins"; value: DocxCellMargins | null }
@@ -45,6 +46,16 @@ export type DocxTableEdit =
 
 export function checkDocxTableEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "headerRows") {
+    if (
+      typeof change.value !== "number" ||
+      !Number.isSafeInteger(change.value) ||
+      change.value < 0 ||
+      change.value > 1000
+    )
+      throw new Error("Invalid header row count");
+    return;
+  }
   if (change.action === "tableAlign") {
     if (
       typeof change.value !== "string" ||

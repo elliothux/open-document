@@ -701,14 +701,25 @@ export class SpreadsheetEditor {
     });
   }
   save(): Promise<EditorOutput> {
+    return this.output("xlsx", () => this.client.save());
+  }
+  exportCsv(selection = false): Promise<EditorOutput> {
+    return this.output("csv", () =>
+      this.client.exportCsv(this.state.revision, selection),
+    );
+  }
+  private output(
+    format: EditorOutput["format"],
+    bytes: () => Promise<Uint8Array>,
+  ): Promise<EditorOutput> {
     return this.enqueue(
       async () => {
         this.requireFinished();
         await this.commitDraft();
         return this.observable.output(
           this.state.revision,
-          "xlsx",
-          await this.client.save(),
+          format,
+          await bytes(),
         );
       },
       false,
@@ -737,26 +748,16 @@ export class SpreadsheetEditor {
     options: PrintOptions = defaultPrintOptions,
     outputBytes = 67108864,
   ): Promise<EditorOutput> {
-    return this.enqueue(
-      async () => {
-        this.requireFinished();
-        await this.commitDraft();
-        const layout = await this.printView.prepare(
-          this.client,
-          this.state.revision,
-          this.state.sheet,
-          options,
-          this.profile,
-        );
-        return this.observable.output(
-          this.state.revision,
-          "pdf",
-          await this.client.exportPdf(layout.id, outputBytes),
-        );
-      },
-      false,
-      true,
-    );
+    return this.output("pdf", async () => {
+      const layout = await this.printView.prepare(
+        this.client,
+        this.state.revision,
+        this.state.sheet,
+        options,
+        this.profile,
+      );
+      return this.client.exportPdf(layout.id, outputBytes);
+    });
   }
   clear(mode: XlsxClearMode = "contents"): Promise<void> {
     return this.change(() => {

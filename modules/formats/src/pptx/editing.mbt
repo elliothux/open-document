@@ -79,6 +79,7 @@ fn Session::commit_slides(
   guard self.revision < 2147483647 else {
     @failure.reject("limit-exceeded", "Presentation revision exhausted")
   }
+  let (width, height) = presentation_size(main)
   let payload = edits
     .iter()
     .fold(init=0L, (sum, entry) => sum + entry.1.payload_bytes()) +
@@ -131,6 +132,8 @@ fn Session::commit_slides(
   })
   self.history_bytes += payload.to_int()
   self.main = main
+  self.width = width
+  self.height = height
   self.parts = parts
   self.removed = removed_parts
   self.slides = slides
@@ -254,6 +257,14 @@ pub fn Session::undo(
       parts~,
       removed=removed_parts,
     )
+    let (width, height) = presentation_size(main)
+    let slides = if width != self.width || height != self.height {
+      slides.map(slide => {
+        read_slide(self.opc, main, self.cache, slide.tree, parts~)
+      })
+    } else {
+      slides
+    }
     self.validate_slides(main, slides, parts~, removed=removed_parts)
     // Preserve identity allocation after later edits were undone, for their next redo.
     if removed is Some(_) {
@@ -269,6 +280,8 @@ pub fn Session::undo(
       }
     }
     self.main = main
+    self.width = width
+    self.height = height
     self.parts = parts
     self.removed = removed_parts
     self.slides = slides

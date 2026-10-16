@@ -155,7 +155,11 @@ fn load_tree(
   opc : @opc.Package,
   cache : Map[String, Tree],
   part : String,
+  parts~ : Map[String, @xml.Document] = Map([]),
 ) -> Tree raise @failure.Failure {
+  if parts.get(part) is Some(document) {
+    return Tree::new(part, document)
+  }
   if cache.get(part) is Some(tree) {
     return tree
   }

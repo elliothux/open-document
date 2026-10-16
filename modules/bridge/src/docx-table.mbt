@@ -32,6 +32,7 @@ fn Foundation::docx_table(
         )
       "unmerge" => @docx.UnmergeCell
       "splitTable" => @docx.SplitTable
+      "headerRows" => @docx.HeaderRows(field_int(fields, "value"))
       "cellFill" => {
         let color = match fields {
           { "value": Null, .. } => None

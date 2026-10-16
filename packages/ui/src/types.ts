@@ -5,7 +5,6 @@ import type { PdfEditor } from "@open-document/web/pdf-editor";
 import type { FoundationClient } from "@open-document/web/foundation";
 import type { PdfClient } from "@open-document/web/pdf";
 import type {
-  EditorFormat,
   EditorOutput,
   EditorSnapshot,
 } from "@open-document/web/editor-state";
@@ -99,7 +98,8 @@ export type OwnedFile = EditorFile & {
   readonly inputLimit: number;
   dispose(): Promise<void>;
 };
-export const mime: Record<EditorFormat, string> = {
+export const mime: Record<EditorOutput["format"], string> = {
+  csv: "text/csv;charset=utf-8",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",

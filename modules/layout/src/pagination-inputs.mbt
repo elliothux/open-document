@@ -78,6 +78,20 @@ fn BodyBlock::key(self : BodyBlock) -> String? {
         Json(table.widths),
         Json(table.align),
         Json(table.borders),
+        Json(table.headerRows),
+        if table.headerRows == 0 {
+          Json::null()
+        } else {
+          Json::array([
+            Json(table.rows[:table.headerRows].to_owned()),
+            Json(table.heights[:table.headerRows].to_owned()),
+            Json(table.margins[:table.headerRows].to_owned()),
+            Json(table.fills[:table.headerRows].to_owned()),
+            Json(table.verticalAligns[:table.headerRows].to_owned()),
+            Json(table.columnSpans[:table.headerRows].to_owned()),
+            Json(table.rowSpans[:table.headerRows].to_owned()),
+          ])
+        },
         Json(table.margins[row:end + 1].to_owned()),
         Json(table.rows[row:end + 1].to_owned()),
         Json(table.heights[row:end + 1].to_owned()),

@@ -78,6 +78,13 @@ export type Operation =
   | { operation: "openXlsx"; bytes: Uint8Array; budget: Budget }
   | { operation: "createXlsx"; budget: Budget }
   | {
+      operation: "importXlsxDelimited";
+      bytes: Uint8Array;
+      delimiter: "," | "\t";
+      budget: Budget;
+    }
+  | { operation: "exportXlsxCsv"; revision: number; selection: boolean }
+  | {
       operation: "findXlsx";
       revision: number;
       sheet: string;

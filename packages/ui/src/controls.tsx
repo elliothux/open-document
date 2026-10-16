@@ -81,7 +81,11 @@ export function FileMenu({
       <Menu.Root modal={false}>
         <Menu.Trigger>{t.file}</Menu.Trigger>
         <Menu.Portal container={portal}>
-          <Menu.Positioner sideOffset={4} align="start">
+          <Menu.Positioner
+            className="od-menu-positioner"
+            sideOffset={4}
+            align="start"
+          >
             <Menu.Popup className="od-menu">
               {controller.options.format !== "pdf" && (
                 <Menu.Item
@@ -131,6 +135,27 @@ export function FileMenu({
                   )}
                 </>
               )}
+              {state.file?.format === "xlsx" && (
+                <>
+                  <p>{t.csvNotice}</p>
+                  <Menu.Item
+                    className="od-menu-item"
+                    disabled={unavailable}
+                    onClick={() => controller.run(() => controller.exportCsv())}
+                  >
+                    {t.exportCsv}
+                  </Menu.Item>
+                  <Menu.Item
+                    className="od-menu-item"
+                    disabled={unavailable}
+                    onClick={() =>
+                      controller.run(() => controller.exportCsv(true))
+                    }
+                  >
+                    {t.exportCsvSelection}
+                  </Menu.Item>
+                </>
+              )}
               <Menu.Item
                 className="od-menu-item"
                 disabled={unavailable}
@@ -156,7 +181,11 @@ export function FileMenu({
         ref={input}
         type="file"
         hidden
-        accept={`.${controller.options.format}`}
+        accept={
+          controller.options.format === "xlsx"
+            ? ".xlsx,.csv,.tsv"
+            : `.${controller.options.format}`
+        }
         onChange={(event) => {
           const file = event.currentTarget.files?.[0];
           event.currentTarget.value = "";

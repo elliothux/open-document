@@ -311,7 +311,9 @@ fn Layout::portion_selection(
   let rects = []
   for page in start.page..<=end.page {
     let frame = self.pages[page]
-    let ranks = frame.lines.map(line => order[line.paragraph])
+    let ranks = frame.lines
+      .filter(line => !line.repeated)
+      .map(line => order[line.paragraph])
     ranks.sort()
     let mut previous = -1
     for rank in ranks {
@@ -321,7 +323,9 @@ fn Layout::portion_selection(
         continue
       }
       previous = rank
-      let lines = frame.lines.filter(line => order[line.paragraph] == rank)
+      let lines = frame.lines.filter(line => {
+        !line.repeated && order[line.paragraph] == rank
+      })
       guard lines.get(0) is Some(top) && lines.last() is Some(bottom) else {
         continue
       }
@@ -408,6 +412,9 @@ fn Layout::portion_selection(
         }
         let mut line_index = 0
         for index, line in frame.lines {
+          if line.repeated {
+            continue
+          }
           if line.paragraph == paragraph && selection_twips(line.y) <= y {
             line_index = index
           }

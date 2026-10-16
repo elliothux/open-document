@@ -275,6 +275,8 @@ export interface DocxFormatting {
     columns: number;
     width: number;
     rowHeight: number;
+    rows: number;
+    headerRows: number;
     cellFill: string | null;
     cellVerticalAlign: "top" | "center" | "bottom";
     cellMargins: DocxCellMargins;
@@ -401,13 +403,16 @@ export function docxFormatting(value: unknown): DocxFormatting {
     Number(result.revision) < 0 ||
     typeof result.reason !== "string" ||
     (result.table !== null &&
-      (!["id", "row", "columns"].every(
+      (!["id", "row", "columns", "rows", "headerRows"].every(
         (key) =>
           Number.isSafeInteger(table[key]) &&
           Number(table[key]) >= 0 &&
           Number(table[key]) <= 2147483647,
       ) ||
         Number(table.columns) < 1 ||
+        Number(table.rows) < 1 ||
+        Number(table.row) >= Number(table.rows) ||
+        Number(table.headerRows) > Number(table.rows) ||
         !["top", "center", "bottom"].includes(
           String(table.cellVerticalAlign),
         ) ||

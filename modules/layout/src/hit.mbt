@@ -237,7 +237,12 @@ pub fn Layout::hit_test(
   guard chosen >= 0 else {
     @failure.reject("invalid-position", "Page has no text position")
   }
-  self.caret_geometry(nearest_caret(frame.lines[chosen], page, chosen, x))
+  let hit = nearest_caret(frame.lines[chosen], page, chosen, x)
+  if frame.lines[chosen].repeated {
+    self.caret(hit.paragraph, hit.offset, hit.affinity)
+  } else {
+    self.caret_geometry(hit)
+  }
 }
 
 ///|
@@ -335,7 +340,7 @@ pub fn Layout::caret(
   let mut result : Hit? = None
   for page, frame in self.pages {
     for index, line in frame.lines {
-      if line.paragraph != paragraph {
+      if line.repeated || line.paragraph != paragraph {
         continue
       }
       for caret in line.carets {

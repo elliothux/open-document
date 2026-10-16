@@ -56,6 +56,7 @@ export interface PptxQuery {
   candidateId: number | null;
   readOnlyReason: string;
   slideOrderReason: string;
+  slideSizeReason: string;
   slideVisibilityReason: string;
   background: { color: string; explicit: boolean; reason: string };
   diagnostics: string[];
@@ -269,10 +270,16 @@ export type PptxSlideEdit =
   | { action: "delete" }
   | { action: "move"; index: number }
   | { action: "hidden"; hidden: boolean }
-  | { action: "background"; value: string | null };
+  | { action: "background"; value: string | null }
+  | { action: "size"; width: number; height: number };
 
 export function checkPptxSlideEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "size") {
+    number(change.width, 1, 14400);
+    number(change.height, 1, 14400);
+    return;
+  }
   if (change.action === "background") {
     if (
       change.value !== null &&
@@ -441,6 +448,7 @@ export function pptxQuery(value: unknown): PptxQuery {
         "slide",
         "readOnlyReason",
         "slideOrderReason",
+        "slideSizeReason",
         "slideVisibilityReason",
         "groupReason",
         "ungroupReason",

@@ -585,6 +585,30 @@ export class XlsxSession extends WasmSession {
   create(budget: Budget): XlsxQuery {
     return xlsxQuery(this.call({ operation: "createXlsx", budget }));
   }
+  importDelimited(
+    bytes: Uint8Array,
+    delimiter: "," | "\t",
+    budget: Budget,
+  ): XlsxQuery {
+    if (delimiter !== "," && delimiter !== "\t")
+      throw new Error("Invalid delimiter");
+    if (
+      bytes.length > Math.min(budget.fileBytes, budget.retainedBytes, 4194304)
+    )
+      throw new Error("Delimited input exceeds budget");
+    return xlsxQuery(
+      this.call({
+        operation: "importXlsxDelimited",
+        bytes: encodeBytes(bytes),
+        delimiter,
+        budget,
+      }),
+    );
+  }
+  exportCsv(revision: number, selection = false): Uint8Array {
+    if (typeof selection !== "boolean") throw new Error("Invalid CSV scope");
+    return this.bytes({ operation: "exportXlsxCsv", revision, selection });
+  }
   open(bytes: Uint8Array, budget: Budget): XlsxQuery {
     if (bytes.length > budget.fileBytes || bytes.length > budget.retainedBytes)
       throw new DocumentError(

@@ -163,6 +163,36 @@ export class XlsxClient {
       await this.connection.request({ operation: "createXlsx", budget }),
     );
   }
+  async importDelimited(
+    bytes: Uint8Array,
+    delimiter: "," | "\t",
+    budget: Budget,
+  ): Promise<XlsxQuery> {
+    if (delimiter !== "," && delimiter !== "\t")
+      throw new Error("Invalid delimiter");
+    if (
+      bytes.length > Math.min(budget.fileBytes, budget.retainedBytes, 4194304)
+    )
+      throw new Error("Delimited input exceeds budget");
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "importXlsxDelimited",
+        bytes,
+        delimiter,
+        budget,
+      }),
+    );
+  }
+  async exportCsv(revision: number, selection = false): Promise<Uint8Array> {
+    if (typeof selection !== "boolean") throw new Error("Invalid CSV scope");
+    const bytes = await this.connection.request({
+      operation: "exportXlsxCsv",
+      revision,
+      selection,
+    });
+    if (!(bytes instanceof Uint8Array)) throw new Error("Invalid CSV bytes");
+    return bytes;
+  }
   async openXlsx(bytes: Uint8Array, budget: Budget): Promise<XlsxQuery> {
     return xlsxQuery(
       await this.connection.request({ operation: "openXlsx", bytes, budget }),

@@ -116,6 +116,12 @@ export async function prepareFile(
         if ((document.bytes?.length ?? 0) > inputLimit)
           throw new Error("Document input exceeds budget");
         if (document.blank) await connection.create(budget);
+        else if (/\.(csv|tsv)$/i.test(document.name))
+          await connection.importDelimited(
+            document.bytes,
+            /\.tsv$/i.test(document.name) ? "\t" : ",",
+            budget,
+          );
         else await connection.openXlsx(document.bytes, budget);
         await fonts(connection);
         file = {

@@ -191,6 +191,7 @@ fn Session::table(
     }
   }
   let rows : Array[Array[Array[@layout.Paragraph]]] = []
+  let mut header_rows = 0
   let heights : Array[Double] = []
   let fills : Array[Array[String]] = []
   let vertical_aligns : Array[Array[String]] = []
@@ -201,6 +202,18 @@ fn Session::table(
   for row in tree.children[id] {
     if tree.nodes[row].name != "tr" {
       continue
+    }
+    if rows.length() == header_rows &&
+      tree.child(row, "trPr").bind(p => tree.child(p, "tblHeader"))
+      is Some(flag) {
+      guard tree.valid_on_off_property(flag) else {
+        @failure.reject("unsupported-layout", "Invalid table header property")
+      }
+      if !["0", "false", "off"].contains(
+          tree.nodes[flag].attribute("val", uri=word_uri).unwrap_or("1"),
+        ) {
+        header_rows += 1
+      }
     }
     let cells : Array[Array[@layout.Paragraph]] = []
     let colors : Array[String] = []
@@ -404,8 +417,24 @@ fn Session::table(
   guard ["left", "center", "right"].contains(align) else {
     @failure.reject("unsupported-layout", "Unsupported table alignment")
   }
+  let mut safe_header_rows = 0
+  while safe_header_rows < header_rows {
+    let mut end = safe_header_rows
+    let mut row = safe_header_rows
+    while row <= end {
+      for span in row_spans[row] {
+        end = end.max(row + span - 1)
+      }
+      row += 1
+    }
+    if end >= header_rows {
+      break
+    }
+    safe_header_rows = end + 1
+  }
   {
     id,
+    headerRows: safe_header_rows,
     beforeParagraph: before_paragraph,
     rows,
     columnSpans: column_spans,

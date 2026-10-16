@@ -62,6 +62,7 @@ pub(all) enum SlideEdit {
   MoveSlide(Int)
   HideSlide(Bool)
   Background(String?)
+  Size(Double, Double)
 }
 
 // Type aliases

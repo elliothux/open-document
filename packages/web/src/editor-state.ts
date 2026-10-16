@@ -3,7 +3,7 @@ export type EditorFormat = "docx" | "xlsx" | "pptx" | "pdf";
 export interface EditorOutput {
   readonly documentId: string;
   readonly revision: number;
-  readonly format: EditorFormat;
+  readonly format: EditorFormat | "csv";
   readonly bytes: Uint8Array;
 }
 
@@ -35,7 +35,7 @@ export type EditorSnapshot<T = unknown> = Readonly<EditorFields<T>> & {
   readonly savedRevision: number;
   readonly lastOutput: Readonly<{
     revision: number;
-    format: EditorFormat;
+    format: EditorOutput["format"];
     downloaded: boolean;
   }> | null;
 };
@@ -101,7 +101,7 @@ export class EditorState<T> {
 
   output(
     revision: number,
-    format: EditorFormat,
+    format: EditorOutput["format"],
     bytes: Uint8Array,
   ): EditorOutput {
     const output = Object.freeze({

@@ -193,6 +193,8 @@ fn Foundation::dispatch(
     }
     "openXlsx"
     | "createXlsx"
+    | "importXlsxDelimited"
+    | "exportXlsxCsv"
     | "editXlsxSheet"
     | "autoFitXlsx"
     | "formatXlsxCells"

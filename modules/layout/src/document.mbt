@@ -201,6 +201,7 @@ pub(all) struct Line {
   start : Int
   end : Int
   caretOnly : Bool
+  repeated : Bool
   x : Double
   areaX : Double
   areaWidth : Double
@@ -343,6 +344,7 @@ pub extend CellMargins with Eq::{not_equal, equal}
 ///|
 pub(all) struct Table {
   id : Int
+  headerRows : Int
   beforeParagraph : Int
   rows : Array[Array[Array[Paragraph]]]
   columnSpans : Array[Array[Int]]

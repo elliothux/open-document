@@ -70,6 +70,7 @@ export interface DocxFlow {
     heights: number[];
     fills: string[][];
     verticalAligns: ("top" | "center" | "bottom")[][];
+    headerRows: number;
   }[];
 }
 
@@ -232,6 +233,12 @@ export function docxFlow(value: unknown): DocxFlow {
     const rows = entries(table.rows),
       verticalAligns = entries(table.verticalAligns);
     const margins = entries(table.margins);
+    if (
+      !Number.isSafeInteger(table.headerRows) ||
+      Number(table.headerRows) < 0 ||
+      Number(table.headerRows) > rows.length
+    )
+      throw new Error("Invalid table header count");
     if (
       margins.length !== rows.length ||
       margins.some((row, r) => entries(row).length !== entries(rows[r]).length)

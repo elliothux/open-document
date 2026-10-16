@@ -39,7 +39,7 @@ DOCX、XLSX、PPTX 也接受 `document: { name, blank: true }`，`OfficeDocument
 
 框架无关的四类编辑宿主提供 `getSnapshot()`、`subscribe()`、`focus()`、`setPaused()`、`markSaved(output)` 和 `markDownloaded(output)`。快照包含会话身份、revision、导航、缩放、选区摘要、历史、诊断、停止/错误、在途操作及组合/拖动/草稿状态，并附格式当前查询。未变化时保持对象身份；已提交但绘制失败仍发布新 revision，保留保存与恢复入口。低层宿主借用 client，调用者等待宿主释放后另行关闭 client。
 
-编辑宿主的原格式保存和 Office PDF 输出统一返回 `EditorOutput = { documentId, revision, format, bytes }`。默认 UI 另加文件名 `name`。此约定不改变原始 Wasm/client 的保存结果。只有该宿主实际产生的原格式输出可以 `markSaved`；旧会话、其他格式和任意裸 revision 都不能确认保存。确认的是输出 revision，其后新编辑仍显示未保存。导航、缩放和 UI 变化不修改文档。
+编辑宿主的原格式保存、Office PDF 和 XLSX CSV 输出统一返回 `EditorOutput = { documentId, revision, format, bytes }`。`format` 包含 `csv`；编辑器输入格式仍为 DOCX/XLSX/PPTX/PDF。默认 UI 另加文件名 `name`。此约定不改变原始 Wasm/client 的保存结果。只有该宿主实际产生的原格式输出可以 `markSaved`；旧会话、其他格式和任意裸 revision 都不能确认保存。确认的是输出 revision，其后新编辑仍显示未保存。导航、缩放和 UI 变化不修改文档。
 
 `onSave` 成功才确认保存基线；失败保留修改并允许重试。缺省下载只提示“已生成下载”，不确认磁盘持久化，也不清除修改。PDF 导出不清除 Office 修改。关闭前选择“导出并继续”明确包含放弃内存会话。`dispose` 不等待宿主存储回调，晚到回执不更新已释放实例。
 
@@ -199,7 +199,7 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `{ action: "splitTable" }` 在所选单元格所在行之前拆分正文表格，两表之间插入空正文段落，光标进入下表首格。首行、缺少段落的单元格、嵌套/受保护表格、未知结构及预算失败拒绝操作。两表保留列网格、宽度、边框、样式和单元格内容；原有行和未替换内容的身份保持。纵向合并跨越分界线时，内容留在上表，下表从对应位置创建空的合并起始格，复制原合并格格式并清除段前分页；后续延续格继续归属下表。分界、空格及选择一次提交历史，支持原样撤销、保存重开、继续输入及同布局 PDF。默认 UI 使用同一操作。拆表与跨度清理参考 [LibreOffice SplitTable](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sw/source/core/docnode/ndtbl.cxx#L3392-L3515)及[纵向跨度清理](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sw/source/core/table/swnewtable.cxx#L2021-L2110)。
 
-布局读取横向跨度及纵向起始/延续格，文字、背景和边框使用合并后的矩形；Tab 跳过纵向延续格。依赖纵向合并的相邻行作为一组分页，普通行仍可分到后续页。当前一组合并行须能完整放进一页；跨页延续、重复表头及拆行仍待实现。包含可见内容的纵向延续格明确拒绝，避免隐藏其文字。含合并格的行列增删继续保护，取消合并后可沿用原入口。默认 UI 提供从当前格指定行列数量的合并与取消合并；任意行列数拆格、鼠标矩形选择及属性编辑仍归 [P10](../p10-docx-core.md)。
+布局读取横向跨度及纵向起始/延续格，文字、背景和边框使用合并后的矩形；Tab 跳过纵向延续格。依赖纵向合并的相邻行作为一组分页，普通行仍可分到后续页。当前一组合并行须能完整放进一页；跨页合并延续和拆行仍待实现；重复表头见[当前合同](#重复表头)。包含可见内容的纵向延续格明确拒绝，避免隐藏其文字。含合并格的行列增删继续保护，取消合并后可沿用原入口。默认 UI 提供从当前格指定行列数量的合并与取消合并；任意行列数拆格、鼠标矩形选择及属性编辑仍归 [P10](../p10-docx-core.md)。
 
 ### 表格尺寸
 
@@ -207,7 +207,7 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `editTable({ action: "rowHeight", value })` 设置当前格所在行的最小高度，写入 `trHeight hRule="atLeast"`；0 恢复自动高度。内容需要更多空间时，行继续长高。核心按同一纵向合并行组中其他行的最小高度与边距预留一页，拒绝明显超出的下限；实际内容仍沿既有分页与合并行组规则排版。行为参考 [ONLYOFFICE 行高操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L5663-L5674)。两项值均须有限、非负、不超过 14400 pt，且能表示为整数 twip；表宽须大于 0。
 
-`queryFormatting(...).table` 在支持的表格上下文中返回 `{ id, row, columns, width, rowHeight, align, tableMargins, cellFill, cellVerticalAlign, cellMargins, maxWidth, maxRowHeight }`，否则为 null。`id` 为当前表节点身份，`row` 从 0 开始，`columns` 为逻辑列数；`width` 是列网格总宽，`rowHeight` 是最小高度，均不是浏览器测量值。`align` 为整表的 `left`、`center` 或 `right`；`tableMargins` 是表格默认单元格边距，尚未叠加单格覆盖。`cellFill` 为当前格的六位 RGB 底色，无底色时为 null；`cellVerticalAlign` 为有效的 `top`、`center` 或 `bottom`；`cellMargins` 为该格有效的 `{ top, right, bottom, left }`。两类边距均以 pt 表示。默认 UI 读取同一查询，提交后反映实际属性；文档、所选段落或 revision 变化会重置未提交的属性输入。
+`queryFormatting(...).table` 在支持的表格上下文中返回 `{ id, row, rows, columns, headerRows, width, rowHeight, align, tableMargins, cellFill, cellVerticalAlign, cellMargins, maxWidth, maxRowHeight }`，否则为 null。`id` 为当前表节点身份，`row` 从 0 开始，`columns` 为逻辑列数；`width` 是列网格总宽，`rowHeight` 是最小高度，均不是浏览器测量值。`align` 为整表的 `left`、`center` 或 `right`；`tableMargins` 是表格默认单元格边距，尚未叠加单格覆盖。`cellFill` 为当前格的六位 RGB 底色，无底色时为 null；`cellVerticalAlign` 为有效的 `top`、`center` 或 `bottom`；`cellMargins` 为该格有效的 `{ top, right, bottom, left }`。两类边距均以 pt 表示。默认 UI 读取同一查询，提交后反映实际属性；文档、所选段落或 revision 变化会重置未提交的属性输入。
 
 尺寸操作保留逻辑选区和当前光标处的待输入格式，重排后清除旧布局定位提示，沿已有队列、源历史、保存重开和 PDF。无源变化不增加历史；未知行/格映射、网格标记、属性或预算失败原子拒绝。缺少的尺寸属性按 OOXML 顺序创建；恢复自动高度保留其他行属性。精确行高、单列宽度、自动适配、其余格属性和跨页合并延续仍归 [P10](../p10-docx-core.md)。
 
@@ -239,7 +239,16 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 两项操作使用表格属性事务，保留文字身份、选区、待输入格式、其他属性与部件；必要的表格属性容器按 OOXML 顺序创建。无源变化不增加历史，未知目标属性/标记、无文字宽度、边距超过页高或预算失败原子拒绝。预览、空白区域命中、光标/选区与 PDF 使用同一位置；保存重开和精确撤销/重做沿已有路径。浮动表格及其他表格属性仍按 [P10](../p10-docx-core.md)范围推进。
 
+### 重复表头
+
+`editTable({ action: "headerRows", value })` 将当前表开头的 `value` 行设为重复表头，并移除后续行的直接表头标志。0 清除全部，值须为 0–1000 且不超过表的行数。`queryFormatting(...).table.rows/headerRows` 返回总行数与有效表头行数，`DocxFlow.tables[].headerRows` 为相同的有效连续前缀。默认 UI 提供行数输入。
+
+导入只读取开头连续开启的 `tblHeader`。纵向合并跨越表头边界时，缩短有效前缀；主动设置这样的边界原子拒绝。规则依据 [ONLYOFFICE private_RecalculateHeader](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L1836-L1891)。源标志、内容、段落身份、其他部件与待输入格式沿已有单项历史保存、撤销和重做。
+
+自动分页在后续页重画表头，复用文字、图片、合并、边距、对齐、底色和边框几何；Canvas 与 PDF 使用同一结果。表头与下一行组合放不进一页时，该页省略副本，正文继续排版。副本不增加逻辑文字、查找结果、键盘导航或选区高亮；点击副本定位源表头，编辑源行后各副本同步。布局 `Line.repeated` 标记副本，增量缓存键包含表头依赖，复制行计入行预算。拆行和跨页合并延续仍待实现。
+
 ### 列表读取与标记排版
+
 
 核心读取主文档及表格中的 `numPr`，合并默认/段落样式和直接 `numId/ilvl`；`numId=0` 取消继承。编号部件使用独立抽象定义、实例及 0–8 级别。支持 `decimal`、`decimalZero`、大小写字母、大小写罗马数字和 Unicode 项目符号；读取级别的起始值、父级重启、`startOverride`、文字模板、对齐、后缀、段落及字符属性。正文与表格按源顺序计数，同一抽象定义的实例共享计数；首次遇到实例时应用当前级别的起始覆盖。`lvlOverride` 可覆盖已支持的级别属性，外层与内层 `ilvl` 必须一致。模板、文字和几何使用有效级别；计数起点及父级重启仍取抽象定义，缺失抽象级别的默认起点为 0。行为依据 [ONLYOFFICE 的编号计数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L28708-L28931)。
 
@@ -570,6 +579,16 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 ### 输入与保存
 
+CSV 输出拒绝 SpreadsheetML 转义产生的 NUL 等非 XML 控制字符，保留原工作簿。
+
+`XlsxSession.importDelimited(bytes, delimiter, budget)` 与 `XlsxClient.importDelimited` 创建一张新的文字工作表，分隔符明确为 `","` 或 `"\t"`。只接受 UTF-8，可带 BOM；引号字段、双引号转义及字段内 CR/LF 保留。不等宽行按实际字段写入，导出时补空字段到矩形。数字、布尔、日期及公式前缀均保留文字，不自动执行。默认 XLSX UI 的文件入口接受 `.csv/.tsv`，按后缀选择分隔符，改用 `.xlsx` 文件名并等待首次保存。导入失败保留旧文档；数字/日期转换及导入公式的显式模式仍待实现。
+
+导入最多 4 MiB 文件、1048576 UTF-16 单元、65536 字段与 16384 列，每格最多 32767 UTF-16 单元，并受既有 OPC 预算约束。空字段和行列位置保留；不支持的编码、引号结构、非法 XML 字符或预算失败不产生可用的半份工作簿。
+
+`XlsxSession.exportCsv(revision, selection = false)` 与 `XlsxClient.exportCsv` 输出 UTF-8 CSV 字节；宿主 `SpreadsheetEditor.exportCsv(selection = false)` 先提交原生草稿，返回上述 `EditorOutput`。false 导出当前表从 A1 到已用边界的矩形，true 导出当前选区，均最多 65536 格。输出原始逻辑值、布尔值与已计算/缓存公式结果，空合并延续格输出空字段，不导出公式、样式、其他表或图形。公式没有可信结果时拒绝，不伪造空值。
+
+CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部引号成对转义。文字去前导空白后以 `= + - @` 开头，或原文以 Tab/CR/LF 开头时，加一个单引号防止外部表格执行；负数值保持数值。该单引号在文字模式重导入时保留。输出最多 4194304 UTF-16 单元并受 outputBytes 限制。默认文件菜单明确提示范围、格式损失和文字前缀策略，CSV 输出不确认 XLSX 已保存。引号/分隔符行为参考 [ONLYOFFICE CSVReader](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Sheets/Reader/CSVReader.cpp#L328-L366) 和 [CSVWriter](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Sheets/Writer/CSVWriter.cpp#L907-L925)；安全前缀为本 SDK 的明确策略。
+
 前导 `=` 进入公式，单引号强制文字。未做日期自动识别与地区化输入推断。TSV 粘贴保留以 `=` 或单引号开头的文字，其余字段由核心识别数值、布尔或文字。CRLF/CR 统一为 LF，支持带引号的字段、字段内换行和双引号转义；不等宽行或未闭合引号拒绝。矩形写入、粘贴和清空与任意合并区域相交时拒绝，单格按锚点修改。
 
 候选源片段、依赖、计算缓存和历史一起提交。新文字使用内联字符串；共享字符串顺序不变，同步计数。保存保留非目标源内容，移除失效 `calcChain`、其关系与 content type，并设置 `calcPr` 重算属性。输出重新检查 OPC 完整性；失败保留会话，不返回部分文件。不承诺整个 ZIP 字节相等。
@@ -602,6 +621,10 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 ## PPTX
 
+`PresentationEditor.editSlides({ action: "size", width, height })` 修改全稿尺寸，单位为 pt，每边 1–14400，核心取整到 EMU。默认 UI 提供 16:9、4:3 和自定义宽高。`query.width/height` 返回实际尺寸，`slideSizeReason` 返回保护原因。各轴按新旧尺寸比例缩放全部页面及关联版式、母版的本地位置与尺寸；组的子坐标原点、范围及成员同时缩放。字号、描边宽度、旋转/翻转、对象身份、选择与其他资源保持。该规则依据 [ONLYOFFICE Presentation.changeSlideSizeFunction](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L805-L850)、[Shape.changeSize](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L3235-L3266)和 [GroupShape.changeSize](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L789-L805)。
+
+尺寸、页面和设计部件合为一次有界历史。相同实际尺寸不新增历史；旧 revision、活动候选、保护、坐标越界和输出/历史预算失败原子拒绝。图表/表格等未知页面对象、未知变换坐标和非空参考线暂时保护尺寸调整。未知部件与原有源片段保留。保存重开及 Canvas/PDF 使用相同的新尺寸和几何；反复改变比例可能产生 EMU 取整，撤销恢复原始源字节。
+
 页面背景使用 `PresentationEditor.editSlides({ action: "background", value }, slide?)`。`value` 为不带 `#` 的六位 RGB，`null` 移除本页背景并恢复版式、母版继承。`query.background` 返回有效 `color`、本页是否设置 `explicit` 与保护原因 `reason`；没有背景时显示白色。默认 UI 提供纯色设置和恢复继承。
 
 操作保留对象身份、选择及其他部件，复用 revision、候选保护、输出预算和精确撤销重做。已有背景含未知标记、渐变、图片或复杂效果时保护原源。纯色背景沿同一图元输出 Canvas 与静态 PDF。核心 8 例及 Chromium 1 个流程已检查继承、保存重开、继续输入和历史；背景其他类型、主题与母版编辑仍待实现。修改本页背景的语义参考 [ONLYOFFICE Slide.changeBackground](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L825-L829)。
@@ -614,7 +637,7 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 | --- | --- |
 | `openPptx` / `queryPptx` | 显式预算打开 Transitional PPTX / 查询当前状态 |
 | `selectPptx` / `navigatePptx` | 页/有序对象集合/文字选择、对象顺序及字素/行导航；文字使用对象内 UTF-16 offset |
-| `editPptxSlides` | revision、稳定 slide 身份和 `PptxSlideEdit`；新增、删除、重排或隐藏/显示，返回 `PptxQuery` |
+| `editPptxSlides` | revision、稳定 slide 身份和 `PptxSlideEdit`；新增、复制、删除、重排、隐藏/显示、背景或全稿尺寸，返回 `PptxQuery` |
 | `editPptxObjects` | revision、字体 profile 和 `PptxObjectEdit`；插入、删除、复制、旋转、翻转、层次、对齐/分布或组合/取消组合，返回 `PptxQuery` |
 | `replacePptx` / `deletePptx` / `copyPptx` | 普通文字范围编辑、方向删除及纯文本复制；编辑需要字体 profile |
 | `beginPptx` / `finishPptx` / `cancelPptx` | 开始、提交、取消 `text` 或 `transform` 候选；匹配 revision 与 candidateId |

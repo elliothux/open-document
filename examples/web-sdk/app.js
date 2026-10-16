@@ -13,9 +13,10 @@ form.addEventListener("submit", async (event) => {
   try {
     const file = document.querySelector("#document").files[0];
     if (!file) return;
-    const format = file.name.split(".").at(-1).toLowerCase();
+    const extension = file.name.split(".").at(-1).toLowerCase();
+    const format = ["csv", "tsv"].includes(extension) ? "xlsx" : extension;
     if (!["docx", "xlsx", "pptx", "pdf"].includes(format))
-      throw new Error("Choose DOCX, XLSX, PPTX or PDF");
+      throw new Error("Choose DOCX, XLSX, CSV, TSV, PPTX or PDF");
     const profile = JSON.parse(document.querySelector("#profile").value);
     if (
       !profile ||

@@ -23,7 +23,7 @@ fn WordTree::diagnose_properties(
         "tblStyle", "tblW", "jc", "tblBorders", "tblCellMar", "tblLook", "tblInd",
         "tblLayout",
       ]
-    "trPr" => ["trHeight"]
+    "trPr" => ["trHeight", "tblHeader"]
     _ => return
   }
   fn report(
@@ -47,7 +47,7 @@ fn WordTree::diagnose_properties(
         .iter()
         .all(a => a.uri == word_uri && a.name == "type")
       "tabs" => self.valid_tabs(child)
-      "bidi" => self.valid_on_off_property(child)
+      "bidi" | "tblHeader" => self.valid_on_off_property(child)
       "numPr" => self.valid_numbering_properties(child)
       // The fixed Writer DOCX importer preserves these flags without applying them.
       "autoSpaceDE" | "autoSpaceDN" => self.valid_on_off_property(child)

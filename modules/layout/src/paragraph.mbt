@@ -421,6 +421,7 @@ fn paragraph_lines(
         start,
         end,
         caretOnly: page_break && visible_end == start,
+        repeated: false,
         x: if paragraph.rtl {
           available - indent - alignment - width
         } else {
@@ -493,6 +494,7 @@ fn paragraph_lines(
         start,
         end: start,
         caretOnly: text.has_suffix("\u000c"),
+        repeated: false,
         x: if paragraph.rtl {
           available - paragraph.left
         } else {
@@ -527,6 +529,7 @@ fn paragraph_lines(
         ..line,
         markerText: marker.text,
         caretOnly: false,
+        repeated: false,
         marker: [
           {
             ..marker.run,

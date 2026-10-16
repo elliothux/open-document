@@ -71,6 +71,14 @@ async function dispatch(request: Request): Promise<unknown> {
         return workbook.open(request.bytes, request.budget);
       case "createXlsx":
         return workbook.create(request.budget);
+      case "importXlsxDelimited":
+        return workbook.importDelimited(
+          request.bytes,
+          request.delimiter,
+          request.budget,
+        );
+      case "exportXlsxCsv":
+        return workbook.exportCsv(request.revision, request.selection);
       case "queryXlsx":
         return workbook.query(request.sheet, request.range);
       case "findXlsx":
@@ -171,6 +179,8 @@ async function dispatch(request: Request): Promise<unknown> {
       switch (request.operation) {
         case "openXlsx":
         case "createXlsx":
+        case "importXlsxDelimited":
+        case "exportXlsxCsv":
         case "editXlsxSheet":
         case "autoFitXlsx":
         case "formatXlsxCells":
