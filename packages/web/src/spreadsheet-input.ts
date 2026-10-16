@@ -3,6 +3,26 @@ import type {
   XlsxSelectionGeometry,
 } from "@open-document/wasm/xlsx";
 
+export function requireCellCompositionEnd(composing: boolean): void {
+  if (composing)
+    throw new Error(
+      "Cell editing is unfinished: complete or cancel composition first",
+    );
+}
+
+export function showCellDraft(
+  input: HTMLTextAreaElement,
+  style: () => void,
+  text: string | undefined,
+): void {
+  if (text !== undefined) input.value = text;
+  style();
+  if (text !== undefined) {
+    input.focus({ preventScroll: true });
+    input.setSelectionRange(input.value.length, input.value.length);
+  }
+}
+
 export function bindCellDraft(
   input: HTMLTextAreaElement,
   signal: AbortSignal,

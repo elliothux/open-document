@@ -21,6 +21,8 @@ pub(all) enum SheetEdit {
   PageSetup(PrintSetup)
   PrintRange(PrintRange)
   HeaderFooter(HeaderFooter)
+  Validation(String, DataValidation?)
+  ValidationValue(Int, Int)
 }
 
 ///|
@@ -151,6 +153,10 @@ pub fn Session::edit_sheet(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   match change {
+    Validation(range, settings) =>
+      return self.set_validation(sheet, range, settings)
+    ValidationValue(index, source_revision) =>
+      return self.pick_validation(sheet, index, source_revision)
     Fill(range, direction) => return self.fill_cells(sheet, range, direction)
     InsertRows(first, count) =>
       return self.edit_axes(sheet, {
@@ -268,7 +274,9 @@ pub fn Session::edit_sheet(
     | Freeze(_, _)
     | PageSetup(_)
     | PrintRange(_)
-    | HeaderFooter(_) => abort("Dimension edit was dispatched")
+    | HeaderFooter(_)
+    | Validation(_, _)
+    | ValidationValue(_, _) => abort("Dimension edit was dispatched")
     Rename(name) => return self.rename_sheet(index, name)
     Delete => {
       removed = self.prepare_sheet_delete(index, parts, edits)

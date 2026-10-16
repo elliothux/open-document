@@ -593,6 +593,32 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 核心已检查 Normal 派生、取消合并、条件格式/验证/链接清除、共享公式、依赖缓存及精确混合历史；Chromium 已检查原生草稿后清除格式、全部清除、独立 XML、保存重开和 PDF。行为参考 [ONLYOFFICE 范围清除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21093-L21175)和[清除选项](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L16669-L16695)。
 
+### 数据验证
+
+普通 `dataValidation` 支持创建、修改、清除及核心输入校验，覆盖整数、小数、日期、时间、文字长度、列表和自定义公式，以及八种比较运算。源的 `showErrorMessage` 为 true 才限制输入，`allowBlank` 允许空值。日期和时间比较已有数值序列或公式结果，沿工作簿的 1900/1904 日期系统；不新增宿主日期字符串猜测。文字长度使用 UTF-16 单元。重叠范围沿源顺序选择首个规则，规则自身的多个范围使用首段锚点平移相对引用。
+
+`SpreadsheetEditor.editSheet({ action: "validation", range, rule })` 复用同步 Wasm、Worker 和 `XlsxClient.editSheet`。`rule` 为 `XlsxDataValidation`，null 清除目标范围的验证。新增和修改不改写已有值；相交旧规则扣除选区，范围外规则及相对公式保持含义。整列仍是范围描述，不展开空格子。一次提交一项精确历史，无变化不新增历史。未知规则属性、保留的注释/处理指令、非默认输入法设置及扩展验证保护修改；预算或公式检查失败不留下半项操作。实现归 [`validation-edit.mbt`](../../modules/formats/src/xlsx/validation-edit.mbt)。
+
+| `XlsxDataValidation` 字段 | 内容 |
+| --- | --- |
+| `kind` | `none/whole/decimal/date/time/textLength/list/custom`；none 允许任意值并保留提示 |
+| `operator` | `between/notBetween/equal/notEqual/lessThan/lessThanOrEqual/greaterThan/greaterThanOrEqual` |
+| `formula1/formula2` | 已支持的公式；比较范围需要两项，列表使用带引号的逗号文字或单行/单列引用 |
+| `allowBlank/showErrorMessage` | 空值策略及是否检查非法输入 |
+| `errorStyle/errorTitle/error` | `stop/warning/information`、错误标题和信息 |
+| `showInputMessage/promptTitle/prompt` | 是否显示输入提示、提示标题和正文 |
+| `showDropDown` | true 隐藏列表下拉；沿 OOXML 的反向开关保存 |
+
+标题最多 32、提示/错误正文最多 255 UTF-16 单元。核心 `DataValidation::default()` 使用允许空值、启用停止错误的 1–10 整数规则。默认属性面板编辑以上字段，应用及清除只作用于所选范围。原生草稿沿现有队列先独立提交，规则变更可另行撤销。
+
+`XlsxQuery.dataValidation` 返回选区首格的 `rule`、是否混合的 `mixed`、编辑保护原因、列表文字 `options/optionsReason` 及有效 `promptVisible`。规则公式已相对选区首格换算，混合查询和整列覆盖有范围片段及工作量上限。输入提示遵守工作表的 `disablePrompts`。`{ action: "validationValue", index, sourceRevision }` 选择当前单格或合并格的候选值；`sourceRevision` 使用显示选项时的 query revision，过期选择拒绝。核心重新读取列表，保留引用值类型，字面列表保持文字，等号开头的选项不执行为公式；选择与重算共用原值事务和历史。
+
+自定义条件和边界公式复用既有公式解析、引用与计算，读取整次候选写入和受影响计算结果。字面列表按逗号拆分、移除每项开头的空格并按原文比较；单行/单列列表引用保留值类型。未知公式、名称/扩展引用、未知规则属性及扩展验证继续保护相关输入。每表最多检查 4096 条规则，单个列表最多 4096 项或单元格，验证共享 1048576 份工作预算；规则公式各不超过 8192 UTF-16 单元。失败发生在缓存写回、自动尺寸、源提交和历史之前，整块粘贴不会留下部分值。
+
+失败使用 `validation-stop` 或 `validation-warning`，消息包含表名、单元格及源错误标题/文字。同步 Wasm 和 `XlsxClient.replace(revision, sheet, range, values, literal=false, acceptWarnings=false)`、`paste(revision, text, acceptWarnings=false)` 提供显式警告授权。授权后仍重算并检查所有目标，只允许 `warning/information`，不绕过 `stop`、未知规则或预算。查找替换沿共享值事务校验，暂不提供警告授权参数。验证不因依赖值变化重新拒绝未直接修改的格子，也不重验撤销/重做。
+
+`SpreadsheetEditor.acceptValidationWarnings` 默认为 false，作用于该编辑器的原生输入和粘贴。默认公式栏提供对应复选框，启用后允许这些输入触发警告，直至关闭或更换文档。非法原生输入保留草稿和焦点，用户可纠正、取消或启用警告后重试；停止规则始终生效。现有规则 XML、值类型、其他部件及精确历史保持。普通验证元数据不再阻止打印/PDF，输出仍使用原值和样式；条件格式及其他未呈现内容继续保护输出。命名/扩展公式和更广导入变体仍待兼容扩展。行为参考 [ONLYOFFICE 数据验证](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/DataValidation.js#L516-L619)，输入实现归 [`data-validation.mbt`](../../modules/formats/src/xlsx/data-validation.mbt)。
+
 ### 显示与计算
 
 读取共享/内联字符串、数值、布尔值、错误、公式及缓存。富文本读出文字，保留原 XML并保护编辑。受保护工作表及含未知编辑语义的单元格只读。图表、条件格式、绘图等未呈现内容给出诊断，继续保留源部件。
@@ -789,7 +815,11 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 删除参数为 `{ action: "delete" }`，复制为 `{ action: "duplicate", dx, dy }`。两者要求对象模式；空选区不修改文档。删除作用于整个集合，先校验全部成员，再提交一项历史；任一保护失败不删除其他成员。复制作用于整个集合，包括受支持的嵌套组；副本按原源顺序放到最上层。保留源内容、几何、组缩放、命名空间与图片/超链接关系，为副本及其全部成员分配会话内尚未使用的新 `cNvPr.id`，域身份同样更新。副本内部对象引用重映射；引用集合外对象而需联动的结构明确拒绝。副本选择保留原选择顺序及对应活动对象。一次复制合为一项历史，任一成员、字体、几何或预算失败不创建副本、不消耗身份。原对象、其他部件和资源保持原样。一次复制的 XML 片段及继承命名空间合计最多 2 Mi UTF-16 单元，在拼接前检查；最终包和历史继续受原有预算约束。删除清空选择；撤销/重做精确恢复源 XML 与选择。`PptxObject.deleteReason/duplicateReason` 返回操作保护原因，空串表示可用。继承/组成员/未知对象继续保护；复制占位符及未知扩展、删除锁定或带连接/计时引用的对象仍拒绝，含未支持所属关系的页面也保护删除。资源和关系不做清理。默认 UI 提供插入面板、复制/删除按钮；对象输入支持 Delete/Backspace 与 Ctrl/Cmd+D，默认复制偏移各 18 pt。
 
-圆角矩形使用 `roundRect`，实心箭头使用四个方向的标准 DrawingML 预设；新对象使用默认调节点。读取圆角 `adj`、箭头 `adj1/adj2` 的 `val` 数值公式，按预设上下限和实际宽高计算路径、文字矩形及命中；未知调节点或公式保留源并诊断。文字矩形先于 bodyPr 内边距，新增/复制时继续检查实际容量。Canvas 与 PDF 使用同一路径，旋转和局部翻转使用同一矩阵。调节点和任意自定义几何的编辑仍待实现。
+圆角矩形使用 `roundRect`，实心箭头使用四个方向的标准 DrawingML 预设；新对象使用默认调节点。读取圆角 `adj`、箭头 `adj1/adj2` 的 `val` 数值公式，按预设上下限和实际宽高计算路径、文字矩形及命中；未知调节点或公式保留源并诊断。文字矩形先于 bodyPr 内边距，新增/复制时继续检查实际容量。Canvas 与 PDF 使用同一路径，旋转和局部翻转使用同一矩阵。
+
+`editObjects({ action: "shapeAdjustment", name, value })` 修改所选本地顶层预设形状的一个调节值。圆角 `adj` 为短边的 0–0.5 倍；四向实心箭头的 `adj1` 为箭身占横向宽度的 0–1 倍，`adj2` 为箭头长度占短边的倍数，上限是箭头方向边长除以短边。数值按十万分之一保存，沿现有公式整数范围限制在 0–21474.83647。null 只移除该调节值，恢复预设默认值；其他调节值和源内容保留。规则依据 [ONLYOFFICE 预设几何](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/common/Drawings/Format/CreateGeometry.js#L6947-L6981)，实现归 [`shape-adjustment.mbt`](../../modules/formats/src/pptx/shape-adjustment.mbt)。
+
+对象查询的 `shapeAdjustments` 返回 `preset`、`reason` 和 `values`；各值包含 `name/value/maximum`，使用与命令相同的比例。默认面板显示百分比，支持分别应用、恢复预设值及相同调节项的多选混合查询。任一对象锁定 `noAdjustHandles`、未知调节源、所选形状不支持该项或数值越过几何上限时，整项拒绝。无变化不新增历史。修改与派生的字体缩小或形状自动尺寸合为一项历史，保留文字、身份、选择及非目标部件；保存重开后可继续修改。组内、继承对象、指针拖动调节手柄和任意自定义几何编辑继续实施。
 
 旋转使用 `{ action: "rotate", angle }`，绝对角度为 -360°–360°，核心舍入到 1/60000°。`{ action: "flip", axis: "horizontal" | "vertical" }` 切换局部水平/垂直翻转。`{ action: "layer", order: "front" | "back" | "forward" | "backward" }` 调整本地顶层对象的源顺序。三者均支持本地顶层对象集合，组作为一个对象处理。各操作保留位置、尺寸、对象身份、文字、裁剪和关系；相同角度与层次边界不新增历史。旋转独立保持各对象自身中心点；翻转分别反转各对象的局部轴状态。文字、图形、图片、命中和选区消费同一矩阵。`geometry` 返回源有效 `rotation/flipX/flipY`，`rotateReason/arrangeReason` 返回对应保护原因。`noRot` 仅阻止旋转；继承/组成员与原有变换锁继续保护。默认 UI 提供角度、翻转及四种层次操作。
 

@@ -21,6 +21,7 @@ pub(all) enum ObjectEdit {
   StrokeDash(String?)
   StrokeCap(String?)
   StrokeJoin(String?, Double)
+  ShapeAdjustment(String, Double?)
   TextInsets(Double, Double, Double, Double)
   TextAnchor(String)
   TextWrap(Bool)
@@ -277,12 +278,28 @@ pub fn Session::edit_objects(
   if change is ImageOpacity(value) {
     return self.set_image_opacity(value)
   }
+  if change is ShapeAdjustment(name, value) {
+    let changes = self.adjust_shape(name, value)
+    if changes.is_empty() {
+      return self.query()
+    }
+    let (candidate, edit) = self.prepare_fitted(
+      original,
+      changes,
+      self.selection.objects,
+      probe,
+      profile,
+    )
+    self.commit(candidate, edit, self.selection)
+    return self.query()
+  }
   let mut issued : String? = None
   let (changes, after) = match change {
     InsertImage(_, _, _, _, _)
     | ReplaceImage(_, _)
     | ImageCrop(_, _, _, _)
     | ImageOpacity(_)
+    | ShapeAdjustment(_, _)
     | TextFormat(_)
     | TextAlign(_)
     | TextParagraph(_)

@@ -24,6 +24,8 @@ import {
   styleCellDraft,
   paintGridSelection,
   bindCellDraft,
+  requireCellCompositionEnd,
+  showCellDraft,
 } from "./spreadsheet-input.js";
 import {
   checkFormatFonts,
@@ -51,6 +53,7 @@ import type {
 
 /** One native cell draft; MoonBit owns committed cells, selection and geometry. */
 export class SpreadsheetEditor {
+  acceptValidationWarnings = false;
   private readonly container: HTMLDivElement;
   private readonly viewport: HTMLDivElement;
   private readonly holder: HTMLDivElement;
@@ -82,7 +85,6 @@ export class SpreadsheetEditor {
   private frame = 0;
   private generation = 0;
   private rendering = false;
-
   private constructor(
     private readonly root: HTMLElement,
     private readonly client: XlsxClient,
@@ -337,18 +339,12 @@ export class SpreadsheetEditor {
       if (this.draft && !this.paused) this.input.focus({ preventScroll: true });
     }
   }
-  private requireFinished(): void {
-    if (this.composing)
-      throw new Error(
-        "Cell editing is unfinished: complete or cancel composition first",
-      );
-  }
   private active() {
     return activeGridCell(this.state, this.layout);
   }
   private editFormula(): Promise<void> {
     return this.enqueue(async () => {
-      this.requireFinished();
+      requireCellCompositionEnd(this.composing);
       if (!this.draft) this.beginDraft(false);
       this.formula.show(true);
       this.styleInput();
@@ -383,15 +379,11 @@ export class SpreadsheetEditor {
       address: cell.address,
       revision: this.state.revision,
     };
-    if (!retainValue) this.input.value = replace ? "" : cell.input;
-    this.styleInput();
-    if (!retainValue) {
-      this.input.focus({ preventScroll: true });
-      this.input.setSelectionRange(
-        this.input.value.length,
-        this.input.value.length,
-      );
-    }
+    showCellDraft(
+      this.input,
+      () => this.styleInput(),
+      retainValue ? undefined : replace ? "" : cell.input,
+    );
     this.publish();
   }
   cancelDraft(): void {
@@ -409,7 +401,7 @@ export class SpreadsheetEditor {
   private async commitDraft(): Promise<void> {
     const draft = this.draft;
     if (!draft) return;
-    this.requireFinished();
+    requireCellCompositionEnd(this.composing);
     this.committing = true;
     this.input.readOnly = true;
     try {
@@ -418,6 +410,8 @@ export class SpreadsheetEditor {
         draft.sheet,
         draft.address,
         [[this.input.value]],
+        false,
+        this.acceptValidationWarnings,
       );
       this.draft = undefined;
       this.formula.show(false);
@@ -544,7 +538,7 @@ export class SpreadsheetEditor {
     options: XlsxFindOptions = {},
   ): Promise<SpreadsheetSearchResult> {
     return this.enqueue(async () => {
-      this.requireFinished();
+      requireCellCompositionEnd(this.composing);
       await this.commitDraft();
       const sheet = this.state.sheet;
       options = xlsxFindOptions(options);
@@ -613,7 +607,7 @@ export class SpreadsheetEditor {
   }
   captureFormat(): Promise<CopiedCellFormat> {
     return this.enqueue(async () => {
-      this.requireFinished();
+      requireCellCompositionEnd(this.composing);
       await this.commitDraft();
       return this.client.captureFormat(this.state.revision);
     });
@@ -626,7 +620,7 @@ export class SpreadsheetEditor {
   }
   private change(action: () => Promise<XlsxQuery>): Promise<void> {
     return this.enqueue(async () => {
-      this.requireFinished();
+      requireCellCompositionEnd(this.composing);
       await this.commitDraft();
       this.state = await action();
       if (this.printView.visible) {
@@ -654,11 +648,17 @@ export class SpreadsheetEditor {
     });
   }
   paste(text: string): Promise<void> {
-    return this.change(() => this.client.paste(this.state.revision, text));
+    return this.change(() =>
+      this.client.paste(
+        this.state.revision,
+        text,
+        this.acceptValidationWarnings,
+      ),
+    );
   }
   copy(): Promise<void> {
     return this.enqueue(async () => {
-      this.requireFinished();
+      requireCellCompositionEnd(this.composing);
       await navigator.clipboard.writeText(
         await this.client.copy(this.state.revision),
       );
@@ -666,7 +666,7 @@ export class SpreadsheetEditor {
   }
   private history(redo: boolean): Promise<void> {
     return this.enqueue(async () => {
-      this.requireFinished();
+      requireCellCompositionEnd(this.composing);
       if (this.draft)
         throw new Error(
           "Finish or cancel the cell draft before workbook history",
@@ -718,7 +718,7 @@ export class SpreadsheetEditor {
   ): Promise<EditorOutput> {
     return this.enqueue(
       async () => {
-        this.requireFinished();
+        requireCellCompositionEnd(this.composing);
         await this.commitDraft();
         return this.observable.output(
           this.state.revision,
@@ -732,7 +732,7 @@ export class SpreadsheetEditor {
   }
   printLayout(options: PrintOptions | null = null): Promise<XlsxPrintLayout> {
     return this.enqueue(async () => {
-      this.requireFinished();
+      requireCellCompositionEnd(this.composing);
       await this.commitDraft();
       const layout = await this.printView.prepare(
         this.client,

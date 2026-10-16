@@ -8,6 +8,7 @@ import {
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { XlsxFormatPainter } from "./xlsx-format-painter.js";
+import { XlsxValidation } from "./xlsx-validation.js";
 
 export function XlsxFormat({
   controller,
@@ -307,6 +308,13 @@ export function XlsxFormat({
         </fieldset>
       </form>
       {current.readOnlyReason && <p>{current.readOnlyReason}</p>}
+      <XlsxValidation
+        key={`${state.document?.documentId}:${editor.currentState.sheet}:${editor.currentState.selection.address}:${JSON.stringify(editor.currentState.dataValidation)}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
     </section>
   );
 }

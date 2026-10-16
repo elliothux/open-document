@@ -4,6 +4,7 @@ import type { PptxObjectEdit } from "@open-document/web/pptx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { PptxPaint } from "./pptx-paint.js";
+import { PptxShapeAdjustments } from "./pptx-shape-adjustments.js";
 import { PptxTextFrame } from "./pptx-text-frame.js";
 import { PptxPicture } from "./pptx-picture.js";
 import { PptxFormat, PptxParagraph } from "./pptx-format.js";
@@ -222,6 +223,13 @@ export function PptxObjects({
         selected.duplicateReason !== selected.deleteReason && (
           <p>{selected.duplicateReason}</p>
         )}
+      <PptxShapeAdjustments
+        key={`${state.document?.documentId}:${query.revision}:${query.selection.objects.join(",")}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
       <PptxPaint
         key={`${state.document?.documentId}:${query.revision}:${query.selection.mode}:${query.selection.objects.join(",")}`}
         controller={controller}

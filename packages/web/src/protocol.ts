@@ -141,6 +141,7 @@ export type Operation =
       range: string;
       values: string[][];
       literal: boolean;
+      acceptWarnings: boolean;
     }
   | { operation: "undoXlsx" | "redoXlsx"; revision: number }
   | { operation: "saveXlsx" }
@@ -155,7 +156,12 @@ export type Operation =
     }
   | { operation: "copyXlsx"; revision: number }
   | { operation: "clearXlsx"; revision: number; mode: XlsxClearMode }
-  | { operation: "pasteXlsx"; revision: number; text: string }
+  | {
+      operation: "pasteXlsx";
+      revision: number;
+      text: string;
+      acceptWarnings: boolean;
+    }
   | {
       operation: "printXlsx";
       revision: number;

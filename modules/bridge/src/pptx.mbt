@@ -181,6 +181,14 @@ fn Foundation::pptx_operation(
             )
           }
         }
+        "shapeAdjustment" =>
+          @pptx.ShapeAdjustment(
+            field_string(change, "name"),
+            match change {
+              { "value": Null, .. } => None
+              _ => Some(xlsx_number(change, "value"))
+            },
+          )
         "strokeDash" =>
           @pptx.StrokeDash(
             match change {

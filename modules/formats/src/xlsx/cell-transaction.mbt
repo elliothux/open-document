@@ -4,6 +4,7 @@ fn Session::commit_cells(
   updates : Map[Int, Map[String, CellContent]],
   selection : (String, Range),
   styles~ : Map[Int, Map[String, Int]] = Map([]),
+  accept_warnings~ : Bool = false,
 ) -> Json raise @failure.Failure {
   guard self.read_only.is_empty() else {
     @failure.reject("protected-content", self.read_only)
@@ -15,10 +16,12 @@ fn Session::commit_cells(
   let edits : Array[(String, @xml.Edit)] = []
   let changed : Array[(Int, Range)] = []
   let indices = updates.keys().to_array()
+  let targets : Map[Int, Array[String]] = Map([])
   indices.sort()
   for index in indices {
     let current = self.sheets[index]
     let values = updates[index]
+    targets[index] = values.keys().to_array()
     current.expand_shared_updates(values)
     let (document, edit) = current.prepare(
       values,
@@ -54,6 +57,7 @@ fn Session::commit_cells(
     changed,
     self.date1904,
   )
+  self.validate_inputs(candidate, calculation, targets, accept_warnings)
   edits.append(self.cache_edits(candidate, calculation))
   self.commit(candidate, self.workbook, calculation, edits, selection)
   self.query()

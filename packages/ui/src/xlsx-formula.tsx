@@ -44,6 +44,22 @@ export function XlsxFormula({
         <span>{t.formulaInput}</span>
         <NativeSlot node={editor.formulaBar} />
       </label>
+      <label
+        onMouseDown={(event) => {
+          if (event.button === 0) event.preventDefault();
+        }}
+      >
+        <input
+          key={state.document?.documentId}
+          type="checkbox"
+          disabled={disabled}
+          defaultChecked={editor.acceptValidationWarnings}
+          onChange={(event) => {
+            editor.acceptValidationWarnings = event.currentTarget.checked;
+          }}
+        />
+        {t.acceptValidationWarnings}
+      </label>
     </div>
   );
 }

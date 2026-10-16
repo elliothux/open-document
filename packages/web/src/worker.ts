@@ -107,6 +107,7 @@ async function dispatch(request: Request): Promise<unknown> {
           request.range,
           request.values,
           request.literal,
+          request.acceptWarnings,
         );
       case "editXlsxSheet":
         return workbook.editSheet(
@@ -150,7 +151,11 @@ async function dispatch(request: Request): Promise<unknown> {
       case "copyXlsx":
         return workbook.copy(request.revision);
       case "pasteXlsx":
-        return workbook.paste(request.revision, request.text);
+        return workbook.paste(
+          request.revision,
+          request.text,
+          request.acceptWarnings,
+        );
       case "clearXlsx":
         return workbook.clear(request.revision, request.mode);
       case "printXlsx":

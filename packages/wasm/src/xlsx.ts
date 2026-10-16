@@ -1,4 +1,17 @@
 import { checkXlsxSheetEdit, type XlsxSheetEdit } from "./xlsx-sheet.js";
+import {
+  xlsxValidationState,
+  type XlsxValidationState,
+} from "./xlsx-validation.js";
+export {
+  checkXlsxDataValidation,
+  validationKinds,
+  validationOperators,
+} from "./xlsx-validation.js";
+export type {
+  XlsxDataValidation,
+  XlsxValidationState,
+} from "./xlsx-validation.js";
 export { checkXlsxSheetEdit, type XlsxSheetEdit } from "./xlsx-sheet.js";
 import { WasmSession, encodeBytes } from "./session.js";
 import { DocumentError, type Budget } from "./foundation.js";
@@ -148,6 +161,7 @@ export interface XlsxCell {
 }
 
 export interface XlsxQuery {
+  dataValidation: XlsxValidationState;
   printSetup: XlsxPrintSetup & { readOnlyReason: string };
   printRange: XlsxPrintRange & { readOnlyReason: string };
   headerFooter: XlsxHeaderFooter & { readOnlyReason: string };
@@ -209,6 +223,7 @@ function cellValue(value: unknown): boolean {
 
 export function xlsxQuery(value: unknown): XlsxQuery {
   const query = record(value);
+  xlsxValidationState(query.dataValidation);
   xlsxPrintSetup(query.printSetup);
   xlsxPrintRange(query.printRange);
   xlsxHeaderFooter(query.headerFooter);
@@ -594,7 +609,10 @@ export class XlsxSession extends WasmSession {
     range: string,
     values: string[][],
     literal = false,
+    acceptWarnings = false,
   ): XlsxQuery {
+    if (typeof acceptWarnings !== "boolean")
+      throw new Error("Invalid validation warning acceptance");
     return xlsxQuery(
       this.call({
         operation: "replaceXlsx",
@@ -603,6 +621,7 @@ export class XlsxSession extends WasmSession {
         range,
         values,
         literal,
+        acceptWarnings,
       }),
     );
   }
@@ -651,8 +670,12 @@ export class XlsxSession extends WasmSession {
       throw new Error("Invalid clipboard text");
     return result.text;
   }
-  paste(revision: number, text: string): XlsxQuery {
-    return xlsxQuery(this.call({ operation: "pasteXlsx", revision, text }));
+  paste(revision: number, text: string, acceptWarnings = false): XlsxQuery {
+    if (typeof acceptWarnings !== "boolean")
+      throw new Error("Invalid validation warning acceptance");
+    return xlsxQuery(
+      this.call({ operation: "pasteXlsx", revision, text, acceptWarnings }),
+    );
   }
   clear(revision: number, mode: XlsxClearMode = "contents"): XlsxQuery {
     return xlsxQuery(this.call({ operation: "clearXlsx", revision, mode }));

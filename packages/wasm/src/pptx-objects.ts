@@ -24,6 +24,11 @@ export const pptxJoins = ["round", "bevel", "miter"] as const;
 export type PptxCap = (typeof pptxCaps)[number];
 export type PptxJoin = (typeof pptxJoins)[number];
 export type PptxObjectEdit =
+  | {
+      action: "shapeAdjustment";
+      name: "adj" | "adj1" | "adj2";
+      value: number | null;
+    }
   | { action: "fillOpacity" | "strokeOpacity"; opacity: number }
   | { action: "strokeCap"; cap: PptxCap | null }
   | { action: "strokeJoin"; join: "round" | "bevel" | null }
@@ -109,6 +114,12 @@ export function number(value: unknown, low = 0, high = 0x7fffffff): number {
 }
 export function checkPptxObjectEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "shapeAdjustment") {
+    if (!["adj", "adj1", "adj2"].includes(String(change.name)))
+      throw new Error("Invalid PPTX shape adjustment");
+    if (change.value !== null) number(change.value, 0, 21474.83647);
+    return;
+  }
   if (change.action === "strokeCap") {
     if (change.cap !== null && !pptxCaps.some((value) => value === change.cap))
       throw new Error("Invalid PPTX border cap");

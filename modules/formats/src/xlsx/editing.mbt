@@ -241,6 +241,7 @@ pub fn Session::replace(
   range : String,
   values : Array[Array[String]],
   literal~ : Bool = false,
+  accept_warnings~ : Bool = false,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard self.revision < 2147483647 else {
@@ -317,7 +318,7 @@ pub fn Session::replace(
   if updates.is_empty() {
     return self.query(sheet=Some(sheet), range=Some(target.name()))
   }
-  self.commit_cells(Map([(index, updates)]), (sheet, target))
+  self.commit_cells(Map([(index, updates)]), (sheet, target), accept_warnings~)
 }
 
 ///|

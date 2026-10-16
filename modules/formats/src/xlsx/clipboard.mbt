@@ -79,6 +79,7 @@ pub fn Session::paste(
   self : Session,
   revision : Int,
   text : String,
+  accept_warnings~ : Bool = false,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let rows = parse_tsv(text)
@@ -102,7 +103,13 @@ pub fn Session::paste(
       }
     })
   })
-  self.replace(revision, self.selection.0, target.name(), values)
+  self.replace(
+    revision,
+    self.selection.0,
+    target.name(),
+    values,
+    accept_warnings~,
+  )
 }
 
 ///|

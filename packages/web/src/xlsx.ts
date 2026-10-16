@@ -26,6 +26,11 @@ import {
 } from "@open-document/wasm/xlsx";
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type { XlsxSheetEdit, XlsxClearMode } from "@open-document/wasm/xlsx";
+export { validationKinds, validationOperators } from "@open-document/wasm/xlsx";
+export type {
+  XlsxDataValidation,
+  XlsxValidationState,
+} from "@open-document/wasm/xlsx";
 export type {
   XlsxPrintSetup,
   XlsxPrintRange,
@@ -246,7 +251,10 @@ export class XlsxClient {
     range: string,
     values: string[][],
     literal = false,
+    acceptWarnings = false,
   ): Promise<XlsxQuery> {
+    if (typeof acceptWarnings !== "boolean")
+      throw new Error("Invalid validation warning acceptance");
     return xlsxQuery(
       await this.connection.request({
         operation: "replaceXlsx",
@@ -255,6 +263,7 @@ export class XlsxClient {
         range,
         values,
         literal,
+        acceptWarnings,
       }),
     );
   }
@@ -321,9 +330,20 @@ export class XlsxClient {
       throw new Error("Invalid clipboard text");
     return value;
   }
-  async paste(revision: number, text: string): Promise<XlsxQuery> {
+  async paste(
+    revision: number,
+    text: string,
+    acceptWarnings = false,
+  ): Promise<XlsxQuery> {
+    if (typeof acceptWarnings !== "boolean")
+      throw new Error("Invalid validation warning acceptance");
     return xlsxQuery(
-      await this.connection.request({ operation: "pasteXlsx", revision, text }),
+      await this.connection.request({
+        operation: "pasteXlsx",
+        revision,
+        text,
+        acceptWarnings,
+      }),
     );
   }
   async clear(

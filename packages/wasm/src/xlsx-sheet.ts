@@ -1,5 +1,9 @@
 import { record, integer } from "./validation.js";
 import {
+  checkXlsxDataValidation,
+  type XlsxDataValidation,
+} from "./xlsx-validation.js";
+import {
   checkXlsxPrintSetup,
   checkXlsxPrintRange,
   checkXlsxHeaderFooter,
@@ -9,6 +13,8 @@ import {
 } from "./xlsx-print.js";
 
 export type XlsxSheetEdit =
+  | { action: "validation"; range: string; rule: XlsxDataValidation | null }
+  | { action: "validationValue"; index: number; sourceRevision: number }
   | {
       action: "fill";
       range: string;
@@ -42,6 +48,24 @@ export type XlsxSheetEdit =
 
 export function checkXlsxSheetEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "validation") {
+    if (
+      typeof change.range !== "string" ||
+      !change.range ||
+      change.range.length > 64
+    )
+      throw new Error("Invalid data validation range");
+    if (change.rule !== null) checkXlsxDataValidation(change.rule);
+    return;
+  }
+  if (change.action === "validationValue") {
+    if (
+      !integer(change.index, 0, 4095) ||
+      !integer(change.sourceRevision, 0, 2147483647)
+    )
+      throw new Error("Invalid validation list index");
+    return;
+  }
   if (change.action === "fill") {
     if (
       typeof change.range !== "string" ||

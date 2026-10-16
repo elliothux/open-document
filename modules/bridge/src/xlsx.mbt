@@ -139,6 +139,40 @@ fn Foundation::xlsx_operation(
         "add" => @xlsx.Add
         "copy" => @xlsx.Copy
         "delete" => @xlsx.Delete
+        "validation" => {
+          guard change is { "rule": rule, .. } else {
+            @failure.reject(
+              "invalid-operation", "Data validation settings are required",
+            )
+          }
+          @xlsx.Validation(
+            field_string(change, "range"),
+            if rule is Null {
+              None
+            } else {
+              Some({
+                kind: field_string(rule, "kind"),
+                operator: field_string(rule, "operator"),
+                formula1: field_string(rule, "formula1"),
+                formula2: field_string(rule, "formula2"),
+                allowBlank: xlsx_boolean(rule, "allowBlank"),
+                showErrorMessage: xlsx_boolean(rule, "showErrorMessage"),
+                errorStyle: field_string(rule, "errorStyle"),
+                errorTitle: field_string(rule, "errorTitle"),
+                error: field_string(rule, "error"),
+                showInputMessage: xlsx_boolean(rule, "showInputMessage"),
+                promptTitle: field_string(rule, "promptTitle"),
+                prompt: field_string(rule, "prompt"),
+                showDropDown: xlsx_boolean(rule, "showDropDown"),
+              })
+            },
+          )
+        }
+        "validationValue" =>
+          @xlsx.ValidationValue(
+            field_int(change, "index"),
+            field_int(change, "sourceRevision"),
+          )
         "merge" =>
           @xlsx.Merge(
             field_string(change, "range"),
@@ -287,6 +321,7 @@ fn Foundation::xlsx_operation(
         field_string(request, "range"),
         values,
         literal=literal == Json(true),
+        accept_warnings=xlsx_boolean(request, "acceptWarnings"),
       )
     }
     "undoXlsx" | "redoXlsx" =>
@@ -324,6 +359,7 @@ fn Foundation::xlsx_operation(
       session.paste(
         field_int(request, "revision"),
         field_string(request, "text"),
+        accept_warnings=xlsx_boolean(request, "acceptWarnings"),
       )
     "clearXlsx" =>
       session.clear(

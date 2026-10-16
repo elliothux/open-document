@@ -71,6 +71,11 @@ export interface PptxObject {
   duplicateReason: string;
   rotateReason: string;
   arrangeReason: string;
+  shapeAdjustments: {
+    preset: string;
+    reason: string;
+    values: { name: "adj" | "adj1" | "adj2"; value: number; maximum: number }[];
+  };
   picture: {
     opacity: number;
     opacityReason: string;
@@ -405,6 +410,26 @@ export function pptxQuery(value: unknown): PptxQuery {
   let units = 0;
   for (const item of query.objects) {
     const object = record(item);
+    const adjustments = record(object.shapeAdjustments);
+    if (
+      !hasFields(adjustments, ["preset", "reason"], []) ||
+      !Array.isArray(adjustments.values) ||
+      adjustments.values.length > 2
+    )
+      throw new Error("Invalid shape adjustments");
+    const names = new Set<string>();
+    for (const item of adjustments.values) {
+      const guide = record(item);
+      if (
+        typeof guide.name !== "string" ||
+        !["adj", "adj1", "adj2"].includes(guide.name) ||
+        names.has(guide.name)
+      )
+        throw new Error("Invalid shape adjustment guide");
+      names.add(guide.name);
+      const maximum = number(guide.maximum, 0, 21474.83647);
+      number(guide.value, 0, maximum);
+    }
     const picture = record(object.picture);
     if (
       !hasFields(

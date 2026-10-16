@@ -454,6 +454,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
         "duplicateReason": self.object_edit_reason(object, "duplicate"),
         "rotateReason": self.object_edit_reason(object, "rotate"),
         "arrangeReason": self.object_edit_reason(object, "arrange"),
+        "shapeAdjustments": self.shape_adjustments(object),
         "picture": {
           "opacity": object.opacity,
           "opacityReason": self.opacity_reason(object),

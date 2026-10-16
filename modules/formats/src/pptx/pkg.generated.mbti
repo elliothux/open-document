@@ -49,6 +49,7 @@ pub(all) enum ObjectEdit {
   StrokeDash(String?)
   StrokeCap(String?)
   StrokeJoin(String?, Double)
+  ShapeAdjustment(String, Double?)
   TextInsets(Double, Double, Double, Double)
   TextAnchor(String)
   TextWrap(Bool)

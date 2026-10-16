@@ -192,7 +192,7 @@ fn Session::from_package(
       if ![
           "sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData",
           "mergeCells", "sheetProtection", "pageMargins", "pageSetup", "printOptions",
-          "headerFooter", "autoFilter",
+          "headerFooter", "autoFilter", "dataValidations",
         ].contains(child.name) ||
         child.uri != spreadsheet_uri {
         diagnostics.push("unrendered:" + sheet.id + ":" + child.qualified)
@@ -400,6 +400,7 @@ pub fn Session::query(
       "readOnlyReason": self.freeze_reason(current),
     },
     "printSetup": self.print_setup_query(current),
+    "dataValidation": self.validation_query(sheet_index, range.unwrap()),
     "printRange": self.print_range_query(sheet_index),
     "headerFooter": self.header_footer_query(current),
     "dimensions": {
