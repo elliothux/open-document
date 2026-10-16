@@ -235,13 +235,16 @@ fn paint_slide(
           Clip({ x: 0, y: 0, width: geometry.width, height: geometry.height, }),
         )
         primitives.push(
-          Image({
-            key,
-            x: -crop[0] * image_width,
-            y: -crop[1] * image_height,
-            width: image_width,
-            height: image_height,
-          }),
+          Image(
+            {
+              key,
+              x: -crop[0] * image_width,
+              y: -crop[1] * image_height,
+              width: image_width,
+              height: image_height,
+            },
+            object.opacity,
+          ),
         )
         primitives.push(Restore)
       } else if !object.fill.is_empty() || !object.stroke.is_empty() {

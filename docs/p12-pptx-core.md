@@ -6,9 +6,11 @@
 
 ## 1. 用户结果与范围
 
-对象外观已接通纯色/无填充、纯色/无边框及实线宽度。核心、Wasm、Worker 和默认 UI 共用多选事务，保留身份、几何、文字及精确历史。已检查独立 XML、Canvas 实际颜色、保存重开和继续原生输入；复杂填充、透明度及效果仍待实现。接口与边界归[格式合同](references/formats.md#pptx)，实现归 [`object-paint.mbt`](../modules/formats/src/pptx/object-paint.mbt)。
+对象外观已接通纯色/无填充、纯色/无边框及实线宽度。核心、Wasm、Worker 和默认 UI 共用多选事务，保留身份、几何、文字及精确历史。已检查独立 XML、Canvas 实际颜色、保存重开和继续原生输入；复杂填充、形状透明度及效果仍待实现。接口与边界归[格式合同](references/formats.md#pptx)，实现归 [`object-paint.mbt`](../modules/formats/src/pptx/object-paint.mbt)。
 
 第 2 批已接通本页纯色背景、恢复继承和整稿尺寸调整，支持默认 UI、Wasm 与 Worker API，保留选择和精确历史。尺寸调整同步缩放页面、版式、母版及组内几何，保持字号和方向。复杂背景、图表/表格对象与非空参考线仍保护源内容；主题、版式与母版直接编辑尚待实现。实现归 [`slide-background.mbt`](../modules/formats/src/pptx/slide-background.mbt)和 [`slide-size.mbt`](../modules/formats/src/pptx/slide-size.mbt)，合同及检查归[格式说明](references/formats.md#pptx)。
+
+PNG/JPEG 图片插入已接通核心、Wasm、Worker、宿主和默认 UI。新对象在最上层，图片原字节、关系、内容类型与选择共同提交和精确撤销；原生文字草稿仍独立提交。对象与页面复制复用同一图片，保存重开后可继续变换，Canvas 与静态 PDF 复用现有解码和图元。替换与四边源矩形裁剪/重置已接通，保持对象身份、几何、方向和其他副本；图片常量不透明度已接通，保留源像素 alpha 并同步 Canvas/PDF。实现归 [`object-image.mbt`](../modules/formats/src/pptx/object-image.mbt)及 [`image-opacity.mbt`](../modules/formats/src/pptx/image-opacity.mbt)，合同归[格式说明](references/formats.md#pptx)。
 
 用户能从空白文稿制作演示，管理页面、主题/母版/版式，创建并编辑文字、图形、图片、表格和图表，添加媒体与基本动画，放映并输出。程序化 API 提供与 UI 相同的文档操作。GenOffice 源码用于功能与交互，核心语义和算法优先参考 ONLYOFFICE，其次 LibreOffice。
 
@@ -75,13 +77,13 @@
 
 已支持矩形、圆角矩形、椭圆、线、四向实心箭头和文本框插入；墨迹路径仍待实现。圆角矩形和箭头的路径、命中与文字内框按 [ONLYOFFICE 预设几何](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L6950-L6987)计算，导入的数值调节点参与形状和文字布局，旋转/翻转沿现有矩阵。默认 UI 插入、轮廓外命中、复制、混合精确历史、保存重开及 PDF 已检查。调节点编辑、更多箭头和任意自定义几何仍待扩展；未知公式保留源并诊断，不能改成默认几何覆盖源对象。
 
-当前已接通 `editPptxObjects` 与 `PresentationEditor.editObjects`，具体合同归[格式说明](references/formats.md#pptx)。新对象在最上层；复制已支持有序多选及嵌套组。副本按原层次放到最上层，为顶层对象、组成员及域分配会话内未使用的新身份，重映射副本内部引用。保留旋转、翻转、组缩放、格式、命名空间与图片关系，选择顺序和活动对象对应副本；默认 UI 平移 18 pt。复制按 [ONLYOFFICE GroupShape.copy2](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L310-L339)保留成员顺序与源格式，并复用已有页复制的身份重映射。核心已检查嵌套组矩阵、精确混合历史、锁定、缺字体及预算失败；Chromium 已检查多选按钮、组复制快捷键、独立 XML、撤销、保存重开及副本继续移动。删除清空对象选择，撤销恢复原身份与选择。锁定、继承、组成员、未知扩展复制及带连接/计时引用的删除仍受保护；待对应事务实现后开放。当前操作仅修改所属 slide XML，保留其他部件及资源。
+当前已接通 `editPptxObjects` 与 `PresentationEditor.editObjects`，具体合同归[格式说明](references/formats.md#pptx)。新对象在最上层；复制已支持有序多选及嵌套组。副本按原层次放到最上层，为顶层对象、组成员及域分配会话内未使用的新身份，重映射副本内部引用。保留旋转、翻转、组缩放、格式、命名空间与图片关系，选择顺序和活动对象对应副本；默认 UI 平移 18 pt。复制按 [ONLYOFFICE GroupShape.copy2](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L310-L339)保留成员顺序与源格式，并复用已有页复制的身份重映射。核心已检查嵌套组矩阵、精确混合历史、锁定、缺字体及预算失败；Chromium 已检查多选按钮、组复制快捷键、独立 XML、撤销、保存重开及副本继续移动。删除清空对象选择，撤销恢复原身份与选择。锁定、继承、组成员、未知扩展复制及带连接/计时引用的删除仍受保护；待对应事务实现后开放。上述形状插入及复制/删除仅修改所属 slide XML，保留其他部件及资源；图片插入同时创建资源事务，见格式合同。
 
 多选角度输入为共同的绝对角度，每个对象保持自身中心；翻转分别反转各成员原有局部轴状态。沿用 [ONLYOFFICE 的逐对象方向属性处理](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L4367-L4411)。组的内部源坐标保持，缩放组成员经完整矩阵显示。保留选择顺序和活动对象；一项操作合为一项历史，任一成员或预算失败整项拒绝。默认面板显示混合角度与翻转状态，非活动成员的旋转锁也参与禁用。核心已检查独立中心、零尺寸线段、缩放组矩阵、精确历史和失败；Chromium 已检查选择集合变化后的角度刷新、混合控件、独立 XML、撤销重做、保存重开与继续编辑。置顶/置底及前移/后移一层已支持顶层对象集合，包含受支持的组。置顶/置底按原源顺序移动所选对象；前移从高层向低层处理，后移反向处理，每个所选对象越过一个相邻未选对象，连续选择保持相对顺序。规则依据 [ONLYOFFICE CommonController](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L9589-L9695)。保留对象身份、几何、资源、选择顺序、活动对象、注释和未选源片段，一次操作一项历史。核心已检查相邻/分散选择、边界、最上层命中、组及未知对象保留、精确历史与失败；Chromium 已检查四个按钮、独立 XML、混合撤销及组保存重开后继续调整。相同角度、已到达层次边界时不新增历史。旋转遵守 `noRot`，翻转和层次操作继续使用各自保护；组内/母版编辑尚未接通。
 
 ### 3.3 原子保存和资源
 
-当前 PPTX 历史按稳定部件路径记录 XML 变化集合，已包含新增 slide、其版式关系、presentation 元数据和删除页的部件快照。页序、对象编辑与部件增删共同使用预算、revision 与前后选择，可混合精确撤销和重做。后续继续扩展 layout/master/theme 编辑与新资源；复用核心包新增/删除能力，各格式保留自己的事务规则。
+当前 PPTX 历史按稳定部件路径记录 XML 变化集合，已包含新增 slide、其版式关系、presentation 元数据、删除页的部件快照和图片新增/替换的原字节资源。页序、对象编辑与部件增删共同使用预算、revision 与前后选择，可混合精确撤销和重做。后续继续扩展 layout/master/theme 编辑与新资源；复用核心包新增/删除能力，各格式保留自己的事务规则。
 
 创建、复制和母版修改先在候选中解析并校验引用和预算，再提交一次 revision/历史。复制大量对象或媒体必须在分配前检查数量、字节和历史持有量；二进制资源复用不可变字节但仍计入预算。失败不留下半页、空关系或已提交的一半对象。
 

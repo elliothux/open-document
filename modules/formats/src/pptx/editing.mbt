@@ -32,9 +32,10 @@ fn Session::validate_slides(
   main : Tree,
   slides : Array[Slide],
   parts~ : Map[String, @xml.Document] = self.parts,
+  media~ : Map[String, Bytes] = self.media,
   removed~ : Array[String] = self.removed,
 ) -> Unit raise @failure.Failure {
-  let replacements = self.replacements(main, slides, parts)
+  let replacements = self.replacements(main, slides, parts, media~)
   let mut count = 0
   let mut units = 0
   for slide in slides {
@@ -73,6 +74,8 @@ fn Session::commit_slides(
   parts~ : Map[String, @xml.Document] = self.parts,
   created~ : (Slide, @xml.Document)? = None,
   created_parts~ : Map[String, @xml.Document] = Map([]),
+  media~ : Map[String, Bytes] = self.media,
+  created_media~ : Map[String, Bytes] = Map([]),
   deleted~ : Slide? = None,
   removed~ : Map[String, @xml.Document] = Map([]),
 ) -> Unit raise @failure.Failure {
@@ -101,7 +104,10 @@ fn Session::commit_slides(
     .values()
     .fold(init=0L, (sum, document) => {
       sum + document.source().length().to_int64() * 2
-    })
+    }) +
+    created_media
+    .values()
+    .fold(init=0L, (sum, bytes) => sum + bytes.length().to_int64())
   guard payload <= 4194304 else {
     @failure.reject("limit-exceeded", "Edit exceeds history budget")
   }
@@ -111,7 +117,7 @@ fn Session::commit_slides(
       removed_parts.push(name)
     }
   }
-  self.validate_slides(main, slides, parts~, removed=removed_parts)
+  self.validate_slides(main, slides, parts~, media~, removed=removed_parts)
   for entry in self.redo {
     self.history_bytes -= entry.bytes
   }
@@ -124,6 +130,7 @@ fn Session::commit_slides(
     edits,
     created,
     created_parts,
+    created_media,
     deleted,
     removed,
     before: self.selection,
@@ -135,6 +142,7 @@ fn Session::commit_slides(
   self.width = width
   self.height = height
   self.parts = parts
+  self.media = media
   self.removed = removed_parts
   self.slides = slides
   self.selection = after
@@ -158,6 +166,7 @@ pub fn Session::undo(
     }
     let slides = self.slides.copy()
     let parts = self.parts.copy()
+    let media = self.media.copy()
     let removed_parts = self.removed.copy()
     let deleted_documents : Map[String, @xml.Document] = Map([])
     let mut deleted_slide : Slide? = None
@@ -166,6 +175,8 @@ pub fn Session::undo(
     if redo && entry.created is Some((slide, relations)) {
       slides.push(slide)
       parts[relationship_part(slide.tree.part)] = relations
+    }
+    if redo {
       for name, document in entry.created_parts {
         guard !parts.contains(name) else {
           @failure.reject(
@@ -173,6 +184,9 @@ pub fn Session::undo(
           )
         }
         parts[name] = document
+      }
+      for name, bytes in entry.created_media {
+        media[name] = bytes
       }
     }
     if !redo && entry.deleted is Some(slide) {
@@ -222,6 +236,8 @@ pub fn Session::undo(
       let relations = parts[relation_path]
       parts.remove(relation_path)
       removed = Some((slide, relations))
+    }
+    if !redo {
       for name, snapshot in entry.created_parts {
         guard parts.get(name) is Some(document) &&
           document.source() == snapshot.source() else {
@@ -231,6 +247,14 @@ pub fn Session::undo(
         }
         removed_created_parts[name] = document
         parts.remove(name)
+      }
+      for name, bytes in entry.created_media {
+        guard media.get(name) == Some(bytes) else {
+          @failure.reject(
+            "invalid-operation", "Created image history has changed",
+          )
+        }
+        media.remove(name)
       }
     }
     if redo && entry.deleted is Some(deleted) {
@@ -255,6 +279,7 @@ pub fn Session::undo(
       main,
       slides,
       parts~,
+      media~,
       removed=removed_parts,
     )
     let (width, height) = presentation_size(main)
@@ -265,7 +290,7 @@ pub fn Session::undo(
     } else {
       slides
     }
-    self.validate_slides(main, slides, parts~, removed=removed_parts)
+    self.validate_slides(main, slides, parts~, media~, removed=removed_parts)
     // Preserve identity allocation after later edits were undone, for their next redo.
     if removed is Some(_) {
       entry.created = removed
@@ -283,6 +308,7 @@ pub fn Session::undo(
     self.width = width
     self.height = height
     self.parts = parts
+    self.media = media
     self.removed = removed_parts
     self.slides = slides
     self.selection = if redo { entry.after } else { entry.before }

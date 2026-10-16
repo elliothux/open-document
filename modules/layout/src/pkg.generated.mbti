@@ -406,7 +406,7 @@ pub(all) enum PositionedPrimitive {
   Rectangle(Fill)
   Stroke(Border, String, Double)
   Text(PositionedText)
-  Image(PlacedImage)
+  Image(PlacedImage, Double)
   Path(Array[PathSegment], String, String, Double)
   Transform(Matrix)
   Clip(Border)

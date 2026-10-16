@@ -98,6 +98,27 @@ fn Foundation::pptx_operation(
         @failure.reject("invalid-operation", "Object edit is required")
       }
       let change = match field_string(change, "action") {
+        "imageOpacity" => @pptx.ImageOpacity(xlsx_number(change, "opacity"))
+        "replaceImage" =>
+          @pptx.ReplaceImage(
+            field_string(change, "object"),
+            input_bytes(change, 4194304),
+          )
+        "imageCrop" =>
+          @pptx.ImageCrop(
+            xlsx_number(change, "left"),
+            xlsx_number(change, "top"),
+            xlsx_number(change, "right"),
+            xlsx_number(change, "bottom"),
+          )
+        "insertImage" =>
+          @pptx.InsertImage(
+            input_bytes(change, 4194304),
+            xlsx_number(change, "x"),
+            xlsx_number(change, "y"),
+            xlsx_number(change, "width"),
+            xlsx_number(change, "height"),
+          )
         "insert" =>
           @pptx.Insert(
             field_string(change, "kind"),

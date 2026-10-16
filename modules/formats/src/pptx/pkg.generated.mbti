@@ -29,6 +29,10 @@ pub fn ListFormat::not_equal(Self, Self) -> Bool
 
 pub(all) enum ObjectEdit {
   Insert(String, Double, Double, Double, Double, String)
+  InsertImage(Bytes, Double, Double, Double, Double)
+  ReplaceImage(String, Bytes)
+  ImageCrop(Double, Double, Double, Double)
+  ImageOpacity(Double)
   Remove
   Duplicate(Double, Double)
   Rotate(Double)

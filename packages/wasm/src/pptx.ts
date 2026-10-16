@@ -1,3 +1,9 @@
+import {
+  number,
+  checkPptxObjectEdit,
+  type PptxObjectEdit,
+} from "./pptx-objects.js";
+export { checkPptxObjectEdit, type PptxObjectEdit } from "./pptx-objects.js";
 import { checkPptxSlideEdit, type PptxSlideEdit } from "./pptx-slides.js";
 export { checkPptxSlideEdit, type PptxSlideEdit } from "./pptx-slides.js";
 import { WasmSession, encodeBytes } from "./session.js";
@@ -19,13 +25,9 @@ import {
 } from "./drawing.js";
 import type { Budget } from "./foundation.js";
 import {
-  checkPptxTextFormat,
   checkPptxFormatting,
-  checkPptxParagraphFormat,
   checkPptxParagraphFormatting,
-  type PptxTextFormat,
   type PptxFormatting,
-  type PptxParagraphFormat,
   type PptxParagraphFormatting,
 } from "./pptx-format.js";
 export type {
@@ -57,6 +59,16 @@ export interface PptxObject {
   duplicateReason: string;
   rotateReason: string;
   arrangeReason: string;
+  picture: {
+    opacity: number;
+    opacityReason: string;
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+    replaceReason: string;
+    cropReason: string;
+  };
   appearance: {
     fill: string | null;
     stroke: string | null;
@@ -132,58 +144,6 @@ export interface PptxHit {
   readOnlyReason: string;
   textReadOnlyReason: string;
 }
-
-export type PptxObjectEdit =
-  | {
-      action: "insert";
-      kind:
-        | "text"
-        | "rect"
-        | "roundRect"
-        | "ellipse"
-        | "line"
-        | "leftArrow"
-        | "rightArrow"
-        | "upArrow"
-        | "downArrow";
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      text: string;
-    }
-  | { action: "delete" }
-  | { action: "clearTextFormat" | "clearParagraphFormat" }
-  | { action: "textFormat"; format: PptxTextFormat }
-  | { action: "textParagraph"; format: PptxParagraphFormat }
-  | { action: "textAlign"; alignment: "left" | "center" | "right" }
-  | { action: "fill"; color: string | null }
-  | { action: "stroke"; color: string | null; width: number }
-  | {
-      action: "textInsets";
-      left: number;
-      top: number;
-      right: number;
-      bottom: number;
-    }
-  | { action: "textAnchor"; anchor: "t" | "ctr" | "b" }
-  | { action: "textWrap"; wrap: boolean }
-  | { action: "textFit"; fit: "none" | "shrink" | "resize" }
-  | { action: "group" | "ungroup" }
-  | { action: "duplicate"; dx: number; dy: number }
-  | { action: "rotate"; angle: number }
-  | { action: "flip"; axis: "horizontal" | "vertical" }
-  | { action: "layer"; order: "front" | "back" | "forward" | "backward" }
-  | {
-      action: "align";
-      alignment: "left" | "center" | "right" | "top" | "middle" | "bottom";
-      relativeTo: "slide" | "selection" | "active";
-    }
-  | {
-      action: "distribute";
-      axis: "horizontal" | "vertical";
-      relativeTo: "slide" | "selection";
-    };
 
 export type PptxCommand =
   | PptxSearchCommand
@@ -331,147 +291,9 @@ export function isPptxCommand(value: {
   return names.has(value.operation);
 }
 
-function number(value: unknown, low = 0, high = 0x7fffffff): number {
-  if (
-    typeof value !== "number" ||
-    !Number.isFinite(value) ||
-    value < low ||
-    value > high
-  )
-    throw new Error("Invalid PPTX number");
-  return value;
-}
 function integer(value: unknown, high = 0x7fffffff): void {
   if (!Number.isInteger(number(value, 0, high)))
     throw new Error("Invalid PPTX integer");
-}
-export function checkPptxObjectEdit(value: unknown): void {
-  const change = record(value);
-  if (
-    change.action === "clearTextFormat" ||
-    change.action === "clearParagraphFormat"
-  )
-    return;
-  if (change.action === "textParagraph") {
-    checkPptxParagraphFormat(change.format);
-    return;
-  }
-  if (change.action === "textFormat") {
-    checkPptxTextFormat(change.format);
-    return;
-  }
-  if (
-    change.action === "textAlign" &&
-    ["left", "center", "right"].includes(String(change.alignment))
-  )
-    return;
-  if (change.action === "textInsets") {
-    for (const key of ["left", "top", "right", "bottom"])
-      number(change[key], 0, 14400);
-    return;
-  }
-  if (
-    change.action === "textAnchor" &&
-    ["t", "ctr", "b"].includes(String(change.anchor))
-  )
-    return;
-  if (change.action === "textWrap" && typeof change.wrap === "boolean") return;
-  if (
-    change.action === "textFit" &&
-    typeof change.fit === "string" &&
-    ["none", "shrink", "resize"].includes(String(change.fit))
-  )
-    return;
-  if (change.action === "fill" || change.action === "stroke") {
-    if (
-      change.color !== null &&
-      (typeof change.color !== "string" || !/^[0-9a-f]{6}$/i.test(change.color))
-    )
-      throw new Error("Invalid shape color");
-    if (change.action === "stroke") number(change.width, 0.1, 1000);
-    return;
-  }
-  if (
-    change.action === "delete" ||
-    change.action === "group" ||
-    change.action === "ungroup"
-  )
-    return;
-  if (
-    change.action === "align" &&
-    ["left", "center", "right", "top", "middle", "bottom"].includes(
-      String(change.alignment),
-    ) &&
-    ["slide", "selection", "active"].includes(String(change.relativeTo))
-  )
-    return;
-  if (
-    change.action === "distribute" &&
-    ["horizontal", "vertical"].includes(String(change.axis)) &&
-    ["slide", "selection"].includes(String(change.relativeTo))
-  )
-    return;
-  if (change.action === "rotate") {
-    number(change.angle, -360, 360);
-    return;
-  }
-  if (
-    change.action === "flip" &&
-    ["horizontal", "vertical"].includes(String(change.axis))
-  )
-    return;
-  if (
-    change.action === "layer" &&
-    ["front", "back", "forward", "backward"].includes(String(change.order))
-  )
-    return;
-  if (change.action === "duplicate") {
-    number(change.dx, -14400, 14400);
-    number(change.dy, -14400, 14400);
-    return;
-  }
-  if (
-    change.action !== "insert" ||
-    ![
-      "text",
-      "rect",
-      "roundRect",
-      "ellipse",
-      "line",
-      "leftArrow",
-      "rightArrow",
-      "upArrow",
-      "downArrow",
-    ].includes(String(change.kind))
-  )
-    throw new Error("Invalid PPTX object edit");
-  number(change.x, -14400, 14400);
-  number(change.y, -14400, 14400);
-  const width = number(change.width, 0, 14400),
-    height = number(change.height, 0, 14400);
-  if (!(
-    (width >= 0.1 && height >= 0.1) ||
-    (change.kind === "line" && width + height >= 0.1)
-  ))
-    throw new Error("Invalid PPTX object size");
-  const text = change.text;
-  if (
-    typeof text !== "string" ||
-    !text.isWellFormed() ||
-    text.length > 32767 ||
-    Array.from(text).some((character) => {
-      const code = character.charCodeAt(0);
-      return (
-        (code < 32 && code !== 9 && code !== 10) ||
-        code === 65534 ||
-        code === 65535
-      );
-    }) ||
-    text.split("\n").length > 256 ||
-    text.split("\n").some((p) => p.length > 4096) ||
-    (change.kind === "line" && text !== "")
-  )
-    throw new Error("Invalid PPTX object text");
 }
 function strings(value: unknown, count: number, units: number): void {
   if (
@@ -561,6 +383,23 @@ export function pptxQuery(value: unknown): PptxQuery {
   let units = 0;
   for (const item of query.objects) {
     const object = record(item);
+    const picture = record(object.picture);
+    if (
+      !hasFields(
+        picture,
+        ["replaceReason", "cropReason", "opacityReason"],
+        ["left", "top", "right", "bottom", "opacity"],
+      )
+    )
+      throw new Error("Invalid picture query");
+    number(picture.opacity, 0, 1);
+    for (const key of ["left", "top", "right", "bottom"])
+      number(picture[key], 0, 0.99999);
+    if (
+      Number(picture.left) + Number(picture.right) >= 1 ||
+      Number(picture.top) + Number(picture.bottom) >= 1
+    )
+      throw new Error("Invalid picture crop area");
     const frame = record(object.textFrame);
     if (
       !hasFields(
@@ -740,6 +579,15 @@ export class PptxSession extends WasmSession {
       checkPptxSlideEdit(command.change);
     let value: unknown;
     if (
+      command.operation === "editPptxObjects" &&
+      (command.change.action === "insertImage" ||
+        command.change.action === "replaceImage")
+    ) {
+      value = this.call({
+        ...command,
+        change: { ...command.change, bytes: encodeBytes(command.change.bytes) },
+      });
+    } else if (
       command.operation === "findPptx" ||
       command.operation === "replacePptxMatches"
     )

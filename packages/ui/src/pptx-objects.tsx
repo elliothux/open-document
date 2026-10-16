@@ -5,6 +5,7 @@ import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { PptxPaint } from "./pptx-paint.js";
 import { PptxTextFrame } from "./pptx-text-frame.js";
+import { PptxPicture } from "./pptx-picture.js";
 import { PptxFormat, PptxParagraph } from "./pptx-format.js";
 
 type Insert = Extract<PptxObjectEdit, { action: "insert" }>;
@@ -135,6 +136,40 @@ export function PptxObjects({
           <button type="submit">{t.insertObject}</button>
         </fieldset>
       </form>
+      <fieldset disabled={disabled || !!query.readOnlyReason}>
+        <legend>{t.insertImage}</legend>
+        <label>
+          {t.pictureFile}
+          <input
+            type="file"
+            accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = "";
+              if (!file) return;
+              controller.run(async () => {
+                if (!file.size || file.size > 4194304)
+                  throw new Error(t.imageInputLimit);
+                await editor.editObjects({
+                  action: "insertImage",
+                  bytes: new Uint8Array(await file.arrayBuffer()),
+                  x: draft.x,
+                  y: draft.y,
+                  width: draft.width,
+                  height: draft.height,
+                });
+              });
+            }}
+          />
+        </label>
+      </fieldset>
+      <PptxPicture
+        key={`${state.document?.documentId}:${JSON.stringify([query.selection, selected?.picture])}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled || !!query.readOnlyReason}
+      />
       <button
         type="button"
         disabled={disabled || !objectMode || !selected || !!duplicationReason}

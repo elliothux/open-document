@@ -18,7 +18,7 @@ pub(all) enum PositionedPrimitive {
   Rectangle(Fill)
   Stroke(Border, String, Double)
   Text(PositionedText)
-  Image(PlacedImage)
+  Image(PlacedImage, Double)
   Path(Array[PathSegment], String, String, Double)
   Transform(Matrix)
   Clip(Border)
@@ -85,10 +85,27 @@ pub fn PositionedDocument::drawing(
         Rectangle(fill) => commands.push(FillRect(fill))
         Stroke(rect, color, width) =>
           commands.push(StrokeRect(rect, color, width))
-        Image(image) =>
+        Image(image, opacity) => {
+          guard !opacity.is_nan() &&
+            !opacity.is_inf() &&
+            opacity >= 0 &&
+            opacity <= 1 else {
+            @failure.reject(
+              "invalid-drawing", "Invalid positioned image opacity",
+            )
+          }
+          if opacity != 1 {
+            commands.push(
+              Style({ ..DrawStyle::default(), fillAlpha: opacity, }),
+            )
+          }
           commands.push(
             Image({ ..image, key: images.get(image.key).identity, }),
           )
+          if opacity != 1 {
+            commands.push(Style(DrawStyle::default()))
+          }
+        }
         Path(path, fill, stroke, width) =>
           commands.push(Path(path, fill, stroke, width))
         Transform(matrix) => commands.push(Transform(matrix))
@@ -223,7 +240,7 @@ pub fn Line::positioned(
     primitives.push(Clip({ x: 0, y: line.y, width, height: line.height, }))
   }
   for image in line.images {
-    primitives.push(Image(image))
+    primitives.push(Image(image, 1))
   }
   for x in line.bars {
     primitives.push(

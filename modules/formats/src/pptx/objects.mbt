@@ -284,6 +284,7 @@ fn read_object(
   text_reason = limitation
   let mut image : String? = None
   let mut crop = [0.0, 0.0, 0.0, 0.0]
+  let mut opacity = 1.0
   if kind == "image" &&
     source.child("blipFill", uri=presentation_uri) is Some(blip_fill) {
     if blip_fill.child("blip") is Some(blip) {
@@ -293,14 +294,17 @@ fn read_object(
       let target = image_target(opc, source.tree.part, embed, parts)
       if target is Some(target) &&
         [Some("image/png"), Some("image/jpeg")].contains(
-          opc.content_type(target),
+          image_content_type(opc, target, parts),
         ) {
         image = Some(target)
       } else {
         diagnostic = "Unsupported or external image"
       }
-      if !blip.tree.children.get(blip.node.id).unwrap_or([]).is_empty() {
-        diagnostic = "Unsupported picture effect"
+      opacity = image_opacity(blip) catch {
+        @failure.Failure(message~, ..) => {
+          diagnostic = message
+          1.0
+        }
       }
     } else {
       diagnostic = "Missing embedded image"
@@ -355,6 +359,7 @@ fn read_object(
     line_width: paint.2,
     image,
     crop,
+    opacity,
     paragraphs,
     body,
     read_only,

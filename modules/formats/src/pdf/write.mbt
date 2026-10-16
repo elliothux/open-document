@@ -44,6 +44,7 @@ pub fn write(
     for frame in layout.pages {
       let ops : Array[@content.PdfContentOp] = []
       let image_objects : Array[(String, @syntax.PdfObject)] = []
+      let alpha_states : Map[String, (String, @syntax.PdfObject)] = Map([])
       let mut scopes = 0
       for primitive in frame.primitives {
         match primitive {
@@ -168,7 +169,15 @@ pub fn write(
             )
             ops.push(@content.Op_S)
           }
-          Image(image) => {
+          Image(image, opacity) => {
+            guard !opacity.is_nan() &&
+              !opacity.is_inf() &&
+              opacity >= 0 &&
+              opacity <= 1 else {
+              @failure.reject(
+                "invalid-drawing", "Invalid positioned image opacity",
+              )
+            }
             let entry = if installed_images.get(image.key) is Some(entry) {
               entry
             } else {
@@ -219,6 +228,23 @@ pub fn write(
               image_objects.push(entry)
             }
             ops.push(@content.Op_q)
+            if opacity != 1 {
+              let key = opacity.to_string()
+              let state = alpha_states
+                .get(key)
+                .unwrap_or_else(() => {
+                  let state = (
+                    "A\{alpha_states.length()}",
+                    dict([
+                      ("Type", tag("ExtGState")),
+                      ("ca", @syntax.PdfReal(opacity)),
+                    ]),
+                  )
+                  alpha_states[key] = state
+                  state
+                })
+              ops.push(@content.Op_gs(name(state.0)))
+            }
             ops.push(
               @content.Op_cm({
                 a: image.width,
@@ -295,6 +321,15 @@ pub fn write(
       guard content_bytes <= output_limit else {
         @failure.reject("limit-exceeded", "PDF content exceeds output budget")
       }
+      let page_resources = [
+        ("Font", dict(resources)),
+        ("XObject", dict(image_objects)),
+      ]
+      if !alpha_states.is_empty() {
+        page_resources.push(
+          ("ExtGState", dict(alpha_states.values().to_array())),
+        )
+      }
       pages.push({
         content: [stream(bytes, [])],
         mediabox: @syntax.PdfArray([
@@ -303,10 +338,7 @@ pub fn write(
           @syntax.PdfReal(frame.width),
           @syntax.PdfReal(frame.height),
         ]),
-        resources: dict([
-          ("Font", dict(resources)),
-          ("XObject", dict(image_objects)),
-        ]),
+        resources: dict(page_resources),
         rotate: @page.Rotate0,
         rest: dict([]),
       })

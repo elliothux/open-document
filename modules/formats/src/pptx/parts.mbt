@@ -73,12 +73,18 @@ fn Session::replacements(
   main : Tree,
   slides : Array[Slide],
   parts : Map[String, @xml.Document],
+  media~ : Map[String, Bytes] = self.media,
 ) -> Map[String, Bytes] {
   let replacements : Map[String, Bytes] = Map([])
   // Restoring created resources must preserve the saved ZIP order across undo/redo.
   let names = parts.keys().to_array()
+  names.append(media.keys().to_array())
   names.sort()
   for part in names {
+    if media.get(part) is Some(bytes) {
+      replacements[part] = bytes
+      continue
+    }
     let document = parts[part]
     if !document.is_original() || !self.opc.names.contains(part.to_lower()) {
       replacements[part] = document.bytes()
@@ -94,6 +100,23 @@ fn Session::replacements(
     }
   }
   replacements
+}
+
+///|
+fn image_content_type(
+  opc : @opc.Package,
+  part : String,
+  parts : Map[String, @xml.Document],
+) -> String? raise @failure.Failure {
+  if parts.get("[Content_Types].xml") is Some(document) {
+    for node in document.nodes() {
+      if node.name == "Override" &&
+        node.attribute("PartName") == Some("/" + part) {
+        return node.attribute("ContentType")
+      }
+    }
+  }
+  opc.content_type(part)
 }
 
 ///|

@@ -1,6 +1,10 @@
 ///|
 pub(all) enum ObjectEdit {
   Insert(String, Double, Double, Double, Double, String)
+  InsertImage(Bytes, Double, Double, Double, Double)
+  ReplaceImage(String, Bytes)
+  ImageCrop(Double, Double, Double, Double)
+  ImageOpacity(Double)
   Remove
   Duplicate(Double, Double)
   Rotate(Double)
@@ -251,9 +255,30 @@ pub fn Session::edit_objects(
     change is ClearParagraphFormat {
     return self.format_objects(change, probe, profile)
   }
+  if change is InsertImage(bytes, x, y, width, height) {
+    return self.write_image(bytes, Some((x, y, width, height)))
+  }
+  if change is ReplaceImage(object, bytes) {
+    guard self.selection.object == object else {
+      @failure.reject(
+        "invalid-operation", "Picture selection changed before replacement",
+      )
+    }
+    return self.write_image(bytes, None)
+  }
+  if change is ImageCrop(left, top, right, bottom) {
+    return self.crop_image([left, top, right, bottom])
+  }
+  if change is ImageOpacity(value) {
+    return self.set_image_opacity(value)
+  }
   let mut issued : String? = None
   let (changes, after) = match change {
-    TextFormat(_)
+    InsertImage(_, _, _, _, _)
+    | ReplaceImage(_, _)
+    | ImageCrop(_, _, _, _)
+    | ImageOpacity(_)
+    | TextFormat(_)
     | TextAlign(_)
     | TextParagraph(_)
     | ClearTextFormat

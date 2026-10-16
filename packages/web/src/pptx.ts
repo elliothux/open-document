@@ -1,4 +1,5 @@
 import { Connection } from "./connection.js";
+import { decodeImage } from "./image.js";
 import {
   pptxResult,
   checkPptxObjectEdit,
@@ -54,6 +55,14 @@ export class PptxClient {
   async execute<C extends PptxCommand>(command: C): Promise<PptxResult<C>> {
     if (command.operation === "editPptxObjects")
       checkPptxObjectEdit(command.change);
+    if (
+      command.operation === "editPptxObjects" &&
+      (command.change.action === "insertImage" ||
+        command.change.action === "replaceImage")
+    ) {
+      const { bitmap } = await decodeImage(command.change.bytes);
+      bitmap.close();
+    }
     if (command.operation === "editPptxSlides")
       checkPptxSlideEdit(command.change);
     const request =

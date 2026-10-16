@@ -1,6 +1,22 @@
 import type { Messages } from "./messages-en.js";
 
 export const zh: Messages = {
+  pictureOpacity: "图片不透明度",
+  opacityPercent: "不透明度（%）",
+  applyOpacity: "应用不透明度",
+  pictureProperties: "图片属性",
+  replaceImage: "替换图片",
+  replacementFile: "替换图片（PNG、JPEG）",
+  pictureCrop: "图片裁剪",
+  cropLeft: "左侧裁剪（%）",
+  cropTop: "顶部裁剪（%）",
+  cropRight: "右侧裁剪（%）",
+  cropBottom: "底部裁剪（%）",
+  applyCrop: "应用裁剪",
+  resetCrop: "重置裁剪",
+  insertImage: "插入图片",
+  pictureFile: "图片文件（PNG、JPEG）",
+  imageInputLimit: "请选择不超过 4 MiB 的非空图片。",
   sheetPrintSetup: "工作表打印设置",
   printWorkbook: "预览全部可见工作表",
   exportWorkbook: "全部可见工作表 PDF",

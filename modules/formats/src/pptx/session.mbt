@@ -3,6 +3,7 @@ pub struct Session {
   priv opc : @opc.Package
   priv mut main : Tree
   priv mut parts : Map[String, @xml.Document]
+  priv mut media : Map[String, Bytes]
   priv mut removed : Array[String]
   priv mut slide_sequence : Int64
   priv cache : Map[String, Tree]
@@ -277,6 +278,7 @@ fn Session::from_package(
     opc,
     main,
     parts: Map([]),
+    media: Map([]),
     removed: [],
     slide_sequence: 256L,
     cache,
@@ -452,6 +454,16 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
         "duplicateReason": self.object_edit_reason(object, "duplicate"),
         "rotateReason": self.object_edit_reason(object, "rotate"),
         "arrangeReason": self.object_edit_reason(object, "arrange"),
+        "picture": {
+          "opacity": object.opacity,
+          "opacityReason": self.opacity_reason(object),
+          "left": object.crop[0],
+          "top": object.crop[1],
+          "right": object.crop[2],
+          "bottom": object.crop[3],
+          "replaceReason": self.image_reason(object, false),
+          "cropReason": self.image_reason(object, true),
+        },
         "appearance": {
           "fill": if object.fill.is_empty() {
             Json::null()
@@ -599,7 +611,7 @@ pub fn Session::image_bytes(
   }) else {
     @failure.reject("invalid-image", "Unknown presentation image")
   }
-  self.opc.read(key)
+  self.media.get(key).unwrap_or_else(() => self.opc.read(key))
 }
 
 ///|
@@ -615,6 +627,7 @@ pub fn Session::close(self : Session) -> Unit {
   self.redo.clear()
   self.cache.clear()
   self.parts.clear()
+  self.media.clear()
   self.removed.clear()
   self.candidate = None
   self.view = None

@@ -15,6 +15,7 @@ fn Session::ordered_slides(
   main : Tree,
   available : Array[Slide],
   parts~ : Map[String, @xml.Document] = self.parts,
+  media~ : Map[String, Bytes] = self.media,
   removed~ : Array[String] = self.removed,
 ) -> Array[Slide] raise @failure.Failure {
   let list = main.required(
@@ -25,7 +26,7 @@ fn Session::ordered_slides(
   let paths : Map[String, String] = Map([])
   for
     relation in self.opc.relationships(
-      replacements=self.replacements(main, available, parts),
+      replacements=self.replacements(main, available, parts, media~),
       removed~,
     ) {
     if relation.owner == main.part &&
