@@ -1,4 +1,23 @@
 ///|
+fn join_insertions(
+  changes : Array[@xml.SourceChange],
+) -> Array[@xml.SourceChange] {
+  let joined : Array[@xml.SourceChange] = []
+  for change in changes {
+    if change.length == 0 &&
+      joined.search_by(c => {
+        c.length == 0 && c.node == change.node && c.offset == change.offset
+      })
+      is Some(index) {
+      joined[index] = { ..change, xml: joined[index].xml + change.xml, }
+    } else {
+      joined.push(change)
+    }
+  }
+  joined
+}
+
+///|
 fn metadata_changes(
   node : @xml.Node,
   values : Array[(String, String)],

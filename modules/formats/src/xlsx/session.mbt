@@ -400,6 +400,8 @@ pub fn Session::query(
       "readOnlyReason": self.freeze_reason(current),
     },
     "printSetup": self.print_setup_query(current),
+    "printRange": self.print_range_query(sheet_index),
+    "headerFooter": self.header_footer_query(current),
     "dimensions": {
       "rowHeight": current.dimensions.rows
       .uniform(range.unwrap().top, range.unwrap().bottom)

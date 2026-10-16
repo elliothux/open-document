@@ -4,27 +4,14 @@ fn print_axis_fits(
   indices : Array[Int],
   available : Double,
   limit : Int,
+  titles : Array[Int],
 ) -> Bool {
-  if limit == 0 {
-    return true
+  try {
+    let count = print_groups(axis, indices, available, titles).length()
+    limit == 0 || count <= limit
+  } catch {
+    _ => false
   }
-  let mut count = 1
-  let mut size = 0.0
-  for index in indices {
-    let next = axis.size(index)
-    if next > available {
-      return false
-    }
-    if size + next > available {
-      count += 1
-      size = 0
-    }
-    if count > limit {
-      return false
-    }
-    size += next
-  }
-  true
 }
 
 ///|
@@ -34,6 +21,8 @@ fn print_scale(
   dimensions : Dimensions,
   rows : Array[Int],
   columns : Array[Int],
+  title_rows : Array[Int],
+  title_columns : Array[Int],
 ) -> Double raise @failure.Failure {
   if settings.fitWidth == 0 && settings.fitHeight == 0 {
     return settings.scale.to_double() / 100
@@ -45,12 +34,14 @@ fn print_scale(
       rows,
       (setup.height - setup.top - setup.bottom) / scale,
       settings.fitHeight,
+      title_rows,
     ) &&
     print_axis_fits(
       dimensions.columns,
       columns,
       (setup.width - setup.left - setup.right) / scale,
       settings.fitWidth,
+      title_columns,
     )
   }
   guard fits(10) else {

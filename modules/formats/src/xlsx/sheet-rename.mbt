@@ -87,10 +87,10 @@ fn Session::sheet_rename_reason(self : Session) -> String {
       for node in tree.children.get(root.id).unwrap_or([]) {
         if node.uri != spreadsheet_uri ||
           ![
-            "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData", "mergeCells",
-            "sheetProtection", "pageMargins", "pageSetup", "printOptions", "headerFooter",
-            "autoFilter", "conditionalFormatting", "dataValidations", "hyperlinks",
-            "extLst",
+            "sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData",
+            "mergeCells", "sheetProtection", "pageMargins", "pageSetup", "printOptions",
+            "headerFooter", "autoFilter", "conditionalFormatting", "dataValidations",
+            "hyperlinks", "extLst",
           ].contains(node.name) {
           return "Worksheet content requires reference-aware renaming"
         }

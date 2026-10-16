@@ -10,7 +10,7 @@ import { PptxAlignment } from "./pptx-alignment.js";
 import { XlsxSheets, XlsxFrozen } from "./xlsx-sheets.js";
 import { XlsxFormat } from "./xlsx-format.js";
 import { XlsxSearch } from "./xlsx-search.js";
-import { XlsxPrintSetup } from "./xlsx-print-setup.js";
+import { XlsxPrintSetup, XlsxPrintCommands } from "./xlsx-print-setup.js";
 
 interface PanelProps {
   controller: EditorController;
@@ -157,7 +157,6 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
     );
   }
   if (file.format === "xlsx") {
-    const data = file.editor.getSnapshot().data;
     return (
       <>
         {tab === "edit" && (
@@ -184,20 +183,13 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
           </>
         )}
         {tab === "view" && (
-          <Group label={t.print}>
-            <Command
-              label={data.printVisible ? t.closePrint : t.print}
-              disabled={disabled}
-              action={() =>
-                controller.run(() =>
-                  data.printVisible
-                    ? file.editor.closePrintPreview()
-                    : file.editor.printLayout(),
-                )
-              }
-            />
-            {data.printVisible && <Navigation {...props} />}
-          </Group>
+          <XlsxPrintCommands
+            controller={controller}
+            state={state}
+            editor={file.editor}
+            disabled={disabled}
+            navigation={<Navigation {...props} />}
+          />
         )}
       </>
     );
@@ -461,7 +453,7 @@ export function Properties(props: PanelProps) {
           disabled={props.disabled || !!props.state.document?.stopped}
         />
         <XlsxPrintSetup
-          key={`${props.state.document?.documentId}:${props.file.editor.currentState.sheet}:${JSON.stringify(props.file.editor.currentState.printSetup)}`}
+          key={`${props.state.document?.documentId}:${props.file.editor.currentState.sheet}:${JSON.stringify([props.file.editor.currentState.printSetup, props.file.editor.currentState.printRange, props.file.editor.currentState.headerFooter])}`}
           controller={props.controller}
           state={props.state}
           editor={props.file.editor}

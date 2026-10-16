@@ -159,6 +159,27 @@ fn Foundation::xlsx_operation(
             fitWidth: field_int(change, "fitWidth"),
             fitHeight: field_int(change, "fitHeight"),
           })
+        "printRange" =>
+          @xlsx.PrintRange({
+            area: field_string(change, "area"),
+            rows: field_string(change, "rows"),
+            columns: field_string(change, "columns"),
+          })
+        "headerFooter" =>
+          @xlsx.HeaderFooter({
+            oddHeader: field_string(change, "oddHeader"),
+            oddFooter: field_string(change, "oddFooter"),
+            evenHeader: field_string(change, "evenHeader"),
+            evenFooter: field_string(change, "evenFooter"),
+            firstHeader: field_string(change, "firstHeader"),
+            firstFooter: field_string(change, "firstFooter"),
+            differentFirst: xlsx_boolean(change, "differentFirst"),
+            differentOddEven: xlsx_boolean(change, "differentOddEven"),
+            scaleWithDoc: xlsx_boolean(change, "scaleWithDoc"),
+            alignWithMargins: xlsx_boolean(change, "alignWithMargins"),
+            headerMargin: xlsx_number(change, "headerMargin"),
+            footerMargin: xlsx_number(change, "footerMargin"),
+          })
         "move" => @xlsx.Move(field_int(change, "index"))
         "visibility" => @xlsx.Visibility(field_string(change, "state"))
         "rename" => @xlsx.Rename(field_string(change, "name"))
@@ -279,9 +300,19 @@ fn Foundation::xlsx_operation(
       guard request is { "options": options, .. } else {
         @failure.reject("invalid-operation", "Print options are required")
       }
-      let setup : @layout.PageSetup? = if options is Null {
-        None
-      } else {
+      guard options is Null || options is Object(_) else {
+        @failure.reject(
+          "invalid-operation", "Print options must be an object or null",
+        )
+      }
+      let paper_keys = ["width", "height", "left", "right", "top", "bottom"]
+      let setup : @layout.PageSetup? = if options is Object(fields) &&
+        paper_keys.any(key => fields.contains(key)) {
+        guard paper_keys.all(key => fields.contains(key)) else {
+          @failure.reject(
+            "invalid-operation", "All six temporary paper fields are required together",
+          )
+        }
         Some({
           width: xlsx_number(options, "width"),
           height: xlsx_number(options, "height"),
@@ -290,6 +321,28 @@ fn Foundation::xlsx_operation(
           top: xlsx_number(options, "top"),
           bottom: xlsx_number(options, "bottom"),
         })
+      } else {
+        None
+      }
+      let sheets = match options {
+        { "sheets": String("visible"), .. } => @xlsx.VisibleSheets
+        { "sheets": Array(ids), .. } =>
+          @xlsx.SelectedSheets(
+            ids.map(value => {
+              match value {
+                String(id) => id
+                _ =>
+                  @failure.reject(
+                    "invalid-sheet", "Printed worksheet identities must be strings",
+                  )
+              }
+            }),
+          )
+        Object(fields) if fields.contains("sheets") =>
+          @failure.reject(
+            "invalid-sheet", "Unknown printed worksheet selection",
+          )
+        _ => @xlsx.CurrentSheet
       }
       let document = session.print_layout(
         revision,
@@ -302,7 +355,10 @@ fn Foundation::xlsx_operation(
         self.probe,
         xlsx_profile(request),
         setup?,
+        sheets~,
       )
+      let regions = document.drawing(self.images)
+      let outlines = self.probe.outline_resources()
       guard self.layout_id < 2147483647 else {
         @failure.reject("limit-exceeded", "Print identity exhausted")
       }
@@ -312,9 +368,9 @@ fn Foundation::xlsx_operation(
         "id": self.layout_id,
         "revision": revision,
         "sheet": field_string(request, "sheet"),
-        "regions": document.drawing(self.images),
+        "regions": regions,
         "images": [],
-        "outlines": self.probe.outline_resources(),
+        "outlines": outlines,
       }
     }
     "exportXlsxPdf" => {

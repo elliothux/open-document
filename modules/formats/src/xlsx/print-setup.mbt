@@ -325,19 +325,7 @@ fn Session::set_print_setup(
       xml: "<od:sheetPr xmlns:od=\"\{spreadsheet_uri}\"><od:pageSetUpPr fitToPage=\"\{enabled}\"/></od:sheetPr>",
     })
   }
-  // Merge insertions at the same source boundary before creating one history entry.
-  let joined : Array[@xml.SourceChange] = []
-  for change in changes {
-    if change.length == 0 &&
-      joined.search_by(c => {
-        c.length == 0 && c.node == change.node && c.offset == change.offset
-      })
-      is Some(index) {
-      joined[index] = { ..change, xml: joined[index].xml + change.xml, }
-    } else {
-      joined.push(change)
-    }
-  }
+  let joined = join_insertions(changes)
   if joined.is_empty() {
     return self.query()
   }

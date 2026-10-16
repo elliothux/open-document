@@ -15,9 +15,20 @@ import {
   xlsxPrintSetup,
   type PrintOptions,
   type XlsxPrintSetup,
+  type XlsxPrintRange,
+  checkXlsxPrintRange,
+  xlsxPrintRange,
+  type XlsxHeaderFooter,
+  checkXlsxHeaderFooter,
+  xlsxHeaderFooter,
 } from "./xlsx-print.js";
-export { checkXlsxPrintSetup } from "./xlsx-print.js";
-export type { PrintOptions, XlsxPrintSetup } from "./xlsx-print.js";
+export { checkXlsxPrintSetup, checkPrintOptions } from "./xlsx-print.js";
+export type {
+  PrintOptions,
+  XlsxPrintSetup,
+  XlsxPrintRange,
+  XlsxHeaderFooter,
+} from "./xlsx-print.js";
 import { drawingBatch, type DrawingBatch, type DrawRect } from "./drawing.js";
 import {
   checkXlsxCellFormat,
@@ -139,6 +150,8 @@ export interface XlsxCell {
 
 export interface XlsxQuery {
   printSetup: XlsxPrintSetup & { readOnlyReason: string };
+  printRange: XlsxPrintRange & { readOnlyReason: string };
+  headerFooter: XlsxHeaderFooter & { readOnlyReason: string };
   revision: number;
   mainPart: string;
   fontKeys: string[];
@@ -180,6 +193,8 @@ export type XlsxClearMode = "contents" | "formats" | "all";
 
 export type XlsxSheetEdit =
   | ({ action: "pageSetup" } & XlsxPrintSetup)
+  | ({ action: "printRange" } & XlsxPrintRange)
+  | ({ action: "headerFooter" } & XlsxHeaderFooter)
   | { action: "freeze"; rows: number; columns: number }
   | { action: "merge"; range: string; discard: boolean }
   | { action: "unmerge"; range: string }
@@ -198,6 +213,14 @@ export type XlsxSheetEdit =
 
 export function checkXlsxSheetEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "headerFooter") {
+    checkXlsxHeaderFooter(change);
+    return;
+  }
+  if (change.action === "printRange") {
+    checkXlsxPrintRange(change);
+    return;
+  }
   if (change.action === "pageSetup") {
     checkXlsxPrintSetup(change);
     return;
@@ -290,6 +313,8 @@ function cellValue(value: unknown): boolean {
 export function xlsxQuery(value: unknown): XlsxQuery {
   const query = record(value);
   xlsxPrintSetup(query.printSetup);
+  xlsxPrintRange(query.printRange);
+  xlsxHeaderFooter(query.headerFooter);
   const merging = record(query.merging);
   if (
     !hasFields(merging, ["range", "mergeReason", "unmergeReason"], []) ||

@@ -8,7 +8,7 @@
 
 第 5 批已接通 UTF-8 CSV/TSV 导入及独立的数字、日期、公式转换选项，默认保留文字。当前表/选区 CSV 值导出包含默认 UI、首次 XLSX 保存、坏文件恢复与安全前缀提示。原格式保存、CSV 和 PDF 共用输出屏障，CSV 不清除未保存状态。转换复用核心值、日期格式与计算缓存，初始无历史。合同归[输入与保存](references/formats.md#输入与保存)。
 
-页面设置已接通 A4/Letter、方向、四边距、百分比与适合横/纵页数，默认预览和 PDF 使用保存的设置。核心、API 与默认 UI 共用源事务、精确历史和排版；核心 4 例、Chromium 一条操作链及公开包已检查。打印区域、重复标题、页眉页脚与多表输出仍待实现，不标记第 5 批完成。合同归[打印与资源边界](references/formats.md#打印与资源边界)。
+页面设置已接通 A4/Letter、方向、四边距、百分比与适合横/纵页数，默认预览和 PDF 使用保存的设置。已接通单个矩形打印区域、重复标题行/列及清除，保存工作表作用域的标准名称。分页预留标题空间，不重复正文中的标题；冻结不改变打印。名称随改名、复制、移动和删除同步，保留其他名称及部件。纯文字页眉页脚已接通六段、首页/奇偶页区别、页码/总页数/表名、距离、缩放和边距对齐；未知控制码保护源。多表预览和 PDF 已接通，按工作簿顺序打印可见表，保留各表设置和页面尺寸；页码与模板按表重置，总页数覆盖整次输出。默认 UI 提供全部可见表与当前表出口，导出不清除 XLSX 的未保存状态。非连续多区域、更多页眉页脚变体及后续图形输出继续实施，不标记第 5 批完成。合同归[打印与资源边界](references/formats.md#打印与资源边界)。
 
 用户能新建工作簿，维护工作表与行列，编辑格式和常用公式，排序筛选、建立表格和透视分析，插入图表，并保存和打印。程序化 API 与默认 UI 调用同一核心操作。GenOffice/Univer 集成用于核对功能和 UI；计算、引用变化与文件写回优先参考 ONLYOFFICE，其次 LibreOffice。
 
@@ -31,12 +31,12 @@
 | [`xlsx/session.mbt`](../modules/formats/src/xlsx/session.mbt)、[`sheet-order.mbt`](../modules/formats/src/xlsx/sheet-order.mbt)、[`transaction.mbt`](../modules/formats/src/xlsx/transaction.mbt)、[`editing.mbt`](../modules/formats/src/xlsx/editing.mbt) | 稀疏单元格、源 XML、选区与稳定部件历史；已支持 workbook/worksheet 视图一起提交，增删部件事务继续扩展 |
 | [`formula-parser.mbt`](../modules/formats/src/xlsx/formula-parser.mbt)、[`formula-shift.mbt`](../modules/formats/src/xlsx/formula-shift.mbt)、[`formula-logical.mbt`](../modules/formats/src/xlsx/formula-logical.mbt)、[`formula-numeric.mbt`](../modules/formats/src/xlsx/formula-numeric.mbt)、[`formula-text.mbt`](../modules/formats/src/xlsx/formula-text.mbt)、[`formula-date.mbt`](../modules/formats/src/xlsx/formula-date.mbt)、[`formula-conditional.mbt`](../modules/formats/src/xlsx/formula-conditional.mbt)、[`formula-lookup.mbt`](../modules/formats/src/xlsx/formula-lookup.mbt)、[`date.mbt`](../modules/formats/src/xlsx/date.mbt)、[`calculation.mbt`](../modules/formats/src/xlsx/calculation.mbt) | 已有公式解析、共享公式平移、五十九项函数与受影响重算；扩展引用变换、名称、函数与不确定依赖处理 |
 | [`styles.mbt`](../modules/formats/src/xlsx/styles.mbt)、[`number-format.mbt`](../modules/formats/src/xlsx/number-format.mbt) | 有限格式读取/显示与局部派生编辑；已有矩形格式刷、三种清除及规则范围拆分；扩展更多格式代码 |
-| [`grid.mbt`](../modules/formats/src/xlsx/grid.mbt)、[`grid-bands.mbt`](../modules/formats/src/xlsx/grid-bands.mbt)、[`frozen.mbt`](../modules/formats/src/xlsx/frozen.mbt)、[`print.mbt`](../modules/formats/src/xlsx/print.mbt) | 已有冻结视图事务、四窗格裁剪与命中、独立打印布局；继续补筛选可见性、绘图锚点与打印设置 |
+| [`grid.mbt`](../modules/formats/src/xlsx/grid.mbt)、[`grid-bands.mbt`](../modules/formats/src/xlsx/grid-bands.mbt)、[`frozen.mbt`](../modules/formats/src/xlsx/frozen.mbt)、[`print.mbt`](../modules/formats/src/xlsx/print.mbt) | 已有冻结视图事务、四窗格裁剪与命中、独立打印布局；继续补筛选可见性、绘图锚点及其他打印变体 |
 | [`dimension-edit.mbt`](../modules/formats/src/xlsx/dimension-edit.mbt)、[`autofit.mbt`](../modules/formats/src/xlsx/autofit.mbt)、[`dimensions.mbt`](../modules/formats/src/xlsx/dimensions.mbt) | 行高/列宽事务、自动适配、区间拆分和混合尺寸查询；网格、命中和打印使用同一几何 |
 | [`bridge/xlsx.mbt`](../modules/bridge/src/xlsx.mbt)、[`wasm/xlsx.ts`](../packages/wasm/src/xlsx.ts)、[`web/xlsx.ts`](../packages/web/src/xlsx.ts) | 扩展现有类型化命令与查询；不增加第二套计算服务 |
 | [`spreadsheet-editor.ts`](../packages/web/src/spreadsheet-editor.ts)、[`spreadsheet-input.ts`](../packages/web/src/spreadsheet-input.ts)、[`spreadsheet-formula.ts`](../packages/web/src/spreadsheet-formula.ts)、[`ui/xlsx-formula.tsx`](../packages/ui/src/xlsx-formula.tsx) | 已接通共享原生输入的公式栏和范围定位，复用队列、Canvas 与 P9 状态；继续扩展数据面板 |
 
-当前未知公式或无法解析的依赖会使整本只读。当前打印覆盖单表矩形、保存的页面设置、百分比与适合页数。P11 必须继续修改这些能力所在层，不能只放开按钮或在 JS 中补算结果。
+当前未知公式或无法解析的依赖会使整本只读。当前打印可按工作簿顺序合并可见表，各表保留矩形区域、页面设置、重复标题、纯文字页眉页脚和缩放。P11 必须继续修改这些能力所在层，不能只放开按钮或在 JS 中补算结果。
 
 ## 3. 创建、结构与格式
 

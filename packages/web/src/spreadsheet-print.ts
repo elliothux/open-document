@@ -8,6 +8,7 @@ export class SpreadsheetPrint {
   private readonly surface = new CanvasSurface();
   private readonly listeners = new AbortController();
   private layout: XlsxPrintLayout | undefined;
+  private prepared: XlsxPrintLayout | undefined;
   private key = "";
   page = 0;
   get pageCount(): number {
@@ -47,10 +48,10 @@ export class SpreadsheetPrint {
     profile: Record<string, string>,
   ): Promise<XlsxPrintLayout> {
     const key = JSON.stringify([revision, sheet, options, profile]);
-    if (this.layout && this.key === key) return this.layout;
+    if (this.prepared && this.key === key) return this.prepared;
     const layout = await client.printLayout(revision, sheet, options, profile);
     this.listeners.signal.throwIfAborted();
-    this.layout = layout;
+    this.prepared = layout;
     this.key = key;
     return layout;
   }
@@ -65,6 +66,7 @@ export class SpreadsheetPrint {
   dispose(): void {
     this.listeners.abort();
     this.layout = undefined;
+    this.prepared = undefined;
     this.surface.dispose();
     this.element.remove();
   }

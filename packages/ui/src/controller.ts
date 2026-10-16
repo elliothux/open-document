@@ -256,7 +256,11 @@ export class EditorController {
       else
         output = await (file.format === "pptx"
           ? file.editor.exportPdf(kind !== "pdf-current")
-          : file.editor.exportPdf());
+          : file.format === "xlsx"
+            ? file.editor.exportPdf(
+                kind === "pdf-current" ? null : { sheets: "visible" },
+              )
+            : file.editor.exportPdf());
       this.assertOpen();
       const result = Object.freeze({ ...output, name });
       if (this.options.onSave) {

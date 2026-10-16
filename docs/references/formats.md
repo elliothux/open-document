@@ -609,9 +609,27 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `XlsxQuery.printSetup` 返回上述设置及 `readOnlyReason`。修改 `pageMargins`、`pageSetup` 和 `sheetPr/pageSetUpPr`，按 XML 顺序创建缺失节点，保留其他部件、单元格、公式缓存及计算链。边距写回 inch，查询和排版统一使用 point；新页边距包含 header/footer 的标准字段。一次设置一项历史，保持选择，重复设置不增加历史。保护、旧 revision、未知打印属性或预算失败保持源和历史。未知设置返回保护原因，其查询字段使用默认值占位，不能视为源文件的实际设置。
 
-`SpreadsheetEditor.printLayout()` / `exportPdf()` 默认传递 null，使用已保存的纸张、边距和缩放。没有源设置时，核心默认 A4 纵向、四边 36 pt 和 100%。`PrintOptions` 仍可明确给出临时 point 宽高与四边距及 `range`，只覆盖本次纸张和范围，保存的缩放继续适用。默认范围是当前表有内容的矩形。默认 UI 提供设置、预览切页与 PDF；编辑会关闭旧预览，隐藏网格不再触发布局失败。参数草稿在普通命令繁忙时保持可编辑，提交仍等待队列，组合输入和文档切换继续阻止操作。
+`editSheet({ action: "printRange", area, rows, columns })` 保存单个矩形打印区域及重复标题。`area` 使用当前表 A1 矩形，`rows` 使用整行区间（如 `1:2`），`columns` 使用整列区间（如 `A:B`）；各字段留空即清除该设置。接受绝对引用和小写列名，核心返回规范形式。`XlsxQuery.printRange` 返回这三个字段及 `readOnlyReason`，类型为 `XlsxPrintRange` 加保护原因。受保护源的空字段是查询占位，不能当作实际设置。
 
-分页先向下再向右，沿行列边界分割；空表一页，超宽单列、超高单行、跨页/范围合并、未计算公式、未支持显示或未呈现内容明确拒绝。网格和打印共享字体与尺寸，缩放在核心有序图元中完成。屏幕滚动、缩放和 DPR 不改变打印布局。当前输出仍为单表矩形；打印区域定义、重复标题、页眉页脚、多表输出和更多纸张/布局变体继续实施。
+核心写入 `workbook/definedNames` 中带 `localSheetId` 的 `_xlnm.Print_Area` 和 `_xlnm.Print_Titles`，保留其他名称、已有名称属性、工作表源及计算缓存。改名、复制、重排和删除沿已有名称引用事务同步；名称中的空格、逗号和单引号按工作表引用规则处理。一次设置一项精确历史，重复设置不新增历史；旧 revision、表/工作簿结构保护及源/输出预算失败原子拒绝。重复或无作用域的打印名称、跨表定义、非连续多区域和含未知内部标记的定义暂时保护。
+
+重复标题只补当前页起点之前的行列，和正文重合时绘制一次。标题可在打印区域之外；隐藏行列保持隐藏。分页和适合页数都预留标题尺寸，过大的标题明确失败；不截掉标题来满足页数。该行为参考 [ONLYOFFICE 打印标题分页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L3286-L3390)及[名称写回](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L23501-L23556)。
+
+`editSheet({ action: "headerFooter", ...settings })` 保存纯文字页眉页脚，查询为 `XlsxQuery.headerFooter`，类型为 `XlsxHeaderFooter` 加 `readOnlyReason`。设置包含六个字符串 `oddHeader/oddFooter/evenHeader/evenFooter/firstHeader/firstFooter`，四个布尔值 `differentFirst/differentOddEven/scaleWithDoc/alignWithMargins`，以及 point 距离 `headerMargin/footerMargin`。默认六段为空，首页/奇偶页不区分，随表缩放并对齐边距，距纸张上/下边缘均为 21.6 pt。距离可设 0–14400 pt，实际文字越出纸张时打印失败。
+
+每段最多 255 UTF-16 单元；留空清除。支持 `&L`、`&C`、`&R` 切换左、中、右部分，`&P` 为页码，`&N` 为本次输出总页数，`&A` 为当前表名，`&&` 为普通 `&`。未指定部分时居中，支持换行，CR/CRLF 规范为 LF。文字使用工作簿 Normal 字体、字号和黑色。字体、装饰、图片、日期/时间及文件字段控制码暂时保护，不能静默丢弃。源 `useFirstPageNumber/firstPageNumber` 可指定正整数页码起点；首页与奇偶模板按实际输出页序选择，不随起始页码改变。字段与模板语义参考 [ONLYOFFICE HeaderFooter](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/HeaderFooter.js#L72-L123)及[页眉页脚绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L5301-L5405)。
+
+六段与标志写入工作表 `headerFooter`，距离写入 `pageMargins` 的 inch 字段。缺失节点按源顺序创建，保留其他边距、根注释、单元格、计算缓存和非目标部件；重复设置不增加历史。表保护、未知标记、旧 revision、预算失败均不提交部分结果。未知源查询返回保护原因和默认占位值。页眉页脚沿核心字体与有序图元输出，随表缩放时仍保留物理边距和距离；关闭边距对齐时使用 17.8 mm 左右边距。页眉页脚按保存的位置绘制，不移动正文；距离和正文边距可产生重叠，越出纸张则拒绝输出。默认 UI 和自定义 UI 使用同一事务与输出屏障。
+
+`SpreadsheetEditor.printLayout()` / `exportPdf()` 默认传递 null，打印当前表并使用已保存的纸张、边距和缩放。没有源设置时，核心默认 A4 纵向、四边 36 pt 和 100%。默认范围优先使用各表保存的打印区域，没有定义时使用该表有内容的矩形。`PrintOptions` 可单独给出 `range`、`sheets`，或一起给出六个临时 point 纸张字段 `width/height/left/top/right/bottom`；纸张字段必须全部提供。临时纸张和范围应用到每个目标表，保存的缩放、重复标题及页眉页脚继续适用。`checkPrintOptions` 校验同一边界。
+
+`{ sheets: "visible" }` 打印全部可见表，`{ sheets: [id, ...] }` 打印指定的可见表，按当前工作簿顺序合并；列表顺序不改变工作簿顺序。列表须含 1–256 个不重复的稳定表身份，未知或隐藏表明确拒绝。各表保留自己的页面尺寸、缩放、打印区域、重复标题和页眉页脚；空表仍生成一页。页码起点及首页/奇偶模板在切表时重新开始，`&N` 使用整次输出的总页数。整体分页与字段语义参考 [ONLYOFFICE 工作簿打印](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorkbookView.js#L4144-L4200)及[切表后的页码](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L3978-L4002)。
+
+多表共用 32768 格与 1024 页上限，不按表重新分配预算。任一目标表失败，整次输出失败，源、历史、活动表、选区及已有成功预览保持。`XlsxPrintLayout.sheet` 仍是请求时的当前表身份，不表示所有输出页来自同一表。默认 UI 提供全部可见表预览、跨表翻页、全部可见表 PDF 和当前表 PDF。导出其他范围时保留已显示的预览及其页码；PDF 不确认原 XLSX 已保存。
+
+编辑会关闭旧预览，隐藏网格不再触发布局失败。参数草稿在普通命令繁忙时保持可编辑，提交仍等待队列，组合输入和文档切换继续阻止操作。
+
+各表分页先向下再向右，沿行列边界分割；空表一页，超宽单列、超高单行、跨页/范围/标题边界合并、未计算公式、未支持显示或未呈现内容明确拒绝。网格和打印共享字体与尺寸，缩放在核心有序图元中完成。屏幕滚动、缩放和 DPR 不改变打印布局。各表仍限一个矩形；非连续多区域和更多纸张/布局变体继续实施。标题计入轴和单元格上限，标题与页眉页脚都计入每页文字上限。
 
 继续使用前文文件、字体、输出与 Canvas 上限，另有以下操作上限。载荷计数不代表进程峰值或性能保证。
 
@@ -623,9 +641,9 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 | 合并区域 / 单个共享公式组 | 1024 / 4096 格 |
 | 公式 | 单格 8192 UTF-16、4096 token；语法深度 64；依赖链 256；工作簿源码 1 Mi、引用 32768、一次计算工作量 1048576 |
 | 历史 / 队列 | undo+redo 共 100 项、4 MiB 源补丁 payload；宿主 64 项 |
-| 打印 | 32768 可见格、单轴 4096 项、1024 页；每页继续受视口绘制文字/单元格上限约束 |
+| 打印 | 整次输出 32768 格（含重复标题）和 1024 页；每表单轴 4096 项；每页继续受绘制文字/单元格上限约束 |
 
-当前范围不含模板向导、表/行列增删、样式编辑、填充、排序筛选、图表/透视表/图片编辑、协作和整本工作簿打印。XLS/XLSB/XLSM、其他浏览器、Windows/Excel、VoiceOver、性能专项与发布验收未进入本期验证。
+当前范围不含模板向导、表/行列增删、样式编辑、填充、排序筛选、图表/透视表/图片编辑和协作。XLS/XLSB/XLSM、其他浏览器、Windows/Excel、VoiceOver、性能专项与发布验收未进入本期验证。
 
 ## PPTX
 

@@ -28,6 +28,8 @@ import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type { XlsxSheetEdit, XlsxClearMode } from "@open-document/wasm/xlsx";
 export type {
   XlsxPrintSetup,
+  XlsxPrintRange,
+  XlsxHeaderFooter,
   XlsxDelimitedOptions,
   XlsxFindOptions,
   XlsxSearchResult,

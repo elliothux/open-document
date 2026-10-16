@@ -126,9 +126,14 @@ export function FileMenu({
                     disabled={unavailable}
                     onClick={() => controller.run(() => controller.exportPdf())}
                   >
-                    {state.file?.format === "pptx" ? t.exportAll : t.exportPdf}
+                    {state.file?.format === "pptx"
+                      ? t.exportAll
+                      : state.file?.format === "xlsx"
+                        ? t.exportWorkbook
+                        : t.exportPdf}
                   </Menu.Item>
-                  {state.file?.format === "pptx" && (
+                  {(state.file?.format === "pptx" ||
+                    state.file?.format === "xlsx") && (
                     <Menu.Item
                       className="od-menu-item"
                       disabled={unavailable}
@@ -136,7 +141,9 @@ export function FileMenu({
                         controller.run(() => controller.exportPdf(false))
                       }
                     >
-                      {t.exportCurrent}
+                      {state.file?.format === "xlsx"
+                        ? t.exportCurrentSheet
+                        : t.exportCurrent}
                     </Menu.Item>
                   )}
                 </>

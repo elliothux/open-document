@@ -62,6 +62,34 @@ pub(all) struct FindOptions {
 }
 pub fn FindOptions::new(matchCase? : Bool, wholeCell? : Bool, formulas? : Bool, workbook? : Bool) -> Self
 
+pub(all) struct HeaderFooter {
+  oddHeader : String
+  oddFooter : String
+  evenHeader : String
+  evenFooter : String
+  firstHeader : String
+  firstFooter : String
+  differentFirst : Bool
+  differentOddEven : Bool
+  scaleWithDoc : Bool
+  alignWithMargins : Bool
+  headerMargin : Double
+  footerMargin : Double
+} derive(Eq, ToJson)
+pub fn HeaderFooter::default() -> Self
+pub fn HeaderFooter::equal(Self, Self) -> Bool
+pub fn HeaderFooter::not_equal(Self, Self) -> Bool
+pub fn HeaderFooter::to_json(Self) -> Json
+
+pub(all) struct PrintRange {
+  area : String
+  rows : String
+  columns : String
+} derive(Eq, ToJson)
+pub fn PrintRange::equal(Self, Self) -> Bool
+pub fn PrintRange::not_equal(Self, Self) -> Bool
+pub fn PrintRange::to_json(Self) -> Json
+
 pub(all) struct PrintSetup {
   paper : String
   orientation : String
@@ -77,6 +105,12 @@ pub fn PrintSetup::default() -> Self
 pub fn PrintSetup::equal(Self, Self) -> Bool
 pub fn PrintSetup::not_equal(Self, Self) -> Bool
 pub fn PrintSetup::to_json(Self) -> Json
+
+pub(all) enum PrintSheets {
+  CurrentSheet
+  VisibleSheets
+  SelectedSheets(Array[String])
+}
 
 pub(all) struct Range {
   top : Int
@@ -109,7 +143,7 @@ pub fn Session::invalidate_geometry(Self) -> Unit
 pub fn Session::navigate(Self, Int, String, Bool) -> Json raise @failure.Failure
 pub fn Session::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
 pub fn Session::paste(Self, Int, String) -> Json raise @failure.Failure
-pub fn Session::print_layout(Self, Int, String, String?, @layout.TextProbe, Map[String, String], setup? : @layout.PageSetup) -> @layout.PositionedDocument raise @failure.Failure
+pub fn Session::print_layout(Self, Int, String, String?, @layout.TextProbe, Map[String, String], setup? : @layout.PageSetup, sheets? : PrintSheets) -> @layout.PositionedDocument raise @failure.Failure
 pub fn Session::query(Self, sheet? : String?, range? : String?) -> Json raise @failure.Failure
 pub fn Session::replace(Self, Int, String, String, Array[Array[String]], literal? : Bool) -> Json raise @failure.Failure
 pub fn Session::replace_matches(Self, Int, String, String, FindOptions, String, Int?) -> Json raise @failure.Failure
@@ -132,6 +166,8 @@ pub(all) enum SheetEdit {
   Unmerge(String)
   Freeze(Int, Int)
   PageSetup(PrintSetup)
+  PrintRange(PrintRange)
+  HeaderFooter(HeaderFooter)
 }
 
 pub(all) enum Value {

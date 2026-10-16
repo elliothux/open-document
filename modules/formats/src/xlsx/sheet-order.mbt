@@ -12,6 +12,8 @@ pub(all) enum SheetEdit {
   Unmerge(String)
   Freeze(Int, Int)
   PageSetup(PrintSetup)
+  PrintRange(PrintRange)
+  HeaderFooter(HeaderFooter)
 }
 
 ///|
@@ -139,6 +141,8 @@ pub fn Session::edit_sheet(
   self.check_revision(revision)
   match change {
     PageSetup(setup) => return self.set_print_setup(sheet, setup)
+    PrintRange(settings) => return self.set_print_range(sheet, settings)
+    HeaderFooter(settings) => return self.set_header_footer(sheet, settings)
     Freeze(rows, columns) => return self.freeze(sheet, rows, columns)
     Merge(range, discard) =>
       return self.merge_cells(sheet, Range::parse(range), discard, false)
@@ -173,7 +177,9 @@ pub fn Session::edit_sheet(
     | Merge(_, _)
     | Unmerge(_)
     | Freeze(_, _)
-    | PageSetup(_) => abort("Dimension edit was dispatched")
+    | PageSetup(_)
+    | PrintRange(_)
+    | HeaderFooter(_) => abort("Dimension edit was dispatched")
     Rename(name) => return self.rename_sheet(index, name)
     Delete => {
       removed = self.prepare_sheet_delete(index, parts, edits)
