@@ -45,6 +45,8 @@ pub(all) enum ObjectEdit {
   Fill(String?)
   Stroke(String?, Double)
   StrokeDash(String?)
+  StrokeCap(String?)
+  StrokeJoin(String?, Double)
   TextInsets(Double, Double, Double, Double)
   TextAnchor(String)
   TextWrap(Bool)

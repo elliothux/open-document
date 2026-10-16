@@ -237,16 +237,22 @@ fn read_object(
     } else {
       ""
     }
+    let (join, miter) = line_join(lines)
+    let cap = attribute(lines, "cap").unwrap_or("flat")
+    ignore(line_cap_code(cap))
     (
       shape_fill,
       fill(theme, lines, placeholder~),
       number(attribute(lines, "w").unwrap_or("12700"), 1, 12700000) / 12700,
       line_dash(lines),
+      cap,
+      join,
+      miter,
     )
   })() catch {
     @failure.Failure(code="unsupported-style", message~, ..) => {
       diagnostic = message
-      ("", "", 1.0, "solid")
+      ("", "", 1.0, "solid", "flat", "round", 8.0)
     }
     error => raise error
   }
@@ -347,6 +353,9 @@ fn read_object(
     stroke: paint.1,
     line_width: paint.2,
     dash: paint.3,
+    cap: paint.4,
+    join: paint.5,
+    miter: paint.6,
     image,
     crop,
     opacity,

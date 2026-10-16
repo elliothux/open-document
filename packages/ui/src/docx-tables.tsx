@@ -24,6 +24,8 @@ export function DocxTables({
   const [columns, setColumns] = useState("2");
   const [mergeRows, setMergeRows] = useState("1");
   const [mergeColumns, setMergeColumns] = useState("2");
+  const [splitRows, setSplitRows] = useState("2");
+  const [splitColumns, setSplitColumns] = useState("2");
   const rowCount = Number(rows),
     columnCount = Number(columns);
   const snapshot = editor.getSnapshot();
@@ -212,6 +214,53 @@ export function DocxTables({
             }
           >
             {t.mergeCells}
+          </button>
+        </fieldset>
+      </form>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          controller.run(() =>
+            editor.editTable({
+              action: "splitCell",
+              rows: Number(splitRows),
+              columns: Number(splitColumns),
+            }),
+          );
+        }}
+      >
+        <fieldset disabled={disabled || !cell}>
+          <legend>{t.splitCell}</legend>
+          <label>
+            {t.splitCellRows}
+            <input
+              type="number"
+              min={1}
+              max={1000}
+              required
+              value={splitRows}
+              onChange={(event) => setSplitRows(event.currentTarget.value)}
+            />
+          </label>
+          <label>
+            {t.splitCellColumns}
+            <input
+              type="number"
+              min={1}
+              max={63}
+              required
+              value={splitColumns}
+              onChange={(event) => setSplitColumns(event.currentTarget.value)}
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={
+              Number(splitRows) * Number(splitColumns) <= 1 ||
+              Number(splitRows) * Number(splitColumns) > 4096
+            }
+          >
+            {t.splitCell}
           </button>
         </fieldset>
       </form>

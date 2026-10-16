@@ -6,7 +6,7 @@
 
 ## 1. 用户结果与范围
 
-对象外观已接通纯色/无填充、纯色/无边框、宽度及预设虚线。核心、Wasm、Worker 和默认 UI 共用多选事务，保留身份、几何、文字及精确历史。已检查独立 XML、Canvas 实际颜色、保存重开和继续原生输入；复杂填充、形状透明度及效果仍待实现。接口与边界归[格式合同](references/formats.md#pptx)，实现归 [`object-paint.mbt`](../modules/formats/src/pptx/object-paint.mbt)及 [`line-dash.mbt`](../modules/formats/src/pptx/line-dash.mbt)。
+对象外观已接通纯色/无填充、纯色/无边框、宽度、预设虚线、平头/圆头/方头端点及圆角/斜角/斜接连接。核心、Wasm、Worker 和默认 UI 共用多选事务，保留身份、几何、文字及精确历史。已检查独立 XML、Canvas 实际颜色、保存重开和继续原生输入；复杂填充、形状透明度及效果仍待实现。接口与边界归[格式合同](references/formats.md#pptx)，实现归 [`object-paint.mbt`](../modules/formats/src/pptx/object-paint.mbt)、[`line-dash.mbt`](../modules/formats/src/pptx/line-dash.mbt)和 [`line-pen.mbt`](../modules/formats/src/pptx/line-pen.mbt)。
 
 第 2 批已接通本页纯色背景、恢复继承和整稿尺寸调整，支持默认 UI、Wasm 与 Worker API，保留选择和精确历史。尺寸调整同步缩放页面、版式、母版及组内几何，保持字号和方向。复杂背景、图表/表格对象与非空参考线仍保护源内容；主题、版式与母版直接编辑尚待实现。实现归 [`slide-background.mbt`](../modules/formats/src/pptx/slide-background.mbt)和 [`slide-size.mbt`](../modules/formats/src/pptx/slide-size.mbt)，合同及检查归[格式说明](references/formats.md#pptx)。
 

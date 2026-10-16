@@ -169,6 +169,9 @@ fn Session::commit_table_merge(
   tree : WordTree,
   grid : TableGrid,
   changes : Array[@xml.SourceChange],
+  probe? : @layout.TextProbe,
+  profile~ : Map[String, String] = Map([]),
+  images? : @layout.Images,
 ) -> Json raise @failure.Failure {
   let (candidate, edit) = self.document().edit_source(changes)
   let updated = WordTree::new(candidate)
@@ -176,11 +179,7 @@ fn Session::commit_table_merge(
   let paragraph = updated.child(cell, "p").unwrap()
   let result = self.flow_from(candidate)
   let model = result.tables.iter().find_first(t => t.id == grid.table).unwrap()
-  guard model.rows.flatten().flatten().all(p => p.readOnlyReason.is_empty()) else {
-    @failure.reject(
-      "protected-content", "Merged cell formatting requires unsupported layout",
-    )
-  }
+  self.check_table_layout(result, model, probe, profile, images)
   let before = grid.cells
     .flatten()
     .map(cell => tree.table_children(cell, "p"))

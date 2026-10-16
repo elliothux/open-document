@@ -8,6 +8,7 @@ pub(all) enum TableEdit {
   DeleteColumn
   MergeCells(Int, Int)
   UnmergeCell
+  SplitCell(Int, Int)
   SplitTable
   AutoFit(String)
   TableWidth(Double)
@@ -152,6 +153,15 @@ pub fn Session::edit_table(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   match change {
+    RowBefore | RowAfter | DeleteRow =>
+      return self.edit_table_rows(
+        revision,
+        selection,
+        change,
+        probe~,
+        profile~,
+        images~,
+      )
     AutoFit(mode) =>
       return self.fit_table(revision, selection, mode, probe, profile, images)
     TableBorders(value) | CellBorders(value) =>
@@ -172,6 +182,10 @@ pub fn Session::edit_table(
     MergeCells(rows, columns) =>
       return self.merge_table_cells(revision, selection, rows, columns)
     UnmergeCell => return self.unmerge_table_cell(revision, selection)
+    SplitCell(rows, columns) =>
+      return self.split_table_cell(
+        revision, selection, rows, columns, probe, profile, images,
+      )
     SplitTable => return self.split_table(revision, selection)
     TableWidth(value) =>
       return self.size_table(
@@ -231,130 +245,36 @@ pub fn Session::edit_table(
   }
   let original = self.document()
   let tree = WordTree::new(original)
-  let range = self.paragraph_range(tree, selection, structural=true)
-  let cell = tree.nodes[range.start.paragraph].parent
-  guard tree.nodes[cell].name == "tc" else {
-    @failure.reject(
-      "invalid-operation", "Table commands require a cell selection",
-    )
-  }
-  let row = tree.nodes[cell].parent
-  let table = tree.nodes[row].parent
+  let grid = self.table_grid(tree, selection)
+  let table = grid.table
   let body = tree.nodes[table].parent
-  ignore(self.editable_page_section(tree))
   let flow = self.flow_from(original)
-  let model = flow.tables.iter().find_first(t => t.id == table).unwrap()
+  let model = grid.model
+  let rows = grid.rows
+  let cells = grid.cells
+  let c = grid.column
   guard model.columnSpans.all(row => row.all(span => span == 1)) &&
     model.rowSpans.all(row => row.all(span => span == 1)) else {
     @failure.reject(
-      "protected-content", "Merged table rows and columns require grid structure editing",
+      "protected-content", "Merged table columns require grid structure editing",
     )
   }
-  let rows = tree.table_children(table, "tr")
-  let cells = rows.map(row => tree.table_children(row, "tc"))
-  let r = rows.search(row).unwrap()
-  let c = cells[r].search(cell).unwrap()
-  let row_edit = match change {
-    RowBefore | RowAfter | DeleteRow => true
-    _ => false
-  }
-  let removing = match change {
-    DeleteRow | DeleteColumn => true
-    _ => false
-  }
-  let before = match change {
-    RowBefore | ColumnBefore => true
-    _ => false
-  }
-  let whole = removing &&
-    (if row_edit { rows.length() == 1 } else { cells[0].length() == 1 })
-  let row_count = rows.length() +
-    (if row_edit { if removing { -1 } else { 1 } } else { 0 })
-  let column_count = cells[0].length() +
-    (if row_edit { 0 } else if removing { -1 } else { 1 })
-  guard row_count <= 1000 &&
+  let removing = change is DeleteColumn
+  let before = change is ColumnBefore
+  let whole = removing && model.widths.length() == 1
+  let column_count = model.widths.length() + (if removing { -1 } else { 1 })
+  guard rows.length() <= 1000 &&
     column_count <= 63 &&
-    row_count.to_int64() * column_count.to_int64() <= 4096L else {
-    @failure.reject(
-      "limit-exceeded", "Table exceeds row, column or cell budget",
-    )
+    rows.length().to_int64() * column_count.to_int64() <= 4096 else {
+    @failure.reject("limit-exceeded", "Table exceeds row column or cell budget")
   }
-  // Structural extensions and anchors need their own identity/remapping rules.
-  for id in [table, ..rows, ..cells.flatten()] {
-    let allowed = match tree.nodes[id].name {
-      "tbl" => ["tblPr", "tblGrid", "tr"]
-      "tr" => ["trPr", "tc"]
-      _ => ["tcPr", "p"]
-    }
-    guard tree.nodes[id].attributes
-      .iter()
-      .all(a => {
-        a.uri == word_uri &&
-        ["rsidR", "rsidRPr", "rsidDel", "rsidTr"].contains(a.name)
-      }) &&
-      tree.children[id]
-      .iter()
-      .all(child => {
-        tree.nodes[child].uri == word_uri &&
-        allowed.contains(tree.nodes[child].name)
-      }) else {
-      @failure.reject(
-        "protected-content", "Unknown table structure prevents row or column edits",
-      )
-    }
-    for name in ["tblPr", "tblGrid", "trPr", "tcPr"] {
-      guard tree.table_children(id, name).length() <= 1 else {
-        @failure.reject("protected-content", "Duplicate table properties")
-      }
-    }
-  }
-  let grid = tree.child(table, "tblGrid").unwrap()
-  if !row_edit {
-    let node = tree.nodes[grid]
-    let source = original.source()[node.start:node.end]
-    guard node.text.trim().is_empty() &&
-      !source.contains("<!--") &&
-      !source.contains("<?") else {
-      @failure.reject("protected-content", "Unknown table grid markup")
-    }
-  }
-  for id in [grid, ..tree.children[grid]] {
-    let node = tree.nodes[id]
-    guard node.uri == word_uri &&
-      (id == grid || (node.name == "gridCol" && tree.children[id].is_empty())) &&
-      node.attributes
-      .iter()
-      .all(a => id != grid && a.uri == word_uri && a.name == "w") else {
-      @failure.reject("protected-content", "Unknown table grid properties")
-    }
-  }
-  for cell in cells.flatten() {
-    if tree.child(cell, "tcPr") is Some(props) {
-      guard tree.table_children(props, "tcW").length() <= 1 else {
-        @failure.reject("protected-content", "Duplicate cell width")
-      }
-      if tree.child(props, "tcW") is Some(width) {
-        guard tree.children[width].is_empty() &&
-          tree.nodes[width].attributes
-          .iter()
-          .all(a => a.uri == word_uri && ["type", "w"].contains(a.name)) else {
-          @failure.reject("protected-content", "Unknown cell width properties")
-        }
-      }
-    }
-  }
+  tree.check_table_structure(grid, columns=true)
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
   let changes : TableChanges = { items: [], bytes: 0, limit, }
-  let first = model.rows[0][0][0]
-  let affected = model.rows.flatten().flatten().map(p => p.id)
   let removed = if whole {
     cells.flatten()
   } else if removing {
-    if row_edit {
-      cells[r]
-    } else {
-      cells.map(row => row[c])
-    }
+    cells.map(row => row[c])
   } else {
     []
   }
@@ -364,60 +284,20 @@ pub fn Session::edit_table(
       tree.check_structure_paragraph(p)
     }
   }
-  let mut target = -1
   if whole {
     changes.push(table_remove(tree, table))
     let siblings = tree.children[body]
     let index = siblings.search(table).unwrap()
-    let next = siblings.get(index + 1).filter(id => tree.nodes[id].name == "p")
-    if next is Some(p) {
-      target = p
-    } else {
+    if !siblings
+      .get(index + 1)
+      .map(id => tree.nodes[id].name == "p")
+      .unwrap_or(false) {
       let node = tree.nodes[table]
       changes.push({
         node: body,
         offset: node.end - tree.nodes[body].start,
         length: 0,
         xml: "<od:p xmlns:od=\"\{word_uri}\"/>",
-      })
-    }
-  } else if row_edit {
-    if removing {
-      changes.push(table_remove(tree, row))
-      target = model.rows[(r + 1).min(rows.length() - 1)][0][0].id
-      if r == rows.length() - 1 {
-        target = model.rows[r - 1][0][0].id
-      }
-    } else {
-      let properties = tree
-        .child(row, "trPr")
-        .map(id => tree.standalone_markup(original, id))
-        .unwrap_or("")
-      let markup = StringBuilder()
-      markup.write_string("<od:tr xmlns:od=\"\{word_uri}\">\{properties}")
-      let mut length = markup.to_string().length() + "</od:tr>".length()
-      for col, cell in cells[r] {
-        let content = self.empty_table_cell(
-          tree,
-          cell,
-          (model.widths[col] * 20).round().to_int(),
-        )
-        guard content.length() <= limit - length else {
-          @failure.reject(
-            "limit-exceeded", "Table source exceeds history budget",
-          )
-        }
-        length += content.length()
-        markup.write_string(content)
-      }
-      markup.write_string("</od:tr>")
-      let node = tree.nodes[row]
-      changes.push({
-        node: table,
-        offset: (if before { node.start } else { node.end }) -
-        tree.nodes[table].start,
-        length: 0,
-        xml: markup.to_string(),
       })
     }
   } else {
@@ -521,90 +401,20 @@ pub fn Session::edit_table(
         })
       }
     }
+  }
+  self.commit_table_structure(
+    tree,
+    grid,
+    changes.items,
+    0,
     if removing {
-      target = model.rows[0][(c + 1).min(cells[0].length() - 1)][0].id
-      if c == cells[0].length() - 1 {
-        target = model.rows[0][c - 1][0].id
-      }
-    }
-  }
-  let (updated, edit) = original.edit_source(changes.items)
-  let mut candidate = updated
-  let edits = [edit]
-  let inserted = WordTree::new(candidate)
-  let new_first = if whole {
-    if target < 0 {
-      target = inserted.children[body][tree.children[body]
-        .search(table)
-        .unwrap()]
-    }
-    target
-  } else {
-    let new_rows = inserted.table_children(table, "tr")
-    let first_cell = inserted.table_children(new_rows[0], "tc")[0]
-    if target < 0 {
-      let new_row = if row_edit { r + (if before { 0 } else { 1 }) } else { 0 }
-      let new_col = if row_edit { 0 } else { c + (if before { 0 } else { 1 }) }
-      target = inserted
-        .child(inserted.table_children(new_rows[new_row], "tc")[new_col], "p")
-        .unwrap()
-    }
-    inserted.child(first_cell, "p").unwrap()
-  }
-  if first.pageBreakBefore && new_first != first.id {
-    let points = [new_first, first.id]
-    for p in points {
-      if !inserted.nodes.contains(p) {
-        continue
-      }
-      let position = table_position(p)
-      if self.format_paragraph_document(
-          candidate,
-          { anchor: position, focus: position, },
-          ParagraphFormat::new(pageBreakBefore=Set(p == new_first)),
-        )
-        is Some((document, edit)) {
-        candidate = document
-        edits.push(edit)
-      }
-    }
-  }
-  let result = self.flow_from(candidate)
-  if !whole {
-    let changed = result.tables.iter().find_first(t => t.id == table).unwrap()
-    guard changed.rows
-      .iter()
-      .all(row => {
-        row
-        .iter()
-        .all(cell => cell.iter().all(p => p.readOnlyReason.is_empty()))
-      }) else {
-      @failure.reject(
-        "protected-content", "Table formatting requires unsupported layout",
-      )
-    }
-    affected.append(changed.rows.flatten().flatten().map(p => p.id))
-  }
-  let position = table_position(target)
-  self.check_position_in(candidate, position)
-  let bytes = edits
-    .iter()
-    .fold(init=0L, (sum, edit) => sum + edit.payload_bytes())
-  guard bytes <= history_byte_limit.to_int64() else {
-    @failure.reject("limit-exceeded", "Table history exceeds budget")
-  }
-  affected.push(target)
-  self.commit_edit(
-    {
-      xml: edits,
-      parts: Map([]),
-      created: Map([]),
-      before: self.selection,
-      after: Some({ anchor: position, focus: position, }),
-      paragraphs: affected,
-      bytes: bytes.to_int(),
+      c.min(column_count - 1)
+    } else {
+      c + (if before { 0 } else { 1 })
     },
-    candidate,
+    whole,
+    probe,
+    profile,
+    images,
   )
-  self.edit_result(affected)
 }

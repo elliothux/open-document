@@ -14,12 +14,35 @@ pub(all) struct PositionedText {
 }
 
 ///|
+pub(all) struct PathStroke {
+  dash : Array[Double]
+  cap : Int
+  join : Int
+  miter : Double
+}
+
+///|
+pub fn PathStroke::validate(self : PathStroke) -> Unit raise @failure.Failure {
+  guard self.dash.length() <= 256 &&
+    self.dash.all(v => v >= 0 && v <= 1000000000) &&
+    (self.dash.is_empty() || self.dash.any(v => v > 0)) &&
+    self.cap >= 0 &&
+    self.cap <= 2 &&
+    self.join >= 0 &&
+    self.join <= 2 &&
+    self.miter >= 1 &&
+    self.miter <= 1000 else {
+    @failure.reject("invalid-drawing", "Invalid positioned path stroke")
+  }
+}
+
+///|
 pub(all) enum PositionedPrimitive {
   Rectangle(Fill)
   Stroke(Border, String, Double)
   Text(PositionedText)
   Image(PlacedImage, Double)
-  Path(Array[PathSegment], String, String, Double, Array[Double])
+  Path(Array[PathSegment], String, String, Double, PathStroke)
   Transform(Matrix)
   Clip(Border)
   Restore
@@ -106,19 +129,19 @@ pub fn PositionedDocument::drawing(
             commands.push(Style(DrawStyle::default()))
           }
         }
-        Path(path, fill, stroke, width, dash) => {
-          guard dash.length() <= 256 &&
-            dash.all(v => v >= 0 && v <= 1000000000) &&
-            (dash.is_empty() || dash.any(v => v > 0)) else {
-            @failure.reject("invalid-drawing", "Invalid positioned path dash")
-          }
-          if !dash.is_empty() {
-            commands.push(Style({ ..DrawStyle::default(), dash, }))
-          }
+        Path(path, fill, stroke, width, pen) => {
+          pen.validate()
+          commands.push(
+            Style({
+              ..DrawStyle::default(),
+              dash: pen.dash,
+              cap: pen.cap,
+              join: pen.join,
+              miter: pen.miter,
+            }),
+          )
           commands.push(Path(path, fill, stroke, width))
-          if !dash.is_empty() {
-            commands.push(Style(DrawStyle::default()))
-          }
+          commands.push(Style(DrawStyle::default()))
         }
         Transform(matrix) => commands.push(Transform(matrix))
         Clip(rect) => commands.push(ClipRect(rect))

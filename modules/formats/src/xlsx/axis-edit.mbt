@@ -43,19 +43,14 @@ fn Session::edit_axes(
   }
   let sheets = self.sheets.copy()
   let edits : Array[(String, @xml.Edit)] = []
+  let rule_work : RuleShiftWork = {
+    cells: 0,
+    units: 0,
+    fragments: 0,
+    source: 0,
+    limit: self.budget.entry_bytes.min(4194304),
+  }
   for i, original in sheets {
-    if change.band is Some(_) {
-      guard !original.document
-        .nodes()
-        .any(n => {
-          n.uri == spreadsheet_uri &&
-          ["conditionalFormatting", "dataValidation"].contains(n.name)
-        }) else {
-        @failure.reject(
-          "protected-content", "Cell shifts require per-cell conditional format and validation transformations",
-        )
-      }
-    }
     let updates : Map[String, CellContent] = Map([])
     let source = Tree::new(original.document)
     for name, cell in original.cells {
@@ -106,11 +101,24 @@ fn Session::edit_axes(
       self.strings,
       self.styles.length(),
     )
-    let metadata = axis_sheet_metadata(current, target.name, change)
+    let (metadata, split_rules) = axis_sheet_metadata(
+      current,
+      target.name,
+      change,
+      rule_work,
+    )
     if !metadata.is_empty() {
       let (next, edit) = document.edit_source(metadata)
       document = next
       edits.push((original.id, edit))
+    }
+    if split_rules {
+      let priorities = shifted_rule_priorities(document)
+      if !priorities.is_empty() {
+        let (next, edit) = document.edit_source(priorities)
+        document = next
+        edits.push((original.id, edit))
+      }
     }
     if original.id == id {
       let current = Sheet::read(

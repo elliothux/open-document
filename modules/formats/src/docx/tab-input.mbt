@@ -75,7 +75,7 @@ pub fn Session::tab(
     return if backward {
       self.edit_state()
     } else {
-      self.edit_table(revision, selection, RowAfter)
+      self.edit_table_rows(revision, selection, RowAfter, append=true)
     }
   }
   guard tree.child(cell, "p") is Some(paragraph) else {

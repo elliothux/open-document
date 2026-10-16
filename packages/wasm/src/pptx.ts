@@ -4,11 +4,17 @@ import {
   type PptxObjectEdit,
   pptxDashes,
   type PptxDash,
+  pptxCaps,
+  pptxJoins,
+  type PptxCap,
+  type PptxJoin,
 } from "./pptx-objects.js";
 export {
   checkPptxObjectEdit,
   type PptxObjectEdit,
   type PptxDash,
+  type PptxCap,
+  type PptxJoin,
 } from "./pptx-objects.js";
 import { checkPptxSlideEdit, type PptxSlideEdit } from "./pptx-slides.js";
 export { checkPptxSlideEdit, type PptxSlideEdit } from "./pptx-slides.js";
@@ -76,6 +82,10 @@ export interface PptxObject {
     cropReason: string;
   };
   appearance: {
+    cap: PptxCap;
+    join: PptxJoin;
+    miterLimit: number;
+    penReason: string;
     dash: PptxDash;
     dashReason: string;
     fill: string | null;
@@ -423,7 +433,13 @@ export function pptxQuery(value: unknown): PptxQuery {
       number(frame[key], 0, 14400);
     const appearance = record(object.appearance);
     if (
-      !hasFields(appearance, ["reason", "dashReason"], ["width"]) ||
+      !hasFields(
+        appearance,
+        ["reason", "dashReason", "penReason"],
+        ["width", "miterLimit"],
+      ) ||
+      !pptxCaps.some((value) => value === appearance.cap) ||
+      !pptxJoins.some((value) => value === appearance.join) ||
       !pptxDashes.some((value) => value === appearance.dash) ||
       ![appearance.fill, appearance.stroke].every(
         (color) =>
@@ -433,6 +449,7 @@ export function pptxQuery(value: unknown): PptxQuery {
     )
       throw new Error("Invalid shape appearance");
     number(appearance.width, 1 / 12700, 1000);
+    number(appearance.miterLimit, 1, 1000);
     if (
       !hasFields(
         object,

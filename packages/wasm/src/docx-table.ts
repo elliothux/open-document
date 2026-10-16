@@ -86,7 +86,7 @@ export type DocxTableEdit =
         | "unmerge"
         | "splitTable";
     }
-  | { action: "merge"; rows: number; columns: number }
+  | { action: "merge" | "splitCell"; rows: number; columns: number }
   | { action: "tableWidth"; value: number }
   | { action: "rowHeight"; value: number; rule: "atLeast" | "exact" }
   | { action: "columnWidth"; column: number; value: number }
@@ -178,7 +178,7 @@ export function checkDocxTableEdit(value: unknown): void {
     return;
   }
   if (
-    change.action === "merge" &&
+    (change.action === "merge" || change.action === "splitCell") &&
     typeof change.rows === "number" &&
     typeof change.columns === "number"
   ) {

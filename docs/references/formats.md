@@ -193,13 +193,21 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `FoundationSession/Client.editTable(revision, selection, change, profile?)` 与 `DocumentEditor.editTable(change)` 接收带 `action` 的对象。行列操作为 `{ action: "rowBefore" | "rowAfter" | "deleteRow" | "columnBefore" | "columnAfter" | "deleteColumn" }`。范围须位于一个支持的单元格内，默认 UI 提供同样的六个命令。新增行复制当前行的行/格属性及各格首段格式；新增列复制邻格属性和首段格式，不复制文字，保留格式继承。固定宽表格保持总宽，按原列宽比例缩放为整数 twip；未指定固定宽的网格按插入/删除后的列宽计算。列编辑结果须在可用页宽内，各列至少 12 pt。全部命令遵守创建时的行列、格数及资源上限；生成源片段时累计预算，超限即停止。
 
-新增操作将光标移到新行首格或新列首行。删除操作将光标移到相邻的剩余行或列；删除最后一行或列时移除表格，进入后续正文段落，必要时创建空段落。首格段前分页随结构转移。末格 Tab 新增一行并进入首格，Shift+Tab 在首格保持原位。每次结构操作与新增身份、列宽及选择合为一次历史，保留未删文字与其他部件，支持保存重开和精确混合撤销/重做。未知结构、锚点、受保护内容或预算失败原子拒绝。行为依据 [ONLYOFFICE 行列操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9997-L10788)和[固定宽网格缩放](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L414-L425)。
+行操作作用于当前格所在的实际源行。插入位置穿过纵向合并时，新行延续该合并；在合并范围外插入时，新格保持横向跨度并独立。删除起始行会删除该行内容，后续延续格成为新起始格，不转移已删文字；删除延续行保留起始格内容。保留原网格、行属性、宽度偏好及固定/自动适配模式。新增行进入首个非延续格；整行均为延续格时进入覆盖它的起始格。候选源沿现有字体上下文检查可写性、有效宽度和分页，失败保留已提交状态。合并格的列操作继续保护。行为依据 [ONLYOFFICE 行插入与删除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9997-L10293)，实现归 [`table-row-edit.mbt`](../../modules/formats/src/docx/table-row-edit.mbt)及[`共享结构事务`](../../modules/formats/src/docx/table-grid-structure.mbt)。
+
+新增列将光标移到新列首行。删除操作将光标移到相邻的剩余行或列；删除最后一行或列时移除表格，进入后续正文段落，必要时创建空段落。首格段前分页随结构转移。末格 Tab 在最后一个实际源行之后新增一行并进入首格，即使最后一格的合并起始点位于前行，Shift+Tab 在首格保持原位。每次结构操作与新增身份、列宽及选择合为一次历史，保留未删文字与其他部件，支持保存重开和精确混合撤销/重做。未知结构、锚点、受保护内容或预算失败原子拒绝。行为依据 [ONLYOFFICE 行列操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9997-L10788)和[固定宽网格缩放](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L414-L425)。
 
 `{ action: "merge", rows, columns }` 从当前格的左上网格位置合并指定矩形。范围为 1–1000 行、1–63 列且最多 4096 个网格位置，不能切开已有合并格。内容按行优先顺序进入左上格，保留段落、字符格式和空段落；列网格不变，更新格宽、gridSpan 与 vMerge。`{ action: "unmerge" }` 取消当前格的合并，恢复原网格各列和行，全部内容留在首格，新增格保留相应格式并置空。两者使用同一有界源历史，可与格内输入精确混合撤销，保存后继续编辑。相同合并范围或取消未合并格不新增历史。书签等受保护锚点、未知格属性及输出预算失败原子拒绝。内容顺序参考 [ONLYOFFICE 合并](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9466-L9530)。
 
+`{ action: "splitCell", rows, columns }` 将当前单格拆成指定行列，默认 UI 提供同名操作和数量输入。普通格可新增 1–1000 行、1–63 列；纵向合并格的行数须不超过原合并行数，且能整除原行数。`1×1` 不改变源或历史。它与 `unmerge` 不同：列边界按当前有效宽度等分到整数 twip，合并原有边界后细分公共网格；其他行仅更新跨度，保持原单元格范围。
+
+普通格新增行时复制原行属性，邻格通过纵向合并保持原内容和范围。原段落内容全部留在左上格；新格为空并复制相应格/首段格式。保留原段落身份、非目标内容和其他部件，光标进入左上格。dxa/pct 宽度偏好按列数分配并保持总量，auto/nil 保留；邻格的宽度偏好和整表固定/自动适配模式不变。
+
+结果仍须满足最多 1000 行、63 个公共网格列和 4096 个网格位置，新增源、历史及输出受既有预算约束。核心使用字体 profile 先检查候选格内宽度与分页，边距不足、未知格/行属性、保留的属性注释、缺字体或预算失败时原子拒绝。操作与选择合为一次精确历史，可与文字输入混合撤销、保存重开并沿同一布局输出 PDF。当前合并行组仍须能完整放入一页。算法依据 [ONLYOFFICE SplitTableCells](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9609-L10001)，实现归 [`table-cell-split.mbt`](../../modules/formats/src/docx/table-cell-split.mbt)。
+
 `{ action: "splitTable" }` 在所选单元格所在行之前拆分正文表格，两表之间插入空正文段落，光标进入下表首格。首行、缺少段落的单元格、嵌套/受保护表格、未知结构及预算失败拒绝操作。两表保留列网格、宽度、边框、样式和单元格内容；原有行和未替换内容的身份保持。纵向合并跨越分界线时，内容留在上表，下表从对应位置创建空的合并起始格，复制原合并格格式并清除段前分页；后续延续格继续归属下表。分界、空格及选择一次提交历史，支持原样撤销、保存重开、继续输入及同布局 PDF。默认 UI 使用同一操作。拆表与跨度清理参考 [LibreOffice SplitTable](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sw/source/core/docnode/ndtbl.cxx#L3392-L3515)及[纵向跨度清理](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sw/source/core/table/swnewtable.cxx#L2021-L2110)。
 
-布局读取横向跨度及纵向起始/延续格，文字、背景和边框使用合并后的矩形；Tab 跳过纵向延续格。依赖纵向合并的相邻行作为一组分页，普通行仍可分到后续页。当前一组合并行须能完整放进一页；跨页合并延续和拆行仍待实现；重复表头见[当前合同](#重复表头)。包含可见内容的纵向延续格明确拒绝，避免隐藏其文字。含合并格的行列增删继续保护，取消合并后可沿用原入口。默认 UI 提供从当前格指定行列数量的合并与取消合并；任意行列数拆格、鼠标矩形选择及属性编辑仍归 [P10](../p10-docx-core.md)。
+布局读取横向跨度及纵向起始/延续格，文字、背景和边框使用合并后的矩形；Tab 跳过纵向延续格。依赖纵向合并的相邻行作为一组分页，普通行仍可分到后续页。当前一组合并行须能完整放进一页；跨页合并延续和拆行仍待实现；重复表头见[当前合同](#重复表头)。包含可见内容的纵向延续格明确拒绝，避免隐藏其文字。含合并格的行增删遵循上述规则；列增删继续保护，取消合并后可沿用原入口。默认 UI 提供从当前格指定行列数量的合并与取消合并；鼠标矩形选择及其余属性编辑仍归 [P10](../p10-docx-core.md)。
 
 ### 表格尺寸
 
@@ -497,7 +505,9 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 普通/共享公式、跨表引用、绝对标记、定义名称、内部链接、已支持合并区域、有效范围和计算缓存共用一次源历史。相交共享公式有界展开。单个引用及完全位于移动带中的区域按插删轴调整；跨越带边界的引用通常保持，删除完全覆盖其轴区间且切到另一轴边缘时裁掉相交边。整轴引用仍覆盖工作表末端。规则依据 [ONLYOFFICE Range.isIntersectForShift/forShift](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/utils/utils.js#L614-L790)和[公式移位](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L10152-L10280)，不把移动当成相对复制。
 
-条件格式/数据验证的逐格引用变换尚未接通，当前工作簿含这些规则时拒绝移位。移动带切开合并或矩形链接、未知公式/引用、未接入的筛选/绘图/表格/批注资源及工作表保护继续原子拒绝。可用的整行/整列操作保持原有规则支持。保存重开后继续沿同一编辑与 PDF 路径工作；其余 [P11](../p11-xlsx-core.md) 范围仍待实现。
+既有条件格式/数据验证的 `sqref` 按移动带拆分或删除；普通公式与公式型 `cfvo` 阈值保持各格的相对、绝对和跨表引用。需要不同公式的区域分组保存，保留规则属性、源注释和命名空间；条件格式保留原优先顺序并分配唯一优先级，验证同步 `count`，与单元格共用一次精确历史。常量或全绝对公式按区间处理，不展开整列空格。相对公式每次操作最多求值 100000 个规则覆盖格、处理 4 Mi 字符，累计最多 4096 个规则片段；克隆源另受单部件与 4 Mi 字符上限约束。未知规则结构、无法解析的公式、克隆身份扩展或预算不足时原子拒绝。范围变换参考 [ONLYOFFICE 条件格式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/ConditionalFormatting.js#L564-L643)和[数据验证](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/DataValidation.js#L976-L1067)。
+
+当前只维护源规则与引用。条件格式显示、验证执行及创建/编辑面板按 P11 后续批次实现；含这些未渲染内容的 PDF 继续原子拒绝。移动带切开合并或矩形链接、未知公式/引用、未接入的筛选/绘图/表格/批注资源及工作表保护继续原子拒绝。可用的整行/整列操作保持原有规则支持。保存重开后继续沿同一编辑与 PDF 路径工作；其余 [P11](../p11-xlsx-core.md) 范围仍待实现。
 
 ### 自动适配尺寸
 
@@ -767,7 +777,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `PptxQuery.groupReason/ungroupReason` 返回当前选择的保护原因，默认 UI 用它禁用按钮。继承占位符、未知组效果/扩展、成员锁定、`noGrp/noUngrp`、组合所涉连接/计时引用和取消组合所移除组的引用继续保护。操作只改所属 slide XML，保留其他部件及资源；一次提交一项有界历史，撤销恢复原源与选择，失败不消耗新身份或提交部分成员。
 
-`editPptxObjects` / `PresentationEditor.editObjects` 支持 `{ action: "fill", color }` 和 `{ action: "stroke", color, width }`。颜色为不带 `#` 的六位 RGB，核心统一小写；null 写显式 `noFill`，表示无填充或无边框。宽度为 0.1–1000 pt，舍入到整数 EMU。操作作用于对象模式下所选的本地顶层形状，包含文本框和基本形状；多选原子提交为一次历史。查询中每个对象带 `appearance: { fill, stroke, width, dash, dashReason, reason }`，颜色为有效 RGB 或 null，宽度为有效 pt，reason 说明保护原因。默认 UI 显示混合状态，分别应用填充和边框，草稿随选择或 revision 更新。
+`editPptxObjects` / `PresentationEditor.editObjects` 支持 `{ action: "fill", color }` 和 `{ action: "stroke", color, width }`。颜色为不带 `#` 的六位 RGB，核心统一小写；null 写显式 `noFill`，表示无填充或无边框。宽度为 0.1–1000 pt，舍入到整数 EMU。操作作用于对象模式下所选的本地顶层形状，包含文本框和基本形状；多选原子提交为一次历史。查询中每个对象带 `appearance: { fill, stroke, width, dash, dashReason, cap, join, miterLimit, penReason, reason }`，颜色为有效 RGB 或 null，宽度为有效 pt，reason 说明保护原因。默认 UI 显示混合状态，分别应用填充和边框，草稿随选择或 revision 更新。
 
 修改只覆盖目标属性，保留几何、顺序、身份、文字、其他线条属性与部件。缺失的填充/边框按 DrawingML 顺序创建，空边框保留原属性；填充覆盖会关闭 `useBgFill`。直接设置相同值不增加历史；候选、过期 revision、锁定、未知填充属性/注释及预算失败不提交任何成员。组、组内对象、继承装饰和图片仍受保护，渐变、透明度及复杂效果编辑待扩展。纯色与受支持线型沿共同 Canvas/静态 PDF 路径绘制。实现参考 [ONLYOFFICE CShape.changeFill/changeLine](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L6421-L6461) 的局部属性覆盖及背景填充处理。
 
@@ -775,7 +785,13 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 修改只写目标 `prstDash`；缺少 `ln` 时按 DrawingML 顺序创建局部边框，保留颜色和宽度继承，明确的 `solid` 可覆盖主题虚线。行宽、颜色、填充、几何、文字、身份及其他部件保持，整组共用一次精确历史。重复同一直接值不新增历史，源注释/处理指令或未知线型属性保护修改；自定义 dash、重复声明及未知预设保留源并诊断。
 
-预设使用 [ONLYOFFICE DashPatternPresets](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Metafile.js#L1767-L1820)的线宽倍数，普通短划线为 4/3，长划线为 8/3，系统短划线为 3/1。有效线宽变化同步缩放 dash。定位后的路径携带点值数组，Canvas 沿已有绘制样式执行并复原，PDF 使用单路径作用域中的 dash 指令，后续图元继续沿自身样式绘制。当前线帽沿既有平头路径；线帽/连接样式编辑和自定义 dash 继续实施。
+预设使用 [ONLYOFFICE DashPatternPresets](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Metafile.js#L1767-L1820)的线宽倍数，普通短划线为 4/3，长划线为 8/3，系统短划线为 3/1。有效线宽变化同步缩放 dash。定位后的路径携带点值数组，Canvas 沿已有绘制样式执行并复原，PDF 使用单路径作用域中的 dash 指令，后续图元继续沿自身样式绘制。自定义 dash 继续实施。
+
+`editObjects({ action: "strokeCap", cap })` 设置 `flat/rnd/sq` 平头/圆头/方头，null 恢复继承。`{ action: "strokeJoin", join }` 设置 `round/bevel` 圆角/斜角，null 恢复继承；`{ action: "strokeJoin", join: "miter", miterLimit }` 设置斜接，比例为 1–1000，按 1/100000 舍入。查询返回有效 `cap/join/miterLimit` 及 `penReason`，默认 UI 提供两类样式、斜接上限和各自恢复按钮。
+
+局部值按属性覆盖父级/主题；连接类型相同时继承缺失的斜接上限。基础缺省值为平头、圆角和斜接比例 8，依据 [DrawingML 继承与默认值](https://learn.microsoft.com/ga-ie/openspecs/office_standards/ms-oi29500/c0c046ec-a61d-405d-88fe-74d8487a37d7)。操作沿用本地顶层形状、多选原子事务、精确历史与既有预算，保留颜色、宽度、线型、其他源属性和部件；不修改共享主题或母版。未知/重复连接、保留的连接注释、未知端点或超出支持范围的斜接值保留源并保护修改。
+
+定位路径使用 `PathStroke { dash, cap, join, miter }`，数值端点 0/1/2 对应平头/圆头/方头，连接 0/1/2 对应斜接/圆角/斜角。Canvas 复用既有 `DrawStyle`，每条路径后复原；PDF 在独立图形作用域写相同端点、连接、斜接及 dash。普通及斜线的端点形状参与核心命中。预览与输出不再把导入端点或连接静默画成默认值。
 
 主题颜色支持 sRGB、带 `lastClr` 的系统色、主题/颜色映射以及 tint、shade、lumMod、lumOff。支持无填充、纯色填充、实线及标准预设虚线、主题填充/边框/背景引用和无效果样式。未知颜色变换、填充或可见效果保留源并诊断，不静默宣称完整。占位符依类型/索引匹配，当前属性按具体声明覆盖继承值；写回不修改共享主题、母版或版式。
 

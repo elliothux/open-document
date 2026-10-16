@@ -19,7 +19,14 @@ export const pptxDashes = [
   "sysDot",
 ] as const;
 export type PptxDash = (typeof pptxDashes)[number];
+export const pptxCaps = ["flat", "rnd", "sq"] as const;
+export const pptxJoins = ["round", "bevel", "miter"] as const;
+export type PptxCap = (typeof pptxCaps)[number];
+export type PptxJoin = (typeof pptxJoins)[number];
 export type PptxObjectEdit =
+  | { action: "strokeCap"; cap: PptxCap | null }
+  | { action: "strokeJoin"; join: "round" | "bevel" | null }
+  | { action: "strokeJoin"; join: "miter"; miterLimit: number }
   | { action: "strokeDash"; dash: PptxDash | null }
   | { action: "imageOpacity"; opacity: number }
   | { action: "replaceImage"; object: string; bytes: Uint8Array }
@@ -101,6 +108,20 @@ export function number(value: unknown, low = 0, high = 0x7fffffff): number {
 }
 export function checkPptxObjectEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "strokeCap") {
+    if (change.cap !== null && !pptxCaps.some((value) => value === change.cap))
+      throw new Error("Invalid PPTX border cap");
+    return;
+  }
+  if (change.action === "strokeJoin") {
+    if (
+      change.join !== null &&
+      !pptxJoins.some((value) => value === change.join)
+    )
+      throw new Error("Invalid PPTX border join");
+    if (change.join === "miter") number(change.miterLimit, 1, 1000);
+    return;
+  }
   if (change.action === "strokeDash") {
     if (
       change.dash !== null &&

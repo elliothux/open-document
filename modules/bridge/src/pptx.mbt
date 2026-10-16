@@ -154,6 +154,33 @@ fn Foundation::pptx_operation(
         "textAnchor" => @pptx.TextAnchor(field_string(change, "anchor"))
         "textWrap" => @pptx.TextWrap(xlsx_boolean(change, "wrap"))
         "textFit" => @pptx.TextFit(field_string(change, "fit"))
+        "strokeCap" | "strokeJoin" => {
+          let action = field_string(change, "action")
+          let key = if action == "strokeCap" { "cap" } else { "join" }
+          guard change is Object(fields) && fields.get(key) is Some(raw) else {
+            @failure.reject("invalid-operation", "Border pen value is required")
+          }
+          let value = match raw {
+            Null => None
+            String(value) => Some(value)
+            _ =>
+              @failure.reject(
+                "invalid-operation", "Border pen value is required",
+              )
+          }
+          if action == "strokeCap" {
+            @pptx.StrokeCap(value)
+          } else {
+            @pptx.StrokeJoin(
+              value,
+              if value == Some("miter") {
+                xlsx_number(change, "miterLimit")
+              } else {
+                8
+              },
+            )
+          }
+        }
         "strokeDash" =>
           @pptx.StrokeDash(
             match change {

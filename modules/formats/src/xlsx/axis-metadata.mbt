@@ -153,11 +153,14 @@ fn axis_sheet_metadata(
   sheet : Sheet,
   target : String,
   change : AxisChange,
-) -> Array[@xml.SourceChange] raise @failure.Failure {
+  work : RuleShiftWork,
+) -> (Array[@xml.SourceChange], Bool) raise @failure.Failure {
   let tree = Tree::new(sheet.document)
   let own_sheet = sheet.name == target
   let changes : Array[@xml.SourceChange] = []
   let removed : Map[Int, Bool] = Map([])
+  let extra : Map[Int, Int] = Map([])
+  let mut split_rules = false
   let ancestors_removed = fn(node : @xml.Node) {
     let mut parent = node.parent
     while parent >= 0 {
@@ -172,19 +175,52 @@ fn axis_sheet_metadata(
     if ancestors_removed(node) {
       continue
     }
+    if node.name == "dataValidations" {
+      guard tree.children
+        .get(node.id)
+        .unwrap_or([])
+        .all(child => {
+          child.uri == spreadsheet_uri && child.name == "dataValidation"
+        }) else {
+        @failure.reject(
+          "protected-content", "Unknown validation entries prevent structural editing",
+        )
+      }
+    }
     if node.name == "conditionalFormatting" || node.name == "dataValidation" {
-      let (remove, edits) = axis_rule_changes(
-        tree,
-        node,
-        sheet.name,
-        target,
-        change,
-      )
-      if remove {
-        removed[node.id] = true
-        changes.push(sheet_node_removal(tree, node))
-      } else {
+      if change.band is Some(_) {
+        let (edits, count) = shift_rule_changes(
+          tree,
+          node,
+          sheet.name,
+          target,
+          change,
+          work,
+        )
         changes.append(edits)
+        if count == 0 {
+          removed[node.id] = true
+        } else if count > 1 {
+          if node.name == "conditionalFormatting" {
+            split_rules = true
+          } else {
+            extra[node.parent] = extra.get(node.parent).unwrap_or(0) + count - 1
+          }
+        }
+      } else {
+        let (remove, edits) = axis_rule_changes(
+          tree,
+          node,
+          sheet.name,
+          target,
+          change,
+        )
+        if remove {
+          removed[node.id] = true
+          changes.push(sheet_node_removal(tree, node))
+        } else {
+          changes.append(edits)
+        }
       }
     } else if node.name == "hyperlink" {
       let location = node
@@ -319,7 +355,8 @@ fn axis_sheet_metadata(
   for container in tree.document.nodes() {
     if ["mergeCells", "dataValidations"].contains(container.name) {
       let children = tree.children.get(container.id).unwrap_or([])
-      let count = children.filter(node => !removed.contains(node.id)).length()
+      let count = children.filter(node => !removed.contains(node.id)).length() +
+        extra.get(container.id).unwrap_or(0)
       if count != children.length() {
         changes.append(
           metadata_changes(container, [("count", count.to_string())]),
@@ -327,7 +364,7 @@ fn axis_sheet_metadata(
       }
     }
   }
-  join_insertions(changes)
+  (join_insertions(changes), split_rules)
 }
 
 ///|

@@ -259,7 +259,18 @@ fn paint_slide(
             object.fill,
             object.stroke,
             object.line_width,
-            dash_pattern(object.dash).map(v => v * object.line_width),
+            {
+              dash: dash_pattern(object.dash).map(v => v * object.line_width),
+              cap: line_cap_code(object.cap),
+              join: if object.join == "round" {
+                1
+              } else if object.join == "bevel" {
+                2
+              } else {
+                0
+              },
+              miter: object.miter,
+            },
           ),
         )
       }

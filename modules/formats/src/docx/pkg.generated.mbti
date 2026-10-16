@@ -155,6 +155,7 @@ pub(all) enum TableEdit {
   DeleteColumn
   MergeCells(Int, Int)
   UnmergeCell
+  SplitCell(Int, Int)
   SplitTable
   AutoFit(String)
   TableWidth(Double)

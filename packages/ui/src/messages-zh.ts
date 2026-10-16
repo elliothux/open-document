@@ -1,6 +1,20 @@
 import type { Messages } from "./messages-en.js";
 
 export const zh: Messages = {
+  splitCell: "拆分单元格",
+  splitCellRows: "拆格行数",
+  splitCellColumns: "拆格列数",
+  shapeLinePen: "边框端点与转角",
+  shapeLineCap: "边框端点",
+  shapeLineJoin: "边框转角",
+  lineMiterLimit: "斜接上限",
+  capFlat: "平头",
+  capRound: "圆形",
+  capSquare: "方头",
+  joinBevel: "斜角",
+  joinMiter: "斜接",
+  resetLineCap: "恢复继承的边框端点",
+  resetLineJoin: "恢复继承的边框转角",
   insertCellsDown: "插入单元格并下移",
   insertCellsRight: "插入单元格并右移",
   deleteCellsUp: "删除单元格并上移",

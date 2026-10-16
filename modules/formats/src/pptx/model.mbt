@@ -78,6 +78,9 @@ priv struct Object {
   stroke : String
   line_width : Double
   dash : String
+  cap : String
+  join : String
+  miter : Double
   image : String?
   crop : Array[Double]
   opacity : Double

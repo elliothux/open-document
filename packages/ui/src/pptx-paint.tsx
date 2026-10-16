@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { PresentationEditor } from "@open-document/web/presentation-editor";
-import type { PptxDash } from "@open-document/web/pptx";
+import type { PptxDash, PptxCap, PptxJoin } from "@open-document/web/pptx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 
@@ -27,6 +27,21 @@ export function PptxPaint({
   const [noStroke, setNoStroke] = useState(first?.stroke === null);
   const [width, setWidth] = useState(String(first?.width ?? 1));
   const [dash, setDash] = useState<PptxDash>(first?.dash ?? "solid");
+  const [cap, setCap] = useState<PptxCap>(first?.cap ?? "flat");
+  const [join, setJoin] = useState<PptxJoin>(first?.join ?? "round");
+  const [miter, setMiter] = useState(String(first?.miterLimit ?? 8));
+  const penReason = objects.find((object) => object.appearance.penReason)
+    ?.appearance.penReason;
+  const caps = [
+    ["flat", t.capFlat],
+    ["rnd", t.capRound],
+    ["sq", t.capSquare],
+  ] as const;
+  const joins = [
+    ["round", t.capRound],
+    ["bevel", t.joinBevel],
+    ["miter", t.joinMiter],
+  ] as const;
   const dashReason = objects.find((object) => object.appearance.dashReason)
     ?.appearance.dashReason;
   const dashes = [
@@ -49,6 +64,9 @@ export function PptxPaint({
       object.appearance.fill !== first?.fill ||
       object.appearance.stroke !== first?.stroke ||
       object.appearance.width !== first?.width ||
+      object.appearance.cap !== first?.cap ||
+      object.appearance.join !== first?.join ||
+      object.appearance.miterLimit !== first?.miterLimit ||
       object.appearance.dash !== first?.dash,
   );
   return (
@@ -183,6 +201,109 @@ export function PptxPaint({
           </button>
         </form>
         {dashReason && <p>{dashReason}</p>}
+      </fieldset>
+      <fieldset disabled={!!penReason}>
+        <legend>{t.shapeLinePen}</legend>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            controller.run(() =>
+              editor.editObjects({ action: "strokeCap", cap }),
+            );
+          }}
+        >
+          <label>
+            {t.shapeLineCap}
+            <select
+              aria-label={t.shapeLineCap}
+              value={cap}
+              onChange={(event) => {
+                const option = caps.find(
+                  ([value]) => value === event.currentTarget.value,
+                );
+                if (option) setCap(option[0]);
+              }}
+            >
+              {caps.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button type="submit">
+            {t.apply} {t.shapeLineCap}
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              controller.run(() =>
+                editor.editObjects({ action: "strokeCap", cap: null }),
+              )
+            }
+          >
+            {t.resetLineCap}
+          </button>
+        </form>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            controller.run(() =>
+              editor.editObjects(
+                join === "miter"
+                  ? { action: "strokeJoin", join, miterLimit: Number(miter) }
+                  : { action: "strokeJoin", join },
+              ),
+            );
+          }}
+        >
+          <label>
+            {t.shapeLineJoin}
+            <select
+              aria-label={t.shapeLineJoin}
+              value={join}
+              onChange={(event) => {
+                const option = joins.find(
+                  ([value]) => value === event.currentTarget.value,
+                );
+                if (option) setJoin(option[0]);
+              }}
+            >
+              {joins.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {t.lineMiterLimit}
+            <input
+              type="number"
+              required
+              min={1}
+              max={1000}
+              step="any"
+              disabled={join !== "miter"}
+              value={miter}
+              onChange={(event) => setMiter(event.currentTarget.value)}
+            />
+          </label>
+          <button type="submit">
+            {t.apply} {t.shapeLineJoin}
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              controller.run(() =>
+                editor.editObjects({ action: "strokeJoin", join: null }),
+              )
+            }
+          >
+            {t.resetLineJoin}
+          </button>
+        </form>
+        {penReason && <p>{penReason}</p>}
       </fieldset>
       {reason && <p>{reason}</p>}
     </fieldset>

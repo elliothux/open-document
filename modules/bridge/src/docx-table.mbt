@@ -51,6 +51,8 @@ fn Foundation::docx_table(
           field_int(fields, "columns"),
         )
       "unmerge" => @docx.UnmergeCell
+      "splitCell" =>
+        @docx.SplitCell(field_int(fields, "rows"), field_int(fields, "columns"))
       "splitTable" => @docx.SplitTable
       "headerRows" => @docx.HeaderRows(field_int(fields, "value"))
       "cellFill" => {

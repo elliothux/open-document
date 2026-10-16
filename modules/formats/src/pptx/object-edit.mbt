@@ -17,6 +17,8 @@ pub(all) enum ObjectEdit {
   Fill(String?)
   Stroke(String?, Double)
   StrokeDash(String?)
+  StrokeCap(String?)
+  StrokeJoin(String?, Double)
   TextInsets(Double, Double, Double, Double)
   TextAnchor(String)
   TextWrap(Bool)
@@ -288,6 +290,8 @@ pub fn Session::edit_objects(
       (self.frame_objects(change, probe, profile), self.selection)
     Fill(_) | Stroke(_, _) => (self.paint_objects(change), self.selection)
     StrokeDash(value) => (self.dash_objects(value), self.selection)
+    StrokeCap(_) | StrokeJoin(_, _) =>
+      (self.pen_objects(change), self.selection)
     Group => {
       let id = self.next_object_identity()
       let result = self.group_changes(id)

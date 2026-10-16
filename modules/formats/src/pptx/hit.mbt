@@ -27,7 +27,12 @@ fn object_hit(
   let width = geometry.width
   let height = geometry.height
   let margin = tolerance + object.line_width / 2
-  if x < -margin || y < -margin || x > width + margin || y > height + margin {
+  let bounds = if object.preset == "line" && object.cap == "sq" {
+    margin * 1.4142135623730951
+  } else {
+    margin
+  }
+  if x < -bounds || y < -bounds || x > width + bounds || y > height + bounds {
     return false
   }
   if !object.diagnostic.is_empty() ||
@@ -42,6 +47,17 @@ fn object_hit(
   }
   if object.preset == "line" {
     let square = width * width + height * height
+    let dot = x * width + y * height
+    if square > 0 && object.cap != "rnd" {
+      let cross = x * height - y * width
+      let extension = if object.cap == "sq" { margin } else { tolerance }
+      return cross * cross <= margin * margin * square &&
+        (dot >= 0 || dot * dot <= extension * extension * square) &&
+        (
+          dot <= square ||
+          (dot - square) * (dot - square) <= extension * extension * square
+        )
+    }
     let t = if square > 0 {
       ((x * width + y * height) / square).max(0).min(1)
     } else {
