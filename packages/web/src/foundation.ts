@@ -21,6 +21,7 @@ export type {
   DocxPageSetup,
   DocxPageSettings,
   DocxTableEdit,
+  DocxCellMargins,
   ListFormat,
 } from "@open-document/wasm/foundation";
 export {

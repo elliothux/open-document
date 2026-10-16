@@ -138,6 +138,13 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
           query.slideVisibilityReason !== query.slideOrderReason && (
             <p>{query.slideVisibilityReason}</p>
           )}
+        <PptxBackground
+          key={`${file.editor.getSnapshot().documentId}:${query.slide}:${query.revision}`}
+          controller={controller}
+          state={state}
+          file={file}
+          disabled={disabled}
+        />
       </Group>
     );
   }
@@ -250,6 +257,53 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
       );
   }
   return null;
+}
+
+function PptxBackground({ controller, state, file, disabled }: PanelProps) {
+  const t = messages(state.locale);
+  const background =
+    file.format === "pptx" ? file.editor.query.background : undefined;
+  const [color, setColor] = useState(`#${background?.color ?? "ffffff"}`);
+  if (file.format !== "pptx" || !background) return null;
+  const editor = file.editor;
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        controller.run(() =>
+          editor.editSlides({ action: "background", value: color.slice(1) }),
+        );
+      }}
+    >
+      <fieldset disabled={disabled || !!background.reason}>
+        <legend>{t.slideBackground}</legend>
+        <label>
+          {t.slideBackground}
+          <input
+            type="color"
+            value={color}
+            onChange={(event) => setColor(event.currentTarget.value)}
+          />
+        </label>
+        <button type="submit" aria-label={`${t.apply} ${t.slideBackground}`}>
+          {t.apply}
+        </button>
+        <button
+          type="button"
+          disabled={!background.explicit}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() =>
+            controller.run(() =>
+              editor.editSlides({ action: "background", value: null }),
+            )
+          }
+        >
+          {t.inheritStyleProperty}
+        </button>
+      </fieldset>
+      {background.reason && <p>{background.reason}</p>}
+    </form>
+  );
 }
 
 export function PageList({ controller, state, file, disabled }: PanelProps) {

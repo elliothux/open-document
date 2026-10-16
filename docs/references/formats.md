@@ -207,9 +207,37 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `editTable({ action: "rowHeight", value })` 设置当前格所在行的最小高度，写入 `trHeight hRule="atLeast"`；0 恢复自动高度。内容需要更多空间时，行继续长高。核心按同一纵向合并行组中其他行的最小高度与边距预留一页，拒绝明显超出的下限；实际内容仍沿既有分页与合并行组规则排版。行为参考 [ONLYOFFICE 行高操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L5663-L5674)。两项值均须有限、非负、不超过 14400 pt，且能表示为整数 twip；表宽须大于 0。
 
-`queryFormatting(...).table` 在支持的表格上下文中返回 `{ id, row, columns, width, rowHeight, maxWidth, maxRowHeight }`，否则为 null。`id` 为当前表节点身份，`row` 从 0 开始，`columns` 为逻辑列数；`width` 是列网格总宽，`rowHeight` 是最小高度，均不是浏览器测量值。默认 UI 读取同一查询，提交后反映实际尺寸，文档、行或 revision 变化会重置未提交的尺寸输入。
+`queryFormatting(...).table` 在支持的表格上下文中返回 `{ id, row, columns, width, rowHeight, align, tableMargins, cellFill, cellVerticalAlign, cellMargins, maxWidth, maxRowHeight }`，否则为 null。`id` 为当前表节点身份，`row` 从 0 开始，`columns` 为逻辑列数；`width` 是列网格总宽，`rowHeight` 是最小高度，均不是浏览器测量值。`align` 为整表的 `left`、`center` 或 `right`；`tableMargins` 是表格默认单元格边距，尚未叠加单格覆盖。`cellFill` 为当前格的六位 RGB 底色，无底色时为 null；`cellVerticalAlign` 为有效的 `top`、`center` 或 `bottom`；`cellMargins` 为该格有效的 `{ top, right, bottom, left }`。两类边距均以 pt 表示。默认 UI 读取同一查询，提交后反映实际属性；文档、所选段落或 revision 变化会重置未提交的属性输入。
 
 尺寸操作保留逻辑选区和当前光标处的待输入格式，重排后清除旧布局定位提示，沿已有队列、源历史、保存重开和 PDF。无源变化不增加历史；未知行/格映射、网格标记、属性或预算失败原子拒绝。缺少的尺寸属性按 OOXML 顺序创建；恢复自动高度保留其他行属性。精确行高、单列宽度、自动适配、其余格属性和跨页合并延续仍归 [P10](../p10-docx-core.md)。
+
+### 表格底色
+
+`editTable({ action: "cellFill", value })` 修改当前单元格的纯色底色。`value` 为不带 `#` 的六位十六进制 RGB，核心统一小写并写入 `shd val="clear" color="auto" fill="…"`；null 删除该格的直接底色。纵向合并格的起始与延续节点一起修改，横向跨度、文字身份、其他属性与部件保留。自动文字与列表编号根据新背景重新求色，清除后按白色背景求色。操作沿现有队列、源历史、待输入格式、保存重开及同布局 PDF；无源变化不增加历史，未知主题/扩展属性、源注释及预算失败原子拒绝。
+
+默认 UI 提供颜色输入、应用和清除。当前仅修改光标所在的逻辑格，矩形多格选择、主题/图案底色及其余属性仍归 [P10](../p10-docx-core.md)。单格底色行为参考 [ONLYOFFICE CellsBackground](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L1989-L2100)。
+
+### 单元格垂直对齐
+
+`editTable({ action: "cellVerticalAlign", value })` 为当前逻辑格设置 `top`、`center` 或 `bottom`，写入直接 `vAlign`；null 删除直接属性，恢复表格样式继承，无继承值时为顶部。基础表格样式沿 `basedOn` 链求值，条件表格样式仍受既有保护。纵向合并起始与延续节点一起修改；底色、网格、文字身份和其他部件保留。修改复用底色的单格事务，保留逻辑选区、待输入格式和精确历史。无源变化不增加历史，未知属性/标记与预算失败原子拒绝。
+
+核心先排完格内内容并计算整组合并行高，再按剩余高度平移全部文字和内联对象：居中取一半，底部取全部。边距、边框、段落间距及多行内容参与内容高度；内容撑满时不产生负位移。命中先确定所属单元格，再选其文字位置，格内空白也不会落入邻格。位移与单元格区域参与缓存，光标、选区、预览和 PDF 共用同一几何。默认 UI 提供三种对齐按钮。跨页合并延续、拆行和更广表格属性仍归 [P10](../p10-docx-core.md)。行为依据 [ONLYOFFICE 垂直对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L3426-L3495)。
+
+### 单元格边距
+
+`editTable({ action: "cellMargins", value })` 为当前逻辑格设置四边独立边距。`value` 使用 `DocxCellMargins` 的 `{ top, right, bottom, left }`，四项均为有限、非负、不超过 14400 pt 的整数 twip 值；null 删除直接 `tcMar`，恢复逐边继承。纵向合并起始与延续格同步修改，属性按 OOXML 顺序插入；底色、垂直对齐、网格、文字身份和其他部件保留。继承先求基础表格样式与当前表的 `tblCellMar`，再叠加样式及当前格的 `tcMar`。未提供的边继续继承，最终默认左右各 5.4 pt、上下为 0。当前从左到右表格中，`start/end` 优先于同层 `left/right`，`nil` 为零；相对宽度、条件表格样式和未知扩展继续保护。
+
+核心 `Table` 与 `DocxFlow.tables` 使用必需的逐格 `margins` 数组。排版从格宽扣除左右边距，采用本行最大的顶部边距与当前格的底部边距计算内容高度，再执行垂直对齐。该规则参考 [ONLYOFFICE 边距继承及同行顶部边距](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableCell.js#L1389-L1425) 和[同行顶部边距求值](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableCell.js#L2765-L2784)。改变边距会更新塑形宽度、行组页缓存、光标/选区、预览和 PDF。修改不能挤掉文字宽度，显式行高与边距的合并行组下限须小于一页可用高度；实际文字仍受既有分页约束。插列、缩表及其他事务也核对有效格内宽度，失败时保留原包和历史。
+
+默认 UI 提供四边输入、应用和恢复继承。操作沿已有单格事务保留待输入格式、精确撤销/重做及保存重开；未知源属性、注释和预算失败原子拒绝。矩形多格编辑、跨页合并延续及其余表格属性仍归 [P10](../p10-docx-core.md)。
+
+### 整表对齐与默认边距
+
+`editTable({ action: "tableAlign", value })` 为当前格所在的正文表格设置 `left`、`center` 或 `right`，写入表格 `jc`。核心按页面可用宽度定位整表，格内段落对齐保持。默认 UI 提供三个整表对齐按钮。行为参考 [ONLYOFFICE TableAlignment](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L1368-L1378)。
+
+`editTable({ action: "tableMargins", value })` 设置表格默认单元格边距，使用相同的 `DocxCellMargins` 四边值和[边距边界](#单元格边距)，写入 `tblCellMar`；null 删除当前表的直接默认值，恢复表格样式和基础默认值。现有单格及单元格样式的覆盖保留，只有继承这些边的格随之改变。默认 UI 分别显示整表默认值和当前格有效值，两组输入复用同一四边表单。行为参考 [ONLYOFFICE TableDefaultMargins](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L1053-L1097)。
+
+两项操作使用表格属性事务，保留文字身份、选区、待输入格式、其他属性与部件；必要的表格属性容器按 OOXML 顺序创建。无源变化不增加历史，未知目标属性/标记、无文字宽度、边距超过页高或预算失败原子拒绝。预览、空白区域命中、光标/选区与 PDF 使用同一位置；保存重开和精确撤销/重做沿已有路径。浮动表格及其他表格属性仍按 [P10](../p10-docx-core.md)范围推进。
 
 ### 列表读取与标记排版
 
@@ -573,6 +601,10 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 当前范围不含模板向导、表/行列增删、样式编辑、填充、排序筛选、图表/透视表/图片编辑、协作和整本工作簿打印。XLS/XLSB/XLSM、其他浏览器、Windows/Excel、VoiceOver、性能专项与发布验收未进入本期验证。
 
 ## PPTX
+
+页面背景使用 `PresentationEditor.editSlides({ action: "background", value }, slide?)`。`value` 为不带 `#` 的六位 RGB，`null` 移除本页背景并恢复版式、母版继承。`query.background` 返回有效 `color`、本页是否设置 `explicit` 与保护原因 `reason`；没有背景时显示白色。默认 UI 提供纯色设置和恢复继承。
+
+操作保留对象身份、选择及其他部件，复用 revision、候选保护、输出预算和精确撤销重做。已有背景含未知标记、渐变、图片或复杂效果时保护原源。纯色背景沿同一图元输出 Canvas 与静态 PDF。核心 8 例及 Chromium 1 个流程已检查继承、保存重开、继续输入和历史；背景其他类型、主题与母版编辑仍待实现。修改本页背景的语义参考 [ONLYOFFICE Slide.changeBackground](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L825-L829)。
 
 `PptxSession.execute({ operation: "createPptx", budget })` 与 `PptxClient.execute` 创建 960×540 pt 的空白演示文稿，包含一张无对象页面及其空白版式、母版、主题、关系和内容类型。主题使用 Arial 和显式颜色/无效果样式；当前页为该空白页，revision 与历史为 0。创建后可显示、插入基本对象、保存、重开及输出静态 PDF。默认 UI 与 `mountEditor`、实例 `create/open` 使用同一入口及首次保存规则。章节和主题编辑仍按 P12 后续范围实施；创建不生成占位文字或不可编辑的背景图片。
 

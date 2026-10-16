@@ -32,6 +32,53 @@ fn Foundation::docx_table(
         )
       "unmerge" => @docx.UnmergeCell
       "splitTable" => @docx.SplitTable
+      "cellFill" => {
+        let color = match fields {
+          { "value": Null, .. } => None
+          { "value": String(value), .. } => Some(value)
+          _ =>
+            @failure.reject(
+              "invalid-operation", "Cell fill requires a color or null",
+            )
+        }
+        @docx.CellFill(color)
+      }
+      "cellVerticalAlign" => {
+        let value = match fields {
+          { "value": Null, .. } => None
+          { "value": String(value), .. } => Some(value)
+          _ =>
+            @failure.reject(
+              "invalid-operation", "Cell vertical alignment requires a value or null",
+            )
+        }
+        @docx.CellVerticalAlign(value)
+      }
+      "tableAlign" => @docx.TableAlign(field_string(fields, "value"))
+      "cellMargins" | "tableMargins" as action => {
+        let value = match fields {
+          { "value": Null, .. } => None
+          {
+            "value": {
+              "top": Number(top, ..),
+              "right": Number(right, ..),
+              "bottom": Number(bottom, ..),
+              "left": Number(left, ..),
+              ..
+            },
+            ..
+          } => Some(@layout.CellMargins::{ top, right, bottom, left, })
+          _ =>
+            @failure.reject(
+              "invalid-operation", "Cell margins require four numbers or null",
+            )
+        }
+        if action == "tableMargins" {
+          @docx.TableMargins(value)
+        } else {
+          @docx.CellMargins(value)
+        }
+      }
       "tableWidth" | "rowHeight" as action => {
         guard fields is { "value": Number(value, ..), .. } else {
           @failure.reject("invalid-operation", "Table size number is required")

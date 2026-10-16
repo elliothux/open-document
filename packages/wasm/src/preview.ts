@@ -2,6 +2,7 @@ import type { ShapeBatch } from "./foundation.js";
 import { checkTabStops, type TabStop } from "./docx-format.js";
 import { record } from "./validation.js";
 import { drawingBatch, type DrawingBatch } from "./drawing.js";
+import { checkDocxCellMargins, type DocxCellMargins } from "./docx-table.js";
 
 export interface TextStyle {
   font: string;
@@ -65,10 +66,10 @@ export interface DocxFlow {
     widths: number[];
     align: string;
     borders: boolean;
-    padding: number;
-    verticalPadding: number;
+    margins: DocxCellMargins[][];
     heights: number[];
     fills: string[][];
+    verticalAligns: ("top" | "center" | "bottom")[][];
   }[];
 }
 
@@ -215,11 +216,7 @@ export function docxFlow(value: unknown): DocxFlow {
     for (const value of entries(header)) paragraph(value);
   let previousPosition = 0;
   for (const value of entries(flow.tables)) {
-    const table = fields(
-      value,
-      ["id", "beforeParagraph", "padding", "verticalPadding"],
-      ["align"],
-    );
+    const table = fields(value, ["id", "beforeParagraph"], ["align"]);
     if (
       typeof table.beforeParagraph !== "number" ||
       !Number.isInteger(table.beforeParagraph) ||
@@ -232,6 +229,31 @@ export function docxFlow(value: unknown): DocxFlow {
       if (typeof height !== "number" || !Number.isFinite(height))
         throw new Error("Invalid row height");
     for (const row of entries(table.fills)) diagnostics(row);
+    const rows = entries(table.rows),
+      verticalAligns = entries(table.verticalAligns);
+    const margins = entries(table.margins);
+    if (
+      margins.length !== rows.length ||
+      margins.some((row, r) => entries(row).length !== entries(rows[r]).length)
+    )
+      throw new Error("Invalid cell margin dimensions");
+    for (const row of margins)
+      for (const value of entries(row)) checkDocxCellMargins(value);
+    if (
+      verticalAligns.length !== rows.length ||
+      verticalAligns.some((row, r) => {
+        const values = entries(row);
+        return (
+          values.length !== entries(rows[r]).length ||
+          values.some(
+            (value) =>
+              typeof value !== "string" ||
+              !["top", "center", "bottom"].includes(value),
+          )
+        );
+      })
+    )
+      throw new Error("Invalid cell vertical alignments");
     if (
       typeof table.borders !== "boolean" ||
       !entries(table.widths).every(

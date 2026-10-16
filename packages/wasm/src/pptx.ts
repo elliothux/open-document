@@ -57,6 +57,7 @@ export interface PptxQuery {
   readOnlyReason: string;
   slideOrderReason: string;
   slideVisibilityReason: string;
+  background: { color: string; explicit: boolean; reason: string };
   diagnostics: string[];
 }
 export interface PptxLayout extends DrawingBatch {
@@ -267,10 +268,19 @@ export type PptxSlideEdit =
   | { action: "copy" }
   | { action: "delete" }
   | { action: "move"; index: number }
-  | { action: "hidden"; hidden: boolean };
+  | { action: "hidden"; hidden: boolean }
+  | { action: "background"; value: string | null };
 
 export function checkPptxSlideEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "background") {
+    if (
+      change.value !== null &&
+      (typeof change.value !== "string" || !/^[0-9a-f]{6}$/i.test(change.value))
+    )
+      throw new Error("Invalid slide background");
+    return;
+  }
   if (
     typeof change.action === "string" &&
     ["add", "copy", "delete"].includes(change.action)
@@ -416,6 +426,14 @@ function points(value: unknown, max = 4): void {
 }
 export function pptxQuery(value: unknown): PptxQuery {
   const query = record(value);
+  const background = record(query.background);
+  if (
+    typeof background.color !== "string" ||
+    !/^[0-9a-f]{6}$/i.test(background.color) ||
+    typeof background.explicit !== "boolean" ||
+    typeof background.reason !== "string"
+  )
+    throw new Error("Invalid slide background query");
   if (
     !hasFields(
       query,

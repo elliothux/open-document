@@ -407,6 +407,24 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
     "ungroupReason": self.group_edit_reason(true),
     "slideOrderReason": self.slide_order_reason(),
     "slideVisibilityReason": self.slide_visibility_reason(),
+    "background": {
+      "color": if current.background.is_empty() {
+        "ffffff"
+      } else {
+        current.background
+      },
+      "explicit": current.tree.one(
+        current.tree.required(
+          current.tree.root("sld").id,
+          "cSld",
+          uri=presentation_uri,
+        ).id,
+        "bg",
+        uri=presentation_uri,
+      )
+      is Some(_),
+      "reason": self.background_reason(current),
+    },
     "width": self.width,
     "height": self.height,
     "slide": self.selection.slide,

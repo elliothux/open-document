@@ -22,12 +22,18 @@ fn Line::copy_geometry(self : Line) -> Line {
 }
 
 ///|
+fn CellArea::copy_geometry(self : CellArea) -> CellArea {
+  { ..self, paragraphs: self.paragraphs.copy(), }
+}
+
+///|
 fn PageFrame::copy_geometry(self : PageFrame) -> PageFrame {
   {
     ..self,
     lines: self.lines.map(line => line.copy_geometry()),
     borders: self.borders.copy(),
     fills: self.fills.copy(),
+    cellAreas: self.cellAreas.map(area => area.copy_geometry()),
   }
 }
 

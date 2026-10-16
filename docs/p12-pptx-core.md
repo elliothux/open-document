@@ -6,6 +6,8 @@
 
 ## 1. 用户结果与范围
 
+第 2 批已接通本页纯色背景和恢复继承，支持默认 UI、Wasm 与 Worker API，保留选择和精确历史。复杂背景仍保护源内容；页面尺寸、主题、版式与母版编辑尚待实现。实现归 [`slide-background.mbt`](../modules/formats/src/pptx/slide-background.mbt)，合同及检查归[页面背景](references/formats.md#pptx)。
+
 用户能从空白文稿制作演示，管理页面、主题/母版/版式，创建并编辑文字、图形、图片、表格和图表，添加媒体与基本动画，放映并输出。程序化 API 提供与 UI 相同的文档操作。GenOffice 源码用于功能与交互，核心语义和算法优先参考 ONLYOFFICE，其次 LibreOffice。
 
 | 批次 | 用户操作及最低交付范围 | G3 对应 |

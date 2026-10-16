@@ -222,12 +222,25 @@ pub(all) struct Line {
 pub extend Line with ToJson::{to_json}
 
 ///|
+pub(all) struct CellArea {
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+  paragraphs : Array[Int]
+} derive(ToJson)
+
+///|
+pub extend CellArea with ToJson::{to_json}
+
+///|
 pub(all) struct PageFrame {
   width : Double
   height : Double
   lines : Array[Line]
   borders : Array[Border]
   fills : Array[Fill]
+  cellAreas : Array[CellArea]
 } derive(ToJson)
 
 ///|
@@ -314,6 +327,20 @@ pub(all) struct Fill {
 pub extend Fill with ToJson::{to_json}
 
 ///|
+pub(all) struct CellMargins {
+  top : Double
+  right : Double
+  bottom : Double
+  left : Double
+} derive(ToJson, Eq)
+
+///|
+pub extend CellMargins with ToJson::{to_json}
+
+///|
+pub extend CellMargins with Eq::{not_equal, equal}
+
+///|
 pub(all) struct Table {
   id : Int
   beforeParagraph : Int
@@ -323,10 +350,10 @@ pub(all) struct Table {
   widths : Array[Double]
   align : String
   borders : Bool
-  padding : Double
-  verticalPadding : Double
+  margins : Array[Array[CellMargins]]
   heights : Array[Double]
   fills : Array[Array[String]]
+  verticalAligns : Array[Array[String]]
 } derive(ToJson)
 
 ///|

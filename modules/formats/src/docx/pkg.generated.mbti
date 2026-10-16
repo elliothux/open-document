@@ -158,6 +158,11 @@ pub(all) enum TableEdit {
   SplitTable
   TableWidth(Double)
   RowHeight(Double)
+  CellFill(String?)
+  CellVerticalAlign(String?)
+  CellMargins(@layout.CellMargins?)
+  TableMargins(@layout.CellMargins?)
+  TableAlign(String)
 }
 
 // Type aliases

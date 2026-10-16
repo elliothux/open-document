@@ -1,4 +1,5 @@
 import { record } from "./validation.js";
+import { checkDocxCellMargins, type DocxCellMargins } from "./docx-table.js";
 import { isListReference, type DocxListReference } from "./docx-list.js";
 
 /** Uniform effective values captured by the core; mixed properties are omitted. */
@@ -274,6 +275,11 @@ export interface DocxFormatting {
     columns: number;
     width: number;
     rowHeight: number;
+    cellFill: string | null;
+    cellVerticalAlign: "top" | "center" | "bottom";
+    cellMargins: DocxCellMargins;
+    tableMargins: DocxCellMargins;
+    align: "left" | "center" | "right";
     maxWidth: number;
     maxRowHeight: number;
   } | null;
@@ -367,6 +373,12 @@ export function docxFormatting(value: unknown): DocxFormatting {
     character = record(result.character),
     paragraph = record(result.paragraph);
   const table = record(result.table);
+  if (result.table !== null) {
+    checkDocxCellMargins(table.cellMargins);
+    checkDocxCellMargins(table.tableMargins);
+    if (!["left", "center", "right"].includes(String(table.align)))
+      throw new Error("Invalid table alignment");
+  }
   const field = (value: unknown, type: string): boolean => {
     const item = record(value);
     if (item.kind === "value" && type === "list")
@@ -396,6 +408,12 @@ export function docxFormatting(value: unknown): DocxFormatting {
           Number(table[key]) <= 2147483647,
       ) ||
         Number(table.columns) < 1 ||
+        !["top", "center", "bottom"].includes(
+          String(table.cellVerticalAlign),
+        ) ||
+        (table.cellFill !== null &&
+          (typeof table.cellFill !== "string" ||
+            !/^[0-9a-f]{6}$/i.test(table.cellFill))) ||
         !["width", "rowHeight", "maxWidth", "maxRowHeight"].every(
           (key) =>
             typeof table[key] === "number" &&

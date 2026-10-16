@@ -68,7 +68,7 @@ fn Line::selection_endpoint(
   offset : Int,
   fonts : Array[FontInfo],
 ) -> SelectionEndpoint {
-  let line = {
+  let line : SelectionBox = {
     left: selection_twips(self.areaX),
     right: selection_twips(self.areaX + self.areaWidth),
     top: selection_twips(self.y),
@@ -328,7 +328,7 @@ fn Layout::portion_selection(
       let paragraph = top.paragraph
       let starts = page == start.page && paragraph == start.paragraph
       let ends = page == end.page && paragraph == end.paragraph
-      let bounds = {
+      let bounds : SelectionBox = {
         left: lines
         .iter()
         .fold(init=selection_twips(top.areaX), (value, line) => {

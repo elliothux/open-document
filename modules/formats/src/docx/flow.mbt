@@ -150,6 +150,7 @@ fn Session::flow_from(
         let background = table.fills
           .get(row_index)
           .bind(row => row.get(cell_index))
+          .filter(color => !color.is_empty())
           .unwrap_or("ffffff")
         for p in cell {
           numbered[p.id] = p

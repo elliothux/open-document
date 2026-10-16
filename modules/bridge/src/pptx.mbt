@@ -67,6 +67,17 @@ fn Foundation::pptx_operation(
         "delete" => @pptx.DeleteSlide
         "move" => @pptx.MoveSlide(field_int(change, "index"))
         "hidden" => @pptx.HideSlide(xlsx_boolean(change, "hidden"))
+        "background" => {
+          let value = match change {
+            { "value": Null, .. } => None
+            { "value": String(value), .. } => Some(value)
+            _ =>
+              @failure.reject(
+                "invalid-operation", "Slide background requires a color or null",
+              )
+          }
+          @pptx.Background(value)
+        }
         _ => @failure.reject("invalid-operation", "Unknown slide edit")
       }
       session.edit_slides(

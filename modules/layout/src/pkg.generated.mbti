@@ -30,6 +30,25 @@ pub(all) struct Caret {
 } derive(ToJson)
 pub fn Caret::to_json(Self) -> Json
 
+pub(all) struct CellArea {
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+  paragraphs : Array[Int]
+} derive(ToJson)
+pub fn CellArea::to_json(Self) -> Json
+
+pub(all) struct CellMargins {
+  top : Double
+  right : Double
+  bottom : Double
+  left : Double
+} derive(Eq, ToJson)
+pub fn CellMargins::equal(Self, Self) -> Bool
+pub fn CellMargins::not_equal(Self, Self) -> Bool
+pub fn CellMargins::to_json(Self) -> Json
+
 pub(all) enum DrawCommand {
   FillRect(Fill)
   StrokeRect(Border, String, Double)
@@ -269,6 +288,7 @@ pub(all) struct PageFrame {
   lines : Array[Line]
   borders : Array[Border]
   fills : Array[Fill]
+  cellAreas : Array[CellArea]
 } derive(ToJson)
 pub fn PageFrame::to_json(Self) -> Json
 
@@ -467,10 +487,10 @@ pub(all) struct Table {
   widths : Array[Double]
   align : String
   borders : Bool
-  padding : Double
-  verticalPadding : Double
+  margins : Array[Array[CellMargins]]
   heights : Array[Double]
   fills : Array[Array[String]]
+  verticalAligns : Array[Array[String]]
 } derive(ToJson)
 pub fn Table::to_json(Self) -> Json
 

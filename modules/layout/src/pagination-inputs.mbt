@@ -38,9 +38,7 @@ fn Flow::body_blocks(self : Flow) -> Array[BodyBlock] raise @failure.Failure {
 
 ///|
 fn Table::finite_geometry(self : Table) -> Bool {
-  ![self.padding, self.verticalPadding, ..self.widths].any(value => {
-    value.is_nan() || value.is_inf()
-  })
+  !self.widths.any(value => value.is_nan() || value.is_inf())
 }
 
 ///|
@@ -57,6 +55,7 @@ fn BodyBlock::key(self : BodyBlock) -> String? {
         for
           key in [
             "beforeParagraph", "rows", "heights", "fills", "columnSpans", "rowSpans",
+            "verticalAligns", "margins",
           ] {
           fields.remove(key)
         }
@@ -79,11 +78,11 @@ fn BodyBlock::key(self : BodyBlock) -> String? {
         Json(table.widths),
         Json(table.align),
         Json(table.borders),
-        Json(table.padding),
-        Json(table.verticalPadding),
+        Json(table.margins[row:end + 1].to_owned()),
         Json(table.rows[row:end + 1].to_owned()),
         Json(table.heights[row:end + 1].to_owned()),
         Json(table.fills[row:end + 1].to_owned()),
+        Json(table.verticalAligns[row:end + 1].to_owned()),
         Json(table.columnSpans[row:end + 1].to_owned()),
         Json(table.rowSpans[row:end + 1].to_owned()),
       ])
@@ -150,7 +149,9 @@ fn BodyBlock::retain(
           for paragraph in cell {
             cache.retain(
               paragraph,
-              table.cell_width(row, column) - table.padding * 2,
+              table.cell_width(row, column) -
+              table.margins[row][column].left -
+              table.margins[row][column].right,
             )
           }
         }

@@ -25,7 +25,9 @@ fn table_row_height_limit(
   for r in first..<=last {
     if r != row {
       available -= (table.heights[r] + border).max(
-        table.verticalPadding * 2 + border,
+        table.margins[r].iter().fold(init=0.0, (v, m) => v.max(m.top)) +
+        table.margins[r].iter().fold(init=0.0, (v, m) => v.max(m.bottom)) +
+        border,
       )
     }
   }
@@ -57,12 +59,23 @@ fn Session::table_dimensions(
     }
   }
   let index = rows.search(row).unwrap()
+  let column = tree.table_children(row, "tc").search(cell).unwrap()
+  let fill = table.fills[index][column]
   {
     "id": id,
     "row": index,
     "columns": table.widths.length(),
     "width": table.widths.iter().fold(init=0.0, (sum, width) => sum + width),
     "rowHeight": table.heights[index],
+    "cellVerticalAlign": table.verticalAligns[index][column],
+    "cellMargins": Json(table.margins[index][column]),
+    "tableMargins": Json(table_margin_defaults(tree, self.styles([]), id, [])),
+    "align": table.align,
+    "cellFill": if fill.is_empty() {
+      Json::null()
+    } else {
+      Json(fill)
+    },
     "maxWidth": (flow.page.width - flow.page.left - flow.page.right).min(14400),
     "maxRowHeight": table_row_height_limit(table, index, flow.page),
   }
@@ -76,6 +89,7 @@ fn WordTree::table_property_change(
   kind : String,
   name : String,
   attributes : Map[String, String?]?,
+  markup~ : String? = None,
 ) -> @xml.SourceChange? raise @failure.Failure {
   let container = self.child(owner, kind)
   if container is Some(id) {
@@ -90,20 +104,36 @@ fn WordTree::table_property_change(
   }
   let field = container.bind(id => self.child(id, name))
   if field is Some(id) {
-    let allowed = if name == "trHeight" {
-      ["val", "hRule"]
-    } else {
-      ["w", "type"]
+    let allowed = match name {
+      "trHeight" => ["val", "hRule"]
+      "shd" => ["val", "color", "fill"]
+      "vAlign" | "jc" => ["val"]
+      "tcMar" | "tblCellMar" => []
+      _ => ["w", "type"]
     }
-    guard self.children[id].is_empty() &&
+    guard (
+        self.children[id].is_empty() || ["tcMar", "tblCellMar"].contains(name)
+      ) &&
       self.nodes[id].text.trim().is_empty() &&
       self.nodes[id].attributes.all(a => {
         a.uri == word_uri && allowed.contains(a.name)
       }) else {
-      @failure.reject("protected-content", "Unknown table size properties")
+      @failure.reject("protected-content", "Unknown table property attributes")
     }
   }
-  let markup = property_markup(self, document, field, name, attributes)
+  let markup = if markup is Some(value) {
+    if field is Some(id) {
+      let node = self.nodes[id]
+      let source = document.source()[node.start:node.end]
+      guard source == value ||
+        (!source.contains("<!--") && !source.contains("<?")) else {
+        @failure.reject("protected-content", "Unknown cell margin markup")
+      }
+    }
+    value
+  } else {
+    property_markup(self, document, field, name, attributes)
+  }
   if field is Some(id) {
     let node = self.nodes[id]
     return if document.source()[node.start:node.end] == markup {
@@ -127,7 +157,16 @@ fn WordTree::table_property_change(
   let node = self.nodes[id]
   let before = self.children[id]
     .iter()
-    .find_first(child => kind != "tblPr" || self.nodes[child].name != "tblStyle")
+    .find_first(child => {
+      match name {
+        "shd" => ["tcMar", "vAlign"].contains(self.nodes[child].name)
+        "tcMar" => self.nodes[child].name == "vAlign"
+        "vAlign" => false
+        "jc" => !["tblStyle", "tblW"].contains(self.nodes[child].name)
+        "tblCellMar" => self.nodes[child].name == "tblLook"
+        _ => kind != "tblPr" || self.nodes[child].name != "tblStyle"
+      }
+    })
   Some(
     if node.empty {
       {
@@ -248,7 +287,8 @@ fn Session::size_table(
         let width = widths[start:start + model.columnSpans[r][c]]
           .iter()
           .fold(init=0, (sum, w) => sum + w)
-        guard width.to_double() / 20 > model.padding * 2 else {
+        guard width.to_double() / 20 >
+          model.margins[r][c].left + model.margins[r][c].right else {
           @failure.reject(
             "invalid-operation", "Cell margins leave no text width",
           )

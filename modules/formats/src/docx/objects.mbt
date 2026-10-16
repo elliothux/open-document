@@ -117,7 +117,12 @@ fn Session::table(
 ) -> @layout.Table raise @failure.Failure {
   let widths : Array[Double] = []
   let mut styles = styles
+  let mut default_vertical_align = "top"
+  let style_margins : Array[(WordTree, Int)] = []
   let inherited_diagnostics : Array[String] = []
+  let mut default_margins = table_margin_defaults(
+    tree, styles, id, inherited_diagnostics,
+  )
   for item in tree.descendants(id) {
     if tree.nodes[item].name == "tblPr" ||
       tree.nodes[item].name == "trPr" ||
@@ -129,6 +134,16 @@ fn Session::table(
     is Some(key) &&
     styles.tree is Some(source) {
     for style in styles.chain(key, inherited_diagnostics) {
+      if source.child(style, "tcPr").bind(p => source.child(p, "tcMar"))
+        is Some(id) {
+        style_margins.push((source, id))
+      }
+      if source
+        .child(style, "tcPr")
+        .bind(p => source.cell_vertical_alignment(p))
+        is Some(align) {
+        default_vertical_align = align
+      }
       if source.child(style, "pPr") is Some(p) {
         styles = {
           ..styles,
@@ -148,6 +163,9 @@ fn Session::table(
         }
       }
     }
+  }
+  for (source, id) in style_margins {
+    default_margins = source.table_margins(id, default_margins)
   }
   for message in inherited_diagnostics {
     if !diagnostics.contains(message) {
@@ -175,6 +193,8 @@ fn Session::table(
   let rows : Array[Array[Array[@layout.Paragraph]]] = []
   let heights : Array[Double] = []
   let fills : Array[Array[String]] = []
+  let vertical_aligns : Array[Array[String]] = []
+  let margins : Array[Array[@layout.CellMargins]] = []
   let column_spans : Array[Array[Int]] = []
   let row_spans : Array[Array[Int]] = []
   let mut previous : Map[(Int, Int), (Int, Int)] = Map([])
@@ -184,6 +204,8 @@ fn Session::table(
     }
     let cells : Array[Array[@layout.Paragraph]] = []
     let colors : Array[String] = []
+    let alignments : Array[String] = []
+    let cell_margins : Array[@layout.CellMargins] = []
     let spans : Array[Int] = []
     let vertical : Array[Int] = []
     let current : Map[(Int, Int), (Int, Int)] = Map([])
@@ -212,6 +234,17 @@ fn Session::table(
         continue
       }
       let props = tree.child(cell, "tcPr")
+      let margin = if props.bind(p => tree.child(p, "tcMar")) is Some(id) {
+        tree.table_margins(id, default_margins)
+      } else {
+        default_margins
+      }
+      cell_margins.push(margin)
+      alignments.push(
+        props
+        .bind(p => tree.cell_vertical_alignment(p))
+        .unwrap_or(default_vertical_align),
+      )
       let span = props.bind(p => tree.number(p, "gridSpan", "val")).unwrap_or(1)
       guard span >= 1 &&
         span == span.floor() &&
@@ -220,6 +253,12 @@ fn Session::table(
         @failure.reject("invalid-table", "Invalid table grid span")
       }
       let span = span.to_int()
+      let width = widths[column:column + span]
+        .iter()
+        .fold(init=0.0, (total, width) => total + width)
+      guard width > margin.left + margin.right else {
+        @failure.reject("invalid-style", "Cell margins leave no text width")
+      }
       let merge = props.bind(p => tree.child(p, "vMerge"))
       let state = merge
         .map(id => {
@@ -291,6 +330,8 @@ fn Session::table(
     rows.push(cells)
     heights.push(height)
     fills.push(colors)
+    vertical_aligns.push(alignments)
+    margins.push(cell_margins)
     column_spans.push(spans)
     row_spans.push(vertical)
     previous = current
@@ -301,8 +342,6 @@ fn Session::table(
   let props = tree.child(id, "tblPr")
   let mut align = "left"
   let mut borders = false
-  let mut padding = 5.4
-  let mut vertical_padding = 0.0
   let properties : Array[(WordTree, Int)] = []
   if props.bind(props => tree.value(props, "tblStyle")) is Some(key) &&
     styles.tree is Some(style_tree) {
@@ -361,30 +400,6 @@ fn Session::table(
         }
       }
     }
-    if source.child(p, "tblCellMar") is Some(margins) {
-      padding = source
-        .number(margins, "left", "w")
-        .map(value => value / 20)
-        .unwrap_or(padding)
-      vertical_padding = source
-        .number(margins, "top", "w")
-        .map(value => value / 20)
-        .unwrap_or(vertical_padding)
-      guard source
-        .number(margins, "right", "w")
-        .map(value => value / 20)
-        .unwrap_or(padding) ==
-        padding &&
-        source
-        .number(margins, "bottom", "w")
-        .map(value => value / 20)
-        .unwrap_or(vertical_padding) ==
-        vertical_padding else {
-        @failure.reject(
-          "unsupported-layout", "Asymmetric table cell margins are unsupported",
-        )
-      }
-    }
   }
   guard ["left", "center", "right"].contains(align) else {
     @failure.reject("unsupported-layout", "Unsupported table alignment")
@@ -398,9 +413,9 @@ fn Session::table(
     widths,
     align,
     borders,
-    padding,
-    verticalPadding: vertical_padding,
+    margins,
     heights,
     fills,
+    verticalAligns: vertical_aligns,
   }
 }

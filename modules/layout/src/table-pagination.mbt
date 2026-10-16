@@ -5,6 +5,8 @@ fn Table::check_grid(self : Table) -> Unit raise @failure.Failure {
     !self.widths.is_empty() &&
     self.heights.length() == count &&
     self.fills.length() == count &&
+    self.margins.length() == count &&
+    self.verticalAligns.length() == count &&
     self.columnSpans.length() == count &&
     self.rowSpans.length() == count else {
     @failure.reject("invalid-table", "Table row metadata differs from grid")
@@ -13,6 +15,8 @@ fn Table::check_grid(self : Table) -> Unit raise @failure.Failure {
   for r, row in self.rows {
     guard !row.is_empty() &&
       row.length() == self.fills[r].length() &&
+      row.length() == self.margins[r].length() &&
+      row.length() == self.verticalAligns[r].length() &&
       row.length() == self.columnSpans[r].length() &&
       row.length() == self.rowSpans[r].length() &&
       self.heights[r] >= 0 &&
@@ -22,9 +26,16 @@ fn Table::check_grid(self : Table) -> Unit raise @failure.Failure {
     }
     let mut column = 0
     for c, _ in row {
+      let margin = self.margins[r][c]
+      guard [margin.top, margin.right, margin.bottom, margin.left].all(v => {
+        v >= 0 && !v.is_nan() && !v.is_inf()
+      }) else {
+        @failure.reject("invalid-style", "Invalid table cell margins")
+      }
       let span = self.columnSpans[r][c]
       let rows = self.rowSpans[r][c]
-      guard span > 0 &&
+      guard ["top", "center", "bottom"].contains(self.verticalAligns[r][c]) &&
+        span > 0 &&
         span <= self.widths.length() - column &&
         rows >= 0 &&
         rows <= count - r else {
@@ -41,6 +52,9 @@ fn Table::check_grid(self : Table) -> Unit raise @failure.Failure {
         }
       }
       column += span
+      guard self.cell_width(r, c) > margin.left + margin.right else {
+        @failure.reject("invalid-style", "Cell margins leave no text width")
+      }
     }
     guard column == self.widths.length() else {
       @failure.reject("invalid-table", "Table row differs from grid")
@@ -72,6 +86,13 @@ fn Table::cell_width(self : Table, row : Int, cell : Int) -> Double {
 }
 
 ///|
+fn Table::row_top_margin(self : Table, row : Int) -> Double {
+  self.margins[row]
+  .iter()
+  .fold(init=0.0, (value, margin) => value.max(margin.top))
+}
+
+///|
 fn Pagination::table_rows(
   self : Pagination,
   cache : ParagraphCache,
@@ -96,7 +117,11 @@ fn Pagination::table_rows(
   let border = if table.borders { 0.5 } else { 0 }
   let heights = Array::makei(last_row - first_row + 1, i => {
     (table.heights[first_row + i] + border).max(
-      table.verticalPadding * 2 + border,
+      table.row_top_margin(first_row + i) +
+      table.margins[first_row + i]
+      .iter()
+      .fold(init=0.0, (value, margin) => value.max(margin.bottom)) +
+      border,
     )
   })
   let cells : Array[(Int, Int, Array[(Line, Double)], Double)] = []
@@ -106,7 +131,8 @@ fn Pagination::table_rows(
         continue
       }
       let lines : Array[(Line, Double)] = []
-      let mut y = table.verticalPadding + border
+      let margins = table.margins[row][column]
+      let mut y = table.row_top_margin(row) + border
       let mut after = 0.0
       let mut gap = 0.0
       let mut terminal_gap = 0.0
@@ -130,7 +156,7 @@ fn Pagination::table_rows(
             probe,
             paragraph,
             profile,
-            table.cell_width(row, column) - table.padding * 2,
+            table.cell_width(row, column) - margins.left - margins.right,
           ) {
           let line = measured.spaced(paragraph.line, first)
           guard line.y != -1 else {
@@ -146,7 +172,7 @@ fn Pagination::table_rows(
         after = paragraph.after
         terminal_gap = paragraph.line.terminal_gap(paragraph.nominalSize)
       }
-      let height = y + after + terminal_gap + table.verticalPadding
+      let height = y + after + terminal_gap + margins.bottom
       if table.rowSpans[row][column] == 1 {
         heights[row - first_row] = heights[row - first_row].max(height)
       }
@@ -166,7 +192,7 @@ fn Pagination::table_rows(
   let total = heights.iter().fold(init=0.0, (sum, value) => sum + value)
   // shortcut: Vertical-merge groups stay on one page until split-row continuation is implemented.
   self.fit(total + border)
-  for (row, column, lines, _) in cells {
+  for (row, column, lines, content_height) in cells {
     let start = row - first_row
     let y = self.y +
       heights[:start].iter().fold(init=0.0, (sum, value) => sum + value)
@@ -178,12 +204,30 @@ fn Pagination::table_rows(
       x += table.cell_width(row, c)
     }
     let width = table.cell_width(row, column)
+    self.pages.last().unwrap().cellAreas.push({
+      x,
+      y,
+      width,
+      height,
+      paragraphs: table.rows[row][column].map(p => p.id),
+    })
     let color = table.fills[row][column]
     if !color.is_empty() {
       self.pages.last().unwrap().fills.push({ x, y, width, height, color, })
     }
+    let extra = (height - content_height).max(0)
+    let shift = match table.verticalAligns[row][column] {
+      "center" => extra / 2
+      "bottom" => extra
+      _ => 0
+    }
     for (line, offset) in lines {
-      self.place(line, x + table.padding, y + offset, images)
+      self.place(
+        line,
+        x + table.margins[row][column].left,
+        y + offset + shift,
+        images,
+      )
     }
     if table.borders {
       self.pages.last().unwrap().borders.push({ x, y, width, height, })

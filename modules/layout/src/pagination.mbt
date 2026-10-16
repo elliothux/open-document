@@ -19,6 +19,7 @@ fn Pagination::new(page : PageSetup) -> Pagination {
         lines: [],
         borders: [],
         fills: [],
+        cellAreas: [],
       },
     ],
     y: page.top,
@@ -39,6 +40,7 @@ fn Pagination::next_page(self : Pagination) -> Unit raise @failure.Failure {
     lines: [],
     borders: [],
     fills: [],
+    cellAreas: [],
   })
   self.y = self.page.top
   self.after = 0
@@ -200,9 +202,6 @@ fn Table::left(
     .iter()
     .fold(init=0.0, (total, width) => total + width)
   let available = page.width - page.left - page.right
-  guard table.padding >= 0 && table.verticalPadding >= 0 else {
-    @failure.reject("invalid-style", "Negative table cell margins")
-  }
   guard width > 0 && width <= available else {
     @failure.reject("layout-overflow", "Table exceeds page width")
   }

@@ -4,6 +4,7 @@ priv struct PagePosition {
   lines : Int
   borders : Int
   fills : Int
+  cellAreas : Int
   count : Int
   y : Double
   after : Double
@@ -26,6 +27,7 @@ fn Pagination::position(self : Pagination) -> PagePosition {
     lines: page.lines.length(),
     borders: page.borders.length(),
     fills: page.fills.length(),
+    cellAreas: page.cellAreas.length(),
     count: self.count,
     y: self.y,
     after: self.after,
@@ -39,7 +41,8 @@ fn PagePosition::stable(self : PagePosition, other : PagePosition) -> Bool {
   self.after == other.after &&
   self.gap == other.gap &&
   (self.lines == 0) == (other.lines == 0) &&
-  (self.borders == 0) == (other.borders == 0)
+  (self.borders == 0) == (other.borders == 0) &&
+  (self.cellAreas == 0) == (other.cellAreas == 0)
 }
 
 ///|
@@ -63,6 +66,9 @@ fn Pagination::restore(
     .map(line => line.copy_geometry()),
     borders: page.borders[0:position.borders].to_owned(),
     fills: page.fills[0:position.fills].to_owned(),
+    cellAreas: page.cellAreas[0:position.cellAreas]
+    .to_owned()
+    .map(area => area.copy_geometry()),
   }
   prefix.validate_images(images)
   self.pages.push(prefix)
@@ -95,12 +101,16 @@ fn Pagination::append_tail(
     .map(line => line.copy_geometry()),
     borders: page.borders[position.borders:].to_owned(),
     fills: page.fills[position.fills:].to_owned(),
+    cellAreas: page.cellAreas[position.cellAreas:]
+    .to_owned()
+    .map(area => area.copy_geometry()),
   }
   tail.validate_images(images)
   let current = self.pages.last().unwrap()
   current.lines.append(tail.lines)
   current.borders.append(tail.borders)
   current.fills.append(tail.fills)
+  current.cellAreas.append(tail.cellAreas)
   for index in (position.page + 1)..<old.pages.length() {
     let page = old.pages[index].copy_geometry()
     page.validate_images(images)
@@ -119,7 +129,7 @@ fn PaginationCache::bounded(
   positions : Array[PagePosition],
   pages : Array[PageFrame],
 ) -> Bool {
-  let mut units = context.length() + positions.length() * 8 + pages.length() * 2
+  let mut units = context.length() + positions.length() * 9 + pages.length() * 2
   for key in keys {
     units += key.length()
   }
@@ -130,6 +140,9 @@ fn PaginationCache::bounded(
     units += paragraph_cache_units("", page.lines) + page.borders.length() * 4
     for fill in page.fills {
       units += 4 + fill.color.length()
+    }
+    for area in page.cellAreas {
+      units += 4 + area.paragraphs.length()
     }
     if units > 1048576 {
       return false
@@ -155,5 +168,7 @@ fn translated_position(
     (if same_page { current.borders - old.borders } else { 0 }),
     fills: position.fills +
     (if same_page { current.fills - old.fills } else { 0 }),
+    cellAreas: position.cellAreas +
+    (if same_page { current.cellAreas - old.cellAreas } else { 0 }),
   }
 }

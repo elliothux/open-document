@@ -109,10 +109,19 @@ fn WordTree::check_merge_cell(
   if self.child(cell, "tcPr") is Some(props) {
     for child in self.children[props] {
       let node = self.nodes[child]
+      if node.uri == word_uri && node.name == "tcMar" {
+        guard self.table_children(props, "tcMar").length() == 1 else {
+          @failure.reject("protected-content", "Duplicate cell margins")
+        }
+        ignore(
+          self.table_margins(child, { top: 0, right: 0, bottom: 0, left: 0, }),
+        )
+        continue
+      }
       let attributes = match node.name {
         "tcW" => ["type", "w"]
         "shd" => ["val", "color", "fill"]
-        "gridSpan" | "vMerge" => ["val"]
+        "gridSpan" | "vMerge" | "vAlign" => ["val"]
         _ =>
           @failure.reject(
             "protected-content", "Cell properties require merging support",

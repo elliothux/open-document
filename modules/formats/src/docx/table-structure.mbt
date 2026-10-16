@@ -11,6 +11,11 @@ pub(all) enum TableEdit {
   SplitTable
   TableWidth(Double)
   RowHeight(Double)
+  CellFill(String?)
+  CellVerticalAlign(String?)
+  CellMargins(@layout.CellMargins?)
+  TableMargins(@layout.CellMargins?)
+  TableAlign(String)
 }
 
 ///|
@@ -147,6 +152,39 @@ pub fn Session::edit_table(
       return self.size_table(revision, selection, value, width=true)
     RowHeight(value) =>
       return self.size_table(revision, selection, value, width=false)
+    CellFill(color) => return self.fill_table_cell(revision, selection, color)
+    CellMargins(value) =>
+      return self.set_table_margins(revision, selection, value)
+    TableMargins(value) =>
+      return self.set_table_margins(
+        revision,
+        selection,
+        value,
+        whole_table=true,
+      )
+    TableAlign(value) => {
+      guard ["left", "center", "right"].contains(value) else {
+        @failure.reject("invalid-operation", "Invalid table alignment")
+      }
+      return self.change_table_property(
+        revision,
+        selection,
+        "jc",
+        Some(Map([("val", Some(value))])),
+        whole_table=true,
+      )
+    }
+    CellVerticalAlign(value) => {
+      if value is Some(align) && !["top", "center", "bottom"].contains(align) {
+        @failure.reject("invalid-operation", "Invalid cell vertical alignment")
+      }
+      return self.change_table_property(
+        revision,
+        selection,
+        "vAlign",
+        value.map(align => Map([("val", Some(align))])),
+      )
+    }
     _ => ()
   }
   let original = self.document()

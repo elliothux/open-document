@@ -189,8 +189,17 @@ pub fn Layout::hit_test(
   let mut chosen = -1
   let mut vertical = frame.height + 1
   let mut horizontal = frame.width + 1
+  let cell = frame.cellAreas
+    .iter()
+    .find_first(area => {
+      x >= area.x &&
+      x < area.x + area.width &&
+      y >= area.y &&
+      y < area.y + area.height
+    })
   for index, line in frame.lines {
-    if line.caretOnly {
+    if line.caretOnly ||
+      (cell is Some(area) && !area.paragraphs.contains(line.paragraph)) {
       continue
     }
     for image in line.images {
