@@ -195,6 +195,8 @@ fn Foundation::dispatch(
     | "createXlsx"
     | "editXlsxSheet"
     | "formatXlsxCells"
+    | "captureXlsxFormat"
+    | "applyXlsxFormat"
     | "queryXlsx"
     | "selectXlsx"
     | "replaceXlsx"

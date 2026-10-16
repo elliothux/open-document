@@ -5,8 +5,15 @@ import {
 } from "./spreadsheet-semantics.js";
 import { SpreadsheetPrint, defaultPrintOptions } from "./spreadsheet-print.js";
 import { CanvasSurface } from "./canvas-surface.js";
-import { spreadsheetKey, styleCellDraft } from "./spreadsheet-input.js";
-import { checkFormatFonts } from "./spreadsheet-format.js";
+import {
+  spreadsheetKey,
+  styleCellDraft,
+  paintGridSelection,
+} from "./spreadsheet-input.js";
+import {
+  checkFormatFonts,
+  checkCopiedFormatFonts,
+} from "./spreadsheet-format.js";
 import { bindClipboard } from "./clipboard-input.js";
 import {
   EditorState,
@@ -21,6 +28,7 @@ import type {
   PrintOptions,
   XlsxSheetEdit,
   XlsxCellFormat,
+  CopiedCellFormat,
 } from "@open-document/wasm/xlsx";
 
 export interface SpreadsheetEditorData {
@@ -292,7 +300,6 @@ export class SpreadsheetEditor {
       throw error;
     }
   }
-
   get currentState(): XlsxQuery {
     return this.state;
   }
@@ -532,22 +539,7 @@ export class SpreadsheetEditor {
     if (!layout) return;
     const rect = await this.client.selectionGeometry(layout.id);
     if (this.closed || layout !== this.layout) return;
-    const context = this.surface.clearOverlay(this.scale);
-    context.save();
-    context.beginPath();
-    context.rect(
-      36,
-      18,
-      layout.regions[0]!.width - 36,
-      layout.regions[0]!.height - 18,
-    );
-    context.clip();
-    context.fillStyle = "rgba(37, 99, 235, 0.10)";
-    context.fillRect(rect.x, rect.y, rect.width, rect.height);
-    context.strokeStyle = "#2563eb";
-    context.lineWidth = 1.5;
-    context.strokeRect(rect.x, rect.y, rect.width, rect.height);
-    context.restore();
+    paintGridSelection(this.surface.clearOverlay(this.scale), rect, layout);
     this.input.style.left = `${Math.max(36, rect.x) * this.scale}px`;
     this.input.style.top = `${Math.max(18, rect.y) * this.scale}px`;
     this.styleInput();
@@ -622,8 +614,22 @@ export class SpreadsheetEditor {
       return this.client.formatCells(this.state.revision, patch);
     });
   }
+  captureFormat(): Promise<CopiedCellFormat> {
+    return this.enqueue(async () => {
+      this.requireFinished();
+      await this.commitDraft();
+      return this.client.captureFormat(this.state.revision);
+    });
+  }
+  applyFormat(format: CopiedCellFormat): Promise<void> {
+    return this.change(() => {
+      checkCopiedFormatFonts(format, this.state.formatting, this.profile);
+      return this.client.applyFormat(this.state.revision, format);
+    });
+  }
   private change(action: () => Promise<XlsxQuery>): Promise<void> {
     return this.enqueue(async () => {
+      this.requireFinished();
       await this.commitDraft();
       this.state = await action();
       this.generation++;
@@ -762,13 +768,7 @@ export class SpreadsheetEditor {
     );
   }
   clear(): Promise<void> {
-    return this.enqueue(async () => {
-      this.requireFinished();
-      await this.commitDraft();
-      this.state = await this.client.clear(this.state.revision);
-      this.generation++;
-      await this.present(true);
-    });
+    return this.change(() => this.client.clear(this.state.revision));
   }
   showPrintPage(index: number): Promise<void> {
     return this.enqueue(async () => this.printView.showPage(index));

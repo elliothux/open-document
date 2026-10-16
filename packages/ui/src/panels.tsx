@@ -145,12 +145,6 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
       <>
         {tab === "edit" && (
           <>
-            <XlsxFormat
-              controller={controller}
-              state={state}
-              editor={file.editor}
-              disabled={disabled}
-            />
             <Group label={t.edit}>
               <Command
                 label={t.clear}
@@ -297,6 +291,17 @@ export function Sheets({ controller, state, file, disabled }: PanelProps) {
 }
 
 export function Properties(props: PanelProps) {
+  if (props.file.format === "xlsx")
+    return (
+      <aside className="od-properties">
+        <XlsxFormat
+          controller={props.controller}
+          state={props.state}
+          editor={props.file.editor}
+          disabled={props.disabled || !!props.state.document?.stopped}
+        />
+      </aside>
+    );
   if (props.file.format === "docx")
     return (
       <DocxProperties

@@ -56,3 +56,25 @@ fn xlsx_cell_format(value : Json) -> @xlsx.CellFormat raise @failure.Failure {
     bottom=border("bottom"),
   )
 }
+
+///|
+fn xlsx_format_pattern(
+  value : Json,
+) -> Array[Array[@xlsx.CellFormat]] raise @failure.Failure {
+  guard value is Array(rows) && rows.length() > 0 && rows.length() <= 4096 else {
+    @failure.reject("invalid-operation", "Expected copied cell format rows")
+  }
+  let mut cells = 0
+  rows.map(row => {
+    guard row is Array(columns) && columns.length() > 0 else {
+      @failure.reject(
+        "invalid-operation", "Expected copied cell format columns",
+      )
+    }
+    cells += columns.length()
+    guard cells <= 4096 else {
+      @failure.reject("limit-exceeded", "Copied format exceeds 4096 cells")
+    }
+    columns.map(xlsx_cell_format)
+  })
+}

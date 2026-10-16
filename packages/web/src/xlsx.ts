@@ -4,6 +4,8 @@ import {
   checkXlsxSheetEdit,
   type XlsxSheetEdit,
   checkXlsxCellFormat,
+  copiedCellFormat,
+  type CopiedCellFormat,
   type XlsxCellFormat,
   xlsxViewport,
   xlsxPrintLayout,
@@ -22,10 +24,32 @@ export type {
   XlsxCellFormat,
   XlsxFormatting,
   XlsxCellBorder,
+  CopiedCellFormat,
 } from "@open-document/wasm/xlsx";
 
 /** Browser workbook transport; one Worker owns the complete core session. */
 export class XlsxClient {
+  async captureFormat(revision: number): Promise<CopiedCellFormat> {
+    return copiedCellFormat(
+      await this.connection.request({
+        operation: "captureXlsxFormat",
+        revision,
+      }),
+    );
+  }
+  async applyFormat(
+    revision: number,
+    format: CopiedCellFormat,
+  ): Promise<XlsxQuery> {
+    copiedCellFormat(format);
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "applyXlsxFormat",
+        revision,
+        format,
+      }),
+    );
+  }
   async formatCells(
     revision: number,
     patch: XlsxCellFormat,

@@ -124,6 +124,28 @@ priv struct StylePool {
 }
 
 ///|
+fn style_key(tree : Tree, node : @xml.Node) -> Json {
+  let attributes = node.attributes
+    .iter()
+    .map(attribute => (attribute.uri, attribute.name, attribute.value))
+    .collect()
+  attributes.sort()
+  // Namespace declarations and prefixes do not change a style component's identity.
+  Json::array([
+    Json(node.uri),
+    Json(node.name),
+    Json(attributes),
+    Json(node.text.trim().to_owned()),
+    Json::array(
+      tree.children
+      .get(node.id)
+      .unwrap_or([])
+      .map(child => style_key(tree, child)),
+    ),
+  ])
+}
+
+///|
 fn StylePool::new(
   tree : Tree,
   name : String,
@@ -145,9 +167,10 @@ fn StylePool::new(
   }
   let entries = nodes.map(node => style_markup(tree, node))
   let indices : Map[String, Int] = Map([])
-  for i, value in entries {
-    if !indices.contains(value) {
-      indices[value] = i
+  for i, node in nodes {
+    let key = style_key(tree, node).stringify()
+    if !indices.contains(key) {
+      indices[key] = i
     }
   }
   { parent, nodes, entries, indices, original_count: entries.length(), }
@@ -158,7 +181,14 @@ fn StylePool::intern(
   self : StylePool,
   markup : String,
 ) -> Int raise @failure.Failure {
-  if self.indices.get(markup) is Some(index) {
+  let document = @xml.Document::parse(
+    @utf8.encode(markup),
+    "cell-style",
+    128,
+    2097152,
+  )
+  let key = style_key(Tree::new(document), document.nodes()[0]).stringify()
+  if self.indices.get(key) is Some(index) {
     return index
   }
   guard self.entries.length() < 4096 else {
@@ -166,7 +196,7 @@ fn StylePool::intern(
   }
   let index = self.entries.length()
   self.entries.push(markup)
-  self.indices[markup] = index
+  self.indices[key] = index
   index
 }
 

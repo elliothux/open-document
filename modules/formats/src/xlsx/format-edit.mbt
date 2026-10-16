@@ -99,27 +99,62 @@ pub fn Session::format_cells(
   revision : Int,
   patch : CellFormat,
 ) -> Json raise @failure.Failure {
+  self.format_pattern(revision, [[patch]], self.selection.1)
+}
+
+///|
+fn Session::format_pattern(
+  self : Session,
+  revision : Int,
+  pattern : Array[Array[CellFormat]],
+  target : Range,
+) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  patch.validate()
-  let (sheet, target) = self.selection
+  let patches : Array[CellFormat] = []
+  let positions : Array[Int] = []
+  let pool : Map[CellFormat, Int] = Map([])
+  for row in pattern {
+    for patch in row {
+      patch.validate()
+      let id = if pool.get(patch) is Some(id) {
+        id
+      } else {
+        let id = patches.length()
+        patches.push(patch)
+        pool[patch] = id
+        id
+      }
+      positions.push(id)
+    }
+  }
+  let sheet = self.selection.0
   let index = self.sheet_index(sheet)
   let current = self.sheets[index]
   let reason = self.format_reason(current, target)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
-  let originals : Map[String, Int] = Map([])
-  let bases : Map[Int, Bool] = Map([])
+  let originals : Map[String, (Int, Int)] = Map([])
+  let bases : Map[(Int, Int), Bool] = Map([])
   for row in target.top..<=target.bottom {
     for column in target.left..<=target.right {
       let address : Address = { row, column, }
       let style = current.style_at(address)
+      let id = positions[(row - target.top) %
+        pattern.length() *
+        pattern[0].length() +
+        (column - target.left) % pattern[0].length()]
+      let patch = patches[id]
       if patch.applied(self.styles[style]) != self.styles[style] {
-        originals[address.name()] = style
-        bases[style] = true
+        originals[address.name()] = (style, id)
+        bases[(style, id)] = true
       }
     }
   }
   if originals.is_empty() {
-    return self.query()
+    return if target.name() == self.selection.1.name() {
+      self.query()
+    } else {
+      self.select(revision, sheet, target.name())
+    }
   }
   let parts = self.parts.copy()
   let existing = self.styles_part(parts)
@@ -146,33 +181,12 @@ pub fn Session::format_cells(
   let fills = StylePool::new(tree, "fills", "fill")
   let borders = StylePool::new(tree, "borders", "border")
   let formats = StylePool::new(tree, "cellXfs", "xf")
-  let mappings : Map[Int, Int] = Map([])
-  let new_formats : Array[String] = []
-  let mut number_id : Int? = None
-  if patch.numberFormat is Some(code) {
-    let container = tree.one(tree.root("styleSheet").id, "numFmts")
-    let nodes = container.map(node => tree.all(node.id, "numFmt")).unwrap_or([])
-    let previous = nodes
-      .iter()
-      .find_first(node => node.attribute("formatCode") == Some(code))
-    if previous is Some(node) {
-      number_id = Some(natural(node.attribute("numFmtId").unwrap_or(""), 65535))
-    } else {
-      let mut id = 164
-      while nodes.any(node => node.attribute("numFmtId") == Some(id.to_string())) {
-        id += 1
-      }
-      guard id <= 65535 else {
-        @failure.reject("limit-exceeded", "Number format identity exhausted")
-      }
-      number_id = Some(id)
-      new_formats.push(
-        "<od:numFmt xmlns:od=\"\{spreadsheet_uri}\" numFmtId=\"\{id}\" formatCode=\"\{escaped_attribute(code)}\"/>",
-      )
-    }
-  }
+  let mappings : Map[(Int, Int), Int] = Map([])
+  let (number_ids, new_formats) = format_numbers(tree, patches)
   let mut units = 0
-  for base in bases.keys() {
+  for key in bases.keys() {
+    let (base, id) = key
+    let patch = patches[id]
     let xf = formats.nodes[base]
     let font = natural(xf.attribute("fontId").unwrap_or("0"), 4095)
     let fill = natural(xf.attribute("fillId").unwrap_or("0"), 4095)
@@ -206,7 +220,12 @@ pub fn Session::format_cells(
       border
     }
     let markup = patch.xf_markup(
-      tree, xf, derived_font, derived_fill, derived_border, number_id,
+      tree,
+      xf,
+      derived_font,
+      derived_fill,
+      derived_border,
+      patch.numberFormat.bind(code => number_ids.get(code)),
     )
     units += markup.length() +
       fonts.entries[derived_font].length() +
@@ -217,7 +236,7 @@ pub fn Session::format_cells(
         "limit-exceeded", "Derived cell styles exceed source budget",
       )
     }
-    mappings[base] = formats.intern(markup)
+    mappings[key] = formats.intern(markup)
   }
   let changes = [
     ..fonts.changes(),

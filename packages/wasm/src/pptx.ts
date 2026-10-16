@@ -83,7 +83,16 @@ export interface PptxHit {
 export type PptxObjectEdit =
   | {
       action: "insert";
-      kind: "text" | "rect" | "ellipse" | "line";
+      kind:
+        | "text"
+        | "rect"
+        | "roundRect"
+        | "ellipse"
+        | "line"
+        | "leftArrow"
+        | "rightArrow"
+        | "upArrow"
+        | "downArrow";
       x: number;
       y: number;
       width: number;
@@ -301,7 +310,17 @@ export function checkPptxObjectEdit(value: unknown): void {
   }
   if (
     change.action !== "insert" ||
-    !["text", "rect", "ellipse", "line"].includes(String(change.kind))
+    ![
+      "text",
+      "rect",
+      "roundRect",
+      "ellipse",
+      "line",
+      "leftArrow",
+      "rightArrow",
+      "upArrow",
+      "downArrow",
+    ].includes(String(change.kind))
   )
     throw new Error("Invalid PPTX object edit");
   number(change.x, -14400, 14400);

@@ -224,7 +224,7 @@ pub fn Session::edit_objects(
   let mut issued : String? = None
   let (changes, after) = match change {
     Insert(kind, x, y, width, height, text) => {
-      guard ["text", "rect", "ellipse", "line"].contains(kind) &&
+      guard (kind == "text" || supported_shape(kind)) &&
         @xml.valid_text(text) &&
         !text.contains("\r") &&
         text.length() <= 32767 &&

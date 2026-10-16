@@ -20,6 +20,47 @@ export interface XlsxCellFormat {
   top?: XlsxCellBorder;
   bottom?: XlsxCellBorder;
 }
+export type CopiedCellFormat = Required<XlsxCellFormat>[][];
+
+const cellFormatFields = [
+  "family",
+  "size",
+  "bold",
+  "italic",
+  "color",
+  "fill",
+  "horizontal",
+  "vertical",
+  "wrap",
+  "numberFormat",
+  "left",
+  "right",
+  "top",
+  "bottom",
+] as const;
+
+export function copiedCellFormat(value: unknown): CopiedCellFormat {
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.length > 4096 ||
+    !Array.isArray(value[0]) ||
+    value[0].length === 0 ||
+    value.length * value[0].length > 4096
+  )
+    throw new Error("Invalid copied cell format size");
+  for (const row of value) {
+    if (!Array.isArray(row) || row.length !== value[0].length)
+      throw new Error("Copied cell format must be rectangular");
+    for (const cell of row) {
+      checkXlsxCellFormat(cell);
+      const fields = record(cell);
+      if (!cellFormatFields.every((key) => key in fields))
+        throw new Error("Copied cell format requires every property");
+    }
+  }
+  return value as CopiedCellFormat;
+}
 export type XlsxFormatting = {
   [K in keyof Required<XlsxCellFormat>]: Required<XlsxCellFormat>[K] | null;
 } & {
@@ -109,22 +150,7 @@ export function xlsxFormatting(value: unknown): XlsxFormatting {
     ),
   );
   checkXlsxCellFormat(patch);
-  for (const key of [
-    "family",
-    "size",
-    "bold",
-    "italic",
-    "color",
-    "fill",
-    "horizontal",
-    "vertical",
-    "wrap",
-    "numberFormat",
-    "left",
-    "right",
-    "top",
-    "bottom",
-  ]) {
+  for (const key of cellFormatFields) {
     if (!(key in fields)) throw new Error("Missing cell format property");
   }
   if (

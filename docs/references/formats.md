@@ -399,7 +399,15 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 同步 Wasm 与 Worker 使用 `formatCells(revision, patch)`，宿主使用 `SpreadsheetEditor.formatCells(patch)`。命令作用于队列执行时的选区，宿主先提交单格草稿。`XlsxCellFormat` 从 `wasm/xlsx` 和 `web/xlsx` 导出；省略的属性保持原值。字段为 `family`、`size`、`bold`、`italic`、`color`、`fill`、`horizontal`、`vertical`、`wrap`、`numberFormat` 及 `left/right/top/bottom`。颜色为六位十六进制，空 `fill` 清除填充；四边使用 `{ style: "none" | "thin" | "medium" | "thick", color }`。字号为 1–409 磅，水平对齐为 general/left/center/right，垂直对齐为 top/center/bottom；数字格式限下节已有集合。宿主先验证新字体键存在于字体 profile。
 
-`XlsxQuery.formatting` 返回这些属性，不同值返回 `null`，并返回 `readOnlyReason` 和所选字体键 `fontKeys`。一次最多 4096 格；未知公式、受保护表、富文本/未知样式及只覆盖部分合并格的范围继续保护。当前单格合并锚点也须显式扩展到完整合并范围。空白格继承行样式，其次列样式，再使用基础样式；显式单元格样式优先。派生格式保留原共享记录，不改写其他格。样式和目标格共同提交有界历史，缺失样式部件时关系及内容类型一起创建和撤销。仅改格式保留值、公式源、缓存和 calcChain，后续输入保持格样式；重复设置有效状态不新增历史。格式化的空白格参与使用范围和打印。默认 UI 已接线，新增面板交互及格式 PDF 尚未验证；格式刷、清除格式、更多装饰和格式代码仍归 [P11](../p11-xlsx-core.md)。
+`XlsxQuery.formatting` 返回这些属性，不同值返回 `null`，并返回 `readOnlyReason` 和所选字体键 `fontKeys`。一次最多 4096 格；未知公式、受保护表、富文本/未知样式及只覆盖部分合并格的范围继续保护。当前单格合并锚点也须显式扩展到完整合并范围。空白格继承行样式，其次列样式，再使用基础样式；显式单元格样式优先。派生格式保留原共享记录，不改写其他格。样式和目标格共同提交有界历史，缺失样式部件时关系及内容类型一起创建和撤销。仅改格式保留值、公式源、缓存和 calcChain，后续输入保持格样式；重复设置有效状态不新增历史。格式化的空白格参与使用范围和打印。默认 UI 使用可滚动属性栏，保留网格工作区。Chromium 已检查格式设置、草稿顺序、混合历史、缺失字体恢复、保存重开和格式化公式的 PDF 输出；清除格式、更多装饰和格式代码仍归 [P11](../p11-xlsx-core.md)。
+
+### 格式刷
+
+同步 Wasm/Worker 的 `captureFormat(revision)` 返回 `CopiedCellFormat`，类型为 `Required<XlsxCellFormat>[][]`；`applyFormat(revision, format)` 将它应用到当前选区。宿主对应 `SpreadsheetEditor.captureFormat()` 和 `applyFormat(format)`，复制与应用前均提交单格草稿。快照保存逐格有效属性，不含样式索引或源工作表身份；复制本身不修改文档和历史。
+
+单格目标按源矩形尺寸扩展；其他目标按源行列顺序重复平铺，边缘截到目标边界。源和目标各最多 4096 格，矩阵须非空、等宽且携带全部属性。工作表边界、未知属性、字体、只读内容和预算失败均保留已提交文档。合并格源或目标继续保护，待合并编辑接通后补齐。应用复用现有格式事务；值、公式、缓存和行列尺寸保留。样式复用按元素/属性的命名空间与名称、值及子结构判断，忽略前缀和属性顺序，原有源记录保持原样。
+
+默认 UI 的格式刷单击后对下一个新选区应用一次；双击或在按钮上按 Shift+Enter 锁定，可连续应用及切换工作表。Esc 或再次点击按钮取消，替换文档时释放状态。复制/平铺参考 [ONLYOFFICE 的目标扩展与格式复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21916-L21960)，单次/锁定/取消参考 [GenOffice 格式刷](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/sheets/src/renderer/format-painter.ts)。
 
 ### 显示与计算
 
@@ -477,9 +485,11 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 隐藏页仍可在编辑器中查看和编辑，允许全部页隐藏。全稿静态 PDF 默认跳过隐藏页，显式 `hidden: true` 包含它们；仅导出当前页时可以输出当前隐藏页。没有待输出页时返回 `unsupported-pdf`，不返回空 PDF。保存重开按新页序打开首张页面，保留隐藏状态。章节编辑和更广复制资源仍归 [P12](../p12-pptx-core.md)。
 
-`PptxObjectEdit` 从 `wasm/pptx` 和 `web/pptx` 导出。`PresentationEditor.editObjects(change)` 使用同一队列与命令。插入参数为 `{ action: "insert", kind: "text" | "rect" | "ellipse" | "line", x, y, width, height, text }`；坐标和尺寸为 point，绝对值不超过 14400。非线对象宽高至少 0.1；线可有一个零尺寸轴，总尺寸至少 0.1。文本框透明无描边，矩形/椭圆白底黑色 1 pt 线，直线黑色 1 pt；文字为 Arial 18 pt 黑色，支持 `\n` 与 `U+2028`，线不接收文字。核心校验文字、字体和固定框容量，失败保留文档和历史。
+`PptxObjectEdit` 从 `wasm/pptx` 和 `web/pptx` 导出。`PresentationEditor.editObjects(change)` 使用同一队列与命令。插入参数为 `{ action: "insert", kind: "text" | "rect" | "roundRect" | "ellipse" | "line" | "leftArrow" | "rightArrow" | "upArrow" | "downArrow", x, y, width, height, text }`；坐标和尺寸为 point，绝对值不超过 14400。非线对象宽高至少 0.1；线可有一个零尺寸轴，总尺寸至少 0.1。文本框透明无描边，矩形、圆角矩形、椭圆和箭头白底黑色 1 pt 线，直线黑色 1 pt；文字为 Arial 18 pt 黑色，支持 `\n` 与 `U+2028`，线不接收文字。核心校验文字、字体和固定框容量，失败保留文档和历史。
 
 删除参数为 `{ action: "delete" }`，复制为 `{ action: "duplicate", dx, dy }`。两者要求对象模式；空选区不修改文档。复制放到最上层，保留源内容、几何属性和图片关系，分配本会话尚未使用的新 `cNvPr.id`。删除清空选择；撤销/重做精确恢复源 XML 与选择。`PptxObject.deleteReason/duplicateReason` 返回操作保护原因，空串表示可用。继承/组成员/未知对象继续保护；复制占位符及未知扩展、删除锁定或带连接/计时引用的对象仍拒绝，含未支持所属关系的页面也保护删除。资源和关系不做清理。默认 UI 提供插入面板、复制/删除按钮；对象输入支持 Delete/Backspace 与 Ctrl/Cmd+D，默认复制偏移各 18 pt。
+
+圆角矩形使用 `roundRect`，实心箭头使用四个方向的标准 DrawingML 预设；新对象使用默认调节点。读取圆角 `adj`、箭头 `adj1/adj2` 的 `val` 数值公式，按预设上下限和实际宽高计算路径、文字矩形及命中；未知调节点或公式保留源并诊断。文字矩形先于 bodyPr 内边距，新增/复制时继续检查实际容量。Canvas 与 PDF 使用同一路径，旋转和局部翻转使用同一矩阵。调节点和任意自定义几何的编辑仍待实现。
 
 旋转使用 `{ action: "rotate", angle }`，绝对角度为 -360°–360°，核心舍入到 1/60000°。`{ action: "flip", axis: "horizontal" | "vertical" }` 切换局部水平/垂直翻转。`{ action: "layer", order: "front" | "back" | "forward" | "backward" }` 调整本地顶层对象的源顺序。三者要求对象模式，保留位置、尺寸、对象身份、文字、裁剪和关系；相同角度与层次边界不新增历史。旋转保持中心点，文字、图形、图片、命中和选区消费同一矩阵。`geometry` 返回源有效 `rotation/flipX/flipY`，`rotateReason/arrangeReason` 返回对应保护原因。`noRot` 仅阻止旋转；继承/组成员与原有变换锁继续保护。默认 UI 提供角度、翻转及四种层次操作。
 

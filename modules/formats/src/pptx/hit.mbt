@@ -65,6 +65,9 @@ fn object_hit(
       value <= outer * outer &&
       value >= inner * inner
   }
+  if object.preset == "roundRect" || arrow_shape(object.preset) {
+    return object.preset_hit(geometry, x, y, margin)
+  }
   if !object.fill.is_empty() {
     return x >= 0 && y >= 0 && x <= width && y <= height
   }

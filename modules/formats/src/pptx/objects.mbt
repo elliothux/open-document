@@ -166,8 +166,18 @@ fn read_object(
   let preset = attribute(children(properties, "prstGeom"), "prst").unwrap_or(
     "rect",
   )
+  let adjustments = read_shape_adjustments(
+    children(properties, "prstGeom").get(0),
+    preset,
+  ) catch {
+    @failure.Failure(code="unsupported-geometry", message~, ..) => {
+      diagnostic = message
+      (0.0, 0.0)
+    }
+    error => raise error
+  }
   if kind == "unsupported" ||
-    !["rect", "ellipse", "line"].contains(preset) ||
+    !supported_shape(preset) ||
     !children(properties, "custGeom").is_empty() {
     diagnostic = "Unsupported object geometry: " +
       source.node.name +
@@ -338,6 +348,7 @@ fn read_object(
     source,
     geometry,
     preset,
+    adjustments,
     fill: paint.0,
     stroke: paint.1,
     line_width: paint.2,

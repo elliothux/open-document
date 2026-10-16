@@ -70,6 +70,7 @@ priv struct Object {
   source : Ref
   geometry : Geometry?
   preset : String
+  adjustments : (Double, Double)
   fill : String
   stroke : String
   line_width : Double

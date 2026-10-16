@@ -91,6 +91,10 @@ async function dispatch(request: Request): Promise<unknown> {
         );
       case "formatXlsxCells":
         return workbook.formatCells(request.revision, request.patch);
+      case "captureXlsxFormat":
+        return workbook.captureFormat(request.revision);
+      case "applyXlsxFormat":
+        return workbook.applyFormat(request.revision, request.format);
       case "undoXlsx":
         return workbook.undo(request.revision);
       case "redoXlsx":
@@ -144,6 +148,8 @@ async function dispatch(request: Request): Promise<unknown> {
         case "createXlsx":
         case "editXlsxSheet":
         case "formatXlsxCells":
+        case "captureXlsxFormat":
+        case "applyXlsxFormat":
         case "queryXlsx":
         case "selectXlsx":
         case "replaceXlsx":

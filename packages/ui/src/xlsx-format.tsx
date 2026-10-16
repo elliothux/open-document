@@ -7,6 +7,7 @@ import {
 } from "@open-document/web/xlsx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { XlsxFormatPainter } from "./xlsx-format-painter.js";
 
 export function XlsxFormat({
   controller,
@@ -60,6 +61,12 @@ export function XlsxFormat({
       }}
     >
       <h3>{t.cellFormat}</h3>
+      <XlsxFormatPainter
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
       <form
         onSubmit={(event) => {
           event.preventDefault();

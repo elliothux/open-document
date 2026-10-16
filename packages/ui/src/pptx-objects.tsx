@@ -56,6 +56,11 @@ export function PptxObjects({
                 if (
                   kind === "text" ||
                   kind === "rect" ||
+                  kind === "roundRect" ||
+                  kind === "leftArrow" ||
+                  kind === "rightArrow" ||
+                  kind === "upArrow" ||
+                  kind === "downArrow" ||
                   kind === "ellipse" ||
                   kind === "line"
                 )
@@ -64,8 +69,13 @@ export function PptxObjects({
             >
               <option value="text">{t.textBox}</option>
               <option value="rect">{t.rectangle}</option>
+              <option value="roundRect">{t.roundRectangle}</option>
               <option value="ellipse">{t.ellipse}</option>
               <option value="line">{t.lineShape}</option>
+              <option value="leftArrow">{t.leftArrow}</option>
+              <option value="rightArrow">{t.rightArrow}</option>
+              <option value="upArrow">{t.upArrow}</option>
+              <option value="downArrow">{t.downArrow}</option>
             </select>
           </label>
           {(

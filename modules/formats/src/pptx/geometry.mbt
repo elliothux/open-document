@@ -131,6 +131,7 @@ fn shape_path(
   preset : String,
   width : Double,
   height : Double,
+  adjustments : (Double, Double),
 ) -> Array[@layout.PathSegment] {
   if preset == "line" {
     return [Move(0, 0), Line(width, height)]
@@ -147,6 +148,30 @@ fn shape_path(
       Cubic(x + k * x, 0, width, y - k * y, width, y),
       Close,
     ]
+  }
+  if preset == "roundRect" {
+    let r = width.min(height) * adjustments.0.max(0).min(0.5)
+    let k = 0.5522847498307936 * r
+    return [
+      Move(r, 0),
+      Line(width - r, 0),
+      Cubic(width - r + k, 0, width, r - k, width, r),
+      Line(width, height - r),
+      Cubic(width, height - r + k, width - r + k, height, width - r, height),
+      Line(r, height),
+      Cubic(r - k, height, 0, height - r + k, 0, height - r),
+      Line(0, r),
+      Cubic(0, r - k, r - k, 0, r, 0),
+      Close,
+    ]
+  }
+  if arrow_shape(preset) {
+    let path : Array[@layout.PathSegment] = []
+    for i, (x, y) in arrow_points(preset, width, height, adjustments) {
+      path.push(if i == 0 { Move(x, y) } else { Line(x, y) })
+    }
+    path.push(Close)
+    return path
   }
   [Move(0, 0), Line(width, 0), Line(width, height), Line(0, height), Close]
 }

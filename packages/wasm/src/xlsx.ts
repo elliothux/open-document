@@ -5,14 +5,21 @@ import { drawingBatch, type DrawingBatch, type DrawRect } from "./drawing.js";
 import {
   checkXlsxCellFormat,
   xlsxFormatting,
+  copiedCellFormat,
+  type CopiedCellFormat,
   type XlsxCellFormat,
   type XlsxFormatting,
 } from "./xlsx-format.js";
-export { checkXlsxCellFormat, xlsxNumberFormats } from "./xlsx-format.js";
+export {
+  checkXlsxCellFormat,
+  xlsxNumberFormats,
+  copiedCellFormat,
+} from "./xlsx-format.js";
 export type {
   XlsxCellFormat,
   XlsxFormatting,
   XlsxCellBorder,
+  CopiedCellFormat,
 } from "./xlsx-format.js";
 
 export interface GridViewport {
@@ -400,6 +407,17 @@ export function xlsxViewport(value: unknown): XlsxViewport {
 
 /** One workbook owner; values, XML transactions and history stay in MoonBit. */
 export class XlsxSession extends WasmSession {
+  captureFormat(revision: number): CopiedCellFormat {
+    return copiedCellFormat(
+      this.call({ operation: "captureXlsxFormat", revision }),
+    );
+  }
+  applyFormat(revision: number, format: CopiedCellFormat): XlsxQuery {
+    copiedCellFormat(format);
+    return xlsxQuery(
+      this.call({ operation: "applyXlsxFormat", revision, format }),
+    );
+  }
   formatCells(revision: number, patch: XlsxCellFormat): XlsxQuery {
     checkXlsxCellFormat(patch);
     return xlsxQuery(

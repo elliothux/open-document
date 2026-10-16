@@ -99,6 +99,7 @@ fn fit_text(
   if object.paragraphs.is_empty() {
     return ([], 1, "")
   }
+  let object = { ..object, body: object.shape_body(geometry), }
   let mut scale = 1.0
   let mut measured = measure_text(object, geometry, probe, profile, scale) catch {
     @failure.Failure(code="layout-overflow", ..) if object.body.fit =>
@@ -222,7 +223,12 @@ fn paint_slide(
       } else if !object.fill.is_empty() || !object.stroke.is_empty() {
         primitives.push(
           Path(
-            shape_path(object.preset, geometry.width, geometry.height),
+            shape_path(
+              object.preset,
+              geometry.width,
+              geometry.height,
+              object.adjustments,
+            ),
             object.fill,
             object.stroke,
             object.line_width,

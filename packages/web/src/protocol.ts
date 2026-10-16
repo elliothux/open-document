@@ -19,6 +19,7 @@ import type {
   PrintOptions,
   XlsxSheetEdit,
   XlsxCellFormat,
+  CopiedCellFormat,
 } from "@open-document/wasm/xlsx";
 import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
@@ -75,6 +76,12 @@ export type Operation =
   | { operation: "openXlsx"; bytes: Uint8Array; budget: Budget }
   | { operation: "createXlsx"; budget: Budget }
   | { operation: "formatXlsxCells"; revision: number; patch: XlsxCellFormat }
+  | { operation: "captureXlsxFormat"; revision: number }
+  | {
+      operation: "applyXlsxFormat";
+      revision: number;
+      format: CopiedCellFormat;
+    }
   | {
       operation: "editXlsxSheet";
       revision: number;

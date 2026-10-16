@@ -1,4 +1,27 @@
 import type { XlsxViewport } from "@open-document/wasm/xlsx";
+import type { DrawRect } from "@open-document/wasm/drawing";
+
+export function paintGridSelection(
+  context: CanvasRenderingContext2D,
+  rect: DrawRect,
+  layout: XlsxViewport,
+): void {
+  context.save();
+  context.beginPath();
+  context.rect(
+    36,
+    18,
+    layout.regions[0]!.width - 36,
+    layout.regions[0]!.height - 18,
+  );
+  context.clip();
+  context.fillStyle = "rgba(37, 99, 235, 0.10)";
+  context.fillRect(rect.x, rect.y, rect.width, rect.height);
+  context.strokeStyle = "#2563eb";
+  context.lineWidth = 1.5;
+  context.strokeRect(rect.x, rect.y, rect.width, rect.height);
+  context.restore();
+}
 
 export function styleCellDraft(
   input: HTMLTextAreaElement,
