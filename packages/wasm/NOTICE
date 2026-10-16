@@ -3,6 +3,9 @@ P3 dependencies: Milky2018/moon_cosmic 0.3.7 (unicode_linebreak only),
 Milky2018/moon_swash 0.1.13 (Unicode data), moonbitlang/x 0.5.5 (SHA-256
 and Unicode lowercase/character classification),
 and moonbitlang/pdflite 0.3.8 (PDF objects, writer and font subsetter).
+P11 also uses moonbit-community/ucd 0.5.2 for Unicode 16.0.0 case mapping
+and categories (Apache-2.0 and Unicode data terms). Unicode context property
+entries derive from Unicode 16.0.0 DerivedCoreProperties.txt, Unicode, Inc.
 MoonBit-specific code: Copyright 2025-2026 International Digital Economy Academy.
 These components use Apache License 2.0; see the distributed LICENSE.
 pdflite/subsetter ports Typst subsetter 0.2.6, available under MIT OR Apache-2.0.

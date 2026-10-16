@@ -147,31 +147,34 @@ fn Expression::evaluate(
         _ => Error("#VALUE!")
       }
     }
-    Function("IF", args) => {
-      let condition = args[0].evaluate(sheets, sheet, values, work, depth + 1)
-      let condition = match condition {
-        Text(text) if text.to_upper() == "TRUE" => Boolean(true)
-        Text(text) if text.to_upper() == "FALSE" => Boolean(false)
-        value => value
-      }
-      if condition is Text(_) {
-        return Error("#VALUE!")
-      }
-      match numeric_value(condition) {
+    Function("IF", args) =>
+      match
+        logical_value(args[0].evaluate(sheets, sheet, values, work, depth + 1)) {
         Error(error) => Error(error)
-        Number(condition) => {
-          let index = if condition != 0 { 1 } else { 2 }
+        Boolean(condition) => {
+          let index = if condition { 1 } else { 2 }
           guard args.get(index) is Some(expression) else {
             return Boolean(false)
           }
-          match expression.evaluate(sheets, sheet, values, work, depth + 1) {
-            Blank => Number(0)
-            value => value
-          }
+          formula_result(
+            expression.evaluate(sheets, sheet, values, work, depth + 1),
+          )
         }
         _ => Error("#VALUE!")
       }
-    }
+    Function(name, args) if [
+        "AND", "OR", "NOT", "IFERROR", "IFNA", "ISBLANK", "ISNUMBER", "ISTEXT",
+      ].contains(name) =>
+      logical_function(name, args, sheets, sheet, values, work, depth)
+    Function(name, args) if [
+        "ABS", "INT", "MOD", "ROUND", "ROUNDUP", "ROUNDDOWN",
+      ].contains(name) =>
+      numeric_function(name, args, sheets, sheet, values, work, depth)
+    Function(name, args) if [
+        "LEN", "LEFT", "RIGHT", "MID", "TRIM", "UPPER", "LOWER", "CONCAT", "CONCATENATE",
+        "TEXTJOIN", "FIND", "SEARCH", "SUBSTITUTE",
+      ].contains(name) =>
+      text_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) => {
       let numbers : Array[Double] = []
       for arg in args {

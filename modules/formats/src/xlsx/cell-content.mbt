@@ -11,7 +11,7 @@ fn cell_content(
   literal : Bool,
 ) -> CellContent raise @failure.Failure {
   if !literal && text.has_prefix("=") {
-    let formula = text[1:].to_owned()
+    let formula = stored_formula_names(text[1:].to_owned())
     ignore(parse_formula(formula))
     { value: Blank, formula: Some(formula), keep_shared: false, }
   } else {

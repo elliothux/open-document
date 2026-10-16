@@ -5,11 +5,13 @@ import {
 } from "./spreadsheet-semantics.js";
 import { SpreadsheetPrint, defaultPrintOptions } from "./spreadsheet-print.js";
 import { CanvasSurface } from "./canvas-surface.js";
+import { SpreadsheetFormula } from "./spreadsheet-formula.js";
 import {
   spreadsheetKey,
   styleCellDraft,
   paintGridSelection,
   prepareGridInput,
+  bindCellDraft,
 } from "./spreadsheet-input.js";
 import {
   checkFormatFonts,
@@ -58,6 +60,12 @@ export class SpreadsheetEditor {
   private errorMessage = "";
   private cleanup: Promise<void> | undefined;
   private readonly listeners = new AbortController();
+  private readonly formula = new SpreadsheetFormula(
+    this.input,
+    this.holder,
+    this.listeners.signal,
+    () => this.handle(() => this.editFormula()),
+  );
   private readonly resize: ResizeObserver;
   private state: XlsxQuery;
   private layout: XlsxViewport | undefined;
@@ -141,23 +149,21 @@ export class SpreadsheetEditor {
       () => this.input.focus({ preventScroll: true }),
       options,
     );
-    this.viewport.addEventListener(
-      "keydown",
-      (event) =>
-        spreadsheetKey(event, {
-          paused: this.paused,
-          composing: this.composing,
-          draft: !!this.draft || !!this.draftIntent,
-          cancelDraft: () => this.cancelDraft(),
-          handle: (action) => this.handle(action),
-          move: (direction, extend) => this.move(direction, extend),
-          undo: () => this.undo(),
-          redo: () => this.redo(),
-          edit: () => this.enqueue(async () => this.beginDraft(false)),
-          clear: () => this.clear(),
-        }),
-      options,
-    );
+    const keydown = (event: KeyboardEvent) =>
+      spreadsheetKey(event, {
+        paused: this.paused,
+        composing: this.composing,
+        draft: !!this.draft || !!this.draftIntent,
+        cancelDraft: () => this.cancelDraft(),
+        handle: (action) => this.handle(action),
+        move: (direction, extend) => this.move(direction, extend),
+        undo: () => this.undo(),
+        redo: () => this.redo(),
+        edit: () => this.enqueue(async () => this.beginDraft(false)),
+        clear: () => this.clear(),
+      });
+    this.viewport.addEventListener("keydown", keydown, options);
+    this.formula.element.addEventListener("keydown", keydown, options);
     this.viewport.addEventListener(
       "scroll",
       () => {
@@ -204,54 +210,27 @@ export class SpreadsheetEditor {
       () => this.handle(() => this.enqueue(async () => this.beginDraft(false))),
       options,
     );
-    this.input.addEventListener(
-      "beforeinput",
-      (event) => {
-        if (!this.draft && event.inputType.startsWith("insert")) {
-          try {
-            this.queueDraft();
-          } catch (error) {
-            event.preventDefault();
-            this.report(error);
-          }
-        }
-      },
-      options,
-    );
-    this.input.addEventListener(
-      "compositionstart",
-      () => {
-        try {
-          if (!this.draft) this.queueDraft();
-          this.composing = true;
-          this.publish();
-        } catch (error) {
-          this.report(error);
-        }
-      },
-      options,
-    );
-    this.input.addEventListener(
-      "compositionend",
-      () => {
-        this.composing = false;
+    bindCellDraft(this.input, this.listeners.signal, {
+      start: () => this.queueDraft(),
+      composition: (active) => {
+        this.composing = active;
         this.publish();
       },
-      options,
-    );
-    this.input.addEventListener("input", () => this.publish(), options);
-    this.input.addEventListener(
-      "blur",
-      () => {
+      changed: () => {
+        this.styleInput();
+        this.publish();
+      },
+      blur: () => {
         if (
+          !this.formula.switching &&
           (this.draft || this.draftIntent) &&
           !this.composing &&
           !this.committing
         )
           this.handle(() => this.enqueue(() => this.commitDraft()));
       },
-      options,
-    );
+      reject: (error) => this.report(error),
+    });
     bindClipboard(
       this.input,
       this.listeners.signal,
@@ -297,6 +276,10 @@ export class SpreadsheetEditor {
   }
   get currentLayout(): XlsxViewport | undefined {
     return this.layout;
+  }
+  /** Mount this stable node beside the grid to expose the shared native draft. */
+  get formulaBar(): HTMLElement {
+    return this.formula.element;
   }
   readonly getSnapshot = (): EditorSnapshot<SpreadsheetEditorData> =>
     this.observable.getSnapshot();
@@ -397,6 +380,14 @@ export class SpreadsheetEditor {
   private active() {
     return activeGridCell(this.state, this.layout);
   }
+  private editFormula(): Promise<void> {
+    return this.enqueue(async () => {
+      this.requireFinished();
+      if (!this.draft) this.beginDraft(false);
+      this.formula.show(true);
+      this.styleInput();
+    });
+  }
 
   private queueDraft(): void {
     if (this.draft || this.draftIntent) return;
@@ -446,6 +437,7 @@ export class SpreadsheetEditor {
     this.composing = false;
     this.draft = undefined;
     this.draftIntent = undefined;
+    this.formula.show(false);
     this.input.value = "";
     this.errorMessage = "";
     this.styleInput();
@@ -466,6 +458,7 @@ export class SpreadsheetEditor {
         [[this.input.value]],
       );
       this.draft = undefined;
+      this.formula.show(false);
       this.input.value = "";
       this.generation++;
       await this.present(true);
@@ -532,10 +525,11 @@ export class SpreadsheetEditor {
     const rect = await this.client.selectionGeometry(layout.id);
     if (this.closed || layout !== this.layout) return;
     paintGridSelection(this.surface.clearOverlay(this.scale), rect, layout);
+    updateGridSelection(this.semantics, this.active());
     this.styleInput(rect);
-    updateGridSelection(this.semantics, this.input, this.active());
   }
   private styleInput(selection?: XlsxSelectionGeometry): void {
+    this.formula.prepare();
     styleCellDraft(
       this.input,
       this.draft,
@@ -544,6 +538,11 @@ export class SpreadsheetEditor {
       this.viewport.clientWidth,
       selection,
       this.active()?.address,
+    );
+    this.formula.update(
+      !!this.draft || !!this.draftIntent,
+      this.active(),
+      this.paused || this.blocked || !!this.active()?.readOnlyReason,
     );
   }
   private publish(): void {
@@ -793,6 +792,7 @@ export class SpreadsheetEditor {
       this.draft = undefined;
       this.surface.dispose();
       this.printView.dispose();
+      this.formula.element.remove();
       this.container.remove();
     });
     return this.cleanup;

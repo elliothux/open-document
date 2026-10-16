@@ -14,4 +14,5 @@ import {
   "open_document/layout@0.0.1",
   "moonbit-community/flate@0.8.5",
   "moonbitlang/x@0.5.5",
+  "moonbit-community/ucd@0.5.2",
 }

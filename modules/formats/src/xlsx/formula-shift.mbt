@@ -1,4 +1,25 @@
 ///|
+fn stored_formula_names(formula : String) -> String raise @failure.Failure {
+  let spans : Array[(Int, Int)] = []
+  let tokens = formula_tokens(formula, spans~)
+  let output = StringBuilder()
+  let mut copied = 0
+  for index in 0..<(tokens.length() - 1) {
+    if tokens[index] is Word(name) &&
+      ["IFNA", "CONCAT", "TEXTJOIN"].contains(name.to_upper()) &&
+      tokens[index + 1] is Operator("(") {
+      let (start, end) = spans[index]
+      output.write_view(formula[copied:start])
+      output.write_string("_xlfn.")
+      output.write_view(formula[start:end])
+      copied = end
+    }
+  }
+  output.write_view(formula[copied:])
+  output.to_string()
+}
+
+///|
 fn FormulaAddress::shift(
   self : FormulaAddress,
   rows : Int,
@@ -64,7 +85,11 @@ fn Expression::source(
       right.source(rows~, columns~, depth=depth + 1, invalid_ref~) +
       ")"
     Function(name, args) =>
-      name +
+      (if ["IFNA", "CONCAT", "TEXTJOIN"].contains(name) {
+        "_xlfn." + name
+      } else {
+        name
+      }) +
       "(" +
       args
       .map(arg => arg.source(rows~, columns~, depth=depth + 1, invalid_ref~))

@@ -205,6 +205,7 @@
 }
 .od-workspace {
   display: flex;
+  flex-direction: column;
   position: relative;
   flex: 1;
   min-height: 0;
@@ -218,6 +219,32 @@
   flex: 1;
   min-height: 0;
   min-width: 0;
+}
+.od-formula {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--od-ui-line);
+}
+.od-formula form,
+.od-formula label {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  min-width: 0;
+}
+.od-formula form input {
+  width: 110px;
+}
+.od-formula label,
+.od-formula label > div {
+  flex: 1;
+  min-width: 0;
+}
+.od-formula label > span {
+  white-space: nowrap;
 }
 .od-surface {
   display: flex;

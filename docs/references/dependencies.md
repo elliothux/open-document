@@ -10,6 +10,7 @@ MoonBit 0.1.20261010 要求新配置格式。[依赖准备工具](../../tools/pr
 | [Milky2018/xml](https://github.com/moonbit-community/xml-mbt) 0.5.0 | namespace-aware pull reader、source spans、escape；Apache-2.0 | xml 层拥有严格字节解码、禁 DTD、深度预算和文本源片段修改。该版将短 ASCII 的 UTF-16 声明按解码后字符串启发式拒绝；独立解析声明 pseudo-attributes，再以等长空白保留 offset，复用原 parser 验证正文。另补 NS1.0 的 PI target 冒号规则 |
 | [moonbit-community/harfbuzz](https://github.com/moonbit-community/harfbuzz.mbt) 0.1.0 | OpenType shaping、glyf DrawFuncs；MoonBit 代码 Apache-2.0，上游附 Old MIT 等完整 notices | 该版 Face metrics getter 在目录准备后仍返回未加载值；直接复用 HeadTable::parse 取 upem。RTL buffer 输出逻辑顺序，核心按 BiDi run 输出视觉顺序。draw 不支持 CFF，入口明确拒绝而不回退成空白字形 |
 | [moonbit-community/bidi](https://github.com/moonbit-community/tonyfettes-unicode) 0.5.2 | UAX #9，目标 Unicode 16.0.0；Apache-2.0 与 Unicode 数据许可 | 复用顺序/镜像 API；不重写 Unicode 表，不扩展到完整字素导航 |
+| [moonbit-community/ucd](https://github.com/moonbit-community/ucd) 0.5.2 | Unicode 16.0.0 完整大小写与 General_Category；Apache-2.0 与 Unicode 数据许可 | P11 文本函数复用完整映射；词尾 Sigma 所需属性差集来自固定 Unicode 数据，不另建字符数据库 |
 | Milky2018/moon_cosmic 0.3.7 | 仅 unicode_linebreak 的断行与字素分段；Apache-2.0 与 Unicode 数据许可 | 复用换行位置和 Unicode 13.0.0 扩展字素，不使用其 editor、排版或字体 owner；断行的 Unicode 15 向量沿用上游 tailoring；字素单独检查完整 Unicode 13 的 602 条标准向量，不声明较新版本 |
 | moonbitlang/x 0.5.5 | SHA-256、Unicode 简单小写映射与字符分类；Apache-2.0 | 字体字节身份、构建补丁核验与 P10 字面查找；复用固定字符数据 |
 | moonbitlang/pdflite 0.3.8 | 严格 reader、源对象、内容/字体映射、序列化、字体子集；Apache-2.0，Typst subsetter 0.2.6 为 MIT OR Apache-2.0 | Office 输出复用 PositionedDocument；PDF 输入复用严格 reader 与源位置，编辑复用对象 writer |
@@ -17,6 +18,8 @@ MoonBit 0.1.20261010 要求新配置格式。[依赖准备工具](../../tools/pr
 公开 Wasm 包分发项目 Apache LICENSE、完整 HarfBuzz NOTICE 与 UNICODE-LICENSE。固定 Noto 字体、W3C XML 和 POI 测试材料仅保存在私有语料库，保留各自许可和来源；公开 SDK 不打包字体或 fixtures。
 
 P1 使用 harfbuzz/bidi；P3 才因断行需要引入 moon_cosmic 的 unicode_linebreak。传递依赖为 moon_swash 0.1.13、moon_skrifa 0.1.11、moon_yazi 0.1.3、moon_zeno 0.1.4（Apache-2.0；swash Unicode 表为 13.0.0）、async 0.22.4，以及已固定的 harfbuzz/x/flate。解析到 module 不代表全部子包进入浏览器产物；最终 imports 由实际 Wasm 检查。
+
+P11 的大小写转换使用固定 ucd 0.5.2；MoonBit 字符串大小写仅覆盖 ASCII，已有简单映射也不能处理扩张。词尾 Sigma 的 Cased/Case_Ignorable 类别差集依据 [Unicode 16 DerivedCoreProperties](https://www.unicode.org/Public/16.0.0/ucd/DerivedCoreProperties.txt)，在文本大小写模块保留来源；许可随 Wasm NOTICE 与 UNICODE-LICENSE 分发。
 
 P4 复用已安装的字素分段，没有新增生产依赖。formats module 显式引用已有 flate 0.8.5，只有 DOCX 私有 wbtest overlay 使用其 ZIP writer 构造独立输入，不进入生产 docx 包的 imports。输入生成不使用 SDK 的 archive/XML writer。
 

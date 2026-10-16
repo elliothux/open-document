@@ -121,7 +121,7 @@ export interface XlsxQuery {
   }[];
   sheet: string;
   cells: XlsxCell[];
-  selection: { sheet: string; range: CellRange };
+  selection: { sheet: string; range: CellRange; address: string };
   canUndo: boolean;
   canRedo: boolean;
   historyBytes: number;
@@ -333,6 +333,10 @@ export function xlsxQuery(value: unknown): XlsxQuery {
     !sheets.has(query.sheet) ||
     typeof selection.sheet !== "string" ||
     !sheets.has(selection.sheet) ||
+    typeof selection.address !== "string" ||
+    !/^[A-Z]{1,3}[1-9][0-9]{0,6}(:[A-Z]{1,3}[1-9][0-9]{0,6})?$/.test(
+      selection.address,
+    ) ||
     !integer(range.top, 1, 1048576) ||
     !integer(range.bottom, Number(range.top), 1048576) ||
     !integer(range.left, 1, 16384) ||

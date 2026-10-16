@@ -293,7 +293,13 @@ fn FormulaParser::primary(
         }
         return self.reference(Some(word), address)
       }
-      let name = word.to_upper()
+      let upper = word.to_upper()
+      let name = match upper {
+        "_XLFN.IFNA" => "IFNA"
+        "_XLFN.CONCAT" => "CONCAT"
+        "_XLFN.TEXTJOIN" => "TEXTJOIN"
+        name => name
+      }
       if self.accept("(") {
         let args : Array[Expression] = []
         if !self.accept(")") {
@@ -303,7 +309,14 @@ fn FormulaParser::primary(
                 "limit-exceeded", "Function argument budget exceeded",
               )
             }
-            args.push(self.expression(1, depth + 1))
+            args.push(
+              if self.tokens[self.cursor] is Operator(",") ||
+                self.tokens[self.cursor] is Operator(")") {
+                Constant(Blank)
+              } else {
+                self.expression(1, depth + 1)
+              },
+            )
             if self.accept(")") {
               break
             }
@@ -313,10 +326,20 @@ fn FormulaParser::primary(
             continue
           }
         }
-        guard (if name == "IF" {
-          args.length() == 2 || args.length() == 3
-        } else {
-          !args.is_empty()
+        guard (match name {
+          "IF" => args.length() == 2 || args.length() == 3
+          "IFERROR" | "IFNA" | "MOD" | "ROUND" | "ROUNDUP" | "ROUNDDOWN" =>
+            args.length() == 2
+          "NOT" | "ISBLANK" | "ISNUMBER" | "ISTEXT" | "ABS" | "INT" =>
+            args.length() == 1
+          "LEN" | "LOWER" | "UPPER" | "TRIM" => args.length() == 1
+          "LEFT" | "RIGHT" => args.length() == 1 || args.length() == 2
+          "MID" => args.length() == 3
+          "FIND" | "SEARCH" => args.length() == 2 || args.length() == 3
+          "SUBSTITUTE" => args.length() == 3 || args.length() == 4
+          "CONCAT" => !args.is_empty() && args.length() <= 253
+          "TEXTJOIN" => args.length() >= 3 && args.length() <= 254
+          _ => !args.is_empty()
         }) else {
           @failure.reject("formula-syntax", "Invalid function argument count")
         }

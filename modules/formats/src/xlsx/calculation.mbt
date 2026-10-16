@@ -10,13 +10,16 @@ priv struct FormulaWork {
 }
 
 ///|
-fn FormulaWork::spend(self : FormulaWork) -> Unit raise @failure.Failure {
-  guard self.remaining > 0 else {
+fn FormulaWork::spend(
+  self : FormulaWork,
+  amount~ : Int = 1,
+) -> Unit raise @failure.Failure {
+  guard amount >= 0 && self.remaining >= amount else {
     @failure.reject(
       "limit-exceeded", "Formula calculation work budget exceeded",
     )
   }
-  self.remaining -= 1
+  self.remaining -= amount
 }
 
 ///|
@@ -74,7 +77,12 @@ fn Expression::dependencies(
       right.dependencies(sheets, current, work, output, depth + 1)
     }
     Function(name, args) => {
-      guard ["SUM", "AVERAGE", "MIN", "MAX", "COUNT", "IF"].contains(name) else {
+      guard [
+        "SUM", "AVERAGE", "MIN", "MAX", "COUNT", "IF", "AND", "OR", "NOT", "IFERROR",
+        "IFNA", "ISBLANK", "ISNUMBER", "ISTEXT", "ABS", "INT", "MOD", "ROUND", "ROUNDUP",
+        "ROUNDDOWN", "LEN", "LEFT", "RIGHT", "MID", "TRIM", "UPPER", "LOWER", "CONCAT",
+        "CONCATENATE", "TEXTJOIN", "FIND", "SEARCH", "SUBSTITUTE",
+      ].contains(name) else {
         @failure.reject("unsupported-formula", "Unsupported function: " + name)
       }
       for arg in args {
@@ -204,7 +212,7 @@ fn Calculation::build(
         0,
       )
     }
-    calculation.values[key] = value
+    calculation.values[key] = formula_result(value)
     if affected {
       let address = Address::parse(key.1)
       invalid.push(

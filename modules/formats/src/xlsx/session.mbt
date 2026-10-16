@@ -381,7 +381,11 @@ pub fn Session::query(
     }),
     "sheet": current.id,
     "cells": cells,
-    "selection": { "sheet": self.selection.0, "range": self.selection.1 },
+    "selection": {
+      "sheet": self.selection.0,
+      "range": self.selection.1,
+      "address": self.selection.1.name(),
+    },
     "canUndo": !self.history.is_empty(),
     "canRedo": !self.redo.is_empty(),
     "historyBytes": self.history_bytes,
@@ -446,7 +450,11 @@ pub fn Session::select(
   self.anchor = { row: selected.top, column: selected.left, }
   self.focus = { row: selected.bottom, column: selected.right, }
   if result is Object(fields) {
-    fields["selection"] = { "sheet": sheet, "range": selected }
+    fields["selection"] = {
+      "sheet": sheet,
+      "range": selected,
+      "address": selected.name(),
+    }
   }
   result
 }

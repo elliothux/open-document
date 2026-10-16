@@ -21,6 +21,7 @@ import {
 } from "./panels.js";
 import { messages } from "./messages.js";
 import { Icon } from "./icons.js";
+import { XlsxFormula } from "./xlsx-formula.js";
 
 export function EditorShell({
   controller,
@@ -275,6 +276,15 @@ export function EditorShell({
         <div className="od-workbench">
           {panel && <PageList {...panel} />}
           <div className="od-workspace">
+            {file?.format === "xlsx" && (
+              <XlsxFormula
+                key={snapshot?.documentId}
+                controller={controller}
+                state={state}
+                editor={file.editor}
+                disabled={disabled || !!snapshot?.stopped}
+              />
+            )}
             <NativeSlot node={controller.surfaces} className="od-surfaces" />
             {state.loading && (
               <div className="od-loading" role="status">

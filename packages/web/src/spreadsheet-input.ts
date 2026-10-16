@@ -3,6 +3,52 @@ import type {
   XlsxSelectionGeometry,
 } from "@open-document/wasm/xlsx";
 
+export function bindCellDraft(
+  input: HTMLTextAreaElement,
+  signal: AbortSignal,
+  host: {
+    start(): void;
+    composition(active: boolean): void;
+    changed(): void;
+    blur(): void;
+    reject(error: unknown): void;
+  },
+): void {
+  const options = { signal };
+  input.addEventListener(
+    "beforeinput",
+    (event) => {
+      if (!event.inputType.startsWith("insert")) return;
+      try {
+        host.start();
+      } catch (error) {
+        event.preventDefault();
+        host.reject(error);
+      }
+    },
+    options,
+  );
+  input.addEventListener(
+    "compositionstart",
+    () => {
+      try {
+        host.start();
+        host.composition(true);
+      } catch (error) {
+        host.reject(error);
+      }
+    },
+    options,
+  );
+  input.addEventListener(
+    "compositionend",
+    () => host.composition(false),
+    options,
+  );
+  input.addEventListener("input", () => host.changed(), options);
+  input.addEventListener("blur", () => host.blur(), options);
+}
+
 export function prepareGridInput(input: HTMLTextAreaElement): void {
   Object.assign(input.style, {
     position: "absolute",

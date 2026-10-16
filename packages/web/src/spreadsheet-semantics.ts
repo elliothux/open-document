@@ -17,14 +17,8 @@ export function activeGridCell(
 
 export function updateGridSelection(
   root: HTMLElement,
-  input: HTMLTextAreaElement,
   active: XlsxQuery["cells"][number] | undefined,
 ): void {
-  input.setAttribute("aria-label", `Cell ${active?.address ?? ""} input`);
-  input.setAttribute(
-    "aria-description",
-    `${active?.display ?? ""}${active?.readOnlyReason ? "; " + active.readOnlyReason : ""}`,
-  );
   for (const cell of root.querySelectorAll<HTMLElement>("[role=gridcell]"))
     cell.setAttribute(
       "aria-selected",

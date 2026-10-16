@@ -1,8 +1,8 @@
 # P11 XLSX 核心功能
 
-状态：`planned`，第 1 批实施中。基于 [P5 XLSX](implemented/p5-xlsx-editing.md)、已完成的 [P9](implemented/p9-web-sdk-ui.md)及 [P10 的包创建与多部件事务设计](p10-docx-core.md#31-新建与多部件事务)。属于功能优先级 P0。空白创建已接通，其余扩展仍按下面的范围实施。阶段顺序归[路线图](references/roadmap.md)，现有 API 归[格式合同](references/formats.md#p5-xlsx-合同)，功能依据归 [G3](g3-genoffice-sdk-gap.md#表格xlsx)。
+状态：`planned`，第 1、2 批实施中。基于 [P5 XLSX](implemented/p5-xlsx-editing.md)、已完成的 [P9](implemented/p9-web-sdk-ui.md)及 [P10 的包创建与多部件事务设计](p10-docx-core.md#31-新建与多部件事务)。属于功能优先级 P0。空白创建已接通，其余扩展仍按下面的范围实施。阶段顺序归[路线图](references/roadmap.md)，现有 API 归[格式合同](references/formats.md#p5-xlsx-合同)，功能依据归 [G3](g3-genoffice-sdk-gap.md#表格xlsx)。
 
-当前进度：核心生成带一张可见 Sheet1、A1 选区和基础样式的空白工作簿，复用既有公式、编辑、历史、保存及打印路径。同步 Wasm、Worker、默认 UI 均提供创建；新建、替换确认、首次保存与另存复用 P9。已接通工作表新增、复制、删除、重排、改名与隐藏/显示，历史使用稳定部件路径，同步名称作用域、活动页和工作表视图。新增/复制/删除表的关系、内容类型和源 XML 一起提交与撤销。改名同步已支持的引用，保留字符串常量和共享公式组；删除将失去目标的引用改为 `#REF!`，同步名称、内部链接、计算缓存与 calcChain。已接通所选行高、列宽及零值隐藏，沿相同事务保存和撤销。已接通有限矩形合并与取消合并；已接通自动适配行高/列宽及默认行高随带字体的编辑更新；普通从左到右视图的冻结首行、首列、选区左上方及取消冻结已接通；行列插删与后续批次尚未完成，不标记第 1 批或整个 P11 完成。
+当前进度：核心生成带一张可见 Sheet1、A1 选区和基础样式的空白工作簿，复用既有公式、编辑、历史、保存及打印路径。同步 Wasm、Worker、默认 UI 均提供创建；新建、替换确认、首次保存与另存复用 P9。已接通工作表新增、复制、删除、重排、改名与隐藏/显示，历史使用稳定部件路径，同步名称作用域、活动页和工作表视图。新增/复制/删除表的关系、内容类型和源 XML 一起提交与撤销。改名同步已支持的引用，保留字符串常量和共享公式组；删除将失去目标的引用改为 `#REF!`，同步名称、内部链接、计算缓存与 calcChain。已接通所选行高、列宽及零值隐藏，沿相同事务保存和撤销。已接通有限矩形合并与取消合并；已接通自动适配行高/列宽及默认行高随带字体的编辑更新；普通从左到右视图的冻结首行、首列、选区左上方及取消冻结已接通；公式栏与矩形范围定位也已接通；已新增八项逻辑、错误处理与类型判断函数、六项数值函数及十三项文本函数；行列插删与后续批次尚未完成，不标记第 1 批或整个 P11 完成。
 
 ## 1. 用户结果与交付范围
 
@@ -25,12 +25,12 @@
 | 当前位置 | 已有能力与改动 |
 | --- | --- |
 | [`xlsx/session.mbt`](../modules/formats/src/xlsx/session.mbt)、[`sheet-order.mbt`](../modules/formats/src/xlsx/sheet-order.mbt)、[`transaction.mbt`](../modules/formats/src/xlsx/transaction.mbt)、[`editing.mbt`](../modules/formats/src/xlsx/editing.mbt) | 稀疏单元格、源 XML、选区与稳定部件历史；已支持 workbook/worksheet 视图一起提交，增删部件事务继续扩展 |
-| [`formula-parser.mbt`](../modules/formats/src/xlsx/formula-parser.mbt)、[`formula-shift.mbt`](../modules/formats/src/xlsx/formula-shift.mbt)、[`calculation.mbt`](../modules/formats/src/xlsx/calculation.mbt) | 已有公式解析、共享公式平移、六函数与受影响重算；扩展引用变换、名称、函数与不确定依赖处理 |
+| [`formula-parser.mbt`](../modules/formats/src/xlsx/formula-parser.mbt)、[`formula-shift.mbt`](../modules/formats/src/xlsx/formula-shift.mbt)、[`formula-logical.mbt`](../modules/formats/src/xlsx/formula-logical.mbt)、[`formula-numeric.mbt`](../modules/formats/src/xlsx/formula-numeric.mbt)、[`formula-text.mbt`](../modules/formats/src/xlsx/formula-text.mbt)、[`calculation.mbt`](../modules/formats/src/xlsx/calculation.mbt) | 已有公式解析、共享公式平移、三十三项函数与受影响重算；扩展引用变换、名称、函数与不确定依赖处理 |
 | [`styles.mbt`](../modules/formats/src/xlsx/styles.mbt)、[`number-format.mbt`](../modules/formats/src/xlsx/number-format.mbt) | 有限格式读取/显示与局部派生编辑；已有矩形格式刷、三种清除及规则范围拆分；扩展更多格式代码 |
 | [`grid.mbt`](../modules/formats/src/xlsx/grid.mbt)、[`grid-bands.mbt`](../modules/formats/src/xlsx/grid-bands.mbt)、[`frozen.mbt`](../modules/formats/src/xlsx/frozen.mbt)、[`print.mbt`](../modules/formats/src/xlsx/print.mbt) | 已有冻结视图事务、四窗格裁剪与命中、独立打印布局；继续补筛选可见性、绘图锚点与打印设置 |
 | [`dimension-edit.mbt`](../modules/formats/src/xlsx/dimension-edit.mbt)、[`autofit.mbt`](../modules/formats/src/xlsx/autofit.mbt)、[`dimensions.mbt`](../modules/formats/src/xlsx/dimensions.mbt) | 行高/列宽事务、自动适配、区间拆分和混合尺寸查询；网格、命中和打印使用同一几何 |
 | [`bridge/xlsx.mbt`](../modules/bridge/src/xlsx.mbt)、[`wasm/xlsx.ts`](../packages/wasm/src/xlsx.ts)、[`web/xlsx.ts`](../packages/web/src/xlsx.ts) | 扩展现有类型化命令与查询；不增加第二套计算服务 |
-| [`spreadsheet-editor.ts`](../packages/web/src/spreadsheet-editor.ts)、[`spreadsheet-input.ts`](../packages/web/src/spreadsheet-input.ts)、[`ui/panels.tsx`](../packages/ui/src/panels.tsx) | 保留原生单格草稿、队列、Canvas 和 P9 状态；增加公式栏、表标签菜单与数据面板 |
+| [`spreadsheet-editor.ts`](../packages/web/src/spreadsheet-editor.ts)、[`spreadsheet-input.ts`](../packages/web/src/spreadsheet-input.ts)、[`spreadsheet-formula.ts`](../packages/web/src/spreadsheet-formula.ts)、[`ui/xlsx-formula.tsx`](../packages/ui/src/xlsx-formula.tsx) | 已接通共享原生输入的公式栏和范围定位，复用队列、Canvas 与 P9 状态；继续扩展数据面板 |
 
 当前未知公式或无法解析的依赖会使整本只读。当前打印只覆盖单表矩形与固定比例。P11 必须修改这些能力所在层，不能只放开按钮或在 JS 中补算结果。
 
@@ -82,7 +82,7 @@
 
 ### 4.1 常用函数和名称
 
-先保留现有六函数，再按真实操作增量加入以下首批集合。函数共享错误传播、参数转换和引用迭代规则，不各自实现一套值系统。
+已在原有六函数上接通下表的八项逻辑、错误处理与类型判断函数、六项数值函数及十三项文本函数，其余集合继续增量实现。新增函数沿用依赖图、原子编辑、计算缓存及历史。IFERROR/IFNA 按需求值，错误、空白和类型转换有独立预期；源前缀及范围边界归[格式合同](references/formats.md#显示与计算)。函数共享值系统，不建立插件求值器。
 
 | 用途 | 本阶段首批函数 |
 | --- | --- |
@@ -93,7 +93,7 @@
 | 日期 | DATE、YEAR、MONTH、DAY、TIME、HOUR、MINUTE、SECOND、DAYS |
 | 查找引用 | INDEX、MATCH、VLOOKUP、HLOOKUP、XLOOKUP、ROW、COLUMN、ROWS、COLUMNS |
 
-优先建立类型和值/错误的独立结果，再加入具体函数。查找必须区分精确、近似、未命中与错误；SUBTOTAL 区分筛选隐藏与手动隐藏。文本函数的字符计数规则按选定参考实现确定，不能直接套编辑光标的字素规则。
+优先建立类型和值/错误的独立结果，再加入具体函数。查找必须区分精确、近似、未命中与错误；SUBTOTAL 区分筛选隐藏与手动隐藏。文本函数已按所选 ONLYOFFICE 行为使用 UTF-16 位置，大小写使用固定 Unicode 16 数据；截取不生成无效代理字符。连接、搜索、输出长度和工作量边界归[格式合同](references/formats.md#显示与计算)。
 
 名称先覆盖工作簿/工作表作用域的范围、常量与已支持表达式，解析作用域和循环。整行/整列引用用有界区间迭代和实际单元格查询，不能展开整个表。结构化引用随第 3 批表操作接入。外部工作簿、INDIRECT/OFFSET 等动态依赖、数组/溢出、易变和迭代计算在 P14 扩展，保留原公式与诊断。
 
@@ -113,7 +113,7 @@
 
 ### 4.3 原生草稿、公式栏与片段
 
-公式栏和网格内编辑共享 `spreadsheet-input` 的一个草稿、目标和 revision。两处控件显示同一草稿，只有活动入口持有原生输入；组合中不移动该输入节点。切格/切表、保存和打印沿现有提交屏障；错误保留草稿，不能提交到稍后选中的单元格。
+公式栏与矩形范围定位已接通。`SpreadsheetEditor.formulaBar` 提供稳定 DOM 插槽，默认 UI 放在网格上方。公式栏和网格复用同一个原生 textarea、草稿目标及 revision；另一处只显示只读镜像。切换保留光标和原生撤销，组合期间不移动输入节点。Enter/Tab 提交并移动，Esc 取消；切格/切表、保存和打印沿现有提交屏障，错误保留草稿与原目标。范围框显示核心返回的 `selection.address`，沿原有 `select` 选择当前表的 A1 单格或有序矩形；名称和跨表定位仍待后续实现。
 
 核心片段包含矩形形状、值/公式、格式和合并信息，明确复制与剪切移动。粘贴模式包括全部、值、公式、格式和转置；核心执行相对引用变换及目标冲突检查。浏览器提供剪贴板载荷，不能先在 UI 改数据再同步核心。
 

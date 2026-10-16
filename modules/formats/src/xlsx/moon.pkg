@@ -6,6 +6,7 @@ import {
   "open_document/layout",
   "moonbitlang/core/string",
   "moonbitlang/core/encoding/utf8",
+  "moonbit-community/ucd",
 }
 
 import {
