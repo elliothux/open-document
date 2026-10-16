@@ -208,7 +208,7 @@ fn read_object(
     }
   }
   let paint = (fn() raise @failure.Failure {
-    let own_fill = fill(theme, properties)
+    let own_fill = fill_rgba(theme, properties)
     let has_fill = properties.any(item => {
       item.tree.children
       .get(item.node.id)
@@ -219,40 +219,49 @@ fn read_object(
         )
       })
     })
-    let shape_fill = if has_fill {
-      own_fill
+    let (shape_fill, fill_source) = if has_fill {
+      (own_fill, solid_fill_source(properties).map(item => (item, None)))
     } else if style_reference(theme, chain, "fill") is Some((item, ph)) {
       match item.node.name {
-        "noFill" => ""
-        "solidFill" => color(theme, item, placeholder=ph)
+        "noFill" => (("", 1.0), None)
+        "solidFill" =>
+          (
+            color_rgba(theme, item, placeholder=Some(ph)),
+            Some((item, Some(ph))),
+          )
         _ => @failure.reject("unsupported-style", "Unsupported theme fill")
       }
     } else {
-      ""
+      (("", 1.0), None)
     }
     let lines = children(properties, "ln")
     let placeholder = if style_reference(theme, chain, "ln") is Some((item, ph)) {
       lines.push(item)
-      ph
+      Some(ph)
     } else {
-      ""
+      None
     }
+    let stroke = fill_rgba(theme, lines, placeholder~)
     let (join, miter) = line_join(lines)
     let cap = attribute(lines, "cap").unwrap_or("flat")
     ignore(line_cap_code(cap))
     (
-      shape_fill,
-      fill(theme, lines, placeholder~),
+      shape_fill.0,
+      stroke.0,
       number(attribute(lines, "w").unwrap_or("12700"), 1, 12700000) / 12700,
       line_dash(lines),
       cap,
       join,
       miter,
+      shape_fill.1,
+      stroke.1,
+      fill_source,
+      solid_fill_source(lines).map(item => (item, placeholder)),
     )
   })() catch {
     @failure.Failure(code="unsupported-style", message~, ..) => {
       diagnostic = message
-      ("", "", 1.0, "solid", "flat", "round", 8.0)
+      ("", "", 1.0, "solid", "flat", "round", 8.0, 1.0, 1.0, None, None)
     }
     error => raise error
   }
@@ -356,6 +365,10 @@ fn read_object(
     cap: paint.4,
     join: paint.5,
     miter: paint.6,
+    fill_alpha: paint.7,
+    stroke_alpha: paint.8,
+    fill_source: paint.9,
+    stroke_source: paint.10,
     image,
     crop,
     opacity,

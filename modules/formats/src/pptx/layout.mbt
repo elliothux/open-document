@@ -260,6 +260,8 @@ fn paint_slide(
             object.stroke,
             object.line_width,
             {
+              fillAlpha: object.fill_alpha,
+              strokeAlpha: object.stroke_alpha,
               dash: dash_pattern(object.dash).map(v => v * object.line_width),
               cap: line_cap_code(object.cap),
               join: if object.join == "round" {

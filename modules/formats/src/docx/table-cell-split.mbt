@@ -158,6 +158,15 @@ fn Session::split_table_cell(
   }
   let target = grid.cells[first][c]
   for r, row in grid.cells {
+    let end = grid.model.columnSpans[r].fold(init=0, (sum, span) => sum + span)
+    if tree.row_grid_change(
+        document,
+        grid.rows[r],
+        count - refined.search(positions[end]).unwrap(),
+      )
+      is Some(change) {
+      changes.push(change)
+    }
     for col, cell in row {
       let start = grid.starts[r][col]
       let end = start + grid.model.columnSpans[r][col]
@@ -251,7 +260,14 @@ fn Session::split_table_cell(
         "protected-content", "Unknown row structure prevents splitting",
       )
     }
-    let props = tree.copy_row_properties(document, row)
+    let end = grid.model.columnSpans[first].fold(init=0, (sum, span) => {
+      sum + span
+    })
+    let props = tree.copy_row_properties(
+      document,
+      row,
+      after=Some(count - refined.search(positions[end]).unwrap()),
+    )
     let added = StringBuilder()
     for _ in 0..<extra_rows {
       added.write_string("<od:tr xmlns:od=\"\{word_uri}\">\{props}")

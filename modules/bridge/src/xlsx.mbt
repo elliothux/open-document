@@ -145,6 +145,11 @@ fn Foundation::xlsx_operation(
             xlsx_boolean(change, "discard"),
           )
         "unmerge" => @xlsx.Unmerge(field_string(change, "range"))
+        "fill" =>
+          @xlsx.Fill(
+            field_string(change, "range"),
+            field_string(change, "direction"),
+          )
         "freeze" =>
           @xlsx.Freeze(field_int(change, "rows"), field_int(change, "columns"))
         "pageSetup" =>

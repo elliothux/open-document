@@ -24,6 +24,7 @@ export const pptxJoins = ["round", "bevel", "miter"] as const;
 export type PptxCap = (typeof pptxCaps)[number];
 export type PptxJoin = (typeof pptxJoins)[number];
 export type PptxObjectEdit =
+  | { action: "fillOpacity" | "strokeOpacity"; opacity: number }
   | { action: "strokeCap"; cap: PptxCap | null }
   | { action: "strokeJoin"; join: "round" | "bevel" | null }
   | { action: "strokeJoin"; join: "miter"; miterLimit: number }
@@ -130,7 +131,11 @@ export function checkPptxObjectEdit(value: unknown): void {
       throw new Error("Invalid PPTX border dash");
     return;
   }
-  if (change.action === "imageOpacity") {
+  if (
+    change.action === "imageOpacity" ||
+    change.action === "fillOpacity" ||
+    change.action === "strokeOpacity"
+  ) {
     number(change.opacity, 0, 1);
     return;
   }

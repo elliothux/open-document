@@ -37,21 +37,7 @@ fn Session::edit_table_rows(
       tree.check_merge_cell(cell, self.main)
     }
     if whole {
-      changes.push(table_remove(tree, grid.table))
-      let node = tree.nodes[grid.table]
-      let siblings = tree.children[node.parent]
-      let index = siblings.search(grid.table).unwrap()
-      if !siblings
-        .get(index + 1)
-        .map(id => tree.nodes[id].name == "p")
-        .unwrap_or(false) {
-        changes.push({
-          node: node.parent,
-          offset: node.end - tree.nodes[node.parent].start,
-          length: 0,
-          xml: "<od:p xmlns:od=\"\{word_uri}\"/>",
-        })
-      }
+      tree.remove_body_table(grid.table, changes)
     } else {
       changes.push(table_remove(tree, row))
       if r + 1 < grid.rows.length() {

@@ -3,6 +3,7 @@ fn Session::commit_cells(
   self : Session,
   updates : Map[Int, Map[String, CellContent]],
   selection : (String, Range),
+  styles~ : Map[Int, Map[String, Int]] = Map([]),
 ) -> Json raise @failure.Failure {
   guard self.read_only.is_empty() else {
     @failure.reject("protected-content", self.read_only)
@@ -19,7 +20,10 @@ fn Session::commit_cells(
     let current = self.sheets[index]
     let values = updates[index]
     current.expand_shared_updates(values)
-    let (document, edit) = current.prepare(values)
+    let (document, edit) = current.prepare(
+      values,
+      styles=styles.get(index).unwrap_or(Map([])),
+    )
     candidate[index] = Sheet::read(
       current.id,
       current.name,

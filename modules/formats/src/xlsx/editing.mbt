@@ -18,10 +18,8 @@ fn value_xml(
         " t=\"inlineStr\"",
         "<\{prefix}is><\{prefix}t xml:space=\"preserve\">\{encode_text(text)}</\{prefix}t></\{prefix}is>",
       )
-    Error(_) =>
-      @failure.reject(
-        "invalid-operation", "Error values must come from formulas",
-      )
+    Error(value) =>
+      (" t=\"e\"", "<\{prefix}v>\{@xml.escape_text(value)}</\{prefix}v>")
   }
 }
 

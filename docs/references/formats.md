@@ -191,9 +191,15 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 范围删除、段落拆分与新增节点共同提交一项历史，选区进入首格。核心失败保留已提交源与历史。保存及混合文字编辑的撤销/重做精确恢复源节点、选择和其他部件。新增格可继续输入、设置已有字符/段落格式及用 Tab 导航。固定及自动适配布局均沿同一表格模型排版。
 
-`FoundationSession/Client.editTable(revision, selection, change, profile?)` 与 `DocumentEditor.editTable(change)` 接收带 `action` 的对象。行列操作为 `{ action: "rowBefore" | "rowAfter" | "deleteRow" | "columnBefore" | "columnAfter" | "deleteColumn" }`。范围须位于一个支持的单元格内，默认 UI 提供同样的六个命令。新增行复制当前行的行/格属性及各格首段格式；新增列复制邻格属性和首段格式，不复制文字，保留格式继承。固定宽表格保持总宽，按原列宽比例缩放为整数 twip；未指定固定宽的网格按插入/删除后的列宽计算。列编辑结果须在可用页宽内，各列至少 12 pt。全部命令遵守创建时的行列、格数及资源上限；生成源片段时累计预算，超限即停止。
+`FoundationSession/Client.editTable(revision, selection, change, profile?)` 与 `DocumentEditor.editTable(change)` 接收带 `action` 的对象。行列操作为 `{ action: "rowBefore" | "rowAfter" | "deleteRow" | "columnBefore" | "columnAfter" | "deleteColumn" }`。范围须位于一个支持的单元格内，默认 UI 提供同样的六个命令。新增行复制当前行的行/格属性及各格首段格式；新增列复制邻格属性和首段格式，不复制文字，保留格式继承。固定宽表格保持总宽，按原列宽比例缩放为整数 twip；未指定固定宽的网格按插入/删除后的列宽计算。列编辑结果须在可用页宽内，各实际单元格至少 12 pt；重建出的细分网格可更窄。全部命令遵守创建时的行列、格数及资源上限；生成源片段时累计预算，超限即停止。
 
-行操作作用于当前格所在的实际源行。插入位置穿过纵向合并时，新行延续该合并；在合并范围外插入时，新格保持横向跨度并独立。删除起始行会删除该行内容，后续延续格成为新起始格，不转移已删文字；删除延续行保留起始格内容。保留原网格、行属性、宽度偏好及固定/自动适配模式。新增行进入首个非延续格；整行均为延续格时进入覆盖它的起始格。候选源沿现有字体上下文检查可写性、有效宽度和分页，失败保留已提交状态。合并格的列操作继续保护。行为依据 [ONLYOFFICE 行插入与删除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9997-L10293)，实现归 [`table-row-edit.mbt`](../../modules/formats/src/docx/table-row-edit.mbt)及[`共享结构事务`](../../modules/formats/src/docx/table-grid-structure.mbt)。
+行操作作用于当前格所在的实际源行。插入位置穿过纵向合并时，新行延续该合并；在合并范围外插入时，新格保持横向跨度并独立。删除起始行会删除该行内容，后续延续格成为新起始格，不转移已删文字；删除延续行保留起始格内容。保留原网格、行属性、宽度偏好及固定/自动适配模式。新增行进入首个非延续格；整行均为延续格时进入覆盖它的起始格。候选源沿现有字体上下文检查可写性、有效宽度和分页，失败保留已提交状态。合并列删除遵循下述整格相交规则。行为依据 [ONLYOFFICE 行插入与删除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9997-L10293)，实现归 [`table-row-edit.mbt`](../../modules/formats/src/docx/table-row-edit.mbt)及[`共享结构事务`](../../modules/formats/src/docx/table-grid-structure.mbt)。
+
+左右插列使用所选整格的有效宽度。每行在指定边界相邻的完整单元格前后插入，不切开已有格；各行插入位置可以不同。核心按插入后的实际格边界重建公共网格和 gridSpan，固定宽表格按比例保持总宽。原文字、段落身份和纵向合并归属保留；新格复制右邻格的格/首段格式，行末复制左邻格。新格可延续同一来源的纵向合并，保持空白；dxa/pct 格偏好按有效宽度写为 dxa，auto/nil 保留，整表适配模式不变。未知源、缺字体、格宽不足、分页或预算失败均不提交。依据 [ONLYOFFICE AddTableColumn 与网格重建](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L10516-L10788)及[公共边界计算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L15005-L15155)，实现归 [`table-column-insert.mbt`](../../modules/formats/src/docx/table-column-insert.mbt)。
+
+列删除以当前整格的左右网格边界为范围，删除各行中与范围相交的完整单元格及全部内容。横向合并格不会只缩短跨度。核心按存活格的宽度重建公共网格；固定宽表格保持总宽，auto/nil 偏好保留。空行及修正后全部为纵向延续的行移除；其他纵向延续只能接到同一原始归属和相同边界，不能与无关格合并。删除最后所有格时移除表格并进入正文。依据 [ONLYOFFICE 列选择](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L19140-L19171)与[RemoveTableCells](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L14338-L14520)，实现归 [`table-column-delete.mbt`](../../modules/formats/src/docx/table-column-delete.mbt)。
+
+删除后各行可有不同的实际宽度，源 `trPr/gridAfter` 记录行尾空缺。解析、行列维护及拆格同步这些边界；空缺不产生单元格、填充或外框。`gridAfter` 须为 0–63 的整数，实际跨度加空缺必须等于公共网格列数。有效细分网格可小于 6 pt，实际单元格仍须留下文字宽度。当前支持从第 0 列开始的行，非零行首空缺及其余行宽属性仍待实现。未知源和保护内容在删除前检查；候选字体/分页、源、历史及输出预算失败保留已提交状态。
 
 新增列将光标移到新列首行。删除操作将光标移到相邻的剩余行或列；删除最后一行或列时移除表格，进入后续正文段落，必要时创建空段落。首格段前分页随结构转移。末格 Tab 在最后一个实际源行之后新增一行并进入首格，即使最后一格的合并起始点位于前行，Shift+Tab 在首格保持原位。每次结构操作与新增身份、列宽及选择合为一次历史，保留未删文字与其他部件，支持保存重开和精确混合撤销/重做。未知结构、锚点、受保护内容或预算失败原子拒绝。行为依据 [ONLYOFFICE 行列操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9997-L10788)和[固定宽网格缩放](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L414-L425)。
 
@@ -207,7 +213,7 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `{ action: "splitTable" }` 在所选单元格所在行之前拆分正文表格，两表之间插入空正文段落，光标进入下表首格。首行、缺少段落的单元格、嵌套/受保护表格、未知结构及预算失败拒绝操作。两表保留列网格、宽度、边框、样式和单元格内容；原有行和未替换内容的身份保持。纵向合并跨越分界线时，内容留在上表，下表从对应位置创建空的合并起始格，复制原合并格格式并清除段前分页；后续延续格继续归属下表。分界、空格及选择一次提交历史，支持原样撤销、保存重开、继续输入及同布局 PDF。默认 UI 使用同一操作。拆表与跨度清理参考 [LibreOffice SplitTable](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sw/source/core/docnode/ndtbl.cxx#L3392-L3515)及[纵向跨度清理](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sw/source/core/table/swnewtable.cxx#L2021-L2110)。
 
-布局读取横向跨度及纵向起始/延续格，文字、背景和边框使用合并后的矩形；Tab 跳过纵向延续格。依赖纵向合并的相邻行作为一组分页，普通行仍可分到后续页。当前一组合并行须能完整放进一页；跨页合并延续和拆行仍待实现；重复表头见[当前合同](#重复表头)。包含可见内容的纵向延续格明确拒绝，避免隐藏其文字。含合并格的行增删遵循上述规则；列增删继续保护，取消合并后可沿用原入口。默认 UI 提供从当前格指定行列数量的合并与取消合并；鼠标矩形选择及其余属性编辑仍归 [P10](../p10-docx-core.md)。
+布局读取横向跨度及纵向起始/延续格，文字、背景和边框使用合并后的矩形；Tab 跳过纵向延续格。依赖纵向合并的相邻行作为一组分页，普通行仍可分到后续页。当前一组合并行须能完整放进一页；跨页合并延续和拆行仍待实现；重复表头见[当前合同](#重复表头)。包含可见内容的纵向延续格明确拒绝，避免隐藏其文字。含合并格的行增删遵循上述规则；列删除按所选整格的横向范围移除相交格。默认 UI 提供从当前格指定行列数量的合并与取消合并；鼠标矩形选择及其余属性编辑仍归 [P10](../p10-docx-core.md)。
 
 ### 表格尺寸
 
@@ -509,6 +515,14 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 当前只维护源规则与引用。条件格式显示、验证执行及创建/编辑面板按 P11 后续批次实现；含这些未渲染内容的 PDF 继续原子拒绝。移动带切开合并或矩形链接、未知公式/引用、未接入的筛选/绘图/表格/批注资源及工作表保护继续原子拒绝。可用的整行/整列操作保持原有规则支持。保存重开后继续沿同一编辑与 PDF 路径工作；其余 [P11](../p11-xlsx-core.md) 范围仍待实现。
 
+### 四向填充
+
+`editSheet({ action: "fill", range, direction })` 支持 `down/up/right/left`，作用于最多 4096 格的 A1 矩形。向下/上以首行/末行为源，向右/左以首列/末列为源；沿填充轴只有一行/列时，源为方向相反的相邻行/列。相邻源越界时保持文档。数字直接重复，不推导序列。
+
+核心复制类型值及有效格式，文字中的 `=` 保持文字；公式只平移相对引用，保留绝对与跨表引用，越界生成 `#REF!`。受影响共享公式有界展开。值、格式、依赖缓存和选区共用既有事务、自动尺寸及一次精确历史；保存重开后可继续编辑。复制文字和公式源码累计最多 1 Mi 字符，单公式最多 8192 字符，候选、源和历史仍受既有预算约束。
+
+源或目标相交合并、条件格式、验证、链接或批注时拒绝填充；未知扩展、表格/透视和线程批注继续保护。范围外规则与元数据保留。默认按钮使用当前选区，沿既有队列提交原生草稿。核心已检查四向、相邻边界、类型值、有效格式、共享公式、重算、精确历史、重开及原子失败；填充的 Chromium 和公开安装包运行验证仍待执行。序列推导与填充柄按 [P11](../p11-xlsx-core.md) 继续实现。来源选择参考 [ONLYOFFICE prepareFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L27533-L27590)，实现归 [`fill.mbt`](../../modules/formats/src/xlsx/fill.mbt)。
+
 ### 自动适配尺寸
 
 同步 Wasm 与 Worker 使用 `autoFit(revision, sheet, first, last, axis, profile)`；`axis` 为 `rows/columns`，索引从 1 开始且包含两端。宿主使用 `SpreadsheetEditor.autoFit(axis)`，作用于执行时选区覆盖的完整行或列，先提交单格草稿。默认尺寸面板提供两个按钮。每项命令独立进入既有历史，保持当前表和选区；重复写入相同源状态不增加 revision。
@@ -777,9 +791,13 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `PptxQuery.groupReason/ungroupReason` 返回当前选择的保护原因，默认 UI 用它禁用按钮。继承占位符、未知组效果/扩展、成员锁定、`noGrp/noUngrp`、组合所涉连接/计时引用和取消组合所移除组的引用继续保护。操作只改所属 slide XML，保留其他部件及资源；一次提交一项有界历史，撤销恢复原源与选择，失败不消耗新身份或提交部分成员。
 
-`editPptxObjects` / `PresentationEditor.editObjects` 支持 `{ action: "fill", color }` 和 `{ action: "stroke", color, width }`。颜色为不带 `#` 的六位 RGB，核心统一小写；null 写显式 `noFill`，表示无填充或无边框。宽度为 0.1–1000 pt，舍入到整数 EMU。操作作用于对象模式下所选的本地顶层形状，包含文本框和基本形状；多选原子提交为一次历史。查询中每个对象带 `appearance: { fill, stroke, width, dash, dashReason, cap, join, miterLimit, penReason, reason }`，颜色为有效 RGB 或 null，宽度为有效 pt，reason 说明保护原因。默认 UI 显示混合状态，分别应用填充和边框，草稿随选择或 revision 更新。
+`editPptxObjects` / `PresentationEditor.editObjects` 支持 `{ action: "fill", color }` 和 `{ action: "stroke", color, width }`。颜色为不带 `#` 的六位 RGB，核心统一小写；null 写显式 `noFill`，表示无填充或无边框。宽度为 0.1–1000 pt，舍入到整数 EMU。操作作用于对象模式下所选的本地顶层形状，包含文本框和基本形状；多选原子提交为一次历史。查询中每个对象带 `appearance: { fill, stroke, width, fillOpacity, strokeOpacity, fillOpacityReason, strokeOpacityReason, dash, dashReason, cap, join, miterLimit, penReason, reason }`，颜色为有效 RGB 或 null，宽度为有效 pt，reason 说明保护原因。默认 UI 显示混合状态，分别应用填充和边框，草稿随选择或 revision 更新。
 
-修改只覆盖目标属性，保留几何、顺序、身份、文字、其他线条属性与部件。缺失的填充/边框按 DrawingML 顺序创建，空边框保留原属性；填充覆盖会关闭 `useBgFill`。直接设置相同值不增加历史；候选、过期 revision、锁定、未知填充属性/注释及预算失败不提交任何成员。组、组内对象、继承装饰和图片仍受保护，渐变、透明度及复杂效果编辑待扩展。纯色与受支持线型沿共同 Canvas/静态 PDF 路径绘制。实现参考 [ONLYOFFICE CShape.changeFill/changeLine](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L6421-L6461) 的局部属性覆盖及背景填充处理。
+修改只覆盖目标属性，保留几何、顺序、身份、文字、其他线条属性与部件。缺失的填充/边框按 DrawingML 顺序创建，空边框保留原属性；填充覆盖会关闭 `useBgFill`。直接设置相同值不增加历史；候选、过期 revision、锁定、未知填充属性/注释及预算失败不提交任何成员。组、组内对象、继承装饰和图片仍受保护，渐变及复杂效果编辑待扩展。纯色与受支持线型沿共同 Canvas/静态 PDF 路径绘制。实现参考 [ONLYOFFICE CShape.changeFill/changeLine](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L6421-L6461) 的局部属性覆盖及背景填充处理。
+
+`editObjects({ action: "fillOpacity" | "strokeOpacity", opacity })` 分别设置纯色填充和边框的不透明度，值为 0–1，按 1/100000 舍入。默认 UI 使用百分比输入；查询返回两项有效值及各自保护原因，支持混合多选。无填充的一侧须先设置纯色，0 保留形状和选择。100% 写入明确的不透明覆盖，不表示恢复继承。
+
+读取已有颜色的 alpha、alphaMod 和 alphaOff，按声明顺序计算并归一到 0–1。修改保留 RGB/系统色/主题色及 tint、shade、lumMod、lumOff 等关联；继承填充写为本地声明，主题 phClr 绑定到原引用颜色，保留主题和父级源。颜色与线宽修改保留已有有效不透明度；明确移除填充后不保留隐藏的 alpha 状态。操作复用同一多选源事务、待输入文字屏障和精确历史。未知颜色标记、保留注释、只读对象及预算失败拒绝全部成员。文字和页面背景的透明度仍受原保护。算法参考 [ONLYOFFICE 颜色 alpha 变换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L2089-L2108)，实现归 [`shape-opacity.mbt`](../../modules/formats/src/pptx/shape-opacity.mbt)。
 
 `editObjects({ action: "strokeDash", dash })` 修改所选本地顶层形状的预设线型，适用已有多选、文字框和基础形状。`dash` 接受 `solid`、`dash`、`dashDot`、`dot`、`lgDash`、`lgDashDot`、`lgDashDotDot`、`sysDash`、`sysDashDot`、`sysDashDotDot` 或 `sysDot`；null 移除局部 `prstDash` 并恢复主题/父级，缺省为实线。`appearance.dash` 返回有效线型，`dashReason` 返回本操作的保护原因。默认 UI 提供线型选择、应用和恢复继承，混合选择继续显示混合状态。
 
@@ -791,7 +809,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 局部值按属性覆盖父级/主题；连接类型相同时继承缺失的斜接上限。基础缺省值为平头、圆角和斜接比例 8，依据 [DrawingML 继承与默认值](https://learn.microsoft.com/ga-ie/openspecs/office_standards/ms-oi29500/c0c046ec-a61d-405d-88fe-74d8487a37d7)。操作沿用本地顶层形状、多选原子事务、精确历史与既有预算，保留颜色、宽度、线型、其他源属性和部件；不修改共享主题或母版。未知/重复连接、保留的连接注释、未知端点或超出支持范围的斜接值保留源并保护修改。
 
-定位路径使用 `PathStroke { dash, cap, join, miter }`，数值端点 0/1/2 对应平头/圆头/方头，连接 0/1/2 对应斜接/圆角/斜角。Canvas 复用既有 `DrawStyle`，每条路径后复原；PDF 在独立图形作用域写相同端点、连接、斜接及 dash。普通及斜线的端点形状参与核心命中。预览与输出不再把导入端点或连接静默画成默认值。
+定位路径使用 `PathStyle { fillAlpha, strokeAlpha, dash, cap, join, miter }`，数值端点 0/1/2 对应平头/圆头/方头，连接 0/1/2 对应斜接/圆角/斜角。Canvas 复用既有 `DrawStyle`，每条路径后复原；PDF 在独立图形作用域写相同端点、连接、斜接、dash 及独立填充/描边 alpha。普通及斜线的端点形状参与核心命中。预览与输出不再把导入端点或连接静默画成默认值。
 
 主题颜色支持 sRGB、带 `lastClr` 的系统色、主题/颜色映射以及 tint、shade、lumMod、lumOff。支持无填充、纯色填充、实线及标准预设虚线、主题填充/边框/背景引用和无效果样式。未知颜色变换、填充或可见效果保留源并诊断，不静默宣称完整。占位符依类型/索引匹配，当前属性按具体声明覆盖继承值；写回不修改共享主题、母版或版式。
 

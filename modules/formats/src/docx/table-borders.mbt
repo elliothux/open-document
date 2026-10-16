@@ -214,15 +214,17 @@ fn table_border_grid(
   {
     horizontal: horizontal.mapi((r, row) => {
       row.mapi((c, edge) => {
-        if r > 0 && r < spans.length() && owners[r - 1][c] == owners[r][c] {
+        let above = if r > 0 { owners[r - 1][c] } else { -1 }
+        let below = if r < spans.length() { owners[r][c] } else { -1 }
+        if above == below {
           empty_border()
         } else {
           edge.unwrap_or_else(() => {
             defaults
             .get(
-              if r == 0 {
+              if above < 0 {
                 "top"
-              } else if r == spans.length() {
+              } else if below < 0 {
                 "bottom"
               } else {
                 "insideH"
@@ -235,15 +237,17 @@ fn table_border_grid(
     }),
     vertical: vertical.mapi((r, row) => {
       row.mapi((c, edge) => {
-        if c > 0 && c < columns && owners[r][c - 1] == owners[r][c] {
+        let left = if c > 0 { owners[r][c - 1] } else { -1 }
+        let right = if c < columns { owners[r][c] } else { -1 }
+        if left == right {
           empty_border()
         } else {
           edge.unwrap_or_else(() => {
             defaults
             .get(
-              if c == 0 {
+              if left < 0 {
                 "left"
-              } else if c == columns {
+              } else if right < 0 {
                 "right"
               } else {
                 "insideV"

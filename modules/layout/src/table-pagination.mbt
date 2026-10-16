@@ -79,8 +79,12 @@ fn Table::check_grid(self : Table) -> Unit raise @failure.Failure {
         @failure.reject("invalid-style", "Cell margins leave no text width")
       }
     }
-    guard column == self.widths.length() else {
-      @failure.reject("invalid-table", "Table row differs from grid")
+    for index in column..<self.widths.length() {
+      guard active[index] < r else {
+        @failure.reject(
+          "invalid-table", "Trailing table grid interrupts a vertical merge",
+        )
+      }
     }
   }
 }

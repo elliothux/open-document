@@ -30,6 +30,12 @@ export function PptxPaint({
   const [cap, setCap] = useState<PptxCap>(first?.cap ?? "flat");
   const [join, setJoin] = useState<PptxJoin>(first?.join ?? "round");
   const [miter, setMiter] = useState(String(first?.miterLimit ?? 8));
+  const [fillOpacity, setFillOpacity] = useState(
+    String((first?.fillOpacity ?? 1) * 100),
+  );
+  const [strokeOpacity, setStrokeOpacity] = useState(
+    String((first?.strokeOpacity ?? 1) * 100),
+  );
   const penReason = objects.find((object) => object.appearance.penReason)
     ?.appearance.penReason;
   const caps = [
@@ -64,6 +70,8 @@ export function PptxPaint({
       object.appearance.fill !== first?.fill ||
       object.appearance.stroke !== first?.stroke ||
       object.appearance.width !== first?.width ||
+      object.appearance.fillOpacity !== first?.fillOpacity ||
+      object.appearance.strokeOpacity !== first?.strokeOpacity ||
       object.appearance.cap !== first?.cap ||
       object.appearance.join !== first?.join ||
       object.appearance.miterLimit !== first?.miterLimit ||
@@ -80,6 +88,53 @@ export function PptxPaint({
     >
       <legend>{t.shapeAppearance}</legend>
       {mixed && <p>{t.mixed}</p>}
+      {([false, true] as const).map((border) => {
+        const label = border ? t.strokeOpacity : t.fillOpacity;
+        const opacityReason = objects.find((object) =>
+          border
+            ? object.appearance.strokeOpacityReason
+            : object.appearance.fillOpacityReason,
+        )?.appearance;
+        const message = border
+          ? opacityReason?.strokeOpacityReason
+          : opacityReason?.fillOpacityReason;
+        return (
+          <form
+            key={label}
+            onSubmit={(event) => {
+              event.preventDefault();
+              controller.run(() =>
+                editor.editObjects({
+                  action: border ? "strokeOpacity" : "fillOpacity",
+                  opacity: Number(border ? strokeOpacity : fillOpacity) / 100,
+                }),
+              );
+            }}
+          >
+            <label>
+              {label}
+              <input
+                type="number"
+                min={0}
+                max={100}
+                step="any"
+                required
+                disabled={!!message}
+                value={border ? strokeOpacity : fillOpacity}
+                onChange={(event) =>
+                  (border ? setStrokeOpacity : setFillOpacity)(
+                    event.currentTarget.value,
+                  )
+                }
+              />
+            </label>
+            <button type="submit" disabled={!!message}>
+              {t.apply} {label}
+            </button>
+            {message && <p>{message}</p>}
+          </form>
+        );
+      })}
       <form
         onSubmit={(event) => {
           event.preventDefault();

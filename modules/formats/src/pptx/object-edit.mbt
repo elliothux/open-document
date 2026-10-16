@@ -15,6 +15,8 @@ pub(all) enum ObjectEdit {
   Group
   Ungroup
   Fill(String?)
+  FillOpacity(Double)
+  StrokeOpacity(Double)
   Stroke(String?, Double)
   StrokeDash(String?)
   StrokeCap(String?)
@@ -289,6 +291,8 @@ pub fn Session::edit_objects(
     TextInsets(_, _, _, _) | TextAnchor(_) | TextWrap(_) | TextFit(_) =>
       (self.frame_objects(change, probe, profile), self.selection)
     Fill(_) | Stroke(_, _) => (self.paint_objects(change), self.selection)
+    FillOpacity(value) | StrokeOpacity(value) =>
+      (self.opacity_objects(value, change is StrokeOpacity(_)), self.selection)
     StrokeDash(value) => (self.dash_objects(value), self.selection)
     StrokeCap(_) | StrokeJoin(_, _) =>
       (self.pen_objects(change), self.selection)

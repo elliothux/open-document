@@ -1,4 +1,30 @@
 ///|
+fn WordTree::row_grid_after(
+  self : WordTree,
+  row : Int,
+) -> Int raise @failure.Failure {
+  guard self.child(row, "trPr") is Some(props) &&
+    self.child(props, "gridAfter") is Some(id) else {
+    return 0
+  }
+  let node = self.nodes[id]
+  let value = @string.parse_int(
+    node.attribute("val", uri=word_uri).unwrap_or(""),
+  ) catch {
+    _ => @failure.reject("invalid-table", "Invalid trailing table grid")
+  }
+  guard self.table_children(props, "gridAfter").length() == 1 &&
+    node.attributes.all(a => a.uri == word_uri && a.name == "val") &&
+    self.children[id].is_empty() &&
+    node.text.trim().is_empty() &&
+    value >= 0 &&
+    value <= 63 else {
+    @failure.reject("invalid-table", "Invalid trailing table grid")
+  }
+  value
+}
+
+///|
 fn WordTree::table_row_height(
   self : WordTree,
   row : Int,

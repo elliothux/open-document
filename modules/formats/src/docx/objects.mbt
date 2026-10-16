@@ -333,7 +333,8 @@ fn Session::table(
       cells.push(if continued { [] } else { paragraphs })
       column += span
     }
-    guard !cells.is_empty() && column == widths.length() else {
+    guard !cells.is_empty() &&
+      column + tree.row_grid_after(row) == widths.length() else {
       @failure.reject("invalid-table", "Table grid and cell count differ")
     }
     rows.push(cells)
@@ -346,7 +347,7 @@ fn Session::table(
     row_spans.push(vertical)
     previous = current
   }
-  guard !rows.is_empty() && widths.iter().all(width => width > 6) else {
+  guard !rows.is_empty() && widths.iter().all(width => width > 0) else {
     @failure.reject("invalid-table", "Empty table or unusable grid")
   }
   let props = tree.child(id, "tblPr")

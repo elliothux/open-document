@@ -43,6 +43,8 @@ pub(all) enum ObjectEdit {
   Group
   Ungroup
   Fill(String?)
+  FillOpacity(Double)
+  StrokeOpacity(Double)
   Stroke(String?, Double)
   StrokeDash(String?)
   StrokeCap(String?)

@@ -155,7 +155,7 @@ fn read_slide(
           guard resolved is Some((item, ph)) && item.node.name == "solidFill" else {
             @failure.reject("unsupported-style", "Unsupported theme background")
           }
-          color(theme, item, placeholder=ph)
+          color(theme, item, placeholder=Some(ph))
         })() catch {
           @failure.Failure(code="unsupported-style", message~, ..) => {
             diagnostics.push(layer.part + ":" + message)
@@ -465,6 +465,10 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
           "cropReason": self.image_reason(object, true),
         },
         "appearance": {
+          "fillOpacity": object.fill_alpha,
+          "strokeOpacity": object.stroke_alpha,
+          "fillOpacityReason": self.paint_opacity_reason(object, false),
+          "strokeOpacityReason": self.paint_opacity_reason(object, true),
           "fill": if object.fill.is_empty() {
             Json::null()
           } else {

@@ -9,6 +9,11 @@ import {
 } from "./xlsx-print.js";
 
 export type XlsxSheetEdit =
+  | {
+      action: "fill";
+      range: string;
+      direction: "down" | "up" | "right" | "left";
+    }
   | { action: "insertCells"; range: string; direction: "down" | "right" }
   | { action: "deleteCells"; range: string; direction: "up" | "left" }
   | ({ action: "pageSetup" } & XlsxPrintSetup)
@@ -37,6 +42,16 @@ export type XlsxSheetEdit =
 
 export function checkXlsxSheetEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "fill") {
+    if (
+      typeof change.range !== "string" ||
+      !change.range ||
+      change.range.length > 64 ||
+      !["down", "up", "right", "left"].includes(String(change.direction))
+    )
+      throw new Error("Invalid cell fill");
+    return;
+  }
   if (change.action === "insertCells" || change.action === "deleteCells") {
     if (
       typeof change.range !== "string" ||

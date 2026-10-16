@@ -47,7 +47,9 @@ fn paint_fill(properties : Ref) -> @xml.Node? raise @failure.Failure {
       .unwrap_or([])
       .all(node => {
         node.uri == drawing_uri &&
-        ["tint", "shade", "lumMod", "lumOff"].contains(node.name) &&
+        ["tint", "shade", "lumMod", "lumOff", "alpha", "alphaMod", "alphaOff"].contains(
+          node.name,
+        ) &&
         node.text.trim().is_empty() &&
         node.attributes.all(a => a.uri.is_empty() && a.name == "val") &&
         tree.children.get(node.id).unwrap_or([]).is_empty()
@@ -87,16 +89,29 @@ fn Session::paint_reason(self : Session, object : Object) -> String {
 }
 
 ///|
-fn paint_markup(value : String?) -> String {
+fn paint_markup(value : String?, opacity~ : Double = 1) -> String {
+  let alpha = if opacity == 1 {
+    ""
+  } else {
+    "<a:alpha val=\"\{(opacity * 100000).round().to_int()}\"/>"
+  }
   match value {
     None => "<a:noFill xmlns:a=\"\{drawing_uri}\"/>"
     Some(color) =>
-      "<a:solidFill xmlns:a=\"\{drawing_uri}\"><a:srgbClr val=\"\{color.to_lower()}\"/></a:solidFill>"
+      if alpha.is_empty() {
+        "<a:solidFill xmlns:a=\"\{drawing_uri}\"><a:srgbClr val=\"\{color.to_lower()}\"/></a:solidFill>"
+      } else {
+        "<a:solidFill xmlns:a=\"\{drawing_uri}\"><a:srgbClr val=\"\{color.to_lower()}\">\{alpha}</a:srgbClr></a:solidFill>"
+      }
   }
 }
 
 ///|
-fn same_paint(properties : Ref, value : String?) -> Bool raise @failure.Failure {
+fn same_paint(
+  properties : Ref,
+  value : String?,
+  opacity~ : Double = 1,
+) -> Bool raise @failure.Failure {
   guard paint_fill(properties) is Some(fill) else { return false }
   if value is None {
     return fill.name == "noFill"
@@ -106,7 +121,14 @@ fn same_paint(properties : Ref, value : String?) -> Bool raise @failure.Failure 
   children is [color] &&
   color.name == "srgbClr" &&
   color.attribute("val").map(c => c.to_lower()) == Some(value.to_lower()) &&
-  properties.tree.children.get(color.id).unwrap_or([]).is_empty()
+  (match properties.tree.children.get(color.id).unwrap_or([]) {
+    [] => opacity == 1
+    [alpha] =>
+      alpha.name == "alpha" &&
+      alpha.attribute("val") ==
+      Some((opacity * 100000).round().to_int().to_string())
+    _ => false
+  })
 }
 
 ///|
@@ -178,12 +200,17 @@ fn Session::paint_objects(
       @failure.reject("protected-content", reason)
     }
     let properties = object.source.child("spPr", uri=presentation_uri).unwrap()
-    let markup = paint_markup(color)
+    let opacity = if width is Some(_) {
+      object.stroke_alpha
+    } else {
+      object.fill_alpha
+    }
+    let markup = paint_markup(color, opacity~)
     if width is Some(width) {
       let line = properties.child("ln")
       if line is Some(line) {
         let changed_width = line.node.attribute("w").unwrap_or("12700") != width
-        let changed_color = !same_paint(line, color)
+        let changed_color = !same_paint(line, color, opacity~)
         if !changed_width && !changed_color {
           continue
         }
@@ -226,7 +253,7 @@ fn Session::paint_objects(
       }
     } else {
       let use_background = flag(object.source.node, "useBgFill")
-      if same_paint(properties, color) && !use_background {
+      if same_paint(properties, color, opacity~) && !use_background {
         continue
       }
       changes.push(

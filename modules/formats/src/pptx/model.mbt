@@ -76,6 +76,10 @@ priv struct Object {
   adjustments : (Double, Double)
   fill : String
   stroke : String
+  fill_alpha : Double
+  stroke_alpha : Double
+  fill_source : (Ref, Ref?)?
+  stroke_source : (Ref, Ref?)?
   line_width : Double
   dash : String
   cap : String

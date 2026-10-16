@@ -82,6 +82,10 @@ export interface PptxObject {
     cropReason: string;
   };
   appearance: {
+    fillOpacity: number;
+    strokeOpacity: number;
+    fillOpacityReason: string;
+    strokeOpacityReason: string;
     cap: PptxCap;
     join: PptxJoin;
     miterLimit: number;
@@ -435,8 +439,14 @@ export function pptxQuery(value: unknown): PptxQuery {
     if (
       !hasFields(
         appearance,
-        ["reason", "dashReason", "penReason"],
-        ["width", "miterLimit"],
+        [
+          "reason",
+          "dashReason",
+          "penReason",
+          "fillOpacityReason",
+          "strokeOpacityReason",
+        ],
+        ["width", "miterLimit", "fillOpacity", "strokeOpacity"],
       ) ||
       !pptxCaps.some((value) => value === appearance.cap) ||
       !pptxJoins.some((value) => value === appearance.join) ||
@@ -450,6 +460,8 @@ export function pptxQuery(value: unknown): PptxQuery {
       throw new Error("Invalid shape appearance");
     number(appearance.width, 1 / 12700, 1000);
     number(appearance.miterLimit, 1, 1000);
+    number(appearance.fillOpacity, 0, 1);
+    number(appearance.strokeOpacity, 0, 1);
     if (
       !hasFields(
         object,

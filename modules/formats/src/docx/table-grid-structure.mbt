@@ -78,34 +78,79 @@ fn WordTree::copy_row_properties(
   self : WordTree,
   document : @xml.Document,
   row : Int,
+  after~ : Int? = None,
 ) -> String raise @failure.Failure {
   guard self.table_children(row, "trPr").length() <= 1 else {
     @failure.reject("protected-content", "Duplicate row properties")
   }
   ignore(self.table_row_height(row))
-  self
-  .child(row, "trPr")
-  .map(id => {
-    guard self.nodes[id].attributes.is_empty() &&
-      self.nodes[id].text.trim().is_empty() &&
-      self.table_children(id, "tblHeader").length() <= 1 &&
-      self.children[id].all(child => {
-        self.nodes[child].uri == word_uri &&
-        (
-          self.nodes[child].name == "trHeight" ||
+  ignore(self.row_grid_after(row))
+  let original = self
+    .child(row, "trPr")
+    .map(id => {
+      guard self.nodes[id].attributes.is_empty() &&
+        self.nodes[id].text.trim().is_empty() &&
+        self.table_children(id, "tblHeader").length() <= 1 &&
+        self.children[id].all(child => {
+          self.nodes[child].uri == word_uri &&
           (
-            self.nodes[child].name == "tblHeader" &&
-            self.valid_on_off_property(child)
+            ["gridAfter", "trHeight"].contains(self.nodes[child].name) ||
+            (
+              self.nodes[child].name == "tblHeader" &&
+              self.valid_on_off_property(child)
+            )
           )
+        }) else {
+        @failure.reject(
+          "protected-content", "Unknown row properties prevent structural editing",
         )
-      }) else {
-      @failure.reject(
-        "protected-content", "Unknown row properties prevent structural editing",
-      )
+      }
+      self.standalone_markup(document, id)
+    })
+    .unwrap_or("")
+  guard after is Some(after) && after != self.row_grid_after(row) else {
+    return original
+  }
+  guard !original.contains("<!--") && !original.contains("<?") else {
+    @failure.reject(
+      "protected-content", "Unknown row property markup prevents grid editing",
+    )
+  }
+  let fields : Array[String] = []
+  if after > 0 {
+    fields.push("<od:gridAfter od:val=\"\{after}\"/>")
+  }
+  if self.child(row, "trPr") is Some(props) {
+    for child in self.children[props] {
+      if self.nodes[child].name != "gridAfter" {
+        fields.push(self.standalone_markup(document, child))
+      }
     }
-    self.standalone_markup(document, id)
-  })
-  .unwrap_or("")
+  }
+  "<od:trPr xmlns:od=\"\{word_uri}\">\{fields.join("")}</od:trPr>"
+}
+
+///|
+fn WordTree::row_grid_change(
+  self : WordTree,
+  document : @xml.Document,
+  row : Int,
+  after : Int,
+) -> @xml.SourceChange? raise @failure.Failure {
+  if self.row_grid_after(row) == after {
+    return None
+  }
+  self.table_property_change(
+    document,
+    row,
+    "trPr",
+    "gridAfter",
+    if after == 0 {
+      None
+    } else {
+      Some({ "val": Some(after.to_string()) })
+    },
+  )
 }
 
 ///|
@@ -173,6 +218,29 @@ fn table_structure_position(
     }
   }
   @failure.reject("invalid-table", "No surviving table selection")
+}
+
+///|
+fn WordTree::remove_body_table(
+  self : WordTree,
+  table : Int,
+  changes : TableChanges,
+) -> Unit raise @failure.Failure {
+  changes.push(table_remove(self, table))
+  let node = self.nodes[table]
+  let siblings = self.children[node.parent]
+  let index = siblings.search(table).unwrap()
+  if !siblings
+    .get(index + 1)
+    .map(id => self.nodes[id].name == "p")
+    .unwrap_or(false) {
+    changes.push({
+      node: node.parent,
+      offset: node.end - self.nodes[node.parent].start,
+      length: 0,
+      xml: "<od:p xmlns:od=\"\{word_uri}\"/>",
+    })
+  }
 }
 
 ///|

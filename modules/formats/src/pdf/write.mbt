@@ -1,4 +1,28 @@
 ///|
+fn positioned_alpha(
+  states : Map[String, (String, @syntax.PdfObject)],
+  fill : Double,
+  stroke : Double,
+) -> String {
+  let key = "\{fill}:\{stroke}"
+  let state = states
+    .get(key)
+    .unwrap_or_else(() => {
+      let state = (
+        "A\{states.length()}",
+        dict([
+          ("Type", tag("ExtGState")),
+          ("ca", @syntax.PdfReal(fill)),
+          ("CA", @syntax.PdfReal(stroke)),
+        ]),
+      )
+      states[key] = state
+      state
+    })
+  state.0
+}
+
+///|
 /// Export the exact preview glyph positions. PDF has no text layout authority.
 pub fn write(
   layout : @layout.PositionedDocument,
@@ -87,6 +111,19 @@ pub fn write(
           Path(path, fill, stroke, width, pen) => {
             pen.validate()
             ops.push(@content.Op_q)
+            if pen.fillAlpha != 1 || pen.strokeAlpha != 1 {
+              ops.push(
+                @content.Op_gs(
+                  name(
+                    positioned_alpha(
+                      alpha_states,
+                      pen.fillAlpha,
+                      pen.strokeAlpha,
+                    ),
+                  ),
+                ),
+              )
+            }
             ops.push(@content.Op_d(pen.dash, 0))
             ops.push(@content.Op_J(pen.cap))
             ops.push(@content.Op_j(pen.join))
@@ -236,21 +273,9 @@ pub fn write(
             }
             ops.push(@content.Op_q)
             if opacity != 1 {
-              let key = opacity.to_string()
-              let state = alpha_states
-                .get(key)
-                .unwrap_or_else(() => {
-                  let state = (
-                    "A\{alpha_states.length()}",
-                    dict([
-                      ("Type", tag("ExtGState")),
-                      ("ca", @syntax.PdfReal(opacity)),
-                    ]),
-                  )
-                  alpha_states[key] = state
-                  state
-                })
-              ops.push(@content.Op_gs(name(state.0)))
+              ops.push(
+                @content.Op_gs(name(positioned_alpha(alpha_states, opacity, 1))),
+              )
             }
             ops.push(
               @content.Op_cm({

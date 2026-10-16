@@ -24,7 +24,7 @@ fn WordTree::diagnose_properties(
         "tblStyle", "tblW", "jc", "tblBorders", "tblCellMar", "tblLook", "tblInd",
         "tblLayout",
       ]
-    "trPr" => ["trHeight", "tblHeader"]
+    "trPr" => ["gridAfter", "trHeight", "tblHeader"]
     _ => return
   }
   fn report(

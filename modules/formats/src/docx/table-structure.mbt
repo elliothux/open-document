@@ -153,6 +153,14 @@ pub fn Session::edit_table(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   match change {
+    ColumnBefore | ColumnAfter =>
+      return self.insert_table_column(
+        selection,
+        change is ColumnBefore,
+        probe,
+        profile,
+        images,
+      )
     RowBefore | RowAfter | DeleteRow =>
       return self.edit_table_rows(
         revision,
@@ -241,180 +249,6 @@ pub fn Session::edit_table(
         value.map(align => Map([("val", Some(align))])),
       )
     }
-    _ => ()
+    DeleteColumn => self.delete_table_column(selection, probe, profile, images)
   }
-  let original = self.document()
-  let tree = WordTree::new(original)
-  let grid = self.table_grid(tree, selection)
-  let table = grid.table
-  let body = tree.nodes[table].parent
-  let flow = self.flow_from(original)
-  let model = grid.model
-  let rows = grid.rows
-  let cells = grid.cells
-  let c = grid.column
-  guard model.columnSpans.all(row => row.all(span => span == 1)) &&
-    model.rowSpans.all(row => row.all(span => span == 1)) else {
-    @failure.reject(
-      "protected-content", "Merged table columns require grid structure editing",
-    )
-  }
-  let removing = change is DeleteColumn
-  let before = change is ColumnBefore
-  let whole = removing && model.widths.length() == 1
-  let column_count = model.widths.length() + (if removing { -1 } else { 1 })
-  guard rows.length() <= 1000 &&
-    column_count <= 63 &&
-    rows.length().to_int64() * column_count.to_int64() <= 4096 else {
-    @failure.reject("limit-exceeded", "Table exceeds row column or cell budget")
-  }
-  tree.check_table_structure(grid, columns=true)
-  let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
-  let changes : TableChanges = { items: [], bytes: 0, limit, }
-  let removed = if whole {
-    cells.flatten()
-  } else if removing {
-    cells.map(row => row[c])
-  } else {
-    []
-  }
-  for cell in removed {
-    for p in tree.table_children(cell, "p") {
-      tree.check_editable_paragraph(p, part=self.main)
-      tree.check_structure_paragraph(p)
-    }
-  }
-  if whole {
-    changes.push(table_remove(tree, table))
-    let siblings = tree.children[body]
-    let index = siblings.search(table).unwrap()
-    if !siblings
-      .get(index + 1)
-      .map(id => tree.nodes[id].name == "p")
-      .unwrap_or(false) {
-      let node = tree.nodes[table]
-      changes.push({
-        node: body,
-        offset: node.end - tree.nodes[body].start,
-        length: 0,
-        xml: "<od:p xmlns:od=\"\{word_uri}\"/>",
-      })
-    }
-  } else {
-    let widths = model.widths.map(width => (width * 20).round().to_int())
-    if removing {
-      ignore(widths.remove(c))
-    } else {
-      widths.insert(c + (if before { 0 } else { 1 }), widths[c])
-    }
-    let old_width = model.widths
-      .iter()
-      .fold(init=0.0, (sum, width) => sum + width)
-    guard old_width <= flow.page.width - flow.page.left - flow.page.right else {
-      @failure.reject(
-        "unsupported-layout", "Table columns exceed the page content width",
-      )
-    }
-    let fixed = tree
-      .child(table, "tblPr")
-      .bind(p => tree.child(p, "tblW"))
-      .filter(id => {
-        tree.nodes[id].attribute("type", uri=word_uri) == Some("dxa")
-      })
-    if fixed is Some(id) {
-      let value = tree.nodes[id].attribute("w", uri=word_uri).unwrap_or("0")
-      let width = @string.parse_int(value[:]) catch {
-        _ => @failure.reject("invalid-table", "Invalid preferred table width")
-      }
-      if width > 0 {
-        let total = widths
-          .iter()
-          .fold(init=0L, (sum, width) => sum + width.to_int64())
-        let mut edge = 0L
-        let mut previous = 0
-        for i in 0..<widths.length() {
-          edge += widths[i].to_int64()
-          let end = ((edge * (old_width * 20).round().to_int64() + total / 2) /
-          total).to_int()
-          widths[i] = end - previous
-          previous = end
-        }
-      }
-    }
-    guard widths.iter().all(width => width >= 240) else {
-      @failure.reject(
-        "invalid-operation", "Columns would be narrower than 12pt",
-      )
-    }
-    guard widths.iter().fold(init=0L, (sum, width) => sum + width.to_int64()) <=
-      ((flow.page.width - flow.page.left - flow.page.right) * 20)
-      .floor()
-      .to_int64() else {
-      @failure.reject(
-        "unsupported-layout", "Table columns exceed the page content width",
-      )
-    }
-    let grid = tree.child(table, "tblGrid").unwrap()
-    let markup = "<od:tblGrid xmlns:od=\"\{word_uri}\">" +
-      widths.map(w => "<od:gridCol od:w=\"\{w}\"/>").join("") +
-      "</od:tblGrid>"
-    changes.push({ ..table_remove(tree, grid), xml: markup, })
-    for row_index, row_cells in cells {
-      if removing {
-        changes.push(table_remove(tree, row_cells[c]))
-      }
-      for col, cell in row_cells {
-        if removing && col == c {
-          continue
-        }
-        let index = if removing && col > c {
-          col - 1
-        } else if !removing && col >= c + (if before { 0 } else { 1 }) {
-          col + 1
-        } else {
-          col
-        }
-        let properties = tree.table_cell_properties(
-          original,
-          cell,
-          widths[index],
-        )
-        if properties_change(tree, original, cell, "tcPr", properties)
-          is Some(update) {
-          changes.push(update)
-        }
-      }
-      if !removing {
-        let index = c + (if before { 0 } else { 1 })
-        let node = tree.nodes[row_cells[c]]
-        let template = if before {
-          c
-        } else {
-          (c + 1).min(row_cells.length() - 1)
-        }
-        changes.push({
-          node: rows[row_index],
-          offset: (if before { node.start } else { node.end }) -
-          tree.nodes[rows[row_index]].start,
-          length: 0,
-          xml: self.empty_table_cell(tree, row_cells[template], widths[index]),
-        })
-      }
-    }
-  }
-  self.commit_table_structure(
-    tree,
-    grid,
-    changes.items,
-    0,
-    if removing {
-      c.min(column_count - 1)
-    } else {
-      c + (if before { 0 } else { 1 })
-    },
-    whole,
-    probe,
-    profile,
-    images,
-  )
 }

@@ -14,7 +14,9 @@ pub(all) struct PositionedText {
 }
 
 ///|
-pub(all) struct PathStroke {
+pub(all) struct PathStyle {
+  fillAlpha : Double
+  strokeAlpha : Double
   dash : Array[Double]
   cap : Int
   join : Int
@@ -22,8 +24,12 @@ pub(all) struct PathStroke {
 }
 
 ///|
-pub fn PathStroke::validate(self : PathStroke) -> Unit raise @failure.Failure {
-  guard self.dash.length() <= 256 &&
+pub fn PathStyle::validate(self : PathStyle) -> Unit raise @failure.Failure {
+  guard self.fillAlpha >= 0 &&
+    self.fillAlpha <= 1 &&
+    self.strokeAlpha >= 0 &&
+    self.strokeAlpha <= 1 &&
+    self.dash.length() <= 256 &&
     self.dash.all(v => v >= 0 && v <= 1000000000) &&
     (self.dash.is_empty() || self.dash.any(v => v > 0)) &&
     self.cap >= 0 &&
@@ -32,7 +38,7 @@ pub fn PathStroke::validate(self : PathStroke) -> Unit raise @failure.Failure {
     self.join <= 2 &&
     self.miter >= 1 &&
     self.miter <= 1000 else {
-    @failure.reject("invalid-drawing", "Invalid positioned path stroke")
+    @failure.reject("invalid-drawing", "Invalid positioned path style")
   }
 }
 
@@ -42,7 +48,7 @@ pub(all) enum PositionedPrimitive {
   Stroke(Border, String, Double)
   Text(PositionedText)
   Image(PlacedImage, Double)
-  Path(Array[PathSegment], String, String, Double, PathStroke)
+  Path(Array[PathSegment], String, String, Double, PathStyle)
   Transform(Matrix)
   Clip(Border)
   Restore
@@ -134,6 +140,8 @@ pub fn PositionedDocument::drawing(
           commands.push(
             Style({
               ..DrawStyle::default(),
+              fillAlpha: pen.fillAlpha,
+              strokeAlpha: pen.strokeAlpha,
               dash: pen.dash,
               cap: pen.cap,
               join: pen.join,

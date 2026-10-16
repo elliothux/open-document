@@ -88,12 +88,12 @@ fn rgb_hex(rgb : Array[Double]) -> String {
 }
 
 ///|
-fn color(
+fn color_rgba(
   theme : Theme,
   container : Ref,
-  placeholder~ : String = "",
+  placeholder~ : Ref? = None,
   depth~ : Int = 0,
-) -> String raise @failure.Failure {
+) -> (String, Double) raise @failure.Failure {
   guard depth < 8 else {
     @failure.reject("malformed-pptx", "Cyclic theme color")
   }
@@ -106,22 +106,29 @@ fn color(
   }
   let value = node.attribute("val").unwrap_or("")
   let base = match node.name {
-    "srgbClr" => value
-    "sysClr" => node.attribute("lastClr").unwrap_or("")
+    "srgbClr" => (value, 1.0)
+    "sysClr" => (node.attribute("lastClr").unwrap_or(""), 1.0)
     "schemeClr" =>
-      if value == "phClr" && !placeholder.is_empty() {
-        placeholder
+      if value == "phClr" && placeholder is Some(reference) {
+        color_rgba(theme, reference, depth=depth + 1)
       } else {
         let key = theme.mapping.get(value).unwrap_or(value)
         guard theme.colors.get(key) is Some(source) else {
           @failure.reject("unsupported-style", "Unknown theme color: " + value)
         }
-        color(theme, source, placeholder~, depth=depth + 1)
+        color_rgba(theme, source, placeholder~, depth=depth + 1)
       }
     _ => @failure.reject("unsupported-style", "Unsupported color: " + node.name)
   }
-  let mut rgb = hex_color(base)
+  let mut rgb = hex_color(base.0)
+  let mut alpha = base.1
   for modifier in container.tree.children.get(node.id).unwrap_or([]) {
+    guard modifier.uri == drawing_uri &&
+      modifier.text.trim().is_empty() &&
+      modifier.attributes.all(a => a.uri.is_empty() && a.name == "val") &&
+      container.tree.children.get(modifier.id).unwrap_or([]).is_empty() else {
+      @failure.reject("unsupported-style", "Unknown color transform markup")
+    }
     let amount = number(
         modifier.attribute("val").unwrap_or("0"),
         -100000,
@@ -129,6 +136,19 @@ fn color(
       ) /
       100000
     match modifier.name {
+      "alpha" => {
+        guard amount >= 0 && amount <= 1 else {
+          @failure.reject("unsupported-style", "Invalid color opacity")
+        }
+        alpha = amount
+      }
+      "alphaMod" => {
+        guard amount >= 0 else {
+          @failure.reject("unsupported-style", "Invalid opacity multiplier")
+        }
+        alpha *= amount
+      }
+      "alphaOff" => alpha += amount
       "tint" => rgb = rgb.map(value => value + (1 - value) * amount)
       "shade" => rgb = rgb.map(value => value * amount)
       "lumMod" | "lumOff" => {
@@ -164,31 +184,57 @@ fn color(
         )
     }
   }
-  rgb_hex(rgb)
+  (rgb_hex(rgb), alpha.max(0).min(1))
 }
 
 ///|
-fn fill(
+fn color(
+  theme : Theme,
+  container : Ref,
+  placeholder~ : Ref? = None,
+) -> String raise @failure.Failure {
+  let (rgb, alpha) = color_rgba(theme, container, placeholder~)
+  guard alpha == 1 else {
+    @failure.reject(
+      "unsupported-style", "Transparent text or background is unsupported",
+    )
+  }
+  rgb
+}
+
+///|
+fn fill(theme : Theme, sources : Array[Ref]) -> String raise @failure.Failure {
+  let (rgb, alpha) = fill_rgba(theme, sources)
+  guard alpha == 1 else {
+    @failure.reject(
+      "unsupported-style", "Transparent text or background is unsupported",
+    )
+  }
+  rgb
+}
+
+///|
+fn fill_rgba(
   theme : Theme,
   sources : Array[Ref],
-  placeholder~ : String = "",
-) -> String raise @failure.Failure {
+  placeholder~ : Ref? = None,
+) -> (String, Double) raise @failure.Failure {
   for item in sources {
     for node in item.tree.children.get(item.node.id).unwrap_or([]) {
       if node.uri != drawing_uri {
         continue
       }
       match node.name {
-        "noFill" => return ""
+        "noFill" => return ("", 1)
         "solidFill" =>
-          return color(theme, { tree: item.tree, node, }, placeholder~)
+          return color_rgba(theme, { tree: item.tree, node, }, placeholder~)
         "gradFill" | "pattFill" | "blipFill" | "grpFill" =>
           @failure.reject("unsupported-style", "Unsupported fill: " + node.name)
         _ => ()
       }
     }
   }
-  ""
+  ("", 1)
 }
 
 ///|
@@ -196,7 +242,7 @@ fn style_reference(
   theme : Theme,
   chain : Array[Ref],
   kind : String,
-) -> (Ref, String)? raise @failure.Failure {
+) -> (Ref, Ref)? raise @failure.Failure {
   for item in children(chain, "style", uri=presentation_uri) {
     if item.child(kind + "Ref") is Some(reference) {
       return theme_reference(theme, reference, kind)
@@ -210,7 +256,7 @@ fn theme_reference(
   theme : Theme,
   reference : Ref,
   kind : String,
-) -> (Ref, String)? raise @failure.Failure {
+) -> (Ref, Ref)? raise @failure.Failure {
   let index = number(reference.node.attribute("idx").unwrap_or("0"), 0, 1009).to_int()
   if index == 0 {
     return None
@@ -235,7 +281,7 @@ fn theme_reference(
   guard nodes.get(offset) is Some(node) else {
     @failure.reject("unsupported-style", "Invalid theme style reference")
   }
-  Some(({ tree: theme.tree, node, }, color(theme, reference)))
+  Some(({ tree: theme.tree, node, }, reference))
 }
 
 ///|

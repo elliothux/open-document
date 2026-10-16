@@ -130,7 +130,7 @@ fn WordTree::table_property_change(
     let allowed = match name {
       "trHeight" => ["val", "hRule"]
       "shd" => ["val", "color", "fill"]
-      "vAlign" | "jc" | "tblHeader" => ["val"]
+      "vAlign" | "jc" | "tblHeader" | "gridAfter" => ["val"]
       "tblLayout" => ["type"]
       "tcMar" | "tblCellMar" | "tcBorders" | "tblBorders" => []
       _ => ["w", "type"]
@@ -184,6 +184,8 @@ fn WordTree::table_property_change(
     .iter()
     .find_first(child => {
       match name {
+        "gridAfter" =>
+          !["cnfStyle", "divId", "gridBefore"].contains(self.nodes[child].name)
         "tcBorders" =>
           ["shd", "tcMar", "vAlign", "hideMark", "tcPrChange"].contains(
             self.nodes[child].name,

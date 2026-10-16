@@ -14,6 +14,7 @@ pub(all) enum SheetEdit {
   DeleteColumns(Int, Int)
   InsertCells(String, String)
   DeleteCells(String, String)
+  Fill(String, String)
   Merge(String, Bool)
   Unmerge(String)
   Freeze(Int, Int)
@@ -150,6 +151,7 @@ pub fn Session::edit_sheet(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   match change {
+    Fill(range, direction) => return self.fill_cells(sheet, range, direction)
     InsertRows(first, count) =>
       return self.edit_axes(sheet, {
         rows: true,
@@ -259,6 +261,7 @@ pub fn Session::edit_sheet(
     | DeleteColumns(_, _)
     | InsertCells(_, _)
     | DeleteCells(_, _)
+    | Fill(_, _)
     | ColumnWidth(_, _, _)
     | Merge(_, _)
     | Unmerge(_)

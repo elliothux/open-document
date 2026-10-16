@@ -365,13 +365,15 @@ pub(all) enum PathSegment {
 pub fn PathSegment::to_json(Self) -> Json
 pub impl ToJson for PathSegment
 
-pub(all) struct PathStroke {
+pub(all) struct PathStyle {
+  fillAlpha : Double
+  strokeAlpha : Double
   dash : Array[Double]
   cap : Int
   join : Int
   miter : Double
 }
-pub fn PathStroke::validate(Self) -> Unit raise @failure.Failure
+pub fn PathStyle::validate(Self) -> Unit raise @failure.Failure
 
 pub(all) struct PlacedImage {
   key : String
@@ -415,7 +417,7 @@ pub(all) enum PositionedPrimitive {
   Stroke(Border, String, Double)
   Text(PositionedText)
   Image(PlacedImage, Double)
-  Path(Array[PathSegment], String, String, Double, PathStroke)
+  Path(Array[PathSegment], String, String, Double, PathStyle)
   Transform(Matrix)
   Clip(Border)
   Restore

@@ -202,6 +202,8 @@ fn Foundation::pptx_operation(
             @pptx.Stroke(color, xlsx_number(change, "width"))
           }
         }
+        "fillOpacity" => @pptx.FillOpacity(xlsx_number(change, "opacity"))
+        "strokeOpacity" => @pptx.StrokeOpacity(xlsx_number(change, "opacity"))
         "group" => @pptx.Group
         "ungroup" => @pptx.Ungroup
         "duplicate" =>
