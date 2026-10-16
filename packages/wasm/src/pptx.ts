@@ -2,8 +2,14 @@ import {
   number,
   checkPptxObjectEdit,
   type PptxObjectEdit,
+  pptxDashes,
+  type PptxDash,
 } from "./pptx-objects.js";
-export { checkPptxObjectEdit, type PptxObjectEdit } from "./pptx-objects.js";
+export {
+  checkPptxObjectEdit,
+  type PptxObjectEdit,
+  type PptxDash,
+} from "./pptx-objects.js";
 import { checkPptxSlideEdit, type PptxSlideEdit } from "./pptx-slides.js";
 export { checkPptxSlideEdit, type PptxSlideEdit } from "./pptx-slides.js";
 import { WasmSession, encodeBytes } from "./session.js";
@@ -70,6 +76,8 @@ export interface PptxObject {
     cropReason: string;
   };
   appearance: {
+    dash: PptxDash;
+    dashReason: string;
     fill: string | null;
     stroke: string | null;
     width: number;
@@ -415,7 +423,8 @@ export function pptxQuery(value: unknown): PptxQuery {
       number(frame[key], 0, 14400);
     const appearance = record(object.appearance);
     if (
-      !hasFields(appearance, ["reason"], ["width"]) ||
+      !hasFields(appearance, ["reason", "dashReason"], ["width"]) ||
+      !pptxDashes.some((value) => value === appearance.dash) ||
       ![appearance.fill, appearance.stroke].every(
         (color) =>
           color === null ||

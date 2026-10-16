@@ -125,7 +125,14 @@ fn Session::flow_from(
       "p" => paragraphs.push(self.paragraph(tree, styles, id, diagnostics))
       "tbl" =>
         tables.push(
-          self.table(tree, styles, id, paragraphs.length(), diagnostics),
+          self.table(
+            tree,
+            styles,
+            id,
+            paragraphs.length(),
+            diagnostics,
+            page.width - page.left - page.right,
+          ),
         )
       "sectPr" => ()
       _ => diagnostics.push("unsupported-layout:" + node.qualified)

@@ -73,6 +73,7 @@ export function checkDocxCellMargins(value: unknown): void {
 }
 
 export type DocxTableEdit =
+  | { action: "autoFit"; mode: "content" | "page" | "fixed" }
   | { action: "tableBorders" | "cellBorders"; value: DocxBorderPatch }
   | {
       action:
@@ -97,6 +98,11 @@ export type DocxTableEdit =
 
 export function checkDocxTableEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "autoFit") {
+    if (!["content", "page", "fixed"].includes(String(change.mode)))
+      throw new Error("Invalid table fitting mode");
+    return;
+  }
   if (change.action === "tableBorders" || change.action === "cellBorders") {
     checkDocxBorders(change.value, change.action === "tableBorders");
     return;

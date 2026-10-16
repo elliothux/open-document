@@ -220,7 +220,8 @@ fn paragraph_lines(
   let mut first_grapheme = 0
   while start < text.length() || lines.is_empty() {
     let indent = paragraph.left + (if start == 0 { paragraph.first } else { 0 })
-    let limit = available - indent - paragraph.right
+    // Twip-aligned widths can lose a few binary digits when subtracting cell margins.
+    let limit = available - indent - paragraph.right + 0.00000001
     let mut end = start
     let mut forced = false
     let mut ordinary = start

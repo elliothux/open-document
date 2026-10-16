@@ -68,6 +68,7 @@ fn Session::table_dimensions(
   let border_defaults = border_defaults(tree, self.styles([]), id, [])
   {
     "id": id,
+    "autoFit": table.autoFit,
     "row": index,
     "columns": table.widths.length(),
     "column": logical_column,
@@ -130,6 +131,7 @@ fn WordTree::table_property_change(
       "trHeight" => ["val", "hRule"]
       "shd" => ["val", "color", "fill"]
       "vAlign" | "jc" | "tblHeader" => ["val"]
+      "tblLayout" => ["type"]
       "tcMar" | "tblCellMar" | "tcBorders" | "tblBorders" => []
       _ => ["w", "type"]
     }
@@ -199,6 +201,10 @@ fn WordTree::table_property_change(
           )
         "jc" => !["tblStyle", "tblW"].contains(self.nodes[child].name)
         "tblCellMar" => self.nodes[child].name == "tblLook"
+        "tblLayout" =>
+          ["tblCellMar", "tblLook", "tblPrChange"].contains(
+            self.nodes[child].name,
+          )
         _ => kind != "tblPr" || self.nodes[child].name != "tblStyle"
       }
     })
@@ -233,6 +239,8 @@ fn Session::size_table(
   width~ : Bool,
   column~ : Int? = None,
   rule~ : String = "atLeast",
+  probe? : @layout.TextProbe,
+  profile~ : Map[String, String] = Map([]),
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard value >= 0 && value <= 14400 && value * 20 == (value * 20).round() else {
@@ -248,7 +256,19 @@ fn Session::size_table(
     @failure.reject("protected-content", "Table sizes require a body table")
   }
   let flow = self.flow()
-  let model = grid.model
+  let model = if width && grid.model.autoFit {
+    grid.model.fit_widths(
+      probe.unwrap_or_else(() => {
+        @failure.reject(
+          "missing-font", "Automatic table resizing requires a text probe",
+        )
+      }),
+      profile,
+      flow.page.width - flow.page.left - flow.page.right,
+    )
+  } else {
+    grid.model
+  }
   let changes : TableChanges = {
     items: [],
     bytes: 0,
@@ -256,6 +276,17 @@ fn Session::size_table(
   }
   let twips = (value * 20).to_int()
   if width {
+    if model.autoFit &&
+      tree.table_property_change(
+        document,
+        grid.table,
+        "tblPr",
+        "tblLayout",
+        Some(Map([("type", Some("fixed"))])),
+      )
+      is Some(change) {
+      changes.push(change)
+    }
     guard value > 0 && model.widths.length() <= 63 else {
       @failure.reject(
         "invalid-operation", "Table width exceeds the page or column limit",
@@ -301,7 +332,11 @@ fn Session::size_table(
       flow.page.width - flow.page.left - flow.page.right else {
       @failure.reject("invalid-operation", "Table width exceeds the page")
     }
-    guard widths.all(w => w >= 240) else {
+    guard (if column is Some(i) {
+      widths[i] >= 240
+    } else {
+      widths.all(w => w >= 240)
+    }) else {
       @failure.reject(
         "invalid-operation", "Columns would be narrower than 12pt",
       )
@@ -316,7 +351,8 @@ fn Session::size_table(
       is Some(change) {
       changes.push(change)
     }
-    if (
+    if model.autoFit ||
+      (
         column is Some(i) &&
         (model.widths[i] * 20).round().to_int() != widths[i]
       ) ||

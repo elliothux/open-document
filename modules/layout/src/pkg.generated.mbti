@@ -407,7 +407,7 @@ pub(all) enum PositionedPrimitive {
   Stroke(Border, String, Double)
   Text(PositionedText)
   Image(PlacedImage, Double)
-  Path(Array[PathSegment], String, String, Double)
+  Path(Array[PathSegment], String, String, Double, Array[Double])
   Transform(Matrix)
   Clip(Border)
   Restore
@@ -501,6 +501,9 @@ pub fn TabStop::to_json(Self) -> Json
 
 pub(all) struct Table {
   id : Int
+  autoFit : Bool
+  preferredWidth : Double
+  preferredWidths : Array[Array[Double]]
   headerRows : Int
   beforeParagraph : Int
   rows : Array[Array[Array[Paragraph]]]
@@ -517,6 +520,7 @@ pub(all) struct Table {
 } derive(ToJson)
 pub fn Table::border_width(Self, Int) -> Double
 pub fn Table::cell_insets(Self, Int, Int) -> CellMargins
+pub fn Table::fit_widths(Self, TextProbe, Map[String, String], Double) -> Self raise @failure.Failure
 pub fn Table::row_minimum_height(Self, Int) -> Double
 pub fn Table::to_json(Self) -> Json
 

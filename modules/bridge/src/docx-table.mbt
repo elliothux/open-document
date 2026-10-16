@@ -19,6 +19,7 @@ fn Foundation::docx_table(
       @failure.reject("invalid-operation", "Table edit is required")
     }
     let change = match field_string(fields, "action") {
+      "autoFit" => @docx.AutoFit(field_string(fields, "mode"))
       "tableBorders" | "cellBorders" as action => {
         guard fields is { "value": Object(values), .. } else {
           @failure.reject("invalid-operation", "Border patch is required")
@@ -113,7 +114,14 @@ fn Foundation::docx_table(
       }
       _ => @failure.reject("invalid-operation", "Unknown table edit")
     }
-    session.edit_table(revision, selection, change)
+    session.edit_table(
+      revision,
+      selection,
+      change,
+      probe=self.probe,
+      profile=xlsx_profile(request),
+      images=self.images,
+    )
   }
   self.layout = None
   result

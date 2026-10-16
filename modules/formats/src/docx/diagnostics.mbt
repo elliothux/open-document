@@ -43,7 +43,9 @@ fn WordTree::diagnose_properties(
       "tblLayout" =>
         self.children[child].is_empty() &&
         feature.text.trim().is_empty() &&
-        feature.attribute("type", uri=word_uri) == Some("fixed") &&
+        [Some("fixed"), Some("autofit"), None].contains(
+          feature.attribute("type", uri=word_uri),
+        ) &&
         feature.attributes
         .iter()
         .all(a => a.uri == word_uri && a.name == "type")

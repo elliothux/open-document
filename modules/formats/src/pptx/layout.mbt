@@ -259,6 +259,7 @@ fn paint_slide(
             object.fill,
             object.stroke,
             object.line_width,
+            dash_pattern(object.dash).map(v => v * object.line_width),
           ),
         )
       }

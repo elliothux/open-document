@@ -9,6 +9,7 @@ pub(all) enum TableEdit {
   MergeCells(Int, Int)
   UnmergeCell
   SplitTable
+  AutoFit(String)
   TableWidth(Double)
   ColumnWidth(Int, Double)
   RowHeight(Double, String)
@@ -145,9 +146,14 @@ pub fn Session::edit_table(
   revision : Int,
   selection : Selection,
   change : TableEdit,
+  probe? : @layout.TextProbe,
+  profile~ : Map[String, String] = Map([]),
+  images? : @layout.Images,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   match change {
+    AutoFit(mode) =>
+      return self.fit_table(revision, selection, mode, probe, profile, images)
     TableBorders(value) | CellBorders(value) =>
       return self.set_table_borders(
         revision,
@@ -168,7 +174,14 @@ pub fn Session::edit_table(
     UnmergeCell => return self.unmerge_table_cell(revision, selection)
     SplitTable => return self.split_table(revision, selection)
     TableWidth(value) =>
-      return self.size_table(revision, selection, value, width=true)
+      return self.size_table(
+        revision,
+        selection,
+        value,
+        width=true,
+        probe?,
+        profile~,
+      )
     ColumnWidth(column, value) =>
       return self.size_table(
         revision,
@@ -176,6 +189,8 @@ pub fn Session::edit_table(
         value,
         width=true,
         column=Some(column),
+        probe?,
+        profile~,
       )
     RowHeight(value, rule) =>
       return self.size_table(revision, selection, value, width=false, rule~)

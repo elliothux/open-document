@@ -7,7 +7,11 @@ priv enum BodyBlock {
 }
 
 ///|
-fn Flow::body_blocks(self : Flow) -> Array[BodyBlock] raise @failure.Failure {
+fn Flow::body_blocks(
+  self : Flow,
+  probe : TextProbe,
+  profile : Map[String, String],
+) -> Array[BodyBlock] raise @failure.Failure {
   let blocks : Array[BodyBlock] = []
   let mut paragraph = 0
   let mut table = 0
@@ -20,7 +24,11 @@ fn Flow::body_blocks(self : Flow) -> Array[BodyBlock] raise @failure.Failure {
       blocks.push(BodyParagraph(self.paragraphs[paragraph]))
       paragraph += 1
     } else {
-      let item = self.tables[table]
+      let item = self.tables[table].fit_widths(
+        probe,
+        profile,
+        self.page.width - self.page.left - self.page.right,
+      )
       item.check_grid()
       blocks.push(TableStart(item))
       let mut row = 0

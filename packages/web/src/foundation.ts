@@ -296,6 +296,7 @@ export class FoundationClient {
     revision: number,
     selection: DocxSelection,
     change: DocxTableEdit,
+    profile: Record<string, string> = {},
   ): Promise<EditState> {
     checkDocxTableEdit(change);
     return editState(
@@ -304,6 +305,7 @@ export class FoundationClient {
         revision,
         selection,
         change,
+        profile,
       }),
     );
   }

@@ -176,6 +176,29 @@ export function XlsxSheets({
         <legend>{t.dimensions}</legend>
         {(
           [
+            [{ action: "insertCells", direction: "down" }, t.insertCellsDown],
+            [{ action: "insertCells", direction: "right" }, t.insertCellsRight],
+            [{ action: "deleteCells", direction: "up" }, t.deleteCellsUp],
+            [{ action: "deleteCells", direction: "left" }, t.deleteCellsLeft],
+          ] as const
+        ).map(([change, label]) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() =>
+              controller.run(() =>
+                editor.editSheet({
+                  ...change,
+                  range: editor.currentState.selection.address,
+                }),
+              )
+            }
+          >
+            {label}
+          </button>
+        ))}
+        {(
+          [
             ["insertRows", t.insertRows],
             ["deleteRows", t.deleteRows],
             ["insertColumns", t.insertColumns],

@@ -1,5 +1,9 @@
 ///|
-fn style_markup(tree : Tree, node : @xml.Node) -> String raise @failure.Failure {
+fn style_markup(
+  tree : Tree,
+  node : @xml.Node,
+  changes~ : Array[@xml.SourceChange] = [],
+) -> String raise @failure.Failure {
   let ancestors : Array[@xml.Node] = []
   let mut current = node
   while current.parent >= 0 {
@@ -20,11 +24,11 @@ fn style_markup(tree : Tree, node : @xml.Node) -> String raise @failure.Failure 
       )
     }
   }
-  let source = tree.document.source()
-  let offset = node.start + 1 + node.qualified.length()
-  source[node.start:offset].to_owned() +
+  let source = axis_markup(tree, node, changes)
+  let offset = 1 + node.qualified.length()
+  source[:offset].to_owned() +
   additions.to_string() +
-  source[offset:node.end].to_owned()
+  source[offset:].to_owned()
 }
 
 ///|

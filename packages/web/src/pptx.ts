@@ -11,6 +11,7 @@ import {
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type {
   PptxObjectEdit,
+  PptxDash,
   PptxFindOptions,
   PptxSearchResult,
   PptxSlideEdit,

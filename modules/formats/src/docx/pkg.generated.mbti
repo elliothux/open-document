@@ -115,7 +115,7 @@ pub fn Session::delete(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::delete_style(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::edit_list(Self, Int, Selection, ListEdit) -> Json raise @failure.Failure
 pub fn Session::edit_state(Self) -> Json raise @failure.Failure
-pub fn Session::edit_table(Self, Int, Selection, TableEdit) -> Json raise @failure.Failure
+pub fn Session::edit_table(Self, Int, Selection, TableEdit, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::enter(Self, Int) -> Json raise @failure.Failure
 pub fn Session::find(Self, Int, String, FindOptions) -> Json raise @failure.Failure
 pub fn Session::flow(Self) -> @layout.Flow raise @failure.Failure
@@ -156,6 +156,7 @@ pub(all) enum TableEdit {
   MergeCells(Int, Int)
   UnmergeCell
   SplitTable
+  AutoFit(String)
   TableWidth(Double)
   ColumnWidth(Int, Double)
   RowHeight(Double, String)

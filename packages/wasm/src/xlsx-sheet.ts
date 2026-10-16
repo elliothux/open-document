@@ -9,6 +9,8 @@ import {
 } from "./xlsx-print.js";
 
 export type XlsxSheetEdit =
+  | { action: "insertCells"; range: string; direction: "down" | "right" }
+  | { action: "deleteCells"; range: string; direction: "up" | "left" }
   | ({ action: "pageSetup" } & XlsxPrintSetup)
   | ({ action: "printRange" } & XlsxPrintRange)
   | ({ action: "headerFooter" } & XlsxHeaderFooter)
@@ -35,6 +37,19 @@ export type XlsxSheetEdit =
 
 export function checkXlsxSheetEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "insertCells" || change.action === "deleteCells") {
+    if (
+      typeof change.range !== "string" ||
+      typeof change.direction !== "string" ||
+      !change.range ||
+      change.range.length > 64 ||
+      !(
+        change.action === "insertCells" ? ["down", "right"] : ["up", "left"]
+      ).includes(String(change.direction))
+    )
+      throw new Error("Invalid cell shift");
+    return;
+  }
   if (
     ["insertRows", "deleteRows", "insertColumns", "deleteColumns"].includes(
       String(change.action),

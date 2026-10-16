@@ -192,7 +192,7 @@ fn axis_sheet_metadata(
         .map(text => axis_formula(text, Some(sheet.name), target, change))
       let reference = if own_sheet {
         change
-        .range(Range::parse(node.attribute("ref").unwrap_or("")))
+        .metadata_range(Range::parse(node.attribute("ref").unwrap_or("")))
         .map(Range::name)
       } else {
         node.attribute("ref")
@@ -209,7 +209,7 @@ fn axis_sheet_metadata(
     } else if own_sheet {
       match node.name {
         "mergeCell" => {
-          let range = change.range(
+          let range = change.metadata_range(
             Range::parse(node.attribute("ref").unwrap_or("")),
           )
           if range is Some(range) &&
@@ -226,13 +226,18 @@ fn axis_sheet_metadata(
               (
                 "ref",
                 change
-                .range(Range::parse(node.attribute("ref").unwrap_or("A1")))
+                .dimension_range(
+                  Range::parse(node.attribute("ref").unwrap_or("A1")),
+                )
                 .map(Range::name)
                 .unwrap_or("A1"),
               ),
             ]),
           )
         "selection" => {
+          if change.band is Some(_) {
+            continue
+          }
           let mut active = change.position(
             Address::parse(node.attribute("activeCell").unwrap_or("A1")),
           )
@@ -267,6 +272,9 @@ fn axis_sheet_metadata(
           changes.append(metadata_changes(node, values))
         }
         "sheetView" | "pane" => {
+          if change.band is Some(_) {
+            continue
+          }
           if node.attribute("topLeftCell") is Some(text) {
             changes.append(
               metadata_changes(node, [

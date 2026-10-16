@@ -201,6 +201,16 @@ fn Foundation::xlsx_operation(
             field_int(change, "first"),
             field_int(change, "count"),
           )
+        "insertCells" =>
+          @xlsx.InsertCells(
+            field_string(change, "range"),
+            field_string(change, "direction"),
+          )
+        "deleteCells" =>
+          @xlsx.DeleteCells(
+            field_string(change, "range"),
+            field_string(change, "direction"),
+          )
         "visibility" => @xlsx.Visibility(field_string(change, "state"))
         "rename" => @xlsx.Rename(field_string(change, "name"))
         "rowHeight" =>

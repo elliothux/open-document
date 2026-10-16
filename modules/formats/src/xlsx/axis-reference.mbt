@@ -4,6 +4,7 @@ priv struct AxisChange {
   first : Int
   count : Int
   insert : Bool
+  band : (Int, Int)?
 }
 
 ///|
@@ -52,6 +53,12 @@ fn AxisChange::interval(
 
 ///|
 fn AxisChange::address(self : AxisChange, address : Address) -> Address? {
+  if self.band is Some((first, last)) {
+    let value = if self.rows { address.column } else { address.row }
+    if value < first || value > last {
+      return Some(address)
+    }
+  }
   let value = if self.rows { address.row } else { address.column }
   self
   .interval(value, value)
@@ -71,13 +78,58 @@ fn AxisChange::range(self : AxisChange, range : Range) -> Range? {
   } else {
     (range.left, range.right)
   }
+  if self.band is Some((low, high)) {
+    let (a, b) = if self.rows {
+      (range.left, range.right)
+    } else {
+      (range.top, range.bottom)
+    }
+    if a < low || b > high {
+      // ONLYOFFICE Range.isIntersectForShift trims a partially deleted edge, but leaves other crossing references intact.
+      if !self.insert && first >= self.first && last < self.first + self.count {
+        let clipped = if a >= low && a <= high {
+          Some((high + 1, b))
+        } else if b >= low && b <= high {
+          Some((a, low - 1))
+        } else {
+          None
+        }
+        if clipped is Some((a, b)) && a <= b {
+          return Some(
+            if self.rows {
+              { ..range, left: a, right: b, }
+            } else {
+              { ..range, top: a, bottom: b, }
+            },
+          )
+        }
+      }
+      return Some(range)
+    }
+  }
   self
   .interval(first, last)
   .map(pair => {
     if self.rows {
-      { ..range, top: pair.0, bottom: pair.1, }
+      {
+        ..range,
+        top: pair.0,
+        bottom: if first < last && last == self.limit() {
+          self.limit()
+        } else {
+          pair.1
+        },
+      }
     } else {
-      { ..range, left: pair.0, right: pair.1, }
+      {
+        ..range,
+        left: pair.0,
+        right: if first < last && last == self.limit() {
+          self.limit()
+        } else {
+          pair.1
+        },
+      }
     }
   })
 }
@@ -120,34 +172,30 @@ fn axis_reference(text : String) -> AxisReference? {
 }
 
 ///|
-fn AxisReference::value(self : AxisReference, rows : Bool) -> Int? {
+fn AxisReference::point(self : AxisReference) -> Address {
   match self {
-    Cell(cell) =>
-      Some(if rows { cell.address.row } else { cell.address.column })
-    Row(value, _) if rows => Some(value)
-    Column(value, _) if !rows => Some(value)
-    _ => None
+    Cell(cell) => cell.address
+    Row(row, _) => { row, column: 1, }
+    Column(column, _) => { row: 1, column, }
   }
 }
 
 ///|
 fn AxisReference::source(
   self : AxisReference,
-  value : Int,
-  rows : Bool,
+  address : Address,
+  range : Range,
 ) -> String raise @failure.Failure {
   match self {
-    Cell(cell) =>
-      {
-        ..cell,
-        address: if rows {
-          { ..cell.address, row: value, }
-        } else {
-          { ..cell.address, column: value, }
-        },
-      }.source()
-    Row(_, fixed) => (if fixed { "$" } else { "" }) + value.to_string()
-    Column(_, fixed) => (if fixed { "$" } else { "" }) + print_column(value)
+    Cell(cell) => { ..cell, address, }.source()
+    Row(_, fixed) if range.left == 1 && range.right == 16384 =>
+      (if fixed { "$" } else { "" }) + address.row.to_string()
+    Column(_, fixed) if range.top == 1 && range.bottom == 1048576 =>
+      (if fixed { "$" } else { "" }) + print_column(address.column)
+    Row(_, fixed) =>
+      FormulaAddress::{ address, fixed_row: fixed, fixed_column: false, }.source()
+    Column(_, fixed) =>
+      FormulaAddress::{ address, fixed_row: false, fixed_column: fixed, }.source()
   }
 }
 
@@ -216,12 +264,33 @@ fn axis_formula(
     if sheet is Some(name) && name.to_lower() != target.to_lower() {
       continue
     }
-    guard first.value(change.rows) is Some(a) &&
-      last.value(change.rows) is Some(b) else {
-      continue
+    let a = first.point()
+    let b = last.point()
+    let range : Range = match first {
+      Row(_, _) =>
+        {
+          top: a.row.min(b.row),
+          bottom: a.row.max(b.row),
+          left: 1,
+          right: 16384,
+        }
+      Column(_, _) =>
+        {
+          top: 1,
+          bottom: 1048576,
+          left: a.column.min(b.column),
+          right: a.column.max(b.column),
+        }
+      Cell(_) =>
+        {
+          top: a.row.min(b.row),
+          bottom: a.row.max(b.row),
+          left: a.column.min(b.column),
+          right: a.column.max(b.column),
+        }
     }
-    let result = change.interval(a.min(b), a.max(b))
-    if result == Some((a.min(b), a.max(b))) {
+    let result = change.range(range)
+    if result == Some(range) {
       continue
     }
     guard sheet is Some(_) else {
@@ -229,15 +298,38 @@ fn axis_formula(
         "protected-content", "Unscoped relative names require structural support",
       )
     }
-    let (start, replacement) = if result is Some((low, high)) {
-      let (a, b) = if a <= b { (low, high) } else { (high, low) }
+    let (start, replacement) = if result is Some(next) {
+      let start = {
+        row: if a.row <= b.row {
+          next.top
+        } else {
+          next.bottom
+        },
+        column: if a.column <= b.column {
+          next.left
+        } else {
+          next.right
+        },
+      }
+      let end = {
+        row: if a.row <= b.row {
+          next.bottom
+        } else {
+          next.top
+        },
+        column: if a.column <= b.column {
+          next.right
+        } else {
+          next.left
+        },
+      }
       (
         spans[first_index].0,
-        first.source(a, change.rows) +
+        first.source(start, next) +
         (if first_index == last_index {
           ""
         } else {
-          ":" + last.source(b, change.rows)
+          ":" + last.source(end, next)
         }),
       )
     } else {

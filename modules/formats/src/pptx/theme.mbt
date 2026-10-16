@@ -168,7 +168,11 @@ fn color(
 }
 
 ///|
-fn fill(theme : Theme, sources : Array[Ref]) -> String raise @failure.Failure {
+fn fill(
+  theme : Theme,
+  sources : Array[Ref],
+  placeholder~ : String = "",
+) -> String raise @failure.Failure {
   for item in sources {
     for node in item.tree.children.get(item.node.id).unwrap_or([]) {
       if node.uri != drawing_uri {
@@ -176,7 +180,8 @@ fn fill(theme : Theme, sources : Array[Ref]) -> String raise @failure.Failure {
       }
       match node.name {
         "noFill" => return ""
-        "solidFill" => return color(theme, { tree: item.tree, node, })
+        "solidFill" =>
+          return color(theme, { tree: item.tree, node, }, placeholder~)
         "gradFill" | "pattFill" | "blipFill" | "grpFill" =>
           @failure.reject("unsupported-style", "Unsupported fill: " + node.name)
         _ => ()

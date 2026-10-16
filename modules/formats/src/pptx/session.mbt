@@ -476,6 +476,8 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
             Json(object.stroke)
           },
           "width": object.line_width,
+          "dash": object.dash,
+          "dashReason": self.dash_reason(object),
           "reason": self.paint_reason(object),
         },
         "textFrame": {

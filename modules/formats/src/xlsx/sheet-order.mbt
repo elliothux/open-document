@@ -12,6 +12,8 @@ pub(all) enum SheetEdit {
   DeleteRows(Int, Int)
   InsertColumns(Int, Int)
   DeleteColumns(Int, Int)
+  InsertCells(String, String)
+  DeleteCells(String, String)
   Merge(String, Bool)
   Unmerge(String)
   Freeze(Int, Int)
@@ -149,13 +151,75 @@ pub fn Session::edit_sheet(
   self.check_revision(revision)
   match change {
     InsertRows(first, count) =>
-      return self.edit_axes(sheet, { rows: true, first, count, insert: true, })
+      return self.edit_axes(sheet, {
+        rows: true,
+        first,
+        count,
+        insert: true,
+        band: None,
+      })
     DeleteRows(first, count) =>
-      return self.edit_axes(sheet, { rows: true, first, count, insert: false, })
+      return self.edit_axes(sheet, {
+        rows: true,
+        first,
+        count,
+        insert: false,
+        band: None,
+      })
     InsertColumns(first, count) =>
-      return self.edit_axes(sheet, { rows: false, first, count, insert: true, })
+      return self.edit_axes(sheet, {
+        rows: false,
+        first,
+        count,
+        insert: true,
+        band: None,
+      })
     DeleteColumns(first, count) =>
-      return self.edit_axes(sheet, { rows: false, first, count, insert: false, })
+      return self.edit_axes(sheet, {
+        rows: false,
+        first,
+        count,
+        insert: false,
+        band: None,
+      })
+    InsertCells(range, direction) | DeleteCells(range, direction) => {
+      let insert = change is InsertCells(_, _)
+      guard (if insert { ["down", "right"] } else { ["up", "left"] }).contains(
+        direction,
+      ) else {
+        @failure.reject("invalid-operation", "Invalid cell shift direction")
+      }
+      let range = Range::parse(range)
+      let rows = direction == "down" || direction == "up"
+      let height = range.bottom - range.top + 1
+      let width = range.right - range.left + 1
+      guard height.to_int64() * width.to_int64() <= 4096 else {
+        @failure.reject(
+          "limit-exceeded", "Cell shift selection exceeds 4096 cells",
+        )
+      }
+      return self.edit_axes(sheet, {
+        rows,
+        first: if rows {
+          range.top
+        } else {
+          range.left
+        },
+        count: if rows {
+          height
+        } else {
+          width
+        },
+        insert,
+        band: Some(
+          if rows {
+            (range.left, range.right)
+          } else {
+            (range.top, range.bottom)
+          },
+        ),
+      })
+    }
     PageSetup(setup) => return self.set_print_setup(sheet, setup)
     PrintRange(settings) => return self.set_print_range(sheet, settings)
     HeaderFooter(settings) => return self.set_header_footer(sheet, settings)
@@ -193,6 +257,8 @@ pub fn Session::edit_sheet(
     | DeleteRows(_, _)
     | InsertColumns(_, _)
     | DeleteColumns(_, _)
+    | InsertCells(_, _)
+    | DeleteCells(_, _)
     | ColumnWidth(_, _, _)
     | Merge(_, _)
     | Unmerge(_)

@@ -75,7 +75,7 @@ fn Table::check_grid(self : Table) -> Unit raise @failure.Failure {
       }
       column += span
       let insets = self.cell_insets(r, c)
-      guard self.cell_width(r, c) > insets.left + insets.right else {
+      guard self.autoFit || self.cell_width(r, c) > insets.left + insets.right else {
         @failure.reject("invalid-style", "Cell margins leave no text width")
       }
     }

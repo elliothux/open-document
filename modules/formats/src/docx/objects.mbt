@@ -114,8 +114,13 @@ fn Session::table(
   id : Int,
   before_paragraph : Int,
   diagnostics : Array[String],
+  available : Double,
 ) -> @layout.Table raise @failure.Failure {
   let widths : Array[Double] = []
+  let (auto_fit, preferred_width) = table_sizing(
+    tree, styles, id, available, diagnostics,
+  )
+  let preferred_widths : Array[Array[Double]] = []
   let mut styles = styles
   let mut default_vertical_align = "top"
   let style_margins : Array[(WordTree, Int)] = []
@@ -220,6 +225,7 @@ fn Session::table(
     let colors : Array[String] = []
     let alignments : Array[String] = []
     let cell_margins : Array[@layout.CellMargins] = []
+    let cell_widths : Array[Double] = []
     let spans : Array[Int] = []
     let vertical : Array[Int] = []
     let current : Map[(Int, Int), (Int, Int)] = Map([])
@@ -231,6 +237,12 @@ fn Session::table(
         continue
       }
       let props = tree.child(cell, "tcPr")
+      cell_widths.push(
+        props
+        .bind(p => tree.child(p, "tcW"))
+        .map(id => tree.preferred_table_width(id, available))
+        .unwrap_or(0),
+      )
       let margin = if props.bind(p => tree.child(p, "tcMar")) is Some(id) {
         tree.table_margins(id, default_margins)
       } else {
@@ -253,7 +265,7 @@ fn Session::table(
       let width = widths[column:column + span]
         .iter()
         .fold(init=0.0, (total, width) => total + width)
-      guard width > margin.left + margin.right else {
+      guard auto_fit || width > margin.left + margin.right else {
         @failure.reject("invalid-style", "Cell margins leave no text width")
       }
       let merge = props.bind(p => tree.child(p, "vMerge"))
@@ -325,6 +337,7 @@ fn Session::table(
       @failure.reject("invalid-table", "Table grid and cell count differ")
     }
     rows.push(cells)
+    preferred_widths.push(cell_widths)
     heights.push(height)
     fills.push(colors)
     vertical_aligns.push(alignments)
@@ -388,6 +401,9 @@ fn Session::table(
   }
   {
     id,
+    autoFit: auto_fit,
+    preferredWidth: preferred_width,
+    preferredWidths: preferred_widths,
     headerRows: safe_header_rows,
     beforeParagraph: before_paragraph,
     rows,

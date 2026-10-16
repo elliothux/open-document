@@ -19,7 +19,7 @@ pub(all) enum PositionedPrimitive {
   Stroke(Border, String, Double)
   Text(PositionedText)
   Image(PlacedImage, Double)
-  Path(Array[PathSegment], String, String, Double)
+  Path(Array[PathSegment], String, String, Double, Array[Double])
   Transform(Matrix)
   Clip(Border)
   Restore
@@ -106,8 +106,20 @@ pub fn PositionedDocument::drawing(
             commands.push(Style(DrawStyle::default()))
           }
         }
-        Path(path, fill, stroke, width) =>
+        Path(path, fill, stroke, width, dash) => {
+          guard dash.length() <= 256 &&
+            dash.all(v => v >= 0 && v <= 1000000000) &&
+            (dash.is_empty() || dash.any(v => v > 0)) else {
+            @failure.reject("invalid-drawing", "Invalid positioned path dash")
+          }
+          if !dash.is_empty() {
+            commands.push(Style({ ..DrawStyle::default(), dash, }))
+          }
           commands.push(Path(path, fill, stroke, width))
+          if !dash.is_empty() {
+            commands.push(Style(DrawStyle::default()))
+          }
+        }
         Transform(matrix) => commands.push(Transform(matrix))
         Clip(rect) => commands.push(ClipRect(rect))
         Restore => commands.push(Restore)

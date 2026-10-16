@@ -44,6 +44,18 @@ fn Session::edit_axes(
   let sheets = self.sheets.copy()
   let edits : Array[(String, @xml.Edit)] = []
   for i, original in sheets {
+    if change.band is Some(_) {
+      guard !original.document
+        .nodes()
+        .any(n => {
+          n.uri == spreadsheet_uri &&
+          ["conditionalFormatting", "dataValidation"].contains(n.name)
+        }) else {
+        @failure.reject(
+          "protected-content", "Cell shifts require per-cell conditional format and validation transformations",
+        )
+      }
+    }
     let updates : Map[String, CellContent] = Map([])
     let source = Tree::new(original.document)
     for name, cell in original.cells {
@@ -109,7 +121,11 @@ fn Session::edit_axes(
         self.strings,
         self.styles.length(),
       )
-      let changes = current.axis_cells(change)
+      let changes = if change.band is Some(_) {
+        current.shift_cells(change, self.budget.entry_bytes.min(4194304))
+      } else {
+        current.axis_cells(change)
+      }
       if !changes.is_empty() {
         let (next, edit) = document.edit_source(changes)
         document = next
@@ -132,7 +148,26 @@ fn Session::edit_axes(
     workbook = next
     edits.push((self.main, edit))
   }
-  let after = if self.selection.0 == id {
+  let after = if change.band is Some((first, last)) {
+    (
+      id,
+      if change.rows {
+        {
+          top: change.first,
+          bottom: change.first + change.count - 1,
+          left: first,
+          right: last,
+        }
+      } else {
+        {
+          top: first,
+          bottom: last,
+          left: change.first,
+          right: change.first + change.count - 1,
+        }
+      },
+    )
+  } else if self.selection.0 == id {
     let selected = self.selection.1
     let range = change
       .range(selected)

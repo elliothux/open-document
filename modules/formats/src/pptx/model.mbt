@@ -77,6 +77,7 @@ priv struct Object {
   fill : String
   stroke : String
   line_width : Double
+  dash : String
   image : String?
   crop : Array[Double]
   opacity : Double

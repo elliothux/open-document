@@ -231,33 +231,22 @@ fn read_object(
       ""
     }
     let lines = children(properties, "ln")
-    let (line_color, width) = if !lines.is_empty() {
-      for line in lines {
-        if line
-          .child("prstDash")
-          .map(item => item.node.attribute("val").unwrap_or("solid") != "solid")
-          .unwrap_or(false) {
-          @failure.reject("unsupported-style", "Dashed borders are unsupported")
-        }
-      }
-      (
-        fill(theme, lines),
-        number(attribute(lines, "w").unwrap_or("12700"), 1, 12700000) / 12700,
-      )
-    } else if style_reference(theme, chain, "ln") is Some((item, ph)) {
-      let entry = item.child("solidFill")
-      (
-        entry.map(value => color(theme, value, placeholder=ph)).unwrap_or(""),
-        number(item.node.attribute("w").unwrap_or("12700"), 1, 12700000) / 12700,
-      )
+    let placeholder = if style_reference(theme, chain, "ln") is Some((item, ph)) {
+      lines.push(item)
+      ph
     } else {
-      ("", 1.0)
+      ""
     }
-    (shape_fill, line_color, width)
+    (
+      shape_fill,
+      fill(theme, lines, placeholder~),
+      number(attribute(lines, "w").unwrap_or("12700"), 1, 12700000) / 12700,
+      line_dash(lines),
+    )
   })() catch {
     @failure.Failure(code="unsupported-style", message~, ..) => {
       diagnostic = message
-      ("", "", 1.0)
+      ("", "", 1.0, "solid")
     }
     error => raise error
   }
@@ -357,6 +346,7 @@ fn read_object(
     fill: paint.0,
     stroke: paint.1,
     line_width: paint.2,
+    dash: paint.3,
     image,
     crop,
     opacity,

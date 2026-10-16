@@ -154,6 +154,15 @@ fn Foundation::pptx_operation(
         "textAnchor" => @pptx.TextAnchor(field_string(change, "anchor"))
         "textWrap" => @pptx.TextWrap(xlsx_boolean(change, "wrap"))
         "textFit" => @pptx.TextFit(field_string(change, "fit"))
+        "strokeDash" =>
+          @pptx.StrokeDash(
+            match change {
+              { "dash": Null, .. } => None
+              { "dash": String(value), .. } => Some(value)
+              _ =>
+                @failure.reject("invalid-operation", "Border dash is required")
+            },
+          )
         "fill" | "stroke" => {
           let color = match change {
             { "color": Null, .. } => None

@@ -39,6 +39,31 @@ export function DocxTables({
     <section aria-label={t.insertTable}>
       <h3>{t.insertTable}</h3>
       {size && (
+        <fieldset disabled={disabled || !!snapshot.data.formatting?.reason}>
+          <legend>{t.tableAutoFit}</legend>
+          {size.autoFit && <p>{t.tableAutomaticWidths}</p>}
+          {(
+            [
+              ["content", t.tableFitContent],
+              ["page", t.tableFitPage],
+              ["fixed", t.tableFitFixed],
+            ] as const
+          ).map(([mode, label]) => (
+            <button
+              type="button"
+              key={mode}
+              onClick={() =>
+                controller.run(() =>
+                  editor.editTable({ action: "autoFit", mode }),
+                )
+              }
+            >
+              {label}
+            </button>
+          ))}
+        </fieldset>
+      )}
+      {size && (
         <DocxBorders
           key={`borders:${snapshot.documentId}:${size.id}:${paragraph}:${snapshot.revision}`}
           controller={controller}
@@ -57,6 +82,7 @@ export function DocxTables({
           editor={editor}
           disabled={disabled || !!snapshot.data.formatting?.reason}
           width={size.width}
+          autoFit={size.autoFit}
           height={size.rowHeight}
           heightRule={size.rowHeightRule}
           columns={size.columns}
@@ -198,6 +224,7 @@ function TableProperties({
   state,
   editor,
   disabled,
+  autoFit,
   width,
   height,
   heightRule,
@@ -218,6 +245,7 @@ function TableProperties({
   state: UiSnapshot;
   editor: DocumentEditor;
   disabled: boolean;
+  autoFit: boolean;
   width: number;
   height: number;
   heightRule: "atLeast" | "exact";
@@ -246,54 +274,56 @@ function TableProperties({
   return (
     <fieldset disabled={disabled}>
       <legend>{t.tableProperties}</legend>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          controller.run(() =>
-            editor.editTable({
-              action: "columnWidth",
-              column: columnIndex,
-              value: Number(columnWidth),
-            }),
-          );
-        }}
-      >
-        <label>
-          {t.tableColumn}
-          <select
-            aria-label={t.tableColumn}
-            value={columnIndex}
-            onChange={(event) => {
-              const index = Number(event.currentTarget.value);
-              if (Number.isInteger(index) && index >= 0 && index < columns) {
-                setColumnIndex(index);
-                setColumnWidth(String(columnWidths[index]));
-              }
-            }}
-          >
-            {columnWidths.map((_, index) => (
-              <option key={index} value={index}>
-                {index + 1}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          {t.tableColumnWidth}
-          <input
-            type="number"
-            min={12}
-            max={maximumColumnWidth}
-            step={0.05}
-            required
-            value={columnWidth}
-            onChange={(event) => setColumnWidth(event.currentTarget.value)}
-          />
-        </label>
-        <button type="submit" aria-label={`${t.apply} ${t.tableColumnWidth}`}>
-          {t.apply}
-        </button>
-      </form>
+      {!autoFit && (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            controller.run(() =>
+              editor.editTable({
+                action: "columnWidth",
+                column: columnIndex,
+                value: Number(columnWidth),
+              }),
+            );
+          }}
+        >
+          <label>
+            {t.tableColumn}
+            <select
+              aria-label={t.tableColumn}
+              value={columnIndex}
+              onChange={(event) => {
+                const index = Number(event.currentTarget.value);
+                if (Number.isInteger(index) && index >= 0 && index < columns) {
+                  setColumnIndex(index);
+                  setColumnWidth(String(columnWidths[index]));
+                }
+              }}
+            >
+              {columnWidths.map((_, index) => (
+                <option key={index} value={index}>
+                  {index + 1}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {t.tableColumnWidth}
+            <input
+              type="number"
+              min={12}
+              max={maximumColumnWidth}
+              step={0.05}
+              required
+              value={columnWidth}
+              onChange={(event) => setColumnWidth(event.currentTarget.value)}
+            />
+          </label>
+          <button type="submit" aria-label={`${t.apply} ${t.tableColumnWidth}`}>
+            {t.apply}
+          </button>
+        </form>
+      )}
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -448,50 +478,53 @@ function TableProperties({
             max: maxHeight,
           },
         ] as const
-      ).map((field) => (
-        <form
-          key={field.action}
-          onSubmit={(event) => {
-            event.preventDefault();
-            if (field.value !== "")
-              controller.run(() =>
-                editor.editTable(
-                  field.action === "rowHeight"
-                    ? {
-                        action: "rowHeight",
-                        value: Number(field.value),
-                        rule: rowRule,
-                      }
-                    : { action: "tableWidth", value: Number(field.value) },
-                ),
-              );
-          }}
-        >
-          <label>
-            {field.label}
-            <input
-              type="number"
-              required
-              step={0.05}
-              min={field.min}
-              max={field.max}
-              value={field.value}
-              onChange={(event) => field.set(event.currentTarget.value)}
-            />
-          </label>
-          <button
-            type="submit"
-            aria-label={`${t.apply} ${field.label}`}
-            disabled={
-              !field.value ||
-              Number(field.value) < field.min ||
-              Number(field.value) > field.max
-            }
-          >
-            {t.apply}
-          </button>
-        </form>
-      ))}
+      ).map(
+        (field) =>
+          (!autoFit || field.action !== "tableWidth") && (
+            <form
+              key={field.action}
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (field.value !== "")
+                  controller.run(() =>
+                    editor.editTable(
+                      field.action === "rowHeight"
+                        ? {
+                            action: "rowHeight",
+                            value: Number(field.value),
+                            rule: rowRule,
+                          }
+                        : { action: "tableWidth", value: Number(field.value) },
+                    ),
+                  );
+              }}
+            >
+              <label>
+                {field.label}
+                <input
+                  type="number"
+                  required
+                  step={0.05}
+                  min={field.min}
+                  max={field.max}
+                  value={field.value}
+                  onChange={(event) => field.set(event.currentTarget.value)}
+                />
+              </label>
+              <button
+                type="submit"
+                aria-label={`${t.apply} ${field.label}`}
+                disabled={
+                  !field.value ||
+                  Number(field.value) < field.min ||
+                  Number(field.value) > field.max
+                }
+              >
+                {t.apply}
+              </button>
+            </form>
+          ),
+      )}
     </fieldset>
   );
 }

@@ -563,10 +563,17 @@ export class FoundationSession extends WasmSession {
     revision: number,
     selection: DocxSelection,
     change: DocxTableEdit,
+    profile: Record<string, string> = {},
   ): EditState {
     checkDocxTableEdit(change);
     return editState(
-      this.call({ operation: "editDocxTable", revision, selection, change }),
+      this.call({
+        operation: "editDocxTable",
+        revision,
+        selection,
+        change,
+        profile,
+      }),
     );
   }
   tabDocx(revision: number, backward = false): EditState {

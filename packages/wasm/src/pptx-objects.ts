@@ -5,7 +5,22 @@ import {
   type PptxTextFormat,
   type PptxParagraphFormat,
 } from "./pptx-format.js";
+export const pptxDashes = [
+  "solid",
+  "dash",
+  "dashDot",
+  "dot",
+  "lgDash",
+  "lgDashDot",
+  "lgDashDotDot",
+  "sysDash",
+  "sysDashDot",
+  "sysDashDotDot",
+  "sysDot",
+] as const;
+export type PptxDash = (typeof pptxDashes)[number];
 export type PptxObjectEdit =
+  | { action: "strokeDash"; dash: PptxDash | null }
   | { action: "imageOpacity"; opacity: number }
   | { action: "replaceImage"; object: string; bytes: Uint8Array }
   | {
@@ -86,6 +101,14 @@ export function number(value: unknown, low = 0, high = 0x7fffffff): number {
 }
 export function checkPptxObjectEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "strokeDash") {
+    if (
+      change.dash !== null &&
+      !pptxDashes.some((value) => value === change.dash)
+    )
+      throw new Error("Invalid PPTX border dash");
+    return;
+  }
   if (change.action === "imageOpacity") {
     number(change.opacity, 0, 1);
     return;

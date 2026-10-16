@@ -239,6 +239,7 @@ async function dispatch(request: Request): Promise<unknown> {
             request.revision,
             request.selection,
             request.change,
+            request.profile,
           );
         case "setDefaultTabStop":
           return foundation.setDefaultTabStop(

@@ -276,6 +276,7 @@ export interface DocxFormatting {
   revision: number;
   reason: string;
   table: {
+    autoFit: boolean;
     id: number;
     row: number;
     columns: number;
@@ -422,12 +423,13 @@ export function docxFormatting(value: unknown): DocxFormatting {
     Number(result.revision) < 0 ||
     typeof result.reason !== "string" ||
     (result.table !== null &&
-      (!["id", "row", "column", "columns", "rows", "headerRows"].every(
-        (key) =>
-          Number.isSafeInteger(table[key]) &&
-          Number(table[key]) >= 0 &&
-          Number(table[key]) <= 2147483647,
-      ) ||
+      (typeof table.autoFit !== "boolean" ||
+        !["id", "row", "column", "columns", "rows", "headerRows"].every(
+          (key) =>
+            Number.isSafeInteger(table[key]) &&
+            Number(table[key]) >= 0 &&
+            Number(table[key]) <= 2147483647,
+        ) ||
         Number(table.columns) < 1 ||
         Number(table.rows) < 1 ||
         Number(table.row) >= Number(table.rows) ||

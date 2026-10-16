@@ -166,6 +166,8 @@ pub(all) enum SheetEdit {
   DeleteRows(Int, Int)
   InsertColumns(Int, Int)
   DeleteColumns(Int, Int)
+  InsertCells(String, String)
+  DeleteCells(String, String)
   Merge(String, Bool)
   Unmerge(String)
   Freeze(Int, Int)

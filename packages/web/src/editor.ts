@@ -472,9 +472,10 @@ export class DocumentEditor {
     );
   }
   editTable(change: DocxTableEdit): Promise<void> {
-    return this.format(() =>
-      this.client.editTable(this.state.revision, this.selection(), change),
-    );
+    return this.format(() => {
+      const args = [this.state.revision, this.selection(), change] as const;
+      return this.client.editTable(...args, this.profile);
+    });
   }
   setDefaultTabStop(interval: number | null): Promise<void> {
     return this.format(() =>

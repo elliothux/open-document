@@ -7,7 +7,7 @@ fn Pagination::body(
   profile : Map[String, String],
   images : Images,
 ) -> (Int, Int, PaginationCache?) raise @failure.Failure {
-  let blocks = flow.body_blocks()
+  let blocks = flow.body_blocks(probe, profile)
   let keys = pagination_keys(blocks)
   let context = Json::array([
     self.page.to_json(),

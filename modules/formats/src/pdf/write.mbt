@@ -84,7 +84,16 @@ pub fn write(
             scopes -= 1
             ops.push(@content.Op_Q)
           }
-          Path(path, fill, stroke, width) => {
+          Path(path, fill, stroke, width, dash) => {
+            guard dash.length() <= 256 &&
+              dash.all(v => v >= 0 && v <= 1000000000) &&
+              (dash.is_empty() || dash.any(v => v > 0)) else {
+              @failure.reject("invalid-drawing", "Invalid positioned path dash")
+            }
+            if !dash.is_empty() {
+              ops.push(@content.Op_q)
+              ops.push(@content.Op_d(dash, 0))
+            }
             if !fill.is_empty() {
               ops.push(
                 @content.Op_rg(
@@ -130,6 +139,9 @@ pub fn write(
               ops.push(@content.Op_S)
             } else {
               ops.push(@content.Op_n)
+            }
+            if !dash.is_empty() {
+              ops.push(@content.Op_Q)
             }
           }
           Rectangle(fill) => {

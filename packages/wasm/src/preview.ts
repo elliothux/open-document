@@ -65,6 +65,9 @@ export interface DocxFlow {
   headers: DocxFlow["paragraphs"][];
   headerDistance: number;
   tables: {
+    autoFit: boolean;
+    preferredWidth: number;
+    preferredWidths: number[][];
     id: number;
     beforeParagraph: number;
     rows: DocxFlow["paragraphs"][][];
@@ -225,6 +228,14 @@ export function docxFlow(value: unknown): DocxFlow {
   for (const value of entries(flow.tables)) {
     const table = fields(value, ["id", "beforeParagraph"], ["align"]);
     if (
+      typeof table.autoFit !== "boolean" ||
+      typeof table.preferredWidth !== "number" ||
+      !Number.isFinite(table.preferredWidth) ||
+      table.preferredWidth < 0 ||
+      table.preferredWidth > 14400
+    )
+      throw new Error("Invalid table sizing preferences");
+    if (
       typeof table.beforeParagraph !== "number" ||
       !Number.isInteger(table.beforeParagraph) ||
       table.beforeParagraph < previousPosition ||
@@ -238,6 +249,22 @@ export function docxFlow(value: unknown): DocxFlow {
     for (const row of entries(table.fills)) diagnostics(row);
     const rows = entries(table.rows),
       verticalAligns = entries(table.verticalAligns);
+    const preferred = entries(table.preferredWidths);
+    if (
+      preferred.length !== rows.length ||
+      preferred.some(
+        (row, r) =>
+          entries(row).length !== entries(rows[r]).length ||
+          entries(row).some(
+            (width) =>
+              typeof width !== "number" ||
+              !Number.isFinite(width) ||
+              width < 0 ||
+              width > 14400,
+          ),
+      )
+    )
+      throw new Error("Invalid preferred cell widths");
     const exactHeights = entries(table.exactHeights);
     if (
       exactHeights.length !== rows.length ||

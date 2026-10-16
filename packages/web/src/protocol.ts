@@ -30,6 +30,7 @@ import type { PdfCommand } from "@open-document/wasm/pdf";
 export type Operation =
   | {
       operation: "editDocxTable";
+      profile: Record<string, string>;
       revision: number;
       selection: DocxSelection;
       change: DocxTableEdit;

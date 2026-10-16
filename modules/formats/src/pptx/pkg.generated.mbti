@@ -44,6 +44,7 @@ pub(all) enum ObjectEdit {
   Ungroup
   Fill(String?)
   Stroke(String?, Double)
+  StrokeDash(String?)
   TextInsets(Double, Double, Double, Double)
   TextAnchor(String)
   TextWrap(Bool)
