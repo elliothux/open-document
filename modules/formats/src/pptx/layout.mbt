@@ -186,6 +186,7 @@ fn paint_slide(
     }),
   ]
   let texts : Array[TextGeometry] = []
+  let fonts = probe.font_info()
   let diagnostics = slide.diagnostics.copy()
   let mut units = 0
   for object in slide.objects {
@@ -303,17 +304,9 @@ fn paint_slide(
           }
         }
         for line in lines {
-          primitives.push(
-            Text({
-              text: line.text,
-              runs: line.runs.map(run => {
-                color: run.color,
-                text: run.text,
-                glyphs: run.glyphs,
-                x: run.x,
-                baseline: run.baseline,
-              }),
-            }),
+          // Keep the presentation's frame-level clipping for exact-spaced lines.
+          primitives.append(
+            { ..line, clip: false, }.positioned(fonts, geometry.width),
           )
           units += line.runs
             .iter()

@@ -8,6 +8,23 @@ import {
   type DrawRect,
 } from "./drawing.js";
 import type { Budget } from "./foundation.js";
+import {
+  checkPptxTextFormat,
+  checkPptxFormatting,
+  checkPptxParagraphFormat,
+  checkPptxParagraphFormatting,
+  type PptxTextFormat,
+  type PptxFormatting,
+  type PptxParagraphFormat,
+  type PptxParagraphFormatting,
+} from "./pptx-format.js";
+export type {
+  PptxTextFormat,
+  PptxFormatting,
+  PptxTextSpacing,
+  PptxParagraphFormat,
+  PptxParagraphFormatting,
+} from "./pptx-format.js";
 
 export interface PptxSelection {
   slide: string;
@@ -56,6 +73,8 @@ export interface PptxObject {
 }
 export interface PptxQuery {
   revision: number;
+  formatting: PptxFormatting;
+  paragraph: PptxParagraphFormatting;
   groupReason: string;
   ungroupReason: string;
   width: number;
@@ -123,6 +142,10 @@ export type PptxObjectEdit =
       text: string;
     }
   | { action: "delete" }
+  | { action: "clearTextFormat" | "clearParagraphFormat" }
+  | { action: "textFormat"; format: PptxTextFormat }
+  | { action: "textParagraph"; format: PptxParagraphFormat }
+  | { action: "textAlign"; alignment: "left" | "center" | "right" }
   | { action: "fill"; color: string | null }
   | { action: "stroke"; color: string | null; width: number }
   | {
@@ -349,6 +372,24 @@ function integer(value: unknown, high = 0x7fffffff): void {
 }
 export function checkPptxObjectEdit(value: unknown): void {
   const change = record(value);
+  if (
+    change.action === "clearTextFormat" ||
+    change.action === "clearParagraphFormat"
+  )
+    return;
+  if (change.action === "textParagraph") {
+    checkPptxParagraphFormat(change.format);
+    return;
+  }
+  if (change.action === "textFormat") {
+    checkPptxTextFormat(change.format);
+    return;
+  }
+  if (
+    change.action === "textAlign" &&
+    ["left", "center", "right"].includes(String(change.alignment))
+  )
+    return;
   if (change.action === "textInsets") {
     for (const key of ["left", "top", "right", "bottom"])
       number(change[key], 0, 14400);
@@ -483,6 +524,8 @@ function points(value: unknown, max = 4): void {
 }
 export function pptxQuery(value: unknown): PptxQuery {
   const query = record(value);
+  checkPptxFormatting(query.formatting);
+  checkPptxParagraphFormatting(query.paragraph);
   const background = record(query.background);
   if (
     typeof background.color !== "string" ||

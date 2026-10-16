@@ -120,16 +120,28 @@ fn text_changes(
     .child("endParaRPr")
     .map(source_xml)
     .unwrap_or("")
-  let mut template = ""
-  let mut offset = 0
-  for run in initial.runs {
-    if start >= offset &&
-      start <= offset + run.text.length() &&
-      run.source is Some(source) {
-      template = source.child("rPr").map(source_xml).unwrap_or("")
-      break
-    }
-    offset += run.text.length()
+  let (run_index, _) = caret_run(initial, start, leading=a != b)
+  let properties = initial.runs[run_index].source.bind(source => {
+    source.child("rPr")
+  })
+  let template = if properties is Some(properties) {
+    properties.tree.standalone_markup(
+      properties.tree.document,
+      properties.node.id,
+    )
+  } else if initial.runs[run_index].source is None &&
+    initial.source.child("endParaRPr") is Some(properties) {
+    let xml = properties.tree.standalone_markup(
+      properties.tree.document,
+      properties.node.id,
+    )
+    let old = properties.node.qualified
+    let name = old[:old.length() - 10].to_owned() + "rPr"
+    xml
+    .replace(old="<" + old, new="<" + name)
+    .replace(old="</" + old + ">", new="</" + name + ">")
+  } else {
+    ""
   }
   let before = paragraph_piece(initial, 0, start)
   let tail = paragraph_piece(

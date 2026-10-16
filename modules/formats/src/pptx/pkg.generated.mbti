@@ -29,7 +29,22 @@ pub(all) enum ObjectEdit {
   TextAnchor(String)
   TextWrap(Bool)
   TextFit(Bool)
+  TextFormat(TextFormat)
+  TextAlign(String)
+  TextParagraph(ParagraphFormat)
+  ClearTextFormat
+  ClearParagraphFormat
 }
+
+pub(all) struct ParagraphFormat {
+  left : Double?
+  right : Double?
+  first : Double?
+  before : TextSpacing?
+  after : TextSpacing?
+  line : TextSpacing?
+}
+pub fn ParagraphFormat::new(left? : Double, right? : Double, first? : Double, before? : TextSpacing, after? : TextSpacing, line? : TextSpacing) -> Self
 
 pub struct Session {
   // private fields
@@ -69,6 +84,23 @@ pub(all) enum SlideEdit {
   HideSlide(Bool)
   Background(String?)
   Size(Double, Double)
+}
+
+pub(all) struct TextFormat {
+  font : String?
+  size : Double?
+  bold : Bool?
+  italic : Bool?
+  color : String?
+  underline : Bool?
+  strike : Bool?
+  highlight : String?
+}
+pub fn TextFormat::new(font? : String, size? : Double, bold? : Bool, italic? : Bool, color? : String, underline? : Bool, strike? : Bool, highlight? : String) -> Self
+
+pub(all) struct TextSpacing {
+  unit : String
+  value : Double
 }
 
 // Type aliases

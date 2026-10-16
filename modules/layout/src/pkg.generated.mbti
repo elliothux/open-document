@@ -251,6 +251,7 @@ pub(all) struct Line {
   carets : Array[Caret]
   readOnlyReason : String
 } derive(ToJson)
+pub fn Line::positioned(Self, Array[FontInfo], Double) -> Array[PositionedPrimitive]
 pub fn Line::to_json(Self) -> Json
 
 pub(all) enum LineSpacing {

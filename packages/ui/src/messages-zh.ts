@@ -33,6 +33,12 @@ export const zh: Messages = {
   printFitNotice:
     "非零页数会取代百分比，在 10–100% 内缩小。保存的设置用于预览和 PDF。",
   textFrame: "文本框属性",
+  textFormat: "文字格式",
+  paragraphBefore: "段前间距",
+  paragraphAfter: "段后间距",
+  spacingUnit: "单位",
+  pointUnit: "点",
+  percentUnit: "百分比",
   textFrameMargins: "文字内边距",
   textInsetLeft: "文字左边距（磅）",
   textInsetTop: "文字上边距（磅）",

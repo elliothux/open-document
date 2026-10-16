@@ -51,97 +51,7 @@ pub fn Layout::positioned(self : Layout) -> PositionedDocument {
         primitives.push(Stroke(rect, "000000", 0.5))
       }
       for line in page.lines {
-        if line.clip {
-          primitives.push(
-            Clip({ x: 0, y: line.y, width: page.width, height: line.height, }),
-          )
-        }
-        for image in line.images {
-          primitives.push(Image(image))
-        }
-        for x in line.bars {
-          primitives.push(
-            Rectangle({
-              x: x - 0.25,
-              y: line.y,
-              width: 0.5,
-              height: line.height,
-              color: "000000",
-            }),
-          )
-        }
-        for run in line.paint_runs() {
-          for decoration in run.decorations {
-            if !decoration.highlight.is_empty() {
-              primitives.push(
-                Rectangle({
-                  x: run.x + decoration.x,
-                  y: line.y,
-                  width: decoration.width,
-                  height: line.height,
-                  color: decoration.highlight,
-                }),
-              )
-            }
-          }
-        }
-        primitives.push(
-          Text({
-            text: line.markerText + line.text,
-            runs: line
-            .paint_runs()
-            .map(run => {
-              color: run.color,
-              text: run.text,
-              glyphs: run.glyphs,
-              x: run.x,
-              baseline: run.baseline,
-            }),
-          }),
-        )
-        let mut descent = 0.0
-        for run in line.paint_runs() {
-          for range in run.bidi {
-            let font = self.fonts[range.font]
-            descent = descent.max(
-              scaled_line_metrics(
-                font.ascent,
-                font.descent,
-                font.upem,
-                run.nominalSize,
-              ).1,
-            )
-          }
-        }
-        for run in line.paint_runs() {
-          let thickness = run.nominalSize / 18
-          let baseline = run.baseline + run.rise
-          for decoration in run.decorations {
-            for
-              (enabled, y) in [
-                (
-                  decoration.underline,
-                  baseline + descent * 0.4 - run.rise.min(0),
-                ),
-                (decoration.strike, run.baseline - run.size * 0.27),
-              ] {
-              if enabled {
-                primitives.push(
-                  Rectangle({
-                    x: run.x + decoration.x,
-                    y: y - thickness / 2,
-                    width: decoration.width,
-                    height: thickness,
-                    color: run.color,
-                  }),
-                )
-              }
-            }
-          }
-        }
-        if line.clip {
-          primitives.push(Restore)
-        }
+        primitives.append(line.positioned(self.fonts, page.width))
       }
       { width: page.width, height: page.height, primitives, }
     }),
@@ -292,4 +202,103 @@ pub fn TextProbe::text_block(
     y += line.height
   }
   { texts, widths, height: y, }
+}
+
+///|
+/// Paint one laid-out line, including its decorations and clipping.
+pub fn Line::positioned(
+  self : Line,
+  fonts : Array[FontInfo],
+  width : Double,
+) -> Array[PositionedPrimitive] {
+  let line = self
+  let primitives : Array[PositionedPrimitive] = []
+  if line.clip {
+    primitives.push(Clip({ x: 0, y: line.y, width, height: line.height, }))
+  }
+  for image in line.images {
+    primitives.push(Image(image))
+  }
+  for x in line.bars {
+    primitives.push(
+      Rectangle({
+        x: x - 0.25,
+        y: line.y,
+        width: 0.5,
+        height: line.height,
+        color: "000000",
+      }),
+    )
+  }
+  for run in line.paint_runs() {
+    for decoration in run.decorations {
+      if !decoration.highlight.is_empty() {
+        primitives.push(
+          Rectangle({
+            x: run.x + decoration.x,
+            y: line.y,
+            width: decoration.width,
+            height: line.height,
+            color: decoration.highlight,
+          }),
+        )
+      }
+    }
+  }
+  primitives.push(
+    Text({
+      text: line.markerText + line.text,
+      runs: line
+      .paint_runs()
+      .map(run => {
+        color: run.color,
+        text: run.text,
+        glyphs: run.glyphs,
+        x: run.x,
+        baseline: run.baseline,
+      }),
+    }),
+  )
+  let mut descent = 0.0
+  for run in line.paint_runs() {
+    for range in run.bidi {
+      let font = fonts[range.font]
+      descent = descent.max(
+        scaled_line_metrics(
+          font.ascent,
+          font.descent,
+          font.upem,
+          run.nominalSize,
+        ).1,
+      )
+    }
+  }
+  for run in line.paint_runs() {
+    let thickness = run.nominalSize / 18
+    let baseline = run.baseline + run.rise
+    for decoration in run.decorations {
+      for
+        (enabled, y) in [
+          (decoration.underline, baseline + descent * 0.4 - run.rise.min(0)),
+          (decoration.strike, run.baseline - run.size * 0.27),
+        ] {
+        if enabled {
+          primitives.push(
+            Rectangle({
+              x: run.x + decoration.x,
+              y: y - thickness / 2,
+              width: decoration.width,
+              height: thickness,
+              color: run.color,
+            }),
+          )
+        }
+      }
+    }
+  }
+  if line.clip {
+    primitives.push(Restore)
+  }
+
+  primitives
 }

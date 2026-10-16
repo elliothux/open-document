@@ -7,7 +7,15 @@ import {
   type PptxResult,
 } from "@open-document/wasm/pptx";
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
-export type { PptxObjectEdit, PptxSlideEdit } from "@open-document/wasm/pptx";
+export type {
+  PptxObjectEdit,
+  PptxSlideEdit,
+  PptxTextFormat,
+  PptxFormatting,
+  PptxTextSpacing,
+  PptxParagraphFormat,
+  PptxParagraphFormatting,
+} from "@open-document/wasm/pptx";
 
 /** A Worker owns presentation state, layout, history and source bytes. */
 export class PptxClient {

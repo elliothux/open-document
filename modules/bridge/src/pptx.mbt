@@ -106,6 +106,21 @@ fn Foundation::pptx_operation(
             field_string(change, "text"),
           )
         "delete" => @pptx.Remove
+        "clearTextFormat" => @pptx.ClearTextFormat
+        "clearParagraphFormat" => @pptx.ClearParagraphFormat
+        "textFormat" => {
+          guard change is { "format": format, .. } else {
+            @failure.reject("invalid-operation", "Text format is required")
+          }
+          @pptx.TextFormat(pptx_text_format(format))
+        }
+        "textAlign" => @pptx.TextAlign(field_string(change, "alignment"))
+        "textParagraph" => {
+          guard change is { "format": format, .. } else {
+            @failure.reject("invalid-operation", "Paragraph format is required")
+          }
+          @pptx.TextParagraph(pptx_paragraph_format(format))
+        }
         "textInsets" =>
           @pptx.TextInsets(
             xlsx_number(change, "left"),

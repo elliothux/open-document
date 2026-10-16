@@ -731,6 +731,22 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 每个 `PptxObject.textFrame` 返回有效 `left/top/right/bottom/anchor/wrap/autofit` 及保护原因 `reason`。修改保留文字、字符格式、对象身份/几何、选择和其他部件；缺失 `bodyPr` 与适配节点按 DrawingML 顺序创建，其他属性和非目标注释原样保留。开启适配及适配框属性变化时重新测量并保存比例，后续文字编辑继续更新。10% 字号仍无法容纳时原子拒绝；关闭适配保留既有固定框越界诊断。无变化不增加历史，候选、旧 revision、缺字体、未知适配内容或预算失败保持会话。组内/继承框、调整形状到文字大小及复杂方向仍待支持。行为参考 [ONLYOFFICE 垂直对齐与适配设置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L1945-L2015)，继续使用第一方核心排版和源事务。
 
+`editPptxObjects` / `PresentationEditor.editObjects` 支持 `{ action: "textFormat", format }`，其中 `PptxTextFormat` 可包含 `font/size/bold/italic/color/underline/strike/highlight`。至少提供一项，省略项保持；不接受 null 清除或未知字段。font 为不超过 200 UTF-16 单元的实际字体族，不能包含 `|`、换行或以 `+` 开头；主题字体编辑另行实现。size 为 1–1024 pt，核心舍入到 0.01 pt。color 为六位 RGB 十六进制，查询和保存规范为小写。字体族同时写入 latin/ea/cs，授权字体与样式仍通过宿主 profile 供应。
+
+文字模式修改选中字符，光标处创建用于后续输入的格式；空段落写入 `endParaRPr`。对象模式作用于所选本地顶层文本框，混合多选合为一项事务。`{ action: "textAlign", alignment: "left" | "center" | "right" }` 修改所涉段落，对象模式修改框内全部段落。`PptxQuery.formatting` 返回上述八项字符属性及 `alignment` 的共同有效值，混合值为 null；`reason` 返回保护原因。无可编辑选择时为 null 占位，不是源格式。两种类型从 `wasm/pptx` 和 `web/pptx` 导出。
+
+underline/strike 为布尔值，保存为 DrawingML 的 `u="sng"/"none"` 和 `strike="sngStrike"/"noStrike"`。highlight 接受六位 RGB 或空串；空串清除高亮，写入含 `alpha=0` 的透明颜色以覆盖继承，并保留继承定义。查询空串表示无高亮，null 表示混合或保护占位。高亮沿既有纯色/主题颜色解析；未知内部标记及其他透明度仍保护。公共 `Line::positioned` 在文字前输出高亮，在文字后输出同文字颜色的下划线与删除线，使用塑形光标确定装饰范围；装饰修改保留 glyph、光标和逻辑文字。Canvas 与 PDF 共用此图元序列，PPTX 继续在框边界裁剪。DrawingML 属性及高亮写回参考 [ONLYOFFICE RunProperties](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/RunProperties.cpp#L233-L238)和[字符属性输出](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/RunProperties.cpp#L425-L452)。双线、波浪/虚线、自定义线色、上/下标等其他装饰继续实施。
+
+字符操作按需拆分 run，保留范围外文字、字符和段落属性、命名空间、对象身份、几何及其他部件。后续输入继承光标格式，替换范围继承首个选中字的格式。格式、对齐及原生文字共用精确历史；无变化不增加历史。已有缩小适配继续重新测量和保存比例，固定框继续诊断并裁剪溢出。候选、旧 revision、缺字体、锁定、未知 run/格式扩展或输出预算失败保持源和历史。字段、组内和继承对象继续保护。行为参考 [ONLYOFFICE 当前文本范围操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L1373-L1415)。更多装饰、列表编辑和查找替换仍待实现。
+
+`{ action: "clearTextFormat" }` 清除所选 run 的字体、字号、粗斜体、下划线、删除线和文字色直接定义，恢复段落、列表、版式及主题继承。保留高亮、语言、链接与源间隙；高亮使用独立的空串操作关闭。文字范围按需拆分 run；光标处建立用于后续输入的继承格式，空段落清除 `endParaRPr` 对应覆盖。对象模式清除所选本地文本框的 run 及段尾字符覆盖，保留段落默认字符定义。源中显式写出的默认值也会移除；再次清除不新增历史。语言与高亮保留规则参考 [ONLYOFFICE 字符清除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L16926-L16947)。
+
+`{ action: "clearParagraphFormat" }` 清除所涉段落的直接对齐、左/右/首行缩进、行段距及本地项目符号、符号字体/大小/颜色定义，恢复继承。保留 `lvl`、`defRPr`、字符内容及其元信息；自动编号、图片项目符号等既有未支持内容仍保护。段落选择沿用 `textParagraph` 的范围规则，对象模式处理全部所选框。清除沿现有源事务、字体预检、适配与输出预算执行；未知格式标记或失败保持源与历史，撤销精确恢复原属性和选择。默认 UI 提供两个清除按钮，宿主与 Worker 沿 `editObjects` 调用。语义参考 [ONLYOFFICE 段落清除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L11606-L11663)。
+
+`{ action: "textParagraph", format }` 修改段距、行距和缩进。`PptxParagraphFormat` 可含 `left/right/first/before/after/line`，至少提供一项，省略项保持；不接受 null 或未知字段。left/right 为 0–4032 pt，first 为 -4032–4032 pt，相对左缩进指定首行或悬挂缩进，核心舍入为整数 EMU。before/after/line 使用 `PptxTextSpacing`：`{ unit: "point" | "percent", value }`。段前/段后点值为 0–1584 pt，百分比为 0–1000%；行距点值至少 0.01 pt，百分比至少 0.001%，上限相同。点值和百分比分别保存到百分之一点和千分之一百分比；100% 为单倍行距。输出范围与顺序参考 [ONLYOFFICE TextSpacing](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/TextSpacing.cpp#L90-L162)及[段落属性](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/TextParagraphPr.cpp#L196-L218)。
+
+文字模式修改光标所在或范围所涉段落，终点恰在下一段开头时不修改下一段；对象模式修改所选本地文本框中的全部段落。`PptxQuery.paragraph` 返回六项共同有效值和 `reason`，混合项为 null；保护时为 null 占位。类型和动作从 `wasm/pptx`、`web/pptx` 导出，宿主沿 `editObjects` 队列执行。修改只写目标 `pPr`，保留字符、未改属性、源注释、继承定义、非目标段落、部件及选择。未知间距节点内容保护该框的间距/缩进操作；无变化不新增历史，旧 revision、候选、缺字体、无可用行宽和预算失败均不提交。已有适配框重新计算比例；固定框保留溢出诊断。默认面板按各字段的有效值更新草稿，其他格式命令完成时不清掉输入。
+
 支持矩形、椭圆、直线与文本框的核心路径；PNG/JPEG、矩形源裁剪、旋转/翻转和组合坐标变换。组合成员与继承对象只读；本地顶层对象可通过核心/API/UI 旋转、翻转和调整层次。图片不发起外链请求，源压缩字节与关系不改；只为当前页准备屏幕资源。全稿 PDF 临时准备所选页资源，仍受累计图片/输出预算约束，失败不返回截断文件。
 
 未知可见对象阻止点穿；无确定边界时，该页直接画布编辑只读，查询/保存及其他页仍可用。静态 PDF 遇到可见未支持内容、效果或未解决适配时返回页/对象原因。动画/切换只保留源。保存及全部撤销保留原解压部件；输出重新校验 ZIP/XML/OPC，不承诺整个 ZIP 字节一致。

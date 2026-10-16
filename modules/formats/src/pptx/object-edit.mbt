@@ -16,6 +16,11 @@ pub(all) enum ObjectEdit {
   TextAnchor(String)
   TextWrap(Bool)
   TextFit(Bool)
+  TextFormat(TextFormat)
+  TextAlign(String)
+  TextParagraph(ParagraphFormat)
+  ClearTextFormat
+  ClearParagraphFormat
 }
 
 ///|
@@ -239,8 +244,20 @@ pub fn Session::edit_objects(
   guard original.read_only.is_empty() else {
     @failure.reject("protected-content", original.read_only)
   }
+  if change is TextFormat(_) ||
+    change is TextAlign(_) ||
+    change is TextParagraph(_) ||
+    change is ClearTextFormat ||
+    change is ClearParagraphFormat {
+    return self.format_objects(change, probe, profile)
+  }
   let mut issued : String? = None
   let (changes, after) = match change {
+    TextFormat(_)
+    | TextAlign(_)
+    | TextParagraph(_)
+    | ClearTextFormat
+    | ClearParagraphFormat => abort("Text formatting was dispatched")
     TextInsets(_, _, _, _) | TextAnchor(_) | TextWrap(_) | TextFit(_) =>
       (self.frame_objects(change, probe, profile), self.selection)
     Fill(_) | Stroke(_, _) => (self.paint_objects(change), self.selection)

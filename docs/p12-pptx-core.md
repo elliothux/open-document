@@ -97,9 +97,15 @@
 
 ### 4.2 文本和表格
 
-文本框四边内边距、上/中/下垂直对齐、换行及缩小字体适配已接通核心、API 和默认 UI。支持本地顶层形状的混合多选，文字及对象选择保留，自动适配同时约束宽高并写回比例。核心 5 例、Chromium 一条原生输入/历史/重开/PDF 链及公开包已检查。实现归 [`text-frame.mbt`](../modules/formats/src/pptx/text-frame.mbt)，边界归[格式合同](references/formats.md#pptx)；字符和段落格式编辑仍待继续。
+文本框四边内边距、上/中/下垂直对齐、换行及缩小字体适配已接通核心、API 和默认 UI。支持本地顶层形状的混合多选，文字及对象选择保留，自动适配同时约束宽高并写回比例。实现归 [`text-frame.mbt`](../modules/formats/src/pptx/text-frame.mbt)，边界归[格式合同](references/formats.md#pptx)。
 
-字符/段落格式操作复用既有 DrawingML run/paragraph 结构，支持混合选区、清除直接格式、字体/字号/颜色、装饰、行段距、缩进和项目符号/编号。字体键与授权字体 profile 继续由核心解析和宿主供应，不引入 DOM 度量。
+基础文字格式已接通字体、字号、粗体、斜体、RGB 颜色、单下划线、单删除线、纯色高亮及清除高亮，以及段落左/中/右对齐。文字范围只修改选中字，对象模式作用于所选框；光标和空段落的格式用于后续原生输入。核心按需拆分 run，保留范围外内容和属性，格式与文字共用精确历史。装饰沿公共行绘制输出到 Canvas 和 PDF，保留形状的框内裁剪。默认面板显示混合值，各字段保留普通命令期间的草稿。实现归 [`text-format.mbt`](../modules/formats/src/pptx/text-format.mbt)和 [`text-format-properties.mbt`](../modules/formats/src/pptx/text-format-properties.mbt)，接口和剩余边界归[格式合同](references/formats.md#pptx)。
+
+段前/段后间距、行距和左/右/首行缩进已接通核心、API 与默认面板。段距支持点值或百分比，行距支持固定点值或百分比；所涉段落和多框共用一次源事务。查询区分混合值与保护原因，保留继承属性、非目标段落及字符内容，排版和保存使用同一设置。实现归 [`paragraph-format.mbt`](../modules/formats/src/pptx/paragraph-format.mbt)和 [`paragraph-properties.mbt`](../modules/formats/src/pptx/paragraph-properties.mbt)，单位与边界归[格式合同](references/formats.md#pptx)。
+
+清除字符和段落直接格式已接通核心、API 与默认面板。字符清除恢复父级字体属性，保留高亮、语言和链接；段落清除恢复对齐、行段距、缩进及项目符号定义的继承，保留级别与默认字符属性。局部范围、光标后续输入、空框和多框共用精确历史。实现归 [`text-clear.mbt`](../modules/formats/src/pptx/text-clear.mbt)，具体属性及保护归[格式合同](references/formats.md#pptx)。
+
+字符/段落格式继续复用既有 DrawingML run/paragraph 结构，补更多装饰、上/下标和项目符号/编号编辑。字体键与授权字体 profile 继续由核心解析和宿主供应，不引入 DOM 度量。
 
 内边距、垂直锚定、溢出和自动适配是框属性。保留已有有界字号缩放，增加内容撑开框等本阶段需要的模式；重排、几何、保存属性一致。查找替换返回跨页/框的有界目标，单次替换或全部替换按 revision 提交，不把一个框的 offset 用于另一个框。
 

@@ -31,6 +31,12 @@ export const en = {
   printFitNotice:
     "Nonzero page limits override the percentage and shrink within 10–100%. Saved settings apply to preview and PDF.",
   textFrame: "Text frame",
+  textFormat: "Text formatting",
+  paragraphBefore: "Space before",
+  paragraphAfter: "Space after",
+  spacingUnit: "Unit",
+  pointUnit: "Points",
+  percentUnit: "Percent",
   textFrameMargins: "Text margins",
   textInsetLeft: "Text left margin (pt)",
   textInsetTop: "Text top margin (pt)",

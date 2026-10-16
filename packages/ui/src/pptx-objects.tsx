@@ -5,6 +5,7 @@ import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { PptxPaint } from "./pptx-paint.js";
 import { PptxTextFrame } from "./pptx-text-frame.js";
+import { PptxFormat, PptxParagraph } from "./pptx-format.js";
 
 type Insert = Extract<PptxObjectEdit, { action: "insert" }>;
 
@@ -188,6 +189,20 @@ export function PptxObjects({
         )}
       <PptxPaint
         key={`${state.document?.documentId}:${query.revision}:${query.selection.mode}:${query.selection.objects.join(",")}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
+      <PptxFormat
+        key={`${state.document?.documentId}:${query.selection.objects.join(",")}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
+      <PptxParagraph
+        key={`paragraph:${state.document?.documentId}:${query.selection.objects.join(",")}`}
         controller={controller}
         state={state}
         editor={editor}

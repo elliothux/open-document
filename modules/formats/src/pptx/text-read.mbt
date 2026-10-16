@@ -13,6 +13,12 @@ fn text_style(
   let italic = attribute(sources, "i")
     .map(value => value == "1" || value == "true")
     .unwrap_or(false)
+  let underline = attribute(sources, "u").unwrap_or("none")
+  let strike = attribute(sources, "strike").unwrap_or("noStrike")
+  guard ["none", "sng", "0", "false"].contains(underline) &&
+    ["noStrike", "sngStrike", "0", "false"].contains(strike) else {
+    @failure.reject("unsupported-text", "Unsupported underline or strike style")
+  }
   let script = font_script(text)
   let font_kind = if ["Hans", "Hant", "Jpan", "Hang"].contains(script) {
     "ea"
@@ -38,7 +44,7 @@ fn text_style(
     paint
   }
   for source in sources {
-    for name in ["u", "strike", "baseline", "cap", "spc", "kumimoji"] {
+    for name in ["baseline", "cap", "spc", "kumimoji"] {
       if source.node.attribute(name) is Some(value) &&
         !["none", "noStrike", "0", "false"].contains(value) {
         @failure.reject(
@@ -48,8 +54,17 @@ fn text_style(
       }
     }
     for child in source.tree.children.get(source.node.id).unwrap_or([]) {
+      if child.uri == drawing_uri && ["uFillTx", "uLnTx"].contains(child.name) {
+        guard child.attributes.is_empty() &&
+          child.text.trim().is_empty() &&
+          source.tree.children.get(child.id).unwrap_or([]).is_empty() else {
+          @failure.reject(
+            "unsupported-text", "Extended underline settings are protected",
+          )
+        }
+      }
       if child.uri == drawing_uri &&
-        ["effectLst", "effectDag", "highlight", "ln"].contains(child.name) {
+        ["effectLst", "effectDag", "ln", "uLn", "uFill"].contains(child.name) {
         @failure.reject(
           "unsupported-text",
           "Unsupported text effect: " + child.name,
@@ -59,9 +74,9 @@ fn text_style(
   }
   {
     font: font_key(theme, family, text, bold, italic),
-    underline: false,
-    strike: false,
-    highlight: "",
+    underline: underline == "sng",
+    strike: strike == "sngStrike",
+    highlight: text_highlight(theme, sources),
     script: "baseline",
     size,
     color: if color.is_empty() {
@@ -80,7 +95,7 @@ fn spacing(
   for source in children(sources, name) {
     if source.child("spcPts") is Some(points) {
       return Points(
-        number(points.node.attribute("val").unwrap_or("0"), 0, 1000000) / 100,
+        number(points.node.attribute("val").unwrap_or("0"), 0, 158400) / 100,
       )
     }
     if source.child("spcPct") is Some(points) {
@@ -234,7 +249,7 @@ fn read_text(
     for item in children(styles, "lnSpc") {
       if item.child("spcPts") is Some(value) {
         line = Exact(
-          number(value.node.attribute("val").unwrap_or("0"), 1, 1000000) / 5,
+          number(value.node.attribute("val").unwrap_or("0"), 1, 158400) / 5,
         )
         break
       }
@@ -310,14 +325,14 @@ fn read_text(
       spacing: line,
       before: spacing(styles, "spcBef"),
       after: spacing(styles, "spcAft"),
-      left: number(attribute(styles, "marL").unwrap_or("0"), 0, 182880000) /
+      left: number(attribute(styles, "marL").unwrap_or("0"), 0, 51206400) /
       12700,
-      right: number(attribute(styles, "marR").unwrap_or("0"), 0, 182880000) /
+      right: number(attribute(styles, "marR").unwrap_or("0"), 0, 51206400) /
       12700,
       first: number(
         attribute(styles, "indent").unwrap_or("0"),
-        -182880000,
-        182880000,
+        -51206400,
+        51206400,
       ) /
       12700,
     })
