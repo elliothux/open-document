@@ -1,6 +1,7 @@
 ///|
 pub(all) enum SlideEdit {
   AddSlide
+  CopySlide
   DeleteSlide
   MoveSlide(Int)
   HideSlide(Bool)
@@ -165,7 +166,7 @@ fn Session::slide_order_reason(self : Session) -> String {
 }
 
 ///|
-/// Adds, reorders or hides a slide through the same bounded source history.
+/// Edits slide structure through the same bounded source history.
 pub fn Session::edit_slides(
   self : Session,
   revision : Int,
@@ -177,6 +178,7 @@ pub fn Session::edit_slides(
   let index = self.index(slide)
   let reason = if change is MoveSlide(_) ||
     change is AddSlide ||
+    change is CopySlide ||
     change is DeleteSlide {
     self.slide_order_reason()
   } else {
@@ -185,6 +187,7 @@ pub fn Session::edit_slides(
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   match change {
     AddSlide => return self.add_slide(index)
+    CopySlide => return self.add_slide(index, copy=true)
     DeleteSlide => return self.delete_slide(index)
     MoveSlide(target) => {
       guard target >= 0 && target < self.slides.length() else {

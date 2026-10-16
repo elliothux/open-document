@@ -92,6 +92,7 @@ fn read_slide(
       0,
       objects,
       ids,
+      parts,
     )
   }
   if flag(root, "showMasterSp", default=true) {
@@ -108,6 +109,7 @@ fn read_slide(
       0,
       objects,
       ids,
+      parts,
     )
   }
   read_objects(
@@ -123,6 +125,7 @@ fn read_slide(
     0,
     objects,
     ids,
+    parts,
   )
   let mut background = "ffffff"
   for layer in [tree, layout, master] {

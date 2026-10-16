@@ -194,6 +194,7 @@ fn Foundation::dispatch(
     "openXlsx"
     | "createXlsx"
     | "editXlsxSheet"
+    | "formatXlsxCells"
     | "queryXlsx"
     | "selectXlsx"
     | "replaceXlsx"

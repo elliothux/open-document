@@ -159,7 +159,7 @@ pub fn Session::copy(
         } else {
           formatted(
             value,
-            self.styles[cell.map(cell => cell.style).unwrap_or(0)].format,
+            self.styles[sheet.style_at(address)].format,
             self.date1904,
           )
         }

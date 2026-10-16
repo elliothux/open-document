@@ -9,9 +9,27 @@ pub(all) enum ObjectEdit {
 }
 
 ///|
-fn Session::next_object_identity(
+fn reserve_drawing_identities(
+  document : @xml.Document,
+  reserved : Map[String, Bool],
+) -> Unit raise @failure.Failure {
+  for node in document.nodes() {
+    if node.uri == presentation_uri && node.name == "cNvPr" {
+      reserved[source_identity(node.attribute("id").unwrap_or(""))] = true
+    } else if node.uri == creation_uri && node.name == "creationId" {
+      reserved[number(node.attribute("val").unwrap_or(""), 0, 4294967295)
+      .to_int64()
+      .to_string()] = true
+    } else if node.uri == drawing_uri && node.name == "fld" {
+      reserved[node.attribute("id").unwrap_or("").to_upper()] = true
+    }
+  }
+}
+
+///|
+fn Session::reserved_object_identities(
   self : Session,
-) -> String raise @failure.Failure {
+) -> Map[String, Bool] raise @failure.Failure {
   let reserved : Map[String, Bool] = Map([])
   // Original cached trees also reserve identities of deleted imported objects.
   for
@@ -19,12 +37,16 @@ fn Session::next_object_identity(
       ..self.cache.values().to_array(),
       ..self.slides.map(slide => slide.tree),
     ] {
-    for node in tree.document.nodes() {
-      if node.uri == presentation_uri && node.name == "cNvPr" {
-        reserved[source_identity(node.attribute("id").unwrap_or(""))] = true
-      }
-    }
+    reserve_drawing_identities(tree.document, reserved)
   }
+  reserved
+}
+
+///|
+fn Session::next_object_identity(
+  self : Session,
+) -> String raise @failure.Failure {
+  let reserved = self.reserved_object_identities()
   let mut next = self.object_sequence
   while reserved.contains(next.to_string()) {
     next += 1

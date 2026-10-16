@@ -2,6 +2,18 @@ import { WasmSession, encodeBytes } from "./session.js";
 import { DocumentError, type Budget } from "./foundation.js";
 import { record, hasFields, arrayOf } from "./validation.js";
 import { drawingBatch, type DrawingBatch, type DrawRect } from "./drawing.js";
+import {
+  checkXlsxCellFormat,
+  xlsxFormatting,
+  type XlsxCellFormat,
+  type XlsxFormatting,
+} from "./xlsx-format.js";
+export { checkXlsxCellFormat, xlsxNumberFormats } from "./xlsx-format.js";
+export type {
+  XlsxCellFormat,
+  XlsxFormatting,
+  XlsxCellBorder,
+} from "./xlsx-format.js";
 
 export interface GridViewport {
   sheet: string;
@@ -101,6 +113,7 @@ export interface XlsxQuery {
     columnWidth: number | null;
     readOnlyReason: string;
   };
+  formatting: XlsxFormatting;
   diagnostics: string[];
   date1904: boolean;
 }
@@ -194,6 +207,7 @@ function cellValue(value: unknown): boolean {
 
 export function xlsxQuery(value: unknown): XlsxQuery {
   const query = record(value);
+  xlsxFormatting(query.formatting);
   const dimensions = record(query.dimensions);
   if (
     typeof dimensions.readOnlyReason !== "string" ||
@@ -386,6 +400,12 @@ export function xlsxViewport(value: unknown): XlsxViewport {
 
 /** One workbook owner; values, XML transactions and history stay in MoonBit. */
 export class XlsxSession extends WasmSession {
+  formatCells(revision: number, patch: XlsxCellFormat): XlsxQuery {
+    checkXlsxCellFormat(patch);
+    return xlsxQuery(
+      this.call({ operation: "formatXlsxCells", revision, patch }),
+    );
+  }
   editSheet(revision: number, sheet: string, change: XlsxSheetEdit): XlsxQuery {
     checkXlsxSheetEdit(change);
     return xlsxQuery(

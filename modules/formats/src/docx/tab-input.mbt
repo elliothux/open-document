@@ -51,6 +51,19 @@ pub fn Session::tab(
     if tree.nodes[row].uri == word_uri && tree.nodes[row].name == "tr" {
       for cell in tree.children[row] {
         if tree.nodes[cell].uri == word_uri && tree.nodes[cell].name == "tc" {
+          let merge = tree
+            .child(cell, "tcPr")
+            .bind(p => tree.child(p, "vMerge"))
+          if merge
+            .map(id => {
+              tree.nodes[id]
+              .attribute("val", uri=word_uri)
+              .unwrap_or("continue") ==
+              "continue"
+            })
+            .unwrap_or(false) {
+            continue
+          }
           cells.push(cell)
         }
       }

@@ -10,7 +10,7 @@ priv struct CellStyle {
   wrap : Bool
   format : String
   diagnostic : String
-}
+} derive(Eq)
 
 ///|
 fn default_style() -> CellStyle {

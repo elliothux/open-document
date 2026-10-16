@@ -187,7 +187,7 @@ pub fn Session::edit_sheet(
             sheet.state,
             document,
             self.strings,
-            self.style_count,
+            self.styles.length(),
           )
           edits.push((sheet.id, edit))
         }
@@ -397,7 +397,7 @@ pub fn Session::edit_sheet(
           current.state,
           document,
           self.strings,
-          self.style_count,
+          self.styles.length(),
         )
         edits.push((current.id, edit))
       }

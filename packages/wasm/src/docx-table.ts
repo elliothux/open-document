@@ -1,13 +1,30 @@
-export type DocxTableEdit =
-  | "rowBefore"
-  | "rowAfter"
-  | "deleteRow"
-  | "columnBefore"
-  | "columnAfter"
-  | "deleteColumn";
+import { record } from "./validation.js";
 
-export function checkDocxTableEdit(change: DocxTableEdit): void {
+export type DocxTableEdit =
+  | {
+      action:
+        | "rowBefore"
+        | "rowAfter"
+        | "deleteRow"
+        | "columnBefore"
+        | "columnAfter"
+        | "deleteColumn"
+        | "unmerge";
+    }
+  | { action: "merge"; rows: number; columns: number };
+
+export function checkDocxTableEdit(value: unknown): void {
+  const change = record(value);
   if (
+    change.action === "merge" &&
+    typeof change.rows === "number" &&
+    typeof change.columns === "number"
+  ) {
+    checkDocxTableSize(change.rows, change.columns);
+    return;
+  }
+  if (
+    typeof change.action !== "string" ||
     ![
       "rowBefore",
       "rowAfter",
@@ -15,7 +32,8 @@ export function checkDocxTableEdit(change: DocxTableEdit): void {
       "columnBefore",
       "columnAfter",
       "deleteColumn",
-    ].includes(change)
+      "unmerge",
+    ].includes(change.action)
   )
     throw new Error("Invalid table edit");
 }

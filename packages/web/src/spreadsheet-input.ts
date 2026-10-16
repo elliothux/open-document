@@ -1,12 +1,15 @@
-import type { DrawRect } from "@open-document/wasm/drawing";
+import type { XlsxViewport } from "@open-document/wasm/xlsx";
 
 export function styleCellDraft(
   input: HTMLTextAreaElement,
-  draft: boolean,
+  draft: { address: string } | undefined,
   scale: number,
-  rect: DrawRect | undefined,
+  layout: XlsxViewport | undefined,
   viewportWidth: number,
 ): void {
+  const rect = layout?.cells.find(
+    (item) => item.cell.address === draft?.address,
+  )?.rect;
   input.style.opacity = draft ? "1" : "0";
   input.style.pointerEvents = draft ? "auto" : "none";
   input.style.border = draft ? "2px solid #2563eb" : "0";

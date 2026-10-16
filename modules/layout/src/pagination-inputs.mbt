@@ -2,12 +2,12 @@
 priv enum BodyBlock {
   BodyParagraph(Paragraph)
   TableStart(Table)
-  TableRow(Table, Int)
+  TableRows(Table, Int, Int)
   TableEnd(Table)
 }
 
 ///|
-fn Flow::body_blocks(self : Flow) -> Array[BodyBlock] {
+fn Flow::body_blocks(self : Flow) -> Array[BodyBlock] raise @failure.Failure {
   let blocks : Array[BodyBlock] = []
   let mut paragraph = 0
   let mut table = 0
@@ -21,9 +21,13 @@ fn Flow::body_blocks(self : Flow) -> Array[BodyBlock] {
       paragraph += 1
     } else {
       let item = self.tables[table]
+      item.check_grid()
       blocks.push(TableStart(item))
-      for row in 0..<item.rows.length() {
-        blocks.push(TableRow(item, row))
+      let mut row = 0
+      while row < item.rows.length() {
+        let end = item.row_group_end(row)
+        blocks.push(TableRows(item, row, end))
+        row = end + 1
       }
       blocks.push(TableEnd(item))
       table += 1
@@ -50,18 +54,23 @@ fn BodyBlock::key(self : BodyBlock) -> String? {
       guard table.finite_geometry() else { return None }
       let value = table.to_json()
       if value is Object(fields) {
-        for key in ["beforeParagraph", "rows", "heights", "fills"] {
+        for
+          key in [
+            "beforeParagraph", "rows", "heights", "fills", "columnSpans", "rowSpans",
+          ] {
           fields.remove(key)
         }
       }
       Json::array([Json("table-start"), value])
     }
-    TableRow(table, row) => {
+    TableRows(table, row, end) => {
       guard table.finite_geometry() &&
-        table.rows[row].all(cell => cell.all(p => p.finite_geometry())) &&
-        table.heights.get(row) is Some(height) &&
-        !height.is_nan() &&
-        !height.is_inf() else {
+        table.rows[row:end + 1]
+        .iter()
+        .all(row => row.all(cell => cell.all(p => p.finite_geometry()))) &&
+        table.heights[row:end + 1]
+        .iter()
+        .all(height => !height.is_nan() && !height.is_inf()) else {
         return None
       }
       Json::array([
@@ -72,9 +81,11 @@ fn BodyBlock::key(self : BodyBlock) -> String? {
         Json(table.borders),
         Json(table.padding),
         Json(table.verticalPadding),
-        Json(table.rows[row]),
-        Json(table.heights.get(row)),
-        Json(table.fills.get(row)),
+        Json(table.rows[row:end + 1].to_owned()),
+        Json(table.heights[row:end + 1].to_owned()),
+        Json(table.fills[row:end + 1].to_owned()),
+        Json(table.columnSpans[row:end + 1].to_owned()),
+        Json(table.rowSpans[row:end + 1].to_owned()),
       ])
     }
     TableEnd(table) =>
@@ -102,8 +113,10 @@ fn BodyBlock::place(
       pagination.gap = 0
       ignore(table.left(pagination.page))
     }
-    TableRow(table, row) =>
-      pagination.table_row(cache, probe, table, row, profile, images, additive)
+    TableRows(table, row, end) =>
+      pagination.table_rows(
+        cache, probe, table, row, end, profile, images, additive,
+      )
     TableEnd(table) => if table.borders { pagination.y += 0.5 }
   }
 }
@@ -131,10 +144,15 @@ fn BodyBlock::retain(
   match self {
     BodyParagraph(paragraph) =>
       cache.retain(paragraph, page.width - page.left - page.right)
-    TableRow(table, row) =>
-      for column, cell in table.rows[row] {
-        for paragraph in cell {
-          cache.retain(paragraph, table.widths[column] - table.padding * 2)
+    TableRows(table, first, last) =>
+      for row in first..<=last {
+        for column, cell in table.rows[row] {
+          for paragraph in cell {
+            cache.retain(
+              paragraph,
+              table.cell_width(row, column) - table.padding * 2,
+            )
+          }
         }
       }
     _ => ()

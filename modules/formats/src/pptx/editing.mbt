@@ -72,6 +72,7 @@ fn Session::commit_slides(
   after : Selection,
   parts~ : Map[String, @xml.Document] = self.parts,
   created~ : (Slide, @xml.Document)? = None,
+  created_parts~ : Map[String, @xml.Document] = Map([]),
   deleted~ : Slide? = None,
   removed~ : Map[String, @xml.Document] = Map([]),
 ) -> Unit raise @failure.Failure {
@@ -90,6 +91,11 @@ fn Session::commit_slides(
       2
     })
     .unwrap_or(0L) +
+    created_parts
+    .values()
+    .fold(init=0L, (sum, document) => {
+      sum + document.source().length().to_int64() * 2
+    }) +
     removed
     .values()
     .fold(init=0L, (sum, document) => {
@@ -116,6 +122,7 @@ fn Session::commit_slides(
   self.history.push({
     edits,
     created,
+    created_parts,
     deleted,
     removed,
     before: self.selection,
@@ -152,9 +159,18 @@ pub fn Session::undo(
     let deleted_documents : Map[String, @xml.Document] = Map([])
     let mut deleted_slide : Slide? = None
     let mut removed : (Slide, @xml.Document)? = None
+    let removed_created_parts : Map[String, @xml.Document] = Map([])
     if redo && entry.created is Some((slide, relations)) {
       slides.push(slide)
       parts[relationship_part(slide.tree.part)] = relations
+      for name, document in entry.created_parts {
+        guard !parts.contains(name) else {
+          @failure.reject(
+            "invalid-operation", "Created slide part already exists",
+          )
+        }
+        parts[name] = document
+      }
     }
     if !redo && entry.deleted is Some(slide) {
       slides.push(slide)
@@ -203,6 +219,16 @@ pub fn Session::undo(
       let relations = parts[relation_path]
       parts.remove(relation_path)
       removed = Some((slide, relations))
+      for name, snapshot in entry.created_parts {
+        guard parts.get(name) is Some(document) &&
+          document.source() == snapshot.source() else {
+          @failure.reject(
+            "invalid-operation", "Created slide part history has changed",
+          )
+        }
+        removed_created_parts[name] = document
+        parts.remove(name)
+      }
     }
     if redo && entry.deleted is Some(deleted) {
       let index = slides
@@ -232,6 +258,9 @@ pub fn Session::undo(
     // Preserve identity allocation after later edits were undone, for their next redo.
     if removed is Some(_) {
       entry.created = removed
+      for name, document in removed_created_parts {
+        entry.created_parts[name] = document
+      }
     }
     if deleted_slide is Some(_) {
       entry.deleted = deleted_slide

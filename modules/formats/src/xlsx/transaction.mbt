@@ -41,6 +41,12 @@ fn Session::commit(
     }
   }
   self.validate(sheets, workbook~, parts~, removed=removed_parts)
+  let styles = self.styles_from_parts(parts)
+  guard sheets.all(sheet => {
+    sheet.cells.values().all(cell => cell.style < styles.length())
+  }) else {
+    @failure.reject("malformed-xlsx", "Cell style is outside candidate styles")
+  }
   for item in self.redo {
     self.history_bytes -= item.bytes
   }
@@ -65,6 +71,7 @@ fn Session::commit(
   self.parts = parts
   self.removed = removed_parts
   self.sheets = sheets
+  self.styles = styles
   self.calculation = Some(calculation)
   self.selection = after
   self.anchor = { row: after.1.top, column: after.1.left, }

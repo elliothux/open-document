@@ -5,8 +5,5 @@ import {
   "open_document/core/failure",
   "open_document/layout",
   "moonbitlang/core/string",
-}
-
-import {
   "moonbitlang/core/encoding/utf8",
-} for "wbtest"
+}

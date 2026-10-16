@@ -6,6 +6,7 @@ import {
 import { SpreadsheetPrint, defaultPrintOptions } from "./spreadsheet-print.js";
 import { CanvasSurface } from "./canvas-surface.js";
 import { spreadsheetKey, styleCellDraft } from "./spreadsheet-input.js";
+import { checkFormatFonts } from "./spreadsheet-format.js";
 import { bindClipboard } from "./clipboard-input.js";
 import {
   EditorState,
@@ -19,6 +20,7 @@ import type {
   XlsxPrintLayout,
   PrintOptions,
   XlsxSheetEdit,
+  XlsxCellFormat,
 } from "@open-document/wasm/xlsx";
 
 export interface SpreadsheetEditorData {
@@ -552,14 +554,11 @@ export class SpreadsheetEditor {
     updateGridSelection(this.semantics, this.input, this.active());
   }
   private styleInput(): void {
-    const rect = this.layout?.cells.find(
-      (item) => item.cell.address === this.draft?.address,
-    )?.rect;
     styleCellDraft(
       this.input,
-      !!this.draft,
+      this.draft,
       this.scale,
-      rect,
+      this.layout,
       this.viewport.clientWidth,
     );
   }
@@ -609,13 +608,24 @@ export class SpreadsheetEditor {
     });
   }
   editSheet(change: XlsxSheetEdit, sheet?: string): Promise<void> {
-    return this.enqueue(async () => {
-      await this.commitDraft();
-      this.state = await this.client.editSheet(
+    return this.change(() =>
+      this.client.editSheet(
         this.state.revision,
         sheet ?? this.state.sheet,
         change,
-      );
+      ),
+    );
+  }
+  formatCells(patch: XlsxCellFormat): Promise<void> {
+    return this.change(() => {
+      checkFormatFonts(patch, this.state.formatting, this.profile);
+      return this.client.formatCells(this.state.revision, patch);
+    });
+  }
+  private change(action: () => Promise<XlsxQuery>): Promise<void> {
+    return this.enqueue(async () => {
+      await this.commitDraft();
+      this.state = await action();
       this.generation++;
       await this.present(true);
       this.input.focus({ preventScroll: true });

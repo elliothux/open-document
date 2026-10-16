@@ -175,12 +175,19 @@ fn Session::table(
   let rows : Array[Array[Array[@layout.Paragraph]]] = []
   let heights : Array[Double] = []
   let fills : Array[Array[String]] = []
+  let column_spans : Array[Array[Int]] = []
+  let row_spans : Array[Array[Int]] = []
+  let mut previous : Map[(Int, Int), (Int, Int)] = Map([])
   for row in tree.children[id] {
     if tree.nodes[row].name != "tr" {
       continue
     }
     let cells : Array[Array[@layout.Paragraph]] = []
     let colors : Array[String] = []
+    let spans : Array[Int] = []
+    let vertical : Array[Int] = []
+    let current : Map[(Int, Int), (Int, Int)] = Map([])
+    let mut column = 0
     let height = if tree.child(row, "trPr") is Some(props) {
       if tree
         .child(props, "trHeight")
@@ -204,15 +211,38 @@ fn Session::table(
       if tree.nodes[cell].name != "tc" {
         continue
       }
-      if tree.child(cell, "tcPr") is Some(props) &&
-        (
-          tree.child(props, "gridSpan") is Some(_) ||
-          tree.child(props, "vMerge") is Some(_)
-        ) {
-        @failure.reject(
-          "unsupported-layout", "Merged table cells are unsupported",
-        )
+      let props = tree.child(cell, "tcPr")
+      let span = props.bind(p => tree.number(p, "gridSpan", "val")).unwrap_or(1)
+      guard span >= 1 &&
+        span == span.floor() &&
+        span <= widths.length().to_double() &&
+        column + span.to_int() <= widths.length() else {
+        @failure.reject("invalid-table", "Invalid table grid span")
       }
+      let span = span.to_int()
+      let merge = props.bind(p => tree.child(p, "vMerge"))
+      let state = merge
+        .map(id => {
+          tree.nodes[id].attribute("val", uri=word_uri).unwrap_or("continue")
+        })
+        .unwrap_or("")
+      guard ["", "restart", "continue"].contains(state) else {
+        @failure.reject("invalid-table", "Invalid vertical merge state")
+      }
+      let continued = state == "continue"
+      if continued {
+        guard previous.get((column, span)) is Some((r, c)) else {
+          @failure.reject(
+            "invalid-table", "Vertical merge has no matching start",
+          )
+        }
+        row_spans[r][c] += 1
+        current[(column, span)] = (r, c)
+      } else if state == "restart" {
+        current[(column, span)] = (rows.length(), cells.length())
+      }
+      spans.push(span)
+      vertical.push(if continued { 0 } else { 1 })
       let paragraphs : Array[@layout.Paragraph] = []
       let color = tree
         .child(cell, "tcPr")
@@ -244,14 +274,26 @@ fn Session::table(
             )
         }
       }
-      cells.push(paragraphs)
+      if continued &&
+        paragraphs.any(p => {
+          p.spans.any(s => !s.text.is_empty() || s.image is Some(_))
+        }) {
+        @failure.reject(
+          "unsupported-layout", "Vertical continuation contains visible content",
+        )
+      }
+      cells.push(if continued { [] } else { paragraphs })
+      column += span
     }
-    guard !cells.is_empty() && cells.length() == widths.length() else {
+    guard !cells.is_empty() && column == widths.length() else {
       @failure.reject("invalid-table", "Table grid and cell count differ")
     }
     rows.push(cells)
     heights.push(height)
     fills.push(colors)
+    column_spans.push(spans)
+    row_spans.push(vertical)
+    previous = current
   }
   guard !rows.is_empty() && widths.iter().all(width => width > 6) else {
     @failure.reject("invalid-table", "Empty table or unusable grid")
@@ -351,6 +393,8 @@ fn Session::table(
     id,
     beforeParagraph: before_paragraph,
     rows,
+    columnSpans: column_spans,
+    rowSpans: row_spans,
     widths,
     align,
     borders,

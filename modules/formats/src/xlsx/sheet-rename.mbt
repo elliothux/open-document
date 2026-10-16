@@ -258,7 +258,7 @@ fn Session::rename_sheet(
       sheet.state,
       document,
       self.strings,
-      self.style_count,
+      self.styles.length(),
     )
     edits.push((sheet.id, edit))
   }

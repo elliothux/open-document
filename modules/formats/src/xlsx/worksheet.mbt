@@ -23,6 +23,8 @@ priv struct Sheet {
   locked : Bool
   data : Int
   dimensions : Dimensions
+  row_styles : Map[Int, Int]
+  column_styles : Array[(Int, Int, Int)]
 }
 
 ///|
@@ -62,6 +64,26 @@ fn Sheet::read(
     .unwrap_or(false)
   let cells : Map[String, Cell] = Map([])
   let rows : Map[Int, Int] = Map([])
+  let row_styles : Map[Int, Int] = Map([])
+  let column_styles : Array[(Int, Int, Int)] = []
+  if tree.one(root.id, "cols") is Some(cols) {
+    for column in tree.all(cols.id, "col") {
+      if column.attribute("style") is Some(style) {
+        let first = natural(column.attribute("min").unwrap_or(""), 16384)
+        let last = natural(column.attribute("max").unwrap_or(""), 16384)
+        guard first > 0 && last >= first else {
+          @failure.reject("malformed-xlsx", "Invalid styled column bounds")
+        }
+        column_styles.push((first, last, natural(style, style_count - 1)))
+      }
+    }
+    column_styles.sort_by((a, b) => a.0.compare(b.0))
+    for i in 1..<column_styles.length() {
+      guard column_styles[i - 1].1 < column_styles[i].0 else {
+        @failure.reject("malformed-xlsx", "Overlapping styled columns")
+      }
+    }
+  }
   let mut previous_row = 0
   for row in tree.all(data.id, "row") {
     guard rows.length() < 100000 else {
@@ -79,6 +101,9 @@ fn Sheet::read(
       @failure.reject("malformed-xlsx", "Duplicate or invalid row", part=id)
     }
     rows[row_index] = row.id
+    if row.attribute("s") is Some(style) {
+      row_styles[row_index] = natural(style, style_count - 1)
+    }
     previous_row = row_index
     let mut previous_column = 0
     for node in tree.all(row.id, "c") {
@@ -95,7 +120,14 @@ fn Sheet::read(
         )
       }
       previous_column = address.column
-      let style = natural(node.attribute("s").unwrap_or("0"), style_count - 1)
+      let style = node
+        .attribute("s")
+        .map(value => natural(value, style_count - 1))
+        .unwrap_or_else(() => {
+          row_styles
+          .get(row_index)
+          .unwrap_or(column_style(column_styles, address.column))
+        })
       let kind = node.attribute("t").unwrap_or("n")
       let raw = tree.one(node.id, "v").map(node => node.text)
       let mut rich = false
@@ -229,6 +261,8 @@ fn Sheet::read(
     locked,
     data: data.id,
     dimensions: read_dimensions(tree, root, data),
+    row_styles,
+    column_styles,
   }
   sheet.expand_shared(tree)
   sheet
@@ -252,7 +286,7 @@ fn Sheet::cell_json(
     "address": key,
     "row": address.row,
     "column": address.column,
-    "style": cell.map(cell => cell.style).unwrap_or(0),
+    "style": self.style_at(address),
     "value": value,
     "input": formula
     .map(source => "=" + source)

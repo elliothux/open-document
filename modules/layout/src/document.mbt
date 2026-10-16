@@ -318,6 +318,8 @@ pub(all) struct Table {
   id : Int
   beforeParagraph : Int
   rows : Array[Array[Array[Paragraph]]]
+  columnSpans : Array[Array[Int]]
+  rowSpans : Array[Array[Int]]
   widths : Array[Double]
   align : String
   borders : Bool

@@ -21,8 +21,8 @@ pub struct Session {
   priv budget : @archive.Budget
   priv strings : Array[(String, Bool)]
   priv strings_part : String?
-  priv style_count : Int
-  priv styles : Array[CellStyle]
+  priv mut styles : Array[CellStyle]
+  priv theme : Array[String]
   priv date1904 : Bool
   priv mut sheets : Array[Sheet]
   priv mut selection : (String, Range)
@@ -86,7 +86,6 @@ fn Session::from_package(
   let relations : Map[String, @opc.Relationship] = Map([])
   let strings : Array[(String, Bool)] = []
   let mut strings_part : String? = None
-  let mut style_count = 1
   let mut has_styles = false
   let theme = read_theme(opc, main)
   let mut cell_styles = [default_style()]
@@ -120,23 +119,7 @@ fn Session::from_package(
         @failure.reject("malformed-xlsx", "Invalid styles relationship")
       }
       has_styles = true
-      let styles = Tree::new(opc.xml(rel.target))
-      cell_styles = read_styles(styles.document, theme)
-      let root = styles.root("styleSheet")
-      let formats = styles
-        .one(root.id, "cellXfs")
-        .unwrap_or_error(
-          @failure.Failure(
-            code="malformed-xlsx",
-            part=rel.target,
-            offset=-1,
-            message="Missing cellXfs",
-          ),
-        )
-      style_count = styles.all(formats.id, "xf").length()
-      guard style_count > 0 && style_count <= 4096 else {
-        @failure.reject("limit-exceeded", "Invalid style count")
-      }
+      cell_styles = read_styles(opc.xml(rel.target), theme)
     }
   }
   let container = tree
@@ -193,7 +176,7 @@ fn Session::from_package(
       state,
       opc.xml(rel.target),
       strings,
-      style_count,
+      cell_styles.length(),
     )
     cell_count += sheet.cells.length()
     guard cell_count <= 100000 else {
@@ -236,8 +219,8 @@ fn Session::from_package(
     budget,
     strings,
     strings_part,
-    style_count,
     styles: cell_styles,
+    theme,
     date1904: tree
     .one(root.id, "workbookPr")
     .map(node => flag(node, "date1904"))
@@ -408,6 +391,7 @@ pub fn Session::query(
       .unwrap_or(Json::null()),
       "readOnlyReason": self.dimension_reason(current),
     },
+    "formatting": self.formatting(current, range.unwrap()),
     "diagnostics": self.diagnostics,
     "date1904": self.date1904,
   }

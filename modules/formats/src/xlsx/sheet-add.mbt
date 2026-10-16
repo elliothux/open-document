@@ -84,7 +84,7 @@ fn Session::prepare_sheet_add(
     copy.map(source => source.state).unwrap_or("visible"),
     document,
     self.strings,
-    self.style_count,
+    self.styles.length(),
   )
   let metadata : Array[(String, @xml.Document, @xml.Edit)] = []
   for

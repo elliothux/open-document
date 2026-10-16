@@ -42,7 +42,7 @@
     "./engine.wasm": "./dist/engine.wasm"
   },
   "scripts": {
-    "build": "bun build src/engine.ts src/foundation.ts src/docx-format.ts src/docx-list.ts src/docx-list-level.ts src/docx-search.ts src/docx-table.ts src/preview.ts src/drawing.ts src/validation.ts src/session.ts src/xlsx.ts src/pptx.ts src/pdf.ts --no-bundle --target browser --root src --outdir dist && cp ../../LICENSE dist/LICENSE",
+    "build": "bun build src/engine.ts src/foundation.ts src/docx-format.ts src/docx-list.ts src/docx-list-level.ts src/docx-search.ts src/docx-table.ts src/preview.ts src/drawing.ts src/validation.ts src/session.ts src/xlsx.ts src/xlsx-format.ts src/pptx.ts src/pdf.ts --no-bundle --target browser --root src --outdir dist && cp ../../LICENSE dist/LICENSE",
     "typecheck": "tsc --project tsconfig.json"
   }
 }

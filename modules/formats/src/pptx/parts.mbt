@@ -36,6 +36,38 @@ fn slide_layout(
 }
 
 ///|
+fn image_target(
+  opc : @opc.Package,
+  owner : String,
+  id : String,
+  parts : Map[String, @xml.Document],
+) -> String? raise @failure.Failure {
+  if parts.get(relationship_part(owner)) is Some(document) {
+    let root = document.nodes()[0]
+    let links = document
+      .nodes()
+      .filter(node => node.parent == root.id && node.attribute("Id") == Some(id))
+    guard links is [link] &&
+      link.attribute("Type") == Some(relationship_uri + "/image") &&
+      link.attribute("TargetMode") != Some("External") &&
+      link.attribute("Target") is Some(target) else {
+      return None
+    }
+    return Some(@opc.resolve_target(owner, target))
+  }
+  opc
+  .relationships()
+  .iter()
+  .find_first(rel => {
+    rel.owner == owner &&
+    rel.id == id &&
+    rel.kind == relationship_uri + "/image" &&
+    !rel.external
+  })
+  .map(rel => rel.target)
+}
+
+///|
 fn Session::replacements(
   self : Session,
   main : Tree,
@@ -43,7 +75,11 @@ fn Session::replacements(
   parts : Map[String, @xml.Document],
 ) -> Map[String, Bytes] {
   let replacements : Map[String, Bytes] = Map([])
-  for part, document in parts {
+  // Restoring created resources must preserve the saved ZIP order across undo/redo.
+  let names = parts.keys().to_array()
+  names.sort()
+  for part in names {
+    let document = parts[part]
     if !document.is_original() || !self.opc.names.contains(part.to_lower()) {
       replacements[part] = document.bytes()
     }

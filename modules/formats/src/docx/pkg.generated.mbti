@@ -153,6 +153,8 @@ pub(all) enum TableEdit {
   ColumnBefore
   ColumnAfter
   DeleteColumn
+  MergeCells(Int, Int)
+  UnmergeCell
 }
 
 // Type aliases

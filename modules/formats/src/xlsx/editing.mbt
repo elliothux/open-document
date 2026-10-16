@@ -31,6 +31,7 @@ fn Sheet::cell_xml(
   tree : Tree,
   address : Address,
   value : CellContent,
+  style~ : Int? = None,
 ) -> String raise @failure.Failure {
   let key = address.name()
   let original = self.cells.get(key).map(cell => tree.nodes[cell.node])
@@ -56,10 +57,17 @@ fn Sheet::cell_xml(
   }
   let output = StringBuilder()
   output <+ "<\{qualified} r=\"\{key}\""
+  if style is Some(id) {
+    output <+ " s=\"\{id}\""
+  }
   if original is Some(node) {
     let source = self.document.source()
     for attribute in node.attributes {
-      if !(attribute.uri.is_empty() && ["r", "t"].contains(attribute.name)) {
+      if !(attribute.uri.is_empty() &&
+        (
+          ["r", "t"].contains(attribute.name) ||
+          (style is Some(_) && attribute.name == "s")
+        )) {
         // Cache updates may touch read-only formulas; retain their other attributes exactly.
         let mut end = attribute.start - 1
         while end > node.start && source[end] != 61 {
@@ -124,6 +132,7 @@ fn insertion(node : @xml.Node, content : String) -> @xml.SourceChange {
 fn Sheet::prepare(
   self : Sheet,
   updates : Map[String, CellContent],
+  styles~ : Map[String, Int] = Map([]),
 ) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
   let tree = Tree::new(self.document)
   let changes : Array[@xml.SourceChange] = []
@@ -132,6 +141,10 @@ fn Sheet::prepare(
     let address = Address::parse(name)
     if self.cells.get(name) is Some(cell) {
       let node = tree.nodes[cell.node]
+      if styles.get(name) is Some(style) {
+        changes.append(metadata_changes(node, [("s", style.to_string())]))
+        continue
+      }
       let row = tree.nodes[node.parent]
       changes.push({
         node: row.id,
@@ -139,7 +152,9 @@ fn Sheet::prepare(
         length: node.end - node.start,
         xml: self.cell_xml(tree, address, value),
       })
-    } else if value.value != Blank || value.formula is Some(_) {
+    } else if value.value != Blank ||
+      value.formula is Some(_) ||
+      styles.contains(name) {
       if pending.get(address.row) is Some(items) {
         items.push((address, value))
       } else {
@@ -178,13 +193,15 @@ fn Sheet::prepare(
           )
         let key = (row_id, offset)
         insertions[key] = insertions.get(key).unwrap_or("") +
-          self.cell_xml(tree, address, value)
+          self.cell_xml(tree, address, value, style=styles.get(address.name()))
       }
     } else {
       let data = tree.nodes[self.data]
       let prefix = data.qualified[:data.qualified.length() - 9].to_owned()
       let content = items
-        .map(item => self.cell_xml(tree, item.0, item.1))
+        .map(item => {
+          self.cell_xml(tree, item.0, item.1, style=styles.get(item.0.name()))
+        })
         .join("")
       let row = "<\{prefix}row r=\"\{row_number}\">\{content}</\{prefix}row>"
       let next = tree
@@ -326,7 +343,7 @@ pub fn Session::replace(
     current.state,
     document,
     self.strings,
-    self.style_count,
+    self.styles.length(),
   )
   let edits : Array[(String, @xml.Edit)] = [(current.id, edit)]
   let changed = updates
@@ -404,8 +421,11 @@ pub fn Session::undo(
   let mut deleted_sheet : Sheet? = None
   let mut removed : Sheet? = None
   let removed_created_parts : Map[String, @xml.Document] = Map([])
+  let documents : Map[String, @xml.Document] = Map([])
   if redo && entry.created is Some(sheet) {
     sheets.push(sheet)
+  }
+  if redo {
     for name, document in entry.created_parts {
       guard !parts.contains(name) else {
         @failure.reject(
@@ -437,26 +457,25 @@ pub fn Session::undo(
       continue
     }
     let sheet = sheets[index]
-    let document = sheet.document.apply(edit, forward=redo)
-    sheets[index] = Sheet::read(
-      sheet.id,
-      sheet.name,
-      sheet.state,
-      document,
-      self.strings,
-      self.style_count,
-    )
+    let document = documents.get(part).unwrap_or(sheet.document)
+    documents[part] = document.apply(edit, forward=redo)
   }
   if !redo && entry.created is Some(created) {
     let sheet = sheets.remove(
       sheets.search_by(sheet => sheet.id == created.id).unwrap(),
     )
+    let sheet = {
+      ..sheet,
+      document: documents.get(sheet.id).unwrap_or(sheet.document),
+    }
     guard sheet.document.source() == created.document.source() else {
       @failure.reject(
         "invalid-operation", "Created worksheet history has changed",
       )
     }
     removed = Some(sheet)
+  }
+  if !redo {
     for name, snapshot in entry.created_parts {
       guard parts.get(name) is Some(current) &&
         current.source() == snapshot.source() else {
@@ -485,6 +504,19 @@ pub fn Session::undo(
       }
     }
   }
+  let styles = self.styles_from_parts(parts)
+  for index, sheet in sheets {
+    if documents.get(sheet.id) is Some(document) {
+      sheets[index] = Sheet::read(
+        sheet.id,
+        sheet.name,
+        sheet.state,
+        document,
+        self.strings,
+        styles.length(),
+      )
+    }
+  }
   let sheets = self.ordered_sheets(
     workbook,
     sheets,
@@ -492,13 +524,18 @@ pub fn Session::undo(
     removed=removed_parts,
   )
   self.validate(sheets, workbook~, parts~, removed=removed_parts)
+  guard sheets.all(sheet => {
+    sheet.cells.values().all(cell => cell.style < styles.length())
+  }) else {
+    @failure.reject("malformed-xlsx", "Cell style is outside restored styles")
+  }
   let calculation = Calculation::build(sheets, None, [])
   // Retain XML identity allocation from later undone edits for their next redo.
   if removed is Some(_) {
     entry.created = removed
-    for name, document in removed_created_parts {
-      entry.created_parts[name] = document
-    }
+  }
+  for name, document in removed_created_parts {
+    entry.created_parts[name] = document
   }
   if deleted_sheet is Some(_) {
     entry.deleted = deleted_sheet
@@ -510,6 +547,7 @@ pub fn Session::undo(
   self.parts = parts
   self.removed = removed_parts
   self.sheets = sheets
+  self.styles = styles
   self.calculation = Some(calculation)
   self.selection = if redo { entry.after } else { entry.before }
   self.anchor = { row: self.selection.1.top, column: self.selection.1.left, }
@@ -569,11 +607,42 @@ pub fn Session::save(self : Session) -> Bytes raise @failure.Failure {
 }
 
 ///|
-fn cell_sources(tree : Tree, data : Int) -> Array[String] {
+fn cell_sources(
+  tree : Tree,
+  data : Int,
+) -> Array[String] raise @failure.Failure {
   let cells : Array[String] = []
+  let mut previous_row = 0
   for row in tree.all(data, "row") {
+    let row_number = natural(
+      row.attribute("r").unwrap_or((previous_row + 1).to_string()),
+      1048576,
+    )
+    previous_row = row_number
+    let mut previous_column = 0
     for cell in tree.all(row.id, "c") {
-      cells.push(tree.document.source()[cell.start:cell.end].to_owned())
+      let address = cell
+        .attribute("r")
+        .map(Address::parse)
+        .unwrap_or({ row: row_number, column: previous_column + 1, })
+      previous_column = address.column
+      let content = tree.children
+        .get(cell.id)
+        .unwrap_or([])
+        .filter(child => {
+          child.uri == spreadsheet_uri && ["v", "f", "is"].contains(child.name)
+        })
+      if !content.is_empty() {
+        cells.push(
+          address.name() +
+          "\n" +
+          cell.attribute("t").unwrap_or("n") +
+          "\n" +
+          content
+          .map(node => tree.document.source()[node.start:node.end].to_owned())
+          .join(""),
+        )
+      }
     }
   }
   cells

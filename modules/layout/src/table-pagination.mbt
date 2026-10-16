@@ -1,0 +1,193 @@
+///|
+fn Table::check_grid(self : Table) -> Unit raise @failure.Failure {
+  let count = self.rows.length()
+  guard count > 0 &&
+    !self.widths.is_empty() &&
+    self.heights.length() == count &&
+    self.fills.length() == count &&
+    self.columnSpans.length() == count &&
+    self.rowSpans.length() == count else {
+    @failure.reject("invalid-table", "Table row metadata differs from grid")
+  }
+  let active = Array::make(self.widths.length(), -1)
+  for r, row in self.rows {
+    guard !row.is_empty() &&
+      row.length() == self.fills[r].length() &&
+      row.length() == self.columnSpans[r].length() &&
+      row.length() == self.rowSpans[r].length() &&
+      self.heights[r] >= 0 &&
+      !self.heights[r].is_inf() &&
+      !self.heights[r].is_nan() else {
+      @failure.reject("invalid-table", "Invalid table cell metadata")
+    }
+    let mut column = 0
+    for c, _ in row {
+      let span = self.columnSpans[r][c]
+      let rows = self.rowSpans[r][c]
+      guard span > 0 &&
+        span <= self.widths.length() - column &&
+        rows >= 0 &&
+        rows <= count - r else {
+        @failure.reject("invalid-table", "Invalid merged cell bounds")
+      }
+      for index in column..<(column + span) {
+        guard (if rows == 0 { active[index] >= r } else { active[index] < r }) else {
+          @failure.reject(
+            "invalid-table", "Merged table cells overlap or lack a start",
+          )
+        }
+        if rows > 0 {
+          active[index] = r + rows - 1
+        }
+      }
+      column += span
+    }
+    guard column == self.widths.length() else {
+      @failure.reject("invalid-table", "Table row differs from grid")
+    }
+  }
+}
+
+///|
+fn Table::row_group_end(self : Table, first : Int) -> Int {
+  let mut last = first
+  let mut row = first
+  while row <= last {
+    for span in self.rowSpans[row] {
+      last = last.max(row + span - 1)
+    }
+    row += 1
+  }
+  last
+}
+
+///|
+fn Table::cell_width(self : Table, row : Int, cell : Int) -> Double {
+  let column = self.columnSpans[row][:cell]
+    .iter()
+    .fold(init=0, (sum, span) => sum + span)
+  self.widths[column:column + self.columnSpans[row][cell]]
+  .iter()
+  .fold(init=0.0, (sum, width) => sum + width)
+}
+
+///|
+fn Pagination::table_rows(
+  self : Pagination,
+  cache : ParagraphCache,
+  probe : TextProbe,
+  table : Table,
+  first_row : Int,
+  last_row : Int,
+  profile : Map[String, String],
+  images : Images,
+  additive : Bool,
+) -> Unit raise @failure.Failure {
+  let left = table.left(self.page)
+  let first = table.rows[first_row].get(0).bind(cell => cell.get(0))
+  if first_row == 0 &&
+    first.map(p => p.pageBreakBefore).unwrap_or(false) &&
+    (
+      self.pages.last().unwrap().lines.any(line => !line.caretOnly) ||
+      !self.pages.last().unwrap().borders.is_empty()
+    ) {
+    self.next_page()
+  }
+  let border = if table.borders { 0.5 } else { 0 }
+  let heights = Array::makei(last_row - first_row + 1, i => {
+    (table.heights[first_row + i] + border).max(
+      table.verticalPadding * 2 + border,
+    )
+  })
+  let cells : Array[(Int, Int, Array[(Line, Double)], Double)] = []
+  for row in first_row..<=last_row {
+    for column, paragraphs in table.rows[row] {
+      if table.rowSpans[row][column] == 0 {
+        continue
+      }
+      let lines : Array[(Line, Double)] = []
+      let mut y = table.verticalPadding + border
+      let mut after = 0.0
+      let mut gap = 0.0
+      let mut terminal_gap = 0.0
+      for paragraph_index, paragraph in paragraphs {
+        paragraph.validate_spacing(self.page.height)
+        guard !paragraph.pageBreakBefore ||
+          (row == 0 && column == 0 && paragraph_index == 0) else {
+          @failure.reject(
+            "unsupported-layout", "Page breaks inside table rows are unsupported",
+          )
+        }
+        y += if additive {
+          after + paragraph.before
+        } else {
+          after.max(paragraph.before)
+        }
+        y += gap
+        let mut first = true
+        for
+          measured in cache.lines(
+            probe,
+            paragraph,
+            profile,
+            table.cell_width(row, column) - table.padding * 2,
+          ) {
+          let line = measured.spaced(paragraph.line, first)
+          guard line.y != -1 else {
+            @failure.reject(
+              "unsupported-layout", "Page breaks inside table rows are unsupported",
+            )
+          }
+          lines.push((line, y))
+          y += line.height
+          gap = paragraph.line.gap(measured.textHeight)
+          first = false
+        }
+        after = paragraph.after
+        terminal_gap = paragraph.line.terminal_gap(paragraph.nominalSize)
+      }
+      let height = y + after + terminal_gap + table.verticalPadding
+      if table.rowSpans[row][column] == 1 {
+        heights[row - first_row] = heights[row - first_row].max(height)
+      }
+      cells.push((row, column, lines, height))
+    }
+  }
+  for (row, column, _, height) in cells {
+    let span = table.rowSpans[row][column]
+    if span > 1 {
+      let end = row - first_row + span
+      let available = heights[row - first_row:end]
+        .iter()
+        .fold(init=0.0, (sum, value) => sum + value)
+      heights[end - 1] += (height - available).max(0)
+    }
+  }
+  let total = heights.iter().fold(init=0.0, (sum, value) => sum + value)
+  // shortcut: Vertical-merge groups stay on one page until split-row continuation is implemented.
+  self.fit(total + border)
+  for (row, column, lines, _) in cells {
+    let start = row - first_row
+    let y = self.y +
+      heights[:start].iter().fold(init=0.0, (sum, value) => sum + value)
+    let height = heights[start:start + table.rowSpans[row][column]]
+      .iter()
+      .fold(init=0.0, (sum, value) => sum + value)
+    let mut x = left
+    for c in 0..<column {
+      x += table.cell_width(row, c)
+    }
+    let width = table.cell_width(row, column)
+    let color = table.fills[row][column]
+    if !color.is_empty() {
+      self.pages.last().unwrap().fills.push({ x, y, width, height, color, })
+    }
+    for (line, offset) in lines {
+      self.place(line, x + table.padding, y + offset, images)
+    }
+    if table.borders {
+      self.pages.last().unwrap().borders.push({ x, y, width, height, })
+    }
+  }
+  self.y += total
+}

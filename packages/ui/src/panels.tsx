@@ -7,6 +7,7 @@ import { DocxFormatCommands, DocxProperties } from "./docx-format.js";
 import { PptxObjects } from "./pptx-objects.js";
 import { PptxArrange } from "./pptx-arrange.js";
 import { XlsxSheets } from "./xlsx-sheets.js";
+import { XlsxFormat } from "./xlsx-format.js";
 
 interface PanelProps {
   controller: EditorController;
@@ -91,6 +92,15 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
           }
         />
         <Command
+          label={t.copySlide}
+          disabled={
+            disabled || query.slides.length >= 256 || !!query.slideOrderReason
+          }
+          action={() =>
+            controller.run(() => editor.editSlides({ action: "copy" }))
+          }
+        />
+        <Command
           label={t.slideEarlier}
           disabled={disabled || index <= 0 || !!query.slideOrderReason}
           action={() =>
@@ -134,13 +144,21 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
     return (
       <>
         {tab === "edit" && (
-          <Group label={t.edit}>
-            <Command
-              label={t.clear}
+          <>
+            <XlsxFormat
+              controller={controller}
+              state={state}
+              editor={file.editor}
               disabled={disabled}
-              action={() => controller.run(() => file.editor.clear())}
             />
-          </Group>
+            <Group label={t.edit}>
+              <Command
+                label={t.clear}
+                disabled={disabled}
+                action={() => controller.run(() => file.editor.clear())}
+              />
+            </Group>
+          </>
         )}
         {tab === "view" && (
           <Group label={t.print}>

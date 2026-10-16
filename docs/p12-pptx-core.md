@@ -2,7 +2,7 @@
 
 状态：`planned`，第 1 批实施中。基于 [P6 PPTX](implemented/p6-pptx-editing.md)和已完成的 [P9](implemented/p9-web-sdk-ui.md)。复用 [P10](p10-docx-core.md) 已交付的包写入，并按实际需要复用 P10 / [P11](p11-xlsx-core.md) 的文字、图形和图表能力。属于功能优先级 P0。空白创建已接通，其余能力仍按下面的范围实施。顺序归[路线图](references/roadmap.md)，当前 API 归[格式合同](references/formats.md#pptx)，功能依据归 [G3](g3-genoffice-sdk-gap.md#演示pptx)。
 
-当前进度：核心创建 960×540 pt 的单页空白文稿，包含版式、母版、主题和完整部件关系。同步 Wasm、Worker 和默认 UI 接通创建、首次保存、另存、保存重开与静态 PDF。支持插入文本框、矩形、椭圆和直线；支持本地顶层形状/图片的单对象复制、删除、旋转、水平/垂直翻转及层次调整，保留源格式、关系及撤销重做。已接通空白页新增、页删除/重排与隐藏/显示，保持剩余页/对象身份，历史按稳定部件路径恢复。新增页沿用目标页的版式、母版和主题；删除页同步页引用、自定义放映与已知内部链接，保留共享和未知资源。部件新增/删除与对象编辑共同撤销。保存失败与替换取消保留当前会话。页复制、章节、多选、更多几何和后续批次尚未完成，不标记第 1 批或整个 P12 完成。
+当前进度：核心创建 960×540 pt 的单页空白文稿，包含版式、母版、主题和完整部件关系。同步 Wasm、Worker 和默认 UI 接通创建、首次保存、另存、保存重开与静态 PDF。支持插入文本框、矩形、椭圆和直线；支持本地顶层形状/图片的单对象复制、删除、旋转、水平/垂直翻转及层次调整，保留源格式、关系及撤销重做。已接通空白页新增、页复制/删除/重排与隐藏/显示，保持剩余页/对象身份，历史按稳定部件路径恢复。新增页沿用目标页的版式、母版和主题；复制更新对象、计时目标和自身链接，独立复制普通备注与传统批注；删除页同步页引用、自定义放映与已知内部链接，保留共享和未知资源。部件新增/删除与对象编辑共同撤销。保存失败与替换取消保留当前会话。章节、多选、更多几何和后续批次尚未完成，不标记第 1 批或整个 P12 完成。
 
 ## 1. 用户结果与范围
 
@@ -25,7 +25,7 @@
 | 位置 | 当前能力与本阶段改动 |
 | --- | --- |
 | [`pptx/session.mbt`](../modules/formats/src/pptx/session.mbt)、[`tree.mbt`](../modules/formats/src/pptx/tree.mbt) | 解析 slide/layout/master/theme，缓存源树并派生对象；补文稿结构、新建和跨部件事务 |
-| [`model.mbt`](../modules/formats/src/pptx/model.mbt)、[`editing.mbt`](../modules/formats/src/pptx/editing.mbt)、[`slide-add.mbt`](../modules/formats/src/pptx/slide-add.mbt)、[`slide-order.mbt`](../modules/formats/src/pptx/slide-order.mbt) | 单对象/文本选择、新增部件与 XML 历史、页新增/重排/隐藏及文字或变换候选；扩展页删除/复制、多选、组/母版编辑 |
+| [`model.mbt`](../modules/formats/src/pptx/model.mbt)、[`editing.mbt`](../modules/formats/src/pptx/editing.mbt)、[`slide-add.mbt`](../modules/formats/src/pptx/slide-add.mbt)、[`slide-copy.mbt`](../modules/formats/src/pptx/slide-copy.mbt)、[`slide-copy-comments.mbt`](../modules/formats/src/pptx/slide-copy-comments.mbt)、[`slide-order.mbt`](../modules/formats/src/pptx/slide-order.mbt) | 单对象/文本选择、新增部件与 XML 历史、页新增/复制/删除/重排/隐藏及文字或变换候选；扩展资源所有权、多选、组/母版编辑 |
 | [`geometry.mbt`](../modules/formats/src/pptx/geometry.mbt)、[`layout.mbt`](../modules/formats/src/pptx/layout.mbt)、[`hit.mbt`](../modules/formats/src/pptx/hit.mbt) | 已有基本形状、图片、矩阵、层次命中；补对象类型、组内选择和播放时显示状态 |
 | [`theme.mbt`](../modules/formats/src/pptx/theme.mbt)、[`text-edit.mbt`](../modules/formats/src/pptx/text-edit.mbt)、[`autofit.mbt`](../modules/formats/src/pptx/autofit.mbt) | 有限主题继承、纯文本和有界字体缩放；补格式/占位符修改和相关失效 |
 | [`bridge/pptx.mbt`](../modules/bridge/src/pptx.mbt)、[`wasm/pptx.ts`](../packages/wasm/src/pptx.ts)、[`web/pptx.ts`](../packages/web/src/pptx.ts) | 延续 `PptxCommand` 与 `execute`；增量加入类型明确的操作与结果 |
@@ -47,7 +47,9 @@
 
 同一入口的 `{ action: "delete" }` 删除目标页，至少保留一页。同步移除页引用、自定义放映条目和指向该页的已知点击/悬停链接，保留链接所在对象。删除活动页时切到相邻页并清空对象选择；其他页的活动选择不变。页面、关系及独占的备注/传统批注 XML 和内容类型共同进入一项有界历史。共享图片、版式、作者和未知资源保留；未知引用、共享备注/批注或预算失败原子拒绝。具体边界归[格式合同](references/formats.md#pptx)。
 
-复制页仍待实现，需重映射对象、批注、动画目标等内部引用。图片等不可变资源可复用，备注和可独立编辑的图表数据需要明确复制所有权。删除仅回收确定由该操作拥有且无引用的部件；不对整个源包做清理优化。
+`{ action: "copy" }` 复制到目标页之后，激活副本并清空对象选择。核心分配新页和本地对象身份，重映射计时目标、连接引用和自身页链接。保留隐藏状态、对象内容、几何和格式，复用图片及版式/母版/主题；普通备注和传统批注复制为独立部件，备注回链指向新页，批注索引及作者 lastIdx 同步更新。已知 creationId 与 DrawingML 字段生成新身份；未知身份扩展及未接入所有权的可变资源仍受保护，含图表数据的页面暂不复制。源页、自定义放映和其他页链接不变。复制部件与后续编辑、隐藏、删除可精确混合撤销；具体边界归[格式合同](references/formats.md#pptx)。对象、备注和计时复制规则参考 [ONLYOFFICE Slide.createDuplicate](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L268-L332)。保留计时 XML 不代表已支持动画播放。
+
+删除仅回收确定由该操作拥有且无引用的部件；不对整个源包做清理优化。
 
 ### 3.2 对象选择与几何
 

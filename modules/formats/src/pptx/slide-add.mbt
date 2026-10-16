@@ -1,12 +1,15 @@
 ///|
 fn xml_attribute(value : String) -> String raise @failure.Failure {
-  @xml.escape_text(value).replace_all(old="\"", new="&quot;")
+  @xml.escape_text(value)
+  .replace_all(old="\"", new="&quot;")
+  .replace_all(old="'", new="&apos;")
 }
 
 ///|
 fn Session::add_slide(
   self : Session,
   index : Int,
+  copy~ : Bool = false,
 ) -> Json raise @failure.Failure {
   guard self.slides.length() < 256 else {
     @failure.reject("limit-exceeded", "Slides exceed 256")
@@ -47,23 +50,46 @@ fn Session::add_slide(
     identity += 1L
   }
   let parts = self.parts.copy()
+  let created_parts : Map[String, @xml.Document] = Map([])
+  let edits : Array[(String, @xml.Edit)] = []
+  let mut extra_types = ""
+  let mut object_sequence = self.object_sequence
   let current = self.slides[index]
   let layout = slide_layout(self.opc, current.tree.part, parts).unwrap()
   let relation_xml = "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"layout\" Type=\"\{relationship_uri}/slideLayout\" Target=\"/\{xml_attribute(layout)}\"/></Relationships>"
   let relation_path = relationship_part(part)
-  let relations = @xml.Document::parse(
+  let mut relations = @xml.Document::parse(
     @utf8.encode(relation_xml),
     relation_path,
     self.budget.xml_depth,
     self.budget.entry_bytes,
   )
   parts[relation_path] = relations
-  let document = @xml.Document::parse(
+  let mut document = @xml.Document::parse(
     @utf8.encode(empty_slide()),
     part,
     self.budget.xml_depth,
     self.budget.entry_bytes,
   )
+  if copy {
+    let (copied, documents, types, metadata, next) = self.copy_slide_parts(
+      current, part, identity,
+    )
+    document = copied
+    relations = documents[relation_path]
+    for name, value in documents {
+      parts[name] = value
+      if name != relation_path {
+        created_parts[name] = value
+      }
+    }
+    extra_types = types
+    object_sequence = next
+    for (name, value, edit) in metadata {
+      parts[name] = value
+      edits.push((name, edit))
+    }
+  }
   let (main_document, edit) = self.main.document.edit_source([
     {
       node: list.id,
@@ -82,7 +108,7 @@ fn Session::add_slide(
   )
   let slides = self.slides.copy()
   slides.insert(index + 1, added)
-  let edits : Array[(String, @xml.Edit)] = [(main.part, edit)]
+  edits.push((main.part, edit))
   for
     (path, markup) in [
       (
@@ -91,7 +117,8 @@ fn Session::add_slide(
       ),
       (
         "[Content_Types].xml",
-        "<od:Override xmlns:od=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{xml_attribute(part)}\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.slide+xml\"/>",
+        "<od:Override xmlns:od=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{xml_attribute(part)}\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.slide+xml\"/>" +
+        extra_types,
       ),
     ] {
     let original = parts.get(path).unwrap_or_else(() => self.opc.xml(path))
@@ -108,7 +135,9 @@ fn Session::add_slide(
     { slide: part, object: "", mode: "object", anchor: 0, focus: 0, },
     parts~,
     created=Some((added, relations)),
+    created_parts~,
   )
   self.slide_sequence = identity + 1L
+  self.object_sequence = object_sequence
   self.query()
 }

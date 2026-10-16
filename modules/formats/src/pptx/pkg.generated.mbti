@@ -53,6 +53,7 @@ pub fn Session::undo(Self, Int, redo? : Bool) -> Json raise @failure.Failure
 
 pub(all) enum SlideEdit {
   AddSlide
+  CopySlide
   DeleteSlide
   MoveSlide(Int)
   HideSlide(Bool)

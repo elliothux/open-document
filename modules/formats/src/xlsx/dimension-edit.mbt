@@ -270,7 +270,7 @@ fn Session::resize_dimensions(
     current.state,
     document,
     self.strings,
-    self.style_count,
+    self.styles.length(),
   )
   let calculation = Calculation::build(sheets, None, [])
   self.commit(

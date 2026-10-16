@@ -22,6 +22,30 @@ pub fn Address::not_equal(Self, Self) -> Bool
 pub fn Address::parse(String) -> Self raise @failure.Failure
 pub fn Address::to_json(Self) -> Json
 
+pub(all) struct CellBorder {
+  style : String
+  color : String
+} derive(ToJson)
+pub fn CellBorder::to_json(Self) -> Json
+
+pub struct CellFormat {
+  family : String?
+  size : Double?
+  bold : Bool?
+  italic : Bool?
+  color : String?
+  fill : String?
+  horizontal : String?
+  vertical : String?
+  wrap : Bool?
+  numberFormat : String?
+  left : CellBorder?
+  right : CellBorder?
+  top : CellBorder?
+  bottom : CellBorder?
+}
+pub fn CellFormat::new(family? : String?, size? : Double?, bold? : Bool?, italic? : Bool?, color? : String?, fill? : String?, horizontal? : String?, vertical? : String?, wrap? : Bool?, numberFormat? : String?, left? : CellBorder?, right? : CellBorder?, top? : CellBorder?, bottom? : CellBorder?) -> Self
+
 pub(all) struct Range {
   top : Int
   left : Int
@@ -41,6 +65,7 @@ pub fn Session::close(Self) -> Unit
 pub fn Session::copy(Self, Int) -> String raise @failure.Failure
 pub fn Session::create(@archive.Budget) -> Self raise @failure.Failure
 pub fn Session::edit_sheet(Self, Int, String, SheetEdit) -> Json raise @failure.Failure
+pub fn Session::format_cells(Self, Int, CellFormat) -> Json raise @failure.Failure
 pub fn Session::hit(Self, Int, Double, Double) -> String raise @failure.Failure
 pub fn Session::invalidate_geometry(Self) -> Unit
 pub fn Session::navigate(Self, Int, String, Bool) -> Json raise @failure.Failure

@@ -222,7 +222,7 @@ fn Sheet::used(self : Sheet) -> Range {
   let mut bottom = 1
   let mut right = 1
   for cell in self.cells.values() {
-    if cell.value == Blank && cell.formula is None {
+    if cell.value == Blank && cell.formula is None && cell.style == 0 {
       continue
     }
     top = top.min(cell.address.row)

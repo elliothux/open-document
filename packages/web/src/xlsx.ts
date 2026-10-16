@@ -3,6 +3,8 @@ import {
   xlsxQuery,
   checkXlsxSheetEdit,
   type XlsxSheetEdit,
+  checkXlsxCellFormat,
+  type XlsxCellFormat,
   xlsxViewport,
   xlsxPrintLayout,
   xlsxSelection,
@@ -15,9 +17,28 @@ import {
 import type { DrawRect } from "@open-document/wasm/drawing";
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type { XlsxSheetEdit } from "@open-document/wasm/xlsx";
+export { xlsxNumberFormats } from "@open-document/wasm/xlsx";
+export type {
+  XlsxCellFormat,
+  XlsxFormatting,
+  XlsxCellBorder,
+} from "@open-document/wasm/xlsx";
 
 /** Browser workbook transport; one Worker owns the complete core session. */
 export class XlsxClient {
+  async formatCells(
+    revision: number,
+    patch: XlsxCellFormat,
+  ): Promise<XlsxQuery> {
+    checkXlsxCellFormat(patch);
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "formatXlsxCells",
+        revision,
+        patch,
+      }),
+    );
+  }
   private constructor(private readonly connection: Connection) {}
 
   static async open(

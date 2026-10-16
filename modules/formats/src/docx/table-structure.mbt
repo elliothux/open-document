@@ -6,6 +6,8 @@ pub(all) enum TableEdit {
   ColumnBefore
   ColumnAfter
   DeleteColumn
+  MergeCells(Int, Int)
+  UnmergeCell
 }
 
 ///|
@@ -67,7 +69,7 @@ fn WordTree::table_cell_properties(
       @failure.reject("protected-content", "Unknown cell property markup")
     }
     for id in self.children[props] {
-      if self.nodes[id].name != "tcW" {
+      if !["tcW", "gridSpan", "vMerge"].contains(self.nodes[id].name) {
         fields.push(self.standalone_markup(document, id))
       }
     }
@@ -133,6 +135,12 @@ pub fn Session::edit_table(
   change : TableEdit,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  match change {
+    MergeCells(rows, columns) =>
+      return self.merge_table_cells(revision, selection, rows, columns)
+    UnmergeCell => return self.unmerge_table_cell(revision, selection)
+    _ => ()
+  }
   let original = self.document()
   let tree = WordTree::new(original)
   let range = self.paragraph_range(tree, selection, structural=true)
@@ -148,6 +156,12 @@ pub fn Session::edit_table(
   ignore(self.editable_page_section(tree))
   let flow = self.flow_from(original)
   let model = flow.tables.iter().find_first(t => t.id == table).unwrap()
+  guard model.columnSpans.all(row => row.all(span => span == 1)) &&
+    model.rowSpans.all(row => row.all(span => span == 1)) else {
+    @failure.reject(
+      "protected-content", "Merged table rows and columns require grid structure editing",
+    )
+  }
   let rows = tree.table_children(table, "tr")
   let cells = rows.map(row => tree.table_children(row, "tc"))
   let r = rows.search(row).unwrap()

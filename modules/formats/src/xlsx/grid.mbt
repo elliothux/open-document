@@ -136,7 +136,7 @@ fn Session::paint_cells(
         cell.map(cell => !cell.calculation_supported).unwrap_or(false) {
         @failure.reject("unsupported-print", "Unsupported cell value: " + key)
       }
-      let style = self.styles[cell.map(cell => cell.style).unwrap_or(0)]
+      let style = self.styles[sheet.style_at(address)]
       let value = self.calculation
         .bind(calculation => calculation.values.get((index, key)))
         .unwrap_or(cell.map(cell => cell.value).unwrap_or(Blank))

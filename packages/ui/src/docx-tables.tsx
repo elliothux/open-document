@@ -18,6 +18,8 @@ export function DocxTables({
   const t = messages(state.locale);
   const [rows, setRows] = useState("2");
   const [columns, setColumns] = useState("2");
+  const [mergeRows, setMergeRows] = useState("1");
+  const [mergeColumns, setMergeColumns] = useState("2");
   const rowCount = Number(rows),
     columnCount = Number(columns);
   const snapshot = editor.getSnapshot();
@@ -84,18 +86,68 @@ export function DocxTables({
             "columnBefore",
             "columnAfter",
             "deleteColumn",
-          ] satisfies DocxTableEdit[]
+            "unmerge",
+          ] satisfies DocxTableEdit["action"][]
         ).map((change) => (
           <button
             key={change}
             type="button"
             onMouseDown={(event) => event.preventDefault()}
-            onClick={() => controller.run(() => editor.editTable(change))}
+            onClick={() =>
+              controller.run(() => editor.editTable({ action: change }))
+            }
           >
             {t[change]}
           </button>
         ))}
       </fieldset>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          controller.run(() =>
+            editor.editTable({
+              action: "merge",
+              rows: Number(mergeRows),
+              columns: Number(mergeColumns),
+            }),
+          );
+        }}
+      >
+        <fieldset disabled={disabled || !cell}>
+          <legend>{t.mergeCells}</legend>
+          <label>
+            {t.mergeRows}
+            <input
+              type="number"
+              min={1}
+              max={1000}
+              required
+              value={mergeRows}
+              onChange={(event) => setMergeRows(event.currentTarget.value)}
+            />
+          </label>
+          <label>
+            {t.mergeColumns}
+            <input
+              type="number"
+              min={1}
+              max={63}
+              required
+              value={mergeColumns}
+              onChange={(event) => setMergeColumns(event.currentTarget.value)}
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={
+              Number(mergeRows) * Number(mergeColumns) <= 1 ||
+              Number(mergeRows) * Number(mergeColumns) > 4096
+            }
+          >
+            {t.mergeCells}
+          </button>
+        </fieldset>
+      </form>
     </section>
   );
 }

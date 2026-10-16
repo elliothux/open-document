@@ -79,6 +79,7 @@ fn read_object(
   defaults : Ref?,
   parent : @layout.Matrix,
   reason : String,
+  parts : Map[String, @xml.Document],
 ) -> Object raise @failure.Failure {
   let source = chain[0]
   let nv_name = match source.node.name {
@@ -279,20 +280,12 @@ fn read_object(
       let embed = blip.node
         .attribute("embed", uri=relationship_uri)
         .unwrap_or("")
-      let target = opc
-        .relationships()
-        .iter()
-        .find_first(rel => {
-          rel.owner == source.tree.part &&
-          rel.id == embed &&
-          rel.kind == relationship_uri + "/image"
-        })
+      let target = image_target(opc, source.tree.part, embed, parts)
       if target is Some(target) &&
-        !target.external &&
         [Some("image/png"), Some("image/jpeg")].contains(
-          opc.content_type(target.target),
+          opc.content_type(target),
         ) {
-        image = Some(target.target)
+        image = Some(target)
       } else {
         diagnostic = "Unsupported or external image"
       }
@@ -372,6 +365,7 @@ fn read_objects(
   depth : Int,
   output : Array[Object],
   ids : Map[String, Bool],
+  parts : Map[String, @xml.Document],
 ) -> Unit raise @failure.Failure {
   guard depth <= 16 else {
     @failure.reject("limit-exceeded", "Group depth exceeds 16")
@@ -398,7 +392,7 @@ fn read_objects(
       }
     }
     let object = read_object(
-      opc, theme, chain, master, defaults, parent, reason,
+      opc, theme, chain, master, defaults, parent, reason, parts,
     )
     guard !ids.contains(object.id) else {
       @failure.reject(
@@ -422,6 +416,7 @@ fn read_objects(
         depth + 1,
         output,
         ids,
+        parts,
       )
     } else {
       output.push(object)

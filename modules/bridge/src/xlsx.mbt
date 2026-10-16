@@ -39,6 +39,15 @@ fn Foundation::xlsx_operation(
     @failure.reject("session-required", "Open an XLSX workbook first")
   }
   match operation {
+    "formatXlsxCells" => {
+      guard request is { "patch": patch, .. } else {
+        @failure.reject("invalid-operation", "Cell format patch is required")
+      }
+      session.format_cells(
+        field_int(request, "revision"),
+        xlsx_cell_format(patch),
+      )
+    }
     "editXlsxSheet" => {
       guard request is { "change": change, .. } else {
         @failure.reject("invalid-operation", "Worksheet edit is required")
