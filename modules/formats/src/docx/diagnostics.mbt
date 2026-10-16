@@ -21,6 +21,7 @@ fn WordTree::diagnose_properties(
     "tblPr" =>
       [
         "tblStyle", "tblW", "jc", "tblBorders", "tblCellMar", "tblLook", "tblInd",
+        "tblLayout",
       ]
     "trPr" => ["trHeight"]
     _ => return
@@ -38,6 +39,13 @@ fn WordTree::diagnose_properties(
   for child in self.children[id] {
     let feature = self.nodes[child]
     let inactive = match feature.name {
+      "tblLayout" =>
+        self.children[child].is_empty() &&
+        feature.text.trim().is_empty() &&
+        feature.attribute("type", uri=word_uri) == Some("fixed") &&
+        feature.attributes
+        .iter()
+        .all(a => a.uri == word_uri && a.name == "type")
       "tabs" => self.valid_tabs(child)
       "bidi" => self.valid_on_off_property(child)
       "numPr" => self.valid_numbering_properties(child)

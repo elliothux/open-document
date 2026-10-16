@@ -46,7 +46,7 @@ fn Session::sheet_rename_reason(self : Session) -> String {
     if !reason.is_empty() {
       return reason
     }
-    for rel in self.opc.relationships() {
+    for rel in self.relationships() {
       if rel.owner == self.main &&
         !["worksheet", "styles", "sharedStrings", "theme", "calcChain"].any(kind => {
           rel.kind == relationship_uri + kind
@@ -218,7 +218,7 @@ fn Session::rename_sheet(
     )
     edits.push((sheet.id, edit))
   }
-  let sheets = self.ordered_sheets(workbook, sheets)
+  let sheets = self.ordered_sheets(workbook, sheets, self.parts)
   let calculation = Calculation::build(sheets, None, [])
   self.commit(sheets, workbook, calculation, edits, self.selection)
   self.query()

@@ -262,6 +262,7 @@ fn Foundation::dispatch(
     | "queryFormatting"
     | "pageSetup"
     | "setPageSetup"
+    | "insertDocxTable"
     | "styleCatalog"
     | "listCatalog"
     | "editList"
@@ -396,6 +397,16 @@ fn Foundation::dispatch(
             field_int(request, "revision"),
             page_setup_format(request),
             orientation=page_orientation(request),
+          )
+          self.layout = None
+          result
+        }
+        "insertDocxTable" => {
+          let result = session.insert_table(
+            field_int(request, "revision"),
+            field_selection(request),
+            field_int(request, "rows"),
+            field_int(request, "columns"),
           )
           self.layout = None
           result

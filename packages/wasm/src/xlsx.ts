@@ -106,6 +106,7 @@ export interface XlsxQuery {
 }
 
 export type XlsxSheetEdit =
+  | { action: "add" }
   | { action: "move"; index: number }
   | { action: "rename"; name: string }
   | {
@@ -118,6 +119,7 @@ export type XlsxSheetEdit =
 
 export function checkXlsxSheetEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "add") return;
   if (
     (change.action === "rowHeight" || change.action === "columnWidth") &&
     integer(change.first, 1, change.action === "rowHeight" ? 1048576 : 16384) &&

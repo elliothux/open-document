@@ -1,5 +1,6 @@
 ///|
 pub(all) enum SheetEdit {
+  Add
   Move(Int)
   Visibility(String)
   Rename(String)
@@ -12,11 +13,15 @@ fn Session::ordered_sheets(
   self : Session,
   workbook : @xml.Document,
   available : Array[Sheet],
+  parts : Map[String, @xml.Document],
 ) -> Array[Sheet] raise @failure.Failure {
   let tree = Tree::new(workbook)
   let container = tree.one(tree.root("workbook").id, "sheets").unwrap()
   let paths : Map[String, String] = Map([])
-  for rel in self.opc.relationships() {
+  for
+    rel in self.opc.relationships(
+      replacements=self.replacements(available, workbook, parts),
+    ) {
     if rel.owner == self.main && rel.kind == relationship_uri + "worksheet" {
       paths[rel.id] = rel.target
     }
@@ -141,10 +146,30 @@ pub fn Session::edit_sheet(
   let node = nodes[index]
   let changes : Array[@xml.SourceChange] = []
   let sheets = self.sheets.copy()
+  let parts = self.parts.copy()
+  let edits : Array[(String, @xml.Edit)] = []
+  let mut created : Sheet? = None
+  let mut next_sheet = self.next_sheet
   match change {
     RowHeight(_, _, _) | ColumnWidth(_, _, _) =>
       abort("Dimension edit was dispatched")
     Rename(name) => return self.rename_sheet(index, name)
+    Add => {
+      let (added, number, markup, metadata) = self.prepare_sheet_add()
+      changes.push({
+        node: parent.id,
+        offset: node.end - parent.start,
+        length: 0,
+        xml: markup,
+      })
+      sheets.insert(index + 1, added)
+      created = Some(added)
+      next_sheet = number + 1
+      for (part, document, edit) in metadata {
+        parts[part] = document
+        edits.push((part, edit))
+      }
+    }
     Move(target) => {
       guard target >= 0 && target < sheets.length() else {
         @failure.reject(
@@ -192,7 +217,9 @@ pub fn Session::edit_sheet(
   }
   let mut after = self.selection
   let selected = sheets.search_by(sheet => sheet.id == after.0).unwrap()
-  if change is Visibility("visible") {
+  if created is Some(added) {
+    after = (added.id, { top: 1, left: 1, bottom: 1, right: 1, })
+  } else if change is Visibility("visible") {
     after = (sheet, { top: 1, left: 1, bottom: 1, right: 1, })
   } else if sheets[selected].state != "visible" {
     after = (
@@ -204,7 +231,7 @@ pub fn Session::edit_sheet(
   if tree.one(root.id, "definedNames") is Some(names) {
     for name in tree.all(names.id, "definedName") {
       if name.attribute("localSheetId") is Some(scope) {
-        let old = natural(scope, sheets.length() - 1)
+        let old = natural(scope, self.sheets.length() - 1)
         let updated = sheets
           .search_by(sheet => sheet.id == self.sheets[old].id)
           .unwrap()
@@ -221,14 +248,14 @@ pub fn Session::edit_sheet(
   for window_index, window in windows {
     let old_active = natural(
       window.attribute("activeTab").unwrap_or("0"),
-      sheets.length() - 1,
+      self.sheets.length() - 1,
     )
     let mapped = sheets
       .search_by(sheet => sheet.id == self.sheets[old_active].id)
       .unwrap()
     let old_first = natural(
       window.attribute("firstSheet").unwrap_or("0"),
-      sheets.length() - 1,
+      self.sheets.length() - 1,
     )
     let first = sheets
       .search_by(sheet => sheet.id == self.sheets[old_first].id)
@@ -264,7 +291,7 @@ pub fn Session::edit_sheet(
     )
   }
   let (workbook, edit) = self.workbook.edit_source(changes)
-  let edits : Array[(String, @xml.Edit)] = [(self.main, edit)]
+  edits.push((self.main, edit))
   for index, current in sheets {
     let source = Tree::new(current.document)
     if source.one(source.root("worksheet").id, "sheetViews") is Some(views) {
@@ -304,6 +331,7 @@ pub fn Session::edit_sheet(
     }
   }
   let calculation = Calculation::build(sheets, None, [])
-  self.commit(sheets, workbook, calculation, edits, after)
+  self.commit(sheets, workbook, calculation, edits, after, parts~, created~)
+  self.next_sheet = next_sheet
   self.query()
 }

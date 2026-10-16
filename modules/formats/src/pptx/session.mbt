@@ -2,6 +2,8 @@
 pub struct Session {
   priv opc : @opc.Package
   priv mut main : Tree
+  priv mut parts : Map[String, @xml.Document]
+  priv mut slide_sequence : Int64
   priv cache : Map[String, Tree]
   priv budget : @archive.Budget
   priv width : Double
@@ -25,9 +27,10 @@ fn read_slide(
   main : Tree,
   cache : Map[String, Tree],
   tree : Tree,
+  parts~ : Map[String, @xml.Document] = Map([]),
 ) -> Slide raise @failure.Failure {
   let root = tree.root("sld")
-  let layout_part = relation(opc, tree.part, "slideLayout").unwrap_or_error(
+  let layout_part = slide_layout(opc, tree.part, parts).unwrap_or_error(
     @failure.Failure(
       code="malformed-pptx",
       part=tree.part,
@@ -271,6 +274,8 @@ fn Session::from_package(
   let session : Session = {
     opc,
     main,
+    parts: Map([]),
+    slide_sequence: 256L,
     cache,
     budget,
     width,
@@ -527,6 +532,7 @@ pub fn Session::close(self : Session) -> Unit {
   self.history.clear()
   self.redo.clear()
   self.cache.clear()
+  self.parts.clear()
   self.candidate = None
   self.view = None
   self.history_bytes = 0

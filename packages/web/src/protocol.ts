@@ -25,6 +25,13 @@ export type Operation =
   | { operation: "pageSetup"; revision: number }
   | { operation: "setPageSetup"; revision: number; page: DocxPageSetup }
   | {
+      operation: "insertDocxTable";
+      revision: number;
+      selection: DocxSelection;
+      rows: number;
+      columns: number;
+    }
+  | {
       operation: "updateListLevel";
       revision: number;
       listId: number;

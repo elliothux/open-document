@@ -227,6 +227,15 @@ fn Pagination::table_row(
 ) -> Unit raise @failure.Failure {
   let left = table.left(self.page)
   let row = table.rows[row_index]
+  let first = row.get(0).bind(cell => cell.get(0))
+  if row_index == 0 &&
+    first.map(p => p.pageBreakBefore).unwrap_or(false) &&
+    (
+      self.pages.last().unwrap().lines.iter().any(line => !line.caretOnly) ||
+      !self.pages.last().unwrap().borders.is_empty()
+    ) {
+    self.next_page()
+  }
   guard row.length() == table.widths.length() else {
     @failure.reject("invalid-table", "Table grid differs from row")
   }
@@ -241,9 +250,10 @@ fn Pagination::table_row(
     let mut after = 0.0
     let mut gap = 0.0
     let mut terminal_gap = 0.0
-    for paragraph in paragraphs {
+    for paragraph_index, paragraph in paragraphs {
       paragraph.validate_spacing(self.page.height)
-      guard !paragraph.pageBreakBefore else {
+      guard !paragraph.pageBreakBefore ||
+        (row_index == 0 && column == 0 && paragraph_index == 0) else {
         @failure.reject(
           "unsupported-layout", "Page breaks inside table rows are unsupported",
         )

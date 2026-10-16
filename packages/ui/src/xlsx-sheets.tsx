@@ -52,6 +52,15 @@ export function XlsxSheets({
       ))}
       <fieldset disabled={disabled || !!query.sheetEditReason}>
         <legend>{t.manageSheets}</legend>
+        <button
+          type="button"
+          disabled={query.sheets.length >= 256}
+          onClick={() =>
+            controller.run(() => editor.editSheet({ action: "add" }))
+          }
+        >
+          {t.addSheet}
+        </button>
         <form
           onSubmit={(event) => {
             event.preventDefault();

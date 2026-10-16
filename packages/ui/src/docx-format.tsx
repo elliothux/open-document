@@ -18,6 +18,7 @@ import { DocxTabs, DocxDefaultTab } from "./docx-tabs.js";
 import { DocxStyles } from "./docx-styles.js";
 import { DocxLists } from "./docx-lists.js";
 import { DocxPage } from "./docx-page.js";
+import { DocxTables } from "./docx-tables.js";
 
 interface Props {
   controller: EditorController;
@@ -366,6 +367,12 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
         disabled={stylesDisabled}
       />
       <h2>{t.paragraph}</h2>
+      <DocxTables
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
       <p>{formatting?.reason}</p>
       <LineSpacing
         controller={controller}

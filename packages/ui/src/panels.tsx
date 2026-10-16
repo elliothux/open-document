@@ -73,6 +73,15 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
     return (
       <Group label={t.manageSlides}>
         <Command
+          label={t.addSlide}
+          disabled={
+            disabled || query.slides.length >= 256 || !!query.slideOrderReason
+          }
+          action={() =>
+            controller.run(() => editor.editSlides({ action: "add" }))
+          }
+        />
+        <Command
           label={t.slideEarlier}
           disabled={disabled || index <= 0 || !!query.slideOrderReason}
           action={() =>

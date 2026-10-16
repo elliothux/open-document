@@ -44,6 +44,7 @@ fn Foundation::xlsx_operation(
         @failure.reject("invalid-operation", "Worksheet edit is required")
       }
       let change = match field_string(change, "action") {
+        "add" => @xlsx.Add
         "move" => @xlsx.Move(field_int(change, "index"))
         "visibility" => @xlsx.Visibility(field_string(change, "state"))
         "rename" => @xlsx.Rename(field_string(change, "name"))

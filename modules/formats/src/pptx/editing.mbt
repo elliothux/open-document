@@ -10,6 +10,7 @@ fn Session::prepare(
     self.main,
     self.cache,
     Tree::new(slide.tree.part, document),
+    parts=self.parts,
   )
   self.validate(candidate)
   (candidate, edit)
@@ -30,20 +31,15 @@ fn Session::validate_slides(
   self : Session,
   main : Tree,
   slides : Array[Slide],
+  parts~ : Map[String, @xml.Document] = self.parts,
 ) -> Unit raise @failure.Failure {
-  let replacements : Map[String, Bytes] = Map([])
-  if !main.document.is_original() {
-    replacements[main.part] = main.document.bytes()
-  }
+  let replacements = self.replacements(main, slides, parts)
   let mut count = 0
   let mut units = 0
   for slide in slides {
     count += slide.objects.length()
     for object in slide.objects {
       units += object.text().length()
-    }
-    if !slide.tree.document.is_original() {
-      replacements[slide.tree.part] = slide.tree.document.bytes()
     }
   }
   guard count <= 16384 && units <= 1048576 else {
@@ -73,17 +69,28 @@ fn Session::commit_slides(
   slides : Array[Slide],
   edits : Array[(String, @xml.Edit)],
   after : Selection,
+  parts~ : Map[String, @xml.Document] = self.parts,
+  created~ : (Slide, @xml.Document)? = None,
 ) -> Unit raise @failure.Failure {
   guard self.revision < 2147483647 else {
     @failure.reject("limit-exceeded", "Presentation revision exhausted")
   }
   let payload = edits
     .iter()
-    .fold(init=0L, (sum, entry) => sum + entry.1.payload_bytes())
+    .fold(init=0L, (sum, entry) => sum + entry.1.payload_bytes()) +
+    created
+    .map(pair => {
+      (
+        pair.0.tree.document.source().length().to_int64() +
+        pair.1.source().length().to_int64()
+      ) *
+      2
+    })
+    .unwrap_or(0L)
   guard payload <= 4194304 else {
     @failure.reject("limit-exceeded", "Edit exceeds history budget")
   }
-  self.validate_slides(main, slides)
+  self.validate_slides(main, slides, parts~)
   for entry in self.redo {
     self.history_bytes -= entry.bytes
   }
@@ -94,12 +101,14 @@ fn Session::commit_slides(
   }
   self.history.push({
     edits,
+    created,
     before: self.selection,
     after,
     bytes: payload.to_int(),
   })
   self.history_bytes += payload.to_int()
   self.main = main
+  self.parts = parts
   self.slides = slides
   self.selection = after
   self.revision += 1
@@ -121,12 +130,24 @@ pub fn Session::undo(
       @failure.reject("limit-exceeded", "Presentation revision exhausted")
     }
     let slides = self.slides.copy()
+    let parts = self.parts.copy()
+    let mut removed : (Slide, @xml.Document)? = None
+    if redo && entry.created is Some((slide, relations)) {
+      slides.push(slide)
+      parts[relationship_part(slide.tree.part)] = relations
+    }
     let mut main = self.main
     for (part, edit) in (if redo { entry.edits } else { entry.edits.rev() }) {
       if part == main.part {
         main = Tree::new(part, main.document.apply(edit, forward=redo))
       } else {
-        let index = slides.search_by(slide => slide.tree.part == part).unwrap()
+        guard slides.search_by(slide => slide.tree.part == part) is Some(index) else {
+          let document = parts
+            .get(part)
+            .unwrap_or_else(() => self.opc.xml(part))
+          parts[part] = document.apply(edit, forward=redo)
+          continue
+        }
         let original = slides[index]
         let document = original.tree.document.apply(edit, forward=redo)
         slides[index] = read_slide(
@@ -134,12 +155,32 @@ pub fn Session::undo(
           main,
           self.cache,
           Tree::new(part, document),
+          parts~,
         )
       }
     }
-    let slides = self.ordered_slides(main, slides)
-    self.validate_slides(main, slides)
+    if !redo && entry.created is Some((created, _)) {
+      let slide = slides.remove(
+        slides.search_by(slide => slide.tree.part == created.tree.part).unwrap(),
+      )
+      guard slide.tree.document.source() == created.tree.document.source() else {
+        @failure.reject(
+          "invalid-operation", "Created slide history has changed",
+        )
+      }
+      let relation_path = relationship_part(slide.tree.part)
+      let relations = parts[relation_path]
+      parts.remove(relation_path)
+      removed = Some((slide, relations))
+    }
+    let slides = self.ordered_slides(main, slides, parts~)
+    self.validate_slides(main, slides, parts~)
+    // Preserve identity allocation after later edits were undone, for their next redo.
+    if removed is Some(_) {
+      entry.created = removed
+    }
     self.main = main
+    self.parts = parts
     self.slides = slides
     self.selection = if redo { entry.after } else { entry.before }
     ignore(source.pop())
@@ -157,15 +198,7 @@ pub fn Session::save(
 ) -> Bytes raise @failure.Failure {
   self.check_revision(revision)
   self.check_idle()
-  let replacements : Map[String, Bytes] = Map([])
-  if !self.main.document.is_original() {
-    replacements[self.main.part] = self.main.document.bytes()
-  }
-  for slide in self.slides {
-    if !slide.tree.document.is_original() {
-      replacements[slide.tree.part] = slide.tree.document.bytes()
-    }
-  }
+  let replacements = self.replacements(self.main, self.slides, self.parts)
   let bytes = self.opc.save(replacements)
   let checked = @opc.Package::open(bytes, self.budget)
   checked.close()

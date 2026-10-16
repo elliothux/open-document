@@ -36,6 +36,19 @@ import { WasmSession, encodeBytes } from "./session.js";
 export const DOCX_SOFT_BREAK = "\u2028";
 /** Logical page break; serialized as w:br w:type="page", never as an XML control character. */
 export const DOCX_PAGE_BREAK = "\u000c";
+/** Bounds match the core's table creation limit. */
+export function checkDocxTableSize(rows: number, columns: number): void {
+  if (
+    !Number.isInteger(rows) ||
+    !Number.isInteger(columns) ||
+    rows < 1 ||
+    rows > 1000 ||
+    columns < 1 ||
+    columns > 63 ||
+    rows * columns > 4096
+  )
+    throw new Error("Invalid table dimensions");
+}
 import {
   docxFlow,
   pageLayout,
@@ -529,6 +542,23 @@ export class FoundationSession extends WasmSession {
   setPageSetup(revision: number, page: DocxPageSetup): EditState {
     checkPageSetup(page);
     return editState(this.call({ operation: "setPageSetup", revision, page }));
+  }
+  insertTable(
+    revision: number,
+    selection: DocxSelection,
+    rows: number,
+    columns: number,
+  ): EditState {
+    checkDocxTableSize(rows, columns);
+    return editState(
+      this.call({
+        operation: "insertDocxTable",
+        revision,
+        selection,
+        rows,
+        columns,
+      }),
+    );
   }
   setDefaultTabStop(revision: number, interval: number | null): EditState {
     checkDefaultTabStop(interval);

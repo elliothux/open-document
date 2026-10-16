@@ -14,7 +14,11 @@ fn Session::next_object_identity(
 ) -> String raise @failure.Failure {
   let reserved : Map[String, Bool] = Map([])
   // Original cached trees also reserve identities of deleted imported objects.
-  for tree in self.cache.values() {
+  for
+    tree in [
+      ..self.cache.values().to_array(),
+      ..self.slides.map(slide => slide.tree),
+    ] {
     for node in tree.document.nodes() {
       if node.uri == presentation_uri && node.name == "cNvPr" {
         reserved[source_identity(node.attribute("id").unwrap_or(""))] = true
@@ -88,7 +92,7 @@ fn Session::object_edit_reason(
       }
     }
     if action == "delete" {
-      for rel in self.opc.relationships() {
+      for rel in self.relationships() {
         if rel.owner == tree.part &&
           ![
             relationship_uri + "/slideLayout",

@@ -357,14 +357,16 @@ fn Session::validate(
   self : Session,
   sheets : Array[Sheet],
   workbook? : @xml.Document,
+  parts? : Map[String, @xml.Document],
 ) -> Unit raise @failure.Failure {
   let mut cells = 0
   let mut units = 0
-  let replacements : Map[String, Bytes] = Map([])
   let workbook = workbook.unwrap_or(self.workbook)
-  if !workbook.is_original() {
-    replacements[self.main] = workbook.bytes()
-  }
+  let replacements = self.replacements(
+    sheets,
+    workbook,
+    parts.unwrap_or(self.parts),
+  )
   for sheet in sheets {
     cells += sheet.cells.length()
     for cell in sheet.cells.values() {
@@ -372,9 +374,6 @@ fn Session::validate(
         Text(text) => units += text.length()
         _ => ()
       }
-    }
-    if !sheet.document.is_original() {
-      replacements[sheet.id] = sheet.document.bytes()
     }
   }
   guard cells <= 100000 && units <= 4194304 else {
@@ -398,12 +397,21 @@ pub fn Session::undo(
   }
   let sheets = self.sheets.copy()
   let mut workbook = self.workbook
+  let parts = self.parts.copy()
+  let mut removed : Sheet? = None
+  if redo && entry.created is Some(sheet) {
+    sheets.push(sheet)
+  }
   for (part, edit) in (if redo { entry.edits } else { entry.edits.rev() }) {
     if part == self.main {
       workbook = workbook.apply(edit, forward=redo)
       continue
     }
-    let index = sheets.search_by(sheet => sheet.id == part).unwrap()
+    guard sheets.search_by(sheet => sheet.id == part) is Some(index) else {
+      let document = parts.get(part).unwrap_or_else(() => self.opc.xml(part))
+      parts[part] = document.apply(edit, forward=redo)
+      continue
+    }
     let sheet = sheets[index]
     let document = sheet.document.apply(edit, forward=redo)
     sheets[index] = Sheet::read(
@@ -415,10 +423,26 @@ pub fn Session::undo(
       self.style_count,
     )
   }
-  let sheets = self.ordered_sheets(workbook, sheets)
-  self.validate(sheets, workbook~)
+  if !redo && entry.created is Some(created) {
+    let sheet = sheets.remove(
+      sheets.search_by(sheet => sheet.id == created.id).unwrap(),
+    )
+    guard sheet.document.source() == created.document.source() else {
+      @failure.reject(
+        "invalid-operation", "Created worksheet history has changed",
+      )
+    }
+    removed = Some(sheet)
+  }
+  let sheets = self.ordered_sheets(workbook, sheets, parts)
+  self.validate(sheets, workbook~, parts~)
   let calculation = Calculation::build(sheets, None, [])
+  // Retain XML identity allocation from later undone edits for their next redo.
+  if removed is Some(_) {
+    entry.created = removed
+  }
   self.workbook = workbook
+  self.parts = parts
   self.sheets = sheets
   self.calculation = Some(calculation)
   self.selection = if redo { entry.after } else { entry.before }
@@ -434,15 +458,13 @@ pub fn Session::undo(
 ///|
 pub fn Session::save(self : Session) -> Bytes raise @failure.Failure {
   self.check()
-  let replacements : Map[String, Bytes] = Map([])
-  if !self.workbook.is_original() {
-    replacements[self.main] = self.workbook.bytes()
-  }
+  let replacements = self.replacements(self.sheets, self.workbook, self.parts)
   let mut modified = false
   let mut shared_count = 0
   for sheet in self.sheets {
-    if !sheet.document.is_original() {
-      replacements[sheet.id] = sheet.document.bytes()
+    if !self.opc.names.contains(sheet.id.to_lower()) {
+      modified = modified || !sheet.cells.is_empty()
+    } else if !sheet.document.is_original() {
       let original = Tree::new(self.opc.xml(sheet.id))
       let data = original
         .one(original.root("worksheet").id, "sheetData")

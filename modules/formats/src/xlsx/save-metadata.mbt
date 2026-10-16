@@ -91,7 +91,7 @@ fn Session::save_metadata(
   }
   replacements[self.main] = workbook.bytes()
   let removed : Array[String] = []
-  for rel in self.opc.relationships() {
+  for rel in self.relationships() {
     if rel.owner != self.main || rel.kind != relationship_uri + "calcChain" {
       continue
     }
@@ -112,15 +112,8 @@ fn Session::save_metadata(
     if self.opc.content_type(chain_relations) is Some(_) {
       removed.push(chain_relations)
     }
-    let segments = self.main
-      .split("/")
-      .map(segment => segment.to_owned())
-      .collect()
-    let leaf = segments.pop().unwrap()
-    segments.push("_rels")
-    segments.push(leaf + ".rels")
-    let part = segments.join("/")
-    let original = self.opc.xml(part)
+    let part = workbook_relations(self.main)
+    let original = self.part_xml(part)
     let document = if replacements.get(part) is Some(bytes) {
       @xml.Document::parse(
         bytes,
@@ -152,7 +145,7 @@ fn Session::save_metadata(
   }
   if !removed.is_empty() {
     let part = "[Content_Types].xml"
-    let document = self.opc.xml(part)
+    let document = self.part_xml(part)
     let root = document.nodes()[0]
     let changes : Array[@xml.SourceChange] = document
       .nodes()

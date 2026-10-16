@@ -1,5 +1,6 @@
 ///|
 pub(all) enum SlideEdit {
+  AddSlide
   MoveSlide(Int)
   HideSlide(Bool)
 }
@@ -9,6 +10,7 @@ fn Session::ordered_slides(
   self : Session,
   main : Tree,
   available : Array[Slide],
+  parts~ : Map[String, @xml.Document] = self.parts,
 ) -> Array[Slide] raise @failure.Failure {
   let list = main.required(
     main.root("presentation").id,
@@ -16,7 +18,10 @@ fn Session::ordered_slides(
     uri=presentation_uri,
   )
   let paths : Map[String, String] = Map([])
-  for relation in self.opc.relationships() {
+  for
+    relation in self.opc.relationships(
+      replacements=self.replacements(main, available, parts),
+    ) {
     if relation.owner == main.part &&
       relation.kind == relationship_uri + "/slide" {
       paths[relation.id] = relation.target
@@ -119,7 +124,7 @@ fn Session::slide_order_reason(self : Session) -> String {
       .any(node => node.uri != presentation_uri || node.name != "sldId") {
       return "Slide list extensions require ordering support"
     }
-    for relation in self.opc.relationships() {
+    for relation in self.relationships() {
       if relation.owner == self.main.part &&
         relation.kind == relationship_uri + "/presProps" {
         guard !relation.external else {
@@ -157,7 +162,7 @@ fn Session::slide_order_reason(self : Session) -> String {
 }
 
 ///|
-/// Reorders or hides a slide without changing its OPC identity or object selection.
+/// Adds, reorders or hides a slide through the same bounded source history.
 pub fn Session::edit_slides(
   self : Session,
   revision : Int,
@@ -167,13 +172,14 @@ pub fn Session::edit_slides(
   self.check_revision(revision)
   self.check_idle()
   let index = self.index(slide)
-  let reason = if change is MoveSlide(_) {
+  let reason = if change is MoveSlide(_) || change is AddSlide {
     self.slide_order_reason()
   } else {
     self.slide_visibility_reason()
   }
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   match change {
+    AddSlide => return self.add_slide(index)
     MoveSlide(target) => {
       guard target >= 0 && target < self.slides.length() else {
         @failure.reject(

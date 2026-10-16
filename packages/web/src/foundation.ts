@@ -36,6 +36,7 @@ import {
 } from "@open-document/wasm/preview";
 import {
   docxQuery,
+  checkDocxTableSize,
   shapeBatch,
   resourceBudget,
   editState,
@@ -249,6 +250,23 @@ export class FoundationClient {
         operation: "setPageSetup",
         revision,
         page,
+      }),
+    );
+  }
+  async insertTable(
+    revision: number,
+    selection: DocxSelection,
+    rows: number,
+    columns: number,
+  ): Promise<EditState> {
+    checkDocxTableSize(rows, columns);
+    return editState(
+      await this.connection.request({
+        operation: "insertDocxTable",
+        revision,
+        selection,
+        rows,
+        columns,
       }),
     );
   }

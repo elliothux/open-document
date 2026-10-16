@@ -179,6 +179,13 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.pageSetup(request.revision);
         case "setPageSetup":
           return foundation.setPageSetup(request.revision, request.page);
+        case "insertDocxTable":
+          return foundation.insertTable(
+            request.revision,
+            request.selection,
+            request.rows,
+            request.columns,
+          );
         case "setDefaultTabStop":
           return foundation.setDefaultTabStop(
             request.revision,

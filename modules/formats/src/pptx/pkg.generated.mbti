@@ -52,6 +52,7 @@ pub fn Session::transform(Self, Int, Int, Double, Double, Double, Double) -> Jso
 pub fn Session::undo(Self, Int, redo? : Bool) -> Json raise @failure.Failure
 
 pub(all) enum SlideEdit {
+  AddSlide
   MoveSlide(Int)
   HideSlide(Bool)
 }

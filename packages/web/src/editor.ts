@@ -459,6 +459,16 @@ export class DocumentEditor {
       this.client.setPageSetup(this.state.revision, page),
     );
   }
+  insertTable(rows: number, cols: number): Promise<void> {
+    return this.format(() =>
+      this.client.insertTable(
+        this.state.revision,
+        this.selection(),
+        rows,
+        cols,
+      ),
+    );
+  }
   setDefaultTabStop(interval: number | null): Promise<void> {
     return this.format(() =>
       this.client.setDefaultTabStop(this.state.revision, interval),
@@ -629,17 +639,6 @@ export class DocumentEditor {
     if (this.currentLayout.id !== layoutId)
       throw new Error("Selection geometry belongs to a stale layout");
     if (caret) this.page = caret.page;
-    await this.describeSelection();
-    this.paint();
-    this.surface.drawSelection(this.page, this.cssScale, geometry, caret);
-    if (caret) {
-      this.input.style.left = `${caret.x * this.cssScale}px`;
-      this.input.style.top = `${caret.y * this.cssScale}px`;
-      this.input.style.height = `${caret.height * this.cssScale}px`;
-      if (reveal) revealInput(this.input, this.viewport);
-    }
-  }
-  private async describeSelection(): Promise<void> {
     const description = await docxSelectionDescription(
       this.client,
       this.state,
@@ -649,6 +648,14 @@ export class DocumentEditor {
     this.assertOpen();
     this.selectionDescription = description;
     this.input.setAttribute("aria-description", description);
+    this.paint();
+    this.surface.drawSelection(this.page, this.cssScale, geometry, caret);
+    if (caret) {
+      this.input.style.left = `${caret.x * this.cssScale}px`;
+      this.input.style.top = `${caret.y * this.cssScale}px`;
+      this.input.style.height = `${caret.height * this.cssScale}px`;
+      if (reveal) revealInput(this.input, this.viewport);
+    }
   }
   private paint(): void {
     this.page = Math.min(this.page, this.currentLayout.regions.length - 1);
@@ -687,7 +694,6 @@ export class DocumentEditor {
     this.paint();
     this.surface.clearOverlay(this.cssScale);
   }
-
   setZoom(zoom: number): Promise<void> {
     return this.enqueue(async () => {
       if (!Number.isFinite(zoom) || zoom < 0.25 || zoom > 4)
@@ -704,7 +710,6 @@ export class DocumentEditor {
       }
     });
   }
-
   /** A barrier: later input cannot change the returned revision or bytes. */
   saveDocx(): Promise<EditorOutput> {
     this.inputEvents.endGroup();
@@ -720,7 +725,6 @@ export class DocumentEditor {
       true,
     );
   }
-
   private async checkRevision(): Promise<number> {
     const current = await this.client.editState();
     this.assertOpen();
@@ -728,7 +732,6 @@ export class DocumentEditor {
       throw new Error("Document changed outside this editor");
     return current.revision;
   }
-
   /** Exports the completed layout at this input barrier. */
   exportPdf(outputBytes = 67108864): Promise<EditorOutput> {
     this.inputEvents.endGroup();
@@ -747,7 +750,6 @@ export class DocumentEditor {
       true,
     );
   }
-
   async downloadPdf(
     filename = "document.pdf",
     outputBytes = 67108864,
@@ -756,13 +758,11 @@ export class DocumentEditor {
     this.downloadBytes(output.bytes, "application/pdf", filename);
     this.observable.markDownloaded(output);
   }
-
   async downloadDocx(filename = "document.docx"): Promise<void> {
     const output = await this.saveDocx();
     this.downloadBytes(output.bytes, docxContentType, filename);
     this.observable.markDownloaded(output);
   }
-
   private downloadBytes(
     bytes: Uint8Array,
     type: string,
