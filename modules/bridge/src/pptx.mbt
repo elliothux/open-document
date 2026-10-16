@@ -57,6 +57,8 @@ fn Foundation::pptx_operation(
   }
   match operation {
     "queryPptx" => session.query()
+    "findPptx" | "replacePptxMatches" =>
+      self.pptx_search(session, operation, request)
     "editPptxSlides" => {
       guard request is { "change": change, .. } else {
         @failure.reject("invalid-operation", "Slide edit is required")

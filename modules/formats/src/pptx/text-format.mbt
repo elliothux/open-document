@@ -142,6 +142,7 @@ fn Session::formatting_query(self : Session) -> Json {
     ("underline", Json::null()),
     ("strike", Json::null()),
     ("highlight", Json::null()),
+    ("script", Json::null()),
     ("alignment", Json::null()),
     ("reason", Json("Select an editable text frame")),
   ])
@@ -182,12 +183,14 @@ fn Session::formatting_query(self : Session) -> Json {
           Json(style.underline),
           Json(style.strike),
           Json(style.highlight.to_lower()),
+          Json(style.script),
         ]
       }
       let initial = values(first)
       for
         i, name in [
           "font", "size", "bold", "italic", "color", "underline", "strike", "highlight",
+          "script",
         ] {
         if styles.all(style => values(style)[i] == initial[i]) {
           result[name] = initial[i]

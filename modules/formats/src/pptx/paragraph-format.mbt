@@ -37,7 +37,9 @@ fn Session::paragraph_reason(self : Session, object : Object) -> String {
 
 ///|
 fn Session::paragraph_query(self : Session) -> Json {
-  let fields = ["left", "right", "first", "before", "after", "line"]
+  let fields = [
+    "left", "right", "first", "before", "after", "line", "list", "level",
+  ]
   let result : Map[String, Json] = Map([])
   for field in fields {
     result[field] = Json::null()

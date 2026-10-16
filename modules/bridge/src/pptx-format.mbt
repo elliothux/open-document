@@ -6,6 +6,7 @@ fn pptx_text_format(value : Json) -> @pptx.TextFormat raise @failure.Failure {
     .all(key => {
       [
         "font", "size", "bold", "italic", "color", "underline", "strike", "highlight",
+        "script",
       ].contains(key)
     }) else {
     @failure.reject("invalid-operation", "Unknown text format fields")
@@ -51,6 +52,11 @@ fn pptx_text_format(value : Json) -> @pptx.TextFormat raise @failure.Failure {
     } else {
       None
     },
+    script?=if fields.contains("script") {
+      Some(field_string(value, "script"))
+    } else {
+      None
+    },
   )
 }
 
@@ -71,7 +77,9 @@ fn pptx_paragraph_format(
     fields
     .keys()
     .all(key => {
-      ["left", "right", "first", "before", "after", "line"].contains(key)
+      ["left", "right", "first", "before", "after", "line", "list", "level"].contains(
+        key,
+      )
     }) else {
     @failure.reject("invalid-operation", "Unknown paragraph format fields")
   }
@@ -92,5 +100,33 @@ fn pptx_paragraph_format(
     before?=spacing("before"),
     after?=spacing("after"),
     line?=spacing("line"),
+    level?=if fields.contains("level") {
+      Some(field_int(value, "level"))
+    } else {
+      None
+    },
+    list?=fields.get("list").map(pptx_list_format),
   )
+}
+
+///|
+fn pptx_list_format(value : Json) -> @pptx.ListFormat raise @failure.Failure {
+  guard value is Object(fields) else {
+    @failure.reject("invalid-operation", "List format is required")
+  }
+  let kind = field_string(value, "kind")
+  let keys = match kind {
+    "none" => ["kind"]
+    "bullet" => ["kind", "value"]
+    "number" => ["kind", "value", "start"]
+    _ => []
+  }
+  guard !keys.is_empty() && fields.keys().all(key => keys.contains(key)) else {
+    @failure.reject("invalid-operation", "Unknown list format fields")
+  }
+  match kind {
+    "none" => @pptx.NoList
+    "bullet" => @pptx.Bullet(field_string(value, "value"))
+    _ => @pptx.Numbered(field_string(value, "value"), field_int(value, "start"))
+  }
 }

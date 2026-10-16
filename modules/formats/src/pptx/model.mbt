@@ -35,6 +35,8 @@ priv struct TextParagraph {
   align : String
   bullet : String
   bullet_style : @layout.TextStyle
+  list : ListFormat
+  level : Int
 }
 
 ///|

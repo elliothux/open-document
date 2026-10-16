@@ -1,4 +1,14 @@
+import { checkPptxSlideEdit, type PptxSlideEdit } from "./pptx-slides.js";
+export { checkPptxSlideEdit, type PptxSlideEdit } from "./pptx-slides.js";
 import { WasmSession, encodeBytes } from "./session.js";
+import {
+  preparePptxSearch,
+  pptxSearchResult,
+  type PptxSearchCommand,
+  type PptxSearchResult,
+} from "./pptx-search.js";
+export type { PptxFindOptions, PptxSearchResult } from "./pptx-search.js";
+export { preparePptxSearch, pptxFindOptions } from "./pptx-search.js";
 import { record, hasFields } from "./validation.js";
 import {
   drawingBatch,
@@ -22,6 +32,7 @@ export type {
   PptxTextFormat,
   PptxFormatting,
   PptxTextSpacing,
+  PptxListFormat,
   PptxParagraphFormat,
   PptxParagraphFormatting,
 } from "./pptx-format.js";
@@ -175,6 +186,7 @@ export type PptxObjectEdit =
     };
 
 export type PptxCommand =
+  | PptxSearchCommand
   | { operation: "createPptx"; budget: Budget }
   | { operation: "openPptx"; bytes: Uint8Array; budget: Budget }
   | { operation: "queryPptx" }
@@ -264,27 +276,31 @@ export type PptxCommand =
       outputBytes: number;
     };
 
-type Result<C extends PptxCommand> = C["operation"] extends "layoutPptx"
-  ? PptxLayout
-  : C["operation"] extends "hitPptx"
-    ? PptxHit
-    : C["operation"] extends "selectionPptx"
-      ? PptxGeometry
-      : C["operation"] extends "savePptx" | "imageBytesPptx" | "exportPptxPdf"
-        ? Uint8Array
-        : C["operation"] extends "imageKeysPptx"
-          ? string[]
-          : C["operation"] extends "copyPptx"
-            ? { text: string }
-            : C["operation"] extends "imagePptx"
-              ? { key: string }
-              : PptxQuery;
+type Result<C extends PptxCommand> = C["operation"] extends "findPptx"
+  ? PptxSearchResult
+  : C["operation"] extends "layoutPptx"
+    ? PptxLayout
+    : C["operation"] extends "hitPptx"
+      ? PptxHit
+      : C["operation"] extends "selectionPptx"
+        ? PptxGeometry
+        : C["operation"] extends "savePptx" | "imageBytesPptx" | "exportPptxPdf"
+          ? Uint8Array
+          : C["operation"] extends "imageKeysPptx"
+            ? string[]
+            : C["operation"] extends "copyPptx"
+              ? { text: string }
+              : C["operation"] extends "imagePptx"
+                ? { key: string }
+                : PptxQuery;
 export type PptxResult<C extends PptxCommand> = Result<C>;
 
 const names: ReadonlySet<string> = new Set([
   "openPptx",
   "createPptx",
   "queryPptx",
+  "findPptx",
+  "replacePptxMatches",
   "editPptxObjects",
   "editPptxSlides",
   "selectPptx",
@@ -313,47 +329,6 @@ export function isPptxCommand(value: {
   operation: string;
 }): value is PptxCommand {
   return names.has(value.operation);
-}
-
-export type PptxSlideEdit =
-  | { action: "add" }
-  | { action: "copy" }
-  | { action: "delete" }
-  | { action: "move"; index: number }
-  | { action: "hidden"; hidden: boolean }
-  | { action: "background"; value: string | null }
-  | { action: "size"; width: number; height: number };
-
-export function checkPptxSlideEdit(value: unknown): void {
-  const change = record(value);
-  if (change.action === "size") {
-    number(change.width, 1, 14400);
-    number(change.height, 1, 14400);
-    return;
-  }
-  if (change.action === "background") {
-    if (
-      change.value !== null &&
-      (typeof change.value !== "string" || !/^[0-9a-f]{6}$/i.test(change.value))
-    )
-      throw new Error("Invalid slide background");
-    return;
-  }
-  if (
-    typeof change.action === "string" &&
-    ["add", "copy", "delete"].includes(change.action)
-  )
-    return;
-  if (
-    change.action === "move" &&
-    typeof change.index === "number" &&
-    Number.isInteger(change.index) &&
-    change.index >= 0 &&
-    change.index < 256
-  )
-    return;
-  if (change.action === "hidden" && typeof change.hidden === "boolean") return;
-  throw new Error("Invalid slide edit");
 }
 
 function number(value: unknown, low = 0, high = 0x7fffffff): number {
@@ -679,6 +654,9 @@ export function pptxResult<C extends PptxCommand>(
   value: unknown,
 ): PptxResult<C> {
   switch (command.operation) {
+    case "findPptx":
+      pptxSearchResult(value);
+      break;
     case "savePptx":
     case "imageBytesPptx":
     case "exportPptxPdf":
@@ -758,6 +736,11 @@ export class PptxSession extends WasmSession {
       checkPptxSlideEdit(command.change);
     let value: unknown;
     if (
+      command.operation === "findPptx" ||
+      command.operation === "replacePptxMatches"
+    )
+      value = this.call(preparePptxSearch(command));
+    else if (
       command.operation === "savePptx" ||
       command.operation === "imageBytesPptx" ||
       command.operation === "exportPptxPdf"

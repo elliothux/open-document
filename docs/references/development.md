@@ -142,7 +142,7 @@ client.dispose();
 
 调用者应按实际字体样式提供映射；示例把全部键映射到一份字体，仅演示接入顺序。先供应所需脚本字体，缺失映射或字形时明确失败。组件存活期间独占 client；`dispose()` 等待已接受操作、取消未提交候选并释放画布/资源，调用者随后复用或关闭 client。
 
-`PresentationEditor` 提供 `select()`、`showSlide()`、`setZoom()`、`transform(dx, dy, handle?)`、`copy(cut?)`、`paste()`、`undo()`、`redo()`、`save()`、`exportPdf(all = true, hidden = false, outputBytes?)`、`refresh()` 与异步 `dispose()`。`query` 返回展示状态，`layout` 为当前单页绘制结果；默认 UI 挂入稳定的 `objectList` 语义节点。保存/PDF 返回 `EditorOutput`，等待已接受队列，未结束的组合或拖动拒绝输出。呈现失败保留核心提交，刷新重取状态，Undo 显式撤销。
+`PresentationEditor` 提供 `find()`、`selectMatch()`、`replaceMatches()`、`select()`、`showSlide()`、`setZoom()`、`transform(dx, dy, handle?)`、`copy(cut?)`、`paste()`、`undo()`、`redo()`、`save()`、`exportPdf(all = true, hidden = false, outputBytes?)`、`refresh()` 与异步 `dispose()`。`query` 返回展示状态，`layout` 为当前单页绘制结果；默认 UI 挂入稳定的 `objectList` 语义节点。保存/PDF 返回 `EditorOutput`，等待已接受队列，未结束的组合或拖动拒绝输出。呈现失败保留核心提交，刷新重取状态，Undo 显式撤销。
 
 格式核心位于 `modules/formats/src/pptx`，按关系/继承、图文读取、文本框布局、源编辑、历史和几何拆分。共享定位输入归 `modules/layout/src/positioned.mbt`，PDF writer 按同一图元顺序输出。`NativeTextInput` 共用平台事件与组合机制；`decodeImage` 共用图片头校验、解码及 RGBA 接入。实际能力与上限归[格式合同](formats.md#pptx)。
 

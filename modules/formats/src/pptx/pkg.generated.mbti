@@ -12,6 +12,21 @@ import {
 // Errors
 
 // Types and methods
+pub(all) struct FindOptions {
+  matchCase : Bool
+  wholeWord : Bool
+  all : Bool
+}
+pub fn FindOptions::new(matchCase? : Bool, wholeWord? : Bool, all? : Bool) -> Self
+
+pub(all) enum ListFormat {
+  NoList
+  Bullet(String)
+  Numbered(String, Int)
+} derive(Eq)
+pub fn ListFormat::equal(Self, Self) -> Bool
+pub fn ListFormat::not_equal(Self, Self) -> Bool
+
 pub(all) enum ObjectEdit {
   Insert(String, Double, Double, Double, Double, String)
   Remove
@@ -43,8 +58,10 @@ pub(all) struct ParagraphFormat {
   before : TextSpacing?
   after : TextSpacing?
   line : TextSpacing?
+  list : ListFormat?
+  level : Int?
 }
-pub fn ParagraphFormat::new(left? : Double, right? : Double, first? : Double, before? : TextSpacing, after? : TextSpacing, line? : TextSpacing) -> Self
+pub fn ParagraphFormat::new(left? : Double, right? : Double, first? : Double, before? : TextSpacing, after? : TextSpacing, line? : TextSpacing, list? : ListFormat, level? : Int) -> Self
 
 pub struct Session {
   // private fields
@@ -59,6 +76,7 @@ pub fn Session::delete(Self, Int, Bool, @layout.TextProbe, Map[String, String]) 
 pub fn Session::drag(Self, Int, Int, Double, Double, Int) -> Json raise @failure.Failure
 pub fn Session::edit_objects(Self, Int, ObjectEdit, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::edit_slides(Self, Int, String, SlideEdit) -> Json raise @failure.Failure
+pub fn Session::find(Self, Int, String, String, FindOptions) -> Json raise @failure.Failure
 pub fn Session::finish(Self, Int, Int, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::hit(Self, Int, Double, Double, Double) -> Json raise @failure.Failure
 pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
@@ -70,6 +88,7 @@ pub fn Session::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
 pub fn Session::print_layout(Self, Int, Bool, Bool, @layout.TextProbe, Map[String, String]) -> @layout.PositionedDocument raise @failure.Failure
 pub fn Session::query(Self) -> Json raise @failure.Failure
 pub fn Session::replace(Self, Int, String, @layout.TextProbe, Map[String, String], candidate_id? : Int?) -> Json raise @failure.Failure
+pub fn Session::replace_matches(Self, Int, String, String, FindOptions, String, Int?, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::save(Self, Int) -> Bytes raise @failure.Failure
 pub fn Session::select(Self, Int, String, String, String, Int, Int, objects? : Array[String]?) -> Json raise @failure.Failure
 pub fn Session::selection_geometry(Self, Int) -> Json raise @failure.Failure
@@ -95,8 +114,9 @@ pub(all) struct TextFormat {
   underline : Bool?
   strike : Bool?
   highlight : String?
+  script : String?
 }
-pub fn TextFormat::new(font? : String, size? : Double, bold? : Bool, italic? : Bool, color? : String, underline? : Bool, strike? : Bool, highlight? : String) -> Self
+pub fn TextFormat::new(font? : String, size? : Double, bold? : Bool, italic? : Bool, color? : String, underline? : Bool, strike? : Bool, highlight? : String, script? : String) -> Self
 
 pub(all) struct TextSpacing {
   unit : String

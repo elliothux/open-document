@@ -4,6 +4,7 @@ import type {
   PptxTextFormat,
   PptxTextSpacing,
   PptxParagraphFormat,
+  PptxListFormat,
 } from "@open-document/web/pptx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
@@ -76,7 +77,7 @@ function ParagraphField({
   disabled,
   onApply,
 }: {
-  property: keyof PptxParagraphFormat;
+  property: "left" | "right" | "first" | "before" | "after" | "line";
   label: string;
   value: number | PptxTextSpacing | null;
   state: UiSnapshot;
@@ -204,6 +205,18 @@ export function PptxParagraph({
           }
         />
       ))}
+      <PptxListFields
+        key={`list:${JSON.stringify(paragraph.list)}:${paragraph.level}`}
+        state={state}
+        disabled={disabled}
+        list={paragraph.list}
+        level={paragraph.level}
+        onApply={(format) =>
+          controller.run(() =>
+            editor.editObjects({ action: "textParagraph", format }),
+          )
+        }
+      />
       <button
         type="button"
         disabled={disabled}
@@ -217,6 +230,141 @@ export function PptxParagraph({
       </button>
       {paragraph.reason && <p>{paragraph.reason}</p>}
     </fieldset>
+  );
+}
+
+function PptxListFields({
+  state,
+  disabled,
+  list,
+  level,
+  onApply,
+}: {
+  state: UiSnapshot;
+  disabled: boolean;
+  list: PptxListFormat | null;
+  level: number | null;
+  onApply: (format: PptxParagraphFormat) => void;
+}) {
+  const t = messages(state.locale);
+  const [kind, setKind] = useState(list?.kind ?? "bullet");
+  const [symbol, setSymbol] = useState(
+    list?.kind === "bullet" ? list.value : "•",
+  );
+  const [number, setNumber] = useState<
+    Extract<PptxListFormat, { kind: "number" }>["value"]
+  >(list?.kind === "number" ? list.value : "arabicPeriod");
+  const [start, setStart] = useState(list?.kind === "number" ? list.start : 1);
+  const [draftLevel, setLevel] = useState(
+    level === null ? "" : String(level + 1),
+  );
+  const numberStyles = [
+    ["arabicPeriod", t.listFormat_decimal],
+    ["alphaLcPeriod", t.listFormat_lowerLetter],
+    ["alphaUcPeriod", t.listFormat_upperLetter],
+    ["romanLcPeriod", t.listFormat_lowerRoman],
+    ["romanUcPeriod", t.listFormat_upperRoman],
+  ] as const;
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        onApply({
+          list:
+            kind === "number"
+              ? { kind, value: number, start }
+              : kind === "bullet"
+                ? { kind, value: symbol }
+                : { kind: "none" },
+        });
+      }}
+    >
+      <label>
+        {t.listFormat}
+        <select
+          aria-label={t.listFormat}
+          value={kind}
+          onChange={(event) => {
+            const kind = event.currentTarget.value;
+            if (kind === "none" || kind === "bullet" || kind === "number")
+              setKind(kind);
+          }}
+        >
+          <option value="none">{t.removeList}</option>
+          <option value="bullet">{t.listFormat_bullet}</option>
+          <option value="number">{t.listFormat_decimal}</option>
+        </select>
+      </label>
+      {kind === "bullet" && (
+        <label>
+          {t.listSymbol}
+          <input
+            aria-label={t.listSymbol}
+            required
+            maxLength={16}
+            value={symbol}
+            onChange={(event) => setSymbol(event.currentTarget.value)}
+          />
+        </label>
+      )}
+      {kind === "number" && (
+        <>
+          <label>
+            {t.numberingFormat}
+            <select
+              aria-label={t.numberingFormat}
+              value={number}
+              onChange={(event) => {
+                const value = numberStyles.find(
+                  ([key]) => key === event.currentTarget.value,
+                )?.[0];
+                if (value) setNumber(value);
+              }}
+            >
+              {numberStyles.map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            {t.listStart}
+            <input
+              aria-label={t.listStart}
+              type="number"
+              min={1}
+              max={32767}
+              required
+              value={start}
+              onChange={(event) => setStart(Number(event.currentTarget.value))}
+            />
+          </label>
+        </>
+      )}
+      <button type="submit" disabled={disabled}>
+        {t.applyList}
+      </button>
+      <label>
+        {t.listLevel}
+        <input
+          aria-label={t.listLevel}
+          type="number"
+          min={1}
+          max={9}
+          placeholder={level === null ? t.mixed : ""}
+          value={draftLevel}
+          onChange={(event) => setLevel(event.currentTarget.value)}
+        />
+      </label>
+      <button
+        type="button"
+        disabled={disabled || !draftLevel}
+        onClick={() => onApply({ level: Number(draftLevel) - 1 })}
+      >
+        {t.updateListLevel}
+      </button>
+    </form>
   );
 }
 
@@ -304,6 +452,21 @@ export function PptxFormat({
           }
         >
           {label}
+        </button>
+      ))}
+      {(["superscript", "subscript"] as const).map((script) => (
+        <button
+          key={script}
+          type="button"
+          disabled={disabled}
+          aria-pressed={
+            format.script === null ? "mixed" : format.script === script
+          }
+          onClick={() =>
+            apply({ script: format.script === script ? "baseline" : script })
+          }
+        >
+          {t[script]}
         </button>
       ))}
       <button

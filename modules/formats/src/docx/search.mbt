@@ -26,13 +26,6 @@ priv struct SearchResult {
 }
 
 ///|
-fn search_word_char(ch : Char) -> Bool {
-  ch.is_ascii_alphabetic() ||
-  ch.is_ascii_digit() ||
-  (!ch.is_ascii() && @unicode.non_ascii_id_continue.contains(ch))
-}
-
-///|
 fn SearchGroup::position(
   self : SearchGroup,
   offset : Int,
@@ -168,25 +161,11 @@ fn Session::find_matches(
       "invalid-operation", "Search requires bounded nonempty literal text",
     )
   }
-  let folded = fn(ch : Char) {
-    if options.matchCase {
-      ch
-    } else {
-      @unicode.to_lowercase(ch)
-    }
-  }
-  let pattern = text.iter().map(folded).collect()
-  let prefix = Array::make(pattern.length(), 0)
-  for i in 1..<pattern.length() {
-    let mut matched = prefix[i - 1]
-    while matched > 0 && pattern[i] != pattern[matched] {
-      matched = prefix[matched - 1]
-    }
-    if pattern[i] == pattern[matched] {
-      matched += 1
-    }
-    prefix[i] = matched
-  }
+  let pattern = @layout.LiteralPattern::new(
+    text,
+    match_case=options.matchCase,
+    whole_word=options.wholeWord,
+  )
   let document = self.document()
   let tree = WordTree::new(document)
   let styles = try self.styles([]) catch {
@@ -197,77 +176,44 @@ fn Session::find_matches(
   let reasons : Map[Int, String] = Map([])
   let matches : Array[(Selection, String, String)] = []
   for group in self.search_groups(tree) {
-    let chars : Array[(Int, Char)] = []
-    let mut offset = 0
-    for ch in group.text {
-      chars.push((offset, ch))
-      offset += if ch.to_int() > 0xffff { 2 } else { 1 }
-    }
-    let boundaries = @layout.grapheme_boundaries(group.text)
-    let mut matched = 0
-    for index, (offset, ch) in chars {
-      let value = folded(ch)
-      while matched > 0 && value != pattern[matched] {
-        matched = prefix[matched - 1]
+    for (start, end) in pattern.matches(group.text) {
+      if matches.length() == 1000 {
+        return { matches, truncated: true, }
       }
-      if value == pattern[matched] {
-        matched += 1
+      let selection = {
+        anchor: group.position(start, "after"),
+        focus: group.position(end, "before"),
       }
-      if matched != pattern.length() {
-        continue
-      }
-      let first = index + 1 - matched
-      let start = chars[first].0
-      let end = offset + (if ch.to_int() > 0xffff { 2 } else { 1 })
-      let whole = !options.wholeWord ||
-        (
-          (first == 0 || !search_word_char(chars[first - 1].1)) &&
-          (index + 1 == chars.length() || !search_word_char(chars[index + 1].1))
-        )
-      if whole &&
-        boundaries.binary_search(start) is Ok(_) &&
-        boundaries.binary_search(end) is Ok(_) {
-        if matches.length() == 1000 {
-          return { matches, truncated: true, }
-        }
-        let selection = {
-          anchor: group.position(start, "after"),
-          focus: group.position(end, "before"),
-        }
-        let mut reason = ""
-        for index in group.index(start)..<=group.index(end) {
-          let id = group.paragraphs[index]
-          let value = match reasons.get(id) {
-            Some(value) => value
-            None => {
-              let value = try {
-                tree.check_editable_paragraph(id, part=self.main)
-                tree.check_structure_paragraph(id)
-                let styles = match styles {
-                  Ok(styles) => styles
-                  Err(error) => raise error
-                }
-                self.paragraph(tree, styles, id, []).readOnlyReason
-              } catch {
-                @failure.Failure(message~, ..) => message
+      let mut reason = ""
+      for index in group.index(start)..<=group.index(end) {
+        let id = group.paragraphs[index]
+        let value = match reasons.get(id) {
+          Some(value) => value
+          None => {
+            let value = try {
+              tree.check_editable_paragraph(id, part=self.main)
+              tree.check_structure_paragraph(id)
+              let styles = match styles {
+                Ok(styles) => styles
+                Err(error) => raise error
               }
-              reasons[id] = value
-              value
+              self.paragraph(tree, styles, id, []).readOnlyReason
+            } catch {
+              @failure.Failure(message~, ..) => message
             }
-          }
-          if !value.is_empty() {
-            reason = value
-            break
+            reasons[id] = value
+            value
           }
         }
-        let snippet = group.text[(start - 16).max(0):(end + 32)
-        .min(start + 80)
-        .min(group.text.length())].to_owned()
-        matches.push((selection, snippet, reason))
-        matched = 0
-      } else {
-        matched = prefix[matched - 1]
+        if !value.is_empty() {
+          reason = value
+          break
+        }
       }
+      let snippet = group.text[(start - 16).max(0):(end + 32)
+      .min(start + 80)
+      .min(group.text.length())].to_owned()
+      matches.push((selection, snippet, reason))
     }
   }
   { matches, truncated: false, }

@@ -7,6 +7,7 @@ import { DocxFormatCommands, DocxProperties } from "./docx-format.js";
 import { PptxObjects } from "./pptx-objects.js";
 import { PptxArrange } from "./pptx-arrange.js";
 import { PptxAlignment } from "./pptx-alignment.js";
+import { PptxSearch } from "./pptx-search.js";
 import { XlsxSheets, XlsxFrozen } from "./xlsx-sheets.js";
 import { XlsxFormat } from "./xlsx-format.js";
 import { XlsxSearch } from "./xlsx-search.js";
@@ -505,6 +506,13 @@ function SlideProperties({ controller, state, file, disabled }: PanelProps) {
   );
   return (
     <aside className="od-properties" aria-label={t.objects}>
+      <PptxSearch
+        key={`search:${state.document?.documentId}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
       <h2>{t.objects}</h2>
       <NativeSlot node={editor.objectList} />
       <div className="flex gap-1" role="group" aria-label={t.edit}>
@@ -595,7 +603,7 @@ function SlideProperties({ controller, state, file, disabled }: PanelProps) {
         disabled={disabled}
       />
       <PptxAlignment
-        key={state.document?.documentId}
+        key={`alignment:${state.document?.documentId}`}
         controller={controller}
         state={state}
         editor={editor}

@@ -1,3 +1,13 @@
+import { presentationKey } from "./presentation-keyboard.js";
+import {
+  checkPresentationSearch,
+  type PresentationSearchResult,
+} from "./presentation-search.js";
+import {
+  pptxFindOptions,
+  type PptxFindOptions,
+} from "@open-document/wasm/pptx";
+export type { PresentationSearchResult } from "./presentation-search.js";
 import { updatePresentationObjects } from "./presentation-semantics.js";
 import { objectSelection, pointerSelection } from "./presentation-selection.js";
 import { PresentationCanvas } from "./presentation-canvas.js";
@@ -533,6 +543,63 @@ export class PresentationEditor {
       if (state) await this.changed(state);
     });
   }
+  find(
+    text: string,
+    options: PptxFindOptions = {},
+  ): Promise<PresentationSearchResult> {
+    return this.enqueue(async () => {
+      const slide = this.state.slide;
+      options = pptxFindOptions(options);
+      return {
+        ...(await this.client.execute({
+          operation: "findPptx",
+          revision: this.state.revision,
+          slide,
+          text,
+          options,
+        })),
+        documentId: this.getSnapshot().documentId,
+        slide,
+        text,
+        options,
+      };
+    });
+  }
+  selectMatch(result: PresentationSearchResult, index: number): Promise<void> {
+    return this.enqueue(async () => {
+      checkPresentationSearch(result, this.getSnapshot(), index);
+      const match = result.matches[index]!;
+      await this.selectNow({
+        slide: match.slide,
+        object: match.object,
+        objects: [match.object],
+        mode: match.reason ? "object" : "text",
+        anchor: match.anchor,
+        focus: match.focus,
+      });
+    });
+  }
+  replaceMatches(
+    result: PresentationSearchResult,
+    replacement: string,
+    index?: number,
+  ): Promise<void> {
+    return this.enqueue(async () => {
+      checkPresentationSearch(result, this.getSnapshot(), index);
+      await this.changed(
+        await this.client.execute({
+          operation: "replacePptxMatches",
+          revision: result.revision,
+          slide: result.slide,
+          text: result.text,
+          options: result.options,
+          replacement,
+          profile: this.profile,
+          ...(index === undefined ? {} : { index }),
+        }),
+      );
+    });
+  }
   editObjects(change: PptxObjectEdit): Promise<void> {
     return this.enqueue(async () =>
       this.changed(
@@ -666,10 +733,11 @@ export class PresentationEditor {
     }, true);
   }
   private readonly key = (event: KeyboardEvent): void => {
-    if (event.isComposing) return;
-    if (event.key === "Escape") {
-      event.preventDefault();
-      this.handle(() =>
+    const action = presentationKey(
+      event,
+      this,
+      this.available,
+      () =>
         this.enqueue(
           async () => {
             const wasText = this.state.selection.mode === "text";
@@ -688,90 +756,20 @@ export class PresentationEditor {
           true,
           true,
         ),
-      );
-      return;
-    }
-    if (event.defaultPrevented || !this.available) return;
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "a") {
-      event.preventDefault();
-      const object = this.state.objects.find(
-        (object) => object.id === this.state.selection.object,
-      );
-      if (this.state.selection.mode === "object")
-        this.handle(() =>
-          this.selectObjects(
-            this.state.objects
-              .filter((object) => !object.parent)
-              .map((object) => object.id),
-          ),
-        );
-      else if (object)
-        this.handle(() =>
-          this.select(object.id, "text", 0, object.text.length),
-        );
-      return;
-    }
-    if (this.state.selection.mode !== "object") return;
-    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
-      event.preventDefault();
-      this.handle(() => (event.shiftKey ? this.redo() : this.undo()));
-      return;
-    }
-    if (
-      (event.ctrlKey || event.metaKey) &&
-      !event.altKey &&
-      event.key.toLowerCase() === "d"
-    ) {
-      event.preventDefault();
-      this.handle(() =>
-        this.editObjects({ action: "duplicate", dx: 18, dy: 18 }),
-      );
-    } else if (event.key === "Tab") {
-      event.preventDefault();
-      this.handle(() =>
+      (backward) =>
         this.enqueue(async () =>
           this.changed(
             await this.client.execute({
               operation: "navigatePptx",
               revision: this.state.revision,
               layoutId: this.layout.id,
-              direction: event.shiftKey ? "previous" : "next",
+              direction: backward ? "previous" : "next",
               extend: false,
             }),
           ),
         ),
-      );
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      if (
-        this.state.objects.find(
-          (object) => object.id === this.state.selection.object,
-        )?.textReadOnlyReason
-      )
-        return;
-      this.handle(() => this.select(this.state.selection.object, "text"));
-    } else if (
-      ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)
-    ) {
-      event.preventDefault();
-      const step = event.shiftKey ? 10 : 1;
-      const dx =
-          event.key === "ArrowLeft"
-            ? -step
-            : event.key === "ArrowRight"
-              ? step
-              : 0,
-        dy =
-          event.key === "ArrowUp"
-            ? -step
-            : event.key === "ArrowDown"
-              ? step
-              : 0;
-      this.handle(() => this.transform(dx, dy));
-    } else if (event.key === "Delete" || event.key === "Backspace") {
-      event.preventDefault();
-      this.handle(() => this.editObjects({ action: "delete" }));
-    }
+    );
+    if (action) this.handle(() => action);
   };
   dispose(): Promise<void> {
     if (this.cleanup) return this.cleanup;

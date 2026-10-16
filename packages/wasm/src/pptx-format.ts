@@ -9,6 +9,7 @@ export interface PptxTextFormat {
   underline?: boolean;
   strike?: boolean;
   highlight?: string;
+  script?: "baseline" | "superscript" | "subscript";
 }
 export interface PptxFormatting {
   font: string | null;
@@ -19,6 +20,7 @@ export interface PptxFormatting {
   underline: boolean | null;
   strike: boolean | null;
   highlight: string | null;
+  script: "baseline" | "superscript" | "subscript" | null;
   alignment: "left" | "center" | "right" | null;
   reason: string;
 }
@@ -27,6 +29,19 @@ export interface PptxTextSpacing {
   unit: "point" | "percent";
   value: number;
 }
+export type PptxListFormat =
+  | { kind: "none" }
+  | { kind: "bullet"; value: string }
+  | {
+      kind: "number";
+      value:
+        | "arabicPeriod"
+        | "alphaLcPeriod"
+        | "alphaUcPeriod"
+        | "romanLcPeriod"
+        | "romanUcPeriod";
+      start: number;
+    };
 export interface PptxParagraphFormat {
   left?: number;
   right?: number;
@@ -34,6 +49,8 @@ export interface PptxParagraphFormat {
   before?: PptxTextSpacing;
   after?: PptxTextSpacing;
   line?: PptxTextSpacing;
+  list?: PptxListFormat;
+  level?: number;
 }
 export interface PptxParagraphFormatting {
   left: number | null;
@@ -42,10 +59,56 @@ export interface PptxParagraphFormatting {
   before: PptxTextSpacing | null;
   after: PptxTextSpacing | null;
   line: PptxTextSpacing | null;
+  list: PptxListFormat | null;
+  level: number | null;
   reason: string;
 }
 
 function paragraphProperty(key: string, value: unknown): boolean {
+  if (key === "level")
+    return (
+      typeof value === "number" &&
+      Number.isInteger(value) &&
+      value >= 0 &&
+      value <= 8
+    );
+  if (key === "list") {
+    const list = record(value),
+      keys = Object.keys(list);
+    if (list.kind === "none") return keys.length === 1;
+    if (list.kind === "bullet")
+      return (
+        keys.length === 2 &&
+        typeof list.value === "string" &&
+        list.value.length <= 16 &&
+        list.value.isWellFormed() &&
+        !Array.from(list.value).some((character) => {
+          const code = character.charCodeAt(0);
+          return code <= 32 || [127, 8232, 8233, 65534, 65535].includes(code);
+        }) &&
+        Array.from(
+          new Intl.Segmenter("und", { granularity: "grapheme" }).segment(
+            list.value,
+          ),
+        ).length === 1
+      );
+    return (
+      list.kind === "number" &&
+      keys.length === 3 &&
+      typeof list.value === "string" &&
+      [
+        "arabicPeriod",
+        "alphaLcPeriod",
+        "alphaUcPeriod",
+        "romanLcPeriod",
+        "romanUcPeriod",
+      ].includes(list.value) &&
+      typeof list.start === "number" &&
+      Number.isInteger(list.start) &&
+      list.start >= 1 &&
+      list.start <= 32767
+    );
+  }
   if (["left", "right", "first"].includes(key))
     return (
       typeof value === "number" &&
@@ -81,7 +144,7 @@ export function checkPptxParagraphFormatting(value: unknown): void {
   const format = record(value);
   if (
     typeof format.reason !== "string" ||
-    ["left", "right", "first", "before", "after", "line"].some(
+    ["left", "right", "first", "before", "after", "line", "list", "level"].some(
       (key) => format[key] !== null && !paragraphProperty(key, format[key]),
     )
   )
@@ -120,6 +183,11 @@ function property(key: string, value: unknown): boolean {
         typeof value === "string" &&
         (value === "" || /^[0-9a-f]{6}$/i.test(value))
       );
+    case "script":
+      return (
+        typeof value === "string" &&
+        ["baseline", "superscript", "subscript"].includes(value)
+      );
     case "color":
       return typeof value === "string" && /^[0-9a-f]{6}$/i.test(value);
     default:
@@ -151,6 +219,7 @@ export function checkPptxFormatting(value: unknown): void {
       "underline",
       "strike",
       "highlight",
+      "script",
     ].some((key) => format[key] !== null && !property(key, format[key]))
   )
     throw new Error("Invalid text formatting query");

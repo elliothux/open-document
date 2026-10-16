@@ -220,6 +220,8 @@ fn Foundation::dispatch(
     "openPptx"
     | "createPptx"
     | "queryPptx"
+    | "findPptx"
+    | "replacePptxMatches"
     | "selectPptx"
     | "replacePptx"
     | "deletePptx"

@@ -65,6 +65,15 @@ fn generated_text(
   prefix : String,
   properties : String,
 ) -> String raise @failure.Failure {
+  let count = text.split("\u2028").count().to_int64()
+  guard count *
+    (properties.length().to_int64() + prefix.length().to_int64() * 5 + 80) +
+    text.length().to_int64() * 6 <=
+    2097152L else {
+    @failure.reject(
+      "limit-exceeded", "Generated text source exceeds history budget",
+    )
+  }
   let parts : Array[String] = []
   for part in text.split("\u2028") {
     parts.push(
@@ -72,6 +81,36 @@ fn generated_text(
     )
   }
   parts.join("<\{prefix}br/>")
+}
+
+///|
+fn replacement_properties(
+  paragraph : TextParagraph,
+  at : Int,
+  leading~ : Bool = false,
+) -> String raise @failure.Failure {
+  let (index, _) = caret_run(paragraph, at, leading~)
+  let run = paragraph.runs[index]
+  let properties = run.source.bind(source => source.child("rPr"))
+  if properties is Some(properties) {
+    properties.tree.standalone_markup(
+      properties.tree.document,
+      properties.node.id,
+    )
+  } else if run.source is None &&
+    paragraph.source.child("endParaRPr") is Some(properties) {
+    let xml = properties.tree.standalone_markup(
+      properties.tree.document,
+      properties.node.id,
+    )
+    let old = properties.node.qualified
+    let name = old[:old.length() - 10].to_owned() + "rPr"
+    xml
+    .replace(old="<" + old, new="<" + name)
+    .replace(old="</" + old + ">", new="</" + name + ">")
+  } else {
+    ""
+  }
 }
 
 ///|
@@ -120,29 +159,7 @@ fn text_changes(
     .child("endParaRPr")
     .map(source_xml)
     .unwrap_or("")
-  let (run_index, _) = caret_run(initial, start, leading=a != b)
-  let properties = initial.runs[run_index].source.bind(source => {
-    source.child("rPr")
-  })
-  let template = if properties is Some(properties) {
-    properties.tree.standalone_markup(
-      properties.tree.document,
-      properties.node.id,
-    )
-  } else if initial.runs[run_index].source is None &&
-    initial.source.child("endParaRPr") is Some(properties) {
-    let xml = properties.tree.standalone_markup(
-      properties.tree.document,
-      properties.node.id,
-    )
-    let old = properties.node.qualified
-    let name = old[:old.length() - 10].to_owned() + "rPr"
-    xml
-    .replace(old="<" + old, new="<" + name)
-    .replace(old="</" + old + ">", new="</" + name + ">")
-  } else {
-    ""
-  }
+  let template = replacement_properties(initial, start, leading=a != b)
   let before = paragraph_piece(initial, 0, start)
   let tail = paragraph_piece(
     ending_paragraph,

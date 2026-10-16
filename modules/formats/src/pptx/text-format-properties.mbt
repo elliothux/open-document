@@ -8,6 +8,7 @@ pub(all) struct TextFormat {
   underline : Bool?
   strike : Bool?
   highlight : String?
+  script : String?
 }
 
 ///|
@@ -20,8 +21,9 @@ pub fn TextFormat::new(
   underline? : Bool,
   strike? : Bool,
   highlight? : String,
+  script? : String,
 ) -> TextFormat {
-  { font, size, bold, italic, color, underline, strike, highlight, }
+  { font, size, bold, italic, color, underline, strike, highlight, script, }
 }
 
 ///|
@@ -35,7 +37,8 @@ fn TextFormat::normalized(
     self.color is Some(_) ||
     self.underline is Some(_) ||
     self.strike is Some(_) ||
-    self.highlight is Some(_) else {
+    self.highlight is Some(_) ||
+    self.script is Some(_) else {
     @failure.reject("invalid-operation", "Specify a text format property")
   }
   if self.font is Some(font) {
@@ -52,6 +55,11 @@ fn TextFormat::normalized(
   if self.size is Some(size) {
     guard !size.is_nan() && !size.is_inf() && size >= 1 && size <= 1024 else {
       @failure.reject("invalid-operation", "Text size must be 1..1024 points")
+    }
+  }
+  if self.script is Some(script) {
+    guard ["baseline", "superscript", "subscript"].contains(script) else {
+      @failure.reject("invalid-operation", "Invalid text script")
     }
   }
   for (color, clear) in [(self.color, false), (self.highlight, true)] {
@@ -88,7 +96,8 @@ fn TextFormat::matches(self : TextFormat, style : @layout.TextStyle) -> Bool {
   self.color.map(v => v == style.color.to_lower()).unwrap_or(true) &&
   self.underline.map(v => v == style.underline).unwrap_or(true) &&
   self.strike.map(v => v == style.strike).unwrap_or(true) &&
-  self.highlight.map(v => v == style.highlight.to_lower()).unwrap_or(true)
+  self.highlight.map(v => v == style.highlight.to_lower()).unwrap_or(true) &&
+  self.script.map(v => v == style.script).unwrap_or(true)
 }
 
 ///|
@@ -119,6 +128,13 @@ fn formatted_properties(
   }
   if format.strike is Some(value) {
     attrs["strike"] = if value { "sngStrike" } else { "noStrike" }
+  }
+  if format.script is Some(value) {
+    attrs["baseline"] = match value {
+      "superscript" => "30000"
+      "subscript" => "-25000"
+      _ => "0"
+    }
   }
   let replacements : Map[String, String] = Map([])
   if format.highlight is Some(value) {

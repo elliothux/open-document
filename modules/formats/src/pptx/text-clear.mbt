@@ -5,12 +5,12 @@ fn clear_names(paragraph : Bool) -> (Array[String], Array[String]) {
       ["algn", "marL", "marR", "indent"],
       [
         "lnSpc", "spcBef", "spcAft", "buNone", "buChar", "buClrTx", "buClr", "buFontTx",
-        "buFont", "buSzTx", "buSzPct", "buSzPts",
+        "buFont", "buSzTx", "buSzPct", "buSzPts", "buAutoNum",
       ],
     )
   } else {
     (
-      ["sz", "b", "i", "u", "strike"],
+      ["sz", "b", "i", "u", "strike", "baseline"],
       ["noFill", "solidFill", "latin", "ea", "cs", "uLnTx", "uFillTx"],
     )
   }
@@ -90,6 +90,10 @@ fn cleared_properties(
               a.uri.is_empty() &&
               (
                 (child.name == "buChar" && a.name == "char") ||
+                (
+                  child.name == "buAutoNum" &&
+                  ["type", "startAt"].contains(a.name)
+                ) ||
                 (["buSzPct", "buSzPts"].contains(child.name) && a.name == "val") ||
                 (
                   child.name == "buFont" &&

@@ -12,6 +12,8 @@ pub(all) struct ParagraphFormat {
   before : TextSpacing?
   after : TextSpacing?
   line : TextSpacing?
+  list : ListFormat?
+  level : Int?
 }
 
 ///|
@@ -22,8 +24,10 @@ pub fn ParagraphFormat::new(
   before? : TextSpacing,
   after? : TextSpacing,
   line? : TextSpacing,
+  list? : ListFormat,
+  level? : Int,
 ) -> ParagraphFormat {
-  { left, right, first, before, after, line, }
+  { left, right, first, before, after, line, list, level, }
 }
 
 ///|
@@ -53,8 +57,18 @@ fn ParagraphFormat::normalized(
     self.first is Some(_) ||
     self.before is Some(_) ||
     self.after is Some(_) ||
-    self.line is Some(_) else {
+    self.line is Some(_) ||
+    self.list is Some(_) ||
+    self.level is Some(_) else {
     @failure.reject("invalid-operation", "Specify a paragraph property")
+  }
+  if self.list is Some(list) {
+    list.check()
+  }
+  if self.level is Some(level) {
+    guard level >= 0 && level <= 8 else {
+      @failure.reject("invalid-operation", "List level must be 0..8")
+    }
   }
   for
     (value, minimum) in [
@@ -78,6 +92,8 @@ fn ParagraphFormat::normalized(
     before: self.before.map(v => v.normalized()),
     after: self.after.map(v => v.normalized()),
     line: self.line.map(v => v.normalized(line=true)),
+    list: self.list,
+    level: self.level,
   }
 }
 
@@ -103,6 +119,8 @@ fn paragraph_values(paragraph : TextParagraph) -> Array[Json] {
         { "unit": "percent", "value": (value * 100000 / 240).round() / 1000 }
       Exact(value) | AtLeast(value) => { "unit": "point", "value": value / 20 }
     },
+    paragraph.list.query(),
+    Json(paragraph.level),
   ]
 }
 
@@ -121,18 +139,45 @@ fn paragraph_markup(
     }
   }
   let attrs : Map[String, String] = Map([])
+  let changes : Map[String, String] = Map([])
+  let mut left = format.left
+  let mut first = format.first
+  if format.list is Some(list) && list != paragraph.list {
+    if properties is Some(p) {
+      check_list_properties(p)
+    }
+    for name in ["buNone", "buChar", "buAutoNum"] {
+      changes[name] = ""
+    }
+    let (name, markup) = list_markup(list)
+    changes[name] = markup
+    // ONLYOFFICE anchors a new list at the old left edge with a font-sized hanging indent.
+    let base = paragraph.left.min(paragraph.left + paragraph.first).max(0)
+    if list is NoList {
+      left = Some(left.unwrap_or(base))
+      first = Some(first.unwrap_or(0))
+    } else if paragraph.list is NoList {
+      let indent = (paragraph.runs[0].style().size * 0.305954545 + 2.378363636) *
+        72 /
+        25.4
+      left = Some(left.unwrap_or(base + indent))
+      first = Some(first.unwrap_or(-indent))
+    }
+  }
+  if format.level is Some(level) && level != paragraph.level {
+    attrs["lvl"] = level.to_string()
+  }
   let current = paragraph_values(paragraph)
   for
     (name, value, effective) in [
-      ("marL", format.left, paragraph.left),
+      ("marL", left, paragraph.left),
       ("marR", format.right, paragraph.right),
-      ("indent", format.first, paragraph.first),
+      ("indent", first, paragraph.first),
     ] {
     if value is Some(value) && value != effective {
       attrs[name] = (value * 12700).round().to_int().to_string()
     }
   }
-  let changes : Map[String, String] = Map([])
   for
     (name, value, index) in [
       ("spcBef", format.before, 3),
@@ -153,7 +198,10 @@ fn paragraph_markup(
     return ""
   }
   let output = StringBuilder()
-  let order = ["lnSpc", "spcBef", "spcAft"]
+  let order = [
+    "lnSpc", "spcBef", "spcAft", "buClrTx", "buClr", "buSzTx", "buSzPct", "buSzPts",
+    "buFontTx", "buFont", "buNone", "buChar", "buAutoNum", "tabLst", "defRPr", "extLst",
+  ]
   let mut qualified = "a:pPr"
   if properties is Some(p) {
     qualified = p.node.qualified
@@ -163,7 +211,7 @@ fn paragraph_markup(
       let mut offset = p.node.opening_end
       for child in p.tree.children.get(p.node.id).unwrap_or([]) {
         output.write_view(source[offset:child.start])
-        for name in order[:order.search(child.name).unwrap_or(3)] {
+        for name in order[:order.search(child.name).unwrap_or(order.length())] {
           if changes.get(name) is Some(markup) {
             output.write_string(markup)
             ignore(changes.remove(name))

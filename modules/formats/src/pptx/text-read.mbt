@@ -15,6 +15,12 @@ fn text_style(
     .unwrap_or(false)
   let underline = attribute(sources, "u").unwrap_or("none")
   let strike = attribute(sources, "strike").unwrap_or("noStrike")
+  // ONLYOFFICE interprets DrawingML baseline by sign, using shared script metrics.
+  let baseline = number(
+    attribute(sources, "baseline").unwrap_or("0"),
+    -2147483648,
+    2147483647,
+  )
   guard ["none", "sng", "0", "false"].contains(underline) &&
     ["noStrike", "sngStrike", "0", "false"].contains(strike) else {
     @failure.reject("unsupported-text", "Unsupported underline or strike style")
@@ -44,7 +50,7 @@ fn text_style(
     paint
   }
   for source in sources {
-    for name in ["baseline", "cap", "spc", "kumimoji"] {
+    for name in ["cap", "spc", "kumimoji"] {
       if source.node.attribute(name) is Some(value) &&
         !["none", "noStrike", "0", "false"].contains(value) {
         @failure.reject(
@@ -77,7 +83,13 @@ fn text_style(
     underline: underline == "sng",
     strike: strike == "sngStrike",
     highlight: text_highlight(theme, sources),
-    script: "baseline",
+    script: if baseline > 0 {
+      "superscript"
+    } else if baseline < 0 {
+      "subscript"
+    } else {
+      "baseline"
+    },
     size,
     color: if color.is_empty() {
       "000000"
@@ -227,24 +239,8 @@ fn read_text(
         "left"
       }
     }
-    let mut bullet = ""
-    for item in styles {
-      if item.child("buNone") is Some(_) {
-        break
-      }
-      if item.child("buChar") is Some(value) {
-        bullet = value.node.attribute("char").unwrap_or("")
-        break
-      }
-      if item.child("buAutoNum") is Some(_) {
-        reason = "Automatic numbering is unsupported"
-        break
-      }
-      if item.child("buBlip") is Some(_) {
-        reason = "Picture bullets are unsupported"
-        break
-      }
-    }
+    let list = read_list(styles)
+    let bullet = list_label(list, level, paragraphs)
     let mut line : @layout.LineSpacing = Auto(240)
     for item in children(styles, "lnSpc") {
       if item.child("spcPts") is Some(value) {
@@ -317,6 +313,8 @@ fn read_text(
       runs,
       align,
       bullet,
+      list,
+      level,
       bullet_style: if bullet.is_empty() {
         runs[0].style()
       } else {

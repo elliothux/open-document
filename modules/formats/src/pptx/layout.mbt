@@ -38,18 +38,26 @@ fn measure_text(
       expandSoftBreak: true,
       left: paragraph.left,
       right: paragraph.right,
-      first: if paragraph.bullet.is_empty() {
-        paragraph.first
-      } else {
-        0
-      },
+      first: paragraph.first,
       align: paragraph.align,
       before: 0,
       after: 0,
       line: spacing,
       pageBreakBefore: false,
       rtl: false,
-      marker: None,
+      marker: if paragraph.bullet.is_empty() {
+        None
+      } else {
+        Some({
+          text: paragraph.bullet,
+          style: {
+            ..paragraph.bullet_style,
+            size: paragraph.bullet_style.size * scale,
+          },
+          align: "left",
+          suffix: "tab",
+        })
+      },
       readOnlyReason: object.text_reason,
     }
     let measured = probe.paragraph_lines(flow, profile, width, object.body.wrap)
@@ -69,6 +77,11 @@ fn measure_text(
         areaX: object.body.left,
         areaWidth: width,
         runs: line.runs.map(run => {
+          ..run,
+          x: run.x + line.x + object.body.left,
+          baseline: run.baseline + top,
+        }),
+        marker: line.marker.map(run => {
           ..run,
           x: run.x + line.x + object.body.left,
           baseline: run.baseline + top,
@@ -158,6 +171,7 @@ fn fit_text(
       ..line,
       y: line.y + dy,
       runs: line.runs.map(run => { ..run, baseline: run.baseline + dy, }),
+      marker: line.marker.map(run => { ..run, baseline: run.baseline + dy, }),
     }),
     scale,
     diagnostic,
@@ -245,9 +259,7 @@ fn paint_slide(
           ),
         )
       }
-      let (lines, scale, diagnostic) = fit_text(
-        object, geometry, probe, profile,
-      ) catch {
+      let (lines, _, diagnostic) = fit_text(object, geometry, probe, profile) catch {
         @failure.Failure(code="layout-overflow", message~, ..) =>
           ([], 1.0, message)
         error => raise error
@@ -269,46 +281,12 @@ fn paint_slide(
         primitives.push(
           Clip({ x: 0, y: 0, width: geometry.width, height: geometry.height, }),
         )
-        for index, paragraph in object.paragraphs {
-          if !paragraph.bullet.is_empty() &&
-            lines.iter().find_first(line => line.paragraph == index)
-            is Some(line) {
-            let block = probe.text_block(
-              paragraph.bullet,
-              {
-                ..paragraph.bullet_style,
-                size: paragraph.bullet_style.size * scale,
-              },
-              profile,
-              geometry.width.max(1),
-              false,
-            )
-            for text in block.texts {
-              primitives.push(
-                Text({
-                  ..text,
-                  runs: text.runs.map(run => {
-                    ..run,
-                    x: run.x +
-                    object.body.left +
-                    paragraph.left +
-                    paragraph.first,
-                    baseline: line.runs
-                    .get(0)
-                    .map(item => item.baseline)
-                    .unwrap_or(line.y + line.height),
-                  }),
-                }),
-              )
-            }
-          }
-        }
         for line in lines {
           // Keep the presentation's frame-level clipping for exact-spaced lines.
           primitives.append(
             { ..line, clip: false, }.positioned(fonts, geometry.width),
           )
-          units += line.runs
+          units += [..line.marker, ..line.runs]
             .iter()
             .fold(init=0, (sum, run) => sum + run.glyphs.length())
           guard units <= 262144 else {

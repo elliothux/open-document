@@ -3,16 +3,20 @@ import {
   pptxResult,
   checkPptxObjectEdit,
   checkPptxSlideEdit,
+  preparePptxSearch,
   type PptxCommand,
   type PptxResult,
 } from "@open-document/wasm/pptx";
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type {
   PptxObjectEdit,
+  PptxFindOptions,
+  PptxSearchResult,
   PptxSlideEdit,
   PptxTextFormat,
   PptxFormatting,
   PptxTextSpacing,
+  PptxListFormat,
   PptxParagraphFormat,
   PptxParagraphFormatting,
 } from "@open-document/wasm/pptx";
@@ -52,7 +56,12 @@ export class PptxClient {
       checkPptxObjectEdit(command.change);
     if (command.operation === "editPptxSlides")
       checkPptxSlideEdit(command.change);
-    return pptxResult(command, await this.connection.request(command));
+    const request =
+      command.operation === "findPptx" ||
+      command.operation === "replacePptxMatches"
+        ? preparePptxSearch(command)
+        : command;
+    return pptxResult(command, await this.connection.request(request));
   }
   dispose(): void {
     this.connection.dispose();

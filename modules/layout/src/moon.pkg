@@ -1,5 +1,6 @@
 import {
   "open_document/core/failure",
+  "moonbitlang/x/unicode" @ucd,
   "moonbit-community/harfbuzz/font",
   "moonbit-community/harfbuzz/face",
   "moonbit-community/harfbuzz/sfnt",
