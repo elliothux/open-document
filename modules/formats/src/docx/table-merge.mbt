@@ -27,6 +27,18 @@ fn Session::table_grid(
   let model = self.flow().tables.iter().find_first(t => t.id == table).unwrap()
   let rows = tree.table_children(table, "tr")
   let cells = rows.map(row => tree.table_children(row, "tc"))
+  guard rows.length() == model.rows.length() else {
+    @failure.reject(
+      "protected-content", "Unknown table rows or cells prevent grid editing",
+    )
+  }
+  for r, row in cells {
+    guard row.length() == model.rows[r].length() else {
+      @failure.reject(
+        "protected-content", "Unknown table rows or cells prevent grid editing",
+      )
+    }
+  }
   let starts : Array[Array[Int]] = []
   let owners : Map[Int, (Int, Int)] = Map([])
   let mut previous : Map[(Int, Int), (Int, Int)] = Map([])
@@ -68,6 +80,11 @@ fn WordTree::check_merge_cell(
   cell : Int,
   part : String,
 ) -> Unit raise @failure.Failure {
+  guard self.child(cell, "p") is Some(_) else {
+    @failure.reject(
+      "protected-content", "Table cells without paragraphs are protected",
+    )
+  }
   guard self.nodes[cell].attributes
     .iter()
     .all(a => {

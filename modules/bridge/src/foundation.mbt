@@ -201,6 +201,8 @@ fn Foundation::dispatch(
     | "queryXlsx"
     | "selectXlsx"
     | "replaceXlsx"
+    | "findXlsx"
+    | "replaceXlsxMatches"
     | "undoXlsx"
     | "redoXlsx"
     | "saveXlsx"

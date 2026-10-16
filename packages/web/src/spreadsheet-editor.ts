@@ -1,8 +1,21 @@
+import { createGridElements } from "./spreadsheet-elements.js";
+import {
+  checkSpreadsheetSearch,
+  type SpreadsheetSearchResult,
+} from "./spreadsheet-search.js";
+import {
+  xlsxFindOptions,
+  type XlsxFindOptions,
+} from "@open-document/wasm/xlsx";
+export type { SpreadsheetSearchResult } from "./spreadsheet-search.js";
 import {
   updateGridSemantics,
   updateGridSelection,
   activeGridCell,
+  spreadsheetSnapshotData,
+  type SpreadsheetEditorData,
 } from "./spreadsheet-semantics.js";
+export type { SpreadsheetEditorData } from "./spreadsheet-semantics.js";
 import { SpreadsheetPrint, defaultPrintOptions } from "./spreadsheet-print.js";
 import { CanvasSurface } from "./canvas-surface.js";
 import { SpreadsheetFormula } from "./spreadsheet-formula.js";
@@ -10,7 +23,6 @@ import {
   spreadsheetKey,
   styleCellDraft,
   paintGridSelection,
-  prepareGridInput,
   bindCellDraft,
 } from "./spreadsheet-input.js";
 import {
@@ -37,21 +49,14 @@ import type {
   XlsxSelectionGeometry,
 } from "@open-document/wasm/xlsx";
 
-export interface SpreadsheetEditorData {
-  readonly query: XlsxQuery;
-  readonly printPage: number;
-  readonly printPages: number;
-  readonly printVisible: boolean;
-}
-
 /** One native cell draft; MoonBit owns committed cells, selection and geometry. */
 export class SpreadsheetEditor {
-  private readonly container = document.createElement("div");
-  private readonly viewport = document.createElement("div");
-  private readonly holder = document.createElement("div");
-  private readonly spacer = document.createElement("div");
-  private readonly input = document.createElement("textarea");
-  private readonly semantics = document.createElement("div");
+  private readonly container: HTMLDivElement;
+  private readonly viewport: HTMLDivElement;
+  private readonly holder: HTMLDivElement;
+  private readonly spacer: HTMLDivElement;
+  private readonly input: HTMLTextAreaElement;
+  private readonly semantics: HTMLDivElement;
   private readonly surface = new CanvasSurface();
   private readonly printView = new SpreadsheetPrint(() => this.publish());
   private readonly observable: EditorState<SpreadsheetEditorData>;
@@ -60,12 +65,7 @@ export class SpreadsheetEditor {
   private errorMessage = "";
   private cleanup: Promise<void> | undefined;
   private readonly listeners = new AbortController();
-  private readonly formula = new SpreadsheetFormula(
-    this.input,
-    this.holder,
-    this.listeners.signal,
-    () => this.handle(() => this.editFormula()),
-  );
+  private readonly formula: SpreadsheetFormula;
   private readonly resize: ResizeObserver;
   private state: XlsxQuery;
   private layout: XlsxViewport | undefined;
@@ -98,51 +98,23 @@ export class SpreadsheetEditor {
       diagnostics: state.diagnostics,
       data: { query: state, printPage: 0, printPages: 0, printVisible: false },
     });
-    Object.assign(this.container.style, {
-      display: "flex",
-      flexDirection: "column",
-      flex: "1",
-      minHeight: "0",
-    });
-    this.container.setAttribute("role", "region");
-    this.container.setAttribute("aria-label", "Spreadsheet editor");
-    this.viewport.setAttribute("role", "grid");
-    this.viewport.setAttribute("aria-label", "Worksheet cells");
-    this.viewport.tabIndex = 0;
-    Object.assign(this.viewport.style, {
-      position: "relative",
-      overflow: "auto",
-      flex: "1",
-      minHeight: "0",
-      width: "100%",
-    });
-    Object.assign(this.holder.style, {
-      position: "sticky",
-      left: "0",
-      top: "0",
-      height: "0",
-      zIndex: "1",
-    });
-    Object.assign(this.surface.canvas.style, {
-      position: "absolute",
-      left: "0",
-      top: "0",
-    });
-    prepareGridInput(this.input);
-    Object.assign(this.semantics.style, {
-      position: "absolute",
-      top: "0",
-      left: "0",
-      width: "1px",
-      height: "1px",
-      overflow: "hidden",
-      clipPath: "inset(50%)",
-    });
-    this.semantics.setAttribute("role", "rowgroup");
-    this.holder.append(this.surface.canvas, this.surface.overlay, this.input);
-    this.viewport.append(this.holder, this.spacer, this.semantics);
-    this.container.append(this.viewport, this.printView.element);
-    this.root.append(this.container);
+    const elements = createGridElements(
+      this.root,
+      this.surface,
+      this.printView,
+    );
+    this.container = elements.container;
+    this.viewport = elements.viewport;
+    this.holder = elements.holder;
+    this.spacer = elements.spacer;
+    this.input = elements.input;
+    this.semantics = elements.semantics;
+    this.formula = new SpreadsheetFormula(
+      this.input,
+      this.holder,
+      this.listeners.signal,
+      () => this.handle(() => this.editFormula()),
+    );
     const options = { signal: this.listeners.signal };
     this.viewport.addEventListener(
       "focus",
@@ -306,7 +278,6 @@ export class SpreadsheetEditor {
   whenIdle(): Promise<void> {
     return this.tail;
   }
-
   private enqueue<T>(
     action: () => Promise<T>,
     recovery = false,
@@ -348,7 +319,6 @@ export class SpreadsheetEditor {
       });
     return task;
   }
-
   private handle(action: () => Promise<unknown>): void {
     void action().then(
       () => {
@@ -360,7 +330,6 @@ export class SpreadsheetEditor {
       (error) => this.report(error),
     );
   }
-
   private report(error: unknown): void {
     if (!this.closed) {
       this.errorMessage =
@@ -369,14 +338,12 @@ export class SpreadsheetEditor {
       if (this.draft && !this.paused) this.input.focus({ preventScroll: true });
     }
   }
-
   private requireFinished(): void {
     if (this.composing)
       throw new Error(
         "Cell editing is unfinished: complete or cancel composition first",
       );
   }
-
   private active() {
     return activeGridCell(this.state, this.layout);
   }
@@ -388,7 +355,6 @@ export class SpreadsheetEditor {
       this.styleInput();
     });
   }
-
   private queueDraft(): void {
     if (this.draft || this.draftIntent) return;
     if (this.pending === 0) {
@@ -407,7 +373,6 @@ export class SpreadsheetEditor {
       }),
     );
   }
-
   private beginDraft(replace: boolean, retainValue = false): void {
     if (this.closed || this.paused || this.committing)
       throw new Error("Cell input is busy");
@@ -430,7 +395,6 @@ export class SpreadsheetEditor {
     }
     this.publish();
   }
-
   cancelDraft(): void {
     if (this.closed || this.committing || this.composing)
       throw new Error("Finish the accepted edit or composition first");
@@ -443,7 +407,6 @@ export class SpreadsheetEditor {
     this.styleInput();
     this.publish();
   }
-
   private async commitDraft(): Promise<void> {
     const draft = this.draft;
     if (!draft) return;
@@ -469,7 +432,6 @@ export class SpreadsheetEditor {
       this.publish();
     }
   }
-
   private requestRender(): void {
     if (this.closed || this.paused || this.blocked) return;
     this.generation++;
@@ -486,7 +448,6 @@ export class SpreadsheetEditor {
       );
     });
   }
-
   private async present(reveal = false): Promise<void> {
     this.publish();
     try {
@@ -547,19 +508,11 @@ export class SpreadsheetEditor {
   }
   private publish(): void {
     if (!this.observable) return;
-    const old = this.observable.getSnapshot().data;
-    const data =
-      old.query === this.state &&
-      old.printPage === this.printView.page &&
-      old.printPages === this.printView.pageCount &&
-      old.printVisible === this.printView.visible
-        ? old
-        : {
-            query: this.state,
-            printPage: this.printView.page,
-            printPages: this.printView.pageCount,
-            printVisible: this.printView.visible,
-          };
+    const data = spreadsheetSnapshotData(
+      this.state,
+      this.printView,
+      this.observable.getSnapshot().data,
+    );
     this.observable.update({
       revision: this.state.revision,
       canUndo: this.state.canUndo,
@@ -585,6 +538,50 @@ export class SpreadsheetEditor {
     return this.change(() =>
       this.client.select(this.state.revision, sheet, range),
     );
+  }
+  find(
+    text: string,
+    options: XlsxFindOptions = {},
+  ): Promise<SpreadsheetSearchResult> {
+    return this.enqueue(async () => {
+      this.requireFinished();
+      await this.commitDraft();
+      const sheet = this.state.sheet;
+      options = xlsxFindOptions(options);
+      return {
+        ...(await this.client.find(this.state.revision, sheet, text, options)),
+        documentId: this.getSnapshot().documentId,
+        sheet,
+        text,
+        options,
+      };
+    });
+  }
+  selectMatch(result: SpreadsheetSearchResult, index: number): Promise<void> {
+    return this.change(() => {
+      checkSpreadsheetSearch(result, this.getSnapshot(), index);
+      const match = result.matches[index]!;
+      if (match.hidden)
+        throw new Error("Show the worksheet before selecting this match");
+      return this.client.select(result.revision, match.sheet, match.address);
+    });
+  }
+  replaceMatches(
+    result: SpreadsheetSearchResult,
+    replacement: string,
+    index?: number,
+  ): Promise<void> {
+    return this.change(() => {
+      checkSpreadsheetSearch(result, this.getSnapshot(), index);
+      return this.client.replaceMatches(
+        result.revision,
+        result.sheet,
+        result.text,
+        result.options,
+        replacement,
+        index,
+      );
+    });
   }
   autoFit(axis: "rows" | "columns"): Promise<void> {
     return this.change(() => {

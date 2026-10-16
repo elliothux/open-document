@@ -8,6 +8,9 @@ pub(all) enum TableEdit {
   DeleteColumn
   MergeCells(Int, Int)
   UnmergeCell
+  SplitTable
+  TableWidth(Double)
+  RowHeight(Double)
 }
 
 ///|
@@ -139,6 +142,11 @@ pub fn Session::edit_table(
     MergeCells(rows, columns) =>
       return self.merge_table_cells(revision, selection, rows, columns)
     UnmergeCell => return self.unmerge_table_cell(revision, selection)
+    SplitTable => return self.split_table(revision, selection)
+    TableWidth(value) =>
+      return self.size_table(revision, selection, value, width=true)
+    RowHeight(value) =>
+      return self.size_table(revision, selection, value, width=false)
     _ => ()
   }
   let original = self.document()

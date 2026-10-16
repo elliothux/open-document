@@ -198,8 +198,10 @@ fn Session::find_matches(
   let matches : Array[(Selection, String, String)] = []
   for group in self.search_groups(tree) {
     let chars : Array[(Int, Char)] = []
-    for offset, ch in group.text.iter2() {
+    let mut offset = 0
+    for ch in group.text {
       chars.push((offset, ch))
+      offset += if ch.to_int() > 0xffff { 2 } else { 1 }
     }
     let boundaries = @layout.grapheme_boundaries(group.text)
     let mut matched = 0

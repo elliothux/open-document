@@ -9,12 +9,26 @@ export type DocxTableEdit =
         | "columnBefore"
         | "columnAfter"
         | "deleteColumn"
-        | "unmerge";
+        | "unmerge"
+        | "splitTable";
     }
-  | { action: "merge"; rows: number; columns: number };
+  | { action: "merge"; rows: number; columns: number }
+  | { action: "tableWidth" | "rowHeight"; value: number };
 
 export function checkDocxTableEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "tableWidth" || change.action === "rowHeight") {
+    if (
+      typeof change.value !== "number" ||
+      !Number.isFinite(change.value) ||
+      change.value < 0 ||
+      change.value > 14400 ||
+      !Number.isInteger(change.value * 20) ||
+      (change.action === "tableWidth" && change.value === 0)
+    )
+      throw new Error("Invalid table size");
+    return;
+  }
   if (
     change.action === "merge" &&
     typeof change.rows === "number" &&
@@ -33,6 +47,7 @@ export function checkDocxTableEdit(value: unknown): void {
       "columnAfter",
       "deleteColumn",
       "unmerge",
+      "splitTable",
     ].includes(change.action)
   )
     throw new Error("Invalid table edit");

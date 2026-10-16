@@ -30,9 +30,24 @@ export function DocxTables({
   const cell = editor.layout.semantics[snapshot.page]?.lines.some(
     (line) => line.paragraph === paragraph && line.container > 0,
   );
+  const size = snapshot.data.formatting?.table;
   return (
     <section aria-label={t.insertTable}>
       <h3>{t.insertTable}</h3>
+      {size && (
+        <TableSizes
+          key={`${snapshot.documentId}:${size.id}:${size.row}:${snapshot.revision}`}
+          controller={controller}
+          state={state}
+          editor={editor}
+          disabled={disabled || !!snapshot.data.formatting?.reason}
+          width={size.width}
+          height={size.rowHeight}
+          columns={size.columns}
+          maxWidth={size.maxWidth}
+          maxHeight={size.maxRowHeight}
+        />
+      )}
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -87,6 +102,7 @@ export function DocxTables({
             "columnAfter",
             "deleteColumn",
             "unmerge",
+            "splitTable",
           ] satisfies DocxTableEdit["action"][]
         ).map((change) => (
           <button
@@ -149,5 +165,94 @@ export function DocxTables({
         </fieldset>
       </form>
     </section>
+  );
+}
+
+function TableSizes({
+  controller,
+  state,
+  editor,
+  disabled,
+  width,
+  height,
+  columns,
+  maxWidth,
+  maxHeight,
+}: {
+  controller: EditorController;
+  state: UiSnapshot;
+  editor: DocumentEditor;
+  disabled: boolean;
+  width: number;
+  height: number;
+  columns: number;
+  maxWidth: number;
+  maxHeight: number;
+}) {
+  const t = messages(state.locale);
+  const [tableWidth, setWidth] = useState(String(width)),
+    [rowHeight, setHeight] = useState(String(height));
+  return (
+    <fieldset disabled={disabled}>
+      <legend>{t.tableSize}</legend>
+      {(
+        [
+          {
+            action: "tableWidth",
+            label: t.tableWidth,
+            value: tableWidth,
+            set: setWidth,
+            min: columns * 12,
+            max: maxWidth,
+          },
+          {
+            action: "rowHeight",
+            label: t.rowHeightMinimum,
+            value: rowHeight,
+            set: setHeight,
+            min: 0,
+            max: maxHeight,
+          },
+        ] as const
+      ).map((field) => (
+        <form
+          key={field.action}
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (field.value !== "")
+              controller.run(() =>
+                editor.editTable({
+                  action: field.action,
+                  value: Number(field.value),
+                }),
+              );
+          }}
+        >
+          <label>
+            {field.label}
+            <input
+              type="number"
+              required
+              step={0.05}
+              min={field.min}
+              max={field.max}
+              value={field.value}
+              onChange={(event) => field.set(event.currentTarget.value)}
+            />
+          </label>
+          <button
+            type="submit"
+            aria-label={`${t.apply} ${field.label}`}
+            disabled={
+              !field.value ||
+              Number(field.value) < field.min ||
+              Number(field.value) > field.max
+            }
+          >
+            {t.apply}
+          </button>
+        </form>
+      ))}
+    </fieldset>
   );
 }

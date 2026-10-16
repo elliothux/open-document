@@ -268,6 +268,15 @@ export interface ParagraphFormatPatch {
 export interface DocxFormatting {
   revision: number;
   reason: string;
+  table: {
+    id: number;
+    row: number;
+    columns: number;
+    width: number;
+    rowHeight: number;
+    maxWidth: number;
+    maxRowHeight: number;
+  } | null;
   list: FormatValue<DocxListReference | null>;
   character: {
     style: FormatValue<string>;
@@ -357,6 +366,7 @@ export function docxFormatting(value: unknown): DocxFormatting {
   const result = record(value),
     character = record(result.character),
     paragraph = record(result.paragraph);
+  const table = record(result.table);
   const field = (value: unknown, type: string): boolean => {
     const item = record(value);
     if (item.kind === "value" && type === "list")
@@ -378,6 +388,20 @@ export function docxFormatting(value: unknown): DocxFormatting {
     !Number.isSafeInteger(result.revision) ||
     Number(result.revision) < 0 ||
     typeof result.reason !== "string" ||
+    (result.table !== null &&
+      (!["id", "row", "columns"].every(
+        (key) =>
+          Number.isSafeInteger(table[key]) &&
+          Number(table[key]) >= 0 &&
+          Number(table[key]) <= 2147483647,
+      ) ||
+        Number(table.columns) < 1 ||
+        !["width", "rowHeight", "maxWidth", "maxRowHeight"].every(
+          (key) =>
+            typeof table[key] === "number" &&
+            Number.isFinite(table[key]) &&
+            Number(table[key]) >= 0,
+        ))) ||
     !field(result.list, "list") ||
     !["style", "family", "color", "highlight", "vertAlign"].every((key) =>
       field(character[key], "string"),

@@ -31,6 +31,17 @@ fn Foundation::docx_table(
           field_int(fields, "columns"),
         )
       "unmerge" => @docx.UnmergeCell
+      "splitTable" => @docx.SplitTable
+      "tableWidth" | "rowHeight" as action => {
+        guard fields is { "value": Number(value, ..), .. } else {
+          @failure.reject("invalid-operation", "Table size number is required")
+        }
+        if action == "tableWidth" {
+          @docx.TableWidth(value)
+        } else {
+          @docx.RowHeight(value)
+        }
+      }
       _ => @failure.reject("invalid-operation", "Unknown table edit")
     }
     session.edit_table(revision, selection, change)

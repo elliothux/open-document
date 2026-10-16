@@ -191,6 +191,7 @@ pub fn Session::query_formatting(
   {
     "revision": revision,
     "reason": reason,
+    "table": self.table_dimensions(tree, range),
     "list": format_summary(
       match range {
         None => []

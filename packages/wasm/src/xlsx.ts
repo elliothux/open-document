@@ -1,5 +1,13 @@
 import { WasmSession, encodeBytes } from "./session.js";
 import { DocumentError, type Budget } from "./foundation.js";
+import {
+  xlsxFindOptions,
+  xlsxSearchResult,
+  type XlsxFindOptions,
+  type XlsxSearchResult,
+} from "./xlsx-search.js";
+export { xlsxFindOptions, xlsxSearchResult } from "./xlsx-search.js";
+export type { XlsxFindOptions, XlsxSearchResult } from "./xlsx-search.js";
 import { record, hasFields, arrayOf } from "./validation.js";
 import { drawingBatch, type DrawingBatch, type DrawRect } from "./drawing.js";
 import {
@@ -485,6 +493,52 @@ export function xlsxViewport(value: unknown): XlsxViewport {
 
 /** One workbook owner; values, XML transactions and history stay in MoonBit. */
 export class XlsxSession extends WasmSession {
+  find(
+    revision: number,
+    sheet: string,
+    text: string,
+    options: XlsxFindOptions = {},
+  ): XlsxSearchResult {
+    return xlsxSearchResult(
+      this.call({
+        operation: "findXlsx",
+        revision,
+        sheet,
+        text,
+        options: xlsxFindOptions(options),
+      }),
+    );
+  }
+  replaceMatches(
+    revision: number,
+    sheet: string,
+    text: string,
+    options: XlsxFindOptions,
+    replacement: string,
+    index?: number,
+  ): XlsxQuery {
+    if (
+      index !== undefined &&
+      (!Number.isInteger(index) || index < 0 || index >= 4096)
+    )
+      throw new DocumentError(
+        "invalid-operation",
+        "Invalid search result index",
+        "",
+        -1,
+      );
+    return xlsxQuery(
+      this.call({
+        operation: "replaceXlsxMatches",
+        revision,
+        sheet,
+        text,
+        options: xlsxFindOptions(options),
+        replacement,
+        index,
+      }),
+    );
+  }
   autoFit(
     revision: number,
     sheet: string,

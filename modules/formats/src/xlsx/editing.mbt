@@ -319,44 +319,7 @@ pub fn Session::replace(
   if updates.is_empty() {
     return self.query(sheet=Some(sheet), range=Some(target.name()))
   }
-  current.expand_shared_updates(updates)
-  let (document, edit) = current.prepare(updates)
-  let candidate = self.sheets.copy()
-  candidate[index] = Sheet::read(
-    current.id,
-    current.name,
-    current.state,
-    document,
-    self.strings,
-    self.styles.length(),
-  )
-  let edits : Array[(String, @xml.Edit)] = [(current.id, edit)]
-  let changed = updates
-    .keys()
-    .collect()
-    .map(key => {
-      let address = Address::parse(key)
-      (
-        index,
-        {
-          top: address.row,
-          left: address.column,
-          bottom: address.row,
-          right: address.column,
-        },
-      )
-    })
-  let calculation = Calculation::build(
-    candidate,
-    self.calculation,
-    changed,
-    self.date1904,
-  )
-  for entry in self.cache_edits(candidate, calculation) {
-    edits.push(entry)
-  }
-  self.commit(candidate, self.workbook, calculation, edits, (sheet, target))
-  self.query(sheet=Some(sheet), range=Some(target.name()))
+  self.commit_cells(Map([(index, updates)]), (sheet, target))
 }
 
 ///|

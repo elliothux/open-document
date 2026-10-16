@@ -1,4 +1,30 @@
 import type { XlsxViewport, XlsxQuery } from "@open-document/wasm/xlsx";
+import type { SpreadsheetPrint } from "./spreadsheet-print.js";
+
+export interface SpreadsheetEditorData {
+  readonly query: XlsxQuery;
+  readonly printPage: number;
+  readonly printPages: number;
+  readonly printVisible: boolean;
+}
+
+export function spreadsheetSnapshotData(
+  query: XlsxQuery,
+  print: SpreadsheetPrint,
+  old: SpreadsheetEditorData,
+): SpreadsheetEditorData {
+  return old.query === query &&
+    old.printPage === print.page &&
+    old.printPages === print.pageCount &&
+    old.printVisible === print.visible
+    ? old
+    : {
+        query,
+        printPage: print.page,
+        printPages: print.pageCount,
+        printVisible: print.visible,
+      };
+}
 
 export function activeGridCell(
   state: XlsxQuery,

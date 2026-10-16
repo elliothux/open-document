@@ -155,6 +155,9 @@ pub(all) enum TableEdit {
   DeleteColumn
   MergeCells(Int, Int)
   UnmergeCell
+  SplitTable
+  TableWidth(Double)
+  RowHeight(Double)
 }
 
 // Type aliases

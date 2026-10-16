@@ -1,6 +1,10 @@
 import { Connection } from "./connection.js";
 import {
   xlsxQuery,
+  xlsxFindOptions,
+  xlsxSearchResult,
+  type XlsxFindOptions,
+  type XlsxSearchResult,
   checkXlsxSheetEdit,
   type XlsxSheetEdit,
   type XlsxClearMode,
@@ -20,6 +24,10 @@ import {
 } from "@open-document/wasm/xlsx";
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type { XlsxSheetEdit, XlsxClearMode } from "@open-document/wasm/xlsx";
+export type {
+  XlsxFindOptions,
+  XlsxSearchResult,
+} from "@open-document/wasm/xlsx";
 export { xlsxNumberFormats } from "@open-document/wasm/xlsx";
 export type {
   XlsxCellFormat,
@@ -31,6 +39,42 @@ export type {
 
 /** Browser workbook transport; one Worker owns the complete core session. */
 export class XlsxClient {
+  async find(
+    revision: number,
+    sheet: string,
+    text: string,
+    options: XlsxFindOptions = {},
+  ): Promise<XlsxSearchResult> {
+    return xlsxSearchResult(
+      await this.connection.request({
+        operation: "findXlsx",
+        revision,
+        sheet,
+        text,
+        options: xlsxFindOptions(options),
+      }),
+    );
+  }
+  async replaceMatches(
+    revision: number,
+    sheet: string,
+    text: string,
+    options: XlsxFindOptions,
+    replacement: string,
+    index?: number,
+  ): Promise<XlsxQuery> {
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "replaceXlsxMatches",
+        revision,
+        sheet,
+        text,
+        options: xlsxFindOptions(options),
+        replacement,
+        index,
+      }),
+    );
+  }
   async autoFit(
     revision: number,
     sheet: string,

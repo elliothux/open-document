@@ -39,6 +39,37 @@ fn Foundation::xlsx_operation(
     @failure.reject("session-required", "Open an XLSX workbook first")
   }
   match operation {
+    "findXlsx" | "replaceXlsxMatches" => {
+      guard request is { "options": options, .. } else {
+        @failure.reject("invalid-operation", "Search options are required")
+      }
+      let options = @xlsx.FindOptions::new(
+        matchCase=xlsx_boolean(options, "matchCase"),
+        wholeCell=xlsx_boolean(options, "wholeCell"),
+        formulas=xlsx_boolean(options, "formulas"),
+        workbook=xlsx_boolean(options, "workbook"),
+      )
+      let revision = field_int(request, "revision")
+      let sheet = field_string(request, "sheet")
+      let text = field_string(request, "text")
+      if operation == "findXlsx" {
+        session.find(revision, sheet, text, options)
+      } else {
+        let index = match request {
+          { "index": Null, .. } => None
+          { "index": _, .. } => Some(field_int(request, "index"))
+          _ => None
+        }
+        session.replace_matches(
+          revision,
+          sheet,
+          text,
+          options,
+          field_string(request, "replacement"),
+          index,
+        )
+      }
+    }
     "autoFitXlsx" => {
       let axis = field_string(request, "axis")
       guard axis == "rows" || axis == "columns" else {

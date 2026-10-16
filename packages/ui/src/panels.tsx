@@ -9,6 +9,7 @@ import { PptxArrange } from "./pptx-arrange.js";
 import { PptxAlignment } from "./pptx-alignment.js";
 import { XlsxSheets, XlsxFrozen } from "./xlsx-sheets.js";
 import { XlsxFormat } from "./xlsx-format.js";
+import { XlsxSearch } from "./xlsx-search.js";
 
 interface PanelProps {
   controller: EditorController;
@@ -307,6 +308,13 @@ export function Properties(props: PanelProps) {
   if (props.file.format === "xlsx")
     return (
       <aside className="od-properties">
+        <XlsxSearch
+          key={props.state.document?.documentId}
+          controller={props.controller}
+          state={props.state}
+          editor={props.file.editor}
+          disabled={props.disabled}
+        />
         <XlsxFormat
           controller={props.controller}
           state={props.state}

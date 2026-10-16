@@ -73,6 +73,22 @@ async function dispatch(request: Request): Promise<unknown> {
         return workbook.create(request.budget);
       case "queryXlsx":
         return workbook.query(request.sheet, request.range);
+      case "findXlsx":
+        return workbook.find(
+          request.revision,
+          request.sheet,
+          request.text,
+          request.options,
+        );
+      case "replaceXlsxMatches":
+        return workbook.replaceMatches(
+          request.revision,
+          request.sheet,
+          request.text,
+          request.options,
+          request.replacement,
+          request.index,
+        );
       case "selectXlsx":
         return workbook.select(request.revision, request.sheet, request.range);
       case "replaceXlsx":
@@ -163,6 +179,8 @@ async function dispatch(request: Request): Promise<unknown> {
         case "queryXlsx":
         case "selectXlsx":
         case "replaceXlsx":
+        case "findXlsx":
+        case "replaceXlsxMatches":
         case "undoXlsx":
         case "redoXlsx":
         case "saveXlsx":

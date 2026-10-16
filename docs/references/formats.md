@@ -197,7 +197,19 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `{ action: "merge", rows, columns }` 从当前格的左上网格位置合并指定矩形。范围为 1–1000 行、1–63 列且最多 4096 个网格位置，不能切开已有合并格。内容按行优先顺序进入左上格，保留段落、字符格式和空段落；列网格不变，更新格宽、gridSpan 与 vMerge。`{ action: "unmerge" }` 取消当前格的合并，恢复原网格各列和行，全部内容留在首格，新增格保留相应格式并置空。两者使用同一有界源历史，可与格内输入精确混合撤销，保存后继续编辑。相同合并范围或取消未合并格不新增历史。书签等受保护锚点、未知格属性及输出预算失败原子拒绝。内容顺序参考 [ONLYOFFICE 合并](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9466-L9530)。
 
-布局读取横向跨度及纵向起始/延续格，文字、背景和边框使用合并后的矩形；Tab 跳过纵向延续格。依赖纵向合并的相邻行作为一组分页，普通行仍可分到后续页。当前一组合并行须能完整放进一页；跨页延续、重复表头及拆行仍待实现。包含可见内容的纵向延续格明确拒绝，避免隐藏其文字。含合并格的行列增删继续保护，取消合并后可沿用原入口。默认 UI 提供从当前格指定行列数量的合并与取消合并；任意行列数拆格、鼠标矩形选择、拆表及属性编辑仍归 [P10](../p10-docx-core.md)。
+`{ action: "splitTable" }` 在所选单元格所在行之前拆分正文表格，两表之间插入空正文段落，光标进入下表首格。首行、缺少段落的单元格、嵌套/受保护表格、未知结构及预算失败拒绝操作。两表保留列网格、宽度、边框、样式和单元格内容；原有行和未替换内容的身份保持。纵向合并跨越分界线时，内容留在上表，下表从对应位置创建空的合并起始格，复制原合并格格式并清除段前分页；后续延续格继续归属下表。分界、空格及选择一次提交历史，支持原样撤销、保存重开、继续输入及同布局 PDF。默认 UI 使用同一操作。拆表与跨度清理参考 [LibreOffice SplitTable](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sw/source/core/docnode/ndtbl.cxx#L3392-L3515)及[纵向跨度清理](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sw/source/core/table/swnewtable.cxx#L2021-L2110)。
+
+布局读取横向跨度及纵向起始/延续格，文字、背景和边框使用合并后的矩形；Tab 跳过纵向延续格。依赖纵向合并的相邻行作为一组分页，普通行仍可分到后续页。当前一组合并行须能完整放进一页；跨页延续、重复表头及拆行仍待实现。包含可见内容的纵向延续格明确拒绝，避免隐藏其文字。含合并格的行列增删继续保护，取消合并后可沿用原入口。默认 UI 提供从当前格指定行列数量的合并与取消合并；任意行列数拆格、鼠标矩形选择及属性编辑仍归 [P10](../p10-docx-core.md)。
+
+### 表格尺寸
+
+`editTable({ action: "tableWidth", value })` 设置当前格所在表的总宽度，单位为 pt。核心按原列宽比例分配整数 twip，精确保持目标总宽，同步 `tblW`、列网格和全部格的 `tcW`；横向合并按跨度求宽，纵向合并起始/延续关系和文字保持。最多 63 个逻辑列，各列至少 12 pt，格内边距须留出文字宽度，总宽不超过当前页的可用宽度。未修改的样式、边框、对齐、段落和其他部件保留。比例规则参考 [ONLYOFFICE 网格缩放](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L413-L429)。
+
+`editTable({ action: "rowHeight", value })` 设置当前格所在行的最小高度，写入 `trHeight hRule="atLeast"`；0 恢复自动高度。内容需要更多空间时，行继续长高。核心按同一纵向合并行组中其他行的最小高度与边距预留一页，拒绝明显超出的下限；实际内容仍沿既有分页与合并行组规则排版。行为参考 [ONLYOFFICE 行高操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L5663-L5674)。两项值均须有限、非负、不超过 14400 pt，且能表示为整数 twip；表宽须大于 0。
+
+`queryFormatting(...).table` 在支持的表格上下文中返回 `{ id, row, columns, width, rowHeight, maxWidth, maxRowHeight }`，否则为 null。`id` 为当前表节点身份，`row` 从 0 开始，`columns` 为逻辑列数；`width` 是列网格总宽，`rowHeight` 是最小高度，均不是浏览器测量值。默认 UI 读取同一查询，提交后反映实际尺寸，文档、行或 revision 变化会重置未提交的尺寸输入。
+
+尺寸操作保留逻辑选区和当前光标处的待输入格式，重排后清除旧布局定位提示，沿已有队列、源历史、保存重开和 PDF。无源变化不增加历史；未知行/格映射、网格标记、属性或预算失败原子拒绝。缺少的尺寸属性按 OOXML 顺序创建；恢复自动高度保留其他行属性。精确行高、单列宽度、自动适配、其余格属性和跨页合并延续仍归 [P10](../p10-docx-core.md)。
 
 ### 列表读取与标记排版
 
@@ -359,6 +371,8 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 | `editSheet(revision,sheet,change)` | 工作表新增、复制、删除、重排、改名、可见性、行高/列宽及矩形合并/取消合并事务；返回 `XlsxQuery` |
 | `autoFit(revision,sheet,first,last,axis,profile)` | 按当前显示值和字体测量自动适配行高或列宽；返回 `XlsxQuery` |
 | `replace(revision,sheet,range,values,literal=false)` | 一项矩形事务；字段为输入字符串，核心识别值与公式；清空保留样式 |
+| `find(revision,sheet,text,options={})` | 返回有界单元格结果；支持当前表/工作簿、大小写、整格、公式源/计算值，不改选区 |
+| `replaceMatches(revision,sheet,text,options,replacement,index?)` | 重新计算同一查询；有 index 时替换该格全部匹配，否则替换全部结果；一次原子历史 |
 | `navigate(revision,direction,extend=false)` | `left/right/up/down/home`；跳过隐藏行列，Shift 扩展选区 |
 | `copy(revision)` / `paste(revision,text)` / `clear(revision)` | 核心显示值 TSV、矩形粘贴及清空；核心识别数值/布尔，`=` 不执行 |
 | `undo(revision)` / `redo(revision)` | 源片段、选区和计算结果原子恢复；revision 每次成功修改递增 |
@@ -369,6 +383,18 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 | `exportPdf(layoutId,outputBytes)` | 使用当前打印布局；编辑、字体变更或新打印布局使旧输出身份失效 |
 
 `XlsxQuery` 返回 `sheets`、`sheet`、`selection`、`revision`、历史状态、`date1904`、`fontKeys` 和诊断。每格分别返回 `value`、`formula`、`cached`、`calculated`、`calculation`、`display`、`input` 与 `readOnlyReason`。空格、空字符串、零、布尔值与错误独立表示。`input` 是核心生成的可编辑源码，文字带前导单引号，避免重新提交时误作公式或数值。
+
+### 单元格查找替换
+
+`XlsxFindOptions` 包含 `matchCase`、`wholeCell`、`formulas`、`workbook`，默认依次为 false、false、true、false。查找使用非空字面文本，不解释正则或通配符；不区分大小写时使用固定 Unicode 简单大写映射。匹配保留完整 Unicode 字符，位置与长度按 UTF-16 计。公式模式搜索带 `=` 的源码，其余格搜索逻辑值；值模式搜索未应用数字格式的计算值或导入缓存。普通文本不包含编辑输入使用的转义单引号。
+
+`XlsxSearchResult` 返回 `revision`、`truncated` 和 `matches`。每个匹配格只有一项，包含稳定部件路径 `sheet`、表名 `name`、`address`、`hidden`、`snippet` 和替换保护原因 `reason`，按工作表顺序、行、列排列。工作簿范围包含隐藏表；选择隐藏结果前须先显示该表。保护内容和公式计算结果仍可查找；值模式的公式结果不能替换，须切换公式模式修改源码。
+
+`SpreadsheetEditor.find(text,options)` 先提交已接受的原生草稿，返回增加 `documentId`、查询表、文本与选项的 `SpreadsheetSearchResult`。`selectMatch(result,index)` 定位可见结果；`replaceMatches(result,replacement,index?)` 使用同一队列。组合输入未完成时拒绝；文档身份或 revision 变化后须重新查找。默认 UI 提供这三项操作和四个选项。
+
+核心重新查找，不信任调用方给出的结果格。替换当前结果会替换该格全部不重叠匹配；替换全部跨表提交一次历史，保留当前选区，包含隐藏表。已有文本格保持文本类型，替换产生的 `=` 不执行；只有公式模式命中的真实公式会重新解析源码。数值/布尔格沿已有输入转换。任何匹配格受保护、公式无效或预算失败时，整项替换不提交；无变化不增加历史。
+
+查询和替换文本各限 32767 UTF-16 单位；最多返回 4096 格，并在发现后续匹配时设置 `truncated`。截断结果不能全部替换。扫描文本总量限 8 Mi UTF-16 单位；每格输出限 32767、一次替换输入总量限 1 Mi UTF-16 单位，继续受工作簿、计算、历史和输出预算约束。结果片段最多 80 个完整 Unicode 字符。名称定位、格式化显示值搜索及正则/通配符不在当前范围。
 
 ### 工作表顺序、名称与可见性
 

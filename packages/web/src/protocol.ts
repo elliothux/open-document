@@ -21,6 +21,7 @@ import type {
   XlsxCellFormat,
   CopiedCellFormat,
   XlsxClearMode,
+  XlsxFindOptions,
 } from "@open-document/wasm/xlsx";
 import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
@@ -76,6 +77,22 @@ export type Operation =
   | { operation: "openSpreadsheet"; wasm: ArrayBuffer }
   | { operation: "openXlsx"; bytes: Uint8Array; budget: Budget }
   | { operation: "createXlsx"; budget: Budget }
+  | {
+      operation: "findXlsx";
+      revision: number;
+      sheet: string;
+      text: string;
+      options: XlsxFindOptions;
+    }
+  | {
+      operation: "replaceXlsxMatches";
+      revision: number;
+      sheet: string;
+      text: string;
+      options: XlsxFindOptions;
+      replacement: string;
+      index?: number | undefined;
+    }
   | {
       operation: "autoFitXlsx";
       revision: number;
