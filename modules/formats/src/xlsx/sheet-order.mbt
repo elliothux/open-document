@@ -11,6 +11,7 @@ pub(all) enum SheetEdit {
   Merge(String, Bool)
   Unmerge(String)
   Freeze(Int, Int)
+  PageSetup(PrintSetup)
 }
 
 ///|
@@ -137,6 +138,7 @@ pub fn Session::edit_sheet(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   match change {
+    PageSetup(setup) => return self.set_print_setup(sheet, setup)
     Freeze(rows, columns) => return self.freeze(sheet, rows, columns)
     Merge(range, discard) =>
       return self.merge_cells(sheet, Range::parse(range), discard, false)
@@ -170,7 +172,8 @@ pub fn Session::edit_sheet(
     | ColumnWidth(_, _, _)
     | Merge(_, _)
     | Unmerge(_)
-    | Freeze(_, _) => abort("Dimension edit was dispatched")
+    | Freeze(_, _)
+    | PageSetup(_) => abort("Dimension edit was dispatched")
     Rename(name) => return self.rename_sheet(index, name)
     Delete => {
       removed = self.prepare_sheet_delete(index, parts, edits)

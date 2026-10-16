@@ -114,7 +114,13 @@ fn fit_text(
       )
     error => raise error
   }
-  if object.body.fit && measured.1 > geometry.height {
+  let fits = fn(result : (Array[@layout.Line], Double)) {
+    result.1 <= geometry.height &&
+    result.0.all(line => {
+      line.width <= geometry.width - object.body.left - object.body.right + 0.01
+    })
+  }
+  if object.body.fit && !fits(measured) {
     let mut low = 0.1
     let mut high = 1.0
     for _ in 0..<10 {
@@ -124,7 +130,7 @@ fn fit_text(
           ([], geometry.height + 1)
         error => raise error
       }
-      if result.1 <= geometry.height {
+      if fits(result) {
         low = trial
       } else {
         high = trial

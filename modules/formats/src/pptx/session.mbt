@@ -450,6 +450,30 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
         "duplicateReason": self.object_edit_reason(object, "duplicate"),
         "rotateReason": self.object_edit_reason(object, "rotate"),
         "arrangeReason": self.object_edit_reason(object, "arrange"),
+        "appearance": {
+          "fill": if object.fill.is_empty() {
+            Json::null()
+          } else {
+            Json(object.fill)
+          },
+          "stroke": if object.stroke.is_empty() {
+            Json::null()
+          } else {
+            Json(object.stroke)
+          },
+          "width": object.line_width,
+          "reason": self.paint_reason(object),
+        },
+        "textFrame": {
+          "left": object.body.left,
+          "top": object.body.top,
+          "right": object.body.right,
+          "bottom": object.body.bottom,
+          "anchor": object.body.anchor,
+          "wrap": object.body.wrap,
+          "autofit": object.body.fit,
+          "reason": self.text_frame_reason(object),
+        },
         "geometry": object.geometry
         .map(value => {
           let json : Json = {

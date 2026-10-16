@@ -76,6 +76,7 @@ async function dispatch(request: Request): Promise<unknown> {
           request.bytes,
           request.delimiter,
           request.budget,
+          request.options,
         );
       case "exportXlsxCsv":
         return workbook.exportCsv(request.revision, request.selection);
@@ -156,7 +157,7 @@ async function dispatch(request: Request): Promise<unknown> {
         return workbook.printLayout(
           request.revision,
           request.sheet,
-          request,
+          request.options,
           request.profile,
         );
       case "exportXlsxPdf":

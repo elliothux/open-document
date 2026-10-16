@@ -1,4 +1,5 @@
 import { downloadBytes } from "@open-document/web/download";
+import type { XlsxDelimitedOptions } from "@open-document/web/xlsx";
 import type { EditorOutput } from "@open-document/web/editor-state";
 import { prepareFile, readFile } from "./file.js";
 import { messages } from "./messages.js";
@@ -367,10 +368,13 @@ export class EditorController {
       return Promise.reject(new Error("Blank creation is unavailable for PDF"));
     return this.open({ name: this.fileName(document.name), blank: true });
   }
-  openFile(file: File): Promise<boolean> {
-    return this.change(() => this.replace(file));
+  openFile(file: File, delimited?: XlsxDelimitedOptions): Promise<boolean> {
+    return this.change(() => this.replace(file, delimited));
   }
-  private async replace(source: OfficeDocument | File): Promise<boolean> {
+  private async replace(
+    source: OfficeDocument | File,
+    delimited?: XlsxDelimitedOptions,
+  ): Promise<boolean> {
     const previous = this.current();
     const inputLimit =
       this.options.format === "xlsx" && /\.(csv|tsv)$/i.test(source.name)
@@ -386,9 +390,13 @@ export class EditorController {
     const abort = new AbortController();
     this.candidateAbort = abort;
     try {
-      const document =
+      const document: OfficeDocument =
         source instanceof File
-          ? { name: source.name, bytes: await readFile(source, abort.signal) }
+          ? {
+              name: source.name,
+              bytes: await readFile(source, abort.signal),
+              ...(delimited === undefined ? {} : { delimited }),
+            }
           : source;
       abort.signal.throwIfAborted();
       this.assertOpen();

@@ -6,6 +6,8 @@
 
 ## 1. 用户结果与范围
 
+对象外观已接通纯色/无填充、纯色/无边框及实线宽度。核心、Wasm、Worker 和默认 UI 共用多选事务，保留身份、几何、文字及精确历史。已检查独立 XML、Canvas 实际颜色、保存重开和继续原生输入；复杂填充、透明度及效果仍待实现。接口与边界归[格式合同](references/formats.md#pptx)，实现归 [`object-paint.mbt`](../modules/formats/src/pptx/object-paint.mbt)。
+
 第 2 批已接通本页纯色背景、恢复继承和整稿尺寸调整，支持默认 UI、Wasm 与 Worker API，保留选择和精确历史。尺寸调整同步缩放页面、版式、母版及组内几何，保持字号和方向。复杂背景、图表/表格对象与非空参考线仍保护源内容；主题、版式与母版直接编辑尚待实现。实现归 [`slide-background.mbt`](../modules/formats/src/pptx/slide-background.mbt)和 [`slide-size.mbt`](../modules/formats/src/pptx/slide-size.mbt)，合同及检查归[格式说明](references/formats.md#pptx)。
 
 用户能从空白文稿制作演示，管理页面、主题/母版/版式，创建并编辑文字、图形、图片、表格和图表，添加媒体与基本动画，放映并输出。程序化 API 提供与 UI 相同的文档操作。GenOffice 源码用于功能与交互，核心语义和算法优先参考 ONLYOFFICE，其次 LibreOffice。
@@ -94,6 +96,8 @@
 背景、形状填充/描边与基础阴影写回 DrawingML。首批支持无/纯色/线性渐变/图片填充、常用线宽/虚线和基础透明度；不支持的效果仍可保留，但相关输出或修改需要说明范围。图片替换保持对象身份，裁剪使用源矩形，压缩源与资源关系一起事务更新。
 
 ### 4.2 文本和表格
+
+文本框四边内边距、上/中/下垂直对齐、换行及缩小字体适配已接通核心、API 和默认 UI。支持本地顶层形状的混合多选，文字及对象选择保留，自动适配同时约束宽高并写回比例。核心 5 例、Chromium 一条原生输入/历史/重开/PDF 链及公开包已检查。实现归 [`text-frame.mbt`](../modules/formats/src/pptx/text-frame.mbt)，边界归[格式合同](references/formats.md#pptx)；字符和段落格式编辑仍待继续。
 
 字符/段落格式操作复用既有 DrawingML run/paragraph 结构，支持混合选区、清除直接格式、字体/字号/颜色、装饰、行段距、缩进和项目符号/编号。字体键与授权字体 profile 继续由核心解析和宿主供应，不引入 DOM 度量。
 

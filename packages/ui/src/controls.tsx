@@ -73,8 +73,14 @@ export function FileMenu({
 }) {
   const t = messages(state.locale);
   const input = useRef<HTMLInputElement>(null);
-  const [action, setAction] = useState<"new" | "saveAs">(),
-    [name, setName] = useState(state.name);
+  const [action, setAction] = useState<"new" | "saveAs" | "import">(),
+    [name, setName] = useState(state.name),
+    [file, setFile] = useState<File>(),
+    [conversions, setConversions] = useState({
+      numbers: false,
+      dates: false,
+      formulas: false,
+    });
   const unavailable = state.loading || state.saving || !state.file;
   return (
     <>
@@ -190,6 +196,15 @@ export function FileMenu({
           const file = event.currentTarget.files?.[0];
           event.currentTarget.value = "";
           if (!file) return;
+          if (
+            controller.options.format === "xlsx" &&
+            /\.(csv|tsv)$/i.test(file.name)
+          ) {
+            setFile(file);
+            setConversions({ numbers: false, dates: false, formulas: false });
+            setAction("import");
+            return;
+          }
           controller.run(() => controller.openFile(file));
         }}
       />
@@ -203,34 +218,75 @@ export function FileMenu({
           <Dialog.Backdrop className="od-backdrop" />
           <Dialog.Popup className="od-dialog">
             <Dialog.Title className="od-dialog-title">
-              {action === "new" ? t.newDocument : t.saveAs}
+              {action === "import"
+                ? t.importDelimited
+                : action === "new"
+                  ? t.newDocument
+                  : t.saveAs}
             </Dialog.Title>
-            <Dialog.Description>{t.fileName}</Dialog.Description>
+            <Dialog.Description>
+              {action === "import" ? t.importNotice : t.fileName}
+            </Dialog.Description>
             <form
               onSubmit={(event) => {
                 event.preventDefault();
                 const operation = action;
                 setAction(undefined);
                 controller.run(() =>
-                  operation === "new"
-                    ? controller.create({ name })
-                    : controller.saveAs(name),
+                  operation === "import" && file
+                    ? controller.openFile(file, conversions)
+                    : operation === "new"
+                      ? controller.create({ name })
+                      : controller.saveAs(name),
                 );
               }}
             >
-              <label>
-                {t.fileName}
-                <input
-                  autoFocus
-                  required
-                  value={name}
-                  onChange={(event) => setName(event.currentTarget.value)}
-                />
-              </label>
+              {action === "import" ? (
+                <>
+                  <p>{file?.name}</p>
+                  {(["numbers", "dates", "formulas"] as const).map((key) => (
+                    <label key={key}>
+                      <input
+                        type="checkbox"
+                        checked={conversions[key]}
+                        onChange={(event) =>
+                          setConversions({
+                            ...conversions,
+                            [key]: event.currentTarget.checked,
+                          })
+                        }
+                      />
+                      {
+                        t[
+                          key === "numbers"
+                            ? "importNumbers"
+                            : key === "dates"
+                              ? "importDates"
+                              : "importFormulas"
+                        ]
+                      }
+                    </label>
+                  ))}
+                </>
+              ) : (
+                <label>
+                  {t.fileName}
+                  <input
+                    autoFocus
+                    required
+                    value={name}
+                    onChange={(event) => setName(event.currentTarget.value)}
+                  />
+                </label>
+              )}
               <div className="od-dialog-actions">
                 <Dialog.Close>{t.cancel}</Dialog.Close>
                 <button type="submit" disabled={unavailable}>
-                  {action === "new" ? t.createDocument : t.saveAs}
+                  {action === "import"
+                    ? t.importDelimited
+                    : action === "new"
+                      ? t.createDocument
+                      : t.saveAs}
                 </button>
               </div>
             </form>

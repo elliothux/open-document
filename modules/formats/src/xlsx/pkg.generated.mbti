@@ -62,6 +62,22 @@ pub(all) struct FindOptions {
 }
 pub fn FindOptions::new(matchCase? : Bool, wholeCell? : Bool, formulas? : Bool, workbook? : Bool) -> Self
 
+pub(all) struct PrintSetup {
+  paper : String
+  orientation : String
+  left : Double
+  top : Double
+  right : Double
+  bottom : Double
+  scale : Int
+  fitWidth : Int
+  fitHeight : Int
+} derive(Eq, ToJson)
+pub fn PrintSetup::default() -> Self
+pub fn PrintSetup::equal(Self, Self) -> Bool
+pub fn PrintSetup::not_equal(Self, Self) -> Bool
+pub fn PrintSetup::to_json(Self) -> Json
+
 pub(all) struct Range {
   top : Int
   left : Int
@@ -88,12 +104,12 @@ pub fn Session::export_csv(Self, Int, selection? : Bool) -> Bytes raise @failure
 pub fn Session::find(Self, Int, String, String, FindOptions) -> Json raise @failure.Failure
 pub fn Session::format_cells(Self, Int, CellFormat) -> Json raise @failure.Failure
 pub fn Session::hit(Self, Int, Double, Double) -> String raise @failure.Failure
-pub fn Session::import_delimited(Bytes, String, @archive.Budget) -> Self raise @failure.Failure
+pub fn Session::import_delimited(Bytes, String, @archive.Budget, numbers? : Bool, dates? : Bool, formulas? : Bool) -> Self raise @failure.Failure
 pub fn Session::invalidate_geometry(Self) -> Unit
 pub fn Session::navigate(Self, Int, String, Bool) -> Json raise @failure.Failure
 pub fn Session::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
 pub fn Session::paste(Self, Int, String) -> Json raise @failure.Failure
-pub fn Session::print_layout(Self, Int, String, String?, @layout.PageSetup, @layout.TextProbe, Map[String, String]) -> @layout.PositionedDocument raise @failure.Failure
+pub fn Session::print_layout(Self, Int, String, String?, @layout.TextProbe, Map[String, String], setup? : @layout.PageSetup) -> @layout.PositionedDocument raise @failure.Failure
 pub fn Session::query(Self, sheet? : String?, range? : String?) -> Json raise @failure.Failure
 pub fn Session::replace(Self, Int, String, String, Array[Array[String]], literal? : Bool) -> Json raise @failure.Failure
 pub fn Session::replace_matches(Self, Int, String, String, FindOptions, String, Int?) -> Json raise @failure.Failure
@@ -115,6 +131,7 @@ pub(all) enum SheetEdit {
   Merge(String, Bool)
   Unmerge(String)
   Freeze(Int, Int)
+  PageSetup(PrintSetup)
 }
 
 pub(all) enum Value {

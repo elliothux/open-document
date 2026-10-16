@@ -81,11 +81,14 @@ fn delimited_rows(
 }
 
 ///|
-/// Imports UTF-8 CSV/TSV as literal text into one new workbook with no edit history.
+/// Imports UTF-8 CSV/TSV with opt-in conversions into one new workbook with no edit history.
 pub fn Session::import_delimited(
   bytes : Bytes,
   delimiter : String,
   budget : @archive.Budget,
+  numbers~ : Bool = false,
+  dates~ : Bool = false,
+  formulas~ : Bool = false,
 ) -> Session raise @failure.Failure {
   guard bytes.length() <=
     budget.file_bytes.min(budget.retained_bytes).min(4194304) else {
@@ -95,20 +98,64 @@ pub fn Session::import_delimited(
     _ => @failure.reject("invalid-delimited", "CSV/TSV requires valid UTF-8")
   }
   let rows = delimited_rows(source, delimiter)
+  let formats : Map[String, (Int, Int)] = Map([])
+  let codes = ["yyyy-mm-dd", "hh:mm:ss", "m/d/yy h:mm"]
+  let converted = rows.map(row => {
+    row.map(text => {
+      let literal = input_value(text, literal=true)
+      if formulas && text.has_prefix("=") {
+        (cell_content(text, false), "")
+      } else {
+        let date = if dates { formula_date_text(text, false) } else { Blank }
+        let (value, code) = if date is Number(_) {
+          let index = if !text.contains(":") {
+            0
+          } else if text.contains("-") || text.contains("/") {
+            2
+          } else {
+            1
+          }
+          let code = codes[index]
+          formats[code] = (0, index)
+          (date, code)
+        } else if numbers && input_value(text, literal=false) is Number(value) {
+          (Number(value), "")
+        } else {
+          (if literal == Blank { Text("") } else { literal }, "")
+        }
+        ({ value, formula: None, keep_shared: false, }, code)
+      }
+    })
+  })
+  let blank = Session::create(budget)
+  defer blank.close()
+  let replacements : Map[String, Bytes] = Map([])
+  let indices : Map[String, Int] = Map([])
+  if !formats.is_empty() {
+    let styles = blank.derive_formats(
+      formats,
+      codes.map(code => CellFormat::new(numberFormat=Some(code))),
+    )
+    for code, index in styles.indices {
+      indices[code] = index
+    }
+    for path, document in styles.parts {
+      replacements[path] = document.bytes()
+    }
+  }
   let xml = StringBuilder()
   let mut width = 1
   let mut xml_bytes = 0
-  for r, row in rows {
+  for r, row in converted {
     width = width.max(row.length())
     let opening = "<row r=\"\{r + 1}\">"
     xml_bytes += opening.length() + 6
     xml.write_string(opening)
-    for c, text in row {
-      let value = input_value(text, literal=true)
-      let value = if value == Blank { Text("") } else { value }
-      let (kind, content) = value_xml("", value)
+    for c, (cell, code) in row {
+      let (kind, content) = content_xml("", cell)
+      let style = if code == "" { "" } else { " s=\"\{indices[code]}\"" }
       let address : Address = { row: r + 1, column: c + 1, }
-      let markup = "<c r=\"\{address.name()}\"\{kind}>\{content}</c>"
+      let markup = "<c r=\"\{address.name()}\"\{style}\{kind}>\{content}</c>"
       xml_bytes += @utf8.encode(markup).length()
       xml.write_string(markup)
     }
@@ -119,8 +166,6 @@ pub fn Session::import_delimited(
       )
     }
   }
-  let blank = Session::create(budget)
-  defer blank.close()
   let range : Range = { top: 1, left: 1, bottom: rows.length(), right: width, }
   let worksheet = blank.sheets[0].document
     .source()
@@ -129,10 +174,17 @@ pub fn Session::import_delimited(
       old="<sheetData/>",
       new="<sheetData>\{xml.to_string()}</sheetData>",
     )
-  let output = blank.opc.save(
-    Map([("xl/worksheets/sheet1.xml", @utf8.encode(worksheet))]),
-  )
-  Session::open(output, budget)
+  replacements["xl/worksheets/sheet1.xml"] = @utf8.encode(worksheet)
+  let session = Session::open(blank.opc.save(replacements), budget)
+  errdefer session.close()
+  guard session.read_only == "" else {
+    @failure.reject("invalid-delimited", session.read_only)
+  }
+  if formulas && session.calculation is Some(calculation) {
+    ignore(session.cache_edits(session.sheets, calculation))
+    session.validate(session.sheets)
+  }
+  session
 }
 
 ///|

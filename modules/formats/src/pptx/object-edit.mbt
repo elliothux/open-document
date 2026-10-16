@@ -10,6 +10,12 @@ pub(all) enum ObjectEdit {
   Distribute(String, String)
   Group
   Ungroup
+  Fill(String?)
+  Stroke(String?, Double)
+  TextInsets(Double, Double, Double, Double)
+  TextAnchor(String)
+  TextWrap(Bool)
+  TextFit(Bool)
 }
 
 ///|
@@ -235,6 +241,9 @@ pub fn Session::edit_objects(
   }
   let mut issued : String? = None
   let (changes, after) = match change {
+    TextInsets(_, _, _, _) | TextAnchor(_) | TextWrap(_) | TextFit(_) =>
+      (self.frame_objects(change, probe, profile), self.selection)
+    Fill(_) | Stroke(_, _) => (self.paint_objects(change), self.selection)
     Group => {
       let id = self.next_object_identity()
       let result = self.group_changes(id)

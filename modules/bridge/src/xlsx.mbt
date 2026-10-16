@@ -28,6 +28,9 @@ fn Foundation::xlsx_operation(
     let session = if operation == "createXlsx" {
       @xlsx.Session::create(budget)
     } else if operation == "importXlsxDelimited" {
+      guard request is { "options": options, .. } else {
+        @failure.reject("invalid-operation", "Import options are required")
+      }
       @xlsx.Session::import_delimited(
         input_bytes(
           request,
@@ -35,6 +38,9 @@ fn Foundation::xlsx_operation(
         ),
         field_string(request, "delimiter"),
         budget,
+        numbers=xlsx_boolean(options, "numbers"),
+        dates=xlsx_boolean(options, "dates"),
+        formulas=xlsx_boolean(options, "formulas"),
       )
     } else {
       @xlsx.Session::open(
@@ -141,6 +147,18 @@ fn Foundation::xlsx_operation(
         "unmerge" => @xlsx.Unmerge(field_string(change, "range"))
         "freeze" =>
           @xlsx.Freeze(field_int(change, "rows"), field_int(change, "columns"))
+        "pageSetup" =>
+          @xlsx.PageSetup({
+            paper: field_string(change, "paper"),
+            orientation: field_string(change, "orientation"),
+            left: xlsx_number(change, "left"),
+            top: xlsx_number(change, "top"),
+            right: xlsx_number(change, "right"),
+            bottom: xlsx_number(change, "bottom"),
+            scale: field_int(change, "scale"),
+            fitWidth: field_int(change, "fitWidth"),
+            fitHeight: field_int(change, "fitHeight"),
+          })
         "move" => @xlsx.Move(field_int(change, "index"))
         "visibility" => @xlsx.Visibility(field_string(change, "state"))
         "rename" => @xlsx.Rename(field_string(change, "name"))
@@ -258,24 +276,32 @@ fn Foundation::xlsx_operation(
       )
     "printXlsx" => {
       let revision = field_int(request, "revision")
+      guard request is { "options": options, .. } else {
+        @failure.reject("invalid-operation", "Print options are required")
+      }
+      let setup : @layout.PageSetup? = if options is Null {
+        None
+      } else {
+        Some({
+          width: xlsx_number(options, "width"),
+          height: xlsx_number(options, "height"),
+          left: xlsx_number(options, "left"),
+          right: xlsx_number(options, "right"),
+          top: xlsx_number(options, "top"),
+          bottom: xlsx_number(options, "bottom"),
+        })
+      }
       let document = session.print_layout(
         revision,
         field_string(request, "sheet"),
-        if request is Object(fields) && fields.contains("range") {
-          Some(field_string(request, "range"))
+        if options is Object(fields) && fields.contains("range") {
+          Some(field_string(options, "range"))
         } else {
           None
         },
-        {
-          width: xlsx_number(request, "width"),
-          height: xlsx_number(request, "height"),
-          left: xlsx_number(request, "left"),
-          right: xlsx_number(request, "right"),
-          top: xlsx_number(request, "top"),
-          bottom: xlsx_number(request, "bottom"),
-        },
         self.probe,
         xlsx_profile(request),
+        setup?,
       )
       guard self.layout_id < 2147483647 else {
         @failure.reject("limit-exceeded", "Print identity exhausted")

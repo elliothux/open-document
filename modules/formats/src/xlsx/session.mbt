@@ -190,9 +190,9 @@ fn Session::from_package(
     let source = Tree::new(sheet.document)
     for child in source.children.get(source.root("worksheet").id).unwrap_or([]) {
       if ![
-          "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData", "mergeCells",
-          "sheetProtection", "pageMargins", "pageSetup", "printOptions", "headerFooter",
-          "autoFilter",
+          "sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData",
+          "mergeCells", "sheetProtection", "pageMargins", "pageSetup", "printOptions",
+          "headerFooter", "autoFilter",
         ].contains(child.name) ||
         child.uri != spreadsheet_uri {
         diagnostics.push("unrendered:" + sheet.id + ":" + child.qualified)
@@ -399,6 +399,7 @@ pub fn Session::query(
       "columns": current.frozen.columns,
       "readOnlyReason": self.freeze_reason(current),
     },
+    "printSetup": self.print_setup_query(current),
     "dimensions": {
       "rowHeight": current.dimensions.rows
       .uniform(range.unwrap().top, range.unwrap().bottom)

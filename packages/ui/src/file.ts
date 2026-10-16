@@ -56,6 +56,11 @@ export async function prepareFile(
   signal.throwIfAborted();
   if (document.blank && options.format === "pdf")
     throw new Error("Blank creation is unavailable for PDF");
+  if (
+    document.delimited !== undefined &&
+    (options.format !== "xlsx" || !/\.(csv|tsv)$/i.test(document.name))
+  )
+    throw new Error("Import options require CSV/TSV input in an XLSX editor");
   const surface = parent.ownerDocument.createElement("div");
   surface.className = "od-surface";
   surface.dataset.format = options.format;
@@ -121,6 +126,7 @@ export async function prepareFile(
             document.bytes,
             /\.tsv$/i.test(document.name) ? "\t" : ",",
             budget,
+            document.delimited,
           );
         else await connection.openXlsx(document.bytes, budget);
         await fonts(connection);

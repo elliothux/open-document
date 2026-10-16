@@ -2,6 +2,8 @@ import { Connection } from "./connection.js";
 import {
   xlsxQuery,
   xlsxFindOptions,
+  xlsxDelimitedOptions,
+  type XlsxDelimitedOptions,
   xlsxSearchResult,
   type XlsxFindOptions,
   type XlsxSearchResult,
@@ -25,6 +27,8 @@ import {
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type { XlsxSheetEdit, XlsxClearMode } from "@open-document/wasm/xlsx";
 export type {
+  XlsxPrintSetup,
+  XlsxDelimitedOptions,
   XlsxFindOptions,
   XlsxSearchResult,
 } from "@open-document/wasm/xlsx";
@@ -167,6 +171,7 @@ export class XlsxClient {
     bytes: Uint8Array,
     delimiter: "," | "\t",
     budget: Budget,
+    options: XlsxDelimitedOptions = {},
   ): Promise<XlsxQuery> {
     if (delimiter !== "," && delimiter !== "\t")
       throw new Error("Invalid delimiter");
@@ -180,6 +185,7 @@ export class XlsxClient {
         bytes,
         delimiter,
         budget,
+        options: xlsxDelimitedOptions(options),
       }),
     );
   }
@@ -329,7 +335,7 @@ export class XlsxClient {
   async printLayout(
     revision: number,
     sheet: string,
-    options: PrintOptions,
+    options: PrintOptions | null,
     profile: Record<string, string>,
   ): Promise<XlsxPrintLayout> {
     return xlsxPrintLayout(
@@ -337,7 +343,7 @@ export class XlsxClient {
         operation: "printXlsx",
         revision,
         sheet,
-        ...options,
+        options,
         profile,
       }),
     );

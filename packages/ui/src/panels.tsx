@@ -10,6 +10,7 @@ import { PptxAlignment } from "./pptx-alignment.js";
 import { XlsxSheets, XlsxFrozen } from "./xlsx-sheets.js";
 import { XlsxFormat } from "./xlsx-format.js";
 import { XlsxSearch } from "./xlsx-search.js";
+import { XlsxPrintSetup } from "./xlsx-print-setup.js";
 
 interface PanelProps {
   controller: EditorController;
@@ -458,6 +459,13 @@ export function Properties(props: PanelProps) {
           state={props.state}
           editor={props.file.editor}
           disabled={props.disabled || !!props.state.document?.stopped}
+        />
+        <XlsxPrintSetup
+          key={`${props.state.document?.documentId}:${props.file.editor.currentState.sheet}:${JSON.stringify(props.file.editor.currentState.printSetup)}`}
+          controller={props.controller}
+          state={props.state}
+          editor={props.file.editor}
+          disabled={props.disabled}
         />
         <div
           onMouseDown={(event) => {

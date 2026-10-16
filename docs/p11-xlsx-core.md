@@ -6,7 +6,9 @@
 
 ## 1. 用户结果与交付范围
 
-第 5 批已接通 UTF-8 CSV/TSV 文字导入，以及当前表/选区 CSV 值导出，包含默认 UI、首次 XLSX 保存、坏文件恢复与安全前缀提示。原格式保存、CSV 和 PDF 共用输出屏障，CSV 不清除未保存状态。数字/日期转换、显式导入公式及本批打印设置仍待实现；合同归[输入与保存](references/formats.md#输入与保存)。
+第 5 批已接通 UTF-8 CSV/TSV 导入及独立的数字、日期、公式转换选项，默认保留文字。当前表/选区 CSV 值导出包含默认 UI、首次 XLSX 保存、坏文件恢复与安全前缀提示。原格式保存、CSV 和 PDF 共用输出屏障，CSV 不清除未保存状态。转换复用核心值、日期格式与计算缓存，初始无历史。合同归[输入与保存](references/formats.md#输入与保存)。
+
+页面设置已接通 A4/Letter、方向、四边距、百分比与适合横/纵页数，默认预览和 PDF 使用保存的设置。核心、API 与默认 UI 共用源事务、精确历史和排版；核心 4 例、Chromium 一条操作链及公开包已检查。打印区域、重复标题、页眉页脚与多表输出仍待实现，不标记第 5 批完成。合同归[打印与资源边界](references/formats.md#打印与资源边界)。
 
 用户能新建工作簿，维护工作表与行列，编辑格式和常用公式，排序筛选、建立表格和透视分析，插入图表，并保存和打印。程序化 API 与默认 UI 调用同一核心操作。GenOffice/Univer 集成用于核对功能和 UI；计算、引用变化与文件写回优先参考 ONLYOFFICE，其次 LibreOffice。
 
@@ -34,7 +36,7 @@
 | [`bridge/xlsx.mbt`](../modules/bridge/src/xlsx.mbt)、[`wasm/xlsx.ts`](../packages/wasm/src/xlsx.ts)、[`web/xlsx.ts`](../packages/web/src/xlsx.ts) | 扩展现有类型化命令与查询；不增加第二套计算服务 |
 | [`spreadsheet-editor.ts`](../packages/web/src/spreadsheet-editor.ts)、[`spreadsheet-input.ts`](../packages/web/src/spreadsheet-input.ts)、[`spreadsheet-formula.ts`](../packages/web/src/spreadsheet-formula.ts)、[`ui/xlsx-formula.tsx`](../packages/ui/src/xlsx-formula.tsx) | 已接通共享原生输入的公式栏和范围定位，复用队列、Canvas 与 P9 状态；继续扩展数据面板 |
 
-当前未知公式或无法解析的依赖会使整本只读。当前打印只覆盖单表矩形与固定比例。P11 必须修改这些能力所在层，不能只放开按钮或在 JS 中补算结果。
+当前未知公式或无法解析的依赖会使整本只读。当前打印覆盖单表矩形、保存的页面设置、百分比与适合页数。P11 必须继续修改这些能力所在层，不能只放开按钮或在 JS 中补算结果。
 
 ## 3. 创建、结构与格式
 

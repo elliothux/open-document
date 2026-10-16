@@ -4,6 +4,7 @@ import type { PresentationEditor } from "@open-document/web/presentation-editor"
 import type { PdfEditor } from "@open-document/web/pdf-editor";
 import type { FoundationClient } from "@open-document/web/foundation";
 import type { PdfClient } from "@open-document/web/pdf";
+import type { XlsxDelimitedOptions } from "@open-document/web/xlsx";
 import type {
   EditorOutput,
   EditorSnapshot,
@@ -15,6 +16,8 @@ export interface EditorDocument {
   readonly name: string;
   readonly bytes: Uint8Array;
   readonly blank?: never;
+  /** Explicit conversions for CSV/TSV input in an XLSX editor. */
+  readonly delimited?: XlsxDelimitedOptions;
 }
 export type OfficeDocument =
   | EditorDocument
@@ -22,6 +25,7 @@ export type OfficeDocument =
       readonly name: string;
       readonly blank: true;
       readonly bytes?: never;
+      readonly delimited?: never;
     };
 export interface EditorResources {
   readonly wasm: ArrayBuffer;

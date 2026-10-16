@@ -22,6 +22,7 @@ import type {
   CopiedCellFormat,
   XlsxClearMode,
   XlsxFindOptions,
+  XlsxDelimitedOptions,
 } from "@open-document/wasm/xlsx";
 import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
@@ -82,6 +83,7 @@ export type Operation =
       bytes: Uint8Array;
       delimiter: "," | "\t";
       budget: Budget;
+      options: Required<XlsxDelimitedOptions>;
     }
   | { operation: "exportXlsxCsv"; revision: number; selection: boolean }
   | {
@@ -150,12 +152,13 @@ export type Operation =
   | { operation: "copyXlsx"; revision: number }
   | { operation: "clearXlsx"; revision: number; mode: XlsxClearMode }
   | { operation: "pasteXlsx"; revision: number; text: string }
-  | ({
+  | {
       operation: "printXlsx";
       revision: number;
       sheet: string;
       profile: Record<string, string>;
-    } & PrintOptions)
+      options: PrintOptions | null;
+    }
   | { operation: "exportXlsxPdf"; layoutId: number; outputBytes: number }
   | { operation: "font"; bytes: Uint8Array; identity: string }
   | { operation: "shape"; text: string; size: number; language: string }

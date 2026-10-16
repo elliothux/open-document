@@ -9,6 +9,15 @@ import {
 export { xlsxFindOptions, xlsxSearchResult } from "./xlsx-search.js";
 export type { XlsxFindOptions, XlsxSearchResult } from "./xlsx-search.js";
 import { record, hasFields, arrayOf } from "./validation.js";
+import {
+  checkPrintOptions,
+  checkXlsxPrintSetup,
+  xlsxPrintSetup,
+  type PrintOptions,
+  type XlsxPrintSetup,
+} from "./xlsx-print.js";
+export { checkXlsxPrintSetup } from "./xlsx-print.js";
+export type { PrintOptions, XlsxPrintSetup } from "./xlsx-print.js";
 import { drawingBatch, type DrawingBatch, type DrawRect } from "./drawing.js";
 import {
   checkXlsxCellFormat,
@@ -29,6 +38,35 @@ export type {
   XlsxCellBorder,
   CopiedCellFormat,
 } from "./xlsx-format.js";
+
+/** CSV/TSV fields stay literal unless a conversion is explicitly enabled. */
+export interface XlsxDelimitedOptions {
+  numbers?: boolean;
+  dates?: boolean;
+  formulas?: boolean;
+}
+
+export function xlsxDelimitedOptions(
+  options: XlsxDelimitedOptions,
+): Required<XlsxDelimitedOptions> {
+  const values = record(options);
+  if (
+    !options ||
+    typeof options !== "object" ||
+    Array.isArray(options) ||
+    !Object.entries(values).every(
+      ([key, value]) =>
+        ["numbers", "dates", "formulas"].includes(key) &&
+        (value === undefined || typeof value === "boolean"),
+    )
+  )
+    throw new Error("Invalid delimited import options");
+  return {
+    numbers: options.numbers ?? false,
+    dates: options.dates ?? false,
+    formulas: options.formulas ?? false,
+  };
+}
 
 export interface GridViewport {
   sheet: string;
@@ -63,16 +101,6 @@ export interface XlsxViewport extends DrawingBatch {
 
 export interface XlsxSelectionGeometry extends DrawRect {
   rects: DrawRect[];
-}
-
-export interface PrintOptions {
-  width: number;
-  height: number;
-  top: number;
-  right: number;
-  bottom: number;
-  left: number;
-  range?: string;
 }
 
 export interface XlsxPrintLayout extends DrawingBatch {
@@ -110,6 +138,7 @@ export interface XlsxCell {
 }
 
 export interface XlsxQuery {
+  printSetup: XlsxPrintSetup & { readOnlyReason: string };
   revision: number;
   mainPart: string;
   fontKeys: string[];
@@ -150,6 +179,7 @@ export interface XlsxQuery {
 export type XlsxClearMode = "contents" | "formats" | "all";
 
 export type XlsxSheetEdit =
+  | ({ action: "pageSetup" } & XlsxPrintSetup)
   | { action: "freeze"; rows: number; columns: number }
   | { action: "merge"; range: string; discard: boolean }
   | { action: "unmerge"; range: string }
@@ -168,6 +198,10 @@ export type XlsxSheetEdit =
 
 export function checkXlsxSheetEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "pageSetup") {
+    checkXlsxPrintSetup(change);
+    return;
+  }
   if (
     change.action === "freeze" &&
     integer(change.rows, 0, 1048575) &&
@@ -255,6 +289,7 @@ function cellValue(value: unknown): boolean {
 
 export function xlsxQuery(value: unknown): XlsxQuery {
   const query = record(value);
+  xlsxPrintSetup(query.printSetup);
   const merging = record(query.merging);
   if (
     !hasFields(merging, ["range", "mergeReason", "unmergeReason"], []) ||
@@ -589,6 +624,7 @@ export class XlsxSession extends WasmSession {
     bytes: Uint8Array,
     delimiter: "," | "\t",
     budget: Budget,
+    options: XlsxDelimitedOptions = {},
   ): XlsxQuery {
     if (delimiter !== "," && delimiter !== "\t")
       throw new Error("Invalid delimiter");
@@ -602,6 +638,7 @@ export class XlsxSession extends WasmSession {
         bytes: encodeBytes(bytes),
         delimiter,
         budget,
+        options: xlsxDelimitedOptions(options),
       }),
     );
   }
@@ -701,15 +738,16 @@ export class XlsxSession extends WasmSession {
   printLayout(
     revision: number,
     sheet: string,
-    options: PrintOptions,
+    options: PrintOptions | null,
     profile: Record<string, string>,
   ): XlsxPrintLayout {
+    checkPrintOptions(options);
     return xlsxPrintLayout(
       this.call({
         operation: "printXlsx",
         revision,
         sheet,
-        ...options,
+        options,
         profile,
       }),
     );

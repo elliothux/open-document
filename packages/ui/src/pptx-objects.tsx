@@ -3,6 +3,8 @@ import type { PresentationEditor } from "@open-document/web/presentation-editor"
 import type { PptxObjectEdit } from "@open-document/web/pptx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { PptxPaint } from "./pptx-paint.js";
+import { PptxTextFrame } from "./pptx-text-frame.js";
 
 type Insert = Extract<PptxObjectEdit, { action: "insert" }>;
 
@@ -184,6 +186,20 @@ export function PptxObjects({
         selected.duplicateReason !== selected.deleteReason && (
           <p>{selected.duplicateReason}</p>
         )}
+      <PptxPaint
+        key={`${state.document?.documentId}:${query.revision}:${query.selection.mode}:${query.selection.objects.join(",")}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
+      <PptxTextFrame
+        key={`${state.document?.documentId}:${JSON.stringify(query.objects.filter((object) => query.selection.objects.includes(object.id)).map((object) => [object.id, object.textFrame]))}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
     </section>
   );
 }

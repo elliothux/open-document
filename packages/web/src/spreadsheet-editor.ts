@@ -16,7 +16,7 @@ import {
   type SpreadsheetEditorData,
 } from "./spreadsheet-semantics.js";
 export type { SpreadsheetEditorData } from "./spreadsheet-semantics.js";
-import { SpreadsheetPrint, defaultPrintOptions } from "./spreadsheet-print.js";
+import { SpreadsheetPrint } from "./spreadsheet-print.js";
 import { CanvasSurface } from "./canvas-surface.js";
 import { SpreadsheetFormula } from "./spreadsheet-formula.js";
 import {
@@ -301,8 +301,7 @@ export class SpreadsheetEditor {
     this.publish();
     const task = this.tail.then(async () => {
       try {
-        const result = await action();
-        return result;
+        return await action();
       } catch (error) {
         this.report(error);
         throw error;
@@ -449,6 +448,7 @@ export class SpreadsheetEditor {
     });
   }
   private async present(reveal = false): Promise<void> {
+    if (this.viewport.hidden) return;
     this.publish();
     try {
       const generation = this.generation;
@@ -629,6 +629,10 @@ export class SpreadsheetEditor {
       this.requireFinished();
       await this.commitDraft();
       this.state = await action();
+      if (this.printView.visible) {
+        this.printView.hide();
+        this.viewport.hidden = false;
+      }
       this.generation++;
       await this.present(true);
       this.input.focus({ preventScroll: true });
@@ -726,9 +730,7 @@ export class SpreadsheetEditor {
       true,
     );
   }
-  printLayout(
-    options: PrintOptions = defaultPrintOptions,
-  ): Promise<XlsxPrintLayout> {
+  printLayout(options: PrintOptions | null = null): Promise<XlsxPrintLayout> {
     return this.enqueue(async () => {
       this.requireFinished();
       await this.commitDraft();
@@ -745,7 +747,7 @@ export class SpreadsheetEditor {
     });
   }
   exportPdf(
-    options: PrintOptions = defaultPrintOptions,
+    options: PrintOptions | null = null,
     outputBytes = 67108864,
   ): Promise<EditorOutput> {
     return this.output("pdf", async () => {

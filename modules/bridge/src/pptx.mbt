@@ -106,6 +106,28 @@ fn Foundation::pptx_operation(
             field_string(change, "text"),
           )
         "delete" => @pptx.Remove
+        "textInsets" =>
+          @pptx.TextInsets(
+            xlsx_number(change, "left"),
+            xlsx_number(change, "top"),
+            xlsx_number(change, "right"),
+            xlsx_number(change, "bottom"),
+          )
+        "textAnchor" => @pptx.TextAnchor(field_string(change, "anchor"))
+        "textWrap" => @pptx.TextWrap(xlsx_boolean(change, "wrap"))
+        "textFit" => @pptx.TextFit(xlsx_boolean(change, "autofit"))
+        "fill" | "stroke" => {
+          let color = match change {
+            { "color": Null, .. } => None
+            { "color": String(color), .. } => Some(color)
+            _ => @failure.reject("invalid-operation", "Shape color is required")
+          }
+          if field_string(change, "action") == "fill" {
+            @pptx.Fill(color)
+          } else {
+            @pptx.Stroke(color, xlsx_number(change, "width"))
+          }
+        }
         "group" => @pptx.Group
         "ungroup" => @pptx.Ungroup
         "duplicate" =>

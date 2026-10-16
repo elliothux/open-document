@@ -29,6 +29,22 @@ export interface PptxObject {
   duplicateReason: string;
   rotateReason: string;
   arrangeReason: string;
+  appearance: {
+    fill: string | null;
+    stroke: string | null;
+    width: number;
+    reason: string;
+  };
+  textFrame: {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+    anchor: string;
+    wrap: boolean;
+    autofit: boolean;
+    reason: string;
+  };
   geometry:
     | (DrawRect & {
         matrix: DrawMatrix;
@@ -107,6 +123,18 @@ export type PptxObjectEdit =
       text: string;
     }
   | { action: "delete" }
+  | { action: "fill"; color: string | null }
+  | { action: "stroke"; color: string | null; width: number }
+  | {
+      action: "textInsets";
+      left: number;
+      top: number;
+      right: number;
+      bottom: number;
+    }
+  | { action: "textAnchor"; anchor: "t" | "ctr" | "b" }
+  | { action: "textWrap"; wrap: boolean }
+  | { action: "textFit"; autofit: boolean }
   | { action: "group" | "ungroup" }
   | { action: "duplicate"; dx: number; dy: number }
   | { action: "rotate"; angle: number }
@@ -321,6 +349,28 @@ function integer(value: unknown, high = 0x7fffffff): void {
 }
 export function checkPptxObjectEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "textInsets") {
+    for (const key of ["left", "top", "right", "bottom"])
+      number(change[key], 0, 14400);
+    return;
+  }
+  if (
+    change.action === "textAnchor" &&
+    ["t", "ctr", "b"].includes(String(change.anchor))
+  )
+    return;
+  if (change.action === "textWrap" && typeof change.wrap === "boolean") return;
+  if (change.action === "textFit" && typeof change.autofit === "boolean")
+    return;
+  if (change.action === "fill" || change.action === "stroke") {
+    if (
+      change.color !== null &&
+      (typeof change.color !== "string" || !/^[0-9a-f]{6}$/i.test(change.color))
+    )
+      throw new Error("Invalid shape color");
+    if (change.action === "stroke") number(change.width, 0.1, 1000);
+    return;
+  }
   if (
     change.action === "delete" ||
     change.action === "group" ||
@@ -489,6 +539,30 @@ export function pptxQuery(value: unknown): PptxQuery {
   let units = 0;
   for (const item of query.objects) {
     const object = record(item);
+    const frame = record(object.textFrame);
+    if (
+      !hasFields(
+        frame,
+        ["anchor", "reason"],
+        ["left", "top", "right", "bottom"],
+      ) ||
+      typeof frame.wrap !== "boolean" ||
+      typeof frame.autofit !== "boolean"
+    )
+      throw new Error("Invalid text frame");
+    for (const key of ["left", "top", "right", "bottom"])
+      number(frame[key], 0, 14400);
+    const appearance = record(object.appearance);
+    if (
+      !hasFields(appearance, ["reason"], ["width"]) ||
+      ![appearance.fill, appearance.stroke].every(
+        (color) =>
+          color === null ||
+          (typeof color === "string" && /^[0-9a-f]{6}$/i.test(color)),
+      )
+    )
+      throw new Error("Invalid shape appearance");
+    number(appearance.width, 1 / 12700, 1000);
     if (
       !hasFields(
         object,

@@ -2,15 +2,6 @@ import { CanvasSurface } from "./canvas-surface.js";
 import type { XlsxClient } from "./xlsx.js";
 import type { PrintOptions, XlsxPrintLayout } from "@open-document/wasm/xlsx";
 
-export const defaultPrintOptions: PrintOptions = {
-  width: 595.28,
-  height: 841.89,
-  top: 36,
-  right: 36,
-  bottom: 36,
-  left: 36,
-};
-
 /** A bounded page surface for the core's independent print layout. */
 export class SpreadsheetPrint {
   readonly element = document.createElement("div");
@@ -52,7 +43,7 @@ export class SpreadsheetPrint {
     client: XlsxClient,
     revision: number,
     sheet: string,
-    options: PrintOptions,
+    options: PrintOptions | null,
     profile: Record<string, string>,
   ): Promise<XlsxPrintLayout> {
     const key = JSON.stringify([revision, sheet, options, profile]);

@@ -581,7 +581,9 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 CSV 输出拒绝 SpreadsheetML 转义产生的 NUL 等非 XML 控制字符，保留原工作簿。
 
-`XlsxSession.importDelimited(bytes, delimiter, budget)` 与 `XlsxClient.importDelimited` 创建一张新的文字工作表，分隔符明确为 `","` 或 `"\t"`。只接受 UTF-8，可带 BOM；引号字段、双引号转义及字段内 CR/LF 保留。不等宽行按实际字段写入，导出时补空字段到矩形。数字、布尔、日期及公式前缀均保留文字，不自动执行。默认 XLSX UI 的文件入口接受 `.csv/.tsv`，按后缀选择分隔符，改用 `.xlsx` 文件名并等待首次保存。导入失败保留旧文档；数字/日期转换及导入公式的显式模式仍待实现。
+`XlsxSession.importDelimited(bytes, delimiter, budget, options = {})` 与 `XlsxClient.importDelimited` 创建一张新工作表，分隔符明确为 `","` 或 `"\t"`。只接受 UTF-8，可带 BOM；引号字段、双引号转义及字段内 CR/LF 保留。不等宽行按实际字段写入，导出时补空字段到矩形。`XlsxDelimitedOptions` 的 `numbers`、`dates`、`formulas` 均默认 false，字段默认完整保留文字。默认 XLSX UI 的文件入口接受 `.csv/.tsv`，按后缀选择分隔符，显示每次重置的转换选项，导入后改用 `.xlsx` 文件名并等待首次保存。宿主可在 `EditorDocument.delimited` 指定同一组选项；非 CSV/TSV 输入不接受此属性。取消选项或导入失败保留旧文档。
+
+`numbers` 采用既有核心有限数值解析，前导零会消失；布尔及单引号前缀仍为文字。`dates` 采用核心 1900 日期系统，接受四位年份的数字 ISO/美国日期及可选时间、独立时间；非法日期仍保留文字。日期、时间和日期时间分别持久化 `yyyy-mm-dd`、`hh:mm:ss`、`m/d/yy h:mm` 格式，后者显示到分钟但保留秒与小数。日期列过窄时沿现有规则显示 `######`，可用列宽自动适配。`formulas` 仅把原文首字符为 `=` 的字段交给既有公式解析和计算引擎，写回源公式与结果缓存；不支持的公式、循环或预算失败拒绝整次导入。有效公式错误结果保留为错误值。导入初始 revision 为 0，无撤销历史；后续编辑沿正常历史重算。数字/日期分类与样式参考 [ONLYOFFICE CellFormatController](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Sheets/Reader/CellFormatController/CellFormatController.cpp#L136-L280)，默认文字及显式执行是本 SDK 的策略。
 
 导入最多 4 MiB 文件、1048576 UTF-16 单元、65536 字段与 16384 列，每格最多 32767 UTF-16 单元，并受既有 OPC 预算约束。空字段和行列位置保留；不支持的编码、引号结构、非法 XML 字符或预算失败不产生可用的半份工作簿。
 
@@ -603,7 +605,13 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 ### 打印与资源边界
 
-`PrintOptions` 明确给出 point 纸张宽高与四边距，可给 `range`。方向通过宽高表示，固定 100%；默认范围是当前表有内容的矩形。编辑器默认 A4 纵向、36 point 边距，提供预览切页与 PDF。分页先向下再向右，沿行列边界分割；空表一页，超宽单列、超高单行、跨页/范围合并、未计算公式、未支持显示或未呈现内容明确拒绝。屏幕滚动、缩放、DPR 不改变打印布局。复杂文件打印设置保留，不自动套用。
+`editSheet({ action: "pageSetup", paper, orientation, left, top, right, bottom, scale, fitWidth, fitHeight })` 保存当前工作表的打印设置。`XlsxPrintSetup` 的纸张为 `A4` 或 `Letter`，方向为 `portrait` 或 `landscape`，边距为 point。边距须非负并在每个方向留下至少 12 pt 可打印空间；比例为 10–400 的整数，横/纵页数为 0–1024 的整数。0 表示该方向不限页数；任一页数非零时取代百分比，核心按实际行列分割，在 10%–100% 中求满足页数的最大整数比例。10% 仍不能满足时输出失败，不截断内容。页面与缩放范围参考 [ONLYOFFICE calcPrintScale](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L4580-L4808)。
+
+`XlsxQuery.printSetup` 返回上述设置及 `readOnlyReason`。修改 `pageMargins`、`pageSetup` 和 `sheetPr/pageSetUpPr`，按 XML 顺序创建缺失节点，保留其他部件、单元格、公式缓存及计算链。边距写回 inch，查询和排版统一使用 point；新页边距包含 header/footer 的标准字段。一次设置一项历史，保持选择，重复设置不增加历史。保护、旧 revision、未知打印属性或预算失败保持源和历史。未知设置返回保护原因，其查询字段使用默认值占位，不能视为源文件的实际设置。
+
+`SpreadsheetEditor.printLayout()` / `exportPdf()` 默认传递 null，使用已保存的纸张、边距和缩放。没有源设置时，核心默认 A4 纵向、四边 36 pt 和 100%。`PrintOptions` 仍可明确给出临时 point 宽高与四边距及 `range`，只覆盖本次纸张和范围，保存的缩放继续适用。默认范围是当前表有内容的矩形。默认 UI 提供设置、预览切页与 PDF；编辑会关闭旧预览，隐藏网格不再触发布局失败。参数草稿在普通命令繁忙时保持可编辑，提交仍等待队列，组合输入和文档切换继续阻止操作。
+
+分页先向下再向右，沿行列边界分割；空表一页，超宽单列、超高单行、跨页/范围合并、未计算公式、未支持显示或未呈现内容明确拒绝。网格和打印共享字体与尺寸，缩放在核心有序图元中完成。屏幕滚动、缩放和 DPR 不改变打印布局。当前输出仍为单表矩形；打印区域定义、重复标题、页眉页脚、多表输出和更多纸张/布局变体继续实施。
 
 继续使用前文文件、字体、输出与 Canvas 上限，另有以下操作上限。载荷计数不代表进程峰值或性能保证。
 
@@ -691,11 +699,19 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `PptxQuery.groupReason/ungroupReason` 返回当前选择的保护原因，默认 UI 用它禁用按钮。继承占位符、未知组效果/扩展、成员锁定、`noGrp/noUngrp`、组合所涉连接/计时引用和取消组合所移除组的引用继续保护。操作只改所属 slide XML，保留其他部件及资源；一次提交一项有界历史，撤销恢复原源与选择，失败不消耗新身份或提交部分成员。
 
+`editPptxObjects` / `PresentationEditor.editObjects` 支持 `{ action: "fill", color }` 和 `{ action: "stroke", color, width }`。颜色为不带 `#` 的六位 RGB，核心统一小写；null 写显式 `noFill`，表示无填充或无边框。宽度为 0.1–1000 pt，舍入到整数 EMU。操作作用于对象模式下所选的本地顶层形状，包含文本框和基本形状；多选原子提交为一次历史。查询中每个对象带 `appearance: { fill, stroke, width, reason }`，颜色为有效 RGB 或 null，宽度为有效 pt，reason 说明保护原因。默认 UI 显示混合状态，分别应用填充和边框，草稿随选择或 revision 更新。
+
+修改只覆盖目标属性，保留几何、顺序、身份、文字、其他线条属性与部件。缺失的填充/边框按 DrawingML 顺序创建，空边框保留原属性；填充覆盖会关闭 `useBgFill`。直接设置相同值不增加历史；候选、过期 revision、锁定、未知填充属性/注释及预算失败不提交任何成员。组、组内对象、继承装饰和图片仍受保护，渐变、透明度、虚线及复杂效果编辑待扩展。纯色与实线沿既有 Canvas/静态 PDF 路径绘制。实现参考 [ONLYOFFICE CShape.changeFill/changeLine](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L6421-L6461) 的局部属性覆盖及背景填充处理。
+
 主题颜色支持 sRGB、带 `lastClr` 的系统色、主题/颜色映射以及 tint、shade、lumMod、lumOff。支持无填充、纯色填充、实线、主题填充/边框/背景引用和无效果样式。未知颜色变换、填充或可见效果保留源并诊断，不静默宣称完整。占位符依类型/索引匹配，当前属性按具体声明覆盖继承值；写回不修改共享主题、母版或版式。
 
 字体键为有效 family，按需附加 `|bold` / `|italic`。主/次字体、显式 Latin/EA/CS 字体及当前常见脚本映射参与解析；自动推断覆盖 Latin、简中 Han 缺省、Kana、Hangul、Arabic、Hebrew、Devanagari 和 Thai。语言敏感的 Han 区域字体推断尚未扩展；不声明全语言主题字体一致性。调用者提供授权字体及实际样式映射，缺失时明确失败。
 
-文本框支持基本字号、粗体/斜体、文字色、段落对齐、内边距、缩进、点值/百分比段距及行距、软换行和字符项目符号的字体/大小/颜色。固定框越界诊断并裁剪；无法建立文字几何时保留边界占位和对象文本查询。`normAutofit` 以 10 次有界搜索求解 10%–100% 字号缩放，保存必要 `fontScale` 并保留基准字号。字段所在框、自动编号、图片项目符号、多栏、纵排、文字变形和 `spAutoFit` 诊断或保护。
+文本框读取基本字号、粗体/斜体、文字色、段落对齐、内边距、缩进、点值/百分比段距及行距、软换行和字符项目符号的字体/大小/颜色。固定框越界诊断并裁剪；无法建立文字几何时保留边界占位和对象文本查询。`normAutofit` 以 10 次有界搜索求解 10%–100% 字号缩放，同时检查可用宽高，保存必要 `fontScale` 并保留基准字号。字段所在框、自动编号、图片项目符号、多栏、纵排、文字变形和 `spAutoFit` 诊断或保护。
+
+`editPptxObjects` / `PresentationEditor.editObjects` 已支持 `{ action: "textInsets", left, top, right, bottom }`、`{ action: "textAnchor", anchor }`、`{ action: "textWrap", wrap }` 和 `{ action: "textFit", autofit }`。四边距离为 0–14400 pt，舍入为整数 EMU，须保留有效文字区域；anchor 为 `t`、`ctr` 或 `b`。布尔 wrap 控制框内换行，autofit 控制缩小字体适配。它们作用于所选本地顶层文本形状，文字模式和对象模式均可调用，多选合为一次源事务。默认 UI 提供四边输入、垂直对齐和两个开关，保留待提交的原生文字输入。
+
+每个 `PptxObject.textFrame` 返回有效 `left/top/right/bottom/anchor/wrap/autofit` 及保护原因 `reason`。修改保留文字、字符格式、对象身份/几何、选择和其他部件；缺失 `bodyPr` 与适配节点按 DrawingML 顺序创建，其他属性和非目标注释原样保留。开启适配及适配框属性变化时重新测量并保存比例，后续文字编辑继续更新。10% 字号仍无法容纳时原子拒绝；关闭适配保留既有固定框越界诊断。无变化不增加历史，候选、旧 revision、缺字体、未知适配内容或预算失败保持会话。组内/继承框、调整形状到文字大小及复杂方向仍待支持。行为参考 [ONLYOFFICE 垂直对齐与适配设置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L1945-L2015)，继续使用第一方核心排版和源事务。
 
 支持矩形、椭圆、直线与文本框的核心路径；PNG/JPEG、矩形源裁剪、旋转/翻转和组合坐标变换。组合成员与继承对象只读；本地顶层对象可通过核心/API/UI 旋转、翻转和调整层次。图片不发起外链请求，源压缩字节与关系不改；只为当前页准备屏幕资源。全稿 PDF 临时准备所选页资源，仍受累计图片/输出预算约束，失败不返回截断文件。
 
