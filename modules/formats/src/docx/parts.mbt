@@ -18,8 +18,9 @@ fn Session::replacements(
   self : Session,
   document : @xml.Document,
   parts : Map[String, @xml.Document],
+  media~ : Map[String, Bytes] = self.media,
 ) -> Map[String, Bytes] {
-  let replacements = Map([])
+  let replacements = media.copy()
   for name, document in parts {
     if !document.is_original() || !self.opc.names.contains(name.to_lower()) {
       replacements[name] = document.bytes()
@@ -36,7 +37,7 @@ fn Session::relationships(
   self : Session,
 ) -> ReadOnlyArray[@opc.Relationship] raise @failure.Failure {
   ignore(self.document())
-  let replacements = Map([])
+  let replacements = self.media.copy()
   for name, document in self.parts {
     let added = !self.opc.names.contains(name.to_lower())
     if added ||

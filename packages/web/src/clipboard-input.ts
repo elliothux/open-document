@@ -38,7 +38,7 @@ export async function copyDocxSelection(
   const revision = state.revision,
     selection = state.selection;
   if (!selection) throw new Error("Click a document position first");
-  const text = await client.selectedText(revision, selection);
+  const text = await client.selectedText(revision, selection, cut);
   assertOpen();
   if (text.length === 0) return null;
   if (!navigator.clipboard) throw new Error("Clipboard API is unavailable");

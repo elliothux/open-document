@@ -15,6 +15,7 @@ fn Session::prepare_structural_range(
     structural=true,
     check_graphemes~,
   )
+  self.check_picture_range(tree, range)
   let start = range.start
   let end = range.end
   let first = tree.nodes[start.paragraph]
@@ -40,6 +41,7 @@ fn Session::prepare_structural_range(
     first_texts.last().map(node => node.id)
   }
   let replacements : Map[Int, String] = Map([])
+  let image_offsets : Map[Int, Int] = Map([])
   let mut insertion_offset = 0
   for node in first_texts; offset = 0 {
     let before = inline_text(tree.nodes[node.id])
@@ -55,7 +57,15 @@ fn Session::prepare_structural_range(
     if insertion == Some(node.id) {
       insertion_offset = keep
     }
-    if before != after {
+    let picture = tree.nodes[node.id].name == "drawing"
+    if picture && keep == remove {
+      image_offsets[node.id] = if keep == 0 && insertion == Some(node.id) {
+        parts[0].length()
+      } else {
+        0
+      }
+    }
+    if before != after || (picture && keep != remove) {
       replacements[node.id] = after
     }
     continue offset + before.length()
@@ -64,6 +74,9 @@ fn Session::prepare_structural_range(
     let before = inline_text(tree.nodes[node.id])
     let remove = (end.offset - offset).clamp(min=0, max=before.length())
     let after = before[remove:].to_owned()
+    if tree.nodes[node.id].name == "drawing" && remove == 0 {
+      image_offsets[node.id] = 0
+    }
     if before != after {
       replacements[node.id] = after
     }
@@ -249,6 +262,7 @@ fn Session::prepare_structural_range(
     document,
     replacements,
     source=changes,
+    image_offsets~,
   )
   let updated_tree = WordTree::new(candidate)
   let paragraph = updated_tree.children[parent.id][first_index +
@@ -272,6 +286,7 @@ fn Session::prepare_structural_range(
       xml: [xml],
       parts: Map([]),
       created: Map([]),
+      created_media: Map([]),
       before: self.selection,
       after: Some({ anchor: focus, focus, }),
       paragraphs: affected,

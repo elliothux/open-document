@@ -1,4 +1,11 @@
 ///|
+fn picture_identity(value : String) -> String {
+  @string.parse_int64(value.trim()[:], base=10).to_string() catch {
+    _ => value
+  }
+}
+
+///|
 fn WordTree::check_picture_references(
   self : WordTree,
   id : Int,
@@ -11,7 +18,7 @@ fn WordTree::check_picture_references(
     if (node.uri == picture_inline_uri && node.name == "docPr") ||
       node.name == "cNvPr" {
       if node.attribute("id") is Some(value) {
-        identities[value] = true
+        identities[picture_identity(value)] = true
       }
     }
   }
@@ -20,11 +27,11 @@ fn WordTree::check_picture_references(
       continue
     }
     for attribute in node.attributes {
-      if identities.contains(attribute.value) &&
-        (
+      if (
           ["spid", "spId", "shapeId", "shapeIdRef"].contains(attribute.name) ||
           (["stCxn", "endCxn"].contains(node.name) && attribute.name == "id")
-        ) {
+        ) &&
+        identities.contains(picture_identity(attribute.value)) {
         @failure.reject(
           "protected-content", "Referenced pictures require reference-aware deletion",
         )
@@ -85,6 +92,7 @@ pub fn Session::delete_picture(
       xml: [xml],
       parts: Map([]),
       created: Map([]),
+      created_media: Map([]),
       before: self.selection,
       after,
       paragraphs: [paragraph],

@@ -21,7 +21,7 @@ import {
 export * from "./docx-format.js";
 export * from "./docx-picture.js";
 import {
-  checkDocxPictureEdit,
+  prepareDocxPictureEdit,
   docxPictures,
   type DocxPictureEdit,
 } from "./docx-picture.js";
@@ -542,9 +542,12 @@ export class FoundationSession extends WasmSession {
     return docxPictures(this.call({ operation: "docxPictures", revision }));
   }
   editPicture(revision: number, picture: DocxPictureEdit): EditState {
-    checkDocxPictureEdit(picture);
     return editState(
-      this.call({ operation: "editDocxPicture", revision, picture }),
+      this.call({
+        operation: "editDocxPicture",
+        revision,
+        picture: prepareDocxPictureEdit(picture),
+      }),
     );
   }
   setPageSetup(revision: number, page: DocxPageSetup): EditState {
@@ -664,12 +667,17 @@ export class FoundationSession extends WasmSession {
     );
   }
 
-  /** Reads bounded plain text in document order without changing core state. */
-  selectedText(revision: number, selection: DocxSelection): string {
+  /** Reads plain text; cut=true protects pictures until rich clipboard support. */
+  selectedText(
+    revision: number,
+    selection: DocxSelection,
+    cut = false,
+  ): string {
     const result = this.call({
       operation: "selectedText",
       revision,
       selection,
+      cut,
     });
     if (typeof result !== "string")
       throw new Error("Invalid selection text returned by Wasm");

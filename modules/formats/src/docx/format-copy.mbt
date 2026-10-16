@@ -94,6 +94,7 @@ pub fn Session::apply_format(
         xml: edits,
         parts: Map([]),
         created: Map([]),
+        created_media: Map([]),
         before: self.selection,
         after: Some(selection),
         paragraphs: range.paragraphs,

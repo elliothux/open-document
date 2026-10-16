@@ -271,6 +271,7 @@ fn Session::fit_table(
       xml: [edit],
       parts: Map([]),
       created: Map([]),
+      created_media: Map([]),
       before: self.selection,
       after: Some(selection.without_visual_hints()),
       paragraphs: affected,

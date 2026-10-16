@@ -55,6 +55,8 @@ export const zh: Messages = {
   applyCrop: "应用裁剪",
   resetCrop: "重置裁剪",
   insertImage: "插入图片",
+  insertPictureWidth: "插入图片宽度（pt）",
+  insertPictureHeight: "插入图片高度（pt）",
   pictureFile: "图片文件（PNG、JPEG）",
   imageInputLimit: "请选择不超过 4 MiB 的非空图片。",
   sheetPrintSetup: "工作表打印设置",

@@ -140,6 +140,7 @@ pub fn Session::set_default_tab_stop(
       xml: [],
       parts: edits,
       created,
+      created_media: Map([]),
       before: self.selection,
       after: self.selection.map(selection => selection.without_visual_hints()),
       paragraphs,

@@ -4,7 +4,8 @@ fn docx_texts(tree : WordTree) -> Array[TextNode] {
   let texts : Array[TextNode] = []
   for id in tree.order {
     let node = tree.nodes[id]
-    if node.uri != word_uri || !["t", "br", "cr", "tab"].contains(node.name) {
+    if node.uri != word_uri ||
+      !["t", "br", "cr", "tab", "drawing"].contains(node.name) {
       continue
     }
     let run = node.parent
@@ -44,6 +45,7 @@ fn inline_text(node : @xml.Node) -> String {
       }
     "cr" => "\u2028"
     "tab" => "\t"
+    "drawing" => "\ufffc"
     _ => node.text
   }
 }

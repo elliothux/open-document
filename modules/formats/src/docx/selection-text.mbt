@@ -51,7 +51,8 @@ fn Session::paragraph_range_in(
     guard tree.nodes[id].uri == word_uri && tree.nodes[id].name == "p" else {
       @failure.reject("protected-content", "Range crosses protected content")
     }
-    tree.check_editable_paragraph(id, part=self.main)
+    tree.check_editable_paragraph(id, part=self.main, pictures=true)
+    self.check_native_pictures(tree, id)
     if structural {
       tree.check_structure_paragraph(id)
     }
@@ -80,14 +81,40 @@ fn Session::paragraph_range_in(
 ///|
 /// Reads a supported plain-text range in document order, with LF paragraph separators.
 /// This query preserves selection, revision, history and layout; oversized output fails.
+/// Cut preflight rejects pictures until the clipboard can retain their resources.
 pub fn Session::selected_text(
   self : Session,
   revision : Int,
   selection : Selection,
+  cut~ : Bool = false,
 ) -> String raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
   let range = self.paragraph_range(tree, selection, structural=false)
+  if cut {
+    let texts = docx_texts(tree)
+    for p in range.paragraphs {
+      let start = if p == range.start.paragraph {
+        range.start.offset
+      } else {
+        0
+      }
+      let end = if p == range.end.paragraph {
+        range.end.offset
+      } else {
+        0x7fffffff
+      }
+      guard !tree.has_picture_range(
+        texts.filter(item => item.paragraph == p),
+        start,
+        end,
+      ) else {
+        @failure.reject(
+          "protected-content", "Cutting pictures requires rich clipboard support",
+        )
+      }
+    }
+  }
   let output = StringBuilder()
   let mut units = 0
   for index, paragraph in range.paragraphs {

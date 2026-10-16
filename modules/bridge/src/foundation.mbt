@@ -387,6 +387,7 @@ fn Foundation::dispatch(
             session.selected_text(
               field_int(request, "revision"),
               field_selection(request),
+              cut=xlsx_boolean(request, "cut"),
             ),
           )
         "selectDocx" =>
@@ -578,7 +579,7 @@ fn Foundation::dispatch(
           }
           result
         }
-        "flow" => session.flow().to_json()
+        "flow" => self.docx_flow(session)
         "hitTest" => {
           let layout = self.current_layout(request)
           guard request is { "x": Number(x, ..), "y": Number(y, ..), .. } else {

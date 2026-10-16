@@ -10,6 +10,11 @@ fn WordTree::split_input(
   merge~ : Bool,
   source_limit~ : Int,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
+  if insertion is Some(id) && self.nodes[id].name == "drawing" {
+    return self.split_picture_input(
+      document, paragraph, id, offset, parts, tail, source_limit,
+    )
+  }
   if insertion is Some(id) && self.nodes[id].name != "t" {
     return self.split_control_input(
       document, paragraph, id, offset, parts, tail, source_limit,

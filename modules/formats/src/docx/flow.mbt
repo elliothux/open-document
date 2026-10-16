@@ -292,6 +292,16 @@ fn Session::paragraph(
       document_diagnostics.push(message)
     }
   }
+  let picture_reason = if spans.any(span => span.image is Some(_)) {
+    try {
+      self.check_native_pictures(tree, id)
+      paragraph.readOnlyReason
+    } catch {
+      @failure.Failure(message~, ..) => message
+    }
+  } else {
+    paragraph.readOnlyReason
+  }
   {
     ..paragraph,
     nominalSize: nominal_size,
@@ -303,6 +313,6 @@ fn Session::paragraph(
     } else {
       0
     },
-    readOnlyReason: diagnostics.get(0).unwrap_or(paragraph.readOnlyReason),
+    readOnlyReason: diagnostics.get(0).unwrap_or(picture_reason),
   }
 }

@@ -14,7 +14,7 @@ PDF 输入和文档操作见 [P7](../implemented/p7-pdf-input.md) 与 [P8](../im
 | --- | --- | --- |
 | `modules/core` | text、failure、archive、XML 源片段与 OPC 图 | 标准库、固定 flate/xml；不依赖宿主 |
 | `modules/layout` | 字体塑形、几何、分页与绘制结果 | core；不通过 DOM 决定布局 |
-| `modules/formats` | docx/xlsx/pptx/pdf 的独立语义与读写 | core；需要输出布局时依赖 layout |
+| `modules/formats` | docx/xlsx/pptx/pdf 的独立语义与读写；`internal/image` 共用 PNG/JPEG 输入预算与文件头校验 | core；需要输出布局时依赖 layout |
 | `modules/bridge` | Wasm 导出、核心到宿主的批量 ABI | core、layout、formats/docx、formats/xlsx、formats/pptx、formats/pdf |
 | `packages/wasm` | 实例化与 ABI 校验 | WasmGC 产物；不拥有第二份文档模型 |
 | `packages/web` | Worker 请求、输入事件排序、页面呈现与生命周期 | wasm 包；不实现文本替换、撤销或排版 |

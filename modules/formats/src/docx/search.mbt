@@ -191,7 +191,8 @@ fn Session::find_matches(
           Some(value) => value
           None => {
             let value = try {
-              tree.check_editable_paragraph(id, part=self.main)
+              tree.check_editable_paragraph(id, part=self.main, pictures=true)
+              self.check_native_pictures(tree, id)
               tree.check_structure_paragraph(id)
               let styles = match styles {
                 Ok(styles) => styles

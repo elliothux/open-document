@@ -13,7 +13,7 @@ fn Session::write_image(
   if placement is Some(_) {
     validate_object_box(x, y, width, height, false)
   }
-  let (extension, content_type) = image_type(bytes)
+  let (extension, content_type) = @image.type_info(bytes)
   if target is Some(object) && self.image_bytes(object.image.unwrap()) == bytes {
     return self.query()
   }

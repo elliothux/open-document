@@ -141,6 +141,7 @@ fn Session::change_table_property(
       xml: [edit],
       parts: Map([]),
       created: Map([]),
+      created_media: Map([]),
       before: self.selection,
       after: Some(selection.without_visual_hints()),
       paragraphs: affected,

@@ -55,6 +55,7 @@ priv struct Edit {
   xml : Array[@xml.Edit]
   parts : Map[String, Array[@xml.Edit]]
   created : Map[String, @xml.Document]
+  created_media : Map[String, Bytes]
   before : Selection?
   after : Selection?
   paragraphs : Array[Int]
@@ -74,10 +75,9 @@ fn Session::editable_texts(
   self : Session,
   paragraph : Int,
 ) -> Array[TextNode] raise @failure.Failure {
-  WordTree::new(self.document()).check_editable_paragraph(
-    paragraph,
-    part=self.main,
-  )
+  let tree = WordTree::new(self.document())
+  tree.check_editable_paragraph(paragraph, part=self.main, pictures=true)
+  self.check_native_pictures(tree, paragraph)
   self.texts.filter(node => node.paragraph == paragraph)
 }
 
@@ -200,7 +200,12 @@ fn Session::check_position_in(
   check_graphemes~ : Bool = true,
 ) -> Unit raise @failure.Failure {
   let tree = WordTree::new(document)
-  tree.check_editable_paragraph(position.paragraph, part=self.main)
+  tree.check_editable_paragraph(
+    position.paragraph,
+    part=self.main,
+    pictures=true,
+  )
+  self.check_native_pictures(tree, position.paragraph)
   let nodes = tree.nodes
   let texts = docx_texts(tree).filter(node => {
     node.paragraph == position.paragraph
@@ -316,7 +321,8 @@ fn Session::prepare_plain_range(
       self.prepare_structural_range(selection, text, check_graphemes~),
     )
   }
-  let nodes = WordTree::new(self.document()).nodes
+  let tree = WordTree::new(self.document())
+  let nodes = tree.nodes
   let texts = self.editable_texts(anchor.paragraph)
   let content = texts.map(node => inline_text(nodes[node.id])).join("")
   let boundaries = editing_boundaries(content, check_graphemes)
@@ -324,7 +330,7 @@ fn Session::prepare_plain_range(
   validate_position(focus, boundaries)
   let start = anchor.offset.min(focus.offset)
   let end = anchor.offset.max(focus.offset)
-  if content[start:end] == text {
+  if content[start:end] == text && !tree.has_picture_range(texts, start, end) {
     return None
   }
   if texts.is_empty() {
@@ -355,6 +361,7 @@ fn Session::prepare_plain_range(
     texts.last().unwrap().id
   }
   let changes : Map[Int, String] = Map([])
+  let image_offsets : Map[Int, Int] = Map([])
   let mut offset = 0
   for node in texts {
     let before = inline_text(nodes[node.id])
@@ -364,7 +371,15 @@ fn Session::prepare_plain_range(
     let after = before[:left].to_owned() +
       (if node.id == insertion { text } else { "" }) +
       before[right:].to_owned()
-    if before != after {
+    let picture = nodes[node.id].name == "drawing"
+    if picture && left == right {
+      image_offsets[node.id] = if left == 0 && node.id == insertion {
+        text.length()
+      } else {
+        0
+      }
+    }
+    if before != after || (picture && left != right) {
       changes[node.id] = after
     }
     offset += length
@@ -383,7 +398,12 @@ fn Session::prepare_plain_range(
     frameStart: None,
   }
   let after : Selection = { anchor: position, focus: position, }
-  let prepared = self.prepare_text(changes, Some(after), anchor.paragraph)
+  let prepared = self.prepare_text(
+    changes,
+    Some(after),
+    anchor.paragraph,
+    image_offsets~,
+  )
   Some({
     ..prepared,
     typing_text: if text.is_empty() {
@@ -423,13 +443,19 @@ fn Session::prepare_text(
   changes : Map[Int, String],
   after : Selection?,
   paragraph : Int,
+  image_offsets~ : Map[Int, Int] = Map([]),
 ) -> PreparedEdit raise @failure.Failure {
-  let (candidate, xml) = self.edit_inline_text(self.document(), changes)
+  let (candidate, xml) = self.edit_inline_text(
+    self.document(),
+    changes,
+    image_offsets~,
+  )
   {
     edit: {
       xml: [xml],
       parts: Map([]),
       created: Map([]),
+      created_media: Map([]),
       before: self.selection,
       after,
       paragraphs: [paragraph],
@@ -449,10 +475,12 @@ fn Session::commit_edit(
   input_group~ : Int? = None,
   join_group~ : Bool = false,
   parts~ : Map[String, @xml.Document] = self.parts,
+  media~ : Map[String, Bytes] = self.media,
 ) -> Unit raise @failure.Failure {
   let previous = if join_group &&
     edit.parts.is_empty() &&
     edit.created.is_empty() &&
+    edit.created_media.is_empty() &&
     input_group is Some(_) &&
     self.input_group == input_group &&
     self.redo.is_empty() {
@@ -461,13 +489,14 @@ fn Session::commit_edit(
     .filter(old => {
       old.parts.is_empty() &&
       old.created.is_empty() &&
+      old.created_media.is_empty() &&
       old.after == edit.before &&
       old.bytes <= history_byte_limit - edit.bytes
     })
   } else {
     None
   }
-  self.accept_document(candidate, edit.after, parts~)
+  self.accept_document(candidate, edit.after, parts~, media~)
   for old in self.redo {
     self.history_bytes -= old.bytes
   }
@@ -544,6 +573,20 @@ fn Session::apply_edit(
       parts.remove(name)
     }
   }
+  let media = self.media.copy()
+  for name, bytes in edit.created_media {
+    if forward {
+      guard !media.contains(name) && !self.opc.names.contains(name.to_lower()) else {
+        @failure.reject("invalid-operation", "Created image already exists")
+      }
+      media[name] = bytes
+    } else {
+      guard media.get(name) == Some(bytes) else {
+        @failure.reject("invalid-operation", "Created image has changed")
+      }
+      media.remove(name)
+    }
+  }
   self.accept_document(
     candidate,
     if forward {
@@ -552,6 +595,7 @@ fn Session::apply_edit(
       edit.before
     },
     parts~,
+    media~,
   )
   if !forward {
     // Retain identity allocation after later edits were undone, for their next redo.
@@ -567,15 +611,17 @@ fn Session::accept_document(
   candidate : @xml.Document,
   selection : Selection?,
   parts~ : Map[String, @xml.Document] = self.parts,
+  media~ : Map[String, Bytes] = self.media,
 ) -> Unit raise @failure.Failure {
   guard self.revision < 0x7fffffff else {
     @failure.reject("limit-exceeded", "Revision exhausted")
   }
-  self.opc.validate_changes(self.replacements(candidate, parts))
-  ignore({ ..self, document: Some(candidate), parts, }.default_tab())
+  self.opc.validate_changes(self.replacements(candidate, parts, media~))
+  ignore({ ..self, document: Some(candidate), parts, media, }.default_tab())
   let texts = docx_texts(WordTree::new(candidate))
   self.document = Some(candidate)
   self.parts = parts
+  self.media = media
   self.texts = texts
   self.selection = selection
   self.typing_text = None

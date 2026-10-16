@@ -10,23 +10,9 @@ fn Session::editable_picture(
   tree : WordTree,
   id : Int,
   remove~ : Bool = false,
+  replace~ : Bool = false,
 ) -> (@layout.InlineImage, Int, Int, Int?) raise @failure.Failure {
-  ignore(self.editable_page_section(tree))
-  if self.settings_part() is Some(part) {
-    let settings = WordTree::new(self.part_xml(part))
-    for setting in settings.children[0] {
-      let node = settings.nodes[setting]
-      if node.uri == word_uri &&
-        node.name == "trackRevisions" &&
-        !["0", "false", "off"].contains(
-          node.attribute("val", uri=word_uri).unwrap_or("1"),
-        ) {
-        @failure.reject(
-          "protected-content", "Tracked picture edits require revision support",
-        )
-      }
-    }
-  }
+  self.check_picture_context(tree)
   guard tree.nodes.get(id) is Some(node) &&
     node.uri == word_uri &&
     node.name == "drawing" else {
@@ -84,9 +70,13 @@ fn Session::editable_picture(
     }
     if node.name.has_suffix("Locks") &&
       node.attributes.any(attr => {
-        (if remove { ["noDelete"] } else { ["noCrop", "noResize"] }).contains(
-          attr.name,
-        ) &&
+        (if remove {
+          ["noDelete"]
+        } else if replace {
+          []
+        } else {
+          ["noCrop", "noResize"]
+        }).contains(attr.name) &&
         ["1", "true"].contains(attr.value)
       }) {
       @failure.reject("protected-content", "Picture operation is locked")
@@ -112,8 +102,8 @@ fn Session::editable_picture(
     if node.uri == picture_drawing_uri && node.name == "srcRect" {
       guard tree.children[child].is_empty() &&
         node.text.trim().is_empty() &&
-        !self.document().source()[node.start:node.end].contains("<!--") &&
-        !self.document().source()[node.start:node.end].contains("<?") &&
+        !tree.source[node.start:node.end].contains("<!--") &&
+        !tree.source[node.start:node.end].contains("<?") &&
         node.attributes.all(attr => {
           attr.uri.is_empty() && ["l", "t", "r", "b"].contains(attr.name)
         }) else {
@@ -142,6 +132,21 @@ fn Session::editable_picture(
       tree.nodes[extent].attribute("cy") is Some(_) else {
       @failure.reject("protected-content", "Incomplete picture extent")
     }
+  }
+  let blips = tree
+    .descendants(id)
+    .filter(child => {
+      tree.nodes[child].uri == picture_drawing_uri &&
+      tree.nodes[child].name == "blip"
+    })
+  guard blips.length() == 1 &&
+    tree.nodes[blips[0]].parent == fills[0] &&
+    tree.nodes[blips[0]].attribute(
+      "link",
+      uri="http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+    )
+    is None else {
+    @failure.reject("protected-content", "Picture requires one embedded source")
   }
   if remove {
     tree.check_picture_references(id)
@@ -183,6 +188,12 @@ pub fn Session::pictures(
     } catch {
       @failure.Failure(message~, ..) => message
     }
+    let replace_reason = try {
+      ignore(self.editable_picture(tree, id, replace=true))
+      ""
+    } catch {
+      @failure.Failure(message~, ..) => message
+    }
     images.push({
       "id": id,
       "name": name,
@@ -191,6 +202,7 @@ pub fn Session::pictures(
       "crop": image.map(image => image.crop).unwrap_or([0, 0, 0, 0]),
       "reason": reason,
       "deleteReason": delete_reason,
+      "replaceReason": replace_reason,
     })
   }
   { "revision": revision, "images": images }
@@ -303,6 +315,7 @@ pub fn Session::edit_picture(
       xml: [xml],
       parts: Map([]),
       created: Map([]),
+      created_media: Map([]),
       before: self.selection,
       after: self.selection,
       paragraphs: [paragraph],
@@ -311,4 +324,27 @@ pub fn Session::edit_picture(
     candidate,
   )
   self.edit_result([paragraph])
+}
+
+///|
+fn Session::check_picture_context(
+  self : Session,
+  tree : WordTree,
+) -> Unit raise @failure.Failure {
+  ignore(self.editable_page_section(tree))
+  if self.settings_part() is Some(part) {
+    let settings = WordTree::new(self.part_xml(part))
+    for setting in settings.children[0] {
+      let node = settings.nodes[setting]
+      if node.uri == word_uri &&
+        node.name == "trackRevisions" &&
+        !["0", "false", "off"].contains(
+          node.attribute("val", uri=word_uri).unwrap_or("1"),
+        ) {
+        @failure.reject(
+          "protected-content", "Tracked picture edits require revision support",
+        )
+      }
+    }
+  }
 }

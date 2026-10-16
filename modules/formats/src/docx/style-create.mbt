@@ -106,6 +106,7 @@ pub fn Session::create_style(
       xml: [],
       parts: edits,
       created,
+      created_media: Map([]),
       before: self.selection,
       after: self.selection,
       paragraphs: affected,

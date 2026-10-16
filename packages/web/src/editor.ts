@@ -371,7 +371,7 @@ export class DocumentEditor {
           undo,
           () => this.assertOpen(),
         );
-        this.currentLayout = await this.client.layout(this.profile);
+        this.currentLayout = await this.surface.layout(this.profile);
         this.assertOpen();
         this.blocked = undefined;
         await this.presentSelection();
@@ -523,7 +523,7 @@ export class DocumentEditor {
     this.inputEvents.endGroup();
     return this.enqueue(async () => {
       await this.changed(await operation());
-      this.focus();
+      if (this.state.selection) this.focus();
     });
   }
   private selectPointer(
@@ -596,7 +596,7 @@ export class DocumentEditor {
     this.state = state;
     this.publish();
     if (relayout || state.revision !== revision)
-      this.currentLayout = await this.client.layout(this.profile);
+      this.currentLayout = await this.surface.layout(this.profile);
     this.assertOpen();
     await this.presentSelection();
   }

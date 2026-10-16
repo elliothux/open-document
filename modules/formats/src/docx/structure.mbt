@@ -87,6 +87,7 @@ fn Session::prepare_empty(
       xml: [xml],
       parts: Map([]),
       created: Map([]),
+      created_media: Map([]),
       before: self.selection,
       after: Some({ anchor: position, focus: position, }),
       paragraphs: [paragraph],
@@ -316,6 +317,7 @@ fn WordTree::check_editable_paragraph(
   self : WordTree,
   paragraph : Int,
   part~ : String,
+  pictures~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   guard self.nodes.contains(paragraph) &&
     self.nodes[paragraph].uri == word_uri &&
@@ -386,6 +388,7 @@ fn WordTree::check_editable_paragraph(
         (
           node.name == "rPr" ||
           node.name == "t" ||
+          (pictures && node.name == "drawing") ||
           node.name == "br" ||
           node.name == "cr" ||
           node.name == "tab" ||

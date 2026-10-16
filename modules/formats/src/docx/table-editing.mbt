@@ -228,6 +228,7 @@ pub fn Session::insert_table(
       xml: edits,
       parts: Map([]),
       created: Map([]),
+      created_media: Map([]),
       before: self.selection,
       after: Some({ anchor: position, focus: position, }),
       paragraphs,

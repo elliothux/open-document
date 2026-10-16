@@ -161,6 +161,7 @@ fn Session::reset_style_format(
       xml: [],
       parts: Map::from_array([(styles.part, edits)]),
       created: Map([]),
+      created_media: Map([]),
       before: self.selection,
       after: self.selection.map(s => s.without_visual_hints()),
       paragraphs: affected,

@@ -357,6 +357,7 @@ pub fn Session::set_page_setup(
       xml: edits,
       parts: Map([]),
       created: Map([]),
+      created_media: Map([]),
       before: self.selection,
       after: self.selection.map(s => s.without_visual_hints()),
       paragraphs,

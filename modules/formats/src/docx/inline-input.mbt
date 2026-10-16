@@ -88,6 +88,7 @@ fn Session::edit_inline_text(
   document : @xml.Document,
   replacements : Map[Int, String],
   source~ : Array[@xml.SourceChange] = [],
+  image_offsets~ : Map[Int, Int] = Map([]),
 ) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
   let plain : Map[Int, String] = Map([])
   let changes = source.copy()
@@ -98,6 +99,25 @@ fn Session::edit_inline_text(
   for id, text in replacements {
     let node = document.node(id)
     tree.check_page_break_input(tree.nodes[node.parent].parent, text)
+    if node.name == "drawing" {
+      let items = self.picture_text_changes(
+        tree,
+        id,
+        text,
+        image_offsets.get(id),
+        limit - units,
+      )
+      for item in items {
+        units += item.xml.length()
+        guard units <= limit else {
+          @failure.reject(
+            "limit-exceeded", "Picture text source exceeds budget",
+          )
+        }
+        changes.push(item)
+      }
+      continue
+    }
     if node.name == "t" &&
       !text.contains("\u2028") &&
       !text.contains("\t") &&
@@ -108,7 +128,9 @@ fn Session::edit_inline_text(
     tree.check_editable_paragraph(
       tree.nodes[node.parent].parent,
       part=self.main,
+      pictures=true,
     )
+    self.check_native_pictures(tree, tree.nodes[node.parent].parent)
     guard node.attributes
       .iter()
       .all(attribute => {

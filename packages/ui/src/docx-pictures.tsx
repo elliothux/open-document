@@ -21,11 +21,14 @@ export function DocxPictures({
   const t = messages(state.locale);
   const [catalog, setCatalog] = useState<Pictures>();
   const [draft, setDraft] = useState<DocxPicture>();
-  const load = async () => {
+  const [size, setSize] = useState({ width: 120, height: 80 });
+  const load = async (known?: ReadonlySet<number>) => {
     const value = await editor.pictures();
     setCatalog(value);
     const image =
-      value.images.find((image) => image.id === draft?.id) ?? value.images[0];
+      (known && value.images.find((image) => !known.has(image.id))) ??
+      value.images.find((image) => image.id === draft?.id) ??
+      value.images[0];
     setDraft(
       image && {
         id: image.id,
@@ -45,6 +48,53 @@ export function DocxPictures({
   return (
     <section aria-label={t.pictureProperties}>
       <h3>{t.pictureProperties}</h3>
+      <fieldset disabled={disabled || !editor.getSnapshot().data.selection}>
+        <legend>{t.insertImage}</legend>
+        {(
+          [
+            ["width", t.insertPictureWidth],
+            ["height", t.insertPictureHeight],
+          ] as const
+        ).map(([key, label]) => (
+          <label key={key}>
+            {label}
+            <input
+              type="number"
+              min={0.1}
+              max={14400}
+              step="any"
+              value={Number.isFinite(size[key]) ? size[key] : ""}
+              onChange={(event) =>
+                setSize({ ...size, [key]: event.currentTarget.valueAsNumber })
+              }
+            />
+          </label>
+        ))}
+        <label>
+          {t.pictureFile}
+          <input
+            type="file"
+            accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = "";
+              if (!file) return;
+              controller.run(async () => {
+                if (!file.size || file.size > 4194304)
+                  throw new Error(t.imageInputLimit);
+                const bytes = new Uint8Array(await file.arrayBuffer());
+                const before = await editor.pictures();
+                await editor.editPicture(before.revision, {
+                  action: "insert",
+                  ...size,
+                  bytes,
+                });
+                await load(new Set(before.images.map((image) => image.id)));
+              });
+            }}
+          />
+        </label>
+      </fieldset>
       <button
         type="button"
         disabled={disabled}
@@ -83,6 +133,33 @@ export function DocxPictures({
       {image?.reason && <p>{image.reason}</p>}
       {image && (
         <>
+          <label>
+            {t.replacementFile}
+            <input
+              type="file"
+              accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+              disabled={disabled || stale || !!image.replaceReason}
+              title={image.replaceReason}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = "";
+                if (!file || !catalog) return;
+                controller.run(async () => {
+                  if (!file.size || file.size > 4194304)
+                    throw new Error(t.imageInputLimit);
+                  await editor.editPicture(catalog.revision, {
+                    action: "replace",
+                    id: image.id,
+                    bytes: new Uint8Array(await file.arrayBuffer()),
+                  });
+                  await load();
+                });
+              }}
+            />
+          </label>
+          {image.replaceReason && image.replaceReason !== image.reason && (
+            <p>{image.replaceReason}</p>
+          )}
           <button
             type="button"
             disabled={disabled || stale || !!image.deleteReason}

@@ -341,7 +341,11 @@ async function dispatch(request: Request): Promise<unknown> {
         case "selectDocx":
           return foundation.selectDocx(request.revision, request.selection);
         case "selectedText":
-          return foundation.selectedText(request.revision, request.selection);
+          return foundation.selectedText(
+            request.revision,
+            request.selection,
+            request.cut,
+          );
         case "replaceRange":
           return foundation.replaceRange(
             request.revision,

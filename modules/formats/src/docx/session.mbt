@@ -14,6 +14,7 @@ pub struct Session {
   priv main : String
   priv mut document : @xml.Document?
   priv mut parts : Map[String, @xml.Document]
+  priv mut media : Map[String, Bytes]
   priv mut texts : Array[TextNode]
   priv mut selection : Selection?
   priv mut typing_text : Int?
@@ -111,6 +112,7 @@ fn Session::from_package(opc : @opc.Package) -> Session raise @failure.Failure {
     main,
     document: Some(document),
     parts: Map([]),
+    media: Map([]),
     texts: docx_texts(WordTree::new(document)),
     selection: None,
     typing_text: None,
@@ -197,7 +199,7 @@ pub fn Session::replace(
   guard text.length() <= command_limit else {
     @failure.reject("limit-exceeded", "Command input exceeds UTF-16 budget")
   }
-  if before == text {
+  if before == text && nodes[id].name != "drawing" {
     self.input_group = None
     return self.revision
   }
@@ -262,6 +264,7 @@ pub fn Session::close(self : Session) -> Unit {
   self.opc.close()
   self.document = None
   self.parts.clear()
+  self.media.clear()
   self.texts.clear()
   self.selection = None
   self.typing_text = None

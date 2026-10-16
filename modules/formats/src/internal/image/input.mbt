@@ -8,7 +8,7 @@ fn image_uint(bytes : Bytes, offset : Int, length : Int) -> Int64 {
 }
 
 ///|
-fn image_type(bytes : Bytes) -> (String, String) raise @failure.Failure {
+pub fn type_info(bytes : Bytes) -> (String, String) raise @failure.Failure {
   guard bytes.length() <= 4194304 else {
     @failure.reject("limit-exceeded", "Image input exceeds budget")
   }

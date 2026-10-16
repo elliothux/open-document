@@ -140,6 +140,7 @@ fn Session::shift_list_indent(
       xml: steps,
       parts: edits,
       created: Map([]),
+      created_media: Map([]),
       before: self.selection,
       after: Some(selection.without_visual_hints()),
       paragraphs: affected,

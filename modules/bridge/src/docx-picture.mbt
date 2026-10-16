@@ -1,4 +1,39 @@
 ///|
+fn Foundation::docx_flow(
+  self : Foundation,
+  session : @docx.Session,
+) -> Json raise @failure.Failure {
+  let flow = session.flow()
+  let keys : Array[String] = []
+  fn retain(paragraph : @layout.Paragraph) {
+    for span in paragraph.spans {
+      if span.image is Some(image) && !keys.contains(image.key) {
+        keys.push(image.key)
+      }
+    }
+  }
+  for paragraph in flow.paragraphs {
+    retain(paragraph)
+  }
+  for header in flow.headers {
+    for paragraph in header {
+      retain(paragraph)
+    }
+  }
+  for table in flow.tables {
+    for row in table.rows {
+      for cell in row {
+        for paragraph in cell {
+          retain(paragraph)
+        }
+      }
+    }
+  }
+  self.images.retain(keys)
+  flow.to_json()
+}
+
+///|
 fn Foundation::picture_operation(
   self : Foundation,
   operation : String,
@@ -15,7 +50,20 @@ fn Foundation::picture_operation(
     @failure.reject("invalid-operation", "Picture settings are required")
   }
   let result = match field_string(picture, "action") {
+    "insert" =>
+      session.insert_picture(
+        revision,
+        xlsx_number(picture, "width"),
+        xlsx_number(picture, "height"),
+        input_bytes(picture, 4194304),
+      )
     "delete" => session.delete_picture(revision, field_int(picture, "id"))
+    "replace" =>
+      session.replace_picture(
+        revision,
+        field_int(picture, "id"),
+        input_bytes(picture, 4194304),
+      )
     "resize" => resize_picture(session, revision, picture)
     _ => @failure.reject("invalid-operation", "Invalid picture action")
   }

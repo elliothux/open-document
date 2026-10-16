@@ -1,4 +1,5 @@
 import { record } from "./validation.js";
+import { encodeBytes } from "./session.js";
 
 export interface DocxPicture {
   id: number;
@@ -13,20 +14,45 @@ export interface DocxPictures {
     name: string;
     reason: string;
     deleteReason: string;
+    replaceReason: string;
   })[];
 }
 export type DocxPictureEdit =
-  (DocxPicture & { action: "resize" }) | { action: "delete"; id: number };
+  | (DocxPicture & { action: "resize" })
+  | { action: "insert"; width: number; height: number; bytes: Uint8Array }
+  | { action: "replace"; id: number; bytes: Uint8Array }
+  | { action: "delete"; id: number };
 export function checkDocxPictureEdit(value: unknown): void {
   const edit = record(value);
   if (edit.action === "resize") return checkDocxPicture(value);
+  if (edit.action === "insert") {
+    checkDocxPicture({
+      id: 0,
+      width: edit.width,
+      height: edit.height,
+      crop: [0, 0, 0, 0],
+    });
+    checkImageBytes(edit.bytes);
+    return;
+  }
   if (
-    edit.action !== "delete" ||
+    (edit.action !== "delete" && edit.action !== "replace") ||
     !Number.isSafeInteger(edit.id) ||
     Number(edit.id) < 0 ||
     Number(edit.id) > 2147483647
   )
     throw new Error("Invalid DOCX picture action");
+  if (edit.action === "replace") checkImageBytes(edit.bytes);
+}
+function checkImageBytes(bytes: unknown): void {
+  if (!(bytes instanceof Uint8Array) || !bytes.length || bytes.length > 4194304)
+    throw new Error("Invalid DOCX image input");
+}
+export function prepareDocxPictureEdit(picture: DocxPictureEdit): unknown {
+  checkDocxPictureEdit(picture);
+  return picture.action === "replace" || picture.action === "insert"
+    ? { ...picture, bytes: encodeBytes(picture.bytes) }
+    : picture;
 }
 export function checkDocxPicture(value: unknown): void {
   const picture = record(value),
@@ -64,6 +90,7 @@ export function docxPictures(value: unknown): DocxPictures {
       typeof image.name !== "string" ||
       typeof image.reason !== "string" ||
       typeof image.deleteReason !== "string" ||
+      typeof image.replaceReason !== "string" ||
       !Number.isSafeInteger(image.id) ||
       Number(image.id) < 0
     )

@@ -84,7 +84,7 @@ fn Session::plain_replacements(
     }
     out.write_string(before[cursor:].to_owned())
     let after = out.to_string()
-    if before != after {
+    if before != after || tree.nodes[id].name == "drawing" {
       changes[id] = after
     }
   }
@@ -112,6 +112,7 @@ fn Session::plain_replacements(
       xml: [xml],
       parts: Map([]),
       created: Map([]),
+      created_media: Map([]),
       before: self.selection,
       after: Some({ anchor: focus, focus, }),
       paragraphs: affected,
@@ -167,7 +168,12 @@ pub fn Session::replace_matches(
       let frame = match paragraphs.get(position.paragraph) {
         Some(frame) => frame
         None => {
-          tree.check_editable_paragraph(position.paragraph, part=self.main)
+          tree.check_editable_paragraph(
+            position.paragraph,
+            part=self.main,
+            pictures=true,
+          )
+          self.check_native_pictures(tree, position.paragraph)
           let frame = replacement_paragraph(
             tree,
             by_paragraph.get(position.paragraph).unwrap_or([]),
@@ -264,6 +270,7 @@ pub fn Session::replace_matches(
           xml: edits,
           parts: Map([]),
           created: Map([]),
+          created_media: Map([]),
           before: self.selection,
           after: selection,
           paragraphs: affected,

@@ -129,7 +129,7 @@ pub fn Session::image_bytes(
       "missing-image", "External image bytes must be supplied explicitly",
     )
   }
-  self.opc.read(rel.target)
+  self.media.get(rel.target).unwrap_or_else(() => self.opc.read(rel.target))
 }
 
 ///|

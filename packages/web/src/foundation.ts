@@ -522,11 +522,13 @@ export class FoundationClient {
   async selectedText(
     revision: number,
     selection: DocxSelection,
+    cut = false,
   ): Promise<string> {
     const result = await this.connection.request({
       operation: "selectedText",
       revision,
       selection,
+      cut,
     });
     if (typeof result !== "string")
       throw new Error("Invalid selection text returned by Wasm");

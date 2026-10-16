@@ -229,9 +229,15 @@ export type Operation =
     }
   | { operation: "budget" | "query" | "saveDocx" | "flow" | "editState" }
   | {
-      operation: "selectDocx" | "selectedText";
+      operation: "selectDocx";
       revision: number;
       selection: DocxSelection;
+    }
+  | {
+      operation: "selectedText";
+      revision: number;
+      selection: DocxSelection;
+      cut: boolean;
     }
   | {
       operation: "replaceRange";

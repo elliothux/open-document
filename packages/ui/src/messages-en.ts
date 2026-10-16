@@ -54,6 +54,8 @@ export const en = {
   applyCrop: "Apply crop",
   resetCrop: "Reset crop",
   insertImage: "Insert picture",
+  insertPictureWidth: "Inserted picture width (pt)",
+  insertPictureHeight: "Inserted picture height (pt)",
   pictureFile: "Picture file (PNG, JPEG)",
   imageInputLimit: "Choose a nonempty picture up to 4 MiB.",
   sheetPrintSetup: "Sheet print setup",
