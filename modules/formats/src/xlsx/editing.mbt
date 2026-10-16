@@ -358,6 +358,7 @@ fn Session::validate(
   sheets : Array[Sheet],
   workbook? : @xml.Document,
   parts? : Map[String, @xml.Document],
+  removed~ : Array[String] = self.removed,
 ) -> Unit raise @failure.Failure {
   let mut cells = 0
   let mut units = 0
@@ -379,7 +380,7 @@ fn Session::validate(
   guard cells <= 100000 && units <= 4194304 else {
     @failure.reject("limit-exceeded", "Workbook cells or text exceed budget")
   }
-  self.opc.validate_changes(replacements)
+  self.opc.validate_changes(replacements, removed~)
 }
 
 ///|
@@ -398,9 +399,32 @@ pub fn Session::undo(
   let sheets = self.sheets.copy()
   let mut workbook = self.workbook
   let parts = self.parts.copy()
+  let removed_parts = self.removed.copy()
+  let deleted_documents : Map[String, @xml.Document] = Map([])
+  let mut deleted_sheet : Sheet? = None
   let mut removed : Sheet? = None
+  let removed_created_parts : Map[String, @xml.Document] = Map([])
   if redo && entry.created is Some(sheet) {
     sheets.push(sheet)
+    for name, document in entry.created_parts {
+      guard !parts.contains(name) else {
+        @failure.reject(
+          "invalid-operation", "Created worksheet part already exists",
+        )
+      }
+      parts[name] = document
+    }
+  }
+  if !redo && entry.deleted is Some(sheet) {
+    sheets.push(sheet)
+    for name, document in entry.removed {
+      if name != sheet.id {
+        parts[name] = document
+      }
+      if removed_parts.search(name) is Some(index) {
+        ignore(removed_parts.remove(index))
+      }
+    }
   }
   for (part, edit) in (if redo { entry.edits } else { entry.edits.rev() }) {
     if part == self.main {
@@ -433,16 +457,58 @@ pub fn Session::undo(
       )
     }
     removed = Some(sheet)
+    for name, snapshot in entry.created_parts {
+      guard parts.get(name) is Some(current) &&
+        current.source() == snapshot.source() else {
+        @failure.reject(
+          "invalid-operation", "Created worksheet part history has changed",
+        )
+      }
+      removed_created_parts[name] = current
+      parts.remove(name)
+    }
   }
-  let sheets = self.ordered_sheets(workbook, sheets, parts)
-  self.validate(sheets, workbook~, parts~)
+  if redo && entry.deleted is Some(deleted) {
+    let sheet = sheets.remove(
+      sheets.search_by(sheet => sheet.id == deleted.id).unwrap(),
+    )
+    deleted_sheet = Some(sheet)
+    for name, _ in entry.removed {
+      deleted_documents[name] = if name == sheet.id {
+        sheet.document
+      } else {
+        parts.get(name).unwrap_or_else(() => self.opc.xml(name))
+      }
+      parts.remove(name)
+      if self.opc.names.contains(name.to_lower()) {
+        removed_parts.push(name)
+      }
+    }
+  }
+  let sheets = self.ordered_sheets(
+    workbook,
+    sheets,
+    parts,
+    removed=removed_parts,
+  )
+  self.validate(sheets, workbook~, parts~, removed=removed_parts)
   let calculation = Calculation::build(sheets, None, [])
   // Retain XML identity allocation from later undone edits for their next redo.
   if removed is Some(_) {
     entry.created = removed
+    for name, document in removed_created_parts {
+      entry.created_parts[name] = document
+    }
+  }
+  if deleted_sheet is Some(_) {
+    entry.deleted = deleted_sheet
+    for name, document in deleted_documents {
+      entry.removed[name] = document
+    }
   }
   self.workbook = workbook
   self.parts = parts
+  self.removed = removed_parts
   self.sheets = sheets
   self.calculation = Some(calculation)
   self.selection = if redo { entry.after } else { entry.before }
@@ -459,7 +525,7 @@ pub fn Session::undo(
 pub fn Session::save(self : Session) -> Bytes raise @failure.Failure {
   self.check()
   let replacements = self.replacements(self.sheets, self.workbook, self.parts)
-  let mut modified = false
+  let mut modified = !self.removed.is_empty()
   let mut shared_count = 0
   for sheet in self.sheets {
     if !self.opc.names.contains(sheet.id.to_lower()) {
@@ -488,7 +554,14 @@ pub fn Session::save(self : Session) -> Bytes raise @failure.Failure {
       ("uniqueCount", self.strings.length().to_string()),
     ]).bytes()
   }
-  let removed = if modified { self.save_metadata(replacements) } else { [] }
+  let removed = [
+    ..self.removed,
+    ..if modified {
+      self.save_metadata(replacements)
+    } else {
+      []
+    },
+  ]
   let output = self.opc.save(replacements, removed~)
   let checked = @opc.Package::open(output, self.budget)
   checked.close()

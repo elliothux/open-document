@@ -66,5 +66,6 @@ fn Session::relationships(
 ) -> ReadOnlyArray[@opc.Relationship] raise @failure.Failure {
   self.opc.relationships(
     replacements=self.replacements(self.main, self.slides, self.parts),
+    removed=self.removed,
   )
 }

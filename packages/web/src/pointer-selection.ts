@@ -3,6 +3,19 @@ export interface PointerPoint {
   readonly y: number;
 }
 
+/** Keeps an ongoing selection inside the current page after viewport scrolling. */
+export function clampPointerPoint(
+  point: PointerPoint,
+  rect: Pick<DOMRect, "left" | "top">,
+  scale: number,
+  frame: { width: number; height: number },
+): PointerPoint {
+  return {
+    x: Math.max(0, Math.min(frame.width, (point.x - rect.left) / scale)),
+    y: Math.max(0, Math.min(frame.height, (point.y - rect.top) / scale)),
+  };
+}
+
 /** Scrolls the selection viewport and returns a page-turn direction at its boundary. */
 export function scrollPointerViewport(
   view: HTMLElement,

@@ -58,8 +58,13 @@ pub fn Session::tab(
   }
   let current = cells.search(parent.id).unwrap()
   let next = current + (if backward { -1 } else { 1 })
-  // shortcut: End-cell Tab stays put; append a row with the table creation/editing batch.
-  guard cells.get(next) is Some(cell) else { return self.edit_state() }
+  guard cells.get(next) is Some(cell) else {
+    return if backward {
+      self.edit_state()
+    } else {
+      self.edit_table(revision, selection, RowAfter)
+    }
+  }
   guard tree.child(cell, "p") is Some(paragraph) else {
     @failure.reject(
       "protected-content", "Target cell has no editable paragraph",

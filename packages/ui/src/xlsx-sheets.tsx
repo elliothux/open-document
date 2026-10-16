@@ -61,6 +61,24 @@ export function XlsxSheets({
         >
           {t.addSheet}
         </button>
+        <button
+          type="button"
+          disabled={query.sheets.length >= 256 || !!query.sheetRenameReason}
+          onClick={() =>
+            controller.run(() => editor.editSheet({ action: "copy" }))
+          }
+        >
+          {t.copySheet}
+        </button>
+        <button
+          type="button"
+          disabled={visible.length <= 1 || !!query.sheetRenameReason}
+          onClick={() =>
+            controller.run(() => editor.editSheet({ action: "delete" }))
+          }
+        >
+          {t.deleteSheet}
+        </button>
         <form
           onSubmit={(event) => {
             event.preventDefault();

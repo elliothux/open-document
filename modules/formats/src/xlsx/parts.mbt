@@ -15,7 +15,7 @@ fn Session::replacements(
 ) -> Map[String, Bytes] {
   let replacements : Map[String, Bytes] = Map([])
   for part, document in parts {
-    if !document.is_original() {
+    if !document.is_original() || !self.opc.names.contains(part.to_lower()) {
       replacements[part] = document.bytes()
     }
   }
@@ -37,5 +37,6 @@ fn Session::relationships(
 ) -> ReadOnlyArray[@opc.Relationship] raise @failure.Failure {
   self.opc.relationships(
     replacements=self.replacements(self.sheets, self.workbook, self.parts),
+    removed=self.removed,
   )
 }

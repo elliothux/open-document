@@ -32,6 +32,7 @@ fn Session::validate_slides(
   main : Tree,
   slides : Array[Slide],
   parts~ : Map[String, @xml.Document] = self.parts,
+  removed~ : Array[String] = self.removed,
 ) -> Unit raise @failure.Failure {
   let replacements = self.replacements(main, slides, parts)
   let mut count = 0
@@ -47,7 +48,7 @@ fn Session::validate_slides(
       "limit-exceeded", "Presentation objects or text exceed budget",
     )
   }
-  self.opc.validate_changes(replacements)
+  self.opc.validate_changes(replacements, removed~)
 }
 
 ///|
@@ -71,6 +72,8 @@ fn Session::commit_slides(
   after : Selection,
   parts~ : Map[String, @xml.Document] = self.parts,
   created~ : (Slide, @xml.Document)? = None,
+  deleted~ : Slide? = None,
+  removed~ : Map[String, @xml.Document] = Map([]),
 ) -> Unit raise @failure.Failure {
   guard self.revision < 2147483647 else {
     @failure.reject("limit-exceeded", "Presentation revision exhausted")
@@ -86,11 +89,22 @@ fn Session::commit_slides(
       ) *
       2
     })
-    .unwrap_or(0L)
+    .unwrap_or(0L) +
+    removed
+    .values()
+    .fold(init=0L, (sum, document) => {
+      sum + document.source().length().to_int64() * 2
+    })
   guard payload <= 4194304 else {
     @failure.reject("limit-exceeded", "Edit exceeds history budget")
   }
-  self.validate_slides(main, slides, parts~)
+  let removed_parts = self.removed.copy()
+  for name in removed.keys() {
+    if self.opc.names.contains(name.to_lower()) {
+      removed_parts.push(name)
+    }
+  }
+  self.validate_slides(main, slides, parts~, removed=removed_parts)
   for entry in self.redo {
     self.history_bytes -= entry.bytes
   }
@@ -102,6 +116,8 @@ fn Session::commit_slides(
   self.history.push({
     edits,
     created,
+    deleted,
+    removed,
     before: self.selection,
     after,
     bytes: payload.to_int(),
@@ -109,6 +125,7 @@ fn Session::commit_slides(
   self.history_bytes += payload.to_int()
   self.main = main
   self.parts = parts
+  self.removed = removed_parts
   self.slides = slides
   self.selection = after
   self.revision += 1
@@ -131,10 +148,24 @@ pub fn Session::undo(
     }
     let slides = self.slides.copy()
     let parts = self.parts.copy()
+    let removed_parts = self.removed.copy()
+    let deleted_documents : Map[String, @xml.Document] = Map([])
+    let mut deleted_slide : Slide? = None
     let mut removed : (Slide, @xml.Document)? = None
     if redo && entry.created is Some((slide, relations)) {
       slides.push(slide)
       parts[relationship_part(slide.tree.part)] = relations
+    }
+    if !redo && entry.deleted is Some(slide) {
+      slides.push(slide)
+      for name, document in entry.removed {
+        if name != slide.tree.part {
+          parts[name] = document
+        }
+        if removed_parts.search(name) is Some(index) {
+          ignore(removed_parts.remove(index))
+        }
+      }
     }
     let mut main = self.main
     for (part, edit) in (if redo { entry.edits } else { entry.edits.rev() }) {
@@ -173,14 +204,44 @@ pub fn Session::undo(
       parts.remove(relation_path)
       removed = Some((slide, relations))
     }
-    let slides = self.ordered_slides(main, slides, parts~)
-    self.validate_slides(main, slides, parts~)
+    if redo && entry.deleted is Some(deleted) {
+      let index = slides
+        .search_by(slide => slide.tree.part == deleted.tree.part)
+        .unwrap()
+      let slide = slides.remove(index)
+      deleted_slide = Some(slide)
+      for name, _ in entry.removed {
+        deleted_documents[name] = if name == slide.tree.part {
+          slide.tree.document
+        } else {
+          parts.get(name).unwrap_or_else(() => self.opc.xml(name))
+        }
+        parts.remove(name)
+        if self.opc.names.contains(name.to_lower()) {
+          removed_parts.push(name)
+        }
+      }
+    }
+    let slides = self.ordered_slides(
+      main,
+      slides,
+      parts~,
+      removed=removed_parts,
+    )
+    self.validate_slides(main, slides, parts~, removed=removed_parts)
     // Preserve identity allocation after later edits were undone, for their next redo.
     if removed is Some(_) {
       entry.created = removed
     }
+    if deleted_slide is Some(_) {
+      entry.deleted = deleted_slide
+      for name, document in deleted_documents {
+        entry.removed[name] = document
+      }
+    }
     self.main = main
     self.parts = parts
+    self.removed = removed_parts
     self.slides = slides
     self.selection = if redo { entry.after } else { entry.before }
     ignore(source.pop())
@@ -199,7 +260,7 @@ pub fn Session::save(
   self.check_revision(revision)
   self.check_idle()
   let replacements = self.replacements(self.main, self.slides, self.parts)
-  let bytes = self.opc.save(replacements)
+  let bytes = self.opc.save(replacements, removed=self.removed)
   let checked = @opc.Package::open(bytes, self.budget)
   checked.close()
   bytes

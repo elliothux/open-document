@@ -6,6 +6,7 @@ import {
   PointerSelection,
   revealInput,
   scrollPointerViewport,
+  clampPointerPoint,
   type PointerPoint,
 } from "./pointer-selection.js";
 import { TextInput } from "./text-input.js";
@@ -37,6 +38,7 @@ import type {
   DocxListEdit,
   DocxListLevelUpdate,
   DocxPageSetup,
+  DocxTableEdit,
 } from "@open-document/wasm/foundation";
 /** Owns browser input order. The caller owns fonts, the opened DOCX and client lifetime. */
 export class DocumentEditor {
@@ -469,6 +471,11 @@ export class DocumentEditor {
       ),
     );
   }
+  editTable(change: DocxTableEdit): Promise<void> {
+    return this.format(() =>
+      this.client.editTable(this.state.revision, this.selection(), change),
+    );
+  }
   setDefaultTabStop(interval: number | null): Promise<void> {
     return this.format(() =>
       this.client.setDefaultTabStop(this.state.revision, interval),
@@ -539,21 +546,12 @@ export class DocumentEditor {
       )
         return;
       const current = this.surface.canvas.getBoundingClientRect();
+      const clamped = clampPointerPoint(point, current, this.cssScale, frame);
       const hit = await this.client.hitTest(
         initial ? layoutId : this.currentLayout.id,
         initial ? page : this.page,
-        initial
-          ? x
-          : Math.max(
-              0,
-              Math.min(frame.width, (point.x - current.left) / this.cssScale),
-            ),
-        initial
-          ? y
-          : Math.max(
-              0,
-              Math.min(frame.height, (point.y - current.top) / this.cssScale),
-            ),
+        initial ? x : clamped.x,
+        initial ? y : clamped.y,
       );
       this.assertOpen();
       if (!hit.position) throw new Error(hit.reason);

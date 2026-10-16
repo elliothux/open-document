@@ -32,23 +32,16 @@ import {
   type DocxListCatalog,
 } from "./docx-list.js";
 import { WasmSession, encodeBytes } from "./session.js";
+import {
+  checkDocxTableSize,
+  checkDocxTableEdit,
+  type DocxTableEdit,
+} from "./docx-table.js";
+export * from "./docx-table.js";
 /** Logical soft line break; DOCX serializes it as w:br, while LF creates a paragraph. */
 export const DOCX_SOFT_BREAK = "\u2028";
 /** Logical page break; serialized as w:br w:type="page", never as an XML control character. */
 export const DOCX_PAGE_BREAK = "\u000c";
-/** Bounds match the core's table creation limit. */
-export function checkDocxTableSize(rows: number, columns: number): void {
-  if (
-    !Number.isInteger(rows) ||
-    !Number.isInteger(columns) ||
-    rows < 1 ||
-    rows > 1000 ||
-    columns < 1 ||
-    columns > 63 ||
-    rows * columns > 4096
-  )
-    throw new Error("Invalid table dimensions");
-}
 import {
   docxFlow,
   pageLayout,
@@ -564,6 +557,16 @@ export class FoundationSession extends WasmSession {
     checkDefaultTabStop(interval);
     return editState(
       this.call({ operation: "setDefaultTabStop", revision, interval }),
+    );
+  }
+  editTable(
+    revision: number,
+    selection: DocxSelection,
+    change: DocxTableEdit,
+  ): EditState {
+    checkDocxTableEdit(change);
+    return editState(
+      this.call({ operation: "editDocxTable", revision, selection, change }),
     );
   }
   tabDocx(revision: number, backward = false): EditState {

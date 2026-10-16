@@ -263,6 +263,7 @@ fn Foundation::dispatch(
     | "pageSetup"
     | "setPageSetup"
     | "insertDocxTable"
+    | "editDocxTable"
     | "styleCatalog"
     | "listCatalog"
     | "editList"
@@ -401,16 +402,8 @@ fn Foundation::dispatch(
           self.layout = None
           result
         }
-        "insertDocxTable" => {
-          let result = session.insert_table(
-            field_int(request, "revision"),
-            field_selection(request),
-            field_int(request, "rows"),
-            field_int(request, "columns"),
-          )
-          self.layout = None
-          result
-        }
+        "insertDocxTable" | "editDocxTable" =>
+          self.docx_table(session, operation, request)
         "listCatalog" => session.list_catalog(field_int(request, "revision"))
         "updateListLevel" => {
           let result = session.update_list_level(

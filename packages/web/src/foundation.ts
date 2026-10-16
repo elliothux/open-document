@@ -20,6 +20,7 @@ export type {
   DocxListLevelUpdate,
   DocxPageSetup,
   DocxPageSettings,
+  DocxTableEdit,
   ListFormat,
 } from "@open-document/wasm/foundation";
 export {
@@ -37,6 +38,8 @@ import {
 import {
   docxQuery,
   checkDocxTableSize,
+  checkDocxTableEdit,
+  type DocxTableEdit,
   shapeBatch,
   resourceBudget,
   editState,
@@ -280,6 +283,21 @@ export class FoundationClient {
         operation: "setDefaultTabStop",
         revision,
         interval,
+      }),
+    );
+  }
+  async editTable(
+    revision: number,
+    selection: DocxSelection,
+    change: DocxTableEdit,
+  ): Promise<EditState> {
+    checkDocxTableEdit(change);
+    return editState(
+      await this.connection.request({
+        operation: "editDocxTable",
+        revision,
+        selection,
+        change,
       }),
     );
   }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { DocumentEditor } from "@open-document/web/editor";
+import type { DocxTableEdit } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 
@@ -23,6 +24,9 @@ export function DocxTables({
   const paragraph = snapshot.data.selection?.focus.paragraph;
   const body = editor.layout.semantics[snapshot.page]?.lines.some(
     (line) => line.paragraph === paragraph && line.container === 0,
+  );
+  const cell = editor.layout.semantics[snapshot.page]?.lines.some(
+    (line) => line.paragraph === paragraph && line.container > 0,
   );
   return (
     <section aria-label={t.insertTable}>
@@ -68,6 +72,30 @@ export function DocxTables({
           </button>
         </fieldset>
       </form>
+      <fieldset disabled={disabled || !cell}>
+        <legend>
+          {t.tableRows} / {t.tableColumns}
+        </legend>
+        {(
+          [
+            "rowBefore",
+            "rowAfter",
+            "deleteRow",
+            "columnBefore",
+            "columnAfter",
+            "deleteColumn",
+          ] satisfies DocxTableEdit[]
+        ).map((change) => (
+          <button
+            key={change}
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => controller.run(() => editor.editTable(change))}
+          >
+            {t[change]}
+          </button>
+        ))}
+      </fieldset>
     </section>
   );
 }

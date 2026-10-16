@@ -189,7 +189,11 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 核心先删除所选文字；在段中插入时拆分段落，在段首插入时保留原段落作为后续内容。新增表格使用 0.5 pt 黑色完整网格、5.4 pt 水平单元格边距与固定列宽。单元格复制插入起点的有效字符格式及支持的段落属性，并将缩进与段前分页显式归零。若段首已有段前分页，则转移到首格首段，保留表格在该页开始的位置；页首不生成额外空页。其他单元格的段前分页及表格内手动分页仍受原有布局保护。
 
-范围删除、段落拆分与新增节点共同提交一项历史，选区进入首格。核心失败保留已提交源与历史。保存及混合文字编辑的撤销/重做精确恢复源节点、选择和其他部件。新增格可继续输入、设置已有字符/段落格式及用 Tab 导航；末格自动追加、行列增删、合并拆分、跨格选择与表格属性编辑仍归 [P10](../p10-docx-core.md)。已有 `tblLayout type="fixed"` 可编辑，尚未支持的自动适配布局继续保护。
+范围删除、段落拆分与新增节点共同提交一项历史，选区进入首格。核心失败保留已提交源与历史。保存及混合文字编辑的撤销/重做精确恢复源节点、选择和其他部件。新增格可继续输入、设置已有字符/段落格式及用 Tab 导航。已有 `tblLayout type="fixed"` 可编辑，尚未支持的自动适配布局继续保护。
+
+`FoundationSession/Client.editTable(revision, selection, change)` 与 `DocumentEditor.editTable(change)` 支持 `rowBefore`、`rowAfter`、`deleteRow`、`columnBefore`、`columnAfter` 和 `deleteColumn`。范围须位于一个支持的单元格内，默认 UI 提供同样的六个命令。新增行复制当前行的行/格属性及各格首段格式；新增列复制邻格属性和首段格式，不复制文字，保留格式继承。固定宽表格保持总宽，按原列宽比例缩放为整数 twip；未指定固定宽的网格按插入/删除后的列宽计算。列编辑结果须在可用页宽内，各列至少 12 pt。全部命令遵守创建时的行列、格数及资源上限；生成源片段时累计预算，超限即停止。
+
+新增操作将光标移到新行首格或新列首行。删除操作将光标移到相邻的剩余行或列；删除最后一行或列时移除表格，进入后续正文段落，必要时创建空段落。首格段前分页随结构转移。末格 Tab 新增一行并进入首格，Shift+Tab 在首格保持原位。每次结构操作与新增身份、列宽及选择合为一次历史，保留未删文字与其他部件，支持保存重开和精确混合撤销/重做。未知结构、锚点、受保护内容或预算失败原子拒绝。行为依据 [ONLYOFFICE 行列操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9997-L10788)和[固定宽网格缩放](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L414-L425)。合并拆分、跨格选择与表格属性编辑仍归 [P10](../p10-docx-core.md)。
 
 ### 列表读取与标记排版
 
@@ -348,7 +352,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 | `open(bytes,budget)` / `openXlsx(bytes,budget)` | 打开 Transitional XLSX；签名、Strict、加密和其他扩展格式拒绝 |
 | `query(sheet?,range?)` | 默认当前选区；返回实际存在的稀疏单元格，单格查询包含空格；A1 地址，查询矩形端点有序 |
 | `select(revision,sheet,range)` | 更新可见表的核心选区；隐藏表须先显示；单格合并区域定位锚点 |
-| `editSheet(revision,sheet,change)` | 工作表重排、改名、可见性及行高/列宽事务；返回 `XlsxQuery` |
+| `editSheet(revision,sheet,change)` | 工作表新增、复制、删除、重排、改名、可见性及行高/列宽事务；返回 `XlsxQuery` |
 | `replace(revision,sheet,range,values,literal=false)` | 一项矩形事务；字段为输入字符串，核心识别值与公式；清空保留样式 |
 | `navigate(revision,direction,extend=false)` | `left/right/up/down/home`；跳过隐藏行列，Shift 扩展选区 |
 | `copy(revision)` / `paste(revision,text)` / `clear(revision)` | 核心显示值 TSV、矩形粘贴及清空；核心识别数值/布尔，`=` 不执行 |
@@ -373,9 +377,15 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 `{ action: "rename", name }` 修改表名，保持 OPC 路径、sheetId、关系、顺序、可见性及选区。名称为 1–31 个 UTF-16 单元，须是有效 XML 文本，不能含控制字符或 `[]:*?/\`，不能以单引号开头或结尾，不能与其他表名大小写不敏感地重复。相同名称不新增历史；无效名称、旧 revision 或预算失败不修改文档。
 
-核心复用公式词法分析，仅替换 `!` 前匹配旧名称的标记。新引用使用单引号包围名称，并转义名称内的单引号。更新范围包括单元格公式、定义名称、既有条件格式/数据验证公式和超链接 `location`。字符串常量、共享公式组与源格式保持不变；事务重建计算并沿既有计算元数据规则保存，撤销恢复原部件字节。此能力不包含条件格式或数据验证的编辑与呈现。
+核心复用公式词法分析，仅替换 `!` 前匹配旧名称的标记。新引用使用单引号包围名称，并转义名称内的单引号。更新范围包括单元格公式、定义名称、既有条件格式/数据验证公式和内部超链接 `location`；带关系 ID 的外部链接保留其目标内位置。字符串常量、共享公式组与源格式保持不变；事务重建计算并沿既有计算元数据规则保存，撤销恢复原部件字节。此能力不包含条件格式或数据验证的编辑与呈现。
 
-`XlsxQuery.sheetRenameReason` 包含结构保护原因，并保护尚未接入引用更新的工作簿/工作表资源关系、未知工作表内容、非空扩展及非普通/共享公式组。默认 UI 显示该原因并提供名称输入和改名入口。表删除、复制和更广引用处理仍归 [P11](../p11-xlsx-core.md)。
+`{ action: "delete" }` 删除指定表，至少保留一张可见表。删除活动表时优先选择右侧可见表，再向左查找，定位 A1；删除其他表保留活动表与范围。同步剩余名称的 `localSheetId`、工作簿窗口及工作表视图；移除被删表的局部名称。将指向该表的已支持单元格/区域引用整体替换为 `#REF!`，覆盖单元格公式、保留的定义名称和既有条件格式/数据验证公式；移除指向它的内部超链接，保留外部链接及字符串常量。共享公式组继续保存为共享组，失去目标的错误参与依赖计算和缓存写回。核心现可解析七种标准公式错误常量，保留错误传播和 IF 的按需求值规则。引用错误在网格和 PDF 中使用同一结果。
+
+`{ action: "copy" }` 在目标表后复制，分配新的 sheetId、部件及关系身份。名称从 `原名 (1)` 起避让重名，长度不超过 31 个 UTF-16 单元且不切断代理对。副本保留内容、格式、尺寸和可见性，更新自身显式引用与复制的局部名称；其他表的引用及字符串常量不变。已有普通批注复制为独立部件，清除副本的可选 guid/shapeId，原批注不变；外部链接只保留地址。可见副本激活 A1，隐藏副本保留当前选择。副本部件和元数据使用同一有界历史，失败不修改文档。绘图、表格、VML、线程批注及未知身份扩展仍受保护。
+
+删除仅移除工作表 XML、其关系、失效 calcChain 及其关系，更新工作簿关系和内容类型。其余源资源保留，不回收共享字符串条目或重排字符串索引；保存更新使用计数并沿现有规则标记重算。删除部件快照、引用、缓存和选择共同提交一项有界历史，可与新增、输入和改名精确混合撤销/重做；损坏回放或预算失败保留已提交文档。选择与错误引用规则参考 [ONLYOFFICE 删除工作表](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L4122-L4188)和[引用转换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L10419-L10455)。
+
+`XlsxQuery.sheetRenameReason` 包含结构保护原因，并保护尚未接入引用更新的工作簿/工作表资源关系、未知工作表内容、非空扩展及非普通/共享公式组。复制和删除沿用该引用保护；复制另保护未知身份属性，删除另拒绝未知的部件入站引用。默认 UI 显示原因，提供名称输入、复制、改名与删除入口，并禁用最后可见表的删除。更广资源及引用处理仍归 [P11](../p11-xlsx-core.md)。
 
 `{ action: "rowHeight" | "columnWidth", first, last, size }` 设置包含两端的行或列范围，索引从 1 开始。行高为 0–409.5 磅，一次最多 4096 行；列宽为 0–255 个 OOXML 字符宽度单位，列索引上限为 16384。零值隐藏并保留已有尺寸；正值设置固定尺寸并显示目标行列，列宽同时取消 bestFit。列宽由核心按默认字体的最大数字宽度换算为实际几何。设置行高可创建空行记录，不展开空单元格；拆分列区间保留各段的样式与轮廓属性。目标列包含未知属性或子元素时拒绝修改，保留源内容。
 
@@ -425,7 +435,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 ## PPTX
 
-`PptxSession.execute({ operation: "createPptx", budget })` 与 `PptxClient.execute` 创建 960×540 pt 的空白演示文稿，包含一张无对象页面及其空白版式、母版、主题、关系和内容类型。主题使用 Arial 和显式颜色/无效果样式；当前页为该空白页，revision 与历史为 0。创建后可显示、插入基本对象、保存、重开及输出静态 PDF。默认 UI 与 `mountEditor`、实例 `create/open` 使用同一入口及首次保存规则。页删除/复制、章节和主题编辑仍按 P12 后续范围实施；创建不生成占位文字或不可编辑的背景图片。
+`PptxSession.execute({ operation: "createPptx", budget })` 与 `PptxClient.execute` 创建 960×540 pt 的空白演示文稿，包含一张无对象页面及其空白版式、母版、主题、关系和内容类型。主题使用 Arial 和显式颜色/无效果样式；当前页为该空白页，revision 与历史为 0。创建后可显示、插入基本对象、保存、重开及输出静态 PDF。默认 UI 与 `mountEditor`、实例 `create/open` 使用同一入口及首次保存规则。页复制、章节和主题编辑仍按 P12 后续范围实施；创建不生成占位文字或不可编辑的背景图片。
 
 `PptxSession.execute()` 与 `PptxClient.execute()` 使用独立的 `PptxCommand`，不复用 DOCX/XLSX 位置模型。`PptxQuery` 返回 revision、声明页序/尺寸/隐藏状态、当前页对象、有效字体键、图片键、选区、历史状态与诊断。幻灯片 ID 为源部件路径，对象 ID 为所属部件与源 `cNvPr.id`；未知对象使用只读源节点身份。
 
@@ -433,7 +443,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 | --- | --- |
 | `openPptx` / `queryPptx` | 显式预算打开 Transitional PPTX / 查询当前状态 |
 | `selectPptx` / `navigatePptx` | 页/对象/文字选择、对象顺序及字素/行导航；文字使用对象内 UTF-16 offset |
-| `editPptxSlides` | revision、稳定 slide 身份和 `PptxSlideEdit`；新增、重排或隐藏/显示，返回 `PptxQuery` |
+| `editPptxSlides` | revision、稳定 slide 身份和 `PptxSlideEdit`；新增、删除、重排或隐藏/显示，返回 `PptxQuery` |
 | `editPptxObjects` | revision、字体 profile 和 `PptxObjectEdit`；插入、删除、复制、旋转、翻转或调整当前对象层次，返回 `PptxQuery` |
 | `replacePptx` / `deletePptx` / `copyPptx` | 普通文字范围编辑、方向删除及纯文本复制；编辑需要字体 profile |
 | `beginPptx` / `finishPptx` / `cancelPptx` | 开始、提交、取消 `text` 或 `transform` 候选；匹配 revision 与 candidateId |
@@ -447,9 +457,11 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 `{ action: "add" }` 在目标页后插入空白本地内容，沿用该页的版式、母版和主题，继承版式/母版中的装饰与背景。新页可继续创建及编辑对象；不复制原页对象、备注、动画或版式占位符。核心分配新页 ID、路径和关系，切到新页并清空对象选择。会话内撤销后再新增不复用该页身份。新 slide 及其版式关系、内容类型和页引用合为一项有界历史，与后续对象/文字、重排和隐藏共同精确撤销/重做。最多 256 页，预算或保护失败不留下新部件。默认 UI 提供新增空白页入口。
 
-`PptxQuery.slideOrderReason/slideVisibilityReason` 返回各自保护原因。修改保护阻止两者；章节、未知 presentation/页列表扩展、presProps 中的位置型 `sldRg` 放映范围和未知 presentation properties 扩展阻止新增与重排。空参考线列表及已知图片编辑数据、默认 DPI、图表引用跟踪设置扩展原样保留；非空参考线列表继续保护。默认 UI 使用这些原因，提供新增、页前移/后移和隐藏/显示，页列表保留隐藏页入口。历史按稳定部件路径恢复，混合对象编辑与页序变化不会改错页面。
+`{ action: "delete" }` 删除指定页，至少保留一页。删除活动页时选择原位置的下一页，末页则选前页，并清空对象选择；删除非活动页保留当前选择。同步移除 presentation 页引用、自定义放映中的对应条目，以及其他 XML 中指向该页的已知 DrawingML 点击/悬停链接及关系，保留链接所在对象与文字。空的自定义放映保留身份。仅删除该 slide、其关系和独占的备注/传统批注 XML 及关系，移除对应内容类型；版式、母版、主题、图片、作者与未知资源保留，不扫描清理整个包。共享备注/批注、未知或隐式引用、超出历史/输出预算时原子拒绝。删除部件快照计入有界历史，可与新增、对象及页序编辑精确混合撤销/重做，损坏历史拒绝回放且不改变当前文稿。默认 UI 提供删除页，并禁用最后一页的删除。选择规则参考 [ONLYOFFICE 删除页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L9458-L9485)。
 
-隐藏页仍可在编辑器中查看和编辑，允许全部页隐藏。全稿静态 PDF 默认跳过隐藏页，显式 `hidden: true` 包含它们；仅导出当前页时可以输出当前隐藏页。没有待输出页时返回 `unsupported-pdf`，不返回空 PDF。保存重开按新页序打开首张页面，保留隐藏状态。页删除/复制和章节编辑仍归 [P12](../p12-pptx-core.md)。
+`PptxQuery.slideOrderReason/slideVisibilityReason` 返回各自保护原因。修改保护阻止两者；章节、未知 presentation/页列表扩展、presProps 中的位置型 `sldRg` 放映范围和未知 presentation properties 扩展阻止新增、删除与重排。空参考线列表及已知图片编辑数据、默认 DPI、图表引用跟踪设置扩展原样保留；非空参考线列表继续保护。默认 UI 使用这些原因，提供新增、删除、页前移/后移和隐藏/显示，页列表保留隐藏页入口。历史按稳定部件路径恢复，混合对象编辑与页序变化不会改错页面。
+
+隐藏页仍可在编辑器中查看和编辑，允许全部页隐藏。全稿静态 PDF 默认跳过隐藏页，显式 `hidden: true` 包含它们；仅导出当前页时可以输出当前隐藏页。没有待输出页时返回 `unsupported-pdf`，不返回空 PDF。保存重开按新页序打开首张页面，保留隐藏状态。页复制和章节编辑仍归 [P12](../p12-pptx-core.md)。
 
 `PptxObjectEdit` 从 `wasm/pptx` 和 `web/pptx` 导出。`PresentationEditor.editObjects(change)` 使用同一队列与命令。插入参数为 `{ action: "insert", kind: "text" | "rect" | "ellipse" | "line", x, y, width, height, text }`；坐标和尺寸为 point，绝对值不超过 14400。非线对象宽高至少 0.1；线可有一个零尺寸轴，总尺寸至少 0.1。文本框透明无描边，矩形/椭圆白底黑色 1 pt 线，直线黑色 1 pt；文字为 Arial 18 pt 黑色，支持 `\n` 与 `U+2028`，线不接收文字。核心校验文字、字体和固定框容量，失败保留文档和历史。
 

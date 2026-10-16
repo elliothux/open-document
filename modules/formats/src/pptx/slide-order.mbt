@@ -1,6 +1,7 @@
 ///|
 pub(all) enum SlideEdit {
   AddSlide
+  DeleteSlide
   MoveSlide(Int)
   HideSlide(Bool)
 }
@@ -11,6 +12,7 @@ fn Session::ordered_slides(
   main : Tree,
   available : Array[Slide],
   parts~ : Map[String, @xml.Document] = self.parts,
+  removed~ : Array[String] = self.removed,
 ) -> Array[Slide] raise @failure.Failure {
   let list = main.required(
     main.root("presentation").id,
@@ -21,6 +23,7 @@ fn Session::ordered_slides(
   for
     relation in self.opc.relationships(
       replacements=self.replacements(main, available, parts),
+      removed~,
     ) {
     if relation.owner == main.part &&
       relation.kind == relationship_uri + "/slide" {
@@ -172,7 +175,9 @@ pub fn Session::edit_slides(
   self.check_revision(revision)
   self.check_idle()
   let index = self.index(slide)
-  let reason = if change is MoveSlide(_) || change is AddSlide {
+  let reason = if change is MoveSlide(_) ||
+    change is AddSlide ||
+    change is DeleteSlide {
     self.slide_order_reason()
   } else {
     self.slide_visibility_reason()
@@ -180,6 +185,7 @@ pub fn Session::edit_slides(
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   match change {
     AddSlide => return self.add_slide(index)
+    DeleteSlide => return self.delete_slide(index)
     MoveSlide(target) => {
       guard target >= 0 && target < self.slides.length() else {
         @failure.reject(

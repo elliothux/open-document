@@ -57,6 +57,8 @@ pub fn Session::viewport(Self, String, Double, Double, Double, Double, @layout.T
 
 pub(all) enum SheetEdit {
   Add
+  Copy
+  Delete
   Move(Int)
   Visibility(String)
   Rename(String)

@@ -12,6 +12,7 @@ import type {
   DocxListEdit,
   DocxListLevelUpdate,
   DocxPageSetup,
+  DocxTableEdit,
 } from "@open-document/wasm/foundation";
 import type {
   GridViewport,
@@ -22,6 +23,12 @@ import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
+  | {
+      operation: "editDocxTable";
+      revision: number;
+      selection: DocxSelection;
+      change: DocxTableEdit;
+    }
   | { operation: "pageSetup"; revision: number }
   | { operation: "setPageSetup"; revision: number; page: DocxPageSetup }
   | {

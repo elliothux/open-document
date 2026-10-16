@@ -46,6 +46,7 @@ fn Foundation::pptx_operation(
       }
       let change = match field_string(change, "action") {
         "add" => @pptx.AddSlide
+        "delete" => @pptx.DeleteSlide
         "move" => @pptx.MoveSlide(field_int(change, "index"))
         "hidden" => @pptx.HideSlide(xlsx_boolean(change, "hidden"))
         _ => @failure.reject("invalid-operation", "Unknown slide edit")

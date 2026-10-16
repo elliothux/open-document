@@ -10,6 +10,7 @@ fn workbook_relations(main : String) -> String {
 ///|
 fn Session::prepare_sheet_add(
   self : Session,
+  copy~ : Sheet? = None,
 ) -> (Sheet, Int, String, Array[(String, @xml.Document, @xml.Edit)]) raise @failure.Failure {
   guard self.sheets.length() < 256 else {
     @failure.reject("limit-exceeded", "Worksheet count exceeds budget")
@@ -32,13 +33,14 @@ fn Session::prepare_sheet_add(
   let mut part = ""
   let mut relation = ""
   let mut name = ""
+  let copied_name = copy.map(source => self.copied_sheet_name(source.name))
   while true {
     guard number < 2147483647 else {
       @failure.reject("limit-exceeded", "Worksheet identity exhausted")
     }
     part = directory + "worksheets/sheet\{number}.xml"
     relation = "odSheet\{number}"
-    name = "Sheet\{number}"
+    name = copied_name.unwrap_or("Sheet\{number}")
     if !self.opc.names.contains(part.to_lower()) &&
       !self.sheets.any(sheet => {
         sheet.id.to_lower() == part.to_lower() ||
@@ -53,7 +55,25 @@ fn Session::prepare_sheet_add(
     number += 1
   }
   let document = @xml.Document::parse(
-    empty_worksheet(),
+    if copy is Some(source) {
+      guard source.document.source().length() <= 2097152 else {
+        @failure.reject(
+          "limit-exceeded", "Copied worksheet exceeds history budget",
+        )
+      }
+      let changes = sheet_reference_changes(
+        source.document,
+        source.name,
+        Some(name),
+      )
+      if changes.is_empty() {
+        source.document.bytes()
+      } else {
+        source.document.edit_source(changes).0.bytes()
+      }
+    } else {
+      empty_worksheet()
+    },
     part,
     self.budget.xml_depth,
     self.budget.entry_bytes,
@@ -61,7 +81,7 @@ fn Session::prepare_sheet_add(
   let sheet = Sheet::read(
     part,
     name,
-    "visible",
+    copy.map(source => source.state).unwrap_or("visible"),
     document,
     self.strings,
     self.style_count,
@@ -84,6 +104,6 @@ fn Session::prepare_sheet_add(
     ])
     metadata.push((path, updated, edit))
   }
-  let markup = "<od:sheet xmlns:od=\"\{spreadsheet_uri}\" xmlns:r=\"\{relationship_uri[:relationship_uri.length() - 1]}\" name=\"\{name}\" sheetId=\"\{number}\" r:id=\"\{relation}\"/>"
+  let markup = "<od:sheet xmlns:od=\"\{spreadsheet_uri}\" xmlns:r=\"\{relationship_uri[:relationship_uri.length() - 1]}\" name=\"\{escaped_attribute(name)}\" sheetId=\"\{number}\" state=\"\{sheet.state}\" r:id=\"\{relation}\"/>"
   (sheet, number, markup, metadata)
 }

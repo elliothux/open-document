@@ -1,12 +1,14 @@
 ///|
-fn renamed_formula(
+fn sheet_reference_formula(
   text : String,
   old : String,
-  name : String,
+  name : String?,
 ) -> String raise @failure.Failure {
   let spans : Array[(Int, Int)] = []
   let tokens = formula_tokens(text, spans~)
-  let quoted = "'" + name.replace_all(old="'", new="''") + "'"
+  let quoted = name
+    .map(name => "'" + name.replace_all(old="'", new="''") + "'")
+    .unwrap_or("#REF!")
   let ranges : Array[(Int, Int)] = []
   let mut units = text.length()
   for index, token in tokens {
@@ -16,7 +18,26 @@ fn renamed_formula(
         _ => continue
       }
       if value.to_lower() == old.to_lower() {
-        let range = spans[index - 1]
+        let range = if name is Some(_) {
+          spans[index - 1]
+        } else {
+          guard index + 1 < tokens.length() &&
+            (tokens[index + 1] is Word(_) || tokens[index + 1] is Numeric(_)) else {
+            @failure.reject(
+              "protected-content", "Unsupported deleted worksheet reference",
+            )
+          }
+          let mut last = index + 1
+          if tokens.get(last + 1) is Some(Operator(":")) {
+            guard tokens.get(last + 2) is Some(Word(_) | Numeric(_)) else {
+              @failure.reject(
+                "protected-content", "Unsupported deleted worksheet range",
+              )
+            }
+            last += 2
+          }
+          (spans[index - 1].0, spans[last].1)
+        }
         units += quoted.length() - (range.1 - range.0)
         ranges.push(range)
       }
@@ -97,10 +118,11 @@ fn Session::sheet_rename_reason(self : Session) -> String {
 }
 
 ///|
-fn rename_reference_changes(
+fn sheet_reference_changes(
   document : @xml.Document,
   old : String,
-  name : String,
+  name : String?,
+  deleted_scope~ : Int? = None,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let changes : Array[@xml.SourceChange] = []
   let mut payload = 0L
@@ -112,7 +134,14 @@ fn rename_reference_changes(
         node.name,
       ) &&
       !node.text.is_empty() {
-      let text = renamed_formula(node.text, old, name)
+      if node.name == "definedName" &&
+        node
+        .attribute("localSheetId")
+        .map(scope => Some(natural(scope, 255)) == deleted_scope)
+        .unwrap_or(false) {
+        continue
+      }
+      let text = sheet_reference_formula(node.text, old, name)
       if text != node.text {
         let xml = @xml.escape_text(text)
         let length = node.closing_start - node.opening_end
@@ -125,9 +154,19 @@ fn rename_reference_changes(
         })
       }
     }
-    if node.name == "hyperlink" && node.attribute("location") is Some(location) {
-      let text = renamed_formula(location, old, name)
-      let updates = metadata_changes(node, [("location", text)])
+    if node.name == "hyperlink" &&
+      node.attribute(
+        "id",
+        uri=relationship_uri[:relationship_uri.length() - 1].to_owned(),
+      )
+      is None &&
+      node.attribute("location") is Some(location) {
+      let text = sheet_reference_formula(location, old, name)
+      let updates = if name is None && text != location {
+        [sheet_node_removal(Tree::new(document), node)]
+      } else {
+        metadata_changes(node, [("location", text)])
+      }
       for change in updates {
         payload += (change.length.to_int64() + change.xml.length().to_int64()) *
           2
@@ -144,13 +183,7 @@ fn rename_reference_changes(
 }
 
 ///|
-fn Session::rename_sheet(
-  self : Session,
-  index : Int,
-  name : String,
-) -> Json raise @failure.Failure {
-  let reason = self.sheet_rename_reason()
-  guard reason.is_empty() else { @failure.reject("protected-content", reason) }
+fn validate_sheet_name(name : String) -> Unit raise @failure.Failure {
   guard !name.is_empty() &&
     name.length() <= 31 &&
     @xml.valid_text(name) &&
@@ -164,6 +197,17 @@ fn Session::rename_sheet(
     }) else {
     @failure.reject("invalid-sheet", "Invalid worksheet name")
   }
+}
+
+///|
+fn Session::rename_sheet(
+  self : Session,
+  index : Int,
+  name : String,
+) -> Json raise @failure.Failure {
+  let reason = self.sheet_rename_reason()
+  guard reason.is_empty() else { @failure.reject("protected-content", reason) }
+  validate_sheet_name(name)
   guard !self.sheets.any(sheet => {
     sheet.id != self.sheets[index].id &&
     sheet.name.to_lower() == name.to_lower()
@@ -179,7 +223,7 @@ fn Session::rename_sheet(
   let changes = metadata_changes(tree.all(parent.id, "sheet")[index], [
     ("name", name),
   ])
-  changes.append(rename_reference_changes(self.workbook, old, name))
+  changes.append(sheet_reference_changes(self.workbook, old, Some(name)))
   let mut payload = changes
     .iter()
     .fold(init=0L, (sum, change) => {
@@ -187,7 +231,7 @@ fn Session::rename_sheet(
     })
   let plans : Array[(Int, Array[@xml.SourceChange])] = []
   for index, sheet in self.sheets {
-    let edits = rename_reference_changes(sheet.document, old, name)
+    let edits = sheet_reference_changes(sheet.document, old, Some(name))
     payload += edits
       .iter()
       .fold(init=0L, (sum, change) => {

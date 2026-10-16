@@ -60,17 +60,19 @@ fn Package::check(self : Package) -> Unit raise @failure.Failure {
 pub fn Package::relationships(
   self : Package,
   replacements~ : Map[String, Bytes] = Map([]),
+  removed~ : Array[String] = [],
 ) -> ReadOnlyArray[Relationship] raise @failure.Failure {
   self.check()
-  if replacements
+  if !removed.is_empty() ||
+    replacements
     .keys()
     .any(name => {
       name.to_lower().has_suffix(".rels") ||
       name == "[Content_Types].xml" ||
       !self.names.contains(name.to_lower())
     }) {
-    self.validate_changes(replacements)
-    let (_, relationships, _) = self.replacement_metadata(replacements, [])
+    self.validate_changes(replacements, removed~)
+    let (_, relationships, _) = self.replacement_metadata(replacements, removed)
     return ReadOnlyArray::from_array(relationships)
   }
   ReadOnlyArray::from_array(self.relationships)

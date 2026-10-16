@@ -3,6 +3,7 @@ pub struct Session {
   priv opc : @opc.Package
   priv mut main : Tree
   priv mut parts : Map[String, @xml.Document]
+  priv mut removed : Array[String]
   priv mut slide_sequence : Int64
   priv cache : Map[String, Tree]
   priv budget : @archive.Budget
@@ -275,6 +276,7 @@ fn Session::from_package(
     opc,
     main,
     parts: Map([]),
+    removed: [],
     slide_sequence: 256L,
     cache,
     budget,
@@ -533,6 +535,7 @@ pub fn Session::close(self : Session) -> Unit {
   self.redo.clear()
   self.cache.clear()
   self.parts.clear()
+  self.removed.clear()
   self.candidate = None
   self.view = None
   self.history_bytes = 0

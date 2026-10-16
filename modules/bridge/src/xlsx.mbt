@@ -45,6 +45,8 @@ fn Foundation::xlsx_operation(
       }
       let change = match field_string(change, "action") {
         "add" => @xlsx.Add
+        "copy" => @xlsx.Copy
+        "delete" => @xlsx.Delete
         "move" => @xlsx.Move(field_int(change, "index"))
         "visibility" => @xlsx.Visibility(field_string(change, "state"))
         "rename" => @xlsx.Rename(field_string(change, "name"))

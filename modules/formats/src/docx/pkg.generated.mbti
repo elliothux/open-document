@@ -115,6 +115,7 @@ pub fn Session::delete(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::delete_style(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::edit_list(Self, Int, Selection, ListEdit) -> Json raise @failure.Failure
 pub fn Session::edit_state(Self) -> Json raise @failure.Failure
+pub fn Session::edit_table(Self, Int, Selection, TableEdit) -> Json raise @failure.Failure
 pub fn Session::enter(Self, Int) -> Json raise @failure.Failure
 pub fn Session::find(Self, Int, String, FindOptions) -> Json raise @failure.Failure
 pub fn Session::flow(Self) -> @layout.Flow raise @failure.Failure
@@ -144,6 +145,15 @@ pub fn Session::undo_edit(Self, Int) -> Json raise @failure.Failure
 pub fn Session::update_composition(Self, Int, Int, String) -> Json raise @failure.Failure
 pub fn Session::update_list_level(Self, Int, Int, Int, ListLevelFormat) -> Json raise @failure.Failure
 pub fn Session::update_style(Self, Int, String, CharacterFormat, ParagraphFormat, name? : String?, based_on? : FormatChange[String], reset? : Bool) -> Json raise @failure.Failure
+
+pub(all) enum TableEdit {
+  RowBefore
+  RowAfter
+  DeleteRow
+  ColumnBefore
+  ColumnAfter
+  DeleteColumn
+}
 
 // Type aliases
 

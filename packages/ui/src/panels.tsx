@@ -82,6 +82,15 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
           }
         />
         <Command
+          label={t.deleteSlide}
+          disabled={
+            disabled || query.slides.length <= 1 || !!query.slideOrderReason
+          }
+          action={() =>
+            controller.run(() => editor.editSlides({ action: "delete" }))
+          }
+        />
+        <Command
           label={t.slideEarlier}
           disabled={disabled || index <= 0 || !!query.slideOrderReason}
           action={() =>

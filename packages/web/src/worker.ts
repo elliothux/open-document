@@ -186,6 +186,12 @@ async function dispatch(request: Request): Promise<unknown> {
             request.rows,
             request.columns,
           );
+        case "editDocxTable":
+          return foundation.editTable(
+            request.revision,
+            request.selection,
+            request.change,
+          );
         case "setDefaultTabStop":
           return foundation.setDefaultTabStop(
             request.revision,

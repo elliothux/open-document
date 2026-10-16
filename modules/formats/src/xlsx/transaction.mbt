@@ -8,6 +8,9 @@ fn Session::commit(
   after : (String, Range),
   parts~ : Map[String, @xml.Document] = self.parts,
   created~ : Sheet? = None,
+  created_parts~ : Map[String, @xml.Document] = Map([]),
+  deleted~ : Sheet? = None,
+  removed~ : Map[String, @xml.Document] = Map([]),
 ) -> Unit raise @failure.Failure {
   guard self.revision < 2147483647 else {
     @failure.reject("limit-exceeded", "Workbook revision exhausted")
@@ -17,11 +20,27 @@ fn Session::commit(
     .fold(init=0L, (sum, entry) => sum + entry.1.payload_bytes()) +
     created
     .map(sheet => sheet.document.source().length().to_int64() * 2)
-    .unwrap_or(0L)
+    .unwrap_or(0L) +
+    created_parts
+    .values()
+    .fold(init=0L, (sum, document) => {
+      sum + document.source().length().to_int64() * 2
+    }) +
+    removed
+    .values()
+    .fold(init=0L, (sum, document) => {
+      sum + document.source().length().to_int64() * 2
+    })
   guard payload <= 4194304 else {
     @failure.reject("limit-exceeded", "Edit exceeds history payload budget")
   }
-  self.validate(sheets, workbook~, parts~)
+  let removed_parts = self.removed.copy()
+  for name in removed.keys() {
+    if self.opc.names.contains(name.to_lower()) {
+      removed_parts.push(name)
+    }
+  }
+  self.validate(sheets, workbook~, parts~, removed=removed_parts)
   for item in self.redo {
     self.history_bytes -= item.bytes
   }
@@ -29,6 +48,9 @@ fn Session::commit(
   let entry : History = {
     edits,
     created,
+    created_parts,
+    deleted,
+    removed,
     bytes: payload.to_int(),
     before: self.selection,
     after,
@@ -41,6 +63,7 @@ fn Session::commit(
   self.history_bytes += entry.bytes
   self.workbook = workbook
   self.parts = parts
+  self.removed = removed_parts
   self.sheets = sheets
   self.calculation = Some(calculation)
   self.selection = after

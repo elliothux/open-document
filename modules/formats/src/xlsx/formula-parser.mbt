@@ -19,6 +19,7 @@ priv enum Token {
   Word(String)
   Numeric(Double)
   Quoted(String, Bool)
+  ErrorLiteral(String)
   Operator(String)
   End
 }
@@ -49,6 +50,21 @@ fn formula_tokens(
       continue
     }
     let token_start = index
+    if character == '#' {
+      let errors = [
+        "#REF!", "#DIV/0!", "#VALUE!", "#N/A", "#NAME?", "#NUM!", "#NULL!",
+      ]
+      guard errors.iter().find_first(value => text[index:].has_prefix(value))
+        is Some(value) else {
+        @failure.reject("unsupported-formula", "Unknown formula error literal")
+      }
+      index += value.length()
+      tokens.push(ErrorLiteral(value))
+      if spans is Some(spans) {
+        spans.push((token_start, index))
+      }
+      continue
+    }
     if character == '"' || character == '\'' {
       let quote = character
       index += 1
@@ -253,6 +269,7 @@ fn FormulaParser::primary(
   }
   match self.take() {
     Numeric(value) => Constant(Number(value))
+    ErrorLiteral(value) => Constant(Error(value))
     Quoted(value, false) => Constant(Text(value))
     Quoted(sheet, true) => {
       guard self.accept("!") && self.take() is Word(address) else {

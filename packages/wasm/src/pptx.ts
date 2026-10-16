@@ -239,12 +239,13 @@ export function isPptxCommand(value: {
 
 export type PptxSlideEdit =
   | { action: "add" }
+  | { action: "delete" }
   | { action: "move"; index: number }
   | { action: "hidden"; hidden: boolean };
 
 export function checkPptxSlideEdit(value: unknown): void {
   const change = record(value);
-  if (change.action === "add") return;
+  if (change.action === "add" || change.action === "delete") return;
   if (
     change.action === "move" &&
     typeof change.index === "number" &&
