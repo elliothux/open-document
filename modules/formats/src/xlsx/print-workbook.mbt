@@ -9,6 +9,7 @@ pub(all) enum PrintSheets {
 priv struct PrintWork {
   mut cells : Int64
   mut pages : Int
+  formulas : FormulaWork
 }
 
 ///|
@@ -66,7 +67,15 @@ pub fn Session::print_layout(
       "invalid-sheet", "Show hidden worksheets before printing them",
     )
   }
-  let work : PrintWork = { cells: 0L, pages: 0, }
+  let work : PrintWork = {
+    cells: 0L,
+    pages: 0,
+    formulas: {
+      remaining: 1048576,
+      date1904: self.date1904,
+      origin: { row: 1, column: 1, },
+    },
+  }
   let planned = indices.map(index => {
     self.print_sheet(index, range, probe, profile, setup, work)
   })

@@ -23,6 +23,8 @@ pub(all) enum SheetEdit {
   HeaderFooter(HeaderFooter)
   Validation(String, DataValidation?)
   ValidationValue(Int, Int)
+  ConditionalRule(String, Int?, ConditionalFormat?, Int)
+  ConditionalPriority(Int, Int, Int)
 }
 
 ///|
@@ -153,6 +155,12 @@ pub fn Session::edit_sheet(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   match change {
+    ConditionalRule(range, priority, settings, source_revision) =>
+      return self.set_conditional(
+        sheet, range, priority, settings, source_revision,
+      )
+    ConditionalPriority(priority, position, source_revision) =>
+      return self.move_conditional(sheet, priority, position, source_revision)
     Validation(range, settings) =>
       return self.set_validation(sheet, range, settings)
     ValidationValue(index, source_revision) =>
@@ -276,7 +284,9 @@ pub fn Session::edit_sheet(
     | PrintRange(_)
     | HeaderFooter(_)
     | Validation(_, _)
-    | ValidationValue(_, _) => abort("Dimension edit was dispatched")
+    | ValidationValue(_, _)
+    | ConditionalRule(_, _, _, _)
+    | ConditionalPriority(_, _, _) => abort("Dimension edit was dispatched")
     Rename(name) => return self.rename_sheet(index, name)
     Delete => {
       removed = self.prepare_sheet_delete(index, parts, edits)

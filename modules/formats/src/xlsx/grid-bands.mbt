@@ -196,6 +196,17 @@ fn Session::paint_grid(
     @failure.reject("limit-exceeded", "Visible cells exceed 4096 cells")
   }
   let mut units = 0
+  let work : FormulaWork = {
+    remaining: 1048576,
+    date1904: self.date1904,
+    origin: { row: 1, column: 1, },
+  }
+  let conditional = self.conditional_rules(
+    self.sheets[index],
+    index,
+    self.sheets,
+    work,
+  )
   for row in rows {
     for column in columns {
       let page : PagePaint = {
@@ -223,6 +234,8 @@ fn Session::paint_grid(
           probe,
           profile,
           false,
+          conditional,
+          work,
         ) {
         guard item is Object(fields) &&
           fields["cell"] is { "address": String(address), .. } &&

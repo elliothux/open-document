@@ -109,6 +109,7 @@ fn Session::reflow_dimensions(
   edits : Array[(String, @xml.Edit)],
   context : (@layout.TextProbe, Map[String, String])?,
   work : FitWork,
+  parts : Map[String, @xml.Document],
 ) -> Unit raise @failure.Failure {
   let old : Map[String, (Int, Sheet)] = Map([])
   for index, sheet in self.sheets {
@@ -141,6 +142,16 @@ fn Session::reflow_dimensions(
       }
     }
     let previous = old.get(candidate.id)
+    let conditional = self.conditional_rules(
+      candidate,
+      index,
+      sheets,
+      work.formulas,
+      parts~,
+    )
+    let old_conditional = previous.map(entry => {
+      self.conditional_rules(entry.1, entry.0, self.sheets, work.formulas)
+    })
     for name, cell in candidate.cells {
       let value = calculation.values.get((index, name)).unwrap_or(cell.value)
       let before = previous.bind(entry => entry.1.cells.get(name))
@@ -148,10 +159,28 @@ fn Session::reflow_dimensions(
         let original = self.calculation
           .bind(item => item.values.get((old_index, name)))
           .unwrap_or(before.value)
+        let original_style = old_conditional
+          .unwrap()
+          .applied(
+            self.styles[old_sheet.style_at(before.address)],
+            before.address,
+            self.sheets,
+            old_index,
+            self.calculation.map(c => c.values).unwrap_or(Map([])),
+            work.formulas,
+          )
+        let candidate_style = conditional.applied(
+          styles[candidate.style_at(cell.address)],
+          cell.address,
+          sheets,
+          index,
+          calculation.values,
+          work.formulas,
+        )
         if original == value &&
           before.formula == cell.formula &&
-          self.styles[old_sheet.style_at(before.address)].measurement_key() ==
-          styles[candidate.style_at(cell.address)].measurement_key() {
+          original_style.measurement_key() == candidate_style.measurement_key() &&
+          original_style.diagnostic == candidate_style.diagnostic {
           continue
         }
       }
@@ -189,6 +218,7 @@ fn Session::reflow_dimensions(
     if !columns.is_empty() {
       let sizes = self.fit_sizes(
         current,
+        sheets,
         index,
         calculation,
         styles,
@@ -198,6 +228,7 @@ fn Session::reflow_dimensions(
         work,
         rows=false,
         grow=true,
+        parts~,
       )
       let changed : Map[Int, Double] = Map([])
       for axis, size in sizes {
@@ -225,6 +256,7 @@ fn Session::reflow_dimensions(
     if !rows.is_empty() {
       let sizes = self.fit_sizes(
         current,
+        sheets,
         index,
         calculation,
         styles,
@@ -233,6 +265,7 @@ fn Session::reflow_dimensions(
         profile,
         work,
         rows=true,
+        parts~,
       )
       current = current.apply_fitted_sizes(
         sizes,

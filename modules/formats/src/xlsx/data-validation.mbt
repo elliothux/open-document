@@ -37,35 +37,6 @@ fn validation_rule(
 }
 
 ///|
-fn validation_expression(
-  source : String,
-  anchor : Address,
-  address : Address,
-  sheets : Array[Sheet],
-  sheet : Int,
-  work : FormulaWork,
-) -> Expression raise @failure.Failure {
-  work.spend(amount=source.length())
-  let source = source.strip_prefix("=").unwrap_or(source[:]).to_owned()
-  try {
-    let shifted = parse_formula(source).source(
-      rows=address.row - anchor.row,
-      columns=address.column - anchor.column,
-      invalid_ref=true,
-    )
-    let expression = parse_formula(shifted)
-    expression.dependencies(sheets, sheet, work, [], 0)
-    expression
-  } catch {
-    @failure.Failure(code~, ..) if code != "limit-exceeded" =>
-      @failure.reject(
-        "protected-content", "Data validation formula requires unsupported calculation or references",
-      )
-    error => raise error
-  }
-}
-
-///|
 fn ValidationRule::accepts(
   self : ValidationRule,
   value : Value,
@@ -80,14 +51,7 @@ fn ValidationRule::accepts(
   }
   work.origin = address
   let anchor = rule_anchor(self.ranges, false)
-  let first = validation_expression(
-    self.first,
-    anchor,
-    address,
-    sheets,
-    sheet,
-    work,
-  )
+  let first = rule_expression(self.first, anchor, address, sheets, sheet, work)
   if self.kind == "list" {
     let values = validation_values(first, sheets, sheet, calculation, work)
     return values.any(item => {
@@ -114,7 +78,7 @@ fn ValidationRule::accepts(
   }
   guard numeric_value(first) is Number(low) else { return false }
   if self.operator == "between" || self.operator == "notBetween" {
-    let expression = validation_expression(
+    let expression = rule_expression(
       self.second,
       anchor,
       address,

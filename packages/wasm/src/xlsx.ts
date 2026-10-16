@@ -1,5 +1,19 @@
 import { checkXlsxSheetEdit, type XlsxSheetEdit } from "./xlsx-sheet.js";
 import {
+  xlsxConditionalState,
+  type XlsxConditionalState,
+} from "./xlsx-conditional.js";
+export {
+  checkXlsxConditionalFormat,
+  conditionalThresholds,
+} from "./xlsx-conditional.js";
+export type {
+  XlsxConditionalFormat,
+  XlsxConditionalRule,
+  XlsxConditionalState,
+  XlsxConditionalStop,
+} from "./xlsx-conditional.js";
+import {
   xlsxValidationState,
   type XlsxValidationState,
 } from "./xlsx-validation.js";
@@ -161,6 +175,7 @@ export interface XlsxCell {
 }
 
 export interface XlsxQuery {
+  conditionalFormats: XlsxConditionalState;
   dataValidation: XlsxValidationState;
   printSetup: XlsxPrintSetup & { readOnlyReason: string };
   printRange: XlsxPrintRange & { readOnlyReason: string };
@@ -223,6 +238,7 @@ function cellValue(value: unknown): boolean {
 
 export function xlsxQuery(value: unknown): XlsxQuery {
   const query = record(value);
+  xlsxConditionalState(query.conditionalFormats);
   xlsxValidationState(query.dataValidation);
   xlsxPrintSetup(query.printSetup);
   xlsxPrintRange(query.printRange);

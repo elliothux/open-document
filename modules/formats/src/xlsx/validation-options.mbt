@@ -79,7 +79,7 @@ fn Session::validation_options(
     date1904: self.date1904,
     origin: address,
   }
-  let expression = validation_expression(
+  let expression = rule_expression(
     rule.formula1,
     address,
     address,

@@ -113,27 +113,7 @@ fn Session::derive_formats(
     ..borders.changes(),
     ..formats.changes(),
   ]
-  if !new_formats.is_empty() {
-    let root = tree.root("styleSheet")
-    if tree.one(root.id, "numFmts") is Some(container) {
-      changes.append(
-        metadata_changes(container, [
-          (
-            "count",
-            (tree.all(container.id, "numFmt").length() + new_formats.length()).to_string(),
-          ),
-        ]),
-      )
-      changes.push(insertion(container, new_formats.join("")))
-    } else {
-      changes.push({
-        node: root.id,
-        offset: fonts.parent.start - root.start,
-        length: 0,
-        xml: "<od:numFmts xmlns:od=\"\{spreadsheet_uri}\" count=\"\{new_formats.length()}\">\{new_formats.join("")}</od:numFmts>",
-      })
-    }
-  }
+  changes.append(format_number_changes(tree, new_formats))
   let generated = changes
     .iter()
     .fold(init=0L, (sum, change) => sum + change.xml.length().to_int64())

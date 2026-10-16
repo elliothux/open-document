@@ -158,3 +158,32 @@ fn clear_rule_changes(
   }
   (false, changes)
 }
+
+///|
+fn rule_expression(
+  source : String,
+  anchor : Address,
+  address : Address,
+  sheets : Array[Sheet],
+  sheet : Int,
+  work : FormulaWork,
+) -> Expression raise @failure.Failure {
+  work.spend(amount=source.length())
+  let source = source.strip_prefix("=").unwrap_or(source[:]).to_owned()
+  try {
+    let shifted = parse_formula(source).source(
+      rows=address.row - anchor.row,
+      columns=address.column - anchor.column,
+      invalid_ref=true,
+    )
+    let expression = parse_formula(shifted)
+    expression.dependencies(sheets, sheet, work, [], 0)
+    expression
+  } catch {
+    @failure.Failure(code~, ..) if code != "limit-exceeded" =>
+      @failure.reject(
+        "protected-content", "Cell rule formula requires unsupported calculation or references",
+      )
+    error => raise error
+  }
+}

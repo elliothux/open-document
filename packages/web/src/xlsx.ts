@@ -26,6 +26,13 @@ import {
 } from "@open-document/wasm/xlsx";
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type { XlsxSheetEdit, XlsxClearMode } from "@open-document/wasm/xlsx";
+export type {
+  XlsxConditionalFormat,
+  XlsxConditionalRule,
+  XlsxConditionalState,
+  XlsxConditionalStop,
+} from "@open-document/wasm/xlsx";
+export { conditionalThresholds } from "@open-document/wasm/xlsx";
 export { validationKinds, validationOperators } from "@open-document/wasm/xlsx";
 export type {
   XlsxDataValidation,

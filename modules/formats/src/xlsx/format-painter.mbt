@@ -33,6 +33,43 @@ fn format_numbers(
 }
 
 ///|
+fn format_number_changes(
+  tree : Tree,
+  numbers : Array[String],
+) -> Array[@xml.SourceChange] raise @failure.Failure {
+  if numbers.is_empty() {
+    return []
+  }
+  let root = tree.root("styleSheet")
+  if tree.one(root.id, "numFmts") is Some(container) {
+    [
+      ..metadata_changes(container, [
+        (
+          "count",
+          (tree.all(container.id, "numFmt").length() + numbers.length()).to_string(),
+        ),
+      ]),
+      insertion(container, numbers.join("")),
+    ]
+  } else {
+    let next = tree.children.get(root.id).unwrap_or([]).get(0)
+    let markup = "<od:numFmts xmlns:od=\"\{spreadsheet_uri}\" count=\"\{numbers.length()}\">\{numbers.join("")}</od:numFmts>"
+    [
+      if next is Some(next) {
+        {
+          node: root.id,
+          offset: next.start - root.start,
+          length: 0,
+          xml: markup,
+        }
+      } else {
+        insertion(root, markup)
+      },
+    ]
+  }
+}
+
+///|
 /// Copies supported cell properties in source row/column order without editing the workbook.
 pub fn Session::capture_format(
   self : Session,

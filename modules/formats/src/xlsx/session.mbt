@@ -192,7 +192,7 @@ fn Session::from_package(
       if ![
           "sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData",
           "mergeCells", "sheetProtection", "pageMargins", "pageSetup", "printOptions",
-          "headerFooter", "autoFilter", "dataValidations",
+          "headerFooter", "autoFilter", "dataValidations", "conditionalFormatting",
         ].contains(child.name) ||
         child.uri != spreadsheet_uri {
         diagnostics.push("unrendered:" + sheet.id + ":" + child.qualified)
@@ -326,6 +326,28 @@ pub fn Session::query(
       a.address.row.compare(b.address.row)
     }
   })
+  let work : FormulaWork = {
+    remaining: 1048576,
+    date1904: self.date1904,
+    origin: { row: 1, column: 1, },
+  }
+  // Formatting diagnostics keep a post-commit query from reporting a failed write.
+  let conditional : ConditionalRules = self.conditional_rules(
+    current,
+    sheet_index,
+    self.sheets,
+    work,
+  ) catch {
+    @failure.Failure(code="limit-exceeded", message~, ..) =>
+      { rules: [], reason: message, scales: Map([]), }
+    error => raise error
+  }
+  let diagnostics = self.diagnostics.copy()
+  if !conditional.reason.is_empty() {
+    diagnostics.push(
+      "conditional-format:" + current.id + ":" + conditional.reason,
+    )
+  }
   for cell in selected {
     let json = current.cell_json(
       cell.address,
@@ -341,9 +363,26 @@ pub fn Session::query(
         })
         .unwrap_or(cell.value)
       if !(cell.formula is Some(_) && value == Blank) {
-        fields["display"] = Json(
-          formatted(value, self.styles[cell.style].format, self.date1904),
-        )
+        let base = self.styles[cell.style]
+        let style = conditional.applied(
+          base,
+          cell.address,
+          self.sheets,
+          sheet_index,
+          self.calculation.map(c => c.values).unwrap_or(Map([])),
+          work,
+        ) catch {
+          @failure.Failure(code="limit-exceeded", message~, ..) =>
+            { ..base, diagnostic: message, }
+          error => raise error
+        }
+        fields["display"] = Json(formatted(value, style.format, self.date1904))
+        if !style.diagnostic.is_empty() {
+          let diagnostic = "cell-style:" + current.id + ":" + style.diagnostic
+          if !diagnostics.contains(diagnostic) {
+            diagnostics.push(diagnostic)
+          }
+        }
       }
     }
     cells.push(json)
@@ -401,6 +440,7 @@ pub fn Session::query(
     },
     "printSetup": self.print_setup_query(current),
     "dataValidation": self.validation_query(sheet_index, range.unwrap()),
+    "conditionalFormats": self.conditional_query(current, conditional),
     "printRange": self.print_range_query(sheet_index),
     "headerFooter": self.header_footer_query(current),
     "dimensions": {
@@ -417,7 +457,7 @@ pub fn Session::query(
     "formatting": self.formatting(current, range.unwrap()),
     "normalFont": self.normal_font,
     "merging": self.merging(current, range.unwrap()),
-    "diagnostics": self.diagnostics,
+    "diagnostics": diagnostics,
     "date1904": self.date1904,
   }
 }

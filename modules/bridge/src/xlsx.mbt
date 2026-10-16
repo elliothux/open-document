@@ -139,6 +139,64 @@ fn Foundation::xlsx_operation(
         "add" => @xlsx.Add
         "copy" => @xlsx.Copy
         "delete" => @xlsx.Delete
+        "conditionalRule" => {
+          guard change is { "priority": priority, "rule": rule, .. } else {
+            @failure.reject(
+              "invalid-operation", "Conditional rule settings are required",
+            )
+          }
+          @xlsx.ConditionalRule(
+            field_string(change, "ranges"),
+            if priority is Null {
+              None
+            } else {
+              Some(field_int(change, "priority"))
+            },
+            if rule is Null {
+              None
+            } else {
+              guard rule is { "format": format, .. } else {
+                @failure.reject(
+                  "invalid-operation", "Conditional format is required",
+                )
+              }
+              Some({
+                kind: field_string(rule, "kind"),
+                operator: field_string(rule, "operator"),
+                formula1: field_string(rule, "formula1"),
+                formula2: field_string(rule, "formula2"),
+                stopIfTrue: xlsx_boolean(rule, "stopIfTrue"),
+                format: xlsx_cell_format(format),
+                stops: if field_string(rule, "kind") == "colorScale" {
+                  guard rule is { "stops": Array(stops), .. } else {
+                    @failure.reject(
+                      "invalid-operation", "Color scale stops are required",
+                    )
+                  }
+                  guard [2, 3].contains(stops.length()) else {
+                    @failure.reject(
+                      "invalid-operation", "Color scale requires two or three stops",
+                    )
+                  }
+                  stops.map(stop => @xlsx.ConditionalStop::{
+                    kind: field_string(stop, "kind"),
+                    value: field_string(stop, "value"),
+                    color: field_string(stop, "color"),
+                  })
+                } else {
+                  []
+                },
+              })
+            },
+            field_int(change, "sourceRevision"),
+          )
+        }
+        "conditionalPriority" =>
+          @xlsx.ConditionalPriority(
+            field_int(change, "priority"),
+            field_int(change, "position"),
+            field_int(change, "sourceRevision"),
+          )
         "validation" => {
           guard change is { "rule": rule, .. } else {
             @failure.reject(

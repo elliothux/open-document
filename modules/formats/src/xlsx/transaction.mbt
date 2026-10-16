@@ -12,7 +12,16 @@ fn Session::commit(
   deleted~ : Sheet? = None,
   removed~ : Map[String, @xml.Document] = Map([]),
   font_context~ : (@layout.TextProbe, Map[String, String])? = self.font_context,
-  fit_work~ : FitWork = { axes: 0, cells: 0, units: 0, },
+  fit_work~ : FitWork = {
+    axes: 0,
+    cells: 0,
+    units: 0,
+    formulas: {
+      remaining: 1048576,
+      date1904: self.date1904,
+      origin: { row: 1, column: 1, },
+    },
+  },
 ) -> Unit raise @failure.Failure {
   guard self.revision < 2147483647 else {
     @failure.reject("limit-exceeded", "Workbook revision exhausted")
@@ -24,7 +33,7 @@ fn Session::commit(
     @failure.reject("malformed-xlsx", "Cell style is outside candidate styles")
   }
   self.reflow_dimensions(
-    sheets, calculation, styles, edits, font_context, fit_work,
+    sheets, calculation, styles, edits, font_context, fit_work, parts,
   )
   let payload = edits
     .iter()

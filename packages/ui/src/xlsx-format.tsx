@@ -9,6 +9,7 @@ import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { XlsxFormatPainter } from "./xlsx-format-painter.js";
 import { XlsxValidation } from "./xlsx-validation.js";
+import { XlsxConditional } from "./xlsx-conditional.js";
 
 export function XlsxFormat({
   controller,
@@ -68,6 +69,18 @@ export function XlsxFormat({
       }}
     >
       <h3>{t.cellFormat}</h3>
+      <XlsxConditional
+        key={JSON.stringify([
+          state.document?.documentId,
+          editor.currentState.sheet,
+          editor.currentState.selection.address,
+          editor.currentState.conditionalFormats,
+        ])}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
       <XlsxFormatPainter
         controller={controller}
         state={state}

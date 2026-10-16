@@ -1,45 +1,16 @@
 ///|
-// A condition without a differential style or widget cannot change text metrics.
-fn Tree::conditional_metrics_unchanged(self : Tree, node : @xml.Node) -> Bool {
-  node.attributes
-  .iter()
-  .all(attribute => attribute.uri.is_empty() && attribute.name == "sqref") &&
-  self.children
-  .get(node.id)
-  .unwrap_or([])
-  .all(rule => {
-    rule.uri == spreadsheet_uri &&
-    rule.name == "cfRule" &&
-    [Some("expression"), Some("cellIs")].contains(rule.attribute("type")) &&
-    rule.attributes
-    .iter()
-    .all(attribute => {
-      attribute.uri.is_empty() &&
-      ["type", "priority", "operator", "stopIfTrue"].contains(attribute.name)
-    }) &&
-    self.children
-    .get(rule.id)
-    .unwrap_or([])
-    .all(formula => {
-      formula.uri == spreadsheet_uri &&
-      formula.name == "formula" &&
-      formula.attributes.is_empty() &&
-      self.children.get(formula.id).unwrap_or([]).is_empty()
-    })
-  })
-}
-
-///|
 priv struct FitWork {
   mut axes : Int
   mut cells : Int
   mut units : Int
+  formulas : FormulaWork
 }
 
 ///|
 fn Session::fit_sizes(
   self : Session,
   current : Sheet,
+  sheets : Array[Sheet],
   index : Int,
   calculation : Calculation,
   styles : Array[CellStyle],
@@ -49,6 +20,7 @@ fn Session::fit_sizes(
   work : FitWork,
   rows~ : Bool,
   grow~ : Bool = false,
+  parts~ : Map[String, @xml.Document] = self.parts,
 ) -> Map[Int, Double] raise @failure.Failure {
   work.axes += axes.length()
   guard work.axes <= 4096 else {
@@ -56,19 +28,22 @@ fn Session::fit_sizes(
   }
   let tree = Tree::new(current.document)
   let root = tree.root("worksheet")
-  // shortcut: Measure conditional/table/filter effects when their rendering is implemented.
+  let conditional = self.conditional_rules(
+    current,
+    index,
+    sheets,
+    work.formulas,
+    parts~,
+  )
+  guard conditional.reason.is_empty() else {
+    @failure.reject("protected-content", conditional.reason)
+  }
+  // shortcut: Measure table/filter effects when their rendering is implemented.
   for node in tree.children.get(root.id).unwrap_or([]) {
-    if node.name == "conditionalFormatting" &&
-      node.uri == spreadsheet_uri &&
-      tree.conditional_metrics_unchanged(node) {
-      continue
-    }
     if node.uri != spreadsheet_uri ||
       node.name == "autoFilter" ||
       (
-        ["conditionalFormatting", "tableParts", "pivotTableParts", "extLst"].contains(
-          node.name,
-        ) &&
+        ["tableParts", "pivotTableParts", "extLst"].contains(node.name) &&
         !tree.children.get(node.id).unwrap_or([]).is_empty()
       ) {
       @failure.reject(
@@ -126,7 +101,14 @@ fn Session::fit_sizes(
       (if rows { range.top != range.bottom } else { range.left != range.right }) {
       continue
     }
-    let style = styles[current.style_at(cell.address)]
+    let style = conditional.applied(
+      styles[current.style_at(cell.address)],
+      cell.address,
+      sheets,
+      index,
+      calculation.values,
+      work.formulas,
+    )
     guard cell.read_only.is_empty() && style.diagnostic.is_empty() else {
       @failure.reject(
         "protected-content",
@@ -256,9 +238,19 @@ pub fn Session::auto_fit(
   let current = self.sheets[index]
   let reason = self.dimension_reason(current)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
-  let work : FitWork = { axes: 0, cells: 0, units: 0, }
+  let work : FitWork = {
+    axes: 0,
+    cells: 0,
+    units: 0,
+    formulas: {
+      remaining: 1048576,
+      date1904: self.date1904,
+      origin: { row: 1, column: 1, },
+    },
+  }
   let sizes = self.fit_sizes(
     current,
+    self.sheets,
     index,
     self.calculation.unwrap(),
     self.styles,

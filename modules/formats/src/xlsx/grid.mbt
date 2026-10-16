@@ -124,6 +124,8 @@ fn Session::paint_cells(
   probe : @layout.TextProbe,
   profile : Map[String, String],
   printing : Bool,
+  conditional : ConditionalRules,
+  work : FormulaWork,
 ) -> Array[Json] raise @failure.Failure {
   guard rows.length().to_int64() * columns.length().to_int64() <= 4096L else {
     @failure.reject("limit-exceeded", "Visible cells exceed 4096 cells")
@@ -146,7 +148,14 @@ fn Session::paint_cells(
         cell.map(cell => !cell.calculation_supported).unwrap_or(false) {
         @failure.reject("unsupported-print", "Unsupported cell value: " + key)
       }
-      let style = self.merged_style(sheet, range)
+      let style = conditional.applied(
+        self.merged_style(sheet, range),
+        address,
+        self.sheets,
+        index,
+        self.calculation.map(c => c.values).unwrap_or(Map([])),
+        work,
+      )
       let value = self.calculation
         .bind(calculation => calculation.values.get((index, key)))
         .unwrap_or(cell.map(cell => cell.value).unwrap_or(Blank))
@@ -380,6 +389,15 @@ pub fn Session::viewport(
     @failure.reject("limit-exceeded", "Grid identity exhausted")
   }
   self.grid_id += 1
+  let diagnostics = self.diagnostics.copy()
+  for cell in cells {
+    if cell is { "diagnostic": String(reason), .. } && !reason.is_empty() {
+      let message = "cell-style:" + sheet + ":" + reason
+      if !diagnostics.contains(message) {
+        diagnostics.push(message)
+      }
+    }
+  }
   let result : Json = {
     "id": self.grid_id,
     "revision": self.revision,
@@ -394,7 +412,7 @@ pub fn Session::viewport(
     "cells": cells,
     "rows": row_headers,
     "columns": column_headers,
-    "diagnostics": self.diagnostics,
+    "diagnostics": diagnostics,
   }
   self.grid = Some({
     id: self.grid_id,

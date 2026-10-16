@@ -54,6 +54,28 @@ pub fn CellFormat::hash_combine(Self, Hasher) -> Unit
 pub fn CellFormat::new(family? : String?, size? : Double?, bold? : Bool?, italic? : Bool?, color? : String?, fill? : String?, horizontal? : String?, vertical? : String?, wrap? : Bool?, numberFormat? : String?, left? : CellBorder?, right? : CellBorder?, top? : CellBorder?, bottom? : CellBorder?) -> Self
 pub fn CellFormat::not_equal(Self, Self) -> Bool
 
+pub(all) struct ConditionalFormat {
+  kind : String
+  operator : String
+  formula1 : String
+  formula2 : String
+  stopIfTrue : Bool
+  format : CellFormat
+  stops : Array[ConditionalStop]
+} derive(Eq)
+pub fn ConditionalFormat::default() -> Self
+pub fn ConditionalFormat::equal(Self, Self) -> Bool
+pub fn ConditionalFormat::not_equal(Self, Self) -> Bool
+
+pub(all) struct ConditionalStop {
+  kind : String
+  value : String
+  color : String
+} derive(Eq, ToJson)
+pub fn ConditionalStop::equal(Self, Self) -> Bool
+pub fn ConditionalStop::not_equal(Self, Self) -> Bool
+pub fn ConditionalStop::to_json(Self) -> Json
+
 pub(all) struct DataValidation {
   kind : String
   operator : String
@@ -197,6 +219,8 @@ pub(all) enum SheetEdit {
   HeaderFooter(HeaderFooter)
   Validation(String, DataValidation?)
   ValidationValue(Int, Int)
+  ConditionalRule(String, Int?, ConditionalFormat?, Int)
+  ConditionalPriority(Int, Int, Int)
 }
 
 pub(all) enum Value {

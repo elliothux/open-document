@@ -10,6 +10,15 @@ fn Session::print_sheet(
 ) -> PrintedSheet raise @failure.Failure {
   let current = self.sheets[index]
   let sheet = current.id
+  let conditional = self.conditional_rules(
+    current,
+    index,
+    self.sheets,
+    work.formulas,
+  )
+  guard conditional.reason.is_empty() else {
+    @failure.reject("unsupported-print", conditional.reason, part=sheet)
+  }
   let settings = read_print_setup(current)
   let print_range = self.read_print_range(index)
   let header_footer = read_header_footer(current)
@@ -142,6 +151,8 @@ fn Session::print_sheet(
             probe,
             profile,
             true,
+            conditional,
+            work.formulas,
           )
           for cell in cells {
             if cell is { "display": String(text), .. } {

@@ -499,7 +499,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 `{ action: "rename", name }` 修改表名，保持 OPC 路径、sheetId、关系、顺序、可见性及选区。名称为 1–31 个 UTF-16 单元，须是有效 XML 文本，不能含控制字符或 `[]:*?/\`，不能以单引号开头或结尾，不能与其他表名大小写不敏感地重复。相同名称不新增历史；无效名称、旧 revision 或预算失败不修改文档。
 
-核心复用公式词法分析，仅替换 `!` 前匹配旧名称的标记。新引用使用单引号包围名称，并转义名称内的单引号。更新范围包括单元格公式、定义名称、既有条件格式/数据验证公式和内部超链接 `location`；带关系 ID 的外部链接保留其目标内位置。字符串常量、共享公式组与源格式保持不变；事务重建计算并沿既有计算元数据规则保存，撤销恢复原部件字节。此能力不包含条件格式或数据验证的编辑与呈现。
+核心复用公式词法分析，仅替换 `!` 前匹配旧名称的标记。新引用使用单引号包围名称，并转义名称内的单引号。更新范围包括单元格公式、定义名称、既有条件格式/数据验证公式和内部超链接 `location`；带关系 ID 的外部链接保留其目标内位置。字符串常量、共享公式组与源格式保持不变；事务重建计算并沿既有计算元数据规则保存，撤销恢复原部件字节。规则呈现与编辑范围分别归[条件格式](#条件格式)和[数据验证](#数据验证)。
 
 `{ action: "delete" }` 删除指定表，至少保留一张可见表。删除活动表时优先选择右侧可见表，再向左查找，定位 A1；删除其他表保留活动表与范围。同步剩余名称的 `localSheetId`、工作簿窗口及工作表视图；移除被删表的局部名称。将指向该表的已支持单元格/区域引用整体替换为 `#REF!`，覆盖单元格公式、保留的定义名称和既有条件格式/数据验证公式；移除指向它的内部超链接，保留外部链接及字符串常量。共享公式组继续保存为共享组，失去目标的错误参与依赖计算和缓存写回。核心现可解析七种标准公式错误常量，保留错误传播和 IF 的按需求值规则。引用错误在网格和 PDF 中使用同一结果。
 
@@ -533,7 +533,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 既有条件格式/数据验证的 `sqref` 按移动带拆分或删除；普通公式与公式型 `cfvo` 阈值保持各格的相对、绝对和跨表引用。需要不同公式的区域分组保存，保留规则属性、源注释和命名空间；条件格式保留原优先顺序并分配唯一优先级，验证同步 `count`，与单元格共用一次精确历史。常量或全绝对公式按区间处理，不展开整列空格。相对公式每次操作最多求值 100000 个规则覆盖格、处理 4 Mi 字符，累计最多 4096 个规则片段；克隆源另受单部件与 4 Mi 字符上限约束。未知规则结构、无法解析的公式、克隆身份扩展或预算不足时原子拒绝。范围变换参考 [ONLYOFFICE 条件格式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/ConditionalFormatting.js#L564-L643)和[数据验证](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/DataValidation.js#L976-L1067)。
 
-当前只维护源规则与引用。条件格式显示、验证执行及创建/编辑面板按 P11 后续批次实现；含这些未渲染内容的 PDF 继续原子拒绝。移动带切开合并或矩形链接、未知公式/引用、未接入的筛选/绘图/表格/批注资源及工作表保护继续原子拒绝。可用的整行/整列操作保持原有规则支持。保存重开后继续沿同一编辑与 PDF 路径工作；其余 [P11](../p11-xlsx-core.md) 范围仍待实现。
+范围变换复用源规则与引用事务。普通条件格式的呈现与验证执行/编辑已接通，范围归[条件格式](#条件格式)和[数据验证](#数据验证)；未呈现效果的 PDF 继续原子拒绝。移动带切开合并或矩形链接、未知公式/引用、未接入的筛选/绘图/表格/批注资源及工作表保护继续原子拒绝。可用的整行/整列操作保持原有规则支持。保存重开后继续沿同一编辑与 PDF 路径工作；其余 [P11](../p11-xlsx-core.md) 范围仍待实现。
 
 ### 四向填充
 
@@ -551,11 +551,11 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 多列合并不参与列宽测量，多行合并不参与行高测量；单行横向合并的换行文本使用单行字体高度。行高适配保留隐藏行；隐藏列仍按其底层声明宽度测量换行文本，保留隐藏状态。列宽适配显示目标列。修改保留列样式、轮廓、折叠属性、相邻尺寸、单元格源、样式部件、公式缓存与 calcChain，只提交目标工作表的尺寸片段。行记录写入 `customHeight="0"`，列记录写入 `bestFit="1"`。核心在同一候选事务内先更新依赖数值列，再重算行高；派生尺寸与值、缓存、样式共用一次 revision 和历史，撤销不重新测量。手动设置正行高或正列宽切回固定尺寸，手动隐藏列不被数值更新显示。未固定高度的普通默认行，也在带字体的编辑中重算并写入 `ht`。`sheetFormatPr.customHeight` 是行的缺省固定设置，显式 `customHeight="0"` 可覆盖它。未绑定字体时，原本不带 `ht` 的行保留自动声明，可继续仅数据编辑和保存；原本缓存 `ht` 的自动行仍须先绑定字体再修改。尚未编辑的导入缺省行，在首次布局中仍使用源默认高度，初次测量待扩展。
 
-一次事务累计最多 4096 次轴适配、4096 次单元格测量及 262144 个文本单元，不展开空单元格矩阵。字体缺失、富文本/未知样式、保护、未计算公式、影响文本度量的条件规则、筛选/表格/透视及扩展资源继续拒绝，保留包和历史。显式适配、成功的网格布局或打印布局会在会话内保留调用者的字体探针和 profile 副本。探针由调用者持有并须保持可用；重新打开后，影响自动轴的编辑须先完成一次带字体 profile 的布局或适配。缺映射、未知布局或预算失败会拒绝整个候选编辑，保留原值、缓存、样式、尺寸及撤销/重做。默认宿主打开时已完成字体布局。尺寸片段使用原有历史和输出预算。核心已检查换行、大小字体、数字显示、合并、隐藏行及零高行、原列区间属性、Normal 与第 0 个单元格样式分离、精确历史、重开和失败；Chromium 已检查默认按钮、草稿与尺寸分项撤销、独立 XML、同步 Wasm/Worker 结果、保存重开及 PDF。实现依据 [ONLYOFFICE 列宽适配](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L18321-L18500)、[行高适配](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L18504-L18576)及[合并格行高规则](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L9820-L9880)。
+一次事务累计最多 4096 次轴适配、4096 次单元格测量及 262144 个文本单元，不展开空单元格矩阵。字体缺失、富文本/未知样式、保护、未计算公式、未支持的条件规则、筛选/表格/透视及扩展资源继续拒绝，保留包和历史。显式适配、成功的网格布局或打印布局会在会话内保留调用者的字体探针和 profile 副本。探针由调用者持有并须保持可用；重新打开后，影响自动轴的编辑须先完成一次带字体 profile 的布局或适配。缺映射、未知布局或预算失败会拒绝整个候选编辑，保留原值、缓存、样式、尺寸及撤销/重做。默认宿主打开时已完成字体布局。尺寸片段使用原有历史和输出预算。核心已检查换行、大小字体、数字显示、合并、隐藏行及零高行、原列区间属性、Normal 与第 0 个单元格样式分离、精确历史、重开和失败；Chromium 已检查默认按钮、草稿与尺寸分项撤销、独立 XML、同步 Wasm/Worker 结果、保存重开及 PDF。实现依据 [ONLYOFFICE 列宽适配](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L18321-L18500)、[行高适配](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L18504-L18576)及[合并格行高规则](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L9820-L9880)。
 
 自动模式更新依据 [ONLYOFFICE 数值列扩宽](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L9558-L9610)及[行高失效与重算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L9915-L9975)。核心已检查数值/布尔/错误和跨表依赖结果扩列、短值不缩列、行高增减、改窄列后的换行高度、手动固定覆盖、稀疏目标间未知列声明保留，以及字体/文本预算失败的原子性和重开恢复。Chromium 已检查原生输入自动扩列、一次撤销恢复输入和尺寸，换行输入及列宽变化重算行高，固定行高继续输入保持；沿同一流程保存、重开和导出 PDF。
 
-默认行的带字体编辑已检查原生输入、换行、字号、列宽及固定覆盖，源行高与输入共同进入精确历史；清除内容和格式后空白 Normal 行回到默认高度。列宽修改只更新与实际变化列相交的实际行；合并变化按受影响行区间更新，不展开空单元格。未触及行的只读内容和原 XML 保留。只含 `formula` 子节点且无差异样式、未知属性或未知子树的 `expression/cellIs` 条件规则不改变文本度量，可保留原 XML 测量；这不表示条件格式的显示或计算已经实现。存在 `dxfId` 等显示影响的规则继续保护。默认行高变化可改变分页；现有原生输入流程已通过独立 XML 核对两条普通行 18 pt、双行文字行 33 pt，以及 120 pt 可打印高度下的 6 页预览。
+默认行的带字体编辑已检查原生输入、换行、字号、列宽及固定覆盖，源行高与输入共同进入精确历史；清除内容和格式后空白 Normal 行回到默认高度。列宽修改只更新与实际变化列相交的实际行；合并变化按受影响行区间更新，不展开空单元格。未触及行的只读内容和原 XML 保留。普通值/表达式条件规则已按有效差异样式测量，并在依赖变化时重算受影响自动轴，见[条件格式](#条件格式)。未支持的效果继续保护。默认行高变化可改变分页；现有原生输入流程已通过独立 XML 核对两条普通行 18 pt、双行文字行 33 pt，以及 120 pt 可打印高度下的 6 页预览。
 
 ### 合并与取消合并
 
@@ -589,9 +589,43 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 一次最多 4096 格，单格合并锚点扩展到完整合并范围。`XlsxQuery.normalFont` 返回 Normal 样式的字体键；宿主在格式清除前检查对应 profile。Normal 不等同于第 0 个 cellXF，也不依赖本地化样式名。未知模式、受保护内容、缺失字体和预算失败不提交清除。部分覆盖的合并、需要平移且无法解析的规则公式，以及未知规则结构继续保护；非空扩展、表格/透视表资源、线程批注及全部清除涉及的传统批注也继续保护。规则之外的资源不推断所有权。
 
-条件格式和验证的 `sqref` 从各原矩形扣除选区，保留不相交区域，最多留下 4096 个矩形。条件格式按范围外接矩形左上角定位，验证按第一个 `sqref` 区域定位；锚点变化时复用核心公式解析器平移相对引用，保持绝对/混合引用、跨表引用和字符串。条件公式、验证的两个公式及公式阈值一并更新，越界引用变为 `#REF!`。锚点不变时保留公式源；清空全部范围才删除规则，验证容器计数同步更新。规则未呈现的计算/显示仍归后续功能。范围扣除参考 [ONLYOFFICE 条件规则清除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L13347-L13386)与[验证范围清除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/DataValidation.js#L1068-L1088)；验证公式源位置参考 [LibreOffice 导入](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/filter/oox/worksheethelper.cxx#L1096-L1119)。核心已检查四块残留、多个原范围、混合引用、字符串、阈值越界、上限拒绝和精确历史；Chromium 通过默认按钮清除并用独立 XML 检查范围与公式，保存重开后可继续输入。
+条件格式和验证的 `sqref` 从各原矩形扣除选区，保留不相交区域，最多留下 4096 个矩形。条件格式按范围外接矩形左上角定位，验证按第一个 `sqref` 区域定位；锚点变化时复用核心公式解析器平移相对引用，保持绝对/混合引用、跨表引用和字符串。条件公式、验证的两个公式及公式阈值一并更新，越界引用变为 `#REF!`。锚点不变时保留公式源；清空全部范围才删除规则，验证容器计数同步更新。规则计算、显示与编辑范围分别归[条件格式](#条件格式)和[数据验证](#数据验证)。范围扣除参考 [ONLYOFFICE 条件规则清除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L13347-L13386)与[验证范围清除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/DataValidation.js#L1068-L1088)；验证公式源位置参考 [LibreOffice 导入](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/filter/oox/worksheethelper.cxx#L1096-L1119)。核心已检查四块残留、多个原范围、混合引用、字符串、阈值越界、上限拒绝和精确历史；Chromium 通过默认按钮清除并用独立 XML 检查范围与公式，保存重开后可继续输入。
 
 核心已检查 Normal 派生、取消合并、条件格式/验证/链接清除、共享公式、依赖缓存及精确混合历史；Chromium 已检查原生草稿后清除格式、全部清除、独立 XML、保存重开和 PDF。行为参考 [ONLYOFFICE 范围清除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21093-L21175)和[清除选项](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L16669-L16695)。
+
+### 条件格式
+
+普通 `cellIs`、`expression` 和 `colorScale` 规则已在核心计算。值规则支持八项比较；数值、文字和布尔保持类型区别，文字比较忽略大小写，空格按零或空文字比较。表达式沿现有公式语法求值，相对引用以全部 `sqref` 的外接左上角为原点，保留绝对/混合及跨表引用；`ROW/COLUMN` 使用当前格。公式错误不命中，未知函数或引用给出诊断。
+
+`priority` 越小越优先；命中的高优先级属性覆盖低优先级的相同属性，其余属性组合。命中 `stopIfTrue` 后不再使用后续规则，即使该规则没有差异样式。`dxfId` 从工作簿当前样式部件解析，不写回单元格样式。支持字体名、字号、粗斜体、文字色、纯色/无填充、四边 thin/medium/thick/none、现有数字格式及基本对齐/换行。颜色复用主题、索引及 tint 解析；差异填充优先采用 `bgColor`，与 [ONLYOFFICE fixForDxf](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/WorkbookElems.js#L3502-L3509)一致。差异字体仍须显式提供 profile 映射。
+
+`XlsxConditionalFormat` 包含 `kind`（`cellIs/expression/colorScale`）、`operator`、`formula1`、`formula2`、`stopIfTrue` 和部分属性 `format: XlsxCellFormat`。表达式的 operator 为空；仅 between/notBetween 使用第二个公式。颜色刻度的节点见下文。`XlsxQuery.conditionalFormats` 返回当前表按优先级排序的全部普通规则，每项包含 `priority`、空格分隔的 A1 矩形 `ranges`、`rule` 和 `readOnlyReason`，容器也有保护原因。规则原点随完整 ranges 定位，不随当前选区变化。
+
+`SpreadsheetEditor.editSheet`、`XlsxClient.editSheet` 与同步 Wasm 共用以下操作。核心对应 `SheetEdit::ConditionalRule` 和 `ConditionalPriority`。
+
+| action | 字段与行为 |
+| --- | --- |
+| `conditionalRule` | `ranges, priority, rule, sourceRevision`；priority 为 null 且 rule 非 null 时新增到最低优先级 |
+| `conditionalRule` | priority 非 null 且 rule 非 null 时修改该完整规则的范围和属性；其他共享同一范围的规则保留 |
+| `conditionalRule` | priority 非 null 且 rule 为 null 时删除该完整规则；ranges 可为空 |
+| `conditionalRule` | priority 和 rule 均为 null 时，仅从 ranges 指定的单个矩形扣除条件规则；范围外公式随锚点平移，值及基础格式保留 |
+| `conditionalPriority` | `priority, position, sourceRevision`；position 从 0 开始，将该规则移到完整列表中的指定位置，并重编规则优先级 |
+
+修改、删除和排序要求 sourceRevision 等于执行时 revision，避免过期优先级命中另一规则。新增和选区清除使用显式范围，不依赖旧规则身份；仍沿 editSheet 的 revision 与原生草稿屏障执行。普通草稿先提交，新增规则单独进入历史；带过期身份的修改在草稿提交后拒绝，须按新查询重试。重复修改为相同范围/属性或移到原位置不新增历史。
+
+规则、差异样式及派生尺寸共同提交一次事务。只修改条件或范围时保留原 dxfId、主题色及共享差异源。新差异样式复用现有样式池，保留旧的共享 dxf；缺样式部件时关系和内容类型一同创建/撤销。新数字格式沿原样式路径分配身份。当前可见有效字体在提交前检查，未知源、保留的规则注释/处理指令、工作表保护、缺字体或预算失败保留原文档。范围输入最多 4096 个矩形及 262144 UTF-16 单位；规则查询的范围/公式合计最多 1048576 单位，超出时返回管理保护原因。
+
+默认条件格式面板提供新增、选择、修改、删除、上下调整优先级和仅清除选区规则，支持值/公式条件、停止后续规则、文字色/填充、粗斜体、字号、换行和数字格式。API 可使用全部现有 XlsxCellFormat 属性；面板未展示的导入属性保留。实现归 [`conditional-edit.mbt`](../../modules/formats/src/xlsx/conditional-edit.mbt)、[`conditional-style-edit.mbt`](../../modules/formats/src/xlsx/conditional-style-edit.mbt) 和 [`conditional-settings.mbt`](../../modules/formats/src/xlsx/conditional-settings.mbt)。
+
+`kind: "colorScale"` 使用 `stops` 描述两个或三个颜色节点，operator、formula1、formula2 为空，format 为空对象，stopIfTrue 为 false。每个 `XlsxConditionalStop` 包含 `kind`、字符串 `value` 和六位 RGB `color`。节点类型为 min、max、num、percent、percentile 或 formula；min/max 的 value 为空，百分比和百分位范围为 0–100。普通值/公式规则不带 stops；MoonBit 的 ConditionalFormat 对应空数组。
+
+颜色刻度使用完整规则范围内实际数字和已计算公式结果，忽略空格、文字、布尔和错误，不重复统计相交范围。不按可见窗口重新取范围，也不读取旧公式缓存作为当前结果。percent 按最小/最大值计算，percentile 按排序后的 `(n-1)*p` 位置线性插值；公式阈值在规则原点求值一次。阈值按数值排序，颜色保持节点顺序；超过端点时截定，所有值相同时使用末端颜色，无数字或阈值公式出错时不着色。RGB 插值使用 [ONLYOFFICE CGradient](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/ConditionalFormatting.js#L2637-L2680)的 256 步及通道向下取整，百分位参考 [getPercentile](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/FormulaObjects/statisticalFunctions.js#L356-L375)。
+
+默认面板可在两/三节点间切换并编辑各节点的类型、值/公式和颜色；中间节点默认使用第 50 百分位。阈值与统计按当前计算缓存，编辑后重新计算，网格和 PDF 复用同一最终填充，不改基础单元格样式。只改范围时保留原规则源；修改阈值也保留未变的主题色/索引色节点。颜色刻度不创建 dxf，沿既有规则历史、局部清除与保存重开。统计、排序及阈值文本共同受规则工作预算限制，失败不留下部分缓存或半项编辑。实现归 [`conditional-scale.mbt`](../../modules/formats/src/xlsx/conditional-scale.mbt)。数据条的渐变绘制及更广图标规则仍待接入。
+
+网格、查询 `display`、自动适配和打印使用同一有效样式。依赖格输入或公式结果改变时，自动行/数值 bestFit 列按条件样式重算，与原编辑共享一次历史；固定尺寸保持原值。规则 XML、`dxf`、基础格式和范围外部件保留，保存重开继续计算。合并格按锚点求值。
+
+规则及差异样式各限 4096 项，公式限 8192 UTF-16 单位；网格、整项打印或编辑适配共享 1048576 次规则/公式工作预算，不展开整列空格。未知规则、属性、装饰或扩展样式保留源并诊断；相关打印或适配拒绝，避免输出缺失效果。查询中的条件格式预算失败转成诊断，避免成功提交后被返回查询误报为失败；实际绘制和输出仍检查预算。数据条、图标集、其他规则、边框仅改颜色及更广差异格式仍待实现。实现归 [`conditional-format.mbt`](../../modules/formats/src/xlsx/conditional-format.mbt) 和 [`conditional-style.mbt`](../../modules/formats/src/xlsx/conditional-style.mbt)，值比较参考 [ONLYOFFICE cellIs](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/ConditionalFormatting.js#L835-L913)。
 
 ### 数据验证
 
@@ -617,11 +651,11 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 失败使用 `validation-stop` 或 `validation-warning`，消息包含表名、单元格及源错误标题/文字。同步 Wasm 和 `XlsxClient.replace(revision, sheet, range, values, literal=false, acceptWarnings=false)`、`paste(revision, text, acceptWarnings=false)` 提供显式警告授权。授权后仍重算并检查所有目标，只允许 `warning/information`，不绕过 `stop`、未知规则或预算。查找替换沿共享值事务校验，暂不提供警告授权参数。验证不因依赖值变化重新拒绝未直接修改的格子，也不重验撤销/重做。
 
-`SpreadsheetEditor.acceptValidationWarnings` 默认为 false，作用于该编辑器的原生输入和粘贴。默认公式栏提供对应复选框，启用后允许这些输入触发警告，直至关闭或更换文档。非法原生输入保留草稿和焦点，用户可纠正、取消或启用警告后重试；停止规则始终生效。现有规则 XML、值类型、其他部件及精确历史保持。普通验证元数据不再阻止打印/PDF，输出仍使用原值和样式；条件格式及其他未呈现内容继续保护输出。命名/扩展公式和更广导入变体仍待兼容扩展。行为参考 [ONLYOFFICE 数据验证](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/DataValidation.js#L516-L619)，输入实现归 [`data-validation.mbt`](../../modules/formats/src/xlsx/data-validation.mbt)。
+`SpreadsheetEditor.acceptValidationWarnings` 默认为 false，作用于该编辑器的原生输入和粘贴。默认公式栏提供对应复选框，启用后允许这些输入触发警告，直至关闭或更换文档。非法原生输入保留草稿和焦点，用户可纠正、取消或启用警告后重试；停止规则始终生效。现有规则 XML、值类型、其他部件及精确历史保持。普通验证元数据不再阻止打印/PDF，输出仍使用原值和样式；未支持的条件格式及其他未呈现内容继续保护输出。命名/扩展公式和更广导入变体仍待兼容扩展。行为参考 [ONLYOFFICE 数据验证](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/DataValidation.js#L516-L619)，输入实现归 [`data-validation.mbt`](../../modules/formats/src/xlsx/data-validation.mbt)。
 
 ### 显示与计算
 
-读取共享/内联字符串、数值、布尔值、错误、公式及缓存。富文本读出文字，保留原 XML并保护编辑。受保护工作表及含未知编辑语义的单元格只读。图表、条件格式、绘图等未呈现内容给出诊断，继续保留源部件。
+读取共享/内联字符串、数值、布尔值、错误、公式及缓存。富文本读出文字，保留原 XML并保护编辑。受保护工作表及含未知编辑语义的单元格只读。图表、未支持的条件格式、绘图等未呈现内容给出诊断，继续保留源部件。
 
 网格读取行高、列宽、隐藏行列与合并区域。核心使用 Normal 字体和字号的最大数字宽度换算列宽；不依赖 DOM 度量。字体键沿用 `family|bold|italic`，宿主明确映射到已添加的字体身份。支持字体大小、粗斜体、基本文字色、纯色填充、实线边框、左中右/上中下对齐与换行。行列尺寸使用声明值，显式自动适配命令更新这些值；自动模式的内容和列宽变化在文档事务内同步尺寸。数字宽度不足时显示 `#`；文字按单元格裁剪。
 

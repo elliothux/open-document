@@ -19,7 +19,7 @@ fn Session::set_validation(
         date1904: self.date1904,
         origin: anchor,
       }
-      let first = validation_expression(
+      let first = rule_expression(
         settings.formula1,
         anchor,
         anchor,
@@ -40,7 +40,7 @@ fn Session::set_validation(
       }
       if !settings.formula2.is_empty() {
         ignore(
-          validation_expression(
+          rule_expression(
             settings.formula2,
             anchor,
             anchor,

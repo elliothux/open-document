@@ -1,0 +1,156 @@
+///|
+priv struct ConditionalStyleEdit {
+  index : Int?
+  parts : Map[String, @xml.Document]
+  edits : Array[(String, @xml.Edit)]
+  created_parts : Map[String, @xml.Document]
+}
+
+///|
+fn CellFormat::dxf_markup(
+  self : CellFormat,
+  number_id : Int?,
+) -> String raise @failure.Failure {
+  let document = @xml.Document::parse(
+    @utf8.encode("<dxf xmlns=\"\{spreadsheet_uri}\"><font/><border/></dxf>"),
+    "conditional-style",
+    128,
+    2097152,
+  )
+  let tree = Tree::new(document)
+  let root = document.nodes()[0]
+  let text = StringBuilder()
+  text.write_string("<od:dxf xmlns:od=\"\{spreadsheet_uri}\">")
+  if self.family is Some(_) ||
+    self.size is Some(_) ||
+    self.bold is Some(_) ||
+    self.italic is Some(_) ||
+    self.color is Some(_) {
+    text.write_string(
+      self.font_markup(tree, tree.one(root.id, "font").unwrap()),
+    )
+  }
+  if self.numberFormat is Some(code) {
+    text.write_string(
+      "<od:numFmt numFmtId=\"\{number_id.unwrap()}\" formatCode=\"\{escaped_attribute(code)}\"/>",
+    )
+  }
+  if self.fill is Some(color) {
+    text.write_string(
+      if color.is_empty() {
+        "<od:fill><od:patternFill patternType=\"none\"/></od:fill>"
+      } else {
+        "<od:fill><od:patternFill patternType=\"solid\"><od:bgColor rgb=\"FF\{color.to_upper()}\"/></od:patternFill></od:fill>"
+      },
+    )
+  }
+  let alignment = StringBuilder()
+  for
+    (key, value) in [
+      ("horizontal", self.horizontal),
+      ("vertical", self.vertical),
+      ("wrapText", self.wrap.map(v => if v { "1" } else { "0" })),
+    ] {
+    if value is Some(value) {
+      alignment.write_string(" \{key}=\"\{value}\"")
+    }
+  }
+  if !alignment.to_string().is_empty() {
+    text.write_string("<od:alignment\{alignment.to_string()}/>")
+  }
+  if [self.left, self.right, self.top, self.bottom].any(e => e is Some(_)) {
+    text.write_string(
+      self.border_markup(tree, tree.one(root.id, "border").unwrap()),
+    )
+  }
+  text.write_string("</od:dxf>")
+  text.to_string()
+}
+
+///|
+fn Session::derive_conditional_style(
+  self : Session,
+  patch : CellFormat,
+) -> ConditionalStyleEdit raise @failure.Failure {
+  if patch == CellFormat::new() {
+    return {
+      index: None,
+      parts: self.parts.copy(),
+      edits: [],
+      created_parts: Map([]),
+    }
+  }
+  let parts = self.parts.copy()
+  let existing = self.styles_part(parts)
+  let (path, metadata) = existing
+    .map(path => (path, []))
+    .unwrap_or_else(() => self.new_styles_part())
+  let original = if existing is Some(_) {
+    self.part_xml(path)
+  } else {
+    @xml.Document::parse(
+      empty_cell_styles(),
+      path,
+      self.budget.xml_depth,
+      self.budget.entry_bytes,
+    )
+  }
+  guard original.source().length() <= 2097152 else {
+    @failure.reject(
+      "limit-exceeded", "Conditional styles exceed history budget",
+    )
+  }
+  let tree = Tree::new(original)
+  let root = tree.root("styleSheet")
+  let (ids, numbers) = format_numbers(tree, [patch])
+  let markup = patch.dxf_markup(patch.numberFormat.bind(code => ids.get(code)))
+  let changes = format_number_changes(tree, numbers)
+  let container = tree.one(root.id, "dxfs")
+  let index = if container is Some(_) {
+    let pool = StylePool::new(tree, "dxfs", "dxf")
+    let index = pool.intern(markup)
+    changes.append(pool.changes())
+    index
+  } else {
+    let next = tree.children
+      .get(root.id)
+      .unwrap_or([])
+      .iter()
+      .find_first(n => ["tableStyles", "colors", "extLst"].contains(n.name))
+    let markup = "<od:dxfs xmlns:od=\"\{spreadsheet_uri}\" count=\"1\">\{markup}</od:dxfs>"
+    changes.push(
+      if next is Some(next) {
+        {
+          node: root.id,
+          offset: next.start - root.start,
+          length: 0,
+          xml: markup,
+        }
+      } else {
+        insertion(root, markup)
+      },
+    )
+    0
+  }
+  let (document, edit) = original.edit_source(join_insertions(changes))
+  guard document.source().length() <= 2097152 else {
+    @failure.reject(
+      "limit-exceeded", "Derived conditional styles exceed history budget",
+    )
+  }
+  parts[path] = document
+  let edits = []
+  for (part, document, edit) in metadata {
+    parts[part] = document
+    edits.push((part, edit))
+  }
+  let created_parts : Map[String, @xml.Document] = Map([])
+  if existing is Some(_) {
+    if original.source() != document.source() {
+      edits.push((path, edit))
+    }
+  } else {
+    created_parts[path] = document
+  }
+  { index: Some(index), parts, edits, created_parts, }
+}

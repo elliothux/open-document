@@ -1,5 +1,9 @@
 import { record, integer } from "./validation.js";
 import {
+  checkXlsxConditionalFormat,
+  type XlsxConditionalFormat,
+} from "./xlsx-conditional.js";
+import {
   checkXlsxDataValidation,
   type XlsxDataValidation,
 } from "./xlsx-validation.js";
@@ -13,6 +17,19 @@ import {
 } from "./xlsx-print.js";
 
 export type XlsxSheetEdit =
+  | {
+      action: "conditionalRule";
+      ranges: string;
+      priority: number | null;
+      rule: XlsxConditionalFormat | null;
+      sourceRevision: number;
+    }
+  | {
+      action: "conditionalPriority";
+      priority: number;
+      position: number;
+      sourceRevision: number;
+    }
   | { action: "validation"; range: string; rule: XlsxDataValidation | null }
   | { action: "validationValue"; index: number; sourceRevision: number }
   | {
@@ -48,6 +65,31 @@ export type XlsxSheetEdit =
 
 export function checkXlsxSheetEdit(value: unknown): void {
   const change = record(value);
+  if (
+    change.action === "conditionalRule" ||
+    change.action === "conditionalPriority"
+  ) {
+    if (!integer(change.sourceRevision, 0, 2147483647))
+      throw new Error("Invalid conditional source revision");
+    if (change.action === "conditionalPriority") {
+      if (
+        !integer(change.priority, 1, 2147483647) ||
+        !integer(change.position, 0, 4095)
+      )
+        throw new Error("Invalid conditional priority");
+    } else {
+      if (
+        (change.priority !== null &&
+          !integer(change.priority, 1, 2147483647)) ||
+        typeof change.ranges !== "string" ||
+        change.ranges.length > 262144 ||
+        (!change.ranges && (change.rule !== null || change.priority === null))
+      )
+        throw new Error("Invalid conditional ranges or priority");
+      if (change.rule !== null) checkXlsxConditionalFormat(change.rule);
+    }
+    return;
+  }
   if (change.action === "validation") {
     if (
       typeof change.range !== "string" ||
