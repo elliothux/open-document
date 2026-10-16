@@ -132,5 +132,7 @@ pub fn Session::print_layout(
       pages.push(page.positioned())
     }
   }
-  { pages, fonts: probe.font_info(), }
+  let fonts = probe.font_info()
+  self.font_context = Some((probe, profile.copy()))
+  { pages, fonts, }
 }

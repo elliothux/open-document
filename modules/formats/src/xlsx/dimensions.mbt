@@ -16,6 +16,8 @@ priv struct Axis {
 priv struct Dimensions {
   rows : Axis
   columns : Axis
+  automatic_rows : Map[Int, Bool]
+  automatic_columns : Array[(Int, Int)]
 }
 
 ///|
@@ -46,6 +48,11 @@ fn read_dimensions(
     @failure.reject("malformed-xlsx", "Default dimensions must be positive")
   }
   let rows : Array[AxisSpan] = []
+  let automatic_rows : Map[Int, Bool] = Map([])
+  let automatic_columns : Array[(Int, Int)] = []
+  let custom_height = format
+    .map(node => flag(node, "customHeight"))
+    .unwrap_or(false)
   let mut previous_row = 0
   for row in tree.all(data.id, "row") {
     let index = natural(
@@ -53,6 +60,9 @@ fn read_dimensions(
       1048576,
     )
     previous_row = index
+    if !flag(row, "customHeight", fallback=custom_height) {
+      automatic_rows[index] = row.attribute("ht") is Some(_)
+    }
     let height = if flag(row, "hidden") {
       0.0
     } else {
@@ -90,6 +100,9 @@ fn read_dimensions(
         .unwrap_or(column_default)
       }
       columns.push({ first, last, size, })
+      if flag(col, "bestFit") && !flag(col, "hidden") {
+        automatic_columns.push((first, last))
+      }
     }
   }
   columns.sort_by((a, b) => a.first.compare(b.first))
@@ -101,6 +114,8 @@ fn read_dimensions(
     last = span.last
   }
   {
+    automatic_rows,
+    automatic_columns,
     rows: {
       default_size: if format
         .map(node => flag(node, "zeroHeight"))
@@ -123,6 +138,50 @@ fn Axis::size(self : Axis, index : Int) -> Double {
   .find_first(span => span.first <= index && index <= span.last)
   .map(span => span.size)
   .unwrap_or(self.default_size)
+}
+
+///|
+fn Axis::changed_ranges(self : Axis, other : Axis) -> Array[(Int, Int)] {
+  let boundaries : Map[Int, Bool] = Map([(1, true), (self.limit + 1, true)])
+  for axis in [self, other] {
+    for span in axis.spans {
+      boundaries[span.first] = true
+      boundaries[span.last + 1] = true
+    }
+  }
+  let points = boundaries.keys().to_array()
+  points.sort()
+  let changed : Array[(Int, Int)] = []
+  let mut a = 0
+  let mut b = 0
+  for index in 0..<(points.length() - 1) {
+    let first = points[index]
+    let last = points[index + 1] - 1
+    while a < self.spans.length() && self.spans[a].last < first {
+      a += 1
+    }
+    while b < other.spans.length() && other.spans[b].last < first {
+      b += 1
+    }
+    let old = self.spans
+      .get(a)
+      .filter(span => span.first <= first)
+      .map(span => span.size)
+      .unwrap_or(self.default_size)
+    let new = other.spans
+      .get(b)
+      .filter(span => span.first <= first)
+      .map(span => span.size)
+      .unwrap_or(other.default_size)
+    if old != new {
+      if changed.last() is Some((start, end)) && end + 1 == first {
+        changed[changed.length() - 1] = (start, last)
+      } else {
+        changed.push((first, last))
+      }
+    }
+  }
+  changed
 }
 
 ///|
@@ -203,6 +262,7 @@ fn Dimensions::resolved(self : Dimensions, digit_width : Double) -> Dimensions {
     }
   }
   {
+    ..self,
     rows: self.rows,
     columns: {
       ..self.columns,

@@ -69,6 +69,7 @@ pub struct Session {
   // private fields
 }
 pub fn Session::apply_format(Self, Int, Array[Array[CellFormat]]) -> Json raise @failure.Failure
+pub fn Session::auto_fit(Self, Int, String, Int, Int, @layout.TextProbe, Map[String, String], rows~ : Bool) -> Json raise @failure.Failure
 pub fn Session::capture_format(Self, Int) -> Json raise @failure.Failure
 pub fn Session::clear(Self, Int, mode? : String) -> Json raise @failure.Failure
 pub fn Session::close(Self) -> Unit

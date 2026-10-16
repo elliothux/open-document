@@ -194,6 +194,7 @@ fn Foundation::dispatch(
     "openXlsx"
     | "createXlsx"
     | "editXlsxSheet"
+    | "autoFitXlsx"
     | "formatXlsxCells"
     | "captureXlsxFormat"
     | "applyXlsxFormat"

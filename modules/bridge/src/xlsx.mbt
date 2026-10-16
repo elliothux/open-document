@@ -39,6 +39,21 @@ fn Foundation::xlsx_operation(
     @failure.reject("session-required", "Open an XLSX workbook first")
   }
   match operation {
+    "autoFitXlsx" => {
+      let axis = field_string(request, "axis")
+      guard axis == "rows" || axis == "columns" else {
+        @failure.reject("invalid-operation", "Invalid automatic fitting axis")
+      }
+      session.auto_fit(
+        field_int(request, "revision"),
+        field_string(request, "sheet"),
+        field_int(request, "first"),
+        field_int(request, "last"),
+        self.probe,
+        xlsx_profile(request),
+        rows=axis == "rows",
+      )
+    }
     "captureXlsxFormat" =>
       session.capture_format(field_int(request, "revision"))
     "applyXlsxFormat" => {

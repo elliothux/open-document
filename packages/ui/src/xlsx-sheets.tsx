@@ -172,6 +172,18 @@ export function XlsxSheets({
       {query.sheetEditReason && <p>{query.sheetEditReason}</p>}
       <fieldset disabled={disabled || !!query.dimensions.readOnlyReason}>
         <legend>{t.dimensions}</legend>
+        <button
+          type="button"
+          onClick={() => controller.run(() => editor.autoFit("rows"))}
+        >
+          {t.autoFitRows}
+        </button>
+        <button
+          type="button"
+          onClick={() => controller.run(() => editor.autoFit("columns"))}
+        >
+          {t.autoFitColumns}
+        </button>
         <form
           onSubmit={(event) => {
             event.preventDefault();

@@ -36,11 +36,10 @@ fn Session::dimension_reason(self : Session, sheet : Sheet) -> String {
 fn Sheet::row_height_changes(
   self : Sheet,
   tree : Tree,
-  first : Int,
-  last : Int,
-  size : Double,
+  sizes : Map[Int, Double],
+  best_fit~ : Bool = false,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
-  guard last - first < 4096 else {
+  guard sizes.length() <= 4096 else {
     @failure.reject("limit-exceeded", "Row height edit exceeds 4096 rows")
   }
   let changes : Array[@xml.SourceChange] = []
@@ -55,12 +54,15 @@ fn Sheet::row_height_changes(
   let ordered = rows.copy()
   ordered.sort_by((a, b) => numbers[a.id].compare(numbers[b.id]))
   let mut next_index = 0
-  for number in first..<=last {
+  let selected = sizes.keys().to_array()
+  selected.sort()
+  for number in selected {
     if !self.rows.contains(number) {
+      let size = sizes[number]
       let xml = if size == 0 {
         "<\{prefix}row r=\"\{number}\" hidden=\"1\"/>"
       } else {
-        "<\{prefix}row r=\"\{number}\" ht=\"\{size}\" customHeight=\"1\" hidden=\"0\"/>"
+        "<\{prefix}row r=\"\{number}\" ht=\"\{size}\" customHeight=\"\{if best_fit { "0" } else { "1" }}\" hidden=\"\{if best_fit && self.dimensions.rows.size(number) == 0 { "1" } else { "0" }}\"/>"
       }
       while next_index < ordered.length() &&
             numbers[ordered[next_index].id] <= number {
@@ -82,14 +84,24 @@ fn Sheet::row_height_changes(
   for row in rows {
     let number = numbers[row.id]
     let values : Array[(String, String)] = []
-    if first <= number && number <= last {
+    if sizes.get(number) is Some(size) {
       values.append(
         if size == 0 {
           [("hidden", "1")]
         } else {
-          [("ht", size.to_string()), ("customHeight", "1"), ("hidden", "0")]
+          [
+            ("ht", size.to_string()),
+            ("customHeight", if best_fit { "0" } else { "1" }),
+            ("hidden", "0"),
+          ]
         },
       )
+      if best_fit {
+        values.retain(entry => entry.0 != "hidden")
+        if self.dimensions.rows.size(number) == 0 {
+          values.push(("hidden", "1"))
+        }
+      }
     }
     // Inserting an empty row must not renumber following rows with implicit identities.
     if !insertions.is_empty() && row.attribute("r") is None {
@@ -116,6 +128,7 @@ fn resized_column(
   first : Int,
   last : Int,
   size : Double?,
+  best_fit~ : Bool = false,
 ) -> String raise @failure.Failure {
   guard tree.children.get(node.id).unwrap_or([]).is_empty() &&
     node.attributes
@@ -140,7 +153,7 @@ fn resized_column(
         [
           ("width", size.to_string()),
           ("customWidth", "1"),
-          ("bestFit", "0"),
+          ("bestFit", if best_fit { "1" } else { "0" }),
           ("hidden", "0"),
         ]
       },
@@ -165,7 +178,8 @@ fn Sheet::column_width_changes(
   tree : Tree,
   first : Int,
   last : Int,
-  size : Double,
+  sizes : Array[AxisSpan],
+  best_fit~ : Bool = false,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let root = tree.root("worksheet")
   let container = tree.one(root.id, "cols")
@@ -175,12 +189,47 @@ fn Sheet::column_width_changes(
     .map(node => (natural(node.attribute("min").unwrap_or(""), 16384), node))
   columns.sort_by((a, b) => a.0.compare(b.0))
   let prefix = root.qualified[:root.qualified.length() - 9].to_owned()
-  let fresh = fn(first : Int, last : Int) {
-    if size == 0 {
-      "<\{prefix}col min=\"\{first}\" max=\"\{last}\" hidden=\"1\"/>"
-    } else {
-      "<\{prefix}col min=\"\{first}\" max=\"\{last}\" width=\"\{size}\" customWidth=\"1\" bestFit=\"0\" hidden=\"0\"/>"
+  let segment = fn(
+    first : Int,
+    last : Int,
+    node : @xml.Node?,
+  ) raise @failure.Failure {
+    if node is Some(original) &&
+      !sizes.any(span => span.first <= last && span.last >= first) {
+      return tree.document.source()[original.start:original.end].to_owned()
     }
+    let output = StringBuilder()
+    let mut cursor = first
+    for span in sizes {
+      let start = span.first.max(first)
+      let end = span.last.min(last)
+      if start > end {
+        continue
+      }
+      if cursor < start && node is Some(original) {
+        output.write_string(
+          resized_column(tree, original, cursor, start - 1, None),
+        )
+      }
+      if node is Some(node) {
+        output.write_string(
+          resized_column(tree, node, start, end, Some(span.size), best_fit~),
+        )
+      } else if span.size == 0 {
+        output.write_string(
+          "<\{prefix}col min=\"\{start}\" max=\"\{end}\" hidden=\"1\"/>",
+        )
+      } else {
+        output.write_string(
+          "<\{prefix}col min=\"\{start}\" max=\"\{end}\" width=\"\{span.size}\" customWidth=\"1\" bestFit=\"\{if best_fit { "1" } else { "0" }}\" hidden=\"0\"/>",
+        )
+      }
+      cursor = end + 1
+    }
+    if cursor <= last && node is Some(original) {
+      output.write_string(resized_column(tree, original, cursor, last, None))
+    }
+    output.to_string()
   }
   let changes : Array[@xml.SourceChange] = []
   let mut cursor = first
@@ -191,14 +240,12 @@ fn Sheet::column_width_changes(
     }
     let output = StringBuilder()
     if start > cursor {
-      output.write_string(fresh(cursor, start - 1))
+      output.write_string(segment(cursor, start - 1, None))
     }
     if start < first {
       output.write_string(resized_column(tree, node, start, first - 1, None))
     }
-    output.write_string(
-      resized_column(tree, node, start.max(first), end.min(last), Some(size)),
-    )
+    output.write_string(segment(start.max(first), end.min(last), Some(node)))
     if end > last {
       output.write_string(resized_column(tree, node, last + 1, end, None))
     }
@@ -214,13 +261,13 @@ fn Sheet::column_width_changes(
   if cursor <= last {
     changes.push(
       if container is Some(container) {
-        insertion(container, fresh(cursor, last))
+        insertion(container, segment(cursor, last, None))
       } else {
         {
           node: root.id,
           offset: tree.nodes[self.data].start - root.start,
           length: 0,
-          xml: "<\{prefix}cols>\{fresh(cursor, last)}</\{prefix}cols>",
+          xml: "<\{prefix}cols>\{segment(cursor, last, None)}</\{prefix}cols>",
         }
       },
     )
@@ -252,9 +299,16 @@ fn Session::resize_dimensions(
   }
   let tree = Tree::new(current.document)
   let changes = if rows {
-    current.row_height_changes(tree, first, last, size)
+    guard last - first < 4096 else {
+      @failure.reject("limit-exceeded", "Row height edit exceeds 4096 rows")
+    }
+    let sizes : Map[Int, Double] = Map([])
+    for axis in first..<=last {
+      sizes[axis] = size
+    }
+    current.row_height_changes(tree, sizes)
   } else {
-    current.column_width_changes(tree, first, last, size)
+    current.column_width_changes(tree, first, last, [{ first, last, size, }])
   }
   if changes.is_empty() {
     return self.query()

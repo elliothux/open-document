@@ -444,6 +444,26 @@ export function xlsxViewport(value: unknown): XlsxViewport {
 
 /** One workbook owner; values, XML transactions and history stay in MoonBit. */
 export class XlsxSession extends WasmSession {
+  autoFit(
+    revision: number,
+    sheet: string,
+    first: number,
+    last: number,
+    axis: "rows" | "columns",
+    profile: Record<string, string>,
+  ): XlsxQuery {
+    return xlsxQuery(
+      this.call({
+        operation: "autoFitXlsx",
+        revision,
+        sheet,
+        first,
+        last,
+        axis,
+        profile,
+      }),
+    );
+  }
   captureFormat(revision: number): CopiedCellFormat {
     return copiedCellFormat(
       this.call({ operation: "captureXlsxFormat", revision }),

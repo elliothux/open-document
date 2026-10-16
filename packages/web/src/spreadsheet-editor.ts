@@ -583,12 +583,21 @@ export class SpreadsheetEditor {
     });
   }
   select(range: string, sheet = this.state.sheet): Promise<void> {
-    return this.enqueue(async () => {
-      await this.commitDraft();
-      this.state = await this.client.select(this.state.revision, sheet, range);
-      this.generation++;
-      await this.present(true);
-      this.input.focus({ preventScroll: true });
+    return this.change(() =>
+      this.client.select(this.state.revision, sheet, range),
+    );
+  }
+  autoFit(axis: "rows" | "columns"): Promise<void> {
+    return this.change(() => {
+      const range = this.state.selection.range;
+      return this.client.autoFit(
+        this.state.revision,
+        this.state.sheet,
+        axis === "rows" ? range.top : range.left,
+        axis === "rows" ? range.bottom : range.right,
+        axis,
+        this.profile,
+      );
     });
   }
   editSheet(change: XlsxSheetEdit, sheet?: string): Promise<void> {
@@ -645,13 +654,7 @@ export class SpreadsheetEditor {
     });
   }
   paste(text: string): Promise<void> {
-    return this.enqueue(async () => {
-      await this.commitDraft();
-      this.state = await this.client.paste(this.state.revision, text);
-      this.generation++;
-      await this.present(true);
-      this.input.focus({ preventScroll: true });
-    });
+    return this.change(() => this.client.paste(this.state.revision, text));
   }
   copy(): Promise<void> {
     return this.enqueue(async () => {

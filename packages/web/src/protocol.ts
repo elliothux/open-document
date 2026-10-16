@@ -76,6 +76,15 @@ export type Operation =
   | { operation: "openSpreadsheet"; wasm: ArrayBuffer }
   | { operation: "openXlsx"; bytes: Uint8Array; budget: Budget }
   | { operation: "createXlsx"; budget: Budget }
+  | {
+      operation: "autoFitXlsx";
+      revision: number;
+      sheet: string;
+      first: number;
+      last: number;
+      axis: "rows" | "columns";
+      profile: Record<string, string>;
+    }
   | { operation: "formatXlsxCells"; revision: number; patch: XlsxCellFormat }
   | { operation: "captureXlsxFormat"; revision: number }
   | {

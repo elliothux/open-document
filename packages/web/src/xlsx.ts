@@ -30,6 +30,26 @@ export type {
 
 /** Browser workbook transport; one Worker owns the complete core session. */
 export class XlsxClient {
+  async autoFit(
+    revision: number,
+    sheet: string,
+    first: number,
+    last: number,
+    axis: "rows" | "columns",
+    profile: Record<string, string>,
+  ): Promise<XlsxQuery> {
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "autoFitXlsx",
+        revision,
+        sheet,
+        first,
+        last,
+        axis,
+        profile,
+      }),
+    );
+  }
   async captureFormat(revision: number): Promise<CopiedCellFormat> {
     return copiedCellFormat(
       await this.connection.request({

@@ -11,10 +11,21 @@ fn Session::commit(
   created_parts~ : Map[String, @xml.Document] = Map([]),
   deleted~ : Sheet? = None,
   removed~ : Map[String, @xml.Document] = Map([]),
+  font_context~ : (@layout.TextProbe, Map[String, String])? = self.font_context,
+  fit_work~ : FitWork = { axes: 0, cells: 0, units: 0, },
 ) -> Unit raise @failure.Failure {
   guard self.revision < 2147483647 else {
     @failure.reject("limit-exceeded", "Workbook revision exhausted")
   }
+  let styles = self.styles_from_parts(parts)
+  guard sheets.all(sheet => {
+    sheet.cells.values().all(cell => cell.style < styles.length())
+  }) else {
+    @failure.reject("malformed-xlsx", "Cell style is outside candidate styles")
+  }
+  self.reflow_dimensions(
+    sheets, calculation, styles, edits, font_context, fit_work,
+  )
   let payload = edits
     .iter()
     .fold(init=0L, (sum, entry) => sum + entry.1.payload_bytes()) +
@@ -41,12 +52,6 @@ fn Session::commit(
     }
   }
   self.validate(sheets, workbook~, parts~, removed=removed_parts)
-  let styles = self.styles_from_parts(parts)
-  guard sheets.all(sheet => {
-    sheet.cells.values().all(cell => cell.style < styles.length())
-  }) else {
-    @failure.reject("malformed-xlsx", "Cell style is outside candidate styles")
-  }
   for item in self.redo {
     self.history_bytes -= item.bytes
   }
@@ -73,6 +78,7 @@ fn Session::commit(
   self.sheets = sheets
   self.styles = styles
   self.calculation = Some(calculation)
+  self.font_context = font_context
   self.selection = after
   self.anchor = { row: after.1.top, column: after.1.left, }
   self.focus = { row: after.1.bottom, column: after.1.right, }

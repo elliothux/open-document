@@ -69,21 +69,19 @@ fn place_block(
 }
 
 ///|
-fn Session::resolved_dimensions(
+fn Session::digit_width(
   self : Session,
-  sheet : Sheet,
   probe : @layout.TextProbe,
   profile : Map[String, String],
-) -> Dimensions raise @failure.Failure {
-  let font = self.styles[0]
-  guard profile.get(font.font) is Some(identity) else {
+) -> Double raise @failure.Failure {
+  guard profile.get(self.normal_font) is Some(identity) else {
     @failure.reject(
       "missing-font",
-      "Missing font profile mapping: " + font.font,
+      "Missing font profile mapping: " + self.normal_font,
     )
   }
   let index = probe.font_index(identity)
-  let digits = probe.shape("0123456789", font.size, "en", primary=index)
+  let digits = probe.shape("0123456789", self.normal_size, "en", primary=index)
   let mut width = 1.0
   for i in 0..<10 {
     let a = digits.carets
@@ -98,7 +96,17 @@ fn Session::resolved_dimensions(
       .unwrap_or(digits.width)
     width = width.max((b - a).abs() / 0.75)
   }
-  sheet.dimensions.resolved(width.round().max(1))
+  width.round().max(1)
+}
+
+///|
+fn Session::resolved_dimensions(
+  self : Session,
+  sheet : Sheet,
+  probe : @layout.TextProbe,
+  profile : Map[String, String],
+) -> Dimensions raise @failure.Failure {
+  sheet.dimensions.resolved(self.digit_width(probe, profile))
 }
 
 ///|
@@ -343,6 +351,7 @@ pub fn Session::viewport(
     Json(probe.font_info()),
   ]).stringify()
   if self.grid is Some(grid) && grid.key == key {
+    self.font_context = Some((probe, profile.copy()))
     return grid.result
   }
   let rows = dimensions.rows.visible(
@@ -448,6 +457,7 @@ pub fn Session::viewport(
     height,
     result,
   })
+  self.font_context = Some((probe, profile.copy()))
   result
 }
 

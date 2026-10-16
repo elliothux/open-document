@@ -89,6 +89,15 @@ async function dispatch(request: Request): Promise<unknown> {
           request.sheet,
           request.change,
         );
+      case "autoFitXlsx":
+        return workbook.autoFit(
+          request.revision,
+          request.sheet,
+          request.first,
+          request.last,
+          request.axis,
+          request.profile,
+        );
       case "formatXlsxCells":
         return workbook.formatCells(request.revision, request.patch);
       case "captureXlsxFormat":
@@ -147,6 +156,7 @@ async function dispatch(request: Request): Promise<unknown> {
         case "openXlsx":
         case "createXlsx":
         case "editXlsxSheet":
+        case "autoFitXlsx":
         case "formatXlsxCells":
         case "captureXlsxFormat":
         case "applyXlsxFormat":

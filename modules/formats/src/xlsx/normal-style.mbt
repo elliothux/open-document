@@ -27,7 +27,9 @@ fn normal_xf(tree : Tree) -> (@xml.Node?, Int?) raise @failure.Failure {
 }
 
 ///|
-fn normal_font(document : @xml.Document) -> String raise @failure.Failure {
+fn normal_font(
+  document : @xml.Document,
+) -> (String, Double) raise @failure.Failure {
   let tree = Tree::new(document)
   let (normal, _) = normal_xf(tree)
   let fonts = tree
@@ -49,23 +51,32 @@ fn normal_font(document : @xml.Document) -> String raise @failure.Failure {
   guard !name.is_empty() && name.length() <= 256 else {
     @failure.reject("malformed-xlsx", "Invalid Normal font")
   }
-  name +
-  (if tree
-    .one(font.id, "b")
-    .map(node => flag(node, "val", fallback=true))
-    .unwrap_or(false) {
-    "|bold"
-  } else {
-    ""
-  }) +
-  (if tree
-    .one(font.id, "i")
-    .map(node => flag(node, "val", fallback=true))
-    .unwrap_or(false) {
-    "|italic"
-  } else {
-    ""
-  })
+  let key = name +
+    (if tree
+      .one(font.id, "b")
+      .map(node => flag(node, "val", fallback=true))
+      .unwrap_or(false) {
+      "|bold"
+    } else {
+      ""
+    }) +
+    (if tree
+      .one(font.id, "i")
+      .map(node => flag(node, "val", fallback=true))
+      .unwrap_or(false) {
+      "|italic"
+    } else {
+      ""
+    })
+  let size = tree
+    .one(font.id, "sz")
+    .bind(node => node.attribute("val"))
+    .map(value => number(value))
+    .unwrap_or(11)
+  guard size > 0 && size <= 409 else {
+    @failure.reject("malformed-xlsx", "Invalid Normal font size")
+  }
+  (key, size)
 }
 
 ///|
