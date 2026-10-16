@@ -37,7 +37,23 @@ fn Session::prepare_fitted(
   let prepared = self.prepare(original, changes)
   for id in ids {
     let target = prepared.0.object(id)
-    if !target.body.fit || target.paragraphs.is_empty() {
+    if target.body.fit == "none" || target.paragraphs.is_empty() {
+      continue
+    }
+    if target.body.fit == "resize" {
+      let geometry = resize_text_frame(target, probe, profile)
+      for change in resized_frame_changes(original.object(id), geometry) {
+        let existing = changes.search_by(item => {
+          item.node == change.node &&
+          item.offset == change.offset &&
+          item.length == change.length
+        })
+        if existing is Some(index) {
+          changes[index] = change
+        } else {
+          changes.push(change)
+        }
+      }
       continue
     }
     let (_, scale, diagnostic) = fit_text(

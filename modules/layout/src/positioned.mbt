@@ -47,8 +47,8 @@ pub fn Layout::positioned(self : Layout) -> PositionedDocument {
       for fill in page.fills {
         primitives.push(Rectangle(fill))
       }
-      for rect in page.borders {
-        primitives.push(Stroke(rect, "000000", 0.5))
+      for border in page.borders {
+        primitives.push(Stroke(border.rect, border.color, border.width))
       }
       for line in page.lines {
         primitives.append(line.positioned(self.fonts, page.width))

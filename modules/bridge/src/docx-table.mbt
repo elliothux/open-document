@@ -19,6 +19,25 @@ fn Foundation::docx_table(
       @failure.reject("invalid-operation", "Table edit is required")
     }
     let change = match field_string(fields, "action") {
+      "tableBorders" | "cellBorders" as action => {
+        guard fields is { "value": Object(values), .. } else {
+          @failure.reject("invalid-operation", "Border patch is required")
+        }
+        let patch : Map[String, @layout.BorderStyle?] = Map([])
+        for side, value in values {
+          patch[side] = match value {
+            Null => None
+            { "width": Number(width, ..), "color": String(color), .. } =>
+              Some({ width, color, })
+            _ => @failure.reject("invalid-operation", "Invalid border patch")
+          }
+        }
+        if action == "tableBorders" {
+          @docx.TableBorders(patch)
+        } else {
+          @docx.CellBorders(patch)
+        }
+      }
       "rowBefore" => @docx.RowBefore
       "rowAfter" => @docx.RowAfter
       "deleteRow" => @docx.DeleteRow
@@ -80,11 +99,13 @@ fn Foundation::docx_table(
           @docx.CellMargins(value)
         }
       }
-      "tableWidth" | "rowHeight" as action => {
+      "tableWidth" | "rowHeight" | "columnWidth" as action => {
         guard fields is { "value": Number(value, ..), .. } else {
           @failure.reject("invalid-operation", "Table size number is required")
         }
-        if action == "tableWidth" {
+        if action == "columnWidth" {
+          @docx.ColumnWidth(field_int(fields, "column"), value)
+        } else if action == "tableWidth" {
           @docx.TableWidth(value)
         } else {
           @docx.RowHeight(value)

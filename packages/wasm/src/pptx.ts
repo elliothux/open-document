@@ -70,7 +70,7 @@ export interface PptxObject {
     bottom: number;
     anchor: string;
     wrap: boolean;
-    autofit: boolean;
+    fit: "none" | "shrink" | "resize";
     reason: string;
   };
   geometry:
@@ -168,7 +168,7 @@ export type PptxObjectEdit =
     }
   | { action: "textAnchor"; anchor: "t" | "ctr" | "b" }
   | { action: "textWrap"; wrap: boolean }
-  | { action: "textFit"; autofit: boolean }
+  | { action: "textFit"; fit: "none" | "shrink" | "resize" }
   | { action: "group" | "ungroup" }
   | { action: "duplicate"; dx: number; dy: number }
   | { action: "rotate"; angle: number }
@@ -376,7 +376,11 @@ export function checkPptxObjectEdit(value: unknown): void {
   )
     return;
   if (change.action === "textWrap" && typeof change.wrap === "boolean") return;
-  if (change.action === "textFit" && typeof change.autofit === "boolean")
+  if (
+    change.action === "textFit" &&
+    typeof change.fit === "string" &&
+    ["none", "shrink", "resize"].includes(String(change.fit))
+  )
     return;
   if (change.action === "fill" || change.action === "stroke") {
     if (
@@ -561,11 +565,11 @@ export function pptxQuery(value: unknown): PptxQuery {
     if (
       !hasFields(
         frame,
-        ["anchor", "reason"],
+        ["anchor", "reason", "fit"],
         ["left", "top", "right", "bottom"],
       ) ||
       typeof frame.wrap !== "boolean" ||
-      typeof frame.autofit !== "boolean"
+      !["none", "shrink", "resize"].includes(String(frame.fit))
     )
       throw new Error("Invalid text frame");
     for (const key of ["left", "top", "right", "bottom"])

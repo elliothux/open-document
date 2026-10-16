@@ -157,6 +157,7 @@ pub(all) enum TableEdit {
   UnmergeCell
   SplitTable
   TableWidth(Double)
+  ColumnWidth(Int, Double)
   RowHeight(Double)
   CellFill(String?)
   CellVerticalAlign(String?)
@@ -164,6 +165,8 @@ pub(all) enum TableEdit {
   TableMargins(@layout.CellMargins?)
   TableAlign(String)
   HeaderRows(Int)
+  TableBorders(Map[String, @layout.BorderStyle?])
+  CellBorders(Map[String, @layout.BorderStyle?])
 }
 
 // Type aliases

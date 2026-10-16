@@ -22,7 +22,7 @@ export function PptxTextFrame({
   const first = objects[0]?.textFrame;
   const [anchor, setAnchor] = useState(first?.anchor ?? "t");
   const [wrap, setWrap] = useState(first?.wrap ?? true);
-  const [autofit, setAutofit] = useState(first?.autofit ?? false);
+  const [fit, setFit] = useState(first?.fit ?? "none");
   const [margins, setMargins] = useState({
     left: String(first?.left ?? 7.2),
     top: String(first?.top ?? 3.6),
@@ -32,9 +32,9 @@ export function PptxTextFrame({
   const reason = objects.find((object) => object.textFrame.reason)?.textFrame
     .reason;
   const mixed = objects.some((object) =>
-    (
-      ["left", "top", "right", "bottom", "anchor", "wrap", "autofit"] as const
-    ).some((key) => object.textFrame[key] !== first?.[key]),
+    (["left", "top", "right", "bottom", "anchor", "wrap", "fit"] as const).some(
+      (key) => object.textFrame[key] !== first?.[key],
+    ),
   );
   return (
     <fieldset disabled={disabled || objects.length === 0 || !!reason}>
@@ -126,23 +126,28 @@ export function PptxTextFrame({
         {t.wrapFrameText}
       </label>
       <label>
-        <input
-          type="checkbox"
-          checked={autofit}
+        {t.textFit}
+        <select
+          value={fit}
+          aria-label={t.textFit}
           onChange={(event) => {
-            const autofit = event.currentTarget.checked;
-            setAutofit(autofit);
+            const fit = event.currentTarget.value;
+            if (fit !== "none" && fit !== "shrink" && fit !== "resize") return;
+            setFit(fit);
             controller.run(async () => {
               try {
-                await editor.editObjects({ action: "textFit", autofit });
+                await editor.editObjects({ action: "textFit", fit });
               } catch (error) {
-                setAutofit(first?.autofit ?? false);
+                setFit(first?.fit ?? "none");
                 throw error;
               }
             });
           }}
-        />
-        {t.shrinkFrameText}
+        >
+          <option value="none">{t.noTextFit}</option>
+          <option value="shrink">{t.shrinkFrameText}</option>
+          <option value="resize">{t.resizeFrameText}</option>
+        </select>
       </label>
       {reason && <p>{reason}</p>}
     </fieldset>

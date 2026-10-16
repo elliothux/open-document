@@ -15,36 +15,41 @@ fn Session::text_frame_reason(self : Session, object : Object) -> String {
       return "Shape has no editable text frame"
     }
     if body.child("bodyPr") is Some(properties) {
-      let fits = properties.tree.children
-        .get(properties.node.id)
-        .unwrap_or([])
-        .filter(node => {
-          node.uri == drawing_uri &&
-          ["noAutofit", "normAutofit", "spAutoFit"].contains(node.name)
-        })
-      guard fits.length() <= 1 else {
-        return "Ambiguous text fit properties are protected"
-      }
-      for fit in fits {
-        let source = source_xml({ tree: properties.tree, node: fit, })
-        guard fit.name != "spAutoFit" &&
-          fit.text.trim().is_empty() &&
-          !source.contains("<!--") &&
-          !source.contains("<?") &&
-          properties.tree.children.get(fit.id).unwrap_or([]).is_empty() &&
-          fit.attributes.all(a => {
-            a.uri.is_empty() &&
-            fit.name == "normAutofit" &&
-            ["fontScale", "lnSpcReduction"].contains(a.name)
-          }) else {
-          return "Unknown text fit properties are protected"
-        }
-      }
+      return text_fit_reason(properties)
     }
     ""
   } catch {
     @failure.Failure(message~, ..) => message
   }
+}
+
+///|
+fn text_fit_reason(properties : Ref) -> String {
+  let fits = properties.tree.children
+    .get(properties.node.id)
+    .unwrap_or([])
+    .filter(node => {
+      node.uri == drawing_uri &&
+      ["noAutofit", "normAutofit", "spAutoFit"].contains(node.name)
+    })
+  guard fits.length() <= 1 else {
+    return "Ambiguous text fit properties are protected"
+  }
+  for fit in fits {
+    let source = source_xml({ tree: properties.tree, node: fit, })
+    guard fit.text.trim().is_empty() &&
+      !source.contains("<!--") &&
+      !source.contains("<?") &&
+      properties.tree.children.get(fit.id).unwrap_or([]).is_empty() &&
+      fit.attributes.all(a => {
+        a.uri.is_empty() &&
+        fit.name == "normAutofit" &&
+        ["fontScale", "lnSpcReduction"].contains(a.name)
+      }) else {
+      return "Unknown text fit properties are protected"
+    }
+  }
+  ""
 }
 
 ///|
@@ -108,7 +113,11 @@ fn Session::frame_objects(
       values["anchor"] = anchor
     }
     TextWrap(wrap) => values["wrap"] = if wrap { "square" } else { "none" }
-    TextFit(_) => ()
+    TextFit(fit) => {
+      guard ["none", "shrink", "resize"].contains(fit) else {
+        @failure.reject("invalid-operation", "Unknown text fit mode")
+      }
+    }
     _ => @failure.reject("invalid-operation", "Unknown text frame edit")
   }
   let changes : Array[@xml.SourceChange] = []
@@ -148,14 +157,18 @@ fn Session::frame_objects(
       },
     }
     let target = { ..object, body, }
-    let geometry = object.geometry.unwrap()
+    let geometry = if body.fit == "resize" {
+      resize_text_frame(target, probe, profile)
+    } else {
+      object.geometry.unwrap()
+    }
     let effective = target.shape_body(geometry)
     guard effective.left + effective.right < geometry.width &&
       effective.top + effective.bottom < geometry.height else {
       @failure.reject("invalid-operation", "Text margins leave no usable frame")
     }
     let (_, scale, diagnostic) = fit_text(target, geometry, probe, profile)
-    guard !body.fit || diagnostic.is_empty() else {
+    guard body.fit == "none" || diagnostic.is_empty() else {
       @failure.reject("layout-overflow", diagnostic)
     }
     let tx = object.source.child("txBody", uri=presentation_uri).unwrap()
@@ -167,12 +180,14 @@ fn Session::frame_objects(
       .iter()
       .find_first(node => {
         node.uri == drawing_uri &&
-        ["noAutofit", "normAutofit"].contains(node.name)
+        ["noAutofit", "normAutofit", "spAutoFit"].contains(node.name)
       })
     })
-    let replace_fit = body.fit || change is TextFit(_)
-    let fit_markup = if body.fit {
+    let replace_fit = body.fit == "shrink" || change is TextFit(_)
+    let fit_markup = if body.fit == "shrink" {
       "<a:normAutofit xmlns:a=\"\{drawing_uri}\" fontScale=\"\{(scale * 100000).floor().to_int()}\" lnSpcReduction=\"0\"/>"
+    } else if body.fit == "resize" {
+      "<a:spAutoFit xmlns:a=\"\{drawing_uri}\"/>"
     } else {
       "<a:noAutofit xmlns:a=\"\{drawing_uri}\"/>"
     }
@@ -210,6 +225,9 @@ fn Session::frame_objects(
         .collect()
         .join("")
       "<a:bodyPr xmlns:a=\"\{drawing_uri}\"\{attributes}>\{if replace_fit { fit_markup } else { "" }}</a:bodyPr>"
+    }
+    if body.fit == "resize" {
+      changes.append(resized_frame_changes(object, geometry))
     }
     if properties is Some(p) && markup == source_xml(p) {
       continue

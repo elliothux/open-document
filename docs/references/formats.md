@@ -205,11 +205,23 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `editTable({ action: "tableWidth", value })` 设置当前格所在表的总宽度，单位为 pt。核心按原列宽比例分配整数 twip，精确保持目标总宽，同步 `tblW`、列网格和全部格的 `tcW`；横向合并按跨度求宽，纵向合并起始/延续关系和文字保持。最多 63 个逻辑列，各列至少 12 pt，格内边距须留出文字宽度，总宽不超过当前页的可用宽度。未修改的样式、边框、对齐、段落和其他部件保留。比例规则参考 [ONLYOFFICE 网格缩放](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L413-L429)。
 
+`editTable({ action: "columnWidth", column, value })` 设置同表内指定逻辑列的宽度，column 从 0 开始，须小于当前列数。value 为 12–14400 pt 的整数 twip，整表仍须位于可用页宽内。其他列宽度保持，表格总宽随目标列增减；横向合并的格宽按所跨列求和，纵向延续节点一起更新。共享整表宽度的网格/属性序列化、保护、边距及半描边宽度预检、源历史和保存。规则参考 [ONLYOFFICE 列宽设置与网格重建](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L19008-L19039)；本 API 用逻辑列索引明确定位合并格覆盖的各列。默认 UI 显示从 1 开始的列号及对应宽度。
+
 `editTable({ action: "rowHeight", value })` 设置当前格所在行的最小高度，写入 `trHeight hRule="atLeast"`；0 恢复自动高度。内容需要更多空间时，行继续长高。核心按同一纵向合并行组中其他行的最小高度与边距预留一页，拒绝明显超出的下限；实际内容仍沿既有分页与合并行组规则排版。行为参考 [ONLYOFFICE 行高操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L5663-L5674)。两项值均须有限、非负、不超过 14400 pt，且能表示为整数 twip；表宽须大于 0。
 
-`queryFormatting(...).table` 在支持的表格上下文中返回 `{ id, row, rows, columns, headerRows, width, rowHeight, align, tableMargins, cellFill, cellVerticalAlign, cellMargins, maxWidth, maxRowHeight }`，否则为 null。`id` 为当前表节点身份，`row` 从 0 开始，`columns` 为逻辑列数；`width` 是列网格总宽，`rowHeight` 是最小高度，均不是浏览器测量值。`align` 为整表的 `left`、`center` 或 `right`；`tableMargins` 是表格默认单元格边距，尚未叠加单格覆盖。`cellFill` 为当前格的六位 RGB 底色，无底色时为 null；`cellVerticalAlign` 为有效的 `top`、`center` 或 `bottom`；`cellMargins` 为该格有效的 `{ top, right, bottom, left }`。两类边距均以 pt 表示。默认 UI 读取同一查询，提交后反映实际属性；文档、所选段落或 revision 变化会重置未提交的属性输入。
+`queryFormatting(...).table` 在支持的表格上下文中返回 `{ id, row, rows, column, columns, columnWidths, headerRows, width, rowHeight, align, tableMargins, tableBorders, cellFill, cellVerticalAlign, cellMargins, cellBorders, maxWidth, maxRowHeight }`，否则为 null。`id` 为当前表节点身份，`row` 从 0 开始，`columns` 为逻辑列数；`column` 为当前格左侧的逻辑列索引，`columnWidths` 为全部逻辑列宽（pt）；`width` 是列网格总宽，`rowHeight` 是最小高度，均不是浏览器测量值。`align` 为整表的 `left`、`center` 或 `right`；`tableMargins` 是表格默认单元格边距，尚未叠加单格覆盖。`cellFill` 为当前格的六位 RGB 底色，无底色时为 null；`cellVerticalAlign` 为有效的 `top`、`center` 或 `bottom`；`cellMargins` 为该格有效的 `{ top, right, bottom, left }`。两类边距均以 pt 表示。默认 UI 读取同一查询，提交后反映实际属性；文档、所选段落或 revision 变化会重置未提交的属性输入。
 
-尺寸操作保留逻辑选区和当前光标处的待输入格式，重排后清除旧布局定位提示，沿已有队列、源历史、保存重开和 PDF。无源变化不增加历史；未知行/格映射、网格标记、属性或预算失败原子拒绝。缺少的尺寸属性按 OOXML 顺序创建；恢复自动高度保留其他行属性。精确行高、单列宽度、自动适配、其余格属性和跨页合并延续仍归 [P10](../p10-docx-core.md)。
+尺寸操作保留逻辑选区和当前光标处的待输入格式，重排后清除旧布局定位提示，沿已有队列、源历史、保存重开和 PDF。无源变化不增加历史；未知行/格映射、网格标记、属性或预算失败原子拒绝。缺少的尺寸属性按 OOXML 顺序创建；恢复自动高度保留其他行属性。精确行高、自动适配、其余格属性和跨页合并延续仍归 [P10](../p10-docx-core.md)。
+
+### 表格边框
+
+`editTable({ action: "tableBorders" | "cellBorders", value })` 修改整表默认边框或当前逻辑格的直接边框。`value` 为非空部分属性集：四边使用 `top/right/bottom/left`，整表另支持 `insideH/insideV`。每边 `{ width, color }` 设置实线，`width: 0` 显式关闭，null 删除该边直接属性并恢复继承；省略的边保持。非零线宽为 0.25–12 pt，须为 1/8 pt 的整数倍；color 为六位 RGB。默认 UI 提供表格/当前格、各边/全部、线宽、颜色、移除及恢复继承。纵向合并起始与延续节点共同修改，内部合并边不绘制。
+
+核心沿表格样式链与直接属性求有效值。单元格声明优先于表格默认；相邻单元格先取非空边，再取较宽实线，同宽按 RGB 亮度规则求值。规则依据 [ONLYOFFICE 边框冲突](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L15267-L15342)。当前读取 `single/nil/none`、RGB/auto 和左右的 start/end 别名；auto 为黑色。主题边框、虚线、双线、阴影、非零间隔和未知属性继续保护，不覆盖不理解的源内容。
+
+`queryFormatting(...).table.tableBorders` 返回六边的默认值，`cellBorders` 返回当前格四边的实际冲突结果；合并格某边包含不同线段时该边为 null，表示混合。`DocxFlow.tables[].borders` 为核心生成的 horizontal/vertical 网格，替代旧布尔值。边宽参与行高与分页预留，左右边界至少预留半个描边宽度。分页缓存、重复表头、Canvas 和 PDF 消费相同线段及颜色，Web 不重算边框。
+
+属性沿现有单项源历史保存，保留文字、网格、选区、待输入格式和其他部件。无变化保留源片段及 revision；无文字宽度、未知目标、旧 revision、输出或历史预算失败原子拒绝。合并仍沿当前[结构规则](#表格创建)保留每行首格属性，取消合并复制相应格属性；复杂边框、跨格选择和跨页合并延续仍归 P10/P14。实现归 [`table-borders.mbt`](../../modules/formats/src/docx/table-borders.mbt)、[`table-border-editing.mbt`](../../modules/formats/src/docx/table-border-editing.mbt)及[公共边框绘制](../../modules/layout/src/table-borders.mbt)。
 
 ### 表格底色
 
@@ -372,7 +384,7 @@ DOCX 的显式页面宽、高按固定 LibreOffice 25.8.2.2 的[导入规则](ht
 
 支持 docDefaults、段落/字符样式 basedOn、主题 Latin 字体、直接格式、字号/颜色/粗斜体、段前段后、缩进、左/中/右对齐、auto/exact/atLeast 行距、空段落及显式分页。正文、表格和空页眉共用段落间距校验，负间距/最小行距/单元格 padding 明确失败。页面使用单一设置，多节文档给不支持诊断，不承诺各节独立分页。分页的断行使用固定 Unicode 数据与基本 BiDi；同样式跨文本节点一起塑形并保留源映射。`unicode_linebreak` 的 Unicode 15 测试向量按上游规则排除 30.22/999.0 做依赖回归，其字符表源自 Unicode 13；不宣称完整 UAX #14 符合性。当前 fallback 仍按码点选择，复杂 script、彩色字形和任意字体质量不在承诺范围。
 
-基础表格使用固定列宽、完整均匀 0.5pt 黑色网格、RGB 单色填充、对称 cell margin 和最小行高；行整体换页。相邻行共享边框只占一次高度，表尾另留底边，分页判断包含当前页底边空间。自然字高使用上述共享参考设备取整；固定 Noto 原表格的自然行高与垂直步距已匹配固定 LibreOffice，不扩大为所有应用或水平几何一致。合并/嵌套单元格、行内分页、超页高行和 exact 行高明确拒绝。不绘制浮动、裁剪、旋转、翻转图片或带内容的页眉；空页眉复用段落度量预留空间。已识别但未实现的正文属性给诊断，原包仍由 P2 保存；不是完整属性/schema 检查器，主题颜色、条件表格样式与复杂页眉页脚不在支持面。图片仅支持包内内联 extent；宿主解码已授权资源为 RGBA，外链图片明确拒绝、不自动下载。
+基础表格使用固定列宽、当前支持的实线/无边框、RGB 单色填充、四边 cell margin 和最小行高；普通行及整组合并行换页。边框编辑与冲突规则归[表格边框](#表格边框)。相邻行共享边框只占一次高度，表尾另留底边，分页判断包含当前页底边空间。自然字高使用上述共享参考设备取整；固定 Noto 原表格的自然行高与垂直步距已匹配固定 LibreOffice，不扩大为所有应用或水平几何一致。嵌套单元格、跨页合并延续、行内分页、超页高行和 exact 行高明确拒绝。不绘制浮动、裁剪、旋转、翻转图片或带内容的页眉；空页眉复用段落度量预留空间。已识别但未实现的正文属性给诊断，原包仍由 P2 保存；不是完整属性/schema 检查器，主题颜色、条件表格样式与复杂页眉页脚不在支持面。图片仅支持包内内联 extent；宿主解码已授权资源为 RGBA，外链图片明确拒绝、不自动下载。
 
 表格左/中/右对齐按基础样式、派生样式、直接属性依次覆盖，start/end 沿用 left/right 归一化；未知有效值报 `unsupported-layout`。明确零 dxa 缩进仅在可选符号后全零数字、已知属性且无子节点/文本时视为无位移；非零、非法或未知声明仍诊断/保护。此规则不增加非零缩进、RTL 表格语义或复杂表格支持。Word compatibilityMode 对表格外侧边距和定位的版本差异尚未实现，零缩进声明可读不等于版本布局已经一致；固定网格超过正文可用宽度仍明确拒绝，不通过缩小原件或统一左移获得通过。原 POI 表格的 kern/ligature 诊断仍保留，普通核心源事务可用不等于可视编辑可用。
 
@@ -727,9 +739,13 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 文本框读取基本字号、粗体/斜体、文字色、段落对齐、内边距、缩进、点值/百分比段距及行距、软换行和字符项目符号的字体/大小/颜色。固定框越界诊断并裁剪；无法建立文字几何时保留边界占位和对象文本查询。`normAutofit` 以 10 次有界搜索求解 10%–100% 字号缩放，同时检查可用宽高，保存必要 `fontScale` 并保留基准字号。字段所在框、自动编号、图片项目符号、多栏、纵排、文字变形和 `spAutoFit` 诊断或保护。
 
-`editPptxObjects` / `PresentationEditor.editObjects` 已支持 `{ action: "textInsets", left, top, right, bottom }`、`{ action: "textAnchor", anchor }`、`{ action: "textWrap", wrap }` 和 `{ action: "textFit", autofit }`。四边距离为 0–14400 pt，舍入为整数 EMU，须保留有效文字区域；anchor 为 `t`、`ctr` 或 `b`。布尔 wrap 控制框内换行，autofit 控制缩小字体适配。它们作用于所选本地顶层文本形状，文字模式和对象模式均可调用，多选合为一次源事务。默认 UI 提供四边输入、垂直对齐和两个开关，保留待提交的原生文字输入。
+`editPptxObjects` / `PresentationEditor.editObjects` 已支持 `{ action: "textInsets", left, top, right, bottom }`、`{ action: "textAnchor", anchor }`、`{ action: "textWrap", wrap }` 和 `{ action: "textFit", fit }`。四边距离为 0–14400 pt，舍入为整数 EMU，须保留有效文字区域；anchor 为 `t`、`ctr` 或 `b`。布尔 wrap 控制框内换行。fit 为 `none`（固定框）、`shrink`（缩小字体）或 `resize`（形状随文字调整大小），分别保存 `noAutofit`、`normAutofit` 或 `spAutoFit`。它们作用于所选本地顶层文本形状，文字模式和对象模式均可调用，多选合为一次源事务。默认 UI 提供四边输入、垂直对齐、换行开关和适配模式，保留待提交的原生文字输入。
 
-每个 `PptxObject.textFrame` 返回有效 `left/top/right/bottom/anchor/wrap/autofit` 及保护原因 `reason`。修改保留文字、字符格式、对象身份/几何、选择和其他部件；缺失 `bodyPr` 与适配节点按 DrawingML 顺序创建，其他属性和非目标注释原样保留。开启适配及适配框属性变化时重新测量并保存比例，后续文字编辑继续更新。10% 字号仍无法容纳时原子拒绝；关闭适配保留既有固定框越界诊断。无变化不增加历史，候选、旧 revision、缺字体、未知适配内容或预算失败保持会话。组内/继承框、调整形状到文字大小及复杂方向仍待支持。行为参考 [ONLYOFFICE 垂直对齐与适配设置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L1945-L2015)，继续使用第一方核心排版和源事务。
+每个 `PptxObject.textFrame` 返回有效 `left/top/right/bottom/anchor/wrap/fit` 及保护原因 `reason`。修改保留文字、字符格式、身份、选择和其他部件；缺失 `bodyPr` 与适配节点按 DrawingML 顺序创建，其他属性和非目标注释原样保留。`shrink` 重新测量并保存比例，10% 字号仍无法容纳时原子拒绝。`none` 保留当前尺寸及固定框越界诊断。
+
+`resize` 保留名义字号。开启换行时保持宽度、调整高度；关闭换行时按显式段落和软换行调整宽高，内容减少时也收缩。复用当前预设形状文字内框及段落测量，计入边距、列表和行段距。未旋转对象按首段水平对齐与框垂直锚定保持对应位置；旋转对象保持中心及方向。原生输入、字符/段落格式、框属性、查找替换和变换完成时，几何与文字合为同一项精确历史。保存重开沿用已写入几何，后续编辑继续重算。行为依据 [ONLYOFFICE 文字内框及位置更新](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L3646-L3870)，实现归 [`text-resize.mbt`](../../modules/formats/src/pptx/text-resize.mbt)。
+
+无变化不增加历史。形状边长沿用 0.1–14400 pt，尺寸向上取整到 EMU；预设内框求逆不重复测字，最多 16 次文字重排。超限、无可用内框、不收敛、变换锁、缺字体、未知适配内容或输出/历史预算失败均原子拒绝。候选和旧 revision 保持既有保护。组内/继承对象及独立保持直立的旋转文字仍待对应编辑支持；普通水平文字沿用已有裁剪、Canvas 与 PDF 路径。
 
 `editPptxObjects` / `PresentationEditor.editObjects` 支持 `{ action: "textFormat", format }`，其中 `PptxTextFormat` 可包含 `font/size/bold/italic/color/underline/strike/highlight/script`。至少提供一项，省略项保持；不接受 null 清除或未知字段。font 为不超过 200 UTF-16 单元的实际字体族，不能包含 `|`、换行或以 `+` 开头；主题字体编辑另行实现。size 为 1–1024 pt，核心舍入到 0.01 pt。color 为六位 RGB 十六进制，查询和保存规范为小写。字体族同时写入 latin/ea/cs，授权字体与样式仍通过宿主 profile 供应。
 

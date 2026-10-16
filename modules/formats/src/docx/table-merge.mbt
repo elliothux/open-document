@@ -109,6 +109,10 @@ fn WordTree::check_merge_cell(
   if self.child(cell, "tcPr") is Some(props) {
     for child in self.children[props] {
       let node = self.nodes[child]
+      if node.uri == word_uri && node.name == "tcBorders" {
+        ignore(self.read_borders(props, "tcBorders"))
+        continue
+      }
       if node.uri == word_uri && node.name == "tcMar" {
         guard self.table_children(props, "tcMar").length() == 1 else {
           @failure.reject("protected-content", "Duplicate cell margins")

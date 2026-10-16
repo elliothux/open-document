@@ -129,14 +129,17 @@ fn read_text(
   let bodies = children(chain, "txBody", uri=presentation_uri)
   let properties = children(bodies, "bodyPr")
   let fit = for item in properties {
-    if item.child("noAutofit") is Some(_) || item.child("spAutoFit") is Some(_) {
-      break false
+    if item.child("noAutofit") is Some(_) {
+      break "none"
+    }
+    if item.child("spAutoFit") is Some(_) {
+      break "resize"
     }
     if item.child("normAutofit") is Some(_) {
-      break true
+      break "shrink"
     }
   } nobreak {
-    false
+    "none"
   }
   let body : Body = {
     left: number(attribute(properties, "lIns").unwrap_or("91440"), 0, 182880000) /
@@ -160,12 +163,21 @@ fn read_text(
     fit,
   }
   let mut reason = ""
+  for item in properties {
+    let fit_reason = text_fit_reason(item)
+    if !fit_reason.is_empty() {
+      reason = fit_reason
+      break
+    }
+  }
   if !["t", "ctr", "b"].contains(body.anchor) ||
     !["horz"].contains(attribute(properties, "vert").unwrap_or("horz")) ||
     attribute(properties, "numCol").unwrap_or("1") != "1" ||
-    !children(properties, "spAutoFit").is_empty() ||
     !children(properties, "prstTxWarp").is_empty() {
-    reason = "Unsupported text frame direction, columns or autofit"
+    reason = "Unsupported text frame direction or columns"
+  }
+  if ["1", "true"].contains(attribute(properties, "upright").unwrap_or("0")) {
+    reason = "Upright text requires independent frame resize geometry"
   }
   let paragraphs : Array[TextParagraph] = []
   guard bodies.get(0) is Some(current) &&

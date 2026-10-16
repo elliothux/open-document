@@ -97,7 +97,7 @@
 
 ### 4.2 文本和表格
 
-文本框四边内边距、上/中/下垂直对齐、换行及缩小字体适配已接通核心、API 和默认 UI。支持本地顶层形状的混合多选，文字及对象选择保留，自动适配同时约束宽高并写回比例。实现归 [`text-frame.mbt`](../modules/formats/src/pptx/text-frame.mbt)，边界归[格式合同](references/formats.md#pptx)。
+文本框四边内边距、上/中/下垂直对齐、换行、缩小字体及形状随文字调整大小已接通核心、API 和默认 UI。支持本地顶层形状的混合多选，保留文字及对象选择。缩小模式同时约束宽高并写回比例；形状调整模式保留字号，按换行设置调整高度或宽高，输入、格式及查找替换与几何共用精确历史。实现归 [`text-frame.mbt`](../modules/formats/src/pptx/text-frame.mbt)和 [`text-resize.mbt`](../modules/formats/src/pptx/text-resize.mbt)，边界归[格式合同](references/formats.md#pptx)。
 
 基础文字格式已接通字体、字号、粗体、斜体、RGB 颜色、单下划线、单删除线、纯色高亮及清除高亮、上/下标及恢复基线，以及段落左/中/右对齐。文字范围只修改选中字，对象模式作用于所选框；光标和空段落的格式用于后续原生输入。核心按需拆分 run，保留范围外内容和属性，格式与文字共用精确历史。装饰沿公共行绘制输出到 Canvas 和 PDF，保留形状的框内裁剪。默认面板显示混合值，各字段保留普通命令期间的草稿。实现归 [`text-format.mbt`](../modules/formats/src/pptx/text-format.mbt)和 [`text-format-properties.mbt`](../modules/formats/src/pptx/text-format-properties.mbt)，接口和剩余边界归[格式合同](references/formats.md#pptx)。
 
@@ -107,7 +107,7 @@
 
 字符项目符号和五种常用编号已接通核心、API 与默认面板，支持移除列表、起始值、级别、混合范围和多框事务。标记参与公共段落布局、换行、适配和 PDF，原生换段后按级别续号。源属性、继承与精确历史共用既有事务；实现归 [`list-properties.mbt`](../modules/formats/src/pptx/list-properties.mbt)。更多装饰、其他编号类型、图片符号及标记样式编辑继续实施。字体键与授权字体 profile 继续由核心解析和宿主供应，不引入 DOM 度量。
 
-内边距、垂直锚定、溢出和自动适配是框属性。保留已有有界字号缩放，增加内容撑开框等本阶段需要的模式；重排、几何、保存属性一致。字面查找替换已接通跨页/框的有界结果、当前页/全部页及大小写/全词选项，支持隐藏页定位、单个/全部替换、格式保留及一项跨页精确历史。默认面板与宿主绑定文档和 revision；核心重查目标，保护或失败保留全部页面。实现归 [`search.mbt`](../modules/formats/src/pptx/search.mbt)和 [`search-replace.mbt`](../modules/formats/src/pptx/search-replace.mbt)，范围和预算归[格式合同](references/formats.md#pptx)。
+内边距、垂直锚定、溢出和自动适配是框属性。现有三种适配模式共用核心排版、源几何和保存属性；更广方向和多栏继续扩展。字面查找替换已接通跨页/框的有界结果、当前页/全部页及大小写/全词选项，支持隐藏页定位、单个/全部替换、格式保留及一项跨页精确历史。默认面板与宿主绑定文档和 revision；核心重查目标，保护或失败保留全部页面。实现归 [`search.mbt`](../modules/formats/src/pptx/search.mbt)和 [`search-replace.mbt`](../modules/formats/src/pptx/search-replace.mbt)，范围和预算归[格式合同](references/formats.md#pptx)。
 
 表格保留行列网格、跨度、单元格文本和样式；行列增删/合并/拆分使用自身的 DrawingML 序列化。可以复用文字/边框布局计算，但不照搬 DOCX 分页表格模型。表格在一页内布局，溢出给出明确结果，不自动创建新页。表格选区及文本光标继续由核心返回。
 

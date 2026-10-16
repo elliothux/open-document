@@ -354,7 +354,15 @@ fn Session::table(
   }
   let props = tree.child(id, "tblPr")
   let mut align = "left"
-  let mut borders = false
+  let borders = table_border_grid(
+    tree,
+    styles,
+    id,
+    column_spans,
+    row_spans,
+    widths.length(),
+    diagnostics,
+  )
   let properties : Array[(WordTree, Int)] = []
   if props.bind(props => tree.value(props, "tblStyle")) is Some(key) &&
     styles.tree is Some(style_tree) {
@@ -373,44 +381,6 @@ fn Session::table(
         "start" => "left"
         "end" => "right"
         value => value
-      }
-    }
-    if source.child(p, "tblBorders") is Some(b) {
-      borders = source.children[b]
-        .iter()
-        .any(id => {
-          source.nodes[id].attribute("val", uri=word_uri) is Some("single")
-        })
-      for border in source.children[b] {
-        if source.nodes[border].attribute("val", uri=word_uri) is Some(value) &&
-          value != "single" &&
-          value != "nil" &&
-          value != "none" {
-          diagnostics.push("unsupported-layout:table-border-" + value)
-        }
-      }
-      if borders {
-        for edge in ["top", "left", "bottom", "right", "insideH", "insideV"] {
-          guard source.child(b, edge) is Some(border) &&
-            source.nodes[border].attribute("val", uri=word_uri) ==
-            Some("single") else {
-            @failure.reject(
-              "unsupported-layout", "Only complete uniform table grids are supported",
-            )
-          }
-          let color = source.nodes[border]
-            .attribute("color", uri=word_uri)
-            .unwrap_or("auto")
-          guard source.nodes[border]
-            .attribute("sz", uri=word_uri)
-            .unwrap_or("4") ==
-            "4" &&
-            (color == "auto" || color == "000000") else {
-            @failure.reject(
-              "unsupported-layout", "Only 0.5pt black table borders are supported",
-            )
-          }
-        }
       }
     }
   }

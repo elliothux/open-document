@@ -124,7 +124,22 @@ fn Session::check_margin_layout(
   table : @layout.Table,
 ) -> Unit raise @failure.Failure {
   let page = self.flow().page
-  let border = if table.borders { 0.5 } else { 0 }
+  for r, row in table.rows {
+    let mut start = 0
+    for c, _ in row {
+      let end = start + table.columnSpans[r][c]
+      let width = table.widths[start:end].fold(init=0.0, (sum, width) => {
+        sum + width
+      })
+      let margins = table.cell_insets(r, c)
+      guard width > margins.left + margins.right else {
+        @failure.reject(
+          "invalid-operation", "Borders and margins leave no cell text width",
+        )
+      }
+      start = end
+    }
+  }
   let mut first = 0
   while first < table.rows.length() {
     let mut last = first
@@ -135,8 +150,9 @@ fn Session::check_margin_layout(
       }
       r += 1
     }
-    let mut height = border
+    let mut height = table.border_width(last + 1)
     for row in first..<=last {
+      let border = table.border_width(row)
       let top = table.margins[row].iter().fold(init=0.0, (v, m) => v.max(m.top))
       let bottom = table.margins[row]
         .iter()

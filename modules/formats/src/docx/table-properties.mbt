@@ -38,6 +38,7 @@ fn Session::change_table_property(
   markup~ : String? = None,
   whole_table~ : Bool = false,
   header_rows~ : Int? = None,
+  border_patch~ : Map[String, @layout.BorderStyle?]? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let document = self.document()
@@ -94,7 +95,11 @@ fn Session::change_table_property(
         } else {
           attributes
         },
-        markup~,
+        markup=if border_patch is Some(value) {
+          Some(tree.border_markup(document, target, name, value))
+        } else {
+          markup
+        },
       )
       is Some(change) {
       changes.push(change)
@@ -113,7 +118,7 @@ fn Session::change_table_property(
       "invalid-operation", "Header boundary crosses a vertical merge",
     )
   }
-  if name == "tcMar" || name == "tblCellMar" {
+  if ["tcMar", "tblCellMar", "tcBorders", "tblBorders"].contains(name) {
     self.check_margin_layout(updated)
   }
   guard updated.rows.flatten().flatten().all(p => p.readOnlyReason.is_empty()) else {

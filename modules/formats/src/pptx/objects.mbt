@@ -274,7 +274,7 @@ fn read_object(
           bottom: 3.6,
           anchor: "t",
           wrap: true,
-          fit: false,
+          fit: "none",
         },
         message,
       )

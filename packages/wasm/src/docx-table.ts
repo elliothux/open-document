@@ -1,5 +1,53 @@
 import { record } from "./validation.js";
 
+export interface DocxBorderStyle {
+  width: number;
+  color: string;
+}
+export type DocxBorderSide =
+  "top" | "right" | "bottom" | "left" | "insideH" | "insideV";
+export type DocxBorderPatch = Partial<
+  Record<DocxBorderSide, DocxBorderStyle | null>
+>;
+export type DocxCellBorders = Record<
+  "top" | "right" | "bottom" | "left",
+  DocxBorderStyle | null
+>;
+export type DocxTableBorders = DocxCellBorders &
+  Record<"insideH" | "insideV", DocxBorderStyle | null>;
+
+export function checkDocxBorders(value: unknown, wholeTable: boolean): void {
+  const patch = record(value),
+    keys = Object.keys(patch);
+  if (!keys.length) throw new Error("Border changes are empty");
+  for (const key of keys) {
+    if (
+      ![
+        "top",
+        "right",
+        "bottom",
+        "left",
+        ...(wholeTable ? ["insideH", "insideV"] : []),
+      ].includes(key)
+    )
+      throw new Error("Invalid border side");
+    if (patch[key] === null) continue;
+    const edge = record(patch[key]),
+      width = edge.width;
+    if (
+      Object.keys(edge).length !== 2 ||
+      typeof width !== "number" ||
+      !Number.isFinite(width) ||
+      (width !== 0 && width < 0.25) ||
+      width > 12 ||
+      !Number.isInteger(width * 8) ||
+      typeof edge.color !== "string" ||
+      !/^[0-9a-f]{6}$/i.test(edge.color)
+    )
+      throw new Error("Invalid border width or color");
+  }
+}
+
 export interface DocxCellMargins {
   top: number;
   right: number;
@@ -25,6 +73,7 @@ export function checkDocxCellMargins(value: unknown): void {
 }
 
 export type DocxTableEdit =
+  | { action: "tableBorders" | "cellBorders"; value: DocxBorderPatch }
   | {
       action:
         | "rowBefore"
@@ -38,6 +87,7 @@ export type DocxTableEdit =
     }
   | { action: "merge"; rows: number; columns: number }
   | { action: "tableWidth" | "rowHeight"; value: number }
+  | { action: "columnWidth"; column: number; value: number }
   | { action: "headerRows"; value: number }
   | { action: "cellFill"; value: string | null }
   | { action: "cellVerticalAlign"; value: "top" | "center" | "bottom" | null }
@@ -46,6 +96,10 @@ export type DocxTableEdit =
 
 export function checkDocxTableEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "tableBorders" || change.action === "cellBorders") {
+    checkDocxBorders(change.value, change.action === "tableBorders");
+    return;
+  }
   if (change.action === "headerRows") {
     if (
       typeof change.value !== "number" ||
@@ -85,7 +139,21 @@ export function checkDocxTableEdit(value: unknown): void {
       throw new Error("Invalid cell fill");
     return;
   }
-  if (change.action === "tableWidth" || change.action === "rowHeight") {
+  if (
+    change.action === "tableWidth" ||
+    change.action === "rowHeight" ||
+    change.action === "columnWidth"
+  ) {
+    if (
+      change.action === "columnWidth" &&
+      (typeof change.column !== "number" ||
+        !Number.isSafeInteger(change.column) ||
+        change.column < 0 ||
+        change.column >= 63 ||
+        typeof change.value !== "number" ||
+        change.value < 12)
+    )
+      throw new Error("Invalid column width or index");
     if (
       typeof change.value !== "number" ||
       !Number.isFinite(change.value) ||

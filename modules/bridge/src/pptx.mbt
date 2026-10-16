@@ -132,7 +132,7 @@ fn Foundation::pptx_operation(
           )
         "textAnchor" => @pptx.TextAnchor(field_string(change, "anchor"))
         "textWrap" => @pptx.TextWrap(xlsx_boolean(change, "wrap"))
-        "textFit" => @pptx.TextFit(xlsx_boolean(change, "autofit"))
+        "textFit" => @pptx.TextFit(field_string(change, "fit"))
         "fill" | "stroke" => {
           let color = match change {
             { "color": Null, .. } => None

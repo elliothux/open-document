@@ -115,7 +115,7 @@ fn fit_text(
   let object = { ..object, body: object.shape_body(geometry), }
   let mut scale = 1.0
   let mut measured = measure_text(object, geometry, probe, profile, scale) catch {
-    @failure.Failure(code="layout-overflow", ..) if object.body.fit =>
+    @failure.Failure(code="layout-overflow", ..) if object.body.fit == "shrink" =>
       ([], geometry.height + 1)
     @failure.Failure(code="layout-overflow", ..) =>
       measure_text(
@@ -133,7 +133,7 @@ fn fit_text(
       line.width <= geometry.width - object.body.left - object.body.right + 0.01
     })
   }
-  if object.body.fit && !fits(measured) {
+  if object.body.fit == "shrink" && !fits(measured) {
     let mut low = 0.1
     let mut high = 1.0
     for _ in 0..<10 {

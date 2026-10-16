@@ -2,6 +2,7 @@
 package "open_document/layout"
 
 import {
+  "moonbitlang/core/debug",
   "open_document/core/failure",
 }
 
@@ -24,6 +25,15 @@ pub(all) struct Border {
   height : Double
 } derive(ToJson)
 pub fn Border::to_json(Self) -> Json
+
+pub(all) struct BorderStyle {
+  width : Double
+  color : String
+} derive(Eq, ToJson, @debug.Debug)
+pub fn BorderStyle::equal(Self, Self) -> Bool
+pub fn BorderStyle::not_equal(Self, Self) -> Bool
+pub fn BorderStyle::to_json(Self) -> Json
+pub fn BorderStyle::to_repr(Self) -> @debug.Repr
 
 pub(all) struct Caret {
   offset : Int
@@ -296,7 +306,7 @@ pub(all) struct PageFrame {
   width : Double
   height : Double
   lines : Array[Line]
-  borders : Array[Border]
+  borders : Array[TableStroke]
   fills : Array[Fill]
   cellAreas : Array[CellArea]
 } derive(ToJson)
@@ -497,13 +507,28 @@ pub(all) struct Table {
   rowSpans : Array[Array[Int]]
   widths : Array[Double]
   align : String
-  borders : Bool
+  borders : TableBorders
   margins : Array[Array[CellMargins]]
   heights : Array[Double]
   fills : Array[Array[String]]
   verticalAligns : Array[Array[String]]
 } derive(ToJson)
+pub fn Table::border_width(Self, Int) -> Double
+pub fn Table::cell_insets(Self, Int, Int) -> CellMargins
 pub fn Table::to_json(Self) -> Json
+
+pub(all) struct TableBorders {
+  horizontal : Array[Array[BorderStyle]]
+  vertical : Array[Array[BorderStyle]]
+} derive(ToJson)
+pub fn TableBorders::to_json(Self) -> Json
+
+pub(all) struct TableStroke {
+  rect : Border
+  color : String
+  width : Double
+} derive(ToJson)
+pub fn TableStroke::to_json(Self) -> Json
 
 pub(all) struct TextBlock {
   texts : Array[PositionedText]

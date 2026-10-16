@@ -1,5 +1,11 @@
 import { record } from "./validation.js";
-import { checkDocxCellMargins, type DocxCellMargins } from "./docx-table.js";
+import {
+  checkDocxCellMargins,
+  checkDocxBorders,
+  type DocxCellMargins,
+  type DocxCellBorders,
+  type DocxTableBorders,
+} from "./docx-table.js";
 import { isListReference, type DocxListReference } from "./docx-list.js";
 
 /** Uniform effective values captured by the core; mixed properties are omitted. */
@@ -273,6 +279,8 @@ export interface DocxFormatting {
     id: number;
     row: number;
     columns: number;
+    column: number;
+    columnWidths: number[];
     width: number;
     rowHeight: number;
     rows: number;
@@ -280,6 +288,8 @@ export interface DocxFormatting {
     cellFill: string | null;
     cellVerticalAlign: "top" | "center" | "bottom";
     cellMargins: DocxCellMargins;
+    cellBorders: DocxCellBorders;
+    tableBorders: DocxTableBorders;
     tableMargins: DocxCellMargins;
     align: "left" | "center" | "right";
     maxWidth: number;
@@ -376,6 +386,14 @@ export function docxFormatting(value: unknown): DocxFormatting {
     paragraph = record(result.paragraph);
   const table = record(result.table);
   if (result.table !== null) {
+    for (const [name, whole] of [
+      ["cellBorders", false],
+      ["tableBorders", true],
+    ] as const) {
+      checkDocxBorders(table[name], whole);
+      if (Object.keys(record(table[name])).length !== (whole ? 6 : 4))
+        throw new Error("Incomplete border query");
+    }
     checkDocxCellMargins(table.cellMargins);
     checkDocxCellMargins(table.tableMargins);
     if (!["left", "center", "right"].includes(String(table.align)))
@@ -403,7 +421,7 @@ export function docxFormatting(value: unknown): DocxFormatting {
     Number(result.revision) < 0 ||
     typeof result.reason !== "string" ||
     (result.table !== null &&
-      (!["id", "row", "columns", "rows", "headerRows"].every(
+      (!["id", "row", "column", "columns", "rows", "headerRows"].every(
         (key) =>
           Number.isSafeInteger(table[key]) &&
           Number(table[key]) >= 0 &&
@@ -412,6 +430,13 @@ export function docxFormatting(value: unknown): DocxFormatting {
         Number(table.columns) < 1 ||
         Number(table.rows) < 1 ||
         Number(table.row) >= Number(table.rows) ||
+        Number(table.column) >= Number(table.columns) ||
+        !Array.isArray(table.columnWidths) ||
+        table.columnWidths.length !== Number(table.columns) ||
+        !table.columnWidths.every(
+          (width: unknown) =>
+            typeof width === "number" && Number.isFinite(width) && width > 0,
+        ) ||
         Number(table.headerRows) > Number(table.rows) ||
         !["top", "center", "bottom"].includes(
           String(table.cellVerticalAlign),

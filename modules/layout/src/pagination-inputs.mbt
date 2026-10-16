@@ -130,7 +130,7 @@ fn BodyBlock::place(
       pagination.table_rows(
         cache, probe, table, row, end, profile, images, additive,
       )
-    TableEnd(table) => if table.borders { pagination.y += 0.5 }
+    TableEnd(table) => pagination.y += table.border_width(table.rows.length())
   }
 }
 

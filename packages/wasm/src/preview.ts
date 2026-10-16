@@ -2,7 +2,12 @@ import type { ShapeBatch } from "./foundation.js";
 import { checkTabStops, type TabStop } from "./docx-format.js";
 import { record } from "./validation.js";
 import { drawingBatch, type DrawingBatch } from "./drawing.js";
-import { checkDocxCellMargins, type DocxCellMargins } from "./docx-table.js";
+import {
+  checkDocxCellMargins,
+  checkDocxBorders,
+  type DocxCellMargins,
+  type DocxBorderStyle,
+} from "./docx-table.js";
 
 export interface TextStyle {
   font: string;
@@ -65,7 +70,7 @@ export interface DocxFlow {
     rows: DocxFlow["paragraphs"][][];
     widths: number[];
     align: string;
-    borders: boolean;
+    borders: { horizontal: DocxBorderStyle[][]; vertical: DocxBorderStyle[][] };
     margins: DocxCellMargins[][];
     heights: number[];
     fills: string[][];
@@ -262,12 +267,29 @@ export function docxFlow(value: unknown): DocxFlow {
     )
       throw new Error("Invalid cell vertical alignments");
     if (
-      typeof table.borders !== "boolean" ||
       !entries(table.widths).every(
         (item) => typeof item === "number" && Number.isFinite(item),
       )
     )
       throw new Error("Invalid table properties");
+    const borders = record(table.borders),
+      columns = entries(table.widths).length;
+    for (const [key, height, width] of [
+      ["horizontal", rows.length + 1, columns],
+      ["vertical", rows.length, columns + 1],
+    ] as const) {
+      const edges = entries(borders[key]);
+      if (
+        edges.length !== height ||
+        edges.some((row) => entries(row).length !== width)
+      )
+        throw new Error("Invalid border grid");
+      for (const row of edges)
+        for (const edge of entries(row)) {
+          if (edge === null) throw new Error("Invalid border grid edge");
+          checkDocxBorders({ top: edge }, false);
+        }
+    }
     for (const row of entries(table.rows))
       for (const cell of entries(row))
         for (const value of entries(cell)) paragraph(value);

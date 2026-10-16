@@ -15,7 +15,7 @@ pub(all) enum ObjectEdit {
   TextInsets(Double, Double, Double, Double)
   TextAnchor(String)
   TextWrap(Bool)
-  TextFit(Bool)
+  TextFit(String)
   TextFormat(TextFormat)
   TextAlign(String)
   TextParagraph(ParagraphFormat)

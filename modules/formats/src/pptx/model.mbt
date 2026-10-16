@@ -61,7 +61,7 @@ priv struct Body {
   bottom : Double
   anchor : String
   wrap : Bool
-  fit : Bool
+  fit : String
 }
 
 ///|

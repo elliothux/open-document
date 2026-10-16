@@ -10,6 +10,7 @@ pub(all) enum TableEdit {
   UnmergeCell
   SplitTable
   TableWidth(Double)
+  ColumnWidth(Int, Double)
   RowHeight(Double)
   CellFill(String?)
   CellVerticalAlign(String?)
@@ -17,6 +18,8 @@ pub(all) enum TableEdit {
   TableMargins(@layout.CellMargins?)
   TableAlign(String)
   HeaderRows(Int)
+  TableBorders(Map[String, @layout.BorderStyle?])
+  CellBorders(Map[String, @layout.BorderStyle?])
 }
 
 ///|
@@ -145,6 +148,13 @@ pub fn Session::edit_table(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   match change {
+    TableBorders(value) | CellBorders(value) =>
+      return self.set_table_borders(
+        revision,
+        selection,
+        value,
+        whole_table=change is TableBorders(_),
+      )
     HeaderRows(count) =>
       return self.change_table_property(
         revision,
@@ -159,6 +169,14 @@ pub fn Session::edit_table(
     SplitTable => return self.split_table(revision, selection)
     TableWidth(value) =>
       return self.size_table(revision, selection, value, width=true)
+    ColumnWidth(column, value) =>
+      return self.size_table(
+        revision,
+        selection,
+        value,
+        width=true,
+        column=Some(column),
+      )
     RowHeight(value) =>
       return self.size_table(revision, selection, value, width=false)
     CellFill(color) => return self.fill_table_cell(revision, selection, color)

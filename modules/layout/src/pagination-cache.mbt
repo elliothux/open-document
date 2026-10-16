@@ -137,7 +137,7 @@ fn PaginationCache::bounded(
     return false
   }
   for page in pages {
-    units += paragraph_cache_units("", page.lines) + page.borders.length() * 4
+    units += paragraph_cache_units("", page.lines) + page.borders.length() * 6
     for fill in page.fills {
       units += 4 + fill.color.length()
     }

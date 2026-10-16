@@ -6,6 +6,7 @@ import type {
 } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { DocxBorders } from "./docx-borders.js";
 
 export function DocxTables({
   controller,
@@ -38,6 +39,17 @@ export function DocxTables({
     <section aria-label={t.insertTable}>
       <h3>{t.insertTable}</h3>
       {size && (
+        <DocxBorders
+          key={`borders:${snapshot.documentId}:${size.id}:${paragraph}:${snapshot.revision}`}
+          controller={controller}
+          state={state}
+          editor={editor}
+          cell={size.cellBorders}
+          table={size.tableBorders}
+          disabled={disabled || !!snapshot.data.formatting?.reason}
+        />
+      )}
+      {size && (
         <TableProperties
           key={`${snapshot.documentId}:${size.id}:${paragraph}:${snapshot.revision}`}
           controller={controller}
@@ -47,6 +59,8 @@ export function DocxTables({
           width={size.width}
           height={size.rowHeight}
           columns={size.columns}
+          column={size.column}
+          columnWidths={size.columnWidths}
           maxWidth={size.maxWidth}
           maxHeight={size.maxRowHeight}
           fill={size.cellFill}
@@ -186,6 +200,8 @@ function TableProperties({
   width,
   height,
   columns,
+  column,
+  columnWidths,
   maxWidth,
   maxHeight,
   fill,
@@ -203,6 +219,8 @@ function TableProperties({
   width: number;
   height: number;
   columns: number;
+  column: number;
+  columnWidths: number[];
   maxWidth: number;
   maxHeight: number;
   fill: string | null;
@@ -218,9 +236,60 @@ function TableProperties({
     [headers, setHeaders] = useState(String(headerRows)),
     [rowHeight, setHeight] = useState(String(height)),
     [cellFill, setFill] = useState(`#${fill ?? "ffffff"}`);
+  const [columnIndex, setColumnIndex] = useState(column),
+    [columnWidth, setColumnWidth] = useState(String(columnWidths[column]));
+  const maximumColumnWidth = maxWidth - width + columnWidths[columnIndex]!;
   return (
     <fieldset disabled={disabled}>
       <legend>{t.tableProperties}</legend>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          controller.run(() =>
+            editor.editTable({
+              action: "columnWidth",
+              column: columnIndex,
+              value: Number(columnWidth),
+            }),
+          );
+        }}
+      >
+        <label>
+          {t.tableColumn}
+          <select
+            aria-label={t.tableColumn}
+            value={columnIndex}
+            onChange={(event) => {
+              const index = Number(event.currentTarget.value);
+              if (Number.isInteger(index) && index >= 0 && index < columns) {
+                setColumnIndex(index);
+                setColumnWidth(String(columnWidths[index]));
+              }
+            }}
+          >
+            {columnWidths.map((_, index) => (
+              <option key={index} value={index}>
+                {index + 1}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          {t.tableColumnWidth}
+          <input
+            type="number"
+            min={12}
+            max={maximumColumnWidth}
+            step={0.05}
+            required
+            value={columnWidth}
+            onChange={(event) => setColumnWidth(event.currentTarget.value)}
+          />
+        </label>
+        <button type="submit" aria-label={`${t.apply} ${t.tableColumnWidth}`}>
+          {t.apply}
+        </button>
+      </form>
       <form
         onSubmit={(event) => {
           event.preventDefault();

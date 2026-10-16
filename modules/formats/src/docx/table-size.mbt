@@ -4,7 +4,7 @@ fn table_row_height_limit(
   row : Int,
   page : @layout.PageSetup,
 ) -> Double {
-  let border = if table.borders { 0.5 } else { 0 }
+  let border = table.border_width(row)
   let mut first = 0
   let mut last = 0
   while first <= row {
@@ -21,13 +21,18 @@ fn table_row_height_limit(
     }
     first = last + 1
   }
-  let mut available = page.height - page.top - page.bottom - border * 2
+  let mut available = page.height -
+    page.top -
+    page.bottom -
+    border -
+    table.border_width(last + 1)
   for r in first..<=last {
     if r != row {
-      available -= (table.heights[r] + border).max(
+      let edge = table.border_width(r)
+      available -= (table.heights[r] + edge).max(
         table.margins[r].iter().fold(init=0.0, (v, m) => v.max(m.top)) +
         table.margins[r].iter().fold(init=0.0, (v, m) => v.max(m.bottom)) +
-        border,
+        edge,
       )
     }
   }
@@ -60,17 +65,32 @@ fn Session::table_dimensions(
   }
   let index = rows.search(row).unwrap()
   let column = tree.table_children(row, "tc").search(cell).unwrap()
+  let logical_column = table.columnSpans[index][:column].fold(init=0, (
+    sum,
+    span,
+  ) => sum + span)
   let fill = table.fills[index][column]
+  let border_defaults = border_defaults(tree, self.styles([]), id, [])
   {
     "id": id,
     "row": index,
     "columns": table.widths.length(),
+    "column": logical_column,
+    "columnWidths": table.widths,
     "width": table.widths.iter().fold(init=0.0, (sum, width) => sum + width),
     "rowHeight": table.heights[index],
     "rows": rows.length(),
     "headerRows": table.headerRows,
     "cellVerticalAlign": table.verticalAligns[index][column],
     "cellMargins": Json(table.margins[index][column]),
+    "cellBorders": cell_border_query(table, index, column),
+    "tableBorders": Json::object(
+      Map::from_array(
+        ["top", "left", "bottom", "right", "insideH", "insideV"].map(side => {
+          (side, Json(border_defaults.get(side).unwrap_or(empty_border())))
+        }),
+      ),
+    ),
     "tableMargins": Json(table_margin_defaults(tree, self.styles([]), id, [])),
     "align": table.align,
     "cellFill": if fill.is_empty() {
@@ -110,11 +130,12 @@ fn WordTree::table_property_change(
       "trHeight" => ["val", "hRule"]
       "shd" => ["val", "color", "fill"]
       "vAlign" | "jc" | "tblHeader" => ["val"]
-      "tcMar" | "tblCellMar" => []
+      "tcMar" | "tblCellMar" | "tcBorders" | "tblBorders" => []
       _ => ["w", "type"]
     }
     guard (
-        self.children[id].is_empty() || ["tcMar", "tblCellMar"].contains(name)
+        self.children[id].is_empty() ||
+        ["tcMar", "tblCellMar", "tcBorders", "tblBorders"].contains(name)
       ) &&
       self.nodes[id].text.trim().is_empty() &&
       self.nodes[id].attributes.all(a => {
@@ -129,7 +150,7 @@ fn WordTree::table_property_change(
       let source = document.source()[node.start:node.end]
       guard source == value ||
         (!source.contains("<!--") && !source.contains("<?")) else {
-        @failure.reject("protected-content", "Unknown cell margin markup")
+        @failure.reject("protected-content", "Unknown table property markup")
       }
     }
     value
@@ -161,6 +182,14 @@ fn WordTree::table_property_change(
     .iter()
     .find_first(child => {
       match name {
+        "tcBorders" =>
+          ["shd", "tcMar", "vAlign", "hideMark", "tcPrChange"].contains(
+            self.nodes[child].name,
+          )
+        "tblBorders" =>
+          !["tblStyle", "tblW", "jc", "tblCellSpacing", "tblInd"].contains(
+            self.nodes[child].name,
+          )
         "shd" => ["tcMar", "vAlign"].contains(self.nodes[child].name)
         "tcMar" => self.nodes[child].name == "vAlign"
         "vAlign" => false
@@ -202,6 +231,7 @@ fn Session::size_table(
   selection : Selection,
   value : Double,
   width~ : Bool,
+  column~ : Int? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard value >= 0 && value <= 14400 && value * 20 == (value * 20).round() else {
@@ -225,9 +255,7 @@ fn Session::size_table(
   }
   let twips = (value * 20).to_int()
   if width {
-    guard value > 0 &&
-      value <= flow.page.width - flow.page.left - flow.page.right &&
-      model.widths.length() <= 63 else {
+    guard value > 0 && model.widths.length() <= 63 else {
       @failure.reject(
         "invalid-operation", "Table width exceeds the page or column limit",
       )
@@ -250,13 +278,27 @@ fn Session::size_table(
     }
     let widths = model.widths.map(w => (w * 20).round().to_int())
     let total = widths.iter().fold(init=0L, (sum, w) => sum + w.to_int64())
-    let mut edge = 0L
-    let mut previous = 0
-    for i in 0..<widths.length() {
-      edge += widths[i].to_int64()
-      let end = ((edge * twips.to_int64() + total / 2) / total).to_int()
-      widths[i] = end - previous
-      previous = end
+    if column is Some(column) {
+      guard column >= 0 && column < widths.length() else {
+        @failure.reject(
+          "invalid-operation", "Column index is outside the table",
+        )
+      }
+      widths[column] = twips
+    } else {
+      let mut edge = 0L
+      let mut previous = 0
+      for i in 0..<widths.length() {
+        edge += widths[i].to_int64()
+        let end = ((edge * twips.to_int64() + total / 2) / total).to_int()
+        widths[i] = end - previous
+        previous = end
+      }
+    }
+    let next_total = widths.iter().fold(init=0L, (sum, w) => sum + w.to_int64())
+    guard next_total.to_double() / 20 <=
+      flow.page.width - flow.page.left - flow.page.right else {
+      @failure.reject("invalid-operation", "Table width exceeds the page")
     }
     guard widths.all(w => w >= 240) else {
       @failure.reject(
@@ -268,12 +310,16 @@ fn Session::size_table(
         grid.table,
         "tblPr",
         "tblW",
-        Some(Map([("w", Some(twips.to_string())), ("type", Some("dxa"))])),
+        Some(Map([("w", Some(next_total.to_string())), ("type", Some("dxa"))])),
       )
       is Some(change) {
       changes.push(change)
     }
-    if total != twips.to_int64() {
+    if (
+        column is Some(i) &&
+        (model.widths[i] * 20).round().to_int() != widths[i]
+      ) ||
+      (column is None && total != next_total) {
       let node = tree.nodes[source]
       let markup = document.source()[node.start:node.end]
       guard !markup.contains("<!--") && !markup.contains("<?") else {
@@ -348,6 +394,7 @@ fn Session::size_table(
     .iter()
     .find_first(t => t.id == grid.table)
     .unwrap()
+  self.check_margin_layout(updated)
   guard updated.rows.flatten().flatten().all(p => p.readOnlyReason.is_empty()) else {
     @failure.reject(
       "protected-content", "Table size requires unsupported layout",

@@ -239,7 +239,7 @@ pub(all) struct PageFrame {
   width : Double
   height : Double
   lines : Array[Line]
-  borders : Array[Border]
+  borders : Array[TableStroke]
   fills : Array[Fill]
   cellAreas : Array[CellArea]
 } derive(ToJson)
@@ -342,6 +342,40 @@ pub extend CellMargins with ToJson::{to_json}
 pub extend CellMargins with Eq::{not_equal, equal}
 
 ///|
+pub(all) struct BorderStyle {
+  width : Double
+  color : String
+} derive(ToJson, Eq, Debug)
+
+///|
+pub extend BorderStyle with ToJson::{to_json}
+
+///|
+pub extend BorderStyle with Eq::{equal, not_equal}
+
+///|
+pub extend BorderStyle with Debug::{to_repr}
+
+///|
+pub(all) struct TableBorders {
+  horizontal : Array[Array[BorderStyle]]
+  vertical : Array[Array[BorderStyle]]
+} derive(ToJson)
+
+///|
+pub extend TableBorders with ToJson::{to_json}
+
+///|
+pub(all) struct TableStroke {
+  rect : Border
+  color : String
+  width : Double
+} derive(ToJson)
+
+///|
+pub extend TableStroke with ToJson::{to_json}
+
+///|
 pub(all) struct Table {
   id : Int
   headerRows : Int
@@ -351,7 +385,7 @@ pub(all) struct Table {
   rowSpans : Array[Array[Int]]
   widths : Array[Double]
   align : String
-  borders : Bool
+  borders : TableBorders
   margins : Array[Array[CellMargins]]
   heights : Array[Double]
   fills : Array[Array[String]]

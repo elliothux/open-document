@@ -473,7 +473,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
           "bottom": object.body.bottom,
           "anchor": object.body.anchor,
           "wrap": object.body.wrap,
-          "autofit": object.body.fit,
+          "fit": object.body.fit,
           "reason": self.text_frame_reason(object),
         },
         "geometry": object.geometry

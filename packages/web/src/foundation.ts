@@ -22,6 +22,11 @@ export type {
   DocxPageSettings,
   DocxTableEdit,
   DocxCellMargins,
+  DocxBorderStyle,
+  DocxBorderSide,
+  DocxBorderPatch,
+  DocxCellBorders,
+  DocxTableBorders,
   ListFormat,
 } from "@open-document/wasm/foundation";
 export {
