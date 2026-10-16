@@ -8,6 +8,8 @@ pub(all) enum SheetEdit {
   Rename(String)
   RowHeight(Int, Int, Double)
   ColumnWidth(Int, Int, Double)
+  Merge(String, Bool)
+  Unmerge(String)
 }
 
 ///|
@@ -134,6 +136,10 @@ pub fn Session::edit_sheet(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   match change {
+    Merge(range, discard) =>
+      return self.merge_cells(sheet, Range::parse(range), discard, false)
+    Unmerge(range) =>
+      return self.merge_cells(sheet, Range::parse(range), false, true)
     RowHeight(first, last, size) =>
       return self.resize_dimensions(sheet, first, last, size, rows=true)
     ColumnWidth(first, last, size) =>
@@ -158,7 +164,7 @@ pub fn Session::edit_sheet(
   let mut removed : Map[String, @xml.Document] = Map([])
   let mut next_sheet = self.next_sheet
   match change {
-    RowHeight(_, _, _) | ColumnWidth(_, _, _) =>
+    RowHeight(_, _, _) | ColumnWidth(_, _, _) | Merge(_, _) | Unmerge(_) =>
       abort("Dimension edit was dispatched")
     Rename(name) => return self.rename_sheet(index, name)
     Delete => {

@@ -23,6 +23,7 @@ pub struct Session {
   priv strings_part : String?
   priv mut styles : Array[CellStyle]
   priv theme : Array[String]
+  priv normal_font : String
   priv date1904 : Bool
   priv mut sheets : Array[Sheet]
   priv mut selection : (String, Range)
@@ -89,6 +90,7 @@ fn Session::from_package(
   let mut has_styles = false
   let theme = read_theme(opc, main)
   let mut cell_styles = [default_style()]
+  let mut base_font = default_style().font
   for rel in opc.relationships() {
     guard !rel.kind.has_prefix("http://purl.oclc.org/ooxml/") else {
       @failure.reject("unsupported-xlsx", "Strict OOXML is unsupported")
@@ -120,6 +122,7 @@ fn Session::from_package(
       }
       has_styles = true
       cell_styles = read_styles(opc.xml(rel.target), theme)
+      base_font = normal_font(opc.xml(rel.target))
     }
   }
   let container = tree
@@ -221,6 +224,7 @@ fn Session::from_package(
     strings_part,
     styles: cell_styles,
     theme,
+    normal_font: base_font,
     date1904: tree
     .one(root.id, "workbookPr")
     .map(node => flag(node, "date1904"))
@@ -392,6 +396,8 @@ pub fn Session::query(
       "readOnlyReason": self.dimension_reason(current),
     },
     "formatting": self.formatting(current, range.unwrap()),
+    "normalFont": self.normal_font,
+    "merging": self.merging(current, range.unwrap()),
     "diagnostics": self.diagnostics,
     "date1904": self.date1904,
   }

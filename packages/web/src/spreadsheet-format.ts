@@ -6,6 +6,19 @@ import {
 } from "@open-document/wasm/xlsx";
 import { DocumentError } from "@open-document/wasm/foundation";
 
+export function checkFontMapping(
+  key: string,
+  profile: Record<string, string>,
+): void {
+  if (!profile[key])
+    throw new DocumentError(
+      "missing-font",
+      `Missing font profile mapping: ${key}`,
+      "",
+      -1,
+    );
+}
+
 export function checkCopiedFormatFonts(
   format: CopiedCellFormat,
   current: XlsxFormatting,
@@ -39,12 +52,6 @@ export function checkFormatFonts(
       (patch.family ?? parts[0]!) +
       ((patch.bold ?? parts.includes("bold")) ? "|bold" : "") +
       ((patch.italic ?? parts.includes("italic")) ? "|italic" : "");
-    if (!profile[key])
-      throw new DocumentError(
-        "missing-font",
-        `Missing font profile mapping: ${key}`,
-        "",
-        -1,
-      );
+    checkFontMapping(key, profile);
   }
 }

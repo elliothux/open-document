@@ -133,6 +133,7 @@ fn Sheet::prepare(
   self : Sheet,
   updates : Map[String, CellContent],
   styles~ : Map[String, Int] = Map([]),
+  preserve_values~ : Bool = false,
 ) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
   let tree = Tree::new(self.document)
   let changes : Array[@xml.SourceChange] = []
@@ -141,7 +142,7 @@ fn Sheet::prepare(
     let address = Address::parse(name)
     if self.cells.get(name) is Some(cell) {
       let node = tree.nodes[cell.node]
-      if styles.get(name) is Some(style) {
+      if preserve_values && styles.get(name) is Some(style) {
         changes.append(metadata_changes(node, [("s", style.to_string())]))
         continue
       }
@@ -150,7 +151,7 @@ fn Sheet::prepare(
         node: row.id,
         offset: node.start - row.start,
         length: node.end - node.start,
-        xml: self.cell_xml(tree, address, value),
+        xml: self.cell_xml(tree, address, value, style=styles.get(name)),
       })
     } else if value.value != Blank ||
       value.formula is Some(_) ||
@@ -318,23 +319,7 @@ pub fn Session::replace(
   if updates.is_empty() {
     return self.query(sheet=Some(sheet), range=Some(target.name()))
   }
-  let groups : Map[Int, Bool] = Map([])
-  for key in updates.keys() {
-    if current.cells.get(key).bind(cell => cell.group) is Some(group) {
-      groups[group] = true
-    }
-  }
-  for key, cell in current.cells {
-    if cell.group is Some(group) &&
-      groups.contains(group) &&
-      !updates.contains(key) {
-      updates[key] = {
-        value: cell.value,
-        formula: cell.formula,
-        keep_shared: false,
-      }
-    }
-  }
+  current.expand_shared_updates(updates)
   let (document, edit) = current.prepare(updates)
   let candidate = self.sheets.copy()
   candidate[index] = Sheet::read(

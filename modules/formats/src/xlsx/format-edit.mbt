@@ -99,7 +99,30 @@ pub fn Session::format_cells(
   revision : Int,
   patch : CellFormat,
 ) -> Json raise @failure.Failure {
-  self.format_pattern(revision, [[patch]], self.selection.1)
+  let sheet = self.sheets[self.sheet_index(self.selection.0)]
+  let target = sheet.merge_target(self.selection.1)
+  if [patch.left, patch.right, patch.top, patch.bottom].any(edge => {
+      edge is Some(_)
+    }) &&
+    sheet.merges.any(range => range.intersects(target)) {
+    self.check_revision(revision)
+    let reason = self.format_reason(sheet, target)
+    guard reason.is_empty() else {
+      @failure.reject("protected-content", reason)
+    }
+    let pattern : Array[Array[CellFormat]] = []
+    for row in target.top..<=target.bottom {
+      let line : Array[CellFormat] = []
+      for column in target.left..<=target.right {
+        let address : Address = { row, column, }
+        line.push(patch.for_merged_cell(address, sheet.cell_range(address)))
+      }
+      pattern.push(line)
+    }
+    self.format_pattern(revision, pattern, target)
+  } else {
+    self.format_pattern(revision, [[patch]], target)
+  }
 }
 
 ///|
@@ -133,7 +156,6 @@ fn Session::format_pattern(
   let reason = self.format_reason(current, target)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let originals : Map[String, (Int, Int)] = Map([])
-  let bases : Map[(Int, Int), Bool] = Map([])
   for row in target.top..<=target.bottom {
     for column in target.left..<=target.right {
       let address : Address = { row, column, }
@@ -145,7 +167,6 @@ fn Session::format_pattern(
       let patch = patches[id]
       if patch.applied(self.styles[style]) != self.styles[style] {
         originals[address.name()] = (style, id)
-        bases[(style, id)] = true
       }
     }
   }
@@ -156,144 +177,16 @@ fn Session::format_pattern(
       self.select(revision, sheet, target.name())
     }
   }
-  let parts = self.parts.copy()
-  let existing = self.styles_part(parts)
-  let (path, metadata) = if existing is Some(path) {
-    (path, [])
-  } else {
-    self.new_styles_part()
-  }
-  let original = if existing is Some(_) {
-    self.part_xml(path)
-  } else {
-    @xml.Document::parse(
-      empty_cell_styles(),
-      path,
-      self.budget.xml_depth,
-      self.budget.entry_bytes,
-    )
-  }
-  guard original.source().length() <= 2097152 else {
-    @failure.reject("limit-exceeded", "Cell styles exceed history budget")
-  }
-  let tree = Tree::new(original)
-  let fonts = StylePool::new(tree, "fonts", "font")
-  let fills = StylePool::new(tree, "fills", "fill")
-  let borders = StylePool::new(tree, "borders", "border")
-  let formats = StylePool::new(tree, "cellXfs", "xf")
-  let mappings : Map[(Int, Int), Int] = Map([])
-  let (number_ids, new_formats) = format_numbers(tree, patches)
-  let mut units = 0
-  for key in bases.keys() {
-    let (base, id) = key
-    let patch = patches[id]
-    let xf = formats.nodes[base]
-    let font = natural(xf.attribute("fontId").unwrap_or("0"), 4095)
-    let fill = natural(xf.attribute("fillId").unwrap_or("0"), 4095)
-    let border = natural(xf.attribute("borderId").unwrap_or("0"), 4095)
-    let derived_font = if patch.family is Some(_) ||
-      patch.size is Some(_) ||
-      patch.bold is Some(_) ||
-      patch.italic is Some(_) ||
-      patch.color is Some(_) {
-      fonts.intern(patch.font_markup(tree, fonts.nodes[font]))
-    } else {
-      font
-    }
-    let derived_fill = if patch.fill is Some(color) {
-      fills.intern(
-        if color.is_empty() {
-          "<od:fill xmlns:od=\"\{spreadsheet_uri}\"><od:patternFill patternType=\"none\"/></od:fill>"
-        } else {
-          "<od:fill xmlns:od=\"\{spreadsheet_uri}\"><od:patternFill patternType=\"solid\"><od:fgColor rgb=\"FF\{color.to_upper()}\"/><od:bgColor indexed=\"64\"/></od:patternFill></od:fill>"
-        },
-      )
-    } else {
-      fill
-    }
-    let derived_border = if [patch.left, patch.right, patch.top, patch.bottom].any(v => {
-          v is Some(_)
-        },
-      ) {
-      borders.intern(patch.border_markup(tree, borders.nodes[border]))
-    } else {
-      border
-    }
-    let markup = patch.xf_markup(
-      tree,
-      xf,
-      derived_font,
-      derived_fill,
-      derived_border,
-      patch.numberFormat.bind(code => number_ids.get(code)),
-    )
-    units += markup.length() +
-      fonts.entries[derived_font].length() +
-      fills.entries[derived_fill].length() +
-      borders.entries[derived_border].length()
-    guard units <= 2097152 else {
-      @failure.reject(
-        "limit-exceeded", "Derived cell styles exceed source budget",
-      )
-    }
-    mappings[key] = formats.intern(markup)
-  }
-  let changes = [
-    ..fonts.changes(),
-    ..fills.changes(),
-    ..borders.changes(),
-    ..formats.changes(),
-  ]
-  if !new_formats.is_empty() {
-    let root = tree.root("styleSheet")
-    if tree.one(root.id, "numFmts") is Some(container) {
-      changes.append(
-        metadata_changes(container, [
-          (
-            "count",
-            (tree.all(container.id, "numFmt").length() + new_formats.length()).to_string(),
-          ),
-        ]),
-      )
-      changes.push(insertion(container, new_formats.join("")))
-    } else {
-      changes.push({
-        node: root.id,
-        offset: fonts.parent.start - root.start,
-        length: 0,
-        xml: "<od:numFmts xmlns:od=\"\{spreadsheet_uri}\" count=\"\{new_formats.length()}\">\{new_formats.join("")}</od:numFmts>",
-      })
-    }
-  }
-  let generated = changes
-    .iter()
-    .fold(init=0L, (sum, change) => sum + change.xml.length().to_int64())
-  guard generated <= 2097152L else {
-    @failure.reject(
-      "limit-exceeded", "Cell format source exceeds history budget",
-    )
-  }
-  let (document, style_edit) = original.edit_source(changes)
-  parts[path] = document
-  let edits : Array[(String, @xml.Edit)] = []
-  for (name, document, edit) in metadata {
-    parts[name] = document
-    edits.push((name, edit))
-  }
-  let created_parts : Map[String, @xml.Document] = Map([])
-  if existing is Some(_) {
-    edits.push((path, style_edit))
-  } else {
-    created_parts[path] = document
-  }
-  let styles = read_styles(document, self.theme)
+  let plan = self.derive_formats(originals, patches)
   let updates : Map[String, CellContent] = Map([])
-  let indices : Map[String, Int] = Map([])
-  for name, base in originals {
+  for name in originals.keys() {
     updates[name] = { value: Blank, formula: None, keep_shared: true, }
-    indices[name] = mappings[base]
   }
-  let (document, edit) = current.prepare(updates, styles=indices)
+  let (document, edit) = current.prepare(
+    updates,
+    styles=plan.indices,
+    preserve_values=true,
+  )
   let sheets = self.sheets.copy()
   sheets[index] = Sheet::read(
     current.id,
@@ -301,17 +194,17 @@ fn Session::format_pattern(
     current.state,
     document,
     self.strings,
-    styles.length(),
+    plan.styles.length(),
   )
-  edits.push((current.id, edit))
+  plan.edits.push((current.id, edit))
   self.commit(
     sheets,
     self.workbook,
     self.calculation.unwrap(),
-    edits,
+    plan.edits,
     (sheet, target),
-    parts~,
-    created_parts~,
+    parts=plan.parts,
+    created_parts=plan.created_parts,
   )
   self.query()
 }

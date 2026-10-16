@@ -23,6 +23,12 @@ export function XlsxFormat({
   const t = messages(state.locale),
     current = editor.currentState.formatting;
   const [patch, setPatch] = useState<XlsxCellFormat>({});
+  const [discard, setDiscard] = useState(false);
+  const merging = editor.currentState.merging;
+  useEffect(
+    () => setDiscard(false),
+    [editor, merging.range, state.document?.revision],
+  );
   useEffect(() => setPatch({}), [editor]);
   function set<K extends keyof XlsxCellFormat>(
     key: K,
@@ -67,6 +73,51 @@ export function XlsxFormat({
         editor={editor}
         disabled={disabled}
       />
+      <fieldset disabled={disabled}>
+        <legend>{t.mergeCells}</legend>
+        <p>{merging.range}</p>
+        {merging.discarded > 0 && (
+          <label>
+            <input
+              type="checkbox"
+              checked={discard}
+              onChange={(event) => setDiscard(event.currentTarget.checked)}
+            />
+            {t.discardMergedValues}
+          </label>
+        )}
+        <button
+          type="button"
+          disabled={
+            !!merging.mergeReason || (merging.discarded > 0 && !discard)
+          }
+          onClick={() =>
+            controller.run(() =>
+              editor.editSheet({
+                action: "merge",
+                range: merging.range,
+                discard,
+              }),
+            )
+          }
+        >
+          {t.mergeCells}
+        </button>
+        <button
+          type="button"
+          disabled={!merging.merged || !!merging.unmergeReason}
+          onClick={() =>
+            controller.run(() =>
+              editor.editSheet({ action: "unmerge", range: merging.range }),
+            )
+          }
+        >
+          {t.unmerge}
+        </button>
+        {(merging.mergeReason || merging.unmergeReason) && (
+          <p>{merging.mergeReason || merging.unmergeReason}</p>
+        )}
+      </fieldset>
       <form
         onSubmit={(event) => {
           event.preventDefault();

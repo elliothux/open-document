@@ -2,7 +2,7 @@
 
 状态：`planned`，第 1 批实施中。基于 [P5 XLSX](implemented/p5-xlsx-editing.md)、已完成的 [P9](implemented/p9-web-sdk-ui.md)及 [P10 的包创建与多部件事务设计](p10-docx-core.md#31-新建与多部件事务)。属于功能优先级 P0。空白创建已接通，其余扩展仍按下面的范围实施。阶段顺序归[路线图](references/roadmap.md)，现有 API 归[格式合同](references/formats.md#p5-xlsx-合同)，功能依据归 [G3](g3-genoffice-sdk-gap.md#表格xlsx)。
 
-当前进度：核心生成带一张可见 Sheet1、A1 选区和基础样式的空白工作簿，复用既有公式、编辑、历史、保存及打印路径。同步 Wasm、Worker、默认 UI 均提供创建；新建、替换确认、首次保存与另存复用 P9。已接通工作表新增、复制、删除、重排、改名与隐藏/显示，历史使用稳定部件路径，同步名称作用域、活动页和工作表视图。新增/复制/删除表的关系、内容类型和源 XML 一起提交与撤销。改名同步已支持的引用，保留字符串常量和共享公式组；删除将失去目标的引用改为 `#REF!`，同步名称、内部链接、计算缓存与 calcChain。已接通所选行高、列宽及零值隐藏，沿相同事务保存和撤销。行列插删、自动适配、合并/冻结与后续批次尚未完成，不标记第 1 批或整个 P11 完成。
+当前进度：核心生成带一张可见 Sheet1、A1 选区和基础样式的空白工作簿，复用既有公式、编辑、历史、保存及打印路径。同步 Wasm、Worker、默认 UI 均提供创建；新建、替换确认、首次保存与另存复用 P9。已接通工作表新增、复制、删除、重排、改名与隐藏/显示，历史使用稳定部件路径，同步名称作用域、活动页和工作表视图。新增/复制/删除表的关系、内容类型和源 XML 一起提交与撤销。改名同步已支持的引用，保留字符串常量和共享公式组；删除将失去目标的引用改为 `#REF!`，同步名称、内部链接、计算缓存与 calcChain。已接通所选行高、列宽及零值隐藏，沿相同事务保存和撤销。已接通有限矩形合并与取消合并；行列插删、自动适配、冻结与后续批次尚未完成，不标记第 1 批或整个 P11 完成。
 
 ## 1. 用户结果与交付范围
 
@@ -26,7 +26,7 @@
 | --- | --- |
 | [`xlsx/session.mbt`](../modules/formats/src/xlsx/session.mbt)、[`sheet-order.mbt`](../modules/formats/src/xlsx/sheet-order.mbt)、[`transaction.mbt`](../modules/formats/src/xlsx/transaction.mbt)、[`editing.mbt`](../modules/formats/src/xlsx/editing.mbt) | 稀疏单元格、源 XML、选区与稳定部件历史；已支持 workbook/worksheet 视图一起提交，增删部件事务继续扩展 |
 | [`formula-parser.mbt`](../modules/formats/src/xlsx/formula-parser.mbt)、[`formula-shift.mbt`](../modules/formats/src/xlsx/formula-shift.mbt)、[`calculation.mbt`](../modules/formats/src/xlsx/calculation.mbt) | 已有公式解析、共享公式平移、六函数与受影响重算；扩展引用变换、名称、函数与不确定依赖处理 |
-| [`styles.mbt`](../modules/formats/src/xlsx/styles.mbt)、[`number-format.mbt`](../modules/formats/src/xlsx/number-format.mbt) | 有限格式读取/显示与局部派生编辑；已有矩形格式刷；扩展清除格式和更多格式代码 |
+| [`styles.mbt`](../modules/formats/src/xlsx/styles.mbt)、[`number-format.mbt`](../modules/formats/src/xlsx/number-format.mbt) | 有限格式读取/显示与局部派生编辑；已有矩形格式刷、三种清除及规则范围拆分；扩展更多格式代码 |
 | [`grid.mbt`](../modules/formats/src/xlsx/grid.mbt)、[`print.mbt`](../modules/formats/src/xlsx/print.mbt) | 可见网格与独立打印布局；补冻结区域、筛选可见性、绘图锚点与打印设置 |
 | [`dimension-edit.mbt`](../modules/formats/src/xlsx/dimension-edit.mbt)、[`dimensions.mbt`](../modules/formats/src/xlsx/dimensions.mbt) | 行高/列宽事务、区间拆分和混合尺寸查询；网格、命中和打印使用同一几何 |
 | [`bridge/xlsx.mbt`](../modules/bridge/src/xlsx.mbt)、[`wasm/xlsx.ts`](../packages/wasm/src/xlsx.ts)、[`web/xlsx.ts`](../packages/web/src/xlsx.ts) | 扩展现有类型化命令与查询；不增加第二套计算服务 |
@@ -72,9 +72,9 @@
 
 矩形格式刷已接通核心、Wasm、Worker、宿主和默认属性栏。复制保存各格的有效格式，不复制值或公式；目标按源行列模式平铺，单格目标扩展到源尺寸。一次应用使用既有格式历史和字体校验。默认 UI 单击后应用一次，双击或 Shift+Enter 锁定连续应用，Esc 或再次点击取消；切换工作表可继续应用，更换文档释放状态。已检查异构源、空白目标、跨表、原生输入后复制、重复样式复用、精确历史、保存重开和 PDF。合并格格式刷及更广属性仍待对应编辑支持。接口与上限归[格式合同](references/formats.md#格式刷)。
 
-清除内容、清除格式和全部清除是不同操作，后两者仍待实现。数字格式解析属于核心；显示、导出和输入栏使用同一值/公式语义，延续 1900/1904 日期规则，不通过 JS 时区推断日期。
+清除内容、清除格式和全部清除已接通核心、Wasm、Worker、宿主和默认 UI。清除格式恢复工作簿 Normal 样式，保留值、公式及缓存，取消合并，并从选区清除既有条件格式；全部清除还移除值、公式、选区内验证和完整覆盖的链接，重算依赖。原生草稿先提交，每次清除独立撤销。核心已检查命名 Normal 样式、共享公式、源部件隔离、精确历史和保护失败；Chromium 已检查默认按钮、输入与格式混合历史、依赖结果、保存重开及 PDF。相交规则从原范围扣除选区，公式随锚点平移，保留范围外含义；核心和 Chromium 已检查拆分、公式源、精确历史及重开。无法平移的公式、未知规则结构、批注和未知关联资源仍受保护，范围与接口归[格式合同](references/formats.md#清除单元格)。数字格式解析属于核心；显示、导出和输入栏使用同一值/公式语义，延续 1900/1904 日期规则，不通过 JS 时区推断日期。
 
-合并前明确非锚点内容的处理：存在将被丢弃的数据时由 UI 明示，核心只有收到明确策略才执行。拆分恢复网格，不虚构此前被丢弃的文字；撤销则恢复完整原值。自动行高/列宽由核心字体度量计算，保留换行、合并和最大尺寸边界。
+已有 `editSheet` 矩形合并与取消合并的核心、Wasm、Worker、宿主和默认属性栏。核心统计非左上角的值/公式；默认拒绝丢弃，UI 须明确勾选后才提交。合并保留左上角内容和各格非边框格式，按外围归并边框，清除其余值/公式，更新非锚点验证范围和受影响缓存；共享公式存活成员展开为普通公式。取消合并恢复网格，不虚构已丢弃内容；撤销恢复原值与原合并范围。单格合并锚点可继续设置格式，网格、命中及打印复用既有几何。已检查原生键盘选区、丢弃确认、合并内命中、填充、精确混合历史、保存重开与 PDF。外围边框已支持源颜色关联保留、内线清除及合并后的局部设置；核心、独立 XML、网格和打印已检查。合并格格式刷和更广资源仍待扩展。签名和保护边界归[格式合同](references/formats.md#合并与取消合并)。自动行高/列宽由核心字体度量计算，保留换行、合并和最大尺寸边界。
 
 冻结属于可保存的 sheet view 设置。核心生成冻结区与滚动区的裁剪/变换及命中映射，Renderer 复用 R0 绘制多个有界区域。选区仍是一份核心范围，不能为四个窗格分别创建工作表状态。
 

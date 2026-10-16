@@ -70,7 +70,7 @@ pub struct Session {
 }
 pub fn Session::apply_format(Self, Int, Array[Array[CellFormat]]) -> Json raise @failure.Failure
 pub fn Session::capture_format(Self, Int) -> Json raise @failure.Failure
-pub fn Session::clear(Self, Int) -> Json raise @failure.Failure
+pub fn Session::clear(Self, Int, mode? : String) -> Json raise @failure.Failure
 pub fn Session::close(Self) -> Unit
 pub fn Session::copy(Self, Int) -> String raise @failure.Failure
 pub fn Session::create(@archive.Budget) -> Self raise @failure.Failure
@@ -99,6 +99,8 @@ pub(all) enum SheetEdit {
   Rename(String)
   RowHeight(Int, Int, Double)
   ColumnWidth(Int, Int, Double)
+  Merge(String, Bool)
+  Unmerge(String)
 }
 
 pub(all) enum Value {

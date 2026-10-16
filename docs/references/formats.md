@@ -356,7 +356,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 | `open(bytes,budget)` / `openXlsx(bytes,budget)` | 打开 Transitional XLSX；签名、Strict、加密和其他扩展格式拒绝 |
 | `query(sheet?,range?)` | 默认当前选区；返回实际存在的稀疏单元格，单格查询包含空格；A1 地址，查询矩形端点有序 |
 | `select(revision,sheet,range)` | 更新可见表的核心选区；隐藏表须先显示；单格合并区域定位锚点 |
-| `editSheet(revision,sheet,change)` | 工作表新增、复制、删除、重排、改名、可见性及行高/列宽事务；返回 `XlsxQuery` |
+| `editSheet(revision,sheet,change)` | 工作表新增、复制、删除、重排、改名、可见性、行高/列宽及矩形合并/取消合并事务；返回 `XlsxQuery` |
 | `replace(revision,sheet,range,values,literal=false)` | 一项矩形事务；字段为输入字符串，核心识别值与公式；清空保留样式 |
 | `navigate(revision,direction,extend=false)` | `left/right/up/down/home`；跳过隐藏行列，Shift 扩展选区 |
 | `copy(revision)` / `paste(revision,text)` / `clear(revision)` | 核心显示值 TSV、矩形粘贴及清空；核心识别数值/布尔，`=` 不执行 |
@@ -395,11 +395,21 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 `XlsxQuery.dimensions` 返回查询范围的 `rowHeight`、`columnWidth` 和 `readOnlyReason`。尺寸不一致时返回 `null`，隐藏行列按 0 参与查询。默认 UI 对所选行/列设置尺寸。未知公式仍沿现有只读边界，受保护工作表拒绝尺寸修改；仅锁定工作簿结构不禁止该操作。一次修改进入既有历史，保持表身份和选区；重复设置相同源状态不增加历史。保存保留单元格源、公式缓存、共享字符串计数和 calcChain；实际单元格或公式变化继续触发原有计算元数据更新。自动适配和行列插删仍归 [P11](../p11-xlsx-core.md)。
 
+### 合并与取消合并
+
+`editSheet(revision, sheet, { action: "merge", range, discard })` 合并指定矩形；`{ action: "unmerge", range }` 取消相交的合并。`range` 是 A1 矩形，单格地址自动扩展到已有完整合并范围。两种操作一次最多 4096 格，工作表最多保留 1024 个不重叠合并范围；合并须完整包含相交的旧合并。重复合并同一范围和取消未合并范围不增加历史。活动表操作选择目标范围，非活动表操作保留当前选择。
+
+`XlsxQuery.merging` 返回查询范围的 `range`、是否相交合并的 `merged`、非左上角非空格数 `discarded`，以及 `mergeReason/unmergeReason`。合并只有收到布尔 `discard: true` 才能丢弃非锚点内容；否则有数据时以 `merge-data-loss` 拒绝。默认属性栏显示保留左上角、丢弃其余值/公式的复选框；宿主沿现有队列先提交草稿。核心重新检查当前数据和保护状态，失败保留已提交包与历史。
+
+合并保留左上角值/公式和各格非边框格式，清除其余值/公式；共享公式存活成员转换为普通公式，依赖缓存和保存计算元数据同步更新。非锚点验证范围从规则中移除，锚点验证和条件格式保留。单元格与合并 XML、验证和缓存一起提交一项有界历史，保留原样式记录和不相关资源，新增边框样式按需派生并复用。取消合并只移除相交合并记录，保留各格内容/格式及计算源；被此前合并丢弃的内容通过撤销恢复。合并后格式查询、编辑及清除可从单格锚点作用于完整范围。
+
+文字与填充沿用左上角样式；边框组合读取起止格的声明，补齐右边和下边。合并时只保留整条外围上各格一致的线型及颜色声明，缺失或不一致时移除整边；内部边框清除。新边框保留主题色、索引色等源声明，不按当前 RGB 固定化。单行和单列遵循同一规则；合并后设置某侧边框只作用于外围对应边，不在内部加线。各格的字体、填充和数字格式保持不变，原样式记录保留源字节。格式查询、网格和打印使用同一边框组合，读取起止格不展开巨大导入合并区。派生样式仍受每类记录数、样式源码长度和历史预算限制；候选总长度超限时也不清除内容、不提交历史。工作表保护、部分旧合并、未知合并属性、超出预算、富文本/未知目标样式，以及需处理的批注、非锚点超链接、表格/透视表和扩展资源拒绝合并；取消合并沿自身保护检查，不清理未知资源。合并格格式刷仍待矩形快照扩展。核心已检查内容策略、验证、共享公式、依赖、XML 顺序、纯取消合并的部件保真、精确历史和失败；Chromium 已检查键盘范围、确认控件、合并内命中、填充、保存重开和 PDF。操作依据 [ONLYOFFICE 范围合并与验证调整](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L20316-L20706)；边框归并及外围写回遵循同一上游过程。核心已检查四边、内线、单行/单列、不一致边的移除、主题/索引色源声明、精确历史、重复样式复用及预算失败。Chromium 用独立 XML 检查派生边框和原样式记录，网格及打印绘制数据保持颜色、线宽，保存重开及 PDF 沿已有流程。
+
 ### 单元格格式编辑
 
 同步 Wasm 与 Worker 使用 `formatCells(revision, patch)`，宿主使用 `SpreadsheetEditor.formatCells(patch)`。命令作用于队列执行时的选区，宿主先提交单格草稿。`XlsxCellFormat` 从 `wasm/xlsx` 和 `web/xlsx` 导出；省略的属性保持原值。字段为 `family`、`size`、`bold`、`italic`、`color`、`fill`、`horizontal`、`vertical`、`wrap`、`numberFormat` 及 `left/right/top/bottom`。颜色为六位十六进制，空 `fill` 清除填充；四边使用 `{ style: "none" | "thin" | "medium" | "thick", color }`。字号为 1–409 磅，水平对齐为 general/left/center/right，垂直对齐为 top/center/bottom；数字格式限下节已有集合。宿主先验证新字体键存在于字体 profile。
 
-`XlsxQuery.formatting` 返回这些属性，不同值返回 `null`，并返回 `readOnlyReason` 和所选字体键 `fontKeys`。一次最多 4096 格；未知公式、受保护表、富文本/未知样式及只覆盖部分合并格的范围继续保护。当前单格合并锚点也须显式扩展到完整合并范围。空白格继承行样式，其次列样式，再使用基础样式；显式单元格样式优先。派生格式保留原共享记录，不改写其他格。样式和目标格共同提交有界历史，缺失样式部件时关系及内容类型一起创建和撤销。仅改格式保留值、公式源、缓存和 calcChain，后续输入保持格样式；重复设置有效状态不新增历史。格式化的空白格参与使用范围和打印。默认 UI 使用可滚动属性栏，保留网格工作区。Chromium 已检查格式设置、草稿顺序、混合历史、缺失字体恢复、保存重开和格式化公式的 PDF 输出；清除格式、更多装饰和格式代码仍归 [P11](../p11-xlsx-core.md)。
+`XlsxQuery.formatting` 返回这些属性，不同值返回 `null`，并返回 `readOnlyReason` 和所选字体键 `fontKeys`。一次最多 4096 格；未知公式、受保护表、富文本/未知样式及只覆盖部分合并格的范围继续保护。单格合并锚点的格式查询和编辑扩展到完整合并范围。空白格继承行样式，其次列样式，再使用基础样式；显式单元格样式优先。派生格式保留原共享记录，不改写其他格。样式和目标格共同提交有界历史，缺失样式部件时关系及内容类型一起创建和撤销。仅改格式保留值、公式源、缓存和 calcChain，后续输入保持格样式；重复设置有效状态不新增历史。格式化的空白格参与使用范围和打印。默认 UI 使用可滚动属性栏，保留网格工作区。Chromium 已检查格式设置、草稿顺序、混合历史、缺失字体恢复、保存重开和格式化公式的 PDF 输出；更多装饰和格式代码仍归 [P11](../p11-xlsx-core.md)。
 
 ### 格式刷
 
@@ -408,6 +418,18 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 单格目标按源矩形尺寸扩展；其他目标按源行列顺序重复平铺，边缘截到目标边界。源和目标各最多 4096 格，矩阵须非空、等宽且携带全部属性。工作表边界、未知属性、字体、只读内容和预算失败均保留已提交文档。合并格源或目标继续保护，待合并编辑接通后补齐。应用复用现有格式事务；值、公式、缓存和行列尺寸保留。样式复用按元素/属性的命名空间与名称、值及子结构判断，忽略前缀和属性顺序，原有源记录保持原样。
 
 默认 UI 的格式刷单击后对下一个新选区应用一次；双击或在按钮上按 Shift+Enter 锁定，可连续应用及切换工作表。Esc 或再次点击按钮取消，替换文档时释放状态。复制/平铺参考 [ONLYOFFICE 的目标扩展与格式复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21916-L21960)，单次/锁定/取消参考 [GenOffice 格式刷](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/sheets/src/renderer/format-painter.ts)。
+
+### 清除单元格
+
+同步 Wasm/Worker 使用 `clear(revision, mode = "contents")`，宿主使用 `SpreadsheetEditor.clear(mode = "contents")`。`XlsxClearMode` 从 `wasm/xlsx` 和 `web/xlsx` 导出，取值为 `contents/formats/all`。缺省和原生 Delete/Backspace 保持清除内容；默认 UI 分别提供清除单元格、清除格式和全部清除。宿主先提交单格草稿；输入与清除各占一项历史。
+
+`formats` 将目标格恢复为工作簿内置 Normal 样式，派生或复用 cellXF，保留原共享样式、值、公式、缓存和 calcChain。两种格式清除都会取消完整合并，并从选区清除既有条件格式。`all` 还清除值和公式、选区内验证规则及完整覆盖的超链接；部分覆盖的超链接保持原范围；被清除的共享公式组将存活成员展开为普通公式，并重算受影响依赖。行列尺寸与范围外单元格保持原样，内容变化沿既有保存路径更新计算元数据及共享字符串计数。
+
+一次最多 4096 格，单格合并锚点扩展到完整合并范围。`XlsxQuery.normalFont` 返回 Normal 样式的字体键；宿主在格式清除前检查对应 profile。Normal 不等同于第 0 个 cellXF，也不依赖本地化样式名。未知模式、受保护内容、缺失字体和预算失败不提交清除。部分覆盖的合并、需要平移且无法解析的规则公式，以及未知规则结构继续保护；非空扩展、表格/透视表资源、线程批注及全部清除涉及的传统批注也继续保护。规则之外的资源不推断所有权。
+
+条件格式和验证的 `sqref` 从各原矩形扣除选区，保留不相交区域，最多留下 4096 个矩形。条件格式按范围外接矩形左上角定位，验证按第一个 `sqref` 区域定位；锚点变化时复用核心公式解析器平移相对引用，保持绝对/混合引用、跨表引用和字符串。条件公式、验证的两个公式及公式阈值一并更新，越界引用变为 `#REF!`。锚点不变时保留公式源；清空全部范围才删除规则，验证容器计数同步更新。规则未呈现的计算/显示仍归后续功能。范围扣除参考 [ONLYOFFICE 条件规则清除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L13347-L13386)与[验证范围清除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/DataValidation.js#L1068-L1088)；验证公式源位置参考 [LibreOffice 导入](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/filter/oox/worksheethelper.cxx#L1096-L1119)。核心已检查四块残留、多个原范围、混合引用、字符串、阈值越界、上限拒绝和精确历史；Chromium 通过默认按钮清除并用独立 XML 检查范围与公式，保存重开后可继续输入。
+
+核心已检查 Normal 派生、取消合并、条件格式/验证/链接清除、共享公式、依赖缓存及精确混合历史；Chromium 已检查原生草稿后清除格式、全部清除、独立 XML、保存重开和 PDF。行为参考 [ONLYOFFICE 范围清除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21093-L21175)和[清除选项](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L16669-L16695)。
 
 ### 显示与计算
 

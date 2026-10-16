@@ -67,6 +67,12 @@ fn Foundation::xlsx_operation(
         "add" => @xlsx.Add
         "copy" => @xlsx.Copy
         "delete" => @xlsx.Delete
+        "merge" =>
+          @xlsx.Merge(
+            field_string(change, "range"),
+            xlsx_boolean(change, "discard"),
+          )
+        "unmerge" => @xlsx.Unmerge(field_string(change, "range"))
         "move" => @xlsx.Move(field_int(change, "index"))
         "visibility" => @xlsx.Visibility(field_string(change, "state"))
         "rename" => @xlsx.Rename(field_string(change, "name"))
@@ -177,7 +183,11 @@ fn Foundation::xlsx_operation(
         field_int(request, "revision"),
         field_string(request, "text"),
       )
-    "clearXlsx" => session.clear(field_int(request, "revision"))
+    "clearXlsx" =>
+      session.clear(
+        field_int(request, "revision"),
+        mode=field_string(request, "mode"),
+      )
     "printXlsx" => {
       let revision = field_int(request, "revision")
       let document = session.print_layout(

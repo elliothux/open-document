@@ -106,7 +106,7 @@ pub fn Session::paste(
 }
 
 ///|
-pub fn Session::clear(
+fn Session::clear_contents(
   self : Session,
   revision : Int,
 ) -> Json raise @failure.Failure {

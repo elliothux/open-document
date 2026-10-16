@@ -3,6 +3,7 @@ fn Session::cache_edits(
   self : Session,
   sheets : Array[Sheet],
   calculation : Calculation,
+  style_count~ : Int = self.styles.length(),
 ) -> Array[(String, @xml.Edit)] raise @failure.Failure {
   let updates : Map[Int, Map[String, CellContent]] = Map([])
   for key in calculation.values.keys() {
@@ -26,9 +27,33 @@ fn Session::cache_edits(
       sheet.state,
       document,
       self.strings,
-      self.styles.length(),
+      style_count,
     )
     edits.push((sheet.id, edit))
   }
   edits
+}
+
+///|
+fn Sheet::expand_shared_updates(
+  self : Sheet,
+  updates : Map[String, CellContent],
+) -> Unit {
+  let groups : Map[Int, Bool] = Map([])
+  for key in updates.keys() {
+    if self.cells.get(key).bind(cell => cell.group) is Some(group) {
+      groups[group] = true
+    }
+  }
+  for key, cell in self.cells {
+    if cell.group is Some(group) &&
+      groups.contains(group) &&
+      !updates.contains(key) {
+      updates[key] = {
+        value: cell.value,
+        formula: cell.formula,
+        keep_shared: false,
+      }
+    }
+  }
 }

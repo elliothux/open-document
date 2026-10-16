@@ -3,6 +3,7 @@ import {
   xlsxQuery,
   checkXlsxSheetEdit,
   type XlsxSheetEdit,
+  type XlsxClearMode,
   checkXlsxCellFormat,
   copiedCellFormat,
   type CopiedCellFormat,
@@ -18,7 +19,7 @@ import {
 } from "@open-document/wasm/xlsx";
 import type { DrawRect } from "@open-document/wasm/drawing";
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
-export type { XlsxSheetEdit } from "@open-document/wasm/xlsx";
+export type { XlsxSheetEdit, XlsxClearMode } from "@open-document/wasm/xlsx";
 export { xlsxNumberFormats } from "@open-document/wasm/xlsx";
 export type {
   XlsxCellFormat,
@@ -222,9 +223,12 @@ export class XlsxClient {
       await this.connection.request({ operation: "pasteXlsx", revision, text }),
     );
   }
-  async clear(revision: number): Promise<XlsxQuery> {
+  async clear(
+    revision: number,
+    mode: XlsxClearMode = "contents",
+  ): Promise<XlsxQuery> {
     return xlsxQuery(
-      await this.connection.request({ operation: "clearXlsx", revision }),
+      await this.connection.request({ operation: "clearXlsx", revision, mode }),
     );
   }
   async printLayout(

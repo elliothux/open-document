@@ -14,23 +14,7 @@ fn CellStyle::format_values(self : CellStyle) -> Map[String, Json] {
     "numberFormat": Json(self.format),
   }
   for i, side in ["left", "right", "top", "bottom"] {
-    let (color, width) = self.borders[i]
-    result[side] = {
-      "style": if width == 0.75 {
-        "thin"
-      } else if width == 1.5 {
-        "medium"
-      } else if width == 2.25 {
-        "thick"
-      } else {
-        "none"
-      },
-      "color": if color.is_empty() {
-        "000000"
-      } else {
-        color
-      },
-    }
+    result[side] = cell_border(self.borders[i]).to_json()
   }
   result
 }
@@ -41,6 +25,7 @@ fn Session::formatting(
   sheet : Sheet,
   range : Range,
 ) -> Json raise @failure.Failure {
+  let range = sheet.merge_target(range)
   let reason = self.format_reason(sheet, range)
   let fields = default_style().format_values()
   let fonts : Array[String] = []
@@ -69,6 +54,12 @@ fn Session::formatting(
   } else {
     for key in fields.keys() {
       fields[key] = Json::null()
+    }
+  }
+  if sheet.merges.any(merged => merged == range) {
+    let style = self.merged_style(sheet, range)
+    for side, name in ["left", "right", "top", "bottom"] {
+      fields[name] = cell_border(style.borders[side]).to_json()
     }
   }
   fields["readOnlyReason"] = Json(reason)

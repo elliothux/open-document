@@ -1,6 +1,22 @@
 import type { XlsxViewport } from "@open-document/wasm/xlsx";
 import type { DrawRect } from "@open-document/wasm/drawing";
 
+export function prepareGridInput(input: HTMLTextAreaElement): void {
+  Object.assign(input.style, {
+    position: "absolute",
+    padding: "0",
+    border: "0",
+    resize: "none",
+    font: "14px sans-serif",
+    zIndex: "2",
+  });
+  input.tabIndex = -1;
+  input.autocomplete = "off";
+  input.spellcheck = false;
+  input.setAttribute("autocapitalize", "off");
+  input.setAttribute("aria-label", "Cell input");
+}
+
 export function paintGridSelection(
   context: CanvasRenderingContext2D,
   rect: DrawRect,

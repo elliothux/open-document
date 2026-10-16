@@ -46,7 +46,7 @@ pub fn Session::capture_format(
     @failure.reject(
       "protected-content",
       if reason.is_empty() {
-        "Merged cell format painting requires merge editing support"
+        "Merged cell format painting is unsupported"
       } else {
         reason
       },
@@ -124,7 +124,7 @@ pub fn Session::apply_format(
   let sheet = self.sheets[self.sheet_index(self.selection.0)]
   guard !sheet.merges.any(merge => merge.intersects(target)) else {
     @failure.reject(
-      "protected-content", "Merged cell format painting requires merge editing support",
+      "protected-content", "Merged cell format painting is unsupported",
     )
   }
   self.format_pattern(revision, pattern, target)

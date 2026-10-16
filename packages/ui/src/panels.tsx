@@ -151,6 +151,18 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
                 disabled={disabled}
                 action={() => controller.run(() => file.editor.clear())}
               />
+              <Command
+                label={t.clearFormats}
+                disabled={disabled}
+                action={() =>
+                  controller.run(() => file.editor.clear("formats"))
+                }
+              />
+              <Command
+                label={t.clearAll}
+                disabled={disabled}
+                action={() => controller.run(() => file.editor.clear("all"))}
+              />
             </Group>
           </>
         )}

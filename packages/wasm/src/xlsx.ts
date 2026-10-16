@@ -100,6 +100,14 @@ export interface XlsxQuery {
   revision: number;
   mainPart: string;
   fontKeys: string[];
+  normalFont: string;
+  merging: {
+    range: string;
+    merged: boolean;
+    discarded: number;
+    mergeReason: string;
+    unmergeReason: string;
+  };
   sheets: {
     id: string;
     name: string;
@@ -125,7 +133,11 @@ export interface XlsxQuery {
   date1904: boolean;
 }
 
+export type XlsxClearMode = "contents" | "formats" | "all";
+
 export type XlsxSheetEdit =
+  | { action: "merge"; range: string; discard: boolean }
+  | { action: "unmerge"; range: string }
   | { action: "add" }
   | { action: "copy" }
   | { action: "delete" }
@@ -141,6 +153,14 @@ export type XlsxSheetEdit =
 
 export function checkXlsxSheetEdit(value: unknown): void {
   const change = record(value);
+  if (
+    (change.action === "merge" || change.action === "unmerge") &&
+    typeof change.range === "string" &&
+    change.range.length > 0 &&
+    change.range.length <= 64 &&
+    (change.action === "unmerge" || typeof change.discard === "boolean")
+  )
+    return;
   if (
     change.action === "add" ||
     change.action === "copy" ||
@@ -214,6 +234,16 @@ function cellValue(value: unknown): boolean {
 
 export function xlsxQuery(value: unknown): XlsxQuery {
   const query = record(value);
+  const merging = record(query.merging);
+  if (
+    !hasFields(merging, ["range", "mergeReason", "unmergeReason"], []) ||
+    typeof merging.range !== "string" ||
+    merging.range.length === 0 ||
+    merging.range.length > 64 ||
+    typeof merging.merged !== "boolean" ||
+    !integer(merging.discarded, 0, 100000)
+  )
+    throw new Error("Invalid cell merging state");
   xlsxFormatting(query.formatting);
   const dimensions = record(query.dimensions);
   if (
@@ -236,7 +266,14 @@ export function xlsxQuery(value: unknown): XlsxQuery {
   )
     throw new Error("Invalid worksheet edit reason");
   if (
-    !hasFields(query, ["mainPart", "sheet", "readOnlyReason"], []) ||
+    !hasFields(
+      query,
+      ["mainPart", "sheet", "readOnlyReason", "normalFont"],
+      [],
+    ) ||
+    typeof query.normalFont !== "string" ||
+    query.normalFont.length === 0 ||
+    query.normalFont.length > 270 ||
     !integer(query.revision, 0, 2147483647) ||
     !integer(query.historyBytes, 0, 4194304) ||
     typeof query.canUndo !== "boolean" ||
@@ -519,8 +556,8 @@ export class XlsxSession extends WasmSession {
   paste(revision: number, text: string): XlsxQuery {
     return xlsxQuery(this.call({ operation: "pasteXlsx", revision, text }));
   }
-  clear(revision: number): XlsxQuery {
-    return xlsxQuery(this.call({ operation: "clearXlsx", revision }));
+  clear(revision: number, mode: XlsxClearMode = "contents"): XlsxQuery {
+    return xlsxQuery(this.call({ operation: "clearXlsx", revision, mode }));
   }
   printLayout(
     revision: number,

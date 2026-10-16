@@ -30,6 +30,7 @@ fn Expression::source(
   rows~ : Int = 0,
   columns~ : Int = 0,
   depth~ : Int = 0,
+  invalid_ref~ : Bool = false,
 ) -> String raise @failure.Failure {
   guard depth <= 64 else {
     @failure.reject("limit-exceeded", "Formula expression depth exceeded")
@@ -38,26 +39,36 @@ fn Expression::source(
     Constant(Text(value)) =>
       "\"" + value.replace_all(old="\"", new="\"\"") + "\""
     Constant(value) => value.display()
-    Reference(sheet, first, last) => {
-      let prefix = sheet
-        .map(name => "'" + name.replace_all(old="'", new="''") + "'!")
-        .unwrap_or("")
-      prefix +
-      first.shift(rows, columns).source() +
-      last.map(last => ":" + last.shift(rows, columns).source()).unwrap_or("")
-    }
+    Reference(sheet, first, last) =>
+      try {
+        let prefix = sheet
+          .map(name => "'" + name.replace_all(old="'", new="''") + "'!")
+          .unwrap_or("")
+        prefix +
+        first.shift(rows, columns).source() +
+        last.map(last => ":" + last.shift(rows, columns).source()).unwrap_or("")
+      } catch {
+        @failure.Failure(code~, ..) if invalid_ref && code == "invalid-address" =>
+          "#REF!"
+        error => raise error
+      }
     Unary(operator, value) =>
-      operator + "(" + value.source(rows~, columns~, depth=depth + 1) + ")"
+      operator +
+      "(" +
+      value.source(rows~, columns~, depth=depth + 1, invalid_ref~) +
+      ")"
     Binary(operator, left, right) =>
       "(" +
-      left.source(rows~, columns~, depth=depth + 1) +
+      left.source(rows~, columns~, depth=depth + 1, invalid_ref~) +
       operator +
-      right.source(rows~, columns~, depth=depth + 1) +
+      right.source(rows~, columns~, depth=depth + 1, invalid_ref~) +
       ")"
     Function(name, args) =>
       name +
       "(" +
-      args.map(arg => arg.source(rows~, columns~, depth=depth + 1)).join(",") +
+      args
+      .map(arg => arg.source(rows~, columns~, depth=depth + 1, invalid_ref~))
+      .join(",") +
       ")"
   }
 }

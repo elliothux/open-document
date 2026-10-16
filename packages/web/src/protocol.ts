@@ -20,6 +20,7 @@ import type {
   XlsxSheetEdit,
   XlsxCellFormat,
   CopiedCellFormat,
+  XlsxClearMode,
 } from "@open-document/wasm/xlsx";
 import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
@@ -113,7 +114,8 @@ export type Operation =
       direction: "left" | "right" | "up" | "down" | "home";
       extend: boolean;
     }
-  | { operation: "copyXlsx" | "clearXlsx"; revision: number }
+  | { operation: "copyXlsx"; revision: number }
+  | { operation: "clearXlsx"; revision: number; mode: XlsxClearMode }
   | { operation: "pasteXlsx"; revision: number; text: string }
   | ({
       operation: "printXlsx";

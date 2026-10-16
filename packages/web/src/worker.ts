@@ -118,7 +118,7 @@ async function dispatch(request: Request): Promise<unknown> {
       case "pasteXlsx":
         return workbook.paste(request.revision, request.text);
       case "clearXlsx":
-        return workbook.clear(request.revision);
+        return workbook.clear(request.revision, request.mode);
       case "printXlsx":
         return workbook.printLayout(
           request.revision,

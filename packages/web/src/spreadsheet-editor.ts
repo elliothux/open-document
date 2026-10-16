@@ -9,10 +9,12 @@ import {
   spreadsheetKey,
   styleCellDraft,
   paintGridSelection,
+  prepareGridInput,
 } from "./spreadsheet-input.js";
 import {
   checkFormatFonts,
   checkCopiedFormatFonts,
+  checkFontMapping,
 } from "./spreadsheet-format.js";
 import { bindClipboard } from "./clipboard-input.js";
 import {
@@ -29,6 +31,7 @@ import type {
   XlsxSheetEdit,
   XlsxCellFormat,
   CopiedCellFormat,
+  XlsxClearMode,
 } from "@open-document/wasm/xlsx";
 
 export interface SpreadsheetEditorData {
@@ -116,19 +119,7 @@ export class SpreadsheetEditor {
       left: "0",
       top: "0",
     });
-    Object.assign(this.input.style, {
-      position: "absolute",
-      padding: "0",
-      border: "0",
-      resize: "none",
-      font: "14px sans-serif",
-      zIndex: "2",
-    });
-    this.input.tabIndex = -1;
-    this.input.autocomplete = "off";
-    this.input.spellcheck = false;
-    this.input.setAttribute("autocapitalize", "off");
-    this.input.setAttribute("aria-label", "Cell input");
+    prepareGridInput(this.input);
     Object.assign(this.semantics.style, {
       position: "absolute",
       top: "0",
@@ -517,7 +508,8 @@ export class SpreadsheetEditor {
         profile: this.profile,
         reveal,
       });
-      if (this.closed || generation !== this.generation) return;
+      // Queued commands must reveal their selection despite intervening scroll events.
+      if (this.closed || (!reveal && generation !== this.generation)) return;
       this.layout = layout;
       this.scale = this.surface.draw(layout, 0, this.zoomValue);
       this.spacer.style.width = `${layout.extentWidth * this.scale + 36 * this.scale}px`;
@@ -767,8 +759,13 @@ export class SpreadsheetEditor {
       true,
     );
   }
-  clear(): Promise<void> {
-    return this.change(() => this.client.clear(this.state.revision));
+  clear(mode: XlsxClearMode = "contents"): Promise<void> {
+    return this.change(() => {
+      if (mode !== "contents") {
+        checkFontMapping(this.state.normalFont, this.profile);
+      }
+      return this.client.clear(this.state.revision, mode);
+    });
   }
   showPrintPage(index: number): Promise<void> {
     return this.enqueue(async () => this.printView.showPage(index));
