@@ -170,12 +170,14 @@ fn BodyBlock::retain(
     TableRows(table, first, last) =>
       for row in first..<=last {
         for column, cell in table.rows[row] {
+          if table.rowSpans[row][column] == 0 {
+            continue
+          }
+          let insets = table.cell_insets(row, column)
           for paragraph in cell {
             cache.retain(
               paragraph,
-              table.cell_width(row, column) -
-              table.margins[row][column].left -
-              table.margins[row][column].right,
+              table.cell_width(row, column) - insets.left - insets.right,
             )
           }
         }

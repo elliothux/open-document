@@ -112,8 +112,10 @@ pub fn Session::commit_composition(Self, Int, Int, String) -> Json raise @failur
 pub fn Session::create(@archive.Budget) -> Self raise @failure.Failure
 pub fn Session::create_style(Self, Int, String, String, based_on? : String?) -> Json raise @failure.Failure
 pub fn Session::delete(Self, Int, String) -> Json raise @failure.Failure
+pub fn Session::delete_picture(Self, Int, Int) -> Json raise @failure.Failure
 pub fn Session::delete_style(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::edit_list(Self, Int, Selection, ListEdit) -> Json raise @failure.Failure
+pub fn Session::edit_picture(Self, Int, Int, Double, Double, Array[Double]) -> Json raise @failure.Failure
 pub fn Session::edit_state(Self) -> Json raise @failure.Failure
 pub fn Session::edit_table(Self, Int, Selection, TableEdit, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::enter(Self, Int) -> Json raise @failure.Failure
@@ -125,6 +127,7 @@ pub fn Session::list_catalog(Self, Int) -> Json raise @failure.Failure
 pub fn Session::navigate(Self, Int, @layout.Layout, Int, String, extend_selection~ : Bool) -> @layout.Hit raise @failure.Failure
 pub fn Session::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
 pub fn Session::page_setup(Self, Int) -> Json raise @failure.Failure
+pub fn Session::pictures(Self, Int) -> Json raise @failure.Failure
 pub fn Session::query(Self) -> Json raise @failure.Failure
 pub fn Session::query_formatting(Self, Int, Selection) -> Json raise @failure.Failure
 pub fn Session::redo_edit(Self, Int) -> Json raise @failure.Failure

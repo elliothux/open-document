@@ -11,6 +11,8 @@ fn Session::inline_image(
   let mut height = None
   let mut target = None
   let mut inline = false
+  let crop : Array[Double] = [0, 0, 0, 0]
+  let mut seen_crop = false
   for item in tree.descendants(id) {
     let node = tree.nodes[item]
     if node.start < tree.nodes[id].start || node.end > tree.nodes[id].end {
@@ -37,12 +39,28 @@ fn Session::inline_image(
     if node.uri == drawing && node.name == "blip" {
       target = node.attribute("embed", uri=rel_uri)
     }
-    if node.uri == drawing &&
-      node.name == "srcRect" &&
-      !node.attributes.is_empty() {
-      @failure.reject(
-        "unsupported-layout", "Image source cropping is unsupported",
-      )
+    if node.uri == drawing && node.name == "srcRect" {
+      guard !seen_crop &&
+        node.attributes.all(attr => {
+          attr.uri.is_empty() && ["l", "t", "r", "b"].contains(attr.name)
+        }) else {
+        @failure.reject(
+          "unsupported-layout", "Unknown or duplicate inline image crop",
+        )
+      }
+      seen_crop = true
+      for index, key in ["l", "t", "r", "b"] {
+        let value = @string.parse_int(node.attribute(key).unwrap_or("0")[:]) catch {
+          _ => @failure.reject("invalid-image", "Invalid inline image crop")
+        }
+        // shortcut: Source outsets need matching inline layout before accepting negative crop.
+        guard value >= 0 && value < 100000 else {
+          @failure.reject(
+            "unsupported-layout", "Inline crop requires positive source insets",
+          )
+        }
+        crop[index] = value.to_double() / 100000
+      }
     }
     if node.uri == drawing &&
       node.name == "xfrm" &&
@@ -63,16 +81,24 @@ fn Session::inline_image(
     width > 0 &&
     height > 0 &&
     width <= 14400 &&
-    height <= 14400 else {
+    height <= 14400 &&
+    crop[0] + crop[2] < 1 &&
+    crop[1] + crop[3] < 1 else {
     @failure.reject("invalid-image", "Incomplete or invalid inline image")
   }
   let rel = self.image_relationship(target)
+  guard width / (1 - crop[0] - crop[2]) <= 1000000000 &&
+    height / (1 - crop[1] - crop[3]) <= 1000000000 else {
+    @failure.reject(
+      "limit-exceeded", "Expanded picture exceeds drawing coordinate budget",
+    )
+  }
   guard !rel.external else {
     @failure.reject(
       "missing-image", "External images require supplied resources",
     )
   }
-  { key: target, width, height, }
+  { key: target, width, height, crop, }
 }
 
 ///|

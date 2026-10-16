@@ -215,7 +215,7 @@ pub(all) struct Line {
   marker : Array[PlacedRun]
   markerText : String
   runs : Array[PlacedRun]
-  images : Array[PlacedImage]
+  images : Array[PlacedInlineImage]
   carets : Array[Caret]
   readOnlyReason : String
 } derive(ToJson)
@@ -288,10 +288,24 @@ pub(all) struct InlineImage {
   key : String
   width : Double
   height : Double
+  crop : Array[Double]
 } derive(ToJson)
 
 ///|
 pub extend InlineImage with ToJson::{to_json}
+
+///|
+pub(all) struct PlacedInlineImage {
+  key : String
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+  crop : Array[Double]
+} derive(ToJson)
+
+///|
+pub extend PlacedInlineImage with ToJson::{to_json}
 
 ///|
 pub(all) struct PlacedImage {

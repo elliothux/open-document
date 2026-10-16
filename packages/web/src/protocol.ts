@@ -12,6 +12,7 @@ import type {
   DocxListEdit,
   DocxListLevelUpdate,
   DocxPageSetup,
+  DocxPictureEdit,
   DocxTableEdit,
 } from "@open-document/wasm/foundation";
 import type {
@@ -28,6 +29,8 @@ import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
+  | { operation: "docxPictures"; revision: number }
+  | { operation: "editDocxPicture"; revision: number; picture: DocxPictureEdit }
   | {
       operation: "editDocxTable";
       profile: Record<string, string>;

@@ -2,6 +2,7 @@ import { downloadBytes, docxContentType } from "./download.js";
 import { createDocumentElements, docxPageText } from "./document-elements.js";
 import type { FoundationClient } from "./foundation.js";
 import { PageCanvas } from "./page-canvas.js";
+import { recoverDocxState } from "./document-recovery.js";
 import {
   PointerSelection,
   revealInput,
@@ -38,6 +39,7 @@ import type {
   DocxListEdit,
   DocxListLevelUpdate,
   DocxPageSetup,
+  DocxPictureEdit,
   DocxTableEdit,
 } from "@open-document/wasm/foundation";
 /** Owns browser input order. The caller owns fonts, the opened DOCX and client lifetime. */
@@ -363,15 +365,12 @@ export class DocumentEditor {
         this.assertOpen();
         await this.inputEvents.cancel();
         this.assertOpen();
-        const state = await this.client.editState();
-        this.assertOpen();
-        if (undo && state.revision !== this.state.revision)
-          throw new Error(
-            "Document changed outside the editor; resume before undo",
-          );
-        if (undo && !state.canUndo) throw new Error("There is no edit to undo");
-        this.state = undo ? await this.client.undoDocx(state.revision) : state;
-        this.assertOpen();
+        this.state = await recoverDocxState(
+          this.client,
+          this.state.revision,
+          undo,
+          () => this.assertOpen(),
+        );
         this.currentLayout = await this.client.layout(this.profile);
         this.assertOpen();
         this.blocked = undefined;
@@ -455,6 +454,12 @@ export class DocumentEditor {
   }
   pageSetup() {
     return this.enqueue(() => this.client.pageSetup(this.state.revision));
+  }
+  pictures() {
+    return this.enqueue(() => this.client.pictures(this.state.revision));
+  }
+  editPicture(revision: number, picture: DocxPictureEdit): Promise<void> {
+    return this.format(() => this.client.editPicture(revision, picture));
   }
   setPageSetup(page: DocxPageSetup): Promise<void> {
     return this.format(() =>
@@ -753,23 +758,19 @@ export class DocumentEditor {
     filename = "document.pdf",
     outputBytes = 67108864,
   ): Promise<void> {
-    const output = await this.exportPdf(outputBytes);
-    this.downloadBytes(output.bytes, "application/pdf", filename);
-    this.observable.markDownloaded(output);
+    this.downloadOutput(await this.exportPdf(outputBytes), filename);
   }
   async downloadDocx(filename = "document.docx"): Promise<void> {
-    const output = await this.saveDocx();
-    this.downloadBytes(output.bytes, docxContentType, filename);
-    this.observable.markDownloaded(output);
+    this.downloadOutput(await this.saveDocx(), filename);
   }
-  private downloadBytes(
-    bytes: Uint8Array,
-    type: string,
-    filename: string,
-  ): void {
+  private downloadOutput(output: EditorOutput, filename: string): void {
     this.assertOpen();
     try {
-      downloadBytes(bytes, type, filename);
+      downloadBytes(
+        output.bytes,
+        output.format === "docx" ? docxContentType : "application/pdf",
+        filename,
+      );
     } catch (error) {
       if (!this.blocked)
         this.observable.update({
@@ -777,8 +778,8 @@ export class DocumentEditor {
         });
       throw error;
     }
+    this.observable.markDownloaded(output);
   }
-
   /** Stop input; await accepted work and cancellation before closing the caller's client. */
   dispose(): Promise<void> {
     if (this.cleanup) return this.cleanup;

@@ -173,6 +173,16 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 当前未接通标尺、其他内置样式重置规则和主题编辑。剩余范围归 [P10](../p10-docx-core.md)，不把本切片记作完整格式编辑。
 
+### 行内图片尺寸与裁剪
+
+同步 Wasm 和 Worker 的 `pictures(revision)` 返回 `{ revision, images }`。每项包含会话内绘图节点 `id`、`name`、point 单位的 `width/height`、四项 `crop`、尺寸/裁剪保护原因 `reason` 及删除保护原因 `deleteReason`。`crop` 依次为源图左、上、右、下移除的比例。受尺寸/裁剪保护的项使用零尺寸及零裁剪，原因供 UI 显示；列表最多 256 项。宿主 `DocumentEditor.pictures()` 复用现有队列，默认图片面板从列表选择目标。
+
+`editPicture(revision, { action: "resize", id, width, height, crop })` 修改已有受支持的正文行内图片。宿主也显式传入图片列表的 revision，防止读取后改动文档而误用节点身份；默认面板过期后须重新读取。尺寸为 0.1–14400 pt，舍入到整数 EMU；裁剪输入为 0–1 的四个比例，按 1/100000 舍入，两侧之和须小于 1。保持目标框，只裁源图再拉伸至框；重置写四边零值。源图原字节、关系、替代文字、身份和范围外 XML 保持；同时更新行内框及图片变换尺寸。一次命令一项精确历史，保持原文字选择，重复有效值不新增 revision 或废弃布局。
+
+`editPicture(revision, { action: "delete", id })` 只删除目标绘图元素，保留 run、段落和周围文字。目标段落可编辑时，光标落在图片原位置后的合法字素边界；若其他对象仍保护该段落，则保留原文字选择。删除保留包内图片和关系，避免误删共享资源；撤销/重做精确恢复源与选择。`noDelete`、外部对象引用及启用修订记录的文档保护删除；尺寸/裁剪锁不单独阻止删除。默认面板按 `deleteReason` 启用按钮。行为参考 [ONLYOFFICE 从 run 移除绘图](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L2899-L2963)。
+
+核心 `InlineImage.crop` 与 `PlacedInlineImage` 保留框和源裁剪；公共定位路径产生矩形裁剪及展开后的原图坐标，Canvas/PDF 使用同一结果。展开后的源图宽高各不超过 1e9 pt，沿用绘制坐标预算。资源仍按原键准备，不生成修改后的图片副本。缓存复制裁剪数组，调用者不能改写已保留的几何。未知裁剪/扩展、图片效果或锁定、修订容器、浮动/旋转/翻转图片、外部图片及未支持节设置继续保护。现有 noChangeAspect 约束禁止改变宽高比；noCrop/noResize 保护整项编辑。负裁剪扩边、图片新增/替换、鼠标图片选择及浮动环绕仍按 [P10](../p10-docx-core.md) 实施。源比例对应 [ONLYOFFICE 图片裁剪系数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L946-L960)，实现归 [`picture-editing.mbt`](../../modules/formats/src/docx/picture-editing.mbt)。
+
 ### 页面设置
 
 `FoundationSession/Client.pageSetup(revision)` 与 `DocumentEditor.pageSetup()` 返回 `{ revision, page, reason }`。`page` 是主文档单节的源尺寸，字段为 `width/height/top/right/bottom/left`，单位为 pt；缺少节属性时使用 612×792 pt、四边 72 pt。不支持的多节、分栏、镜像页边距、装订线或保护返回 `page: null` 与原因，不返回伪造的可编辑参数。查询不要求正文选区。
@@ -521,7 +531,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 核心复制类型值及有效格式，文字中的 `=` 保持文字；公式只平移相对引用，保留绝对与跨表引用，越界生成 `#REF!`。受影响共享公式有界展开。值、格式、依赖缓存和选区共用既有事务、自动尺寸及一次精确历史；保存重开后可继续编辑。复制文字和公式源码累计最多 1 Mi 字符，单公式最多 8192 字符，候选、源和历史仍受既有预算约束。
 
-源或目标相交合并、条件格式、验证、链接或批注时拒绝填充；未知扩展、表格/透视和线程批注继续保护。范围外规则与元数据保留。默认按钮使用当前选区，沿既有队列提交原生草稿。核心已检查四向、相邻边界、类型值、有效格式、共享公式、重算、精确历史、重开及原子失败；填充的 Chromium 和公开安装包运行验证仍待执行。序列推导与填充柄按 [P11](../p11-xlsx-core.md) 继续实现。来源选择参考 [ONLYOFFICE prepareFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L27533-L27590)，实现归 [`fill.mbt`](../../modules/formats/src/xlsx/fill.mbt)。
+源或目标相交合并、条件格式、验证、链接或批注时拒绝填充；未知扩展、表格/透视和线程批注继续保护。范围外规则与元数据保留。默认按钮使用当前选区，沿既有队列提交原生草稿。核心已检查四向、相邻边界、类型值、有效格式、共享公式、重算、精确历史、重开及原子失败；Chromium 已检查四向按钮、原生草稿、独立公式/样式/缓存源、混合历史、保存重开和 PDF。重新打包的参数检查与严格宿主调用通过。序列推导与填充柄按 [P11](../p11-xlsx-core.md) 继续实现。来源选择参考 [ONLYOFFICE prepareFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L27533-L27590)，实现归 [`fill.mbt`](../../modules/formats/src/xlsx/fill.mbt)。
 
 ### 自动适配尺寸
 
@@ -787,7 +797,9 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 组合使用 `{ action: "group" }`，至少选择两个可编辑本地顶层对象。核心分配新组身份，保留成员身份、相对顺序、格式及关系，转换局部坐标；新组放在所选最上层对象的位置，选择切到新组。原组也可参与嵌套组合。顶层组沿用整体移动、缩放（含非等比例）、旋转、翻转、层次、对齐和删除事务；候选同步派生成员世界矩阵，不写已提交源。多选集合的非等比例缩放仍拒绝。
 
-取消组合使用 `{ action: "ungroup" }`，选择须全部为受支持顶层组。完整矩阵还原成员的旋转、翻转和子坐标原点，保留成员身份、命名空间绑定和组内注释；成员回到原组所在层次，选择展开为直接成员，最多 256 项。当前仅允许世界矩阵无缩放且无斜切的组；带缩放的组在文字、描边尺寸还原实现前明确拒绝。组内直接编辑仍保护。
+取消组合使用 `{ action: "ungroup" }`，选择须全部为受支持顶层组。包含非等比缩放及嵌套组，成员回到原组所在层次，选择展开为直接成员，最多 256 项。核心先把累计组缩放换算为成员框的位置与尺寸，再以旋转/翻转矩阵绘制；文字字号、边距及描边宽度保持原值，文字按新框排版。候选预览和源重读使用同一几何规则；取消组合还原世界位置、尺寸、旋转及翻转，保留成员身份、命名空间和组内注释。子组保留自己的子坐标范围，可继续逐层取消组合。组内直接编辑仍保护。
+
+尺寸归一遵循 [ONLYOFFICE 组合缩放系数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L568-L607)及[成员 normalize](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicObjectBase.js#L629-L664)，取消组合参考 [unGroupCallback](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L7045-L7108)。核心已检查非等比嵌套、旋转/翻转、预览与提交一致、取消、文字/线宽、精确历史及重开；Chromium 已检查取消组合前后 Canvas 画面、独立同字号文本的 PDF 字形边界、XML、非目标部件、历史和重开后原生输入。
 
 `PptxQuery.groupReason/ungroupReason` 返回当前选择的保护原因，默认 UI 用它禁用按钮。继承占位符、未知组效果/扩展、成员锁定、`noGrp/noUngrp`、组合所涉连接/计时引用和取消组合所移除组的引用继续保护。操作只改所属 slide XML，保留其他部件及资源；一次提交一项有界历史，撤销恢复原源与选择，失败不消耗新身份或提交部分成员。
 

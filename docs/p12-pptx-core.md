@@ -2,7 +2,7 @@
 
 状态：`planned`，第 1、2 批实施中。基于 [P6 PPTX](implemented/p6-pptx-editing.md)和已完成的 [P9](implemented/p9-web-sdk-ui.md)。复用 [P10](p10-docx-core.md) 已交付的包写入，并按实际需要复用 P10 / [P11](p11-xlsx-core.md) 的文字、图形和图表能力。属于功能优先级 P0。空白创建已接通，其余能力仍按下面的范围实施。顺序归[路线图](references/roadmap.md)，当前 API 归[格式合同](references/formats.md#pptx)，功能依据归 [G3](g3-genoffice-sdk-gap.md#演示pptx)。
 
-当前进度：核心创建 960×540 pt 的单页空白文稿，包含版式、母版、主题和完整部件关系。同步 Wasm、Worker 和默认 UI 接通创建、首次保存、另存、保存重开与静态 PDF。支持插入文本框、矩形、圆角矩形、椭圆、直线和四向实心箭头；支持本地顶层形状/图片/组的多选复制、删除、旋转、水平/垂直翻转及层次调整，保留源格式、关系及撤销重做。已接通空白页新增、页复制/删除/重排与隐藏/显示，保持剩余页/对象身份，历史按稳定部件路径恢复。新增页沿用目标页的版式、母版和主题；复制更新对象、计时目标和自身链接，独立复制普通备注与传统批注；删除页同步页引用、自定义放映与已知内部链接，保留共享和未知资源。部件新增/删除与对象编辑共同撤销。保存失败与替换取消保留当前会话。对象多选、成组移动/等比例缩放、删除及对齐/分布已接通；组合及无缩放组的取消组合已接通；章节、缩放组取消组合、组内编辑、更多几何和后续批次尚未完成，不标记第 1 批或整个 P12 完成。
+当前进度：核心创建 960×540 pt 的单页空白文稿，包含版式、母版、主题和完整部件关系。同步 Wasm、Worker 和默认 UI 接通创建、首次保存、另存、保存重开与静态 PDF。支持插入文本框、矩形、圆角矩形、椭圆、直线和四向实心箭头；支持本地顶层形状/图片/组的多选复制、删除、旋转、水平/垂直翻转及层次调整，保留源格式、关系及撤销重做。已接通空白页新增、页复制/删除/重排与隐藏/显示，保持剩余页/对象身份，历史按稳定部件路径恢复。新增页沿用目标页的版式、母版和主题；复制更新对象、计时目标和自身链接，独立复制普通备注与传统批注；删除页同步页引用、自定义放映与已知内部链接，保留共享和未知资源。部件新增/删除与对象编辑共同撤销。保存失败与替换取消保留当前会话。对象多选、成组移动/等比例缩放、删除及对齐/分布已接通；组合及含非等比缩放/嵌套组的取消组合已接通；章节、组内编辑、更多几何和后续批次尚未完成，不标记第 1 批或整个 P12 完成。
 
 ## 1. 用户结果与范围
 
@@ -36,7 +36,7 @@ PNG/JPEG 图片插入已接通核心、Wasm、Worker、宿主和默认 UI。新�
 | [`object-arrange.mbt`](../modules/formats/src/pptx/object-arrange.mbt) | 多选方向和层次事务；保留源片段与有序选择 |
 | [`object-copy.mbt`](../modules/formats/src/pptx/object-copy.mbt) | 多选与嵌套组复制；复用页复制的身份与内部引用重映射 |
 | [`object-selection.mbt`](../modules/formats/src/pptx/object-selection.mbt)、[`object-alignment.mbt`](../modules/formats/src/pptx/object-alignment.mbt) | 多选包围盒、成组移动/等比例缩放、对齐及分布；保留活动对象、源几何与原子历史 |
-| [`object-group.mbt`](../modules/formats/src/pptx/object-group.mbt)、[`group-geometry.mbt`](../modules/formats/src/pptx/group-geometry.mbt) | 组合、无缩放组的取消组合、父组身份、完整矩阵及命名空间保留 |
+| [`object-group.mbt`](../modules/formats/src/pptx/object-group.mbt)、[`group-geometry.mbt`](../modules/formats/src/pptx/group-geometry.mbt) | 组合、含缩放与嵌套组的取消组合、父组身份、归一尺寸及命名空间保留 |
 | [`theme.mbt`](../modules/formats/src/pptx/theme.mbt)、[`text-edit.mbt`](../modules/formats/src/pptx/text-edit.mbt)、[`autofit.mbt`](../modules/formats/src/pptx/autofit.mbt) | 有限主题继承、纯文本和有界字体缩放；补格式/占位符修改和相关失效 |
 | [`bridge/pptx.mbt`](../modules/bridge/src/pptx.mbt)、[`wasm/pptx.ts`](../packages/wasm/src/pptx.ts)、[`web/pptx.ts`](../packages/web/src/pptx.ts) | 延续 `PptxCommand` 与 `execute`；增量加入类型明确的操作与结果 |
 | [`presentation-editor.ts`](../packages/web/src/presentation-editor.ts)、[`presentation-pointer.ts`](../packages/web/src/presentation-pointer.ts)、[`ui/panels.tsx`](../packages/ui/src/panels.tsx) | 保留候选、输入、列表/焦点与 P9 状态；增加创作面板和独立放映视图 |
@@ -73,7 +73,7 @@ PNG/JPEG 图片插入已接通核心、Wasm、Worker、宿主和默认 UI。新�
 
 对齐和分布已接通核心、Wasm、Worker、宿主及默认属性面板。六种对齐支持相对页面、选区包围盒或活动对象。水平/垂直分布支持页面和选区，按旋转后矩形的中心排序，计算相等边缘间距；中心相同时保留选择顺序。页面分布平衡两端留白，内容总尺寸超过页面时允许负间距。规则参考 [ONLYOFFICE CommonController](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L9307-L9587)。各成员保留尺寸、旋转、翻转、文字和身份；一次提交一项历史，无变化不新增历史。保护或预算失败整项拒绝。核心已检查旋转/线段、各参考范围、负间距、精确历史及失败；Chromium 已检查默认按钮、参考范围保持、独立 XML、保存重开和继续编辑。接口和最少对象数归[格式合同](references/formats.md#pptx)。
 
-组合与取消组合已接通核心、Wasm、Worker、宿主及默认 UI。组合保留成员身份和源顺序，将局部坐标写入新组；新组位于所选最上层对象的位置。顶层组可整体移动、缩放、旋转、翻转、对齐、调整层次和删除。取消组合用完整矩阵还原旋转、翻转及子坐标原点，保留命名空间、成员身份和其他资源。当前仅开放无缩放组的取消组合；缩放组需先实现文字、描边等尺寸的完整还原。组内直接编辑仍受保护，组复制见下文。核心已检查嵌套、零尺寸线段、精确历史、锁定、引用和预算失败；Chromium 已检查组合画面不变、真实拖动、旋转翻转后取消组合画面不变、PDF、保存重开与继续输入。连接线端点编辑及目标联动仍待实现。
+组合与取消组合已接通核心、Wasm、Worker、宿主及默认 UI。组合保留成员身份和源顺序，将局部坐标写入新组；新组位于所选最上层对象的位置。顶层组可整体移动、缩放、旋转、翻转、对齐、调整层次和删除。取消组合支持非等比缩放和嵌套，核心将累计组缩放换算为成员框的位置和尺寸，再恢复世界旋转/翻转与子坐标原点。字号、边距和线宽保持原值，文字按新框排版；候选与源重读使用相同规则。成员身份、命名空间、注释和其他资源保留，组内直接编辑仍受保护。核心已检查嵌套、零尺寸线段、预览/提交一致、精确历史、锁定、引用和预算失败；Chromium 已检查缩放组取消组合前后 Canvas 画面和 PDF 文字坐标不变、独立同字号文本、XML、保存重开与继续输入。详细规则与上游依据归[格式合同](references/formats.md#pptx)。连接线端点编辑及目标联动仍待实现。
 
 已支持矩形、圆角矩形、椭圆、线、四向实心箭头和文本框插入；墨迹路径仍待实现。圆角矩形和箭头的路径、命中与文字内框按 [ONLYOFFICE 预设几何](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L6950-L6987)计算，导入的数值调节点参与形状和文字布局，旋转/翻转沿现有矩阵。默认 UI 插入、轮廓外命中、复制、混合精确历史、保存重开及 PDF 已检查。调节点编辑、更多箭头和任意自定义几何仍待扩展；未知公式保留源并诊断，不能改成默认几何覆盖源对象。
 

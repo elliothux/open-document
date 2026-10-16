@@ -225,6 +225,10 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.styles(request.revision, request.kind);
         case "pageSetup":
           return foundation.pageSetup(request.revision);
+        case "docxPictures":
+          return foundation.pictures(request.revision);
+        case "editDocxPicture":
+          return foundation.editPicture(request.revision, request.picture);
         case "setPageSetup":
           return foundation.setPageSetup(request.revision, request.page);
         case "insertDocxTable":

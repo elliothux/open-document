@@ -20,6 +20,9 @@ export type {
   DocxListLevelUpdate,
   DocxPageSetup,
   DocxPageSettings,
+  DocxPicture,
+  DocxPictureEdit,
+  DocxPictures,
   DocxTableEdit,
   DocxCellMargins,
   DocxBorderStyle,
@@ -61,6 +64,9 @@ import {
   checkStyleCreation,
   checkDefaultTabStop,
   checkPageSetup,
+  checkDocxPictureEdit,
+  docxPictures,
+  type DocxPictureEdit,
   docxPageSettings,
   type DocxPageSetup,
   type DocxPageSettings,
@@ -247,6 +253,24 @@ export class FoundationClient {
   async pageSetup(revision: number): Promise<DocxPageSettings> {
     return docxPageSettings(
       await this.connection.request({ operation: "pageSetup", revision }),
+    );
+  }
+  async pictures(revision: number) {
+    return docxPictures(
+      await this.connection.request({ operation: "docxPictures", revision }),
+    );
+  }
+  async editPicture(
+    revision: number,
+    picture: DocxPictureEdit,
+  ): Promise<EditState> {
+    checkDocxPictureEdit(picture);
+    return editState(
+      await this.connection.request({
+        operation: "editDocxPicture",
+        revision,
+        picture,
+      }),
     );
   }
   async setPageSetup(

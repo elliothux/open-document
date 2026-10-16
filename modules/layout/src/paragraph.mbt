@@ -61,6 +61,14 @@ fn paragraph_lines(
   let mut ascent = 0.0
   let mut descent = 0.0
   for span in paragraph.spans {
+    if span.image is Some(image) {
+      guard image.crop.length() == 4 &&
+        image.crop.all(v => !v.is_nan() && !v.is_inf() && v >= 0 && v < 1) &&
+        image.crop[0] + image.crop[2] < 1 &&
+        image.crop[1] + image.crop[3] < 1 else {
+        @failure.reject("invalid-image", "Invalid inline image crop")
+      }
+    }
     guard ["baseline", "subscript", "superscript"].contains(span.style.script) &&
       (
         span.style.highlight.is_empty() ||

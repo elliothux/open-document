@@ -19,6 +19,12 @@ import {
   type ParagraphFormatPatch,
 } from "./docx-format.js";
 export * from "./docx-format.js";
+export * from "./docx-picture.js";
+import {
+  checkDocxPictureEdit,
+  docxPictures,
+  type DocxPictureEdit,
+} from "./docx-picture.js";
 export * from "./docx-list.js";
 export * from "./docx-list-level.js";
 import {
@@ -531,6 +537,15 @@ export class FoundationSession extends WasmSession {
   }
   pageSetup(revision: number): DocxPageSettings {
     return docxPageSettings(this.call({ operation: "pageSetup", revision }));
+  }
+  pictures(revision: number) {
+    return docxPictures(this.call({ operation: "docxPictures", revision }));
+  }
+  editPicture(revision: number, picture: DocxPictureEdit): EditState {
+    checkDocxPictureEdit(picture);
+    return editState(
+      this.call({ operation: "editDocxPicture", revision, picture }),
+    );
   }
   setPageSetup(revision: number, page: DocxPageSetup): EditState {
     checkPageSetup(page);

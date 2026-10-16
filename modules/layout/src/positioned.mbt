@@ -283,7 +283,25 @@ pub fn Line::positioned(
     primitives.push(Clip({ x: 0, y: line.y, width, height: line.height, }))
   }
   for image in line.images {
-    primitives.push(Image(image, 1))
+    let crop = image.crop
+    let width = image.width / (1 - crop[0] - crop[2])
+    let height = image.height / (1 - crop[1] - crop[3])
+    primitives.push(
+      Clip({ x: image.x, y: image.y, width: image.width, height: image.height, }),
+    )
+    primitives.push(
+      Image(
+        {
+          key: image.key,
+          x: image.x - crop[0] * width,
+          y: image.y - crop[1] * height,
+          width,
+          height,
+        },
+        1,
+      ),
+    )
+    primitives.push(Restore)
   }
   for x in line.bars {
     primitives.push(

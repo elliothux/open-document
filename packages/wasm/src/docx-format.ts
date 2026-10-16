@@ -386,7 +386,7 @@ export function docxFormatting(value: unknown): DocxFormatting {
   const result = record(value),
     character = record(result.character),
     paragraph = record(result.paragraph);
-  const table = record(result.table);
+  const table = record(result.table ?? {});
   if (result.table !== null) {
     for (const [name, whole] of [
       ["cellBorders", false],

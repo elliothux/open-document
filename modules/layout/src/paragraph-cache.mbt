@@ -42,7 +42,7 @@ fn paragraph_cache_units(key : String, lines : Array[Line]) -> Int {
       line.carets.length() * 3 +
       line.bars.length()
     for image in line.images {
-      units += 4 + image.key.length()
+      units += 8 + image.key.length()
     }
     for run in line.paint_runs() {
       units += 5 +
@@ -91,6 +91,7 @@ fn Paragraph::finite_geometry(paragraph : Paragraph) -> Bool {
     if span.image is Some(image) {
       numbers.push(image.width)
       numbers.push(image.height)
+      numbers.append(image.crop)
     }
   }
   !numbers.any(value => value.is_nan() || value.is_inf())

@@ -68,11 +68,39 @@ fn geometry(
   let flip_y = ["1", "true"].contains(
     attribute(transforms, "flipV").unwrap_or("0"),
   )
-  let matrix = parent.then(
-    object_matrix(x, y, width, height, rotation, flip_x, flip_y),
+  Some(
+    geometry_in_parent(x, y, width, height, rotation, flip_x, flip_y, parent),
   )
+}
+
+///|
+fn geometry_in_parent(
+  x : Double,
+  y : Double,
+  width : Double,
+  height : Double,
+  rotation : Double,
+  flip_x : Bool,
+  flip_y : Bool,
+  parent : @layout.Matrix,
+) -> Geometry raise @failure.Failure {
+  let sx = (parent.a * parent.a + parent.b * parent.b).sqrt()
+  let sy = (parent.c * parent.c + parent.d * parent.d).sqrt()
+  ignore(parent.inverse())
+  let x = x * sx
+  let y = y * sy
+  let width = width * sx
+  let height = height * sy
+  // Group scale changes the frame, not the font, margins or pen width.
+  let matrix = {
+    ..parent,
+    a: parent.a / sx,
+    b: parent.b / sx,
+    c: parent.c / sy,
+    d: parent.d / sy,
+  }.then(object_matrix(x, y, width, height, rotation, flip_x, flip_y))
   ignore(matrix.inverse())
-  Some({ x, y, width, height, rotation, flip_x, flip_y, matrix, })
+  { x, y, width, height, rotation, flip_x, flip_y, matrix, }
 }
 
 ///|

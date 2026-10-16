@@ -18,6 +18,7 @@ import { DocxTabs, DocxDefaultTab } from "./docx-tabs.js";
 import { DocxStyles } from "./docx-styles.js";
 import { DocxLists } from "./docx-lists.js";
 import { DocxPage } from "./docx-page.js";
+import { DocxPictures } from "./docx-pictures.js";
 import { DocxTables } from "./docx-tables.js";
 
 interface Props {
@@ -367,6 +368,13 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
         disabled={stylesDisabled}
       />
       <h2>{t.paragraph}</h2>
+      <DocxPictures
+        key={editor.getSnapshot().documentId}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={stylesDisabled}
+      />
       <DocxTables
         controller={controller}
         state={state}

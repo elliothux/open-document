@@ -12,10 +12,10 @@ fn measure_line(
   advances? : Array[(Double, Double)],
   tabs~ : TabLayout? = None,
   rtl~ : Bool = false,
-) -> (Double, Array[PlacedRun], Array[PlacedImage], Array[Caret]) raise @failure.Failure {
+) -> (Double, Array[PlacedRun], Array[PlacedInlineImage], Array[Caret]) raise @failure.Failure {
   probe.check()
   let runs : Array[PlacedRun] = []
-  let images : Array[PlacedImage] = []
+  let images : Array[PlacedInlineImage] = []
   let before : Map[Int, Double] = Map([])
   let after : Map[Int, Double] = Map([])
   let text = StringBuilder()
@@ -196,6 +196,7 @@ fn measure_line(
           y: 0,
           width: image.width,
           height: image.height,
+          crop: image.crop.copy(),
         })
       }
       width += image.width

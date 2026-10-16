@@ -140,16 +140,7 @@ fn read_object(
           182880000,
         ) /
         12700
-      {
-        x,
-        y,
-        width,
-        height,
-        rotation: 0,
-        flip_x: false,
-        flip_y: false,
-        matrix: parent.then(object_matrix(x, y, width, height, 0, false, false)),
-      }
+      geometry_in_parent(x, y, width, height, 0, false, false, parent)
     })
   } else {
     geometry(chain, parent, source.node.name == "grpSp")

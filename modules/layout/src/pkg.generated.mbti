@@ -212,6 +212,7 @@ pub(all) struct InlineImage {
   key : String
   width : Double
   height : Double
+  crop : Array[Double]
 } derive(ToJson)
 pub fn InlineImage::to_json(Self) -> Json
 
@@ -260,7 +261,7 @@ pub(all) struct Line {
   marker : Array[PlacedRun]
   markerText : String
   runs : Array[PlacedRun]
-  images : Array[PlacedImage]
+  images : Array[PlacedInlineImage]
   carets : Array[Caret]
   readOnlyReason : String
 } derive(ToJson)
@@ -383,6 +384,16 @@ pub(all) struct PlacedImage {
   height : Double
 } derive(ToJson)
 pub fn PlacedImage::to_json(Self) -> Json
+
+pub(all) struct PlacedInlineImage {
+  key : String
+  x : Double
+  y : Double
+  width : Double
+  height : Double
+  crop : Array[Double]
+} derive(ToJson)
+pub fn PlacedInlineImage::to_json(Self) -> Json
 
 pub(all) struct PlacedRun {
   start : Int

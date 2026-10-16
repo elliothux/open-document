@@ -54,7 +54,10 @@ fn Slide::group_preview(
   self : Slide,
   objects : Array[Object],
 ) -> Slide raise @failure.Failure {
-  for index, group in self.objects {
+  let changed : Map[String, Bool] = Map([])
+  // Objects are read in postorder, so update parents before their nested groups.
+  for index = self.objects.length() - 1; index >= 0; index = index - 1 {
+    let group = self.objects[index]
     if group.kind != "group" || !(group.geometry is Some(_)) {
       continue
     }
@@ -63,21 +66,32 @@ fn Slide::group_preview(
     if before.x == after.x &&
       before.y == after.y &&
       before.width == after.width &&
-      before.height == after.height {
+      before.height == after.height &&
+      !changed.contains(group.id) {
       continue
     }
-    let delta = group_matrix(group.source, after).then(
-      group_matrix(group.source, before).inverse(),
-    )
+    let old_parent = group_matrix(group.source, before)
+    let parent = group_matrix(group.source, after)
+    let sx = (old_parent.a * old_parent.a + old_parent.b * old_parent.b).sqrt()
+    let sy = (old_parent.c * old_parent.c + old_parent.d * old_parent.d).sqrt()
     for member_index, child in self.objects {
-      if child.source.node.start > group.source.node.start &&
-        child.source.node.end < group.source.node.end &&
-        child.source.tree.part == group.source.tree.part &&
-        child.geometry is Some(geometry) {
+      if child.parent == group.id && child.geometry is Some(geometry) {
         objects[member_index] = {
           ..objects[member_index],
-          geometry: Some({ ..geometry, matrix: delta.then(geometry.matrix), }),
+          geometry: Some(
+            geometry_in_parent(
+              geometry.x / sx,
+              geometry.y / sy,
+              geometry.width / sx,
+              geometry.height / sy,
+              geometry.rotation,
+              geometry.flip_x,
+              geometry.flip_y,
+              parent,
+            ),
+          ),
         }
+        changed[child.id] = true
       }
     }
   }
@@ -94,9 +108,7 @@ fn Object::ungroup_geometry(
   guard (matrix.a * matrix.a + matrix.b * matrix.b - 1).abs() < 0.00000001 &&
     (matrix.c * matrix.c + matrix.d * matrix.d - 1).abs() < 0.00000001 &&
     (matrix.a * matrix.c + matrix.b * matrix.d).abs() < 0.00000001 else {
-    @failure.reject(
-      "protected-content", "Scaled group members require layout-preserving ungrouping support",
-    )
+    @failure.reject("protected-content", "Unsupported group member transform")
   }
   let flip_x = geometry.flip_x != parent.flip_x
   let reflected = matrix.a * matrix.d - matrix.b * matrix.c < 0

@@ -87,6 +87,7 @@ export interface InlineImage {
   key: string;
   width: number;
   height: number;
+  crop: number[];
 }
 
 export interface PageLayout extends DrawingBatch {
@@ -217,7 +218,20 @@ export function docxFlow(value: unknown): DocxFlow {
         !["baseline", "superscript", "subscript"].includes(String(style.script))
       )
         throw new Error("Invalid preview text decoration");
-      if (span.image !== null) fields(span.image, ["width", "height"], ["key"]);
+      if (span.image !== null) {
+        const image = fields(span.image, ["width", "height"], ["key"]);
+        if (
+          !Array.isArray(image.crop) ||
+          image.crop.length !== 4 ||
+          image.crop.some(
+            (v: unknown) =>
+              typeof v !== "number" || !Number.isFinite(v) || v < 0 || v >= 1,
+          ) ||
+          image.crop[0] + image.crop[2] >= 1 ||
+          image.crop[1] + image.crop[3] >= 1
+        )
+          throw new Error("Invalid inline image crop");
+      }
     }
   }
   const paragraphs = entries(flow.paragraphs);
