@@ -7,6 +7,19 @@ fn xlsx_filter(change : Json) -> @xlsx.SheetEdit raise @failure.Failure {
     range: field_string(change, "range"),
     columns: columns.map(column => {
       let rule = match field_string(column, "kind") {
+        "rank" => {
+          guard column is Object(fields) &&
+            fields
+            .keys()
+            .all(k => ["kind", "column", "value", "top", "percent"].contains(k)) else {
+            @failure.reject("invalid-operation", "Unknown rank filter field")
+          }
+          @xlsx.Rank(
+            field_int(column, "value"),
+            top=xlsx_boolean(column, "top"),
+            percent=xlsx_boolean(column, "percent"),
+          )
+        }
         "values" => {
           guard column is { "values": Array(values), .. } &&
             values.length() <= 4096 else {

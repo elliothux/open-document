@@ -95,7 +95,9 @@ fn Session::filtered_rows(
     names: self.formula_names(),
   }
   let rules = self.filter_rules(sheet, work)
-  let normalized = settings.columns.map(column => column.rule.prepare(work))
+  let normalized = settings.columns.map(column => {
+    self.prepare_filter(sheet, range, column, work)
+  })
   let hidden : Array[Int] = []
   for row in (range.top + 1)..<=range.bottom {
     for i, column in settings.columns {
@@ -210,7 +212,7 @@ fn Session::filter_query(self : Session, index : Int) -> Json {
         .map(c => {
           match c.rule {
             Values(_, blank~) => blank
-            Custom(_, ..) => true
+            Custom(_, ..) | Rank(_, ..) => true
           }
         })
         .unwrap_or(true),
@@ -219,7 +221,7 @@ fn Session::filter_query(self : Session, index : Int) -> Json {
             "value": labels[value],
             "count": values[value],
             "selected": criterion is None ||
-            criterion is Some({ rule: Custom(_, ..), .. }) ||
+            !(criterion is Some({ rule: Values(_, ..), .. })) ||
             selected.contains(value),
           }
           item

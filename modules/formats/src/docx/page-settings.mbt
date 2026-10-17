@@ -178,10 +178,20 @@ pub fn Session::page_setup(
       None => default_page_setup()
     }
     validate_page_setup(page)
-    { "revision": revision, "page": page, "reason": "" }
+    {
+      "revision": revision,
+      "page": page,
+      "reason": "",
+      "background": self.page_background_query(tree),
+    }
   } catch {
     @failure.Failure(message~, ..) =>
-      { "revision": revision, "page": Json::null(), "reason": message }
+      {
+        "revision": revision,
+        "page": Json::null(),
+        "reason": message,
+        "background": self.page_background_query(tree),
+      }
   }
 }
 

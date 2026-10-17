@@ -192,39 +192,14 @@ fn Session::reorder_cells(
     self.workbook,
   )
   if filter is Some(state) {
-    let candidate : Session = {
-      ..self,
+    calculation = self.reapply_candidate_filter(
+      index,
+      state,
       sheets,
-      calculation: Some(calculation),
-    }
-    let filtered = candidate.filtered_rows(index, state.settings)
-    let hidden : Map[Int, Bool] = Map([])
-    for row in (state.bounds.top + 1)..<=state.bounds.bottom {
-      hidden[row] = state.manual.contains(row) || filtered.contains(row)
-    }
-    let (document, edit) = filter_write(
-      sheets[index],
-      Some({ ..state, filtered, }),
-      hidden,
+      self.workbook,
+      calculation,
+      edits,
     )
-    edits.push((sheet, edit))
-    sheets[index] = Sheet::read(
-      current.id,
-      current.name,
-      current.state,
-      document,
-      self.strings,
-      self.styles.length(),
-    )
-    if calculation.visibility_dependent() {
-      calculation = Calculation::build(
-        sheets,
-        None,
-        [],
-        self.date1904,
-        self.workbook,
-      )
-    }
   }
   self.validate_inputs(
     sheets,

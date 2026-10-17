@@ -193,9 +193,14 @@ fn shape_path(
       Close,
     ]
   }
-  if arrow_shape(preset) {
+  if arrow_shape(preset) || polygon_shape(preset) {
     let path : Array[@layout.PathSegment] = []
-    for i, (x, y) in arrow_points(preset, width, height, adjustments) {
+    let points = if polygon_shape(preset) {
+      polygon_points(preset, width, height, adjustments.0)
+    } else {
+      arrow_points(preset, width, height, adjustments)
+    }
+    for i, (x, y) in points {
       path.push(if i == 0 { Move(x, y) } else { Line(x, y) })
     }
     path.push(Close)

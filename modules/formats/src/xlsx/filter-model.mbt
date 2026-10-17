@@ -8,6 +8,7 @@ pub(all) struct FilterCondition {
 pub(all) enum FilterRule {
   Values(Array[String], blank~ : Bool)
   Custom(Array[FilterCondition], all~ : Bool)
+  Rank(Int, top~ : Bool, percent~ : Bool)
 } derive(Eq)
 
 ///|
@@ -95,6 +96,14 @@ fn filter_settings(settings : FilterSettings) -> Range raise @failure.Failure {
     }
     seen[column.column] = true
     let labels = match column.rule {
+      Rank(value, percent~, ..) => {
+        guard value >= 1 && value <= (if percent { 100 } else { 500 }) else {
+          @failure.reject(
+            "invalid-operation", "Rank filters require 1..500 items or 1..100 percent",
+          )
+        }
+        []
+      }
       Values(values, ..) => {
         guard values.length() <= 4096 else {
           @failure.reject("invalid-operation", "Too many filter labels")
@@ -198,6 +207,32 @@ fn read_filter(sheet : Sheet) -> AutoFilterState? raise @failure.Failure {
         @failure.reject(
           "protected-content", "This filter kind requires evaluation support",
         )
+      }
+      if filters.name == "top10" {
+        filter_attributes(filters, ["top", "percent", "val", "filterVal"])
+        guard tree.children.get(filters.id).unwrap_or([]).is_empty() else {
+          @failure.reject(
+            "protected-content", "Extended rank filter is protected",
+          )
+        }
+        if filters.attribute("filterVal") is Some(value) {
+          let value = @string.parse_double(value[:]) catch {
+            _ =>
+              @failure.reject("protected-content", "Invalid rank filter cache")
+          }
+          guard !value.is_nan() && !value.is_inf() else {
+            @failure.reject("protected-content", "Invalid rank filter cache")
+          }
+        }
+        columns.push({
+          column,
+          rule: Rank(
+            natural(filters.attribute("val").unwrap_or(""), 500),
+            top=flag(filters, "top", fallback=true),
+            percent=flag(filters, "percent"),
+          ),
+        })
+        continue
       }
       if filters.name == "customFilters" {
         filter_attributes(filters, ["and"])

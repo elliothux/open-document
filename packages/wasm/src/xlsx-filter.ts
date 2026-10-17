@@ -26,7 +26,16 @@ export interface XlsxCustomFilter {
   /** True joins the conditions with AND, false with OR. */
   all: boolean;
 }
-export type XlsxFilterColumn = XlsxFilterValues | XlsxCustomFilter;
+export interface XlsxRankFilter {
+  kind: "rank";
+  column: number;
+  /** 1..500 items or 1..100 percent of numeric records; boundary ties are included. */
+  value: number;
+  top: boolean;
+  percent: boolean;
+}
+export type XlsxFilterColumn =
+  XlsxFilterValues | XlsxCustomFilter | XlsxRankFilter;
 export interface XlsxFilterSettings {
   /** Explicit rectangle with a header in its first row. */
   range: string;
@@ -101,6 +110,17 @@ export function checkXlsxFilter(value: unknown): void {
           throw new Error("Invalid filter condition");
         return condition.value;
       });
+    } else if (column.kind === "rank") {
+      if (
+        typeof column.top !== "boolean" ||
+        typeof column.percent !== "boolean" ||
+        !integer(column.value, 1, column.percent ? 100 : 500) ||
+        Object.keys(column).some(
+          (key) => !["kind", "column", "value", "top", "percent"].includes(key),
+        )
+      )
+        throw new Error("Invalid rank filter");
+      values = [];
     } else throw new Error("Invalid filter kind");
     for (const label of values) {
       if (

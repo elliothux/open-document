@@ -40,6 +40,15 @@ export interface DocxPageSettings {
   revision: number;
   page: DocxPageSetup | null;
   reason: string;
+  background: { color: string | null; reason: string };
+}
+
+export function checkPageBackground(color: unknown): void {
+  if (
+    color !== null &&
+    (typeof color !== "string" || !/^[0-9a-f]{6}$/iu.test(color))
+  )
+    throw new Error("Invalid DOCX page background");
 }
 
 export function checkPageSetup(value: DocxPageSetup): void {
@@ -69,6 +78,17 @@ export function checkPageSetup(value: DocxPageSetup): void {
 
 export function docxPageSettings(value: unknown): DocxPageSettings {
   const result = record(value);
+  const background = record(result.background);
+  checkPageBackground(background.color);
+  if (
+    typeof background.reason !== "string" ||
+    (background.reason && background.color !== null)
+  )
+    throw new Error("Invalid DOCX page background settings");
+  const paint = {
+    color: background.color === null ? null : String(background.color),
+    reason: background.reason,
+  };
   if (
     !Number.isSafeInteger(result.revision) ||
     Number(result.revision) < 0 ||
@@ -81,6 +101,7 @@ export function docxPageSettings(value: unknown): DocxPageSettings {
       revision: Number(result.revision),
       page: null,
       reason: result.reason,
+      background: paint,
     };
   }
   const page = record(result.page);
@@ -99,7 +120,12 @@ export function docxPageSettings(value: unknown): DocxPageSettings {
   )
     throw new Error("Invalid DOCX page settings");
   checkPageSetup(setup);
-  return { revision: Number(result.revision), page: setup, reason: "" };
+  return {
+    revision: Number(result.revision),
+    page: setup,
+    reason: "",
+    background: paint,
+  };
 }
 
 /** Omitted metadata is retained; null basedOn removes the direct base reference. */

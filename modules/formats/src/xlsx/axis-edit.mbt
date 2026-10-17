@@ -18,6 +18,7 @@ fn Session::edit_axes(
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   self.check_named_structure()
   let target = self.sheets[index]
+  let filter = self.axis_filter_plan(index, change)
   let notes = self.read_sheet_notes(target)
   guard !target.locked && target.frozen.edit_reason.is_empty() else {
     @failure.reject(
@@ -40,7 +41,7 @@ fn Session::edit_axes(
       "sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData",
       "mergeCells", "sheetProtection", "pageMargins", "pageSetup", "printOptions",
       "headerFooter", "sortState", "conditionalFormatting", "dataValidations", "hyperlinks",
-      "legacyDrawing", "extLst",
+      "legacyDrawing", "extLst", "autoFilter",
     ].contains(node.name) else {
       @failure.reject(
         "protected-content", "Worksheet metadata requires structural range support",
@@ -159,6 +160,19 @@ fn Session::edit_axes(
         document = next
         edits.push((id, edit))
       }
+      if filter is Some(plan) {
+        let current = Sheet::read(
+          original.id,
+          original.name,
+          original.state,
+          document,
+          self.strings,
+          self.styles.length(),
+        )
+        let (next, edit) = axis_filter_write(current, plan)
+        document = next
+        edits.push((id, edit))
+      }
     }
     sheets[i] = Sheet::read(
       original.id,
@@ -218,13 +232,18 @@ fn Session::edit_axes(
   if edits.is_empty() {
     return self.query()
   }
-  let calculation = Calculation::build(
+  let mut calculation = Calculation::build(
     sheets,
     None,
     [],
     self.date1904,
     workbook,
   )
+  if filter is Some(_) && read_filter(sheets[index]) is Some(state) {
+    calculation = self.reapply_candidate_filter(
+      index, state, sheets, workbook, calculation, edits,
+    )
+  }
   edits.append(self.cache_edits(sheets, calculation))
   self.commit(sheets, workbook, calculation, edits, after, parts~)
   self.query()

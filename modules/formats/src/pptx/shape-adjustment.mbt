@@ -6,6 +6,15 @@ fn Object::adjustment_values(self : Object) -> Array[(String, Double, Double)] {
   if self.preset == "roundRect" {
     return [("adj", self.adjustments.0.max(0).min(0.5), 0.5)]
   }
+  if ["triangle", "parallelogram", "trapezoid"].contains(self.preset) &&
+    self.geometry is Some(geometry) {
+    let maximum = polygon_adjustment_max(
+      self.preset,
+      geometry.width,
+      geometry.height,
+    ).min(21474.83647)
+    return [("adj", self.adjustments.0.max(0).min(maximum), maximum)]
+  }
   guard arrow_shape(self.preset) && self.geometry is Some(geometry) else {
     return []
   }

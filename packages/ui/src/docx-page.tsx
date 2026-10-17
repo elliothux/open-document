@@ -21,6 +21,7 @@ export function DocxPage({
   const t = messages(state.locale);
   const [settings, setSettings] = useState<DocxPageSettings>();
   const [draft, setDraft] = useState<DocxPageSetup>();
+  const [color, setColor] = useState("#ffffff");
   const [orientation, setOrientation] = useState<"portrait" | "landscape">(
     "portrait",
   );
@@ -28,6 +29,7 @@ export function DocxPage({
     const value = await editor.pageSetup();
     setSettings(value);
     setDraft(value.page ?? undefined);
+    setColor(`#${value.background.color ?? "ffffff"}`);
     setOrientation(
       value.page && value.page.width > value.page.height
         ? "landscape"
@@ -46,6 +48,44 @@ export function DocxPage({
         {t.loadPageSetup}
       </button>
       {settings?.reason && <p>{settings.reason}</p>}
+      {settings && (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            controller.run(async () => {
+              await editor.setPageBackground(color.slice(1));
+              await load();
+            });
+          }}
+        >
+          <fieldset
+            disabled={disabled || stale || !!settings.background.reason}
+          >
+            <legend>{t.pageBackground}</legend>
+            <label>
+              {t.pageBackground}
+              <input
+                type="color"
+                value={color}
+                onChange={(event) => setColor(event.currentTarget.value)}
+              />
+            </label>
+            <button type="submit">{t.applyPageBackground}</button>
+            <button
+              type="button"
+              onClick={() =>
+                controller.run(async () => {
+                  await editor.setPageBackground(null);
+                  await load();
+                })
+              }
+            >
+              {t.resetPageBackground}
+            </button>
+          </fieldset>
+          {settings.background.reason && <p>{settings.background.reason}</p>}
+        </form>
+      )}
       {draft && (
         <form
           onSubmit={(event) => {

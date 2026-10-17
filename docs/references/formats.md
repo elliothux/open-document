@@ -325,13 +325,21 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 ### 页面设置
 
-`FoundationSession/Client.pageSetup(revision)` 与 `DocumentEditor.pageSetup()` 返回 `{ revision, page, reason }`。`page` 是主文档单节的源尺寸，字段为 `width/height/top/right/bottom/left`，单位为 pt；缺少节属性时使用 612×792 pt、四边 72 pt。不支持的多节、分栏、镜像页边距、装订线或保护返回 `page: null` 与原因，不返回伪造的可编辑参数。查询不要求正文选区。
+`FoundationSession/Client.pageSetup(revision)` 与 `DocumentEditor.pageSetup()` 返回 `{ revision, page, reason, background }`。`background` 归下文页面背景色，独立返回 `{ color, reason }`。`page` 是主文档单节的源尺寸，字段为 `width/height/top/right/bottom/left`，单位为 pt；缺少节属性时使用 612×792 pt、四边 72 pt。不支持的多节、分栏、镜像页边距、装订线或保护返回 `page: null` 与原因，不返回伪造的可编辑参数。查询不要求正文选区。
 
 `setPageSetup(revision, page)` 同时修改尺寸与四边距，Web 编辑宿主省略 revision。`DocxPageSetup` 要求上述六个值，可选 `orientation: "portrait" | "landscape"`。省略方向时使用指定宽高；给出方向且与宽高不一致时，核心交换宽高并旋转四边距。横向时新左/上/右/下依次为原下/左/上/右，纵向反向旋转；正方形不旋转。规则依据 [ONLYOFFICE 的方向修改](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/sections/sect-pr.js#L1148-L1180)。
 
 尺寸为 36–14400 pt，边距非负；所有数值须能表示为整数 twip，并为正文留下至少 12×12 pt。源尺寸原样写回 `pgSz/pgMar`；`Flow.page`、预览和 PDF 继续采用下文既有纸型解释规则，可能与源尺寸不同，例如 500 pt 的显示尺寸为 498.9 pt。再次应用相同源参数不产生历史，不能把显示尺寸自动写回源文档。
 
 缺少节属性时在正文末尾创建，缺少页面属性时按 OOXML 顺序插入。修改保留段落、稳定节点身份、节元数据、其他部件、页眉/页脚距离和零装订线；清除与新尺寸不一致的旧打印机纸型代码。尺寸与边距合为一项有界历史，保留待输入格式，撤销/重做及保存重开恢复相同源参数。非法值、过期 revision、未知目标属性/注释、多节或预算失败保留已提交包。默认 UI 提供相同的读取、修改和方向选项；文档改变后要求重新读取，防止旧参数覆盖新状态。多节、实际分栏及页眉页脚编辑仍属于后续页面批次。
+
+### 页面背景色
+
+`FoundationSession/Client.setPageBackground(revision, color)` 与 `DocumentEditor.setPageBackground(color)` 设置全稿纯色背景；`color` 为不带 `#` 的六位 RGB，`null` 移除背景并恢复默认白页。`pageSetup().background` 返回当前显式颜色或 null，以及修改保护原因。源 `w:background w:color` 位于正文前，修改保留正文、选择、待输入格式和其他部件，使用一项有界历史；相同颜色不增加历史。默认页面面板共用读取/过期草稿保护，并提供颜色和恢复默认按钮。
+
+核心 `Flow` 与 `DocxFlow` 的必需 `background` 字段为有效六位 RGB；无背景为 `ffffff`。正文、透明单元格和列表标记按有效页面背景计算自动文字对比，有底色的单元格仍按自身底色计算，显式文字色保持原样。分页结束后在页面图元最前加入整页颜色，保留分页缓存中的原内容；换色、恢复白色及缓存复用不积累旧底色。Canvas 与静态 PDF 消费同一背景矩形，包含页边距区域。规则参考 [ONLYOFFICE DocumentBackground.draw](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/document/document-background.js#L54-L87)和 [setBackgroundColor 的历史](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L5638-L5645)；实现归 [`page-background.mbt`](../../modules/formats/src/docx/page-background.mbt)。
+
+非法颜色、旧 revision、活动候选、文档/设计保护及输出预算失败保持当前包与历史。重复背景、未知属性、主题色、图片/渐变/VML 及不透明目标源继续保护，布局保留诊断，不能用纯色替换来删除未知源。全稿主题背景、页边框和水印继续实施。
 
 ### 表格创建
 
@@ -671,7 +679,9 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 插入复制上方行或左侧列的已有尺寸与字符/单元格格式，清空新增格的值和公式，并显示新增行列；新增列取消 bestFit。首行/首列无前项时使用缺省格式。单元格、引用、计算缓存和选区合为一次源历史；撤销恢复精确包，保存重开可继续输入和输出 PDF。自动轴沿原有字体与工作量预算更新。规则依据 [ONLYOFFICE 行插入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L8313-L8369)及[列插入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L8473-L8554)。实现归 [`axis-edit.mbt`](../../modules/formats/src/xlsx/axis-edit.mbt)、[`axis-reference.mbt`](../../modules/formats/src/xlsx/axis-reference.mbt)、[`axis-cells.mbt`](../../modules/formats/src/xlsx/axis-cells.mbt)与 [`axis-metadata.mbt`](../../modules/formats/src/xlsx/axis-metadata.mbt)。
 
-插入会推掉实际源行、单元格或便笺时拒绝。[传统便笺](#单元格便笺)的归属已随结构事务维护。工作表保护、未知公式/引用/属性、非空扩展、未接入变换的筛选、绘图、表格、线程批注及未知便笺资源继续保护，保留文档与历史；仅锁定工作簿结构不禁止行列插删。四向单元格移位插删见下节；其余引用资源按 [P11](../p11-xlsx-core.md) 继续接入。
+普通值、自定义和数值排名筛选随整行/整列插删同步。范围前插入移动整个筛选，范围内插入扩展矩形并重新匹配新增空行；删除缩短矩形，删除的条件列和按钮标记一起移除。手动隐藏及筛选隐藏来源随行移动；删除标题后，首个存活行成为标题并清除其筛选隐藏来源。失去全部列或数据行时移除筛选，仅保留存活的手动隐藏。嵌套标准排序范围和键沿既有结构变换维护。候选公式重算后重新应用条件，再更新 SUBTOTAL 缓存，与源和选区合为一次精确历史；范围后的操作保留既有筛选源及隐藏状态。变换后的矩形继续受 4096 格上限约束，插入不得裁掉工作表边缘的筛选端点。规则参考 [ONLYOFFICE 列筛选变换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/AutoFilters.js#L2115-L2215)和[行筛选变换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/AutoFilters.js#L2326-L2395)，实现归 [`filter-axis.mbt`](../../modules/formats/src/xlsx/filter-axis.mbt)。
+
+插入会推掉实际源行、单元格或便笺时拒绝。[传统便笺](#单元格便笺)的归属已随结构事务维护。工作表保护、未知公式/引用/属性、非空扩展、未知筛选、绘图、表格、线程批注及未知便笺资源继续保护，保留文档与历史；仅锁定工作簿结构不禁止行列插删。筛选表的局部单元格移位仍受保护。四向单元格移位插删见下节；其余引用资源按 [P11](../p11-xlsx-core.md) 继续接入。
 
 ### 单元格移位插入与删除
 
@@ -813,17 +823,27 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 ### 值筛选
 
-`editSheet({ action: "filter", range, columns })` 设置普通工作表的值或自定义筛选。`range` 是含标题首行、至少一行数据且最多 4096 格的 A1 矩形。`columns` 最多含 256 个互异的 值条件 `{ kind: "values", column, values, blank }` 或自定义条件 `{ kind: "custom", column, conditions, all }`；`column` 是范围内从 1 开始的工作表列号，`values` 是最多 4096 项互异文字，`blank` 显式决定空白是否通过。各列取交集，同列文字取并集；空条件数组显示全部数据并保留筛选范围。文字按当前已计算值和已支持的有效格式（含条件格式）显示，去除两端空白后使用固定 Unicode 16 小写映射匹配；不改变单元格类型、值、样式、公式或记录位置。未计算公式不使用导入缓存代替。普通文字匹配参考 [ONLYOFFICE Filters.isHideValue](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L10785-L10805)和 [AutoFilter.setRowHidden](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L9585-L9640)。日期分组、颜色/动态/前十项及高级筛选继续保护。
+`editSheet({ action: "filter", range, columns })` 设置普通工作表的值、自定义或数值排名筛选。`range` 是含标题首行、至少一行数据且最多 4096 格的 A1 矩形。`columns` 最多含 256 个互异的 值条件 `{ kind: "values", column, values, blank }` 、自定义条件 `{ kind: "custom", column, conditions, all }` 或排名条件 `{ kind: "rank", column, value, top, percent }`；`column` 是范围内从 1 开始的工作表列号，`values` 是最多 4096 项互异文字，`blank` 显式决定空白是否通过。各列取交集，同列文字取并集；空条件数组显示全部数据并保留筛选范围。文字按当前已计算值和已支持的有效格式（含条件格式）显示，去除两端空白后使用固定 Unicode 16 小写映射匹配；不改变单元格类型、值、样式、公式或记录位置。未计算公式不使用导入缓存代替。普通文字匹配参考 [ONLYOFFICE Filters.isHideValue](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L10785-L10805)和 [AutoFilter.setRowHidden](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L9585-L9640)。数值排名条件见下节；日期分组、颜色/动态及高级筛选继续保护。
 
 自定义筛选的 `conditions` 含一至两个 `{ operator, value }`，`all` 为 `true` 时取 AND，`false` 时取 OR。`operator` 接受标准 `equal/notEqual/greaterThan/greaterThanOrEqual/lessThan/lessThanOrEqual`，`value` 为最多 32767 单元的文字。有限数字文字按当前数值比较，包含可转换的数值文字单元格，不使用四舍五入后的显示值或导入公式缓存；空白不当作零。其他条件按去除两端空白和相同大小写映射后的标签比较，数值单元格不参与文字匹配；等于/不等于支持 `*`、`?` 和 `~` 转义，`?` 对应一个 UTF-16 单元。空文字等于可匹配空白/公式空串。比较符必须放在 `operator`，条件值内的 `<`/`>` 不被重新解析。日期条件使用数值序号，日期分组与本地化解析仍待实现。双条件和数值/文字分流参考 [ONLYOFFICE CustomFilters/CustomFilter](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L11130-L11456)，文字/通配符复用已有有界条件匹配。
 
-同一列仅有一类条件，值面板和自定义面板相互替换，其他列保留并继续取交集。`query.filter.columns` 返回相同带 `kind` 的联合类型；自定义列的值目录不投影条件结果，值选择初始为全部，应用后切换为值条件。默认面板支持比较符、条件值、第二条件及 AND/OR。MoonBit 使用 `FilterColumn { column, rule }` 和 `FilterRule::Values/Custom`；Wasm/Web 另导出 `XlsxFilterColumn/XlsxCustomFilter/XlsxFilterCondition/XlsxFilterOperator`。
+同一列仅有一类条件，值、自定义和排名面板相互替换，其他列保留并继续取交集。`query.filter.columns` 返回相同带 `kind` 的联合类型；自定义和排名列的值目录不投影条件结果，值选择初始为全部，应用后切换为值条件。默认面板支持比较符、条件值、第二条件及 AND/OR。MoonBit 使用 `FilterColumn { column, rule }` 和 `FilterRule::Values/Custom/Rank`；Wasm/Web 另导出 `XlsxFilterColumn/XlsxCustomFilter/XlsxFilterCondition/XlsxFilterOperator`。
 
 `filterClear` 清除全部条件并保留范围，`filterRemove` 同时移除范围，`filterReapply` 按当前值重新应用。原生输入先按原队列提交；普通编辑保留现有隐藏结果，由重新应用更新。每项使用已有 revision 和单项源历史，保持选择；相同结果不新增历史。网格、自动尺寸及 PDF 共用核心隐藏行。`query.filter` 提供 `range/columns/reason` 和逐列 `catalog`；每列返回 `column/title/blank/blankSelected` 及 `{ value, count, selected }` 选项，按归一化值合并大小写，保留当前条件中的零计数值。默认面板使用当前选区创建范围，选择列和值、空白，并提供清除、移除和重新应用。Wasm/Web 导出 `XlsxFilterSettings/XlsxFilterValues/XlsxFilterState`。
 
 保存使用标准 `autoFilter/filterColumn/filters/filter` 或 `customFilters/customFilter`（`and` 与 `operator/val`）、`sheetPr.filterMode` 和行 `hidden`。行高、原属性与非目标部件保留。`autoFilter/extLst` 内的 `urn:open-document:xlsx:filter-state` 扩展记录 `manual` 与 `filtered` 行号，可同时包含同一行；清除筛选只恢复筛选隐藏，手动隐藏继续保留。已有行高/隐藏命令同步手动来源，正行高也不能展开仍被筛选隐藏的行。复制、改名、撤销重做和保存重开保留此来源；扩展与实际隐藏行不一致时拒绝编辑。外部文件只有一个 `hidden` 字段，无法判断同一行是否同时被手动和筛选隐藏；无来源扩展时，将不匹配条件的隐藏行视为筛选隐藏，其余视为手动隐藏。外部程序若丢弃扩展，也会恢复此导入限制。
 
-每项匹配/目录共用 1048576 次公式工作预算，条件文字累计最多 1048576 个 UTF-16 单元，目录数据/标题累计最多 1048576 个单元；继续受包、源和 4 MiB 历史预算约束。未知条件、日期分组、扩展、属性、筛选内注释/处理指令、工作表保护或无法计算的显示值拒绝修改，保留源与历史。保留已知 `hiddenButton/showButton` 标记。排序和结构插删对筛选仍按既有保护执行，表格筛选、标题下拉箭头和更广组合按 [P11](../p11-xlsx-core.md) 继续接入。实现归 [`filter-model.mbt`](../../modules/formats/src/xlsx/filter-model.mbt)、[`filter-values.mbt`](../../modules/formats/src/xlsx/filter-values.mbt)、[`filter-custom.mbt`](../../modules/formats/src/xlsx/filter-custom.mbt)、[`filter-source.mbt`](../../modules/formats/src/xlsx/filter-source.mbt)、[`filter-edit.mbt`](../../modules/formats/src/xlsx/filter-edit.mbt)及 [`xlsx-filter.tsx`](../../packages/ui/src/xlsx-filter.tsx)。
+每项匹配/目录共用 1048576 次公式工作预算，条件文字累计最多 1048576 个 UTF-16 单元，目录数据/标题累计最多 1048576 个单元；继续受包、源和 4 MiB 历史预算约束。未知条件、日期分组、扩展、属性、筛选内注释/处理指令、工作表保护或无法计算的显示值拒绝修改，保留源与历史。保留已知 `hiddenButton/showButton` 标记。已支持条件的排序和整行/整列插删复用候选重算与隐藏来源事务，局部单元格移位仍保护；表格筛选、标题下拉箭头和更广组合按 [P11](../p11-xlsx-core.md) 继续接入。实现归 [`filter-model.mbt`](../../modules/formats/src/xlsx/filter-model.mbt)、[`filter-values.mbt`](../../modules/formats/src/xlsx/filter-values.mbt)、[`filter-custom.mbt`](../../modules/formats/src/xlsx/filter-custom.mbt)、[`filter-source.mbt`](../../modules/formats/src/xlsx/filter-source.mbt)、[`filter-edit.mbt`](../../modules/formats/src/xlsx/filter-edit.mbt)及 [`xlsx-filter.tsx`](../../packages/ui/src/xlsx-filter.tsx)。
+
+### 数值排名筛选
+
+`XlsxRankFilter` 从 Wasm/Web XLSX 模块导出，使用 `{ kind: "rank", column, value, top, percent }`。`value` 为整数：项数模式 1–500，百分比模式 1–100；`top=true` 取最大值，false 取最小值。它与值/自定义条件共用 `editSheet({ action: "filter", range, columns })`，替换同列条件，保留其他列并取交集。默认面板提供方向、项数/百分比、数量和应用按钮，保存重开后恢复当前设置。
+
+排名只采用标题后、明确范围内的当前数值及已计算数值公式结果，包含手动和筛选隐藏记录。文字形式的数字、布尔、错误及空白不参与；其他列条件不改变排名样本。重复值按记录计数，阈值上的并列项全部保留。百分比先按数值记录数向下取整，至少一项；项数超过记录数时保留全部数值记录，无数值时全部数据行不匹配。标题与范围外的数字不参与。原生编辑保留现有可见性，使用重新应用按当前值计算阈值；手动隐藏继续保留，SUBTOTAL 的 9/109 及依赖缓存与筛选共享一次历史。
+
+标准 `top10` 的 `val/top/percent` 已接通读取与写回，缺省 top=true、percent=false；已知有限 `filterVal` 可读取，重新应用按当前数值计算，不信任导入阈值。写回保留设置和实际可见行，不持久化派生阈值缓存。采用 [ONLYOFFICE Top10 的方向、百分比与标准字段](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L12306-L12490)及 [1–500 项交互](https://github.com/ONLYOFFICE/web-apps/blob/9c0ca538c3b211052347df09d2a4d6781f023403/apps/spreadsheeteditor/main/app/view/AutoFilterDialog.js)。已检查的 ONLYOFFICE 分支使用 parseFloat 和去重集合；本实现沿已有类型模型只接受数值，并按 [LibreOffice TopTenQuery 的数值记录和包含边界](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/core/data/table3.cxx#L2487-L2545)保留重复记录，避免将数字文字或不同值个数当作记录数。百分比沿 ONLYOFFICE 的统一向下取整规则。未复制上游源码；实现归 [`filter-rank.mbt`](../../modules/formats/src/xlsx/filter-rank.mbt)。
+
+排名复用当前最多 4096 格、公式工作、输出及历史预算。未知属性/子节点、非法标准参数或非有限缓存值保留原子拒绝；依赖畸形筛选的 SUBTOTAL 也可能在打开时拒绝。工作表复制和改名保留排名条件；整行/整列变换见[行列插入与删除](#行列插入与删除)，局部单元格移位仍受保护。颜色/图标/动态/高级筛选继续实施。
 
 ### 自动适配尺寸
 
@@ -1265,7 +1285,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 隐藏页仍可在编辑器中查看和编辑，允许全部页隐藏。全稿静态 PDF 默认跳过隐藏页，显式 `hidden: true` 包含它们；仅导出当前页时可以输出当前隐藏页。没有待输出页时返回 `unsupported-pdf`，不返回空 PDF。保存重开按新页序打开首张页面，保留隐藏状态。更广复制资源仍归 [P12](../p12-pptx-core.md)。
 
-`PptxObjectEdit` 从 `wasm/pptx` 和 `web/pptx` 导出。`PresentationEditor.editObjects(change)` 使用同一队列与命令。插入参数为 `{ action: "insert", kind: "text" | "rect" | "roundRect" | "ellipse" | "line" | "leftArrow" | "rightArrow" | "upArrow" | "downArrow", x, y, width, height, text }`；坐标和尺寸为 point，绝对值不超过 14400。非线对象宽高至少 0.1；线可有一个零尺寸轴，总尺寸至少 0.1。文本框透明无描边，矩形、圆角矩形、椭圆和箭头白底黑色 1 pt 线，直线黑色 1 pt；文字为 Arial 18 pt 黑色，支持 `\n` 与 `U+2028`，线不接收文字。核心校验文字、字体和固定框容量，失败保留文档和历史。
+`PptxObjectEdit` 从 `wasm/pptx` 和 `web/pptx` 导出。`PresentationEditor.editObjects(change)` 使用同一队列与命令。插入参数为 `{ action: "insert", kind: "text" | "rect" | "roundRect" | "ellipse" | "triangle" | "rtTriangle" | "diamond" | "parallelogram" | "trapezoid" | "line" | "leftArrow" | "rightArrow" | "upArrow" | "downArrow", x, y, width, height, text }`；坐标和尺寸为 point，绝对值不超过 14400。非线对象宽高至少 0.1；线可有一个零尺寸轴，总尺寸至少 0.1。文本框透明无描边，矩形、圆角矩形、椭圆和箭头白底黑色 1 pt 线，直线黑色 1 pt；文字为 Arial 18 pt 黑色，支持 `\n` 与 `U+2028`，线不接收文字。核心校验文字、字体和固定框容量，失败保留文档和历史。
 
 图片插入为 `{ action: "insertImage", bytes: Uint8Array, x, y, width, height }`，沿相同 `editObjects` 入口。坐标为 point，绝对值不超过 14400，宽高至少 0.1。接收本地 PNG/JPEG 原字节，单图最多 4 MiB，尺寸每轴不超过 4096，像素总数不超过 4194304，文稿最多 256 个不同图片资源；最终包与单项 4 MiB 历史预算仍可拒绝操作。核心检查文件头、声明尺寸和几何；浏览器客户端提交前验证实际解码与声明尺寸一致，坏图保留当前源和历史。同步 Wasm 入口不承担宿主解码，导入图片仍沿原有解码合同。核心分配对象与资源身份，事务新增图片、内部关系和内容类型；撤销移除本次新资源，重做恢复原字节及 ZIP 顺序。对象/页复制共用图片，删除对象/页保留资源，不清理整个包。默认 UI 选择图片文件，并采用插入面板中的 X/Y/宽高。创建矩形图片并 stretch 到给定几何的规则参考 [ONLYOFFICE fillImage](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L114-L142)。高级图片效果继续归 [P12](../p12-pptx-core.md)及后续兼容扩展。
 
@@ -1280,6 +1300,8 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 删除参数为 `{ action: "delete" }`，复制为 `{ action: "duplicate", dx, dy }`。两者要求对象模式；空选区不修改文档。删除作用于整个集合，先校验全部成员，再提交一项历史；任一保护失败不删除其他成员。复制作用于整个集合，包括受支持的嵌套组；副本按原源顺序放到最上层。保留源内容、几何、组缩放、命名空间与图片/超链接关系，为副本及其全部成员分配会话内尚未使用的新 `cNvPr.id`，域身份同样更新。副本内部对象引用重映射；引用集合外对象而需联动的结构明确拒绝。副本选择保留原选择顺序及对应活动对象。一次复制合为一项历史，任一成员、字体、几何或预算失败不创建副本、不消耗身份。原对象、其他部件和资源保持原样。一次复制的 XML 片段及继承命名空间合计最多 2 Mi UTF-16 单元，在拼接前检查；最终包和历史继续受原有预算约束。删除清空选择；撤销/重做精确恢复源 XML 与选择。`PptxObject.deleteReason/duplicateReason` 返回操作保护原因，空串表示可用。继承/组成员/未知对象继续保护；复制占位符及未知扩展、删除锁定或带连接/计时引用的对象仍拒绝，含未支持所属关系的页面也保护删除。资源和关系不做清理。默认 UI 提供插入面板、复制/删除按钮；对象输入支持 Delete/Backspace 与 Ctrl/Cmd+D，默认复制偏移各 18 pt。
 
 圆角矩形使用 `roundRect`，实心箭头使用四个方向的标准 DrawingML 预设；新对象使用默认调节点。读取圆角 `adj`、箭头 `adj1/adj2` 的 `val` 数值公式，按预设上下限和实际宽高计算路径、文字矩形及命中；未知调节点或公式保留源并诊断。文字矩形先于 bodyPr 内边距，新增/复制时继续检查实际容量。Canvas 与 PDF 使用同一路径，旋转和局部翻转使用同一矩阵。
+
+三角形 `triangle`、直角三角形 `rtTriangle`、菱形 `diamond`、平行四边形 `parallelogram` 和梯形 `trapezoid` 已接通导入、插入、文字编辑、轮廓命中及 Canvas/PDF。路径和文字矩形依据 [ONLYOFFICE CreateGeometry](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L8500-L8550)，实现归 [`polygon-shapes.mbt`](../../modules/formats/src/pptx/polygon-shapes.mbt)。三角形的 `adj` 是顶点横向比例，默认 0.5，范围 0–1；平行四边形及梯形的 `adj` 是斜边偏移占短边的倍数，默认 0.25，上限分别为宽/短边及宽/(2×短边)。导入数值按几何上限夹取；编辑值越界则拒绝。直角三角形和菱形没有调节项。文字矩形先计算，再加框内边距。数值修改、恢复预设、多选保护、保存和精确历史复用既有命令；单一 `adj` 的面板批量修改要求相同预设。复杂自定义几何和指针调节手柄继续实施。
 
 `editObjects({ action: "shapeAdjustment", name, value })` 修改所选本地顶层预设形状的一个调节值。圆角 `adj` 为短边的 0–0.5 倍；四向实心箭头的 `adj1` 为箭身占横向宽度的 0–1 倍，`adj2` 为箭头长度占短边的倍数，上限是箭头方向边长除以短边。数值按十万分之一保存，沿现有公式整数范围限制在 0–21474.83647。null 只移除该调节值，恢复预设默认值；其他调节值和源内容保留。规则依据 [ONLYOFFICE 预设几何](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/common/Drawings/Format/CreateGeometry.js#L6947-L6981)，实现归 [`shape-adjustment.mbt`](../../modules/formats/src/pptx/shape-adjustment.mbt)。
 

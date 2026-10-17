@@ -83,7 +83,9 @@ fn object_hit(
       value <= outer * outer &&
       value >= inner * inner
   }
-  if object.preset == "roundRect" || arrow_shape(object.preset) {
+  if object.preset == "roundRect" ||
+    arrow_shape(object.preset) ||
+    polygon_shape(object.preset) {
     return object.preset_hit(geometry, x, y, margin)
   }
   if !object.fill.is_empty() || object.gradient is Some(_) {

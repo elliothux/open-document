@@ -93,6 +93,11 @@ export type PptxObjectEdit =
         | "rect"
         | "roundRect"
         | "ellipse"
+        | "triangle"
+        | "rtTriangle"
+        | "diamond"
+        | "parallelogram"
+        | "trapezoid"
         | "line"
         | "leftArrow"
         | "rightArrow"
@@ -342,6 +347,11 @@ export function checkPptxObjectEdit(value: unknown): void {
       "rect",
       "roundRect",
       "ellipse",
+      "triangle",
+      "rtTriangle",
+      "diamond",
+      "parallelogram",
+      "trapezoid",
       "line",
       "leftArrow",
       "rightArrow",

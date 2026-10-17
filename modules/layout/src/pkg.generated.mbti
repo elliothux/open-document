@@ -123,6 +123,7 @@ pub fn Fill::to_json(Self) -> Json
 
 pub(all) struct Flow {
   revision : Int
+  background : String
   page : PageSetup
   paragraphs : Array[Paragraph]
   diagnostics : Array[String]

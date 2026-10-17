@@ -59,6 +59,7 @@ export type {
   XlsxFilterCondition,
   XlsxFilterOperator,
   XlsxCustomFilter,
+  XlsxRankFilter,
   XlsxFilterSettings,
   XlsxFilterState,
 } from "./xlsx-filter.js";

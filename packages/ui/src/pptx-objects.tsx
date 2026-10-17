@@ -76,6 +76,11 @@ export function PptxObjects({
                   kind === "upArrow" ||
                   kind === "downArrow" ||
                   kind === "ellipse" ||
+                  kind === "triangle" ||
+                  kind === "rtTriangle" ||
+                  kind === "diamond" ||
+                  kind === "parallelogram" ||
+                  kind === "trapezoid" ||
                   kind === "line"
                 )
                   setDraft({ ...draft, kind });
@@ -85,6 +90,11 @@ export function PptxObjects({
               <option value="rect">{t.rectangle}</option>
               <option value="roundRect">{t.roundRectangle}</option>
               <option value="ellipse">{t.ellipse}</option>
+              <option value="triangle">{t.triangle}</option>
+              <option value="rtTriangle">{t.rightTriangle}</option>
+              <option value="diamond">{t.diamond}</option>
+              <option value="parallelogram">{t.parallelogram}</option>
+              <option value="trapezoid">{t.trapezoid}</option>
               <option value="line">{t.lineShape}</option>
               <option value="leftArrow">{t.leftArrow}</option>
               <option value="rightArrow">{t.rightArrow}</option>

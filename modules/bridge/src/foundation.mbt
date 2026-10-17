@@ -239,6 +239,7 @@ fn Foundation::dispatch(
     | "setDocxThemeColor"
     | "pageSetup"
     | "setPageSetup"
+    | "setPageBackground"
     | "insertDocxTable"
     | "editDocxTable"
     | "styleCatalog"
@@ -401,6 +402,14 @@ fn Foundation::dispatch(
           result
         }
         "pageSetup" => session.page_setup(field_int(request, "revision"))
+        "setPageBackground" => {
+          let result = session.set_page_background(
+            field_int(request, "revision"),
+            page_background_color(request),
+          )
+          self.layout = None
+          result
+        }
         "setPageSetup" => {
           let result = session.set_page_setup(
             field_int(request, "revision"),

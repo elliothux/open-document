@@ -1,5 +1,5 @@
 import { docxOutput, downloadDocxOutput } from "./document-output.js";
-import { DocumentReview } from "./document-review.js";
+import { DocumentPage } from "./document-page.js";
 export type { DocumentComments } from "./document-review.js";
 import { createDocumentElements, docxPageText } from "./document-elements.js";
 import type { FoundationClient } from "./foundation.js";
@@ -43,14 +43,13 @@ import type {
   DocxFindOptions,
   DocxListEdit,
   DocxListLevelUpdate,
-  DocxPageSetup,
   DocxPictureEdit,
   DocxTableEdit,
   DocxThemeSlot,
   DocxThemeFontPair,
 } from "@open-document/wasm/foundation";
 /** Owns browser input order. The caller owns fonts, the opened DOCX and client lifetime. */
-export class DocumentEditor extends DocumentReview {
+export class DocumentEditor extends DocumentPage {
   private readonly container: HTMLDivElement;
   private readonly viewport: HTMLDivElement;
   private readonly input: HTMLTextAreaElement;
@@ -510,9 +509,6 @@ export class DocumentEditor extends DocumentReview {
   setParagraphFormat(format: ParagraphFormatPatch): Promise<void> {
     return this.applyFormat({ character: {}, paragraph: format });
   }
-  pageSetup() {
-    return this.enqueue(() => this.client.pageSetup(this.state.revision));
-  }
   themeColors() {
     return this.enqueue(() => this.client.themeColors(this.state.revision));
   }
@@ -534,11 +530,6 @@ export class DocumentEditor extends DocumentReview {
   }
   editPicture(revision: number, picture: DocxPictureEdit): Promise<void> {
     return this.format(() => this.client.editPicture(revision, picture));
-  }
-  setPageSetup(page: DocxPageSetup): Promise<void> {
-    return this.format(() =>
-      this.client.setPageSetup(this.state.revision, page),
-    );
   }
   insertTable(rows: number, cols: number): Promise<void> {
     return this.format(() =>

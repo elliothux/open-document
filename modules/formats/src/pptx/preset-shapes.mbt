@@ -6,7 +6,8 @@ fn arrow_shape(preset : String) -> Bool {
 ///|
 fn supported_shape(preset : String) -> Bool {
   ["rect", "ellipse", "line", "roundRect"].contains(preset) ||
-  arrow_shape(preset)
+  arrow_shape(preset) ||
+  polygon_shape(preset)
 }
 
 ///|
@@ -14,9 +15,16 @@ fn read_shape_adjustments(
   geometry : Ref?,
   preset : String,
 ) -> (Double, Double) raise @failure.Failure {
-  let mut first = if preset == "roundRect" { 0.16667 } else { 0.5 }
+  let single = ["roundRect", "triangle", "parallelogram", "trapezoid"].contains(
+    preset,
+  )
+  let mut first = match preset {
+    "roundRect" => 0.16667
+    "parallelogram" | "trapezoid" => 0.25
+    _ => 0.5
+  }
   let mut second = 0.5
-  if preset != "roundRect" && !arrow_shape(preset) {
+  if !single && !arrow_shape(preset) {
     return (first, second)
   }
   if geometry.bind(source => source.child("avLst")) is Some(list) {
@@ -26,11 +34,7 @@ fn read_shape_adjustments(
       let formula = node.attribute("fmla").unwrap_or("")
       guard node.uri == drawing_uri &&
         node.name == "gd" &&
-        (if preset == "roundRect" {
-          name == "adj"
-        } else {
-          ["adj1", "adj2"].contains(name)
-        }) &&
+        (if single { name == "adj" } else { ["adj1", "adj2"].contains(name) }) &&
         !seen.contains(name) &&
         formula.has_prefix("val ") else {
         @failure.reject(
@@ -84,6 +88,8 @@ fn Object::shape_body(self : Object, geometry : Geometry) -> Body {
   let (left, top, right, bottom) = if self.preset == "roundRect" {
     let inset = w.min(h) * self.adjustments.0.max(0).min(0.5) * 0.29289
     (inset, inset, inset, inset)
+  } else if polygon_shape(self.preset) {
+    polygon_insets(self.preset, w, h, self.adjustments.0)
   } else if arrow_shape(self.preset) && w > 0 && h > 0 {
     let vertical = ["upArrow", "downArrow"].contains(self.preset)
     let length = if vertical { h } else { w }
@@ -134,7 +140,11 @@ fn Object::preset_hit(
       ) ||
       (!self.stroke.is_empty() && distance.abs() <= margin)
   }
-  let points = arrow_points(self.preset, width, height, self.adjustments)
+  let points = if polygon_shape(self.preset) {
+    polygon_points(self.preset, width, height, self.adjustments.0)
+  } else {
+    arrow_points(self.preset, width, height, self.adjustments)
+  }
   let mut inside = false
   for i, (ax, ay) in points {
     let (bx, by) = points[(i + 1) % points.length()]

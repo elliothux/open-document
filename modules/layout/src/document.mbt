@@ -141,6 +141,7 @@ pub extend PageSetup with ToJson::{to_json}
 ///|
 pub(all) struct Flow {
   revision : Int
+  background : String
   page : PageSetup
   paragraphs : Array[Paragraph]
   diagnostics : Array[String]

@@ -15,6 +15,7 @@ fn filter_operator(operator : String) -> String raise @failure.Failure {
 priv enum PreparedFilter {
   Labels(Map[String, Bool], blank~ : Bool)
   Conditions(Array[Criterion], all~ : Bool)
+  Ranking(Double?, top~ : Bool)
 }
 
 ///|
@@ -23,6 +24,10 @@ fn FilterRule::prepare(
   work : FormulaWork,
 ) -> PreparedFilter raise @failure.Failure {
   match self {
+    Rank(_, ..) =>
+      @failure.reject(
+        "invalid-operation", "Rank filtering requires its source range",
+      )
     Values(labels, blank~) => {
       let values : Map[String, Bool] = Map([])
       for value in labels {
@@ -62,6 +67,16 @@ fn PreparedFilter::matches(
   work : FormulaWork,
 ) -> Bool raise @failure.Failure {
   match self {
+    Ranking(threshold, top~) =>
+      match (raw, threshold) {
+        (Number(value), Some(limit)) =>
+          if top {
+            value >= limit
+          } else {
+            value <= limit
+          }
+        _ => false
+      }
     Labels(values, blank~) =>
       if label.is_empty() {
         blank
@@ -92,6 +107,14 @@ fn PreparedFilter::matches(
 ///|
 fn FilterColumn::json(self : FilterColumn) -> Json {
   match self.rule {
+    Rank(value, top~, percent~) =>
+      {
+        "kind": "rank",
+        "column": self.column,
+        "value": value,
+        "top": top,
+        "percent": percent,
+      }
     Values(values, blank~) =>
       {
         "kind": "values",

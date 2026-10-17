@@ -16,6 +16,7 @@ import {
   checkStyleCreation,
   checkDefaultTabStop,
   checkPageSetup,
+  checkPageBackground,
   docxPageSettings,
   type DocxPageSetup,
   type DocxPageSettings,
@@ -534,6 +535,12 @@ export class FoundationSession extends WasmSession {
   setPageSetup(revision: number, page: DocxPageSetup): EditState {
     checkPageSetup(page);
     return editState(this.call({ operation: "setPageSetup", revision, page }));
+  }
+  setPageBackground(revision: number, color: string | null): EditState {
+    checkPageBackground(color);
+    return editState(
+      this.call({ operation: "setPageBackground", revision, color }),
+    );
   }
   insertTable(
     revision: number,

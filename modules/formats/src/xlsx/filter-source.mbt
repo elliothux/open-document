@@ -22,6 +22,9 @@ fn filter_markup(state : AutoFilterState) -> String raise @failure.Failure {
     if state.settings.columns.iter().find_first(c => c.column == index)
       is Some(column) {
       match column.rule {
+        Rank(value, top~, percent~) =>
+          out <+
+            "<od:top10 top=\"\{if top { 1 } else { 0 }}\" percent=\"\{if percent { 1 } else { 0 }}\" val=\"\{value}\"/>"
         Values(values, blank~) => {
           out <+ "<od:filters blank=\"\{if blank { 1 } else { 0 }}\">"
           for value in values {

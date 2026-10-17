@@ -8,6 +8,7 @@ import type {
 } from "@open-document/web/xlsx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { XlsxRankFilterForm } from "./xlsx-rank-filter.js";
 
 function FilterColumn({
   column,
@@ -299,6 +300,29 @@ export function XlsxFilter({
                           conditions,
                           all,
                         },
+                      ],
+                    }),
+                  )
+                }
+              />
+              <XlsxRankFilterForm
+                key={`rank:${column.column}:${JSON.stringify(filter.columns.find((c) => c.column === column.column))}`}
+                column={column.column}
+                criterion={filter.columns.find(
+                  (c) => c.column === column.column,
+                )}
+                disabled={blocked}
+                state={state}
+                apply={(rule) =>
+                  controller.run(() =>
+                    editor.editSheet({
+                      action: "filter",
+                      range: filter.range,
+                      columns: [
+                        ...filter.columns.filter(
+                          (c) => c.column !== column.column,
+                        ),
+                        rule,
                       ],
                     }),
                   )

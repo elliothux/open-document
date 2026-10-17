@@ -248,6 +248,10 @@ pub fn paginate(
 ) -> Layout raise @failure.Failure {
   probe.check()
   flow.page.validate()
+  guard flow.background.length() == 6 &&
+    flow.background.iter().all(c => c.is_ascii_hexdigit()) else {
+    @failure.reject("invalid-style", "Invalid page background color")
+  }
   for index, table in flow.tables {
     guard table.beforeParagraph >= 0 &&
       table.beforeParagraph <= flow.paragraphs.length() &&
@@ -306,7 +310,23 @@ pub fn paginate(
     reflowedPages: reflowed,
     reusedPages: reused,
     profile: profile.copy(),
-    pages: pagination.pages,
+    pages: pagination.pages.map(page => {
+      ..page,
+      fills: if flow.background.to_lower() == "ffffff" {
+        page.fills
+      } else {
+        [
+          {
+            x: 0.0,
+            y: 0.0,
+            width: page.width,
+            height: page.height,
+            color: flow.background,
+          },
+          ..page.fills,
+        ]
+      },
+    }),
     diagnostics: flow.diagnostics.copy(),
     outlines: probe.outline_resources(),
     fonts: probe.font_info(),

@@ -94,6 +94,7 @@ export type Operation =
       change: DocxTableEdit;
     }
   | { operation: "pageSetup"; revision: number }
+  | { operation: "setPageBackground"; revision: number; color: string | null }
   | { operation: "setPageSetup"; revision: number; page: DocxPageSetup }
   | {
       operation: "insertDocxTable";

@@ -141,6 +141,7 @@ fn Session::table(
   before_paragraph : Int,
   diagnostics : Array[String],
   available : Double,
+  background~ : String,
 ) -> @layout.Table raise @failure.Failure {
   let widths : Array[Double] = []
   let (auto_fit, preferred_width) = table_sizing(
@@ -344,7 +345,7 @@ fn Session::table(
                 styles,
                 item,
                 diagnostics,
-                background=if color.is_empty() { "ffffff" } else { color },
+                background=if color.is_empty() { background } else { color },
               ),
             )
           "tcPr" => ()

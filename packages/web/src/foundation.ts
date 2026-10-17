@@ -87,6 +87,7 @@ import {
   checkStyleCreation,
   checkDefaultTabStop,
   checkPageSetup,
+  checkPageBackground,
   checkDocxPictureEdit,
   docxPictures,
   type DocxPictureEdit,
@@ -360,6 +361,19 @@ export class FoundationClient extends FoundationReviewClient {
         operation: "setPageSetup",
         revision,
         page,
+      }),
+    );
+  }
+  async setPageBackground(
+    revision: number,
+    color: string | null,
+  ): Promise<EditState> {
+    checkPageBackground(color);
+    return editState(
+      await this.connection.request({
+        operation: "setPageBackground",
+        revision,
+        color,
       }),
     );
   }

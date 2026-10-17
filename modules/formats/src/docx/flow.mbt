@@ -12,6 +12,12 @@ fn Session::flow_from(
   let paragraphs : Array[@layout.Paragraph] = []
   let tables : Array[@layout.Table] = []
   let diagnostics : Array[String] = []
+  let background = tree.page_background().unwrap_or("ffffff") catch {
+      @failure.Failure(message~, ..) => {
+        diagnostics.push("unsupported-layout:page-background:" + message)
+        "ffffff"
+      }
+    }
   let mut styles = self.styles(diagnostics)
   let headers : Array[Array[@layout.Paragraph]] = []
   let mut header_distance = 0.0
@@ -122,7 +128,10 @@ fn Session::flow_from(
       continue
     }
     match node.name {
-      "p" => paragraphs.push(self.paragraph(tree, styles, id, diagnostics))
+      "p" =>
+        paragraphs.push(
+          self.paragraph(tree, styles, id, diagnostics, background~),
+        )
       "tbl" =>
         tables.push(
           self.table(
@@ -132,6 +141,7 @@ fn Session::flow_from(
             paragraphs.length(),
             diagnostics,
             page.width - page.left - page.right,
+            background~,
           ),
         )
       "sectPr" => ()
@@ -149,7 +159,7 @@ fn Session::flow_from(
   let backgrounds : Map[Int, String] = Map([])
   for p in paragraphs {
     numbered[p.id] = p
-    backgrounds[p.id] = "ffffff"
+    backgrounds[p.id] = background
   }
   for table in tables {
     for row_index, row in table.rows {
@@ -158,7 +168,7 @@ fn Session::flow_from(
           .get(row_index)
           .bind(row => row.get(cell_index))
           .filter(color => !color.is_empty())
-          .unwrap_or("ffffff")
+          .unwrap_or(background)
         for p in cell {
           numbered[p.id] = p
           backgrounds[p.id] = background
@@ -169,6 +179,7 @@ fn Session::flow_from(
   self.apply_numbering(tree, styles, numbered, backgrounds)
   {
     revision: self.revision,
+    background,
     page,
     paragraphs: paragraphs.map(p => numbered[p.id]),
     diagnostics,

@@ -82,7 +82,7 @@ export class DocumentReview {
     return this.commentFocus;
   }
   protected constructor(
-    private readonly review: {
+    protected readonly review: {
       client: FoundationClient;
       read<T>(operation: () => Promise<T>): Promise<T>;
       edit(operation: () => Promise<EditState>): Promise<void>;

@@ -263,6 +263,8 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.styles(request.revision, request.kind);
         case "pageSetup":
           return foundation.pageSetup(request.revision);
+        case "setPageBackground":
+          return foundation.setPageBackground(request.revision, request.color);
         case "docxPictures":
           return foundation.pictures(request.revision);
         case "docxPictureResize":

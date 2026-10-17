@@ -30,8 +30,10 @@ export function PptxShapeAdjustments({
     ?.shapeAdjustments.reason;
   const compatible = objects.every(
     (o) =>
+      (o.shapeAdjustments.preset === first.preset ||
+        !first.values.some((v) => v.name === "adj")) &&
       o.shapeAdjustments.values.map((v) => v.name).join() ===
-      first.values.map((v) => v.name).join(),
+        first.values.map((v) => v.name).join(),
   );
   return (
     <fieldset
@@ -43,7 +45,11 @@ export function PptxShapeAdjustments({
       {first.values.map((guide) => {
         const label =
           guide.name === "adj"
-            ? t.cornerRadius
+            ? first.preset === "roundRect"
+              ? t.cornerRadius
+              : first.preset === "triangle"
+                ? t.triangleApex
+                : t.shapeSlant
             : guide.name === "adj1"
               ? t.arrowShaft
               : t.arrowHead;
