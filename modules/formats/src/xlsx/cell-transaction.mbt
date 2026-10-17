@@ -4,6 +4,7 @@ fn Session::commit_cells(
   updates : Map[Int, Map[String, CellContent]],
   selection : (String, Range),
   styles~ : Map[Int, Map[String, Int]] = Map([]),
+  merges~ : Map[Int, Array[Range]] = Map([]),
   accept_warnings~ : Bool = false,
 ) -> Json raise @failure.Failure {
   guard self.read_only.is_empty() else {
@@ -27,6 +28,15 @@ fn Session::commit_cells(
       values,
       styles=styles.get(index).unwrap_or(Map([])),
     )
+    edits.push((current.id, edit))
+    let document = if merges.get(index) is Some(ranges) &&
+      ranges != current.merges {
+      let (next, edit) = fill_merge_changes(document, ranges)
+      edits.push((current.id, edit))
+      next
+    } else {
+      document
+    }
     candidate[index] = Sheet::read(
       current.id,
       current.name,
@@ -35,7 +45,6 @@ fn Session::commit_cells(
       self.strings,
       self.styles.length(),
     )
-    edits.push((current.id, edit))
     for key in values.keys() {
       let address = Address::parse(key)
       changed.push(

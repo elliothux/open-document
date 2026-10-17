@@ -141,7 +141,11 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 `deleteStyle(revision, id, replacement)` 删除自定义样式，替代样式必须已支持且类型相同，也不能依赖被删样式。Web 编辑宿主省略 revision。核心同步移除定义并替换 WordprocessingML 部件中的样式引用，包括正文、页眉和编号；保留直接格式、文字、其他样式及未知内容。折叠处待输入的样式引用也映射到替代项。命令至多替换 65536 个引用，继续受包与历史预算约束。全部候选成功后一次提交，撤销同时恢复各部件与选择。默认 UI 可显式选择同类型替代样式，初始使用基础样式；无基础样式时须先选择替代项。没有有效替代项时不能删除。删除链接自定义样式时保留对端样式，解除指向被删样式的链接，再替换普通引用；未知链接内容明确拒绝。默认及内置样式不能删除。
 
-`updateStyle(id, { character: {}, paragraph: {}, reset: true })` 显式重置格式，不能同时传其他修改。当前支持文档默认段落/字符样式，以及 Normal、DefaultParagraphFont、Strong、Emphasis 和 Heading1–Heading9。默认样式恢复文档默认属性；Strong/Emphasis 继承当前默认字符样式并恢复粗体/斜体。稳定 ID、名称、默认标志、next/link 和正文直接格式保留；其他内置样式的重置规则尚未实现。默认 UI 提供同一操作。重置沿上述候选校验及单项历史提交，撤销恢复完整源内容。行为参考 [ONLYOFFICE 样式重置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js#L8854-L8889)。样式修改与删除还会校验正文继承的编号引用、有效级别属性和标记结果，失败保留原包。
+`updateStyle(id, { character: {}, paragraph: {}, reset: true })` 显式重置格式，不能同时传其他修改。当前支持文档默认段落/字符样式，以及 Normal、DefaultParagraphFont、Strong、Emphasis、Heading1–Heading9，以及 NoSpacing、Quote、Caption、QuoteChar、SubtleEmphasis、IntenseEmphasis 和 IntenseQuoteChar。默认样式恢复文档默认属性；Strong/Emphasis 继承当前默认字符样式并恢复粗体/斜体。稳定 ID、名称、默认标志、next/link 和正文直接格式保留；其他内置样式的重置规则尚未实现。默认 UI 提供同一操作。重置沿上述候选校验及单项历史提交，撤销恢复完整源内容。行为参考 [ONLYOFFICE 样式重置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js#L8854-L8889)。样式修改与删除还会校验正文继承的编号引用、有效级别属性和标记结果，失败保留原包。
+
+新增预设继承当前对应类型的默认样式。NoSpacing 清除字符覆盖，段后距为 0、单倍行距；Quote 设置 8 pt 段前距、居中、斜体及 text1 的 BF tint；Caption 设置 10 pt 段后距、单倍行距、9 pt 普通/复杂文字字号、斜体及 text2 颜色。QuoteChar/SubtleEmphasis 使用引用的字符属性；IntenseEmphasis/IntenseQuoteChar 使用斜体及 accent1 的 BF shade。段前后其他未声明值沿基础样式继承，正文直接覆盖保持。
+
+按标准 ID 或对应英文内置名识别，名称不区分大小写，自定义标志及类型不符的样式不套用预设。名称、别名、link/next 和源元数据保持，不创建缺失样式。已有主题时保留颜色关联；相关主题色不可解析时保护重置。没有主题时写预设 RGB，不增加主题部件；之后添加主题可再次重置以建立关联。默认目录的 `canReset` 自动开放已有按钮，沿同一候选、预算、单项精确历史和保存重开，无变化不提交。预设参数参考 [ONLYOFFICE 默认样式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles/default-styles.js#L621-L795)与[题注](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles/default-styles.js#L913-L938)，实现归 [`style-presets.mbt`](../../modules/formats/src/docx/style-presets.mbt)。标题/副标题的字符间距、完整强引用边框及其余未支持预设继续保护，不以删去属性代替重置。
 
 九级标题的创建和重置共用本项目的标题预设：大纲级别 0–8，字号依次为 16、14、13、12、11、11、11、11、11 pt，并设置粗体标记。重置继承当前默认段落样式；没有默认标记时尝试 Normal，均无时继承文档默认属性。字体与颜色沿基础样式继承，正文直接格式保持。按标准 ID `Heading1`–`Heading9`，或非自定义段落样式的英文名 `Heading N` 识别；名称不区分大小写。自定义样式即使同名也不作为内置标题重置。
 
@@ -621,11 +625,23 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 ### 四向填充
 
-`editSheet({ action: "fill", range, direction })` 支持 `down/up/right/left`，作用于最多 4096 格的 A1 矩形。向下/上以首行/末行为源，向右/左以首列/末列为源；沿填充轴只有一行/列时，源为方向相反的相邻行/列。相邻源越界时保持文档。数字直接重复，不推导序列。
+`editSheet({ action: "fill", range, direction })` 支持 `down/up/right/left`，作用于 A1 矩形；源和目标合计最多 4096 格。向下/上以首行/末行为源，向右/左以首列/末列为源；沿填充轴只有一行/列时，源为方向相反的相邻行/列。相邻源越界时保持文档。数字直接重复，不推导序列。
 
 核心复制类型值及有效格式，文字中的 `=` 保持文字；公式只平移相对引用，保留绝对与跨表引用，越界生成 `#REF!`。受影响共享公式有界展开。值、格式、依赖缓存和选区共用既有事务、自动尺寸及一次精确历史；保存重开后可继续编辑。复制文字和公式源码累计最多 1 Mi 字符，单公式最多 8192 字符，候选、源和历史仍受既有预算约束。
 
-源或目标相交合并、条件格式、验证、链接或批注时拒绝填充；未知扩展、表格/透视和线程批注继续保护。范围外规则与元数据保留。默认按钮使用当前选区，沿既有队列提交原生草稿。核心已检查四向、相邻边界、类型值、有效格式、共享公式、重算、精确历史、重开及原子失败；Chromium 已检查四向按钮、原生草稿、独立公式/样式/缓存源、混合历史、保存重开和 PDF。重新打包的参数检查与严格宿主调用通过。数字序列见[数字序列](#数字序列)，基本拖动与键盘操作见[填充柄](#填充柄)。来源选择参考 [ONLYOFFICE prepareFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L27533-L27590)，实现归 [`fill.mbt`](../../modules/formats/src/xlsx/fill.mbt)。
+源或目标相交条件格式、验证、链接或批注时拒绝填充；合并几何见下段；未知扩展、表格/透视和线程批注继续保护。范围外规则与元数据保留。默认按钮使用当前选区，沿既有队列提交原生草稿。核心已检查四向、相邻边界、类型值、有效格式、共享公式、重算、精确历史、重开及原子失败；Chromium 已检查四向按钮、原生草稿、独立公式/样式/缓存源、混合历史、保存重开和 PDF。重新打包的参数检查与严格宿主调用通过。数字序列见[数字序列](#数字序列)，基本拖动与键盘操作见[填充柄](#填充柄)。来源选择参考 [ONLYOFFICE prepareFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L27533-L27590)，实现归 [`fill.mbt`](../../modules/formats/src/xlsx/fill.mbt)。
+
+#### 合并格填充
+
+四向按钮以起始行/列为源；若该边穿过合并格，核心沿填充轴扩至完整源块。值、公式和各格有效格式按该源块循环，合并区域一起平铺到目标。尾块不足源尺寸时裁到目标边界；裁成单格时保持普通格，不写单格合并。自动/文本/数字趋势沿现有源槽位和实际格位置推导；仅被合并覆盖而没有锚点的数字序列行/列循环源值和格式。显式日期模式每行/列仍只接收一个数字种子，可由一个完整合并格承载，按合并跨度推进日期。
+
+源和已有目标合并必须完整包含，不能切开；目标几何已等于源平铺结果时可重复填充。需要替换其他目标合并时，源与目标须由同尺寸合并格完整平铺，否则原子拒绝。未知合并元数据继续保护，范围外节点、注释和未改部件保留。填充复制各物理格的值和格式，不执行另一次合并命令的丢弃策略。
+
+单个合并锚点可作为序列和填充柄的完整源。预览的 `source` 保留原选择地址，`range` 使用核心合并边界；宿主沿核心返回的单元格几何放置填充柄。Ctrl、四向方向键、拖动及源内合并的相邻延伸复用同一事务。向内清除仅清完整合并区域的内容，保留合并和格式；切开合并的清除拒绝。相邻区域中源外的合并向导仍待支持。
+
+值、公式缓存、合并几何和选区先在候选中校验，再提交一次精确历史；仅几何变化也可撤销。沿用 4096 个受影响物理格、1024 个工作表合并区域、内容/公式和输出/历史预算，失败保持源、选择和历史。保存重开继续编辑，网格和 PDF 使用同一合并几何；跨打印页边界的合并仍遵守既有 `print-overflow` 保护。
+
+尺寸保护和平铺参考 [ONLYOFFICE 合并填充](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21799-L21920)及[尾块裁短](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L22594-L22616)，四向和趋势结果核对其[独立合并用例](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/tests/cell/spreadsheet-calculation/SerialTests.js#L5006-L5210)。实现归 [`fill-merge.mbt`](../../modules/formats/src/xlsx/fill-merge.mbt)、[`fill.mbt`](../../modules/formats/src/xlsx/fill.mbt)与 [`cell-transaction.mbt`](../../modules/formats/src/xlsx/cell-transaction.mbt)，不新增公开 API。
 
 #### 本地化文本循环
 
@@ -639,11 +655,11 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 ### 填充柄
 
-普通网格在选区末格显示填充柄；RTL 使用左下角。拖动向外扩展一条行带或列带，核心按物理距离选择轴。向内拖动选择要清除的末尾行带或列带，只清内容和公式并保留格式；边界按命中格的半格位置吸附，角点附近未越过边界时无操作。拖到源起点可清空整块内容。聚焦填充柄后，方向键延伸一行或一列，左右键遵循 RTL 的物理方向。支持缩放、冻结窗格和边缘滚动。Ctrl 将向外填充切换为循环复制；单个普通数值改为逐格加一。日期/时间、文字及公式按源模式复制，公式仍平移相对引用。拖动中按下或松开 Ctrl 即可切换，释放使用当时的状态；方向键也支持 Ctrl。向内清除规则不变。双击填充柄，或聚焦后按 Enter/Space，按相邻连续区域向下自动填充。下方首行全部有内容时延伸至首个缺格行之前；部分有内容时不操作；全空时从左右及对角相连的区域推导末行，并停在目标列下一处内容之前。样式空格不延长区域，隐藏行仍参与推导；相邻筛选区域不能借作跨区向导。参与推导的合并区域仍明确拒绝。没有可延伸范围时不增加修订或历史。
+普通网格在选区末格显示填充柄；RTL 使用左下角。拖动向外扩展一条行带或列带，核心按物理距离选择轴。向内拖动选择要清除的末尾行带或列带，只清内容和公式并保留格式；边界按命中格的半格位置吸附，角点附近未越过边界时无操作。拖到源起点可清空整块内容。聚焦填充柄后，方向键延伸一行或一列，左右键遵循 RTL 的物理方向。支持缩放、冻结窗格和边缘滚动。Ctrl 将向外填充切换为循环复制；单个普通数值改为逐格加一。日期/时间、文字及公式按源模式复制，公式仍平移相对引用。拖动中按下或松开 Ctrl 即可切换，释放使用当时的状态；方向键也支持 Ctrl。向内清除规则不变。双击填充柄，或聚焦后按 Enter/Space，按相邻连续区域向下自动填充。下方首行全部有内容时延伸至首个缺格行之前；部分有内容时不操作；全空时从左右及对角相连的区域推导末行，并停在目标列下一处内容之前。样式空格不延长区域，隐藏行仍参与推导；相邻筛选区域不能借作跨区向导。源内的完整合并可沿填充事务复制；源外参与推导的合并向导仍明确拒绝。没有可延伸范围时不增加修订或历史。
 
 `XlsxSession/XlsxClient.fillPreview(layoutId, target)` 接受 `{ kind: "point", x, y }`、`{ kind: "direction", direction }` 或 `{ kind: "adjacent" }`。三种 target 都接受可选布尔字段 `ctrl`，默认 false。核心返回 `source/range/direction/mode/geometry/end`。Ctrl 向外操作返回 `mode=copy` 或单个普通数字的 `mode=linear`，range 与自动向外操作相同。`mode=auto` 的 range 是源与向外目标的并集，`mode=shrink` 的 range 是待清尾带；geometry 显示此操作区域，end 定位提交后的末格。预览不改文档、选区、revision 或历史。过期布局、非法目标和超过 4096 格的范围拒绝。宿主只发送指针与键盘意图，范围和冻结裁剪由核心计算。
 
-原生草稿先独立提交，再恢复拖动前的源范围。预览不写源；释放时按预览的自动、复制、线性或缩减模式执行一次事务，后续保存排在该操作之后。未释放时，Escape、失焦、指针取消、暂停和销毁取消拖动。相交规则、链接、合并及其他资源沿用填充保护；失败保持源和历史。含未渲染超链接的工作表仍按既有规则拒绝 PDF 导出。
+原生草稿先独立提交，再恢复拖动前的源范围。预览不写源；释放时按预览的自动、复制、线性或缩减模式执行一次事务，后续保存排在该操作之后。未释放时，Escape、失焦、指针取消、暂停和销毁取消拖动。相交规则、链接及其他资源沿用填充保护，合并源沿下述几何规则处理；失败保持源和历史。含未渲染超链接的工作表仍按既有规则拒绝 PDF 导出。
 
 `editSheet({ action: "series", mode: "shrink", source, range, direction })` 提供同一缩减操作。source 是原选区，range 必须是其中完整的末尾行带（direction=up）或末尾列带（direction=left），原范围限 4096 格。保留左上区域成为选区；全清时仍选择原范围。没有内容可清时仅调整选区，不新增 revision 或历史。共享公式展开和依赖缓存复用已有单元格事务；其他单元格、行列尺寸及源元信息保持。规则依据 [ONLYOFFICE canPromote](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21961-L22003)及[缩减仅清内容](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L22296-L22303)，实现归 [`fill-shrink.mbt`](../../modules/formats/src/xlsx/fill-shrink.mbt)。
 
@@ -667,7 +683,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 自动模式按源槽位同时处理数字、文本和公式。数字与文字前缀分别分组；数字可使用小数趋势，单格数字源复制原值，多格源中的单个数字组按 1 或 -1 延续。文字沿文本分组规则推导，布尔、错误和普通文字按原类型重复。公式分隔相邻组，再按对应源格平移相对引用；绝对引用不动，越界引用写为 `#REF!`。所有目标循环复制对应源格的有效格式，源格保持原样，填充与依赖重算合为一次历史；公式与文本共用 1 Mi 单位预算，单条公式最多 8192 单位。数字的非有限结果原子拒绝。自动模式也按既有数字格式识别日期、日期时间与时间，规则见下段；指定日期单位和步长仍使用显式 `date` 模式。本模式复用已有趋势、文本分组和公式平移；[`series-auto.mbt`](../../modules/formats/src/xlsx/series-auto.mbt) 负责合成，不增加计算服务。
 
-默认面板提供序列开关、线性/增长/日期/文本/自动模式、日期单位和步长、源范围输入及使用当前选区的按钮；随后选择包含源的完整目标，再用四向填充按钮执行。更换工作表后须重新指定源，重开文档恢复普通填充模式。原生草稿先独立提交，填充复用同一共享公式展开、自动适配、重算、保存及精确历史；无数据或格式变化时不新增 revision。有限数值或日期计算失败、合并及既有填充资源保护均原子拒绝。手动隐藏行列按实际位置参与；相交的已启用筛选保护，后续再接可见格序列。合并格和规则资源复制仍按 P11 实施。文本实现归 [`series-text.mbt`](../../modules/formats/src/xlsx/series-text.mbt)，共用实现归 [`series.mbt`](../../modules/formats/src/xlsx/series.mbt)和 [`series-date.mbt`](../../modules/formats/src/xlsx/series-date.mbt)。
+默认面板提供序列开关、线性/增长/日期/文本/自动模式、日期单位和步长、源范围输入及使用当前选区的按钮；随后选择包含源的完整目标，再用四向填充按钮执行。更换工作表后须重新指定源，重开文档恢复普通填充模式。原生草稿先独立提交，填充复用同一共享公式展开、自动适配、重算、保存及精确历史；无值、格式或合并几何变化时不新增 revision。有限数值或日期计算失败、被切开的合并及既有填充资源保护均原子拒绝。手动隐藏行列按实际位置参与；相交的已启用筛选保护，后续再接可见格序列。规则资源复制仍按 P11 实施。文本实现归 [`series-text.mbt`](../../modules/formats/src/xlsx/series-text.mbt)，共用实现归 [`series.mbt`](../../modules/formats/src/xlsx/series.mbt)和 [`series-date.mbt`](../../modules/formats/src/xlsx/series-date.mbt)。
 
 自动日期使用源格的有效数字格式，日期组与普通数字组分开。纯日期按整数天拟合，常量或非整数趋势循环源值；单日期按方向延续一天。同一日号且日历间隔为整数时，推导月序列；月份也相同时可推导年序列。月份截到月末后恢复原日号，年份沿既有闰日进位规则。规则空白保留槽位，不规则空白参与实际位置推导。源日期、时间小数及格式保持原样，各目标循环源格格式。
 
@@ -1197,11 +1213,11 @@ script 接受 `baseline`、`superscript` 或 `subscript`，分别写入 DrawingM
 
 文字模式修改光标所在或范围所涉段落，终点恰在下一段开头时不修改下一段；对象模式修改所选本地文本框中的全部段落。`PptxQuery.paragraph` 返回各字段的共同有效值和 `reason`，混合项为 null；保护时为 null 占位。类型和动作从 `wasm/pptx`、`web/pptx` 导出，宿主沿 `editObjects` 队列执行。修改只写目标 `pPr`，保留字符、未改属性、源注释、继承定义、非目标段落、部件及选择。未知间距节点内容保护该框的间距/缩进操作；无变化不新增历史，旧 revision、候选、缺字体、无可用行宽和预算失败均不提交。已有适配框重新计算比例；固定框保留溢出诊断。默认面板按各字段的有效值更新草稿，其他格式命令完成时不清掉输入。
 
-list 使用 `PptxListFormat`：`{ kind: "none" }`、`{ kind: "bullet", value }` 或 `{ kind: "number", value, start }`。字符符号限一个字素、最多 16 UTF-16 单元；编号支持 `arabicPeriod/alphaLcPeriod/alphaUcPeriod/romanLcPeriod/romanUcPeriod`，start 为 1–32767。level 为 0–8；默认 UI 显示第 1–9 级。列表与级别可分别修改，也可和间距/缩进一起提交。查询返回有效列表定义及级别，混合值为 null。移除列表写 `buNone` 覆盖继承，清除段落直接格式移除本地列表定义并恢复继承，保留级别。
+list 使用 `PptxListFormat`：`{ kind: "none" }`、`{ kind: "bullet", value }` 或 `{ kind: "number", value, start }`。字符符号限一个字素、最多 16 UTF-16 单元；编号支持十六种格式：`arabicPeriod/arabicParenBoth/arabicParenR/arabicPlain`，以及 `alphaLc/alphaUc/romanLc/romanUc` 分别与 `Period/ParenBoth/ParenR` 组合。`Period` 使用句点，`ParenBoth` 使用左右括号，`ParenR` 使用右括号，`Plain` 不加标点；例如 `alphaUcParenBoth` 输出 `(A)`。start 为 1–32767。level 为 0–8；默认 UI 显示第 1–9 级。列表与级别可分别修改，也可和间距/缩进一起提交。查询返回有效列表定义及级别，混合值为 null。移除列表写 `buNone` 覆盖继承，清除段落直接格式移除本地列表定义并恢复继承，保留级别。
 
 编号在各文本框内计算：向前跳过更深层段落，遇到更浅层、不同类型或不同起始值时重新起算；同级空段落不推进后续数字。规则依据 [ONLYOFFICE GetBulletNum](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L10678-L10717)。字母与罗马数字沿用 DOCX 的公共序号格式化，字母采用 aa、bb 等重复规则。逻辑文字与复制内容保留原段落文字，编号是布局标记。
 
-首次应用列表按首个字符字号建立悬挂缩进，移除列表恢复标记所在左边界；显式 left/first 优先。规则参考 [ONLYOFFICE 列表缩进](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L10616-L10643)。保留已有符号字体、字号、颜色和其他段落元信息。标记进入公共段落布局，参与换行、行高、字体预检、适配及 glyph 预算，使用当前 36 pt 默认制表间隔分开标记与正文；Canvas 和 PDF 共用相同位置。已有字符内容、非目标段落、部件、选择及精确历史保持。图片符号、其他自动编号类型和自定义制表设置仍待支持。
+首次应用列表按首个字符字号建立悬挂缩进，移除列表恢复标记所在左边界；显式 left/first 优先。规则参考 [ONLYOFFICE 列表缩进](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L10616-L10643)。保留已有符号字体、字号、颜色和其他段落元信息。标记进入公共段落布局，参与换行、行高、字体预检、适配及 glyph 预算，使用当前 36 pt 默认制表间隔分开标记与正文；Canvas 和 PDF 共用相同位置。已有字符内容、非目标段落、部件、选择及精确历史保持。格式值沿 [ONLYOFFICE DrawingML 编号枚举](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Limit/TextAutonumberScheme.cpp#L46-L88)，括号与标点沿 [PresentationNumbering](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Numbering/PresentationNumbering.js#L188-L298)；源保留完整类型，导入、修改、原生续号和重开使用同一标记规则。默认面板列出各格式的标记示例，Wasm 与 Worker 参数/响应校验共享同一允许列表。图片符号、地区编号和自定义制表设置仍待支持。
 
 `listFont/listColor` 使用与字符格式相同的字体家族及六位 RGB 边界。`listSize` 使用 `{ unit: "point" | "percent", value }`，支持 1–1024 pt 或正文首字符字号的 1–400%，分别舍入到百分之一点和千分之一百分比。查询返回有效字体家族、颜色及继承后的大小单位/值；随文字大小返回 100%，混合字段为 null。显式样式分别写 `buFont/buSzPts/buSzPct/buClr`；传 null 写对应的 `buFontTx/buSzTx/buClrTx`，覆盖继承并跟随正文首字符。默认面板逐项设置，并可一次恢复三项正文样式；`clearParagraphFormat` 则移除本地定义并恢复列表/版式继承。规则依据 [ONLYOFFICE 标记属性](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L12797-L12876)。只修改所选段落的对应属性，保留字符、列表定义、字体元信息和其他部件；相同直接定义不新增历史。重复或带未知内容的目标属性保护整项事务，缺字体与输出预算失败也不提交。
 

@@ -4,6 +4,7 @@ priv enum StyleResetProfile {
   Bold
   Italic
   Heading(Int)
+  Preset(String, String)
 }
 
 ///|
@@ -47,7 +48,9 @@ fn Styles::reset_profile(self : Styles, key : String) -> StyleResetProfile? {
       return Some(Bold)
     }
   }
-  None
+  builtin_style_properties(key, name, kind, self.themes).map(p => {
+    Preset(p.0, p.1)
+  })
 }
 
 ///|
@@ -117,14 +120,14 @@ fn Session::reset_style_format(
   }
   let base = match profile {
     Plain => None
-    Bold | Italic => styles.default_style("character")
-    Heading(_) => styles.default_style("paragraph")
+    _ => styles.default_style(kind)
   }
   let (paragraph, character) = match profile {
     Plain => ("", "")
     Bold => ("", "<od:rPr xmlns:od=\"\{word_uri}\"><od:b/><od:bCs/></od:rPr>")
     Italic => ("", "<od:rPr xmlns:od=\"\{word_uri}\"><od:i/><od:iCs/></od:rPr>")
     Heading(level) => heading_style_properties(level)
+    Preset(paragraph, character) => (paragraph, character)
   }
   let mut candidate = self.part_xml(styles.part)
   let edits : Array[@xml.Edit] = []

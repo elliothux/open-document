@@ -344,10 +344,21 @@ function PptxListFields({
   );
   const numberStyles = [
     ["arabicPeriod", t.listFormat_decimal],
+    ["arabicParenBoth", "(1) (2) (3)"],
+    ["arabicParenR", "1) 2) 3)"],
+    ["arabicPlain", "1 2 3"],
     ["alphaLcPeriod", t.listFormat_lowerLetter],
+    ["alphaLcParenBoth", "(a) (b) (c)"],
+    ["alphaLcParenR", "a) b) c)"],
     ["alphaUcPeriod", t.listFormat_upperLetter],
+    ["alphaUcParenBoth", "(A) (B) (C)"],
+    ["alphaUcParenR", "A) B) C)"],
     ["romanLcPeriod", t.listFormat_lowerRoman],
+    ["romanLcParenBoth", "(i) (ii) (iii)"],
+    ["romanLcParenR", "i) ii) iii)"],
     ["romanUcPeriod", t.listFormat_upperRoman],
+    ["romanUcParenBoth", "(I) (II) (III)"],
+    ["romanUcParenR", "I) II) III)"],
   ] as const;
   return (
     <form

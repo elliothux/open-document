@@ -11,11 +11,12 @@ pub extend ListFormat with Eq::{equal, not_equal}
 ///|
 fn number_format(value : String) -> String {
   match value {
-    "arabicPeriod" => "decimal"
-    "alphaLcPeriod" => "lowerLetter"
-    "alphaUcPeriod" => "upperLetter"
-    "romanLcPeriod" => "lowerRoman"
-    "romanUcPeriod" => "upperRoman"
+    "arabicPeriod" | "arabicParenBoth" | "arabicParenR" | "arabicPlain" =>
+      "decimal"
+    "alphaLcPeriod" | "alphaLcParenBoth" | "alphaLcParenR" => "lowerLetter"
+    "alphaUcPeriod" | "alphaUcParenBoth" | "alphaUcParenR" => "upperLetter"
+    "romanLcPeriod" | "romanLcParenBoth" | "romanLcParenR" => "lowerRoman"
+    "romanUcPeriod" | "romanUcParenBoth" | "romanUcParenR" => "upperRoman"
     _ => ""
   }
 }
@@ -144,7 +145,16 @@ fn list_label(
           value += 1
         }
       }
-      @layout.numbering_value(number_format(kind), value) + "."
+      let label = @layout.numbering_value(number_format(kind), value)
+      if kind.has_suffix("ParenBoth") {
+        "(" + label + ")"
+      } else if kind.has_suffix("ParenR") {
+        label + ")"
+      } else if kind == "arabicPlain" {
+        label
+      } else {
+        label + "."
+      }
     }
   }
 }

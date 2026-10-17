@@ -6,3 +6,60 @@ fn heading_style_properties(level : Int) -> (String, String) {
     "<od:rPr xmlns:od=\"\{word_uri}\"><od:b/><od:sz od:val=\"\{size}\"/></od:rPr>",
   )
 }
+
+///|
+fn builtin_style_properties(
+  key : String,
+  name : String,
+  kind : String,
+  themes : Map[String, String],
+) -> (String, String)? {
+  let name = name.to_lower()
+  let preset = [
+      ("NoSpacing", "no spacing", "paragraph"),
+      ("Quote", "quote", "paragraph"),
+      ("QuoteChar", "quote char", "character"),
+      ("SubtleEmphasis", "subtle emphasis", "character"),
+      ("IntenseEmphasis", "intense emphasis", "character"),
+      ("IntenseQuoteChar", "intense quote char", "character"),
+      ("Caption", "caption", "paragraph"),
+    ]
+    .iter()
+    .find_first(p => kind == p.2 && (key == p.0 || name == p.1))
+  guard preset is Some((key, _, _)) else { return None }
+  let paragraph = match key {
+    "NoSpacing" =>
+      "<od:pPr xmlns:od=\"\{word_uri}\"><od:spacing od:after=\"0\" od:line=\"240\" od:lineRule=\"auto\"/></od:pPr>"
+    "Quote" =>
+      "<od:pPr xmlns:od=\"\{word_uri}\"><od:spacing od:before=\"160\"/><od:jc od:val=\"center\"/></od:pPr>"
+    "Caption" =>
+      "<od:pPr xmlns:od=\"\{word_uri}\"><od:spacing od:after=\"200\" od:line=\"240\" od:lineRule=\"auto\"/></od:pPr>"
+    _ => ""
+  }
+  let (color, theme, transform) = match key {
+    "Caption" => ("0E2841", "text2", "")
+    "IntenseEmphasis" | "IntenseQuoteChar" =>
+      ("0F4761", "accent1", " od:themeShade=\"BF\"")
+    _ => ("404040", "text1", " od:themeTint=\"BF\"")
+  }
+  let character = if key == "NoSpacing" {
+    ""
+  } else {
+    if !themes.is_empty() && !themes.contains(theme) {
+      return None
+    }
+    // shortcut: Missing themes use preset RGB; reset again after adding a theme to bind it.
+    let theme = if themes.contains(theme) {
+      " od:themeColor=\"\{theme}\"" + transform
+    } else {
+      ""
+    }
+    let size = if key == "Caption" {
+      "<od:sz od:val=\"18\"/><od:szCs od:val=\"18\"/>"
+    } else {
+      ""
+    }
+    "<od:rPr xmlns:od=\"\{word_uri}\"><od:i/><od:iCs/><od:color od:val=\"\{color}\"\{theme}/>\{size}</od:rPr>"
+  }
+  Some((paragraph, character))
+}

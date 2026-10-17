@@ -313,7 +313,10 @@ export class SpreadsheetPointer {
     const range = now.query.selection.range;
     const cell = now.layout?.cells.find(
       (item) =>
-        item.range.bottom === range.bottom && item.range.right === range.right,
+        item.range.top <= range.bottom &&
+        item.range.bottom >= range.bottom &&
+        item.range.left <= range.right &&
+        item.range.right >= range.right,
     );
     const x =
       cell && (now.layout?.rtl ? cell.rect.x : cell.rect.x + cell.rect.width);

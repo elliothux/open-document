@@ -21,7 +21,8 @@ pub fn Session::fill_preview(
       "stale-layout", "Fill preview requires current grid geometry",
     )
   }
-  let source = self.selection.1
+  let original = self.selection.1
+  let source = self.sheets[self.sheet_index(grid.sheet)].merge_target(original)
   let address : Address = match target {
     FillAdjacent => {
       let range = self.adjacent_fill(self.sheet_index(grid.sheet), source)
@@ -166,7 +167,7 @@ pub fn Session::fill_preview(
     right: selected.right,
   }
   {
-    "source": source.name(),
+    "source": original.name(),
     "range": range.name(),
     "direction": direction,
     "mode": mode,

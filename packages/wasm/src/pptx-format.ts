@@ -29,17 +29,31 @@ export interface PptxTextSpacing {
   unit: "point" | "percent";
   value: number;
 }
+const numberingFormats = [
+  "arabicPeriod",
+  "arabicParenBoth",
+  "arabicParenR",
+  "arabicPlain",
+  "alphaLcPeriod",
+  "alphaLcParenBoth",
+  "alphaLcParenR",
+  "alphaUcPeriod",
+  "alphaUcParenBoth",
+  "alphaUcParenR",
+  "romanLcPeriod",
+  "romanLcParenBoth",
+  "romanLcParenR",
+  "romanUcPeriod",
+  "romanUcParenBoth",
+  "romanUcParenR",
+] as const;
+
 export type PptxListFormat =
   | { kind: "none" }
   | { kind: "bullet"; value: string }
   | {
       kind: "number";
-      value:
-        | "arabicPeriod"
-        | "alphaLcPeriod"
-        | "alphaUcPeriod"
-        | "romanLcPeriod"
-        | "romanUcPeriod";
+      value: (typeof numberingFormats)[number];
       start: number;
     };
 export interface PptxParagraphFormat {
@@ -121,13 +135,7 @@ function paragraphProperty(key: string, value: unknown): boolean {
       list.kind === "number" &&
       keys.length === 3 &&
       typeof list.value === "string" &&
-      [
-        "arabicPeriod",
-        "alphaLcPeriod",
-        "alphaUcPeriod",
-        "romanLcPeriod",
-        "romanUcPeriod",
-      ].includes(list.value) &&
+      numberingFormats.some((value) => value === list.value) &&
       typeof list.start === "number" &&
       Number.isInteger(list.start) &&
       list.start >= 1 &&

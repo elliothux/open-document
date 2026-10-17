@@ -154,6 +154,7 @@ fn Session::fill_series(
   source : String,
   range : String,
   direction : String,
+  result_selection~ : Range? = None,
 ) -> Json raise @failure.Failure {
   if mode is Shrink {
     return self.shrink_fill(sheet, source, range, direction)
@@ -171,8 +172,10 @@ fn Session::fill_series(
   guard ["down", "up", "right", "left"].contains(direction) else {
     @failure.reject("invalid-operation", "Invalid numeric series direction")
   }
-  let source = Range::parse(source)
-  let selected = Range::parse(range)
+  let index = self.sheet_index(sheet)
+  let current = self.sheets[index]
+  let source = current.merge_target(Range::parse(source))
+  let selected = current.merge_target(Range::parse(range))
   guard (selected.bottom - selected.top + 1).to_int64() *
     (selected.right - selected.left + 1).to_int64() <=
     4096 else {
@@ -180,17 +183,6 @@ fn Session::fill_series(
   }
   let vertical = direction == "down" || direction == "up"
   let forward = direction == "down" || direction == "right"
-  if mode is Date(_, _) {
-    guard (if vertical {
-      source.top == source.bottom
-    } else {
-      source.left == source.right
-    }) else {
-      @failure.reject(
-        "invalid-operation", "Date series needs one seed per lane",
-      )
-    }
-  }
   guard selected.contains({ row: source.top, column: source.left, }) &&
     selected.contains({ row: source.bottom, column: source.right, }) &&
     (if vertical {
@@ -213,13 +205,12 @@ fn Session::fill_series(
       "invalid-operation", "Series source must span the selected leading edge",
     )
   }
-  let index = self.sheet_index(sheet)
-  let current = self.sheets[index]
   if source == selected {
     return self.query()
   }
-  self.check_fill_cells(current, [selected])
+  self.check_fill_cells(current, [source, selected])
   self.check_fill_resources(current, selected)
+  let merges = current.fill_merges(source, selected, direction)
   if read_filter(current) is Some(filter) &&
     !filter.settings.columns.is_empty() &&
     filter.bounds.intersects(selected) {
@@ -229,84 +220,148 @@ fn Session::fill_series(
   }
   let first = if vertical { selected.top } else { selected.left }
   let last = if vertical { selected.bottom } else { selected.right }
+  let origin = if vertical { source.top } else { source.left }
   let first_lane = if vertical { selected.left } else { selected.top }
   let last_lane = if vertical { selected.right } else { selected.bottom }
   let updates : Map[String, CellContent] = Map([])
   let styles : Map[String, Int] = Map([])
   let mut units = 0
   for lane in first_lane..<=last_lane {
-    let values : Array[(Value, Int, String?)] = match mode {
-      Shrink =>
-        @failure.reject("invalid-operation", "Shrink cannot generate series")
-      Automatic | CopySeries =>
-        current.automatic_series_values(
-          source,
-          lane,
-          vertical,
-          first,
-          last,
-          forward,
-          self.styles,
-          self.date1904,
-          copy=mode is CopySeries,
-        )
-      TextSeries =>
-        current
-        .text_series_values(source, lane, vertical, first, last, forward)
-        .map(item => (item.0, item.1, None))
-      Date(unit, step) => {
-        let seed : Address = if vertical {
-          { row: source.top, column: lane, }
-        } else {
-          { row: lane, column: source.left, }
-        }
-        guard current.cells.get(seed.name()) is Some(cell) &&
-          cell.formula is None &&
-          cell.value is Number(value) else {
-          @failure.reject(
-            "invalid-operation", "Date series needs literal numeric seeds",
-          )
-        }
-        let values = date_series_values(
-          value,
-          unit,
-          if forward {
-            step
-          } else {
-            -step
-          },
-          last - first + 1,
-          self.date1904,
-        )
-        let style = current.style_at(seed)
-        (if forward { values } else { values.rev() }).map(value => {
-          (Number(value), style, None)
-        })
+    let mut covered = true
+    for
+      axis in (if vertical { source.top } else { source.left })..<=(if vertical {
+        source.bottom
+      } else {
+        source.right
+      }) {
+      let address : Address = if vertical {
+        { row: axis, column: lane, }
+      } else {
+        { row: lane, column: axis, }
       }
-      _ => {
-        let plan = current.series_trend(source, lane, vertical, growth)
-        let origin = if vertical { source.top } else { source.left }
-        let values : Array[Double] = []
-        for axis in first..<=last {
-          let trend = plan.mean +
-            plan.slope * ((axis - origin).to_double() - plan.origin)
-          let value = if growth {
-            if trend == 0 {
-              plan.scale
-            } else {
-              @math.exp(@math.ln(plan.scale) + trend)
-            }
+      let merged = current.cell_range(address)
+      if address.row == merged.top && address.column == merged.left {
+        covered = false
+        break
+      }
+    }
+    let values : Array[(Value, Int, String?)] = if covered &&
+      (mode is Linear || mode is Growth || mode is Date(_, _)) {
+      current.automatic_series_values(
+        source,
+        lane,
+        vertical,
+        first,
+        last,
+        forward,
+        self.styles,
+        self.date1904,
+        copy=true,
+      )
+    } else {
+      match mode {
+        Shrink =>
+          @failure.reject("invalid-operation", "Shrink cannot generate series")
+        Automatic | CopySeries =>
+          current.automatic_series_values(
+            source,
+            lane,
+            vertical,
+            first,
+            last,
+            forward,
+            self.styles,
+            self.date1904,
+            copy=mode is CopySeries,
+          )
+        TextSeries =>
+          current
+          .text_series_values(source, lane, vertical, first, last, forward)
+          .map(item => (item.0, item.1, None))
+        Date(unit, step) => {
+          let seed : Address = if vertical {
+            { row: source.top, column: lane, }
           } else {
-            trend * plan.scale
+            { row: lane, column: source.left, }
           }
-          guard !value.is_nan() && !value.is_inf() else {
+          let merged = current.cell_range(seed)
+          let stride = if vertical {
+            source.bottom - source.top + 1
+          } else {
+            source.right - source.left + 1
+          }
+          guard (if vertical {
+              merged.bottom - merged.top + 1
+            } else {
+              merged.right - merged.left + 1
+            }) ==
+            stride else {
             @failure.reject(
-              "invalid-operation", "Numeric series exceeds finite numeric range",
+              "invalid-operation", "Date series needs one seed per lane",
             )
           }
-          values.push(value)
+          guard current.cells.get(seed.name()) is Some(cell) &&
+            cell.formula is None &&
+            cell.value is Number(value) else {
+            @failure.reject(
+              "invalid-operation", "Date series needs literal numeric seeds",
+            )
+          }
+          let values = date_series_values(
+            value,
+            unit,
+            if forward {
+              step
+            } else {
+              -step
+            },
+            (last - first) / stride + 1,
+            self.date1904,
+          )
+          let style = current.style_at(seed)
+          Array::makei(last - first + 1, offset => {
+            let slot = ((first + offset - origin) % stride + stride) % stride
+            (
+              if slot == 0 {
+                Number(
+                  values[if forward {
+                    offset / stride
+                  } else {
+                    (last - first - offset) / stride
+                  }],
+                )
+              } else {
+                Blank
+              },
+              style,
+              None,
+            )
+          })
         }
-        values.map(value => (Number(value), plan.style, None))
+        _ => {
+          let plan = current.series_trend(source, lane, vertical, growth)
+          let values : Array[Double] = []
+          for axis in first..<=last {
+            let trend = plan.mean +
+              plan.slope * ((axis - origin).to_double() - plan.origin)
+            let value = if growth {
+              if trend == 0 {
+                plan.scale
+              } else {
+                @math.exp(@math.ln(plan.scale) + trend)
+              }
+            } else {
+              trend * plan.scale
+            }
+            guard !value.is_nan() && !value.is_inf() else {
+              @failure.reject(
+                "invalid-operation", "Numeric series exceeds finite numeric range",
+              )
+            }
+            values.push(value)
+          }
+          values.map(value => (Number(value), plan.style, None))
+        }
       }
     }
     for offset, (value, style, formula) in values {
@@ -338,5 +393,11 @@ fn Session::fill_series(
       }
     }
   }
-  self.commit_fill(index, selected, updates, styles)
+  self.commit_fill(
+    index,
+    result_selection.unwrap_or(selected),
+    updates,
+    styles,
+    merges=Some(merges),
+  )
 }

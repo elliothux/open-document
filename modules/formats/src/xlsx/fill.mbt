@@ -75,7 +75,8 @@ fn Session::fill_cells(
   guard ["down", "up", "right", "left"].contains(direction) else {
     @failure.reject("invalid-operation", "Invalid cell fill direction")
   }
-  let selected = Range::parse(range)
+  let current = self.sheets[self.sheet_index(sheet)]
+  let selected = current.merge_target(Range::parse(range))
   guard (selected.bottom - selected.top + 1).to_int64() *
     (selected.right - selected.left + 1).to_int64() <=
     4096 else {
@@ -91,114 +92,58 @@ fn Session::fill_cells(
   } else {
     last + (if adjacent { 1 } else { 0 })
   }
-  let index = self.sheet_index(sheet)
-  let current = self.sheets[index]
   if seed < 1 || seed > (if vertical { 1048576 } else { 16384 }) {
     return self.query(sheet=Some(sheet), range=Some(selected.name()))
   }
-  let target = if adjacent {
-    selected
-  } else if vertical {
-    {
-      ..selected,
-      top: if forward {
-        first + 1
-      } else {
-        first
-      },
-      bottom: if forward {
-        last
-      } else {
-        last - 1
-      },
-    }
-  } else {
-    {
-      ..selected,
-      left: if forward {
-        first + 1
-      } else {
-        first
-      },
-      right: if forward {
-        last
-      } else {
-        last - 1
-      },
-    }
-  }
-  let source = if vertical {
+  let edge = if vertical {
     { ..selected, top: seed, bottom: seed, }
   } else {
     { ..selected, left: seed, right: seed, }
   }
-  let affected = {
-    top: source.top.min(target.top),
-    left: source.left.min(target.left),
-    bottom: source.bottom.max(target.bottom),
-    right: source.right.max(target.right),
-  }
-  self.check_fill_cells(current, [source, target])
-  self.check_fill_resources(current, affected)
-  let updates : Map[String, CellContent] = Map([])
-  let styles : Map[String, Int] = Map([])
-  let formulas : Map[String, Expression] = Map([])
-  let mut units = 0
-  for row in target.top..<=target.bottom {
-    for column in target.left..<=target.right {
-      let address : Address = { row, column, }
-      let from : Address = if vertical {
-        { row: seed, column, }
+  let mut source = edge
+  for merge in current.merges {
+    if merge.intersects(edge) {
+      source = if vertical {
+        {
+          ..source,
+          top: source.top.min(merge.top),
+          bottom: source.bottom.max(merge.bottom),
+        }
       } else {
-        { row, column: seed, }
-      }
-      let key = address.name()
-      let origin = from.name()
-      let cell = current.cells.get(origin)
-      let formula = cell
-        .bind(cell => cell.formula)
-        .map(text => {
-          let expression = formulas
-            .get(origin)
-            .unwrap_or_else(() => {
-              let expression = parse_formula(text)
-              formulas[origin] = expression
-              expression
-            })
-          expression.source(
-            rows=row - from.row,
-            columns=column - from.column,
-            invalid_ref=true,
-          )
-        })
-      let value = if formula is Some(_) {
-        Blank
-      } else {
-        cell.map(cell => cell.value).unwrap_or(Blank)
-      }
-      units += formula
-        .map(text => text.length())
-        .unwrap_or(value.display().length())
-      guard units <= 1048576 &&
-        formula.map(text => text.length() <= 8192).unwrap_or(true) else {
-        @failure.reject(
-          "limit-exceeded", "Cell fill exceeds text or formula budget",
-        )
-      }
-      let style = current.style_at(from)
-      let old = current.cells.get(key)
-      if old.bind(cell => cell.formula) != formula ||
-        (
-          formula is None &&
-          old.map(cell => cell.value).unwrap_or(Blank) != value
-        ) ||
-        current.style_at(address) != style {
-        updates[key] = { value, formula, keep_shared: false, }
-        styles[key] = style
+        {
+          ..source,
+          left: source.left.min(merge.left),
+          right: source.right.max(merge.right),
+        }
       }
     }
   }
-  self.commit_fill(index, selected, updates, styles)
+  if source == selected {
+    return self.query()
+  }
+  guard (if adjacent {
+    !source.intersects(selected)
+  } else {
+    selected.covers(source)
+  }) else {
+    @failure.reject(
+      "protected-content", "Fill must include complete merged source cells",
+    )
+  }
+  let affected = {
+    top: selected.top.min(source.top),
+    bottom: selected.bottom.max(source.bottom),
+    left: selected.left.min(source.left),
+    right: selected.right.max(source.right),
+  }
+  self.fill_series(
+    sheet,
+    CopySeries,
+    source.name(),
+    affected.name(),
+    direction,
+    result_selection=Some(selected),
+  )
 }
 
 ///|
@@ -209,16 +154,8 @@ fn Session::check_fill_cells(
 ) -> Unit raise @failure.Failure {
   for scope in scopes {
     let reason = self.format_reason(current, scope)
-    guard reason.is_empty() &&
-      !current.merges.any(merge => merge.intersects(scope)) else {
-      @failure.reject(
-        "protected-content",
-        if reason.is_empty() {
-          "Merged cells require fill geometry support"
-        } else {
-          reason
-        },
-      )
+    guard reason.is_empty() else {
+      @failure.reject("protected-content", reason)
     }
   }
 }
@@ -230,11 +167,13 @@ fn Session::commit_fill(
   selected : Range,
   updates : Map[String, CellContent],
   styles : Map[String, Int],
+  merges~ : Array[Range]? = None,
 ) -> Json raise @failure.Failure {
-  if updates.is_empty() {
+  let current = self.sheets[index]
+  let merges = merges.unwrap_or(current.merges)
+  if updates.is_empty() && merges == current.merges {
     return self.query()
   }
-  let current = self.sheets[index]
   current.expand_shared_updates(updates)
   let expanded_units = updates
     .values()
@@ -254,5 +193,6 @@ fn Session::commit_fill(
     Map([(index, updates)]),
     (current.id, selected),
     styles=Map([(index, styles)]),
+    merges=Map([(index, merges)]),
   )
 }

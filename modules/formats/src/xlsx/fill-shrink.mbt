@@ -38,7 +38,9 @@ fn Session::shrink_fill(
   range : String,
   direction : String,
 ) -> Json raise @failure.Failure {
-  let source = Range::parse(source)
+  let index = self.sheet_index(sheet)
+  let current = self.sheets[index]
+  let source = current.merge_target(Range::parse(source))
   let cleared = Range::parse(range)
   let selected = fill_remainder(source, cleared, direction)
   guard (source.bottom - source.top + 1).to_int64() *
@@ -46,9 +48,7 @@ fn Session::shrink_fill(
     4096 else {
     @failure.reject("limit-exceeded", "Fill shrink exceeds 4096 cells")
   }
-  let index = self.sheet_index(sheet)
-  let current = self.sheets[index]
-  self.check_fill_cells(current, [source])
+  self.check_fill_cells(current, [source, cleared])
   self.check_fill_resources(current, source)
   let updates : Map[String, CellContent] = Map([])
   for row in cleared.top..<=cleared.bottom {

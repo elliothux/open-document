@@ -132,7 +132,9 @@ fn Session::adjacent_fill(
       }
     }
   }
-  guard !sheet.merges.any(merge => region.intersects(merge)) else {
+  guard !sheet.merges.any(merge => {
+    region.intersects(merge) && !source.covers(merge)
+  }) else {
     @failure.reject(
       "protected-content", "Merged regions require merge-aware adjacent fill",
     )
