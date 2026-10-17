@@ -240,6 +240,7 @@ fn Foundation::dispatch(
     | "pageSetup"
     | "setPageSetup"
     | "setPageBackground"
+    | "setPageBorders"
     | "insertDocxTable"
     | "editDocxTable"
     | "styleCatalog"
@@ -401,24 +402,8 @@ fn Foundation::dispatch(
           }
           result
         }
-        "pageSetup" => session.page_setup(field_int(request, "revision"))
-        "setPageBackground" => {
-          let result = session.set_page_background(
-            field_int(request, "revision"),
-            page_background_color(request),
-          )
-          self.layout = None
-          result
-        }
-        "setPageSetup" => {
-          let result = session.set_page_setup(
-            field_int(request, "revision"),
-            page_setup_format(request),
-            orientation=page_orientation(request),
-          )
-          self.layout = None
-          result
-        }
+        "pageSetup" | "setPageBackground" | "setPageBorders" | "setPageSetup" =>
+          self.docx_page(session, operation, request)
         "insertDocxTable" | "editDocxTable" =>
           self.docx_table(session, operation, request)
         "listCatalog" => session.list_catalog(field_int(request, "revision"))

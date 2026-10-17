@@ -27,6 +27,9 @@ fn object_hit(
   let width = geometry.width
   let height = geometry.height
   let margin = tolerance + object.line_width / 2
+  if object.preset == "line" && object.line_end_hit(geometry, x, y, margin) {
+    return true
+  }
   let bounds = if object.preset == "line" && object.cap == "sq" {
     margin * 1.4142135623730951
   } else {

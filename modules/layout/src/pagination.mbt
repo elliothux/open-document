@@ -20,6 +20,7 @@ fn Pagination::new(page : PageSetup) -> Pagination {
         borders: [],
         fills: [],
         cellAreas: [],
+        pageBorders: [],
       },
     ],
     y: page.top,
@@ -41,6 +42,7 @@ fn Pagination::next_page(self : Pagination) -> Unit raise @failure.Failure {
     borders: [],
     fills: [],
     cellAreas: [],
+    pageBorders: [],
   })
   self.y = self.page.top
   self.after = 0
@@ -248,6 +250,7 @@ pub fn paginate(
 ) -> Layout raise @failure.Failure {
   probe.check()
   flow.page.validate()
+  flow.pageBorders.validate()
   guard flow.background.length() == 6 &&
     flow.background.iter().all(c => c.is_ascii_hexdigit()) else {
     @failure.reject("invalid-style", "Invalid page background color")
@@ -310,10 +313,19 @@ pub fn paginate(
     reflowedPages: reflowed,
     reusedPages: reused,
     profile: profile.copy(),
-    pages: pagination.pages.map(page => {
+    pages: pagination.pages.mapi((index, page) => {
       ..page,
+      pageBorders: if flow.pageBorders.zOrder == "front" {
+        flow.pageBorders.fills(flow.page, index)
+      } else {
+        []
+      },
       fills: if flow.background.to_lower() == "ffffff" {
-        page.fills
+        if flow.pageBorders.zOrder == "back" {
+          [..flow.pageBorders.fills(flow.page, index), ..page.fills]
+        } else {
+          page.fills
+        }
       } else {
         [
           {
@@ -323,7 +335,11 @@ pub fn paginate(
             height: page.height,
             color: flow.background,
           },
-          ..page.fills,
+          ..if flow.pageBorders.zOrder == "back" {
+            [..flow.pageBorders.fills(flow.page, index), ..page.fills]
+          } else {
+            page.fills
+          },
         ]
       },
     }),

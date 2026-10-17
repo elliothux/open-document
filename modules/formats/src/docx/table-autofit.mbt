@@ -238,6 +238,7 @@ fn Session::fit_table(
     ..next_flow,
     paragraphs: [],
     tables: [{ ..next, beforeParagraph: 0, }],
+    pageBorders: @layout.PageBorders::new(),
     headers: [],
     headerDistance: 0,
   }

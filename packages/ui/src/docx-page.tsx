@@ -6,6 +6,7 @@ import type {
 } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { DocxPageBordersForm } from "./docx-page-borders.js";
 
 export function DocxPage({
   controller,
@@ -48,6 +49,21 @@ export function DocxPage({
         {t.loadPageSetup}
       </button>
       {settings?.reason && <p>{settings.reason}</p>}
+      {settings && (
+        <DocxPageBordersForm
+          key={settings.revision}
+          value={settings.borders.value}
+          reason={settings.borders.reason}
+          disabled={disabled || stale}
+          state={state}
+          apply={(borders) =>
+            controller.run(async () => {
+              await editor.setPageBorders(borders);
+              await load();
+            })
+          }
+        />
+      )}
       {settings && (
         <form
           onSubmit={(event) => {

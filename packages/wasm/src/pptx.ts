@@ -10,6 +10,8 @@ import {
   pptxJoins,
   type PptxCap,
   type PptxJoin,
+  type PptxLineEnd,
+  checkPptxLineEnd,
 } from "./pptx-objects.js";
 export {
   checkPptxObjectEdit,
@@ -18,6 +20,7 @@ export {
   type PptxDash,
   type PptxCap,
   type PptxJoin,
+  type PptxLineEnd,
 } from "./pptx-objects.js";
 import {
   checkPptxSlideEdit,
@@ -136,6 +139,9 @@ export interface PptxObject {
     join: PptxJoin;
     miterLimit: number;
     penReason: string;
+    headEnd: PptxLineEnd;
+    tailEnd: PptxLineEnd;
+    lineEndReason: string;
     dash: PptxDash;
     dashReason: string;
     fill: string | null;
@@ -560,6 +566,7 @@ export function pptxQuery(value: unknown): PptxQuery {
           "reason",
           "dashReason",
           "penReason",
+          "lineEndReason",
           "fillOpacityReason",
           "strokeOpacityReason",
         ],
@@ -576,6 +583,8 @@ export function pptxQuery(value: unknown): PptxQuery {
     )
       throw new Error("Invalid shape appearance");
     number(appearance.width, 1 / 12700, 1000);
+    checkPptxLineEnd(appearance.headEnd);
+    checkPptxLineEnd(appearance.tailEnd);
     number(appearance.miterLimit, 1, 1000);
     number(appearance.fillOpacity, 0, 1);
     number(appearance.strokeOpacity, 0, 1);

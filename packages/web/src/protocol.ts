@@ -12,6 +12,7 @@ import type {
   DocxListEdit,
   DocxListLevelUpdate,
   DocxPageSetup,
+  DocxPageBorders,
   DocxPictureEdit,
   DocxPictureResizeCommand,
   DocxTableEdit,
@@ -95,6 +96,11 @@ export type Operation =
     }
   | { operation: "pageSetup"; revision: number }
   | { operation: "setPageBackground"; revision: number; color: string | null }
+  | {
+      operation: "setPageBorders";
+      revision: number;
+      borders: DocxPageBorders | null;
+    }
   | { operation: "setPageSetup"; revision: number; page: DocxPageSetup }
   | {
       operation: "insertDocxTable";

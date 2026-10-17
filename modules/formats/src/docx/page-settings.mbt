@@ -183,6 +183,7 @@ pub fn Session::page_setup(
       "page": page,
       "reason": "",
       "background": self.page_background_query(tree),
+      "borders": self.page_borders_query(tree),
     }
   } catch {
     @failure.Failure(message~, ..) =>
@@ -191,6 +192,7 @@ pub fn Session::page_setup(
         "page": Json::null(),
         "reason": message,
         "background": self.page_background_query(tree),
+        "borders": self.page_borders_query(tree),
       }
   }
 }
@@ -250,35 +252,8 @@ pub fn Session::set_page_setup(
     current.left == page.left {
     return self.edit_state()
   }
-  let mut candidate = original
-  let edits : Array[@xml.Edit] = []
-  let section = match section {
-    Some(id) => id
-    None => {
-      let body = tree.child(0, "body").unwrap()
-      let node = tree.nodes[body]
-      let markup = "<od:sectPr xmlns:od=\"\{word_uri}\"/>"
-      let change : @xml.SourceChange = if node.empty {
-        {
-          node: body,
-          offset: node.opening_end - node.start - 2,
-          length: 2,
-          xml: ">\{markup}</\{node.qualified}>",
-        }
-      } else {
-        {
-          node: body,
-          offset: node.closing_start - node.start,
-          length: 0,
-          xml: markup,
-        }
-      }
-      let (updated, edit) = candidate.edit_source([change])
-      candidate = updated
-      edits.push(edit)
-      WordTree::new(candidate).child(body, "sectPr").unwrap()
-    }
-  }
+  let (initial, edits, section) = page_section(original, tree, section)
+  let mut candidate = initial
   for
     (name, values) in [
       (
@@ -350,6 +325,7 @@ pub fn Session::set_page_setup(
   }
   let updated = WordTree::new(candidate)
   validate_page_setup(updated.page_values(section, default_page_setup()))
+  self.validate_page_border_geometry(candidate)
   let paragraphs = updated.order.filter(id => {
     updated.nodes[id].uri == word_uri && updated.nodes[id].name == "p"
   })

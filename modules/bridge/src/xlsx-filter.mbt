@@ -7,6 +7,13 @@ fn xlsx_filter(change : Json) -> @xlsx.SheetEdit raise @failure.Failure {
     range: field_string(change, "range"),
     columns: columns.map(column => {
       let rule = match field_string(column, "kind") {
+        "average" => {
+          guard column is Object(fields) &&
+            fields.keys().all(k => ["kind", "column", "above"].contains(k)) else {
+            @failure.reject("invalid-operation", "Unknown average filter field")
+          }
+          @xlsx.Average(above=xlsx_boolean(column, "above"))
+        }
         "rank" => {
           guard column is Object(fields) &&
             fields

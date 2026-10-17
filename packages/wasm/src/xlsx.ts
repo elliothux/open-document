@@ -60,6 +60,7 @@ export type {
   XlsxFilterOperator,
   XlsxCustomFilter,
   XlsxRankFilter,
+  XlsxAverageFilter,
   XlsxFilterSettings,
   XlsxFilterState,
 } from "./xlsx-filter.js";

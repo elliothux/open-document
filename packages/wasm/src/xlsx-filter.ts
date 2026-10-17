@@ -34,8 +34,14 @@ export interface XlsxRankFilter {
   top: boolean;
   percent: boolean;
 }
+export interface XlsxAverageFilter {
+  kind: "average";
+  column: number;
+  /** Strictly above or below the mean of all numeric records, including hidden rows. */
+  above: boolean;
+}
 export type XlsxFilterColumn =
-  XlsxFilterValues | XlsxCustomFilter | XlsxRankFilter;
+  XlsxFilterValues | XlsxCustomFilter | XlsxRankFilter | XlsxAverageFilter;
 export interface XlsxFilterSettings {
   /** Explicit rectangle with a header in its first row. */
   range: string;
@@ -110,6 +116,15 @@ export function checkXlsxFilter(value: unknown): void {
           throw new Error("Invalid filter condition");
         return condition.value;
       });
+    } else if (column.kind === "average") {
+      if (
+        typeof column.above !== "boolean" ||
+        Object.keys(column).some(
+          (key) => !["kind", "column", "above"].includes(key),
+        )
+      )
+        throw new Error("Invalid average filter");
+      values = [];
     } else if (column.kind === "rank") {
       if (
         typeof column.top !== "boolean" ||

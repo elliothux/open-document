@@ -224,6 +224,33 @@ fn Foundation::pptx_operation(
         "textAnchor" => @pptx.TextAnchor(field_string(change, "anchor"))
         "textWrap" => @pptx.TextWrap(xlsx_boolean(change, "wrap"))
         "textFit" => @pptx.TextFit(field_string(change, "fit"))
+        "lineEnd" => {
+          let side = field_string(change, "side")
+          guard ["head", "tail"].contains(side) &&
+            change is Object(fields) &&
+            fields.keys().all(k => ["action", "side", "end"].contains(k)) &&
+            fields.get("end") is Some(raw) else {
+            @failure.reject(
+              "invalid-operation", "Line end side and value are required",
+            )
+          }
+          @pptx.StrokeEnd(
+            side == "head",
+            if raw is Null {
+              None
+            } else {
+              guard raw is Object(fields) &&
+                fields.keys().all(k => ["kind", "width", "length"].contains(k)) else {
+                @failure.reject("invalid-operation", "Unknown line end fields")
+              }
+              Some({
+                kind: field_string(raw, "kind"),
+                width: field_string(raw, "width"),
+                length: field_string(raw, "length"),
+              })
+            },
+          )
+        }
         "strokeCap" | "strokeJoin" => {
           let action = field_string(change, "action")
           let key = if action == "strokeCap" { "cap" } else { "join" }

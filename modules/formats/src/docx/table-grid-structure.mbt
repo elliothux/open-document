@@ -182,6 +182,7 @@ fn Session::check_table_layout(
           ..flow,
           paragraphs: [],
           tables: [{ ..fitted, beforeParagraph: 0, }],
+          pageBorders: @layout.PageBorders::new(),
           headers: [],
           headerDistance: 0,
         },

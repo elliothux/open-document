@@ -212,7 +212,7 @@ fn Session::filter_query(self : Session, index : Int) -> Json {
         .map(c => {
           match c.rule {
             Values(_, blank~) => blank
-            Custom(_, ..) | Rank(_, ..) => true
+            Custom(_, ..) | Rank(_, ..) | Average(..) => true
           }
         })
         .unwrap_or(true),

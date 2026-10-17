@@ -481,6 +481,9 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
           "join": object.join,
           "miterLimit": object.miter,
           "penReason": self.pen_reason(object),
+          "headEnd": object.ends.0,
+          "tailEnd": object.ends.1,
+          "lineEndReason": self.line_end_reason(object),
           "reason": self.paint_reason(object),
         },
         "textFrame": {

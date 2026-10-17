@@ -29,6 +29,8 @@ export type {
   DocxListLevelUpdate,
   DocxPageSetup,
   DocxPageSettings,
+  DocxPageBorders,
+  DocxPageBorder,
   DocxPicture,
   DocxPictureEdit,
   DocxPictureResizeCommand,
@@ -88,6 +90,7 @@ import {
   checkDefaultTabStop,
   checkPageSetup,
   checkPageBackground,
+  checkPageBorders,
   checkDocxPictureEdit,
   docxPictures,
   type DocxPictureEdit,
@@ -95,6 +98,7 @@ import {
   checkDocxPictureResize,
   docxPageSettings,
   type DocxPageSetup,
+  type DocxPageBorders,
   type DocxPageSettings,
   checkFormatPatch,
   checkListEdit,
@@ -376,6 +380,15 @@ export class FoundationClient extends FoundationReviewClient {
         color,
       }),
     );
+  }
+  async setPageBorders(
+    revision: number,
+    borders: DocxPageBorders | null,
+  ): Promise<EditState> {
+    checkPageBorders(borders);
+    return this.connection
+      .request({ operation: "setPageBorders", revision, borders })
+      .then(editState);
   }
   async insertTable(
     revision: number,

@@ -1,5 +1,10 @@
 import type { ShapeBatch } from "./foundation.js";
-import { checkTabStops, type TabStop } from "./docx-format.js";
+import {
+  checkTabStops,
+  type TabStop,
+  checkPageBorders,
+  type DocxPageBorders,
+} from "./docx-format.js";
 import { record } from "./validation.js";
 import { drawingBatch, type DrawingBatch } from "./drawing.js";
 import { docxCommentLayout, type DocxCommentLayout } from "./docx-comments.js";
@@ -21,6 +26,7 @@ export interface TextStyle {
 }
 
 export interface DocxFlow {
+  pageBorders: DocxPageBorders;
   background: string;
   additiveSpacing: boolean;
   revision: number;
@@ -157,6 +163,9 @@ function diagnostics(value: unknown): void {
 
 export function docxFlow(value: unknown): DocxFlow {
   const flow = fields(value, ["revision", "headerDistance"]);
+  if (flow.pageBorders === null)
+    throw new Error("Missing document page borders");
+  checkPageBorders(flow.pageBorders);
   if (
     typeof flow.background !== "string" ||
     !/^[0-9a-f]{6}$/iu.test(flow.background)

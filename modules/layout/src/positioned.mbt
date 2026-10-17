@@ -90,6 +90,9 @@ pub fn Layout::positioned(self : Layout) -> PositionedDocument {
           primitives.push(Restore)
         }
       }
+      for border in page.pageBorders {
+        primitives.push(Rectangle(border))
+      }
       { width: page.width, height: page.height, primitives, }
     }),
   }

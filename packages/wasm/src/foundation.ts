@@ -17,6 +17,8 @@ import {
   checkDefaultTabStop,
   checkPageSetup,
   checkPageBackground,
+  checkPageBorders,
+  type DocxPageBorders,
   docxPageSettings,
   type DocxPageSetup,
   type DocxPageSettings,
@@ -540,6 +542,12 @@ export class FoundationSession extends WasmSession {
     checkPageBackground(color);
     return editState(
       this.call({ operation: "setPageBackground", revision, color }),
+    );
+  }
+  setPageBorders(revision: number, borders: DocxPageBorders | null): EditState {
+    checkPageBorders(borders);
+    return editState(
+      this.call({ operation: "setPageBorders", revision, borders }),
     );
   }
   insertTable(

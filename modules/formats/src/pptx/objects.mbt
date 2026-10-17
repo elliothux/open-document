@@ -279,12 +279,27 @@ fn read_object(
       fill_source,
       solid_fill_source(lines).map(item => (item, placeholder)),
       gradient,
+      (line_end(lines, "headEnd"), line_end(lines, "tailEnd")),
     )
   })() catch {
     @failure.Failure(code~, message~, ..) if code == "unsupported-style" ||
       code == "protected-content" => {
       diagnostic = message
-      ("", "", 1.0, "solid", "flat", "round", 8.0, 1.0, 1.0, None, None, None)
+      (
+        "",
+        "",
+        1.0,
+        "solid",
+        "flat",
+        "round",
+        8.0,
+        1.0,
+        1.0,
+        None,
+        None,
+        None,
+        (no_line_end(), no_line_end()),
+      )
     }
     error => raise error
   }
@@ -389,6 +404,7 @@ fn read_object(
     cap: paint.4,
     join: paint.5,
     miter: paint.6,
+    ends: paint.12,
     fill_alpha: paint.7,
     stroke_alpha: paint.8,
     fill_source: paint.9,

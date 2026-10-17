@@ -30,6 +30,15 @@ pub(all) struct FindOptions {
 }
 pub fn FindOptions::new(matchCase? : Bool, wholeWord? : Bool, all? : Bool) -> Self
 
+pub(all) struct LineEnd {
+  kind : String
+  width : String
+  length : String
+} derive(Eq, ToJson)
+pub fn LineEnd::equal(Self, Self) -> Bool
+pub fn LineEnd::not_equal(Self, Self) -> Bool
+pub fn LineEnd::to_json(Self) -> Json
+
 pub(all) enum ListFormat {
   NoList
   Bullet(String)
@@ -62,6 +71,7 @@ pub(all) enum ObjectEdit {
   StrokeDash(String?)
   StrokeCap(String?)
   StrokeJoin(String?, Double)
+  StrokeEnd(Bool, LineEnd?)
   ShapeAdjustment(String, Double?)
   TextInsets(Double, Double, Double, Double)
   TextAnchor(String)

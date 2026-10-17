@@ -142,6 +142,7 @@ pub extend PageSetup with ToJson::{to_json}
 pub(all) struct Flow {
   revision : Int
   background : String
+  pageBorders : PageBorders
   page : PageSetup
   paragraphs : Array[Paragraph]
   diagnostics : Array[String]
@@ -246,6 +247,7 @@ pub(all) struct PageFrame {
   lines : Array[Line]
   borders : Array[TableStroke]
   fills : Array[Fill]
+  pageBorders : Array[Fill]
   cellAreas : Array[CellArea]
 } derive(ToJson)
 

@@ -19,6 +19,12 @@ fn Session::flow_from(
       }
     }
   let mut styles = self.styles(diagnostics)
+  let page_borders = tree.page_borders() catch {
+    @failure.Failure(message~, ..) => {
+      diagnostics.push("unsupported-layout:page-borders:" + message)
+      @layout.PageBorders::new()
+    }
+  }
   let headers : Array[Array[@layout.Paragraph]] = []
   let mut header_distance = 0.0
   let mut page = default_page_setup()
@@ -180,6 +186,7 @@ fn Session::flow_from(
   {
     revision: self.revision,
     background,
+    pageBorders: page_borders,
     page,
     paragraphs: paragraphs.map(p => numbered[p.id]),
     diagnostics,

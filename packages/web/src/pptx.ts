@@ -17,6 +17,7 @@ export type {
   PptxHyperlink,
   PptxDash,
   PptxCap,
+  PptxLineEnd,
   PptxJoin,
   PptxFindOptions,
   PptxSearchResult,

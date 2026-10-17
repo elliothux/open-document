@@ -23,6 +23,7 @@ pub(all) enum ObjectEdit {
   StrokeDash(String?)
   StrokeCap(String?)
   StrokeJoin(String?, Double)
+  StrokeEnd(Bool, LineEnd?)
   ShapeAdjustment(String, Double?)
   TextInsets(Double, Double, Double, Double)
   TextAnchor(String)
@@ -326,6 +327,8 @@ pub fn Session::edit_objects(
     StrokeDash(value) => (self.dash_objects(value), self.selection)
     StrokeCap(_) | StrokeJoin(_, _) =>
       (self.pen_objects(change), self.selection)
+    StrokeEnd(head, value) =>
+      (self.line_end_changes(head, value), self.selection)
     Group => {
       let id = self.next_object_identity()
       let result = self.group_changes(id)

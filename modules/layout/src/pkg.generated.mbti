@@ -124,6 +124,7 @@ pub fn Fill::to_json(Self) -> Json
 pub(all) struct Flow {
   revision : Int
   background : String
+  pageBorders : PageBorders
   page : PageSetup
   paragraphs : Array[Paragraph]
   diagnostics : Array[String]
@@ -311,12 +312,32 @@ pub(all) struct Outline {
 } derive(ToJson)
 pub fn Outline::to_json(Self) -> Json
 
+pub(all) struct PageBorder {
+  side : String
+  color : String
+  width : Double
+  space : Double
+} derive(ToJson)
+pub fn PageBorder::to_json(Self) -> Json
+
+pub(all) struct PageBorders {
+  offsetFrom : String
+  display : String
+  zOrder : String
+  sides : Array[PageBorder]
+} derive(ToJson)
+pub fn PageBorders::fills(Self, PageSetup, Int) -> Array[Fill] raise @failure.Failure
+pub fn PageBorders::new() -> Self
+pub fn PageBorders::to_json(Self) -> Json
+pub fn PageBorders::validate(Self) -> Unit raise @failure.Failure
+
 pub(all) struct PageFrame {
   width : Double
   height : Double
   lines : Array[Line]
   borders : Array[TableStroke]
   fills : Array[Fill]
+  pageBorders : Array[Fill]
   cellAreas : Array[CellArea]
 } derive(ToJson)
 pub fn PageFrame::to_json(Self) -> Json

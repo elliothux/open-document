@@ -24,6 +24,26 @@ export const pptxCaps = ["flat", "rnd", "sq"] as const;
 export const pptxJoins = ["round", "bevel", "miter"] as const;
 export type PptxCap = (typeof pptxCaps)[number];
 export type PptxJoin = (typeof pptxJoins)[number];
+export interface PptxLineEnd {
+  kind: "none" | "triangle" | "stealth" | "diamond" | "oval" | "arrow";
+  width: "sm" | "med" | "lg";
+  length: "sm" | "med" | "lg";
+}
+export function checkPptxLineEnd(value: unknown): void {
+  const end = record(value);
+  if (
+    typeof end.kind !== "string" ||
+    !["none", "triangle", "stealth", "diamond", "oval", "arrow"].includes(
+      end.kind,
+    ) ||
+    typeof end.width !== "string" ||
+    !["sm", "med", "lg"].includes(end.width) ||
+    typeof end.length !== "string" ||
+    !["sm", "med", "lg"].includes(end.length) ||
+    Object.keys(end).some((key) => !["kind", "width", "length"].includes(key))
+  )
+    throw new Error("Invalid PPTX line end");
+}
 export type PptxHyperlink =
   | { kind: "external" | "slide"; target: string }
   | {
@@ -58,6 +78,7 @@ export function pptxHyperlink(value: unknown): PptxHyperlink | null {
   return value as PptxHyperlink;
 }
 export type PptxObjectEdit =
+  | { action: "lineEnd"; side: "head" | "tail"; end: PptxLineEnd | null }
   | { action: "hyperlink"; link: PptxHyperlink | null }
   | {
       action: "shapeAdjustment";
@@ -161,6 +182,18 @@ export function number(value: unknown, low = 0, high = 0x7fffffff): number {
 }
 export function checkPptxObjectEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "lineEnd") {
+    if (
+      typeof change.side !== "string" ||
+      !["head", "tail"].includes(change.side) ||
+      Object.keys(change).some(
+        (key) => !["action", "side", "end"].includes(key),
+      )
+    )
+      throw new Error("Invalid PPTX line end edit");
+    if (change.end !== null) checkPptxLineEnd(change.end);
+    return;
+  }
   if (change.action === "hyperlink") {
     if (Object.keys(change).some((key) => key !== "action" && key !== "link"))
       throw new Error("Invalid PPTX hyperlink edit");

@@ -17,7 +17,8 @@ fn WordTree::diagnose_properties(
         "rStyle", "rFonts", "sz", "color", "b", "i", "lang", "bCs", "iCs", "szCs",
         "u", "strike", "highlight", "vertAlign", "cs", "rtl",
       ]
-    "sectPr" => ["pgSz", "pgMar", "headerReference", "cols", "docGrid"]
+    "sectPr" =>
+      ["pgSz", "pgMar", "pgBorders", "headerReference", "cols", "docGrid"]
     "tcPr" =>
       ["tcW", "shd", "gridSpan", "vMerge", "vAlign", "tcMar", "tcBorders"]
     "tblPr" =>

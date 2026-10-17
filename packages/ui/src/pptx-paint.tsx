@@ -3,6 +3,7 @@ import type { PresentationEditor } from "@open-document/web/presentation-editor"
 import type { PptxDash, PptxCap, PptxJoin } from "@open-document/web/pptx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { PptxLineEnds } from "./pptx-line-ends.js";
 
 export function PptxPaint({
   controller,
@@ -430,6 +431,19 @@ export function PptxPaint({
         </form>
         {penReason && <p>{penReason}</p>}
       </fieldset>
+      <PptxLineEnds
+        key={JSON.stringify(
+          objects.map((o) => [
+            o.id,
+            o.appearance.headEnd,
+            o.appearance.tailEnd,
+          ]),
+        )}
+        editor={editor}
+        controller={controller}
+        state={state}
+        disabled={disabled}
+      />
       {reason && <p>{reason}</p>}
     </fieldset>
   );

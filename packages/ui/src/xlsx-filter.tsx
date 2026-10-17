@@ -328,6 +328,38 @@ export function XlsxFilter({
                   )
                 }
               />
+              <fieldset disabled={blocked}>
+                <legend>{t.filterAverage}</legend>
+                <p>{t.filterAverageHelp}</p>
+                {[true, false].map((above) => (
+                  <button
+                    key={String(above)}
+                    type="button"
+                    aria-pressed={filter.columns.some(
+                      (c) =>
+                        c.column === column.column &&
+                        c.kind === "average" &&
+                        c.above === above,
+                    )}
+                    onClick={() =>
+                      controller.run(() =>
+                        editor.editSheet({
+                          action: "filter",
+                          range: filter.range,
+                          columns: [
+                            ...filter.columns.filter(
+                              (c) => c.column !== column.column,
+                            ),
+                            { kind: "average", column: column.column, above },
+                          ],
+                        }),
+                      )
+                    }
+                  >
+                    {above ? t.filterAboveAverage : t.filterBelowAverage}
+                  </button>
+                ))}
+              </fieldset>
             </>
           )}
           <button

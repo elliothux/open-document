@@ -289,6 +289,7 @@ fn paint_slide(
             miter: object.miter,
           }),
         )
+        primitives.append(object.draw_line_ends(geometry))
       }
       let (lines, _, diagnostic) = fit_text(object, geometry, probe, profile) catch {
         @failure.Failure(code="layout-overflow", message~, ..) =>

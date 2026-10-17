@@ -9,6 +9,7 @@ pub(all) enum FilterRule {
   Values(Array[String], blank~ : Bool)
   Custom(Array[FilterCondition], all~ : Bool)
   Rank(Int, top~ : Bool, percent~ : Bool)
+  Average(above~ : Bool)
 } derive(Eq)
 
 ///|
@@ -96,6 +97,7 @@ fn filter_settings(settings : FilterSettings) -> Range raise @failure.Failure {
     }
     seen[column.column] = true
     let labels = match column.rule {
+      Average(..) => []
       Rank(value, percent~, ..) => {
         guard value >= 1 && value <= (if percent { 100 } else { 500 }) else {
           @failure.reject(
@@ -231,6 +233,37 @@ fn read_filter(sheet : Sheet) -> AutoFilterState? raise @failure.Failure {
             top=flag(filters, "top", fallback=true),
             percent=flag(filters, "percent"),
           ),
+        })
+        continue
+      }
+      if filters.name == "dynamicFilter" {
+        filter_attributes(filters, ["type", "val", "maxVal"])
+        guard tree.children.get(filters.id).unwrap_or([]).is_empty() &&
+          ["aboveAverage", "belowAverage"].contains(
+            filters.attribute("type").unwrap_or(""),
+          ) else {
+          @failure.reject(
+            "protected-content", "This dynamic filter requires evaluation support",
+          )
+        }
+        for key in ["val", "maxVal"] {
+          if filters.attribute(key) is Some(value) {
+            let value = @string.parse_double(value[:]) catch {
+              _ =>
+                @failure.reject(
+                  "protected-content", "Invalid average filter cache",
+                )
+            }
+            guard !value.is_nan() && !value.is_inf() else {
+              @failure.reject(
+                "protected-content", "Invalid average filter cache",
+              )
+            }
+          }
+        }
+        columns.push({
+          column,
+          rule: Average(above=filters.attribute("type") == Some("aboveAverage")),
         })
         continue
       }

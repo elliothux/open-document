@@ -41,6 +41,61 @@ export interface DocxPageSettings {
   page: DocxPageSetup | null;
   reason: string;
   background: { color: string | null; reason: string };
+  borders: { value: DocxPageBorders; reason: string };
+}
+
+export interface DocxPageBorder {
+  side: "top" | "left" | "bottom" | "right";
+  color: string;
+  width: number;
+  space: number;
+}
+export interface DocxPageBorders {
+  offsetFrom: "page" | "text";
+  display: "allPages" | "firstPage" | "notFirstPage";
+  zOrder: "front" | "back";
+  sides: DocxPageBorder[];
+}
+export function checkPageBorders(value: unknown): void {
+  if (value === null) return;
+  const borders = record(value);
+  if (
+    typeof borders.offsetFrom !== "string" ||
+    !["page", "text"].includes(borders.offsetFrom) ||
+    typeof borders.display !== "string" ||
+    !["allPages", "firstPage", "notFirstPage"].includes(borders.display) ||
+    typeof borders.zOrder !== "string" ||
+    !["front", "back"].includes(borders.zOrder) ||
+    Object.keys(borders).some(
+      (key) => !["offsetFrom", "display", "zOrder", "sides"].includes(key),
+    ) ||
+    !Array.isArray(borders.sides) ||
+    borders.sides.length > 4
+  )
+    throw new Error("Invalid DOCX page borders");
+  const seen = new Set<string>();
+  for (const value of borders.sides) {
+    const side = record(value);
+    if (
+      typeof side.side !== "string" ||
+      !["top", "left", "bottom", "right"].includes(side.side) ||
+      seen.has(side.side) ||
+      typeof side.color !== "string" ||
+      !/^[0-9a-f]{6}$/iu.test(side.color) ||
+      typeof side.width !== "number" ||
+      !(side.width >= 0.25 && side.width <= 12) ||
+      !Number.isInteger(side.width * 8) ||
+      typeof side.space !== "number" ||
+      !Number.isInteger(side.space) ||
+      side.space < 0 ||
+      side.space > 31 ||
+      Object.keys(side).some(
+        (key) => !["side", "color", "width", "space"].includes(key),
+      )
+    )
+      throw new Error("Invalid DOCX page border side");
+    seen.add(side.side);
+  }
 }
 
 export function checkPageBackground(color: unknown): void {
@@ -78,6 +133,14 @@ export function checkPageSetup(value: DocxPageSetup): void {
 
 export function docxPageSettings(value: unknown): DocxPageSettings {
   const result = record(value);
+  const border = record(result.borders);
+  checkPageBorders(border.value);
+  if (border.value === null || typeof border.reason !== "string")
+    throw new Error("Invalid DOCX page border settings");
+  const borders = {
+    value: border.value as DocxPageBorders,
+    reason: border.reason,
+  };
   const background = record(result.background);
   checkPageBackground(background.color);
   if (
@@ -102,6 +165,7 @@ export function docxPageSettings(value: unknown): DocxPageSettings {
       page: null,
       reason: result.reason,
       background: paint,
+      borders,
     };
   }
   const page = record(result.page);
@@ -125,6 +189,7 @@ export function docxPageSettings(value: unknown): DocxPageSettings {
     page: setup,
     reason: "",
     background: paint,
+    borders,
   };
 }
 

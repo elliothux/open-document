@@ -88,6 +88,7 @@ priv struct Object {
   cap : String
   join : String
   miter : Double
+  ends : (LineEnd, LineEnd)
   image : String?
   crop : Array[Double]
   opacity : Double
