@@ -272,6 +272,7 @@ pub fn Session::replace_matches(Self, Int, String, String, FindOptions, String, 
 pub fn Session::save(Self) -> Bytes raise @failure.Failure
 pub fn Session::select(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::selection_geometry(Self, Int) -> Json raise @failure.Failure
+pub fn Session::text_columns(Self, Int, String, TextColumnSettings) -> Json raise @failure.Failure
 pub fn Session::undo(Self, Int, redo? : Bool) -> Json raise @failure.Failure
 pub fn Session::viewport(Self, String, Double, Double, Double, Double, @layout.TextProbe, Map[String, String], reveal? : Bool) -> Json raise @failure.Failure
 
@@ -294,6 +295,7 @@ pub(all) enum SheetEdit {
   Series(SeriesMode, String, String, String)
   Sort(String, SortSettings)
   RemoveDuplicates(DuplicateSettings, Int)
+  TextToColumns(TextColumnSettings, Int, Bool)
   SetFilter(FilterSettings)
   ClearFilter
   RemoveFilter
@@ -327,6 +329,18 @@ pub(all) struct SortSettings {
   header : Bool
   case_sensitive : Bool
   keys : Array[SortKey]
+}
+
+pub(all) struct TextColumnSettings {
+  range : String
+  split : TextColumnSplit
+  types : Array[String]
+  formulas : Bool
+}
+
+pub(all) enum TextColumnSplit {
+  Delimited(String)
+  Fixed(Array[Int])
 }
 
 pub(all) enum Value {

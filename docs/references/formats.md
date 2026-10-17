@@ -763,6 +763,22 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 排序键归一化共享 1048576 次公式工作预算，移动片段累计最多 1 Mi UTF-16，继续使用公式、候选、源和 4 MiB 历史上限。合并区域、筛选/既有 sortState、绘图、结构化表/透视、线程批注及未知便笺、未知资源或关系、未知单元格/公式标记和工作表保护继续原子拒绝。颜色、自定义列表、筛选内排序和更广合并/资源支持归 [P11](../p11-xlsx-core.md) 后续范围。实现归 [`sort.mbt`](../../modules/formats/src/xlsx/sort.mbt)、[`sort-source.mbt`](../../modules/formats/src/xlsx/sort-source.mbt)及 [`xlsx-sort.tsx`](../../packages/ui/src/xlsx-sort.tsx)。
 
+### 文本分列
+
+`XlsxSession/Client.textColumns(revision, sheet, settings)` 返回只读预览，宿主入口为 `SpreadsheetEditor.textColumns(settings)`。`XlsxTextColumnSettings` 包含同列 A1 范围 `range`，以及二选一的分隔符 `delimiter` 或固定宽度位置 `breaks`；不能同时提供。分隔符支持逗号、分号、空格及制表符。可选 `types` 指定每列转换，`formulas` 默认关闭。返回 `XlsxTextColumns`，含归一化设置、revision、sheet、`resultRange`、原始字段数 `splitColumns`、实际输出列数 `columns`、将覆盖的非空单元格数 `overwrittenCells` 和转换后的前十行 `preview`。设置、预览及 `XlsxTextColumnType` 从 Wasm/Web XLSX 模块导出。MoonBit 的 `TextColumnSettings.split` 使用 `Delimited(String)` 或 `Fixed(Array[Int])`，`types=[]` 表示全部文字。预览不改源、选择或历史；原生草稿和组合屏障沿既有宿主队列处理。
+
+提交使用 `editSheet({ action: "textToColumns", settings, sourceRevision, overwrite })`。源列的编辑值从选区左上角向右拆分，包含隐藏行；公式使用带 `=` 的编辑文字，普通数值使用原值文字，不使用格式化显示或导入缓存。分隔符模式中，双引号包围字段内的分隔符保持，两个连续引号还原为一个；连续/末尾分隔符产生空字段，短行补空至最大列数。保留单元格内的换行，不把它扩成额外工作表行。默认全部写为文字，前导零和公式样式文字保持。空字段清空对应内容，单元格格式、链接、便笺和行隐藏状态保持原坐标；条件/验证范围也保持。
+
+`types` 非空时必须覆盖全部原始字段。`text` 保留文字，`general` 复用现有数字及布尔解析；只有常规列且明确选择 `formulas=true` 才解析公式，无法计算的公式拒绝整项操作。`ymd`、`mdy`、`dmy` 分别按明确年月日顺序转换，要求四位年及数字日期，接受 `/`、`-`、`.` 和既有时间解析。无效日期保留原文；有效日期使用工作簿 1900/1904 日历，并设置 `yyyy-mm-dd` 或 `yyyy-mm-dd hh:mm:ss`，其余样式保持。`skip` 丢弃该字段，其余字段向左紧排；必须保留至少一列，实际输出矩形之外保持原样。默认面板先预览，再逐列选择类型，公式另有勾选项；候选日期、计算值和格式与提交一致。地区化数字、月份名称及任意日期格式不在当前范围。
+
+固定宽度使用 1–4095 个严格递增的整数位置，范围为 1–65534；`breaks: [3,7]` 依次取宽 3、宽 4 和余下文字，始终输出三列。宽度复用 Unicode 16 的 W/F 两列、其余默认一列及默认可忽略字符零列的顺序；不是字体像素宽度。沿现有字素分段整体推进，宽字符或组合簇跨过指定位置时整体留在当前段，不拆代理对或字素；随后按下一段宽度继续。忽略簇附在前段末尾，短行补空。每段仅裁掉尾部 ASCII 空格，再移除成对外层双引号；内部引号、分隔符及前导空格保持。固定模式不执行分隔符引号解析。默认面板提供方式切换及位置输入；无效位置阻止预览，修改方式或位置会清除旧预览和覆盖确认。
+
+原源列之外的非空目标值或公式计入覆盖数量，仅带格式的空单元格不计入。核心重算方案并复核 sourceRevision；需要覆盖时，只有 `overwrite=true` 才提交。默认面板先显示输出矩形、数量和前十行，再要求勾选覆盖并明确提交。设置、选区、表、文档或修订变化使旧预览失效。目标写入、日期样式及首次样式部件、公式依赖缓存、验证及自动适配共用已有单元格事务和一次精确历史；无实际变化不新增历史。保存重开与静态 PDF 使用同一结果。
+
+源最多 4096 行，原始字段矩形和实际输出矩形均最多 4096 格，实际输出不能越过 XFD 列；输入累计最多 1 Mi UTF-16，每格最多 32767 单元，并受原包、XML、输出和 4 MiB 历史预算约束。分隔符模式的错误引号、非法固定位置、合并格、富文本等既有只读单元格、工作表保护、不透明公式/元数据或验证失败原子拒绝。CSV/TSV 文件导入仍只接受逗号或制表符，原转换选项保持。更广地区化转换和格式组合继续实施。
+
+功能入口参考 GenOffice 单列分列操作，编辑值与文本粘贴事务参考固定 [ONLYOFFICE asc_TextToColumns](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/api.js#L846-L902)及 [getRangeText](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L23563-L23594)。固定宽度参考 [LibreOffice 列宽推进](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/ui/docshell/impex.cxx#L529-L557)、[段落提取](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/ui/docshell/impex.cxx#L1490-L1534)及[分列事务](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/ui/docshell/impex.cxx#L1641-L1689)，补齐字素完整性。本实现默认保留文字，转换需要明确选择，不声称覆盖完整文本导入向导；未复制上游源码。实现归 [`text-columns.mbt`](../../modules/formats/src/xlsx/text-columns.mbt)、[`text-columns-convert.mbt`](../../modules/formats/src/xlsx/text-columns-convert.mbt)、[`text-columns-fixed.mbt`](../../modules/formats/src/xlsx/text-columns-fixed.mbt)、既有 [`delimited.mbt`](../../modules/formats/src/xlsx/delimited.mbt)和 [`xlsx-text-columns.tsx`](../../packages/ui/src/xlsx-text-columns.tsx)。
+
 ### 删除重复行
 
 `XlsxSession/Client.duplicates(revision, sheet, settings)` 返回只读预览，宿主入口为 `SpreadsheetEditor.duplicates(settings)`。`XlsxDuplicateSettings` 包含显式 A1 矩形 `range`、`header` 和工作表从 1 开始的比较列 `columns`；至少选一列，各列互异且在范围内。`header=true` 保留首行。返回 `XlsxDuplicates`，包含同一设置、revision、sheet、完整 `keptRows/removedRows`、有效结果 `resultRange` 及前十条保留记录的格式化值 `preview`。两个类型从 Wasm/Web XLSX 模块导出。核心预览不修改源、选择、修订或历史；宿主沿既有队列先处理原生草稿和组合输入。
@@ -771,9 +787,11 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 比较使用当前已计算结果和格式化文字，区分大小写及空格；显示相同的数字与文字可匹配，不因底层类型不同而保留两份。保留首次出现的记录，包含手动隐藏行。存活单元格按原顺序向区域顶部压紧，移动值、富文本源、有效格式及相对公式；绝对引用和区域外引用坐标保持，依赖缓存同步重算。清空尾部内容及显式单元格格式，行列继承格式仍有效，不删除整张表的物理行，也不移动选区外单元格。手动尺寸和隐藏状态保留原坐标，自动尺寸沿现有路径重排。条件格式、验证及名称保留坐标，候选输入继续校验。
 
-单格链接和便笺随保留记录移动。删除重复记录时，同步移除对应便笺/VML 和完整落在该选区删除行内的链接；跨行链接保持原坐标。其他部件及源片段保留，值、公式、样式、链接、便笺和缓存合为一次精确历史；撤销、重开后输入、查找替换及 PDF 沿相同内容路径。一次最多 4096 格，格式化及条件计算共享 1048576 工作预算，搬移片段累计最多 1 Mi UTF-16，继续遵守输出和 4 MiB 历史上限。合并格、筛选/排序状态、表格/透视、绘图、未知便笺及单元格/公式元数据等沿重排保护原子拒绝；这些组合继续实施。
+单格链接和便笺随保留记录移动。删除重复记录时，同步移除对应便笺/VML 和完整落在该选区删除行内的链接；跨行链接保持原坐标。其他部件及源片段保留，值、公式、样式、链接、便笺和缓存合为一次精确历史；撤销、重开后输入、查找替换及 PDF 沿相同内容路径。一次最多 4096 格，格式化及条件计算共享 1048576 工作预算，搬移片段累计最多 1 Mi UTF-16，继续遵守输出和 4 MiB 历史上限。合并格、排序状态、表格/透视、绘图、未知便笺及单元格/公式元数据等沿重排保护原子拒绝；这些组合继续实施。
 
-比较和稳定压紧依据 [ONLYOFFICE setRemoveDuplicates](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L25977-L26181)、[清空单元格](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21142-L21166)及前述 `_sortByArray`；未复制上游源码。实现归 [`duplicates.mbt`](../../modules/formats/src/xlsx/duplicates.mbt)、[`reorder-cells.mbt`](../../modules/formats/src/xlsx/reorder-cells.mbt)及 [`xlsx-duplicates.tsx`](../../packages/ui/src/xlsx-duplicates.tsx)。分列和其余数据工具继续按 [P11](../p11-xlsx-core.md) 实施。
+已有普通值/自定义筛选时，去重比较仍包含筛选隐藏行，保留首条记录。筛选范围、条件和已知按钮标记保留；按压紧后的当前公式结果重新应用条件，重写筛选隐藏来源和实际行可见性，手动隐藏继续保留原行号。SUBTOTAL 及依赖缓存随可见性一起重算。整个过程只有一次历史；重开后清除条件仍只恢复筛选隐藏行。未知筛选条件或不透明源原子拒绝，导入隐藏来源的歧义沿[值筛选](#值筛选)处理。
+
+比较和稳定压紧依据 [ONLYOFFICE setRemoveDuplicates](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L25977-L26181)、[清空单元格](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21142-L21166)及前述 `_sortByArray`；未复制上游源码。实现归 [`duplicates.mbt`](../../modules/formats/src/xlsx/duplicates.mbt)、[`reorder-cells.mbt`](../../modules/formats/src/xlsx/reorder-cells.mbt)及 [`xlsx-duplicates.tsx`](../../packages/ui/src/xlsx-duplicates.tsx)。其余数据工具继续按 [P11](../p11-xlsx-core.md) 实施。
 
 ### 值筛选
 
@@ -1367,15 +1385,15 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 ### 对象超链接
 
-`PresentationEditor.editObjects({ action: "hyperlink", link })` 修改所选本地顶层对象或其文字的点击链接。对象模式支持单个形状、图片或组；文字模式支持一个可编辑文本框。`link` 为 `{ kind: "external", target }`、`{ kind: "slide", target }` 或 null；null 移除点击链接。`PptxHyperlink` 从 `wasm/pptx` 和 `web/pptx` 导出。每个 `PptxObject.hyperlink` 返回对象链接的 `{ value, reason }`；`PptxQuery.textHyperlink` 返回当前文字范围的 `{ value, mixed, reason }`。链接不一致时 value 为 null 且 mixed 为 true，默认面板仍允许统一设置或移除。多对象与继承对象继续保护。
+`PresentationEditor.editObjects({ action: "hyperlink", link })` 修改所选本地顶层对象或其文字的点击链接。对象模式支持单个形状、图片或组；文字模式支持一个可编辑文本框。`link` 为 `{ kind: "external", target }`、`{ kind: "slide", target }`、`{ kind: "action", target }` 或 null；null 移除点击链接。动作 target 只接受 `firstslide`、`lastslide`、`nextslide`、`previousslide`。`PptxHyperlink` 从 `wasm/pptx` 和 `web/pptx` 导出。每个 `PptxObject.hyperlink` 返回对象链接的 `{ value, reason }`；`PptxQuery.textHyperlink` 返回当前文字范围的 `{ value, mixed, reason }`。链接不一致时 value 为 null 且 mixed 为 true，默认面板仍允许统一设置或移除。多对象与继承对象继续保护。
 
 文字选区按 UTF-16 字素边界拆分 run，可跨样式、软换行及段落，只修改选中范围。链接内的光标修改当前段落中相邻且关系及提示等元数据一致的完整链接；不同提示或关系保持独立。普通光标通过空 run 或空段落末尾属性设置后续输入链接。原生输入继承链接，移除时同步对应段落末尾属性，避免清空后再次出现。保留直接字体、大小、粗斜体、颜色和源下划线；存在点击链接时派生单下划线，移除后恢复原直接定义。文字链接写入 `rPr/endParaRPr`，与对象的 `cNvPr` 链接独立；累计生成源限制为 2 Mi UTF-16 单元。
 
-外部地址最多 2048 UTF-16 单元，只允许 HTTP、HTTPS 和 mailto，拒绝空目标、空白、控制字符及反斜杠。内部目标是当前文稿的稳定 slide 部件身份，不能使用页序号；允许显式跳转隐藏页。默认面板创建、修改及移除链接，单独的打开入口才导航。外链使用新窗口和 `noopener noreferrer`，内部链接沿 `showSlide` 定位；显示、打开文件和布局不自动请求外链或执行动作。脚本、文件地址、相对网址、宏与其他放映动作继续保护源。
+外部地址最多 2048 UTF-16 单元，只允许 HTTP、HTTPS 和 mailto，拒绝空目标、空白、控制字符及反斜杠。内部页目标使用当前文稿的稳定 slide 部件身份，不能使用页序号；允许显式跳转隐藏页。默认面板创建、修改及移除链接，单独的打开入口才导航。外链使用新窗口和 `noopener noreferrer`。`PresentationEditor.followHyperlink()` 及 Wasm/Worker 命令 `{ operation: "followPptxHyperlink", revision }` 从当前单个对象或一致的文字链接解析内部页/动作，再由核心定位；拒绝混合链接、外链、旧修订及活动候选。四种动作按当前编辑页序执行，包含隐藏页；上一页/下一页在边界停留并保留选择。重排、复制及删除页后按新位置解析，不保存过期页序号。导航不改源、revision 或历史；显示、打开文件和布局不自动请求外链或执行动作。脚本、文件地址、相对网址、宏、上次查看页、结束放映及其他放映动作继续保护源。
 
-核心写 `cNvPr/a:hlinkClick`：外链使用 External hyperlink 关系，内链使用 slide 关系及 `ppaction://hlinksldjump`。与目标相同的关系可复用；修改不覆盖其他对象共用的关系，也不清理旧关系。保留 tooltip、tgtFrame、history、highlightClick、endSnd、相邻悬停链接、注释、文字和几何；未知属性、声音等子内容或无法解析的关系保护修改。新增关系与对象 XML 共用一项有界历史，旧 revision、活动候选、锁和输出预算失败均不提交。相同链接及重复清除不新增历史。
+核心写 `cNvPr/a:hlinkClick`：外链使用 External hyperlink 关系，内链使用 slide 关系及 `ppaction://hlinksldjump`。四种导航动作写 `ppaction://hlinkshowjump?jump=…` 和空 `r:id`，不创建关系；导入时按 action 解析，允许省略、空或原有关系身份。与目标相同的关系可复用；修改不覆盖其他对象共用的关系，也不清理旧关系。保留 tooltip、tgtFrame、history、highlightClick、endSnd、相邻悬停链接、注释、文字和几何；未知属性、声音等子内容或无法解析的关系保护修改。新增关系与对象 XML 共用一项有界历史，旧 revision、活动候选、锁和输出预算失败均不提交。相同链接及重复清除不新增历史。
 
-页面重排保持内部目标，页面复制复用既有自身链接重映射，删页移除相应入链并保留对象。对象复制保留链接；带自身点击或悬停链接的组不能直接取消组合，避免丢失组动作。普通点击链接移除后可取消组合，成员自己的链接保留。静态 Canvas/PDF 保留对象外观及文字，不增加交互链接注释。悬停/一般动作编辑、放映点击行为及输出链接继续按 [P12](../p12-pptx-core.md) 实施。语义参考固定 [ONLYOFFICE 对象链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L3503-L3683)、[文字链接拆分与光标操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L7811-L8180)、[PPTX 链接下划线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L10545-L10565)与[内部页动作解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L9259-L9290)，实现归 [`object-hyperlink.mbt`](../../modules/formats/src/pptx/object-hyperlink.mbt)和 [`text-hyperlink.mbt`](../../modules/formats/src/pptx/text-hyperlink.mbt)。
+页面重排保持内部目标，页面复制复用既有自身链接重映射，删页移除相应入链并保留对象。对象复制保留链接；带自身点击或悬停链接的组不能直接取消组合，避免丢失组动作。普通点击链接移除后可取消组合，成员自己的链接保留。静态 Canvas/PDF 保留对象外观及文字，不增加交互链接注释。悬停/一般动作编辑、放映点击行为及输出链接继续按 [P12](../p12-pptx-core.md) 实施。语义参考固定 [ONLYOFFICE 对象链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L3503-L3683)、[文字链接拆分与光标操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L7811-L8180)、[PPTX 链接下划线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L10545-L10565)、[内部页动作解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L9259-L9290)及[编辑器显式导航](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/api.js#L7243-L7264)，实现归 [`object-hyperlink.mbt`](../../modules/formats/src/pptx/object-hyperlink.mbt)和 [`text-hyperlink.mbt`](../../modules/formats/src/pptx/text-hyperlink.mbt)。
 
 ### 当前页 PNG 输出
 

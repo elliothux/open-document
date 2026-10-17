@@ -21,6 +21,8 @@ P1 使用 harfbuzz/bidi；P3 才因断行需要引入 moon_cosmic 的 unicode_li
 
 P11 的大小写转换使用固定 ucd 0.5.2；MoonBit 字符串大小写仅覆盖 ASCII，已有简单映射也不能处理扩张。词尾 Sigma 的 Cased/Case_Ignorable 类别差集依据 [Unicode 16 DerivedCoreProperties](https://www.unicode.org/Public/16.0.0/ucd/DerivedCoreProperties.txt)，在文本大小写模块保留来源；许可随 Wasm NOTICE 与 UNICODE-LICENSE 分发。
 
+固定宽度分列从 [Unicode 16 EastAsianWidth](https://www.unicode.org/Public/16.0.0/ucd/EastAsianWidth.txt) 的 W/F 及同版 DerivedCoreProperties 的 Default_Ignorable_Code_Point 合并得到 122/17 个区间，归 [`text-column-width.mbt`](../../modules/formats/src/xlsx/text-column-width.mbt)。保留 Unicode 2024 版权和现有 V3 许可，不新增依赖；字素仍复用上述固定版本的分段，不声明 Unicode 16 全字素覆盖。
+
 P4 复用已安装的字素分段，没有新增生产依赖。formats module 显式引用已有 flate 0.8.5，只有 DOCX 私有 wbtest overlay 使用其 ZIP writer 构造独立输入，不进入生产 docx 包的 imports。输入生成不使用 SDK 的 archive/XML writer。
 
 固定 HarfBuzz 的 GDEF API 只暴露 header/class/mark-set，没有 LigCaretList 读取方法。P4 的 [局部 reader](../../modules/layout/src/ligature.mbt) 仅补 coverage 和 caret 格式的预算内读取；轮廓点仍复用 `glyph_contour_point_for_origin`，不维护另一套字体解析或 shaping。格式规则与回退依据见 [DOCX 光标合同](formats.md#p4-当前编辑-api-切片)；上游提供相同能力后替换该 reader 并保留回归。

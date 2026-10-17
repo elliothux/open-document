@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { PresentationEditor } from "@open-document/web/presentation-editor";
-import type { PptxObjectEdit } from "@open-document/web/pptx";
+import type { PptxObjectEdit, PptxHyperlink } from "@open-document/web/pptx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { PptxPaint } from "./pptx-paint.js";
@@ -289,7 +289,7 @@ function PptxHyperlink({
     : query.objects.find((object) => object.id === query.selection.object)
         ?.hyperlink;
   const link = current?.value;
-  const [kind, setKind] = useState<"external" | "slide">(
+  const [kind, setKind] = useState<PptxHyperlink["kind"]>(
     link?.kind ?? "external",
   );
   const [address, setAddress] = useState(
@@ -298,6 +298,15 @@ function PptxHyperlink({
   const [slide, setSlide] = useState(
     link?.kind === "slide" ? link.target : (query.slides[0]?.id ?? ""),
   );
+  const actions = [
+    ["firstslide", t.hyperlinkFirstSlide],
+    ["lastslide", t.hyperlinkLastSlide],
+    ["nextslide", t.hyperlinkNextSlide],
+    ["previousslide", t.hyperlinkPreviousSlide],
+  ] as const;
+  const [action, setAction] = useState<
+    Extract<PptxHyperlink, { kind: "action" }>["target"]
+  >(link?.kind === "action" ? link.target : "nextslide");
   const blocked =
     disabled ||
     query.selection.objects.length !== 1 ||
@@ -311,7 +320,10 @@ function PptxHyperlink({
           controller.run(() =>
             editor.editObjects({
               action: "hyperlink",
-              link: { kind, target: kind === "external" ? address : slide },
+              link:
+                kind === "action"
+                  ? { kind, target: action }
+                  : { kind, target: kind === "external" ? address : slide },
             }),
           );
         }}
@@ -325,11 +337,17 @@ function PptxHyperlink({
               value={kind}
               onChange={(event) => {
                 const kind = event.currentTarget.value;
-                if (kind === "external" || kind === "slide") setKind(kind);
+                if (
+                  kind === "external" ||
+                  kind === "slide" ||
+                  kind === "action"
+                )
+                  setKind(kind);
               }}
             >
               <option value="external">{t.hyperlinkExternal}</option>
               <option value="slide">{t.hyperlinkSlide}</option>
+              <option value="action">{t.hyperlinkAction}</option>
             </select>
           </label>
           {kind === "external" ? (
@@ -342,6 +360,26 @@ function PptxHyperlink({
                 value={address}
                 onChange={(event) => setAddress(event.currentTarget.value)}
               />
+            </label>
+          ) : kind === "action" ? (
+            <label>
+              {t.hyperlinkNavigation}
+              <select
+                aria-label={t.hyperlinkNavigation}
+                value={action}
+                onChange={(event) => {
+                  const choice = actions.find(
+                    ([value]) => value === event.currentTarget.value,
+                  );
+                  if (choice) setAction(choice[0]);
+                }}
+              >
+                {actions.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
             </label>
           ) : (
             <label>
@@ -383,7 +421,7 @@ function PptxHyperlink({
         ) : (
           <button
             type="button"
-            onClick={() => controller.run(() => editor.showSlide(link.target))}
+            onClick={() => controller.run(() => editor.followHyperlink())}
           >
             {t.hyperlinkOpen}
           </button>

@@ -88,6 +88,12 @@ async function dispatch(request: Request): Promise<unknown> {
           request.sheet,
           request.settings,
         );
+      case "textColumnsXlsx":
+        return workbook.textColumns(
+          request.revision,
+          request.sheet,
+          request.settings,
+        );
       case "findXlsx":
         return workbook.find(
           request.revision,
@@ -202,6 +208,7 @@ async function dispatch(request: Request): Promise<unknown> {
         case "applyXlsxFormat":
         case "queryXlsx":
         case "duplicatesXlsx":
+        case "textColumnsXlsx":
         case "selectXlsx":
         case "replaceXlsx":
         case "findXlsx":

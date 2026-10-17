@@ -54,6 +54,8 @@ import type {
   XlsxSelectionGeometry,
   XlsxDuplicateSettings,
   XlsxDuplicates,
+  XlsxTextColumnSettings,
+  XlsxTextColumns,
   XlsxFindOptions,
 } from "@open-document/wasm/xlsx";
 /** One native cell draft; MoonBit owns committed cells, selection and geometry. */
@@ -533,18 +535,16 @@ export class SpreadsheetEditor {
     text: string,
     options: XlsxFindOptions = {},
   ): Promise<SpreadsheetSearchResult> {
-    return this.enqueue(async () => {
-      requireCellCompositionEnd(this.composing);
-      await this.commitDraft();
-      return findSpreadsheet(
+    return this.read(() =>
+      findSpreadsheet(
         this.client,
         this.state.revision,
         this.state.sheet,
         text,
         options,
         this.getSnapshot().documentId,
-      );
-    });
+      ),
+    );
   }
   selectMatch(result: SpreadsheetSearchResult, index: number): Promise<void> {
     return this.change(() =>
@@ -589,12 +589,14 @@ export class SpreadsheetEditor {
     );
   }
   duplicates(settings: XlsxDuplicateSettings): Promise<XlsxDuplicates> {
-    return this.enqueue(async () => {
-      requireCellCompositionEnd(this.composing);
-      await this.commitDraft();
-      const { revision, sheet } = this.state;
-      return this.client.duplicates(revision, sheet, settings);
-    });
+    return this.read(() =>
+      this.client.duplicates(this.state.revision, this.state.sheet, settings),
+    );
+  }
+  textColumns(settings: XlsxTextColumnSettings): Promise<XlsxTextColumns> {
+    return this.read(() =>
+      this.client.textColumns(this.state.revision, this.state.sheet, settings),
+    );
   }
   formatCells(patch: XlsxCellFormat): Promise<void> {
     return this.change(() => {
@@ -603,10 +605,13 @@ export class SpreadsheetEditor {
     });
   }
   captureFormat(): Promise<CopiedCellFormat> {
+    return this.read(() => this.client.captureFormat(this.state.revision));
+  }
+  private read<T>(action: () => Promise<T>): Promise<T> {
     return this.enqueue(async () => {
       requireCellCompositionEnd(this.composing);
       await this.commitDraft();
-      return this.client.captureFormat(this.state.revision);
+      return action();
     });
   }
   applyFormat(format: CopiedCellFormat): Promise<void> {
@@ -616,9 +621,7 @@ export class SpreadsheetEditor {
     });
   }
   private change(action: () => Promise<XlsxQuery>): Promise<void> {
-    return this.enqueue(async () => {
-      requireCellCompositionEnd(this.composing);
-      await this.commitDraft();
+    return this.read(async () => {
       this.state = await action();
       if (this.printView.visible) {
         this.printView.hide();
@@ -728,9 +731,7 @@ export class SpreadsheetEditor {
     );
   }
   printLayout(options: PrintOptions | null = null): Promise<XlsxPrintLayout> {
-    return this.enqueue(async () => {
-      requireCellCompositionEnd(this.composing);
-      await this.commitDraft();
+    return this.read(async () => {
       const layout = await this.printView.prepare(
         this.client,
         this.state.revision,

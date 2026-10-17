@@ -5,6 +5,10 @@ import {
   xlsxDuplicates,
   type XlsxDuplicateSettings,
   type XlsxDuplicates,
+  checkXlsxTextColumnSettings,
+  xlsxTextColumns,
+  type XlsxTextColumnSettings,
+  type XlsxTextColumns,
   xlsxFindOptions,
   xlsxDelimitedOptions,
   type XlsxDelimitedOptions,
@@ -34,6 +38,12 @@ import {
 } from "@open-document/wasm/xlsx";
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type { XlsxSheetEdit, XlsxClearMode } from "@open-document/wasm/xlsx";
+export { checkXlsxTextColumnSettings } from "@open-document/wasm/xlsx";
+export type { XlsxTextColumnType } from "@open-document/wasm/xlsx";
+export type {
+  XlsxTextColumnSettings,
+  XlsxTextColumns,
+} from "@open-document/wasm/xlsx";
 export type { XlsxFillTarget, XlsxFillPreview } from "@open-document/wasm/xlsx";
 export type { XlsxStatistics } from "@open-document/wasm/xlsx";
 export type {
@@ -298,6 +308,21 @@ export class XlsxClient {
     return xlsxDuplicates(
       await this.connection.request({
         operation: "duplicatesXlsx",
+        revision,
+        sheet,
+        settings,
+      }),
+    );
+  }
+  async textColumns(
+    revision: number,
+    sheet: string,
+    settings: XlsxTextColumnSettings,
+  ): Promise<XlsxTextColumns> {
+    checkXlsxTextColumnSettings(settings);
+    return xlsxTextColumns(
+      await this.connection.request({
+        operation: "textColumnsXlsx",
         revision,
         sheet,
         settings,

@@ -7,6 +7,10 @@ import {
 } from "./xlsx-duplicates.js";
 import { checkXlsxFilter, type XlsxFilterSettings } from "./xlsx-filter.js";
 import {
+  checkXlsxTextColumnSettings,
+  type XlsxTextColumnSettings,
+} from "./xlsx-delimited.js";
+import {
   checkXlsxConditionalFormat,
   type XlsxConditionalFormat,
 } from "./xlsx-conditional.js";
@@ -24,6 +28,12 @@ import {
 } from "./xlsx-print.js";
 
 export type XlsxSheetEdit =
+  | {
+      action: "textToColumns";
+      settings: XlsxTextColumnSettings;
+      sourceRevision: number;
+      overwrite: boolean;
+    }
   | { action: "note"; cell: string; text: string | null; author?: string }
   | { action: "hyperlink"; range: string; target: string | null }
   | { action: "openHyperlink"; range: string; sourceRevision: number }
@@ -107,6 +117,20 @@ export type XlsxSheetEdit =
 
 export function checkXlsxSheetEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "textToColumns") {
+    if (
+      Object.keys(change).length !== 4 ||
+      Object.keys(change).some(
+        (key) =>
+          !["action", "settings", "sourceRevision", "overwrite"].includes(key),
+      ) ||
+      !integer(change.sourceRevision, 0, 2147483647) ||
+      typeof change.overwrite !== "boolean"
+    )
+      throw new Error("Invalid text to columns command");
+    checkXlsxTextColumnSettings(change.settings);
+    return;
+  }
   if (change.action === "removeDuplicates") {
     if (
       Object.keys(change).length !== 3 ||

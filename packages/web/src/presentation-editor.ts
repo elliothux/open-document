@@ -2,12 +2,11 @@ import { createPresentationElements } from "./presentation-elements.js";
 import { presentationKey } from "./presentation-keyboard.js";
 import {
   checkPresentationSearch,
+  findPresentation,
+  replacePresentationMatches,
   type PresentationSearchResult,
 } from "./presentation-search.js";
-import {
-  pptxFindOptions,
-  type PptxFindOptions,
-} from "@open-document/wasm/pptx";
+import type { PptxFindOptions } from "@open-document/wasm/pptx";
 export type { PresentationSearchResult } from "./presentation-search.js";
 import { updatePresentationObjects } from "./presentation-semantics.js";
 import { objectSelection, pointerSelection } from "./presentation-selection.js";
@@ -395,6 +394,17 @@ export class PresentationEditor {
       });
     }, true);
   }
+  followHyperlink(): Promise<void> {
+    return this.enqueue(async () => {
+      await this.changed(
+        await this.client.execute({
+          operation: "followPptxHyperlink",
+          revision: this.state.revision,
+        }),
+      );
+      this.input.focus({ preventScroll: true });
+    });
+  }
   setZoom(zoom: number): Promise<void> {
     return this.enqueue(async () => {
       if (!Number.isFinite(zoom) || zoom < 0.25 || zoom > 4)
@@ -551,23 +561,15 @@ export class PresentationEditor {
     text: string,
     options: PptxFindOptions = {},
   ): Promise<PresentationSearchResult> {
-    return this.enqueue(async () => {
-      const slide = this.state.slide;
-      options = pptxFindOptions(options);
-      return {
-        ...(await this.client.execute({
-          operation: "findPptx",
-          revision: this.state.revision,
-          slide,
-          text,
-          options,
-        })),
-        documentId: this.getSnapshot().documentId,
-        slide,
+    return this.enqueue(() =>
+      findPresentation(
+        this.client,
+        this.state,
+        this.getSnapshot().documentId,
         text,
         options,
-      };
-    });
+      ),
+    );
   }
   selectMatch(result: PresentationSearchResult, index: number): Promise<void> {
     return this.enqueue(async () => {
@@ -589,18 +591,15 @@ export class PresentationEditor {
     index?: number,
   ): Promise<void> {
     return this.enqueue(async () => {
-      checkPresentationSearch(result, this.getSnapshot(), index);
       await this.changed(
-        await this.client.execute({
-          operation: "replacePptxMatches",
-          revision: result.revision,
-          slide: result.slide,
-          text: result.text,
-          options: result.options,
+        await replacePresentationMatches(
+          this.client,
+          result,
+          this.getSnapshot(),
+          this.profile,
           replacement,
-          profile: this.profile,
-          ...(index === undefined ? {} : { index }),
-        }),
+          index,
+        ),
       );
     });
   }

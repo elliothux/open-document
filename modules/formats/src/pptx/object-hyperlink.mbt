@@ -102,11 +102,18 @@ fn Session::read_hyperlink_at(
     return None
   }
   let id = node.attribute("id", uri=relationship_uri).unwrap_or("")
+  let action = node.attribute("action").unwrap_or("")
+  if action.has_prefix("ppaction://hlinkshowjump?jump=") {
+    let target = action["ppaction://hlinkshowjump?jump=".length():].to_owned()
+    guard navigation_action(target) else {
+      @failure.reject("protected-content", "Unsupported navigation action")
+    }
+    return Some(("action", target))
+  }
   guard links.iter().find_first(link => link.owner == owner && link.id == id)
     is Some(link) else {
     @failure.reject("protected-content", "Unresolved hyperlink relationship")
   }
-  let action = node.attribute("action").unwrap_or("")
   if link.external &&
     link.kind == relationship_uri + "/hyperlink" &&
     action.is_empty() {
@@ -176,7 +183,7 @@ fn Session::set_object_hyperlink(
   let parts = self.parts.copy()
   let created : Map[String, @xml.Document] = Map([])
   let edits : Array[(String, @xml.Edit)] = []
-  let relation = if kind == "none" {
+  let relation = if kind == "none" || kind == "action" {
     ""
   } else {
     self.hyperlink_relationship(
@@ -189,7 +196,7 @@ fn Session::set_object_hyperlink(
       edits,
     )
   }
-  let markup = hyperlink_markup(node, kind, relation)
+  let markup = hyperlink_markup(node, kind, relation, target~)
   let (document, edit) = original.tree.document.edit_source([
     paint_child_change(properties, node, markup, ["hlinkMouseOver", "extLst"]),
   ])
@@ -220,7 +227,7 @@ fn Session::check_hyperlink_target(
   kind : String,
   target : String,
 ) -> Unit raise @failure.Failure {
-  guard ["none", "external", "slide"].contains(kind) &&
+  guard ["none", "external", "slide", "action"].contains(kind) &&
     (kind != "none" || target.is_empty()) else {
     @failure.reject("invalid-operation", "Invalid hyperlink kind")
   }
@@ -229,6 +236,9 @@ fn Session::check_hyperlink_target(
   }
   if kind == "slide" {
     ignore(self.index(target))
+  }
+  if kind == "action" && !navigation_action(target) {
+    @failure.reject("invalid-operation", "Unknown slide navigation action")
   }
 }
 
@@ -304,6 +314,7 @@ fn hyperlink_markup(
   node : @xml.Node?,
   kind : String,
   relation : String,
+  target~ : String,
 ) -> String raise @failure.Failure {
   if kind == "none" {
     return ""
@@ -320,8 +331,78 @@ fn hyperlink_markup(
   }
   let action = if kind == "external" {
     ""
+  } else if kind == "action" {
+    " action=\"ppaction://hlinkshowjump?jump=\{target}\""
   } else {
     " action=\"ppaction://hlinksldjump\""
   }
   "<a:hlinkClick xmlns:a=\"\{drawing_uri}\" xmlns:r=\"\{relationship_uri}\" r:id=\"\{relation}\"\{action}\{metadata.to_string()}/>"
+}
+
+///|
+fn navigation_action(target : String) -> Bool {
+  ["firstslide", "lastslide", "nextslide", "previousslide"].contains(target)
+}
+
+///|
+/// Follows the selected internal link in the editor without changing revision or source history.
+pub fn Session::follow_hyperlink(
+  self : Session,
+  revision : Int,
+) -> Json raise @failure.Failure {
+  self.check_revision(revision)
+  self.check_idle()
+  guard self.selection.objects is [id] else {
+    @failure.reject(
+      "invalid-operation", "Select one linked object or text range",
+    )
+  }
+  let object = self.current().object(id)
+  let links = self.relationships()
+  let value = if self.selection.mode == "text" {
+    let values = text_hyperlink_spans(object, self.selection).map(span => {
+      self.read_hyperlink_at(span.properties(), object.source.tree.part, links)
+    })
+    let value = values.get(0).unwrap_or(None)
+    guard values.all(other => other == value) else {
+      @failure.reject(
+        "invalid-operation", "Selected text contains different links",
+      )
+    }
+    value
+  } else {
+    self.read_hyperlink(object, links)
+  }
+  guard value is Some((kind, target)) else {
+    @failure.reject("invalid-operation", "Selection has no internal link")
+  }
+  let index = self.index(self.selection.slide)
+  let destination = if kind == "slide" {
+    self.index(target)
+  } else if kind == "action" {
+    match target {
+      "firstslide" => 0
+      "lastslide" => self.slides.length() - 1
+      "nextslide" => (index + 1).min(self.slides.length() - 1)
+      "previousslide" => (index - 1).max(0)
+      _ =>
+        @failure.reject("invalid-operation", "Unknown slide navigation action")
+    }
+  } else {
+    @failure.reject(
+      "invalid-operation", "External links require explicit host navigation",
+    )
+  }
+  if destination == index {
+    self.query()
+  } else {
+    self.select(
+      revision,
+      self.slides[destination].tree.part,
+      "",
+      "object",
+      0,
+      0,
+    )
+  }
 }

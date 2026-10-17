@@ -43,6 +43,15 @@ import {
   type XlsxDuplicates,
 } from "./xlsx-duplicates.js";
 export * from "./xlsx-duplicates.js";
+import {
+  xlsxDelimitedOptions,
+  checkXlsxTextColumnSettings,
+  xlsxTextColumns,
+  type XlsxDelimitedOptions,
+  type XlsxTextColumnSettings,
+  type XlsxTextColumns,
+} from "./xlsx-delimited.js";
+export * from "./xlsx-delimited.js";
 import { xlsxFilterState, type XlsxFilterState } from "./xlsx-filter.js";
 export type {
   XlsxFilterValues,
@@ -135,34 +144,6 @@ export type {
 } from "./xlsx-format.js";
 
 /** CSV/TSV fields stay literal unless a conversion is explicitly enabled. */
-export interface XlsxDelimitedOptions {
-  numbers?: boolean;
-  dates?: boolean;
-  formulas?: boolean;
-}
-
-export function xlsxDelimitedOptions(
-  options: XlsxDelimitedOptions,
-): Required<XlsxDelimitedOptions> {
-  const values = record(options);
-  if (
-    !options ||
-    typeof options !== "object" ||
-    Array.isArray(options) ||
-    !Object.entries(values).every(
-      ([key, value]) =>
-        ["numbers", "dates", "formulas"].includes(key) &&
-        (value === undefined || typeof value === "boolean"),
-    )
-  )
-    throw new Error("Invalid delimited import options");
-  return {
-    numbers: options.numbers ?? false,
-    dates: options.dates ?? false,
-    formulas: options.formulas ?? false,
-  };
-}
-
 export interface GridViewport {
   sheet: string;
   scrollX: number;
@@ -642,6 +623,16 @@ export class XlsxSession extends WasmSession {
     checkXlsxDuplicateSettings(settings);
     return xlsxDuplicates(
       this.call({ operation: "duplicatesXlsx", revision, sheet, settings }),
+    );
+  }
+  textColumns(
+    revision: number,
+    sheet: string,
+    settings: XlsxTextColumnSettings,
+  ): XlsxTextColumns {
+    checkXlsxTextColumnSettings(settings);
+    return xlsxTextColumns(
+      this.call({ operation: "textColumnsXlsx", revision, sheet, settings }),
     );
   }
   create(budget: Budget): XlsxQuery {

@@ -24,18 +24,29 @@ export const pptxCaps = ["flat", "rnd", "sq"] as const;
 export const pptxJoins = ["round", "bevel", "miter"] as const;
 export type PptxCap = (typeof pptxCaps)[number];
 export type PptxJoin = (typeof pptxJoins)[number];
-export type PptxHyperlink = { kind: "external" | "slide"; target: string };
+export type PptxHyperlink =
+  | { kind: "external" | "slide"; target: string }
+  | {
+      kind: "action";
+      target: "firstslide" | "lastslide" | "nextslide" | "previousslide";
+    };
 
 export function pptxHyperlink(value: unknown): PptxHyperlink | null {
   if (value === null) return null;
   const link = record(value);
   if (
-    (link.kind !== "external" && link.kind !== "slide") ||
+    (link.kind !== "external" &&
+      link.kind !== "slide" &&
+      link.kind !== "action") ||
     typeof link.target !== "string" ||
     !link.target.isWellFormed() ||
     !link.target ||
     link.target.length > (link.kind === "slide" ? 1024 : 2048) ||
     Object.keys(link).some((key) => key !== "kind" && key !== "target") ||
+    (link.kind === "action" &&
+      !["firstslide", "lastslide", "nextslide", "previousslide"].includes(
+        link.target,
+      )) ||
     (link.kind === "external" &&
       (!/^(https?:\/\/|mailto:).+/i.test(link.target) ||
         /\s/u.test(link.target) ||

@@ -11,6 +11,7 @@ priv struct DuplicatePlan {
   kept : Array[Int]
   removed : Array[Int]
   preview : Array[Array[String]]
+  filter : AutoFilterState?
 }
 
 ///|
@@ -44,7 +45,11 @@ fn Session::duplicate_plan(
   }
   let index = self.sheet_index(sheet)
   let current = self.sheets[index]
-  self.check_reorder_cells(current, target)
+  self.check_reorder_cells(current, target, filter=true)
+  let filter = read_filter(current).map(state => {
+    let (manual, filtered) = self.filter_provenance(index, state)
+    { ..state, manual, filtered, tracked: true, }
+  })
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
@@ -109,7 +114,7 @@ fn Session::duplicate_plan(
       )
     }
   }
-  { target, kept, removed, preview, }
+  { target, kept, removed, preview, filter, }
 }
 
 ///|
@@ -157,5 +162,12 @@ fn Session::remove_duplicates(
   for _ in plan.removed {
     order.push(None)
   }
-  self.reorder_cells(sheet, plan.target, true, positions, order)
+  self.reorder_cells(
+    sheet,
+    plan.target,
+    true,
+    positions,
+    order,
+    filter=plan.filter,
+  )
 }

@@ -30,12 +30,19 @@ import type {
   XlsxClearMode,
   XlsxFindOptions,
   XlsxDelimitedOptions,
+  XlsxTextColumnSettings,
   XlsxFillTarget,
 } from "@open-document/wasm/xlsx";
 import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
+  | {
+      operation: "textColumnsXlsx";
+      revision: number;
+      sheet: string;
+      settings: XlsxTextColumnSettings;
+    }
   | {
       operation: "duplicatesXlsx";
       revision: number;

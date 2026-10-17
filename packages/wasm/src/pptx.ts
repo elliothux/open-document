@@ -233,6 +233,7 @@ export type PptxCommand =
   | { operation: "createPptx"; budget: Budget }
   | { operation: "openPptx"; bytes: Uint8Array; budget: Budget }
   | { operation: "queryPptx" }
+  | { operation: "followPptxHyperlink"; revision: number }
   | {
       operation: "editPptxSlides";
       revision: number;
@@ -343,6 +344,7 @@ const names: ReadonlySet<string> = new Set([
   "openPptx",
   "createPptx",
   "queryPptx",
+  "followPptxHyperlink",
   "findPptx",
   "replacePptxMatches",
   "editPptxObjects",

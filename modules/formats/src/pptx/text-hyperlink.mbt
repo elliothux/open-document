@@ -191,7 +191,7 @@ fn Session::set_text_hyperlink(
   let parts = self.parts.copy()
   let created : Map[String, @xml.Document] = Map([])
   let edits : Array[(String, @xml.Edit)] = []
-  let relation = if kind == "none" {
+  let relation = if kind == "none" || kind == "action" {
     ""
   } else {
     self.hyperlink_relationship(
@@ -211,7 +211,7 @@ fn Session::set_text_hyperlink(
       continue
     }
     let node = span.properties().map(hyperlink_node).unwrap_or(None)
-    let hyperlink = Some(hyperlink_markup(node, kind, relation))
+    let hyperlink = Some(hyperlink_markup(node, kind, relation, target~))
     let change : @xml.SourceChange = if span.run is Some(run) &&
       run.source is Some(source) {
       let markup = (if span.start > 0 {

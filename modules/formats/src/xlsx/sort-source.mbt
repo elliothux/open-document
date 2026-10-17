@@ -113,13 +113,13 @@ fn Sheet::sorted_cell(
 fn Session::sort_resources(
   self : Session,
   sheet : Sheet,
+  filter~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   let tree = Tree::new(sheet.document)
   for node in tree.children.get(tree.root("worksheet").id).unwrap_or([]) {
     guard node.uri == spreadsheet_uri &&
-      !["drawing", "legacyDrawingHF", "autoFilter", "sortState"].contains(
-        node.name,
-      ) &&
+      !["drawing", "legacyDrawingHF", "sortState"].contains(node.name) &&
+      (filter || node.name != "autoFilter") &&
       !(["extLst", "tableParts", "pivotTableParts"].contains(node.name) &&
       !tree.children.get(node.id).unwrap_or([]).is_empty()) else {
       @failure.reject(
@@ -146,6 +146,7 @@ fn Session::check_reorder_cells(
   self : Session,
   current : Sheet,
   target : Range,
+  filter~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   guard self.read_only.is_empty() && !current.locked else {
     @failure.reject(
@@ -163,7 +164,7 @@ fn Session::check_reorder_cells(
     )
   }
   ignore(self.read_sheet_notes(current))
-  self.sort_resources(current)
+  self.sort_resources(current, filter~)
   for cell in current.cells.values() {
     if target.contains(cell.address) {
       guard cell.read_only.is_empty() ||

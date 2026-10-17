@@ -18,6 +18,7 @@ pub(all) enum SheetEdit {
   Series(SeriesMode, String, String, String)
   Sort(String, SortSettings)
   RemoveDuplicates(DuplicateSettings, Int)
+  TextToColumns(TextColumnSettings, Int, Bool)
   SetFilter(FilterSettings)
   ClearFilter
   RemoveFilter
@@ -191,6 +192,10 @@ pub fn Session::edit_sheet(
     Sort(range, settings) => return self.sort_cells(sheet, range, settings)
     RemoveDuplicates(settings, source_revision) =>
       return self.remove_duplicates(sheet, settings, source_revision)
+    TextToColumns(settings, source_revision, overwrite) =>
+      return self.split_text_columns(
+        sheet, settings, source_revision, overwrite,
+      )
     InsertRows(first, count) =>
       return self.edit_axes(sheet, {
         rows: true,
@@ -312,6 +317,7 @@ pub fn Session::edit_sheet(
     | Series(_, _, _, _)
     | Sort(_, _)
     | RemoveDuplicates(_, _)
+    | TextToColumns(_, _, _)
     | SetFilter(_)
     | ClearFilter
     | RemoveFilter

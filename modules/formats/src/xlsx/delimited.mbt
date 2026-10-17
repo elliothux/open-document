@@ -2,9 +2,10 @@
 fn delimited_rows(
   source : String,
   delimiter : String,
+  line_breaks~ : Bool = true,
 ) -> Array[Array[String]] raise @failure.Failure {
-  guard [",", "\t"].contains(delimiter) else {
-    @failure.reject("invalid-operation", "Delimiter must be a comma or tab")
+  guard [",", "\t", ";", " "].contains(delimiter) else {
+    @failure.reject("invalid-operation", "Unsupported text delimiter")
   }
   guard source.length() <= 1048576 && @xml.valid_text(source) else {
     @failure.reject(
@@ -36,13 +37,14 @@ fn delimited_rows(
       } else {
         field.write_char(ch)
       }
-    } else if ch.to_string() == delimiter || ch == '\r' || ch == '\n' {
+    } else if ch.to_string() == delimiter ||
+      (line_breaks && (ch == '\r' || ch == '\n')) {
       row.push(field.to_string())
       cells += 1
       field = StringBuilder()
       closed = false
       start = true
-      if ch == '\r' || ch == '\n' {
+      if line_breaks && (ch == '\r' || ch == '\n') {
         if ch == '\r' && index < source.length() && source[index] == 10 {
           index += 1
         }
@@ -90,6 +92,11 @@ pub fn Session::import_delimited(
   dates~ : Bool = false,
   formulas~ : Bool = false,
 ) -> Session raise @failure.Failure {
+  guard [",", "\t"].contains(delimiter) else {
+    @failure.reject(
+      "invalid-operation", "CSV/TSV delimiter must be a comma or tab",
+    )
+  }
   guard bytes.length() <=
     budget.file_bytes.min(budget.retained_bytes).min(4194304) else {
     @failure.reject("limit-exceeded", "Delimited file exceeds input budget")

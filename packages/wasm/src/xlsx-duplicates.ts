@@ -1,3 +1,4 @@
+import { xlsxBounds as bounds } from "./xlsx-geometry.js";
 import { integer, record } from "./validation.js";
 
 export interface XlsxDuplicateSettings {
@@ -37,34 +38,6 @@ export function checkXlsxDuplicateSettings(value: unknown): void {
       throw new Error("Invalid duplicate comparison column");
     seen.add(Number(column));
   }
-}
-function bounds(value: unknown): {
-  top: number;
-  bottom: number;
-  left: number;
-  right: number;
-} {
-  if (typeof value !== "string") throw new Error("Invalid duplicate range");
-  const match =
-    /^([A-Z]{1,3})([1-9]\d{0,6})(?::([A-Z]{1,3})([1-9]\d{0,6}))?$/u.exec(value);
-  if (!match || match[0] !== value) throw new Error("Invalid duplicate range");
-  const column = (text: string) =>
-    Array.from(text).reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0);
-  const result = {
-    top: Number(match[2]),
-    bottom: Number(match[4] ?? match[2]),
-    left: column(match[1]!),
-    right: column(match[3] ?? match[1]!),
-  };
-  if (
-    result.top > result.bottom ||
-    result.bottom > 1048576 ||
-    result.left > result.right ||
-    result.right > 16384 ||
-    (result.bottom - result.top + 1) * (result.right - result.left + 1) > 4096
-  )
-    throw new Error("Duplicate range exceeds bounds");
-  return result;
 }
 export function xlsxDuplicates(value: unknown): XlsxDuplicates {
   const result = record(value),

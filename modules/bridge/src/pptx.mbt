@@ -57,6 +57,8 @@ fn Foundation::pptx_operation(
   }
   match operation {
     "queryPptx" => session.query()
+    "followPptxHyperlink" =>
+      session.follow_hyperlink(field_int(request, "revision"))
     "findPptx" | "replacePptxMatches" =>
       self.pptx_search(session, operation, request)
     "editPptxSlides" => {

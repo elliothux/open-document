@@ -1,20 +1,28 @@
 ///|
-fn Session::commit_cells(
+priv struct CellEditPlan {
+  sheets : Array[Sheet]
+  calculation : Calculation
+  styles : Array[CellStyle]
+  parts : Map[String, @xml.Document]
+  created_parts : Map[String, @xml.Document]
+  edits : Array[(String, @xml.Edit)]
+}
+
+///|
+fn Session::prepare_cells(
   self : Session,
   updates : Map[Int, Map[String, CellContent]],
-  selection : (String, Range),
   styles~ : Map[Int, Map[String, Int]] = Map([]),
   merges~ : Map[Int, Array[Range]] = Map([]),
   accept_warnings~ : Bool = false,
-) -> Json raise @failure.Failure {
+  formatting~ : StyleEdit? = None,
+) -> CellEditPlan raise @failure.Failure {
   guard self.read_only.is_empty() else {
     @failure.reject("protected-content", self.read_only)
   }
-  if updates.is_empty() {
-    return self.query()
-  }
   let candidate = self.sheets.copy()
-  let edits : Array[(String, @xml.Edit)] = []
+  let edits = formatting.map(plan => plan.edits.copy()).unwrap_or([])
+  let cell_styles = formatting.map(plan => plan.styles).unwrap_or(self.styles)
   let changed : Array[(Int, Range)] = []
   let indices = updates.keys().to_array()
   let targets : Map[Int, Array[String]] = Map([])
@@ -43,7 +51,7 @@ fn Session::commit_cells(
       current.state,
       document,
       self.strings,
-      self.styles.length(),
+      cell_styles.length(),
     )
     for key in values.keys() {
       let address = Address::parse(key)
@@ -68,7 +76,43 @@ fn Session::commit_cells(
     self.workbook,
   )
   self.validate_inputs(candidate, calculation, targets, accept_warnings)
-  edits.append(self.cache_edits(candidate, calculation))
-  self.commit(candidate, self.workbook, calculation, edits, selection)
+  edits.append(
+    self.cache_edits(candidate, calculation, style_count=cell_styles.length()),
+  )
+  {
+    sheets: candidate,
+    calculation,
+    edits,
+    styles: cell_styles,
+    parts: formatting.map(plan => plan.parts).unwrap_or(self.parts),
+    created_parts: formatting.map(plan => plan.created_parts).unwrap_or(Map([])),
+  }
+}
+
+///|
+fn Session::commit_cells(
+  self : Session,
+  updates : Map[Int, Map[String, CellContent]],
+  selection : (String, Range),
+  styles~ : Map[Int, Map[String, Int]] = Map([]),
+  merges~ : Map[Int, Array[Range]] = Map([]),
+  accept_warnings~ : Bool = false,
+) -> Json raise @failure.Failure {
+  guard self.read_only.is_empty() else {
+    @failure.reject("protected-content", self.read_only)
+  }
+  if updates.is_empty() {
+    return self.query()
+  }
+  let plan = self.prepare_cells(updates, styles~, merges~, accept_warnings~)
+  self.commit(
+    plan.sheets,
+    self.workbook,
+    plan.calculation,
+    plan.edits,
+    selection,
+    parts=plan.parts,
+    created_parts=plan.created_parts,
+  )
   self.query()
 }

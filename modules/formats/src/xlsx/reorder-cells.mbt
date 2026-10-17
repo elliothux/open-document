@@ -6,6 +6,7 @@ fn Session::reorder_cells(
   rows : Bool,
   positions : Array[Int],
   order : Array[Int?],
+  filter~ : AutoFilterState? = None,
 ) -> Json raise @failure.Failure {
   let index = self.sheet_index(sheet)
   let current = self.sheets[index]
@@ -161,13 +162,48 @@ fn Session::reorder_cells(
     self.strings,
     self.styles.length(),
   )
-  let calculation = Calculation::build(
+  let mut calculation = Calculation::build(
     sheets,
     self.calculation,
     [(index, target)],
     self.date1904,
     self.workbook,
   )
+  if filter is Some(state) {
+    let candidate : Session = {
+      ..self,
+      sheets,
+      calculation: Some(calculation),
+    }
+    let filtered = candidate.filtered_rows(index, state.settings)
+    let hidden : Map[Int, Bool] = Map([])
+    for row in (state.bounds.top + 1)..<=state.bounds.bottom {
+      hidden[row] = state.manual.contains(row) || filtered.contains(row)
+    }
+    let (document, edit) = filter_write(
+      sheets[index],
+      Some({ ..state, filtered, }),
+      hidden,
+    )
+    edits.push((sheet, edit))
+    sheets[index] = Sheet::read(
+      current.id,
+      current.name,
+      current.state,
+      document,
+      self.strings,
+      self.styles.length(),
+    )
+    if calculation.visibility_dependent() {
+      calculation = Calculation::build(
+        sheets,
+        None,
+        [],
+        self.date1904,
+        self.workbook,
+      )
+    }
+  }
   self.validate_inputs(
     sheets,
     calculation,
