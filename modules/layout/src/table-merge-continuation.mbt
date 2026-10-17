@@ -1,9 +1,9 @@
 ///|
 priv struct TablePageSpace {
   initial : Double
-  first : Double
-  top : Double
-  capacity : Double
+  starts : Array[Double]
+  tops : Array[Double]
+  capacities : Array[Double]
 }
 
 ///|
@@ -11,23 +11,24 @@ fn TablePageSpace::index(
   self : TablePageSpace,
   position : Double,
 ) -> Int raise @failure.Failure {
-  guard position >= 0 && position <= self.first + self.capacity * 1023 else {
+  guard position >= 0 && position < self.starts.last().unwrap() else {
     @failure.reject("limit-exceeded", "Merged table exceeds page budget")
   }
-  if position < self.first {
-    0
-  } else {
-    1 + ((position - self.first) / self.capacity).floor().to_int()
+  for low = 0, high = self.tops.length(); low < high; {
+    let middle = (low + high) / 2
+    if self.starts[middle + 1] <= position {
+      continue middle + 1, high
+    } else {
+      continue low, middle
+    }
+  } nobreak {
+    low
   }
 }
 
 ///|
 fn TablePageSpace::start(self : TablePageSpace, page : Int) -> Double {
-  if page == 0 {
-    0
-  } else {
-    self.first + (page - 1).to_double() * self.capacity
-  }
+  self.starts[page]
 }
 
 ///|
@@ -35,12 +36,7 @@ fn TablePageSpace::end(
   self : TablePageSpace,
   position : Double,
 ) -> Double raise @failure.Failure {
-  let page = self.index(position)
-  if page == 0 {
-    self.first
-  } else {
-    self.start(page + 1)
-  }
+  self.starts[self.index(position) + 1]
 }
 
 ///|
@@ -49,9 +45,9 @@ fn TablePageSpace::y(
   position : Double,
   page : Int,
 ) -> Double {
-  (if page == 0 { self.initial } else { self.top }) +
+  (if page == 0 { self.initial } else { self.tops[page] }) +
   position -
-  self.start(page)
+  self.starts[page]
 }
 
 ///|
@@ -84,16 +80,22 @@ fn Table::continued_cell_lines(
     let boundary = space.end(base)
     let kept = self.kept_paragraph_height(row, column, lines, index)
     let required = if kept is Some(kept) &&
-      top + kept + margin <= space.capacity {
+      top + kept + margin <= space.capacities[space.index(base)] {
       kept
     } else {
       line.height
     }
     if position + required + margin > boundary + 0.000001 &&
-      !(clipped && top + line.height + margin > space.capacity) {
+      !(clipped &&
+      top + line.height + margin > space.capacities[space.index(base)]) {
       guard base > space.start(space.index(base)) ||
         index > first ||
-        (space.index(base) == 0 && space.initial > space.top) else {
+        (space.index(base) == 0 && space.initial > space.tops[0]) ||
+        space.capacities[space.index(base) + 1:(space.index(base) + 3).min(
+          space.capacities.length(),
+        )]
+        .iter()
+        .any(capacity => top + required + margin <= capacity) else {
         @failure.reject(
           "layout-overflow", "A merged cell line and its margins exceed the page content area",
         )
@@ -146,6 +148,13 @@ fn Pagination::continue_table_group(
       required = required.max(top + height + margin)
     }
   }
+  let minimum_full = [
+    self.page_at(self.pages.length() - 1),
+    self.page_at(self.pages.length()),
+    self.page_at(self.pages.length() + 1),
+  ].fold(init=full, (value, page) => {
+    value.min(page.height - page.top - page.bottom - bottom)
+  })
   let header = Pagination::new(self.page)
   // shortcut: Reserve header space per merge group; refine per-page reservations for mixed tall-line headers.
   let repeat = if first_row >= table.headerRows && table.headerRows > 0 {
@@ -160,7 +169,8 @@ fn Pagination::continue_table_group(
         images,
         additive,
       )
-      header.pages.length() == 1 && header.y - self.page.top + required <= full
+      header.pages.length() == 1 &&
+      header.y - self.page.top + required <= minimum_full
     } catch {
       @failure.Failure(code="layout-overflow", ..) => false
       error => raise error
@@ -173,17 +183,28 @@ fn Pagination::continue_table_group(
     self.append_table_header(header.pages[0])
     self.y = header.y
   }
-  let space = {
-    initial: self.y,
-    first: (self.page.height - self.page.bottom - bottom - self.y).max(0),
-    top: self.page.top + header_height,
-    capacity: full - header_height,
+  let tops : Array[Double] = []
+  let capacities : Array[Double] = []
+  let page_starts : Array[Double] = [0]
+  let base_page = self.pages.length() - 1
+  for index in base_page..<1024 {
+    let page = self.page_at(index)
+    let capacity = page.height - page.top - page.bottom - bottom - header_height
+    guard capacity > 0 else {
+      @failure.reject(
+        "layout-overflow", "Table borders leave no page content area",
+      )
+    }
+    tops.push(page.top + header_height)
+    capacities.push(capacity)
+    let available = if index == base_page {
+      (page.height - page.bottom - bottom - self.y).max(0)
+    } else {
+      capacity
+    }
+    page_starts.push(page_starts.last().unwrap() + available)
   }
-  guard space.capacity > 0 else {
-    @failure.reject(
-      "layout-overflow", "Table borders leave no page content area",
-    )
-  }
+  let space = { initial: self.y, starts: page_starts, tops, capacities, }
   let count = last_row - first_row + 1
   let starts = Array::make(count, 0.0)
   let ends = Array::make(count, 0.0)
@@ -222,13 +243,23 @@ fn Pagination::continue_table_group(
     ignore(space.index((cursor - 0.000001).max(0)))
     ends[index] = cursor
   }
-  let base_page = self.pages.length() - 1
   let final_page = space.index((cursor - 0.000001).max(0))
   for _ in 0..<final_page {
     self.next_page()
     if repeat {
-      self.append_table_header(header.pages[0])
-      self.y = header.y
+      let repeated = Pagination::new(self.page)
+      repeated.table_rows(
+        cache,
+        probe,
+        table,
+        0,
+        table.headerRows - 1,
+        profile,
+        images,
+        additive,
+      )
+      self.append_table_header(repeated.pages[0])
+      self.y = repeated.y
     }
   }
   let left = table.left(self.page)

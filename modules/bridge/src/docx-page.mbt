@@ -87,10 +87,46 @@ fn Foundation::docx_page(
   request : Json,
 ) -> Json raise @failure.Failure {
   let revision = field_int(request, "revision")
+  if operation == "runningArea" {
+    return session.running_area(
+      revision,
+      field_string(request, "kind"),
+      field_string(request, "variant"),
+    )
+  }
   if operation == "pageSetup" {
     return session.page_setup(revision)
   }
   let result = match operation {
+    "unlinkRunningArea" =>
+      session.unlink_running_area(
+        revision,
+        field_string(request, "kind"),
+        field_string(request, "variant"),
+        probe=self.probe,
+        profile=xlsx_profile(request),
+        images=self.images,
+      )
+    "setRunningOptions" =>
+      session.set_running_options(
+        revision,
+        xlsx_boolean(request, "first"),
+        xlsx_boolean(request, "even"),
+        probe=self.probe,
+        profile=xlsx_profile(request),
+        images=self.images,
+      )
+    "setRunningArea" =>
+      session.set_running_area(
+        revision,
+        field_string(request, "kind"),
+        field_string(request, "variant"),
+        field_string(request, "text"),
+        xlsx_number(request, "distance"),
+        probe=self.probe,
+        profile=xlsx_profile(request),
+        images=self.images,
+      )
     "setPageSetup" =>
       session.set_page_setup(
         revision,

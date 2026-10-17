@@ -72,6 +72,7 @@ fn Pagination::restore(
   }
   prefix.validate_images(images)
   self.pages.push(prefix)
+  self.page = self.page_at(position.page)
   self.y = position.y
   self.after = position.after
   self.gap = position.gap
@@ -116,6 +117,7 @@ fn Pagination::append_tail(
     page.validate_images(images)
     self.pages.push(page)
   }
+  self.page = self.page_at(self.pages.length() - 1)
   self.y = end.y
   self.after = end.after
   self.gap = end.gap

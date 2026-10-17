@@ -239,8 +239,12 @@ fn Session::fit_table(
     paragraphs: [],
     tables: [{ ..next, beforeParagraph: 0, }],
     pageBorders: @layout.PageBorders::new(),
-    headers: [],
+    headers: Map([]),
     headerDistance: 0,
+    footers: Map([]),
+    footerDistance: 0,
+    differentFirst: false,
+    differentEven: false,
   }
   ignore(
     @layout.paginate(

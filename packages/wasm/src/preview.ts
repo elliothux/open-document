@@ -73,8 +73,12 @@ export interface DocxFlow {
     readOnlyReason: string;
   }[];
   diagnostics: string[];
-  headers: DocxFlow["paragraphs"][];
+  headers: Record<string, DocxFlow["paragraphs"]>;
   headerDistance: number;
+  footers: Record<string, DocxFlow["paragraphs"]>;
+  footerDistance: number;
+  differentFirst: boolean;
+  differentEven: boolean;
   tables: {
     autoFit: boolean;
     preferredWidth: number;
@@ -162,7 +166,7 @@ function diagnostics(value: unknown): void {
 }
 
 export function docxFlow(value: unknown): DocxFlow {
-  const flow = fields(value, ["revision", "headerDistance"]);
+  const flow = fields(value, ["revision", "headerDistance", "footerDistance"]);
   if (flow.pageBorders === null)
     throw new Error("Missing document page borders");
   checkPageBorders(flow.pageBorders);
@@ -171,6 +175,11 @@ export function docxFlow(value: unknown): DocxFlow {
     !/^[0-9a-f]{6}$/iu.test(flow.background)
   )
     throw new Error("Invalid document page background");
+  if (
+    typeof flow.differentFirst !== "boolean" ||
+    typeof flow.differentEven !== "boolean"
+  )
+    throw new Error("Invalid running area flags");
   if (typeof flow.additiveSpacing !== "boolean")
     throw new Error("Invalid paragraph spacing mode");
   fields(flow.page, ["width", "height", "top", "right", "bottom", "left"]);
@@ -260,8 +269,13 @@ export function docxFlow(value: unknown): DocxFlow {
   }
   const paragraphs = entries(flow.paragraphs);
   for (const value of paragraphs) paragraph(value);
-  for (const header of entries(flow.headers))
-    for (const value of entries(header)) paragraph(value);
+  for (const stories of [record(flow.headers), record(flow.footers)]) {
+    for (const [key, story] of Object.entries(stories)) {
+      if (!["default", "first", "even"].includes(key))
+        throw new Error("Invalid running variant");
+      for (const value of entries(story)) paragraph(value);
+    }
+  }
   let previousPosition = 0;
   for (const value of entries(flow.tables)) {
     const table = fields(value, ["id", "beforeParagraph"], ["align"]);

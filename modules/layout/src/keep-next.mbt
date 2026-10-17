@@ -104,9 +104,10 @@ fn Pagination::kept_paragraphs(
     }
     required[index] += gaps[index] + spacing + required[index + 1]
   }
-  let limit = self.page.height - self.page.bottom
-  let full = limit - self.page.top
   for index, paragraph in paragraphs {
+    let limit = self.page.height - self.page.bottom
+    let next = self.page_at(self.pages.length())
+    let full = next.height - next.top - next.bottom
     let spacing = if additive {
       self.after + paragraph.before
     } else {
@@ -120,9 +121,10 @@ fn Pagination::kept_paragraphs(
       ) {
       self.next_page()
     }
+    let capacity = self.page.height - self.page.top - self.page.bottom
     let paragraph = if self.y == self.page.top &&
-      required[index] <= full &&
-      paragraph.before + required[index] > full {
+      required[index] <= capacity &&
+      paragraph.before + required[index] > capacity {
       { ..paragraph, before: 0, }
     } else {
       paragraph

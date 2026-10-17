@@ -74,7 +74,7 @@ export class DocumentEditor extends DocumentPage {
   private constructor(
     private readonly root: HTMLElement,
     private readonly client: FoundationClient,
-    private readonly profile: Record<string, string>,
+    protected readonly profile: Record<string, string>,
     private readonly surface: PageCanvas,
     private currentLayout: PageLayout,
     private state: EditState,

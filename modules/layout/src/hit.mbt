@@ -206,6 +206,16 @@ pub fn Layout::hit_test(
       "invalid-position", "Hit coordinates must be finite and inside the page",
     )
   }
+  for index, line in self.running.get(page).unwrap_or([]) {
+    if y >= line.y &&
+      y < line.y + line.height &&
+      x >= line.areaX &&
+      x <= line.areaX + line.areaWidth {
+      if line.carets.get(0) is Some(caret) {
+        return line_hit(line, page, index, caret, "before")
+      }
+    }
+  }
   let mut chosen = -1
   let mut vertical = frame.height + 1
   let mut horizontal = frame.width + 1

@@ -1,5 +1,10 @@
 import { Connection } from "./connection.js";
-import { FoundationReviewClient } from "./document-review.js";
+import { FoundationPageClient } from "./foundation-page.js";
+export type {
+  DocxRunningArea,
+  DocxRunningKind,
+  DocxRunningVariant,
+} from "@open-document/wasm/foundation";
 export type {
   DocxCommentEdit,
   DocxComments,
@@ -88,18 +93,11 @@ import {
   type DocxStyleCreation,
   checkStyleCreation,
   checkDefaultTabStop,
-  checkPageSetup,
-  checkPageBackground,
-  checkPageBorders,
   checkDocxPictureEdit,
   docxPictures,
   type DocxPictureEdit,
   type DocxPictureResizeCommand,
   checkDocxPictureResize,
-  docxPageSettings,
-  type DocxPageSetup,
-  type DocxPageBorders,
-  type DocxPageSettings,
   checkFormatPatch,
   checkListEdit,
   docxListCatalog,
@@ -129,7 +127,7 @@ import {
 } from "@open-document/wasm/foundation";
 
 /** Text shaping, bounded DOCX operations and preview/PDF, owned by one Worker. */
-export class FoundationClient extends FoundationReviewClient {
+export class FoundationClient extends FoundationPageClient {
   private constructor(connection: Connection) {
     super(connection);
   }
@@ -322,11 +320,6 @@ export class FoundationClient extends FoundationReviewClient {
       }),
     );
   }
-  async pageSetup(revision: number): Promise<DocxPageSettings> {
-    return docxPageSettings(
-      await this.connection.request({ operation: "pageSetup", revision }),
-    );
-  }
   async pictures(revision: number) {
     return docxPictures(
       await this.connection.request({ operation: "docxPictures", revision }),
@@ -354,41 +347,6 @@ export class FoundationClient extends FoundationReviewClient {
         picture,
       }),
     );
-  }
-  async setPageSetup(
-    revision: number,
-    page: DocxPageSetup,
-  ): Promise<EditState> {
-    checkPageSetup(page);
-    return editState(
-      await this.connection.request({
-        operation: "setPageSetup",
-        revision,
-        page,
-      }),
-    );
-  }
-  async setPageBackground(
-    revision: number,
-    color: string | null,
-  ): Promise<EditState> {
-    checkPageBackground(color);
-    return editState(
-      await this.connection.request({
-        operation: "setPageBackground",
-        revision,
-        color,
-      }),
-    );
-  }
-  async setPageBorders(
-    revision: number,
-    borders: DocxPageBorders | null,
-  ): Promise<EditState> {
-    checkPageBorders(borders);
-    return this.connection
-      .request({ operation: "setPageBorders", revision, borders })
-      .then(editState);
   }
   async insertTable(
     revision: number,

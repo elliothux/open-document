@@ -263,6 +263,35 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.styles(request.revision, request.kind);
         case "pageSetup":
           return foundation.pageSetup(request.revision);
+        case "setRunningOptions":
+          return foundation.setRunningOptions(
+            request.revision,
+            request.first,
+            request.even,
+            request.profile,
+          );
+        case "runningArea":
+          return foundation.runningArea(
+            request.revision,
+            request.kind,
+            request.variant,
+          );
+        case "unlinkRunningArea":
+          return foundation.unlinkRunningArea(
+            request.revision,
+            request.kind,
+            request.variant,
+            request.profile,
+          );
+        case "setRunningArea":
+          return foundation.setRunningArea(
+            request.revision,
+            request.kind,
+            request.variant,
+            request.text,
+            request.distance,
+            request.profile,
+          );
         case "setPageBackground":
           return foundation.setPageBackground(request.revision, request.color);
         case "setPageBorders":

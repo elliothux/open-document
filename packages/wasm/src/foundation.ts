@@ -1,3 +1,14 @@
+import { FoundationPageSession } from "./docx-page.js";
+export {
+  checkRunningArea,
+  checkRunningKind,
+  checkRunningVariant,
+  checkRunningOptions,
+  docxRunningArea,
+  type DocxRunningArea,
+  type DocxRunningKind,
+  type DocxRunningVariant,
+} from "./docx-page.js";
 import {
   checkFormatPatch,
   checkDocxHyperlink,
@@ -15,13 +26,6 @@ import {
   type DocxStyleCreation,
   checkStyleCreation,
   checkDefaultTabStop,
-  checkPageSetup,
-  checkPageBackground,
-  checkPageBorders,
-  type DocxPageBorders,
-  docxPageSettings,
-  type DocxPageSetup,
-  type DocxPageSettings,
   type DocxFormatting,
   type CharacterFormatPatch,
   type ParagraphFormatPatch,
@@ -70,7 +74,7 @@ import {
   type DocxListEdit,
   type DocxListCatalog,
 } from "./docx-list.js";
-import { WasmSession, encodeBytes } from "./session.js";
+import { encodeBytes } from "./session.js";
 import {
   checkDocxTableSize,
   checkDocxTableEdit,
@@ -305,7 +309,7 @@ export function shapeBatch(value: unknown): ShapeBatch {
   return value as ShapeBatch;
 }
 
-export class FoundationSession extends WasmSession {
+export class FoundationSession extends FoundationPageSession {
   shape(text: string, size = 32, language = "und"): ShapeBatch {
     return shapeBatch(this.call({ operation: "shape", text, size, language }));
   }
@@ -513,9 +517,6 @@ export class FoundationSession extends WasmSession {
   editState(): EditState {
     return editState(this.call({ operation: "editState" }));
   }
-  pageSetup(revision: number): DocxPageSettings {
-    return docxPageSettings(this.call({ operation: "pageSetup", revision }));
-  }
   pictures(revision: number) {
     return docxPictures(this.call({ operation: "docxPictures", revision }));
   }
@@ -532,22 +533,6 @@ export class FoundationSession extends WasmSession {
         revision,
         picture: prepareDocxPictureEdit(picture),
       }),
-    );
-  }
-  setPageSetup(revision: number, page: DocxPageSetup): EditState {
-    checkPageSetup(page);
-    return editState(this.call({ operation: "setPageSetup", revision, page }));
-  }
-  setPageBackground(revision: number, color: string | null): EditState {
-    checkPageBackground(color);
-    return editState(
-      this.call({ operation: "setPageBackground", revision, color }),
-    );
-  }
-  setPageBorders(revision: number, borders: DocxPageBorders | null): EditState {
-    checkPageBorders(borders);
-    return editState(
-      this.call({ operation: "setPageBorders", revision, borders }),
     );
   }
   insertTable(

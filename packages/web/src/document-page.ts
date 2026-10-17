@@ -2,9 +2,53 @@ import { DocumentReview } from "./document-review.js";
 import type { DocxPageSetup } from "@open-document/wasm/foundation";
 import type { DocxPageBorders } from "@open-document/wasm/foundation";
 import type { EditorOutput } from "./editor-state.js";
+import type {
+  DocxRunningKind,
+  DocxRunningVariant,
+} from "@open-document/wasm/foundation";
 
 /** Document-wide page commands use the editor's existing read and edit queues. */
 export abstract class DocumentPage extends DocumentReview {
+  protected abstract readonly profile: Record<string, string>;
+  unlinkRunningArea(
+    kind: DocxRunningKind,
+    variant: DocxRunningVariant,
+  ): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.unlinkRunningArea(
+        this.review.snapshot().revision,
+        kind,
+        variant,
+        this.profile,
+      ),
+    );
+  }
+  runningArea(kind: DocxRunningKind, variant: DocxRunningVariant) {
+    return this.review.read(() =>
+      this.review.client.runningArea(
+        this.review.snapshot().revision,
+        kind,
+        variant,
+      ),
+    );
+  }
+  setRunningArea(
+    kind: DocxRunningKind,
+    variant: DocxRunningVariant,
+    text: string,
+    distance: number,
+  ): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.setRunningArea(
+        this.review.snapshot().revision,
+        kind,
+        variant,
+        text,
+        distance,
+        this.profile,
+      ),
+    );
+  }
   protected abstract outputs(
     format: "docx" | "pdf" | "png" | "images",
     outputBytes?: number,
@@ -33,6 +77,16 @@ export abstract class DocumentPage extends DocumentReview {
       this.review.client.setPageBorders(
         this.review.snapshot().revision,
         borders,
+      ),
+    );
+  }
+  setRunningOptions(first: boolean, even: boolean): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.setRunningOptions(
+        this.review.snapshot().revision,
+        first,
+        even,
+        this.profile,
       ),
     );
   }

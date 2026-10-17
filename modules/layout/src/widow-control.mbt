@@ -55,11 +55,14 @@ fn Pagination::widow_breaks(
       lines.push((index, line))
     }
   }
-  let limit = self.page.height - self.page.bottom
-  let full = limit - self.page.top
+  let mut page_index = self.pages.length() - 1
   let mut start = 0
   let mut y = self.y
   while start < lines.length() {
+    let page = self.page_at(page_index)
+    let limit = page.height - page.bottom
+    let next = self.page_at(page_index + 1)
+    let full = next.height - next.top - next.bottom
     let mut end = start
     let mut bottom = y
     while end < lines.length() {
@@ -88,7 +91,7 @@ fn Pagination::widow_breaks(
         remaining == 3 &&
         widow_height(lines, start, 3, paragraph.line) <= full
       )
-    if start == 0 && y > self.page.top && move_start {
+    if start == 0 && y > page.top && move_start {
       if self.pages.last().unwrap().lines.any(line => !line.caretOnly) ||
         !self.pages.last().unwrap().borders.is_empty() {
         self.next_page()
@@ -96,6 +99,7 @@ fn Pagination::widow_breaks(
         self.y = self.page.top
       }
       y = self.page.top
+      page_index = self.pages.length() - 1
       continue
     }
     if lines.length() - end == 1 &&
@@ -108,7 +112,8 @@ fn Pagination::widow_breaks(
       return breaks
     }
     start = end
-    y = self.page.top
+    page_index += 1
+    y = self.page_at(page_index).top
     guard self.pages.length() + breaks.length() < 1024 else {
       @failure.reject("limit-exceeded", "Page budget exceeded")
     }

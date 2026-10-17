@@ -13,7 +13,6 @@ fn Pagination::split_table_row(
   let left = table.left(self.page)
   let bottom = table.border_width(row + 1)
   let limit = self.page.height - self.page.bottom
-  let full = limit - self.page.top
   let top = table.row_top_margin(row) + table.border_width(row)
   let mut minimum = table.row_minimum_height(row)
   let whole = cells.fold(init=minimum, (height, cell) => height.max(cell.3)) +
@@ -26,6 +25,8 @@ fn Pagination::split_table_row(
     self.next_page()
   }
   while minimum > 0 || table_row_pending(cells, indices) {
+    let limit = self.page.height - self.page.bottom
+    let full = limit - self.page.top
     let required = table.fragment_required(
       row, cells, indices, origins, minimum, full, whole,
     )
@@ -72,7 +73,13 @@ fn Pagination::split_table_row(
     }
     let pending = table_row_pending(cells, ends)
     if !progressed && pending {
-      guard self.y > self.page.top else {
+      let next = self.page_at(self.pages.length())
+      let later = self.page_at(self.pages.length() + 1)
+      guard self.y > self.page.top ||
+        (next.height - next.top - next.bottom).max(
+          later.height - later.top - later.bottom,
+        ) >
+        full else {
         @failure.reject(
           "layout-overflow", "A table line and its margins exceed the page content area",
         )

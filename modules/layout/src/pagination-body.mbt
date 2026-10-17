@@ -11,6 +11,7 @@ fn Pagination::body(
   let keys = pagination_keys(blocks)
   let context = Json::array([
     self.page.to_json(),
+    Json::array(self.setups.map(page => page.to_json())),
     Json(flow.additiveSpacing),
     Json(cache.profile),
   ]).stringify()
@@ -58,7 +59,13 @@ fn Pagination::body(
       let old_index = old.keys.length() - (current.length() - index)
       let before = old.positions[old_index]
       let now = self.position()
-      if now.stable(before) {
+      if now.stable(before) &&
+        self.page_at(now.page).to_json() == self.page_at(before.page).to_json() &&
+        (
+          (now.page - before.page) % 2 == 0 ||
+          self.setups.is_empty() ||
+          self.setups[1].to_json() == self.setups[2].to_json()
+        ) {
         reflowed = now.page - prefix_pages + 1
         reused += old.pages.length() - before.page - 1
         self.append_tail(old, before, images)

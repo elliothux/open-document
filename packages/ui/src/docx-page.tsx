@@ -1,3 +1,4 @@
+import { DocxRunning } from "./docx-running.js";
 import { useState } from "react";
 import type { DocumentEditor } from "@open-document/web/editor";
 import type {
@@ -41,6 +42,12 @@ export function DocxPage({
   return (
     <section aria-label={t.pageSetup}>
       <h3>{t.pageSetup}</h3>
+      <DocxRunning
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
       <button
         type="button"
         disabled={disabled}

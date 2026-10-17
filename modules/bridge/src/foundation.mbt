@@ -237,6 +237,10 @@ fn Foundation::dispatch(
     | "docxThemeFonts"
     | "setDocxThemeFonts"
     | "setDocxThemeColor"
+    | "runningArea"
+    | "setRunningOptions"
+    | "unlinkRunningArea"
+    | "setRunningArea"
     | "pageSetup"
     | "setPageSetup"
     | "setPageBackground"
@@ -402,8 +406,14 @@ fn Foundation::dispatch(
           }
           result
         }
-        "pageSetup" | "setPageBackground" | "setPageBorders" | "setPageSetup" =>
-          self.docx_page(session, operation, request)
+        "setRunningOptions"
+        | "unlinkRunningArea"
+        | "runningArea"
+        | "setRunningArea"
+        | "pageSetup"
+        | "setPageBackground"
+        | "setPageBorders"
+        | "setPageSetup" => self.docx_page(session, operation, request)
         "insertDocxTable" | "editDocxTable" =>
           self.docx_table(session, operation, request)
         "listCatalog" => session.list_catalog(field_int(request, "revision"))

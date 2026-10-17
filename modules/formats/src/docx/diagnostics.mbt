@@ -18,7 +18,10 @@ fn WordTree::diagnose_properties(
         "u", "strike", "highlight", "vertAlign", "cs", "rtl",
       ]
     "sectPr" =>
-      ["pgSz", "pgMar", "pgBorders", "headerReference", "cols", "docGrid"]
+      [
+        "pgSz", "pgMar", "pgBorders", "headerReference", "footerReference", "titlePg",
+        "cols", "docGrid",
+      ]
     "tcPr" =>
       ["tcW", "shd", "gridSpan", "vMerge", "vAlign", "tcMar", "tcBorders"]
     "tblPr" =>
@@ -52,7 +55,8 @@ fn WordTree::diagnose_properties(
         .iter()
         .all(a => a.uri == word_uri && a.name == "type")
       "tabs" => self.valid_tabs(child)
-      "bidi"
+      "titlePg"
+      | "bidi"
       | "cs"
       | "rtl"
       | "tblHeader"

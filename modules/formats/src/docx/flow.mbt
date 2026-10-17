@@ -25,7 +25,11 @@ fn Session::flow_from(
       @layout.PageBorders::new()
     }
   }
-  let headers : Array[Array[@layout.Paragraph]] = []
+  let headers : Map[String, Array[@layout.Paragraph]] = Map([])
+  let footers : Map[String, Array[@layout.Paragraph]] = Map([])
+  let mut different_first = false
+  let mut different_even = false
+  let mut footer_distance = 0.0
   let mut header_distance = 0.0
   let mut page = default_page_setup()
   let body = tree.child(0, "body").unwrap()
@@ -50,66 +54,22 @@ fn Session::flow_from(
         .number(id, "pgMar", "header")
         .map(v => v / 20)
         .unwrap_or(0)
-      for child in tree.children[id] {
-        let reference = tree.nodes[child]
-        if reference.name != "headerReference" {
-          continue
-        }
-        let key = reference
-          .attribute(
-            "id",
-            uri="http://schemas.openxmlformats.org/officeDocument/2006/relationships",
-          )
-          .unwrap_or("")
-        let relation = for rel in self.relationships() {
-          if rel.owner == self.main &&
-            rel.id == key &&
-            rel.kind ==
-            "http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" {
-            break rel
-          }
-        } nobreak {
-          @failure.reject("invalid-docx", "Unresolved header relationship")
-        }
-        guard !relation.external else {
-          @failure.reject(
-            "unsupported-layout", "External headers are unsupported",
-          )
-        }
-        let header = WordTree::new(self.part_xml(relation.target))
-        guard header.nodes[0].name == "hdr" else {
-          @failure.reject("invalid-docx", "Invalid header root")
-        }
-        // shortcut: only empty headers reserve space; render header content in a later phase.
-        for id in header.order {
-          let item = header.nodes[id]
-          guard item.name != "t" || item.text.is_empty() else {
-            @failure.reject(
-              "unsupported-layout", "Header content is unsupported",
-            )
-          }
-          guard item.name != "drawing" &&
-            item.name != "tbl" &&
-            item.name != "br" &&
-            item.name != "fldChar" &&
-            item.name != "instrText" else {
-            @failure.reject(
-              "unsupported-layout", "Header objects are unsupported",
-            )
-          }
-        }
-        let paragraphs : Array[@layout.Paragraph] = []
-        for item in header.order {
-          header.diagnose_properties(item, relation.target, diagnostics)
-        }
-        for item in header.children[0] {
-          guard header.nodes[item].name == "p" else {
-            @failure.reject("unsupported-layout", "Header body is unsupported")
-          }
-          paragraphs.push(self.paragraph(header, styles, item, diagnostics))
-        }
-        headers.push(paragraphs)
+      footer_distance = tree
+        .number(id, "pgMar", "footer")
+        .map(v => v / 20)
+        .unwrap_or(0)
+      let (section_headers, section_footers) = self.running_content(
+        tree, id, styles, diagnostics, background,
+      )
+      for key, paragraphs in section_headers {
+        headers[key] = paragraphs
       }
+      for key, paragraphs in section_footers {
+        footers[key] = paragraphs
+      }
+      let (first, even) = self.running_options(tree, Some(id))
+      different_first = first
+      different_even = even
       if node.parent != body {
         diagnostics.push("unsupported-layout:multiple-sections")
       }
@@ -196,6 +156,10 @@ fn Session::flow_from(
     }),
     headers,
     headerDistance: header_distance,
+    footers,
+    footerDistance: footer_distance,
+    differentFirst: different_first,
+    differentEven: different_even,
     additiveSpacing: self.additive_spacing(),
   }
 }

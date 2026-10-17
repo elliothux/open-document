@@ -42,7 +42,8 @@ export class PageCanvas extends CanvasSurface {
     const flow = await this.client.flow();
     const paragraphs = [
       ...flow.paragraphs,
-      ...flow.headers.flat(),
+      ...Object.values(flow.headers).flat(),
+      ...Object.values(flow.footers).flat(),
       ...flow.tables.flatMap((table) => table.rows.flat(2)),
     ];
     const keys = new Set(

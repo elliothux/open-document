@@ -73,7 +73,7 @@ pub(all) struct PositionedDocument {
 pub fn Layout::positioned(self : Layout) -> PositionedDocument {
   {
     fonts: self.fonts,
-    pages: self.pages.map(page => {
+    pages: self.pages.mapi((index, page) => {
       let primitives : Array[PositionedPrimitive] = []
       for fill in page.fills {
         primitives.push(Rectangle(fill))
@@ -81,7 +81,7 @@ pub fn Layout::positioned(self : Layout) -> PositionedDocument {
       for border in page.borders {
         primitives.push(Stroke(border.rect, border.color, border.width))
       }
-      for line in page.lines {
+      for line in page.lines + self.running[index] {
         if line.cellClip is Some(rect) {
           primitives.push(Clip(rect))
         }

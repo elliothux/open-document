@@ -13,6 +13,8 @@ import type {
   DocxListLevelUpdate,
   DocxPageSetup,
   DocxPageBorders,
+  DocxRunningKind,
+  DocxRunningVariant,
   DocxPictureEdit,
   DocxPictureResizeCommand,
   DocxTableEdit,
@@ -94,7 +96,36 @@ export type Operation =
       selection: DocxSelection;
       change: DocxTableEdit;
     }
+  | {
+      operation: "setRunningOptions";
+      revision: number;
+      first: boolean;
+      even: boolean;
+      profile: Record<string, string>;
+    }
   | { operation: "pageSetup"; revision: number }
+  | {
+      operation: "runningArea";
+      revision: number;
+      kind: DocxRunningKind;
+      variant: DocxRunningVariant;
+    }
+  | {
+      operation: "unlinkRunningArea";
+      revision: number;
+      kind: DocxRunningKind;
+      variant: DocxRunningVariant;
+      profile: Record<string, string>;
+    }
+  | {
+      operation: "setRunningArea";
+      revision: number;
+      kind: DocxRunningKind;
+      variant: DocxRunningVariant;
+      text: string;
+      distance: number;
+      profile: Record<string, string>;
+    }
   | { operation: "setPageBackground"; revision: number; color: string | null }
   | {
       operation: "setPageBorders";

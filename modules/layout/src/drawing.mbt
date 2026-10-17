@@ -145,8 +145,10 @@ pub fn Layout::drawing(
 
 ///|
 pub fn Layout::semantics(self : Layout) -> Array[SemanticPage] {
-  self.pages.map(page => {
-    lines: page.lines
+  self.pages.mapi((index, page) => {
+    lines: (self.running[index].filter(line => line.container == -1) +
+    page.lines +
+    self.running[index].filter(line => line.container == -2))
     .filter(line => !line.caretOnly)
     .map(line => {
       paragraph: line.paragraph,

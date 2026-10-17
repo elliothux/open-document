@@ -167,6 +167,7 @@ pub fn Session::replace_all(Self, Int, String, FindOptions, String) -> Json rais
 pub fn Session::replace_matches(Self, Int, Array[Selection], String) -> Json raise @failure.Failure
 pub fn Session::replace_picture(Self, Int, Int, Bytes) -> Json raise @failure.Failure
 pub fn Session::replace_range(Self, Int, Selection, String, input_group? : Int?) -> Json raise @failure.Failure
+pub fn Session::running_area(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::save(Self) -> Bytes raise @failure.Failure
 pub fn Session::select(Self, Int, Selection) -> Json raise @failure.Failure
 pub fn Session::selected_text(Self, Int, Selection, cut? : Bool) -> String raise @failure.Failure
@@ -177,6 +178,8 @@ pub fn Session::set_page_background(Self, Int, String?) -> Json raise @failure.F
 pub fn Session::set_page_borders(Self, Int, @layout.PageBorders?) -> Json raise @failure.Failure
 pub fn Session::set_page_setup(Self, Int, @layout.PageSetup, orientation? : String?) -> Json raise @failure.Failure
 pub fn Session::set_paragraph_format(Self, Int, Selection, ParagraphFormat) -> Json raise @failure.Failure
+pub fn Session::set_running_area(Self, Int, String, String, String, Double, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
+pub fn Session::set_running_options(Self, Int, Bool, Bool, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_theme_color(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::set_theme_fonts(Self, Int, String, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::style_catalog(Self, Int, String) -> Json raise @failure.Failure
@@ -184,6 +187,7 @@ pub fn Session::tab(Self, Int, Bool) -> Json raise @failure.Failure
 pub fn Session::theme_colors(Self, Int) -> Json raise @failure.Failure
 pub fn Session::theme_fonts(Self, Int) -> Json raise @failure.Failure
 pub fn Session::undo_edit(Self, Int) -> Json raise @failure.Failure
+pub fn Session::unlink_running_area(Self, Int, String, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::update_composition(Self, Int, Int, String) -> Json raise @failure.Failure
 pub fn Session::update_list_level(Self, Int, Int, Int, ListLevelFormat) -> Json raise @failure.Failure
 pub fn Session::update_picture_resize(Self, Int, Int, Double, Double, Int) -> Json raise @failure.Failure

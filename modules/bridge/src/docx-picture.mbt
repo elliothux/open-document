@@ -15,7 +15,9 @@ fn Foundation::docx_flow(
   for paragraph in flow.paragraphs {
     retain(paragraph)
   }
-  for header in flow.headers {
+  for
+    header in flow.headers.values().to_array() +
+    flow.footers.values().to_array() {
     for paragraph in header {
       retain(paragraph)
     }

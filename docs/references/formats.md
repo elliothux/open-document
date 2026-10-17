@@ -351,6 +351,26 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 导入支持实线、显式 none/nil、RGB 及按黑色解释的 auto，保留未改源。未知线型、主题色、艺术边框、阴影/框效果、重复节点、未知属性/子节点及目标注释保持保护和布局诊断。多节、镜像/装订线、文档保护及预算沿页面设置保护；其余边框样式继续实施。
 
+### 页眉页脚
+
+`FoundationSession/Client.runningArea(revision, kind, variant)` 返回 `DocxRunningArea { revision, text, distance, reason, differentFirst, differentEven, shared }`。`kind` 使用 `DocxRunningKind` 的 `header/footer`；`variant` 使用 `DocxRunningVariant` 的 `default/first/even`。`DocumentEditor.runningArea(kind, variant)` 沿原生输入屏障查询。当前支持单节，文字以 LF 分段，以 U+2028 表示软换行，保留 Tab；`distance` 为距纸张上边或下边的 pt，同类区域的三种变体共用该距离。不支持的源返回保护原因。
+
+`FoundationSession/Client.setRunningArea(revision, kind, variant, text, distance, profile)` 与 `DocumentEditor.setRunningArea(kind, variant, text, distance)` 替换指定区域的纯文字。前者显式提供字体映射，编辑器复用当前映射。文字最多 8192 个 UTF-16 单位，距离为 0–14400 pt 的整数 twip，并须给正文留出可用区域。缺失的 `hdr/ftr` 部件、关系、内容类型、节引用及距离在同一事务创建，候选排版和输出预算通过后提交。清空保留一个空段落和已创建部件，不清理未知资源。
+
+`FoundationSession/Client.setRunningOptions(revision, first, even, profile)` 与 `DocumentEditor.setRunningOptions(first, even)` 修改首页和奇偶页开关。核心写回单节 `titlePg` 与文档 `evenAndOddHeaders`，按需创建节或设置部件；关闭保留所有区域和引用，重新开启恢复同一内容。开关不隐式创建文字部件。首页启用时优先选择 first；其余偶数页在奇偶开关启用时选择 even；其他页选择 default。缺失的活动变体显示空白，不回退到 default。选择依据 [ONLYOFFICE 页边区域解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Layout/Base.js#L85-L116)，未复制上游源码。
+
+`FoundationSession/Client.unlinkRunningArea(revision, kind, variant, profile)` 与 `DocumentEditor.unlinkRunningArea(kind, variant)` 为指定共享区域创建独立部件。`shared` 按实际引用解析后的部件判断，包含非活动变体和不同关系 ID 的别名；没有共享或没有部件时不增加历史。默认面板先读取区域，再提供独立操作。
+
+核心完整复制区域 XML 及其关系，保留注释、属性和关系 ID；内部目标改为包内绝对路径，外链保持原地址且不请求网络。图片等资源继续复用，旧部件保留。新部件、关系、内容类型及选定引用合为一次有界事务，候选失败保留原文档，支持精确撤销/重做与重开。未知或带注释的源可独立保留，纯文字编辑限制继续适用。复制思路参考 [ONLYOFFICE 断开页边继承](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L11643-L11715)，当前操作只处理单节显式共享引用，节间继承仍待实现。实现归[独立部件事务](../../modules/formats/src/docx/running-unlink.mbt)。
+
+修改保留正文、选区、待输入格式和其他部件。距离单独变化时完整保留区域源；文字替换保留未改段落的原始 XML，修改的段落保留段落属性与首个 run 的字符属性，新增段落沿用最后一段。重复设置不新增历史；开关、部件创建、文字和距离修改共用精确撤销重做及保存重开。默认页面面板提供区域、所属页面、读取、文字、距离和两个开关，过期草稿须重新读取；应用开关保留尚未提交的文字草稿。
+
+核心 `Flow.headers/footers` 按 `default/first/even` 保存活动区域的段落，配合 `headerDistance/footerDistance/differentFirst/differentEven` 派生各页正文上下空间。`Layout.running` 按页保存页边行，独立于正文光标行。页眉从上边距离开始，页脚在下边距离以上结束；实际行框、段距与正文边距共同确定避让。文字复用既有塑形、定位图元、Canvas/PDF 和语义文本；命中返回 `protected-content:running-area`，不产生正文编辑位置。活动区域的重复行计入原有总行数预算。几何依据 [ONLYOFFICE HeaderFooter](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/HeaderFooter.js#L1735-L1804)。实现归 [`running-read.mbt`](../../modules/formats/src/docx/running-read.mbt)、[`running-edit.mbt`](../../modules/formats/src/docx/running-edit.mbt)、[开关事务](../../modules/formats/src/docx/running-options.mbt)、[页边布局](../../modules/layout/src/running.mbt)及 [`docx-running.tsx`](../../packages/ui/src/docx-running.tsx)。
+
+分页缓存包含三种活动页的正文空间。后缀复用同时检查当前空间和页序奇偶，首段变动不能把另一类页面的旧位置复用到当前页。普通表格行、纵向合并续页、保留段落链和孤行控制按当前页空间放置；纵向合并组的重复表头仍沿既有整组预留规则，按该组经过页面的最小可用高度判断，逐片段取舍继续完善。
+
+节间继承、页码/字段、图片/表格/审阅对象及页边原生光标仍待实现。共享同一部件的变体可显示，文字替换须先显式断开，避免改写其他区域；未知或带注释的目标源也不允许纯文字替换。非活动区域保持原源，启用前验证候选布局。正文查找和统计仍只覆盖既定正文范围。
+
 ### 表格创建
 
 `FoundationSession/Client.insertTable(revision, selection, rows, columns)` 与 `DocumentEditor.insertTable(rows, columns)` 在正文范围插入固定网格，默认 UI 提供行列输入。rows 为 1–1000，columns 为 1–63，总格数最多 4096，并受 XML、历史和输出预算限制。列宽按当前单节布局的可用页宽分配整数 twip，余量逐列分配，每列至少 12 pt。沿用当前纸型解释，不改源页面设置。未知或受保护的正文、嵌套表格、多节及无法解释的页面设置拒绝操作。
@@ -598,9 +618,9 @@ DOCX 的显式页面宽、高按固定 LibreOffice 25.8.2.2 的[导入规则](ht
 
 `flow()` 返回派生的段落、样式、页面设置、表格、内联图片引用和诊断；不能修改它来编辑文档。段落与表格数组各自保持源顺序；顶层表格的必需 `beforeParagraph` 是当前源 XML 中先于该表格的正文段落数，同位置连续表格按表格数组顺序插入。稳定 `id` 不表示文档位置，拆段后也不按 ID 排序。`layout(profile)` 在核心中生成 `PageLayout`，profile 将 DOCX 字体键（含 `|bold` / `|italic`）映射到已供应字体 identity。缺字体或字形明确失败，宿主不提供 DOM 测量。布局长度单位为 point；字体内部度量仍用 font units，源范围使用节点局部 UTF-16 offset。
 
-支持 docDefaults、段落/字符样式 basedOn、主题 Latin 字体、直接格式、字号/颜色/粗斜体、段前段后、缩进、左/中/右对齐、auto/exact/atLeast 行距、空段落及显式分页。正文、表格和空页眉共用段落间距校验，负间距/最小行距/单元格 padding 明确失败。页面使用单一设置，多节文档给不支持诊断，不承诺各节独立分页。分页的断行使用固定 Unicode 数据与基本 BiDi；同样式跨文本节点一起塑形并保留源映射。`unicode_linebreak` 的 Unicode 15 测试向量按上游规则排除 30.22/999.0 做依赖回归，其字符表源自 Unicode 13；不宣称完整 UAX #14 符合性。当前 fallback 仍按码点选择，复杂 script、彩色字形和任意字体质量不在承诺范围。
+支持 docDefaults、段落/字符样式 basedOn、主题 Latin 字体、直接格式、字号/颜色/粗斜体、段前段后、缩进、左/中/右对齐、auto/exact/atLeast 行距、空段落及显式分页。正文、表格和页眉页脚共用段落间距校验，负间距/最小行距/单元格 padding 明确失败。页面使用单一设置，多节文档给不支持诊断，不承诺各节独立分页。分页的断行使用固定 Unicode 数据与基本 BiDi；同样式跨文本节点一起塑形并保留源映射。`unicode_linebreak` 的 Unicode 15 测试向量按上游规则排除 30.22/999.0 做依赖回归，其字符表源自 Unicode 13；不宣称完整 UAX #14 符合性。当前 fallback 仍按码点选择，复杂 script、彩色字形和任意字体质量不在承诺范围。
 
-基础表格使用固定列宽、当前支持的实线/无边框、RGB 单色填充、四边 cell margin 和最小/精确行高；普通行[逐格跨页](#表格行跨页)，纵向合并行组整体换页。边框编辑与冲突规则归[表格边框](#表格边框)。相邻行共享边框只占一次高度，表尾另留底边，分页判断包含当前页底边空间。自然字高使用上述共享参考设备取整；固定 Noto 原表格的自然行高与垂直步距已匹配固定 LibreOffice，不扩大为所有应用或水平几何一致。嵌套单元格仍明确拒绝；精确行高沿[裁剪规则](#表格尺寸)。不绘制浮动、裁剪、旋转、翻转图片或带内容的页眉；空页眉复用段落度量预留空间。已识别但未实现的正文属性给诊断，原包仍由 P2 保存；不是完整属性/schema 检查器，主题颜色、条件表格样式与复杂页眉页脚不在支持面。图片仅支持包内内联 extent；宿主解码已授权资源为 RGBA，外链图片明确拒绝、不自动下载。
+基础表格使用固定列宽、当前支持的实线/无边框、RGB 单色填充、四边 cell margin 和最小/精确行高；普通行[逐格跨页](#表格行跨页)，纵向合并行组整体换页。边框编辑与冲突规则归[表格边框](#表格边框)。相邻行共享边框只占一次高度，表尾另留底边，分页判断包含当前页底边空间。自然字高使用上述共享参考设备取整；固定 Noto 原表格的自然行高与垂直步距已匹配固定 LibreOffice，不扩大为所有应用或水平几何一致。嵌套单元格仍明确拒绝；精确行高沿[裁剪规则](#表格尺寸)。不绘制浮动、旋转或翻转图片；页眉页脚已接通[文字、实际避让与逐页输出](#页眉页脚)。已识别但未实现的正文属性给诊断，原包仍由 P2 保存；不是完整属性/schema 检查器，主题颜色、条件表格样式与复杂页眉页脚不在支持面。图片仅支持包内内联 extent；宿主解码已授权资源为 RGBA，外链图片明确拒绝、不自动下载。
 
 表格左/中/右对齐按基础样式、派生样式、直接属性依次覆盖，start/end 沿用 left/right 归一化；未知有效值报 `unsupported-layout`。明确零 dxa 缩进仅在可选符号后全零数字、已知属性且无子节点/文本时视为无位移；非零、非法或未知声明仍诊断/保护。此规则不增加非零缩进、RTL 表格语义或复杂表格支持。Word compatibilityMode 对表格外侧边距和定位的版本差异尚未实现，零缩进声明可读不等于版本布局已经一致；固定网格超过正文可用宽度仍明确拒绝，不通过缩小原件或统一左移获得通过。原 POI 表格的 kern/ligature 诊断仍保留，普通核心源事务可用不等于可视编辑可用。
 

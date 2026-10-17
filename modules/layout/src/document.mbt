@@ -147,8 +147,12 @@ pub(all) struct Flow {
   paragraphs : Array[Paragraph]
   diagnostics : Array[String]
   tables : Array[Table]
-  headers : Array[Array[Paragraph]]
+  headers : Map[String, Array[Paragraph]]
   headerDistance : Double
+  footers : Map[String, Array[Paragraph]]
+  footerDistance : Double
+  differentFirst : Bool
+  differentEven : Bool
   additiveSpacing : Bool
 } derive(ToJson)
 
@@ -263,6 +267,7 @@ pub(all) struct Layout {
   reusedPages : Int
   profile : Map[String, String]
   pages : Array[PageFrame]
+  running : Array[Array[Line]]
   diagnostics : Array[String]
   outlines : Array[Outline]
   fonts : Array[FontInfo]

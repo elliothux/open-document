@@ -1,6 +1,7 @@
 ///|
 priv struct Pagination {
-  page : PageSetup
+  mut page : PageSetup
+  setups : Array[PageSetup]
   pages : Array[PageFrame]
   mut y : Double
   mut count : Int
@@ -9,9 +10,13 @@ priv struct Pagination {
 }
 
 ///|
-fn Pagination::new(page : PageSetup) -> Pagination {
+fn Pagination::new(
+  page : PageSetup,
+  setups~ : Array[PageSetup] = [],
+) -> Pagination {
   {
     page,
+    setups,
     pages: [
       {
         width: page.width,
@@ -35,6 +40,7 @@ fn Pagination::next_page(self : Pagination) -> Unit raise @failure.Failure {
   guard self.pages.length() < 1024 else {
     @failure.reject("limit-exceeded", "Page budget exceeded")
   }
+  self.page = self.page_at(self.pages.length())
   self.pages.push({
     width: self.page.width,
     height: self.page.height,
@@ -54,14 +60,28 @@ fn Pagination::fit(
   self : Pagination,
   height : Double,
 ) -> Unit raise @failure.Failure {
-  guard height > 0 &&
-    height <= self.page.height - self.page.top - self.page.bottom else {
+  guard height > 0 else {
     @failure.reject(
       "layout-overflow", "Object is taller than the page content area",
     )
   }
-  if self.y + height > self.page.height - self.page.bottom {
+  for _ in 0..<3 {
+    if self.y + height <= self.page.height - self.page.bottom {
+      return
+    }
     self.next_page()
+  }
+  @failure.reject(
+    "layout-overflow", "Object is taller than the page content area",
+  )
+}
+
+///|
+fn Pagination::page_at(self : Pagination, index : Int) -> PageSetup {
+  if self.setups.is_empty() {
+    self.page
+  } else {
+    self.setups[if index == 0 { 0 } else if index % 2 == 1 { 1 } else { 2 }]
   }
 }
 
@@ -265,47 +285,21 @@ pub fn paginate(
       @failure.reject("invalid-table", "Table body position is invalid")
     }
   }
-  guard flow.headerDistance >= 0 && flow.headerDistance <= flow.page.height else {
-    @failure.reject("invalid-style", "Invalid header distance")
-  }
   let cache = ParagraphCache::new(probe, profile)
-  let mut top = flow.page.top
-  for header in flow.headers {
-    let mut height = flow.headerDistance
-    let mut gap = 0.0
-    let mut last_gap = 0.0
-    for paragraph in header {
-      paragraph.validate_spacing(flow.page.height)
-      guard !paragraph.pageBreakBefore else {
-        @failure.reject(
-          "unsupported-layout", "Invalid empty header spacing or page break",
-        )
-      }
-      height += paragraph.before + paragraph.after
-      height += gap
-      last_gap = paragraph.line.terminal_gap(paragraph.nominalSize)
-      let mut first = true
-      for
-        measured in cache.lines(
-          probe,
-          paragraph,
-          profile,
-          flow.page.width - flow.page.left - flow.page.right,
-        ) {
-        let line = measured.spaced(paragraph.line, first)
-        height += line.height
-        gap = paragraph.line.gap(measured.textHeight)
-        first = false
-      }
-    }
-    top = top.max(height + last_gap)
-  }
-  let page = { ..flow.page, top, }
-  page.validate()
-  let pagination = Pagination::new(page)
+  let (patterns, setups) = running_lines(probe, flow, cache, profile, images)
+  let pagination = Pagination::new(setups[0], setups~)
   let (reflowed, reused, next) = pagination.body(
     probe, flow, cache, profile, images,
   )
+  let running = pagination.pages.mapi((index, _) => {
+    patterns[if index == 0 { 0 } else if index % 2 == 1 { 1 } else { 2 }]
+  })
+  guard running.iter().fold(init=0, (total, lines) => total + lines.length()) <=
+    32768 - pagination.count else {
+    @failure.reject(
+      "limit-exceeded", "Repeated header and footer line budget exceeded",
+    )
+  }
   let result : Layout = {
     revision: flow.revision,
     shapedParagraphs: cache.shaped,
@@ -313,6 +307,7 @@ pub fn paginate(
     reflowedPages: reflowed,
     reusedPages: reused,
     profile: profile.copy(),
+    running,
     pages: pagination.pages.mapi((index, page) => {
       ..page,
       pageBorders: if flow.pageBorders.zOrder == "front" {
