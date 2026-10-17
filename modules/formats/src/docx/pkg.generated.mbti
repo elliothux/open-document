@@ -103,7 +103,9 @@ pub struct Session {
 }
 pub fn Session::apply_format(Self, Int, Selection, CharacterFormat, ParagraphFormat) -> Json raise @failure.Failure
 pub fn Session::begin_composition(Self, Int) -> Json raise @failure.Failure
+pub fn Session::begin_picture_resize(Self, Int, Int) -> Json raise @failure.Failure
 pub fn Session::cancel_composition(Self, Int, Int) -> Json raise @failure.Failure
+pub fn Session::cancel_picture_resize(Self, Int, Int) -> Json raise @failure.Failure
 pub fn Session::capture_format(Self, Int, Selection) -> Json raise @failure.Failure
 pub fn Session::check_idle(Self) -> Unit raise @failure.Failure
 pub fn Session::check_position(Self, Position) -> Unit raise @failure.Failure
@@ -120,6 +122,7 @@ pub fn Session::edit_state(Self) -> Json raise @failure.Failure
 pub fn Session::edit_table(Self, Int, Selection, TableEdit, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::enter(Self, Int) -> Json raise @failure.Failure
 pub fn Session::find(Self, Int, String, FindOptions) -> Json raise @failure.Failure
+pub fn Session::finish_picture_resize(Self, Int, Int, Double, Double, Int) -> Json raise @failure.Failure
 pub fn Session::flow(Self) -> @layout.Flow raise @failure.Failure
 pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
 pub fn Session::insert_picture(Self, Int, Double, Double, Bytes) -> Json raise @failure.Failure
@@ -149,6 +152,7 @@ pub fn Session::tab(Self, Int, Bool) -> Json raise @failure.Failure
 pub fn Session::undo_edit(Self, Int) -> Json raise @failure.Failure
 pub fn Session::update_composition(Self, Int, Int, String) -> Json raise @failure.Failure
 pub fn Session::update_list_level(Self, Int, Int, Int, ListLevelFormat) -> Json raise @failure.Failure
+pub fn Session::update_picture_resize(Self, Int, Int, Double, Double, Int) -> Json raise @failure.Failure
 pub fn Session::update_style(Self, Int, String, CharacterFormat, ParagraphFormat, name? : String?, based_on? : FormatChange[String], reset? : Bool) -> Json raise @failure.Failure
 
 pub(all) enum TableEdit {

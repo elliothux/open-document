@@ -128,6 +128,7 @@ export async function docxSelectionDescription(
 ): Promise<string> {
   if (stopped) return "Selection unavailable while editing is stopped";
   if (state.compositionId !== null) return "Text composition in progress";
+  if (state.pictureResizeId !== null) return "Picture resize in progress";
   const selection = state.selection;
   if (!selection) return "Focus document text input to start editing";
   if (

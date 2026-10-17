@@ -421,6 +421,7 @@ pub fn Session::query(
       keys
     }),
     "sheet": current.id,
+    "filter": self.filter_query(sheet_index),
     "cells": cells,
     "selection": {
       "sheet": self.selection.0,

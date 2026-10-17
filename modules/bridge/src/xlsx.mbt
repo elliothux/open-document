@@ -262,6 +262,10 @@ fn Foundation::xlsx_operation(
           )
         "unmerge" => @xlsx.Unmerge(field_string(change, "range"))
         "sort" => xlsx_sort(change)
+        "filter" => xlsx_filter(change)
+        "filterClear" => @xlsx.ClearFilter
+        "filterRemove" => @xlsx.RemoveFilter
+        "filterReapply" => @xlsx.ReapplyFilter
         "fill" =>
           @xlsx.Fill(
             field_string(change, "range"),

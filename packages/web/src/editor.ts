@@ -2,14 +2,12 @@ import { downloadBytes, docxContentType } from "./download.js";
 import { createDocumentElements, docxPageText } from "./document-elements.js";
 import type { FoundationClient } from "./foundation.js";
 import { PageCanvas } from "./page-canvas.js";
-import { recoverDocxState } from "./document-recovery.js";
 import {
-  PointerSelection,
-  revealInput,
-  scrollPointerViewport,
-  clampPointerPoint,
-  type PointerPoint,
-} from "./pointer-selection.js";
+  recoverDocxState,
+  cancelDocxPictureResize,
+} from "./document-recovery.js";
+import { revealInput } from "./pointer-selection.js";
+import { DocumentPointer } from "./document-pointer.js";
 import { TextInput } from "./text-input.js";
 import { DocumentError, DOCX_SOFT_BREAK } from "@open-document/wasm/foundation";
 import { bindClipboard, copyDocxSelection } from "./clipboard-input.js";
@@ -24,7 +22,6 @@ import {
   queryDocxSelectionGeometry,
   searchSelections,
   selectFirstDocxPosition,
-  pointerDocxSelection,
   type DocumentSearchResult,
 } from "./document-selection.js";
 export type { DocumentSearchResult } from "./document-selection.js";
@@ -63,8 +60,7 @@ export class DocumentEditor {
   private cssScale = 96 / 72;
   private readonly inputEvents: TextInput;
   private cleanup: Promise<void> | undefined;
-  private readonly pointerSelection: PointerSelection;
-  private pointerPageTime = 0;
+  private readonly pointerSelection: DocumentPointer;
   private selectionDescription = "Focus document text input to start editing";
   private constructor(
     private readonly root: HTMLElement,
@@ -101,19 +97,47 @@ export class DocumentEditor {
       },
       options,
     );
-    this.pointerSelection = new PointerSelection(
+    this.pointerSelection = new DocumentPointer(
       this.surface.canvas,
       this.viewport,
+      this.client,
       this.listeners.signal,
-      (point, initial, extend, elapsed) =>
-        this.selectPointer(point, initial, extend, elapsed),
-      () =>
-        !this.closed &&
-        !this.paused &&
-        !this.blocked &&
-        !this.resuming &&
-        !this.inputEvents.active,
-      () => this.enqueue(() => this.presentSelection(), true),
+      {
+        assertOpen: () => this.assertOpen(),
+        available: () =>
+          !this.closed &&
+          !this.paused &&
+          !this.blocked &&
+          !this.resuming &&
+          !this.inputEvents.active,
+        current: () => ({
+          state: this.state,
+          layout: this.currentLayout,
+          page: this.page,
+          scale: this.cssScale,
+        }),
+        run: (operation) => this.enqueue(operation, true),
+        input: () => {
+          this.inputEvents.endGroup();
+          this.input.focus({ preventScroll: true });
+        },
+        selected: (state) => this.changed(state, false, false),
+        paint: (page) => {
+          this.page = page;
+          this.paint();
+        },
+        settle: () => this.enqueue(() => this.presentSelection(false), true),
+        resize: (change) => {
+          this.inputEvents.endGroup();
+          return this.enqueue(async () => {
+            const state = await this.client.pictureResize(
+              this.state.revision,
+              change(),
+            );
+            await this.changed(state, true, false);
+          }, true);
+        },
+      },
     );
     bindClipboard(
       this.input,
@@ -129,7 +153,7 @@ export class DocumentEditor {
       "blur",
       () => {
         this.inputEvents.endGroup();
-        this.pointerSelection.finish();
+        this.pointerSelection.finishText();
       },
       options,
     );
@@ -225,12 +249,13 @@ export class DocumentEditor {
   }
   async setPaused(paused: boolean): Promise<void> {
     this.assertOpen();
+    if (paused) this.pointerSelection.finish();
     this.paused = paused;
     this.container.inert = paused;
-    if (paused) this.pointerSelection.finish();
     this.input.readOnly = paused || !!this.blocked || this.resuming;
     this.publish();
     if (paused) await this.tail;
+    else await this.enqueue(() => this.presentSelection(false), true);
   }
   undo(): Promise<void> {
     return this.history(false);
@@ -527,67 +552,11 @@ export class DocumentEditor {
       if (this.state.selection) this.focus();
     });
   }
-  private selectPointer(
-    point: PointerPoint,
-    initial: boolean,
-    extend: boolean,
-    elapsed: number,
+  private async changed(
+    state: EditState,
+    relayout = false,
+    reveal = true,
   ): Promise<void> {
-    const rect = this.surface.canvas.getBoundingClientRect();
-    const x = (point.x - rect.left) / this.cssScale;
-    const y = (point.y - rect.top) / this.cssScale;
-    const layoutId = this.currentLayout.id;
-    const page = this.page;
-    if (initial) {
-      this.inputEvents.endGroup();
-      this.pointerPageTime = performance.now();
-      this.input.focus({ preventScroll: true });
-    }
-    return this.enqueue(async () => {
-      if (!initial) this.scrollPointer(point, elapsed);
-      const frame = this.currentLayout.regions[this.page];
-      if (!frame) throw new Error("Unknown page");
-      if (
-        !initial &&
-        this.currentLayout.semantics[this.page]?.lines.length === 0
-      )
-        return;
-      const current = this.surface.canvas.getBoundingClientRect();
-      const clamped = clampPointerPoint(point, current, this.cssScale, frame);
-      const hit = await this.client.hitTest(
-        initial ? layoutId : this.currentLayout.id,
-        initial ? page : this.page,
-        initial ? x : clamped.x,
-        initial ? y : clamped.y,
-      );
-      this.assertOpen();
-      this.state = await this.client.selectDocx(
-        this.state.revision,
-        pointerDocxSelection(hit, this.state, initial, extend),
-      );
-      await this.presentSelection(false);
-    }, true);
-  }
-
-  private scrollPointer(point: PointerPoint, elapsed: number): void {
-    if (elapsed === 0) return;
-    const view = this.viewport;
-    const direction = scrollPointerViewport(
-      view,
-      point,
-      elapsed,
-      this.pointerPageTime,
-    );
-    if (direction === 0) return;
-    const next = this.page + direction;
-    if (next < 0 || next >= this.currentLayout.regions.length) return;
-    this.page = next;
-    this.paint();
-    view.scrollTop = direction < 0 ? view.scrollHeight - view.clientHeight : 0;
-    this.pointerPageTime = performance.now();
-  }
-
-  private async changed(state: EditState, relayout = false): Promise<void> {
     this.assertOpen();
     const revision = this.state.revision;
     this.state = state;
@@ -595,7 +564,7 @@ export class DocumentEditor {
     if (relayout || state.revision !== revision)
       this.currentLayout = await this.surface.layout(this.profile);
     this.assertOpen();
-    await this.presentSelection();
+    await this.presentSelection(reveal);
   }
 
   private async copySelection(cut: boolean): Promise<void> {
@@ -651,6 +620,7 @@ export class DocumentEditor {
     this.input.setAttribute("aria-description", description);
     this.paint();
     this.surface.drawSelection(this.page, this.cssScale, geometry, caret);
+    await this.pointerSelection.refresh(geometry);
     if (caret) {
       this.input.style.left = `${caret.x * this.cssScale}px`;
       this.input.style.top = `${caret.y * this.cssScale}px`;
@@ -694,6 +664,7 @@ export class DocumentEditor {
     );
     this.paint();
     this.surface.clearOverlay(this.cssScale);
+    await this.pointerSelection.refresh(undefined);
   }
   setZoom(zoom: number): Promise<void> {
     return this.enqueue(async () => {
@@ -788,7 +759,10 @@ export class DocumentEditor {
     this.observable.close();
     this.container.remove();
     this.cleanup = this.tail
-      .then(() => this.inputEvents.cancel())
+      .then(async () => {
+        await this.inputEvents.cancel();
+        await cancelDocxPictureResize(this.client);
+      })
       .finally(() => {
         this.surface.dispose();
       });

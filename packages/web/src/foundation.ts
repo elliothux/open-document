@@ -22,6 +22,7 @@ export type {
   DocxPageSettings,
   DocxPicture,
   DocxPictureEdit,
+  DocxPictureResizeCommand,
   DocxPictures,
   DocxTableEdit,
   DocxCellMargins,
@@ -67,6 +68,8 @@ import {
   checkDocxPictureEdit,
   docxPictures,
   type DocxPictureEdit,
+  type DocxPictureResizeCommand,
+  checkDocxPictureResize,
   docxPageSettings,
   type DocxPageSetup,
   type DocxPageSettings,
@@ -258,6 +261,16 @@ export class FoundationClient {
   async pictures(revision: number) {
     return docxPictures(
       await this.connection.request({ operation: "docxPictures", revision }),
+    );
+  }
+  async pictureResize(revision: number, change: DocxPictureResizeCommand) {
+    checkDocxPictureResize(change);
+    return editState(
+      await this.connection.request({
+        operation: "docxPictureResize",
+        revision,
+        change,
+      }),
     );
   }
   async editPicture(

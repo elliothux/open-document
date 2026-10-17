@@ -39,86 +39,26 @@ fn Sheet::row_height_changes(
   sizes : Map[Int, Double],
   best_fit~ : Bool = false,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
-  guard sizes.length() <= 4096 else {
-    @failure.reject("limit-exceeded", "Row height edit exceeds 4096 rows")
-  }
-  let changes : Array[@xml.SourceChange] = []
-  let data = tree.nodes[self.data]
-  let prefix = data.qualified[:data.qualified.length() - 9].to_owned()
-  let insertions : Map[Int, String] = Map([])
-  let rows = tree.all(data.id, "row")
-  let numbers : Map[Int, Int] = Map([])
-  for number, id in self.rows {
-    numbers[id] = number
-  }
-  let ordered = rows.copy()
-  ordered.sort_by((a, b) => numbers[a.id].compare(numbers[b.id]))
-  let mut next_index = 0
-  let selected = sizes.keys().to_array()
-  selected.sort()
-  for number in selected {
-    if !self.rows.contains(number) {
-      let size = sizes[number]
-      let xml = if size == 0 {
-        "<\{prefix}row r=\"\{number}\" hidden=\"1\"/>"
-      } else {
-        "<\{prefix}row r=\"\{number}\" ht=\"\{size}\" customHeight=\"\{if best_fit { "0" } else { "1" }}\" hidden=\"\{if best_fit && self.dimensions.rows.size(number) == 0 { "1" } else { "0" }}\"/>"
-      }
-      while next_index < ordered.length() &&
-            numbers[ordered[next_index].id] <= number {
-        next_index += 1
-      }
-      let next = ordered.get(next_index)
-      let offset = next
-        .map(row => row.start - data.start)
-        .unwrap_or(
-          if data.empty {
-            data.opening_end - data.start - 2
-          } else {
-            data.closing_start - data.start
-          },
-        )
-      insertions[offset] = insertions.get(offset).unwrap_or("") + xml
+  let metadata : Map[Int, Array[(String, String)]] = Map([])
+  for number, size in sizes {
+    let values = if size == 0 {
+      [("hidden", "1")]
+    } else {
+      [
+        ("ht", size.to_string()),
+        ("customHeight", if best_fit { "0" } else { "1" }),
+        ("hidden", "0"),
+      ]
     }
-  }
-  for row in rows {
-    let number = numbers[row.id]
-    let values : Array[(String, String)] = []
-    if sizes.get(number) is Some(size) {
-      values.append(
-        if size == 0 {
-          [("hidden", "1")]
-        } else {
-          [
-            ("ht", size.to_string()),
-            ("customHeight", if best_fit { "0" } else { "1" }),
-            ("hidden", "0"),
-          ]
-        },
-      )
-      if best_fit {
-        values.retain(entry => entry.0 != "hidden")
-        if self.dimensions.rows.size(number) == 0 {
-          values.push(("hidden", "1"))
-        }
+    if best_fit {
+      values.retain(entry => entry.0 != "hidden")
+      if self.dimensions.rows.size(number) == 0 {
+        values.push(("hidden", "1"))
       }
     }
-    // Inserting an empty row must not renumber following rows with implicit identities.
-    if !insertions.is_empty() && row.attribute("r") is None {
-      values.push(("r", number.to_string()))
-    }
-    changes.append(metadata_changes(row, values))
+    metadata[number] = values
   }
-  for offset, xml in insertions {
-    changes.push(
-      if data.empty {
-        insertion(data, xml)
-      } else {
-        { node: data.id, offset, length: 0, xml, }
-      },
-    )
-  }
-  changes
+  self.row_metadata_changes(tree, metadata)
 }
 
 ///|
@@ -310,10 +250,20 @@ fn Session::resize_dimensions(
   } else {
     current.column_width_changes(tree, first, last, [{ first, last, size, }])
   }
-  if changes.is_empty() {
-    return self.query()
+  let mut document = current.document
+  let edits : Array[(String, @xml.Edit)] = []
+  if !changes.is_empty() {
+    let (next, edit) = document.edit_source(changes)
+    document = next
+    edits.push((current.id, edit))
   }
-  let (document, edit) = current.document.edit_source(changes)
+  if rows {
+    let (next, filter_edits) = self.filter_dimension_changes(
+      current, document, first, last, size,
+    )
+    document = next
+    edits.append(filter_edits)
+  }
   if document.source() == current.document.source() {
     return self.query()
   }
@@ -327,12 +277,9 @@ fn Session::resize_dimensions(
     self.styles.length(),
   )
   let calculation = Calculation::build(sheets, None, [], self.date1904)
-  self.commit(
-    sheets,
-    self.workbook,
-    calculation,
-    [(current.id, edit)],
-    self.selection,
-  )
+  if calculation.visibility_dependent() {
+    edits.append(self.cache_edits(sheets, calculation))
+  }
+  self.commit(sheets, self.workbook, calculation, edits, self.selection)
   self.query()
 }

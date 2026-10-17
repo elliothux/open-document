@@ -469,3 +469,7 @@
     min-height: 72px;
   }
 }
+.od-filter-values {
+  max-height: 12rem;
+  overflow: auto;
+}

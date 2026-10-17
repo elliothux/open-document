@@ -46,6 +46,37 @@ fn Foundation::picture_operation(
   if operation == "docxPictures" {
     return session.pictures(revision)
   }
+  if operation == "docxPictureResize" {
+    guard request is { "change": change, .. } else {
+      @failure.reject("invalid-operation", "Picture resize command is required")
+    }
+    let result = match field_string(change, "action") {
+      "begin" =>
+        session.begin_picture_resize(revision, field_int(change, "picture"))
+      "cancel" =>
+        session.cancel_picture_resize(revision, field_int(change, "id"))
+      "update" =>
+        session.update_picture_resize(
+          revision,
+          field_int(change, "id"),
+          xlsx_number(change, "dx"),
+          xlsx_number(change, "dy"),
+          field_int(change, "handle"),
+        )
+      "commit" =>
+        session.finish_picture_resize(
+          revision,
+          field_int(change, "id"),
+          xlsx_number(change, "dx"),
+          xlsx_number(change, "dy"),
+          field_int(change, "handle"),
+        )
+      _ =>
+        @failure.reject("invalid-operation", "Unknown picture resize command")
+    }
+    self.layout = None
+    return result
+  }
   guard request is { "picture": picture, .. } else {
     @failure.reject("invalid-operation", "Picture settings are required")
   }

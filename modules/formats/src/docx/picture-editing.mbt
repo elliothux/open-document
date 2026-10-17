@@ -220,6 +220,21 @@ pub fn Session::edit_picture(
   crop : Array[Double],
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  let prepared = self.prepare_picture_resize(id, width, height, crop)
+  if prepared is Some(prepared) {
+    self.commit_edit(prepared.edit, prepared.document)
+  }
+  self.edit_result(prepared.map(p => p.edit.paragraphs).unwrap_or([]))
+}
+
+///|
+fn Session::prepare_picture_resize(
+  self : Session,
+  id : Int,
+  width : Double,
+  height : Double,
+  crop : Array[Double],
+) -> PreparedEdit? raise @failure.Failure {
   guard [width, height].all(v => {
       !v.is_nan() && !v.is_inf() && v >= 0.1 && v <= 14400
     }) &&
@@ -255,7 +270,7 @@ pub fn Session::edit_picture(
     }
   }
   if image.width == width && image.height == height && image.crop == crop {
-    return self.edit_state()
+    return None
   }
   let changes : Array[@xml.SourceChange] = []
   for child in tree.descendants(id) {
@@ -312,8 +327,8 @@ pub fn Session::edit_picture(
     })
   }
   let (candidate, xml) = document.edit_source(changes)
-  self.commit_edit(
-    {
+  Some({
+    edit: {
       xml: [xml],
       parts: Map([]),
       created: Map([]),
@@ -323,9 +338,10 @@ pub fn Session::edit_picture(
       paragraphs: [paragraph],
       bytes: edit_bytes(xml),
     },
-    candidate,
-  )
-  self.edit_result([paragraph])
+    document: candidate,
+    typing_text: None,
+    join_group: false,
+  })
 }
 
 ///|

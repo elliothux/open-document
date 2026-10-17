@@ -117,6 +117,21 @@ pub fn DataValidation::equal(Self, Self) -> Bool
 pub fn DataValidation::not_equal(Self, Self) -> Bool
 pub fn DataValidation::to_json(Self) -> Json
 
+pub(all) struct FilterSettings {
+  range : String
+  columns : Array[FilterValues]
+} derive(Eq)
+pub fn FilterSettings::equal(Self, Self) -> Bool
+pub fn FilterSettings::not_equal(Self, Self) -> Bool
+
+pub(all) struct FilterValues {
+  column : Int
+  values : Array[String]
+  blank : Bool
+} derive(Eq)
+pub fn FilterValues::equal(Self, Self) -> Bool
+pub fn FilterValues::not_equal(Self, Self) -> Bool
+
 pub(all) struct FindOptions {
   matchCase : Bool
   wholeCell : Bool
@@ -233,6 +248,10 @@ pub(all) enum SheetEdit {
   DeleteCells(String, String)
   Fill(String, String)
   Sort(String, SortSettings)
+  SetFilter(FilterSettings)
+  ClearFilter
+  RemoveFilter
+  ReapplyFilter
   Merge(String, Bool)
   Unmerge(String)
   Freeze(Int, Int)

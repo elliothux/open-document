@@ -346,6 +346,7 @@ fn FormulaParser::primary(
           "VLOOKUP" | "HLOOKUP" => args.length() == 3 || args.length() == 4
           "XLOOKUP" => args.length() >= 3 && args.length() <= 6
           "COUNTBLANK" => args.length() == 1
+          "SUBTOTAL" => args.length() >= 2 && args.length() <= 255
           "COUNTIF" => args.length() == 2
           "COUNTIFS" =>
             args.length() >= 2 && args.length() <= 254 && args.length() % 2 == 0

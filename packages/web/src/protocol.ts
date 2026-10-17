@@ -13,6 +13,7 @@ import type {
   DocxListLevelUpdate,
   DocxPageSetup,
   DocxPictureEdit,
+  DocxPictureResizeCommand,
   DocxTableEdit,
 } from "@open-document/wasm/foundation";
 import type {
@@ -29,6 +30,11 @@ import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
+  | {
+      operation: "docxPictureResize";
+      revision: number;
+      change: DocxPictureResizeCommand;
+    }
   | { operation: "docxPictures"; revision: number }
   | { operation: "editDocxPicture"; revision: number; picture: DocxPictureEdit }
   | {

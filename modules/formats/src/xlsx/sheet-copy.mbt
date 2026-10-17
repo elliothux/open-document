@@ -28,9 +28,15 @@ fn Session::copied_sheet_name(
 ///|
 fn check_sheet_copy_markup(
   document : @xml.Document,
+  filter~ : @xml.Node? = None,
 ) -> Unit raise @failure.Failure {
   let tree = Tree::new(document)
   for node in document.nodes() {
+    if filter is Some(filter) &&
+      node.start >= filter.start &&
+      node.end <= filter.end {
+      continue
+    }
     guard node.uri == spreadsheet_uri &&
       node.attributes
       .iter()

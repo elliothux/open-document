@@ -184,6 +184,8 @@ fn Expression::evaluate(
     Function(name, args) if ["INDEX", "MATCH", "VLOOKUP", "HLOOKUP", "XLOOKUP"].contains(
         name,
       ) => lookup_function(name, args, sheets, sheet, values, work, depth)
+    Function("SUBTOTAL", args) =>
+      subtotal_function(args, sheets, sheet, values, work, depth)
     Function(name, args) if name == "COUNTA" || name == "COUNTBLANK" =>
       counting_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if [

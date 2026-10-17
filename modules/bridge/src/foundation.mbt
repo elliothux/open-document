@@ -94,7 +94,7 @@ fn Foundation::dispatch(
   }
   let operation = field_string(request, "operation")
   match operation {
-    "docxPictures" | "editDocxPicture" =>
+    "docxPictures" | "editDocxPicture" | "docxPictureResize" =>
       self.picture_operation(operation, request)
     "budget" => {
       let budget = @archive.Budget::default()

@@ -15,6 +15,7 @@ import { XlsxSheets, XlsxFrozen } from "./xlsx-sheets.js";
 import { XlsxFormat } from "./xlsx-format.js";
 import { XlsxSearch } from "./xlsx-search.js";
 import { XlsxSort } from "./xlsx-sort.js";
+import { XlsxFilter } from "./xlsx-filter.js";
 import { XlsxPrintSetup, XlsxPrintCommands } from "./xlsx-print-setup.js";
 
 export interface PanelProps {
@@ -328,6 +329,13 @@ export function Properties(props: PanelProps) {
           state={props.state}
           editor={props.file.editor}
           disabled={props.disabled}
+        />
+        <XlsxFilter
+          key={`${props.state.document?.documentId}:${props.file.editor.currentState.sheet}`}
+          controller={props.controller}
+          state={props.state}
+          editor={props.file.editor}
+          disabled={props.disabled || !!props.state.document?.stopped}
         />
         <XlsxSort
           key={`${props.state.document?.documentId}:${props.file.editor.currentState.sheet}:${props.file.editor.currentState.selection.address}`}

@@ -1,5 +1,6 @@
 import { record, integer } from "./validation.js";
 import { checkXlsxSort, type XlsxSortSettings } from "./xlsx-sort.js";
+import { checkXlsxFilter, type XlsxFilterSettings } from "./xlsx-filter.js";
 import {
   checkXlsxConditionalFormat,
   type XlsxConditionalFormat,
@@ -18,6 +19,8 @@ import {
 } from "./xlsx-print.js";
 
 export type XlsxSheetEdit =
+  | ({ action: "filter" } & XlsxFilterSettings)
+  | { action: "filterClear" | "filterRemove" | "filterReapply" }
   | ({ action: "sort"; range: string } & XlsxSortSettings)
   | {
       action: "conditionalRule";
@@ -67,6 +70,16 @@ export type XlsxSheetEdit =
 
 export function checkXlsxSheetEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "filter") {
+    checkXlsxFilter(change);
+    return;
+  }
+  if (
+    ["filterClear", "filterRemove", "filterReapply"].includes(
+      String(change.action),
+    )
+  )
+    return;
   if (change.action === "sort") {
     checkXlsxSort(change);
     return;

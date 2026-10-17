@@ -38,10 +38,10 @@ fn Session::fit_sizes(
   guard conditional.reason.is_empty() else {
     @failure.reject("protected-content", conditional.reason)
   }
-  // shortcut: Measure table/filter effects when their rendering is implemented.
+  ignore(read_filter(current))
+  // shortcut: Measure table effects when their rendering is implemented.
   for node in tree.children.get(root.id).unwrap_or([]) {
     if node.uri != spreadsheet_uri ||
-      node.name == "autoFilter" ||
       (
         ["tableParts", "pivotTableParts", "extLst"].contains(node.name) &&
         !tree.children.get(node.id).unwrap_or([]).is_empty()

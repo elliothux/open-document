@@ -16,6 +16,10 @@ pub(all) enum SheetEdit {
   DeleteCells(String, String)
   Fill(String, String)
   Sort(String, SortSettings)
+  SetFilter(FilterSettings)
+  ClearFilter
+  RemoveFilter
+  ReapplyFilter
   Merge(String, Bool)
   Unmerge(String)
   Freeze(Int, Int)
@@ -156,6 +160,8 @@ pub fn Session::edit_sheet(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   match change {
+    SetFilter(_) | ClearFilter | RemoveFilter | ReapplyFilter =>
+      return self.edit_filter(sheet, change)
     ConditionalRule(range, priority, settings, source_revision) =>
       return self.set_conditional(
         sheet, range, priority, settings, source_revision,
@@ -279,6 +285,10 @@ pub fn Session::edit_sheet(
     | DeleteCells(_, _)
     | Fill(_, _)
     | Sort(_, _)
+    | SetFilter(_)
+    | ClearFilter
+    | RemoveFilter
+    | ReapplyFilter
     | ColumnWidth(_, _, _)
     | Merge(_, _)
     | Unmerge(_)
@@ -329,7 +339,12 @@ pub fn Session::edit_sheet(
         guard reason.is_empty() else {
           @failure.reject("protected-content", reason)
         }
-        check_sheet_copy_markup(sheets[index].document)
+        ignore(read_filter(sheets[index]))
+        let tree = Tree::new(sheets[index].document)
+        check_sheet_copy_markup(
+          sheets[index].document,
+          filter=tree.one(tree.root("worksheet").id, "autoFilter"),
+        )
         Some(sheets[index])
       } else {
         None

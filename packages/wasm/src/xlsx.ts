@@ -1,5 +1,11 @@
 import { checkXlsxSheetEdit, type XlsxSheetEdit } from "./xlsx-sheet.js";
 export type { XlsxSortSettings, XlsxSortKey } from "./xlsx-sort.js";
+import { xlsxFilterState, type XlsxFilterState } from "./xlsx-filter.js";
+export type {
+  XlsxFilterValues,
+  XlsxFilterSettings,
+  XlsxFilterState,
+} from "./xlsx-filter.js";
 import {
   xlsxConditionalState,
   type XlsxConditionalState,
@@ -178,6 +184,7 @@ export interface XlsxCell {
 }
 
 export interface XlsxQuery {
+  filter: XlsxFilterState;
   conditionalFormats: XlsxConditionalState;
   dataValidation: XlsxValidationState;
   printSetup: XlsxPrintSetup & { readOnlyReason: string };
@@ -241,6 +248,7 @@ function cellValue(value: unknown): boolean {
 
 export function xlsxQuery(value: unknown): XlsxQuery {
   const query = record(value);
+  xlsxFilterState(query.filter);
   xlsxConditionalState(query.conditionalFormats);
   xlsxValidationState(query.dataValidation);
   xlsxPrintSetup(query.printSetup);

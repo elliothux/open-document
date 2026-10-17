@@ -1,4 +1,4 @@
-import { record } from "./validation.js";
+import { record, integer } from "./validation.js";
 import { encodeBytes } from "./session.js";
 
 export interface DocxPicture {
@@ -23,6 +23,36 @@ export type DocxPictureEdit =
   | { action: "insert"; width: number; height: number; bytes: Uint8Array }
   | { action: "replace"; id: number; bytes: Uint8Array }
   | { action: "delete"; id: number };
+
+export type DocxPictureResizeCommand =
+  | { action: "begin"; picture: number }
+  | { action: "cancel"; id: number }
+  | {
+      action: "update" | "commit";
+      id: number;
+      dx: number;
+      dy: number;
+      handle: 1 | 2 | 3 | 4;
+    };
+
+export function checkDocxPictureResize(value: unknown): void {
+  const change = record(value);
+  if (change.action === "begin" && integer(change.picture, 0, 2147483647))
+    return;
+  if (!integer(change.id, 1, 2147483647))
+    throw new Error("Invalid picture resize identity");
+  if (change.action === "cancel") return;
+  if (
+    (change.action === "update" || change.action === "commit") &&
+    integer(change.handle, 1, 4) &&
+    [change.dx, change.dy].every(
+      (v) =>
+        typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 14400,
+    )
+  )
+    return;
+  throw new Error("Invalid picture resize command");
+}
 export function checkDocxPictureEdit(value: unknown): void {
   const edit = record(value);
   if (edit.action === "resize") return checkDocxPicture(value);

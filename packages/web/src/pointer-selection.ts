@@ -53,7 +53,7 @@ export class PointerSelection {
   private time = 0;
 
   constructor(
-    private readonly canvas: HTMLCanvasElement,
+    private readonly canvas: HTMLElement,
     private readonly viewport: HTMLElement,
     signal: AbortSignal,
     private readonly apply: (
@@ -63,7 +63,8 @@ export class PointerSelection {
       elapsed: number,
     ) => Promise<void>,
     private readonly enabled: () => boolean,
-    private readonly settle: () => Promise<void>,
+    private readonly settle: (cancelled: boolean) => Promise<void>,
+    private readonly scrollAtEdge = true,
   ) {
     const options = { signal };
     canvas.style.touchAction = "none";
@@ -71,11 +72,11 @@ export class PointerSelection {
     canvas.addEventListener("pointermove", this.move, options);
     canvas.addEventListener("pointerup", this.up, options);
     const end = (event: PointerEvent) => {
-      if (event.pointerId === this.pointerId) this.finish();
+      if (event.pointerId === this.pointerId) this.finish(true);
     };
     canvas.addEventListener("pointercancel", end, options);
     canvas.addEventListener("lostpointercapture", end, options);
-    window.addEventListener("blur", () => this.finish(), options);
+    window.addEventListener("blur", () => this.finish(true), options);
     signal.addEventListener("abort", () => this.cancel(), { once: true });
   }
 
@@ -140,7 +141,8 @@ export class PointerSelection {
         const point = this.point;
         if (
           this.dirty ||
-          (this.moved &&
+          (this.scrollAtEdge &&
+            this.moved &&
             point &&
             (point.x < rect.left + 32 ||
               point.x > rect.left + this.viewport.clientWidth - 32 ||
@@ -159,11 +161,11 @@ export class PointerSelection {
     if (this.dirty) this.send(false, true, 0);
   }
 
-  finish(): void {
+  finish(cancelled = false): void {
     const active = this.active;
     this.flush();
     this.cancel();
-    if (active) void this.settle().catch(() => {});
+    if (active) void this.settle(cancelled).catch(() => {});
   }
 
   cancel(): void {

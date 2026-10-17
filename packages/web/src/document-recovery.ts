@@ -1,12 +1,22 @@
 import type { FoundationClient } from "./foundation.js";
 
+export async function cancelDocxPictureResize(client: FoundationClient) {
+  const state = await client.editState();
+  return state.pictureResizeId === null
+    ? state
+    : client.pictureResize(state.revision, {
+        action: "cancel",
+        id: state.pictureResizeId,
+      });
+}
+
 export async function recoverDocxState(
   client: FoundationClient,
   revision: number,
   undo: boolean,
   assertOpen: () => void,
 ) {
-  const state = await client.editState();
+  const state = await cancelDocxPictureResize(client);
   assertOpen();
   if (undo && state.revision !== revision)
     throw new Error("Document changed outside the editor; resume before undo");

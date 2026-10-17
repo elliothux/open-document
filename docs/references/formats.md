@@ -181,7 +181,7 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 纯文字复制只携带占位字符，不携带图片资源。`selectedText(revision, selection, cut = false)` 可用 `cut: true` 预检查剪切；核心对含实际图片的范围返回 `protected-content`，宿主在写剪贴板之前执行该检查。普通文字及字面 `U+FFFC` 仍可剪切。图片剪切与富资源粘贴继续归后续剪贴板批次。
 
-撤销/重做精确恢复文字、图片、选区与资源。节点 ID 仅在当前会话有效，保存重开后须重新查询。未知图片源、扩展、效果或不支持的布局仍保护相应段落。含图片单元格的表格结构命令继续保护，避免绕过对象锁；指针拖动缩放及浮动环绕继续归 [P10](../p10-docx-core.md)。
+撤销/重做精确恢复文字、图片、选区与资源。节点 ID 仅在当前会话有效，保存重开后须重新查询。未知图片源、扩展、效果或不支持的布局仍保护相应段落。含图片单元格的表格结构命令继续保护，避免绕过对象锁；浮动环绕继续归 [P10](../p10-docx-core.md)。
 
 同步 Wasm 和 Worker 的 `pictures(revision)` 返回 `{ revision, images }`。每项包含会话内绘图节点 `id`、`name`、是否被当前单图片范围选中的 `selected`、point 单位的 `width/height`、四项 `crop`、尺寸/裁剪保护原因 `reason`、删除保护原因 `deleteReason` 和替换保护原因 `replaceReason`。`crop` 依次为源图左、上、右、下移除的比例。受尺寸/裁剪保护的项使用零尺寸及零裁剪，原因供 UI 显示；列表最多 256 项。宿主 `DocumentEditor.pictures()` 复用现有队列，默认图片面板从列表选择目标。
 
@@ -197,7 +197,17 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `editPicture(revision, { action: "replace", id, bytes })` 替换目标图片的压缩源。`bytes` 为 `Uint8Array`，支持 PNG/JPEG，输入不超过 4 MiB，单轴不超过 4096 像素，总像素不超过 4194304；核心复用 PPTX 的文件头与尺寸校验，平台负责实际解码。目标框、裁剪、替代文字、身份和文字选择保持不变。核心创建独立资源、关系和内容类型，避免改变共享原图；这些修改合为一项历史，撤销移除新增资源，重做恢复相同字节。其他部件及原资源保留。相同字节不新增 revision；源保护、输出及 4 MiB 历史预算失败不留下部分资源。替换不受尺寸/裁剪锁单独限制，默认面板按 `replaceReason` 启用文件选择。固定框替换参考 [ONLYOFFICE replacePictureData](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/common/Drawings/Format/Image.js#L836-L859)；本操作保留已有裁剪。宿主在重新布局前准备新增图片；核心与 Canvas 回收当前流中不再使用的解码资源，撤销/重做时按需重新准备。
 
-核心 `InlineImage.crop` 与 `PlacedInlineImage` 保留框和源裁剪；公共定位路径产生矩形裁剪及展开后的原图坐标，Canvas/PDF 使用同一结果。展开后的源图宽高各不超过 1e9 pt，沿用绘制坐标预算。资源仍按原键准备，不生成修改后的图片副本。缓存复制裁剪数组，调用者不能改写已保留的几何。未知裁剪/扩展、图片效果或锁定、修订容器、浮动/旋转/翻转图片、外部图片及未支持节设置继续保护。现有 noChangeAspect 约束禁止改变宽高比；noCrop/noResize 保护整项编辑。负裁剪扩边、指针拖动缩放及浮动环绕仍按 [P10](../p10-docx-core.md) 实施。源比例对应 [ONLYOFFICE 图片裁剪系数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L946-L960)，实现归 [`picture-editing.mbt`](../../modules/formats/src/docx/picture-editing.mbt)。
+核心 `InlineImage.crop` 与 `PlacedInlineImage` 保留框和源裁剪；公共定位路径产生矩形裁剪及展开后的原图坐标，Canvas/PDF 使用同一结果。展开后的源图宽高各不超过 1e9 pt，沿用绘制坐标预算。资源仍按原键准备，不生成修改后的图片副本。缓存复制裁剪数组，调用者不能改写已保留的几何。未知裁剪/扩展、图片效果或锁定、修订容器、浮动/旋转/翻转图片、外部图片及未支持节设置继续保护。现有 noChangeAspect 约束禁止改变宽高比；noCrop/noResize 保护整项编辑。负裁剪扩边及浮动环绕仍按 [P10](../p10-docx-core.md) 实施。源比例对应 [ONLYOFFICE 图片裁剪系数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L946-L960)，实现归 [`picture-editing.mbt`](../../modules/formats/src/docx/picture-editing.mbt)。
+
+### 行内图片拖动缩放
+
+默认宿主在被准确选中的可编辑行内图片四角显示可聚焦手柄，复用核心选择框和原生指针队列。拖动始终保持原宽高比和裁剪，核心按初始尺寸与本次总位移生成候选，更新不累积上次预览。两轴都有位移时采用较大的比例；单轴位移用于键盘及沿轴缩放。四角编号 1–4 依次为左上、右上、右下、左下。尺寸继续限制为 0.1–14400 pt、整数 EMU 和原裁剪展开预算，越过相反角时钳制到最小尺寸，保持行内排版锚点。等比例追踪参考 [ONLYOFFICE ResizeTracks](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L670-L680)。自由比例侧边手柄、反转、移动锚点及浮动对象继续归 [P10](../p10-docx-core.md)。
+
+同步 Wasm 和 Worker 的 `pictureResize(revision, change)` 返回 `EditState`。`change` 分为 `{ action: "begin", picture }`、`{ action: "update" | "commit", id, dx, dy, handle }` 和 `{ action: "cancel", id }`；`picture` 是列表中的绘图节点 ID，`id` 是开始后 `state.pictureResizeId` 的正整数手势身份。`dx/dy` 为 point 单位的有符号总位移，各不超过 ±14400；核心根据手柄方向换算尺寸，平台只换算 CSS 坐标。`DocxPictureResizeCommand` 从 Wasm/Web foundation 导出。对应核心方法为 `begin_picture_resize/update_picture_resize/finish_picture_resize/cancel_picture_resize`。
+
+开始要求当前正好选中该图片，并通过原尺寸编辑保护。`EditState.pictureResizeId` 在普通状态为 null，与 `compositionId` 互斥。候选复用尺寸命令的校验和源补丁；`flow` 与布局展示候选，已提交源、revision 和历史保持。更新失败保留最后有效候选；错误身份、过期 revision、未知图片源及资源上限继续拒绝。候选期间其他编辑、文字组合及直接 DOCX/PDF 持久化返回 busy。提交按最终坐标重新准备源，只新增一项历史；返回原尺寸则不新增历史。取消恢复原显示和选择，不改变源与历史。图片字节、关系、替代文字、原裁剪及非目标部件保留。
+
+松开提交，Escape、指针取消、捕获丢失及窗口失焦取消。手柄方向键沿对应方向移动 1 pt，Shift 为 10 pt，每次按键产生一项有界编辑。普通命令、保存和暂停先处理末次坐标；`whenIdle()` 只等已接收的候选更新。恢复与销毁会取消未提交候选，已提交历史继续保留。缩放使用当前 CSS 比例，DPR 留给原绘制层；缩放手柄不触发文字选择的边缘自动滚动。核心候选布局和正式布局共用 Canvas/PDF，平台不保存另一份文档树。实现归 [`picture-resize.mbt`](../../modules/formats/src/docx/picture-resize.mbt)、[`document-picture-resize.ts`](../../packages/web/src/document-picture-resize.ts)及 [`document-pointer.ts`](../../packages/web/src/document-pointer.ts)。
 
 ### 页面设置
 
@@ -559,6 +569,16 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 排序键归一化共享 1048576 次公式工作预算，移动片段累计最多 1 Mi UTF-16，继续使用公式、候选、源和 4 MiB 历史上限。合并区域、筛选/既有 sortState、绘图、结构化表/透视、相交批注、未知资源或关系、未知单元格/公式标记和工作表保护继续原子拒绝。颜色、自定义列表、筛选内排序和更广合并/资源支持归 [P11](../p11-xlsx-core.md) 后续范围。实现归 [`sort.mbt`](../../modules/formats/src/xlsx/sort.mbt)、[`sort-source.mbt`](../../modules/formats/src/xlsx/sort-source.mbt)及 [`xlsx-sort.tsx`](../../packages/ui/src/xlsx-sort.tsx)。
 
+### 值筛选
+
+`editSheet({ action: "filter", range, columns })` 设置普通工作表的值筛选。`range` 是含标题首行、至少一行数据且最多 4096 格的 A1 矩形。`columns` 最多含 256 个互异的 `{ column, values, blank }`；`column` 是范围内从 1 开始的工作表列号，`values` 是最多 4096 项互异文字，`blank` 显式决定空白是否通过。各列取交集，同列文字取并集；空条件数组显示全部数据并保留筛选范围。文字按当前已计算值和已支持的有效格式（含条件格式）显示，去除两端空白后使用固定 Unicode 16 小写映射匹配；不改变单元格类型、值、样式、公式或记录位置。未计算公式不使用导入缓存代替。普通文字匹配参考 [ONLYOFFICE Filters.isHideValue](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L10785-L10805)和 [AutoFilter.setRowHidden](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L9585-L9640)。日期分组、比较/颜色/动态/前十项及高级筛选继续保护。
+
+`filterClear` 清除全部条件并保留范围，`filterRemove` 同时移除范围，`filterReapply` 按当前值重新应用。原生输入先按原队列提交；普通编辑保留现有隐藏结果，由重新应用更新。每项使用已有 revision 和单项源历史，保持选择；相同结果不新增历史。网格、自动尺寸及 PDF 共用核心隐藏行。`query.filter` 提供 `range/columns/reason` 和逐列 `catalog`；每列返回 `column/title/blank/blankSelected` 及 `{ value, count, selected }` 选项，按归一化值合并大小写，保留当前条件中的零计数值。默认面板使用当前选区创建范围，选择列和值、空白，并提供清除、移除和重新应用。Wasm/Web 导出 `XlsxFilterSettings/XlsxFilterValues/XlsxFilterState`。
+
+保存使用标准 `autoFilter/filterColumn/filters/filter`、`sheetPr.filterMode` 和行 `hidden`。行高、原属性与非目标部件保留。`autoFilter/extLst` 内的 `urn:open-document:xlsx:filter-state` 扩展记录 `manual` 与 `filtered` 行号，可同时包含同一行；清除筛选只恢复筛选隐藏，手动隐藏继续保留。已有行高/隐藏命令同步手动来源，正行高也不能展开仍被筛选隐藏的行。复制、改名、撤销重做和保存重开保留此来源；扩展与实际隐藏行不一致时拒绝编辑。外部文件只有一个 `hidden` 字段，无法判断同一行是否同时被手动和筛选隐藏；无来源扩展时，将不匹配条件的隐藏行视为筛选隐藏，其余视为手动隐藏。外部程序若丢弃扩展，也会恢复此导入限制。
+
+每项匹配/目录共用 1048576 次公式工作预算，条件文字累计最多 1048576 个 UTF-16 单元，目录数据/标题累计最多 1048576 个单元；继续受包、源和 4 MiB 历史预算约束。未知条件、日期分组、扩展、属性、筛选内注释/处理指令、工作表保护或无法计算的显示值拒绝修改，保留源与历史。保留已知 `hiddenButton/showButton` 标记。排序和结构插删对筛选仍按既有保护执行，表格筛选、标题下拉箭头和更广组合按 [P11](../p11-xlsx-core.md) 继续接入。实现归 [`filter-model.mbt`](../../modules/formats/src/xlsx/filter-model.mbt)、[`filter-values.mbt`](../../modules/formats/src/xlsx/filter-values.mbt)、[`filter-source.mbt`](../../modules/formats/src/xlsx/filter-source.mbt)、[`filter-edit.mbt`](../../modules/formats/src/xlsx/filter-edit.mbt)及 [`xlsx-filter.tsx`](../../packages/ui/src/xlsx-filter.tsx)。
+
 ### 自动适配尺寸
 
 同步 Wasm 与 Worker 使用 `autoFit(revision, sheet, first, last, axis, profile)`；`axis` 为 `rows/columns`，索引从 1 开始且包含两端。宿主使用 `SpreadsheetEditor.autoFit(axis)`，作用于执行时选区覆盖的完整行或列，先提交单格草稿。默认尺寸面板提供两个按钮。每项命令独立进入既有历史，保持当前表和选区；重复写入相同源状态不增加 revision。
@@ -567,7 +587,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 多列合并不参与列宽测量，多行合并不参与行高测量；单行横向合并的换行文本使用单行字体高度。行高适配保留隐藏行；隐藏列仍按其底层声明宽度测量换行文本，保留隐藏状态。列宽适配显示目标列。修改保留列样式、轮廓、折叠属性、相邻尺寸、单元格源、样式部件、公式缓存与 calcChain，只提交目标工作表的尺寸片段。行记录写入 `customHeight="0"`，列记录写入 `bestFit="1"`。核心在同一候选事务内先更新依赖数值列，再重算行高；派生尺寸与值、缓存、样式共用一次 revision 和历史，撤销不重新测量。手动设置正行高或正列宽切回固定尺寸，手动隐藏列不被数值更新显示。未固定高度的普通默认行，也在带字体的编辑中重算并写入 `ht`。`sheetFormatPr.customHeight` 是行的缺省固定设置，显式 `customHeight="0"` 可覆盖它。未绑定字体时，原本不带 `ht` 的行保留自动声明，可继续仅数据编辑和保存；原本缓存 `ht` 的自动行仍须先绑定字体再修改。尚未编辑的导入缺省行，在首次布局中仍使用源默认高度，初次测量待扩展。
 
-一次事务累计最多 4096 次轴适配、4096 次单元格测量及 262144 个文本单元，不展开空单元格矩阵。字体缺失、富文本/未知样式、保护、未计算公式、未支持的条件规则、筛选/表格/透视及扩展资源继续拒绝，保留包和历史。显式适配、成功的网格布局或打印布局会在会话内保留调用者的字体探针和 profile 副本。探针由调用者持有并须保持可用；重新打开后，影响自动轴的编辑须先完成一次带字体 profile 的布局或适配。缺映射、未知布局或预算失败会拒绝整个候选编辑，保留原值、缓存、样式、尺寸及撤销/重做。默认宿主打开时已完成字体布局。尺寸片段使用原有历史和输出预算。核心已检查换行、大小字体、数字显示、合并、隐藏行及零高行、原列区间属性、Normal 与第 0 个单元格样式分离、精确历史、重开和失败；Chromium 已检查默认按钮、草稿与尺寸分项撤销、独立 XML、同步 Wasm/Worker 结果、保存重开及 PDF。实现依据 [ONLYOFFICE 列宽适配](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L18321-L18500)、[行高适配](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L18504-L18576)及[合并格行高规则](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L9820-L9880)。
+一次事务累计最多 4096 次轴适配、4096 次单元格测量及 262144 个文本单元，不展开空单元格矩阵。字体缺失、富文本/未知样式、保护、未计算公式、未支持的条件规则、未知筛选/表格/透视及扩展资源继续拒绝，保留包和历史。显式适配、成功的网格布局或打印布局会在会话内保留调用者的字体探针和 profile 副本。探针由调用者持有并须保持可用；重新打开后，影响自动轴的编辑须先完成一次带字体 profile 的布局或适配。缺映射、未知布局或预算失败会拒绝整个候选编辑，保留原值、缓存、样式、尺寸及撤销/重做。默认宿主打开时已完成字体布局。尺寸片段使用原有历史和输出预算。核心已检查换行、大小字体、数字显示、合并、隐藏行及零高行、原列区间属性、Normal 与第 0 个单元格样式分离、精确历史、重开和失败；Chromium 已检查默认按钮、草稿与尺寸分项撤销、独立 XML、同步 Wasm/Worker 结果、保存重开及 PDF。实现依据 [ONLYOFFICE 列宽适配](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L18321-L18500)、[行高适配](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L18504-L18576)及[合并格行高规则](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L9820-L9880)。
 
 自动模式更新依据 [ONLYOFFICE 数值列扩宽](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L9558-L9610)及[行高失效与重算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L9915-L9975)。核心已检查数值/布尔/错误和跨表依赖结果扩列、短值不缩列、行高增减、改窄列后的换行高度、手动固定覆盖、稀疏目标间未知列声明保留，以及字体/文本预算失败的原子性和重开恢复。Chromium 已检查原生输入自动扩列、一次撤销恢复输入和尺寸，换行输入及列宽变化重算行高，固定行高继续输入保持；沿同一流程保存、重开和导出 PDF。
 
@@ -677,6 +697,16 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 `SpreadsheetEditor.acceptValidationWarnings` 默认为 false，作用于该编辑器的原生输入和粘贴。默认公式栏提供对应复选框，启用后允许这些输入触发警告，直至关闭或更换文档。非法原生输入保留草稿和焦点，用户可纠正、取消或启用警告后重试；停止规则始终生效。现有规则 XML、值类型、其他部件及精确历史保持。普通验证元数据不再阻止打印/PDF，输出仍使用原值和样式；未支持的条件格式及其他未呈现内容继续保护输出。命名/扩展公式和更广导入变体仍待兼容扩展。行为参考 [ONLYOFFICE 数据验证](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/DataValidation.js#L516-L619)，输入实现归 [`data-validation.mbt`](../../modules/formats/src/xlsx/data-validation.mbt)。
 
+### SUBTOTAL 汇总
+
+`SUBTOTAL(function_num, ref1, ...)` 复用原生公式栏、公式解析和依赖图，支持总计 2–255 个参数。编号 1–11 依次执行 AVERAGE、COUNT、COUNTA、MAX、MIN、PRODUCT、STDEV、STDEVP、SUM、VAR、VARP；101–111 执行同一运算并排除手动隐藏行。两组均排除筛选隐藏，隐藏列不影响结果。引用格的公式只要含 SUBTOTAL，就排除该格，避免嵌套重复计数；不沿普通引用继续追踪嵌套。求值使用当前类型值，支持同表/跨表单格和矩形及多区域参数，重叠引用按出现次数计入。命名、三维、数组与引用返回形式仍按既有公式边界处理。
+
+数值参与统计，引用文字、布尔与空白通常不参与数值统计；COUNTA 包括文字、布尔、空串公式与错误，COUNT 只计引用数值。PRODUCT 沿所选 ONLYOFFICE 行为转换引用中的有限数字文字，其余文字忽略。直接标量复用数值转换，直接错误先传播；COUNT 可忽略引用错误，COUNTA 计入引用错误，其余统计传播已纳入的引用错误。无数值时 SUM、PRODUCT、MIN、MAX 返回 0，平均、方差和标准差返回 `#DIV/0!`；样本统计不足两项也返回 `#DIV/0!`，总体单项统计返回 0。方差按有界在线均值/平方偏差计算，避免直接相减平方和造成的大数误差。非有限结果返回 `#NUM!`；无效或非整数编号返回 `#VALUE!`。所有读取、嵌套解析和汇总共用现有公式工作量、深度及引用上限，整列空域按实际单元格处理，不展开稠密矩阵。
+
+已有[隐藏来源扩展](#值筛选)时，1–11 仅排除 `filtered`，101–111 排除实际零高行；手动与筛选重叠时两组均排除。没有扩展的外部活动值筛选无法确定隐藏来源，此时 SUBTOTAL 将筛选体内全部已隐藏行视为筛选隐藏，筛选外隐藏行仍视为手动隐藏；重新应用后使用保存的来源。此限制也适用于外部程序丢弃扩展的文件。筛选/清除/移除/重新应用和手动行高变更在同一事务重算相关工作簿公式，缓存、跨表依赖和精确历史一起更新。没有 SUBTOTAL 的筛选继续保留原公式源及 calcChain，不为可见性变更重写无关缓存。撤销重做、保存重开、网格和 PDF 使用同一结果。
+
+编号与嵌套排除参考 [ONLYOFFICE cSUBTOTAL](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L5087-L5243)及[引用读取](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L1195-L1213)。两类隐藏、隐藏列与嵌套结果同时按 [SUBTOTAL 合同](https://support.microsoft.com/en-us/excel/functions/subtotal-function)处理；对本项目记录的手动来源不采用旧上游“存在筛选就跳过全部隐藏行”的捷径。实现归 [`formula-subtotal.mbt`](../../modules/formats/src/xlsx/formula-subtotal.mbt)。
+
 ### 显示与计算
 
 读取共享/内联字符串、数值、布尔值、错误、公式及缓存。富文本读出文字，保留原 XML并保护编辑。受保护工作表及含未知编辑语义的单元格只读。图表、未支持的条件格式、绘图等未呈现内容给出诊断，继续保留源部件。
@@ -685,7 +715,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 数字格式覆盖 General、`@`、整数、两位小数、千分位、百分比、`yyyy-mm-dd`、`hh:mm:ss`，以及内置 1–4、9–10、14–22、49。日期保留数值，核心解释 1900/1904 系统，1900 序号 60 显示虚构的 2 月 29 日，序号 0 显示 1900-01-00。不经过宿主时区。其他格式、颜色 tint、渐变/图案、非实线边框及额外字体装饰保留声明并诊断，不承诺显示等价。
 
-公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
+公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
 
 AND/OR 接受数值和布尔，忽略引用内的文本与空白；没有有效值时返回 `#VALUE!`。文字常量返回 `#VALUE!`，不沿用数学函数的数字转换。稀疏范围只访问已有单元格，不展开整张表；即使已有确定的布尔结果，范围和后续参数中的错误仍参与，范围内按行列顺序保留首个错误。NOT 接受布尔、数值、空白及 TRUE/FALSE 文字，其他文字返回 `#VALUE!`。三项类型判断不转换数字文字，区分空白格与空字符串；当前使用标量参数，多格范围返回 `#VALUE!`。公式结果引用空白格时计算为数值 0。
 
@@ -715,7 +745,7 @@ COUNTA 统计非空白值，包括错误和公式返回的空文字。COUNTBLANK
 
 COUNTIF/COUNTIFS、SUMIF/SUMIFS、AVERAGEIF/AVERAGEIFS 共用有类型的条件。条件支持 `= <> < <= > >=`；省略运算符表示等于。数值等值比较可转换数字文字，数值大小比较只使用数值。空白条件参数按 0 解释，空文字条件匹配空白及空文字。布尔条件保持类型；文字形式的错误条件可匹配相应错误值。文字比较当前使用简单 Unicode 映射和 UTF-16 顺序，地区化排序留待后续。
 
-文字等值条件覆盖整个单元格，不区分大小写；`*`、`?` 与 `~` 转义按有界动态规划匹配，可包含换行。多条件取交集，范围行列数量必须一致，单元格位置及工作表可以不同。范围或条件数组不做隐式求交；非法形状返回 `#VALUE!`。普通条件聚合包含手动隐藏行；SUBTOTAL 将随筛选功能接入隐藏来源的区别。
+文字等值条件覆盖整个单元格，不区分大小写；`*`、`?` 与 `~` 转义按有界动态规划匹配，可包含换行。多条件取交集，范围行列数量必须一致，单元格位置及工作表可以不同。范围或条件数组不做隐式求交；非法形状返回 `#VALUE!`。普通条件聚合包含全部隐藏行；[SUBTOTAL](#subtotal-汇总) 区分筛选与手动隐藏。
 
 SUMIF/AVERAGEIF 的可选结果范围从其左上角取与条件范围相同的形状；越过工作表边界返回 `#REF!`。隐含范围也进入依赖图，修改锚点之外的结果单元格会重算。已匹配结果中的数值参与求和/平均，文字和空白不参与；已匹配错误按行列顺序传播，未匹配错误不影响结果。没有数值时 SUMIF/SUMIFS 返回 0，AVERAGEIF/AVERAGEIFS 返回 `#DIV/0!`。非有限结果返回 `#NUM!`。
 
@@ -811,7 +841,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 | 历史 / 队列 | undo+redo 共 100 项、4 MiB 源补丁 payload；宿主 64 项 |
 | 打印 | 整次输出 32768 格（含重复标题）和 1024 页；每表单轴 4096 项；每页继续受绘制文字/单元格上限约束 |
 
-当前范围不含模板向导、筛选、图表/透视表/图片编辑和协作。工作表/行列、格式、填充与普通区域排序的当前支持面见本节对应合同。XLS/XLSB/XLSM、其他浏览器、Windows/Excel、VoiceOver、性能专项与发布验收未进入本期验证。
+当前范围不含模板向导、高级筛选、图表/透视表/图片编辑和协作。工作表/行列、格式、填充与普通区域排序的当前支持面见本节对应合同。XLS/XLSB/XLSM、其他浏览器、Windows/Excel、VoiceOver、性能专项与发布验收未进入本期验证。
 
 ## PPTX
 

@@ -87,6 +87,7 @@ fn Expression::dependencies(
         "MONTH", "DAY", "TIME", "HOUR", "MINUTE", "SECOND", "DAYS", "COUNTA", "COUNTBLANK",
         "COUNTIF", "COUNTIFS", "SUMIF", "SUMIFS", "AVERAGEIF", "AVERAGEIFS", "INDEX",
         "MATCH", "VLOOKUP", "HLOOKUP", "XLOOKUP", "ROW", "COLUMN", "ROWS", "COLUMNS",
+        "SUBTOTAL",
       ].contains(name) else {
         @failure.reject("unsupported-formula", "Unsupported function: " + name)
       }

@@ -87,6 +87,8 @@ fn Session::sheet_rename_reason(
     for sheet in self.sheets {
       let tree = Tree::new(sheet.document)
       let root = tree.root("worksheet")
+      ignore(read_filter(sheet))
+      let filter = tree.one(root.id, "autoFilter")
       for node in tree.children.get(root.id).unwrap_or([]) {
         if node.uri != spreadsheet_uri ||
           ![
@@ -99,6 +101,12 @@ fn Session::sheet_rename_reason(
         }
       }
       for node in tree.document.nodes() {
+        // Known filter labels and visibility provenance contain no sheet references.
+        if filter is Some(filter) &&
+          node.start >= filter.start &&
+          node.end <= filter.end {
+          continue
+        }
         if node.uri != spreadsheet_uri ||
           (
             node.name == "extLst" &&

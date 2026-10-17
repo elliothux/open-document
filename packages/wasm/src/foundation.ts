@@ -24,6 +24,8 @@ import {
   prepareDocxPictureEdit,
   docxPictures,
   type DocxPictureEdit,
+  checkDocxPictureResize,
+  type DocxPictureResizeCommand,
 } from "./docx-picture.js";
 export * from "./docx-list.js";
 export * from "./docx-list-level.js";
@@ -151,6 +153,7 @@ export interface EditState {
   revision: number;
   defaultTabStop: number;
   compositionId: number | null;
+  pictureResizeId: number | null;
   selection: DocxSelection | null;
   canUndo: boolean;
   canRedo: boolean;
@@ -191,6 +194,11 @@ export function editState(value: unknown): EditState {
     ].every((key) => integer(object[key])) ||
     (object.compositionId !== null &&
       (!integer(object.compositionId) || Number(object.compositionId) === 0)) ||
+    (object.pictureResizeId !== null &&
+      (!integer(object.pictureResizeId) ||
+        Number(object.pictureResizeId) === 0 ||
+        Number(object.pictureResizeId) > 2147483647 ||
+        object.compositionId !== null)) ||
     typeof object.canUndo !== "boolean" ||
     typeof object.canRedo !== "boolean" ||
     typeof object.defaultTabStop !== "number" ||
@@ -501,6 +509,12 @@ export class FoundationSession extends WasmSession {
   }
   pictures(revision: number) {
     return docxPictures(this.call({ operation: "docxPictures", revision }));
+  }
+  pictureResize(revision: number, change: DocxPictureResizeCommand) {
+    checkDocxPictureResize(change);
+    return editState(
+      this.call({ operation: "docxPictureResize", revision, change }),
+    );
   }
   editPicture(revision: number, picture: DocxPictureEdit): EditState {
     return editState(
