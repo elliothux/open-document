@@ -244,6 +244,13 @@ fn axis_sheet_metadata(
       }
     } else if own_sheet {
       match node.name {
+        "sortState" => {
+          let (edits, deleted) = axis_sort_state(tree, node, change)
+          changes.append(edits)
+          if deleted {
+            removed[node.id] = true
+          }
+        }
         "mergeCell" => {
           let range = change.metadata_range(
             Range::parse(node.attribute("ref").unwrap_or("")),

@@ -194,15 +194,17 @@ fn Session::set_conditional(
       target.style.patch_json() == settings.format.patch_json() {
       // Keep unchanged theme/indexed colors and shared differential source identities.
       {
-        index: tree.nodes[target.node]
-        .attribute("dxfId")
-        .map(raw => natural(raw, 4095)),
+        indices: [
+          tree.nodes[target.node]
+          .attribute("dxfId")
+          .map(raw => natural(raw, 4095)),
+        ],
         parts: self.parts.copy(),
         edits: [],
         created_parts: Map([]),
       }
     } else {
-      self.derive_conditional_style(settings.format)
+      self.derive_conditional_styles([settings.format])
     }
     let colors : Array[String?] = if settings.kind == "colorScale" &&
       target is Some(target) &&
@@ -239,7 +241,7 @@ fn Session::set_conditional(
       target.settings().json() == settings.json() {
       style_markup(tree, tree.nodes[target.node])
     } else {
-      settings.markup(priority, plan.index, colors~)
+      settings.markup(priority, plan.indices[0], colors~)
     }
     let markup = "<od:conditionalFormatting xmlns:od=\"\{spreadsheet_uri}\" sqref=\"\{ranges.map(Range::name).join(" ")}\">\{rule_markup}</od:conditionalFormatting>"
     changes.push(conditional_insertion(tree, markup))
@@ -270,7 +272,7 @@ fn Session::set_conditional(
       }
     }
     {
-      index: None,
+      indices: [],
       parts: self.parts.copy(),
       edits: [],
       created_parts: Map([]),
@@ -337,7 +339,7 @@ fn Session::move_conditional(
     )
   }
   self.commit_conditional(index, changes, {
-    index: None,
+    indices: [],
     parts: self.parts.copy(),
     edits: [],
     created_parts: Map([]),

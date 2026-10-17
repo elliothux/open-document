@@ -39,8 +39,8 @@ fn Session::edit_axes(
     guard [
       "sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData",
       "mergeCells", "sheetProtection", "pageMargins", "pageSetup", "printOptions",
-      "headerFooter", "conditionalFormatting", "dataValidations", "hyperlinks", "legacyDrawing",
-      "extLst",
+      "headerFooter", "sortState", "conditionalFormatting", "dataValidations", "hyperlinks",
+      "legacyDrawing", "extLst",
     ].contains(node.name) else {
       @failure.reject(
         "protected-content", "Worksheet metadata requires structural range support",

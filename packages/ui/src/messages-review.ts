@@ -1,4 +1,15 @@
 export const reviewEn = {
+  sortBy: "Sort by",
+  sortValues: "Values",
+  sortFillColor: "Cell fill color",
+  sortFontColor: "Font color",
+  sortColor: "Sort color",
+  sortNoFill: "No fill color",
+  sortColorFirst: "Matching color first",
+  sortColorLast: "Matching color last",
+  sortCustomList: "Custom sort list",
+  sortCustomListHelp:
+    "One text label per line; leave empty for normal order. Match exact spelling first, then ignore case. Unlisted text uses normal order. Commas and empty labels are not supported.",
   textToColumns: "Text to columns",
   columnTypes: "Column conversion",
   columnType: "Column type",
@@ -84,6 +95,17 @@ export const reviewEn = {
     "Provide commentAuthor in the host options to add comments or replies.",
 };
 export const reviewZh: Record<keyof typeof reviewEn, string> = {
+  sortBy: "排序依据",
+  sortValues: "值",
+  sortFillColor: "单元格填充色",
+  sortFontColor: "字体色",
+  sortColor: "排序颜色",
+  sortNoFill: "无填充色",
+  sortColorFirst: "命中色在顶部",
+  sortColorLast: "命中色在底部",
+  sortCustomList: "自定义排序列表",
+  sortCustomListHelp:
+    "每行一个标签，留空使用普通排序。先精确匹配，再忽略大小写匹配；未列出文字按普通顺序。标签不能含逗号或空行。",
   textToColumns: "文本分列",
   columnTypes: "列类型转换",
   columnType: "列类型",

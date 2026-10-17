@@ -91,6 +91,44 @@ export function XlsxSort({
         {keys.map((key, i) => (
           <div key={i}>
             <label>
+              {`${t.sortBy} ${i + 1}`}
+              <select
+                aria-label={`${t.sortBy} ${i + 1}`}
+                value={key.sortBy ?? "value"}
+                onChange={(event) => {
+                  const sortBy = event.currentTarget.value;
+                  if (
+                    sortBy === "value" ||
+                    sortBy === "cellColor" ||
+                    sortBy === "fontColor"
+                  )
+                    setKeys((keys) =>
+                      keys.map((current, at) =>
+                        at !== i
+                          ? current
+                          : sortBy === "value"
+                            ? {
+                                index: current.index,
+                                descending: current.descending,
+                                sortBy,
+                                customList: [],
+                              }
+                            : {
+                                index: current.index,
+                                descending: current.descending,
+                                sortBy,
+                                color: "ff0000",
+                              },
+                      ),
+                    );
+                }}
+              >
+                <option value="value">{t.sortValues}</option>
+                <option value="cellColor">{t.sortFillColor}</option>
+                <option value="fontColor">{t.sortFontColor}</option>
+              </select>
+            </label>
+            <label>
               {`${t.sortKey} ${i + 1}`}
               <input
                 aria-label={`${t.sortKey} ${i + 1}`}
@@ -115,10 +153,70 @@ export function XlsxSort({
                   })
                 }
               >
-                <option value="ascending">{t.sortAscending}</option>
-                <option value="descending">{t.sortDescending}</option>
+                <option value="ascending">
+                  {(key.sortBy ?? "value") === "value"
+                    ? t.sortAscending
+                    : t.sortColorFirst}
+                </option>
+                <option value="descending">
+                  {(key.sortBy ?? "value") === "value"
+                    ? t.sortDescending
+                    : t.sortColorLast}
+                </option>
               </select>
             </label>
+            {(key.sortBy ?? "value") === "value" ? (
+              <label>
+                {`${t.sortCustomList} ${i + 1}`}
+                <textarea
+                  aria-label={`${t.sortCustomList} ${i + 1}`}
+                  maxLength={32767}
+                  rows={3}
+                  value={key.customList?.join("\n") ?? ""}
+                  onChange={(event) =>
+                    update(i, {
+                      customList:
+                        event.currentTarget.value === ""
+                          ? []
+                          : event.currentTarget.value
+                              .replace(/\r\n/g, "\n")
+                              .split("\n"),
+                    })
+                  }
+                />
+                <span>{t.sortCustomListHelp}</span>
+              </label>
+            ) : (
+              <>
+                <label>
+                  {`${t.sortColor} ${i + 1}`}
+                  <input
+                    aria-label={`${t.sortColor} ${i + 1}`}
+                    value={key.color ?? "ff0000"}
+                    maxLength={6}
+                    pattern="[0-9a-fA-F]{6}"
+                    required={key.sortBy === "fontColor"}
+                    onChange={(event) =>
+                      update(i, { color: event.currentTarget.value })
+                    }
+                  />
+                </label>
+                {key.sortBy === "cellColor" && (
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={key.color === ""}
+                      onChange={(event) =>
+                        update(i, {
+                          color: event.currentTarget.checked ? "" : "ff0000",
+                        })
+                      }
+                    />
+                    {t.sortNoFill}
+                  </label>
+                )}
+              </>
+            )}
             <button
               type="button"
               aria-label={`${t.removeSortKey} ${i + 1}`}
@@ -133,12 +231,12 @@ export function XlsxSort({
         ))}
         <button
           type="button"
-          disabled={keys.length >= Math.min(16, high - low + 1)}
+          disabled={keys.length >= 16}
           onClick={() => {
-            const index = Array.from(
-              { length: high - low + 1 },
-              (_, i) => low + i,
-            ).find((index) => !keys.some((key) => key.index === index));
+            const index =
+              Array.from({ length: high - low + 1 }, (_, i) => low + i).find(
+                (index) => !keys.some((key) => key.index === index),
+              ) ?? low;
             if (index !== undefined)
               setKeys((keys) => [...keys, { index, descending: false }]);
           }}

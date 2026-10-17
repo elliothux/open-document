@@ -192,7 +192,7 @@ fn Session::from_package(
       if ![
           "sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData",
           "mergeCells", "sheetProtection", "pageMargins", "pageSetup", "printOptions",
-          "headerFooter", "autoFilter", "dataValidations", "conditionalFormatting",
+          "headerFooter", "autoFilter", "sortState", "dataValidations", "conditionalFormatting",
           "hyperlinks", "legacyDrawing",
         ].contains(child.name) ||
         child.uri != spreadsheet_uri {

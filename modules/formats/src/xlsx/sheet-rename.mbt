@@ -89,13 +89,14 @@ fn Session::sheet_rename_reason(
       let tree = Tree::new(sheet.document)
       let root = tree.root("worksheet")
       ignore(read_filter(sheet))
+      self.check_sort_metadata(tree)
       let filter = tree.one(root.id, "autoFilter")
       for node in tree.children.get(root.id).unwrap_or([]) {
         if node.uri != spreadsheet_uri ||
           ![
             "sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData",
             "mergeCells", "sheetProtection", "pageMargins", "pageSetup", "printOptions",
-            "headerFooter", "autoFilter", "conditionalFormatting", "dataValidations",
+            "headerFooter", "autoFilter", "sortState", "conditionalFormatting", "dataValidations",
             "hyperlinks", "legacyDrawing", "extLst",
           ].contains(node.name) {
           return "Worksheet content requires reference-aware renaming"

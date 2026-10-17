@@ -50,6 +50,9 @@ fn Session::edit_filter(
       filtered,
       tracked: true,
       flags: old.map(state => state.flags).unwrap_or(Map([])),
+      sort: old
+      .bind(state => state.sort)
+      .bind(sort => if bounds.covers(sort.bounds) { Some(sort) } else { None }),
     }
   })
   let (document, edit) = filter_write(current, next, hidden)

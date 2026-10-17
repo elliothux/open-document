@@ -41,6 +41,9 @@ fn filter_markup(state : AutoFilterState) -> String raise @failure.Failure {
     }
     out <+ "</od:filterColumn>"
   }
+  if state.sort is Some(sort) {
+    out.write_string(sort.source)
+  }
   let manual = state.manual.map(row => row.to_string()).join(" ")
   let filtered = state.filtered.map(row => row.to_string()).join(" ")
   out <+

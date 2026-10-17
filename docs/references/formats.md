@@ -755,13 +755,31 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 ### 区域排序
 
-`editSheet({ action: "sort", range, rows, header, caseSensitive, keys })` 对最多 4096 格的显式 A1 矩形排序。`rows=true` 按行重排，键 `index` 是工作表从 1 开始的列号；`rows=false` 按列重排，键为行号。`keys` 为 1–16 个互异且在范围内的 `{ index, descending }`，按数组顺序比较。三个布尔字段必须显式提供，`header=true` 保留所选范围的第一行或第一列。默认面板使用当前选区，提供方向、标题、大小写和增删多键。`XlsxSortSettings/XlsxSortKey` 从 Wasm/Web XLSX 模块导出。
+`editSheet({ action: "sort", range, rows, header, caseSensitive, keys })` 对最多 4096 格的显式 A1 矩形排序。`rows=true` 按行重排，键 `index` 是工作表从 1 开始的列号；`rows=false` 按列重排，键为行号。`keys` 为 1–16 个互异条件 `{ index, descending, customList?, sortBy?, color? }`，索引必须在范围内，按数组顺序比较。三个布尔字段必须显式提供，`header=true` 保留所选范围的第一行或第一列。默认面板使用当前选区，提供方向、标题、大小写、增删多键、每键自定义列表及颜色依据。`XlsxSortSettings/XlsxSortKey` 从 Wasm/Web XLSX 模块导出。
 
 核心冻结排序前的当前键值，不用导入缓存代替未计算公式。数值及可解析为有限十进制数的文字键按数字比较，保留原单元格类型；布尔和错误按显示文字参与文字比较。空格与空串不同；空单元格和空串结果在升降序中均置后。相同键按原行列顺序稳定排列。`caseSensitive=false` 使用固定 Unicode 16 大写映射，文字按 UTF-16 字符序比较，不使用 MoonBit 默认的长度优先比较；语言区域校对顺序仍待兼容扩展。隐藏行或列的位置、内容与手动隐藏状态保留，不参加对应方向的置换。普通比较、隐藏位置和多键路径参考 [ONLYOFFICE _getSortElems](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21327-L21649)；该上游的 localeCompare 与本期固定字符序不同。
 
+每个值键可选 `customList: string[]`，缺省或空数组使用普通排序。非空列表按给定顺序定义文字优先级，各键可使用不同列表。沿既有归一化，数字及数字文字继续按数值比较，布尔和错误按显示文字参与匹配。列表先精确匹配原文字，未命中时使用固定 Unicode 大写映射查找列表中的第一项；仅大小写不同的标签可以分别列出，精确命中保留各自顺序。此列表匹配规则不受 `caseSensitive` 改变，该选项继续控制未列出文字的普通比较。升序时列出项排在未列出文字之前，未列出项按普通顺序比较；降序反转文字比较结果，空单元格和空串仍排在末尾。相同优先级继续比较后续键，再保持源顺序。
+
+每份列表最多 4096 项，逗号连接后的长度最多 32767 UTF-16 单元。标签必须互不相同且非空，前后空格保持，不能包含逗号、回车或换行。引号、制表符及看似 OOXML 转义的文字通过既有文字编码保存；原始和编码后的列表载荷另受 1 Mi 单元预算约束，失败不提交。默认面板按键提供每行一项的输入，留空恢复普通排序。核心 `SortKey.custom_list` 使用空数组表示普通顺序；TS 的 `customList` 可省略。列表与单元格、排序状态、筛选和缓存合为同一项历史，不另建应用级自定义列表目录。
+
+已检查 ONLYOFFICE 的上述排序路径，其文字分支没有自定义列表比较。因此文字优先级参考下一顺位的 [LibreOffice GetSubIndex/Compare](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/core/tool/userlist.cxx#L60-L142)与[文字键排序入口](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/core/data/table3.cxx#L1534-L1585)。实际大小写映射和未列出项排序继续采用本项目的固定规则，不执行地区化校对。每键顺序写入标准 `sortCondition@customList`，导入、无关编辑、工作表复制/改名及既有排序状态引用维护保留它；实现归 [`sort-list.mbt`](../../modules/formats/src/xlsx/sort-list.mbt)。
+
+`sortBy` 缺省或为 `value` 时按值比较；`cellColor` 按填充色，`fontColor` 按单元格字体色。颜色键必须给出 `color`，使用六位 RGB 十六进制文字；填充色的空串表示无填充，与白色不同。颜色键不能同时使用非空自定义列表，值键不能指定非空颜色。同一轴可设置不同颜色或依据，例如先红色、再绿色，最后按该列数值；完全重复的条件仍拒绝。`descending=false` 把命中色放在前面，`true` 放在后面，同组继续比较后续键，再保持原顺序。空内容格也按其有效颜色参加此分组；隐藏行列继续保留位置。
+
+颜色取自排序前的有效样式，包含已支持条件格式及主题/索引颜色的解析。核心冻结颜色匹配结果，再使用原有单元格置换；条件规则仍留原范围，排序后重新求色，依赖位置的规则可能改变最终颜色。默认面板提供依据、RGB 输入、无填充及命中色位置。颜色条件写标准 `sortBy` 与 `dxfId`，一次批量复用或新增差异样式；首次样式部件也与数据、关系和历史一起提交。原有规则和样式身份保持，颜色引用缺失时拒绝重排或引用相关的表操作。富文本文字色和图标排序仍受保护，未知样式效果不猜测颜色。
+
+有效样式冻结及按命中色分组参考 [ONLYOFFICE _getSortElems/colorFillCmp](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21427-L21600)，`dxfId` 存储参考 [CSortCondition](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/XlsxFormat/Table/Autofilter.cpp#L96-L106)。实现归 [`sort-color.mbt`](../../modules/formats/src/xlsx/sort-color.mbt)，差异样式复用 [`conditional-style-edit.mbt`](../../modules/formats/src/xlsx/conditional-style-edit.mbt)，没有新增绘制模型或复制上游源码。
+
 排序移动单元格值、富文本 XML、有效样式及已支持公式，局部补齐命名空间，保留源格式。公式相对引用按实际位移平移，绝对引用保持，越界生成 `#REF!`；受影响共享组有界展开。区域外公式引用继续指向原坐标，并按排序后的内容重算。单格超链接随内容移动，矩形链接保持原坐标，关系和目标不变。条件格式、验证及名称保持原坐标范围，效果和输入约束基于候选值计算；验证失败整项拒绝。行列尺寸保留原位置，已有自动尺寸仍按新内容重排。公式、依赖缓存与值/源/链接使用同一有界历史，精确撤销/重做，保存重开及 PDF 使用已排序内容；原生草稿先独立提交。恒等置换不新增 revision 或历史。重排及公式位移参考 [ONLYOFFICE _sortByArray](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21651-L21770)。
 
-排序键归一化共享 1048576 次公式工作预算，移动片段累计最多 1 Mi UTF-16，继续使用公式、候选、源和 4 MiB 历史上限。合并区域、筛选/既有 sortState、绘图、结构化表/透视、线程批注及未知便笺、未知资源或关系、未知单元格/公式标记和工作表保护继续原子拒绝。颜色、自定义列表、筛选内排序和更广合并/资源支持归 [P11](../p11-xlsx-core.md) 后续范围。实现归 [`sort.mbt`](../../modules/formats/src/xlsx/sort.mbt)、[`sort-source.mbt`](../../modules/formats/src/xlsx/sort-source.mbt)及 [`xlsx-sort.tsx`](../../packages/ui/src/xlsx-sort.tsx)。
+已有普通值/自定义筛选的工作表也使用相同排序入口和显式范围。核心先按排序前的可见性冻结参加坐标；行排序保留手动及筛选隐藏记录的位置，列排序保留隐藏列位置。筛选范围、条件及按钮属性保持原坐标，不随单元格移动。候选值、格式和公式生成后，重新应用筛选，保留原手动隐藏来源，并重算依赖可见性的 SUBTOTAL 缓存；排序后可见行可因当前位置的公式结果而变化。单格链接和便笺沿内容移动，区域外源保持。单元格、筛选掩码、公式缓存与选区共同提交一次精确历史；恒等置换不新增历史。默认排序面板沿相同原生草稿屏障执行，保存重开保留当前顺序和筛选；清除条件只恢复筛选隐藏。
+
+实际发生置换时，核心把范围、键顺序、升降序、行/列方向和大小写选项保存为标准 `sortState`，与内容和筛选共用一次历史。`ref` 排除显式标题；值键写 `sortBy="value"`，颜色键写相应依据与差异样式引用，固定字符序写 `sortMethod="none"`。排序范围位于已有筛选内时写入该筛选，否则写入工作表；另一位置的历史排序设置保持。恒等置换不改排序信息或历史。导入可保留合法空状态及最多 64 个不同排序条件及其自定义文字顺序；同轴颜色条件按依据和差异样式引用区分，`none`/`pinYin`/`stroke` 标志在无关修改和筛选重新应用时保留源内容；这不表示执行地区化排序。新命令仍限 16 键。工作表改名、复制与重开保留设置；工作表级排序信息随整行列及完整覆盖排序区域的单元格移位同步范围和键引用，删除键时移除该键，失去全部键时移除状态。只跨过排序区域一部分的移位保留上次排序记录。清除筛选条件保留其排序信息；新筛选范围不能容纳旧排序范围时移除旧信息，移除筛选也移除其排序信息。其他位置和未知源保持。
+
+上述存储和引用维护参考 [ONLYOFFICE SortState](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L9742-L10000)、[OOXML 排序定义](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/Test/Applications/DocxFormatCodeGen/codegen/Resource/sml.xsd#L148-L182)及[写入代码](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/XlsxFormat/Table/Autofilter.cpp#L320-L352)，没有复制上游源码。
+
+排序键归一化共享 1048576 次公式工作预算，移动片段累计最多 1 Mi UTF-16，继续使用公式、候选、源和 4 MiB 历史上限。合并区域、未知筛选/排序元数据、图标排序状态、绘图、结构化表/透视、线程批注及未知便笺、未知资源或关系、未知单元格/公式标记和工作表保护继续原子拒绝。更广合并/资源支持归 [P11](../p11-xlsx-core.md) 后续范围。实现归 [`sort.mbt`](../../modules/formats/src/xlsx/sort.mbt)、[`sort-state.mbt`](../../modules/formats/src/xlsx/sort-state.mbt)、[`sort-source.mbt`](../../modules/formats/src/xlsx/sort-source.mbt)、[`reorder-cells.mbt`](../../modules/formats/src/xlsx/reorder-cells.mbt)及 [`xlsx-sort.tsx`](../../packages/ui/src/xlsx-sort.tsx)。
 
 ### 文本分列
 

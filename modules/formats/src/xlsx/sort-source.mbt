@@ -116,9 +116,10 @@ fn Session::sort_resources(
   filter~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   let tree = Tree::new(sheet.document)
+  self.check_sort_metadata(tree)
   for node in tree.children.get(tree.root("worksheet").id).unwrap_or([]) {
     guard node.uri == spreadsheet_uri &&
-      !["drawing", "legacyDrawingHF", "sortState"].contains(node.name) &&
+      !["drawing", "legacyDrawingHF"].contains(node.name) &&
       (filter || node.name != "autoFilter") &&
       !(["extLst", "tableParts", "pivotTableParts"].contains(node.name) &&
       !tree.children.get(node.id).unwrap_or([]).is_empty()) else {

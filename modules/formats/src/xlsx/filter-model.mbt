@@ -42,6 +42,7 @@ priv struct AutoFilterState {
   filtered : Array[Int]
   tracked : Bool
   flags : Map[Int, Array[(String, String)]]
+  sort : StoredSort?
 }
 
 ///|
@@ -155,6 +156,12 @@ fn read_filter(sheet : Sheet) -> AutoFilterState? raise @failure.Failure {
   ignore(filter_settings({ range: range.name(), columns: [], }))
   let columns : Array[FilterColumn] = []
   let flags : Map[Int, Array[(String, String)]] = Map([])
+  let sort = read_sort_state(tree, root.id)
+  guard sort.map(state => range.covers(state.bounds)).unwrap_or(true) else {
+    @failure.reject(
+      "protected-content", "Sort state is outside its filter range",
+    )
+  }
   let mut manual : Array[Int] = []
   let mut filtered : Array[Int] = []
   let mut tracked = false
@@ -257,6 +264,8 @@ fn read_filter(sheet : Sheet) -> AutoFilterState? raise @failure.Failure {
         column,
         rule: Values(values, blank=flag(filters, "blank")),
       })
+    } else if node.name == "sortState" {
+      continue
     } else if node.name == "extLst" {
       filter_attributes(node, [])
       let extensions = tree.children.get(node.id).unwrap_or([])
@@ -301,5 +310,5 @@ fn read_filter(sheet : Sheet) -> AutoFilterState? raise @failure.Failure {
       }
     }
   }
-  Some({ settings, bounds: range, manual, filtered, tracked, flags, })
+  Some({ settings, bounds: range, manual, filtered, tracked, flags, sort, })
 }

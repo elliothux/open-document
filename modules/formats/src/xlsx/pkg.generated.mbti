@@ -322,6 +322,9 @@ pub(all) enum SheetEdit {
 pub(all) struct SortKey {
   index : Int
   descending : Bool
+  custom_list : Array[String]
+  sort_by : String
+  color : String
 }
 
 pub(all) struct SortSettings {

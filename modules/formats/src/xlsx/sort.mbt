@@ -2,6 +2,9 @@
 pub(all) struct SortKey {
   index : Int
   descending : Bool
+  custom_list : Array[String]
+  sort_by : String
+  color : String
 }
 
 ///|
@@ -89,18 +92,24 @@ fn Session::sort_cells(
   } else {
     (target.top, target.bottom, target.left, target.right)
   }
-  let seen : Map[Int, Bool] = Map([])
+  let seen : Map[String, Bool] = Map([])
   for key in settings.keys {
-    guard key.index >= low && key.index <= high && !seen.contains(key.index) else {
+    ignore(key.sort_format())
+    let identity = "\{key.index}:\{key.sort_by}:\{key.color.to_upper()}"
+    guard key.index >= low && key.index <= high && !seen.contains(identity) else {
       @failure.reject(
-        "invalid-operation", "Sort keys must identify distinct axes within the selected range",
+        "invalid-operation", "Sort conditions must be distinct and stay within the selected range",
       )
     }
-    seen[key.index] = true
+    seen[identity] = true
   }
   let index = self.sheet_index(sheet)
   let current = self.sheets[index]
-  self.check_reorder_cells(current, target)
+  self.check_reorder_cells(current, target, filter=true)
+  let filter = read_filter(current).map(state => {
+    let (manual, filtered) = self.filter_provenance(index, state)
+    { ..state, manual, filtered, tracked: true, }
+  })
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
@@ -108,7 +117,13 @@ fn Session::sort_cells(
     names: self.formula_names(),
   }
   let positions : Array[Int] = []
-  let keys : Map[Int, Array[Value]] = Map([])
+  let rules = if settings.keys.any(key => key.sort_by != "value") {
+    Some(self.filter_rules(index, work))
+  } else {
+    None
+  }
+  let lists = settings.keys.map(key => SortList::new(key.custom_list, work))
+  let keys : Map[Int, Array[SortValue]] = Map([])
   let start = first + (if settings.header { 1 } else { 0 })
   for position in start..<=last {
     if (if settings.rows {
@@ -120,7 +135,7 @@ fn Session::sort_cells(
       continue
     }
     positions.push(position)
-    keys[position] = settings.keys.map(key => {
+    keys[position] = settings.keys.mapi((at, key) => {
       let address : Address = if settings.rows {
         { row: position, column: key.index, }
       } else {
@@ -128,6 +143,9 @@ fn Session::sort_cells(
       }
       let name = address.name()
       let cell = current.cells.get(name)
+      if key.sort_by != "value" {
+        return self.color_sort_key(index, address, key, rules.unwrap(), work)
+      }
       let value = if cell.bind(c => c.formula) is Some(_) {
         self.calculation
         .bind(c => c.values.get((index, name)))
@@ -142,13 +160,13 @@ fn Session::sort_cells(
       } else {
         cell.map(c => c.value).unwrap_or(Blank)
       }
-      sort_value(value, settings.case_sensitive, work)
+      lists[at].value(value, settings.case_sensitive, work)
     })
   }
   let order = positions.copy()
   order.sort_by((a, b) => {
     for i, key in settings.keys {
-      let comparison = sort_compare(keys[a][i], keys[b][i], key.descending)
+      let comparison = sort_list_compare(keys[a][i], keys[b][i], key.descending)
       if comparison != 0 {
         return comparison
       }
@@ -158,11 +176,17 @@ fn Session::sort_cells(
   if order == positions {
     return self.query()
   }
+  let formatting = self.derive_conditional_styles(
+    settings.keys.map(key => key.sort_format()),
+  )
   self.reorder_cells(
     sheet,
     target,
     settings.rows,
     positions,
     order.map(i => Some(i)),
+    filter~,
+    sort=Some(stored_sort(target, settings, formatting.indices)),
+    formatting=Some(formatting),
   )
 }

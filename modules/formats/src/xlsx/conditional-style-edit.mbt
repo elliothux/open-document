@@ -1,6 +1,6 @@
 ///|
 priv struct ConditionalStyleEdit {
-  index : Int?
+  indices : Array[Int?]
   parts : Map[String, @xml.Document]
   edits : Array[(String, @xml.Edit)]
   created_parts : Map[String, @xml.Document]
@@ -68,13 +68,13 @@ fn CellFormat::dxf_markup(
 }
 
 ///|
-fn Session::derive_conditional_style(
+fn Session::derive_conditional_styles(
   self : Session,
-  patch : CellFormat,
+  patches : Array[CellFormat],
 ) -> ConditionalStyleEdit raise @failure.Failure {
-  if patch == CellFormat::new() {
+  if patches.all(patch => patch == CellFormat::new()) {
     return {
-      index: None,
+      indices: patches.map(_ => None),
       parts: self.parts.copy(),
       edits: [],
       created_parts: Map([]),
@@ -102,22 +102,49 @@ fn Session::derive_conditional_style(
   }
   let tree = Tree::new(original)
   let root = tree.root("styleSheet")
-  let (ids, numbers) = format_numbers(tree, [patch])
-  let markup = patch.dxf_markup(patch.numberFormat.bind(code => ids.get(code)))
+  let (ids, numbers) = format_numbers(tree, patches)
   let changes = format_number_changes(tree, numbers)
   let container = tree.one(root.id, "dxfs")
-  let index = if container is Some(_) {
+  let indices = if container is Some(_) {
     let pool = StylePool::new(tree, "dxfs", "dxf")
-    let index = pool.intern(markup)
+    let indices = patches.map(patch => {
+      if patch == CellFormat::new() {
+        None
+      } else {
+        Some(
+          pool.intern(
+            patch.dxf_markup(patch.numberFormat.bind(code => ids.get(code))),
+          ),
+        )
+      }
+    })
     changes.append(pool.changes())
-    index
+    indices
   } else {
+    let entries : Array[String] = []
+    let indices = patches.map(patch => {
+      if patch == CellFormat::new() {
+        None
+      } else {
+        let markup = patch.dxf_markup(
+          patch.numberFormat.bind(code => ids.get(code)),
+        )
+        let index = entries
+          .search(markup)
+          .unwrap_or_else(() => {
+            let index = entries.length()
+            entries.push(markup)
+            index
+          })
+        Some(index)
+      }
+    })
     let next = tree.children
       .get(root.id)
       .unwrap_or([])
       .iter()
       .find_first(n => ["tableStyles", "colors", "extLst"].contains(n.name))
-    let markup = "<od:dxfs xmlns:od=\"\{spreadsheet_uri}\" count=\"1\">\{markup}</od:dxfs>"
+    let markup = "<od:dxfs xmlns:od=\"\{spreadsheet_uri}\" count=\"\{entries.length()}\">\{entries.join("")}</od:dxfs>"
     changes.push(
       if next is Some(next) {
         {
@@ -130,7 +157,7 @@ fn Session::derive_conditional_style(
         insertion(root, markup)
       },
     )
-    0
+    indices
   }
   let (document, edit) = original.edit_source(join_insertions(changes))
   guard document.source().length() <= 2097152 else {
@@ -152,5 +179,5 @@ fn Session::derive_conditional_style(
   } else {
     created_parts[path] = document
   }
-  { index: Some(index), parts, edits, created_parts, }
+  { indices, parts, edits, created_parts, }
 }

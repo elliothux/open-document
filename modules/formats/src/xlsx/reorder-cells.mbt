@@ -7,6 +7,8 @@ fn Session::reorder_cells(
   positions : Array[Int],
   order : Array[Int?],
   filter~ : AutoFilterState? = None,
+  sort~ : StoredSort? = None,
+  formatting~ : ConditionalStyleEdit? = None,
 ) -> Json raise @failure.Failure {
   let index = self.sheet_index(sheet)
   let current = self.sheets[index]
@@ -85,8 +87,11 @@ fn Session::reorder_cells(
   }
   current.expand_shared_updates(updates)
   let (document, edit) = current.prepare(updates, styles~, fragments~)
-  let edits = [(sheet, edit)]
-  let parts = self.parts.copy()
+  let edits = formatting.map(plan => plan.edits.copy()).unwrap_or([])
+  edits.push((sheet, edit))
+  let parts = formatting
+    .map(plan => plan.parts.copy())
+    .unwrap_or(self.parts.copy())
   if notes is Some(notes) {
     let addresses : Map[String, Address?] = Map([])
     for note in notes.entries {
@@ -149,6 +154,23 @@ fn Session::reorder_cells(
     let (next, edit) = document.edit_source(links)
     edits.push((sheet, edit))
     next
+  }
+  let nested = filter
+    .map(state => {
+      sort.map(sort => state.bounds.covers(sort.bounds)).unwrap_or(false)
+    })
+    .unwrap_or(false)
+  let filter = if nested {
+    filter.map(state => { ..state, sort, })
+  } else {
+    filter
+  }
+  let document = if sort is Some(sort) && !nested {
+    let (document, edit) = write_sort_state(document, sort)
+    edits.push((sheet, edit))
+    document
+  } else {
+    document
   }
   if edits.all(entry => entry.1.payload_bytes() == 0) {
     return self.query()
@@ -218,6 +240,7 @@ fn Session::reorder_cells(
     edits,
     (sheet, target),
     parts~,
+    created_parts=formatting.map(plan => plan.created_parts).unwrap_or(Map([])),
   )
   self.query()
 }
