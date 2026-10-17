@@ -113,6 +113,7 @@ pub impl ToJson for Position
 pub(all) enum RunningContent {
   Text(String)
   Field(String)
+  FormattedField(String, String)
 } derive(Eq)
 pub fn RunningContent::equal(Self, Self) -> Bool
 pub fn RunningContent::not_equal(Self, Self) -> Bool
@@ -185,6 +186,7 @@ pub fn Session::set_default_tab_stop(Self, Int, Double?) -> Json raise @failure.
 pub fn Session::set_hyperlink(Self, Int, Selection, String?, text? : String?) -> Json raise @failure.Failure
 pub fn Session::set_page_background(Self, Int, String?) -> Json raise @failure.Failure
 pub fn Session::set_page_borders(Self, Int, @layout.PageBorders?) -> Json raise @failure.Failure
+pub fn Session::set_page_numbering(Self, Int, @layout.PageNumbering?, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_page_setup(Self, Int, @layout.PageSetup, orientation? : String?) -> Json raise @failure.Failure
 pub fn Session::set_paragraph_format(Self, Int, Selection, ParagraphFormat) -> Json raise @failure.Failure
 pub fn Session::set_running_area(Self, Int, String, String, Array[RunningContent], Double, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure

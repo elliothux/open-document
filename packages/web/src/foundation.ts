@@ -34,6 +34,7 @@ export type {
   DocxListLevel,
   DocxListLevelUpdate,
   DocxPageSetup,
+  DocxPageNumbering,
   DocxPageSettings,
   DocxPageBorders,
   DocxPageBorder,

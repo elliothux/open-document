@@ -126,6 +126,7 @@ pub(all) struct Flow {
   background : String
   pageBorders : PageBorders
   page : PageSetup
+  pageNumbering : PageNumbering
   paragraphs : Array[Paragraph]
   diagnostics : Array[String]
   tables : Array[Table]
@@ -346,6 +347,17 @@ pub(all) struct PageFrame {
   cellAreas : Array[CellArea]
 } derive(ToJson)
 pub fn PageFrame::to_json(Self) -> Json
+
+pub(all) struct PageNumbering {
+  start : Int64
+  format : String
+}
+pub fn PageNumbering::field_text(Self, String, Int, Int) -> String raise @failure.Failure
+pub fn PageNumbering::new(start? : Int64, format? : String) -> Self
+pub fn PageNumbering::to_json(Self) -> Json
+pub fn PageNumbering::validate(Self) -> Unit raise @failure.Failure
+pub fn PageNumbering::variant(Self, Int, Bool, Bool) -> String
+pub impl ToJson for PageNumbering
 
 pub(all) struct PageSetup {
   width : Double

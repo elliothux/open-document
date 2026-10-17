@@ -351,31 +351,41 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 导入支持实线、显式 none/nil、RGB 及按黑色解释的 auto，保留未改源。未知线型、主题色、艺术边框、阴影/框效果、重复节点、未知属性/子节点及目标注释保持保护和布局诊断。多节、镜像/装订线、文档保护及预算沿页面设置保护；其余边框样式继续实施。
 
+### 页码格式与起点
+
+`DocumentEditor.setPageNumbering(value)` 与 `FoundationSession/Client.setPageNumbering(revision, value, profile)` 修改单节页码。`value` 为 `DocxPageNumbering { start: number; format }`，start 是 0–4294967295 的整数；format 接受 `decimal`、`decimalZero`、`lowerLetter`、`upperLetter`、`lowerRoman`、`upperRoman`。传 null 移除 `w:pgNumType`，恢复从 1 开始的十进制编号。`pageSetup().numbering` 返回 `{ value, reason }`；不支持的节属性返回 null 与原因。默认页面面板提供起点、格式、应用和重置。
+
+核心以 `layout.PageNumbering` 保存 UInt32 范围的 Int64 起点，公开 JSON 传精确数值；必需的 `Flow.pageNumbering` 参与页边文字派生。PAGE 为起点加物理页序，NUMPAGES 为实际总页数。字段显式格式优先于节格式，未指定格式的 NUMPAGES 使用十进制。字母/罗马数字复用既有 [Office 编号格式](../../modules/layout/src/number-label.mbt)，包括零值和循环规则；页码加法使用 Int64，不在 UInt32 起点附近溢出。首个物理页的首页变体优先，其余页面按编号结果的奇偶选择 even/default；缓存中的对应空间随之更新。
+
+操作沿现有单节属性检查和源事务，按 OOXML 顺序插入或替换 `pgNumType`。修改前预检字体及分页，失败保留原源、选择、待输入格式和历史。相同有效设置不新增历史；重置移除原属性。修改编号本身保留正文、页边 XML、字段代码和缓存，显式区域应用才写回当前字段结果。没有节属性时沿原有路径创建。多节、章节前缀、未知格式、重复节点及带注释/处理指令的编号属性继续保护。
+
+语义依据 [ONLYOFFICE 节起点与编号奇偶](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L14679-L14732)、[PAGE 的节格式/显式格式优先级](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L4828-L4845)及[字段格式映射](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexFields/instruction-base.js#L133-L179)。实现归 [`page-numbering.mbt`](../../modules/formats/src/docx/page-numbering.mbt)和[公共页码模型](../../modules/layout/src/page-numbering.mbt)。更广页码格式与多节仍继续实施。
+
 ### 页眉页脚
 
-`FoundationSession/Client.runningArea(revision, kind, variant)` 返回 `DocxRunningArea { revision, content, distance, reason, differentFirst, differentEven, shared }`。`kind` 使用 `DocxRunningKind` 的 `header/footer`；`variant` 使用 `DocxRunningVariant` 的 `default/first/even`。`DocumentEditor.runningArea(kind, variant)` 沿原生输入屏障查询。`content` 是 `DocxRunningContent[]`，每项为 `{ text: string }` 或 `{ field: "PAGE" | "NUMPAGES" }`，从 Wasm/Web foundation 模块导出。当前支持单节，文字以 LF 分段，以 U+2028 表示软换行，保留 Tab；`distance` 为距纸张上边或下边的 pt，同类区域的三种变体共用该距离。不支持的源返回保护原因。
+`FoundationSession/Client.runningArea(revision, kind, variant)` 返回 `DocxRunningArea { revision, content, distance, reason, differentFirst, differentEven, shared }`。`kind` 使用 `DocxRunningKind` 的 `header/footer`；`variant` 使用 `DocxRunningVariant` 的 `default/first/even`。`DocumentEditor.runningArea(kind, variant)` 沿原生输入屏障查询。`content` 是 `DocxRunningContent[]`，每项为 `{ text: string }` 或 `{ field: "PAGE" | "NUMPAGES"; format?: "decimal" | "lowerLetter" | "upperLetter" | "lowerRoman" | "upperRoman" }`，从 Wasm/Web foundation 模块导出。当前支持单节，文字以 LF 分段，以 U+2028 表示软换行，保留 Tab；`distance` 为距纸张上边或下边的 pt，同类区域的三种变体共用该距离。不支持的源返回保护原因。
 
-`FoundationSession/Client.setRunningArea(revision, kind, variant, content, distance, profile)` 与 `DocumentEditor.setRunningArea(kind, variant, content, distance)` 替换指定区域的文字和页码字段。核心使用 `RunningContent.Text(String)/Field(String)`。例如 `[{ text: "Page " }, { field: "PAGE" }, { text: " of " }, { field: "NUMPAGES" }]`。旧的字符串参数和查询 `text` 字段已移除。前者显式提供字体映射，编辑器复用当前映射。列表最多 256 项；文字与字段合计最多 8192 单位，文字按 UTF-16、每个字段按一单位计算。相邻文字会合并，空列表用于清空；段内最多 64 个字段。距离为 0–14400 pt 的整数 twip，并须给正文留出可用区域。缺失的 `hdr/ftr` 部件、关系、内容类型、节引用及距离在同一事务创建，候选排版和输出预算通过后提交。清空保留一个空段落和已创建部件，不清理未知资源。
+`FoundationSession/Client.setRunningArea(revision, kind, variant, content, distance, profile)` 与 `DocumentEditor.setRunningArea(kind, variant, content, distance)` 替换指定区域的文字和页码字段。核心使用 `RunningContent.Text(String)/Field(String)`，显式格式使用 `FormattedField(String, String)`。例如 `[{ text: "Page " }, { field: "PAGE" }, { text: " of " }, { field: "NUMPAGES" }]`。旧的字符串参数和查询 `text` 字段已移除。前者显式提供字体映射，编辑器复用当前映射。列表最多 256 项；文字与字段合计最多 8192 单位，文字按 UTF-16、每个字段按一单位计算。相邻文字会合并，空列表用于清空；段内最多 64 个字段。距离为 0–14400 pt 的整数 twip，并须给正文留出可用区域。缺失的 `hdr/ftr` 部件、关系、内容类型、节引用及距离在同一事务创建，候选排版和输出预算通过后提交。清空保留一个空段落和已创建部件，不清理未知资源。
 
-`FoundationSession/Client.setRunningOptions(revision, first, even, profile)` 与 `DocumentEditor.setRunningOptions(first, even)` 修改首页和奇偶页开关。核心写回单节 `titlePg` 与文档 `evenAndOddHeaders`，按需创建节或设置部件；关闭保留所有区域和引用，重新开启恢复同一内容。开关不隐式创建文字部件。首页启用时优先选择 first；其余偶数页在奇偶开关启用时选择 even；其他页选择 default。缺失的活动变体显示空白，不回退到 default。选择依据 [ONLYOFFICE 页边区域解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Layout/Base.js#L85-L116)，未复制上游源码。
+`FoundationSession/Client.setRunningOptions(revision, first, even, profile)` 与 `DocumentEditor.setRunningOptions(first, even)` 修改首页和奇偶页开关。核心写回单节 `titlePg` 与文档 `evenAndOddHeaders`，按需创建节或设置部件；关闭保留所有区域和引用，重新开启恢复同一内容。开关不隐式创建文字部件。首页启用时优先选择 first；其余按节起点计算的偶数页在奇偶开关启用时选择 even；其他页选择 default。缺失的活动变体显示空白，不回退到 default。选择依据 [ONLYOFFICE 页边区域解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Layout/Base.js#L85-L116)，未复制上游源码。
 
 `FoundationSession/Client.unlinkRunningArea(revision, kind, variant, profile)` 与 `DocumentEditor.unlinkRunningArea(kind, variant)` 为指定共享区域创建独立部件。`shared` 按实际引用解析后的部件判断，包含非活动变体和不同关系 ID 的别名；没有共享或没有部件时不增加历史。默认面板先读取区域，再提供独立操作。
 
 核心完整复制区域 XML 及其关系，保留注释、属性和关系 ID；内部目标改为包内绝对路径，外链保持原地址且不请求网络。图片等资源继续复用，旧部件保留。新部件、关系、内容类型及选定引用合为一次有界事务，候选失败保留原文档，支持精确撤销/重做与重开。未知或带注释的源可独立保留，纯文字编辑限制继续适用。复制思路参考 [ONLYOFFICE 断开页边继承](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L11643-L11715)，当前操作只处理单节显式共享引用，节间继承仍待实现。实现归[独立部件事务](../../modules/formats/src/docx/running-unlink.mbt)。
 
-修改保留正文、选区、待输入格式和其他部件。距离单独变化时完整保留区域源；文字替换保留未改段落的原始 XML，修改的段落保留段落属性与首个 run 的字符属性，字段按该段原有字段顺序沿用结果字符属性，并写为标准简单域；新增段落沿用最后一段。重复设置不新增历史；开关、部件创建、文字和距离修改共用精确撤销重做及保存重开。默认页面面板提供区域、所属页面、读取、文字/字段、距离和两个开关，可在文字光标处插入当前页码或总页数，并更换字段种类或移除，过期草稿须重新读取；应用开关保留尚未提交的文字草稿。
+修改保留正文、选区、待输入格式和其他部件。距离单独变化时完整保留区域源；文字替换保留未改段落的原始 XML，修改的段落保留段落属性与首个 run 的字符属性，字段按该段原有字段顺序沿用结果字符属性，并写为标准简单域；新增段落沿用最后一段。重复设置不新增历史；开关、部件创建、文字和距离修改共用精确撤销重做及保存重开。默认页面面板提供区域、所属页面、读取、文字/字段、距离和两个开关，可在文字光标处插入当前页码或总页数，并更换字段种类、显式格式或移除，过期草稿须重新读取；应用开关保留尚未提交的文字草稿。
 
 核心 `Flow.headers/footers` 按 `default/first/even` 保存活动区域的段落，配合 `headerDistance/footerDistance/differentFirst/differentEven` 派生各页正文上下空间。`Layout.running` 按页保存页边行，独立于正文光标行。页眉从上边距离开始，页脚在下边距离以上结束；实际行框、段距与正文边距共同确定避让。文字复用既有塑形、定位图元、Canvas/PDF 和语义文本；命中返回 `protected-content:running-area`，不产生正文编辑位置。活动区域的重复行计入原有总行数预算。几何依据 [ONLYOFFICE HeaderFooter](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/HeaderFooter.js#L1735-L1804)。实现归 [`running-read.mbt`](../../modules/formats/src/docx/running-read.mbt)、[`running-edit.mbt`](../../modules/formats/src/docx/running-edit.mbt)、[开关事务](../../modules/formats/src/docx/running-options.mbt)、[页边布局](../../modules/layout/src/running.mbt)及 [`docx-running.tsx`](../../packages/ui/src/docx-running.tsx)。
 
 分页缓存包含三种活动页的正文空间。后缀复用同时检查当前空间和页序奇偶，首段变动不能把另一类页面的旧位置复用到当前页。普通表格行、纵向合并续页、保留段落链和孤行控制按当前页空间放置；纵向合并组的重复表头仍沿既有整组预留规则，按该组经过页面的最小可用高度判断，逐片段取舍继续完善。
 
-已导入的页眉页脚支持 `PAGE` 和 `NUMPAGES` 的十进制计算，包括 `fldSimple` 和同段内的 begin/instrText/separate/result/end 成对域。接受缺省格式、`\* Arabic` 或 `\* MERGEFORMAT`；保留首个结果 run 的有效字符样式。派生 `Span.field` 使用空串、`PAGE` 或 `NUMPAGES`，`Span.text` 保留导入缓存，实际页边行按当前页号和总页数重新塑形。正文分页、历史和重开会重新计算，Canvas、语义文本和 PDF 使用相同结果。参考 [ONLYOFFICE PAGE 与 NUMPAGES](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L918-L928)。
+已导入的页眉页脚支持 `PAGE` 和 `NUMPAGES` 的格式化计算，包括 `fldSimple` 和同段内的 begin/instrText/separate/result/end 成对域。接受缺省格式、`\* Arabic` 或 `\* MERGEFORMAT`；保留首个结果 run 的有效字符样式。派生 `Span.field` 使用空串、`PAGE` 或 `NUMPAGES`，`Span.text` 保留导入缓存，实际页边行按当前页号和总页数重新塑形。正文分页、历史和重开会重新计算，Canvas、语义文本和 PDF 使用相同结果。参考 [ONLYOFFICE PAGE 与 NUMPAGES](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L918-L928)。
 
-字段结果改变换行时，核心按每页实际页边高度有界重排正文，最多八轮；不收敛时保留最后完整布局并给出诊断，输出沿既有诊断保护。正文空间和分页缓存包含逐页几何，跨页表格也使用该页空间。现有 1024 页和 32768 行预算继续生效，每段最多 64 个字段。未知指令/开关、锁定、嵌套、不完整或跨段域继续保护且不执行；当前不支持节页码起点、其他编号格式和正文域。实现归[字段读取](../../modules/formats/src/docx/running-fields.mbt)与[有界重排](../../modules/layout/src/running-pagination.mbt)。
+字段结果改变换行时，核心按每页实际页边高度有界重排正文，最多八轮；不收敛时保留最后完整布局并给出诊断，输出沿既有诊断保护。正文空间和分页缓存包含逐页几何，跨页表格也使用该页空间。现有 1024 页和 32768 行预算继续生效，每段最多 64 个字段。未知指令/开关、锁定、嵌套、不完整或跨段域继续保护且不执行；当前不支持多节继承、更广编号格式和正文域。实现归[字段读取](../../modules/formats/src/docx/running-fields.mbt)与[有界重排](../../modules/layout/src/running-pagination.mbt)。
 
-计算、保存和输出不改写域代码或缓存，不增加历史，也不改变原格式未保存状态。显式应用字段内容会把当前结果与内容修改放在同一项历史；内容和距离相同时，应用用于刷新已有缓存，结果相同则不新增历史。只改距离或开关仍保留区域 XML。刷新简单域和成对域时只替换结果文字，保留域代码、属性和字符样式；未知或带注释的源继续保护。缓存的 `PAGE` 使用该变体的首次出现页：首页为 1、偶数页为 2；默认变体在两个开关关闭时为 1，开启首页后为 2，首页与奇偶都开启时为 3。非活动变体采用同一规则；`NUMPAGES` 使用当前文档总页数。屏幕/PDF 仍逐页计算。更新要求完整布局及原有历史/输出预算通过，失败保留原文档、选择和历史。行为参考 [ONLYOFFICE 字段创建与更新](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L23510-L23568)，当前写回归[有序内容及字段缓存](../../modules/formats/src/docx/running-content.mbt)。
+计算、保存和输出不改写域代码或缓存，不增加历史，也不改变原格式未保存状态。显式应用字段内容会把当前结果与内容修改放在同一项历史；内容和距离相同时，应用用于刷新已有缓存，结果相同则不新增历史。只改距离或开关仍保留区域 XML。刷新简单域和成对域时只替换结果文字，保留域代码、属性和字符样式；未知或带注释的源继续保护。缓存的 `PAGE` 使用该变体的首次出现页，加上节起点并应用节格式或字段显式格式。首页取物理首页；偶数变体取编号后首次为偶数且未被首页占用的页面；默认变体取未被活动首页/偶数区域占用的首个页面。起点为 1 时仍分别遵循原有的 1、2 及默认区域 1/2/3 规则。非活动变体采用同一规则；`NUMPAGES` 使用当前文档总页数。屏幕/PDF 仍逐页计算。更新要求完整布局及原有历史/输出预算通过，失败保留原文档、选择和历史。行为参考 [ONLYOFFICE 字段创建与更新](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L23510-L23568)，当前写回归[有序内容及字段缓存](../../modules/formats/src/docx/running-content.mbt)。
 
-节间继承、其他字段、其他页码格式、图片/表格/审阅对象及页边原生光标仍待实现。共享同一部件的变体可显示，内容替换或缓存更新须先显式断开，避免改写其他区域；未知或带注释的目标源也不允许内容替换或缓存更新。非活动区域保持原源，启用前验证候选布局。正文查找和统计仍只覆盖既定正文范围。
+节间继承、其他字段、更广页码格式、图片/表格/审阅对象及页边原生光标仍待实现。共享同一部件的变体可显示，内容替换或缓存更新须先显式断开，避免改写其他区域；未知或带注释的目标源也不允许内容替换或缓存更新。非活动区域保持原源，启用前验证候选布局。正文查找和统计仍只覆盖既定正文范围。
 
 ### 表格创建
 
@@ -1085,9 +1095,11 @@ Web 复用核心矩形显示悬停或选中便笺的作者与纯文字提示，�
 
 网格读取行高、列宽、隐藏行列与合并区域。核心使用 Normal 字体和字号的最大数字宽度换算列宽；不依赖 DOM 度量。字体键沿用 `family|bold|italic`，宿主明确映射到已添加的字体身份。支持字体大小、粗斜体、基本文字色、纯色填充、实线边框、左中右/上中下对齐与换行。行列尺寸使用声明值，显式自动适配命令更新这些值；自动模式的内容和列宽变化在文档事务内同步尺寸。数字宽度不足时显示 `#`；文字按单元格裁剪。
 
+General 显示按 [ONLYOFFICE 的 15 位有效数字拆分](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/NumFormat.js#L87-L89)及[数值分解](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/NumFormat.js#L125-L153)消除二进制尾数。例如实际 Double 为 `20.009999999999998` 时显示 `20.01`。文字舍入不重新解析 Double，最大有限数和次正规数保持可显示；计算、类型值、公式文字转换及 XLSX 源缓存保留原精度。查询、网格、PDF、纯文字剪贴板、筛选标签和按显示文字去重共用该格式；去重仍先预览并由显式事务提交。当前保持既有小数/科学记法选择，按实际列宽选择 General 精度和更广浮点显示兼容仍待扩展。实现归 [`number-general.mbt`](../../modules/formats/src/xlsx/number-general.mbt)。
+
 数字格式覆盖 General、`@`、整数、两位小数、千分位、百分比、`yyyy-mm-dd`、`hh:mm:ss`，以及内置 1–4、9–10、14–22、49。日期保留数值，核心解释 1900/1904 系统，1900 序号 60 显示虚构的 2 月 29 日，序号 0 显示 1900-01-00。不经过宿主时区。其他格式、颜色 tint、渐变/图案、非实线边框及额外字体装饰保留声明并诊断，不承诺显示等价。
 
-公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
+公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/SQRT/POWER/PRODUCT/MEDIAN/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/EXACT/REPT/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
 
 整列 `A:A`、`$A:B` 和整行 `1:1`、`$1:2` 可带工作表限定并使用反向端点。行号只接受十进制整数，范围受 1048576 行、16384 列约束；混合行/列/单格端点拒绝。内部用一个有界矩形表示，未覆盖维度在复制时固定；原公式源码保持，复制及名称展开输出对应行列记法和 `$` 标记。依赖保留区间，聚合及条件函数查询实际单元格，空白计数按逻辑面积扣除非空值。线性查找在大范围内仅检查已有单元格及各空白区间的首个搜索位置，保留正反向、错误与近似候选规则；小范围保持直接读取，二分查找沿原路径。全部沿用工作量及输出限制，保留空项的超大连接仍可能原子拒绝。
 
@@ -1098,6 +1110,12 @@ AND/OR 接受数值和布尔，忽略引用内的文本与空白；没有有效�
 IF、IFERROR、IFNA 只求值选中的结果分支，依赖仍包含全部声明引用。IFERROR 捕获公式错误值，IFNA 只捕获 `#N/A`；两者不吞未知函数、循环、引用解析失败或资源超限。新输入及生成的 IFNA、CONCAT、TEXTJOIN、DAYS、XLOOKUP 按 OOXML 写入对应 `_xlfn.` 函数前缀，读取也接受这些前缀；只替换函数 token，保留同名工作表和文字常量。查询继续返回实际公式源。
 
 ABS 返回绝对值，INT 向负无穷取整；MOD 按 `n - d * floor(n / d)` 计算，零除数返回 `#DIV/0!`。三类舍入按有限 Double 的十进制表示处理，ROUND 的半值远离零，ROUNDUP 远离零，ROUNDDOWN 朝零；位数的小数部分朝零截断。正负位数、进位及 `ROUND(1.005,2)=1.01` 使用同一路径，不先乘十进制倍率。精度至少 324 时保持原值；截断后的精度小于 -308 时，非零 ROUNDUP 返回 `#NUM!`，其余返回 0。结果非有限也返回 `#NUM!`，不按任意精度分配字符串。
+
+SQRT 计算非负平方根，负数返回 `#NUM!`。POWER 接受两个标量；零的负幂为 `#DIV/0!`，零的零次幂沿所选参考返回 1。负底数的非整数幂沿 [ONLYOFFICE POWER](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L3435-L3462) 计算负候选根，再以反向幂的整数舍入结果核对底数；不成立时为 `#NUM!`。非有限结果为 `#NUM!`，下溢可为 0。标量类型转换沿既有规则。
+
+PRODUCT 按参数顺序及引用内的行列顺序相乘，重复/重叠引用按次数计入。引用中的数字文字可转换，布尔、空白与其他文字忽略，引用错误传播；直接布尔和数字文字转换，直接非法文字返回 `#VALUE!`，空参数忽略。没有数值返回 0；中间溢出立即返回 `#NUM!`，不会被后面的零消除。行为依据 [ONLYOFFICE PRODUCT](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L3574-L3665)。
+
+MEDIAN 对实际数值排序，偶数项取中间两项的平均值。沿 [ONLYOFFICE MEDIAN](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L8541-L8620)，引用中的文字、布尔、空白及错误均忽略；直接布尔参与，直接文字忽略，直接错误及空参数返回 `#VALUE!`。没有数值也返回 `#VALUE!`，平均值的非有限结果为 `#NUM!`。PRODUCT/MEDIAN 支持跨表、名称展开和整行/列的稀疏引用，不展开空矩阵；隐藏及筛选行仍参与。遍历与排序预付现有公式工作预算，资源超限整体回滚，IFERROR 不吞资源失败。四项均参与实际依赖、缓存及精确历史，不再使用未计算保护。实现归 [`formula-numeric.mbt`](../../modules/formats/src/xlsx/formula-numeric.mbt)及 [`formula-product-median.mbt`](../../modules/formats/src/xlsx/formula-product-median.mbt)。
 
 数值函数复用已有数值、数字文字、布尔及空白转换；ROUND/ROUNDDOWN 的文字引用保持 `#VALUE!`，文字常量仍可转换。标量函数的多格范围返回 `#VALUE!`。实现参考 [ONLYOFFICE 数值函数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js)及其独立[舍入用例](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/tests/cell/spreadsheet-calculation/formula-tests/mathematicTests.js#L16439-L16487)。核心已检查负数、半值、进位、类型转换、有限边界、跨表重算、缓存和精确历史；默认公式栏已检查组合数值公式、依赖修改、独立 XML、保存重开及 PDF。更广浮点兼容与地区化数值解析仍归后续扩展。
 
@@ -1143,11 +1161,11 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 首次打开计算支持的公式，编辑只重新求值受影响公式。首次有效事务同步与已计算结果不同的导入缓存，包括未受本次输入影响的陈旧缓存；无编辑打开不写回。语法、越界引用、未支持公式、新建循环和预算超限整体拒绝；除零等是带类型的公式结果。共享公式按锚点派生；编辑命中组时有界展开该组，其他组保留。
 
-结构化/外部/三维/整行整列引用、数组、动态数组、易变函数及迭代计算未支持。依赖无法确定、函数参数语义未核实或存在原有循环时，整个工作簿只读。公式不访问网络、宏或宿主脚本。
+结构化/外部/三维引用、数组、动态数组、易变函数及迭代计算未支持。依赖无法确定、函数参数语义未核实或存在原有循环时，整个工作簿只读。公式不访问网络、宏或宿主脚本。
 
-导入的 SQRT、POWER、PRODUCT、MEDIAN 尚不求值，但已核实只读取显式参数，沿既有语法和名称展开建立静态依赖。保留其源码和导入缓存，依赖它们的公式也标为未计算。核心只把实际求值的结果放入 `calculated`，缓存不参与新的公式、条件格式、验证或筛选计算。每格新增 `calculationReason`：已计算/普通值为空，未计算时说明未支持函数或上游位置。默认公式栏显示原因；有缓存时显示缓存，缺缓存显示未计算。选区含未计算公式时，计数仍可读，四项汇总均为 null 并给出原因。
+导入的 SUMSQ 尚不求值，但已核实只读取显式参数，沿既有语法和名称展开建立静态依赖。保留其源码和导入缓存，依赖它们的公式也标为未计算。核心只把实际求值的结果放入 `calculated`，缓存不参与新的公式、条件格式、验证或筛选计算。每格新增 `calculationReason`：已计算/普通值为空，未计算时说明未支持函数或上游位置。默认公式栏显示原因；有缓存时显示缓存，缺缓存显示未计算。选区含未计算公式时，计数仍可读，四项汇总均为 null 并给出原因。
 
-所有源提交先比较未计算链的源码、展开表达式、稳定表身份、依赖矩形及参数值。新增的稀疏参数格也参与；嵌套 SUBTOTAL 另检查手动隐藏与筛选来源。相同参数下可编辑无关值、已支持公式、格式和视图，并沿原有重算、源事务、预算与精确历史保存；会改变该链或参数的输入、结构/名称及可见性操作原子拒绝。新增未支持公式及 CSV/TSV 公式转换继续拒绝。其他未核实函数、INDIRECT/OFFSET、CELL 等环境/格式查询、自定义函数及其嵌套继续整本保护。函数参数行为参考固定 [ONLYOFFICE 数值函数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L3444)、[MEDIAN](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L8553)和[文本函数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/textanddataFunctions.js#L902)；保护实现在 [`calculation-protection.mbt`](../../modules/formats/src/xlsx/calculation-protection.mbt)。
+所有源提交先比较未计算链的源码、展开表达式、稳定表身份、依赖矩形及参数值。新增的稀疏参数格也参与；嵌套 SUBTOTAL 另检查手动隐藏与筛选来源。相同参数下可编辑无关值、已支持公式、格式和视图，并沿原有重算、源事务、预算与精确历史保存；会改变该链或参数的输入、结构/名称及可见性操作原子拒绝。新增未支持公式及 CSV/TSV 公式转换继续拒绝。其他未核实函数、INDIRECT/OFFSET、CELL 等环境/格式查询、自定义函数及其嵌套继续整本保护。未计算函数的参数行为参考固定 [ONLYOFFICE SUMSQ](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L5732-L5797)；保护实现在 [`calculation-protection.mbt`](../../modules/formats/src/xlsx/calculation-protection.mbt)。
 
 未计算公式即使有缓存也不能作为计算结果打印；只含已计算内容的独立打印区域可输出。XLSX 原格式保存保留未计算公式及缓存，CSV 值导出沿既有有缓存才可导出的合同，不赋予缓存已计算状态。
 
@@ -1561,19 +1579,19 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 ### 日期与页脚编辑
 
-`PresentationEditor.editSlides({ action: "footer", value, allSlides }, slide?)` 修改当前页或指定页的日期、页脚和编号。`allSlides=true` 时修改全部页面，包含隐藏页，合为一项历史。Wasm/Worker 的 `editPptxSlides` 使用同一命令。`PptxFooterContent` 为 `{ date: string | null, footer: string | null, number: boolean }`；date 是固定日期文字，footer 是页脚文字，null 移除对应对象，空串保留空对象，number 控制编号占位符。`PptxQuery.footer` 返回这三项及 `reason`，类型为 `PptxFooter`。缺少对象时为 null/false；未知、复杂或受保护的页边内容返回保护原因。
+`PresentationEditor.editSlides({ action: "footer", value, allSlides }, slide?)` 修改当前页或指定页的日期、页脚和编号。`allSlides=true` 时修改全部页面，包含隐藏页，合为一项历史。Wasm/Worker 的 `editPptxSlides` 使用同一命令。`PptxFooterContent` 为 `{ date: string | { format: number; language: "en-US" | "zh-CN" | "zh-TW" } | null, footer: string | null, number: boolean }`。date 的字符串表示固定文字，对象表示自动日期；format 为 1–13 的整数，对应 `datetime1`–`datetime13`。footer 是页脚文字，null 移除对应对象，空串保留空对象，number 控制编号占位符。MoonBit 使用 `FooterDate::Fixed(String)` 或 `FooterDate::Automatic(Int, String)`，沿 `FooterContent.date` 传入。`PptxQuery.footer` 返回这三项及 `reason`，类型为 `PptxFooter`。缺少对象时为 null/false；未知、复杂或受保护的页边内容返回保护原因。
 
-每项文字最多 4096 UTF-16 单元、256 段，CRLF/CR 归一为 LF，软换行使用 U+2028。核心不读取系统时钟。已有日期和页脚保留对象身份、几何、框属性、列表样式及首段/首 run 格式；新文字使用该格式。相同文字和已有真实编号不改源或历史。开启静态编号占位符时创建真实 `slidenum` 域；已有真实编号保留缓存。关闭时移除对应本地占位符，并同步清除选择中已移除的对象。
+每项文字最多 4096 UTF-16 单元、256 段，CRLF/CR 归一为 LF，软换行使用 U+2028。核心不读取系统时钟。已有日期和页脚保留对象身份、几何、框属性、列表样式及首段/首 run 格式；新文字使用该格式。相同文字、相同自动日期设置及已有真实编号不改源或历史，刷新后重新应用相同设置也不更新缓存。自动日期使用会话时间，核心缺少时间时拒绝创建；初次创建或改变格式/语言时把当前文字写入字段缓存。修改已有自动日期保留字段 ID、对象身份、几何及首段/首 run 格式，只覆盖所选语言；固定/自动切换和移除沿同一事务。开启静态编号占位符时创建真实 `slidenum` 域；已有真实编号保留缓存。关闭时移除对应本地占位符，并同步清除选择中已移除的对象。
 
 创建优先采用当前版式，其次采用母版中的对应占位符，复制样式并继承几何；模板源保持不变。没有模板时创建独立本地占位符：默认 Arial 12 pt、黑色、自动缩小，日期左对齐、页脚居中、编号右对齐。三个框的 x 分别为页面宽度的 4%、36%、68%，宽度为 28%；y 为高度的 90%，高为 6%。字体仍由宿主授权 profile 提供。新对象及字段身份沿页面复制规则分配，不与原源冲突。
 
-全部目标页完成文字布局、字体、适配和包/输出检查后一次提交。单个页边对象生成的 XML 最多 1,048,576 UTF-16 单元，事务仍受 4 MiB 历史预算约束；任何目标失败均保留原源、选择和身份分配状态。原生草稿先独立提交。动态日期域、重复/分组页边对象、未知或带注释的文本源、无法解析的模板和关系、删除锁/外部对象引用、缺字体、越界及旧 revision 继续保护。当前操作修改本地页面，不改写共享版式或母版，也不为以后新增的空白页建立全稿默认值。
+全部目标页完成文字布局、字体、适配和包/输出检查后一次提交。单个页边对象生成的 XML 最多 1,048,576 UTF-16 单元，事务仍受 4 MiB 历史预算约束；任何目标失败均保留原源、选择和身份分配状态。原生草稿先独立提交。只有单段、单个受支持日期域的本地日期占位符可查询并修改自动设置；混合文字/字段、重复/分组页边对象、未知或带注释的文本源、无法解析的模板和关系、删除锁/外部对象引用、缺字体、越界及旧 revision 继续保护。当前操作修改本地页面，不改写共享版式或母版，也不为以后新增的空白页建立全稿默认值。
 
-默认面板提供固定日期、页脚、编号开关及应用到当前页/全部页。草稿在正文输入期间保持，切页和文档替换后按当前页重新加载。结构及内容替换参考 [ONLYOFFICE setHFProperties](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L1182-L1318)，实现归 [`footer-read.mbt`](../../modules/formats/src/pptx/footer-read.mbt)、[`footer-content.mbt`](../../modules/formats/src/pptx/footer-content.mbt)、[`footer-edit.mbt`](../../modules/formats/src/pptx/footer-edit.mbt)及 [`pptx-footer.tsx`](../../packages/ui/src/pptx-footer.tsx)。动态日期创作及母版编辑继续实施，导入与刷新见[动态日期域显示与刷新](#动态日期域显示与刷新)。
+默认面板提供日期、页脚、编号开关及应用到当前页/全部页。日期可切换固定文字和自动更新，自动模式可选择三种语言及十三种格式；选项以固定日期示例显示，不由 TypeScript 格式化文档日期。草稿在正文输入期间保持，切页和文档替换后按当前页重新加载。结构及内容替换参考 [ONLYOFFICE setHFProperties](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L1182-L1318)，实现归 [`footer-read.mbt`](../../modules/formats/src/pptx/footer-read.mbt)、[`footer-content.mbt`](../../modules/formats/src/pptx/footer-content.mbt)、[`footer-edit.mbt`](../../modules/formats/src/pptx/footer-edit.mbt)及 [`pptx-footer.tsx`](../../packages/ui/src/pptx-footer.tsx)。母版编辑继续实施，导入与刷新见[动态日期域显示与刷新](#动态日期域显示与刷新)。
 
 ### 动态日期域显示与刷新
 
-导入的简单 `a:fld type="datetime1"` 至 `datetime13` 及 `datetimeFigureOut` 按会话时间生成派生文字，类型比较忽略大小写。支持 `en-US`、`zh-CN` 和 `zh-TW`，语言沿 run/段落/继承格式解析，缺省为 `en-US`。字段结构边界与简单编号域相同。缺少时间、未知语言/格式或扩展结构保留源缓存并诊断；继承及锁定对象也保留诊断。日期域继续拒绝纯文字编辑，固定日期/页脚编辑暂不改写已有日期域。
+导入的简单 `a:fld type="datetime1"` 至 `datetime13` 及 `datetimeFigureOut` 按会话时间生成派生文字，类型比较忽略大小写。支持 `en-US`、`zh-CN` 和 `zh-TW`，语言沿 run/段落/继承格式解析，缺省为 `en-US`。字段结构边界与简单编号域相同。缺少时间、未知语言/格式或扩展结构保留源缓存并诊断；继承及锁定对象也保留诊断。日期域继续拒绝纯文字编辑；专用日期面板/API 可修改简单日期占位符，范围见[日期与页脚编辑](#日期与页脚编辑)。
 
 Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省传入当地时钟的 `YYYY-MM-DDTHH:MM:SS` 日历分量；宿主可显式传入以固定结果。MoonBit 的 `Session::open/create` 接受 `date_time`，不传时保留日期缓存并诊断。核心校验公历日期、1–9999 年、0–23 时及 0–59 分秒；该输入不含时区尾部，也不进行时区换算。格式化由 MoonBit 完成，平台只提供时间分量。
 
@@ -1581,13 +1599,13 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 
 源编辑、页面复制、主题/尺寸/版式变化及撤销重做沿当前时间重新解析日期。历史页面记录其计算时间，恢复旧快照时只重新解析过期页面，防止“撤销复制、刷新日期、重做复制”恢复旧值。可显示的版式/母版普通文字及组内日期域同样参与刷新预检；模板占位符仍沿既有版式实例化规则。
 
-格式与地区映射依据 [ONLYOFFICE PresentationField](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/PresentationField.js#L61-L78)、[类型索引](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/PresentationField.js#L286-L365)及[地区格式表](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/commonDefines.js#L4625-L4656)。中文沿其格式表和 [Word 字段解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/NumFormat.js#L991-L1033)保留现有结果：`datetime4/6` 中的 `W` 是字面文字，`datetime5` 使用时分秒，`datetime13` 的后备格式在 AM/PM 前保留冒号。自动日期创作、缓存显式写回、更多语言及备注字段继续实施。实现归 [`date-fields.mbt`](../../modules/formats/src/pptx/date-fields.mbt)及 [`pptx-clock.ts`](../../packages/wasm/src/pptx-clock.ts)。
+格式与地区映射依据 [ONLYOFFICE PresentationField](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/PresentationField.js#L61-L78)、[类型索引](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/PresentationField.js#L286-L365)及[地区格式表](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/commonDefines.js#L4625-L4656)。中文沿其格式表和 [Word 字段解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/NumFormat.js#L991-L1033)保留现有结果：`datetime4/6` 中的 `W` 是字面文字，`datetime5` 使用时分秒，`datetime13` 的后备格式在 AM/PM 前保留冒号。已有缓存的独立显式写回、更多语言及备注字段继续实施。实现归 [`date-fields.mbt`](../../modules/formats/src/pptx/date-fields.mbt)及 [`pptx-clock.ts`](../../packages/wasm/src/pptx-clock.ts)。
 
 ### 幻灯片编号字段
 
 导入的 `a:fld type="slidenum"` 按演示文稿 `firstSlideNum` 加从零开始的实际页序生成十进制文字，类型比较忽略大小写。起始编号缺省为 1，接受 0–4294967295；隐藏页保留编号位置。行为依据 [ONLYOFFICE PresentationField](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/PresentationField.js#L187-L220)。
 
-当前支持带非空 `id`、可选 `rPr/t` 且无其他字段属性或子节点的形式。字号、颜色和字体沿现有文字解析；派生数字进入查询及 Canvas/PDF 共用的定位输出。重排、复制、删除与撤销重做同步更新，读取和保存不刷新源缓存，也不新增修订。字段所在框继续拒绝纯文字编辑，其他字段和带段落属性/未知扩展的字段保留缓存并诊断。创建和移除见[日期与页脚编辑](#日期与页脚编辑)，版式占位符创建沿[幻灯片版式](#幻灯片版式)；动态日期创作和母版直接编辑继续实施。实现归 [`text-fields.mbt`](../../modules/formats/src/pptx/text-fields.mbt)。
+当前支持带非空 `id`、可选 `rPr/t` 且无其他字段属性或子节点的形式。字号、颜色和字体沿现有文字解析；派生数字进入查询及 Canvas/PDF 共用的定位输出。重排、复制、删除与撤销重做同步更新，读取和保存不刷新源缓存，也不新增修订。字段所在框继续拒绝纯文字编辑，其他字段和带段落属性/未知扩展的字段保留缓存并诊断。创建和移除见[日期与页脚编辑](#日期与页脚编辑)，版式占位符创建沿[幻灯片版式](#幻灯片版式)；母版直接编辑继续实施。实现归 [`text-fields.mbt`](../../modules/formats/src/pptx/text-fields.mbt)。
 
 ### 演讲备注
 

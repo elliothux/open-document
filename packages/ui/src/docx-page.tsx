@@ -4,10 +4,12 @@ import type { DocumentEditor } from "@open-document/web/editor";
 import type {
   DocxPageSettings,
   DocxPageSetup,
+  DocxPageNumbering,
 } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { DocxPageBordersForm } from "./docx-page-borders.js";
+import { listFormats } from "@open-document/web/foundation";
 
 export function DocxPage({
   controller,
@@ -23,6 +25,10 @@ export function DocxPage({
   const t = messages(state.locale);
   const [settings, setSettings] = useState<DocxPageSettings>();
   const [draft, setDraft] = useState<DocxPageSetup>();
+  const [numbering, setNumbering] = useState<DocxPageNumbering>({
+    start: 1,
+    format: "decimal",
+  });
   const [color, setColor] = useState("#ffffff");
   const [orientation, setOrientation] = useState<"portrait" | "landscape">(
     "portrait",
@@ -31,6 +37,7 @@ export function DocxPage({
     const value = await editor.pageSetup();
     setSettings(value);
     setDraft(value.page ?? undefined);
+    setNumbering(value.numbering.value ?? { start: 1, format: "decimal" });
     setColor(`#${value.background.color ?? "ffffff"}`);
     setOrientation(
       value.page && value.page.width > value.page.height
@@ -56,6 +63,72 @@ export function DocxPage({
         {t.loadPageSetup}
       </button>
       {settings?.reason && <p>{settings.reason}</p>}
+      {settings && (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            controller.run(async () => {
+              await editor.setPageNumbering(numbering);
+              await load();
+            });
+          }}
+        >
+          <fieldset disabled={disabled || stale || !!settings.numbering.reason}>
+            <legend>{t.pageNumbering}</legend>
+            <label>
+              {t.pageNumberStart}
+              <input
+                type="number"
+                min={0}
+                max={4294967295}
+                step={1}
+                required
+                value={Number.isFinite(numbering.start) ? numbering.start : ""}
+                onChange={(event) =>
+                  setNumbering({
+                    ...numbering,
+                    start: event.currentTarget.valueAsNumber,
+                  })
+                }
+              />
+            </label>
+            <label>
+              {t.pageNumberFormat}
+              <select
+                value={numbering.format}
+                onChange={(event) =>
+                  setNumbering({
+                    ...numbering,
+                    format: event.currentTarget
+                      .value as DocxPageNumbering["format"],
+                  })
+                }
+              >
+                {listFormats
+                  .filter((format) => format !== "bullet")
+                  .map((format) => (
+                    <option key={format} value={format}>
+                      {t[`listFormat_${format}`]}
+                    </option>
+                  ))}
+              </select>
+            </label>
+            <button type="submit">{t.applyPageNumbering}</button>
+            <button
+              type="button"
+              onClick={() =>
+                controller.run(async () => {
+                  await editor.setPageNumbering(null);
+                  await load();
+                })
+              }
+            >
+              {t.resetPageNumbering}
+            </button>
+          </fieldset>
+          {settings.numbering.reason && <p>{settings.numbering.reason}</p>}
+        </form>
+      )}
       {settings && (
         <DocxPageBordersForm
           key={settings.revision}

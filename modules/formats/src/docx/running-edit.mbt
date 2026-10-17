@@ -177,7 +177,7 @@ pub fn Session::set_running_area(
     .unwrap_or(0)
   if same_content &&
     old_distance == distance &&
-    !content.any(item => item is Field(_)) {
+    !content.any(item => item is Field(_) || item is FormattedField(_, _)) {
     return self.edit_state()
   }
   let parts = self.parts.copy()
@@ -190,7 +190,9 @@ pub fn Session::set_running_area(
   parts[part] = document
   let story = WordTree::new(document)
   let root = story.nodes[0]
-  let has_fields = content.any(item => item is Field(_))
+  let has_fields = content.any(item => {
+    item is Field(_) || item is FormattedField(_, _)
+  })
   let content = running_content_markup(document, story, current, content)
   if existing is Some(_) && same_content {
     ()

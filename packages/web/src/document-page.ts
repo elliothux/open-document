@@ -1,6 +1,7 @@
 import { DocumentReview } from "./document-review.js";
 import type { DocxPageSetup } from "@open-document/wasm/foundation";
 import type { DocxPageBorders } from "@open-document/wasm/foundation";
+import type { DocxPageNumbering } from "@open-document/wasm/foundation";
 import type { EditorOutput } from "./editor-state.js";
 import type {
   DocxRunningKind,
@@ -10,6 +11,15 @@ import type {
 
 /** Document-wide page commands use the editor's existing read and edit queues. */
 export abstract class DocumentPage extends DocumentReview {
+  setPageNumbering(numbering: DocxPageNumbering | null): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.setPageNumbering(
+        this.review.snapshot().revision,
+        numbering,
+        this.profile,
+      ),
+    );
+  }
   protected abstract readonly profile: Record<string, string>;
   unlinkRunningArea(
     kind: DocxRunningKind,

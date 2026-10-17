@@ -3,9 +3,11 @@ import { imageZh } from "./messages-pptx-image.js";
 import { footerZh } from "./messages-pptx-footer.js";
 import type { Messages } from "./messages-en.js";
 import { reviewZh } from "./messages-review.js";
+import { pageZh } from "./messages-docx-page.js";
 
 export const zh: Messages = {
   ...reviewZh,
+  ...pageZh,
   ...filterZh,
   ...imageZh,
   ...footerZh,

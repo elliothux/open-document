@@ -4,10 +4,12 @@ import {
   checkPageSetup,
   checkPageBackground,
   checkPageBorders,
+  checkPageNumbering,
   docxPageSettings,
   editState,
   type DocxPageSetup,
   type DocxPageBorders,
+  type DocxPageNumbering,
 } from "./docx-format.js";
 
 export type DocxRunningVariant = "default" | "first" | "even";
@@ -23,7 +25,11 @@ export function checkRunningOptions(first: unknown, even: unknown): void {
 }
 export type DocxRunningKind = "header" | "footer";
 export type DocxRunningContent =
-  { text: string } | { field: "PAGE" | "NUMPAGES" };
+  | { text: string }
+  | {
+      field: "PAGE" | "NUMPAGES";
+      format?: Exclude<DocxPageNumbering["format"], "decimalZero">;
+    };
 export interface DocxRunningArea {
   revision: number;
   /** LF separates paragraphs; U+2028 is an inline soft break. */
@@ -53,12 +59,23 @@ export function checkRunningArea(
   let units = 0;
   for (const value of content) {
     const item = record(value);
-    if (Object.keys(item).length !== 1)
-      throw new Error("Invalid running content item");
-    if (typeof item.text === "string" && !/[\r\f]/u.test(item.text))
+    if (
+      Object.keys(item).length === 1 &&
+      typeof item.text === "string" &&
+      !/[\r\f]/u.test(item.text)
+    )
       units += item.text.length;
-    else if (item.field === "PAGE" || item.field === "NUMPAGES") units++;
-    else throw new Error("Invalid running content item");
+    else if (
+      (item.field === "PAGE" || item.field === "NUMPAGES") &&
+      Object.keys(item).every((key) => ["field", "format"].includes(key))
+    ) {
+      if ("format" in item) {
+        checkPageNumbering({ start: 1, format: item.format });
+        if (item.format === "decimalZero")
+          throw new Error("Invalid explicit running field format");
+      }
+      units++;
+    } else throw new Error("Invalid running content item");
   }
   if (
     units > 8192 ||
@@ -98,6 +115,21 @@ export function docxRunningArea(value: unknown): DocxRunningArea {
 
 /** Page commands share the session's revision and source transaction. */
 export class FoundationPageSession extends WasmSession {
+  setPageNumbering(
+    revision: number,
+    numbering: DocxPageNumbering | null,
+    profile: Record<string, string>,
+  ) {
+    checkPageNumbering(numbering);
+    return editState(
+      this.call({
+        operation: "setPageNumbering",
+        revision,
+        numbering,
+        profile,
+      }),
+    );
+  }
   unlinkRunningArea(
     revision: number,
     kind: DocxRunningKind,

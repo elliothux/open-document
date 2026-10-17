@@ -9,6 +9,7 @@ fn running_lines(
   page~ : Int = -1,
   total~ : Int = 1,
 ) -> (Array[Array[Line]], Array[PageSetup]) raise @failure.Failure {
+  flow.pageNumbering.validate()
   let prepared : Map[String, (Array[Line], Double)] = Map([])
   for
     (stories, distance, footer) in [
@@ -27,13 +28,11 @@ fn running_lines(
         (variant == "even" && !flow.differentEven) {
         continue
       }
-      let active = if page == 0 && flow.differentFirst {
-        "first"
-      } else if page % 2 == 1 && flow.differentEven {
-        "even"
-      } else {
-        "default"
-      }
+      let active = flow.pageNumbering.variant(
+        page.max(0),
+        flow.differentFirst,
+        flow.differentEven,
+      )
       if page >= 0 && variant != active {
         continue
       }
@@ -48,16 +47,15 @@ fn running_lines(
         let paragraph = {
           ..paragraph,
           spans: paragraph.spans.map(span => {
-            guard ["", "PAGE", "NUMPAGES"].contains(span.field) &&
-              (span.field.is_empty() || span.image is None) else {
+            guard span.field.is_empty() || span.image is None else {
               @failure.reject("unsupported-layout", "Unsupported running field")
             }
             {
               ..span,
-              text: match span.field {
-                "PAGE" => (page.max(0) + 1).to_string()
-                "NUMPAGES" => total.to_string()
-                _ => span.text
+              text: if span.field.is_empty() {
+                span.text
+              } else {
+                flow.pageNumbering.field_text(span.field, page.max(0), total)
               },
             }
           }),
@@ -110,13 +108,11 @@ fn running_lines(
   let patterns : Array[Array[Line]] = []
   let setups : Array[PageSetup] = []
   for index in (if page >= 0 { [page] } else { [0, 1, 2] }) {
-    let variant = if index == 0 && flow.differentFirst {
-      "first"
-    } else if index % 2 == 1 && flow.differentEven {
-      "even"
-    } else {
-      "default"
-    }
+    let variant = flow.pageNumbering.variant(
+      index,
+      flow.differentFirst,
+      flow.differentEven,
+    )
     let (header, top) = prepared.get("header" + variant).unwrap_or(([], 0))
     let (footer, bottom) = prepared.get("footer" + variant).unwrap_or(([], 0))
     let page = {

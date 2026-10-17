@@ -184,6 +184,7 @@ pub fn Session::page_setup(
       "reason": "",
       "background": self.page_background_query(tree),
       "borders": self.page_borders_query(tree),
+      "numbering": self.page_numbering_query(tree),
     }
   } catch {
     @failure.Failure(message~, ..) =>
@@ -193,6 +194,7 @@ pub fn Session::page_setup(
         "reason": message,
         "background": self.page_background_query(tree),
         "borders": self.page_borders_query(tree),
+        "numbering": self.page_numbering_query(tree),
       }
   }
 }

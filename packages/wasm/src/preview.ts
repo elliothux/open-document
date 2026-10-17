@@ -26,6 +26,7 @@ export interface TextStyle {
 }
 
 export interface DocxFlow {
+  pageNumbering: { start: number; format: string };
   pageBorders: DocxPageBorders;
   background: string;
   additiveSpacing: boolean;
@@ -51,7 +52,11 @@ export interface DocxFlow {
       text: string;
       style: TextStyle;
       image: InlineImage | null;
-      field: "" | "PAGE" | "NUMPAGES";
+      field:
+        | ""
+        | "PAGE"
+        | "NUMPAGES"
+        | `${"PAGE" | "NUMPAGES"}:${"decimal" | "decimalZero" | "lowerLetter" | "upperLetter" | "lowerRoman" | "upperRoman"}`;
     }[];
     before: number;
     after: number;
@@ -168,6 +173,21 @@ function diagnostics(value: unknown): void {
 
 export function docxFlow(value: unknown): DocxFlow {
   const flow = fields(value, ["revision", "headerDistance", "footerDistance"]);
+  const numbering = fields(flow.pageNumbering, ["start"], ["format"]);
+  if (
+    !Number.isInteger(numbering.start) ||
+    Number(numbering.start) < 0 ||
+    Number(numbering.start) > 4294967295 ||
+    ![
+      "decimal",
+      "decimalZero",
+      "lowerLetter",
+      "upperLetter",
+      "lowerRoman",
+      "upperRoman",
+    ].includes(String(numbering.format))
+  )
+    throw new Error("Invalid document page numbering");
   if (flow.pageBorders === null)
     throw new Error("Missing document page borders");
   checkPageBorders(flow.pageBorders);
@@ -242,7 +262,10 @@ export function docxFlow(value: unknown): DocxFlow {
     for (const value of entries(paragraph.spans)) {
       const span = fields(value, ["node"], ["text", "field"]);
       if (
-        !["", "PAGE", "NUMPAGES"].includes(String(span.field)) ||
+        typeof span.field !== "string" ||
+        !/^(?:(?:PAGE|NUMPAGES)(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?)?$/u.test(
+          span.field,
+        ) ||
         (span.field !== "" && span.image !== null)
       )
         throw new Error("Invalid running field");

@@ -8,6 +8,7 @@ import type {
 } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { listFormats } from "@open-document/web/foundation";
 
 function runningDraft(content: DocxRunningContent[]): DocxRunningContent[] {
   const result: DocxRunningContent[] = [{ text: "" }];
@@ -202,13 +203,48 @@ export function DocxRunning({
                             : "NUMPAGES";
                         setContent(
                           content.map((part, i) =>
-                            i === index ? { field } : part,
+                            i === index ? { ...item, field } : part,
                           ),
                         );
                       }}
                     >
                       <option value="PAGE">{t.currentPageField}</option>
                       <option value="NUMPAGES">{t.totalPagesField}</option>
+                    </select>
+                  </label>
+                  <label>
+                    {t.fieldNumberFormat}
+                    <select
+                      value={item.format ?? ""}
+                      onChange={(event) => {
+                        const format = event.currentTarget.value;
+                        setContent(
+                          content.map((part, i) =>
+                            i === index
+                              ? format
+                                ? {
+                                    field: item.field,
+                                    format: format as NonNullable<
+                                      typeof item.format
+                                    >,
+                                  }
+                                : { field: item.field }
+                              : part,
+                          ),
+                        );
+                      }}
+                    >
+                      <option value="">{t.inheritedPageNumberFormat}</option>
+                      {listFormats
+                        .filter(
+                          (format) =>
+                            format !== "bullet" && format !== "decimalZero",
+                        )
+                        .map((format) => (
+                          <option key={format} value={format}>
+                            {t[`listFormat_${format}`]}
+                          </option>
+                        ))}
                     </select>
                   </label>
                   <button

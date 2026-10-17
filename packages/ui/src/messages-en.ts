@@ -2,8 +2,10 @@ import { filterEn } from "./messages-filter.js";
 import { imageEn } from "./messages-pptx-image.js";
 import { footerEn } from "./messages-pptx-footer.js";
 import { reviewEn } from "./messages-review.js";
+import { pageEn } from "./messages-docx-page.js";
 export const en = {
   ...reviewEn,
+  ...pageEn,
   ...filterEn,
   ...imageEn,
   ...footerEn,

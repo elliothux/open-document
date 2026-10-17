@@ -7,23 +7,40 @@ fn running_field_code(instruction : String) -> String raise @failure.Failure {
     .replace_all(old="\t", new=" ")
     .split(" ")
     .filter(token => !token.is_empty())
-    .map(token => token.to_owned().to_upper())
+    .map(token => token.to_owned())
     .collect()
-  guard tokens.length() >= 1 &&
-    ["PAGE", "NUMPAGES"].contains(tokens[0]) &&
-    (
-      tokens.length() == 1 ||
-      (
-        tokens.length() == 3 &&
-        tokens[1] == "\\*" &&
-        ["MERGEFORMAT", "ARABIC"].contains(tokens[2])
-      )
-    ) else {
+  guard [1, 3, 5].contains(tokens.length()) &&
+    ["PAGE", "NUMPAGES"].contains(tokens[0].to_upper()) else {
     @failure.reject(
       "unsupported-layout", "Unsupported running field instruction",
     )
   }
-  tokens[0]
+  let mut format = ""
+  let mut merge = false
+  for i = 1; i < tokens.length(); i = i + 2 {
+    guard tokens[i] == "\\*" else {
+      @failure.reject("unsupported-layout", "Unsupported running field switch")
+    }
+    if tokens[i + 1].to_upper() == "MERGEFORMAT" && !merge {
+      merge = true
+      continue
+    }
+    guard format.is_empty() else {
+      @failure.reject("unsupported-layout", "Duplicate running field format")
+    }
+    format = match tokens[i + 1] {
+      "Arabic" | "ARABIC" | "arabic" => "decimal"
+      "ROMAN" | "Roman" => "upperRoman"
+      "roman" => "lowerRoman"
+      "ALPHABETIC" => "upperLetter"
+      "alphabetic" => "lowerLetter"
+      _ =>
+        @failure.reject(
+          "unsupported-layout", "Unsupported running field format",
+        )
+    }
+  }
+  tokens[0].to_upper() + (if format.is_empty() { "" } else { ":" + format })
 }
 
 ///|

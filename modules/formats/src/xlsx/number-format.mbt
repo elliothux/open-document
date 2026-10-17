@@ -42,7 +42,8 @@ fn formatted(value : Value, format : String, date1904 : Bool) -> String {
     return value.display()
   }
   match format {
-    "General" | "@" => Number(value).display()
+    "General" => general_number(value)
+    "@" => Number(value).display()
     "0" | "#,##0" => decimal(value, 0, format == "#,##0")
     "0.00" | "#,##0.00" => decimal(value, 2, format == "#,##0.00")
     "0%" | "0.00%" =>

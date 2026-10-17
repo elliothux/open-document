@@ -178,7 +178,7 @@ fn Expression::evaluate(
       ].contains(name) =>
       date_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if [
-        "ABS", "INT", "MOD", "ROUND", "ROUNDUP", "ROUNDDOWN",
+        "ABS", "INT", "MOD", "ROUND", "ROUNDUP", "ROUNDDOWN", "SQRT", "POWER",
       ].contains(name) =>
       numeric_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if [
@@ -193,6 +193,8 @@ fn Expression::evaluate(
       ) => lookup_function(name, args, sheets, sheet, values, work, depth)
     Function("SUBTOTAL", args) =>
       subtotal_function(args, sheets, sheet, values, work, depth)
+    Function(name, args) if name == "PRODUCT" || name == "MEDIAN" =>
+      product_median_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if name == "COUNTA" || name == "COUNTBLANK" =>
       counting_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if [

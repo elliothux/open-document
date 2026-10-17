@@ -95,11 +95,11 @@ fn Expression::dependencies(
           "EXACT", "REPT", "DATE", "YEAR", "MONTH", "DAY", "TIME", "HOUR", "MINUTE",
           "SECOND", "DAYS", "COUNTA", "COUNTBLANK", "COUNTIF", "COUNTIFS", "SUMIF",
           "SUMIFS", "AVERAGEIF", "AVERAGEIFS", "INDEX", "MATCH", "VLOOKUP", "HLOOKUP",
-          "XLOOKUP", "ROW", "COLUMN", "ROWS", "COLUMNS", "SUBTOTAL",
+          "XLOOKUP", "ROW", "COLUMN", "ROWS", "COLUMNS", "SUBTOTAL", "SQRT", "POWER",
+          "PRODUCT", "MEDIAN",
         ].contains(name) {
         // Only audited value-parameter functions have complete static dependencies.
-        guard ["SQRT", "POWER", "PRODUCT", "MEDIAN"].contains(name) &&
-          uncomputed is Some(reasons) else {
+        guard name == "SUMSQ" && uncomputed is Some(reasons) else {
           @failure.reject(
             "unsupported-formula",
             "Unsupported function: " + name,

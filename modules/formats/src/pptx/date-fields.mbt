@@ -60,11 +60,10 @@ fn date_digits(value : Int, count : Int) -> String {
 }
 
 ///|
-fn presentation_date_text(
+fn presentation_date_format(
   source : Ref,
   styles : Array[Ref],
-  time : DateTime,
-) -> String? {
+) -> (Int, String)? {
   if !simple_text_field(source) {
     return None
   }
@@ -78,6 +77,28 @@ fn presentation_date_text(
   guard kinds.contains(kind) else { return None }
   let language = attribute(styles, "lang").unwrap_or("en-US").to_lower()
   guard ["en-us", "zh-cn", "zh-tw"].contains(language) else { return None }
+  let language = match language {
+    "zh-cn" => "zh-CN"
+    "zh-tw" => "zh-TW"
+    _ => "en-US"
+  }
+  Some((kinds.search(kind).unwrap() + 1, language))
+}
+
+///|
+fn presentation_date_text(
+  source : Ref,
+  styles : Array[Ref],
+  time : DateTime,
+) -> String? {
+  presentation_date_format(source, styles).map(format => {
+    date_field_value(format.0, format.1, time)
+  })
+}
+
+///|
+fn date_field_value(format : Int, language : String, time : DateTime) -> String {
+  let kind = "datetime" + format.to_string()
   let y = date_digits(time.year, 4)
   let m = time.month.to_string()
   let d = time.day.to_string()
@@ -95,27 +116,25 @@ fn presentation_date_text(
       time.day
     ) %
     7
-  if language != "en-us" {
+  if language != "en-US" {
     let chinese = "\{y}年\{m}月\{d}日"
     let meridiem = if time.hour < 12 { "上午" } else { "下午" }
     let time12 = "\{date_digits(hour12, 2)}:\{minutes}"
     let date = "\{date_digits(time.month, 2)}/\{date_digits(time.day, 2)}/\{date_digits(time.year, 4)}"
-    return Some(
-      match kind {
-        "datetime1" => "\{y}/\{m}/\{d}"
-        "datetime2" | "datetime3" => chinese
-        // ONLYOFFICE's Word-field parser keeps W literal in these zh locale patterns.
-        "datetime4" | "datetime6" => chinese + "星期W"
-        "datetime5" => "\{time.hour}时\{time.minute}分\{time.second}秒"
-        "datetime7" => "\{y}年\{m}月"
-        "datetime8" => "\{date} \{time12} \{meridiem}"
-        "datetime9" => "\{date} \{time12}:\{seconds} \{meridiem}"
-        "datetime10" => "\{date_digits(time.hour, 2)}:\{minutes}"
-        "datetime11" => "\{date_digits(time.hour, 2)}:\{minutes}:\{seconds}"
-        "datetime12" => "\{time12} \{meridiem}"
-        _ => "\{time12}:\{seconds}: \{meridiem}"
-      },
-    )
+    return match kind {
+      "datetime1" => "\{y}/\{m}/\{d}"
+      "datetime2" | "datetime3" => chinese
+      // ONLYOFFICE's Word-field parser keeps W literal in these zh locale patterns.
+      "datetime4" | "datetime6" => chinese + "星期W"
+      "datetime5" => "\{time.hour}时\{time.minute}分\{time.second}秒"
+      "datetime7" => "\{y}年\{m}月"
+      "datetime8" => "\{date} \{time12} \{meridiem}"
+      "datetime9" => "\{date} \{time12}:\{seconds} \{meridiem}"
+      "datetime10" => "\{date_digits(time.hour, 2)}:\{minutes}"
+      "datetime11" => "\{date_digits(time.hour, 2)}:\{minutes}:\{seconds}"
+      "datetime12" => "\{time12} \{meridiem}"
+      _ => "\{time12}:\{seconds}: \{meridiem}"
+    }
   }
   let month = [
       "January", "February", "March", "April", "May", "June", "July", "August", "September",
@@ -128,23 +147,21 @@ fn presentation_date_text(
   let date = "\{m}/\{d}/\{y}"
   let time12 = "\{hour12}:\{minutes}"
   let meridiem = if time.hour < 12 { "AM" } else { "PM" }
-  Some(
-    match kind {
-      "datetime1" => date
-      "datetime2" => "\{day_name}, \{month} \{d}, \{y}"
-      "datetime3" => "\{d} \{month} \{y}"
-      "datetime4" => "\{month} \{d}, \{y}"
-      "datetime5" => "\{d}-\{short_month}-\{short_year}"
-      "datetime6" => "\{month} \{short_year}"
-      "datetime7" => "\{short_month}-\{short_year}"
-      "datetime8" => "\{date} \{time12} \{meridiem}"
-      "datetime9" => "\{date} \{time12}:\{seconds} \{meridiem}"
-      "datetime10" => "\{date_digits(time.hour, 2)}:\{minutes}"
-      "datetime11" => "\{date_digits(time.hour, 2)}:\{minutes}:\{seconds}"
-      "datetime12" => "\{time12} \{meridiem}"
-      _ => "\{time12}:\{seconds} \{meridiem}"
-    },
-  )
+  match kind {
+    "datetime1" => date
+    "datetime2" => "\{day_name}, \{month} \{d}, \{y}"
+    "datetime3" => "\{d} \{month} \{y}"
+    "datetime4" => "\{month} \{d}, \{y}"
+    "datetime5" => "\{d}-\{short_month}-\{short_year}"
+    "datetime6" => "\{month} \{short_year}"
+    "datetime7" => "\{short_month}-\{short_year}"
+    "datetime8" => "\{date} \{time12} \{meridiem}"
+    "datetime9" => "\{date} \{time12}:\{seconds} \{meridiem}"
+    "datetime10" => "\{date_digits(time.hour, 2)}:\{minutes}"
+    "datetime11" => "\{date_digits(time.hour, 2)}:\{minutes}:\{seconds}"
+    "datetime12" => "\{time12} \{meridiem}"
+    _ => "\{time12}:\{seconds} \{meridiem}"
+  }
 }
 
 ///|
@@ -173,7 +190,7 @@ pub fn Session::set_date_time(
       date_time=Some(time),
     )
     for object in candidate.objects {
-      if object.paragraphs.any(p => p.runs.any(run => run.date_field)) {
+      if object.paragraphs.any(p => p.runs.any(run => run.date_field is Some(_))) {
         guard object.geometry is Some(geometry) else {
           @failure.reject("layout-overflow", "Missing date field geometry")
         }

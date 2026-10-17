@@ -304,6 +304,12 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.editPicture(request.revision, request.picture);
         case "setPageSetup":
           return foundation.setPageSetup(request.revision, request.page);
+        case "setPageNumbering":
+          return foundation.setPageNumbering(
+            request.revision,
+            request.numbering,
+            request.profile,
+          );
         case "insertDocxTable":
           return foundation.insertTable(
             request.revision,

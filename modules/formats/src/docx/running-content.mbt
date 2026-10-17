@@ -1,8 +1,9 @@
 ///|
-/// Ordered text and decimal page fields in a single-section header or footer.
+/// Ordered text and page fields in a single-section header or footer.
 pub(all) enum RunningContent {
   Text(String)
   Field(String)
+  FormattedField(String, String)
 } derive(Eq)
 
 ///|
@@ -16,6 +17,7 @@ pub impl ToJson for RunningContent with fn to_json(self) {
   match self {
     Text(text) => { "text": text }
     Field(code) => { "field": code }
+    FormattedField(code, format) => { "field": code, "format": format }
   }
 }
 
@@ -54,11 +56,14 @@ fn normalize_running_content(
         units += text.length()
         push_running_text(result, text)
       }
-      Field(code) => {
+      Field(code) | FormattedField(code, _) => {
         guard ["PAGE", "NUMPAGES"].contains(code) else {
           @failure.reject("invalid-operation", "Invalid running field")
         }
         units += 1
+        if item is FormattedField(_, format) {
+          ignore(running_field_instruction(code + ":" + format))
+        }
         result.push(item)
       }
     }
@@ -85,7 +90,14 @@ fn running_content(
       if span.field.is_empty() {
         push_running_text(result, span.text.replace_all(old="\n", new="\u2028"))
       } else {
-        result.push(Field(span.field))
+        let tokens = span.field.split(":").to_array()
+        result.push(
+          if tokens.length() == 2 {
+            FormattedField(tokens[0].to_owned(), tokens[1].to_owned())
+          } else {
+            Field(span.field)
+          },
+        )
       }
     }
   }
@@ -102,7 +114,7 @@ fn running_content_paragraphs(
   let result : Array[Array[RunningContent]] = [[]]
   for item in content {
     match item {
-      Field(_) => result.last().unwrap().push(item)
+      Field(_) | FormattedField(_, _) => result.last().unwrap().push(item)
       Text(text) =>
         for index, line in text.split("\n").to_array() {
           if index > 0 {
@@ -158,13 +170,20 @@ fn running_content_markup(
         match item {
           Text(text) =>
             "<w:r>\{rpr}\{inline_markup(text, history_byte_limit / 2)}</w:r>"
-          Field(code) => {
+          Field(code) | FormattedField(code, _) => {
             let properties = fields
               .get(field)
               .bind(span => story.child(story.nodes[span.node].parent, "rPr"))
               .map(id => story.standalone_markup(document, id))
               .unwrap_or(rpr)
             field += 1
+            let code = running_field_instruction(
+              if item is FormattedField(_, format) {
+                code + ":" + format
+              } else {
+                code
+              },
+            )
             "<w:fldSimple w:instr=\"\{code}\" w:dirty=\"true\"><w:r>\{properties}<w:t>1</w:t></w:r></w:fldSimple>"
           }
         }
@@ -190,28 +209,26 @@ fn refresh_running_fields(
       "unsupported-layout", "Running field update requires a complete layout",
     )
   }
-  let page = if variant == "first" {
-    1
-  } else if variant == "even" {
-    2
-  } else if flow.differentFirst {
-    if flow.differentEven {
-      3
-    } else {
-      2
-    }
-  } else {
-    1
-  }
+  let page = [0, 1, 2]
+    .iter()
+    .find_first(page => {
+      flow.pageNumbering.variant(
+        page,
+        flow.differentFirst || variant == "first",
+        flow.differentEven || variant == "even",
+      ) ==
+      variant
+    })
+    .unwrap_or(0)
   let document = parts[part]
   let tree = WordTree::new(document)
   let changes : Array[@xml.SourceChange] = []
   for paragraph in tree.children[0] {
     for id, code in tree.running_fields(paragraph) {
-      let value = match code {
-        "PAGE" => page.to_string()
-        "NUMPAGES" => layout.pages.length().to_string()
-        _ => ""
+      let value = if code.is_empty() {
+        ""
+      } else {
+        flow.pageNumbering.field_text(code, page, layout.pages.length())
       }
       let node = tree.nodes[id]
       if node.text != value {

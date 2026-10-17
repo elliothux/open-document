@@ -9,9 +9,22 @@ fn Session::set_footer(
 ) -> Json raise @failure.Failure {
   let content = {
     ..content,
-    date: footer_text(content.date),
+    date: footer_date(content.date),
     footer: footer_text(content.footer),
   }
+  let date_text = content.date.map(date => {
+    match date {
+      Fixed(text) => text
+      Automatic(format, language) => {
+        guard self.date_time is Some(time) else {
+          @failure.reject(
+            "invalid-operation", "Automatic dates require an explicit presentation time",
+          )
+        }
+        date_field_value(format, language, time)
+      }
+    }
+  })
   let slides = self.slides.copy()
   let reserved = self.reserved_object_identities()
   let mut next = self.object_sequence
@@ -29,7 +42,7 @@ fn Session::set_footer(
     let affected : Array[String] = []
     for
       (kind, text) in [
-        ("dt", content.date),
+        ("dt", date_text),
         ("ftr", content.footer),
         (
           "sldNum",
@@ -62,7 +75,8 @@ fn Session::set_footer(
       let text = text.unwrap()
       if before is Some(object) &&
         (
-          (kind != "sldNum" && object.text() == text) ||
+          (kind == "dt" && Some(object.footer_date()) == content.date) ||
+          (kind == "ftr" && object.text() == text) ||
           (kind == "sldNum" && object.text_reason == slide_number_text_reason)
         ) {
         continue
@@ -71,9 +85,16 @@ fn Session::set_footer(
         Some(object) => Some(object.source)
         None => self.footer_template(original, kind)
       }
-      let body = footer_body(source, kind, text)
+      let automatic = if kind == "dt" { content.date } else { None }
+      let (field, language) = match automatic {
+        Some(Automatic(format, language)) =>
+          ("datetime" + format.to_string(), language)
+        _ => ("", "")
+      }
+      let body = footer_body(source, kind, text, field~, language~)
       if before is Some(object) {
-        let body = if kind == "sldNum" {
+        let body = if kind == "sldNum" ||
+          (!field.is_empty() && object.text_reason != date_field_text_reason) {
           let (copied, after) = footer_copy(
             body,
             tree.part,
@@ -144,7 +165,7 @@ fn Session::set_footer(
       guard object.read_only.is_empty() &&
         (
           object.text_reason.is_empty() ||
-          object.text_reason == slide_number_text_reason
+          calculated_field_reason(object.text_reason)
         ) &&
         object.diagnostic.is_empty() else {
         @failure.reject(

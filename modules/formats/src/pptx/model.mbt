@@ -13,7 +13,7 @@ priv struct Geometry {
 ///|
 priv struct TextRun {
   source : Ref?
-  date_field : Bool
+  date_field : (Int, String)?
   text : String
   parts : Array[(@layout.TextStyle, String)]
 }

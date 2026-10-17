@@ -1,7 +1,8 @@
 import { record } from "./validation.js";
 
 export interface PptxFooterContent {
-  date: string | null;
+  date:
+    string | { format: number; language: "en-US" | "zh-CN" | "zh-TW" } | null;
   footer: string | null;
   number: boolean;
 }
@@ -20,7 +21,27 @@ export function checkPptxFooterContent(value: unknown): void {
     throw new Error("Invalid slide footer content");
   if (typeof content.number !== "boolean")
     throw new Error("Invalid slide numbering flag");
-  for (const value of [content.date, content.footer]) {
+  const date = content.date;
+  if (date !== null && typeof date !== "string") {
+    const settings = record(date);
+    if (
+      Object.keys(settings).length !== 2 ||
+      Object.keys(settings).some(
+        (key) => !["format", "language"].includes(key),
+      ) ||
+      typeof settings.format !== "number" ||
+      !Number.isInteger(settings.format) ||
+      settings.format < 1 ||
+      settings.format > 13 ||
+      typeof settings.language !== "string" ||
+      !["en-US", "zh-CN", "zh-TW"].includes(settings.language)
+    )
+      throw new Error("Invalid automatic slide date");
+  }
+  for (const value of [
+    typeof date === "string" ? date : null,
+    content.footer,
+  ]) {
     if (value === null) continue;
     if (
       typeof value !== "string" ||

@@ -3,6 +3,8 @@ fn footer_body(
   source : Ref?,
   kind : String,
   text : String,
+  field~ : String = "",
+  language~ : String = "",
 ) -> String raise @failure.Failure {
   let body = source.bind(source => source.child("txBody", uri=presentation_uri))
   if body is Some(body) {
@@ -38,10 +40,21 @@ fn footer_body(
   })
   let style = run
     .bind(run => run.child("rPr"))
-    .map(item => item.tree.standalone_markup(item.tree.document, item.node.id))
+    .map(item => {
+      let document = if language.is_empty() {
+        item.tree.document
+      } else {
+        item.tree.document.edit_source([
+          attribute_change(item, "lang", language),
+        ]).0
+      }
+      item.tree.standalone_markup(document, item.node.id)
+    })
     .unwrap_or(
       if source is None {
-        "<a:rPr sz=\"1200\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill><a:latin typeface=\"Arial\"/></a:rPr>"
+        "<a:rPr\{if language.is_empty() { "" } else { " lang=\"" + language + "\"" }} sz=\"1200\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill><a:latin typeface=\"Arial\"/></a:rPr>"
+      } else if !language.is_empty() {
+        "<a:rPr lang=\"\{language}\"/>"
       } else {
         ""
       },
@@ -75,9 +88,19 @@ fn footer_body(
       @failure.reject("limit-exceeded", "Slide footer source exceeds budget")
     }
     output.write_string("<a:p>\{properties}")
-    if kind == "sldNum" {
+    if kind == "sldNum" || !field.is_empty() {
+      let field_id = if kind == "dt" {
+        if run is Some(item) && simple_text_field(item) {
+          item.node.attribute("id").unwrap_or("new")
+        } else {
+          "new"
+        }
+      } else {
+        "new"
+      }
+      let field_type = if kind == "sldNum" { "slidenum" } else { field }
       output.write_string(
-        "<a:fld id=\"new\" type=\"slidenum\">\{style}<a:t>\{@xml.escape_text(text)}</a:t></a:fld>",
+        "<a:fld id=\"\{xml_attribute(field_id)}\" type=\"\{field_type}\">\{style}<a:t>\{@xml.escape_text(text)}</a:t></a:fld>",
       )
     } else {
       output.write_string(generated_text(line.to_owned(), "a:", style))

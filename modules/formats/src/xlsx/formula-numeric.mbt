@@ -66,6 +66,9 @@ fn numeric_function(
   let numbers : Array[Double] = []
   for arg in args {
     let value = arg.evaluate(sheets, sheet, values, work, depth + 1)
+    if value is Text(text) {
+      work.spend(amount=text.length())
+    }
     if (name == "ROUND" || name == "ROUNDDOWN") &&
       arg is Reference(_, _, _) &&
       value is Text(_) {
@@ -79,6 +82,25 @@ fn numeric_function(
   match name {
     "ABS" => Number(numbers[0].abs())
     "INT" => Number(numbers[0].floor())
+    "SQRT" => finite_result(numbers[0].sqrt())
+    "POWER" => {
+      let base = numbers[0]
+      let exponent = numbers[1]
+      if base == 0 && exponent < 0 {
+        return Error("#DIV/0!")
+      }
+      if base >= 0 || exponent.floor() == exponent {
+        return finite_result(@math.pow(base, exponent))
+      }
+      // ONLYOFFICE accepts a negative real root only when its rounded inverse restores the base.
+      let root = -@math.pow(-base, exponent)
+      let inverse = @math.pow(root, 1 / exponent)
+      if !inverse.is_nan() && (inverse + 0.5).floor() == (base + 0.5).floor() {
+        finite_result(root)
+      } else {
+        Error("#NUM!")
+      }
+    }
     "MOD" => {
       if numbers[1] == 0 {
         return Error("#DIV/0!")

@@ -1,7 +1,10 @@
 export const footerEn = {
   slideFooter: "Slide date and footer",
   refreshSlideDates: "Refresh date fields",
-  slideFixedDate: "Show fixed date",
+  slideDate: "Show date",
+  slideAutomaticDate: "Update date automatically",
+  slideDateLanguage: "Date language",
+  slideDateFormat: "Date format",
   slideDateText: "Date text",
   slideNumber: "Show slide number",
   slideFooterText: "Show footer",
@@ -13,7 +16,10 @@ export const footerEn = {
 export const footerZh = {
   slideFooter: "幻灯片日期与页脚",
   refreshSlideDates: "刷新日期域",
-  slideFixedDate: "显示固定日期",
+  slideDate: "显示日期",
+  slideAutomaticDate: "自动更新日期",
+  slideDateLanguage: "日期语言",
+  slideDateFormat: "日期格式",
   slideDateText: "日期文字",
   slideNumber: "显示幻灯片编号",
   slideFooterText: "显示页脚",

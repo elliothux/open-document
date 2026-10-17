@@ -102,7 +102,19 @@ fn Foundation::pptx_operation(
           }
           @pptx.Footer(
             {
-              date: xlsx_optional_string(value, "date"),
+              date: match value {
+                { "date": Null, .. } => None
+                { "date": String(text), .. } => Some(@pptx.Fixed(text))
+                { "date": date, .. } =>
+                  Some(
+                    @pptx.Automatic(
+                      field_int(date, "format"),
+                      field_string(date, "language"),
+                    ),
+                  )
+                _ =>
+                  @failure.reject("invalid-operation", "Slide date is required")
+              },
               footer: xlsx_optional_string(value, "footer"),
               number: xlsx_boolean(value, "number"),
             },

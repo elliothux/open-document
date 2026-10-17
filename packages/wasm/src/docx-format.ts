@@ -8,7 +8,12 @@ import {
   type DocxCellBorders,
   type DocxTableBorders,
 } from "./docx-table.js";
-import { isListReference, type DocxListReference } from "./docx-list.js";
+import {
+  isListReference,
+  listFormats,
+  type ListFormat,
+  type DocxListReference,
+} from "./docx-list.js";
 
 /** Uniform effective values captured by the core; mixed properties are omitted. */
 export interface CopiedFormat {
@@ -42,6 +47,28 @@ export interface DocxPageSettings {
   reason: string;
   background: { color: string | null; reason: string };
   borders: { value: DocxPageBorders; reason: string };
+  numbering: { value: DocxPageNumbering | null; reason: string };
+}
+
+export interface DocxPageNumbering {
+  start: number;
+  format: Exclude<ListFormat, "bullet">;
+}
+export function checkPageNumbering(value: unknown): void {
+  if (value === null) return;
+  const numbering = record(value);
+  if (
+    Object.keys(numbering).length !== 2 ||
+    Object.keys(numbering).some((key) => !["start", "format"].includes(key)) ||
+    typeof numbering.start !== "number" ||
+    !Number.isInteger(numbering.start) ||
+    numbering.start < 0 ||
+    numbering.start > 4294967295 ||
+    typeof numbering.format !== "string" ||
+    numbering.format === "bullet" ||
+    !listFormats.some((format) => format === numbering.format)
+  )
+    throw new Error("Invalid DOCX page numbering");
 }
 
 export interface DocxPageBorder {
@@ -133,6 +160,17 @@ export function checkPageSetup(value: DocxPageSetup): void {
 
 export function docxPageSettings(value: unknown): DocxPageSettings {
   const result = record(value);
+  const numbering = record(result.numbering);
+  checkPageNumbering(numbering.value);
+  if (
+    typeof numbering.reason !== "string" ||
+    (numbering.value === null) !== !!numbering.reason
+  )
+    throw new Error("Invalid DOCX page numbering settings");
+  const numbers = {
+    value: numbering.value as DocxPageNumbering | null,
+    reason: numbering.reason,
+  };
   const border = record(result.borders);
   checkPageBorders(border.value);
   if (border.value === null || typeof border.reason !== "string")
@@ -166,6 +204,7 @@ export function docxPageSettings(value: unknown): DocxPageSettings {
       reason: result.reason,
       background: paint,
       borders,
+      numbering: numbers,
     };
   }
   const page = record(result.page);
@@ -190,6 +229,7 @@ export function docxPageSettings(value: unknown): DocxPageSettings {
     reason: "",
     background: paint,
     borders,
+    numbering: numbers,
   };
 }
 

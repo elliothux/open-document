@@ -326,7 +326,9 @@ fn read_text(
       }
       runs.push({
         source: Some(item),
-        date_field: date_text is Some(_),
+        date_field: date_text.bind(_ => {
+          presentation_date_format(item, style_sources)
+        }),
         text,
         parts: styled_text(theme, style_sources, text, default_font),
       })
@@ -341,7 +343,7 @@ fn read_text(
       style_sources.append(font_ref)
       runs.push({
         source: None,
-        date_field: false,
+        date_field: None,
         text: "",
         parts: styled_text(theme, style_sources, "", default_font),
       })

@@ -190,7 +190,7 @@ fn read_slide(
       diagnostics.push(object.id + ":" + object.diagnostic)
     }
     if object.paragraphs.any(p => {
-        p.runs.any(run => run.has_date_source() && !run.date_field)
+        p.runs.any(run => run.has_date_source() && run.date_field is None)
       }) {
       diagnostics.push(
         object.id +

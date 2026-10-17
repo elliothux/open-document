@@ -89,12 +89,17 @@ fn running_content(
     )
   }
   content.map(item => {
-    guard item is Object(fields) && fields.length() == 1 else {
+    guard item is Object(fields) &&
+      (fields.length() == 1 || fields.length() == 2) else {
       @failure.reject("invalid-operation", "Invalid running content item")
     }
     match item {
-      { "text": String(text), .. } => @docx.RunningContent::Text(text)
-      { "field": String(code), .. } => @docx.RunningContent::Field(code)
+      { "field": String(code), "format": String(format), .. } if fields.length() ==
+        2 => @docx.RunningContent::FormattedField(code, format)
+      { "text": String(text), .. } if fields.length() == 1 =>
+        @docx.RunningContent::Text(text)
+      { "field": String(code), .. } if fields.length() == 1 =>
+        @docx.RunningContent::Field(code)
       _ => @failure.reject("invalid-operation", "Invalid running content item")
     }
   })
@@ -119,6 +124,33 @@ fn Foundation::docx_page(
     return session.page_setup(revision)
   }
   let result = match operation {
+    "setPageNumbering" => {
+      guard request is { "numbering": numbering, .. } else {
+        @failure.reject("invalid-operation", "Page numbering is required")
+      }
+      let value = match numbering {
+        Null => None
+        Object(fields) if fields.length() == 2 &&
+          fields.keys().all(k => ["start", "format"].contains(k)) => {
+          let start = xlsx_number(numbering, "start")
+          guard start >= 0 && start <= 4294967295 && start.floor() == start else {
+            @failure.reject("invalid-operation", "Invalid page numbering start")
+          }
+          Some(@layout.PageNumbering::{
+            start: start.to_int64(),
+            format: field_string(numbering, "format"),
+          })
+        }
+        _ => @failure.reject("invalid-operation", "Invalid page numbering")
+      }
+      session.set_page_numbering(
+        revision,
+        value,
+        probe=self.probe,
+        profile=xlsx_profile(request),
+        images=self.images,
+      )
+    }
     "unlinkRunningArea" =>
       session.unlink_running_area(
         revision,

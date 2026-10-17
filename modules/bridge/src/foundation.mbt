@@ -244,6 +244,7 @@ fn Foundation::dispatch(
     | "setRunningArea"
     | "pageSetup"
     | "setPageSetup"
+    | "setPageNumbering"
     | "setPageBackground"
     | "setPageBorders"
     | "insertDocxTable"
@@ -414,6 +415,7 @@ fn Foundation::dispatch(
         | "pageSetup"
         | "setPageBackground"
         | "setPageBorders"
+        | "setPageNumbering"
         | "setPageSetup" => self.docx_page(session, operation, request)
         "insertDocxTable" | "editDocxTable" =>
           self.docx_table(session, operation, request)

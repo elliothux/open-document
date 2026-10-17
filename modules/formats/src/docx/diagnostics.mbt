@@ -20,7 +20,7 @@ fn WordTree::diagnose_properties(
     "sectPr" =>
       [
         "pgSz", "pgMar", "pgBorders", "headerReference", "footerReference", "titlePg",
-        "cols", "docGrid",
+        "cols", "docGrid", "pgNumType",
       ]
     "tcPr" =>
       ["tcW", "shd", "gridSpan", "vMerge", "vAlign", "tcMar", "tcBorders"]
@@ -55,6 +55,13 @@ fn WordTree::diagnose_properties(
         .iter()
         .all(a => a.uri == word_uri && a.name == "type")
       "tabs" => self.valid_tabs(child)
+      "pgNumType" =>
+        try {
+          ignore(self.page_numbering(Some(id)))
+          true
+        } catch {
+          @failure.Failure(..) => false
+        }
       "titlePg"
       | "bidi"
       | "cs"

@@ -385,8 +385,9 @@ fn FormulaParser::primary(
           | "ROUNDUP"
           | "ROUNDDOWN"
           | "EXACT"
+          | "POWER"
           | "REPT" => args.length() == 2
-          "NOT" | "ISBLANK" | "ISNUMBER" | "ISTEXT" | "ABS" | "INT" =>
+          "NOT" | "ISBLANK" | "ISNUMBER" | "ISTEXT" | "ABS" | "INT" | "SQRT" =>
             args.length() == 1
           "LEN" | "LOWER" | "UPPER" | "TRIM" => args.length() == 1
           "YEAR" | "MONTH" | "DAY" | "HOUR" | "MINUTE" | "SECOND" =>

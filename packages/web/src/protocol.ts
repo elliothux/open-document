@@ -12,6 +12,7 @@ import type {
   DocxListEdit,
   DocxListLevelUpdate,
   DocxPageSetup,
+  DocxPageNumbering,
   DocxPageBorders,
   DocxRunningKind,
   DocxRunningVariant,
@@ -134,6 +135,12 @@ export type Operation =
       borders: DocxPageBorders | null;
     }
   | { operation: "setPageSetup"; revision: number; page: DocxPageSetup }
+  | {
+      operation: "setPageNumbering";
+      revision: number;
+      numbering: DocxPageNumbering | null;
+      profile: Record<string, string>;
+    }
   | {
       operation: "insertDocxTable";
       revision: number;

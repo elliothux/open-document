@@ -151,6 +151,7 @@ pub(all) struct Flow {
   background : String
   pageBorders : PageBorders
   page : PageSetup
+  pageNumbering : PageNumbering
   paragraphs : Array[Paragraph]
   diagnostics : Array[String]
   tables : Array[Table]

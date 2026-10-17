@@ -32,6 +32,7 @@ fn Session::flow_from(
   let mut footer_distance = 0.0
   let mut header_distance = 0.0
   let mut page = default_page_setup()
+  let mut page_numbering = @layout.PageNumbering::new()
   let body = tree.child(0, "body").unwrap()
   for id in tree.order {
     let node = tree.nodes[id]
@@ -39,6 +40,12 @@ fn Session::flow_from(
       continue
     }
     if node.name == "sectPr" {
+      page_numbering = tree.page_numbering(Some(id)) catch {
+        @failure.Failure(message~, ..) => {
+          diagnostics.push("unsupported-layout:page-numbering:" + message)
+          @layout.PageNumbering::new()
+        }
+      }
       let section_diagnostics : Array[String] = []
       tree.diagnose_properties(id, self.main, section_diagnostics)
       if node.parent != body {
@@ -148,6 +155,7 @@ fn Session::flow_from(
     background,
     pageBorders: page_borders,
     page,
+    pageNumbering: page_numbering,
     paragraphs: paragraphs.map(p => numbered[p.id]),
     diagnostics,
     tables: tables.map(table => {

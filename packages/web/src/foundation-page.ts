@@ -3,6 +3,7 @@ import {
   checkPageSetup,
   checkPageBackground,
   checkPageBorders,
+  checkPageNumbering,
   docxPageSettings,
   editState,
   checkRunningArea,
@@ -12,6 +13,7 @@ import {
   docxRunningArea,
   type DocxPageSetup,
   type DocxPageBorders,
+  type DocxPageNumbering,
   type DocxRunningKind,
   type DocxRunningVariant,
   type DocxRunningContent,
@@ -19,6 +21,21 @@ import {
 
 /** Page commands retain the existing Worker and validation boundary. */
 export class FoundationPageClient extends FoundationReviewClient {
+  async setPageNumbering(
+    revision: number,
+    numbering: DocxPageNumbering | null,
+    profile: Record<string, string>,
+  ) {
+    checkPageNumbering(numbering);
+    return editState(
+      await this.connection.request({
+        operation: "setPageNumbering",
+        revision,
+        numbering,
+        profile,
+      }),
+    );
+  }
   async unlinkRunningArea(
     revision: number,
     kind: DocxRunningKind,

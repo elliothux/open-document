@@ -1,6 +1,16 @@
 ///|
+/// A fixed label or date format 1–13 with en-US, zh-CN or zh-TW language.
+pub(all) enum FooterDate {
+  Fixed(String)
+  Automatic(Int, String)
+} derive(Eq)
+
+///|
+pub extend FooterDate with Eq::{equal, not_equal}
+
+///|
 pub(all) struct FooterContent {
-  date : String?
+  date : FooterDate?
   footer : String?
   number : Bool
 }
@@ -26,7 +36,8 @@ fn Slide::footer_objects(
         object.read_only.is_empty() &&
         (
           object.text_reason.is_empty() ||
-          (kind == "sldNum" && object.text_reason == slide_number_text_reason)
+          (kind == "sldNum" && object.text_reason == slide_number_text_reason) ||
+          (kind == "dt" && object.text_reason == date_field_text_reason)
         ) &&
         object.text().length() <= 4096 else {
         @failure.reject(
@@ -40,6 +51,9 @@ fn Slide::footer_objects(
             "protected-content", "Annotated slide footer text is protected",
           )
         }
+      }
+      if kind == "dt" {
+        ignore(object.footer_date())
       }
       result[kind] = object
     }
@@ -55,7 +69,13 @@ fn Session::footer_query(self : Session, slide : Slide) -> Json {
     {
       "date": objects
       .get("dt")
-      .map(object => Json(object.text()))
+      .map(object => {
+        match object.footer_date() {
+          Fixed(text) => Json(text)
+          Automatic(format, language) =>
+            { "format": format, "language": language }
+        }
+      })
       .unwrap_or(Json::null()),
       "footer": objects
       .get("ftr")
@@ -73,6 +93,40 @@ fn Session::footer_query(self : Session, slide : Slide) -> Json {
         "reason": message,
       }
   }
+}
+
+///|
+fn Object::footer_date(self : Object) -> FooterDate raise @failure.Failure {
+  if self.text_reason.is_empty() {
+    return Fixed(self.text())
+  }
+  if self.paragraphs is [paragraph] &&
+    paragraph.runs is [run] &&
+    run.date_field is Some((format, language)) {
+    return Automatic(format, language)
+  }
+  @failure.reject(
+    "protected-content", "Mixed date field content requires editing support",
+  )
+}
+
+///|
+fn footer_date(value : FooterDate?) -> FooterDate? raise @failure.Failure {
+  value.map(date => {
+    match date {
+      Fixed(text) => Fixed(footer_text(Some(text)).unwrap())
+      Automatic(format, language) => {
+        guard format >= 1 &&
+          format <= 13 &&
+          ["en-US", "zh-CN", "zh-TW"].contains(language) else {
+          @failure.reject(
+            "invalid-operation", "Invalid automatic slide date format or language",
+          )
+        }
+        date
+      }
+    }
+  })
 }
 
 ///|
