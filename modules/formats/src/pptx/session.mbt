@@ -376,6 +376,7 @@ fn Slide::object(self : Slide, id : String) -> Object raise @failure.Failure {
 ///|
 pub fn Session::query(self : Session) -> Json raise @failure.Failure {
   let current = self.current()
+  let links = self.relationships()
   let fonts = slide_font_keys(
     self.slides.map(slide => {
       if slide.tree.part == current.tree.part {
@@ -441,6 +442,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
         "duplicateReason": self.object_edit_reason(object, "duplicate"),
         "rotateReason": self.object_edit_reason(object, "rotate"),
         "arrangeReason": self.object_edit_reason(object, "arrange"),
+        "hyperlink": self.hyperlink_query(object, links),
         "shapeAdjustments": self.shape_adjustments(object),
         "picture": {
           "opacity": object.opacity,

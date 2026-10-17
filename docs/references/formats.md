@@ -553,7 +553,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 | `printLayout(revision,sheet,options,profile)` | 独立打印区域，返回有身份的页面绘制批次 |
 | `exportPdf(layoutId,outputBytes)` | 使用当前打印布局；编辑、字体变更或新打印布局使旧输出身份失效 |
 
-`XlsxQuery` 返回 `sheets`、`sheet`、`selection`、`revision`、历史状态、`date1904`、`fontKeys` 和诊断。每格分别返回 `value`、`formula`、`cached`、`calculated`、`calculation`、`display`、`input` 与 `readOnlyReason`。空格、空字符串、零、布尔值与错误独立表示。`input` 是核心生成的可编辑源码，文字带前导单引号，避免重新提交时误作公式或数值。
+`XlsxQuery` 返回 `sheets`、`sheet`、`selection`、`revision`、历史状态、`date1904`、`fontKeys` 和诊断。每格分别返回 `value`、`formula`、`cached`、`calculated`、`calculation`、`calculationReason`、`display`、`input` 与 `readOnlyReason`。空格、空字符串、零、布尔值与错误独立表示。`input` 是核心生成的可编辑源码，文字带前导单引号，避免重新提交时误作公式或数值。
 
 ### 选区统计
 
@@ -561,7 +561,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 `count` 计算非空值，包含文本、布尔值和错误；空白及空串不计。其余五项只计算数值，包括数值公式结果和日期序列值；数字文本与布尔值不转成数值。隐藏行（含筛选隐藏和零高度）不参与，隐藏列仍参与。行为依据 [ONLYOFFICE 的选区统计](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L13248)。当前只处理已有矩形选区，不包含非连续区域。
 
-没有数值时，`sum/average/min/max` 为 null。当前输出原始数值，不应用活动单元格的数字格式；日期、百分比和货币的状态栏格式仍待扩展。核心使用缩放及补偿求和；总和超出有限数值范围时，`sum` 为 null 并在 `reason` 说明，仍返回有效计数、平均与极值。源文件只读原因也进入 `reason`，不把导入缓存标为新计算结果。沿用查询最多 4096 个已有单元格的限制；统计复用此次查询的稀疏列表，不遍历大矩形中的空格。
+没有数值时，`sum/average/min/max` 为 null。当前输出原始数值，不应用活动单元格的数字格式；日期、百分比和货币的状态栏格式仍待扩展。核心使用缩放及补偿求和；总和超出有限数值范围时，`sum` 为 null 并在 `reason` 说明，仍返回有效计数、平均与极值。选区含未计算公式时，计数按已知值/缓存类型返回，四项汇总均为 null，`reason` 说明原因。源文件只读原因也进入 `reason`，不把导入缓存标为新计算结果。沿用查询最多 4096 个已有单元格的限制；统计复用此次查询的稀疏列表，不遍历大矩形中的空格。
 
 ### 单元格查找替换
 
@@ -621,7 +621,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 既有条件格式/数据验证的 `sqref` 按移动带拆分或删除；普通公式与公式型 `cfvo` 阈值保持各格的相对、绝对和跨表引用。需要不同公式的区域分组保存，保留规则属性、源注释和命名空间；条件格式保留原优先顺序并分配唯一优先级，验证同步 `count`，与单元格共用一次精确历史。常量或全绝对公式按区间处理，不展开整列空格。相对公式每次操作最多求值 100000 个规则覆盖格、处理 4 Mi 字符，累计最多 4096 个规则片段；克隆源另受单部件与 4 Mi 字符上限约束。未知规则结构、无法解析的公式、克隆身份扩展或预算不足时原子拒绝。范围变换参考 [ONLYOFFICE 条件格式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/ConditionalFormatting.js#L564-L643)和[数据验证](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/DataValidation.js#L976-L1067)。
 
-范围变换复用源规则与引用事务。普通条件格式的呈现与验证执行/编辑已接通，范围归[条件格式](#条件格式)和[数据验证](#数据验证)；未呈现效果的 PDF 继续原子拒绝。移动带切开合并或矩形链接、未知公式/引用、未接入的筛选/绘图/表格/批注资源及工作表保护继续原子拒绝。可用的整行/整列操作保持原有规则支持。保存重开后继续沿同一编辑与 PDF 路径工作；其余 [P11](../p11-xlsx-core.md) 范围仍待实现。
+范围变换复用源规则与引用事务。普通条件格式的呈现与验证执行/编辑已接通，范围归[条件格式](#条件格式)和[数据验证](#数据验证)；未呈现效果的 PDF 继续原子拒绝。移动带切开合并或矩形链接、依赖无法隔离的公式/引用、未接入的筛选/绘图/表格/批注资源及工作表保护继续原子拒绝。可用的整行/整列操作保持原有规则支持。保存重开后继续沿同一编辑与 PDF 路径工作；其余 [P11](../p11-xlsx-core.md) 范围仍待实现。
 
 ### 四向填充
 
@@ -743,7 +743,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 同步 Wasm 与 Worker 使用 `formatCells(revision, patch)`，宿主使用 `SpreadsheetEditor.formatCells(patch)`。命令作用于队列执行时的选区，宿主先提交单格草稿。`XlsxCellFormat` 从 `wasm/xlsx` 和 `web/xlsx` 导出；省略的属性保持原值。字段为 `family`、`size`、`bold`、`italic`、`color`、`fill`、`horizontal`、`vertical`、`wrap`、`numberFormat` 及 `left/right/top/bottom`。颜色为六位十六进制，空 `fill` 清除填充；四边使用 `{ style: "none" | "thin" | "medium" | "thick", color }`。字号为 1–409 磅，水平对齐为 general/left/center/right，垂直对齐为 top/center/bottom；数字格式限下节已有集合。宿主先验证新字体键存在于字体 profile。
 
-`XlsxQuery.formatting` 返回这些属性，不同值返回 `null`，并返回 `readOnlyReason` 和所选字体键 `fontKeys`。一次最多 4096 格；未知公式、受保护表、富文本/未知样式及只覆盖部分合并格的范围继续保护。单格合并锚点的格式查询和编辑扩展到完整合并范围。空白格继承行样式，其次列样式，再使用基础样式；显式单元格样式优先。派生格式保留原共享记录，不改写其他格。样式和目标格共同提交有界历史，缺失样式部件时关系及内容类型一起创建和撤销。仅改格式保留值、公式源、缓存和 calcChain，后续输入保持格样式；重复设置有效状态不新增历史。格式化的空白格参与使用范围和打印。默认 UI 使用可滚动属性栏，保留网格工作区。Chromium 已检查格式设置、草稿顺序、混合历史、缺失字体恢复、保存重开和格式化公式的 PDF 输出；更多装饰和格式代码仍归 [P11](../p11-xlsx-core.md)。
+`XlsxQuery.formatting` 返回这些属性，不同值返回 `null`，并返回 `readOnlyReason` 和所选字体键 `fontKeys`。一次最多 4096 格；依赖无法隔离的公式、受保护表、富文本/未知样式及只覆盖部分合并格的范围继续保护。单格合并锚点的格式查询和编辑扩展到完整合并范围。空白格继承行样式，其次列样式，再使用基础样式；显式单元格样式优先。派生格式保留原共享记录，不改写其他格。样式和目标格共同提交有界历史，缺失样式部件时关系及内容类型一起创建和撤销。仅改格式保留值、公式源、缓存和 calcChain，后续输入保持格样式；重复设置有效状态不新增历史。格式化的空白格参与使用范围和打印。默认 UI 使用可滚动属性栏，保留网格工作区。Chromium 已检查格式设置、草稿顺序、混合历史、缺失字体恢复、保存重开和格式化公式的 PDF 输出；更多装饰和格式代码仍归 [P11](../p11-xlsx-core.md)。
 
 ### 格式刷
 
@@ -901,7 +901,13 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 首次打开计算支持的公式，编辑只重新求值受影响公式。首次有效事务同步与已计算结果不同的导入缓存，包括未受本次输入影响的陈旧缓存；无编辑打开不写回。语法、越界引用、未支持公式、新建循环和预算超限整体拒绝；除零等是带类型的公式结果。共享公式按锚点派生；编辑命中组时有界展开该组，其他组保留。
 
-结构化/外部/三维/整行整列引用、数组、动态数组、易变函数及迭代计算未支持。导入存在未支持公式、无法解析依赖或原有循环时，整个工作簿只读，显示导入缓存；缺缓存显示未计算。未计算公式即使有缓存也不能作为计算结果打印。公式不访问网络、宏或宿主脚本。
+结构化/外部/三维/整行整列引用、数组、动态数组、易变函数及迭代计算未支持。依赖无法确定、函数参数语义未核实或存在原有循环时，整个工作簿只读。公式不访问网络、宏或宿主脚本。
+
+导入的 SQRT、POWER、PRODUCT、MEDIAN、EXACT、REPT 尚不求值，但已核实只读取显式参数，沿既有语法和名称展开建立静态依赖。保留其源码和导入缓存，依赖它们的公式也标为未计算。核心只把实际求值的结果放入 `calculated`，缓存不参与新的公式、条件格式、验证或筛选计算。每格新增 `calculationReason`：已计算/普通值为空，未计算时说明未支持函数或上游位置。默认公式栏显示原因；有缓存时显示缓存，缺缓存显示未计算。选区含未计算公式时，计数仍可读，四项汇总均为 null 并给出原因。
+
+所有源提交先比较未计算链的源码、展开表达式、稳定表身份、依赖矩形及参数值。新增的稀疏参数格也参与；嵌套 SUBTOTAL 另检查手动隐藏与筛选来源。相同参数下可编辑无关值、已支持公式、格式和视图，并沿原有重算、源事务、预算与精确历史保存；会改变该链或参数的输入、结构/名称及可见性操作原子拒绝。新增未支持公式及 CSV/TSV 公式转换继续拒绝。其他未核实函数、INDIRECT/OFFSET、CELL 等环境/格式查询、自定义函数及其嵌套继续整本保护。函数参数行为参考固定 [ONLYOFFICE 数值函数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L3444)、[MEDIAN](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L8553)和[文本函数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/textanddataFunctions.js#L902)；保护实现在 [`calculation-protection.mbt`](../../modules/formats/src/xlsx/calculation-protection.mbt)。
+
+未计算公式即使有缓存也不能作为计算结果打印；只含已计算内容的独立打印区域可输出。XLSX 原格式保存保留未计算公式及缓存，CSV 值导出沿既有有缓存才可导出的合同，不赋予缓存已计算状态。
 
 ### 名称引用
 
@@ -1246,6 +1252,16 @@ list 使用 `PptxListFormat`：`{ kind: "none" }`、`{ kind: "bullet", value }` 
 | 历史 / 宿主队列 | undo+redo 共 100 项、4 MiB 源补丁 payload；编辑与指针意图队列各 64 项，指针预览只保留待发送末次坐标 |
 
 P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增量创作能力与剩余范围归 [P12](../p12-pptx-core.md)。Chromium 受控输入事件已验证；没有追加系统输入源、Windows/PowerPoint、VoiceOver、其他浏览器或性能验收。
+
+### 对象超链接
+
+`PresentationEditor.editObjects({ action: "hyperlink", link })` 修改一个所选本地顶层形状、图片或组的点击链接，要求对象模式。`link` 为 `{ kind: "external", target }`、`{ kind: "slide", target }` 或 null；null 移除点击链接。`PptxHyperlink` 从 `wasm/pptx` 和 `web/pptx` 导出。每个 `PptxObject.hyperlink` 返回 `{ value, reason }`；value 为同一链接结构或 null，reason 说明保护原因。文字范围、多选与继承对象尚不授予链接修改。
+
+外部地址最多 2048 UTF-16 单元，只允许 HTTP、HTTPS 和 mailto，拒绝空目标、空白、控制字符及反斜杠。内部目标是当前文稿的稳定 slide 部件身份，不能使用页序号；允许显式跳转隐藏页。默认面板创建、修改及移除链接，单独的打开入口才导航。外链使用新窗口和 `noopener noreferrer`，内部链接沿 `showSlide` 定位；显示、打开文件和布局不自动请求外链或执行动作。脚本、文件地址、相对网址、宏与其他放映动作继续保护源。
+
+核心写 `cNvPr/a:hlinkClick`：外链使用 External hyperlink 关系，内链使用 slide 关系及 `ppaction://hlinksldjump`。与目标相同的关系可复用；修改不覆盖其他对象共用的关系，也不清理旧关系。保留 tooltip、tgtFrame、history、highlightClick、endSnd、相邻悬停链接、注释、文字和几何；未知属性、声音等子内容或无法解析的关系保护修改。新增关系与对象 XML 共用一项有界历史，旧 revision、活动候选、锁和输出预算失败均不提交。相同链接及重复清除不新增历史。
+
+页面重排保持内部目标，页面复制复用既有自身链接重映射，删页移除相应入链并保留对象。对象复制保留链接；带自身点击或悬停链接的组不能直接取消组合，避免丢失组动作。普通点击链接移除后可取消组合，成员自己的链接保留。静态 Canvas/PDF 保留对象外观及文字，不增加交互链接注释。文字范围链接、悬停/一般动作编辑、放映点击行为及输出链接继续按 [P12](../p12-pptx-core.md) 实施。语义参考固定 [ONLYOFFICE 对象链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L3503-L3683)与[内部页动作解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L9259-L9290)，实现归 [`object-hyperlink.mbt`](../../modules/formats/src/pptx/object-hyperlink.mbt)。
 
 ### 当前页 PNG 输出
 

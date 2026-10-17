@@ -181,6 +181,11 @@ pub fn Session::import_delimited(
     @failure.reject("invalid-delimited", session.read_only)
   }
   if formulas && session.calculation is Some(calculation) {
+    guard calculation.uncomputed.is_empty() else {
+      @failure.reject(
+        "invalid-delimited", "Delimited import requires supported formula calculation",
+      )
+    }
     ignore(session.cache_edits(session.sheets, calculation))
     session.validate(session.sheets)
   }

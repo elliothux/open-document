@@ -50,7 +50,8 @@ export function XlsxFormula({
 }) {
   const t = messages(state.locale),
     field = useRef<HTMLInputElement>(null),
-    selection = editor.currentState.selection;
+    selection = editor.currentState.selection,
+    calculationReason = editor.currentState.cells[0]?.calculationReason;
   return (
     <div className="od-formula">
       <form
@@ -77,6 +78,7 @@ export function XlsxFormula({
         <span>{t.formulaInput}</span>
         <NativeSlot node={editor.formulaBar} />
       </label>
+      {calculationReason && <span role="status">{calculationReason}</span>}
       <label
         onMouseDown={(event) => {
           if (event.button === 0) event.preventDefault();

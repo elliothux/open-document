@@ -230,6 +230,13 @@ export function PptxObjects({
         editor={editor}
         disabled={disabled}
       />
+      <PptxHyperlink
+        key={`link:${state.document?.documentId}:${query.selection.object}:${JSON.stringify(selected?.hyperlink)}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
       <PptxPaint
         key={`${state.document?.documentId}:${query.selection.mode}:${query.selection.objects.map((id) => JSON.stringify(query.objects.find((o) => o.id === id)?.appearance)).join(",")}`}
         controller={controller}
@@ -258,6 +265,127 @@ export function PptxObjects({
         editor={editor}
         disabled={disabled}
       />
+    </section>
+  );
+}
+
+function PptxHyperlink({
+  controller,
+  state,
+  editor,
+  disabled,
+}: {
+  controller: EditorController;
+  state: UiSnapshot;
+  editor: PresentationEditor;
+  disabled: boolean;
+}) {
+  const t = messages(state.locale),
+    query = editor.query;
+  const current = query.objects.find(
+    (object) => object.id === query.selection.object,
+  )?.hyperlink;
+  const link = current?.value;
+  const [kind, setKind] = useState<"external" | "slide">(
+    link?.kind ?? "external",
+  );
+  const [address, setAddress] = useState(
+    link?.kind === "external" ? link.target : "",
+  );
+  const [slide, setSlide] = useState(
+    link?.kind === "slide" ? link.target : (query.slides[0]?.id ?? ""),
+  );
+  const blocked =
+    disabled ||
+    query.selection.mode !== "object" ||
+    query.selection.objects.length !== 1 ||
+    !current ||
+    !!current.reason;
+  return (
+    <section aria-label={t.objectHyperlink}>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          controller.run(() =>
+            editor.editObjects({
+              action: "hyperlink",
+              link: { kind, target: kind === "external" ? address : slide },
+            }),
+          );
+        }}
+      >
+        <fieldset disabled={blocked}>
+          <legend>{t.objectHyperlink}</legend>
+          <label>
+            {t.hyperlinkKind}
+            <select
+              aria-label={t.hyperlinkKind}
+              value={kind}
+              onChange={(event) => {
+                const kind = event.currentTarget.value;
+                if (kind === "external" || kind === "slide") setKind(kind);
+              }}
+            >
+              <option value="external">{t.hyperlinkExternal}</option>
+              <option value="slide">{t.hyperlinkSlide}</option>
+            </select>
+          </label>
+          {kind === "external" ? (
+            <label>
+              {t.hyperlinkAddress}
+              <input
+                type="url"
+                required
+                maxLength={2048}
+                value={address}
+                onChange={(event) => setAddress(event.currentTarget.value)}
+              />
+            </label>
+          ) : (
+            <label>
+              {t.hyperlinkTargetSlide}
+              <select
+                aria-label={t.hyperlinkTargetSlide}
+                value={slide}
+                onChange={(event) => setSlide(event.currentTarget.value)}
+              >
+                {query.slides.map((slide, index) => (
+                  <option key={slide.id} value={slide.id}>
+                    {index + 1}. {slide.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <button type="submit">{t.hyperlinkApply}</button>
+          <button
+            type="button"
+            disabled={!link}
+            onClick={() =>
+              controller.run(() =>
+                editor.editObjects({ action: "hyperlink", link: null }),
+              )
+            }
+          >
+            {t.hyperlinkRemove}
+          </button>
+        </fieldset>
+      </form>
+      {current?.reason && <p>{current.reason}</p>}
+      {!blocked &&
+        link &&
+        (link.kind === "external" ? (
+          <a href={link.target} target="_blank" rel="noopener noreferrer">
+            {t.hyperlinkOpen}
+          </a>
+        ) : (
+          <button
+            type="button"
+            onClick={() => controller.run(() => editor.showSlide(link.target))}
+          >
+            {t.hyperlinkOpen}
+          </button>
+        ))}
     </section>
   );
 }

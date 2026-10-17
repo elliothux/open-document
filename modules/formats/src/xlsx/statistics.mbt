@@ -8,9 +8,16 @@ fn Session::selection_statistics(
   let current = self.sheets[sheet]
   let mut count = 0
   let numbers : Array[Double] = []
+  let mut uncomputed = ""
   for cell in cells {
     if current.dimensions.rows.size(cell.address.row) == 0 {
       continue
+    }
+    if cell.formula is Some(_) &&
+      self.calculation.bind(c => c.values.get((sheet, cell.address.name())))
+      is None {
+      uncomputed = "Selection includes an uncalculated formula: " +
+        cell.address.name()
     }
     let value = self.calculation
       .bind(calculation => calculation.values.get((sheet, cell.address.name())))
@@ -68,10 +75,30 @@ fn Session::selection_statistics(
     "range": range.name(),
     "count": count,
     "countNumbers": numbers.length(),
-    "sum": sum,
-    "average": average,
-    "min": minimum,
-    "max": maximum,
-    "reason": reason,
+    "sum": if uncomputed.is_empty() {
+      sum
+    } else {
+      Json::null()
+    },
+    "average": if uncomputed.is_empty() {
+      average
+    } else {
+      Json::null()
+    },
+    "min": if uncomputed.is_empty() {
+      minimum
+    } else {
+      Json::null()
+    },
+    "max": if uncomputed.is_empty() {
+      maximum
+    } else {
+      Json::null()
+    },
+    "reason": if uncomputed.is_empty() {
+      reason
+    } else {
+      uncomputed
+    },
   }
 }

@@ -204,6 +204,7 @@ export interface XlsxCell {
   cached: CellValue | null;
   calculated: CellValue | null;
   calculation: "value" | "calculated" | "imported-cache" | "uncalculated";
+  calculationReason: string;
   display: string;
   readOnlyReason: string;
 }
@@ -413,7 +414,11 @@ export function xlsxQuery(value: unknown): XlsxQuery {
 function xlsxCell(value: unknown): XlsxCell {
   const cell = record(value);
   if (
-    !hasFields(cell, ["address", "input", "display", "readOnlyReason"], []) ||
+    !hasFields(
+      cell,
+      ["address", "input", "display", "readOnlyReason", "calculationReason"],
+      [],
+    ) ||
     typeof cell.address !== "string" ||
     !/^[A-Z]{1,3}[1-9][0-9]{0,6}$/.test(cell.address) ||
     !integer(cell.row, 1, 1048576) ||

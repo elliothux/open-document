@@ -10,7 +10,7 @@ export interface XlsxStatistics {
   average: number | null;
   min: number | null;
   max: number | null;
-  /** Read-only source or numeric overflow; counts remain available. */
+  /** Uncalculated formulas, read-only source or numeric overflow; counts remain available. */
   reason: string;
 }
 
@@ -38,7 +38,9 @@ export function xlsxStatistics(value: unknown): XlsxStatistics {
           "reason",
         ].includes(key),
     ) ||
-    (state.countNumbers === 0
+    (state.countNumbers === 0 ||
+    (state.reason.length > 0 &&
+      [state.sum, state.average, state.min, state.max].every((v) => v === null))
       ? [state.sum, state.average, state.min, state.max].some((v) => v !== null)
       : !finite(state.min) ||
         !finite(state.max) ||

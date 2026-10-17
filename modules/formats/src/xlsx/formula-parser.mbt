@@ -3,7 +3,7 @@ priv struct FormulaAddress {
   address : Address
   fixed_row : Bool
   fixed_column : Bool
-}
+} derive(Eq)
 
 ///|
 priv enum Expression {
@@ -13,7 +13,7 @@ priv enum Expression {
   Unary(String, Expression)
   Binary(String, Expression, Expression)
   Function(String, Array[Expression])
-}
+} derive(Eq)
 
 ///|
 priv enum Token {

@@ -229,6 +229,18 @@ fn Foundation::pptx_operation(
               _ => Some(xlsx_number(change, "value"))
             },
           )
+        "hyperlink" =>
+          match change {
+            { "link": Null, .. } => @pptx.Hyperlink("none", "")
+            {
+              "link": { "kind": String(kind), "target": String(target), .. },
+              ..
+            } => @pptx.Hyperlink(kind, target)
+            _ =>
+              @failure.reject(
+                "invalid-operation", "Hyperlink target is required",
+              )
+          }
         "strokeDash" =>
           @pptx.StrokeDash(
             match change {

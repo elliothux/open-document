@@ -60,6 +60,9 @@ fn calculated_cell(
   }
   match sheets[sheet].cells.get(name) {
     Some(cell) => {
+      guard cell.formula is None else {
+        @failure.reject("unsupported-formula", "Uncalculated formula: " + name)
+      }
       guard cell.calculation_supported else {
         @failure.reject(
           "unsupported-formula",

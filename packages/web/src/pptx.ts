@@ -14,6 +14,7 @@ export type {
   PptxThemeFont,
   PptxThemeSlot,
   PptxObjectEdit,
+  PptxHyperlink,
   PptxDash,
   PptxCap,
   PptxJoin,

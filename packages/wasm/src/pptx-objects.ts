@@ -24,7 +24,30 @@ export const pptxCaps = ["flat", "rnd", "sq"] as const;
 export const pptxJoins = ["round", "bevel", "miter"] as const;
 export type PptxCap = (typeof pptxCaps)[number];
 export type PptxJoin = (typeof pptxJoins)[number];
+export type PptxHyperlink = { kind: "external" | "slide"; target: string };
+
+export function pptxHyperlink(value: unknown): PptxHyperlink | null {
+  if (value === null) return null;
+  const link = record(value);
+  if (
+    (link.kind !== "external" && link.kind !== "slide") ||
+    typeof link.target !== "string" ||
+    !link.target.isWellFormed() ||
+    !link.target ||
+    link.target.length > (link.kind === "slide" ? 1024 : 2048) ||
+    Object.keys(link).some((key) => key !== "kind" && key !== "target") ||
+    (link.kind === "external" &&
+      (!/^(https?:\/\/|mailto:).+/i.test(link.target) ||
+        /\s/u.test(link.target) ||
+        Array.from(link.target).some(
+          (c) => c.charCodeAt(0) <= 32 || c.charCodeAt(0) === 127 || c === "\\",
+        )))
+  )
+    throw new Error("Invalid PPTX hyperlink");
+  return value as PptxHyperlink;
+}
 export type PptxObjectEdit =
+  | { action: "hyperlink"; link: PptxHyperlink | null }
   | {
       action: "shapeAdjustment";
       name: "adj" | "adj1" | "adj2";
@@ -122,6 +145,12 @@ export function number(value: unknown, low = 0, high = 0x7fffffff): number {
 }
 export function checkPptxObjectEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "hyperlink") {
+    if (Object.keys(change).some((key) => key !== "action" && key !== "link"))
+      throw new Error("Invalid PPTX hyperlink edit");
+    pptxHyperlink(change.link);
+    return;
+  }
   if (change.action === "shapeAdjustment") {
     if (!["adj", "adj1", "adj2"].includes(String(change.name)))
       throw new Error("Invalid PPTX shape adjustment");

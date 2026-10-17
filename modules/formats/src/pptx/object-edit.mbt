@@ -5,6 +5,7 @@ pub(all) enum ObjectEdit {
   ReplaceImage(String, Bytes)
   ImageCrop(Double, Double, Double, Double)
   ImageOpacity(Double)
+  Hyperlink(String, String)
   Remove
   Duplicate(Double, Double)
   Rotate(Double)
@@ -155,6 +156,7 @@ fn Session::object_edit_reason(
             relationship_uri + "/notesSlide",
             relationship_uri + "/image",
             relationship_uri + "/hyperlink",
+            relationship_uri + "/slide",
           ].contains(rel.kind) {
           return "Slide relationship references require object deletion support"
         }
@@ -279,6 +281,9 @@ pub fn Session::edit_objects(
   if change is ImageOpacity(value) {
     return self.set_image_opacity(value)
   }
+  if change is Hyperlink(kind, target) {
+    return self.set_object_hyperlink(kind, target)
+  }
   if change is ShapeAdjustment(name, value) {
     let changes = self.adjust_shape(name, value)
     if changes.is_empty() {
@@ -300,6 +305,7 @@ pub fn Session::edit_objects(
     | ReplaceImage(_, _)
     | ImageCrop(_, _, _, _)
     | ImageOpacity(_)
+    | Hyperlink(_, _)
     | ShapeAdjustment(_, _)
     | TextFormat(_)
     | TextAlign(_)

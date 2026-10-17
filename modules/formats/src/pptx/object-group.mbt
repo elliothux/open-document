@@ -19,6 +19,13 @@ fn Session::group_members(
       guard object.kind == "group" else {
         @failure.reject("invalid-operation", "Select groups to ungroup")
       }
+      let properties = hyperlink_properties(object)
+      guard properties.child("hlinkClick") is None &&
+        properties.child("hlinkMouseOver") is None else {
+        @failure.reject(
+          "protected-content", "Remove group links before ungrouping",
+        )
+      }
       let children = slide.objects.filter(child => child.parent == object.id)
       expanded += children.length()
       guard expanded <= 256 else {

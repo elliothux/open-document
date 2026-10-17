@@ -36,7 +36,7 @@
 | [`bridge/xlsx.mbt`](../modules/bridge/src/xlsx.mbt)、[`wasm/xlsx.ts`](../packages/wasm/src/xlsx.ts)、[`web/xlsx.ts`](../packages/web/src/xlsx.ts) | 扩展现有类型化命令与查询；不增加第二套计算服务 |
 | [`spreadsheet-editor.ts`](../packages/web/src/spreadsheet-editor.ts)、[`spreadsheet-input.ts`](../packages/web/src/spreadsheet-input.ts)、[`spreadsheet-formula.ts`](../packages/web/src/spreadsheet-formula.ts)、[`ui/xlsx-formula.tsx`](../packages/ui/src/xlsx-formula.tsx) | 已接通共享原生输入的公式栏和范围定位，复用队列、Canvas 与 P9 状态；继续扩展数据面板 |
 
-当前未知公式或无法解析的依赖会使整本只读。当前打印可按工作簿顺序合并可见表，各表保留矩形区域、页面设置、重复标题、纯文字页眉页脚和缩放。P11 必须继续修改这些能力所在层，不能只放开按钮或在 JS 中补算结果。
+已核实参数依赖的六种未支持函数可保留源码和缓存，并开放无关编辑；动态或无法解析的依赖仍使整本只读，范围见第 4.2 节。当前打印可按工作簿顺序合并可见表，各表保留矩形区域、页面设置、重复标题、纯文字页眉页脚和缩放。P11 必须继续修改这些能力所在层，不能只放开按钮或在 JS 中补算结果。
 
 ## 3. 创建、结构与格式
 
@@ -106,6 +106,8 @@
 已有名称的计算已接通工作簿/工作表作用域、常量、矩形范围与已支持表达式。复用依赖、规则、缓存、历史、原生输入和 PDF，支持局部优先、显式表限定、Unicode、相对定义和循环保护。绝对定义随结构及表操作更新；相对定义的结构变换暂时保护。名称目录、增改删、作用域改名与矩形名称定位已接通核心、API 和默认面板，复用原生草稿屏障和精确历史；当前语义及边界归[名称引用](references/formats.md#名称引用)。整行/整列引用后续采用有界区间迭代和实际单元格查询，不能展开整个表。结构化引用随第 3 批表操作接入。外部工作簿、INDIRECT/OFFSET 等动态依赖、数组/溢出、易变和迭代计算在 P14 扩展，保留原公式与诊断。
 
 ### 4.2 未知公式的安全编辑范围
+
+已接通 SQRT、POWER、PRODUCT、MEDIAN、EXACT、REPT 的静态参数依赖识别，保留导入公式及其下游链的缓存，开放能证明参数不变的编辑。提交前复核源码、展开后的名称、稳定表身份、依赖范围、参数值及嵌套 SUBTOTAL 的隐藏/筛选语义。查询新增 `calculationReason`，默认公式栏显示原因；汇总和完整打印不冒用缓存。动态引用、自定义函数及其他未核实函数继续保护。当前合同归[显示与计算](references/formats.md#显示与计算)。
 
 把“无法计算”和“无法确定引用影响”分开：
 

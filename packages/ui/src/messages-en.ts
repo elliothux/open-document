@@ -1,4 +1,13 @@
 export const en = {
+  objectHyperlink: "Object hyperlink",
+  hyperlinkKind: "Link type",
+  hyperlinkExternal: "External address",
+  hyperlinkSlide: "Slide in this presentation",
+  hyperlinkAddress: "Link address",
+  hyperlinkTargetSlide: "Target slide",
+  hyperlinkApply: "Apply link",
+  hyperlinkRemove: "Remove link",
+  hyperlinkOpen: "Open link",
   slideLayout: "Slide layout",
   slideMaster: "Slide master",
   chooseSlideLayout: "Choose slide layout",

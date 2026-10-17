@@ -310,6 +310,7 @@ fn Session::paint_cells(
           self.read_only,
           calculated,
           hide_formula=style.formula_hidden,
+          calculation_reason=self.calculation_reason(index, address),
         ),
         "display": text,
         "rect": rect,

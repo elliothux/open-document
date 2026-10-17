@@ -1,6 +1,15 @@
 import type { Messages } from "./messages-en.js";
 
 export const zh: Messages = {
+  objectHyperlink: "对象超链接",
+  hyperlinkKind: "链接类型",
+  hyperlinkExternal: "外部地址",
+  hyperlinkSlide: "本文稿中的幻灯片",
+  hyperlinkAddress: "链接地址",
+  hyperlinkTargetSlide: "目标幻灯片",
+  hyperlinkApply: "应用链接",
+  hyperlinkRemove: "移除链接",
+  hyperlinkOpen: "打开链接",
   slideLayout: "幻灯片版式",
   slideMaster: "幻灯片母版",
   chooseSlideLayout: "选择幻灯片版式",

@@ -2,6 +2,8 @@ import {
   number,
   checkPptxObjectEdit,
   type PptxObjectEdit,
+  pptxHyperlink,
+  type PptxHyperlink,
   pptxDashes,
   type PptxDash,
   pptxCaps,
@@ -12,6 +14,7 @@ import {
 export {
   checkPptxObjectEdit,
   type PptxObjectEdit,
+  type PptxHyperlink,
   type PptxDash,
   type PptxCap,
   type PptxJoin,
@@ -99,6 +102,7 @@ export interface PptxObject {
   duplicateReason: string;
   rotateReason: string;
   arrangeReason: string;
+  hyperlink: { value: PptxHyperlink | null; reason: string };
   shapeAdjustments: {
     preset: string;
     reason: string;
@@ -449,12 +453,20 @@ export function pptxQuery(value: unknown): PptxQuery {
   if (typeof query.slide !== "string" || !ids.has(query.slide))
     throw new Error("Invalid current slide");
   pptxSections(query.sections, [...ids]);
+  const slideIds = new Set(ids);
   ids.clear();
   const parents = new Map<string, string>(),
     groups = new Set<string>();
   let units = 0;
   for (const item of query.objects) {
     const object = record(item);
+    const hyperlink = record(object.hyperlink),
+      link = pptxHyperlink(hyperlink.value);
+    if (
+      typeof hyperlink.reason !== "string" ||
+      (link?.kind === "slide" && !slideIds.has(link.target))
+    )
+      throw new Error("Invalid object hyperlink");
     const adjustments = record(object.shapeAdjustments);
     if (
       !hasFields(adjustments, ["preset", "reason"], []) ||

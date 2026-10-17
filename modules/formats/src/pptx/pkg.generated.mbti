@@ -44,6 +44,7 @@ pub(all) enum ObjectEdit {
   ReplaceImage(String, Bytes)
   ImageCrop(Double, Double, Double, Double)
   ImageOpacity(Double)
+  Hyperlink(String, String)
   Remove
   Duplicate(Double, Double)
   Rotate(Double)

@@ -278,6 +278,7 @@ fn Sheet::cell_json(
   address : Address,
   reason : String,
   calculated : Value?,
+  calculation_reason~ : String,
   hide_formula~ : Bool,
 ) -> Json raise @failure.Failure {
   let key = address.name()
@@ -329,6 +330,11 @@ fn Sheet::cell_json(
       }
     } else {
       "value"
+    },
+    "calculationReason": if formula is Some(_) && calculated is None {
+      calculation_reason
+    } else {
+      ""
     },
     "display": if formula is Some(_) && value == Blank && calculated is None {
       "Not calculated"

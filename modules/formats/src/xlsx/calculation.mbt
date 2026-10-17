@@ -32,6 +32,7 @@ priv struct Calculation {
   expressions : Map[(Int, String), Expression]
   dependencies : Map[(Int, String), Array[Dependency]]
   values : Map[(Int, String), Value]
+  uncomputed : Map[(Int, String), String]
   order : Array[(Int, String)]
 }
 
@@ -58,6 +59,7 @@ fn Expression::dependencies(
   work : FormulaWork,
   output : Array[Dependency],
   depth : Int,
+  uncomputed~ : Array[String]? = None,
 ) -> Unit raise @failure.Failure {
   work.spend()
   guard depth <= 64 && output.length() < 4096 else {
@@ -69,7 +71,7 @@ fn Expression::dependencies(
     Named(_, _) =>
       self
       .resolve_names(sheets, current, work.origin, work)
-      .dependencies(sheets, current, work, output, depth + 1)
+      .dependencies(sheets, current, work, output, depth + 1, uncomputed~)
     Constant(_) => ()
     Reference(name, first, last) => {
       let last = last.unwrap_or(first)
@@ -79,23 +81,33 @@ fn Expression::dependencies(
       })
     }
     Unary(_, value) =>
-      value.dependencies(sheets, current, work, output, depth + 1)
+      value.dependencies(sheets, current, work, output, depth + 1, uncomputed~)
     Binary(_, left, right) => {
-      left.dependencies(sheets, current, work, output, depth + 1)
-      right.dependencies(sheets, current, work, output, depth + 1)
+      left.dependencies(sheets, current, work, output, depth + 1, uncomputed~)
+      right.dependencies(sheets, current, work, output, depth + 1, uncomputed~)
     }
     Function(name, args) => {
-      guard [
-        "SUM", "AVERAGE", "MIN", "MAX", "COUNT", "IF", "AND", "OR", "NOT", "IFERROR",
-        "IFNA", "ISBLANK", "ISNUMBER", "ISTEXT", "ABS", "INT", "MOD", "ROUND", "ROUNDUP",
-        "ROUNDDOWN", "LEN", "LEFT", "RIGHT", "MID", "TRIM", "UPPER", "LOWER", "CONCAT",
-        "CONCATENATE", "TEXTJOIN", "FIND", "SEARCH", "SUBSTITUTE", "DATE", "YEAR",
-        "MONTH", "DAY", "TIME", "HOUR", "MINUTE", "SECOND", "DAYS", "COUNTA", "COUNTBLANK",
-        "COUNTIF", "COUNTIFS", "SUMIF", "SUMIFS", "AVERAGEIF", "AVERAGEIFS", "INDEX",
-        "MATCH", "VLOOKUP", "HLOOKUP", "XLOOKUP", "ROW", "COLUMN", "ROWS", "COLUMNS",
-        "SUBTOTAL",
-      ].contains(name) else {
-        @failure.reject("unsupported-formula", "Unsupported function: " + name)
+      if ![
+          "SUM", "AVERAGE", "MIN", "MAX", "COUNT", "IF", "AND", "OR", "NOT", "IFERROR",
+          "IFNA", "ISBLANK", "ISNUMBER", "ISTEXT", "ABS", "INT", "MOD", "ROUND",
+          "ROUNDUP", "ROUNDDOWN", "LEN", "LEFT", "RIGHT", "MID", "TRIM", "UPPER",
+          "LOWER", "CONCAT", "CONCATENATE", "TEXTJOIN", "FIND", "SEARCH", "SUBSTITUTE",
+          "DATE", "YEAR", "MONTH", "DAY", "TIME", "HOUR", "MINUTE", "SECOND", "DAYS",
+          "COUNTA", "COUNTBLANK", "COUNTIF", "COUNTIFS", "SUMIF", "SUMIFS", "AVERAGEIF",
+          "AVERAGEIFS", "INDEX", "MATCH", "VLOOKUP", "HLOOKUP", "XLOOKUP", "ROW",
+          "COLUMN", "ROWS", "COLUMNS", "SUBTOTAL",
+        ].contains(name) {
+        // Only audited value-parameter functions have complete static dependencies.
+        guard ["SQRT", "POWER", "PRODUCT", "MEDIAN", "EXACT", "REPT"].contains(
+            name,
+          ) &&
+          uncomputed is Some(reasons) else {
+          @failure.reject(
+            "unsupported-formula",
+            "Unsupported function: " + name,
+          )
+        }
+        reasons.push("Unsupported function: " + name)
       }
       for index, arg in args {
         if ["ROW", "COLUMN", "ROWS", "COLUMNS"].contains(name) &&
@@ -117,7 +129,7 @@ fn Expression::dependencies(
           output.push({ sheet: target.sheet, range: target.bounds, })
           continue
         }
-        arg.dependencies(sheets, current, work, output, depth + 1)
+        arg.dependencies(sheets, current, work, output, depth + 1, uncomputed~)
       }
     }
   }
@@ -177,6 +189,7 @@ fn Calculation::build(
     expressions: Map([]),
     dependencies: Map([]),
     values: Map([]),
+    uncomputed: Map([]),
     order: [],
   }
   let work = FormulaWork::{
@@ -209,7 +222,18 @@ fn Calculation::build(
           )
         }
         let dependencies : Array[Dependency] = []
-        expression.dependencies(sheets, index, work, dependencies, 0)
+        let reasons : Array[String] = []
+        expression.dependencies(
+          sheets,
+          index,
+          work,
+          dependencies,
+          0,
+          uncomputed=Some(reasons),
+        )
+        if reasons.get(0) is Some(reason) {
+          calculation.uncomputed[key] = reason
+        }
         references += dependencies.length()
         guard references <= 32768 else {
           @failure.reject(
@@ -234,6 +258,22 @@ fn Calculation::build(
   let invalid = changed.copy()
   for key in calculation.order {
     work.origin = Address::parse(key.1)
+    for dependency in calculation.dependencies[key] {
+      for candidate in formulas.get(dependency.sheet).unwrap_or([]) {
+        work.spend()
+        if calculation.uncomputed.contains(candidate) &&
+          dependency.range.contains(Address::parse(candidate.1)) &&
+          !calculation.uncomputed.contains(key) {
+          calculation.uncomputed[key] = "Uncalculated dependency: " +
+            sheets[candidate.0].name +
+            "!" +
+            candidate.1
+        }
+      }
+    }
+    if calculation.uncomputed.contains(key) {
+      continue
+    }
     let affected = calculation.dependencies[key].any(dependency => {
         invalid.any(item => {
           work.spend()

@@ -37,7 +37,14 @@ fn Ref::group_problem(self : Ref) -> String raise @failure.Failure {
           return "Unsupported group metadata"
         }
         if child.name != "cNvGrpSpPr" &&
-          !self.tree.children.get(child.id).unwrap_or([]).is_empty() {
+          self.tree.children
+          .get(child.id)
+          .unwrap_or([])
+          .any(node => {
+            child.name != "cNvPr" ||
+            node.uri != drawing_uri ||
+            !["hlinkClick", "hlinkMouseOver"].contains(node.name)
+          }) {
           return "Group metadata requires editing support"
         }
         if child.name == "cNvPr" && flag(child, "hidden") {
