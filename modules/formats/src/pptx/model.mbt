@@ -36,6 +36,7 @@ priv struct TextParagraph {
   rtl : Bool
   bullet : String
   bullet_style : @layout.TextStyle
+  bullet_size : TextSpacing
   list : ListFormat
   level : Int
 }

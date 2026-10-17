@@ -127,9 +127,11 @@ fn ParagraphCache::retain(
   self : ParagraphCache,
   paragraph : Paragraph,
   available : Double,
+  inTable~ : Bool = false,
 ) -> Unit {
   self.reused += 1
-  let key = self.key(paragraph, available)
+  let key = self.key(paragraph, available) +
+    (if inTable { ";table" } else { "" })
   if self.previous.get(key) is Some(lines) {
     self.keep(key, lines)
   }
@@ -143,6 +145,7 @@ fn ParagraphCache::lines(
   profile : Map[String, String],
   available : Double,
   baseLevel? : Int,
+  inTable~ : Bool = false,
 ) -> Array[MeasuredLine] raise @failure.Failure {
   probe.check()
   // Keep non-finite geometry out of retained entries.
@@ -153,12 +156,14 @@ fn ParagraphCache::lines(
       profile,
       available,
       baseLevel?,
+      inTable~,
     )
     self.shaped += 1
     return lines
   }
   let key = self.key(paragraph, available) +
-    baseLevel.map(level => ";base=\{level}").unwrap_or("")
+    baseLevel.map(level => ";base=\{level}").unwrap_or("") +
+    (if inTable { ";table" } else { "" })
   let cached = match self.current.get(key) {
     Some(lines) => Some(lines)
     None => self.previous.get(key)
@@ -175,6 +180,7 @@ fn ParagraphCache::lines(
         profile,
         available,
         baseLevel?,
+        inTable~,
       )
       self.shaped += 1
       lines

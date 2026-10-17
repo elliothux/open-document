@@ -9,18 +9,23 @@ fn Sheet::automatic_series_values(
   forward : Bool,
   styles : Array[CellStyle],
   date1904 : Bool,
+  copy~ : Bool = false,
 ) -> Array[(Value, Int, String?)] raise @failure.Failure {
-  let values = self.text_series_values(
-    source,
-    lane,
-    vertical,
-    first,
-    last,
-    forward,
-    automatic=true,
-    styles~,
-    date1904~,
-  )
+  let values = if copy {
+    Array::make(last - first + 1, (Blank, 0))
+  } else {
+    self.text_series_values(
+      source,
+      lane,
+      vertical,
+      first,
+      last,
+      forward,
+      automatic=true,
+      styles~,
+      date1904~,
+    )
+  }
   let start = if vertical { source.top } else { source.left }
   let count = if vertical {
     source.bottom - source.top + 1
@@ -36,8 +41,8 @@ fn Sheet::automatic_series_values(
     } else {
       { row: lane, column: seed, }
     }
-    let formula = self.cells
-      .get(address.name())
+    let cell = self.cells.get(address.name())
+    let formula = cell
       .bind(cell => cell.formula)
       .map(text => {
         let expression = formulas
@@ -53,6 +58,12 @@ fn Sheet::automatic_series_values(
           invalid_ref=true,
         )
       })
-    (if formula is Some(_) { Blank } else { item.0 }, item.1, formula)
+    let value = if copy {
+      cell.map(c => c.value).unwrap_or(Blank)
+    } else {
+      item.0
+    }
+    let style = if copy { self.style_at(address) } else { item.1 }
+    (if formula is Some(_) { Blank } else { value }, style, formula)
   })
 }

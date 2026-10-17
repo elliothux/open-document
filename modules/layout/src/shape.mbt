@@ -265,20 +265,27 @@ fn TextProbe::shape_paragraph(
       }
       let position = buffer.positions()[i]
       let info = buffer.infos()[i]
-      if geometry && bidi_control(info.unicode) {
+      guard info.cluster >= 0 && info.cluster < text.length() else {
+        @failure.reject("shaping-failed", "Invalid shaping source cluster")
+      }
+      // Substitution can clear glyph Unicode; source clusters retain control identity.
+      let control = bidi_control(text[info.cluster].to_uint())
+      let advance = if control {
+        0.0
+      } else {
+        position.x_advance.to_double() * ratio
+      }
+      if geometry && control {
         for offset in [info.cluster, info.cluster + 1] {
           controls.push({ offset, before: x, after: x, })
         }
       }
       if advances is Some((values, start)) {
-        guard info.cluster >= 0 && info.cluster < text.length() else {
-          @failure.reject("shaping-failed", "Invalid shaping source cluster")
-        }
         let index = start + info.cluster
         let (width, gap) = values[index]
-        values[index] = (width + position.x_advance.to_double() * ratio, gap)
+        values[index] = (width + advance, gap)
       }
-      if geometry && !bidi_control(info.unicode) {
+      if geometry && !control {
         let (key, path, fresh) = self.outline(run.font, info.codepoint)
         if fresh {
           inserted.push(key)
@@ -298,7 +305,7 @@ fn TextProbe::shape_paragraph(
           yOffset: position.y_offset,
         })
       }
-      x += position.x_advance.to_double() * ratio
+      x += advance
     }
     if run.level % 2 == 0 {
       x += gap

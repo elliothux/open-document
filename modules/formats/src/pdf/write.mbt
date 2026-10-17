@@ -342,7 +342,12 @@ pub fn write(
               continue
             }
             let actual = dict([
-              ("ActualText", @syntax.PdfString(utf16_bytes(line.text))),
+              (
+                "ActualText",
+                @syntax.PdfString(
+                  utf16_bytes(line.text.replace_all(old="\u000c", new="")),
+                ),
+              ),
             ])
             ops.push(@content.Op_BDC(name("Span"), actual))
             for run in line.runs {

@@ -117,7 +117,7 @@ PNG/JPEG 图片插入已接通核心、Wasm、Worker、宿主和默认 UI。新�
 
 清除字符和段落直接格式已接通核心、API 与默认面板。字符清除恢复父级字体属性，保留高亮、语言和链接；段落清除恢复对齐、行段距、缩进及项目符号定义的继承，保留级别与默认字符属性。局部范围、光标后续输入、空框和多框共用精确历史。实现归 [`text-clear.mbt`](../modules/formats/src/pptx/text-clear.mbt)，具体属性及保护归[格式合同](references/formats.md#pptx)。
 
-字符项目符号和五种常用编号已接通核心、API 与默认面板，支持移除列表、起始值、级别、混合范围和多框事务。标记参与公共段落布局、换行、适配和 PDF，原生换段后按级别续号。源属性、继承与精确历史共用既有事务；实现归 [`list-properties.mbt`](../modules/formats/src/pptx/list-properties.mbt)。更多装饰、其他编号类型、图片符号及标记样式编辑继续实施。字体键与授权字体 profile 继续由核心解析和宿主供应，不引入 DOM 度量。
+字符项目符号和五种常用编号已接通核心、API 与默认面板，支持移除列表、起始值、级别、混合范围和多框事务。标记参与公共段落布局、换行、适配和 PDF，原生换段后按级别续号。源属性、继承与精确历史共用既有事务；实现归 [`list-properties.mbt`](../modules/formats/src/pptx/list-properties.mbt)。标记字体、点值/百分比大小、RGB 颜色及恢复正文样式已接通核心、API 和默认面板，沿同一源事务、字体预检、适配及 Canvas/PDF 输出。继承定义、未选段落和字符保持；源扩展及失败原子保护。实现归 [`list-style.mbt`](../modules/formats/src/pptx/list-style.mbt)，接口与边界归[格式合同](references/formats.md#pptx)。更多装饰、其他编号类型及图片符号继续实施。字体键与授权字体 profile 继续由核心解析和宿主供应，不引入 DOM 度量。
 
 内边距、垂直锚定、溢出和自动适配是框属性。现有三种适配模式共用核心排版、源几何和保存属性；更广方向和多栏继续扩展。字面查找替换已接通跨页/框的有界结果、当前页/全部页及大小写/全词选项，支持隐藏页定位、单个/全部替换、格式保留及一项跨页精确历史。默认面板与宿主绑定文档和 revision；核心重查目标，保护或失败保留全部页面。实现归 [`search.mbt`](../modules/formats/src/pptx/search.mbt)和 [`search-replace.mbt`](../modules/formats/src/pptx/search-replace.mbt)，范围和预算归[格式合同](references/formats.md#pptx)。
 

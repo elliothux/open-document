@@ -79,6 +79,7 @@ fn pptx_paragraph_format(
     .all(key => {
       [
         "left", "right", "first", "before", "after", "line", "list", "level", "rtl",
+        "listFont", "listSize", "listColor",
       ].contains(key)
     }) else {
     @failure.reject("invalid-operation", "Unknown paragraph format fields")
@@ -111,6 +112,27 @@ fn pptx_paragraph_format(
       None
     },
     list?=fields.get("list").map(pptx_list_format),
+    list_font?=fields
+      .get("listFont")
+      .map(v => {
+        if v is Null {
+          None
+        } else {
+          Some(field_string(value, "listFont"))
+        }
+      }),
+    list_size?=fields
+      .get("listSize")
+      .map(v => if v is Null { None } else { Some(pptx_text_spacing(v)) }),
+    list_color?=fields
+      .get("listColor")
+      .map(v => {
+        if v is Null {
+          None
+        } else {
+          Some(field_string(value, "listColor"))
+        }
+      }),
   )
 }
 

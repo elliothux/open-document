@@ -37,6 +37,7 @@ interface Drag {
   pending?: { x: number; y: number };
   busy?: Promise<void>;
   released: boolean;
+  ctrl: boolean;
 }
 
 /** Pointer intents and overlays; core geometry and the normal command queue own the result. */
@@ -64,7 +65,8 @@ export class SpreadsheetPointer {
       "aria-keyshortcuts",
       "ArrowUp ArrowDown ArrowLeft ArrowRight",
     );
-    this.handle.title = "Drag to fill; arrow keys fill one more row or column";
+    this.handle.title =
+      "Drag outward to fill or inward to clear contents; Ctrl toggles copy/series; arrow keys extend one row or column";
     Object.assign(this.handle.style, {
       position: "absolute",
       width: "10px",
@@ -116,7 +118,7 @@ export class SpreadsheetPointer {
       "pointermove",
       (event) => {
         if (this.drag?.id !== event.pointerId) return;
-        this.move(this.drag, event.clientX, event.clientY);
+        this.move(this.drag, event.clientX, event.clientY, event.ctrlKey);
       },
       options,
     );
@@ -128,7 +130,13 @@ export class SpreadsheetPointer {
         drag.released = true;
         cancelAnimationFrame(this.frame);
         this.frame = 0;
-        this.accept(this.finish(drag, { x: event.clientX, y: event.clientY }));
+        this.accept(
+          this.finish(
+            drag,
+            { x: event.clientX, y: event.clientY },
+            event.ctrlKey,
+          ),
+        );
       },
       options,
     );
@@ -154,6 +162,7 @@ export class SpreadsheetPointer {
           ArrowRight: now.layout?.rtl ? "left" : "right",
         };
         const direction = directions[event.key];
+        const ctrl = event.ctrlKey;
         if (!direction || host.current().disabled) return;
         event.preventDefault();
         event.stopPropagation();
@@ -165,6 +174,7 @@ export class SpreadsheetPointer {
             const preview = await client.fillPreview(current.layout.id, {
               kind: "direction",
               direction,
+              ctrl,
             });
             await this.apply(this.source(), preview, true);
           }),
@@ -175,12 +185,28 @@ export class SpreadsheetPointer {
     window.addEventListener(
       "keydown",
       (event) => {
+        if (event.key === "Control" && this.drag && !this.drag.released) {
+          this.drag.ctrl = event.ctrlKey;
+          if (this.drag.point)
+            this.move(this.drag, this.drag.point.x, this.drag.point.y);
+          return;
+        }
         if (event.key !== "Escape" || !this.drag) return;
         event.preventDefault();
         event.stopPropagation();
         this.cancel();
       },
       { signal, capture: true },
+    );
+    window.addEventListener(
+      "keyup",
+      (event) => {
+        if (event.key !== "Control" || !this.drag || this.drag.released) return;
+        this.drag.ctrl = event.ctrlKey;
+        if (this.drag.point)
+          this.move(this.drag, this.drag.point.x, this.drag.point.y);
+      },
+      options,
     );
     window.addEventListener("blur", () => this.cancel(), options);
     signal.addEventListener("abort", () => this.cancel(false), { once: true });
@@ -283,6 +309,7 @@ export class SpreadsheetPointer {
       origin: { x: event.clientX, y: event.clientY },
       ready: Promise.resolve(),
       released: false,
+      ctrl: event.ctrlKey,
     };
     this.drag = drag;
     const selected = this.source();
@@ -299,7 +326,8 @@ export class SpreadsheetPointer {
       }),
     );
   }
-  private move(drag: Drag, x: number, y: number): void {
+  private move(drag: Drag, x: number, y: number, ctrl = drag.ctrl): void {
+    drag.ctrl = ctrl;
     if (!drag.point && Math.hypot(x - drag.origin.x, y - drag.origin.y) < 3)
       return;
     drag.point = drag.pending = { x, y };
@@ -316,7 +344,7 @@ export class SpreadsheetPointer {
         delete drag.pending;
         const result = await this.host.run(async () => {
           if (!drag.source) throw new Error("Fill source changed");
-          return this.preview(drag.source, point);
+          return this.preview(drag.source, point, drag.ctrl);
         });
         if (this.drag !== drag) return;
         if (this.host.current().layout?.id !== result.id) {
@@ -365,6 +393,7 @@ export class SpreadsheetPointer {
   private async preview(
     source: Source,
     point: { x: number; y: number },
+    ctrl = false,
     admitted = false,
     local = false,
   ) {
@@ -385,6 +414,7 @@ export class SpreadsheetPointer {
       height = layout.regions[0]!.height;
     const target: XlsxFillTarget = {
       kind: "point",
+      ctrl,
       x: Math.max(
         (layout.rtl ? 0 : layout.headerWidth) + 0.001,
         Math.min(
@@ -402,7 +432,11 @@ export class SpreadsheetPointer {
       id: layout.id,
     };
   }
-  private finish(drag: Drag, point: { x: number; y: number }): Promise<void> {
+  private finish(
+    drag: Drag,
+    point: { x: number; y: number },
+    ctrl: boolean,
+  ): Promise<void> {
     // A following save may move the canvas before this queued release executes.
     const rect = this.surface.canvas.getBoundingClientRect();
     const local = { x: point.x - rect.left, y: point.y - rect.top };
@@ -416,7 +450,7 @@ export class SpreadsheetPointer {
         return;
       }
       try {
-        const result = await this.preview(drag.source, local, true, true);
+        const result = await this.preview(drag.source, local, ctrl, true, true);
         this.drag = undefined;
         if (this.handle.hasPointerCapture(drag.id))
           this.handle.releasePointerCapture(drag.id);
@@ -437,11 +471,11 @@ export class SpreadsheetPointer {
   ): Promise<void> {
     if (!this.matches(source, true) || preview.source !== source.source)
       throw new Error("Fill source changed");
-    if (preview.range !== source.source) {
+    if (preview.mode === "shrink" || preview.range !== source.source) {
       this.host.assign(
         await this.client.editSheet(source.revision, source.sheet, {
           action: "series",
-          mode: "auto",
+          mode: preview.mode,
           source: source.source,
           range: preview.range,
           direction: preview.direction,

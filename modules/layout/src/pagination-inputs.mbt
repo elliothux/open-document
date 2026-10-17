@@ -202,6 +202,7 @@ fn BodyBlock::retain(
             cache.retain(
               paragraph,
               table.cell_width(row, column) - insets.left - insets.right,
+              inTable=true,
             )
           }
         }

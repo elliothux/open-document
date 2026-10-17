@@ -15,6 +15,9 @@ pub(all) struct ParagraphFormat {
   list : ListFormat?
   level : Int?
   rtl : Bool?
+  list_font : String??
+  list_size : TextSpacing??
+  list_color : String??
 }
 
 ///|
@@ -28,8 +31,24 @@ pub fn ParagraphFormat::new(
   list? : ListFormat,
   level? : Int,
   rtl? : Bool,
+  list_font? : String?,
+  list_size? : TextSpacing?,
+  list_color? : String?,
 ) -> ParagraphFormat {
-  { left, right, first, before, after, line, list, level, rtl, }
+  {
+    left,
+    right,
+    first,
+    before,
+    after,
+    line,
+    list,
+    level,
+    rtl,
+    list_font,
+    list_size,
+    list_color,
+  }
 }
 
 ///|
@@ -62,11 +81,19 @@ fn ParagraphFormat::normalized(
     self.line is Some(_) ||
     self.list is Some(_) ||
     self.level is Some(_) ||
-    self.rtl is Some(_) else {
+    self.rtl is Some(_) ||
+    self.list_font is Some(_) ||
+    self.list_size is Some(_) ||
+    self.list_color is Some(_) else {
     @failure.reject("invalid-operation", "Specify a paragraph property")
   }
   if self.list is Some(list) {
     list.check()
+  }
+  let font = self.list_font.bind(v => v)
+  let color = self.list_color.bind(v => v)
+  if font is Some(_) || color is Some(_) {
+    ignore(TextFormat::new(font?, color?).normalized())
   }
   if self.level is Some(level) {
     guard level >= 0 && level <= 8 else {
@@ -98,6 +125,9 @@ fn ParagraphFormat::normalized(
     list: self.list,
     level: self.level,
     rtl: self.rtl,
+    list_font: self.list_font,
+    list_size: self.list_size.map(size => size.map(normalized_list_size)),
+    list_color: self.list_color.map(color => color.map(v => v.to_lower())),
   }
 }
 
@@ -126,6 +156,9 @@ fn paragraph_values(paragraph : TextParagraph) -> Array[Json] {
     paragraph.list.query(),
     Json(paragraph.level),
     Json(paragraph.rtl),
+    Json(paragraph.bullet_style.font.split("|").to_array()[0].to_owned()),
+    { "unit": paragraph.bullet_size.unit, "value": paragraph.bullet_size.value },
+    Json(paragraph.bullet_style.color.to_lower()),
   ]
 }
 
@@ -145,6 +178,7 @@ fn paragraph_markup(
   }
   let attrs : Map[String, String] = Map([])
   let changes : Map[String, String] = Map([])
+  list_style_changes(paragraph, format, changes)
   if format.rtl is Some(rtl) && rtl != paragraph.rtl {
     attrs["rtl"] = if rtl { "1" } else { "0" }
     // ONLYOFFICE mirrors left/right alignment when switching DrawingML direction.

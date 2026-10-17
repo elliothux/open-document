@@ -75,17 +75,33 @@ fn Grid::range_geometry(self : Grid, range : Range, frozen : Frozen) -> Json {
       }
     }
   }
-  let rect = grid_rect(
+  let rect = self.range_rect(range, frozen)
+  {
+    "x": rect.x,
+    "y": rect.y,
+    "width": rect.width,
+    "height": rect.height,
+    "rects": rects,
+  }
+}
+
+///|
+fn Grid::range_rect(
+  self : Grid,
+  range : Range,
+  frozen : Frozen,
+) -> @layout.Border {
+  grid_rect(
     {
       x: self.dimensions.columns.position(range.left) +
-      header_width -
+      self.header_width -
       (if range.left <= frozen.columns && self.columns.any(band => band.frozen) {
         0
       } else {
         self.scroll_x
       }),
       y: self.dimensions.rows.position(range.top) +
-      header_height -
+      self.header_height -
       (if range.top <= frozen.rows && self.rows.any(band => band.frozen) {
         0
       } else {
@@ -99,13 +115,6 @@ fn Grid::range_geometry(self : Grid, range : Range, frozen : Frozen) -> Json {
     self.width,
     self.rtl,
   )
-  {
-    "x": rect.x,
-    "y": rect.y,
-    "width": rect.width,
-    "height": rect.height,
-    "rects": rects,
-  }
 }
 
 ///|

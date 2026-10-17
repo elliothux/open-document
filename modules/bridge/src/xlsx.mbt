@@ -278,6 +278,8 @@ fn Foundation::xlsx_operation(
               "growth" => @xlsx.Growth
               "text" => @xlsx.TextSeries
               "auto" => @xlsx.Automatic
+              "copy" => @xlsx.CopySeries
+              "shrink" => @xlsx.Shrink
               "date" =>
                 @xlsx.Date(
                   field_string(change, "unit"),
@@ -469,6 +471,11 @@ fn Foundation::xlsx_operation(
             @xlsx.FillPoint(xlsx_number(target, "x"), xlsx_number(target, "y"))
           "direction" => @xlsx.FillDirection(field_string(target, "direction"))
           _ => @failure.reject("invalid-operation", "Invalid fill target")
+        },
+        ctrl=if target is Object(fields) && fields.contains("ctrl") {
+          xlsx_boolean(target, "ctrl")
+        } else {
+          false
         },
       )
     }

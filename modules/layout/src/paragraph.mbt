@@ -38,6 +38,7 @@ fn paragraph_lines(
   profile : Map[String, String],
   available : Double,
   baseLevel? : Int,
+  inTable~ : Bool = false,
 ) -> Array[MeasuredLine] raise @failure.Failure {
   guard paragraph.defaultTab >= 0 && paragraph.defaultTab <= 1584 else {
     @failure.reject("invalid-style", "Invalid default tab interval")
@@ -62,6 +63,12 @@ fn paragraph_lines(
   let mut ascent = 0.0
   let mut descent = 0.0
   for span in paragraph.spans {
+    // ONLYOFFICE retains cell page-break offsets without forcing a line or page.
+    let span = if inTable && span.text.contains("\u000c") {
+      { ..span, text: span.text.replace_all(old="\u000c", new="\u2060"), }
+    } else {
+      span
+    }
     if span.image is Some(image) {
       guard image.crop.length() == 4 &&
         image.crop.all(v => !v.is_nan() && !v.is_inf() && v >= 0 && v < 1) &&
@@ -108,6 +115,11 @@ fn paragraph_lines(
     @failure.reject("limit-exceeded", "Paragraph exceeds 4096 UTF-16 units")
   }
   let text = text.to_string()
+  let source_text = if inTable {
+    paragraph.spans.map(span => span.text).join("")
+  } else {
+    text
+  }
   let bidi = bidi_controls(
     if baseLevel == Some(0) {
       @bidi.process(text, direction=@bidi.LTR)
@@ -429,7 +441,7 @@ fn paragraph_lines(
         paragraph: paragraph.id,
         container: paragraph.container,
         baseLevel: bidi.base_level,
-        text: text[start:visible_end].to_owned(),
+        text: source_text[start:visible_end].to_owned(),
         start,
         end,
         caretOnly: page_break && visible_end == start,
@@ -454,7 +466,11 @@ fn paragraph_lines(
         marker: [],
         markerText: "",
         bars,
-        runs: runs.map(run => { ..run, baseline: baseline - run.rise, }),
+        runs: runs.map(run => {
+          ..run,
+          text: source_text[run.start:run.start + run.text.length()].to_owned(),
+          baseline: baseline - run.rise,
+        }),
         images: images.map(image => { ..image, y: baseline - image.height, }),
         carets,
         readOnlyReason: paragraph.readOnlyReason,

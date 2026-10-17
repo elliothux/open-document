@@ -2,13 +2,18 @@ import { record } from "./validation.js";
 import { xlsxSelection, type XlsxSelectionGeometry } from "./xlsx-geometry.js";
 
 export type XlsxFillTarget =
-  | { kind: "point"; x: number; y: number }
-  | { kind: "direction"; direction: "up" | "down" | "left" | "right" };
+  | { kind: "point"; x: number; y: number; ctrl?: boolean }
+  | {
+      kind: "direction";
+      direction: "up" | "down" | "left" | "right";
+      ctrl?: boolean;
+    };
 
 export interface XlsxFillPreview {
   source: string;
   range: string;
   direction: "up" | "down" | "left" | "right";
+  mode: "auto" | "copy" | "linear" | "shrink";
   geometry: XlsxSelectionGeometry;
   end: XlsxSelectionGeometry;
 }
@@ -16,8 +21,11 @@ export interface XlsxFillPreview {
 export function checkXlsxFillTarget(value: unknown): void {
   const target = record(value);
   const fields =
-    target.kind === "point" ? ["kind", "x", "y"] : ["kind", "direction"];
+    target.kind === "point"
+      ? ["kind", "x", "y", "ctrl"]
+      : ["kind", "direction", "ctrl"];
   if (
+    ("ctrl" in target && typeof target.ctrl !== "boolean") ||
     Object.keys(target).some((key) => !fields.includes(key)) ||
     (target.kind === "point"
       ? typeof target.x !== "number" ||
@@ -43,6 +51,10 @@ export function xlsxFillPreview(value: unknown): XlsxFillPreview {
       throw new Error("Invalid fill range");
   }
   if (
+    !["auto", "copy", "linear", "shrink"].includes(String(result.mode)) ||
+    typeof result.mode !== "string" ||
+    (result.mode === "shrink" &&
+      !["up", "left"].includes(String(result.direction))) ||
     typeof result.direction !== "string" ||
     !["up", "down", "left", "right"].includes(result.direction)
   )

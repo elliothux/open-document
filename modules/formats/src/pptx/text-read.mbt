@@ -335,11 +335,8 @@ fn read_text(
       bullet,
       list,
       level,
-      bullet_style: if bullet.is_empty() {
-        runs[0].style()
-      } else {
-        bullet_style(theme, styles, bullet, runs[0].style())
-      },
+      bullet_size: bullet_size(styles),
+      bullet_style: bullet_style(theme, styles, bullet, runs[0].style()),
       spacing: line,
       before: spacing(styles, "spcBef"),
       after: spacing(styles, "spcAft"),

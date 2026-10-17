@@ -169,7 +169,7 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 `DOCX_SOFT_BREAK` 为 U+2028，由 Wasm/Web foundation 导出。`replaceRange`、组合候选和批量替换用它表示段内换行，保存为 `w:br`；实际 LF 仍创建段落。`DocumentEditor.insertSoftBreak()` 与默认 UI 按钮、Shift+Enter 调用同一范围事务。`query().texts` 包含普通文字与内联控制节点；换行逻辑长度为一个 UTF-16 单元，`w:cr` 同样读取为 U+2028。Flow 用 LF 排版，`selectedText` 与剪贴板将软换行转为 LF。普通换行可删除、选中、设置格式及跨段移动；栏换行、环绕清除和未知内联属性继续保护。
 
-`DOCX_PAGE_BREAK` 为 U+000C，由同一 foundation 入口导出。正文 `replaceRange`、组合候选、查找替换及 `DocumentEditor.paste(DOCX_PAGE_BREAK)` 用它插入 `w:br w:type="page"`，不增加段落。默认 UI 的插入分页符按钮及 Ctrl/Cmd+Enter 使用相同事务，单独形成历史。已有正文分页符支持选择、格式与删除，保存及撤销保留源节点。表格内分页仍受保护。布局保留相邻分页符合并规则；仅供分页符光标定位的空行不占段落高度、不进入页面文字，也不改变空白页拖选端点。
+`DOCX_PAGE_BREAK` 为 U+000C，由同一 foundation 入口导出。正文 `replaceRange`、组合候选、查找替换及 `DocumentEditor.paste(DOCX_PAGE_BREAK)` 用它插入 `w:br w:type="page"`，不增加段落。默认 UI 的插入分页符按钮及 Ctrl/Cmd+Enter 使用相同事务，单独形成历史。已有正文分页符支持选择、格式与删除，保存及撤销保留源节点。普通表格单元格内也支持分页符的读取、插入、选择、格式、删除、查找替换和精确历史；按 [ONLYOFFICE 表格内分页符规则](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L4696-L4712)，它不触发换行或换页。核心保留源 `w:br` 和 UTF-16 位置，按零宽控制塑形，表格行继续按既有规则续页。正文与格内的段落缓存区分上下文，列宽、光标、命中、合并续排及 PDF 共用此行为；PDF 的文字映射和 ActualText 排除不显示的分页符。布局保留相邻分页符合并规则；仅供分页符光标定位的空行不占段落高度、不进入页面文字，也不改变空白页拖选端点。
 
 Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Client.tabDocx(revision, backward?)` 在列表正文执行下述列表规则；普通正文插入 Tab，反向时减少正的首行/左缩进；在现有表格中只移动到相邻单元格，不增加 revision 或历史。默认 UI 的插入制表符按钮与 `DocumentEditor.paste("\t")` 总是插入字符，原生 Ctrl+Tab 也在单元格中插入。Tab/Shift+Tab 只由文档原生输入处理；参数控件使用浏览器焦点切换，Escape 将焦点移出文档输入。
 
@@ -249,7 +249,7 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `FoundationSession/Client.insertTable(revision, selection, rows, columns)` 与 `DocumentEditor.insertTable(rows, columns)` 在正文范围插入固定网格，默认 UI 提供行列输入。rows 为 1–1000，columns 为 1–63，总格数最多 4096，并受 XML、历史和输出预算限制。列宽按当前单节布局的可用页宽分配整数 twip，余量逐列分配，每列至少 12 pt。沿用当前纸型解释，不改源页面设置。未知或受保护的正文、嵌套表格、多节及无法解释的页面设置拒绝操作。
 
-核心先删除所选文字；在段中插入时拆分段落，在段首插入时保留原段落作为后续内容。新增表格使用 0.5 pt 黑色完整网格、5.4 pt 水平单元格边距与固定列宽。单元格复制插入起点的有效字符格式及支持的段落属性，并将缩进与段前分页显式归零。若段首已有段前分页，则转移到首格首段，保留表格在该页开始的位置；页首不生成额外空页。其他单元格的段前分页及表格内手动分页仍受原有布局保护。
+核心先删除所选文字；在段中插入时拆分段落，在段首插入时保留原段落作为后续内容。新增表格使用 0.5 pt 黑色完整网格、5.4 pt 水平单元格边距与固定列宽。单元格复制插入起点的有效字符格式及支持的段落属性，并将缩进与段前分页显式归零。若段首已有段前分页，则转移到首格首段，保留表格在该页开始的位置；页首不生成额外空页。其他单元格的段前分页仍受原有布局保护。
 
 范围删除、段落拆分与新增节点共同提交一项历史，选区进入首格。核心失败保留已提交源与历史。保存及混合文字编辑的撤销/重做精确恢复源节点、选择和其他部件。新增格可继续输入、设置已有字符/段落格式及用 Tab 导航。固定及自动适配布局均沿同一表格模型排版。
 
@@ -341,11 +341,11 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 普通自动/最小高度行按每格的实际文字行分页，各格独立继续，保留横向跨度、图片及逻辑位置。每页片段保留边框、底色、边距和单元格命中区域，短格结束后的空白定位到原内容末尾。新页首行重新应用首行行距，跨页间距不重复累积；段末间距在页底截断，不单独生成空白续页。行最小高度仍占位，单行或边距超过可用页高时明确失败，沿现有 1024 页和 32768 行预算终止。
 
-禁止拆分时先将行移到新页；整页仍放不下时继续分页，避免丢字或无限换页。规则来自 [OOXML cantSplit](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.wordprocessing.cantsplit?view=openxml-3.0.1#remarks)；逐格继续及首个文字片段垂直对齐参考 [ONLYOFFICE TableRecalculate.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L2710-L3495)，未复制上游代码。精确高度仍沿[裁剪规则](#表格尺寸)，格内手动分页仍保护源。实现归 [`table-row-continuation.mbt`](../../modules/layout/src/table-row-continuation.mbt)及 [`table-height.mbt`](../../modules/formats/src/docx/table-height.mbt)。
+禁止拆分时先将行移到新页；整页仍放不下时继续分页，避免丢字或无限换页。规则来自 [OOXML cantSplit](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.wordprocessing.cantsplit?view=openxml-3.0.1#remarks)；逐格继续及首个文字片段垂直对齐参考 [ONLYOFFICE TableRecalculate.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L2710-L3495)，未复制上游代码。精确高度仍沿[裁剪规则](#表格尺寸)。实现归 [`table-row-continuation.mbt`](../../modules/layout/src/table-row-continuation.mbt)及 [`table-height.mbt`](../../modules/formats/src/docx/table-height.mbt)。
 
 纵向合并组先按源行推进边界，再分配每个逻辑格的页面片段。普通相邻格决定各行的最小结束位置，合并文字可穿过中间行，其结束行仅在自动/最小高度模式扩展。每个片段保留起始格的内容身份和填充，页边界补齐合并格的外边框，内部合并边保持关闭。居中/底部对齐只作用于首个含文字的片段；精确结束行继续裁剪超出格框的文字，不生成额外内容页。
 
-能放进一页的首组合并行仍与前方 `keepNext` 标题整体保留；超长组保留首个可放片段。重复表头、原生输入、源历史、保存重开、空白区域命中、光标/选区和 PDF 沿现有路径工作。布局继续使用相同的 1024 页、32768 行及候选预算。合并内容归属与结束行计算参考 [ONLYOFFICE 合并格续排](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L2710-L2805)及[首个文字片段对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L3400-L3495)，未复制上游代码。实现归 [`table-merge-continuation.mbt`](../../modules/layout/src/table-merge-continuation.mbt)；嵌套/浮动表格及格内手动分页继续保护。
+能放进一页的首组合并行仍与前方 `keepNext` 标题整体保留；超长组保留首个可放片段。重复表头、原生输入、源历史、保存重开、空白区域命中、光标/选区和 PDF 沿现有路径工作。布局继续使用相同的 1024 页、32768 行及候选预算。合并内容归属与结束行计算参考 [ONLYOFFICE 合并格续排](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L2710-L2805)及[首个文字片段对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L3400-L3495)，未复制上游代码。实现归 [`table-merge-continuation.mbt`](../../modules/layout/src/table-merge-continuation.mbt)；嵌套/浮动表格继续保护。
 
 ### 重复表头
 
@@ -480,7 +480,7 @@ DOCX 的显式页面宽、高按固定 LibreOffice 25.8.2.2 的[导入规则](ht
 
 支持 docDefaults、段落/字符样式 basedOn、主题 Latin 字体、直接格式、字号/颜色/粗斜体、段前段后、缩进、左/中/右对齐、auto/exact/atLeast 行距、空段落及显式分页。正文、表格和空页眉共用段落间距校验，负间距/最小行距/单元格 padding 明确失败。页面使用单一设置，多节文档给不支持诊断，不承诺各节独立分页。分页的断行使用固定 Unicode 数据与基本 BiDi；同样式跨文本节点一起塑形并保留源映射。`unicode_linebreak` 的 Unicode 15 测试向量按上游规则排除 30.22/999.0 做依赖回归，其字符表源自 Unicode 13；不宣称完整 UAX #14 符合性。当前 fallback 仍按码点选择，复杂 script、彩色字形和任意字体质量不在承诺范围。
 
-基础表格使用固定列宽、当前支持的实线/无边框、RGB 单色填充、四边 cell margin 和最小/精确行高；普通行[逐格跨页](#表格行跨页)，纵向合并行组整体换页。边框编辑与冲突规则归[表格边框](#表格边框)。相邻行共享边框只占一次高度，表尾另留底边，分页判断包含当前页底边空间。自然字高使用上述共享参考设备取整；固定 Noto 原表格的自然行高与垂直步距已匹配固定 LibreOffice，不扩大为所有应用或水平几何一致。嵌套单元格、跨页合并延续及格内手动分页明确拒绝；精确行高沿[裁剪规则](#表格尺寸)。不绘制浮动、裁剪、旋转、翻转图片或带内容的页眉；空页眉复用段落度量预留空间。已识别但未实现的正文属性给诊断，原包仍由 P2 保存；不是完整属性/schema 检查器，主题颜色、条件表格样式与复杂页眉页脚不在支持面。图片仅支持包内内联 extent；宿主解码已授权资源为 RGBA，外链图片明确拒绝、不自动下载。
+基础表格使用固定列宽、当前支持的实线/无边框、RGB 单色填充、四边 cell margin 和最小/精确行高；普通行[逐格跨页](#表格行跨页)，纵向合并行组整体换页。边框编辑与冲突规则归[表格边框](#表格边框)。相邻行共享边框只占一次高度，表尾另留底边，分页判断包含当前页底边空间。自然字高使用上述共享参考设备取整；固定 Noto 原表格的自然行高与垂直步距已匹配固定 LibreOffice，不扩大为所有应用或水平几何一致。嵌套单元格仍明确拒绝；精确行高沿[裁剪规则](#表格尺寸)。不绘制浮动、裁剪、旋转、翻转图片或带内容的页眉；空页眉复用段落度量预留空间。已识别但未实现的正文属性给诊断，原包仍由 P2 保存；不是完整属性/schema 检查器，主题颜色、条件表格样式与复杂页眉页脚不在支持面。图片仅支持包内内联 extent；宿主解码已授权资源为 RGBA，外链图片明确拒绝、不自动下载。
 
 表格左/中/右对齐按基础样式、派生样式、直接属性依次覆盖，start/end 沿用 left/right 归一化；未知有效值报 `unsupported-layout`。明确零 dxa 缩进仅在可选符号后全零数字、已知属性且无子节点/文本时视为无位移；非零、非法或未知声明仍诊断/保护。此规则不增加非零缩进、RTL 表格语义或复杂表格支持。Word compatibilityMode 对表格外侧边距和定位的版本差异尚未实现，零缩进声明可读不等于版本布局已经一致；固定网格超过正文可用宽度仍明确拒绝，不通过缩小原件或统一左移获得通过。原 POI 表格的 kern/ligature 诊断仍保留，普通核心源事务可用不等于可视编辑可用。
 
@@ -607,17 +607,21 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 ### 填充柄
 
-普通网格在选区末格显示填充柄；RTL 使用左下角。拖动向外扩展一条行带或列带，核心按物理距离选择轴；移回源内为无操作。聚焦填充柄后，方向键延伸一行或一列，左右键遵循 RTL 的物理方向。支持缩放、冻结窗格和边缘滚动。向内缩减、Ctrl 切换复制和双击相邻列延伸仍待实现。
+普通网格在选区末格显示填充柄；RTL 使用左下角。拖动向外扩展一条行带或列带，核心按物理距离选择轴。向内拖动选择要清除的末尾行带或列带，只清内容和公式并保留格式；边界按命中格的半格位置吸附，角点附近未越过边界时无操作。拖到源起点可清空整块内容。聚焦填充柄后，方向键延伸一行或一列，左右键遵循 RTL 的物理方向。支持缩放、冻结窗格和边缘滚动。Ctrl 将向外填充切换为循环复制；单个普通数值改为逐格加一。日期/时间、文字及公式按源模式复制，公式仍平移相对引用。拖动中按下或松开 Ctrl 即可切换，释放使用当时的状态；方向键也支持 Ctrl。向内清除规则不变。双击相邻列延伸仍待实现。
 
-`XlsxSession/XlsxClient.fillPreview(layoutId, target)` 接受 `{ kind: "point", x, y }` 或 `{ kind: "direction", direction }`。核心返回 `source/range/direction/geometry/end`，不改文档、选区、revision 或历史。过期布局、非法目标和超过 4096 格的范围拒绝。宿主只发送指针与键盘意图，范围和冻结裁剪由核心计算。
+`XlsxSession/XlsxClient.fillPreview(layoutId, target)` 接受 `{ kind: "point", x, y }` 或 `{ kind: "direction", direction }`。两种 target 都接受可选布尔字段 `ctrl`，默认 false。核心返回 `source/range/direction/mode/geometry/end`。Ctrl 向外操作返回 `mode=copy` 或单个普通数字的 `mode=linear`，range 与自动向外操作相同。`mode=auto` 的 range 是源与向外目标的并集，`mode=shrink` 的 range 是待清尾带；geometry 显示此操作区域，end 定位提交后的末格。预览不改文档、选区、revision 或历史。过期布局、非法目标和超过 4096 格的范围拒绝。宿主只发送指针与键盘意图，范围和冻结裁剪由核心计算。
 
-原生草稿先独立提交，再恢复拖动前的源范围。预览不写源；释放时以自动序列模式执行一次事务，后续保存排在该操作之后。未释放时，Escape、失焦、指针取消、暂停和销毁取消拖动。相交规则、链接、合并及其他资源沿用填充保护；失败保持源和历史。含未渲染超链接的工作表仍按既有规则拒绝 PDF 导出。
+原生草稿先独立提交，再恢复拖动前的源范围。预览不写源；释放时按预览的自动、复制、线性或缩减模式执行一次事务，后续保存排在该操作之后。未释放时，Escape、失焦、指针取消、暂停和销毁取消拖动。相交规则、链接、合并及其他资源沿用填充保护；失败保持源和历史。含未渲染超链接的工作表仍按既有规则拒绝 PDF 导出。
+
+`editSheet({ action: "series", mode: "shrink", source, range, direction })` 提供同一缩减操作。source 是原选区，range 必须是其中完整的末尾行带（direction=up）或末尾列带（direction=left），原范围限 4096 格。保留左上区域成为选区；全清时仍选择原范围。没有内容可清时仅调整选区，不新增 revision 或历史。共享公式展开和依赖缓存复用已有单元格事务；其他单元格、行列尺寸及源元信息保持。规则依据 [ONLYOFFICE canPromote](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21961-L22003)及[缩减仅清内容](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L22296-L22303)，实现归 [`fill-shrink.mbt`](../../modules/formats/src/xlsx/fill-shrink.mbt)。
+
+`editSheet` 的 `series` 支持 `mode=copy`，循环复制源值及格式并平移公式相对引用。Ctrl 规则参考 [ONLYOFFICE 数值切换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L22408-L22421)。
 
 方向选择参考 [ONLYOFFICE changeSelectionFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L14754-L14825)，未复制上游代码。实现归 [`fill-preview.mbt`](../../modules/formats/src/xlsx/fill-preview.mbt) 和 [`spreadsheet-pointer.ts`](../../packages/web/src/spreadsheet-pointer.ts)。
 
 ### 数字序列
 
-`editSheet({ action: "series", mode, source, range, direction })` 从显式源矩形填充序列，`mode` 为 `linear`、`growth`、`date`、`text` 或 `auto`，`direction` 支持四个方向。日期模式另需 `unit` 和 `step`，其他模式拒绝这两个字段。核心使用 `SeriesMode.Linear/Growth/Date(unit, step)/TextSeries/Automatic`。`range` 包含源和全部目标，最多 4096 格；源须占据方向起始边，且完整覆盖垂直方向的列带或水平方向的行带。源与目标相同时为无操作。
+`editSheet({ action: "series", mode, source, range, direction })` 的缩减模式见[填充柄](#填充柄)。生成序列时，从显式源矩形填充序列，`mode` 为 `linear`、`growth`、`date`、`text` 或 `auto`，`direction` 支持四个方向。日期模式另需 `unit` 和 `step`，其他模式拒绝这两个字段。核心使用 `SeriesMode.Linear/Growth/Date(unit, step)/TextSeries/Automatic`。`range` 包含源和全部目标，最多 4096 格；源须占据方向起始边，且完整覆盖垂直方向的列带或水平方向的行带。源与目标相同时为无操作。
 
 各列/行独立使用源数字和实际位置拟合趋势，保留全部种子；空白不参与拟合，也不压缩其位置。每条序列至少有一个字面数字。线性模式按最小二乘拟合，单值种子的步长为 1，向上/左自然反推。增长模式对正数取自然对数后拟合，再还原指数值；单值或恒定种子保持原值。公式、文字、布尔及错误种子明确拒绝，增长模式另拒绝零和负数。两种模式均支持非等差样本及四向外推。
 
@@ -1135,17 +1139,19 @@ script 接受 `baseline`、`superscript` 或 `subscript`，分别写入 DrawingM
 
 `{ action: "clearParagraphFormat" }` 清除所涉段落的直接对齐、左/右/首行缩进、行段距及本地项目符号、编号、符号字体/大小/颜色定义，恢复继承。保留 `lvl`、`defRPr`、字符内容及其元信息；图片项目符号和未支持的编号类型仍保护。段落选择沿用 `textParagraph` 的范围规则，对象模式处理全部所选框。清除沿现有源事务、字体预检、适配与输出预算执行；未知格式标记或失败保持源与历史，撤销精确恢复原属性和选择。默认 UI 提供两个清除按钮，宿主与 Worker 沿 `editObjects` 调用。语义参考 [ONLYOFFICE 段落清除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L11606-L11663)。
 
-`{ action: "textParagraph", format }` 修改段距、行距、缩进、方向及列表。`PptxParagraphFormat` 可含 `left/right/first/before/after/line/list/level/rtl`，至少提供一项，省略项保持；不接受 null 或未知字段。left/right 为 0–4032 pt，first 为 -4032–4032 pt，相对段落起始侧缩进指定首行或悬挂缩进，核心舍入为整数 EMU。before/after/line 使用 `PptxTextSpacing`：`{ unit: "point" | "percent", value }`。段前/段后点值为 0–1584 pt，百分比为 0–1000%；行距点值至少 0.01 pt，百分比至少 0.001%，上限相同。点值和百分比分别保存到百分之一点和千分之一百分比；100% 为单倍行距。输出范围与顺序参考 [ONLYOFFICE TextSpacing](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/TextSpacing.cpp#L90-L162)及[段落属性](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/TextParagraphPr.cpp#L196-L218)。
+`{ action: "textParagraph", format }` 修改段距、行距、缩进、方向及列表。`PptxParagraphFormat` 可含 `left/right/first/before/after/line/list/level/rtl/listFont/listSize/listColor`，至少提供一项，省略项保持。仅三个标记样式字段接受 null，含义见下文；拒绝其他 null 和未知字段。left/right 为 0–4032 pt，first 为 -4032–4032 pt，相对段落起始侧缩进指定首行或悬挂缩进，核心舍入为整数 EMU。before/after/line 使用 `PptxTextSpacing`：`{ unit: "point" | "percent", value }`。段前/段后点值为 0–1584 pt，百分比为 0–1000%；行距点值至少 0.01 pt，百分比至少 0.001%，上限相同。点值和百分比分别保存到百分之一点和千分之一百分比；100% 为单倍行距。输出范围与顺序参考 [ONLYOFFICE TextSpacing](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/TextSpacing.cpp#L90-L162)及[段落属性](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/TextParagraphPr.cpp#L196-L218)。
 
 `rtl` 为布尔值，写入 DrawingML 段落方向；读取沿本地、列表、版式/母版和默认属性继承。缺少显式对齐时，RTL 默认右对齐；已有显式对齐仍按物理左右解释。切换方向时镜像当前左右对齐，居中和两端对齐保持，遵循 [ONLYOFFICE SetParagraphBidi](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L16952-L16967)及[非文档段落的默认对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L11257-L11288)。缩进、标记和双向文字使用公共排版器；PPTX 显式提供 LTR/RTL 基础方向，避免阿拉伯文首字符覆盖段落设置。字体、光标、选区、Canvas/PDF 和适配共用同一结果，缓存区分基础方向。`paragraph.rtl` 返回有效布尔值或混合值 null；默认面板显示混合复选状态。清除段落直接格式同时清除方向并恢复继承。局部范围、多框、原生草稿、精确历史与重开沿用已有事务，非法方向源保留并诊断。竖排、多栏和组内直接编辑继续实施。
 
-文字模式修改光标所在或范围所涉段落，终点恰在下一段开头时不修改下一段；对象模式修改所选本地文本框中的全部段落。`PptxQuery.paragraph` 返回八项共同有效值和 `reason`，混合项为 null；保护时为 null 占位。类型和动作从 `wasm/pptx`、`web/pptx` 导出，宿主沿 `editObjects` 队列执行。修改只写目标 `pPr`，保留字符、未改属性、源注释、继承定义、非目标段落、部件及选择。未知间距节点内容保护该框的间距/缩进操作；无变化不新增历史，旧 revision、候选、缺字体、无可用行宽和预算失败均不提交。已有适配框重新计算比例；固定框保留溢出诊断。默认面板按各字段的有效值更新草稿，其他格式命令完成时不清掉输入。
+文字模式修改光标所在或范围所涉段落，终点恰在下一段开头时不修改下一段；对象模式修改所选本地文本框中的全部段落。`PptxQuery.paragraph` 返回各字段的共同有效值和 `reason`，混合项为 null；保护时为 null 占位。类型和动作从 `wasm/pptx`、`web/pptx` 导出，宿主沿 `editObjects` 队列执行。修改只写目标 `pPr`，保留字符、未改属性、源注释、继承定义、非目标段落、部件及选择。未知间距节点内容保护该框的间距/缩进操作；无变化不新增历史，旧 revision、候选、缺字体、无可用行宽和预算失败均不提交。已有适配框重新计算比例；固定框保留溢出诊断。默认面板按各字段的有效值更新草稿，其他格式命令完成时不清掉输入。
 
 list 使用 `PptxListFormat`：`{ kind: "none" }`、`{ kind: "bullet", value }` 或 `{ kind: "number", value, start }`。字符符号限一个字素、最多 16 UTF-16 单元；编号支持 `arabicPeriod/alphaLcPeriod/alphaUcPeriod/romanLcPeriod/romanUcPeriod`，start 为 1–32767。level 为 0–8；默认 UI 显示第 1–9 级。列表与级别可分别修改，也可和间距/缩进一起提交。查询返回有效列表定义及级别，混合值为 null。移除列表写 `buNone` 覆盖继承，清除段落直接格式移除本地列表定义并恢复继承，保留级别。
 
 编号在各文本框内计算：向前跳过更深层段落，遇到更浅层、不同类型或不同起始值时重新起算；同级空段落不推进后续数字。规则依据 [ONLYOFFICE GetBulletNum](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L10678-L10717)。字母与罗马数字沿用 DOCX 的公共序号格式化，字母采用 aa、bb 等重复规则。逻辑文字与复制内容保留原段落文字，编号是布局标记。
 
-首次应用列表按首个字符字号建立悬挂缩进，移除列表恢复标记所在左边界；显式 left/first 优先。规则参考 [ONLYOFFICE 列表缩进](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L10616-L10643)。保留已有符号字体、字号、颜色和其他段落元信息。标记进入公共段落布局，参与换行、行高、字体预检、适配及 glyph 预算，使用当前 36 pt 默认制表间隔分开标记与正文；Canvas 和 PDF 共用相同位置。已有字符内容、非目标段落、部件、选择及精确历史保持。图片符号、其他自动编号类型、标记样式编辑和自定义制表设置仍待支持。
+首次应用列表按首个字符字号建立悬挂缩进，移除列表恢复标记所在左边界；显式 left/first 优先。规则参考 [ONLYOFFICE 列表缩进](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L10616-L10643)。保留已有符号字体、字号、颜色和其他段落元信息。标记进入公共段落布局，参与换行、行高、字体预检、适配及 glyph 预算，使用当前 36 pt 默认制表间隔分开标记与正文；Canvas 和 PDF 共用相同位置。已有字符内容、非目标段落、部件、选择及精确历史保持。图片符号、其他自动编号类型和自定义制表设置仍待支持。
+
+`listFont/listColor` 使用与字符格式相同的字体家族及六位 RGB 边界。`listSize` 使用 `{ unit: "point" | "percent", value }`，支持 1–1024 pt 或正文首字符字号的 1–400%，分别舍入到百分之一点和千分之一百分比。查询返回有效字体家族、颜色及继承后的大小单位/值；随文字大小返回 100%，混合字段为 null。显式样式分别写 `buFont/buSzPts/buSzPct/buClr`；传 null 写对应的 `buFontTx/buSzTx/buClrTx`，覆盖继承并跟随正文首字符。默认面板逐项设置，并可一次恢复三项正文样式；`clearParagraphFormat` 则移除本地定义并恢复列表/版式继承。规则依据 [ONLYOFFICE 标记属性](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L12797-L12876)。只修改所选段落的对应属性，保留字符、列表定义、字体元信息和其他部件；相同直接定义不新增历史。重复或带未知内容的目标属性保护整项事务，缺字体与输出预算失败也不提交。
 
 字面查找由 `findPptx` 命令和 `PresentationEditor.find(text, options?)` 提供。`PptxFindOptions` 可含 `matchCase/wholeWord/all`；前两项默认 false，all 默认 true，并包含隐藏页。all=false 只搜索请求指定的 slide，结果导航后仍保留原搜索范围。扫描按页面顺序及本地对象源顺序进行，跨 run/段落匹配，不跨文本框；母版/版式装饰与备注不参加本次查找。页面/对象顺序参考 [ONLYOFFICE Slide.Search](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L346-L355)。分组内或带字段/扩展的已解析文字可返回结果及保护原因，替换沿现有本地顶层文本框边界开放。
 

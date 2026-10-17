@@ -1,5 +1,6 @@
 ///|
 fn bidi_control(codepoint : UInt) -> Bool {
+  codepoint == 0x2060U ||
   (codepoint >= 0x202aU && codepoint <= 0x202eU) ||
   (codepoint >= 0x2066U && codepoint <= 0x2069U)
 }

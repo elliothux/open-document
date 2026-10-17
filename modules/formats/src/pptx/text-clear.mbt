@@ -72,39 +72,8 @@ fn cleared_properties(
     for child in source.tree.children.get(source.node.id).unwrap_or([]) {
       output.write_view(xml[cursor:child.start])
       if child.uri == drawing_uri && children.contains(child.name) {
-        if paragraph && child.name == "buClr" {
-          check_highlight({ tree: source.tree, node: child, }) catch {
-            _ =>
-              @failure.reject(
-                "protected-content", "Extended bullet color is protected",
-              )
-          }
-        } else if paragraph &&
-          !["lnSpc", "spcBef", "spcAft"].contains(child.name) {
-          let markup = xml[child.start:child.end]
-          guard child.text.trim().is_empty() &&
-            source.tree.children.get(child.id).unwrap_or([]).is_empty() &&
-            !markup.contains("<!--") &&
-            !markup.contains("<?") &&
-            child.attributes.all(a => {
-              a.uri.is_empty() &&
-              (
-                (child.name == "buChar" && a.name == "char") ||
-                (
-                  child.name == "buAutoNum" &&
-                  ["type", "startAt"].contains(a.name)
-                ) ||
-                (["buSzPct", "buSzPts"].contains(child.name) && a.name == "val") ||
-                (
-                  child.name == "buFont" &&
-                  ["typeface", "pitchFamily", "charset"].contains(a.name)
-                )
-              )
-            }) else {
-            @failure.reject(
-              "protected-content", "Extended bullet formatting is protected",
-            )
-          }
+        if paragraph && !["lnSpc", "spcBef", "spcAft"].contains(child.name) {
+          check_bullet_property({ tree: source.tree, node: child, })
         }
         if !paragraph && !["noFill", "solidFill"].contains(child.name) {
           let markup = xml[child.start:child.end]

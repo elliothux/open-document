@@ -46,7 +46,7 @@ export type XlsxSheetEdit =
     }
   | {
       action: "series";
-      mode: "linear" | "growth" | "text" | "auto";
+      mode: "linear" | "growth" | "text" | "auto" | "copy" | "shrink";
       source: string;
       range: string;
       direction: "down" | "up" | "right" | "left";
@@ -172,6 +172,12 @@ export function checkXlsxSheetEdit(value: unknown): void {
   }
   if (change.action === "fill" || change.action === "series") {
     if (
+      change.action === "series" &&
+      change.mode === "shrink" &&
+      !["up", "left"].includes(String(change.direction))
+    )
+      throw new Error("Shrink must clear trailing rows or columns");
+    if (
       typeof change.range !== "string" ||
       !change.range ||
       change.range.length > 64 ||
@@ -184,7 +190,15 @@ export function checkXlsxSheetEdit(value: unknown): void {
         !change.source ||
         change.source.length > 64 ||
         typeof change.mode !== "string" ||
-        !["linear", "growth", "date", "text", "auto"].includes(change.mode) ||
+        ![
+          "linear",
+          "growth",
+          "date",
+          "text",
+          "auto",
+          "copy",
+          "shrink",
+        ].includes(change.mode) ||
         Object.keys(change).some(
           (key) =>
             ![

@@ -45,6 +45,7 @@ fn Table::measure_rows(
             paragraph,
             profile,
             self.cell_width(row, column) - margins.left - margins.right,
+            inTable=true,
           ) {
           let line = measured.spaced(paragraph.line, first)
           guard line.y != -1 else {

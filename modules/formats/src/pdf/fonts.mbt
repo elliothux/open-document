@@ -23,7 +23,7 @@ fn glyph_text(run : @layout.PositionedRun, index : Int) -> String {
       end = end.min(glyph.cluster)
     }
   }
-  run.text[cluster:end].to_owned()
+  run.text[cluster:end].to_owned().replace_all(old="\u000c", new="")
 }
 
 ///|

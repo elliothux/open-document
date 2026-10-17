@@ -77,7 +77,8 @@ function ParagraphField({
   disabled,
   onApply,
 }: {
-  property: "left" | "right" | "first" | "before" | "after" | "line";
+  property:
+    "left" | "right" | "first" | "before" | "after" | "line" | "listSize";
   label: string;
   value: number | PptxTextSpacing | null;
   state: UiSnapshot;
@@ -86,7 +87,10 @@ function ParagraphField({
 }) {
   const t = messages(state.locale),
     spacing =
-      property === "before" || property === "after" || property === "line";
+      property === "before" ||
+      property === "after" ||
+      property === "line" ||
+      property === "listSize";
   const [draft, setDraft] = useState(
     value === null
       ? ""
@@ -119,15 +123,27 @@ function ParagraphField({
           value={draft}
           placeholder={value === null ? t.mixed : ""}
           min={
-            property === "first"
-              ? -4032
-              : property === "line"
-                ? unit === "point"
-                  ? 0.01
-                  : 0.001
-                : 0
+            property === "listSize"
+              ? 1
+              : property === "first"
+                ? -4032
+                : property === "line"
+                  ? unit === "point"
+                    ? 0.01
+                    : 0.001
+                  : 0
           }
-          max={spacing ? (unit === "point" ? 1584 : 1000) : 4032}
+          max={
+            property === "listSize"
+              ? unit === "point"
+                ? 1024
+                : 400
+              : spacing
+                ? unit === "point"
+                  ? 1584
+                  : 1000
+                : 4032
+          }
           step={spacing ? (unit === "point" ? 0.01 : 0.001) : "any"}
           onChange={(event) => setDraft(event.currentTarget.value)}
         />
@@ -234,6 +250,57 @@ export function PptxParagraph({
           )
         }
       />
+      {(
+        [
+          ["font", "listFont", t.listFont],
+          ["color", "listColor", t.listColor],
+        ] as const
+      ).map(([property, field, label]) => (
+        <TextField
+          key={`${field}:${paragraph[field]}`}
+          property={property}
+          label={label}
+          value={paragraph[field]}
+          mixed={t.mixed}
+          apply={t.apply}
+          disabled={disabled}
+          onApply={(format) =>
+            controller.run(() =>
+              editor.editObjects({
+                action: "textParagraph",
+                format: { [field]: format[property] },
+              }),
+            )
+          }
+        />
+      ))}
+      <ParagraphField
+        key={`listSize:${JSON.stringify(paragraph.listSize)}`}
+        property="listSize"
+        label={t.listSize}
+        value={paragraph.listSize}
+        state={state}
+        disabled={disabled}
+        onApply={(format) =>
+          controller.run(() =>
+            editor.editObjects({ action: "textParagraph", format }),
+          )
+        }
+      />
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() =>
+          controller.run(() =>
+            editor.editObjects({
+              action: "textParagraph",
+              format: { listFont: null, listSize: null, listColor: null },
+            }),
+          )
+        }
+      >
+        {t.listTextStyle}
+      </button>
       <button
         type="button"
         disabled={disabled}

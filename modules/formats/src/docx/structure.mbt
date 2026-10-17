@@ -415,7 +415,6 @@ fn WordTree::check_editable_paragraph(
           ["textWrapping", "page"].contains(
             node.attribute("type", uri=word_uri).unwrap_or("textWrapping"),
           ) &&
-          (node.attribute("type", uri=word_uri) != Some("page") || in_body) &&
           node.attribute("clear", uri=word_uri).unwrap_or("none") == "none" &&
           node.attributes
           .iter()

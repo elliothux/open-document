@@ -4,12 +4,10 @@ fn Paragraph::content_widths(
   probe : TextProbe,
   profile : Map[String, String],
 ) -> (Double, Double, Double) raise @failure.Failure {
-  let lines = probe.paragraph_lines(
-    { ..self, align: "left", },
-    profile,
-    14400,
-    false,
-  )
+  let cache = ParagraphCache::new(probe, profile)
+  let lines = cache
+    .lines(probe, { ..self, align: "left", }, profile, 1000000000, inTable=true)
+    .map(item => item.line)
   let mut hard = 0.0
   let mut minimum = 0.0
   let mut maximum = 0.0
@@ -24,7 +22,10 @@ fn Paragraph::content_widths(
     hard = hard.max(indent + 0.05)
     maximum = maximum.max(line.width + indent)
     let breaks : Map[Int, Bool] = Map([])
-    for (offset, _) in @linebreak.linebreaks(line.text) {
+    for
+      (offset, _) in @linebreak.linebreaks(
+        line.text.replace_all(old="\u000c", new="\u2060"),
+      ) {
       breaks[offset + line.start] = true
     }
     let mut word = 0.0

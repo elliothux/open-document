@@ -52,6 +52,9 @@ export interface PptxParagraphFormat {
   list?: PptxListFormat;
   level?: number;
   rtl?: boolean;
+  listFont?: string | null;
+  listSize?: PptxTextSpacing | null;
+  listColor?: string | null;
 }
 export interface PptxParagraphFormatting {
   left: number | null;
@@ -63,10 +66,29 @@ export interface PptxParagraphFormatting {
   list: PptxListFormat | null;
   level: number | null;
   rtl: boolean | null;
+  listFont: string | null;
+  listSize: PptxTextSpacing | null;
+  listColor: string | null;
   reason: string;
 }
 
 function paragraphProperty(key: string, value: unknown): boolean {
+  if (key === "listFont" || key === "listColor")
+    return (
+      value === null || property(key === "listFont" ? "font" : "color", value)
+    );
+  if (key === "listSize") {
+    if (value === null) return true;
+    const size = record(value);
+    return (
+      Object.keys(size).length === 2 &&
+      (size.unit === "point" || size.unit === "percent") &&
+      typeof size.value === "number" &&
+      Number.isFinite(size.value) &&
+      size.value >= 1 &&
+      size.value <= (size.unit === "point" ? 1024 : 400)
+    );
+  }
   if (key === "rtl") return typeof value === "boolean";
   if (key === "level")
     return (
@@ -157,6 +179,9 @@ export function checkPptxParagraphFormatting(value: unknown): void {
       "list",
       "level",
       "rtl",
+      "listFont",
+      "listSize",
+      "listColor",
     ].some(
       (key) => format[key] !== null && !paragraphProperty(key, format[key]),
     )

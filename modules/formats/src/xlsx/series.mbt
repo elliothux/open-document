@@ -5,6 +5,8 @@ pub(all) enum SeriesMode {
   Date(String, Double)
   TextSeries
   Automatic
+  CopySeries
+  Shrink
 }
 
 ///|
@@ -153,6 +155,9 @@ fn Session::fill_series(
   range : String,
   direction : String,
 ) -> Json raise @failure.Failure {
+  if mode is Shrink {
+    return self.shrink_fill(sheet, source, range, direction)
+  }
   if mode is Date(unit, step) {
     guard ["day", "weekday", "month", "year"].contains(unit) &&
       !step.is_nan() &&
@@ -231,7 +236,9 @@ fn Session::fill_series(
   let mut units = 0
   for lane in first_lane..<=last_lane {
     let values : Array[(Value, Int, String?)] = match mode {
-      Automatic =>
+      Shrink =>
+        @failure.reject("invalid-operation", "Shrink cannot generate series")
+      Automatic | CopySeries =>
         current.automatic_series_values(
           source,
           lane,
@@ -241,6 +248,7 @@ fn Session::fill_series(
           forward,
           self.styles,
           self.date1904,
+          copy=mode is CopySeries,
         )
       TextSeries =>
         current

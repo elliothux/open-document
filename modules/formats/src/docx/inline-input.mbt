@@ -25,9 +25,9 @@ fn WordTree::check_page_break_input(
     )
   guard self.nodes.get(node.parent) is Some(parent) &&
     parent.uri == word_uri &&
-    parent.name == "body" else {
+    ["body", "tc"].contains(parent.name) else {
     @failure.reject(
-      "protected-content", "Page break insertion requires a body paragraph",
+      "protected-content", "Page break insertion requires a body or table-cell paragraph",
     )
   }
 }
