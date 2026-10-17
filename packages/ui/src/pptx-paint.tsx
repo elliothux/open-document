@@ -21,9 +21,19 @@ export function PptxPaint({
     query.selection.objects.includes(object.id),
   );
   const first = objects[0]?.appearance;
-  const [fill, setFill] = useState(`#${first?.fill ?? "336699"}`);
+  const [fill, setFill] = useState(
+    `#${first?.gradient?.startColor ?? first?.fill ?? "336699"}`,
+  );
+  const [linear, setLinear] = useState(!!first?.gradient);
+  const [endColor, setEndColor] = useState(
+    `#${first?.gradient?.endColor ?? "ffffff"}`,
+  );
+  const [angle, setAngle] = useState(String(first?.gradient?.angle ?? 0));
+  const [scaled, setScaled] = useState(first?.gradient?.scaled ?? true);
   const [stroke, setStroke] = useState(`#${first?.stroke ?? "000000"}`);
-  const [noFill, setNoFill] = useState(first?.fill === null);
+  const [noFill, setNoFill] = useState(
+    first?.fill === null && !first?.gradient,
+  );
   const [noStroke, setNoStroke] = useState(first?.stroke === null);
   const [width, setWidth] = useState(String(first?.width ?? 1));
   const [dash, setDash] = useState<PptxDash>(first?.dash ?? "solid");
@@ -68,6 +78,8 @@ export function PptxPaint({
   const mixed = objects.some(
     (object) =>
       object.appearance.fill !== first?.fill ||
+      JSON.stringify(object.appearance.gradient) !==
+        JSON.stringify(first?.gradient) ||
       object.appearance.stroke !== first?.stroke ||
       object.appearance.width !== first?.width ||
       object.appearance.fillOpacity !== first?.fillOpacity ||
@@ -139,13 +151,36 @@ export function PptxPaint({
         onSubmit={(event) => {
           event.preventDefault();
           controller.run(() =>
-            editor.editObjects({
-              action: "fill",
-              color: noFill ? null : fill.slice(1),
-            }),
+            editor.editObjects(
+              linear && !noFill
+                ? {
+                    action: "gradientFill",
+                    startColor: fill.slice(1),
+                    endColor: endColor.slice(1),
+                    angle: Number(angle),
+                    scaled,
+                  }
+                : {
+                    action: "fill",
+                    color: noFill ? null : fill.slice(1),
+                  },
+            ),
           );
         }}
       >
+        <label>
+          {t.shapeFillType}
+          <select
+            aria-label={t.shapeFillType}
+            value={linear ? "linear" : "solid"}
+            onChange={(event) =>
+              setLinear(event.currentTarget.value === "linear")
+            }
+          >
+            <option value="solid">{t.solidColor}</option>
+            <option value="linear">{t.linearGradient}</option>
+          </select>
+        </label>
         <label>
           {t.shapeFill}
           <input
@@ -155,6 +190,41 @@ export function PptxPaint({
             onChange={(event) => setFill(event.currentTarget.value)}
           />
         </label>
+        {linear && (
+          <>
+            <label>
+              {t.gradientEnd}
+              <input
+                type="color"
+                value={endColor}
+                disabled={noFill}
+                onChange={(event) => setEndColor(event.currentTarget.value)}
+              />
+            </label>
+            <label>
+              {t.gradientAngle}
+              <input
+                type="number"
+                min={0}
+                max={360}
+                step="any"
+                required
+                disabled={noFill}
+                value={angle}
+                onChange={(event) => setAngle(event.currentTarget.value)}
+              />
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={scaled}
+                disabled={noFill}
+                onChange={(event) => setScaled(event.currentTarget.checked)}
+              />
+              {t.shapeGradientScaled}
+            </label>
+          </>
+        )}
         <label>
           <input
             type="checkbox"

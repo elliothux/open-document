@@ -129,7 +129,9 @@ fn Object::preset_hit(
     let distance = (qx.max(0) * qx.max(0) + qy.max(0) * qy.max(0)).sqrt() +
       qx.max(qy).min(0) -
       radius
-    return (!self.fill.is_empty() && distance <= 0) ||
+    return (
+        (!self.fill.is_empty() || self.gradient is Some(_)) && distance <= 0
+      ) ||
       (!self.stroke.is_empty() && distance.abs() <= margin)
   }
   let points = arrow_points(self.preset, width, height, self.adjustments)
@@ -156,5 +158,5 @@ fn Object::preset_hit(
       return true
     }
   }
-  !self.fill.is_empty() && inside
+  (!self.fill.is_empty() || self.gradient is Some(_)) && inside
 }

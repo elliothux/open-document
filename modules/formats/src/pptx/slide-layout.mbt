@@ -243,6 +243,7 @@ fn layout_empty_placeholder(object : Object) -> Bool {
     object.text().is_empty() &&
     object.text_reason.is_empty() &&
     object.fill.is_empty() &&
+    object.gradient is None &&
     object.stroke.is_empty() else {
     return false
   }

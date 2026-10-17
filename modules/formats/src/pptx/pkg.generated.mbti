@@ -54,6 +54,7 @@ pub(all) enum ObjectEdit {
   Group
   Ungroup
   Fill(String?)
+  GradientFill(String, String, Double, Bool)
   FillOpacity(Double)
   StrokeOpacity(Double)
   Stroke(String?, Double)

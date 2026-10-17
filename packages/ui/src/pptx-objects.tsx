@@ -231,7 +231,7 @@ export function PptxObjects({
         disabled={disabled}
       />
       <PptxPaint
-        key={`${state.document?.documentId}:${query.revision}:${query.selection.mode}:${query.selection.objects.join(",")}`}
+        key={`${state.document?.documentId}:${query.selection.mode}:${query.selection.objects.map((id) => JSON.stringify(query.objects.find((o) => o.id === id)?.appearance)).join(",")}`}
         controller={controller}
         state={state}
         editor={editor}

@@ -26,39 +26,9 @@ fn Pagination::split_table_row(
     self.next_page()
   }
   while minimum > 0 || table_row_pending(cells, indices) {
-    let mut required = full + 1
-    for index, (_, column, lines, _) in cells {
-      if indices[index] < lines.length() {
-        let (normal, offset, first) = lines[indices[index]]
-        let line = if indices[index] > 0 { first } else { normal }
-        let kept = table.kept_paragraph_height(
-          row,
-          column,
-          lines,
-          indices[index],
-        )
-        let height = if kept is Some(height) &&
-          top + height + table.margins[row][column].bottom + bottom <= full {
-          height
-        } else {
-          line.height
-        }
-        required = required.min(
-          offset -
-          origins[index] +
-          height +
-          table.margins[row][column].bottom +
-          bottom,
-        )
-      }
-    }
-    if required > full && !table_row_pending(cells, indices) {
-      required = (minimum + bottom).min(full)
-    }
-    required = required.max((minimum + bottom).min(full))
-    if !table.splitRows[row] && whole <= full {
-      required = required.max(whole)
-    }
+    let required = table.fragment_required(
+      row, cells, indices, origins, minimum, full, whole,
+    )
     self.repeat_table_header(
       cache, probe, table, row, required, profile, images, additive,
     )
@@ -191,12 +161,32 @@ fn Table::kept_paragraph_height(
   if start > 0 && lines[start - 1].0.paragraph == paragraph {
     return None
   }
-  guard self.rows[row][column].any(p => p.id == paragraph && p.keepLines) else {
+  let paragraphs = self.rows[row][column]
+  let mut index = 0
+  while index < paragraphs.length() && paragraphs[index].id != paragraph {
+    index += 1
+  }
+  guard index < paragraphs.length() &&
+    (
+      paragraphs[index].keepLines ||
+      (paragraphs[index].keepNext && index + 1 < paragraphs.length())
+    ) else {
     return None
   }
   let mut end = start
-  while end + 1 < lines.length() && lines[end + 1].0.paragraph == paragraph {
-    end += 1
+  while end + 1 < lines.length() {
+    if lines[end + 1].0.paragraph == paragraphs[index].id {
+      end += 1
+    } else if paragraphs[index].keepNext && index + 1 < paragraphs.length() {
+      index += 1
+      end += 1
+      if (!paragraphs[index].keepNext || index + 1 == paragraphs.length()) &&
+        !paragraphs[index].keepLines {
+        break
+      }
+    } else {
+      break
+    }
   }
   Some(lines[end].1 + lines[end].0.height - lines[start].1)
 }
@@ -212,4 +202,48 @@ fn table_row_pending(
     }
   }
   false
+}
+
+///|
+fn Table::fragment_required(
+  self : Table,
+  row : Int,
+  cells : Array[(Int, Int, Array[(Line, Double, Line)], Double)],
+  indices : Array[Int],
+  origins : Array[Double],
+  minimum : Double,
+  full : Double,
+  whole : Double,
+) -> Double {
+  let bottom = self.border_width(row + 1)
+  let top = self.row_top_margin(row) + self.border_width(row)
+  let mut required = full + 1
+  for index, (_, column, lines, _) in cells {
+    if indices[index] < lines.length() {
+      let (normal, offset, first) = lines[indices[index]]
+      let line = if indices[index] > 0 { first } else { normal }
+      let kept = self.kept_paragraph_height(row, column, lines, indices[index])
+      let height = if kept is Some(height) &&
+        top + height + self.margins[row][column].bottom + bottom <= full {
+        height
+      } else {
+        line.height
+      }
+      required = required.min(
+        offset -
+        origins[index] +
+        height +
+        self.margins[row][column].bottom +
+        bottom,
+      )
+    }
+  }
+  if required > full && !table_row_pending(cells, indices) {
+    required = (minimum + bottom).min(full)
+  }
+  required = required.max((minimum + bottom).min(full))
+  if !self.splitRows[row] && whole <= full {
+    required = required.max(whole)
+  }
+  required
 }

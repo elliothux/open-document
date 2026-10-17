@@ -287,6 +287,28 @@ fn paragraph_properties(
     } else {
       base.rtl
     },
+    widowControl: if tree.child(id, "widowControl") is Some(item) {
+      guard tree.valid_on_off_property(item) else {
+        @failure.reject(
+          "protected-content", "Unsupported widow-control property",
+        )
+      }
+      !["0", "false", "off"].contains(
+        tree.nodes[item].attribute("val", uri=word_uri).unwrap_or("1"),
+      )
+    } else {
+      base.widowControl
+    },
+    keepNext: if tree.child(id, "keepNext") is Some(item) {
+      guard tree.valid_on_off_property(item) else {
+        @failure.reject("protected-content", "Unsupported keep-next property")
+      }
+      !["0", "false", "off"].contains(
+        tree.nodes[item].attribute("val", uri=word_uri).unwrap_or("1"),
+      )
+    } else {
+      base.keepNext
+    },
     keepLines: if tree.child(id, "keepLines") is Some(item) {
       guard tree.valid_on_off_property(item) else {
         @failure.reject("protected-content", "Unsupported keep-lines property")
@@ -354,6 +376,8 @@ fn Session::styles(
     align: "left",
     pageBreakBefore: false,
     keepLines: false,
+    keepNext: false,
+    widowControl: true,
     rtl: false,
     marker: None,
     readOnlyReason: "",

@@ -451,6 +451,9 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
           "cropReason": self.image_reason(object, true),
         },
         "appearance": {
+          "gradient": object.gradient
+          .map(g => Json(Linear(g.0, g.1, g.2, g.3)))
+          .unwrap_or(Json::null()),
           "fillOpacity": object.fill_alpha,
           "strokeOpacity": object.stroke_alpha,
           "fillOpacityReason": self.paint_opacity_reason(object, false),

@@ -235,7 +235,15 @@ export function DocxStyleEdit({
               ]}
               onChange={(value) => changeParagraph("align", value)}
             />
-            {(["rtl", "pageBreakBefore", "keepLines"] as const).map((key) => (
+            {(
+              [
+                "rtl",
+                "pageBreakBefore",
+                "keepLines",
+                "keepNext",
+                "widowControl",
+              ] as const
+            ).map((key) => (
               <StyleChoice
                 key={key}
                 label={`${label}: ${key === "rtl" ? t.paragraphRtl : t[key]}`}

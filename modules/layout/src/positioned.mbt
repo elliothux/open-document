@@ -52,6 +52,7 @@ pub(all) enum PositionedPrimitive {
   Path(Array[PathSegment], String, String, Double, PathStyle)
   Transform(Matrix)
   Clip(Border)
+  ClipPath(Array[PathSegment], Bool)
   Restore
 }
 
@@ -158,6 +159,7 @@ pub fn PositionedDocument::drawing(
         }
         Transform(matrix) => commands.push(Transform(matrix))
         Clip(rect) => commands.push(ClipRect(rect))
+        ClipPath(path, even_odd) => commands.push(ClipPath(path, even_odd))
         Restore => commands.push(Restore)
         Text(text) =>
           for run in text.runs {
@@ -228,6 +230,8 @@ pub fn TextProbe::text_block(
     align: "left",
     pageBreakBefore: false,
     keepLines: false,
+    keepNext: false,
+    widowControl: false,
     rtl: false,
     marker: None,
     readOnlyReason: "",

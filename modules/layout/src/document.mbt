@@ -117,6 +117,8 @@ pub(all) struct Paragraph {
   marker : ParagraphMarker?
   pageBreakBefore : Bool
   keepLines : Bool
+  keepNext : Bool
+  widowControl : Bool
   readOnlyReason : String
 } derive(ToJson)
 

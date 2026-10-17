@@ -1,6 +1,7 @@
 ///|
 priv enum BodyBlock {
   BodyParagraph(Paragraph)
+  KeptParagraphs(Array[Paragraph], Table?)
   TableStart(Table)
   TableRows(Table, Int, Int)
   TableEnd(Table)
@@ -41,7 +42,7 @@ fn Flow::body_blocks(
       table += 1
     }
   }
-  blocks
+  keep_next_blocks(blocks)
 }
 
 ///|
@@ -52,6 +53,19 @@ fn Table::finite_geometry(self : Table) -> Bool {
 ///|
 fn BodyBlock::key(self : BodyBlock) -> String? {
   let value : Json = match self {
+    KeptParagraphs(paragraphs, table) => {
+      guard paragraphs.all(p => p.finite_geometry()) else { return None }
+      let following = if table is Some(table) {
+        guard TableStart(table).key() is Some(start) &&
+          TableRows(table, 0, table.row_group_end(0)).key() is Some(rows) else {
+          return None
+        }
+        Json::array([Json(start), Json(rows)])
+      } else {
+        Json::null()
+      }
+      Json::array([Json("kept-paragraphs"), Json(paragraphs), following])
+    }
     BodyParagraph(paragraph) => {
       guard paragraph.finite_geometry() else { return None }
       Json::array([Json("paragraph"), paragraph.to_json()])
@@ -130,6 +144,10 @@ fn BodyBlock::place(
   additive : Bool,
 ) -> Unit raise @failure.Failure {
   match self {
+    KeptParagraphs(paragraphs, table) =>
+      pagination.kept_paragraphs(
+        cache, probe, paragraphs, table, profile, images, additive,
+      )
     BodyParagraph(paragraph) =>
       pagination.paragraph(cache, probe, paragraph, profile, images, additive)
     TableStart(table) => {
@@ -167,6 +185,10 @@ fn BodyBlock::retain(
   page : PageSetup,
 ) -> Unit {
   match self {
+    KeptParagraphs(paragraphs, _) =>
+      for paragraph in paragraphs {
+        cache.retain(paragraph, page.width - page.left - page.right)
+      }
     BodyParagraph(paragraph) =>
       cache.retain(paragraph, page.width - page.left - page.right)
     TableRows(table, first, last) =>

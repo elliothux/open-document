@@ -157,7 +157,7 @@ fn paragraph_format(
 ) -> @docx.ParagraphFormat raise @failure.Failure {
   let fields = format_fields(request, [
     "style", "align", "before", "after", "left", "right", "first", "line", "tabs",
-    "pageBreakBefore", "rtl", "keepLines",
+    "pageBreakBefore", "rtl", "keepLines", "keepNext", "widowControl",
   ])
   @docx.ParagraphFormat::new(
     style=format_string(fields, "style"),
@@ -221,5 +221,7 @@ fn paragraph_format(
     },
     pageBreakBefore=format_boolean(fields, "pageBreakBefore"),
     keepLines=format_boolean(fields, "keepLines"),
+    keepNext=format_boolean(fields, "keepNext"),
+    widowControl=format_boolean(fields, "widowControl"),
   )
 }

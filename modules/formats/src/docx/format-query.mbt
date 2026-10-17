@@ -258,6 +258,11 @@ pub fn Session::query_formatting(
         reason,
       ),
       "keepLines": format_summary(paragraphs.map(p => p.keepLines), reason),
+      "keepNext": format_summary(paragraphs.map(p => p.keepNext), reason),
+      "widowControl": format_summary(
+        paragraphs.map(p => p.widowControl),
+        reason,
+      ),
     },
   }
 }

@@ -238,6 +238,13 @@ fn Foundation::pptx_operation(
           }
         }
         "fillOpacity" => @pptx.FillOpacity(xlsx_number(change, "opacity"))
+        "gradientFill" =>
+          @pptx.GradientFill(
+            field_string(change, "startColor"),
+            field_string(change, "endColor"),
+            xlsx_number(change, "angle"),
+            xlsx_boolean(change, "scaled"),
+          )
         "strokeOpacity" => @pptx.StrokeOpacity(xlsx_number(change, "opacity"))
         "group" => @pptx.Group
         "ungroup" => @pptx.Ungroup

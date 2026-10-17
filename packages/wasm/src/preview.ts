@@ -60,6 +60,8 @@ export interface DocxFlow {
     };
     pageBreakBefore: boolean;
     keepLines: boolean;
+    keepNext: boolean;
+    widowControl: boolean;
     readOnlyReason: string;
   }[];
   diagnostics: string[];
@@ -204,6 +206,8 @@ export function docxFlow(value: unknown): DocxFlow {
     if (
       typeof paragraph.pageBreakBefore !== "boolean" ||
       typeof paragraph.keepLines !== "boolean" ||
+      typeof paragraph.keepNext !== "boolean" ||
+      typeof paragraph.widowControl !== "boolean" ||
       typeof paragraph.rtl !== "boolean" ||
       typeof paragraph.expandSoftBreak !== "boolean"
     )

@@ -49,6 +49,8 @@ fn measure_text(
       line: spacing,
       pageBreakBefore: false,
       keepLines: false,
+      keepNext: false,
+      widowControl: false,
       rtl: false,
       marker: if paragraph.bullet.is_empty() {
         None
@@ -240,33 +242,42 @@ fn paint_slide(
           ),
         )
         primitives.push(Restore)
-      } else if !object.fill.is_empty() || !object.stroke.is_empty() {
-        primitives.push(
-          Path(
-            shape_path(
-              object.preset,
+      } else if !object.fill.is_empty() ||
+        object.gradient is Some(_) ||
+        !object.stroke.is_empty() {
+        let path = shape_path(
+          object.preset,
+          geometry.width,
+          geometry.height,
+          object.adjustments,
+        )
+        if object.gradient is Some((start, end, angle, scaled)) &&
+          geometry.width > 0 &&
+          geometry.height > 0 {
+          primitives.push(ClipPath(path, false))
+          primitives.append(
+            Linear(start, end, angle, scaled).paint(
               geometry.width,
               geometry.height,
-              object.adjustments,
             ),
-            object.fill,
-            object.stroke,
-            object.line_width,
-            {
-              fillAlpha: object.fill_alpha,
-              strokeAlpha: object.stroke_alpha,
-              dash: dash_pattern(object.dash).map(v => v * object.line_width),
-              cap: line_cap_code(object.cap),
-              join: if object.join == "round" {
-                1
-              } else if object.join == "bevel" {
-                2
-              } else {
-                0
-              },
-              miter: object.miter,
+          )
+          primitives.push(Restore)
+        }
+        primitives.push(
+          Path(path, object.fill, object.stroke, object.line_width, {
+            fillAlpha: object.fill_alpha,
+            strokeAlpha: object.stroke_alpha,
+            dash: dash_pattern(object.dash).map(v => v * object.line_width),
+            cap: line_cap_code(object.cap),
+            join: if object.join == "round" {
+              1
+            } else if object.join == "bevel" {
+              2
+            } else {
+              0
             },
-          ),
+            miter: object.miter,
+          }),
         )
       }
       let (lines, _, diagnostic) = fit_text(object, geometry, probe, profile) catch {

@@ -272,6 +272,8 @@ export interface ParagraphFormatPatch {
   tabs?: TabStop[] | null;
   pageBreakBefore?: boolean | null;
   keepLines?: boolean | null;
+  keepNext?: boolean | null;
+  widowControl?: boolean | null;
 }
 export interface DocxFormatting {
   revision: number;
@@ -325,6 +327,8 @@ export interface DocxFormatting {
     tabs: FormatValue<TabStop[]>;
     pageBreakBefore: FormatValue<boolean>;
     keepLines: FormatValue<boolean>;
+    keepNext: FormatValue<boolean>;
+    widowControl: FormatValue<boolean>;
   };
 }
 export function checkFormatPatch(
@@ -345,6 +349,8 @@ export function checkFormatPatch(
         tabs: "object",
         pageBreakBefore: "boolean",
         keepLines: "boolean",
+        keepNext: "boolean",
+        widowControl: "boolean",
       }
     : {
         style: "string",
@@ -475,6 +481,8 @@ export function docxFormatting(value: unknown): DocxFormatting {
     ) ||
     !field(paragraph.pageBreakBefore, "boolean") ||
     !field(paragraph.keepLines, "boolean") ||
+    !field(paragraph.keepNext, "boolean") ||
+    !field(paragraph.widowControl, "boolean") ||
     !field(paragraph.line, "object") ||
     !field(paragraph.tabs, "tabs")
   )

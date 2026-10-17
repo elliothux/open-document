@@ -191,7 +191,8 @@ fn WordTree::check_structure_properties(
       "pPr" =>
         [
           "pStyle", "rPr", "spacing", "ind", "jc", "pageBreakBefore", "autoSpaceDE",
-          "autoSpaceDN", "tabs", "bidi", "numPr", "outlineLvl", "keepLines",
+          "autoSpaceDN", "tabs", "bidi", "numPr", "outlineLvl", "keepLines", "keepNext",
+          "widowControl",
         ]
       "tabs" => ["tab"]
       "numPr" => ["ilvl", "numId"]
@@ -227,6 +228,8 @@ fn WordTree::check_structure_properties(
       | "jc"
       | "pageBreakBefore"
       | "keepLines"
+      | "keepNext"
+      | "widowControl"
       | "bidi"
       | "autoSpaceDE"
       | "autoSpaceDN"

@@ -41,6 +41,7 @@ fn object_hit(
     (
       !object.paragraphs.is_empty() &&
       object.fill.is_empty() &&
+      object.gradient is None &&
       object.stroke.is_empty()
     ) {
     return x >= 0 && y >= 0 && x <= width && y <= height
@@ -73,7 +74,7 @@ fn object_hit(
     }
     let value = (2.0 * x / width - 1) * (2.0 * x / width - 1) +
       (2.0 * y / height - 1) * (2.0 * y / height - 1)
-    if !object.fill.is_empty() {
+    if !object.fill.is_empty() || object.gradient is Some(_) {
       return value <= 1
     }
     let outer = 1.0 + 2.0 * margin / width.min(height)
@@ -85,7 +86,7 @@ fn object_hit(
   if object.preset == "roundRect" || arrow_shape(object.preset) {
     return object.preset_hit(geometry, x, y, margin)
   }
-  if !object.fill.is_empty() {
+  if !object.fill.is_empty() || object.gradient is Some(_) {
     return x >= 0 && y >= 0 && x <= width && y <= height
   }
   !object.stroke.is_empty() &&

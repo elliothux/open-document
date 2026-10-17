@@ -1,4 +1,5 @@
 import { record } from "./validation.js";
+import { checkPptxBackgroundFill } from "./pptx-slides.js";
 import {
   checkPptxTextFormat,
   checkPptxParagraphFormat,
@@ -75,6 +76,13 @@ export type PptxObjectEdit =
   | { action: "textParagraph"; format: PptxParagraphFormat }
   | { action: "textAlign"; alignment: "left" | "center" | "right" | "justify" }
   | { action: "fill"; color: string | null }
+  | {
+      action: "gradientFill";
+      startColor: string;
+      endColor: string;
+      angle: number;
+      scaled: boolean;
+    }
   | { action: "stroke"; color: string | null; width: number }
   | {
       action: "textInsets";
@@ -220,6 +228,25 @@ export function checkPptxObjectEdit(value: unknown): void {
     ["none", "shrink", "resize"].includes(String(change.fit))
   )
     return;
+  if (change.action === "gradientFill") {
+    if (
+      Object.keys(change).some(
+        (key) =>
+          !["action", "startColor", "endColor", "angle", "scaled"].includes(
+            key,
+          ),
+      )
+    )
+      throw new Error("Invalid shape gradient fields");
+    checkPptxBackgroundFill({
+      kind: "linear",
+      startColor: change.startColor,
+      endColor: change.endColor,
+      angle: change.angle,
+      scaled: change.scaled,
+    });
+    return;
+  }
   if (change.action === "fill" || change.action === "stroke") {
     if (
       change.color !== null &&

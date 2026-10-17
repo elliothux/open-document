@@ -18,6 +18,7 @@ export {
 } from "./pptx-objects.js";
 import {
   checkPptxSlideEdit,
+  checkPptxBackgroundFill,
   pptxSections,
   pptxSlideLayouts,
   type PptxSlideEdit,
@@ -103,6 +104,7 @@ export interface PptxObject {
     cropReason: string;
   };
   appearance: {
+    gradient: Extract<PptxBackgroundFill, { kind: "linear" }> | null;
     fillOpacity: number;
     strokeOpacity: number;
     fillOpacityReason: string;
@@ -488,6 +490,15 @@ export function pptxQuery(value: unknown): PptxQuery {
     for (const key of ["left", "top", "right", "bottom"])
       number(frame[key], 0, 14400);
     const appearance = record(object.appearance);
+    if (appearance.gradient !== null) {
+      checkPptxBackgroundFill(appearance.gradient);
+      if (
+        record(appearance.gradient).kind !== "linear" ||
+        appearance.fill !== null ||
+        appearance.fillOpacity !== 1
+      )
+        throw new Error("Invalid gradient appearance");
+    }
     if (
       !hasFields(
         appearance,

@@ -178,7 +178,12 @@ fn Pagination::paragraph(
   }
   let mut ended_with_break = false
   let mut first = true
-  for measured in measured_lines {
+  let breaks = self.widow_breaks(paragraph, measured_lines)
+  for index, measured in measured_lines {
+    if breaks.contains(index) {
+      self.next_page()
+      first = true
+    }
     let mut line = measured.spaced(paragraph.line, first)
     if line.text.is_empty() && line.marker.is_empty() && line.y == -1 {
       self.place(line, self.page.left, self.y, images)

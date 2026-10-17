@@ -9,7 +9,8 @@ fn WordTree::diagnose_properties(
     "pPr" =>
       [
         "pStyle", "rPr", "spacing", "ind", "jc", "pageBreakBefore", "autoSpaceDE",
-        "autoSpaceDN", "tabs", "bidi", "numPr", "outlineLvl", "keepLines",
+        "autoSpaceDN", "tabs", "bidi", "numPr", "outlineLvl", "keepLines", "keepNext",
+        "widowControl",
       ]
     "rPr" =>
       [
@@ -50,8 +51,12 @@ fn WordTree::diagnose_properties(
         .iter()
         .all(a => a.uri == word_uri && a.name == "type")
       "tabs" => self.valid_tabs(child)
-      "bidi" | "tblHeader" | "cantSplit" | "keepLines" =>
-        self.valid_on_off_property(child)
+      "bidi"
+      | "tblHeader"
+      | "cantSplit"
+      | "keepLines"
+      | "keepNext"
+      | "widowControl" => self.valid_on_off_property(child)
       "numPr" => self.valid_numbering_properties(child)
       "outlineLvl" =>
         try {

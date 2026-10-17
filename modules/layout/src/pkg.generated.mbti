@@ -350,6 +350,8 @@ pub(all) struct Paragraph {
   marker : ParagraphMarker?
   pageBreakBefore : Bool
   keepLines : Bool
+  keepNext : Bool
+  widowControl : Bool
   readOnlyReason : String
 } derive(ToJson)
 pub fn Paragraph::to_json(Self) -> Json
@@ -439,6 +441,7 @@ pub(all) enum PositionedPrimitive {
   Path(Array[PathSegment], String, String, Double, PathStyle)
   Transform(Matrix)
   Clip(Border)
+  ClipPath(Array[PathSegment], Bool)
   Restore
 }
 

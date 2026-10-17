@@ -348,6 +348,8 @@ export function DocxFormatCommands({
               tabs: null,
               pageBreakBefore: null,
               keepLines: null,
+              keepNext: null,
+              widowControl: null,
             })
           }
         />
@@ -456,7 +458,9 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
           }
         />
       ))}
-      {(["pageBreakBefore", "keepLines"] as const).map((key) => (
+      {(
+        ["pageBreakBefore", "keepLines", "keepNext", "widowControl"] as const
+      ).map((key) => (
         <label key={key}>
           <input
             type="checkbox"

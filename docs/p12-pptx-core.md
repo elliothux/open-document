@@ -6,7 +6,7 @@
 
 ## 1. 用户结果与范围
 
-对象外观已接通纯色/无填充、纯色/无边框、宽度、预设虚线、平头/圆头/方头端点及圆角/斜角/斜接连接。核心、Wasm、Worker 和默认 UI 共用多选事务，保留身份、几何、文字及精确历史。已检查独立 XML、Canvas 实际颜色、保存重开和继续原生输入；形状填充和边框的不透明度已接通，保留主题色关联与文字不透明度；复杂填充及效果仍待实现。接口与边界归[格式合同](references/formats.md#pptx)，实现归 [`object-paint.mbt`](../modules/formats/src/pptx/object-paint.mbt)、[`line-dash.mbt`](../modules/formats/src/pptx/line-dash.mbt)、[`line-pen.mbt`](../modules/formats/src/pptx/line-pen.mbt)及 [`shape-opacity.mbt`](../modules/formats/src/pptx/shape-opacity.mbt)。
+对象外观已接通纯色/无填充、双色线性渐变（角度与比例）、纯色/无边框、宽度、预设虚线、平头/圆头/方头端点及圆角/斜角/斜接连接。核心、Wasm、Worker 和默认 UI 共用多选事务，保留身份、几何、文字及精确历史。已检查独立 XML、Canvas 实际颜色、保存重开和继续原生输入；形状填充和边框的不透明度已接通，保留主题色关联与文字不透明度；渐变复用背景颜色和角度解析，按预设轮廓裁剪，并随对象变换输出到 Canvas/PDF。支持多选、精确历史及保存重开；多色标、透明/径向渐变、图片填充及效果仍待实现。接口与边界归[格式合同](references/formats.md#pptx)，实现归 [`object-paint.mbt`](../modules/formats/src/pptx/object-paint.mbt)、[`line-dash.mbt`](../modules/formats/src/pptx/line-dash.mbt)、[`line-pen.mbt`](../modules/formats/src/pptx/line-pen.mbt)及 [`shape-opacity.mbt`](../modules/formats/src/pptx/shape-opacity.mbt)。
 
 第 2 批已接通本页纯色及双色线性渐变背景、恢复继承、整稿尺寸调整、已有版式切换与当前版式重置，支持默认 UI、Wasm 与 Worker API，保留选择和精确历史。渐变支持任意角度及按页面比例缩放，沿既有图元输出 Canvas/PDF，原生文字编辑保留背景面板草稿。尺寸调整同步缩放页面、版式、母版及组内几何，保持字号和方向。版式切换按类型/索引保留占位符内容，并补齐空占位符，关系、字体/背景继承及对象一起恢复；模板提示不成为用户文字。多色/透明/路径渐变、图片背景、图表/表格对象与非空参考线仍保护源内容；主题、版式与母版直接编辑尚待实现。实现归 [`background-fill.mbt`](../modules/formats/src/pptx/background-fill.mbt)、[`slide-background.mbt`](../modules/formats/src/pptx/slide-background.mbt)、[`slide-size.mbt`](../modules/formats/src/pptx/slide-size.mbt)及 [`slide-layout.mbt`](../modules/formats/src/pptx/slide-layout.mbt)，合同及检查归[格式说明](references/formats.md#pptx)。
 

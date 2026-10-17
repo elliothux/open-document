@@ -14,6 +14,17 @@ fn paint_fill(properties : Ref) -> @xml.Node? raise @failure.Failure {
   }
   guard fills.get(0) is Some(fill) else { return None }
   let tree = properties.tree
+  if fill.name == "gradFill" && properties.node.name == "spPr" {
+    ignore(linear_background_source({ tree, node: fill, }))
+    guard [None, Some("1"), Some("true")].contains(
+      fill.attribute("rotWithShape"),
+    ) else {
+      @failure.reject(
+        "protected-content", "Fixed-angle shape gradients are protected",
+      )
+    }
+    return Some(fill)
+  }
   let source = tree.document.source()[fill.start:fill.end]
   guard ["noFill", "solidFill"].contains(fill.name) &&
     fill.attributes.is_empty() &&

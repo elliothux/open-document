@@ -203,7 +203,6 @@ fn read_object(
     }
   }
   let paint = (fn() raise @failure.Failure {
-    let own_fill = fill_rgba(theme, properties)
     let has_fill = properties.any(item => {
       item.tree.children
       .get(item.node.id)
@@ -214,8 +213,31 @@ fn read_object(
         )
       })
     })
+    let mut gradient = None
     let (shape_fill, fill_source) = if has_fill {
-      (own_fill, solid_fill_source(properties).map(item => (item, None)))
+      let first = properties
+        .iter()
+        .find_first(item => {
+          item.tree.children
+          .get(item.node.id)
+          .unwrap_or([])
+          .any(n => {
+            [
+              "noFill", "solidFill", "gradFill", "pattFill", "blipFill", "grpFill",
+            ].contains(n.name)
+          })
+        })
+        .unwrap()
+      if first.child("gradFill") is Some(fill) {
+        ignore(paint_fill(first))
+        gradient = Some(shape_gradient(fill, theme, None))
+        (("", 1.0), None)
+      } else {
+        (
+          fill_rgba(theme, properties),
+          solid_fill_source(properties).map(item => (item, None)),
+        )
+      }
     } else if style_reference(theme, chain, "fill") is Some((item, ph)) {
       match item.node.name {
         "noFill" => (("", 1.0), None)
@@ -224,6 +246,10 @@ fn read_object(
             color_rgba(theme, item, placeholder=Some(ph)),
             Some((item, Some(ph))),
           )
+        "gradFill" => {
+          gradient = Some(shape_gradient(item, theme, Some(ph)))
+          (("", 1.0), None)
+        }
         _ => @failure.reject("unsupported-style", "Unsupported theme fill")
       }
     } else {
@@ -252,11 +278,13 @@ fn read_object(
       stroke.1,
       fill_source,
       solid_fill_source(lines).map(item => (item, placeholder)),
+      gradient,
     )
   })() catch {
-    @failure.Failure(code="unsupported-style", message~, ..) => {
+    @failure.Failure(code~, message~, ..) if code == "unsupported-style" ||
+      code == "protected-content" => {
       diagnostic = message
-      ("", "", 1.0, "solid", "flat", "round", 8.0, 1.0, 1.0, None, None)
+      ("", "", 1.0, "solid", "flat", "round", 8.0, 1.0, 1.0, None, None, None)
     }
     error => raise error
   }
@@ -354,6 +382,7 @@ fn read_object(
     preset,
     adjustments,
     fill: paint.0,
+    gradient: paint.11,
     stroke: paint.1,
     line_width: paint.2,
     dash: paint.3,

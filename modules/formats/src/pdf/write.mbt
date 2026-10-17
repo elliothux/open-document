@@ -23,6 +23,22 @@ fn positioned_alpha(
 }
 
 ///|
+fn positioned_path(
+  path : Array[@layout.PathSegment],
+  height : Double,
+) -> Array[@content.PdfContentOp] {
+  path.map(segment => {
+    match segment {
+      Move(x, y) => @content.Op_m(x, height - y)
+      Line(x, y) => @content.Op_l(x, height - y)
+      Cubic(x1, y1, x2, y2, x, y) =>
+        @content.Op_c(x1, height - y1, x2, height - y2, x, height - y)
+      Close => @content.Op_h
+    }
+  })
+}
+
+///|
 /// Export the exact preview glyph positions. PDF has no text layout authority.
 pub fn write(
   layout : @layout.PositionedDocument,
@@ -149,6 +165,13 @@ pub fn write(
             scopes -= 1
             ops.push(@content.Op_Q)
           }
+          ClipPath(path, even_odd) => {
+            ops.push(@content.Op_q)
+            scopes += 1
+            ops.append(positioned_path(path, frame.height))
+            ops.push(if even_odd { @content.Op_Wstar } else { @content.Op_W })
+            ops.push(@content.Op_n)
+          }
           Path(path, fill, stroke, width, pen) => {
             pen.validate()
             ops.push(@content.Op_q)
@@ -188,24 +211,7 @@ pub fn write(
               )
               ops.push(@content.Op_w(width))
             }
-            for segment in path {
-              match segment {
-                Move(x, y) => ops.push(@content.Op_m(x, frame.height - y))
-                Line(x, y) => ops.push(@content.Op_l(x, frame.height - y))
-                Cubic(x1, y1, x2, y2, x, y) =>
-                  ops.push(
-                    @content.Op_c(
-                      x1,
-                      frame.height - y1,
-                      x2,
-                      frame.height - y2,
-                      x,
-                      frame.height - y,
-                    ),
-                  )
-                Close => ops.push(@content.Op_h)
-              }
-            }
+            ops.append(positioned_path(path, frame.height))
             if !fill.is_empty() && !stroke.is_empty() {
               ops.push(@content.Op_B)
             } else if !fill.is_empty() {

@@ -15,6 +15,7 @@ pub(all) enum ObjectEdit {
   Group
   Ungroup
   Fill(String?)
+  GradientFill(String, String, Double, Bool)
   FillOpacity(Double)
   StrokeOpacity(Double)
   Stroke(String?, Double)
@@ -308,6 +309,8 @@ pub fn Session::edit_objects(
     TextInsets(_, _, _, _) | TextAnchor(_) | TextWrap(_) | TextFit(_) =>
       (self.frame_objects(change, probe, profile), self.selection)
     Fill(_) | Stroke(_, _) => (self.paint_objects(change), self.selection)
+    GradientFill(start, end, angle, scaled) =>
+      (self.gradient_objects(Linear(start, end, angle, scaled)), self.selection)
     FillOpacity(value) | StrokeOpacity(value) =>
       (self.opacity_objects(value, change is StrokeOpacity(_)), self.selection)
     StrokeDash(value) => (self.dash_objects(value), self.selection)

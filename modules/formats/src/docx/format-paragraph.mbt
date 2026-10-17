@@ -13,6 +13,8 @@ pub(all) struct ParagraphFormat {
   tabs : FormatChange[Array[@layout.TabStop]]
   pageBreakBefore : FormatChange[Bool]
   keepLines : FormatChange[Bool]
+  keepNext : FormatChange[Bool]
+  widowControl : FormatChange[Bool]
 }
 
 ///|
@@ -29,6 +31,8 @@ pub fn ParagraphFormat::new(
   tabs~ : FormatChange[Array[@layout.TabStop]] = Keep,
   pageBreakBefore~ : FormatChange[Bool] = Keep,
   keepLines~ : FormatChange[Bool] = Keep,
+  keepNext~ : FormatChange[Bool] = Keep,
+  widowControl~ : FormatChange[Bool] = Keep,
 ) -> ParagraphFormat {
   {
     style,
@@ -43,6 +47,8 @@ pub fn ParagraphFormat::new(
     tabs,
     pageBreakBefore,
     keepLines,
+    keepNext,
+    widowControl,
   }
 }
 
@@ -57,7 +63,8 @@ fn ParagraphFormat::properties(
     Set(value) => {
       for
         name in [
-          "jc", "spacing", "ind", "pageBreakBefore", "keepLines", "bidi", "outlineLvl",
+          "jc", "spacing", "ind", "pageBreakBefore", "keepLines", "keepNext", "widowControl",
+          "bidi", "outlineLvl",
         ] {
         result[name] = None
       }
@@ -123,6 +130,8 @@ fn ParagraphFormat::properties(
     (name, change) in [
       ("pageBreakBefore", self.pageBreakBefore),
       ("keepLines", self.keepLines),
+      ("keepNext", self.keepNext),
+      ("widowControl", self.widowControl),
     ] {
     match change {
       Keep => ()
