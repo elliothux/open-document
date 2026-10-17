@@ -13,6 +13,7 @@ priv struct Geometry {
 ///|
 priv struct TextRun {
   source : Ref?
+  date_field : Bool
   text : String
   parts : Array[(@layout.TextStyle, String)]
 }
@@ -110,6 +111,7 @@ fn Object::text(self : Object) -> String {
 ///|
 priv struct Slide {
   tree : Tree
+  date_time : String?
   hidden : Bool
   objects : Array[Object]
   background : BackgroundFill

@@ -30,7 +30,6 @@ import type {
   PptxSlideEdit,
 } from "@open-document/wasm/pptx";
 
-/** Embed one slide surface; all document semantics and editable geometry come from MoonBit. */
 export class PresentationEditor {
   private readonly container: HTMLDivElement;
   private readonly viewport: HTMLDivElement;
@@ -132,13 +131,7 @@ export class PresentationEditor {
           this.available &&
           !this.state.readOnlyReason &&
           !this.inputEvents.active,
-        point: (event) => {
-          const rect = this.surface.canvas.getBoundingClientRect();
-          return {
-            x: (event.clientX - rect.left) / this.scale,
-            y: (event.clientY - rect.top) / this.scale,
-          };
-        },
+        point: (event) => this.surface.point(event, this.scale),
         press: (point, text, extend) => this.press(point, text, extend),
         move: (point) => this.move(point),
         finish: (point, cancel) => this.release(point, cancel),
@@ -487,19 +480,13 @@ export class PresentationEditor {
   exportPng(scale = 1, outputBytes = 67108864): Promise<EditorOutput> {
     return this.enqueue(
       async () => {
-        const layout = this.layout;
-        if (
-          layout.revision !== this.state.revision ||
-          layout.slide !== this.state.slide
-        )
-          throw new Error("Slide layout is stale; refresh before exporting");
-        const bytes = await this.surface.exportPng(
-          layout,
-          0,
+        const bytes = await this.surface.exportSlidePng(
+          this.layout,
+          this.state,
           scale,
           outputBytes,
         );
-        return this.observable.output(layout.revision, "png", bytes);
+        return this.observable.output(this.state.revision, "png", bytes);
       },
       false,
       false,
@@ -528,6 +515,19 @@ export class PresentationEditor {
   }
   refresh(): Promise<void> {
     return this.recover();
+  }
+  refreshDateFields(dateTime?: string): Promise<void> {
+    return this.enqueue(async () =>
+      this.changed(
+        await this.client.execute({
+          operation: "dateTimePptx",
+          revision: this.state.revision,
+          ...(dateTime === undefined ? {} : { dateTime }),
+          profile: this.profile,
+        }),
+        true,
+      ),
+    );
   }
   private recover(redo?: boolean): Promise<void> {
     return this.enqueue(

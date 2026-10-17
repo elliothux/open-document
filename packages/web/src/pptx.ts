@@ -22,6 +22,8 @@ export type {
   PptxFindOptions,
   PptxSearchResult,
   PptxSlideEdit,
+  PptxFooter,
+  PptxFooterContent,
   PptxCommentAuthor,
   PptxComment,
   PptxComments,

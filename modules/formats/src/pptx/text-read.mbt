@@ -130,6 +130,7 @@ fn read_text(
   master : Tree,
   defaults : Ref?,
   page_number : String,
+  date_time : DateTime?,
 ) -> (Array[TextParagraph], Body, String) raise @failure.Failure {
   let bodies = children(chain, "txBody", uri=presentation_uri)
   let properties = children(bodies, "bodyPr")
@@ -292,10 +293,18 @@ fn read_text(
         continue
       }
       let item : Ref = { tree: current.tree, node, }
+      let style_sources = item.child("rPr").map(item => [item]).unwrap_or([])
+      style_sources.append(run_defaults)
+      style_sources.append(font_ref)
+      let date_text = date_time.bind(time => {
+        presentation_date_text(item, style_sources, time)
+      })
       let text = if node.name == "br" {
         "\u2028"
       } else if slide_number_field(item) {
         page_number
+      } else if date_text is Some(text) {
+        text
       } else if ["r", "fld"].contains(node.name) {
         item.child("t").map(item => item.node.text).unwrap_or("")
       } else {
@@ -307,15 +316,17 @@ fn read_text(
           if reason.is_empty() {
             reason = slide_number_text_reason
           }
+        } else if date_text is Some(_) {
+          if reason.is_empty() {
+            reason = date_field_text_reason
+          }
         } else {
           reason = "Fields are read-only"
         }
       }
-      let style_sources = item.child("rPr").map(item => [item]).unwrap_or([])
-      style_sources.append(run_defaults)
-      style_sources.append(font_ref)
       runs.push({
         source: Some(item),
+        date_field: date_text is Some(_),
         text,
         parts: styled_text(theme, style_sources, text, default_font),
       })
@@ -330,6 +341,7 @@ fn read_text(
       style_sources.append(font_ref)
       runs.push({
         source: None,
+        date_field: false,
         text: "",
         parts: styled_text(theme, style_sources, "", default_font),
       })

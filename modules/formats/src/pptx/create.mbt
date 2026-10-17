@@ -12,6 +12,7 @@ fn empty_slide() -> String {
 /// Creates a 16:9 presentation with one blank slide and its layout, master and theme.
 pub fn Session::create(
   budget : @archive.Budget,
+  date_time? : String,
 ) -> Session raise @failure.Failure {
   let p = presentation_uri
   let a = drawing_uri
@@ -97,7 +98,7 @@ pub fn Session::create(
     ] {
     parts["ppt/" + name] = @utf8.encode(source)
   }
-  Session::from_package(@opc.Package::create(parts, budget), budget)
+  Session::from_package(@opc.Package::create(parts, budget), budget, date_time~)
 }
 
 ///|

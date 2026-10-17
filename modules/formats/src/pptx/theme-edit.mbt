@@ -124,7 +124,15 @@ fn Session::set_theme_color(
     return self.query()
   }
   let slides = self.slides.mapi((index, slide) => {
-    read_slide(self.opc, self.main, self.cache, slide.tree, index~, parts~)
+    read_slide(
+      self.opc,
+      self.main,
+      self.cache,
+      slide.tree,
+      index~,
+      parts~,
+      date_time=self.date_time,
+    )
   })
   self.commit_slides(self.main, slides, edits, self.selection, parts~)
   self.query()

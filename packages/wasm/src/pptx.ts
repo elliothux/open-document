@@ -1,5 +1,8 @@
 import {
   number,
+  geometry,
+  points,
+  strings,
   checkPptxObjectEdit,
   checkPptxImageFill,
   type PptxObjectEdit,
@@ -63,6 +66,9 @@ import {
 export type { PptxFindOptions, PptxSearchResult } from "./pptx-search.js";
 export { preparePptxSearch, pptxFindOptions } from "./pptx-search.js";
 import { record, hasFields } from "./validation.js";
+import { presentationDateTime } from "./pptx-clock.js";
+import { pptxFooter, type PptxFooter } from "./pptx-footer.js";
+export type { PptxFooter, PptxFooterContent } from "./pptx-footer.js";
 import {
   pptxThemeColors,
   pptxThemeFonts,
@@ -76,7 +82,6 @@ export type {
 } from "./pptx-theme.js";
 import {
   drawingBatch,
-  drawingMatrix,
   type DrawingBatch,
   type DrawMatrix,
   type DrawRect,
@@ -213,6 +218,7 @@ export interface PptxQuery {
     reason: string;
   };
   notes: { text: string; reason: string };
+  footer: PptxFooter;
   comments: PptxComments;
   slideLayout: PptxSlideLayouts;
   diagnostics: string[];
@@ -245,8 +251,19 @@ export interface PptxHit {
 
 export type PptxCommand =
   | PptxSearchCommand
-  | { operation: "createPptx"; budget: Budget }
-  | { operation: "openPptx"; bytes: Uint8Array; budget: Budget }
+  | { operation: "createPptx"; budget: Budget; dateTime?: string }
+  | {
+      operation: "openPptx";
+      bytes: Uint8Array;
+      budget: Budget;
+      dateTime?: string;
+    }
+  | {
+      operation: "dateTimePptx";
+      revision: number;
+      dateTime?: string;
+      profile: Record<string, string>;
+    }
   | { operation: "queryPptx" }
   | { operation: "followPptxHyperlink"; revision: number }
   | {
@@ -359,6 +376,7 @@ const names: ReadonlySet<string> = new Set([
   "openPptx",
   "createPptx",
   "queryPptx",
+  "dateTimePptx",
   "followPptxHyperlink",
   "findPptx",
   "replacePptxMatches",
@@ -396,34 +414,6 @@ function integer(value: unknown, high = 0x7fffffff): void {
   if (!Number.isInteger(number(value, 0, high)))
     throw new Error("Invalid PPTX integer");
 }
-function strings(value: unknown, count: number, units: number): void {
-  if (
-    !Array.isArray(value) ||
-    value.length > count ||
-    value.some((item) => typeof item !== "string" || item.length > units)
-  )
-    throw new Error("Invalid PPTX string array");
-}
-function geometry(value: unknown): void {
-  const rect = record(value);
-  number(rect.x, -14400, 14400);
-  number(rect.y, -14400, 14400);
-  number(rect.width, 0, 14400);
-  number(rect.height, 0, 14400);
-  number(rect.rotation, -360, 360);
-  if (typeof rect.flipX !== "boolean" || typeof rect.flipY !== "boolean")
-    throw new Error("Invalid PPTX orientation");
-  drawingMatrix(rect.matrix);
-}
-function points(value: unknown, max = 4): void {
-  if (!Array.isArray(value) || value.length > max)
-    throw new Error("Invalid PPTX polygon");
-  for (const point of value) {
-    const p = record(point);
-    number(p.x, -1e9, 1e9);
-    number(p.y, -1e9, 1e9);
-  }
-}
 export function pptxQuery(value: unknown): PptxQuery {
   const query = record(value);
   pptxThemeColors(query.themeColors);
@@ -431,6 +421,7 @@ export function pptxQuery(value: unknown): PptxQuery {
   const notes = record(query.notes);
   pptxComments(query.comments);
   pptxSlideLayouts(query.slideLayout);
+  pptxFooter(query.footer);
   checkPptxSlideEdit({ action: "notes", text: notes.text });
   if (typeof notes.reason !== "string") throw new Error("Invalid notes query");
   checkPptxFormatting(query.formatting);
@@ -788,8 +779,22 @@ export class PptxSession extends WasmSession {
           : 16777216)
       )
         throw new Error("PPTX input exceeds budget");
-      value = this.call({ ...command, bytes: encodeBytes(command.bytes) });
-    } else value = this.call(command);
+      value = this.call({
+        ...command,
+        ...(command.operation === "openPptx"
+          ? { dateTime: presentationDateTime(command.dateTime) }
+          : {}),
+        bytes: encodeBytes(command.bytes),
+      });
+    } else if (
+      command.operation === "createPptx" ||
+      command.operation === "dateTimePptx"
+    )
+      value = this.call({
+        ...command,
+        dateTime: presentationDateTime(command.dateTime),
+      });
+    else value = this.call(command);
     return pptxResult(command, value);
   }
 }

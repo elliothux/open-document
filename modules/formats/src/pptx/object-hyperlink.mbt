@@ -206,6 +206,7 @@ fn Session::set_object_hyperlink(
     self.cache,
     Tree::new(original.tree.part, document),
     index=self.index(original.tree.part),
+    date_time=self.date_time,
     parts~,
   )
   edits.push((original.tree.part, edit))

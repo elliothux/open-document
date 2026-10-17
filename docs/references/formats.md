@@ -1317,7 +1317,9 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 核心按占位符类型及数值索引匹配，中心标题与标题共用匹配类别，并沿用单个正文占位符的回退规则。匹配对象保留身份、文字、直接格式、链接和选择，清除受支持的本地几何覆盖，由新版式及母版重新派生位置、尺寸和继承样式。普通本地对象保留原源。新版式缺少的普通标题、正文、内容及副标题占位符生成空的本地文字对象，使用新身份并继承版式；模板提示文字不会写入幻灯片内容。
 
-没有匹配位置或多个对象争用同一位置时，已有用户内容明确报冲突。仅无文字、可见填充/边框、动作或未知元数据的未匹配占位符可以移除；被计时/连接引用的对象继续保护。日期/页脚等字段、分组或歧义占位符、未知变换，以及导致新增显示诊断或无法解析几何的版式仍保护。母版/主题继承可随切换更新，版式和母版本身保持原源。
+缺失的 `dt/ftr/hdr/sldNum` 占位符按版式 `hf` 开关插入；缺少版式设置时使用母版设置，两者均无设置时不插入。有效设置中未声明的开关缺省为启用。固定日期和页脚保留已有文字及样式，简单编号域保留源缓存并计算显示值；字段 ID 复用页面复制的分配规则。内容写为本地对象，位置继续继承版式。普通占位符仍清空提示。规则参考 [ONLYOFFICE 占位符复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L776-L800)及[版式/母版页边设置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L9158-L9182)，实现归 [`layout-fields.mbt`](../../modules/formats/src/pptx/layout-fields.mbt)。
+
+没有匹配位置或多个对象争用同一位置时，已有用户内容明确报冲突。仅无文字、可见填充/边框、动作或未知元数据的未匹配占位符可以移除；被计时/连接引用的对象继续保护。缺少时间上下文或未支持的日期域、未知字段、包含关系的页边文字、分组或歧义占位符、未知页边开关/变换，以及导致新增显示诊断或无法解析几何的版式仍保护。新增占位符 XML 合计最多 1,048,576 UTF-16 单元，继续受包、字体、输出及历史预算限制。母版/主题继承可随切换更新，版式和母版本身保持原源。
 
 关系目标、占位符与源变化共用一次精确历史；原生文字草稿先独立提交。选择中失去的继承对象或空占位符会清除，保留对象的文字光标继续有效。相同版式切换是空操作；母版/版式的直接编辑及创建仍待实现。字体总数在候选提交前检查，避免提交后才超出查询的 256 键预算。保存重开、页面复制及 Canvas/PDF 沿相同关系与继承路径。实现归 [`slide-layout.mbt`](../../modules/formats/src/pptx/slide-layout.mbt)，匹配和几何重置参考 [ONLYOFFICE getMatchingShape](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L390-L522)及 [changeLayout](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L695-L800)。
 
@@ -1557,11 +1559,35 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 此入口依赖浏览器 Canvas 绘制和 PNG 编码，当前只检查 Chrome/Chromium；不作为无浏览器 PNG 转换能力。普通 Wasm/Worker 文档状态、布局和 PDF 接口保持原职责。批量页图片、JPEG 及打印界面仍待实现。
 
+### 日期与页脚编辑
+
+`PresentationEditor.editSlides({ action: "footer", value, allSlides }, slide?)` 修改当前页或指定页的日期、页脚和编号。`allSlides=true` 时修改全部页面，包含隐藏页，合为一项历史。Wasm/Worker 的 `editPptxSlides` 使用同一命令。`PptxFooterContent` 为 `{ date: string | null, footer: string | null, number: boolean }`；date 是固定日期文字，footer 是页脚文字，null 移除对应对象，空串保留空对象，number 控制编号占位符。`PptxQuery.footer` 返回这三项及 `reason`，类型为 `PptxFooter`。缺少对象时为 null/false；未知、复杂或受保护的页边内容返回保护原因。
+
+每项文字最多 4096 UTF-16 单元、256 段，CRLF/CR 归一为 LF，软换行使用 U+2028。核心不读取系统时钟。已有日期和页脚保留对象身份、几何、框属性、列表样式及首段/首 run 格式；新文字使用该格式。相同文字和已有真实编号不改源或历史。开启静态编号占位符时创建真实 `slidenum` 域；已有真实编号保留缓存。关闭时移除对应本地占位符，并同步清除选择中已移除的对象。
+
+创建优先采用当前版式，其次采用母版中的对应占位符，复制样式并继承几何；模板源保持不变。没有模板时创建独立本地占位符：默认 Arial 12 pt、黑色、自动缩小，日期左对齐、页脚居中、编号右对齐。三个框的 x 分别为页面宽度的 4%、36%、68%，宽度为 28%；y 为高度的 90%，高为 6%。字体仍由宿主授权 profile 提供。新对象及字段身份沿页面复制规则分配，不与原源冲突。
+
+全部目标页完成文字布局、字体、适配和包/输出检查后一次提交。单个页边对象生成的 XML 最多 1,048,576 UTF-16 单元，事务仍受 4 MiB 历史预算约束；任何目标失败均保留原源、选择和身份分配状态。原生草稿先独立提交。动态日期域、重复/分组页边对象、未知或带注释的文本源、无法解析的模板和关系、删除锁/外部对象引用、缺字体、越界及旧 revision 继续保护。当前操作修改本地页面，不改写共享版式或母版，也不为以后新增的空白页建立全稿默认值。
+
+默认面板提供固定日期、页脚、编号开关及应用到当前页/全部页。草稿在正文输入期间保持，切页和文档替换后按当前页重新加载。结构及内容替换参考 [ONLYOFFICE setHFProperties](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L1182-L1318)，实现归 [`footer-read.mbt`](../../modules/formats/src/pptx/footer-read.mbt)、[`footer-content.mbt`](../../modules/formats/src/pptx/footer-content.mbt)、[`footer-edit.mbt`](../../modules/formats/src/pptx/footer-edit.mbt)及 [`pptx-footer.tsx`](../../packages/ui/src/pptx-footer.tsx)。动态日期创作及母版编辑继续实施，导入与刷新见[动态日期域显示与刷新](#动态日期域显示与刷新)。
+
+### 动态日期域显示与刷新
+
+导入的简单 `a:fld type="datetime1"` 至 `datetime13` 及 `datetimeFigureOut` 按会话时间生成派生文字，类型比较忽略大小写。支持 `en-US`、`zh-CN` 和 `zh-TW`，语言沿 run/段落/继承格式解析，缺省为 `en-US`。字段结构边界与简单编号域相同。缺少时间、未知语言/格式或扩展结构保留源缓存并诊断；继承及锁定对象也保留诊断。日期域继续拒绝纯文字编辑，固定日期/页脚编辑暂不改写已有日期域。
+
+Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省传入当地时钟的 `YYYY-MM-DDTHH:MM:SS` 日历分量；宿主可显式传入以固定结果。MoonBit 的 `Session::open/create` 接受 `date_time`，不传时保留日期缓存并诊断。核心校验公历日期、1–9999 年、0–23 时及 0–59 分秒；该输入不含时区尾部，也不进行时区换算。格式化由 MoonBit 完成，平台只提供时间分量。
+
+`PresentationEditor.refreshDateFields(dateTime?)` 或 Wasm/Worker 的 `dateTimePptx` 更新会话时间；底层命令携带 revision、profile 和可选 dateTime。默认面板提供“刷新日期域”。刷新先检查活动候选、旧修订、所有可显示日期域的字体及框内布局，再统一更新派生文字并使旧布局失效。失败保留原时间、源、选择和历史。刷新不改变 revision、modified、撤销栈、字段代码、ID 或缓存。原格式保存保持源；预览、PNG 和 PDF 使用最近一次会话时间，打开和显式刷新之间共用同一快照。
+
+源编辑、页面复制、主题/尺寸/版式变化及撤销重做沿当前时间重新解析日期。历史页面记录其计算时间，恢复旧快照时只重新解析过期页面，防止“撤销复制、刷新日期、重做复制”恢复旧值。可显示的版式/母版普通文字及组内日期域同样参与刷新预检；模板占位符仍沿既有版式实例化规则。
+
+格式与地区映射依据 [ONLYOFFICE PresentationField](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/PresentationField.js#L61-L78)、[类型索引](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/PresentationField.js#L286-L365)及[地区格式表](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/commonDefines.js#L4625-L4656)。中文沿其格式表和 [Word 字段解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/NumFormat.js#L991-L1033)保留现有结果：`datetime4/6` 中的 `W` 是字面文字，`datetime5` 使用时分秒，`datetime13` 的后备格式在 AM/PM 前保留冒号。自动日期创作、缓存显式写回、更多语言及备注字段继续实施。实现归 [`date-fields.mbt`](../../modules/formats/src/pptx/date-fields.mbt)及 [`pptx-clock.ts`](../../packages/wasm/src/pptx-clock.ts)。
+
 ### 幻灯片编号字段
 
 导入的 `a:fld type="slidenum"` 按演示文稿 `firstSlideNum` 加从零开始的实际页序生成十进制文字，类型比较忽略大小写。起始编号缺省为 1，接受 0–4294967295；隐藏页保留编号位置。行为依据 [ONLYOFFICE PresentationField](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/PresentationField.js#L187-L220)。
 
-当前支持带非空 `id`、可选 `rPr/t` 且无其他字段属性或子节点的形式。字号、颜色和字体沿现有文字解析；派生数字进入查询及 Canvas/PDF 共用的定位输出。重排、复制、删除与撤销重做同步更新，读取和保存不刷新源缓存，也不新增修订。字段所在框继续拒绝纯文字编辑，其他字段和带段落属性/未知扩展的字段保留缓存并诊断。日期、页脚创作与版式/母版占位符显示继承继续实施。实现归 [`text-fields.mbt`](../../modules/formats/src/pptx/text-fields.mbt)。
+当前支持带非空 `id`、可选 `rPr/t` 且无其他字段属性或子节点的形式。字号、颜色和字体沿现有文字解析；派生数字进入查询及 Canvas/PDF 共用的定位输出。重排、复制、删除与撤销重做同步更新，读取和保存不刷新源缓存，也不新增修订。字段所在框继续拒绝纯文字编辑，其他字段和带段落属性/未知扩展的字段保留缓存并诊断。创建和移除见[日期与页脚编辑](#日期与页脚编辑)，版式占位符创建沿[幻灯片版式](#幻灯片版式)；动态日期创作和母版直接编辑继续实施。实现归 [`text-fields.mbt`](../../modules/formats/src/pptx/text-fields.mbt)。
 
 ### 演讲备注
 

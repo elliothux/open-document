@@ -1,5 +1,9 @@
 import { record } from "./validation.js";
 import {
+  checkPptxFooterContent,
+  type PptxFooterContent,
+} from "./pptx-footer.js";
+import {
   checkPptxThemeColor,
   checkPptxThemeFont,
   type PptxThemeSlot,
@@ -109,6 +113,7 @@ export type PptxSlideEdit =
   | { action: "layout"; id: string }
   | { action: "resetLayout" }
   | { action: "notes"; text: string }
+  | { action: "footer"; value: PptxFooterContent; allSlides: boolean }
   | { action: "sectionAdd"; name: string }
   | { action: "sectionRename"; id: string; name: string }
   | { action: "sectionRemove"; id: string }
@@ -132,6 +137,17 @@ export type PptxSlideEdit =
 
 export function checkPptxSlideEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "footer") {
+    if (
+      typeof change.allSlides !== "boolean" ||
+      Object.keys(change).some(
+        (key) => !["action", "value", "allSlides"].includes(key),
+      )
+    )
+      throw new Error("Invalid slide footer edit");
+    checkPptxFooterContent(change.value);
+    return;
+  }
   if (change.action === "backgroundImageFormat") {
     checkBackgroundImageFormat(change);
     if (

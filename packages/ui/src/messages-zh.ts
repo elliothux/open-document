@@ -1,5 +1,6 @@
 import { filterZh } from "./messages-filter.js";
 import { imageZh } from "./messages-pptx-image.js";
+import { footerZh } from "./messages-pptx-footer.js";
 import type { Messages } from "./messages-en.js";
 import { reviewZh } from "./messages-review.js";
 
@@ -7,6 +8,7 @@ export const zh: Messages = {
   ...reviewZh,
   ...filterZh,
   ...imageZh,
+  ...footerZh,
   cellHyperlink: "单元格超链接",
   hyperlinkRange: "使用 #Sheet1!A1 或 #名称 链接到当前工作簿。",
   objectHyperlink: "对象超链接",

@@ -3,11 +3,16 @@ let slide_number_text_reason = "Slide number fields are read-only"
 
 ///|
 fn slide_number_field(source : Ref) -> Bool {
+  simple_text_field(source) &&
+  source.node.attribute("type").unwrap_or("").to_lower() == "slidenum"
+}
+
+///|
+fn simple_text_field(source : Ref) -> Bool {
   let node = source.node
   let children = source.tree.children.get(node.id).unwrap_or([])
   node.uri == drawing_uri &&
   node.name == "fld" &&
-  node.attribute("type").unwrap_or("").to_lower() == "slidenum" &&
   !node.attribute("id").unwrap_or("").is_empty() &&
   node.attribute("id").unwrap_or("").length() <= 128 &&
   node.text.trim().is_empty() &&

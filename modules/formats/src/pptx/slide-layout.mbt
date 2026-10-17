@@ -172,10 +172,13 @@ fn layout_transform_reset(
 fn layout_placeholder_markup(
   source : Ref,
   id : String,
+  content~ : String,
 ) -> String raise @failure.Failure {
   guard source.node.name == "sp" &&
     placeholder(source) is Some(ph) &&
-    ["title", "ctrTitle", "body", "subTitle", "obj"].contains(ph.0) else {
+    [
+      "title", "ctrTitle", "body", "subTitle", "obj", "dt", "ftr", "hdr", "sldNum",
+    ].contains(ph.0) else {
     @failure.reject(
       "protected-content", "This layout placeholder requires content or field insertion support",
     )
@@ -233,8 +236,7 @@ fn layout_placeholder_markup(
   let name = xml_attribute(
     identity.node.attribute("name").unwrap_or("Placeholder"),
   )
-  // Empty local text inherits the layout; template prompt text never becomes user content.
-  "<p:sp xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\"><p:nvSpPr><p:cNvPr id=\"\{id}\" name=\"\{name}\"/>\{props}<p:nvPr>\{ph_xml}</p:nvPr></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/><a:p/></p:txBody></p:sp>"
+  "<p:sp xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\"><p:nvSpPr><p:cNvPr id=\"\{id}\" name=\"\{name}\"/>\{props}<p:nvPr>\{ph_xml}</p:nvPr></p:nvSpPr><p:spPr/>\{content}</p:sp>"
 }
 
 ///|
@@ -348,7 +350,9 @@ fn Session::apply_layout(
   let mut units = 0
   for node in choice.tree.children.get(shape_tree(choice.tree).id).unwrap_or([]) {
     let source : Ref = { tree: choice.tree, node, }
-    if placeholder(source) is None || used.contains(node.id) {
+    if placeholder(source) is None ||
+      used.contains(node.id) ||
+      !layout_placeholder_enabled(source, choice.tree, choice.master) {
       continue
     }
     while reserved.contains(next.to_string()) {
@@ -360,7 +364,20 @@ fn Session::apply_layout(
     let issued = next.to_string()
     reserved[issued] = true
     next += 1
-    let markup = layout_placeholder_markup(source, issued)
+    // Ordinary placeholders start empty; header/footer placeholders keep their content.
+    let content = if layout_special_placeholder(source) {
+      let (content, after) = layout_placeholder_content(
+        source,
+        reserved,
+        next,
+        self.budget,
+      )
+      next = after
+      content
+    } else {
+      "<p:txBody><a:bodyPr/><a:lstStyle/><a:p/></p:txBody>"
+    }
+    let markup = layout_placeholder_markup(source, issued, content~)
     units += markup.length()
     guard units <= 1048576 else {
       @failure.reject(
@@ -413,6 +430,7 @@ fn Session::apply_layout(
     self.cache,
     Tree::new(tree.part, document),
     index=self.index(tree.part),
+    date_time=self.date_time,
     parts~,
   )
   guard candidate.read_only.is_empty() &&
@@ -425,7 +443,10 @@ fn Session::apply_layout(
     if affected.contains(object.id) {
       guard object.geometry is Some(_) &&
         object.diagnostic.is_empty() &&
-        object.text_reason.is_empty() else {
+        (
+          object.text_reason.is_empty() ||
+          calculated_field_reason(object.text_reason)
+        ) else {
         @failure.reject(
           "protected-content", "Target placeholder cannot be displayed and edited safely",
         )

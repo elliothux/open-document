@@ -1,9 +1,30 @@
-import type { PptxGeometry, PptxPoint } from "@open-document/wasm/pptx";
+import type {
+  PptxGeometry,
+  PptxPoint,
+  PptxLayout,
+} from "@open-document/wasm/pptx";
 import { CanvasSurface } from "./canvas-surface.js";
 import { decodeImage } from "./image.js";
 import type { PptxClient } from "./pptx.js";
 
 export class PresentationCanvas extends CanvasSurface {
+  point(event: MouseEvent, scale: number): PptxPoint {
+    const rect = this.canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) / scale,
+      y: (event.clientY - rect.top) / scale,
+    };
+  }
+  async exportSlidePng(
+    layout: PptxLayout,
+    current: { revision: number; slide: string },
+    scale: number,
+    outputBytes: number,
+  ): Promise<Uint8Array> {
+    if (layout.revision !== current.revision || layout.slide !== current.slide)
+      throw new Error("Slide layout is stale; refresh before exporting");
+    return this.exportPng(layout, 0, scale, outputBytes);
+  }
   private readonly keys = new Map<string, string>();
   async prepare(
     client: PptxClient,

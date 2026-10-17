@@ -182,6 +182,7 @@ fn Foundation::dispatch(
     "openPptx"
     | "createPptx"
     | "queryPptx"
+    | "dateTimePptx"
     | "followPptxHyperlink"
     | "findPptx"
     | "replacePptxMatches"

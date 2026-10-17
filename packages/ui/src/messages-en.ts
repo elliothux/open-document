@@ -1,10 +1,12 @@
 import { filterEn } from "./messages-filter.js";
 import { imageEn } from "./messages-pptx-image.js";
+import { footerEn } from "./messages-pptx-footer.js";
 import { reviewEn } from "./messages-review.js";
 export const en = {
   ...reviewEn,
   ...filterEn,
   ...imageEn,
+  ...footerEn,
   cellHyperlink: "Cell hyperlink",
   hyperlinkRange: "Use #Sheet1!A1 or #Name to link within this workbook.",
   objectHyperlink: "Object hyperlink",

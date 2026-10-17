@@ -21,6 +21,7 @@ pub struct Session {
   priv mut sequence : Int
   priv mut object_sequence : Int64
   priv mut closed : Bool
+  priv mut date_time : DateTime?
 }
 
 ///|
@@ -31,6 +32,7 @@ fn read_slide(
   tree : Tree,
   index~ : Int,
   parts~ : Map[String, @xml.Document] = Map([]),
+  date_time~ : DateTime? = None,
 ) -> Slide raise @failure.Failure {
   let page_number = presentation_number(main, index)
   let root = tree.root("sld")
@@ -97,6 +99,7 @@ fn read_slide(
       ids,
       parts,
       page_number,
+      date_time,
     )
   }
   if flag(root, "showMasterSp", default=true) {
@@ -115,6 +118,7 @@ fn read_slide(
       ids,
       parts,
       page_number,
+      date_time,
     )
   }
   read_objects(
@@ -132,6 +136,7 @@ fn read_slide(
     ids,
     parts,
     page_number,
+    date_time,
   )
   let mut background = Solid("ffffff")
   for layer in [tree, layout, master] {
@@ -184,9 +189,16 @@ fn read_slide(
     if !object.diagnostic.is_empty() {
       diagnostics.push(object.id + ":" + object.diagnostic)
     }
-    if object.kind != "group" &&
+    if object.paragraphs.any(p => {
+        p.runs.any(run => run.has_date_source() && !run.date_field)
+      }) {
+      diagnostics.push(
+        object.id +
+        ":Date fields require a supported format, language and explicit time",
+      )
+    } else if object.kind != "group" &&
       !object.text_reason.is_empty() &&
-      object.text_reason != slide_number_text_reason &&
+      !calculated_field_reason(object.text_reason) &&
       object.read_only.is_empty() {
       diagnostics.push(object.id + ":" + object.text_reason)
     }
@@ -196,6 +208,7 @@ fn read_slide(
   }
   {
     tree,
+    date_time: date_time.map(time => time.value),
     hidden: !flag(root, "show", default=true),
     objects,
     background,
@@ -208,16 +221,19 @@ fn read_slide(
 pub fn Session::open(
   bytes : Bytes,
   budget : @archive.Budget,
+  date_time? : String,
 ) -> Session raise @failure.Failure {
-  Session::from_package(@opc.Package::open(bytes, budget), budget)
+  Session::from_package(@opc.Package::open(bytes, budget), budget, date_time~)
 }
 
 ///|
 fn Session::from_package(
   opc : @opc.Package,
   budget : @archive.Budget,
+  date_time~ : String? = None,
 ) -> Session raise @failure.Failure {
   errdefer opc.close()
+  let date_time = date_time.map(read_date_time)
   guard !opc.signed else {
     @failure.reject("unsupported-pptx", "Signed presentations are unsupported")
   }
@@ -279,6 +295,7 @@ fn Session::from_package(
       cache,
       load_tree(opc, cache, rel.target),
       index=slides.length(),
+      date_time~,
     )
     count += slide.objects.length()
     guard count <= 16384 else {
@@ -320,6 +337,7 @@ fn Session::from_package(
     sequence: 0,
     object_sequence: 1,
     closed: false,
+    date_time,
   }
   session.validate(slides[0])
   session
@@ -411,6 +429,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
     "slideVisibilityReason": self.slide_visibility_reason(),
     "sections": self.section_query(),
     "notes": self.notes_query(current.tree.part),
+    "footer": self.footer_query(current),
     "comments": self.comments_query(current.tree.part, links),
     "textHyperlink": self.text_hyperlink_query(links),
     "slideLayout": self.layout_query(current),

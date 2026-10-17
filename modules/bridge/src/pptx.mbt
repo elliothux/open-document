@@ -40,13 +40,28 @@ fn Foundation::pptx_operation(
       xml_depth: field_int(budget, "xmlDepth"),
       output_bytes: field_int(budget, "outputBytes"),
     }
+    let date_time = match request {
+      { "dateTime": String(value), .. } => Some(value)
+      { "dateTime": _, .. } =>
+        @failure.reject(
+          "invalid-operation", "Invalid presentation date and time",
+        )
+      _ => None
+    }
     let session = if operation == "createPptx" {
-      @pptx.Session::create(budget)
+      match date_time {
+        Some(value) => @pptx.Session::create(budget, date_time=value)
+        None => @pptx.Session::create(budget)
+      }
     } else {
-      @pptx.Session::open(
-        input_bytes(request, budget.file_bytes.min(budget.retained_bytes)),
-        budget,
+      let bytes = input_bytes(
+        request,
+        budget.file_bytes.min(budget.retained_bytes),
       )
+      match date_time {
+        Some(value) => @pptx.Session::open(bytes, budget, date_time=value)
+        None => @pptx.Session::open(bytes, budget)
+      }
     }
     let result = session.query()
     self.pptx = Some(session)
@@ -57,6 +72,13 @@ fn Foundation::pptx_operation(
   }
   match operation {
     "queryPptx" => session.query()
+    "dateTimePptx" =>
+      session.set_date_time(
+        field_int(request, "revision"),
+        field_string(request, "dateTime"),
+        self.probe,
+        xlsx_profile(request),
+      )
     "followPptxHyperlink" =>
       session.follow_hyperlink(field_int(request, "revision"))
     "findPptx" | "replacePptxMatches" =>
@@ -72,6 +94,21 @@ fn Foundation::pptx_operation(
         "move" => @pptx.MoveSlide(field_int(change, "index"))
         "hidden" => @pptx.HideSlide(xlsx_boolean(change, "hidden"))
         "notes" => @pptx.Notes(field_string(change, "text"))
+        "footer" => {
+          guard change is { "value": value, .. } else {
+            @failure.reject(
+              "invalid-operation", "Slide footer content is required",
+            )
+          }
+          @pptx.Footer(
+            {
+              date: xlsx_optional_string(value, "date"),
+              footer: xlsx_optional_string(value, "footer"),
+              number: xlsx_boolean(value, "number"),
+            },
+            xlsx_boolean(change, "allSlides"),
+          )
+        }
         "commentAdd" => {
           guard change is { "author": author, "parent": parent, .. } else {
             @failure.reject(

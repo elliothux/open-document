@@ -15,6 +15,7 @@ import {
   PptxNotes,
   PptxSlideLayout,
 } from "./pptx-page.js";
+import { PptxFooter } from "./pptx-footer.js";
 import { PptxSections } from "./pptx-sections.js";
 import { PptxComments } from "./pptx-comments.js";
 import { PptxSlideList } from "./pptx-slides.js";
@@ -185,6 +186,13 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
         />
         <PptxSlideLayout
           key={`layout:${file.editor.getSnapshot().documentId}:${query.slide}:${query.slideLayout.current}`}
+          controller={controller}
+          state={state}
+          file={file}
+          disabled={disabled}
+        />
+        <PptxFooter
+          key={`footer:${file.editor.getSnapshot().documentId}:${query.slide}:${JSON.stringify(query.footer)}`}
           controller={controller}
           state={state}
           file={file}

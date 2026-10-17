@@ -11,6 +11,7 @@ fn Session::prepare(
     self.cache,
     Tree::new(slide.tree.part, document),
     index=self.index(slide.tree.part),
+    date_time=self.date_time,
     parts=self.parts,
   )
   self.validate(candidate)
@@ -242,6 +243,7 @@ pub fn Session::undo(
           self.cache,
           Tree::new(part, document),
           index~,
+          date_time=self.date_time,
           parts~,
         )
       }
@@ -326,7 +328,15 @@ pub fn Session::undo(
       height != self.height ||
       theme_changed {
       slides.mapi((index, slide) => {
-        read_slide(self.opc, main, self.cache, slide.tree, index~, parts~)
+        read_slide(
+          self.opc,
+          main,
+          self.cache,
+          slide.tree,
+          index~,
+          parts~,
+          date_time=self.date_time,
+        )
       })
     } else {
       slides

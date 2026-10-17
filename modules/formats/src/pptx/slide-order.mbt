@@ -13,6 +13,7 @@ pub(all) enum SlideEdit {
   ApplyLayout(String)
   ResetLayout
   Notes(String)
+  Footer(FooterContent, Bool)
   AddComment(String, String, String, String, String?)
   UpdateComment(String, String)
   RemoveComment(String)
@@ -67,6 +68,19 @@ fn Session::ordered_slides(
     @failure.reject("malformed-pptx", "Slide list changed unexpectedly")
   }
   result.mapi((index, slide) => {
+    let slide = if slide.date_time == self.date_time.map(time => time.value) {
+      slide
+    } else {
+      read_slide(
+        self.opc,
+        main,
+        self.cache,
+        slide.tree,
+        index~,
+        parts~,
+        date_time=self.date_time,
+      )
+    }
     numbered_slide(slide, presentation_number(main, index))
   })
 }
@@ -247,6 +261,14 @@ pub fn Session::edit_slides(
         reset=true,
       )
     Notes(text) => return self.set_notes(index, text)
+    Footer(content, all) => {
+      guard probe is Some(probe) else {
+        @failure.reject(
+          "missing-font", "Footer editing requires a font probe and profile",
+        )
+      }
+      return self.set_footer(index, content, all, probe, profile)
+    }
     AddSlide => return self.add_slide(index)
     CopySlide => return self.add_slide(index, copy=true)
     DeleteSlide => return self.delete_slides([self.slides[index].tree.part])

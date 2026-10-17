@@ -1,4 +1,34 @@
 import { record } from "./validation.js";
+import { drawingMatrix } from "./drawing.js";
+
+export function strings(value: unknown, count: number, units: number): void {
+  if (
+    !Array.isArray(value) ||
+    value.length > count ||
+    value.some((item) => typeof item !== "string" || item.length > units)
+  )
+    throw new Error("Invalid PPTX string array");
+}
+export function geometry(value: unknown): void {
+  const rect = record(value);
+  number(rect.x, -14400, 14400);
+  number(rect.y, -14400, 14400);
+  number(rect.width, 0, 14400);
+  number(rect.height, 0, 14400);
+  number(rect.rotation, -360, 360);
+  if (typeof rect.flipX !== "boolean" || typeof rect.flipY !== "boolean")
+    throw new Error("Invalid PPTX orientation");
+  drawingMatrix(rect.matrix);
+}
+export function points(value: unknown, max = 4): void {
+  if (!Array.isArray(value) || value.length > max)
+    throw new Error("Invalid PPTX polygon");
+  for (const point of value) {
+    const p = record(point);
+    number(p.x, -1e9, 1e9);
+    number(p.y, -1e9, 1e9);
+  }
+}
 import { checkPptxBackgroundFill } from "./pptx-slides.js";
 import {
   checkPptxTextFormat,
