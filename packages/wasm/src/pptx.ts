@@ -26,18 +26,21 @@ export {
 import {
   checkPptxSlideEdit,
   checkPptxBackgroundFill,
+  checkPptxBackground,
   pptxSections,
   pptxSlideLayouts,
   pptxComments,
   type PptxComments,
   type PptxSlideEdit,
   type PptxBackgroundFill,
+  type PptxBackground,
   type PptxSections,
   type PptxSlideLayouts,
 } from "./pptx-slides.js";
 export {
   checkPptxSlideEdit,
   type PptxBackgroundFill,
+  type PptxBackground,
   type PptxSlideEdit,
   type PptxSection,
   type PptxSections,
@@ -203,7 +206,7 @@ export interface PptxQuery {
   slideVisibilityReason: string;
   sections: PptxSections;
   background: {
-    value: PptxBackgroundFill;
+    value: PptxBackground;
     explicit: boolean;
     reason: string;
   };
@@ -436,7 +439,7 @@ export function pptxQuery(value: unknown): PptxQuery {
     typeof background.reason !== "string"
   )
     throw new Error("Invalid slide background query");
-  checkPptxSlideEdit({ action: "background", value: background.value });
+  checkPptxBackground(background.value);
   if (
     !hasFields(
       query,
@@ -749,10 +752,12 @@ export class PptxSession extends WasmSession {
       checkPptxSlideEdit(command.change);
     let value: unknown;
     if (
-      command.operation === "editPptxObjects" &&
-      (command.change.action === "insertImage" ||
-        command.change.action === "imageFill" ||
-        command.change.action === "replaceImage")
+      (command.operation === "editPptxObjects" &&
+        (command.change.action === "insertImage" ||
+          command.change.action === "imageFill" ||
+          command.change.action === "replaceImage")) ||
+      (command.operation === "editPptxSlides" &&
+        command.change.action === "backgroundImage")
     ) {
       value = this.call({
         ...command,

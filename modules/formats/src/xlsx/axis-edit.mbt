@@ -16,7 +16,6 @@ fn Session::edit_axes(
   let index = self.sheet_index(id)
   let reason = self.sheet_rename_reason(structure=false)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
-  self.check_named_structure()
   let target = self.sheets[index]
   let filter = self.axis_filter_plan(index, change)
   let notes = self.read_sheet_notes(target)

@@ -37,6 +37,14 @@ fn Session::background_reason(self : Session, slide : Slide) -> String {
       return "Unknown background properties are protected"
     }
     if properties.name == "bgPr" &&
+      tree.one(properties.id, "blipFill") is Some(image) {
+      let properties : Ref = { tree, node: properties, }
+      let image : Ref = { tree, node: image, }
+      background_image_properties(properties, image)
+      ignore(read_shape_image(self.opc, image, self.parts, background=true))
+      return ""
+    }
+    if properties.name == "bgPr" &&
       tree.one(properties.id, "gradFill") is Some(gradient) {
       ignore(linear_background_source({ tree, node: gradient, }))
       guard tree.children
@@ -141,36 +149,15 @@ fn Session::set_background(
     uri=presentation_uri,
   )
   let background = tree.one(container.id, "bg", uri=presentation_uri)
-  if background is None && value is None {
+  if (background is None && value is None) ||
+    (
+      background is Some(_) &&
+      value is Some(fill) &&
+      fill == original.background
+    ) {
     return self.query()
   }
-  if background is Some(_) && value is Some(fill) && fill == original.background {
-    return self.query()
-  }
-  let markup = if value is Some(fill) {
-    let bw = background
-      .bind(bg => bg.attribute("bwMode"))
-      .map(v => " bwMode=\"\{xml_attribute(v)}\"")
-      .unwrap_or("")
-    let shade = background
-      .bind(bg => tree.one(bg.id, "bgPr", uri=presentation_uri))
-      .bind(p => p.attribute("shadeToTitle"))
-      .map(v => " shadeToTitle=\"\{xml_attribute(v)}\"")
-      .unwrap_or("")
-    "<p:bg xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\"\{bw}><p:bgPr\{shade}>\{fill.markup()}</p:bgPr></p:bg>"
-  } else {
-    ""
-  }
-  if background is Some(bg) && tree.document.source()[bg.start:bg.end] == markup {
-    return self.query()
-  }
-  let change : @xml.SourceChange = {
-    node: container.id,
-    offset: background.map(bg => bg.start).unwrap_or(container.opening_end) -
-    container.start,
-    length: background.map(bg => bg.end - bg.start).unwrap_or(0),
-    xml: markup,
-  }
+  let change = background_change(original, value.map(v => v.markup()))
   let (candidate, edit) = self.prepare(original, [change])
   self.commit(candidate, edit, self.selection)
   self.query()

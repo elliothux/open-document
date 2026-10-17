@@ -113,9 +113,14 @@ export function PptxBackground({
   const background =
     file.format === "pptx" ? file.editor.query.background : undefined;
   const fill = background?.value;
-  const [kind, setKind] = useState<"solid" | "linear">(fill?.kind ?? "solid");
+  const [kind, setKind] = useState<"solid" | "linear" | "image">(
+    fill?.kind ?? "solid",
+  );
+  const [mode, setMode] = useState<"stretch" | "tile">(
+    fill?.kind === "image" ? fill.mode : "stretch",
+  );
   const [color, setColor] = useState(
-    `#${fill?.kind === "solid" ? fill.color : (fill?.startColor ?? "ffffff")}`,
+    `#${fill?.kind === "solid" ? fill.color : fill?.kind === "linear" ? fill.startColor : "ffffff"}`,
   );
   const [endColor, setEndColor] = useState(
     `#${fill?.kind === "linear" ? fill.endColor : "000000"}`,
@@ -132,6 +137,12 @@ export function PptxBackground({
     <form
       onSubmit={(event) => {
         event.preventDefault();
+        if (kind === "image") {
+          controller.run(() =>
+            editor.editSlides({ action: "backgroundImageMode", mode }),
+          );
+          return;
+        }
         controller.run(() =>
           editor.editSlides({
             action: "background",
@@ -157,21 +168,67 @@ export function PptxBackground({
             value={kind}
             onChange={(event) => {
               const value = event.currentTarget.value;
-              if (value === "solid" || value === "linear") setKind(value);
+              if (value === "solid" || value === "linear" || value === "image")
+                setKind(value);
             }}
           >
             <option value="solid">{t.solidColor}</option>
             <option value="linear">{t.linearGradient}</option>
+            <option value="image">{t.imageFill}</option>
           </select>
         </label>
-        <label>
-          {kind === "solid" ? t.slideBackground : t.gradientStart}
-          <input
-            type="color"
-            value={color}
-            onChange={(event) => setColor(event.currentTarget.value)}
-          />
-        </label>
+        {kind === "image" && (
+          <>
+            <label>
+              {t.imageFillMode}
+              <select
+                value={mode}
+                onChange={(event) =>
+                  setMode(
+                    event.currentTarget.value === "tile" ? "tile" : "stretch",
+                  )
+                }
+              >
+                <option value="stretch">{t.imageStretch}</option>
+                <option value="tile">{t.imageTile}</option>
+              </select>
+            </label>
+            <label>
+              {t.slideBackgroundPicture}
+              <input
+                type="file"
+                accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+                onChange={(event) => {
+                  const input = event.currentTarget.files?.[0];
+                  event.currentTarget.value = "";
+                  if (!input) return;
+                  const slide = editor.query.slide;
+                  controller.run(async () => {
+                    if (!input.size || input.size > 4194304)
+                      throw new Error(t.imageInputLimit);
+                    const bytes = new Uint8Array(await input.arrayBuffer());
+                    if (editor.query.slide !== slide)
+                      throw new Error(t.backgroundImageTargetChanged);
+                    await editor.editSlides(
+                      { action: "backgroundImage", bytes, mode },
+                      slide,
+                    );
+                  });
+                }}
+              />
+            </label>
+          </>
+        )}
+        {kind !== "image" && (
+          <label>
+            {kind === "solid" ? t.slideBackground : t.gradientStart}
+            <input
+              type="color"
+              value={color}
+              onChange={(event) => setColor(event.currentTarget.value)}
+            />
+          </label>
+        )}
         {kind === "linear" && (
           <>
             <label>
@@ -206,6 +263,7 @@ export function PptxBackground({
         )}
         <button
           type="submit"
+          disabled={kind === "image" && fill?.kind !== "image"}
           onMouseDown={(event) => event.preventDefault()}
           aria-label={`${t.apply} ${t.slideBackground}`}
         >

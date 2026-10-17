@@ -6,6 +6,8 @@ pub(all) enum SlideEdit {
   MoveSlide(Int)
   HideSlide(Bool)
   Background(BackgroundFill?)
+  BackgroundImage(Bytes, String)
+  BackgroundImageMode(String)
   ThemeColor(String, String)
   ThemeFont(String, String, String)
   ApplyLayout(String)
@@ -220,6 +222,10 @@ pub fn Session::edit_slides(
     | MoveSection(_, _) => return self.edit_sections(index, change)
     Size(width, height) => return self.set_slide_size(width, height)
     Background(value) => return self.set_background(index, value)
+    BackgroundImage(bytes, mode) =>
+      return self.write_image(bytes, None, background=Some(index), mode~)
+    BackgroundImageMode(mode) =>
+      return self.set_background_image_mode(index, mode)
     ThemeColor(slot, value) => return self.set_theme_color(slot, value)
     ThemeFont(kind, script, font) => {
       guard probe is Some(probe) else {

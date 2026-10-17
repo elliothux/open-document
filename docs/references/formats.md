@@ -1141,11 +1141,13 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 ### 名称引用
 
-已有 `definedNames` 可用于单元格、条件格式和数据验证中的受支持表达式。名称不区分大小写，支持 Unicode 名称、工作簿/工作表作用域、常量、矩形引用和表达式组合。单元格中的未限定名称先查当前表，再查工作簿；`'表名'!名称` 先查指定表，再查工作簿。名称定义内部的未限定名称查工作簿作用域，局部名称须显式指定表；这沿用 ONLYOFFICE 的独立定义解析上下文。
+已有 `definedNames` 可用于单元格、条件格式和数据验证中的受支持表达式。名称不区分大小写，支持 Unicode 名称、工作簿/工作表作用域、常量、矩形引用和表达式组合。单元格中的未限定名称先查当前表，再查工作簿；`'表名'!名称` 先查指定表，再查工作簿。名称定义内部的未限定名称查工作簿作用域，局部名称须显式指定表；这沿用 ONLYOFFICE 的独立定义解析上下文。`localSheetId` 决定名称的查找范围，不为定义内部的单元格引用绑定工作表。
 
 定义中的单元格引用须包含工作表。绝对行列保持固定，相对行列以 A1 为原点，按使用该名称的单元格偏移。展开后复用现有表达式、依赖图、范围函数、增量计算、规则及缓存事务。未定义名称产生 `#NAME?`，仍可继续编辑；命名循环、未支持表达式与超预算候选原子拒绝，导入后沿既有只读规则保留源和缓存。未使用的复杂定义不参与求值。
 
-最多读取 4096 个定义，名称和定义合计不超过 1,048,576 UTF-16 单元；每条公式仍限 8192 单元，展开受 64 层表达式深度及现有工作预算保护。名称目录另计入重复的作用域身份，总计同样不超过 1,048,576 单元；目录超限返回保护原因，新增候选在提交前拒绝。名称源不会被展开结果替换。绝对定义随行列/单元格结构、表改名/复制/删除及局部作用域索引一起更新，精确历史和重开复用原路径。相对定义的行列/单元格结构变换暂时保护，避免重复偏移；其数值编辑和公式计算可用。
+最多读取 4096 个定义，名称和定义合计不超过 1,048,576 UTF-16 单元；每条公式仍限 8192 单元，展开受 64 层表达式深度及现有工作预算保护。名称目录另计入重复的作用域身份，总计同样不超过 1,048,576 单元；目录超限返回保护原因，新增候选在提交前拒绝。名称源不会被展开结果替换。绝对、相对及混合定义的显式工作表引用随行列/单元格结构、表改名/复制/删除及局部作用域索引一起更新，精确历史和重开复用原路径。结构操作在定义保存的坐标上变换一次，保留 `$`、公式文字及非目标源；使用名称的单元格仍保存名称，不写入展开后的引用。删除完整目标时定义写为 `#REF!`，依赖与缓存一起重算。局部单元格移位沿既有范围交集规则，保留未覆盖的跨带引用。
+
+相对定义在求值时按实际调用格偏移。同表调用格随结构移动后，使用新位置；跨表调用格保持自己的位置。例如 `Items!$A2` 在 `Items!E2` 调用时读 A3；在第 2 行上方插行后，定义为 `Items!$A3`、调用格为 E3，读取 A5，其他表的 E2 则读取 `Items!A4`。这是定义坐标和调用位置各自变化的结果，不额外补偿调用方。未限定工作表的单元格引用、需改写的不透明源及预算失败仍原子保护。规则中的名称复用同一候选定义与求值上下文。
 
 `XlsxQuery.names` 返回 `entries` 和整体 `readOnlyReason`。每条名称包含 `name`、`scope`、原始 `formula`、`hidden` 及单项 `readOnlyReason`。`scope` 是稳定工作表部件身份，`null` 表示工作簿。默认名称面板与自定义 UI 共用下列 `editSheet` 命令：
 
@@ -1160,6 +1162,8 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 名称面板可从当前选区生成带表名的绝对矩形，也可输入常量或表达式。命令先提交原生单元格草稿；定位按当时焦点解析相对定义。常量和计算表达式不能作为矩形定位，隐藏目标表须先显示。导入的未支持语法或系统定义保留并显示保护原因，普通命令不改变隐藏属性。多区域、整行整列、作用域迁移和更广定义兼容另行扩展。
 
 实现归 [`named-definitions.mbt`](../../modules/formats/src/xlsx/named-definitions.mbt)与 [`name-edit.mbt`](../../modules/formats/src/xlsx/name-edit.mbt)。作用域、定义上下文和相对偏移参考 [ONLYOFFICE DefName](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L457-L512)及 [cName](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L2173-L2262)。管理事务和改名绑定参考 [editDefinesNames](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L1086-L1125)及 [changeDefName](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L2261-L2275)。
+
+结构变换参考 [ONLYOFFICE 名称公式通知](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L559-L574)及[按保存引用移动](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L10152-L10281)，实现复用 [`axis-reference.mbt`](../../modules/formats/src/xlsx/axis-reference.mbt)和 [`axis-metadata.mbt`](../../modules/formats/src/xlsx/axis-metadata.mbt)。
 
 ### 冻结窗格
 
@@ -1257,11 +1261,23 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 尺寸、页面和设计部件合为一次有界历史。相同实际尺寸不新增历史；旧 revision、活动候选、保护、坐标越界和输出/历史预算失败原子拒绝。图表/表格等未知页面对象、未知变换坐标和非空参考线暂时保护尺寸调整。未知部件与原有源片段保留。保存重开及 Canvas/PDF 使用相同的新尺寸和几何；反复改变比例可能产生 EMU 取整，撤销恢复原始源字节。
 
-页面背景使用 `PresentationEditor.editSlides({ action: "background", value }, slide?)`。`value` 是 `PptxBackgroundFill`：纯色为 `{ kind: "solid", color }`，线性渐变为 `{ kind: "linear", startColor, endColor, angle, scaled }`，颜色均为不带 `#` 的六位 RGB。`null` 移除本页背景并恢复版式、母版继承。`query.background` 返回有效 `value`、本页是否设置 `explicit` 与保护原因 `reason`；没有背景时返回白色纯色。该类型由 `wasm/pptx` 和 `web/pptx` 导出；核心使用 `BackgroundFill.Solid/Linear`，旧字符串参数及旧查询 `color` 已移除。
+页面背景使用 `PresentationEditor.editSlides({ action: "background", value }, slide?)`。`value` 是 `PptxBackgroundFill`：纯色为 `{ kind: "solid", color }`，线性渐变为 `{ kind: "linear", startColor, endColor, angle, scaled }`，颜色均为不带 `#` 的六位 RGB。`null` 移除本页背景并恢复版式、母版继承。`query.background` 返回有效 `value`、本页是否设置 `explicit` 与保护原因 `reason`；没有背景时返回白色纯色。`value` 的查询类型为 `PptxBackground`，还包含下节的图片背景；两个类型均由 `wasm/pptx` 和 `web/pptx` 导出。核心使用 `BackgroundFill`。
 
-渐变使用位置 0 和 100000 的两个不透明色标。`angle` 为顺时针 0–360 度，核心舍入到 1/60000 度并把 360 规范为 0；0 从左至右，90 从上至下。`scaled` 必须为布尔值；true 按页面长宽比调整角度，false 保持实际角度。导入可解析主题/系统颜色及已有明暗变换，保留未改源；透明度、多色标、非端点色标、路径渐变、非零平铺矩形、图片和复杂效果继续保护。有效背景随版式/母版继承，复制页与尺寸调整沿相同解析；修改背景不改对象身份或几何。角度规则依据 [ONLYOFFICE getGradientPoints](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/editorscommon.js#L15290-L15511)。
+渐变使用位置 0 和 100000 的两个不透明色标。`angle` 为顺时针 0–360 度，核心舍入到 1/60000 度并把 360 规范为 0；0 从左至右，90 从上至下。`scaled` 必须为布尔值；true 按页面长宽比调整角度，false 保持实际角度。导入可解析主题/系统颜色及已有明暗变换，保留未改源；透明度、多色标、非端点色标、路径渐变、非零平铺矩形和复杂效果继续保护；图片背景见下节。有效背景随版式/母版继承，复制页与尺寸调整沿相同解析；修改背景不改对象身份或几何。角度规则依据 [ONLYOFFICE getGradientPoints](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/editorscommon.js#L15290-L15511)。
 
 操作复用 revision、候选保护、输出预算和精确撤销重做；本页已有相同有效背景时为无操作。默认面板提供背景类型、两色/角度/比例设置和恢复继承；原生文字编辑保留尚未应用的背景草稿。核心复用现有矩阵与水平渐变原语生成任意方向，Canvas/PDF 不解析 DrawingML。12 项定向核心、两条 Chromium 流程检查继承、方向/比例、源保真、历史、重开输入、真实 Canvas 颜色及独立 PDF 渲染颜色。其他背景与母版编辑仍待实现；主题颜色和字体见下节。修改本页背景的语义参考 [ONLYOFFICE Slide.changeBackground](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L825-L829)，实现归 [`background-fill.mbt`](../../modules/formats/src/pptx/background-fill.mbt)和 [`slide-background.mbt`](../../modules/formats/src/pptx/slide-background.mbt)。
+
+### 图片背景
+
+`PresentationEditor.editSlides({ action: "backgroundImage", bytes, mode }, slide?)` 设置或替换本页 PNG/JPEG 背景，`mode` 为 `stretch` 或 `tile`。Wasm/Worker 使用同一 `editPptxSlides` 命令。输入沿图片写入上限：4 MiB、单边 4096 像素及总计 4 Mi 像素。原图片字节、关系、内容类型和背景源合为一次有界事务；保留对象、选择与非目标部件，支持精确撤销/重做、页面复制及保存重开。重复设置相同本地图片及模式不增加历史，旧资源继续保留，不做包清理。
+
+`{ action: "backgroundImageMode", mode }` 切换已有图片背景的方式，保留资源键及有效裁剪、透明度和已有平铺参数；转为平铺时使用已有参数或标准默认值。继承图片可创建本页覆盖，继续复用原资源；本地替换只修改图片引用，模式切换只修改 `stretch/tile`；保留 `dpi/cstate/rotWithShape` 等已识别源属性、已有图片关系和其他部件。`{ action: "background", value: null }` 恢复继承，受支持的纯色/渐变命令也可替换图片背景。默认背景面板提供类型、图片、模式及恢复继承，文件读取绑定目标页，读完后检查目标是否改变。
+
+`query.background.value` 的图片分支为 `{ kind: "image", key, crop: [left, top, right, bottom], opacity, mode }`，其余分支仍为纯色与线性渐变。`key` 是核心图片资源身份，`crop` 是非负源裁剪比例，`opacity` 为 0–1。按幻灯片、版式、母版顺序选择背景，并按实际来源部件解析内部图片关系；主题 `bgRef` 也按主题部件解析。导入保留 `srcRect` 和常量 `alphaModFix`，替换图片继续保留这些值；背景裁剪与透明度编辑仍待实现。
+
+背景先铺白底，再裁剪到整页并使用既有图片图元，前景对象随后绘制。拉伸以有效源矩形覆盖页面；平铺复用形状图片的 96 DPI、缩放/偏移、九种对齐及交替翻转。背景与形状合计每页最多 65536 格；写入、模式、尺寸及变换候选先验证此上限。背景图片计入全稿 256 项使用中图片及既有字节/历史预算，预览、PNG 和 PDF 使用同一资源清单。外链、裁剪后平铺、非零目标内缩和未知效果继续保护；不抓取外部图片，也不删除未知源来替换背景。
+
+读取与绘制顺序参考 [ONLYOFFICE 背景继承](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L1260-L1322)、[背景图片资源](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L1134-L1151)及[背景先于对象绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L1416-L1451)，未复制上游源码。实现归[背景图片](../../modules/formats/src/pptx/background-image.mbt)、[图片事务](../../modules/formats/src/pptx/object-image.mbt)和[共用平铺](../../modules/formats/src/pptx/shape-tile.mbt)。
 
 ### 主题颜色
 

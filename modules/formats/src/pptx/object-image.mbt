@@ -5,9 +5,20 @@ fn Session::write_image(
   placement : (Double, Double, Double, Double)?,
   fill~ : Bool = false,
   mode~ : String = "stretch",
+  background~ : Int? = None,
 ) -> Json raise @failure.Failure {
+  let original = background
+    .map(i => self.slides[i])
+    .unwrap_or_else(() => self.current())
+  if background is Some(_) {
+    check_image_fill_mode(mode)
+    let reason = self.background_reason(original)
+    guard reason.is_empty() else {
+      @failure.reject("protected-content", reason)
+    }
+  }
   let targets = if fill { self.image_fill_targets() } else { [] }
-  let target = if placement is None && !fill {
+  let target = if placement is None && !fill && background is None {
     Some(self.selected_image(false))
   } else {
     None
@@ -33,11 +44,25 @@ fn Session::write_image(
     }) {
     return self.query()
   }
-  let original = self.current()
+  let reuse = if background is Some(_) &&
+    original.background is Picture(key, _, _, _) &&
+    self.image_bytes(key) == bytes {
+    Some(key)
+  } else {
+    None
+  }
+  if reuse is Some(_) &&
+    background_image_source(original) is Some(_) &&
+    original.background is Picture(_, _, _, tile) &&
+    (if tile is Some(_) { "tile" } else { "stretch" }) == mode {
+    return self.query()
+  }
   let identity = if target is Some(object) {
     object.id[original.tree.part.length() + 1:].to_owned()
   } else if targets.get(0) is Some(object) {
     object.id[original.tree.part.length() + 1:].to_owned()
+  } else if background is Some(_) {
+    "Background"
   } else {
     self.next_object_identity()
   }
@@ -53,11 +78,18 @@ fn Session::write_image(
   let mut link = ""
   let links = self.relationships()
   while true {
-    path = directory + "media/image\{identity}_\{sequence}.\{extension}"
+    path = reuse.unwrap_or(
+      directory + "media/image\{identity}_\{sequence}.\{extension}",
+    )
     link = "odImage\{identity}_\{sequence}"
-    if !self.opc.names.contains(path.to_lower()) &&
-      !self.media.contains(path) &&
-      !self.parts.contains(path) &&
+    if (
+        reuse is Some(_) ||
+        (
+          !self.opc.names.contains(path.to_lower()) &&
+          !self.media.contains(path) &&
+          !self.parts.contains(path)
+        )
+      ) &&
       !links
       .iter()
       .any(rel => rel.owner == original.tree.part && rel.id == link) {
@@ -70,52 +102,120 @@ fn Session::write_image(
   }
   let parts = self.parts.copy()
   let media = self.media.copy()
-  media[path] = bytes
+  if reuse is None {
+    media[path] = bytes
+  }
   let created_parts : Map[String, @xml.Document] = Map([])
   let edits : Array[(String, @xml.Edit)] = []
-  let relations_path = relationship_part(original.tree.part)
-  let relations = parts
-    .get(relations_path)
-    .unwrap_or_else(() => {
-      if self.opc.names.contains(relations_path.to_lower()) {
-        self.opc.xml(relations_path)
-      } else {
-        @xml.Document::parse(
-          b"<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"/>",
-          relations_path,
-          self.budget.xml_depth,
-          self.budget.entry_bytes,
-        )
-      }
+  let reused_link = if reuse is Some(_) {
+    links
+    .iter()
+    .find_first(r => {
+      r.owner == original.tree.part &&
+      r.target == path &&
+      r.kind == relationship_uri + "/image" &&
+      !r.external
     })
-  let (relations, edit) = relations.edit_source([
-    insertion(
-      relations.nodes()[0],
-      "<Relationship xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\" Id=\"\{link}\" Type=\"\{relationship_uri}/image\" Target=\"/\{xml_attribute(path)}\"/>",
-    ),
-  ])
-  parts[relations_path] = relations
-  if !self.parts.contains(relations_path) &&
-    !self.opc.names.contains(relations_path.to_lower()) {
-    created_parts[relations_path] = relations
+    .map(r => r.id)
   } else {
-    edits.push((relations_path, edit))
+    None
   }
-  let types_path = "[Content_Types].xml"
-  let types = parts
-    .get(types_path)
-    .unwrap_or_else(() => self.opc.xml(types_path))
-  let (types, edit) = types.edit_source([
-    insertion(
-      types.nodes()[0],
-      "<Override xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{xml_attribute(path)}\" ContentType=\"\{content_type}\"/>",
-    ),
-  ])
-  parts[types_path] = types
-  edits.push((types_path, edit))
+  if reused_link is Some(id) {
+    link = id
+  }
+  if reused_link is None {
+    let relations_path = relationship_part(original.tree.part)
+    let relations = parts
+      .get(relations_path)
+      .unwrap_or_else(() => {
+        if self.opc.names.contains(relations_path.to_lower()) {
+          self.opc.xml(relations_path)
+        } else {
+          @xml.Document::parse(
+            b"<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"/>",
+            relations_path,
+            self.budget.xml_depth,
+            self.budget.entry_bytes,
+          )
+        }
+      })
+    let (relations, edit) = relations.edit_source([
+      insertion(
+        relations.nodes()[0],
+        "<Relationship xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\" Id=\"\{link}\" Type=\"\{relationship_uri}/image\" Target=\"/\{xml_attribute(path)}\"/>",
+      ),
+    ])
+    parts[relations_path] = relations
+    if !self.parts.contains(relations_path) &&
+      !self.opc.names.contains(relations_path.to_lower()) {
+      created_parts[relations_path] = relations
+    } else {
+      edits.push((relations_path, edit))
+    }
+  }
+  if reuse is None {
+    let types_path = "[Content_Types].xml"
+    let types = parts
+      .get(types_path)
+      .unwrap_or_else(() => self.opc.xml(types_path))
+    let (types, edit) = types.edit_source([
+      insertion(
+        types.nodes()[0],
+        "<Override xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{xml_attribute(path)}\" ContentType=\"\{content_type}\"/>",
+      ),
+    ])
+    parts[types_path] = types
+    edits.push((types_path, edit))
+  }
   let markup = "<p:pic xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\" xmlns:r=\"\{relationship_uri}\"><p:nvPicPr><p:cNvPr id=\"\{identity}\" name=\"Picture \{identity}\"/><p:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed=\"\{link}\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x=\"\{(x * 12700).round().to_int64()}\" y=\"\{(y * 12700).round().to_int64()}\"/><a:ext cx=\"\{(width * 12700).round().to_int64()}\" cy=\"\{(height * 12700).round().to_int64()}\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr></p:pic>"
   let changes : Array[@xml.SourceChange] = []
-  if fill {
+  if background is Some(_) {
+    let (crop, opacity, tile) = if original.background
+      is Picture(_, crop, opacity, tile) {
+      (crop, opacity, tile)
+    } else {
+      ([0.0, 0.0, 0.0, 0.0], 1.0, None)
+    }
+    guard mode != "tile" || crop.all(v => v == 0) else {
+      @failure.reject("protected-content", "Cropped tile sources are protected")
+    }
+    if background_image_source(original) is Some(fill) {
+      let blip = fill.child("blip").unwrap()
+      let embed = blip.node.attributes
+        .iter()
+        .find_first(a => a.uri == relationship_uri && a.name == "embed")
+        .unwrap()
+      if embed.value != link {
+        changes.push({
+          node: blip.node.id,
+          offset: embed.start - blip.node.start,
+          length: embed.end - embed.start,
+          xml: xml_attribute(link),
+        })
+      }
+      if (if tile is Some(_) { "tile" } else { "stretch" }) != mode {
+        changes.push(image_fill_mode_change(fill, mode))
+      }
+    } else {
+      changes.push(
+        background_change(
+          original,
+          Some(
+            image_fill_markup(
+              link,
+              opacity,
+              crop,
+              if mode == "tile" {
+                Some(tile.unwrap_or(ImageTile::default()))
+              } else {
+                None
+              },
+            ),
+          ),
+        ),
+      )
+    }
+  } else if fill {
     for object in targets {
       let properties = object.source
         .child("spPr", uri=presentation_uri)
@@ -181,19 +281,8 @@ fn Session::write_image(
   edits.push((original.tree.part, edit))
   let slides = self.slides.copy()
   slides[self.index(original.tree.part)] = candidate
-  let images : Map[String, Bool] = Map([])
-  for slide in slides {
-    for object in slide.objects {
-      if object.image is Some(key) {
-        images[key] = true
-      }
-    }
-  }
-  guard images.length() <= 256 else {
-    @failure.reject("limit-exceeded", "Presentation images exceed 256")
-  }
   let id = original.tree.part + "#" + identity
-  let after : Selection = if target is Some(_) || fill {
+  let after : Selection = if target is Some(_) || fill || background is Some(_) {
     self.selection
   } else {
     {
@@ -213,9 +302,9 @@ fn Session::write_image(
     parts~,
     media~,
     created_parts~,
-    created_media=Map([(path, bytes)]),
+    created_media=if reuse is None { Map([(path, bytes)]) } else { Map([]) },
   )
-  if target is None && !fill {
+  if target is None && !fill && background is None {
     self.object_sequence = number(identity, 0, 4294967295).to_int64() + 1L
   }
   self.query()

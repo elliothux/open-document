@@ -39,12 +39,28 @@ fn Session::validate_slides(
   ignore(slide_font_keys(slides))
   let mut count = 0
   let mut units = 0
+  let (width, height) = presentation_size(main)
+  let images : Map[String, Bool] = Map([])
   for slide in slides {
-    ignore(self.tile_sizes(slide, media~))
+    ignore(self.tile_sizes(slide, media~, width~, height~))
+    for key in slide.image_keys() {
+      images[key] = true
+    }
+    if slide.background is Picture(_, crop, _, _) {
+      guard width / (1 - crop[0] - crop[2]) <= 1000000000 &&
+        height / (1 - crop[1] - crop[3]) <= 1000000000 else {
+        @failure.reject(
+          "limit-exceeded", "Cropped background exceeds drawing bounds",
+        )
+      }
+    }
     count += slide.objects.length()
     for object in slide.objects {
       units += object.text().length()
     }
+  }
+  guard images.length() <= 256 else {
+    @failure.reject("limit-exceeded", "Presentation images exceed 256")
   }
   guard count <= 16384 && units <= 1048576 else {
     @failure.reject(

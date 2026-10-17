@@ -16,6 +16,7 @@ import {
 pub(all) enum BackgroundFill {
   Solid(String)
   Linear(String, String, Double, Bool)
+  Picture(String, Array[Double], Double, ImageTile?)
 } derive(Eq, @debug.Debug)
 pub fn BackgroundFill::equal(Self, Self) -> Bool
 pub fn BackgroundFill::not_equal(Self, Self) -> Bool
@@ -29,6 +30,18 @@ pub(all) struct FindOptions {
   all : Bool
 }
 pub fn FindOptions::new(matchCase? : Bool, wholeWord? : Bool, all? : Bool) -> Self
+
+pub struct ImageTile {
+  sx : Double
+  sy : Double
+  tx : Double
+  ty : Double
+  align : String
+  flip : String
+} derive(Eq, @debug.Debug)
+pub fn ImageTile::equal(Self, Self) -> Bool
+pub fn ImageTile::not_equal(Self, Self) -> Bool
+pub fn ImageTile::to_repr(Self) -> @debug.Repr
 
 pub(all) struct LineEnd {
   kind : String
@@ -142,6 +155,8 @@ pub(all) enum SlideEdit {
   MoveSlide(Int)
   HideSlide(Bool)
   Background(BackgroundFill?)
+  BackgroundImage(Bytes, String)
+  BackgroundImageMode(String)
   ThemeColor(String, String)
   ThemeFont(String, String, String)
   ApplyLayout(String)

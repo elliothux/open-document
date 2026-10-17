@@ -137,10 +137,12 @@ fn read_slide(
     )
     if layer.one(container.id, "bg", uri=presentation_uri) is Some(bg) {
       if layer.one(bg.id, "bgPr", uri=presentation_uri) is Some(properties) {
-        background = read_background_fill(theme, {
-          tree: layer,
-          node: properties,
-        }) catch {
+        background = read_background_fill(
+          theme,
+          { tree: layer, node: properties, },
+          opc~,
+          parts~,
+        ) catch {
           @failure.Failure(code="unsupported-style", message~, ..) => {
             diagnostics.push(layer.part + ":" + message)
             Solid("ffffff")
@@ -158,7 +160,7 @@ fn read_slide(
           guard resolved is Some((item, ph)) else {
             @failure.reject("unsupported-style", "Unsupported theme background")
           }
-          read_background_fill(theme, item, placeholder=Some(ph))
+          read_background_fill(theme, item, opc~, parts~, placeholder=Some(ph))
         })() catch {
           @failure.Failure(code="unsupported-style", message~, ..) => {
             diagnostics.push(layer.part + ":" + message)
@@ -625,9 +627,7 @@ pub fn Session::image_bytes(
   key : String,
 ) -> Bytes raise @failure.Failure {
   self.check()
-  guard self.slides.any(slide => {
-    slide.objects.any(object => object.image == Some(key))
-  }) else {
+  guard self.slides.any(slide => slide.image_keys().contains(key)) else {
     @failure.reject("invalid-image", "Unknown presentation image")
   }
   self.media.get(key).unwrap_or_else(() => self.opc.read(key))

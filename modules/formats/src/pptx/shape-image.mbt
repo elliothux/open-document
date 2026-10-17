@@ -1,13 +1,21 @@
 ///|
 fn shape_image_source(
   fill : Ref,
+  background~ : Bool = false,
 ) -> (String, Array[Double], Double, ImageTile?) raise @failure.Failure {
   try {
     guard fill.node.attributes.all(a => {
         a.uri.is_empty() &&
         (
           a.name == "dpi" ||
-          (a.name == "rotWithShape" && ["1", "true"].contains(a.value))
+          (
+            a.name == "rotWithShape" &&
+            (if background {
+              ["0", "1", "false", "true"]
+            } else {
+              ["1", "true"]
+            }).contains(a.value)
+          )
         )
       }) &&
       !source_xml(fill).contains("<!--") &&
@@ -105,8 +113,9 @@ fn read_shape_image(
   opc : @opc.Package,
   fill : Ref,
   parts : Map[String, @xml.Document],
+  background~ : Bool = false,
 ) -> (String, Array[Double], Double, ImageTile?) raise @failure.Failure {
-  let (embed, crop, opacity, tile) = shape_image_source(fill)
+  let (embed, crop, opacity, tile) = shape_image_source(fill, background~)
   let target = image_target(opc, fill.tree.part, embed, parts)
   guard target is Some(key) &&
     [Some("image/png"), Some("image/jpeg")].contains(

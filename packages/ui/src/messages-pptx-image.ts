@@ -1,4 +1,7 @@
 export const imageEn = {
+  slideBackgroundPicture: "Slide background picture",
+  backgroundImageTargetChanged:
+    "The target slide changed while reading the picture",
   imageFill: "Picture fill",
   imageFillMode: "Picture fill mode",
   imageStretch: "Stretch",
@@ -8,6 +11,8 @@ export const imageEn = {
 };
 
 export const imageZh = {
+  slideBackgroundPicture: "幻灯片背景图片",
+  backgroundImageTargetChanged: "读取图片期间目标幻灯片已改变",
   imageFill: "图片填充",
   imageFillMode: "图片填充方式",
   imageStretch: "拉伸",

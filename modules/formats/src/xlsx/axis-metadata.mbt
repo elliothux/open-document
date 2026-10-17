@@ -412,7 +412,8 @@ fn Session::axis_names(
       }
       parts.join(",")
     } else {
-      axis_formula(node.text, current, target, change)
+      // A name's scope controls lookup, not its independent reference context.
+      axis_formula(node.text, None, target, change)
     }
     if text.is_empty() {
       changes.push(sheet_node_removal(tree, node))

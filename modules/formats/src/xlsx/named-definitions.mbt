@@ -196,23 +196,3 @@ fn Expression::resolve_names(
       )
   }
 }
-
-///|
-fn Session::check_named_structure(
-  self : Session,
-) -> Unit raise @failure.Failure {
-  for source in self.formula_names().sources.values() {
-    let relative = parse_formula(
-      source.strip_prefix("=").unwrap_or(source[:]).to_owned(),
-    ).relative_rule() catch {
-      @failure.Failure(code~, ..) if code != "limit-exceeded" => false
-      error => raise error
-    }
-    // shortcut: Coordinate relative name offsets with row/cell structure changes before enabling them.
-    guard !relative else {
-      @failure.reject(
-        "protected-content", "Relative defined names require structural offset support",
-      )
-    }
-  }
-}

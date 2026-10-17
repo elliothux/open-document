@@ -130,6 +130,13 @@ fn Foundation::pptx_operation(
             xlsx_number(change, "width"),
             xlsx_number(change, "height"),
           )
+        "backgroundImage" =>
+          @pptx.BackgroundImage(
+            input_bytes(change, 4194304),
+            field_string(change, "mode"),
+          )
+        "backgroundImageMode" =>
+          @pptx.BackgroundImageMode(field_string(change, "mode"))
         "background" => {
           let value = match change {
             { "value": Null, .. } => None

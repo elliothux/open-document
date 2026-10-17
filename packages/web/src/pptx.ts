@@ -26,6 +26,7 @@ export type {
   PptxComment,
   PptxComments,
   PptxBackgroundFill,
+  PptxBackground,
   PptxSection,
   PptxSections,
   PptxSlideLayouts,
@@ -71,17 +72,19 @@ export class PptxClient {
   async execute<C extends PptxCommand>(command: C): Promise<PptxResult<C>> {
     if (command.operation === "editPptxObjects")
       checkPptxObjectEdit(command.change);
+    if (command.operation === "editPptxSlides")
+      checkPptxSlideEdit(command.change);
     if (
-      command.operation === "editPptxObjects" &&
-      (command.change.action === "insertImage" ||
-        command.change.action === "imageFill" ||
-        command.change.action === "replaceImage")
+      (command.operation === "editPptxObjects" &&
+        (command.change.action === "insertImage" ||
+          command.change.action === "imageFill" ||
+          command.change.action === "replaceImage")) ||
+      (command.operation === "editPptxSlides" &&
+        command.change.action === "backgroundImage")
     ) {
       const { bitmap } = await decodeImage(command.change.bytes);
       bitmap.close();
     }
-    if (command.operation === "editPptxSlides")
-      checkPptxSlideEdit(command.change);
     const request =
       command.operation === "findPptx" ||
       command.operation === "replacePptxMatches"

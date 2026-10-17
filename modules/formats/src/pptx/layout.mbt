@@ -204,7 +204,7 @@ fn paint_slide(
   profile : Map[String, String],
   tile_sizes : Map[String, (Int, Int)],
 ) -> (@layout.PositionedPage, Array[TextGeometry], Array[String]) raise @failure.Failure {
-  let primitives = slide.background.paint(width, height)
+  let primitives = slide.background.paint(width, height, tile_sizes~)
   let texts : Array[TextGeometry] = []
   let fonts = probe.font_info()
   let diagnostics = slide.diagnostics.copy()
@@ -250,7 +250,15 @@ fn paint_slide(
           primitives.push(ClipPath(path, false))
           if object.tile is Some(_) {
             primitives.append(
-              object.draw_tiles(geometry, tile_sizes[object.image.unwrap()]),
+              object.tile
+              .unwrap()
+              .paint(
+                object.image.unwrap(),
+                object.opacity,
+                geometry.width,
+                geometry.height,
+                tile_sizes[object.image.unwrap()],
+              ),
             )
           } else {
             primitives.push(object.image_primitive(geometry))
@@ -358,9 +366,8 @@ pub fn Session::layout(
     fonts: probe.font_info(),
   }
   let resources : Array[String] = []
-  for object in slide.objects {
-    if object.image is Some(key) &&
-      !resources.contains(images.get(key).identity) {
+  for key in slide.image_keys() {
+    if !resources.contains(images.get(key).identity) {
       resources.push(images.get(key).identity)
     }
   }
@@ -445,8 +452,8 @@ pub fn Session::image_keys(
   for slide in self.slides {
     if (all && (hidden || !slide.hidden)) ||
       (!all && slide.tree.part == self.selection.slide) {
-      for object in slide.objects {
-        if object.image is Some(key) && !keys.contains(key) {
+      for key in slide.image_keys() {
+        if !keys.contains(key) {
           keys.push(key)
         }
       }

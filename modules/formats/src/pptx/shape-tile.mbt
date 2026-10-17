@@ -1,12 +1,18 @@
 ///|
-priv struct ImageTile {
+pub struct ImageTile {
   sx : Double
   sy : Double
   tx : Double
   ty : Double
   align : String
   flip : String
-}
+} derive(Eq, Debug)
+
+///|
+pub extend ImageTile with Eq::{equal, not_equal}
+
+///|
+pub extend ImageTile with Debug::{to_repr}
 
 ///|
 priv struct TileGrid {
@@ -60,7 +66,8 @@ fn ImageTile::markup(self : ImageTile) -> String {
 ///|
 fn ImageTile::grid(
   self : ImageTile,
-  geometry : Geometry,
+  shape_width : Double,
+  shape_height : Double,
   pixels : (Int, Int),
 ) -> TileGrid raise @failure.Failure {
   // ONLYOFFICE uses 96 DPI rather than embedded image DPI for texture sizing.
@@ -80,12 +87,12 @@ fn ImageTile::grid(
   } else {
     0.0
   }
-  let x = (geometry.width - width) * ax + self.tx / 12700
-  let y = (geometry.height - height) * ay + self.ty / 12700
+  let x = (shape_width - width) * ax + self.tx / 12700
+  let y = (shape_height - height) * ay + self.ty / 12700
   let left = (-x / width).floor()
   let top = (-y / height).floor()
-  let columns = ((geometry.width - x) / width).ceil() - left
-  let rows = ((geometry.height - y) / height).ceil() - top
+  let columns = ((shape_width - x) / width).ceil() - left
+  let rows = ((shape_height - y) / height).ceil() - top
   guard columns > 0 && rows > 0 && columns * rows <= 65536 else {
     @failure.reject("limit-exceeded", "Slide image tiles exceed 65536")
   }
@@ -106,41 +113,53 @@ fn Session::tile_sizes(
   self : Session,
   slide : Slide,
   media~ : Map[String, Bytes] = self.media,
+  width~ : Double = self.width,
+  height~ : Double = self.height,
 ) -> Map[String, (Int, Int)] raise @failure.Failure {
   let sizes : Map[String, (Int, Int)] = Map([])
   let mut count = 0
+  let entries : Array[(String, ImageTile, Double, Double)] = []
+  if slide.background is Picture(key, _, _, Some(tile)) {
+    entries.push((key, tile, width, height))
+  }
   for object in slide.objects {
     if object.tile is Some(tile) &&
       object.geometry is Some(geometry) &&
       object.diagnostic.is_empty() {
-      let key = object.image.unwrap()
-      let pixels = sizes
-        .get(key)
-        .unwrap_or_else(() => {
-          let (_, _, width, height) = @image.type_info(
-            media.get(key).unwrap_or_else(() => self.opc.read(key)),
-          )
-          sizes[key] = (width, height)
-          (width, height)
-        })
-      let grid = tile.grid(geometry, pixels)
-      count += grid.columns * grid.rows
-      guard count <= 65536 else {
-        @failure.reject("limit-exceeded", "Slide image tiles exceed 65536")
-      }
+      entries.push(
+        (object.image.unwrap(), tile, geometry.width, geometry.height),
+      )
+    }
+  }
+  for (key, tile, width, height) in entries {
+    let pixels = sizes
+      .get(key)
+      .unwrap_or_else(() => {
+        let (_, _, width, height) = @image.type_info(
+          media.get(key).unwrap_or_else(() => self.opc.read(key)),
+        )
+        sizes[key] = (width, height)
+        (width, height)
+      })
+    let grid = tile.grid(width, height, pixels)
+    count += grid.columns * grid.rows
+    guard count <= 65536 else {
+      @failure.reject("limit-exceeded", "Slide image tiles exceed 65536")
     }
   }
   sizes
 }
 
 ///|
-fn Object::draw_tiles(
-  self : Object,
-  geometry : Geometry,
+fn ImageTile::paint(
+  tile : ImageTile,
+  key : String,
+  opacity : Double,
+  width : Double,
+  height : Double,
   pixels : (Int, Int),
 ) -> Array[@layout.PositionedPrimitive] raise @failure.Failure {
-  let tile = self.tile.unwrap()
-  let grid = tile.grid(geometry, pixels)
+  let grid = tile.grid(width, height, pixels)
   let result : Array[@layout.PositionedPrimitive] = []
   for row in 0..<grid.rows {
     let index_y = grid.top + row.to_double()
@@ -172,14 +191,8 @@ fn Object::draw_tiles(
       )
       result.push(
         Image(
-          {
-            key: self.image.unwrap(),
-            x: 0,
-            y: 0,
-            width: grid.width,
-            height: grid.height,
-          },
-          self.opacity,
+          { key, x: 0, y: 0, width: grid.width, height: grid.height, },
+          opacity,
         ),
       )
       result.push(Restore)
@@ -193,6 +206,26 @@ fn check_image_fill_mode(mode : String) -> Unit raise @failure.Failure {
   guard ["stretch", "tile"].contains(mode) else {
     @failure.reject("invalid-operation", "Unknown image fill mode")
   }
+}
+
+///|
+fn image_fill_mode_change(
+  fill : Ref,
+  mode : String,
+) -> @xml.SourceChange raise @failure.Failure {
+  let previous = fill
+    .child(if mode == "tile" { "stretch" } else { "tile" })
+    .unwrap()
+  paint_child_change(
+    fill,
+    Some(previous.node),
+    if mode == "tile" {
+      ImageTile::default().markup()
+    } else {
+      "<a:stretch xmlns:a=\"\{drawing_uri}\"><a:fillRect/></a:stretch>"
+    },
+    [],
+  )
 }
 
 ///|
@@ -217,21 +250,7 @@ fn Session::set_image_fill_mode(
     if (if object.tile is Some(_) { "tile" } else { "stretch" }) == mode {
       continue
     }
-    let previous = fill
-      .child(if mode == "tile" { "stretch" } else { "tile" })
-      .unwrap()
-    changes.push(
-      paint_child_change(
-        fill,
-        Some(previous.node),
-        if mode == "tile" {
-          ImageTile::default().markup()
-        } else {
-          "<a:stretch xmlns:a=\"\{drawing_uri}\"><a:fillRect/></a:stretch>"
-        },
-        [],
-      ),
-    )
+    changes.push(image_fill_mode_change(fill, mode))
   }
   if changes.is_empty() {
     return self.query()
