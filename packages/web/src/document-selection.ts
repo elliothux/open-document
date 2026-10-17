@@ -5,9 +5,38 @@ import type {
   DocxSelection,
   DocxSearchResult,
   DocxHit,
+  DocxOverview,
 } from "@open-document/wasm/foundation";
 import type { EditorSnapshot } from "./editor-state.js";
 import type { PageLayout } from "@open-document/wasm/preview";
+
+export type DocumentOverview = DocxOverview & { documentId: string };
+
+export function headingSelection(
+  result: DocumentOverview,
+  snapshot: EditorSnapshot,
+  index: number,
+): DocxSelection {
+  const heading = result.headings[index];
+  if (
+    result.documentId !== snapshot.documentId ||
+    result.revision !== snapshot.revision ||
+    !heading ||
+    heading.reason
+  )
+    throw new DocumentError(
+      "stale-overview",
+      heading?.reason || "Document changed; refresh headings before navigation",
+      "",
+      -1,
+    );
+  const position: DocxPosition = {
+    paragraph: heading.paragraph,
+    offset: 0,
+    affinity: "after",
+  };
+  return { anchor: position, focus: position };
+}
 
 export function pointerDocxSelection(
   hit: DocxHit,

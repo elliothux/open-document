@@ -1,18 +1,35 @@
 ///|
-pub(all) struct FilterValues {
+pub(all) struct FilterCondition {
+  operator : String
+  value : String
+} derive(Eq)
+
+///|
+pub(all) enum FilterRule {
+  Values(Array[String], blank~ : Bool)
+  Custom(Array[FilterCondition], all~ : Bool)
+} derive(Eq)
+
+///|
+pub(all) struct FilterColumn {
   column : Int
-  values : Array[String]
-  blank : Bool
+  rule : FilterRule
 } derive(Eq)
 
 ///|
 pub(all) struct FilterSettings {
   range : String
-  columns : Array[FilterValues]
+  columns : Array[FilterColumn]
 } derive(Eq)
 
 ///|
-pub extend FilterValues with Eq::{equal, not_equal}
+pub extend FilterColumn with Eq::{equal, not_equal}
+
+///|
+pub extend FilterCondition with Eq::{equal, not_equal}
+
+///|
+pub extend FilterRule with Eq::{equal, not_equal}
 
 ///|
 pub extend FilterSettings with Eq::{equal, not_equal}
@@ -72,23 +89,41 @@ fn filter_settings(settings : FilterSettings) -> Range raise @failure.Failure {
   for column in settings.columns {
     guard column.column >= range.left &&
       column.column <= range.right &&
-      !seen.contains(column.column) &&
-      column.values.length() <= 4096 else {
+      !seen.contains(column.column) else {
       @failure.reject("invalid-operation", "Invalid or duplicate filter column")
     }
     seen[column.column] = true
-    let values : Map[String, Bool] = Map([])
-    for value in column.values {
+    let labels = match column.rule {
+      Values(values, ..) => {
+        guard values.length() <= 4096 else {
+          @failure.reject("invalid-operation", "Too many filter labels")
+        }
+        values
+      }
+      Custom(conditions, ..) => {
+        guard conditions.length() >= 1 && conditions.length() <= 2 else {
+          @failure.reject(
+            "invalid-operation", "Custom filters require one or two conditions",
+          )
+        }
+        for condition in conditions {
+          ignore(filter_operator(condition.operator))
+        }
+        conditions.map(c => c.value)
+      }
+    }
+    let seen_labels : Map[String, Bool] = Map([])
+    for value in labels {
       units += value.length()
       guard value.length() <= 32767 &&
         @xml.valid_text(value) &&
-        !values.contains(value) &&
+        (!(column.rule is Values(_, ..)) || !seen_labels.contains(value)) &&
         units <= 1048576 else {
         @failure.reject(
           "invalid-operation", "Invalid filter values or text budget",
         )
       }
-      values[value] = true
+      seen_labels[value] = true
     }
   }
   range
@@ -118,7 +153,7 @@ fn read_filter(sheet : Sheet) -> AutoFilterState? raise @failure.Failure {
   }
   let range = Range::parse(root.attribute("ref").unwrap_or(""))
   ignore(filter_settings({ range: range.name(), columns: [], }))
-  let columns : Array[FilterValues] = []
+  let columns : Array[FilterColumn] = []
   let flags : Map[Int, Array[(String, String)]] = Map([])
   let mut manual : Array[Int] = []
   let mut filtered : Array[Int] = []
@@ -152,9 +187,43 @@ fn read_filter(sheet : Sheet) -> AutoFilterState? raise @failure.Failure {
       if children.is_empty() {
         continue
       }
-      guard children is [filters] &&
-        filters.uri == spreadsheet_uri &&
-        filters.name == "filters" else {
+      guard children is [filters] && filters.uri == spreadsheet_uri else {
+        @failure.reject(
+          "protected-content", "This filter kind requires evaluation support",
+        )
+      }
+      if filters.name == "customFilters" {
+        filter_attributes(filters, ["and"])
+        let entries = tree.children.get(filters.id).unwrap_or([])
+        guard entries.length() >= 1 && entries.length() <= 2 else {
+          @failure.reject("protected-content", "Invalid custom filter count")
+        }
+        let conditions = entries.map(value => {
+          guard value.uri == spreadsheet_uri &&
+            value.name == "customFilter" &&
+            tree.children.get(value.id).unwrap_or([]).is_empty() else {
+            @failure.reject(
+              "protected-content", "Unknown custom filter content",
+            )
+          }
+          filter_attributes(value, ["operator", "val"])
+          guard value.attribute("val") is Some(text) else {
+            @failure.reject(
+              "protected-content", "Custom filter value is missing",
+            )
+          }
+          {
+            operator: value.attribute("operator").unwrap_or("equal"),
+            value: text,
+          }
+        })
+        columns.push({
+          column,
+          rule: Custom(conditions, all=flag(filters, "and")),
+        })
+        continue
+      }
+      guard filters.name == "filters" else {
         @failure.reject(
           "protected-content", "This filter kind requires evaluation support",
         )
@@ -184,7 +253,10 @@ fn read_filter(sheet : Sheet) -> AutoFilterState? raise @failure.Failure {
           ),
         )
       })
-      columns.push({ column, values, blank: flag(filters, "blank"), })
+      columns.push({
+        column,
+        rule: Values(values, blank=flag(filters, "blank")),
+      })
     } else if node.name == "extLst" {
       filter_attributes(node, [])
       let extensions = tree.children.get(node.id).unwrap_or([])

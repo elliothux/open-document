@@ -20,6 +20,8 @@ import {
 } from "./docx-format.js";
 export * from "./docx-format.js";
 export * from "./docx-picture.js";
+export { docxOverview, type DocxOverview } from "./docx-overview.js";
+import { docxOverview, type DocxOverview } from "./docx-overview.js";
 import {
   prepareDocxPictureEdit,
   docxPictures,
@@ -389,6 +391,9 @@ export class FoundationSession extends WasmSession {
 
   query(): DocxQuery {
     return docxQuery(this.call({ operation: "query" }));
+  }
+  overview(revision: number): DocxOverview {
+    return docxOverview(this.call({ operation: "docxOverview", revision }));
   }
 
   createDocx(budget: Budget): DocxQuery {

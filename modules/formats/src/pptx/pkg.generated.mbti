@@ -112,6 +112,7 @@ pub(all) enum SlideEdit {
   MoveSlide(Int)
   HideSlide(Bool)
   Background(String?)
+  Notes(String)
   Size(Double, Double)
   AddSection(String)
   RenameSection(String, String)

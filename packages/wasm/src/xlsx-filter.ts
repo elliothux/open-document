@@ -1,15 +1,36 @@
 import { record, integer } from "./validation.js";
 
 export interface XlsxFilterValues {
+  kind: "values";
   /** One-based worksheet column. Values match trimmed, formatted labels without case. */
   column: number;
   values: string[];
   blank: boolean;
 }
+export type XlsxFilterOperator =
+  | "equal"
+  | "notEqual"
+  | "greaterThan"
+  | "greaterThanOrEqual"
+  | "lessThan"
+  | "lessThanOrEqual";
+export interface XlsxFilterCondition {
+  operator: XlsxFilterOperator;
+  /** Numeric comparisons use current values; text supports *, ? and ~ escaping. */
+  value: string;
+}
+export interface XlsxCustomFilter {
+  kind: "custom";
+  column: number;
+  conditions: XlsxFilterCondition[];
+  /** True joins the conditions with AND, false with OR. */
+  all: boolean;
+}
+export type XlsxFilterColumn = XlsxFilterValues | XlsxCustomFilter;
 export interface XlsxFilterSettings {
   /** Explicit rectangle with a header in its first row. */
   range: string;
-  columns: XlsxFilterValues[];
+  columns: XlsxFilterColumn[];
 }
 export interface XlsxFilterState extends XlsxFilterSettings {
   reason: string;
@@ -36,26 +57,67 @@ export function checkXlsxFilter(value: unknown): void {
   let units = 0;
   for (const value of settings.columns) {
     const column = record(value);
-    if (
-      !integer(column.column, 1, 16384) ||
-      seen.has(Number(column.column)) ||
-      typeof column.blank !== "boolean" ||
-      !Array.isArray(column.values) ||
-      column.values.length > 4096
-    )
+    if (!integer(column.column, 1, 16384) || seen.has(Number(column.column)))
       throw new Error("Invalid filter column");
     seen.add(Number(column.column));
-    const labels = new Set<string>();
-    for (const label of column.values) {
+    let values: unknown[];
+    if (column.kind === "values") {
+      if (
+        typeof column.blank !== "boolean" ||
+        !Array.isArray(column.values) ||
+        column.values.length > 4096 ||
+        new Set(column.values).size !== column.values.length ||
+        Object.keys(column).some(
+          (k) => !["kind", "column", "values", "blank"].includes(k),
+        )
+      )
+        throw new Error("Invalid value filter");
+      values = column.values;
+    } else if (column.kind === "custom") {
+      if (
+        typeof column.all !== "boolean" ||
+        !Array.isArray(column.conditions) ||
+        column.conditions.length < 1 ||
+        column.conditions.length > 2 ||
+        Object.keys(column).some(
+          (k) => !["kind", "column", "conditions", "all"].includes(k),
+        )
+      )
+        throw new Error("Invalid custom filter");
+      values = column.conditions.map((value) => {
+        const condition = record(value);
+        if (
+          typeof condition.operator !== "string" ||
+          ![
+            "equal",
+            "notEqual",
+            "greaterThan",
+            "greaterThanOrEqual",
+            "lessThan",
+            "lessThanOrEqual",
+          ].includes(condition.operator) ||
+          Object.keys(condition).some((k) => !["operator", "value"].includes(k))
+        )
+          throw new Error("Invalid filter condition");
+        return condition.value;
+      });
+    } else throw new Error("Invalid filter kind");
+    for (const label of values) {
       if (
         typeof label !== "string" ||
         label.length > 32767 ||
         !label.isWellFormed() ||
-        labels.has(label) ||
+        Array.from(label).some((character) => {
+          const code = character.charCodeAt(0);
+          return (
+            (code < 32 && ![9, 10, 13].includes(code)) ||
+            code === 65534 ||
+            code === 65535
+          );
+        }) ||
         (units += label.length) > 1048576
       )
         throw new Error("Invalid filter label");
-      labels.add(label);
     }
   }
 }

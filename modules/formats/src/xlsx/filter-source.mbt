@@ -21,11 +21,23 @@ fn filter_markup(state : AutoFilterState) -> String raise @failure.Failure {
       "<od:filterColumn xmlns:od=\"\{spreadsheet_uri}\" colId=\"\{index - state.bounds.left}\"\{flags}>"
     if state.settings.columns.iter().find_first(c => c.column == index)
       is Some(column) {
-      out <+ "<od:filters blank=\"\{if column.blank { 1 } else { 0 }}\">"
-      for value in column.values {
-        out <+ "<od:filter val=\"\{escaped_attribute(value)}\"/>"
+      match column.rule {
+        Values(values, blank~) => {
+          out <+ "<od:filters blank=\"\{if blank { 1 } else { 0 }}\">"
+          for value in values {
+            out <+ "<od:filter val=\"\{escaped_attribute(value)}\"/>"
+          }
+          out <+ "</od:filters>"
+        }
+        Custom(conditions, all~) => {
+          out <+ "<od:customFilters and=\"\{if all { 1 } else { 0 }}\">"
+          for condition in conditions {
+            out <+
+              "<od:customFilter operator=\"\{condition.operator}\" val=\"\{escaped_attribute(condition.value)}\"/>"
+          }
+          out <+ "</od:customFilters>"
+        }
       }
-      out <+ "</od:filters>"
     }
     out <+ "</od:filterColumn>"
   }

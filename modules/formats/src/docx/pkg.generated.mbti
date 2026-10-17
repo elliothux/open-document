@@ -130,6 +130,7 @@ pub fn Session::insert_table(Self, Int, Selection, Int, Int) -> Json raise @fail
 pub fn Session::list_catalog(Self, Int) -> Json raise @failure.Failure
 pub fn Session::navigate(Self, Int, @layout.Layout, Int, String, extend_selection~ : Bool) -> @layout.Hit raise @failure.Failure
 pub fn Session::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
+pub fn Session::overview(Self, Int) -> Json raise @failure.Failure
 pub fn Session::page_setup(Self, Int) -> Json raise @failure.Failure
 pub fn Session::pictures(Self, Int) -> Json raise @failure.Failure
 pub fn Session::query(Self) -> Json raise @failure.Failure

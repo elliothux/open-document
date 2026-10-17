@@ -29,6 +29,10 @@ export type { XlsxSheetEdit, XlsxClearMode } from "@open-document/wasm/xlsx";
 export type { XlsxSortSettings, XlsxSortKey } from "@open-document/wasm/xlsx";
 export type {
   XlsxFilterValues,
+  XlsxFilterColumn,
+  XlsxFilterCondition,
+  XlsxFilterOperator,
+  XlsxCustomFilter,
   XlsxFilterSettings,
   XlsxFilterState,
 } from "@open-document/wasm/xlsx";

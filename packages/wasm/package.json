@@ -42,7 +42,7 @@
     "./engine.wasm": "./dist/engine.wasm"
   },
   "scripts": {
-    "build": "bun build src/engine.ts src/foundation.ts src/docx-format.ts src/docx-picture.ts src/docx-hit.ts src/docx-list.ts src/docx-list-level.ts src/docx-search.ts src/docx-table.ts src/preview.ts src/drawing.ts src/validation.ts src/session.ts src/xlsx.ts src/xlsx-sheet.ts src/xlsx-sort.ts src/xlsx-filter.ts src/xlsx-validation.ts src/xlsx-conditional.ts src/xlsx-print.ts src/xlsx-format.ts src/xlsx-search.ts src/pptx.ts src/pptx-objects.ts src/pptx-format.ts src/pptx-search.ts src/pptx-slides.ts src/pdf.ts --no-bundle --target browser --root src --outdir dist && cp ../../LICENSE dist/LICENSE",
+    "build": "bun build src/engine.ts src/foundation.ts src/docx-format.ts src/docx-picture.ts src/docx-hit.ts src/docx-list.ts src/docx-list-level.ts src/docx-search.ts src/docx-overview.ts src/docx-table.ts src/preview.ts src/drawing.ts src/validation.ts src/session.ts src/xlsx.ts src/xlsx-sheet.ts src/xlsx-sort.ts src/xlsx-filter.ts src/xlsx-validation.ts src/xlsx-conditional.ts src/xlsx-print.ts src/xlsx-format.ts src/xlsx-search.ts src/pptx.ts src/pptx-objects.ts src/pptx-format.ts src/pptx-search.ts src/pptx-slides.ts src/pdf.ts --no-bundle --target browser --root src --outdir dist && cp ../../LICENSE dist/LICENSE",
     "typecheck": "tsc --project tsconfig.json"
   }
 }

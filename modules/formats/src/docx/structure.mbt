@@ -191,7 +191,7 @@ fn WordTree::check_structure_properties(
       "pPr" =>
         [
           "pStyle", "rPr", "spacing", "ind", "jc", "pageBreakBefore", "autoSpaceDE",
-          "autoSpaceDN", "tabs", "bidi", "numPr",
+          "autoSpaceDN", "tabs", "bidi", "numPr", "outlineLvl",
         ]
       "tabs" => ["tab"]
       "numPr" => ["ilvl", "numId"]
@@ -229,6 +229,7 @@ fn WordTree::check_structure_properties(
       | "bidi"
       | "autoSpaceDE"
       | "autoSpaceDN"
+      | "outlineLvl"
       | "sz"
       | "szCs"
       | "color"
@@ -275,6 +276,9 @@ fn WordTree::check_structure_properties(
     }
     if node.name == "numPr" && !self.valid_numbering_properties(id) {
       @failure.reject("protected-content", "Invalid numbering properties")
+    }
+    if node.name == "outlineLvl" {
+      ignore(self.outline_level(node.parent))
     }
   }
 }

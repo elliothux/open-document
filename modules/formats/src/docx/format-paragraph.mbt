@@ -52,7 +52,10 @@ fn ParagraphFormat::properties(
     Keep => ()
     Clear => result["pStyle"] = None
     Set(value) => {
-      for name in ["jc", "spacing", "ind", "pageBreakBefore", "bidi"] {
+      for
+        name in [
+          "jc", "spacing", "ind", "pageBreakBefore", "bidi", "outlineLvl",
+        ] {
         result[name] = None
       }
       result["pStyle"] = Some(Map::from_array([("val", Some(value))]))

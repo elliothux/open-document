@@ -69,6 +69,7 @@ fn Foundation::pptx_operation(
         "delete" => @pptx.DeleteSlide
         "move" => @pptx.MoveSlide(field_int(change, "index"))
         "hidden" => @pptx.HideSlide(xlsx_boolean(change, "hidden"))
+        "notes" => @pptx.Notes(field_string(change, "text"))
         "sectionAdd" => @pptx.AddSection(field_string(change, "name"))
         "sectionRename" =>
           @pptx.RenameSection(

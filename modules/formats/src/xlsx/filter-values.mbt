@@ -17,19 +17,17 @@ fn Session::filter_rules(
 }
 
 ///|
-fn Session::filter_value(
+fn Session::filter_raw(
   self : Session,
   sheet : Int,
   row : Int,
   column : Int,
-  rules : ConditionalRules,
-  work : FormulaWork,
-) -> String raise @failure.Failure {
+) -> Value raise @failure.Failure {
   let current = self.sheets[sheet]
   let address : Address = { row, column, }
   let name = address.name()
   let cell = current.cells.get(name)
-  let value = if cell.bind(c => c.formula) is Some(_) {
+  if cell.bind(c => c.formula) is Some(_) {
     self.calculation
     .bind(c => c.values.get((sheet, name)))
     .unwrap_or_error(
@@ -43,6 +41,20 @@ fn Session::filter_value(
   } else {
     cell.map(c => c.value).unwrap_or(Blank)
   }
+}
+
+///|
+fn Session::filter_value(
+  self : Session,
+  sheet : Int,
+  row : Int,
+  column : Int,
+  rules : ConditionalRules,
+  work : FormulaWork,
+) -> String raise @failure.Failure {
+  let current = self.sheets[sheet]
+  let address : Address = { row, column, }
+  let value = self.filter_raw(sheet, row, column)
   let style = rules.applied(
     self.styles[current.style_at(address)],
     address,
@@ -82,21 +94,15 @@ fn Session::filtered_rows(
     origin: { row: range.top, column: range.left, },
   }
   let rules = self.filter_rules(sheet, work)
-  let normalized = settings.columns.map(column => {
-    let values : Map[String, Bool] = Map([])
-    for value in column.values {
-      values[filter_normalized(value, work)] = true
-    }
-    values
-  })
+  let normalized = settings.columns.map(column => column.rule.prepare(work))
   let hidden : Array[Int] = []
   for row in (range.top + 1)..<=range.bottom {
     for i, column in settings.columns {
       let value = self.filter_value(sheet, row, column.column, rules, work)
-      if (value.is_empty() && !column.blank) ||
-        (
-          !value.is_empty() &&
-          !normalized[i].contains(filter_normalized(value, work))
+      if !normalized[i].matches(
+          self.filter_raw(sheet, row, column.column),
+          value,
+          work,
         ) {
         hidden.push(row)
         break
@@ -154,8 +160,8 @@ fn Session::filter_query(self : Session, index : Int) -> Json {
       let selected : Map[String, Bool] = Map([])
       let values : Map[String, Int] = Map([])
       let labels : Map[String, String] = Map([])
-      if criterion is Some(criterion) {
-        for value in criterion.values {
+      if criterion is Some({ rule: Values(allowed, ..), .. }) {
+        for value in allowed {
           let key = filter_normalized(value, work)
           selected[key] = true
           labels[key] = value
@@ -198,12 +204,21 @@ fn Session::filter_query(self : Session, index : Int) -> Json {
         "column": column,
         "title": title,
         "blank": blanks,
-        "blankSelected": criterion.map(c => c.blank).unwrap_or(true),
+        "blankSelected": criterion
+        .map(c => {
+          match c.rule {
+            Values(_, blank~) => blank
+            Custom(_, ..) => true
+          }
+        })
+        .unwrap_or(true),
         "values": ordered.map(value => {
           let item : Json = {
             "value": labels[value],
             "count": values[value],
-            "selected": criterion is None || selected.contains(value),
+            "selected": criterion is None ||
+            criterion is Some({ rule: Custom(_, ..), .. }) ||
+            selected.contains(value),
           }
           item
         }),
@@ -211,14 +226,7 @@ fn Session::filter_query(self : Session, index : Int) -> Json {
     }
     {
       "range": state.settings.range,
-      "columns": state.settings.columns.map(c => {
-        let item : Json = {
-          "column": c.column,
-          "values": c.values,
-          "blank": c.blank,
-        }
-        item
-      }),
+      "columns": state.settings.columns.map(c => c.json()),
       "catalog": catalog,
       "reason": reason,
     }

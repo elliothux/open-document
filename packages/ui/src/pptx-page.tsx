@@ -2,6 +2,50 @@ import { useState } from "react";
 import type { PanelProps } from "./panels.js";
 import { messages } from "./messages.js";
 
+export function PptxNotes({ controller, state, file, disabled }: PanelProps) {
+  const notes = file.format === "pptx" ? file.editor.query.notes : undefined;
+  const [text, setText] = useState(notes?.text ?? "");
+  if (file.format !== "pptx" || !notes) return null;
+  const editor = file.editor,
+    t = messages(state.locale);
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        controller.run(() => editor.editSlides({ action: "notes", text }));
+      }}
+    >
+      <fieldset disabled={disabled || !!notes.reason}>
+        <legend>{t.speakerNotes}</legend>
+        <label>
+          {t.speakerNotes}
+          <textarea
+            aria-label={t.speakerNotes}
+            maxLength={32767}
+            value={text}
+            onChange={(e) => setText(e.currentTarget.value)}
+          />
+        </label>
+        <button type="submit" disabled={text === notes.text}>
+          {t.applyNotes}
+        </button>
+        <button
+          type="button"
+          disabled={!notes.text}
+          onClick={() =>
+            controller.run(() =>
+              editor.editSlides({ action: "notes", text: "" }),
+            )
+          }
+        >
+          {t.clearNotes}
+        </button>
+      </fieldset>
+      {notes.reason && <p>{notes.reason}</p>}
+    </form>
+  );
+}
+
 export function PptxBackground({
   controller,
   state,

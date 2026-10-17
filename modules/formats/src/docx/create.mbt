@@ -16,12 +16,21 @@ pub fn Session::create(
     (
       "word/_rels/document.xml.rels", b"<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"styles\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles\" Target=\"styles.xml\"/><Relationship Id=\"settings\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/settings\" Target=\"settings.xml\"/></Relationships>",
     ),
-    (
-      "word/styles.xml", b"<w:styles xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii=\"Times New Roman\" w:hAnsi=\"Times New Roman\" w:eastAsia=\"Times New Roman\" w:cs=\"Times New Roman\"/><w:sz w:val=\"22\"/><w:szCs w:val=\"22\"/></w:rPr></w:rPrDefault><w:pPrDefault/></w:docDefaults><w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style><w:style w:type=\"character\" w:default=\"1\" w:styleId=\"DefaultParagraphFont\"><w:name w:val=\"Default Paragraph Font\"/></w:style><w:style w:type=\"character\" w:styleId=\"Emphasis\"><w:name w:val=\"Emphasis\"/><w:basedOn w:val=\"DefaultParagraphFont\"/><w:rPr><w:i/><w:iCs/></w:rPr></w:style><w:style w:type=\"character\" w:styleId=\"Strong\"><w:name w:val=\"Strong\"/><w:basedOn w:val=\"DefaultParagraphFont\"/><w:rPr><w:b/><w:bCs/></w:rPr></w:style></w:styles>",
-    ),
+    ("word/styles.xml", @utf8.encode(default_docx_styles())),
     (
       "word/settings.xml", b"<w:settings xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"/>",
     ),
   ])
   Session::from_package(@opc.Package::create(parts, budget))
+}
+
+///|
+fn default_docx_styles() -> String {
+  let base = "<w:styles xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii=\"Times New Roman\" w:hAnsi=\"Times New Roman\" w:eastAsia=\"Times New Roman\" w:cs=\"Times New Roman\"/><w:sz w:val=\"22\"/><w:szCs w:val=\"22\"/></w:rPr></w:rPrDefault><w:pPrDefault/></w:docDefaults><w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style><w:style w:type=\"character\" w:default=\"1\" w:styleId=\"DefaultParagraphFont\"><w:name w:val=\"Default Paragraph Font\"/></w:style><w:style w:type=\"character\" w:styleId=\"Emphasis\"><w:name w:val=\"Emphasis\"/><w:basedOn w:val=\"DefaultParagraphFont\"/><w:rPr><w:i/><w:iCs/></w:rPr></w:style><w:style w:type=\"character\" w:styleId=\"Strong\"><w:name w:val=\"Strong\"/><w:basedOn w:val=\"DefaultParagraphFont\"/><w:rPr><w:b/><w:bCs/></w:rPr></w:style></w:styles>"
+  let headings = StringBuilder()
+  for level in 1..<=9 {
+    headings <+
+      "<w:style w:type=\"paragraph\" w:styleId=\"Heading\{level}\"><w:name w:val=\"Heading \{level}\"/><w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/><w:qFormat/><w:pPr><w:outlineLvl w:val=\"\{level - 1}\"/></w:pPr><w:rPr><w:b/><w:sz w:val=\"\{[32, 28, 26, 24, 22, 22, 22, 22, 22][level - 1]}\"/></w:rPr></w:style>"
+  }
+  base.replace_all(old="</w:styles>", new=headings.to_string() + "</w:styles>")
 }

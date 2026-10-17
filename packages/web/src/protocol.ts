@@ -30,6 +30,7 @@ import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
+  | { operation: "docxOverview"; revision: number }
   | {
       operation: "docxPictureResize";
       revision: number;

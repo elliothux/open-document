@@ -301,9 +301,9 @@ pub fn Session::undo(
     // Preserve identity allocation after later edits were undone, for their next redo.
     if removed is Some(_) {
       entry.created = removed
-      for name, document in removed_created_parts {
-        entry.created_parts[name] = document
-      }
+    }
+    for name, document in removed_created_parts {
+      entry.created_parts[name] = document
     }
     if !deleted_slides.is_empty() {
       entry.deleted = deleted_slides

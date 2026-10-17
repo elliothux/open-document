@@ -9,7 +9,7 @@ fn WordTree::diagnose_properties(
     "pPr" =>
       [
         "pStyle", "rPr", "spacing", "ind", "jc", "pageBreakBefore", "autoSpaceDE",
-        "autoSpaceDN", "tabs", "bidi", "numPr",
+        "autoSpaceDN", "tabs", "bidi", "numPr", "outlineLvl",
       ]
     "rPr" =>
       [
@@ -52,6 +52,13 @@ fn WordTree::diagnose_properties(
       "tabs" => self.valid_tabs(child)
       "bidi" | "tblHeader" => self.valid_on_off_property(child)
       "numPr" => self.valid_numbering_properties(child)
+      "outlineLvl" =>
+        try {
+          ignore(self.outline_level(id))
+          true
+        } catch {
+          @failure.Failure(..) => false
+        }
       // The fixed Writer DOCX importer preserves these flags without applying them.
       "autoSpaceDE" | "autoSpaceDN" => self.valid_on_off_property(child)
       "u" =>

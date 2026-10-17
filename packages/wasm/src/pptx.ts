@@ -155,6 +155,7 @@ export interface PptxQuery {
   slideVisibilityReason: string;
   sections: PptxSections;
   background: { color: string; explicit: boolean; reason: string };
+  notes: { text: string; reason: string };
   diagnostics: string[];
 }
 export interface PptxLayout extends DrawingBatch {
@@ -363,6 +364,9 @@ function points(value: unknown, max = 4): void {
 }
 export function pptxQuery(value: unknown): PptxQuery {
   const query = record(value);
+  const notes = record(query.notes);
+  checkPptxSlideEdit({ action: "notes", text: notes.text });
+  if (typeof notes.reason !== "string") throw new Error("Invalid notes query");
   checkPptxFormatting(query.formatting);
   checkPptxParagraphFormatting(query.paragraph);
   const background = record(query.background);

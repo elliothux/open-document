@@ -246,6 +246,7 @@ fn Foundation::dispatch(
     | "setParagraphFormat"
     | "setDefaultTabStop"
     | "findDocx"
+    | "docxOverview"
     | "replaceDocxMatches"
     | "tabDocx"
     | "enterDocx"
@@ -292,6 +293,7 @@ fn Foundation::dispatch(
           }
           result
         }
+        "docxOverview" => session.overview(field_int(request, "revision"))
         "findDocx" =>
           session.find(
             field_int(request, "revision"),

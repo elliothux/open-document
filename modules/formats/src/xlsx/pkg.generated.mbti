@@ -117,20 +117,33 @@ pub fn DataValidation::equal(Self, Self) -> Bool
 pub fn DataValidation::not_equal(Self, Self) -> Bool
 pub fn DataValidation::to_json(Self) -> Json
 
+pub(all) struct FilterColumn {
+  column : Int
+  rule : FilterRule
+} derive(Eq)
+pub fn FilterColumn::equal(Self, Self) -> Bool
+pub fn FilterColumn::not_equal(Self, Self) -> Bool
+
+pub(all) struct FilterCondition {
+  operator : String
+  value : String
+} derive(Eq)
+pub fn FilterCondition::equal(Self, Self) -> Bool
+pub fn FilterCondition::not_equal(Self, Self) -> Bool
+
+pub(all) enum FilterRule {
+  Values(Array[String], blank~ : Bool)
+  Custom(Array[FilterCondition], all~ : Bool)
+} derive(Eq)
+pub fn FilterRule::equal(Self, Self) -> Bool
+pub fn FilterRule::not_equal(Self, Self) -> Bool
+
 pub(all) struct FilterSettings {
   range : String
-  columns : Array[FilterValues]
+  columns : Array[FilterColumn]
 } derive(Eq)
 pub fn FilterSettings::equal(Self, Self) -> Bool
 pub fn FilterSettings::not_equal(Self, Self) -> Bool
-
-pub(all) struct FilterValues {
-  column : Int
-  values : Array[String]
-  blank : Bool
-} derive(Eq)
-pub fn FilterValues::equal(Self, Self) -> Bool
-pub fn FilterValues::not_equal(Self, Self) -> Bool
 
 pub(all) struct FindOptions {
   matchCase : Bool

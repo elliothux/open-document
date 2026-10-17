@@ -3,6 +3,10 @@ export type { XlsxSortSettings, XlsxSortKey } from "./xlsx-sort.js";
 import { xlsxFilterState, type XlsxFilterState } from "./xlsx-filter.js";
 export type {
   XlsxFilterValues,
+  XlsxFilterColumn,
+  XlsxFilterCondition,
+  XlsxFilterOperator,
+  XlsxCustomFilter,
   XlsxFilterSettings,
   XlsxFilterState,
 } from "./xlsx-filter.js";

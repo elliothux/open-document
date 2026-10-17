@@ -5,6 +5,7 @@ export type {
   ParagraphFormatPatch,
   DocxFormatting,
   DocxFindOptions,
+  DocxOverview,
   DocxSearchResult,
   HighlightColor,
   CopiedFormat,
@@ -81,6 +82,8 @@ import {
   type DocxListLevelUpdate,
   checkFindOptions,
   docxSearchResult,
+  docxOverview,
+  type DocxOverview,
   type DocxFindOptions,
   type DocxSearchResult,
   type DocxFormatting,
@@ -423,6 +426,11 @@ export class FoundationClient {
     );
   }
 
+  async overview(revision: number): Promise<DocxOverview> {
+    return docxOverview(
+      await this.connection.request({ operation: "docxOverview", revision }),
+    );
+  }
   async findDocx(
     revision: number,
     text: string,

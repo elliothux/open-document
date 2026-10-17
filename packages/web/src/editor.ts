@@ -21,10 +21,15 @@ import {
   docxSelectionDescription,
   queryDocxSelectionGeometry,
   searchSelections,
+  headingSelection,
   selectFirstDocxPosition,
   type DocumentSearchResult,
+  type DocumentOverview,
 } from "./document-selection.js";
-export type { DocumentSearchResult } from "./document-selection.js";
+export type {
+  DocumentSearchResult,
+  DocumentOverview,
+} from "./document-selection.js";
 import type {
   DocxSelection,
   EditState,
@@ -328,7 +333,7 @@ export class DocumentEditor {
       } catch (error) {
         if (
           error instanceof DocumentError &&
-          ["busy", "stale-search"].includes(error.code)
+          ["busy", "stale-search", "stale-overview"].includes(error.code)
         ) {
           this.observable.update({ error: error.message });
         } else if (generation === this.generation)
@@ -423,6 +428,20 @@ export class DocumentEditor {
     const selection = this.state.selection;
     if (!selection) throw new Error("Click a document position first");
     return selection;
+  }
+  overview(): Promise<DocumentOverview> {
+    return this.enqueue(async () => ({
+      ...(await this.client.overview(this.state.revision)),
+      documentId: this.getSnapshot().documentId,
+    }));
+  }
+  selectHeading(result: DocumentOverview, index: number): Promise<void> {
+    return this.format(() =>
+      this.client.selectDocx(
+        result.revision,
+        headingSelection(result, this.getSnapshot(), index),
+      ),
+    );
   }
   find(
     text: string,

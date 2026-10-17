@@ -1,6 +1,7 @@
 import { record } from "./validation.js";
 
 export type PptxSlideEdit =
+  | { action: "notes"; text: string }
   | { action: "sectionAdd"; name: string }
   | { action: "sectionRename"; id: string; name: string }
   | { action: "sectionRemove"; id: string }
@@ -17,6 +18,23 @@ export type PptxSlideEdit =
 
 export function checkPptxSlideEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "notes") {
+    if (
+      typeof change.text !== "string" ||
+      change.text.length > 32767 ||
+      !change.text.isWellFormed() ||
+      Array.from(change.text).some((c) => {
+        const code = c.codePointAt(0)!;
+        return (
+          (code < 32 && ![9, 10, 13].includes(code)) ||
+          code === 65534 ||
+          code === 65535
+        );
+      })
+    )
+      throw new Error("Invalid slide notes");
+    return;
+  }
   if (
     typeof change.action === "string" &&
     [

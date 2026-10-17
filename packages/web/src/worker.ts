@@ -308,6 +308,8 @@ async function dispatch(request: Request): Promise<unknown> {
           );
         case "query":
           return foundation.query();
+        case "docxOverview":
+          return foundation.overview(request.revision);
         case "findDocx":
           return foundation.findDocx(
             request.revision,
