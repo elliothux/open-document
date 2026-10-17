@@ -4,6 +4,39 @@ import type { EditorController, UiSnapshot } from "./controller.js";
 import { NativeSlot } from "./controls.js";
 import { messages } from "./messages.js";
 
+export function XlsxStatistics({
+  state,
+  editor,
+}: {
+  state: UiSnapshot;
+  editor: SpreadsheetEditor;
+}) {
+  const t = messages(state.locale),
+    statistics = editor.currentState.statistics;
+  const rows: [string, number | null][] = [
+    [t.statisticsCount, statistics.count],
+    [t.statisticsNumbers, statistics.countNumbers],
+    [t.statisticsSum, statistics.sum],
+    [t.statisticsAverage, statistics.average],
+    [t.statisticsMin, statistics.min],
+    [t.statisticsMax, statistics.max],
+  ];
+  return (
+    <span
+      role="group"
+      aria-label={t.selectionStatistics}
+      title={statistics.reason || undefined}
+    >
+      {rows.map(([label, value]) => (
+        <span key={label} aria-label={label}>
+          {label}: {value ?? "—"}{" "}
+        </span>
+      ))}
+      {statistics.reason && <span>{statistics.reason}</span>}
+    </span>
+  );
+}
+
 export function XlsxFormula({
   controller,
   state,

@@ -1,3 +1,4 @@
+import { createPresentationElements } from "./presentation-elements.js";
 import { presentationKey } from "./presentation-keyboard.js";
 import {
   checkPresentationSearch,
@@ -32,11 +33,11 @@ import type {
 
 /** Embed one slide surface; all document semantics and editable geometry come from MoonBit. */
 export class PresentationEditor {
-  private readonly container = document.createElement("div");
-  private readonly viewport = document.createElement("div");
-  private readonly holder = document.createElement("div");
-  private readonly input = document.createElement("textarea");
-  readonly objectList = document.createElement("ol");
+  private readonly container: HTMLDivElement;
+  private readonly viewport: HTMLDivElement;
+  private readonly holder: HTMLDivElement;
+  private readonly input: HTMLTextAreaElement;
+  readonly objectList: HTMLOListElement;
   private readonly surface = new PresentationCanvas();
   private readonly listeners = new AbortController();
   private readonly observable: EditorState<PptxQuery>;
@@ -72,6 +73,15 @@ export class PresentationEditor {
     private readonly profile: Record<string, string>,
     state: PptxQuery,
   ) {
+    const elements = createPresentationElements(
+      this.surface.canvas,
+      this.surface.overlay,
+    );
+    this.container = elements.container;
+    this.viewport = elements.viewport;
+    this.holder = elements.holder;
+    this.input = elements.input;
+    this.objectList = elements.objectList;
     this.state = state;
     this.observable = new EditorState("pptx", {
       revision: state.revision,
@@ -84,40 +94,6 @@ export class PresentationEditor {
       diagnostics: [],
       data: state,
     });
-    Object.assign(this.container.style, {
-      display: "flex",
-      flexDirection: "column",
-      flex: "1",
-      minHeight: "0",
-    });
-    this.container.setAttribute("role", "region");
-    this.container.setAttribute("aria-label", "Presentation editor");
-    this.objectList.setAttribute("aria-label", "Slide objects");
-    Object.assign(this.viewport.style, {
-      overflow: "auto",
-      flex: "1",
-      minHeight: "0",
-    });
-    Object.assign(this.holder.style, {
-      position: "relative",
-      width: "max-content",
-    });
-    Object.assign(this.input.style, {
-      position: "absolute",
-      opacity: "0",
-      width: "1px",
-      padding: "0",
-      border: "0",
-      resize: "none",
-      pointerEvents: "none",
-    });
-    this.input.setAttribute("aria-label", "Slide input");
-    this.input.autocomplete = "off";
-    this.input.spellcheck = false;
-    this.input.setAttribute("autocapitalize", "off");
-    this.input.tabIndex = -1;
-    this.holder.append(this.surface.canvas, this.surface.overlay, this.input);
-    this.viewport.append(this.holder);
     this.inputEvents = new PresentationInput(
       this.input,
       this.listeners.signal,
@@ -306,11 +282,17 @@ export class PresentationEditor {
     this.tail = result.then(
       () => {
         this.pending--;
+        if (output && !this.blocked) this.errorMessage = "";
         this.publish();
       },
       (error) => {
         this.pending--;
-        this.fail(error instanceof Error ? error : new Error(String(error)));
+        if (output && !this.blocked) {
+          this.errorMessage =
+            error instanceof Error ? error.message : String(error);
+          this.publish();
+        } else
+          this.fail(error instanceof Error ? error : new Error(String(error)));
       },
     );
     return result;
@@ -486,6 +468,28 @@ export class PresentationEditor {
           outputBytes,
         );
         return this.observable.output(revision, "pdf", bytes);
+      },
+      false,
+      false,
+      true,
+    );
+  }
+  exportPng(scale = 1, outputBytes = 67108864): Promise<EditorOutput> {
+    return this.enqueue(
+      async () => {
+        const layout = this.layout;
+        if (
+          layout.revision !== this.state.revision ||
+          layout.slide !== this.state.slide
+        )
+          throw new Error("Slide layout is stale; refresh before exporting");
+        const bytes = await this.surface.exportPng(
+          layout,
+          0,
+          scale,
+          outputBytes,
+        );
+        return this.observable.output(layout.revision, "png", bytes);
       },
       false,
       false,

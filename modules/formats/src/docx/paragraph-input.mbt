@@ -29,7 +29,72 @@ pub fn Session::enter(
     is Some(result) {
     return result
   }
+  let length = docx_texts(tree)
+    .filter(node => node.paragraph == caret.focus.paragraph)
+    .fold(init=0, (sum, node) => sum + inline_text(tree.nodes[node.id]).length())
+  let styles = self.styles([])
+  if caret.focus.offset == length &&
+    styles.next_paragraph_style(tree, caret.focus.paragraph) is Some(next) {
+    let prepared = self.prepare_range(selection, "\n").unwrap()
+    let after = prepared.edit.after.unwrap()
+    let bidi = tree
+      .child(caret.focus.paragraph, "pPr")
+      .bind(id => tree.child(id, "bidi"))
+      .map(id => {
+        !["0", "false", "off"].contains(
+          tree.nodes[id].attribute("val", uri=word_uri).unwrap_or("1"),
+        )
+      })
+    let (document, xml) = self
+      .format_paragraph_document(
+        prepared.document,
+        after,
+        ParagraphFormat::new(
+          style=Set(next),
+          rtl=bidi.map(value => Set(value)).unwrap_or(Keep),
+        ),
+      )
+      .unwrap()
+    let bytes = edit_bytes(xml)
+    guard bytes <= history_byte_limit - prepared.edit.bytes else {
+      @failure.reject(
+        "limit-exceeded", "Paragraph input history budget exceeded",
+      )
+    }
+    let edits = prepared.edit.xml.copy()
+    edits.push(xml)
+    self.commit_edit(
+      { ..prepared.edit, xml: edits, bytes: prepared.edit.bytes + bytes, },
+      document,
+    )
+    self.typing_text = prepared.typing_text
+    return self.edit_result(prepared.edit.paragraphs)
+  }
   self.replace_range(revision, selection, "\n")
+}
+
+///|
+fn Styles::next_paragraph_style(
+  self : Styles,
+  tree : WordTree,
+  paragraph : Int,
+) -> String? {
+  let current = match
+    tree.child(paragraph, "pPr").bind(id => tree.value(id, "pStyle")) {
+    Some(key) => Some(key)
+    None => self.default_paragraph
+  }
+  guard current is Some(current) &&
+    self.tree is Some(source) &&
+    self.ids.get(current) is Some(id) &&
+    source.value(id, "next") is Some(next) &&
+    next != current &&
+    self.ids.get(next) is Some(target) &&
+    source.nodes[target].attribute("type", uri=word_uri).unwrap_or("paragraph") ==
+    "paragraph" else {
+    return None
+  }
+  Some(next)
 }
 
 ///|

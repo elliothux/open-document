@@ -219,6 +219,9 @@ export class EditorController {
   exportCsv(selection = false): Promise<SavedDocument> {
     return this.output(selection ? "csv-selection" : "csv");
   }
+  exportPng(): Promise<SavedDocument> {
+    return this.output("png");
+  }
   private output(
     kind: string,
     leaving = false,
@@ -240,14 +243,18 @@ export class EditorController {
       kind === "original"
         ? targetName
         : this.value.name.replace(/\.[^.]*$/, "") +
-          (kind.startsWith("csv") ? ".csv" : ".pdf");
+          (kind === "png" ? ".png" : kind.startsWith("csv") ? ".csv" : ".pdf");
     const operation = async (): Promise<SavedDocument> => {
       let output: EditorOutput;
       if (kind === "original")
         output = await (file.format === "docx"
           ? file.editor.saveDocx()
           : file.editor.save());
-      else if (kind.startsWith("csv")) {
+      else if (kind === "png") {
+        if (file.format !== "pptx")
+          throw new Error("PNG export requires a presentation");
+        output = await file.editor.exportPng();
+      } else if (kind.startsWith("csv")) {
         if (file.format !== "xlsx")
           throw new Error("CSV export requires a workbook");
         output = await file.editor.exportCsv(kind === "csv-selection");

@@ -148,6 +148,15 @@ export function FileMenu({
                   )}
                 </>
               )}
+              {state.file?.format === "pptx" && (
+                <Menu.Item
+                  className="od-menu-item"
+                  disabled={unavailable}
+                  onClick={() => controller.run(() => controller.exportPng())}
+                >
+                  {t.exportPng}
+                </Menu.Item>
+              )}
               {state.file?.format === "xlsx" && (
                 <>
                   <p>{t.csvNotice}</p>

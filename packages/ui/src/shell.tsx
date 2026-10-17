@@ -21,7 +21,7 @@ import {
 } from "./panels.js";
 import { messages } from "./messages.js";
 import { Icon } from "./icons.js";
-import { XlsxFormula } from "./xlsx-formula.js";
+import { XlsxFormula, XlsxStatistics } from "./xlsx-formula.js";
 
 export function EditorShell({
   controller,
@@ -304,6 +304,9 @@ export function EditorShell({
         </div>
         {panel && <Sheets {...panel} />}
         <footer className="od-status" aria-label={t.ready}>
+          {file?.format === "xlsx" && (
+            <XlsxStatistics state={state} editor={file.editor} />
+          )}
           <span role="status">
             {state.loading
               ? t.loading

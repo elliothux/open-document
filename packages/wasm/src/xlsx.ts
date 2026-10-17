@@ -1,4 +1,6 @@
 import { checkXlsxSheetEdit, type XlsxSheetEdit } from "./xlsx-sheet.js";
+import { xlsxStatistics, type XlsxStatistics } from "./xlsx-statistics.js";
+export { xlsxStatistics, type XlsxStatistics } from "./xlsx-statistics.js";
 export type { XlsxSortSettings, XlsxSortKey } from "./xlsx-sort.js";
 import { xlsxFilterState, type XlsxFilterState } from "./xlsx-filter.js";
 export type {
@@ -188,6 +190,7 @@ export interface XlsxCell {
 }
 
 export interface XlsxQuery {
+  statistics: XlsxStatistics;
   filter: XlsxFilterState;
   conditionalFormats: XlsxConditionalState;
   dataValidation: XlsxValidationState;
@@ -252,6 +255,7 @@ function cellValue(value: unknown): boolean {
 
 export function xlsxQuery(value: unknown): XlsxQuery {
   const query = record(value);
+  xlsxStatistics(query.statistics);
   xlsxFilterState(query.filter);
   xlsxConditionalState(query.conditionalFormats);
   xlsxValidationState(query.dataValidation);

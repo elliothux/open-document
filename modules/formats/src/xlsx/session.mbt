@@ -421,6 +421,11 @@ pub fn Session::query(
       keys
     }),
     "sheet": current.id,
+    "statistics": self.selection_statistics(
+      sheet_index,
+      range.unwrap(),
+      selected,
+    ),
     "filter": self.filter_query(sheet_index),
     "cells": cells,
     "selection": {

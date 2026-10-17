@@ -29,8 +29,9 @@ fn default_docx_styles() -> String {
   let base = "<w:styles xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\"><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii=\"Times New Roman\" w:hAnsi=\"Times New Roman\" w:eastAsia=\"Times New Roman\" w:cs=\"Times New Roman\"/><w:sz w:val=\"22\"/><w:szCs w:val=\"22\"/></w:rPr></w:rPrDefault><w:pPrDefault/></w:docDefaults><w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style><w:style w:type=\"character\" w:default=\"1\" w:styleId=\"DefaultParagraphFont\"><w:name w:val=\"Default Paragraph Font\"/></w:style><w:style w:type=\"character\" w:styleId=\"Emphasis\"><w:name w:val=\"Emphasis\"/><w:basedOn w:val=\"DefaultParagraphFont\"/><w:rPr><w:i/><w:iCs/></w:rPr></w:style><w:style w:type=\"character\" w:styleId=\"Strong\"><w:name w:val=\"Strong\"/><w:basedOn w:val=\"DefaultParagraphFont\"/><w:rPr><w:b/><w:bCs/></w:rPr></w:style></w:styles>"
   let headings = StringBuilder()
   for level in 1..<=9 {
+    let (paragraph, character) = heading_style_properties(level)
     headings <+
-      "<w:style w:type=\"paragraph\" w:styleId=\"Heading\{level}\"><w:name w:val=\"Heading \{level}\"/><w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/><w:qFormat/><w:pPr><w:outlineLvl w:val=\"\{level - 1}\"/></w:pPr><w:rPr><w:b/><w:sz w:val=\"\{[32, 28, 26, 24, 22, 22, 22, 22, 22][level - 1]}\"/></w:rPr></w:style>"
+      "<w:style w:type=\"paragraph\" w:styleId=\"Heading\{level}\"><w:name w:val=\"Heading \{level}\"/><w:basedOn w:val=\"Normal\"/><w:next w:val=\"Normal\"/><w:qFormat/>\{paragraph}\{character}</w:style>"
   }
   base.replace_all(old="</w:styles>", new=headings.to_string() + "</w:styles>")
 }

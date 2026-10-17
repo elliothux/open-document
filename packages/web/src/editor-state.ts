@@ -3,7 +3,7 @@ export type EditorFormat = "docx" | "xlsx" | "pptx" | "pdf";
 export interface EditorOutput {
   readonly documentId: string;
   readonly revision: number;
-  readonly format: EditorFormat | "csv";
+  readonly format: EditorFormat | "csv" | "png";
   readonly bytes: Uint8Array;
 }
 

@@ -103,6 +103,7 @@ export type OwnedFile = EditorFile & {
   dispose(): Promise<void>;
 };
 export const mime: Record<EditorOutput["format"], string> = {
+  png: "image/png",
   csv: "text/csv;charset=utf-8",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

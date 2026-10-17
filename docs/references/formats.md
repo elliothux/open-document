@@ -39,9 +39,9 @@ DOCX、XLSX、PPTX 也接受 `document: { name, blank: true }`，`OfficeDocument
 
 框架无关的四类编辑宿主提供 `getSnapshot()`、`subscribe()`、`focus()`、`setPaused()`、`markSaved(output)` 和 `markDownloaded(output)`。快照包含会话身份、revision、导航、缩放、选区摘要、历史、诊断、停止/错误、在途操作及组合/拖动/草稿状态，并附格式当前查询。未变化时保持对象身份；已提交但绘制失败仍发布新 revision，保留保存与恢复入口。低层宿主借用 client，调用者等待宿主释放后另行关闭 client。
 
-编辑宿主的原格式保存、Office PDF 和 XLSX CSV 输出统一返回 `EditorOutput = { documentId, revision, format, bytes }`。`format` 包含 `csv`；编辑器输入格式仍为 DOCX/XLSX/PPTX/PDF。默认 UI 另加文件名 `name`。此约定不改变原始 Wasm/client 的保存结果。只有该宿主实际产生的原格式输出可以 `markSaved`；旧会话、其他格式和任意裸 revision 都不能确认保存。确认的是输出 revision，其后新编辑仍显示未保存。导航、缩放和 UI 变化不修改文档。
+编辑宿主的原格式保存、Office PDF、PPTX PNG 和 XLSX CSV 输出统一返回 `EditorOutput = { documentId, revision, format, bytes }`。`format` 包含 `csv` 和 `png`；编辑器输入格式仍为 DOCX/XLSX/PPTX/PDF。默认 UI 另加文件名 `name`。此约定不改变原始 Wasm/client 的保存结果。只有该宿主实际产生的原格式输出可以 `markSaved`；旧会话、其他格式和任意裸 revision 都不能确认保存。确认的是输出 revision，其后新编辑仍显示未保存。导航、缩放和 UI 变化不修改文档。
 
-`onSave` 成功才确认保存基线；失败保留修改并允许重试。缺省下载只提示“已生成下载”，不确认磁盘持久化，也不清除修改。PDF 导出不清除 Office 修改。关闭前选择“导出并继续”明确包含放弃内存会话。`dispose` 不等待宿主存储回调，晚到回执不更新已释放实例。
+原格式 `onSave` 成功才确认保存基线；失败保留修改并允许重试。缺省下载只提示“已生成下载”，不确认磁盘持久化，也不清除修改。PDF、PNG 和 CSV 导出不清除 Office 修改。关闭前选择“导出并继续”明确包含放弃内存会话。`dispose` 不等待宿主存储回调，晚到回执不更新已释放实例。
 
 默认 UI 快照增加 `newDocument`。空白创建后即使 revision 为 0，`modified` 仍为 true；首次原格式 `onSave` 成功才清除此标记。下载不清除它，关闭与替换仍需确认。文件名去首尾空白、拒绝空名、路径分隔和控制字符；缺少当前格式扩展名时补齐。
 
@@ -131,7 +131,11 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 `deleteStyle(revision, id, replacement)` 删除自定义样式，替代样式必须已支持且类型相同，也不能依赖被删样式。Web 编辑宿主省略 revision。核心同步移除定义并替换 WordprocessingML 部件中的样式引用，包括正文、页眉和编号；保留直接格式、文字、其他样式及未知内容。折叠处待输入的样式引用也映射到替代项。命令至多替换 65536 个引用，继续受包与历史预算约束。全部候选成功后一次提交，撤销同时恢复各部件与选择。默认 UI 可显式选择同类型替代样式，初始使用基础样式；无基础样式时须先选择替代项。没有有效替代项时不能删除。删除链接自定义样式时保留对端样式，解除指向被删样式的链接，再替换普通引用；未知链接内容明确拒绝。默认及内置样式不能删除。
 
-`updateStyle(id, { character: {}, paragraph: {}, reset: true })` 显式重置格式，不能同时传其他修改。当前支持文档默认段落/字符样式，以及 Normal、DefaultParagraphFont、Strong、Emphasis。默认样式恢复文档默认属性；Strong/Emphasis 继承当前默认字符样式并恢复粗体/斜体。稳定 ID、名称、默认标志、next/link 和正文直接格式保留；其他内置样式的重置规则尚未实现。默认 UI 提供同一操作。重置沿上述候选校验及单项历史提交，撤销恢复完整源内容。行为参考 [ONLYOFFICE 样式重置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js#L8854-L8889)。样式修改与删除还会校验正文继承的编号引用、有效级别属性和标记结果，失败保留原包。
+`updateStyle(id, { character: {}, paragraph: {}, reset: true })` 显式重置格式，不能同时传其他修改。当前支持文档默认段落/字符样式，以及 Normal、DefaultParagraphFont、Strong、Emphasis 和 Heading1–Heading9。默认样式恢复文档默认属性；Strong/Emphasis 继承当前默认字符样式并恢复粗体/斜体。稳定 ID、名称、默认标志、next/link 和正文直接格式保留；其他内置样式的重置规则尚未实现。默认 UI 提供同一操作。重置沿上述候选校验及单项历史提交，撤销恢复完整源内容。行为参考 [ONLYOFFICE 样式重置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js#L8854-L8889)。样式修改与删除还会校验正文继承的编号引用、有效级别属性和标记结果，失败保留原包。
+
+九级标题的创建和重置共用本项目的标题预设：大纲级别 0–8，字号依次为 16、14、13、12、11、11、11、11、11 pt，并设置粗体标记。重置继承当前默认段落样式；没有默认标记时尝试 Normal，均无时继承文档默认属性。字体与颜色沿基础样式继承，正文直接格式保持。按标准 ID `Heading1`–`Heading9`，或非自定义段落样式的英文名 `Heading N` 识别；名称不区分大小写。自定义样式即使同名也不作为内置标题重置。
+
+标题重置保留名称、别名、next/link、元数据和其他样式，恢复支持的标题字符/段落预设。初始预设及重复重置不新增历史；默认角色有歧义、属性源含未知注释或候选校验失败时保持原包。这里使用与本项目空白文档一致的预设，不声明完整 Office 内置样式、主题及所有导入变体的视觉一致性。
 
 两端对齐在塑形后扩展词间空格；无空格中文使用合法断行处的字形簇间隙，接近满行的普通单词可使用字形簇间距。连字与字形不重塑，末尾空格不参与扩展，最后一个 Tab 之前的位置保留。段落末行与显式分页行保留自然宽度，RTL 末行靠右。软换行默认参与对齐；派生 `Paragraph.expandSoftBreak` 读取设置中的 `compat/doNotExpandShiftReturn`。光标、命中、选区、装饰与 PDF 消费相同位置；阿拉伯文使用词间距，未新增 kashida 字形。规则参考 [ONLYOFFICE 的段落对齐计算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph_Recalculate.js)。
 
@@ -177,11 +181,13 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `Session.overview(revision)`、`FoundationSession/Client.overview(revision)` 和 `DocumentEditor.overview()` 查询已提交正文。标题采用样式继承和直接段落属性中的有效 `outlineLvl`；0–8 对应一级至九级，9 表示正文。新建文件提供 Heading1–Heading9。查询包含表格单元格内的标题，不按样式名称猜测层级。
 
+段末原生 Enter 使用当前段落样式的有效 `w:next`，新建标题因此切回 Normal。中间拆段和粘贴换行保持原样式；缺失、同名或非段落目标也继续当前样式。新段落沿既有样式应用规则清除段落直接属性，并保留直接段落方向。选择删除、换段和样式切换合为一次历史；目标样式或预算失败保持原包。规则依据 [ONLYOFFICE 的段末新段落处理](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L19490)。
+
 `DocumentEditor.selectHeading(result, index)` 定位到标题段落起点。结果绑定文档和修订；过期结果报 `stale-overview`，受保护标题带原因并禁止导航。默认属性面板展示标题和统计。
 
 统计只计算支持的正文逻辑文字。字符按 Unicode 标量计数；空白分隔单词，文字区段相连，段落分别计词。制表符计为空白；显式换行和分页符不计字符。图片、自动编号标记及页眉页脚等其他区域不计入；受保护或排除的正文结构提供原因，不能据此声称全文统计完整。
 
-查询最多扫描 1,048,576 个 UTF-16 单元，返回最多 4,096 个标题，每个标题显示最多 256 个 UTF-16 单元，截断会显式标记。9 个核心用例及构建、安装包检查通过；新增导航面板尚未完成 Chromium 交互验证。P10 仍为部分交付。
+查询最多扫描 1,048,576 个 UTF-16 单元，返回最多 4,096 个标题，每个标题显示最多 256 个 UTF-16 单元，截断会显式标记。17 个核心用例（含后续样式及列表回归）、一条 Chromium 导航/原生输入/组合取消/历史/重开/PDF 流程及 767 项安装包断言通过；严格宿主编译包含标题查询与导航调用。P10 仍为部分交付。
 
 ### 行内图片尺寸与裁剪
 
@@ -500,6 +506,14 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 | `exportPdf(layoutId,outputBytes)` | 使用当前打印布局；编辑、字体变更或新打印布局使旧输出身份失效 |
 
 `XlsxQuery` 返回 `sheets`、`sheet`、`selection`、`revision`、历史状态、`date1904`、`fontKeys` 和诊断。每格分别返回 `value`、`formula`、`cached`、`calculated`、`calculation`、`display`、`input` 与 `readOnlyReason`。空格、空字符串、零、布尔值与错误独立表示。`input` 是核心生成的可编辑源码，文字带前导单引号，避免重新提交时误作公式或数值。
+
+### 选区统计
+
+`XlsxQuery.statistics` 返回 `{ range, count, countNumbers, sum, average, min, max, reason }`，Wasm/Web 导出 `XlsxStatistics`。`range` 是此次查询的矩形；默认 UI 状态栏使用当前选区。查询及选区变化不改 revision、文档源、历史或保存状态。输入草稿期间显示已提交值；提交后使用当前公式结果，随历史、筛选及行隐藏更新。
+
+`count` 计算非空值，包含文本、布尔值和错误；空白及空串不计。其余五项只计算数值，包括数值公式结果和日期序列值；数字文本与布尔值不转成数值。隐藏行（含筛选隐藏和零高度）不参与，隐藏列仍参与。行为依据 [ONLYOFFICE 的选区统计](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L13248)。当前只处理已有矩形选区，不包含非连续区域。
+
+没有数值时，`sum/average/min/max` 为 null。当前输出原始数值，不应用活动单元格的数字格式；日期、百分比和货币的状态栏格式仍待扩展。核心使用缩放及补偿求和；总和超出有限数值范围时，`sum` 为 null 并在 `reason` 说明，仍返回有效计数、平均与极值。源文件只读原因也进入 `reason`，不把导入缓存标为新计算结果。沿用查询最多 4096 个已有单元格的限制；统计复用此次查询的稀疏列表，不遍历大矩形中的空格。
 
 ### 单元格查找替换
 
@@ -1040,6 +1054,16 @@ list 使用 `PptxListFormat`：`{ kind: "none" }`、`{ kind: "bullet", value }` 
 | 历史 / 宿主队列 | undo+redo 共 100 项、4 MiB 源补丁 payload；编辑与指针意图队列各 64 项，指针预览只保留待发送末次坐标 |
 
 P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增量创作能力与剩余范围归 [P12](../p12-pptx-core.md)。Chromium 受控输入事件已验证；没有追加系统输入源、Windows/PowerPoint、VoiceOver、其他浏览器或性能验收。
+
+### 当前页 PNG 输出
+
+`PresentationEditor.exportPng(scale = 1, outputBytes = 67108864)` 返回 `EditorOutput`，`format` 为 `png`。它按现有输入队列导出当前已提交页面，包括明确显示的隐藏页。活动输入/变换候选先完成或取消；布局缺失或与当前页/修订不符时拒绝。选择、源文档、历史、预览尺寸和保存基线保持；导出失败保留编辑与原格式保存入口。
+
+`scale` 为每 pt 的像素数，接受 0.25–4；图片宽高分别为 `ceil(width * scale)` 和 `ceil(height * scale)`，默认 960×540 pt 文稿生成 960×540 px PNG。预览 zoom 和屏幕 DPR 不决定导出尺寸。编码前要求临时图片与现有页面/覆盖层 Canvas 合计不超过 16,777,216 像素；`outputBytes` 为 1–67,108,864 的整数，在复制编码字节前检查 Blob 大小。所有路径释放临时 Canvas；复用的图片和字形路径继续由当前表面持有。
+
+默认文件菜单的“当前页 PNG”使用相同 API。`onSave` 收到 `format: "png"` 及 `.png` 名称的派生输出；没有回调时按 `image/png` 下载。PNG 输出不能 `markSaved`，也不清除 PPTX 未保存状态。它通过当前 R0 执行器重放核心图元，保留已有诊断的显示结果；图片、裁剪、旋转与文字沿现有渲染范围，选择框和光标只在编辑覆盖层中。
+
+此入口依赖浏览器 Canvas 绘制和 PNG 编码，当前只检查 Chrome/Chromium；不作为无浏览器 PNG 转换能力。普通 Wasm/Worker 文档状态、布局和 PDF 接口保持原职责。批量页图片、JPEG 及打印界面仍待实现。
 
 ### 演讲备注
 

@@ -1,5 +1,13 @@
 ///|
-fn Styles::reset_profile(self : Styles, key : String) -> String? {
+priv enum StyleResetProfile {
+  Plain
+  Bold
+  Italic
+  Heading(Int)
+}
+
+///|
+fn Styles::reset_profile(self : Styles, key : String) -> StyleResetProfile? {
   guard self.tree is Some(tree) && self.ids.get(key) is Some(id) else {
     return None
   }
@@ -9,7 +17,7 @@ fn Styles::reset_profile(self : Styles, key : String) -> String? {
   if ["1", "true", "on"].contains(
       node.attribute("default", uri=word_uri).unwrap_or("0"),
     ) {
-    return Some("plain")
+    return Some(Plain)
   }
   if ["1", "true", "on"].contains(
       node.attribute("customStyle", uri=word_uri).unwrap_or("0"),
@@ -18,32 +26,41 @@ fn Styles::reset_profile(self : Styles, key : String) -> String? {
   }
   let name = tree.value(id, "name").unwrap_or(key)
   if kind == "paragraph" && (key == "Normal" || name == "Normal") {
-    return Some("plain")
+    return Some(Plain)
+  }
+  if kind == "paragraph" {
+    let name = name.to_lower()
+    for level in 1..<=9 {
+      if key == "Heading\{level}" || name == "heading \{level}" {
+        return Some(Heading(level))
+      }
+    }
   }
   if kind == "character" {
     if key == "DefaultParagraphFont" || name == "Default Paragraph Font" {
-      return Some("plain")
+      return Some(Plain)
     }
     if key == "Emphasis" || name == "Emphasis" {
-      return Some("italic")
+      return Some(Italic)
     }
     if key == "Strong" || name == "Strong" {
-      return Some("bold")
+      return Some(Bold)
     }
   }
   None
 }
 
 ///|
-fn Styles::default_character_style(
+fn Styles::default_style(
   self : Styles,
+  kind : String,
 ) -> String? raise @failure.Failure {
   let tree = self.tree.unwrap()
   let defaults = self.ids
     .keys()
     .filter(key => {
       let node = tree.nodes[self.ids[key]]
-      node.attribute("type", uri=word_uri) == Some("character") &&
+      node.attribute("type", uri=word_uri).unwrap_or("paragraph") == kind &&
       ["1", "true", "on"].contains(
         node.attribute("default", uri=word_uri).unwrap_or("0"),
       )
@@ -56,16 +73,24 @@ fn Styles::default_character_style(
     .keys()
     .filter(key => {
       let node = tree.nodes[self.ids[key]]
-      node.attribute("type", uri=word_uri) == Some("character") &&
+      node.attribute("type", uri=word_uri).unwrap_or("paragraph") == kind &&
       (
-        key == "DefaultParagraphFont" ||
-        tree.value(node.id, "name") == Some("Default Paragraph Font")
+        key ==
+        (if kind == "paragraph" { "Normal" } else { "DefaultParagraphFont" }) ||
+        tree.value(node.id, "name") ==
+        Some(
+          if kind == "paragraph" {
+            "Normal"
+          } else {
+            "Default Paragraph Font"
+          },
+        )
       )
     })
     .to_array()
   }
   guard choices.length() <= 1 else {
-    @failure.reject("invalid-style", "Ambiguous default character style")
+    @failure.reject("invalid-style", "Ambiguous default \{kind} style")
   }
   choices.get(0)
 }
@@ -90,17 +115,16 @@ fn Session::reset_style_format(
   guard styles.paragraph.readOnlyReason.is_empty() else {
     @failure.reject("protected-content", styles.paragraph.readOnlyReason)
   }
-  let base = if profile == "plain" {
-    None
-  } else {
-    styles.default_character_style()
+  let base = match profile {
+    Plain => None
+    Bold | Italic => styles.default_style("character")
+    Heading(_) => styles.default_style("paragraph")
   }
-  let character = if profile == "bold" {
-    "<od:rPr xmlns:od=\"\{word_uri}\"><od:b/><od:bCs/></od:rPr>"
-  } else if profile == "italic" {
-    "<od:rPr xmlns:od=\"\{word_uri}\"><od:i/><od:iCs/></od:rPr>"
-  } else {
-    ""
+  let (paragraph, character) = match profile {
+    Plain => ("", "")
+    Bold => ("", "<od:rPr xmlns:od=\"\{word_uri}\"><od:b/><od:bCs/></od:rPr>")
+    Italic => ("", "<od:rPr xmlns:od=\"\{word_uri}\"><od:i/><od:iCs/></od:rPr>")
+    Heading(level) => heading_style_properties(level)
   }
   let mut candidate = self.part_xml(styles.part)
   let edits : Array[@xml.Edit] = []
@@ -117,6 +141,8 @@ fn Session::reset_style_format(
       )
     } else if field == "rPr" {
       character
+    } else if field == "pPr" {
+      paragraph
     } else {
       ""
     }

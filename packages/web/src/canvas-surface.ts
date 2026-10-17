@@ -83,6 +83,63 @@ export class CanvasSurface {
     return context;
   }
 
+  async exportPng(
+    layout: DrawingBatch,
+    index: number,
+    scale: number,
+    outputBytes: number,
+  ): Promise<Uint8Array> {
+    if (this.closed) throw new Error("Canvas surface is disposed");
+    if (!Number.isFinite(scale) || scale < 0.25 || scale > 4)
+      throw new Error("PNG scale must be between 0.25 and 4 pixels per point");
+    if (
+      !Number.isInteger(outputBytes) ||
+      outputBytes < 1 ||
+      outputBytes > 67108864
+    )
+      throw new Error("Invalid PNG output budget");
+    const page = layout.regions[index];
+    if (!page) throw new Error("Unknown page");
+    const width = Math.ceil(page.width * scale),
+      height = Math.ceil(page.height * scale);
+    const retainedPixels =
+      this.canvas.width * this.canvas.height +
+      (this.overlayCanvas
+        ? this.overlayCanvas.width * this.overlayCanvas.height
+        : 0);
+    if (
+      !Number.isSafeInteger(width) ||
+      !Number.isSafeInteger(height) ||
+      width <= 0 ||
+      height <= 0 ||
+      width * height + retainedPixels > 16777216
+    )
+      throw new Error("PNG canvas exceeds pixel budget");
+    const canvas = document.createElement("canvas");
+    try {
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("Canvas is unavailable");
+      context.setTransform(scale, 0, 0, scale, 0, 0);
+      this.renderer.drawRegion(context, layout, index, this.images);
+      const blob = await new Promise<Blob>((resolve, reject) =>
+        canvas.toBlob((value) => {
+          if (value) resolve(value);
+          else reject(new Error("PNG encoding failed"));
+        }, "image/png"),
+      );
+      if (this.closed) throw new Error("Canvas surface is disposed");
+      if (blob.size > outputBytes)
+        throw new Error("PNG output exceeds byte budget");
+      const bytes = new Uint8Array(await blob.arrayBuffer());
+      if (this.closed) throw new Error("Canvas surface is disposed");
+      return bytes;
+    } finally {
+      canvas.width = canvas.height = 0;
+    }
+  }
+
   dispose(): void {
     if (this.closed) return;
     this.closed = true;

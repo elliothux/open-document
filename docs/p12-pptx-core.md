@@ -1,6 +1,6 @@
 # P12 PPTX 核心功能
 
-状态：`planned`，第 1、2、3 批实施中。基于 [P6 PPTX](implemented/p6-pptx-editing.md)和已完成的 [P9](implemented/p9-web-sdk-ui.md)。复用 [P10](p10-docx-core.md) 已交付的包写入，并按实际需要复用 P10 / [P11](p11-xlsx-core.md) 的文字、图形和图表能力。属于功能优先级 P0。空白创建已接通，其余能力仍按下面的范围实施。顺序归[路线图](references/roadmap.md)，当前 API 归[格式合同](references/formats.md#pptx)，功能依据归 [G3](g3-genoffice-sdk-gap.md#演示pptx)。
+状态：`planned`，第 1、2、3、5 批实施中。基于 [P6 PPTX](implemented/p6-pptx-editing.md)和已完成的 [P9](implemented/p9-web-sdk-ui.md)。复用 [P10](p10-docx-core.md) 已交付的包写入，并按实际需要复用 P10 / [P11](p11-xlsx-core.md) 的文字、图形和图表能力。属于功能优先级 P0。空白创建已接通，其余能力仍按下面的范围实施。顺序归[路线图](references/roadmap.md)，当前 API 归[格式合同](references/formats.md#pptx)，功能依据归 [G3](g3-genoffice-sdk-gap.md#演示pptx)。
 
 当前进度：核心创建 960×540 pt 的单页空白文稿，包含版式、母版、主题和完整部件关系。同步 Wasm、Worker 和默认 UI 接通创建、首次保存、另存、保存重开与静态 PDF。支持插入文本框、矩形、圆角矩形、椭圆、直线和四向实心箭头；支持本地顶层形状/图片/组的多选复制、删除、旋转、水平/垂直翻转及层次调整，保留源格式、关系及撤销重做。已接通空白页新增、页复制/删除/重排与隐藏/显示，保持剩余页/对象身份，历史按稳定部件路径恢复。新增页沿用目标页的版式、母版和主题；复制更新对象、计时目标和自身链接，独立复制普通备注与传统批注；删除页同步页引用、自定义放映与已知内部链接，保留共享和未知资源。部件新增/删除与对象编辑共同撤销。保存失败与替换取消保留当前会话。对象多选、成组移动/等比例缩放、删除及对齐/分布已接通；组合及含非等比缩放/嵌套组的取消组合已接通；普通章节新增、改名、移除并保留页面、整章重排和连同页面删除已接通；默认页列表已有逐章及全部折叠/展开，并可一次移除所有章节且保留页面；组内编辑、更多几何和后续批次尚未完成，不标记第 1 批或整个 P12 完成。
 
@@ -13,6 +13,8 @@
 PNG/JPEG 图片插入已接通核心、Wasm、Worker、宿主和默认 UI。新对象在最上层，图片原字节、关系、内容类型与选择共同提交和精确撤销；原生文字草稿仍独立提交。对象与页面复制复用同一图片，保存重开后可继续变换，Canvas 与静态 PDF 复用现有解码和图元。替换与四边源矩形裁剪/重置已接通，保持对象身份、几何、方向和其他副本；图片常量不透明度已接通，保留源像素 alpha 并同步 Canvas/PDF。实现归 [`object-image.mbt`](../modules/formats/src/pptx/object-image.mbt)及 [`image-opacity.mbt`](../modules/formats/src/pptx/image-opacity.mbt)，合同归[格式说明](references/formats.md#pptx)。
 
 普通演讲备注已接通核心、API、默认面板、精确历史及保存重开。首个备注页、关系和内容类型一起创建；修改保留幻灯片、其他备注占位符、未知外围源与资源，清空保留备注页。页面复制独立复制备注，删除回收独占备注。备注文字不进入幻灯片画布和静态 PDF；备注母版编辑、富文本控件、批注及演讲者界面仍待实现。合同归[演讲备注](references/formats.md#演讲备注)，实现归 [`slide-notes.mbt`](../modules/formats/src/pptx/slide-notes.mbt)、[`notes-read.mbt`](../modules/formats/src/pptx/notes-read.mbt)及 [`notes-create.mbt`](../modules/formats/src/pptx/notes-create.mbt)。
+
+当前页 PNG Web 导出已接通 `PresentationEditor.exportPng`、文件菜单和保存回调。核心仍生成布局与 R0 图元，Web 在独立 Canvas 重放并编码，复用已准备的图片和轮廓，不改变选择、原格式保存状态或历史。导出尺寸按源页面 pt 与明确比例生成，不随预览缩放或 DPR 改变；选择框、光标和备注不进入图片。像素及字节预算失败后可继续编辑；输入/变换候选仍须先结束。浏览器编解码依赖、边界和检查归[当前页 PNG 输出](references/formats.md#当前页-png-输出)。批量图片、其他格式及打印继续实施。
 
 用户能从空白文稿制作演示，管理页面、主题/母版/版式，创建并编辑文字、图形、图片、表格和图表，添加媒体与基本动画，放映并输出。程序化 API 提供与 UI 相同的文档操作。GenOffice 源码用于功能与交互，核心语义和算法优先参考 ONLYOFFICE，其次 LibreOffice。
 
