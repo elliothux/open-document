@@ -70,6 +70,7 @@ fn Pagination::place(
   left : Double,
   top : Double,
   images : Images,
+  page? : Int,
 ) -> Unit raise @failure.Failure {
   self.count += 1
   guard self.count <= 32768 else {
@@ -80,7 +81,7 @@ fn Pagination::place(
   }
   let x = left + line.x
   let y = top
-  self.pages.last().unwrap().lines.push({
+  self.pages[page.unwrap_or(self.pages.length() - 1)].lines.push({
     ..line,
     x,
     y,

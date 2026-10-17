@@ -33,6 +33,7 @@ priv struct TextParagraph {
   right : Double
   first : Double
   align : String
+  rtl : Bool
   bullet : String
   bullet_style : @layout.TextStyle
   list : ListFormat

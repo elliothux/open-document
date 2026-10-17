@@ -77,9 +77,9 @@ fn pptx_paragraph_format(
     fields
     .keys()
     .all(key => {
-      ["left", "right", "first", "before", "after", "line", "list", "level"].contains(
-        key,
-      )
+      [
+        "left", "right", "first", "before", "after", "line", "list", "level", "rtl",
+      ].contains(key)
     }) else {
     @failure.reject("invalid-operation", "Unknown paragraph format fields")
   }
@@ -94,6 +94,11 @@ fn pptx_paragraph_format(
     fields.get(key).map(pptx_text_spacing)
   }
   @pptx.ParagraphFormat::new(
+    rtl?=if fields.contains("rtl") {
+      Some(xlsx_boolean(value, "rtl"))
+    } else {
+      None
+    },
     left?=number("left"),
     right?=number("right"),
     first?=number("first"),

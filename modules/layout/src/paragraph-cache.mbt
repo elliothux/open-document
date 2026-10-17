@@ -142,15 +142,23 @@ fn ParagraphCache::lines(
   paragraph : Paragraph,
   profile : Map[String, String],
   available : Double,
+  baseLevel? : Int,
 ) -> Array[MeasuredLine] raise @failure.Failure {
   probe.check()
   // Keep non-finite geometry out of retained entries.
   if available.is_nan() || available.is_inf() || !paragraph.finite_geometry() {
-    let lines = paragraph_lines(probe, paragraph, profile, available)
+    let lines = paragraph_lines(
+      probe,
+      paragraph,
+      profile,
+      available,
+      baseLevel?,
+    )
     self.shaped += 1
     return lines
   }
-  let key = self.key(paragraph, available)
+  let key = self.key(paragraph, available) +
+    baseLevel.map(level => ";base=\{level}").unwrap_or("")
   let cached = match self.current.get(key) {
     Some(lines) => Some(lines)
     None => self.previous.get(key)
@@ -161,7 +169,13 @@ fn ParagraphCache::lines(
       lines
     }
     None => {
-      let lines = paragraph_lines(probe, paragraph, profile, available)
+      let lines = paragraph_lines(
+        probe,
+        paragraph,
+        profile,
+        available,
+        baseLevel?,
+      )
       self.shaped += 1
       lines
     }

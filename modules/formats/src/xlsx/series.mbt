@@ -233,7 +233,14 @@ fn Session::fill_series(
     let values : Array[(Value, Int, String?)] = match mode {
       Automatic =>
         current.automatic_series_values(
-          source, lane, vertical, first, last, forward,
+          source,
+          lane,
+          vertical,
+          first,
+          last,
+          forward,
+          self.styles,
+          self.date1904,
         )
       TextSeries =>
         current

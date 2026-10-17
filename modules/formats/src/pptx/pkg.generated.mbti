@@ -82,8 +82,9 @@ pub(all) struct ParagraphFormat {
   line : TextSpacing?
   list : ListFormat?
   level : Int?
+  rtl : Bool?
 }
-pub fn ParagraphFormat::new(left? : Double, right? : Double, first? : Double, before? : TextSpacing, after? : TextSpacing, line? : TextSpacing, list? : ListFormat, level? : Int) -> Self
+pub fn ParagraphFormat::new(left? : Double, right? : Double, first? : Double, before? : TextSpacing, after? : TextSpacing, line? : TextSpacing, list? : ListFormat, level? : Int, rtl? : Bool) -> Self
 
 pub struct Session {
   // private fields

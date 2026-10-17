@@ -41,6 +41,10 @@ fn measure_text(
       first: paragraph.first,
       align: if paragraph.align == "justify" {
         "both"
+      } else if paragraph.rtl && paragraph.align == "left" {
+        "right"
+      } else if paragraph.rtl && paragraph.align == "right" {
+        "left"
       } else {
         paragraph.align
       },
@@ -51,7 +55,7 @@ fn measure_text(
       keepLines: false,
       keepNext: false,
       widowControl: false,
-      rtl: false,
+      rtl: paragraph.rtl,
       marker: if paragraph.bullet.is_empty() {
         None
       } else {
@@ -67,7 +71,13 @@ fn measure_text(
       },
       readOnlyReason: object.text_reason,
     }
-    let measured = probe.paragraph_lines(flow, profile, width, object.body.wrap)
+    let measured = probe.paragraph_lines(
+      flow,
+      profile,
+      width,
+      object.body.wrap,
+      baseLevel=if paragraph.rtl { 1 } else { 0 },
+    )
     top += paragraph.before.points(measured[0].height)
     for line in measured {
       let advance = match spacing {

@@ -181,6 +181,23 @@ export function PptxParagraph({
       }
     >
       <legend>{t.paragraph}</legend>
+      <label>
+        <input
+          type="checkbox"
+          checked={paragraph.rtl === true}
+          ref={(input) => {
+            if (input) input.indeterminate = paragraph.rtl === null;
+          }}
+          disabled={disabled}
+          onChange={(event) => {
+            const rtl = event.currentTarget.checked;
+            controller.run(() =>
+              editor.editObjects({ action: "textParagraph", format: { rtl } }),
+            );
+          }}
+        />
+        {t.paragraphRtl}
+      </label>
       {(
         [
           ["left", t.indentLeft],

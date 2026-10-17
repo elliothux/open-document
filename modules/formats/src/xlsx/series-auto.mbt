@@ -7,6 +7,8 @@ fn Sheet::automatic_series_values(
   first : Int,
   last : Int,
   forward : Bool,
+  styles : Array[CellStyle],
+  date1904 : Bool,
 ) -> Array[(Value, Int, String?)] raise @failure.Failure {
   let values = self.text_series_values(
     source,
@@ -16,6 +18,8 @@ fn Sheet::automatic_series_values(
     last,
     forward,
     automatic=true,
+    styles~,
+    date1904~,
   )
   let start = if vertical { source.top } else { source.left }
   let count = if vertical {

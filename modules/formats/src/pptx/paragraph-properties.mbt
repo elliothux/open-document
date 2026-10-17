@@ -14,6 +14,7 @@ pub(all) struct ParagraphFormat {
   line : TextSpacing?
   list : ListFormat?
   level : Int?
+  rtl : Bool?
 }
 
 ///|
@@ -26,8 +27,9 @@ pub fn ParagraphFormat::new(
   line? : TextSpacing,
   list? : ListFormat,
   level? : Int,
+  rtl? : Bool,
 ) -> ParagraphFormat {
-  { left, right, first, before, after, line, list, level, }
+  { left, right, first, before, after, line, list, level, rtl, }
 }
 
 ///|
@@ -59,7 +61,8 @@ fn ParagraphFormat::normalized(
     self.after is Some(_) ||
     self.line is Some(_) ||
     self.list is Some(_) ||
-    self.level is Some(_) else {
+    self.level is Some(_) ||
+    self.rtl is Some(_) else {
     @failure.reject("invalid-operation", "Specify a paragraph property")
   }
   if self.list is Some(list) {
@@ -94,6 +97,7 @@ fn ParagraphFormat::normalized(
     line: self.line.map(v => v.normalized(line=true)),
     list: self.list,
     level: self.level,
+    rtl: self.rtl,
   }
 }
 
@@ -121,6 +125,7 @@ fn paragraph_values(paragraph : TextParagraph) -> Array[Json] {
     },
     paragraph.list.query(),
     Json(paragraph.level),
+    Json(paragraph.rtl),
   ]
 }
 
@@ -140,6 +145,15 @@ fn paragraph_markup(
   }
   let attrs : Map[String, String] = Map([])
   let changes : Map[String, String] = Map([])
+  if format.rtl is Some(rtl) && rtl != paragraph.rtl {
+    attrs["rtl"] = if rtl { "1" } else { "0" }
+    // ONLYOFFICE mirrors left/right alignment when switching DrawingML direction.
+    if paragraph.align == "left" {
+      attrs["algn"] = "r"
+    } else if paragraph.align == "right" {
+      attrs["algn"] = "l"
+    }
+  }
   let mut left = format.left
   let mut first = format.first
   if format.list is Some(list) && list != paragraph.list {

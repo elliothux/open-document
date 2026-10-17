@@ -37,6 +37,7 @@ fn paragraph_lines(
   paragraph : Paragraph,
   profile : Map[String, String],
   available : Double,
+  baseLevel? : Int,
 ) -> Array[MeasuredLine] raise @failure.Failure {
   guard paragraph.defaultTab >= 0 && paragraph.defaultTab <= 1584 else {
     @failure.reject("invalid-style", "Invalid default tab interval")
@@ -108,7 +109,9 @@ fn paragraph_lines(
   }
   let text = text.to_string()
   let bidi = bidi_controls(
-    if paragraph.rtl {
+    if baseLevel == Some(0) {
+      @bidi.process(text, direction=@bidi.LTR)
+    } else if baseLevel == Some(1) || paragraph.rtl {
       @bidi.process(text, direction=@bidi.RTL)
     } else {
       @bidi.process(text)

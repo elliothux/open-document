@@ -2,7 +2,7 @@
 fn clear_names(paragraph : Bool) -> (Array[String], Array[String]) {
   if paragraph {
     (
-      ["algn", "marL", "marR", "indent"],
+      ["algn", "marL", "marR", "indent", "rtl"],
       [
         "lnSpc", "spcBef", "spcAft", "buNone", "buChar", "buClrTx", "buClr", "buFontTx",
         "buFont", "buSzTx", "buSzPct", "buSzPts", "buAutoNum",

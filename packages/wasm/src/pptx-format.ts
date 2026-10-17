@@ -51,6 +51,7 @@ export interface PptxParagraphFormat {
   line?: PptxTextSpacing;
   list?: PptxListFormat;
   level?: number;
+  rtl?: boolean;
 }
 export interface PptxParagraphFormatting {
   left: number | null;
@@ -61,10 +62,12 @@ export interface PptxParagraphFormatting {
   line: PptxTextSpacing | null;
   list: PptxListFormat | null;
   level: number | null;
+  rtl: boolean | null;
   reason: string;
 }
 
 function paragraphProperty(key: string, value: unknown): boolean {
+  if (key === "rtl") return typeof value === "boolean";
   if (key === "level")
     return (
       typeof value === "number" &&
@@ -144,7 +147,17 @@ export function checkPptxParagraphFormatting(value: unknown): void {
   const format = record(value);
   if (
     typeof format.reason !== "string" ||
-    ["left", "right", "first", "before", "after", "line", "list", "level"].some(
+    [
+      "left",
+      "right",
+      "first",
+      "before",
+      "after",
+      "line",
+      "list",
+      "level",
+      "rtl",
+    ].some(
       (key) => format[key] !== null && !paragraphProperty(key, format[key]),
     )
   )

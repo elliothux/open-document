@@ -242,7 +242,13 @@ fn read_text(
       }
     }
     let run_defaults = children(styles, "defRPr")
-    let align = match attribute(styles, "algn").unwrap_or("l") {
+    let rtl = match attribute(styles, "rtl") {
+      None | Some("0" | "false") => false
+      Some("1" | "true") => true
+      _ => @failure.reject("unsupported-text", "Invalid paragraph direction")
+    }
+    let align = match
+      attribute(styles, "algn").unwrap_or(if rtl { "r" } else { "l" }) {
       "l" => "left"
       "ctr" => "center"
       "r" => "right"
@@ -325,6 +331,7 @@ fn read_text(
       source,
       runs,
       align,
+      rtl,
       bullet,
       list,
       level,

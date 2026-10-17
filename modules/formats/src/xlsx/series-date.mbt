@@ -36,6 +36,7 @@ fn date_series_values(
   step : Double,
   count : Int,
   date1904 : Bool,
+  expectedDay? : Int,
 ) -> Array[Double] raise @failure.Failure {
   let limit = if date1904 { 2957004.0 } else { 2958466.0 }
   guard !seed.is_nan() && !seed.is_inf() && seed >= 0 && seed < limit else {
@@ -65,13 +66,15 @@ fn date_series_values(
           let next = month - 1 + step.to_int()
           year += calendar_floor(next, 12)
           month = next - calendar_floor(next, 12) * 12 + 1
-          day = seed_day.min(
-            if !date1904 && year == 1900 && month == 2 {
-              29
-            } else {
-              calendar_months(year)[month - 1]
-            },
-          )
+          day = expectedDay
+            .unwrap_or(seed_day)
+            .min(
+              if !date1904 && year == 1900 && month == 2 {
+                29
+              } else {
+                calendar_months(year)[month - 1]
+              },
+            )
         } else {
           year += step.to_int()
         }

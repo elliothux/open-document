@@ -161,7 +161,14 @@ fn Pagination::table_rows(
     )
     return
   }
-  // shortcut: Vertical-merge groups stay on one page until merged-row continuation is implemented.
+  if first_row < last_row &&
+    self.y + total + bottom > self.page.height - self.page.bottom {
+    self.continue_table_group(
+      cache, probe, table, first_row, last_row, heights, cells, profile, images,
+      additive,
+    )
+    return
+  }
   self.fit(total + bottom)
   self.repeat_table_header(
     cache,
@@ -264,18 +271,26 @@ fn Pagination::repeat_table_header(
     }
     if ready {
       let page = header.pages[0]
-      guard page.lines.length() <= 32768 - self.count else {
-        @failure.reject("limit-exceeded", "Repeated headers exceed line budget")
-      }
-      self.count += page.lines.length()
-      let target = self.pages.last().unwrap()
-      target.lines.append(
-        page.lines.map(line => { ..line.copy_geometry(), repeated: true, }),
-      )
-      target.borders.append(page.borders)
-      target.fills.append(page.fills)
-      target.cellAreas.append(page.cellAreas)
+      self.append_table_header(page)
       self.y = header.y
     }
   }
+}
+
+///|
+fn Pagination::append_table_header(
+  self : Pagination,
+  page : PageFrame,
+) -> Unit raise @failure.Failure {
+  guard page.lines.length() <= 32768 - self.count else {
+    @failure.reject("limit-exceeded", "Repeated headers exceed line budget")
+  }
+  self.count += page.lines.length()
+  let target = self.pages.last().unwrap()
+  target.lines.append(
+    page.lines.map(line => { ..line.copy_geometry(), repeated: true, }),
+  )
+  target.borders.append(page.borders)
+  target.fills.append(page.fills)
+  target.cellAreas.append(page.cellAreas)
 }

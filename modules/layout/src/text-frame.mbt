@@ -1,13 +1,18 @@
 ///|
 /// Shape one bounded paragraph without document pagination or platform measurement.
+/// `baseLevel` fixes the bidi base to 0 (LTR) or 1 (RTL); omitted uses paragraph rules.
 pub fn TextProbe::paragraph_lines(
   self : TextProbe,
   paragraph : Paragraph,
   profile : Map[String, String],
   width : Double,
   wrap : Bool,
+  baseLevel? : Int,
 ) -> Array[Line] raise @failure.Failure {
   self.check()
+  guard baseLevel is (None | Some(0 | 1)) else {
+    @failure.reject("invalid-style", "Bidi base level must be 0 or 1")
+  }
   guard width > 0 && width <= 14400 else {
     @failure.reject("layout-overflow", "Text frame has no usable line width")
   }
@@ -21,6 +26,7 @@ pub fn TextProbe::paragraph_lines(
     } else {
       1000000000.0
     },
+    baseLevel?,
   )
   if self.paragraphs.length() >= 1024 {
     self.paragraphs.clear()

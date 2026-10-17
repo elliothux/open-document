@@ -11,14 +11,18 @@ fn Table::start_height(
   let (heights, cells) = self.measure_rows(
     cache, probe, page, 0, end, profile, additive,
   )
-  let whole = heights.fold(init=0.0, (sum, height) => sum + height) +
+  let group = heights.fold(init=0.0, (sum, height) => sum + height) +
     self.border_width(end + 1)
-  if end > 0 || self.exactHeights[0] || !self.splitRows[0] {
+  if end > 0 && group <= page.height - page.top - page.bottom {
+    return group
+  }
+  let whole = heights[0] + self.border_width(1)
+  if self.exactHeights[0] || !self.splitRows[0] {
     return whole
   }
   self.fragment_required(
     0,
-    cells,
+    cells.filter(cell => cell.0 == 0),
     Array::make(cells.length(), 0),
     Array::make(cells.length(), 0.0),
     self.row_minimum_height(0),

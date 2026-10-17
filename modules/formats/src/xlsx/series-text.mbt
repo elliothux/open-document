@@ -4,6 +4,7 @@ priv struct SeriesPattern {
   padding : Int
   fit : SeriesTrend
   base : Double
+  calendar : SeriesCalendar?
   mut cursor : Int
 }
 
@@ -51,14 +52,16 @@ fn series_pattern_group(
   plans : Array[SeriesPattern],
   forward : Bool,
   single : Bool,
-) -> Unit {
+  kinds : Array[String],
+  date1904 : Bool,
+) -> Unit raise @failure.Failure {
   if indices.is_empty() {
     return
   }
   let first = indices[0]
   let last = indices[indices.length() - 1]
   let (prefix, initial, _) = suffixes[first].unwrap()
-  if single && prefix is None {
+  if single && prefix is None && kinds[first].is_empty() {
     return
   }
   let base = if prefix is Some(_) { initial } else { 0 }
@@ -92,6 +95,17 @@ fn series_pattern_group(
   } else {
     fit
   }
+  let (fit, calendar) = if !kinds[first].is_empty() {
+    guard series_calendar_plan(
+        indices, suffixes, kinds, points, forward, date1904,
+      )
+      is Some((fit, calendar)) else {
+      return
+    }
+    (fit, Some(calendar))
+  } else {
+    (fit, None)
+  }
   let intercept = fit.mean - fit.slope * fit.origin
   if prefix is Some(_) &&
     (fit.slope != fit.slope.trunc() || intercept != intercept.trunc()) {
@@ -103,6 +117,7 @@ fn series_pattern_group(
     padding,
     fit,
     base,
+    calendar,
     cursor: (last - first) / stride + 1,
   })
   if regular && spacing > 1 {
@@ -130,7 +145,9 @@ fn SeriesPattern::next(self : SeriesPattern) -> Value raise @failure.Failure {
   }
   if self.prefix is None {
     self.cursor += 1
-    return Number(signed)
+    return Number(
+      self.calendar.map(calendar => calendar.next(signed)).unwrap_or(signed),
+    )
   }
   let number = signed.abs()
   guard number <= 9007199254740991.0 && number == number.trunc() else {
@@ -159,12 +176,15 @@ fn Sheet::text_series_values(
   last : Int,
   forward : Bool,
   automatic~ : Bool = false,
+  styles~ : Array[CellStyle] = [],
+  date1904~ : Bool = false,
 ) -> Array[(Value, Int)] raise @failure.Failure {
   let start = if vertical { source.top } else { source.left }
   let end = if vertical { source.bottom } else { source.right }
   let seeds : Array[(Value, Int)] = []
   let suffixes : Array[(String?, Double, Int)?] = []
   let separators : Array[Bool] = []
+  let kinds : Array[String] = []
   for offset in 0..<(end - start + 1) {
     let axis = if forward { start + offset } else { end - offset }
     let address : Address = if vertical {
@@ -209,6 +229,13 @@ fn Sheet::text_series_values(
     }
     suffixes.push(suffix)
     seeds.push((value, self.style_at(address)))
+    kinds.push(
+      if automatic && value is Number(_) && formula is None {
+        series_calendar_kind(styles[self.style_at(address)].format)
+      } else {
+        ""
+      },
+    )
     separators.push(formula is Some(_) || (value != Blank && value != Text("")))
   }
   let slots : Array[Int?] = Array::make(seeds.length(), None)
@@ -217,7 +244,11 @@ fn Sheet::text_series_values(
   for offset, suffix in suffixes {
     match suffix {
       Some((head, _, _)) => {
-        if !indices.is_empty() && suffixes[indices[0]].unwrap().0 != head {
+        if !indices.is_empty() &&
+          (
+            suffixes[indices[0]].unwrap().0 != head ||
+            kinds[indices[0]].is_empty() != kinds[offset].is_empty()
+          ) {
           series_pattern_group(
             indices,
             suffixes,
@@ -225,6 +256,8 @@ fn Sheet::text_series_values(
             plans,
             forward,
             seeds.length() == 1,
+            kinds,
+            date1904,
           )
           indices = []
         }
@@ -239,6 +272,8 @@ fn Sheet::text_series_values(
             plans,
             forward,
             seeds.length() == 1,
+            kinds,
+            date1904,
           )
           indices = []
         }
@@ -251,6 +286,8 @@ fn Sheet::text_series_values(
     plans,
     forward,
     seeds.length() == 1,
+    kinds,
+    date1904,
   )
   let values : Array[(Value, Int)] = Array::make(last - first + 1, (Blank, 0))
   let mut units = 0
