@@ -20,6 +20,8 @@ import {
 } from "./xlsx-print.js";
 
 export type XlsxSheetEdit =
+  | { action: "hyperlink"; range: string; target: string | null }
+  | { action: "openHyperlink"; range: string; sourceRevision: number }
   | XlsxNameEdit
   | ({ action: "filter" } & XlsxFilterSettings)
   | { action: "filterClear" | "filterRemove" | "filterReapply" }
@@ -95,6 +97,28 @@ export type XlsxSheetEdit =
 
 export function checkXlsxSheetEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "hyperlink" || change.action === "openHyperlink") {
+    const fields =
+      change.action === "hyperlink"
+        ? ["action", "range", "target"]
+        : ["action", "range", "sourceRevision"];
+    if (
+      Object.keys(change).length !== fields.length ||
+      Object.keys(change).some((k) => !fields.includes(k))
+    )
+      throw new Error("Invalid hyperlink fields");
+    if (
+      typeof change.range !== "string" ||
+      !change.range ||
+      change.range.length > 64
+    )
+      throw new Error("Invalid hyperlink range");
+    if (change.action === "hyperlink") {
+      checkXlsxHyperlinkTarget(change.target);
+    } else if (!integer(change.sourceRevision, 0, 2147483647))
+      throw new Error("Invalid hyperlink revision");
+    return;
+  }
   if (["name", "nameDelete", "nameSelect"].includes(String(change.action))) {
     checkXlsxNameEdit(change);
     return;
@@ -324,4 +348,45 @@ export function checkXlsxSheetEdit(value: unknown): void {
   )
     return;
   throw new Error("Invalid worksheet edit");
+}
+
+export interface XlsxHyperlink {
+  target: string | null;
+  mixed: boolean;
+  readOnlyReason: string;
+  navigationReason: string;
+}
+
+export function checkXlsxHyperlinkTarget(target: unknown): void {
+  if (target === null) return;
+  if (
+    typeof target !== "string" ||
+    !target.isWellFormed() ||
+    !target ||
+    target.length > 2048 ||
+    Array.from(target).some(
+      (c) =>
+        c.charCodeAt(0) < 32 ||
+        c.charCodeAt(0) === 127 ||
+        c.charCodeAt(0) >= 65534 ||
+        c === "\\",
+    ) ||
+    (target.startsWith("#")
+      ? target.length === 1
+      : !/^(https?:\/\/|mailto:).+/i.test(target) || /\s/u.test(target))
+  )
+    throw new Error("Invalid XLSX hyperlink target");
+}
+
+export function xlsxHyperlink(value: unknown): XlsxHyperlink {
+  const link = record(value);
+  checkXlsxHyperlinkTarget(link.target);
+  if (
+    typeof link.mixed !== "boolean" ||
+    typeof link.readOnlyReason !== "string" ||
+    typeof link.navigationReason !== "string" ||
+    (link.mixed && link.target !== null)
+  )
+    throw new Error("Invalid XLSX hyperlink query");
+  return value as XlsxHyperlink;
 }

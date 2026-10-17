@@ -193,6 +193,7 @@ fn Session::from_package(
           "sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData",
           "mergeCells", "sheetProtection", "pageMargins", "pageSetup", "printOptions",
           "headerFooter", "autoFilter", "dataValidations", "conditionalFormatting",
+          "hyperlinks",
         ].contains(child.name) ||
         child.uri != spreadsheet_uri {
         diagnostics.push("unrendered:" + sheet.id + ":" + child.qualified)
@@ -454,6 +455,10 @@ pub fn Session::query(
     ),
     "filter": self.filter_query(sheet_index),
     "names": self.names_query(),
+    "hyperlink": self.hyperlink_query(
+      current,
+      current.merge_target(range.unwrap()),
+    ),
     "cells": cells,
     "selection": {
       "sheet": self.selection.0,

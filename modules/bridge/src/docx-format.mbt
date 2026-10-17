@@ -1,4 +1,60 @@
 ///|
+fn bookmark_edit(request : Json) -> @docx.BookmarkEdit raise @failure.Failure {
+  guard request is { "change": Object(fields) as change, .. } else {
+    @failure.reject("invalid-operation", "Invalid bookmark command")
+  }
+  let action = field_string(change, "action")
+  let allowed = match action {
+    "create" => ["action", "name", "selection"]
+    "rename" => ["action", "name", "replacement"]
+    "remove" | "goTo" => ["action", "name"]
+    _ => @failure.reject("invalid-operation", "Unknown bookmark command")
+  }
+  guard fields.length() == allowed.length() &&
+    fields.keys().all(key => allowed.contains(key)) else {
+    @failure.reject("invalid-operation", "Invalid bookmark fields")
+  }
+  let name = field_string(change, "name")
+  match action {
+    "create" => @docx.CreateBookmark(name, field_selection(change))
+    "rename" => @docx.RenameBookmark(name, field_string(change, "replacement"))
+    "goTo" => @docx.GoToBookmark(name)
+    _ => @docx.RemoveBookmark(name)
+  }
+}
+
+///|
+fn edit_docx_format(
+  session : @docx.Session,
+  request : Json,
+  operation : String,
+  revision : Int,
+) -> Json raise @failure.Failure {
+  match operation {
+    "editBookmark" => session.edit_bookmark(revision, bookmark_edit(request))
+    "setHyperlink" =>
+      session.set_hyperlink(
+        revision,
+        field_selection(request),
+        field_hyperlink_target(request),
+        text=field_hyperlink_text(request),
+      )
+    "setCharacterFormat" =>
+      session.set_character_format(
+        revision,
+        field_selection(request),
+        character_format(request),
+      )
+    _ =>
+      session.set_paragraph_format(
+        revision,
+        field_selection(request),
+        paragraph_format(request),
+      )
+  }
+}
+
+///|
 fn format_fields(
   request : Json,
   allowed : Array[String],

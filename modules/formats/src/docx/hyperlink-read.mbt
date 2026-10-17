@@ -45,7 +45,8 @@ fn WordTree::check_hyperlink(
       )
     }) &&
     self.children[id].all(child => {
-      self.nodes[child].uri == word_uri && self.nodes[child].name == "r"
+      self.is_bookmark(child) ||
+      (self.nodes[child].uri == word_uri && self.nodes[child].name == "r")
     }) &&
     node.text.trim().is_empty() &&
     (
@@ -58,6 +59,11 @@ fn WordTree::check_hyperlink(
     @failure.reject(
       "protected-content", "Extended or incomplete hyperlinks require editing support",
     )
+  }
+  for child in self.children[id] {
+    if self.is_bookmark(child) {
+      self.check_bookmark_marker(child)
+    }
   }
 }
 

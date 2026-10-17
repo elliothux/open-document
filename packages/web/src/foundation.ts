@@ -6,6 +6,7 @@ export type {
   DocxFormatting,
   DocxFindOptions,
   DocxOverview,
+  DocxBookmarkEdit,
   DocxSearchResult,
   HighlightColor,
   CopiedFormat,
@@ -40,6 +41,7 @@ export type {
 } from "@open-document/wasm/foundation";
 export {
   checkDocxHyperlink,
+  checkDocxBookmark,
   highlightColors,
   DOCX_SOFT_BREAK,
   DOCX_PAGE_BREAK,
@@ -95,6 +97,8 @@ import {
   checkFindOptions,
   docxSearchResult,
   docxOverview,
+  checkDocxBookmark,
+  type DocxBookmarkEdit,
   type DocxOverview,
   type DocxFindOptions,
   type DocxSearchResult,
@@ -498,6 +502,19 @@ export class FoundationClient {
   async overview(revision: number): Promise<DocxOverview> {
     return docxOverview(
       await this.connection.request({ operation: "docxOverview", revision }),
+    );
+  }
+  async editBookmark(
+    revision: number,
+    change: DocxBookmarkEdit,
+  ): Promise<EditState> {
+    checkDocxBookmark(change);
+    return editState(
+      await this.connection.request({
+        operation: "editBookmark",
+        revision,
+        change,
+      }),
     );
   }
   async findDocx(

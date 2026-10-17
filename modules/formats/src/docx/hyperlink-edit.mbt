@@ -59,20 +59,65 @@ fn hyperlink_opening(
   relation : String,
   paragraph : Int,
 ) -> (String, String) raise @failure.Failure {
+  let internal = relation.has_prefix("#")
+  let uri = if internal {
+    word_uri
+  } else {
+    "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  }
+  let value = if internal { relation[1:].to_owned() } else { relation }
   if old is Some(id) {
     let node = tree.nodes[id]
     let attribute = node.attributes
       .iter()
       .find_first(a => {
-        a.uri ==
-        "http://schemas.openxmlformats.org/officeDocument/2006/relationships" &&
-        a.name == "id"
+        (a.uri == word_uri && a.name == "anchor") ||
+        (
+          a.uri ==
+          "http://schemas.openxmlformats.org/officeDocument/2006/relationships" &&
+          a.name == "id"
+        )
       })
       .unwrap()
     let source = document.source()
+    if attribute.uri != uri {
+      let bindings = tree.namespace_bindings(id)
+      let prefix = for i in 1..<=16384 {
+        let prefix = "odLink\{i}"
+        if !bindings.contains(prefix) {
+          break prefix
+        }
+      } nobreak {
+        @failure.reject(
+          "limit-exceeded", "Hyperlink namespace identities exhausted",
+        )
+      }
+      let mut end = attribute.start - 2
+      while source[end] != 61 {
+        end -= 1
+      }
+      while [9, 10, 13, 32].contains(source[end - 1].to_int()) {
+        end -= 1
+      }
+      let mut start = end - 1
+      while ![9, 10, 13, 32].contains(source[start - 1].to_int()) {
+        start -= 1
+      }
+      return (
+        source[node.start:start].to_owned() +
+        prefix +
+        ":" +
+        (if internal { "anchor" } else { "id" }) +
+        source[end:attribute.start].to_owned() +
+        property_attribute(value) +
+        source[attribute.end:node.opening_end - 1].to_owned() +
+        " xmlns:\{prefix}=\"\{uri}\">",
+        "</\{node.qualified}>",
+      )
+    }
     (
       source[node.start:attribute.start].to_owned() +
-      property_attribute(relation) +
+      property_attribute(value) +
       source[attribute.end:node.opening_end].to_owned(),
       "</\{node.qualified}>",
     )
@@ -92,7 +137,7 @@ fn hyperlink_opening(
       )
     }
     (
-      "<\{name} xmlns:\{prefix}=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" \{prefix}:id=\"\{property_attribute(relation)}\">",
+      "<\{name} xmlns:\{prefix}=\"\{uri}\" \{prefix}:\{if internal { "anchor" } else { "id" }}=\"\{property_attribute(value)}\">",
       "</\{name}>",
     )
   }
@@ -148,7 +193,9 @@ fn hyperlink_changes(
         .unwrap_or(("", ""))
       if old is Some(id) {
         let node = tree.nodes[id]
-        let children = tree.children[id]
+        let children = tree.children[id].filter(id => {
+          tree.nodes[id].uri == word_uri && tree.nodes[id].name == "r"
+        })
         let old_opening = document.source()[node.start:node.opening_end].to_owned()
         let old_closing = "</\{node.qualified}>"
         if children.get(0) == Some(first.id) {
@@ -170,6 +217,19 @@ fn hyperlink_changes(
               change(p, at, at, extra)
             }
           }
+          for child in tree.children[id].filter(id => tree.is_bookmark(id)) {
+            let marker = tree.nodes[child]
+            if (
+                children.get(0) == Some(first.id) || marker.start >= first.start
+              ) &&
+              (children.last() == Some(last.id) || marker.end <= last.end) {
+              let extra = tree.namespace_additions(child, p)
+              if !extra.is_empty() {
+                let at = marker.opening_end - (if marker.empty { 2 } else { 1 })
+                change(p, at, at, extra)
+              }
+            }
+          }
         }
       } else if relation is Some(_) {
         change(p, first.start, first.start, opening)
@@ -182,7 +242,7 @@ fn hyperlink_changes(
 }
 
 ///|
-/// Edits an external hyperlink; a caret outside a link requires explicit display text.
+/// Edits a URL or #bookmark hyperlink; a caret outside a link requires explicit display text.
 pub fn Session::set_hyperlink(
   self : Session,
   revision : Int,
@@ -193,6 +253,18 @@ pub fn Session::set_hyperlink(
   self.check_revision(revision)
   if target is Some(target) {
     check_hyperlink_target(target)
+    if target.has_prefix("#") {
+      guard WordTree::new(self.document())
+        .bookmarks()
+        .any(b => {
+          b.name.to_lower() == target[1:].to_owned().to_lower() &&
+          b.reason.is_empty()
+        }) else {
+        @failure.reject(
+          "invalid-operation", "Internal hyperlink requires an existing editable bookmark",
+        )
+      }
+    }
   }
   if text is Some(text) {
     guard target is Some(_) &&
@@ -213,9 +285,10 @@ pub fn Session::set_hyperlink(
   let selected = { anchor: range.start, focus: range.end, }
   let links = self.hyperlink_relationships()
   let original_tree = WordTree::new(original)
+  let bookmarks = original_tree.bookmark_targets()
   let values = self
     .hyperlink_runs(original_tree, range)
-    .map(run => hyperlink_target(original_tree, run, links))
+    .map(run => hyperlink_target(original_tree, run, links, bookmarks))
   if text is None &&
     (target is None || !values.is_empty()) &&
     values.all(value => value == target) {
@@ -278,7 +351,7 @@ pub fn Session::set_hyperlink(
   let tree = WordTree::new(document)
   let changed = self
     .hyperlink_runs(tree, range)
-    .filter(run => hyperlink_target(tree, run, links) != target)
+    .filter(run => hyperlink_target(tree, run, links, bookmarks) != target)
   let parts = self.parts.copy()
   let edits : Map[String, Array[@xml.Edit]] = Map([])
   let created : Map[String, @xml.Document] = Map([])
@@ -286,7 +359,11 @@ pub fn Session::set_hyperlink(
     None
   } else {
     target.map(target => {
-      self.hyperlink_relationship(target, links, parts, edits, created)
+      if target.has_prefix("#") {
+        target
+      } else {
+        self.hyperlink_relationship(target, links, parts, edits, created)
+      }
     })
   }
   let changes = hyperlink_changes(document, range, changed, relation)

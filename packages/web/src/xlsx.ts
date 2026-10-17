@@ -32,6 +32,10 @@ import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type { XlsxSheetEdit, XlsxClearMode } from "@open-document/wasm/xlsx";
 export type { XlsxFillTarget, XlsxFillPreview } from "@open-document/wasm/xlsx";
 export type { XlsxStatistics } from "@open-document/wasm/xlsx";
+export {
+  checkXlsxHyperlinkTarget,
+  type XlsxHyperlink,
+} from "@open-document/wasm/xlsx";
 export type {
   XlsxName,
   XlsxNames,

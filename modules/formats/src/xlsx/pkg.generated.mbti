@@ -304,6 +304,8 @@ pub(all) enum SheetEdit {
   ValidationValue(Int, Int)
   ConditionalRule(String, Int?, ConditionalFormat?, Int)
   ConditionalPriority(Int, Int, Int)
+  Hyperlink(String, String?)
+  OpenHyperlink(String, Int)
 }
 
 pub(all) struct SortKey {

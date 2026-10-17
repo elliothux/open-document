@@ -209,7 +209,19 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `DocxFormatting.hyperlink` 返回 `{ target, mixed, reason }`；非共同目标为 null，mixed 为 true 时可统一设置或移除，reason 说明目标保护原因。原字符格式保持，不自动套用 Hyperlink 字符样式；默认面板提供地址、显示文字、应用、移除和显式打开，外链使用新窗口及 `noopener noreferrer`。普通输入和临时组合状态不覆盖未提交地址草稿；非法地址在进入编辑队列前提示，原文档仍可编辑和保存。打开文件、查询、布局及应用链接都不请求外链。
 
-复用字符边界拆分和关系事务。已选链接的提示、history、tgtFrame 与未选两端保留；移除容器时补齐 run 的局部命名空间，保留文字、格式和注释。相同外部目标复用关系，不改写共用关系或清理旧关系。显示文字、链接 XML、新增/修改关系合为一项历史；过期 revision、活动候选、图片、未知源及源/输出预算失败均不提交。书签、docLocation 和未知关系的目标修改继续保护；书签创建/维护/导航、链接样式管理与交互 PDF 注释仍待 [P10](../p10-docx-core.md) 后续实现。范围与光标语义参考 [ONLYOFFICE 链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L7811-L8180)，实现归 [`hyperlink-edit.mbt`](../../modules/formats/src/docx/hyperlink-edit.mbt)及 [`hyperlink-query.mbt`](../../modules/formats/src/docx/hyperlink-query.mbt)。
+复用字符边界拆分和关系事务。已选链接的提示、history、tgtFrame 与未选两端保留；移除容器时补齐 run 和书签的局部命名空间，保留文字、格式和注释。相同外部目标复用关系，不改写共用关系或清理旧关系。显示文字、链接 XML、新增/修改关系合为一项历史；过期 revision、活动候选、图片、未知源及源/输出预算失败均不提交。内部目标扩展见下节；docLocation、同时具有外链关系和 anchor 的组合目标及未知关系继续保护。链接样式管理与交互 PDF 注释仍待 [P10](../p10-docx-core.md) 后续实现。范围与光标语义参考 [ONLYOFFICE 链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L7811-L8180)，实现归 [`hyperlink-edit.mbt`](../../modules/formats/src/docx/hyperlink-edit.mbt)及 [`hyperlink-query.mbt`](../../modules/formats/src/docx/hyperlink-query.mbt)。
+
+### 书签与内部导航
+
+`FoundationSession/Client.overview(revision)` 的 `bookmarks` 返回 `{ name, selection, reason }[]`，最多 4096 项。支持正文、普通单元格及单层链接内的成对书签；空光标、文字范围、跨段和交叠范围均不占逻辑文字宽度。重复名称/身份、缺失或倒置标记、列书签和未知容器保留源，以 reason 说明保护原因，selection 为 null。
+
+`editBookmark(revision, change)` 与宿主 `DocumentEditor.editBookmark(change)` 接受四种命令：`{ action: "create", name, selection }`、`{ action: "rename", name, replacement }`、`{ action: "remove", name }`、`{ action: "goTo", name }`。创建/改名使用 1–40 个 ASCII 字母、数字或下划线，首字符不能为数字。名称查找及去重忽略大小写；重复创建拒绝。goTo 将光标移到当前书签起点，不改 revision 或历史。默认概览面板提供创建、改名、删除及跳转，复用原生输入和编辑队列。
+
+`setHyperlink` 的 target 另接受 `#书签名`，必须对应当前可用书签。内部链接写入 `w:anchor`，不新增 OPC 关系；外部与内部目标可相互修改，保留原提示和直接格式。默认面板的“打开链接”执行核心定位。改名同时更新主文档已知 anchor 引用；删除书签同时移除这些链接容器，保留文字、格式及命名空间。其他 XML 部件中的 anchor 或包含该名称的字段指令会保护改名/删除，避免悬空引用；交叉引用字段更新仍待实现。
+
+普通文字、组合输入、格式、查找替换和拆段/合段保留零宽标记。范围替换删除中间段落时，丢失的已知端点收缩到替换后的光标；同一位置的起点先于结束标记。删除含书签的表格行等其他结构操作若会破坏配对，则整项拒绝。未知标记源保持。每次创建、改名、删除及相关引用更改合为一次有界历史；保存重开保留范围和导航，预算失败不提交。当前 PDF 仅保留文字与格式，不含可点击注释。
+
+名称匹配及书签定位参考固定 [ONLYOFFICE Bookmarks.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Bookmarks.js#L353-L366)，配对插入及移除参考 [Document.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L24423-L24568)。未复制上游代码；实现归 [`bookmark-read.mbt`](../../modules/formats/src/docx/bookmark-read.mbt)和 [`bookmark-edit.mbt`](../../modules/formats/src/docx/bookmark-edit.mbt)。
 
 ### DOCX 主题颜色
 
@@ -826,6 +838,20 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 网格、查询 `display`、自动适配和打印使用同一有效样式。依赖格输入或公式结果改变时，自动行/数值 bestFit 列按条件样式重算，与原编辑共享一次历史；固定尺寸保持原值。规则 XML、`dxf`、基础格式和范围外部件保留，保存重开继续计算。合并格按锚点求值。
 
 规则及差异样式各限 4096 项，公式限 8192 UTF-16 单位；网格、整项打印或编辑适配共享 1048576 次规则/公式工作预算，不展开整列空格。未知规则、属性、装饰或扩展样式保留源并诊断；相关打印或适配拒绝，避免输出缺失效果。查询中的条件格式预算失败转成诊断，避免成功提交后被返回查询误报为失败；实际绘制和输出仍检查预算。扩展数据条、图标集、其他规则、边框仅改颜色及更广差异格式仍待实现。实现归 [`conditional-format.mbt`](../../modules/formats/src/xlsx/conditional-format.mbt) 和 [`conditional-style.mbt`](../../modules/formats/src/xlsx/conditional-style.mbt)，值比较参考 [ONLYOFFICE cellIs](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/ConditionalFormatting.js#L835-L913)。
+
+### 单元格超链接
+
+`XlsxQuery.hyperlink` 返回 `{ target, mixed, readOnlyReason, navigationReason }`。target 为共同地址，未链接或混合选区为 null；mixed 区分混合范围。范围查询使用矩形运算，不展开整列空格。支持普通 `hyperlink`、外部关系及内部 location；未知属性/容器、组合外链与 location、未解析关系或相交的重复链接保护相关修改。
+
+`SpreadsheetEditor.editSheet({ action: "hyperlink", range, target })` 复用 `XlsxSession/Client.editSheet(revision, sheet, change)`。HTTP、HTTPS、mailto 或 `#范围/定义名称` 最多 2048 UTF-16 单元；内部目标须解析到现有可见表中的一个矩形，例如 `#'团队''s Data'!$A$1:B2` 或 `#Local`。核心使用现有公式词法、名称作用域与引用解析。null 移除范围内链接，保留单元格值、公式、富文本和直接格式；不自动套用链接颜色或下划线。显示文字继续通过原生输入编辑。
+
+修改局部范围时拆分既有链接，范围外目标、提示、display、局部命名空间及间隙注释保留。单格命中合并区域时作用于整块；其他选区须包含相交的完整合并区域。新增关系复用同目标，不改写共用关系或清理旧关系；首次关系部件与链接 XML 合为一次历史。源、范围片段、历史及输出预算失败不提交。
+
+默认面板提供地址、应用、混合移除及显式打开，原生草稿沿既有队列提交。打开文件、查询、设置链接和打印均不请求外链；外部打开使用新窗口及 `noopener noreferrer`。内部打开调用 `{ action: "openHyperlink", range, sourceRevision }`，核心检查当前选区与修订后定位，不增加历史。无效或隐藏目标返回 navigationReason，保留源并拒绝跳转。
+
+已有改名、复制、删除工作表及行列/单元格结构事务继续更新普通链接范围与内部引用；名称改名同步内部 location，外部文件的 location 保持原值。删除定义名称时移除因此失去矩形目标的已知链接，包括名称别名链；其他已失效引用保留导航原因。保存重开支持继续编辑，链接和关系与原生输入、结构修改可精确混合撤销。静态 PDF 校验普通链接元数据后保留单元格文字与格式，未知链接扩展继续保护输出；可点击 PDF 注释、HYPERLINK 函数及绘图对象链接仍属后续范围。
+
+实现归 [`hyperlink-query.mbt`](../../modules/formats/src/xlsx/hyperlink-query.mbt) 和 [`hyperlink-edit.mbt`](../../modules/formats/src/xlsx/hyperlink-edit.mbt)。范围查找、设置/移除及保留直接格式的语义参考固定 [ONLYOFFICE Range hyperlinks](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L20760-L20849)，复用第一方范围拆分、关系与历史事务，未复制上游代码。
 
 ### 数据验证
 

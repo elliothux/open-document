@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { SpreadsheetEditor } from "@open-document/web/spreadsheet-editor";
 import {
   xlsxNumberFormats,
+  checkXlsxHyperlinkTarget,
   type XlsxCellFormat,
   type XlsxCellBorder,
 } from "@open-document/web/xlsx";
@@ -11,17 +12,14 @@ import { XlsxFormatPainter } from "./xlsx-format-painter.js";
 import { XlsxValidation } from "./xlsx-validation.js";
 import { XlsxConditional } from "./xlsx-conditional.js";
 
-export function XlsxFormat({
-  controller,
-  state,
-  editor,
-  disabled,
-}: {
+type Props = {
   controller: EditorController;
   state: UiSnapshot;
   editor: SpreadsheetEditor;
   disabled: boolean;
-}) {
+};
+
+export function XlsxFormat({ controller, state, editor, disabled }: Props) {
   const t = messages(state.locale),
     current = editor.currentState.formatting;
   const [patch, setPatch] = useState<XlsxCellFormat>({});
@@ -69,6 +67,13 @@ export function XlsxFormat({
       }}
     >
       <h3>{t.cellFormat}</h3>
+      <XlsxHyperlink
+        key={state.document?.documentId}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
       <XlsxConditional
         key={JSON.stringify([
           state.document?.documentId,
@@ -328,6 +333,95 @@ export function XlsxFormat({
         editor={editor}
         disabled={disabled}
       />
+    </section>
+  );
+}
+
+function XlsxHyperlink({ controller, state, editor, disabled }: Props) {
+  const t = messages(state.locale),
+    query = editor.currentState,
+    link = query.hyperlink;
+  const [address, setAddress] = useState(link.target ?? "");
+  useEffect(
+    () => setAddress(link.target ?? ""),
+    [editor, link.target, link.mixed],
+  );
+  disabled ||= !!link.readOnlyReason;
+  return (
+    <section aria-label={t.cellHyperlink}>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          controller.run(() => {
+            checkXlsxHyperlinkTarget(address);
+            return editor.editSheet({
+              action: "hyperlink",
+              range: query.selection.address,
+              target: address,
+            });
+          });
+        }}
+      >
+        <fieldset disabled={disabled}>
+          <legend>{t.cellHyperlink}</legend>
+          <label>
+            {t.hyperlinkAddress}
+            <input
+              type="text"
+              inputMode="url"
+              required
+              maxLength={2048}
+              value={address}
+              onChange={(event) => setAddress(event.currentTarget.value)}
+            />
+          </label>
+          <p>{t.hyperlinkRange}</p>
+          {link.mixed && <p>{t.mixed}</p>}
+          <button type="submit">{t.hyperlinkApply}</button>
+          <button
+            type="button"
+            disabled={!link.target && !link.mixed}
+            onClick={() =>
+              controller.run(() =>
+                editor.editSheet({
+                  action: "hyperlink",
+                  range: query.selection.address,
+                  target: null,
+                }),
+              )
+            }
+          >
+            {t.hyperlinkRemove}
+          </button>
+        </fieldset>
+      </form>
+      {link.readOnlyReason && <p>{link.readOnlyReason}</p>}
+      {link.navigationReason && <p>{link.navigationReason}</p>}
+      {link.target &&
+        !link.mixed &&
+        (link.target.startsWith("#") ? (
+          <button
+            type="button"
+            disabled={disabled || !!link.navigationReason}
+            onClick={() =>
+              controller.run(() =>
+                editor.editSheet({
+                  action: "openHyperlink",
+                  range: query.selection.address,
+                  sourceRevision: query.revision,
+                }),
+              )
+            }
+          >
+            {t.hyperlinkOpen}
+          </button>
+        ) : (
+          !disabled && (
+            <a href={link.target} target="_blank" rel="noopener noreferrer">
+              {t.hyperlinkOpen}
+            </a>
+          )
+        ))}
     </section>
   );
 }

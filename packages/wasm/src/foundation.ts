@@ -25,8 +25,13 @@ import {
 } from "./docx-format.js";
 export * from "./docx-format.js";
 export * from "./docx-picture.js";
-export { docxOverview, type DocxOverview } from "./docx-overview.js";
-import { docxOverview, type DocxOverview } from "./docx-overview.js";
+export * from "./docx-overview.js";
+import {
+  docxOverview,
+  type DocxOverview,
+  checkDocxBookmark,
+  type DocxBookmarkEdit,
+} from "./docx-overview.js";
 import {
   prepareDocxPictureEdit,
   docxPictures,
@@ -304,6 +309,12 @@ export class FoundationSession extends WasmSession {
   }
   overview(revision: number): DocxOverview {
     return docxOverview(this.call({ operation: "docxOverview", revision }));
+  }
+  editBookmark(revision: number, change: DocxBookmarkEdit): EditState {
+    checkDocxBookmark(change);
+    return editState(
+      this.call({ operation: "editBookmark", revision, change }),
+    );
   }
 
   createDocx(budget: Budget): DocxQuery {

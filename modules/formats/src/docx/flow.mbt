@@ -210,6 +210,11 @@ fn Session::paragraph(
         @failure.Failure(message~, ..) =>
           diagnostics.push("unsupported-layout:" + message)
       }
+    } else if tree.is_bookmark(child) {
+      tree.check_bookmark_marker(child) catch {
+        @failure.Failure(message~, ..) =>
+          diagnostics.push("unsupported-layout:" + message)
+      }
     } else if Some(child) != props && (node.uri != word_uri || node.name != "r") {
       diagnostics.push("unsupported-layout:" + node.qualified)
     }

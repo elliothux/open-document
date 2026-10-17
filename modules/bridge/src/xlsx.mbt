@@ -221,6 +221,39 @@ fn Foundation::xlsx_operation(
             field_int(change, "position"),
             field_int(change, "sourceRevision"),
           )
+        "hyperlink" => {
+          guard change is Object(fields) &&
+            fields.length() == 3 &&
+            fields.keys().all(k => ["action", "range", "target"].contains(k)) else {
+            @failure.reject(
+              "invalid-operation", "Invalid hyperlink command fields",
+            )
+          }
+          @xlsx.Hyperlink(
+            field_string(change, "range"),
+            match fields.get("target") {
+              Some(Null) => None
+              Some(String(value)) => Some(value)
+              _ =>
+                @failure.reject("invalid-operation", "Invalid hyperlink target")
+            },
+          )
+        }
+        "openHyperlink" => {
+          guard change is Object(fields) &&
+            fields.length() == 3 &&
+            fields
+            .keys()
+            .all(k => ["action", "range", "sourceRevision"].contains(k)) else {
+            @failure.reject(
+              "invalid-operation", "Invalid hyperlink navigation fields",
+            )
+          }
+          @xlsx.OpenHyperlink(
+            field_string(change, "range"),
+            field_int(change, "sourceRevision"),
+          )
+        }
         "validation" => {
           guard change is { "rule": rule, .. } else {
             @failure.reject(

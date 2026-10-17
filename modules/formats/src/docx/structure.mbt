@@ -401,9 +401,17 @@ fn WordTree::check_editable_paragraph(
     if node.uri == word_uri && node.name == "pPr" {
       continue
     }
+    if self.is_bookmark(child) {
+      self.check_bookmark_marker(child)
+      continue
+    }
     if node.uri == word_uri && node.name == "hyperlink" {
       self.check_hyperlink(child)
-      runs.append(self.children[child])
+      runs.append(
+        self.children[child].filter(id => {
+          self.nodes[id].uri == word_uri && self.nodes[id].name == "r"
+        }),
+      )
       continue
     }
     guard node.uri == word_uri && node.name == "r" else {

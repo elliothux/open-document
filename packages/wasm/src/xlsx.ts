@@ -1,4 +1,14 @@
-import { checkXlsxSheetEdit, type XlsxSheetEdit } from "./xlsx-sheet.js";
+import {
+  checkXlsxSheetEdit,
+  type XlsxSheetEdit,
+  xlsxHyperlink,
+  type XlsxHyperlink,
+} from "./xlsx-sheet.js";
+export {
+  checkXlsxHyperlinkTarget,
+  xlsxHyperlink,
+  type XlsxHyperlink,
+} from "./xlsx-sheet.js";
 import {
   xlsxRect,
   xlsxSelection,
@@ -210,6 +220,7 @@ export interface XlsxCell {
 }
 
 export interface XlsxQuery {
+  hyperlink: XlsxHyperlink;
   names: XlsxNames;
   statistics: XlsxStatistics;
   filter: XlsxFilterState;
@@ -284,6 +295,7 @@ function cellValue(value: unknown): boolean {
 export function xlsxQuery(value: unknown): XlsxQuery {
   const query = record(value);
   xlsxStatistics(query.statistics);
+  xlsxHyperlink(query.hyperlink);
   xlsxFilterState(query.filter);
   xlsxConditionalState(query.conditionalFormats);
   xlsxValidationState(query.dataValidation);

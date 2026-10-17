@@ -1,4 +1,4 @@
-import { checkDocxRevision, downloadDocxOutput } from "./document-output.js";
+import { docxOutput, downloadDocxOutput } from "./document-output.js";
 import { createDocumentElements, docxPageText } from "./document-elements.js";
 import type { FoundationClient } from "./foundation.js";
 import { PageCanvas } from "./page-canvas.js";
@@ -46,6 +46,7 @@ import type {
   DocxTableEdit,
   DocxThemeSlot,
   DocxThemeFontPair,
+  DocxBookmarkEdit,
 } from "@open-document/wasm/foundation";
 /** Owns browser input order. The caller owns fonts, the opened DOCX and client lifetime. */
 export class DocumentEditor {
@@ -375,7 +376,6 @@ export class DocumentEditor {
     );
   }
 
-  /** Waits for all input accepted before this call, and reports a stopped editor. */
   async whenIdle(): Promise<void> {
     this.pointerSelection.flush();
     await this.tail;
@@ -436,6 +436,11 @@ export class DocumentEditor {
       ...(await this.client.overview(this.state.revision)),
       documentId: this.getSnapshot().documentId,
     }));
+  }
+  editBookmark(change: DocxBookmarkEdit): Promise<void> {
+    return this.format(() =>
+      this.client.editBookmark(this.state.revision, change),
+    );
   }
   selectHeading(result: DocumentOverview, index: number): Promise<void> {
     return this.format(() =>
@@ -733,7 +738,6 @@ export class DocumentEditor {
   saveDocx(): Promise<EditorOutput> {
     return this.output("docx");
   }
-  /** Exports the completed layout at this input barrier. */
   exportPdf(outputBytes = 67108864): Promise<EditorOutput> {
     return this.output("pdf", outputBytes);
   }
@@ -744,15 +748,14 @@ export class DocumentEditor {
     this.inputEvents.endGroup();
     return this.enqueue(
       async () => {
-        const revision = await checkDocxRevision(
+        const { revision, bytes } = await docxOutput(
           this.client,
           this.state.revision,
+          this.currentLayout.id,
+          format,
+          outputBytes,
           () => this.assertOpen(),
         );
-        const bytes =
-          format === "docx"
-            ? await this.client.saveDocx()
-            : await this.client.exportPdf(outputBytes, this.currentLayout.id);
         this.publish();
         return this.observable.output(revision, format, bytes);
       },

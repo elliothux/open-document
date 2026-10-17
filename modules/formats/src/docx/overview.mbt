@@ -124,6 +124,10 @@ pub fn Session::overview(
   }
   {
     "revision": revision,
+    "bookmarks": match self.bookmarks(revision) {
+      { "items": items, .. } => items
+      _ => []
+    },
     "headings": headings,
     "truncated": truncated,
     "diagnostics": diagnostics,

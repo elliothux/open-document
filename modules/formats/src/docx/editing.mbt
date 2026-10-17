@@ -480,7 +480,11 @@ fn Session::commit_edit(
   join_group~ : Bool = false,
   parts~ : Map[String, @xml.Document] = self.parts,
   media~ : Map[String, Bytes] = self.media,
+  bookmark_edit~ : Bool = false,
 ) -> Unit raise @failure.Failure {
+  if !bookmark_edit {
+    check_bookmark_integrity(self.document(), candidate)
+  }
   let previous = if join_group &&
     edit.parts.is_empty() &&
     edit.created.is_empty() &&

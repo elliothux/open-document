@@ -5,6 +5,7 @@ import type {
 } from "@open-document/web/editor";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { DocxBookmarks } from "./docx-bookmarks.js";
 
 export function DocxOverview({
   controller,
@@ -49,6 +50,13 @@ export function DocxOverview({
       <h2>{t.documentOverview}</h2>
       {result && (
         <>
+          <DocxBookmarks
+            controller={controller}
+            editor={editor}
+            result={result}
+            disabled={disabled || blocked || stale}
+            t={t}
+          />
           <dl aria-label={t.bodyStatistics}>
             <dt>{t.wordCount}</dt>
             <dd>{result.statistics.words}</dd>

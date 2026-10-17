@@ -1,4 +1,13 @@
 export const en = {
+  cellHyperlink: "Cell hyperlink",
+  hyperlinkRange: "Use #Sheet1!A1 or #Name to link within this workbook.",
+  bookmarks: "Bookmarks",
+  bookmarkName: "Bookmark name",
+  bookmarkCreate: "Create bookmark",
+  bookmarkRename: "Rename bookmark",
+  bookmarkRemove: "Remove bookmark",
+  bookmarkGoTo: "Go to bookmark",
+  hyperlinkBookmark: "Use #BookmarkName to link within this document.",
   objectHyperlink: "Object hyperlink",
   textHyperlink: "Text hyperlink",
   hyperlinkText: "Display text",

@@ -564,13 +564,15 @@ function DocxHyperlink({ controller, state, editor, disabled }: Props) {
           <label>
             {t.hyperlinkAddress}
             <input
-              type="url"
+              type="text"
+              inputMode="url"
               required
               maxLength={2048}
               value={address}
               onChange={(event) => setAddress(event.currentTarget.value)}
             />
           </label>
+          <p>{t.hyperlinkBookmark}</p>
           <label>
             {t.hyperlinkText}
             <input
@@ -592,11 +594,27 @@ function DocxHyperlink({ controller, state, editor, disabled }: Props) {
         </fieldset>
       </form>
       {link?.reason && <p>{link.reason}</p>}
-      {!disabled && link?.target && (
-        <a href={link.target} target="_blank" rel="noopener noreferrer">
-          {t.hyperlinkOpen}
-        </a>
-      )}
+      {!disabled &&
+        link?.target &&
+        (link.target.startsWith("#") ? (
+          <button
+            type="button"
+            onClick={() =>
+              controller.run(() =>
+                editor.editBookmark({
+                  action: "goTo",
+                  name: link.target!.slice(1),
+                }),
+              )
+            }
+          >
+            {t.hyperlinkOpen}
+          </button>
+        ) : (
+          <a href={link.target} target="_blank" rel="noopener noreferrer">
+            {t.hyperlinkOpen}
+          </a>
+        ))}
     </section>
   );
 }

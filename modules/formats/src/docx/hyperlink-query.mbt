@@ -1,5 +1,9 @@
 ///|
 fn check_hyperlink_target(target : String) -> Unit raise @failure.Failure {
+  if target.has_prefix("#") {
+    check_bookmark_name(target[1:].to_owned())
+    return
+  }
   guard target.length() <= 2048 else {
     @failure.reject(
       "invalid-operation", "Hyperlink address exceeds 2048 UTF-16 units",
@@ -98,17 +102,31 @@ fn hyperlink_target(
   tree : WordTree,
   run : Int,
   links : Map[String, @opc.Relationship],
+  bookmarks : Map[String, Bool],
 ) -> String? raise @failure.Failure {
   guard tree.run_hyperlink(run) is Some(id) else { return None }
   tree.check_hyperlink(id)
   let node = tree.nodes[id]
-  guard node.attribute("anchor", uri=word_uri) is None &&
-    node.attribute("docLocation", uri=word_uri) is None else {
+  guard node.attribute("docLocation", uri=word_uri) is None else {
     @failure.reject(
       "protected-content", "Bookmark and document-location hyperlink targets require editing support",
     )
   }
   let rel_uri = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+  if node.attribute("anchor", uri=word_uri) is Some(anchor) {
+    guard node.attribute("id", uri=rel_uri) is None else {
+      @failure.reject(
+        "protected-content", "Combined external and bookmark hyperlink targets require editing support",
+      )
+    }
+    check_bookmark_name(anchor)
+    guard bookmarks.contains(anchor.to_lower()) else {
+      @failure.reject(
+        "protected-content", "Unresolved or protected bookmark hyperlink",
+      )
+    }
+    return Some("#" + anchor)
+  }
   let key = node.attribute("id", uri=rel_uri).unwrap_or("")
   guard links.get(key) is Some(link) &&
     link.external &&
@@ -175,9 +193,10 @@ fn Session::hyperlink_summary(
   guard range is Some(range) else { return unavailable(reason) }
   try {
     let links = self.hyperlink_relationships()
+    let bookmarks = tree.bookmark_targets()
     let values = self
       .hyperlink_runs(tree, range)
-      .map(run => hyperlink_target(tree, run, links))
+      .map(run => hyperlink_target(tree, run, links, bookmarks))
     let first = values.get(0).unwrap_or(None)
     let mixed = values.any(v => v != first)
     {

@@ -367,6 +367,35 @@ fn Session::edit_name(
   }
   let sheets = self.sheets.copy()
   let edits : Array[(String, @xml.Edit)] = [(self.main, edit)]
+  if delete {
+    let after : FormulaWork = {
+      remaining: 1048576,
+      date1904: self.date1904,
+      origin: self.focus,
+      names: candidate_names,
+    }
+    for index, sheet in sheets {
+      let changes = deleted_name_hyperlinks(
+        Tree::new(sheet.document),
+        sheets,
+        index,
+        rename_work,
+        after,
+      )
+      if !changes.is_empty() {
+        let (document, edit) = sheet.document.edit_source(changes)
+        sheets[index] = Sheet::read(
+          sheet.id,
+          sheet.name,
+          sheet.state,
+          document,
+          self.strings,
+          self.styles.length(),
+        )
+        edits.push((sheet.id, edit))
+      }
+    }
+  }
   if rename is Some(old) {
     for index, sheet in sheets {
       let changes : Array[@xml.SourceChange] = []
@@ -380,7 +409,12 @@ fn Session::edit_name(
           ) &&
           !node.text.is_empty() {
           Some(node.text)
-        } else if node.name == "hyperlink" {
+        } else if node.name == "hyperlink" &&
+          node.attribute(
+            "id",
+            uri=relationship_uri[:relationship_uri.length() - 1].to_owned(),
+          )
+          is None {
           node.attribute("location")
         } else {
           None

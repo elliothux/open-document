@@ -10,6 +10,21 @@ fn Session::print_sheet(
 ) -> PrintedSheet raise @failure.Failure {
   let current = self.sheets[index]
   let sheet = current.id
+  try {
+    let tree = Tree::new(current.document)
+    let nodes = hyperlink_nodes(tree)
+    if !nodes.is_empty() {
+      let links = self.hyperlink_relations(sheet)
+      for node in nodes {
+        ignore(Range::parse(node.attribute("ref").unwrap_or("")))
+        ignore(hyperlink_target(tree, node, links))
+      }
+    }
+  } catch {
+    @failure.Failure(code="limit-exceeded", ..) as error => raise error
+    @failure.Failure(message~, ..) =>
+      @failure.reject("unsupported-print", message, part=sheet)
+  }
   let conditional = self.conditional_rules(
     current,
     index,

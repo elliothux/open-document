@@ -507,7 +507,8 @@ export function checkDocxHyperlink(target: unknown, text?: unknown): void {
     (typeof target !== "string" ||
       !target.isWellFormed() ||
       target.length > 2048 ||
-      !/^(https?:\/\/|mailto:).+/i.test(target) ||
+      (!/^(https?:\/\/|mailto:).+/i.test(target) &&
+        !/^#[A-Za-z_][A-Za-z0-9_]{0,39}$/.test(target)) ||
       /\s/u.test(target) ||
       Array.from(target).some(
         (c) =>

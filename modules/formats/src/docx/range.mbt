@@ -212,7 +212,9 @@ fn Session::prepare_structural_range(
       for
         id in tree.children[last.id].filter(id => {
           tree.nodes[id].uri == word_uri &&
-          ["r", "hyperlink"].contains(tree.nodes[id].name)
+          ["r", "hyperlink", "bookmarkStart", "bookmarkEnd"].contains(
+            tree.nodes[id].name,
+          )
         }) {
         let run = tree.nodes[id]
         let attributes = tree.namespace_additions(id, first.id)
@@ -272,7 +274,7 @@ fn Session::prepare_structural_range(
     bidiLevel: None,
     frameStart: None,
   }
-  {
+  self.restore_bookmarks({
     edit: {
       xml: [xml],
       parts: Map([]),
@@ -295,5 +297,5 @@ fn Session::prepare_structural_range(
       insertion
     },
     join_group: false,
-  }
+  })
 }

@@ -15,6 +15,26 @@ export async function checkDocxRevision(
   return current.revision;
 }
 
+export async function docxOutput(
+  client: FoundationClient,
+  expectedRevision: number,
+  layoutId: number,
+  format: "docx" | "pdf",
+  outputBytes: number,
+  assertOpen: () => void,
+): Promise<{ revision: number; bytes: Uint8Array }> {
+  const revision = await checkDocxRevision(
+    client,
+    expectedRevision,
+    assertOpen,
+  );
+  const bytes =
+    format === "docx"
+      ? await client.saveDocx()
+      : await client.exportPdf(outputBytes, layoutId);
+  return { revision, bytes };
+}
+
 export function downloadDocxOutput(
   output: EditorOutput,
   filename: string,

@@ -249,6 +249,7 @@ fn Foundation::dispatch(
     | "applyFormat"
     | "setCharacterFormat"
     | "setHyperlink"
+    | "editBookmark"
     | "setParagraphFormat"
     | "setDefaultTabStop"
     | "findDocx"
@@ -514,28 +515,12 @@ fn Foundation::dispatch(
           }
           result
         }
-        "setCharacterFormat" | "setParagraphFormat" | "setHyperlink" => {
+        "setCharacterFormat"
+        | "setParagraphFormat"
+        | "setHyperlink"
+        | "editBookmark" => {
           let revision = field_int(request, "revision")
-          let result = if operation == "setHyperlink" {
-            session.set_hyperlink(
-              revision,
-              field_selection(request),
-              field_hyperlink_target(request),
-              text=field_hyperlink_text(request),
-            )
-          } else if operation == "setCharacterFormat" {
-            session.set_character_format(
-              revision,
-              field_selection(request),
-              character_format(request),
-            )
-          } else {
-            session.set_paragraph_format(
-              revision,
-              field_selection(request),
-              paragraph_format(request),
-            )
-          }
+          let result = edit_docx_format(session, request, operation, revision)
           if result is { "revision": Number(current, ..), .. } &&
             current != revision.to_double() {
             self.layout = None
