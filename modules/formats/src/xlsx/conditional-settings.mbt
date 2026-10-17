@@ -7,6 +7,7 @@ pub(all) struct ConditionalFormat {
   stopIfTrue : Bool
   format : CellFormat
   stops : Array[ConditionalStop]
+  bar : DataBar?
 } derive(Eq)
 
 ///|
@@ -22,6 +23,7 @@ pub fn ConditionalFormat::default() -> ConditionalFormat {
     stopIfTrue: false,
     format: CellFormat::new(fill=Some("fff2cc")),
     stops: [],
+    bar: None,
   }
 }
 
@@ -74,6 +76,9 @@ fn ConditionalFormat::json(self : ConditionalFormat) -> Json {
       self.stops.map(stop => { ..stop, color: stop.color.to_lower(), }),
     )
   }
+  if self.bar is Some(bar) && value is Object(fields) {
+    fields["bar"] = Json({ ..bar, color: bar.color.to_lower(), })
+  }
   value
 }
 
@@ -87,6 +92,7 @@ fn ConditionalRule::settings(self : ConditionalRule) -> ConditionalFormat {
     stopIfTrue: self.stop,
     format: self.style,
     stops: self.stops,
+    bar: self.bar,
   }
 }
 
@@ -98,6 +104,22 @@ fn ConditionalFormat::check(
   index : Int,
   work : FormulaWork,
 ) -> Unit raise @failure.Failure {
+  if self.kind == "dataBar" {
+    guard self.operator.is_empty() &&
+      self.formula1.is_empty() &&
+      self.formula2.is_empty() &&
+      !self.stopIfTrue &&
+      self.format == CellFormat::new() &&
+      self.stops.is_empty() &&
+      self.bar is Some(bar) else {
+      @failure.reject("invalid-operation", "Invalid data bar settings")
+    }
+    bar.check(rule_anchor(ranges, true), sheets, index, work)
+    return
+  }
+  guard self.bar is None else {
+    @failure.reject("invalid-operation", "Only data bars have bar settings")
+  }
   if self.kind == "colorScale" {
     guard self.operator.is_empty() &&
       self.formula1.is_empty() &&
@@ -155,6 +177,24 @@ fn ConditionalFormat::markup(
   style : Int?,
   colors~ : Array[String?] = [],
 ) -> String raise @failure.Failure {
+  if self.kind == "dataBar" && self.bar is Some(bar) {
+    let thresholds = [bar.minimum, bar.maximum]
+      .map(stop => {
+        "<od:cfvo type=\"\{stop.kind}\"" +
+        (if stop.value.is_empty() {
+          ""
+        } else {
+          " val=\"\{escaped_attribute(stop.value)}\""
+        }) +
+        "/>"
+      })
+      .join("")
+    let color = colors
+      .get(0)
+      .bind(value => value)
+      .unwrap_or("<od:color rgb=\"FF\{bar.color.to_upper()}\"/>")
+    return "<od:cfRule xmlns:od=\"\{spreadsheet_uri}\" type=\"dataBar\" priority=\"\{priority}\"><od:dataBar minLength=\"\{bar.minLength}\" maxLength=\"\{bar.maxLength}\" showValue=\"\{if bar.showValue { "1" } else { "0" }}\">\{thresholds}\{color}</od:dataBar></od:cfRule>"
+  }
   if self.kind == "colorScale" {
     let thresholds = self.stops
       .map(stop => {

@@ -11,6 +11,7 @@ priv struct ConditionalRule {
   stop : Bool
   style : CellFormat
   stops : Array[ConditionalStop]
+  bar : DataBar?
 }
 
 ///|
@@ -66,12 +67,13 @@ fn Session::conditional_rules(
           tree,
           node,
           ["type", "operator", "priority", "stopIfTrue", "dxfId"],
-          ["formula", "colorScale"],
+          ["formula", "colorScale", "dataBar"],
         )
         let kind = node.attribute("type").unwrap_or("")
         let operator = node.attribute("operator").unwrap_or("")
         guard (
-            ["expression", "colorScale"].contains(kind) && operator.is_empty()
+            ["expression", "colorScale", "dataBar"].contains(kind) &&
+            operator.is_empty()
           ) ||
           (
             kind == "cellIs" &&
@@ -110,7 +112,7 @@ fn Session::conditional_rules(
             formula.text
           })
         guard formulas.length() ==
-          (if kind == "colorScale" {
+          (if kind == "colorScale" || kind == "dataBar" {
             0
           } else if operator == "between" || operator == "notBetween" {
             2
@@ -121,6 +123,26 @@ fn Session::conditional_rules(
         }
         let mut style = CellFormat::new()
         let scale = tree.one(node.id, "colorScale")
+        let bar = tree.one(node.id, "dataBar")
+        guard (kind == "dataBar") == (bar is Some(_)) else {
+          @failure.reject("malformed-xlsx", "Mismatched conditional data bar")
+        }
+        let bar = bar.map(bar => {
+          guard node.attribute("dxfId") is None && !flag(node, "stopIfTrue") else {
+            @failure.reject(
+              "protected-content", "Data bar differential or stop flags are unsupported",
+            )
+          }
+          read_conditional_bar(
+            tree,
+            bar,
+            self.theme,
+            anchor,
+            sheets,
+            index,
+            work,
+          )
+        })
         guard (kind == "colorScale") == (scale is Some(_)) else {
           @failure.reject(
             "malformed-xlsx", "Mismatched conditional color scale",
@@ -191,6 +213,7 @@ fn Session::conditional_rules(
           priority,
           style,
           stops,
+          bar,
           stop: flag(node, "stopIfTrue"),
         })
       }
@@ -250,6 +273,7 @@ fn ConditionalRules::applied(
       return { ..source, diagnostic: self.reason, }
     }
     let matched : Array[CellFormat] = []
+    let mut bar : ConditionalBar? = None
     for rule in self.rules {
       work.spend()
       if !rule.ranges.any(range => {
@@ -259,6 +283,12 @@ fn ConditionalRules::applied(
         continue
       }
       work.origin = address
+      if rule.kind == "dataBar" {
+        if bar is None {
+          bar = self.data_bar(rule, address, sheets, index, values, work)
+        }
+        continue
+      }
       if rule.kind == "colorScale" {
         if self.scale_fill(rule, address, sheets, index, values, work)
           is Some(color) {
@@ -319,7 +349,7 @@ fn ConditionalRules::applied(
     for style in matched.rev() {
       result = style.applied(result)
     }
-    result
+    { ..result, bar, }
   } catch {
     @failure.Failure(code~, message~, ..) if code != "limit-exceeded" =>
       { ..source, diagnostic: message, }

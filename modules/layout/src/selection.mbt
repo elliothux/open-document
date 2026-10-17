@@ -23,6 +23,40 @@ pub fn Layout::selection_rects(
   if anchor.0 == focus.0 && anchor.1 == focus.1 {
     return []
   }
+  if anchor.0 == focus.0 && (anchor.1 - focus.1).abs() == 1 {
+    let selected : Array[SelectionRect] = []
+    for page, frame in self.pages {
+      for index, line in frame.lines {
+        if line.paragraph != anchor.0 || line.repeated {
+          continue
+        }
+        for image in line.images {
+          if image.start != anchor.1.min(focus.1) {
+            continue
+          }
+          let y = if line.clip { image.y.max(line.y) } else { image.y }
+          let bottom = if line.clip {
+            (image.y + image.height).min(line.y + line.height)
+          } else {
+            image.y + image.height
+          }
+          if bottom > y {
+            selected.push({
+              page,
+              line: index,
+              x: image.x,
+              y,
+              width: image.width,
+              height: bottom - y,
+            })
+          }
+        }
+      }
+    }
+    if !selected.is_empty() {
+      return self.clip_cell_selection(selected)
+    }
+  }
   let order = self.paragraph_order()
   let reverse = order[anchor.0] > order[focus.0] ||
     (anchor.0 == focus.0 && anchor.1 > focus.1)

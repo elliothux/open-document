@@ -297,6 +297,8 @@ pub extend InlineImage with ToJson::{to_json}
 ///|
 pub(all) struct PlacedInlineImage {
   key : String
+  start : Int
+  level : Int
   x : Double
   y : Double
   width : Double

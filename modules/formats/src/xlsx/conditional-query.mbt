@@ -24,6 +24,9 @@ fn Session::conditional_query(
     units += ranges.length() +
       rule.formulas.fold(init=0, (sum, formula) => sum + formula.length()) +
       rule.stops.fold(init=0, (sum, stop) => sum + stop.value.length())
+    if rule.bar is Some(bar) {
+      units += bar.minimum.value.length() + bar.maximum.value.length()
+    }
     if units > 1048576 {
       return {
         "rules": [],

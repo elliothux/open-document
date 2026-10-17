@@ -188,6 +188,8 @@ fn measure_line(
           (if (group.level % 2 == 0) != rtl { image.width } else { 0.0 })
         images.push({
           key: image.key,
+          start: start + group.start,
+          level: group.level,
           x: if rtl {
             -width - image.width
           } else {

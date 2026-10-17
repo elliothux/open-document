@@ -64,14 +64,55 @@ pub fn write(
     }
     let pages : Array[@page.PdfPage] = []
     let installed_images : Map[String, (String, @syntax.PdfObject)] = Map([])
+    let gradients : Map[String, (String, @syntax.PdfObject)] = Map([])
     let mut content_bytes = 0
     for frame in layout.pages {
       let ops : Array[@content.PdfContentOp] = []
       let image_objects : Array[(String, @syntax.PdfObject)] = []
+      let shading_objects : Map[String, @syntax.PdfObject] = Map([])
       let alpha_states : Map[String, (String, @syntax.PdfObject)] = Map([])
       let mut scopes = 0
       for primitive in frame.primitives {
         match primitive {
+          GradientRectangle(rect, start, end) => {
+            @layout.validate_gradient(rect, start, end)
+            if rect.width == 0 || rect.height == 0 {
+              continue
+            }
+            let key = start.to_lower() + end.to_lower()
+            let entry = gradients
+              .get(key)
+              .unwrap_or_else(() => {
+                guard gradients.length() < 4096 else {
+                  @failure.reject("limit-exceeded", "PDF gradients exceed 4096")
+                }
+                let entry = (
+                  "G\{gradients.length()}",
+                  @syntax.PdfIndirect(
+                    document.add_object(gradient_shading(start, end)),
+                  ),
+                )
+                gradients[key] = entry
+                entry
+              })
+            shading_objects[entry.0] = entry.1
+            ops.push(@content.Op_q)
+            ops.push(
+              @content.Op_cm({
+                a: rect.width,
+                b: 0,
+                c: 0,
+                d: rect.height,
+                e: rect.x,
+                f: frame.height - rect.y - rect.height,
+              }),
+            )
+            ops.push(@content.Op_re(0, 0, 1, 1))
+            ops.push(@content.Op_W)
+            ops.push(@content.Op_n)
+            ops.push(@content.Op_sh(name(entry.0)))
+            ops.push(@content.Op_Q)
+          }
           Transform(matrix) => {
             ops.push(@content.Op_q)
             scopes += 1
@@ -361,6 +402,9 @@ pub fn write(
         page_resources.push(
           ("ExtGState", dict(alpha_states.values().to_array())),
         )
+      }
+      if !shading_objects.is_empty() {
+        page_resources.push(("Shading", dict(shading_objects.to_array())))
       }
       pages.push({
         content: [stream(bytes, [])],

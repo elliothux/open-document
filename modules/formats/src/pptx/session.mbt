@@ -408,6 +408,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
     "slideOrderReason": self.slide_order_reason(),
     "slideSizeReason": self.slide_size_reason(),
     "slideVisibilityReason": self.slide_visibility_reason(),
+    "sections": self.section_query(),
     "background": {
       "color": if current.background.is_empty() {
         "ffffff"

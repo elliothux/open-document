@@ -167,6 +167,30 @@ fn Foundation::xlsx_operation(
                 formula2: field_string(rule, "formula2"),
                 stopIfTrue: xlsx_boolean(rule, "stopIfTrue"),
                 format: xlsx_cell_format(format),
+                bar: if field_string(rule, "kind") == "dataBar" {
+                  guard rule is { "bar": bar, .. } &&
+                    bar is { "minimum": minimum, "maximum": maximum, .. } else {
+                    @failure.reject(
+                      "invalid-operation", "Data bar settings are required",
+                    )
+                  }
+                  Some({
+                    minimum: {
+                      kind: field_string(minimum, "kind"),
+                      value: field_string(minimum, "value"),
+                    },
+                    maximum: {
+                      kind: field_string(maximum, "kind"),
+                      value: field_string(maximum, "value"),
+                    },
+                    color: field_string(bar, "color"),
+                    showValue: xlsx_boolean(bar, "showValue"),
+                    minLength: field_int(bar, "minLength"),
+                    maxLength: field_int(bar, "maxLength"),
+                  })
+                } else {
+                  None
+                },
                 stops: if field_string(rule, "kind") == "colorScale" {
                   guard rule is { "stops": Array(stops), .. } else {
                     @failure.reject(

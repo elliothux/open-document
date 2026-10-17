@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { DocumentEditor } from "@open-document/web/editor";
 import type {
   DocxPicture,
@@ -27,6 +27,7 @@ export function DocxPictures({
     setCatalog(value);
     const image =
       (known && value.images.find((image) => !known.has(image.id))) ??
+      value.images.find((image) => image.selected) ??
       value.images.find((image) => image.id === draft?.id) ??
       value.images[0];
     setDraft(
@@ -38,6 +39,52 @@ export function DocxPictures({
       },
     );
   };
+  const selection = editor.getSnapshot().data.selection;
+  useEffect(() => {
+    if (
+      state.document?.composition ||
+      state.document?.dragging ||
+      state.document?.paused ||
+      state.document?.stopped ||
+      !selection ||
+      selection.anchor.paragraph !== selection.focus.paragraph ||
+      Math.abs(selection.anchor.offset - selection.focus.offset) !== 1
+    )
+      return;
+    let active = true;
+    controller.run(async () => {
+      try {
+        const value = await editor.pictures();
+        const image = value.images.find((image) => image.selected);
+        if (active && image) {
+          setCatalog(value);
+          setDraft({
+            id: image.id,
+            width: image.width,
+            height: image.height,
+            crop: [...image.crop],
+          });
+        }
+      } catch (error) {
+        if (active) throw error;
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [
+    controller,
+    editor,
+    state.document?.revision,
+    state.document?.composition,
+    state.document?.dragging,
+    state.document?.paused,
+    state.document?.stopped,
+    selection?.anchor.paragraph,
+    selection?.anchor.offset,
+    selection?.focus.paragraph,
+    selection?.focus.offset,
+  ]);
   const image = catalog?.images.find((image) => image.id === draft?.id);
   const stale = catalog?.revision !== state.document?.revision;
   const apply = async (value: DocxPicture) => {

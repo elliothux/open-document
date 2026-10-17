@@ -10,6 +10,7 @@ priv struct CellStyle {
   wrap : Bool
   format : String
   diagnostic : String
+  bar : ConditionalBar?
 } derive(Eq)
 
 ///|
@@ -25,6 +26,7 @@ fn default_style() -> CellStyle {
     wrap: false,
     format: "General",
     diagnostic: "",
+    bar: None,
   }
 }
 

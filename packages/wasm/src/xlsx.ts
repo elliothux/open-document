@@ -12,6 +12,8 @@ export type {
   XlsxConditionalRule,
   XlsxConditionalState,
   XlsxConditionalStop,
+  XlsxConditionalThreshold,
+  XlsxDataBar,
 } from "./xlsx-conditional.js";
 import {
   xlsxValidationState,

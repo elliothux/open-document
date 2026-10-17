@@ -215,6 +215,21 @@ fn Session::set_conditional(
           None
         }
       })
+    } else if settings.kind == "dataBar" &&
+      target is Some(target) &&
+      target.bar is Some(before) &&
+      settings.bar is Some(after) &&
+      before.color.to_lower() == after.color.to_lower() {
+      [
+        Some(
+          style_markup(
+            tree,
+            tree
+            .one(tree.one(target.node, "dataBar").unwrap().id, "color")
+            .unwrap(),
+          ),
+        ),
+      ]
     } else {
       []
     }

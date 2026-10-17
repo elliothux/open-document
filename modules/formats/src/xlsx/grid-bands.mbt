@@ -214,6 +214,7 @@ fn Session::paint_grid(
         height,
         texts: [],
         fills: [],
+        bars: [],
         strokes: [],
       }
       let clip : @layout.Border = {
@@ -258,7 +259,14 @@ fn Session::paint_grid(
   let row_headers : Array[Json] = []
   let column_headers : Array[Json] = []
   for row in rows {
-    let page : PagePaint = { width, height, texts: [], fills: [], strokes: [], }
+    let page : PagePaint = {
+      width,
+      height,
+      texts: [],
+      fills: [],
+      bars: [],
+      strokes: [],
+    }
     for index in row.indices {
       let position = dimensions.rows.position(index) + 18 - row.scroll
       let size = dimensions.rows.size(index)
@@ -280,7 +288,14 @@ fn Session::paint_grid(
     })
   }
   for column in columns {
-    let page : PagePaint = { width, height, texts: [], fills: [], strokes: [], }
+    let page : PagePaint = {
+      width,
+      height,
+      texts: [],
+      fills: [],
+      bars: [],
+      strokes: [],
+    }
     for index in column.indices {
       let position = dimensions.columns.position(index) + 36 - column.scroll
       let size = dimensions.columns.size(index)
@@ -303,7 +318,14 @@ fn Session::paint_grid(
       height: 18,
     })
   }
-  let corner : PagePaint = { width, height, texts: [], fills: [], strokes: [], }
+  let corner : PagePaint = {
+    width,
+    height,
+    texts: [],
+    fills: [],
+    bars: [],
+    strokes: [],
+  }
   grid_header(
     corner,
     "",

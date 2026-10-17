@@ -240,6 +240,7 @@ fn Session::delete_slide(
       parts.remove(part)
     }
   }
+  main = sync_slide_sections(self.main, main, edits, DeleteSlide, index)
   let slides = self.ordered_slides(main, slides, parts~, removed=removed_parts)
   let after = if self.selection.slide == target {
     {

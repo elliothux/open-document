@@ -17,6 +17,8 @@ export type {
   PptxFindOptions,
   PptxSearchResult,
   PptxSlideEdit,
+  PptxSection,
+  PptxSections,
   PptxTextFormat,
   PptxFormatting,
   PptxTextSpacing,

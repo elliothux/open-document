@@ -113,6 +113,10 @@ pub(all) enum SlideEdit {
   HideSlide(Bool)
   Background(String?)
   Size(Double, Double)
+  AddSection(String)
+  RenameSection(String, String)
+  RemoveSection(String)
+  MoveSection(String, Int)
 }
 
 pub(all) struct TextFormat {

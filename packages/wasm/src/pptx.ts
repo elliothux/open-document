@@ -16,8 +16,18 @@ export {
   type PptxCap,
   type PptxJoin,
 } from "./pptx-objects.js";
-import { checkPptxSlideEdit, type PptxSlideEdit } from "./pptx-slides.js";
-export { checkPptxSlideEdit, type PptxSlideEdit } from "./pptx-slides.js";
+import {
+  checkPptxSlideEdit,
+  pptxSections,
+  type PptxSlideEdit,
+  type PptxSections,
+} from "./pptx-slides.js";
+export {
+  checkPptxSlideEdit,
+  type PptxSlideEdit,
+  type PptxSection,
+  type PptxSections,
+} from "./pptx-slides.js";
 import { WasmSession, encodeBytes } from "./session.js";
 import {
   preparePptxSearch,
@@ -143,6 +153,7 @@ export interface PptxQuery {
   slideOrderReason: string;
   slideSizeReason: string;
   slideVisibilityReason: string;
+  sections: PptxSections;
   background: { color: string; explicit: boolean; reason: string };
   diagnostics: string[];
 }
@@ -404,6 +415,7 @@ export function pptxQuery(value: unknown): PptxQuery {
   }
   if (typeof query.slide !== "string" || !ids.has(query.slide))
     throw new Error("Invalid current slide");
+  pptxSections(query.sections, [...ids]);
   ids.clear();
   const parents = new Map<string, string>(),
     groups = new Set<string>();

@@ -105,6 +105,7 @@ fn Session::paint_header_footer(
     width: setup.width,
     height: setup.height,
     fills: [],
+    bars: [],
     strokes: [],
     texts: [],
   }

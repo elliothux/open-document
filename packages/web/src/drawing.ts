@@ -57,6 +57,22 @@ export class CanvasRenderer {
             context.strokeRect(rect.x, rect.y, rect.width, rect.height);
             break;
           }
+          case "gradientRect": {
+            const rect = command.rect;
+            if (rect.width === 0 || rect.height === 0) break;
+            const gradient = context.createLinearGradient(
+              rect.x,
+              rect.y,
+              rect.x + rect.width,
+              rect.y,
+            );
+            gradient.addColorStop(0, `#${command.startColor}`);
+            gradient.addColorStop(1, `#${command.endColor}`);
+            context.globalAlpha = style.fillAlpha;
+            context.fillStyle = gradient;
+            context.fillRect(rect.x, rect.y, rect.width, rect.height);
+            break;
+          }
           case "glyphs":
             context.globalAlpha = style.fillAlpha;
             context.fillStyle = `#${command.color}`;

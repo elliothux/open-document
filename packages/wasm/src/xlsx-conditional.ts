@@ -3,18 +3,29 @@ import { checkXlsxCellFormat, type XlsxCellFormat } from "./xlsx-format.js";
 import { validationOperators } from "./xlsx-validation.js";
 
 export interface XlsxConditionalFormat {
-  kind: "cellIs" | "expression" | "colorScale";
+  kind: "cellIs" | "expression" | "colorScale" | "dataBar";
   operator: "" | (typeof validationOperators)[number];
   formula1: string;
   formula2: string;
   stopIfTrue: boolean;
   format: XlsxCellFormat;
   stops?: XlsxConditionalStop[];
+  bar?: XlsxDataBar;
 }
-export interface XlsxConditionalStop {
+export interface XlsxConditionalThreshold {
   kind: "min" | "max" | "num" | "percent" | "percentile" | "formula";
   value: string;
+}
+export interface XlsxConditionalStop extends XlsxConditionalThreshold {
   color: string;
+}
+export interface XlsxDataBar {
+  minimum: XlsxConditionalThreshold;
+  maximum: XlsxConditionalThreshold;
+  color: string;
+  showValue: boolean;
+  minLength: number;
+  maxLength: number;
 }
 export const conditionalThresholds = [
   "min",
@@ -46,10 +57,11 @@ export function checkXlsxConditionalFormat(value: unknown): void {
         "stopIfTrue",
         "format",
         "stops",
+        "bar",
       ].includes(k),
     ) ||
     !(
-      (["expression", "colorScale"].includes(String(rule.kind)) &&
+      (["expression", "colorScale", "dataBar"].includes(String(rule.kind)) &&
         rule.operator === "") ||
       (rule.kind === "cellIs" &&
         validationOperators.some((o) => o === rule.operator))
@@ -72,17 +84,51 @@ export function checkXlsxConditionalFormat(value: unknown): void {
     )
       throw new Error("Invalid conditional formula");
   }
-  if (rule.kind === "colorScale") {
+  if (rule.kind === "colorScale" || rule.kind === "dataBar") {
     if (
       rule.formula1 !== "" ||
       rule.formula2 !== "" ||
       rule.stopIfTrue !== false ||
-      Object.keys(record(rule.format)).length ||
-      !Array.isArray(rule.stops) ||
-      ![2, 3].includes(rule.stops.length)
+      Object.keys(record(rule.format)).length
     )
-      throw new Error("Invalid color scale settings");
-    for (const value of rule.stops) {
+      throw new Error("Invalid visual conditional format settings");
+    let stops: unknown[];
+    if (rule.kind === "colorScale") {
+      if (
+        rule.bar !== undefined ||
+        !Array.isArray(rule.stops) ||
+        ![2, 3].includes(rule.stops.length)
+      )
+        throw new Error("Invalid color scale settings");
+      stops = rule.stops;
+    } else {
+      const bar = record(rule.bar);
+      if (
+        rule.stops !== undefined ||
+        !Object.keys(bar).every((k) =>
+          [
+            "minimum",
+            "maximum",
+            "color",
+            "showValue",
+            "minLength",
+            "maxLength",
+          ].includes(k),
+        ) ||
+        typeof bar.showValue !== "boolean" ||
+        !integer(bar.minLength, 0, 100) ||
+        !integer(bar.maxLength, 0, 100) ||
+        Number(bar.minLength) > Number(bar.maxLength)
+      )
+        throw new Error("Invalid data bar settings");
+      stops = [bar.minimum, bar.maximum].map((value) => {
+        const threshold = record(value);
+        if (!Object.keys(threshold).every((k) => ["kind", "value"].includes(k)))
+          throw new Error("Invalid data bar threshold");
+        return { ...threshold, color: bar.color };
+      });
+    }
+    for (const value of stops) {
       const stop = record(value);
       if (
         !Object.keys(stop).every((k) =>
@@ -117,8 +163,8 @@ export function checkXlsxConditionalFormat(value: unknown): void {
     }
     return;
   }
-  if (rule.stops !== undefined)
-    throw new Error("Highlight rules have no color scale stops");
+  if (rule.stops !== undefined || rule.bar !== undefined)
+    throw new Error("Highlight rules have no visual settings");
   if (
     rule.formula1 === "" ||
     (rule.operator === "between" || rule.operator === "notBetween"
@@ -160,6 +206,12 @@ export function xlsxConditionalState(value: unknown): XlsxConditionalState {
     if (Array.isArray(settings.stops))
       for (const item of settings.stops)
         units += String(record(item).value).length;
+    if (settings.bar !== undefined) {
+      const bar = record(settings.bar);
+      units +=
+        String(record(bar.minimum).value).length +
+        String(record(bar.maximum).value).length;
+    }
   }
   if (units > 1048576) throw new Error("Conditional query exceeds text budget");
   return value as XlsxConditionalState;

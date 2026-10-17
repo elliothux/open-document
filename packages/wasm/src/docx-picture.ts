@@ -12,6 +12,7 @@ export interface DocxPictures {
   revision: number;
   images: (DocxPicture & {
     name: string;
+    selected: boolean;
     reason: string;
     deleteReason: string;
     replaceReason: string;
@@ -88,6 +89,7 @@ export function docxPictures(value: unknown): DocxPictures {
     const image = record(value);
     if (
       typeof image.name !== "string" ||
+      typeof image.selected !== "boolean" ||
       typeof image.reason !== "string" ||
       typeof image.deleteReason !== "string" ||
       typeof image.replaceReason !== "string" ||

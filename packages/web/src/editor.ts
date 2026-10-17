@@ -24,6 +24,7 @@ import {
   queryDocxSelectionGeometry,
   searchSelections,
   selectFirstDocxPosition,
+  pointerDocxSelection,
   type DocumentSearchResult,
 } from "./document-selection.js";
 export type { DocumentSearchResult } from "./document-selection.js";
@@ -560,14 +561,10 @@ export class DocumentEditor {
         initial ? y : clamped.y,
       );
       this.assertOpen();
-      if (!hit.position) throw new Error(hit.reason);
-      this.state = await this.client.selectDocx(this.state.revision, {
-        anchor:
-          extend && this.state.selection
-            ? this.state.selection.anchor
-            : hit.position,
-        focus: hit.position,
-      });
+      this.state = await this.client.selectDocx(
+        this.state.revision,
+        pointerDocxSelection(hit, this.state, initial, extend),
+      );
       await this.presentSelection(false);
     }, true);
   }

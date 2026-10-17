@@ -18,7 +18,7 @@ function scaleStops(): XlsxConditionalStop[] {
   ];
 }
 
-function ColorScaleFields({
+function VisualRuleFields({
   rule,
   update,
   locale,
@@ -28,7 +28,13 @@ function ColorScaleFields({
   locale: UiSnapshot["locale"];
 }) {
   const t = messages(locale),
-    stops = rule.stops ?? scaleStops();
+    bar = rule.bar,
+    stops = bar
+      ? [
+          { ...bar.minimum, color: bar.color },
+          { ...bar.maximum, color: bar.color },
+        ]
+      : (rule.stops ?? scaleStops());
   const labels = [
     t.conditionalMin,
     t.conditionalMax,
@@ -38,38 +44,53 @@ function ColorScaleFields({
     t.conditionalFormula,
   ];
   const set = (index: number, patch: Partial<XlsxConditionalStop>) =>
-    update({
-      ...rule,
-      stops: stops.map((stop, i) =>
-        i === index ? { ...stop, ...patch } : stop,
-      ),
-    });
+    update(
+      bar
+        ? {
+            ...rule,
+            bar: {
+              ...bar,
+              [index === 0 ? "minimum" : "maximum"]: {
+                kind: patch.kind ?? stops[index]!.kind,
+                value: patch.value ?? stops[index]!.value,
+              },
+            },
+          }
+        : {
+            ...rule,
+            stops: stops.map((stop, i) =>
+              i === index ? { ...stop, ...patch } : stop,
+            ),
+          },
+    );
   return (
     <fieldset>
-      <legend>{t.conditionalColorScale}</legend>
-      <label>
-        {t.conditionalStopCount}
-        <select
-          aria-label={t.conditionalStopCount}
-          value={stops.length}
-          onChange={(e) =>
-            update({
-              ...rule,
-              stops:
-                e.currentTarget.value === "3"
-                  ? [
-                      stops[0]!,
-                      { kind: "percentile", value: "50", color: "ffff00" },
-                      stops[stops.length - 1]!,
-                    ]
-                  : [stops[0]!, stops[stops.length - 1]!],
-            })
-          }
-        >
-          <option value="2">2</option>
-          <option value="3">3</option>
-        </select>
-      </label>
+      <legend>{bar ? t.conditionalDataBar : t.conditionalColorScale}</legend>
+      {!bar && (
+        <label>
+          {t.conditionalStopCount}
+          <select
+            aria-label={t.conditionalStopCount}
+            value={stops.length}
+            onChange={(e) =>
+              update({
+                ...rule,
+                stops:
+                  e.currentTarget.value === "3"
+                    ? [
+                        stops[0]!,
+                        { kind: "percentile", value: "50", color: "ffff00" },
+                        stops[stops.length - 1]!,
+                      ]
+                    : [stops[0]!, stops[stops.length - 1]!],
+              })
+            }
+          >
+            <option value="2">2</option>
+            <option value="3">3</option>
+          </select>
+        </label>
+      )}
       {stops.map((stop, index) => (
         <fieldset key={index}>
           <legend>
@@ -111,17 +132,74 @@ function ColorScaleFields({
               />
             </label>
           )}
-          <label>
-            {t.conditionalStopColor}
-            <input
-              aria-label={`${t.conditionalStopColor} ${index + 1}`}
-              pattern="[0-9A-Fa-f]{6}"
-              value={stop.color}
-              onChange={(e) => set(index, { color: e.currentTarget.value })}
-            />
-          </label>
+          {!bar && (
+            <label>
+              {t.conditionalStopColor}
+              <input
+                aria-label={`${t.conditionalStopColor} ${index + 1}`}
+                pattern="[0-9A-Fa-f]{6}"
+                value={stop.color}
+                onChange={(e) => set(index, { color: e.currentTarget.value })}
+              />
+            </label>
+          )}
         </fieldset>
       ))}
+      {bar && (
+        <>
+          <label>
+            {t.conditionalBarColor}
+            <input
+              aria-label={t.conditionalBarColor}
+              pattern="[0-9A-Fa-f]{6}"
+              value={bar.color}
+              onChange={(e) =>
+                update({
+                  ...rule,
+                  bar: { ...bar, color: e.currentTarget.value },
+                })
+              }
+            />
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              checked={bar.showValue}
+              onChange={(e) =>
+                update({
+                  ...rule,
+                  bar: { ...bar, showValue: e.currentTarget.checked },
+                })
+              }
+            />
+            {t.conditionalShowValue}
+          </label>
+          {(
+            [
+              ["minLength", t.conditionalMinLength],
+              ["maxLength", t.conditionalMaxLength],
+            ] as const
+          ).map(([key, label]) => (
+            <label key={key}>
+              {label}
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="1"
+                aria-label={label}
+                value={bar[key]}
+                onChange={(e) =>
+                  update({
+                    ...rule,
+                    bar: { ...bar, [key]: e.currentTarget.valueAsNumber },
+                  })
+                }
+              />
+            </label>
+          ))}
+        </>
+      )}
     </fieldset>
   );
 }
@@ -209,9 +287,11 @@ export function XlsxConditional({
             {current.rules.map((r) => (
               <option key={r.priority} value={r.priority}>
                 {r.priority}: {r.ranges} —{" "}
-                {r.rule.kind === "colorScale"
-                  ? t.conditionalColorScale
-                  : r.rule.formula1}
+                {r.rule.kind === "dataBar"
+                  ? t.conditionalDataBar
+                  : r.rule.kind === "colorScale"
+                    ? t.conditionalColorScale
+                    : r.rule.formula1}
               </option>
             ))}
           </select>
@@ -234,17 +314,29 @@ export function XlsxConditional({
             <select
               aria-label={t.conditionalKind}
               value={rule.kind}
-              onChange={(e) =>
+              onChange={(e) => {
+                const kind = e.currentTarget.value;
                 setRule(
-                  e.currentTarget.value === "colorScale"
+                  kind === "colorScale" || kind === "dataBar"
                     ? {
-                        kind: "colorScale",
+                        kind,
                         operator: "",
                         formula1: "",
                         formula2: "",
                         stopIfTrue: false,
                         format: {},
-                        stops: scaleStops(),
+                        ...(kind === "colorScale"
+                          ? { stops: scaleStops() }
+                          : {
+                              bar: {
+                                minimum: { kind: "min", value: "" },
+                                maximum: { kind: "max", value: "" },
+                                color: "638ec6",
+                                showValue: true,
+                                minLength: 10,
+                                maxLength: 90,
+                              },
+                            }),
                       }
                     : {
                         kind:
@@ -259,20 +351,21 @@ export function XlsxConditional({
                         formula2: "",
                         stopIfTrue: rule.stopIfTrue,
                         format:
-                          rule.kind === "colorScale"
+                          rule.kind === "colorScale" || rule.kind === "dataBar"
                             ? { fill: "fff2cc" }
                             : rule.format,
                       },
-                )
-              }
+                );
+              }}
             >
               <option value="cellIs">{t.conditionalValue}</option>
               <option value="expression">{t.conditionalFormula}</option>
               <option value="colorScale">{t.conditionalColorScale}</option>
+              <option value="dataBar">{t.conditionalDataBar}</option>
             </select>
           </label>
-          {rule.kind === "colorScale" ? (
-            <ColorScaleFields
+          {rule.kind === "colorScale" || rule.kind === "dataBar" ? (
+            <VisualRuleFields
               rule={rule}
               update={setRule}
               locale={state.locale}

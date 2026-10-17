@@ -13,6 +13,8 @@ pub fn numbering_value(String, Int) -> String raise @failure.Failure
 
 pub fn paginate(TextProbe, Flow, Map[String, String], Images) -> Layout raise @failure.Failure
 
+pub fn validate_gradient(Border, String, String) -> Unit raise @failure.Failure
+
 pub fn validate_tabs(Array[TabStop]) -> Unit raise @failure.Failure
 
 // Errors
@@ -63,6 +65,7 @@ pub fn CellMargins::to_json(Self) -> Json
 
 pub(all) enum DrawCommand {
   FillRect(Fill)
+  GradientRect(Border, String, String)
   StrokeRect(Border, String, Double)
   Glyphs(Double, Double, String, Array[DrawGlyph])
   Image(PlacedImage)
@@ -182,6 +185,7 @@ pub(all) struct Hit {
   affinity : String
   bidiLevel : Int?
   frameStart : Int?
+  imageStart : Int?
   page : Int
   line : Int
   x : Double
@@ -387,6 +391,8 @@ pub fn PlacedImage::to_json(Self) -> Json
 
 pub(all) struct PlacedInlineImage {
   key : String
+  start : Int
+  level : Int
   x : Double
   y : Double
   width : Double
@@ -425,6 +431,7 @@ pub(all) struct PositionedPage {
 
 pub(all) enum PositionedPrimitive {
   Rectangle(Fill)
+  GradientRectangle(Border, String, String)
   Stroke(Border, String, Double)
   Text(PositionedText)
   Image(PlacedImage, Double)

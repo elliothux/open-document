@@ -3,6 +3,9 @@ fn xml_attribute(value : String) -> String raise @failure.Failure {
   @xml.escape_text(value)
   .replace_all(old="\"", new="&quot;")
   .replace_all(old="'", new="&apos;")
+  .replace_all(old="\t", new="&#9;")
+  .replace_all(old="\n", new="&#10;")
+  .replace_all(old="\r", new="&#13;")
 }
 
 ///|
@@ -98,7 +101,18 @@ fn Session::add_slide(
       xml: "<od:sldId xmlns:od=\"\{presentation_uri}\" xmlns:r=\"\{relationship_uri}\" id=\"\{identity}\" r:id=\"\{link}\"/>",
     },
   ])
-  let main = Tree::new(self.main.part, main_document)
+  edits.push((self.main.part, edit))
+  let main = sync_slide_sections(
+    self.main,
+    Tree::new(self.main.part, main_document),
+    edits,
+    if copy {
+      CopySlide
+    } else {
+      AddSlide
+    },
+    index,
+  )
   let added = read_slide(
     self.opc,
     main,
@@ -108,7 +122,6 @@ fn Session::add_slide(
   )
   let slides = self.slides.copy()
   slides.insert(index + 1, added)
-  edits.push((main.part, edit))
   for
     (path, markup) in [
       (

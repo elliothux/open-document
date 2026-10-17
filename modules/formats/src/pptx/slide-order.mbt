@@ -7,6 +7,10 @@ pub(all) enum SlideEdit {
   HideSlide(Bool)
   Background(String?)
   Size(Double, Double)
+  AddSection(String)
+  RenameSection(String, String)
+  RemoveSection(String)
+  MoveSection(String, Int)
 }
 
 ///|
@@ -88,6 +92,10 @@ fn preserved_slide_extensions(
     }
     let children = tree.children.get(extension.id).unwrap_or([])
     guard children is [item] else { return false }
+    if !properties && item.uri == creation_uri && item.name == "sectionLst" {
+      return extension.attribute("uri").map(v => v.to_upper()) ==
+        Some(section_extension)
+    }
     let known = if properties {
       (
         item.uri == p14 &&
@@ -109,6 +117,7 @@ fn Session::slide_order_reason(self : Session) -> String {
     if !reason.is_empty() {
       return reason
     }
+    ignore(read_sections(self.main))
     let root = self.main.root("presentation")
     for node in self.main.children.get(root.id).unwrap_or([]) {
       if node.uri != presentation_uri ||
@@ -189,6 +198,10 @@ pub fn Session::edit_slides(
   }
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   match change {
+    AddSection(_)
+    | RenameSection(_, _)
+    | RemoveSection(_)
+    | MoveSection(_, _) => return self.edit_sections(index, change)
     Size(width, height) => return self.set_slide_size(width, height)
     Background(value) => return self.set_background(index, value)
     AddSlide => return self.add_slide(index)
@@ -229,9 +242,16 @@ pub fn Session::edit_slides(
           xml: self.main.document.source()[node.start:node.end].to_owned(),
         },
       ])
-      let main = Tree::new(self.main.part, document)
+      let edits = [(self.main.part, edit)]
+      let main = sync_slide_sections(
+        self.main,
+        Tree::new(self.main.part, document),
+        edits,
+        change,
+        index,
+      )
       let slides = self.ordered_slides(main, self.slides)
-      self.commit_slides(main, slides, [(main.part, edit)], self.selection)
+      self.commit_slides(main, slides, edits, self.selection)
     }
     HideSlide(hidden) => {
       let original = self.slides[index]

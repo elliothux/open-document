@@ -31,6 +31,8 @@ export type {
   XlsxConditionalRule,
   XlsxConditionalState,
   XlsxConditionalStop,
+  XlsxConditionalThreshold,
+  XlsxDataBar,
 } from "@open-document/wasm/xlsx";
 export { conditionalThresholds } from "@open-document/wasm/xlsx";
 export { validationKinds, validationOperators } from "@open-document/wasm/xlsx";

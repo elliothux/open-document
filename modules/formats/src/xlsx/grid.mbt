@@ -196,6 +196,12 @@ fn Session::paint_cells(
           color: style.fill,
         })
       }
+      if style.bar is Some(bar) {
+        bar.paint(page, rect)
+        if !bar.showValue {
+          text = ""
+        }
+      }
       if !printing {
         page.strokes.push((rect, "d9dce1", 0.5))
       }

@@ -1,0 +1,132 @@
+import { useState } from "react";
+import type { PanelProps } from "./panels.js";
+import { messages } from "./messages.js";
+
+export function PptxBackground({
+  controller,
+  state,
+  file,
+  disabled,
+}: PanelProps) {
+  const t = messages(state.locale);
+  const background =
+    file.format === "pptx" ? file.editor.query.background : undefined;
+  const [color, setColor] = useState(`#${background?.color ?? "ffffff"}`);
+  if (file.format !== "pptx" || !background) return null;
+  const editor = file.editor;
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        controller.run(() =>
+          editor.editSlides({ action: "background", value: color.slice(1) }),
+        );
+      }}
+    >
+      <fieldset disabled={disabled || !!background.reason}>
+        <legend>{t.slideBackground}</legend>
+        <label>
+          {t.slideBackground}
+          <input
+            type="color"
+            value={color}
+            onChange={(event) => setColor(event.currentTarget.value)}
+          />
+        </label>
+        <button type="submit" aria-label={`${t.apply} ${t.slideBackground}`}>
+          {t.apply}
+        </button>
+        <button
+          type="button"
+          disabled={!background.explicit}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() =>
+            controller.run(() =>
+              editor.editSlides({ action: "background", value: null }),
+            )
+          }
+        >
+          {t.inheritStyleProperty}
+        </button>
+      </fieldset>
+      {background.reason && <p>{background.reason}</p>}
+    </form>
+  );
+}
+
+export function PptxSize({ controller, state, file, disabled }: PanelProps) {
+  const [width, setWidth] = useState(
+    file.format === "pptx" ? String(file.editor.query.width) : "",
+  );
+  const [height, setHeight] = useState(
+    file.format === "pptx" ? String(file.editor.query.height) : "",
+  );
+  if (file.format !== "pptx") return null;
+  const editor = file.editor,
+    t = messages(state.locale);
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        controller.run(() =>
+          editor.editSlides({
+            action: "size",
+            width: Number(width),
+            height: Number(height),
+          }),
+        );
+      }}
+    >
+      <fieldset disabled={disabled || !!editor.query.slideSizeReason}>
+        <legend>{t.slideSize}</legend>
+        <p>{t.scaleSlideContents}</p>
+        <label>
+          {t.pageWidth}
+          <input
+            type="number"
+            min="1"
+            max="14400"
+            step="any"
+            required
+            value={width}
+            onChange={(event) => setWidth(event.currentTarget.value)}
+          />
+        </label>
+        <label>
+          {t.pageHeight}
+          <input
+            type="number"
+            min="1"
+            max="14400"
+            step="any"
+            required
+            value={height}
+            onChange={(event) => setHeight(event.currentTarget.value)}
+          />
+        </label>
+        <button
+          type="button"
+          onClick={() => {
+            setWidth("960");
+            setHeight("540");
+          }}
+        >
+          16:9
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setWidth("720");
+            setHeight("540");
+          }}
+        >
+          4:3
+        </button>
+        <button type="submit" aria-label={`${t.apply} ${t.slideSize}`}>
+          {t.apply}
+        </button>
+      </fieldset>
+      {editor.query.slideSizeReason && <p>{editor.query.slideSizeReason}</p>}
+    </form>
+  );
+}

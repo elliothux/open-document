@@ -162,6 +162,7 @@ pub fn Session::pictures(
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
   let images : Array[Json] = []
+  let selected = self.selected_picture(tree)
   for id in tree.order {
     let node = tree.nodes[id]
     if node.uri != word_uri || node.name != "drawing" {
@@ -196,6 +197,7 @@ pub fn Session::pictures(
     }
     images.push({
       "id": id,
+      "selected": selected == Some(id),
       "name": name,
       "width": image.map(image => image.width).unwrap_or(0),
       "height": image.map(image => image.height).unwrap_or(0),

@@ -181,9 +181,15 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 纯文字复制只携带占位字符，不携带图片资源。`selectedText(revision, selection, cut = false)` 可用 `cut: true` 预检查剪切；核心对含实际图片的范围返回 `protected-content`，宿主在写剪贴板之前执行该检查。普通文字及字面 `U+FFFC` 仍可剪切。图片剪切与富资源粘贴继续归后续剪贴板批次。
 
-撤销/重做精确恢复文字、图片、选区与资源。节点 ID 仅在当前会话有效，保存重开后须重新查询。未知图片源、扩展、效果或不支持的布局仍保护相应段落。含图片单元格的表格结构命令继续保护，避免绕过对象锁；鼠标图片对象选择及浮动环绕继续归 [P10](../p10-docx-core.md)。
+撤销/重做精确恢复文字、图片、选区与资源。节点 ID 仅在当前会话有效，保存重开后须重新查询。未知图片源、扩展、效果或不支持的布局仍保护相应段落。含图片单元格的表格结构命令继续保护，避免绕过对象锁；指针拖动缩放及浮动环绕继续归 [P10](../p10-docx-core.md)。
 
-同步 Wasm 和 Worker 的 `pictures(revision)` 返回 `{ revision, images }`。每项包含会话内绘图节点 `id`、`name`、point 单位的 `width/height`、四项 `crop`、尺寸/裁剪保护原因 `reason`、删除保护原因 `deleteReason` 和替换保护原因 `replaceReason`。`crop` 依次为源图左、上、右、下移除的比例。受尺寸/裁剪保护的项使用零尺寸及零裁剪，原因供 UI 显示；列表最多 256 项。宿主 `DocumentEditor.pictures()` 复用现有队列，默认图片面板从列表选择目标。
+同步 Wasm 和 Worker 的 `pictures(revision)` 返回 `{ revision, images }`。每项包含会话内绘图节点 `id`、`name`、是否被当前单图片范围选中的 `selected`、point 单位的 `width/height`、四项 `crop`、尺寸/裁剪保护原因 `reason`、删除保护原因 `deleteReason` 和替换保护原因 `replaceReason`。`crop` 依次为源图左、上、右、下移除的比例。受尺寸/裁剪保护的项使用零尺寸及零裁剪，原因供 UI 显示；列表最多 256 项。宿主 `DocumentEditor.pictures()` 复用现有队列，默认图片面板从列表选择目标。
+
+点击受支持的行内图片会选择其一个逻辑单元，复用现有文字选择、历史与输入路径，不增加 revision 或历史。相同图片资源仍按各绘图的段内 offset 区分。布局 `PlacedInlineImage.start/level` 保留逻辑起点和双向级别，`Hit.imageStart` 标记图片命中；左右半部返回相应文字边缘，RTL 调换逻辑方向。选择框按图片本身的框计算，并裁剪到行/单元格的可见区域，不按展开后的源裁剪尺寸命中。
+
+`hitTest(layoutId, page, x, y)` 的 `DocxHit.picture` 为图片的 `DocxSelection` 或 null；`position` 仍是最近文字边缘。核心检查图片两端的逻辑位置和原有保护。默认宿主普通点击使用 picture 范围，拖选和 Shift 点击沿 position 扩展文字范围。命中只查询当前布局，旧布局及无效坐标仍拒绝。默认面板在手势结束后读取 selected 项，自动切换尺寸/裁剪/删除目标；过期、组合、暂停和替换沿现有屏障，晚到的面板读取不覆盖新文档。
+
+原生 Backspace/Delete 和输入可删除或替换被选图片，撤销恢复原图片及选区；列表和命中不改变源包。屏幕阅读文本将占位字符描述为 [image]。普通单元格复用同一位置与裁剪，结构操作和图片剪切仍保留前述保护。行为参考 [ONLYOFFICE ParaDrawing.select](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/word/Editor/Paragraph/ParaDrawing.js#L2784-L2795) 与 [GraphicObjects.OnMouseDown](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/word/Editor/GraphicObjects/GraphicObjects.js#L1594-L1606) 的图片选择与文字输入分工。本项目通过已有逻辑范围连接两者；实现归 [picture-selection.mbt](../../modules/formats/src/docx/picture-selection.mbt) 和 [docx-hit.mbt](../../modules/bridge/src/docx-hit.mbt)。
 
 `editPicture(revision, { action: "resize", id, width, height, crop })` 修改已有受支持的正文行内图片。宿主也显式传入图片列表的 revision，防止读取后改动文档而误用节点身份；默认面板过期后须重新读取。尺寸为 0.1–14400 pt，舍入到整数 EMU；裁剪输入为 0–1 的四个比例，按 1/100000 舍入，两侧之和须小于 1。保持目标框，只裁源图再拉伸至框；重置写四边零值。源图原字节、关系、替代文字、身份和范围外 XML 保持；同时更新行内框及图片变换尺寸。一次命令一项精确历史，保持原文字选择，重复有效值不新增 revision 或废弃布局。
 
@@ -191,7 +197,7 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `editPicture(revision, { action: "replace", id, bytes })` 替换目标图片的压缩源。`bytes` 为 `Uint8Array`，支持 PNG/JPEG，输入不超过 4 MiB，单轴不超过 4096 像素，总像素不超过 4194304；核心复用 PPTX 的文件头与尺寸校验，平台负责实际解码。目标框、裁剪、替代文字、身份和文字选择保持不变。核心创建独立资源、关系和内容类型，避免改变共享原图；这些修改合为一项历史，撤销移除新增资源，重做恢复相同字节。其他部件及原资源保留。相同字节不新增 revision；源保护、输出及 4 MiB 历史预算失败不留下部分资源。替换不受尺寸/裁剪锁单独限制，默认面板按 `replaceReason` 启用文件选择。固定框替换参考 [ONLYOFFICE replacePictureData](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/common/Drawings/Format/Image.js#L836-L859)；本操作保留已有裁剪。宿主在重新布局前准备新增图片；核心与 Canvas 回收当前流中不再使用的解码资源，撤销/重做时按需重新准备。
 
-核心 `InlineImage.crop` 与 `PlacedInlineImage` 保留框和源裁剪；公共定位路径产生矩形裁剪及展开后的原图坐标，Canvas/PDF 使用同一结果。展开后的源图宽高各不超过 1e9 pt，沿用绘制坐标预算。资源仍按原键准备，不生成修改后的图片副本。缓存复制裁剪数组，调用者不能改写已保留的几何。未知裁剪/扩展、图片效果或锁定、修订容器、浮动/旋转/翻转图片、外部图片及未支持节设置继续保护。现有 noChangeAspect 约束禁止改变宽高比；noCrop/noResize 保护整项编辑。负裁剪扩边、鼠标图片选择及浮动环绕仍按 [P10](../p10-docx-core.md) 实施。源比例对应 [ONLYOFFICE 图片裁剪系数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L946-L960)，实现归 [`picture-editing.mbt`](../../modules/formats/src/docx/picture-editing.mbt)。
+核心 `InlineImage.crop` 与 `PlacedInlineImage` 保留框和源裁剪；公共定位路径产生矩形裁剪及展开后的原图坐标，Canvas/PDF 使用同一结果。展开后的源图宽高各不超过 1e9 pt，沿用绘制坐标预算。资源仍按原键准备，不生成修改后的图片副本。缓存复制裁剪数组，调用者不能改写已保留的几何。未知裁剪/扩展、图片效果或锁定、修订容器、浮动/旋转/翻转图片、外部图片及未支持节设置继续保护。现有 noChangeAspect 约束禁止改变宽高比；noCrop/noResize 保护整项编辑。负裁剪扩边、指针拖动缩放及浮动环绕仍按 [P10](../p10-docx-core.md) 实施。源比例对应 [ONLYOFFICE 图片裁剪系数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L946-L960)，实现归 [`picture-editing.mbt`](../../modules/formats/src/docx/picture-editing.mbt)。
 
 ### 页面设置
 
@@ -595,11 +601,11 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 ### 条件格式
 
-普通 `cellIs`、`expression` 和 `colorScale` 规则已在核心计算。值规则支持八项比较；数值、文字和布尔保持类型区别，文字比较忽略大小写，空格按零或空文字比较。表达式沿现有公式语法求值，相对引用以全部 `sqref` 的外接左上角为原点，保留绝对/混合及跨表引用；`ROW/COLUMN` 使用当前格。公式错误不命中，未知函数或引用给出诊断。
+普通 `cellIs`、`expression`、`colorScale` 和 `dataBar` 规则已在核心计算。值规则支持八项比较；数值、文字和布尔保持类型区别，文字比较忽略大小写，空格按零或空文字比较。表达式沿现有公式语法求值，相对引用以全部 `sqref` 的外接左上角为原点，保留绝对/混合及跨表引用；`ROW/COLUMN` 使用当前格。公式错误不命中，未知函数或引用给出诊断。
 
 `priority` 越小越优先；命中的高优先级属性覆盖低优先级的相同属性，其余属性组合。命中 `stopIfTrue` 后不再使用后续规则，即使该规则没有差异样式。`dxfId` 从工作簿当前样式部件解析，不写回单元格样式。支持字体名、字号、粗斜体、文字色、纯色/无填充、四边 thin/medium/thick/none、现有数字格式及基本对齐/换行。颜色复用主题、索引及 tint 解析；差异填充优先采用 `bgColor`，与 [ONLYOFFICE fixForDxf](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/WorkbookElems.js#L3502-L3509)一致。差异字体仍须显式提供 profile 映射。
 
-`XlsxConditionalFormat` 包含 `kind`（`cellIs/expression/colorScale`）、`operator`、`formula1`、`formula2`、`stopIfTrue` 和部分属性 `format: XlsxCellFormat`。表达式的 operator 为空；仅 between/notBetween 使用第二个公式。颜色刻度的节点见下文。`XlsxQuery.conditionalFormats` 返回当前表按优先级排序的全部普通规则，每项包含 `priority`、空格分隔的 A1 矩形 `ranges`、`rule` 和 `readOnlyReason`，容器也有保护原因。规则原点随完整 ranges 定位，不随当前选区变化。
+`XlsxConditionalFormat` 包含 `kind`（`cellIs/expression/colorScale/dataBar`）、`operator`、`formula1`、`formula2`、`stopIfTrue` 和部分属性 `format: XlsxCellFormat`。表达式的 operator 为空；仅 between/notBetween 使用第二个公式。颜色刻度的 stops 和数据条的 bar 见下文。`XlsxQuery.conditionalFormats` 返回当前表按优先级排序的全部普通规则，每项包含 `priority`、空格分隔的 A1 矩形 `ranges`、`rule` 和 `readOnlyReason`，容器也有保护原因。规则原点随完整 ranges 定位，不随当前选区变化。
 
 `SpreadsheetEditor.editSheet`、`XlsxClient.editSheet` 与同步 Wasm 共用以下操作。核心对应 `SheetEdit::ConditionalRule` 和 `ConditionalPriority`。
 
@@ -621,11 +627,19 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 颜色刻度使用完整规则范围内实际数字和已计算公式结果，忽略空格、文字、布尔和错误，不重复统计相交范围。不按可见窗口重新取范围，也不读取旧公式缓存作为当前结果。percent 按最小/最大值计算，percentile 按排序后的 `(n-1)*p` 位置线性插值；公式阈值在规则原点求值一次。阈值按数值排序，颜色保持节点顺序；超过端点时截定，所有值相同时使用末端颜色，无数字或阈值公式出错时不着色。RGB 插值使用 [ONLYOFFICE CGradient](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/ConditionalFormatting.js#L2637-L2680)的 256 步及通道向下取整，百分位参考 [getPercentile](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/FormulaObjects/statisticalFunctions.js#L356-L375)。
 
-默认面板可在两/三节点间切换并编辑各节点的类型、值/公式和颜色；中间节点默认使用第 50 百分位。阈值与统计按当前计算缓存，编辑后重新计算，网格和 PDF 复用同一最终填充，不改基础单元格样式。只改范围时保留原规则源；修改阈值也保留未变的主题色/索引色节点。颜色刻度不创建 dxf，沿既有规则历史、局部清除与保存重开。统计、排序及阈值文本共同受规则工作预算限制，失败不留下部分缓存或半项编辑。实现归 [`conditional-scale.mbt`](../../modules/formats/src/xlsx/conditional-scale.mbt)。数据条的渐变绘制及更广图标规则仍待接入。
+默认面板可在两/三节点间切换并编辑各节点的类型、值/公式和颜色；中间节点默认使用第 50 百分位。阈值与统计按当前计算缓存，编辑后重新计算，网格和 PDF 复用同一最终填充，不改基础单元格样式。只改范围时保留原规则源；修改阈值也保留未变的主题色/索引色节点。颜色刻度不创建 dxf，沿既有规则历史、局部清除与保存重开。统计、排序及阈值文本共同受规则工作预算限制，失败不留下部分缓存或半项编辑。实现归 [`conditional-scale.mbt`](../../modules/formats/src/xlsx/conditional-scale.mbt)。
+
+数据条使用 `kind: "dataBar"` 与 `bar: XlsxDataBar`。operator、formula1、formula2 为空，format 为空对象，stopIfTrue 为 false，不带 stops。bar 包含 minimum、maximum、六位 RGB color、showValue，以及整数 minLength/maxLength；条长范围为 0–100 且 minLength 不大于 maxLength。minimum/maximum 为 `XlsxConditionalThreshold { kind, value }`，沿用颜色刻度的六种阈值及字符串值。MoonBit 对应 DataBar、ConditionalThreshold 和 ConditionalFormat.bar；其他规则的 bar 为 None，JSON 省略。
+
+普通 SpreadsheetML dataBar 默认显示值，最短/最长条长为 10%/90%。核心复用完整稀疏范围的当前数值、公式阈值和有界缓存，按值计算条长，超出阈值时截定。均匀值使用最短条长，无数字或阈值公式出错时不绘制；多条数据条使用首个有效的高优先级规则，并遵守更高优先级的停止规则。沿 [ONLYOFFICE legacy data bar](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/view/WorksheetView.js#L6273-L6385) 的条长、内边距和渐变端色计算，末端向白色混合 82.8%；全部非正数时从右侧绘制。普通规则采用同色、无轴线的旧格式语义，混合正负值仍沿最小/最大值计算。x14 的负值颜色、轴线、方向、实心条及边框设置尚未接入，保留源并保护相关输出与修改。
+
+默认面板提供两个阈值、条色、显示值开关和最短/最长条长；新增、完整修改/删除、优先级及局部清除沿同一规则事务。只改阈值时保留未变的主题/索引色，不分配 dxf 或基础单元格样式。showValue 为 false 只隐藏网格/PDF 文字，值、公式、查询的逻辑 display 和原生输入保留；自动尺寸仍按实际值及有效文字格式计算。实现归 [conditional-bar.mbt](../../modules/formats/src/xlsx/conditional-bar.mbt)。
+
+共享绘制使用 `GradientRectangle(rect, startColor, endColor)` 和 `gradientRect` 命令，均为从左到右的 RGB 渐变；反向条交换颜色和起点。矩形坐标须有限、绝对值不超过 10^9，宽高非负，颜色为六位 RGB。Canvas 使用线性渐变，PDF 使用经矩形裁剪的轴向 shading，复用已有变换/裁剪；PDF 相同颜色对共享资源，最多 4096 对，保留总输出预算。背景先绘制，随后数据条、边框和文字。实现归 [layout/gradient.mbt](../../modules/layout/src/gradient.mbt) 与 [pdf/write-gradient.mbt](../../modules/formats/src/pdf/write-gradient.mbt)。
 
 网格、查询 `display`、自动适配和打印使用同一有效样式。依赖格输入或公式结果改变时，自动行/数值 bestFit 列按条件样式重算，与原编辑共享一次历史；固定尺寸保持原值。规则 XML、`dxf`、基础格式和范围外部件保留，保存重开继续计算。合并格按锚点求值。
 
-规则及差异样式各限 4096 项，公式限 8192 UTF-16 单位；网格、整项打印或编辑适配共享 1048576 次规则/公式工作预算，不展开整列空格。未知规则、属性、装饰或扩展样式保留源并诊断；相关打印或适配拒绝，避免输出缺失效果。查询中的条件格式预算失败转成诊断，避免成功提交后被返回查询误报为失败；实际绘制和输出仍检查预算。数据条、图标集、其他规则、边框仅改颜色及更广差异格式仍待实现。实现归 [`conditional-format.mbt`](../../modules/formats/src/xlsx/conditional-format.mbt) 和 [`conditional-style.mbt`](../../modules/formats/src/xlsx/conditional-style.mbt)，值比较参考 [ONLYOFFICE cellIs](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/ConditionalFormatting.js#L835-L913)。
+规则及差异样式各限 4096 项，公式限 8192 UTF-16 单位；网格、整项打印或编辑适配共享 1048576 次规则/公式工作预算，不展开整列空格。未知规则、属性、装饰或扩展样式保留源并诊断；相关打印或适配拒绝，避免输出缺失效果。查询中的条件格式预算失败转成诊断，避免成功提交后被返回查询误报为失败；实际绘制和输出仍检查预算。扩展数据条、图标集、其他规则、边框仅改颜色及更广差异格式仍待实现。实现归 [`conditional-format.mbt`](../../modules/formats/src/xlsx/conditional-format.mbt) 和 [`conditional-style.mbt`](../../modules/formats/src/xlsx/conditional-style.mbt)，值比较参考 [ONLYOFFICE cellIs](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/ConditionalFormatting.js#L835-L913)。
 
 ### 数据验证
 
@@ -799,7 +813,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 操作保留对象身份、选择及其他部件，复用 revision、候选保护、输出预算和精确撤销重做。已有背景含未知标记、渐变、图片或复杂效果时保护原源。纯色背景沿同一图元输出 Canvas 与静态 PDF。核心 8 例及 Chromium 1 个流程已检查继承、保存重开、继续输入和历史；背景其他类型、主题与母版编辑仍待实现。修改本页背景的语义参考 [ONLYOFFICE Slide.changeBackground](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L825-L829)。
 
-`PptxSession.execute({ operation: "createPptx", budget })` 与 `PptxClient.execute` 创建 960×540 pt 的空白演示文稿，包含一张无对象页面及其空白版式、母版、主题、关系和内容类型。主题使用 Arial 和显式颜色/无效果样式；当前页为该空白页，revision 与历史为 0。创建后可显示、插入基本对象、保存、重开及输出静态 PDF。默认 UI 与 `mountEditor`、实例 `create/open` 使用同一入口及首次保存规则。章节和主题编辑仍按 P12 后续范围实施；创建不生成占位文字或不可编辑的背景图片。
+`PptxSession.execute({ operation: "createPptx", budget })` 与 `PptxClient.execute` 创建 960×540 pt 的空白演示文稿，包含一张无对象页面及其空白版式、母版、主题、关系和内容类型。主题使用 Arial 和显式颜色/无效果样式；当前页为该空白页，revision 与历史为 0。创建后可显示、插入基本对象、保存、重开及输出静态 PDF。默认 UI 与 `mountEditor`、实例 `create/open` 使用同一入口及首次保存规则。主题编辑仍按 P12 后续范围实施；创建不生成占位文字或不可编辑的背景图片。
 
 `PptxSession.execute()` 与 `PptxClient.execute()` 使用独立的 `PptxCommand`，不复用 DOCX/XLSX 位置模型。`PptxQuery` 返回 revision、声明页序/尺寸/隐藏状态、当前页对象、有效字体键、图片键、选区、历史状态与诊断。幻灯片 ID 为源部件路径，对象 ID 为所属部件与源 `cNvPr.id`；未知对象使用只读源节点身份。对象包含 `parent`：顶层为空串，组成员为直接父组身份。组自身以 `kind: "group"` 返回，成员按原顺序绘制；默认列表、对象导航和全选只使用顶层对象。未知组效果仍诊断并阻止点穿。
 
@@ -807,7 +821,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 | --- | --- |
 | `openPptx` / `queryPptx` | 显式预算打开 Transitional PPTX / 查询当前状态 |
 | `selectPptx` / `navigatePptx` | 页/有序对象集合/文字选择、对象顺序及字素/行导航；文字使用对象内 UTF-16 offset |
-| `editPptxSlides` | revision、稳定 slide 身份和 `PptxSlideEdit`；新增、复制、删除、重排、隐藏/显示、背景或全稿尺寸，返回 `PptxQuery` |
+| `editPptxSlides` | revision、稳定 slide 身份和 `PptxSlideEdit`；新增、复制、删除、重排、隐藏/显示、章节、背景或全稿尺寸，返回 `PptxQuery` |
 | `editPptxObjects` | revision、字体 profile 和 `PptxObjectEdit`；插入、删除、复制、旋转、翻转、层次、对齐/分布或组合/取消组合，返回 `PptxQuery` |
 | `replacePptx` / `deletePptx` / `copyPptx` | 普通文字范围编辑、方向删除及纯文本复制；编辑需要字体 profile |
 | `beginPptx` / `finishPptx` / `cancelPptx` | 开始、提交、取消 `text` 或 `transform` 候选；匹配 revision 与 candidateId |
@@ -831,9 +845,15 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `{ action: "delete" }` 删除指定页，至少保留一页。删除活动页时选择原位置的下一页，末页则选前页，并清空对象选择；删除非活动页保留当前选择。同步移除 presentation 页引用、自定义放映中的对应条目，以及其他 XML 中指向该页的已知 DrawingML 点击/悬停链接及关系，保留链接所在对象与文字。空的自定义放映保留身份。仅删除该 slide、其关系和独占的备注/传统批注 XML 及关系，移除对应内容类型；版式、母版、主题、图片、作者与未知资源保留，不扫描清理整个包。共享备注/批注、未知或隐式引用、超出历史/输出预算时原子拒绝。删除部件快照计入有界历史，可与新增、对象及页序编辑精确混合撤销/重做，损坏历史拒绝回放且不改变当前文稿。默认 UI 提供删除页，并禁用最后一页的删除。选择规则参考 [ONLYOFFICE 删除页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L9458-L9485)。
 
-`PptxQuery.slideOrderReason/slideVisibilityReason` 返回各自保护原因。修改保护阻止两者；章节、未知 presentation/页列表扩展、presProps 中的位置型 `sldRg` 放映范围和未知 presentation properties 扩展阻止新增、删除与重排。空参考线列表及已知图片编辑数据、默认 DPI、图表引用跟踪设置扩展原样保留；非空参考线列表继续保护。默认 UI 使用这些原因，提供新增、删除、页前移/后移和隐藏/显示，页列表保留隐藏页入口。历史按稳定部件路径恢复，混合对象编辑与页序变化不会改错页面。
+`PptxQuery.sections` 返回 `{ items: PptxSection[], reason }`。每章包含稳定 GUID `id`、`name` 和按页序排列的稳定部件路径 `slides`；类型从 Wasm/Web PPTX 模块导出。核心读取标准 PowerPoint 2010 `p14:sectionLst`，源成员引用 presentation 的数值 `p:sldId`，不使用页索引或关系 ID。存储参考 [ONLYOFFICE SectionList/Section](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Presentation/PresentationChildElements.cpp#L289-L339)。
 
-隐藏页仍可在编辑器中查看和编辑，允许全部页隐藏。全稿静态 PDF 默认跳过隐藏页，显式 `hidden: true` 包含它们；仅导出当前页时可以输出当前隐藏页。没有待输出页时返回 `unsupported-pdf`，不返回空 PDF。保存重开按新页序打开首张页面，保留隐藏状态。章节编辑和更广复制资源仍归 [P12](../p12-pptx-core.md)。
+`PresentationEditor.editSlides` 同步支持 `{ action: "sectionAdd", name }`、`{ action: "sectionRename", id, name }`、`{ action: "sectionRemove", id }` 和 `{ action: "sectionMove", id, index }`。新增在目标页前切分所属章；首次从中间分章时为前页创建 Default Section。移除保留页面，归入前章，首章则归入后章；移除最后一章只清理章节元数据。移动按从零开始的章节索引重排该章及其全部页面，保留活动页/对象身份。新增和复制页继承源章；删除移除成员，跨章移动按落点归属。空章保留，未分章前缀允许存在。每章成员必须连续、有序且互不重复，最后一个非空章覆盖到末页。
+
+最多 256 章，名称最多 255 UTF-16 单元；创建/改名要求非空有效 XML 文字。章节与关联页序合为一项有界历史，可与页操作和原生输入混合精确撤销。重名允许，身份按 GUID 区分。相同名称/位置不新增历史。未知章节属性/子项、非连续/重复/悬空引用和修改保护明确拒绝，不删掉未知源来开放编辑。非目标部件、已有章节外标签及页引用周围源内容保留；未知无关扩展可随章节改名保留，但仍保护页序修改。保存重开及 PDF 使用提交后的页序。默认面板提供新增、选择、改名、保留页面移除及前后移动；折叠和连页批量删除尚未实现。
+
+`PptxQuery.slideOrderReason/slideVisibilityReason` 返回各自保护原因。修改保护阻止两者；损坏或未支持的章节、未知 presentation/页列表扩展、presProps 中的位置型 `sldRg` 放映范围和未知 presentation properties 扩展阻止新增、删除与重排。空参考线列表及已知图片编辑数据、默认 DPI、图表引用跟踪设置扩展原样保留；非空参考线列表继续保护。默认 UI 使用这些原因，提供新增、删除、页前移/后移和隐藏/显示，页列表保留隐藏页入口。历史按稳定部件路径恢复，混合对象编辑与页序变化不会改错页面。
+
+隐藏页仍可在编辑器中查看和编辑，允许全部页隐藏。全稿静态 PDF 默认跳过隐藏页，显式 `hidden: true` 包含它们；仅导出当前页时可以输出当前隐藏页。没有待输出页时返回 `unsupported-pdf`，不返回空 PDF。保存重开按新页序打开首张页面，保留隐藏状态。章节折叠、连页删除和更广复制资源仍归 [P12](../p12-pptx-core.md)。
 
 `PptxObjectEdit` 从 `wasm/pptx` 和 `web/pptx` 导出。`PresentationEditor.editObjects(change)` 使用同一队列与命令。插入参数为 `{ action: "insert", kind: "text" | "rect" | "roundRect" | "ellipse" | "line" | "leftArrow" | "rightArrow" | "upArrow" | "downArrow", x, y, width, height, text }`；坐标和尺寸为 point，绝对值不超过 14400。非线对象宽高至少 0.1；线可有一个零尺寸轴，总尺寸至少 0.1。文本框透明无描边，矩形、圆角矩形、椭圆和箭头白底黑色 1 pt 线，直线黑色 1 pt；文字为 Arial 18 pt 黑色，支持 `\n` 与 `U+2028`，线不接收文字。核心校验文字、字体和固定框容量，失败保留文档和历史。
 

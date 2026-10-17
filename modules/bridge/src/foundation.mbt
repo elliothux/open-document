@@ -70,49 +70,6 @@ fn Foundation::current_layout(
 }
 
 ///|
-fn Foundation::hit_result(
-  self : Foundation,
-  session : @docx.Session,
-  hit : @layout.Hit,
-) -> Json raise @failure.Failure {
-  let position : @docx.Position = {
-    paragraph: hit.paragraph,
-    offset: hit.offset,
-    affinity: hit.affinity,
-    bidiLevel: hit.bidiLevel,
-    frameStart: hit.frameStart,
-  }
-  let reason = if !hit.reason.is_empty() {
-    hit.reason
-  } else {
-    try {
-      session.check_position(position)
-      ""
-    } catch {
-      @failure.Failure(code="protected-content", message~, ..) => message
-      error => raise error
-    }
-  }
-  let logical : Json = if reason.is_empty() {
-    position.to_json()
-  } else {
-    Json::null()
-  }
-  {
-    "layoutId": self.layout_id,
-    "revision": self.layout.unwrap().revision,
-    "page": hit.page,
-    "line": hit.line,
-    "position": logical,
-    "editable": reason.is_empty(),
-    "reason": reason,
-    "x": hit.x,
-    "y": hit.y,
-    "height": hit.height,
-  }
-}
-
-///|
 fn input_bytes(json : Json, ceiling : Int) -> Bytes raise @failure.Failure {
   let encoded = field_string(json, "bytes")
   guard encoded.length().to_int64() <= (ceiling.to_int64() + 2) / 3 * 4 else {

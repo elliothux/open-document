@@ -96,6 +96,7 @@ fn Session::print_sheet(
         width: setup.width,
         height: setup.height,
         fills: [],
+        bars: [],
         strokes: [],
         texts: [],
       }

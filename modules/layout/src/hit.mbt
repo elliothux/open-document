@@ -5,6 +5,7 @@ pub(all) struct Hit {
   affinity : String
   bidiLevel : Int?
   frameStart : Int?
+  imageStart : Int?
   page : Int
   line : Int
   x : Double
@@ -174,6 +175,7 @@ fn line_hit(
     affinity,
     bidiLevel: None,
     frameStart: None,
+    imageStart: None,
     page,
     line: index,
     x: if affinity == "before" {
@@ -237,19 +239,35 @@ pub fn Layout::hit_test(
         y >= image.y &&
         y <= image.y + image.height &&
         (!line.clip || (y >= line.y && y <= line.y + line.height)) {
+        let leading = (x < image.x + image.width / 2) == (image.level % 2 == 0)
+        let top = if line.clip { image.y.max(line.y) } else { image.y }
+        let bottom = if line.clip {
+          (image.y + image.height).min(line.y + line.height)
+        } else {
+          image.y + image.height
+        }
         return self.clip_cell_hit(
           {
             paragraph: line.paragraph,
-            offset: 0,
-            affinity: "after",
-            bidiLevel: None,
+            offset: image.start + (if leading { 0 } else { 1 }),
+            affinity: if leading {
+              "after"
+            } else {
+              "before"
+            },
+            bidiLevel: Some(image.level),
             frameStart: None,
+            imageStart: Some(image.start),
             page,
             line: index,
-            x: image.x,
-            y: image.y,
-            height: image.height,
-            reason: "Inline image is protected",
+            x: if x < image.x + image.width / 2 {
+              image.x
+            } else {
+              image.x + image.width
+            },
+            y: top,
+            height: (bottom - top).max(0),
+            reason: line.readOnlyReason,
           },
           line,
         )

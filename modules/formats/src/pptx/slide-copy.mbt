@@ -2,7 +2,7 @@
 let creation_uri = "http://schemas.microsoft.com/office/powerpoint/2010/main"
 
 ///|
-fn copied_field_identity(next : Int64) -> String {
+fn document_guid(next : Int64) -> String {
   let digits = next.to_string()
   "{00000000-0000-4000-8000-" + "0".repeat(12 - digits.length()) + digits + "}"
 }
@@ -94,7 +94,7 @@ fn copy_slide_objects(
       )
     }
     while reserved.contains(next.to_string()) ||
-          (field && reserved.contains(copied_field_identity(next))) {
+          (field && reserved.contains(document_guid(next))) {
       next += 1L
     }
     guard next <= 4294967295L else {
@@ -104,11 +104,7 @@ fn copy_slide_objects(
       identities[original] = next.to_string()
     }
     reserved[next.to_string()] = true
-    let value = if field {
-      copied_field_identity(next)
-    } else {
-      next.to_string()
-    }
+    let value = if field { document_guid(next) } else { next.to_string() }
     reserved[value] = true
     changes.push(attribute_change({ tree, node, }, key, value))
     next += 1L

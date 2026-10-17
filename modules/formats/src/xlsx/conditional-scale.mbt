@@ -120,7 +120,15 @@ fn ConditionalRules::scale_bounds(
   }
   let low = numbers.fold(init=numbers[0], (a, b) => a.min(b))
   let high = numbers.fold(init=numbers[0], (a, b) => a.max(b))
-  if rule.stops.any(stop => stop.kind == "percentile") {
+  let thresholds = if rule.bar is Some(bar) {
+    [bar.minimum, bar.maximum]
+  } else {
+    rule.stops.map(stop => ConditionalThreshold::{
+      kind: stop.kind,
+      value: stop.value,
+    })
+  }
+  if thresholds.any(stop => stop.kind == "percentile") {
     let mut levels = 0
     let mut size = numbers.length()
     while size > 1 {
@@ -130,7 +138,7 @@ fn ConditionalRules::scale_bounds(
     work.spend(amount=numbers.length() * levels)
     numbers.sort()
   }
-  for stop in rule.stops {
+  for stop in thresholds {
     work.spend()
     let value = match stop.kind {
       "min" => low

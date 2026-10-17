@@ -4,9 +4,25 @@ import type {
   DocxPosition,
   DocxSelection,
   DocxSearchResult,
+  DocxHit,
 } from "@open-document/wasm/foundation";
 import type { EditorSnapshot } from "./editor-state.js";
 import type { PageLayout } from "@open-document/wasm/preview";
+
+export function pointerDocxSelection(
+  hit: DocxHit,
+  current: EditState,
+  initial: boolean,
+  extend: boolean,
+): DocxSelection {
+  if (!hit.position) throw new Error(hit.reason);
+  if (initial && !extend && hit.picture) return hit.picture;
+  return {
+    anchor:
+      extend && current.selection ? current.selection.anchor : hit.position,
+    focus: hit.position,
+  };
+}
 
 export async function queryDocxSelectionGeometry(
   client: FoundationClient,
@@ -120,7 +136,7 @@ export async function docxSelectionDescription(
   )
     return `Insertion point on page ${page + 1}`;
   try {
-    return `Selected text: ${await client.selectedText(state.revision, selection)}`;
+    return `Selected text: ${(await client.selectedText(state.revision, selection)).replaceAll("\ufffc", "[image]")}`;
   } catch (error) {
     if (
       !(error instanceof DocumentError) ||

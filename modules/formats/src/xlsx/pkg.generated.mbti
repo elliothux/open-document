@@ -62,6 +62,7 @@ pub(all) struct ConditionalFormat {
   stopIfTrue : Bool
   format : CellFormat
   stops : Array[ConditionalStop]
+  bar : DataBar?
 } derive(Eq)
 pub fn ConditionalFormat::default() -> Self
 pub fn ConditionalFormat::equal(Self, Self) -> Bool
@@ -75,6 +76,26 @@ pub(all) struct ConditionalStop {
 pub fn ConditionalStop::equal(Self, Self) -> Bool
 pub fn ConditionalStop::not_equal(Self, Self) -> Bool
 pub fn ConditionalStop::to_json(Self) -> Json
+
+pub(all) struct ConditionalThreshold {
+  kind : String
+  value : String
+} derive(Eq, ToJson)
+pub fn ConditionalThreshold::equal(Self, Self) -> Bool
+pub fn ConditionalThreshold::not_equal(Self, Self) -> Bool
+pub fn ConditionalThreshold::to_json(Self) -> Json
+
+pub(all) struct DataBar {
+  minimum : ConditionalThreshold
+  maximum : ConditionalThreshold
+  color : String
+  showValue : Bool
+  minLength : Int
+  maxLength : Int
+} derive(Eq, ToJson)
+pub fn DataBar::equal(Self, Self) -> Bool
+pub fn DataBar::not_equal(Self, Self) -> Bool
+pub fn DataBar::to_json(Self) -> Json
 
 pub(all) struct DataValidation {
   kind : String
