@@ -56,6 +56,16 @@ fn Foundation::xlsx_operation(
     @failure.reject("session-required", "Open an XLSX workbook first")
   }
   match operation {
+    "duplicatesXlsx" => {
+      guard request is { "settings": settings, .. } else {
+        @failure.reject("invalid-operation", "Duplicate settings are required")
+      }
+      session.duplicates(
+        field_int(request, "revision"),
+        field_string(request, "sheet"),
+        xlsx_duplicate_settings(settings),
+      )
+    }
     "exportXlsxCsv" =>
       {
         "bytes": @base64.encode(
@@ -138,6 +148,22 @@ fn Foundation::xlsx_operation(
       let change = match field_string(change, "action") {
         "add" => @xlsx.Add
         "copy" => @xlsx.Copy
+        "removeDuplicates" => {
+          guard change is Object(fields) &&
+            fields.length() == 3 &&
+            fields
+            .keys()
+            .all(k => ["action", "settings", "sourceRevision"].contains(k)) &&
+            fields.get("settings") is Some(settings) else {
+            @failure.reject(
+              "invalid-operation", "Invalid duplicate removal command",
+            )
+          }
+          @xlsx.RemoveDuplicates(
+            xlsx_duplicate_settings(settings),
+            field_int(change, "sourceRevision"),
+          )
+        }
         "delete" => @xlsx.Delete
         "conditionalRule" => {
           guard change is { "priority": priority, "rule": rule, .. } else {
@@ -673,6 +699,35 @@ fn Foundation::xlsx_operation(
       }
     }
     _ => @failure.reject("invalid-operation", "Unknown XLSX operation")
+  }
+}
+
+///|
+fn xlsx_duplicate_settings(
+  value : Json,
+) -> @xlsx.DuplicateSettings raise @failure.Failure {
+  guard value is Object(fields) &&
+    fields.length() == 3 &&
+    fields.keys().all(k => ["range", "header", "columns"].contains(k)) &&
+    fields.get("columns") is Some(Array(columns)) &&
+    !columns.is_empty() &&
+    columns.length() <= 4096 else {
+    @failure.reject("invalid-operation", "Invalid duplicate settings")
+  }
+  {
+    range: field_string(value, "range"),
+    header: xlsx_boolean(value, "header"),
+    columns: columns.map(value => {
+      guard value is Number(number, ..) &&
+        number >= 1 &&
+        number <= 16384 &&
+        number == number.trunc() else {
+        @failure.reject(
+          "invalid-operation", "Invalid duplicate comparison column",
+        )
+      }
+      number.to_int()
+    }),
   }
 }
 

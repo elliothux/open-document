@@ -160,6 +160,7 @@ fn Foundation::dispatch(
     | "captureXlsxFormat"
     | "applyXlsxFormat"
     | "queryXlsx"
+    | "duplicatesXlsx"
     | "selectXlsx"
     | "replaceXlsx"
     | "findXlsx"
@@ -255,6 +256,7 @@ fn Foundation::dispatch(
     | "findDocx"
     | "docxOverview"
     | "docxComments"
+    | "navigateComment"
     | "editDocxComment"
     | "replaceDocxMatches"
     | "tabDocx"
@@ -304,6 +306,11 @@ fn Foundation::dispatch(
         }
         "docxOverview" => session.overview(field_int(request, "revision"))
         "docxComments" => session.comments(field_int(request, "revision"))
+        "navigateComment" =>
+          session.navigate_comment(
+            field_int(request, "revision"),
+            field_string(request, "direction"),
+          )
         "findDocx" =>
           session.find(
             field_int(request, "revision"),

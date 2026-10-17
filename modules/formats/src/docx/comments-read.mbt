@@ -18,6 +18,9 @@ priv struct CommentsSource {
   tree : WordTree
   entries : Array[DocComment]
   extended : (String, @xml.Document)?
+  ids : (String, @xml.Document)?
+  extensible : (String, @xml.Document)?
+  durable : Map[String, String]
 }
 
 ///|
@@ -29,7 +32,10 @@ fn comment_markup(
 ) -> Unit raise @failure.Failure {
   let node = tree.nodes[id]
   guard node.uri == word_uri &&
-    node.attributes.all(a => a.uri == word_uri && attributes.contains(a.name)) &&
+    node.attributes.all(a => {
+      (a.uri == word_uri && attributes.contains(a.name)) ||
+      (id == 0 && comment_root_attribute(a))
+    }) &&
     tree.children[id].all(child => {
       tree.nodes[child].uri == word_uri &&
       children.contains(tree.nodes[child].name)
@@ -180,14 +186,17 @@ fn Session::comment_source(
   let links = self.relationships()
   let kind = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments"
   let candidates = links.filter(l => l.kind == kind && l.owner == self.main)
-  let extensions = links.filter(l => l.kind == comment_extended_kind)
+  let known = [
+    kind, comment_extended_kind, comment_ids_kind, comment_extensible_kind,
+  ]
+  let extensions = links.filter(l => known.contains(l.kind) && l.kind != kind)
   guard candidates.length() <= 1 &&
-    extensions.length() <= 1 &&
+    [comment_extended_kind, comment_ids_kind, comment_extensible_kind].all(k => {
+      extensions.filter(l => l.kind == k).length() <= 1
+    }) &&
     extensions.all(l => l.owner == self.main) &&
     !links.any(l => {
-      l.kind.to_lower().contains("comment") &&
-      l.kind != kind &&
-      l.kind != comment_extended_kind
+      l.kind.to_lower().contains("comment") && !known.contains(l.kind)
     }) else {
     @failure.reject("protected-content", "Unsupported comment extension")
   }
@@ -208,7 +217,8 @@ fn Session::comment_source(
   }
   let document = self.part_xml(link.target)
   let entries = read_doc_comments(document)
-  let extended = if extensions.get(0) is Some(extension) {
+  let extra : Map[String, (String, @xml.Document)] = Map([])
+  for extension in extensions {
     guard !extension.external &&
       links.filter(l => !l.external && l.target == extension.target).length() ==
       1 &&
@@ -217,23 +227,39 @@ fn Session::comment_source(
         "protected-content", "Shared external or resource-backed comment threads are protected",
       )
     }
-    Some((extension.target, self.part_xml(extension.target)))
+    extra[extension.kind] = (extension.target, self.part_xml(extension.target))
+  }
+  let extended = extra.get(comment_extended_kind)
+  let entries = extended
+    .map(e => read_comment_threads(entries, e.1))
+    .unwrap_or(entries)
+  let ids = extra.get(comment_ids_kind)
+  let extensible = extra.get(comment_extensible_kind)
+  let durable = ids.map(e => read_comment_ids(entries, e.1)).unwrap_or(Map([]))
+  let entries = if extensible is Some((_, document)) {
+    guard ids is Some(_) else {
+      @failure.reject(
+        "protected-content", "Comment metadata has no durable identity part",
+      )
+    }
+    read_comment_extensible(entries, durable, document)
   } else {
-    None
+    entries
   }
   Some({
     part: link.target,
     document,
     tree: WordTree::new(document),
-    entries: extended
-    .map(e => read_comment_threads(entries, e.1))
-    .unwrap_or(entries),
+    entries,
     extended,
+    ids,
+    extensible,
+    durable,
   })
 }
 
 ///|
-/// Lists local classic comments and their logical body anchors without changing history.
+/// Lists local comments and their logical body anchors without changing history.
 pub fn Session::comments(
   self : Session,
   revision : Int,

@@ -97,6 +97,26 @@ export function DocxComments({
       <fieldset disabled={disabled || blocked || stale || !!result?.reason}>
         <legend>{t.docxComments}</legend>
         {result?.reason && <p>{result.reason}</p>}
+        {(["previous", "next"] as const).map((direction) => (
+          <button
+            key={direction}
+            type="button"
+            disabled={
+              !result?.items.some(
+                (item) =>
+                  item.parent === null &&
+                  !item.done &&
+                  !item.reason &&
+                  item.selection,
+              )
+            }
+            onClick={() =>
+              controller.run(() => editor.navigateComment(direction))
+            }
+          >
+            {direction === "previous" ? t.commentPrevious : t.commentNext}
+          </button>
+        ))}
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -116,7 +136,11 @@ export function DocxComments({
             else if (selection)
               apply(
                 {
-                  action: "add",
+                  action:
+                    selection.anchor.paragraph === selection.focus.paragraph &&
+                    selection.anchor.offset === selection.focus.offset
+                      ? "addWord"
+                      : "add",
                   ...content,
                   selection,
                 },

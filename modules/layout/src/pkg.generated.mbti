@@ -17,6 +17,8 @@ pub fn validate_gradient(Border, String, String) -> Unit raise @failure.Failure
 
 pub fn validate_tabs(Array[TabStop]) -> Unit raise @failure.Failure
 
+pub fn word_range_at(String, Int) -> (Int, Int)?
+
 // Errors
 
 // Types and methods

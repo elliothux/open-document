@@ -1,10 +1,11 @@
 import type { DocxSelection } from "./docx-hit.js";
 import { isDocxSelection } from "./docx-search.js";
 import { integer, record } from "./validation.js";
+import { editState, type EditState } from "./docx-format.js";
 
 export type DocxCommentEdit =
   | {
-      action: "add";
+      action: "add" | "addWord";
       text: string;
       author: string;
       initials: string;
@@ -36,6 +37,20 @@ export interface DocxComments {
     selection: DocxSelection | null;
     reason: string;
   }[];
+}
+
+export interface DocxCommentNavigation {
+  comment: string | null;
+  state: EditState;
+}
+
+export function docxCommentNavigation(value: unknown): DocxCommentNavigation {
+  const result = record(value);
+  const state = editState(result.state);
+  const comment = result.comment;
+  if (comment !== null && (!id(comment) || state.selection === null))
+    throw new Error("Invalid comment navigation");
+  return { comment, state };
 }
 
 export interface DocxCommentLayout {
@@ -129,14 +144,18 @@ export function checkDocxComment(
 ): asserts value is DocxCommentEdit {
   const change = record(value);
   let allowed: string[];
-  if (change.action === "add" || change.action === "reply") {
+  if (
+    change.action === "add" ||
+    change.action === "addWord" ||
+    change.action === "reply"
+  ) {
     allowed = [
       "action",
       "text",
       "author",
       "initials",
       "date",
-      change.action === "add" ? "selection" : "id",
+      change.action === "reply" ? "id" : "selection",
     ];
     if (
       !text(change.text, 32767, true) ||
@@ -145,9 +164,9 @@ export function checkDocxComment(
       Array.from(change.author + change.initials).some(
         (c) => c.codePointAt(0)! < 32,
       ) ||
-      (change.action === "add"
-        ? !isDocxSelection(change.selection)
-        : !id(change.id)) ||
+      (change.action === "reply"
+        ? !id(change.id)
+        : !isDocxSelection(change.selection)) ||
       typeof change.date !== "string" ||
       !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u.test(
         change.date,
@@ -160,6 +179,15 @@ export function checkDocxComment(
           : change.date)
     )
       throw new Error("Invalid comment creation");
+    if (change.action === "addWord") {
+      const selection = change.selection;
+      if (
+        !isDocxSelection(selection) ||
+        selection.anchor.paragraph !== selection.focus.paragraph ||
+        selection.anchor.offset !== selection.focus.offset
+      )
+        throw new Error("Word comments require a collapsed caret");
+    }
   } else if (change.action === "resolve") {
     allowed = ["action", "id", "done"];
     if (!id(change.id) || typeof change.done !== "boolean")

@@ -229,6 +229,12 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `editComment(revision, change)` 和 `DocumentEditor.editComment(change)` 接受 `{ action: "add", text, author, initials, date, selection }`、`{ action: "update", id, text }`、`{ action: "remove", id }` 和 `{ action: "goTo", id }`。创建使用显式范围或光标，作者由宿主提供，时间为平台传入的有效 UTC ISO 字符串；核心不读账号或时钟。默认面板复用 `EditorOptions.commentAuthor`，未提供时仍可读取、修改和删除已有批注。跳转选中当前完整范围，不修改修订、源或历史；文字草稿在正文输入和拆段后保留。
 
+`{ action: "addWord", text, author, initials, date, selection }` 要求折叠光标，由核心按 Unicode 单词边界扩展，跨字符格式和普通链接取词。光标正好位于词尾时选择前词，空白或无单词处保留点锚点；不切开代理对和组合字素。分段复用已安装的 UAX #29 实现，不使用浏览器 DOM 或词典分词。创建后选中该范围，撤销恢复原光标。默认面板在折叠光标处使用此命令；显式 `add` 仍按传入的范围或点创建。
+
+`FoundationSession/Client.navigateComment(revision, "previous" | "next")` 返回 `{ comment: string | null, state: EditState }`；`DocumentEditor.navigateComment(direction)` 在现有队列内应用状态，并更新 `getCommentFocus()`。按正文和普通单元格的源顺序循环，跳过回复、已解决和不可定位的根批注。下一条选择起点严格在当前选择前端之后的批注；上一条选择终点不晚于该前端、起点更早的批注，末端循环。当前范围内的光标和点锚点按同一规则离开；没有可用项时返回 null，保留选择、源、修订和历史。默认面板提供上一条/下一条按钮。
+
+光标处取词依据 [ONLYOFFICE AddComment](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L14184-L14227)，顺序导航目标依据 [GenOffice gotoComment](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/docs/src/renderer/review-actions.ts#L284-L305)。未复制上游源码。实现归 [`comments-selection.mbt`](../../modules/formats/src/docx/comments-selection.mbt)及 [`word-range.mbt`](../../modules/layout/src/word-range.mbt)。
+
 `{ action: "reply", id, text, author, initials, date }` 回复指定根批注，沿用相同文字/作者/时间上限，不创建重复正文标记。`{ action: "resolve", id, done }` 从根或回复设置整线程的解决状态，false 重新打开；已经一致时不新增历史。默认面板按根分组显示回复，提供回复编辑/单条删除、解决/重开及整线程删除。删除根同时删除其全部回复和扩展记录；单条回复删除保留根及其他回复。
 
 `PageLayout.comments` 返回只读 `{ reason, items: [{ id, reason, rects }] }`，rect 含 `page/line/x/y/width/height`，单位为 point。仅未解决根批注产生高亮，回复共用根，点锚点显示窄条。几何复用核心塑形选区、跨页与普通单元格裁剪，并裁到物理页面；组合候选沿显示源更新，取消不改变已提交源。一次最多 4096 项、65536 个矩形，根数与页面 caret/行总数的乘积不超过 8 Mi；超限或缺失正文返回原因，不返回不完整的全局结果。单条不可定位时保留其原因和空矩形。
@@ -237,7 +243,11 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 新文字非空且最多 32767 UTF-16 单元，CRLF/CR 归一为 LF；作者非空且最多 255 单元，缩写最多 32，两者不接受控制字符。每文档最多 4096 条，包含回复，合计 1 Mi 文字单元。导入正文接受普通段落、字符属性及 Tab/软换行；文字替换继承首段及首 run 的属性，保留作者、日期、批注身份、外围注释和局部命名空间。可读取和删除空正文，也可显式修改。表格等未知批注正文、资源关系、共享/外部部件，以及不支持的现代扩展保持保护。
 
-单层线程支持 `w15:commentsEx/commentEx`，用 `paraIdParent` 连接批注正文末段的 `w14:paraId`，用 `done` 记录状态。八位十六进制身份忽略大小写匹配，新增身份避开全部已有批注段落；正文修改保留线程使用的末段身份。首次回复或解决创建所需段落身份、commentsExtended 部件、主文档关系和内容类型，合为一项精确历史。空扩展部件继续可用，新根自动取得独立身份；最后删除后保留空部件和关系。缺失属性写入复用当前命名空间，保留源前缀、外围及节点内注释。缺失/重复身份、悬空或嵌套/循环回复、未知属性、共享/外部扩展、commentsIds/commentsExtensible 等现代资源继续原子保护。
+单层线程支持 `w15:commentsEx/commentEx`，用 `paraIdParent` 连接批注正文末段的 `w14:paraId`，用 `done` 记录状态。八位十六进制身份忽略大小写匹配，新增身份避开全部已有批注段落；正文修改保留线程使用的末段身份。首次回复或解决创建所需段落身份、commentsExtended 部件、主文档关系和内容类型，合为一项精确历史。空扩展部件继续可用，新根自动取得独立身份；最后删除后保留空部件和关系。缺失属性写入复用当前命名空间，保留源前缀、外围及节点内注释。缺失/重复身份、悬空或嵌套/循环回复、未知属性及共享/外部扩展继续原子保护。
+
+已支持导入 `commentsIds` 和 `commentsExtensible`。`paraId` 连接批注末段，`durableId` 连接 UTC 元数据，两者均按八位十六进制、忽略大小写匹配；公开 id 仍为正文批注身份。修改正文保留映射、原 UTC 时间、已知 Office presenceInfo 和根批注的 follow-up 标志。向已有身份部件新增根或回复时，为新条目分配独立段落及持久 ID；已有 UTC 部件同时写入宿主提供的时间。首次线程为缺少身份的根补齐映射，不升级普通新建文件的格式。允许已有身份列表只覆盖部分批注；已有记录必须唯一且能定位，UTC 部件必须有对应身份部件。列表的 date 优先使用非空 dateUtc，缺少时读取批注正文 date；两处源属性均保持原值。
+
+删除回复或整线程同时删除相应身份与 UTC 记录，其他记录、外围注释和关系保留；所有部件共用原子预算及精确历史。标准 `mc:Ignorable` 根属性可保留，仍逐项校验实际节点及属性，不因此忽略未知内容。重复/悬空映射、回复携带 follow-up 标志、未知 presence 扩展及共享/外部元数据返回保护原因。依据 [ONLYOFFICE 的段落及持久 ID 映射](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Document/BinWriter/BinaryWriterD.cpp#L8738-L8775)、[元数据写回](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Document/BinReader/ReaderClasses.cpp#L749-L780)及 [MS-DOCX CT_CommentExtensible](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-docx/a7b57225-42e5-43e7-8d98-d90eabf3ca25)。未复制上游源码。实现归 [`comments-modern.mbt`](../../modules/formats/src/docx/comments-modern.mbt)；其他现代扩展继续实施。
 
 首次创建把 comments、正文标记、主文档关系和内容类型合为一项有界事务。标记不占正文宽度；输入、格式、链接修改及拆段/合段维护范围，范围替换删除中间段落时丢失的端点收缩到替换后光标。与书签共用已有边界拆分及位置计算。其他结构操作若会破坏锚点，则原子拒绝。删除同时移除正文标记和批注正文，最后一条删除后保留空部件及关系。旧修订、活动候选和包/输出/历史预算失败不提交；保存重开及精确混合撤销重做沿原事务。正文查找、排版和默认静态 PDF 不包含批注文字。
 
@@ -752,6 +762,18 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 排序移动单元格值、富文本 XML、有效样式及已支持公式，局部补齐命名空间，保留源格式。公式相对引用按实际位移平移，绝对引用保持，越界生成 `#REF!`；受影响共享组有界展开。区域外公式引用继续指向原坐标，并按排序后的内容重算。单格超链接随内容移动，矩形链接保持原坐标，关系和目标不变。条件格式、验证及名称保持原坐标范围，效果和输入约束基于候选值计算；验证失败整项拒绝。行列尺寸保留原位置，已有自动尺寸仍按新内容重排。公式、依赖缓存与值/源/链接使用同一有界历史，精确撤销/重做，保存重开及 PDF 使用已排序内容；原生草稿先独立提交。恒等置换不新增 revision 或历史。重排及公式位移参考 [ONLYOFFICE _sortByArray](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21651-L21770)。
 
 排序键归一化共享 1048576 次公式工作预算，移动片段累计最多 1 Mi UTF-16，继续使用公式、候选、源和 4 MiB 历史上限。合并区域、筛选/既有 sortState、绘图、结构化表/透视、线程批注及未知便笺、未知资源或关系、未知单元格/公式标记和工作表保护继续原子拒绝。颜色、自定义列表、筛选内排序和更广合并/资源支持归 [P11](../p11-xlsx-core.md) 后续范围。实现归 [`sort.mbt`](../../modules/formats/src/xlsx/sort.mbt)、[`sort-source.mbt`](../../modules/formats/src/xlsx/sort-source.mbt)及 [`xlsx-sort.tsx`](../../packages/ui/src/xlsx-sort.tsx)。
+
+### 删除重复行
+
+`XlsxSession/Client.duplicates(revision, sheet, settings)` 返回只读预览，宿主入口为 `SpreadsheetEditor.duplicates(settings)`。`XlsxDuplicateSettings` 包含显式 A1 矩形 `range`、`header` 和工作表从 1 开始的比较列 `columns`；至少选一列，各列互异且在范围内。`header=true` 保留首行。返回 `XlsxDuplicates`，包含同一设置、revision、sheet、完整 `keptRows/removedRows`、有效结果 `resultRange` 及前十条保留记录的格式化值 `preview`。两个类型从 Wasm/Web XLSX 模块导出。核心预览不修改源、选择、修订或历史；宿主沿既有队列先处理原生草稿和组合输入。
+
+提交使用 `editSheet({ action: "removeDuplicates", settings, sourceRevision })`。默认面板先选择比较列和标题，再预览删除数量、原行号及保留内容，最后明确提交。设置、选区、表或修订变化后旧预览不能提交；换文档须丢弃旧结果。核心重新计算方案并核对 sourceRevision，不信任传入的删除行列表。无重复或候选源没有实际变化时不新增历史。
+
+比较使用当前已计算结果和格式化文字，区分大小写及空格；显示相同的数字与文字可匹配，不因底层类型不同而保留两份。保留首次出现的记录，包含手动隐藏行。存活单元格按原顺序向区域顶部压紧，移动值、富文本源、有效格式及相对公式；绝对引用和区域外引用坐标保持，依赖缓存同步重算。清空尾部内容及显式单元格格式，行列继承格式仍有效，不删除整张表的物理行，也不移动选区外单元格。手动尺寸和隐藏状态保留原坐标，自动尺寸沿现有路径重排。条件格式、验证及名称保留坐标，候选输入继续校验。
+
+单格链接和便笺随保留记录移动。删除重复记录时，同步移除对应便笺/VML 和完整落在该选区删除行内的链接；跨行链接保持原坐标。其他部件及源片段保留，值、公式、样式、链接、便笺和缓存合为一次精确历史；撤销、重开后输入、查找替换及 PDF 沿相同内容路径。一次最多 4096 格，格式化及条件计算共享 1048576 工作预算，搬移片段累计最多 1 Mi UTF-16，继续遵守输出和 4 MiB 历史上限。合并格、筛选/排序状态、表格/透视、绘图、未知便笺及单元格/公式元数据等沿重排保护原子拒绝；这些组合继续实施。
+
+比较和稳定压紧依据 [ONLYOFFICE setRemoveDuplicates](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L25977-L26181)、[清空单元格](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21142-L21166)及前述 `_sortByArray`；未复制上游源码。实现归 [`duplicates.mbt`](../../modules/formats/src/xlsx/duplicates.mbt)、[`reorder-cells.mbt`](../../modules/formats/src/xlsx/reorder-cells.mbt)及 [`xlsx-duplicates.tsx`](../../packages/ui/src/xlsx-duplicates.tsx)。分列和其余数据工具继续按 [P11](../p11-xlsx-core.md) 实施。
 
 ### 值筛选
 

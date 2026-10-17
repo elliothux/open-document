@@ -1,6 +1,7 @@
 ///|
 pub(all) enum CommentEdit {
   AddComment(String, String, String, String, Selection)
+  AddWordComment(String, String, String, String, Selection)
   ReplyComment(String, String, String, String, String)
   SetCommentResolved(String, Bool)
   UpdateComment(String, String)
@@ -21,7 +22,7 @@ fn comment_text(value : String) -> String raise @failure.Failure {
 }
 
 ///|
-/// Edits classic local comments and body anchors in one exact source transaction.
+/// Edits local comment bodies, metadata and anchors in one exact source transaction.
 pub fn Session::edit_comment(
   self : Session,
   revision : Int,
@@ -35,7 +36,8 @@ pub fn Session::edit_comment(
   let entries = source.map(s => s.entries).unwrap_or([])
   let mut comment_part = source.map(s => s.part)
   let mut extended_part = source.bind(s => s.extended.map(e => e.0))
-  guard anchors.all(a => a.reason.is_empty() && entries.any(e => e.key == a.key)) else {
+  guard change is GoToComment(_) ||
+    anchors.all(a => a.reason.is_empty() && entries.any(e => e.key == a.key)) else {
     @failure.reject("protected-content", "Comments have unresolved anchors")
   }
   let parts = self.parts.copy()
@@ -45,8 +47,10 @@ pub fn Session::edit_comment(
   let affected : Array[Int] = []
   let changes : Array[@xml.SourceChange] = []
   let mut document = original
+  let mut after = self.selection
   match change {
     AddComment(raw, author, initials, date, _)
+    | AddWordComment(raw, author, initials, date, _)
     | ReplyComment(_, raw, author, initials, date) => {
       let text = comment_text(raw)
       guard !author.trim().is_empty() &&
@@ -83,6 +87,8 @@ pub fn Session::edit_comment(
       }
       let selection = match change {
         AddComment(_, _, _, _, selection) => selection
+        AddWordComment(_, _, _, _, selection) =>
+          self.comment_word_selection(original, selection)
         _ => {
           guard anchors.iter().find_first(a => a.key == parent.unwrap().key)
             is Some(anchor) &&
@@ -95,6 +101,9 @@ pub fn Session::edit_comment(
         }
       }
       let range = self.formatting_range(original, selection)
+      if change is AddWordComment(_, _, _, _, _) {
+        after = Some(selection)
+      }
       affected.append(range.paragraphs)
       let key = for i in 0..<16384 {
         if !entries.any(e => e.key == i.to_string()) &&
@@ -118,7 +127,8 @@ pub fn Session::edit_comment(
         None
       }
       let current = source.map(s => parts.get(s.part).unwrap_or(s.document))
-      let para = if extended_part is Some(_) {
+      let para = if extended_part is Some(_) ||
+        source.bind(s => s.ids) is Some(_) {
         next_comment_para(current.unwrap())
       } else {
         ""
@@ -148,6 +158,16 @@ pub fn Session::edit_comment(
         )
         store_comment_edit(path, next, edit, parts, created, part_edits)
       }
+      if source is Some(source) {
+        add_comment_identity(
+          source,
+          para,
+          Some(date),
+          parts,
+          created,
+          part_edits,
+        )
+      }
       if parent is None {
         let (next, steps) = self.split_bookmark_boundary(document, selection)
         document = next
@@ -176,15 +196,11 @@ pub fn Session::edit_comment(
           "invalid-operation", "Comment or editable anchor is missing",
         )
       }
-      let selection = anchor.selection.unwrap()
+      guard anchor.reason.is_empty() && anchor.selection is Some(selection) else {
+        @failure.reject("protected-content", "Comment anchor is protected")
+      }
       if change is GoToComment(_) {
-        self.selection = Some(selection)
-        self.typing_text = None
-        self.typing_format = None
-        self.input_group = None
-        self.vertical_x = None
-        self.navigation_layout = -1
-        return self.edit_result([])
+        return self.select_comment(selection)
       }
       affected.push(selection.anchor.paragraph)
       affected.push(selection.focus.paragraph)
@@ -283,29 +299,42 @@ pub fn Session::edit_comment(
             }
           }
           if source.extended is Some((path, extended)) {
-            let ext_tree = WordTree::new(extended)
-            let removals : Array[@xml.SourceChange] = ext_tree.children[0]
-              .filter(id => {
-                removed.any(e => {
-                  Some(e.para) ==
-                  ext_tree.nodes[id]
-                  .attribute("paraId", uri=comment_extended_uri)
-                  .map(comment_para_id)
-                })
-              })
-              .map(id => {
-                let n = ext_tree.nodes[id]
-                {
-                  node: n.parent,
-                  offset: n.start - ext_tree.nodes[n.parent].start,
-                  length: n.end - n.start,
-                  xml: "",
-                }
-              })
-            if !removals.is_empty() {
-              let (next, edit) = extended.edit_source(removals)
-              store_comment_edit(path, next, edit, parts, created, part_edits)
-            }
+            remove_comment_records(
+              path,
+              extended,
+              comment_extended_uri,
+              "paraId",
+              removed.map(e => e.para),
+              parts,
+              created,
+              part_edits,
+            )
+          }
+          if source.ids is Some((path, ids)) {
+            remove_comment_records(
+              path,
+              ids,
+              comment_ids_uri,
+              "paraId",
+              removed.map(e => e.para),
+              parts,
+              created,
+              part_edits,
+            )
+          }
+          if source.extensible is Some((path, metadata)) {
+            remove_comment_records(
+              path,
+              metadata,
+              comment_extensible_uri,
+              "durableId",
+              removed
+              .filter(e => source.durable.contains(e.para))
+              .map(e => source.durable[e.para]),
+              parts,
+              created,
+              part_edits,
+            )
           }
         }
         let (next, edit) = source.document.edit_source(updates)
@@ -333,6 +362,29 @@ pub fn Session::edit_comment(
     }
     ignore(read_comment_threads(read_doc_comments(body), extended))
   }
+  if source is Some(source) && source.ids is Some((path, original)) {
+    let body = parts.get(source.part).unwrap_or(source.document)
+    let entries = read_doc_comments(body)
+    let entries = if extended_part is Some(path) {
+      let extended = match parts.get(path) {
+        Some(document) => document
+        None => self.part_xml(path)
+      }
+      read_comment_threads(entries, extended)
+    } else {
+      entries
+    }
+    let durable = read_comment_ids(entries, parts.get(path).unwrap_or(original))
+    if source.extensible is Some((path, original)) {
+      ignore(
+        read_comment_extensible(
+          entries,
+          durable,
+          parts.get(path).unwrap_or(original),
+        ),
+      )
+    }
+  }
   let mut bytes = xml_part_edit_bytes(part_edits, created)
   for step in xml {
     guard edit_bytes(step) <= history_byte_limit - bytes else {
@@ -347,7 +399,7 @@ pub fn Session::edit_comment(
       created,
       created_media: Map([]),
       before: self.selection,
-      after: self.selection,
+      after,
       paragraphs: affected,
       bytes,
     },

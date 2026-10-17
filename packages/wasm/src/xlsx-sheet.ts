@@ -1,6 +1,10 @@
 import { record, integer } from "./validation.js";
 import { checkXlsxNameEdit, type XlsxNameEdit } from "./xlsx-names.js";
 import { checkXlsxSort, type XlsxSortSettings } from "./xlsx-sort.js";
+import {
+  checkXlsxDuplicateSettings,
+  type XlsxDuplicateSettings,
+} from "./xlsx-duplicates.js";
 import { checkXlsxFilter, type XlsxFilterSettings } from "./xlsx-filter.js";
 import {
   checkXlsxConditionalFormat,
@@ -27,6 +31,11 @@ export type XlsxSheetEdit =
   | ({ action: "filter" } & XlsxFilterSettings)
   | { action: "filterClear" | "filterRemove" | "filterReapply" }
   | ({ action: "sort"; range: string } & XlsxSortSettings)
+  | {
+      action: "removeDuplicates";
+      settings: XlsxDuplicateSettings;
+      sourceRevision: number;
+    }
   | {
       action: "conditionalRule";
       ranges: string;
@@ -98,6 +107,18 @@ export type XlsxSheetEdit =
 
 export function checkXlsxSheetEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "removeDuplicates") {
+    if (
+      Object.keys(change).length !== 3 ||
+      Object.keys(change).some(
+        (key) => !["action", "settings", "sourceRevision"].includes(key),
+      ) ||
+      !integer(change.sourceRevision, 0, 2147483647)
+    )
+      throw new Error("Invalid duplicate removal command");
+    checkXlsxDuplicateSettings(change.settings);
+    return;
+  }
   if (change.action === "note") {
     if (
       !noteCell(change.cell) ||

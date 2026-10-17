@@ -37,6 +37,7 @@ pub fn CharacterFormat::not_equal(Self, Self) -> Bool
 
 pub(all) enum CommentEdit {
   AddComment(String, String, String, String, Selection)
+  AddWordComment(String, String, String, String, Selection)
   ReplyComment(String, String, String, String, String)
   SetCommentResolved(String, Bool)
   UpdateComment(String, String)
@@ -153,6 +154,7 @@ pub fn Session::insert_picture(Self, Int, Double, Double, Bytes) -> Json raise @
 pub fn Session::insert_table(Self, Int, Selection, Int, Int) -> Json raise @failure.Failure
 pub fn Session::list_catalog(Self, Int) -> Json raise @failure.Failure
 pub fn Session::navigate(Self, Int, @layout.Layout, Int, String, extend_selection~ : Bool) -> @layout.Hit raise @failure.Failure
+pub fn Session::navigate_comment(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
 pub fn Session::overview(Self, Int) -> Json raise @failure.Failure
 pub fn Session::page_setup(Self, Int) -> Json raise @failure.Failure

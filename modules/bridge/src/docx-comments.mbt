@@ -7,7 +7,8 @@ fn docx_comment_edit(
   }
   let action = field_string(change, "action")
   let allowed = match action {
-    "add" => ["action", "text", "author", "initials", "date", "selection"]
+    "add" | "addWord" =>
+      ["action", "text", "author", "initials", "date", "selection"]
     "reply" => ["action", "id", "text", "author", "initials", "date"]
     "resolve" => ["action", "id", "done"]
     "update" => ["action", "id", "text"]
@@ -35,6 +36,14 @@ fn docx_comment_edit(
     }
     "add" =>
       @docx.AddComment(
+        field_string(change, "text"),
+        field_string(change, "author"),
+        field_string(change, "initials"),
+        field_string(change, "date"),
+        field_selection(change),
+      )
+    "addWord" =>
+      @docx.AddWordComment(
         field_string(change, "text"),
         field_string(change, "author"),
         field_string(change, "initials"),

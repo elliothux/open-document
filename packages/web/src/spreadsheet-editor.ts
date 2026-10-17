@@ -5,13 +5,11 @@ import {
   updateGridScroll,
 } from "./spreadsheet-elements.js";
 import {
-  checkSpreadsheetSearch,
+  replaceSpreadsheetMatches,
+  findSpreadsheet,
+  selectSpreadsheetMatch,
   type SpreadsheetSearchResult,
 } from "./spreadsheet-search.js";
-import {
-  xlsxFindOptions,
-  type XlsxFindOptions,
-} from "@open-document/wasm/xlsx";
 export type { SpreadsheetSearchResult } from "./spreadsheet-search.js";
 import {
   updateGridSemantics,
@@ -54,6 +52,9 @@ import type {
   CopiedCellFormat,
   XlsxClearMode,
   XlsxSelectionGeometry,
+  XlsxDuplicateSettings,
+  XlsxDuplicates,
+  XlsxFindOptions,
 } from "@open-document/wasm/xlsx";
 /** One native cell draft; MoonBit owns committed cells, selection and geometry. */
 export class SpreadsheetEditor {
@@ -535,42 +536,35 @@ export class SpreadsheetEditor {
     return this.enqueue(async () => {
       requireCellCompositionEnd(this.composing);
       await this.commitDraft();
-      const sheet = this.state.sheet;
-      options = xlsxFindOptions(options);
-      return {
-        ...(await this.client.find(this.state.revision, sheet, text, options)),
-        documentId: this.getSnapshot().documentId,
-        sheet,
+      return findSpreadsheet(
+        this.client,
+        this.state.revision,
+        this.state.sheet,
         text,
         options,
-      };
+        this.getSnapshot().documentId,
+      );
     });
   }
   selectMatch(result: SpreadsheetSearchResult, index: number): Promise<void> {
-    return this.change(() => {
-      checkSpreadsheetSearch(result, this.getSnapshot(), index);
-      const match = result.matches[index]!;
-      if (match.hidden)
-        throw new Error("Show the worksheet before selecting this match");
-      return this.client.select(result.revision, match.sheet, match.address);
-    });
+    return this.change(() =>
+      selectSpreadsheetMatch(this.client, result, this.getSnapshot(), index),
+    );
   }
   replaceMatches(
     result: SpreadsheetSearchResult,
     replacement: string,
     index?: number,
   ): Promise<void> {
-    return this.change(() => {
-      checkSpreadsheetSearch(result, this.getSnapshot(), index);
-      return this.client.replaceMatches(
-        result.revision,
-        result.sheet,
-        result.text,
-        result.options,
+    return this.change(() =>
+      replaceSpreadsheetMatches(
+        this.client,
+        result,
+        this.getSnapshot(),
         replacement,
         index,
-      );
-    });
+      ),
+    );
   }
   autoFit(axis: "rows" | "columns"): Promise<void> {
     return this.change(() => {
@@ -593,6 +587,14 @@ export class SpreadsheetEditor {
         change,
       ),
     );
+  }
+  duplicates(settings: XlsxDuplicateSettings): Promise<XlsxDuplicates> {
+    return this.enqueue(async () => {
+      requireCellCompositionEnd(this.composing);
+      await this.commitDraft();
+      const { revision, sheet } = this.state;
+      return this.client.duplicates(revision, sheet, settings);
+    });
   }
   formatCells(patch: XlsxCellFormat): Promise<void> {
     return this.change(() => {

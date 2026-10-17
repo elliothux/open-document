@@ -22,6 +22,7 @@ import type {
 } from "@open-document/wasm/foundation";
 import type {
   GridViewport,
+  XlsxDuplicateSettings,
   PrintOptions,
   XlsxSheetEdit,
   XlsxCellFormat,
@@ -35,8 +36,19 @@ import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
+  | {
+      operation: "duplicatesXlsx";
+      revision: number;
+      sheet: string;
+      settings: XlsxDuplicateSettings;
+    }
   | { operation: "editBookmark"; revision: number; change: DocxBookmarkEdit }
   | { operation: "docxComments"; revision: number }
+  | {
+      operation: "navigateComment";
+      revision: number;
+      direction: "previous" | "next";
+    }
   | { operation: "editDocxComment"; revision: number; change: DocxCommentEdit }
   | {
       operation: "setHyperlink";

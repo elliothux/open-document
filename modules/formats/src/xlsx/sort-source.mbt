@@ -140,3 +140,36 @@ fn Session::sort_resources(
     }
   }
 }
+
+///|
+fn Session::check_reorder_cells(
+  self : Session,
+  current : Sheet,
+  target : Range,
+) -> Unit raise @failure.Failure {
+  guard self.read_only.is_empty() && !current.locked else {
+    @failure.reject(
+      "protected-content",
+      if current.locked {
+        "Worksheet is protected"
+      } else {
+        self.read_only
+      },
+    )
+  }
+  guard !current.merges.any(merge => merge.intersects(target)) else {
+    @failure.reject(
+      "protected-content", "Merged cells require sorting geometry support",
+    )
+  }
+  ignore(self.read_sheet_notes(current))
+  self.sort_resources(current)
+  for cell in current.cells.values() {
+    if target.contains(cell.address) {
+      guard cell.read_only.is_empty() ||
+        cell.read_only == "Rich text cell is read-only" else {
+        @failure.reject("protected-content", cell.read_only)
+      }
+    }
+  }
+}

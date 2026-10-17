@@ -1,6 +1,10 @@
 import { Connection } from "./connection.js";
 import {
   xlsxQuery,
+  checkXlsxDuplicateSettings,
+  xlsxDuplicates,
+  type XlsxDuplicateSettings,
+  type XlsxDuplicates,
   xlsxFindOptions,
   xlsxDelimitedOptions,
   type XlsxDelimitedOptions,
@@ -32,6 +36,10 @@ import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type { XlsxSheetEdit, XlsxClearMode } from "@open-document/wasm/xlsx";
 export type { XlsxFillTarget, XlsxFillPreview } from "@open-document/wasm/xlsx";
 export type { XlsxStatistics } from "@open-document/wasm/xlsx";
+export type {
+  XlsxDuplicateSettings,
+  XlsxDuplicates,
+} from "@open-document/wasm/xlsx";
 export {
   checkXlsxSheetEdit,
   checkXlsxHyperlinkTarget,
@@ -278,6 +286,21 @@ export class XlsxClient {
         revision,
         sheet,
         change,
+      }),
+    );
+  }
+  async duplicates(
+    revision: number,
+    sheet: string,
+    settings: XlsxDuplicateSettings,
+  ): Promise<XlsxDuplicates> {
+    checkXlsxDuplicateSettings(settings);
+    return xlsxDuplicates(
+      await this.connection.request({
+        operation: "duplicatesXlsx",
+        revision,
+        sheet,
+        settings,
       }),
     );
   }

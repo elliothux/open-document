@@ -117,6 +117,12 @@ pub fn DataValidation::equal(Self, Self) -> Bool
 pub fn DataValidation::not_equal(Self, Self) -> Bool
 pub fn DataValidation::to_json(Self) -> Json
 
+pub(all) struct DuplicateSettings {
+  range : String
+  header : Bool
+  columns : Array[Int]
+}
+
 pub(all) enum FillTarget {
   FillPoint(Double, Double)
   FillDirection(String)
@@ -247,6 +253,7 @@ pub fn Session::clear(Self, Int, mode? : String) -> Json raise @failure.Failure
 pub fn Session::close(Self) -> Unit
 pub fn Session::copy(Self, Int) -> String raise @failure.Failure
 pub fn Session::create(@archive.Budget) -> Self raise @failure.Failure
+pub fn Session::duplicates(Self, Int, String, DuplicateSettings) -> Json raise @failure.Failure
 pub fn Session::edit_sheet(Self, Int, String, SheetEdit) -> Json raise @failure.Failure
 pub fn Session::export_csv(Self, Int, selection? : Bool) -> Bytes raise @failure.Failure
 pub fn Session::fill_preview(Self, Int, FillTarget, ctrl? : Bool) -> Json raise @failure.Failure
@@ -286,6 +293,7 @@ pub(all) enum SheetEdit {
   Fill(String, String)
   Series(SeriesMode, String, String, String)
   Sort(String, SortSettings)
+  RemoveDuplicates(DuplicateSettings, Int)
   SetFilter(FilterSettings)
   ClearFilter
   RemoveFilter

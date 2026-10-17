@@ -3,6 +3,7 @@ import { FoundationReviewClient } from "./document-review.js";
 export type {
   DocxCommentEdit,
   DocxComments,
+  DocxCommentNavigation,
 } from "@open-document/wasm/foundation";
 export { checkDocxComment } from "@open-document/wasm/foundation";
 export type {

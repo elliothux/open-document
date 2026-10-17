@@ -17,6 +17,7 @@ pub(all) enum SheetEdit {
   Fill(String, String)
   Series(SeriesMode, String, String, String)
   Sort(String, SortSettings)
+  RemoveDuplicates(DuplicateSettings, Int)
   SetFilter(FilterSettings)
   ClearFilter
   RemoveFilter
@@ -188,6 +189,8 @@ pub fn Session::edit_sheet(
     Series(mode, source, range, direction) =>
       return self.fill_series(sheet, mode, source, range, direction)
     Sort(range, settings) => return self.sort_cells(sheet, range, settings)
+    RemoveDuplicates(settings, source_revision) =>
+      return self.remove_duplicates(sheet, settings, source_revision)
     InsertRows(first, count) =>
       return self.edit_axes(sheet, {
         rows: true,
@@ -308,6 +311,7 @@ pub fn Session::edit_sheet(
     | Fill(_, _)
     | Series(_, _, _, _)
     | Sort(_, _)
+    | RemoveDuplicates(_, _)
     | SetFilter(_)
     | ClearFilter
     | RemoveFilter

@@ -36,6 +36,13 @@ export type { XlsxName, XlsxNames, XlsxNameEdit } from "./xlsx-names.js";
 import { xlsxStatistics, type XlsxStatistics } from "./xlsx-statistics.js";
 export { xlsxStatistics, type XlsxStatistics } from "./xlsx-statistics.js";
 export type { XlsxSortSettings, XlsxSortKey } from "./xlsx-sort.js";
+import {
+  checkXlsxDuplicateSettings,
+  xlsxDuplicates,
+  type XlsxDuplicateSettings,
+  type XlsxDuplicates,
+} from "./xlsx-duplicates.js";
+export * from "./xlsx-duplicates.js";
 import { xlsxFilterState, type XlsxFilterState } from "./xlsx-filter.js";
 export type {
   XlsxFilterValues,
@@ -625,6 +632,16 @@ export class XlsxSession extends WasmSession {
     checkXlsxSheetEdit(change);
     return xlsxQuery(
       this.call({ operation: "editXlsxSheet", revision, sheet, change }),
+    );
+  }
+  duplicates(
+    revision: number,
+    sheet: string,
+    settings: XlsxDuplicateSettings,
+  ): XlsxDuplicates {
+    checkXlsxDuplicateSettings(settings);
+    return xlsxDuplicates(
+      this.call({ operation: "duplicatesXlsx", revision, sheet, settings }),
     );
   }
   create(budget: Budget): XlsxQuery {

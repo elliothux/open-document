@@ -26,12 +26,16 @@ import {
 import {
   checkDocxComment,
   docxComments,
+  docxCommentNavigation,
+  type DocxCommentNavigation,
   type DocxCommentEdit,
   type DocxComments,
 } from "./docx-comments.js";
 export {
   checkDocxComment,
   docxComments,
+  docxCommentNavigation,
+  type DocxCommentNavigation,
   type DocxCommentEdit,
   type DocxComments,
 } from "./docx-comments.js";
@@ -324,6 +328,16 @@ export class FoundationSession extends WasmSession {
   }
   comments(revision: number): DocxComments {
     return docxComments(this.call({ operation: "docxComments", revision }));
+  }
+  navigateComment(
+    revision: number,
+    direction: "previous" | "next",
+  ): DocxCommentNavigation {
+    if (direction !== "previous" && direction !== "next")
+      throw new Error("Invalid comment navigation direction");
+    return docxCommentNavigation(
+      this.call({ operation: "navigateComment", revision, direction }),
+    );
   }
   editComment(revision: number, change: DocxCommentEdit): EditState {
     checkDocxComment(change);

@@ -6,10 +6,12 @@ import {
   checkDocxComment,
   docxOverview,
   docxComments,
+  docxCommentNavigation,
   editState,
   type DocxBookmarkEdit,
   type DocxCommentEdit,
   type DocxComments,
+  type DocxCommentNavigation,
   type DocxOverview,
   type EditState,
 } from "@open-document/wasm/foundation";
@@ -29,6 +31,20 @@ export class FoundationReviewClient {
   async comments(revision: number): Promise<DocxComments> {
     return docxComments(
       await this.connection.request({ operation: "docxComments", revision }),
+    );
+  }
+  async navigateComment(
+    revision: number,
+    direction: "previous" | "next",
+  ): Promise<DocxCommentNavigation> {
+    if (direction !== "previous" && direction !== "next")
+      throw new Error("Invalid comment navigation direction");
+    return docxCommentNavigation(
+      await this.connection.request({
+        operation: "navigateComment",
+        revision,
+        direction,
+      }),
     );
   }
   async editBookmark(
@@ -99,6 +115,19 @@ export class DocumentReview {
       this.commentFocus =
         change.action === "goTo" ? Object.freeze({ id: change.id }) : undefined;
       return state;
+    });
+  }
+  navigateComment(direction: "previous" | "next"): Promise<void> {
+    return this.review.edit(async () => {
+      const result = await this.review.client.navigateComment(
+        this.review.snapshot().revision,
+        direction,
+      );
+      this.commentFocus =
+        result.comment === null
+          ? undefined
+          : Object.freeze({ id: result.comment });
+      return result.state;
     });
   }
 }

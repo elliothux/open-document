@@ -82,6 +82,12 @@ async function dispatch(request: Request): Promise<unknown> {
         return workbook.exportCsv(request.revision, request.selection);
       case "queryXlsx":
         return workbook.query(request.sheet, request.range);
+      case "duplicatesXlsx":
+        return workbook.duplicates(
+          request.revision,
+          request.sheet,
+          request.settings,
+        );
       case "findXlsx":
         return workbook.find(
           request.revision,
@@ -195,6 +201,7 @@ async function dispatch(request: Request): Promise<unknown> {
         case "captureXlsxFormat":
         case "applyXlsxFormat":
         case "queryXlsx":
+        case "duplicatesXlsx":
         case "selectXlsx":
         case "replaceXlsx":
         case "findXlsx":
@@ -340,6 +347,11 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.editBookmark(request.revision, request.change);
         case "docxComments":
           return foundation.comments(request.revision);
+        case "navigateComment":
+          return foundation.navigateComment(
+            request.revision,
+            request.direction,
+          );
         case "editDocxComment":
           return foundation.editComment(request.revision, request.change);
         case "findDocx":

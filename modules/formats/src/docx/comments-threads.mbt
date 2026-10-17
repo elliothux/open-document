@@ -29,7 +29,7 @@ fn read_comment_threads(
   let root = tree.nodes[0]
   guard root.uri == comment_extended_uri &&
     root.name == "commentsEx" &&
-    root.attributes.is_empty() &&
+    root.attributes.all(comment_root_attribute) &&
     root.text.trim().is_empty() else {
     @failure.reject("protected-content", "Unknown comment thread root")
   }
@@ -95,12 +95,7 @@ fn next_comment_para(document : @xml.Document) -> String raise @failure.Failure 
     }
   }
   for i in 1..<=65536 {
-    let out = StringBuilder()
-    for j in 0..<8 {
-      let digit = (i >> ((7 - j) * 4)) & 15
-      out.write_string("0123456789ABCDEF"[digit:digit + 1].to_owned())
-    }
-    let para = out.to_string()
+    let para = comment_hex(i)
     if !used.contains(para) {
       return para
     }
@@ -238,6 +233,7 @@ fn Session::ensure_comment_thread(
     let (next, edit) = source.document.edit_source([change])
     store_comment_edit(source.part, next, edit, parts, created, edits)
   }
+  add_comment_identity(source, para, None, parts, created, edits)
   let markup = comment_thread_markup(para, None, root.done)
   let path = if source.extended is Some((path, document)) {
     let tree = WordTree::new(document)
