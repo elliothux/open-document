@@ -1,4 +1,22 @@
 import { checkXlsxSheetEdit, type XlsxSheetEdit } from "./xlsx-sheet.js";
+import {
+  xlsxRect,
+  xlsxSelection,
+  type XlsxSelectionGeometry,
+} from "./xlsx-geometry.js";
+export { xlsxSelection, type XlsxSelectionGeometry } from "./xlsx-geometry.js";
+import {
+  checkXlsxFillTarget,
+  xlsxFillPreview,
+  type XlsxFillTarget,
+  type XlsxFillPreview,
+} from "./xlsx-fill.js";
+export {
+  checkXlsxFillTarget,
+  xlsxFillPreview,
+  type XlsxFillTarget,
+  type XlsxFillPreview,
+} from "./xlsx-fill.js";
 import { xlsxNames, type XlsxNames } from "./xlsx-names.js";
 export type { XlsxName, XlsxNames, XlsxNameEdit } from "./xlsx-names.js";
 import { xlsxStatistics, type XlsxStatistics } from "./xlsx-statistics.js";
@@ -154,10 +172,6 @@ export interface XlsxViewport extends DrawingBatch {
   rows: { index: number; position: number; size: number }[];
   columns: XlsxViewport["rows"];
   diagnostics: string[];
-}
-
-export interface XlsxSelectionGeometry extends DrawRect {
-  rects: DrawRect[];
 }
 
 export interface XlsxPrintLayout extends DrawingBatch {
@@ -427,27 +441,6 @@ export function xlsxPrintLayout(value: unknown): XlsxPrintLayout {
   )
     throw new Error("Invalid XLSX layout identity");
   return value as XlsxPrintLayout;
-}
-
-function xlsxRect(value: unknown): DrawRect {
-  const rect = record(value);
-  for (const key of ["x", "y", "width", "height"])
-    if (
-      typeof rect[key] !== "number" ||
-      !Number.isFinite(rect[key]) ||
-      ((key === "width" || key === "height") && rect[key] < 0)
-    )
-      throw new Error("Invalid selection rectangle");
-  return value as DrawRect;
-}
-
-export function xlsxSelection(value: unknown): XlsxSelectionGeometry {
-  xlsxRect(value);
-  const selection = record(value);
-  if (!Array.isArray(selection.rects) || selection.rects.length > 4)
-    throw new Error("Invalid selection regions");
-  for (const rect of selection.rects) xlsxRect(rect);
-  return value as XlsxSelectionGeometry;
 }
 
 export function xlsxViewport(value: unknown): XlsxViewport {
@@ -725,6 +718,12 @@ export class XlsxSession extends WasmSession {
   }
   selectionGeometry(layoutId: number): XlsxSelectionGeometry {
     return xlsxSelection(this.call({ operation: "selectionXlsx", layoutId }));
+  }
+  fillPreview(layoutId: number, target: XlsxFillTarget): XlsxFillPreview {
+    checkXlsxFillTarget(target);
+    return xlsxFillPreview(
+      this.call({ operation: "fillPreviewXlsx", layoutId, target }),
+    );
   }
   navigate(
     revision: number,

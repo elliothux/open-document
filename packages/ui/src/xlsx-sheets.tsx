@@ -23,9 +23,9 @@ export function XlsxSheets({
   const [height, setHeight] = useState("");
   const [width, setWidth] = useState("");
   const [series, setSeries] = useState(false);
-  const [seriesMode, setSeriesMode] = useState<"linear" | "growth" | "date">(
-    "linear",
-  );
+  const [seriesMode, setSeriesMode] = useState<
+    "linear" | "growth" | "date" | "text" | "auto"
+  >("linear");
   const [dateUnit, setDateUnit] = useState<
     "day" | "weekday" | "month" | "year"
   >("day");
@@ -200,13 +200,21 @@ export function XlsxSheets({
                 value={seriesMode}
                 onChange={(event) => {
                   const mode = event.currentTarget.value;
-                  if (mode === "linear" || mode === "growth" || mode === "date")
+                  if (
+                    mode === "linear" ||
+                    mode === "growth" ||
+                    mode === "date" ||
+                    mode === "text" ||
+                    mode === "auto"
+                  )
                     setSeriesMode(mode);
                 }}
               >
                 <option value="linear">{t.linearTrend}</option>
                 <option value="growth">{t.growthTrend}</option>
                 <option value="date">{t.dateSeries}</option>
+                <option value="text">{t.textSeries}</option>
+                <option value="auto">{t.automaticSeries}</option>
               </select>
             </label>
             {seriesMode === "date" && (

@@ -599,11 +599,21 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 核心复制类型值及有效格式，文字中的 `=` 保持文字；公式只平移相对引用，保留绝对与跨表引用，越界生成 `#REF!`。受影响共享公式有界展开。值、格式、依赖缓存和选区共用既有事务、自动尺寸及一次精确历史；保存重开后可继续编辑。复制文字和公式源码累计最多 1 Mi 字符，单公式最多 8192 字符，候选、源和历史仍受既有预算约束。
 
-源或目标相交合并、条件格式、验证、链接或批注时拒绝填充；未知扩展、表格/透视和线程批注继续保护。范围外规则与元数据保留。默认按钮使用当前选区，沿既有队列提交原生草稿。核心已检查四向、相邻边界、类型值、有效格式、共享公式、重算、精确历史、重开及原子失败；Chromium 已检查四向按钮、原生草稿、独立公式/样式/缓存源、混合历史、保存重开和 PDF。重新打包的参数检查与严格宿主调用通过。数字序列见[数字序列](#数字序列)，填充柄按 [P11](../p11-xlsx-core.md) 继续实现。来源选择参考 [ONLYOFFICE prepareFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L27533-L27590)，实现归 [`fill.mbt`](../../modules/formats/src/xlsx/fill.mbt)。
+源或目标相交合并、条件格式、验证、链接或批注时拒绝填充；未知扩展、表格/透视和线程批注继续保护。范围外规则与元数据保留。默认按钮使用当前选区，沿既有队列提交原生草稿。核心已检查四向、相邻边界、类型值、有效格式、共享公式、重算、精确历史、重开及原子失败；Chromium 已检查四向按钮、原生草稿、独立公式/样式/缓存源、混合历史、保存重开和 PDF。重新打包的参数检查与严格宿主调用通过。数字序列见[数字序列](#数字序列)，基本拖动与键盘操作见[填充柄](#填充柄)。来源选择参考 [ONLYOFFICE prepareFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L27533-L27590)，实现归 [`fill.mbt`](../../modules/formats/src/xlsx/fill.mbt)。
+
+### 填充柄
+
+普通网格在选区末格显示填充柄；RTL 使用左下角。拖动向外扩展一条行带或列带，核心按物理距离选择轴；移回源内为无操作。聚焦填充柄后，方向键延伸一行或一列，左右键遵循 RTL 的物理方向。支持缩放、冻结窗格和边缘滚动。向内缩减、Ctrl 切换复制和双击相邻列延伸仍待实现。
+
+`XlsxSession/XlsxClient.fillPreview(layoutId, target)` 接受 `{ kind: "point", x, y }` 或 `{ kind: "direction", direction }`。核心返回 `source/range/direction/geometry/end`，不改文档、选区、revision 或历史。过期布局、非法目标和超过 4096 格的范围拒绝。宿主只发送指针与键盘意图，范围和冻结裁剪由核心计算。
+
+原生草稿先独立提交，再恢复拖动前的源范围。预览不写源；释放时以自动序列模式执行一次事务，后续保存排在该操作之后。未释放时，Escape、失焦、指针取消、暂停和销毁取消拖动。相交规则、链接、合并及其他资源沿用填充保护；失败保持源和历史。含未渲染超链接的工作表仍按既有规则拒绝 PDF 导出。
+
+方向选择参考 [ONLYOFFICE changeSelectionFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L14754-L14825)，未复制上游代码。实现归 [`fill-preview.mbt`](../../modules/formats/src/xlsx/fill-preview.mbt) 和 [`spreadsheet-pointer.ts`](../../packages/web/src/spreadsheet-pointer.ts)。
 
 ### 数字序列
 
-`editSheet({ action: "series", mode, source, range, direction })` 从显式源矩形填充序列，`mode` 为 `linear`、`growth` 或 `date`，`direction` 支持四个方向。日期模式另需 `unit` 和 `step`，其他模式拒绝这两个字段。核心使用 `SeriesMode.Linear/Growth/Date(unit, step)`。`range` 包含源和全部目标，最多 4096 格；源须占据方向起始边，且完整覆盖垂直方向的列带或水平方向的行带。源与目标相同时为无操作。
+`editSheet({ action: "series", mode, source, range, direction })` 从显式源矩形填充序列，`mode` 为 `linear`、`growth`、`date`、`text` 或 `auto`，`direction` 支持四个方向。日期模式另需 `unit` 和 `step`，其他模式拒绝这两个字段。核心使用 `SeriesMode.Linear/Growth/Date(unit, step)/TextSeries/Automatic`。`range` 包含源和全部目标，最多 4096 格；源须占据方向起始边，且完整覆盖垂直方向的列带或水平方向的行带。源与目标相同时为无操作。
 
 各列/行独立使用源数字和实际位置拟合趋势，保留全部种子；空白不参与拟合，也不压缩其位置。每条序列至少有一个字面数字。线性模式按最小二乘拟合，单值种子的步长为 1，向上/左自然反推。增长模式对正数取自然对数后拟合，再还原指数值；单值或恒定种子保持原值。公式、文字、布尔及错误种子明确拒绝，增长模式另拒绝零和负数。两种模式均支持非等差样本及四向外推。
 
@@ -611,7 +621,11 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 日期模式每条序列使用一个字面数字种子；垂直源为一行，水平源为一列，可同时填充多条。`unit` 为 `day/weekday/month/year`，`step` 为有限数字，绝对值不超过 2958465；仅天允许小数，其余单位使用整数，零复制原值。向下/右按步长前进，向上/左反向，负步长反转。核心使用工作簿的 1900/1904 日期系统，保留时间小数；结果须在序列零点至 9999-12-31 当日内。1900 系统保留序列 60 的虚构闰日。工作日跳过周六、周日，不含节假日；按整周及有界余数计算，避免大步长逐天遍历。月序列按原日号截到目标月末，后续月份恢复原日号；年序列按上游规则把非闰年的 2 月 29 日进位至 3 月 1 日，再沿该日期继续。规则参考 [ONLYOFFICE 日期序列](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L24665-L24757)及 [cDate 年月变换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/utils/utils.js#L4063-L4075)；小数时间按本项目日期值模型保留，不采用上游的整数日期截断。
 
-默认面板提供序列开关、线性/增长/日期模式、日期单位和步长、源范围输入及使用当前选区的按钮；随后选择包含源的完整目标，再用四向填充按钮执行。更换工作表后须重新指定源，重开文档恢复普通填充模式。原生草稿先独立提交，填充复用同一共享公式展开、自动适配、重算、保存及精确历史；无数据或格式变化时不新增 revision。有限数值或日期计算失败、合并及既有填充资源保护均原子拒绝。手动隐藏行列按实际位置参与；相交的已启用筛选保护，后续再接可见格序列。日期多种子推导、文本序列与填充柄仍归 P11。实现归 [`series.mbt`](../../modules/formats/src/xlsx/series.mbt)和 [`series-date.mbt`](../../modules/formats/src/xlsx/series-date.mbt)。
+文本模式接受字面文本或空白。按填充方向把相邻同前缀的 ASCII 数字后缀分组；不同前缀或非空普通文字结束当前组。每组独立拟合整数截距和步长，单值向下/右步长为 1，向上/左为 -1。组与普通文字沿源槽位循环。保留前缀，采用该序列最长的前导零宽度；超出宽度时自然增长。向上/左反推，跨零后按上游取绝对值。纯数字文本仍输出文本，各目标循环采用对应源格的有效格式。规则空白间隔且数值等差时，按种子顺序拟合并保留空白槽位；间隔或差值不规则时，按实际位置拟合，整数趋势同时填入组内空白槽位。源中的空白保持原样，生成值保持文本类型及对应源格格式。纯文本和非整数趋势重复原值，本地化星期/月名推导待实现。后缀及结果限于精确整数范围 0–9007199254740991，单格最多 32767 UTF-16 单位；单条序列处理的内容和全部生成内容各限 1 Mi 单位，超过预算原子拒绝。大编号先减去首值再拟合，避免均值抹去相邻整数差。后缀、补零和跨零规则参考 [ONLYOFFICE 文本填充](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L22360-L22385)、[整数趋势与最长补零](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L23185-L23334)及 [跨零处理](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L23447-L23453)。未复制上游代码。
+
+自动模式按源槽位同时处理数字、文本和公式。数字与文字前缀分别分组；数字可使用小数趋势，单格数字源复制原值，多格源中的单个数字组按 1 或 -1 延续。文字沿文本分组规则推导，布尔、错误和普通文字按原类型重复。公式分隔相邻组，再按对应源格平移相对引用；绝对引用不动，越界引用写为 `#REF!`。所有目标循环复制对应源格的有效格式，源格保持原样，填充与依赖重算合为一次历史；公式与文本共用 1 Mi 单位预算，单条公式最多 8192 单位。数字的非有限结果原子拒绝。当前不按日期格式识别日期或时间序列，日期单位使用显式 `date` 模式。本模式复用已有趋势、文本分组和公式平移；[`series-auto.mbt`](../../modules/formats/src/xlsx/series-auto.mbt) 负责合成，不增加计算服务。
+
+默认面板提供序列开关、线性/增长/日期/文本/自动模式、日期单位和步长、源范围输入及使用当前选区的按钮；随后选择包含源的完整目标，再用四向填充按钮执行。更换工作表后须重新指定源，重开文档恢复普通填充模式。原生草稿先独立提交，填充复用同一共享公式展开、自动适配、重算、保存及精确历史；无数据或格式变化时不新增 revision。有限数值或日期计算失败、合并及既有填充资源保护均原子拒绝。手动隐藏行列按实际位置参与；相交的已启用筛选保护，后续再接可见格序列。日期多种子、本地化循环表推导与填充柄的高级操作仍归 P11。文本实现归 [`series-text.mbt`](../../modules/formats/src/xlsx/series-text.mbt)，共用实现归 [`series.mbt`](../../modules/formats/src/xlsx/series.mbt)和 [`series-date.mbt`](../../modules/formats/src/xlsx/series-date.mbt)。
 
 ### 区域排序
 

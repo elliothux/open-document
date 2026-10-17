@@ -25,6 +25,7 @@ import type {
   XlsxClearMode,
   XlsxFindOptions,
   XlsxDelimitedOptions,
+  XlsxFillTarget,
 } from "@open-document/wasm/xlsx";
 import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
@@ -155,6 +156,7 @@ export type Operation =
   | ({ operation: "viewportXlsx" } & GridViewport)
   | { operation: "hitXlsx"; layoutId: number; x: number; y: number }
   | { operation: "selectionXlsx"; layoutId: number }
+  | { operation: "fillPreviewXlsx"; layoutId: number; target: XlsxFillTarget }
   | {
       operation: "navigateXlsx";
       revision: number;

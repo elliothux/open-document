@@ -170,6 +170,7 @@ fn Foundation::dispatch(
     | "viewportXlsx"
     | "hitXlsx"
     | "selectionXlsx"
+    | "fillPreviewXlsx"
     | "navigateXlsx"
     | "copyXlsx"
     | "pasteXlsx"

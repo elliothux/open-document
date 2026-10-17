@@ -597,6 +597,8 @@ export const zh: Messages = {
   shapeFillType: "形状填充类型",
   shapeGradientScaled: "角度随形状比例缩放",
   dateSeries: "日期",
+  textSeries: "文本",
+  automaticSeries: "自动",
   seriesDateUnit: "日期单位",
   seriesStep: "日期步长",
   seriesDay: "天",

@@ -276,6 +276,8 @@ fn Foundation::xlsx_operation(
             match field_string(change, "mode") {
               "linear" => @xlsx.Linear
               "growth" => @xlsx.Growth
+              "text" => @xlsx.TextSeries
+              "auto" => @xlsx.Automatic
               "date" =>
                 @xlsx.Date(
                   field_string(change, "unit"),
@@ -456,6 +458,20 @@ fn Foundation::xlsx_operation(
     "saveXlsx" => { "bytes": @base64.encode(session.save()) }
     "selectionXlsx" =>
       session.selection_geometry(field_int(request, "layoutId"))
+    "fillPreviewXlsx" => {
+      guard request is { "target": target, .. } else {
+        @failure.reject("invalid-operation", "Fill target is required")
+      }
+      session.fill_preview(
+        field_int(request, "layoutId"),
+        match field_string(target, "kind") {
+          "point" =>
+            @xlsx.FillPoint(xlsx_number(target, "x"), xlsx_number(target, "y"))
+          "direction" => @xlsx.FillDirection(field_string(target, "direction"))
+          _ => @failure.reject("invalid-operation", "Invalid fill target")
+        },
+      )
+    }
     "viewportXlsx" =>
       session.viewport(
         field_string(request, "sheet"),

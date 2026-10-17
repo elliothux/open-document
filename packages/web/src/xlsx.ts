@@ -17,6 +17,10 @@ import {
   xlsxViewport,
   xlsxPrintLayout,
   xlsxSelection,
+  checkXlsxFillTarget,
+  xlsxFillPreview,
+  type XlsxFillTarget,
+  type XlsxFillPreview,
   type XlsxQuery,
   type GridViewport,
   type XlsxViewport,
@@ -26,6 +30,7 @@ import {
 } from "@open-document/wasm/xlsx";
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type { XlsxSheetEdit, XlsxClearMode } from "@open-document/wasm/xlsx";
+export type { XlsxFillTarget, XlsxFillPreview } from "@open-document/wasm/xlsx";
 export type { XlsxStatistics } from "@open-document/wasm/xlsx";
 export type {
   XlsxName,
@@ -330,6 +335,19 @@ export class XlsxClient {
   async selectionGeometry(layoutId: number): Promise<XlsxSelectionGeometry> {
     return xlsxSelection(
       await this.connection.request({ operation: "selectionXlsx", layoutId }),
+    );
+  }
+  async fillPreview(
+    layoutId: number,
+    target: XlsxFillTarget,
+  ): Promise<XlsxFillPreview> {
+    checkXlsxFillTarget(target);
+    return xlsxFillPreview(
+      await this.connection.request({
+        operation: "fillPreviewXlsx",
+        layoutId,
+        target,
+      }),
     );
   }
   async navigate(

@@ -142,6 +142,8 @@ async function dispatch(request: Request): Promise<unknown> {
         return workbook.hit(request.layoutId, request.x, request.y);
       case "selectionXlsx":
         return workbook.selectionGeometry(request.layoutId);
+      case "fillPreviewXlsx":
+        return workbook.fillPreview(request.layoutId, request.target);
       case "navigateXlsx":
         return workbook.navigate(
           request.revision,
@@ -203,6 +205,7 @@ async function dispatch(request: Request): Promise<unknown> {
         case "viewportXlsx":
         case "hitXlsx":
         case "selectionXlsx":
+        case "fillPreviewXlsx":
         case "navigateXlsx":
         case "copyXlsx":
         case "pasteXlsx":

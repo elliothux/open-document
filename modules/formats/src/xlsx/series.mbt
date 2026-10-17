@@ -3,6 +3,8 @@ pub(all) enum SeriesMode {
   Linear
   Growth
   Date(String, Double)
+  TextSeries
+  Automatic
 }
 
 ///|
@@ -86,6 +88,17 @@ fn Sheet::series_trend(
       "invalid-operation", "Every series lane needs a numeric seed",
     )
   }
+  series_fit(points, growth, first_value, scale, style)
+}
+
+///|
+fn series_fit(
+  points : Array[(Double, Double)],
+  growth : Bool,
+  first_value : Double,
+  scale : Double,
+  style : Int,
+) -> SeriesTrend {
   if points.length() == 1 {
     return {
       origin: points[0].0,
@@ -215,8 +228,17 @@ fn Session::fill_series(
   let last_lane = if vertical { selected.right } else { selected.bottom }
   let updates : Map[String, CellContent] = Map([])
   let styles : Map[String, Int] = Map([])
+  let mut units = 0
   for lane in first_lane..<=last_lane {
-    let (values, style) = match mode {
+    let values : Array[(Value, Int, String?)] = match mode {
+      Automatic =>
+        current.automatic_series_values(
+          source, lane, vertical, first, last, forward,
+        )
+      TextSeries =>
+        current
+        .text_series_values(source, lane, vertical, first, last, forward)
+        .map(item => (item.0, item.1, None))
       Date(unit, step) => {
         let seed : Address = if vertical {
           { row: source.top, column: lane, }
@@ -241,7 +263,10 @@ fn Session::fill_series(
           last - first + 1,
           self.date1904,
         )
-        (if forward { values } else { values.rev() }, current.style_at(seed))
+        let style = current.style_at(seed)
+        (if forward { values } else { values.rev() }).map(value => {
+          (Number(value), style, None)
+        })
       }
       _ => {
         let plan = current.series_trend(source, lane, vertical, growth)
@@ -266,10 +291,10 @@ fn Session::fill_series(
           }
           values.push(value)
         }
-        (values, plan.style)
+        values.map(value => (Number(value), plan.style, None))
       }
     }
-    for offset, value in values {
+    for offset, (value, style, formula) in values {
       let address : Address = if vertical {
         { row: first + offset, column: lane, }
       } else {
@@ -278,16 +303,22 @@ fn Session::fill_series(
       if source.contains(address) {
         continue
       }
+      units += formula
+        .map(text => text.length())
+        .unwrap_or(value.display().length())
+      guard units <= 1048576 &&
+        formula.map(text => text.length() <= 8192).unwrap_or(true) else {
+        @failure.reject("limit-exceeded", "Series exceeds cell text budget")
+      }
       let key = address.name()
       let old = current.cells.get(key)
-      if old.bind(cell => cell.formula) is Some(_) ||
-        old.map(cell => cell.value).unwrap_or(Blank) != Number(value) ||
+      if old.bind(cell => cell.formula) != formula ||
+        (
+          formula is None &&
+          old.map(cell => cell.value).unwrap_or(Blank) != value
+        ) ||
         current.style_at(address) != style {
-        updates[key] = {
-          value: Number(value),
-          formula: None,
-          keep_shared: false,
-        }
+        updates[key] = { value, formula, keep_shared: false, }
         styles[key] = style
       }
     }

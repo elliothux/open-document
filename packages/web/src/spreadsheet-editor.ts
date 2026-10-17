@@ -24,10 +24,10 @@ export type { SpreadsheetEditorData } from "./spreadsheet-semantics.js";
 import { SpreadsheetPrint } from "./spreadsheet-print.js";
 import { CanvasSurface } from "./canvas-surface.js";
 import { SpreadsheetFormula } from "./spreadsheet-formula.js";
+import { SpreadsheetPointer } from "./spreadsheet-pointer.js";
 import {
   spreadsheetKey,
   styleCellDraft,
-  paintGridSelection,
   bindCellDraft,
   requireCellCompositionEnd,
   showCellDraft,
@@ -55,7 +55,6 @@ import type {
   XlsxClearMode,
   XlsxSelectionGeometry,
 } from "@open-document/wasm/xlsx";
-
 /** One native cell draft; MoonBit owns committed cells, selection and geometry. */
 export class SpreadsheetEditor {
   acceptValidationWarnings = false;
@@ -74,6 +73,7 @@ export class SpreadsheetEditor {
   private cleanup: Promise<void> | undefined;
   private readonly listeners = new AbortController();
   private readonly formula: SpreadsheetFormula;
+  private readonly pointer: SpreadsheetPointer;
   private readonly resize: ResizeObserver;
   private state: XlsxQuery;
   private layout: XlsxViewport | undefined;
@@ -152,36 +152,36 @@ export class SpreadsheetEditor {
       },
       options,
     );
-    this.surface.canvas.addEventListener(
-      "pointerdown",
-      (event) => {
-        if (event.button !== 0) return;
-        event.preventDefault();
-        const rect = this.surface.canvas.getBoundingClientRect();
-        const x = (event.clientX - rect.left) / this.scale,
-          y = (event.clientY - rect.top) / this.scale;
-        this.handle(() =>
-          this.enqueue(async () => {
-            await this.commitDraft();
-            await this.present();
-            if (!this.layout) return;
-            const address = await this.client.hit(this.layout.id, x, y);
-            this.state = await this.client.select(
-              this.state.revision,
-              this.state.sheet,
-              address,
-            );
-            await this.presentSelection();
-            this.input.focus({ preventScroll: true });
-          }),
-        );
+    this.pointer = new SpreadsheetPointer(
+      this.surface,
+      this.holder,
+      this.viewport,
+      client,
+      this.listeners.signal,
+      {
+        current: () => ({
+          query: this.state,
+          layout: this.layout,
+          scale: this.scale,
+          disabled:
+            this.closed || this.paused || this.blocked || this.composing,
+        }),
+        run: (action) => this.enqueue(action),
+        prepare: async () => {
+          await this.commitDraft();
+          await this.present(false, true);
+        },
+        assign: (query) => (this.state = query),
+        render: async () => {
+          this.generation++;
+          await this.present(false, true);
+        },
+        focus: () => this.handle(async () => this.focus()),
+        edit: () =>
+          this.handle(() => this.enqueue(async () => this.beginDraft(false))),
+        report: (error) => this.report(error),
+        changed: () => this.publish(),
       },
-      options,
-    );
-    this.surface.canvas.addEventListener(
-      "dblclick",
-      () => this.handle(() => this.enqueue(async () => this.beginDraft(false))),
-      options,
     );
     bindCellDraft(this.input, this.listeners.signal, {
       start: () => this.queueDraft(),
@@ -271,6 +271,7 @@ export class SpreadsheetEditor {
   async setPaused(paused: boolean): Promise<void> {
     if (this.closed) throw new Error("Editor is disposed");
     this.paused = paused;
+    this.pointer.cancel();
     this.container.inert = paused;
     this.input.readOnly = paused || this.committing;
     this.publish();
@@ -440,7 +441,7 @@ export class SpreadsheetEditor {
       );
     });
   }
-  private async present(reveal = false): Promise<void> {
+  private async present(reveal = false, force = reveal): Promise<void> {
     if (this.viewport.hidden) return;
     this.publish();
     try {
@@ -457,7 +458,7 @@ export class SpreadsheetEditor {
         reveal,
       });
       // Queued commands must reveal their selection despite intervening scroll events.
-      if (this.closed || (!reveal && generation !== this.generation)) return;
+      if (this.closed || (!force && generation !== this.generation)) return;
       this.layout = layout;
       this.scale = this.surface.draw(layout, 0, this.zoomValue);
       updateGridScroll(this.viewport, this.spacer, layout, this.scale);
@@ -475,7 +476,7 @@ export class SpreadsheetEditor {
     if (!layout) return;
     const rect = await this.client.selectionGeometry(layout.id);
     if (this.closed || layout !== this.layout) return;
-    paintGridSelection(this.surface.clearOverlay(this.scale), rect, layout);
+    this.pointer.update(rect);
     updateGridSelection(this.semantics, this.active());
     this.styleInput(rect);
   }
@@ -512,6 +513,7 @@ export class SpreadsheetEditor {
       zoom: this.zoomValue,
       selection: this.active()?.address ?? "",
       composition: this.composing,
+      dragging: this.pointer.dragging,
       draft: !!this.draft || !!this.draftIntent,
       busy: this.pending,
       paused: this.paused,
@@ -739,6 +741,7 @@ export class SpreadsheetEditor {
       );
       this.printView.show(layout);
       this.viewport.hidden = true;
+      this.pointer.cancel();
       return layout;
     });
   }
@@ -772,6 +775,7 @@ export class SpreadsheetEditor {
     return this.enqueue(async () => {
       this.printView.hide();
       this.viewport.hidden = false;
+      this.pointer.cancel();
       this.focus();
     });
   }

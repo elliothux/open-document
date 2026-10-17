@@ -46,7 +46,7 @@ export type XlsxSheetEdit =
     }
   | {
       action: "series";
-      mode: "linear" | "growth";
+      mode: "linear" | "growth" | "text" | "auto";
       source: string;
       range: string;
       direction: "down" | "up" | "right" | "left";
@@ -184,7 +184,7 @@ export function checkXlsxSheetEdit(value: unknown): void {
         !change.source ||
         change.source.length > 64 ||
         typeof change.mode !== "string" ||
-        !["linear", "growth", "date"].includes(change.mode) ||
+        !["linear", "growth", "date", "text", "auto"].includes(change.mode) ||
         Object.keys(change).some(
           (key) =>
             ![

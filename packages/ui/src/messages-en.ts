@@ -603,6 +603,8 @@ export const en = {
   shapeFillType: "Shape fill type",
   shapeGradientScaled: "Scale angle with shape proportions",
   dateSeries: "Date",
+  textSeries: "Text",
+  automaticSeries: "Automatic",
   seriesDateUnit: "Date unit",
   seriesStep: "Date step",
   seriesDay: "Day",
