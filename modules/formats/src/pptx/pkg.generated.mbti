@@ -116,6 +116,8 @@ pub(all) enum SlideEdit {
   AddSection(String)
   RenameSection(String, String)
   RemoveSection(String)
+  RemoveSections
+  DeleteSection(String)
   MoveSection(String, Int)
 }
 

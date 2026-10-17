@@ -26,6 +26,7 @@ import {
 } from "@open-document/wasm/xlsx";
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type { XlsxSheetEdit, XlsxClearMode } from "@open-document/wasm/xlsx";
+export type { XlsxSortSettings, XlsxSortKey } from "@open-document/wasm/xlsx";
 export type {
   XlsxConditionalFormat,
   XlsxConditionalRule,

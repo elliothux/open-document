@@ -261,6 +261,7 @@ fn Foundation::xlsx_operation(
             xlsx_boolean(change, "discard"),
           )
         "unmerge" => @xlsx.Unmerge(field_string(change, "range"))
+        "sort" => xlsx_sort(change)
         "fill" =>
           @xlsx.Fill(
             field_string(change, "range"),

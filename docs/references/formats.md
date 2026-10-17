@@ -549,6 +549,16 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 源或目标相交合并、条件格式、验证、链接或批注时拒绝填充；未知扩展、表格/透视和线程批注继续保护。范围外规则与元数据保留。默认按钮使用当前选区，沿既有队列提交原生草稿。核心已检查四向、相邻边界、类型值、有效格式、共享公式、重算、精确历史、重开及原子失败；Chromium 已检查四向按钮、原生草稿、独立公式/样式/缓存源、混合历史、保存重开和 PDF。重新打包的参数检查与严格宿主调用通过。序列推导与填充柄按 [P11](../p11-xlsx-core.md) 继续实现。来源选择参考 [ONLYOFFICE prepareFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L27533-L27590)，实现归 [`fill.mbt`](../../modules/formats/src/xlsx/fill.mbt)。
 
+### 区域排序
+
+`editSheet({ action: "sort", range, rows, header, caseSensitive, keys })` 对最多 4096 格的显式 A1 矩形排序。`rows=true` 按行重排，键 `index` 是工作表从 1 开始的列号；`rows=false` 按列重排，键为行号。`keys` 为 1–16 个互异且在范围内的 `{ index, descending }`，按数组顺序比较。三个布尔字段必须显式提供，`header=true` 保留所选范围的第一行或第一列。默认面板使用当前选区，提供方向、标题、大小写和增删多键。`XlsxSortSettings/XlsxSortKey` 从 Wasm/Web XLSX 模块导出。
+
+核心冻结排序前的当前键值，不用导入缓存代替未计算公式。数值及可解析为有限十进制数的文字键按数字比较，保留原单元格类型；布尔和错误按显示文字参与文字比较。空格与空串不同；空单元格和空串结果在升降序中均置后。相同键按原行列顺序稳定排列。`caseSensitive=false` 使用固定 Unicode 16 大写映射，文字按 UTF-16 字符序比较，不使用 MoonBit 默认的长度优先比较；语言区域校对顺序仍待兼容扩展。隐藏行或列的位置、内容与手动隐藏状态保留，不参加对应方向的置换。普通比较、隐藏位置和多键路径参考 [ONLYOFFICE _getSortElems](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21327-L21649)；该上游的 localeCompare 与本期固定字符序不同。
+
+排序移动单元格值、富文本 XML、有效样式及已支持公式，局部补齐命名空间，保留源格式。公式相对引用按实际位移平移，绝对引用保持，越界生成 `#REF!`；受影响共享组有界展开。区域外公式引用继续指向原坐标，并按排序后的内容重算。单格超链接随内容移动，矩形链接保持原坐标，关系和目标不变。条件格式、验证及名称保持原坐标范围，效果和输入约束基于候选值计算；验证失败整项拒绝。行列尺寸保留原位置，已有自动尺寸仍按新内容重排。公式、依赖缓存与值/源/链接使用同一有界历史，精确撤销/重做，保存重开及 PDF 使用已排序内容；原生草稿先独立提交。恒等置换不新增 revision 或历史。重排及公式位移参考 [ONLYOFFICE _sortByArray](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21651-L21770)。
+
+排序键归一化共享 1048576 次公式工作预算，移动片段累计最多 1 Mi UTF-16，继续使用公式、候选、源和 4 MiB 历史上限。合并区域、筛选/既有 sortState、绘图、结构化表/透视、相交批注、未知资源或关系、未知单元格/公式标记和工作表保护继续原子拒绝。颜色、自定义列表、筛选内排序和更广合并/资源支持归 [P11](../p11-xlsx-core.md) 后续范围。实现归 [`sort.mbt`](../../modules/formats/src/xlsx/sort.mbt)、[`sort-source.mbt`](../../modules/formats/src/xlsx/sort-source.mbt)及 [`xlsx-sort.tsx`](../../packages/ui/src/xlsx-sort.tsx)。
+
 ### 自动适配尺寸
 
 同步 Wasm 与 Worker 使用 `autoFit(revision, sheet, first, last, axis, profile)`；`axis` 为 `rows/columns`，索引从 1 开始且包含两端。宿主使用 `SpreadsheetEditor.autoFit(axis)`，作用于执行时选区覆盖的完整行或列，先提交单格草稿。默认尺寸面板提供两个按钮。每项命令独立进入既有历史，保持当前表和选区；重复写入相同源状态不增加 revision。
@@ -801,7 +811,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 | 历史 / 队列 | undo+redo 共 100 项、4 MiB 源补丁 payload；宿主 64 项 |
 | 打印 | 整次输出 32768 格（含重复标题）和 1024 页；每表单轴 4096 项；每页继续受绘制文字/单元格上限约束 |
 
-当前范围不含模板向导、表/行列增删、样式编辑、填充、排序筛选、图表/透视表/图片编辑和协作。XLS/XLSB/XLSM、其他浏览器、Windows/Excel、VoiceOver、性能专项与发布验收未进入本期验证。
+当前范围不含模板向导、筛选、图表/透视表/图片编辑和协作。工作表/行列、格式、填充与普通区域排序的当前支持面见本节对应合同。XLS/XLSB/XLSM、其他浏览器、Windows/Excel、VoiceOver、性能专项与发布验收未进入本期验证。
 
 ## PPTX
 
@@ -847,13 +857,19 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `PptxQuery.sections` 返回 `{ items: PptxSection[], reason }`。每章包含稳定 GUID `id`、`name` 和按页序排列的稳定部件路径 `slides`；类型从 Wasm/Web PPTX 模块导出。核心读取标准 PowerPoint 2010 `p14:sectionLst`，源成员引用 presentation 的数值 `p:sldId`，不使用页索引或关系 ID。存储参考 [ONLYOFFICE SectionList/Section](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Presentation/PresentationChildElements.cpp#L289-L339)。
 
-`PresentationEditor.editSlides` 同步支持 `{ action: "sectionAdd", name }`、`{ action: "sectionRename", id, name }`、`{ action: "sectionRemove", id }` 和 `{ action: "sectionMove", id, index }`。新增在目标页前切分所属章；首次从中间分章时为前页创建 Default Section。移除保留页面，归入前章，首章则归入后章；移除最后一章只清理章节元数据。移动按从零开始的章节索引重排该章及其全部页面，保留活动页/对象身份。新增和复制页继承源章；删除移除成员，跨章移动按落点归属。空章保留，未分章前缀允许存在。每章成员必须连续、有序且互不重复，最后一个非空章覆盖到末页。
+`PresentationEditor.editSlides` 同步支持 `{ action: "sectionAdd", name }`、`{ action: "sectionRename", id, name }`、`{ action: "sectionRemove", id }`、`{ action: "sectionRemoveAll" }`、`{ action: "sectionMove", id, index }` 和 `{ action: "sectionDelete", id }`。新增在目标页前切分所属章；首次从中间分章时为前页创建 Default Section。移除保留页面，归入前章，首章则归入后章；移除最后一章只清理章节元数据。移动按从零开始的章节索引重排该章及其全部页面，保留活动页/对象身份。新增和复制页继承源章；删除移除成员，跨章移动按落点归属。空章保留，未分章前缀允许存在。每章成员必须连续、有序且互不重复，最后一个非空章覆盖到末页。
 
-最多 256 章，名称最多 255 UTF-16 单元；创建/改名要求非空有效 XML 文字。章节与关联页序合为一项有界历史，可与页操作和原生输入混合精确撤销。重名允许，身份按 GUID 区分。相同名称/位置不新增历史。未知章节属性/子项、非连续/重复/悬空引用和修改保护明确拒绝，不删掉未知源来开放编辑。非目标部件、已有章节外标签及页引用周围源内容保留；未知无关扩展可随章节改名保留，但仍保护页序修改。保存重开及 PDF 使用提交后的页序。默认面板提供新增、选择、改名、保留页面移除及前后移动；折叠和连页批量删除尚未实现。
+最多 256 章，名称最多 255 UTF-16 单元；创建/改名要求非空有效 XML 文字。章节与关联页序合为一项有界历史，可与页操作和原生输入混合精确撤销。重名允许，身份按 GUID 区分。相同名称/位置不新增历史。未知章节属性/子项、非连续/重复/悬空引用和修改保护明确拒绝，不删掉未知源来开放编辑。非目标部件、已有章节外标签及页引用周围源内容保留；未知无关扩展可随章节改名保留，但仍保护页序修改。保存重开及 PDF 使用提交后的页序。默认面板提供新增、选择、改名、保留页面移除、一次移除所有章节、前后移动及删除章节和页面。
+
+默认页列表按 `query.sections` 的稳定身份分组，保留未分章的前缀、全稿页码、空章和隐藏页标记。章节标题显示名称与页数，按钮用 `aria-expanded` 和 `aria-controls` 关联成员页；Enter/Space 切换，另有全部折叠/展开。折叠隐藏该章的页按钮，当前画布及核心选择不变；活动页所在的折叠章由标题标识，外部页导航会自动展开目标章。改名和整章重排保持折叠状态；已移除的章清理状态，新章初始展开。更换/重开文档时初始全部展开。无可用章节时继续显示平面页列表。折叠是默认 UI 的会话视图状态，不写入 PPTX、不增加文档历史，不改变保存/PDF 页序和页数。参考 [GenOffice 章节视图状态](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/slides/src/renderer/App.tsx#L2247-L2259)，实现归 [`pptx-slides.tsx`](../../packages/ui/src/pptx-slides.tsx)。
+
+`sectionRemoveAll` 一次移除全部章节，保留全部页、页序、对象、选择及其他部件。章节元数据以一项有界历史移除，可精确撤销/重做和保存重开；没有章节时不修改 revision 或历史。UI 无章节时禁用入口。损坏或未知章节继续保护；其他扩展、外层属性、注释和处理指令保留，只在外层扩展列表没有其他内容时一并移除该空容器。操作目标参考 [GenOffice removeAllSections](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/slides/src/renderer/slide-actions.ts#L182-L189)，沿用已有标准 p14 写回和核心事务。
+
+`sectionDelete` 同时删除该章及全部成员页，至少保留一页；空章只移除章节元数据。剩余页面、章节和对象保留稳定身份。活动页被删时选择其后首个存活页，无后页则选择末个存活页，并清空对象选择；活动页未删除则保留原选择。页引用、自定义放映、已知页链接、独占备注/传统批注与相关类型声明复用页面删除规则，全部变化进入同一项有界历史。未知入站引用、共享备注/批注、保护或整项累计预算失败不提交任何删除。原生草稿先独立提交，随后整章删除独立撤销。UI 禁用删除覆盖全稿的章节。页面集合与独占资源的精确快照直接扩展既有核心历史，撤销/重做及保存重开不依赖逐页宿主命令。操作目标参考 [GenOffice 整章删除](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/slides/src/main/slides-main.ts#L4266-L4288)，资源和页选择沿用前述 ONLYOFFICE 页删除规则。
 
 `PptxQuery.slideOrderReason/slideVisibilityReason` 返回各自保护原因。修改保护阻止两者；损坏或未支持的章节、未知 presentation/页列表扩展、presProps 中的位置型 `sldRg` 放映范围和未知 presentation properties 扩展阻止新增、删除与重排。空参考线列表及已知图片编辑数据、默认 DPI、图表引用跟踪设置扩展原样保留；非空参考线列表继续保护。默认 UI 使用这些原因，提供新增、删除、页前移/后移和隐藏/显示，页列表保留隐藏页入口。历史按稳定部件路径恢复，混合对象编辑与页序变化不会改错页面。
 
-隐藏页仍可在编辑器中查看和编辑，允许全部页隐藏。全稿静态 PDF 默认跳过隐藏页，显式 `hidden: true` 包含它们；仅导出当前页时可以输出当前隐藏页。没有待输出页时返回 `unsupported-pdf`，不返回空 PDF。保存重开按新页序打开首张页面，保留隐藏状态。章节折叠、连页删除和更广复制资源仍归 [P12](../p12-pptx-core.md)。
+隐藏页仍可在编辑器中查看和编辑，允许全部页隐藏。全稿静态 PDF 默认跳过隐藏页，显式 `hidden: true` 包含它们；仅导出当前页时可以输出当前隐藏页。没有待输出页时返回 `unsupported-pdf`，不返回空 PDF。保存重开按新页序打开首张页面，保留隐藏状态。更广复制资源仍归 [P12](../p12-pptx-core.md)。
 
 `PptxObjectEdit` 从 `wasm/pptx` 和 `web/pptx` 导出。`PresentationEditor.editObjects(change)` 使用同一队列与命令。插入参数为 `{ action: "insert", kind: "text" | "rect" | "roundRect" | "ellipse" | "line" | "leftArrow" | "rightArrow" | "upArrow" | "downArrow", x, y, width, height, text }`；坐标和尺寸为 point，绝对值不超过 14400。非线对象宽高至少 0.1；线可有一个零尺寸轴，总尺寸至少 0.1。文本框透明无描边，矩形、圆角矩形、椭圆和箭头白底黑色 1 pt 线，直线黑色 1 pt；文字为 Arial 18 pt 黑色，支持 `\n` 与 `U+2028`，线不接收文字。核心校验文字、字体和固定框容量，失败保留文档和历史。
 

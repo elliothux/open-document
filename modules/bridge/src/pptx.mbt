@@ -76,6 +76,8 @@ fn Foundation::pptx_operation(
             field_string(change, "name"),
           )
         "sectionRemove" => @pptx.RemoveSection(field_string(change, "id"))
+        "sectionRemoveAll" => @pptx.RemoveSections
+        "sectionDelete" => @pptx.DeleteSection(field_string(change, "id"))
         "sectionMove" =>
           @pptx.MoveSection(
             field_string(change, "id"),

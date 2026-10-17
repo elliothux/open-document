@@ -10,9 +10,11 @@ import { PptxAlignment } from "./pptx-alignment.js";
 import { PptxSearch } from "./pptx-search.js";
 import { PptxBackground, PptxSize } from "./pptx-page.js";
 import { PptxSections } from "./pptx-sections.js";
+import { PptxSlideList } from "./pptx-slides.js";
 import { XlsxSheets, XlsxFrozen } from "./xlsx-sheets.js";
 import { XlsxFormat } from "./xlsx-format.js";
 import { XlsxSearch } from "./xlsx-search.js";
+import { XlsxSort } from "./xlsx-sort.js";
 import { XlsxPrintSetup, XlsxPrintCommands } from "./xlsx-print-setup.js";
 
 export interface PanelProps {
@@ -271,35 +273,30 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
 
 export function PageList({ controller, state, file, disabled }: PanelProps) {
   const t = messages(state.locale);
-  if (file.format !== "pdf" && file.format !== "pptx") return null;
-  const pages =
-    file.format === "pdf"
-      ? file.editor.snapshot.pages.map((page, index) => ({
-          id: page.id,
-          title: `${t.pages} ${index + 1}`,
-        }))
-      : file.editor.query.slides.map((slide, index) => ({
-          id: slide.id,
-          title: `${index + 1}. ${slide.title || t.slide}${slide.hidden ? ` (${t.hiddenSlide})` : ""}`,
-        }));
+  if (file.format === "pptx")
+    return (
+      <PptxSlideList
+        key={state.document?.documentId}
+        editor={file.editor}
+        controller={controller}
+        state={state}
+        disabled={disabled}
+      />
+    );
+  if (file.format !== "pdf") return null;
+  const pages = file.editor.snapshot.pages.map((page, index) => ({
+    id: page.id,
+    title: `${t.pages} ${index + 1}`,
+  }));
   return (
-    <nav
-      className="od-sidebar"
-      aria-label={file.format === "pdf" ? t.pages : t.slide}
-    >
+    <nav className="od-sidebar" aria-label={t.pages}>
       {pages.map((page, index) => (
         <button
           type="button"
           key={page.id}
           disabled={disabled}
           aria-current={state.document?.page === index ? "page" : undefined}
-          onClick={() =>
-            controller.run(() =>
-              file.format === "pdf"
-                ? file.editor.goToPage(page.id)
-                : file.editor.showSlide(page.id),
-            )
-          }
+          onClick={() => controller.run(() => file.editor.goToPage(page.id))}
         >
           {page.title}
         </button>
@@ -331,6 +328,13 @@ export function Properties(props: PanelProps) {
           state={props.state}
           editor={props.file.editor}
           disabled={props.disabled}
+        />
+        <XlsxSort
+          key={`${props.state.document?.documentId}:${props.file.editor.currentState.sheet}:${props.file.editor.currentState.selection.address}`}
+          controller={props.controller}
+          state={props.state}
+          editor={props.file.editor}
+          disabled={props.disabled || !!props.state.document?.stopped}
         />
         <XlsxFormat
           controller={props.controller}

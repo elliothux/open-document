@@ -51,49 +51,53 @@ fn Tree::slide_reference(self : Tree, node : @xml.Node) -> Bool {
 }
 
 ///|
-fn Session::delete_slide(
+fn Session::delete_slides(
   self : Session,
-  index : Int,
+  targets : Array[String],
+  section~ : String? = None,
 ) -> Json raise @failure.Failure {
-  guard self.slides.length() > 1 else {
+  let deleted = self.slides.filter(slide => targets.contains(slide.tree.part))
+  guard deleted.length() < self.slides.length() else {
     @failure.reject(
       "invalid-slide", "A presentation must retain at least one slide",
     )
   }
-  let deleted = self.slides[index]
-  let target = deleted.tree.part
   let links = self.relationships()
-  let names = [target, relationship_part(target)]
-  for kind in ["notesSlide", "comments"] {
-    let owned = links
-      .iter()
-      .filter(link => {
-        link.owner == target &&
-        !link.external &&
-        link.kind == relationship_uri + "/" + kind
-      })
-      .collect()
-    guard owned.length() <= 1 else {
-      @failure.reject(
-        "protected-content", "Multiple slide notes or comment owners are unsupported",
-      )
-    }
-    if owned.get(0) is Some(link) {
-      guard links
+  let names : Array[String] = []
+  for slide in deleted {
+    let target = slide.tree.part
+    names.append([target, relationship_part(target)])
+    for kind in ["notesSlide", "comments"] {
+      let owned = links
         .iter()
-        .all(incoming => {
-          incoming.external ||
-          incoming.target != link.target ||
-          incoming.owner == target
-        }) else {
+        .filter(link => {
+          link.owner == target &&
+          !link.external &&
+          link.kind == relationship_uri + "/" + kind
+        })
+        .collect()
+      guard owned.length() <= 1 else {
         @failure.reject(
-          "protected-content", "Shared slide notes or comments require ownership support",
+          "protected-content", "Multiple slide notes or comment owners are unsupported",
         )
       }
-      names.push(link.target)
-      let path = relationship_part(link.target)
-      if self.parts.contains(path) || self.opc.names.contains(path.to_lower()) {
-        names.push(path)
+      if owned.get(0) is Some(link) {
+        guard links
+          .iter()
+          .all(incoming => {
+            incoming.external ||
+            incoming.target != link.target ||
+            incoming.owner == target
+          }) else {
+          @failure.reject(
+            "protected-content", "Shared slide notes or comments require ownership support",
+          )
+        }
+        names.push(link.target)
+        let path = relationship_part(link.target)
+        if self.parts.contains(path) || self.opc.names.contains(path.to_lower()) {
+          names.push(path)
+        }
       }
     }
   }
@@ -117,7 +121,7 @@ fn Session::delete_slide(
       removed.contains(link.owner) {
       continue
     }
-    guard link.target == target &&
+    guard targets.contains(link.target) &&
       [relationship_uri + "/slide", relationship_uri + "/hyperlink"].contains(
         link.kind,
       ) &&
@@ -134,8 +138,7 @@ fn Session::delete_slide(
   }
   let parts = self.parts.copy()
   let edits : Array[(String, @xml.Edit)] = []
-  let slides = self.slides.copy()
-  ignore(slides.remove(index))
+  let slides = self.slides.filter(slide => !targets.contains(slide.tree.part))
   let mut main = self.main
   for owner, ids in incoming {
     let original = self.part_document(owner)
@@ -240,11 +243,23 @@ fn Session::delete_slide(
       parts.remove(part)
     }
   }
-  main = sync_slide_sections(self.main, main, edits, DeleteSlide, index)
+  let members = section_slide_ids(main)
+  let sections = read_sections(self.main)
+    .filter(item => Some(item.id) != section)
+    .map(item => {
+      ..item,
+      slides: item.slides.filter(id => members.contains(id)),
+    })
+  main = write_sections(main, sections, edits)
   let slides = self.ordered_slides(main, slides, parts~, removed=removed_parts)
-  let after = if self.selection.slide == target {
+  let after = if targets.contains(self.selection.slide) {
+    let index = self.index(self.selection.slide)
+    let next = self.slides[index:]
+      .iter()
+      .find_first(slide => !targets.contains(slide.tree.part))
+      .unwrap_or(slides.last().unwrap())
     {
-      slide: slides[index.min(slides.length() - 1)].tree.part,
+      slide: next.tree.part,
       object: "",
       objects: [],
       mode: "object",
@@ -254,14 +269,6 @@ fn Session::delete_slide(
   } else {
     self.selection
   }
-  self.commit_slides(
-    main,
-    slides,
-    edits,
-    after,
-    parts~,
-    deleted=Some(deleted),
-    removed~,
-  )
+  self.commit_slides(main, slides, edits, after, parts~, deleted~, removed~)
   self.query()
 }

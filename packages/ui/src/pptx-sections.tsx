@@ -82,6 +82,24 @@ export function PptxSections({
       </button>
       <button
         type="button"
+        disabled={sections.items.length === 0}
+        onClick={() => edit({ action: "sectionRemoveAll" })}
+      >
+        {t.removeAllSections}
+      </button>
+      <button
+        type="button"
+        disabled={
+          !selected ||
+          selected.slides.length >= query.slides.length ||
+          !!query.slideOrderReason
+        }
+        onClick={() => edit({ action: "sectionDelete", id })}
+      >
+        {t.deleteSectionSlides}
+      </button>
+      <button
+        type="button"
         disabled={!selected || position <= 0 || !!query.slideOrderReason}
         onClick={() => edit({ action: "sectionMove", id, index: position - 1 })}
       >

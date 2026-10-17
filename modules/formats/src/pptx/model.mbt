@@ -128,7 +128,7 @@ priv struct History {
   mut created : (Slide, @xml.Document)?
   created_parts : Map[String, @xml.Document]
   created_media : Map[String, Bytes]
-  mut deleted : Slide?
+  mut deleted : Array[Slide]
   removed : Map[String, @xml.Document]
   before : Selection
   after : Selection

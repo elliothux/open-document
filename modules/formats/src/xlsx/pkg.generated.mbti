@@ -232,6 +232,7 @@ pub(all) enum SheetEdit {
   InsertCells(String, String)
   DeleteCells(String, String)
   Fill(String, String)
+  Sort(String, SortSettings)
   Merge(String, Bool)
   Unmerge(String)
   Freeze(Int, Int)
@@ -242,6 +243,18 @@ pub(all) enum SheetEdit {
   ValidationValue(Int, Int)
   ConditionalRule(String, Int?, ConditionalFormat?, Int)
   ConditionalPriority(Int, Int, Int)
+}
+
+pub(all) struct SortKey {
+  index : Int
+  descending : Bool
+}
+
+pub(all) struct SortSettings {
+  rows : Bool
+  header : Bool
+  case_sensitive : Bool
+  keys : Array[SortKey]
 }
 
 pub(all) enum Value {

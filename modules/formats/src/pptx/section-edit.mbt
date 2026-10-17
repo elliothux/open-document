@@ -25,7 +25,7 @@ fn Session::edit_sections(
   index : Int,
   change : SlideEdit,
 ) -> Json raise @failure.Failure {
-  let reason = if change is MoveSection(_, _) {
+  let reason = if change is MoveSection(_, _) || change is DeleteSection(_) {
     self.slide_order_reason()
   } else {
     self.slide_visibility_reason()
@@ -33,6 +33,16 @@ fn Session::edit_sections(
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let sections = read_sections(self.main)
   let ids = section_slide_ids(self.main)
+  if change is DeleteSection(id) {
+    let section = sections[section_index(sections, id)]
+    let targets : Array[String] = []
+    for i, source in ids {
+      if section.slides.contains(source) {
+        targets.push(self.slides[i].tree.part)
+      }
+    }
+    return self.delete_slides(targets, section=Some(section.id))
+  }
   let mut next = self.object_sequence
   fn fresh() -> String raise @failure.Failure {
     while next <= 4294967295L {
@@ -100,6 +110,12 @@ fn Session::edit_sections(
         return self.query()
       }
       sections[position] = { ..sections[position], name, }
+    }
+    RemoveSections => {
+      if sections.is_empty() {
+        return self.query()
+      }
+      sections.clear()
     }
     RemoveSection(id) => {
       let position = section_index(sections, id)
@@ -184,13 +200,6 @@ fn sync_slide_sections(
           updated[index + 1],
         )
         sections[position] = { ..section, slides: members, }
-      }
-    DeleteSlide =>
-      for i, section in sections {
-        sections[i] = {
-          ..section,
-          slides: section.slides.filter(id => id != ids[index]),
-        }
       }
     MoveSlide(target) => {
       let labels = ids.map(id => {

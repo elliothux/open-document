@@ -132,8 +132,20 @@ fn Sheet::prepare(
   updates : Map[String, CellContent],
   styles~ : Map[String, Int] = Map([]),
   preserve_values~ : Bool = false,
+  fragments~ : Map[String, String] = Map([]),
 ) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
   let tree = Tree::new(self.document)
+  fn markup(
+    address : Address,
+    value : CellContent,
+  ) -> String raise @failure.Failure {
+    let name = address.name()
+    fragments
+    .get(name)
+    .unwrap_or_else(() => {
+      self.cell_xml(tree, address, value, style=styles.get(name))
+    })
+  }
   let changes : Array[@xml.SourceChange] = []
   let pending : Map[Int, Array[(Address, CellContent)]] = Map([])
   for name, value in updates {
@@ -149,7 +161,7 @@ fn Sheet::prepare(
         node: row.id,
         offset: node.start - row.start,
         length: node.end - node.start,
-        xml: self.cell_xml(tree, address, value, style=styles.get(name)),
+        xml: markup(address, value),
       })
     } else if value.value != Blank ||
       value.formula is Some(_) ||
@@ -192,16 +204,12 @@ fn Sheet::prepare(
           )
         let key = (row_id, offset)
         insertions[key] = insertions.get(key).unwrap_or("") +
-          self.cell_xml(tree, address, value, style=styles.get(address.name()))
+          markup(address, value)
       }
     } else {
       let data = tree.nodes[self.data]
       let prefix = data.qualified[:data.qualified.length() - 9].to_owned()
-      let content = items
-        .map(item => {
-          self.cell_xml(tree, item.0, item.1, style=styles.get(item.0.name()))
-        })
-        .join("")
+      let content = items.map(item => markup(item.0, item.1)).join("")
       let row = "<\{prefix}row r=\"\{row_number}\">\{content}</\{prefix}row>"
       let next = tree
         .all(self.data, "row")

@@ -64,16 +64,12 @@ fn write_sections(
   let change = if container is Some((ext, list)) {
     if sections.is_empty() {
       let parent = main.nodes[ext.parent]
-      if main.children.get(parent.id).unwrap_or([]).length() == 1 {
-        let source = main.document.source()[parent.start:parent.end]
-        guard parent.attributes.is_empty() &&
-          parent.text.trim().is_empty() &&
-          !source.contains("<!--") &&
-          !source.contains("<?") else {
-          @failure.reject(
-            "protected-content", "Retained extension list markup is protected",
-          )
-        }
+      let source = main.document.source()[parent.start:parent.end]
+      if main.children.get(parent.id).unwrap_or([]).length() == 1 &&
+        parent.attributes.is_empty() &&
+        parent.text.trim().is_empty() &&
+        !source.contains("<!--") &&
+        !source.contains("<?") {
         remove_slide_node(main, parent)
       } else {
         remove_slide_node(main, ext)

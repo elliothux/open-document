@@ -285,9 +285,15 @@
   text-align: left;
   padding: 8px;
 }
-.od-sidebar button[aria-current="page"] {
+.od-sidebar button[aria-current] {
   background: var(--od-ui-hover);
   color: var(--od-ui-accent);
+}
+.od-section-heading {
+  font-weight: 600;
+}
+.od-section-pages {
+  padding-left: 10px;
 }
 .od-properties {
   width: 250px;

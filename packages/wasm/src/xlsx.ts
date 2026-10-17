@@ -1,4 +1,5 @@
 import { checkXlsxSheetEdit, type XlsxSheetEdit } from "./xlsx-sheet.js";
+export type { XlsxSortSettings, XlsxSortKey } from "./xlsx-sort.js";
 import {
   xlsxConditionalState,
   type XlsxConditionalState,

@@ -1,4 +1,5 @@
 import { record, integer } from "./validation.js";
+import { checkXlsxSort, type XlsxSortSettings } from "./xlsx-sort.js";
 import {
   checkXlsxConditionalFormat,
   type XlsxConditionalFormat,
@@ -17,6 +18,7 @@ import {
 } from "./xlsx-print.js";
 
 export type XlsxSheetEdit =
+  | ({ action: "sort"; range: string } & XlsxSortSettings)
   | {
       action: "conditionalRule";
       ranges: string;
@@ -65,6 +67,10 @@ export type XlsxSheetEdit =
 
 export function checkXlsxSheetEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "sort") {
+    checkXlsxSort(change);
+    return;
+  }
   if (
     change.action === "conditionalRule" ||
     change.action === "conditionalPriority"

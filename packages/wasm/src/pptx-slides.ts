@@ -4,6 +4,8 @@ export type PptxSlideEdit =
   | { action: "sectionAdd"; name: string }
   | { action: "sectionRename"; id: string; name: string }
   | { action: "sectionRemove"; id: string }
+  | { action: "sectionRemoveAll" }
+  | { action: "sectionDelete"; id: string }
   | { action: "sectionMove"; id: string; index: number }
   | { action: "add" }
   | { action: "copy" }
@@ -17,9 +19,13 @@ export function checkPptxSlideEdit(value: unknown): void {
   const change = record(value);
   if (
     typeof change.action === "string" &&
-    ["sectionAdd", "sectionRename", "sectionRemove", "sectionMove"].includes(
-      change.action,
-    )
+    [
+      "sectionAdd",
+      "sectionRename",
+      "sectionRemove",
+      "sectionDelete",
+      "sectionMove",
+    ].includes(change.action)
   ) {
     if (change.action === "sectionAdd" || change.action === "sectionRename")
       sectionName(change.name, true);
@@ -60,7 +66,7 @@ export function checkPptxSlideEdit(value: unknown): void {
   }
   if (
     typeof change.action === "string" &&
-    ["add", "copy", "delete"].includes(change.action)
+    ["add", "copy", "delete", "sectionRemoveAll"].includes(change.action)
   )
     return;
   if (

@@ -76,7 +76,7 @@ fn Session::commit_slides(
   created_parts~ : Map[String, @xml.Document] = Map([]),
   media~ : Map[String, Bytes] = self.media,
   created_media~ : Map[String, Bytes] = Map([]),
-  deleted~ : Slide? = None,
+  deleted~ : Array[Slide] = [],
   removed~ : Map[String, @xml.Document] = Map([]),
 ) -> Unit raise @failure.Failure {
   guard self.revision < 2147483647 else {
@@ -169,7 +169,7 @@ pub fn Session::undo(
     let media = self.media.copy()
     let removed_parts = self.removed.copy()
     let deleted_documents : Map[String, @xml.Document] = Map([])
-    let mut deleted_slide : Slide? = None
+    let deleted_slides : Array[Slide] = []
     let mut removed : (Slide, @xml.Document)? = None
     let removed_created_parts : Map[String, @xml.Document] = Map([])
     if redo && entry.created is Some((slide, relations)) {
@@ -189,10 +189,10 @@ pub fn Session::undo(
         media[name] = bytes
       }
     }
-    if !redo && entry.deleted is Some(slide) {
-      slides.push(slide)
+    if !redo && !entry.deleted.is_empty() {
+      slides.append(entry.deleted)
       for name, document in entry.removed {
-        if name != slide.tree.part {
+        if !entry.deleted.any(slide => slide.tree.part == name) {
           parts[name] = document
         }
         if removed_parts.search(name) is Some(index) {
@@ -257,14 +257,21 @@ pub fn Session::undo(
         media.remove(name)
       }
     }
-    if redo && entry.deleted is Some(deleted) {
-      let index = slides
-        .search_by(slide => slide.tree.part == deleted.tree.part)
-        .unwrap()
-      let slide = slides.remove(index)
-      deleted_slide = Some(slide)
+    if redo && !entry.deleted.is_empty() {
+      for deleted in entry.deleted {
+        guard slides.search_by(slide => slide.tree.part == deleted.tree.part)
+          is Some(index) else {
+          @failure.reject(
+            "invalid-operation", "Deleted slide history has changed",
+          )
+        }
+        deleted_slides.push(slides.remove(index))
+      }
       for name, _ in entry.removed {
-        deleted_documents[name] = if name == slide.tree.part {
+        deleted_documents[name] = if deleted_slides
+          .iter()
+          .find_first(slide => slide.tree.part == name)
+          is Some(slide) {
           slide.tree.document
         } else {
           parts.get(name).unwrap_or_else(() => self.opc.xml(name))
@@ -298,8 +305,8 @@ pub fn Session::undo(
         entry.created_parts[name] = document
       }
     }
-    if deleted_slide is Some(_) {
-      entry.deleted = deleted_slide
+    if !deleted_slides.is_empty() {
+      entry.deleted = deleted_slides
       for name, document in deleted_documents {
         entry.removed[name] = document
       }

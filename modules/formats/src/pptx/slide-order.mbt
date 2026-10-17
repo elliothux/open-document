@@ -10,6 +10,8 @@ pub(all) enum SlideEdit {
   AddSection(String)
   RenameSection(String, String)
   RemoveSection(String)
+  RemoveSections
+  DeleteSection(String)
   MoveSection(String, Int)
 }
 
@@ -201,12 +203,14 @@ pub fn Session::edit_slides(
     AddSection(_)
     | RenameSection(_, _)
     | RemoveSection(_)
+    | RemoveSections
+    | DeleteSection(_)
     | MoveSection(_, _) => return self.edit_sections(index, change)
     Size(width, height) => return self.set_slide_size(width, height)
     Background(value) => return self.set_background(index, value)
     AddSlide => return self.add_slide(index)
     CopySlide => return self.add_slide(index, copy=true)
-    DeleteSlide => return self.delete_slide(index)
+    DeleteSlide => return self.delete_slides([self.slides[index].tree.part])
     MoveSlide(target) => {
       guard target >= 0 && target < self.slides.length() else {
         @failure.reject(
