@@ -3,6 +3,7 @@ pub(all) enum ObjectEdit {
   Insert(String, Double, Double, Double, Double, String)
   InsertImage(Bytes, Double, Double, Double, Double)
   ReplaceImage(String, Bytes)
+  ImageFill(Array[String], Bytes)
   ImageCrop(Double, Double, Double, Double)
   ImageOpacity(Double)
   Hyperlink(String, String)
@@ -268,6 +269,14 @@ pub fn Session::edit_objects(
   if change is InsertImage(bytes, x, y, width, height) {
     return self.write_image(bytes, Some((x, y, width, height)))
   }
+  if change is ImageFill(objects, bytes) {
+    guard objects == self.selection.objects else {
+      @failure.reject(
+        "invalid-operation", "Shape selection changed before setting the image fill",
+      )
+    }
+    return self.write_image(bytes, None, fill=true)
+  }
   if change is ReplaceImage(object, bytes) {
     guard self.selection.object == object else {
       @failure.reject(
@@ -308,6 +317,7 @@ pub fn Session::edit_objects(
   let (changes, after) = match change {
     InsertImage(_, _, _, _, _)
     | ReplaceImage(_, _)
+    | ImageFill(_, _)
     | ImageCrop(_, _, _, _)
     | ImageOpacity(_)
     | Hyperlink(_, _)

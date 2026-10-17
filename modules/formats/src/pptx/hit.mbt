@@ -43,8 +43,7 @@ fn object_hit(
     object.kind == "group" ||
     (
       !object.paragraphs.is_empty() &&
-      object.fill.is_empty() &&
-      object.gradient is None &&
+      !object.has_fill() &&
       object.stroke.is_empty()
     ) {
     return x >= 0 && y >= 0 && x <= width && y <= height
@@ -77,7 +76,7 @@ fn object_hit(
     }
     let value = (2.0 * x / width - 1) * (2.0 * x / width - 1) +
       (2.0 * y / height - 1) * (2.0 * y / height - 1)
-    if !object.fill.is_empty() || object.gradient is Some(_) {
+    if object.has_fill() {
       return value <= 1
     }
     let outer = 1.0 + 2.0 * margin / width.min(height)
@@ -91,7 +90,7 @@ fn object_hit(
     polygon_shape(object.preset) {
     return object.preset_hit(geometry, x, y, margin)
   }
-  if !object.fill.is_empty() || object.gradient is Some(_) {
+  if object.has_fill() {
     return x >= 0 && y >= 0 && x <= width && y <= height
   }
   !object.stroke.is_empty() &&

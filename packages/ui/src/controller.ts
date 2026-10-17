@@ -222,6 +222,9 @@ export class EditorController {
   exportPng(): Promise<SavedDocument> {
     return this.output("png");
   }
+  exportImages(): Promise<void> {
+    return this.output("images").then(() => {});
+  }
   private output(
     kind: string,
     leaving = false,
@@ -245,14 +248,43 @@ export class EditorController {
         : this.value.name.replace(/\.[^.]*$/, "") +
           (kind === "png" ? ".png" : kind.startsWith("csv") ? ".csv" : ".pdf");
     const operation = async (): Promise<SavedDocument> => {
+      if (kind === "images") {
+        if (file.format !== "docx")
+          throw new Error("Page images require a document");
+        const pages = await file.editor.exportPageImages();
+        const prefix = targetName.replace(/\.[^.]*$/, "");
+        const digits = Math.max(2, String(pages.length).length);
+        let result: SavedDocument | undefined;
+        for (const [index, page] of pages.entries()) {
+          result = await this.deliverOutput(
+            page,
+            `${prefix}-${String(index + 1).padStart(digits, "0")}.png`,
+            kind,
+            file,
+          );
+          this.assertOpen();
+          const text = messages(this.value.locale)[
+            this.options.onSave
+              ? "imageSavedProgress"
+              : "imageGeneratedProgress"
+          ];
+          this.publish({
+            message: text
+              .replace("{done}", String(index + 1))
+              .replace("{total}", String(pages.length)),
+          });
+        }
+        if (!result) throw new Error("The document has no page images");
+        return result;
+      }
       let output: EditorOutput;
       if (kind === "original")
         output = await (file.format === "docx"
           ? file.editor.saveDocx()
           : file.editor.save());
       else if (kind === "png") {
-        if (file.format !== "pptx")
-          throw new Error("PNG export requires a presentation");
+        if (file.format !== "pptx" && file.format !== "docx")
+          throw new Error("PNG export requires a document or presentation");
         output = await file.editor.exportPng();
       } else if (kind.startsWith("csv")) {
         if (file.format !== "xlsx")
@@ -268,29 +300,7 @@ export class EditorController {
                 kind === "pdf-current" ? null : { sheets: "visible" },
               )
             : file.editor.exportPdf());
-      this.assertOpen();
-      const result = Object.freeze({ ...output, name });
-      if (this.options.onSave) {
-        await this.options.onSave(result);
-        if (!this.disposed && this.value.file === file) {
-          if (kind === "original") {
-            file.editor.markSaved(output);
-            this.newDocumentId = undefined;
-          }
-          this.publish({
-            name: kind === "original" ? name : this.value.name,
-            message: messages(this.value.locale).outputSaved,
-          });
-        }
-      } else {
-        downloadBytes(output.bytes, mime[output.format], name);
-        file.editor.markDownloaded(output);
-        this.publish({
-          name: kind === "original" ? name : this.value.name,
-          message: messages(this.value.locale).generated,
-        });
-      }
-      return result;
+      return this.deliverOutput(output, name, kind, file);
     };
     // Start after publishing the in-flight promise so observers cannot start a second callback.
     const promise = Promise.resolve()
@@ -306,6 +316,37 @@ export class EditorController {
     this.saving = { kind, name: targetName, promise };
     this.publish({ saving: true, message: "", error: "" });
     return promise;
+  }
+
+  private async deliverOutput(
+    output: EditorOutput,
+    name: string,
+    kind: string,
+    file: OwnedFile,
+  ): Promise<SavedDocument> {
+    this.assertOpen();
+    const result = Object.freeze({ ...output, name });
+    if (this.options.onSave) {
+      await this.options.onSave(result);
+      if (!this.disposed && this.value.file === file) {
+        if (kind === "original") {
+          file.editor.markSaved(output);
+          this.newDocumentId = undefined;
+        }
+        this.publish({
+          name: kind === "original" ? name : this.value.name,
+          message: messages(this.value.locale).outputSaved,
+        });
+      }
+    } else {
+      downloadBytes(output.bytes, mime[output.format], name);
+      file.editor.markDownloaded(output);
+      this.publish({
+        name: kind === "original" ? name : this.value.name,
+        message: messages(this.value.locale).generated,
+      });
+    }
+    return result;
   }
 
   private ask(dialog: LeaveDialog): Promise<LeaveChoice> {

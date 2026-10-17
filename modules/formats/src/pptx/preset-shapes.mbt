@@ -135,9 +135,7 @@ fn Object::preset_hit(
     let distance = (qx.max(0) * qx.max(0) + qy.max(0) * qy.max(0)).sqrt() +
       qx.max(qy).min(0) -
       radius
-    return (
-        (!self.fill.is_empty() || self.gradient is Some(_)) && distance <= 0
-      ) ||
+    return (self.has_fill() && distance <= 0) ||
       (!self.stroke.is_empty() && distance.abs() <= margin)
   }
   let points = if polygon_shape(self.preset) {
@@ -168,5 +166,5 @@ fn Object::preset_hit(
       return true
     }
   }
-  (!self.fill.is_empty() || self.gradient is Some(_)) && inside
+  self.has_fill() && inside
 }

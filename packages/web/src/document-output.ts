@@ -1,7 +1,9 @@
 import type { FoundationClient } from "./foundation.js";
-import type { EditState } from "@open-document/wasm/foundation";
+import { DocumentError, type EditState } from "@open-document/wasm/foundation";
 import type { EditorOutput, EditorState } from "./editor-state.js";
 import { downloadBytes, docxContentType } from "./download.js";
+import type { CanvasSurface } from "./canvas-surface.js";
+import type { PageLayout } from "@open-document/wasm/preview";
 
 export async function checkDocxRevision(
   client: FoundationClient,
@@ -12,27 +14,64 @@ export async function checkDocxRevision(
   assertOpen();
   if (current.revision !== revision)
     throw new Error("Document changed outside this editor");
+  if (current.compositionId !== null || current.pictureResizeId !== null)
+    throw new DocumentError(
+      "busy",
+      "Complete or cancel pending edits before output",
+      "",
+      -1,
+    );
   return current.revision;
 }
 
-export async function docxOutput(
+export async function docxOutputs(
   client: FoundationClient,
   expectedRevision: number,
-  layoutId: number,
-  format: "docx" | "pdf",
+  layout: PageLayout,
+  surface: CanvasSurface,
+  page: number,
+  format: "docx" | "pdf" | "png" | "images",
   outputBytes: number,
+  scale: number,
+  observable: EditorState<EditState>,
   assertOpen: () => void,
-): Promise<{ revision: number; bytes: Uint8Array }> {
+): Promise<readonly EditorOutput[]> {
   const revision = await checkDocxRevision(
     client,
     expectedRevision,
     assertOpen,
   );
-  const bytes =
-    format === "docx"
-      ? await client.saveDocx()
-      : await client.exportPdf(outputBytes, layoutId);
-  return { revision, bytes };
+  const buffers: Uint8Array[] = [];
+  if (format === "png" || format === "images") {
+    if (layout.revision !== revision)
+      throw new Error("Page layout is stale; refresh before exporting");
+    if (layout.diagnostics.length)
+      throw new Error(
+        `PNG requires supported layout: ${layout.diagnostics.join("; ")}`,
+      );
+    let remaining = outputBytes;
+    const pages = format === "images" ? layout.regions.keys() : [page];
+    for (const index of pages) {
+      assertOpen();
+      if (remaining === 0) throw new Error("PNG pages exceed byte budget");
+      const bytes = await surface.exportPng(layout, index, scale, remaining);
+      assertOpen();
+      remaining -= bytes.byteLength;
+      buffers.push(bytes);
+    }
+  } else {
+    buffers.push(
+      format === "docx"
+        ? await client.saveDocx()
+        : await client.exportPdf(outputBytes, layout.id),
+    );
+  }
+  assertOpen();
+  return Object.freeze(
+    buffers.map((bytes) =>
+      observable.output(revision, format === "images" ? "png" : format, bytes),
+    ),
+  );
 }
 
 export function downloadDocxOutput(

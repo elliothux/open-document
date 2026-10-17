@@ -148,13 +148,25 @@ export function FileMenu({
                   )}
                 </>
               )}
-              {state.file?.format === "pptx" && (
+              {(state.file?.format === "pptx" ||
+                state.file?.format === "docx") && (
                 <Menu.Item
                   className="od-menu-item"
                   disabled={unavailable}
                   onClick={() => controller.run(() => controller.exportPng())}
                 >
-                  {t.exportPng}
+                  {state.file.format === "docx" ? t.exportPagePng : t.exportPng}
+                </Menu.Item>
+              )}
+              {state.file?.format === "docx" && (
+                <Menu.Item
+                  className="od-menu-item"
+                  disabled={unavailable}
+                  onClick={() =>
+                    controller.run(() => controller.exportImages())
+                  }
+                >
+                  {t.exportPageImages}
                 </Menu.Item>
               )}
               {state.file?.format === "xlsx" && (

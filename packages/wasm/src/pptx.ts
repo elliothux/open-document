@@ -130,6 +130,8 @@ export interface PptxObject {
     cropReason: string;
   };
   appearance: {
+    imageFill: string | null;
+    imageFillReason: string;
     gradient: Extract<PptxBackgroundFill, { kind: "linear" }> | null;
     fillOpacity: number;
     strokeOpacity: number;
@@ -550,6 +552,16 @@ export function pptxQuery(value: unknown): PptxQuery {
     for (const key of ["left", "top", "right", "bottom"])
       number(frame[key], 0, 14400);
     const appearance = record(object.appearance);
+    if (
+      appearance.imageFill !== null &&
+      (typeof appearance.imageFill !== "string" ||
+        !appearance.imageFill ||
+        appearance.imageFill.length > 256 ||
+        object.kind !== "shape" ||
+        appearance.fill !== null ||
+        appearance.gradient !== null)
+    )
+      throw new Error("Invalid image fill appearance");
     if (appearance.gradient !== null) {
       checkPptxBackgroundFill(appearance.gradient);
       if (
@@ -568,6 +580,7 @@ export function pptxQuery(value: unknown): PptxQuery {
           "penReason",
           "lineEndReason",
           "fillOpacityReason",
+          "imageFillReason",
           "strokeOpacityReason",
         ],
         ["width", "miterLimit", "fillOpacity", "strokeOpacity"],
@@ -745,6 +758,7 @@ export class PptxSession extends WasmSession {
     if (
       command.operation === "editPptxObjects" &&
       (command.change.action === "insertImage" ||
+        command.change.action === "imageFill" ||
         command.change.action === "replaceImage")
     ) {
       value = this.call({

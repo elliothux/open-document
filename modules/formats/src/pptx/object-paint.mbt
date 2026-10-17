@@ -14,6 +14,10 @@ fn paint_fill(properties : Ref) -> @xml.Node? raise @failure.Failure {
   }
   guard fills.get(0) is Some(fill) else { return None }
   let tree = properties.tree
+  if fill.name == "blipFill" && properties.node.name == "spPr" {
+    ignore(shape_image_source({ tree, node: fill, }))
+    return Some(fill)
+  }
   if fill.name == "gradFill" && properties.node.name == "spPr" {
     ignore(linear_background_source({ tree, node: fill, }))
     guard [None, Some("1"), Some("true")].contains(

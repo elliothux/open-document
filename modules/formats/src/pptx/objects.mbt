@@ -214,6 +214,7 @@ fn read_object(
       })
     })
     let mut gradient = None
+    let mut image_fill = None
     let (shape_fill, fill_source) = if has_fill {
       let first = properties
         .iter()
@@ -232,6 +233,11 @@ fn read_object(
         ignore(paint_fill(first))
         gradient = Some(shape_gradient(fill, theme, None))
         (("", 1.0), None)
+      } else if first.child("blipFill") is Some(fill) {
+        ignore(paint_fill(first))
+        let value = read_shape_image(opc, fill, parts)
+        image_fill = Some(value)
+        (("", value.2), Some((fill, None)))
       } else {
         (
           fill_rgba(theme, properties),
@@ -250,10 +256,20 @@ fn read_object(
           gradient = Some(shape_gradient(item, theme, Some(ph)))
           (("", 1.0), None)
         }
+        "blipFill" => {
+          let value = read_shape_image(opc, item, parts)
+          image_fill = Some(value)
+          (("", value.2), Some((item, None)))
+        }
         _ => @failure.reject("unsupported-style", "Unsupported theme fill")
       }
     } else {
       (("", 1.0), None)
+    }
+    if image_fill is Some(_) && flag(source.node, "useBgFill") {
+      @failure.reject(
+        "unsupported-style", "Background-linked image fills are unsupported",
+      )
     }
     let lines = children(properties, "ln")
     let placeholder = if style_reference(theme, chain, "ln") is Some((item, ph)) {
@@ -280,6 +296,7 @@ fn read_object(
       solid_fill_source(lines).map(item => (item, placeholder)),
       gradient,
       (line_end(lines, "headEnd"), line_end(lines, "tailEnd")),
+      image_fill,
     )
   })() catch {
     @failure.Failure(code~, message~, ..) if code == "unsupported-style" ||
@@ -299,6 +316,7 @@ fn read_object(
         None,
         None,
         (no_line_end(), no_line_end()),
+        None,
       )
     }
     error => raise error
@@ -324,9 +342,9 @@ fn read_object(
     error => raise error
   }
   text_reason = limitation
-  let mut image : String? = None
-  let mut crop = [0.0, 0.0, 0.0, 0.0]
-  let mut opacity = 1.0
+  let mut image = paint.13.map(value => value.0)
+  let mut crop = paint.13.map(value => value.1).unwrap_or([0.0, 0.0, 0.0, 0.0])
+  let mut opacity = paint.13.map(value => value.2).unwrap_or(1.0)
   if kind == "image" &&
     source.child("blipFill", uri=presentation_uri) is Some(blip_fill) {
     if blip_fill.child("blip") is Some(blip) {
@@ -365,6 +383,14 @@ fn read_object(
   }
   if geometry is None {
     diagnostic = "Object bounds cannot be resolved"
+  }
+  if image is Some(_) &&
+    geometry is Some(g) &&
+    (
+      g.width / (1 - crop[0] - crop[2]) > 1000000000.0 ||
+      g.height / (1 - crop[1] - crop[3]) > 1000000000.0
+    ) {
+    diagnostic = "Cropped image exceeds drawing bounds"
   }
   if !diagnostic.is_empty() {
     read_only = diagnostic

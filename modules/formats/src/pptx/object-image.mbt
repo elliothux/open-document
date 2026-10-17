@@ -3,8 +3,10 @@ fn Session::write_image(
   self : Session,
   bytes : Bytes,
   placement : (Double, Double, Double, Double)?,
+  fill~ : Bool = false,
 ) -> Json raise @failure.Failure {
-  let target = if placement is None {
+  let targets = if fill { self.image_fill_targets() } else { [] }
+  let target = if placement is None && !fill {
     Some(self.selected_image(false))
   } else {
     None
@@ -17,8 +19,22 @@ fn Session::write_image(
   if target is Some(object) && self.image_bytes(object.image.unwrap()) == bytes {
     return self.query()
   }
+  if fill &&
+    targets.all(object => {
+      object.image is Some(key) &&
+      self.image_bytes(key) == bytes &&
+      object.source
+      .child("spPr", uri=presentation_uri)
+      .bind(p => p.child("blipFill"))
+      is Some(_) &&
+      !flag(object.source.node, "useBgFill")
+    }) {
+    return self.query()
+  }
   let original = self.current()
   let identity = if target is Some(object) {
+    object.id[original.tree.part.length() + 1:].to_owned()
+  } else if targets.get(0) is Some(object) {
     object.id[original.tree.part.length() + 1:].to_owned()
   } else {
     self.next_object_identity()
@@ -96,7 +112,30 @@ fn Session::write_image(
   parts[types_path] = types
   edits.push((types_path, edit))
   let markup = "<p:pic xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\" xmlns:r=\"\{relationship_uri}\"><p:nvPicPr><p:cNvPr id=\"\{identity}\" name=\"Picture \{identity}\"/><p:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed=\"\{link}\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x=\"\{(x * 12700).round().to_int64()}\" y=\"\{(y * 12700).round().to_int64()}\"/><a:ext cx=\"\{(width * 12700).round().to_int64()}\" cy=\"\{(height * 12700).round().to_int64()}\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr></p:pic>"
-  let change : @xml.SourceChange = if target is Some(object) {
+  let changes : Array[@xml.SourceChange] = []
+  if fill {
+    for object in targets {
+      let properties = object.source
+        .child("spPr", uri=presentation_uri)
+        .unwrap()
+      let crop = if object.image is Some(_) {
+        object.crop
+      } else {
+        [0.0, 0.0, 0.0, 0.0]
+      }
+      changes.push(
+        paint_child_change(
+          properties,
+          paint_fill(properties),
+          image_fill_markup(link, object.fill_alpha, crop),
+          ["ln", "effectLst", "effectDag", "scene3d", "sp3d", "extLst"],
+        ),
+      )
+      if flag(object.source.node, "useBgFill") {
+        changes.push(attribute_change(object.source, "useBgFill", "0"))
+      }
+    }
+  } else if target is Some(object) {
     let blip = object.source
       .child("blipFill", uri=presentation_uri)
       .unwrap()
@@ -106,16 +145,16 @@ fn Session::write_image(
       .iter()
       .find_first(a => a.uri == relationship_uri && a.name == "embed")
       .unwrap()
-    {
+    changes.push({
       node: blip.node.id,
       offset: embed.start - blip.node.start,
       length: embed.end - embed.start,
       xml: link,
-    }
+    })
   } else {
-    object_insertion(original.tree, markup)
+    changes.push(object_insertion(original.tree, markup))
   }
-  let (document, edit) = original.tree.document.edit_source([change])
+  let (document, edit) = original.tree.document.edit_source(changes)
   let candidate = read_slide(
     self.opc,
     self.main,
@@ -138,7 +177,7 @@ fn Session::write_image(
     @failure.reject("limit-exceeded", "Presentation images exceed 256")
   }
   let id = original.tree.part + "#" + identity
-  let after : Selection = if target is Some(_) {
+  let after : Selection = if target is Some(_) || fill {
     self.selection
   } else {
     {
@@ -160,7 +199,7 @@ fn Session::write_image(
     created_parts~,
     created_media=Map([(path, bytes)]),
   )
-  if target is None {
+  if target is None && !fill {
     self.object_sequence = number(identity, 0, 4294967295).to_int64() + 1L
   }
   self.query()

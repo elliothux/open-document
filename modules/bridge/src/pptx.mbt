@@ -168,6 +168,8 @@ fn Foundation::pptx_operation(
         @failure.reject("invalid-operation", "Object edit is required")
       }
       let change = match field_string(change, "action") {
+        "imageFill" =>
+          @pptx.ImageFill(pptx_objects(change), input_bytes(change, 4194304))
         "imageOpacity" => @pptx.ImageOpacity(xlsx_number(change, "opacity"))
         "replaceImage" =>
           @pptx.ReplaceImage(

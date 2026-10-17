@@ -74,6 +74,7 @@ export class PptxClient {
     if (
       command.operation === "editPptxObjects" &&
       (command.change.action === "insertImage" ||
+        command.change.action === "imageFill" ||
         command.change.action === "replaceImage")
     ) {
       const { bitmap } = await decodeImage(command.change.bytes);

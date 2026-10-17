@@ -25,7 +25,9 @@ export function PptxPaint({
   const [fill, setFill] = useState(
     `#${first?.gradient?.startColor ?? first?.fill ?? "336699"}`,
   );
-  const [linear, setLinear] = useState(!!first?.gradient);
+  const [fillType, setFillType] = useState<"solid" | "linear" | "image">(
+    first?.imageFill ? "image" : first?.gradient ? "linear" : "solid",
+  );
   const [endColor, setEndColor] = useState(
     `#${first?.gradient?.endColor ?? "ffffff"}`,
   );
@@ -33,7 +35,7 @@ export function PptxPaint({
   const [scaled, setScaled] = useState(first?.gradient?.scaled ?? true);
   const [stroke, setStroke] = useState(`#${first?.stroke ?? "000000"}`);
   const [noFill, setNoFill] = useState(
-    first?.fill === null && !first?.gradient,
+    first?.fill === null && !first?.gradient && !first?.imageFill,
   );
   const [noStroke, setNoStroke] = useState(first?.stroke === null);
   const [width, setWidth] = useState(String(first?.width ?? 1));
@@ -76,9 +78,13 @@ export function PptxPaint({
   ] as const;
   const reason = objects.find((object) => object.appearance.reason)?.appearance
     .reason;
+  const imageReason = objects.find(
+    (object) => object.appearance.imageFillReason,
+  )?.appearance.imageFillReason;
   const mixed = objects.some(
     (object) =>
       object.appearance.fill !== first?.fill ||
+      object.appearance.imageFill !== first?.imageFill ||
       JSON.stringify(object.appearance.gradient) !==
         JSON.stringify(first?.gradient) ||
       object.appearance.stroke !== first?.stroke ||
@@ -151,9 +157,10 @@ export function PptxPaint({
       <form
         onSubmit={(event) => {
           event.preventDefault();
+          if (fillType === "image" && !noFill) return;
           controller.run(() =>
             editor.editObjects(
-              linear && !noFill
+              fillType === "linear" && !noFill
                 ? {
                     action: "gradientFill",
                     startColor: fill.slice(1),
@@ -173,25 +180,61 @@ export function PptxPaint({
           {t.shapeFillType}
           <select
             aria-label={t.shapeFillType}
-            value={linear ? "linear" : "solid"}
-            onChange={(event) =>
-              setLinear(event.currentTarget.value === "linear")
-            }
+            value={fillType}
+            onChange={(event) => {
+              if (event.currentTarget.value === "image") setNoFill(false);
+              setFillType(
+                event.currentTarget.value === "image"
+                  ? "image"
+                  : event.currentTarget.value === "linear"
+                    ? "linear"
+                    : "solid",
+              );
+            }}
           >
             <option value="solid">{t.solidColor}</option>
             <option value="linear">{t.linearGradient}</option>
+            <option value="image" disabled={!!imageReason}>
+              {t.imageFill}
+            </option>
           </select>
         </label>
+        {fillType === "image" && !noFill && (
+          <label>
+            {t.shapeFillImage}
+            <input
+              type="file"
+              accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+              disabled={!!imageReason}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                event.currentTarget.value = "";
+                if (!file) return;
+                const targets = [...query.selection.objects];
+                controller.run(async () => {
+                  if (!file.size || file.size > 4194304)
+                    throw new Error(t.imageInputLimit);
+                  await editor.editObjects({
+                    action: "imageFill",
+                    objects: targets,
+                    bytes: new Uint8Array(await file.arrayBuffer()),
+                  });
+                });
+              }}
+            />
+            {imageReason && <p>{imageReason}</p>}
+          </label>
+        )}
         <label>
           {t.shapeFill}
           <input
             type="color"
             value={fill}
-            disabled={noFill}
+            disabled={noFill || fillType === "image"}
             onChange={(event) => setFill(event.currentTarget.value)}
           />
         </label>
-        {linear && (
+        {fillType === "linear" && (
           <>
             <label>
               {t.gradientEnd}
@@ -234,7 +277,7 @@ export function PptxPaint({
           />
           {t.noShapeFill}
         </label>
-        <button type="submit">
+        <button type="submit" disabled={fillType === "image" && !noFill}>
           {t.apply} {t.shapeFill}
         </button>
       </form>

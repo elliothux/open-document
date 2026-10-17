@@ -457,6 +457,12 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
           "cropReason": self.image_reason(object, true),
         },
         "appearance": {
+          "imageFill": if object.kind == "shape" {
+            object.image.map(key => Json(key)).unwrap_or(Json::null())
+          } else {
+            Json::null()
+          },
+          "imageFillReason": self.image_fill_reason(object),
           "gradient": object.gradient
           .map(g => Json(Linear(g.0, g.1, g.2, g.3)))
           .unwrap_or(Json::null()),

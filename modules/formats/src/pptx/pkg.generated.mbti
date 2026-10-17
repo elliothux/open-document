@@ -51,6 +51,7 @@ pub(all) enum ObjectEdit {
   Insert(String, Double, Double, Double, Double, String)
   InsertImage(Bytes, Double, Double, Double, Double)
   ReplaceImage(String, Bytes)
+  ImageFill(Array[String], Bytes)
   ImageCrop(Double, Double, Double, Double)
   ImageOpacity(Double)
   Hyperlink(String, String)

@@ -1,4 +1,4 @@
-import { docxOutput, downloadDocxOutput } from "./document-output.js";
+import { docxOutputs, downloadDocxOutput } from "./document-output.js";
 import { DocumentPage } from "./document-page.js";
 export type { DocumentComments } from "./document-review.js";
 import { createDocumentElements, docxPageText } from "./document-elements.js";
@@ -61,6 +61,7 @@ export class DocumentEditor extends DocumentPage {
   private pending = 0;
   private generation = 0;
   private blocked: Error | undefined;
+  private outputError = "";
   private closed = false;
   private resuming = false;
   private page = 0;
@@ -304,7 +305,7 @@ export class DocumentEditor extends DocumentPage {
     operation: () => Promise<T>,
     pointer = false,
     composition = false,
-    output = false,
+    output: false | "docx" | "pdf" | "png" | "images" = false,
   ): Promise<T> {
     if (!pointer) this.pointerSelection.finish();
     try {
@@ -339,8 +340,14 @@ export class DocumentEditor extends DocumentPage {
         this.assertOpen();
         if (generation !== this.generation)
           throw new Error("Input was interrupted; reload the current document");
+        if (!this.blocked) this.outputError = "";
         return value;
       } catch (error) {
+        if ((output === "png" || output === "images") && !this.blocked) {
+          this.outputError =
+            error instanceof Error ? error.message : String(error);
+          throw error;
+        }
         if (
           error instanceof DocumentError &&
           ["busy", "stale-search", "stale-overview"].includes(error.code)
@@ -695,7 +702,7 @@ export class DocumentEditor extends DocumentPage {
       paused: this.paused,
       stopped: !!this.blocked || this.resuming,
       closed: this.closed,
-      error: this.blocked?.message ?? "",
+      error: this.blocked?.message ?? this.outputError,
       diagnostics: this.currentLayout.diagnostics,
       data: this.state,
     });
@@ -725,34 +732,32 @@ export class DocumentEditor extends DocumentPage {
       }
     });
   }
-  /** A barrier: later input cannot change the returned revision or bytes. */
-  saveDocx(): Promise<EditorOutput> {
-    return this.output("docx");
-  }
-  exportPdf(outputBytes = 67108864): Promise<EditorOutput> {
-    return this.output("pdf", outputBytes);
-  }
-  private output(
-    format: "docx" | "pdf",
+  protected outputs(
+    format: "docx" | "pdf" | "png" | "images",
     outputBytes = 67108864,
-  ): Promise<EditorOutput> {
+    scale = 1,
+  ): Promise<readonly EditorOutput[]> {
     this.inputEvents.endGroup();
     return this.enqueue(
       async () => {
-        const { revision, bytes } = await docxOutput(
+        const outputs = await docxOutputs(
           this.client,
           this.state.revision,
-          this.currentLayout.id,
+          this.currentLayout,
+          this.surface,
+          this.page,
           format,
           outputBytes,
+          scale,
+          this.observable,
           () => this.assertOpen(),
         );
         this.publish();
-        return this.observable.output(revision, format, bytes);
+        return outputs;
       },
       false,
       false,
-      true,
+      format,
     );
   }
   async downloadPdf(

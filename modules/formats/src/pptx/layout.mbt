@@ -232,36 +232,24 @@ fn paint_slide(
         ),
       )
     } else {
-      if object.kind == "image" && object.image is Some(key) {
-        let crop = object.crop
-        let image_width = geometry.width / (1 - crop[0] - crop[2])
-        let image_height = geometry.height / (1 - crop[1] - crop[3])
+      if object.kind == "image" && object.image is Some(_) {
         primitives.push(
           Clip({ x: 0, y: 0, width: geometry.width, height: geometry.height, }),
         )
-        primitives.push(
-          Image(
-            {
-              key,
-              x: -crop[0] * image_width,
-              y: -crop[1] * image_height,
-              width: image_width,
-              height: image_height,
-            },
-            object.opacity,
-          ),
-        )
+        primitives.push(object.image_primitive(geometry))
         primitives.push(Restore)
-      } else if !object.fill.is_empty() ||
-        object.gradient is Some(_) ||
-        !object.stroke.is_empty() {
+      } else if object.has_fill() || !object.stroke.is_empty() {
         let path = shape_path(
           object.preset,
           geometry.width,
           geometry.height,
           object.adjustments,
         )
-        if object.gradient is Some((start, end, angle, scaled)) &&
+        if object.image is Some(_) && geometry.width > 0 && geometry.height > 0 {
+          primitives.push(ClipPath(path, false))
+          primitives.push(object.image_primitive(geometry))
+          primitives.push(Restore)
+        } else if object.gradient is Some((start, end, angle, scaled)) &&
           geometry.width > 0 &&
           geometry.height > 0 {
           primitives.push(ClipPath(path, false))

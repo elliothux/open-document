@@ -26,7 +26,13 @@ fn Session::paint_opacity_reason(
     return reason
   }
   if (if stroke { object.stroke_source } else { object.fill_source }) is None {
-    return "Opacity editing requires a solid fill or border"
+    return "Opacity editing requires a solid or image fill, or a solid border"
+  }
+  if !stroke &&
+    object.fill_source is Some((fill, _)) &&
+    fill.node.name == "blipFill" &&
+    fill.tree.part != object.source.tree.part {
+    return "Inherited image fill opacity requires a local override"
   }
   ""
 }
@@ -119,7 +125,11 @@ fn Session::opacity_objects(
       !source_xml(source).contains("<?") else {
       @failure.reject("protected-content", "Retained color markup is protected")
     }
-    let markup = opacity_color_markup(source, placeholder, amount)
+    let markup = if !stroke && source.node.name == "blipFill" {
+      image_fill_opacity_markup(source, amount)
+    } else {
+      opacity_color_markup(source, placeholder, amount)
+    }
     let properties = object.source.child("spPr", uri=presentation_uri).unwrap()
     if stroke {
       if properties.child("ln") is Some(line) {

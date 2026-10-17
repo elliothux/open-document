@@ -39,7 +39,7 @@ DOCX、XLSX、PPTX 也接受 `document: { name, blank: true }`，`OfficeDocument
 
 框架无关的四类编辑宿主提供 `getSnapshot()`、`subscribe()`、`focus()`、`setPaused()`、`markSaved(output)` 和 `markDownloaded(output)`。快照包含会话身份、revision、导航、缩放、选区摘要、历史、诊断、停止/错误、在途操作及组合/拖动/草稿状态，并附格式当前查询。未变化时保持对象身份；已提交但绘制失败仍发布新 revision，保留保存与恢复入口。低层宿主借用 client，调用者等待宿主释放后另行关闭 client。
 
-编辑宿主的原格式保存、Office PDF、PPTX PNG 和 XLSX CSV 输出统一返回 `EditorOutput = { documentId, revision, format, bytes }`。`format` 包含 `csv` 和 `png`；编辑器输入格式仍为 DOCX/XLSX/PPTX/PDF。默认 UI 另加文件名 `name`。此约定不改变原始 Wasm/client 的保存结果。只有该宿主实际产生的原格式输出可以 `markSaved`；旧会话、其他格式和任意裸 revision 都不能确认保存。确认的是输出 revision，其后新编辑仍显示未保存。导航、缩放和 UI 变化不修改文档。
+编辑宿主的原格式保存、Office PDF、DOCX/PPTX 单页 PNG 和 XLSX CSV 输出统一返回 `EditorOutput = { documentId, revision, format, bytes }`。`format` 包含 `csv` 和 `png`；编辑器输入格式仍为 DOCX/XLSX/PPTX/PDF。默认 UI 另加文件名 `name`。DOCX 全页 PNG 返回按页序排列的只读 `EditorOutput` 数组，具体合同见[DOCX 页面 PNG](#docx-页面-png)。此约定不改变原始 Wasm/client 的保存结果。只有该宿主实际产生的原格式输出可以 `markSaved`；旧会话、其他格式和任意裸 revision 都不能确认保存。确认的是输出 revision，其后新编辑仍显示未保存。导航、缩放和 UI 变化不修改文档。
 
 原格式 `onSave` 成功才确认保存基线；失败保留修改并允许重试。缺省下载只提示“已生成下载”，不确认磁盘持久化，也不清除修改。PDF、PNG 和 CSV 导出不清除 Office 修改。关闭前选择“导出并继续”明确包含放弃内存会话。`dispose` 不等待宿主存储回调，晚到回执不更新已释放实例。
 
@@ -521,6 +521,20 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 `CanvasSurface` 共用尺寸、DPR、透明覆盖层、绘制身份与资源释放。DOCX 的 `PageCanvas` 继续准备文档图片。相同 `id`、区域、zoom 和 DPR 下，只清除并重画覆盖层；仅像素尺寸变化时重设画布尺寸。缩放与窗口 DPR 变化重新呈现，覆盖层几何须匹配当前布局身份与 revision。
 
 预览与编辑共用此路径。宿主在关闭时释放 Canvas、Path2D 和 ImageBitmap；内容与覆盖层共同计入像素预算。JSON/Worker 仍按批次传输。PDF writer 消费 `PositionedDocument.pages[].primitives` 的有序矩形、边框、文字、独立图片、路径、矩阵、裁剪和恢复操作。DOCX 从内部布局转换，XLSX 从独立打印布局生成，PPTX 从幻灯片布局生成；旧分组结构已删除。字体嵌入、Unicode 与裁剪仍由核心处理。
+
+### DOCX 页面 PNG
+
+Web 宿主 `DocumentEditor.exportPng(scale = 1, outputBytes = 67108864)` 返回当前页的 PNG `EditorOutput`。先调用 `goToPage(index)` 可逐页获取，index 从 0 开始。`scale` 是每 point 的像素数，允许 0.25–4；默认 1 对应 72 DPI。图片尺寸为页宽高乘 scale 后向上取整，不跟随预览 zoom 或设备 DPR。默认文件菜单提供“当前页 PNG”，沿既有 `onSave` 或下载路径输出原文件基名的 `.png`，不清除 DOCX 修改状态。
+
+`DocumentEditor.exportPageImages(scale = 1, outputBytes = 67108864)` 一次返回全部页面的只读 `EditorOutput[]`，按页序排列且共享文档身份与 revision。总字节预算计算所有 PNG 的字节数之和，不是每页单独授予预算。页面依次编码并释放临时 Canvas，保留的 PNG 总量受同一预算约束；全部成功后才返回集合和登记输出，编码失败不交付前缀集合。导出不改变当前页、缩放、选择、源或历史。
+
+默认菜单的“全部页面 PNG”先生成完整集合，再按页序等待既有 `onSave`；文件名使用 `<原文件基名>-01.png`、`-02.png`，页号至少两位并随总页数补齐。回调期间可以继续编辑，已生成页面仍绑定原 revision。宿主中途失败时显示已完成页数，保留已完成的外部保存，不继续后续回调，也不清除 DOCX 修改；重试重新导出当前修订的全部页面。无 `onSave` 时逐页发起下载并报告生成进度，不确认磁盘持久化；多文件下载受 [Chrome 站点下载权限](https://support.google.com/chrome/answer/114662?hl=en)约束。
+
+输出进入同一原生输入队列。它包含已接受的编辑，绑定文档身份和 revision，后续排队编辑不改变已产生的图片。当前布局须匹配 revision，并且无未支持布局诊断；活动组合或图片缩放候选须先结束或取消。核心继续拥有分页、正文、表格、页面背景/边框及图片位置；平台只用现有 R0、轮廓和已准备位图绘制到独立 Canvas 后编码。选区、光标、批注高亮等覆盖层不进入 PNG。
+
+输出 Canvas 与保留的预览/覆盖层合计最多 16777216 像素，输出字节预算为 1–67108864；尺寸在分配前检查，编码后检查实际字节数，并在成功或失败后释放临时 Canvas。PNG 失败保留源、选择及历史，不停止编辑；下一项成功操作清除 PNG 错误。销毁期间不交付图片。原格式保存与 PDF 继续沿原有恢复规则。
+
+图片输出目标参考 [GenOffice exportImages](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/docs/src/renderer/file-actions.ts#L1463-L1540)。当前复用已有核心绘制和 [Canvas 编码](../../packages/web/src/canvas-surface.ts)，未移植其 Electron/PDF.js 导出路径；队列与入口归 [`document-page.ts`](../../packages/web/src/document-page.ts)及 [`document-output.ts`](../../packages/web/src/document-output.ts)。这是 Chrome/Chromium 的 Web 输出；其他编码和无浏览器图片输出继续实施。
 
 ## 预算
 
@@ -1347,15 +1361,21 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `PptxQuery.groupReason/ungroupReason` 返回当前选择的保护原因，默认 UI 用它禁用按钮。继承占位符、未知组效果/扩展、成员锁定、`noGrp/noUngrp`、组合所涉连接/计时引用和取消组合所移除组的引用继续保护。操作只改所属 slide XML，保留其他部件及资源；一次提交一项有界历史，撤销恢复原源与选择，失败不消耗新身份或提交部分成员。
 
-`editPptxObjects` / `PresentationEditor.editObjects` 支持 `{ action: "fill", color }` 和 `{ action: "stroke", color, width }`。颜色为不带 `#` 的六位 RGB，核心统一小写；null 写显式 `noFill`，表示无填充或无边框。宽度为 0.1–1000 pt，舍入到整数 EMU。操作作用于对象模式下所选的本地顶层形状，包含文本框和基本形状；多选原子提交为一次历史。查询中每个对象带 `appearance: { fill, gradient, stroke, width, fillOpacity, strokeOpacity, fillOpacityReason, strokeOpacityReason, dash, dashReason, cap, join, miterLimit, penReason, reason }`，颜色为有效 RGB 或 null，宽度为有效 pt，reason 说明保护原因。默认 UI 显示混合状态，分别应用填充和边框，草稿随选择或实际外观值更新。
+`editPptxObjects` / `PresentationEditor.editObjects` 支持 `{ action: "fill", color }` 和 `{ action: "stroke", color, width }`。颜色为不带 `#` 的六位 RGB，核心统一小写；null 写显式 `noFill`，表示无填充或无边框。宽度为 0.1–1000 pt，舍入到整数 EMU。操作作用于对象模式下所选的本地顶层形状，包含文本框和基本形状；多选原子提交为一次历史。查询中每个对象带 `appearance: { fill, gradient, imageFill, imageFillReason, stroke, width, fillOpacity, strokeOpacity, fillOpacityReason, strokeOpacityReason, dash, dashReason, cap, join, miterLimit, penReason, reason }`，颜色为有效 RGB 或 null，宽度为有效 pt，reason 说明保护原因。默认 UI 显示混合状态，分别应用填充和边框，草稿随选择或实际外观值更新。
 
-修改只覆盖目标属性，保留几何、顺序、身份、文字、其他线条属性与部件。缺失的填充/边框按 DrawingML 顺序创建，空边框保留原属性；填充覆盖会关闭 `useBgFill`。直接设置相同值不增加历史；候选、过期 revision、锁定、未知填充属性/注释及预算失败不提交任何成员。组、组内对象、继承装饰和图片仍受保护，多色标/透明/径向渐变、图片填充及复杂效果编辑待扩展。纯色与受支持线型沿共同 Canvas/静态 PDF 路径绘制。实现参考 [ONLYOFFICE CShape.changeFill/changeLine](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L6421-L6461) 的局部属性覆盖及背景填充处理。
+修改只覆盖目标属性，保留几何、顺序、身份、文字、其他线条属性与部件。缺失的填充/边框按 DrawingML 顺序创建，空边框保留原属性；填充覆盖会关闭 `useBgFill`。直接设置相同值不增加历史；候选、过期 revision、锁定、未知填充属性/注释及预算失败不提交任何成员。组、组内对象、继承装饰和图片仍受保护，多色标/透明/径向渐变及复杂效果编辑待扩展；图片拉伸填充见下节。纯色与受支持线型沿共同 Canvas/静态 PDF 路径绘制。实现参考 [ONLYOFFICE CShape.changeFill/changeLine](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L6421-L6461) 的局部属性覆盖及背景填充处理。
 
 `editObjects({ action: "gradientFill", startColor, endColor, angle, scaled })` 将所选本地顶层形状设为双色线性渐变。颜色为六位 RGB，角度为 0–360° 并按 1/60000° 舍入，360° 归一为 0°；`scaled` 为必需布尔值。角度及比例规则复用[页面背景](#pptx)，保留形状的轮廓、调节点、几何、描边和文字，随对象旋转/翻转。默认外观面板提供类型、两色、角度和按形状比例缩放。查询 `appearance.gradient` 返回 `{ kind: "linear", startColor, endColor, angle, scaled }` 或 null；渐变时 `fill` 为 null、`fillOpacity` 为 1，填充不透明度命令受保护，纯色描边仍可调整。纯色/无填充命令可替换已有受支持渐变。
 
 读取本地、版式/母版继承及主题的两端点不透明渐变；源的 `rotWithShape` 为缺省/真值，固定页面方向、多色标、透明、路径渐变、非零 tileRect 或未知标记保留源并诊断。操作先校验全部成员，复用原子源事务、无操作和精确历史；非法值、保护成员和输出预算失败保持整个文档。新增定位图元 `ClipPath(path, evenOdd)` 复用既有绘制命令，Canvas/PDF 沿相同预设路径裁剪，矩形以外区域及后续图元保持原样。实现归 [`shape-gradient.mbt`](../../modules/formats/src/pptx/shape-gradient.mbt)；参考 [ONLYOFFICE 形状渐变绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L1970-L2037)。
 
-`editObjects({ action: "fillOpacity" | "strokeOpacity", opacity })` 分别设置纯色填充和边框的不透明度，值为 0–1，按 1/100000 舍入。默认 UI 使用百分比输入；查询返回两项有效值及各自保护原因，支持混合多选。无填充的一侧须先设置纯色，0 保留形状和选择。100% 写入明确的不透明覆盖，不表示恢复继承。
+### 形状图片填充
+
+`editObjects({ action: "imageFill", objects, bytes })` 将所选本地顶层闭合形状设为 PNG/JPEG 拉伸填充。`objects` 是文件读取前捕获的有序选择，提交时须与当前选择完全一致，防止异步读取后修改其他对象。图片沿既有 4 MiB、尺寸、资源数量、输出和历史预算校验，Web 提交前检查实际解码。多选共享一个新资源及关系，保留各自身份、几何、轮廓、描边、文字、已有裁剪和有效填充不透明度。核心沿既有图片事务提交，失败不增加资源或历史；相同本地图片无操作。默认面板选择图片后直接应用，清除和纯色/渐变命令可替换受支持图片填充。
+
+查询 `appearance.imageFill` 返回资源键或 null，`imageFillReason` 返回保护原因。读取本地、版式/母版和主题的内部图片关系，按来源部件解析；支持非负四边源裁剪及常量 `alphaModFix`。图片按预设形状轮廓裁剪，随对象旋转/翻转，Canvas/PDF 共用同一图元。已有本地图片填充可用 `fillOpacity` 修改透明度；继承图片先设置本地图片覆盖。平铺、非零目标内缩、固定页面方向、外链、背景关联图片填充及未知/重复/不透明源继续保护，仍归 P12 后续实现。实现归 [`shape-image.mbt`](../../modules/formats/src/pptx/shape-image.mbt)和 [`object-image.mbt`](../../modules/formats/src/pptx/object-image.mbt)，语义参考 [ONLYOFFICE 图片拉伸、裁剪和透明度绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L1778-L1848)，未复制上游源码。
+
+`editObjects({ action: "fillOpacity" | "strokeOpacity", opacity })` 分别设置纯色/本地图片填充和纯色边框的不透明度，值为 0–1，按 1/100000 舍入。默认 UI 使用百分比输入；查询返回两项有效值及各自保护原因，支持混合多选。无填充的一侧须先设置填充，0 保留形状和选择。100% 写入明确的不透明覆盖，不表示恢复继承。
 
 读取已有颜色的 alpha、alphaMod 和 alphaOff，按声明顺序计算并归一到 0–1。修改保留 RGB/系统色/主题色及 tint、shade、lumMod、lumOff 等关联；继承填充写为本地声明，主题 phClr 绑定到原引用颜色，保留主题和父级源。颜色与线宽修改保留已有有效不透明度；明确移除填充后不保留隐藏的 alpha 状态。操作复用同一多选源事务、待输入文字屏障和精确历史。未知颜色标记、保留注释、只读对象及预算失败拒绝全部成员。文字和页面背景的透明度仍受原保护。算法参考 [ONLYOFFICE 颜色 alpha 变换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L2089-L2108)，实现归 [`shape-opacity.mbt`](../../modules/formats/src/pptx/shape-opacity.mbt)。
 

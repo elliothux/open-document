@@ -78,6 +78,7 @@ export function pptxHyperlink(value: unknown): PptxHyperlink | null {
   return value as PptxHyperlink;
 }
 export type PptxObjectEdit =
+  | { action: "imageFill"; objects: readonly string[]; bytes: Uint8Array }
   | { action: "lineEnd"; side: "head" | "tail"; end: PptxLineEnd | null }
   | { action: "hyperlink"; link: PptxHyperlink | null }
   | {
@@ -236,13 +237,33 @@ export function checkPptxObjectEdit(value: unknown): void {
     number(change.opacity, 0, 1);
     return;
   }
-  if (change.action === "insertImage" || change.action === "replaceImage") {
+  if (
+    change.action === "insertImage" ||
+    change.action === "replaceImage" ||
+    change.action === "imageFill"
+  ) {
     if (
       !(change.bytes instanceof Uint8Array) ||
       !change.bytes.length ||
       change.bytes.length > 4194304
     )
       throw new Error("Invalid PPTX image input");
+    if (change.action === "imageFill") {
+      if (
+        !Array.isArray(change.objects) ||
+        !change.objects.length ||
+        change.objects.length > 256 ||
+        change.objects.some(
+          (id) => typeof id !== "string" || !id || id.length > 1024,
+        ) ||
+        new Set(change.objects).size !== change.objects.length ||
+        Object.keys(change).some(
+          (key) => !["action", "objects", "bytes"].includes(key),
+        )
+      )
+        throw new Error("Invalid PPTX image fill targets");
+      return;
+    }
     if (change.action === "replaceImage") {
       if (
         typeof change.object !== "string" ||
