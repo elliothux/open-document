@@ -271,6 +271,7 @@ export interface ParagraphFormatPatch {
   line?: { rule: "auto" | "exact" | "atLeast"; value: number } | null;
   tabs?: TabStop[] | null;
   pageBreakBefore?: boolean | null;
+  keepLines?: boolean | null;
 }
 export interface DocxFormatting {
   revision: number;
@@ -323,6 +324,7 @@ export interface DocxFormatting {
     line: FormatValue<{ rule: "auto" | "exact" | "atLeast"; value: number }>;
     tabs: FormatValue<TabStop[]>;
     pageBreakBefore: FormatValue<boolean>;
+    keepLines: FormatValue<boolean>;
   };
 }
 export function checkFormatPatch(
@@ -342,6 +344,7 @@ export function checkFormatPatch(
         line: "object",
         tabs: "object",
         pageBreakBefore: "boolean",
+        keepLines: "boolean",
       }
     : {
         style: "string",
@@ -471,6 +474,7 @@ export function docxFormatting(value: unknown): DocxFormatting {
       field(paragraph[key], "number"),
     ) ||
     !field(paragraph.pageBreakBefore, "boolean") ||
+    !field(paragraph.keepLines, "boolean") ||
     !field(paragraph.line, "object") ||
     !field(paragraph.tabs, "tabs")
   )

@@ -128,7 +128,7 @@ fn read_slide(
     ids,
     parts,
   )
-  let mut background = "ffffff"
+  let mut background = Solid("ffffff")
   for layer in [tree, layout, master] {
     let container = layer.required(
       layer.document.nodes()[0].id,
@@ -137,10 +137,13 @@ fn read_slide(
     )
     if layer.one(container.id, "bg", uri=presentation_uri) is Some(bg) {
       if layer.one(bg.id, "bgPr", uri=presentation_uri) is Some(properties) {
-        background = fill(theme, [{ tree: layer, node: properties, }]) catch {
+        background = read_background_fill(theme, {
+          tree: layer,
+          node: properties,
+        }) catch {
           @failure.Failure(code="unsupported-style", message~, ..) => {
             diagnostics.push(layer.part + ":" + message)
-            "ffffff"
+            Solid("ffffff")
           }
           error => raise error
         }
@@ -152,14 +155,14 @@ fn read_slide(
             { tree: layer, node: reference, },
             "fill",
           )
-          guard resolved is Some((item, ph)) && item.node.name == "solidFill" else {
+          guard resolved is Some((item, ph)) else {
             @failure.reject("unsupported-style", "Unsupported theme background")
           }
-          color(theme, item, placeholder=Some(ph))
+          read_background_fill(theme, item, placeholder=Some(ph))
         })() catch {
           @failure.Failure(code="unsupported-style", message~, ..) => {
             diagnostics.push(layer.part + ":" + message)
-            "ffffff"
+            Solid("ffffff")
           }
           error => raise error
         }
@@ -395,11 +398,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
     "notes": self.notes_query(current.tree.part),
     "slideLayout": self.layout_query(current),
     "background": {
-      "color": if current.background.is_empty() {
-        "ffffff"
-      } else {
-        current.background
-      },
+      "value": current.background.to_json(),
       "explicit": current.tree.one(
         current.tree.required(
           current.tree.root("sld").id,

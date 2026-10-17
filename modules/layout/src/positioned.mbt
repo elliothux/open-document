@@ -227,6 +227,7 @@ pub fn TextProbe::text_block(
     first: 0,
     align: "left",
     pageBreakBefore: false,
+    keepLines: false,
     rtl: false,
     marker: None,
     readOnlyReason: "",

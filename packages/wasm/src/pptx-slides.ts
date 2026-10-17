@@ -1,5 +1,42 @@
 import { record } from "./validation.js";
 
+export type PptxBackgroundFill =
+  | { kind: "solid"; color: string }
+  | {
+      kind: "linear";
+      startColor: string;
+      endColor: string;
+      angle: number;
+      scaled: boolean;
+    };
+
+export function checkPptxBackgroundFill(value: unknown): void {
+  const fill = record(value);
+  const colors =
+    fill.kind === "solid" ? [fill.color] : [fill.startColor, fill.endColor];
+  if (
+    !colors.every((c) => typeof c === "string" && /^[0-9a-f]{6}$/i.test(c)) ||
+    !(
+      fill.kind === "solid" ||
+      (fill.kind === "linear" &&
+        typeof fill.angle === "number" &&
+        Number.isFinite(fill.angle) &&
+        fill.angle >= 0 &&
+        fill.angle <= 360 &&
+        typeof fill.scaled === "boolean")
+    ) ||
+    Object.keys(fill).some(
+      (key) =>
+        !(
+          fill.kind === "solid"
+            ? ["kind", "color"]
+            : ["kind", "startColor", "endColor", "angle", "scaled"]
+        ).includes(key),
+    )
+  )
+    throw new Error("Invalid slide background fill");
+}
+
 export type PptxSlideEdit =
   | { action: "layout"; id: string }
   | { action: "resetLayout" }
@@ -15,7 +52,7 @@ export type PptxSlideEdit =
   | { action: "delete" }
   | { action: "move"; index: number }
   | { action: "hidden"; hidden: boolean }
-  | { action: "background"; value: string | null }
+  | { action: "background"; value: PptxBackgroundFill | null }
   | { action: "size"; width: number; height: number };
 
 export function checkPptxSlideEdit(value: unknown): void {
@@ -93,11 +130,7 @@ export function checkPptxSlideEdit(value: unknown): void {
     return;
   }
   if (change.action === "background") {
-    if (
-      change.value !== null &&
-      (typeof change.value !== "string" || !/^[0-9a-f]{6}$/i.test(change.value))
-    )
-      throw new Error("Invalid slide background");
+    if (change.value !== null) checkPptxBackgroundFill(change.value);
     return;
   }
   if (

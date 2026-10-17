@@ -246,6 +246,7 @@ fn read_text(
       "l" => "left"
       "ctr" => "center"
       "r" => "right"
+      "just" => "justify"
       _ => {
         reason = "Unsupported paragraph alignment"
         "left"

@@ -2,6 +2,7 @@
 package "open_document/formats/pptx"
 
 import {
+  "moonbitlang/core/debug",
   "open_document/core/archive",
   "open_document/core/failure",
   "open_document/layout",
@@ -12,6 +13,16 @@ import {
 // Errors
 
 // Types and methods
+pub(all) enum BackgroundFill {
+  Solid(String)
+  Linear(String, String, Double, Bool)
+} derive(Eq, @debug.Debug)
+pub fn BackgroundFill::equal(Self, Self) -> Bool
+pub fn BackgroundFill::not_equal(Self, Self) -> Bool
+pub fn BackgroundFill::to_json(Self) -> Json
+pub fn BackgroundFill::to_repr(Self) -> @debug.Repr
+pub impl ToJson for BackgroundFill
+
 pub(all) struct FindOptions {
   matchCase : Bool
   wholeWord : Bool
@@ -111,7 +122,7 @@ pub(all) enum SlideEdit {
   DeleteSlide
   MoveSlide(Int)
   HideSlide(Bool)
-  Background(String?)
+  Background(BackgroundFill?)
   ApplyLayout(String)
   ResetLayout
   Notes(String)

@@ -287,6 +287,16 @@ fn paragraph_properties(
     } else {
       base.rtl
     },
+    keepLines: if tree.child(id, "keepLines") is Some(item) {
+      guard tree.valid_on_off_property(item) else {
+        @failure.reject("protected-content", "Unsupported keep-lines property")
+      }
+      !["0", "false", "off"].contains(
+        tree.nodes[item].attribute("val", uri=word_uri).unwrap_or("1"),
+      )
+    } else {
+      base.keepLines
+    },
     pageBreakBefore: if tree.child(id, "pageBreakBefore") is Some(item) {
       match tree.nodes[item].attribute("val", uri=word_uri) {
         Some("0" | "false" | "off") => false
@@ -343,6 +353,7 @@ fn Session::styles(
     first: 0,
     align: "left",
     pageBreakBefore: false,
+    keepLines: false,
     rtl: false,
     marker: None,
     readOnlyReason: "",

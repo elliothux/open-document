@@ -59,6 +59,7 @@ export interface DocxFlow {
       suffix: "tab" | "space" | "nothing";
     };
     pageBreakBefore: boolean;
+    keepLines: boolean;
     readOnlyReason: string;
   }[];
   diagnostics: string[];
@@ -202,6 +203,7 @@ export function docxFlow(value: unknown): DocxFlow {
       throw new Error("Invalid line spacing rule");
     if (
       typeof paragraph.pageBreakBefore !== "boolean" ||
+      typeof paragraph.keepLines !== "boolean" ||
       typeof paragraph.rtl !== "boolean" ||
       typeof paragraph.expandSoftBreak !== "boolean"
     )

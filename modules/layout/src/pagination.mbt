@@ -150,15 +150,35 @@ fn Pagination::paragraph(
   self.y += self.gap
   self.after = 0
   self.gap = 0
+  let measured_lines = cache.lines(
+    probe,
+    paragraph,
+    profile,
+    self.page.width - self.page.left - self.page.right,
+  )
+  if paragraph.keepLines && !measured_lines.any(line => line.line.y == -1) {
+    let mut height = 0.0
+    let mut first_line = true
+    for measured in measured_lines {
+      if measured.line.caretOnly {
+        continue
+      }
+      height += measured.spaced(paragraph.line, first_line).height
+      first_line = false
+    }
+    let limit = self.page.height - self.page.bottom
+    if self.y + height > limit {
+      if self.pages.last().unwrap().lines.any(line => !line.caretOnly) ||
+        !self.pages.last().unwrap().borders.is_empty() {
+        self.next_page()
+      } else if height <= limit - self.page.top {
+        self.y = self.page.top
+      }
+    }
+  }
   let mut ended_with_break = false
   let mut first = true
-  for
-    measured in cache.lines(
-      probe,
-      paragraph,
-      profile,
-      self.page.width - self.page.left - self.page.right,
-    ) {
+  for measured in measured_lines {
     let mut line = measured.spaced(paragraph.line, first)
     if line.text.is_empty() && line.marker.is_empty() && line.y == -1 {
       self.place(line, self.page.left, self.y, images)

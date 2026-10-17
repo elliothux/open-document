@@ -75,8 +75,9 @@ pub(all) struct ParagraphFormat {
   line : FormatChange[@layout.LineSpacing]
   tabs : FormatChange[Array[@layout.TabStop]]
   pageBreakBefore : FormatChange[Bool]
+  keepLines : FormatChange[Bool]
 }
-pub fn ParagraphFormat::new(style? : FormatChange[String], align? : FormatChange[String], rtl? : FormatChange[Bool], before? : FormatChange[Double], after? : FormatChange[Double], left? : FormatChange[Double], right? : FormatChange[Double], first? : FormatChange[Double], line? : FormatChange[@layout.LineSpacing], tabs? : FormatChange[Array[@layout.TabStop]], pageBreakBefore? : FormatChange[Bool]) -> Self
+pub fn ParagraphFormat::new(style? : FormatChange[String], align? : FormatChange[String], rtl? : FormatChange[Bool], before? : FormatChange[Double], after? : FormatChange[Double], left? : FormatChange[Double], right? : FormatChange[Double], first? : FormatChange[Double], line? : FormatChange[@layout.LineSpacing], tabs? : FormatChange[Array[@layout.TabStop]], pageBreakBefore? : FormatChange[Bool], keepLines? : FormatChange[Bool]) -> Self
 
 pub(all) struct Position {
   paragraph : Int

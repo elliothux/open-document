@@ -112,7 +112,20 @@ export function PptxBackground({
   const t = messages(state.locale);
   const background =
     file.format === "pptx" ? file.editor.query.background : undefined;
-  const [color, setColor] = useState(`#${background?.color ?? "ffffff"}`);
+  const fill = background?.value;
+  const [kind, setKind] = useState<"solid" | "linear">(fill?.kind ?? "solid");
+  const [color, setColor] = useState(
+    `#${fill?.kind === "solid" ? fill.color : (fill?.startColor ?? "ffffff")}`,
+  );
+  const [endColor, setEndColor] = useState(
+    `#${fill?.kind === "linear" ? fill.endColor : "000000"}`,
+  );
+  const [angle, setAngle] = useState(
+    fill?.kind === "linear" ? String(fill.angle) : "0",
+  );
+  const [scaled, setScaled] = useState(
+    fill?.kind === "linear" ? fill.scaled : true,
+  );
   if (file.format !== "pptx" || !background) return null;
   const editor = file.editor;
   return (
@@ -120,21 +133,82 @@ export function PptxBackground({
       onSubmit={(event) => {
         event.preventDefault();
         controller.run(() =>
-          editor.editSlides({ action: "background", value: color.slice(1) }),
+          editor.editSlides({
+            action: "background",
+            value:
+              kind === "solid"
+                ? { kind, color: color.slice(1) }
+                : {
+                    kind,
+                    startColor: color.slice(1),
+                    endColor: endColor.slice(1),
+                    angle: Number(angle),
+                    scaled,
+                  },
+          }),
         );
       }}
     >
       <fieldset disabled={disabled || !!background.reason}>
         <legend>{t.slideBackground}</legend>
         <label>
-          {t.slideBackground}
+          {t.backgroundType}
+          <select
+            value={kind}
+            onChange={(event) => {
+              const value = event.currentTarget.value;
+              if (value === "solid" || value === "linear") setKind(value);
+            }}
+          >
+            <option value="solid">{t.solidColor}</option>
+            <option value="linear">{t.linearGradient}</option>
+          </select>
+        </label>
+        <label>
+          {kind === "solid" ? t.slideBackground : t.gradientStart}
           <input
             type="color"
             value={color}
             onChange={(event) => setColor(event.currentTarget.value)}
           />
         </label>
-        <button type="submit" aria-label={`${t.apply} ${t.slideBackground}`}>
+        {kind === "linear" && (
+          <>
+            <label>
+              {t.gradientEnd}
+              <input
+                type="color"
+                value={endColor}
+                onChange={(event) => setEndColor(event.currentTarget.value)}
+              />
+            </label>
+            <label>
+              {t.gradientAngle}
+              <input
+                type="number"
+                required
+                min={0}
+                max={360}
+                step="any"
+                value={angle}
+                onChange={(event) => setAngle(event.currentTarget.value)}
+              />
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={scaled}
+                onChange={(event) => setScaled(event.currentTarget.checked)}
+              />
+              {t.gradientScaled}
+            </label>
+          </>
+        )}
+        <button
+          type="submit"
+          onMouseDown={(event) => event.preventDefault()}
+          aria-label={`${t.apply} ${t.slideBackground}`}
+        >
           {t.apply}
         </button>
         <button

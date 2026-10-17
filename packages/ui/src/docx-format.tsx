@@ -347,6 +347,7 @@ export function DocxFormatCommands({
               line: null,
               tabs: null,
               pageBreakBefore: null,
+              keepLines: null,
             })
           }
         />
@@ -455,29 +456,31 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
           }
         />
       ))}
-      <label>
-        <input
-          type="checkbox"
-          ref={(node) => {
-            if (node)
-              node.indeterminate =
-                formatting?.paragraph.pageBreakBefore.kind === "mixed";
-          }}
-          disabled={disabled}
-          checked={
-            formatting?.paragraph.pageBreakBefore.kind === "value" &&
-            formatting.paragraph.pageBreakBefore.value
-          }
-          onChange={(event) =>
-            controller.run(() =>
-              editor.setParagraphFormat({
-                pageBreakBefore: event.currentTarget.checked,
-              }),
-            )
-          }
-        />
-        {t.pageBreakBefore}
-      </label>
+      {(["pageBreakBefore", "keepLines"] as const).map((key) => (
+        <label key={key}>
+          <input
+            type="checkbox"
+            ref={(node) => {
+              if (node)
+                node.indeterminate =
+                  formatting?.paragraph[key].kind === "mixed";
+            }}
+            disabled={disabled}
+            checked={
+              formatting?.paragraph[key].kind === "value" &&
+              formatting.paragraph[key].value
+            }
+            onChange={(event) =>
+              controller.run(() =>
+                editor.setParagraphFormat({
+                  [key]: event.currentTarget.checked,
+                }),
+              )
+            }
+          />
+          {t[key]}
+        </label>
+      ))}
       <DocxSearch
         controller={controller}
         state={state}

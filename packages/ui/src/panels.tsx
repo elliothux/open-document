@@ -159,7 +159,7 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
           disabled={disabled}
         />
         <PptxBackground
-          key={`${file.editor.getSnapshot().documentId}:${query.slide}:${query.revision}`}
+          key={`${file.editor.getSnapshot().documentId}:${query.slide}:${JSON.stringify(query.background.value)}:${query.background.explicit}`}
           controller={controller}
           state={state}
           file={file}

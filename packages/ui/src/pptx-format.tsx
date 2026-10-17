@@ -438,6 +438,7 @@ export function PptxFormat({
           ["left", t.alignLeft],
           ["center", t.alignCenter],
           ["right", t.alignRight],
+          ["justify", t.alignJustify],
         ] as const
       ).map(([alignment, label]) => (
         <button

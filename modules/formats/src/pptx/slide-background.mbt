@@ -36,6 +36,26 @@ fn Session::background_reason(self : Session, slide : Slide) -> String {
       }) else {
       return "Unknown background properties are protected"
     }
+    if properties.name == "bgPr" &&
+      tree.one(properties.id, "gradFill") is Some(gradient) {
+      ignore(linear_background_source({ tree, node: gradient, }))
+      guard tree.children
+        .get(properties.id)
+        .unwrap_or([])
+        .all(node => {
+          node.id == gradient.id ||
+          (
+            node.uri == drawing_uri &&
+            node.name == "effectLst" &&
+            node.attributes.is_empty() &&
+            node.text.trim().is_empty() &&
+            tree.children.get(node.id).unwrap_or([]).is_empty()
+          )
+        }) else {
+        return "Unsupported gradient background properties"
+      }
+      return ""
+    }
     for node in tree.document.nodes() {
       if node.start <= properties.start || node.end > properties.end {
         continue
@@ -108,15 +128,9 @@ fn Session::background_reason(self : Session, slide : Slide) -> String {
 fn Session::set_background(
   self : Session,
   index : Int,
-  value : String?,
+  value : BackgroundFill?,
 ) -> Json raise @failure.Failure {
-  if value is Some(color) {
-    guard color.length() == 6 && color.iter().all(c => c.is_ascii_hexdigit()) else {
-      @failure.reject(
-        "invalid-operation", "Slide background requires six hexadecimal digits or null",
-      )
-    }
-  }
+  let value = value.map(v => v.normalized())
   let original = self.slides[index]
   let reason = self.background_reason(original)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
@@ -130,8 +144,10 @@ fn Session::set_background(
   if background is None && value is None {
     return self.query()
   }
-  let color = value.map(c => c.to_lower())
-  let markup = if color is Some(color) {
+  if background is Some(_) && value is Some(fill) && fill == original.background {
+    return self.query()
+  }
+  let markup = if value is Some(fill) {
     let bw = background
       .bind(bg => bg.attribute("bwMode"))
       .map(v => " bwMode=\"\{xml_attribute(v)}\"")
@@ -141,7 +157,7 @@ fn Session::set_background(
       .bind(p => p.attribute("shadeToTitle"))
       .map(v => " shadeToTitle=\"\{xml_attribute(v)}\"")
       .unwrap_or("")
-    "<p:bg xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\"\{bw}><p:bgPr\{shade}><a:solidFill><a:srgbClr val=\"\{color}\"/></a:solidFill></p:bgPr></p:bg>"
+    "<p:bg xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\"\{bw}><p:bgPr\{shade}>\{fill.markup()}</p:bgPr></p:bg>"
   } else {
     ""
   }

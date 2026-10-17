@@ -273,7 +273,16 @@ fn Foundation::xlsx_operation(
           )
         "series" =>
           @xlsx.Series(
-            field_string(change, "mode"),
+            match field_string(change, "mode") {
+              "linear" => @xlsx.Linear
+              "growth" => @xlsx.Growth
+              "date" =>
+                @xlsx.Date(
+                  field_string(change, "unit"),
+                  xlsx_number(change, "step"),
+                )
+              _ => @failure.reject("invalid-operation", "Invalid series mode")
+            },
             field_string(change, "source"),
             field_string(change, "range"),
             field_string(change, "direction"),

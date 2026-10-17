@@ -221,6 +221,12 @@ pub fn Range::not_equal(Self, Self) -> Bool
 pub fn Range::parse(String) -> Self raise @failure.Failure
 pub fn Range::to_json(Self) -> Json
 
+pub(all) enum SeriesMode {
+  Linear
+  Growth
+  Date(String, Double)
+}
+
 pub struct Session {
   // private fields
 }
@@ -267,7 +273,7 @@ pub(all) enum SheetEdit {
   InsertCells(String, String)
   DeleteCells(String, String)
   Fill(String, String)
-  Series(String, String, String, String)
+  Series(SeriesMode, String, String, String)
   Sort(String, SortSettings)
   SetFilter(FilterSettings)
   ClearFilter

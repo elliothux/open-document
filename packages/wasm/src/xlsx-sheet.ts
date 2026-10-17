@@ -51,6 +51,15 @@ export type XlsxSheetEdit =
       range: string;
       direction: "down" | "up" | "right" | "left";
     }
+  | {
+      action: "series";
+      mode: "date";
+      unit: "day" | "weekday" | "month" | "year";
+      step: number;
+      source: string;
+      range: string;
+      direction: "down" | "up" | "right" | "left";
+    }
   | { action: "insertCells"; range: string; direction: "down" | "right" }
   | { action: "deleteCells"; range: string; direction: "up" | "left" }
   | ({ action: "pageSetup" } & XlsxPrintSetup)
@@ -175,13 +184,31 @@ export function checkXlsxSheetEdit(value: unknown): void {
         !change.source ||
         change.source.length > 64 ||
         typeof change.mode !== "string" ||
-        !["linear", "growth"].includes(change.mode) ||
+        !["linear", "growth", "date"].includes(change.mode) ||
         Object.keys(change).some(
           (key) =>
-            !["action", "mode", "source", "range", "direction"].includes(key),
+            ![
+              "action",
+              "mode",
+              "source",
+              "range",
+              "direction",
+              ...(change.mode === "date" ? ["unit", "step"] : []),
+            ].includes(key),
         ))
     )
-      throw new Error("Invalid numeric series source or mode");
+      throw new Error("Invalid series source or mode");
+    if (
+      change.action === "series" &&
+      change.mode === "date" &&
+      (typeof change.unit !== "string" ||
+        !["day", "weekday", "month", "year"].includes(change.unit) ||
+        typeof change.step !== "number" ||
+        !Number.isFinite(change.step) ||
+        Math.abs(change.step) > 2958465 ||
+        (change.unit !== "day" && !Number.isInteger(change.step)))
+    )
+      throw new Error("Invalid date series unit or step");
     return;
   }
   if (change.action === "insertCells" || change.action === "deleteCells") {

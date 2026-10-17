@@ -92,7 +92,17 @@ fn Foundation::pptx_operation(
         "background" => {
           let value = match change {
             { "value": Null, .. } => None
-            { "value": String(value), .. } => Some(value)
+            { "value": { "kind": String("solid"), .. } as value, .. } =>
+              Some(@pptx.Solid(field_string(value, "color")))
+            { "value": { "kind": String("linear"), .. } as value, .. } =>
+              Some(
+                @pptx.Linear(
+                  field_string(value, "startColor"),
+                  field_string(value, "endColor"),
+                  xlsx_number(value, "angle"),
+                  xlsx_boolean(value, "scaled"),
+                ),
+              )
             _ =>
               @failure.reject(
                 "invalid-operation", "Slide background requires a color or null",

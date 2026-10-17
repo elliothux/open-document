@@ -157,7 +157,7 @@ fn paragraph_format(
 ) -> @docx.ParagraphFormat raise @failure.Failure {
   let fields = format_fields(request, [
     "style", "align", "before", "after", "left", "right", "first", "line", "tabs",
-    "pageBreakBefore", "rtl",
+    "pageBreakBefore", "rtl", "keepLines",
   ])
   @docx.ParagraphFormat::new(
     style=format_string(fields, "style"),
@@ -220,5 +220,6 @@ fn paragraph_format(
       _ => @failure.reject("invalid-operation", "Invalid line spacing")
     },
     pageBreakBefore=format_boolean(fields, "pageBreakBefore"),
+    keepLines=format_boolean(fields, "keepLines"),
   )
 }

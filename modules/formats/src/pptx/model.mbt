@@ -107,7 +107,7 @@ priv struct Slide {
   tree : Tree
   hidden : Bool
   objects : Array[Object]
-  background : String
+  background : BackgroundFill
   diagnostics : Array[String]
   read_only : String
 }

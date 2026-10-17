@@ -31,10 +31,22 @@ fn Pagination::split_table_row(
       if indices[index] < lines.length() {
         let (normal, offset, first) = lines[indices[index]]
         let line = if indices[index] > 0 { first } else { normal }
+        let kept = table.kept_paragraph_height(
+          row,
+          column,
+          lines,
+          indices[index],
+        )
+        let height = if kept is Some(height) &&
+          top + height + table.margins[row][column].bottom + bottom <= full {
+          height
+        } else {
+          line.height
+        }
         required = required.min(
           offset -
           origins[index] +
-          line.height +
+          height +
           table.margins[row][column].bottom +
           bottom,
         )
@@ -63,6 +75,12 @@ fn Pagination::split_table_row(
       }
       while ends[index] < lines.length() {
         let (normal, offset, first) = lines[ends[index]]
+        if table.kept_paragraph_height(row, column, lines, ends[index])
+          is Some(height) &&
+          top + height + margin + bottom <= full &&
+          offset - origins[index] - deltas[index] + height + margin > available {
+          break
+        }
         let initial = ends[index] == indices[index] && indices[index] > 0
         let line = if initial { first } else { normal }
         let offset = offset -
@@ -159,6 +177,28 @@ fn Pagination::split_table_row(
       self.next_page()
     }
   }
+}
+
+///|
+fn Table::kept_paragraph_height(
+  self : Table,
+  row : Int,
+  column : Int,
+  lines : Array[(Line, Double, Line)],
+  start : Int,
+) -> Double? {
+  let paragraph = lines[start].0.paragraph
+  if start > 0 && lines[start - 1].0.paragraph == paragraph {
+    return None
+  }
+  guard self.rows[row][column].any(p => p.id == paragraph && p.keepLines) else {
+    return None
+  }
+  let mut end = start
+  while end + 1 < lines.length() && lines[end + 1].0.paragraph == paragraph {
+    end += 1
+  }
+  Some(lines[end].1 + lines[end].0.height - lines[start].1)
 }
 
 ///|

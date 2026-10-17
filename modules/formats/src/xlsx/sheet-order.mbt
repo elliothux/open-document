@@ -15,7 +15,7 @@ pub(all) enum SheetEdit {
   InsertCells(String, String)
   DeleteCells(String, String)
   Fill(String, String)
-  Series(String, String, String, String)
+  Series(SeriesMode, String, String, String)
   Sort(String, SortSettings)
   SetFilter(FilterSettings)
   ClearFilter

@@ -23,7 +23,13 @@ export function XlsxSheets({
   const [height, setHeight] = useState("");
   const [width, setWidth] = useState("");
   const [series, setSeries] = useState(false);
-  const [seriesMode, setSeriesMode] = useState<"linear" | "growth">("linear");
+  const [seriesMode, setSeriesMode] = useState<"linear" | "growth" | "date">(
+    "linear",
+  );
+  const [dateUnit, setDateUnit] = useState<
+    "day" | "weekday" | "month" | "year"
+  >("day");
+  const [dateStep, setDateStep] = useState("1");
   const [seed, setSeed] = useState({ sheet: "", range: "" });
   const source = seed.sheet === query.sheet ? seed.range : "";
   const position = query.sheets.findIndex((sheet) => sheet.id === query.sheet);
@@ -194,14 +200,51 @@ export function XlsxSheets({
                 value={seriesMode}
                 onChange={(event) => {
                   const mode = event.currentTarget.value;
-                  if (mode === "linear" || mode === "growth")
+                  if (mode === "linear" || mode === "growth" || mode === "date")
                     setSeriesMode(mode);
                 }}
               >
                 <option value="linear">{t.linearTrend}</option>
                 <option value="growth">{t.growthTrend}</option>
+                <option value="date">{t.dateSeries}</option>
               </select>
             </label>
+            {seriesMode === "date" && (
+              <>
+                <label>
+                  {t.seriesDateUnit}
+                  <select
+                    value={dateUnit}
+                    onChange={(event) => {
+                      const unit = event.currentTarget.value;
+                      if (
+                        unit === "day" ||
+                        unit === "weekday" ||
+                        unit === "month" ||
+                        unit === "year"
+                      )
+                        setDateUnit(unit);
+                    }}
+                  >
+                    <option value="day">{t.seriesDay}</option>
+                    <option value="weekday">{t.seriesWeekday}</option>
+                    <option value="month">{t.seriesMonth}</option>
+                    <option value="year">{t.seriesYear}</option>
+                  </select>
+                </label>
+                <label>
+                  {t.seriesStep}
+                  <input
+                    type="number"
+                    step={dateUnit === "day" ? "any" : "1"}
+                    min={-2958465}
+                    max={2958465}
+                    value={dateStep}
+                    onChange={(event) => setDateStep(event.currentTarget.value)}
+                  />
+                </label>
+              </>
+            )}
             <label>
               {t.seriesSource}
               <input
@@ -239,14 +282,23 @@ export function XlsxSheets({
           <button
             type="button"
             key={direction}
-            disabled={series && !source.trim()}
+            disabled={
+              series &&
+              (!source.trim() || (seriesMode === "date" && !dateStep.trim()))
+            }
             onClick={() =>
               controller.run(() =>
                 editor.editSheet(
                   series
                     ? {
                         action: "series",
-                        mode: seriesMode,
+                        ...(seriesMode === "date"
+                          ? ({
+                              mode: "date",
+                              unit: dateUnit,
+                              step: Number(dateStep),
+                            } as const)
+                          : { mode: seriesMode }),
                         source,
                         direction,
                         range: editor.currentState.selection.address,

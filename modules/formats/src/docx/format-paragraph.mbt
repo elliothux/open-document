@@ -12,6 +12,7 @@ pub(all) struct ParagraphFormat {
   line : FormatChange[@layout.LineSpacing]
   tabs : FormatChange[Array[@layout.TabStop]]
   pageBreakBefore : FormatChange[Bool]
+  keepLines : FormatChange[Bool]
 }
 
 ///|
@@ -27,6 +28,7 @@ pub fn ParagraphFormat::new(
   line~ : FormatChange[@layout.LineSpacing] = Keep,
   tabs~ : FormatChange[Array[@layout.TabStop]] = Keep,
   pageBreakBefore~ : FormatChange[Bool] = Keep,
+  keepLines~ : FormatChange[Bool] = Keep,
 ) -> ParagraphFormat {
   {
     style,
@@ -40,6 +42,7 @@ pub fn ParagraphFormat::new(
     line,
     tabs,
     pageBreakBefore,
+    keepLines,
   }
 }
 
@@ -54,7 +57,7 @@ fn ParagraphFormat::properties(
     Set(value) => {
       for
         name in [
-          "jc", "spacing", "ind", "pageBreakBefore", "bidi", "outlineLvl",
+          "jc", "spacing", "ind", "pageBreakBefore", "keepLines", "bidi", "outlineLvl",
         ] {
         result[name] = None
       }
@@ -116,13 +119,19 @@ fn ParagraphFormat::properties(
     }
     result[group] = Some(values)
   }
-  match self.pageBreakBefore {
-    Keep => ()
-    Clear => result["pageBreakBefore"] = None
-    Set(value) =>
-      result["pageBreakBefore"] = Some(
-        Map::from_array([("val", Some(if value { "1" } else { "0" }))]),
-      )
+  for
+    (name, change) in [
+      ("pageBreakBefore", self.pageBreakBefore),
+      ("keepLines", self.keepLines),
+    ] {
+    match change {
+      Keep => ()
+      Clear => result[name] = None
+      Set(value) =>
+        result[name] = Some(
+          Map::from_array([("val", Some(if value { "1" } else { "0" }))]),
+        )
+    }
   }
   match self.rtl {
     Keep => ()

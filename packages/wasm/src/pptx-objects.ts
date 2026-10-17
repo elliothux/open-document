@@ -73,7 +73,7 @@ export type PptxObjectEdit =
   | { action: "clearTextFormat" | "clearParagraphFormat" }
   | { action: "textFormat"; format: PptxTextFormat }
   | { action: "textParagraph"; format: PptxParagraphFormat }
-  | { action: "textAlign"; alignment: "left" | "center" | "right" }
+  | { action: "textAlign"; alignment: "left" | "center" | "right" | "justify" }
   | { action: "fill"; color: string | null }
   | { action: "stroke"; color: string | null; width: number }
   | {
@@ -199,7 +199,8 @@ export function checkPptxObjectEdit(value: unknown): void {
   }
   if (
     change.action === "textAlign" &&
-    ["left", "center", "right"].includes(String(change.alignment))
+    typeof change.alignment === "string" &&
+    ["left", "center", "right", "justify"].includes(change.alignment)
   )
     return;
   if (change.action === "textInsets") {

@@ -8,7 +8,7 @@
 
 对象外观已接通纯色/无填充、纯色/无边框、宽度、预设虚线、平头/圆头/方头端点及圆角/斜角/斜接连接。核心、Wasm、Worker 和默认 UI 共用多选事务，保留身份、几何、文字及精确历史。已检查独立 XML、Canvas 实际颜色、保存重开和继续原生输入；形状填充和边框的不透明度已接通，保留主题色关联与文字不透明度；复杂填充及效果仍待实现。接口与边界归[格式合同](references/formats.md#pptx)，实现归 [`object-paint.mbt`](../modules/formats/src/pptx/object-paint.mbt)、[`line-dash.mbt`](../modules/formats/src/pptx/line-dash.mbt)、[`line-pen.mbt`](../modules/formats/src/pptx/line-pen.mbt)及 [`shape-opacity.mbt`](../modules/formats/src/pptx/shape-opacity.mbt)。
 
-第 2 批已接通本页纯色背景、恢复继承、整稿尺寸调整、已有版式切换与当前版式重置，支持默认 UI、Wasm 与 Worker API，保留选择和精确历史。尺寸调整同步缩放页面、版式、母版及组内几何，保持字号和方向。版式切换按类型/索引保留占位符内容，并补齐空占位符，关系、字体/背景继承及对象一起恢复；模板提示不成为用户文字。复杂背景、图表/表格对象与非空参考线仍保护源内容；主题、版式与母版直接编辑尚待实现。实现归 [`slide-background.mbt`](../modules/formats/src/pptx/slide-background.mbt)、[`slide-size.mbt`](../modules/formats/src/pptx/slide-size.mbt)及 [`slide-layout.mbt`](../modules/formats/src/pptx/slide-layout.mbt)，合同及检查归[格式说明](references/formats.md#pptx)。
+第 2 批已接通本页纯色及双色线性渐变背景、恢复继承、整稿尺寸调整、已有版式切换与当前版式重置，支持默认 UI、Wasm 与 Worker API，保留选择和精确历史。渐变支持任意角度及按页面比例缩放，沿既有图元输出 Canvas/PDF，原生文字编辑保留背景面板草稿。尺寸调整同步缩放页面、版式、母版及组内几何，保持字号和方向。版式切换按类型/索引保留占位符内容，并补齐空占位符，关系、字体/背景继承及对象一起恢复；模板提示不成为用户文字。多色/透明/路径渐变、图片背景、图表/表格对象与非空参考线仍保护源内容；主题、版式与母版直接编辑尚待实现。实现归 [`background-fill.mbt`](../modules/formats/src/pptx/background-fill.mbt)、[`slide-background.mbt`](../modules/formats/src/pptx/slide-background.mbt)、[`slide-size.mbt`](../modules/formats/src/pptx/slide-size.mbt)及 [`slide-layout.mbt`](../modules/formats/src/pptx/slide-layout.mbt)，合同及检查归[格式说明](references/formats.md#pptx)。
 
 PNG/JPEG 图片插入已接通核心、Wasm、Worker、宿主和默认 UI。新对象在最上层，图片原字节、关系、内容类型与选择共同提交和精确撤销；原生文字草稿仍独立提交。对象与页面复制复用同一图片，保存重开后可继续变换，Canvas 与静态 PDF 复用现有解码和图元。替换与四边源矩形裁剪/重置已接通，保持对象身份、几何、方向和其他副本；图片常量不透明度已接通，保留源像素 alpha 并同步 Canvas/PDF。实现归 [`object-image.mbt`](../modules/formats/src/pptx/object-image.mbt)及 [`image-opacity.mbt`](../modules/formats/src/pptx/image-opacity.mbt)，合同归[格式说明](references/formats.md#pptx)。
 
@@ -111,7 +111,7 @@ PNG/JPEG 图片插入已接通核心、Wasm、Worker、宿主和默认 UI。新�
 
 文本框四边内边距、上/中/下垂直对齐、换行、缩小字体及形状随文字调整大小已接通核心、API 和默认 UI。支持本地顶层形状的混合多选，保留文字及对象选择。缩小模式同时约束宽高并写回比例；形状调整模式保留字号，按换行设置调整高度或宽高，输入、格式及查找替换与几何共用精确历史。实现归 [`text-frame.mbt`](../modules/formats/src/pptx/text-frame.mbt)和 [`text-resize.mbt`](../modules/formats/src/pptx/text-resize.mbt)，边界归[格式合同](references/formats.md#pptx)。
 
-基础文字格式已接通字体、字号、粗体、斜体、RGB 颜色、单下划线、单删除线、纯色高亮及清除高亮、上/下标及恢复基线，以及段落左/中/右对齐。文字范围只修改选中字，对象模式作用于所选框；光标和空段落的格式用于后续原生输入。核心按需拆分 run，保留范围外内容和属性，格式与文字共用精确历史。装饰沿公共行绘制输出到 Canvas 和 PDF，保留形状的框内裁剪。默认面板显示混合值，各字段保留普通命令期间的草稿。实现归 [`text-format.mbt`](../modules/formats/src/pptx/text-format.mbt)和 [`text-format-properties.mbt`](../modules/formats/src/pptx/text-format-properties.mbt)，接口和剩余边界归[格式合同](references/formats.md#pptx)。
+基础文字格式已接通字体、字号、粗体、斜体、RGB 颜色、单下划线、单删除线、纯色高亮及清除高亮、上/下标及恢复基线，以及段落左/中/右/两端对齐。文字范围只修改选中字，对象模式作用于所选框；光标和空段落的格式用于后续原生输入。核心按需拆分 run，保留范围外内容和属性，格式与文字共用精确历史。装饰及两端对齐沿公共行绘制输出到 Canvas 和 PDF，保留形状的框内裁剪。默认面板显示混合值，各字段保留普通命令期间的草稿。两端对齐的五项定向核心和两条 Chromium 流程已检查中间/末行、字形位置、原生草稿、源片段、精确历史、无操作、重开输入及 PDF。实现归 [`text-format.mbt`](../modules/formats/src/pptx/text-format.mbt)和 [`text-format-properties.mbt`](../modules/formats/src/pptx/text-format-properties.mbt)，接口和剩余边界归[格式合同](references/formats.md#pptx)。
 
 段前/段后间距、行距和左/右/首行缩进已接通核心、API 与默认面板。段距支持点值或百分比，行距支持固定点值或百分比；所涉段落和多框共用一次源事务。查询区分混合值与保护原因，保留继承属性、非目标段落及字符内容，排版和保存使用同一设置。实现归 [`paragraph-format.mbt`](../modules/formats/src/pptx/paragraph-format.mbt)和 [`paragraph-properties.mbt`](../modules/formats/src/pptx/paragraph-properties.mbt)，单位与边界归[格式合同](references/formats.md#pptx)。
 

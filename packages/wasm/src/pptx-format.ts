@@ -21,7 +21,7 @@ export interface PptxFormatting {
   strike: boolean | null;
   highlight: string | null;
   script: "baseline" | "superscript" | "subscript" | null;
-  alignment: "left" | "center" | "right" | null;
+  alignment: "left" | "center" | "right" | "justify" | null;
   reason: string;
 }
 
@@ -209,7 +209,8 @@ export function checkPptxFormatting(value: unknown): void {
   if (
     typeof format.reason !== "string" ||
     (format.alignment !== null &&
-      !["left", "center", "right"].includes(String(format.alignment))) ||
+      (typeof format.alignment !== "string" ||
+        !["left", "center", "right", "justify"].includes(format.alignment))) ||
     [
       "font",
       "size",

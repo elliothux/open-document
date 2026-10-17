@@ -5,7 +5,7 @@ pub(all) enum SlideEdit {
   DeleteSlide
   MoveSlide(Int)
   HideSlide(Bool)
-  Background(String?)
+  Background(BackgroundFill?)
   ApplyLayout(String)
   ResetLayout
   Notes(String)

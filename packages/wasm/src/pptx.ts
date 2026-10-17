@@ -21,11 +21,13 @@ import {
   pptxSections,
   pptxSlideLayouts,
   type PptxSlideEdit,
+  type PptxBackgroundFill,
   type PptxSections,
   type PptxSlideLayouts,
 } from "./pptx-slides.js";
 export {
   checkPptxSlideEdit,
+  type PptxBackgroundFill,
   type PptxSlideEdit,
   type PptxSection,
   type PptxSections,
@@ -158,7 +160,11 @@ export interface PptxQuery {
   slideSizeReason: string;
   slideVisibilityReason: string;
   sections: PptxSections;
-  background: { color: string; explicit: boolean; reason: string };
+  background: {
+    value: PptxBackgroundFill;
+    explicit: boolean;
+    reason: string;
+  };
   notes: { text: string; reason: string };
   slideLayout: PptxSlideLayouts;
   diagnostics: string[];
@@ -377,12 +383,11 @@ export function pptxQuery(value: unknown): PptxQuery {
   checkPptxParagraphFormatting(query.paragraph);
   const background = record(query.background);
   if (
-    typeof background.color !== "string" ||
-    !/^[0-9a-f]{6}$/i.test(background.color) ||
     typeof background.explicit !== "boolean" ||
     typeof background.reason !== "string"
   )
     throw new Error("Invalid slide background query");
+  checkPptxSlideEdit({ action: "background", value: background.value });
   if (
     !hasFields(
       query,

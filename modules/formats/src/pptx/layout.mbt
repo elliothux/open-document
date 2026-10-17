@@ -39,11 +39,16 @@ fn measure_text(
       left: paragraph.left,
       right: paragraph.right,
       first: paragraph.first,
-      align: paragraph.align,
+      align: if paragraph.align == "justify" {
+        "both"
+      } else {
+        paragraph.align
+      },
       before: 0,
       after: 0,
       line: spacing,
       pageBreakBefore: false,
+      keepLines: false,
       rtl: false,
       marker: if paragraph.bullet.is_empty() {
         None
@@ -186,19 +191,7 @@ fn paint_slide(
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> (@layout.PositionedPage, Array[TextGeometry], Array[String]) raise @failure.Failure {
-  let primitives : Array[@layout.PositionedPrimitive] = [
-    Rectangle({
-      x: 0,
-      y: 0,
-      width,
-      height,
-      color: if slide.background.is_empty() {
-        "ffffff"
-      } else {
-        slide.background
-      },
-    }),
-  ]
+  let primitives = slide.background.paint(width, height)
   let texts : Array[TextGeometry] = []
   let fonts = probe.font_info()
   let diagnostics = slide.diagnostics.copy()

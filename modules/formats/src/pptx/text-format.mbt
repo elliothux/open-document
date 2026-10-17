@@ -380,7 +380,7 @@ fn Session::format_objects(
     paragraph is Some(_) ||
     clear_text ||
     clear_paragraph ||
-    ["left", "center", "right"].contains(alignment) else {
+    ["left", "center", "right", "justify"].contains(alignment) else {
     @failure.reject("invalid-operation", "Unsupported paragraph alignment")
   }
   let changes : Array[@xml.SourceChange] = []
@@ -409,6 +409,8 @@ fn Session::format_objects(
             "ctr"
           } else if alignment == "right" {
             "r"
+          } else if alignment == "justify" {
+            "just"
           } else {
             "l"
           }

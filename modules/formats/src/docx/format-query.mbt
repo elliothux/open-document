@@ -257,6 +257,7 @@ pub fn Session::query_formatting(
         paragraphs.map(p => p.pageBreakBefore),
         reason,
       ),
+      "keepLines": format_summary(paragraphs.map(p => p.keepLines), reason),
     },
   }
 }
