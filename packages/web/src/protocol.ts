@@ -18,6 +18,7 @@ import type {
   DocxThemeSlot,
   DocxThemeFontPair,
   DocxBookmarkEdit,
+  DocxCommentEdit,
 } from "@open-document/wasm/foundation";
 import type {
   GridViewport,
@@ -35,6 +36,8 @@ import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
   | { operation: "editBookmark"; revision: number; change: DocxBookmarkEdit }
+  | { operation: "docxComments"; revision: number }
+  | { operation: "editDocxComment"; revision: number; change: DocxCommentEdit }
   | {
       operation: "setHyperlink";
       revision: number;

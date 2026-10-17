@@ -32,6 +32,8 @@ fn edit_docx_format(
 ) -> Json raise @failure.Failure {
   match operation {
     "editBookmark" => session.edit_bookmark(revision, bookmark_edit(request))
+    "editDocxComment" =>
+      session.edit_comment(revision, docx_comment_edit(request))
     "setHyperlink" =>
       session.set_hyperlink(
         revision,

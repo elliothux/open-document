@@ -1,4 +1,5 @@
 import type { FoundationClient } from "./foundation.js";
+import type { PageLayout } from "@open-document/wasm/preview";
 import { CanvasSurface } from "./canvas-surface.js";
 import { decodeImage } from "./image.js";
 import type {
@@ -9,6 +10,26 @@ import type {
 /** DOCX image preparation stays with its document host. */
 export class PageCanvas extends CanvasSurface {
   private readonly keys = new Map<string, string>();
+  private comments: PageLayout["comments"] = { reason: "", items: [] };
+  private commentPage = 0;
+  setComments(
+    comments: PageLayout["comments"],
+    page: number,
+    scale: number,
+  ): void {
+    this.comments = comments;
+    this.commentPage = page;
+    this.clearOverlay(scale);
+  }
+  override clearOverlay(scale: number): CanvasRenderingContext2D {
+    const context = super.clearOverlay(scale);
+    context.fillStyle = "rgba(255, 176, 0, 0.25)";
+    for (const item of this.comments.items)
+      for (const rect of item.rects)
+        if (rect.page === this.commentPage)
+          context.fillRect(rect.x, rect.y, rect.width, rect.height);
+    return context;
+  }
   private constructor(private readonly client: FoundationClient) {
     super();
   }

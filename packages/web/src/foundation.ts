@@ -1,4 +1,10 @@
 import { Connection } from "./connection.js";
+import { FoundationReviewClient } from "./document-review.js";
+export type {
+  DocxCommentEdit,
+  DocxComments,
+} from "@open-document/wasm/foundation";
+export { checkDocxComment } from "@open-document/wasm/foundation";
 export type {
   FormatValue,
   CharacterFormatPatch,
@@ -96,10 +102,6 @@ import {
   type DocxListLevelUpdate,
   checkFindOptions,
   docxSearchResult,
-  docxOverview,
-  checkDocxBookmark,
-  type DocxBookmarkEdit,
-  type DocxOverview,
   type DocxFindOptions,
   type DocxSearchResult,
   type DocxFormatting,
@@ -121,8 +123,10 @@ import {
 } from "@open-document/wasm/foundation";
 
 /** Text shaping, bounded DOCX operations and preview/PDF, owned by one Worker. */
-export class FoundationClient {
-  private constructor(private readonly connection: Connection) {}
+export class FoundationClient extends FoundationReviewClient {
+  private constructor(connection: Connection) {
+    super(connection);
+  }
 
   static async open(
     wasm: ArrayBuffer,
@@ -499,24 +503,6 @@ export class FoundationClient {
     );
   }
 
-  async overview(revision: number): Promise<DocxOverview> {
-    return docxOverview(
-      await this.connection.request({ operation: "docxOverview", revision }),
-    );
-  }
-  async editBookmark(
-    revision: number,
-    change: DocxBookmarkEdit,
-  ): Promise<EditState> {
-    checkDocxBookmark(change);
-    return editState(
-      await this.connection.request({
-        operation: "editBookmark",
-        revision,
-        change,
-      }),
-    );
-  }
   async findDocx(
     revision: number,
     text: string,

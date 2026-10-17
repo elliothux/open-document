@@ -223,6 +223,26 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 名称匹配及书签定位参考固定 [ONLYOFFICE Bookmarks.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Bookmarks.js#L353-L366)，配对插入及移除参考 [Document.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L24423-L24568)。未复制上游代码；实现归 [`bookmark-read.mbt`](../../modules/formats/src/docx/bookmark-read.mbt)和 [`bookmark-edit.mbt`](../../modules/formats/src/docx/bookmark-edit.mbt)。
 
+### DOCX 本地批注
+
+`FoundationSession/Client.comments(revision)` 返回 `{ revision, reason, items }`；宿主 `DocumentEditor.comments()` 另带 `documentId`。每项包含规范非负 `id`、`author`、`initials`、源 `date`、纯文字 `text`、逻辑 `selection`、保护 `reason`、`parent` 和 `done`。根批注的 parent 为 null，单层回复指向根 id，并使用根的范围及解决状态。支持正文、普通单元格及单层链接内的传统批注范围；单个 `commentReference` 可表示点锚点。未解析的条目保留源，selection 为 null 并说明原因；未知批注部件或不支持的扩展返回整体原因，不暴露部分列表。
+
+`editComment(revision, change)` 和 `DocumentEditor.editComment(change)` 接受 `{ action: "add", text, author, initials, date, selection }`、`{ action: "update", id, text }`、`{ action: "remove", id }` 和 `{ action: "goTo", id }`。创建使用显式范围或光标，作者由宿主提供，时间为平台传入的有效 UTC ISO 字符串；核心不读账号或时钟。默认面板复用 `EditorOptions.commentAuthor`，未提供时仍可读取、修改和删除已有批注。跳转选中当前完整范围，不修改修订、源或历史；文字草稿在正文输入和拆段后保留。
+
+`{ action: "reply", id, text, author, initials, date }` 回复指定根批注，沿用相同文字/作者/时间上限，不创建重复正文标记。`{ action: "resolve", id, done }` 从根或回复设置整线程的解决状态，false 重新打开；已经一致时不新增历史。默认面板按根分组显示回复，提供回复编辑/单条删除、解决/重开及整线程删除。删除根同时删除其全部回复和扩展记录；单条回复删除保留根及其他回复。
+
+`PageLayout.comments` 返回只读 `{ reason, items: [{ id, reason, rects }] }`，rect 含 `page/line/x/y/width/height`，单位为 point。仅未解决根批注产生高亮，回复共用根，点锚点显示窄条。几何复用核心塑形选区、跨页与普通单元格裁剪，并裁到物理页面；组合候选沿显示源更新，取消不改变已提交源。一次最多 4096 项、65536 个矩形，根数与页面 caret/行总数的乘积不超过 8 Mi；超限或缺失正文返回原因，不返回不完整的全局结果。单条不可定位时保留其原因和空矩形。
+
+Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指针/命令队列选择完整范围并定位面板，保留原生输入焦点；拖动、Shift 扩选及取消手势不触发批注跳转。重叠批注按返回顺序定位首项，其他条目仍可从面板选择。`DocumentEditor.getCommentFocus()` 返回最近一次成功跳转的只读 UI 身份 `{ id }`；其他批注修改会清除它。该视图状态不进入文档。解决后隐藏高亮，重新打开后恢复；缩放、翻页和选择覆盖层刷新保持核心位置。高亮不进入 R0 正文或默认静态 PDF，也不改变修订、源及历史。
+
+新文字非空且最多 32767 UTF-16 单元，CRLF/CR 归一为 LF；作者非空且最多 255 单元，缩写最多 32，两者不接受控制字符。每文档最多 4096 条，包含回复，合计 1 Mi 文字单元。导入正文接受普通段落、字符属性及 Tab/软换行；文字替换继承首段及首 run 的属性，保留作者、日期、批注身份、外围注释和局部命名空间。可读取和删除空正文，也可显式修改。表格等未知批注正文、资源关系、共享/外部部件，以及不支持的现代扩展保持保护。
+
+单层线程支持 `w15:commentsEx/commentEx`，用 `paraIdParent` 连接批注正文末段的 `w14:paraId`，用 `done` 记录状态。八位十六进制身份忽略大小写匹配，新增身份避开全部已有批注段落；正文修改保留线程使用的末段身份。首次回复或解决创建所需段落身份、commentsExtended 部件、主文档关系和内容类型，合为一项精确历史。空扩展部件继续可用，新根自动取得独立身份；最后删除后保留空部件和关系。缺失属性写入复用当前命名空间，保留源前缀、外围及节点内注释。缺失/重复身份、悬空或嵌套/循环回复、未知属性、共享/外部扩展、commentsIds/commentsExtensible 等现代资源继续原子保护。
+
+首次创建把 comments、正文标记、主文档关系和内容类型合为一项有界事务。标记不占正文宽度；输入、格式、链接修改及拆段/合段维护范围，范围替换删除中间段落时丢失的端点收缩到替换后光标。与书签共用已有边界拆分及位置计算。其他结构操作若会破坏锚点，则原子拒绝。删除同时移除正文标记和批注正文，最后一条删除后保留空部件及关系。旧修订、活动候选和包/输出/历史预算失败不提交；保存重开及精确混合撤销重做沿原事务。正文查找、排版和默认静态 PDF 不包含批注文字。
+
+标记与正文属性依据 [ONLYOFFICE Annotations.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Logic/Annotations.cpp#L70-L145)、[RunContent.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Logic/RunContent.cpp#L752-L803)及 [Comments.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Comments.cpp#L281-L291)；跨段端点参考 [Document.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L22584-L22616)。线程格式依据 [Comments.cpp 的扩展属性](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Comments.cpp#L420-L433)、[ReaderClasses.cpp 的末段身份与父关系](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Document/BinReader/ReaderClasses.cpp#L659-L748)及 [BinaryWriterD.cpp 的回复映射](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Document/BinWriter/BinaryWriterD.cpp#L8692-L8738)。高亮与命中参考 [Comments.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Comments.js#L923-L953)及[标记绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Comments.js#L1383-L1421)。未复制上游源码。实现归 [`comments-read.mbt`](../../modules/formats/src/docx/comments-read.mbt)、[`comments-edit.mbt`](../../modules/formats/src/docx/comments-edit.mbt)、[`comments-threads.mbt`](../../modules/formats/src/docx/comments-threads.mbt)、[`comments-range.mbt`](../../modules/formats/src/docx/comments-range.mbt)、[`comments-layout.mbt`](../../modules/formats/src/docx/comments-layout.mbt)及 [`docx-comments.tsx`](../../packages/ui/src/docx-comments.tsx)。现代批注兼容继续按 [P10](../p10-docx-core.md) 实施。
+
 ### DOCX 主题颜色
 
 `FoundationSession/Client.themeColors(revision)` 返回 `DocxThemeColors = { revision, colors }`，包含 `dk1/lt1/dk2/lt2`、`accent1`–`accent6`、`hlink/folHlink` 十二项。每项含 `slot/color/reason`；无法读取的色项颜色为 null，限制原因单独返回。`DocxThemeSlot` 与查询类型沿 `wasm/foundation`、`web/foundation` 导出。查询不修改源或历史；没有主题时返回新主题的默认颜色。

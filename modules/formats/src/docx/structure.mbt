@@ -405,6 +405,10 @@ fn WordTree::check_editable_paragraph(
       self.check_bookmark_marker(child)
       continue
     }
+    if self.is_comment_marker(child) {
+      self.check_comment_marker(child)
+      continue
+    }
     if node.uri == word_uri && node.name == "hyperlink" {
       self.check_hyperlink(child)
       runs.append(
@@ -435,7 +439,8 @@ fn WordTree::check_editable_paragraph(
           node.name == "br" ||
           node.name == "cr" ||
           node.name == "tab" ||
-          node.name == "lastRenderedPageBreak"
+          node.name == "lastRenderedPageBreak" ||
+          node.name == "commentReference"
         ) else {
         @failure.reject(
           "protected-content",
@@ -443,6 +448,9 @@ fn WordTree::check_editable_paragraph(
           part~,
           offset=paragraph,
         )
+      }
+      if node.name == "commentReference" {
+        self.check_comment_marker(content)
       }
       if node.name == "br" || node.name == "cr" || node.name == "tab" {
         guard self.children[content].is_empty() &&

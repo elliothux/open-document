@@ -28,6 +28,7 @@ export interface DocxPointerHost {
   selected(state: EditState): Promise<void>;
   paint(page: number): void;
   settle(): Promise<void>;
+  openComment(id: string): Promise<void>;
   resize(change: () => DocxPictureResizeCommand): Promise<void>;
 }
 
@@ -36,6 +37,7 @@ export class DocumentPointer {
   private readonly text: PointerSelection;
   private readonly picture: DocxPictureResize;
   private pageTime = 0;
+  private pendingComment: string | undefined;
   constructor(
     private readonly canvas: HTMLCanvasElement,
     private readonly viewport: HTMLElement,
@@ -51,7 +53,11 @@ export class DocumentPointer {
       (point, initial, extend, elapsed) =>
         this.select(client, point, initial, extend, elapsed),
       () => host.available() && !this.picture.active,
-      () => host.settle(),
+      (cancelled) => {
+        const id = cancelled ? undefined : this.pendingComment;
+        this.pendingComment = undefined;
+        return id === undefined ? host.settle() : host.openComment(id);
+      },
     );
   }
   get active() {
@@ -69,6 +75,7 @@ export class DocumentPointer {
     this.text.finish();
   }
   cancel() {
+    this.pendingComment = undefined;
     this.text.cancel();
     this.picture.reset();
   }
@@ -87,6 +94,19 @@ export class DocumentPointer {
       rect = this.canvas.getBoundingClientRect();
     const x = (point.x - rect.left) / start.scale,
       y = (point.y - rect.top) / start.scale;
+    this.pendingComment =
+      initial && !extend
+        ? start.layout.comments.items.find((item) =>
+            item.rects.some(
+              (rect) =>
+                rect.page === start.page &&
+                x >= rect.x - 1.5 &&
+                x <= rect.x + rect.width + 1.5 &&
+                y >= rect.y &&
+                y <= rect.y + rect.height,
+            ),
+          )?.id
+        : undefined;
     if (initial) {
       this.pageTime = performance.now();
       this.host.input();

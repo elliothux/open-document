@@ -23,6 +23,18 @@ import {
   type CharacterFormatPatch,
   type ParagraphFormatPatch,
 } from "./docx-format.js";
+import {
+  checkDocxComment,
+  docxComments,
+  type DocxCommentEdit,
+  type DocxComments,
+} from "./docx-comments.js";
+export {
+  checkDocxComment,
+  docxComments,
+  type DocxCommentEdit,
+  type DocxComments,
+} from "./docx-comments.js";
 export * from "./docx-format.js";
 export * from "./docx-picture.js";
 export * from "./docx-overview.js";
@@ -309,6 +321,15 @@ export class FoundationSession extends WasmSession {
   }
   overview(revision: number): DocxOverview {
     return docxOverview(this.call({ operation: "docxOverview", revision }));
+  }
+  comments(revision: number): DocxComments {
+    return docxComments(this.call({ operation: "docxComments", revision }));
+  }
+  editComment(revision: number, change: DocxCommentEdit): EditState {
+    checkDocxComment(change);
+    return editState(
+      this.call({ operation: "editDocxComment", revision, change }),
+    );
   }
   editBookmark(revision: number, change: DocxBookmarkEdit): EditState {
     checkDocxBookmark(change);

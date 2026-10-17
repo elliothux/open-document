@@ -58,7 +58,7 @@ fn WordTree::check_bookmark_marker(
 }
 
 ///|
-fn WordTree::bookmark_positions(self : WordTree) -> Map[Int, Position] {
+fn WordTree::inline_marker_positions(self : WordTree) -> Map[Int, Position] {
   let atoms = Map::from_array(docx_texts(self).map(t => (t.id, t.paragraph)))
   let offsets : Map[Int, Int] = Map([])
   let positions : Map[Int, Position] = Map([])
@@ -67,16 +67,14 @@ fn WordTree::bookmark_positions(self : WordTree) -> Map[Int, Position] {
     if atoms.get(id) is Some(p) {
       offsets[p] = offsets.get(p).unwrap_or(0) + inline_text(node).length()
     }
-    if !self.is_bookmark(id) {
+    if !self.is_bookmark(id) && !self.is_comment_marker(id) {
       continue
     }
-    let parent = node.parent
-    let p = if parent >= 0 &&
-      self.nodes[parent].name == "hyperlink" &&
-      self.nodes[parent].uri == word_uri {
-      self.nodes[parent].parent
-    } else {
-      parent
+    let mut p = node.parent
+    while p >= 0 &&
+          self.nodes[p].uri == word_uri &&
+          ["r", "hyperlink"].contains(self.nodes[p].name) {
+      p = self.nodes[p].parent
     }
     if p >= 0 && self.nodes[p].uri == word_uri && self.nodes[p].name == "p" {
       positions[id] = {
@@ -96,7 +94,7 @@ fn WordTree::bookmarks(self : WordTree) -> Array[Bookmark] {
   if !self.order.any(id => self.is_bookmark(id)) {
     return []
   }
-  let positions = self.bookmark_positions()
+  let positions = self.inline_marker_positions()
   let starts : Map[String, Array[Int]] = Map([])
   let ends : Map[String, Array[Int]] = Map([])
   let names : Map[String, Int] = Map([])

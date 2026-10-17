@@ -215,6 +215,11 @@ fn Session::paragraph(
         @failure.Failure(message~, ..) =>
           diagnostics.push("unsupported-layout:" + message)
       }
+    } else if tree.is_comment_marker(child) {
+      tree.check_comment_marker(child) catch {
+        @failure.Failure(message~, ..) =>
+          diagnostics.push("unsupported-layout:" + message)
+      }
     } else if Some(child) != props && (node.uri != word_uri || node.name != "r") {
       diagnostics.push("unsupported-layout:" + node.qualified)
     }
@@ -244,6 +249,13 @@ fn Session::paragraph(
         "tab" => "\t"
         "drawing" => "\ufffc"
         "rPr" | "lastRenderedPageBreak" => continue
+        "commentReference" => {
+          tree.check_comment_marker(content) catch {
+            @failure.Failure(message~, ..) =>
+              diagnostics.push("unsupported-layout:" + message)
+          }
+          continue
+        }
         _ => {
           diagnostics.push("unsupported-layout:" + item.qualified)
           continue

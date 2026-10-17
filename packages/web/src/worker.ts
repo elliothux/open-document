@@ -338,6 +338,10 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.overview(request.revision);
         case "editBookmark":
           return foundation.editBookmark(request.revision, request.change);
+        case "docxComments":
+          return foundation.comments(request.revision);
+        case "editDocxComment":
+          return foundation.editComment(request.revision, request.change);
         case "findDocx":
           return foundation.findDocx(
             request.revision,

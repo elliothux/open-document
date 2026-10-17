@@ -217,7 +217,10 @@ fn hyperlink_changes(
               change(p, at, at, extra)
             }
           }
-          for child in tree.children[id].filter(id => tree.is_bookmark(id)) {
+          for
+            child in tree.children[id].filter(id => {
+              tree.is_bookmark(id) || tree.is_comment_marker(id)
+            }) {
             let marker = tree.nodes[child]
             if (
                 children.get(0) == Some(first.id) || marker.start >= first.start

@@ -254,6 +254,8 @@ fn Foundation::dispatch(
     | "setDefaultTabStop"
     | "findDocx"
     | "docxOverview"
+    | "docxComments"
+    | "editDocxComment"
     | "replaceDocxMatches"
     | "tabDocx"
     | "enterDocx"
@@ -301,6 +303,7 @@ fn Foundation::dispatch(
           result
         }
         "docxOverview" => session.overview(field_int(request, "revision"))
+        "docxComments" => session.comments(field_int(request, "revision"))
         "findDocx" =>
           session.find(
             field_int(request, "revision"),
@@ -518,7 +521,8 @@ fn Foundation::dispatch(
         "setCharacterFormat"
         | "setParagraphFormat"
         | "setHyperlink"
-        | "editBookmark" => {
+        | "editBookmark"
+        | "editDocxComment" => {
           let revision = field_int(request, "revision")
           let result = edit_docx_format(session, request, operation, revision)
           if result is { "revision": Number(current, ..), .. } &&
@@ -669,6 +673,7 @@ fn Foundation::dispatch(
             "regions": result.drawing(self.images),
             "images": result.drawing_images(self.images),
             "semantics": result.semantics(),
+            "comments": session.comment_overlays(result),
             "diagnostics": result.diagnostics,
             "outlines": result.outlines,
             "fonts": result.fonts,

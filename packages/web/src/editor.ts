@@ -1,4 +1,6 @@
 import { docxOutput, downloadDocxOutput } from "./document-output.js";
+import { DocumentReview } from "./document-review.js";
+export type { DocumentComments } from "./document-review.js";
 import { createDocumentElements, docxPageText } from "./document-elements.js";
 import type { FoundationClient } from "./foundation.js";
 import { PageCanvas } from "./page-canvas.js";
@@ -46,10 +48,9 @@ import type {
   DocxTableEdit,
   DocxThemeSlot,
   DocxThemeFontPair,
-  DocxBookmarkEdit,
 } from "@open-document/wasm/foundation";
 /** Owns browser input order. The caller owns fonts, the opened DOCX and client lifetime. */
-export class DocumentEditor {
+export class DocumentEditor extends DocumentReview {
   private readonly container: HTMLDivElement;
   private readonly viewport: HTMLDivElement;
   private readonly input: HTMLTextAreaElement;
@@ -78,6 +79,12 @@ export class DocumentEditor {
     private currentLayout: PageLayout,
     private state: EditState,
   ) {
+    super({
+      client,
+      read: (operation) => this.enqueue(operation),
+      edit: (operation) => this.format(operation),
+      snapshot: () => this.getSnapshot(),
+    });
     const elements = createDocumentElements(
       surface.canvas,
       surface.overlay,
@@ -135,6 +142,7 @@ export class DocumentEditor {
           this.paint();
         },
         settle: () => this.enqueue(() => this.presentSelection(false), true),
+        openComment: (id) => this.editComment({ action: "goTo", id }),
         resize: (change) => {
           this.inputEvents.endGroup();
           return this.enqueue(async () => {
@@ -358,7 +366,6 @@ export class DocumentEditor {
       });
     return result;
   }
-
   private handle(operation: () => Promise<void>): void {
     this.inputEvents.endGroup();
     void this.enqueue(operation).catch(() => {});
@@ -430,17 +437,6 @@ export class DocumentEditor {
     const selection = this.state.selection;
     if (!selection) throw new Error("Click a document position first");
     return selection;
-  }
-  overview(): Promise<DocumentOverview> {
-    return this.enqueue(async () => ({
-      ...(await this.client.overview(this.state.revision)),
-      documentId: this.getSnapshot().documentId,
-    }));
-  }
-  editBookmark(change: DocxBookmarkEdit): Promise<void> {
-    return this.format(() =>
-      this.client.editBookmark(this.state.revision, change),
-    );
   }
   selectHeading(result: DocumentOverview, index: number): Promise<void> {
     return this.format(() =>
@@ -683,6 +679,11 @@ export class DocumentEditor {
   private paint(): void {
     this.page = Math.min(this.page, this.currentLayout.regions.length - 1);
     this.cssScale = this.surface.draw(this.currentLayout, this.page, this.zoom);
+    this.surface.setComments(
+      this.currentLayout.comments,
+      this.page,
+      this.cssScale,
+    );
     // Focus and pointer selection run before text intents in the same queue.
     this.input.readOnly = this.paused || !!this.blocked || this.resuming;
     this.text.textContent = docxPageText(this.currentLayout, this.page);
@@ -708,7 +709,6 @@ export class DocumentEditor {
       data: this.state,
     });
   }
-
   private async showPage(index: number): Promise<void> {
     this.page = Math.max(
       0,

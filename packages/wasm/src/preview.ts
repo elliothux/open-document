@@ -2,6 +2,7 @@ import type { ShapeBatch } from "./foundation.js";
 import { checkTabStops, type TabStop } from "./docx-format.js";
 import { record } from "./validation.js";
 import { drawingBatch, type DrawingBatch } from "./drawing.js";
+import { docxCommentLayout, type DocxCommentLayout } from "./docx-comments.js";
 import {
   checkDocxCellMargins,
   checkDocxBorders,
@@ -95,6 +96,7 @@ export interface InlineImage {
 }
 
 export interface PageLayout extends DrawingBatch {
+  comments: DocxCommentLayout;
   id: number;
   revision: number;
   shapedParagraphs: number;
@@ -361,6 +363,7 @@ export function docxFlow(value: unknown): DocxFlow {
 export function pageLayout(value: unknown): PageLayout {
   const drawing = drawingBatch(value);
   const layout = fields(value, ["revision", "id"]);
+  docxCommentLayout(layout.comments, drawing.regions);
   if (
     !Number.isInteger(layout.id) ||
     Number(layout.id) <= 0 ||

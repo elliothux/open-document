@@ -1,4 +1,13 @@
 export const reviewEn = {
+  docxComments: "Document comments",
+  commentItem: "Comment",
+  commentGoTo: "Go to comment",
+  commentRemoveSingle: "Delete comment",
+  commentResolve: "Resolve thread",
+  commentReopen: "Reopen thread",
+  commentResolved: "Resolved thread",
+  localCommentAuthorRequired:
+    "Provide commentAuthor in the host options to create comments.",
   discardMergedNotes:
     "Keep the upper-left cell and one note; discard other values, formulas, and notes",
   cellNote: "Cell note",
@@ -24,6 +33,14 @@ export const reviewEn = {
     "Provide commentAuthor in the host options to add comments or replies.",
 };
 export const reviewZh: Record<keyof typeof reviewEn, string> = {
+  docxComments: "文档批注",
+  commentItem: "批注",
+  commentGoTo: "跳转到批注",
+  commentRemoveSingle: "删除批注",
+  commentResolve: "解决批注线程",
+  commentReopen: "重新打开批注线程",
+  commentResolved: "已解决的批注线程",
+  localCommentAuthorRequired: "宿主需提供批注作者，才能创建批注。",
   discardMergedNotes: "保留左上角单元格和一条便笺，丢弃其余值、公式及便笺",
   cellNote: "单元格便笺",
   noteApply: "应用便笺",

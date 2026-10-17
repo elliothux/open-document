@@ -124,7 +124,10 @@ fn Session::restore_bookmarks(
   let current = WordTree::new(document)
   let mut left = boundary.offset
   let mut right = boundary.offset
-  for id, position in current.bookmark_positions() {
+  for id, position in current.inline_marker_positions() {
+    if !current.is_bookmark(id) {
+      continue
+    }
     if position.paragraph == after.focus.paragraph &&
       position.offset == after.focus.offset {
       let marker = current.nodes[id]

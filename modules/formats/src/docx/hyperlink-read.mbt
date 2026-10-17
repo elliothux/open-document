@@ -46,6 +46,7 @@ fn WordTree::check_hyperlink(
     }) &&
     self.children[id].all(child => {
       self.is_bookmark(child) ||
+      self.is_comment_marker(child) ||
       (self.nodes[child].uri == word_uri && self.nodes[child].name == "r")
     }) &&
     node.text.trim().is_empty() &&
@@ -63,6 +64,8 @@ fn WordTree::check_hyperlink(
   for child in self.children[id] {
     if self.is_bookmark(child) {
       self.check_bookmark_marker(child)
+    } else if self.is_comment_marker(child) {
+      self.check_comment_marker(child)
     }
   }
 }
