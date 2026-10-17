@@ -32,6 +32,10 @@ export type {
   DocxBorderPatch,
   DocxCellBorders,
   DocxTableBorders,
+  DocxThemeSlot,
+  DocxThemeColors,
+  DocxThemeFonts,
+  DocxThemeFontPair,
   ListFormat,
 } from "@open-document/wasm/foundation";
 export {
@@ -48,6 +52,12 @@ import {
 } from "@open-document/wasm/preview";
 import {
   docxQuery,
+  docxThemeColors,
+  docxThemeFonts,
+  checkDocxThemeFonts,
+  type DocxThemeFontPair,
+  checkDocxThemeColor,
+  type DocxThemeSlot,
   checkDocxTableSize,
   checkDocxTableEdit,
   type DocxTableEdit,
@@ -173,6 +183,46 @@ export class FoundationClient {
   async lists(revision: number) {
     return docxListCatalog(
       await this.connection.request({ operation: "listCatalog", revision }),
+    );
+  }
+  async themeColors(revision: number) {
+    return docxThemeColors(
+      await this.connection.request({ operation: "docxThemeColors", revision }),
+    );
+  }
+  async themeFonts(revision: number) {
+    return docxThemeFonts(
+      await this.connection.request({ operation: "docxThemeFonts", revision }),
+    );
+  }
+  async setThemeFonts(
+    revision: number,
+    fonts: DocxThemeFontPair,
+    profile: Record<string, string>,
+  ): Promise<EditState> {
+    checkDocxThemeFonts(fonts);
+    return editState(
+      await this.connection.request({
+        operation: "setDocxThemeFonts",
+        revision,
+        fonts,
+        profile,
+      }),
+    );
+  }
+  async setThemeColor(
+    revision: number,
+    slot: DocxThemeSlot,
+    color: string,
+  ): Promise<EditState> {
+    checkDocxThemeColor(slot, color);
+    return editState(
+      await this.connection.request({
+        operation: "setDocxThemeColor",
+        revision,
+        slot,
+        color,
+      }),
     );
   }
   async editList(

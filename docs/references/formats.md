@@ -1,6 +1,6 @@
 # 当前字体与格式合同
 
-本文维护 P1–P9 的当前支持面；产品目标与核心/宿主职责归 [SDK 合同](sdk.md)。公开包仍为 private/WIP，API 尚未发布。内部架构直接按当前需求修改，删除旧模型与旧路径；兼容处理仅限文档格式。
+本文维护各格式的当前支持面；产品目标与核心/宿主职责归 [SDK 合同](sdk.md)。公开包仍为 private/WIP，API 尚未发布。内部架构直接按当前需求修改，删除旧模型与旧路径；兼容处理仅限文档格式。
 
 XLSX 的网格、值/公式编辑、保真保存与基础打印见 [P5](../implemented/p5-xlsx-editing.md)。以下分别声明文件读取、计算、显示和编辑边界。
 
@@ -185,7 +185,29 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `bar` 遵循 [Word 的竖线制表位语义](https://support.microsoft.com/en-us/word/using-the-ruler-in-word)，在每一行的指定位置绘制竖线，不改变文字或 Tab 定位。当前核心绘制 0.5 pt 黑线，沿行高延伸，预览与 PDF 共用图元；未宣称与 Word 的全部显示细节一致。派生 `Line.bars` 随分页定位，缓存与公开行结果各自持有数组副本。
 
-当前未接通标尺、其他内置样式重置规则和主题编辑。剩余范围归 [P10](../p10-docx-core.md)，不把本切片记作完整格式编辑。
+当前未接通标尺和其他内置样式重置规则。主题颜色与字体见下节。剩余范围归 [P10](../p10-docx-core.md)，不把本切片记作完整格式编辑。
+
+### DOCX 主题颜色
+
+`FoundationSession/Client.themeColors(revision)` 返回 `DocxThemeColors = { revision, colors }`，包含 `dk1/lt1/dk2/lt2`、`accent1`–`accent6`、`hlink/folHlink` 十二项。每项含 `slot/color/reason`；无法读取的色项颜色为 null，限制原因单独返回。`DocxThemeSlot` 与查询类型沿 `wasm/foundation`、`web/foundation` 导出。查询不修改源或历史；没有主题时返回新主题的默认颜色。
+
+`setThemeColor(revision, slot, color)` 接受上述色项和六位 RGB。`DocumentEditor.themeColors()` 与 `setThemeColor(slot, color)` 沿现有意图队列获取 revision；默认属性面板先加载色表，确认后提交，原生文字输入保留颜色草稿。已有主题从主文档的内部关系定位；缺少主题时，按现有 Word 部件事务分配名称和关系身份，同时创建完整主题、关系及内容类型，不覆盖同名孤立部件。默认字体为 Times New Roman，正文直接格式保持。
+
+文字及列表标记按 `w:themeColor` 解析主题，覆盖缓存 `w:val`；段落/字符样式和普通单元格文字共用相同解析。支持 `clrSchemeMapping` 的文字/背景、强调色和链接映射。`themeShade` 后接 `themeTint`，沿 HSL 亮度应用十六进制字节比例；直接颜色保持。显式设置字符颜色会清除该项的主题颜色及明暗属性，恢复继承则移除整个直接定义。源主题引用和缓存颜色在主题修改后保留，预览与 PDF 消费派生颜色。明暗计算参考 [ONLYOFFICE RtfColor](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/RtfFile/Format/RtfProperty.cpp#L496-L514)。
+
+主题修改、首次创建的元数据及选择合为一次有界历史。撤销/重做重新派生颜色；相同有效颜色保留源和布局，不新增 revision。系统颜色读取 `lastClr`，仅在改变颜色时替换为 RGB。目标颜色的未知属性、子节点、注释、处理指令、重复/外部主题关系，文档保护与主题锁保持拒绝；非法参数、旧修订、活动候选及预算失败不提交。整套主题导入，以及表格底色/边框与绘图对象的主题色仍属后续范围。实现归 [`theme.mbt`](../../modules/formats/src/docx/theme.mbt)和 [`theme-edit.mbt`](../../modules/formats/src/docx/theme-edit.mbt)。
+
+### DOCX 主题字体
+
+`FoundationSession/Client.themeFonts(revision)` 返回 `DocxThemeFonts = { revision, fonts }`，包含 `kind: "major" | "minor"` 的两项。每项返回原始 Latin `font` 和限制 `reason`；无法读取时字体为 null，空串表示源定义为空。`DocxThemeFontPair` 为 `{ major, minor }`。`setThemeFonts(revision, fonts, profile)` 一次修改标题/正文的 Latin 字体对，保留现有 EA、CS、补充脚本、扩展和已知字体元数据。两个字体均为非空实际字体族，最多 200 UTF-16 单元；不接受主题占位符、字体键分隔符、非法 XML 文字和换行。
+
+`DocumentEditor.themeFonts()` 与 `setThemeFonts(fonts)` 复用意图队列，宿主自动携带当前字体 profile。默认面板显式加载、修改和应用字体对，加载会恢复源值，原生输入保留面板草稿。没有主题时沿已有 Word 部件事务创建主题、关系及内容类型；未使用的字体定义不要求加载对应字体。
+
+字符样式逐层保留 ASCII、HAnsi、东亚及复杂文字的直接或主题字体绑定。相同槽内的主题引用优先于缓存字体，较高层直接定义覆盖较低层绑定；`major/minor` 的八个 Word 字体别名分别解析到 Latin/EA/CS。空的主题槽回退到正文 Latin，再回退 Arial，遵循 [ONLYOFFICE FontScheme.checkFont](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L10082-L10135)。直接字体保持；EA/CS 和补充脚本的直接编辑、语言匹配及整套主题导入仍待扩展。
+
+字体槽按 [ONLYOFFICE FontClassification](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/Run/FontClassification.js#L48-L266) 的码点范围、东亚提示和中文语言提示选择。`w:cs/rtl` 强制复杂文字槽，东亚提示及私用区保留上游优先级；复杂文字使用独立 `bCs/iCs/szCs`。核心只在字素边界拆分派生 span，保留原文字节点及 UTF-16 逻辑位置；混合格式查询、光标、空段落、普通单元格和列表标记沿相同规则，保存不拆分源 run。
+
+提交前校验字体对、源定义、主题锁及受影响段落的实际字体键，包含粗斜体，并检查 profile 与已注册字体。主题和新元数据合为一次有界历史，保留选择、后续输入格式、源别名和未改 XML；无变化不增加 revision 或清除布局。旧修订、活动候选、缺字体、未知目标定义及预算失败原子拒绝。主题改变后，现有排版缓存按派生字体失效，Canvas/PDF 使用重新排版的相同结果；后续绘制失败仍沿宿主已有保存和恢复路径处理。实现归 [`theme-font.mbt`](../../modules/formats/src/docx/theme-font.mbt)与 [`font-slots.mbt`](../../modules/formats/src/docx/font-slots.mbt)。
 
 ### 标题导航与正文统计
 
@@ -605,6 +627,16 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 源或目标相交合并、条件格式、验证、链接或批注时拒绝填充；未知扩展、表格/透视和线程批注继续保护。范围外规则与元数据保留。默认按钮使用当前选区，沿既有队列提交原生草稿。核心已检查四向、相邻边界、类型值、有效格式、共享公式、重算、精确历史、重开及原子失败；Chromium 已检查四向按钮、原生草稿、独立公式/样式/缓存源、混合历史、保存重开和 PDF。重新打包的参数检查与严格宿主调用通过。数字序列见[数字序列](#数字序列)，基本拖动与键盘操作见[填充柄](#填充柄)。来源选择参考 [ONLYOFFICE prepareFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L27533-L27590)，实现归 [`fill.mbt`](../../modules/formats/src/xlsx/fill.mbt)。
 
+#### 本地化文本循环
+
+`auto` 在核心识别九组常用文字表：英文星期与月份的全称/缩写、`星期日`–`星期六`、`周日`–`周六`、`週日`–`週六`、`一月`–`十二月` 和 `1月`–`12月`。按源文字识别，不依赖浏览器或界面语言。`May` 同时属于月全称和缩写时，优先采用相邻源格的同类表；单独出现时使用全称。匹配忽略大小写、两端空白和末尾句点，源格原文仍保留。
+
+同类文字转成循环索引后沿既有整数趋势推导，跨周/月/年边界延续，四向填充自然反推。单值按一个位置推进，多值可推导跳项；非整数趋势沿文本模式重复源。常量、规则空白槽位和不同类别的独立分组复用原逻辑。目标仍循环采用对应源格的格式和大小写风格：前两字母全大写时输出大写，首字母大写时输出首字母大写，其余输出小写；中文文字保持不变。
+
+仅字面文字参与识别。公式缓存中的星期/月名继续按公式平移，带数字后缀的其他文字仍按文本编号推导；数字与数值日期沿既有路径处理。显式 `text` 模式不使用这些词表，Ctrl 及 `copy` 继续循环复制。按钮、拖动/方向键和相邻区域延伸共用该推导与一次精确历史，保存重开和 PDF 使用生成的文字。不增加新 API 或语言配置；其他语言、别名和用户自定义循环表尚未接入。
+
+词表、大小写及相邻源消歧参考 [ONLYOFFICE 时间名称自动填充](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L22051-L22165)及 [中文文化数据](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/NumFormat.js#L6090-L6120)。循环的展开/反推复用本项目整数趋势；实现归 [`series-cycle.mbt`](../../modules/formats/src/xlsx/series-cycle.mbt)与 [`series-text.mbt`](../../modules/formats/src/xlsx/series-text.mbt)。
+
 ### 填充柄
 
 普通网格在选区末格显示填充柄；RTL 使用左下角。拖动向外扩展一条行带或列带，核心按物理距离选择轴。向内拖动选择要清除的末尾行带或列带，只清内容和公式并保留格式；边界按命中格的半格位置吸附，角点附近未越过边界时无操作。拖到源起点可清空整块内容。聚焦填充柄后，方向键延伸一行或一列，左右键遵循 RTL 的物理方向。支持缩放、冻结窗格和边缘滚动。Ctrl 将向外填充切换为循环复制；单个普通数值改为逐格加一。日期/时间、文字及公式按源模式复制，公式仍平移相对引用。拖动中按下或松开 Ctrl 即可切换，释放使用当时的状态；方向键也支持 Ctrl。向内清除规则不变。双击填充柄，或聚焦后按 Enter/Space，按相邻连续区域向下自动填充。下方首行全部有内容时延伸至首个缺格行之前；部分有内容时不操作；全空时从左右及对角相连的区域推导末行，并停在目标列下一处内容之前。样式空格不延长区域，隐藏行仍参与推导；相邻筛选区域不能借作跨区向导。参与推导的合并区域仍明确拒绝。没有可延伸范围时不增加修订或历史。
@@ -631,11 +663,11 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 日期模式每条序列使用一个字面数字种子；垂直源为一行，水平源为一列，可同时填充多条。`unit` 为 `day/weekday/month/year`，`step` 为有限数字，绝对值不超过 2958465；仅天允许小数，其余单位使用整数，零复制原值。向下/右按步长前进，向上/左反向，负步长反转。核心使用工作簿的 1900/1904 日期系统，保留时间小数；结果须在序列零点至 9999-12-31 当日内。1900 系统保留序列 60 的虚构闰日。工作日跳过周六、周日，不含节假日；按整周及有界余数计算，避免大步长逐天遍历。月序列按原日号截到目标月末，后续月份恢复原日号；年序列按上游规则把非闰年的 2 月 29 日进位至 3 月 1 日，再沿该日期继续。规则参考 [ONLYOFFICE 日期序列](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L24665-L24757)及 [cDate 年月变换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/utils/utils.js#L4063-L4075)；小数时间按本项目日期值模型保留，不采用上游的整数日期截断。
 
-文本模式接受字面文本或空白。按填充方向把相邻同前缀的 ASCII 数字后缀分组；不同前缀或非空普通文字结束当前组。每组独立拟合整数截距和步长，单值向下/右步长为 1，向上/左为 -1。组与普通文字沿源槽位循环。保留前缀，采用该序列最长的前导零宽度；超出宽度时自然增长。向上/左反推，跨零后按上游取绝对值。纯数字文本仍输出文本，各目标循环采用对应源格的有效格式。规则空白间隔且数值等差时，按种子顺序拟合并保留空白槽位；间隔或差值不规则时，按实际位置拟合，整数趋势同时填入组内空白槽位。源中的空白保持原样，生成值保持文本类型及对应源格格式。纯文本和非整数趋势重复原值，本地化星期/月名推导待实现。后缀及结果限于精确整数范围 0–9007199254740991，单格最多 32767 UTF-16 单位；单条序列处理的内容和全部生成内容各限 1 Mi 单位，超过预算原子拒绝。大编号先减去首值再拟合，避免均值抹去相邻整数差。后缀、补零和跨零规则参考 [ONLYOFFICE 文本填充](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L22360-L22385)、[整数趋势与最长补零](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L23185-L23334)及 [跨零处理](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L23447-L23453)。未复制上游代码。
+文本模式接受字面文本或空白。按填充方向把相邻同前缀的 ASCII 数字后缀分组；不同前缀或非空普通文字结束当前组。每组独立拟合整数截距和步长，单值向下/右步长为 1，向上/左为 -1。组与普通文字沿源槽位循环。保留前缀，采用该序列最长的前导零宽度；超出宽度时自然增长。向上/左反推，跨零后按上游取绝对值。纯数字文本仍输出文本，各目标循环采用对应源格的有效格式。规则空白间隔且数值等差时，按种子顺序拟合并保留空白槽位；间隔或差值不规则时，按实际位置拟合，整数趋势同时填入组内空白槽位。源中的空白保持原样，生成值保持文本类型及对应源格格式。纯文本和非整数趋势重复原值，本地化星期/月名由自动模式推导。后缀及结果限于精确整数范围 0–9007199254740991，单格最多 32767 UTF-16 单位；单条序列处理的内容和全部生成内容各限 1 Mi 单位，超过预算原子拒绝。大编号先减去首值再拟合，避免均值抹去相邻整数差。后缀、补零和跨零规则参考 [ONLYOFFICE 文本填充](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L22360-L22385)、[整数趋势与最长补零](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L23185-L23334)及 [跨零处理](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L23447-L23453)。未复制上游代码。
 
 自动模式按源槽位同时处理数字、文本和公式。数字与文字前缀分别分组；数字可使用小数趋势，单格数字源复制原值，多格源中的单个数字组按 1 或 -1 延续。文字沿文本分组规则推导，布尔、错误和普通文字按原类型重复。公式分隔相邻组，再按对应源格平移相对引用；绝对引用不动，越界引用写为 `#REF!`。所有目标循环复制对应源格的有效格式，源格保持原样，填充与依赖重算合为一次历史；公式与文本共用 1 Mi 单位预算，单条公式最多 8192 单位。数字的非有限结果原子拒绝。自动模式也按既有数字格式识别日期、日期时间与时间，规则见下段；指定日期单位和步长仍使用显式 `date` 模式。本模式复用已有趋势、文本分组和公式平移；[`series-auto.mbt`](../../modules/formats/src/xlsx/series-auto.mbt) 负责合成，不增加计算服务。
 
-默认面板提供序列开关、线性/增长/日期/文本/自动模式、日期单位和步长、源范围输入及使用当前选区的按钮；随后选择包含源的完整目标，再用四向填充按钮执行。更换工作表后须重新指定源，重开文档恢复普通填充模式。原生草稿先独立提交，填充复用同一共享公式展开、自动适配、重算、保存及精确历史；无数据或格式变化时不新增 revision。有限数值或日期计算失败、合并及既有填充资源保护均原子拒绝。手动隐藏行列按实际位置参与；相交的已启用筛选保护，后续再接可见格序列。本地化循环表推导与填充柄的高级操作仍归 P11。文本实现归 [`series-text.mbt`](../../modules/formats/src/xlsx/series-text.mbt)，共用实现归 [`series.mbt`](../../modules/formats/src/xlsx/series.mbt)和 [`series-date.mbt`](../../modules/formats/src/xlsx/series-date.mbt)。
+默认面板提供序列开关、线性/增长/日期/文本/自动模式、日期单位和步长、源范围输入及使用当前选区的按钮；随后选择包含源的完整目标，再用四向填充按钮执行。更换工作表后须重新指定源，重开文档恢复普通填充模式。原生草稿先独立提交，填充复用同一共享公式展开、自动适配、重算、保存及精确历史；无数据或格式变化时不新增 revision。有限数值或日期计算失败、合并及既有填充资源保护均原子拒绝。手动隐藏行列按实际位置参与；相交的已启用筛选保护，后续再接可见格序列。合并格和规则资源复制仍按 P11 实施。文本实现归 [`series-text.mbt`](../../modules/formats/src/xlsx/series-text.mbt)，共用实现归 [`series.mbt`](../../modules/formats/src/xlsx/series.mbt)和 [`series-date.mbt`](../../modules/formats/src/xlsx/series-date.mbt)。
 
 自动日期使用源格的有效数字格式，日期组与普通数字组分开。纯日期按整数天拟合，常量或非整数趋势循环源值；单日期按方向延续一天。同一日号且日历间隔为整数时，推导月序列；月份也相同时可推导年序列。月份截到月末后恢复原日号，年份沿既有闰日进位规则。规则空白保留槽位，不规则空白参与实际位置推导。源日期、时间小数及格式保持原样，各目标循环源格格式。
 

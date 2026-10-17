@@ -199,7 +199,7 @@ fn WordTree::check_structure_properties(
       "rPr" =>
         [
           "rStyle", "rFonts", "sz", "color", "b", "i", "lang", "bCs", "iCs", "szCs",
-          "u", "strike", "highlight", "vertAlign",
+          "u", "strike", "highlight", "vertAlign", "cs", "rtl",
         ]
       _ => []
     }
@@ -236,11 +236,12 @@ fn WordTree::check_structure_properties(
       | "outlineLvl"
       | "sz"
       | "szCs"
-      | "color"
       | "b"
       | "i"
       | "bCs"
       | "iCs" => ["val"]
+      "cs" | "rtl" => ["val"]
+      "color" => ["val", "themeColor", "themeTint", "themeShade"]
       "u" | "strike" | "highlight" | "vertAlign" => ["val"]
       "spacing" => ["before", "after", "line", "lineRule"]
       "ind" => ["left", "right", "firstLine", "hanging"]
@@ -267,7 +268,7 @@ fn WordTree::check_structure_properties(
         "Unknown structural attribute: " + node.qualified,
       )
     }
-    if ["autoSpaceDE", "autoSpaceDN", "bidi"].contains(node.name) {
+    if ["autoSpaceDE", "autoSpaceDN", "bidi", "cs", "rtl"].contains(node.name) {
       guard self.valid_on_off_property(id) else {
         @failure.reject(
           "protected-content",

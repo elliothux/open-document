@@ -229,6 +229,22 @@ async function dispatch(request: Request): Promise<unknown> {
             request.revision,
             request.selection,
           );
+        case "docxThemeColors":
+          return foundation.themeColors(request.revision);
+        case "docxThemeFonts":
+          return foundation.themeFonts(request.revision);
+        case "setDocxThemeFonts":
+          return foundation.setThemeFonts(
+            request.revision,
+            request.fonts,
+            request.profile,
+          );
+        case "setDocxThemeColor":
+          return foundation.setThemeColor(
+            request.revision,
+            request.slot,
+            request.color,
+          );
         case "styleCatalog":
           return foundation.styles(request.revision, request.kind);
         case "pageSetup":

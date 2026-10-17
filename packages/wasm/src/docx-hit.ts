@@ -1,4 +1,17 @@
-import type { DocxPosition, DocxSelection } from "./foundation.js";
+export interface DocxPosition {
+  paragraph: number;
+  offset: number;
+  affinity: "before" | "after";
+  bidiLevel?: number;
+  /** Start offset of the retained follow frame; editing still uses offset. */
+  frameStart?: number;
+}
+
+export interface DocxSelection {
+  anchor: DocxPosition;
+  focus: DocxPosition;
+}
+
 import { record, hasFields } from "./validation.js";
 import { isDocxSelection } from "./docx-search.js";
 
@@ -53,4 +66,42 @@ export function docxHit(value: unknown): DocxHit {
   )
     throw new Error("Invalid DOCX hit returned by Wasm");
   return value as DocxHit;
+}
+
+export interface DocxSelectionGeometry {
+  layoutId: number;
+  revision: number;
+  rects: {
+    page: number;
+    line: number;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }[];
+}
+
+export function docxSelectionGeometry(value: unknown): DocxSelectionGeometry {
+  const object = record(value);
+  const integer = (value: unknown): boolean =>
+    typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+  if (
+    !integer(object.layoutId) ||
+    !integer(object.revision) ||
+    !Array.isArray(object.rects) ||
+    !object.rects.every((value: unknown) => {
+      const rect = record(value);
+      return (
+        integer(rect.page) &&
+        integer(rect.line) &&
+        hasFields(rect, [], ["x", "y", "width", "height"]) &&
+        typeof rect.width === "number" &&
+        rect.width >= 0 &&
+        typeof rect.height === "number" &&
+        rect.height > 0
+      );
+    })
+  )
+    throw new Error("Invalid DOCX selection geometry returned by Wasm");
+  return value as DocxSelectionGeometry;
 }

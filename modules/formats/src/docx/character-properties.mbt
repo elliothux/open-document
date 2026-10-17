@@ -119,6 +119,8 @@ fn Styles::character_extras(
   let result : Map[String, String] = Map([])
   result["bCs.val"] = "0"
   result["iCs.val"] = "0"
+  result["cs.val"] = "0"
+  result["rtl.val"] = "0"
   for
     (tree, id, inherited) in self.character_layers(tree, paragraph, Some(run), []) {
     tree.check_structure_properties(id)
@@ -133,6 +135,14 @@ fn Styles::character_extras(
           inherited,
         )
         result[key] = if value { "1" } else { "0" }
+      } else if ["cs", "rtl"].contains(node.name) {
+        result[node.name + ".val"] = if ["0", "false", "off"].contains(
+            node.attribute("val", uri=word_uri).unwrap_or("1"),
+          ) {
+          "0"
+        } else {
+          "1"
+        }
       } else if ["rFonts", "lang", "szCs"].contains(node.name) {
         if node.name == "rFonts" {
           // A higher-level literal font replaces a lower-level theme choice.
@@ -216,6 +226,8 @@ fn Session::preserve_run_style(
       ("bCs", extras["bCs.val"]),
       ("i", if before.italic { "1" } else { "0" }),
       ("iCs", extras["iCs.val"]),
+      ("cs", extras["cs.val"]),
+      ("rtl", extras["rtl.val"]),
       ("color", before.color),
       ("sz", (before.size * 2).to_int().to_string()),
       ("u", if before.underline { "single" } else { "none" }),

@@ -151,8 +151,12 @@ pub fn Session::set_character_format(Self, Int, Selection, CharacterFormat) -> J
 pub fn Session::set_default_tab_stop(Self, Int, Double?) -> Json raise @failure.Failure
 pub fn Session::set_page_setup(Self, Int, @layout.PageSetup, orientation? : String?) -> Json raise @failure.Failure
 pub fn Session::set_paragraph_format(Self, Int, Selection, ParagraphFormat) -> Json raise @failure.Failure
+pub fn Session::set_theme_color(Self, Int, String, String) -> Json raise @failure.Failure
+pub fn Session::set_theme_fonts(Self, Int, String, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::style_catalog(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::tab(Self, Int, Bool) -> Json raise @failure.Failure
+pub fn Session::theme_colors(Self, Int) -> Json raise @failure.Failure
+pub fn Session::theme_fonts(Self, Int) -> Json raise @failure.Failure
 pub fn Session::undo_edit(Self, Int) -> Json raise @failure.Failure
 pub fn Session::update_composition(Self, Int, Int, String) -> Json raise @failure.Failure
 pub fn Session::update_list_level(Self, Int, Int, Int, ListLevelFormat) -> Json raise @failure.Failure

@@ -63,12 +63,20 @@ fn Session::new_word_part(
     self.part_xml(types),
     "<od:Override xmlns:od=\"\{type_uri}\" PartName=\"/" +
     property_attribute(name) +
-    "\" ContentType=\"application/vnd.openxmlformats-officedocument.wordprocessingml.\{kind}+xml\"/>",
+    "\" ContentType=\"application/vnd.openxmlformats-officedocument." +
+    (if kind == "theme" { "theme" } else { "wordprocessingml." + kind }) +
+    "+xml\"/>",
   )
   parts[types] = candidate
   edits[types] = [edit]
   let document = @xml.Document::parse(
-    @utf8.encode("<w:\{kind} xmlns:w=\"\{word_uri}\"/>"),
+    @utf8.encode(
+      if kind == "theme" {
+        blank_word_theme()
+      } else {
+        "<w:\{kind} xmlns:w=\"\{word_uri}\"/>"
+      },
+    ),
     name,
     self.opc.budget.xml_depth,
     self.opc.budget.entry_bytes,

@@ -79,8 +79,26 @@ fn Session::formatting_styles(
           Some(item.run),
           patch,
         )
-        result.push(value)
-        identifiers.push(key)
+        let text = inline_text(tree.nodes[item.id])
+        if collapsed {
+          result.push(
+            value.caret_font(
+              text,
+              (first - cursor).clamp(min=0, max=text.length()),
+              range.start.affinity == "before",
+              styles.themes,
+            ),
+          )
+          identifiers.push(key)
+        } else {
+          let selected_text = text[(first - cursor).max(0):(last - cursor).min(
+            text.length(),
+          )].to_owned()
+          for (style, _) in value.font_runs(selected_text, styles.themes) {
+            result.push(style)
+            identifiers.push(key)
+          }
+        }
         selected = true
         if collapsed {
           break
@@ -95,7 +113,7 @@ fn Session::formatting_styles(
         None => tree.child(paragraph, "pPr")
       }
       let (value, key) = styles.queried_character(tree, paragraph, run, patch)
-      result.push(value)
+      result.push(value.caret_font("", 0, false, styles.themes))
       identifiers.push(key)
     }
   }

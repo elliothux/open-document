@@ -239,20 +239,22 @@ fn Session::paragraph(
           continue
         }
       }
-      spans.push({
-        node: content,
-        text,
-        style: {
-          font: style.key(),
-          size: style.size,
-          color: style.text_color(background),
-          underline: style.underline,
-          strike: style.strike,
-          highlight: highlight_color(style.highlight),
-          script: style.vertAlign,
-        },
-        image,
-      })
+      for (style, text) in style.font_runs(text, styles.themes) {
+        spans.push({
+          node: content,
+          text,
+          style: {
+            font: style.key(),
+            size: style.size,
+            color: style.text_color(background),
+            underline: style.underline,
+            strike: style.strike,
+            highlight: highlight_color(style.highlight),
+            script: style.vertAlign,
+          },
+          image,
+        })
+      }
     }
   }
   if spans.is_empty() {
@@ -263,6 +265,7 @@ fn Session::paragraph(
     if run is Some(run) {
       run_style = styles.run_character_style(tree, run, run_style, diagnostics)
     }
+    run_style = run_style.font_runs("", styles.themes)[0].0
     spans.push({
       node: id,
       text: "",

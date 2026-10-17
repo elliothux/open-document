@@ -140,6 +140,26 @@ fn RunStyle::formatted(
 ) -> RunStyle {
   {
     family: format_value(self.family, inherited.family, patch.family),
+    fonts: {
+      ..self.fonts,
+      slots: match patch.family {
+        Keep => self.fonts.slots
+        Clear => inherited.fonts.slots
+        Set(value) =>
+          Map::from_array(
+            ["ascii", "hAnsi", "eastAsia", "cs"].map(slot => {
+              (slot, (value, false))
+            }),
+          )
+      },
+      bold: format_value(self.fonts.bold, inherited.fonts.bold, patch.bold),
+      italic: format_value(
+        self.fonts.italic,
+        inherited.fonts.italic,
+        patch.italic,
+      ),
+      size: format_value(self.fonts.size, inherited.fonts.size, patch.size),
+    },
     size: format_value(self.size, inherited.size, patch.size),
     color: format_value(self.color, inherited.color, patch.color),
     bold: format_value(self.bold, inherited.bold, patch.bold),
@@ -235,7 +255,14 @@ fn CharacterFormat::properties(
     Keep => ()
     Clear => result["color"] = None
     Set(value) =>
-      result["color"] = Some(Map::from_array([("val", Some(value.to_lower()))]))
+      result["color"] = Some(
+        Map::from_array([
+          ("val", Some(value.to_lower())),
+          ("themeColor", None),
+          ("themeTint", None),
+          ("themeShade", None),
+        ]),
+      )
   }
   for
     (names, change) in [(["b", "bCs"], self.bold), (["i", "iCs"], self.italic)] {

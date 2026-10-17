@@ -230,6 +230,10 @@ fn Foundation::dispatch(
     | "editState"
     | "selectDocx"
     | "queryFormatting"
+    | "docxThemeColors"
+    | "docxThemeFonts"
+    | "setDocxThemeFonts"
+    | "setDocxThemeColor"
     | "pageSetup"
     | "setPageSetup"
     | "insertDocxTable"
@@ -365,6 +369,23 @@ fn Foundation::dispatch(
             field_int(request, "revision"),
             field_string(request, "kind"),
           )
+        "docxThemeColors" =>
+          session.theme_colors(field_int(request, "revision"))
+        "docxThemeFonts" => session.theme_fonts(field_int(request, "revision"))
+        "setDocxThemeFonts" => self.docx_theme_fonts(session, request)
+        "setDocxThemeColor" => {
+          let revision = field_int(request, "revision")
+          let result = session.set_theme_color(
+            revision,
+            field_string(request, "slot"),
+            field_string(request, "color"),
+          )
+          if result is { "revision": Number(current, ..), .. } &&
+            current != revision.to_double() {
+            self.layout = None
+          }
+          result
+        }
         "pageSetup" => session.page_setup(field_int(request, "revision"))
         "setPageSetup" => {
           let result = session.set_page_setup(

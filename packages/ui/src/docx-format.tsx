@@ -19,6 +19,7 @@ import { DocxTabs, DocxDefaultTab } from "./docx-tabs.js";
 import { DocxStyles } from "./docx-styles.js";
 import { DocxLists } from "./docx-lists.js";
 import { DocxPage } from "./docx-page.js";
+import { DocxTheme, DocxThemeFontsPanel } from "./docx-theme.js";
 import { DocxPictures } from "./docx-pictures.js";
 import { DocxTables } from "./docx-tables.js";
 
@@ -378,6 +379,20 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
         disabled={stylesDisabled}
       />
       <h2>{t.paragraph}</h2>
+      <DocxTheme
+        key={editor.getSnapshot().documentId}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={stylesDisabled}
+      />
+      <DocxThemeFontsPanel
+        key={editor.getSnapshot().documentId + "-fonts"}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={stylesDisabled}
+      />
       <DocxPictures
         key={editor.getSnapshot().documentId}
         controller={controller}

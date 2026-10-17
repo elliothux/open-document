@@ -316,6 +316,7 @@ fn Session::apply_numbering(
     if numbers.child(level.node, "rPr") is Some(p) {
       character = run_properties(numbers, p, character, styles.themes)
     }
+    character = character.font_runs(text, styles.themes)[0].0
     paragraphs[id] = {
       ..paragraph,
       marker: Some({

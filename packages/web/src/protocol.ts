@@ -15,6 +15,8 @@ import type {
   DocxPictureEdit,
   DocxPictureResizeCommand,
   DocxTableEdit,
+  DocxThemeSlot,
+  DocxThemeFontPair,
 } from "@open-document/wasm/foundation";
 import type {
   GridViewport,
@@ -31,6 +33,20 @@ import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
+  | { operation: "docxThemeFonts"; revision: number }
+  | {
+      operation: "setDocxThemeFonts";
+      revision: number;
+      fonts: DocxThemeFontPair;
+      profile: Record<string, string>;
+    }
+  | { operation: "docxThemeColors"; revision: number }
+  | {
+      operation: "setDocxThemeColor";
+      revision: number;
+      slot: DocxThemeSlot;
+      color: string;
+    }
   | { operation: "docxOverview"; revision: number }
   | {
       operation: "docxPictureResize";

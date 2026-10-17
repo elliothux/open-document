@@ -48,6 +48,15 @@ import {
   type DocxTableEdit,
 } from "./docx-table.js";
 export * from "./docx-table.js";
+import {
+  docxThemeColors,
+  checkDocxThemeColor,
+  type DocxThemeSlot,
+  docxThemeFonts,
+  checkDocxThemeFonts,
+  type DocxThemeFontPair,
+} from "./docx-theme.js";
+export * from "./docx-theme.js";
 /** Logical soft line break; DOCX serializes it as w:br, while LF creates a paragraph. */
 export const DOCX_SOFT_BREAK = "\u2028";
 /** Logical page break; serialized as w:br w:type="page", never as an XML control character. */
@@ -83,60 +92,20 @@ export interface Budget {
   outputBytes: number;
 }
 
-export interface DocxPosition {
-  paragraph: number;
-  offset: number;
-  affinity: "before" | "after";
-  bidiLevel?: number;
-  /** Start offset of the retained follow frame; editing still uses offset. */
-  frameStart?: number;
-}
-
-export interface DocxSelection {
-  anchor: DocxPosition;
-  focus: DocxPosition;
-}
+export type { DocxPosition, DocxSelection } from "./docx-hit.js";
+import type { DocxPosition, DocxSelection } from "./docx-hit.js";
 
 import { docxHit, type DocxHit } from "./docx-hit.js";
 export { docxHit, type DocxHit } from "./docx-hit.js";
 
-export interface DocxSelectionGeometry {
-  layoutId: number;
-  revision: number;
-  rects: {
-    page: number;
-    line: number;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-  }[];
-}
-
-export function docxSelectionGeometry(value: unknown): DocxSelectionGeometry {
-  const object = record(value);
-  const integer = (value: unknown): boolean =>
-    typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-  if (
-    !integer(object.layoutId) ||
-    !integer(object.revision) ||
-    !Array.isArray(object.rects) ||
-    !object.rects.every((value: unknown) => {
-      const rect = record(value);
-      return (
-        integer(rect.page) &&
-        integer(rect.line) &&
-        hasFields(rect, [], ["x", "y", "width", "height"]) &&
-        typeof rect.width === "number" &&
-        rect.width >= 0 &&
-        typeof rect.height === "number" &&
-        rect.height > 0
-      );
-    })
-  )
-    throw new Error("Invalid DOCX selection geometry returned by Wasm");
-  return value as DocxSelectionGeometry;
-}
+export {
+  docxSelectionGeometry,
+  type DocxSelectionGeometry,
+} from "./docx-hit.js";
+import {
+  docxSelectionGeometry,
+  type DocxSelectionGeometry,
+} from "./docx-hit.js";
 
 export type NavigationDirection =
   "left" | "right" | "up" | "down" | "home" | "end";
@@ -407,6 +376,34 @@ export class FoundationSession extends WasmSession {
   styles(revision: number, kind: "paragraph" | "character"): DocxStyleCatalog {
     return docxStyleCatalog(
       this.call({ operation: "styleCatalog", revision, kind }),
+    );
+  }
+  themeColors(revision: number) {
+    return docxThemeColors(
+      this.call({ operation: "docxThemeColors", revision }),
+    );
+  }
+  themeFonts(revision: number) {
+    return docxThemeFonts(this.call({ operation: "docxThemeFonts", revision }));
+  }
+  setThemeFonts(
+    revision: number,
+    fonts: DocxThemeFontPair,
+    profile: Record<string, string>,
+  ): EditState {
+    checkDocxThemeFonts(fonts);
+    return editState(
+      this.call({ operation: "setDocxThemeFonts", revision, fonts, profile }),
+    );
+  }
+  setThemeColor(
+    revision: number,
+    slot: DocxThemeSlot,
+    color: string,
+  ): EditState {
+    checkDocxThemeColor(slot, color);
+    return editState(
+      this.call({ operation: "setDocxThemeColor", revision, slot, color }),
     );
   }
   lists(revision: number): DocxListCatalog {

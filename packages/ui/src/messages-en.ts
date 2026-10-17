@@ -208,6 +208,15 @@ export const en = {
     "Applies to all slides and scales object positions and sizes.",
   slideBackground: "Slide background",
   themeColors: "Presentation theme colors",
+  documentThemeColors: "Document theme colors",
+  documentThemeFonts: "Document theme fonts",
+  documentThemeFontScope:
+    "Changes the heading and body font pair. Explicit font choices stay unchanged.",
+  loadThemeFonts: "Load theme fonts",
+  documentThemeScope:
+    "Changes theme colors used by document text and list markers. Direct colors stay unchanged.",
+  loadThemeColors: "Load theme colors",
+  themeColorValue: "Theme color value",
   themeColorScope: "Changes every theme used by this presentation.",
   themeColorSlot: "Theme color slot",
   accentColor: "Accent",

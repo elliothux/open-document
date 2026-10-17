@@ -84,6 +84,7 @@ fn WordTree::number(
 ///|
 priv struct RunStyle {
   family : String
+  fonts : FontBindings
   size : Double
   color : String
   bold : Bool
@@ -143,30 +144,16 @@ fn run_properties(
   themes : Map[String, String],
   inherited~ : Bool = false,
 ) -> RunStyle raise @failure.Failure {
-  let mut family = base.family
-  if tree.child(id, "rFonts") is Some(fonts) {
-    if tree.nodes[fonts].attribute("asciiTheme", uri=word_uri) is Some(theme) {
-      guard themes.get(theme) is Some(value) else {
-        @failure.reject("invalid-style", "Missing theme font: " + theme)
-      }
-      family = value
-    } else {
-      family = tree.nodes[fonts]
-        .attribute("ascii", uri=word_uri)
-        .unwrap_or(family)
-    }
-  }
+  let fonts = font_bindings(tree, id, base.fonts, inherited)
+  let family = font_family(fonts.slots, "ascii", base.family, themes)
   let size = tree
     .number(id, "sz", "val")
     .map(value => value / 2)
     .unwrap_or(base.size)
-  let color = tree.value(id, "color").unwrap_or(base.color)
-  guard color == "auto" ||
-    (color.length() == 6 && color.iter().all(ch => ch.is_ascii_hexdigit())) else {
-    @failure.reject("invalid-style", "Invalid text color")
-  }
+  let color = theme_text_color(tree, id, base.color, themes)
   {
     family,
+    fonts,
     size,
     color,
     bold: tree.character_toggle(id, "b", base.bold, inherited),
@@ -346,9 +333,19 @@ fn Session::styles(
   self : Session,
   diagnostics : Array[String],
 ) -> Styles raise @failure.Failure {
-  let themes = self.theme_fonts()
+  let themes = self.theme_values()
   let defaults : RunStyle = {
     family: "Times New Roman",
+    fonts: {
+      slots: Map([]),
+      hint: "default",
+      language: "",
+      complex: false,
+      rtl: false,
+      bold: false,
+      italic: false,
+      size: 11,
+    },
     size: 11,
     color: "auto",
     bold: false,
@@ -452,39 +449,6 @@ fn Session::styles(
     default_paragraph,
     themes,
   }
-}
-
-///|
-fn Session::theme_fonts(
-  self : Session,
-) -> Map[String, String] raise @failure.Failure {
-  let result : Map[String, String] = Map([])
-  for rel in self.relationships() {
-    if rel.owner != self.main ||
-      rel.kind !=
-      "http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" {
-      continue
-    }
-    guard !rel.external else {
-      @failure.reject("unsupported-layout", "External themes are unsupported")
-    }
-    let tree = WordTree::new(self.part_xml(rel.target))
-    for id in tree.order {
-      let node = tree.nodes[id]
-      if node.uri == "http://schemas.openxmlformats.org/drawingml/2006/main" &&
-        node.name == "latin" &&
-        node.parent >= 0 &&
-        node.attribute("typeface") is Some(family) {
-        let kind = tree.nodes[node.parent].name
-        if kind == "majorFont" || kind == "minorFont" {
-          let prefix = if kind == "majorFont" { "major" } else { "minor" }
-          result[prefix + "Ascii"] = family
-          result[prefix + "HAnsi"] = family
-        }
-      }
-    }
-  }
-  result
 }
 
 ///|

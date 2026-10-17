@@ -1,4 +1,4 @@
-import { downloadBytes, docxContentType } from "./download.js";
+import { checkDocxRevision, downloadDocxOutput } from "./document-output.js";
 import { createDocumentElements, docxPageText } from "./document-elements.js";
 import type { FoundationClient } from "./foundation.js";
 import { PageCanvas } from "./page-canvas.js";
@@ -44,6 +44,8 @@ import type {
   DocxPageSetup,
   DocxPictureEdit,
   DocxTableEdit,
+  DocxThemeSlot,
+  DocxThemeFontPair,
 } from "@open-document/wasm/foundation";
 /** Owns browser input order. The caller owns fonts, the opened DOCX and client lifetime. */
 export class DocumentEditor {
@@ -500,6 +502,22 @@ export class DocumentEditor {
   pageSetup() {
     return this.enqueue(() => this.client.pageSetup(this.state.revision));
   }
+  themeColors() {
+    return this.enqueue(() => this.client.themeColors(this.state.revision));
+  }
+  themeFonts() {
+    return this.enqueue(() => this.client.themeFonts(this.state.revision));
+  }
+  setThemeFonts(fonts: DocxThemeFontPair): Promise<void> {
+    return this.format(() =>
+      this.client.setThemeFonts(this.state.revision, fonts, this.profile),
+    );
+  }
+  setThemeColor(slot: DocxThemeSlot, color: string): Promise<void> {
+    return this.format(() =>
+      this.client.setThemeColor(this.state.revision, slot, color),
+    );
+  }
   pictures() {
     return this.enqueue(() => this.client.pictures(this.state.revision));
   }
@@ -706,7 +724,11 @@ export class DocumentEditor {
     this.inputEvents.endGroup();
     return this.enqueue(
       async () => {
-        const revision = await this.checkRevision();
+        const revision = await checkDocxRevision(
+          this.client,
+          this.state.revision,
+          () => this.assertOpen(),
+        );
         const bytes = await this.client.saveDocx();
         this.publish();
         return this.observable.output(revision, "docx", bytes);
@@ -716,19 +738,16 @@ export class DocumentEditor {
       true,
     );
   }
-  private async checkRevision(): Promise<number> {
-    const current = await this.client.editState();
-    this.assertOpen();
-    if (current.revision !== this.state.revision)
-      throw new Error("Document changed outside this editor");
-    return current.revision;
-  }
   /** Exports the completed layout at this input barrier. */
   exportPdf(outputBytes = 67108864): Promise<EditorOutput> {
     this.inputEvents.endGroup();
     return this.enqueue(
       async () => {
-        const revision = await this.checkRevision();
+        const revision = await checkDocxRevision(
+          this.client,
+          this.state.revision,
+          () => this.assertOpen(),
+        );
         const bytes = await this.client.exportPdf(
           outputBytes,
           this.currentLayout.id,
@@ -752,20 +771,7 @@ export class DocumentEditor {
   }
   private downloadOutput(output: EditorOutput, filename: string): void {
     this.assertOpen();
-    try {
-      downloadBytes(
-        output.bytes,
-        output.format === "docx" ? docxContentType : "application/pdf",
-        filename,
-      );
-    } catch (error) {
-      if (!this.blocked)
-        this.observable.update({
-          error: "Download failed. The document can be saved again.",
-        });
-      throw error;
-    }
-    this.observable.markDownloaded(output);
+    downloadDocxOutput(output, filename, this.observable, !this.blocked);
   }
   /** Stop input; await accepted work and cancellation before closing the caller's client. */
   dispose(): Promise<void> {

@@ -5,6 +5,7 @@ priv struct SeriesPattern {
   fit : SeriesTrend
   base : Double
   calendar : SeriesCalendar?
+  cycle : Array[String]?
   mut cursor : Int
 }
 
@@ -54,12 +55,31 @@ fn series_pattern_group(
   single : Bool,
   kinds : Array[String],
   date1904 : Bool,
+  cycles : Array[SeriesCycle?],
 ) -> Unit raise @failure.Failure {
   if indices.is_empty() {
     return
   }
   let first = indices[0]
   let last = indices[indices.length() - 1]
+  if cycles[first] is Some(cycle) {
+    let mut previous = cycle.index
+    let mut turn = 0
+    for index in indices {
+      let raw = cycles[index].unwrap().index
+      let current = raw + turn
+      if forward && current < previous {
+        turn += cycle.words.length()
+      }
+      if !forward && current > previous {
+        turn -= cycle.words.length()
+      }
+      let current = raw + turn
+      let old = suffixes[index].unwrap()
+      suffixes[index] = Some((old.0, current.to_double(), old.2))
+      previous = current
+    }
+  }
   let (prefix, initial, _) = suffixes[first].unwrap()
   if single && prefix is None && kinds[first].is_empty() {
     return
@@ -118,6 +138,7 @@ fn series_pattern_group(
     fit,
     base,
     calendar,
+    cycle: cycles[first].map(value => value.words),
     cursor: (last - first) / stride + 1,
   })
   if regular && spacing > 1 {
@@ -133,7 +154,10 @@ fn series_pattern_group(
 }
 
 ///|
-fn SeriesPattern::next(self : SeriesPattern) -> Value raise @failure.Failure {
+fn SeriesPattern::next(
+  self : SeriesPattern,
+  words : Array[String]?,
+) -> Value raise @failure.Failure {
   let delta = self.fit.mean +
     self.fit.slope * (self.cursor.to_double() - self.fit.origin)
   // ONLYOFFICE mirrors the signed sequence when its suffix crosses zero.
@@ -141,6 +165,14 @@ fn SeriesPattern::next(self : SeriesPattern) -> Value raise @failure.Failure {
   guard !signed.is_nan() && !signed.is_inf() else {
     @failure.reject(
       "invalid-operation", "Automatic series exceeds finite numeric range",
+    )
+  }
+  if self.cycle is Some(cycle) {
+    let words = words.unwrap_or(cycle)
+    let index = signed.round().to_int()
+    self.cursor += 1
+    return Text(
+      words[(index % words.length() + words.length()) % words.length()],
     )
   }
   if self.prefix is None {
@@ -185,6 +217,7 @@ fn Sheet::text_series_values(
   let suffixes : Array[(String?, Double, Int)?] = []
   let separators : Array[Bool] = []
   let kinds : Array[String] = []
+  let cycles : Array[SeriesCycle?] = []
   for offset in 0..<(end - start + 1) {
     let axis = if forward { start + offset } else { end - offset }
     let address : Address = if vertical {
@@ -200,8 +233,31 @@ fn Sheet::text_series_values(
       )
     }
     let value = cell.map(cell => cell.value).unwrap_or(Blank)
+    let cycle = if automatic && formula is None && value is Text(text) {
+      let next_axis = if forward { axis + 1 } else { axis - 1 }
+      let next_address : Address = if vertical {
+        { row: next_axis, column: lane, }
+      } else {
+        { row: lane, column: next_axis, }
+      }
+      let next = if next_axis >= start && next_axis <= end {
+        self.cells
+        .get(next_address.name())
+        .filter(c => c.formula is None)
+        .map(c => c.value.display())
+        .unwrap_or("")
+      } else {
+        ""
+      }
+      series_cycle(text, cycles.last().bind(c => c), next)
+    } else {
+      None
+    }
+    cycles.push(cycle)
     let suffix = if formula is Some(_) {
       None
+    } else if cycle is Some(cycle) {
+      Some((Some(""), cycle.index.to_double(), 0))
     } else {
       match value {
         Text(text) =>
@@ -247,7 +303,8 @@ fn Sheet::text_series_values(
         if !indices.is_empty() &&
           (
             suffixes[indices[0]].unwrap().0 != head ||
-            kinds[indices[0]].is_empty() != kinds[offset].is_empty()
+            kinds[indices[0]].is_empty() != kinds[offset].is_empty() ||
+            cycles[indices[0]].map(c => c.id) != cycles[offset].map(c => c.id)
           ) {
           series_pattern_group(
             indices,
@@ -258,6 +315,7 @@ fn Sheet::text_series_values(
             seeds.length() == 1,
             kinds,
             date1904,
+            cycles,
           )
           indices = []
         }
@@ -274,6 +332,7 @@ fn Sheet::text_series_values(
             seeds.length() == 1,
             kinds,
             date1904,
+            cycles,
           )
           indices = []
         }
@@ -288,6 +347,7 @@ fn Sheet::text_series_values(
     seeds.length() == 1,
     kinds,
     date1904,
+    cycles,
   )
   let values : Array[(Value, Int)] = Array::make(last - first + 1, (Blank, 0))
   let mut units = 0
@@ -298,7 +358,7 @@ fn Sheet::text_series_values(
       original
     } else {
       match slots[slot] {
-        Some(plan) => plans[plan].next()
+        Some(plan) => plans[plan].next(cycles[slot].map(value => value.words))
         None => original
       }
     }
