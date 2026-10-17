@@ -251,6 +251,7 @@ fn Session::set_text_hyperlink(
     self.main,
     self.cache,
     Tree::new(original.tree.part, document),
+    index=self.index(original.tree.part),
     parts~,
   )
   let slides = self.slides.copy()

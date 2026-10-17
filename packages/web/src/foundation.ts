@@ -4,6 +4,7 @@ export type {
   DocxRunningArea,
   DocxRunningKind,
   DocxRunningVariant,
+  DocxRunningContent,
 } from "@open-document/wasm/foundation";
 export type {
   DocxCommentEdit,

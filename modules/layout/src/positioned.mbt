@@ -223,7 +223,7 @@ pub fn TextProbe::text_block(
     tabs: [],
     decimalSymbol: ".",
     expandSoftBreak: true,
-    spans: [{ node: 0, text, style, image: None, }],
+    spans: [{ node: 0, text, style, image: None, field: "", }],
     before: 0,
     after: 0,
     line: Auto(240),

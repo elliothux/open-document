@@ -84,6 +84,7 @@ fn read_object(
   parent : @layout.Matrix,
   reason : String,
   parts : Map[String, @xml.Document],
+  page_number : String,
 ) -> Object raise @failure.Failure {
   let source = chain[0]
   let nv_name = match source.node.name {
@@ -321,7 +322,9 @@ fn read_object(
     }
     error => raise error
   }
-  let (paragraphs, body, limitation) = read_text(theme, chain, master, defaults) catch {
+  let (paragraphs, body, limitation) = read_text(
+    theme, chain, master, defaults, page_number,
+  ) catch {
     @failure.Failure(code~, message~, ..) if code == "unsupported-text" ||
       code == "unsupported-style" => {
       diagnostic = message
@@ -476,6 +479,7 @@ fn read_objects(
   output : Array[Object],
   ids : Map[String, Bool],
   parts : Map[String, @xml.Document],
+  page_number : String,
 ) -> Unit raise @failure.Failure {
   guard depth <= 16 else {
     @failure.reject("limit-exceeded", "Group depth exceeds 16")
@@ -502,7 +506,7 @@ fn read_objects(
       }
     }
     let object = read_object(
-      opc, theme, chain, master, defaults, parent, reason, parts,
+      opc, theme, chain, master, defaults, parent, reason, parts, page_number,
     )
     guard !ids.contains(object.id) else {
       @failure.reject(
@@ -528,6 +532,7 @@ fn read_objects(
         output,
         ids,
         parts,
+        page_number,
       )
       let problem = source.group_problem()
       let blocked = if !object.read_only.is_empty() {

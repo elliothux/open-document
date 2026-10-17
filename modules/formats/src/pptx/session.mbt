@@ -29,8 +29,10 @@ fn read_slide(
   main : Tree,
   cache : Map[String, Tree],
   tree : Tree,
+  index~ : Int,
   parts~ : Map[String, @xml.Document] = Map([]),
 ) -> Slide raise @failure.Failure {
+  let page_number = presentation_number(main, index)
   let root = tree.root("sld")
   let layout_part = slide_layout(opc, tree.part, parts).unwrap_or_error(
     @failure.Failure(
@@ -94,6 +96,7 @@ fn read_slide(
       objects,
       ids,
       parts,
+      page_number,
     )
   }
   if flag(root, "showMasterSp", default=true) {
@@ -111,6 +114,7 @@ fn read_slide(
       objects,
       ids,
       parts,
+      page_number,
     )
   }
   read_objects(
@@ -127,6 +131,7 @@ fn read_slide(
     objects,
     ids,
     parts,
+    page_number,
   )
   let mut background = Solid("ffffff")
   for layer in [tree, layout, master] {
@@ -181,6 +186,7 @@ fn read_slide(
     }
     if object.kind != "group" &&
       !object.text_reason.is_empty() &&
+      object.text_reason != slide_number_text_reason &&
       object.read_only.is_empty() {
       diagnostics.push(object.id + ":" + object.text_reason)
     }
@@ -267,7 +273,13 @@ fn Session::from_package(
     guard slides.length() < 256 else {
       @failure.reject("limit-exceeded", "Slides exceed 256")
     }
-    let slide = read_slide(opc, main, cache, load_tree(opc, cache, rel.target))
+    let slide = read_slide(
+      opc,
+      main,
+      cache,
+      load_tree(opc, cache, rel.target),
+      index=slides.length(),
+    )
     count += slide.objects.length()
     guard count <= 16384 else {
       @failure.reject("limit-exceeded", "Presentation objects exceed 16384")

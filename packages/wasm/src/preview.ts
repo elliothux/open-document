@@ -51,6 +51,7 @@ export interface DocxFlow {
       text: string;
       style: TextStyle;
       image: InlineImage | null;
+      field: "" | "PAGE" | "NUMPAGES";
     }[];
     before: number;
     after: number;
@@ -239,7 +240,12 @@ export function docxFlow(value: unknown): DocxFlow {
     )
       throw new Error("Invalid paragraph flags");
     for (const value of entries(paragraph.spans)) {
-      const span = fields(value, ["node"], ["text"]);
+      const span = fields(value, ["node"], ["text", "field"]);
+      if (
+        !["", "PAGE", "NUMPAGES"].includes(String(span.field)) ||
+        (span.field !== "" && span.image !== null)
+      )
+        throw new Error("Invalid running field");
       const style = fields(
         span.style,
         ["size"],

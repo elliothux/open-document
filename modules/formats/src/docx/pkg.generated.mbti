@@ -110,6 +110,15 @@ pub fn Position::not_equal(Self, Self) -> Bool
 pub fn Position::to_json(Self) -> Json
 pub impl ToJson for Position
 
+pub(all) enum RunningContent {
+  Text(String)
+  Field(String)
+} derive(Eq)
+pub fn RunningContent::equal(Self, Self) -> Bool
+pub fn RunningContent::not_equal(Self, Self) -> Bool
+pub fn RunningContent::to_json(Self) -> Json
+pub impl ToJson for RunningContent
+
 pub(all) struct Selection {
   anchor : Position
   focus : Position
@@ -178,7 +187,7 @@ pub fn Session::set_page_background(Self, Int, String?) -> Json raise @failure.F
 pub fn Session::set_page_borders(Self, Int, @layout.PageBorders?) -> Json raise @failure.Failure
 pub fn Session::set_page_setup(Self, Int, @layout.PageSetup, orientation? : String?) -> Json raise @failure.Failure
 pub fn Session::set_paragraph_format(Self, Int, Selection, ParagraphFormat) -> Json raise @failure.Failure
-pub fn Session::set_running_area(Self, Int, String, String, String, Double, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
+pub fn Session::set_running_area(Self, Int, String, String, Array[RunningContent], Double, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_running_options(Self, Int, Bool, Bool, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_theme_color(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::set_theme_fonts(Self, Int, String, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure

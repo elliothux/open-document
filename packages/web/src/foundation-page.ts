@@ -14,6 +14,7 @@ import {
   type DocxPageBorders,
   type DocxRunningKind,
   type DocxRunningVariant,
+  type DocxRunningContent,
 } from "@open-document/wasm/foundation";
 
 /** Page commands retain the existing Worker and validation boundary. */
@@ -108,18 +109,18 @@ export class FoundationPageClient extends FoundationReviewClient {
     revision: number,
     kind: DocxRunningKind,
     variant: DocxRunningVariant,
-    text: string,
+    content: DocxRunningContent[],
     distance: number,
     profile: Record<string, string>,
   ) {
-    checkRunningArea(kind, variant, text, distance);
+    checkRunningArea(kind, variant, content, distance);
     return editState(
       await this.connection.request({
         operation: "setRunningArea",
         revision,
         kind,
         variant,
-        text,
+        content,
         distance,
         profile,
       }),

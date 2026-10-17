@@ -378,8 +378,14 @@ fn FormulaParser::primary(
         }
         guard (match name {
           "IF" => args.length() == 2 || args.length() == 3
-          "IFERROR" | "IFNA" | "MOD" | "ROUND" | "ROUNDUP" | "ROUNDDOWN" =>
-            args.length() == 2
+          "IFERROR"
+          | "IFNA"
+          | "MOD"
+          | "ROUND"
+          | "ROUNDUP"
+          | "ROUNDDOWN"
+          | "EXACT"
+          | "REPT" => args.length() == 2
           "NOT" | "ISBLANK" | "ISNUMBER" | "ISTEXT" | "ABS" | "INT" =>
             args.length() == 1
           "LEN" | "LOWER" | "UPPER" | "TRIM" => args.length() == 1

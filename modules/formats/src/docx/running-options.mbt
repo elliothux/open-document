@@ -133,10 +133,19 @@ fn Session::commit_running(
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],
   images~ : @layout.Images,
+  refresh~ : (String, String)? = None,
 ) -> Json raise @failure.Failure {
   let view = { ..self, parts, }
   let flow = view.flow_from(candidate)
-  ignore(@layout.paginate(probe, flow, profile, images))
+  let layout = @layout.paginate(probe, flow, profile, images)
+  if refresh is Some((part, variant)) {
+    refresh_running_fields(
+      part, variant, flow, layout, parts, part_edits, created,
+    )
+  }
+  if edits.is_empty() && part_edits.is_empty() && created.is_empty() {
+    return self.edit_state()
+  }
   let updated = WordTree::new(candidate)
   let paragraphs = updated.order.filter(id => {
     updated.nodes[id].uri == word_uri && updated.nodes[id].name == "p"

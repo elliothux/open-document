@@ -66,7 +66,9 @@ fn Session::ordered_slides(
   guard slides.is_empty() && !result.is_empty() else {
     @failure.reject("malformed-pptx", "Slide list changed unexpectedly")
   }
-  result
+  result.mapi((index, slide) => {
+    numbered_slide(slide, presentation_number(main, index))
+  })
 }
 
 ///|

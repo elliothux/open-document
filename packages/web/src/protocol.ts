@@ -15,6 +15,7 @@ import type {
   DocxPageBorders,
   DocxRunningKind,
   DocxRunningVariant,
+  DocxRunningContent,
   DocxPictureEdit,
   DocxPictureResizeCommand,
   DocxTableEdit,
@@ -122,7 +123,7 @@ export type Operation =
       revision: number;
       kind: DocxRunningKind;
       variant: DocxRunningVariant;
-      text: string;
+      content: DocxRunningContent[];
       distance: number;
       profile: Record<string, string>;
     }

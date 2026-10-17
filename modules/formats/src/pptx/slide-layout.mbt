@@ -412,6 +412,7 @@ fn Session::apply_layout(
     self.main,
     self.cache,
     Tree::new(tree.part, document),
+    index=self.index(tree.part),
     parts~,
   )
   guard candidate.read_only.is_empty() &&

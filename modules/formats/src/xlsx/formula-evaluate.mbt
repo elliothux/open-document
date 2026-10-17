@@ -183,7 +183,7 @@ fn Expression::evaluate(
       numeric_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if [
         "LEN", "LEFT", "RIGHT", "MID", "TRIM", "UPPER", "LOWER", "CONCAT", "CONCATENATE",
-        "TEXTJOIN", "FIND", "SEARCH", "SUBSTITUTE",
+        "TEXTJOIN", "FIND", "SEARCH", "SUBSTITUTE", "EXACT", "REPT",
       ].contains(name) =>
       text_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if ["ROW", "COLUMN", "ROWS", "COLUMNS"].contains(name) =>

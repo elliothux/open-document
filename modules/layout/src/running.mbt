@@ -6,6 +6,8 @@ fn running_lines(
   cache : ParagraphCache,
   profile : Map[String, String],
   images : Images,
+  page~ : Int = -1,
+  total~ : Int = 1,
 ) -> (Array[Array[Line]], Array[PageSetup]) raise @failure.Failure {
   let prepared : Map[String, (Array[Line], Double)] = Map([])
   for
@@ -25,6 +27,16 @@ fn running_lines(
         (variant == "even" && !flow.differentEven) {
         continue
       }
+      let active = if page == 0 && flow.differentFirst {
+        "first"
+      } else if page % 2 == 1 && flow.differentEven {
+        "even"
+      } else {
+        "default"
+      }
+      if page >= 0 && variant != active {
+        continue
+      }
       let area = Pagination::new({ ..flow.page, top: 0, bottom: 0, })
       for paragraph in story {
         guard !paragraph.pageBreakBefore &&
@@ -32,6 +44,23 @@ fn running_lines(
           @failure.reject(
             "unsupported-layout", "Page breaks in headers or footers are unsupported",
           )
+        }
+        let paragraph = {
+          ..paragraph,
+          spans: paragraph.spans.map(span => {
+            guard ["", "PAGE", "NUMPAGES"].contains(span.field) &&
+              (span.field.is_empty() || span.image is None) else {
+              @failure.reject("unsupported-layout", "Unsupported running field")
+            }
+            {
+              ..span,
+              text: match span.field {
+                "PAGE" => (page.max(0) + 1).to_string()
+                "NUMPAGES" => total.to_string()
+                _ => span.text
+              },
+            }
+          }),
         }
         area.paragraph(
           cache,
@@ -80,10 +109,10 @@ fn running_lines(
   }
   let patterns : Array[Array[Line]] = []
   let setups : Array[PageSetup] = []
-  for index in 0..<3 {
+  for index in (if page >= 0 { [page] } else { [0, 1, 2] }) {
     let variant = if index == 0 && flow.differentFirst {
       "first"
-    } else if index == 1 && flow.differentEven {
+    } else if index % 2 == 1 && flow.differentEven {
       "even"
     } else {
       "default"

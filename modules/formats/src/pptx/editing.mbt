@@ -10,6 +10,7 @@ fn Session::prepare(
     self.main,
     self.cache,
     Tree::new(slide.tree.part, document),
+    index=self.index(slide.tree.part),
     parts=self.parts,
   )
   self.validate(candidate)
@@ -97,6 +98,9 @@ fn Session::commit_slides(
   deleted~ : Array[Slide] = [],
   removed~ : Map[String, @xml.Document] = Map([]),
 ) -> Unit raise @failure.Failure {
+  let slides = slides.mapi((index, slide) => {
+    numbered_slide(slide, presentation_number(main, index))
+  })
   guard self.revision < 2147483647 else {
     @failure.reject("limit-exceeded", "Presentation revision exhausted")
   }
@@ -237,6 +241,7 @@ pub fn Session::undo(
           main,
           self.cache,
           Tree::new(part, document),
+          index~,
           parts~,
         )
       }
@@ -320,8 +325,8 @@ pub fn Session::undo(
     let slides = if width != self.width ||
       height != self.height ||
       theme_changed {
-      slides.map(slide => {
-        read_slide(self.opc, main, self.cache, slide.tree, parts~)
+      slides.mapi((index, slide) => {
+        read_slide(self.opc, main, self.cache, slide.tree, index~, parts~)
       })
     } else {
       slides

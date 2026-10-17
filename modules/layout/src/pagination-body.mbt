@@ -12,6 +12,7 @@ fn Pagination::body(
   let context = Json::array([
     self.page.to_json(),
     Json::array(self.setups.map(page => page.to_json())),
+    Json::array(self.pageSetups.map(page => page.to_json())),
     Json(flow.additiveSpacing),
     Json(cache.profile),
   ]).stringify()
@@ -60,6 +61,7 @@ fn Pagination::body(
       let before = old.positions[old_index]
       let now = self.position()
       if now.stable(before) &&
+        (self.pageSetups.is_empty() || now.page == before.page) &&
         self.page_at(now.page).to_json() == self.page_at(before.page).to_json() &&
         (
           (now.page - before.page) % 2 == 0 ||

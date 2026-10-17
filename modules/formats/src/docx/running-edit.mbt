@@ -67,18 +67,19 @@ fn Session::editable_running(
       )
     })
     .unwrap_or([])
-  let units = paragraphs
-    .iter()
-    .fold(init=0, (total, p) => {
-      total +
-      p.spans.iter().fold(init=0, (units, span) => units + span.text.length())
-    }) +
-    (paragraphs.length() - 1).max(0)
-  guard units <= 8192 else {
-    @failure.reject(
-      "protected-content", "Header or footer exceeds the plain-text editing limit",
-    )
+  let mut units = (paragraphs.length() - 1).max(0)
+  for paragraph in paragraphs {
+    for span in paragraph.spans {
+      let count = if span.field.is_empty() { span.text.length() } else { 1 }
+      guard count <= 8192 - units else {
+        @failure.reject(
+          "protected-content", "Header or footer exceeds the editing limit",
+        )
+      }
+      units += count
+    }
   }
+  ignore(normalize_running_content(running_content(paragraphs)))
   guard diagnostics.is_empty() else {
     @failure.reject("protected-content", diagnostics[0])
   }
@@ -86,7 +87,7 @@ fn Session::editable_running(
 }
 
 ///|
-/// Reads a plain-text view of one single-section running area variant.
+/// Reads ordered text and page fields from one single-section running area.
 pub fn Session::running_area(
   self : Session,
   revision : Int,
@@ -110,7 +111,7 @@ pub fn Session::running_area(
     @failure.Failure(message~, ..) =>
       return {
         "revision": revision,
-        "text": "",
+        "content": [{ "text": "" }],
         "distance": 0,
         "differentFirst": false,
         "differentEven": false,
@@ -123,11 +124,7 @@ pub fn Session::running_area(
     "differentFirst": first,
     "differentEven": even,
     "revision": revision,
-    "text": paragraphs
-    .map(p => {
-      p.spans.map(s => s.text).join("").replace_all(old="\n", new="\u2028")
-    })
-    .join("\n"),
+    "content": Json(running_content(paragraphs)),
     "distance": section
     .bind(id => tree.number(id, "pgMar", kind))
     .map(v => v / 20)
@@ -142,27 +139,25 @@ pub fn Session::running_area(
 }
 
 ///|
-/// Replaces plain text, preserving paragraph properties and the first run's formatting.
+/// Replaces text/page fields and refreshes their caches in one source transaction.
 pub fn Session::set_running_area(
   self : Session,
   revision : Int,
   kind : String,
   variant : String,
-  text : String,
+  content : Array[RunningContent],
   distance : Double,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],
   images~ : @layout.Images,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  guard text.length() <= 8192 &&
-    !text.contains("\r") &&
-    !text.contains("\u000c") &&
-    distance >= 0 &&
+  let content = normalize_running_content(content)
+  guard distance >= 0 &&
     distance <= 14400 &&
     distance * 20 == (distance * 20).to_int().to_double() else {
     @failure.reject(
-      "invalid-operation", "Running text requires at most 8192 characters and a distance in integer twips",
+      "invalid-operation", "Running distance requires integer twips within the page limit",
     )
   }
   let original = self.document()
@@ -175,11 +170,14 @@ pub fn Session::set_running_area(
       "protected-content", "Shared running area requires an explicit unlink operation",
     )
   }
-  let query = self.running_area(revision, kind, variant)
-  let same_text = query is { "text": String(old), .. } && old == text
-  if query is { "text": String(old), "distance": Number(value, ..), .. } &&
-    old == text &&
-    value == distance {
+  let same_content = running_content(current) == content
+  let old_distance = section
+    .bind(id => tree.number(id, "pgMar", kind))
+    .map(v => v / 20)
+    .unwrap_or(0)
+  if same_content &&
+    old_distance == distance &&
+    !content.any(item => item is Field(_)) {
     return self.edit_state()
   }
   let parts = self.parts.copy()
@@ -189,39 +187,12 @@ pub fn Session::set_running_area(
     self.new_word_part(kind, parts, part_edits, created)
   })
   let document = parts.get(part).unwrap_or_else(() => self.part_xml(part))
+  parts[part] = document
   let story = WordTree::new(document)
   let root = story.nodes[0]
-  let paragraphs = story.children[0]
-  let content = text
-    .split("\n")
-    .to_array()
-    .mapi((index, value) => {
-      if current.get(index) is Some(paragraph) &&
-        paragraph.spans
-        .map(span => span.text)
-        .join("")
-        .replace_all(old="\n", new="\u2028") ==
-        value.to_owned() {
-        let node = story.nodes[paragraphs[index]]
-        return document.source()[node.start:node.end].to_owned()
-      }
-      let template = match paragraphs.get(index) {
-        Some(id) => Some(id)
-        None => paragraphs.last()
-      }
-      let ppr = template
-        .bind(id => story.child(id, "pPr"))
-        .map(id => story.standalone_markup(document, id))
-        .unwrap_or("")
-      let rpr = template
-        .bind(id => story.paragraph_runs(id).get(0))
-        .bind(id => story.child(id, "rPr"))
-        .map(id => story.standalone_markup(document, id))
-        .unwrap_or("")
-      "<w:p xmlns:w=\"\{word_uri}\">\{ppr}<w:r>\{rpr}\{inline_markup(value.to_owned(), history_byte_limit / 2)}</w:r></w:p>"
-    })
-    .join("")
-  if existing is Some(_) && same_text {
+  let has_fields = content.any(item => item is Field(_))
+  let content = running_content_markup(document, story, current, content)
+  if existing is Some(_) && same_content {
     ()
   } else if existing is Some(_) {
     let change : @xml.SourceChange = if root.empty {
@@ -335,5 +306,10 @@ pub fn Session::set_running_area(
     probe~,
     profile~,
     images~,
+    refresh=if has_fields && (!same_content || old_distance == distance) {
+      Some((part, variant))
+    } else {
+      None
+    },
   )
 }

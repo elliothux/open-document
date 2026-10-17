@@ -547,6 +547,7 @@ pub(all) struct Span {
   text : String
   style : TextStyle
   image : InlineImage?
+  field : String
 }
 pub fn Span::to_json(Self) -> Json
 pub impl ToJson for Span

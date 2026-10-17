@@ -80,6 +80,27 @@ fn page_border_format(
 }
 
 ///|
+fn running_content(
+  request : Json,
+) -> Array[@docx.RunningContent] raise @failure.Failure {
+  guard request is { "content": Array(content), .. } && content.length() <= 256 else {
+    @failure.reject(
+      "invalid-operation", "Running content requires at most 256 items",
+    )
+  }
+  content.map(item => {
+    guard item is Object(fields) && fields.length() == 1 else {
+      @failure.reject("invalid-operation", "Invalid running content item")
+    }
+    match item {
+      { "text": String(text), .. } => @docx.RunningContent::Text(text)
+      { "field": String(code), .. } => @docx.RunningContent::Field(code)
+      _ => @failure.reject("invalid-operation", "Invalid running content item")
+    }
+  })
+}
+
+///|
 fn Foundation::docx_page(
   self : Foundation,
   session : @docx.Session,
@@ -121,7 +142,7 @@ fn Foundation::docx_page(
         revision,
         field_string(request, "kind"),
         field_string(request, "variant"),
-        field_string(request, "text"),
+        running_content(request),
         xlsx_number(request, "distance"),
         probe=self.probe,
         profile=xlsx_profile(request),

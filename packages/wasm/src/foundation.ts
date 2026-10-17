@@ -6,6 +6,7 @@ export {
   checkRunningOptions,
   docxRunningArea,
   type DocxRunningArea,
+  type DocxRunningContent,
   type DocxRunningKind,
   type DocxRunningVariant,
 } from "./docx-page.js";

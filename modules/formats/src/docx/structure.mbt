@@ -162,8 +162,9 @@ fn WordTree::empty_run_properties(
 fn WordTree::check_structure_paragraph(
   self : WordTree,
   paragraph : Int,
+  running~ : Bool = false,
 ) -> Unit raise @failure.Failure {
-  for id in [paragraph] + self.paragraph_runs(paragraph) {
+  for id in [paragraph] + self.paragraph_runs(paragraph, running~) {
     let node = self.nodes[id]
     let allowed = if id == paragraph {
       ["rsidR", "rsidRDefault", "rsidP", "rsidRPr", "rsidDel"]

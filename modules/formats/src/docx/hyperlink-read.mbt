@@ -11,13 +11,18 @@ fn WordTree::run_paragraph(self : WordTree, run : Int) -> Int {
 }
 
 ///|
-fn WordTree::paragraph_runs(self : WordTree, paragraph : Int) -> Array[Int] {
+fn WordTree::paragraph_runs(
+  self : WordTree,
+  paragraph : Int,
+  running~ : Bool = false,
+) -> Array[Int] {
   let runs : Array[Int] = []
   for child in self.children[paragraph] {
     let node = self.nodes[child]
     if node.uri == word_uri && node.name == "r" {
       runs.push(child)
-    } else if node.uri == word_uri && node.name == "hyperlink" {
+    } else if node.uri == word_uri &&
+      (node.name == "hyperlink" || (running && node.name == "fldSimple")) {
       runs.append(
         self.children[child].filter(id => {
           self.nodes[id].uri == word_uri && self.nodes[id].name == "r"

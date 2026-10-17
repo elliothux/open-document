@@ -5,6 +5,7 @@ import type { EditorOutput } from "./editor-state.js";
 import type {
   DocxRunningKind,
   DocxRunningVariant,
+  DocxRunningContent,
 } from "@open-document/wasm/foundation";
 
 /** Document-wide page commands use the editor's existing read and edit queues. */
@@ -35,7 +36,7 @@ export abstract class DocumentPage extends DocumentReview {
   setRunningArea(
     kind: DocxRunningKind,
     variant: DocxRunningVariant,
-    text: string,
+    content: DocxRunningContent[],
     distance: number,
   ): Promise<void> {
     return this.review.edit(() =>
@@ -43,7 +44,7 @@ export abstract class DocumentPage extends DocumentReview {
         this.review.snapshot().revision,
         kind,
         variant,
-        text,
+        content,
         distance,
         this.profile,
       ),

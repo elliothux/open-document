@@ -118,6 +118,7 @@ fn Session::add_slide(
     main,
     self.cache,
     Tree::new(part, document),
+    index=index + 1,
     parts~,
   )
   let slides = self.slides.copy()

@@ -288,7 +288,7 @@ async function dispatch(request: Request): Promise<unknown> {
             request.revision,
             request.kind,
             request.variant,
-            request.text,
+            request.content,
             request.distance,
             request.profile,
           );

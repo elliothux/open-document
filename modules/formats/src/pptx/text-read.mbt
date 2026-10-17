@@ -129,6 +129,7 @@ fn read_text(
   chain : Array[Ref],
   master : Tree,
   defaults : Ref?,
+  page_number : String,
 ) -> (Array[TextParagraph], Body, String) raise @failure.Failure {
   let bodies = children(chain, "txBody", uri=presentation_uri)
   let properties = children(bodies, "bodyPr")
@@ -293,6 +294,8 @@ fn read_text(
       let item : Ref = { tree: current.tree, node, }
       let text = if node.name == "br" {
         "\u2028"
+      } else if slide_number_field(item) {
+        page_number
       } else if ["r", "fld"].contains(node.name) {
         item.child("t").map(item => item.node.text).unwrap_or("")
       } else {
@@ -300,7 +303,13 @@ fn read_text(
         ""
       }
       if node.name == "fld" {
-        reason = "Fields are read-only"
+        if slide_number_field(item) {
+          if reason.is_empty() {
+            reason = slide_number_text_reason
+          }
+        } else {
+          reason = "Fields are read-only"
+        }
       }
       let style_sources = item.child("rPr").map(item => [item]).unwrap_or([])
       style_sources.append(run_defaults)

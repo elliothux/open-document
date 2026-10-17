@@ -56,6 +56,26 @@ fn text_function(
   }
   let text = values[0].display()
   match name {
+    "EXACT" => {
+      let other = values[1].display()
+      work.spend(amount=text.length() + other.length())
+      Boolean(text == other)
+    }
+    "REPT" =>
+      match numeric_value(values[1]) {
+        Number(count) => {
+          // ONLYOFFICE checks the raw count and UTF-16 product before repeat truncates it.
+          if count < 0 ||
+            count > 32767 ||
+            text.length().to_double() * count > 32767 {
+            return Error("#VALUE!")
+          }
+          let count = count.to_int()
+          work.spend(amount=text.length() * count)
+          Text(text.repeat(count))
+        }
+        value => value
+      }
     "LEN" => Number(text.length().to_double())
     "UPPER" | "LOWER" => formula_case(text, name == "UPPER", work)
     "TRIM" => {

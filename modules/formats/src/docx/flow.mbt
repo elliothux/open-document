@@ -172,7 +172,9 @@ fn Session::paragraph(
   id : Int,
   document_diagnostics : Array[String],
   background~ : String = "ffffff",
+  running~ : Bool = false,
 ) -> @layout.Paragraph raise @failure.Failure {
+  let fields = if running { tree.running_fields(id) } else { Map([]) }
   let diagnostics : Array[String] = []
   for item in tree.descendants(id) {
     tree.diagnose_properties(item, self.main, diagnostics)
@@ -202,14 +204,22 @@ fn Session::paragraph(
         @failure.Failure(message~, ..) =>
           diagnostics.push("unsupported-layout:" + message)
       }
+    } else if running && node.uri == word_uri && node.name == "fldSimple" {
+      ()
     } else if Some(child) != props && (node.uri != word_uri || node.name != "r") {
       diagnostics.push("unsupported-layout:" + node.qualified)
     }
   }
-  for run in tree.paragraph_runs(id) {
+  for run in tree.paragraph_runs(id, running~) {
     let style = styles.run_character_style(tree, run, run_style, diagnostics)
     for content in tree.children[run] {
       let item = tree.nodes[content]
+      if running && ["fldChar", "instrText"].contains(item.name) {
+        continue
+      }
+      if fields.get(content) == Some("") {
+        continue
+      }
       if item.uri != word_uri {
         diagnostics.push("unsupported-layout:" + item.qualified)
         continue
@@ -243,7 +253,13 @@ fn Session::paragraph(
           continue
         }
       }
-      for (style, text) in style.font_runs(text, styles.themes) {
+      let field = fields.get(content).unwrap_or("")
+      let runs = if field.is_empty() {
+        style.font_runs(text, styles.themes)
+      } else {
+        style.font_runs("0", styles.themes).map(pair => (pair.0, text))
+      }
+      for (style, text) in runs {
         spans.push({
           node: content,
           text,
@@ -257,6 +273,7 @@ fn Session::paragraph(
             script: style.vertAlign,
           },
           image,
+          field,
         })
       }
     }
@@ -283,6 +300,7 @@ fn Session::paragraph(
         script: run_style.vertAlign,
       },
       image: None,
+      field: "",
     })
   }
   if paragraph.align != "left" &&

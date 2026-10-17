@@ -226,7 +226,7 @@ fn Session::set_slide_size(
       parts[tree.part] = document
     }
   }
-  let slides = self.slides.map(slide => {
+  let slides = self.slides.mapi((index, slide) => {
     read_slide(
       self.opc,
       main,
@@ -236,6 +236,7 @@ fn Session::set_slide_size(
         documents.get(slide.tree.part).unwrap_or(slide.tree.document),
       ),
       parts~,
+      index~,
     )
   })
   self.commit_slides(main, slides, edits, self.selection, parts~)

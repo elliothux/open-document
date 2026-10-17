@@ -123,8 +123,8 @@ fn Session::set_theme_color(
   if edits.is_empty() {
     return self.query()
   }
-  let slides = self.slides.map(slide => {
-    read_slide(self.opc, self.main, self.cache, slide.tree, parts~)
+  let slides = self.slides.mapi((index, slide) => {
+    read_slide(self.opc, self.main, self.cache, slide.tree, index~, parts~)
   })
   self.commit_slides(self.main, slides, edits, self.selection, parts~)
   self.query()

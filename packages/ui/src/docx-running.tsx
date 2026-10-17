@@ -1,12 +1,23 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { DocumentEditor } from "@open-document/web/editor";
 import type {
   DocxRunningArea,
   DocxRunningKind,
   DocxRunningVariant,
+  DocxRunningContent,
 } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+
+function runningDraft(content: DocxRunningContent[]): DocxRunningContent[] {
+  const result: DocxRunningContent[] = [{ text: "" }];
+  for (const item of content) {
+    const last = result.at(-1)!;
+    if ("text" in item && "text" in last) last.text += item.text;
+    else result.push(item, { text: "" });
+  }
+  return result;
+}
 
 export function DocxRunning({
   controller,
@@ -25,16 +36,34 @@ export function DocxRunning({
   const [first, setFirst] = useState(false);
   const [even, setEven] = useState(false);
   const [area, setArea] = useState<DocxRunningArea>();
-  const [text, setText] = useState("");
+  const [content, setContent] = useState<DocxRunningContent[]>([{ text: "" }]);
+  const active = useRef<HTMLTextAreaElement | null>(null);
   const [distance, setDistance] = useState(36);
   const stale = area?.revision !== state.document?.revision;
   const load = async () => {
     const value = await editor.runningArea(kind, variant);
     setArea(value);
-    setText(value.text);
+    setContent(runningDraft(value.content));
+    active.current = null;
     setDistance(value.distance);
     setFirst(value.differentFirst);
     setEven(value.differentEven);
+  };
+  const insertField = (field: "PAGE" | "NUMPAGES") => {
+    const input = active.current;
+    const index = input ? Number(input.dataset.index) : content.length - 1;
+    const item = content[index];
+    if (!item || !("text" in item)) return;
+    const start = input?.selectionStart ?? item.text.length;
+    const end = input?.selectionEnd ?? start;
+    setContent([
+      ...content.slice(0, index),
+      { text: item.text.slice(0, start) },
+      { field },
+      { text: item.text.slice(end) },
+      ...content.slice(index + 1),
+    ]);
+    active.current = null;
   };
   return (
     <section aria-label={t.runningArea}>
@@ -103,7 +132,7 @@ export function DocxRunning({
           onSubmit={(event) => {
             event.preventDefault();
             controller.run(async () => {
-              await editor.setRunningArea(kind, variant, text, distance);
+              await editor.setRunningArea(kind, variant, content, distance);
               await load();
             });
           }}
@@ -139,14 +168,69 @@ export function DocxRunning({
             >
               {t.applyRunningOptions}
             </button>
-            <label>
-              {kind === "header" ? t.header : t.footer}
-              <textarea
-                maxLength={8192}
-                value={text}
-                onChange={(event) => setText(event.currentTarget.value)}
-              />
-            </label>
+            {content.map((item, index) =>
+              "text" in item ? (
+                <label key={index}>
+                  {kind === "header" ? t.header : t.footer}
+                  <textarea
+                    data-index={index}
+                    maxLength={8192}
+                    value={item.text}
+                    onFocus={(event) => {
+                      active.current = event.currentTarget;
+                    }}
+                    onChange={(event) => {
+                      const text = event.currentTarget.value;
+                      setContent(
+                        content.map((part, i) =>
+                          i === index ? { text } : part,
+                        ),
+                      );
+                    }}
+                  />
+                </label>
+              ) : (
+                <div key={index}>
+                  <label>
+                    {t.runningField}
+                    <select
+                      value={item.field}
+                      onChange={(event) => {
+                        const field =
+                          event.currentTarget.value === "PAGE"
+                            ? "PAGE"
+                            : "NUMPAGES";
+                        setContent(
+                          content.map((part, i) =>
+                            i === index ? { field } : part,
+                          ),
+                        );
+                      }}
+                    >
+                      <option value="PAGE">{t.currentPageField}</option>
+                      <option value="NUMPAGES">{t.totalPagesField}</option>
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setContent(
+                        runningDraft(content.filter((_, i) => i !== index)),
+                      );
+                      active.current = null;
+                    }}
+                  >
+                    {t.removeRunningField}
+                  </button>
+                </div>
+              ),
+            )}
+            <button type="button" onClick={() => insertField("PAGE")}>
+              {t.insertCurrentPageField}
+            </button>
+            <button type="button" onClick={() => insertField("NUMPAGES")}>
+              {t.insertTotalPagesField}
+            </button>
             <label>
               {kind === "header" ? t.headerDistance : t.footerDistance}
               <input

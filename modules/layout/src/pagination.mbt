@@ -2,6 +2,7 @@
 priv struct Pagination {
   mut page : PageSetup
   setups : Array[PageSetup]
+  pageSetups : Array[PageSetup]
   pages : Array[PageFrame]
   mut y : Double
   mut count : Int
@@ -13,10 +14,13 @@ priv struct Pagination {
 fn Pagination::new(
   page : PageSetup,
   setups~ : Array[PageSetup] = [],
+  pageSetups~ : Array[PageSetup] = [],
 ) -> Pagination {
+  let page = pageSetups.get(0).unwrap_or(page)
   {
     page,
     setups,
+    pageSetups,
     pages: [
       {
         width: page.width,
@@ -78,7 +82,9 @@ fn Pagination::fit(
 
 ///|
 fn Pagination::page_at(self : Pagination, index : Int) -> PageSetup {
-  if self.setups.is_empty() {
+  if self.pageSetups.get(index) is Some(page) {
+    page
+  } else if self.setups.is_empty() {
     self.page
   } else {
     self.setups[if index == 0 { 0 } else if index % 2 == 1 { 1 } else { 2 }]
@@ -271,6 +277,18 @@ pub fn paginate(
   probe.check()
   flow.page.validate()
   flow.pageBorders.validate()
+  guard flow.paragraphs.all(p => p.spans.all(span => span.field.is_empty())) &&
+    flow.tables.all(t => {
+      t.rows.all(row => {
+        row.all(cell => {
+          cell.all(p => p.spans.all(span => span.field.is_empty()))
+        })
+      })
+    }) else {
+    @failure.reject(
+      "unsupported-layout", "Body page fields require layout support",
+    )
+  }
   guard flow.background.length() == 6 &&
     flow.background.iter().all(c => c.is_ascii_hexdigit()) else {
     @failure.reject("invalid-style", "Invalid page background color")
@@ -286,14 +304,9 @@ pub fn paginate(
     }
   }
   let cache = ParagraphCache::new(probe, profile)
-  let (patterns, setups) = running_lines(probe, flow, cache, profile, images)
-  let pagination = Pagination::new(setups[0], setups~)
-  let (reflowed, reused, next) = pagination.body(
+  let (pagination, running, reflowed, reused, next, diagnostics) = paginate_running(
     probe, flow, cache, profile, images,
   )
-  let running = pagination.pages.mapi((index, _) => {
-    patterns[if index == 0 { 0 } else if index % 2 == 1 { 1 } else { 2 }]
-  })
   guard running.iter().fold(init=0, (total, lines) => total + lines.length()) <=
     32768 - pagination.count else {
     @failure.reject(
@@ -338,7 +351,7 @@ pub fn paginate(
         ]
       },
     }),
-    diagnostics: flow.diagnostics.copy(),
+    diagnostics: flow.diagnostics + diagnostics,
     outlines: probe.outline_resources(),
     fonts: probe.font_info(),
   }

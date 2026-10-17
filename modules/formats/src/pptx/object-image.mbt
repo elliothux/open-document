@@ -283,6 +283,7 @@ fn Session::write_image(
     self.main,
     self.cache,
     Tree::new(original.tree.part, document),
+    index=self.index(original.tree.part),
     parts~,
   )
   edits.push((original.tree.part, edit))

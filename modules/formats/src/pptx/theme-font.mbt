@@ -245,8 +245,8 @@ fn Session::set_theme_font(
   if edits.is_empty() {
     return self.query()
   }
-  let candidates = self.slides.map(slide => {
-    read_slide(self.opc, self.main, self.cache, slide.tree, parts~)
+  let candidates = self.slides.mapi((index, slide) => {
+    read_slide(self.opc, self.main, self.cache, slide.tree, index~, parts~)
   })
   ignore(slide_font_keys(candidates))
   let seen : Map[String, Bool] = Map([])
@@ -288,12 +288,12 @@ fn Session::set_theme_font(
     }
     edits.push((part, edit))
   }
-  let slides = self.slides.map(slide => {
+  let slides = self.slides.mapi((index, slide) => {
     let tree = documents
       .get(slide.tree.part)
       .map(document => Tree::new(slide.tree.part, document))
       .unwrap_or(slide.tree)
-    read_slide(self.opc, self.main, self.cache, tree, parts~)
+    read_slide(self.opc, self.main, self.cache, tree, index~, parts~)
   })
   self.commit_slides(self.main, slides, edits, self.selection, parts~)
   self.query()

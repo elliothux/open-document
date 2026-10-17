@@ -58,13 +58,13 @@ fn Session::running_paragraphs(
         "unsupported-layout", "Header or footer objects are unsupported",
       )
     }
-    tree.check_structure_paragraph(id)
+    tree.check_structure_paragraph(id, running=true)
     for item in tree.descendants(id) {
       let node = tree.nodes[item]
       guard node.uri == word_uri &&
         ![
-          "drawing", "fldChar", "instrText", "hyperlink", "bookmarkStart", "bookmarkEnd",
-          "commentReference", "commentRangeStart", "commentRangeEnd", "sectPr",
+          "drawing", "hyperlink", "bookmarkStart", "bookmarkEnd", "commentReference",
+          "commentRangeStart", "commentRangeEnd", "sectPr",
         ].contains(node.name) else {
         @failure.reject(
           "unsupported-layout", "Extended header or footer content is protected",
@@ -78,7 +78,14 @@ fn Session::running_paragraphs(
         )
       }
     }
-    paragraphs[id] = self.paragraph(tree, styles, id, diagnostics, background~)
+    paragraphs[id] = self.paragraph(
+      tree,
+      styles,
+      id,
+      diagnostics,
+      background~,
+      running=true,
+    )
     backgrounds[id] = background
   }
   self.apply_numbering(tree, styles, paragraphs, backgrounds)

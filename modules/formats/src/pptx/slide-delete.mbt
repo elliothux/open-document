@@ -238,6 +238,7 @@ fn Session::delete_slides(
         main,
         self.cache,
         Tree::new(part, document),
+        index=i,
         parts~,
       )
       parts.remove(part)

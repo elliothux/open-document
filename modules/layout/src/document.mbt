@@ -51,6 +51,7 @@ pub(all) struct Span {
   text : String
   style : TextStyle
   image : InlineImage?
+  field : String
 }
 
 ///|
@@ -59,7 +60,13 @@ pub impl ToJson for Span with fn to_json(self) {
     None => Json::null()
     Some(image) => image.to_json()
   }
-  { "node": self.node, "text": self.text, "style": self.style, "image": image }
+  {
+    "node": self.node,
+    "text": self.text,
+    "style": self.style,
+    "image": image,
+    "field": self.field,
+  }
 }
 
 ///|

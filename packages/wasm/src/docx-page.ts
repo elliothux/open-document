@@ -22,10 +22,12 @@ export function checkRunningOptions(first: unknown, even: unknown): void {
     throw new Error("Invalid running options");
 }
 export type DocxRunningKind = "header" | "footer";
+export type DocxRunningContent =
+  { text: string } | { field: "PAGE" | "NUMPAGES" };
 export interface DocxRunningArea {
   revision: number;
   /** LF separates paragraphs; U+2028 is an inline soft break. */
-  text: string;
+  content: DocxRunningContent[];
   distance: number;
   reason: string;
   shared: boolean;
@@ -41,26 +43,36 @@ export function checkRunningKind(
 export function checkRunningArea(
   kind: unknown,
   variant: unknown,
-  text: unknown,
+  content: unknown,
   distance: unknown,
 ): void {
   checkRunningKind(kind);
   checkRunningVariant(variant);
+  if (!Array.isArray(content) || content.length > 256)
+    throw new Error("Invalid running content");
+  let units = 0;
+  for (const value of content) {
+    const item = record(value);
+    if (Object.keys(item).length !== 1)
+      throw new Error("Invalid running content item");
+    if (typeof item.text === "string" && !/[\r\f]/u.test(item.text))
+      units += item.text.length;
+    else if (item.field === "PAGE" || item.field === "NUMPAGES") units++;
+    else throw new Error("Invalid running content item");
+  }
   if (
-    typeof text !== "string" ||
-    text.length > 8192 ||
-    /[\r\f]/u.test(text) ||
+    units > 8192 ||
     typeof distance !== "number" ||
     !Number.isFinite(distance) ||
     distance < 0 ||
     distance > 14400 ||
     !Number.isInteger(distance * 20)
   )
-    throw new Error("Invalid running area text or distance");
+    throw new Error("Invalid running content or distance");
 }
 export function docxRunningArea(value: unknown): DocxRunningArea {
   const area = record(value);
-  checkRunningArea("header", "default", area.text, area.distance);
+  checkRunningArea("header", "default", area.content, area.distance);
   checkRunningOptions(area.differentFirst, area.differentEven);
   if (
     !Number.isSafeInteger(area.revision) ||
@@ -71,7 +83,7 @@ export function docxRunningArea(value: unknown): DocxRunningArea {
       (key) =>
         ![
           "revision",
-          "text",
+          "content",
           "distance",
           "reason",
           "shared",
@@ -155,18 +167,18 @@ export class FoundationPageSession extends WasmSession {
     revision: number,
     kind: DocxRunningKind,
     variant: DocxRunningVariant,
-    text: string,
+    content: DocxRunningContent[],
     distance: number,
     profile: Record<string, string>,
   ) {
-    checkRunningArea(kind, variant, text, distance);
+    checkRunningArea(kind, variant, content, distance);
     return editState(
       this.call({
         operation: "setRunningArea",
         revision,
         kind,
         variant,
-        text,
+        content,
         distance,
         profile,
       }),
