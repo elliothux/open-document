@@ -4,7 +4,7 @@ fn Session::copy_slide_comments(
   tree : Tree,
   target : String,
 ) -> (@xml.Document, (String, @xml.Document, @xml.Edit)?) raise @failure.Failure {
-  let comments = tree.all(tree.root("cmLst").id, "cm", uri=presentation_uri)
+  let comments = read_comment_entries(tree)
   if comments.is_empty() {
     return (
       @xml.Document::parse(
@@ -36,25 +36,15 @@ fn Session::copy_slide_comments(
     )
   }
   let author_tree = Tree::new(link.target, original)
-  check_slide_copy_markup(author_tree)
-  let entries = author_tree.all(
-    author_tree.root("cmAuthorLst").id,
-    "cmAuthor",
-    uri=presentation_uri,
-  )
+  let entries = read_comment_authors(author_tree)
   let authors : Map[String, @xml.Node] = Map([])
   let indices : Map[String, Int64] = Map([])
-  for node in entries {
-    let id = number(node.attribute("id").unwrap_or(""), 0, 4294967295)
-      .to_int64()
-      .to_string()
-    guard !authors.contains(id) else {
-      @failure.reject("malformed-pptx", "Duplicate comment author identity")
-    }
-    authors[id] = node
-    indices[id] = number(node.attribute("lastIdx").unwrap_or(""), 0, 4294967295).to_int64()
+  for author in entries {
+    authors[author.id] = author.node
+    indices[author.id] = author.last_index
   }
   // Imported lastIdx can lag behind comments, so reserve every retained source index.
+  let mut count = 0
   for relation in links {
     if relation.kind != relationship_uri + "/comments" || relation.external {
       continue
@@ -63,6 +53,12 @@ fn Session::copy_slide_comments(
     for node in document.nodes() {
       if node.uri != presentation_uri || node.name != "cm" {
         continue
+      }
+      count += 1
+      guard count <= 16384 else {
+        @failure.reject(
+          "limit-exceeded", "Presentation comments exceed allocation budget",
+        )
       }
       let id = number(node.attribute("authorId").unwrap_or(""), 0, 4294967295)
         .to_int64()
@@ -75,10 +71,10 @@ fn Session::copy_slide_comments(
   }
   let changes : Array[@xml.SourceChange] = []
   let changed : Map[String, Bool] = Map([])
-  for node in comments {
-    let id = number(node.attribute("authorId").unwrap_or(""), 0, 4294967295)
-      .to_int64()
-      .to_string()
+  let copied : Map[String, String] = Map([])
+  for entry in comments {
+    let node = entry.node
+    let id = entry.author
     guard indices.get(id) is Some(previous) && previous < 4294967295L else {
       @failure.reject(
         "protected-content", "Comment author or index cannot be copied",
@@ -87,7 +83,13 @@ fn Session::copy_slide_comments(
     let next = previous + 1L
     indices[id] = next
     changed[id] = true
+    copied[entry.id] = next.to_string()
     changes.push(attribute_change({ tree, node, }, "idx", next.to_string()))
+  }
+  for entry in comments {
+    if entry.parent is Some(parent) && entry.parent_node is Some(node) {
+      changes.push(attribute_change({ tree, node, }, "idx", copied[parent]))
+    }
   }
   let updates = changed
     .keys()

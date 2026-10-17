@@ -3,11 +3,15 @@ import {
   type XlsxSheetEdit,
   xlsxHyperlink,
   type XlsxHyperlink,
+  xlsxNote,
+  type XlsxNote,
 } from "./xlsx-sheet.js";
 export {
   checkXlsxHyperlinkTarget,
   xlsxHyperlink,
   type XlsxHyperlink,
+  type XlsxNote,
+  xlsxNote,
 } from "./xlsx-sheet.js";
 import {
   xlsxRect,
@@ -221,6 +225,7 @@ export interface XlsxCell {
 
 export interface XlsxQuery {
   hyperlink: XlsxHyperlink;
+  note: XlsxNote;
   names: XlsxNames;
   statistics: XlsxStatistics;
   filter: XlsxFilterState;
@@ -296,6 +301,7 @@ export function xlsxQuery(value: unknown): XlsxQuery {
   const query = record(value);
   xlsxStatistics(query.statistics);
   xlsxHyperlink(query.hyperlink);
+  xlsxNote(query.note);
   xlsxFilterState(query.filter);
   xlsxConditionalState(query.conditionalFormats);
   xlsxValidationState(query.dataValidation);

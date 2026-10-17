@@ -11,6 +11,9 @@ pub(all) enum SlideEdit {
   ApplyLayout(String)
   ResetLayout
   Notes(String)
+  AddComment(String, String, String, String, String?)
+  UpdateComment(String, String)
+  RemoveComment(String)
   Size(Double, Double)
   AddSection(String)
   RenameSection(String, String)
@@ -207,6 +210,8 @@ pub fn Session::edit_slides(
   }
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   match change {
+    AddComment(_, _, _, _, _) | UpdateComment(_, _) | RemoveComment(_) =>
+      return self.edit_comments(index, change)
     AddSection(_)
     | RenameSection(_, _)
     | RemoveSection(_)

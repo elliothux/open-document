@@ -20,6 +20,7 @@ import {
 } from "./xlsx-print.js";
 
 export type XlsxSheetEdit =
+  | { action: "note"; cell: string; text: string | null; author?: string }
   | { action: "hyperlink"; range: string; target: string | null }
   | { action: "openHyperlink"; range: string; sourceRevision: number }
   | XlsxNameEdit
@@ -97,6 +98,20 @@ export type XlsxSheetEdit =
 
 export function checkXlsxSheetEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "note") {
+    if (
+      !noteCell(change.cell) ||
+      (change.text !== null && !noteText(change.text, 32767, true)) ||
+      (change.author !== undefined &&
+        (!noteText(change.author, 255, true) ||
+          Array.from(change.author).some((c) => c.codePointAt(0)! < 32))) ||
+      Object.keys(change).some(
+        (key) => !["action", "cell", "text", "author"].includes(key),
+      )
+    )
+      throw new Error("Invalid cell note edit");
+    return;
+  }
   if (change.action === "hyperlink" || change.action === "openHyperlink") {
     const fields =
       change.action === "hyperlink"
@@ -348,6 +363,58 @@ export function checkXlsxSheetEdit(value: unknown): void {
   )
     return;
   throw new Error("Invalid worksheet edit");
+}
+
+export interface XlsxNote {
+  address: string;
+  text: string;
+  author: string;
+  exists: boolean;
+  reason: string;
+}
+function noteCell(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const match = /^([A-Z]{1,3})([1-9]\d{0,6})$/iu.exec(value);
+  return (
+    !!match &&
+    match[0] === value &&
+    Number(match[2]) <= 1048576 &&
+    Array.from(match[1]!.toUpperCase()).reduce(
+      (sum, c) => sum * 26 + c.charCodeAt(0) - 64,
+      0,
+    ) <= 16384
+  );
+}
+function noteText(
+  value: unknown,
+  max: number,
+  required = false,
+): value is string {
+  return (
+    typeof value === "string" &&
+    value.length <= max &&
+    value.isWellFormed() &&
+    (!required || !!value.trim()) &&
+    !Array.from(value).some((c) => {
+      const n = c.codePointAt(0)!;
+      return (n < 32 && ![9, 10, 13].includes(n)) || n === 65534 || n === 65535;
+    })
+  );
+}
+export function xlsxNote(value: unknown): XlsxNote {
+  const result = record(value);
+  if (
+    typeof result.reason !== "string" ||
+    typeof result.exists !== "boolean" ||
+    typeof result.address !== "string" ||
+    (!(result.reason && !result.address) && !noteCell(result.address)) ||
+    result.address !== result.address.toUpperCase() ||
+    (!result.exists && (result.text !== "" || result.author !== "")) ||
+    !noteText(result.text, 32767) ||
+    !noteText(result.author, 255)
+  )
+    throw new Error("Invalid cell note query");
+  return value as XlsxNote;
 }
 
 export interface XlsxHyperlink {

@@ -16,6 +16,7 @@ import {
   PptxSlideLayout,
 } from "./pptx-page.js";
 import { PptxSections } from "./pptx-sections.js";
+import { PptxComments } from "./pptx-comments.js";
 import { PptxSlideList } from "./pptx-slides.js";
 import { XlsxSheets, XlsxFrozen, XlsxView } from "./xlsx-sheets.js";
 import { XlsxNames } from "./xlsx-names.js";
@@ -189,6 +190,13 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
         />
         <PptxNotes
           key={`notes:${file.editor.getSnapshot().documentId}:${query.slide}:${query.notes.text}`}
+          controller={controller}
+          state={state}
+          file={file}
+          disabled={disabled}
+        />
+        <PptxComments
+          key={`comments:${file.editor.getSnapshot().documentId}:${query.slide}`}
           controller={controller}
           state={state}
           file={file}

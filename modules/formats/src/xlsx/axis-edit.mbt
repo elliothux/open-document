@@ -18,13 +18,17 @@ fn Session::edit_axes(
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   self.check_named_structure()
   let target = self.sheets[index]
+  let notes = self.read_sheet_notes(target)
   guard !target.locked && target.frozen.edit_reason.is_empty() else {
     @failure.reject(
       "protected-content", "Protected worksheet or view prevents structural editing",
     )
   }
   for relation in self.relationships() {
-    if relation.owner == id && relation.kind != relationship_uri + "hyperlink" {
+    if relation.owner == id &&
+      !["hyperlink", "comments", "vmlDrawing"].any(kind => {
+        relation.kind == relationship_uri + kind
+      }) {
       @failure.reject(
         "protected-content", "Worksheet resources require reference-aware structural editing",
       )
@@ -35,7 +39,8 @@ fn Session::edit_axes(
     guard [
       "sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData",
       "mergeCells", "sheetProtection", "pageMargins", "pageSetup", "printOptions",
-      "headerFooter", "conditionalFormatting", "dataValidations", "hyperlinks", "extLst",
+      "headerFooter", "conditionalFormatting", "dataValidations", "hyperlinks", "legacyDrawing",
+      "extLst",
     ].contains(node.name) else {
       @failure.reject(
         "protected-content", "Worksheet metadata requires structural range support",
@@ -44,6 +49,10 @@ fn Session::edit_axes(
   }
   let sheets = self.sheets.copy()
   let edits : Array[(String, @xml.Edit)] = []
+  let parts = self.parts.copy()
+  if notes is Some(notes) {
+    shift_cell_notes(notes, change, parts, edits)
+  }
   let rule_work : RuleShiftWork = {
     cells: 0,
     units: 0,
@@ -207,6 +216,6 @@ fn Session::edit_axes(
     workbook,
   )
   edits.append(self.cache_edits(sheets, calculation))
-  self.commit(sheets, workbook, calculation, edits, after)
+  self.commit(sheets, workbook, calculation, edits, after, parts~)
   self.query()
 }

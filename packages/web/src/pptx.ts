@@ -21,6 +21,9 @@ export type {
   PptxFindOptions,
   PptxSearchResult,
   PptxSlideEdit,
+  PptxCommentAuthor,
+  PptxComment,
+  PptxComments,
   PptxBackgroundFill,
   PptxSection,
   PptxSections,
@@ -32,6 +35,7 @@ export type {
   PptxParagraphFormat,
   PptxParagraphFormatting,
 } from "@open-document/wasm/pptx";
+export { checkPptxSlideEdit } from "@open-document/wasm/pptx";
 
 /** A Worker owns presentation state, layout, history and source bytes. */
 export class PptxClient {

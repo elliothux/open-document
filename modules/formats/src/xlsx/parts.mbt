@@ -14,7 +14,11 @@ fn Session::replacements(
   parts : Map[String, @xml.Document],
 ) -> Map[String, Bytes] {
   let replacements : Map[String, Bytes] = Map([])
-  for part, document in parts {
+  // Restoring deleted new parts must not change their ZIP entry order.
+  let names = parts.keys().to_array()
+  names.sort()
+  for part in names {
+    let document = parts[part]
     if !document.is_original() || !self.opc.names.contains(part.to_lower()) {
       replacements[part] = document.bytes()
     }

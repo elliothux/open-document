@@ -306,6 +306,7 @@ pub(all) enum SheetEdit {
   ConditionalPriority(Int, Int, Int)
   Hyperlink(String, String?)
   OpenHyperlink(String, Int)
+  Note(String, String?, String)
 }
 
 pub(all) struct SortKey {

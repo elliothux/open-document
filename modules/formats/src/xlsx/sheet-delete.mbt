@@ -32,6 +32,18 @@ fn Session::prepare_sheet_delete(
     names.push(relations)
   }
   let links = self.relationships()
+  if self.read_sheet_notes(deleted) is Some(notes) {
+    names.push(notes.part)
+    if notes.vml is Some((part, _, _)) {
+      names.push(part)
+    }
+    for part in [notes.part] {
+      let path = workbook_relations(part)
+      if self.parts.contains(path) || self.opc.names.contains(path.to_lower()) {
+        names.push(path)
+      }
+    }
+  }
   for link in links {
     if link.owner == self.main && link.kind == relationship_uri + "calcChain" {
       guard !link.external else {

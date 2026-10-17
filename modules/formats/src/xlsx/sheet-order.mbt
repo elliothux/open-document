@@ -37,6 +37,7 @@ pub(all) enum SheetEdit {
   ConditionalPriority(Int, Int, Int)
   Hyperlink(String, String?)
   OpenHyperlink(String, Int)
+  Note(String, String?, String)
 }
 
 ///|
@@ -167,6 +168,7 @@ pub fn Session::edit_sheet(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   match change {
+    Note(cell, text, author) => return self.set_note(sheet, cell, text, author)
     Hyperlink(range, target) => return self.set_hyperlink(sheet, range, target)
     OpenHyperlink(range, source_revision) =>
       return self.open_hyperlink(sheet, range, source_revision)
@@ -326,6 +328,7 @@ pub fn Session::edit_sheet(
     | ConditionalRule(_, _, _, _)
     | Hyperlink(_, _)
     | OpenHyperlink(_, _)
+    | Note(_, _, _)
     | ConditionalPriority(_, _, _) => abort("Dimension edit was dispatched")
     Rename(name) => return self.rename_sheet(index, name)
     Delete => {

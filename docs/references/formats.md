@@ -623,9 +623,9 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 `{ action: "delete" }` 删除指定表，至少保留一张可见表。删除活动表时优先选择右侧可见表，再向左查找，定位 A1；删除其他表保留活动表与范围。同步剩余名称的 `localSheetId`、工作簿窗口及工作表视图；移除被删表的局部名称。将指向该表的已支持单元格/区域引用整体替换为 `#REF!`，覆盖单元格公式、保留的定义名称和既有条件格式/数据验证公式；移除指向它的内部超链接，保留外部链接及字符串常量。共享公式组继续保存为共享组，失去目标的错误参与依赖计算和缓存写回。核心现可解析七种标准公式错误常量，保留错误传播和 IF 的按需求值规则。引用错误在网格和 PDF 中使用同一结果。
 
-`{ action: "copy" }` 在目标表后复制，分配新的 sheetId、部件及关系身份。名称从 `原名 (1)` 起避让重名，长度不超过 31 个 UTF-16 单元且不切断代理对。副本保留内容、格式、尺寸和可见性，更新自身显式引用与复制的局部名称；其他表的引用及字符串常量不变。已有普通批注复制为独立部件，清除副本的可选 guid/shapeId，原批注不变；外部链接只保留地址。可见副本激活 A1，隐藏副本保留当前选择。副本部件和元数据使用同一有界历史，失败不修改文档。绘图、表格、VML、线程批注及未知身份扩展仍受保护。
+`{ action: "copy" }` 在目标表后复制，分配新的 sheetId、部件及关系身份。名称从 `原名 (1)` 起避让重名，长度不超过 31 个 UTF-16 单元且不切断代理对。副本保留内容、格式、尺寸和可见性，更新自身显式引用与复制的局部名称；其他表的引用及字符串常量不变。已有普通便笺及对应 VML 复制为独立部件，清除副本的可选 guid/shapeId，源便笺不变；外部链接只保留地址。可见副本激活 A1，隐藏副本保留当前选择。副本部件和元数据使用同一有界历史，失败不修改文档。绘图、表格、非便笺 VML、线程批注及未知身份扩展仍受保护；便笺范围归[单元格便笺](#单元格便笺)。
 
-删除仅移除工作表 XML、其关系、失效 calcChain 及其关系，更新工作簿关系和内容类型。其余源资源保留，不回收共享字符串条目或重排字符串索引；保存更新使用计数并沿现有规则标记重算。删除部件快照、引用、缓存和选择共同提交一项有界历史，可与新增、输入和改名精确混合撤销/重做；损坏回放或预算失败保留已提交文档。选择与错误引用规则参考 [ONLYOFFICE 删除工作表](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L4122-L4188)和[引用转换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L10419-L10455)。
+删除移除工作表 XML、其关系、失效 calcChain 及其关系，以及独占的普通便笺 XML/VML，更新工作簿关系和内容类型。其余源资源保留，不回收共享字符串条目或重排字符串索引；保存更新使用计数并沿现有规则标记重算。删除部件快照、引用、缓存和选择共同提交一项有界历史，可与新增、输入和改名精确混合撤销/重做；损坏回放或预算失败保留已提交文档。选择与错误引用规则参考 [ONLYOFFICE 删除工作表](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L4122-L4188)和[引用转换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L10419-L10455)。
 
 `XlsxQuery.sheetRenameReason` 包含结构保护原因，并保护尚未接入引用更新的工作簿/工作表资源关系、未知工作表内容、非空扩展及非普通/共享公式组。复制和删除沿用该引用保护；复制另保护未知身份属性，删除另拒绝未知的部件入站引用。默认 UI 显示原因，提供名称输入、复制、改名与删除入口，并禁用最后可见表的删除。更广资源及引用处理仍归 [P11](../p11-xlsx-core.md)。
 
@@ -641,7 +641,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 插入复制上方行或左侧列的已有尺寸与字符/单元格格式，清空新增格的值和公式，并显示新增行列；新增列取消 bestFit。首行/首列无前项时使用缺省格式。单元格、引用、计算缓存和选区合为一次源历史；撤销恢复精确包，保存重开可继续输入和输出 PDF。自动轴沿原有字体与工作量预算更新。规则依据 [ONLYOFFICE 行插入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L8313-L8369)及[列插入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L8473-L8554)。实现归 [`axis-edit.mbt`](../../modules/formats/src/xlsx/axis-edit.mbt)、[`axis-reference.mbt`](../../modules/formats/src/xlsx/axis-reference.mbt)、[`axis-cells.mbt`](../../modules/formats/src/xlsx/axis-cells.mbt)与 [`axis-metadata.mbt`](../../modules/formats/src/xlsx/axis-metadata.mbt)。
 
-插入会推掉实际源行或单元格时拒绝。工作表保护、未知公式/引用/属性、非空扩展、未接入变换的筛选、绘图、表格、批注等资源继续保护，保留文档与历史；仅锁定工作簿结构不禁止行列插删。四向单元格移位插删见下节；其余引用资源按 [P11](../p11-xlsx-core.md) 继续接入。
+插入会推掉实际源行、单元格或便笺时拒绝。[传统便笺](#单元格便笺)的归属已随结构事务维护。工作表保护、未知公式/引用/属性、非空扩展、未接入变换的筛选、绘图、表格、线程批注及未知便笺资源继续保护，保留文档与历史；仅锁定工作簿结构不禁止行列插删。四向单元格移位插删见下节；其余引用资源按 [P11](../p11-xlsx-core.md) 继续接入。
 
 ### 单元格移位插入与删除
 
@@ -653,7 +653,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 既有条件格式/数据验证的 `sqref` 按移动带拆分或删除；普通公式与公式型 `cfvo` 阈值保持各格的相对、绝对和跨表引用。需要不同公式的区域分组保存，保留规则属性、源注释和命名空间；条件格式保留原优先顺序并分配唯一优先级，验证同步 `count`，与单元格共用一次精确历史。常量或全绝对公式按区间处理，不展开整列空格。相对公式每次操作最多求值 100000 个规则覆盖格、处理 4 Mi 字符，累计最多 4096 个规则片段；克隆源另受单部件与 4 Mi 字符上限约束。未知规则结构、无法解析的公式、克隆身份扩展或预算不足时原子拒绝。范围变换参考 [ONLYOFFICE 条件格式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/ConditionalFormatting.js#L564-L643)和[数据验证](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/DataValidation.js#L976-L1067)。
 
-范围变换复用源规则与引用事务。普通条件格式的呈现与验证执行/编辑已接通，范围归[条件格式](#条件格式)和[数据验证](#数据验证)；未呈现效果的 PDF 继续原子拒绝。移动带切开合并或矩形链接、依赖无法隔离的公式/引用、未接入的筛选/绘图/表格/批注资源及工作表保护继续原子拒绝。可用的整行/整列操作保持原有规则支持。保存重开后继续沿同一编辑与 PDF 路径工作；其余 [P11](../p11-xlsx-core.md) 范围仍待实现。
+范围变换复用源规则与引用事务。普通条件格式的呈现与验证执行/编辑已接通，范围归[条件格式](#条件格式)和[数据验证](#数据验证)；未呈现效果的 PDF 继续原子拒绝。传统便笺按所选行/列带移动归属，删除目标格时同时删除文字和对应 VML 框，范围外便笺保留。移动带切开合并或矩形链接、依赖无法隔离的公式/引用、未接入的筛选/绘图/表格/线程批注资源及工作表保护继续原子拒绝。可用的整行/整列操作保持原有规则支持。保存重开后继续沿同一编辑与 PDF 路径工作；其余 [P11](../p11-xlsx-core.md) 范围仍待实现。
 
 ### 四向填充
 
@@ -852,6 +852,22 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 已有改名、复制、删除工作表及行列/单元格结构事务继续更新普通链接范围与内部引用；名称改名同步内部 location，外部文件的 location 保持原值。删除定义名称时移除因此失去矩形目标的已知链接，包括名称别名链；其他已失效引用保留导航原因。保存重开支持继续编辑，链接和关系与原生输入、结构修改可精确混合撤销。静态 PDF 校验普通链接元数据后保留单元格文字与格式，未知链接扩展继续保护输出；可点击 PDF 注释、HYPERLINK 函数及绘图对象链接仍属后续范围。
 
 实现归 [`hyperlink-query.mbt`](../../modules/formats/src/xlsx/hyperlink-query.mbt) 和 [`hyperlink-edit.mbt`](../../modules/formats/src/xlsx/hyperlink-edit.mbt)。范围查找、设置/移除及保留直接格式的语义参考固定 [ONLYOFFICE Range hyperlinks](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L20760-L20849)，复用第一方范围拆分、关系与历史事务，未复制上游代码。
+
+### 单元格便笺
+
+`XlsxQuery.note` 返回查询单元格的 `{ address, exists, text, author, reason }`。单格或一个完整合并区域可编辑，合并区域使用左上角身份；多格返回选择原因。支持传统 comments XML 和普通 VML 便笺框，线程批注继续保护。查询覆盖显式 `sheet/range`，不改变活动选区。
+
+`XlsxSession/Client.editSheet(revision, sheet, { action: "note", cell, text, author? })` 和 `SpreadsheetEditor.editSheet(change, sheet?)` 创建、修改或删除便笺。`cell` 是单个 A1 地址，`text: null` 删除；新文字必须非空，最多 32767 UTF-16 单元，CRLF/CR 归一为 LF。新建须显式提供非空 `author`，最多 255 单元且不含控制字符；修改保留原作者。空文本便笺可读取和删除，显式文字修改继承首个源 run 的字符属性。SpreadsheetML 转义由核心统一编码，字面的 `_x0041_` 不会变成 `A`。
+
+默认面板复用 `EditorOptions.commentAuthor.name` 创建作者，未提供时仍可修改和删除已有便笺。应用前原生单元格草稿沿既有队列提交，值、公式、格式和计算结果保持。便笺输入以当前文档/工作表/单元格绑定；切换单元格更新输入，未应用的面板草稿不写入文档。显示文字与 VML 外观不进入单元格值、查找、CSV 或默认静态 PDF。当前通过选中单元格后的面板查看便笺；网格角标和画布弹框继续实施。
+
+首次创建把 comments、VML、工作表 `legacyDrawing`、关系和内容类型合为一项精确历史。普通备注框使用标准 `ObjectType="Note"` 及从零开始的 Row/Column、八项 Anchor。导入只有 comments 而无 VML 时，新增便笺会补齐全部现有便笺的框；若已有未解析的 `shapeId`，保护该创建。修改只替换文字正文，保留原作者、其他便笺、外围注释、局部命名空间和 VML 位置/外观。删除移除文字与对应框，最后一条删除后保留空部件和作者列表。每表最多 4096 条、合计 1 Mi 文字单元及 4096 个作者，并继续受包、输出与历史预算约束。
+
+复制表创建独立 comments/VML 部件并重映射关系；副本可继续编辑。改名和删除沿已有工作表事务，删除仅回收独占部件和内容类型。新增部件按稳定顺序写入 ZIP，删除/撤销不改变相同状态的保存字节。重复地址、作者缺失、未知/不匹配的 VML、控件/图片、未知文字/扩展、共享/外部部件、保护、旧修订和预算失败原子拒绝。排序、填充、合并及全部清除仍沿已有资源保护，不在未维护便笺引用时放开操作。未知 VML 保留未渲染诊断并拒绝打印；普通便笺输出按默认不打印批注处理，非默认批注打印设置继续保护。
+
+整行/整列插删和四向单元格移位复用既有 `AxisChange`。便笺随所属格移动，范围外不变；删除所属格时移除该便笺及对应 VML shape，保留作者、空部件和关系。插入不得把空格上的便笺推出工作表。核心同步 comment 的 `ref` 和对应 `ClientData` 的 Row 或 Column，仅改动受影响轴的文字；Anchor 矩形、偏移、外观/标志、guid/shapeId、正文与其他源保留。范围插入后选区仍是插入区域，可定位到移后的便笺格；不单独修改既有选区规则。部件、值/公式、规则与选择共用一次精确历史；无法安全替换的 VML 文字或预算失败不提交。归属规则参考 [ONLYOFFICE updateCommentsDependencies](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/CellComment.js#L709-L838)，实现归 [`notes-axis.mbt`](../../modules/formats/src/xlsx/notes-axis.mbt)。
+
+部件及锚点格式参考 [ONLYOFFICE VmlDrawing.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/VmlDrawing.cpp#L295-L410)。实现独立使用已有 XML 编辑、单元格地址、关系及历史事务，归 [`notes-read.mbt`](../../modules/formats/src/xlsx/notes-read.mbt)、[`notes-vml.mbt`](../../modules/formats/src/xlsx/notes-vml.mbt)、[`notes-create.mbt`](../../modules/formats/src/xlsx/notes-create.mbt)、[`notes-edit.mbt`](../../modules/formats/src/xlsx/notes-edit.mbt)及 [`xlsx-format.tsx`](../../packages/ui/src/xlsx-format.tsx)。线程回复/解决、便笺外观编辑和其余资源变换仍归 [P11](../p11-xlsx-core.md)。
 
 ### 数据验证
 
@@ -1331,7 +1347,27 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 备注归属必须唯一并正确回链。共享/外部备注、多个正文占位符、字段或未知正文节点/属性、被改范围内注释/处理指令、修改保护、旧 revision、活动候选及预算失败原子拒绝。保护性查询返回空 `text` 和明确 `reason`，不把未知正文当作可修改文本。页面复制沿已有部件闭包创建独立备注并重映射回链；删除仅回收独占备注，精确历史与保存重开共用同一事务。
 
-默认面板提供多行输入、应用和清空，正文草稿在应用后进入文档；切页按当前备注更新面板。备注不加入幻灯片文字、字体/图像资源准备、查找或静态 PDF，不改变幻灯片 Canvas。备注富文本控件、母版/打印布局、批注/回复、日期/页脚和演讲者界面仍按 [P12](../p12-pptx-core.md) 后续范围实施。实现归 [`slide-notes.mbt`](../../modules/formats/src/pptx/slide-notes.mbt)、[`notes-read.mbt`](../../modules/formats/src/pptx/notes-read.mbt)、[`notes-create.mbt`](../../modules/formats/src/pptx/notes-create.mbt)及 [`pptx-page.tsx`](../../packages/ui/src/pptx-page.tsx)。
+默认面板提供多行输入、应用和清空，正文草稿在应用后进入文档；切页按当前备注更新面板。备注不加入幻灯片文字、字体/图像资源准备、查找或静态 PDF，不改变幻灯片 Canvas。备注富文本控件、母版/打印布局、日期/页脚和演讲者界面仍按 [P12](../p12-pptx-core.md) 后续范围实施。批注归下节。实现归 [`slide-notes.mbt`](../../modules/formats/src/pptx/slide-notes.mbt)、[`notes-read.mbt`](../../modules/formats/src/pptx/notes-read.mbt)、[`notes-create.mbt`](../../modules/formats/src/pptx/notes-create.mbt)及 [`pptx-page.tsx`](../../packages/ui/src/pptx-page.tsx)。
+
+### 本地批注与回复
+
+`PptxQuery.comments` 返回当前页的 `{ items, reason }`。条目包含稳定的 `id`（规范化的 `authorId:idx`）、作者 `author`、`initials`、源 `date`、纯文字 `text` 和根批注 `parent`；根的 `parent` 为 `null`。支持传统 `p:cmLst` 和 PowerPoint 2012 的单层回复，按源顺序返回。缺失作者、重复身份、悬空/嵌套回复、现代云批注及未知扩展返回保护原因，不把未知源当作可编辑文本。
+
+同步 Wasm、Worker 的 `editPptxSlides` 和 `PresentationEditor.editSlides(change, slide?)` 共用以下命令：
+
+| action | 字段与结果 |
+| --- | --- |
+| `commentAdd` | `text`、`author: { name, initials }`、`date`、`parent: string \| null`；创建根或回复指定根 |
+| `commentUpdate` | `id`、`text`；只修改文字，保留作者、日期、位置及已知扩展 |
+| `commentRemove` | `id`；删除回复本身，或删除根及全部回复 |
+
+作者必须由宿主显式提供。默认 UI 从 `EditorOptions.commentAuthor` 读取新批注/回复作者；未提供时仍可读取、修改和删除已有批注。界面提供当前页的批注列表、文字编辑及回复输入，草稿保留至提交；创建时间由平台以 UTC ISO 字符串传入，核心校验日历与时间。核心不读取系统账号或时钟。修改文字保留原日期，导入的缺失日期和原日期文本原样保留。
+
+新文字必须非空，最多 32767 UTF-16 单元，CRLF/CR 归一为 LF。作者名非空且最多 255 单元，缩写最多 32；新作者字段不接受控制字符。每页最多 4096 项、合计 1 Mi 文字单元，全稿作者最多 4096 项；新建/复制索引分配扫描最多 16384 个保留批注，并同时预留作者 `lastIdx`，避免导入索引滞后造成重复。回复只指向同页根批注，新根位置为 `(0, 0)`，新回复沿用根位置。位置和批注文字不进入幻灯片 Canvas 或静态 PDF；当前面板以页面归属展示。
+
+首次创建把 comments、commentAuthors、两处关系和内容类型合为一项有界历史。删除最后一项保留空批注部件和作者。已有 XML 的外围注释、局部命名空间、日期、位置，以及已知 `threadingInfo`/`presenceInfo` 保持。页面复制分配新索引、同步作者 `lastIdx` 并重映射每个回复的父索引；删除页仅回收独占批注，保留全稿作者。共享/外部部件、未知文字节点/属性、未知扩展、旧 revision、活动候选和包/输出/历史预算失败原子拒绝。所有操作复用现有页面编辑队列、部件事务及精确撤销重做。
+
+回复格式依据 [ONLYOFFICE core Comments.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Comments.cpp#L659-L722) 的 `p15:threadingInfo/p15:parentCm`，作者及根/回复索引依据 [Presentation.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L11145-L11230)。未复制上游源码。现代批注、提及/解决状态、协作服务和画布批注标记继续实施。实现归 [`comments-read.mbt`](../../modules/formats/src/pptx/comments-read.mbt)、[`comments-create.mbt`](../../modules/formats/src/pptx/comments-create.mbt)、[`comments-edit.mbt`](../../modules/formats/src/pptx/comments-edit.mbt)及 [`pptx-comments.tsx`](../../packages/ui/src/pptx-comments.tsx)。
 
 ## PDF 输入与文档操作
 

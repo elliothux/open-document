@@ -43,6 +43,15 @@ export function checkPptxBackgroundFill(value: unknown): void {
 }
 
 export type PptxSlideEdit =
+  | {
+      action: "commentAdd";
+      text: string;
+      author: PptxCommentAuthor;
+      date: string;
+      parent: string | null;
+    }
+  | { action: "commentUpdate"; id: string; text: string }
+  | { action: "commentRemove"; id: string }
   | { action: "themeColor"; slot: PptxThemeSlot; color: string }
   | {
       action: "themeFont";
@@ -69,6 +78,13 @@ export type PptxSlideEdit =
 
 export function checkPptxSlideEdit(value: unknown): void {
   const change = record(value);
+  if (
+    typeof change.action === "string" &&
+    ["commentAdd", "commentUpdate", "commentRemove"].includes(change.action)
+  ) {
+    checkCommentEdit(change);
+    return;
+  }
   if (change.action === "themeFont") {
     checkPptxThemeFont(change);
     return;
@@ -168,6 +184,113 @@ export function checkPptxSlideEdit(value: unknown): void {
     return;
   if (change.action === "hidden" && typeof change.hidden === "boolean") return;
   throw new Error("Invalid slide edit");
+}
+
+export interface PptxCommentAuthor {
+  name: string;
+  initials: string;
+}
+export interface PptxComment {
+  id: string;
+  author: string;
+  initials: string;
+  date: string;
+  text: string;
+  parent: string | null;
+}
+export interface PptxComments {
+  items: PptxComment[];
+  reason: string;
+}
+const commentId = /^(0|[1-9]\d{0,9}):(0|[1-9]\d{0,9})$/u;
+function validCommentId(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    commentId.test(value) &&
+    value.split(":").every((n) => Number(n) <= 4294967295)
+  );
+}
+function commentText(
+  value: unknown,
+  max: number,
+  required = false,
+): value is string {
+  return (
+    typeof value === "string" &&
+    value.length <= max &&
+    value.isWellFormed() &&
+    (!required || !!value.trim()) &&
+    !Array.from(value).some((c) => {
+      const n = c.codePointAt(0)!;
+      return (n < 32 && ![9, 10, 13].includes(n)) || n === 65534 || n === 65535;
+    })
+  );
+}
+function checkCommentEdit(change: Record<string, unknown>): void {
+  const add = change.action === "commentAdd",
+    update = change.action === "commentUpdate";
+  const fields = add
+    ? ["action", "text", "author", "date", "parent"]
+    : update
+      ? ["action", "id", "text"]
+      : ["action", "id"];
+  if (
+    Object.keys(change).some((key) => !fields.includes(key)) ||
+    (!add && !validCommentId(change.id)) ||
+    ((add || update) && !commentText(change.text, 32767, true))
+  )
+    throw new Error("Invalid comment edit");
+  if (!add) return;
+  const author = record(change.author);
+  if (
+    !commentText(author.name, 255, true) ||
+    !commentText(author.initials, 32) ||
+    Array.from(author.name + author.initials).some(
+      (c) => c.codePointAt(0)! < 32,
+    ) ||
+    Object.keys(author).some((key) => !["name", "initials"].includes(key)) ||
+    (change.parent !== null && !validCommentId(change.parent)) ||
+    typeof change.date !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{3})?Z$/u.test(change.date) ||
+    change.date.startsWith("0000") ||
+    !Number.isFinite(Date.parse(change.date)) ||
+    new Date(change.date).toISOString() !==
+      (change.date.length === 20
+        ? change.date.slice(0, 19) + ".000Z"
+        : change.date)
+  )
+    throw new Error("Invalid comment author, date or reply parent");
+}
+export function pptxComments(value: unknown): PptxComments {
+  const result = record(value);
+  if (
+    typeof result.reason !== "string" ||
+    !Array.isArray(result.items) ||
+    result.items.length > 4096
+  )
+    throw new Error("Invalid comment query");
+  const parents = new Map<string, string | null>();
+  let units = 0;
+  for (const item of result.items) {
+    const entry = record(item);
+    if (
+      !validCommentId(entry.id) ||
+      parents.has(entry.id) ||
+      !commentText(entry.author, 255) ||
+      !commentText(entry.initials, 32) ||
+      !commentText(entry.date, 64) ||
+      !commentText(entry.text, 32767) ||
+      (entry.parent !== null && !validCommentId(entry.parent))
+    )
+      throw new Error("Invalid comment entry");
+    parents.set(entry.id, entry.parent);
+    units += entry.text.length;
+  }
+  if (units > 1048576) throw new Error("Comment query exceeds text budget");
+  for (const parent of parents.values())
+    if (parent !== null && parents.get(parent) !== null)
+      throw new Error("Invalid comment thread");
+  return value as PptxComments;
 }
 
 export interface PptxSection {

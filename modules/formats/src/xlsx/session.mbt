@@ -193,7 +193,7 @@ fn Session::from_package(
           "sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData",
           "mergeCells", "sheetProtection", "pageMargins", "pageSetup", "printOptions",
           "headerFooter", "autoFilter", "dataValidations", "conditionalFormatting",
-          "hyperlinks",
+          "hyperlinks", "legacyDrawing",
         ].contains(child.name) ||
         child.uri != spreadsheet_uri {
         diagnostics.push("unrendered:" + sheet.id + ":" + child.qualified)
@@ -250,6 +250,17 @@ fn Session::from_package(
     calculation: None,
   }
   session.validate(session.sheets)
+  for sheet in session.sheets {
+    let source = Tree::new(sheet.document)
+    if source.one(source.root("worksheet").id, "legacyDrawing") is Some(legacy) {
+      ignore(session.read_sheet_notes(sheet)) catch {
+        @failure.Failure(..) =>
+          session.diagnostics.push(
+            "unrendered:" + sheet.id + ":" + legacy.qualified,
+          )
+      }
+    }
+  }
   session.calculation = Some(
     Calculation::build(
       session.sheets,
@@ -469,6 +480,7 @@ pub fn Session::query(
     "canRedo": !self.redo.is_empty(),
     "historyBytes": self.history_bytes,
     "readOnlyReason": self.read_only,
+    "note": self.note_query(current, range.unwrap()),
     "sheetEditReason": self.sheet_edit_reason(),
     "sheetRenameReason": self.sheet_rename_reason(),
     "frozen": {

@@ -24,6 +24,8 @@ import {
   checkPptxBackgroundFill,
   pptxSections,
   pptxSlideLayouts,
+  pptxComments,
+  type PptxComments,
   type PptxSlideEdit,
   type PptxBackgroundFill,
   type PptxSections,
@@ -37,6 +39,12 @@ export {
   type PptxSections,
   type PptxSlideLayouts,
   pptxSlideLayouts,
+} from "./pptx-slides.js";
+export {
+  pptxComments,
+  type PptxComments,
+  type PptxComment,
+  type PptxCommentAuthor,
 } from "./pptx-slides.js";
 import { WasmSession, encodeBytes } from "./session.js";
 import {
@@ -190,6 +198,7 @@ export interface PptxQuery {
     reason: string;
   };
   notes: { text: string; reason: string };
+  comments: PptxComments;
   slideLayout: PptxSlideLayouts;
   diagnostics: string[];
 }
@@ -403,6 +412,7 @@ export function pptxQuery(value: unknown): PptxQuery {
   pptxThemeColors(query.themeColors);
   pptxThemeFonts(query.themeFonts);
   const notes = record(query.notes);
+  pptxComments(query.comments);
   pptxSlideLayouts(query.slideLayout);
   checkPptxSlideEdit({ action: "notes", text: notes.text });
   if (typeof notes.reason !== "string") throw new Error("Invalid notes query");

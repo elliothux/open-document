@@ -191,6 +191,7 @@ fn Session::copied_sheet_parts(
   let created : Map[String, @xml.Document] = Map([])
   let remapped = Map::from_array([(source.id, target.id)])
   let types = StringBuilder()
+  let notes = self.read_sheet_notes(source)
   let links = self.relationships()
   let comments = links
     .iter()
@@ -297,6 +298,35 @@ fn Session::copied_sheet_parts(
     if self.copy_sheet_relations(link.target, part, remapped) is Some(document) {
       created[workbook_relations(part)] = document
     }
+  }
+  if notes.bind(n => n.vml) is Some((source_part, tree, _)) {
+    let directory = self.main.split("/").map(p => p.to_owned()).to_array()
+    ignore(directory.pop())
+    let prefix = if directory.is_empty() {
+      ""
+    } else {
+      directory.join("/") + "/"
+    }
+    let part = for i in 0..<=self.budget.entries {
+      let part = prefix + "drawings/odSheet\{number}-\{i}.vml"
+      if !self.opc.names.contains(part.to_lower()) &&
+        !self.parts.contains(part) &&
+        !created.contains(part) {
+        break part
+      }
+    } nobreak {
+      @failure.reject("limit-exceeded", "Copied VML note identities exhausted")
+    }
+    created[part] = @xml.Document::parse(
+      tree.document.bytes(),
+      part,
+      self.budget.xml_depth,
+      self.budget.entry_bytes,
+    )
+    remapped[source_part] = part
+    types.write_string(
+      "<od:Override xmlns:od=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{escaped_attribute(part)}\" ContentType=\"application/vnd.openxmlformats-officedocument.vmlDrawing\"/>",
+    )
   }
   if self.copy_sheet_relations(source.id, target.id, remapped) is Some(document) {
     created[workbook_relations(target.id)] = document

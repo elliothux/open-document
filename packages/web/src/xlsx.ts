@@ -33,8 +33,10 @@ export type { XlsxSheetEdit, XlsxClearMode } from "@open-document/wasm/xlsx";
 export type { XlsxFillTarget, XlsxFillPreview } from "@open-document/wasm/xlsx";
 export type { XlsxStatistics } from "@open-document/wasm/xlsx";
 export {
+  checkXlsxSheetEdit,
   checkXlsxHyperlinkTarget,
   type XlsxHyperlink,
+  type XlsxNote,
 } from "@open-document/wasm/xlsx";
 export type {
   XlsxName,

@@ -5,6 +5,7 @@ import type { PdfEditor } from "@open-document/web/pdf-editor";
 import type { FoundationClient } from "@open-document/web/foundation";
 import type { PdfClient } from "@open-document/web/pdf";
 import type { XlsxDelimitedOptions } from "@open-document/web/xlsx";
+import type { PptxCommentAuthor } from "@open-document/web/pptx";
 import type {
   EditorOutput,
   EditorSnapshot,
@@ -46,6 +47,8 @@ interface CommonOptions {
   readonly onSave?: (document: SavedDocument) => Promise<void> | void;
   readonly signal?: AbortSignal;
   readonly styleNonce?: string;
+  /** Explicit local author for new presentation comments, replies and cell notes. */
+  readonly commentAuthor?: PptxCommentAuthor;
 }
 type OfficeBudget = Awaited<ReturnType<FoundationClient["defaultBudget"]>>;
 type PdfBudget = Awaited<ReturnType<PdfClient["defaultBudget"]>>;

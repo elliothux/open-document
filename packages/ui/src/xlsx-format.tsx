@@ -3,6 +3,7 @@ import type { SpreadsheetEditor } from "@open-document/web/spreadsheet-editor";
 import {
   xlsxNumberFormats,
   checkXlsxHyperlinkTarget,
+  checkXlsxSheetEdit,
   type XlsxCellFormat,
   type XlsxCellBorder,
 } from "@open-document/web/xlsx";
@@ -67,6 +68,13 @@ export function XlsxFormat({ controller, state, editor, disabled }: Props) {
       }}
     >
       <h3>{t.cellFormat}</h3>
+      <XlsxNote
+        key={`${state.document?.documentId}:${editor.currentState.sheet}:${editor.currentState.note.address}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
       <XlsxHyperlink
         key={state.document?.documentId}
         controller={controller}
@@ -334,6 +342,75 @@ export function XlsxFormat({ controller, state, editor, disabled }: Props) {
         disabled={disabled}
       />
     </section>
+  );
+}
+
+function XlsxNote({ controller, state, editor, disabled }: Props) {
+  const t = messages(state.locale),
+    query = editor.currentState,
+    note = query.note;
+  const [text, setText] = useState(note.text);
+  useEffect(() => setText(note.text), [note.text]);
+  const author = note.exists
+    ? note.author
+    : controller.options.commentAuthor?.name;
+  return (
+    <form
+      aria-label={t.cellNote}
+      onSubmit={(event) => {
+        event.preventDefault();
+        controller.run(() => {
+          const change = {
+            action: "note",
+            cell: note.address,
+            text,
+            ...(author ? { author } : {}),
+          } as const;
+          checkXlsxSheetEdit(change);
+          return editor.editSheet(change, query.sheet);
+        });
+      }}
+    >
+      <fieldset disabled={disabled || !!note.reason}>
+        <legend>{t.cellNote}</legend>
+        {note.author && <p>{note.author}</p>}
+        <label>
+          {t.cellNote}
+          <textarea
+            aria-label={t.cellNote}
+            maxLength={32767}
+            value={text}
+            onChange={(event) => setText(event.currentTarget.value)}
+          />
+        </label>
+        <button
+          type="submit"
+          disabled={
+            (!note.exists && !author) ||
+            !text.trim() ||
+            (note.exists && text === note.text)
+          }
+        >
+          {t.noteApply}
+        </button>
+        <button
+          type="button"
+          disabled={!note.exists}
+          onClick={() =>
+            controller.run(() =>
+              editor.editSheet(
+                { action: "note", cell: note.address, text: null },
+                query.sheet,
+              ),
+            )
+          }
+        >
+          {t.noteRemove}
+        </button>
+      </fieldset>
+      {note.reason && <p>{note.reason}</p>}
+      {!note.exists && !author && <p>{t.noteAuthorRequired}</p>}
+    </form>
   );
 }
 

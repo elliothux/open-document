@@ -1,15 +1,10 @@
 import type { Messages } from "./messages-en.js";
+import { reviewZh } from "./messages-review.js";
 
 export const zh: Messages = {
+  ...reviewZh,
   cellHyperlink: "单元格超链接",
   hyperlinkRange: "使用 #Sheet1!A1 或 #名称 链接到当前工作簿。",
-  bookmarks: "书签",
-  bookmarkName: "书签名称",
-  bookmarkCreate: "创建书签",
-  bookmarkRename: "重命名书签",
-  bookmarkRemove: "删除书签",
-  bookmarkGoTo: "跳转到书签",
-  hyperlinkBookmark: "使用 #书签名称 链接到本文档中的书签。",
   objectHyperlink: "对象超链接",
   textHyperlink: "文字超链接",
   hyperlinkText: "显示文字",

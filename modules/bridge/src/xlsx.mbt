@@ -221,6 +221,31 @@ fn Foundation::xlsx_operation(
             field_int(change, "position"),
             field_int(change, "sourceRevision"),
           )
+        "note" => {
+          guard change is Object(fields) &&
+            fields
+            .keys()
+            .all(k => ["action", "cell", "text", "author"].contains(k)) else {
+            @failure.reject(
+              "invalid-operation", "Invalid cell note command fields",
+            )
+          }
+          let text = match fields.get("text") {
+            Some(Null) => None
+            Some(String(value)) => Some(value)
+            _ =>
+              @failure.reject(
+                "invalid-operation", "Cell note text or null is required",
+              )
+          }
+          let author = match fields.get("author") {
+            None => ""
+            Some(String(value)) => value
+            _ =>
+              @failure.reject("invalid-operation", "Invalid cell note author")
+          }
+          @xlsx.Note(field_string(change, "cell"), text, author)
+        }
         "hyperlink" => {
           guard change is Object(fields) &&
             fields.length() == 3 &&

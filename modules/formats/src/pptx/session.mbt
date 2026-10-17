@@ -397,6 +397,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
     "slideVisibilityReason": self.slide_visibility_reason(),
     "sections": self.section_query(),
     "notes": self.notes_query(current.tree.part),
+    "comments": self.comments_query(current.tree.part, links),
     "textHyperlink": self.text_hyperlink_query(links),
     "slideLayout": self.layout_query(current),
     "themeColors": self.theme_colors(),

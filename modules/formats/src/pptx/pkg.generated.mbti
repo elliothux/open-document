@@ -134,6 +134,9 @@ pub(all) enum SlideEdit {
   ApplyLayout(String)
   ResetLayout
   Notes(String)
+  AddComment(String, String, String, String, String?)
+  UpdateComment(String, String)
+  RemoveComment(String)
   Size(Double, Double)
   AddSection(String)
   RenameSection(String, String)

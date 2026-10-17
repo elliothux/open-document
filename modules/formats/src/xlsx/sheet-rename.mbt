@@ -78,13 +78,14 @@ fn Session::sheet_rename_reason(
         return "Workbook resource references require renaming support"
       }
       if self.sheets.any(sheet => sheet.id == rel.owner) &&
-        !["hyperlink", "comments"].any(kind => {
+        !["hyperlink", "comments", "vmlDrawing"].any(kind => {
           rel.kind == relationship_uri + kind
         }) {
         return "Worksheet resource references require renaming support"
       }
     }
     for sheet in self.sheets {
+      ignore(self.read_sheet_notes(sheet))
       let tree = Tree::new(sheet.document)
       let root = tree.root("worksheet")
       ignore(read_filter(sheet))
@@ -95,7 +96,7 @@ fn Session::sheet_rename_reason(
             "sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData",
             "mergeCells", "sheetProtection", "pageMargins", "pageSetup", "printOptions",
             "headerFooter", "autoFilter", "conditionalFormatting", "dataValidations",
-            "hyperlinks", "extLst",
+            "hyperlinks", "legacyDrawing", "extLst",
           ].contains(node.name) {
           return "Worksheet content requires reference-aware renaming"
         }

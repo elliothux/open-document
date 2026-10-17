@@ -269,7 +269,9 @@ fn Session::copy_slide_parts(
         )
       }
       let tree = Tree::new(link.target, original)
-      check_slide_copy_markup(tree)
+      if kind != "comments" {
+        check_slide_copy_markup(tree)
+      }
       ignore(tree.root(if kind == "comments" { "cmLst" } else { "notes" }))
       let segments = self.main.part.split("/").map(p => p.to_owned()).to_array()
       ignore(segments.pop())

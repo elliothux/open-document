@@ -12,7 +12,9 @@
 
 PNG/JPEG 图片插入已接通核心、Wasm、Worker、宿主和默认 UI。新对象在最上层，图片原字节、关系、内容类型与选择共同提交和精确撤销；原生文字草稿仍独立提交。对象与页面复制复用同一图片，保存重开后可继续变换，Canvas 与静态 PDF 复用现有解码和图元。替换与四边源矩形裁剪/重置已接通，保持对象身份、几何、方向和其他副本；图片常量不透明度已接通，保留源像素 alpha 并同步 Canvas/PDF。实现归 [`object-image.mbt`](../modules/formats/src/pptx/object-image.mbt)及 [`image-opacity.mbt`](../modules/formats/src/pptx/image-opacity.mbt)，合同归[格式说明](references/formats.md#pptx)。
 
-普通演讲备注已接通核心、API、默认面板、精确历史及保存重开。首个备注页、关系和内容类型一起创建；修改保留幻灯片、其他备注占位符、未知外围源与资源，清空保留备注页。页面复制独立复制备注，删除回收独占备注。备注文字不进入幻灯片画布和静态 PDF；备注母版编辑、富文本控件、批注及演讲者界面仍待实现。合同归[演讲备注](references/formats.md#演讲备注)，实现归 [`slide-notes.mbt`](../modules/formats/src/pptx/slide-notes.mbt)、[`notes-read.mbt`](../modules/formats/src/pptx/notes-read.mbt)及 [`notes-create.mbt`](../modules/formats/src/pptx/notes-create.mbt)。
+普通演讲备注已接通核心、API、默认面板、精确历史及保存重开。首个备注页、关系和内容类型一起创建；修改保留幻灯片、其他备注占位符、未知外围源与资源，清空保留备注页。页面复制独立复制备注，删除回收独占备注。备注文字不进入幻灯片画布和静态 PDF；备注母版编辑、富文本控件及演讲者界面仍待实现。合同归[演讲备注](references/formats.md#演讲备注)，实现归 [`slide-notes.mbt`](../modules/formats/src/pptx/slide-notes.mbt)、[`notes-read.mbt`](../modules/formats/src/pptx/notes-read.mbt)及 [`notes-create.mbt`](../modules/formats/src/pptx/notes-create.mbt)。
+
+传统本地批注及单层回复已接通读取、创建、修改、删除、API 和默认面板。宿主显式提供作者，平台传入创建日期；核心维护独立部件、作者与回复索引，复制页重映射回复目标，删除页回收独占批注。文字和其他源保持、精确历史及重开共用现有事务；现代云批注与未知扩展继续保护。合同归[本地批注与回复](references/formats.md#本地批注与回复)。
 
 当前页 PNG Web 导出已接通 `PresentationEditor.exportPng`、文件菜单和保存回调。核心仍生成布局与 R0 图元，Web 在独立 Canvas 重放并编码，复用已准备的图片和轮廓，不改变选择、原格式保存状态或历史。导出尺寸按源页面 pt 与明确比例生成，不随预览缩放或 DPR 改变；选择框、光标和备注不进入图片。像素及字节预算失败后可继续编辑；输入/变换候选仍须先结束。浏览器编解码依赖、边界和检查归[当前页 PNG 输出](references/formats.md#当前页-png-输出)。批量图片、其他格式及打印继续实施。
 

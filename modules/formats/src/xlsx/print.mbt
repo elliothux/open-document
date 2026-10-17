@@ -12,6 +12,7 @@ fn Session::print_sheet(
   let sheet = current.id
   try {
     let tree = Tree::new(current.document)
+    ignore(self.read_sheet_notes(current))
     let nodes = hyperlink_nodes(tree)
     if !nodes.is_empty() {
       let links = self.hyperlink_relations(sheet)
