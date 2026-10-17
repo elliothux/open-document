@@ -72,8 +72,35 @@ fn Expression::source(
         let prefix = sheet
           .map(name => "'" + name.replace_all(old="'", new="''") + "'!")
           .unwrap_or("")
+        let a = first.shift(rows, columns)
+        if last is Some(last) {
+          let b = last.shift(rows, columns)
+          let range = a.range(b)
+          if a.fixed_row &&
+            b.fixed_row &&
+            range.top == 1 &&
+            range.bottom == 1048576 {
+            return prefix +
+              (if a.fixed_column { "$" } else { "" }) +
+              print_column(a.address.column) +
+              ":" +
+              (if b.fixed_column { "$" } else { "" }) +
+              print_column(b.address.column)
+          }
+          if a.fixed_column &&
+            b.fixed_column &&
+            range.left == 1 &&
+            range.right == 16384 {
+            return prefix +
+              (if a.fixed_row { "$" } else { "" }) +
+              a.address.row.to_string() +
+              ":" +
+              (if b.fixed_row { "$" } else { "" }) +
+              b.address.row.to_string()
+          }
+        }
         prefix +
-        first.shift(rows, columns).source() +
+        a.source() +
         last.map(last => ":" + last.shift(rows, columns).source()).unwrap_or("")
       } catch {
         @failure.Failure(code~, ..) if invalid_ref && code == "invalid-address" =>

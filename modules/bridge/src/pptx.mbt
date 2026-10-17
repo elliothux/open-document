@@ -135,8 +135,24 @@ fn Foundation::pptx_operation(
             input_bytes(change, 4194304),
             field_string(change, "mode"),
           )
-        "backgroundImageMode" =>
-          @pptx.BackgroundImageMode(field_string(change, "mode"))
+        "backgroundImageFormat" => {
+          guard change is { "crop": Array(values), .. } && values.length() == 4 else {
+            @failure.reject(
+              "invalid-operation", "Four crop values are required",
+            )
+          }
+          let crop = values.map(value => {
+            match value {
+              Number(value, ..) => value
+              _ => @failure.reject("invalid-operation", "Invalid crop value")
+            }
+          })
+          @pptx.BackgroundImageFormat(
+            field_string(change, "mode"),
+            crop,
+            xlsx_number(change, "opacity"),
+          )
+        }
         "background" => {
           let value = match change {
             { "value": Null, .. } => None
@@ -182,6 +198,7 @@ fn Foundation::pptx_operation(
             field_string(change, "mode"),
           )
         "imageFillMode" => @pptx.ImageFillMode(field_string(change, "mode"))
+        "imageMode" => @pptx.ImageMode(field_string(change, "mode"))
         "imageOpacity" => @pptx.ImageOpacity(xlsx_number(change, "opacity"))
         "replaceImage" =>
           @pptx.ReplaceImage(

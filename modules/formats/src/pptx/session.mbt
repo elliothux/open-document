@@ -449,6 +449,12 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
         "hyperlink": self.hyperlink_query(object, links),
         "shapeAdjustments": self.shape_adjustments(object),
         "picture": {
+          "mode": if object.tile is Some(_) {
+            "tile"
+          } else {
+            "stretch"
+          },
+          "modeReason": self.image_mode_reason(object),
           "opacity": object.opacity,
           "opacityReason": self.opacity_reason(object),
           "left": object.crop[0],

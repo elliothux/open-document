@@ -119,6 +119,15 @@ export function PptxBackground({
   const [mode, setMode] = useState<"stretch" | "tile">(
     fill?.kind === "image" ? fill.mode : "stretch",
   );
+  const [opacity, setOpacity] = useState(
+    (fill?.kind === "image" ? fill.opacity : 1) * 100,
+  );
+  const [crop, setCrop] = useState({
+    left: (fill?.kind === "image" ? fill.crop[0] : 0) * 100,
+    top: (fill?.kind === "image" ? fill.crop[1] : 0) * 100,
+    right: (fill?.kind === "image" ? fill.crop[2] : 0) * 100,
+    bottom: (fill?.kind === "image" ? fill.crop[3] : 0) * 100,
+  });
   const [color, setColor] = useState(
     `#${fill?.kind === "solid" ? fill.color : fill?.kind === "linear" ? fill.startColor : "ffffff"}`,
   );
@@ -139,7 +148,17 @@ export function PptxBackground({
         event.preventDefault();
         if (kind === "image") {
           controller.run(() =>
-            editor.editSlides({ action: "backgroundImageMode", mode }),
+            editor.editSlides({
+              action: "backgroundImageFormat",
+              mode,
+              crop: [
+                crop.left / 100,
+                crop.top / 100,
+                crop.right / 100,
+                crop.bottom / 100,
+              ],
+              opacity: opacity / 100,
+            }),
           );
           return;
         }
@@ -192,6 +211,59 @@ export function PptxBackground({
                 <option value="stretch">{t.imageStretch}</option>
                 <option value="tile">{t.imageTile}</option>
               </select>
+            </label>
+            <fieldset disabled={fill?.kind !== "image"}>
+              <legend>{t.pictureCrop}</legend>
+              {(
+                [
+                  ["left", t.cropLeft],
+                  ["top", t.cropTop],
+                  ["right", t.cropRight],
+                  ["bottom", t.cropBottom],
+                ] as const
+              ).map(([key, label]) => (
+                <label key={key}>
+                  {label}
+                  <input
+                    type="number"
+                    required
+                    min={0}
+                    max={99.999}
+                    step={0.001}
+                    value={crop[key]}
+                    onChange={(event) =>
+                      setCrop({
+                        ...crop,
+                        [key]: event.currentTarget.valueAsNumber,
+                      })
+                    }
+                  />
+                </label>
+              ))}
+              <button
+                type="button"
+                onClick={() =>
+                  setCrop({ left: 0, top: 0, right: 0, bottom: 0 })
+                }
+              >
+                {t.resetCrop}
+              </button>
+            </fieldset>
+            {mode === "tile" && <p>{t.tileCropHint}</p>}
+            <label>
+              {t.opacityPercent}
+              <input
+                type="number"
+                required
+                min={0}
+                max={100}
+                step={0.001}
+                value={opacity}
+                onChange={(event) =>
+                  setOpacity(event.currentTarget.valueAsNumber)
+                }
+                disabled={fill?.kind !== "image"}
+              />
             </label>
             <label>
               {t.slideBackgroundPicture}

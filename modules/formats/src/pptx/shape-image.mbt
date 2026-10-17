@@ -2,6 +2,7 @@
 fn shape_image_source(
   fill : Ref,
   background~ : Bool = false,
+  implicit_stretch~ : Bool = false,
 ) -> (String, Array[Double], Double, ImageTile?) raise @failure.Failure {
   try {
     guard fill.node.attributes.all(a => {
@@ -33,7 +34,11 @@ fn shape_image_source(
         names == ["blip", "stretch"] ||
         names == ["blip", "srcRect", "stretch"] ||
         names == ["blip", "tile"] ||
-        names == ["blip", "srcRect", "tile"]
+        names == ["blip", "srcRect", "tile"] ||
+        (
+          implicit_stretch &&
+          (names == ["blip"] || names == ["blip", "srcRect"])
+        )
       ) &&
       entries.all(n => n.uri == drawing_uri && n.text.trim().is_empty()) &&
       fill.node.text.trim().is_empty() else {
@@ -96,9 +101,6 @@ fn shape_image_source(
       @failure.reject(
         "unsupported-style", "Image fill crop must retain positive area",
       )
-    }
-    guard tile is None || crop.all(v => v == 0) else {
-      @failure.reject("unsupported-style", "Cropped tile sources are protected")
     }
     (embed, crop, image_opacity(blip), tile)
   } catch {
@@ -189,18 +191,8 @@ fn image_fill_opacity_markup(
   amount : Int,
 ) -> String raise @failure.Failure {
   let blip = fill.child("blip").unwrap()
-  let markup = if amount == 100000 {
-    ""
-  } else {
-    "<a:alphaModFix xmlns:a=\"\{drawing_uri}\" amt=\"\{amount}\"/>"
-  }
   let (document, _) = fill.tree.document.edit_source([
-    paint_child_change(
-      blip,
-      blip.child("alphaModFix").map(v => v.node),
-      markup,
-      [],
-    ),
+    image_opacity_change(blip, amount),
   ])
   fill.tree.standalone_markup(document, fill.node.id)
 }

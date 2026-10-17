@@ -60,11 +60,11 @@ fn Session::selected_image(
 }
 
 ///|
-fn Session::crop_image(
-  self : Session,
+fn normalized_image_crop(
   crop : Array[Double],
-) -> Json raise @failure.Failure {
-  guard crop.all(v => !v.is_nan() && !v.is_inf() && v >= 0 && v < 1) else {
+) -> Array[Double] raise @failure.Failure {
+  guard crop.length() == 4 &&
+    crop.all(v => !v.is_nan() && !v.is_inf() && v >= 0 && v < 1) else {
     @failure.reject("invalid-operation", "Invalid picture crop")
   }
   let values = crop.map(v => (v * 100000).round().to_int())
@@ -73,29 +73,56 @@ fn Session::crop_image(
       "invalid-operation", "Picture crop must retain a positive source area",
     )
   }
-  let object = self.selected_image(true)
-  if object.crop.map(v => (v * 100000).round().to_int()) == values {
-    return self.query()
-  }
-  let geometry = object.geometry.unwrap()
-  guard geometry.width / (1 - (values[0] + values[2]).to_double() / 100000) <=
-    1000000000.0 &&
-    geometry.height / (1 - (values[1] + values[3]).to_double() / 100000) <=
-    1000000000.0 else {
-    @failure.reject("limit-exceeded", "Cropped picture exceeds drawing bounds")
-  }
-  let fill = object.source.child("blipFill", uri=presentation_uri).unwrap()
+  values.map(v => v.to_double() / 100000)
+}
+
+///|
+fn image_crop_change(
+  fill : Ref,
+  crop : Array[Double],
+) -> @xml.SourceChange raise @failure.Failure {
+  let values = crop.map(v => (v * 100000).round().to_int())
   let markup = if values.all(v => v == 0) {
     ""
   } else {
     "<a:srcRect xmlns:a=\"\{drawing_uri}\" l=\"\{values[0]}\" t=\"\{values[1]}\" r=\"\{values[2]}\" b=\"\{values[3]}\"/>"
   }
-  let change = paint_child_change(
+  paint_child_change(
     fill,
     fill.child("srcRect").map(item => item.node),
     markup,
     ["tile", "stretch", "extLst"],
   )
+}
+
+///|
+fn check_image_crop_bounds(
+  width : Double,
+  height : Double,
+  crop : Array[Double],
+) -> Unit raise @failure.Failure {
+  guard width / (1 - crop[0] - crop[2]) <= 1000000000.0 &&
+    height / (1 - crop[1] - crop[3]) <= 1000000000.0 else {
+    @failure.reject("limit-exceeded", "Cropped picture exceeds drawing bounds")
+  }
+}
+
+///|
+fn Session::crop_image(
+  self : Session,
+  crop : Array[Double],
+) -> Json raise @failure.Failure {
+  let crop = normalized_image_crop(crop)
+  let object = self.selected_image(true)
+  if object.crop == crop {
+    return self.query()
+  }
+  let geometry = object.geometry.unwrap()
+  if object.tile is None {
+    check_image_crop_bounds(geometry.width, geometry.height, crop)
+  }
+  let fill = object.source.child("blipFill", uri=presentation_uri).unwrap()
+  let change = image_crop_change(fill, crop)
   let (slide, edit) = self.prepare(self.current(), [change])
   self.commit(slide, edit, self.selection)
   self.query()

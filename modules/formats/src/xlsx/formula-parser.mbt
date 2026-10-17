@@ -18,7 +18,7 @@ priv enum Expression {
 ///|
 priv enum Token {
   Word(String)
-  Numeric(Double)
+  Numeric(Double, String)
   Quoted(String, Bool)
   ErrorLiteral(String)
   Operator(String)
@@ -124,7 +124,7 @@ fn formula_tokens(
       guard !value.is_inf() && !value.is_nan() else {
         @failure.reject("formula-syntax", "Non-finite numeric constant")
       }
-      tokens.push(Numeric(value))
+      tokens.push(Numeric(value, text[start:index].to_owned()))
       if spans is Some(spans) {
         spans.push((token_start, index))
       }
@@ -237,24 +237,62 @@ fn FormulaParser::reference(
   sheet : String?,
   text : String,
 ) -> Expression raise @failure.Failure {
-  let first = formula_address(text) catch {
-    @failure.Failure(code~, message~, part~, offset~) => {
-      if name_identifier(text) && !(self.tokens[self.cursor] is Operator(":")) {
-        return Named(sheet, text)
+  if !self.accept(":") {
+    let first = formula_address(text) catch {
+      @failure.Failure(code~, message~, part~, offset~) => {
+        if name_identifier(text) {
+          return Named(sheet, text)
+        }
+        raise @failure.Failure(code~, message~, part~, offset~)
       }
-      raise @failure.Failure(code~, message~, part~, offset~)
     }
+    return Reference(sheet, first, None)
   }
-  let last = if self.accept(":") {
-    guard self.take() is Word(text) else {
-      @failure.reject("formula-syntax", "Expected range endpoint")
-    }
-    let last = formula_address(text)
-    Some(last)
-  } else {
-    None
+  let endpoint = match self.take() {
+    Word(text) | Numeric(_, text) => text
+    _ => @failure.reject("formula-syntax", "Expected range endpoint")
   }
-  Reference(sheet, first, last)
+  let (first, last) = match (axis_reference(text), axis_reference(endpoint)) {
+    (Some(Cell(first)), Some(Cell(last))) => (first, last)
+    (Some(Row(first, a)), Some(Row(last, b))) =>
+      (
+        {
+          address: { row: first, column: 1, },
+          fixed_row: a,
+          fixed_column: true,
+        },
+        {
+          address: { row: last, column: 16384, },
+          fixed_row: b,
+          fixed_column: true,
+        },
+      )
+    (Some(Column(first, a)), Some(Column(last, b))) =>
+      (
+        {
+          address: { row: 1, column: first, },
+          fixed_row: true,
+          fixed_column: a,
+        },
+        {
+          address: { row: 1048576, column: last, },
+          fixed_row: true,
+          fixed_column: b,
+        },
+      )
+    _ => @failure.reject("formula-syntax", "Invalid or mixed range endpoints")
+  }
+  Reference(sheet, first, Some(last))
+}
+
+///|
+fn FormulaParser::reference_token(
+  self : FormulaParser,
+) -> String raise @failure.Failure {
+  match self.take() {
+    Word(text) | Numeric(_, text) => text
+    _ => @failure.reject("formula-syntax", "Expected worksheet reference")
+  }
 }
 
 ///|
@@ -276,14 +314,19 @@ fn FormulaParser::primary(
     @failure.reject("limit-exceeded", "Formula parser depth exceeded")
   }
   match self.take() {
-    Numeric(value) => Constant(Number(value))
+    Numeric(value, text) =>
+      if self.tokens[self.cursor] is Operator(":") {
+        self.reference(None, text)
+      } else {
+        Constant(Number(value))
+      }
     ErrorLiteral(value) => Constant(Error(value))
     Quoted(value, false) => Constant(Text(value))
     Quoted(sheet, true) => {
-      guard self.accept("!") && self.take() is Word(address) else {
+      guard self.accept("!") else {
         @failure.reject("formula-syntax", "Expected quoted worksheet reference")
       }
-      self.reference(Some(sheet), address)
+      self.reference(Some(sheet), self.reference_token())
     }
     Operator("+") => Unary("+", self.primary(depth + 1))
     Operator("-") => Unary("-", self.primary(depth + 1))
@@ -296,10 +339,7 @@ fn FormulaParser::primary(
     }
     Word(word) => {
       if self.accept("!") {
-        guard self.take() is Word(address) else {
-          @failure.reject("formula-syntax", "Expected worksheet cell address")
-        }
-        return self.reference(Some(word), address)
+        return self.reference(Some(word), self.reference_token())
       }
       let upper = word.to_upper()
       let name = match upper {

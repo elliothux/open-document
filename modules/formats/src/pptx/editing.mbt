@@ -46,7 +46,7 @@ fn Session::validate_slides(
     for key in slide.image_keys() {
       images[key] = true
     }
-    if slide.background is Picture(_, crop, _, _) {
+    if slide.background is Picture(_, crop, _, None) {
       guard width / (1 - crop[0] - crop[2]) <= 1000000000 &&
         height / (1 - crop[1] - crop[3]) <= 1000000000 else {
         @failure.reject(

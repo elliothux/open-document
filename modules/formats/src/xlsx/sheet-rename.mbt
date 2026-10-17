@@ -22,14 +22,14 @@ fn sheet_reference_formula(
           spans[index - 1]
         } else {
           guard index + 1 < tokens.length() &&
-            (tokens[index + 1] is Word(_) || tokens[index + 1] is Numeric(_)) else {
+            (tokens[index + 1] is Word(_) || tokens[index + 1] is Numeric(_, _)) else {
             @failure.reject(
               "protected-content", "Unsupported deleted worksheet reference",
             )
           }
           let mut last = index + 1
           if tokens.get(last + 1) is Some(Operator(":")) {
-            guard tokens.get(last + 2) is Some(Word(_) | Numeric(_)) else {
+            guard tokens.get(last + 2) is Some(Word(_) | Numeric(_, _)) else {
               @failure.reject(
                 "protected-content", "Unsupported deleted worksheet range",
               )

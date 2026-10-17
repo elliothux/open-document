@@ -234,10 +234,36 @@ fn paint_slide(
       )
     } else {
       if object.kind == "image" && object.image is Some(_) {
-        primitives.push(
-          Clip({ x: 0, y: 0, width: geometry.width, height: geometry.height, }),
-        )
-        primitives.push(object.image_primitive(geometry))
+        if object.preset == "rect" {
+          primitives.push(
+            Clip({ x: 0, y: 0, width: geometry.width, height: geometry.height, }),
+          )
+        } else {
+          primitives.push(
+            ClipPath(
+              shape_path(
+                object.preset,
+                geometry.width,
+                geometry.height,
+                object.adjustments,
+              ),
+              false,
+            ),
+          )
+        }
+        if object.tile is Some(tile) {
+          primitives.append(
+            tile.paint(
+              object.image.unwrap(),
+              object.opacity,
+              geometry.width,
+              geometry.height,
+              tile_sizes[object.image.unwrap()],
+            ),
+          )
+        } else {
+          primitives.push(object.image_primitive(geometry))
+        }
         primitives.push(Restore)
       } else if object.has_fill() || !object.stroke.is_empty() {
         let path = shape_path(

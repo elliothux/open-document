@@ -1081,7 +1081,11 @@ Web 复用核心矩形显示悬停或选中便笺的作者与纯文字提示，�
 
 数字格式覆盖 General、`@`、整数、两位小数、千分位、百分比、`yyyy-mm-dd`、`hh:mm:ss`，以及内置 1–4、9–10、14–22、49。日期保留数值，核心解释 1900/1904 系统，1900 序号 60 显示虚构的 2 月 29 日，序号 0 显示 1900-01-00。不经过宿主时区。其他格式、颜色 tint、渐变/图案、非实线边框及额外字体装饰保留声明并诊断，不承诺显示等价。
 
-公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
+公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
+
+整列 `A:A`、`$A:B` 和整行 `1:1`、`$1:2` 可带工作表限定并使用反向端点。行号只接受十进制整数，范围受 1048576 行、16384 列约束；混合行/列/单格端点拒绝。内部用一个有界矩形表示，未覆盖维度在复制时固定；原公式源码保持，复制及名称展开输出对应行列记法和 `$` 标记。依赖保留区间，聚合及条件函数查询实际单元格，空白计数按逻辑面积扣除非空值。线性查找在大范围内仅检查已有单元格及各空白区间的首个搜索位置，保留正反向、错误与近似候选规则；小范围保持直接读取，二分查找沿原路径。全部沿用工作量及输出限制，保留空项的超大连接仍可能原子拒绝。
+
+结构编辑沿现有 [ONLYOFFICE 范围变换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/utils/utils.js#L675-L768)；范围末端贴住工作表上限，起点不固定在第一行/列。例如在 A 列前插列时，名称中的 `Sheet1!$2:$2` 变为 `Sheet1!B$2:XFD$2`，之后按名称调用位置求值，越界产生 `#REF!`。范围记法参考 [ONLYOFFICE getName](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/utils/utils.js#L983-L1019)，稀疏值和空白数量参考 [cArea](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L1195-L1240)及[countCells](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L1326-L1335)。数组结果仍归 P14。
 
 AND/OR 接受数值和布尔，忽略引用内的文本与空白；没有有效值时返回 `#VALUE!`。文字常量返回 `#VALUE!`，不沿用数学函数的数字转换。稀疏范围只访问已有单元格，不展开整张表；即使已有确定的布尔结果，范围和后续参数中的错误仍参与，范围内按行列顺序保留首个错误。NOT 接受布尔、数值、空白及 TRUE/FALSE 文字，其他文字返回 `#VALUE!`。三项类型判断不转换数字文字，区分空白格与空字符串；当前使用标量参数，多格范围返回 `#VALUE!`。公式结果引用空白格时计算为数值 0。
 
@@ -1141,7 +1145,7 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 ### 名称引用
 
-已有 `definedNames` 可用于单元格、条件格式和数据验证中的受支持表达式。名称不区分大小写，支持 Unicode 名称、工作簿/工作表作用域、常量、矩形引用和表达式组合。单元格中的未限定名称先查当前表，再查工作簿；`'表名'!名称` 先查指定表，再查工作簿。名称定义内部的未限定名称查工作簿作用域，局部名称须显式指定表；这沿用 ONLYOFFICE 的独立定义解析上下文。`localSheetId` 决定名称的查找范围，不为定义内部的单元格引用绑定工作表。
+已有 `definedNames` 可用于单元格、条件格式和数据验证中的受支持表达式。名称不区分大小写，支持 Unicode 名称、工作簿/工作表作用域、常量、矩形及整行/整列引用和表达式组合。单元格中的未限定名称先查当前表，再查工作簿；`'表名'!名称` 先查指定表，再查工作簿。名称定义内部的未限定名称查工作簿作用域，局部名称须显式指定表；这沿用 ONLYOFFICE 的独立定义解析上下文。`localSheetId` 决定名称的查找范围，不为定义内部的单元格引用绑定工作表。
 
 定义中的单元格引用须包含工作表。绝对行列保持固定，相对行列以 A1 为原点，按使用该名称的单元格偏移。展开后复用现有表达式、依赖图、范围函数、增量计算、规则及缓存事务。未定义名称产生 `#NAME?`，仍可继续编辑；命名循环、未支持表达式与超预算候选原子拒绝，导入后沿既有只读规则保留源和缓存。未使用的复杂定义不参与求值。
 
@@ -1271,13 +1275,13 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `PresentationEditor.editSlides({ action: "backgroundImage", bytes, mode }, slide?)` 设置或替换本页 PNG/JPEG 背景，`mode` 为 `stretch` 或 `tile`。Wasm/Worker 使用同一 `editPptxSlides` 命令。输入沿图片写入上限：4 MiB、单边 4096 像素及总计 4 Mi 像素。原图片字节、关系、内容类型和背景源合为一次有界事务；保留对象、选择与非目标部件，支持精确撤销/重做、页面复制及保存重开。重复设置相同本地图片及模式不增加历史，旧资源继续保留，不做包清理。
 
-`{ action: "backgroundImageMode", mode }` 切换已有图片背景的方式，保留资源键及有效裁剪、透明度和已有平铺参数；转为平铺时使用已有参数或标准默认值。继承图片可创建本页覆盖，继续复用原资源；本地替换只修改图片引用，模式切换只修改 `stretch/tile`；保留 `dpi/cstate/rotWithShape` 等已识别源属性、已有图片关系和其他部件。`{ action: "background", value: null }` 恢复继承，受支持的纯色/渐变命令也可替换图片背景。默认背景面板提供类型、图片、模式及恢复继承，文件读取绑定目标页，读完后检查目标是否改变。
+`{ action: "backgroundImageFormat", mode, crop, opacity }` 一次设置已有图片背景的模式、四边裁剪和不透明度，保留资源键及已有平铺参数。`crop: [left, top, right, bottom]` 为移除源图的比例，各项非负且小于 1；核心按 1/100000 舍入，两侧之和须小于 1。`opacity` 为 0–1，使用相同精度并乘上源像素 alpha。四个零移除裁剪，1 移除常量 alpha 覆盖；本地有效同值不增加历史。`tile` 保留非零裁剪，绘制整张源图；切回 `stretch` 后重新应用原裁剪。平铺沿用已有参数或标准默认值，也可在一次命令中重置裁剪并切换模式。继承图片可创建本页覆盖，继续复用原资源；本地替换只修改图片引用，格式编辑只修改变化的 `stretch/tile`、`srcRect` 和 `alphaModFix`；保留 `dpi/cstate/rotWithShape` 等已识别源属性、已有图片关系和其他部件。`{ action: "background", value: null }` 恢复继承，受支持的纯色/渐变命令也可替换图片背景。默认背景面板提供类型、图片、模式、四边百分比、裁剪重置、不透明度及恢复继承，格式一次应用并进入同一历史；文件读取绑定目标页，读完后检查目标是否改变。
 
-`query.background.value` 的图片分支为 `{ kind: "image", key, crop: [left, top, right, bottom], opacity, mode }`，其余分支仍为纯色与线性渐变。`key` 是核心图片资源身份，`crop` 是非负源裁剪比例，`opacity` 为 0–1。按幻灯片、版式、母版顺序选择背景，并按实际来源部件解析内部图片关系；主题 `bgRef` 也按主题部件解析。导入保留 `srcRect` 和常量 `alphaModFix`，替换图片继续保留这些值；背景裁剪与透明度编辑仍待实现。
+`query.background.value` 的图片分支为 `{ kind: "image", key, crop: [left, top, right, bottom], opacity, mode }`，其余分支仍为纯色与线性渐变。`key` 是核心图片资源身份，`crop` 是非负源裁剪比例，`opacity` 为 0–1。按幻灯片、版式、母版顺序选择背景，并按实际来源部件解析内部图片关系；主题 `bgRef` 也按主题部件解析。导入保留 `srcRect` 和常量 `alphaModFix`，替换图片继续保留这些值；格式候选沿用原资源和整页裁剪，不生成图片副本。缺图片、非法模式/数值、舍入后空源区域、未知源及预算失败保留源、选择和历史。拉伸展开后的宽高各不超过 1e9 pt；平铺的未生效裁剪不参与这个展开检查，切回拉伸时重新验证。
 
-背景先铺白底，再裁剪到整页并使用既有图片图元，前景对象随后绘制。拉伸以有效源矩形覆盖页面；平铺复用形状图片的 96 DPI、缩放/偏移、九种对齐及交替翻转。背景与形状合计每页最多 65536 格；写入、模式、尺寸及变换候选先验证此上限。背景图片计入全稿 256 项使用中图片及既有字节/历史预算，预览、PNG 和 PDF 使用同一资源清单。外链、裁剪后平铺、非零目标内缩和未知效果继续保护；不抓取外部图片，也不删除未知源来替换背景。
+背景先铺白底，再裁剪到整页并使用既有图片图元，前景对象随后绘制。拉伸以有效源矩形覆盖页面；平铺复用[形状图片](#形状图片填充)的 96 DPI、缩放/偏移、九种对齐及交替翻转，保留但不应用源裁剪。背景、形状填充和独立图片合计每页最多 65536 格；写入、模式、尺寸及变换候选先验证此上限。背景图片计入全稿 256 项使用中图片及既有字节/历史预算，预览、PNG 和 PDF 使用同一资源清单。外链、非零目标内缩和未知效果继续保护；不抓取外部图片，也不删除未知源来替换背景。
 
-读取与绘制顺序参考 [ONLYOFFICE 背景继承](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L1260-L1322)、[背景图片资源](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L1134-L1151)及[背景先于对象绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L1416-L1451)，未复制上游源码。实现归[背景图片](../../modules/formats/src/pptx/background-image.mbt)、[图片事务](../../modules/formats/src/pptx/object-image.mbt)和[共用平铺](../../modules/formats/src/pptx/shape-tile.mbt)。
+源矩形复用 [ONLYOFFICE 图片裁剪系数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L946-L960)，读取与绘制顺序参考 [ONLYOFFICE 背景继承](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L1260-L1322)、[背景图片资源](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L1134-L1151)及[背景先于对象绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L1416-L1451)，未复制上游源码。实现归[背景图片](../../modules/formats/src/pptx/background-image.mbt)、[图片事务](../../modules/formats/src/pptx/object-image.mbt)和[共用平铺](../../modules/formats/src/pptx/shape-tile.mbt)。
 
 ### 主题颜色
 
@@ -1369,7 +1373,11 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 图片替换为 `{ action: "replaceImage", object, bytes: Uint8Array }`，使用相同图片预算和浏览器解码检查。要求对象模式中唯一的本地顶层图片，保持对象身份、选择、几何、旋转/翻转、裁剪及其他源属性；为它新建图片和关系，不覆盖共享资源或改变其他副本。`object` 必须与提交时唯一选中的图片身份一致；文件读取期间改变选择会拒绝替换，防止改错目标。相同原字节不新增历史。对象几何保留参考 [ONLYOFFICE replacePictureData 的 stretch 路径](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L839-L869)，当前接口保留原裁剪，不提供 fit/fill/original 模式。
 
-四边裁剪为 `{ action: "imageCrop", left, top, right, bottom }`，每边为源图的移除比例，范围 0 至 0.99999。核心按 OOXML 的 1/100000 网格舍入，左右及上下之和必须小于 1，派生绘图坐标继续受预算约束；不改对象外框。四个零恢复整图并移除裁剪覆盖，同值不新增历史。`PptxObject.picture` 返回四边有效比例和 `replaceReason/cropReason`。裁剪锁、继承/组内图片、非唯一选择、未知裁剪标记及预算失败保留源；默认 UI 提供替换文件、四边百分比和重置。替换、裁剪和后续对象编辑沿同一历史精确恢复，保存重开与 Canvas/PDF 共用已有源矩形显示路径。
+独立图片使用 `editObjects({ action: "imageMode", mode: "stretch" | "tile" })` 切换模式。`picture.mode` 返回当前有效模式，`modeReason` 返回编辑保护原因；默认图片面板提供选择和应用。命令作用于唯一选中的本地顶层图片，只改 `blipFill` 的模式节点，保持身份、外框、旋转/翻转、裁剪、不透明度、图片字节及关系。同值不增加历史。未显式声明模式的已知源按拉伸读取，首次切换插入标准平铺。导入支持已有缩放、偏移、对齐与交替翻转，范围与[形状平铺](#形状图片填充)相同。平铺使用整张源图并保留裁剪；切回拉伸时重新应用裁剪，并在提交前验证展开尺寸。
+
+图片在拉伸和平铺时均按已支持的预设图片框裁剪，矩形沿原矩形路径，椭圆等复用已有形状轮廓；变换后的框和图片使用同一矩阵。绘制入口参考 [ONLYOFFICE CImageShape.draw](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L592-L659)，平铺语义复用其 ShapeDrawer。背景、形状填充和独立图片共用每页 65536 个重复单元；尺寸和变换候选沿同一数量检查。未知模式/填充标记、外链、非零目标内缩、固定页面方向及未知效果继续保护；未知几何不放开。失败保留源、资源、选择和历史。保存重开、复制、替换、裁剪、不透明度及 Canvas/PDF 沿原路径。实现归 [`picture-mode.mbt`](../../modules/formats/src/pptx/picture-mode.mbt)及[共享平铺](../../modules/formats/src/pptx/shape-tile.mbt)。
+
+四边裁剪为 `{ action: "imageCrop", left, top, right, bottom }`，每边为源图的移除比例，范围 0 至 0.99999。核心按 OOXML 的 1/100000 网格舍入，左右及上下之和必须小于 1，派生绘图坐标继续受预算约束；不改对象外框。四个零恢复整图并移除裁剪覆盖，同值不新增历史。`PptxObject.picture` 返回四边有效比例和 `replaceReason/cropReason`，另返回 `mode` 与 `modeReason`。裁剪锁、继承/组内图片、非唯一选择、未知裁剪标记及预算失败保留源；默认 UI 提供替换文件、四边百分比和重置。替换、裁剪和后续对象编辑沿同一历史精确恢复，保存重开与 Canvas/PDF 共用已有源矩形显示路径。
 
 图片不透明度为 `{ action: "imageOpacity", opacity }`，要求对象模式中唯一的本地顶层图片。`opacity` 为 0 至 1，0 完全透明，1 完全不透明；核心按 1/100000 网格写入 `a:alphaModFix amt`，调回 1 时移除覆盖，同值不新增历史。`picture.opacity/opacityReason` 返回当前值及修改保护原因。支持单个常量 alpha 效果，其他效果继续诊断；带未知保留标记的透明度节点保护修改。倍乘关系参考 [ONLYOFFICE CBlipFill 常量 alpha](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L3818-L3840)。操作保持身份、几何、裁剪、图片原字节及共享副本，能与替换/复制混合精确撤销和保存重开。默认 UI 显示不透明度百分比。
 
@@ -1419,9 +1427,9 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `editObjects({ action: "imageFill", objects, bytes, mode })` 将所选本地顶层闭合形状设为 PNG/JPEG 图片填充，`mode` 必须为 `stretch` 或 `tile`。`objects` 是文件读取前捕获的有序选择，提交时须与当前选择完全一致，防止异步读取后修改其他对象。图片沿既有 4 MiB、尺寸、资源数量、输出和历史预算校验，Web 提交前检查实际解码。多选共享一个新资源及关系，保留各自身份、几何、轮廓、描边、文字、已有裁剪和有效填充不透明度。核心沿既有图片事务提交，失败不增加资源或历史；相同本地图片无操作。默认面板选择图片后直接应用，清除和纯色/渐变命令可替换受支持图片填充。
 
-查询 `appearance.imageFill` 返回资源键或 null，`imageFillMode` 返回 `stretch`、`tile` 或 null，`imageFillReason` 返回保护原因。读取本地、版式/母版和主题的内部图片关系，按来源部件解析；支持非负四边源裁剪及常量 `alphaModFix`。图片按预设形状轮廓裁剪，随对象旋转/翻转，Canvas/PDF 共用同一图元。已有本地图片填充可用 `fillOpacity` 修改透明度；继承图片先设置本地图片覆盖。裁剪后的平铺、非零目标内缩、固定页面方向、外链、背景关联图片填充及未知/重复/不透明源继续保护，仍归 P12 后续实现。实现归 [`shape-image.mbt`](../../modules/formats/src/pptx/shape-image.mbt)和 [`object-image.mbt`](../../modules/formats/src/pptx/object-image.mbt)，语义参考 [ONLYOFFICE 图片拉伸、裁剪和透明度绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L1778-L1848)，未复制上游源码。
+查询 `appearance.imageFill` 返回资源键或 null，`imageFillMode` 返回 `stretch`、`tile` 或 null，`imageFillReason` 返回保护原因。读取本地、版式/母版和主题的内部图片关系，按来源部件解析；支持非负四边源裁剪及常量 `alphaModFix`。图片按预设形状轮廓裁剪，随对象旋转/翻转，Canvas/PDF 共用同一图元。已有本地图片填充可用 `fillOpacity` 修改透明度；继承图片先设置本地图片覆盖。带裁剪元数据的平铺复用 [ONLYOFFICE drawBlipFillTile](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L1687-L1777)：使用整张源图的 96 DPI 尺寸、对齐和翻转，保留 `srcRect`；切回拉伸才应用裁剪。模式切换、替换、透明度和精确历史保留这些值；切回拉伸的扩展尺寸及平铺数量超限原子拒绝。非零目标内缩、固定页面方向、外链、背景关联图片填充及未知/重复/不透明源继续保护，仍归 P12 后续实现。实现归 [`shape-image.mbt`](../../modules/formats/src/pptx/shape-image.mbt)和 [`object-image.mbt`](../../modules/formats/src/pptx/object-image.mbt)，语义参考 [ONLYOFFICE 图片拉伸、裁剪和透明度绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L1778-L1848)，未复制上游源码。
 
-`editObjects({ action: "imageFillMode", mode })` 在已有本地图片上切换拉伸和平铺，不新增图片或关系；继承填充须先设置本地覆盖。默认面板提供模式选择、应用及按所选模式上传文件。平铺采用 96 DPI，即源像素乘 0.75 pt，不读取嵌入 DPI。导入支持 `sx/sy`（1–100000000，以 100000 为一倍）、`tx/ty`（±182880000 EMU）、九种 `algn` 及 `flip=none/x/y/xy`；偏移和对齐确定原始格点，负索引仍保持交替镜像相位。换图保留已有平铺参数，切换回平铺使用默认顶左对齐、原尺寸和无翻转。源裁剪为零时才支持平铺，其他源保留并诊断。
+`editObjects({ action: "imageFillMode", mode })` 在已有本地图片上切换拉伸和平铺，不新增图片或关系；继承填充须先设置本地覆盖。默认面板提供模式选择、应用及按所选模式上传文件。平铺采用 96 DPI，即源像素乘 0.75 pt，不读取嵌入 DPI。导入支持 `sx/sy`（1–100000000，以 100000 为一倍）、`tx/ty`（±182880000 EMU）、九种 `algn` 及 `flip=none/x/y/xy`；偏移和对齐确定原始格点，负索引仍保持交替镜像相位。换图保留已有平铺参数，切换回平铺使用默认顶左对齐、原尺寸和无翻转。非零源裁剪在平铺时保留，切回拉伸后生效；未知源继续保留并诊断。
 
 核心只生成覆盖形状的有限图片图元，沿同一轮廓裁剪供 Canvas/PDF 使用。每页最多 65536 个重复单元；应用、复制、尺寸修改及单选/多选变换预览超过预算时，在资源、历史或候选变化前拒绝。已有超预算源仍可原样保存，输出受预算保护。实现归 [`shape-tile.mbt`](../../modules/formats/src/pptx/shape-tile.mbt)，尺寸、对齐和交替镜像依据 [ONLYOFFICE 平铺绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L1685-L1776)及[镜像纹理](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/Graphics.js#L870-L949)。未复制上游源码，未增加渲染后端或依赖。
 

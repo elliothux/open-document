@@ -18,6 +18,9 @@ export function PptxPicture({
     query = editor.query;
   const object = query.objects.find((o) => o.id === query.selection.object);
   const picture = object?.picture;
+  const [mode, setMode] = useState<"stretch" | "tile">(
+    picture?.mode ?? "stretch",
+  );
   const [opacity, setOpacity] = useState((picture?.opacity ?? 1) * 100);
   const [crop, setCrop] = useState({
     left: (picture?.left ?? 0) * 100,
@@ -31,6 +34,37 @@ export function PptxPicture({
     query.selection.objects.length !== 1;
   return (
     <section aria-label={t.pictureProperties}>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          controller.run(() =>
+            editor.editObjects({ action: "imageMode", mode }),
+          );
+        }}
+      >
+        <fieldset
+          disabled={blocked || !object || !!picture?.modeReason}
+          title={picture?.modeReason}
+        >
+          <legend>{t.pictureMode}</legend>
+          <label>
+            {t.imageFillMode}
+            <select
+              value={mode}
+              onChange={(event) =>
+                setMode(
+                  event.currentTarget.value === "tile" ? "tile" : "stretch",
+                )
+              }
+            >
+              <option value="stretch">{t.imageStretch}</option>
+              <option value="tile">{t.imageTile}</option>
+            </select>
+          </label>
+          {mode === "tile" && <p>{t.tileCropHint}</p>}
+          <button type="submit">{t.applyImageFillMode}</button>
+        </fieldset>
+      </form>
       <fieldset disabled={blocked || !object || !!picture?.replaceReason}>
         <legend>{t.replaceImage}</legend>
         <label>

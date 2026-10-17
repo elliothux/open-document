@@ -345,6 +345,7 @@ fn read_object(
   let mut image = paint.13.map(value => value.0)
   let mut crop = paint.13.map(value => value.1).unwrap_or([0.0, 0.0, 0.0, 0.0])
   let mut opacity = paint.13.map(value => value.2).unwrap_or(1.0)
+  let mut tile = paint.13.bind(value => value.3)
   if kind == "image" &&
     source.child("blipFill", uri=presentation_uri) is Some(blip_fill) {
     if blip_fill.child("blip") is Some(blip) {
@@ -378,13 +379,26 @@ fn read_object(
       }
     }
     if blip_fill.child("tile") is Some(_) {
-      diagnostic = "Tiled images are unsupported"
+      try {
+        let (key, source_crop, source_opacity, source_tile) = read_shape_image(
+          opc, blip_fill, parts,
+        )
+        image = Some(key)
+        crop = source_crop
+        opacity = source_opacity
+        tile = source_tile
+      } catch {
+        @failure.Failure(code="unsupported-style", message~, ..) =>
+          diagnostic = message
+        error => raise error
+      }
     }
   }
   if geometry is None {
     diagnostic = "Object bounds cannot be resolved"
   }
   if image is Some(_) &&
+    tile is None &&
     geometry is Some(g) &&
     (
       g.width / (1 - crop[0] - crop[2]) > 1000000000.0 ||
@@ -436,7 +450,7 @@ fn read_object(
     fill_source: paint.9,
     stroke_source: paint.10,
     image,
-    tile: paint.13.bind(value => value.3),
+    tile,
     crop,
     opacity,
     paragraphs,

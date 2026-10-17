@@ -31,11 +31,21 @@ export function checkPptxBackground(value: unknown): void {
     checkPptxBackgroundFill(value);
     return;
   }
+  checkBackgroundImageFormat(fill);
   if (
     typeof fill.key !== "string" ||
     !fill.key ||
     fill.key.length > 256 ||
     !fill.key.isWellFormed() ||
+    Object.keys(fill).some(
+      (key) => !["kind", "key", "crop", "opacity", "mode"].includes(key),
+    )
+  )
+    throw new Error("Invalid picture background");
+}
+
+function checkBackgroundImageFormat(fill: Record<string, unknown>): void {
+  if (
     typeof fill.opacity !== "number" ||
     !Number.isFinite(fill.opacity) ||
     fill.opacity < 0 ||
@@ -47,11 +57,7 @@ export function checkPptxBackground(value: unknown): void {
       (v) => typeof v !== "number" || !Number.isFinite(v) || v < 0 || v >= 1,
     ) ||
     fill.crop[0] + fill.crop[2] >= 1 ||
-    fill.crop[1] + fill.crop[3] >= 1 ||
-    (fill.mode === "tile" && fill.crop.some((v) => v !== 0)) ||
-    Object.keys(fill).some(
-      (key) => !["kind", "key", "crop", "opacity", "mode"].includes(key),
-    )
+    fill.crop[1] + fill.crop[3] >= 1
   )
     throw new Error("Invalid picture background");
 }
@@ -116,27 +122,34 @@ export type PptxSlideEdit =
   | { action: "hidden"; hidden: boolean }
   | { action: "background"; value: PptxBackgroundFill | null }
   | { action: "backgroundImage"; bytes: Uint8Array; mode: "stretch" | "tile" }
-  | { action: "backgroundImageMode"; mode: "stretch" | "tile" }
+  | {
+      action: "backgroundImageFormat";
+      mode: "stretch" | "tile";
+      crop: [number, number, number, number];
+      opacity: number;
+    }
   | { action: "size"; width: number; height: number };
 
 export function checkPptxSlideEdit(value: unknown): void {
   const change = record(value);
-  if (
-    change.action === "backgroundImage" ||
-    change.action === "backgroundImageMode"
-  ) {
-    const input = change.action === "backgroundImage";
+  if (change.action === "backgroundImageFormat") {
+    checkBackgroundImageFormat(change);
+    if (
+      Object.keys(change).some(
+        (key) => !["action", "mode", "crop", "opacity"].includes(key),
+      )
+    )
+      throw new Error("Invalid background picture format");
+    return;
+  }
+  if (change.action === "backgroundImage") {
     if (
       (change.mode !== "stretch" && change.mode !== "tile") ||
-      (input &&
-        (!(change.bytes instanceof Uint8Array) ||
-          !change.bytes.length ||
-          change.bytes.length > 4194304)) ||
+      !(change.bytes instanceof Uint8Array) ||
+      !change.bytes.length ||
+      change.bytes.length > 4194304 ||
       Object.keys(change).some(
-        (key) =>
-          !(input ? ["action", "mode", "bytes"] : ["action", "mode"]).includes(
-            key,
-          ),
+        (key) => !["action", "mode", "bytes"].includes(key),
       )
     )
       throw new Error("Invalid background picture edit");

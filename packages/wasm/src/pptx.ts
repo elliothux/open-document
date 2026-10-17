@@ -124,6 +124,8 @@ export interface PptxObject {
     values: { name: "adj" | "adj1" | "adj2"; value: number; maximum: number }[];
   };
   picture: {
+    mode: "stretch" | "tile";
+    modeReason: string;
     opacity: number;
     opacityReason: string;
     left: number;
@@ -530,9 +532,10 @@ export function pptxQuery(value: unknown): PptxQuery {
     if (
       !hasFields(
         picture,
-        ["replaceReason", "cropReason", "opacityReason"],
+        ["replaceReason", "cropReason", "opacityReason", "modeReason"],
         ["left", "top", "right", "bottom", "opacity"],
-      )
+      ) ||
+      (picture.mode !== "stretch" && picture.mode !== "tile")
     )
       throw new Error("Invalid picture query");
     number(picture.opacity, 0, 1);

@@ -38,19 +38,32 @@ fn background_image_source(slide : Slide) -> Ref? raise @failure.Failure {
 }
 
 ///|
-fn Session::set_background_image_mode(
+fn Session::set_background_image_format(
   self : Session,
   index : Int,
   mode : String,
+  crop : Array[Double],
+  opacity : Double,
 ) -> Json raise @failure.Failure {
   check_image_fill_mode(mode)
-  let background = self.slides[index].background
+  let crop = normalized_image_crop(crop)
+  let opacity = image_opacity_amount(opacity).to_double() / 100000
+  let slide = self.slides[index]
+  let reason = self.background_reason(slide)
+  guard reason.is_empty() else { @failure.reject("protected-content", reason) }
+  let background = slide.background
   guard background is Picture(key, _, _, _) else {
     @failure.reject(
-      "invalid-operation", "Set a picture background before changing its mode",
+      "invalid-operation", "Set a picture background before changing its format",
     )
   }
-  self.write_image(self.image_bytes(key), None, background=Some(index), mode~)
+  self.write_image(
+    self.image_bytes(key),
+    None,
+    background=Some(index),
+    mode~,
+    background_format=Some((crop, opacity)),
+  )
 }
 
 ///|

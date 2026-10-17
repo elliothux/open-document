@@ -16,17 +16,40 @@ fn image_opacity(blip : Ref) -> Double raise @failure.Failure {
 }
 
 ///|
+fn image_opacity_amount(value : Double) -> Int raise @failure.Failure {
+  guard !value.is_nan() && !value.is_inf() && value >= 0 && value <= 1 else {
+    @failure.reject("invalid-operation", "Invalid picture opacity")
+  }
+  (value * 100000).round().to_int()
+}
+
+///|
+fn image_opacity_change(
+  blip : Ref,
+  amount : Int,
+) -> @xml.SourceChange raise @failure.Failure {
+  let markup = if amount == 100000 {
+    ""
+  } else {
+    "<a:alphaModFix xmlns:a=\"\{drawing_uri}\" amt=\"\{amount}\"/>"
+  }
+  paint_child_change(
+    blip,
+    blip.child("alphaModFix").map(item => item.node),
+    markup,
+    [],
+  )
+}
+
+///|
 fn Session::set_image_opacity(
   self : Session,
   value : Double,
 ) -> Json raise @failure.Failure {
-  guard !value.is_nan() && !value.is_inf() && value >= 0 && value <= 1 else {
-    @failure.reject("invalid-operation", "Invalid picture opacity")
-  }
+  let amount = image_opacity_amount(value)
   let object = self.editable(false)
   let reason = self.opacity_reason(object)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
-  let amount = (value * 100000).round().to_int()
   if (object.opacity * 100000).round().to_int() == amount {
     return self.query()
   }
@@ -35,14 +58,8 @@ fn Session::set_image_opacity(
     .unwrap()
     .child("blip")
     .unwrap()
-  let effect = blip.child("alphaModFix")
-  let markup = if amount == 100000 {
-    ""
-  } else {
-    "<a:alphaModFix xmlns:a=\"\{drawing_uri}\" amt=\"\{amount}\"/>"
-  }
   let (slide, edit) = self.prepare(self.current(), [
-    paint_child_change(blip, effect.map(item => item.node), markup, []),
+    image_opacity_change(blip, amount),
   ])
   self.commit(slide, edit, self.selection)
   self.query()

@@ -107,6 +107,7 @@ export type PptxObjectEdit =
       mode: "stretch" | "tile";
     }
   | { action: "imageFillMode"; mode: "stretch" | "tile" }
+  | { action: "imageMode"; mode: "stretch" | "tile" }
   | { action: "lineEnd"; side: "head" | "tail"; end: PptxLineEnd | null }
   | { action: "hyperlink"; link: PptxHyperlink | null }
   | {
@@ -265,7 +266,7 @@ export function checkPptxObjectEdit(value: unknown): void {
     number(change.opacity, 0, 1);
     return;
   }
-  if (change.action === "imageFillMode") {
+  if (change.action === "imageFillMode" || change.action === "imageMode") {
     if (
       (change.mode !== "stretch" && change.mode !== "tile") ||
       Object.keys(change).some((key) => !["action", "mode"].includes(key))

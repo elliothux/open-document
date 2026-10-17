@@ -6,10 +6,18 @@ fn Session::write_image(
   fill~ : Bool = false,
   mode~ : String = "stretch",
   background~ : Int? = None,
+  background_format~ : (Array[Double], Double)? = None,
 ) -> Json raise @failure.Failure {
   let original = background
     .map(i => self.slides[i])
     .unwrap_or_else(() => self.current())
+  let (old_crop, old_opacity, old_tile) = if original.background
+    is Picture(_, crop, opacity, tile) {
+    (crop, opacity, tile)
+  } else {
+    ([0.0, 0.0, 0.0, 0.0], 1.0, None)
+  }
+  let (crop, opacity) = background_format.unwrap_or((old_crop, old_opacity))
   if background is Some(_) {
     check_image_fill_mode(mode)
     let reason = self.background_reason(original)
@@ -53,8 +61,9 @@ fn Session::write_image(
   }
   if reuse is Some(_) &&
     background_image_source(original) is Some(_) &&
-    original.background is Picture(_, _, _, tile) &&
-    (if tile is Some(_) { "tile" } else { "stretch" }) == mode {
+    crop == old_crop &&
+    opacity == old_opacity &&
+    (if old_tile is Some(_) { "tile" } else { "stretch" }) == mode {
     return self.query()
   }
   let identity = if target is Some(object) {
@@ -170,15 +179,6 @@ fn Session::write_image(
   let markup = "<p:pic xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\" xmlns:r=\"\{relationship_uri}\"><p:nvPicPr><p:cNvPr id=\"\{identity}\" name=\"Picture \{identity}\"/><p:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed=\"\{link}\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x=\"\{(x * 12700).round().to_int64()}\" y=\"\{(y * 12700).round().to_int64()}\"/><a:ext cx=\"\{(width * 12700).round().to_int64()}\" cy=\"\{(height * 12700).round().to_int64()}\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr></p:pic>"
   let changes : Array[@xml.SourceChange] = []
   if background is Some(_) {
-    let (crop, opacity, tile) = if original.background
-      is Picture(_, crop, opacity, tile) {
-      (crop, opacity, tile)
-    } else {
-      ([0.0, 0.0, 0.0, 0.0], 1.0, None)
-    }
-    guard mode != "tile" || crop.all(v => v == 0) else {
-      @failure.reject("protected-content", "Cropped tile sources are protected")
-    }
     if background_image_source(original) is Some(fill) {
       let blip = fill.child("blip").unwrap()
       let embed = blip.node.attributes
@@ -193,8 +193,16 @@ fn Session::write_image(
           xml: xml_attribute(link),
         })
       }
-      if (if tile is Some(_) { "tile" } else { "stretch" }) != mode {
+      if (if old_tile is Some(_) { "tile" } else { "stretch" }) != mode {
         changes.push(image_fill_mode_change(fill, mode))
+      }
+      if crop != old_crop {
+        changes.push(image_crop_change(fill, crop))
+      }
+      if opacity != old_opacity {
+        changes.push(
+          image_opacity_change(blip, (opacity * 100000).round().to_int()),
+        )
       }
     } else {
       changes.push(
@@ -206,7 +214,7 @@ fn Session::write_image(
               opacity,
               crop,
               if mode == "tile" {
-                Some(tile.unwrap_or(ImageTile::default()))
+                Some(old_tile.unwrap_or(ImageTile::default()))
               } else {
                 None
               },
@@ -225,10 +233,9 @@ fn Session::write_image(
       } else {
         [0.0, 0.0, 0.0, 0.0]
       }
-      guard mode != "tile" || crop.all(v => v == 0) else {
-        @failure.reject(
-          "protected-content", "Cropped tile sources are protected",
-        )
+      if mode == "stretch" {
+        let geometry = object.geometry.unwrap()
+        check_image_crop_bounds(geometry.width, geometry.height, crop)
       }
       changes.push(
         paint_child_change(

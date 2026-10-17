@@ -213,18 +213,16 @@ fn image_fill_mode_change(
   fill : Ref,
   mode : String,
 ) -> @xml.SourceChange raise @failure.Failure {
-  let previous = fill
-    .child(if mode == "tile" { "stretch" } else { "tile" })
-    .unwrap()
+  let previous = fill.child(if mode == "tile" { "stretch" } else { "tile" })
   paint_child_change(
     fill,
-    Some(previous.node),
+    previous.map(value => value.node),
     if mode == "tile" {
       ImageTile::default().markup()
     } else {
       "<a:stretch xmlns:a=\"\{drawing_uri}\"><a:fillRect/></a:stretch>"
     },
-    [],
+    ["extLst"],
   )
 }
 
@@ -244,8 +242,9 @@ fn Session::set_image_fill_mode(
         "protected-content", "Set a local image fill before changing its mode",
       )
     }
-    guard mode != "tile" || object.crop.all(v => v == 0) else {
-      @failure.reject("protected-content", "Cropped tile sources are protected")
+    if mode == "stretch" {
+      let geometry = object.geometry.unwrap()
+      check_image_crop_bounds(geometry.width, geometry.height, object.crop)
     }
     if (if object.tile is Some(_) { "tile" } else { "stretch" }) == mode {
       continue

@@ -67,8 +67,31 @@ fn lookup_search(
     } else {
       None
     }
-    for step in 0..<count {
-      let index = if search == -1 { count - step - 1 } else { step }
+    let indices : Array[Int]? = if count <= sheets[range.sheet].cells.length() {
+      None
+    } else {
+      let stored = aggregate_offsets([range], sheets, work)
+      work.spend(amount=stored.length() + 1)
+      let indices : Array[Int] = []
+      let mut next = 0
+      for offset in stored {
+        let index = offset.to_int()
+        // All absent cells in a gap have the same value; retain its first search hit.
+        if next < index {
+          indices.push(if search == -1 { index - 1 } else { next })
+        }
+        indices.push(index)
+        next = index + 1
+      }
+      if next < count {
+        indices.push(if search == -1 { count - 1 } else { next })
+      }
+      Some(indices)
+    }
+    let steps = indices.map(indices => indices.length()).unwrap_or(count)
+    for step in 0..<steps {
+      let position = if search == -1 { steps - step - 1 } else { step }
+      let index = indices.map(indices => indices[position]).unwrap_or(position)
       let value = range.value(index.to_int64(), sheets, calculated, work)
       if value is Error(error) {
         if strict_errors {
