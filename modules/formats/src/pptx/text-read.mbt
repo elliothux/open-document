@@ -349,3 +349,31 @@ fn read_text(
   }
   (paragraphs, body, reason)
 }
+
+///|
+fn slide_font_keys(
+  slides : Array[Slide],
+) -> Array[String] raise @failure.Failure {
+  let fonts : Array[String] = []
+  for slide in slides {
+    for object in slide.objects {
+      for paragraph in object.paragraphs {
+        if !paragraph.bullet.is_empty() &&
+          !fonts.contains(paragraph.bullet_style.font) {
+          fonts.push(paragraph.bullet_style.font)
+        }
+        for run in paragraph.runs {
+          for (style, _) in run.parts {
+            if !fonts.contains(style.font) {
+              fonts.push(style.font)
+            }
+          }
+        }
+        guard fonts.length() <= 256 else {
+          @failure.reject("limit-exceeded", "Font keys exceed 256")
+        }
+      }
+    }
+  }
+  fonts
+}

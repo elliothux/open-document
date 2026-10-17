@@ -1,4 +1,5 @@
 import { record, integer } from "./validation.js";
+import { checkXlsxNameEdit, type XlsxNameEdit } from "./xlsx-names.js";
 import { checkXlsxSort, type XlsxSortSettings } from "./xlsx-sort.js";
 import { checkXlsxFilter, type XlsxFilterSettings } from "./xlsx-filter.js";
 import {
@@ -19,6 +20,7 @@ import {
 } from "./xlsx-print.js";
 
 export type XlsxSheetEdit =
+  | XlsxNameEdit
   | ({ action: "filter" } & XlsxFilterSettings)
   | { action: "filterClear" | "filterRemove" | "filterReapply" }
   | ({ action: "sort"; range: string } & XlsxSortSettings)
@@ -77,6 +79,10 @@ export type XlsxSheetEdit =
 
 export function checkXlsxSheetEdit(value: unknown): void {
   const change = record(value);
+  if (["name", "nameDelete", "nameSelect"].includes(String(change.action))) {
+    checkXlsxNameEdit(change);
+    return;
+  }
   if (change.action === "view") {
     if (
       typeof change.gridLines !== "boolean" ||

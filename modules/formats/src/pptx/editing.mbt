@@ -36,6 +36,7 @@ fn Session::validate_slides(
   removed~ : Array[String] = self.removed,
 ) -> Unit raise @failure.Failure {
   let replacements = self.replacements(main, slides, parts, media~)
+  ignore(slide_font_keys(slides))
   let mut count = 0
   let mut units = 0
   for slide in slides {

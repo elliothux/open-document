@@ -8,10 +8,16 @@ import { PptxObjects } from "./pptx-objects.js";
 import { PptxArrange } from "./pptx-arrange.js";
 import { PptxAlignment } from "./pptx-alignment.js";
 import { PptxSearch } from "./pptx-search.js";
-import { PptxBackground, PptxSize, PptxNotes } from "./pptx-page.js";
+import {
+  PptxBackground,
+  PptxSize,
+  PptxNotes,
+  PptxSlideLayout,
+} from "./pptx-page.js";
 import { PptxSections } from "./pptx-sections.js";
 import { PptxSlideList } from "./pptx-slides.js";
 import { XlsxSheets, XlsxFrozen, XlsxView } from "./xlsx-sheets.js";
+import { XlsxNames } from "./xlsx-names.js";
 import { XlsxFormat } from "./xlsx-format.js";
 import { XlsxSearch } from "./xlsx-search.js";
 import { XlsxSort } from "./xlsx-sort.js";
@@ -154,6 +160,13 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
         />
         <PptxBackground
           key={`${file.editor.getSnapshot().documentId}:${query.slide}:${query.revision}`}
+          controller={controller}
+          state={state}
+          file={file}
+          disabled={disabled}
+        />
+        <PptxSlideLayout
+          key={`layout:${file.editor.getSnapshot().documentId}:${query.slide}:${query.slideLayout.current}`}
           controller={controller}
           state={state}
           file={file}
@@ -375,6 +388,13 @@ export function Properties(props: PanelProps) {
           }}
         >
           <XlsxView
+            controller={props.controller}
+            state={props.state}
+            editor={props.file.editor}
+            disabled={props.disabled || !!props.state.document?.stopped}
+          />
+          <XlsxNames
+            key={`${props.state.document?.documentId}:${JSON.stringify(props.file.editor.currentState.names)}`}
             controller={props.controller}
             state={props.state}
             editor={props.file.editor}

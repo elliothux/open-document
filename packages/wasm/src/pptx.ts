@@ -19,14 +19,18 @@ export {
 import {
   checkPptxSlideEdit,
   pptxSections,
+  pptxSlideLayouts,
   type PptxSlideEdit,
   type PptxSections,
+  type PptxSlideLayouts,
 } from "./pptx-slides.js";
 export {
   checkPptxSlideEdit,
   type PptxSlideEdit,
   type PptxSection,
   type PptxSections,
+  type PptxSlideLayouts,
+  pptxSlideLayouts,
 } from "./pptx-slides.js";
 import { WasmSession, encodeBytes } from "./session.js";
 import {
@@ -156,6 +160,7 @@ export interface PptxQuery {
   sections: PptxSections;
   background: { color: string; explicit: boolean; reason: string };
   notes: { text: string; reason: string };
+  slideLayout: PptxSlideLayouts;
   diagnostics: string[];
 }
 export interface PptxLayout extends DrawingBatch {
@@ -365,6 +370,7 @@ function points(value: unknown, max = 4): void {
 export function pptxQuery(value: unknown): PptxQuery {
   const query = record(value);
   const notes = record(query.notes);
+  pptxSlideLayouts(query.slideLayout);
   checkPptxSlideEdit({ action: "notes", text: notes.text });
   if (typeof notes.reason !== "string") throw new Error("Invalid notes query");
   checkPptxFormatting(query.formatting);

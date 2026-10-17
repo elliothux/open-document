@@ -17,3 +17,18 @@ fn field_string(json : Json, key : String) -> String raise @failure.Failure {
   }
   value
 }
+
+///|
+fn xlsx_optional_string(
+  json : Json,
+  key : String,
+) -> String? raise @failure.Failure {
+  guard json is Object(fields) else {
+    @failure.reject("invalid-operation", "Expected object")
+  }
+  match fields.get(key) {
+    Some(Null) => None
+    Some(String(value)) => Some(value)
+    _ => @failure.reject("invalid-operation", "Expected string or null: " + key)
+  }
+}

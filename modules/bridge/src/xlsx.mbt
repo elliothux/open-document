@@ -278,6 +278,23 @@ fn Foundation::xlsx_operation(
             rtl: xlsx_boolean(change, "rtl"),
             formulas: xlsx_boolean(change, "formulas"),
           })
+        "name" =>
+          @xlsx.SetName({
+            original: xlsx_optional_string(change, "original"),
+            name: field_string(change, "name"),
+            scope: xlsx_optional_string(change, "scope"),
+            formula: field_string(change, "formula"),
+          })
+        "nameDelete" =>
+          @xlsx.DeleteName(
+            field_string(change, "name"),
+            xlsx_optional_string(change, "scope"),
+          )
+        "nameSelect" =>
+          @xlsx.SelectName(
+            field_string(change, "name"),
+            xlsx_optional_string(change, "scope"),
+          )
         "freeze" =>
           @xlsx.Freeze(field_int(change, "rows"), field_int(change, "columns"))
         "pageSetup" =>

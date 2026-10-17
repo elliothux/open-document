@@ -2,6 +2,55 @@ import { useState } from "react";
 import type { PanelProps } from "./panels.js";
 import { messages } from "./messages.js";
 
+export function PptxSlideLayout({
+  controller,
+  state,
+  file,
+  disabled,
+}: PanelProps) {
+  const layout =
+    file.format === "pptx" ? file.editor.query.slideLayout : undefined;
+  const [chosen, setChosen] = useState(layout?.current ?? "");
+  if (file.format !== "pptx" || !layout) return null;
+  const editor = file.editor,
+    t = messages(state.locale);
+  const masters = [...new Set(layout.choices.map((choice) => choice.master))];
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        controller.run(() =>
+          editor.editSlides({ action: "layout", id: chosen }),
+        );
+      }}
+    >
+      <fieldset disabled={disabled || !!layout.reason}>
+        <legend>{t.slideLayout}</legend>
+        <label>
+          {t.chooseSlideLayout}
+          <select
+            aria-label={t.chooseSlideLayout}
+            value={chosen}
+            onChange={(event) => setChosen(event.currentTarget.value)}
+          >
+            {layout.choices.map((choice, index) => (
+              <option key={choice.id} value={choice.id}>
+                {choice.name || `${t.slideLayout} ${index + 1}`} /{" "}
+                {choice.masterName ||
+                  `${t.slideMaster} ${masters.indexOf(choice.master) + 1}`}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button type="submit" disabled={!chosen || chosen === layout.current}>
+          {t.applySlideLayout}
+        </button>
+      </fieldset>
+      {layout.reason && <p>{layout.reason}</p>}
+    </form>
+  );
+}
+
 export function PptxNotes({ controller, state, file, disabled }: PanelProps) {
   const notes = file.format === "pptx" ? file.editor.query.notes : undefined;
   const [text, setText] = useState(notes?.text ?? "");

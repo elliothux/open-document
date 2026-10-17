@@ -451,6 +451,7 @@ pub fn Session::query(
       selected,
     ),
     "filter": self.filter_query(sheet_index),
+    "names": self.names_query(),
     "cells": cells,
     "selection": {
       "sheet": self.selection.0,

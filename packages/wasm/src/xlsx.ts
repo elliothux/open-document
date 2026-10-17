@@ -1,4 +1,6 @@
 import { checkXlsxSheetEdit, type XlsxSheetEdit } from "./xlsx-sheet.js";
+import { xlsxNames, type XlsxNames } from "./xlsx-names.js";
+export type { XlsxName, XlsxNames, XlsxNameEdit } from "./xlsx-names.js";
 import { xlsxStatistics, type XlsxStatistics } from "./xlsx-statistics.js";
 export { xlsxStatistics, type XlsxStatistics } from "./xlsx-statistics.js";
 export type { XlsxSortSettings, XlsxSortKey } from "./xlsx-sort.js";
@@ -193,6 +195,7 @@ export interface XlsxCell {
 }
 
 export interface XlsxQuery {
+  names: XlsxNames;
   statistics: XlsxStatistics;
   filter: XlsxFilterState;
   conditionalFormats: XlsxConditionalState;
@@ -283,6 +286,7 @@ export function xlsxQuery(value: unknown): XlsxQuery {
   )
     throw new Error("Invalid cell merging state");
   xlsxFormatting(query.formatting);
+  const names = xlsxNames(query.names);
   const dimensions = record(query.dimensions);
   const frozen = record(query.frozen);
   const view = record(query.view);
@@ -361,6 +365,10 @@ export function xlsxQuery(value: unknown): XlsxQuery {
     sheets.add(sheet.id);
   }
   const selection = record(query.selection);
+  if (
+    names.entries.some((item) => item.scope !== null && !sheets.has(item.scope))
+  )
+    throw new Error("Invalid defined name scope");
   const range = record(selection.range);
   if (
     typeof query.sheet !== "string" ||

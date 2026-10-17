@@ -19,6 +19,7 @@ export type {
   PptxSlideEdit,
   PptxSection,
   PptxSections,
+  PptxSlideLayouts,
   PptxTextFormat,
   PptxFormatting,
   PptxTextSpacing,

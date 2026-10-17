@@ -24,6 +24,9 @@ pub(all) enum SheetEdit {
   Unmerge(String)
   Freeze(Int, Int)
   View(ViewSettings)
+  SetName(NameSettings)
+  DeleteName(String, String?)
+  SelectName(String, String?)
   PageSetup(PrintSetup)
   PrintRange(PrintRange)
   HeaderFooter(HeaderFooter)
@@ -250,6 +253,13 @@ pub fn Session::edit_sheet(
     HeaderFooter(settings) => return self.set_header_footer(sheet, settings)
     Freeze(rows, columns) => return self.freeze(sheet, rows, columns)
     View(settings) => return self.set_view(sheet, settings)
+    SetName(settings) => return self.edit_name(settings)
+    DeleteName(name, scope) =>
+      return self.edit_name(
+        { original: Some(name), name, scope, formula: "", },
+        delete=true,
+      )
+    SelectName(name, scope) => return self.select_name(name, scope)
     Merge(range, discard) =>
       return self.merge_cells(sheet, Range::parse(range), discard, false)
     Unmerge(range) =>
@@ -296,6 +306,9 @@ pub fn Session::edit_sheet(
     | Unmerge(_)
     | Freeze(_, _)
     | View(_)
+    | SetName(_)
+    | DeleteName(_, _)
+    | SelectName(_, _)
     | PageSetup(_)
     | PrintRange(_)
     | HeaderFooter(_)

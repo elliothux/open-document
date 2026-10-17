@@ -100,6 +100,7 @@ fn Foundation::pptx_operation(
           }
           @pptx.Background(value)
         }
+        "layout" => @pptx.ApplyLayout(field_string(change, "id"))
         _ => @failure.reject("invalid-operation", "Unknown slide edit")
       }
       session.edit_slides(

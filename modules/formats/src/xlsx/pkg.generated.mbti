@@ -172,6 +172,13 @@ pub fn HeaderFooter::equal(Self, Self) -> Bool
 pub fn HeaderFooter::not_equal(Self, Self) -> Bool
 pub fn HeaderFooter::to_json(Self) -> Json
 
+pub(all) struct NameSettings {
+  original : String?
+  name : String
+  scope : String?
+  formula : String
+}
+
 pub(all) struct PrintRange {
   area : String
   rows : String
@@ -269,6 +276,9 @@ pub(all) enum SheetEdit {
   Unmerge(String)
   Freeze(Int, Int)
   View(ViewSettings)
+  SetName(NameSettings)
+  DeleteName(String, String?)
+  SelectName(String, String?)
   PageSetup(PrintSetup)
   PrintRange(PrintRange)
   HeaderFooter(HeaderFooter)

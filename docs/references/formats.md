@@ -801,9 +801,21 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 定义中的单元格引用须包含工作表。绝对行列保持固定，相对行列以 A1 为原点，按使用该名称的单元格偏移。展开后复用现有表达式、依赖图、范围函数、增量计算、规则及缓存事务。未定义名称产生 `#NAME?`，仍可继续编辑；命名循环、未支持表达式与超预算候选原子拒绝，导入后沿既有只读规则保留源和缓存。未使用的复杂定义不参与求值。
 
-最多读取 4096 个定义，名称和定义合计不超过 1,048,576 UTF-16 单元；每条公式仍限 8192 单元，展开受 64 层表达式深度及现有工作预算保护。名称源不会被展开结果替换。绝对定义随行列/单元格结构、表改名/复制/删除及局部作用域索引一起更新，精确历史和重开复用原路径。相对定义的行列/单元格结构变换暂时保护，避免重复偏移；其数值编辑和公式计算可用。
+最多读取 4096 个定义，名称和定义合计不超过 1,048,576 UTF-16 单元；每条公式仍限 8192 单元，展开受 64 层表达式深度及现有工作预算保护。名称目录另计入重复的作用域身份，总计同样不超过 1,048,576 单元；目录超限返回保护原因，新增候选在提交前拒绝。名称源不会被展开结果替换。绝对定义随行列/单元格结构、表改名/复制/删除及局部作用域索引一起更新，精确历史和重开复用原路径。相对定义的行列/单元格结构变换暂时保护，避免重复偏移；其数值编辑和公式计算可用。
 
-现有 API、Worker 和默认原生输入可编辑这些公式。名称新增/修改/删除、管理面板及名称定位仍待实现；多区域、整行整列和更广定义兼容另行扩展。实现归 [`named-definitions.mbt`](../../modules/formats/src/xlsx/named-definitions.mbt)。作用域、定义上下文和相对偏移参考 [ONLYOFFICE DefName](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L457-L512)及 [cName](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L2173-L2262)。
+`XlsxQuery.names` 返回 `entries` 和整体 `readOnlyReason`。每条名称包含 `name`、`scope`、原始 `formula`、`hidden` 及单项 `readOnlyReason`。`scope` 是稳定工作表部件身份，`null` 表示工作簿。默认名称面板与自定义 UI 共用下列 `editSheet` 命令：
+
+| 命令 | 行为 |
+| --- | --- |
+| `{ action: "name", original, name, scope, formula }` | `original: null` 创建名称；否则按原名称和作用域修改定义或改名。编辑期间保持作用域，定义可带 `=` 前缀 |
+| `{ action: "nameDelete", name, scope }` | 删除定义，保留单元格公式中的名称，重新计算为 `#NAME?` 或剩余作用域的值 |
+| `{ action: "nameSelect", name, scope }` | 解析为单个矩形后定位到目标表，复用合并格、隐藏表和选区查询边界；不写源、不增加 revision 或历史 |
+
+名称最多 255 UTF-16 单元，允许字母、Unicode 标记及既有名称字符；A1/R1C1 地址、R/C、布尔常量和 `_xlnm.` 系统名称不接受管理修改。新定义先检查语法、支持的函数、作用域及循环，再构造候选。一次增改删同步重算、缓存、尺寸与精确历史，重复设置不产生历史；新定义的可选 `=` 前缀不要求改写相同的导入源。改名按原作用域绑定同步单元格、共享公式锚点、规则、内部链接和其他定义，保留字符串、共享组和元数据。全局改名会被已有局部名称遮蔽时明确拒绝。源文本中的未知标记、资源引用或工作预算不能安全处理时，候选整体拒绝。
+
+名称面板可从当前选区生成带表名的绝对矩形，也可输入常量或表达式。命令先提交原生单元格草稿；定位按当时焦点解析相对定义。常量和计算表达式不能作为矩形定位，隐藏目标表须先显示。导入的未支持语法或系统定义保留并显示保护原因，普通命令不改变隐藏属性。多区域、整行整列、作用域迁移和更广定义兼容另行扩展。
+
+实现归 [`named-definitions.mbt`](../../modules/formats/src/xlsx/named-definitions.mbt)与 [`name-edit.mbt`](../../modules/formats/src/xlsx/name-edit.mbt)。作用域、定义上下文和相对偏移参考 [ONLYOFFICE DefName](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L457-L512)及 [cName](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L2173-L2262)。管理事务和改名绑定参考 [editDefinesNames](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L1086-L1125)及 [changeDefName](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L2261-L2275)。
 
 ### 冻结窗格
 
@@ -904,6 +916,20 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 页面背景使用 `PresentationEditor.editSlides({ action: "background", value }, slide?)`。`value` 为不带 `#` 的六位 RGB，`null` 移除本页背景并恢复版式、母版继承。`query.background` 返回有效 `color`、本页是否设置 `explicit` 与保护原因 `reason`；没有背景时显示白色。默认 UI 提供纯色设置和恢复继承。
 
 操作保留对象身份、选择及其他部件，复用 revision、候选保护、输出预算和精确撤销重做。已有背景含未知标记、渐变、图片或复杂效果时保护原源。纯色背景沿同一图元输出 Canvas 与静态 PDF。核心 8 例及 Chromium 1 个流程已检查继承、保存重开、继续输入和历史；背景其他类型、主题与母版编辑仍待实现。修改本页背景的语义参考 [ONLYOFFICE Slide.changeBackground](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L825-L829)。
+
+### 幻灯片版式
+
+`PresentationEditor.editSlides({ action: "layout", id }, slide?)` 应用文稿中已有的版式。`id` 是版式部件路径，须来自 `query.slideLayout.choices`；`current` 返回当前页的版式身份，`reason` 返回目录或修改保护原因。每项选择包含 `id/name/master/masterName`，分别表示版式身份/源名称及所属母版身份/源名称。默认面板按名称和母版展示选项。空名称仅在界面使用序号，不改写源。
+
+目录沿 presentation 的母版列表及各母版的版式列表读取，保留声明顺序。最多 256 个母版、256 项版式；目录文字与重复身份合计不超过 1,048,576 UTF-16 单元，源名称最多 1024 单元。未知、重复或归属错误的引用保护目录；其他编辑与原始源继续保留。
+
+核心按占位符类型及数值索引匹配，中心标题与标题共用匹配类别，并沿用单个正文占位符的回退规则。匹配对象保留身份、文字、直接格式、链接和选择，清除受支持的本地几何覆盖，由新版式及母版重新派生位置、尺寸和继承样式。普通本地对象保留原源。新版式缺少的普通标题、正文、内容及副标题占位符生成空的本地文字对象，使用新身份并继承版式；模板提示文字不会写入幻灯片内容。
+
+没有匹配位置或多个对象争用同一位置时，已有用户内容明确报冲突。仅无文字、可见填充/边框、动作或未知元数据的未匹配占位符可以移除；被计时/连接引用的对象继续保护。日期/页脚等字段、分组或歧义占位符、未知变换，以及导致新增显示诊断或无法解析几何的版式仍保护。母版/主题继承可随切换更新，版式和母版本身保持原源。
+
+关系目标、占位符与源变化共用一次精确历史；原生文字草稿先独立提交。选择中失去的继承对象或空占位符会清除，保留对象的文字光标继续有效。相同版式是空操作；重置直接覆盖、母版/版式的直接编辑及创建仍待实现。字体总数在候选提交前检查，避免提交后才超出查询的 256 键预算。保存重开、页面复制及 Canvas/PDF 沿相同关系与继承路径。实现归 [`slide-layout.mbt`](../../modules/formats/src/pptx/slide-layout.mbt)，匹配和几何重置参考 [ONLYOFFICE getMatchingShape](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L390-L522)及 [changeLayout](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L695-L800)。
+
+### 文稿与对象
 
 `PptxSession.execute({ operation: "createPptx", budget })` 与 `PptxClient.execute` 创建 960×540 pt 的空白演示文稿，包含一张无对象页面及其空白版式、母版、主题、关系和内容类型。主题使用 Arial 和显式颜色/无效果样式；当前页为该空白页，revision 与历史为 0。创建后可显示、插入基本对象、保存、重开及输出静态 PDF。默认 UI 与 `mountEditor`、实例 `create/open` 使用同一入口及首次保存规则。主题编辑仍按 P12 后续范围实施；创建不生成占位文字或不可编辑的背景图片。
 

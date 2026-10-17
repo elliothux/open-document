@@ -373,32 +373,15 @@ fn Slide::object(self : Slide, id : String) -> Object raise @failure.Failure {
 ///|
 pub fn Session::query(self : Session) -> Json raise @failure.Failure {
   let current = self.current()
-  let fonts : Array[String] = []
-  for stored in self.slides {
-    let slide = if stored.tree.part == current.tree.part {
-      current
-    } else {
-      stored
-    }
-    for object in slide.objects {
-      for paragraph in object.paragraphs {
-        if !paragraph.bullet.is_empty() &&
-          !fonts.contains(paragraph.bullet_style.font) {
-          fonts.push(paragraph.bullet_style.font)
-        }
-        for run in paragraph.runs {
-          for (style, _) in run.parts {
-            if !fonts.contains(style.font) {
-              fonts.push(style.font)
-            }
-          }
-        }
+  let fonts = slide_font_keys(
+    self.slides.map(slide => {
+      if slide.tree.part == current.tree.part {
+        current
+      } else {
+        slide
       }
-    }
-  }
-  guard fonts.length() <= 256 else {
-    @failure.reject("limit-exceeded", "Font keys exceed 256")
-  }
+    }),
+  )
   {
     "revision": self.revision,
     "formatting": self.formatting_query(),
@@ -410,6 +393,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
     "slideVisibilityReason": self.slide_visibility_reason(),
     "sections": self.section_query(),
     "notes": self.notes_query(current.tree.part),
+    "slideLayout": self.layout_query(current),
     "background": {
       "color": if current.background.is_empty() {
         "ffffff"
