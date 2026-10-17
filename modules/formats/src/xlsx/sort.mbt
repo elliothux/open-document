@@ -115,7 +115,8 @@ fn Session::sort_cells(
       "protected-content", "Merged cells require sorting geometry support",
     )
   }
-  self.sort_resources(current, target)
+  let notes = self.read_sheet_notes(current)
+  self.sort_resources(current)
   for cell in current.cells.values() {
     if target.contains(cell.address) {
       guard cell.read_only.is_empty() ||
@@ -233,6 +234,29 @@ fn Session::sort_cells(
   current.expand_shared_updates(updates)
   let (document, edit) = current.prepare(updates, styles~, fragments~)
   let edits = [(sheet, edit)]
+  let parts = self.parts.copy()
+  if notes is Some(notes) {
+    let addresses : Map[String, Address?] = Map([])
+    for note in notes.entries {
+      if target.contains(note.address) {
+        let source = if settings.rows {
+          note.address.row
+        } else {
+          note.address.column
+        }
+        if moved.get(source) is Some(destination) {
+          addresses[note.address.name()] = Some(
+            if settings.rows {
+              { ..note.address, row: destination, }
+            } else {
+              { ..note.address, column: destination, }
+            },
+          )
+        }
+      }
+    }
+    update_note_addresses(notes, addresses, parts, edits)
+  }
   let tree = Tree::new(document)
   let links : Array[@xml.SourceChange] = []
   if tree.one(tree.root("worksheet").id, "hyperlinks") is Some(list) {
@@ -283,6 +307,13 @@ fn Session::sort_cells(
     false,
   )
   edits.append(self.cache_edits(sheets, calculation))
-  self.commit(sheets, self.workbook, calculation, edits, (sheet, target))
+  self.commit(
+    sheets,
+    self.workbook,
+    calculation,
+    edits,
+    (sheet, target),
+    parts~,
+  )
   self.query()
 }

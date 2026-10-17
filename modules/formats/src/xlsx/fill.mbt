@@ -43,26 +43,8 @@ fn Session::check_fill_resources(
       }
     }
   }
-  for link in self.relationships() {
-    if link.owner != sheet.id {
-      continue
-    }
-    guard !link.kind.to_lower().contains("threadedcomment") else {
-      @failure.reject(
-        "protected-content", "Threaded comments require fill ownership support",
-      )
-    }
-    if link.kind == relationship_uri + "comments" {
-      for node in self.part_xml(link.target).nodes() {
-        if node.name == "comment" &&
-          Range::parse(node.attribute("ref").unwrap_or("")).intersects(range) {
-          @failure.reject(
-            "protected-content", "Comments require fill ownership support",
-          )
-        }
-      }
-    }
-  }
+  // Autofill changes values and styles; existing cell notes stay at their cells.
+  ignore(self.read_sheet_notes(sheet))
 }
 
 ///|

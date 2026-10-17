@@ -59,16 +59,25 @@ pub fn Session::clear(
     document = next
     edits.push((id, edit))
   }
-  let rules = self.clear_rules(current, document, target, all)
+  let rules = clear_rules(document, target, all)
   if !rules.is_empty() {
     let (next, edit) = document.edit_source(rules)
     document = next
     edits.push((id, edit))
   }
+  let parts = self.parts.copy()
+  if all && self.read_sheet_notes(current) is Some(notes) {
+    let addresses : Map[String, Address?] = Map([])
+    for note in notes.entries {
+      if target.contains(note.address) {
+        addresses[note.address.name()] = None
+      }
+    }
+    update_note_addresses(notes, addresses, parts, edits)
+  }
   if edits.is_empty() {
     return self.query()
   }
-  let parts = self.parts.copy()
   for (path, document, edit) in style_edits {
     parts[path] = document
     edits.push((path, edit))

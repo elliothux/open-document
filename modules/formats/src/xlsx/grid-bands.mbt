@@ -220,11 +220,19 @@ fn Session::paint_grid(
   height : Double,
   probe : @layout.TextProbe,
   profile : Map[String, String],
-) -> (Array[@layout.PositionedPrimitive], Array[Json], Array[Json], Array[Json]) raise @failure.Failure {
+  notes : Map[String, CellNote],
+) -> (
+  Array[@layout.PositionedPrimitive],
+  Array[Json],
+  Array[Json],
+  Array[Json],
+  Array[Json],
+) raise @failure.Failure {
   let (header_width, header_height) = self.sheets[index].view.header_size()
   let rtl = self.sheets[index].view.rtl
   let primitives : Array[@layout.PositionedPrimitive] = []
   let cells : Array[Json] = []
+  let visible_notes : Array[Json] = []
   let seen : Map[String, Bool] = Map([])
   let count = rows.fold(init=0L, (sum, row) => {
       sum + row.indices.length().to_int64()
@@ -258,6 +266,7 @@ fn Session::paint_grid(
         bars: [],
         strokes: [],
       }
+      let markers : Array[@layout.PositionedPrimitive] = []
       let clip = grid_rect(
         {
           x: header_width + column.start,
@@ -286,7 +295,15 @@ fn Session::paint_grid(
         ) {
         guard item is Object(fields) &&
           fields["cell"] is { "address": String(address), .. } &&
-          fields["display"] is String(display) else {
+          fields["display"] is String(display) &&
+          fields["rect"]
+          is {
+            "x": Number(x, ..),
+            "y": Number(y, ..),
+            "width": Number(w, ..),
+            "height": Number(h, ..),
+            ..
+          } else {
           abort("Grid cell invariant")
         }
         units += display.length()
@@ -298,8 +315,26 @@ fn Session::paint_grid(
           cells.push(item)
           seen[address] = true
         }
+        if notes.get(address) is Some(note) {
+          let rect : @layout.Border = { x, y, width: w, height: h, }
+          let visible = grid_intersection(rect, clip)
+          if visible.width > 0 && visible.height > 0 {
+            visible_notes.push({
+              "address": address,
+              "author": note.author,
+              "text": note.text,
+              "rect": visible,
+            })
+            markers.push(note_marker(rect, rtl))
+          }
+        }
       }
       append_grid_paint(primitives, page, clip)
+      if !markers.is_empty() {
+        primitives.push(Clip(clip))
+        primitives.append(markers)
+        primitives.push(Restore)
+      }
     }
   }
   let row_headers : Array[Json] = []
@@ -456,5 +491,5 @@ fn Session::paint_grid(
       )
     }
   }
-  (primitives, cells, row_headers, column_headers)
+  (primitives, cells, row_headers, column_headers, visible_notes)
 }

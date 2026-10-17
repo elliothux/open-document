@@ -351,7 +351,21 @@ pub fn Session::viewport(
     @failure.reject("unsupported-view", current.frozen.layout_reason)
   }
   let dimensions = self.resolved_dimensions(current, probe, profile)
-  let used = current.used()
+  let notes : Map[String, CellNote] = Map([])
+  let source_notes = self.read_sheet_notes(current) catch {
+    @failure.Failure(..) => None
+  }
+  let mut used = current.used()
+  if source_notes is Some(source_notes) {
+    for note in source_notes.entries {
+      notes[note.address.name()] = note
+      used = {
+        ..used,
+        bottom: used.bottom.max(note.address.row),
+        right: used.right.max(note.address.column),
+      }
+    }
+  }
   let extent_row = (used.bottom
   .max(current.frozen.rows + 1)
   .max(if self.selection.0 == sheet { self.selection.1.bottom } else { 1 }) +
@@ -416,8 +430,8 @@ pub fn Session::viewport(
     width - header_width,
     extent_column,
   )
-  let (primitives, cells, row_headers, column_headers) = self.paint_grid(
-    index, dimensions, rows, columns, width, height, probe, profile,
+  let (primitives, cells, row_headers, column_headers, visible_notes) = self.paint_grid(
+    index, dimensions, rows, columns, width, height, probe, profile, notes,
   )
   let document : @layout.PositionedDocument = {
     pages: [{ width, height, primitives, }],
@@ -451,6 +465,7 @@ pub fn Session::viewport(
     "outlines": probe.outline_resources(),
     "images": [],
     "cells": cells,
+    "notes": visible_notes,
     "rows": row_headers,
     "columns": column_headers,
     "diagnostics": diagnostics,

@@ -91,7 +91,7 @@ export class SpreadsheetEditor {
   private generation = 0;
   private rendering = false;
   private constructor(
-    private readonly root: HTMLElement,
+    root: HTMLElement,
     private readonly client: XlsxClient,
     private readonly profile: Record<string, string>,
     state: XlsxQuery,
@@ -105,11 +105,7 @@ export class SpreadsheetEditor {
       diagnostics: state.diagnostics,
       data: { query: state, printPage: 0, printPages: 0, printVisible: false },
     });
-    const elements = createGridElements(
-      this.root,
-      this.surface,
-      this.printView,
-    );
+    const elements = createGridElements(root, this.surface, this.printView);
     this.container = elements.container;
     this.viewport = elements.viewport;
     this.holder = elements.holder;
@@ -156,6 +152,7 @@ export class SpreadsheetEditor {
       this.surface,
       this.holder,
       this.viewport,
+      this.input,
       client,
       this.listeners.signal,
       {
@@ -462,7 +459,7 @@ export class SpreadsheetEditor {
       this.layout = layout;
       this.scale = this.surface.draw(layout, 0, this.zoomValue);
       updateGridScroll(this.viewport, this.spacer, layout, this.scale);
-      updateGridSemantics(this.semantics, layout.cells);
+      updateGridSemantics(this.semantics, layout.cells, layout.notes);
       this.publish();
       await this.presentSelection();
     } catch (error) {

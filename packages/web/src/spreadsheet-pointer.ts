@@ -6,6 +6,7 @@ import type {
 } from "@open-document/wasm/xlsx";
 import type { CanvasSurface } from "./canvas-surface.js";
 import { paintGridSelection } from "./spreadsheet-input.js";
+import { SpreadsheetNotes } from "./spreadsheet-notes.js";
 
 interface PointerHost {
   current(): {
@@ -50,14 +51,24 @@ export class SpreadsheetPointer {
   private drag: Drag | undefined;
   private frame = 0;
   private preparing = false;
+  private readonly notes: SpreadsheetNotes;
   constructor(
     private readonly surface: CanvasSurface,
     holder: HTMLElement,
     private readonly viewport: HTMLElement,
+    input: HTMLTextAreaElement,
     private readonly client: XlsxClient,
     private readonly signal: AbortSignal,
     private readonly host: PointerHost,
   ) {
+    this.notes = new SpreadsheetNotes(
+      surface.canvas,
+      holder,
+      viewport,
+      input,
+      signal,
+      () => host.current(),
+    );
     this.handle.type = "button";
     this.handle.hidden = true;
     this.handle.setAttribute("aria-label", "Fill handle");
@@ -297,6 +308,7 @@ export class SpreadsheetPointer {
       );
   }
   update(geometry: XlsxSelectionGeometry): void {
+    this.notes.update();
     this.geometry = geometry;
     const now = this.host.current();
     if (this.drag) {

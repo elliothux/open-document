@@ -661,7 +661,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 核心复制类型值及有效格式，文字中的 `=` 保持文字；公式只平移相对引用，保留绝对与跨表引用，越界生成 `#REF!`。受影响共享公式有界展开。值、格式、依赖缓存和选区共用既有事务、自动尺寸及一次精确历史；保存重开后可继续编辑。复制文字和公式源码累计最多 1 Mi 字符，单公式最多 8192 字符，候选、源和历史仍受既有预算约束。
 
-源或目标相交条件格式、验证、链接或批注时拒绝填充；合并几何见下段；未知扩展、表格/透视和线程批注继续保护。范围外规则与元数据保留。默认按钮使用当前选区，沿既有队列提交原生草稿。核心已检查四向、相邻边界、类型值、有效格式、共享公式、重算、精确历史、重开及原子失败；Chromium 已检查四向按钮、原生草稿、独立公式/样式/缓存源、混合历史、保存重开和 PDF。重新打包的参数检查与严格宿主调用通过。数字序列见[数字序列](#数字序列)，基本拖动与键盘操作见[填充柄](#填充柄)。来源选择参考 [ONLYOFFICE prepareFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L27533-L27590)，实现归 [`fill.mbt`](../../modules/formats/src/xlsx/fill.mbt)。
+源或目标相交条件格式、验证或链接时拒绝填充；传统便笺保留各格原有文字与框，不随源复制，见[单元格便笺](#单元格便笺)；合并几何见下段；未知扩展、表格/透视和线程批注继续保护。范围外规则与元数据保留。默认按钮使用当前选区，沿既有队列提交原生草稿。核心已检查四向、相邻边界、类型值、有效格式、共享公式、重算、精确历史、重开及原子失败；Chromium 已检查四向按钮、原生草稿、独立公式/样式/缓存源、混合历史、保存重开和 PDF。重新打包的参数检查与严格宿主调用通过。数字序列见[数字序列](#数字序列)，基本拖动与键盘操作见[填充柄](#填充柄)。来源选择参考 [ONLYOFFICE prepareFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L27533-L27590)，实现归 [`fill.mbt`](../../modules/formats/src/xlsx/fill.mbt)。
 
 #### 合并格填充
 
@@ -731,7 +731,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 排序移动单元格值、富文本 XML、有效样式及已支持公式，局部补齐命名空间，保留源格式。公式相对引用按实际位移平移，绝对引用保持，越界生成 `#REF!`；受影响共享组有界展开。区域外公式引用继续指向原坐标，并按排序后的内容重算。单格超链接随内容移动，矩形链接保持原坐标，关系和目标不变。条件格式、验证及名称保持原坐标范围，效果和输入约束基于候选值计算；验证失败整项拒绝。行列尺寸保留原位置，已有自动尺寸仍按新内容重排。公式、依赖缓存与值/源/链接使用同一有界历史，精确撤销/重做，保存重开及 PDF 使用已排序内容；原生草稿先独立提交。恒等置换不新增 revision 或历史。重排及公式位移参考 [ONLYOFFICE _sortByArray](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21651-L21770)。
 
-排序键归一化共享 1048576 次公式工作预算，移动片段累计最多 1 Mi UTF-16，继续使用公式、候选、源和 4 MiB 历史上限。合并区域、筛选/既有 sortState、绘图、结构化表/透视、相交批注、未知资源或关系、未知单元格/公式标记和工作表保护继续原子拒绝。颜色、自定义列表、筛选内排序和更广合并/资源支持归 [P11](../p11-xlsx-core.md) 后续范围。实现归 [`sort.mbt`](../../modules/formats/src/xlsx/sort.mbt)、[`sort-source.mbt`](../../modules/formats/src/xlsx/sort-source.mbt)及 [`xlsx-sort.tsx`](../../packages/ui/src/xlsx-sort.tsx)。
+排序键归一化共享 1048576 次公式工作预算，移动片段累计最多 1 Mi UTF-16，继续使用公式、候选、源和 4 MiB 历史上限。合并区域、筛选/既有 sortState、绘图、结构化表/透视、线程批注及未知便笺、未知资源或关系、未知单元格/公式标记和工作表保护继续原子拒绝。颜色、自定义列表、筛选内排序和更广合并/资源支持归 [P11](../p11-xlsx-core.md) 后续范围。实现归 [`sort.mbt`](../../modules/formats/src/xlsx/sort.mbt)、[`sort-source.mbt`](../../modules/formats/src/xlsx/sort-source.mbt)及 [`xlsx-sort.tsx`](../../packages/ui/src/xlsx-sort.tsx)。
 
 ### 值筛选
 
@@ -765,11 +765,11 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 `editSheet(revision, sheet, { action: "merge", range, discard })` 合并指定矩形；`{ action: "unmerge", range }` 取消相交的合并。`range` 是 A1 矩形，单格地址自动扩展到已有完整合并范围。两种操作一次最多 4096 格，工作表最多保留 1024 个不重叠合并范围；合并须完整包含相交的旧合并。重复合并同一范围和取消未合并范围不增加历史。活动表操作选择目标范围，非活动表操作保留当前选择。
 
-`XlsxQuery.merging` 返回查询范围的 `range`、是否相交合并的 `merged`、非左上角非空格数 `discarded`，以及 `mergeReason/unmergeReason`。合并只有收到布尔 `discard: true` 才能丢弃非锚点内容；否则有数据时以 `merge-data-loss` 拒绝。默认属性栏显示保留左上角、丢弃其余值/公式的复选框；宿主沿现有队列先提交草稿。核心重新检查当前数据和保护状态，失败保留已提交包与历史。
+`XlsxQuery.merging` 返回查询范围的 `range`、是否相交合并的 `merged`、非左上角非空格数 `discarded`、会丢弃的额外便笺数 `discardedNotes`，以及 `mergeReason/unmergeReason`。合并只有收到布尔 `discard: true` 才能丢弃非锚点内容或额外便笺；否则以 `merge-data-loss` 拒绝。默认属性栏使用同一复选框确认值/公式或便笺损失，即使单元格值全空也须确认便笺损失；宿主沿现有队列先提交草稿。核心重新检查当前数据和保护状态，失败保留已提交包与历史。
 
 合并保留左上角值/公式和各格非边框格式，清除其余值/公式；共享公式存活成员转换为普通公式，依赖缓存和保存计算元数据同步更新。非锚点验证范围从规则中移除，锚点验证和条件格式保留。单元格与合并 XML、验证和缓存一起提交一项有界历史，保留原样式记录和不相关资源，新增边框样式按需派生并复用。取消合并只移除相交合并记录，保留各格内容/格式及计算源；被此前合并丢弃的内容通过撤销恢复。合并后格式查询、编辑及清除可从单格锚点作用于完整范围。
 
-文字与填充沿用左上角样式；边框组合读取起止格的声明，补齐右边和下边。合并时只保留整条外围上各格一致的线型及颜色声明，缺失或不一致时移除整边；内部边框清除。新边框保留主题色、索引色等源声明，不按当前 RGB 固定化。单行和单列遵循同一规则；合并后设置某侧边框只作用于外围对应边，不在内部加线。各格的字体、填充和数字格式保持不变，原样式记录保留源字节。格式查询、网格和打印使用同一边框组合，读取起止格不展开巨大导入合并区。派生样式仍受每类记录数、样式源码长度和历史预算限制；候选总长度超限时也不清除内容、不提交历史。工作表保护、部分旧合并、未知合并属性、超出预算、富文本/未知目标样式，以及需处理的批注、非锚点超链接、表格/透视表和扩展资源拒绝合并；取消合并沿自身保护检查，不清理未知资源。合并格格式刷仍待矩形快照扩展。核心已检查内容策略、验证、共享公式、依赖、XML 顺序、纯取消合并的部件保真、精确历史和失败；Chromium 已检查键盘范围、确认控件、合并内命中、填充、保存重开和 PDF。操作依据 [ONLYOFFICE 范围合并与验证调整](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L20316-L20706)；边框归并及外围写回遵循同一上游过程。核心已检查四边、内线、单行/单列、不一致边的移除、主题/索引色源声明、精确历史、重复样式复用及预算失败。Chromium 用独立 XML 检查派生边框和原样式记录，网格及打印绘制数据保持颜色、线宽，保存重开及 PDF 沿已有流程。
+文字与填充沿用左上角样式；边框组合读取起止格的声明，补齐右边和下边。合并时只保留整条外围上各格一致的线型及颜色声明，缺失或不一致时移除整边；内部边框清除。新边框保留主题色、索引色等源声明，不按当前 RGB 固定化。单行和单列遵循同一规则；合并后设置某侧边框只作用于外围对应边，不在内部加线。各格的字体、填充和数字格式保持不变，原样式记录保留源字节。格式查询、网格和打印使用同一边框组合，读取起止格不展开巨大导入合并区。派生样式仍受每类记录数、样式源码长度和历史预算限制；候选总长度超限时也不清除内容、不提交历史。工作表保护、部分旧合并、未知合并属性、超出预算、富文本/未知目标样式，以及未知便笺、非锚点超链接、表格/透视表和扩展资源拒绝合并；取消合并沿自身保护检查，不清理未知资源。合并格格式刷仍待矩形快照扩展。核心已检查内容策略、验证、共享公式、依赖、XML 顺序、纯取消合并的部件保真、精确历史和失败；Chromium 已检查键盘范围、确认控件、合并内命中、填充、保存重开和 PDF。操作依据 [ONLYOFFICE 范围合并与验证调整](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L20316-L20706)；边框归并及外围写回遵循同一上游过程。核心已检查四边、内线、单行/单列、不一致边的移除、主题/索引色源声明、精确历史、重复样式复用及预算失败。Chromium 用独立 XML 检查派生边框和原样式记录，网格及打印绘制数据保持颜色、线宽，保存重开及 PDF 沿已有流程。
 
 ### 单元格格式编辑
 
@@ -791,7 +791,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 `formats` 将目标格恢复为工作簿内置 Normal 样式，派生或复用 cellXF，保留原共享样式、值、公式、缓存和 calcChain。两种格式清除都会取消完整合并，并从选区清除既有条件格式。`all` 还清除值和公式、选区内验证规则及完整覆盖的超链接；部分覆盖的超链接保持原范围；被清除的共享公式组将存活成员展开为普通公式，并重算受影响依赖。行列尺寸与范围外单元格保持原样，内容变化沿既有保存路径更新计算元数据及共享字符串计数。
 
-一次最多 4096 格，单格合并锚点扩展到完整合并范围。`XlsxQuery.normalFont` 返回 Normal 样式的字体键；宿主在格式清除前检查对应 profile。Normal 不等同于第 0 个 cellXF，也不依赖本地化样式名。未知模式、受保护内容、缺失字体和预算失败不提交清除。部分覆盖的合并、需要平移且无法解析的规则公式，以及未知规则结构继续保护；非空扩展、表格/透视表资源、线程批注及全部清除涉及的传统批注也继续保护。规则之外的资源不推断所有权。
+一次最多 4096 格，单格合并锚点扩展到完整合并范围。`XlsxQuery.normalFont` 返回 Normal 样式的字体键；宿主在格式清除前检查对应 profile。Normal 不等同于第 0 个 cellXF，也不依赖本地化样式名。未知模式、受保护内容、缺失字体和预算失败不提交清除。部分覆盖的合并、需要平移且无法解析的规则公式，以及未知规则结构继续保护；非空扩展、表格/透视表资源、线程批注及未知便笺也继续保护；传统便笺的清除归[单元格便笺](#单元格便笺)。规则之外的资源不推断所有权。
 
 条件格式和验证的 `sqref` 从各原矩形扣除选区，保留不相交区域，最多留下 4096 个矩形。条件格式按范围外接矩形左上角定位，验证按第一个 `sqref` 区域定位；锚点变化时复用核心公式解析器平移相对引用，保持绝对/混合引用、跨表引用和字符串。条件公式、验证的两个公式及公式阈值一并更新，越界引用变为 `#REF!`。锚点不变时保留公式源；清空全部范围才删除规则，验证容器计数同步更新。规则计算、显示与编辑范围分别归[条件格式](#条件格式)和[数据验证](#数据验证)。范围扣除参考 [ONLYOFFICE 条件规则清除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L13347-L13386)与[验证范围清除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/DataValidation.js#L1068-L1088)；验证公式源位置参考 [LibreOffice 导入](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/filter/oox/worksheethelper.cxx#L1096-L1119)。核心已检查四块残留、多个原范围、混合引用、字符串、阈值越界、上限拒绝和精确历史；Chromium 通过默认按钮清除并用独立 XML 检查范围与公式，保存重开后可继续输入。
 
@@ -859,13 +859,21 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 `XlsxSession/Client.editSheet(revision, sheet, { action: "note", cell, text, author? })` 和 `SpreadsheetEditor.editSheet(change, sheet?)` 创建、修改或删除便笺。`cell` 是单个 A1 地址，`text: null` 删除；新文字必须非空，最多 32767 UTF-16 单元，CRLF/CR 归一为 LF。新建须显式提供非空 `author`，最多 255 单元且不含控制字符；修改保留原作者。空文本便笺可读取和删除，显式文字修改继承首个源 run 的字符属性。SpreadsheetML 转义由核心统一编码，字面的 `_x0041_` 不会变成 `A`。
 
-默认面板复用 `EditorOptions.commentAuthor.name` 创建作者，未提供时仍可修改和删除已有便笺。应用前原生单元格草稿沿既有队列提交，值、公式、格式和计算结果保持。便笺输入以当前文档/工作表/单元格绑定；切换单元格更新输入，未应用的面板草稿不写入文档。显示文字与 VML 外观不进入单元格值、查找、CSV 或默认静态 PDF。当前通过选中单元格后的面板查看便笺；网格角标和画布弹框继续实施。
+默认面板复用 `EditorOptions.commentAuthor.name` 创建作者，未提供时仍可修改和删除已有便笺。应用前原生单元格草稿沿既有队列提交，值、公式、格式和计算结果保持。便笺输入以当前文档/工作表/单元格绑定；切换单元格更新输入，未应用的面板草稿不写入文档。显示文字与 VML 外观不进入单元格值、查找、CSV 或默认静态 PDF。面板继续提供便笺编辑；网格角标和悬停/选中提示见下段。
+
+网格使用 R0 绘制橙色逻辑右上角标，RTL 镜像到左侧，尺寸随缩放变化；空格和合并锚点也可显示。位置与裁剪由核心沿用行列尺寸、隐藏、冻结和合并几何。`XlsxViewport.notes` 返回可见 `{ address, author, text, rect }`，rect 使用 point 的已裁剪画布坐标；跨冻结窗格的合并格可有多个可见片段，源便笺不重复。一次最多 4096 个片段及 5 Mi 文字/作者单元，含最多四窗格重复。仅便笺的远端单元格扩展网格滚动范围，不扩展默认打印区域。未知便笺继续沿既有保护和诊断处理，不暴露部分记录。
+
+Web 复用核心矩形显示悬停或选中便笺的作者与纯文字提示，不改变选区、修订、历史或保存源。键盘选中格关联便笺描述，网格语义也提供作者和文字；Escape 隐藏提示，切换目标可重新显示。长文字可在有界提示中滚动；悬停提示内仍可读取。布局、工作表或修订变化后更新提示，释放实例时解除监听。角标和提示不进入静态 PDF，也不修改 VML 外观。角标参考 [ONLYOFFICE drawCommentCells](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/CellComment.js#L642-L690)，实现归 [`notes-grid.mbt`](../../modules/formats/src/xlsx/notes-grid.mbt)及 [`spreadsheet-notes.ts`](../../packages/web/src/spreadsheet-notes.ts)。
 
 首次创建把 comments、VML、工作表 `legacyDrawing`、关系和内容类型合为一项精确历史。普通备注框使用标准 `ObjectType="Note"` 及从零开始的 Row/Column、八项 Anchor。导入只有 comments 而无 VML 时，新增便笺会补齐全部现有便笺的框；若已有未解析的 `shapeId`，保护该创建。修改只替换文字正文，保留原作者、其他便笺、外围注释、局部命名空间和 VML 位置/外观。删除移除文字与对应框，最后一条删除后保留空部件和作者列表。每表最多 4096 条、合计 1 Mi 文字单元及 4096 个作者，并继续受包、输出与历史预算约束。
 
-复制表创建独立 comments/VML 部件并重映射关系；副本可继续编辑。改名和删除沿已有工作表事务，删除仅回收独占部件和内容类型。新增部件按稳定顺序写入 ZIP，删除/撤销不改变相同状态的保存字节。重复地址、作者缺失、未知/不匹配的 VML、控件/图片、未知文字/扩展、共享/外部部件、保护、旧修订和预算失败原子拒绝。排序、填充、合并及全部清除仍沿已有资源保护，不在未维护便笺引用时放开操作。未知 VML 保留未渲染诊断并拒绝打印；普通便笺输出按默认不打印批注处理，非默认批注打印设置继续保护。
+复制表创建独立 comments/VML 部件并重映射关系；副本可继续编辑。改名和删除沿已有工作表事务，删除仅回收独占部件和内容类型。新增部件按稳定顺序写入 ZIP，删除/撤销不改变相同状态的保存字节。重复地址、作者缺失、未知/不匹配的 VML、控件/图片、未知文字/扩展、共享/外部部件、保护、旧修订和预算失败原子拒绝。普通合并及取消合并的便笺归属见下段。未知 VML 保留未渲染诊断并拒绝打印；普通便笺输出按默认不打印批注处理，非默认批注打印设置继续保护。
 
-整行/整列插删和四向单元格移位复用既有 `AxisChange`。便笺随所属格移动，范围外不变；删除所属格时移除该便笺及对应 VML shape，保留作者、空部件和关系。插入不得把空格上的便笺推出工作表。核心同步 comment 的 `ref` 和对应 `ClientData` 的 Row 或 Column，仅改动受影响轴的文字；Anchor 矩形、偏移、外观/标志、guid/shapeId、正文与其他源保留。范围插入后选区仍是插入区域，可定位到移后的便笺格；不单独修改既有选区规则。部件、值/公式、规则与选择共用一次精确历史；无法安全替换的 VML 文字或预算失败不提交。归属规则参考 [ONLYOFFICE updateCommentsDependencies](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/CellComment.js#L709-L838)，实现归 [`notes-axis.mbt`](../../modules/formats/src/xlsx/notes-axis.mbt)。
+整行/整列插删和四向单元格移位复用既有 `AxisChange`。便笺随所属格移动，范围外不变；删除所属格时移除该便笺及对应 VML shape，保留作者、空部件和关系。插入不得把空格上的便笺推出工作表。核心同步 comment 的 `ref` 和对应 `ClientData` 的 Row 或 Column，仅改动受影响轴的文字；Anchor 矩形、偏移、外观/标志、guid/shapeId、正文与其他源保留。范围插入后选区仍是插入区域，可定位到移后的便笺格；不单独修改既有选区规则。部件、值/公式、规则与选择共用一次精确历史；无法安全替换的 VML 文字或预算失败不提交。归属规则参考 [ONLYOFFICE updateCommentsDependencies](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/CellComment.js#L709-L838)，实现归 [`notes-transform.mbt`](../../modules/formats/src/xlsx/notes-transform.mbt)。
+
+普通行/列排序复用已有稳定位置映射，便笺与所属格一起移动，空值格也参与；标题、隐藏轴和范围外便笺保留。核心同步 `ref` 与 VML Row/Column，正文、作者和弹框外观保持。四向填充、自动序列与收缩填充保留每格原有便笺，不复制源便笺或覆盖目标便笺。清除内容/格式保留便笺；全部清除删除选区内文字与对应 VML shape，包括只有便笺的空格，保留范围外便笺、空部件与作者。各操作与值/公式/格式共同提交一次有界历史，支持精确撤销与重开；未知资源继续原子保护。语义参考 [ONLYOFFICE sortComments](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/CellComment.js#L840-L863)、[自动填充](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L22180-L22690)及[清除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L16657-L16703)，实现复用同一便笺源编辑器与已有操作事务。
+
+合并复用 [ONLYOFFICE mergeComments](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/CellComment.js#L1395-L1431) 的源顺序选择：先取范围内首条便笺，后续便笺的行不更大且列更小时替换保留项。保留项移到合并左上角，其余文字与 VML shape 删除；单条便笺移动不产生便笺损失。`discardedNotes` 返回额外便笺数，范围 0–4095，沿现有 `discard` 显式确认；非锚点值/公式仍独立计入 `discarded`。保留项的正文、作者、shape 身份及框外观不变，范围外便笺保持。便笺、合并几何、单元格与派生样式共用一次精确历史；合并后修改便笺使用左上角身份。取消合并保留现有便笺和资源，不恢复已确认丢弃的便笺；撤销可精确恢复它们。未知/共享资源、无法替换的 VML 坐标或预算失败继续原子保护。
 
 部件及锚点格式参考 [ONLYOFFICE VmlDrawing.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/VmlDrawing.cpp#L295-L410)。实现独立使用已有 XML 编辑、单元格地址、关系及历史事务，归 [`notes-read.mbt`](../../modules/formats/src/xlsx/notes-read.mbt)、[`notes-vml.mbt`](../../modules/formats/src/xlsx/notes-vml.mbt)、[`notes-create.mbt`](../../modules/formats/src/xlsx/notes-create.mbt)、[`notes-edit.mbt`](../../modules/formats/src/xlsx/notes-edit.mbt)及 [`xlsx-format.tsx`](../../packages/ui/src/xlsx-format.tsx)。线程回复/解决、便笺外观编辑和其余资源变换仍归 [P11](../p11-xlsx-core.md)。
 

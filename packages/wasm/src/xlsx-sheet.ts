@@ -372,7 +372,7 @@ export interface XlsxNote {
   exists: boolean;
   reason: string;
 }
-function noteCell(value: unknown): value is string {
+export function noteCell(value: unknown): value is string {
   if (typeof value !== "string") return false;
   const match = /^([A-Z]{1,3})([1-9]\d{0,6})$/iu.exec(value);
   return (
@@ -385,7 +385,7 @@ function noteCell(value: unknown): value is string {
     ) <= 16384
   );
 }
-function noteText(
+export function noteText(
   value: unknown,
   max: number,
   required = false,

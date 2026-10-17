@@ -104,7 +104,9 @@ export type {
   XlsxPrintRange,
   XlsxHeaderFooter,
 } from "./xlsx-print.js";
-import { drawingBatch, type DrawingBatch, type DrawRect } from "./drawing.js";
+import { drawingBatch, type DrawingBatch } from "./drawing.js";
+import { xlsxGridNotes, type XlsxViewport } from "./xlsx-grid.js";
+export type { XlsxViewport } from "./xlsx-grid.js";
 import {
   checkXlsxCellFormat,
   xlsxFormatting,
@@ -164,30 +166,6 @@ export interface GridViewport {
   reveal?: boolean;
 }
 
-export interface XlsxViewport extends DrawingBatch {
-  id: number;
-  revision: number;
-  sheet: string;
-  scrollX: number;
-  scrollY: number;
-  extentWidth: number;
-  extentHeight: number;
-  headerWidth: number;
-  headerHeight: number;
-  rtl: boolean;
-  cells: {
-    cell: XlsxCell;
-    display: string;
-    rect: DrawRect;
-    clip: DrawRect;
-    range: CellRange;
-    diagnostic: string;
-  }[];
-  rows: { index: number; position: number; size: number }[];
-  columns: XlsxViewport["rows"];
-  diagnostics: string[];
-}
-
 export interface XlsxPrintLayout extends DrawingBatch {
   id: number;
   revision: number;
@@ -242,6 +220,7 @@ export interface XlsxQuery {
     range: string;
     merged: boolean;
     discarded: number;
+    discardedNotes: number;
     mergeReason: string;
     unmergeReason: string;
   };
@@ -315,7 +294,8 @@ export function xlsxQuery(value: unknown): XlsxQuery {
     merging.range.length === 0 ||
     merging.range.length > 64 ||
     typeof merging.merged !== "boolean" ||
-    !integer(merging.discarded, 0, 100000)
+    !integer(merging.discarded, 0, 100000) ||
+    !integer(merging.discardedNotes, 0, 4095)
   )
     throw new Error("Invalid cell merging state");
   xlsxFormatting(query.formatting);
@@ -489,6 +469,12 @@ export function xlsxViewport(value: unknown): XlsxViewport {
     !arrayOf(grid.diagnostics, (item) => typeof item === "string")
   )
     throw new Error("Invalid grid viewport");
+  xlsxGridNotes(grid.notes, {
+    x: grid.rtl ? 0 : Number(grid.headerWidth),
+    y: Number(grid.headerHeight),
+    width: layout.regions[0]!.width - Number(grid.headerWidth),
+    height: layout.regions[0]!.height - Number(grid.headerHeight),
+  });
   const addresses = new Set<string>();
   for (const value of grid.cells) {
     const item = record(value),

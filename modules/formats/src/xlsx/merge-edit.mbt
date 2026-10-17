@@ -23,9 +23,15 @@ fn Session::merge_cells(
   guard unmerge || current.merges.length() - removed.length() < 1024 else {
     @failure.reject("limit-exceeded", "Merged range count exceeds budget")
   }
-  guard unmerge || discard || current.merge_discarded(target) == 0 else {
+  let notes = if unmerge { None } else { self.read_sheet_notes(current) }
+  guard unmerge ||
+    discard ||
+    (
+      current.merge_discarded(target) == 0 &&
+      notes.map(n => n.merge_discarded(target)).unwrap_or(0) == 0
+    ) else {
     @failure.reject(
-      "merge-data-loss", "Merging keeps the upper-left cell and discards other values and formulas; explicit discard is required",
+      "merge-data-loss", "Merging keeps the upper-left cell and one note; discarding other values, formulas or notes requires explicit discard",
     )
   }
   let plan = if unmerge { None } else { self.merge_formats(current, target) }
@@ -59,7 +65,7 @@ fn Session::merge_cells(
     document = next
     edits.push((id, edit))
   }
-  let parts = plan.map(plan => plan.parts).unwrap_or(self.parts)
+  let parts = plan.map(plan => plan.parts).unwrap_or(self.parts).copy()
   let styles = plan.map(plan => plan.styles).unwrap_or(self.styles)
   let created_parts = plan.map(plan => plan.created_parts).unwrap_or(Map([]))
   if plan is Some(plan) {
@@ -83,6 +89,21 @@ fn Session::merge_cells(
     document = next
     edits.append(plan.edits)
     edits.push((id, edit))
+  }
+  if notes is Some(notes) {
+    let kept = notes.merge_note(target)
+    let addresses : Map[String, Address?] = Map([])
+    for note in notes.entries {
+      if target.contains(note.address) {
+        addresses[note.address.name()] = if kept is Some(kept) &&
+          kept.address == note.address {
+          Some({ row: target.top, column: target.left, })
+        } else {
+          None
+        }
+      }
+    }
+    update_note_addresses(notes, addresses, parts, edits)
   }
   let tree = Tree::new(document)
   let root = tree.root("worksheet")

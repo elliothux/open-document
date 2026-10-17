@@ -44,9 +44,7 @@ fn clear_rule_selected(
 }
 
 ///|
-fn Session::clear_rules(
-  self : Session,
-  sheet : Sheet,
+fn clear_rules(
   document : @xml.Document,
   target : Range,
   all : Bool,
@@ -122,28 +120,6 @@ fn Session::clear_rules(
               ("count", (children.length() - removed.length()).to_string()),
             ]),
           )
-        }
-      }
-    }
-  }
-  if all {
-    for link in self.relationships() {
-      if link.owner != sheet.id {
-        continue
-      }
-      if link.kind.to_lower().contains("threadedcomment") {
-        @failure.reject(
-          "protected-content", "Threaded comments require clearing support",
-        )
-      }
-      if link.kind == relationship_uri + "comments" {
-        let comments = self.part_xml(link.target)
-        for node in comments.nodes() {
-          if node.name == "comment" && clear_rule_selected(node, target, "ref") {
-            @failure.reject(
-              "protected-content", "Comment and VML ownership require clearing support",
-            )
-          }
         }
       }
     }

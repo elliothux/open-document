@@ -103,20 +103,23 @@ export function XlsxFormat({ controller, state, editor, disabled }: Props) {
       <fieldset disabled={disabled}>
         <legend>{t.mergeCells}</legend>
         <p>{merging.range}</p>
-        {merging.discarded > 0 && (
+        {(merging.discarded > 0 || merging.discardedNotes > 0) && (
           <label>
             <input
               type="checkbox"
               checked={discard}
               onChange={(event) => setDiscard(event.currentTarget.checked)}
             />
-            {t.discardMergedValues}
+            {merging.discardedNotes > 0
+              ? t.discardMergedNotes
+              : t.discardMergedValues}
           </label>
         )}
         <button
           type="button"
           disabled={
-            !!merging.mergeReason || (merging.discarded > 0 && !discard)
+            !!merging.mergeReason ||
+            ((merging.discarded > 0 || merging.discardedNotes > 0) && !discard)
           }
           onClick={() =>
             controller.run(() =>

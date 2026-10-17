@@ -75,7 +75,7 @@ fn Session::merge_reason(
   }
   try {
     let tree = Tree::new(sheet.document)
-    // shortcut: Expand resource ownership support before merging comments, links or table cells.
+    // shortcut: Non-anchor links and table cells need ownership support before merging.
     for node in tree.children.get(tree.root("worksheet").id).unwrap_or([]) {
       if node.uri != spreadsheet_uri ||
         (
@@ -97,11 +97,7 @@ fn Session::merge_reason(
         }
       }
     }
-    for link in self.relationships() {
-      if link.owner == sheet.id && link.kind.to_lower().contains("comment") {
-        return "Comments require merge ownership support"
-      }
-    }
+    ignore(self.read_sheet_notes(sheet))
     ""
   } catch {
     @failure.Failure(message~, ..) => message
@@ -130,10 +126,14 @@ fn Session::merging(
   range : Range,
 ) -> Json raise @failure.Failure {
   let target = sheet.merge_target(range)
+  let notes = self.read_sheet_notes(sheet) catch {
+    @failure.Failure(..) => None
+  }
   {
     "range": target.name(),
     "merged": sheet.merges.any(merge => merge.intersects(target)),
     "discarded": sheet.merge_discarded(target),
+    "discardedNotes": notes.map(n => n.merge_discarded(target)).unwrap_or(0),
     "mergeReason": self.merge_reason(sheet, target),
     "unmergeReason": self.unmerge_reason(sheet, target),
   }

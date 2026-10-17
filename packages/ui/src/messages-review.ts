@@ -1,4 +1,6 @@
 export const reviewEn = {
+  discardMergedNotes:
+    "Keep the upper-left cell and one note; discard other values, formulas, and notes",
   cellNote: "Cell note",
   noteApply: "Apply note",
   noteRemove: "Remove note",
@@ -22,6 +24,7 @@ export const reviewEn = {
     "Provide commentAuthor in the host options to add comments or replies.",
 };
 export const reviewZh: Record<keyof typeof reviewEn, string> = {
+  discardMergedNotes: "保留左上角单元格和一条便笺，丢弃其余值、公式及便笺",
   cellNote: "单元格便笺",
   noteApply: "应用便笺",
   noteRemove: "删除便笺",

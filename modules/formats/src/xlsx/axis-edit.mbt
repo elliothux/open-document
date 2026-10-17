@@ -51,7 +51,17 @@ fn Session::edit_axes(
   let edits : Array[(String, @xml.Edit)] = []
   let parts = self.parts.copy()
   if notes is Some(notes) {
-    shift_cell_notes(notes, change, parts, edits)
+    let addresses : Map[String, Address?] = Map([])
+    for note in notes.entries {
+      let next = change.address(note.address)
+      guard !change.insert || next is Some(_) else {
+        @failure.reject(
+          "invalid-operation", "Insertion would discard a cell note",
+        )
+      }
+      addresses[note.address.name()] = next
+    }
+    update_note_addresses(notes, addresses, parts, edits)
   }
   let rule_work : RuleShiftWork = {
     cells: 0,

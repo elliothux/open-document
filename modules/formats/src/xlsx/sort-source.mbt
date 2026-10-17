@@ -113,14 +113,13 @@ fn Sheet::sorted_cell(
 fn Session::sort_resources(
   self : Session,
   sheet : Sheet,
-  range : Range,
 ) -> Unit raise @failure.Failure {
   let tree = Tree::new(sheet.document)
   for node in tree.children.get(tree.root("worksheet").id).unwrap_or([]) {
     guard node.uri == spreadsheet_uri &&
-      ![
-        "drawing", "legacyDrawing", "legacyDrawingHF", "autoFilter", "sortState",
-      ].contains(node.name) &&
+      !["drawing", "legacyDrawingHF", "autoFilter", "sortState"].contains(
+        node.name,
+      ) &&
       !(["extLst", "tableParts", "pivotTableParts"].contains(node.name) &&
       !tree.children.get(node.id).unwrap_or([]).is_empty()) else {
       @failure.reject(
@@ -132,22 +131,12 @@ fn Session::sort_resources(
     if link.owner != sheet.id {
       continue
     }
-    guard ["hyperlink", "printerSettings", "comments"].any(kind => {
+    guard ["hyperlink", "printerSettings", "comments", "vmlDrawing"].any(kind => {
       link.kind == relationship_uri + kind
     }) else {
       @failure.reject(
         "protected-content", "Worksheet relationships require sorting ownership support",
       )
-    }
-    if link.kind == relationship_uri + "comments" {
-      for node in self.part_xml(link.target).nodes() {
-        if node.name == "comment" &&
-          Range::parse(node.attribute("ref").unwrap_or("")).intersects(range) {
-          @failure.reject(
-            "protected-content", "Comments require sorting ownership support",
-          )
-        }
-      }
     }
   }
 }

@@ -56,8 +56,12 @@ export function updateGridSelection(
 export function updateGridSemantics(
   root: HTMLElement,
   cells: XlsxViewport["cells"],
+  notes: XlsxViewport["notes"],
 ): void {
   const rows = new Map<number, HTMLDivElement>();
+  const descriptions = new Map(
+    notes.map((note) => [note.address, `${note.author}: ${note.text}`]),
+  );
   root.replaceChildren();
   for (const item of cells) {
     let row = rows.get(item.cell.row);
@@ -78,6 +82,8 @@ export function updateGridSemantics(
       `${item.cell.address}: ${item.display}${item.cell.readOnlyReason ? "; " + item.cell.readOnlyReason : ""}`,
     );
     cell.textContent = item.display;
+    const description = descriptions.get(item.cell.address);
+    if (description) cell.setAttribute("aria-description", description);
     row.append(cell);
   }
 }
