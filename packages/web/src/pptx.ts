@@ -10,6 +10,9 @@ import {
 } from "@open-document/wasm/pptx";
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type {
+  PptxThemeColor,
+  PptxThemeFont,
+  PptxThemeSlot,
   PptxObjectEdit,
   PptxDash,
   PptxCap,

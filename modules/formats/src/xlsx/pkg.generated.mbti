@@ -120,6 +120,7 @@ pub fn DataValidation::to_json(Self) -> Json
 pub(all) enum FillTarget {
   FillPoint(Double, Double)
   FillDirection(String)
+  FillAdjacent
 }
 
 pub(all) struct FilterColumn {

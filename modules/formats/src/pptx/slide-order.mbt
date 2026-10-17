@@ -6,6 +6,8 @@ pub(all) enum SlideEdit {
   MoveSlide(Int)
   HideSlide(Bool)
   Background(BackgroundFill?)
+  ThemeColor(String, String)
+  ThemeFont(String, String, String)
   ApplyLayout(String)
   ResetLayout
   Notes(String)
@@ -189,6 +191,8 @@ pub fn Session::edit_slides(
   revision : Int,
   slide : String,
   change : SlideEdit,
+  probe? : @layout.TextProbe,
+  profile~ : Map[String, String] = Map([]),
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   self.check_idle()
@@ -211,6 +215,15 @@ pub fn Session::edit_slides(
     | MoveSection(_, _) => return self.edit_sections(index, change)
     Size(width, height) => return self.set_slide_size(width, height)
     Background(value) => return self.set_background(index, value)
+    ThemeColor(slot, value) => return self.set_theme_color(slot, value)
+    ThemeFont(kind, script, font) => {
+      guard probe is Some(probe) else {
+        @failure.reject(
+          "missing-font", "Theme font editing requires a font probe and profile",
+        )
+      }
+      return self.set_theme_font(kind, script, font, probe, profile)
+    }
     ApplyLayout(id) => return self.apply_layout(index, id)
     ResetLayout =>
       return self.apply_layout(

@@ -470,6 +470,7 @@ fn Foundation::xlsx_operation(
           "point" =>
             @xlsx.FillPoint(xlsx_number(target, "x"), xlsx_number(target, "y"))
           "direction" => @xlsx.FillDirection(field_string(target, "direction"))
+          "adjacent" => @xlsx.FillAdjacent
           _ => @failure.reject("invalid-operation", "Invalid fill target")
         },
         ctrl=if target is Object(fields) && fields.contains("ctrl") {

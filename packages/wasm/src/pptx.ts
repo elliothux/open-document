@@ -46,6 +46,17 @@ export type { PptxFindOptions, PptxSearchResult } from "./pptx-search.js";
 export { preparePptxSearch, pptxFindOptions } from "./pptx-search.js";
 import { record, hasFields } from "./validation.js";
 import {
+  pptxThemeColors,
+  pptxThemeFonts,
+  type PptxThemeColor,
+  type PptxThemeFont,
+} from "./pptx-theme.js";
+export type {
+  PptxThemeColor,
+  PptxThemeSlot,
+  PptxThemeFont,
+} from "./pptx-theme.js";
+import {
   drawingBatch,
   drawingMatrix,
   type DrawingBatch,
@@ -140,6 +151,8 @@ export interface PptxObject {
     | null;
 }
 export interface PptxQuery {
+  themeColors: PptxThemeColor[];
+  themeFonts: PptxThemeFont[];
   revision: number;
   formatting: PptxFormatting;
   paragraph: PptxParagraphFormatting;
@@ -207,6 +220,7 @@ export type PptxCommand =
       revision: number;
       slide: string;
       change: PptxSlideEdit;
+      profile: Record<string, string>;
     }
   | {
       operation: "editPptxObjects";
@@ -377,6 +391,8 @@ function points(value: unknown, max = 4): void {
 }
 export function pptxQuery(value: unknown): PptxQuery {
   const query = record(value);
+  pptxThemeColors(query.themeColors);
+  pptxThemeFonts(query.themeFonts);
   const notes = record(query.notes);
   pptxSlideLayouts(query.slideLayout);
   checkPptxSlideEdit({ action: "notes", text: notes.text });

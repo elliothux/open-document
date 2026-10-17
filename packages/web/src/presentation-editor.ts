@@ -624,6 +624,7 @@ export class PresentationEditor {
           revision: this.state.revision,
           slide: slide ?? this.state.slide,
           change,
+          profile: this.profile,
         }),
       ),
     );

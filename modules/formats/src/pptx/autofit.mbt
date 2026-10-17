@@ -65,31 +65,40 @@ fn Session::prepare_fitted(
     guard diagnostic.is_empty() else {
       @failure.reject("layout-overflow", diagnostic, part=original.tree.part)
     }
-    let source = original.object(id).source
-    let body = source.child("txBody", uri=presentation_uri).unwrap()
-    let properties = body.child("bodyPr")
-    let fit = properties.bind(item => item.child("normAutofit"))
-    let value = (scale * 100000).floor().to_int().to_string()
-    if fit is Some(fit) {
-      if fit.node.attribute("fontScale").unwrap_or("100000") != value {
-        changes.push(attribute_change(fit, "fontScale", value))
-      }
-      if fit.node.attribute("lnSpcReduction").unwrap_or("0") != "0" {
-        changes.push(attribute_change(fit, "lnSpcReduction", "0"))
-      }
-    } else if scale < 1 {
-      let xml = "<a:normAutofit xmlns:a=\"\{drawing_uri}\" fontScale=\"\{value}\"/>"
-      if properties is Some(properties) {
-        changes.push(insertion(properties.node, xml))
-      } else {
-        changes.push({
-          node: body.node.id,
-          offset: body.node.opening_end - body.node.start,
-          length: 0,
-          xml: "<a:bodyPr xmlns:a=\"\{drawing_uri}\">\{xml}</a:bodyPr>",
-        })
-      }
-    }
+    changes.append(normal_fit_changes(original.object(id), scale))
   }
   self.prepare(original, changes)
+}
+
+///|
+fn normal_fit_changes(
+  object : Object,
+  scale : Double,
+) -> Array[@xml.SourceChange] raise @failure.Failure {
+  let body = object.source.child("txBody", uri=presentation_uri).unwrap()
+  let properties = body.child("bodyPr")
+  let fit = properties.bind(item => item.child("normAutofit"))
+  let value = (scale * 100000).floor().to_int().to_string()
+  let changes : Array[@xml.SourceChange] = []
+  if fit is Some(fit) {
+    if fit.node.attribute("fontScale").unwrap_or("100000") != value {
+      changes.push(attribute_change(fit, "fontScale", value))
+    }
+    if fit.node.attribute("lnSpcReduction").unwrap_or("0") != "0" {
+      changes.push(attribute_change(fit, "lnSpcReduction", "0"))
+    }
+  } else if scale < 1 {
+    let xml = "<a:normAutofit xmlns:a=\"\{drawing_uri}\" fontScale=\"\{value}\"/>"
+    if properties is Some(properties) {
+      changes.push(insertion(properties.node, xml))
+    } else {
+      changes.push({
+        node: body.node.id,
+        offset: body.node.opening_end - body.node.start,
+        length: 0,
+        xml: "<a:bodyPr xmlns:a=\"\{drawing_uri}\">\{xml}</a:bodyPr>",
+      })
+    }
+  }
+  changes
 }

@@ -1,4 +1,9 @@
 import { record } from "./validation.js";
+import {
+  checkPptxThemeColor,
+  checkPptxThemeFont,
+  type PptxThemeSlot,
+} from "./pptx-theme.js";
 
 export type PptxBackgroundFill =
   | { kind: "solid"; color: string }
@@ -38,6 +43,13 @@ export function checkPptxBackgroundFill(value: unknown): void {
 }
 
 export type PptxSlideEdit =
+  | { action: "themeColor"; slot: PptxThemeSlot; color: string }
+  | {
+      action: "themeFont";
+      kind: "major" | "minor";
+      script: string;
+      font: string;
+    }
   | { action: "layout"; id: string }
   | { action: "resetLayout" }
   | { action: "notes"; text: string }
@@ -57,6 +69,14 @@ export type PptxSlideEdit =
 
 export function checkPptxSlideEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "themeFont") {
+    checkPptxThemeFont(change);
+    return;
+  }
+  if (change.action === "themeColor") {
+    checkPptxThemeColor(change);
+    return;
+  }
   if (change.action === "resetLayout") {
     if (Object.keys(change).length !== 1)
       throw new Error("Reset layout accepts only an action");

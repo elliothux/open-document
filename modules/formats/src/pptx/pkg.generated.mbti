@@ -101,7 +101,7 @@ pub fn Session::create(@archive.Budget) -> Self raise @failure.Failure
 pub fn Session::delete(Self, Int, Bool, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::drag(Self, Int, Int, Double, Double, Int) -> Json raise @failure.Failure
 pub fn Session::edit_objects(Self, Int, ObjectEdit, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
-pub fn Session::edit_slides(Self, Int, String, SlideEdit) -> Json raise @failure.Failure
+pub fn Session::edit_slides(Self, Int, String, SlideEdit, probe? : @layout.TextProbe, profile? : Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::find(Self, Int, String, String, FindOptions) -> Json raise @failure.Failure
 pub fn Session::finish(Self, Int, Int, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::hit(Self, Int, Double, Double, Double) -> Json raise @failure.Failure
@@ -128,6 +128,8 @@ pub(all) enum SlideEdit {
   MoveSlide(Int)
   HideSlide(Bool)
   Background(BackgroundFill?)
+  ThemeColor(String, String)
+  ThemeFont(String, String, String)
   ApplyLayout(String)
   ResetLayout
   Notes(String)

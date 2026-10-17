@@ -291,7 +291,18 @@ pub fn Session::undo(
       removed=removed_parts,
     )
     let (width, height) = presentation_size(main)
-    let slides = if width != self.width || height != self.height {
+    let theme_changed = entry.edits.any(entry => {
+      parts
+      .get(entry.0)
+      .map(document => {
+        let root = document.nodes()[0]
+        root.uri == drawing_uri && root.name == "theme"
+      })
+      .unwrap_or(false)
+    })
+    let slides = if width != self.width ||
+      height != self.height ||
+      theme_changed {
       slides.map(slide => {
         read_slide(self.opc, main, self.cache, slide.tree, parts~)
       })

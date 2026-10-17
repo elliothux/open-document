@@ -397,6 +397,8 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
     "sections": self.section_query(),
     "notes": self.notes_query(current.tree.part),
     "slideLayout": self.layout_query(current),
+    "themeColors": self.theme_colors(),
+    "themeFonts": self.theme_fonts(),
     "background": {
       "value": current.background.to_json(),
       "explicit": current.tree.one(

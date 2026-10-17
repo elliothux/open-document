@@ -2,6 +2,7 @@
 pub(all) enum FillTarget {
   FillPoint(Double, Double)
   FillDirection(String)
+  FillAdjacent
 }
 
 ///|
@@ -22,6 +23,10 @@ pub fn Session::fill_preview(
   }
   let source = self.selection.1
   let address : Address = match target {
+    FillAdjacent => {
+      let range = self.adjacent_fill(self.sheet_index(grid.sheet), source)
+      { row: range.bottom, column: range.right, }
+    }
     FillPoint(x, y) => Address::parse(self.hit(id, x, y))
     FillDirection(direction) =>
       match direction {

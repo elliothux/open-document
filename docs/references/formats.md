@@ -607,15 +607,17 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 ### 填充柄
 
-普通网格在选区末格显示填充柄；RTL 使用左下角。拖动向外扩展一条行带或列带，核心按物理距离选择轴。向内拖动选择要清除的末尾行带或列带，只清内容和公式并保留格式；边界按命中格的半格位置吸附，角点附近未越过边界时无操作。拖到源起点可清空整块内容。聚焦填充柄后，方向键延伸一行或一列，左右键遵循 RTL 的物理方向。支持缩放、冻结窗格和边缘滚动。Ctrl 将向外填充切换为循环复制；单个普通数值改为逐格加一。日期/时间、文字及公式按源模式复制，公式仍平移相对引用。拖动中按下或松开 Ctrl 即可切换，释放使用当时的状态；方向键也支持 Ctrl。向内清除规则不变。双击相邻列延伸仍待实现。
+普通网格在选区末格显示填充柄；RTL 使用左下角。拖动向外扩展一条行带或列带，核心按物理距离选择轴。向内拖动选择要清除的末尾行带或列带，只清内容和公式并保留格式；边界按命中格的半格位置吸附，角点附近未越过边界时无操作。拖到源起点可清空整块内容。聚焦填充柄后，方向键延伸一行或一列，左右键遵循 RTL 的物理方向。支持缩放、冻结窗格和边缘滚动。Ctrl 将向外填充切换为循环复制；单个普通数值改为逐格加一。日期/时间、文字及公式按源模式复制，公式仍平移相对引用。拖动中按下或松开 Ctrl 即可切换，释放使用当时的状态；方向键也支持 Ctrl。向内清除规则不变。双击填充柄，或聚焦后按 Enter/Space，按相邻连续区域向下自动填充。下方首行全部有内容时延伸至首个缺格行之前；部分有内容时不操作；全空时从左右及对角相连的区域推导末行，并停在目标列下一处内容之前。样式空格不延长区域，隐藏行仍参与推导；相邻筛选区域不能借作跨区向导。参与推导的合并区域仍明确拒绝。没有可延伸范围时不增加修订或历史。
 
-`XlsxSession/XlsxClient.fillPreview(layoutId, target)` 接受 `{ kind: "point", x, y }` 或 `{ kind: "direction", direction }`。两种 target 都接受可选布尔字段 `ctrl`，默认 false。核心返回 `source/range/direction/mode/geometry/end`。Ctrl 向外操作返回 `mode=copy` 或单个普通数字的 `mode=linear`，range 与自动向外操作相同。`mode=auto` 的 range 是源与向外目标的并集，`mode=shrink` 的 range 是待清尾带；geometry 显示此操作区域，end 定位提交后的末格。预览不改文档、选区、revision 或历史。过期布局、非法目标和超过 4096 格的范围拒绝。宿主只发送指针与键盘意图，范围和冻结裁剪由核心计算。
+`XlsxSession/XlsxClient.fillPreview(layoutId, target)` 接受 `{ kind: "point", x, y }`、`{ kind: "direction", direction }` 或 `{ kind: "adjacent" }`。三种 target 都接受可选布尔字段 `ctrl`，默认 false。核心返回 `source/range/direction/mode/geometry/end`。Ctrl 向外操作返回 `mode=copy` 或单个普通数字的 `mode=linear`，range 与自动向外操作相同。`mode=auto` 的 range 是源与向外目标的并集，`mode=shrink` 的 range 是待清尾带；geometry 显示此操作区域，end 定位提交后的末格。预览不改文档、选区、revision 或历史。过期布局、非法目标和超过 4096 格的范围拒绝。宿主只发送指针与键盘意图，范围和冻结裁剪由核心计算。
 
 原生草稿先独立提交，再恢复拖动前的源范围。预览不写源；释放时按预览的自动、复制、线性或缩减模式执行一次事务，后续保存排在该操作之后。未释放时，Escape、失焦、指针取消、暂停和销毁取消拖动。相交规则、链接、合并及其他资源沿用填充保护；失败保持源和历史。含未渲染超链接的工作表仍按既有规则拒绝 PDF 导出。
 
 `editSheet({ action: "series", mode: "shrink", source, range, direction })` 提供同一缩减操作。source 是原选区，range 必须是其中完整的末尾行带（direction=up）或末尾列带（direction=left），原范围限 4096 格。保留左上区域成为选区；全清时仍选择原范围。没有内容可清时仅调整选区，不新增 revision 或历史。共享公式展开和依赖缓存复用已有单元格事务；其他单元格、行列尺寸及源元信息保持。规则依据 [ONLYOFFICE canPromote](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21961-L22003)及[缩减仅清内容](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L22296-L22303)，实现归 [`fill-shrink.mbt`](../../modules/formats/src/xlsx/fill-shrink.mbt)。
 
 `editSheet` 的 `series` 支持 `mode=copy`，循环复制源值及格式并平移公式相对引用。Ctrl 规则参考 [ONLYOFFICE 数值切换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L22408-L22421)。
+
+双击范围依据 [ONLYOFFICE applyFillHandleDoubleClick](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L15248-L15306)及[连续区域扩展](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L4528-L4783)。实现归 [`fill-adjacent.mbt`](../../modules/formats/src/xlsx/fill-adjacent.mbt)，以非空行列索引查询边界，避免逐格扫描稀疏工作表；最终范围继续受 4096 格限制。
 
 方向选择参考 [ONLYOFFICE changeSelectionFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L14754-L14825)，未复制上游代码。实现归 [`fill-preview.mbt`](../../modules/formats/src/xlsx/fill-preview.mbt) 和 [`spreadsheet-pointer.ts`](../../packages/web/src/spreadsheet-pointer.ts)。
 
@@ -975,7 +977,25 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 渐变使用位置 0 和 100000 的两个不透明色标。`angle` 为顺时针 0–360 度，核心舍入到 1/60000 度并把 360 规范为 0；0 从左至右，90 从上至下。`scaled` 必须为布尔值；true 按页面长宽比调整角度，false 保持实际角度。导入可解析主题/系统颜色及已有明暗变换，保留未改源；透明度、多色标、非端点色标、路径渐变、非零平铺矩形、图片和复杂效果继续保护。有效背景随版式/母版继承，复制页与尺寸调整沿相同解析；修改背景不改对象身份或几何。角度规则依据 [ONLYOFFICE getGradientPoints](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/editorscommon.js#L15290-L15511)。
 
-操作复用 revision、候选保护、输出预算和精确撤销重做；本页已有相同有效背景时为无操作。默认面板提供背景类型、两色/角度/比例设置和恢复继承；原生文字编辑保留尚未应用的背景草稿。核心复用现有矩阵与水平渐变原语生成任意方向，Canvas/PDF 不解析 DrawingML。12 项定向核心、两条 Chromium 流程检查继承、方向/比例、源保真、历史、重开输入、真实 Canvas 颜色及独立 PDF 渲染颜色。其他背景、主题与母版编辑仍待实现。修改本页背景的语义参考 [ONLYOFFICE Slide.changeBackground](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L825-L829)，实现归 [`background-fill.mbt`](../../modules/formats/src/pptx/background-fill.mbt)和 [`slide-background.mbt`](../../modules/formats/src/pptx/slide-background.mbt)。
+操作复用 revision、候选保护、输出预算和精确撤销重做；本页已有相同有效背景时为无操作。默认面板提供背景类型、两色/角度/比例设置和恢复继承；原生文字编辑保留尚未应用的背景草稿。核心复用现有矩阵与水平渐变原语生成任意方向，Canvas/PDF 不解析 DrawingML。12 项定向核心、两条 Chromium 流程检查继承、方向/比例、源保真、历史、重开输入、真实 Canvas 颜色及独立 PDF 渲染颜色。其他背景与母版编辑仍待实现；主题颜色和字体见下节。修改本页背景的语义参考 [ONLYOFFICE Slide.changeBackground](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L825-L829)，实现归 [`background-fill.mbt`](../../modules/formats/src/pptx/background-fill.mbt)和 [`slide-background.mbt`](../../modules/formats/src/pptx/slide-background.mbt)。
+
+### 主题颜色
+
+`PresentationEditor.editSlides({ action: "themeColor", slot, color })` 与 Wasm/Worker 的 `editPptxSlides` 修改主题颜色。`slot` 为 `PptxThemeSlot`：`dk1/lt1/dk2/lt2`、`accent1`–`accent6`、`hlink/folHlink`；`color` 为不带 `#` 的六位 RGB，核心规范为小写。普通视图按 [ONLYOFFICE changeColorScheme](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L9766-L9798) 的范围，同步修改文稿所有页面实际引用的主题，每个部件仅改一次；不修改未使用的主题。默认面板说明此范围，提供颜色项和颜色选择。
+
+`PptxQuery.themeColors` 返回十二个 `PptxThemeColor`，每项含 `slot/color/reason`。全部使用中主题的有效颜色相同时返回 RGB，混合时返回 `null`；不能安全编辑时给出原因。类型从 `wasm/pptx` 和 `web/pptx` 导出。支持普通 `srgbClr` 和 `sysClr.lastClr`；选择新颜色时写为显式 sRGB，相同有效值保持原系统颜色源。含颜色变换、未知属性/子节点、注释或处理指令的目标色项仍保护；一处受保护即拒绝整次修改。其他色项、字体、额外配色、扩展及未改部件原样保留。
+
+核心重新解析所有依赖页，背景、形状、描边、文字和列表的主题引用继续使用原颜色映射及明暗变换；直接 RGB 覆盖、对象身份、几何和文字选择保持。原生文字草稿先独立提交；主题部件和派生页面共用一次有界历史。撤销/重做重新派生依赖颜色，不只恢复 XML。相同颜色无操作，旧 revision、活动候选、输出/历史预算及保护失败原子拒绝。保存重开和 Canvas/PDF 沿相同布局路径。主题字体见下节；主题包应用、母版/版式直接编辑及复合对象仍按 P12 后续批次实施。实现归 [`theme-edit.mbt`](../../modules/formats/src/pptx/theme-edit.mbt)及 [`pptx-theme.tsx`](../../packages/ui/src/pptx-theme.tsx)。
+
+### 主题字体
+
+`PresentationEditor.editSlides({ action: "themeFont", kind, script, font })` 沿主题颜色的全稿使用中主题范围修改字体定义。`kind` 为 `major`（标题）或 `minor`（正文）。`script` 为 `latin/ea/cs`，或区分大小写的四字母脚本代码，如 `Hans/Arab`。`font` 使用实际字体族，最多 200 UTF-16 单元，遵循字符字体的合法性规则；Latin 不能为空，其他类别的空串恢复补充脚本或 Latin 回退。缺少的非空定义按 Latin、EA、CS、补充字体顺序插入，保留扩展和其他文字类别；清除不存在的定义无操作。默认面板可选择已有类别或输入新代码，新增项撤销后面板仍可继续操作。
+
+`PptxQuery.themeFonts` 返回 `PptxThemeFont[]`，每项包含 `kind/script/font/reason`。`font` 为原始定义，跨主题混合时为 `null`；不存在的定义为空串，保护原因独立返回。两种用途合计最多 256 项。新字体和查询类型沿 `wasm/pptx`、`web/pptx` 导出。所有 `editPptxSlides` 请求携带字体 `profile`，Web 编辑宿主自动传入自己的映射。MoonBit 的 `edit_slides` 在字体操作时还须提供 `probe`；其他页面操作不需要字体度量。
+
+提交前按受影响文字的实际字体键预检 profile 和已注册字体，包含粗斜体键；仅修改未使用的类别时不要求加载该字体。核心重新解析依赖页，直接字体覆盖和未受影响内容保持。缩小适配更新比例，形状适配同步本地、继承及组内框的源尺寸；组内尺寸沿父组缩放换回原坐标，零高度框也可重新计算。主题、页面及受影响版式/母版部件合为一次有界历史，撤销/重做同时恢复派生字体和几何，保存重开和 PDF 使用同一结果。
+
+已知字体元数据 `panose/pitchFamily/charset` 保留。目标字体定义的未知属性/子节点、注释、处理指令及重复项仍保护；不能安全适配的源、尺寸锁、缺字体、旧修订、活动候选和预算失败原子拒绝。文字类别划分与语言范围沿现有字体解析，不声明全语言字体一致性。主题字体重排依据 [ONLYOFFICE CTheme.changeFontScheme](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L10662-L10673)，定义顺序参考 [FontCollection](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/FontCollection.cpp#L89-L112)。实现归 [`theme-font.mbt`](../../modules/formats/src/pptx/theme-font.mbt)，适配复用 [`autofit.mbt`](../../modules/formats/src/pptx/autofit.mbt)及 [`text-resize.mbt`](../../modules/formats/src/pptx/text-resize.mbt)。
 
 ### 幻灯片版式
 
@@ -995,7 +1015,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 ### 文稿与对象
 
-`PptxSession.execute({ operation: "createPptx", budget })` 与 `PptxClient.execute` 创建 960×540 pt 的空白演示文稿，包含一张无对象页面及其空白版式、母版、主题、关系和内容类型。主题使用 Arial 和显式颜色/无效果样式；当前页为该空白页，revision 与历史为 0。创建后可显示、插入基本对象、保存、重开及输出静态 PDF。默认 UI 与 `mountEditor`、实例 `create/open` 使用同一入口及首次保存规则。主题编辑仍按 P12 后续范围实施；创建不生成占位文字或不可编辑的背景图片。
+`PptxSession.execute({ operation: "createPptx", budget })` 与 `PptxClient.execute` 创建 960×540 pt 的空白演示文稿，包含一张无对象页面及其空白版式、母版、主题、关系和内容类型。主题使用 Arial 和显式颜色/无效果样式；当前页为该空白页，revision 与历史为 0。创建后可显示、插入基本对象、保存、重开及输出静态 PDF。默认 UI 与 `mountEditor`、实例 `create/open` 使用同一入口及首次保存规则。主题颜色及字体已支持下述编辑，母版编辑继续实施；创建不生成占位文字或不可编辑的背景图片。
 
 `PptxSession.execute()` 与 `PptxClient.execute()` 使用独立的 `PptxCommand`，不复用 DOCX/XLSX 位置模型。`PptxQuery` 返回 revision、声明页序/尺寸/隐藏状态、当前页对象、有效字体键、图片键、选区、历史状态与诊断。幻灯片 ID 为源部件路径，对象 ID 为所属部件与源 `cNvPr.id`；未知对象使用只读源节点身份。对象包含 `parent`：顶层为空串，组成员为直接父组身份。组自身以 `kind: "group"` 返回，成员按原顺序绘制；默认列表、对象导航和全选只使用顶层对象。未知组效果仍诊断并阻止点穿。
 
@@ -1003,7 +1023,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 | --- | --- |
 | `openPptx` / `queryPptx` | 显式预算打开 Transitional PPTX / 查询当前状态 |
 | `selectPptx` / `navigatePptx` | 页/有序对象集合/文字选择、对象顺序及字素/行导航；文字使用对象内 UTF-16 offset |
-| `editPptxSlides` | revision、稳定 slide 身份和 `PptxSlideEdit`；新增、复制、删除、重排、隐藏/显示、章节、背景、备注或全稿尺寸，返回 `PptxQuery` |
+| `editPptxSlides` | revision、稳定 slide 身份、`PptxSlideEdit` 和字体 `profile`；新增、复制、删除、重排、隐藏/显示、章节、背景、主题颜色/字体、备注或全稿尺寸，返回 `PptxQuery` |
 | `editPptxObjects` | revision、字体 profile 和 `PptxObjectEdit`；插入、删除、复制、旋转、翻转、层次、对齐/分布或组合/取消组合，返回 `PptxQuery` |
 | `replacePptx` / `deletePptx` / `copyPptx` | 普通文字范围编辑、方向删除及纯文本复制；编辑需要字体 profile |
 | `beginPptx` / `finishPptx` / `cancelPptx` | 开始、提交、取消 `text` 或 `transform` 候选；匹配 revision 与 candidateId |
@@ -1123,7 +1143,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 无变化不增加历史。形状边长沿用 0.1–14400 pt，尺寸向上取整到 EMU；预设内框求逆不重复测字，最多 16 次文字重排。超限、无可用内框、不收敛、变换锁、缺字体、未知适配内容或输出/历史预算失败均原子拒绝。候选和旧 revision 保持既有保护。组内/继承对象及独立保持直立的旋转文字仍待对应编辑支持；普通水平文字沿用已有裁剪、Canvas 与 PDF 路径。
 
-`editPptxObjects` / `PresentationEditor.editObjects` 支持 `{ action: "textFormat", format }`，其中 `PptxTextFormat` 可包含 `font/size/bold/italic/color/underline/strike/highlight/script`。至少提供一项，省略项保持；不接受 null 清除或未知字段。font 为不超过 200 UTF-16 单元的实际字体族，不能包含 `|`、换行或以 `+` 开头；主题字体编辑另行实现。size 为 1–1024 pt，核心舍入到 0.01 pt。color 为六位 RGB 十六进制，查询和保存规范为小写。字体族同时写入 latin/ea/cs，授权字体与样式仍通过宿主 profile 供应。
+`editPptxObjects` / `PresentationEditor.editObjects` 支持 `{ action: "textFormat", format }`，其中 `PptxTextFormat` 可包含 `font/size/bold/italic/color/underline/strike/highlight/script`。至少提供一项，省略项保持；不接受 null 清除或未知字段。font 为不超过 200 UTF-16 单元的实际字体族，不能包含 `|`、换行或以 `+` 开头；主题字体编辑见[主题字体](#主题字体)。size 为 1–1024 pt，核心舍入到 0.01 pt。color 为六位 RGB 十六进制，查询和保存规范为小写。字体族同时写入 latin/ea/cs，授权字体与样式仍通过宿主 profile 供应。
 
 文字模式修改选中字符，光标处创建用于后续输入的格式；空段落写入 `endParaRPr`。对象模式作用于所选本地顶层文本框，混合多选合为一项事务。`{ action: "textAlign", alignment: "left" | "center" | "right" | "justify" }` 修改所涉段落，对象模式修改框内全部段落。`PptxQuery.formatting` 返回上述九项字符属性及 `alignment` 的共同有效值，混合值为 null；`reason` 返回保护原因。无可编辑选择时为 null 占位，不是源格式。两种类型从 `wasm/pptx` 和 `web/pptx` 导出。
 

@@ -8,6 +8,7 @@ import { PptxObjects } from "./pptx-objects.js";
 import { PptxArrange } from "./pptx-arrange.js";
 import { PptxAlignment } from "./pptx-alignment.js";
 import { PptxSearch } from "./pptx-search.js";
+import { PptxTheme, PptxThemeFonts } from "./pptx-theme.js";
 import {
   PptxBackground,
   PptxSize,
@@ -160,6 +161,20 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
         />
         <PptxBackground
           key={`${file.editor.getSnapshot().documentId}:${query.slide}:${JSON.stringify(query.background.value)}:${query.background.explicit}`}
+          controller={controller}
+          state={state}
+          file={file}
+          disabled={disabled}
+        />
+        <PptxTheme
+          key={`theme:${file.editor.getSnapshot().documentId}`}
+          controller={controller}
+          state={state}
+          file={file}
+          disabled={disabled}
+        />
+        <PptxThemeFonts
+          key={`theme-fonts:${file.editor.getSnapshot().documentId}`}
           controller={controller}
           state={state}
           file={file}

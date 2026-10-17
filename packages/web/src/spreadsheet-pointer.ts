@@ -63,10 +63,10 @@ export class SpreadsheetPointer {
     this.handle.setAttribute("aria-label", "Fill handle");
     this.handle.setAttribute(
       "aria-keyshortcuts",
-      "ArrowUp ArrowDown ArrowLeft ArrowRight",
+      "ArrowUp ArrowDown ArrowLeft ArrowRight Enter Space",
     );
     this.handle.title =
-      "Drag outward to fill or inward to clear contents; Ctrl toggles copy/series; arrow keys extend one row or column";
+      "Drag outward to fill or inward to clear contents; double-click or press Enter/Space to fill along adjacent data; Ctrl toggles copy/series; arrow keys extend one row or column";
     Object.assign(this.handle.style, {
       position: "absolute",
       width: "10px",
@@ -142,6 +142,22 @@ export class SpreadsheetPointer {
     );
     this.handle.addEventListener("pointercancel", () => this.cancel(), options);
     this.handle.addEventListener(
+      "dblclick",
+      (event) => {
+        if (event.button !== 0) return;
+        event.preventDefault();
+        this.fillAdjacent(false);
+      },
+      options,
+    );
+    this.handle.addEventListener(
+      "click",
+      (event) => {
+        if (event.detail === 0) this.fillAdjacent(true);
+      },
+      options,
+    );
+    this.handle.addEventListener(
       "lostpointercapture",
       () => {
         if (!this.drag?.released) this.cancel();
@@ -152,6 +168,12 @@ export class SpreadsheetPointer {
       "keydown",
       (event) => {
         const now = host.current();
+        if ((event.key === "Enter" || event.key === " ") && !now.disabled) {
+          event.preventDefault();
+          event.stopPropagation();
+          this.fillAdjacent(true);
+          return;
+        }
         const directions: Record<
           string,
           "up" | "down" | "left" | "right" | undefined
@@ -215,6 +237,22 @@ export class SpreadsheetPointer {
     void task.catch((error) => {
       if (!this.signal.aborted) this.host.report(error);
     });
+  }
+  private fillAdjacent(keyboard: boolean): void {
+    if (this.host.current().disabled) return;
+    const selected = this.source();
+    this.cancel(false);
+    this.accept(
+      this.host.run(async () => {
+        await this.prepare(selected);
+        const now = this.host.current();
+        if (!now.layout) return;
+        const preview = await this.client.fillPreview(now.layout.id, {
+          kind: "adjacent",
+        });
+        await this.apply(this.source(), preview, keyboard);
+      }),
+    );
   }
   private source(): Source {
     const query = this.host.current().query;

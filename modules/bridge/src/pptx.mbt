@@ -70,6 +70,17 @@ fn Foundation::pptx_operation(
         "move" => @pptx.MoveSlide(field_int(change, "index"))
         "hidden" => @pptx.HideSlide(xlsx_boolean(change, "hidden"))
         "notes" => @pptx.Notes(field_string(change, "text"))
+        "themeColor" =>
+          @pptx.ThemeColor(
+            field_string(change, "slot"),
+            field_string(change, "color"),
+          )
+        "themeFont" =>
+          @pptx.ThemeFont(
+            field_string(change, "kind"),
+            field_string(change, "script"),
+            field_string(change, "font"),
+          )
         "sectionAdd" => @pptx.AddSection(field_string(change, "name"))
         "sectionRename" =>
           @pptx.RenameSection(
@@ -118,6 +129,8 @@ fn Foundation::pptx_operation(
         field_int(request, "revision"),
         field_string(request, "slide"),
         change,
+        probe=self.probe,
+        profile=xlsx_profile(request),
       )
     }
     "editPptxObjects" => {

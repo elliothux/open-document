@@ -8,7 +8,7 @@
 
 对象外观已接通纯色/无填充、双色线性渐变（角度与比例）、纯色/无边框、宽度、预设虚线、平头/圆头/方头端点及圆角/斜角/斜接连接。核心、Wasm、Worker 和默认 UI 共用多选事务，保留身份、几何、文字及精确历史。已检查独立 XML、Canvas 实际颜色、保存重开和继续原生输入；形状填充和边框的不透明度已接通，保留主题色关联与文字不透明度；渐变复用背景颜色和角度解析，按预设轮廓裁剪，并随对象变换输出到 Canvas/PDF。支持多选、精确历史及保存重开；多色标、透明/径向渐变、图片填充及效果仍待实现。接口与边界归[格式合同](references/formats.md#pptx)，实现归 [`object-paint.mbt`](../modules/formats/src/pptx/object-paint.mbt)、[`line-dash.mbt`](../modules/formats/src/pptx/line-dash.mbt)、[`line-pen.mbt`](../modules/formats/src/pptx/line-pen.mbt)及 [`shape-opacity.mbt`](../modules/formats/src/pptx/shape-opacity.mbt)。
 
-第 2 批已接通本页纯色及双色线性渐变背景、恢复继承、整稿尺寸调整、已有版式切换与当前版式重置，支持默认 UI、Wasm 与 Worker API，保留选择和精确历史。渐变支持任意角度及按页面比例缩放，沿既有图元输出 Canvas/PDF，原生文字编辑保留背景面板草稿。尺寸调整同步缩放页面、版式、母版及组内几何，保持字号和方向。版式切换按类型/索引保留占位符内容，并补齐空占位符，关系、字体/背景继承及对象一起恢复；模板提示不成为用户文字。多色/透明/路径渐变、图片背景、图表/表格对象与非空参考线仍保护源内容；主题、版式与母版直接编辑尚待实现。实现归 [`background-fill.mbt`](../modules/formats/src/pptx/background-fill.mbt)、[`slide-background.mbt`](../modules/formats/src/pptx/slide-background.mbt)、[`slide-size.mbt`](../modules/formats/src/pptx/slide-size.mbt)及 [`slide-layout.mbt`](../modules/formats/src/pptx/slide-layout.mbt)，合同及检查归[格式说明](references/formats.md#pptx)。
+第 2 批已接通本页纯色及双色线性渐变背景、恢复继承、整稿尺寸调整、已有版式切换与当前版式重置，支持默认 UI、Wasm 与 Worker API，保留选择和精确历史。渐变支持任意角度及按页面比例缩放，沿既有图元输出 Canvas/PDF，原生文字编辑保留背景面板草稿。尺寸调整同步缩放页面、版式、母版及组内几何，保持字号和方向。版式切换按类型/索引保留占位符内容，并补齐空占位符，关系、字体/背景继承及对象一起恢复；模板提示不成为用户文字。多色/透明/路径渐变、图片背景、图表/表格对象与非空参考线仍保护源内容；主题颜色及字体已接通全稿使用中主题的同步修改；版式与母版直接编辑尚待实现。实现归 [`background-fill.mbt`](../modules/formats/src/pptx/background-fill.mbt)、[`slide-background.mbt`](../modules/formats/src/pptx/slide-background.mbt)、[`slide-size.mbt`](../modules/formats/src/pptx/slide-size.mbt)及 [`slide-layout.mbt`](../modules/formats/src/pptx/slide-layout.mbt)，合同及检查归[格式说明](references/formats.md#pptx)。
 
 PNG/JPEG 图片插入已接通核心、Wasm、Worker、宿主和默认 UI。新对象在最上层，图片原字节、关系、内容类型与选择共同提交和精确撤销；原生文字草稿仍独立提交。对象与页面复制复用同一图片，保存重开后可继续变换，Canvas 与静态 PDF 复用现有解码和图元。替换与四边源矩形裁剪/重置已接通，保持对象身份、几何、方向和其他副本；图片常量不透明度已接通，保留源像素 alpha 并同步 Canvas/PDF。实现归 [`object-image.mbt`](../modules/formats/src/pptx/object-image.mbt)及 [`image-opacity.mbt`](../modules/formats/src/pptx/image-opacity.mbt)，合同归[格式说明](references/formats.md#pptx)。
 
@@ -103,7 +103,7 @@ PNG/JPEG 图片插入已接通核心、Wasm、Worker、宿主和默认 UI。新�
 
 当前版式重置已接通核心、API 和默认按钮。恢复占位符几何并补齐缺失空框，保留用户文字及直接格式，复用版式事务、精确历史、重开与 PDF；重复调用无变化。核心覆盖锁定、未知标记、继承及预算失败，现有 Chromium 版式流程增加移动后原生草稿、面板重置、独立源和两步精确历史。行为及边界归[幻灯片版式](references/formats.md#幻灯片版式)。
 
-母版/版式直接编辑继续实施。复制/删除母版或版式须检查所有引用；主题字体/颜色编辑须重新解析依赖页与图表。尺寸修改已采用各轴缩放内容的策略，同步写回所有页面、相关版式和母版；尺寸边界归[格式合同](references/formats.md#pptx)。
+主题颜色已接通核心、API 和默认面板，可修改深浅色、六个强调色及链接颜色。按普通视图规则同步修改文稿实际使用的主题，重新派生页面背景、形状、描边和文字；对象直接颜色、颜色映射、字体、几何及其他源片段保留。混合主题返回混合值，原生草稿独立提交，主题修改和全部依赖页合为一次精确历史；无变化及保护/预算失败不提交。两项新增核心与十项背景/版式/尺寸回归、一条 Chromium 流程及安装包检查通过；合同归[主题颜色](references/formats.md#主题颜色)。主题字体也已接通标题/正文、Latin/EA/CS 和补充文字类别的查询、修改、新增与非 Latin 回退清除。一次修改同步使用中主题，并在提交前检查受影响字体及粗斜体 profile；普通、继承及组内自动适配框与主题一起更新和精确撤销，直接字体保持。默认面板支持新增类别，撤销新增后仍可继续编辑。三项新核心、六项主题颜色/文本框/适配回归、两条 Chromium 流程及安装包检查通过；合同归[主题字体](references/formats.md#主题字体)。母版/版式直接编辑继续实施。复制/删除母版或版式须检查所有引用；图表按复合内容批次接入主题重排。尺寸修改已采用各轴缩放内容的策略，同步写回所有页面、相关版式和母版；尺寸边界归[格式合同](references/formats.md#pptx)。
 
 背景、形状填充/描边与基础阴影写回 DrawingML。首批支持无/纯色/线性渐变/图片填充、常用线宽/虚线和基础透明度；不支持的效果仍可保留，但相关输出或修改需要说明范围。图片替换保持对象身份，裁剪使用源矩形，压缩源与资源关系一起事务更新。
 

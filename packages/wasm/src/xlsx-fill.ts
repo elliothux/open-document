@@ -2,6 +2,7 @@ import { record } from "./validation.js";
 import { xlsxSelection, type XlsxSelectionGeometry } from "./xlsx-geometry.js";
 
 export type XlsxFillTarget =
+  | { kind: "adjacent"; ctrl?: boolean }
   | { kind: "point"; x: number; y: number; ctrl?: boolean }
   | {
       kind: "direction";
@@ -23,7 +24,9 @@ export function checkXlsxFillTarget(value: unknown): void {
   const fields =
     target.kind === "point"
       ? ["kind", "x", "y", "ctrl"]
-      : ["kind", "direction", "ctrl"];
+      : target.kind === "adjacent"
+        ? ["kind", "ctrl"]
+        : ["kind", "direction", "ctrl"];
   if (
     ("ctrl" in target && typeof target.ctrl !== "boolean") ||
     Object.keys(target).some((key) => !fields.includes(key)) ||
@@ -32,9 +35,11 @@ export function checkXlsxFillTarget(value: unknown): void {
         !Number.isFinite(target.x) ||
         typeof target.y !== "number" ||
         !Number.isFinite(target.y)
-      : target.kind !== "direction" ||
-        typeof target.direction !== "string" ||
-        !["up", "down", "left", "right"].includes(String(target.direction)))
+      : target.kind === "adjacent"
+        ? false
+        : target.kind !== "direction" ||
+          typeof target.direction !== "string" ||
+          !["up", "down", "left", "right"].includes(String(target.direction)))
   )
     throw new Error("Invalid fill target");
 }
