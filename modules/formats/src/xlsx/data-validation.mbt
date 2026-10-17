@@ -117,6 +117,7 @@ fn Session::validate_inputs(
     remaining: 1048576,
     date1904: self.date1904,
     origin: { row: 1, column: 1, },
+    names: calculation.names,
   }
   let mut warning : (String, String)? = None
   let indices = targets.keys().to_array()

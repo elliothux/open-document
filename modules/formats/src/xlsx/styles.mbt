@@ -11,6 +11,7 @@ priv struct CellStyle {
   format : String
   diagnostic : String
   bar : ConditionalBar?
+  formula_hidden : Bool
 } derive(Eq)
 
 ///|
@@ -27,6 +28,7 @@ fn default_style() -> CellStyle {
     format: "General",
     diagnostic: "",
     bar: None,
+    formula_hidden: false,
   }
 }
 
@@ -129,7 +131,7 @@ fn read_styles(
     .map(node => {
       tree.all(
         node.id,
-        if name == "cellXfs" {
+        if name == "cellXfs" || name == "cellStyleXfs" {
           "xf"
         } else if name == "fonts" {
           "font"
@@ -146,6 +148,7 @@ fn read_styles(
   let fills = children("fills")
   let borders = children("borders")
   let formats : Map[Int, String] = Map([])
+  let bases = children("cellStyleXfs")
   for
     (id, code) in [
       (0, "General"),
@@ -296,9 +299,21 @@ fn read_styles(
       }
     }
     let format_id = natural(xf.attribute("numFmtId").unwrap_or("0"), 65535)
+    let inherited_hidden = bases
+      .get(natural(xf.attribute("xfId").unwrap_or("0"), 4095))
+      .bind(base => tree.one(base.id, "protection"))
+      .map(node => flag(node, "hidden"))
+      .unwrap_or(false)
+    let formula_hidden = if tree.one(xf.id, "protection") is Some(protection) &&
+      flag(xf, "applyProtection", fallback=true) {
+      flag(protection, "hidden", fallback=inherited_hidden)
+    } else {
+      inherited_hidden
+    }
     style = {
       ..style,
       format: formats.get(format_id).unwrap_or("unsupported:\{format_id}"),
+      formula_hidden,
     }
     if !supported_format(style.format) {
       style = {

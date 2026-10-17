@@ -74,6 +74,7 @@ pub fn Session::print_layout(
       remaining: 1048576,
       date1904: self.date1904,
       origin: { row: 1, column: 1, },
+      names: self.formula_names(),
     },
   }
   let planned = indices.map(index => {

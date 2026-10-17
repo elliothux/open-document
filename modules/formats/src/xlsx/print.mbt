@@ -152,6 +152,7 @@ fn Session::print_sheet(
             probe,
             profile,
             true,
+            (setup.width + setup.left - setup.right) / scale,
             conditional,
             work.formulas,
           )

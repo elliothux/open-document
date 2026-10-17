@@ -16,6 +16,7 @@ fn Session::edit_axes(
   let index = self.sheet_index(id)
   let reason = self.sheet_rename_reason(structure=false)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
+  self.check_named_structure()
   let target = self.sheets[index]
   guard !target.locked && target.frozen.edit_reason.is_empty() else {
     @failure.reject(
@@ -198,7 +199,13 @@ fn Session::edit_axes(
   if edits.is_empty() {
     return self.query()
   }
-  let calculation = Calculation::build(sheets, None, [], self.date1904)
+  let calculation = Calculation::build(
+    sheets,
+    None,
+    [],
+    self.date1904,
+    workbook,
+  )
   edits.append(self.cache_edits(sheets, calculation))
   self.commit(sheets, workbook, calculation, edits, after)
   self.query()

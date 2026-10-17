@@ -56,6 +56,8 @@ fn Expression::rule_key(
   anchor : Address,
 ) -> Json raise @failure.Failure {
   match self {
+    Named(sheet, name) =>
+      Json::array([Json("name"), Json(sheet), Json(name.to_upper())])
     Constant(_) => Json::array([Json("constant"), Json(self.source())])
     Reference(sheet, first, last) =>
       Json::array([
@@ -75,6 +77,7 @@ fn Expression::rule_key(
 ///|
 fn Expression::relative_rule(self : Expression) -> Bool {
   match self {
+    Named(_, _) => false
     Constant(_) => false
     Reference(_, first, last) =>
       !first.fixed_row ||

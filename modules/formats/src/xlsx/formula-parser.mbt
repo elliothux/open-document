@@ -9,6 +9,7 @@ priv struct FormulaAddress {
 priv enum Expression {
   Constant(Value)
   Reference(String?, FormulaAddress, FormulaAddress?)
+  Named(String?, String)
   Unary(String, Expression)
   Binary(String, Expression, Expression)
   Function(String, Array[Expression])
@@ -200,7 +201,7 @@ fn formula_address(text : String) -> FormulaAddress raise @failure.Failure {
     index += 1
   }
   guard index > start else {
-    @failure.reject("unsupported-formula", "Named references are unsupported")
+    @failure.reject("unsupported-formula", "Expected an A1 cell address")
   }
   let letters = text[start:index].to_upper().to_owned()
   let fixed_row = index < text.length() && text[index] == 36
@@ -236,7 +237,14 @@ fn FormulaParser::reference(
   sheet : String?,
   text : String,
 ) -> Expression raise @failure.Failure {
-  let first = formula_address(text)
+  let first = formula_address(text) catch {
+    @failure.Failure(code~, message~, part~, offset~) => {
+      if name_identifier(text) && !(self.tokens[self.cursor] is Operator(":")) {
+        return Named(sheet, text)
+      }
+      raise @failure.Failure(code~, message~, part~, offset~)
+    }
+  }
   let last = if self.accept(":") {
     guard self.take() is Word(text) else {
       @failure.reject("formula-syntax", "Expected range endpoint")

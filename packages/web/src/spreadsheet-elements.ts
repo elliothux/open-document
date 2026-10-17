@@ -1,5 +1,53 @@
 import { prepareGridInput } from "./spreadsheet-input.js";
 import type { CanvasSurface } from "./canvas-surface.js";
+import type { XlsxViewport } from "@open-document/wasm/xlsx";
+
+function gridScrollX(viewport: HTMLElement, scale: number): number {
+  return ((viewport.dir === "rtl" ? -1 : 1) * viewport.scrollLeft) / scale;
+}
+
+export function gridScrollChanged(
+  viewport: HTMLElement,
+  layout: XlsxViewport | undefined,
+  scale: number,
+): boolean {
+  return (
+    !layout ||
+    Math.abs(gridScrollX(viewport, scale) - layout.scrollX) > 0.1 ||
+    Math.abs(viewport.scrollTop / scale - layout.scrollY) > 0.1
+  );
+}
+
+export function prepareGridViewport(
+  viewport: HTMLElement,
+  rtl: boolean,
+  scrollX: number,
+  scale: number,
+) {
+  const direction = rtl ? "rtl" : "ltr";
+  if (viewport.dir !== direction) {
+    viewport.dir = direction;
+    viewport.scrollLeft = (rtl ? -1 : 1) * scrollX * scale;
+  }
+  return {
+    scrollX: gridScrollX(viewport, scale),
+    scrollY: viewport.scrollTop / scale,
+    width: Math.max(120, viewport.clientWidth) / scale,
+    height: viewport.clientHeight / scale,
+  };
+}
+
+export function updateGridScroll(
+  viewport: HTMLElement,
+  spacer: HTMLElement,
+  layout: XlsxViewport,
+  scale: number,
+): void {
+  spacer.style.width = `${(layout.extentWidth + layout.headerWidth) * scale}px`;
+  spacer.style.height = `${(layout.extentHeight + layout.headerHeight) * scale}px`;
+  viewport.scrollLeft = (layout.rtl ? -1 : 1) * layout.scrollX * scale;
+  viewport.scrollTop = layout.scrollY * scale;
+}
 
 export function createGridElements(
   root: HTMLElement,
@@ -33,9 +81,11 @@ export function createGridElements(
   Object.assign(holder.style, {
     position: "sticky",
     left: "0",
+    right: "0",
     top: "0",
     height: "0",
     zIndex: "1",
+    direction: "ltr",
   });
   Object.assign(surface.canvas.style, {
     position: "absolute",

@@ -341,6 +341,38 @@ export function XlsxSheets({
   );
 }
 
+export function XlsxView({ controller, state, editor, disabled }: SheetProps) {
+  const t = messages(state.locale),
+    query = editor.currentState;
+  return (
+    <fieldset disabled={disabled || !!query.view.readOnlyReason}>
+      <legend>{t.worksheetView}</legend>
+      {(["gridLines", "headings", "rtl", "formulas"] as const).map((key) => (
+        <label key={key} onMouseDown={(event) => event.preventDefault()}>
+          <input
+            type="checkbox"
+            checked={query.view[key]}
+            onChange={(event) =>
+              controller.run(() =>
+                editor.editSheet({
+                  action: "view",
+                  gridLines: query.view.gridLines,
+                  headings: query.view.headings,
+                  rtl: query.view.rtl,
+                  formulas: query.view.formulas,
+                  [key]: event.target.checked,
+                }),
+              )
+            }
+          />
+          {t[key]}
+        </label>
+      ))}
+      {query.view.readOnlyReason && <p>{query.view.readOnlyReason}</p>}
+    </fieldset>
+  );
+}
+
 export function XlsxFrozen({
   controller,
   state,

@@ -56,6 +56,7 @@ fn Session::commit_cells(
     self.calculation,
     changed,
     self.date1904,
+    self.workbook,
   )
   self.validate_inputs(candidate, calculation, targets, accept_warnings)
   edits.append(self.cache_edits(candidate, calculation))

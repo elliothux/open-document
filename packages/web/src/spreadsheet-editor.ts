@@ -1,4 +1,9 @@
-import { createGridElements } from "./spreadsheet-elements.js";
+import {
+  createGridElements,
+  gridScrollChanged,
+  prepareGridViewport,
+  updateGridScroll,
+} from "./spreadsheet-elements.js";
 import {
   checkSpreadsheetSearch,
   type SpreadsheetSearchResult,
@@ -125,6 +130,7 @@ export class SpreadsheetEditor {
     );
     const keydown = (event: KeyboardEvent) =>
       spreadsheetKey(event, {
+        rtl: this.state.view.rtl,
         paused: this.paused,
         composing: this.composing,
         draft: !!this.draft || !!this.draftIntent,
@@ -141,14 +147,7 @@ export class SpreadsheetEditor {
     this.viewport.addEventListener(
       "scroll",
       () => {
-        if (
-          !this.layout ||
-          Math.abs(
-            this.viewport.scrollLeft / this.scale - this.layout.scrollX,
-          ) > 0.1 ||
-          Math.abs(this.viewport.scrollTop / this.scale - this.layout.scrollY) >
-            0.1
-        )
+        if (gridScrollChanged(this.viewport, this.layout, this.scale))
           this.requestRender();
       },
       options,
@@ -446,14 +445,14 @@ export class SpreadsheetEditor {
     this.publish();
     try {
       const generation = this.generation;
-      const width = Math.max(120, this.viewport.clientWidth) / this.scale;
-      const height = this.viewport.clientHeight / this.scale;
       const layout = await this.client.viewport({
+        ...prepareGridViewport(
+          this.viewport,
+          this.state.view.rtl,
+          this.layout?.scrollX ?? 0,
+          this.scale,
+        ),
         sheet: this.state.sheet,
-        scrollX: this.viewport.scrollLeft / this.scale,
-        scrollY: this.viewport.scrollTop / this.scale,
-        width,
-        height,
         profile: this.profile,
         reveal,
       });
@@ -461,10 +460,7 @@ export class SpreadsheetEditor {
       if (this.closed || (!reveal && generation !== this.generation)) return;
       this.layout = layout;
       this.scale = this.surface.draw(layout, 0, this.zoomValue);
-      this.spacer.style.width = `${layout.extentWidth * this.scale + 36 * this.scale}px`;
-      this.spacer.style.height = `${layout.extentHeight * this.scale + 18 * this.scale}px`;
-      this.viewport.scrollLeft = layout.scrollX * this.scale;
-      this.viewport.scrollTop = layout.scrollY * this.scale;
+      updateGridScroll(this.viewport, this.spacer, layout, this.scale);
       updateGridSemantics(this.semantics, layout.cells);
       this.publish();
       await this.presentSelection();

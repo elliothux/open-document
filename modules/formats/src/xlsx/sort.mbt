@@ -128,6 +128,7 @@ fn Session::sort_cells(
     remaining: 1048576,
     date1904: self.date1904,
     origin: { row: 1, column: 1, },
+    names: self.formula_names(),
   }
   let positions : Array[Int] = []
   let keys : Map[Int, Array[Value]] = Map([])
@@ -273,6 +274,7 @@ fn Session::sort_cells(
     self.calculation,
     [(index, target)],
     self.date1904,
+    self.workbook,
   )
   self.validate_inputs(
     sheets,

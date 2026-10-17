@@ -9,6 +9,7 @@ priv struct FormulaWork {
   mut remaining : Int
   date1904 : Bool
   mut origin : Address
+  names : NamedDefinitions
 }
 
 ///|
@@ -26,6 +27,7 @@ fn FormulaWork::spend(
 
 ///|
 priv struct Calculation {
+  names : NamedDefinitions
   sources : Map[(Int, String), String]
   expressions : Map[(Int, String), Expression]
   dependencies : Map[(Int, String), Array[Dependency]]
@@ -64,6 +66,10 @@ fn Expression::dependencies(
     )
   }
   match self {
+    Named(_, _) =>
+      self
+      .resolve_names(sheets, current, work.origin, work)
+      .dependencies(sheets, current, work, output, depth + 1)
     Constant(_) => ()
     Reference(name, first, last) => {
       let last = last.unwrap_or(first)
@@ -157,8 +163,16 @@ fn Calculation::build(
   previous : Calculation?,
   changed : Array[(Int, Range)],
   date1904 : Bool,
+  workbook : @xml.Document,
 ) -> Calculation raise @failure.Failure {
+  let names = read_named_definitions(workbook, sheets.length())
+  let previous = if previous is Some(previous) && previous.names.same(names) {
+    Some(previous)
+  } else {
+    None
+  }
   let calculation : Calculation = {
+    names,
     sources: Map([]),
     expressions: Map([]),
     dependencies: Map([]),
@@ -168,6 +182,7 @@ fn Calculation::build(
   let work = FormulaWork::{
     remaining: 1048576,
     date1904,
+    names,
     origin: { row: 1, column: 1, },
   }
   let formulas : Map[Int, Array[(Int, String)]] = Map([])
@@ -185,7 +200,7 @@ fn Calculation::build(
           previous.sources.get(key) == Some(source) {
           previous.expressions[key]
         } else {
-          parse_formula(source)
+          parse_formula(source).resolve_names(sheets, index, cell.address, work)
         }
         tokens += source.length()
         guard tokens <= 1048576 else {

@@ -68,7 +68,13 @@ fn Session::edit_filter(
   let edits = [(sheet, edit)]
   let previous = self.calculation.unwrap()
   let calculation = if previous.visibility_dependent() {
-    let calculation = Calculation::build(sheets, None, [], self.date1904)
+    let calculation = Calculation::build(
+      sheets,
+      None,
+      [],
+      self.date1904,
+      self.workbook,
+    )
     edits.append(self.cache_edits(sheets, calculation))
     calculation
   } else {

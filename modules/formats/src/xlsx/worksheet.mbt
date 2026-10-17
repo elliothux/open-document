@@ -26,6 +26,7 @@ priv struct Sheet {
   row_styles : Map[Int, Int]
   column_styles : Array[(Int, Int, Int)]
   frozen : Frozen
+  view : ViewSettings
 }
 
 ///|
@@ -265,6 +266,7 @@ fn Sheet::read(
     row_styles,
     column_styles,
     frozen: read_frozen(tree),
+    view: read_view(tree),
   }
   sheet.expand_shared(tree)
   sheet
@@ -276,11 +278,13 @@ fn Sheet::cell_json(
   address : Address,
   reason : String,
   calculated : Value?,
+  hide_formula~ : Bool,
 ) -> Json raise @failure.Failure {
   let key = address.name()
   let cell = self.cells.get(key)
   let value = cell.map(cell => cell.value).unwrap_or(Blank)
   let formula = cell.bind(cell => cell.formula)
+  let hide_formula = self.locked && hide_formula && formula is Some(_)
   let cell_reason = cell
     .map(cell => cell.read_only)
     .unwrap_or(if self.locked { "Worksheet is protected" } else { "" })
@@ -290,15 +294,23 @@ fn Sheet::cell_json(
     "column": address.column,
     "style": self.style_at(address),
     "value": value,
-    "input": formula
-    .map(source => "=" + source)
-    .unwrap_or(
-      match value {
-        Text(text) => "'" + text
-        _ => value.display()
-      },
-    ),
-    "formula": formula.map(Json::string).unwrap_or(Json::null()),
+    "input": if hide_formula {
+      ""
+    } else {
+      formula
+      .map(source => "=" + source)
+      .unwrap_or(
+        match value {
+          Text(text) => "'" + text
+          _ => value.display()
+        },
+      )
+    },
+    "formula": if hide_formula {
+      Json::null()
+    } else {
+      formula.map(Json::string).unwrap_or(Json::null())
+    },
     "cached": if formula is Some(_) {
       value.to_json()
     } else {

@@ -48,6 +48,13 @@ export type XlsxSheetEdit =
   | ({ action: "printRange" } & XlsxPrintRange)
   | ({ action: "headerFooter" } & XlsxHeaderFooter)
   | { action: "freeze"; rows: number; columns: number }
+  | {
+      action: "view";
+      gridLines: boolean;
+      headings: boolean;
+      rtl: boolean;
+      formulas: boolean;
+    }
   | { action: "merge"; range: string; discard: boolean }
   | { action: "unmerge"; range: string }
   | { action: "add" }
@@ -70,6 +77,20 @@ export type XlsxSheetEdit =
 
 export function checkXlsxSheetEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "view") {
+    if (
+      typeof change.gridLines !== "boolean" ||
+      typeof change.headings !== "boolean" ||
+      typeof change.rtl !== "boolean" ||
+      typeof change.formulas !== "boolean" ||
+      Object.keys(change).some(
+        (key) =>
+          !["action", "gridLines", "headings", "rtl", "formulas"].includes(key),
+      )
+    )
+      throw new Error("Invalid worksheet view");
+    return;
+  }
   if (change.action === "filter") {
     checkXlsxFilter(change);
     return;

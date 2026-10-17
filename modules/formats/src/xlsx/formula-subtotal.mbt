@@ -86,7 +86,9 @@ fn subtotal_function(
           .bind(cell => cell.formula)
           is Some(source) {
           work.spend(amount=source.length())
-          if parse_formula(source).contains_subtotal() {
+          if parse_formula(source)
+            .resolve_names(sheets, range.sheet, address, work)
+            .contains_subtotal() {
             continue
           }
         }

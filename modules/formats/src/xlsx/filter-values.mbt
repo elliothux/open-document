@@ -92,6 +92,7 @@ fn Session::filtered_rows(
     remaining: 1048576,
     date1904: self.date1904,
     origin: { row: range.top, column: range.left, },
+    names: self.formula_names(),
   }
   let rules = self.filter_rules(sheet, work)
   let normalized = settings.columns.map(column => column.rule.prepare(work))
@@ -151,6 +152,7 @@ fn Session::filter_query(self : Session, index : Int) -> Json {
       remaining: 1048576,
       date1904: self.date1904,
       origin: { row: state.bounds.top, column: state.bounds.left, },
+      names: self.formula_names(),
     }
     let rules = self.filter_rules(index, work)
     for column in state.bounds.left..<=state.bounds.right {

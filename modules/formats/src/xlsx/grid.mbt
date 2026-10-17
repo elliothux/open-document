@@ -9,6 +9,9 @@ priv struct Grid {
   scroll_y : Double
   width : Double
   height : Double
+  header_width : Double
+  header_height : Double
+  rtl : Bool
   result : Json
   rows : Array[GridBand]
   columns : Array[GridBand]
@@ -108,7 +111,10 @@ fn Session::resolved_dimensions(
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> Dimensions raise @failure.Failure {
-  sheet.dimensions.resolved(self.digit_width(probe, profile))
+  sheet.dimensions.resolved(
+    self.digit_width(probe, profile),
+    sheet.view.formulas,
+  )
 }
 
 ///|
@@ -124,6 +130,7 @@ fn Session::paint_cells(
   probe : @layout.TextProbe,
   profile : Map[String, String],
   printing : Bool,
+  mirror_width : Double,
   conditional : ConditionalRules,
   work : FormulaWork,
 ) -> Array[Json] raise @failure.Failure {
@@ -131,6 +138,7 @@ fn Session::paint_cells(
     @failure.reject("limit-exceeded", "Visible cells exceed 4096 cells")
   }
   let sheet = self.sheets[index]
+  let (header_width, header_height) = sheet.view.header_size()
   let cells : Array[Json] = []
   let seen : Map[String, Bool] = Map([])
   let mut units = 0
@@ -156,19 +164,30 @@ fn Session::paint_cells(
         self.calculation.map(c => c.values).unwrap_or(Map([])),
         work,
       )
-      let value = self.calculation
-        .bind(calculation => calculation.values.get((index, key)))
-        .unwrap_or(cell.map(cell => cell.value).unwrap_or(Blank))
+      let calculated = self.calculation.bind(calculation => {
+        calculation.values.get((index, key))
+      })
+      let value = calculated.unwrap_or(
+        cell.map(cell => cell.value).unwrap_or(Blank),
+      )
       let missing = cell.bind(cell => cell.formula) is Some(_) && value == Blank
-      let mut text = if missing {
+      let mut text = if missing && !sheet.view.formulas {
         "Not calculated"
       } else {
-        formatted(value, style.format, self.date1904)
+        sheet.view.display(
+          cell.bind(cell => cell.formula),
+          value,
+          style.format,
+          self.date1904,
+          hidden=sheet.locked && style.formula_hidden,
+        )
       }
-      if printing && (missing || !style.diagnostic.is_empty()) {
+      let uncalculated = cell.bind(cell => cell.formula) is Some(_) &&
+        calculated is None
+      if printing && (uncalculated || missing || !style.diagnostic.is_empty()) {
         @failure.reject(
           "unsupported-print",
-          if missing {
+          if uncalculated || missing {
             "Uncalculated formula: " + key
           } else {
             key + ": " + style.diagnostic
@@ -179,14 +198,18 @@ fn Session::paint_cells(
       guard units <= 262144 else {
         @failure.reject("limit-exceeded", "Visible text exceeds budget")
       }
-      let rect : @layout.Border = {
-        x: dimensions.columns.position(range.left) + dx,
-        y: dimensions.rows.position(range.top) + dy,
-        width: dimensions.columns.position(range.right + 1) -
-        dimensions.columns.position(range.left),
-        height: dimensions.rows.position(range.bottom + 1) -
-        dimensions.rows.position(range.top),
-      }
+      let rect = grid_rect(
+        {
+          x: dimensions.columns.position(range.left) + dx,
+          y: dimensions.rows.position(range.top) + dy,
+          width: dimensions.columns.position(range.right + 1) -
+          dimensions.columns.position(range.left),
+          height: dimensions.rows.position(range.bottom + 1) -
+          dimensions.rows.position(range.top),
+        },
+        mirror_width,
+        sheet.view.rtl,
+      )
       if !style.fill.is_empty() {
         page.fills.push({
           x: rect.x,
@@ -202,7 +225,7 @@ fn Session::paint_cells(
           text = ""
         }
       }
-      if !printing {
+      if !printing && sheet.view.grid_lines {
         page.strokes.push((rect, "d9dce1", 0.5))
       }
       for side, edge in style.borders {
@@ -225,7 +248,8 @@ fn Session::paint_cells(
           (rect.width - 4.5).min(14400),
           style.wrap,
         )
-        if value is Number(_) &&
+        if !sheet.view.formulas &&
+          value is Number(_) &&
           !style.wrap &&
           block.widths.any(width => width > rect.width - 4.5) {
           let hash = probe.text_block(
@@ -250,7 +274,10 @@ fn Session::paint_cells(
             false,
           )
         }
-        let horizontal = if style.horizontal != "general" {
+        let horizontal = if sheet.view.formulas &&
+          (style.horizontal == "general" || value is Number(_)) {
+          "left"
+        } else if style.horizontal != "general" {
           style.horizontal
         } else {
           match value {
@@ -263,25 +290,27 @@ fn Session::paint_cells(
         if !printing {
           let start = page.texts.length() - block.texts.length()
           let clip : @layout.Border = {
-            x: rect.x.max(36),
-            y: rect.y.max(18),
-            width: ((rect.x + rect.width).min(page.width) - rect.x.max(36)).max(
-              0,
-            ),
-            height: ((rect.y + rect.height).min(page.height) - rect.y.max(18)).max(
-              0,
-            ),
+            x: rect.x.max(if sheet.view.rtl { 0 } else { header_width }),
+            y: rect.y.max(header_height),
+            width: ((rect.x + rect.width).min(
+              page.width - (if sheet.view.rtl { header_width } else { 0 }),
+            ) -
+            rect.x.max(if sheet.view.rtl { 0 } else { header_width })).max(0),
+            height: ((rect.y + rect.height).min(page.height) -
+            rect.y.max(header_height)).max(0),
           }
           for i in start..<page.texts.length() {
             page.texts[i] = (page.texts[i].0, clip)
           }
         }
       }
-      let calculated = self.calculation.bind(calculation => {
-        calculation.values.get((index, key))
-      })
       cells.push({
-        "cell": sheet.cell_json(address, self.read_only, calculated),
+        "cell": sheet.cell_json(
+          address,
+          self.read_only,
+          calculated,
+          hide_formula=style.formula_hidden,
+        ),
         "display": text,
         "rect": rect,
         "range": range,
@@ -316,6 +345,7 @@ pub fn Session::viewport(
     @failure.reject("invalid-viewport", "Invalid grid viewport")
   }
   let current = self.sheets[index]
+  let (header_width, header_height) = current.view.header_size()
   guard current.frozen.layout_reason.is_empty() else {
     @failure.reject("unsupported-view", current.frozen.layout_reason)
   }
@@ -331,8 +361,8 @@ pub fn Session::viewport(
   20).min(16384)
   let extent_width = dimensions.columns.position(extent_column + 1)
   let extent_height = dimensions.rows.position(extent_row + 1)
-  let mut x = scroll_x.min((extent_width - width + 36).max(0))
-  let mut y = scroll_y.min((extent_height - height + 18).max(0))
+  let mut x = scroll_x.min((extent_width - width + header_width).max(0))
+  let mut y = scroll_y.min((extent_height - height + header_height).max(0))
   let frozen_width = dimensions.columns.position(current.frozen.columns + 1)
   let frozen_height = dimensions.rows.position(current.frozen.rows + 1)
   if reveal && self.selection.0 == sheet {
@@ -341,18 +371,19 @@ pub fn Session::viewport(
     let right = left + dimensions.columns.size(focus.column)
     let top = dimensions.rows.position(focus.row)
     let bottom = top + dimensions.rows.size(focus.row)
-    if focus.column > current.frozen.columns && frozen_width < width - 36 {
+    if focus.column > current.frozen.columns &&
+      frozen_width < width - header_width {
       if left < x + frozen_width {
         x = (left - frozen_width).max(0)
-      } else if right > x + width - 36 {
-        x = (right - width + 36).max(0)
+      } else if right > x + width - header_width {
+        x = (right - width + header_width).max(0)
       }
     }
-    if focus.row > current.frozen.rows && frozen_height < height - 18 {
+    if focus.row > current.frozen.rows && frozen_height < height - header_height {
       if top < y + frozen_height {
         y = (top - frozen_height).max(0)
-      } else if bottom > y + height - 18 {
-        y = (bottom - height + 18).max(0)
+      } else if bottom > y + height - header_height {
+        y = (bottom - height + header_height).max(0)
       }
     }
   }
@@ -375,13 +406,13 @@ pub fn Session::viewport(
   let rows = dimensions.rows.bands(
     current.frozen.rows,
     y,
-    height - 18,
+    height - header_height,
     extent_row,
   )
   let columns = dimensions.columns.bands(
     current.frozen.columns,
     x,
-    width - 36,
+    width - header_width,
     extent_column,
   )
   let (primitives, cells, row_headers, column_headers) = self.paint_grid(
@@ -412,6 +443,9 @@ pub fn Session::viewport(
     "scrollY": y,
     "extentWidth": extent_width,
     "extentHeight": extent_height,
+    "headerWidth": header_width,
+    "headerHeight": header_height,
+    "rtl": current.view.rtl,
     "regions": document.drawing(@layout.Images::new()),
     "outlines": probe.outline_resources(),
     "images": [],
@@ -430,6 +464,9 @@ pub fn Session::viewport(
     scroll_y: y,
     width,
     height,
+    header_width,
+    header_height,
+    rtl: current.view.rtl,
     result,
     rows,
     columns,
@@ -451,27 +488,38 @@ pub fn Session::hit(
     grid.revision == self.revision else {
     @failure.reject("stale-layout", "Grid geometry changed")
   }
-  guard x >= 36 && y >= 18 && x < grid.width && y < grid.height else {
+  guard x >= (if grid.rtl { 0 } else { grid.header_width }) &&
+    y >= grid.header_height &&
+    x < grid.width - (if grid.rtl { grid.header_width } else { 0 }) &&
+    y < grid.height else {
     @failure.reject("invalid-hit", "Point is outside grid cells")
+  }
+  // Reflection reverses half-open cell boundaries; keep edge hits inside the cell.
+  let x = if grid.rtl {
+    (grid.width - x - 0.000001).max(grid.header_width)
+  } else {
+    x
   }
   let address : Address = {
     row: grid.dimensions.rows.locate(
       y -
-      18 +
+      grid.header_height +
       grid.rows
       .iter()
       .find_first(band => {
-        y >= 18 + band.start && y < 18 + band.start + band.size
+        y >= grid.header_height + band.start &&
+        y < grid.header_height + band.start + band.size
       })
       .unwrap().scroll,
     ),
     column: grid.dimensions.columns.locate(
       x -
-      36 +
+      grid.header_width +
       grid.columns
       .iter()
       .find_first(band => {
-        x >= 36 + band.start && x < 36 + band.start + band.size
+        x >= grid.header_width + band.start &&
+        x < grid.header_width + band.start + band.size
       })
       .unwrap().scroll,
     ),

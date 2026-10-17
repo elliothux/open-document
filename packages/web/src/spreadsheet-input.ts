@@ -94,10 +94,10 @@ export function paintGridSelection(
   context.save();
   context.beginPath();
   context.rect(
-    36,
-    18,
-    layout.regions[0]!.width - 36,
-    layout.regions[0]!.height - 18,
+    layout.rtl ? 0 : layout.headerWidth,
+    layout.headerHeight,
+    layout.regions[0]!.width - layout.headerWidth,
+    layout.regions[0]!.height - layout.headerHeight,
   );
   context.clip();
   context.fillStyle = "rgba(37, 99, 235, 0.10)";
@@ -124,8 +124,8 @@ export function styleCellDraft(
   );
   const rect = cell?.rect;
   if (selection) {
-    input.style.left = `${Math.max(cell?.clip.x ?? 36, selection.x) * scale}px`;
-    input.style.top = `${Math.max(cell?.clip.y ?? 18, selection.y) * scale}px`;
+    input.style.left = `${Math.max(cell?.clip.x ?? (layout?.rtl ? 0 : layout?.headerWidth) ?? 0, selection.x) * scale}px`;
+    input.style.top = `${Math.max(cell?.clip.y ?? layout?.headerHeight ?? 0, selection.y) * scale}px`;
   }
   input.style.opacity = draft ? "1" : "0";
   input.style.pointerEvents = draft ? "auto" : "none";
@@ -139,6 +139,7 @@ export function styleCellDraft(
 }
 
 interface SpreadsheetKeyHost {
+  rtl: boolean;
   paused: boolean;
   composing: boolean;
   draft: boolean;
@@ -199,8 +200,8 @@ export function spreadsheetKey(
     string,
     "left" | "right" | "up" | "down" | "home" | undefined
   > = {
-    ArrowLeft: "left",
-    ArrowRight: "right",
+    ArrowLeft: host.rtl ? "right" : "left",
+    ArrowRight: host.rtl ? "left" : "right",
     ArrowUp: "up",
     ArrowDown: "down",
     Home: "home",

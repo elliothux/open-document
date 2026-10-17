@@ -8,7 +8,22 @@ priv struct GridBand {
 }
 
 ///|
+fn grid_rect(
+  rect : @layout.Border,
+  width : Double,
+  rtl : Bool,
+) -> @layout.Border {
+  if rtl {
+    { ..rect, x: width - rect.x - rect.width, }
+  } else {
+    rect
+  }
+}
+
+///|
 fn Grid::range_geometry(self : Grid, range : Range, frozen : Frozen) -> Json {
+  let header_width = self.header_width
+  let header_height = self.header_height
   let rects : Array[@layout.Border] = []
   for row in self.rows {
     for column in self.columns {
@@ -38,43 +53,57 @@ fn Grid::range_geometry(self : Grid, range : Range, frozen : Frozen) -> Json {
         continue
       }
       let rect : @layout.Border = {
-        x: self.dimensions.columns.position(left) + 36 - column.scroll,
-        y: self.dimensions.rows.position(top) + 18 - row.scroll,
+        x: self.dimensions.columns.position(left) + header_width - column.scroll,
+        y: self.dimensions.rows.position(top) + header_height - row.scroll,
         width: self.dimensions.columns.position(right + 1) -
         self.dimensions.columns.position(left),
         height: self.dimensions.rows.position(bottom + 1) -
         self.dimensions.rows.position(top),
       }
-      let clipped = grid_intersection(rect, {
-        x: 36 + column.start,
-        y: 18 + row.start,
-        width: column.size,
-        height: row.size,
-      })
+      let clipped = grid_rect(
+        grid_intersection(rect, {
+          x: header_width + column.start,
+          y: header_height + row.start,
+          width: column.size,
+          height: row.size,
+        }),
+        self.width,
+        self.rtl,
+      )
       if clipped.width > 0 && clipped.height > 0 {
         rects.push(clipped)
       }
     }
   }
+  let rect = grid_rect(
+    {
+      x: self.dimensions.columns.position(range.left) +
+      header_width -
+      (if range.left <= frozen.columns && self.columns.any(band => band.frozen) {
+        0
+      } else {
+        self.scroll_x
+      }),
+      y: self.dimensions.rows.position(range.top) +
+      header_height -
+      (if range.top <= frozen.rows && self.rows.any(band => band.frozen) {
+        0
+      } else {
+        self.scroll_y
+      }),
+      width: self.dimensions.columns.position(range.right + 1) -
+      self.dimensions.columns.position(range.left),
+      height: self.dimensions.rows.position(range.bottom + 1) -
+      self.dimensions.rows.position(range.top),
+    },
+    self.width,
+    self.rtl,
+  )
   {
-    "x": self.dimensions.columns.position(range.left) +
-    36 -
-    (if range.left <= frozen.columns && self.columns.any(band => band.frozen) {
-      0
-    } else {
-      self.scroll_x
-    }),
-    "y": self.dimensions.rows.position(range.top) +
-    18 -
-    (if range.top <= frozen.rows && self.rows.any(band => band.frozen) {
-      0
-    } else {
-      self.scroll_y
-    }),
-    "width": self.dimensions.columns.position(range.right + 1) -
-    self.dimensions.columns.position(range.left),
-    "height": self.dimensions.rows.position(range.bottom + 1) -
-    self.dimensions.rows.position(range.top),
+    "x": rect.x,
+    "y": rect.y,
+    "width": rect.width,
+    "height": rect.height,
     "rects": rects,
   }
 }
@@ -183,6 +212,8 @@ fn Session::paint_grid(
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> (Array[@layout.PositionedPrimitive], Array[Json], Array[Json], Array[Json]) raise @failure.Failure {
+  let (header_width, header_height) = self.sheets[index].view.header_size()
+  let rtl = self.sheets[index].view.rtl
   let primitives : Array[@layout.PositionedPrimitive] = []
   let cells : Array[Json] = []
   let seen : Map[String, Bool] = Map([])
@@ -200,6 +231,7 @@ fn Session::paint_grid(
     remaining: 1048576,
     date1904: self.date1904,
     origin: { row: 1, column: 1, },
+    names: self.formula_names(),
   }
   let conditional = self.conditional_rules(
     self.sheets[index],
@@ -217,12 +249,16 @@ fn Session::paint_grid(
         bars: [],
         strokes: [],
       }
-      let clip : @layout.Border = {
-        x: 36 + column.start,
-        y: 18 + row.start,
-        width: column.size,
-        height: row.size,
-      }
+      let clip = grid_rect(
+        {
+          x: header_width + column.start,
+          y: header_height + row.start,
+          width: column.size,
+          height: row.size,
+        },
+        width,
+        rtl,
+      )
       for
         item in self.paint_cells(
           index,
@@ -230,11 +266,12 @@ fn Session::paint_grid(
           row.indices,
           column.indices,
           page,
-          36 - column.scroll,
-          18 - row.scroll,
+          header_width - column.scroll,
+          header_height - row.scroll,
           probe,
           profile,
           false,
+          width,
           conditional,
           work,
         ) {
@@ -258,8 +295,97 @@ fn Session::paint_grid(
   }
   let row_headers : Array[Json] = []
   let column_headers : Array[Json] = []
-  for row in rows {
-    let page : PagePaint = {
+  if self.sheets[index].view.headings {
+    for row in rows {
+      let page : PagePaint = {
+        width,
+        height,
+        texts: [],
+        fills: [],
+        bars: [],
+        strokes: [],
+      }
+      for index in row.indices {
+        let position = dimensions.rows.position(index) +
+          header_height -
+          row.scroll
+        let size = dimensions.rows.size(index)
+        grid_header(
+          page,
+          index.to_string(),
+          grid_rect(
+            { x: 0, y: position, width: header_width, height: size, },
+            width,
+            rtl,
+          ),
+          probe,
+          profile,
+          self.styles[0].font,
+        )
+        row_headers.push({ "index": index, "position": position, "size": size })
+      }
+      append_grid_paint(
+        primitives,
+        page,
+        grid_rect(
+          {
+            x: 0,
+            y: header_height + row.start,
+            width: header_width,
+            height: row.size,
+          },
+          width,
+          rtl,
+        ),
+      )
+    }
+    for column in columns {
+      let page : PagePaint = {
+        width,
+        height,
+        texts: [],
+        fills: [],
+        bars: [],
+        strokes: [],
+      }
+      for index in column.indices {
+        let position = dimensions.columns.position(index) +
+          header_width -
+          column.scroll
+        let size = dimensions.columns.size(index)
+        let position = if rtl { width - position - size } else { position }
+        let address : Address = { row: 1, column: index, }
+        let name = address.name()
+        grid_header(
+          page,
+          name[:name.length() - 1].to_owned(),
+          { x: position, y: 0, width: size, height: header_height, },
+          probe,
+          profile,
+          self.styles[0].font,
+        )
+        column_headers.push({
+          "index": index,
+          "position": position,
+          "size": size,
+        })
+      }
+      append_grid_paint(
+        primitives,
+        page,
+        grid_rect(
+          {
+            x: header_width + column.start,
+            y: 0,
+            width: column.size,
+            height: header_height,
+          },
+          width,
+          rtl,
+        ),
+      )
+    }
+    let corner : PagePaint = {
       width,
       height,
       texts: [],
@@ -267,79 +393,34 @@ fn Session::paint_grid(
       bars: [],
       strokes: [],
     }
-    for index in row.indices {
-      let position = dimensions.rows.position(index) + 18 - row.scroll
-      let size = dimensions.rows.size(index)
-      grid_header(
-        page,
-        index.to_string(),
-        { x: 0, y: position, width: 36, height: size, },
-        probe,
-        profile,
-        self.styles[0].font,
-      )
-      row_headers.push({ "index": index, "position": position, "size": size })
-    }
-    append_grid_paint(primitives, page, {
-      x: 0,
-      y: 18 + row.start,
-      width: 36,
-      height: row.size,
-    })
+    grid_header(
+      corner,
+      "",
+      grid_rect(
+        { x: 0, y: 0, width: header_width, height: header_height, },
+        width,
+        rtl,
+      ),
+      probe,
+      profile,
+      self.styles[0].font,
+    )
+    primitives.append(corner.positioned().primitives)
   }
   for column in columns {
-    let page : PagePaint = {
-      width,
-      height,
-      texts: [],
-      fills: [],
-      bars: [],
-      strokes: [],
-    }
-    for index in column.indices {
-      let position = dimensions.columns.position(index) + 36 - column.scroll
-      let size = dimensions.columns.size(index)
-      let address : Address = { row: 1, column: index, }
-      let name = address.name()
-      grid_header(
-        page,
-        name[:name.length() - 1].to_owned(),
-        { x: position, y: 0, width: size, height: 18, },
-        probe,
-        profile,
-        self.styles[0].font,
-      )
-      column_headers.push({ "index": index, "position": position, "size": size })
-    }
-    append_grid_paint(primitives, page, {
-      x: 36 + column.start,
-      y: 0,
-      width: column.size,
-      height: 18,
-    })
-  }
-  let corner : PagePaint = {
-    width,
-    height,
-    texts: [],
-    fills: [],
-    bars: [],
-    strokes: [],
-  }
-  grid_header(
-    corner,
-    "",
-    { x: 0, y: 0, width: 36, height: 18, },
-    probe,
-    profile,
-    self.styles[0].font,
-  )
-  primitives.append(corner.positioned().primitives)
-  for column in columns {
-    if column.frozen && column.size < width - 36 {
+    if column.frozen && column.size < width - header_width {
       primitives.push(
         Stroke(
-          { x: 36 + column.size, y: 18, width: 0, height: height - 18, },
+          grid_rect(
+            {
+              x: header_width + column.size,
+              y: header_height,
+              width: 0,
+              height: height - header_height,
+            },
+            width,
+            rtl,
+          ),
           "94a3b8",
           1,
         ),
@@ -347,10 +428,19 @@ fn Session::paint_grid(
     }
   }
   for row in rows {
-    if row.frozen && row.size < height - 18 {
+    if row.frozen && row.size < height - header_height {
       primitives.push(
         Stroke(
-          { x: 36, y: 18 + row.size, width: width - 36, height: 0, },
+          grid_rect(
+            {
+              x: header_width,
+              y: header_height + row.size,
+              width: width - header_width,
+              height: 0,
+            },
+            width,
+            rtl,
+          ),
           "94a3b8",
           1,
         ),

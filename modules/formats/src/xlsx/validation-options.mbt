@@ -78,6 +78,7 @@ fn Session::validation_options(
     remaining: 1048576,
     date1904: self.date1904,
     origin: address,
+    names: self.formula_names(),
   }
   let expression = rule_expression(
     rule.formula1,

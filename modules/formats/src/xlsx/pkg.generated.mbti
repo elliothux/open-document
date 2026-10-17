@@ -268,6 +268,7 @@ pub(all) enum SheetEdit {
   Merge(String, Bool)
   Unmerge(String)
   Freeze(Int, Int)
+  View(ViewSettings)
   PageSetup(PrintSetup)
   PrintRange(PrintRange)
   HeaderFooter(HeaderFooter)
@@ -300,6 +301,15 @@ pub fn Value::equal(Self, Self) -> Bool
 pub fn Value::not_equal(Self, Self) -> Bool
 pub fn Value::to_json(Self) -> Json
 pub impl ToJson for Value
+
+pub(all) struct ViewSettings {
+  grid_lines : Bool
+  headings : Bool
+  rtl : Bool
+  formulas : Bool
+} derive(Eq)
+pub fn ViewSettings::equal(Self, Self) -> Bool
+pub fn ViewSettings::not_equal(Self, Self) -> Bool
 
 // Type aliases
 

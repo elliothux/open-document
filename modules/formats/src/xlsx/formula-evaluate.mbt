@@ -86,6 +86,10 @@ fn Expression::evaluate(
     @failure.reject("limit-exceeded", "Formula evaluation depth exceeded")
   }
   match self {
+    Named(_, _) =>
+      self
+      .resolve_names(sheets, sheet, work.origin, work)
+      .evaluate(sheets, sheet, values, work, depth + 1)
     Constant(value) => value
     Reference(name, first, last) => {
       if last is Some(last) && last.address != first.address {

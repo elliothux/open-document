@@ -46,9 +46,8 @@ fn read_frozen(tree : Tree) -> Frozen raise @failure.Failure {
     reason = "Unknown view metadata requires pane editing support"
   }
   if flag(view, "windowProtection") ||
-    flag(view, "rightToLeft") ||
     view.attribute("view").unwrap_or("normal") != "normal" {
-    reason = "Frozen panes require an unprotected normal left-to-right view"
+    reason = "Worksheet view requires an unprotected normal view"
   }
   for child in tree.children.get(view.id).unwrap_or([]) {
     let allowed = if child.name == "pane" {
@@ -94,11 +93,7 @@ fn read_frozen(tree : Tree) -> Frozen raise @failure.Failure {
     rows: rows.to_int(),
     columns: columns.to_int(),
     edit_reason: reason,
-    layout_reason: if flag(view, "rightToLeft") {
-      "Right-to-left frozen panes require layout support"
-    } else {
-      ""
-    },
+    layout_reason: "",
   }
 }
 
@@ -143,7 +138,6 @@ fn Session::freeze(
     return self.query()
   }
   let tree = Tree::new(current.document)
-  let root = tree.root("worksheet")
   let previous = primary_view(tree).bind(view => {
     let selections = tree.all(view.id, "selection")
     let active = tree
@@ -218,42 +212,10 @@ fn Session::freeze(
       }
     }
   } else {
-    let view = "<od:sheetView xmlns:od=\"\{spreadsheet_uri}\" workbookViewId=\"0\">\{markup}</od:sheetView>"
-    if tree.one(root.id, "sheetViews") is Some(views) {
-      insertion(views, view)
-    } else {
-      let next = tree.children[root.id]
-        .iter()
-        .find_first(node => !["sheetPr", "dimension"].contains(node.name))
-        .unwrap()
-      {
-        node: root.id,
-        offset: next.start - root.start,
-        length: 0,
-        xml: "<od:sheetViews xmlns:od=\"\{spreadsheet_uri}\">\{view}</od:sheetViews>",
-      }
-    }
+    insert_primary_view(
+      tree,
+      "<od:sheetView xmlns:od=\"\{spreadsheet_uri}\" workbookViewId=\"0\">\{markup}</od:sheetView>",
+    )
   }
-  let (document, edit) = current.document.edit_source([change])
-  let sheets = self.sheets.copy()
-  sheets[index] = Sheet::read(
-    current.id,
-    current.name,
-    current.state,
-    document,
-    self.strings,
-    self.styles.length(),
-  )
-  let anchor = self.anchor
-  let focus = self.focus
-  self.commit(
-    sheets,
-    self.workbook,
-    self.calculation.unwrap(),
-    [(current.id, edit)],
-    self.selection,
-  )
-  self.anchor = anchor
-  self.focus = focus
-  self.query()
+  self.commit_view(index, [change])
 }

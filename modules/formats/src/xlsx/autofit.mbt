@@ -76,7 +76,7 @@ fn Session::fit_sizes(
         size: hidden.get((span.first, span.last)).unwrap_or(span.size),
       }),
     },
-  }.resolved(digit)
+  }.resolved(digit, current.view.formulas)
   let format = tree.one(root.id, "sheetFormatPr")
   let fallback = if rows {
     format
@@ -123,10 +123,18 @@ fn Session::fit_sizes(
         "protected-content", "Uncalculated cell requires automatic fitting support",
       )
     }
-    if grow && (value == Blank || value is Text(_)) {
+    if grow &&
+      (value == Blank || value is Text(_)) &&
+      !(current.view.formulas && cell.formula is Some(_)) {
       continue
     }
-    let text = formatted(value, style.format, self.date1904)
+    let text = current.view.display(
+      cell.formula,
+      value,
+      style.format,
+      self.date1904,
+      hidden=current.locked && style.formula_hidden,
+    )
     if rows &&
       text.is_empty() &&
       style.font == self.normal_font &&
@@ -171,7 +179,9 @@ fn Session::fit_sizes(
     } else if measured == 0 {
       fallback
     } else {
-      let pixels = ((measured + 4.5) / 0.75).ceil() - 5
+      let pixels = ((measured + 4.5) /
+        (0.75 * (if current.view.formulas { 2 } else { 1 }))).ceil() -
+        5
       ((pixels * 256 / digit - (128.0 / digit).floor()).ceil() / 256)
       .max(1.0 / 256)
       .min(255)
@@ -246,6 +256,7 @@ pub fn Session::auto_fit(
       remaining: 1048576,
       date1904: self.date1904,
       origin: { row: 1, column: 1, },
+      names: self.formula_names(),
     },
   }
   let sizes = self.fit_sizes(

@@ -271,6 +271,13 @@ fn Foundation::xlsx_operation(
             field_string(change, "range"),
             field_string(change, "direction"),
           )
+        "view" =>
+          @xlsx.View({
+            grid_lines: xlsx_boolean(change, "gridLines"),
+            headings: xlsx_boolean(change, "headings"),
+            rtl: xlsx_boolean(change, "rtl"),
+            formulas: xlsx_boolean(change, "formulas"),
+          })
         "freeze" =>
           @xlsx.Freeze(field_int(change, "rows"), field_int(change, "columns"))
         "pageSetup" =>

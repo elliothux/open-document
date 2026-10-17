@@ -23,6 +23,7 @@ pub(all) enum SheetEdit {
   Merge(String, Bool)
   Unmerge(String)
   Freeze(Int, Int)
+  View(ViewSettings)
   PageSetup(PrintSetup)
   PrintRange(PrintRange)
   HeaderFooter(HeaderFooter)
@@ -248,6 +249,7 @@ pub fn Session::edit_sheet(
     PrintRange(settings) => return self.set_print_range(sheet, settings)
     HeaderFooter(settings) => return self.set_header_footer(sheet, settings)
     Freeze(rows, columns) => return self.freeze(sheet, rows, columns)
+    View(settings) => return self.set_view(sheet, settings)
     Merge(range, discard) =>
       return self.merge_cells(sheet, Range::parse(range), discard, false)
     Unmerge(range) =>
@@ -293,6 +295,7 @@ pub fn Session::edit_sheet(
     | Merge(_, _)
     | Unmerge(_)
     | Freeze(_, _)
+    | View(_)
     | PageSetup(_)
     | PrintRange(_)
     | HeaderFooter(_)
@@ -548,7 +551,13 @@ pub fn Session::edit_sheet(
       }
     }
   }
-  let calculation = Calculation::build(sheets, None, [], self.date1904)
+  let calculation = Calculation::build(
+    sheets,
+    None,
+    [],
+    self.date1904,
+    workbook,
+  )
   if deleted is Some(_) || change is Copy {
     edits.append(self.cache_edits(sheets, calculation))
   }

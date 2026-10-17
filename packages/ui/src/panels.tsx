@@ -11,7 +11,7 @@ import { PptxSearch } from "./pptx-search.js";
 import { PptxBackground, PptxSize, PptxNotes } from "./pptx-page.js";
 import { PptxSections } from "./pptx-sections.js";
 import { PptxSlideList } from "./pptx-slides.js";
-import { XlsxSheets, XlsxFrozen } from "./xlsx-sheets.js";
+import { XlsxSheets, XlsxFrozen, XlsxView } from "./xlsx-sheets.js";
 import { XlsxFormat } from "./xlsx-format.js";
 import { XlsxSearch } from "./xlsx-search.js";
 import { XlsxSort } from "./xlsx-sort.js";
@@ -374,6 +374,12 @@ export function Properties(props: PanelProps) {
               event.preventDefault();
           }}
         >
+          <XlsxView
+            controller={props.controller}
+            state={props.state}
+            editor={props.file.editor}
+            disabled={props.disabled || !!props.state.document?.stopped}
+          />
           <XlsxFrozen
             controller={props.controller}
             state={props.state}

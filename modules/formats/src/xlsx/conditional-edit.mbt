@@ -52,6 +52,7 @@ fn Session::commit_conditional(
       remaining: 1048576,
       date1904: self.date1904,
       origin: { row: 1, column: 1, },
+      names: self.formula_names(),
     }
     let conditional = self.conditional_rules(
       sheets[index],
@@ -131,6 +132,7 @@ fn Session::set_conditional(
     remaining: 1048576,
     date1904: self.date1904,
     origin: { row: 1, column: 1, },
+    names: self.formula_names(),
   }
   let conditional = self.conditional_rules(sheet, index, self.sheets, work)
   guard conditional.reason.is_empty() else {
@@ -294,6 +296,7 @@ fn Session::move_conditional(
     remaining: 1048576,
     date1904: self.date1904,
     origin: { row: 1, column: 1, },
+    names: self.formula_names(),
   }
   let conditional = self.conditional_rules(sheet, index, self.sheets, work)
   guard conditional.reason.is_empty() else {

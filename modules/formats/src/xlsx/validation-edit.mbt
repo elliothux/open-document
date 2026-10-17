@@ -18,6 +18,7 @@ fn Session::set_validation(
         remaining: 1048576,
         date1904: self.date1904,
         origin: anchor,
+        names: self.formula_names(),
       }
       let first = rule_expression(
         settings.formula1,

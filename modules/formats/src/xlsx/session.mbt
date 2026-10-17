@@ -250,7 +250,13 @@ fn Session::from_package(
   }
   session.validate(session.sheets)
   session.calculation = Some(
-    Calculation::build(session.sheets, None, [], session.date1904),
+    Calculation::build(
+      session.sheets,
+      None,
+      [],
+      session.date1904,
+      session.workbook,
+    ),
   ) catch {
     @failure.Failure(code~, message~, ..) if code == "unsupported-formula" ||
       code == "formula-syntax" ||
@@ -330,6 +336,7 @@ pub fn Session::query(
     remaining: 1048576,
     date1904: self.date1904,
     origin: { row: 1, column: 1, },
+    names: self.formula_names(),
   }
   // Formatting diagnostics keep a post-commit query from reporting a failed write.
   let conditional : ConditionalRules = self.conditional_rules(
@@ -355,6 +362,7 @@ pub fn Session::query(
       self.calculation.bind(calculation => {
         calculation.values.get((sheet_index, cell.address.name()))
       }),
+      hide_formula=self.styles[current.style_at(cell.address)].formula_hidden,
     )
     if json is Object(fields) {
       let value = self.calculation
@@ -362,7 +370,7 @@ pub fn Session::query(
           calculation.values.get((sheet_index, cell.address.name()))
         })
         .unwrap_or(cell.value)
-      if !(cell.formula is Some(_) && value == Blank) {
+      if current.view.formulas || !(cell.formula is Some(_) && value == Blank) {
         let base = self.styles[cell.style]
         let style = conditional.applied(
           base,
@@ -376,7 +384,15 @@ pub fn Session::query(
             { ..base, diagnostic: message, }
           error => raise error
         }
-        fields["display"] = Json(formatted(value, style.format, self.date1904))
+        fields["display"] = Json(
+          current.view.display(
+            cell.formula,
+            value,
+            style.format,
+            self.date1904,
+            hidden=current.locked && style.formula_hidden,
+          ),
+        )
         if !style.diagnostic.is_empty() {
           let diagnostic = "cell-style:" + current.id + ":" + style.diagnostic
           if !diagnostics.contains(diagnostic) {
@@ -396,6 +412,7 @@ pub fn Session::query(
         { row: range.top, column: range.left, },
         self.read_only,
         None,
+        hide_formula=false,
       ),
     )
   }
@@ -421,6 +438,13 @@ pub fn Session::query(
       keys
     }),
     "sheet": current.id,
+    "view": {
+      "gridLines": current.view.grid_lines,
+      "headings": current.view.headings,
+      "rtl": current.view.rtl,
+      "formulas": current.view.formulas,
+      "readOnlyReason": self.freeze_reason(current),
+    },
     "statistics": self.selection_statistics(
       sheet_index,
       range.unwrap(),

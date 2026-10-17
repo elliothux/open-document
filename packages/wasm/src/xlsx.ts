@@ -138,6 +138,9 @@ export interface XlsxViewport extends DrawingBatch {
   scrollY: number;
   extentWidth: number;
   extentHeight: number;
+  headerWidth: number;
+  headerHeight: number;
+  rtl: boolean;
   cells: {
     cell: XlsxCell;
     display: string;
@@ -229,6 +232,13 @@ export interface XlsxQuery {
     readOnlyReason: string;
   };
   frozen: { rows: number; columns: number; readOnlyReason: string };
+  view: {
+    gridLines: boolean;
+    headings: boolean;
+    rtl: boolean;
+    formulas: boolean;
+    readOnlyReason: string;
+  };
   formatting: XlsxFormatting;
   diagnostics: string[];
   date1904: boolean;
@@ -275,6 +285,15 @@ export function xlsxQuery(value: unknown): XlsxQuery {
   xlsxFormatting(query.formatting);
   const dimensions = record(query.dimensions);
   const frozen = record(query.frozen);
+  const view = record(query.view);
+  if (
+    typeof view.gridLines !== "boolean" ||
+    typeof view.headings !== "boolean" ||
+    typeof view.rtl !== "boolean" ||
+    typeof view.formulas !== "boolean" ||
+    typeof view.readOnlyReason !== "string"
+  )
+    throw new Error("Invalid worksheet view");
   if (
     !integer(frozen.rows, 0, 1048575) ||
     !integer(frozen.columns, 0, 16383) ||
@@ -426,6 +445,12 @@ export function xlsxSelection(value: unknown): XlsxSelectionGeometry {
 export function xlsxViewport(value: unknown): XlsxViewport {
   const layout = xlsxPrintLayout(value);
   const grid = record(value);
+  if (typeof grid.rtl !== "boolean") throw new Error("Invalid grid direction");
+  if (!(
+    (grid.headerWidth === 36 && grid.headerHeight === 18) ||
+    (grid.headerWidth === 0 && grid.headerHeight === 0)
+  ))
+    throw new Error("Invalid grid header size");
   for (const name of ["scrollX", "scrollY", "extentWidth", "extentHeight"])
     if (
       typeof grid[name] !== "number" ||
@@ -466,9 +491,12 @@ export function xlsxViewport(value: unknown): XlsxViewport {
         throw new Error("Invalid visible cell rectangle");
     addresses.add(cell.address);
     if (
-      clip.x < 36 ||
-      clip.y < 18 ||
-      clip.x + clip.width > layout.regions[0]!.width + 0.000001 ||
+      clip.x < (grid.rtl ? 0 : Number(grid.headerWidth)) ||
+      clip.y < Number(grid.headerHeight) ||
+      clip.x + clip.width >
+        layout.regions[0]!.width -
+          (grid.rtl ? Number(grid.headerWidth) : 0) +
+          0.000001 ||
       clip.y + clip.height > layout.regions[0]!.height + 0.000001
     )
       throw new Error("Invalid visible cell clip");

@@ -20,6 +20,7 @@ fn Session::commit(
       remaining: 1048576,
       date1904: self.date1904,
       origin: { row: 1, column: 1, },
+      names: calculation.names,
     },
   },
 ) -> Unit raise @failure.Failure {

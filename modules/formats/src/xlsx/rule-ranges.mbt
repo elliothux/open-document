@@ -59,7 +59,7 @@ fn rule_formula(
     }
     shifted
   } catch {
-    // shortcut: Extend the shared formula grammar before shifting named or extended rule references.
+    // shortcut: Extend the shared formula grammar before shifting extended rule references.
     @failure.Failure(code~, ..) if code != "limit-exceeded" =>
       @failure.reject(
         "protected-content", "Rule formula requires reference-aware range editing",
@@ -176,7 +176,9 @@ fn rule_expression(
       columns=address.column - anchor.column,
       invalid_ref=true,
     )
-    let expression = parse_formula(shifted)
+    let expression = parse_formula(shifted).resolve_names(
+      sheets, sheet, address, work,
+    )
     expression.dependencies(sheets, sheet, work, [], 0)
     expression
   } catch {

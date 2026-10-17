@@ -248,7 +248,11 @@ fn Axis::visible(
 }
 
 ///|
-fn Dimensions::resolved(self : Dimensions, digit_width : Double) -> Dimensions {
+fn Dimensions::resolved(
+  self : Dimensions,
+  digit_width : Double,
+  formulas : Bool,
+) -> Dimensions {
   // OOXML character width to pixels (maximum digit width), then pixels to points.
   let convert = fn(width : Double) {
     if width == 0 {
@@ -258,7 +262,8 @@ fn Dimensions::resolved(self : Dimensions, digit_width : Double) -> Dimensions {
         ((256.0 * width + (128.0 / digit_width).floor()) / 256 * digit_width).floor() +
         5
       ) *
-      0.75
+      0.75 *
+      (if formulas { 2 } else { 1 })
     }
   }
   {
