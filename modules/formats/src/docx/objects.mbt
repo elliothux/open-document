@@ -149,6 +149,7 @@ fn Session::table(
   let preferred_widths : Array[Array[Double]] = []
   let mut styles = styles
   let mut default_vertical_align = "top"
+  let mut default_split_row = true
   let style_margins : Array[(WordTree, Int)] = []
   let inherited_diagnostics : Array[String] = []
   let mut default_margins = table_margin_defaults(
@@ -165,6 +166,9 @@ fn Session::table(
     is Some(key) &&
     styles.tree is Some(source) {
     for style in styles.chain(key, inherited_diagnostics) {
+      if source.table_row_split(style) is Some(value) {
+        default_split_row = value
+      }
       if source.child(style, "tcPr").bind(p => source.child(p, "tcMar"))
         is Some(id) {
         style_margins.push((source, id))
@@ -225,6 +229,7 @@ fn Session::table(
   let mut header_rows = 0
   let heights : Array[Double] = []
   let exact_heights : Array[Bool] = []
+  let split_rows : Array[Bool] = []
   let fills : Array[Array[String]] = []
   let vertical_aligns : Array[Array[String]] = []
   let margins : Array[Array[@layout.CellMargins]] = []
@@ -258,6 +263,7 @@ fn Session::table(
     let mut column = 0
     let (height, exact) = tree.table_row_height(row)
     exact_heights.push(exact)
+    split_rows.push(tree.table_row_split(row).unwrap_or(default_split_row))
     for cell in tree.children[row] {
       if tree.nodes[cell].name != "tc" {
         continue
@@ -442,6 +448,7 @@ fn Session::table(
     margins,
     heights,
     exactHeights: exact_heights,
+    splitRows: split_rows,
     fills,
     verticalAligns: vertical_aligns,
   }

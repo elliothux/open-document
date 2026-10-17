@@ -99,6 +99,7 @@ export function DocxTables({
           align={size.align}
           rows={size.rows}
           headerRows={size.headerRows}
+          rowSplit={size.rowSplit}
         />
       )}
       <form
@@ -289,6 +290,7 @@ function TableProperties({
   align,
   rows,
   headerRows,
+  rowSplit,
 }: {
   controller: EditorController;
   state: UiSnapshot;
@@ -310,6 +312,7 @@ function TableProperties({
   align: "left" | "center" | "right";
   rows: number;
   headerRows: number;
+  rowSplit: boolean;
 }) {
   const t = messages(state.locale);
   const [tableWidth, setWidth] = useState(String(width)),
@@ -323,6 +326,19 @@ function TableProperties({
   return (
     <fieldset disabled={disabled}>
       <legend>{t.tableProperties}</legend>
+      <label>
+        <input
+          type="checkbox"
+          checked={rowSplit}
+          onChange={(event) => {
+            const value = event.currentTarget.checked;
+            controller.run(() =>
+              editor.editTable({ action: "rowSplit", value }),
+            );
+          }}
+        />
+        {t.tableRowSplit}
+      </label>
       {!autoFit && (
         <form
           onSubmit={(event) => {

@@ -55,6 +55,17 @@ fn Foundation::docx_table(
         @docx.SplitCell(field_int(fields, "rows"), field_int(fields, "columns"))
       "splitTable" => @docx.SplitTable
       "headerRows" => @docx.HeaderRows(field_int(fields, "value"))
+      "rowSplit" =>
+        @docx.RowSplit(
+          match fields {
+            { "value": True, .. } => true
+            { "value": False, .. } => false
+            _ =>
+              @failure.reject(
+                "invalid-operation", "Row split setting requires a boolean",
+              )
+          },
+        )
       "cellFill" => {
         let color = match fields {
           { "value": Null, .. } => None

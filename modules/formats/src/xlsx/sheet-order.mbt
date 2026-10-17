@@ -15,6 +15,7 @@ pub(all) enum SheetEdit {
   InsertCells(String, String)
   DeleteCells(String, String)
   Fill(String, String)
+  Series(String, String, String, String)
   Sort(String, SortSettings)
   SetFilter(FilterSettings)
   ClearFilter
@@ -177,6 +178,8 @@ pub fn Session::edit_sheet(
     ValidationValue(index, source_revision) =>
       return self.pick_validation(sheet, index, source_revision)
     Fill(range, direction) => return self.fill_cells(sheet, range, direction)
+    Series(mode, source, range, direction) =>
+      return self.fill_series(sheet, mode, source, range, direction)
     Sort(range, settings) => return self.sort_cells(sheet, range, settings)
     InsertRows(first, count) =>
       return self.edit_axes(sheet, {
@@ -296,6 +299,7 @@ pub fn Session::edit_sheet(
     | InsertCells(_, _)
     | DeleteCells(_, _)
     | Fill(_, _)
+    | Series(_, _, _, _)
     | Sort(_, _)
     | SetFilter(_)
     | ClearFilter

@@ -409,6 +409,7 @@ pub(all) struct Table {
   margins : Array[Array[CellMargins]]
   heights : Array[Double]
   exactHeights : Array[Bool]
+  splitRows : Array[Bool]
   fills : Array[Array[String]]
   verticalAligns : Array[Array[String]]
 } derive(ToJson)

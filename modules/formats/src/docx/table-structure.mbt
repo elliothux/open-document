@@ -20,6 +20,7 @@ pub(all) enum TableEdit {
   TableMargins(@layout.CellMargins?)
   TableAlign(String)
   HeaderRows(Int)
+  RowSplit(Bool)
   TableBorders(Map[String, @layout.BorderStyle?])
   CellBorders(Map[String, @layout.BorderStyle?])
 }
@@ -186,6 +187,14 @@ pub fn Session::edit_table(
         "tblHeader",
         None,
         header_rows=Some(count),
+      )
+    RowSplit(value) =>
+      return self.change_table_property(
+        revision,
+        selection,
+        "cantSplit",
+        Some(Map([("val", Some(if value { "0" } else { "1" }))])),
+        whole_row=true,
       )
     MergeCells(rows, columns) =>
       return self.merge_table_cells(revision, selection, rows, columns)

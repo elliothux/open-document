@@ -285,6 +285,33 @@ pub fn Layout::hit_test(
     }
   }
   guard chosen >= 0 else {
+    if cell is Some(area) {
+      // An exhausted cell still owns its blank continuation area.
+      let mut previous : Line? = None
+      for frame_index, source in self.pages {
+        for line in source.lines {
+          if line.caretOnly ||
+            line.repeated ||
+            line.carets.is_empty() ||
+            !area.paragraphs.contains(line.paragraph) {
+            continue
+          }
+          if frame_index > page {
+            if previous is None {
+              return self.caret(line.paragraph, line.start, "after")
+            }
+            break
+          }
+          previous = Some(line)
+        }
+        if frame_index > page {
+          break
+        }
+      }
+      if previous is Some(line) {
+        return self.caret(line.paragraph, line.end, "before")
+      }
+    }
     @failure.reject("invalid-position", "Page has no text position")
   }
   let hit = nearest_caret(frame.lines[chosen], page, chosen, x)

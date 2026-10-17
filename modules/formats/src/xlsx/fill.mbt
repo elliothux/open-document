@@ -138,20 +138,7 @@ fn Session::fill_cells(
     bottom: source.bottom.max(target.bottom),
     right: source.right.max(target.right),
   }
-  for scope in [source, target] {
-    let reason = self.format_reason(current, scope)
-    guard reason.is_empty() &&
-      !current.merges.any(merge => merge.intersects(scope)) else {
-      @failure.reject(
-        "protected-content",
-        if reason.is_empty() {
-          "Merged cells require fill geometry support"
-        } else {
-          reason
-        },
-      )
-    }
-  }
+  self.check_fill_cells(current, [source, target])
   self.check_fill_resources(current, affected)
   let updates : Map[String, CellContent] = Map([])
   let styles : Map[String, Int] = Map([])
@@ -211,9 +198,43 @@ fn Session::fill_cells(
       }
     }
   }
+  self.commit_fill(index, selected, updates, styles)
+}
+
+///|
+fn Session::check_fill_cells(
+  self : Session,
+  current : Sheet,
+  scopes : Array[Range],
+) -> Unit raise @failure.Failure {
+  for scope in scopes {
+    let reason = self.format_reason(current, scope)
+    guard reason.is_empty() &&
+      !current.merges.any(merge => merge.intersects(scope)) else {
+      @failure.reject(
+        "protected-content",
+        if reason.is_empty() {
+          "Merged cells require fill geometry support"
+        } else {
+          reason
+        },
+      )
+    }
+  }
+}
+
+///|
+fn Session::commit_fill(
+  self : Session,
+  index : Int,
+  selected : Range,
+  updates : Map[String, CellContent],
+  styles : Map[String, Int],
+) -> Json raise @failure.Failure {
   if updates.is_empty() {
     return self.query()
   }
+  let current = self.sheets[index]
   current.expand_shared_updates(updates)
   let expanded_units = updates
     .values()
@@ -231,7 +252,7 @@ fn Session::fill_cells(
   }
   self.commit_cells(
     Map([(index, updates)]),
-    (sheet, selected),
+    (current.id, selected),
     styles=Map([(index, styles)]),
   )
 }

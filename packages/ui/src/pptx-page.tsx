@@ -45,6 +45,14 @@ export function PptxSlideLayout({
         <button type="submit" disabled={!chosen || chosen === layout.current}>
           {t.applySlideLayout}
         </button>
+        <button
+          type="button"
+          onClick={() =>
+            controller.run(() => editor.editSlides({ action: "resetLayout" }))
+          }
+        >
+          {t.resetSlideLayout}
+        </button>
       </fieldset>
       {layout.reason && <p>{layout.reason}</p>}
     </form>

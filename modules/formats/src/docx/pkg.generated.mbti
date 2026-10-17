@@ -177,6 +177,7 @@ pub(all) enum TableEdit {
   TableMargins(@layout.CellMargins?)
   TableAlign(String)
   HeaderRows(Int)
+  RowSplit(Bool)
   TableBorders(Map[String, @layout.BorderStyle?])
   CellBorders(Map[String, @layout.BorderStyle?])
 }

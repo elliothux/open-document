@@ -75,6 +75,7 @@ fn Session::table_dimensions(
     "columnWidths": table.widths,
     "width": table.widths.iter().fold(init=0.0, (sum, width) => sum + width),
     "rowHeight": table.heights[index],
+    "rowSplit": table.splitRows[index],
     "rowHeightRule": if table.exactHeights[index] {
       "exact"
     } else {
@@ -130,7 +131,7 @@ fn WordTree::table_property_change(
     let allowed = match name {
       "trHeight" => ["val", "hRule"]
       "shd" => ["val", "color", "fill"]
-      "vAlign" | "jc" | "tblHeader" | "gridAfter" => ["val"]
+      "vAlign" | "jc" | "tblHeader" | "cantSplit" | "gridAfter" => ["val"]
       "tblLayout" => ["type"]
       "tcMar" | "tblCellMar" | "tcBorders" | "tblBorders" => []
       _ => ["w", "type"]
@@ -197,6 +198,11 @@ fn WordTree::table_property_change(
         "shd" => ["tcMar", "vAlign"].contains(self.nodes[child].name)
         "tcMar" => self.nodes[child].name == "vAlign"
         "vAlign" => false
+        "cantSplit" =>
+          [
+            "trHeight", "tblHeader", "tblCellSpacing", "jc", "hidden", "ins", "del",
+            "trPrChange",
+          ].contains(self.nodes[child].name)
         "tblHeader" =>
           ["tblCellSpacing", "jc", "hidden", "ins", "del", "trPrChange"].contains(
             self.nodes[child].name,

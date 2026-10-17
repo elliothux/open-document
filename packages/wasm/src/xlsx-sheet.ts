@@ -44,6 +44,13 @@ export type XlsxSheetEdit =
       range: string;
       direction: "down" | "up" | "right" | "left";
     }
+  | {
+      action: "series";
+      mode: "linear" | "growth";
+      source: string;
+      range: string;
+      direction: "down" | "up" | "right" | "left";
+    }
   | { action: "insertCells"; range: string; direction: "down" | "right" }
   | { action: "deleteCells"; range: string; direction: "up" | "left" }
   | ({ action: "pageSetup" } & XlsxPrintSetup)
@@ -154,7 +161,7 @@ export function checkXlsxSheetEdit(value: unknown): void {
       throw new Error("Invalid validation list index");
     return;
   }
-  if (change.action === "fill") {
+  if (change.action === "fill" || change.action === "series") {
     if (
       typeof change.range !== "string" ||
       !change.range ||
@@ -162,6 +169,19 @@ export function checkXlsxSheetEdit(value: unknown): void {
       !["down", "up", "right", "left"].includes(String(change.direction))
     )
       throw new Error("Invalid cell fill");
+    if (
+      change.action === "series" &&
+      (typeof change.source !== "string" ||
+        !change.source ||
+        change.source.length > 64 ||
+        typeof change.mode !== "string" ||
+        !["linear", "growth"].includes(change.mode) ||
+        Object.keys(change).some(
+          (key) =>
+            !["action", "mode", "source", "range", "direction"].includes(key),
+        ))
+    )
+      throw new Error("Invalid numeric series source or mode");
     return;
   }
   if (change.action === "insertCells" || change.action === "deleteCells") {

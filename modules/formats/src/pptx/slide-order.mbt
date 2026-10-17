@@ -7,6 +7,7 @@ pub(all) enum SlideEdit {
   HideSlide(Bool)
   Background(String?)
   ApplyLayout(String)
+  ResetLayout
   Notes(String)
   Size(Double, Double)
   AddSection(String)
@@ -211,6 +212,14 @@ pub fn Session::edit_slides(
     Size(width, height) => return self.set_slide_size(width, height)
     Background(value) => return self.set_background(index, value)
     ApplyLayout(id) => return self.apply_layout(index, id)
+    ResetLayout =>
+      return self.apply_layout(
+        index,
+        slide_layout(self.opc, self.slides[index].tree.part, self.parts).unwrap_or(
+          "",
+        ),
+        reset=true,
+      )
     Notes(text) => return self.set_notes(index, text)
     AddSlide => return self.add_slide(index)
     CopySlide => return self.add_slide(index, copy=true)

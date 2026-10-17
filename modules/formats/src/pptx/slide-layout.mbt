@@ -270,9 +270,11 @@ fn Session::apply_layout(
   self : Session,
   index : Int,
   id : String,
+  reset~ : Bool = false,
 ) -> Json raise @failure.Failure {
   let original = self.slides[index]
-  if slide_layout(self.opc, original.tree.part, self.parts) == Some(id) {
+  let current = slide_layout(self.opc, original.tree.part, self.parts)
+  if current == Some(id) && !reset {
     return self.query()
   }
   let choice = self
@@ -371,27 +373,33 @@ fn Session::apply_layout(
   if !inserted.to_string().is_empty() {
     changes.push(object_insertion(tree, inserted.to_string()))
   }
-  let path = relationship_part(tree.part)
-  let parts = self.parts.copy()
-  let relations = parts.get(path).unwrap_or_else(() => self.opc.xml(path))
-  let links = relations
-    .nodes()
-    .filter(node => {
-      node.attribute("Type") == Some(relationship_uri + "/slideLayout")
-    })
-  guard links is [link] else {
-    @failure.reject("malformed-pptx", "Invalid slide layout relationship")
+  if changes.is_empty() && current == Some(id) {
+    return self.query()
   }
-  let relation_tree = Tree::new(path, relations)
-  let (relations, edit) = relations.edit_source([
-    attribute_change(
-      { tree: relation_tree, node: link, },
-      "Target",
-      xml_attribute("/" + id),
-    ),
-  ])
-  parts[path] = relations
-  let edits : Array[(String, @xml.Edit)] = [(path, edit)]
+  let parts = self.parts.copy()
+  let edits : Array[(String, @xml.Edit)] = []
+  if current != Some(id) {
+    let path = relationship_part(tree.part)
+    let relations = parts.get(path).unwrap_or_else(() => self.opc.xml(path))
+    let links = relations
+      .nodes()
+      .filter(node => {
+        node.attribute("Type") == Some(relationship_uri + "/slideLayout")
+      })
+    guard links is [link] else {
+      @failure.reject("malformed-pptx", "Invalid slide layout relationship")
+    }
+    let relation_tree = Tree::new(path, relations)
+    let (relations, edit) = relations.edit_source([
+      attribute_change(
+        { tree: relation_tree, node: link, },
+        "Target",
+        xml_attribute("/" + id),
+      ),
+    ])
+    parts[path] = relations
+    edits.push((path, edit))
+  }
   let document = if changes.is_empty() {
     tree.document
   } else {
@@ -420,6 +428,16 @@ fn Session::apply_layout(
         @failure.reject(
           "protected-content", "Target placeholder cannot be displayed and edited safely",
         )
+      }
+      if original.objects.iter().find_first(before => before.id == object.id)
+        is Some(before) &&
+        before.geometry is Some(initial) &&
+        object.geometry is Some(updated) &&
+        initial.rotation != updated.rotation {
+        let reason = self.object_edit_reason(before, "rotate")
+        guard reason.is_empty() else {
+          @failure.reject("protected-content", reason)
+        }
       }
     }
   }

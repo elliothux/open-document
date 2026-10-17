@@ -77,6 +77,7 @@ export interface DocxFlow {
     margins: DocxCellMargins[][];
     heights: number[];
     exactHeights: boolean[];
+    splitRows: boolean[];
     fills: string[][];
     verticalAligns: ("top" | "center" | "bottom")[][];
     headerRows: number;
@@ -285,6 +286,12 @@ export function docxFlow(value: unknown): DocxFlow {
       exactHeights.some((value) => typeof value !== "boolean")
     )
       throw new Error("Invalid row height rules");
+    const splitRows = entries(table.splitRows);
+    if (
+      splitRows.length !== rows.length ||
+      splitRows.some((value) => typeof value !== "boolean")
+    )
+      throw new Error("Invalid row split settings");
     const margins = entries(table.margins);
     if (
       !Number.isSafeInteger(table.headerRows) ||

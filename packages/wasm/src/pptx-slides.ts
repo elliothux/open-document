@@ -2,6 +2,7 @@ import { record } from "./validation.js";
 
 export type PptxSlideEdit =
   | { action: "layout"; id: string }
+  | { action: "resetLayout" }
   | { action: "notes"; text: string }
   | { action: "sectionAdd"; name: string }
   | { action: "sectionRename"; id: string; name: string }
@@ -19,6 +20,11 @@ export type PptxSlideEdit =
 
 export function checkPptxSlideEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "resetLayout") {
+    if (Object.keys(change).length !== 1)
+      throw new Error("Reset layout accepts only an action");
+    return;
+  }
   if (change.action === "layout") {
     if (
       typeof change.id !== "string" ||

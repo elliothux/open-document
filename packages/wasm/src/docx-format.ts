@@ -287,6 +287,7 @@ export interface DocxFormatting {
     rowHeightRule: "atLeast" | "exact";
     rows: number;
     headerRows: number;
+    rowSplit: boolean;
     cellFill: string | null;
     cellVerticalAlign: "top" | "center" | "bottom";
     cellMargins: DocxCellMargins;
@@ -424,6 +425,7 @@ export function docxFormatting(value: unknown): DocxFormatting {
     typeof result.reason !== "string" ||
     (result.table !== null &&
       (typeof table.autoFit !== "boolean" ||
+        typeof table.rowSplit !== "boolean" ||
         !["id", "row", "column", "columns", "rows", "headerRows"].every(
           (key) =>
             Number.isSafeInteger(table[key]) &&

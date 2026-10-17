@@ -271,6 +271,13 @@ fn Foundation::xlsx_operation(
             field_string(change, "range"),
             field_string(change, "direction"),
           )
+        "series" =>
+          @xlsx.Series(
+            field_string(change, "mode"),
+            field_string(change, "source"),
+            field_string(change, "range"),
+            field_string(change, "direction"),
+          )
         "view" =>
           @xlsx.View({
             grid_lines: xlsx_boolean(change, "gridLines"),

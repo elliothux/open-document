@@ -22,6 +22,10 @@ export function XlsxSheets({
   const [name, setName] = useState("");
   const [height, setHeight] = useState("");
   const [width, setWidth] = useState("");
+  const [series, setSeries] = useState(false);
+  const [seriesMode, setSeriesMode] = useState<"linear" | "growth">("linear");
+  const [seed, setSeed] = useState({ sheet: "", range: "" });
+  const source = seed.sheet === query.sheet ? seed.range : "";
   const position = query.sheets.findIndex((sheet) => sheet.id === query.sheet);
   const visible = query.sheets.filter((sheet) => sheet.state === "visible");
   const hidden = query.sheets.filter((sheet) => sheet.state === "hidden");
@@ -174,6 +178,56 @@ export function XlsxSheets({
       {query.sheetEditReason && <p>{query.sheetEditReason}</p>}
       <fieldset disabled={disabled || !!query.dimensions.readOnlyReason}>
         <legend>{t.dimensions}</legend>
+        <label>
+          <input
+            type="checkbox"
+            checked={series}
+            onChange={(event) => setSeries(event.currentTarget.checked)}
+          />
+          {t.numericSeries}
+        </label>
+        {series && (
+          <>
+            <label>
+              {t.seriesMode}
+              <select
+                value={seriesMode}
+                onChange={(event) => {
+                  const mode = event.currentTarget.value;
+                  if (mode === "linear" || mode === "growth")
+                    setSeriesMode(mode);
+                }}
+              >
+                <option value="linear">{t.linearTrend}</option>
+                <option value="growth">{t.growthTrend}</option>
+              </select>
+            </label>
+            <label>
+              {t.seriesSource}
+              <input
+                value={source}
+                maxLength={64}
+                onChange={(event) =>
+                  setSeed({
+                    sheet: query.sheet,
+                    range: event.currentTarget.value,
+                  })
+                }
+              />
+            </label>
+            <button
+              type="button"
+              onClick={() =>
+                setSeed({
+                  sheet: query.sheet,
+                  range: editor.currentState.selection.address,
+                })
+              }
+            >
+              {t.seriesUseSelection}
+            </button>
+          </>
+        )}
         {(
           [
             ["down", t.fillDown],
@@ -185,13 +239,24 @@ export function XlsxSheets({
           <button
             type="button"
             key={direction}
+            disabled={series && !source.trim()}
             onClick={() =>
               controller.run(() =>
-                editor.editSheet({
-                  action: "fill",
-                  direction,
-                  range: editor.currentState.selection.address,
-                }),
+                editor.editSheet(
+                  series
+                    ? {
+                        action: "series",
+                        mode: seriesMode,
+                        source,
+                        direction,
+                        range: editor.currentState.selection.address,
+                      }
+                    : {
+                        action: "fill",
+                        direction,
+                        range: editor.currentState.selection.address,
+                      },
+                ),
               )
             }
           >

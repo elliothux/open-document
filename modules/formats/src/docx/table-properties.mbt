@@ -37,6 +37,7 @@ fn Session::change_table_property(
   attributes : Map[String, String?]?,
   markup~ : String? = None,
   whole_table~ : Bool = false,
+  whole_row~ : Bool = false,
   header_rows~ : Int? = None,
   border_patch~ : Map[String, @layout.BorderStyle?]? = None,
 ) -> Json raise @failure.Failure {
@@ -44,6 +45,12 @@ fn Session::change_table_property(
   let document = self.document()
   let tree = WordTree::new(document)
   let grid = self.table_grid(tree, selection)
+  if whole_row &&
+    name == "cantSplit" &&
+    attributes is Some(values) &&
+    grid.model.splitRows[grid.row] == (values.get("val") == Some(Some("0"))) {
+    return self.edit_state()
+  }
   if header_rows is Some(count) {
     guard count >= 0 && count <= 1000 && count <= grid.rows.length() else {
       @failure.reject(
@@ -68,17 +75,19 @@ fn Session::change_table_property(
     grid.rows
   } else if whole_table {
     [grid.table]
+  } else if whole_row {
+    [grid.rows[grid.row]]
   } else {
     grid.cells.flatten().filter(cell => grid.owners[cell] == owner)
   }
   for index, target in targets {
-    if !whole_table && header_rows is None {
+    if !whole_table && !whole_row && header_rows is None {
       tree.check_merge_cell(target, self.main)
     }
     if tree.table_property_change(
         document,
         target,
-        if header_rows is Some(_) {
+        if header_rows is Some(_) || whole_row {
           "trPr"
         } else if whole_table {
           "tblPr"

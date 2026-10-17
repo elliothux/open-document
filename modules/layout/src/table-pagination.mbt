@@ -7,6 +7,7 @@ fn Table::check_grid(self : Table) -> Unit raise @failure.Failure {
     !self.widths.is_empty() &&
     self.heights.length() == count &&
     self.exactHeights.length() == count &&
+    self.splitRows.length() == count &&
     self.fills.length() == count &&
     self.margins.length() == count &&
     self.verticalAligns.length() == count &&
@@ -144,13 +145,13 @@ fn Pagination::table_rows(
   let heights = Array::makei(last_row - first_row + 1, i => {
     table.row_minimum_height(first_row + i)
   })
-  let cells : Array[(Int, Int, Array[(Line, Double)], Double)] = []
+  let cells : Array[(Int, Int, Array[(Line, Double, Line)], Double)] = []
   for row in first_row..<=last_row {
     for column, paragraphs in table.rows[row] {
       if table.rowSpans[row][column] == 0 {
         continue
       }
-      let lines : Array[(Line, Double)] = []
+      let lines : Array[(Line, Double, Line)] = []
       let margins = table.cell_insets(row, column)
       let mut y = table.row_top_margin(row) + table.border_width(row)
       let mut after = 0.0
@@ -184,7 +185,7 @@ fn Pagination::table_rows(
               "unsupported-layout", "Page breaks inside table rows are unsupported",
             )
           }
-          lines.push((line, y))
+          lines.push((line, y, measured.spaced(paragraph.line, true)))
           y += line.height
           gap = paragraph.line.gap(measured.textHeight)
           first = false
@@ -210,47 +211,27 @@ fn Pagination::table_rows(
     }
   }
   let total = heights.iter().fold(init=0.0, (sum, value) => sum + value)
-  // shortcut: Vertical-merge groups stay on one page until split-row continuation is implemented.
   let bottom = table.border_width(last_row + 1)
-  self.fit(total + bottom)
-  if first_row >= table.headerRows &&
-    table.headerRows > 0 &&
-    self.y == self.page.top &&
-    first_row > 0 {
-    let header = Pagination::new(self.page)
-    let ready = try {
-      header.table_rows(
-        cache,
-        probe,
-        table,
-        0,
-        table.headerRows - 1,
-        profile,
-        images,
-        additive,
-      )
-      header.y - self.page.top + total + bottom <=
-      self.page.height - self.page.top - self.page.bottom
-    } catch {
-      @failure.Failure(code="layout-overflow", ..) => false
-      error => raise error
-    }
-    if ready {
-      let page = header.pages[0]
-      guard page.lines.length() <= 32768 - self.count else {
-        @failure.reject("limit-exceeded", "Repeated headers exceed line budget")
-      }
-      self.count += page.lines.length()
-      let target = self.pages.last().unwrap()
-      target.lines.append(
-        page.lines.map(line => { ..line.copy_geometry(), repeated: true, }),
-      )
-      target.borders.append(page.borders)
-      target.fills.append(page.fills)
-      target.cellAreas.append(page.cellAreas)
-      self.y = header.y
-    }
+  if first_row == last_row &&
+    !table.exactHeights[first_row] &&
+    self.y + total + bottom > self.page.height - self.page.bottom {
+    self.split_table_row(
+      cache, probe, table, first_row, cells, profile, images, additive,
+    )
+    return
   }
+  // shortcut: Vertical-merge groups stay on one page until merged-row continuation is implemented.
+  self.fit(total + bottom)
+  self.repeat_table_header(
+    cache,
+    probe,
+    table,
+    first_row,
+    total + bottom,
+    profile,
+    images,
+    additive,
+  )
   for (row, column, lines, content_height) in cells {
     let start = row - first_row
     let y = self.y +
@@ -280,7 +261,7 @@ fn Pagination::table_rows(
       "bottom" => extra
       _ => 0
     }
-    for (line, offset) in lines {
+    for (line, offset, _) in lines {
       let line = if table.exactHeights[row + table.rowSpans[row][column] - 1] {
         { ..line, cellClip: Some({ x, y, width, height, }), }
       } else {
@@ -303,4 +284,57 @@ fn Pagination::table_rows(
     heights,
   )
   self.y += total
+}
+
+///|
+fn Pagination::repeat_table_header(
+  self : Pagination,
+  cache : ParagraphCache,
+  probe : TextProbe,
+  table : Table,
+  first_row : Int,
+  required : Double,
+  profile : Map[String, String],
+  images : Images,
+  additive : Bool,
+) -> Unit raise @failure.Failure {
+  if first_row >= table.headerRows &&
+    table.headerRows > 0 &&
+    self.y == self.page.top &&
+    first_row > 0 {
+    let header = Pagination::new(self.page)
+    let ready = try {
+      header.table_rows(
+        cache,
+        probe,
+        table,
+        0,
+        table.headerRows - 1,
+        profile,
+        images,
+        additive,
+      )
+      header.pages.length() == 1 &&
+      header.y - self.page.top + required <=
+      self.page.height - self.page.top - self.page.bottom
+    } catch {
+      @failure.Failure(code="layout-overflow", ..) => false
+      error => raise error
+    }
+    if ready {
+      let page = header.pages[0]
+      guard page.lines.length() <= 32768 - self.count else {
+        @failure.reject("limit-exceeded", "Repeated headers exceed line budget")
+      }
+      self.count += page.lines.length()
+      let target = self.pages.last().unwrap()
+      target.lines.append(
+        page.lines.map(line => { ..line.copy_geometry(), repeated: true, }),
+      )
+      target.borders.append(page.borders)
+      target.fills.append(page.fills)
+      target.cellAreas.append(page.cellAreas)
+      self.y = header.y
+    }
+  }
 }

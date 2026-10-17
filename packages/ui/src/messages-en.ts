@@ -3,6 +3,7 @@ export const en = {
   slideMaster: "Slide master",
   chooseSlideLayout: "Choose slide layout",
   applySlideLayout: "Apply slide layout",
+  resetSlideLayout: "Reset slide layout",
   definedNames: "Defined names",
   definedNameChoice: "Choose a defined name",
   newDefinedName: "New defined name",
@@ -201,6 +202,7 @@ export const en = {
   csvNotice:
     "CSV/TSV opens as UTF-8 text by default. CSV exports values from one sheet or selection, without formatting or other sheets. Text with formula prefixes gains an apostrophe; reimport keeps it.",
   tableHeaderRows: "Repeat header rows",
+  tableRowSplit: "Allow row to split across pages",
   slideSize: "Slide size",
   scaleSlideContents:
     "Applies to all slides and scales object positions and sizes.",
@@ -587,6 +589,12 @@ export const en = {
   sheet: "Worksheet",
   manageSheets: "Manage worksheets",
   fillDown: "Fill down",
+  numericSeries: "Infer a numeric series",
+  seriesMode: "Series mode",
+  linearTrend: "Linear",
+  growthTrend: "Growth",
+  seriesSource: "Series source range",
+  seriesUseSelection: "Use selection as series source",
   fillUp: "Fill up",
   fillRight: "Fill right",
   fillLeft: "Fill left",

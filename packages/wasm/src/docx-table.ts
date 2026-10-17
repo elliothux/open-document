@@ -91,6 +91,7 @@ export type DocxTableEdit =
   | { action: "rowHeight"; value: number; rule: "atLeast" | "exact" }
   | { action: "columnWidth"; column: number; value: number }
   | { action: "headerRows"; value: number }
+  | { action: "rowSplit"; value: boolean }
   | { action: "cellFill"; value: string | null }
   | { action: "cellVerticalAlign"; value: "top" | "center" | "bottom" | null }
   | { action: "cellMargins" | "tableMargins"; value: DocxCellMargins | null }
@@ -98,6 +99,11 @@ export type DocxTableEdit =
 
 export function checkDocxTableEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "rowSplit") {
+    if (typeof change.value !== "boolean")
+      throw new Error("Invalid row split setting");
+    return;
+  }
   if (change.action === "autoFit") {
     if (!["content", "page", "fixed"].includes(String(change.mode)))
       throw new Error("Invalid table fitting mode");

@@ -113,6 +113,7 @@ pub(all) enum SlideEdit {
   HideSlide(Bool)
   Background(String?)
   ApplyLayout(String)
+  ResetLayout
   Notes(String)
   Size(Double, Double)
   AddSection(String)

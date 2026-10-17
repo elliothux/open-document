@@ -84,6 +84,7 @@ fn WordTree::copy_row_properties(
     @failure.reject("protected-content", "Duplicate row properties")
   }
   ignore(self.table_row_height(row))
+  ignore(self.table_row_split(row))
   ignore(self.row_grid_after(row))
   let original = self
     .child(row, "trPr")
@@ -96,7 +97,7 @@ fn WordTree::copy_row_properties(
           (
             ["gridAfter", "trHeight"].contains(self.nodes[child].name) ||
             (
-              self.nodes[child].name == "tblHeader" &&
+              ["tblHeader", "cantSplit"].contains(self.nodes[child].name) &&
               self.valid_on_off_property(child)
             )
           )

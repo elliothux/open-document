@@ -20,6 +20,8 @@
 
 重复表头已接通读取、设置/清除、默认 UI 和自动分页。副本同步源行的文字与样式，点击时定位源表头；源编辑、历史、保存重开和 PDF 沿相同路径。跨边界纵向合并的设置原子拒绝，空间不足的页面省略副本。合同归[重复表头](references/formats.md#重复表头)。
 
+普通自动/最小高度行已接通逐格跨页，保留文字顺序、逻辑位置、底色、边框、重复表头及缓存重排。默认面板可设置当前行是否允许跨页；禁止拆分时先换页，整页放不下时继续拆分。源属性及样式继承、精确历史、保存重开、续页空白格输入与同布局 PDF 已接通。精确高度仍沿原规则裁剪，纵向合并行组的跨页延续仍待实现。合同归[表格行跨页](references/formats.md#表格行跨页)。
+
 用户能新建文档，编辑文字格式、列表、页面、表格与图文，加入引用和审阅内容，并保存为可继续编辑的 DOCX。相同操作同时通过程序化 API 和默认 UI 提供。GenOffice 源码定义功能与交互目标；Office 语义、布局和算法优先参考 ONLYOFFICE，其次 LibreOffice。
 
 P10 分批交付，每批包含核心、API、UI、历史与保存。第一批可独立使用，但不代表整个 P10 完成。
@@ -43,7 +45,7 @@ P10 分批交付，每批包含核心、API、UI、历史与保存。第一批�
 | --- | --- |
 | [`docx/session.mbt`](../modules/formats/src/docx/session.mbt)、[`editing.mbt`](../modules/formats/src/docx/editing.mbt)、[`parts.mbt`](../modules/formats/src/docx/parts.mbt) | 已以稳定节点身份和源片段历史支持正文、样式及其 Word 引用修改，并支持首次样式部件和关系创建；后续扩展已有部件删除、资源与结构事务 |
 | [`range.mbt`](../modules/formats/src/docx/range.mbt)、[`flow.mbt`](../modules/formats/src/docx/flow.mbt)、[`properties.mbt`](../modules/formats/src/docx/properties.mbt) | 范围、只读 Flow 和样式解析可复用；补正文之外的编辑位置、对象/表格选择和格式查询 |
-| [`table-merge.mbt`](../modules/formats/src/docx/table-merge.mbt)、[`table-split.mbt`](../modules/formats/src/docx/table-split.mbt)、[`table-size.mbt`](../modules/formats/src/docx/table-size.mbt)、[`table-properties.mbt`](../modules/formats/src/docx/table-properties.mbt)、[`table-margins.mbt`](../modules/formats/src/docx/table-margins.mbt)、[`table-pagination.mbt`](../modules/layout/src/table-pagination.mbt) | 表格逻辑网格、矩形合并与取消合并、跨度布局及缓存；指定行列拆格与合并行编辑沿共享源事务；左右插列重建公共边界；合并列删除保留行尾空缺；后续补跨页延续 |
+| [`table-merge.mbt`](../modules/formats/src/docx/table-merge.mbt)、[`table-split.mbt`](../modules/formats/src/docx/table-split.mbt)、[`table-size.mbt`](../modules/formats/src/docx/table-size.mbt)、[`table-properties.mbt`](../modules/formats/src/docx/table-properties.mbt)、[`table-margins.mbt`](../modules/formats/src/docx/table-margins.mbt)、[`table-pagination.mbt`](../modules/layout/src/table-pagination.mbt) | 表格逻辑网格、矩形合并与取消合并、跨度布局及缓存；指定行列拆格与合并行编辑沿共享源事务；左右插列重建公共边界；合并列删除保留行尾空缺；普通行逐格跨页归 [`table-row-continuation.mbt`](../modules/layout/src/table-row-continuation.mbt)，跨页纵向合并延续待实现 |
 | [`modules/layout/src`](../modules/layout/src) | 已有塑形、分页、光标与局部缓存；补节/栏、页眉页脚、表格、浮动对象和注释区域的实际布局 |
 | [`archive/save.mbt`](../modules/core/src/archive/save.mbt)、[`opc/package.mbt`](../modules/core/src/opc/package.mbt) | 已支持显式创建及一次保存中的增删改；DOCX 已接入正文、样式与引用所在 Word XML 的历史，样式部件新增及关系/内容类型已接入历史，已有部件删除与二进制资源历史待后续接入 |
 | [`bridge/foundation.mbt`](../modules/bridge/src/foundation.mbt)、[`wasm/foundation.ts`](../packages/wasm/src/foundation.ts)、[`web/foundation.ts`](../packages/web/src/foundation.ts) | 增加类型明确的创建、查询与修改入口；修改结果继续带 revision 和必要失效信息 |

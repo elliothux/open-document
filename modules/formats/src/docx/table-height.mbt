@@ -1,4 +1,25 @@
 ///|
+fn WordTree::table_row_split(
+  self : WordTree,
+  row : Int,
+) -> Bool? raise @failure.Failure {
+  guard self.child(row, "trPr") is Some(props) else { return None }
+  let flags = self.table_children(props, "cantSplit")
+  guard flags.length() <= 1 && flags.all(id => self.valid_on_off_property(id)) else {
+    @failure.reject(
+      "unsupported-layout", "Invalid or duplicate row split property",
+    )
+  }
+  flags
+  .get(0)
+  .map(id => {
+    ["0", "false", "off"].contains(
+      self.nodes[id].attribute("val", uri=word_uri).unwrap_or("1"),
+    )
+  })
+}
+
+///|
 fn WordTree::row_grid_after(
   self : WordTree,
   row : Int,
