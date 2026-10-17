@@ -148,6 +148,7 @@ pub(all) enum FilterRule {
   Custom(Array[FilterCondition], all~ : Bool)
   Rank(Int, top~ : Bool, percent~ : Bool)
   Average(above~ : Bool)
+  Dates(Array[String], values~ : Array[String], blank~ : Bool)
 } derive(Eq)
 pub fn FilterRule::equal(Self, Self) -> Bool
 pub fn FilterRule::not_equal(Self, Self) -> Bool

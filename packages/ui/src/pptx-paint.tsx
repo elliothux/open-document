@@ -28,6 +28,9 @@ export function PptxPaint({
   const [fillType, setFillType] = useState<"solid" | "linear" | "image">(
     first?.imageFill ? "image" : first?.gradient ? "linear" : "solid",
   );
+  const [imageMode, setImageMode] = useState<"stretch" | "tile">(
+    first?.imageFillMode ?? "stretch",
+  );
   const [endColor, setEndColor] = useState(
     `#${first?.gradient?.endColor ?? "ffffff"}`,
   );
@@ -85,6 +88,7 @@ export function PptxPaint({
     (object) =>
       object.appearance.fill !== first?.fill ||
       object.appearance.imageFill !== first?.imageFill ||
+      object.appearance.imageFillMode !== first?.imageFillMode ||
       JSON.stringify(object.appearance.gradient) !==
         JSON.stringify(first?.gradient) ||
       object.appearance.stroke !== first?.stroke ||
@@ -200,30 +204,67 @@ export function PptxPaint({
           </select>
         </label>
         {fillType === "image" && !noFill && (
-          <label>
-            {t.shapeFillImage}
-            <input
-              type="file"
-              accept=".png,.jpg,.jpeg,image/png,image/jpeg"
-              disabled={!!imageReason}
-              onChange={(event) => {
-                const file = event.currentTarget.files?.[0];
-                event.currentTarget.value = "";
-                if (!file) return;
-                const targets = [...query.selection.objects];
-                controller.run(async () => {
-                  if (!file.size || file.size > 4194304)
-                    throw new Error(t.imageInputLimit);
-                  await editor.editObjects({
-                    action: "imageFill",
-                    objects: targets,
-                    bytes: new Uint8Array(await file.arrayBuffer()),
+          <>
+            <label>
+              {t.imageFillMode}
+              <select
+                aria-label={t.imageFillMode}
+                value={imageMode}
+                disabled={!!imageReason}
+                onChange={(event) =>
+                  setImageMode(
+                    event.currentTarget.value === "tile" ? "tile" : "stretch",
+                  )
+                }
+              >
+                <option value="stretch">{t.imageStretch}</option>
+                <option value="tile">{t.imageTile}</option>
+              </select>
+            </label>
+            <button
+              type="button"
+              disabled={
+                !!imageReason ||
+                objects.some((object) => !object.appearance.imageFill)
+              }
+              onClick={() =>
+                controller.run(() =>
+                  editor.editObjects({
+                    action: "imageFillMode",
+                    mode: imageMode,
+                  }),
+                )
+              }
+            >
+              {t.applyImageFillMode}
+            </button>
+            <label>
+              {t.shapeFillImage}
+              <input
+                type="file"
+                accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+                disabled={!!imageReason}
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = "";
+                  if (!file) return;
+                  const targets = [...query.selection.objects];
+                  const mode = imageMode;
+                  controller.run(async () => {
+                    if (!file.size || file.size > 4194304)
+                      throw new Error(t.imageInputLimit);
+                    await editor.editObjects({
+                      action: "imageFill",
+                      objects: targets,
+                      bytes: new Uint8Array(await file.arrayBuffer()),
+                      mode,
+                    });
                   });
-                });
-              }}
-            />
-            {imageReason && <p>{imageReason}</p>}
-          </label>
+                }}
+              />
+              {imageReason && <p>{imageReason}</p>}
+            </label>
+          </>
         )}
         <label>
           {t.shapeFill}

@@ -19,6 +19,28 @@ export const pptxDashes = [
   "sysDashDotDot",
   "sysDot",
 ] as const;
+export function checkPptxImageFill(
+  appearance: Record<string, unknown>,
+  kind: unknown,
+): void {
+  if (
+    appearance.imageFill === null
+      ? appearance.imageFillMode !== null
+      : appearance.imageFillMode !== "stretch" &&
+        appearance.imageFillMode !== "tile"
+  )
+    throw new Error("Invalid image fill mode query");
+  if (
+    appearance.imageFill !== null &&
+    (typeof appearance.imageFill !== "string" ||
+      !appearance.imageFill ||
+      appearance.imageFill.length > 256 ||
+      kind !== "shape" ||
+      appearance.fill !== null ||
+      appearance.gradient !== null)
+  )
+    throw new Error("Invalid image fill appearance");
+}
 export type PptxDash = (typeof pptxDashes)[number];
 export const pptxCaps = ["flat", "rnd", "sq"] as const;
 export const pptxJoins = ["round", "bevel", "miter"] as const;
@@ -78,7 +100,13 @@ export function pptxHyperlink(value: unknown): PptxHyperlink | null {
   return value as PptxHyperlink;
 }
 export type PptxObjectEdit =
-  | { action: "imageFill"; objects: readonly string[]; bytes: Uint8Array }
+  | {
+      action: "imageFill";
+      objects: readonly string[];
+      bytes: Uint8Array;
+      mode: "stretch" | "tile";
+    }
+  | { action: "imageFillMode"; mode: "stretch" | "tile" }
   | { action: "lineEnd"; side: "head" | "tail"; end: PptxLineEnd | null }
   | { action: "hyperlink"; link: PptxHyperlink | null }
   | {
@@ -237,6 +265,14 @@ export function checkPptxObjectEdit(value: unknown): void {
     number(change.opacity, 0, 1);
     return;
   }
+  if (change.action === "imageFillMode") {
+    if (
+      (change.mode !== "stretch" && change.mode !== "tile") ||
+      Object.keys(change).some((key) => !["action", "mode"].includes(key))
+    )
+      throw new Error("Invalid image fill mode");
+    return;
+  }
   if (
     change.action === "insertImage" ||
     change.action === "replaceImage" ||
@@ -250,6 +286,7 @@ export function checkPptxObjectEdit(value: unknown): void {
       throw new Error("Invalid PPTX image input");
     if (change.action === "imageFill") {
       if (
+        (change.mode !== "stretch" && change.mode !== "tile") ||
         !Array.isArray(change.objects) ||
         !change.objects.length ||
         change.objects.length > 256 ||
@@ -258,7 +295,7 @@ export function checkPptxObjectEdit(value: unknown): void {
         ) ||
         new Set(change.objects).size !== change.objects.length ||
         Object.keys(change).some(
-          (key) => !["action", "objects", "bytes"].includes(key),
+          (key) => !["action", "objects", "bytes", "mode"].includes(key),
         )
       )
         throw new Error("Invalid PPTX image fill targets");

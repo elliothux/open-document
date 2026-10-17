@@ -8,7 +8,9 @@ fn image_uint(bytes : Bytes, offset : Int, length : Int) -> Int64 {
 }
 
 ///|
-pub fn type_info(bytes : Bytes) -> (String, String) raise @failure.Failure {
+pub fn type_info(
+  bytes : Bytes,
+) -> (String, String, Int, Int) raise @failure.Failure {
   guard bytes.length() <= 4194304 else {
     @failure.reject("limit-exceeded", "Image input exceeds budget")
   }
@@ -64,5 +66,14 @@ pub fn type_info(bytes : Bytes) -> (String, String) raise @failure.Failure {
   guard width <= 4096 && height <= 4096 && width * height <= 4194304 else {
     @failure.reject("limit-exceeded", "Decoded image exceeds budget")
   }
-  (if kind == "png" { "png" } else { "jpg" }, "image/" + kind)
+  (
+    if kind == "png" {
+      "png"
+    } else {
+      "jpg"
+    },
+    "image/" + kind,
+    width.to_int(),
+    height.to_int(),
+  )
 }

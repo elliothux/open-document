@@ -22,6 +22,16 @@ fn filter_markup(state : AutoFilterState) -> String raise @failure.Failure {
     if state.settings.columns.iter().find_first(c => c.column == index)
       is Some(column) {
       match column.rule {
+        Dates(groups, values~, blank~) => {
+          out <+ "<od:filters blank=\"\{if blank { 1 } else { 0 }}\">"
+          for value in values {
+            out <+ "<od:filter val=\"\{escaped_attribute(value)}\"/>"
+          }
+          for group in groups {
+            out.write_string(filter_date_markup(group))
+          }
+          out <+ "</od:filters>"
+        }
         Average(above~) =>
           out <+
             "<od:dynamicFilter type=\"\{if above { "aboveAverage" } else { "belowAverage" }}\"/>"

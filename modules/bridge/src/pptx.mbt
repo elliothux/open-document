@@ -169,7 +169,12 @@ fn Foundation::pptx_operation(
       }
       let change = match field_string(change, "action") {
         "imageFill" =>
-          @pptx.ImageFill(pptx_objects(change), input_bytes(change, 4194304))
+          @pptx.ImageFill(
+            pptx_objects(change),
+            input_bytes(change, 4194304),
+            field_string(change, "mode"),
+          )
+        "imageFillMode" => @pptx.ImageFillMode(field_string(change, "mode"))
         "imageOpacity" => @pptx.ImageOpacity(xlsx_number(change, "opacity"))
         "replaceImage" =>
           @pptx.ReplaceImage(

@@ -10,6 +10,7 @@ pub(all) enum FilterRule {
   Custom(Array[FilterCondition], all~ : Bool)
   Rank(Int, top~ : Bool, percent~ : Bool)
   Average(above~ : Bool)
+  Dates(Array[String], values~ : Array[String], blank~ : Bool)
 } derive(Eq)
 
 ///|
@@ -98,6 +99,28 @@ fn filter_settings(settings : FilterSettings) -> Range raise @failure.Failure {
     seen[column.column] = true
     let labels = match column.rule {
       Average(..) => []
+      Dates(groups, values~, ..) => {
+        guard !groups.is_empty() && groups.length() + values.length() <= 4096 else {
+          @failure.reject(
+            "invalid-operation", "Date filters require 1..4096 groups and at most 4096 combined entries",
+          )
+        }
+        let seen : Map[String, Bool] = Map([])
+        for group in groups {
+          guard !seen.contains(group) else {
+            @failure.reject("invalid-operation", "Duplicate date filter group")
+          }
+          ignore(filter_date_parts(group))
+          units += group.length()
+          seen[group] = true
+        }
+        guard units <= 1048576 else {
+          @failure.reject(
+            "limit-exceeded", "Date filter groups exceed text budget",
+          )
+        }
+        values
+      }
       Rank(value, percent~, ..) => {
         guard value >= 1 && value <= (if percent { 100 } else { 500 }) else {
           @failure.reject(
@@ -129,7 +152,10 @@ fn filter_settings(settings : FilterSettings) -> Range raise @failure.Failure {
       units += value.length()
       guard value.length() <= 32767 &&
         @xml.valid_text(value) &&
-        (!(column.rule is Values(_, ..)) || !seen_labels.contains(value)) &&
+        (
+          !(column.rule is Values(_, ..) || column.rule is Dates(_, ..)) ||
+          !seen_labels.contains(value)
+        ) &&
         units <= 1048576 else {
         @failure.reject(
           "invalid-operation", "Invalid filter values or text budget",
@@ -308,29 +334,45 @@ fn read_filter(sheet : Sheet) -> AutoFilterState? raise @failure.Failure {
       guard entries.length() <= 4096 else {
         @failure.reject("limit-exceeded", "Too many filter values")
       }
-      let values = entries.map(value => {
+      let groups : Array[String] = []
+      let values : Array[String] = []
+      for value in entries {
         guard value.uri == spreadsheet_uri &&
-          value.name == "filter" &&
           tree.children.get(value.id).unwrap_or([]).is_empty() else {
           @failure.reject(
-            "protected-content", "Date groups and unknown filter values are protected",
+            "protected-content", "Unknown filter values are protected",
+          )
+        }
+        if value.name == "dateGroupItem" {
+          groups.push(read_filter_date(tree, value))
+          continue
+        }
+        guard value.name == "filter" else {
+          @failure.reject(
+            "protected-content", "Unknown filter entry is protected",
           )
         }
         filter_attributes(value, ["val"])
-        value
-        .attribute("val")
-        .unwrap_or_error(
-          @failure.Failure(
-            code="protected-content",
-            part=sheet.id,
-            offset=-1,
-            message="Filter value is missing",
+        values.push(
+          value
+          .attribute("val")
+          .unwrap_or_error(
+            @failure.Failure(
+              code="protected-content",
+              part=sheet.id,
+              offset=-1,
+              message="Filter value is missing",
+            ),
           ),
         )
-      })
+      }
       columns.push({
         column,
-        rule: Values(values, blank=flag(filters, "blank")),
+        rule: if groups.is_empty() {
+          Values(values, blank=flag(filters, "blank"))
+        } else {
+          Dates(groups, values~, blank=flag(filters, "blank"))
+        },
       })
     } else if node.name == "sortState" {
       continue

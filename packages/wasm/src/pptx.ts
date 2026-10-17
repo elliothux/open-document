@@ -1,6 +1,7 @@
 import {
   number,
   checkPptxObjectEdit,
+  checkPptxImageFill,
   type PptxObjectEdit,
   pptxHyperlink,
   type PptxHyperlink,
@@ -131,6 +132,7 @@ export interface PptxObject {
   };
   appearance: {
     imageFill: string | null;
+    imageFillMode: "stretch" | "tile" | null;
     imageFillReason: string;
     gradient: Extract<PptxBackgroundFill, { kind: "linear" }> | null;
     fillOpacity: number;
@@ -552,16 +554,7 @@ export function pptxQuery(value: unknown): PptxQuery {
     for (const key of ["left", "top", "right", "bottom"])
       number(frame[key], 0, 14400);
     const appearance = record(object.appearance);
-    if (
-      appearance.imageFill !== null &&
-      (typeof appearance.imageFill !== "string" ||
-        !appearance.imageFill ||
-        appearance.imageFill.length > 256 ||
-        object.kind !== "shape" ||
-        appearance.fill !== null ||
-        appearance.gradient !== null)
-    )
-      throw new Error("Invalid image fill appearance");
+    checkPptxImageFill(appearance, object.kind);
     if (appearance.gradient !== null) {
       checkPptxBackgroundFill(appearance.gradient);
       if (

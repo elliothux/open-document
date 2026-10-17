@@ -7,6 +7,36 @@ fn xlsx_filter(change : Json) -> @xlsx.SheetEdit raise @failure.Failure {
     range: field_string(change, "range"),
     columns: columns.map(column => {
       let rule = match field_string(column, "kind") {
+        "dates" => {
+          guard column is Object(fields) &&
+            fields
+            .keys()
+            .all(k => {
+              ["kind", "column", "groups", "values", "blank"].contains(k)
+            }) &&
+            column is { "groups": Array(groups), "values": Array(values), .. } &&
+            !groups.is_empty() &&
+            groups.length() + values.length() <= 4096 else {
+            @failure.reject(
+              "invalid-operation", "Bounded date groups and labels are required",
+            )
+          }
+          let strings = fn(items : Array[Json]) raise @failure.Failure {
+            items.map(item => {
+              guard item is String(value) else {
+                @failure.reject(
+                  "invalid-operation", "Date groups and labels must be strings",
+                )
+              }
+              value
+            })
+          }
+          @xlsx.Dates(
+            strings(groups),
+            values=strings(values),
+            blank=xlsx_boolean(column, "blank"),
+          )
+        }
         "average" => {
           guard column is Object(fields) &&
             fields.keys().all(k => ["kind", "column", "above"].contains(k)) else {

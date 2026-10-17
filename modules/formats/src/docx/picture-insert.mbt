@@ -73,7 +73,11 @@ pub fn Session::insert_picture(
   let paragraphs = prepared
     .map(edit => edit.edit.paragraphs.copy())
     .unwrap_or([position.paragraph])
-  let resource = self.prepare_picture_resource(identity, bytes, kind)
+  let resource = self.prepare_picture_resource(
+    identity,
+    bytes,
+    (kind.0, kind.1),
+  )
   let tree = WordTree::new(document)
   let texts = docx_texts(tree).filter(item => {
     item.paragraph == position.paragraph

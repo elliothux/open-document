@@ -44,14 +44,14 @@ fn Session::filter_raw(
 }
 
 ///|
-fn Session::filter_value(
+fn Session::filter_cell(
   self : Session,
   sheet : Int,
   row : Int,
   column : Int,
   rules : ConditionalRules,
   work : FormulaWork,
-) -> String raise @failure.Failure {
+) -> (String, Bool) raise @failure.Failure {
   let current = self.sheets[sheet]
   let address : Address = { row, column, }
   let value = self.filter_raw(sheet, row, column)
@@ -66,7 +66,11 @@ fn Session::filter_value(
   guard style.diagnostic.is_empty() else {
     @failure.reject("protected-content", style.diagnostic)
   }
-  formatted(value, style.format, self.date1904).trim().to_owned()
+  (
+    formatted(value, style.format, self.date1904).trim().to_owned(),
+    value is Number(_) &&
+    ["date", "datetime"].contains(series_calendar_kind(style.format)),
+  )
 }
 
 ///|
@@ -101,10 +105,17 @@ fn Session::filtered_rows(
   let hidden : Array[Int] = []
   for row in (range.top + 1)..<=range.bottom {
     for i, column in settings.columns {
-      let value = self.filter_value(sheet, row, column.column, rules, work)
+      let (value, date) = self.filter_cell(
+        sheet,
+        row,
+        column.column,
+        rules,
+        work,
+      )
       if !normalized[i].matches(
           self.filter_raw(sheet, row, column.column),
           value,
+          date,
           work,
         ) {
         hidden.push(row)
@@ -174,7 +185,7 @@ fn Session::filter_query(self : Session, index : Int) -> Json {
       }
       let mut blanks = 0
       for row in (state.bounds.top + 1)..<=state.bounds.bottom {
-        let value = self.filter_value(index, row, column, rules, work)
+        let (value, _) = self.filter_cell(index, row, column, rules, work)
         units += value.length()
         guard units <= 1048576 else {
           @failure.reject(
@@ -193,7 +204,7 @@ fn Session::filter_query(self : Session, index : Int) -> Json {
       }
       let ordered = values.keys().to_array()
       ordered.sort_by((a, b) => labels[a][:].lexical_compare(labels[b][:]))
-      let title = self.filter_value(
+      let (title, _) = self.filter_cell(
         index,
         state.bounds.top,
         column,
@@ -212,6 +223,7 @@ fn Session::filter_query(self : Session, index : Int) -> Json {
         .map(c => {
           match c.rule {
             Values(_, blank~) => blank
+            Dates(_, blank~, ..) => blank
             Custom(_, ..) | Rank(_, ..) | Average(..) => true
           }
         })

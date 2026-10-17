@@ -136,7 +136,9 @@ fn Session::transform_collection(
       }),
     }
   })
-  self.candidate = Some({ ..candidate, slide: original.group_preview(objects), })
+  let preview = original.group_preview(objects)
+  ignore(self.tile_sizes(preview))
+  self.candidate = Some({ ..candidate, slide: preview, })
   self.view = None
   self.query()
 }

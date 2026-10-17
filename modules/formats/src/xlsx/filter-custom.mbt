@@ -17,6 +17,7 @@ priv enum PreparedFilter {
   Conditions(Array[Criterion], all~ : Bool)
   Ranking(Double?, top~ : Bool)
   Mean(Double?, above~ : Bool)
+  DateLabels(Array[(Double, Double)], Map[String, Bool], blank~ : Bool)
 }
 
 ///|
@@ -25,6 +26,8 @@ fn FilterRule::prepare(
   work : FormulaWork,
 ) -> PreparedFilter raise @failure.Failure {
   match self {
+    Dates(groups, values~, blank~) =>
+      prepare_date_filter(groups, values, blank, work)
     Rank(_, ..) | Average(..) =>
       @failure.reject(
         "invalid-operation", "Numeric filtering requires its source range",
@@ -65,9 +68,21 @@ fn PreparedFilter::matches(
   self : PreparedFilter,
   raw : Value,
   label : String,
+  date : Bool,
   work : FormulaWork,
 ) -> Bool raise @failure.Failure {
   match self {
+    DateLabels(intervals, values, blank~) =>
+      if label.is_empty() {
+        blank
+      } else if date {
+        match raw {
+          Number(value) => filter_date_matches(intervals, value, work)
+          _ => false
+        }
+      } else {
+        values.contains(filter_normalized(label, work))
+      }
     Mean(threshold, above~) =>
       match (raw, threshold) {
         (Number(value), Some(limit)) =>
@@ -118,6 +133,14 @@ fn PreparedFilter::matches(
 ///|
 fn FilterColumn::json(self : FilterColumn) -> Json {
   match self.rule {
+    Dates(groups, values~, blank~) =>
+      {
+        "kind": "dates",
+        "column": self.column,
+        "groups": groups,
+        "values": values,
+        "blank": blank,
+      }
     Average(above~) =>
       { "kind": "average", "column": self.column, "above": above }
     Rank(value, top~, percent~) =>

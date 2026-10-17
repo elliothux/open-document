@@ -6,7 +6,7 @@ import {
 }
 
 // Values
-pub fn type_info(Bytes) -> (String, String) raise @failure.Failure
+pub fn type_info(Bytes) -> (String, String, Int, Int) raise @failure.Failure
 
 // Errors
 

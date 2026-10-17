@@ -90,6 +90,7 @@ priv struct Object {
   miter : Double
   ends : (LineEnd, LineEnd)
   image : String?
+  tile : ImageTile?
   crop : Array[Double]
   opacity : Double
   paragraphs : Array[TextParagraph]

@@ -30,7 +30,7 @@ pub fn Session::replace_picture(
     .iter()
     .find_first(attr => attr.uri == rel_uri && attr.name == "embed")
     .unwrap()
-  let resource = self.prepare_picture_resource(id, bytes, kind)
+  let resource = self.prepare_picture_resource(id, bytes, (kind.0, kind.1))
   let (candidate, xml) = document.edit_source([
     {
       node: blip,

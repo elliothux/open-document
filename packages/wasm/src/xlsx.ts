@@ -61,6 +61,7 @@ export type {
   XlsxCustomFilter,
   XlsxRankFilter,
   XlsxAverageFilter,
+  XlsxDateFilter,
   XlsxFilterSettings,
   XlsxFilterState,
 } from "./xlsx-filter.js";

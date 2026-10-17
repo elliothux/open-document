@@ -9,6 +9,7 @@ import type {
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { XlsxRankFilterForm } from "./xlsx-rank-filter.js";
+import { XlsxDateFilterForm } from "./xlsx-date-filter.js";
 
 function FilterColumn({
   column,
@@ -307,6 +308,29 @@ export function XlsxFilter({
               />
               <XlsxRankFilterForm
                 key={`rank:${column.column}:${JSON.stringify(filter.columns.find((c) => c.column === column.column))}`}
+                column={column.column}
+                criterion={filter.columns.find(
+                  (c) => c.column === column.column,
+                )}
+                disabled={blocked}
+                state={state}
+                apply={(rule) =>
+                  controller.run(() =>
+                    editor.editSheet({
+                      action: "filter",
+                      range: filter.range,
+                      columns: [
+                        ...filter.columns.filter(
+                          (c) => c.column !== column.column,
+                        ),
+                        rule,
+                      ],
+                    }),
+                  )
+                }
+              />
+              <XlsxDateFilterForm
+                key={`dates:${column.column}:${JSON.stringify(filter.columns.find((c) => c.column === column.column))}`}
                 column={column.column}
                 criterion={filter.columns.find(
                   (c) => c.column === column.column,

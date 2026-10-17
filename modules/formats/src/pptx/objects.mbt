@@ -436,6 +436,7 @@ fn read_object(
     fill_source: paint.9,
     stroke_source: paint.10,
     image,
+    tile: paint.13.bind(value => value.3),
     crop,
     opacity,
     paragraphs,

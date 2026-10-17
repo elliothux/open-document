@@ -1,8 +1,12 @@
+import { filterZh } from "./messages-filter.js";
+import { imageZh } from "./messages-pptx-image.js";
 import type { Messages } from "./messages-en.js";
 import { reviewZh } from "./messages-review.js";
 
 export const zh: Messages = {
   ...reviewZh,
+  ...filterZh,
+  ...imageZh,
   cellHyperlink: "单元格超链接",
   hyperlinkRange: "使用 #Sheet1!A1 或 #名称 链接到当前工作簿。",
   objectHyperlink: "对象超链接",
@@ -100,17 +104,6 @@ export const zh: Messages = {
   sheetHeaderFooter: "页眉页脚",
   header: "页眉",
   sortCells: "排序所选区域",
-  filterCells: "值筛选",
-  filterRange: "筛选所选区域",
-  filterColumn: "筛选列",
-  filterValues: "保留值",
-  filterAll: "选择所有值",
-  filterBlank: "空白",
-  filterApply: "应用值筛选",
-  filterClear: "清除筛选条件",
-  filterReapply: "重新应用筛选",
-  filterRemove: "移除筛选",
-  filterCustom: "自定义筛选",
   speakerNotes: "演讲备注",
   documentOverview: "文档概览",
   selectionStatistics: "选区统计（可见行）",
@@ -134,13 +127,6 @@ export const zh: Messages = {
   clearNotes: "清空备注",
   filterPattern:
     "文本中 * 匹配任意序列，? 匹配一个字符，~ 转义通配符。数值按当前值比较。",
-  filterOperator: "比较方式",
-  filterOperand: "筛选值",
-  filterSecond: "使用第二个条件",
-  filterJoin: "组合条件",
-  filterAnd: "且",
-  filterOr: "或",
-  filterCustomApply: "应用自定义筛选",
   sortAxis: "排序方向",
   sortRows: "按行排序",
   sortColumns: "按列排序",
@@ -568,8 +554,6 @@ export const zh: Messages = {
   exportPng: "当前页 PNG",
   exportPagePng: "当前页 PNG",
   exportPageImages: "全部页面 PNG",
-  imageFill: "图片填充",
-  shapeFillImage: "形状填充图片",
   imageSavedProgress: "宿主已确认保存 {done}/{total} 页 PNG",
   imageGeneratedProgress: "已生成 {done}/{total} 页 PNG 下载",
   exportAll: "整稿 PDF",

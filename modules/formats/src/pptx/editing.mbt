@@ -40,6 +40,7 @@ fn Session::validate_slides(
   let mut count = 0
   let mut units = 0
   for slide in slides {
+    ignore(self.tile_sizes(slide, media~))
     count += slide.objects.length()
     for object in slide.objects {
       units += object.text().length()
@@ -545,7 +546,9 @@ pub fn Session::transform(
       objects[index] = { ..object, geometry: Some(geometry), }
     }
   }
-  self.candidate = Some({ ..candidate, slide: original.group_preview(objects), })
+  let preview = original.group_preview(objects)
+  ignore(self.tile_sizes(preview))
+  self.candidate = Some({ ..candidate, slide: preview, })
   self.view = None
   self.query()
 }

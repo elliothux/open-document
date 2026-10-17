@@ -40,8 +40,21 @@ export interface XlsxAverageFilter {
   /** Strictly above or below the mean of all numeric records, including hidden rows. */
   above: boolean;
 }
+export interface XlsxDateFilter {
+  kind: "dates";
+  column: number;
+  /** Calendar prefixes from YYYY through YYYY-MM-DDTHH:mm:ss, without a time zone. */
+  groups: string[];
+  /** Trimmed labels for other cells, including text, general numbers and time-only formats. */
+  values: string[];
+  blank: boolean;
+}
 export type XlsxFilterColumn =
-  XlsxFilterValues | XlsxCustomFilter | XlsxRankFilter | XlsxAverageFilter;
+  | XlsxFilterValues
+  | XlsxCustomFilter
+  | XlsxRankFilter
+  | XlsxAverageFilter
+  | XlsxDateFilter;
 export interface XlsxFilterSettings {
   /** Explicit rectangle with a header in its first row. */
   range: string;
@@ -76,7 +89,36 @@ export function checkXlsxFilter(value: unknown): void {
       throw new Error("Invalid filter column");
     seen.add(Number(column.column));
     let values: unknown[];
-    if (column.kind === "values") {
+    if (column.kind === "dates") {
+      if (
+        typeof column.blank !== "boolean" ||
+        !Array.isArray(column.groups) ||
+        !column.groups.length ||
+        !Array.isArray(column.values) ||
+        column.groups.length + column.values.length > 4096 ||
+        new Set(column.groups).size !== column.groups.length ||
+        new Set(column.values).size !== column.values.length ||
+        column.groups.some(
+          (group) =>
+            typeof group !== "string" ||
+            !/^\d{4}(?:-\d{2}(?:-\d{2}(?:T\d{2}(?::\d{2}(?::\d{2})?)?)?)?)?$/.test(
+              group,
+            ),
+        ) ||
+        Object.keys(column).some(
+          (key) =>
+            !["kind", "column", "groups", "values", "blank"].includes(key),
+        )
+      )
+        throw new Error("Invalid date group filter");
+      values = column.values;
+      units += column.groups.reduce(
+        (sum: number, group: string) => sum + group.length,
+        0,
+      );
+      if (units > 1048576)
+        throw new Error("Date filter groups exceed text budget");
+    } else if (column.kind === "values") {
       if (
         typeof column.blank !== "boolean" ||
         !Array.isArray(column.values) ||

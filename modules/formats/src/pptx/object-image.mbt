@@ -4,6 +4,7 @@ fn Session::write_image(
   bytes : Bytes,
   placement : (Double, Double, Double, Double)?,
   fill~ : Bool = false,
+  mode~ : String = "stretch",
 ) -> Json raise @failure.Failure {
   let targets = if fill { self.image_fill_targets() } else { [] }
   let target = if placement is None && !fill {
@@ -15,7 +16,7 @@ fn Session::write_image(
   if placement is Some(_) {
     validate_object_box(x, y, width, height, false)
   }
-  let (extension, content_type) = @image.type_info(bytes)
+  let (extension, content_type, _, _) = @image.type_info(bytes)
   if target is Some(object) && self.image_bytes(object.image.unwrap()) == bytes {
     return self.query()
   }
@@ -23,6 +24,7 @@ fn Session::write_image(
     targets.all(object => {
       object.image is Some(key) &&
       self.image_bytes(key) == bytes &&
+      (if object.tile is Some(_) { "tile" } else { "stretch" }) == mode &&
       object.source
       .child("spPr", uri=presentation_uri)
       .bind(p => p.child("blipFill"))
@@ -123,11 +125,25 @@ fn Session::write_image(
       } else {
         [0.0, 0.0, 0.0, 0.0]
       }
+      guard mode != "tile" || crop.all(v => v == 0) else {
+        @failure.reject(
+          "protected-content", "Cropped tile sources are protected",
+        )
+      }
       changes.push(
         paint_child_change(
           properties,
           paint_fill(properties),
-          image_fill_markup(link, object.fill_alpha, crop),
+          image_fill_markup(
+            link,
+            object.fill_alpha,
+            crop,
+            if mode == "tile" {
+              Some(object.tile.unwrap_or(ImageTile::default()))
+            } else {
+              None
+            },
+          ),
           ["ln", "effectLst", "effectDag", "scene3d", "sp3d", "extLst"],
         ),
       )

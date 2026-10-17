@@ -70,6 +70,7 @@ export type {
   XlsxCustomFilter,
   XlsxRankFilter,
   XlsxAverageFilter,
+  XlsxDateFilter,
   XlsxFilterSettings,
   XlsxFilterState,
 } from "@open-document/wasm/xlsx";

@@ -463,6 +463,11 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
             Json::null()
           },
           "imageFillReason": self.image_fill_reason(object),
+          "imageFillMode": if object.kind == "shape" && object.image is Some(_) {
+            Json(if object.tile is Some(_) { "tile" } else { "stretch" })
+          } else {
+            Json::null()
+          },
           "gradient": object.gradient
           .map(g => Json(Linear(g.0, g.1, g.2, g.3)))
           .unwrap_or(Json::null()),

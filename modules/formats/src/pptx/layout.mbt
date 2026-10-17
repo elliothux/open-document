@@ -202,6 +202,7 @@ fn paint_slide(
   height : Double,
   probe : @layout.TextProbe,
   profile : Map[String, String],
+  tile_sizes : Map[String, (Int, Int)],
 ) -> (@layout.PositionedPage, Array[TextGeometry], Array[String]) raise @failure.Failure {
   let primitives = slide.background.paint(width, height)
   let texts : Array[TextGeometry] = []
@@ -247,7 +248,13 @@ fn paint_slide(
         )
         if object.image is Some(_) && geometry.width > 0 && geometry.height > 0 {
           primitives.push(ClipPath(path, false))
-          primitives.push(object.image_primitive(geometry))
+          if object.tile is Some(_) {
+            primitives.append(
+              object.draw_tiles(geometry, tile_sizes[object.image.unwrap()]),
+            )
+          } else {
+            primitives.push(object.image_primitive(geometry))
+          }
           primitives.push(Restore)
         } else if object.gradient is Some((start, end, angle, scaled)) &&
           geometry.width > 0 &&
@@ -344,6 +351,7 @@ pub fn Session::layout(
     self.height,
     probe,
     profile,
+    self.tile_sizes(slide),
   )
   let document : @layout.PositionedDocument = {
     pages: [page],
@@ -402,6 +410,7 @@ pub fn Session::print_layout(
         self.height,
         probe,
         profile,
+        self.tile_sizes(slide),
       )
       guard diagnostics.is_empty() else {
         @failure.reject(
