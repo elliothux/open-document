@@ -191,6 +191,26 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 当前未接通标尺和其他内置样式重置规则。主题颜色与字体见下节。剩余范围归 [P10](../p10-docx-core.md)，不把本切片记作完整格式编辑。
 
+### 导入超链接文字
+
+正文及普通单元格中的 `w:hyperlink` 已按源顺序读取其直接 run。链接内文字参与布局、命中、选区/复制、字面查找替换、格式查询与修改，以及原生输入/组合、Tab/软换行/分页符和段落拆分/合并。空链接 run 可继续输入。链接的 run 格式沿普通字符和段落样式计算；不强制替换源颜色、下划线或字符样式。Canvas 与静态 PDF 使用同一文字和格式。
+
+文字编辑保留 `r:id`、anchor、docLocation、history、tgtFrame、tooltip、相邻注释和原关系。Enter 在新段落延续相同链接容器；合段保留原容器、局部命名空间和各 run 原段落继承的格式，不合并两个独立链接身份。文字、结构与格式仍沿同一有界历史精确撤销/重做。链接帧计入既有多段输入源预算，失败不提交源、关系或历史。
+
+当前支持单层链接和直接 run；未知属性、目标缺失、非法 history、嵌套容器、字段及修订继续保留源并保护相关编辑。链接内插入图片暂时拒绝，避免创建当前图片编辑器不支持的容器。文字读取不获取或执行链接目标；目标操作见下节。实现归 [`hyperlink-read.mbt`](../../modules/formats/src/docx/hyperlink-read.mbt)，容器读取与拆分参考固定 [ONLYOFFICE 链接读取](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Serialize2.js#L12003-L12037)及[链接拆分](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Hyperlink.js#L188-L197)。
+
+普通左右箭头将非空文字选区收敛到对应边界，不再向右额外走一字；继续按箭头才移动。该规则与 [ONLYOFFICE MoveCursorRight](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L6051-L6092)一致，位置和保护仍由核心布局确定。
+
+### DOCX 外部超链接
+
+`FoundationSession/Client.setHyperlink(revision, selection, target, text?)` 和 `DocumentEditor.setHyperlink(target, text?)` 创建、修改或移除正文/普通单元格的外链。target 为 HTTP、HTTPS 或 mailto 地址，null 移除链接但保留文字。地址最多 2048 UTF-16 单元，拒绝空目标、空白、控制字符、反斜杠及非法 XML/Unicode。`checkDocxHyperlink` 从两个 foundation 入口提供相同输入检查，核心仍独立校验。
+
+非空选区只修改所选字符，可跨 run 和相邻段落。链接内光标修改当前完整链接容器；原生连续输入的末端按实际输入节点查询和修改。普通光标创建链接时须提供 text。text 为非空、至多 65536 UTF-16 单元的单行普通文字，提供时替换整个目标范围；链接内光标替换完整链接文字。替换可合并相邻段落，之后光标留在新链接末尾并可继续输入。空链接重复移除及相同目标不新增历史。
+
+`DocxFormatting.hyperlink` 返回 `{ target, mixed, reason }`；非共同目标为 null，mixed 为 true 时可统一设置或移除，reason 说明目标保护原因。原字符格式保持，不自动套用 Hyperlink 字符样式；默认面板提供地址、显示文字、应用、移除和显式打开，外链使用新窗口及 `noopener noreferrer`。普通输入和临时组合状态不覆盖未提交地址草稿；非法地址在进入编辑队列前提示，原文档仍可编辑和保存。打开文件、查询、布局及应用链接都不请求外链。
+
+复用字符边界拆分和关系事务。已选链接的提示、history、tgtFrame 与未选两端保留；移除容器时补齐 run 的局部命名空间，保留文字、格式和注释。相同外部目标复用关系，不改写共用关系或清理旧关系。显示文字、链接 XML、新增/修改关系合为一项历史；过期 revision、活动候选、图片、未知源及源/输出预算失败均不提交。书签、docLocation 和未知关系的目标修改继续保护；书签创建/维护/导航、链接样式管理与交互 PDF 注释仍待 [P10](../p10-docx-core.md) 后续实现。范围与光标语义参考 [ONLYOFFICE 链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L7811-L8180)，实现归 [`hyperlink-edit.mbt`](../../modules/formats/src/docx/hyperlink-edit.mbt)及 [`hyperlink-query.mbt`](../../modules/formats/src/docx/hyperlink-query.mbt)。
+
 ### DOCX 主题颜色
 
 `FoundationSession/Client.themeColors(revision)` 返回 `DocxThemeColors = { revision, colors }`，包含 `dk1/lt1/dk2/lt2`、`accent1`–`accent6`、`hlink/folHlink` 十二项。每项含 `slot/color/reason`；无法读取的色项颜色为 null，限制原因单独返回。`DocxThemeSlot` 与查询类型沿 `wasm/foundation`、`web/foundation` 导出。查询不修改源或历史；没有主题时返回新主题的默认颜色。
@@ -1255,13 +1275,15 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 ### 对象超链接
 
-`PresentationEditor.editObjects({ action: "hyperlink", link })` 修改一个所选本地顶层形状、图片或组的点击链接，要求对象模式。`link` 为 `{ kind: "external", target }`、`{ kind: "slide", target }` 或 null；null 移除点击链接。`PptxHyperlink` 从 `wasm/pptx` 和 `web/pptx` 导出。每个 `PptxObject.hyperlink` 返回 `{ value, reason }`；value 为同一链接结构或 null，reason 说明保护原因。文字范围、多选与继承对象尚不授予链接修改。
+`PresentationEditor.editObjects({ action: "hyperlink", link })` 修改所选本地顶层对象或其文字的点击链接。对象模式支持单个形状、图片或组；文字模式支持一个可编辑文本框。`link` 为 `{ kind: "external", target }`、`{ kind: "slide", target }` 或 null；null 移除点击链接。`PptxHyperlink` 从 `wasm/pptx` 和 `web/pptx` 导出。每个 `PptxObject.hyperlink` 返回对象链接的 `{ value, reason }`；`PptxQuery.textHyperlink` 返回当前文字范围的 `{ value, mixed, reason }`。链接不一致时 value 为 null 且 mixed 为 true，默认面板仍允许统一设置或移除。多对象与继承对象继续保护。
+
+文字选区按 UTF-16 字素边界拆分 run，可跨样式、软换行及段落，只修改选中范围。链接内的光标修改当前段落中相邻且关系及提示等元数据一致的完整链接；不同提示或关系保持独立。普通光标通过空 run 或空段落末尾属性设置后续输入链接。原生输入继承链接，移除时同步对应段落末尾属性，避免清空后再次出现。保留直接字体、大小、粗斜体、颜色和源下划线；存在点击链接时派生单下划线，移除后恢复原直接定义。文字链接写入 `rPr/endParaRPr`，与对象的 `cNvPr` 链接独立；累计生成源限制为 2 Mi UTF-16 单元。
 
 外部地址最多 2048 UTF-16 单元，只允许 HTTP、HTTPS 和 mailto，拒绝空目标、空白、控制字符及反斜杠。内部目标是当前文稿的稳定 slide 部件身份，不能使用页序号；允许显式跳转隐藏页。默认面板创建、修改及移除链接，单独的打开入口才导航。外链使用新窗口和 `noopener noreferrer`，内部链接沿 `showSlide` 定位；显示、打开文件和布局不自动请求外链或执行动作。脚本、文件地址、相对网址、宏与其他放映动作继续保护源。
 
 核心写 `cNvPr/a:hlinkClick`：外链使用 External hyperlink 关系，内链使用 slide 关系及 `ppaction://hlinksldjump`。与目标相同的关系可复用；修改不覆盖其他对象共用的关系，也不清理旧关系。保留 tooltip、tgtFrame、history、highlightClick、endSnd、相邻悬停链接、注释、文字和几何；未知属性、声音等子内容或无法解析的关系保护修改。新增关系与对象 XML 共用一项有界历史，旧 revision、活动候选、锁和输出预算失败均不提交。相同链接及重复清除不新增历史。
 
-页面重排保持内部目标，页面复制复用既有自身链接重映射，删页移除相应入链并保留对象。对象复制保留链接；带自身点击或悬停链接的组不能直接取消组合，避免丢失组动作。普通点击链接移除后可取消组合，成员自己的链接保留。静态 Canvas/PDF 保留对象外观及文字，不增加交互链接注释。文字范围链接、悬停/一般动作编辑、放映点击行为及输出链接继续按 [P12](../p12-pptx-core.md) 实施。语义参考固定 [ONLYOFFICE 对象链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L3503-L3683)与[内部页动作解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L9259-L9290)，实现归 [`object-hyperlink.mbt`](../../modules/formats/src/pptx/object-hyperlink.mbt)。
+页面重排保持内部目标，页面复制复用既有自身链接重映射，删页移除相应入链并保留对象。对象复制保留链接；带自身点击或悬停链接的组不能直接取消组合，避免丢失组动作。普通点击链接移除后可取消组合，成员自己的链接保留。静态 Canvas/PDF 保留对象外观及文字，不增加交互链接注释。悬停/一般动作编辑、放映点击行为及输出链接继续按 [P12](../p12-pptx-core.md) 实施。语义参考固定 [ONLYOFFICE 对象链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L3503-L3683)、[文字链接拆分与光标操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L7811-L8180)、[PPTX 链接下划线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L10545-L10565)与[内部页动作解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L9259-L9290)，实现归 [`object-hyperlink.mbt`](../../modules/formats/src/pptx/object-hyperlink.mbt)和 [`text-hyperlink.mbt`](../../modules/formats/src/pptx/text-hyperlink.mbt)。
 
 ### 当前页 PNG 输出
 

@@ -319,6 +319,13 @@ async function dispatch(request: Request): Promise<unknown> {
             request.selection,
             request.format,
           );
+        case "setHyperlink":
+          return foundation.setHyperlink(
+            request.revision,
+            request.selection,
+            request.target,
+            request.text,
+          );
         case "setParagraphFormat":
           return foundation.setParagraphFormat(
             request.revision,

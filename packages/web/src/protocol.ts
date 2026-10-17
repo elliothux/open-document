@@ -33,6 +33,13 @@ import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
+  | {
+      operation: "setHyperlink";
+      revision: number;
+      selection: DocxSelection;
+      target: string | null;
+      text?: string;
+    }
   | { operation: "docxThemeFonts"; revision: number }
   | {
       operation: "setDocxThemeFonts";

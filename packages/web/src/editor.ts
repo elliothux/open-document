@@ -479,6 +479,16 @@ export class DocumentEditor {
   setCharacterFormat(format: CharacterFormatPatch): Promise<void> {
     return this.applyFormat({ character: format, paragraph: {} });
   }
+  setHyperlink(target: string | null, text?: string): Promise<void> {
+    return this.format(() =>
+      this.client.setHyperlink(
+        this.state.revision,
+        this.selection(),
+        target,
+        text,
+      ),
+    );
+  }
   lists() {
     return this.enqueue(() => this.client.lists(this.state.revision));
   }
@@ -721,25 +731,16 @@ export class DocumentEditor {
   }
   /** A barrier: later input cannot change the returned revision or bytes. */
   saveDocx(): Promise<EditorOutput> {
-    this.inputEvents.endGroup();
-    return this.enqueue(
-      async () => {
-        const revision = await checkDocxRevision(
-          this.client,
-          this.state.revision,
-          () => this.assertOpen(),
-        );
-        const bytes = await this.client.saveDocx();
-        this.publish();
-        return this.observable.output(revision, "docx", bytes);
-      },
-      false,
-      false,
-      true,
-    );
+    return this.output("docx");
   }
   /** Exports the completed layout at this input barrier. */
   exportPdf(outputBytes = 67108864): Promise<EditorOutput> {
+    return this.output("pdf", outputBytes);
+  }
+  private output(
+    format: "docx" | "pdf",
+    outputBytes = 67108864,
+  ): Promise<EditorOutput> {
     this.inputEvents.endGroup();
     return this.enqueue(
       async () => {
@@ -748,12 +749,12 @@ export class DocumentEditor {
           this.state.revision,
           () => this.assertOpen(),
         );
-        const bytes = await this.client.exportPdf(
-          outputBytes,
-          this.currentLayout.id,
-        );
+        const bytes =
+          format === "docx"
+            ? await this.client.saveDocx()
+            : await this.client.exportPdf(outputBytes, this.currentLayout.id);
         this.publish();
-        return this.observable.output(revision, "pdf", bytes);
+        return this.observable.output(revision, format, bytes);
       },
       false,
       false,

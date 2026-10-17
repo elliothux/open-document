@@ -38,6 +38,25 @@ fn WordTree::standalone_markup(
 }
 
 ///|
+fn WordTree::namespace_additions(
+  self : WordTree,
+  id : Int,
+  parent : Int,
+) -> String raise @failure.Failure {
+  let node = self.nodes[id]
+  let destination = self.namespace_bindings(parent)
+  let attributes = StringBuilder()
+  for prefix, uri in self.namespace_bindings(node.parent) {
+    if destination.get(prefix) != Some(uri) &&
+      !node.namespaces.any(binding => binding.0 == prefix) {
+      let name = if prefix.is_empty() { "xmlns" } else { "xmlns:" + prefix }
+      attributes.write_string(" \{name}=\"\{property_attribute(uri)}\"")
+    }
+  }
+  attributes.to_string()
+}
+
+///|
 fn Session::prepare_empty(
   self : Session,
   paragraph : Int,
@@ -46,7 +65,7 @@ fn Session::prepare_empty(
   let document = self.document()
   let tree = WordTree::new(document)
   let p = tree.nodes[paragraph]
-  let run = tree.child(paragraph, "r")
+  let run = tree.paragraph_runs(paragraph).get(0)
   let parent = run.map(id => tree.nodes[id]).unwrap_or(p)
   let prefix = parent.qualified[:parent.qualified.length() - 1].to_owned()
   let t = if text.contains("\u2028") ||
@@ -144,9 +163,7 @@ fn WordTree::check_structure_paragraph(
   self : WordTree,
   paragraph : Int,
 ) -> Unit raise @failure.Failure {
-  for
-    id in [paragraph] +
-    self.children[paragraph].filter(id => self.nodes[id].name == "r") {
+  for id in [paragraph] + self.paragraph_runs(paragraph) {
     let node = self.nodes[id]
     let allowed = if id == paragraph {
       ["rsidR", "rsidRDefault", "rsidP", "rsidRPr", "rsidDel"]
@@ -378,9 +395,15 @@ fn WordTree::check_editable_paragraph(
       )
     }
   }
+  let runs : Array[Int] = []
   for child in self.children[paragraph] {
     let node = self.nodes[child]
     if node.uri == word_uri && node.name == "pPr" {
+      continue
+    }
+    if node.uri == word_uri && node.name == "hyperlink" {
+      self.check_hyperlink(child)
+      runs.append(self.children[child])
       continue
     }
     guard node.uri == word_uri && node.name == "r" else {
@@ -391,6 +414,9 @@ fn WordTree::check_editable_paragraph(
         offset=paragraph,
       )
     }
+    runs.push(child)
+  }
+  for child in runs {
     for content in self.children[child] {
       let node = self.nodes[content]
       guard node.uri == word_uri &&

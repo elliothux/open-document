@@ -37,6 +37,7 @@ export function PptxObjects({
     (object) => object.id === query.selection.object,
   );
   const objectMode = query.selection.mode === "object";
+  const hyperlink = objectMode ? selected?.hyperlink : query.textHyperlink;
   const duplicationReason = query.objects.find(
     (object) =>
       query.selection.objects.includes(object.id) && object.duplicateReason,
@@ -231,7 +232,7 @@ export function PptxObjects({
         disabled={disabled}
       />
       <PptxHyperlink
-        key={`link:${state.document?.documentId}:${query.selection.object}:${JSON.stringify(selected?.hyperlink)}`}
+        key={`link:${state.document?.documentId}:${query.selection.object}:${JSON.stringify([hyperlink?.value ?? null, !objectMode && query.textHyperlink.mixed])}`}
         controller={controller}
         state={state}
         editor={editor}
@@ -282,9 +283,11 @@ function PptxHyperlink({
 }) {
   const t = messages(state.locale),
     query = editor.query;
-  const current = query.objects.find(
-    (object) => object.id === query.selection.object,
-  )?.hyperlink;
+  const textMode = query.selection.mode === "text";
+  const current = textMode
+    ? query.textHyperlink
+    : query.objects.find((object) => object.id === query.selection.object)
+        ?.hyperlink;
   const link = current?.value;
   const [kind, setKind] = useState<"external" | "slide">(
     link?.kind ?? "external",
@@ -297,12 +300,11 @@ function PptxHyperlink({
   );
   const blocked =
     disabled ||
-    query.selection.mode !== "object" ||
     query.selection.objects.length !== 1 ||
     !current ||
     !!current.reason;
   return (
-    <section aria-label={t.objectHyperlink}>
+    <section aria-label={textMode ? t.textHyperlink : t.objectHyperlink}>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -315,7 +317,7 @@ function PptxHyperlink({
         }}
       >
         <fieldset disabled={blocked}>
-          <legend>{t.objectHyperlink}</legend>
+          <legend>{textMode ? t.textHyperlink : t.objectHyperlink}</legend>
           <label>
             {t.hyperlinkKind}
             <select
@@ -360,7 +362,7 @@ function PptxHyperlink({
           <button type="submit">{t.hyperlinkApply}</button>
           <button
             type="button"
-            disabled={!link}
+            disabled={!link && !(textMode && query.textHyperlink.mixed)}
             onClick={() =>
               controller.run(() =>
                 editor.editObjects({ action: "hyperlink", link: null }),

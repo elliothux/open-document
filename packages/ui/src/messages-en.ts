@@ -1,5 +1,7 @@
 export const en = {
   objectHyperlink: "Object hyperlink",
+  textHyperlink: "Text hyperlink",
+  hyperlinkText: "Display text",
   hyperlinkKind: "Link type",
   hyperlinkExternal: "External address",
   hyperlinkSlide: "Slide in this presentation",

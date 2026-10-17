@@ -160,6 +160,11 @@ export interface PptxQuery {
   revision: number;
   formatting: PptxFormatting;
   paragraph: PptxParagraphFormatting;
+  textHyperlink: {
+    value: PptxHyperlink | null;
+    mixed: boolean;
+    reason: string;
+  };
   groupReason: string;
   ungroupReason: string;
   width: number;
@@ -454,6 +459,15 @@ export function pptxQuery(value: unknown): PptxQuery {
     throw new Error("Invalid current slide");
   pptxSections(query.sections, [...ids]);
   const slideIds = new Set(ids);
+  const textHyperlink = record(query.textHyperlink),
+    textLink = pptxHyperlink(textHyperlink.value);
+  if (
+    typeof textHyperlink.reason !== "string" ||
+    typeof textHyperlink.mixed !== "boolean" ||
+    (textHyperlink.mixed && textLink !== null) ||
+    (textLink?.kind === "slide" && !slideIds.has(textLink.target))
+  )
+    throw new Error("Invalid text hyperlink");
   ids.clear();
   const parents = new Map<string, string>(),
     groups = new Set<string>();

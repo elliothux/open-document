@@ -1,5 +1,10 @@
 import {
   checkFormatPatch,
+  checkDocxHyperlink,
+  editState,
+  createdDocxStyle,
+  type EditState,
+  type CreatedDocxStyle,
   docxStyleCatalog,
   type DocxStyleCatalog,
   docxFormatting,
@@ -71,7 +76,6 @@ import { record, hasFields, arrayOf, glyphs } from "./validation.js";
 import {
   checkFindOptions,
   docxSearchResult,
-  isDocxSelection,
   type DocxFindOptions,
   type DocxSearchResult,
 } from "./docx-search.js";
@@ -118,69 +122,6 @@ export interface DocxNavigation {
 export function docxNavigation(value: unknown): DocxNavigation {
   const object = record(value);
   return { state: editState(object.state), caret: docxHit(object.caret) };
-}
-
-export interface EditState {
-  revision: number;
-  defaultTabStop: number;
-  compositionId: number | null;
-  pictureResizeId: number | null;
-  selection: DocxSelection | null;
-  canUndo: boolean;
-  canRedo: boolean;
-  affectedParagraphs: number[];
-  historyBytes: number;
-  historyEntries: number;
-  historyEntryLimit: number;
-  historyByteLimit: number;
-  commandLimit: number;
-  formatting: DocxFormatting | null;
-}
-
-export interface CreatedDocxStyle {
-  id: string;
-  state: EditState;
-}
-
-export function createdDocxStyle(value: unknown): CreatedDocxStyle {
-  const result = record(value);
-  if (typeof result.id !== "string" || !result.id || result.id.length > 200)
-    throw new Error("Invalid created style identity");
-  return { id: result.id, state: editState(result.state) };
-}
-
-export function editState(value: unknown): EditState {
-  const object = record(value);
-  const integer = (value: unknown): boolean =>
-    typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-  if (object.formatting !== null) docxFormatting(object.formatting);
-  if (
-    ![
-      "revision",
-      "historyBytes",
-      "historyEntries",
-      "historyEntryLimit",
-      "historyByteLimit",
-      "commandLimit",
-    ].every((key) => integer(object[key])) ||
-    (object.compositionId !== null &&
-      (!integer(object.compositionId) || Number(object.compositionId) === 0)) ||
-    (object.pictureResizeId !== null &&
-      (!integer(object.pictureResizeId) ||
-        Number(object.pictureResizeId) === 0 ||
-        Number(object.pictureResizeId) > 2147483647 ||
-        object.compositionId !== null)) ||
-    typeof object.canUndo !== "boolean" ||
-    typeof object.canRedo !== "boolean" ||
-    typeof object.defaultTabStop !== "number" ||
-    object.defaultTabStop < 0 ||
-    object.defaultTabStop > 1584 ||
-    !Number.isInteger(object.defaultTabStop * 20) ||
-    !arrayOf(object.affectedParagraphs, integer) ||
-    (object.selection !== null && !isDocxSelection(object.selection))
-  )
-    throw new Error("Invalid DOCX editing state returned by Wasm");
-  return value as EditState;
 }
 
 export interface DocxQuery {
@@ -484,6 +425,23 @@ export class FoundationSession extends WasmSession {
         revision,
         selection,
         format,
+      }),
+    );
+  }
+  setHyperlink(
+    revision: number,
+    selection: DocxSelection,
+    target: string | null,
+    text?: string,
+  ): EditState {
+    checkDocxHyperlink(target, text);
+    return editState(
+      this.call({
+        operation: "setHyperlink",
+        revision,
+        selection,
+        target,
+        ...(text === undefined ? {} : { text }),
       }),
     );
   }

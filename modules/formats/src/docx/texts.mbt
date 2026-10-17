@@ -12,7 +12,7 @@ fn docx_texts(tree : WordTree) -> Array[TextNode] {
     if run < 0 || tree.nodes[run].uri != word_uri || tree.nodes[run].name != "r" {
       continue
     }
-    let paragraph = tree.nodes[run].parent
+    let paragraph = tree.run_paragraph(run)
     if paragraph < 0 ||
       tree.nodes[paragraph].uri != word_uri ||
       tree.nodes[paragraph].name != "p" {

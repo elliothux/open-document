@@ -51,22 +51,13 @@ pub fn Session::navigate(
     let start = if order < 0 { anchor } else { focus }
     let end = if order < 0 { focus } else { anchor }
     let edge = if direction == "left" { start } else { end }
-    if direction == "right" {
-      layout.move_caret(
-        (edge.paragraph, edge.offset, edge.affinity),
-        direction,
-        bidi_level?=edge.bidiLevel,
-        frame_start?=edge.frameStart,
-      )
-    } else {
-      layout.caret(
-        edge.paragraph,
-        edge.offset,
-        edge.affinity,
-        bidi_level?=edge.bidiLevel,
-        frame_start?=edge.frameStart,
-      )
-    }
+    layout.caret(
+      edge.paragraph,
+      edge.offset,
+      edge.affinity,
+      bidi_level?=edge.bidiLevel,
+      frame_start?=edge.frameStart,
+    )
   } else {
     layout.move_caret(
       (focus.paragraph, focus.offset, focus.affinity),

@@ -282,7 +282,11 @@ pub fn Session::edit_objects(
     return self.set_image_opacity(value)
   }
   if change is Hyperlink(kind, target) {
-    return self.set_object_hyperlink(kind, target)
+    return if self.selection.mode == "text" {
+      self.set_text_hyperlink(kind, target)
+    } else {
+      self.set_object_hyperlink(kind, target)
+    }
   }
   if change is ShapeAdjustment(name, value) {
     let changes = self.adjust_shape(name, value)

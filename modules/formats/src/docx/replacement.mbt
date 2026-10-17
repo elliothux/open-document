@@ -64,7 +64,10 @@ fn WordTree::split_input(
     let opening = structure_opening(node)
     let opening = opening[:opening.length() - 1].to_owned() +
       " xml:space=\"preserve\">"
-    let frame = "</\{node.qualified}></\{run_name}></\{p.qualified}>\{next}\{run_opening}\{properties}\{opening}"
+    let (link_opening, link_closing) = run
+      .map(run => self.hyperlink_frame(document, run.id))
+      .unwrap_or(("", ""))
+    let frame = "</\{node.qualified}></\{run_name}>\{link_closing}</\{p.qualified}>\{next}\{link_opening}\{run_opening}\{properties}\{opening}"
     let frames = frame.length().to_int64() * (parts.length() - 1).to_int64()
     let minimum = frames +
       offset.to_int64() +

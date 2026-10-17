@@ -149,6 +149,7 @@ pub fn Session::select(Self, Int, Selection) -> Json raise @failure.Failure
 pub fn Session::selected_text(Self, Int, Selection, cut? : Bool) -> String raise @failure.Failure
 pub fn Session::set_character_format(Self, Int, Selection, CharacterFormat) -> Json raise @failure.Failure
 pub fn Session::set_default_tab_stop(Self, Int, Double?) -> Json raise @failure.Failure
+pub fn Session::set_hyperlink(Self, Int, Selection, String?, text? : String?) -> Json raise @failure.Failure
 pub fn Session::set_page_setup(Self, Int, @layout.PageSetup, orientation? : String?) -> Json raise @failure.Failure
 pub fn Session::set_paragraph_format(Self, Int, Selection, ParagraphFormat) -> Json raise @failure.Failure
 pub fn Session::set_theme_color(Self, Int, String, String) -> Json raise @failure.Failure

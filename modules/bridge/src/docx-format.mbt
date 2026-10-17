@@ -11,6 +11,30 @@ fn format_fields(
 }
 
 ///|
+fn field_hyperlink_target(request : Json) -> String? raise @failure.Failure {
+  guard request is Object(fields) else {
+    @failure.reject("invalid-operation", "Invalid hyperlink request")
+  }
+  match fields.get("target") {
+    Some(Null) => None
+    Some(String(target)) => Some(target)
+    _ => @failure.reject("invalid-operation", "Invalid hyperlink target")
+  }
+}
+
+///|
+fn field_hyperlink_text(request : Json) -> String? raise @failure.Failure {
+  guard request is Object(fields) else {
+    @failure.reject("invalid-operation", "Invalid hyperlink request")
+  }
+  match fields.get("text") {
+    None => None
+    Some(String(text)) => Some(text)
+    _ => @failure.reject("invalid-operation", "Invalid hyperlink display text")
+  }
+}
+
+///|
 fn list_edit(request : Json) -> @docx.ListEdit raise @failure.Failure {
   guard request is { "change": Object(fields) as change, .. } else {
     @failure.reject("invalid-operation", "Invalid list edit")

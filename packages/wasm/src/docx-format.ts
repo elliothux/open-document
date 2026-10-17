@@ -1,4 +1,6 @@
-import { record } from "./validation.js";
+import { record, arrayOf } from "./validation.js";
+import type { DocxSelection } from "./docx-hit.js";
+import { isDocxSelection } from "./docx-search.js";
 import {
   checkDocxCellMargins,
   checkDocxBorders,
@@ -278,6 +280,7 @@ export interface ParagraphFormatPatch {
 export interface DocxFormatting {
   revision: number;
   reason: string;
+  hyperlink: { target: string | null; mixed: boolean; reason: string };
   table: {
     autoFit: boolean;
     id: number;
@@ -396,6 +399,14 @@ export function docxFormatting(value: unknown): DocxFormatting {
   const result = record(value),
     character = record(result.character),
     paragraph = record(result.paragraph);
+  const hyperlink = record(result.hyperlink);
+  checkDocxHyperlink(hyperlink.target);
+  if (
+    typeof hyperlink.mixed !== "boolean" ||
+    typeof hyperlink.reason !== "string" ||
+    (hyperlink.mixed && hyperlink.target !== null)
+  )
+    throw new Error("Invalid DOCX hyperlink query");
   const table = record(result.table ?? {});
   if (result.table !== null) {
     for (const [name, whole] of [
@@ -488,6 +499,101 @@ export function docxFormatting(value: unknown): DocxFormatting {
   )
     throw new Error("Invalid DOCX formatting returned by Wasm");
   return value as DocxFormatting;
+}
+
+export function checkDocxHyperlink(target: unknown, text?: unknown): void {
+  if (
+    target !== null &&
+    (typeof target !== "string" ||
+      !target.isWellFormed() ||
+      target.length > 2048 ||
+      !/^(https?:\/\/|mailto:).+/i.test(target) ||
+      /\s/u.test(target) ||
+      Array.from(target).some(
+        (c) =>
+          c.charCodeAt(0) <= 32 ||
+          c.charCodeAt(0) === 127 ||
+          c.charCodeAt(0) >= 65534 ||
+          c === "\\",
+      ))
+  )
+    throw new Error("Invalid DOCX hyperlink target");
+  if (
+    text !== undefined &&
+    (target === null ||
+      typeof text !== "string" ||
+      !text ||
+      !text.isWellFormed() ||
+      text.length > 65536 ||
+      Array.from(text).some(
+        (c) =>
+          c.charCodeAt(0) <= 31 || c === "\u2028" || c.charCodeAt(0) >= 65534,
+      ))
+  )
+    throw new Error("Invalid DOCX hyperlink display text");
+}
+
+export interface EditState {
+  revision: number;
+  defaultTabStop: number;
+  compositionId: number | null;
+  pictureResizeId: number | null;
+  selection: DocxSelection | null;
+  canUndo: boolean;
+  canRedo: boolean;
+  affectedParagraphs: number[];
+  historyBytes: number;
+  historyEntries: number;
+  historyEntryLimit: number;
+  historyByteLimit: number;
+  commandLimit: number;
+  formatting: DocxFormatting | null;
+}
+
+export interface CreatedDocxStyle {
+  id: string;
+  state: EditState;
+}
+
+export function createdDocxStyle(value: unknown): CreatedDocxStyle {
+  const result = record(value);
+  if (typeof result.id !== "string" || !result.id || result.id.length > 200)
+    throw new Error("Invalid created style identity");
+  return { id: result.id, state: editState(result.state) };
+}
+
+export function editState(value: unknown): EditState {
+  const object = record(value);
+  const integer = (value: unknown): boolean =>
+    typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+  if (object.formatting !== null) docxFormatting(object.formatting);
+  if (
+    ![
+      "revision",
+      "historyBytes",
+      "historyEntries",
+      "historyEntryLimit",
+      "historyByteLimit",
+      "commandLimit",
+    ].every((key) => integer(object[key])) ||
+    (object.compositionId !== null &&
+      (!integer(object.compositionId) || Number(object.compositionId) === 0)) ||
+    (object.pictureResizeId !== null &&
+      (!integer(object.pictureResizeId) ||
+        Number(object.pictureResizeId) === 0 ||
+        Number(object.pictureResizeId) > 2147483647 ||
+        object.compositionId !== null)) ||
+    typeof object.canUndo !== "boolean" ||
+    typeof object.canRedo !== "boolean" ||
+    typeof object.defaultTabStop !== "number" ||
+    object.defaultTabStop < 0 ||
+    object.defaultTabStop > 1584 ||
+    !Number.isInteger(object.defaultTabStop * 20) ||
+    !arrayOf(object.affectedParagraphs, integer) ||
+    (object.selection !== null && !isDocxSelection(object.selection))
+  )
+    throw new Error("Invalid DOCX editing state returned by Wasm");
+  return value as EditState;
 }
 
 export interface DocxStyleCatalog {

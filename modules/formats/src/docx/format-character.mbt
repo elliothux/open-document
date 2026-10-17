@@ -22,6 +22,7 @@ fn Session::format_character_document(
   selection : Selection,
   patch : CharacterFormat,
   include_empty~ : Bool = false,
+  split~ : Bool = false,
 ) -> (@xml.Document, @xml.Edit)? raise @failure.Failure {
   let tree = WordTree::new(document)
   let range = self.formatting_range(document, selection)
@@ -49,7 +50,7 @@ fn Session::format_character_document(
     }
     if start == end {
       if include_empty && length == 0 {
-        if tree.child(paragraph, "r") is Some(run) {
+        if tree.paragraph_runs(paragraph).get(0) is Some(run) {
           let markup = formatted_properties(
             tree, document, run, "rPr", properties,
           )
@@ -112,7 +113,7 @@ fn Session::format_character_document(
           source[node.start:node.end].to_owned()
         })
         .unwrap_or("")
-      if markup == original {
+      if markup == original && !split {
         continue
       }
       let run = tree.nodes[id]

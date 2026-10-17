@@ -83,13 +83,26 @@ fn Session::read_hyperlink(
   object : Object,
   links : ReadOnlyArray[@opc.Relationship],
 ) -> (String, String)? raise @failure.Failure {
-  guard hyperlink_node(hyperlink_properties(object)) is Some(node) else {
+  self.read_hyperlink_at(
+    Some(hyperlink_properties(object)),
+    object.source.tree.part,
+    links,
+  )
+}
+
+///|
+fn Session::read_hyperlink_at(
+  self : Session,
+  properties : Ref?,
+  owner : String,
+  links : ReadOnlyArray[@opc.Relationship],
+) -> (String, String)? raise @failure.Failure {
+  guard properties is Some(properties) &&
+    hyperlink_node(properties) is Some(node) else {
     return None
   }
   let id = node.attribute("id", uri=relationship_uri).unwrap_or("")
-  guard links
-    .iter()
-    .find_first(link => link.owner == object.source.tree.part && link.id == id)
+  guard links.iter().find_first(link => link.owner == owner && link.id == id)
     is Some(link) else {
     @failure.reject("protected-content", "Unresolved hyperlink relationship")
   }
@@ -147,16 +160,7 @@ fn Session::set_object_hyperlink(
       "invalid-operation", "Hyperlink editing requires one selected object",
     )
   }
-  guard ["none", "external", "slide"].contains(kind) &&
-    (kind != "none" || target.is_empty()) else {
-    @failure.reject("invalid-operation", "Invalid hyperlink kind")
-  }
-  if kind == "external" {
-    check_external_hyperlink(target)
-  }
-  if kind == "slide" {
-    ignore(self.index(target))
-  }
+  self.check_hyperlink_target(kind, target)
   let original = self.current()
   let object = original.object(id)
   let reason = self.object_edit_reason(object, "hyperlink")
@@ -172,81 +176,20 @@ fn Session::set_object_hyperlink(
   let parts = self.parts.copy()
   let created : Map[String, @xml.Document] = Map([])
   let edits : Array[(String, @xml.Edit)] = []
-  let markup = if kind == "none" {
+  let relation = if kind == "none" {
     ""
   } else {
-    let external = kind == "external"
-    let relation_kind = relationship_uri +
-      (if external { "/hyperlink" } else { "/slide" })
-    let existing = links
-      .iter()
-      .find_first(link => {
-        link.owner == original.tree.part &&
-        link.kind == relation_kind &&
-        link.external == external &&
-        link.target == target
-      })
-    let relation = if existing is Some(link) {
-      link.id
-    } else {
-      let mut sequence = 1
-      while links
-            .iter()
-            .any(link => {
-              link.owner == original.tree.part && link.id == "odLink\{sequence}"
-            }) {
-        sequence += 1
-        guard sequence <= 16384 else {
-          @failure.reject("limit-exceeded", "Hyperlink identities exhausted")
-        }
-      }
-      let id = "odLink\{sequence}"
-      let path = relationship_part(original.tree.part)
-      let present = self.parts.contains(path) ||
-        self.opc.names.contains(path.to_lower())
-      let source = if present {
-        self.part_document(path)
-      } else {
-        @xml.Document::parse(
-          b"<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"/>",
-          path,
-          self.budget.xml_depth,
-          self.budget.entry_bytes,
-        )
-      }
-      let mode = if external { " TargetMode=\"External\"" } else { "" }
-      let destination = if external { target } else { "/" + target }
-      let (document, edit) = source.edit_source([
-        insertion(
-          source.nodes()[0],
-          "<Relationship xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\" Id=\"\{id}\" Type=\"\{relation_kind}\" Target=\"\{xml_attribute(destination)}\"\{mode}/>",
-        ),
-      ])
-      parts[path] = document
-      if present {
-        edits.push((path, edit))
-      } else {
-        created[path] = document
-      }
-      id
-    }
-    let metadata = StringBuilder()
-    if node is Some(node) {
-      for attribute in node.attributes {
-        if attribute.uri.is_empty() && attribute.name != "action" {
-          metadata.write_string(
-            " \{attribute.name}=\"\{xml_attribute(attribute.value)}\"",
-          )
-        }
-      }
-    }
-    let action = if external {
-      ""
-    } else {
-      " action=\"ppaction://hlinksldjump\""
-    }
-    "<a:hlinkClick xmlns:a=\"\{drawing_uri}\" xmlns:r=\"\{relationship_uri}\" r:id=\"\{relation}\"\{action}\{metadata.to_string()}/>"
+    self.hyperlink_relationship(
+      original.tree.part,
+      kind,
+      target,
+      links,
+      parts,
+      created,
+      edits,
+    )
   }
+  let markup = hyperlink_markup(node, kind, relation)
   let (document, edit) = original.tree.document.edit_source([
     paint_child_change(properties, node, markup, ["hlinkMouseOver", "extLst"]),
   ])
@@ -269,4 +212,116 @@ fn Session::set_object_hyperlink(
     created_parts=created,
   )
   self.query()
+}
+
+///|
+fn Session::check_hyperlink_target(
+  self : Session,
+  kind : String,
+  target : String,
+) -> Unit raise @failure.Failure {
+  guard ["none", "external", "slide"].contains(kind) &&
+    (kind != "none" || target.is_empty()) else {
+    @failure.reject("invalid-operation", "Invalid hyperlink kind")
+  }
+  if kind == "external" {
+    check_external_hyperlink(target)
+  }
+  if kind == "slide" {
+    ignore(self.index(target))
+  }
+}
+
+///|
+fn Session::hyperlink_relationship(
+  self : Session,
+  owner : String,
+  kind : String,
+  target : String,
+  links : ReadOnlyArray[@opc.Relationship],
+  parts : Map[String, @xml.Document],
+  created : Map[String, @xml.Document],
+  edits : Array[(String, @xml.Edit)],
+) -> String raise @failure.Failure {
+  let external = kind == "external"
+  let relation_kind = relationship_uri +
+    (if external { "/hyperlink" } else { "/slide" })
+  let existing = links
+    .iter()
+    .find_first(link => {
+      link.owner == owner &&
+      link.kind == relation_kind &&
+      link.external == external &&
+      link.target == target
+    })
+  let relation = if existing is Some(link) {
+    link.id
+  } else {
+    let mut sequence = 1
+    while links
+          .iter()
+          .any(link => link.owner == owner && link.id == "odLink\{sequence}") {
+      sequence += 1
+      guard sequence <= 16384 else {
+        @failure.reject("limit-exceeded", "Hyperlink identities exhausted")
+      }
+    }
+    let id = "odLink\{sequence}"
+    let path = relationship_part(owner)
+    let present = self.parts.contains(path) ||
+      self.opc.names.contains(path.to_lower())
+    let source = if present {
+      self.part_document(path)
+    } else {
+      @xml.Document::parse(
+        b"<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"/>",
+        path,
+        self.budget.xml_depth,
+        self.budget.entry_bytes,
+      )
+    }
+    let mode = if external { " TargetMode=\"External\"" } else { "" }
+    let destination = if external { target } else { "/" + target }
+    let (document, edit) = source.edit_source([
+      insertion(
+        source.nodes()[0],
+        "<Relationship xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\" Id=\"\{id}\" Type=\"\{relation_kind}\" Target=\"\{xml_attribute(destination)}\"\{mode}/>",
+      ),
+    ])
+    parts[path] = document
+    if present {
+      edits.push((path, edit))
+    } else {
+      created[path] = document
+    }
+    id
+  }
+  relation
+}
+
+///|
+fn hyperlink_markup(
+  node : @xml.Node?,
+  kind : String,
+  relation : String,
+) -> String raise @failure.Failure {
+  if kind == "none" {
+    return ""
+  }
+  let metadata = StringBuilder()
+  if node is Some(node) {
+    for attribute in node.attributes {
+      if attribute.uri.is_empty() && attribute.name != "action" {
+        metadata.write_string(
+          " \{attribute.name}=\"\{xml_attribute(attribute.value)}\"",
+        )
+      }
+    }
+  }
+  let action = if kind == "external" {
+    ""
+  } else {
+    " action=\"ppaction://hlinksldjump\""
+  }
+  "<a:hlinkClick xmlns:a=\"\{drawing_uri}\" xmlns:r=\"\{relationship_uri}\" r:id=\"\{relation}\"\{action}\{metadata.to_string()}/>"
 }

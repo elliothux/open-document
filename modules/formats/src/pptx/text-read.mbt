@@ -80,7 +80,11 @@ fn text_style(
   }
   {
     font: font_key(theme, family, text, bold, italic),
-    underline: underline == "sng",
+    underline: underline == "sng" ||
+    sources.any(source => {
+      ["rPr", "endParaRPr"].contains(source.node.name) &&
+      source.child("hlinkClick") is Some(_)
+    }),
     strike: strike == "sngStrike",
     highlight: text_highlight(theme, sources),
     script: if baseline > 0 {

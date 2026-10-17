@@ -203,13 +203,18 @@ fn Session::paragraph(
     paragraph = paragraph_properties(tree, props, paragraph)
   }
   let spans : Array[@layout.Span] = []
-  for run in tree.children[id] {
-    if tree.nodes[run].uri != word_uri || tree.nodes[run].name != "r" {
-      if Some(run) != props {
-        diagnostics.push("unsupported-layout:" + tree.nodes[run].qualified)
+  for child in tree.children[id] {
+    let node = tree.nodes[child]
+    if node.uri == word_uri && node.name == "hyperlink" {
+      tree.check_hyperlink(child) catch {
+        @failure.Failure(message~, ..) =>
+          diagnostics.push("unsupported-layout:" + message)
       }
-      continue
+    } else if Some(child) != props && (node.uri != word_uri || node.name != "r") {
+      diagnostics.push("unsupported-layout:" + node.qualified)
     }
+  }
+  for run in tree.paragraph_runs(id) {
     let style = styles.run_character_style(tree, run, run_style, diagnostics)
     for content in tree.children[run] {
       let item = tree.nodes[content]
@@ -258,7 +263,7 @@ fn Session::paragraph(
     }
   }
   if spans.is_empty() {
-    let run = match tree.child(id, "r") {
+    let run = match tree.paragraph_runs(id).get(0) {
       Some(run) => Some(run)
       None => props
     }

@@ -98,6 +98,11 @@ pub fn Session::insert_picture(
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
   let change : @xml.SourceChange = if target is Some((id, offset)) {
     let node = tree.nodes[id]
+    guard tree.nodes[node.parent].parent == position.paragraph else {
+      @failure.reject(
+        "protected-content", "Picture insertion inside hyperlinks requires editing support",
+      )
+    }
     if node.name == "drawing" {
       let parent = tree.nodes[node.parent]
       {

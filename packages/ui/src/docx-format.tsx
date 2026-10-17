@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DocumentEditor } from "@open-document/web/editor";
 import type {
   FormatValue,
@@ -9,6 +9,7 @@ import type {
 import {
   highlightColors,
   DOCX_PAGE_BREAK,
+  checkDocxHyperlink,
 } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { Command, Group } from "./controls.js";
@@ -372,6 +373,13 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
         editor={editor}
         disabled={stylesDisabled}
       />
+      <DocxHyperlink
+        key={`link:${state.document?.documentId}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
       <DocxPage
         controller={controller}
         state={state}
@@ -512,6 +520,84 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
         }
       />
     </aside>
+  );
+}
+
+function DocxHyperlink({ controller, state, editor, disabled }: Props) {
+  const t = messages(state.locale),
+    current = editor.getSnapshot().data,
+    link = current.formatting?.hyperlink,
+    selection = current.selection;
+  const [address, setAddress] = useState(link?.target ?? ""),
+    [text, setText] = useState("");
+  const source = useRef(link);
+  useEffect(() => {
+    if (
+      !link ||
+      (link.target === source.current?.target &&
+        link.mixed === source.current?.mixed)
+    )
+      return;
+    source.current = link;
+    setAddress(link.target ?? "");
+    setText("");
+  }, [link]);
+  const needsText =
+    !link?.target &&
+    !link?.mixed &&
+    selection?.anchor.paragraph === selection?.focus.paragraph &&
+    selection?.anchor.offset === selection?.focus.offset;
+  disabled ||= !link || !!link.reason;
+  return (
+    <section aria-label={t.textHyperlink}>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          controller.run(() => {
+            checkDocxHyperlink(address, text || undefined);
+            return editor.setHyperlink(address, text || undefined);
+          });
+        }}
+      >
+        <fieldset disabled={disabled}>
+          <legend>{t.textHyperlink}</legend>
+          <label>
+            {t.hyperlinkAddress}
+            <input
+              type="url"
+              required
+              maxLength={2048}
+              value={address}
+              onChange={(event) => setAddress(event.currentTarget.value)}
+            />
+          </label>
+          <label>
+            {t.hyperlinkText}
+            <input
+              type="text"
+              required={needsText}
+              maxLength={65536}
+              value={text}
+              onChange={(event) => setText(event.currentTarget.value)}
+            />
+          </label>
+          <button type="submit">{t.hyperlinkApply}</button>
+          <button
+            type="button"
+            disabled={!link?.target && !link?.mixed}
+            onClick={() => controller.run(() => editor.setHyperlink(null))}
+          >
+            {t.hyperlinkRemove}
+          </button>
+        </fieldset>
+      </form>
+      {link?.reason && <p>{link.reason}</p>}
+      {!disabled && link?.target && (
+        <a href={link.target} target="_blank" rel="noopener noreferrer">
+          {t.hyperlinkOpen}
+        </a>
+      )}
+    </section>
   );
 }
 

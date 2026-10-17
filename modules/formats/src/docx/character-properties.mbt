@@ -183,7 +183,7 @@ fn Session::preserve_run_style(
   run : Int,
   paragraph : Int,
 ) -> @xml.SourceChange? raise @failure.Failure {
-  let original = tree.nodes[run].parent
+  let original = tree.run_paragraph(run)
   let before = styles.character_style(tree, original, Some(run), [])
   let after = styles.character_style(tree, paragraph, Some(run), [])
   let extras = styles.character_extras(tree, original, run)

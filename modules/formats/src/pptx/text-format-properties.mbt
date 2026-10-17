@@ -105,14 +105,16 @@ fn formatted_properties(
   properties : Ref?,
   name : String,
   format : TextFormat?,
+  hyperlink~ : String? = None,
 ) -> String raise @failure.Failure {
-  guard format is Some(format) else {
+  if format is None && hyperlink is None {
     return if properties is Some(properties) {
       cleared_properties(properties)
     } else {
       "<a:\{name} xmlns:a=\"\{drawing_uri}\"/>"
     }
   }
+  let format = format.unwrap_or(TextFormat::new())
   let attrs : Map[String, String] = Map([])
   if format.size is Some(value) {
     attrs["sz"] = (value * 100).round().to_int().to_string()
@@ -137,6 +139,9 @@ fn formatted_properties(
     }
   }
   let replacements : Map[String, String] = Map([])
+  if hyperlink is Some(markup) {
+    replacements["hlinkClick"] = markup
+  }
   if format.highlight is Some(value) {
     if properties.bind(p => p.child("highlight")) is Some(existing) {
       check_highlight(existing)
@@ -224,9 +229,14 @@ fn format_run(
   end : Int,
   format : TextFormat?,
   clear~ : Bool = false,
+  hyperlink~ : String? = None,
 ) -> String raise @failure.Failure {
   let source = run.source.unwrap()
-  if format is None && !clear && start == 0 && end == run.text.length() {
+  if format is None &&
+    hyperlink is None &&
+    !clear &&
+    start == 0 &&
+    end == run.text.length() {
     return source_xml(source)
   }
   let output = StringBuilder()
@@ -250,17 +260,21 @@ fn format_run(
       output.write_view(xml[cursor:node.start])
       if node.name == "rPr" &&
         node.uri == drawing_uri &&
-        (format is Some(_) || clear) {
+        (format is Some(_) || clear || hyperlink is Some(_)) {
         output.write_string(
           formatted_properties(
             Some({ tree: source.tree, node, }),
             "rPr",
             format,
+            hyperlink~,
           ),
         )
       } else if node.name == "t" && node.uri == drawing_uri {
-        if properties is None && (format is Some(_) || clear) {
-          output.write_string(formatted_properties(None, "rPr", format))
+        if properties is None &&
+          (format is Some(_) || clear || hyperlink is Some(_)) {
+          output.write_string(
+            formatted_properties(None, "rPr", format, hyperlink~),
+          )
         }
         output.write_view(
           xml[node.start:node.opening_end - (if node.empty { 2 } else { 1 })],
@@ -279,8 +293,8 @@ fn format_run(
   }
   if source.node.name == "br" &&
     properties is None &&
-    (format is Some(_) || clear) {
-    output.write_string(formatted_properties(None, "rPr", format))
+    (format is Some(_) || clear || hyperlink is Some(_)) {
+    output.write_string(formatted_properties(None, "rPr", format, hyperlink~))
   }
   if marker {
     output.write_string("<a:t xmlns:a=\"\{drawing_uri}\"/>")

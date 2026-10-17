@@ -248,6 +248,7 @@ fn Foundation::dispatch(
     | "captureFormat"
     | "applyFormat"
     | "setCharacterFormat"
+    | "setHyperlink"
     | "setParagraphFormat"
     | "setDefaultTabStop"
     | "findDocx"
@@ -513,9 +514,16 @@ fn Foundation::dispatch(
           }
           result
         }
-        "setCharacterFormat" | "setParagraphFormat" => {
+        "setCharacterFormat" | "setParagraphFormat" | "setHyperlink" => {
           let revision = field_int(request, "revision")
-          let result = if operation == "setCharacterFormat" {
+          let result = if operation == "setHyperlink" {
+            session.set_hyperlink(
+              revision,
+              field_selection(request),
+              field_hyperlink_target(request),
+              text=field_hyperlink_text(request),
+            )
+          } else if operation == "setCharacterFormat" {
             session.set_character_format(
               revision,
               field_selection(request),

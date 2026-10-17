@@ -211,9 +211,10 @@ fn text_property_change(
   parent : Ref,
   name : String,
   format : TextFormat?,
+  hyperlink~ : String? = None,
 ) -> @xml.SourceChange raise @failure.Failure {
   let existing = parent.child(name)
-  let markup = formatted_properties(existing, name, format)
+  let markup = formatted_properties(existing, name, format, hyperlink~)
   if existing is Some(existing) {
     {
       node: parent.node.id,

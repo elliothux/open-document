@@ -208,35 +208,26 @@ fn Session::prepare_structural_range(
         length: last.end - last.closing_start,
         xml: "</\{first.qualified}>",
       })
-      let before_bindings = tree.namespace_bindings(last.id)
-      let after_bindings = tree.namespace_bindings(first.id)
       let styles = self.styles([])
-      for id in tree.children[last.id].filter(id => tree.nodes[id].name == "r") {
+      for
+        id in tree.children[last.id].filter(id => {
+          tree.nodes[id].uri == word_uri &&
+          ["r", "hyperlink"].contains(tree.nodes[id].name)
+        }) {
         let run = tree.nodes[id]
-        let attributes = StringBuilder()
-        for prefix, uri in before_bindings {
-          if after_bindings.get(prefix) != Some(uri) &&
-            !run.namespaces.iter().any(binding => binding.0 == prefix) {
-            let name = if prefix.is_empty() {
-              "xmlns"
-            } else {
-              "xmlns:" + prefix
-            }
-            attributes.write_string(
-              " \{name}=\"" + property_attribute(uri) + "\"",
-            )
-          }
-        }
-        if !attributes.to_string().is_empty() {
+        let attributes = tree.namespace_additions(id, first.id)
+        if !attributes.is_empty() {
           changes.push({
             node: run.id,
             offset: run.opening_end -
             run.start -
             (if run.empty { 2 } else { 1 }),
             length: 0,
-            xml: attributes.to_string(),
+            xml: attributes,
           })
         }
+      }
+      for id in tree.paragraph_runs(last.id) {
         if self.preserve_run_style(tree, styles, id, first.id) is Some(change) {
           changes.push(change)
         }

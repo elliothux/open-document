@@ -108,7 +108,7 @@ fn Session::formatting_styles(
     }
     if !selected && texts.is_empty() {
       let patch = if collapsed { pending } else { None }
-      let run = match tree.child(paragraph, "r") {
+      let run = match tree.paragraph_runs(paragraph).get(0) {
         Some(run) => Some(run)
         None => tree.child(paragraph, "pPr")
       }
@@ -209,6 +209,7 @@ pub fn Session::query_formatting(
   {
     "revision": revision,
     "reason": reason,
+    "hyperlink": self.hyperlink_summary(tree, range, reason),
     "table": self.table_dimensions(tree, range),
     "list": format_summary(
       match range {

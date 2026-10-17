@@ -39,6 +39,7 @@ export type {
   ListFormat,
 } from "@open-document/wasm/foundation";
 export {
+  checkDocxHyperlink,
   highlightColors,
   DOCX_SOFT_BREAK,
   DOCX_PAGE_BREAK,
@@ -65,6 +66,7 @@ import {
   resourceBudget,
   editState,
   docxFormatting,
+  checkDocxHyperlink,
   docxStyleCatalog,
   createdDocxStyle,
   type DocxStyleCatalog,
@@ -440,6 +442,23 @@ export class FoundationClient {
         revision,
         selection,
         format,
+      }),
+    );
+  }
+  async setHyperlink(
+    revision: number,
+    selection: DocxSelection,
+    target: string | null,
+    text?: string,
+  ): Promise<EditState> {
+    checkDocxHyperlink(target, text);
+    return editState(
+      await this.connection.request({
+        operation: "setHyperlink",
+        revision,
+        selection,
+        target,
+        ...(text === undefined ? {} : { text }),
       }),
     );
   }

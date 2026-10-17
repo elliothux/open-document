@@ -2,6 +2,8 @@ import type { Messages } from "./messages-en.js";
 
 export const zh: Messages = {
   objectHyperlink: "对象超链接",
+  textHyperlink: "文字超链接",
+  hyperlinkText: "显示文字",
   hyperlinkKind: "链接类型",
   hyperlinkExternal: "外部地址",
   hyperlinkSlide: "本文稿中的幻灯片",

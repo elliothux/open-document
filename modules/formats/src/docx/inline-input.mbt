@@ -98,7 +98,8 @@ fn Session::edit_inline_text(
   let mut units = 0
   for id, text in replacements {
     let node = document.node(id)
-    tree.check_page_break_input(tree.nodes[node.parent].parent, text)
+    let paragraph = tree.run_paragraph(node.parent)
+    tree.check_page_break_input(paragraph, text)
     if node.name == "drawing" {
       let items = self.picture_text_changes(
         tree,
@@ -125,12 +126,8 @@ fn Session::edit_inline_text(
       plain[id] = text
       continue
     }
-    tree.check_editable_paragraph(
-      tree.nodes[node.parent].parent,
-      part=self.main,
-      pictures=true,
-    )
-    self.check_native_pictures(tree, tree.nodes[node.parent].parent)
+    tree.check_editable_paragraph(paragraph, part=self.main, pictures=true)
+    self.check_native_pictures(tree, paragraph)
     guard node.attributes
       .iter()
       .all(attribute => {
@@ -193,9 +190,11 @@ fn WordTree::split_control_input(
       source[node.start:node.end].to_owned()
     })
     .unwrap_or("")
-  let frame = "</\{run.qualified}></\{p.qualified}>" +
+  let (link_opening, link_closing) = self.hyperlink_frame(document, run.id)
+  let frame = "</\{run.qualified}>\{link_closing}</\{p.qualified}>" +
     structure_opening(p) +
     self.continuation_properties(document, paragraph) +
+    link_opening +
     structure_opening(run) +
     properties
   guard frame.length().to_int64() * (parts.length() - 1).to_int64() <=
