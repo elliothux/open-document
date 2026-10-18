@@ -1,8 +1,15 @@
 ///|
 fn xlsx_table_edit(change : Json) -> @xlsx.SheetEdit raise @failure.Failure {
   let action = field_string(change, "action")
-  if action == "renameTable" || action == "renameTableColumn" {
-    let keys = if action == "renameTable" {
+  if action == "resizeTable" ||
+    action == "createTable" ||
+    action == "renameTable" ||
+    action == "renameTableColumn" {
+    let keys = if action == "resizeTable" {
+      ["action", "id", "range"]
+    } else if action == "createTable" {
+      ["action", "range", "name"]
+    } else if action == "renameTable" {
       ["action", "id", "name"]
     } else {
       ["action", "id", "column", "name"]
@@ -10,10 +17,17 @@ fn xlsx_table_edit(change : Json) -> @xlsx.SheetEdit raise @failure.Failure {
     guard change is Object(fields) &&
       fields.length() == keys.length() &&
       fields.keys().all(key => keys.contains(key)) else {
-      @failure.reject("invalid-operation", "Invalid table rename fields")
+      @failure.reject("invalid-operation", "Invalid table edit fields")
     }
   }
   match action {
+    "resizeTable" =>
+      @xlsx.ResizeTable(field_int(change, "id"), field_string(change, "range"))
+    "createTable" =>
+      @xlsx.CreateTable(
+        field_string(change, "range"),
+        field_string(change, "name"),
+      )
     "group" | "ungroup" =>
       @xlsx.GroupOutline(
         field_string(change, "axis"),

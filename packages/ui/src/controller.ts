@@ -222,8 +222,11 @@ export class EditorController {
   exportPng(): Promise<SavedDocument> {
     return this.output("png");
   }
-  exportImages(): Promise<void> {
-    return this.output("images").then(() => {});
+  exportJpeg(): Promise<SavedDocument> {
+    return this.output("jpeg");
+  }
+  exportImages(format: "png" | "jpeg" = "png"): Promise<void> {
+    return this.output(format === "jpeg" ? "jpegs" : "images").then(() => {});
   }
   private output(
     kind: string,
@@ -246,19 +249,35 @@ export class EditorController {
       kind === "original"
         ? targetName
         : this.value.name.replace(/\.[^.]*$/, "") +
-          (kind === "png" ? ".png" : kind.startsWith("csv") ? ".csv" : ".pdf");
+          (kind === "png"
+            ? ".png"
+            : kind === "jpeg"
+              ? ".jpg"
+              : kind.startsWith("csv")
+                ? ".csv"
+                : ".pdf");
     const operation = async (): Promise<SavedDocument> => {
-      if (kind === "images") {
+      if (kind === "images" || kind === "jpegs") {
         if (file.format !== "docx" && file.format !== "pptx")
           throw new Error("Page images require a document or presentation");
-        const pages = await file.editor.exportPageImages();
+        if (kind === "jpegs" && file.format !== "pptx")
+          throw new Error("JPEG export requires a presentation");
+        const pages =
+          file.format === "pptx"
+            ? await file.editor.exportPageImages(
+                1,
+                67108864,
+                false,
+                kind === "jpegs" ? "jpeg" : "png",
+              )
+            : await file.editor.exportPageImages();
         const prefix = targetName.replace(/\.[^.]*$/, "");
         const digits = Math.max(2, String(pages.length).length);
         let result: SavedDocument | undefined;
         for (const [index, page] of pages.entries()) {
           result = await this.deliverOutput(
             page,
-            `${prefix}-${String(index + 1).padStart(digits, "0")}.png`,
+            `${prefix}-${String(index + 1).padStart(digits, "0")}.${page.format === "jpeg" ? "jpg" : "png"}`,
             kind,
             file,
           );
@@ -271,7 +290,8 @@ export class EditorController {
           this.publish({
             message: text
               .replace("{done}", String(index + 1))
-              .replace("{total}", String(pages.length)),
+              .replace("{total}", String(pages.length))
+              .replace("{format}", page.format === "jpeg" ? "JPEG" : "PNG"),
           });
         }
         if (!result) throw new Error("The document has no page images");
@@ -286,6 +306,10 @@ export class EditorController {
         if (file.format !== "pptx" && file.format !== "docx")
           throw new Error("PNG export requires a document or presentation");
         output = await file.editor.exportPng();
+      } else if (kind === "jpeg") {
+        if (file.format !== "pptx")
+          throw new Error("JPEG export requires a presentation");
+        output = await file.editor.exportJpeg();
       } else if (kind.startsWith("csv")) {
         if (file.format !== "xlsx")
           throw new Error("CSV export requires a workbook");

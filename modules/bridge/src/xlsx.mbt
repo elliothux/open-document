@@ -362,6 +362,8 @@ fn Foundation::xlsx_operation(
         | "clearOutline"
         | "outlineSummary"
         | "renameTable"
+        | "createTable"
+        | "resizeTable"
         | "renameTableColumn" => xlsx_table_edit(change)
         "filterClear" => @xlsx.ClearFilter
         "filterRemove" => @xlsx.RemoveFilter

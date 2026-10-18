@@ -107,6 +107,7 @@ export type OwnedFile = EditorFile & {
 };
 export const mime: Record<EditorOutput["format"], string> = {
   png: "image/png",
+  jpeg: "image/jpeg",
   csv: "text/csv;charset=utf-8",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",

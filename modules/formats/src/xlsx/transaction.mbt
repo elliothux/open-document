@@ -11,6 +11,7 @@ fn Session::commit(
   created_parts~ : Map[String, @xml.Document] = Map([]),
   deleted~ : Sheet? = None,
   removed~ : Map[String, @xml.Document] = Map([]),
+  table_edit~ : String? = None,
   font_context~ : (@layout.TextProbe, Map[String, String])? = self.font_context,
   fit_work~ : FitWork = {
     axes: 0,
@@ -24,7 +25,7 @@ fn Session::commit(
     },
   },
 ) -> Unit raise @failure.Failure {
-  self.protect_table_cells(sheets, calculation.names.tables)
+  self.protect_table_cells(sheets, calculation.names.tables, edited=table_edit)
   guard self.revision < 2147483647 else {
     @failure.reject("limit-exceeded", "Workbook revision exhausted")
   }

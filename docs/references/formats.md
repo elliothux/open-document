@@ -39,7 +39,7 @@ DOCX、XLSX、PPTX 也接受 `document: { name, blank: true }`，`OfficeDocument
 
 框架无关的四类编辑宿主提供 `getSnapshot()`、`subscribe()`、`focus()`、`setPaused()`、`markSaved(output)` 和 `markDownloaded(output)`。快照包含会话身份、revision、导航、缩放、选区摘要、历史、诊断、停止/错误、在途操作及组合/拖动/草稿状态，并附格式当前查询。未变化时保持对象身份；已提交但绘制失败仍发布新 revision，保留保存与恢复入口。低层宿主借用 client，调用者等待宿主释放后另行关闭 client。
 
-编辑宿主的原格式保存、Office PDF、DOCX/PPTX 单页 PNG 和 XLSX CSV 输出统一返回 `EditorOutput = { documentId, revision, format, bytes }`。`format` 包含 `csv` 和 `png`；编辑器输入格式仍为 DOCX/XLSX/PPTX/PDF。默认 UI 另加文件名 `name`。DOCX/PPTX 全页 PNG 返回按页序排列的只读 `EditorOutput` 数组，具体合同见[DOCX 页面 PNG](#docx-页面-png)及[PPTX PNG 输出](#当前页-png-输出)。此约定不改变原始 Wasm/client 的保存结果。只有该宿主实际产生的原格式输出可以 `markSaved`；旧会话、其他格式和任意裸 revision 都不能确认保存。确认的是输出 revision，其后新编辑仍显示未保存。导航、缩放和 UI 变化不修改文档。
+编辑宿主的原格式保存、Office PDF、DOCX/PPTX PNG、PPTX JPEG 和 XLSX CSV 输出统一返回 `EditorOutput = { documentId, revision, format, bytes }`。`format` 包含 `csv`、`png` 和 `jpeg`；编辑器输入格式仍为 DOCX/XLSX/PPTX/PDF。默认 UI 另加文件名 `name`。全页图片返回按页序排列的只读 `EditorOutput` 数组，具体合同见[DOCX 页面 PNG](#docx-页面-png)及[PPTX 图片输出](#当前页-png-输出)。此约定不改变原始 Wasm/client 的保存结果。只有该宿主实际产生的原格式输出可以 `markSaved`；旧会话、其他格式和任意裸 revision 都不能确认保存。确认的是输出 revision，其后新编辑仍显示未保存。导航、缩放和 UI 变化不修改文档。
 
 原格式 `onSave` 成功才确认保存基线；失败保留修改并允许重试。缺省下载只提示“已生成下载”，不确认磁盘持久化，也不清除修改。PDF、PNG 和 CSV 导出不清除 Office 修改。关闭前选择“导出并继续”明确包含放弃内存会话。`dispose` 不等待宿主存储回调，晚到回执不更新已释放实例。
 
@@ -1201,15 +1201,25 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 `XlsxQuery.tables` 返回当前工作表的原生表定义，包括 `id`、`name`、A1 `range`、`headerRow/totalRow`、`columns`、`style` 和 `readOnlyReason`。每列返回稳定的 `id`、`name` 和 `calculated` 标记；表和列身份来自所属 XML，不从位置或显示文字重新生成。核心校验表关系、名称、列数、重复身份、重叠范围和合并区域，单元格仍由原有稀疏工作表持有。
 
-公式支持 `Sales[Amount]`、表内 `[Amount]`、`[@Amount]`、`[[First]:[Last]]`，以及 `#Data/#Headers/#Totals/#All/#This Row`。裸表名表示数据区域，标题和总计按定义排除；连续行段可组合。列名中的结构字符使用单引号转义。引用解析为现有单元格依赖和有界范围，保留原公式文字；跨表公式、名称引用，以及计算列和总计格中已有的单元格公式随普通数据重算。表元数据不会自动填充缺失的单元格公式。缺表返回 `#NAME?`，缺列或不存在的行段返回 `#REF!`，数据区域外的当前行引用返回 `#VALUE!`。不连续行列组合继续保护。
+公式支持 `Sales[Amount]`、表内 `[Amount]`、`[@Amount]`、`[[First]:[Last]]`，以及 `#Data/#Headers/#Totals/#All/#This Row`。裸表名表示数据区域，标题和总计按定义排除；连续行段可组合。列名中的结构字符使用单引号转义。引用解析为现有单元格依赖和有界范围，保留原公式文字；跨表公式、名称引用，以及计算列和总计格中已有的单元格公式随普通数据重算。普通数据修改不自动补齐既有区域中缺失的计算列公式；扩展新行的补齐见下文。缺表返回 `#NAME?`，缺列或不存在的行段返回 `#REF!`，数据区域外的当前行引用返回 `#VALUE!`。不连续行列组合继续保护。
 
 `editSheet({ action: "renameTable", id, name })` 修改表名称。`editSheet({ action: "renameTableColumn", id, column, name })` 修改列标题；`column` 是稳定列身份。表名遵循已有名称规则，表名和列名最多 255 个 UTF-16 单元。核心同时更新所属表部件、表头、工作簿名称及各表公式，按词法标记替换，保留字符串常量、列身份、表关系、样式定义和无关源。默认结构化表面板调用相同命令，先提交原生草稿。源、缓存和选区进入一项精确历史，相同名称不新增历史。
+
+`editSheet({ action: "createTable", range, name })` 将当前工作表的矩形区域转为原生结构化表。区域至少包含标题和一行数据；首行作为标题，不插入新行。核心按已支持的单元格数字格式取得标题文字，空白使用 `Column1` 等唯一名称，重复标题追加从 2 开始的数字，并避开现有标题。标题公式转换为当前结果文字；共享公式标题继续保护。非标题单元格的值、公式和直接格式保持，已有结构化引用随新定义重算。
+
+创建使用 `TableStyleMedium2` 行条纹，分配独立表/列身份、部件路径及关系，并添加内容类型和工作表引用。标题修改、源、缓存、资源及选区合为一项精确历史；已有表及无关部件保持。创建后可沿既有路径编辑数据、输入结构化公式及改名。默认面板使用当前选区，原生草稿先提交。重叠表、合并区域、普通筛选、名称冲突、受保护源或资源预算失败整体拒绝。标题超过 255 或总名称预算时拒绝，不静默截断。实现归 [`table-create.mbt`](../../modules/formats/src/xlsx/table-create.mbt)及与便笺共用的 [`sheet-resource.mbt`](../../modules/formats/src/xlsx/sheet-resource.mbt)。空白和重复标题规则参考 [ONLYOFFICE 标题生成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L5545-L5627)。
+
+`editSheet({ action: "resizeTable", id, range })` 调整行数及左右列边界。新范围保留首行、部分原有列和至少一行数据。保留列按原单元格位置保留身份与元数据；新列分配身份，并从原位置的逻辑值生成唯一标题。空白或重复标题使用空闲 `ColumnN`。有标题的表同步写入新列标题，无标题表保持首行数据。移出表的普通数据与直接格式留在原坐标；指向移除列的已绑定公式写为 `#REF!`，重新扩入同名列也不恢复旧引用。移出范围的普通局部结构化引用补上表名，保持归属；当前行引用在数据区外返回 `#VALUE!`。
+
+已有总计行随末行移动：核心清除原总计行，在保留列的新位置恢复原文字/公式，目标已有内容时整体拒绝。原生 `calculatedColumnFormula` 为新增数据行中的空白格补公式，相对 A1 引用按首个数据行偏移，结构化引用保留；既有值或公式例外不覆盖。一次补齐最多涉及 4096 格，沿既有公式、输出及历史预算。此入口不新增计算列定义或总计设置，也不向整张工作表插入行列。
+
+核心同步表范围、排除总计行的筛选范围、工作簿名称和各表依赖缓存。新范围完全包含原范围时，恰好覆盖整表或单列的条件格式按新末行延长，保留原锚点；缩小时不裁剪原规则。样式、自动适配和打印沿现有表定义派生。默认面板提供范围框与同一命令，先提交原生草稿；相同范围不增加历史。活动表筛选、排序或未知列/筛选元数据、跨边界的共享局部公式、未绑定的规则引用及超限候选继续保护。实现归 [`table-resize.mbt`](../../modules/formats/src/xlsx/table-resize.mbt)及 [`table-resize-references.mbt`](../../modules/formats/src/xlsx/table-resize-references.mbt)，范围与列身份依据 [ONLYOFFICE changeRefOnRange](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L8579-L8641)，条件格式范围依据 [af_changeTableRange](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L22631-L22708)。
 
 普通数据格沿现有输入路径编辑。直接覆盖表头、总计格或已有计算列时，核心要求相应表命令；缓存重算不受此限制。连接、资源关系、扩展、未知规则引用、受保护工作表和超限候选原子拒绝。工作簿最多 256 张结构化表、4096 列定义；每表列名累计最多 65536 个单元，改名共享 1048576 公式工作预算和原有 4 MiB 历史上限。
 
 `TableStyleMedium2` 的标题填充/文字色、行列条纹、首末列和总计字体、外框/横线及总计双线进入现有显示、打印与自动适配路径。颜色复用当前主题及 tint 解析。直接声明按属性覆盖表样式，条件格式随后覆盖；所需粗体字体键包含在查询中，宿主仍须供应字体及 profile。格式面板查询包含表样式，修改字体或边框时保留同一组件的其他可见属性；`none` 清除直接边框覆盖，恢复表样式。共享边只绘制一次，双线保留两条细线及间隙。其他内置/自定义样式和差异样式继续保护。属性依据 [ONLYOFFICE 的 Medium2 定义](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Sheets/XlsxDefaults/presetTableStyles.xml#L2492-L2579)，实现归 [`table-style.mbt`](../../modules/formats/src/xlsx/table-style.mbt)。
 
-当前接通导入、查询、普通数据编辑及名称修改。表创建、扩展区域、行列结构同步、总计设置、表筛选和完整表样式呈现继续实施。已有样式定义保留；只有已支持的表定义和样式才解除 `tableParts` 未呈现诊断，其余仍保护打印。活动表筛选尚不能区分筛选隐藏来源时，保留导入缓存并保护计算修改。工作表复制、删除和改名等未接通的表资源操作继续保护。
+当前接通区域创建、范围调整、导入、查询、普通数据编辑及名称修改。整行/列结构同步、计算列创作和既有区域重填、总计设置、表筛选和完整表样式呈现继续实施。已有样式定义保留；只有已支持的表定义和样式才解除 `tableParts` 未呈现诊断，其余仍保护打印。活动表筛选尚不能区分筛选隐藏来源时，保留导入缓存并保护计算修改。工作表复制、删除和改名等未接通的表资源操作继续保护。
 
 结构化引用依据 [ONLYOFFICE cStrucTable](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L2352-L2628)的行段、列身份、当前行及转义行为。实现归 [`table.mbt`](../../modules/formats/src/xlsx/table.mbt)、[`structured-reference.mbt`](../../modules/formats/src/xlsx/structured-reference.mbt)、[`table-rename.mbt`](../../modules/formats/src/xlsx/table-rename.mbt)及 [`xlsx-tables.tsx`](../../packages/ui/src/xlsx-tables.tsx)，复用既有事务和绘制模型。
 
@@ -1612,13 +1622,19 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 默认文件菜单的“当前页 PNG”使用相同 API。`onSave` 收到 `format: "png"` 及 `.png` 名称的派生输出；没有回调时按 `image/png` 下载。PNG 输出不能 `markSaved`，也不清除 PPTX 未保存状态。它通过当前 R0 执行器重放核心图元，保留已有诊断的显示结果；图片、裁剪、旋转与文字沿现有渲染范围，选择框和光标只在编辑覆盖层中。
 
-`PresentationEditor.exportPageImages(scale = 1, outputBytes = 67108864, hidden = false)` 返回全部可见页的只读 `EditorOutput[]`，按文稿顺序排列；hidden=true 包含隐藏页。结果共享文档身份与 revision，所有 PNG 的字节数之和受 outputBytes 限制。没有选中页面时拒绝。当前页、选区、编辑布局身份、预览和历史保持；后续输入沿同一队列等待集合生成。全部页面成功后才登记并返回输出，失败不交付前缀集合，也不覆盖此前输出记录。
+`PresentationEditor.exportPageImages(scale = 1, outputBytes = 67108864, hidden = false, format = "png")` 返回全部可见页的只读 `EditorOutput[]`，按文稿顺序排列；hidden=true 包含隐藏页。format 接受 `"png" | "jpeg"`，默认 PNG。结果共享文档身份与 revision，所有图片的字节数之和受 outputBytes 限制。没有选中页面时拒绝。当前页、选区、编辑布局身份、预览和历史保持；后续输入沿同一队列等待集合生成。全部页面成功后才登记并返回输出，失败不交付前缀集合，也不覆盖此前输出记录。
 
 核心 `Session.print_drawing` / Wasm 与 Worker `printLayoutPptx` 复用 `print_layout` 的页面选择、诊断、图元预算和 PDF 几何，返回 `PptxPrintLayout { revision, regions, outlines, images }`。请求携带 revision、all、hidden 和 profile，不改变当前编辑页的布局缓存。批量 PNG 沿完整打印范围保护未知可见内容；单页 PNG 继续保留已有诊断的显示结果。Web 在输出期间准备所选页面图片，逐页编码并释放临时 Canvas，最后恢复当前编辑页的图片集合。
 
 默认文件菜单的“全部幻灯片 PNG”导出全部可见页，复用既有逐页保存/下载流程。名称按 `<原文件基名>-01.png`、`-02.png` 顺序补零，序号只计算导出的页面。所有图片生成后才依次调用 `onSave`；中途失败保留已完成的外部保存及进度，停止后续回调，重试按当前修订重新生成。回调期间继续编辑不会改变已生成图片的 revision。没有 `onSave` 时逐页下载并报告生成进度；多个下载仍受 Chrome 站点权限约束。派生输出不清除 PPTX 修改状态。
 
-上述入口依赖浏览器 Canvas 绘制和 PNG 编码，当前只检查 Chrome/Chromium；不作为无浏览器 PNG 转换能力。普通 Wasm/Worker 文档状态、布局和 PDF 接口保持原职责。JPEG 及打印界面仍待实现。
+上述入口依赖浏览器 Canvas 绘制和编码，当前只检查 Chrome/Chromium；不作为无浏览器图片转换能力。普通 Wasm/Worker 文档状态、布局和 PDF 接口保持原职责。打印界面仍待实现。
+
+#### JPEG 输出
+
+`PresentationEditor.exportJpeg(scale = 1, outputBytes = 67108864)` 导出当前页，`exportPageImages(scale, outputBytes, hidden, "jpeg")` 导出页面集合。返回输出的 `format` 为 `jpeg`。两者复用上述布局、页面选择、尺寸、像素/总字节预算、队列、源与历史保护及失败恢复。单页保留已有诊断的显示结果，集合沿打印范围保护未知可见内容。
+
+JPEG 使用白色底图和固定 `0.92` 编码质量，属于有损输出，不保留透明通道。平台检查编码 Blob 的实际 MIME；编码失败或浏览器回退其他格式时拒绝交付。默认文件菜单提供“当前页 JPEG”和“全部幻灯片 JPEG”；回调收到 `.jpg` 或按页补零的 `-01.jpg` 名称，没有回调时按 `image/jpeg` 下载。逐页保存失败保留已完成进度，重试按当前修订重新生成；JPEG 输出不能确认原格式保存。实现归 [`canvas-surface.ts`](../../packages/web/src/canvas-surface.ts)及 [`presentation-output.ts`](../../packages/web/src/presentation-output.ts)。
 
 ### 日期与页脚编辑
 

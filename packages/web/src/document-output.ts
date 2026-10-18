@@ -54,7 +54,7 @@ export async function docxOutputs(
     for (const index of pages) {
       assertOpen();
       if (remaining === 0) throw new Error("PNG pages exceed byte budget");
-      const bytes = await surface.exportPng(layout, index, scale, remaining);
+      const bytes = await surface.exportImage(layout, index, scale, remaining);
       assertOpen();
       remaining -= bytes.byteLength;
       buffers.push(bytes);

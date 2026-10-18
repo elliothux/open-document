@@ -284,6 +284,14 @@ fn Session::rename_table(
   }
   let calculation = self.calculate(sheets, None, [], workbook, parts~)
   edits.append(self.cache_edits(sheets, calculation))
-  self.commit(sheets, workbook, calculation, edits, self.selection, parts~)
+  self.commit(
+    sheets,
+    workbook,
+    calculation,
+    edits,
+    self.selection,
+    parts~,
+    table_edit=Some(table.part),
+  )
   self.query()
 }

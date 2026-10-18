@@ -15,15 +15,16 @@ export class PresentationCanvas extends CanvasSurface {
       y: (event.clientY - rect.top) / scale,
     };
   }
-  async exportSlidePng(
+  async exportSlideImage(
     layout: PptxLayout,
     current: { revision: number; slide: string },
     scale: number,
     outputBytes: number,
+    format: "png" | "jpeg",
   ): Promise<Uint8Array> {
     if (layout.revision !== current.revision || layout.slide !== current.slide)
       throw new Error("Slide layout is stale; refresh before exporting");
-    return this.exportPng(layout, 0, scale, outputBytes);
+    return this.exportImage(layout, 0, scale, outputBytes, format);
   }
   async exportPageImages(
     client: PptxClient,
@@ -33,13 +34,14 @@ export class PresentationCanvas extends CanvasSurface {
     outputBytes: number,
     hidden: boolean,
     assertOpen: () => void,
+    format: "png" | "jpeg",
   ): Promise<Uint8Array[]> {
     if (
       !Number.isInteger(outputBytes) ||
       outputBytes < 1 ||
       outputBytes > 67108864
     )
-      throw new Error("Invalid PNG output budget");
+      throw new Error("Invalid image output budget");
     try {
       await this.prepare(client, true, hidden);
       assertOpen();
@@ -57,8 +59,14 @@ export class PresentationCanvas extends CanvasSurface {
       let remaining = outputBytes;
       for (const index of layout.regions.keys()) {
         assertOpen();
-        if (remaining === 0) throw new Error("PNG pages exceed byte budget");
-        const bytes = await this.exportPng(layout, index, scale, remaining);
+        if (remaining === 0) throw new Error("Image pages exceed byte budget");
+        const bytes = await this.exportImage(
+          layout,
+          index,
+          scale,
+          remaining,
+          format,
+        );
         assertOpen();
         remaining -= bytes.byteLength;
         buffers.push(bytes);

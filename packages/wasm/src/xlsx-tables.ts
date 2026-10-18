@@ -16,6 +16,8 @@ export interface XlsxTable {
   readOnlyReason: string;
 }
 export type XlsxTableEdit =
+  | { action: "createTable"; range: string; name: string }
+  | { action: "resizeTable"; id: number; range: string }
   | { action: "renameTable"; id: number; name: string }
   | { action: "renameTableColumn"; id: number; column: number; name: string };
 
@@ -37,6 +39,25 @@ function tableName(value: unknown): value is string {
 }
 export function checkXlsxTableEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "createTable" || change.action === "resizeTable") {
+    const resizing = change.action === "resizeTable";
+    const keys = resizing
+      ? ["action", "id", "range"]
+      : ["action", "range", "name"];
+    if (
+      !(resizing
+        ? integer(change.id, 1, 2147483647)
+        : tableName(change.name)) ||
+      typeof change.range !== "string" ||
+      !/^[A-Z]{1,3}[1-9][0-9]{0,6}:[A-Z]{1,3}[1-9][0-9]{0,6}$/.test(
+        change.range,
+      ) ||
+      Object.keys(change).length !== 3 ||
+      Object.keys(change).some((key) => !keys.includes(key))
+    )
+      throw new Error("Invalid table range edit");
+    return;
+  }
   const column = change.action === "renameTableColumn";
   if (
     (change.action !== "renameTable" && !column) ||

@@ -9,7 +9,7 @@ export async function presentationOutputs(
   state: PptxQuery,
   layout: PptxLayout | undefined,
   profile: Record<string, string>,
-  format: "pptx" | "pdf" | "png" | "images",
+  format: "pptx" | "pdf" | "png" | "jpeg" | "images" | "jpegs",
   all: boolean,
   hidden: boolean,
   outputBytes: number,
@@ -19,7 +19,9 @@ export async function presentationOutputs(
 ): Promise<readonly EditorOutput[]> {
   const revision = state.revision;
   let buffers: Uint8Array[];
-  if (format === "images")
+  const collection = format === "images" || format === "jpegs";
+  const imageFormat = format === "jpeg" || format === "jpegs" ? "jpeg" : "png";
+  if (collection)
     buffers = await surface.exportPageImages(
       client,
       revision,
@@ -28,10 +30,13 @@ export async function presentationOutputs(
       outputBytes,
       hidden,
       assertOpen,
+      imageFormat,
     );
-  else if (format === "png") {
+  else if (format === "png" || format === "jpeg") {
     if (!layout) throw new Error("Slide layout is unavailable");
-    buffers = [await surface.exportSlidePng(layout, state, scale, outputBytes)];
+    buffers = [
+      await surface.exportSlideImage(layout, state, scale, outputBytes, format),
+    ];
   } else if (format === "pdf")
     buffers = [
       await surface.exportPdf(
@@ -44,10 +49,10 @@ export async function presentationOutputs(
       ),
     ];
   else buffers = [await client.execute({ operation: "savePptx", revision })];
-  if (format === "images") assertOpen();
+  if (collection) assertOpen();
   return Object.freeze(
     buffers.map((bytes) =>
-      observable.output(revision, format === "images" ? "png" : format, bytes),
+      observable.output(revision, collection ? imageFormat : format, bytes),
     ),
   );
 }

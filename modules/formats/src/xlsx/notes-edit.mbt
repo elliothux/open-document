@@ -104,7 +104,7 @@ fn Session::set_note(
   } else if text is Some(text) {
     check_note_author(author)
     ignore(
-      self.create_note_part(
+      self.create_sheet_resource(
         id,
         "comments",
         "<comments xmlns=\"\{spreadsheet_uri}\"><authors><author>\{encode_text(author)}</author></authors><commentList>\{note_source(address, text, 0)}</commentList></comments>",
@@ -166,7 +166,7 @@ fn Session::set_note(
     }
     let addresses = entries.map(n => n.address)
     addresses.push(address)
-    let (_, relation) = self.create_note_part(
+    let (_, relation) = self.create_sheet_resource(
       id,
       "vmlDrawing",
       note_vml_document(addresses),

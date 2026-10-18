@@ -83,21 +83,26 @@ export class CanvasSurface {
     return context;
   }
 
-  async exportPng(
+  async exportImage(
     layout: DrawingBatch,
     index: number,
     scale: number,
     outputBytes: number,
+    format: "png" | "jpeg" = "png",
   ): Promise<Uint8Array> {
     if (this.closed) throw new Error("Canvas surface is disposed");
+    if (format !== "png" && format !== "jpeg")
+      throw new Error("Unsupported image output format");
     if (!Number.isFinite(scale) || scale < 0.25 || scale > 4)
-      throw new Error("PNG scale must be between 0.25 and 4 pixels per point");
+      throw new Error(
+        "Image scale must be between 0.25 and 4 pixels per point",
+      );
     if (
       !Number.isInteger(outputBytes) ||
       outputBytes < 1 ||
       outputBytes > 67108864
     )
-      throw new Error("Invalid PNG output budget");
+      throw new Error("Invalid image output budget");
     const page = layout.regions[index];
     if (!page) throw new Error("Unknown page");
     const width = Math.ceil(page.width * scale),
@@ -114,24 +119,32 @@ export class CanvasSurface {
       height <= 0 ||
       width * height + retainedPixels > 16777216
     )
-      throw new Error("PNG canvas exceeds pixel budget");
+      throw new Error("Image canvas exceeds pixel budget");
     const canvas = document.createElement("canvas");
     try {
       canvas.width = width;
       canvas.height = height;
       const context = canvas.getContext("2d");
       if (!context) throw new Error("Canvas is unavailable");
+      if (format === "jpeg") {
+        context.fillStyle = "#ffffff";
+        context.fillRect(0, 0, width, height);
+      }
       context.setTransform(scale, 0, 0, scale, 0, 0);
       this.renderer.drawRegion(context, layout, index, this.images);
       const blob = await new Promise<Blob>((resolve, reject) =>
-        canvas.toBlob((value) => {
-          if (value) resolve(value);
-          else reject(new Error("PNG encoding failed"));
-        }, "image/png"),
+        canvas.toBlob(
+          (value) => {
+            if (value?.type === `image/${format}`) resolve(value);
+            else reject(new Error("Image encoding failed"));
+          },
+          `image/${format}`,
+          0.92,
+        ),
       );
       if (this.closed) throw new Error("Canvas surface is disposed");
       if (blob.size > outputBytes)
-        throw new Error("PNG output exceeds byte budget");
+        throw new Error("Image output exceeds byte budget");
       const bytes = new Uint8Array(await blob.arrayBuffer());
       if (this.closed) throw new Error("Canvas surface is disposed");
       return bytes;

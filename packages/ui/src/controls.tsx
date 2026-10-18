@@ -172,6 +172,28 @@ export function FileMenu({
                     : t.exportPageImages}
                 </Menu.Item>
               )}
+              {state.file?.format === "pptx" && (
+                <>
+                  <Menu.Item
+                    className="od-menu-item"
+                    disabled={unavailable}
+                    onClick={() =>
+                      controller.run(() => controller.exportJpeg())
+                    }
+                  >
+                    {t.exportJpeg}
+                  </Menu.Item>
+                  <Menu.Item
+                    className="od-menu-item"
+                    disabled={unavailable}
+                    onClick={() =>
+                      controller.run(() => controller.exportImages("jpeg"))
+                    }
+                  >
+                    {t.exportSlideJpegs}
+                  </Menu.Item>
+                </>
+              )}
               {state.file?.format === "xlsx" && (
                 <>
                   <p>{t.csvNotice}</p>

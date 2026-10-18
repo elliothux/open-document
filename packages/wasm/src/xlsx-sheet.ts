@@ -136,6 +136,8 @@ export function checkXlsxSheetEdit(value: unknown): void {
   }
   const change = record(value);
   if (
+    change.action === "createTable" ||
+    change.action === "resizeTable" ||
     change.action === "renameTable" ||
     change.action === "renameTableColumn"
   ) {

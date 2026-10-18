@@ -43,6 +43,7 @@ fn Session::protect_table_cells(
   self : Session,
   sheets : Array[Sheet],
   tables : Array[StructuredTable],
+  edited~ : String? = None,
 ) -> Unit raise @failure.Failure {
   let previous = self.table_definitions(self.sheets, self.workbook, self.parts)
   let mut scanned = 0
@@ -88,6 +89,8 @@ fn Session::protect_table_cells(
         guard table.reason.is_empty() &&
           (
             renamed ||
+            edited == Some(table.part) ||
+            (edited is Some(_) && formula is Some(_) && next_formula is Some(_)) ||
             (
               !header &&
               !(original.totals == 1 && address.row == original.range.bottom) &&

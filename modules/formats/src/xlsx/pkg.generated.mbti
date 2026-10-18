@@ -293,6 +293,8 @@ pub(all) enum SheetEdit {
   ClearOutline(String)
   OutlineSummary(String, Bool)
   RenameTable(Int, String)
+  CreateTable(String, String)
+  ResizeTable(Int, String)
   RenameTableColumn(Int, Int, String)
   InsertRows(Int, Int)
   DeleteRows(Int, Int)

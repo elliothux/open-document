@@ -30,7 +30,6 @@ import type {
   PptxObjectEdit,
   PptxSlideEdit,
 } from "@open-document/wasm/pptx";
-
 export class PresentationEditor {
   private readonly container: HTMLDivElement;
   private readonly viewport: HTMLDivElement;
@@ -166,12 +165,8 @@ export class PresentationEditor {
     signal?: AbortSignal,
   ): Promise<PresentationEditor> {
     signal?.throwIfAborted();
-    const editor = new PresentationEditor(
-      root,
-      client,
-      { ...profile },
-      await client.execute({ operation: "queryPptx" }),
-    );
+    const state = await client.execute({ operation: "queryPptx" });
+    const editor = new PresentationEditor(root, client, { ...profile }, state);
     try {
       await editor.present();
       signal?.throwIfAborted();
@@ -452,16 +447,23 @@ export class PresentationEditor {
   async exportPng(scale = 1, outputBytes = 67108864): Promise<EditorOutput> {
     return (await this.outputs("png", outputBytes, scale))[0]!;
   }
+  async exportJpeg(scale = 1, outputBytes = 67108864): Promise<EditorOutput> {
+    return (await this.outputs("jpeg", outputBytes, scale))[0]!;
+  }
   /** Exports visible slides in order at one revision, with a shared byte budget. */
   exportPageImages(
     scale = 1,
     outputBytes = 67108864,
     hidden = false,
+    format: "png" | "jpeg" = "png",
   ): Promise<readonly EditorOutput[]> {
-    return this.outputs("images", outputBytes, scale, true, hidden);
+    if (format !== "png" && format !== "jpeg")
+      return Promise.reject(new Error("Unsupported image output format"));
+    const kind = format === "jpeg" ? "jpegs" : "images";
+    return this.outputs(kind, outputBytes, scale, true, hidden);
   }
   private outputs(
-    format: "pptx" | "pdf" | "png" | "images",
+    format: "pptx" | "pdf" | "png" | "jpeg" | "images" | "jpegs",
     outputBytes = 67108864,
     scale = 1,
     all = true,

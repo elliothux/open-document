@@ -5,8 +5,10 @@ export const outputEn = {
   exportPagePng: "Current page PNG",
   exportPageImages: "All pages PNG",
   exportSlideImages: "All slides PNG",
-  imageSavedProgress: "Save confirmed by host: {done}/{total} PNG pages",
-  imageGeneratedProgress: "Downloads generated: {done}/{total} PNG pages",
+  exportJpeg: "Current slide JPEG",
+  exportSlideJpegs: "All slides JPEG",
+  imageSavedProgress: "Save confirmed by host: {done}/{total} {format} pages",
+  imageGeneratedProgress: "Downloads generated: {done}/{total} {format} pages",
   exportAll: "Presentation PDF",
 };
 
@@ -17,7 +19,9 @@ export const outputZh = {
   exportPagePng: "当前页 PNG",
   exportPageImages: "全部页面 PNG",
   exportSlideImages: "全部幻灯片 PNG",
-  imageSavedProgress: "宿主已确认保存 {done}/{total} 页 PNG",
-  imageGeneratedProgress: "已生成 {done}/{total} 页 PNG 下载",
+  exportJpeg: "当前页 JPEG",
+  exportSlideJpegs: "全部幻灯片 JPEG",
+  imageSavedProgress: "宿主已确认保存 {done}/{total} 页 {format}",
+  imageGeneratedProgress: "已生成 {done}/{total} 页 {format} 下载",
   exportAll: "整稿 PDF",
 };
