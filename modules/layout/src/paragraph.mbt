@@ -39,12 +39,17 @@ fn paragraph_lines(
   available : Double,
   baseLevel? : Int,
   inTable~ : Bool = false,
+  startOffset~ : Int = 0,
 ) -> Array[MeasuredLine] raise @failure.Failure {
   guard paragraph.defaultTab >= 0 && paragraph.defaultTab <= 1584 else {
     @failure.reject("invalid-style", "Invalid default tab interval")
   }
   validate_tabs(paragraph.tabs)
-  let marker = probe.paragraph_marker(paragraph, profile, available)
+  let marker = if startOffset == 0 {
+    probe.paragraph_marker(paragraph, profile, available)
+  } else {
+    None
+  }
   let paragraph = if marker is Some(marker) {
     { ..paragraph, first: marker.indent - paragraph.left, }
   } else {
@@ -121,6 +126,11 @@ fn paragraph_lines(
     @failure.reject("limit-exceeded", "Paragraph exceeds 4096 UTF-16 units")
   }
   let text = text.to_string()
+  guard startOffset >= 0 && startOffset <= text.length() else {
+    @failure.reject(
+      "invalid-operation", "Invalid paragraph continuation offset",
+    )
+  }
   let source_text = if inTable {
     paragraph.spans.map(span => span.text).join("")
   } else {
@@ -156,7 +166,11 @@ fn paragraph_lines(
     }) &&
     paragraph.left >= 0 &&
     paragraph.right >= 0 &&
-    available - paragraph.left - paragraph.right - paragraph.first.max(0) > 0 else {
+    available -
+    paragraph.left -
+    paragraph.right -
+    (if startOffset == 0 { paragraph.first.max(0) } else { 0 }) >
+    0 else {
     @failure.reject("invalid-style", "Paragraph has no usable line area")
   }
   let lines : Array[MeasuredLine] = []
@@ -175,7 +189,7 @@ fn paragraph_lines(
   let boundaries = [0, ..graphemes.map(range => range.1)]
   let legal : Map[Int, Bool] = Map([])
   let advances = Array::make(text.length() + 1, (0.0, 0.0))
-  let mut segment = 0
+  let mut segment = startOffset
   for (boundary, kind) in breaks {
     // LibreOffice's offset+1 query skips ordinary breaks before surrogate pairs.
     if kind is @linebreak.Allowed &&
@@ -187,6 +201,9 @@ fn paragraph_lines(
       continue
     }
     legal[boundary] = kind is @linebreak.Mandatory
+    if boundary <= startOffset {
+      continue
+    }
     if kind is @linebreak.Mandatory {
       let visible = if boundary > segment &&
         (
@@ -249,9 +266,23 @@ fn paragraph_lines(
       ),
     )
   }
-  let mut start = 0
+  let mut start = startOffset
   let mut first_grapheme = 0
-  while start < text.length() || lines.is_empty() {
+  while first_grapheme < graphemes.length() &&
+        graphemes[first_grapheme].1 <= start {
+    first_grapheme += 1
+  }
+  guard start == 0 ||
+    start == text.length() ||
+    graphemes
+    .get(first_grapheme)
+    .map(range => range.0 == start)
+    .unwrap_or(false) else {
+    @failure.reject(
+      "invalid-operation", "Paragraph continuation splits a grapheme",
+    )
+  }
+  while start < text.length() || (text.is_empty() && lines.is_empty()) {
     let indent = paragraph.left + (if start == 0 { paragraph.first } else { 0 })
     // Twip-aligned widths can lose a few binary digits when subtracting cell margins.
     let limit = available - indent - paragraph.right + 0.00000001

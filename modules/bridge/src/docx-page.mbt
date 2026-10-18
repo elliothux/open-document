@@ -130,13 +130,35 @@ fn Foundation::docx_page(
       }
       let value = match columns {
         Null => None
-        Object(fields) if fields.length() == 3 &&
-          fields.keys().all(key => ["count", "gap", "separator"].contains(key)) =>
+        Object(fields) if fields.length() == 4 &&
+          fields
+          .keys()
+          .all(key => ["count", "gap", "separator", "custom"].contains(key)) =>
           Some(
             @layout.Columns::new(
               count=field_int(columns, "count"),
               gap=xlsx_number(columns, "gap"),
               separator=xlsx_boolean(columns, "separator"),
+              custom=match fields.get("custom") {
+                Some(Array(items)) if items.length() <= 12 =>
+                  items.map(item => {
+                    guard item is Object(values) &&
+                      values.length() == 2 &&
+                      values.keys().all(key => ["width", "gap"].contains(key)) else {
+                      @failure.reject(
+                        "invalid-operation", "Invalid custom column",
+                      )
+                    }
+                    @layout.Column::{
+                      width: xlsx_number(item, "width"),
+                      gap: xlsx_number(item, "gap"),
+                    }
+                  })
+                _ =>
+                  @failure.reject(
+                    "invalid-operation", "Invalid custom column list",
+                  )
+              },
             ),
           )
         _ => @failure.reject("invalid-operation", "Invalid column settings")

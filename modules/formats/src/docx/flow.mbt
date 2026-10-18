@@ -120,7 +120,6 @@ fn Session::flow_from(
             id,
             paragraphs.length(),
             diagnostics,
-            columns.width(page),
             background~,
           ),
         )

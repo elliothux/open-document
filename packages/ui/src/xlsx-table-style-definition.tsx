@@ -114,6 +114,7 @@ export function XlsxTableStyleDefinitions(props: PanelProps) {
         <label>
           {t.tableStyleRegion}
           <select
+            aria-label={t.tableStyleRegion}
             value={kind}
             onChange={(event) =>
               setKind(
@@ -259,6 +260,7 @@ export function XlsxTableStyleDefinitions(props: PanelProps) {
       <label>
         {t.replacementTableStyle}
         <select
+          aria-label={t.replacementTableStyle}
           value={replacement ?? ""}
           onChange={(event) =>
             setReplacement(event.currentTarget.value || null)

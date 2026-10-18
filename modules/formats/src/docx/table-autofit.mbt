@@ -2,8 +2,7 @@
 fn WordTree::preferred_table_width(
   self : WordTree,
   id : Int,
-  available : Double,
-) -> Double raise @failure.Failure {
+) -> @layout.PreferredWidth raise @failure.Failure {
   let node = self.nodes[id]
   guard self.children[id].is_empty() &&
     node.text.trim().is_empty() &&
@@ -12,7 +11,7 @@ fn WordTree::preferred_table_width(
   }
   let kind = node.attribute("type", uri=word_uri).unwrap_or("dxa")
   if kind == "auto" || kind == "nil" {
-    return 0
+    return @layout.PreferredWidth::new()
   }
   let value = @string.parse_int(
     node.attribute("w", uri=word_uri).unwrap_or("0"),
@@ -23,8 +22,10 @@ fn WordTree::preferred_table_width(
     @failure.reject("unsupported-layout", "Invalid table width")
   }
   match kind {
-    "dxa" if value <= 288000 => value.to_double() / 20
-    "pct" if value <= 5000 => available * value.to_double() / 5000
+    "dxa" if value <= 288000 =>
+      @layout.PreferredWidth::new(value=value.to_double() / 20)
+    "pct" if value <= 5000 =>
+      @layout.PreferredWidth::new(value=value.to_double() / 5000, percent=true)
     _ =>
       @failure.reject(
         "unsupported-layout", "Unsupported table width type or extent",
@@ -37,9 +38,8 @@ fn table_sizing(
   tree : WordTree,
   styles : Styles,
   table : Int,
-  available : Double,
   diagnostics : Array[String],
-) -> (Bool, Double) raise @failure.Failure {
+) -> (Bool, @layout.PreferredWidth) raise @failure.Failure {
   let props = tree.child(table, "tblPr")
   let properties : Array[(WordTree, Int)] = []
   if props.bind(p => tree.value(p, "tblStyle")) is Some(key) &&
@@ -54,7 +54,7 @@ fn table_sizing(
     properties.push((tree, p))
   }
   let mut auto_fit = true
-  let mut preferred = 0.0
+  let mut preferred = @layout.PreferredWidth::new()
   for (source, p) in properties {
     if source.child(p, "tblLayout") is Some(layout) {
       auto_fit = source.nodes[layout]
@@ -63,7 +63,7 @@ fn table_sizing(
         "autofit"
     }
     if source.child(p, "tblW") is Some(width) {
-      preferred = source.preferred_table_width(width, available)
+      preferred = source.preferred_table_width(width)
     }
   }
   (auto_fit, preferred)
@@ -138,7 +138,13 @@ fn Session::fit_table(
     @failure.reject("protected-content", "Table fitting requires a body table")
   }
   let flow = self.flow()
-  let available = flow.columns.width(flow.page)
+  let available = table_column_width(
+    flow,
+    grid.model,
+    Some(probe),
+    profile,
+    images,
+  )
   let current = grid.model.fit_widths(probe, profile, available)
   let changes : TableChanges = {
     items: [],
@@ -234,17 +240,30 @@ fn Session::fit_table(
     )
   }
   self.check_margin_layout({ ..next, autoFit: false, })
-  let target_flow = {
-    ..next_flow,
-    paragraphs: [],
-    tables: [{ ..next, beforeParagraph: 0, }],
-    pageBorders: @layout.PageBorders::new(),
-    headers: Map([]),
-    headerDistance: 0,
-    footers: Map([]),
-    footerDistance: 0,
-    differentFirst: false,
-    differentEven: false,
+  let target_flow = if !next_flow.columns.custom.is_empty() {
+    {
+      ..next_flow,
+      tables: next_flow.tables.map(table => {
+        if table.id == next.id {
+          next
+        } else {
+          table
+        }
+      }),
+    }
+  } else {
+    {
+      ..next_flow,
+      paragraphs: [],
+      tables: [{ ..next, beforeParagraph: 0, }],
+      pageBorders: @layout.PageBorders::new(),
+      headers: Map([]),
+      headerDistance: 0,
+      footers: Map([]),
+      footerDistance: 0,
+      differentFirst: false,
+      differentEven: false,
+    }
   }
   ignore(
     @layout.paginate(

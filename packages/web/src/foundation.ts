@@ -357,6 +357,7 @@ export class FoundationClient extends FoundationPageClient {
     selection: DocxSelection,
     rows: number,
     columns: number,
+    profile: Record<string, string>,
   ): Promise<EditState> {
     checkDocxTableSize(rows, columns);
     return editState(
@@ -366,6 +367,7 @@ export class FoundationClient extends FoundationPageClient {
         selection,
         rows,
         columns,
+        profile,
       }),
     );
   }

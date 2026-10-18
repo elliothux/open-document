@@ -8,11 +8,7 @@ priv enum BodyBlock {
 }
 
 ///|
-fn Flow::body_blocks(
-  self : Flow,
-  probe : TextProbe,
-  profile : Map[String, String],
-) -> Array[BodyBlock] raise @failure.Failure {
+fn Flow::body_blocks(self : Flow) -> Array[BodyBlock] raise @failure.Failure {
   let blocks : Array[BodyBlock] = []
   let mut paragraph = 0
   let mut table = 0
@@ -25,11 +21,7 @@ fn Flow::body_blocks(
       blocks.push(BodyParagraph(self.paragraphs[paragraph]))
       paragraph += 1
     } else {
-      let item = self.tables[table].fit_widths(
-        probe,
-        profile,
-        self.page.width - self.page.left - self.page.right,
-      )
+      let item = self.tables[table]
       item.check_grid()
       blocks.push(TableStart(item))
       let mut row = 0
@@ -47,7 +39,12 @@ fn Flow::body_blocks(
 
 ///|
 fn Table::finite_geometry(self : Table) -> Bool {
-  !self.widths.any(value => value.is_nan() || value.is_inf())
+  !self.widths.any(value => value.is_nan() || value.is_inf()) &&
+  !self.preferredWidth.value.is_nan() &&
+  !self.preferredWidth.value.is_inf() &&
+  self.preferredWidths.all(row => {
+    row.all(width => !width.value.is_nan() && !width.value.is_inf())
+  })
 }
 
 ///|
@@ -76,10 +73,13 @@ fn BodyBlock::key(self : BodyBlock) -> String? {
       if value is Object(fields) {
         for
           key in [
-            "beforeParagraph", "rows", "heights", "fills", "columnSpans", "rowSpans",
-            "verticalAligns", "margins", "exactHeights", "splitRows",
+            "beforeParagraph", "heights", "fills", "columnSpans", "rowSpans", "verticalAligns",
+            "margins", "exactHeights", "splitRows",
           ] {
           fields.remove(key)
+        }
+        if !table.autoFit {
+          fields.remove("rows")
         }
       }
       Json::array([Json("table-start"), value])
@@ -154,13 +154,23 @@ fn BodyBlock::place(
       pagination.y += pagination.after + pagination.gap
       pagination.after = 0
       pagination.gap = 0
-      ignore(table.left(pagination.page))
+      pagination.prepare_table(table, cache, probe, profile, additive)
     }
     TableRows(table, row, end) =>
       pagination.table_rows(
-        cache, probe, table, row, end, profile, images, additive,
+        cache,
+        probe,
+        pagination.tables.get(table.id).unwrap_or(table),
+        row,
+        end,
+        profile,
+        images,
+        additive,
       )
-    TableEnd(table) => pagination.y += table.border_width(table.rows.length())
+    TableEnd(table) => {
+      pagination.y += table.border_width(table.rows.length())
+      pagination.active_table = None
+    }
   }
 }
 
@@ -183,6 +193,7 @@ fn BodyBlock::retain(
   self : BodyBlock,
   cache : ParagraphCache,
   page : PageSetup,
+  tables : Map[Int, Table],
 ) -> Unit {
   match self {
     KeptParagraphs(paragraphs, _) =>
@@ -191,7 +202,8 @@ fn BodyBlock::retain(
       }
     BodyParagraph(paragraph) =>
       cache.retain(paragraph, page.width - page.left - page.right)
-    TableRows(table, first, last) =>
+    TableRows(original, first, last) => {
+      let table = tables.get(original.id).unwrap_or(original)
       for row in first..<=last {
         for column, cell in table.rows[row] {
           if table.rowSpans[row][column] == 0 {
@@ -207,6 +219,7 @@ fn BodyBlock::retain(
           }
         }
       }
+    }
     _ => ()
   }
 }

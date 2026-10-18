@@ -387,6 +387,7 @@ fn Foundation::dispatch(
           session.query_formatting(
             field_int(request, "revision"),
             field_selection(request),
+            layout?=self.layout,
           )
         "styleCatalog" =>
           session.style_catalog(

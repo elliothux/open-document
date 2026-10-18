@@ -9,6 +9,8 @@ priv struct PagePosition {
   y : Double
   after : Double
   gap : Double
+  table : Int?
+  tableWidths : Array[Double]
 }
 
 ///|
@@ -32,11 +34,18 @@ fn Pagination::position(self : Pagination) -> PagePosition {
     y: self.y,
     after: self.after,
     gap: self.gap,
+    table: self.active_table,
+    tableWidths: self.active_table
+    .bind(id => self.tables.get(id))
+    .map(table => table.widths)
+    .unwrap_or([]),
   }
 }
 
 ///|
 fn PagePosition::stable(self : PagePosition, other : PagePosition) -> Bool {
+  self.table == other.table &&
+  self.tableWidths == other.tableWidths &&
   self.y == other.y &&
   self.after == other.after &&
   self.gap == other.gap &&
@@ -77,6 +86,7 @@ fn Pagination::restore(
   self.after = position.after
   self.gap = position.gap
   self.count = position.count
+  self.active_table = position.table
 }
 
 ///|
@@ -123,6 +133,7 @@ fn Pagination::append_tail(
   self.after = end.after
   self.gap = end.gap
   self.count = count
+  self.active_table = end.table
 }
 
 ///|
@@ -132,7 +143,12 @@ fn PaginationCache::bounded(
   positions : Array[PagePosition],
   pages : Array[PageFrame],
 ) -> Bool {
-  let mut units = context.length() + positions.length() * 9 + pages.length() * 2
+  let mut units = context.length() +
+    positions.length() * 11 +
+    pages.length() * 2
+  for position in positions {
+    units += position.tableWidths.length()
+  }
   for key in keys {
     units += key.length()
   }

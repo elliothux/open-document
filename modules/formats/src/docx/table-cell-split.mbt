@@ -112,7 +112,7 @@ fn Session::split_table_cell(
   let fitted = grid.model.fit_widths(
     probe,
     profile,
-    flow.columns.width(flow.page),
+    table_column_width(flow, grid.model, Some(probe), profile, images),
   )
   let positions : Array[Int] = [0]
   for width in fitted.widths {

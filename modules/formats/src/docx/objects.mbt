@@ -140,14 +140,11 @@ fn Session::table(
   id : Int,
   before_paragraph : Int,
   diagnostics : Array[String],
-  available : Double,
   background~ : String,
 ) -> @layout.Table raise @failure.Failure {
   let widths : Array[Double] = []
-  let (auto_fit, preferred_width) = table_sizing(
-    tree, styles, id, available, diagnostics,
-  )
-  let preferred_widths : Array[Array[Double]] = []
+  let (auto_fit, preferred_width) = table_sizing(tree, styles, id, diagnostics)
+  let preferred_widths : Array[Array[@layout.PreferredWidth]] = []
   let mut styles = styles
   let mut default_vertical_align = "top"
   let mut default_split_row = true
@@ -257,7 +254,7 @@ fn Session::table(
     let colors : Array[String] = []
     let alignments : Array[String] = []
     let cell_margins : Array[@layout.CellMargins] = []
-    let cell_widths : Array[Double] = []
+    let cell_widths : Array[@layout.PreferredWidth] = []
     let spans : Array[Int] = []
     let vertical : Array[Int] = []
     let current : Map[(Int, Int), (Int, Int)] = Map([])
@@ -273,8 +270,8 @@ fn Session::table(
       cell_widths.push(
         props
         .bind(p => tree.child(p, "tcW"))
-        .map(id => tree.preferred_table_width(id, available))
-        .unwrap_or(0),
+        .map(id => tree.preferred_table_width(id))
+        .unwrap_or(@layout.PreferredWidth::new()),
       )
       let margin = if props.bind(p => tree.child(p, "tcMar")) is Some(id) {
         tree.table_margins(id, default_margins)

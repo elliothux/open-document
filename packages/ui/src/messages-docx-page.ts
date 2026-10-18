@@ -1,6 +1,10 @@
 export const pageEn = {
   columnBreak: "Insert column break",
   pageColumns: "Page columns",
+  equalColumnWidths: "Equal column widths",
+  customColumn: "Column",
+  customColumnWidth: "Column width (pt)",
+  lastColumnWidth: "The last column fills the remaining text width.",
   columnCount: "Column count",
   columnGap: "Column gap (pt)",
   columnSeparator: "Column separator",
@@ -17,6 +21,10 @@ export const pageEn = {
 export const pageZh = {
   columnBreak: "插入分栏符",
   pageColumns: "页面分栏",
+  equalColumnWidths: "等宽分栏",
+  customColumn: "栏",
+  customColumnWidth: "栏宽（磅）",
+  lastColumnWidth: "末栏使用剩余正文宽度。",
   columnCount: "栏数",
   columnGap: "栏间距（磅）",
   columnSeparator: "栏间分隔线",

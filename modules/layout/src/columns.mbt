@@ -1,8 +1,18 @@
 ///|
+pub(all) struct Column {
+  width : Double
+  gap : Double
+} derive(ToJson)
+
+///|
+pub extend Column with ToJson::{to_json}
+
+///|
 pub(all) struct Columns {
   count : Int
   gap : Double
   separator : Bool
+  custom : Array[Column]
 } derive(ToJson)
 
 ///|
@@ -13,8 +23,34 @@ pub fn Columns::new(
   count~ : Int = 1,
   gap~ : Double = 36,
   separator~ : Bool = false,
+  custom~ : Array[Column] = [],
 ) -> Columns {
-  { count, gap, separator, }
+  { count, gap, separator, custom, }
+}
+
+///|
+fn Columns::frame(
+  self : Columns,
+  page : PageSetup,
+  index : Int,
+) -> (Double, Double) {
+  let full = page.width - page.left - page.right
+  if self.custom.is_empty() {
+    let width = (full - self.gap * (self.count - 1).to_double()) /
+      self.count.to_double()
+    return (page.left + index.to_double() * (width + self.gap), width)
+  }
+  let left = self.custom[:index]
+    .iter()
+    .fold(init=page.left, (left, column) => left + column.width + column.gap)
+  (
+    left,
+    if index == self.count - 1 {
+      page.width - page.right - left
+    } else {
+      self.custom[index].width
+    },
+  )
 }
 
 ///|
@@ -27,22 +63,52 @@ pub fn Columns::width(
     !self.gap.is_nan() &&
     !self.gap.is_inf() &&
     self.gap >= 0 &&
-    self.gap <= 14400 else {
+    self.gap <= 14400 &&
+    (self.custom.is_empty() || self.custom.length() == self.count) &&
+    self.custom.all(column => {
+      !column.width.is_nan() &&
+      !column.width.is_inf() &&
+      column.width >= 12 &&
+      column.width <= 14400 &&
+      !column.gap.is_nan() &&
+      !column.gap.is_inf() &&
+      column.gap >= 0 &&
+      column.gap <= 14400 &&
+      column.width * 20 == (column.width * 20).round() &&
+      column.gap * 20 == (column.gap * 20).round()
+    }) else {
     @failure.reject("invalid-style", "Invalid page columns")
   }
-  let width = (
-      page.width -
-      page.left -
-      page.right -
-      self.gap * (self.count - 1).to_double()
-    ) /
-    self.count.to_double()
+  let width = Array::makei(self.count, index => self.frame(page, index).1).fold(
+    init=14400.0,
+    (width, candidate) => width.min(candidate),
+  )
   guard width >= 12 else {
     @failure.reject(
       "layout-overflow", "Columns require at least 12pt of text width",
     )
   }
   width
+}
+
+///|
+pub fn Columns::width_at(
+  self : Columns,
+  page : PageSetup,
+  x : Double,
+) -> Double raise @failure.Failure {
+  ignore(self.width(page))
+  guard !x.is_nan() && !x.is_inf() else {
+    @failure.reject("invalid-position", "Invalid column coordinate")
+  }
+  for index in 0..<self.count {
+    let (left, width) = self.frame(page, index)
+    if x >= left &&
+      (x < left + width || (index == self.count - 1 && x == left + width)) {
+      return width
+    }
+  }
+  @failure.reject("invalid-position", "Position is outside column content")
 }
 
 ///|
@@ -73,7 +139,14 @@ fn Pagination::finish_columns(self : Pagination) -> Unit {
         (!frame.lines.is_empty() || !frame.cellAreas.is_empty()) {
         let setup = self.page_at(index)
         page.fills.push({
-          x: setup.left - self.columns.gap / 2 - 0.375,
+          x: setup.left -
+          (if self.columns.custom.is_empty() {
+            self.columns.gap
+          } else {
+            self.columns.custom[index % self.columns.count - 1].gap
+          }) /
+          2 -
+          0.375,
           y: setup.top,
           width: 0.75,
           height: setup.height - setup.top - setup.bottom,
@@ -96,6 +169,9 @@ fn column_body(
 ) -> (Pagination, Int, Int, PaginationCache?) raise @failure.Failure {
   let columns = flow.columns
   ignore(columns.width(flow.page))
+  for setup in setups + page_setups {
+    ignore(columns.width(setup))
+  }
   let run = fn(balance : (Int, Double)?) raise @failure.Failure {
     let pagination = Pagination::new(
       setups[0],

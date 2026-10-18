@@ -47,28 +47,27 @@ fn keep_next_blocks(blocks : Array[BodyBlock]) -> Array[BodyBlock] {
 }
 
 ///|
-fn Pagination::kept_paragraphs(
-  self : Pagination,
+fn kept_required(
   cache : ParagraphCache,
   probe : TextProbe,
   paragraphs : Array[Paragraph],
   following : Table?,
+  page : PageSetup,
   profile : Map[String, String],
-  images : Images,
   additive : Bool,
-) -> Unit raise @failure.Failure {
+) -> Array[Double] raise @failure.Failure {
   let heights = []
   let gaps = []
   for index, paragraph in paragraphs {
-    paragraph.validate_spacing(self.page.height)
+    paragraph.validate_spacing(page.height)
     let lines = cache.lines(
       probe,
       paragraph,
       profile,
-      self.page.width - self.page.left - self.page.right,
+      page.width - page.left - page.right,
     )
     let mut height = 0.0
-    let minimum = paragraph.kept_start_count(lines, self.page)
+    let minimum = paragraph.kept_start_count(lines, page)
     let mut count = 0
     let mut gap = 0.0
     let mut first = true
@@ -92,10 +91,15 @@ fn Pagination::kept_paragraphs(
   }
   let required = heights.copy()
   if following is Some(table) {
+    let table = table.fit_widths(
+      probe,
+      profile,
+      page.width - page.left - page.right,
+    )
     let last = paragraphs.length() - 1
     required[last] += gaps[last] +
       paragraphs[last].after +
-      table.start_height(cache, probe, self.page, profile, additive)
+      table.start_height(cache, probe, page, profile, additive)
   }
   for offset in 1..<paragraphs.length() {
     let index = paragraphs.length() - offset - 1
@@ -106,7 +110,40 @@ fn Pagination::kept_paragraphs(
     }
     required[index] += gaps[index] + spacing + required[index + 1]
   }
+  required
+}
+
+///|
+fn Pagination::kept_paragraphs(
+  self : Pagination,
+  cache : ParagraphCache,
+  probe : TextProbe,
+  paragraphs : Array[Paragraph],
+  following : Table?,
+  profile : Map[String, String],
+  images : Images,
+  additive : Bool,
+) -> Unit raise @failure.Failure {
+  let measured : Map[String, Array[Double]] = Map([])
+  let required_at = fn(page : PageSetup) raise @failure.Failure {
+    let key = Json::array([
+      Json(page.width - page.left - page.right),
+      Json(page.height),
+      Json(page.top + page.bottom),
+    ]).stringify()
+    if measured.get(key) is Some(values) {
+      return values
+    }
+    let values = kept_required(
+      cache, probe, paragraphs, following, page, profile, additive,
+    )
+    if measured.length() < 32 {
+      measured[key] = values
+    }
+    values
+  }
   for index, paragraph in paragraphs {
+    let required = required_at(self.page)[index]
     let limit = self.page.height - self.page.bottom
     let next = self.page_at(self.pages.length())
     let full = next.height - next.top - next.bottom
@@ -115,18 +152,24 @@ fn Pagination::kept_paragraphs(
     } else {
       self.after.max(paragraph.before)
     }
-    if required[index] <= full &&
-      self.y + self.gap + spacing + required[index] > limit &&
+    if self.y + self.gap + spacing + required > limit &&
       (
         self.pages.last().unwrap().lines.any(line => !line.caretOnly) ||
         !self.pages.last().unwrap().borders.is_empty()
       ) {
-      self.next_page()
+      let fits_next = try required_at(next)[index] <= full catch {
+        @failure.Failure(code="layout-overflow" | "invalid-style", ..) => false
+        error => raise error
+      }
+      if fits_next {
+        self.next_page()
+      }
     }
+    let required = required_at(self.page)[index]
     let capacity = self.page.height - self.page.top - self.page.bottom
     let paragraph = if self.y == self.page.top &&
-      required[index] <= capacity &&
-      paragraph.before + required[index] > capacity {
+      required <= capacity &&
+      paragraph.before + required > capacity {
       { ..paragraph, before: 0, }
     } else {
       paragraph

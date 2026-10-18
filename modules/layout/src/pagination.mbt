@@ -6,6 +6,8 @@ priv struct Pagination {
   setups : Array[PageSetup]
   pageSetups : Array[PageSetup]
   pages : Array[PageFrame]
+  tables : Map[Int, Table]
+  mut active_table : Int?
   mut y : Double
   mut count : Int
   mut after : Double
@@ -27,6 +29,8 @@ fn Pagination::new(
     page,
     setups,
     pageSetups,
+    tables: Map([]),
+    active_table: None,
     pages: [
       {
         width: page.width,
@@ -96,15 +100,7 @@ fn Pagination::page_at(self : Pagination, index : Int) -> PageSetup {
   if self.columns.count == 1 {
     return page
   }
-  let width = (
-      page.width -
-      page.left -
-      page.right -
-      self.columns.gap * (self.columns.count - 1).to_double()
-    ) /
-    self.columns.count.to_double()
-  let left = page.left +
-    (index % self.columns.count).to_double() * (width + self.columns.gap)
+  let (left, width) = self.columns.frame(page, index % self.columns.count)
   {
     ..page,
     left,
@@ -222,76 +218,111 @@ fn Pagination::paragraph(
   self.y += self.gap
   self.after = 0
   self.gap = 0
-  let measured_lines = cache.lines(
-    probe,
-    paragraph,
-    profile,
-    self.page.width - self.page.left - self.page.right,
-  )
-  if paragraph.keepLines && !measured_lines.any(line => line.line.y < 0) {
-    let mut height = 0.0
-    let mut first_line = true
-    for measured in measured_lines {
-      if measured.line.caretOnly {
-        continue
-      }
-      height += measured.spaced(paragraph.line, first_line).height
-      first_line = false
-    }
-    let limit = self.page.height - self.page.bottom
-    if self.y + height > limit {
-      if self.pages.last().unwrap().lines.any(line => !line.caretOnly) ||
-        !self.pages.last().unwrap().borders.is_empty() {
-        self.next_page()
-      } else if height <= limit - self.page.top {
-        self.y = self.page.top
-      }
-    }
-  }
+  let available = fn() { self.page.width - self.page.left - self.page.right }
+  let mut start_offset = 0
+  let mut finished = false
   let mut ended_with_break = false
   let mut ended_with_page_break = false
   let mut first = true
-  let breaks = self.widow_breaks(paragraph, measured_lines)
-  for index, measured in measured_lines {
-    if breaks.contains(index) {
-      self.next_page()
-      first = true
-    }
-    let mut line = measured.spaced(paragraph.line, first)
-    if line.text.is_empty() && line.marker.is_empty() && line.y < 0 {
-      self.place(line, self.page.left, self.y, images)
-      if line.y == -2 {
-        self.next_page()
-      } else if !ended_with_page_break {
-        self.sheet_break()
+  while !finished {
+    let width = available()
+    let measured_lines = cache.lines(
+      probe,
+      paragraph,
+      profile,
+      width,
+      startOffset=start_offset,
+    )
+    if start_offset == 0 &&
+      paragraph.keepLines &&
+      !measured_lines.any(line => line.line.y < 0) {
+      let mut height = 0.0
+      let mut first_line = true
+      for measured in measured_lines {
+        if measured.line.caretOnly {
+          continue
+        }
+        height += measured.spaced(paragraph.line, first_line).height
+        first_line = false
       }
-      ended_with_break = true
+      let limit = self.page.height - self.page.bottom
+      if self.y + height > limit {
+        if self.pages.last().unwrap().lines.any(line => !line.caretOnly) ||
+          !self.pages.last().unwrap().borders.is_empty() {
+          self.next_page()
+        } else if height <= limit - self.page.top {
+          self.y = self.page.top
+        }
+      }
+    }
+    if available() != width {
+      continue
+    }
+    let breaks = self.widow_breaks(
+      paragraph, measured_lines, cache, probe, profile,
+    )
+    if available() != width {
+      continue
+    }
+    finished = true
+    for index, measured in measured_lines {
+      if breaks.contains(index) {
+        self.next_page()
+        first = true
+      }
+      if available() != width {
+        start_offset = measured.line.start
+        finished = false
+        break
+      }
+      let mut line = measured.spaced(paragraph.line, first)
+      if line.text.is_empty() && line.marker.is_empty() && line.y < 0 {
+        self.place(line, self.page.left, self.y, images)
+        if line.y == -2 {
+          self.next_page()
+        } else if !ended_with_page_break {
+          self.sheet_break()
+        }
+        ended_with_break = true
+        ended_with_page_break = line.y == -1
+        first = true
+        continue
+      }
+      if line.caretOnly {
+        self.place(line, self.page.left, self.y, images)
+        continue
+      }
+      if self.y + line.height > self.page.height - self.page.bottom {
+        self.next_page()
+        line = measured.spaced(paragraph.line, true)
+        first = true
+        if available() != width {
+          start_offset = line.start
+          finished = false
+          break
+        }
+      }
+      self.fit(line.height)
+      if available() != width {
+        start_offset = line.start
+        finished = false
+        first = true
+        break
+      }
+      self.place(line, self.page.left, self.y, images)
+      self.y += line.height
+      self.gap = paragraph.line.gap(measured.textHeight)
+      first = false
+      ended_with_break = line.y < 0
       ended_with_page_break = line.y == -1
-      first = true
-      continue
-    }
-    if line.caretOnly {
-      self.place(line, self.page.left, self.y, images)
-      continue
-    }
-    if self.y + line.height > self.page.height - self.page.bottom {
-      self.next_page()
-      line = measured.spaced(paragraph.line, true)
-    }
-    self.fit(line.height)
-    self.place(line, self.page.left, self.y, images)
-    self.y += line.height
-    self.gap = paragraph.line.gap(measured.textHeight)
-    first = false
-    ended_with_break = line.y < 0
-    ended_with_page_break = line.y == -1
-    if line.y < 0 {
-      if line.y == -2 {
-        self.next_page()
-      } else {
-        self.sheet_break()
+      if line.y < 0 {
+        if line.y == -2 {
+          self.next_page()
+        } else {
+          self.sheet_break()
+        }
+        first = true
       }
-      first = true
     }
   }
   if !ended_with_break {

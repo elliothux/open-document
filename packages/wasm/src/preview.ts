@@ -88,8 +88,8 @@ export interface DocxFlow {
   differentEven: boolean;
   tables: {
     autoFit: boolean;
-    preferredWidth: number;
-    preferredWidths: number[][];
+    preferredWidth: { value: number; percent: boolean };
+    preferredWidths: DocxFlow["tables"][number]["preferredWidth"][][];
     id: number;
     beforeParagraph: number;
     rows: DocxFlow["paragraphs"][][];
@@ -170,6 +170,20 @@ function entries(value: unknown): unknown[] {
 function diagnostics(value: unknown): void {
   if (!entries(value).every((entry) => typeof entry === "string"))
     throw new Error("Invalid preview diagnostics");
+}
+
+function preferredWidth(value: unknown): void {
+  const width = record(value);
+  if (
+    Object.keys(width).length !== 2 ||
+    Object.keys(width).some((key) => !["value", "percent"].includes(key)) ||
+    typeof width.percent !== "boolean" ||
+    typeof width.value !== "number" ||
+    !Number.isFinite(width.value) ||
+    width.value < 0 ||
+    width.value > (width.percent ? 1 : 14400)
+  )
+    throw new Error("Invalid table width preference");
 }
 
 export function docxFlow(value: unknown): DocxFlow {
@@ -310,14 +324,9 @@ export function docxFlow(value: unknown): DocxFlow {
   let previousPosition = 0;
   for (const value of entries(flow.tables)) {
     const table = fields(value, ["id", "beforeParagraph"], ["align"]);
-    if (
-      typeof table.autoFit !== "boolean" ||
-      typeof table.preferredWidth !== "number" ||
-      !Number.isFinite(table.preferredWidth) ||
-      table.preferredWidth < 0 ||
-      table.preferredWidth > 14400
-    )
+    if (typeof table.autoFit !== "boolean")
       throw new Error("Invalid table sizing preferences");
+    preferredWidth(table.preferredWidth);
     if (
       typeof table.beforeParagraph !== "number" ||
       !Number.isInteger(table.beforeParagraph) ||
@@ -336,18 +345,12 @@ export function docxFlow(value: unknown): DocxFlow {
     if (
       preferred.length !== rows.length ||
       preferred.some(
-        (row, r) =>
-          entries(row).length !== entries(rows[r]).length ||
-          entries(row).some(
-            (width) =>
-              typeof width !== "number" ||
-              !Number.isFinite(width) ||
-              width < 0 ||
-              width > 14400,
-          ),
+        (row, r) => entries(row).length !== entries(rows[r]).length,
       )
     )
       throw new Error("Invalid preferred cell widths");
+    for (const row of preferred)
+      for (const width of entries(row)) preferredWidth(width);
     const exactHeights = entries(table.exactHeights);
     if (
       exactHeights.length !== rows.length ||

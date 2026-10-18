@@ -7,7 +7,7 @@ fn Pagination::body(
   profile : Map[String, String],
   images : Images,
 ) -> (Int, Int, PaginationCache?) raise @failure.Failure {
-  let blocks = flow.body_blocks(probe, profile)
+  let blocks = flow.body_blocks()
   let keys = pagination_keys(blocks)
   let context = Json::array([
     self.page.to_json(),
@@ -34,8 +34,15 @@ fn Pagination::body(
     }
     if prefix == old.keys.length() && prefix == current.length() {
       self.restore(old, old.positions.last().unwrap(), images)
-      for block in blocks {
-        block.retain(cache, self.page)
+      for index, block in blocks {
+        self.retain_block(
+          block,
+          old.positions[index],
+          old.positions[index + 1],
+          cache,
+          probe,
+          profile,
+        )
       }
       return (0, self.pages.length(), Some(old))
     }
@@ -47,7 +54,14 @@ fn Pagination::body(
     self.restore(old, old.positions[prefix], images)
     positions.append(old.positions[0:prefix + 1].to_owned())
     for index in 0..<prefix {
-      blocks[index].retain(cache, self.page)
+      self.retain_block(
+        blocks[index],
+        old.positions[index],
+        old.positions[index + 1],
+        cache,
+        probe,
+        profile,
+      )
     }
   } else if keys is Some(_) {
     positions.push(self.position())
@@ -80,7 +94,15 @@ fn Pagination::body(
           positions.push(translated_position(old.positions[next], before, now))
         }
         for next in index..<blocks.length() {
-          blocks[next].retain(cache, self.page)
+          let source_index = old_index + next - index
+          self.retain_block(
+            blocks[next],
+            translated_position(old.positions[source_index], before, now),
+            translated_position(old.positions[source_index + 1], before, now),
+            cache,
+            probe,
+            profile,
+          )
         }
         index = blocks.length()
         break

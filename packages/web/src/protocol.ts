@@ -154,6 +154,7 @@ export type Operation =
       selection: DocxSelection;
       rows: number;
       columns: number;
+      profile: Record<string, string>;
     }
   | {
       operation: "updateListLevel";

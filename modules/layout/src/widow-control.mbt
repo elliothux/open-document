@@ -44,6 +44,9 @@ fn Pagination::widow_breaks(
   self : Pagination,
   paragraph : Paragraph,
   measured : Array[MeasuredLine],
+  cache : ParagraphCache,
+  probe : TextProbe,
+  profile : Map[String, String],
 ) -> Map[Int, Bool] raise @failure.Failure {
   let breaks : Map[Int, Bool] = Map([])
   if !paragraph.widowControl || measured.any(item => item.line.y < 0) {
@@ -78,6 +81,49 @@ fn Pagination::widow_breaks(
     }
     let count = end - start
     let remaining = lines.length() - start
+    let next_width = next.width - next.left - next.right
+    if next_width != page.width - page.left - page.right {
+      let next_lines = fn(offset : Int) raise @failure.Failure {
+        cache
+        .lines(probe, paragraph, profile, next_width, startOffset=offset)
+        .filter(item => !item.line.caretOnly)
+        .mapi((index, item) => (index, item))
+      }
+      let following = next_lines(lines[start].1.line.start)
+      let move_start = (
+          count == 0 && widow_height(following, 0, 1, paragraph.line) <= full
+        ) ||
+        (
+          count < 2 &&
+          following.length() >= 2 &&
+          widow_height(following, 0, 2, paragraph.line) <= full
+        ) ||
+        (
+          count == 2 &&
+          remaining == 3 &&
+          widow_height(following, 0, following.length(), paragraph.line) <= full
+        )
+      if start == 0 && y > page.top && move_start {
+        if self.pages.last().unwrap().lines.any(line => !line.caretOnly) ||
+          !self.pages.last().unwrap().borders.is_empty() {
+          self.next_page()
+        } else {
+          self.y = self.page.top
+        }
+        return breaks
+      }
+      while end > start + 2 {
+        let tail = next_lines(lines[end].1.line.start)
+        if tail.length() != 1 || widow_height(tail, 0, 1, paragraph.line) > full {
+          break
+        }
+        end -= 1
+      }
+      if end > start {
+        breaks[lines[end].0] = true
+      }
+      return breaks
+    }
     let move_start = (
         count == 0 && widow_height(lines, start, 1, paragraph.line) <= full
       ) ||

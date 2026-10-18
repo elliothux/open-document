@@ -322,6 +322,7 @@ async function dispatch(request: Request): Promise<unknown> {
             request.selection,
             request.rows,
             request.columns,
+            request.profile,
           );
         case "editDocxTable":
           return foundation.editTable(

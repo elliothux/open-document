@@ -84,13 +84,20 @@ fn Session::edit_table_style_definition(
     )
   }
   if !deleting {
+    let reserved = ["Light", "Medium", "Dark"].any(family => {
+      let count = match family {
+        "Light" => 21
+        "Medium" => 28
+        _ => 11
+      }
+      Array::makei(count, index => "TableStyle\{family}\{index+1}").any(stock => {
+        stock.to_upper() == name.to_upper()
+      })
+    })
     guard before
       .map(style => style.name.to_upper() == name.to_upper())
       .unwrap_or(false) ||
-      (
-        catalog.get(name.to_upper()) is None &&
-        table_style_index(Some(name)) is None
-      ) else {
+      (catalog.get(name.to_upper()) is None && !reserved) else {
       @failure.reject("invalid-operation", "Table style name is already in use")
     }
     guard before is Some(_) || catalog.length() < 256 else {

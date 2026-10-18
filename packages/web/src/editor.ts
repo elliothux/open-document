@@ -545,6 +545,7 @@ export class DocumentEditor extends DocumentPage {
         this.selection(),
         rows,
         cols,
+        this.profile,
       ),
     );
   }

@@ -161,7 +161,7 @@ pub fn Session::finish_picture_resize(Self, Int, Int, Double, Double, Int) -> Js
 pub fn Session::flow(Self) -> @layout.Flow raise @failure.Failure
 pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
 pub fn Session::insert_picture(Self, Int, Double, Double, Bytes) -> Json raise @failure.Failure
-pub fn Session::insert_table(Self, Int, Selection, Int, Int) -> Json raise @failure.Failure
+pub fn Session::insert_table(Self, Int, Selection, Int, Int, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::list_catalog(Self, Int) -> Json raise @failure.Failure
 pub fn Session::navigate(Self, Int, @layout.Layout, Int, String, extend_selection~ : Bool) -> @layout.Hit raise @failure.Failure
 pub fn Session::navigate_comment(Self, Int, String) -> Json raise @failure.Failure
@@ -170,7 +170,7 @@ pub fn Session::overview(Self, Int) -> Json raise @failure.Failure
 pub fn Session::page_setup(Self, Int) -> Json raise @failure.Failure
 pub fn Session::pictures(Self, Int) -> Json raise @failure.Failure
 pub fn Session::query(Self) -> Json raise @failure.Failure
-pub fn Session::query_formatting(Self, Int, Selection) -> Json raise @failure.Failure
+pub fn Session::query_formatting(Self, Int, Selection, layout? : @layout.Layout) -> Json raise @failure.Failure
 pub fn Session::redo_edit(Self, Int) -> Json raise @failure.Failure
 pub fn Session::replace(Self, Int, Int, String) -> Int raise @failure.Failure
 pub fn Session::replace_all(Self, Int, String, FindOptions, String) -> Json raise @failure.Failure

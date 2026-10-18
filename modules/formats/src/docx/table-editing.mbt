@@ -52,6 +52,9 @@ pub fn Session::insert_table(
   selection : Selection,
   rows : Int,
   columns : Int,
+  probe? : @layout.TextProbe,
+  profile~ : Map[String, String] = Map([]),
+  images? : @layout.Images,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard rows >= 1 &&
@@ -74,7 +77,16 @@ pub fn Session::insert_table(
   }
   ignore(self.editable_page_section(tree))
   let flow = self.flow_from(original)
-  let width = (flow.columns.width(flow.page) * 20).floor().to_int()
+  let width = (column_width_for_position(
+      flow,
+      range.start,
+      probe,
+      profile,
+      images,
+    ) *
+    20)
+    .floor()
+    .to_int()
   guard width / columns >= 240 else {
     @failure.reject(
       "invalid-operation", "Page content is too narrow for the requested columns",
@@ -196,6 +208,9 @@ pub fn Session::insert_table(
     .iter()
     .find_first(t => t.id == table)
     .unwrap()
+  if !candidate_flow.columns.custom.is_empty() {
+    self.check_table_layout(candidate_flow, new_table, probe, profile, images)
+  }
   guard new_table.rows
     .iter()
     .all(row => {

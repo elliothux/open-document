@@ -115,6 +115,7 @@ fn Session::reflow_dimensions(
   for index, sheet in self.sheets {
     old[sheet.id] = (index, sheet)
   }
+  let original_work = { ..work.formulas, names: self.formula_names(), }
   for index, candidate in sheets {
     let automatic_rows : Map[Int, Bool] = Map([])
     for row, cached in candidate.dimensions.automatic_rows {
@@ -150,7 +151,15 @@ fn Session::reflow_dimensions(
       parts~,
     )
     let old_conditional = previous.map(entry => {
-      self.conditional_rules(entry.1, entry.0, self.sheets, work.formulas)
+      original_work.remaining = work.formulas.remaining
+      let rules = self.conditional_rules(
+        entry.1,
+        entry.0,
+        self.sheets,
+        original_work,
+      )
+      work.formulas.remaining = original_work.remaining
+      rules
     })
     for name, cell in candidate.cells {
       let value = calculation.values.get((index, name)).unwrap_or(cell.value)
@@ -159,6 +168,7 @@ fn Session::reflow_dimensions(
         let original = self.calculation
           .bind(item => item.values.get((old_index, name)))
           .unwrap_or(before.value)
+        original_work.remaining = work.formulas.remaining
         let original_style = old_conditional
           .unwrap()
           .applied(
@@ -167,8 +177,9 @@ fn Session::reflow_dimensions(
             self.sheets,
             old_index,
             self.calculation.map(c => c.values).unwrap_or(Map([])),
-            work.formulas,
+            original_work,
           )
+        work.formulas.remaining = original_work.remaining
         let candidate_style = conditional.applied(
           styles[candidate.style_at(cell.address)],
           cell.address,

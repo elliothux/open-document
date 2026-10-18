@@ -117,7 +117,7 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 正文自动断页尽量在两端各保留至少两行。三行段落面临单行拆分且整页可容纳时，整体移至新页；四行及以上若只剩一行在末页，且末两行可同页放入，则向末页多移一行。按实际行高和页首行距度量，空间不足两行时保留有界拆分回退；必要时省略空页上阻碍首段放入的段前留白。显式分页符优先，含显式分页的段落沿原规则。超长“段中不分页”段落仍拆分；“与下段同页”预判包含末段的孤行要求，后段变化向前使保留链失效。当前规则应用正文，格内和页眉保留有效属性并沿原排版规则，不额外施加正文孤行约束；对应 [ONLYOFFICE 正文孤行处理](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph_Recalculate.js#L1849-L1887)。实现归 [`widow-control.mbt`](../../modules/layout/src/widow-control.mbt)，复用现有行/页预算与统一绘制输出，不引入回退循环。
 
-`keepLines: true/false` 设置或关闭“段中不分页”，null 清除直接定义并恢复样式继承；查询与 Flow 返回有效布尔值。默认格式面板和样式编辑面板共用现有命令，格式复制、拆段及清除直接格式也包含该属性。正文段落不能放入当前页时先整体换页；超出一页时在新页正常拆分，不重复尝试。页首空间不足时省略使整段无法放入的段前留白；显式分页符优先，含分页符的段落沿原分页规则执行。可拆的普通表格行按单元格段落保留整组行；整页放不下的格内段落继续拆分，精确行高仍裁剪。重复表头的空间检查包含待放段落，属性变化参与分页缓存失效。规则参考 [ONLYOFFICE KeepLines 分页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph_Recalculate.js#L2545-L2590)的现代文档路径；不新增旧 Word 分页模式。不等宽栏和多节继续实施。
+`keepLines: true/false` 设置或关闭“段中不分页”，null 清除直接定义并恢复样式继承；查询与 Flow 返回有效布尔值。默认格式面板和样式编辑面板共用现有命令，格式复制、拆段及清除直接格式也包含该属性。正文段落不能放入当前页时先整体换页；超出一页时在新页正常拆分，不重复尝试。页首空间不足时省略使整段无法放入的段前留白；显式分页符优先，含分页符的段落沿原分页规则执行。可拆的普通表格行按单元格段落保留整组行；整页放不下的格内段落继续拆分，精确行高仍裁剪。重复表头的空间检查包含待放段落，属性变化参与分页缓存失效。规则参考 [ONLYOFFICE KeepLines 分页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph_Recalculate.js#L2545-L2590)的现代文档路径；不新增旧 Word 分页模式。不等宽栏按下文使用各自区域宽度续排；多节继续实施。
 
 `FoundationSession/Client.styles(revision, kind)` 与 `DocumentEditor.styles(kind)` 返回现有样式目录：`{ revision, truncated, styles: [{ id, name, reason, basedOn, canDelete, canReset, linked }] }`，`kind` 为 `"paragraph" | "character"`，每类最多 1024 项。`basedOn` 为直接基础样式 ID，无继承时为空串；`canDelete` 表示已支持且未标为默认的自定义样式；`linked` 表示存在样式链接，`canReset` 表示有已支持的格式重置规则。不可应用的样式带原因，默认 UI 禁用对应选项。该接口替代原段落专用目录入口。
 
@@ -329,21 +329,25 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 ### 页面设置
 
-`FoundationSession/Client.pageSetup(revision)` 与 `DocumentEditor.pageSetup()` 返回 `{ revision, page, reason, background, borders, numbering, columns }`。各属性的合同见下文。`page` 是主文档单节的源尺寸，字段为 `width/height/top/right/bottom/left`，单位为 pt；缺少节属性时使用 612×792 pt、四边 72 pt。不支持的多节、不等宽分栏、镜像页边距、装订线或保护返回 `page: null` 与原因，不返回伪造的可编辑参数。查询不要求正文选区。
+`FoundationSession/Client.pageSetup(revision)` 与 `DocumentEditor.pageSetup()` 返回 `{ revision, page, reason, background, borders, numbering, columns }`。各属性的合同见下文。`page` 是主文档单节的源尺寸，字段为 `width/height/top/right/bottom/left`，单位为 pt；缺少节属性时使用 612×792 pt、四边 72 pt。不支持的多节、未知分栏元数据、镜像页边距、装订线或保护返回 `page: null` 与原因，不返回伪造的可编辑参数。查询不要求正文选区。
 
 `setPageSetup(revision, page)` 同时修改尺寸与四边距，Web 编辑宿主省略 revision。`DocxPageSetup` 要求上述六个值，可选 `orientation: "portrait" | "landscape"`。省略方向时使用指定宽高；给出方向且与宽高不一致时，核心交换宽高并旋转四边距。横向时新左/上/右/下依次为原下/左/上/右，纵向反向旋转；正方形不旋转。规则依据 [ONLYOFFICE 的方向修改](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/sections/sect-pr.js#L1148-L1180)。
 
 尺寸为 36–14400 pt，边距非负；所有数值须能表示为整数 twip，并为正文留下至少 12×12 pt。源尺寸原样写回 `pgSz/pgMar`；`Flow.page`、预览和 PDF 继续采用下文既有纸型解释规则，可能与源尺寸不同，例如 500 pt 的显示尺寸为 498.9 pt。再次应用相同源参数不产生历史，不能把显示尺寸自动写回源文档。
 
-缺少节属性时在正文末尾创建，缺少页面属性时按 OOXML 顺序插入。修改保留段落、稳定节点身份、节元数据、其他部件、页眉/页脚距离和零装订线；清除与新尺寸不一致的旧打印机纸型代码。尺寸与边距合为一项有界历史，保留待输入格式，撤销/重做及保存重开恢复相同源参数。非法值、过期 revision、未知目标属性/注释、多节或预算失败保留已提交包。默认 UI 提供相同的读取、修改和方向选项；文档改变后要求重新读取，防止旧参数覆盖新状态。已有等宽分栏时，修改尺寸也须为每栏保留至少 12 pt 宽度。多节及页眉页脚节间继承继续实施。
+缺少节属性时在正文末尾创建，缺少页面属性时按 OOXML 顺序插入。修改保留段落、稳定节点身份、节元数据、其他部件、页眉/页脚距离和零装订线；清除与新尺寸不一致的旧打印机纸型代码。尺寸与边距合为一项有界历史，保留待输入格式，撤销/重做及保存重开恢复相同源参数。非法值、过期 revision、未知目标属性/注释、多节或预算失败保留已提交包。默认 UI 提供相同的读取、修改和方向选项；文档改变后要求重新读取，防止旧参数覆盖新状态。已有分栏时，修改尺寸也须为每栏保留至少 12 pt 宽度。多节及页眉页脚节间继承继续实施。
 
-### 等宽分栏
+### 分栏
 
-`FoundationSession/Client.setPageColumns(revision, columns, profile)` 与 `DocumentEditor.setPageColumns(columns)` 设置主文档单节的等宽分栏。`DocxColumns` 为 `{ count, gap, separator }`：栏数为 1–12 的整数，栏间距为 0–14400 pt 且须表示为整数 twip，分隔线为布尔值。`null` 移除显式 `w:cols`，恢复单栏、36 pt 间距和无分隔线。缺少节属性时原子创建；`pageSetup().columns` 返回 `{ value, reason }`，不支持的源返回 null 和原因。Wasm/Web 从既有 foundation 模块导出类型和命令；默认页面面板提供读取、修改、重置和过期草稿保护。
+`FoundationSession/Client.setPageColumns(revision, columns, profile)` 与 `DocumentEditor.setPageColumns(columns)` 设置主文档单节的分栏。`DocxColumns` 必须包含 `{ count, gap, separator, custom }`：栏数为 1–12 的整数，栏间距为 0–14400 pt 且须表示为整数 twip，分隔线为布尔值。`custom: []` 表示等宽；不等宽时提供恰好 `count` 项 `{ width, gap }`，分别为栏宽和栏后间距。宽度为 12–14400 pt，间距为 0–14400 pt，均须有限且为整数 twip。`null` 移除显式 `w:cols`，恢复单栏、36 pt 间距、无分隔线及空 `custom`。缺少节属性时原子创建；`pageSetup().columns` 返回 `{ value, reason }`，不支持的源返回 null 和原因。
 
-核心先从可用页宽扣除全部栏间距，再等分，每栏至少 12 pt。正文按栏顺序续排，末页在整数 twip 上有界求解平衡高度；显式分页符及段前分页进入下一张纸。页眉页脚保持整页宽度，页码和总页数按实际纸张计算。表格创建、宽度查询及自动适配使用当前栏宽；普通行、合并格与重复表头在续栏处重新取横坐标，文字、边框、底色、命中、光标和选区使用同一几何。固定宽表格超出栏宽时拒绝候选，不自动改写网格。Canvas、PNG 和 PDF 消费同一物理页结果；缓存键包含栏参数及平衡高度。
+等宽时从可用页宽扣除全部间距再等分。不等宽时读取 `w:equalWidth="0"` 及逐项 `w:col w:w/w:space`，栏数取子节点数。前面的栏使用各自宽度和间距，末栏延伸到正文右边界；末项源宽度/间距保留，几何不使用它们。全部实际栏宽至少 12 pt。默认面板可切换模式，编辑前面各栏的宽度和间距；末栏显示核心物理页面宽度对应的剩余量，保留原元数据。Wasm/Web 沿既有 foundation 模块导出类型和命令，面板沿原有读取、重置和过期草稿保护。
 
-修改保留正文、选择、待输入格式、页码/页边属性及其他 OPC 部件，使用一项有界源历史。同值不新增历史，撤销/重做和保存重开恢复源与布局。非法参数、旧 revision、保护、未知属性/子节点、不透明目标源、布局或输出预算失败原子拒绝。分栏符沿上文范围编辑；不等宽栏和多节继续实施，不能把保留源记为已支持。
+正文按栏顺序续排，末页在整数 twip 上有界求解平衡高度；显式分页符及段前分页进入下一张纸。进入不同宽度时，核心按原逻辑偏移重新断开剩余文字，保留整段双向分析、字体来源、光标和终止控制符；续段不重复首行缩进或列表标记。孤行和“与下段同页”按实际下一栏宽度预估，段落缓存包含续排偏移。页眉页脚保持整页宽度，页码和总页数按实际纸张计算。Canvas、PNG 和 PDF 消费同一物理页结果；分页缓存键包含全部栏参数及平衡高度。
+
+不等宽栏中的表格改为按实际起始栏解析百分比与适配宽度，续栏保持同一列网格。创建、尺寸命令及布局后的属性查询已接入实际位置；未提供布局的原生查询仍返回最窄栏上限。此增量仍为 WIP：19 项布局定向检查通过，命令与浏览器验证尚未完成。普通行、合并格与重复表头按目标栏重新取横坐标，文字、边框、底色、命中、光标和选区共用几何。固定网格超出目的栏时拒绝候选，不自动改写网格。更广跨宽度表格兼容继续实施。
+
+修改保留正文、选择、待输入格式、页码/页边属性及其他 OPC 部件，使用一项有界源历史。同值不新增历史，撤销/重做和保存重开恢复源与布局。非法参数、旧 revision、保护、未知属性/子节点、不透明目标源、布局或输出预算失败原子拒绝。分栏符沿上文范围编辑；多节继续实施，不能把保留源记为已支持。
 
 实现归 [`page-columns.mbt`](../../modules/formats/src/docx/page-columns.mbt) 和 [`columns.mbt`](../../modules/layout/src/columns.mbt)。等宽计算参考 [ONLYOFFICE SectionColumns](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/sections/section-columns.js#L200-L216)，栏位置和平衡参考 [DocumentPageSection](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/document/document-page-section.js#L78-L100)，分隔线参考 [Document.draw](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L5384-L5390)。未复制上游执行代码。
 
@@ -403,7 +407,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 ### 表格创建
 
-`FoundationSession/Client.insertTable(revision, selection, rows, columns)` 与 `DocumentEditor.insertTable(rows, columns)` 在正文范围插入固定网格，默认 UI 提供行列输入。rows 为 1–1000，columns 为 1–63，总格数最多 4096，并受 XML、历史和输出预算限制。列宽按当前单节布局的可用栏宽分配整数 twip，余量逐列分配，每列至少 12 pt。沿用当前纸型解释，不改源页面设置。未知或受保护的正文、嵌套表格、多节及无法解释的页面设置拒绝操作。
+`FoundationSession/Client.insertTable(revision, selection, rows, columns, profile)` 与 `DocumentEditor.insertTable(rows, columns)` 在正文范围插入固定网格，默认 UI 提供行列输入。rows 为 1–1000，columns 为 1–63，总格数最多 4096，并受 XML、历史和输出预算限制。列宽按当前单节布局的可用栏宽分配整数 twip，余量逐列分配，每列至少 12 pt。沿用当前纸型解释，不改源页面设置。未知或受保护的正文、嵌套表格、多节及无法解释的页面设置拒绝操作。
 
 核心先删除所选文字；在段中插入时拆分段落，在段首插入时保留原段落作为后续内容。新增表格使用 0.5 pt 黑色完整网格、5.4 pt 水平单元格边距与固定列宽。单元格复制插入起点的有效字符格式及支持的段落属性，并将缩进与段前分页显式归零。若段首已有段前分页，则转移到首格首段，保留表格在该页开始的位置；页首不生成额外空页。其他单元格的段前分页仍受原有布局保护。
 
@@ -487,7 +491,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 `editTable({ action: "autoFit", mode })` 支持 `content`、`page` 和 `fixed`。内容模式写 `tblLayout=autofit`、`tblW=auto/0` 与各格 `tcW=auto/0`，随后每次排版按内容重新求宽；页面模式改为 `tblW=pct/5000`，跟随当前可用页宽。固定模式测量当前有效列宽后写 `tblLayout=fixed`、整数 twip 的网格及表/格 dxa 宽度。每次切换共同提交一次历史，保留合并跨度、段落身份、文字、格式、选择、其他部件与待输入格式；同源无变化不增加历史。
 
-缺省 `tblLayout` 按自动模式读取；表样式和直接 `tblPr` 决定模式及表宽，直接属性优先。dxa 偏好转为点值，pct 的 0–5000 转为可用页宽的比例；auto/nil 表示未指定。公共 `Table` 携带 `autoFit/preferredWidth/preferredWidths`，布局层使用授权字体的相同塑形结果求字素、单词和不换行宽度，再合入边距、半描边、行内图片、缩进、列表和制表位置。单列约束先求，合并格不足部分按源网格比例分配；不足以容纳最小单词时向字素下限收缩，字素或图片仍放不下则拒绝。列宽最终落在整数 twip，受可用页宽及既有资源上限约束。规则参考 [ONLYOFFICE 自动表格宽度](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L448-L648)及[合并格约束](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L864-L1050)。
+缺省 `tblLayout` 按自动模式读取；表样式和直接 `tblPr` 决定模式及表宽，直接属性优先。偏好宽度使用 `{ value, percent }`：dxa 转为点值并设 `percent: false`，pct 的 0–5000 转为 0–1 并设 `percent: true`，在表格实际落栏时解析；auto/nil 使用零点值表示未指定。公共 `Table` 携带 `autoFit/preferredWidth/preferredWidths`，布局层使用授权字体的相同塑形结果求字素、单词和不换行宽度，再合入边距、半描边、行内图片、缩进、列表和制表位置。单列约束先求，合并格不足部分按源网格比例分配；不足以容纳最小单词时向字素下限收缩，字素或图片仍放不下则拒绝。列宽最终落在整数 twip，受可用页宽及既有资源上限约束。规则参考 [ONLYOFFICE 自动表格宽度](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L448-L648)及[合并格约束](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableRecalculate.js#L864-L1050)。
 
 低层 `FoundationSession/Client.editTable` 的第 4 个参数为字体 profile，测量操作必须提供所需映射；`DocumentEditor` 自动传入宿主 profile，图片沿已提供资源预检。`queryFormatting(...).table.autoFit` 返回当前模式。自动模式中的 `width/columnWidths` 为保存的回退网格，有效宽度来自布局；默认 UI 显示自动状态，并在冻结后开放手动宽度输入。程序化整表/单列宽度修改也会先测量并转为固定模式；目标列至少 12 pt，已有其他窄列保持。Canvas、命中、选择、缓存和 PDF 共用有效网格。未知属性/保留标记、缺字体/字形、无法排版或预算失败不提交。嵌套/浮动表格和更广宽度类型继续按原保护范围处理。
 
@@ -1269,7 +1273,13 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 缺失的原生节点按需创建，相同设置不增加修订或历史。未知元数据、保护及预算失败整体拒绝。自定义定义与内置名称相同时，以已有自定义定义为准；未知定义仍保护。默认面板、同步 Wasm 和 Worker 使用同一命令。样式源与自动尺寸变化合为精确历史，公式缓存、calcChain 和无关部件保持。实现归 [`table-style-edit.mbt`](../../modules/formats/src/xlsx/table-style-edit.mbt)和 [`xlsx-table-style.tsx`](../../packages/ui/src/xlsx-table-style.tsx)。
 
-自定义样式沿标准 `tableStyles/tableStyle/tableStyleElement` 与 `dxfs/dxf` 读取。`query.tableStyles: XlsxTableStyleChoice[]` 返回 `{ name, readOnlyReason }` 目录，默认面板列出可用项并禁用未知项；最多 256 个定义，每个名称最多 255 个 UTF-16 单元，首尾空白和控制字符拒绝。每个定义最多 13 类非重复区域：全表、两组行/列条纹、首末列、标题/总计行及四个角格。条纹尺寸为 1–1048576；按全表、列条纹、行条纹、末列、首列、标题、总计和角格顺序叠加。字体族/大小/粗斜体/颜色、纯色填充、数字格式、对齐/换行及已支持边框复用差异格式解析，内部横竖边按区域几何映射。直接属性逐项优先，条件格式随后覆盖；字体变体沿现有 4096 字体键和 1048576 工作预算收集。未知区域、缺失 dxf、复杂图案和对角线保持诊断与保护，不替换成内置外观。应用只改所属表的样式引用和标记，原样式定义、dxf 和其他部件保持。实现归 [`table-custom-style.mbt`](../../modules/formats/src/xlsx/table-custom-style.mbt)，区域优先级依据 [ONLYOFFICE CTableStyle.initStyle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Serialize.js#L14218-L14290)。
+自定义样式沿标准 `tableStyles/tableStyle/tableStyleElement` 与 `dxfs/dxf` 读取。`query.tableStyles: XlsxTableStyleChoice[]` 返回 `{ name, readOnlyReason, elements }` 目录，默认面板列出可用项并禁用未知项；最多 256 个定义，每个名称最多 255 个 UTF-16 单元，首尾空白和控制字符拒绝。每个定义最多 13 类非重复区域：全表、两组行/列条纹、首末列、标题/总计行及四个角格。条纹尺寸为 1–1048576；按全表、列条纹、行条纹、末列、首列、标题、总计和角格顺序叠加。字体族/大小/粗斜体/颜色、纯色填充、数字格式、对齐/换行及已支持边框复用差异格式解析，内部横竖边按区域几何映射。直接属性逐项优先，条件格式随后覆盖；字体变体沿现有 4096 字体键和 1048576 工作预算收集。未知区域、缺失 dxf、复杂图案和对角线保持诊断与保护，不替换成内置外观。应用只改所属表的样式引用和标记，原样式定义、dxf 和其他部件保持。实现归 [`table-custom-style.mbt`](../../modules/formats/src/xlsx/table-custom-style.mbt)，区域优先级依据 [ONLYOFFICE CTableStyle.initStyle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Serialize.js#L14218-L14290)。
+
+`editSheet({ action: "tableStyleDefinition", original, name, elements })` 新建或完整替换定义。`original: null` 表示新建，字符串表示已有名称；`name` 可同时改名。新名称按大小写不敏感规则避开已有定义及 60 种内置名称；同名导入定义仍可修改。`elements: XlsxTableStyleElement[]` 中每项必须包含 `{ kind, size, format, vertical, horizontal }`。`kind` 来自 Wasm/Web 导出的 `xlsxTableStyleRegions`；`format` 沿用 `XlsxCellFormat`，未提供的属性不再属于该区域。`vertical/horizontal` 为内部边框的 `XlsxCellBorder | null`。非条纹区域的合法 `size` 规范为 1；空数组保留一个无格式定义。查询按原生优先级返回区域，未知定义返回保护原因和空数组。
+
+`editSheet({ action: "deleteTableStyle", name, replacement })` 删除定义。`replacement: string | null` 显式选择已有可用自定义/内置样式，或清除引用。定义修改影响使用它的全部表；改名和删除同步各工作表的引用及默认表样式，保留表标记、数据、公式和其他部件。任一受影响表受保护时整项拒绝。仍被默认透视样式使用的定义不能删除，透视样式编辑继续实施。
+
+核心复用差异样式池，仅为变更区域派生 dxf，未变区域保留原身份及主题/索引色关联。删除不回收共享 dxf 或数字格式。缺少样式部件时创建原生部件、关系和内容类型；源、资源与自动尺寸合为一次精确历史。相同有效定义不新增历史，名称冲突、过期、未知源标记及输出预算失败原子拒绝。单个样式部件的编辑候选最多 2097152 个 UTF-16 单元，另受原有 XML 字节及 4 MiB 历史预算约束。默认面板提供新建、区域格式、条纹尺寸、改名和显式替代删除，先提交原生草稿。字体或引用变化使用旧、候选各自的表定义比较并重排行高；两次比较共用计算预算。实现归 [`table-style-definition.mbt`](../../modules/formats/src/xlsx/table-style-definition.mbt)、[`autofit-reflow.mbt`](../../modules/formats/src/xlsx/autofit-reflow.mbt)和 [`xlsx-table-style-definition.tsx`](../../packages/ui/src/xlsx-table-style-definition.tsx)。
 
 内置样式复用已有主题及 tint 解析。各组保留原生定义的差异：
 
@@ -1285,7 +1295,7 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 | Dark1–7 | 深底浅字，强调列使用更深底色 | 标题、总计及强调列保留中等浅色分隔线 |
 | Dark8–11 | 标题与正文使用配对主题色，未强调的标题不加粗 | 浅条纹，不新增内部网格，总计使用深色双线 |
 
-Dark8–11 未声明的正文文字色和边框沿用正常单元格格式。字体请求只包含实际需要的粗体字形。直接格式按属性覆盖表样式，条件格式随后覆盖；网格、自动适配与打印使用同一结果。格式面板查询包含表样式；`none` 清除直接边框覆盖，恢复表样式。共享边只绘制一次，双线保留两条细线及间隙。宿主仍须提供字体和 profile。自定义样式定义的新建、修改和删除继续实施。
+Dark8–11 未声明的正文文字色和边框沿用正常单元格格式。字体请求只包含实际需要的粗体字形。直接格式按属性覆盖表样式，条件格式随后覆盖；网格、自动适配与打印使用同一结果。格式面板查询包含表样式；`none` 清除直接边框覆盖，恢复表样式。共享边只绘制一次，双线保留两条细线及间隙。宿主仍须提供字体和 profile。
 
 原生属性依据 ONLYOFFICE 的 [Medium 定义](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Sheets/XlsxDefaults/presetTableStyles.xml#L3-L2668)、[Light 定义](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Sheets/XlsxDefaults/presetTableStyles.xml#L2668-L4536)和 [Dark 定义](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Sheets/XlsxDefaults/presetTableStyles.xml#L4537-L5598)。实现归 [`table-style.mbt`](../../modules/formats/src/xlsx/table-style.mbt)，复用原有绘制模型。
 
@@ -1293,7 +1303,7 @@ Dark8–11 未声明的正文文字色和边框沿用正常单元格格式。字
 
 删除工作表清理其所属表部件、关系和内容类型，更新其他表的普通工作表引用及结构化依赖；失去目标的引用写为 `#REF!`。候选计算使用待删部件列表，保留仍存在的表。创建/删除部件、引用、缓存、视图和选择合为精确历史，支持保存重开和现有打印。已支持的原生筛选随副本保留独立的条件和隐藏来源；未知表资源归属、未知排序元数据、公式扩展和预算失败保持原子拒绝。复制仍受每工作簿 256 张表、4096 列定义及原有历史/输出上限。实现归 [`table-sheet.mbt`](../../modules/formats/src/xlsx/table-sheet.mbt)、[`sheet-copy.mbt`](../../modules/formats/src/xlsx/sheet-copy.mbt)及 [`sheet-delete.mbt`](../../modules/formats/src/xlsx/sheet-delete.mbt)。
 
-当前接通区域创建、范围调整、导入、查询、普通数据编辑、表/列改名、计算列创作/重填、总计设置、整行/列插删同步、工作表资源操作、含表工作簿的名称创作及原生表筛选。筛选中的范围及整轴结构同步已接通；表内行排序已接通；原生表保持整行排序，自定义样式定义创作和其余格式覆盖继续实施。已有样式定义保留；只有已支持的表定义和样式才解除 `tableParts` 未呈现诊断，其余仍保护打印。未知表筛选继续保护计算修改并保留源。
+当前接通区域创建、范围调整、导入、查询、普通数据编辑、表/列改名、计算列创作/重填、总计设置、整行/列插删同步、工作表资源操作、含表工作簿的名称创作及原生表筛选。筛选中的范围及整轴结构同步已接通；表内行排序已接通；原生表保持整行排序，自定义样式定义创作沿上述命令；其余格式覆盖继续实施。未修改的样式定义保留；只有已支持的表定义和样式才解除 `tableParts` 未呈现诊断，其余仍保护打印。未知表筛选继续保护计算修改并保留源。
 
 结构化引用依据 [ONLYOFFICE cStrucTable](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L2352-L2628)的行段、列身份、当前行及转义行为。实现归 [`table.mbt`](../../modules/formats/src/xlsx/table.mbt)、[`structured-reference.mbt`](../../modules/formats/src/xlsx/structured-reference.mbt)、[`table-rename.mbt`](../../modules/formats/src/xlsx/table-rename.mbt)及 [`xlsx-tables.tsx`](../../packages/ui/src/xlsx-tables.tsx)，复用既有事务和绘制模型。
 

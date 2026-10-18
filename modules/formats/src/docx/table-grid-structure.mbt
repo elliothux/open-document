@@ -169,6 +169,31 @@ fn Session::check_table_layout(
     )
   }
   if probe is Some(probe) {
+    if !flow.columns.custom.is_empty() {
+      let flow = {
+        ..flow,
+        tables: flow.tables.map(table => {
+          if table.id == model.id {
+            model
+          } else {
+            table
+          }
+        }),
+      }
+      let layout = @layout.paginate(
+        probe,
+        flow,
+        profile,
+        images.unwrap_or_else(() => @layout.Images::new()),
+      )
+      let fitted = model.fit_widths(
+        probe,
+        profile,
+        column_width_in(flow, layout, table_start_position(model)),
+      )
+      self.check_margin_layout({ ..fitted, autoFit: false, })
+      return
+    }
     let fitted = model.fit_widths(probe, profile, flow.columns.width(flow.page))
     self.check_margin_layout({ ..fitted, autoFit: false, })
     ignore(

@@ -35,6 +35,7 @@ export function DocxPage({
     count: 1,
     gap: 36,
     separator: false,
+    custom: [],
   });
   const [orientation, setOrientation] = useState<"portrait" | "landscape">(
     "portrait",
@@ -44,7 +45,14 @@ export function DocxPage({
     setSettings(value);
     setDraft(value.page ?? undefined);
     setNumbering(value.numbering.value ?? { start: 1, format: "decimal" });
-    setColumns(value.columns.value ?? { count: 1, gap: 36, separator: false });
+    setColumns(
+      value.columns.value ?? {
+        count: 1,
+        gap: 36,
+        separator: false,
+        custom: [],
+      },
+    );
     setColor(`#${value.background.color ?? "ffffff"}`);
     setOrientation(
       value.page && value.page.width > value.page.height
@@ -53,6 +61,23 @@ export function DocxPage({
     );
   };
   const stale = settings?.revision !== state.document?.revision;
+  const fullWidth =
+    (editor.layout.regions[0]?.width ?? settings?.page?.width ?? 612) -
+    (settings?.page?.left ?? 72) -
+    (settings?.page?.right ?? 72);
+  const customColumns = (count: number) =>
+    Array.from(
+      { length: count },
+      (_, index) =>
+        columns.custom[index] ?? {
+          width: Math.max(
+            12,
+            Math.floor(((fullWidth - columns.gap * (count - 1)) * 20) / count) /
+              20,
+          ),
+          gap: columns.gap,
+        },
+    );
   return (
     <section aria-label={t.pageSetup}>
       <h3>{t.pageSetup}</h3>
@@ -91,13 +116,42 @@ export function DocxPage({
                 step={1}
                 required
                 value={Number.isFinite(columns.count) ? columns.count : ""}
+                onChange={(event) => {
+                  const count = event.currentTarget.valueAsNumber;
+                  setColumns({
+                    ...columns,
+                    count,
+                    custom:
+                      columns.custom.length &&
+                      Number.isInteger(count) &&
+                      count >= 1 &&
+                      count <= 12
+                        ? customColumns(count)
+                        : columns.custom,
+                  });
+                }}
+              />
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={columns.custom.length === 0}
                 onChange={(event) =>
                   setColumns({
                     ...columns,
-                    count: event.currentTarget.valueAsNumber,
+                    custom: event.currentTarget.checked
+                      ? []
+                      : customColumns(
+                          Number.isInteger(columns.count) &&
+                            columns.count >= 1 &&
+                            columns.count <= 12
+                            ? columns.count
+                            : 2,
+                        ),
                   })
                 }
               />
+              {t.equalColumnWidths}
             </label>
             <label>
               {t.columnGap}
@@ -107,6 +161,7 @@ export function DocxPage({
                 max={14400}
                 step={0.05}
                 required
+                disabled={columns.custom.length > 0}
                 value={Number.isFinite(columns.gap) ? columns.gap : ""}
                 onChange={(event) =>
                   setColumns({
@@ -116,6 +171,74 @@ export function DocxPage({
                 }
               />
             </label>
+            {columns.custom.map((column, index) => {
+              const last = index === columns.custom.length - 1;
+              const width = last
+                ? fullWidth -
+                  columns.custom
+                    .slice(0, index)
+                    .reduce((sum, column) => sum + column.width + column.gap, 0)
+                : column.width;
+              return (
+                <fieldset key={index}>
+                  <legend>
+                    {t.customColumn} {index + 1}
+                  </legend>
+                  <label>
+                    {t.customColumnWidth}
+                    <input
+                      type="number"
+                      min={12}
+                      max={14400}
+                      step={0.05}
+                      required
+                      readOnly={last}
+                      value={Number.isFinite(width) ? width : ""}
+                      onChange={(event) =>
+                        setColumns({
+                          ...columns,
+                          custom: columns.custom.map((column, i) =>
+                            i === index
+                              ? {
+                                  ...column,
+                                  width: event.currentTarget.valueAsNumber,
+                                }
+                              : column,
+                          ),
+                        })
+                      }
+                    />
+                  </label>
+                  {!last && (
+                    <label>
+                      {t.columnGap}
+                      <input
+                        type="number"
+                        min={0}
+                        max={14400}
+                        step={0.05}
+                        required
+                        value={Number.isFinite(column.gap) ? column.gap : ""}
+                        onChange={(event) =>
+                          setColumns({
+                            ...columns,
+                            custom: columns.custom.map((column, i) =>
+                              i === index
+                                ? {
+                                    ...column,
+                                    gap: event.currentTarget.valueAsNumber,
+                                  }
+                                : column,
+                            ),
+                          })
+                        }
+                      />
+                    </label>
+                  )}
+                  {last && <p>{t.lastColumnWidth}</p>}
+                </fieldset>
+              );
+            })}
             <label>
               <input
                 type="checkbox"

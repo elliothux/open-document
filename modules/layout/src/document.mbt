@@ -416,8 +416,8 @@ pub extend TableStroke with ToJson::{to_json}
 pub(all) struct Table {
   id : Int
   autoFit : Bool
-  preferredWidth : Double
-  preferredWidths : Array[Array[Double]]
+  preferredWidth : PreferredWidth
+  preferredWidths : Array[Array[PreferredWidth]]
   headerRows : Int
   beforeParagraph : Int
   rows : Array[Array[Array[Paragraph]]]

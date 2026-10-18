@@ -39,6 +39,7 @@ fn Session::table_dimensions(
   self : Session,
   tree : WordTree,
   range : ParagraphRange?,
+  layout : @layout.Layout?,
 ) -> Json raise @failure.Failure {
   guard range is Some(range) else { return Json::null() }
   let cell = tree.nodes[range.start.paragraph].parent
@@ -100,7 +101,10 @@ fn Session::table_dimensions(
     } else {
       Json(fill)
     },
-    "maxWidth": flow.columns.width(flow.page).min(14400),
+    "maxWidth": layout
+    .map(layout => column_width_in(flow, layout, table_start_position(table)))
+    .unwrap_or_else(() => flow.columns.width(flow.page))
+    .min(14400),
     "maxRowHeight": table_row_height_limit(table, index, flow.page),
   }
 }
@@ -249,6 +253,7 @@ fn Session::size_table(
   rule~ : String = "atLeast",
   probe? : @layout.TextProbe,
   profile~ : Map[String, String] = Map([]),
+  images? : @layout.Images,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard value >= 0 && value <= 14400 && value * 20 == (value * 20).round() else {
@@ -264,6 +269,11 @@ fn Session::size_table(
     @failure.reject("protected-content", "Table sizes require a body table")
   }
   let flow = self.flow()
+  let available = if width {
+    table_column_width(flow, grid.model, probe, profile, images)
+  } else {
+    flow.columns.width(flow.page)
+  }
   let model = if width && grid.model.autoFit {
     grid.model.fit_widths(
       probe.unwrap_or_else(() => {
@@ -272,7 +282,7 @@ fn Session::size_table(
         )
       }),
       profile,
-      flow.columns.width(flow.page),
+      available,
     )
   } else {
     grid.model
@@ -336,7 +346,7 @@ fn Session::size_table(
       }
     }
     let next_total = widths.iter().fold(init=0L, (sum, w) => sum + w.to_int64())
-    guard next_total.to_double() / 20 <= flow.columns.width(flow.page) else {
+    guard next_total.to_double() / 20 <= available else {
       @failure.reject("invalid-operation", "Table width exceeds the page")
     }
     guard (if column is Some(i) {
@@ -441,6 +451,15 @@ fn Session::size_table(
     .iter()
     .find_first(t => t.id == grid.table)
     .unwrap()
+  if !flow.columns.custom.is_empty() {
+    self.check_table_layout(
+      self.flow_from(candidate),
+      updated,
+      probe,
+      profile,
+      images,
+    )
+  }
   self.check_margin_layout(updated)
   guard updated.rows.flatten().flatten().all(p => p.readOnlyReason.is_empty()) else {
     @failure.reject(

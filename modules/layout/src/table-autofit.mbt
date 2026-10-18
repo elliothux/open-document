@@ -115,14 +115,13 @@ pub fn Table::fit_widths(
   }
   guard available > 0 &&
     available <= 14400 &&
-    self.preferredWidth >= 0 &&
-    self.preferredWidth <= 14400 &&
     self.preferredWidths.length() == self.rows.length() else {
     @failure.reject(
       "invalid-table", "Invalid automatic table width preferences",
     )
   }
   let count = self.widths.length()
+  let preferred_width = self.preferredWidth.resolve(available)
   let hard = Array::make(count, 0.05)
   let minimum = Array::make(count, 0.05)
   let maximum = Array::make(count, 0.05)
@@ -151,10 +150,7 @@ pub fn Table::fit_widths(
           b = b.max(minimum + inset)
           d = d.max(maximum + inset)
         }
-        let hint = self.preferredWidths[r][c]
-        guard hint >= 0 && hint <= 14400 else {
-          @failure.reject("invalid-table", "Invalid preferred cell width")
-        }
+        let hint = self.preferredWidths[r][c].resolve(available)
         cells.push((column, span, a, b, d, hint))
       }
       column += span
@@ -198,8 +194,8 @@ pub fn Table::fit_widths(
       "layout-overflow", "Table content cannot fit the page width",
     )
   }
-  let target = if self.preferredWidth > 0 {
-    (self.preferredWidth * 20).round().to_int().min(limit).max(sum(floor))
+  let target = if preferred_width > 0 {
+    (preferred_width * 20).round().to_int().min(limit).max(sum(floor))
   } else {
     sum(high).min(limit).max(sum(floor))
   }

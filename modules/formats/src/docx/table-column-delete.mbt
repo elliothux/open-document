@@ -12,7 +12,7 @@ fn Session::delete_table_column(
   tree.check_table_structure(grid, columns=true)
   self.check_table_layout(self.flow(), grid.model, None, profile, None)
   let flow = self.flow()
-  let available = flow.columns.width(flow.page)
+  let available = table_column_width(flow, grid.model, probe, profile, images)
   let model = if probe is Some(probe) {
     grid.model.fit_widths(probe, profile, available)
   } else {
@@ -104,7 +104,7 @@ fn Session::delete_table_column(
     .bind(p => tree.child(p, "tblW"))
     .map(id => {
       tree.nodes[id].attribute("type", uri=word_uri) == Some("dxa") &&
-      tree.preferred_table_width(id, available) > 0
+      tree.preferred_table_width(id).value > 0
     })
     .unwrap_or(false)
   let cuts : Array[Int] = [0]

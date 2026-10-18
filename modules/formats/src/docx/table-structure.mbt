@@ -212,6 +212,7 @@ pub fn Session::edit_table(
         width=true,
         probe?,
         profile~,
+        images?,
       )
     ColumnWidth(column, value) =>
       return self.size_table(
@@ -222,9 +223,19 @@ pub fn Session::edit_table(
         column=Some(column),
         probe?,
         profile~,
+        images?,
       )
     RowHeight(value, rule) =>
-      return self.size_table(revision, selection, value, width=false, rule~)
+      return self.size_table(
+        revision,
+        selection,
+        value,
+        width=false,
+        rule~,
+        probe?,
+        profile~,
+        images?,
+      )
     CellFill(color) => return self.fill_table_cell(revision, selection, color)
     CellMargins(value) =>
       return self.set_table_margins(revision, selection, value)

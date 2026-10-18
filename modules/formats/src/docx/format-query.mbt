@@ -179,6 +179,7 @@ pub fn Session::query_formatting(
   self : Session,
   revision : Int,
   selection : Selection,
+  layout? : @layout.Layout,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
@@ -210,7 +211,7 @@ pub fn Session::query_formatting(
     "revision": revision,
     "reason": reason,
     "hyperlink": self.hyperlink_summary(tree, range, reason),
-    "table": self.table_dimensions(tree, range),
+    "table": self.table_dimensions(tree, range, layout),
     "list": format_summary(
       match range {
         None => []

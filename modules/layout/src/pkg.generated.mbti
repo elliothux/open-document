@@ -67,14 +67,22 @@ pub fn CellMargins::equal(Self, Self) -> Bool
 pub fn CellMargins::not_equal(Self, Self) -> Bool
 pub fn CellMargins::to_json(Self) -> Json
 
+pub(all) struct Column {
+  width : Double
+  gap : Double
+} derive(ToJson)
+pub fn Column::to_json(Self) -> Json
+
 pub(all) struct Columns {
   count : Int
   gap : Double
   separator : Bool
+  custom : Array[Column]
 } derive(ToJson)
-pub fn Columns::new(count? : Int, gap? : Double, separator? : Bool) -> Self
+pub fn Columns::new(count? : Int, gap? : Double, separator? : Bool, custom? : Array[Column]) -> Self
 pub fn Columns::to_json(Self) -> Json
 pub fn Columns::width(Self, PageSetup) -> Double raise @failure.Failure
+pub fn Columns::width_at(Self, PageSetup, Double) -> Double raise @failure.Failure
 
 pub(all) enum DrawCommand {
   FillRect(Fill)
@@ -521,6 +529,13 @@ pub(all) struct PositionedText {
   runs : Array[PositionedRun]
 }
 
+pub(all) struct PreferredWidth {
+  value : Double
+  percent : Bool
+} derive(ToJson)
+pub fn PreferredWidth::new(value? : Double, percent? : Bool) -> Self
+pub fn PreferredWidth::to_json(Self) -> Json
+
 pub(all) struct SelectionRect {
   page : Int
   line : Int
@@ -598,8 +613,8 @@ pub fn TabStop::to_json(Self) -> Json
 pub(all) struct Table {
   id : Int
   autoFit : Bool
-  preferredWidth : Double
-  preferredWidths : Array[Array[Double]]
+  preferredWidth : PreferredWidth
+  preferredWidths : Array[Array[PreferredWidth]]
   headerRows : Int
   beforeParagraph : Int
   rows : Array[Array[Array[Paragraph]]]

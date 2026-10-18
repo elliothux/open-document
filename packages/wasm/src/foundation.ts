@@ -543,6 +543,7 @@ export class FoundationSession extends FoundationPageSession {
     selection: DocxSelection,
     rows: number,
     columns: number,
+    profile: Record<string, string>,
   ): EditState {
     checkDocxTableSize(rows, columns);
     return editState(
@@ -552,6 +553,7 @@ export class FoundationSession extends FoundationPageSession {
         selection,
         rows,
         columns,
+        profile,
       }),
     );
   }

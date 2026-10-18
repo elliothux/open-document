@@ -13,6 +13,9 @@ fn Foundation::docx_table(
       selection,
       field_int(request, "rows"),
       field_int(request, "columns"),
+      probe=self.probe,
+      profile=xlsx_profile(request),
+      images=self.images,
     )
   } else {
     guard request is { "change": fields, .. } else {
