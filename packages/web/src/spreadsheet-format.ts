@@ -25,7 +25,7 @@ export function checkCopiedFormatFonts(
   profile: Record<string, string>,
 ): void {
   copiedCellFormat(format);
-  for (const row of format)
+  for (const row of format.cells)
     for (const patch of row) checkFormatFonts(patch, current, profile);
 }
 

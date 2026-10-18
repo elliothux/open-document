@@ -85,9 +85,12 @@ export async function selectFirstDocxPosition(
   layout: PageLayout,
   page: number,
 ): Promise<EditState> {
-  const line = layout.semantics[page]?.lines.find(
-    (line) => !line.readOnlyReason,
-  );
+  let line = layout.semantics[page]?.lines.find((line) => !line.readOnlyReason);
+  if (!line)
+    for (const semantics of layout.semantics) {
+      line = semantics.lines.find((line) => !line.readOnlyReason);
+      if (line) break;
+    }
   if (!line) throw new Error("This page has no editable text position");
   const position = {
     paragraph: line.paragraph,

@@ -152,6 +152,7 @@ pub fn Session::invalidate_geometry(Self) -> Unit
 pub fn Session::layout(Self, @layout.TextProbe, Map[String, String], @layout.Images) -> Json raise @failure.Failure
 pub fn Session::navigate(Self, Int, Int, String, Bool) -> Json raise @failure.Failure
 pub fn Session::open(Bytes, @archive.Budget, date_time? : String) -> Self raise @failure.Failure
+pub fn Session::print_drawing(Self, Int, Bool, Bool, @layout.TextProbe, Map[String, String], @layout.Images) -> Json raise @failure.Failure
 pub fn Session::print_layout(Self, Int, Bool, Bool, @layout.TextProbe, Map[String, String]) -> @layout.PositionedDocument raise @failure.Failure
 pub fn Session::query(Self) -> Json raise @failure.Failure
 pub fn Session::replace(Self, Int, String, @layout.TextProbe, Map[String, String], candidate_id? : Int?) -> Json raise @failure.Failure

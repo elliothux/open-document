@@ -76,19 +76,12 @@ pub fn Session::capture_format(
   revision : Int,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  let (id, range) = self.selection
+  let (id, selected) = self.selection
   let sheet = self.sheets[self.sheet_index(id)]
+  let range = sheet.merge_target(selected)
   let reason = self.format_reason(sheet, range)
-  guard reason.is_empty() && !sheet.merges.any(merge => merge.intersects(range)) else {
-    @failure.reject(
-      "protected-content",
-      if reason.is_empty() {
-        "Merged cell format painting is unsupported"
-      } else {
-        reason
-      },
-    )
-  }
+  guard reason.is_empty() else { @failure.reject("protected-content", reason) }
+  check_merge_markup(Tree::new(sheet.document))
   let rows : Array[Json] = []
   for row in range.top..<=range.bottom {
     let columns : Array[Json] = []
@@ -101,7 +94,17 @@ pub fn Session::capture_format(
     }
     rows.push(Json::array(columns))
   }
-  Json::array(rows)
+  {
+    "cells": Json::array(rows),
+    "merges": sheet.merges
+    .filter(merge => range.covers(merge))
+    .map(merge => Range::{
+      top: merge.top - range.top + 1,
+      left: merge.left - range.left + 1,
+      bottom: merge.bottom - range.top + 1,
+      right: merge.right - range.left + 1,
+    }),
+  }
 }
 
 ///|
@@ -110,6 +113,7 @@ pub fn Session::apply_format(
   self : Session,
   revision : Int,
   pattern : Array[Array[CellFormat]],
+  merges : Array[Range],
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard pattern.length() > 0 &&
@@ -142,7 +146,9 @@ pub fn Session::apply_format(
       }
     }
   }
-  let (_, selected) = self.selection
+  check_format_merges(merges, pattern.length(), pattern[0].length())
+  let sheet = self.sheets[self.sheet_index(self.selection.0)]
+  let selected = sheet.merge_target(self.selection.1)
   let target = if selected.top == selected.bottom &&
     selected.left == selected.right {
     {
@@ -158,11 +164,13 @@ pub fn Session::apply_format(
       "invalid-operation", "Copied cell format leaves the worksheet",
     )
   }
-  let sheet = self.sheets[self.sheet_index(self.selection.0)]
-  guard !sheet.merges.any(merge => merge.intersects(target)) else {
-    @failure.reject(
-      "protected-content", "Merged cell format painting is unsupported",
-    )
-  }
-  self.format_pattern(revision, pattern, target)
+  let reason = self.format_reason(sheet, target)
+  guard reason.is_empty() else { @failure.reject("protected-content", reason) }
+  let ranges = sheet.format_merges(
+    target,
+    merges,
+    pattern.length(),
+    pattern[0].length(),
+  )
+  self.format_pattern(revision, pattern, target, merges=Some(ranges))
 }

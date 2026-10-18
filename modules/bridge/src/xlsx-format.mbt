@@ -78,3 +78,33 @@ fn xlsx_format_pattern(
     columns.map(xlsx_cell_format)
   })
 }
+
+///|
+fn xlsx_copied_format(
+  value : Json,
+) -> (Array[Array[@xlsx.CellFormat]], Array[@xlsx.Range]) raise @failure.Failure {
+  guard value is Object(fields) &&
+    fields.length() == 2 &&
+    fields.get("cells") is Some(cells) &&
+    fields.get("merges") is Some(Array(merges)) &&
+    merges.length() <= 1024 else {
+    @failure.reject(
+      "invalid-operation", "Expected copied format cells and merges",
+    )
+  }
+  let pattern = xlsx_format_pattern(cells)
+  let ranges = merges.map(merge => {
+    guard merge is Object(fields) &&
+      fields.length() == 4 &&
+      fields.keys().all(key => ["top", "left", "bottom", "right"].contains(key)) else {
+      @failure.reject("invalid-operation", "Invalid copied merged range")
+    }
+    @xlsx.Range::{
+      top: field_int(merge, "top"),
+      left: field_int(merge, "left"),
+      bottom: field_int(merge, "bottom"),
+      right: field_int(merge, "right"),
+    }
+  })
+  (pattern, ranges)
+}

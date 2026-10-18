@@ -195,6 +195,7 @@ fn Foundation::dispatch(
     | "redoPptx"
     | "savePptx"
     | "layoutPptx"
+    | "printLayoutPptx"
     | "hitPptx"
     | "selectionPptx"
     | "navigatePptx"

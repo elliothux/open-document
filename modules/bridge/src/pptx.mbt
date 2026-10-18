@@ -475,6 +475,15 @@ fn Foundation::pptx_operation(
       { "bytes": @base64.encode(session.save(field_int(request, "revision"))) }
     "layoutPptx" =>
       session.layout(self.probe, xlsx_profile(request), self.images)
+    "printLayoutPptx" =>
+      session.print_drawing(
+        field_int(request, "revision"),
+        xlsx_boolean(request, "all"),
+        xlsx_boolean(request, "hidden"),
+        self.probe,
+        xlsx_profile(request),
+        self.images,
+      )
     "hitPptx" =>
       session.hit(
         field_int(request, "layoutId"),

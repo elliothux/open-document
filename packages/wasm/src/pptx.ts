@@ -80,12 +80,7 @@ export type {
   PptxThemeSlot,
   PptxThemeFont,
 } from "./pptx-theme.js";
-import {
-  drawingBatch,
-  type DrawingBatch,
-  type DrawMatrix,
-  type DrawRect,
-} from "./drawing.js";
+import { drawingBatch, type DrawMatrix, type DrawRect } from "./drawing.js";
 import type { Budget } from "./foundation.js";
 import {
   checkPptxFormatting,
@@ -101,6 +96,14 @@ export type {
   PptxParagraphFormat,
   PptxParagraphFormatting,
 } from "./pptx-format.js";
+
+import {
+  pptxPrintLayout,
+  type PptxOutputCommand,
+  type PptxPrintLayout,
+  type PptxLayout,
+} from "./pptx-output.js";
+export type { PptxPrintLayout, PptxLayout } from "./pptx-output.js";
 
 export interface PptxSelection {
   slide: string;
@@ -223,12 +226,6 @@ export interface PptxQuery {
   slideLayout: PptxSlideLayouts;
   diagnostics: string[];
 }
-export interface PptxLayout extends DrawingBatch {
-  id: number;
-  revision: number;
-  slide: string;
-  diagnostics: string[];
-}
 export interface PptxPoint {
   x: number;
   y: number;
@@ -251,6 +248,7 @@ export interface PptxHit {
 
 export type PptxCommand =
   | PptxSearchCommand
+  | PptxOutputCommand
   | { operation: "createPptx"; budget: Budget; dateTime?: string }
   | {
       operation: "openPptx";
@@ -335,41 +333,34 @@ export type PptxCommand =
       profile: Record<string, string>;
     }
   | { operation: "cancelPptx"; revision: number; candidateId: number }
-  | { operation: "imageBytesPptx"; key: string }
   | {
       operation: "imagePptx";
       key: string;
       width: number;
       height: number;
       bytes: Uint8Array;
-    }
-  | { operation: "imageKeysPptx"; all: boolean; hidden: boolean }
-  | {
-      operation: "exportPptxPdf";
-      revision: number;
-      all: boolean;
-      hidden: boolean;
-      profile: Record<string, string>;
-      outputBytes: number;
     };
 
 type Result<C extends PptxCommand> = C["operation"] extends "findPptx"
   ? PptxSearchResult
-  : C["operation"] extends "layoutPptx"
-    ? PptxLayout
-    : C["operation"] extends "hitPptx"
-      ? PptxHit
-      : C["operation"] extends "selectionPptx"
-        ? PptxGeometry
-        : C["operation"] extends "savePptx" | "imageBytesPptx" | "exportPptxPdf"
-          ? Uint8Array
-          : C["operation"] extends "imageKeysPptx"
-            ? string[]
-            : C["operation"] extends "copyPptx"
-              ? { text: string }
-              : C["operation"] extends "imagePptx"
-                ? { key: string }
-                : PptxQuery;
+  : C["operation"] extends "printLayoutPptx"
+    ? PptxPrintLayout
+    : C["operation"] extends "layoutPptx"
+      ? PptxLayout
+      : C["operation"] extends "hitPptx"
+        ? PptxHit
+        : C["operation"] extends "selectionPptx"
+          ? PptxGeometry
+          : C["operation"] extends
+                "savePptx" | "imageBytesPptx" | "exportPptxPdf"
+            ? Uint8Array
+            : C["operation"] extends "imageKeysPptx"
+              ? string[]
+              : C["operation"] extends "copyPptx"
+                ? { text: string }
+                : C["operation"] extends "imagePptx"
+                  ? { key: string }
+                  : PptxQuery;
 export type PptxResult<C extends PptxCommand> = Result<C>;
 
 const names: ReadonlySet<string> = new Set([
@@ -390,6 +381,7 @@ const names: ReadonlySet<string> = new Set([
   "savePptx",
   "copyPptx",
   "layoutPptx",
+  "printLayoutPptx",
   "hitPptx",
   "selectionPptx",
   "navigatePptx",
@@ -664,6 +656,9 @@ export function pptxResult<C extends PptxCommand>(
   value: unknown,
 ): PptxResult<C> {
   switch (command.operation) {
+    case "printLayoutPptx":
+      pptxPrintLayout(value);
+      break;
     case "findPptx":
       pptxSearchResult(value);
       break;

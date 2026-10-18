@@ -1,4 +1,5 @@
-import { record } from "./validation.js";
+import { record, integer } from "./validation.js";
+import type { CellRange } from "./xlsx.js";
 
 export interface XlsxCellBorder {
   style: "none" | "thin" | "medium" | "thick";
@@ -20,7 +21,10 @@ export interface XlsxCellFormat {
   top?: XlsxCellBorder;
   bottom?: XlsxCellBorder;
 }
-export type CopiedCellFormat = Required<XlsxCellFormat>[][];
+export interface CopiedCellFormat {
+  cells: Required<XlsxCellFormat>[][];
+  merges: CellRange[];
+}
 
 const cellFormatFields = [
   "family",
@@ -40,17 +44,26 @@ const cellFormatFields = [
 ] as const;
 
 export function copiedCellFormat(value: unknown): CopiedCellFormat {
+  const format = record(value),
+    cells = format.cells;
   if (
-    !Array.isArray(value) ||
-    value.length === 0 ||
-    value.length > 4096 ||
-    !Array.isArray(value[0]) ||
-    value[0].length === 0 ||
-    value.length * value[0].length > 4096
+    Object.keys(format).length !== 2 ||
+    Object.keys(format).some((key) => !["cells", "merges"].includes(key)) ||
+    !Array.isArray(format.merges) ||
+    format.merges.length > 1024
+  )
+    throw new Error("Invalid copied cell format");
+  if (
+    !Array.isArray(cells) ||
+    cells.length === 0 ||
+    cells.length > 4096 ||
+    !Array.isArray(cells[0]) ||
+    cells[0].length === 0 ||
+    cells.length * cells[0].length > 4096
   )
     throw new Error("Invalid copied cell format size");
-  for (const row of value) {
-    if (!Array.isArray(row) || row.length !== value[0].length)
+  for (const row of cells) {
+    if (!Array.isArray(row) || row.length !== cells[0].length)
       throw new Error("Copied cell format must be rectangular");
     for (const cell of row) {
       checkXlsxCellFormat(cell);
@@ -58,6 +71,34 @@ export function copiedCellFormat(value: unknown): CopiedCellFormat {
       if (!cellFormatFields.every((key) => key in fields))
         throw new Error("Copied cell format requires every property");
     }
+  }
+  const occupied = new Set<number>();
+  for (const value of format.merges) {
+    const merge = record(value);
+    const { top, left, bottom, right } = merge;
+    if (
+      Object.keys(merge).length !== 4 ||
+      Object.keys(merge).some(
+        (key) => !["top", "left", "bottom", "right"].includes(key),
+      ) ||
+      typeof top !== "number" ||
+      typeof left !== "number" ||
+      typeof bottom !== "number" ||
+      typeof right !== "number" ||
+      !integer(top, 1, cells.length) ||
+      !integer(bottom, top, cells.length) ||
+      !integer(left, 1, cells[0].length) ||
+      !integer(right, left, cells[0].length) ||
+      (top === bottom && left === right)
+    )
+      throw new Error("Copied merge must fit the format rectangle");
+    for (let row = top; row <= bottom; row++)
+      for (let column = left; column <= right; column++) {
+        const index = (row - 1) * cells[0].length + column - 1;
+        if (occupied.has(index))
+          throw new Error("Copied merged ranges overlap");
+        occupied.add(index);
+      }
   }
   return value as CopiedCellFormat;
 }

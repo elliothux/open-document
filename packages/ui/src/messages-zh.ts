@@ -1,4 +1,5 @@
 import { filterZh } from "./messages-filter.js";
+import { outputZh } from "./messages-output.js";
 import { imageZh } from "./messages-pptx-image.js";
 import { footerZh } from "./messages-pptx-footer.js";
 import type { Messages } from "./messages-en.js";
@@ -565,14 +566,7 @@ export const zh: Messages = {
   unfreezePanes: "取消冻结窗格",
   save: "保存",
   close: "关闭",
-  exportPdf: "导出 PDF",
-  exportCurrent: "当前页 PDF",
-  exportPng: "当前页 PNG",
-  exportPagePng: "当前页 PNG",
-  exportPageImages: "全部页面 PNG",
-  imageSavedProgress: "宿主已确认保存 {done}/{total} 页 PNG",
-  imageGeneratedProgress: "已生成 {done}/{total} 页 PNG 下载",
-  exportAll: "整稿 PDF",
+  ...outputZh,
   undo: "撤销",
   redo: "重做",
   copy: "复制",

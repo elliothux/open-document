@@ -1,4 +1,5 @@
 import { filterEn } from "./messages-filter.js";
+import { outputEn } from "./messages-output.js";
 import { imageEn } from "./messages-pptx-image.js";
 import { footerEn } from "./messages-pptx-footer.js";
 import { reviewEn } from "./messages-review.js";
@@ -570,14 +571,7 @@ export const en = {
   unfreezePanes: "Unfreeze panes",
   save: "Save",
   close: "Close",
-  exportPdf: "Export PDF",
-  exportCurrent: "Current slide PDF",
-  exportPng: "Current slide PNG",
-  exportPagePng: "Current page PNG",
-  exportPageImages: "All pages PNG",
-  imageSavedProgress: "Save confirmed by host: {done}/{total} PNG pages",
-  imageGeneratedProgress: "Downloads generated: {done}/{total} PNG pages",
-  exportAll: "Presentation PDF",
+  ...outputEn,
   undo: "Undo",
   redo: "Redo",
   copy: "Copy",

@@ -249,8 +249,8 @@ export class EditorController {
           (kind === "png" ? ".png" : kind.startsWith("csv") ? ".csv" : ".pdf");
     const operation = async (): Promise<SavedDocument> => {
       if (kind === "images") {
-        if (file.format !== "docx")
-          throw new Error("Page images require a document");
+        if (file.format !== "docx" && file.format !== "pptx")
+          throw new Error("Page images require a document or presentation");
         const pages = await file.editor.exportPageImages();
         const prefix = targetName.replace(/\.[^.]*$/, "");
         const digits = Math.max(2, String(pages.length).length);

@@ -11,6 +11,7 @@ export type { PresentationSearchResult } from "./presentation-search.js";
 import { updatePresentationObjects } from "./presentation-semantics.js";
 import { objectSelection, pointerSelection } from "./presentation-selection.js";
 import { PresentationCanvas } from "./presentation-canvas.js";
+import { presentationOutputs } from "./presentation-output.js";
 import { PresentationInput } from "./presentation-input.js";
 import { PresentationPointer } from "./presentation-pointer.js";
 import { bindClipboard, copyPptxSelection } from "./clipboard-input.js";
@@ -438,56 +439,53 @@ export class PresentationEditor {
       }
     });
   }
-  save(): Promise<EditorOutput> {
-    return this.enqueue(
-      async () =>
-        this.observable.output(
-          this.state.revision,
-          "pptx",
-          await this.client.execute({
-            operation: "savePptx",
-            revision: this.state.revision,
-          }),
-        ),
-      false,
-      false,
-      true,
-    );
+  async save(): Promise<EditorOutput> {
+    return (await this.outputs("pptx"))[0]!;
   }
-  exportPdf(
+  async exportPdf(
     all = true,
     hidden = false,
     outputBytes = 67108864,
   ): Promise<EditorOutput> {
+    return (await this.outputs("pdf", outputBytes, 1, all, hidden))[0]!;
+  }
+  async exportPng(scale = 1, outputBytes = 67108864): Promise<EditorOutput> {
+    return (await this.outputs("png", outputBytes, scale))[0]!;
+  }
+  /** Exports visible slides in order at one revision, with a shared byte budget. */
+  exportPageImages(
+    scale = 1,
+    outputBytes = 67108864,
+    hidden = false,
+  ): Promise<readonly EditorOutput[]> {
+    return this.outputs("images", outputBytes, scale, true, hidden);
+  }
+  private outputs(
+    format: "pptx" | "pdf" | "png" | "images",
+    outputBytes = 67108864,
+    scale = 1,
+    all = true,
+    hidden = false,
+  ): Promise<readonly EditorOutput[]> {
     return this.enqueue(
-      async () => {
-        const revision = this.state.revision;
-        const bytes = await this.surface.exportPdf(
+      () =>
+        presentationOutputs(
           this.client,
-          revision,
+          this.surface,
+          this.state,
+          this.drawing,
           this.profile,
+          format,
           all,
           hidden,
           outputBytes,
-        );
-        return this.observable.output(revision, "pdf", bytes);
-      },
-      false,
-      false,
-      true,
-    );
-  }
-  exportPng(scale = 1, outputBytes = 67108864): Promise<EditorOutput> {
-    return this.enqueue(
-      async () => {
-        const bytes = await this.surface.exportSlidePng(
-          this.layout,
-          this.state,
           scale,
-          outputBytes,
-        );
-        return this.observable.output(this.state.revision, "png", bytes);
-      },
+          this.observable,
+          () => {
+            if (this.closed || this.closing)
+              throw new Error("Editor is disposed");
+          },
+        ),
       false,
       false,
       true,

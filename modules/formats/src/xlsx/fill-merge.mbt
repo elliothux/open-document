@@ -111,6 +111,9 @@ fn fill_merge_changes(
   check_merge_markup(tree)
   let root = tree.root("worksheet")
   let container = tree.one(root.id, "mergeCells")
+  if container is Some(container) && merges.is_empty() {
+    return document.edit_source([sheet_node_removal(tree, container)])
+  }
   let old = container.map(n => tree.all(n.id, "mergeCell")).unwrap_or([])
   let existing = old.map(n => Range::parse(n.attribute("ref").unwrap_or("")))
   let added = merges.filter(r => !existing.contains(r))

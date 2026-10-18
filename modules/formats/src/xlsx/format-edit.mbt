@@ -131,6 +131,7 @@ fn Session::format_pattern(
   revision : Int,
   pattern : Array[Array[CellFormat]],
   target : Range,
+  merges~ : Array[Range]? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let patches : Array[CellFormat] = []
@@ -170,23 +171,39 @@ fn Session::format_pattern(
       }
     }
   }
-  if originals.is_empty() {
+  if originals.is_empty() && merges.unwrap_or(current.merges) == current.merges {
     return if target.name() == self.selection.1.name() {
       self.query()
     } else {
       self.select(revision, sheet, target.name())
     }
   }
-  let plan = self.derive_formats(originals, patches)
+  let plan = if originals.is_empty() {
+    None
+  } else {
+    Some(self.derive_formats(originals, patches))
+  }
   let updates : Map[String, CellContent] = Map([])
   for name in originals.keys() {
     updates[name] = { value: Blank, formula: None, keep_shared: true, }
   }
-  let (document, edit) = current.prepare(
-    updates,
-    styles=plan.indices,
-    preserve_values=true,
-  )
+  let edits = plan.map(plan => plan.edits.copy()).unwrap_or([])
+  let mut document = current.document
+  if plan is Some(plan) {
+    let (next, edit) = current.prepare(
+      updates,
+      styles=plan.indices,
+      preserve_values=true,
+    )
+    document = next
+    edits.push((current.id, edit))
+  }
+  if merges is Some(ranges) && ranges != current.merges {
+    let (next, edit) = fill_merge_changes(document, ranges)
+    document = next
+    edits.push((current.id, edit))
+  }
+  let styles = plan.map(plan => plan.styles).unwrap_or(self.styles)
   let sheets = self.sheets.copy()
   sheets[index] = Sheet::read(
     current.id,
@@ -194,17 +211,16 @@ fn Session::format_pattern(
     current.state,
     document,
     self.strings,
-    plan.styles.length(),
+    styles.length(),
   )
-  plan.edits.push((current.id, edit))
   self.commit(
     sheets,
     self.workbook,
     self.calculation.unwrap(),
-    plan.edits,
+    edits,
     (sheet, target),
-    parts=plan.parts,
-    created_parts=plan.created_parts,
+    parts=plan.map(plan => plan.parts).unwrap_or(self.parts),
+    created_parts=plan.map(plan => plan.created_parts).unwrap_or(Map([])),
   )
   self.query()
 }

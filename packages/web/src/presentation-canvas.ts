@@ -25,6 +25,49 @@ export class PresentationCanvas extends CanvasSurface {
       throw new Error("Slide layout is stale; refresh before exporting");
     return this.exportPng(layout, 0, scale, outputBytes);
   }
+  async exportPageImages(
+    client: PptxClient,
+    revision: number,
+    profile: Record<string, string>,
+    scale: number,
+    outputBytes: number,
+    hidden: boolean,
+    assertOpen: () => void,
+  ): Promise<Uint8Array[]> {
+    if (
+      !Number.isInteger(outputBytes) ||
+      outputBytes < 1 ||
+      outputBytes > 67108864
+    )
+      throw new Error("Invalid PNG output budget");
+    try {
+      await this.prepare(client, true, hidden);
+      assertOpen();
+      const layout = await client.execute({
+        operation: "printLayoutPptx",
+        revision,
+        all: true,
+        hidden,
+        profile,
+      });
+      assertOpen();
+      if (layout.revision !== revision)
+        throw new Error("Presentation changed before exporting");
+      const buffers: Uint8Array[] = [];
+      let remaining = outputBytes;
+      for (const index of layout.regions.keys()) {
+        assertOpen();
+        if (remaining === 0) throw new Error("PNG pages exceed byte budget");
+        const bytes = await this.exportPng(layout, index, scale, remaining);
+        assertOpen();
+        remaining -= bytes.byteLength;
+        buffers.push(bytes);
+      }
+      return buffers;
+    } finally {
+      await this.prepare(client);
+    }
+  }
   private readonly keys = new Map<string, string>();
   async prepare(
     client: PptxClient,

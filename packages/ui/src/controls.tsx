@@ -158,7 +158,8 @@ export function FileMenu({
                   {state.file.format === "docx" ? t.exportPagePng : t.exportPng}
                 </Menu.Item>
               )}
-              {state.file?.format === "docx" && (
+              {(state.file?.format === "docx" ||
+                state.file?.format === "pptx") && (
                 <Menu.Item
                   className="od-menu-item"
                   disabled={unavailable}
@@ -166,7 +167,9 @@ export function FileMenu({
                     controller.run(() => controller.exportImages())
                   }
                 >
-                  {t.exportPageImages}
+                  {state.file.format === "pptx"
+                    ? t.exportSlideImages
+                    : t.exportPageImages}
                 </Menu.Item>
               )}
               {state.file?.format === "xlsx" && (

@@ -119,10 +119,8 @@ fn Foundation::xlsx_operation(
       guard request is { "format": format, .. } else {
         @failure.reject("invalid-operation", "Copied cell format is required")
       }
-      session.apply_format(
-        field_int(request, "revision"),
-        xlsx_format_pattern(format),
-      )
+      let (pattern, merges) = xlsx_copied_format(format)
+      session.apply_format(field_int(request, "revision"), pattern, merges)
     }
     "formatXlsxCells" => {
       guard request is { "patch": patch, .. } else {

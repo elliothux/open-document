@@ -39,7 +39,7 @@ DOCX、XLSX、PPTX 也接受 `document: { name, blank: true }`，`OfficeDocument
 
 框架无关的四类编辑宿主提供 `getSnapshot()`、`subscribe()`、`focus()`、`setPaused()`、`markSaved(output)` 和 `markDownloaded(output)`。快照包含会话身份、revision、导航、缩放、选区摘要、历史、诊断、停止/错误、在途操作及组合/拖动/草稿状态，并附格式当前查询。未变化时保持对象身份；已提交但绘制失败仍发布新 revision，保留保存与恢复入口。低层宿主借用 client，调用者等待宿主释放后另行关闭 client。
 
-编辑宿主的原格式保存、Office PDF、DOCX/PPTX 单页 PNG 和 XLSX CSV 输出统一返回 `EditorOutput = { documentId, revision, format, bytes }`。`format` 包含 `csv` 和 `png`；编辑器输入格式仍为 DOCX/XLSX/PPTX/PDF。默认 UI 另加文件名 `name`。DOCX 全页 PNG 返回按页序排列的只读 `EditorOutput` 数组，具体合同见[DOCX 页面 PNG](#docx-页面-png)。此约定不改变原始 Wasm/client 的保存结果。只有该宿主实际产生的原格式输出可以 `markSaved`；旧会话、其他格式和任意裸 revision 都不能确认保存。确认的是输出 revision，其后新编辑仍显示未保存。导航、缩放和 UI 变化不修改文档。
+编辑宿主的原格式保存、Office PDF、DOCX/PPTX 单页 PNG 和 XLSX CSV 输出统一返回 `EditorOutput = { documentId, revision, format, bytes }`。`format` 包含 `csv` 和 `png`；编辑器输入格式仍为 DOCX/XLSX/PPTX/PDF。默认 UI 另加文件名 `name`。DOCX/PPTX 全页 PNG 返回按页序排列的只读 `EditorOutput` 数组，具体合同见[DOCX 页面 PNG](#docx-页面-png)及[PPTX PNG 输出](#当前页-png-输出)。此约定不改变原始 Wasm/client 的保存结果。只有该宿主实际产生的原格式输出可以 `markSaved`；旧会话、其他格式和任意裸 revision 都不能确认保存。确认的是输出 revision，其后新编辑仍显示未保存。导航、缩放和 UI 变化不修改文档。
 
 原格式 `onSave` 成功才确认保存基线；失败保留修改并允许重试。缺省下载只提示“已生成下载”，不确认磁盘持久化，也不清除修改。PDF、PNG 和 CSV 导出不清除 Office 修改。关闭前选择“导出并继续”明确包含放弃内存会话。`dispose` 不等待宿主存储回调，晚到回执不更新已释放实例。
 
@@ -379,7 +379,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 分页缓存包含三种活动页的正文空间。后缀复用同时检查当前空间和页序奇偶，首段变动不能把另一类页面的旧位置复用到当前页。普通表格行、纵向合并续页、保留段落链和孤行控制按当前页空间放置；纵向合并组的重复表头仍沿既有整组预留规则，按该组经过页面的最小可用高度判断，逐片段取舍继续完善。
 
-已导入的页眉页脚支持 `PAGE` 和 `NUMPAGES` 的格式化计算，包括 `fldSimple` 和同段内的 begin/instrText/separate/result/end 成对域。接受缺省格式、`\* Arabic` 或 `\* MERGEFORMAT`；保留首个结果 run 的有效字符样式。派生 `Span.field` 使用空串、`PAGE` 或 `NUMPAGES`，`Span.text` 保留导入缓存，实际页边行按当前页号和总页数重新塑形。正文分页、历史和重开会重新计算，Canvas、语义文本和 PDF 使用相同结果。参考 [ONLYOFFICE PAGE 与 NUMPAGES](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L918-L928)。
+已导入的页眉页脚支持 `PAGE` 和 `NUMPAGES` 的格式化计算，包括 `fldSimple` 和同段内的 begin/instrText/separate/result/end 成对域。接受缺省格式、十进制、大小写字母及罗马数字的显式格式开关，以及可组合的 `MERGEFORMAT`；保留首个结果 run 的有效字符样式。派生 `Span.field` 使用空串、字段名或带冒号格式后缀的字段名，格式归[页码格式与起点](#页码格式与起点)。`Span.text` 保留导入缓存，实际页边行按节编号、显式格式和物理总页数重新塑形。正文分页、历史和重开会重新计算，Canvas、语义文本和 PDF 使用相同结果。参考 [ONLYOFFICE PAGE 与 NUMPAGES](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L918-L928)。
 
 字段结果改变换行时，核心按每页实际页边高度有界重排正文，最多八轮；不收敛时保留最后完整布局并给出诊断，输出沿既有诊断保护。正文空间和分页缓存包含逐页几何，跨页表格也使用该页空间。现有 1024 页和 32768 行预算继续生效，每段最多 64 个字段。未知指令/开关、锁定、嵌套、不完整或跨段域继续保护且不执行；当前不支持多节继承、更广编号格式和正文域。实现归[字段读取](../../modules/formats/src/docx/running-fields.mbt)与[有界重排](../../modules/layout/src/running-pagination.mbt)。
 
@@ -945,7 +945,7 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 合并保留左上角值/公式和各格非边框格式，清除其余值/公式；共享公式存活成员转换为普通公式，依赖缓存和保存计算元数据同步更新。非锚点验证范围从规则中移除，锚点验证和条件格式保留。单元格与合并 XML、验证和缓存一起提交一项有界历史，保留原样式记录和不相关资源，新增边框样式按需派生并复用。取消合并只移除相交合并记录，保留各格内容/格式及计算源；被此前合并丢弃的内容通过撤销恢复。合并后格式查询、编辑及清除可从单格锚点作用于完整范围。
 
-文字与填充沿用左上角样式；边框组合读取起止格的声明，补齐右边和下边。合并时只保留整条外围上各格一致的线型及颜色声明，缺失或不一致时移除整边；内部边框清除。新边框保留主题色、索引色等源声明，不按当前 RGB 固定化。单行和单列遵循同一规则；合并后设置某侧边框只作用于外围对应边，不在内部加线。各格的字体、填充和数字格式保持不变，原样式记录保留源字节。格式查询、网格和打印使用同一边框组合，读取起止格不展开巨大导入合并区。派生样式仍受每类记录数、样式源码长度和历史预算限制；候选总长度超限时也不清除内容、不提交历史。工作表保护、部分旧合并、未知合并属性、超出预算、富文本/未知目标样式，以及未知便笺、非锚点超链接、表格/透视表和扩展资源拒绝合并；取消合并沿自身保护检查，不清理未知资源。合并格格式刷仍待矩形快照扩展。核心已检查内容策略、验证、共享公式、依赖、XML 顺序、纯取消合并的部件保真、精确历史和失败；Chromium 已检查键盘范围、确认控件、合并内命中、填充、保存重开和 PDF。操作依据 [ONLYOFFICE 范围合并与验证调整](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L20316-L20706)；边框归并及外围写回遵循同一上游过程。核心已检查四边、内线、单行/单列、不一致边的移除、主题/索引色源声明、精确历史、重复样式复用及预算失败。Chromium 用独立 XML 检查派生边框和原样式记录，网格及打印绘制数据保持颜色、线宽，保存重开及 PDF 沿已有流程。
+文字与填充沿用左上角样式；边框组合读取起止格的声明，补齐右边和下边。合并时只保留整条外围上各格一致的线型及颜色声明，缺失或不一致时移除整边；内部边框清除。新边框保留主题色、索引色等源声明，不按当前 RGB 固定化。单行和单列遵循同一规则；合并后设置某侧边框只作用于外围对应边，不在内部加线。各格的字体、填充和数字格式保持不变，原样式记录保留源字节。格式查询、网格和打印使用同一边框组合，读取起止格不展开巨大导入合并区。派生样式仍受每类记录数、样式源码长度和历史预算限制；候选总长度超限时也不清除内容、不提交历史。工作表保护、部分旧合并、未知合并属性、超出预算、富文本/未知目标样式，以及未知便笺、非锚点超链接、表格/透视表和扩展资源拒绝合并；取消合并沿自身保护检查，不清理未知资源。合并格格式刷归[格式刷](#格式刷)。核心已检查内容策略、验证、共享公式、依赖、XML 顺序、纯取消合并的部件保真、精确历史和失败；Chromium 已检查键盘范围、确认控件、合并内命中、填充、保存重开和 PDF。操作依据 [ONLYOFFICE 范围合并与验证调整](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L20316-L20706)；边框归并及外围写回遵循同一上游过程。核心已检查四边、内线、单行/单列、不一致边的移除、主题/索引色源声明、精确历史、重复样式复用及预算失败。Chromium 用独立 XML 检查派生边框和原样式记录，网格及打印绘制数据保持颜色、线宽，保存重开及 PDF 沿已有流程。
 
 ### 单元格格式编辑
 
@@ -955,11 +955,13 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 ### 格式刷
 
-同步 Wasm/Worker 的 `captureFormat(revision)` 返回 `CopiedCellFormat`，类型为 `Required<XlsxCellFormat>[][]`；`applyFormat(revision, format)` 将它应用到当前选区。宿主对应 `SpreadsheetEditor.captureFormat()` 和 `applyFormat(format)`，复制与应用前均提交单格草稿。快照保存逐格有效属性，不含样式索引或源工作表身份；复制本身不修改文档和历史。
+同步 Wasm/Worker 的 `captureFormat(revision)` 返回 `CopiedCellFormat { cells: Required<XlsxCellFormat>[][]; merges: CellRange[] }`；`applyFormat(revision, format)` 将它应用到当前选区。merges 使用相对 cells 左上角的 1 起始行列，包含 top/left/bottom/right；范围须在矩阵内、互不重叠且至少覆盖两格。宿主对应 `SpreadsheetEditor.captureFormat()` 和 `applyFormat(format)`，复制与应用前均提交单格草稿。快照保存逐格有效属性及完整合并范围，不含样式索引或源工作表身份；复制本身不修改文档和历史。MoonBit 的 `apply_format(revision, cells, merges)` 接收同一矩阵和范围。
 
-单格目标按源矩形尺寸扩展；其他目标按源行列顺序重复平铺，边缘截到目标边界。源和目标各最多 4096 格，矩阵须非空、等宽且携带全部属性。工作表边界、未知属性、字体、只读内容和预算失败均保留已提交文档。合并格源或目标继续保护，待合并编辑接通后补齐。应用复用现有格式事务；值、公式、缓存和行列尺寸保留。样式复用按元素/属性的命名空间与名称、值及子结构判断，忽略前缀和属性顺序，原有源记录保持原样。
+普通单格目标按源矩形尺寸扩展；选中已有合并格的单格锚点时，源和目标均取完整合并范围。其他目标按源行列顺序重复平铺，格式及合并范围的末块截到目标边界，退化成单格的合并不写入。目标内部的旧合并由快照替换；不含合并的快照会取消目标内部合并。只覆盖部分旧合并时拒绝。格式刷保留包括被合并格遮住的全部值、公式、缓存和共享组；取消合并后仍能读取它们。这与明确丢弃内容的合并命令分别处理。
 
-默认 UI 的格式刷单击后对下一个新选区应用一次；双击或在按钮上按 Shift+Enter 锁定，可连续应用及切换工作表。Esc 或再次点击按钮取消，替换文档时释放状态。复制/平铺参考 [ONLYOFFICE 的目标扩展与格式复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21916-L21960)，单次/锁定/取消参考 [GenOffice 格式刷](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/sheets/src/renderer/format-painter.ts)。
+源和目标各最多 4096 格，矩阵须非空、等宽且携带全部属性；快照及最终工作表各最多 1024 个合并范围。工作表边界、未知属性、字体、只读内容和预算失败均保留已提交文档。格式、合并元数据及已有自动适配合为一次有界历史，重复应用不新增历史；移除最后一个合并时删除空容器。样式复用按元素/属性的命名空间与名称、值及子结构判断，忽略前缀和属性顺序，原有源记录保持原样。实现归[格式快照](../../modules/formats/src/xlsx/format-painter.mbt)、[合并平铺](../../modules/formats/src/xlsx/format-merge.mbt)和[格式事务](../../modules/formats/src/xlsx/format-edit.mbt)。
+
+默认 UI 的格式刷单击后对下一个新选区应用一次；双击或在按钮上按 Shift+Enter 锁定，可连续应用及切换工作表。Esc 或再次点击按钮取消，替换文档时释放状态。复制/平铺参考 [ONLYOFFICE 的目标扩展与格式复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21916-L21960)，合并替换、底层内容保留和末块裁短沿其[格式及合并复制路径](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L22578-L22616)。单次/锁定/取消参考 [GenOffice 格式刷](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/sheets/src/renderer/format-painter.ts)。
 
 ### 清除单元格
 
@@ -1575,7 +1577,13 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 默认文件菜单的“当前页 PNG”使用相同 API。`onSave` 收到 `format: "png"` 及 `.png` 名称的派生输出；没有回调时按 `image/png` 下载。PNG 输出不能 `markSaved`，也不清除 PPTX 未保存状态。它通过当前 R0 执行器重放核心图元，保留已有诊断的显示结果；图片、裁剪、旋转与文字沿现有渲染范围，选择框和光标只在编辑覆盖层中。
 
-此入口依赖浏览器 Canvas 绘制和 PNG 编码，当前只检查 Chrome/Chromium；不作为无浏览器 PNG 转换能力。普通 Wasm/Worker 文档状态、布局和 PDF 接口保持原职责。批量页图片、JPEG 及打印界面仍待实现。
+`PresentationEditor.exportPageImages(scale = 1, outputBytes = 67108864, hidden = false)` 返回全部可见页的只读 `EditorOutput[]`，按文稿顺序排列；hidden=true 包含隐藏页。结果共享文档身份与 revision，所有 PNG 的字节数之和受 outputBytes 限制。没有选中页面时拒绝。当前页、选区、编辑布局身份、预览和历史保持；后续输入沿同一队列等待集合生成。全部页面成功后才登记并返回输出，失败不交付前缀集合，也不覆盖此前输出记录。
+
+核心 `Session.print_drawing` / Wasm 与 Worker `printLayoutPptx` 复用 `print_layout` 的页面选择、诊断、图元预算和 PDF 几何，返回 `PptxPrintLayout { revision, regions, outlines, images }`。请求携带 revision、all、hidden 和 profile，不改变当前编辑页的布局缓存。批量 PNG 沿完整打印范围保护未知可见内容；单页 PNG 继续保留已有诊断的显示结果。Web 在输出期间准备所选页面图片，逐页编码并释放临时 Canvas，最后恢复当前编辑页的图片集合。
+
+默认文件菜单的“全部幻灯片 PNG”导出全部可见页，复用既有逐页保存/下载流程。名称按 `<原文件基名>-01.png`、`-02.png` 顺序补零，序号只计算导出的页面。所有图片生成后才依次调用 `onSave`；中途失败保留已完成的外部保存及进度，停止后续回调，重试按当前修订重新生成。回调期间继续编辑不会改变已生成图片的 revision。没有 `onSave` 时逐页下载并报告生成进度；多个下载仍受 Chrome 站点权限约束。派生输出不清除 PPTX 修改状态。
+
+上述入口依赖浏览器 Canvas 绘制和 PNG 编码，当前只检查 Chrome/Chromium；不作为无浏览器 PNG 转换能力。普通 Wasm/Worker 文档状态、布局和 PDF 接口保持原职责。JPEG 及打印界面仍待实现。
 
 ### 日期与页脚编辑
 
