@@ -1,5 +1,7 @@
 import type {
   Budget,
+  DocxRuler,
+  DocxRulerEdit,
   DocxSelection,
   DocxPosition,
   NavigationDirection,
@@ -43,6 +45,8 @@ import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
+  | { operation: "docxRuler"; revision: number }
+  | { operation: "editDocxRuler"; source: DocxRuler; change: DocxRulerEdit }
   | {
       operation: "textColumnsXlsx";
       revision: number;

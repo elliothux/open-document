@@ -187,13 +187,33 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `setParagraphFormat({ tabs })` 使用 `TabStop[]`：每项为 `{ position, align, leader? }`，位置单位为 pt，须为 0–1584 pt 的整数 twip，按位置递增且不重复，最多 64 个有效位置。`align` 支持 `left/right/center/decimal/bar`。`leader` 省略时为 `none`，也支持 `dot/hyphen/underscore/heavy/middleDot`；`bar` 只接受无引导线。MoonBit `TabStop.leader` 与核心返回值总带明确值。字段省略保留；null 清除段落直接定义并恢复继承；空数组清除全部有效位置，核心为移除的继承位置写 `w:tab w:val="clear"`。格式查询与格式复制包含有效制表位。默认 UI 可添加、修改、移除、应用、清除全部与恢复继承，使用同一历史与保存路径。
 
-派生 `Paragraph.tabs` 提供合并后的有效位置。核心按后续片段宽度放置右/居中制表位，小数点使用文档 `settings/decimalSymbol`（派生 `Paragraph.decimalSymbol`，默认 `.`）；越过可用边缘的自定义位置按右边缘放置，悬挂缩进保留隐式左边界位置。规则参考 [ONLYOFFICE 的制表位合并](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js)与 [Tab 后续文字定位](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js)。未知标记仍保留源并保护编辑。`Paragraph.rtl` 为 true 时，制表原点移到正文右边缘，按向左的距离计算默认及自定义位置。左/右缩进分别作用于起始/末尾边缘，首行缩进和对齐沿同一方向；竖线也按右边缘定位。文字字形保留塑形后的顺序和局部坐标，小数点按后续片段的视觉位置锚定。规则参考 [ONLYOFFICE 的 RTL 制表定位](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph_Recalculate.js)。标尺交互仍待实现。
+派生 `Paragraph.tabs` 提供合并后的有效位置。核心按后续片段宽度放置右/居中制表位，小数点使用文档 `settings/decimalSymbol`（派生 `Paragraph.decimalSymbol`，默认 `.`）；越过可用边缘的自定义位置按右边缘放置，悬挂缩进保留隐式左边界位置。规则参考 [ONLYOFFICE 的制表位合并](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js)与 [Tab 后续文字定位](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js)。未知标记仍保留源并保护编辑。`Paragraph.rtl` 为 true 时，制表原点移到正文右边缘，按向左的距离计算默认及自定义位置。左/右缩进分别作用于起始/末尾边缘，首行缩进和对齐沿同一方向；竖线也按右边缘定位。文字字形保留塑形后的顺序和局部坐标，小数点按后续片段的视觉位置锚定。规则参考 [ONLYOFFICE 的 RTL 制表定位](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph_Recalculate.js)。标尺交互见[水平标尺](#水平标尺)。
 
 引导线按 [ONLYOFFICE 的 Tab 字形绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/RunContent/Tab.js)使用当前字体与字号，重复字形居中放入间隔；短划线使用 1.5 倍步长，`heavy` 与 `underscore` 使用下划线字形。逻辑文字、光标与复制内容仍为一个 Tab，PDF 的 ActualText 不加入装饰字符。每个 Tab 最多 4096 个引导字形，每行 16384 个、每段 65536 个；超过预算明确拒绝布局。
 
 `bar` 遵循 [Word 的竖线制表位语义](https://support.microsoft.com/en-us/word/using-the-ruler-in-word)，在每一行的指定位置绘制竖线，不改变文字或 Tab 定位。当前核心绘制 0.5 pt 黑线，沿行高延伸，预览与 PDF 共用图元；未宣称与 Word 的全部显示细节一致。派生 `Line.bars` 随分页定位，缓存与公开行结果各自持有数组副本。
 
-当前未接通标尺和其他内置样式重置规则。主题颜色与字体见下节。剩余范围归 [P10](../p10-docx-core.md)，不把本切片记作完整格式编辑。
+水平标尺已接通；其他内置样式重置规则仍待实现。主题颜色与字体见下节。剩余范围归 [P10](../p10-docx-core.md)，不把本切片记作完整格式编辑。
+
+### 水平标尺
+
+`DocumentEditor.ruler()` 返回绑定当前文档、revision、layoutId 和完整选择的 `DocumentRuler`。核心按焦点位置所在行提供页宽、物理原点、可用宽度和手柄位置；正文、普通单元格边距、实际分栏和 RTL 使用同一布局，不在 DOM 中推算文档结构。刻度以该原点为零，单位为磅，并跟随 Canvas 缩放和水平滚动。标尺值描述焦点段落，所改属性沿现有格式命令应用于选中段落。
+
+`editRuler(source, change)` 使用既有输入队列及格式/页面源事务。每次修改合为一项历史；旧 revision、布局、选择及其他文档结果拒绝。未知源、编辑保护、格式和输出预算沿原路径校验。查询、拖动导线和取消均不修改源或历史。
+
+| `change.kind` | 参数和结果 |
+| --- | --- |
+| `first` | `{ position, snap }`；只改首行相对起始缩进 |
+| `hanging` | 同上；改起始缩进，并保持焦点段落首行的物理位置 |
+| `left` / `right` | 同上；分别移动起始缩进（携带首行）和末尾缩进，RTL 按实际方向换算 |
+| `marginLeft` / `marginRight` | 同上；修改单节左右页边距，保留尺寸、方向和其他边距；受保护节不提供手柄 |
+| `tab` | `{ position, snap, index, align, remove }`；`index: -1` 新增，其余为查询中的当前索引；`align` 为 `left/right/center/decimal/bar`，`remove` 删除已有项 |
+
+`position` 是纸张左边缘起算的物理点坐标。缩进/页边距默认按 4.5 pt 对齐，制表位按 3 pt 对齐；`snap: false` 使用 0.05 pt 精度。首行、起始缩进和制表位从实际段落原点吸附，末尾缩进从文字区域末端吸附；结果按 twip 归一化，保留小数页边距。手柄有界限制在纸张及当前文字边界内；参数还须满足现有格式上限。移动制表位保留引导线，重复位置拒绝；继承项移动/删除写入已有显式清除标记，保存重开不会复活。制表位仍最多 64 项。
+
+默认标尺支持鼠标拖动、松开提交，Escape/指针取消保持原文档。方向键按上述步长移动，Shift 使用 36 pt，Home/End 移向纸张两端；Alt 关闭吸附。制表位可选择五类对齐后点击空白处新增，Delete/Backspace 或拖离标尺删除。制表位排序后键盘焦点跟随被移动项。UI 只保存指针导线，正文重排和源值由核心提交决定。
+
+实现归 [`ruler.mbt`](../../modules/formats/src/docx/ruler.mbt)，入口归 [`document-page.ts`](../../packages/web/src/document-page.ts)和[默认标尺](../../packages/ui/src/docx-ruler.tsx)。参数与事务参考固定 [ONLYOFFICE Rulers.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/Rulers.js#L2245-L2310)；缩进、制表位及页边距仍使用各自已实现的 OOXML 序列化。当前为水平标尺和磅单位；多节页面设置、纵向标尺及通过标尺调整表格列边界未实现。
 
 ### 导入超链接文字
 
@@ -1136,7 +1156,7 @@ General 显示按 [ONLYOFFICE 的 15 位有效数字拆分](https://github.com/O
 
 数字格式覆盖 General、`@`、整数、两位小数、千分位、百分比、`yyyy-mm-dd`、`hh:mm:ss`，以及内置 1–4、9–10、14–22、49。日期保留数值，核心解释 1900/1904 系统，1900 序号 60 显示虚构的 2 月 29 日，序号 0 显示 1900-01-00。不经过宿主时区。其他格式、颜色 tint、渐变/图案、非实线边框及额外字体装饰保留声明并诊断，不承诺显示等价。
 
-公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/SQRT/POWER/PRODUCT/MEDIAN/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/EXACT/REPT/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
+公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/SQRT/POWER/PRODUCT/MEDIAN/SUMSQ/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/EXACT/REPT/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
 
 整列 `A:A`、`$A:B` 和整行 `1:1`、`$1:2` 可带工作表限定并使用反向端点。行号只接受十进制整数，范围受 1048576 行、16384 列约束；混合行/列/单格端点拒绝。内部用一个有界矩形表示，未覆盖维度在复制时固定；原公式源码保持，复制及名称展开输出对应行列记法和 `$` 标记。依赖保留区间，聚合及条件函数查询实际单元格，空白计数按逻辑面积扣除非空值。线性查找在大范围内仅检查已有单元格及各空白区间的首个搜索位置，保留正反向、错误与近似候选规则；小范围保持直接读取，二分查找沿原路径。全部沿用工作量及输出限制，保留空项的超大连接仍可能原子拒绝。
 
@@ -1153,6 +1173,8 @@ SQRT 计算非负平方根，负数返回 `#NUM!`。POWER 接受两个标量；�
 PRODUCT 按参数顺序及引用内的行列顺序相乘，重复/重叠引用按次数计入。引用中的数字文字可转换，布尔、空白与其他文字忽略，引用错误传播；直接布尔和数字文字转换，直接非法文字返回 `#VALUE!`，空参数忽略。没有数值返回 0；中间溢出立即返回 `#NUM!`，不会被后面的零消除。行为依据 [ONLYOFFICE PRODUCT](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L3574-L3665)。
 
 MEDIAN 对实际数值排序，偶数项取中间两项的平均值。沿 [ONLYOFFICE MEDIAN](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L8541-L8620)，引用中的文字、布尔、空白及错误均忽略；直接布尔参与，直接文字忽略，直接错误及空参数返回 `#VALUE!`。没有数值也返回 `#VALUE!`，平均值的非有限结果为 `#NUM!`。PRODUCT/MEDIAN 支持跨表、名称展开和整行/列的稀疏引用，不展开空矩阵；隐藏及筛选行仍参与。遍历与排序预付现有公式工作预算，资源超限整体回滚，IFERROR 不吞资源失败。四项均参与实际依赖、缓存及精确历史，不再使用未计算保护。实现归 [`formula-numeric.mbt`](../../modules/formats/src/xlsx/formula-numeric.mbt)及 [`formula-product-median.mbt`](../../modules/formats/src/xlsx/formula-product-median.mbt)。
+
+SUMSQ 按参数及引用内行列顺序累计平方和，重复引用按次数计入。直接布尔和数字文字转换，非法文字为 `#VALUE!`；引用中的文字、布尔和空白忽略。沿固定 [ONLYOFFICE SUMSQ](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L5732-L5797)，单格引用中的错误忽略，显式范围（含 `A1:A1`）及直接错误传播。没有数值返回 0，平方或累计非有限返回 `#NUM!`。跨表、名称、共享公式及整行/列稀疏引用复用已有依赖、工作预算、缓存和精确历史；不再使用未计算保护。实现归 [`formula-sum-squares.mbt`](../../modules/formats/src/xlsx/formula-sum-squares.mbt)。
 
 数值函数复用已有数值、数字文字、布尔及空白转换；ROUND/ROUNDDOWN 的文字引用保持 `#VALUE!`，文字常量仍可转换。标量函数的多格范围返回 `#VALUE!`。实现参考 [ONLYOFFICE 数值函数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js)及其独立[舍入用例](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/tests/cell/spreadsheet-calculation/formula-tests/mathematicTests.js#L16439-L16487)。核心已检查负数、半值、进位、类型转换、有限边界、跨表重算、缓存和精确历史；默认公式栏已检查组合数值公式、依赖修改、独立 XML、保存重开及 PDF。更广浮点兼容与地区化数值解析仍归后续扩展。
 
@@ -1200,9 +1222,9 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 结构化/外部/三维引用、数组、动态数组、易变函数及迭代计算未支持。依赖无法确定、函数参数语义未核实或存在原有循环时，整个工作簿只读。公式不访问网络、宏或宿主脚本。
 
-导入的 SUMSQ 尚不求值，但已核实只读取显式参数，沿既有语法和名称展开建立静态依赖。保留其源码和导入缓存，依赖它们的公式也标为未计算。核心只把实际求值的结果放入 `calculated`，缓存不参与新的公式、条件格式、验证或筛选计算。每格新增 `calculationReason`：已计算/普通值为空，未计算时说明未支持函数或上游位置。默认公式栏显示原因；有缓存时显示缓存，缺缓存显示未计算。选区含未计算公式时，计数仍可读，四项汇总均为 null 并给出原因。
+导入的 DEVSQ 尚不求值，但已核实只读取显式参数，沿既有语法和名称展开建立静态依赖。保留其源码和导入缓存，依赖它们的公式也标为未计算。核心只把实际求值的结果放入 `calculated`，缓存不参与新的公式、条件格式、验证或筛选计算。每格新增 `calculationReason`：已计算/普通值为空，未计算时说明未支持函数或上游位置。默认公式栏显示原因；有缓存时显示缓存，缺缓存显示未计算。选区含未计算公式时，计数仍可读，四项汇总均为 null 并给出原因。
 
-所有源提交先比较未计算链的源码、展开表达式、稳定表身份、依赖矩形及参数值。新增的稀疏参数格也参与；嵌套 SUBTOTAL 另检查手动隐藏与筛选来源。相同参数下可编辑无关值、已支持公式、格式和视图，并沿原有重算、源事务、预算与精确历史保存；会改变该链或参数的输入、结构/名称及可见性操作原子拒绝。新增未支持公式及 CSV/TSV 公式转换继续拒绝。其他未核实函数、INDIRECT/OFFSET、CELL 等环境/格式查询、自定义函数及其嵌套继续整本保护。未计算函数的参数行为参考固定 [ONLYOFFICE SUMSQ](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L5732-L5797)；保护实现在 [`calculation-protection.mbt`](../../modules/formats/src/xlsx/calculation-protection.mbt)。
+所有源提交先比较未计算链的源码、展开表达式、稳定表身份、依赖矩形及参数值。新增的稀疏参数格也参与；嵌套 SUBTOTAL 另检查手动隐藏与筛选来源。相同参数下可编辑无关值、已支持公式、格式和视图，并沿原有重算、源事务、预算与精确历史保存；会改变该链或参数的输入、结构/名称及可见性操作原子拒绝。新增未支持公式及 CSV/TSV 公式转换继续拒绝。其他未核实函数、INDIRECT/OFFSET、CELL 等环境/格式查询、自定义函数及其嵌套继续整本保护。未计算函数的参数行为参考固定 [ONLYOFFICE DEVSQ](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L5743-L5822)；保护实现在 [`calculation-protection.mbt`](../../modules/formats/src/xlsx/calculation-protection.mbt)。
 
 未计算公式即使有缓存也不能作为计算结果打印；只含已计算内容的独立打印区域可输出。XLSX 原格式保存保留未计算公式及缓存，CSV 值导出沿既有有缓存才可导出的合同，不赋予缓存已计算状态。
 

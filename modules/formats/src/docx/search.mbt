@@ -61,6 +61,13 @@ fn Session::search_groups(
     if node.uri != word_uri || !["t", "tab", "br", "cr"].contains(node.name) {
       continue
     }
+    // Tab-stop definitions are paragraph properties, not logical text.
+    if node.name == "tab" &&
+      node.parent >= 0 &&
+      tree.nodes[node.parent].uri == word_uri &&
+      tree.nodes[node.parent].name == "tabs" {
+      continue
+    }
     let paragraph = for ancestor = node.parent
                         ancestor >= 0
                         ancestor = tree.nodes[ancestor].parent {

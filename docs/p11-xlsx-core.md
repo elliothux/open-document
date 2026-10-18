@@ -33,14 +33,14 @@
 | 当前位置 | 已有能力与改动 |
 | --- | --- |
 | [`xlsx/session.mbt`](../modules/formats/src/xlsx/session.mbt)、[`sheet-order.mbt`](../modules/formats/src/xlsx/sheet-order.mbt)、[`transaction.mbt`](../modules/formats/src/xlsx/transaction.mbt)、[`editing.mbt`](../modules/formats/src/xlsx/editing.mbt) | 稀疏单元格、源 XML、选区与稳定部件历史；已支持 workbook/worksheet 视图一起提交，增删部件事务继续扩展 |
-| [`formula-parser.mbt`](../modules/formats/src/xlsx/formula-parser.mbt)、[`formula-shift.mbt`](../modules/formats/src/xlsx/formula-shift.mbt)、[`formula-logical.mbt`](../modules/formats/src/xlsx/formula-logical.mbt)、[`formula-numeric.mbt`](../modules/formats/src/xlsx/formula-numeric.mbt)、[`formula-text.mbt`](../modules/formats/src/xlsx/formula-text.mbt)、[`formula-date.mbt`](../modules/formats/src/xlsx/formula-date.mbt)、[`formula-conditional.mbt`](../modules/formats/src/xlsx/formula-conditional.mbt)、[`formula-lookup.mbt`](../modules/formats/src/xlsx/formula-lookup.mbt)、[`date.mbt`](../modules/formats/src/xlsx/date.mbt)、[`calculation.mbt`](../modules/formats/src/xlsx/calculation.mbt) | 已有公式解析、共享公式平移、五十九项函数与受影响重算；扩展引用变换、名称、函数与不确定依赖处理 |
+| [`formula-parser.mbt`](../modules/formats/src/xlsx/formula-parser.mbt)、[`formula-shift.mbt`](../modules/formats/src/xlsx/formula-shift.mbt)、[`formula-logical.mbt`](../modules/formats/src/xlsx/formula-logical.mbt)、[`formula-numeric.mbt`](../modules/formats/src/xlsx/formula-numeric.mbt)、[`formula-text.mbt`](../modules/formats/src/xlsx/formula-text.mbt)、[`formula-date.mbt`](../modules/formats/src/xlsx/formula-date.mbt)、[`formula-conditional.mbt`](../modules/formats/src/xlsx/formula-conditional.mbt)、[`formula-lookup.mbt`](../modules/formats/src/xlsx/formula-lookup.mbt)、[`date.mbt`](../modules/formats/src/xlsx/date.mbt)、[`calculation.mbt`](../modules/formats/src/xlsx/calculation.mbt) | 已有公式解析、共享公式平移及函数依赖重算；扩展引用变换、名称、函数与不确定依赖处理 |
 | [`styles.mbt`](../modules/formats/src/xlsx/styles.mbt)、[`number-format.mbt`](../modules/formats/src/xlsx/number-format.mbt) | 有限格式读取/显示与局部派生编辑；已有矩形格式刷、三种清除及规则范围拆分；扩展更多格式代码 |
 | [`grid.mbt`](../modules/formats/src/xlsx/grid.mbt)、[`grid-bands.mbt`](../modules/formats/src/xlsx/grid-bands.mbt)、[`frozen.mbt`](../modules/formats/src/xlsx/frozen.mbt)、[`print.mbt`](../modules/formats/src/xlsx/print.mbt) | 已有冻结视图事务、四窗格裁剪与命中、独立打印布局；继续补筛选可见性、绘图锚点及其他打印变体 |
 | [`dimension-edit.mbt`](../modules/formats/src/xlsx/dimension-edit.mbt)、[`autofit.mbt`](../modules/formats/src/xlsx/autofit.mbt)、[`dimensions.mbt`](../modules/formats/src/xlsx/dimensions.mbt) | 行高/列宽事务、自动适配、区间拆分和混合尺寸查询；网格、命中和打印使用同一几何 |
 | [`bridge/xlsx.mbt`](../modules/bridge/src/xlsx.mbt)、[`wasm/xlsx.ts`](../packages/wasm/src/xlsx.ts)、[`web/xlsx.ts`](../packages/web/src/xlsx.ts) | 扩展现有类型化命令与查询；不增加第二套计算服务 |
 | [`spreadsheet-editor.ts`](../packages/web/src/spreadsheet-editor.ts)、[`spreadsheet-input.ts`](../packages/web/src/spreadsheet-input.ts)、[`spreadsheet-formula.ts`](../packages/web/src/spreadsheet-formula.ts)、[`ui/xlsx-formula.tsx`](../packages/ui/src/xlsx-formula.tsx) | 已接通共享原生输入的公式栏和范围定位，复用队列、Canvas 与 P9 状态；继续扩展数据面板 |
 
-已核实参数依赖的未支持函数可保留源码和缓存，并开放无关编辑；当前是 SUMSQ，其余六项已接通实际求值。动态或无法解析的依赖仍使整本只读，范围见第 4.2 节。当前打印可按工作簿顺序合并可见表，各表保留矩形区域、页面设置、重复标题、纯文字页眉页脚和缩放。P11 必须继续修改这些能力所在层，不能只放开按钮或在 JS 中补算结果。
+已核实参数依赖的未支持函数可保留源码和缓存，并开放无关编辑；当前是 DEVSQ。SUMSQ 已接通实际求值，与 SQRT/POWER/PRODUCT/MEDIAN/EXACT/REPT 共用普通重算事务。动态或无法解析的依赖仍使整本只读，范围见第 4.2 节。当前打印可按工作簿顺序合并可见表，各表保留矩形区域、页面设置、重复标题、纯文字页眉页脚和缩放。P11 必须继续修改这些能力所在层，不能只放开按钮或在 JS 中补算结果。
 
 ## 3. 创建、结构与格式
 
@@ -111,7 +111,7 @@
 
 ### 4.2 未知公式的安全编辑范围
 
-SQRT、POWER、PRODUCT、MEDIAN 及 EXACT/REPT 已真实求值，进入普通依赖重算和缓存事务。导入的 SUMSQ 已核实只读取显式参数，当前保留公式及其下游链的缓存，开放能证明参数不变的编辑。提交前复核源码、展开后的名称、稳定表身份、依赖范围、参数值及嵌套 SUBTOTAL 的隐藏/筛选语义。查询新增 `calculationReason`，默认公式栏显示原因；汇总和完整打印不冒用缓存。动态引用、自定义函数及其他未核实函数继续保护。当前合同归[显示与计算](references/formats.md#显示与计算)。
+SUMSQ、SQRT、POWER、PRODUCT、MEDIAN 及 EXACT/REPT 已真实求值，进入普通依赖重算和缓存事务。导入的 DEVSQ 已核实只读取显式参数，当前保留公式及其下游链的缓存，开放能证明参数不变的编辑。提交前复核源码、展开后的名称、稳定表身份、依赖范围、参数值及嵌套 SUBTOTAL 的隐藏/筛选语义。查询新增 `calculationReason`，默认公式栏显示原因；汇总和完整打印不冒用缓存。动态引用、自定义函数及其他未核实函数继续保护。当前合同归[显示与计算](references/formats.md#显示与计算)。
 
 把“无法计算”和“无法确定引用影响”分开：
 

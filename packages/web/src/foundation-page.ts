@@ -1,5 +1,11 @@
 import { FoundationReviewClient } from "./document-review.js";
 import {
+  docxRuler,
+  checkDocxRulerEdit,
+  type DocxRuler,
+  type DocxRulerEdit,
+} from "@open-document/wasm/foundation";
+import {
   checkPageSetup,
   checkPageBackground,
   checkPageBorders,
@@ -23,6 +29,22 @@ import {
 
 /** Page commands retain the existing Worker and validation boundary. */
 export class FoundationPageClient extends FoundationReviewClient {
+  async ruler(revision: number): Promise<DocxRuler> {
+    return docxRuler(
+      await this.connection.request({ operation: "docxRuler", revision }),
+    );
+  }
+  async editRuler(source: DocxRuler, change: DocxRulerEdit) {
+    docxRuler(source);
+    checkDocxRulerEdit(change);
+    return editState(
+      await this.connection.request({
+        operation: "editDocxRuler",
+        source,
+        change,
+      }),
+    );
+  }
   async setPageColumns(
     revision: number,
     columns: DocxColumns | null,

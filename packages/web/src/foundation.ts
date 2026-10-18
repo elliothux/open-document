@@ -14,6 +14,10 @@ export type {
 export { checkDocxComment } from "@open-document/wasm/foundation";
 export type {
   FormatValue,
+  DocxRuler,
+  DocxRulerEdit,
+  DocxRulerKind,
+  DocxRulerTabAlign,
   CharacterFormatPatch,
   ParagraphFormatPatch,
   DocxFormatting,

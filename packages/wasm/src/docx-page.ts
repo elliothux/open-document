@@ -1,4 +1,10 @@
 import { WasmSession } from "./session.js";
+import {
+  docxRuler,
+  checkDocxRulerEdit,
+  type DocxRuler,
+  type DocxRulerEdit,
+} from "./docx-ruler.js";
 import { record } from "./validation.js";
 import {
   checkPageSetup,
@@ -117,6 +123,22 @@ export function docxRunningArea(value: unknown): DocxRunningArea {
 
 /** Page commands share the session's revision and source transaction. */
 export class FoundationPageSession extends WasmSession {
+  ruler(revision: number): DocxRuler {
+    return docxRuler(this.call({ operation: "docxRuler", revision }));
+  }
+  editRuler(source: DocxRuler, change: DocxRulerEdit) {
+    docxRuler(source);
+    checkDocxRulerEdit(change);
+    return editState(
+      this.call({
+        operation: "editDocxRuler",
+        revision: source.revision,
+        layoutId: source.layoutId,
+        selection: source.selection,
+        change,
+      }),
+    );
+  }
   setPageNumbering(
     revision: number,
     numbering: DocxPageNumbering | null,

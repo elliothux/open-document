@@ -22,6 +22,7 @@ import {
 import { messages } from "./messages.js";
 import { Icon } from "./icons.js";
 import { XlsxFormula, XlsxStatistics } from "./xlsx-formula.js";
+import { DocxRuler } from "./docx-ruler.js";
 
 export function EditorShell({
   controller,
@@ -276,6 +277,15 @@ export function EditorShell({
         <div className="od-workbench">
           {panel && <PageList {...panel} />}
           <div className="od-workspace">
+            {file?.format === "docx" && (
+              <DocxRuler
+                key={snapshot?.documentId}
+                controller={controller}
+                state={state}
+                editor={file.editor}
+                disabled={editDisabled}
+              />
+            )}
             {file?.format === "xlsx" && (
               <XlsxFormula
                 key={snapshot?.documentId}

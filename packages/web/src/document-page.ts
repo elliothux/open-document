@@ -1,4 +1,6 @@
 import { DocumentReview } from "./document-review.js";
+import type { DocxRuler, DocxRulerEdit } from "@open-document/wasm/foundation";
+export type DocumentRuler = DocxRuler & { documentId: string };
 import type { DocxPageSetup } from "@open-document/wasm/foundation";
 import type { DocxPageBorders } from "@open-document/wasm/foundation";
 import type { DocxPageNumbering } from "@open-document/wasm/foundation";
@@ -12,6 +14,19 @@ import type {
 
 /** Document-wide page commands use the editor's existing read and edit queues. */
 export abstract class DocumentPage extends DocumentReview {
+  ruler(): Promise<DocumentRuler> {
+    return this.review.read(async () => ({
+      ...(await this.review.client.ruler(this.review.snapshot().revision)),
+      documentId: this.review.snapshot().documentId,
+    }));
+  }
+  editRuler(source: DocumentRuler, change: DocxRulerEdit): Promise<void> {
+    return this.review.edit(() => {
+      if (source.documentId !== this.review.snapshot().documentId)
+        throw new Error("Ruler belongs to another document");
+      return this.review.client.editRuler(source, change);
+    });
+  }
   setPageColumns(columns: DocxColumns | null): Promise<void> {
     return this.review.edit(() =>
       this.review.client.setPageColumns(

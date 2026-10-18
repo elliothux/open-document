@@ -48,6 +48,7 @@ export {
   type DocxComments,
 } from "./docx-comments.js";
 export * from "./docx-format.js";
+export * from "./docx-ruler.js";
 export * from "./docx-picture.js";
 export * from "./docx-overview.js";
 import {

@@ -238,6 +238,8 @@ fn Foundation::dispatch(
     | "editState"
     | "selectDocx"
     | "queryFormatting"
+    | "docxRuler"
+    | "editDocxRuler"
     | "docxThemeColors"
     | "docxThemeFonts"
     | "setDocxThemeFonts"
@@ -392,6 +394,8 @@ fn Foundation::dispatch(
             field_selection(request),
             layout?=self.layout,
           )
+        "docxRuler" | "editDocxRuler" =>
+          self.docx_ruler(session, request, operation == "editDocxRuler")
         "styleCatalog" =>
           session.style_catalog(
             field_int(request, "revision"),

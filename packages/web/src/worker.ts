@@ -243,6 +243,10 @@ async function dispatch(request: Request): Promise<unknown> {
             request.revision,
             request.selection,
           );
+        case "docxRuler":
+          return foundation.ruler(request.revision);
+        case "editDocxRuler":
+          return foundation.editRuler(request.source, request.change);
         case "docxThemeColors":
           return foundation.themeColors(request.revision);
         case "docxThemeFonts":

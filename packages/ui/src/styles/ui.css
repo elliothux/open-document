@@ -220,6 +220,93 @@
   min-height: 0;
   min-width: 0;
 }
+.od-ruler {
+  position: relative;
+  flex-shrink: 0;
+  height: 98px;
+  overflow: hidden;
+  background: var(--od-ui-subtle);
+  border-bottom: 1px solid var(--od-ui-line);
+}
+.od-ruler-type {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding-left: 8px;
+}
+.od-ruler-type select {
+  padding: 0 4px;
+}
+.od-ruler-empty {
+  padding-left: 8px;
+  color: var(--od-ui-muted);
+}
+.od-ruler-track {
+  position: absolute;
+  top: 27px;
+  height: 70px;
+  background: var(--od-ui-surface);
+}
+.od-ruler-tick {
+  position: absolute;
+  top: 0;
+  height: 5px;
+  border-left: 1px solid var(--od-ui-muted);
+  pointer-events: none;
+  font-size: 9px;
+}
+.od-ruler-tick.major {
+  height: 10px;
+  padding: 5px 0 0 2px;
+}
+.od-ruler-marker {
+  position: absolute;
+  top: 41px;
+  transform: translateX(-50%);
+  padding: 0;
+  width: 16px;
+  height: 13px;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
+  color: var(--od-ui-accent);
+  background: transparent;
+  touch-action: none;
+  cursor: ew-resize;
+  z-index: 2;
+  line-height: 12px;
+}
+.od-ruler-marker.first {
+  top: 15px;
+}
+.od-ruler-marker.hanging {
+  top: 28px;
+}
+.od-ruler-marker.marginLeft,
+.od-ruler-marker.marginRight {
+  top: 0;
+  width: 14px;
+  height: 14px;
+  z-index: 1;
+  color: var(--od-ui-muted);
+}
+.od-ruler-marker.tab {
+  top: 54px;
+}
+.od-ruler-marker:focus-visible {
+  outline: 2px solid var(--od-ui-accent);
+  outline-offset: 1px;
+  z-index: 3;
+}
+.od-ruler-guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-left: 1px dashed var(--od-ui-accent);
+  pointer-events: none;
+  z-index: 4;
+}
 .od-formula {
   display: flex;
   gap: 8px;
