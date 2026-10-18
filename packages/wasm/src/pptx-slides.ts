@@ -1,4 +1,5 @@
 import { record } from "./validation.js";
+import { checkGradientStops, type GradientStop } from "./drawing.js";
 import { imageInsets } from "./pptx-objects.js";
 import {
   checkPptxFooterContent,
@@ -14,8 +15,7 @@ export type PptxBackgroundFill =
   | { kind: "solid"; color: string }
   | {
       kind: "linear";
-      startColor: string;
-      endColor: string;
+      stops: GradientStop[];
       angle: number;
       scaled: boolean;
     };
@@ -72,12 +72,12 @@ function checkBackgroundImageFormat(fill: Record<string, unknown>): void {
 
 export function checkPptxBackgroundFill(value: unknown): void {
   const fill = record(value);
-  const colors =
-    fill.kind === "solid" ? [fill.color] : [fill.startColor, fill.endColor];
+  if (fill.kind === "linear") checkGradientStops(fill.stops);
   if (
-    !colors.every((c) => typeof c === "string" && /^[0-9a-f]{6}$/i.test(c)) ||
     !(
-      fill.kind === "solid" ||
+      (fill.kind === "solid" &&
+        typeof fill.color === "string" &&
+        /^[0-9a-f]{6}$/iu.test(fill.color)) ||
       (fill.kind === "linear" &&
         typeof fill.angle === "number" &&
         Number.isFinite(fill.angle) &&
@@ -90,7 +90,7 @@ export function checkPptxBackgroundFill(value: unknown): void {
         !(
           fill.kind === "solid"
             ? ["kind", "color"]
-            : ["kind", "startColor", "endColor", "angle", "scaled"]
+            : ["kind", "stops", "angle", "scaled"]
         ).includes(key),
     )
   )

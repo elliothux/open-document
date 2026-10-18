@@ -18,7 +18,7 @@ fn Paragraph::kept_start_count(
   measured : Array[MeasuredLine],
   page : PageSetup,
 ) -> Int {
-  if !self.widowControl || measured.any(item => item.line.y == -1) {
+  if !self.widowControl || measured.any(item => item.line.y < 0) {
     return 1
   }
   let lines = measured.filter(item => !item.line.caretOnly)
@@ -46,7 +46,7 @@ fn Pagination::widow_breaks(
   measured : Array[MeasuredLine],
 ) -> Map[Int, Bool] raise @failure.Failure {
   let breaks : Map[Int, Bool] = Map([])
-  if !paragraph.widowControl || measured.any(item => item.line.y == -1) {
+  if !paragraph.widowControl || measured.any(item => item.line.y < 0) {
     return breaks
   }
   let lines : Array[(Int, MeasuredLine)] = []
@@ -114,7 +114,7 @@ fn Pagination::widow_breaks(
     start = end
     page_index += 1
     y = self.page_at(page_index).top
-    guard self.pages.length() + breaks.length() < 1024 else {
+    guard self.pages.length() + breaks.length() < 1024 * self.columns.count else {
       @failure.reject("limit-exceeded", "Page budget exceeded")
     }
     breaks[lines[start].0] = true

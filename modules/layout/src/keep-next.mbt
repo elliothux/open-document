@@ -1,6 +1,8 @@
 ///|
 fn paragraph_has_break(paragraph : Paragraph) -> Bool {
-  paragraph.spans.any(span => span.text.contains("\u000c"))
+  paragraph.spans.any(span => {
+    span.text.contains("\u000b") || span.text.contains("\u000c")
+  })
 }
 
 ///|

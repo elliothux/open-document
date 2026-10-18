@@ -1,4 +1,9 @@
 export const imageEn = {
+  gradientStops: "Gradient color stops",
+  gradientColor: "Stop color",
+  gradientPosition: "Stop position (%)",
+  addGradientStop: "Add color stop",
+  removeGradientStop: "Remove color stop",
   imageInsets: "Image destination insets",
   imageInsetLeft: "Image left inset (%)",
   imageInsetTop: "Image top inset (%)",
@@ -19,6 +24,11 @@ export const imageEn = {
 };
 
 export const imageZh = {
+  gradientStops: "渐变色标",
+  gradientColor: "色标颜色",
+  gradientPosition: "色标位置（%）",
+  addGradientStop: "添加色标",
+  removeGradientStop: "移除色标",
   imageInsets: "图片目标内缩",
   imageInsetLeft: "图片左侧内缩（%）",
   imageInsetTop: "图片顶部内缩（%）",

@@ -38,10 +38,9 @@ fn running_lines(
       }
       let area = Pagination::new({ ..flow.page, top: 0, bottom: 0, })
       for paragraph in story {
-        guard !paragraph.pageBreakBefore &&
-          paragraph.spans.all(span => !span.text.contains("\u000c")) else {
+        guard !paragraph.pageBreakBefore && !paragraph_has_break(paragraph) else {
           @failure.reject(
-            "unsupported-layout", "Page breaks in headers or footers are unsupported",
+            "unsupported-layout", "Page or column breaks in headers or footers are unsupported",
           )
         }
         let paragraph = {

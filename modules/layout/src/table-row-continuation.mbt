@@ -10,7 +10,6 @@ fn Pagination::split_table_row(
   images : Images,
   additive : Bool,
 ) -> Unit raise @failure.Failure {
-  let left = table.left(self.page)
   let bottom = table.border_width(row + 1)
   let limit = self.page.height - self.page.bottom
   let top = table.row_top_margin(row) + table.border_width(row)
@@ -97,6 +96,7 @@ fn Pagination::split_table_row(
     } else {
       content.fold(init=minimum, (height, value) => height.max(value))
     }
+    let left = table.left(self.page)
     let mut x = left
     for index, (_, column, lines, _) in cells {
       let width = table.cell_width(row, column)

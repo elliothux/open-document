@@ -1,16 +1,23 @@
 ///|
+fn has_region_break(text : String) -> Bool {
+  text.contains("\u000b") || text.contains("\u000c")
+}
+
+///|
 fn valid_inline_input(text : String) -> Bool {
-  @xml.valid_text(text.replace_all(old="\u000c", new="")) &&
+  @xml.valid_text(
+    text.replace_all(old="\u000b", new="").replace_all(old="\u000c", new=""),
+  ) &&
   !text.contains("\r")
 }
 
 ///|
-fn WordTree::check_page_break_input(
+fn WordTree::check_region_break_input(
   self : WordTree,
   paragraph : Int,
   text : String,
 ) -> Unit raise @failure.Failure {
-  if !text.contains("\u000c") {
+  if !has_region_break(text) {
     return
   }
   let node = self.nodes
@@ -27,7 +34,7 @@ fn WordTree::check_page_break_input(
     parent.uri == word_uri &&
     ["body", "tc"].contains(parent.name) else {
     @failure.reject(
-      "protected-content", "Page break insertion requires a body or table-cell paragraph",
+      "protected-content", "Page or column break insertion requires a body or table-cell paragraph",
     )
   }
 }
@@ -43,11 +50,15 @@ fn inline_content(
   let part = StringBuilder()
   let mut units = 0
   for ch in text {
-    if ch == '\u2028' || ch == '\t' || ch == '\u000c' {
+    if ch == '\u2028' || ch == '\t' || ch == '\u000b' || ch == '\u000c' {
       let escaped = @xml.escape_text(part.to_string())
       part.reset()
       let tag = if ch == '\t' { "tab" } else { "br" }
-      let kind = if ch == '\u000c' { " od:type=\"page\"" } else { "" }
+      let kind = match ch {
+        '\u000b' => " od:type=\"column\""
+        '\u000c' => " od:type=\"page\""
+        _ => ""
+      }
       let frame = closing +
         "<od:\{tag} xmlns:od=\"\{word_uri}\"\{kind}/>" +
         opening
@@ -99,7 +110,7 @@ fn Session::edit_inline_text(
   for id, text in replacements {
     let node = document.node(id)
     let paragraph = tree.run_paragraph(node.parent)
-    tree.check_page_break_input(paragraph, text)
+    tree.check_region_break_input(paragraph, text)
     if node.name == "drawing" {
       let items = self.picture_text_changes(
         tree,
@@ -122,7 +133,7 @@ fn Session::edit_inline_text(
     if node.name == "t" &&
       !text.contains("\u2028") &&
       !text.contains("\t") &&
-      !text.contains("\u000c") {
+      !has_region_break(text) {
       plain[id] = text
       continue
     }

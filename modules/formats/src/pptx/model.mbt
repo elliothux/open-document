@@ -78,7 +78,7 @@ priv struct Object {
   preset : String
   adjustments : (Double, Double)
   fill : String
-  gradient : (String, String, Double, Bool)?
+  gradient : (Array[@layout.GradientStop], Double, Bool)?
   stroke : String
   fill_alpha : Double
   stroke_alpha : Double

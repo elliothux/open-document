@@ -303,17 +303,17 @@ fn Session::prepare_plain_range(
   }
   let anchor = selection.anchor
   let focus = selection.focus
-  if text.contains("\u000c") {
+  if has_region_break(text) {
     let tree = WordTree::new(self.document())
-    tree.check_page_break_input(anchor.paragraph, text)
-    tree.check_page_break_input(focus.paragraph, text)
+    tree.check_region_break_input(anchor.paragraph, text)
+    tree.check_region_break_input(focus.paragraph, text)
   }
   if input_group is Some(group) {
     guard group > 0 &&
       !text.is_empty() &&
       !text.contains("\n") &&
       !text.contains("\u2028") &&
-      !text.contains("\u000c") &&
+      !has_region_break(text) &&
       !text.contains("\t") else {
       @failure.reject(
         "invalid-operation", "Input group requires a positive id and ordinary input without LF",

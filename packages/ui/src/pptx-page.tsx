@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { PanelProps } from "./panels.js";
 import { messages } from "./messages.js";
 import { ImageInsetsForm } from "./pptx-picture.js";
+import { GradientStops } from "./pptx-paint.js";
+import type { PptxBackgroundFill } from "@open-document/web/pptx";
 
 export function PptxSlideLayout({
   controller,
@@ -130,10 +132,17 @@ export function PptxBackground({
     bottom: (fill?.kind === "image" ? fill.crop[3] : 0) * 100,
   });
   const [color, setColor] = useState(
-    `#${fill?.kind === "solid" ? fill.color : fill?.kind === "linear" ? fill.startColor : "ffffff"}`,
+    `#${fill?.kind === "solid" ? fill.color : fill?.kind === "linear" ? fill.stops[0]?.color : "ffffff"}`,
   );
-  const [endColor, setEndColor] = useState(
-    `#${fill?.kind === "linear" ? fill.endColor : "000000"}`,
+  const [stops, setStops] = useState<
+    Extract<PptxBackgroundFill, { kind: "linear" }>["stops"]
+  >(
+    fill?.kind === "linear"
+      ? fill.stops
+      : [
+          { position: 0, color: color.slice(1) },
+          { position: 1, color: "000000" },
+        ],
   );
   const [angle, setAngle] = useState(
     fill?.kind === "linear" ? String(fill.angle) : "0",
@@ -172,8 +181,7 @@ export function PptxBackground({
                   ? { kind, color: color.slice(1) }
                   : {
                       kind,
-                      startColor: color.slice(1),
-                      endColor: endColor.slice(1),
+                      stops,
                       angle: Number(angle),
                       scaled,
                     },
@@ -189,6 +197,12 @@ export function PptxBackground({
               value={kind}
               onChange={(event) => {
                 const value = event.currentTarget.value;
+                if (value === "linear" && kind === "solid")
+                  setStops(
+                    stops.map((stop, index) =>
+                      index === 0 ? { ...stop, color: color.slice(1) } : stop,
+                    ),
+                  );
                 if (
                   value === "solid" ||
                   value === "linear" ||
@@ -297,9 +311,9 @@ export function PptxBackground({
               </label>
             </>
           )}
-          {kind !== "image" && (
+          {kind === "solid" && (
             <label>
-              {kind === "solid" ? t.slideBackground : t.gradientStart}
+              {t.slideBackground}
               <input
                 type="color"
                 value={color}
@@ -309,14 +323,12 @@ export function PptxBackground({
           )}
           {kind === "linear" && (
             <>
-              <label>
-                {t.gradientEnd}
-                <input
-                  type="color"
-                  value={endColor}
-                  onChange={(event) => setEndColor(event.currentTarget.value)}
-                />
-              </label>
+              <GradientStops
+                stops={stops}
+                onChange={setStops}
+                state={state}
+                firstLabel={t.gradientStart}
+              />
               <label>
                 {t.gradientAngle}
                 <input

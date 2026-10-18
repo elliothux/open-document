@@ -64,7 +64,7 @@ export function checkRunningArea(
     if (
       Object.keys(item).length === 1 &&
       typeof item.text === "string" &&
-      !/[\r\f]/u.test(item.text)
+      !/[\r\f\v]/u.test(item.text)
     )
       units += item.text.length;
     else if (

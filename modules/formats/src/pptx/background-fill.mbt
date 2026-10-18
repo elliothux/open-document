@@ -1,7 +1,7 @@
 ///|
 pub(all) enum BackgroundFill {
   Solid(String)
-  Linear(String, String, Double, Bool)
+  Linear(Array[@layout.GradientStop], Double, Bool)
   Picture(String, Array[Double], Double, ImageTile?, Array[Double])
 } derive(Eq, Debug)
 
@@ -31,11 +31,10 @@ pub impl ToJson for BackgroundFill with fn to_json(self) {
         },
       }
     Solid(color) => { "kind": "solid", "color": Json(color) }
-    Linear(start, end, angle, scaled) =>
+    Linear(stops, angle, scaled) =>
       {
         "kind": "linear",
-        "startColor": Json(start),
-        "endColor": Json(end),
+        "stops": stops,
         "angle": Json(angle),
         "scaled": Json(scaled),
       }
@@ -50,7 +49,7 @@ fn BackgroundFill::normalized(
     Picture(_, _, _, _, _) =>
       @failure.reject("invalid-operation", "Use the background image operation")
     Solid(color) => [color]
-    Linear(start, end, _, _) => [start, end]
+    Linear(stops, _, _) => stops.map(stop => stop.color)
   }
   guard colors.all(c => {
     c.length() == 6 && c.iter().all(c => c.is_ascii_hexdigit())
@@ -62,15 +61,21 @@ fn BackgroundFill::normalized(
   match self {
     Picture(_, _, _, _, _) => abort("Image background already rejected")
     Solid(color) => Solid(color.to_lower())
-    Linear(start, end, angle, scaled) => {
+    Linear(stops, angle, scaled) => {
+      @layout.validate_gradient_stops(stops) catch {
+        @failure.Failure(message~, ..) =>
+          @failure.reject("invalid-operation", message)
+      }
       guard !angle.is_nan() && !angle.is_inf() && angle >= 0 && angle <= 360 else {
         @failure.reject(
           "invalid-operation", "Background angle must be 0..360 degrees",
         )
       }
       Linear(
-        start.to_lower(),
-        end.to_lower(),
+        stops.map(stop => {
+          position: (stop.position * 100000).round() / 100000,
+          color: stop.color.to_lower(),
+        }),
         (angle * 60000).round() % 21600000 / 60000,
         scaled,
       )
@@ -110,7 +115,7 @@ fn background_color_markup(reference : Ref) -> Unit raise @failure.Failure {
 ///|
 fn linear_background_source(
   fill : Ref,
-) -> (Ref, Ref, Double, Bool) raise @failure.Failure {
+) -> (Array[(Ref, Double)], Double, Bool) raise @failure.Failure {
   guard fill.node.text.trim().is_empty() &&
     fill.node.attributes.all(a => {
       a.uri.is_empty() &&
@@ -134,9 +139,8 @@ fn linear_background_source(
   let stops = children[0]
   let points = fill.tree.children.get(stops.id).unwrap_or([])
   guard stops.attributes.is_empty() &&
-    points is [start, end] &&
-    start.attribute("pos") == Some("0") &&
-    end.attribute("pos") == Some("100000") &&
+    points.length() >= 2 &&
+    points.length() <= 32 &&
     points.all(n => {
       n.uri == drawing_uri &&
       n.name == "gs" &&
@@ -144,13 +148,25 @@ fn linear_background_source(
       n.attributes.length() == 1
     }) else {
     @failure.reject(
-      "unsupported-style", "Background requires two endpoint stops",
+      "unsupported-style", "Background requires 2..32 ordered gradient stops",
     )
   }
-  let start = { tree: fill.tree, node: start, }
-  let end = { tree: fill.tree, node: end, }
-  background_color_markup(start)
-  background_color_markup(end)
+  let positions : Array[(Ref, Double)] = []
+  for point in points {
+    let position = number(point.attribute("pos").unwrap_or(""), 0, 100000)
+    guard position.floor() == position &&
+      positions
+      .last()
+      .map(previous => previous.1 <= position / 100000)
+      .unwrap_or(true) else {
+      @failure.reject(
+        "unsupported-style", "Gradient stop positions must be ordered integer percentages",
+      )
+    }
+    let reference = { tree: fill.tree, node: point, }
+    background_color_markup(reference)
+    positions.push((reference, position / 100000))
+  }
   let line = children[1]
   guard fill.tree.children.get(line.id).unwrap_or([]).is_empty() &&
     line.attributes.all(a => {
@@ -175,8 +191,7 @@ fn linear_background_source(
     }
   }
   (
-    start,
-    end,
+    positions,
     number(line.attribute("ang").unwrap_or("0"), 0, 21599999) / 60000,
     flag(line, "scaled", default=true),
   )
@@ -208,10 +223,12 @@ fn read_background_fill(
     return Picture(key, crop, opacity, tile, insets)
   }
   if properties.node.name == "gradFill" {
-    let (start, end, angle, scaled) = linear_background_source(properties)
+    let (points, angle, scaled) = linear_background_source(properties)
     return Linear(
-      color(theme, start, placeholder~),
-      color(theme, end, placeholder~),
+      points.map(point => {
+        position: point.1,
+        color: color(theme, point.0, placeholder~),
+      }),
       angle,
       scaled,
     )
@@ -247,8 +264,14 @@ fn BackgroundFill::markup(self : BackgroundFill) -> String {
   match self {
     Picture(_, _, _, _, _) => abort("Image backgrounds require a relationship")
     Solid(color) => paint_markup(Some(color))
-    Linear(start, end, angle, scaled) =>
-      "<a:gradFill xmlns:a=\"\{drawing_uri}\"><a:gsLst><a:gs pos=\"0\"><a:srgbClr val=\"\{start}\"/></a:gs><a:gs pos=\"100000\"><a:srgbClr val=\"\{end}\"/></a:gs></a:gsLst><a:lin ang=\"\{(angle*60000).round().to_int()}\" scaled=\"\{if scaled {"1"} else {"0"}}\"/></a:gradFill>"
+    Linear(stops, angle, scaled) => {
+      let markup = stops
+        .map(stop => {
+          "<a:gs pos=\"\{(stop.position*100000).round().to_int()}\"><a:srgbClr val=\"\{stop.color}\"/></a:gs>"
+        })
+        .join("")
+      "<a:gradFill xmlns:a=\"\{drawing_uri}\"><a:gsLst>\{markup}</a:gsLst><a:lin ang=\"\{(angle*60000).round().to_int()}\" scaled=\"\{if scaled {"1"} else {"0"}}\"/></a:gradFill>"
+    }
   }
 }
 
@@ -272,7 +295,7 @@ fn BackgroundFill::paint(
     result.push(Restore)
     return result
   }
-  guard self is Linear(start, end, angle, scaled) else {
+  guard self is Linear(stops, angle, scaled) else {
     guard self is Solid(color) else { abort("Invalid background") }
     return [Rectangle({ x: 0, y: 0, width, height, color, })]
   }
@@ -309,8 +332,7 @@ fn BackgroundFill::paint(
         width: xs.fold(init=0.0, (a, b) => a.max(b)) - left,
         height: ys.fold(init=0.0, (a, b) => a.max(b)) - top,
       },
-      start,
-      end,
+      stops,
     ),
     Restore,
   ]

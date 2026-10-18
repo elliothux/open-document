@@ -45,7 +45,7 @@ fn normalize_running_content(
   for item in content {
     match item {
       Text(text) => {
-        guard !text.contains("\r") && !text.contains("\u000c") else {
+        guard !text.contains("\r") && !has_region_break(text) else {
           @failure.reject("invalid-operation", "Invalid running text control")
         }
         guard text.length() <= 8192 - units else {

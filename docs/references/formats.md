@@ -117,7 +117,7 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 正文自动断页尽量在两端各保留至少两行。三行段落面临单行拆分且整页可容纳时，整体移至新页；四行及以上若只剩一行在末页，且末两行可同页放入，则向末页多移一行。按实际行高和页首行距度量，空间不足两行时保留有界拆分回退；必要时省略空页上阻碍首段放入的段前留白。显式分页符优先，含显式分页的段落沿原规则。超长“段中不分页”段落仍拆分；“与下段同页”预判包含末段的孤行要求，后段变化向前使保留链失效。当前规则应用正文，格内和页眉保留有效属性并沿原排版规则，不额外施加正文孤行约束；对应 [ONLYOFFICE 正文孤行处理](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph_Recalculate.js#L1849-L1887)。实现归 [`widow-control.mbt`](../../modules/layout/src/widow-control.mbt)，复用现有行/页预算与统一绘制输出，不引入回退循环。
 
-`keepLines: true/false` 设置或关闭“段中不分页”，null 清除直接定义并恢复样式继承；查询与 Flow 返回有效布尔值。默认格式面板和样式编辑面板共用现有命令，格式复制、拆段及清除直接格式也包含该属性。正文段落不能放入当前页时先整体换页；超出一页时在新页正常拆分，不重复尝试。页首空间不足时省略使整段无法放入的段前留白；显式分页符优先，含分页符的段落沿原分页规则执行。可拆的普通表格行按单元格段落保留整组行；整页放不下的格内段落继续拆分，精确行高仍裁剪。重复表头的空间检查包含待放段落，属性变化参与分页缓存失效。规则参考 [ONLYOFFICE KeepLines 分页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph_Recalculate.js#L2545-L2590)的现代文档路径；不新增旧 Word 分页模式。多栏及跨页纵向合并仍待实现。
+`keepLines: true/false` 设置或关闭“段中不分页”，null 清除直接定义并恢复样式继承；查询与 Flow 返回有效布尔值。默认格式面板和样式编辑面板共用现有命令，格式复制、拆段及清除直接格式也包含该属性。正文段落不能放入当前页时先整体换页；超出一页时在新页正常拆分，不重复尝试。页首空间不足时省略使整段无法放入的段前留白；显式分页符优先，含分页符的段落沿原分页规则执行。可拆的普通表格行按单元格段落保留整组行；整页放不下的格内段落继续拆分，精确行高仍裁剪。重复表头的空间检查包含待放段落，属性变化参与分页缓存失效。规则参考 [ONLYOFFICE KeepLines 分页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph_Recalculate.js#L2545-L2590)的现代文档路径；不新增旧 Word 分页模式。不等宽栏和多节继续实施。
 
 `FoundationSession/Client.styles(revision, kind)` 与 `DocumentEditor.styles(kind)` 返回现有样式目录：`{ revision, truncated, styles: [{ id, name, reason, basedOn, canDelete, canReset, linked }] }`，`kind` 为 `"paragraph" | "character"`，每类最多 1024 项。`basedOn` 为直接基础样式 ID，无继承时为空串；`canDelete` 表示已支持且未标为默认的自定义样式；`linked` 表示存在样式链接，`canReset` 表示有已支持的格式重置规则。不可应用的样式带原因，默认 UI 禁用对应选项。该接口替代原段落专用目录入口。
 
@@ -167,13 +167,17 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 查找使用 Unicode 简单小写映射，不做规范化、语言定制或正则匹配。全词边界按字母/数字和非 ASCII Unicode 标识符延续字符判断，ASCII 下划线作为分隔符。命中不能切开字素或代理对。范围暂限主文档正文与单元格，页眉、脚注等内容区域待对应编辑能力接入。
 
-`replaceDocxMatches(revision, selections, text)` 一次校验全部范围后提交一项历史；空数组无变化，重叠、空范围、保护、过期 revision 和预算失败不部分提交。替换最多 1000 个范围，文本最多 65536 UTF-16 单元，允许 LF 段落分隔、U+2028 软换行、U+000C 正文分页与 Tab，不接受 CR。插入文字沿用目标起点 run 格式。结构替换另限源 XML UTF-16 长度乘命中数不超过 67108864，避免逐项解析阻断操作。
+`replaceDocxMatches(revision, selections, text)` 一次校验全部范围后提交一项历史；空数组无变化，重叠、空范围、保护、过期 revision 和预算失败不部分提交。替换最多 1000 个范围，文本最多 65536 UTF-16 单元，允许 LF 段落分隔、U+2028 软换行、U+000B 分栏、U+000C 正文分页与 Tab，不接受 CR。插入文字沿用目标起点 run 格式。结构替换另限源 XML UTF-16 长度乘命中数不超过 67108864，避免逐项解析阻断操作。
 
 `DocumentEditor.find(text, options?)` 在原队列中查询，并给结果增加 `documentId`。`selectMatch(result, index)` 定位可编辑命中；`replaceMatches(result, text, index?)` 替换指定项，省略 index 时替换全部结果。全部替换拒绝 `truncated` 或含受保护内容的结果。旧文档或旧 revision 的结果拒绝后仍可继续编辑。默认 UI 提供同一组操作，编辑后提示重新查找并禁用旧结果。
 
-`DOCX_SOFT_BREAK` 为 U+2028，由 Wasm/Web foundation 导出。`replaceRange`、组合候选和批量替换用它表示段内换行，保存为 `w:br`；实际 LF 仍创建段落。`DocumentEditor.insertSoftBreak()` 与默认 UI 按钮、Shift+Enter 调用同一范围事务。`query().texts` 包含普通文字与内联控制节点；换行逻辑长度为一个 UTF-16 单元，`w:cr` 同样读取为 U+2028。Flow 用 LF 排版，`selectedText` 与剪贴板将软换行转为 LF。普通换行可删除、选中、设置格式及跨段移动；栏换行、环绕清除和未知内联属性继续保护。
+`DOCX_SOFT_BREAK` 为 U+2028，由 Wasm/Web foundation 导出。`replaceRange`、组合候选和批量替换用它表示段内换行，保存为 `w:br`；实际 LF 仍创建段落。`DocumentEditor.insertSoftBreak()` 与默认 UI 按钮、Shift+Enter 调用同一范围事务。`query().texts` 包含普通文字与内联控制节点；换行逻辑长度为一个 UTF-16 单元，`w:cr` 同样读取为 U+2028。Flow 用 LF 排版，`selectedText` 与剪贴板将软换行转为 LF。普通换行可删除、选中、设置格式及跨段移动；环绕清除和未知内联属性继续保护。
 
 `DOCX_PAGE_BREAK` 为 U+000C，由同一 foundation 入口导出。正文 `replaceRange`、组合候选、查找替换及 `DocumentEditor.paste(DOCX_PAGE_BREAK)` 用它插入 `w:br w:type="page"`，不增加段落。默认 UI 的插入分页符按钮及 Ctrl/Cmd+Enter 使用相同事务，单独形成历史。已有正文分页符支持选择、格式与删除，保存及撤销保留源节点。普通表格单元格内也支持分页符的读取、插入、选择、格式、删除、查找替换和精确历史；按 [ONLYOFFICE 表格内分页符规则](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L4696-L4712)，它不触发换行或换页。核心保留源 `w:br` 和 UTF-16 位置，按零宽控制塑形，表格行继续按既有规则续页。正文与格内的段落缓存区分上下文，列宽、光标、命中、合并续排及 PDF 共用此行为；PDF 的文字映射和 ActualText 排除不显示的分页符。布局保留相邻分页符合并规则；仅供分页符光标定位的空行不占段落高度、不进入页面文字，也不改变空白页拖选端点。
+
+`DOCX_COLUMN_BREAK` 为 U+000B，由 Wasm/Web foundation 导出。`DocumentEditor.paste(DOCX_COLUMN_BREAK)`、默认插入分栏符按钮和 Ctrl/Cmd+Shift+Enter 复用范围事务，不创建段落。正文移到下一栏，末栏及单栏进入下一张纸；连续分栏符逐个推进，不采用相邻分页符的合并规则。分栏符优先于段落保留与孤行约束，末尾保留下一栏的光标位置，不另占段落高度，并参与末页平衡。
+
+已有和新插入的分栏符占一个 UTF-16 单元，支持选择、格式、删除、查找替换、组合候选、精确混合历史及保存重开。核心写 `w:br w:type="column"`，不把 U+000B 写进 XML 文本。普通表格单元格内按零宽控制保留位置，不强制换行或换栏；PDF 的文字映射和 ActualText 排除不可见控制，保留相邻文字连续性。页眉页脚及其他受保护区域仍拒绝插入；未知内联属性、目标注释、过期 revision 和预算失败保持原包。分栏符定义与格内行为参考 [ONLYOFFICE CRunBreak](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/RunContent/Break.js#L318-L337)和 [Run 分页/分栏处理](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L4690-L4724)。复用 [`inline-input.mbt`](../../modules/formats/src/docx/inline-input.mbt)、[`paragraph.mbt`](../../modules/layout/src/paragraph.mbt)及 [`pagination.mbt`](../../modules/layout/src/pagination.mbt)，未复制上游执行代码。
 
 Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Client.tabDocx(revision, backward?)` 在列表正文执行下述列表规则；普通正文插入 Tab，反向时减少正的首行/左缩进；在现有表格中只移动到相邻单元格，不增加 revision 或历史。默认 UI 的插入制表符按钮与 `DocumentEditor.paste("\t")` 总是插入字符，原生 Ctrl+Tab 也在单元格中插入。Tab/Shift+Tab 只由文档原生输入处理；参数控件使用浏览器焦点切换，Escape 将焦点移出文档输入。
 
@@ -325,13 +329,23 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 ### 页面设置
 
-`FoundationSession/Client.pageSetup(revision)` 与 `DocumentEditor.pageSetup()` 返回 `{ revision, page, reason, background }`。`background` 归下文页面背景色，独立返回 `{ color, reason }`。`page` 是主文档单节的源尺寸，字段为 `width/height/top/right/bottom/left`，单位为 pt；缺少节属性时使用 612×792 pt、四边 72 pt。不支持的多节、分栏、镜像页边距、装订线或保护返回 `page: null` 与原因，不返回伪造的可编辑参数。查询不要求正文选区。
+`FoundationSession/Client.pageSetup(revision)` 与 `DocumentEditor.pageSetup()` 返回 `{ revision, page, reason, background, borders, numbering, columns }`。各属性的合同见下文。`page` 是主文档单节的源尺寸，字段为 `width/height/top/right/bottom/left`，单位为 pt；缺少节属性时使用 612×792 pt、四边 72 pt。不支持的多节、不等宽分栏、镜像页边距、装订线或保护返回 `page: null` 与原因，不返回伪造的可编辑参数。查询不要求正文选区。
 
 `setPageSetup(revision, page)` 同时修改尺寸与四边距，Web 编辑宿主省略 revision。`DocxPageSetup` 要求上述六个值，可选 `orientation: "portrait" | "landscape"`。省略方向时使用指定宽高；给出方向且与宽高不一致时，核心交换宽高并旋转四边距。横向时新左/上/右/下依次为原下/左/上/右，纵向反向旋转；正方形不旋转。规则依据 [ONLYOFFICE 的方向修改](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/sections/sect-pr.js#L1148-L1180)。
 
 尺寸为 36–14400 pt，边距非负；所有数值须能表示为整数 twip，并为正文留下至少 12×12 pt。源尺寸原样写回 `pgSz/pgMar`；`Flow.page`、预览和 PDF 继续采用下文既有纸型解释规则，可能与源尺寸不同，例如 500 pt 的显示尺寸为 498.9 pt。再次应用相同源参数不产生历史，不能把显示尺寸自动写回源文档。
 
-缺少节属性时在正文末尾创建，缺少页面属性时按 OOXML 顺序插入。修改保留段落、稳定节点身份、节元数据、其他部件、页眉/页脚距离和零装订线；清除与新尺寸不一致的旧打印机纸型代码。尺寸与边距合为一项有界历史，保留待输入格式，撤销/重做及保存重开恢复相同源参数。非法值、过期 revision、未知目标属性/注释、多节或预算失败保留已提交包。默认 UI 提供相同的读取、修改和方向选项；文档改变后要求重新读取，防止旧参数覆盖新状态。多节、实际分栏及页眉页脚编辑仍属于后续页面批次。
+缺少节属性时在正文末尾创建，缺少页面属性时按 OOXML 顺序插入。修改保留段落、稳定节点身份、节元数据、其他部件、页眉/页脚距离和零装订线；清除与新尺寸不一致的旧打印机纸型代码。尺寸与边距合为一项有界历史，保留待输入格式，撤销/重做及保存重开恢复相同源参数。非法值、过期 revision、未知目标属性/注释、多节或预算失败保留已提交包。默认 UI 提供相同的读取、修改和方向选项；文档改变后要求重新读取，防止旧参数覆盖新状态。已有等宽分栏时，修改尺寸也须为每栏保留至少 12 pt 宽度。多节及页眉页脚节间继承继续实施。
+
+### 等宽分栏
+
+`FoundationSession/Client.setPageColumns(revision, columns, profile)` 与 `DocumentEditor.setPageColumns(columns)` 设置主文档单节的等宽分栏。`DocxColumns` 为 `{ count, gap, separator }`：栏数为 1–12 的整数，栏间距为 0–14400 pt 且须表示为整数 twip，分隔线为布尔值。`null` 移除显式 `w:cols`，恢复单栏、36 pt 间距和无分隔线。缺少节属性时原子创建；`pageSetup().columns` 返回 `{ value, reason }`，不支持的源返回 null 和原因。Wasm/Web 从既有 foundation 模块导出类型和命令；默认页面面板提供读取、修改、重置和过期草稿保护。
+
+核心先从可用页宽扣除全部栏间距，再等分，每栏至少 12 pt。正文按栏顺序续排，末页在整数 twip 上有界求解平衡高度；显式分页符及段前分页进入下一张纸。页眉页脚保持整页宽度，页码和总页数按实际纸张计算。表格创建、宽度查询及自动适配使用当前栏宽；普通行、合并格与重复表头在续栏处重新取横坐标，文字、边框、底色、命中、光标和选区使用同一几何。固定宽表格超出栏宽时拒绝候选，不自动改写网格。Canvas、PNG 和 PDF 消费同一物理页结果；缓存键包含栏参数及平衡高度。
+
+修改保留正文、选择、待输入格式、页码/页边属性及其他 OPC 部件，使用一项有界源历史。同值不新增历史，撤销/重做和保存重开恢复源与布局。非法参数、旧 revision、保护、未知属性/子节点、不透明目标源、布局或输出预算失败原子拒绝。分栏符沿上文范围编辑；不等宽栏和多节继续实施，不能把保留源记为已支持。
+
+实现归 [`page-columns.mbt`](../../modules/formats/src/docx/page-columns.mbt) 和 [`columns.mbt`](../../modules/layout/src/columns.mbt)。等宽计算参考 [ONLYOFFICE SectionColumns](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/sections/section-columns.js#L200-L216)，栏位置和平衡参考 [DocumentPageSection](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/document/document-page-section.js#L78-L100)，分隔线参考 [Document.draw](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L5384-L5390)。未复制上游执行代码。
 
 ### 页面背景色
 
@@ -389,7 +403,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 ### 表格创建
 
-`FoundationSession/Client.insertTable(revision, selection, rows, columns)` 与 `DocumentEditor.insertTable(rows, columns)` 在正文范围插入固定网格，默认 UI 提供行列输入。rows 为 1–1000，columns 为 1–63，总格数最多 4096，并受 XML、历史和输出预算限制。列宽按当前单节布局的可用页宽分配整数 twip，余量逐列分配，每列至少 12 pt。沿用当前纸型解释，不改源页面设置。未知或受保护的正文、嵌套表格、多节及无法解释的页面设置拒绝操作。
+`FoundationSession/Client.insertTable(revision, selection, rows, columns)` 与 `DocumentEditor.insertTable(rows, columns)` 在正文范围插入固定网格，默认 UI 提供行列输入。rows 为 1–1000，columns 为 1–63，总格数最多 4096，并受 XML、历史和输出预算限制。列宽按当前单节布局的可用栏宽分配整数 twip，余量逐列分配，每列至少 12 pt。沿用当前纸型解释，不改源页面设置。未知或受保护的正文、嵌套表格、多节及无法解释的页面设置拒绝操作。
 
 核心先删除所选文字；在段中插入时拆分段落，在段首插入时保留原段落作为后续内容。新增表格使用 0.5 pt 黑色完整网格、5.4 pt 水平单元格边距与固定列宽。单元格复制插入起点的有效字符格式及支持的段落属性，并将缩进与段前分页显式归零。若段首已有段前分页，则转移到首格首段，保留表格在该页开始的位置；页首不生成额外空页。其他单元格的段前分页仍受原有布局保护。
 
@@ -1015,7 +1029,7 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 默认面板提供两个阈值、条色、显示值开关和最短/最长条长；新增、完整修改/删除、优先级及局部清除沿同一规则事务。只改阈值时保留未变的主题/索引色，不分配 dxf 或基础单元格样式。showValue 为 false 只隐藏网格/PDF 文字，值、公式、查询的逻辑 display 和原生输入保留；自动尺寸仍按实际值及有效文字格式计算。实现归 [conditional-bar.mbt](../../modules/formats/src/xlsx/conditional-bar.mbt)。
 
-共享绘制使用 `GradientRectangle(rect, startColor, endColor)` 和 `gradientRect` 命令，均为从左到右的 RGB 渐变；反向条交换颜色和起点。矩形坐标须有限、绝对值不超过 10^9，宽高非负，颜色为六位 RGB。Canvas 使用线性渐变，PDF 使用经矩形裁剪的轴向 shading，复用已有变换/裁剪；PDF 相同颜色对共享资源，最多 4096 对，保留总输出预算。背景先绘制，随后数据条、边框和文字。实现归 [layout/gradient.mbt](../../modules/layout/src/gradient.mbt) 与 [pdf/write-gradient.mbt](../../modules/formats/src/pdf/write-gradient.mbt)。
+共享绘制使用 `GradientRectangle(rect, stops)` 和 `gradientRect` 命令，均为从左到右的 RGB 渐变。`stops` 含 2–32 项 `{ position, color }`；位置须有限、位于 0–1 并按非递减顺序排列，颜色为六位 RGB。同位置色标形成突变，首尾外侧延续端点颜色。数据条仍使用两个端点，反向条交换颜色和起点。矩形坐标须有限、绝对值不超过 10^9，宽高非负。Canvas 按顺序添加色标，PDF 使用经矩形裁剪的轴向 shading，以 Type 3 函数拼接 Type 2 插值，复用已有变换/裁剪；PDF 相同色标序列共享资源，最多 4096 组，保留总输出预算。背景先绘制，随后数据条、边框和文字。实现归 [layout/gradient.mbt](../../modules/layout/src/gradient.mbt) 与 [pdf/write-gradient.mbt](../../modules/formats/src/pdf/write-gradient.mbt)。
 
 网格、查询 `display`、自动适配和打印使用同一有效样式。依赖格输入或公式结果改变时，自动行/数值 bestFit 列按条件样式重算，与原编辑共享一次历史；固定尺寸保持原值。规则 XML、`dxf`、基础格式和范围外部件保留，保存重开继续计算。合并格按锚点求值。
 
@@ -1396,11 +1410,11 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 尺寸、页面和设计部件合为一次有界历史。相同实际尺寸不新增历史；旧 revision、活动候选、保护、坐标越界和输出/历史预算失败原子拒绝。图表/表格等未知页面对象、未知变换坐标和非空参考线暂时保护尺寸调整。未知部件与原有源片段保留。保存重开及 Canvas/PDF 使用相同的新尺寸和几何；反复改变比例可能产生 EMU 取整，撤销恢复原始源字节。
 
-页面背景使用 `PresentationEditor.editSlides({ action: "background", value }, slide?)`。`value` 是 `PptxBackgroundFill`：纯色为 `{ kind: "solid", color }`，线性渐变为 `{ kind: "linear", startColor, endColor, angle, scaled }`，颜色均为不带 `#` 的六位 RGB。`null` 移除本页背景并恢复版式、母版继承。`query.background` 返回有效 `value`、本页是否设置 `explicit` 与保护原因 `reason`；没有背景时返回白色纯色。`value` 的查询类型为 `PptxBackground`，还包含下节的图片背景；两个类型均由 `wasm/pptx` 和 `web/pptx` 导出。核心使用 `BackgroundFill`。
+页面背景使用 `PresentationEditor.editSlides({ action: "background", value }, slide?)`。`value` 是 `PptxBackgroundFill`：纯色为 `{ kind: "solid", color }`，线性渐变为 `{ kind: "linear", stops, angle, scaled }`。`stops` 含 2–32 项 `{ position, color }`，颜色均为不带 `#` 的六位 RGB。`null` 移除本页背景并恢复版式、母版继承。`query.background` 返回有效 `value`、本页是否设置 `explicit` 与保护原因 `reason`；没有背景时返回白色纯色。`value` 的查询类型为 `PptxBackground`，还包含下节的图片背景；两个类型均由 `wasm/pptx` 和 `web/pptx` 导出。核心使用 `BackgroundFill`。
 
-渐变使用位置 0 和 100000 的两个不透明色标。`angle` 为顺时针 0–360 度，核心舍入到 1/60000 度并把 360 规范为 0；0 从左至右，90 从上至下。`scaled` 必须为布尔值；true 按页面长宽比调整角度，false 保持实际角度。导入可解析主题/系统颜色及已有明暗变换，保留未改源；透明度、多色标、非端点色标、路径渐变、非零平铺矩形和复杂效果继续保护；图片背景见下节。有效背景随版式/母版继承，复制页与尺寸调整沿相同解析；修改背景不改对象身份或几何。角度规则依据 [ONLYOFFICE getGradientPoints](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/editorscommon.js#L15290-L15511)。
+渐变色标不透明，位置须有限、位于 0–1 并按非递减顺序排列。核心将位置舍入到 1/100000，写入原生整数位置，不自动排序。同位置色标形成突变，首尾可以位于内部，外侧延续对应端点颜色。`angle` 为顺时针 0–360 度，核心舍入到 1/60000 度并把 360 规范为 0；0 从左至右，90 从上至下。`scaled` 必须为布尔值；true 按页面长宽比调整角度，false 保持实际角度。导入可解析主题/系统颜色及已有明暗变换，保留未改源；透明度、路径渐变、非零平铺矩形和复杂效果继续保护；图片背景见下节。有效背景随版式/母版继承，复制页与尺寸调整沿相同解析；修改背景不改对象身份或几何。角度规则依据 [ONLYOFFICE getGradientPoints](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/editorscommon.js#L15290-L15511)。
 
-操作复用 revision、候选保护、输出预算和精确撤销重做；本页已有相同有效背景时为无操作。默认面板提供背景类型、两色/角度/比例设置和恢复继承；原生文字编辑保留尚未应用的背景草稿。核心复用现有矩阵与水平渐变原语生成任意方向，Canvas/PDF 不解析 DrawingML。12 项定向核心、两条 Chromium 流程检查继承、方向/比例、源保真、历史、重开输入、真实 Canvas 颜色及独立 PDF 渲染颜色。其他背景与母版编辑仍待实现；主题颜色和字体见下节。修改本页背景的语义参考 [ONLYOFFICE Slide.changeBackground](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L825-L829)，实现归 [`background-fill.mbt`](../../modules/formats/src/pptx/background-fill.mbt)和 [`slide-background.mbt`](../../modules/formats/src/pptx/slide-background.mbt)。
+操作复用 revision、候选保护、输出预算和精确撤销重做；本页已有相同有效背景时为无操作。默认面板提供背景类型、色标增删、位置/颜色、角度/比例设置和恢复继承；原生文字编辑保留尚未应用的背景草稿。核心复用现有矩阵与水平渐变原语生成任意方向，Canvas/PDF 不解析 DrawingML。定向检查覆盖继承、方向/比例、色标与突变、源保真、历史、重开输入、真实 Canvas 颜色及独立 PDF 渲染颜色，证据归[测试说明](testing.md)。其他背景与母版编辑仍待实现；主题颜色和字体见下节。修改本页背景的语义参考 [ONLYOFFICE Slide.changeBackground](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L825-L829)，实现归 [`background-fill.mbt`](../../modules/formats/src/pptx/background-fill.mbt)和 [`slide-background.mbt`](../../modules/formats/src/pptx/slide-background.mbt)。
 
 ### 图片背景
 
@@ -1550,11 +1564,11 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `editPptxObjects` / `PresentationEditor.editObjects` 支持 `{ action: "fill", color }` 和 `{ action: "stroke", color, width }`。颜色为不带 `#` 的六位 RGB，核心统一小写；null 写显式 `noFill`，表示无填充或无边框。宽度为 0.1–1000 pt，舍入到整数 EMU。操作作用于对象模式下所选的本地顶层形状，包含文本框和基本形状；多选原子提交为一次历史。查询中每个对象带 `appearance: { fill, gradient, imageFill, imageFillMode, imageFillReason, stroke, width, fillOpacity, strokeOpacity, fillOpacityReason, strokeOpacityReason, dash, dashReason, cap, join, miterLimit, penReason, reason }`，颜色为有效 RGB 或 null，宽度为有效 pt，reason 说明保护原因。默认 UI 显示混合状态，分别应用填充和边框，草稿随选择或实际外观值更新。
 
-修改只覆盖目标属性，保留几何、顺序、身份、文字、其他线条属性与部件。缺失的填充/边框按 DrawingML 顺序创建，空边框保留原属性；填充覆盖会关闭 `useBgFill`。直接设置相同值不增加历史；候选、过期 revision、锁定、未知填充属性/注释及预算失败不提交任何成员。组、组内对象、继承装饰和图片仍受保护，多色标/透明/径向渐变及复杂效果编辑待扩展；图片拉伸填充见下节。纯色与受支持线型沿共同 Canvas/静态 PDF 路径绘制。实现参考 [ONLYOFFICE CShape.changeFill/changeLine](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L6421-L6461) 的局部属性覆盖及背景填充处理。
+修改只覆盖目标属性，保留几何、顺序、身份、文字、其他线条属性与部件。缺失的填充/边框按 DrawingML 顺序创建，空边框保留原属性；填充覆盖会关闭 `useBgFill`。直接设置相同值不增加历史；候选、过期 revision、锁定、未知填充属性/注释及预算失败不提交任何成员。组、组内对象、继承装饰和图片仍受保护，透明/径向渐变及复杂效果编辑待扩展；图片拉伸填充见下节。纯色与受支持线型沿共同 Canvas/静态 PDF 路径绘制。实现参考 [ONLYOFFICE CShape.changeFill/changeLine](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L6421-L6461) 的局部属性覆盖及背景填充处理。
 
-`editObjects({ action: "gradientFill", startColor, endColor, angle, scaled })` 将所选本地顶层形状设为双色线性渐变。颜色为六位 RGB，角度为 0–360° 并按 1/60000° 舍入，360° 归一为 0°；`scaled` 为必需布尔值。角度及比例规则复用[页面背景](#pptx)，保留形状的轮廓、调节点、几何、描边和文字，随对象旋转/翻转。默认外观面板提供类型、两色、角度和按形状比例缩放。查询 `appearance.gradient` 返回 `{ kind: "linear", startColor, endColor, angle, scaled }` 或 null；渐变时 `fill` 为 null、`fillOpacity` 为 1，填充不透明度命令受保护，纯色描边仍可调整。纯色/无填充命令可替换已有受支持渐变。
+`editObjects({ action: "gradientFill", stops, angle, scaled })` 将所选本地顶层形状设为多色标线性渐变。色标使用[页面背景](#pptx)的 2–32 项不透明颜色与位置规则。角度为 0–360° 并按 1/60000° 舍入，360° 归一为 0°；`scaled` 为必需布尔值。角度及比例规则复用页面背景，保留形状的轮廓、调节点、几何、描边和文字，随对象旋转/翻转。默认外观面板与背景共用色标增删、位置/颜色控件，另有类型、角度和按形状比例缩放。查询 `appearance.gradient` 返回 `{ kind: "linear", stops, angle, scaled }` 或 null；渐变时 `fill` 为 null、`fillOpacity` 为 1，填充不透明度命令受保护，纯色描边仍可调整。纯色/无填充命令可替换已有受支持渐变。
 
-读取本地、版式/母版继承及主题的两端点不透明渐变；源的 `rotWithShape` 为缺省/真值，固定页面方向、多色标、透明、路径渐变、非零 tileRect 或未知标记保留源并诊断。操作先校验全部成员，复用原子源事务、无操作和精确历史；非法值、保护成员和输出预算失败保持整个文档。新增定位图元 `ClipPath(path, evenOdd)` 复用既有绘制命令，Canvas/PDF 沿相同预设路径裁剪，矩形以外区域及后续图元保持原样。实现归 [`shape-gradient.mbt`](../../modules/formats/src/pptx/shape-gradient.mbt)；参考 [ONLYOFFICE 形状渐变绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L1970-L2037)。
+读取本地、版式/母版继承及主题的 2–32 项不透明渐变色标；源的 `rotWithShape` 为缺省/真值，固定页面方向、透明、路径渐变、非零 tileRect 或未知标记保留源并诊断。操作先校验全部成员，复用原子源事务、无操作和精确历史；非法值、保护成员和输出预算失败保持整个文档。定位图元 `ClipPath(path, evenOdd)` 复用既有绘制命令，Canvas/PDF 沿相同预设路径裁剪，矩形以外区域及后续图元保持原样。实现归 [`shape-gradient.mbt`](../../modules/formats/src/pptx/shape-gradient.mbt)；参考 [ONLYOFFICE 形状渐变绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L1970-L2037)的逐色标位置绘制。
 
 ### 图片目标内缩
 

@@ -15,7 +15,7 @@ import {
 // Types and methods
 pub(all) enum BackgroundFill {
   Solid(String)
-  Linear(String, String, Double, Bool)
+  Linear(Array[@layout.GradientStop], Double, Bool)
   Picture(String, Array[Double], Double, ImageTile?, Array[Double])
 } derive(Eq, @debug.Debug)
 pub fn BackgroundFill::equal(Self, Self) -> Bool
@@ -94,7 +94,7 @@ pub(all) enum ObjectEdit {
   Group
   Ungroup
   Fill(String?)
-  GradientFill(String, String, Double, Bool)
+  GradientFill(Array[@layout.GradientStop], Double, Bool)
   FillOpacity(Double)
   StrokeOpacity(Double)
   Stroke(String?, Double)

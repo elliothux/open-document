@@ -42,7 +42,7 @@ P4 编辑 API 提供 `editState()`、`selectDocx(revision, selection)`、`select
 
 `@open-document/web/editor` 提供 `DocumentEditor.create(root, client, profile, signal?)`。调用者先供应字体并打开 DOCX，组件存活期间独占 client 操作。`dispose(): Promise<void>` 关闭 UI/监听器，等待在途回复并取消自身未提交组合；调用方须 await 后再复用或关闭 client。已发送的最终提交可能成功，不自动回滚。
 
-`whenIdle()` 等待已接受意图；`saveDocx()` 和 `exportPdf(outputBytes?)` 返回屏障处的 `EditorOutput`，PDF 绑定已显示 layout ID。`downloadDocx()` / `downloadPdf()` 记录下载生成，`setZoom()` 调整显示。公开 `undo/redo`、`goToPage`、`copy(cut?)`、`paste(text)` 使用同一队列。组件保留点击/拖选、键盘输入与导航、拆合普通段落和组合输入。输出/状态归[格式合同](formats.md#默认-ui-与编辑宿主)，输入范围与恢复归 [P4 合同](formats.md#p4-当前编辑-api-切片)。Shift+Enter 和富 HTML/RTF 粘贴不支持。
+`whenIdle()` 等待已接受意图；`saveDocx()` 和 `exportPdf(outputBytes?)` 返回屏障处的 `EditorOutput`，PDF 绑定已显示 layout ID。`downloadDocx()` / `downloadPdf()` 记录下载生成，`setZoom()` 调整显示。公开 `undo/redo`、`goToPage`、`copy(cut?)`、`paste(text)` 使用同一队列。组件保留点击/拖选、键盘输入与导航、拆合普通段落和组合输入。Shift+Enter 插入软换行，Ctrl/Cmd+Enter 插入分页符，Ctrl/Cmd+Shift+Enter 插入分栏符；参数控件保留浏览器焦点切换。输出、当前输入范围与恢复归[格式合同](formats.md#默认-ui-与编辑宿主)及[当前格式编辑](formats.md#p10-当前格式编辑)。富 HTML/RTF 粘贴继续实施。
 
 普通 Chrome 系统输入的绑定产物与独立保存记录在私有 `cases/p4-native-input-current.json`。这不授予所有输入法或完整布局支持。[P4](../implemented/p4-docx-editing.md) 已按限定范围归档，性能专项延后。
 

@@ -1,4 +1,5 @@
 export const pageEn = {
+  columnBreak: "Insert column break",
   pageColumns: "Page columns",
   columnCount: "Column count",
   columnGap: "Column gap (pt)",
@@ -14,6 +15,7 @@ export const pageEn = {
   inheritedPageNumberFormat: "Use section format",
 };
 export const pageZh = {
+  columnBreak: "插入分栏符",
   pageColumns: "页面分栏",
   columnCount: "栏数",
   columnGap: "栏间距（磅）",

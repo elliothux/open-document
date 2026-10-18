@@ -247,12 +247,7 @@ fn Session::paragraph(
       }
       let text = match item.name {
         "t" => item.text
-        "br" =>
-          if item.attribute("type", uri=word_uri) == Some("page") {
-            "\u000c"
-          } else {
-            "\n"
-          }
+        "br" => inline_text(item).replace_all(old="\u2028", new="\n")
         "cr" => "\n"
         "tab" => "\t"
         "drawing" => "\ufffc"

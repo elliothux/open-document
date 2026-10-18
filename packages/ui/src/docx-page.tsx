@@ -90,7 +90,7 @@ export function DocxPage({
                 max={12}
                 step={1}
                 required
-                value={columns.count}
+                value={Number.isFinite(columns.count) ? columns.count : ""}
                 onChange={(event) =>
                   setColumns({
                     ...columns,
@@ -107,7 +107,7 @@ export function DocxPage({
                 max={14400}
                 step={0.05}
                 required
-                value={columns.gap}
+                value={Number.isFinite(columns.gap) ? columns.gap : ""}
                 onChange={(event) =>
                   setColumns({
                     ...columns,

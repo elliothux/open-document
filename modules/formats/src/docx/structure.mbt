@@ -70,7 +70,7 @@ fn Session::prepare_empty(
   let prefix = parent.qualified[:parent.qualified.length() - 1].to_owned()
   let t = if text.contains("\u2028") ||
     text.contains("\t") ||
-    text.contains("\u000c") {
+    has_region_break(text) {
     inline_markup(text, self.opc.budget.entry_bytes.min(history_byte_limit / 2))
   } else {
     let escaped = @xml.escape_text(text)
@@ -456,7 +456,7 @@ fn WordTree::check_editable_paragraph(
       if node.name == "br" || node.name == "cr" || node.name == "tab" {
         guard self.children[content].is_empty() &&
           node.text.trim().is_empty() &&
-          ["textWrapping", "page"].contains(
+          ["textWrapping", "page", "column"].contains(
             node.attribute("type", uri=word_uri).unwrap_or("textWrapping"),
           ) &&
           node.attribute("clear", uri=word_uri).unwrap_or("none") == "none" &&

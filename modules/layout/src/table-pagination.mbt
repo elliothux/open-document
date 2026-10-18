@@ -132,7 +132,6 @@ fn Pagination::table_rows(
   images : Images,
   additive : Bool,
 ) -> Unit raise @failure.Failure {
-  let left = table.left(self.page)
   let first = table.rows[first_row].get(0).bind(cell => cell.get(0))
   if first_row == 0 &&
     first.map(p => p.pageBreakBefore).unwrap_or(false) &&
@@ -140,7 +139,7 @@ fn Pagination::table_rows(
       self.pages.last().unwrap().lines.any(line => !line.caretOnly) ||
       !self.pages.last().unwrap().borders.is_empty()
     ) {
-    self.next_page()
+    self.sheet_break()
   }
   let (heights, cells) = table.measure_rows(
     cache,
@@ -180,6 +179,7 @@ fn Pagination::table_rows(
     images,
     additive,
   )
+  let left = table.left(self.page)
   for (row, column, lines, content_height) in cells {
     let start = row - first_row
     let y = self.y +

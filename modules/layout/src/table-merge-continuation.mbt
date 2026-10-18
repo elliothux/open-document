@@ -187,7 +187,7 @@ fn Pagination::continue_table_group(
   let capacities : Array[Double] = []
   let page_starts : Array[Double] = [0]
   let base_page = self.pages.length() - 1
-  for index in base_page..<1024 {
+  for index in base_page..<(1024 * self.columns.count) {
     let page = self.page_at(index)
     let capacity = page.height - page.top - page.bottom - bottom - header_height
     guard capacity > 0 else {
@@ -262,7 +262,6 @@ fn Pagination::continue_table_group(
       self.y = repeated.y
     }
   }
-  let left = table.left(self.page)
   // Row boundaries are settled before painting merged cells or their content.
   for row in first_row..<=last_row {
     let start = starts[row - first_row]
@@ -276,7 +275,7 @@ fn Pagination::continue_table_group(
         self.pages[base_page + page],
         row,
         row,
-        left,
+        table.left(self.page_at(base_page + page)),
         space.y(a, page),
         [b - a],
       )
@@ -288,9 +287,9 @@ fn Pagination::continue_table_group(
     let first_page = space.index(start)
     let last_page = space.index((end - 0.000001).max(start))
     let width = table.cell_width(row, column)
-    let mut x = left
+    let mut offset = 0.0
     for previous in 0..<column {
-      x += table.cell_width(row, previous)
+      offset += table.cell_width(row, previous)
     }
     let text_page = positioned[index]
       .get(0)
@@ -310,6 +309,7 @@ fn Pagination::continue_table_group(
       _ => 0
     }
     for page in first_page..<=last_page {
+      let x = table.left(self.page_at(base_page + page)) + offset
       let a = start.max(space.start(page))
       let b = end.min(space.start(page + 1))
       let frame = self.pages[base_page + page]
@@ -342,6 +342,7 @@ fn Pagination::continue_table_group(
     }
     for (line, position) in positioned[index] {
       let page = if position >= end { last_page } else { space.index(position) }
+      let x = table.left(self.page_at(base_page + page)) + offset
       let a = start.max(space.start(page))
       let b = end.min(space.start(page + 1))
       let line = if table.exactHeights[row + table.rowSpans[row][column] - 1] {

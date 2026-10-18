@@ -214,8 +214,7 @@ fn Foundation::pptx_operation(
             { "value": { "kind": String("linear"), .. } as value, .. } =>
               Some(
                 @pptx.Linear(
-                  field_string(value, "startColor"),
-                  field_string(value, "endColor"),
+                  pptx_gradient_stops(value),
                   xlsx_number(value, "angle"),
                   xlsx_boolean(value, "scaled"),
                 ),
@@ -407,8 +406,7 @@ fn Foundation::pptx_operation(
         "fillOpacity" => @pptx.FillOpacity(xlsx_number(change, "opacity"))
         "gradientFill" =>
           @pptx.GradientFill(
-            field_string(change, "startColor"),
-            field_string(change, "endColor"),
+            pptx_gradient_stops(change),
             xlsx_number(change, "angle"),
             xlsx_boolean(change, "scaled"),
           )
@@ -601,6 +599,31 @@ fn pptx_image_insets(change : Json) -> Array[Double] raise @failure.Failure {
       Number(value, ..) => value
       _ =>
         @failure.reject("invalid-operation", "Invalid image destination inset")
+    }
+  })
+}
+
+///|
+fn pptx_gradient_stops(
+  value : Json,
+) -> Array[@layout.GradientStop] raise @failure.Failure {
+  guard value is { "stops": Array(stops), .. } &&
+    stops.length() >= 2 &&
+    stops.length() <= 32 else {
+    @failure.reject("invalid-operation", "Gradients require 2..32 stops")
+  }
+  stops.map(stop => {
+    guard stop is Object(fields) &&
+      fields.length() == 2 &&
+      fields.contains("position") &&
+      fields.contains("color") else {
+      @failure.reject(
+        "invalid-operation", "Gradient stops require a position and color",
+      )
+    }
+    {
+      position: xlsx_number(stop, "position"),
+      color: field_string(stop, "color"),
     }
   })
 }

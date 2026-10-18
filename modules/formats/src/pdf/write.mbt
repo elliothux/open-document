@@ -90,12 +90,12 @@ pub fn write(
       let mut scopes = 0
       for primitive in frame.primitives {
         match primitive {
-          GradientRectangle(rect, start, end) => {
-            @layout.validate_gradient(rect, start, end)
+          GradientRectangle(rect, stops) => {
+            @layout.validate_gradient(rect, stops)
             if rect.width == 0 || rect.height == 0 {
               continue
             }
-            let key = start.to_lower() + end.to_lower()
+            let key = Json(stops).stringify()
             let entry = gradients
               .get(key)
               .unwrap_or_else(() => {
@@ -105,7 +105,7 @@ pub fn write(
                 let entry = (
                   "G\{gradients.length()}",
                   @syntax.PdfIndirect(
-                    document.add_object(gradient_shading(start, end)),
+                    document.add_object(gradient_shading(stops)),
                   ),
                 )
                 gradients[key] = entry
@@ -345,7 +345,11 @@ pub fn write(
               (
                 "ActualText",
                 @syntax.PdfString(
-                  utf16_bytes(line.text.replace_all(old="\u000c", new="")),
+                  utf16_bytes(
+                    line.text
+                    .replace_all(old="\u000b", new="")
+                    .replace_all(old="\u000c", new=""),
+                  ),
                 ),
               ),
             ])

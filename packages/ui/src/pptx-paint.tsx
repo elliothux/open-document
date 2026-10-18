@@ -1,9 +1,110 @@
 import { useState } from "react";
 import type { PresentationEditor } from "@open-document/web/presentation-editor";
-import type { PptxDash, PptxCap, PptxJoin } from "@open-document/web/pptx";
+import type {
+  PptxDash,
+  PptxCap,
+  PptxJoin,
+  PptxBackgroundFill,
+} from "@open-document/web/pptx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { PptxLineEnds } from "./pptx-line-ends.js";
+
+type Stops = Extract<PptxBackgroundFill, { kind: "linear" }>["stops"];
+
+export function GradientStops({
+  stops,
+  onChange,
+  state,
+  disabled,
+  firstLabel,
+}: {
+  stops: Stops;
+  onChange: (stops: Stops) => void;
+  state: UiSnapshot;
+  disabled?: boolean;
+  firstLabel: string;
+}) {
+  const t = messages(state.locale);
+  return (
+    <fieldset disabled={disabled}>
+      <legend>{t.gradientStops}</legend>
+      {stops.map((stop, index) => (
+        <div key={index}>
+          <label>
+            {index === 0
+              ? firstLabel
+              : index === stops.length - 1
+                ? t.gradientEnd
+                : `${t.gradientColor} ${index + 1}`}
+            <input
+              type="color"
+              value={`#${stop.color}`}
+              onChange={(event) =>
+                onChange(
+                  stops.map((item, i) =>
+                    i === index
+                      ? { ...item, color: event.currentTarget.value.slice(1) }
+                      : item,
+                  ),
+                )
+              }
+            />
+          </label>
+          <label>
+            {t.gradientPosition} {index + 1}
+            <input
+              type="number"
+              required
+              min={(stops[index - 1]?.position ?? 0) * 100}
+              max={(stops[index + 1]?.position ?? 1) * 100}
+              step={0.001}
+              value={Number.isFinite(stop.position) ? stop.position * 100 : ""}
+              onChange={(event) =>
+                onChange(
+                  stops.map((item, i) =>
+                    i === index
+                      ? {
+                          ...item,
+                          position: event.currentTarget.valueAsNumber / 100,
+                        }
+                      : item,
+                  ),
+                )
+              }
+            />
+          </label>
+          <button
+            type="button"
+            disabled={stops.length <= 2}
+            aria-label={`${t.removeGradientStop} ${index + 1}`}
+            onClick={() => onChange(stops.filter((_, i) => i !== index))}
+          >
+            {t.removeGradientStop}
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        disabled={stops.length >= 32}
+        onClick={() => {
+          const last = stops[stops.length - 1]!,
+            previous = stops[stops.length - 2]!;
+          onChange([
+            ...stops.slice(0, -1),
+            {
+              position: (last.position + previous.position) / 2,
+              color: last.color,
+            },
+            last,
+          ]);
+        }}
+      >
+        {t.addGradientStop}
+      </button>
+    </fieldset>
+  );
+}
 
 export function PptxPaint({
   controller,
@@ -23,7 +124,7 @@ export function PptxPaint({
   );
   const first = objects[0]?.appearance;
   const [fill, setFill] = useState(
-    `#${first?.gradient?.startColor ?? first?.fill ?? "336699"}`,
+    `#${first?.gradient?.stops[0]?.color ?? first?.fill ?? "336699"}`,
   );
   const [fillType, setFillType] = useState<"solid" | "linear" | "image">(
     first?.imageFill ? "image" : first?.gradient ? "linear" : "solid",
@@ -31,8 +132,11 @@ export function PptxPaint({
   const [imageMode, setImageMode] = useState<"stretch" | "tile">(
     first?.imageFillMode ?? "stretch",
   );
-  const [endColor, setEndColor] = useState(
-    `#${first?.gradient?.endColor ?? "ffffff"}`,
+  const [stops, setStops] = useState<Stops>(
+    first?.gradient?.stops ?? [
+      { position: 0, color: fill.slice(1) },
+      { position: 1, color: "ffffff" },
+    ],
   );
   const [angle, setAngle] = useState(String(first?.gradient?.angle ?? 0));
   const [scaled, setScaled] = useState(first?.gradient?.scaled ?? true);
@@ -167,8 +271,7 @@ export function PptxPaint({
               fillType === "linear" && !noFill
                 ? {
                     action: "gradientFill",
-                    startColor: fill.slice(1),
-                    endColor: endColor.slice(1),
+                    stops,
                     angle: Number(angle),
                     scaled,
                   }
@@ -187,6 +290,15 @@ export function PptxPaint({
             value={fillType}
             onChange={(event) => {
               if (event.currentTarget.value === "image") setNoFill(false);
+              if (
+                event.currentTarget.value === "linear" &&
+                fillType === "solid"
+              )
+                setStops(
+                  stops.map((stop, index) =>
+                    index === 0 ? { ...stop, color: fill.slice(1) } : stop,
+                  ),
+                );
               setFillType(
                 event.currentTarget.value === "image"
                   ? "image"
@@ -266,26 +378,26 @@ export function PptxPaint({
             </label>
           </>
         )}
-        <label>
-          {t.shapeFill}
-          <input
-            type="color"
-            value={fill}
-            disabled={noFill || fillType === "image"}
-            onChange={(event) => setFill(event.currentTarget.value)}
-          />
-        </label>
+        {fillType !== "linear" && (
+          <label>
+            {t.shapeFill}
+            <input
+              type="color"
+              value={fill}
+              disabled={noFill || fillType === "image"}
+              onChange={(event) => setFill(event.currentTarget.value)}
+            />
+          </label>
+        )}
         {fillType === "linear" && (
           <>
-            <label>
-              {t.gradientEnd}
-              <input
-                type="color"
-                value={endColor}
-                disabled={noFill}
-                onChange={(event) => setEndColor(event.currentTarget.value)}
-              />
-            </label>
+            <GradientStops
+              stops={stops}
+              onChange={setStops}
+              state={state}
+              disabled={noFill}
+              firstLabel={t.shapeFill}
+            />
             <label>
               {t.gradientAngle}
               <input

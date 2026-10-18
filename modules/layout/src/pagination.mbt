@@ -228,7 +228,7 @@ fn Pagination::paragraph(
     profile,
     self.page.width - self.page.left - self.page.right,
   )
-  if paragraph.keepLines && !measured_lines.any(line => line.line.y == -1) {
+  if paragraph.keepLines && !measured_lines.any(line => line.line.y < 0) {
     let mut height = 0.0
     let mut first_line = true
     for measured in measured_lines {
@@ -249,6 +249,7 @@ fn Pagination::paragraph(
     }
   }
   let mut ended_with_break = false
+  let mut ended_with_page_break = false
   let mut first = true
   let breaks = self.widow_breaks(paragraph, measured_lines)
   for index, measured in measured_lines {
@@ -257,12 +258,15 @@ fn Pagination::paragraph(
       first = true
     }
     let mut line = measured.spaced(paragraph.line, first)
-    if line.text.is_empty() && line.marker.is_empty() && line.y == -1 {
+    if line.text.is_empty() && line.marker.is_empty() && line.y < 0 {
       self.place(line, self.page.left, self.y, images)
-      if !ended_with_break {
+      if line.y == -2 {
+        self.next_page()
+      } else if !ended_with_page_break {
         self.sheet_break()
       }
       ended_with_break = true
+      ended_with_page_break = line.y == -1
       first = true
       continue
     }
@@ -279,9 +283,14 @@ fn Pagination::paragraph(
     self.y += line.height
     self.gap = paragraph.line.gap(measured.textHeight)
     first = false
-    ended_with_break = line.y == -1
-    if line.y == -1 {
-      self.sheet_break()
+    ended_with_break = line.y < 0
+    ended_with_page_break = line.y == -1
+    if line.y < 0 {
+      if line.y == -2 {
+        self.next_page()
+      } else {
+        self.sheet_break()
+      }
       first = true
     }
   }

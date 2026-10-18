@@ -248,6 +248,7 @@ pub fn Session::set_page_setup(
     Some(id) => tree.page_values(id, default_page_setup())
     None => default_page_setup()
   }
+  ignore(tree.page_columns(section).width(page))
   if current.width == page.width &&
     current.height == page.height &&
     current.top == page.top &&

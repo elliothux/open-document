@@ -38,10 +38,10 @@ fn docx_texts(tree : WordTree) -> Array[TextNode] {
 fn inline_text(node : @xml.Node) -> String {
   match node.name {
     "br" =>
-      if node.attribute("type", uri=word_uri) == Some("page") {
-        "\u000c"
-      } else {
-        "\u2028"
+      match node.attribute("type", uri=word_uri) {
+        Some("column") => "\u000b"
+        Some("page") => "\u000c"
+        _ => "\u2028"
       }
     "cr" => "\u2028"
     "tab" => "\t"

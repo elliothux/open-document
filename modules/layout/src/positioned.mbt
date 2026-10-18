@@ -45,7 +45,7 @@ pub fn PathStyle::validate(self : PathStyle) -> Unit raise @failure.Failure {
 ///|
 pub(all) enum PositionedPrimitive {
   Rectangle(Fill)
-  GradientRectangle(Border, String, String)
+  GradientRectangle(Border, Array[GradientStop])
   Stroke(Border, String, Double)
   Text(PositionedText)
   Image(PlacedImage, Double)
@@ -117,9 +117,9 @@ pub fn PositionedDocument::drawing(
     for primitive in page.primitives {
       match primitive {
         Rectangle(fill) => commands.push(FillRect(fill))
-        GradientRectangle(rect, start, end) => {
-          validate_gradient(rect, start, end)
-          commands.push(GradientRect(rect, start, end))
+        GradientRectangle(rect, stops) => {
+          validate_gradient(rect, stops)
+          commands.push(GradientRect(rect, stops))
         }
         Stroke(rect, color, width) =>
           commands.push(StrokeRect(rect, color, width))

@@ -47,7 +47,10 @@ export function points(value: unknown, max = 4): void {
     number(p.y, -1e9, 1e9);
   }
 }
-import { checkPptxBackgroundFill } from "./pptx-slides.js";
+import {
+  checkPptxBackgroundFill,
+  type PptxBackgroundFill,
+} from "./pptx-slides.js";
 import {
   checkPptxTextFormat,
   checkPptxParagraphFormat,
@@ -217,8 +220,7 @@ export type PptxObjectEdit =
   | { action: "fill"; color: string | null }
   | {
       action: "gradientFill";
-      startColor: string;
-      endColor: string;
+      stops: Extract<PptxBackgroundFill, { kind: "linear" }>["stops"];
       angle: number;
       scaled: boolean;
     }
@@ -426,17 +428,13 @@ export function checkPptxObjectEdit(value: unknown): void {
   if (change.action === "gradientFill") {
     if (
       Object.keys(change).some(
-        (key) =>
-          !["action", "startColor", "endColor", "angle", "scaled"].includes(
-            key,
-          ),
+        (key) => !["action", "stops", "angle", "scaled"].includes(key),
       )
     )
       throw new Error("Invalid shape gradient fields");
     checkPptxBackgroundFill({
       kind: "linear",
-      startColor: change.startColor,
-      endColor: change.endColor,
+      stops: change.stops,
       angle: change.angle,
       scaled: change.scaled,
     });

@@ -95,6 +95,8 @@ export * from "./docx-theme.js";
 export const DOCX_SOFT_BREAK = "\u2028";
 /** Logical page break; serialized as w:br w:type="page", never as an XML control character. */
 export const DOCX_PAGE_BREAK = "\u000c";
+/** Logical column break; serialized as w:br w:type="column". */
+export const DOCX_COLUMN_BREAK = "\u000b";
 import {
   docxFlow,
   pageLayout,

@@ -63,9 +63,15 @@ fn paragraph_lines(
   let mut ascent = 0.0
   let mut descent = 0.0
   for span in paragraph.spans {
-    // ONLYOFFICE retains cell page-break offsets without forcing a line or page.
-    let span = if inTable && span.text.contains("\u000c") {
-      { ..span, text: span.text.replace_all(old="\u000c", new="\u2060"), }
+    // ONLYOFFICE retains cell page/column-break offsets without forcing a line.
+    let span = if inTable &&
+      (span.text.contains("\u000b") || span.text.contains("\u000c")) {
+      {
+        ..span,
+        text: span.text
+        .replace_all(old="\u000b", new="\u2060")
+        .replace_all(old="\u000c", new="\u2060"),
+      }
     } else {
       span
     }
@@ -183,7 +189,11 @@ fn paragraph_lines(
     legal[boundary] = kind is @linebreak.Mandatory
     if kind is @linebreak.Mandatory {
       let visible = if boundary > segment &&
-        (text[boundary - 1] == 10 || text[boundary - 1] == 12) {
+        (
+          text[boundary - 1] == 10 ||
+          text[boundary - 1] == 11 ||
+          text[boundary - 1] == 12
+        ) {
         boundary - 1
       } else {
         boundary
@@ -290,7 +300,7 @@ fn paragraph_lines(
     let fitted_width = for ;; {
       let visible = if forced &&
         end > start &&
-        (text[end - 1] == 10 || text[end - 1] == 12) {
+        (text[end - 1] == 10 || text[end - 1] == 11 || text[end - 1] == 12) {
         end - 1
       } else {
         end
@@ -333,10 +343,11 @@ fn paragraph_lines(
       }
       forced = legal.get(end) == Some(true)
     }
-    let page_break = end > start && text[end - 1] == 12
+    let column_break = end > start && text[end - 1] == 11
+    let region_break = column_break || (end > start && text[end - 1] == 12)
     let visible_end = if forced &&
       end > start &&
-      (text[end - 1] == 10 || page_break) {
+      (text[end - 1] == 10 || region_break) {
       end - 1
     } else {
       end
@@ -444,7 +455,7 @@ fn paragraph_lines(
         text: source_text[start:visible_end].to_owned(),
         start,
         end,
-        caretOnly: page_break && visible_end == start,
+        caretOnly: region_break && visible_end == start,
         repeated: false,
         x: if paragraph.rtl {
           available - indent - alignment - width
@@ -453,7 +464,10 @@ fn paragraph_lines(
         },
         areaX: 0,
         areaWidth: available,
-        y: if page_break {
+        // Negative measured Y encodes a forced region transition until placement.
+        y: if column_break {
+          -2
+        } else if region_break {
           -1
         } else {
           0
@@ -477,7 +491,7 @@ fn paragraph_lines(
       },
     })
     if paragraph.align == "both" &&
-      !page_break &&
+      !region_break &&
       (end < text.length() || (end > start && text[end - 1] == 10)) &&
       !(end > start && text[end - 1] == 10 && !paragraph.expandSoftBreak) {
       let last = lines.length() - 1
@@ -512,7 +526,9 @@ fn paragraph_lines(
       first_grapheme += 1
     }
   }
-  if text.has_suffix("\n") || text.has_suffix("\u000c") {
+  if text.has_suffix("\n") ||
+    text.has_suffix("\u000b") ||
+    text.has_suffix("\u000c") {
     lines.push({
       textHeight: line_height,
       line: {
@@ -522,7 +538,7 @@ fn paragraph_lines(
         text: "",
         start,
         end: start,
-        caretOnly: text.has_suffix("\u000c"),
+        caretOnly: text.has_suffix("\u000b") || text.has_suffix("\u000c"),
         repeated: false,
         x: if paragraph.rtl {
           available - paragraph.left

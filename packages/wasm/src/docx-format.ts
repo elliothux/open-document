@@ -167,7 +167,7 @@ export function docxPageSettings(value: unknown): DocxPageSettings {
   checkDocxColumns(column.value);
   if (
     typeof column.reason !== "string" ||
-    (column.value === null && !column.reason)
+    (column.value === null) !== !!column.reason
   )
     throw new Error("Invalid DOCX column settings");
   const columns = {

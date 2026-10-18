@@ -46,7 +46,7 @@ pub fn DrawStyle::default() -> DrawStyle {
 ///|
 pub(all) enum DrawCommand {
   FillRect(Fill)
-  GradientRect(Border, String, String)
+  GradientRect(Border, Array[GradientStop])
   StrokeRect(Border, String, Double)
   Glyphs(Double, Double, String, Array[DrawGlyph])
   Image(PlacedImage)
@@ -62,13 +62,8 @@ pub(all) enum DrawCommand {
 pub impl ToJson for DrawCommand with fn to_json(self) {
   match self {
     FillRect(rect) => { "op": "fillRect", "rect": rect }
-    GradientRect(rect, start, end) =>
-      {
-        "op": "gradientRect",
-        "rect": rect,
-        "startColor": start,
-        "endColor": end,
-      }
+    GradientRect(rect, stops) =>
+      { "op": "gradientRect", "rect": rect, "stops": stops }
     StrokeRect(rect, color, width) =>
       { "op": "strokeRect", "rect": rect, "color": color, "lineWidth": width }
     Glyphs(x, y, color, glyphs) =>

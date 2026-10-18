@@ -9,6 +9,7 @@ import type {
 import {
   highlightColors,
   DOCX_PAGE_BREAK,
+  DOCX_COLUMN_BREAK,
   checkDocxHyperlink,
 } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
@@ -286,6 +287,11 @@ export function DocxFormatCommands({
           label={t.pageBreak}
           disabled={disabled}
           action={() => controller.run(() => editor.paste(DOCX_PAGE_BREAK))}
+        />
+        <Command
+          label={t.columnBreak}
+          disabled={disabled}
+          action={() => controller.run(() => editor.paste(DOCX_COLUMN_BREAK))}
         />
         <Command
           label={t.insertTab}

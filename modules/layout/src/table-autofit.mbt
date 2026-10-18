@@ -24,7 +24,9 @@ fn Paragraph::content_widths(
     let breaks : Map[Int, Bool] = Map([])
     for
       (offset, _) in @linebreak.linebreaks(
-        line.text.replace_all(old="\u000c", new="\u2060"),
+        line.text
+        .replace_all(old="\u000b", new="\u2060")
+        .replace_all(old="\u000c", new="\u2060"),
       ) {
       breaks[offset + line.start] = true
     }

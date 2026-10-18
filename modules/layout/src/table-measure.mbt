@@ -48,9 +48,9 @@ fn Table::measure_rows(
             inTable=true,
           ) {
           let line = measured.spaced(paragraph.line, first)
-          guard line.y != -1 else {
+          guard line.y >= 0 else {
             @failure.reject(
-              "unsupported-layout", "Page breaks inside table rows are unsupported",
+              "unsupported-layout", "Page or column breaks inside table rows are unsupported",
             )
           }
           lines.push((line, y, measured.spaced(paragraph.line, true)))

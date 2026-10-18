@@ -3,8 +3,8 @@ fn shape_gradient(
   fill : Ref,
   theme : Theme,
   placeholder : Ref?,
-) -> (String, String, Double, Bool) raise @failure.Failure {
-  let (start, end, angle, scaled) = linear_background_source(fill)
+) -> (Array[@layout.GradientStop], Double, Bool) raise @failure.Failure {
+  let (points, angle, scaled) = linear_background_source(fill)
   guard [None, Some("1"), Some("true")].contains(
     fill.node.attribute("rotWithShape"),
   ) else {
@@ -13,8 +13,10 @@ fn shape_gradient(
     )
   }
   (
-    color(theme, start, placeholder~),
-    color(theme, end, placeholder~),
+    points.map(point => {
+      position: point.1,
+      color: color(theme, point.0, placeholder~),
+    }),
     angle,
     scaled,
   )
@@ -26,7 +28,7 @@ fn Session::gradient_objects(
   value : BackgroundFill,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let value = value.normalized()
-  guard value is Linear(start, end, angle, scaled) else {
+  guard value is Linear(stops, angle, scaled) else {
     @failure.reject(
       "invalid-operation", "Shape gradient requires linear colors",
     )
@@ -48,7 +50,7 @@ fn Session::gradient_objects(
     let use_background = flag(object.source.node, "useBgFill")
     if child is Some(node) &&
       node.name == "gradFill" &&
-      object.gradient == Some((start, end, angle, scaled)) &&
+      object.gradient == Some((stops, angle, scaled)) &&
       !use_background {
       continue
     }

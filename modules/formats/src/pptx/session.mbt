@@ -511,7 +511,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
             Json::null()
           },
           "gradient": object.gradient
-          .map(g => Json(Linear(g.0, g.1, g.2, g.3)))
+          .map(g => Json(Linear(g.0, g.1, g.2)))
           .unwrap_or(Json::null()),
           "fillOpacity": object.fill_alpha,
           "strokeOpacity": object.stroke_alpha,

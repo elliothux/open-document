@@ -7,6 +7,34 @@ export interface DrawRect {
   height: number;
 }
 
+export interface GradientStop {
+  position: number;
+  color: string;
+}
+
+export function checkGradientStops(
+  value: unknown,
+): asserts value is GradientStop[] {
+  if (!Array.isArray(value) || value.length < 2 || value.length > 32)
+    throw new Error("Gradients require 2..32 stops");
+  let previous = 0;
+  for (const item of value) {
+    const stop = record(item);
+    if (
+      Object.keys(stop).length !== 2 ||
+      Object.keys(stop).some((key) => !["position", "color"].includes(key)) ||
+      typeof stop.position !== "number" ||
+      !Number.isFinite(stop.position) ||
+      stop.position < previous ||
+      stop.position > 1 ||
+      typeof stop.color !== "string" ||
+      !/^[0-9a-f]{6}$/iu.test(stop.color)
+    )
+      throw new Error("Invalid ordered gradient stop");
+    previous = stop.position;
+  }
+}
+
 export interface DrawGlyph {
   outline: string;
   x: number;
@@ -41,7 +69,7 @@ export type DrawCommand =
   | { op: "style"; style: DrawStyle }
   | { op: "clipPath"; path: PathSegment[]; evenOdd: boolean }
   | { op: "fillRect"; rect: DrawRect & { color: string } }
-  | { op: "gradientRect"; rect: DrawRect; startColor: string; endColor: string }
+  | { op: "gradientRect"; rect: DrawRect; stops: GradientStop[] }
   | { op: "strokeRect"; rect: DrawRect; color: string; lineWidth: number }
   | { op: "glyphs"; x: number; y: number; color: string; glyphs: DrawGlyph[] }
   | { op: "image"; image: DrawRect & { key: string } }
@@ -172,8 +200,10 @@ export function drawingBatch(value: unknown): DrawingBatch {
           break;
         case "gradientRect":
           rect(command.rect);
-          color(command.startColor);
-          color(command.endColor);
+          checkGradientStops(command.stops);
+          payload += command.stops.length;
+          if (payload > 1048576)
+            throw new Error("Drawing payload exceeds budget");
           break;
         case "strokeRect":
           rect(command.rect);
