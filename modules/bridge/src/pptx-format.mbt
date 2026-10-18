@@ -106,7 +106,7 @@ fn pptx_paragraph_format(
     .all(key => {
       [
         "left", "right", "first", "before", "after", "line", "list", "level", "rtl",
-        "listFont", "listSize", "listColor",
+        "listFont", "listSize", "listColor", "tabs", "defaultTab",
       ].contains(key)
     }) else {
     @failure.reject("invalid-operation", "Unknown paragraph format fields")
@@ -122,6 +122,42 @@ fn pptx_paragraph_format(
     fields.get(key).map(pptx_text_spacing)
   }
   @pptx.ParagraphFormat::new(
+    tabs?=fields
+      .get("tabs")
+      .map(v => {
+        if v is Null {
+          None
+        } else {
+          guard v is Array(tabs) && tabs.length() <= 32 else {
+            @failure.reject("invalid-operation", "Invalid paragraph tabs")
+          }
+          Some(
+            tabs.map(tab => {
+              guard tab is Object(values) &&
+                values.length() == 2 &&
+                values.contains("position") &&
+                values.contains("align") else {
+                @failure.reject(
+                  "invalid-operation", "Invalid paragraph tab fields",
+                )
+              }
+              @pptx.ParagraphTab::{
+                position: xlsx_number(tab, "position"),
+                align: field_string(tab, "align"),
+              }
+            }),
+          )
+        }
+      }),
+    default_tab?=fields
+      .get("defaultTab")
+      .map(v => {
+        if v is Null {
+          None
+        } else {
+          Some(xlsx_number(value, "defaultTab"))
+        }
+      }),
     rtl?=if fields.contains("rtl") {
       Some(xlsx_boolean(value, "rtl"))
     } else {

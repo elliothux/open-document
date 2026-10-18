@@ -371,6 +371,20 @@ fn read_text(
       list,
       level,
       bullet_size: bullet_size(styles),
+      tabs: read_paragraph_tabs(styles),
+      inherited_tabs: read_paragraph_tabs(
+        styles.filter(item => {
+          own
+          .map(p => p.tree.part != item.tree.part || p.node.id != item.node.id)
+          .unwrap_or(true)
+        }),
+      ),
+      default_tab: number(
+        attribute(styles, "defTabSz").unwrap_or("914400"),
+        0,
+        20116800,
+      ) /
+      12700,
       bullet_style: bullet_style(theme, styles, bullet, runs[0].style()),
       spacing: line,
       before: spacing(styles, "spcBef"),

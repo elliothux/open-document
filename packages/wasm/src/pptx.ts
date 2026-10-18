@@ -122,6 +122,7 @@ export type {
   PptxTextSpacing,
   PptxListFormat,
   PptxParagraphFormat,
+  PptxParagraphTab,
   PptxParagraphFormatting,
 } from "./pptx-format.js";
 import {

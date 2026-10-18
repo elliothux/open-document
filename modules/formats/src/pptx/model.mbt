@@ -40,6 +40,9 @@ priv struct TextParagraph {
   bullet_size : TextSpacing
   list : ListFormat
   level : Int
+  tabs : Array[ParagraphTab]
+  inherited_tabs : Array[ParagraphTab]
+  default_tab : Double
 }
 
 ///|

@@ -80,7 +80,7 @@ fn split_existing_cell(
   columns : Int,
   horizontal : Bool,
   vertical : Bool,
-) -> String {
+) -> String raise @failure.Failure {
   let source = source_xml(cell.source)
   if cell.row_span == rows &&
     cell.column_span == columns &&

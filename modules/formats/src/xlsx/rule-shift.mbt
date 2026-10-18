@@ -316,18 +316,44 @@ fn shift_rule_changes(
   } else {
     before.copy()
   }
+  transform_rule_changes(
+    tree,
+    rule,
+    after,
+    at => if sheet == target { change.source_position(at) } else { Some(at) },
+    text => axis_formula(text, Some(sheet), target, change),
+    work,
+  )
+}
+
+///|
+fn transform_rule_changes(
+  tree : Tree,
+  rule : @xml.Node,
+  after : Array[Range],
+  source_position : (Address) -> Address?,
+  transform : (String) -> String raise @failure.Failure,
+  work : RuleShiftWork,
+) -> (Array[@xml.SourceChange], Int) raise @failure.Failure {
+  let before = clear_rule_ranges(rule.attribute("sqref").unwrap_or(""))
   if after.is_empty() {
     return ([sheet_node_removal(tree, rule)], 0)
   }
   let conditional = rule.name == "conditionalFormatting"
   let original_anchor = rule_anchor(before, conditional)
   let next_anchor = rule_anchor(after, conditional)
-  let source_anchor = if sheet == target {
-    change.source_position(next_anchor).unwrap_or(next_anchor)
-  } else {
-    next_anchor
-  }
+  let source_anchor = source_position(next_anchor).unwrap_or(next_anchor)
   let fields = shift_rule_fields(tree, rule)
+  if conditional &&
+    tree.all(rule.id, "cfRule").length() > 1 &&
+    fields.any(f => {
+      !f.attribute &&
+      f.expression.map(Expression::relative_rule).unwrap_or(false)
+    }) {
+    return transform_conditional_rules(
+      tree, rule, after, source_position, transform, work,
+    )
+  }
   let evaluate = fn(at : Address) raise @failure.Failure {
     fields.map(field => {
       guard field.text.length() <= 4194304 - work.units else {
@@ -336,17 +362,18 @@ fn shift_rule_changes(
         )
       }
       work.units += field.text.length()
-      axis_formula(
+      transform(
         rule_expression_source(
           field.text,
           field.expression,
           original_anchor,
-          at,
+          if field.attribute {
+            original_anchor
+          } else {
+            at
+          },
           invalid=true,
         ),
-        Some(sheet),
-        target,
-        change,
       )
     })
   }
@@ -354,6 +381,7 @@ fn shift_rule_changes(
   let default_expressions = defaults.map(shift_rule_expression)
   let groups : Array[ShiftRuleGroup] = []
   if !fields.any(f => {
+      !f.attribute &&
       f.expression.map(Expression::relative_rule).unwrap_or(false)
     }) {
     groups.push({
@@ -387,15 +415,14 @@ fn shift_rule_changes(
           visited[(row, column)] = true
           work.cells += 1
           let at : Address = { row, column, }
-          let source = if sheet == target {
-            change.source_position(at)
-          } else {
-            Some(at)
-          }
+          let source = source_position(at)
           let texts = if source is Some(source) {
             evaluate(source)
           } else {
             defaults.mapi((i, text) => {
+              if fields[i].attribute {
+                return text
+              }
               rule_expression_source(
                 text,
                 default_expressions[i],
@@ -407,8 +434,18 @@ fn shift_rule_changes(
           }
           let expressions = texts.map(shift_rule_expression)
           let key = Json(
-            expressions.map(e => {
-              e.map(e => e.rule_key(at)).unwrap_or(Json::null())
+            expressions.mapi((i, e) => {
+              e
+              .map(e => {
+                e.rule_key(
+                  if fields[i].attribute {
+                    original_anchor
+                  } else {
+                    at
+                  },
+                )
+              })
+              .unwrap_or(Json::null())
             }),
           ).stringify()
           let index = indices
@@ -458,15 +495,28 @@ fn shift_rule_changes(
       ),
     ])
     for i, field in fields {
-      let text = rule_expression_source(
-        group.texts[i],
-        group.expressions[i],
-        group.anchor,
-        anchor,
-        invalid=false,
-      )
+      // Scale and bar thresholds belong to the whole rule, not each covered cell.
+      let text = if field.attribute {
+        group.texts[i]
+      } else {
+        rule_expression_source(
+          group.texts[i],
+          group.expressions[i],
+          group.anchor,
+          anchor,
+          invalid=false,
+        )
+      }
       if field.expression.map(e => e.rule_key(original_anchor)) ==
-        group.expressions[i].map(e => e.rule_key(group.anchor)) &&
+        group.expressions[i].map(e => {
+          e.rule_key(
+            if field.attribute {
+              original_anchor
+            } else {
+              group.anchor
+            },
+          )
+        }) &&
         anchor == original_anchor {
         continue
       }

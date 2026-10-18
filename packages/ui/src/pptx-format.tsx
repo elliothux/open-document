@@ -5,6 +5,7 @@ import type {
   PptxTextSpacing,
   PptxParagraphFormat,
   PptxListFormat,
+  PptxParagraphTab,
 } from "@open-document/web/pptx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
@@ -78,7 +79,14 @@ function ParagraphField({
   onApply,
 }: {
   property:
-    "left" | "right" | "first" | "before" | "after" | "line" | "listSize";
+    | "left"
+    | "right"
+    | "first"
+    | "before"
+    | "after"
+    | "line"
+    | "listSize"
+    | "defaultTab";
   label: string;
   value: number | PptxTextSpacing | null;
   state: UiSnapshot;
@@ -142,7 +150,9 @@ function ParagraphField({
                 ? unit === "point"
                   ? 1584
                   : 1000
-                : 4032
+                : property === "defaultTab"
+                  ? 1584
+                  : 4032
           }
           step={spacing ? (unit === "point" ? 0.01 : 0.001) : "any"}
           onChange={(event) => setDraft(event.currentTarget.value)}
@@ -238,6 +248,18 @@ export function PptxParagraph({
           }
         />
       ))}
+      <PptxTabs
+        key={`tabs:${JSON.stringify(paragraph.tabs)}:${paragraph.defaultTab}`}
+        state={state}
+        tabs={paragraph.tabs}
+        defaultTab={paragraph.defaultTab}
+        disabled={disabled}
+        apply={(format) =>
+          controller.run(() =>
+            editor.editObjects({ action: "textParagraph", format }),
+          )
+        }
+      />
       <PptxListFields
         key={`list:${JSON.stringify(paragraph.list)}:${paragraph.level}`}
         state={state}
@@ -314,6 +336,133 @@ export function PptxParagraph({
       </button>
       {paragraph.reason && <p>{paragraph.reason}</p>}
     </fieldset>
+  );
+}
+
+function PptxTabs({
+  state,
+  tabs,
+  defaultTab,
+  disabled,
+  apply,
+}: {
+  state: UiSnapshot;
+  tabs: PptxParagraphTab[] | null;
+  defaultTab: number | null;
+  disabled: boolean;
+  apply: (format: PptxParagraphFormat) => void;
+}) {
+  const t = messages(state.locale);
+  const [draft, setDraft] = useState<PptxParagraphTab[]>(tabs ?? []);
+  const update = (index: number, change: Partial<PptxParagraphTab>) =>
+    setDraft(
+      draft.map((tab, i) => (i === index ? { ...tab, ...change } : tab)),
+    );
+  return (
+    <>
+      <ParagraphField
+        property="defaultTab"
+        label={t.defaultTabInterval}
+        value={defaultTab}
+        state={state}
+        disabled={disabled}
+        onApply={apply}
+      />
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => apply({ defaultTab: null })}
+      >
+        {t.restoreDefaultTab}
+      </button>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          apply({ tabs: [...draft].sort((a, b) => a.position - b.position) });
+        }}
+      >
+        <fieldset disabled={disabled}>
+          <legend>{t.tabStops}</legend>
+          {tabs === null && <p>{t.mixed}</p>}
+          {draft.map((tab, index) => (
+            <div key={index}>
+              <label>
+                {t.tabPosition}
+                <input
+                  aria-label={`${t.tabPosition} ${index + 1}`}
+                  type="number"
+                  required
+                  min={0}
+                  max={1584}
+                  step={0.05}
+                  value={Number.isFinite(tab.position) ? tab.position : ""}
+                  onChange={(event) =>
+                    update(index, {
+                      position: event.currentTarget.valueAsNumber,
+                    })
+                  }
+                />
+              </label>
+              <label>
+                {t.tabAlignment}
+                <select
+                  aria-label={`${t.tabAlignment} ${index + 1}`}
+                  value={tab.align}
+                  onChange={(event) => {
+                    const align = (
+                      ["left", "center", "right", "decimal"] as const
+                    ).find((value) => value === event.currentTarget.value);
+                    if (align) update(index, { align });
+                  }}
+                >
+                  <option value="left">{t.alignLeft}</option>
+                  <option value="center">{t.alignCenter}</option>
+                  <option value="right">{t.alignRight}</option>
+                  <option value="decimal">{t.tabDecimal}</option>
+                </select>
+              </label>
+              <button
+                type="button"
+                aria-label={`${t.removeTabStop} ${index + 1}`}
+                onClick={() => setDraft(draft.filter((_, i) => i !== index))}
+              >
+                {t.removeTabStop}
+              </button>
+            </div>
+          ))}
+          <button
+            type="button"
+            disabled={
+              draft.length >= 32 ||
+              draft.some(
+                (tab) => !Number.isFinite(tab.position) || tab.position >= 1584,
+              )
+            }
+            onClick={() =>
+              setDraft([
+                ...draft,
+                {
+                  position: Math.min(
+                    1584,
+                    Math.max(0, ...draft.map((tab) => tab.position)) + 36,
+                  ),
+                  align: "left",
+                },
+              ])
+            }
+          >
+            {t.addTabStop}
+          </button>
+          <button type="submit">{t.applyTabStops}</button>
+          <button type="button" onClick={() => apply({ tabs: [] })}>
+            {t.clearTabStops}
+          </button>
+          <button type="button" onClick={() => apply({ tabs: null })}>
+            {t.restoreTabStops}
+          </button>
+        </fieldset>
+      </form>
+    </>
   );
 }
 

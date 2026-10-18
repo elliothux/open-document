@@ -4,6 +4,7 @@ fn Session::check_fill_resources(
   sheet : Sheet,
   range : Range,
   hyperlinks~ : Bool = false,
+  rules~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   let tree = Tree::new(sheet.document)
   let root = tree.root("worksheet")
@@ -28,8 +29,13 @@ fn Session::check_fill_resources(
       )
     }
     let rules = match node.name {
-      "conditionalFormatting" => [node]
-      "dataValidations" => tree.all(node.id, "dataValidation")
+      "conditionalFormatting" => if rules { [] } else { [node] }
+      "dataValidations" =>
+        if rules {
+          []
+        } else {
+          tree.all(node.id, "dataValidation")
+        }
       "hyperlinks" =>
         if hyperlinks {
           []

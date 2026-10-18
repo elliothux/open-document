@@ -1,5 +1,5 @@
 ///|
-fn conditional_insertion(
+fn rule_insertion(
   tree : Tree,
   markup : String,
 ) -> @xml.SourceChange raise @failure.Failure {
@@ -244,7 +244,7 @@ fn Session::set_conditional(
       settings.markup(priority, plan.indices[0], colors~)
     }
     let markup = "<od:conditionalFormatting xmlns:od=\"\{spreadsheet_uri}\" sqref=\"\{ranges.map(Range::name).join(" ")}\">\{rule_markup}</od:conditionalFormatting>"
-    changes.push(conditional_insertion(tree, markup))
+    changes.push(rule_insertion(tree, markup))
     plan
   } else {
     if priority is None {

@@ -56,6 +56,10 @@ export type PptxListFormat =
       value: (typeof numberingFormats)[number];
       start: number;
     };
+export interface PptxParagraphTab {
+  position: number;
+  align: "left" | "center" | "right" | "decimal";
+}
 export interface PptxParagraphFormat {
   left?: number;
   right?: number;
@@ -69,6 +73,8 @@ export interface PptxParagraphFormat {
   listFont?: string | null;
   listSize?: PptxTextSpacing | null;
   listColor?: string | null;
+  tabs?: PptxParagraphTab[] | null;
+  defaultTab?: number | null;
 }
 export interface PptxParagraphFormatting {
   left: number | null;
@@ -83,10 +89,42 @@ export interface PptxParagraphFormatting {
   listFont: string | null;
   listSize: PptxTextSpacing | null;
   listColor: string | null;
+  tabs: PptxParagraphTab[] | null;
+  defaultTab: number | null;
   reason: string;
 }
 
 function paragraphProperty(key: string, value: unknown): boolean {
+  if (key === "defaultTab")
+    return (
+      value === null ||
+      (typeof value === "number" &&
+        Number.isFinite(value) &&
+        value >= 0 &&
+        value <= 1584)
+    );
+  if (key === "tabs") {
+    if (value === null) return true;
+    if (!Array.isArray(value) || value.length > 32) return false;
+    let previous = -1;
+    for (const item of value) {
+      const tab = record(item);
+      if (
+        Object.keys(tab).length !== 2 ||
+        typeof tab.position !== "number" ||
+        !Number.isFinite(tab.position) ||
+        tab.position < 0 ||
+        tab.position > 1584 ||
+        !Number.isInteger(tab.position * 20) ||
+        tab.position <= previous ||
+        typeof tab.align !== "string" ||
+        !["left", "center", "right", "decimal"].includes(tab.align)
+      )
+        return false;
+      previous = tab.position;
+    }
+    return true;
+  }
   if (key === "listFont" || key === "listColor")
     return (
       value === null || property(key === "listFont" ? "font" : "color", value)
@@ -190,6 +228,8 @@ export function checkPptxParagraphFormatting(value: unknown): void {
       "listFont",
       "listSize",
       "listColor",
+      "tabs",
+      "defaultTab",
     ].some(
       (key) => format[key] !== null && !paragraphProperty(key, format[key]),
     )

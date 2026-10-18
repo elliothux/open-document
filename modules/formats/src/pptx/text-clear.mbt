@@ -2,10 +2,10 @@
 fn clear_names(paragraph : Bool) -> (Array[String], Array[String]) {
   if paragraph {
     (
-      ["algn", "marL", "marR", "indent", "rtl"],
+      ["algn", "marL", "marR", "indent", "rtl", "defTabSz"],
       [
         "lnSpc", "spcBef", "spcAft", "buNone", "buChar", "buClrTx", "buClr", "buFontTx",
-        "buFont", "buSzTx", "buSzPct", "buSzPts", "buAutoNum",
+        "buFont", "buSzTx", "buSzPct", "buSzPts", "buAutoNum", "tabLst",
       ],
     )
   } else {
@@ -41,27 +41,7 @@ fn cleared_properties(
   let mut cursor = source.node.start
   for attribute in source.node.attributes {
     if attribute.uri.is_empty() && attrs.contains(attribute.name) {
-      let mut name_end = attribute.start - 1
-      while name_end > cursor &&
-            [9, 10, 13, 32].contains(xml[name_end - 1].to_int()) {
-        name_end -= 1
-      }
-      guard name_end > cursor && xml[name_end - 1] == 61 else {
-        @failure.reject(
-          "protected-content", "Cannot locate direct formatting attribute",
-        )
-      }
-      name_end -= 1
-      while name_end > cursor &&
-            [9, 10, 13, 32].contains(xml[name_end - 1].to_int()) {
-        name_end -= 1
-      }
-      let start = name_end - attribute.name.length()
-      guard start >= cursor && xml[start:name_end] == attribute.name else {
-        @failure.reject(
-          "protected-content", "Cannot locate direct formatting name",
-        )
-      }
+      let start = frame_attribute_start(source, attribute)
       output.write_view(xml[cursor:start])
       cursor = attribute.end + 1
     }
@@ -72,7 +52,17 @@ fn cleared_properties(
     for child in source.tree.children.get(source.node.id).unwrap_or([]) {
       output.write_view(xml[cursor:child.start])
       if child.uri == drawing_uri && children.contains(child.name) {
-        if paragraph && !["lnSpc", "spcBef", "spcAft"].contains(child.name) {
+        if paragraph && child.name == "tabLst" {
+          guard !source_xml({ tree: source.tree, node: child, }).contains(
+              "<!--",
+            ) &&
+            !source_xml({ tree: source.tree, node: child, }).contains("<?") else {
+            @failure.reject(
+              "protected-content", "Retained tab source prevents clearing",
+            )
+          }
+        } else if paragraph &&
+          !["lnSpc", "spcBef", "spcAft"].contains(child.name) {
           check_bullet_property({ tree: source.tree, node: child, })
         }
         if !paragraph && !["noFill", "solidFill"].contains(child.name) {

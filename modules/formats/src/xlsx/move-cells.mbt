@@ -55,7 +55,7 @@ fn Session::move_cells(
     guard reason.is_empty() else {
       @failure.reject("protected-content", reason)
     }
-    self.check_fill_resources(sheet, range, hyperlinks=true)
+    self.check_fill_resources(sheet, range, hyperlinks=true, rules=true)
     ignore(self.hyperlink_at(sheet, range))
     check_merge_markup(Tree::new(sheet.document))
   }
@@ -66,6 +66,13 @@ fn Session::move_cells(
   let targets : Map[Int, Array[String]] = Map([])
   let source_tree = Tree::new(from.document)
   let mut units = 0L
+  let rule_work : RuleShiftWork = {
+    cells: 0,
+    units: 0,
+    fragments: 0,
+    source: 0,
+    limit: self.budget.entry_bytes.min(4194304),
+  }
   for index, original in self.sheets {
     let updates : Map[String, CellContent] = Map([])
     let styles : Map[String, Int] = Map([])
@@ -182,6 +189,9 @@ fn Session::move_cells(
     }
     document = self.move_hyperlinks(
       original, document, from, to, relocation, parts, edits, created,
+    )
+    document = move_rules(
+      original, document, from, to, relocation, edits, rule_work,
     )
     sheets[index] = Sheet::read(
       original.id,

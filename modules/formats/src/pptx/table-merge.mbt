@@ -5,7 +5,7 @@ fn table_span_change(
   columns : Int,
   horizontal : Bool,
   vertical : Bool,
-) -> @xml.SourceChange {
+) -> @xml.SourceChange raise @failure.Failure {
   let source = cell.source
   let parent = source.tree.nodes[source.node.parent]
   {

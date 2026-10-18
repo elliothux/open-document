@@ -53,12 +53,52 @@ fn text_fit_reason(properties : Ref) -> String {
 }
 
 ///|
-fn frame_opening(properties : Ref, values : Map[String, String]) -> String {
+fn frame_attribute_start(
+  source : Ref,
+  attribute : @xml.Attribute,
+) -> Int raise @failure.Failure {
+  let xml = source.tree.document.source()
+  let mut end = attribute.start - 1
+  while end > source.node.start &&
+        [9, 10, 13, 32].contains(xml[end - 1].to_int()) {
+    end -= 1
+  }
+  guard end > source.node.start && xml[end - 1] == 61 else {
+    @failure.reject(
+      "protected-content", "Cannot locate direct formatting attribute",
+    )
+  }
+  end -= 1
+  while end > source.node.start &&
+        [9, 10, 13, 32].contains(xml[end - 1].to_int()) {
+    end -= 1
+  }
+  let start = end - attribute.name.length()
+  guard start >= source.node.start && xml[start:end] == attribute.name else {
+    @failure.reject("protected-content", "Cannot locate direct formatting name")
+  }
+  start
+}
+
+///|
+fn frame_opening(
+  properties : Ref,
+  values : Map[String, String],
+  removed~ : Array[String] = [],
+) -> String raise @failure.Failure {
   let source = source_xml(properties)
   let output = StringBuilder()
   let remaining = values.copy()
   let mut cursor = 0
   for attribute in properties.node.attributes {
+    if attribute.uri.is_empty() && removed.contains(attribute.name) {
+      output.write_view(
+        source[cursor:frame_attribute_start(properties, attribute) -
+        properties.node.start],
+      )
+      cursor = attribute.end + 1 - properties.node.start
+      continue
+    }
     if attribute.uri.is_empty() && values.get(attribute.name) is Some(value) {
       output.write_string(
         source[cursor:attribute.start - properties.node.start].to_owned(),

@@ -142,8 +142,18 @@ pub(all) struct ParagraphFormat {
   list_font : String??
   list_size : TextSpacing??
   list_color : String??
+  tabs : Array[ParagraphTab]??
+  default_tab : Double??
 }
-pub fn ParagraphFormat::new(left? : Double, right? : Double, first? : Double, before? : TextSpacing, after? : TextSpacing, line? : TextSpacing, list? : ListFormat, level? : Int, rtl? : Bool, list_font? : String?, list_size? : TextSpacing?, list_color? : String?) -> Self
+pub fn ParagraphFormat::new(left? : Double, right? : Double, first? : Double, before? : TextSpacing, after? : TextSpacing, line? : TextSpacing, list? : ListFormat, level? : Int, rtl? : Bool, list_font? : String?, list_size? : TextSpacing?, list_color? : String?, tabs? : Array[ParagraphTab]?, default_tab? : Double?) -> Self
+
+pub(all) struct ParagraphTab {
+  position : Double
+  align : String
+} derive(Eq, ToJson)
+pub fn ParagraphTab::equal(Self, Self) -> Bool
+pub fn ParagraphTab::not_equal(Self, Self) -> Bool
+pub fn ParagraphTab::to_json(Self) -> Json
 
 pub struct Session {
   // private fields

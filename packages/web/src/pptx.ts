@@ -47,6 +47,7 @@ export type {
   PptxTextSpacing,
   PptxListFormat,
   PptxParagraphFormat,
+  PptxParagraphTab,
   PptxParagraphFormatting,
 } from "@open-document/wasm/pptx";
 export { checkPptxSlideEdit } from "@open-document/wasm/pptx";

@@ -5,13 +5,10 @@ fn Session::check_move_resources(self : Session) -> Unit raise @failure.Failure 
   let mut units = self.workbook.source().length().to_int64()
   for sheet in self.sheets {
     let tree = Tree::new(sheet.document)
-    // shortcut: Rule ownership and reference contexts need a joint move plan before moving ruled workbooks.
     for node in tree.children.get(tree.root("worksheet").id).unwrap_or([]) {
-      guard ![
-        "conditionalFormatting", "dataValidations", "autoFilter", "sortState",
-      ].contains(node.name) else {
+      guard !["autoFilter", "sortState"].contains(node.name) else {
         @failure.reject(
-          "protected-content", "Worksheet rules require reference-aware move support",
+          "protected-content", "Worksheet filters require reference-aware move support",
         )
       }
     }

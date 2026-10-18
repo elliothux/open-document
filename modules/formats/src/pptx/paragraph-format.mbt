@@ -43,7 +43,7 @@ fn Session::paragraph_reason(self : Session, object : Object) -> String {
 fn Session::paragraph_query(self : Session) -> Json {
   let fields = [
     "left", "right", "first", "before", "after", "line", "list", "level", "rtl",
-    "listFont", "listSize", "listColor",
+    "listFont", "listSize", "listColor", "tabs", "defaultTab",
   ]
   let result : Map[String, Json] = Map([])
   for field in fields {

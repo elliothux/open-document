@@ -18,6 +18,8 @@ pub(all) struct ParagraphFormat {
   list_font : String??
   list_size : TextSpacing??
   list_color : String??
+  tabs : Array[ParagraphTab]??
+  default_tab : Double??
 }
 
 ///|
@@ -34,6 +36,8 @@ pub fn ParagraphFormat::new(
   list_font? : String?,
   list_size? : TextSpacing?,
   list_color? : String?,
+  tabs? : Array[ParagraphTab]?,
+  default_tab? : Double?,
 ) -> ParagraphFormat {
   {
     left,
@@ -48,6 +52,8 @@ pub fn ParagraphFormat::new(
     list_font,
     list_size,
     list_color,
+    tabs,
+    default_tab,
   }
 }
 
@@ -84,13 +90,25 @@ fn ParagraphFormat::normalized(
     self.rtl is Some(_) ||
     self.list_font is Some(_) ||
     self.list_size is Some(_) ||
-    self.list_color is Some(_) else {
+    self.list_color is Some(_) ||
+    self.tabs is Some(_) ||
+    self.default_tab is Some(_) else {
     @failure.reject("invalid-operation", "Specify a paragraph property")
   }
   if self.list is Some(list) {
     list.check()
   }
   let font = self.list_font.bind(v => v)
+  if self.tabs is Some(Some(tabs)) {
+    paragraph_tabs_check(tabs)
+  }
+  if self.default_tab is Some(Some(value)) {
+    guard !value.is_nan() && !value.is_inf() && value >= 0 && value <= 1584 else {
+      @failure.reject(
+        "invalid-operation", "Default tab size must be within 1584 points",
+      )
+    }
+  }
   let color = self.list_color.bind(v => v)
   if font is Some(_) || color is Some(_) {
     ignore(TextFormat::new(font?, color?).normalized())
@@ -128,6 +146,10 @@ fn ParagraphFormat::normalized(
     list_font: self.list_font,
     list_size: self.list_size.map(size => size.map(normalized_list_size)),
     list_color: self.list_color.map(color => color.map(v => v.to_lower())),
+    tabs: self.tabs,
+    default_tab: self.default_tab.map(v => {
+      v.map(n => (n * 12700).round() / 12700)
+    }),
   }
 }
 
@@ -159,6 +181,8 @@ fn paragraph_values(paragraph : TextParagraph) -> Array[Json] {
     Json(paragraph.bullet_style.font.split("|").to_array()[0].to_owned()),
     { "unit": paragraph.bullet_size.unit, "value": paragraph.bullet_size.value },
     Json(paragraph.bullet_style.color.to_lower()),
+    Json(paragraph.tabs),
+    Json(paragraph.default_tab),
   ]
 }
 
@@ -179,6 +203,7 @@ fn paragraph_markup(
   let attrs : Map[String, String] = Map([])
   let changes : Map[String, String] = Map([])
   list_style_changes(paragraph, format, changes)
+  let removed = paragraph_tab_markup(paragraph, format, attrs, changes)
   if format.rtl is Some(rtl) && rtl != paragraph.rtl {
     attrs["rtl"] = if rtl { "1" } else { "0" }
     // ONLYOFFICE mirrors left/right alignment when switching DrawingML direction.
@@ -242,7 +267,7 @@ fn paragraph_markup(
       changes[name] = "<a:\{name} xmlns:a=\"\{drawing_uri}\"><a:\{kind} val=\"\{number}\"/></a:\{name}>"
     }
   }
-  if attrs.is_empty() && changes.is_empty() {
+  if attrs.is_empty() && changes.is_empty() && removed.is_empty() {
     return ""
   }
   let output = StringBuilder()
@@ -253,7 +278,7 @@ fn paragraph_markup(
   let mut qualified = "a:pPr"
   if properties is Some(p) {
     qualified = p.node.qualified
-    output.write_string(frame_opening(p, attrs))
+    output.write_string(frame_opening(p, attrs, removed~))
     if !p.node.empty {
       let source = p.tree.document.source()
       let mut offset = p.node.opening_end
