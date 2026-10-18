@@ -102,18 +102,23 @@ pub fn Layout::positioned(self : Layout) -> PositionedDocument {
 pub fn PositionedDocument::drawing(
   self : PositionedDocument,
   images : Images,
+  clear~ : Bool = true,
 ) -> Array[DrawingRegion] raise @failure.Failure {
   self.pages.map(page => {
     let commands : Array[DrawCommand] = [
       ClipRect({ x: 0, y: 0, width: page.width, height: page.height, }),
-      FillRect({
-        x: 0,
-        y: 0,
-        width: page.width,
-        height: page.height,
-        color: "ffffff",
-      }),
     ]
+    if clear {
+      commands.push(
+        FillRect({
+          x: 0,
+          y: 0,
+          width: page.width,
+          height: page.height,
+          color: "ffffff",
+        }),
+      )
+    }
     for primitive in page.primitives {
       match primitive {
         Rectangle(fill) => commands.push(FillRect(fill))

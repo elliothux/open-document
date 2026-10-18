@@ -204,6 +204,7 @@ fn paint_slide(
   probe : @layout.TextProbe,
   profile : Map[String, String],
   tile_sizes : Map[String, (Int, Int)],
+  parts~ : Array[(String, Array[@layout.PositionedPrimitive])]? = None,
 ) -> (@layout.PositionedPage, Array[TextGeometry], Array[String]) raise @failure.Failure {
   let primitives : Array[@layout.PositionedPrimitive] = []
   if slide.background is Linear(stops, _, _) &&
@@ -211,6 +212,9 @@ fn paint_slide(
     primitives.push(Rectangle({ x: 0, y: 0, width, height, color: "ffffff", }))
   }
   primitives.append(slide.background.paint(width, height, tile_sizes~))
+  if parts is Some(parts) {
+    parts.push(("", primitives.copy()))
+  }
   let texts : Array[TextGeometry] = []
   let fonts = probe.font_info()
   let diagnostics = slide.diagnostics.copy()
@@ -220,6 +224,7 @@ fn paint_slide(
       continue
     }
     guard object.geometry is Some(geometry) else { continue }
+    let start = primitives.length()
     primitives.push(Transform(geometry.matrix))
     if !object.diagnostic.is_empty() {
       primitives.push(
@@ -361,6 +366,9 @@ fn paint_slide(
       }
     }
     primitives.push(Restore)
+    if parts is Some(parts) {
+      parts.push((object.id, primitives[start:].to_owned()))
+    }
   }
   ({ width, height, primitives, }, texts, diagnostics)
 }

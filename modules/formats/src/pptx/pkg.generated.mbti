@@ -168,6 +168,25 @@ pub fn Session::show_layout(Self, Int, Double, @layout.TextProbe, Map[String, St
 pub fn Session::transform(Self, Int, Int, Double, Double, Double, Double) -> Json raise @failure.Failure
 pub fn Session::undo(Self, Int, redo? : Bool) -> Json raise @failure.Failure
 
+pub(all) struct SlideAdvance {
+  click : Bool
+  after : Int?
+} derive(Eq)
+pub fn SlideAdvance::equal(Self, Self) -> Bool
+pub fn SlideAdvance::not_equal(Self, Self) -> Bool
+
+pub(all) struct SlideAnimation {
+  object : String
+  kind : String
+  trigger : String
+  delay : Int
+  duration : Int
+  repeat : Int
+} derive(Eq, ToJson)
+pub fn SlideAnimation::equal(Self, Self) -> Bool
+pub fn SlideAnimation::not_equal(Self, Self) -> Bool
+pub fn SlideAnimation::to_json(Self) -> Json
+
 pub(all) enum SlideEdit {
   AddSlide
   CopySlide
@@ -175,6 +194,8 @@ pub(all) enum SlideEdit {
   MoveSlide(Int)
   HideSlide(Bool)
   Transition(SlideTransition?)
+  Advance(SlideAdvance)
+  Animations(Array[SlideAnimation])
   Background(BackgroundFill?)
   BackgroundImage(Bytes, String)
   BackgroundImageFormat(String, Array[Double], Double)

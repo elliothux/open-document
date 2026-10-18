@@ -41,15 +41,18 @@ fn read_slide_transition(
     !source.contains("<?") &&
     node.text.trim().is_empty() &&
     node.attributes.all(a => {
-      (a.uri.is_empty() && ["spd", "advClick"].contains(a.name)) ||
+      (a.uri.is_empty() && ["spd", "advClick", "advTm"].contains(a.name)) ||
       (a.uri == p14 && a.name == "dur")
-    }) &&
-    flag(node, "advClick", default=true) else {
+    }) else {
     @failure.reject(
-      "protected-content", "Extended or automatic slide transitions are protected",
+      "protected-content", "Extended slide transitions are protected",
     )
   }
+  ignore(read_slide_advance(tree))
   let children = tree.children.get(node.id).unwrap_or([])
+  if children.is_empty() {
+    return None
+  }
   guard children is [effect] &&
     effect.uri == presentation_uri &&
     ["cut", "fade", "push"].contains(effect.name) &&
@@ -125,11 +128,16 @@ fn Session::transition_query(self : Session, slide : Slide) -> Json {
     let value = read_slide_transition(slide.tree)
     {
       "value": value.map(v => v.to_json()).unwrap_or(Json::null()),
+      "advance": read_slide_advance(slide.tree).json(),
       "reason": self.slide_visibility_reason(),
     }
   } catch {
     @failure.Failure(message~, ..) =>
-      { "value": Json::null(), "reason": message }
+      {
+        "value": Json::null(),
+        "advance": { "click": true, "after": Json::null() },
+        "reason": message,
+      }
   }
 }
 
@@ -148,6 +156,20 @@ fn Session::set_transition(
   if previous == value {
     return self.query()
   }
+  self.write_transition(index, value, read_slide_advance(tree))
+}
+
+///|
+fn Session::write_transition(
+  self : Session,
+  index : Int,
+  value : SlideTransition?,
+  advance : SlideAdvance,
+) -> Json raise @failure.Failure {
+  let original = self.slides[index]
+  let tree = original.tree
+  let timing = "advClick=\"\{if advance.click { 1 } else { 0 }}\"" +
+    advance.after.map(v => " advTm=\"\{v}\"").unwrap_or("")
   let markup = value
     .map(v => {
       let effect = if v.kind == "push" {
@@ -157,9 +179,15 @@ fn Session::set_transition(
       } else {
         "<od:cut/>"
       }
-      "<od:transition xmlns:od=\"\{presentation_uri}\" xmlns:p14=\"http://schemas.microsoft.com/office/powerpoint/2010/main\" p14:dur=\"\{v.duration}\" advClick=\"1\">\{effect}</od:transition>"
+      "<od:transition xmlns:od=\"\{presentation_uri}\" xmlns:p14=\"http://schemas.microsoft.com/office/powerpoint/2010/main\" p14:dur=\"\{v.duration}\" \{timing}>\{effect}</od:transition>"
     })
-    .unwrap_or("")
+    .unwrap_or(
+      if advance.click && advance.after is None {
+        ""
+      } else {
+        "<od:transition xmlns:od=\"\{presentation_uri}\" \{timing}/>"
+      },
+    )
   let root = tree.root("sld")
   let change : @xml.SourceChange = if tree.one(
       root.id,

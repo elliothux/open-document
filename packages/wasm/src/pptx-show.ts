@@ -10,10 +10,14 @@ export type PptxShowAction =
   | "last"
   | "goto"
   | "pause"
+  | "tick"
+  | "click"
   | "resume";
 export interface PptxShowState {
   active: boolean;
   paused: boolean;
+  step: number;
+  steps: number;
   revision: number;
   slide: string | null;
   index: number;
@@ -67,6 +71,8 @@ export function checkPptxShow(command: PptxShowCommand): void {
       "last",
       "goto",
       "pause",
+      "tick",
+      "click",
       "resume",
     ].includes(command.action) ||
       typeof command.slide !== "string" ||
@@ -82,6 +88,8 @@ export function pptxShowState(value: unknown): void {
   if (
     typeof state.active !== "boolean" ||
     typeof state.paused !== "boolean" ||
+    !integer(state.steps, 0, 128) ||
+    !integer(state.step, 0, Number(state.steps)) ||
     !integer(state.revision, 0, 0x7fffffff) ||
     !integer(state.count, 1, 256) ||
     !integer(state.index, -1, Number(state.count) - 1) ||
@@ -94,7 +102,9 @@ export function pptxShowState(value: unknown): void {
       ? state.slide === null || Number(state.index) < 0
       : state.slide !== null ||
         state.nextSlide !== null ||
-        state.index !== -1) ||
+        state.index !== -1 ||
+        state.step !== 0 ||
+        state.steps !== 0) ||
     typeof notes.text !== "string" ||
     notes.text.length > 32767 ||
     typeof notes.reason !== "string" ||

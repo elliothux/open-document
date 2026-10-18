@@ -319,7 +319,7 @@ export class PresentationShow {
     );
     this.surfaces[0]!.canvas.addEventListener(
       "click",
-      () => this.handle(() => this.navigate("next")),
+      () => this.handle(() => this.navigate("click")),
       { signal: events.signal },
     );
     window.addEventListener("resize", () => this.resize(), {
@@ -340,6 +340,23 @@ export class PresentationShow {
     return Math.min(1000000000, Math.max(0, performance.now() - this.started));
   }
   private async paintFrame(): Promise<void> {
+    const state = await this.client.execute({
+      operation: "controlShowPptx",
+      time: this.time(),
+      revision: this.revision,
+      action: "tick",
+      slide: "",
+    });
+    const changed = state.slide !== this.current?.slide;
+    this.current = state;
+    if (!state.active) {
+      this.release();
+      await this.restore();
+      return;
+    }
+    if (changed)
+      for (const surface of this.surfaces)
+        await surface.prepareShow(this.client);
     this.drawing = await this.client.execute({
       operation: "layoutShowPptx",
       time: this.time(),

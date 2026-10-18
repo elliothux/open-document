@@ -103,6 +103,39 @@ fn Foundation::pptx_operation(
         @failure.reject("invalid-operation", "Slide edit is required")
       }
       let change = match field_string(change, "action") {
+        "animations" => {
+          guard change is { "value": Array(items), .. } && items.length() <= 128 else {
+            @failure.reject("invalid-operation", "Animation list is required")
+          }
+          @pptx.Animations(
+            items.map(item => {
+              object: field_string(item, "object"),
+              kind: field_string(item, "kind"),
+              trigger: field_string(item, "trigger"),
+              delay: field_int(item, "delay"),
+              duration: field_int(item, "duration"),
+              repeat: field_int(item, "repeat"),
+            }),
+          )
+        }
+        "advance" => {
+          let value = match change {
+            { "value": value, .. } => value
+            _ =>
+              @failure.reject("invalid-operation", "Slide advance is required")
+          }
+          @pptx.Advance({
+            click: xlsx_boolean(value, "click"),
+            after: match value {
+              { "after": Null, .. } => None
+              { "after": _, .. } => Some(field_int(value, "after"))
+              _ =>
+                @failure.reject(
+                  "invalid-operation", "Slide advance time is required",
+                )
+            },
+          })
+        }
         "transition" =>
           @pptx.Transition(
             match change {

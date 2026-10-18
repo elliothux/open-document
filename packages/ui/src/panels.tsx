@@ -20,6 +20,7 @@ import { PptxSections } from "./pptx-sections.js";
 import { PptxComments } from "./pptx-comments.js";
 import { PptxSlideList } from "./pptx-slides.js";
 import { PptxTransitionForm } from "./pptx-transition.js";
+import { PptxAnimations } from "./pptx-animations.js";
 import { XlsxSheets, XlsxFrozen, XlsxView } from "./xlsx-sheets.js";
 import { XlsxOutlinePanel } from "./xlsx-outline.js";
 import { XlsxTablesPanel } from "./xlsx-tables.js";
@@ -169,6 +170,13 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
         <PptxTransitionForm
           key={`transition:${query.slide}:${query.revision}`}
           editor={editor}
+          controller={controller}
+          state={state}
+          disabled={disabled}
+        />
+        <PptxAnimations
+          key={`animations:${query.slide}:${query.revision}`}
+          editor={file.editor}
           controller={controller}
           state={state}
           disabled={disabled}

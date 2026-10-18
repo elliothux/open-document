@@ -102,8 +102,82 @@ export interface PptxTransition {
   duration: number;
   direction: "left" | "right" | "up" | "down";
 }
-export interface PptxTransitionState {
-  transition: { value: PptxTransition | null; reason: string };
+export interface PptxPlaybackState {
+  transition: {
+    value: PptxTransition | null;
+    advance: PptxAdvance;
+    reason: string;
+  };
+  animations: { items: PptxAnimation[]; reason: string };
+}
+export interface PptxAnimation {
+  object: string;
+  kind: "appear" | "disappear" | "fadeIn" | "fadeOut";
+  trigger: "click" | "with" | "after";
+  delay: number;
+  duration: number;
+  repeat: number;
+}
+function pptxAnimations(value: unknown): void {
+  if (!Array.isArray(value) || value.length > 128)
+    throw new Error("Invalid object animation list");
+  for (const item of value) {
+    const animation = record(item);
+    if (
+      typeof animation.object !== "string" ||
+      !animation.object ||
+      animation.object.length > 1024 ||
+      !animation.object.isWellFormed() ||
+      !["appear", "disappear", "fadeIn", "fadeOut"].includes(
+        String(animation.kind),
+      ) ||
+      !["click", "with", "after"].includes(String(animation.trigger)) ||
+      typeof animation.delay !== "number" ||
+      !Number.isInteger(animation.delay) ||
+      animation.delay < 0 ||
+      animation.delay > 60000 ||
+      typeof animation.duration !== "number" ||
+      !Number.isInteger(animation.duration) ||
+      typeof animation.repeat !== "number" ||
+      !Number.isInteger(animation.repeat) ||
+      animation.repeat < 1 ||
+      animation.repeat > 100 ||
+      (["appear", "disappear"].includes(String(animation.kind))
+        ? animation.duration !== 1 || animation.repeat !== 1
+        : animation.duration < 100 || animation.duration > 60000) ||
+      Object.keys(animation).length !== 6 ||
+      Object.keys(animation).some(
+        (key) =>
+          ![
+            "object",
+            "kind",
+            "trigger",
+            "delay",
+            "duration",
+            "repeat",
+          ].includes(key),
+      )
+    )
+      throw new Error("Invalid object animation");
+  }
+}
+export interface PptxAdvance {
+  click: boolean;
+  after: number | null;
+}
+function pptxAdvance(value: unknown): void {
+  const advance = record(value);
+  if (
+    typeof advance.click !== "boolean" ||
+    (advance.after !== null &&
+      (typeof advance.after !== "number" ||
+        !Number.isInteger(advance.after) ||
+        advance.after < 0 ||
+        advance.after > 3600000)) ||
+    Object.keys(advance).length !== 2 ||
+    Object.keys(advance).some((key) => !["click", "after"].includes(key))
+  )
+    throw new Error("Invalid slide advance");
 }
 export function pptxTransition(value: unknown): void {
   const effect = record(value);
@@ -123,14 +197,21 @@ export function pptxTransition(value: unknown): void {
   )
     throw new Error("Invalid slide transition");
 }
-export function pptxTransitionState(value: unknown): void {
+export function pptxPlaybackState(value: unknown): void {
   const state = record(record(value).transition);
   if (typeof state.reason !== "string" || state.reason.length > 8192)
     throw new Error("Invalid transition state");
   if (state.value !== null) pptxTransition(state.value);
+  pptxAdvance(state.advance);
+  const animations = record(record(value).animations);
+  if (typeof animations.reason !== "string" || animations.reason.length > 8192)
+    throw new Error("Invalid animation state");
+  pptxAnimations(animations.items);
 }
 
 export type PptxSlideEdit =
+  | { action: "animations"; value: PptxAnimation[] }
+  | { action: "advance"; value: PptxAdvance }
   | { action: "transition"; value: PptxTransition | null }
   | {
       action: "commentAdd";
@@ -180,10 +261,17 @@ export type PptxSlideEdit =
 
 export function checkPptxSlideEdit(value: unknown): void {
   const change = record(value);
-  if (change.action === "transition") {
+  if (change.action === "animations") {
+    if (Object.keys(change).some((key) => !["action", "value"].includes(key)))
+      throw new Error("Invalid object animation edit");
+    pptxAnimations(change.value);
+    return;
+  }
+  if (change.action === "transition" || change.action === "advance") {
     if (Object.keys(change).some((key) => !["action", "value"].includes(key)))
       throw new Error("Invalid transition edit");
-    if (change.value !== null) pptxTransition(change.value);
+    if (change.action === "advance") pptxAdvance(change.value);
+    else if (change.value !== null) pptxTransition(change.value);
     return;
   }
   if (change.action === "backgroundImageInsets") {

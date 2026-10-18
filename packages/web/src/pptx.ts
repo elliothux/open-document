@@ -12,6 +12,8 @@ import {
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type {
   PptxTransition,
+  PptxAdvance,
+  PptxAnimation,
   PptxShowAction,
   PptxShowState,
   PptxShowLayout,

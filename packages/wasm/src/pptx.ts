@@ -43,8 +43,8 @@ export {
 } from "./pptx-objects.js";
 import {
   checkPptxSlideEdit,
-  pptxTransitionState,
-  type PptxTransitionState,
+  pptxPlaybackState,
+  type PptxPlaybackState,
   checkPptxBackgroundFill,
   checkPptxBackground,
   pptxSections,
@@ -60,6 +60,8 @@ import {
 export {
   checkPptxSlideEdit,
   type PptxTransition,
+  type PptxAdvance,
+  type PptxAnimation,
   type PptxBackgroundFill,
   type PptxBackground,
   type PptxSlideEdit,
@@ -202,7 +204,7 @@ export interface PptxObject {
       })
     | null;
 }
-export interface PptxQuery extends PptxTransitionState {
+export interface PptxQuery extends PptxPlaybackState {
   themeColors: PptxThemeColor[];
   themeFonts: PptxThemeFont[];
   revision: number;
@@ -394,7 +396,7 @@ function integer(value: unknown, high = 0x7fffffff): void {
 }
 export function pptxQuery(value: unknown): PptxQuery {
   const query = record(value);
-  pptxTransitionState(value);
+  pptxPlaybackState(value);
   pptxThemeColors(query.themeColors);
   pptxThemeFonts(query.themeFonts);
   const notes = record(query.notes);

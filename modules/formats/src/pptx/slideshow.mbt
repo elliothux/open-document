@@ -21,6 +21,7 @@ pub fn Session::control_show(
   show_time(time)
   guard [
       "start", "end", "next", "previous", "first", "last", "goto", "pause", "resume",
+      "tick", "click",
     ].contains(action) &&
     (action == "start" || action == "goto" || slide.is_empty()) else {
     @failure.reject("invalid-operation", "Invalid slideshow action or target")
@@ -44,14 +45,25 @@ pub fn Session::control_show(
     guard old is Some(current) else {
       @failure.reject("show-required", "Start the slideshow first")
     }
-    if action == "pause" || action == "resume" {
+    if action == "tick" {
+      self.show_tick(current)
+    } else if action == "pause" || action == "resume" {
       Some({ ..current, paused: action == "pause", })
-    } else if action == "next" && current.effect is Some(_) {
+    } else if (action == "next" || action == "click") &&
+      current.effect is Some(_) {
       // A click completes an in-flight transition before advancing another page.
-      Some({ ..current, from: None, effect: None, })
+      Some(current.finish_entry())
+    } else if (action == "next" || action == "click") &&
+      current.animations_running() {
+      Some(current.finish_animations())
+    } else if (action == "next" || action == "click") &&
+      current.step < current.animations.length() {
+      Some(current.schedule_animations(current.elapsed))
+    } else if action == "click" && !current.advance.click {
+      Some(current)
     } else {
       let next = match action {
-        "next" => self.show_neighbor(current.index, true)
+        "next" | "click" => self.show_neighbor(current.index, true)
         "previous" =>
           Some(
             self.show_neighbor(current.index, false).unwrap_or(current.index),
@@ -75,6 +87,7 @@ pub fn Session::control_show(
             Some(current.index),
             time,
             action != "previous",
+            leaving=current.animation_opacity(),
           )
         }
       })
@@ -113,12 +126,17 @@ pub fn Session::show_layout(
     drawing
   } else {
     let pages : Array[@layout.PositionedPage] = []
-    let indices : Array[Int] = []
+    let parts : Array[Array[(String, Array[@layout.DrawCommand])]] = []
     let keys : Array[String] = []
-    for i in [Some(show.index), self.show_neighbor(show.index, true), show.from] {
-      if i is Some(i) && !indices.contains(i) {
-        indices.push(i)
+    for
+      role, i in [
+        Some(show.index),
+        self.show_neighbor(show.index, true),
+        show.from,
+      ] {
+      if i is Some(i) {
         let slide = self.slides[i]
+        let fragments : Array[(String, Array[@layout.PositionedPrimitive])] = []
         let (page, _, diagnostics) = paint_slide(
           slide,
           self.width,
@@ -126,6 +144,11 @@ pub fn Session::show_layout(
           probe,
           profile,
           self.tile_sizes(slide),
+          parts=if role == 2 || (role == 0 && !show.animations.is_empty()) {
+            Some(fragments)
+          } else {
+            None
+          },
         )
         guard diagnostics.is_empty() else {
           @failure.reject(
@@ -135,6 +158,16 @@ pub fn Session::show_layout(
           )
         }
         pages.push(page)
+        parts.push(
+          fragments.map(fragment => {
+            let (id, primitives) = fragment
+            let document : @layout.PositionedDocument = {
+              pages: [{ ..page, primitives, }],
+              fonts: probe.font_info(),
+            }
+            (id, document.drawing(images, clear=id.is_empty())[0].commands)
+          }),
+        )
         for key in slide.image_keys() {
           if !keys.contains(key) {
             keys.push(key)
@@ -156,12 +189,27 @@ pub fn Session::show_layout(
     let drawing : ShowDrawing = {
       key,
       regions: document.drawing(images),
+      parts,
       images: resources,
     }
     self.show_drawing = Some(drawing)
     drawing
   }
-  let regions = [self.show_region(show, drawing.regions)]
+  let painted = drawing.regions.copy()
+  painted[0] = animated_region(
+    painted[0],
+    drawing.parts[0],
+    show.animation_opacity(),
+  )
+  if show.from is Some(_) {
+    let last = painted.length() - 1
+    painted[last] = animated_region(
+      painted[last],
+      drawing.parts[last],
+      show.leaving,
+    )
+  }
+  let regions = [self.show_region(show, painted)]
   if self.show_neighbor(show.index, true) is Some(_) {
     regions.push(drawing.regions[1])
   }
@@ -176,7 +224,12 @@ pub fn Session::show_layout(
     "regions": regions,
     "outlines": probe.outline_resources(),
     "images": drawing.images,
-    "animating": !show.paused && show.effect is Some(_),
+    "animating": !show.paused &&
+    (
+      show.effect is Some(_) ||
+      show.advance.after is Some(_) ||
+      show.animations_running()
+    ),
   }
 }
 

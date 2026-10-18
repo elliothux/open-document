@@ -6,12 +6,21 @@ priv struct ShowState {
   time : Double
   elapsed : Double
   paused : Bool
+  advance : SlideAdvance
+  settled : Double
+  animations : Array[SlideAnimation]
+  starts : Array[Double]
+  finished : Int
+  step : Int
+  ready : Double
+  leaving : Map[String, Double]
 }
 
 ///|
 priv struct ShowDrawing {
   key : String
   regions : Array[@layout.DrawingRegion]
+  parts : Array[Array[(String, Array[@layout.DrawCommand])]]
   images : Array[String]
 }
 
@@ -47,7 +56,11 @@ fn Session::show_state(
 ) -> Json raise @failure.Failure {
   if show is Some(show) {
     let slide = self.slides[show.index]
-    let text = slide.objects.map(object => object.text()).join("\n")
+    let hidden = show.hidden_objects()
+    let text = slide.objects
+      .filter(object => !hidden.contains(object.id))
+      .map(object => object.text())
+      .join("\n")
     guard text.length() <= 1048576 else {
       @failure.reject("limit-exceeded", "Slideshow text exceeds budget")
     }
@@ -59,6 +72,8 @@ fn Session::show_state(
       "count": self.slides.length(),
       "text": text,
       "paused": show.paused,
+      "step": show.step,
+      "steps": show.animations.length(),
       "nextSlide": self
       .show_neighbor(show.index, true)
       .map(i => Json(self.slides[i].tree.part))
@@ -74,6 +89,8 @@ fn Session::show_state(
       "count": self.slides.length(),
       "text": "",
       "paused": false,
+      "step": 0,
+      "steps": 0,
       "nextSlide": Json::null(),
       "notes": { "text": "", "reason": "" },
     }
@@ -87,6 +104,7 @@ fn Session::show_scene(
   from : Int?,
   time : Double,
   animated : Bool,
+  leaving~ : Map[String, Double] = Map([]),
 ) -> ShowState raise @failure.Failure {
   let transition = if animated {
     read_slide_transition(self.slides[index].tree)
@@ -97,7 +115,8 @@ fn Session::show_scene(
     Some(value) if value.kind != "none" => Some(value)
     _ => None
   }
-  {
+  let advance = read_slide_advance(self.slides[index].tree)
+  let show : ShowState = {
     index,
     from: if effect is Some(_) {
       from
@@ -108,6 +127,27 @@ fn Session::show_scene(
     time,
     elapsed: 0,
     paused: false,
+    advance: if self.show_use_timings() {
+      advance
+    } else {
+      { ..advance, after: None, }
+    },
+    settled: effect.map(v => v.duration.to_double()).unwrap_or(0),
+    animations: read_animations(self.slides[index]),
+    starts: [],
+    finished: 0,
+    step: 0,
+    ready: 0,
+    leaving: if effect is Some(_) {
+      leaving
+    } else {
+      Map([])
+    },
+  }
+  if show.animations.get(0) is Some(item) && item.trigger != "click" {
+    show.schedule_animations(show.settled)
+  } else {
+    show
   }
 }
 
