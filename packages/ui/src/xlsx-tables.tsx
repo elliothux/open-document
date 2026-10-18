@@ -7,6 +7,7 @@ import type {
 import type { PanelProps } from "./panels.js";
 import { messages } from "./messages.js";
 import { XlsxFilter } from "./xlsx-filter.js";
+import { XlsxTableStyleForm } from "./xlsx-table-style.js";
 
 const totalFunctions: XlsxTableTotalFunction[] = [
   "sum",
@@ -75,6 +76,11 @@ export function XlsxTablesPanel(props: PanelProps) {
           </label>
           <p>{t.tableNamesHelp}</p>
           <TableNames key={table.id} {...props} table={table} />
+          <XlsxTableStyleForm
+            key={`style:${table.id}`}
+            {...props}
+            table={table}
+          />
           <XlsxFilter
             key={`filter:${table.id}`}
             editor={editor}

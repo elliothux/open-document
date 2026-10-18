@@ -122,15 +122,12 @@ fn Session::sort_cells(
     current,
     target,
     filter=true,
-    tables=table is Some(_),
+    tables=self.formula_names().tables.any(table => table.sheet == sheet),
   )
   let filter = if table is Some(_) {
     None
   } else {
-    read_filter(current).map(state => {
-      let (manual, filtered) = self.filter_provenance(index, state)
-      { ..state, manual, filtered, tracked: true, }
-    })
+    self.sheet_filters(current, self.parts).get(sheet)
   }
   let work : FormulaWork = {
     remaining: 1048576,

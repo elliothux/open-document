@@ -1,6 +1,37 @@
 ///|
 fn xlsx_table_edit(change : Json) -> @xlsx.SheetEdit raise @failure.Failure {
   let action = field_string(change, "action")
+  if action == "tableStyle" {
+    guard change is { "style": Object(fields) as style, .. } &&
+      change is Object(command) &&
+      command.length() == 3 &&
+      command.keys().all(key => ["action", "id", "style"].contains(key)) &&
+      fields.length() == 5 &&
+      fields
+      .keys()
+      .all(key => {
+        ["name", "firstColumn", "lastColumn", "rowStripes", "columnStripes"].contains(
+          key,
+        )
+      }) else {
+      @failure.reject("invalid-operation", "Invalid table style fields")
+    }
+    let name = match style {
+      { "name": Null, .. } => None
+      { "name": String(name), .. } => Some(name)
+      _ =>
+        @failure.reject(
+          "invalid-operation", "Expected a table style name or null",
+        )
+    }
+    return @xlsx.TableStyle(field_int(change, "id"), {
+      name,
+      first_column: xlsx_boolean(style, "firstColumn"),
+      last_column: xlsx_boolean(style, "lastColumn"),
+      row_stripes: xlsx_boolean(style, "rowStripes"),
+      column_stripes: xlsx_boolean(style, "columnStripes"),
+    })
+  }
   if [
       "tableFilter", "tableFilterClear", "tableFilterRemove", "tableFilterReapply",
     ].contains(action) {

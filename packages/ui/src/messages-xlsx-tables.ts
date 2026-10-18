@@ -1,4 +1,12 @@
 export const tableEn = {
+  tableStyle: "Table style",
+  tableStyleName: "Table style name",
+  tableStyleNone: "No table style",
+  tableFirstColumn: "Emphasize first column",
+  tableLastColumn: "Emphasize last column",
+  tableRowStripes: "Banded rows",
+  tableColumnStripes: "Banded columns",
+  applyTableStyle: "Apply table style",
   tableSort: "Sort table",
   tableSortHelp:
     "Sort all data rows. Headers and totals stay fixed; hidden records keep their positions.",
@@ -45,6 +53,14 @@ export const tableEn = {
     "Edit ordinary data in the grid. Rename headers here to update references.",
 };
 export const tableZh = {
+  tableStyle: "表样式",
+  tableStyleName: "表样式名称",
+  tableStyleNone: "无表样式",
+  tableFirstColumn: "突出首列",
+  tableLastColumn: "突出末列",
+  tableRowStripes: "行条纹",
+  tableColumnStripes: "列条纹",
+  applyTableStyle: "应用表样式",
   tableSort: "排序表数据",
   tableSortHelp: "排序全部数据行，标题和总计保持，隐藏记录保留原位。",
   tableTotalsRow: "显示总计行",

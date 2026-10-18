@@ -10,7 +10,7 @@ priv struct TableOverride {
 priv struct TableStyles {
   tables : Array[StructuredTable]
   overridden : Array[TableOverride]
-  colors : Array[String]
+  colors : Array[Array[String]]
   reason : String
   diagnostic : String
 }
@@ -131,20 +131,56 @@ fn Session::table_styles(
     if !table.style_reason.is_empty() {
       reason = table.style_reason
     }
-    if table.style is Some(name) && name != "TableStyleMedium2" {
+    if table.style is Some(name) && table_style_index(Some(name)) is None {
       reason = "Table style requires rendering support: " + name
     }
   }
   {
     tables,
     overridden,
-    colors: [
-      self.theme[0],
-      self.theme[1],
-      self.theme[4],
-      color_tint(self.theme[4], 0.79998168889431442),
-      color_tint(self.theme[4], 0.39997558519241921),
-    ],
+    colors: [1, 4, 5, 6, 7, 8, 9].map(index => {
+      [
+        self.theme[0],
+        self.theme[1],
+        self.theme[index],
+        if index == 1 {
+          color_tint(self.theme[0], -0.14999847407452621)
+        } else {
+          color_tint(self.theme[index], 0.79998168889431442)
+        },
+        if index == 1 {
+          self.theme[1]
+        } else {
+          color_tint(self.theme[index], 0.39997558519241921)
+        },
+        if index == 1 {
+          color_tint(self.theme[0], -0.34998626667073579)
+        } else {
+          color_tint(self.theme[index], 0.59999389629810485)
+        },
+        color_tint(self.theme[0], -0.14999847407452621),
+        if index == 1 {
+          self.theme[1]
+        } else {
+          color_tint(self.theme[index], -0.249977111117893)
+        },
+        if index == 1 {
+          color_tint(self.theme[1], 0.14999847407452621)
+        } else {
+          color_tint(self.theme[index], -0.499984740745262)
+        },
+        if index == 1 {
+          color_tint(self.theme[1], 0.44999542222357858)
+        } else {
+          self.theme[index]
+        },
+        if index == 1 {
+          color_tint(self.theme[1], 0.249977111117893)
+        } else {
+          color_tint(self.theme[index], -0.249977111117893)
+        },
+      ]
+    }),
     reason,
     diagnostic,
   }
@@ -173,37 +209,88 @@ fn TableStyles::applied(
   }
   let direct = self.overridden[sheet.style_at(address)]
   for table in self.tables {
-    // shortcut: Add other built-in styles with their native differential definitions.
-    if table.style != Some("TableStyleMedium2") ||
-      !table.range.contains(address) {
+    guard table_style_index(table.style) is Some(index) &&
+      table.range.contains(address) else {
       continue
     }
+    // Native groups repeat seven palettes; the final four Dark styles pair accents.
+    let family = index / 7
+    let colors = self.colors[if family == 8 {
+        [0, 1, 3, 5][index - 56]
+      } else {
+        index % 7
+      }]
     let header = table.headers == 1 && address.row == table.range.top
     let total = table.totals == 1 && address.row == table.range.bottom
-    let bold = header ||
-      total ||
-      (table.first_column && address.column == table.range.left) ||
+    let emphasized = (table.first_column && address.column == table.range.left) ||
       (table.last_column && address.column == table.range.right)
+    let bold = (header && family != 8) || (total && family != 2) || emphasized
     let font = if direct.bold {
       style.font
     } else {
       CellFormat::new(bold=if bold { Some(true) } else { None }).applied(style).font
     }
-    let fill = if direct.fill {
-      style.fill
-    } else if header {
-      self.colors[2]
-    } else if !total &&
+    let striped = !header &&
+      !total &&
       (
         (
           table.row_stripes &&
           (address.row - table.range.top - table.headers) % 2 == 0
         ) ||
         (table.column_stripes && (address.column - table.range.left) % 2 == 0)
-      ) {
-      self.colors[3]
+      )
+    let light_text = match family {
+      0 => header
+      1 => header || total || emphasized
+      2 => header || emphasized
+      5 => header
+      7 => true
+      8 => header
+      _ => false
+    }
+    let fill = if direct.fill {
+      style.fill
     } else {
-      ""
+      match family {
+        0 => if header { colors[2] } else if striped { colors[3] } else { "" }
+        1 =>
+          if header || total || emphasized {
+            colors[2]
+          } else if striped {
+            colors[5]
+          } else {
+            colors[3]
+          }
+        2 =>
+          if header || emphasized {
+            colors[2]
+          } else if striped {
+            colors[6]
+          } else {
+            ""
+          }
+        3 => if striped { colors[5] } else { colors[3] }
+        5 => if header { colors[2] } else { "" }
+        7 =>
+          if header {
+            colors[1]
+          } else if total {
+            colors[8]
+          } else if emphasized || striped {
+            colors[10]
+          } else {
+            colors[9]
+          }
+        8 =>
+          if header {
+            self.colors[[0, 2, 4, 6][index - 56]][2]
+          } else if striped {
+            colors[5]
+          } else {
+            colors[3]
+          }
+        _ => if striped { colors[3] } else { "" }
+      }
     }
     let borders = style.borders.copy()
     let border_priority = style.border_priority.copy()
@@ -219,24 +306,134 @@ fn TableStyles::applied(
         1 =>
           address.column ==
           (if sheet.view.rtl { table.range.left } else { table.range.right })
-        2 => true
+        2 => address.row == table.range.top
         _ => address.row == table.range.bottom
       }
-      borders[side] = if total && side == 2 {
-        { style: "double", color: self.colors[2], }
-      } else {
-        {
-          style: if outside {
-            "thin"
+      borders[side] = match family {
+        0 =>
+          if total && side == 2 {
+            { style: "double", color: colors[2], }
           } else {
-            "none"
-          },
-          color: if outside {
-            self.colors[4]
-          } else {
-            "000000"
-          },
+            let present = outside || side == 2
+            {
+              style: if present {
+                "thin"
+              } else {
+                "none"
+              },
+              color: if present {
+                colors[4]
+              } else {
+                "000000"
+              },
+            }
+          }
+        1 => {
+          let thick = (header && side == 3) || (total && side == 2)
+          {
+            style: if thick {
+              "thick"
+            } else if !outside {
+              "thin"
+            } else {
+              "none"
+            },
+            color: colors[0],
+          }
         }
+        2 => {
+          let medium = (outside && side >= 2) || (header && side == 3)
+          {
+            style: if total && side == 2 {
+              "double"
+            } else if medium {
+              "medium"
+            } else if index % 7 == 0 {
+              "thin"
+            } else {
+              "none"
+            },
+            color: colors[1],
+          }
+        }
+        3 =>
+          {
+            style: if total && side == 2 {
+              "medium"
+            } else {
+              "thin"
+            },
+            color: if total && side == 2 {
+              colors[2]
+            } else {
+              colors[4]
+            },
+          }
+        4 => {
+          let present = (side == 2 && (outside || total)) ||
+            (side == 3 && (outside || header))
+          { style: if present { "thin" } else { "none" }, color: colors[2], }
+        }
+        5 => {
+          let data = !header && !total
+          let present = outside ||
+            (
+              data &&
+              (
+                (side == 2 && table.row_stripes) ||
+                (side == 0 && table.column_stripes)
+              )
+            )
+          {
+            style: if total && side == 2 {
+              "double"
+            } else if present {
+              "thin"
+            } else {
+              "none"
+            },
+            color: colors[2],
+          }
+        }
+        6 =>
+          {
+            style: if total && side == 2 {
+              "double"
+            } else if header && side == 3 {
+              "medium"
+            } else {
+              "thin"
+            },
+            color: colors[2],
+          }
+        7 => {
+          let separated = (
+              table.first_column &&
+              address.column == table.range.left &&
+              side == 1
+            ) ||
+            (
+              table.last_column &&
+              address.column == table.range.right &&
+              side == 0
+            )
+          let present = separated ||
+            (header && side == 3) ||
+            (total && side == 2)
+          if present {
+            { style: "medium", color: colors[0], }
+          } else {
+            border_priority[side] = style.border_priority[side]
+            style.borders[side]
+          }
+        }
+        _ =>
+          if total && side == 2 {
+            { style: "double", color: colors[1], }
+          } else {
+            border_priority[side] = style.border_priority[side]
+            style.borders[side]
+          }
       }
     }
     return {
@@ -247,10 +444,14 @@ fn TableStyles::applied(
       border_priority,
       color: if direct.color {
         style.color
-      } else if header {
-        self.colors[0]
+      } else if family == 4 {
+        colors[7]
+      } else if light_text {
+        colors[0]
+      } else if family == 8 && !total && !emphasized {
+        style.color
       } else {
-        self.colors[1]
+        colors[1]
       },
     }
   }
@@ -270,10 +471,10 @@ fn Session::font_keys(
     }
   }
   if tables.any(table => {
-      table.style == Some("TableStyleMedium2") &&
+      table_style_index(table.style) is Some(index) &&
       (
-        table.headers == 1 ||
-        table.totals == 1 ||
+        (table.headers == 1 && index / 7 != 8) ||
+        (table.totals == 1 && index / 7 != 2) ||
         table.first_column ||
         table.last_column
       )

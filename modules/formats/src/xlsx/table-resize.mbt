@@ -58,12 +58,7 @@ fn Session::resize_table(
   let tree = Tree::new(source)
   let root = tree.root("table")
   let filter = tree.one(root.id, "autoFilter")
-  guard tree.one(root.id, "sortState") is None &&
-    filter.map(node => tree.one(node.id, "sortState") is None).unwrap_or(true) else {
-    @failure.reject(
-      "protected-content", "Table sort metadata requires range editing support",
-    )
-  }
+  self.check_sort_metadata(tree, table=true)
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
@@ -287,7 +282,24 @@ fn Session::resize_table(
     }
   }
   let changes = metadata_changes(root, [("ref", range.name())])
+  if tree.one(root.id, "sortState") is Some(sort) {
+    changes.append(
+      resized_sort_state(tree, sort, {
+        ..range,
+        top: range.top + table.headers,
+        bottom: range.bottom - table.totals,
+      }),
+    )
+  }
   if filter is Some(filter) {
+    if tree.one(filter.id, "sortState") is Some(sort) {
+      changes.append(
+        resized_sort_state(tree, sort, {
+          ..range,
+          bottom: range.bottom - table.totals,
+        }),
+      )
+    }
     changes.append(
       metadata_changes(filter, [
         ("ref", Range::{ ..range, bottom: range.bottom - table.totals, }.name()),

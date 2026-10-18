@@ -825,6 +825,8 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 ### 区域排序
 
+同一工作表含受支持原生表时，表外普通矩形仍可按行或列排序。核心检查表资源归属，保留表范围、列身份、计算列模板和原生排序状态。按当前全部筛选来源冻结可见位置，候选计算后重新应用相关条件；手动隐藏和各筛选来源分别保留，最终隐藏取并集。普通筛选内的排序状态仍写入所属筛选，其他普通排序写入工作表；原生表的排序状态独立保存。选区与表相交时沿[原生表行排序](#结构化表与引用)规则，跨表边界仍保护。范围归属参考 [ONLYOFFICE searchRangeInTableParts](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L1479-L1500)。
+
 `editSheet({ action: "sort", range, rows, header, caseSensitive, keys })` 对最多 4096 格的显式 A1 矩形排序。`rows=true` 按行重排，键 `index` 是工作表从 1 开始的列号；`rows=false` 按列重排，键为行号。`keys` 为 1–16 个互异条件 `{ index, descending, customList?, sortBy?, color? }`，索引必须在范围内，按数组顺序比较。三个布尔字段必须显式提供，`header=true` 保留所选范围的第一行或第一列。默认面板使用当前选区，提供方向、标题、大小写、增删多键、每键自定义列表及颜色依据。`XlsxSortSettings/XlsxSortKey` 从 Wasm/Web XLSX 模块导出。
 
 核心冻结排序前的当前键值，不用导入缓存代替未计算公式。数值及可解析为有限十进制数的文字键按数字比较，保留原单元格类型；布尔和错误按显示文字参与文字比较。空格与空串不同；空单元格和空串结果在升降序中均置后。相同键按原行列顺序稳定排列。`caseSensitive=false` 使用固定 Unicode 16 大写映射，文字按 UTF-16 字符序比较，不使用 MoonBit 默认的长度优先比较；语言区域校对顺序仍待兼容扩展。隐藏行或列的位置、内容与手动隐藏状态保留，不参加对应方向的置换。普通比较、隐藏位置和多键路径参考 [ONLYOFFICE _getSortElems](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21327-L21649)；该上游的 localeCompare 与本期固定字符序不同。
@@ -1203,7 +1205,7 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 原生表行排序复用 `editSheet({ action: "sort", range, ... })`。选区完全位于一张表内时，核心扩展为整张表的数据行和全部列，固定标题与总计。默认排序面板同步这些边界；多键、文字自定义列表和颜色沿[区域排序](#区域排序)规则。排序前冻结当前公式键和可见位置，手动或筛选隐藏记录留在原位；保留计算列模板、值/公式例外、富文本、便笺、链接和直接格式。候选计算后重新应用相关原生表及普通筛选，同步 SUBTOTAL 和最终值校验。
 
-排序状态写入所属表根节点 `sortState`，移除竞争的嵌套筛选排序状态，保留无关源。已支持的排序范围、键及颜色差异样式随整轴和工作表复制维护；源、值、缓存与可见性合为精确历史，支持保存重开和打印。横向表排序、跨越表边界的选区、有排序状态的范围调整及未知元数据继续保护。实现归 [`table-sort.mbt`](../../modules/formats/src/xlsx/table-sort.mbt)，参考 [ONLYOFFICE 表数据排序范围](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L2574-L2659)。
+排序状态写入所属表根节点 `sortState`，移除竞争的嵌套筛选排序状态，保留无关源。已支持的排序范围、键及颜色差异样式随整轴和工作表复制维护；源、值、缓存与可见性合为精确历史，支持保存重开和打印。横向表排序、跨越表边界的选区及未知元数据继续保护。已有排序的范围调整见下文。实现归 [`table-sort.mbt`](../../modules/formats/src/xlsx/table-sort.mbt)，参考 [ONLYOFFICE 表数据排序范围](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L2574-L2659)。
 
 `XlsxQuery.tables` 返回当前工作表的原生表定义，包括 `id`、`name`、A1 `range`、`headerRow/totalRow`、`columns`、`style`、`filter` 和 `readOnlyReason`。每列返回稳定的 `id`、`name` 及可空的 `formula/totalFunction/totalLabel/totalFormula` 原生设置；表和列身份来自所属 XML，不从位置或显示文字重新生成。`filter` 沿用 `XlsxFilterState` 的范围、条件、值目录和保护原因。核心校验表关系、名称、列数、重复身份、重叠范围和合并区域，单元格仍由原有稀疏工作表持有。
 
@@ -1235,7 +1237,7 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 默认结构化表面板复用现有条件控件，原生草稿先提交。筛选需要标题和至少一行数据，范围最多 4096 格、条件最多 256 列；文本、公式工作、输出及历史沿普通筛选预算。当前表目录共享 1048576 次工作预算，超限目录返回原因。未知条件、扩展、注释/处理指令、保护或预算失败保留原源、选区和历史。原生表筛选已随范围调整和整行/整列插删同步，具体规则见下文；表内行排序见下文。实现归 [`filter-visibility.mbt`](../../modules/formats/src/xlsx/filter-visibility.mbt)及既有筛选读写，参考 [ONLYOFFICE 表/区域的共同筛选入口](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L1054-L1135)和[按表身份重新应用](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L1405-L1445)。没有复制上游代码。
 
-筛选中的 `resizeTable` 保留仍在范围内的条件列和按钮标记，列号继续绑定原工作表列；移出列的条件随列移除。扩大后按当前值检查新增数据行，缩小后释放移出行的筛选隐藏，保留手动隐藏及其他表/普通筛选的来源。总计行仍不参加筛选，迁移目标须为空，已有值/公式例外沿范围调整规则保留。有排序状态的范围调整继续保护。
+筛选中的 `resizeTable` 保留仍在范围内的条件列和按钮标记，列号继续绑定原工作表列；移出列的条件随列移除。扩大后按当前值检查新增数据行，缩小后释放移出行的筛选隐藏，保留手动隐藏及其他表/普通筛选的来源。总计行仍不参加筛选，迁移目标须为空，已有值/公式例外沿范围调整规则保留。已有排序状态也可调整范围。扩大时保留仍有效的历史排序范围及源，不自动重排新增数据。缩小时把表根节点排序限制在新数据区，把筛选内排序限制在新筛选范围；裁剪各键范围，移除已离开的键，全部键移出时删除状态。键顺序、大小写、方法、自定义列表及颜色样式引用保持。颜色引用先按既有差异样式池校验，未知元数据或缺失样式仍原子拒绝。源、条件、生成格、总计和缓存共用一次精确历史。实现复用 [`sort-state.mbt`](../../modules/formats/src/xlsx/sort-state.mbt) 与现有表范围事务；扩大时保留历史设置参考 [ONLYOFFICE changeRefOnRange](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L8579-L8642)，裁剪额外保证保存状态仍属于本表。
 
 已有 `insertRows/deleteRows/insertColumns/deleteColumns` 同步维护原生表。表之前的插入移动范围，表内部的插入扩展范围；保留原列身份，新列使用空闲身份和唯一 `ColumnN` 标题。计算列模板的相对引用按新的首个数据行重定位，绝对引用沿工作表结构变化。插入的数据行按模板生成公式，原有值/公式例外不改写；每次最多生成 4096 格。总计和筛选范围一起移动，删除总计所在行时关闭总计并保留设置。
 
@@ -1247,7 +1249,27 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 普通数据格沿现有输入路径编辑。直接覆盖表头、总计格或已有计算列时，核心要求相应表命令；缓存重算不受此限制。连接、资源关系、扩展、未知规则引用、受保护工作表和超限候选原子拒绝。工作簿最多 256 张结构化表、4096 列定义；每表列名累计最多 65536 个单元，改名共享 1048576 公式工作预算和原有 4 MiB 历史上限。
 
-`TableStyleMedium2` 的标题填充/文字色、行列条纹、首末列和总计字体、外框/横线及总计双线进入现有显示、打印与自动适配路径。颜色复用当前主题及 tint 解析。直接声明按属性覆盖表样式，条件格式随后覆盖；所需粗体字体键包含在查询中，宿主仍须供应字体及 profile。格式面板查询包含表样式，修改字体或边框时保留同一组件的其他可见属性；`none` 清除直接边框覆盖，恢复表样式。共享边只绘制一次，双线保留两条细线及间隙。其他内置/自定义样式和差异样式继续保护。属性依据 [ONLYOFFICE 的 Medium2 定义](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Sheets/XlsxDefaults/presetTableStyles.xml#L2492-L2579)，实现归 [`table-style.mbt`](../../modules/formats/src/xlsx/table-style.mbt)。
+`editSheet({ action: "tableStyle", id, style })` 修改所属表的原生样式。`style` 为 `XlsxTableStyle`，包含 `name: string | null` 和显式布尔字段 `firstColumn/lastColumn/rowStripes/columnStripes`。名称支持 `TableStyleLight1`–`TableStyleLight21`、`TableStyleMedium1`–`TableStyleMedium28` 和 `TableStyleDark1`–`TableStyleDark11`，共 60 种。null 清除样式，保留数据、模板、筛选和直接格式。查询的 `style` 返回名称或 null，四个布尔字段另行返回。
+
+缺失的原生节点按需创建，相同设置不增加修订或历史。未知元数据、内置名称被自定义定义覆盖、保护及预算失败整体拒绝。默认面板、同步 Wasm 和 Worker 使用同一命令。样式源与自动尺寸变化合为精确历史，公式缓存、calcChain 和无关部件保持。实现归 [`table-style-edit.mbt`](../../modules/formats/src/xlsx/table-style-edit.mbt)和 [`xlsx-table-style.tsx`](../../packages/ui/src/xlsx-table-style.tsx)。
+
+内置样式复用已有主题及 tint 解析。各组保留原生定义的差异：
+
+| 名称范围 | 字体和底色 | 条纹、边框和总计 |
+| --- | --- | --- |
+| Medium1–7 | 深色标题，正文使用主题深色字 | 浅条纹，双线总计 |
+| Medium8–14 | 深色标题、总计及强调列 | 较深条纹，主题浅色内部网格与粗分隔线 |
+| Medium15–21 | 深色标题及强调列，普通总计不额外加粗 | 灰条纹，黑色双线总计；灰阶项保留完整网格 |
+| Medium22–28 | 浅底色和主题深色字 | 较深条纹、完整网格与中等总计线 |
+| Light1–7 | 有色文字，不新增标题底色 | 浅条纹，少量标题、总计及外侧横线 |
+| Light8–14 | 深色标题，正文保留普通底色 | 行/列条纹开关分别控制内部横线/竖线，总计使用双线 |
+| Light15–21 | 正文保留普通底色 | 浅条纹、完整网格、中等标题线和双线总计 |
+| Dark1–7 | 深底浅字，强调列使用更深底色 | 标题、总计及强调列保留中等浅色分隔线 |
+| Dark8–11 | 标题与正文使用配对主题色，未强调的标题不加粗 | 浅条纹，不新增内部网格，总计使用深色双线 |
+
+Dark8–11 未声明的正文文字色和边框沿用正常单元格格式。字体请求只包含实际需要的粗体字形。直接格式按属性覆盖表样式，条件格式随后覆盖；网格、自动适配与打印使用同一结果。格式面板查询包含表样式；`none` 清除直接边框覆盖，恢复表样式。共享边只绘制一次，双线保留两条细线及间隙。宿主仍须提供字体和 profile。自定义差异样式继续保护。
+
+原生属性依据 ONLYOFFICE 的 [Medium 定义](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Sheets/XlsxDefaults/presetTableStyles.xml#L3-L2668)、[Light 定义](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Sheets/XlsxDefaults/presetTableStyles.xml#L2668-L4536)和 [Dark 定义](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Sheets/XlsxDefaults/presetTableStyles.xml#L4537-L5598)。实现归 [`table-style.mbt`](../../modules/formats/src/xlsx/table-style.mbt)，复用原有绘制模型。
 
 含受支持原生表的工作表可沿现有 `rename/copy/delete` 命令和默认按钮操作。工作表改名同步各表的 `calculatedColumnFormula/totalsRowFormula`，保留表名、表/列身份及部件路径。复制为每张表分配独立身份、空闲 `TableN` 名称和部件，并复制工作表关系与内容类型；列身份和其他原生设置保留。副本的显式表引用、工作表自引用及导入的局部名称指向相应副本，字符串常量和全局名称保持原归属。表名分配避开已有表和名称，不重命名源表。实现归 [`table-sheet-copy.mbt`](../../modules/formats/src/xlsx/table-sheet-copy.mbt)，参考 [ONLYOFFICE 工作表表副本及映射](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L7096-L7120)及[表名分配](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L1286-L1300)。
 

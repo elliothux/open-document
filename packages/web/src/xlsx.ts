@@ -44,6 +44,7 @@ export type {
   XlsxTableColumn,
   XlsxTableEdit,
   XlsxTableTotal,
+  XlsxTableStyle,
   XlsxTableTotalFunction,
   XlsxOutlineGroup,
   XlsxOutlineEdit,

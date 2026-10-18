@@ -13,7 +13,9 @@ fn Session::reorder_cells(
 ) -> Json raise @failure.Failure {
   let index = self.sheet_index(sheet)
   let current = self.sheets[index]
-  let table_filters = if table is Some(_) {
+  let table_filters = if self.formula_names().tables.any(table => {
+      table.sheet == sheet
+    }) {
     self.sheet_filters(current, self.parts)
   } else {
     Map([])
@@ -171,6 +173,9 @@ fn Session::reorder_cells(
   } else {
     filter
   }
+  if filter is Some(state) && table_filters.get(sheet) is Some(previous) {
+    table_filters[sheet] = { ..previous, sort: state.sort, }
+  }
   if table is Some(table) && sort is Some(sort) {
     self.write_table_sort(table, sort, parts, edits)
     if table_filters.get(table.part) is Some(state) {
@@ -203,11 +208,11 @@ fn Session::reorder_cells(
     self.workbook,
     parts~,
   )
-  if table is Some(table) {
+  if table is Some(_) || !table_filters.is_empty() {
     let targets = table_filters
       .keys()
       .filter(part => {
-        part == table.part ||
+        table.map(table => part == table.part).unwrap_or(false) ||
         part == sheet ||
         !table_filters[part].settings.columns.is_empty()
       })

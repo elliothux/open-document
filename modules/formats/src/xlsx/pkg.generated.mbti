@@ -297,6 +297,7 @@ pub(all) enum SheetEdit {
   ResizeTable(Int, String)
   TableColumnFormula(Int, Int, String?)
   TableTotals(Int, Bool)
+  TableStyle(Int, TableStyleSettings)
   TableColumnTotal(Int, Int, TableTotal)
   TableFilter(Int, Array[FilterColumn])
   TableFilterClear(Int)
@@ -350,6 +351,14 @@ pub(all) struct SortSettings {
   header : Bool
   case_sensitive : Bool
   keys : Array[SortKey]
+}
+
+pub(all) struct TableStyleSettings {
+  name : String?
+  first_column : Bool
+  last_column : Bool
+  row_stripes : Bool
+  column_stripes : Bool
 }
 
 pub(all) enum TableTotal {

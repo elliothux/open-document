@@ -44,6 +44,10 @@ fn Session::table_query(
         value
       }),
       "style": table.style.map(value => Json(value)).unwrap_or(Json::null()),
+      "firstColumn": table.first_column,
+      "lastColumn": table.last_column,
+      "rowStripes": table.row_stripes,
+      "columnStripes": table.column_stripes,
       "filter": self.filter_query(
         self.sheet_index(sheet.id),
         table=Some(table),
@@ -55,6 +59,8 @@ fn Session::table_query(
         reason
       } else if sheet.locked {
         "Protected worksheet"
+      } else if !table.style_reason.is_empty() {
+        table.style_reason
       } else {
         table.reason
       },

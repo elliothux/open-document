@@ -234,3 +234,45 @@ fn axis_sort_state(
     (edits, false)
   }
 }
+
+///|
+fn resized_sort_state(
+  tree : Tree,
+  node : @xml.Node,
+  bounds : Range,
+) -> Array[@xml.SourceChange] raise @failure.Failure {
+  let previous = Range::parse(node.attribute("ref").unwrap_or(""))
+  if bounds.covers(previous) {
+    return []
+  }
+  let clip = fn(range : Range) -> Range? {
+    if !bounds.intersects(range) {
+      None
+    } else {
+      Some({
+        top: bounds.top.max(range.top),
+        bottom: bounds.bottom.min(range.bottom),
+        left: bounds.left.max(range.left),
+        right: bounds.right.min(range.right),
+      })
+    }
+  }
+  guard clip(previous) is Some(next) else {
+    return [sheet_node_removal(tree, node)]
+  }
+  let changes = metadata_changes(node, [("ref", next.name())])
+  let mut remaining = 0
+  for key in tree.all(node.id, "sortCondition") {
+    if clip(Range::parse(key.attribute("ref").unwrap_or(""))) is Some(range) {
+      changes.append(metadata_changes(key, [("ref", range.name())]))
+      remaining += 1
+    } else {
+      changes.push(sheet_node_removal(tree, key))
+    }
+  }
+  if remaining == 0 {
+    [sheet_node_removal(tree, node)]
+  } else {
+    changes
+  }
+}

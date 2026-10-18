@@ -22,8 +22,19 @@ export interface XlsxTable {
   totalRow: boolean;
   columns: XlsxTableColumn[];
   style: string | null;
+  firstColumn: boolean;
+  lastColumn: boolean;
+  rowStripes: boolean;
+  columnStripes: boolean;
   readOnlyReason: string;
   filter: XlsxFilterState;
+}
+export interface XlsxTableStyle {
+  name: string | null;
+  firstColumn: boolean;
+  lastColumn: boolean;
+  rowStripes: boolean;
+  columnStripes: boolean;
 }
 export type XlsxTableTotalFunction =
   "average" | "countNums" | "count" | "max" | "min" | "stdDev" | "sum" | "var";
@@ -33,6 +44,7 @@ export type XlsxTableTotal =
   | { kind: "formula"; formula: string }
   | { kind: "aggregate"; function: XlsxTableTotalFunction };
 export type XlsxTableEdit =
+  | { action: "tableStyle"; id: number; style: XlsxTableStyle }
   | { action: "tableFilter"; id: number; columns: XlsxFilterColumn[] }
   | {
       action: "tableFilterClear" | "tableFilterRemove" | "tableFilterReapply";
@@ -71,6 +83,42 @@ function tableName(value: unknown): value is string {
 }
 export function checkXlsxTableEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "tableStyle") {
+    const style = record(change.style);
+    if (
+      !integer(change.id, 1, 2147483647) ||
+      Object.keys(change).length !== 3 ||
+      Object.keys(change).some(
+        (key) => !["action", "id", "style"].includes(key),
+      ) ||
+      Object.keys(style).length !== 5 ||
+      Object.keys(style).some(
+        (key) =>
+          ![
+            "name",
+            "firstColumn",
+            "lastColumn",
+            "rowStripes",
+            "columnStripes",
+          ].includes(key),
+      ) ||
+      !(
+        style.name === null ||
+        (typeof style.name === "string" &&
+          /^TableStyle(?:Medium(?:[1-9]|1[0-9]|2[0-8])|Light(?:[1-9]|1[0-9]|2[01])|Dark(?:[1-9]|1[01]))$/.exec(
+            style.name,
+          )?.[0] === style.name)
+      ) ||
+      [
+        style.firstColumn,
+        style.lastColumn,
+        style.rowStripes,
+        style.columnStripes,
+      ].some((value) => typeof value !== "boolean")
+    )
+      throw new Error("Invalid table style settings");
+    return;
+  }
   if (
     [
       "tableFilter",
@@ -222,6 +270,12 @@ export function xlsxTables(value: unknown): XlsxTable[] {
       typeof table.headerRow !== "boolean" ||
       typeof table.totalRow !== "boolean" ||
       (table.style !== null && !tableName(table.style)) ||
+      [
+        table.firstColumn,
+        table.lastColumn,
+        table.rowStripes,
+        table.columnStripes,
+      ].some((value) => typeof value !== "boolean") ||
       typeof table.readOnlyReason !== "string" ||
       !Array.isArray(table.columns) ||
       !table.columns.length

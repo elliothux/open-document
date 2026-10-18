@@ -140,6 +140,7 @@ export function checkXlsxSheetEdit(value: unknown): void {
     change.action === "resizeTable" ||
     change.action === "tableColumnFormula" ||
     change.action === "tableTotals" ||
+    change.action === "tableStyle" ||
     change.action === "tableTotal" ||
     [
       "tableFilter",
