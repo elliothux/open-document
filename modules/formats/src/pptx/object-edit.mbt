@@ -2,6 +2,8 @@
 pub(all) enum ObjectEdit {
   Insert(String, Double, Double, Double, Double, String)
   InsertImage(Bytes, Double, Double, Double, Double)
+  InsertTable(Int, Int, Double, Double, Double, Double)
+  TableStructure(String)
   ReplaceImage(String, Bytes)
   ImageFill(Array[String], Bytes, String)
   ImageFillMode(String)
@@ -97,14 +99,20 @@ fn Session::object_edit_reason(
 ) -> String {
   let duplicate = action == "duplicate"
   try {
-    if !object.read_only.is_empty() {
+    let table_delete = action == "delete" &&
+      object.table is Some(_) &&
+      object.read_only ==
+      "Table object transforms and structure are not yet editable"
+    if !object.read_only.is_empty() && !table_delete {
       return object.read_only
     }
     let slide = self.slides[self.index(object.source.tree.part)]
     if !slide.read_only.is_empty() {
       return slide.read_only
     }
-    guard ["sp", "pic", "grpSp"].contains(object.source.node.name) &&
+    guard (
+        ["sp", "pic", "grpSp"].contains(object.source.node.name) || table_delete
+      ) &&
       object.source.node.parent == shape_tree(slide.tree).id else {
       return "Only local top-level shapes and pictures support this operation"
     }
@@ -272,6 +280,12 @@ pub fn Session::edit_objects(
   if change is InsertImage(bytes, x, y, width, height) {
     return self.write_image(bytes, Some((x, y, width, height)))
   }
+  if change is InsertTable(rows, columns, x, y, width, height) {
+    return self.insert_table(rows, columns, x, y, width, height, probe, profile)
+  }
+  if change is TableStructure(operation) {
+    return self.edit_table_structure(operation, probe, profile)
+  }
   if change is ImageFillMode(mode) {
     return self.set_image_fill_mode(mode)
   }
@@ -329,6 +343,8 @@ pub fn Session::edit_objects(
   let mut issued : String? = None
   let (changes, after) = match change {
     InsertImage(_, _, _, _, _)
+    | InsertTable(_, _, _, _, _, _)
+    | TableStructure(_)
     | ReplaceImage(_, _)
     | ImageFill(_, _, _)
     | ImageFillMode(_)

@@ -434,6 +434,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
     "revision": self.revision,
     "formatting": self.formatting_query(),
     "paragraph": self.paragraph_query(),
+    "table": self.table_query(),
     "groupReason": self.group_edit_reason(false),
     "ungroupReason": self.group_edit_reason(true),
     "slideOrderReason": self.slide_order_reason(),

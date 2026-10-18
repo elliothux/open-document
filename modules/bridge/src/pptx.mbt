@@ -369,6 +369,8 @@ fn Foundation::pptx_operation(
         @failure.reject("invalid-operation", "Object edit is required")
       }
       let change = match field_string(change, "action") {
+        "tableStructure" =>
+          @pptx.TableStructure(field_string(change, "operation"))
         "imageFill" =>
           @pptx.ImageFill(
             pptx_objects(change),
@@ -394,6 +396,15 @@ fn Foundation::pptx_operation(
         "insertImage" =>
           @pptx.InsertImage(
             input_bytes(change, 4194304),
+            xlsx_number(change, "x"),
+            xlsx_number(change, "y"),
+            xlsx_number(change, "width"),
+            xlsx_number(change, "height"),
+          )
+        "insertTable" =>
+          @pptx.InsertTable(
+            field_int(change, "rows"),
+            field_int(change, "columns"),
             xlsx_number(change, "x"),
             xlsx_number(change, "y"),
             xlsx_number(change, "width"),

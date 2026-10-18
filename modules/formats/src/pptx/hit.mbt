@@ -177,7 +177,15 @@ pub fn Session::hit(
       let text = view.texts.iter().find_first(text => text.object == object.id)
       return {
         "object": object.id,
-        "offset": text.map(text => closest_caret(text, x, y)).unwrap_or(0),
+        "offset": text
+        .map(text => {
+          if object.table is Some(_) {
+            object.table_hit_offset(text, x, y)
+          } else {
+            closest_caret(text, x, y)
+          }
+        })
+        .unwrap_or(0),
         "readOnlyReason": object.read_only,
         "textReadOnlyReason": object.text_reason,
       }
@@ -225,7 +233,10 @@ pub fn Session::selection_geometry(
     if object.geometry is Some(geometry) {
       outline = polygon(geometry.matrix, 0, 0, geometry.width, geometry.height)
     }
-    if selection.mode == "text" &&
+    let cells = object.table.map(table => table.range(selection))
+    if selection.mode == "text" && cells is Some(range) && range.multiple() {
+      rects.push(object.table_range_polygon(range))
+    } else if selection.mode == "text" &&
       view.texts.iter().find_first(text => text.object == selection.object)
       is Some(text) {
       let a = selection.anchor.min(selection.focus)

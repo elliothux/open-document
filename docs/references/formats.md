@@ -1937,11 +1937,23 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 
 ### PPTX 普通表格
 
+`PresentationEditor.editObjects({ action: "insertTable", rows, columns, x, y, width, height })` 和同步 Wasm/Worker 的 `editPptxObjects` 创建普通空表格。位置与尺寸单位为点，沿用对象的有限值及 14400 点上限；行列数必须为整数。网格按整数 EMU 等分，总宽与外框精确一致；每列须保留默认左右内边距外的正文字宽度。初始文字为 Arial 18 点、黑色，单元格为白底及 1 点黑色实线边框。行高不足时按现有字体排版增长，所有生成内容合为一项历史。默认 UI 共用对象的位置和尺寸输入，单独提供行列数。身份分配避开原对象及会话已使用身份，失败不占用身份。
+
+对象模式的现有 `delete` 命令可删除整张普通表格，清除选择，并支持精确撤销重做。锁定、引用和输出预算继续由原对象事务校验；有动画或连接引用时受保护。结构依据 [ONLYOFFICE 表格创建](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L4122-L4176)，单元格属性顺序沿 [TableCellProperties 序列化](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Table/TableCellProperties.cpp#L145-L171)。实现归 [`table-create.mbt`](../../modules/formats/src/pptx/table-create.mbt)。
+
+`editObjects({ action: "tableStructure", operation })` 修改表格结构。`operation` 接受 `insertRowBefore`、`insertRowAfter`、`deleteRow`、`insertColumnBefore`、`insertColumnAfter`、`deleteColumn`、`merge`、`unmerge`。`PptxQuery.table` 返回 `{ object, rows, columns, row, column, firstRow, lastRow, firstColumn, lastColumn, reason, operations }`，行列下标从零开始，范围两端均包含；没有单选普通表格时返回 `null`。`operations` 为上述八项操作各自的保护原因，空串表示可用。对象模式从首格操作；文字模式的选择两端跨格时，核心将两端单元格作为矩形的对角，扩展到包含相交合并格的完整范围。当前光标仍使用既有 UTF-16 位置，反向选择不改变范围。默认面板直接使用核心返回的位置、范围和原因，鼠标点击结构按钮保留原生输入焦点。
+
+插入数量等于选中的行或列数。向前插入使用首行/列，向后插入使用末行/列，复制行高或列宽及各格框属性、首段字符/段落格式，文字置空。旧单元格及其他部件保持原源。网格与外框一起扩展或缩小，提交前按既有排版检查行高；插入后选中新格块，删除后光标定位相邻保留格。删除全部行或列时移除整表，并检查整表删除锁和外部对象引用。每次操作合为一项精确历史。模板中的身份扩展或资源链接、锁定、多对象选择和超限修改受保护；动画引用表格内部范围时，修改需先实现引用重映射，当前受保护。失败保留源和选择。行为依据 [ONLYOFFICE 表格命令](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L6659-L6716)、[行插入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9997-L10146)和[列插入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L10512-L10620)。实现归 [`table-selection.mbt`](../../modules/formats/src/pptx/table-selection.mbt)和 [`table-structure.mbt`](../../modules/formats/src/pptx/table-structure.mbt)。
+
 本地未分组的普通 DrawingML 表格沿现有对象查询返回 `kind: "table"`，单元格文字使用现有文字选择和编辑接口。核心读取固定列宽和行高、纯色或无填充、普通不透明实线边框、四边内边距及上/中/下垂直对齐。每格独立裁剪，文字、光标、命中和 PDF 复用公共文字布局。默认内边距沿 [ONLYOFFICE 表格设置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ChartSpacePrototype.js#L640-L665)；网格和图形框对应关系参考 [Create_TableGraphicFrame](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L4122-L4176)。
 
-单格输入、换段、组合输入及取消共用现有源事务。文字需要更多高度时，核心只增长对应行及外框，连同文字写入一项历史。撤销、重做及保存保留其他单元格和未改部件。查询按行连接单元格段落，以 LF 分隔；跨格文字替换和边界删除受保护，避免把两个单元格的源段落合并。
+单格输入、换段、组合输入及取消共用现有源事务。文字需要更多高度时，核心增长对应行及外框，连同文字写入一项历史。撤销、重做及保存保留其他单元格和未改部件。查询按行连接单元格段落，以 LF 分隔。多格范围的复制返回完整格文本，列间使用 Tab、行间使用 LF，格内段落及软换行保留为 LF。范围输入把文字写入左上格并清空其他选中格；删除或剪切仅清空内容，保留网格和格式。范围高亮、空白区域命中和可访问描述均使用核心返回的矩形。组合输入候选使用预览选择，取消恢复完整原选区；提交合为一项历史。折叠光标在单元格边界的删除仍受保护，避免把相邻格段落合并或误清空范围。实现归 [`table-input.mbt`](../../modules/formats/src/pptx/table-input.mbt)和 [`table-hit.mbt`](../../modules/formats/src/pptx/table-hit.mbt)。
 
-支持网格宽高与外框一致的完整矩形表格，最多 1000 行、63 列、4096 格，文字合计最多 32767 UTF-16 单元，继续受包、布局、输出及历史预算约束。表格样式、合并格、分组和旋转等未支持配置给出诊断并保留原源；对象变换与结构命令保持受保护。创建、行列增删、合并拆分和更广样式仍待实现。实现归 [`table-read.mbt`](../../modules/formats/src/pptx/table-read.mbt)和 [`table-layout.mbt`](../../modules/formats/src/pptx/table-layout.mbt)。
+合并格使用原生 `rowSpan/gridSpan/hMerge/vMerge`，保留完整物理网格。左上主格持有文字，延续格必须为空；核心校验跨度、覆盖及延续标记。文字位置、复制、绘制和裁剪只包含主格，命中延续区域时定位主格。单个合并格内仍可选择文字。主格宽高为所跨列行之和，文字需要更多高度时增长跨度末行及外框。结构依据 [ONLYOFFICE 表格序列化](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/SerializeWriter.js#L5900-L5967)与 [TableCell 原生属性](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Table/TableCell.cpp#L118-L138)。归属校验归 [`table-spans.mbt`](../../modules/formats/src/pptx/table-spans.mbt)。
+
+`merge` 要求范围内至少两个主格，按行顺序把各格段落及字符/段落属性移入左上格，清空其他主格，并写回标准跨度。合并后的文字整体选中。所涉单元格的局部列表默认值必须为空，段落合计最多 256；其他属性、未选格及部件保留。`unmerge` 要求选中一个合并格，恢复物理单元格；文字留在左上格，其余格为空并保留原框及文字格式。两项操作均共用行高适配和一项精确历史。行为依据 [ONLYOFFICE MergeTableCells](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9466-L9602)，实现归 [`table-merge.mbt`](../../modules/formats/src/pptx/table-merge.mbt)。行列操作允许在跨度边界插入、整体移动合并格或删除完整跨度，切穿其他跨度时受保护。逐项操作保护归 [`table-operations.mbt`](../../modules/formats/src/pptx/table-operations.mbt)。
+
+支持网格宽高与外框一致的完整矩形表格，最多 1000 行、63 列、4096 格，文字合计最多 32767 UTF-16 单元，继续受包、布局、输出及历史预算约束。不一致的延续格、表格样式、分组和旋转等未支持配置给出诊断并保留原源；非整数跨度按现有数值规则拒绝。对象变换、任意拆分和更广样式仍待实现。实现归 [`table-read.mbt`](../../modules/formats/src/pptx/table-read.mbt)和 [`table-layout.mbt`](../../modules/formats/src/pptx/table-layout.mbt)。
 
 ### 演讲备注
 

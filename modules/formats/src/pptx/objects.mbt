@@ -368,7 +368,12 @@ fn read_object(
   let paragraphs = table
     .map(table => {
       table.rows
-      .map(row => row.cells.map(cell => cell.paragraphs).flatten())
+      .map(row => {
+        row.cells
+        .filter(cell => cell.owner())
+        .map(cell => cell.paragraphs)
+        .flatten()
+      })
       .flatten()
     })
     .unwrap_or(plain_paragraphs)

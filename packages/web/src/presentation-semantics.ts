@@ -12,6 +12,16 @@ export function updatePresentationObjects(
     "aria-label",
     `${state.selection.mode === "text" ? "Text" : "Object"} input: ${state.objects.find((object) => object.id === state.selection.object)?.name || "slide"}`,
   );
+  const table = state.table;
+  if (
+    table &&
+    (table.firstRow !== table.lastRow || table.firstColumn !== table.lastColumn)
+  )
+    input.setAttribute(
+      "aria-description",
+      `Selected cells: row ${table.firstRow + 1} column ${table.firstColumn + 1} to row ${table.lastRow + 1} column ${table.lastColumn + 1}.`,
+    );
+  else input.removeAttribute("aria-description");
   const focused = focusedElement(list);
   const active =
     focused instanceof HTMLElement ? focused.dataset.object : undefined;

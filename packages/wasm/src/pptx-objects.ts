@@ -1,6 +1,97 @@
 import { record } from "./validation.js";
 import { drawingMatrix } from "./drawing.js";
 
+export interface PptxSelection {
+  slide: string;
+  object: string;
+  objects: string[];
+  mode: "object" | "text";
+  anchor: number;
+  focus: number;
+}
+export interface PptxPoint {
+  x: number;
+  y: number;
+}
+export interface PptxHit {
+  object: string;
+  offset: number;
+  readOnlyReason: string;
+  textReadOnlyReason: string;
+}
+export interface PptxTable {
+  object: string;
+  rows: number;
+  columns: number;
+  row: number;
+  column: number;
+  firstRow: number;
+  lastRow: number;
+  firstColumn: number;
+  lastColumn: number;
+  reason: string;
+  operations: Record<(typeof tableOperations)[number], string>;
+}
+const tableOperations = [
+  "insertRowBefore",
+  "insertRowAfter",
+  "deleteRow",
+  "insertColumnBefore",
+  "insertColumnAfter",
+  "deleteColumn",
+  "merge",
+  "unmerge",
+] as const;
+
+export function checkPptxTable(
+  value: unknown,
+  selected: readonly string[],
+  active: unknown,
+): void {
+  if (value === null) return;
+  const table = record(value),
+    rows = number(table.rows, 1, 1000),
+    columns = number(table.columns, 1, 63);
+  const operations = record(table.operations);
+  if (
+    Object.keys(operations).length !== tableOperations.length ||
+    tableOperations.some(
+      (operation) => typeof operations[operation] !== "string",
+    )
+  )
+    throw new Error("Invalid PPTX table operation reasons");
+  const row = number(table.row, 0, rows - 1),
+    column = number(table.column, 0, columns - 1);
+  const firstRow = number(table.firstRow, 0, rows - 1),
+    lastRow = number(table.lastRow, firstRow, rows - 1),
+    firstColumn = number(table.firstColumn, 0, columns - 1),
+    lastColumn = number(table.lastColumn, firstColumn, columns - 1);
+  if (
+    ![
+      rows,
+      columns,
+      row,
+      column,
+      firstRow,
+      lastRow,
+      firstColumn,
+      lastColumn,
+    ].every(Number.isInteger) ||
+    row < firstRow ||
+    row > lastRow ||
+    column < firstColumn ||
+    column > lastColumn ||
+    rows * columns > 4096 ||
+    typeof table.object !== "string" ||
+    !table.object ||
+    table.object !== active ||
+    selected.length !== 1 ||
+    selected[0] !== table.object ||
+    typeof table.reason !== "string"
+  )
+    throw new Error("Invalid PPTX table query");
+}
+
 export function imageInsets(value: unknown): void {
   if (
     !Array.isArray(value) ||
@@ -162,6 +253,16 @@ export function pptxHyperlink(value: unknown): PptxHyperlink | null {
   return value as PptxHyperlink;
 }
 export type PptxObjectEdit =
+  | { action: "tableStructure"; operation: (typeof tableOperations)[number] }
+  | {
+      action: "insertTable";
+      rows: number;
+      columns: number;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }
   | {
       action: "imageFill";
       objects: readonly string[];
@@ -274,6 +375,36 @@ export function number(value: unknown, low = 0, high = 0x7fffffff): number {
 }
 export function checkPptxObjectEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "tableStructure") {
+    if (
+      !tableOperations.some((value) => value === change.operation) ||
+      Object.keys(change).some((key) => key !== "action" && key !== "operation")
+    )
+      throw new Error("Invalid PPTX table structure edit");
+    return;
+  }
+  if (change.action === "insertTable") {
+    const rows = number(change.rows, 1, 1000),
+      columns = number(change.columns, 1, 63);
+    number(change.x, -14400, 14400);
+    number(change.y, -14400, 14400);
+    const width = number(change.width, 0.1, 14400);
+    number(change.height, 0.1, 14400);
+    if (
+      !Number.isInteger(rows) ||
+      !Number.isInteger(columns) ||
+      rows * columns > 4096 ||
+      Math.floor(Math.round(width * 12700) / columns) <= 182880 ||
+      Object.keys(change).some(
+        (key) =>
+          !["action", "rows", "columns", "x", "y", "width", "height"].includes(
+            key,
+          ),
+      )
+    )
+      throw new Error("Invalid PPTX table dimensions");
+    return;
+  }
   if (change.action === "imageInsets") {
     imageInsets(change.insets);
     if (

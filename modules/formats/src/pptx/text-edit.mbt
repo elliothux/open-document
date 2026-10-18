@@ -227,7 +227,7 @@ pub fn Session::replace(
   let (changes, after) = if candidate is Some(_) && text.is_empty() {
     ([], self.selection)
   } else {
-    text_changes(object, self.selection, text)
+    selection_text_changes(object, self.selection, text)
   }
   let original = self.slides[self.index(self.selection.slide)]
   let prepared = if changes.is_empty() {
@@ -273,7 +273,12 @@ pub fn Session::delete(
     }
     target = { ..old, anchor: boundaries[next], }
   }
-  let (changes, after) = text_changes(object, target, "")
+  // A collapsed boundary deletion must never turn into a whole-cell clear.
+  let (changes, after) = if old.anchor == old.focus {
+    text_changes(object, target, "")
+  } else {
+    selection_text_changes(object, target, "")
+  }
   if !changes.is_empty() {
     let (slide, edit) = self.prepare_fitted(
       self.slides[self.index(old.slide)],
@@ -283,6 +288,8 @@ pub fn Session::delete(
       profile,
     )
     self.commit(slide, edit, after)
+  } else {
+    self.selection = after
   }
   self.query()
 }
@@ -297,7 +304,14 @@ pub fn Session::copy(
   guard self.selection.mode == "text" else {
     @failure.reject("invalid-operation", "Plain text copy requires text mode")
   }
-  let text = self.current().object(self.selection.object).text()
+  let object = self.current().object(self.selection.object)
+  if object.table is Some(table) {
+    let range = table.range(self.selection)
+    if range.multiple() {
+      return table.copied_cells(range)
+    }
+  }
+  let text = object.text()
   text[self.selection.anchor.min(self.selection.focus):self.selection.anchor.max(
     self.selection.focus,
   )]

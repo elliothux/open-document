@@ -33,6 +33,14 @@ export function PptxObjects({
     text: "",
   });
   const query = editor.query;
+  const selectedRows = query.table
+    ? query.table.lastRow - query.table.firstRow + 1
+    : 0;
+  const selectedColumns = query.table
+    ? query.table.lastColumn - query.table.firstColumn + 1
+    : 0;
+  const [rows, setRows] = useState("2");
+  const [columns, setColumns] = useState("2");
   const selected = query.objects.find(
     (object) => object.id === query.selection.object,
   );
@@ -148,6 +156,101 @@ export function PptxObjects({
           <button type="submit">{t.insertObject}</button>
         </fieldset>
       </form>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          controller.run(() =>
+            editor.editObjects({
+              action: "insertTable",
+              rows: Number(rows),
+              columns: Number(columns),
+              x: draft.x,
+              y: draft.y,
+              width: draft.width,
+              height: draft.height,
+            }),
+          );
+        }}
+      >
+        <fieldset disabled={disabled || !!query.readOnlyReason}>
+          <legend>{t.insertTable}</legend>
+          <label>
+            {t.tableRows}
+            <input
+              type="number"
+              min={1}
+              max={1000}
+              step={1}
+              required
+              value={rows}
+              onChange={(event) => setRows(event.currentTarget.value)}
+            />
+          </label>
+          <label>
+            {t.tableColumns}
+            <input
+              type="number"
+              min={1}
+              max={63}
+              step={1}
+              required
+              value={columns}
+              onChange={(event) => setColumns(event.currentTarget.value)}
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={
+              !Number.isInteger(Number(rows)) ||
+              !Number.isInteger(Number(columns)) ||
+              Number(rows) * Number(columns) > 4096
+            }
+          >
+            {t.insertTable}
+          </button>
+        </fieldset>
+      </form>
+      {query.table && (
+        <fieldset
+          disabled={disabled || !!query.table.reason || !!query.readOnlyReason}
+        >
+          <legend>{t.tableProperties}</legend>
+          <p>
+            {t.address}: {query.table.row + 1}, {query.table.column + 1} (
+            {query.table.rows} × {query.table.columns})
+            {(selectedRows > 1 || selectedColumns > 1) &&
+              `: ${query.table.firstRow + 1}, ${query.table.firstColumn + 1} – ${query.table.lastRow + 1}, ${query.table.lastColumn + 1}`}
+          </p>
+          {(
+            [
+              ["insertRowBefore", t.rowBefore],
+              ["insertRowAfter", t.rowAfter],
+              ["deleteRow", t.deleteRow],
+              ["insertColumnBefore", t.columnBefore],
+              ["insertColumnAfter", t.columnAfter],
+              ["deleteColumn", t.deleteColumn],
+              ["merge", t.mergeCells],
+              ["unmerge", t.unmerge],
+            ] as const
+          ).map(([operation, label]) => (
+            <button
+              key={operation}
+              type="button"
+              disabled={!!query.table!.operations[operation]}
+              title={query.table!.operations[operation]}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() =>
+                controller.run(() =>
+                  editor.editObjects({ action: "tableStructure", operation }),
+                )
+              }
+            >
+              {label}
+            </button>
+          ))}
+          {query.table.reason && <p>{query.table.reason}</p>}
+        </fieldset>
+      )}
       <fieldset disabled={disabled || !!query.readOnlyReason}>
         <legend>{t.insertImage}</legend>
         <label>

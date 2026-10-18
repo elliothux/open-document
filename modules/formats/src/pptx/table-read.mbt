@@ -2,6 +2,7 @@
 priv struct DrawingTable {
   widths : Array[Double]
   rows : Array[DrawingRow]
+  owners : Array[Array[(Int, Int)]]
 }
 
 ///|
@@ -13,6 +14,10 @@ priv struct DrawingRow {
 
 ///|
 priv struct DrawingCell {
+  row_span : Int
+  column_span : Int
+  h_merge : Bool
+  v_merge : Bool
   source : Ref
   paragraphs : Array[TextParagraph]
   body : Body
@@ -135,14 +140,22 @@ fn read_drawing_table(
         node.attributes.all(a => {
           a.uri.is_empty() &&
           (
-            (["gridSpan", "rowSpan"].contains(a.name) && a.value == "1") ||
+            ["gridSpan", "rowSpan"].contains(a.name) ||
             (
               ["hMerge", "vMerge"].contains(a.name) &&
-              ["0", "false"].contains(a.value)
+              ["0", "false", "1", "true"].contains(a.value)
             )
           )
         }),
-        "Merged table cells require span support",
+        "Unknown table cell attributes",
+      )
+      let row_span = number(node.attribute("rowSpan").unwrap_or("1"), 1, 1000).to_int()
+      let column_span = number(node.attribute("gridSpan").unwrap_or("1"), 1, 63).to_int()
+      let h_merge = flag(node, "hMerge")
+      let v_merge = flag(node, "vMerge")
+      table_profile(
+        column + column_span <= widths.length(),
+        "Table span exceeds its grid",
       )
       cell.table_children(["txBody", "tcPr"])
       table_profile(cell.child("txBody") is Some(_), "Missing table cell text")
@@ -162,9 +175,11 @@ fn read_drawing_table(
           reason
         },
       )
-      units += paragraphs.fold(init=0, (sum, p) => {
-        sum + p.runs.fold(init=1, (sum, run) => sum + run.text.length())
-      })
+      if !h_merge && !v_merge {
+        units += paragraphs.fold(init=0, (sum, p) => {
+          sum + p.runs.fold(init=1, (sum, run) => sum + run.text.length())
+        })
+      }
       guard units <= 32767 else {
         @failure.reject("limit-exceeded", "Table text exceeds budget")
       }
@@ -206,7 +221,12 @@ fn read_drawing_table(
         "Unsupported table cell anchor",
       )
       table_profile(
-        body.left + body.right < widths[column],
+        h_merge ||
+        v_merge ||
+        body.left + body.right <
+        widths[column:column + column_span].fold(init=0.0, (sum, width) => {
+          sum + width
+        }),
         "Table cell margins leave no text width",
       )
       let fills = properties.map(p => [p]).unwrap_or([])
@@ -234,7 +254,18 @@ fn read_drawing_table(
           12700,
         )
       })
-      cells.push({ source: cell, paragraphs, body, fill, alpha, borders, })
+      cells.push({
+        source: cell,
+        paragraphs,
+        body,
+        fill,
+        alpha,
+        borders,
+        row_span,
+        column_span,
+        h_merge,
+        v_merge,
+      })
     }
     rows.push({ source: row, height, cells, })
   }
@@ -243,5 +274,5 @@ fn read_drawing_table(
     0.01,
     "Table row heights and frame differ",
   )
-  Some({ widths, rows, })
+  Some({ widths, rows, owners: table_owners(rows, widths.length()), })
 }

@@ -21,6 +21,11 @@ import {
   checkPptxImageFill,
   imageInsets,
   type PptxObjectEdit,
+  type PptxSelection,
+  type PptxPoint,
+  type PptxHit,
+  type PptxTable,
+  checkPptxTable,
   pptxHyperlink,
   type PptxHyperlink,
   pptxDashes,
@@ -35,6 +40,10 @@ import {
 export {
   checkPptxObjectEdit,
   type PptxObjectEdit,
+  type PptxSelection,
+  type PptxPoint,
+  type PptxHit,
+  type PptxTable,
   type PptxHyperlink,
   type PptxDash,
   type PptxCap,
@@ -122,14 +131,6 @@ import {
 } from "./pptx-output.js";
 export type { PptxPrintLayout, PptxLayout } from "./pptx-output.js";
 
-export interface PptxSelection {
-  slide: string;
-  object: string;
-  objects: string[];
-  mode: "object" | "text";
-  anchor: number;
-  focus: number;
-}
 export interface PptxObject {
   id: string;
   parent: string;
@@ -205,6 +206,7 @@ export interface PptxObject {
     | null;
 }
 export interface PptxQuery extends PptxPlaybackState {
+  table: PptxTable | null;
   themeColors: PptxThemeColor[];
   themeFonts: PptxThemeFont[];
   revision: number;
@@ -246,10 +248,6 @@ export interface PptxQuery extends PptxPlaybackState {
   slideLayout: PptxSlideLayouts;
   diagnostics: string[];
 }
-export interface PptxPoint {
-  x: number;
-  y: number;
-}
 export interface PptxGeometry {
   layoutId: number;
   revision: number;
@@ -258,12 +256,6 @@ export interface PptxGeometry {
   handles: PptxPoint[];
   rects: PptxPoint[][];
   caret: (PptxPoint & { endX: number; endY: number; height: number }) | null;
-}
-export interface PptxHit {
-  object: string;
-  offset: number;
-  readOnlyReason: string;
-  textReadOnlyReason: string;
 }
 
 export type PptxCommand =
@@ -640,6 +632,7 @@ export function pptxQuery(value: unknown): PptxQuery {
   strings(query.fontKeys, 256, 256);
   strings(query.imageKeys, 256, 256);
   strings(query.diagnostics, 8192, 4096);
+  checkPptxTable(query.table, selected, selection.object);
   return value as PptxQuery;
 }
 
