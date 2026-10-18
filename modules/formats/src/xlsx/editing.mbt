@@ -395,10 +395,12 @@ pub fn Session::undo(
       parts[name] = document
     }
   }
-  if !redo && entry.deleted is Some(sheet) {
-    sheets.push(sheet)
+  if !redo {
+    if entry.deleted is Some(sheet) {
+      sheets.push(sheet)
+    }
     for name, document in entry.removed {
-      if name != sheet.id {
+      if entry.deleted.map(sheet => sheet.id) != Some(name) {
         parts[name] = document
       }
       if removed_parts.search(name) is Some(index) {
@@ -452,8 +454,11 @@ pub fn Session::undo(
       sheets.search_by(sheet => sheet.id == deleted.id).unwrap(),
     )
     deleted_sheet = Some(sheet)
+  }
+  if redo {
     for name, _ in entry.removed {
-      deleted_documents[name] = if name == sheet.id {
+      deleted_documents[name] = if deleted_sheet is Some(sheet) &&
+        name == sheet.id {
         sheet.document
       } else {
         parts.get(name).unwrap_or_else(() => self.opc.xml(name))
@@ -506,9 +511,9 @@ pub fn Session::undo(
   }
   if deleted_sheet is Some(_) {
     entry.deleted = deleted_sheet
-    for name, document in deleted_documents {
-      entry.removed[name] = document
-    }
+  }
+  for name, document in deleted_documents {
+    entry.removed[name] = document
   }
   self.workbook = workbook
   self.parts = parts

@@ -61,6 +61,7 @@ fn Session::copied_sheet_names(
   self : Session,
   index : Int,
   name : String,
+  tables~ : Array[(StructuredTable, String)] = [],
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let tree = Tree::new(self.workbook)
   guard tree.one(tree.root("workbook").id, "definedNames") is Some(parent) else {
@@ -79,6 +80,12 @@ fn Session::copied_sheet_names(
   }
   let changes : Array[@xml.SourceChange] = []
   let mut bytes = 0L
+  let work : FormulaWork = {
+    remaining: 1048576,
+    date1904: self.date1904,
+    origin: self.focus,
+    names: self.formula_names(),
+  }
   for node in originals {
     guard tree.children.get(node.id).unwrap_or([]).is_empty() &&
       node.attributes
@@ -102,11 +109,15 @@ fn Session::copied_sheet_names(
     changes.append(
       metadata_changes(node, [("localSheetId", (index + 1).to_string())]),
     )
-    let text = sheet_reference_formula(
+    let mut text = sheet_reference_formula(
       node.text,
       self.sheets[index].name,
       Some(name),
     )
+    for (table, name) in tables {
+      work.spend(amount=text.length() + 1)
+      text = table_reference_formula(text, table, false, name, None)
+    }
     if text != node.text {
       changes.push({
         node: node.id,
@@ -187,7 +198,7 @@ fn Session::copied_sheet_parts(
   source : Sheet,
   target : Sheet,
   number : Int,
-) -> (Map[String, @xml.Document], String) raise @failure.Failure {
+) -> (Map[String, @xml.Document], String, Array[(StructuredTable, String)]) raise @failure.Failure {
   let created : Map[String, @xml.Document] = Map([])
   let remapped = Map::from_array([(source.id, target.id)])
   let types = StringBuilder()
@@ -328,6 +339,9 @@ fn Session::copied_sheet_parts(
       "<od:Override xmlns:od=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{escaped_attribute(part)}\" ContentType=\"application/vnd.openxmlformats-officedocument.vmlDrawing\"/>",
     )
   }
+  let tables = self.copy_sheet_tables(
+    source, target, number, created, remapped, types,
+  )
   if self.copy_sheet_relations(source.id, target.id, remapped) is Some(document) {
     created[workbook_relations(target.id)] = document
   }
@@ -341,5 +355,5 @@ fn Session::copied_sheet_parts(
       "limit-exceeded", "Copied worksheet parts exceed history budget",
     )
   }
-  (created, types.to_string())
+  (created, types.to_string(), tables)
 }

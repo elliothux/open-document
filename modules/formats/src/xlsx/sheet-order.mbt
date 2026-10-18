@@ -15,6 +15,9 @@ pub(all) enum SheetEdit {
   RenameTable(Int, String)
   CreateTable(String, String)
   ResizeTable(Int, String)
+  TableColumnFormula(Int, Int, String?)
+  TableTotals(Int, Bool)
+  TableColumnTotal(Int, Int, TableTotal)
   RenameTableColumn(Int, Int, String)
   InsertRows(Int, Int)
   DeleteRows(Int, Int)
@@ -286,6 +289,12 @@ pub fn Session::edit_sheet(
     RenameTable(id, name) => return self.rename_table(sheet, id, name)
     CreateTable(range, name) => return self.create_table(sheet, range, name)
     ResizeTable(id, range) => return self.resize_table(sheet, id, range)
+    TableColumnFormula(id, column, formula) =>
+      return self.set_table_column_formula(sheet, id, column, formula)
+    TableTotals(id, visible) =>
+      return self.show_table_totals(sheet, id, visible)
+    TableColumnTotal(id, column, total) =>
+      return self.set_table_total(sheet, id, column, total)
     RenameTableColumn(id, column, name) =>
       return self.rename_table(sheet, id, name, column=Some(column))
     SetName(settings) => return self.edit_name(settings)
@@ -352,6 +361,9 @@ pub fn Session::edit_sheet(
     | RenameTable(_, _)
     | CreateTable(_, _)
     | ResizeTable(_, _)
+    | TableColumnFormula(_, _, _)
+    | TableTotals(_, _)
+    | TableColumnTotal(_, _, _)
     | RenameTableColumn(_, _, _)
     | DeleteName(_, _)
     | SelectName(_, _)
@@ -400,7 +412,7 @@ pub fn Session::edit_sheet(
     }
     Add | Copy => {
       let copy = if change is Copy {
-        let reason = self.sheet_rename_reason()
+        let reason = self.sheet_rename_reason(tables=true)
         guard reason.is_empty() else {
           @failure.reject("protected-content", reason)
         }
@@ -429,7 +441,20 @@ pub fn Session::edit_sheet(
         edits.push((part, edit))
       }
       if copy is Some(source) {
-        let (documents, types) = self.copied_sheet_parts(source, added, number)
+        let (documents, types, tables) = self.copied_sheet_parts(
+          source, added, number,
+        )
+        let document = self.copied_table_references(added.document, tables)
+        let added = Sheet::read(
+          added.id,
+          added.name,
+          added.state,
+          document,
+          self.strings,
+          self.styles.length(),
+        )
+        sheets[index + 1] = added
+        created = Some(added)
         for part, document in documents {
           parts[part] = document
           created_parts[part] = document
@@ -443,7 +468,7 @@ pub fn Session::edit_sheet(
           parts[path] = document
           edits.push((path, edit))
         }
-        changes.append(self.copied_sheet_names(index, added.name))
+        changes.append(self.copied_sheet_names(index, added.name, tables~))
       }
     }
     Move(target) => {
@@ -574,7 +599,33 @@ pub fn Session::edit_sheet(
     )
   }
   let (workbook, edit) = self.workbook.edit_source(changes)
+  let mut workbook = workbook
   edits.push((self.main, edit))
+  let table_edits = if change is Delete {
+    let tables = self.sheet_tables()
+    self.sheet_table_references(
+      tables,
+      self.sheets[index].name,
+      None,
+      parts,
+      edits,
+    )
+    workbook = self.table_reference_removals(
+      sheets,
+      workbook,
+      tables
+      .filter(table => table.sheet == sheet)
+      .map(table => {
+        (table, table.columns.map(column => column.name.to_upper()), true)
+      }),
+      tables.filter(table => table.sheet != sheet),
+      parts,
+      edits,
+    )
+    tables.map(table => table.part)
+  } else {
+    []
+  }
   for index, current in sheets {
     let source = Tree::new(current.document)
     if source.one(source.root("worksheet").id, "sheetViews") is Some(views) {
@@ -613,7 +664,21 @@ pub fn Session::edit_sheet(
       }
     }
   }
-  let calculation = self.calculate(sheets, None, [], workbook, parts~)
+  let removed_parts = [
+    ..self.removed,
+    ..removed
+    .keys()
+    .filter(part => self.opc.names.contains(part.to_lower()))
+    .to_array(),
+  ]
+  let calculation = self.calculate(
+    sheets,
+    None,
+    [],
+    workbook,
+    parts~,
+    removed=removed_parts,
+  )
   if deleted is Some(_) || change is Copy {
     edits.append(self.cache_edits(sheets, calculation))
   }
@@ -628,6 +693,7 @@ pub fn Session::edit_sheet(
     created_parts~,
     deleted~,
     removed~,
+    table_edits~,
   )
   self.next_sheet = next_sheet
   self.query()

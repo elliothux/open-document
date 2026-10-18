@@ -21,7 +21,16 @@ fn Session::table_query(
         let value : Json = {
           "id": column.id,
           "name": column.name,
-          "calculated": column.calculated,
+          "formula": column.formula.map(Json::string).unwrap_or(Json::null()),
+          "totalFunction": column.total_function
+          .map(Json::string)
+          .unwrap_or(Json::null()),
+          "totalLabel": column.total_label
+          .map(Json::string)
+          .unwrap_or(Json::null()),
+          "totalFormula": column.total_formula
+          .map(Json::string)
+          .unwrap_or(Json::null()),
         }
         value
       }),
@@ -43,7 +52,7 @@ fn Session::protect_table_cells(
   self : Session,
   sheets : Array[Sheet],
   tables : Array[StructuredTable],
-  edited~ : String? = None,
+  edited~ : Array[String] = [],
 ) -> Unit raise @failure.Failure {
   let previous = self.table_definitions(self.sheets, self.workbook, self.parts)
   let mut scanned = 0
@@ -89,12 +98,17 @@ fn Session::protect_table_cells(
         guard table.reason.is_empty() &&
           (
             renamed ||
-            edited == Some(table.part) ||
-            (edited is Some(_) && formula is Some(_) && next_formula is Some(_)) ||
+            edited.contains(table.part) ||
+            (
+              !edited.is_empty() &&
+              formula is Some(_) &&
+              next_formula is Some(_)
+            ) ||
             (
               !header &&
               !(original.totals == 1 && address.row == original.range.bottom) &&
-              !original.columns[address.column - original.range.left].calculated
+              original.columns[address.column - original.range.left].formula
+              is None
             )
           ) else {
           @failure.reject(

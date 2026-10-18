@@ -14,7 +14,7 @@ fn Session::edit_axes(
     )
   }
   let index = self.sheet_index(id)
-  let reason = self.sheet_rename_reason(structure=false)
+  let reason = self.sheet_rename_reason(structure=false, tables=true)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let target = self.sheets[index]
   let filter = self.axis_filter_plan(index, change)
@@ -26,7 +26,7 @@ fn Session::edit_axes(
   }
   for relation in self.relationships() {
     if relation.owner == id &&
-      !["hyperlink", "comments", "vmlDrawing"].any(kind => {
+      !["hyperlink", "comments", "vmlDrawing", "table"].any(kind => {
         relation.kind == relationship_uri + kind
       }) {
       @failure.reject(
@@ -40,7 +40,7 @@ fn Session::edit_axes(
       "sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData",
       "mergeCells", "sheetProtection", "pageMargins", "pageSetup", "printOptions",
       "headerFooter", "sortState", "conditionalFormatting", "dataValidations", "hyperlinks",
-      "legacyDrawing", "extLst", "autoFilter",
+      "legacyDrawing", "extLst", "autoFilter", "tableParts",
     ].contains(node.name) else {
       @failure.reject(
         "protected-content", "Worksheet metadata requires structural range support",
@@ -50,6 +50,8 @@ fn Session::edit_axes(
   let sheets = self.sheets.copy()
   let edits : Array[(String, @xml.Edit)] = []
   let parts = self.parts.copy()
+  let removed : Map[String, @xml.Document] = Map([])
+  let tables = self.axis_tables(target, change, parts, edits)
   if notes is Some(notes) {
     let addresses : Map[String, Address?] = Map([])
     for note in notes.entries {
@@ -175,6 +177,17 @@ fn Session::edit_axes(
       let (next, outline_edits) = self.axis_outline(original, document, change)
       document = next
       edits.append(outline_edits)
+      let current = Sheet::read(
+        original.id,
+        original.name,
+        original.state,
+        document,
+        self.strings,
+        self.styles.length(),
+      )
+      document = self.axis_table_resources(
+        current, tables, parts, edits, removed,
+      )
     }
     sheets[i] = Sheet::read(
       original.id,
@@ -192,6 +205,25 @@ fn Session::edit_axes(
     workbook = next
     edits.push((self.main, edit))
   }
+  workbook = self.table_reference_removals(
+    sheets,
+    workbook,
+    tables
+    .filter(plan => !plan.removed.is_empty() || plan.after is None)
+    .map(plan => {
+      (plan.after.unwrap_or(plan.before), plan.removed, plan.after is None)
+    }),
+    tables.filter_map(plan => plan.after),
+    parts,
+    edits,
+  )
+  let (table_sheet, table_cells) = self.axis_table_cells(
+    sheets[index],
+    tables,
+    change,
+    edits,
+  )
+  sheets[index] = table_sheet
   let after = if change.band is Some((first, last)) {
     (
       id,
@@ -235,12 +267,29 @@ fn Session::edit_axes(
     return self.query()
   }
   let mut calculation = self.calculate(sheets, None, [], workbook, parts~)
+  if !table_cells.is_empty() {
+    self.validate_inputs(
+      sheets,
+      calculation,
+      Map([(index, table_cells)]),
+      false,
+    )
+  }
   if filter is Some(_) && read_filter(sheets[index]) is Some(state) {
     calculation = self.reapply_candidate_filter(
       index, state, sheets, workbook, calculation, edits,
     )
   }
   edits.append(self.cache_edits(sheets, calculation))
-  self.commit(sheets, workbook, calculation, edits, after, parts~)
+  self.commit(
+    sheets,
+    workbook,
+    calculation,
+    edits,
+    after,
+    parts~,
+    removed~,
+    table_edits=tables.map(plan => plan.before.part),
+  )
   self.query()
 }

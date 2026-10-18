@@ -3,7 +3,10 @@ import { integer, record } from "./validation.js";
 export interface XlsxTableColumn {
   id: number;
   name: string;
-  calculated: boolean;
+  formula: string | null;
+  totalFunction: string | null;
+  totalLabel: string | null;
+  totalFormula: string | null;
 }
 export interface XlsxTable {
   id: number;
@@ -15,17 +18,31 @@ export interface XlsxTable {
   style: string | null;
   readOnlyReason: string;
 }
+export type XlsxTableTotalFunction =
+  "average" | "countNums" | "count" | "max" | "min" | "stdDev" | "sum" | "var";
+export type XlsxTableTotal =
+  | { kind: "none" }
+  | { kind: "label"; text: string }
+  | { kind: "formula"; formula: string }
+  | { kind: "aggregate"; function: XlsxTableTotalFunction };
 export type XlsxTableEdit =
+  | { action: "tableTotals"; id: number; visible: boolean }
+  | { action: "tableTotal"; id: number; column: number; total: XlsxTableTotal }
+  | {
+      action: "tableColumnFormula";
+      id: number;
+      column: number;
+      formula: string | null;
+    }
   | { action: "createTable"; range: string; name: string }
   | { action: "resizeTable"; id: number; range: string }
   | { action: "renameTable"; id: number; name: string }
   | { action: "renameTableColumn"; id: number; column: number; name: string };
 
-function tableName(value: unknown): value is string {
+function tableText(value: unknown, maximum: number): value is string {
   return (
     typeof value === "string" &&
-    value.length > 0 &&
-    value.length <= 255 &&
+    value.length <= maximum &&
     value.isWellFormed() &&
     !Array.from(value).some((character) => {
       const code = character.codePointAt(0)!;
@@ -37,8 +54,80 @@ function tableName(value: unknown): value is string {
     })
   );
 }
+function tableName(value: unknown): value is string {
+  return tableText(value, 255) && value.length > 0;
+}
 export function checkXlsxTableEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "tableTotals" || change.action === "tableTotal") {
+    const visible = change.action === "tableTotals";
+    const keys = visible
+      ? ["action", "id", "visible"]
+      : ["action", "id", "column", "total"];
+    if (
+      !integer(change.id, 1, 2147483647) ||
+      Object.keys(change).length !== keys.length ||
+      Object.keys(change).some((key) => !keys.includes(key))
+    )
+      throw new Error("Invalid table total fields");
+    if (visible) {
+      if (typeof change.visible !== "boolean")
+        throw new Error("Invalid totals row visibility");
+      return;
+    }
+    if (!integer(change.column, 1, 2147483647))
+      throw new Error("Invalid table total column");
+    const total = record(change.total);
+    const fields =
+      total.kind === "none"
+        ? ["kind"]
+        : total.kind === "label"
+          ? ["kind", "text"]
+          : total.kind === "formula"
+            ? ["kind", "formula"]
+            : ["kind", "function"];
+    if (
+      Object.keys(total).length !== fields.length ||
+      Object.keys(total).some((key) => !fields.includes(key)) ||
+      !(
+        total.kind === "none" ||
+        (total.kind === "label" && tableText(total.text, 32767)) ||
+        (total.kind === "formula" &&
+          tableText(total.formula, 8192) &&
+          total.formula.trim().length > 0) ||
+        (total.kind === "aggregate" &&
+          typeof total.function === "string" &&
+          [
+            "average",
+            "countNums",
+            "count",
+            "max",
+            "min",
+            "stdDev",
+            "sum",
+            "var",
+          ].includes(total.function))
+      )
+    )
+      throw new Error("Invalid table column total");
+    return;
+  }
+  if (change.action === "tableColumnFormula") {
+    if (
+      !integer(change.id, 1, 2147483647) ||
+      !integer(change.column, 1, 2147483647) ||
+      !(
+        change.formula === null ||
+        (tableText(change.formula, 8192) && change.formula.trim().length > 0)
+      ) ||
+      Object.keys(change).length !== 4 ||
+      Object.keys(change).some(
+        (key) => !["action", "id", "column", "formula"].includes(key),
+      )
+    )
+      throw new Error("Invalid table column formula");
+    return;
+  }
   if (change.action === "createTable" || change.action === "resizeTable") {
     const resizing = change.action === "resizeTable";
     const keys = resizing
@@ -81,7 +170,8 @@ export function xlsxTables(value: unknown): XlsxTable[] {
     throw new Error("Invalid table catalog");
   const ids = new Set<number>(),
     names = new Set<string>();
-  let columns = 0;
+  let columns = 0,
+    formulaUnits = 0;
   for (const entry of value) {
     const table = record(entry);
     if (
@@ -132,11 +222,27 @@ export function xlsxTables(value: unknown): XlsxTable[] {
         typeof column.id !== "number" ||
         !integer(column.id, 1, 2147483647) ||
         !tableName(column.name) ||
-        typeof column.calculated !== "boolean" ||
+        !(column.formula === null || tableText(column.formula, 8192)) ||
+        !(
+          column.totalFunction === null || tableText(column.totalFunction, 255)
+        ) ||
+        !(column.totalLabel === null || tableText(column.totalLabel, 32767)) ||
+        !(
+          column.totalFormula === null || tableText(column.totalFormula, 8192)
+        ) ||
         columnIds.has(column.id) ||
         columnNames.has(column.name.toUpperCase())
       )
         throw new Error("Invalid table column");
+      for (const text of [
+        column.formula,
+        column.totalFunction,
+        column.totalLabel,
+        column.totalFormula,
+      ])
+        if (typeof text === "string") formulaUnits += text.length;
+      if (formulaUnits > 1048576)
+        throw new Error("Table formula and total metadata exceeds budget");
       columnIds.add(column.id);
       columnNames.add(column.name.toUpperCase());
     }

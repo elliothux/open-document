@@ -15,11 +15,20 @@ fn resized_table_formula(
   removed : Array[String],
   in_table~ : Bool,
   exiting~ : Bool,
+  deleted~ : Bool = false,
 ) -> String raise @failure.Failure {
   let spans : Array[(Int, Int)] = []
   let tokens = formula_tokens(text, spans~)
   let changes : Array[(Int, Int, String)] = []
   for index, token in tokens {
+    if deleted &&
+      token is Word(name) &&
+      name.to_upper() == table.name.to_upper() &&
+      !(tokens.get(index + 1) is Some(Brackets(_) | Operator("(" | "!"))) &&
+      !(index > 0 && tokens[index - 1] is Operator("!")) {
+      changes.push((spans[index].0, spans[index].1, "#REF!"))
+      continue
+    }
     guard token is Brackets(selector) else { continue }
     let explicit = index > 0 &&
       tokens[index - 1] is Word(name) &&
@@ -28,9 +37,10 @@ fn resized_table_formula(
     if !explicit && (!in_table || qualified) {
       continue
     }
-    let broken = table_selector(selector).columns.any(item => {
-      removed.contains(item.0.to_upper())
-    })
+    let broken = deleted ||
+      table_selector(selector).columns.any(item => {
+        removed.contains(item.0.to_upper())
+      })
     if broken {
       changes.push(
         (
@@ -66,6 +76,7 @@ fn resized_table_references(
   removed : Array[String],
   owner : String,
   work : FormulaWork,
+  deleted~ : Bool = false,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let tree = Tree::new(document)
   let result : Array[@xml.SourceChange] = []
@@ -84,7 +95,7 @@ fn resized_table_references(
     if owner == table.sheet {
       if tree.nodes.get(node.parent) is Some(parent) && parent.name == "c" {
         let address = Address::parse(parent.attribute("r").unwrap_or(""))
-        in_table = table.range.contains(address)
+        in_table = !deleted && table.range.contains(address)
         exiting = in_table && !range.contains(address)
       } else if local_table_tokens(formula_tokens(node.text)) {
         @failure.reject(
@@ -98,6 +109,7 @@ fn resized_table_references(
       removed,
       in_table~,
       exiting~,
+      deleted~,
     )
     if text != node.text {
       result.append(axis_text_change(tree, node, text))

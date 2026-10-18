@@ -235,7 +235,7 @@ fn Session::resize_table(
   let new_rows = (range.bottom - table.range.bottom).max(0)
   let calculated : Array[Int] = []
   for offset, column in table.columns {
-    if column.calculated &&
+    if column.formula is Some(_) &&
       table.range.left + offset >= range.left &&
       table.range.left + offset <= range.right {
       calculated.push(offset)
@@ -391,14 +391,8 @@ fn Session::resize_table(
     false,
   )
   edits.append(self.cache_edits(sheets, calculation))
-  self.commit(
-    sheets,
-    workbook,
-    calculation,
-    edits,
-    (sheet, range),
-    parts~,
-    table_edit=Some(table.part),
-  )
+  self.commit(sheets, workbook, calculation, edits, (sheet, range), parts~, table_edits=[
+    table.part,
+  ])
   self.query()
 }

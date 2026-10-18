@@ -2,7 +2,10 @@
 priv struct TableColumn {
   id : Int
   name : String
-  calculated : Bool
+  formula : String?
+  total_function : String?
+  total_label : String?
+  total_formula : String?
 } derive(Eq)
 
 ///|
@@ -84,10 +87,32 @@ fn read_table(
         part~,
       )
     }
+    let formula = tree
+      .one(node.id, "calculatedColumnFormula")
+      .map(node => node.text)
+    let total_function = node.attribute("totalsRowFunction")
+    let total_label = node.attribute("totalsRowLabel").map(decode_text)
+    let total_formula = tree
+      .one(node.id, "totalsRowFormula")
+      .map(node => node.text)
+    guard [formula, total_formula].all(value => {
+        value.map(text => text.length() <= 8192).unwrap_or(true)
+      }) &&
+      total_label.map(text => text.length() <= 32767).unwrap_or(true) &&
+      total_function.map(text => text.length() <= 255).unwrap_or(true) else {
+      @failure.reject(
+        "limit-exceeded",
+        "Table formula or total metadata exceeds budget",
+        part~,
+      )
+    }
     columns.push({
       id,
       name,
-      calculated: tree.one(node.id, "calculatedColumnFormula") is Some(_),
+      formula,
+      total_function,
+      total_label,
+      total_formula,
     })
     ids[id] = true
     names[name.to_upper()] = true
@@ -224,6 +249,7 @@ fn Session::table_definitions(
   let names : Map[String, Bool] = Map([])
   let paths : Map[String, Bool] = Map([])
   let mut columns = 0
+  let mut formula_units = 0
   for sheet in sheets {
     let tree = Tree::new(sheet.document)
     if tree.one(tree.root("worksheet").id, "tableParts") is Some(parent) {
@@ -282,9 +308,25 @@ fn Session::table_definitions(
           )
         }
         columns += table.columns.length()
+        for column in table.columns {
+          for
+            text in [
+              column.formula,
+              column.total_function,
+              column.total_label,
+              column.total_formula,
+            ] {
+            formula_units += text.map(String::length).unwrap_or(0)
+          }
+        }
         guard columns <= 4096 else {
           @failure.reject(
             "limit-exceeded", "Workbook table columns exceed budget",
+          )
+        }
+        guard formula_units <= 1048576 else {
+          @failure.reject(
+            "limit-exceeded", "Workbook table formula and total metadata exceeds budget",
           )
         }
         result.push(table)

@@ -43,6 +43,8 @@ export type {
   XlsxTable,
   XlsxTableColumn,
   XlsxTableEdit,
+  XlsxTableTotal,
+  XlsxTableTotalFunction,
   XlsxOutlineGroup,
   XlsxOutlineEdit,
 } from "@open-document/wasm/xlsx";

@@ -138,6 +138,9 @@ export function checkXlsxSheetEdit(value: unknown): void {
   if (
     change.action === "createTable" ||
     change.action === "resizeTable" ||
+    change.action === "tableColumnFormula" ||
+    change.action === "tableTotals" ||
+    change.action === "tableTotal" ||
     change.action === "renameTable" ||
     change.action === "renameTableColumn"
   ) {

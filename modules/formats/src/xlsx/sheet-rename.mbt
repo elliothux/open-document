@@ -148,9 +148,10 @@ fn sheet_reference_changes(
     if node.uri != spreadsheet_uri {
       continue
     }
-    if ["f", "formula", "formula1", "formula2", "definedName"].contains(
-        node.name,
-      ) &&
+    if [
+        "f", "formula", "formula1", "formula2", "definedName", "calculatedColumnFormula",
+        "totalsRowFormula",
+      ].contains(node.name) &&
       !node.text.is_empty() {
       if node.name == "definedName" &&
         node
@@ -223,8 +224,9 @@ fn Session::rename_sheet(
   index : Int,
   name : String,
 ) -> Json raise @failure.Failure {
-  let reason = self.sheet_rename_reason()
+  let reason = self.sheet_rename_reason(tables=true)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
+  let tables = self.sheet_tables()
   validate_sheet_name(name)
   guard !self.sheets.any(sheet => {
     sheet.id != self.sheets[index].id &&
@@ -280,8 +282,18 @@ fn Session::rename_sheet(
     )
     edits.push((sheet.id, edit))
   }
-  let sheets = self.ordered_sheets(workbook, sheets, self.parts)
-  let calculation = self.calculate(sheets, None, [], workbook)
-  self.commit(sheets, workbook, calculation, edits, self.selection)
+  let parts = self.parts.copy()
+  self.sheet_table_references(tables, old, Some(name), parts, edits)
+  let sheets = self.ordered_sheets(workbook, sheets, parts)
+  let calculation = self.calculate(sheets, None, [], workbook, parts~)
+  self.commit(
+    sheets,
+    workbook,
+    calculation,
+    edits,
+    self.selection,
+    parts~,
+    table_edits=tables.map(table => table.part),
+  )
   self.query()
 }

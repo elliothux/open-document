@@ -15,7 +15,7 @@ fn Session::prepare_sheet_delete(
   parts : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
 ) -> Map[String, @xml.Document] raise @failure.Failure {
-  let reason = self.sheet_rename_reason()
+  let reason = self.sheet_rename_reason(tables=true)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let deleted = self.sheets[index]
   guard self.sheets
@@ -26,6 +26,11 @@ fn Session::prepare_sheet_delete(
     )
   }
   let names = [deleted.id]
+  for table in self.sheet_tables() {
+    if table.sheet == deleted.id {
+      names.push(table.part)
+    }
+  }
   let relations = workbook_relations(deleted.id)
   if self.parts.contains(relations) ||
     self.opc.names.contains(relations.to_lower()) {

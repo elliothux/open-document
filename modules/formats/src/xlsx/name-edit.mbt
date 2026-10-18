@@ -98,7 +98,7 @@ fn Session::name_entries(
 fn Session::names_query(self : Session) -> Json {
   {
     "entries": self.name_entries(self.workbook),
-    "readOnlyReason": self.sheet_rename_reason(structure=false),
+    "readOnlyReason": self.sheet_rename_reason(structure=false, tables=true),
   } catch {
     @failure.Failure(message~, ..) =>
       { "entries": [], "readOnlyReason": message }
@@ -216,9 +216,15 @@ fn Session::edit_name(
   settings : NameSettings,
   delete~ : Bool = false,
 ) -> Json raise @failure.Failure {
-  let reason = self.sheet_rename_reason(structure=false)
+  let reason = self.sheet_rename_reason(structure=false, tables=true)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
+  let tables = self.sheet_tables()
   validate_defined_name(settings.name)
+  guard !tables.any(table => table.name.to_upper() == settings.name.to_upper()) else {
+    @failure.reject(
+      "invalid-name", "Defined names cannot use an existing table name",
+    )
+  }
   let scope = self.name_scope(settings.scope)
   let tree = Tree::new(self.workbook)
   let root = tree.root("workbook")
@@ -248,7 +254,10 @@ fn Session::edit_name(
       @failure.reject("protected-content", reason)
     }
   }
-  let names = read_named_definitions(self.workbook, self.sheets.length())
+  let names = {
+    ..read_named_definitions(self.workbook, self.sheets.length()),
+    tables,
+  }
   guard !names.sources.contains((scope, settings.name.to_upper())) ||
     settings.original.map(String::to_upper) == Some(settings.name.to_upper()) else {
     @failure.reject("invalid-name", "Defined name already exists in this scope")
@@ -350,7 +359,10 @@ fn Session::edit_name(
     )
   }
   let (workbook, edit) = self.workbook.edit_source(changes)
-  let candidate_names = read_named_definitions(workbook, self.sheets.length())
+  let candidate_names = {
+    ..read_named_definitions(workbook, self.sheets.length()),
+    tables,
+  }
   ignore(self.name_entries(workbook))
   if !delete {
     let work : FormulaWork = {
@@ -457,11 +469,51 @@ fn Session::edit_name(
       }
     }
   }
-  let calculation = self.calculate(sheets, None, [], workbook)
+  let parts = self.parts.copy()
+  if rename is Some(old) {
+    for table in tables {
+      let source = self.part_xml(table.part)
+      let tree = table_edit_tree(table, source)
+      let changes : Array[@xml.SourceChange] = []
+      for node in source.nodes() {
+        if node.uri == spreadsheet_uri &&
+          ["calculatedColumnFormula", "totalsRowFormula"].contains(node.name) &&
+          !node.text.is_empty() {
+          let text = name_reference_formula(
+            node.text,
+            self.sheet_index(table.sheet),
+            self.sheets,
+            names,
+            scope,
+            old,
+            settings.name,
+            rename_work,
+          )
+          if text != node.text {
+            changes.append(axis_text_change(tree, node, text))
+          }
+        }
+      }
+      if !changes.is_empty() {
+        let (document, edit) = source.edit_source(changes)
+        parts[table.part] = document
+        edits.push((table.part, edit))
+      }
+    }
+  }
+  let calculation = self.calculate(sheets, None, [], workbook, parts~)
   edits.append(self.cache_edits(sheets, calculation))
   let anchor = self.anchor
   let focus = self.focus
-  self.commit(sheets, workbook, calculation, edits, self.selection)
+  self.commit(
+    sheets,
+    workbook,
+    calculation,
+    edits,
+    self.selection,
+    parts~,
+    table_edits=tables.map(table => table.part),
+  )
   self.anchor = anchor
   self.focus = focus
   self.query()

@@ -1191,6 +1191,8 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 名称最多 255 UTF-16 单元，允许字母、Unicode 标记及既有名称字符；A1/R1C1 地址、R/C、布尔常量和 `_xlnm.` 系统名称不接受管理修改。新定义先检查语法、支持的函数、作用域及循环，再构造候选。一次增改删同步重算、缓存、尺寸与精确历史，重复设置不产生历史；新定义的可选 `=` 前缀不要求改写相同的导入源。改名按原作用域绑定同步单元格、共享公式锚点、规则、内部链接和其他定义，保留字符串、共享组和元数据。全局改名会被已有局部名称遮蔽时明确拒绝。源文本中的未知标记、资源引用或工作预算不能安全处理时，候选整体拒绝。
 
+含受支持原生表的工作簿使用同一名称面板及命令，可新增、修改、改名、删除和定位名称。名称定义可引用 `Sales[Total]` 等已支持的结构化范围；候选验证、依赖计算和内部链接检查使用同一表上下文。改名同时更新原生 `calculatedColumnFormula/totalsRowFormula`，按所属工作表判断局部优先和显式限定，不改写列标题、结构化选择器或字符串常量。名称与现有表名冲突时拒绝，列标题不占用名称空间。删除保留表内公式源，再按剩余作用域计算。表定义、单元格、名称、缓存及选择共用一次精确历史；未知表资源、数组公式源、循环和预算失败保持原状态。
+
 名称面板可从当前选区生成带表名的绝对矩形，也可输入常量或表达式。命令先提交原生单元格草稿；定位按当时焦点解析相对定义。常量和计算表达式不能作为矩形定位，隐藏目标表须先显示。导入的未支持语法或系统定义保留并显示保护原因，普通命令不改变隐藏属性。多区域、整行整列、作用域迁移和更广定义兼容另行扩展。
 
 实现归 [`named-definitions.mbt`](../../modules/formats/src/xlsx/named-definitions.mbt)与 [`name-edit.mbt`](../../modules/formats/src/xlsx/name-edit.mbt)。作用域、定义上下文和相对偏移参考 [ONLYOFFICE DefName](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L457-L512)及 [cName](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L2173-L2262)。管理事务和改名绑定参考 [editDefinesNames](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L1086-L1125)及 [changeDefName](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L2261-L2275)。
@@ -1199,7 +1201,7 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 ### 结构化表与引用
 
-`XlsxQuery.tables` 返回当前工作表的原生表定义，包括 `id`、`name`、A1 `range`、`headerRow/totalRow`、`columns`、`style` 和 `readOnlyReason`。每列返回稳定的 `id`、`name` 和 `calculated` 标记；表和列身份来自所属 XML，不从位置或显示文字重新生成。核心校验表关系、名称、列数、重复身份、重叠范围和合并区域，单元格仍由原有稀疏工作表持有。
+`XlsxQuery.tables` 返回当前工作表的原生表定义，包括 `id`、`name`、A1 `range`、`headerRow/totalRow`、`columns`、`style` 和 `readOnlyReason`。每列返回稳定的 `id`、`name` 及可空的 `formula/totalFunction/totalLabel/totalFormula` 原生设置；表和列身份来自所属 XML，不从位置或显示文字重新生成。核心校验表关系、名称、列数、重复身份、重叠范围和合并区域，单元格仍由原有稀疏工作表持有。
 
 公式支持 `Sales[Amount]`、表内 `[Amount]`、`[@Amount]`、`[[First]:[Last]]`，以及 `#Data/#Headers/#Totals/#All/#This Row`。裸表名表示数据区域，标题和总计按定义排除；连续行段可组合。列名中的结构字符使用单引号转义。引用解析为现有单元格依赖和有界范围，保留原公式文字；跨表公式、名称引用，以及计算列和总计格中已有的单元格公式随普通数据重算。普通数据修改不自动补齐既有区域中缺失的计算列公式；扩展新行的补齐见下文。缺表返回 `#NAME?`，缺列或不存在的行段返回 `#REF!`，数据区域外的当前行引用返回 `#VALUE!`。不连续行列组合继续保护。
 
@@ -1215,11 +1217,29 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 核心同步表范围、排除总计行的筛选范围、工作簿名称和各表依赖缓存。新范围完全包含原范围时，恰好覆盖整表或单列的条件格式按新末行延长，保留原锚点；缩小时不裁剪原规则。样式、自动适配和打印沿现有表定义派生。默认面板提供范围框与同一命令，先提交原生草稿；相同范围不增加历史。活动表筛选、排序或未知列/筛选元数据、跨边界的共享局部公式、未绑定的规则引用及超限候选继续保护。实现归 [`table-resize.mbt`](../../modules/formats/src/xlsx/table-resize.mbt)及 [`table-resize-references.mbt`](../../modules/formats/src/xlsx/table-resize-references.mbt)，范围与列身份依据 [ONLYOFFICE changeRefOnRange](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L8579-L8641)，条件格式范围依据 [af_changeTableRange](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L22631-L22708)。
 
+`editSheet({ action: "tableColumnFormula", id, column, formula })` 创建或重填计算列。字符串公式可带开头的 `=`，相对 A1 引用从首个数据行偏移，结构化引用保留。命令改写所选列的全部数据格，包括已有值和公式例外；标题、总计及直接格式保持。`formula: null` 只移除原生模板，保留现有单元格公式，随后可按普通数据格编辑。相同模板且各格公式等价时不新增历史。每次最多 4096 个数据格、公式最多 8192 个 UTF-16 单元，沿现有 1048576 公式工作预算。实现归 [`table-column.mbt`](../../modules/formats/src/xlsx/table-column.mbt)。
+
+`editSheet({ action: "tableTotals", id, visible })` 显示或隐藏总计行。显示在表下方增加一行，不插入整张工作表的行；目标须为空且不与合并、表或普通筛选重叠。首次没有总计设置时，多列表的首列使用 `Summary`，末列按数据选择求和或非空计数；单列表仅生成聚合。隐藏缩小表范围、清除原总计格，保留设置和直接格式；缺失或不同于设置的导入总计内容先保存为标签或自定义公式。再次显示恢复这些设置，显式“无”不会恢复默认聚合。表筛选范围始终排除总计行。
+
+`editSheet({ action: "tableTotal", id, column, total })` 修改可见总计行的所选列。`XlsxTableTotal` 支持 `{ kind: "none" }`、`{ kind: "label", text }`、`{ kind: "formula", formula }` 和 `{ kind: "aggregate", function }`。聚合为 `sum/average/count/countNums/min/max/stdDev/var`，分别使用已有 `SUBTOTAL` 的 109/101/103/102/105/104/107/110；标准差与方差使用样本口径。自定义公式最多 8192 个单元，标签最多 32767 个单元。修改总计保留计算列模板。全部公式及总计元数据累计最多 1048576 个单元；多次总计元数据写入受同量级源处理预算限制，超限整体拒绝。
+
+计算列与总计命令沿同一事务更新原生定义、单元格、依赖和缓存，支持精确历史、保存重开及现有打印。默认面板调用相同命令并先提交原生草稿。共享/数组公式源、未知表/筛选元数据、非法结果、验证失败和输出预算失败均保留原状态。总计实现归 [`table-total.mbt`](../../modules/formats/src/xlsx/table-total.mbt)及 [`table-totals.mbt`](../../modules/formats/src/xlsx/table-totals.mbt)。默认设置及聚合映射参考 [ONLYOFFICE 总计行](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L10063-L10140)；其中数值计数沿现有 `SUBTOTAL(102)` 补齐。原生计算列和总计设置分别保留。
+
+已有 `insertRows/deleteRows/insertColumns/deleteColumns` 同步维护原生表。表之前的插入移动范围，表内部的插入扩展范围；保留原列身份，新列使用空闲身份和唯一 `ColumnN` 标题。计算列模板的相对引用按新的首个数据行重定位，绝对引用沿工作表结构变化。插入的数据行按模板生成公式，原有值/公式例外不改写；每次最多生成 4096 格。总计和筛选范围一起移动，删除总计所在行时关闭总计并保留设置。
+
+删列将所有已绑定的目标列引用写为永久 `#REF!`，包含单元格、名称及其他表的公式。删除覆盖整张表的行或列时，删除所属表部件、关系、内容类型和工作表引用，裸表名及行段引用也改为 `#REF!`。同一工作表中的其他原生表及其资源继续保留。源、生成格、依赖、缓存和资源删除合为一次精确历史；撤销能恢复导入部件，也能恢复本会话新建的部件。
+
+部分删除表首行、删除后没有数据行、插入导致表越界、活动筛选/排序、未知表资源和超限候选继续拒绝。穿过表的局部单元格移位仍保护；无交集的移位保留表并同步已支持的引用。生成格沿数据验证检查。默认行列按钮使用原有命令，原生草稿先提交。实现归 [`table-axis.mbt`](../../modules/formats/src/xlsx/table-axis.mbt)、[`table-axis-resources.mbt`](../../modules/formats/src/xlsx/table-axis-resources.mbt)及 [`axis-edit.mbt`](../../modules/formats/src/xlsx/axis-edit.mbt)，参考 [ONLYOFFICE 行范围变化](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L2326-L2421)、[列身份维护](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L2117-L2170)及[首行删除保护](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L1468-L1478)。
+
 普通数据格沿现有输入路径编辑。直接覆盖表头、总计格或已有计算列时，核心要求相应表命令；缓存重算不受此限制。连接、资源关系、扩展、未知规则引用、受保护工作表和超限候选原子拒绝。工作簿最多 256 张结构化表、4096 列定义；每表列名累计最多 65536 个单元，改名共享 1048576 公式工作预算和原有 4 MiB 历史上限。
 
 `TableStyleMedium2` 的标题填充/文字色、行列条纹、首末列和总计字体、外框/横线及总计双线进入现有显示、打印与自动适配路径。颜色复用当前主题及 tint 解析。直接声明按属性覆盖表样式，条件格式随后覆盖；所需粗体字体键包含在查询中，宿主仍须供应字体及 profile。格式面板查询包含表样式，修改字体或边框时保留同一组件的其他可见属性；`none` 清除直接边框覆盖，恢复表样式。共享边只绘制一次，双线保留两条细线及间隙。其他内置/自定义样式和差异样式继续保护。属性依据 [ONLYOFFICE 的 Medium2 定义](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Sheets/XlsxDefaults/presetTableStyles.xml#L2492-L2579)，实现归 [`table-style.mbt`](../../modules/formats/src/xlsx/table-style.mbt)。
 
-当前接通区域创建、范围调整、导入、查询、普通数据编辑及名称修改。整行/列结构同步、计算列创作和既有区域重填、总计设置、表筛选和完整表样式呈现继续实施。已有样式定义保留；只有已支持的表定义和样式才解除 `tableParts` 未呈现诊断，其余仍保护打印。活动表筛选尚不能区分筛选隐藏来源时，保留导入缓存并保护计算修改。工作表复制、删除和改名等未接通的表资源操作继续保护。
+含受支持原生表的工作表可沿现有 `rename/copy/delete` 命令和默认按钮操作。工作表改名同步各表的 `calculatedColumnFormula/totalsRowFormula`，保留表名、表/列身份及部件路径。复制为每张表分配独立身份、空闲 `TableN` 名称和部件，并复制工作表关系与内容类型；列身份和其他原生设置保留。副本的显式表引用、工作表自引用及导入的局部名称指向相应副本，字符串常量和全局名称保持原归属。表名分配避开已有表和名称，不重命名源表。实现归 [`table-sheet-copy.mbt`](../../modules/formats/src/xlsx/table-sheet-copy.mbt)，参考 [ONLYOFFICE 工作表表副本及映射](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L7096-L7120)及[表名分配](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L1286-L1300)。
+
+删除工作表清理其所属表部件、关系和内容类型，更新其他表的普通工作表引用及结构化依赖；失去目标的引用写为 `#REF!`。候选计算使用待删部件列表，保留仍存在的表。创建/删除部件、引用、缓存、视图和选择合为精确历史，支持保存重开和现有打印。未知表资源归属、活动表筛选/排序、公式扩展和预算失败保持原子拒绝；复制仍受每工作簿 256 张表、4096 列定义及原有历史/输出上限。实现归 [`table-sheet.mbt`](../../modules/formats/src/xlsx/table-sheet.mbt)、[`sheet-copy.mbt`](../../modules/formats/src/xlsx/sheet-copy.mbt)及 [`sheet-delete.mbt`](../../modules/formats/src/xlsx/sheet-delete.mbt)。
+
+当前接通区域创建、范围调整、导入、查询、普通数据编辑、表/列改名、计算列创作/重填、总计设置、整行/列插删同步、工作表资源操作及含表工作簿的名称创作。表筛选和完整表样式呈现继续实施。已有样式定义保留；只有已支持的表定义和样式才解除 `tableParts` 未呈现诊断，其余仍保护打印。活动表筛选尚不能区分筛选隐藏来源时，保留导入缓存并保护计算修改。
 
 结构化引用依据 [ONLYOFFICE cStrucTable](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L2352-L2628)的行段、列身份、当前行及转义行为。实现归 [`table.mbt`](../../modules/formats/src/xlsx/table.mbt)、[`structured-reference.mbt`](../../modules/formats/src/xlsx/structured-reference.mbt)、[`table-rename.mbt`](../../modules/formats/src/xlsx/table-rename.mbt)及 [`xlsx-tables.tsx`](../../packages/ui/src/xlsx-tables.tsx)，复用既有事务和绘制模型。
 

@@ -364,6 +364,9 @@ fn Foundation::xlsx_operation(
         | "renameTable"
         | "createTable"
         | "resizeTable"
+        | "tableColumnFormula"
+        | "tableTotals"
+        | "tableTotal"
         | "renameTableColumn" => xlsx_table_edit(change)
         "filterClear" => @xlsx.ClearFilter
         "filterRemove" => @xlsx.RemoveFilter

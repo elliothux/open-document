@@ -1,7 +1,22 @@
 import { useEffect, useState } from "react";
-import type { XlsxTable } from "@open-document/web/xlsx";
+import type {
+  XlsxTable,
+  XlsxTableTotal,
+  XlsxTableTotalFunction,
+} from "@open-document/web/xlsx";
 import type { PanelProps } from "./panels.js";
 import { messages } from "./messages.js";
+
+const totalFunctions: XlsxTableTotalFunction[] = [
+  "sum",
+  "average",
+  "count",
+  "countNums",
+  "min",
+  "max",
+  "stdDev",
+  "var",
+];
 
 export function XlsxTablesPanel(props: PanelProps) {
   const [choice, setChoice] = useState(0),
@@ -71,10 +86,26 @@ function TableNames({ table, ...props }: PanelProps & { table: XlsxTable }) {
     [range, setRange] = useState(table.range);
   const item =
     table.columns.find((item) => item.id === column) ?? table.columns[0]!;
-  const [heading, setHeading] = useState(item.name);
+  const [heading, setHeading] = useState(item.name),
+    [formula, setFormula] = useState(item.formula ?? "");
+  const [totalKind, setTotalKind] = useState("none"),
+    [totalText, setTotalText] = useState("");
+  useEffect(() => {
+    setTotalKind(
+      item.totalFormula !== null
+        ? "formula"
+        : item.totalLabel !== null
+          ? "label"
+          : item.totalFunction === null
+            ? "none"
+            : item.totalFunction,
+    );
+    setTotalText(item.totalFormula ?? item.totalLabel ?? "");
+  }, [item.id, item.totalFormula, item.totalLabel, item.totalFunction]);
   useEffect(() => setName(table.name), [table.name]);
   useEffect(() => setRange(table.range), [table.range]);
   useEffect(() => setHeading(item.name), [item.name, item.id]);
+  useEffect(() => setFormula(item.formula ?? ""), [item.formula, item.id]);
   if (props.file.format !== "xlsx") return null;
   const editor = props.file.editor,
     t = messages(props.state.locale);
@@ -167,6 +198,141 @@ function TableNames({ table, ...props }: PanelProps & { table: XlsxTable }) {
         >
           {t.renameTableColumn}
         </button>
+      </form>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          props.controller.run(() =>
+            editor.editSheet({
+              action: "tableColumnFormula",
+              id: table.id,
+              column: item.id,
+              formula,
+            }),
+          );
+        }}
+      >
+        <p>{t.tableFormulaHelp}</p>
+        <label>
+          {t.tableColumnFormula}
+          <input
+            value={formula}
+            required
+            maxLength={8192}
+            onChange={(event) => setFormula(event.currentTarget.value)}
+          />
+        </label>
+        <button type="submit" disabled={!formula.trim()}>
+          {t.applyTableFormula}
+        </button>
+        <button
+          type="button"
+          disabled={item.formula === null}
+          onClick={() =>
+            props.controller.run(() =>
+              editor.editSheet({
+                action: "tableColumnFormula",
+                id: table.id,
+                column: item.id,
+                formula: null,
+              }),
+            )
+          }
+        >
+          {t.removeTableFormula}
+        </button>
+      </form>
+      <label>
+        <input
+          type="checkbox"
+          checked={table.totalRow}
+          onChange={(event) => {
+            const visible = event.currentTarget.checked;
+            props.controller.run(() =>
+              editor.editSheet({
+                action: "tableTotals",
+                id: table.id,
+                visible,
+              }),
+            );
+          }}
+        />
+        {t.tableTotalsRow}
+      </label>
+      <p>{t.tableTotalsHelp}</p>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          const aggregate = totalFunctions.find((kind) => kind === totalKind);
+          const total: XlsxTableTotal | null =
+            totalKind === "none"
+              ? { kind: "none" }
+              : totalKind === "label"
+                ? { kind: "label", text: totalText }
+                : totalKind === "formula"
+                  ? { kind: "formula", formula: totalText }
+                  : aggregate
+                    ? { kind: "aggregate", function: aggregate }
+                    : null;
+          if (total)
+            props.controller.run(() =>
+              editor.editSheet({
+                action: "tableTotal",
+                id: table.id,
+                column: item.id,
+                total,
+              }),
+            );
+        }}
+      >
+        <fieldset disabled={!table.totalRow}>
+          <legend>{t.tableColumnTotal}</legend>
+          <label>
+            {t.tableTotalKind}
+            <select
+              aria-label={t.tableTotalKind}
+              value={totalKind}
+              onChange={(event) => setTotalKind(event.currentTarget.value)}
+            >
+              <option value="none">{t.tableTotalNone}</option>
+              <option value="label">{t.tableTotalLabel}</option>
+              <option value="formula">{t.tableTotalFormula}</option>
+              {totalFunctions.map((kind) => (
+                <option key={kind} value={kind}>
+                  {t[`tableTotal_${kind}`]}
+                </option>
+              ))}
+              {!["none", "label", "formula", ...totalFunctions].includes(
+                totalKind,
+              ) && (
+                <option value={totalKind} disabled>
+                  {totalKind} ({t.tableTotalUnsupported})
+                </option>
+              )}
+            </select>
+          </label>
+          {(totalKind === "label" || totalKind === "formula") && (
+            <label>
+              {t.tableTotalContent}
+              <input
+                value={totalText}
+                required={totalKind === "formula"}
+                maxLength={totalKind === "formula" ? 8192 : 32767}
+                onChange={(event) => setTotalText(event.currentTarget.value)}
+              />
+            </label>
+          )}
+          <button
+            type="submit"
+            disabled={
+              !["none", "label", "formula", ...totalFunctions].includes(
+                totalKind,
+              )
+            }
+          >
+            {t.applyTableTotal}
+          </button>
+        </fieldset>
       </form>
       {table.readOnlyReason && <p>{table.readOnlyReason}</p>}
     </fieldset>
