@@ -356,6 +356,27 @@ fn Foundation::xlsx_operation(
         "unmerge" => @xlsx.Unmerge(field_string(change, "range"))
         "sort" => xlsx_sort(change)
         "filter" => xlsx_filter(change)
+        "group" | "ungroup" =>
+          @xlsx.GroupOutline(
+            field_string(change, "axis"),
+            field_int(change, "first"),
+            field_int(change, "last"),
+            field_string(change, "action") == "ungroup",
+          )
+        "collapseGroup" =>
+          @xlsx.CollapseOutline(
+            field_string(change, "axis"),
+            field_int(change, "first"),
+            field_int(change, "last"),
+            field_int(change, "level"),
+            xlsx_boolean(change, "collapsed"),
+          )
+        "clearOutline" => @xlsx.ClearOutline(field_string(change, "axis"))
+        "outlineSummary" =>
+          @xlsx.OutlineSummary(
+            field_string(change, "axis"),
+            xlsx_boolean(change, "after"),
+          )
         "filterClear" => @xlsx.ClearFilter
         "filterRemove" => @xlsx.RemoveFilter
         "filterReapply" => @xlsx.ReapplyFilter

@@ -225,24 +225,24 @@ fn Sheet::axis_cells(
       }
       if change.insert && first < change.first && change.first <= last {
         fragments.push(
-          (first, resized_column(tree, node, first, change.first - 1, None)),
+          (first, column_markup(tree, node, first, change.first - 1, [])),
         )
         if change.first + change.count <= change.limit() {
           fragments.push(
             (
               change.first + change.count,
-              resized_column(
+              column_markup(
                 tree,
                 node,
                 change.first + change.count,
                 (last + change.count).min(change.limit()),
-                None,
+                [],
               ),
             ),
           )
         }
       } else if change.interval(first, last) is Some((first, last)) {
-        fragments.push((first, resized_column(tree, node, first, last, None)))
+        fragments.push((first, column_markup(tree, node, first, last, [])))
       }
     }
     if change.insert && inherited is Some(node) {

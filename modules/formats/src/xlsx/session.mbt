@@ -452,6 +452,7 @@ pub fn Session::query(
       keys
     }),
     "sheet": current.id,
+    "outline": self.outline_query(current),
     "view": {
       "gridLines": current.view.grid_lines,
       "headings": current.view.headings,

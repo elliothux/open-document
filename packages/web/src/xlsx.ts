@@ -38,6 +38,11 @@ import {
 } from "@open-document/wasm/xlsx";
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type { XlsxSheetEdit, XlsxClearMode } from "@open-document/wasm/xlsx";
+export type {
+  XlsxOutline,
+  XlsxOutlineGroup,
+  XlsxOutlineEdit,
+} from "@open-document/wasm/xlsx";
 export { checkXlsxTextColumnSettings } from "@open-document/wasm/xlsx";
 export type { XlsxTextColumnType } from "@open-document/wasm/xlsx";
 export type {

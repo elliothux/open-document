@@ -88,7 +88,7 @@ import {
   type DocxThemeSlot,
   docxThemeFonts,
   checkDocxThemeFonts,
-  type DocxThemeFontPair,
+  type DocxThemeFontEdit,
 } from "./docx-theme.js";
 export * from "./docx-theme.js";
 /** Logical soft line break; DOCX serializes it as w:br, while LF creates a paragraph. */
@@ -383,7 +383,7 @@ export class FoundationSession extends FoundationPageSession {
   }
   setThemeFonts(
     revision: number,
-    fonts: DocxThemeFontPair,
+    fonts: DocxThemeFontEdit[],
     profile: Record<string, string>,
   ): EditState {
     checkDocxThemeFonts(fonts);

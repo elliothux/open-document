@@ -214,6 +214,7 @@ export interface PptxQuery {
   slideOrderReason: string;
   slideSizeReason: string;
   slideVisibilityReason: string;
+  firstSlideNumber: number;
   sections: PptxSections;
   background: {
     value: PptxBackground;
@@ -414,6 +415,7 @@ export function pptxQuery(value: unknown): PptxQuery {
   pptxComments(query.comments);
   pptxSlideLayouts(query.slideLayout);
   pptxFooter(query.footer);
+  integer(query.firstSlideNumber, 0xffffffff);
   checkPptxSlideEdit({ action: "notes", text: notes.text });
   if (typeof notes.reason !== "string") throw new Error("Invalid notes query");
   checkPptxFormatting(query.formatting);

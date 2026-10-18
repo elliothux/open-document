@@ -52,7 +52,7 @@ export type {
   DocxThemeSlot,
   DocxThemeColors,
   DocxThemeFonts,
-  DocxThemeFontPair,
+  DocxThemeFontEdit,
   ListFormat,
 } from "@open-document/wasm/foundation";
 export {
@@ -74,7 +74,7 @@ import {
   docxThemeColors,
   docxThemeFonts,
   checkDocxThemeFonts,
-  type DocxThemeFontPair,
+  type DocxThemeFontEdit,
   checkDocxThemeColor,
   type DocxThemeSlot,
   checkDocxTableSize,
@@ -213,7 +213,7 @@ export class FoundationClient extends FoundationPageClient {
   }
   async setThemeFonts(
     revision: number,
-    fonts: DocxThemeFontPair,
+    fonts: DocxThemeFontEdit[],
     profile: Record<string, string>,
   ): Promise<EditState> {
     checkDocxThemeFonts(fonts);

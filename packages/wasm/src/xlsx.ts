@@ -34,6 +34,8 @@ export {
 import { xlsxNames, type XlsxNames } from "./xlsx-names.js";
 export type { XlsxName, XlsxNames, XlsxNameEdit } from "./xlsx-names.js";
 import { xlsxStatistics, type XlsxStatistics } from "./xlsx-statistics.js";
+import { xlsxOutline, type XlsxOutline } from "./xlsx-outline.js";
+export * from "./xlsx-outline.js";
 export { xlsxStatistics, type XlsxStatistics } from "./xlsx-statistics.js";
 export type { XlsxSortSettings, XlsxSortKey } from "./xlsx-sort.js";
 import {
@@ -193,6 +195,7 @@ export interface XlsxCell {
 }
 
 export interface XlsxQuery {
+  outline: XlsxOutline;
   hyperlink: XlsxHyperlink;
   note: XlsxNote;
   names: XlsxNames;
@@ -269,6 +272,7 @@ function cellValue(value: unknown): boolean {
 
 export function xlsxQuery(value: unknown): XlsxQuery {
   const query = record(value);
+  xlsxOutline(query.outline);
   xlsxStatistics(query.statistics);
   xlsxHyperlink(query.hyperlink);
   xlsxNote(query.note);

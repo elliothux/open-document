@@ -62,57 +62,6 @@ fn Sheet::row_height_changes(
 }
 
 ///|
-fn resized_column(
-  tree : Tree,
-  node : @xml.Node,
-  first : Int,
-  last : Int,
-  size : Double?,
-  best_fit~ : Bool = false,
-) -> String raise @failure.Failure {
-  guard tree.children.get(node.id).unwrap_or([]).is_empty() &&
-    node.attributes
-    .iter()
-    .all(attribute => {
-      attribute.uri.is_empty() &&
-      [
-        "min", "max", "width", "style", "hidden", "bestFit", "customWidth", "phonetic",
-        "outlineLevel", "collapsed",
-      ].contains(attribute.name)
-    }) else {
-    @failure.reject(
-      "protected-content", "Column extensions require dimension editing support",
-    )
-  }
-  let values = [("min", first.to_string()), ("max", last.to_string())]
-  if size is Some(size) {
-    values.append(
-      if size == 0 {
-        [("hidden", "1")]
-      } else {
-        [
-          ("width", size.to_string()),
-          ("customWidth", "1"),
-          ("bestFit", if best_fit { "1" } else { "0" }),
-          ("hidden", "0"),
-        ]
-      },
-    )
-  }
-  let changes = metadata_changes(node, values)
-  changes.sort_by((a, b) => a.offset.compare(b.offset))
-  let output = StringBuilder()
-  let mut cursor = node.start
-  for change in changes {
-    output.write_view(tree.document.source()[cursor:node.start + change.offset])
-    output.write_string(change.xml)
-    cursor = node.start + change.offset + change.length
-  }
-  output.write_view(tree.document.source()[cursor:node.end])
-  output.to_string()
-}
-
-///|
 fn Sheet::column_width_changes(
   self : Sheet,
   tree : Tree,
@@ -121,98 +70,24 @@ fn Sheet::column_width_changes(
   sizes : Array[AxisSpan],
   best_fit~ : Bool = false,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
-  let root = tree.root("worksheet")
-  let container = tree.one(root.id, "cols")
-  let columns = container
-    .map(node => tree.all(node.id, "col"))
-    .unwrap_or([])
-    .map(node => (natural(node.attribute("min").unwrap_or(""), 16384), node))
-  columns.sort_by((a, b) => a.0.compare(b.0))
-  let prefix = root.qualified[:root.qualified.length() - 9].to_owned()
-  let segment = fn(
-    first : Int,
-    last : Int,
-    node : @xml.Node?,
-  ) raise @failure.Failure {
-    if node is Some(original) &&
-      !sizes.any(span => span.first <= last && span.last >= first) {
-      return tree.document.source()[original.start:original.end].to_owned()
-    }
-    let output = StringBuilder()
-    let mut cursor = first
-    for span in sizes {
-      let start = span.first.max(first)
-      let end = span.last.min(last)
-      if start > end {
-        continue
-      }
-      if cursor < start && node is Some(original) {
-        output.write_string(
-          resized_column(tree, original, cursor, start - 1, None),
-        )
-      }
-      if node is Some(node) {
-        output.write_string(
-          resized_column(tree, node, start, end, Some(span.size), best_fit~),
-        )
-      } else if span.size == 0 {
-        output.write_string(
-          "<\{prefix}col min=\"\{start}\" max=\"\{end}\" hidden=\"1\"/>",
-        )
+  self.column_metadata_changes(
+    tree,
+    first,
+    last,
+    sizes.map(span => {
+      let attributes = if span.size == 0 {
+        [("hidden", "1")]
       } else {
-        output.write_string(
-          "<\{prefix}col min=\"\{start}\" max=\"\{end}\" width=\"\{span.size}\" customWidth=\"1\" bestFit=\"\{if best_fit { "1" } else { "0" }}\" hidden=\"0\"/>",
-        )
+        [
+          ("width", span.size.to_string()),
+          ("customWidth", "1"),
+          ("bestFit", if best_fit { "1" } else { "0" }),
+          ("hidden", "0"),
+        ]
       }
-      cursor = end + 1
-    }
-    if cursor <= last && node is Some(original) {
-      output.write_string(resized_column(tree, original, cursor, last, None))
-    }
-    output.to_string()
-  }
-  let changes : Array[@xml.SourceChange] = []
-  let mut cursor = first
-  for (start, node) in columns {
-    let end = natural(node.attribute("max").unwrap_or(""), 16384)
-    if end < first || start > last {
-      continue
-    }
-    let output = StringBuilder()
-    if start > cursor {
-      output.write_string(segment(cursor, start - 1, None))
-    }
-    if start < first {
-      output.write_string(resized_column(tree, node, start, first - 1, None))
-    }
-    output.write_string(segment(start.max(first), end.min(last), Some(node)))
-    if end > last {
-      output.write_string(resized_column(tree, node, last + 1, end, None))
-    }
-    let parent = container.unwrap()
-    changes.push({
-      node: parent.id,
-      offset: node.start - parent.start,
-      length: node.end - node.start,
-      xml: output.to_string(),
-    })
-    cursor = end.min(last) + 1
-  }
-  if cursor <= last {
-    changes.push(
-      if container is Some(container) {
-        insertion(container, segment(cursor, last, None))
-      } else {
-        {
-          node: root.id,
-          offset: tree.nodes[self.data].start - root.start,
-          length: 0,
-          xml: "<\{prefix}cols>\{segment(cursor, last, None)}</\{prefix}cols>",
-        }
-      },
-    )
-  }
-  changes
+      (span.first, span.last, attributes)
+    }),
+  )
 }
 
 ///|

@@ -19,13 +19,17 @@ export interface DocxThemeColors {
   revision: number;
   colors: { slot: DocxThemeSlot; color: string | null; reason: string }[];
 }
-export interface DocxThemeFontPair {
-  major: string;
-  minor: string;
+export interface DocxThemeFontEdit {
+  kind: "major" | "minor";
+  script: "latin" | "ea" | "cs";
+  font: string;
 }
 export interface DocxThemeFonts {
   revision: number;
-  fonts: { kind: "major" | "minor"; font: string | null; reason: string }[];
+  fonts: (Omit<DocxThemeFontEdit, "font"> & {
+    font: string | null;
+    reason: string;
+  })[];
 }
 function fontFamily(value: unknown): value is string {
   return (
@@ -43,13 +47,25 @@ function fontFamily(value: unknown): value is string {
   );
 }
 export function checkDocxThemeFonts(value: unknown): void {
-  const pair = record(value);
-  if (
-    Object.keys(pair).length !== 2 ||
-    !fontFamily(pair.major) ||
-    !fontFamily(pair.minor)
-  )
-    throw new Error("Invalid DOCX theme font pair");
+  if (!Array.isArray(value) || !value.length || value.length > 6)
+    throw new Error("Invalid DOCX theme font changes");
+  const seen = new Set<string>();
+  for (const entry of value) {
+    const change = record(entry);
+    const key = `${change.kind}:${change.script}`;
+    if (
+      Object.keys(change).length !== 3 ||
+      typeof change.kind !== "string" ||
+      !["major", "minor"].includes(change.kind) ||
+      typeof change.script !== "string" ||
+      !["latin", "ea", "cs"].includes(change.script) ||
+      seen.has(key) ||
+      (!(change.font === "" && change.script !== "latin") &&
+        !fontFamily(change.font))
+    )
+      throw new Error("Invalid DOCX theme font change");
+    seen.add(key);
+  }
 }
 export function docxThemeFonts(value: unknown): DocxThemeFonts {
   const query = record(value);
@@ -58,23 +74,26 @@ export function docxThemeFonts(value: unknown): DocxThemeFonts {
     !Number.isSafeInteger(query.revision) ||
     query.revision < 0 ||
     !Array.isArray(query.fonts) ||
-    query.fonts.length !== 2
+    query.fonts.length !== 6
   )
     throw new Error("Invalid DOCX theme fonts");
-  const seen = new Set<unknown>();
+  const seen = new Set<string>();
   for (const value of query.fonts) {
     const font = record(value);
+    const key = `${font.kind}:${font.script}`;
     if (
       typeof font.kind !== "string" ||
       !["major", "minor"].includes(font.kind) ||
-      seen.has(font.kind) ||
+      typeof font.script !== "string" ||
+      !["latin", "ea", "cs"].includes(font.script) ||
+      seen.has(key) ||
       typeof font.reason !== "string" ||
       (font.font === null
         ? !font.reason
         : font.font !== "" && !fontFamily(font.font))
     )
       throw new Error("Invalid DOCX theme font");
-    seen.add(font.kind);
+    seen.add(key);
   }
   return value as DocxThemeFonts;
 }

@@ -113,6 +113,7 @@ export type PptxSlideEdit =
   | { action: "layout"; id: string }
   | { action: "resetLayout" }
   | { action: "notes"; text: string }
+  | { action: "firstSlideNumber"; number: number }
   | { action: "footer"; value: PptxFooterContent; allSlides: boolean }
   | { action: "sectionAdd"; name: string }
   | { action: "sectionRename"; id: string; name: string }
@@ -137,6 +138,17 @@ export type PptxSlideEdit =
 
 export function checkPptxSlideEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "firstSlideNumber") {
+    if (
+      typeof change.number !== "number" ||
+      !Number.isInteger(change.number) ||
+      change.number < 0 ||
+      change.number > 0xffffffff ||
+      Object.keys(change).some((key) => !["action", "number"].includes(key))
+    )
+      throw new Error("Invalid first slide number");
+    return;
+  }
   if (change.action === "footer") {
     if (
       typeof change.allSlides !== "boolean" ||

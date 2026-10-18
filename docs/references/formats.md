@@ -265,15 +265,15 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 ### DOCX 主题字体
 
-`FoundationSession/Client.themeFonts(revision)` 返回 `DocxThemeFonts = { revision, fonts }`，包含 `kind: "major" | "minor"` 的两项。每项返回原始 Latin `font` 和限制 `reason`；无法读取时字体为 null，空串表示源定义为空。`DocxThemeFontPair` 为 `{ major, minor }`。`setThemeFonts(revision, fonts, profile)` 一次修改标题/正文的 Latin 字体对，保留现有 EA、CS、补充脚本、扩展和已知字体元数据。两个字体均为非空实际字体族，最多 200 UTF-16 单元；不接受主题占位符、字体键分隔符、非法 XML 文字和换行。
+`FoundationSession/Client.themeFonts(revision)` 返回 `DocxThemeFonts = { revision, fonts }`，按标题、正文的顺序各返回 Latin、EA、CS 三槽，共六项。每项包含 `kind: "major" | "minor"`、`script: "latin" | "ea" | "cs"`、原始 `font` 和限制 `reason`；无法读取时字体为 null，空串表示源定义为空。`DocxThemeFontEdit` 为 `{ kind, script, font }`。`setThemeFonts(revision, fonts, profile)` 接受 1–6 项互不重复的修改，一次提交指定槽，保留其他槽、补充脚本、扩展和已知字体元数据。Latin 必须为非空实际字体族；EA/CS 可设空串恢复现有回退。非空字体最多 200 UTF-16 单元；不接受主题占位符、字体键分隔符、非法 XML 文字和换行。
 
-`DocumentEditor.themeFonts()` 与 `setThemeFonts(fonts)` 复用意图队列，宿主自动携带当前字体 profile。默认面板显式加载、修改和应用字体对，加载会恢复源值，原生输入保留面板草稿。没有主题时沿已有 Word 部件事务创建主题、关系及内容类型；未使用的字体定义不要求加载对应字体。
+`DocumentEditor.themeFonts()` 与 `setThemeFonts(fonts)` 复用意图队列，宿主自动携带当前字体 profile。默认面板显式加载、修改和批量应用六槽；受保护槽禁用并显示原因，其余槽可继续修改。加载恢复源值，原生输入保留面板草稿。没有主题时沿已有 Word 部件事务创建主题、关系及内容类型；未使用的字体定义不要求加载对应字体。
 
-字符样式逐层保留 ASCII、HAnsi、东亚及复杂文字的直接或主题字体绑定。相同槽内的主题引用优先于缓存字体，较高层直接定义覆盖较低层绑定；`major/minor` 的八个 Word 字体别名分别解析到 Latin/EA/CS。空的主题槽回退到正文 Latin，再回退 Arial，遵循 [ONLYOFFICE FontScheme.checkFont](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L10082-L10135)。直接字体保持；EA/CS 和补充脚本的直接编辑、语言匹配及整套主题导入仍待扩展。
+字符样式逐层保留 ASCII、HAnsi、东亚及复杂文字的直接或主题字体绑定。相同槽内的主题引用优先于缓存字体，较高层直接定义覆盖较低层绑定；`major/minor` 的八个 Word 字体别名分别解析到 Latin/EA/CS。空的主题槽回退到正文 Latin，再回退 Arial，遵循 [ONLYOFFICE FontScheme.checkFont](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L10082-L10135)。直接字体保持；补充脚本编辑、语言匹配及整套主题导入仍待扩展。
 
 字体槽按 [ONLYOFFICE FontClassification](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/Run/FontClassification.js#L48-L266) 的码点范围、东亚提示和中文语言提示选择。`w:cs/rtl` 强制复杂文字槽，东亚提示及私用区保留上游优先级；复杂文字使用独立 `bCs/iCs/szCs`。核心只在字素边界拆分派生 span，保留原文字节点及 UTF-16 逻辑位置；混合格式查询、光标、空段落、普通单元格和列表标记沿相同规则，保存不拆分源 run。
 
-提交前校验字体对、源定义、主题锁及受影响段落的实际字体键，包含粗斜体，并检查 profile 与已注册字体。主题和新元数据合为一次有界历史，保留选择、后续输入格式、源别名和未改 XML；无变化不增加 revision 或清除布局。旧修订、活动候选、缺字体、未知目标定义及预算失败原子拒绝。主题改变后，现有排版缓存按派生字体失效，Canvas/PDF 使用重新排版的相同结果；后续绘制失败仍沿宿主已有保存和恢复路径处理。实现归 [`theme-font.mbt`](../../modules/formats/src/docx/theme-font.mbt)与 [`font-slots.mbt`](../../modules/formats/src/docx/font-slots.mbt)。
+提交前校验修改列表、源定义、主题锁及受影响段落的实际字体键，包含粗斜体，并检查 profile 与已注册字体。预检覆盖正文、表格及所有已存页眉页脚变体，区域内段落身份分别比较。主题和新元数据合为一次有界历史，保留选择、后续输入格式、源别名和未改 XML；无变化不增加 revision 或清除布局。旧修订、活动候选、缺字体、未知目标定义及预算失败原子拒绝。主题改变后，现有排版缓存按派生字体失效，Canvas/PDF 使用重新排版的相同结果；后续绘制失败仍沿宿主已有保存和恢复路径处理。实现归 [`theme-font.mbt`](../../modules/formats/src/docx/theme-font.mbt)与 [`font-slots.mbt`](../../modules/formats/src/docx/font-slots.mbt)。
 
 ### 标题导航与正文统计
 
@@ -1205,6 +1205,25 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 网格读取普通 LTR/RTL 的 `frozen` / `frozenSplit` 视图；普通 split 仍拒绝布局。一个 R0 区域内最多绘制四个裁剪窗格，共享 4096 格和 262144 UTF-16 文字预算；核心负责命中、滚动定位及合并格跨边界。`XlsxViewport.cells[].clip` 给出所属窗格，合并格按地址去重。`XlsxSelectionGeometry` 保留锚点矩形并返回最多四个 `rects`；覆盖层绘制这些矩形，原生输入受所属窗格裁剪。
 
+### 行列分组与折叠
+
+`XlsxQuery.outline` 返回 `{ rows, columns, reason }`。两个轴各含 `summaryAfter` 及 `groups`；每组包含从 1 开始的 `first/last`、1–7 的 `level`、汇总项 `summary` 和 `collapsed`。缺省汇总位于明细之后。组由标准 `outlineLevel` 的连续区间派生；共用汇总项的组使用外层按钮，没有可用汇总项时禁用折叠。未知属性、自动应用样式或超限结构返回原因，保留原源。
+
+`editSheet` 接通以下修改，`axis` 为 `"rows" | "columns"`：
+
+| action | 其他字段 | 结果 |
+| --- | --- | --- |
+| `group` / `ungroup` | `first, last` | 所选行列增加/减少一级，级别下限为 0 |
+| `collapseGroup` | `first, last, level, collapsed` | 匹配当前组并折叠/展开 |
+| `clearOutline` | 无 | 清除该轴的分组并显示明细 |
+| `outlineSummary` | `after` | 设置汇总在明细之前/之后，并迁移折叠标记 |
+
+一次范围操作最多修改 4095 项明细，另预留一个汇总项；一次元数据修改最多 4096 项，每轴最多 1024 组、七级。沿现有源补丁保留行高、列宽、样式、自动适配标记、文字、公式和其他部件；级别缓存及汇总标记一同更新。默认分组面板提供所选范围分组/取消、折叠/展开、清除及汇总位置，原生草稿先提交。修改沿现有 revision、保护及有界历史，重复状态不新增历史；非法范围、层级溢出、未知源和输出预算失败原子拒绝。
+
+折叠隐藏全部明细；展开显示组内手动隐藏项，保留仍折叠的内组及筛选隐藏。清除分组同样显示明细并保留筛选结果，遵循 [ONLYOFFICE 分组展开](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L24846-L24938)与[清除大纲](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L25323-L25415)。行隐藏复用[筛选来源记录](#值筛选)，`SUBTOTAL` 缓存随可见性重算并与折叠合为一项历史。网格、命中、语义单元格及 PDF 复用相同尺寸，隐藏内容仍保存在源单元格中。
+
+整行/整列插删同步分组级别和汇总位置，插入项继承前项的分组级别，并在所在组折叠时保持隐藏；筛选来源和缓存共同提交。删除后仍存在的组保留折叠状态；没有合法汇总位置时原子拒绝。取消分组只减少级别，不自行显示原隐藏项。复制、改名、保存重开与精确混合历史保留分组；保护设置与更广导入变体继续实施。实现归 [`outline.mbt`](../../modules/formats/src/xlsx/outline.mbt)、[`outline-edit.mbt`](../../modules/formats/src/xlsx/outline-edit.mbt)、[`outline-axis.mbt`](../../modules/formats/src/xlsx/outline-axis.mbt)及 [`xlsx-outline.tsx`](../../packages/ui/src/xlsx-outline.tsx)。
+
 ### 工作表网格线与标题
 
 `editSheet({ action: "view", gridLines, headings, rtl, formulas })` 设置当前表的网格线、行列标题、RTL 方向和公式显示，四项均为布尔值。`XlsxQuery.view` 返回这四项及 `readOnlyReason`。默认属性栏的四个开关调用相同命令，先提交原生草稿。主窗口缺省显示网格线/标题，采用 LTR 和计算结果；读取 `0/1/false/true`。修改只写变化的属性，保留其他窗口、窗格、选区和未知部件。缺少主窗口时创建。相同设置不增加历史，失败不提交部分结果。
@@ -1612,6 +1631,10 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 ### 幻灯片编号字段
 
 导入的 `a:fld type="slidenum"` 按演示文稿 `firstSlideNum` 加从零开始的实际页序生成十进制文字，类型比较忽略大小写。起始编号缺省为 1，接受 0–4294967295；隐藏页保留编号位置。行为依据 [ONLYOFFICE PresentationField](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/PresentationField.js#L187-L220)。
+
+`PptxQuery.firstSlideNumber` 返回当前起始编号。`PresentationEditor.editSlides({ action: "firstSlideNumber", number })` 及同步 Wasm/Worker 的同名修改作用于整稿；number 必须为 0–4294967295 的整数。默认编号面板提供起点及应用按钮，原生文字草稿先独立提交，编号草稿在此期间保持；撤销/重做按源起点更新控件。相同起点不新增历史。只修改演示文稿属性，保留字段 ID、源代码和旧缓存，重新派生全部页的编号；末页显示值可超过起点属性的上限。
+
+受影响字段共用已有文字测量和自动适配，框大小或缩小比例与起点合为一项历史。预检包含隐藏页和继承对象。固定框溢出、未知编号域、修改保护、缺字体、旧修订、活动候选及预算失败原子拒绝。共享自动框需要不同源尺寸时继续保护，待本地覆盖支持后扩展。其他源、资源和选择保持；Canvas、PDF 与保存重开使用相同编号。起点语义参考 [ONLYOFFICE changeSlideSize/getFirstSlideNumber](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L844-L863)，实现归 [`slide-numbering.mbt`](../../modules/formats/src/pptx/slide-numbering.mbt)及 [`autofit.mbt`](../../modules/formats/src/pptx/autofit.mbt)。
 
 当前支持带非空 `id`、可选 `rPr/t` 且无其他字段属性或子节点的形式。字号、颜色和字体沿现有文字解析；派生数字进入查询及 Canvas/PDF 共用的定位输出。重排、复制、删除与撤销重做同步更新，读取和保存不刷新源缓存，也不新增修订。字段所在框继续拒绝纯文字编辑，其他字段和带段落属性/未知扩展的字段保留缓存并诊断。创建和移除见[日期与页脚编辑](#日期与页脚编辑)，版式占位符创建沿[幻灯片版式](#幻灯片版式)；母版直接编辑继续实施。实现归 [`text-fields.mbt`](../../modules/formats/src/pptx/text-fields.mbt)。
 

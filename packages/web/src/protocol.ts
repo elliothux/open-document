@@ -21,7 +21,7 @@ import type {
   DocxPictureResizeCommand,
   DocxTableEdit,
   DocxThemeSlot,
-  DocxThemeFontPair,
+  DocxThemeFontEdit,
   DocxBookmarkEdit,
   DocxCommentEdit,
 } from "@open-document/wasm/foundation";
@@ -73,7 +73,7 @@ export type Operation =
   | {
       operation: "setDocxThemeFonts";
       revision: number;
-      fonts: DocxThemeFontPair;
+      fonts: DocxThemeFontEdit[];
       profile: Record<string, string>;
     }
   | { operation: "docxThemeColors"; revision: number }

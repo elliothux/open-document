@@ -46,7 +46,7 @@ import type {
   DocxPictureEdit,
   DocxTableEdit,
   DocxThemeSlot,
-  DocxThemeFontPair,
+  DocxThemeFontEdit,
 } from "@open-document/wasm/foundation";
 /** Owns browser input order. The caller owns fonts, the opened DOCX and client lifetime. */
 export class DocumentEditor extends DocumentPage {
@@ -522,7 +522,7 @@ export class DocumentEditor extends DocumentPage {
   themeFonts() {
     return this.enqueue(() => this.client.themeFonts(this.state.revision));
   }
-  setThemeFonts(fonts: DocxThemeFontPair): Promise<void> {
+  setThemeFonts(fonts: DocxThemeFontEdit[]): Promise<void> {
     return this.format(() =>
       this.client.setThemeFonts(this.state.revision, fonts, this.profile),
     );

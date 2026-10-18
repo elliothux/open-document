@@ -1,4 +1,5 @@
 import { record, integer } from "./validation.js";
+import { checkXlsxOutlineEdit, type XlsxOutlineEdit } from "./xlsx-outline.js";
 import { checkXlsxNameEdit, type XlsxNameEdit } from "./xlsx-names.js";
 import { checkXlsxSort, type XlsxSortSettings } from "./xlsx-sort.js";
 import {
@@ -28,6 +29,7 @@ import {
 } from "./xlsx-print.js";
 
 export type XlsxSheetEdit =
+  | XlsxOutlineEdit
   | {
       action: "textToColumns";
       settings: XlsxTextColumnSettings;
@@ -116,6 +118,20 @@ export type XlsxSheetEdit =
   | { action: "visibility"; state: "visible" | "hidden" | "veryHidden" };
 
 export function checkXlsxSheetEdit(value: unknown): void {
+  const outline = record(value);
+  if (
+    typeof outline.action === "string" &&
+    [
+      "group",
+      "ungroup",
+      "collapseGroup",
+      "clearOutline",
+      "outlineSummary",
+    ].includes(outline.action)
+  ) {
+    checkXlsxOutlineEdit(value);
+    return;
+  }
   const change = record(value);
   if (change.action === "textToColumns") {
     if (

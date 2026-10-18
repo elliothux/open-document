@@ -4,7 +4,7 @@ import type {
   DocxThemeColors,
   DocxThemeSlot,
   DocxThemeFonts,
-  DocxThemeFontPair,
+  DocxThemeFontEdit,
 } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
@@ -109,26 +109,25 @@ export function DocxThemeFontsPanel({
 }) {
   const t = messages(state.locale);
   const [query, setQuery] = useState<DocxThemeFonts>();
-  const major = query?.fonts.find((font) => font.kind === "major");
-  const minor = query?.fonts.find((font) => font.kind === "minor");
-  const [fonts, setFonts] = useState<DocxThemeFontPair>({
-    major: "",
-    minor: "",
-  });
+  const [fonts, setFonts] = useState<DocxThemeFontEdit[]>([]);
   const load = async () => {
     const next = await editor.themeFonts();
     setQuery(next);
-    setFonts({
-      major: next.fonts.find((font) => font.kind === "major")?.font ?? "",
-      minor: next.fonts.find((font) => font.kind === "minor")?.font ?? "",
-    });
+    setFonts(
+      next.fonts.map(({ kind, script, font }) => ({
+        kind,
+        script,
+        font: font ?? "",
+      })),
+    );
   };
+  const editable = fonts.filter((font, i) => !query?.fonts[i]?.reason);
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault();
         controller.run(async () => {
-          await editor.setThemeFonts(fonts);
+          await editor.setThemeFonts(editable);
           await load();
         });
       }}
@@ -139,31 +138,44 @@ export function DocxThemeFontsPanel({
         <button type="button" onClick={() => controller.run(load)}>
           {t.loadThemeFonts}
         </button>
-        {(["major", "minor"] as const).map((kind) => (
-          <label key={kind}>
-            {kind === "major" ? t.headingFont : t.bodyFont}
-            <input
-              required
-              maxLength={200}
-              disabled={!query}
-              value={fonts[kind]}
-              onChange={(event) =>
-                setFonts({ ...fonts, [kind]: event.currentTarget.value })
-              }
-            />
-          </label>
+        {fonts.map(({ kind, script, font }, i) => (
+          <div key={`${kind}:${script}`}>
+            <label>
+              {kind === "major" ? t.headingFont : t.bodyFont}
+              {script === "ea"
+                ? ` (${t.eastAsianFont})`
+                : script === "cs"
+                  ? ` (${t.complexScriptFont})`
+                  : ""}
+              <input
+                required={script === "latin"}
+                maxLength={200}
+                disabled={!!query?.fonts[i]?.reason}
+                value={font}
+                onChange={(event) =>
+                  setFonts(
+                    fonts.map((font, index) =>
+                      index === i
+                        ? { ...font, font: event.currentTarget.value }
+                        : font,
+                    ),
+                  )
+                }
+              />
+            </label>
+            {query?.fonts[i]?.reason && (
+              <span role="status">{query.fonts[i].reason}</span>
+            )}
+          </div>
         ))}
-        {(major?.reason || minor?.reason) && (
-          <p role="status">{major?.reason || minor?.reason}</p>
-        )}
+        {query && <p>{t.themeFontFallback}</p>}
         <button
           type="submit"
           disabled={
-            !query ||
-            !!major?.reason ||
-            !!minor?.reason ||
-            !fonts.major.trim() ||
-            !fonts.minor.trim()
+            !editable.length ||
+            editable.some(
+              ({ script, font }) => script === "latin" && !font.trim(),
+            )
           }
         >
           {t.applyThemeFont}

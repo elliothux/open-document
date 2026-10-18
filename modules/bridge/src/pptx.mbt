@@ -94,6 +94,8 @@ fn Foundation::pptx_operation(
         "move" => @pptx.MoveSlide(field_int(change, "index"))
         "hidden" => @pptx.HideSlide(xlsx_boolean(change, "hidden"))
         "notes" => @pptx.Notes(field_string(change, "text"))
+        "firstSlideNumber" =>
+          @pptx.FirstSlideNumber(xlsx_number(change, "number"))
         "footer" => {
           guard change is { "value": value, .. } else {
             @failure.reject(

@@ -8,6 +8,10 @@ pub(all) enum SheetEdit {
   Rename(String)
   RowHeight(Int, Int, Double)
   ColumnWidth(Int, Int, Double)
+  GroupOutline(String, Int, Int, Bool)
+  CollapseOutline(String, Int, Int, Int, Bool)
+  ClearOutline(String)
+  OutlineSummary(String, Bool)
   InsertRows(Int, Int)
   DeleteRows(Int, Int)
   InsertColumns(Int, Int)
@@ -170,6 +174,10 @@ pub fn Session::edit_sheet(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   match change {
+    GroupOutline(_, _, _, _)
+    | CollapseOutline(_, _, _, _, _)
+    | ClearOutline(_)
+    | OutlineSummary(_, _) => return self.edit_outline(sheet, change)
     Note(cell, text, author) => return self.set_note(sheet, cell, text, author)
     Hyperlink(range, target) => return self.set_hyperlink(sheet, range, target)
     OpenHyperlink(range, source_revision) =>
@@ -307,6 +315,10 @@ pub fn Session::edit_sheet(
   let mut next_sheet = self.next_sheet
   match change {
     RowHeight(_, _, _)
+    | GroupOutline(_, _, _, _)
+    | CollapseOutline(_, _, _, _, _)
+    | ClearOutline(_)
+    | OutlineSummary(_, _)
     | InsertRows(_, _)
     | DeleteRows(_, _)
     | InsertColumns(_, _)

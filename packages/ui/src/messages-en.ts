@@ -4,7 +4,9 @@ import { imageEn } from "./messages-pptx-image.js";
 import { footerEn } from "./messages-pptx-footer.js";
 import { reviewEn } from "./messages-review.js";
 import { pageEn } from "./messages-docx-page.js";
+import { outlineEn } from "./messages-outline.js";
 export const en = {
+  ...outlineEn,
   ...reviewEn,
   ...pageEn,
   ...filterEn,
@@ -229,7 +231,7 @@ export const en = {
   documentThemeColors: "Document theme colors",
   documentThemeFonts: "Document theme fonts",
   documentThemeFontScope:
-    "Changes the heading and body font pair. Explicit font choices stay unchanged.",
+    "Changes heading and body fonts for Latin, East Asian and complex scripts. Explicit font choices stay unchanged.",
   loadThemeFonts: "Load theme fonts",
   documentThemeScope:
     "Changes theme colors used by document text and list markers. Direct colors stay unchanged.",

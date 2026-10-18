@@ -179,6 +179,7 @@ pub(all) enum SlideEdit {
   ResetLayout
   Notes(String)
   Footer(FooterContent, Bool)
+  FirstSlideNumber(Double)
   AddComment(String, String, String, String, String?)
   UpdateComment(String, String)
   RemoveComment(String)

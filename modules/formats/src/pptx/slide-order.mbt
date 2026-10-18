@@ -14,6 +14,7 @@ pub(all) enum SlideEdit {
   ResetLayout
   Notes(String)
   Footer(FooterContent, Bool)
+  FirstSlideNumber(Double)
   AddComment(String, String, String, String, String?)
   UpdateComment(String, String)
   RemoveComment(String)
@@ -261,6 +262,14 @@ pub fn Session::edit_slides(
         reset=true,
       )
     Notes(text) => return self.set_notes(index, text)
+    FirstSlideNumber(number) => {
+      guard probe is Some(probe) else {
+        @failure.reject(
+          "missing-font", "Slide numbering requires a font probe and profile",
+        )
+      }
+      return self.set_first_slide_number(number, probe, profile)
+    }
     Footer(content, all) => {
       guard probe is Some(probe) else {
         @failure.reject(

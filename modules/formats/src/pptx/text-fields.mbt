@@ -36,10 +36,7 @@ fn simple_text_field(source : Ref) -> Bool {
 }
 
 ///|
-fn presentation_number(
-  main : Tree,
-  index : Int,
-) -> String raise @failure.Failure {
+fn presentation_first_number(main : Tree) -> Double raise @failure.Failure {
   let start = main
     .root("presentation")
     .attribute("firstSlideNum")
@@ -51,7 +48,15 @@ fn presentation_number(
       part=main.part,
     )
   }
-  (number(start, 0, 4294967295).to_int64() + index.to_int64()).to_string()
+  number(start, 0, 4294967295)
+}
+
+///|
+fn presentation_number(
+  main : Tree,
+  index : Int,
+) -> String raise @failure.Failure {
+  (presentation_first_number(main).to_int64() + index.to_int64()).to_string()
 }
 
 ///|

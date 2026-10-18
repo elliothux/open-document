@@ -172,6 +172,9 @@ fn Session::edit_axes(
         document = next
         edits.push((id, edit))
       }
+      let (next, outline_edits) = self.axis_outline(original, document, change)
+      document = next
+      edits.append(outline_edits)
     }
     sheets[i] = Sheet::read(
       original.id,

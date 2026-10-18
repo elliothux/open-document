@@ -1,12 +1,13 @@
 ///|
-fn theme_latin_node(
+fn theme_font_node(
   tree : WordTree,
   kind : String,
+  script : String,
 ) -> Int raise @failure.Failure {
   let elements = theme_child(tree, 0, "themeElements")
   let scheme = theme_child(tree, elements, "fontScheme")
   let parent = theme_child(tree, scheme, kind + "Font")
-  let id = theme_child(tree, parent, "latin")
+  let id = theme_child(tree, parent, script)
   let node = tree.nodes[id]
   let source = tree.source[node.start:node.end]
   guard tree.children[id].is_empty() &&
@@ -40,52 +41,95 @@ pub fn Session::theme_fonts(
       )
   }
   let tree = WordTree::new(document)
-  let fonts : Array[Json] = ["major", "minor"].map(kind => {
-    {
-      "kind": Json(kind),
-      "font": Json(
-        tree.nodes[theme_latin_node(tree, kind)]
-        .attribute("typeface")
-        .unwrap_or(""),
-      ),
-      "reason": Json(reason),
-    } catch {
-      @failure.Failure(message~, ..) =>
-        { "kind": Json(kind), "font": Json::null(), "reason": Json(message) }
+  let fonts : Array[Json] = []
+  for kind in ["major", "minor"] {
+    for script in ["latin", "ea", "cs"] {
+      fonts.push(
+        {
+          "kind": Json(kind),
+          "script": Json(script),
+          "font": Json(
+            tree.nodes[theme_font_node(tree, kind, script)]
+            .attribute("typeface")
+            .unwrap_or(""),
+          ),
+          "reason": Json(reason),
+        } catch {
+          @failure.Failure(message~, ..) =>
+            {
+              "kind": Json(kind),
+              "script": Json(script),
+              "font": Json::null(),
+              "reason": Json(message),
+            }
+        },
+      )
     }
-  })
+  }
   { "revision": revision, "fonts": Json(fonts) }
 }
 
 ///|
-fn flow_font_keys(flow : @layout.Flow) -> Map[Int, Array[String]] {
-  let keys : Map[Int, Array[String]] = Map([])
+fn flow_font_keys(flow : @layout.Flow) -> Map[String, Array[String]] {
+  let keys : Map[String, Array[String]] = Map([])
   let paragraphs = flow.paragraphs.copy()
   for table in flow.tables {
     paragraphs.append(table.rows.flatten().flatten())
   }
-  for p in paragraphs {
-    let fonts = p.spans.filter(s => s.image is None).map(s => s.style.font)
-    if p.marker is Some(marker) {
-      fonts.push(marker.style.font)
+  let groups = [("body", paragraphs)]
+  for (kind, stories) in [("header", flow.headers), ("footer", flow.footers)] {
+    for variant, paragraphs in stories {
+      groups.push((kind + variant, paragraphs))
     }
-    keys[p.id] = fonts
+  }
+  for (scope, paragraphs) in groups {
+    for p in paragraphs {
+      let fonts = p.spans.filter(s => s.image is None).map(s => s.style.font)
+      if p.marker is Some(marker) {
+        fonts.push(marker.style.font)
+      }
+      keys[scope + ":" + p.id.to_string()] = fonts
+    }
   }
   keys
+}
+
+///|
+pub(all) struct ThemeFontEdit {
+  kind : String
+  script : String
+  font : String
 }
 
 ///|
 pub fn Session::set_theme_fonts(
   self : Session,
   revision : Int,
-  major : String,
-  minor : String,
+  fonts : Array[ThemeFontEdit],
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  for font in [major, minor] {
-    CharacterFormat::new(family=Set(font)).validate()
+  guard !fonts.is_empty() && fonts.length() <= 6 else {
+    @failure.reject(
+      "invalid-operation", "Expected one to six theme font changes",
+    )
+  }
+  let seen : Map[(String, String), Bool] = Map([])
+  for change in fonts {
+    let font = change.font
+    guard ["major", "minor"].contains(change.kind) &&
+      ["latin", "ea", "cs"].contains(change.script) &&
+      !(change.script == "latin" && font.is_empty()) &&
+      !seen.contains((change.kind, change.script)) else {
+      @failure.reject(
+        "invalid-operation", "Invalid or duplicate theme font slot",
+      )
+    }
+    seen[(change.kind, change.script)] = true
+    if !font.is_empty() {
+      CharacterFormat::new(family=Set(font)).validate()
+    }
     guard !font.has_prefix("+") &&
       !font.contains("|") &&
       !font.contains("\n") &&
@@ -108,8 +152,9 @@ pub fn Session::set_theme_fonts(
   let document = parts.get(part).unwrap_or_else(() => self.part_xml(part))
   let tree = WordTree::new(document)
   let changes : Array[@xml.SourceChange] = []
-  for (kind, value) in [("major", major), ("minor", minor)] {
-    let node = tree.nodes[theme_latin_node(tree, kind)]
+  for change in fonts {
+    let value = change.font
+    let node = tree.nodes[theme_font_node(tree, change.kind, change.script)]
     if node.attribute("typeface") == Some(value) {
       continue
     }

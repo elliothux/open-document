@@ -5,8 +5,10 @@ import { footerZh } from "./messages-pptx-footer.js";
 import type { Messages } from "./messages-en.js";
 import { reviewZh } from "./messages-review.js";
 import { pageZh } from "./messages-docx-page.js";
+import { outlineZh } from "./messages-outline.js";
 
 export const zh: Messages = {
+  ...outlineZh,
   ...reviewZh,
   ...pageZh,
   ...filterZh,
@@ -228,7 +230,8 @@ export const zh: Messages = {
   themeColors: "演示文稿主题颜色",
   documentThemeColors: "文档主题颜色",
   documentThemeFonts: "文档主题字体",
-  documentThemeFontScope: "修改标题和正文字体对，保留直接指定的字体。",
+  documentThemeFontScope:
+    "修改标题和正文的西文、东亚及复杂文字字体，保留直接指定的字体。",
   loadThemeFonts: "加载主题字体",
   documentThemeScope: "修改文档文字和列表标记使用的主题颜色，保留直接颜色。",
   loadThemeColors: "加载主题颜色",

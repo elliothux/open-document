@@ -430,6 +430,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
     "sections": self.section_query(),
     "notes": self.notes_query(current.tree.part),
     "footer": self.footer_query(current),
+    "firstSlideNumber": presentation_first_number(self.main),
     "comments": self.comments_query(current.tree.part, links),
     "textHyperlink": self.text_hyperlink_query(links),
     "slideLayout": self.layout_query(current),

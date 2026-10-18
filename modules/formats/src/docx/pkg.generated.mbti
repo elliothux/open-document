@@ -192,7 +192,7 @@ pub fn Session::set_paragraph_format(Self, Int, Selection, ParagraphFormat) -> J
 pub fn Session::set_running_area(Self, Int, String, String, Array[RunningContent], Double, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_running_options(Self, Int, Bool, Bool, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_theme_color(Self, Int, String, String) -> Json raise @failure.Failure
-pub fn Session::set_theme_fonts(Self, Int, String, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn Session::set_theme_fonts(Self, Int, Array[ThemeFontEdit], @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::style_catalog(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::tab(Self, Int, Bool) -> Json raise @failure.Failure
 pub fn Session::theme_colors(Self, Int) -> Json raise @failure.Failure
@@ -228,6 +228,12 @@ pub(all) enum TableEdit {
   RowSplit(Bool)
   TableBorders(Map[String, @layout.BorderStyle?])
   CellBorders(Map[String, @layout.BorderStyle?])
+}
+
+pub(all) struct ThemeFontEdit {
+  kind : String
+  script : String
+  font : String
 }
 
 // Type aliases
