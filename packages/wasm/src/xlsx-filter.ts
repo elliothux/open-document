@@ -49,12 +49,21 @@ export interface XlsxDateFilter {
   values: string[];
   blank: boolean;
 }
+export interface XlsxColorFilter {
+  kind: "color";
+  column: number;
+  /** True filters the effective cell fill; false filters the effective font color. */
+  cellColor: boolean;
+  /** Six-digit RGB. Null means no fill or the automatic black font. */
+  color: string | null;
+}
 export type XlsxFilterColumn =
   | XlsxFilterValues
   | XlsxCustomFilter
   | XlsxRankFilter
   | XlsxAverageFilter
-  | XlsxDateFilter;
+  | XlsxDateFilter
+  | XlsxColorFilter;
 export interface XlsxFilterSettings {
   /** Explicit rectangle with a header in its first row. */
   range: string;
@@ -89,7 +98,19 @@ export function checkXlsxFilter(value: unknown): void {
       throw new Error("Invalid filter column");
     seen.add(Number(column.column));
     let values: unknown[];
-    if (column.kind === "dates") {
+    if (column.kind === "color") {
+      if (
+        typeof column.cellColor !== "boolean" ||
+        (column.color !== null &&
+          (typeof column.color !== "string" ||
+            !/^[0-9a-f]{6}$/i.test(column.color))) ||
+        Object.keys(column).some(
+          (key) => !["kind", "column", "cellColor", "color"].includes(key),
+        )
+      )
+        throw new Error("Invalid color filter");
+      values = [];
+    } else if (column.kind === "dates") {
       if (
         typeof column.blank !== "boolean" ||
         !Array.isArray(column.groups) ||

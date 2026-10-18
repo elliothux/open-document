@@ -15,6 +15,23 @@ fn xlsx_filter_columns(
   }
   columns.map(column => {
     let rule = match field_string(column, "kind") {
+      "color" => {
+        guard column is Object(fields) &&
+          fields
+          .keys()
+          .all(k => ["kind", "column", "color", "cellColor"].contains(k)) else {
+          @failure.reject("invalid-operation", "Unknown color filter field")
+        }
+        let value = match column {
+          { "color": Null, .. } => None
+          { "color": String(value), .. } => Some(value)
+          _ =>
+            @failure.reject(
+              "invalid-operation", "Color filter requires RGB or null",
+            )
+        }
+        @xlsx.Color(value, cell_color=xlsx_boolean(column, "cellColor"))
+      }
       "dates" => {
         guard column is Object(fields) &&
           fields

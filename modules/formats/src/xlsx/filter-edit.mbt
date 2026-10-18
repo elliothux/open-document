@@ -26,9 +26,33 @@ fn Session::edit_filter(
     ReapplyFilter => old.map(state => state.settings)
     _ => abort("Invalid filter action")
   }
+  let settings = settings.map(settings => {
+    ..settings,
+    columns: settings.columns.map(column => {
+      if column.rule is Color(_, ..) &&
+        old.bind(state => {
+          state.settings.columns
+          .iter()
+          .find_first(c => c.column == column.column)
+        })
+        is Some(previous) &&
+        previous.rule is ColorStyle(_, ..) &&
+        self.filter_color(column.rule) == self.filter_color(previous.rule) {
+        previous
+      } else {
+        column
+      }
+    }),
+  })
   if old is None && settings is None {
     return self.query()
   }
+  let bounds = settings.map(filter_settings)
+  let formatting = self.derive_conditional_styles(
+    settings
+    .map(s => s.columns.map(c => color_filter_format(c.rule)))
+    .unwrap_or([]),
+  )
   let manual : Map[Int, Bool] = Map([])
   let previous_filtered : Map[Int, Bool] = Map([])
   for state in states.values() {
@@ -46,7 +70,7 @@ fn Session::edit_filter(
     }
   }
   if settings is Some(settings) {
-    let bounds = filter_settings(settings)
+    let bounds = bounds.unwrap()
     if table is Some(table) {
       guard table.headers == 1 &&
         bounds ==
@@ -76,7 +100,19 @@ fn Session::edit_filter(
       hidden[row] = false
     }
     states[target] = {
-      settings,
+      settings: {
+        ..settings,
+        columns: settings.columns.mapi((i, column) => {
+          if column.rule is Color(_, cell_color~) {
+            {
+              ..column,
+              rule: ColorStyle(formatting.indices[i].unwrap(), cell_color~),
+            }
+          } else {
+            column
+          }
+        }),
+      },
       bounds,
       manual: rows,
       filtered: self.filtered_rows(index, settings),
@@ -102,8 +138,8 @@ fn Session::edit_filter(
   for row in filter_hidden_rows(states).keys() {
     hidden[row] = true
   }
-  let parts = self.parts.copy()
-  let edits : Array[(String, @xml.Edit)] = []
+  let parts = formatting.parts
+  let edits = formatting.edits
   let document = self.write_filters(
     current, states, targets, hidden, parts, edits,
   )
@@ -130,7 +166,15 @@ fn Session::edit_filter(
   } else {
     previous
   }
-  self.commit(sheets, self.workbook, calculation, edits, self.selection, parts~)
+  self.commit(
+    sheets,
+    self.workbook,
+    calculation,
+    edits,
+    self.selection,
+    parts~,
+    created_parts=formatting.created_parts,
+  )
   self.query()
 }
 

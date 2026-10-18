@@ -646,7 +646,7 @@ export class DocumentEditor extends DocumentPage {
   private async presentSelection(reveal = true): Promise<void> {
     this.assertOpen();
     const layoutId = this.currentLayout.id;
-    const { caret, geometry } = await queryDocxSelectionGeometry(
+    const { caret, geometry, formatting } = await queryDocxSelectionGeometry(
       this.client,
       this.state,
       this.currentLayout,
@@ -655,6 +655,7 @@ export class DocumentEditor extends DocumentPage {
     this.assertOpen();
     if (this.currentLayout.id !== layoutId)
       throw new Error("Selection geometry belongs to a stale layout");
+    this.state = { ...this.state, formatting };
     if (caret) this.page = caret.page;
     const description = await docxSelectionDescription(
       this.client,

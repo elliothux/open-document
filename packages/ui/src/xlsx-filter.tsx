@@ -11,6 +11,7 @@ import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { XlsxRankFilterForm } from "./xlsx-rank-filter.js";
 import { XlsxDateFilterForm } from "./xlsx-date-filter.js";
+import { XlsxColorFilterForm } from "./xlsx-color-filter.js";
 
 function FilterColumn({
   column,
@@ -356,6 +357,29 @@ export function XlsxFilter({
               />
               <XlsxDateFilterForm
                 key={`dates:${column.column}:${JSON.stringify(filter.columns.find((c) => c.column === column.column))}`}
+                column={column.column}
+                criterion={filter.columns.find(
+                  (c) => c.column === column.column,
+                )}
+                disabled={blocked}
+                state={state}
+                apply={(rule) =>
+                  controller.run(() =>
+                    edit({
+                      action: "filter",
+                      range: filter.range,
+                      columns: [
+                        ...filter.columns.filter(
+                          (c) => c.column !== column.column,
+                        ),
+                        rule,
+                      ],
+                    }),
+                  )
+                }
+              />
+              <XlsxColorFilterForm
+                key={`color:${column.column}:${JSON.stringify(filter.columns.find((c) => c.column === column.column))}`}
                 column={column.column}
                 criterion={filter.columns.find(
                   (c) => c.column === column.column,

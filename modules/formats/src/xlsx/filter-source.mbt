@@ -22,6 +22,13 @@ fn filter_markup(state : AutoFilterState) -> String raise @failure.Failure {
     if state.settings.columns.iter().find_first(c => c.column == index)
       is Some(column) {
       match column.rule {
+        ColorStyle(index, cell_color~) =>
+          out <+
+            "<od:colorFilter dxfId=\"\{index}\" cellColor=\"\{if cell_color {1} else {0}}\"/>"
+        Color(_, ..) =>
+          @failure.reject(
+            "invalid-operation", "Color filters require a differential style",
+          )
         Dates(groups, values~, blank~) => {
           out <+ "<od:filters blank=\"\{if blank { 1 } else { 0 }}\">"
           for value in values {

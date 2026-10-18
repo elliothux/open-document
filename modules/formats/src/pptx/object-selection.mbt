@@ -32,6 +32,13 @@ priv struct SelectionBox {
 }
 
 ///|
+fn Geometry::resize_swaps_axes(self : Geometry) -> Bool {
+  let angle = self.rotation - (self.rotation / 360).floor() * 360
+  // ONLYOFFICE ShapeForResizeInGroup exchanges local scales near quarter turns.
+  (angle >= 45 && angle < 135) || (angle >= 225 && angle < 315)
+}
+
+///|
 fn Slide::selection_box(
   self : Slide,
   ids : Array[String],
@@ -80,38 +87,37 @@ fn Session::transform_collection(
     height >= 0 else {
     @failure.reject("invalid-transform", "Invalid selection bounds")
   }
-  let scale = if box.width > 0 {
-    width / box.width
-  } else {
-    height / box.height
-  }
-  // shortcut: Keep multi-object resizing proportional until skew transforms are supported.
-  guard scale > 0 &&
-    (width - box.width * scale).abs() < 0.000001 &&
-    (height - box.height * scale).abs() < 0.000001 else {
+  guard (box.width > 0 || width == 0) && (box.height > 0 || height == 0) else {
     @failure.reject(
-      "invalid-transform", "Multi-object resizing must preserve proportions",
+      "invalid-transform", "A zero selection extent cannot expand",
     )
+  }
+  let sx = if box.width > 0 { width / box.width } else { 1.0 }
+  let sy = if box.height > 0 { height / box.height } else { 1.0 }
+  guard sx > 0 && sy > 0 else {
+    @failure.reject("invalid-transform", "Selection scale must be positive")
   }
   let objects = original.objects.map(object => {
     if !self.selection.objects.contains(object.id) {
       return object
     }
     let g = object.geometry.unwrap()
+    let width = g.width * (if g.resize_swaps_axes() { sy } else { sx })
+    let height = g.height * (if g.resize_swaps_axes() { sx } else { sy })
     let next = {
       ..g,
-      x: if scale == 1 {
+      x: if sx == 1 && sy == 1 {
         g.x + (x - box.x)
       } else {
-        x + (g.x - box.x) * scale
+        x + (g.x + g.width / 2 - box.x) * sx - width / 2
       },
-      y: if scale == 1 {
+      y: if sx == 1 && sy == 1 {
         g.y + (y - box.y)
       } else {
-        y + (g.y - box.y) * scale
+        y + (g.y + g.height / 2 - box.y) * sy - height / 2
       },
-      width: g.width * scale,
-      height: g.height * scale,
+      width,
+      height,
     }
     validate_object_box(
       next.x,
@@ -166,23 +172,32 @@ fn Session::drag_collection(
   }
   let left = handle == 1 || handle == 4
   let top = handle == 1 || handle == 2
-  let vx = if left { -box.width } else { box.width }
-  let vy = if top { -box.height } else { box.height }
-  let mut minimum = 0.0
+  let mut minimum_x = 0.0
+  let mut minimum_y = 0.0
   for object_id in self.selection.objects {
     let object = original.object(object_id)
     let g = object.geometry.unwrap()
-    minimum = minimum.max(
-      if object.preset == "line" {
-        0.1 / (g.width + g.height)
-      } else {
-        (0.1 / g.width).max(0.1 / g.height)
-      },
-    )
+    let (x, y) = if object.preset == "line" {
+      let scale = 0.1 / (g.width + g.height)
+      (scale, scale)
+    } else if g.resize_swaps_axes() {
+      (0.1 / g.height, 0.1 / g.width)
+    } else {
+      (0.1 / g.width, 0.1 / g.height)
+    }
+    minimum_x = minimum_x.max(x)
+    minimum_y = minimum_y.max(y)
   }
-  let scale = (1.0 + (dx * vx + dy * vy) / (vx * vx + vy * vy)).max(minimum)
-  let width = box.width * scale
-  let height = box.height * scale
+  let width = if box.width == 0 {
+    0.0
+  } else {
+    (box.width + (if left { -dx } else { dx })).max(box.width * minimum_x)
+  }
+  let height = if box.height == 0 {
+    0.0
+  } else {
+    (box.height + (if top { -dy } else { dy })).max(box.height * minimum_y)
+  }
   self.transform(
     revision,
     id,

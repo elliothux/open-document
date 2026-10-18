@@ -2,7 +2,7 @@
 
 状态：`planned`，第 1、2、3、5 批实施中。基于 [P6 PPTX](implemented/p6-pptx-editing.md)和已完成的 [P9](implemented/p9-web-sdk-ui.md)。复用 [P10](p10-docx-core.md) 已交付的包写入，并按实际需要复用 P10 / [P11](p11-xlsx-core.md) 的文字、图形和图表能力。属于功能优先级 P0。空白创建已接通，其余能力仍按下面的范围实施。顺序归[路线图](references/roadmap.md)，当前 API 归[格式合同](references/formats.md#pptx)，功能依据归 [G3](g3-genoffice-sdk-gap.md#演示pptx)。
 
-当前进度：核心创建 960×540 pt 的单页空白文稿，包含版式、母版、主题和完整部件关系。同步 Wasm、Worker 和默认 UI 接通创建、首次保存、另存、保存重开与静态 PDF。支持插入文本框、矩形、圆角矩形、椭圆、三角形、直角三角形、菱形、平行四边形、梯形、直线和四向实心箭头；支持本地顶层形状/图片/组的多选复制、删除、旋转、水平/垂直翻转及层次调整，保留源格式、关系及撤销重做。已接通空白页新增、页复制/删除/重排与隐藏/显示，保持剩余页/对象身份，历史按稳定部件路径恢复。新增页沿用目标页的版式、母版和主题；复制更新对象、计时目标和自身链接，独立复制普通备注与传统批注；删除页同步页引用、自定义放映与已知内部链接，保留共享和未知资源。部件新增/删除与对象编辑共同撤销。保存失败与替换取消保留当前会话。对象多选、成组移动/等比例缩放、删除及对齐/分布已接通；组合及含非等比缩放/嵌套组的取消组合已接通；普通章节新增、改名、移除并保留页面、整章重排和连同页面删除已接通；默认页列表已有逐章及全部折叠/展开，并可一次移除所有章节且保留页面；组内编辑、更多几何和后续批次尚未完成，不标记第 1 批或整个 P12 完成。
+当前进度：核心创建 960×540 pt 的单页空白文稿，包含版式、母版、主题和完整部件关系。同步 Wasm、Worker 和默认 UI 接通创建、首次保存、另存、保存重开与静态 PDF。支持插入文本框、矩形、圆角矩形、椭圆、三角形、直角三角形、菱形、平行四边形、梯形、直线和四向实心箭头；支持本地顶层形状/图片/组的多选复制、删除、旋转、水平/垂直翻转及层次调整，保留源格式、关系及撤销重做。已接通空白页新增、页复制/删除/重排与隐藏/显示，保持剩余页/对象身份，历史按稳定部件路径恢复。新增页沿用目标页的版式、母版和主题；复制更新对象、计时目标和自身链接，独立复制普通备注与传统批注；删除页同步页引用、自定义放映与已知内部链接，保留共享和未知资源。部件新增/删除与对象编辑共同撤销。保存失败与替换取消保留当前会话。对象多选、成组移动/独立宽高缩放、删除及对齐/分布已接通；组合及含非等比缩放/嵌套组的取消组合已接通；普通章节新增、改名、移除并保留页面、整章重排和连同页面删除已接通；默认页列表已有逐章及全部折叠/展开，并可一次移除所有章节且保留页面；组内编辑、更多几何和后续批次尚未完成，不标记第 1 批或整个 P12 完成。
 
 ## 1. 用户结果与范围
 
@@ -49,7 +49,7 @@ PNG/JPEG 图片插入已接通核心、Wasm、Worker、宿主和默认 UI。新�
 | [`geometry.mbt`](../modules/formats/src/pptx/geometry.mbt)、[`layout.mbt`](../modules/formats/src/pptx/layout.mbt)、[`hit.mbt`](../modules/formats/src/pptx/hit.mbt) | 已有基本形状、图片、矩阵、层次命中；补对象类型、组内选择和播放时显示状态 |
 | [`object-arrange.mbt`](../modules/formats/src/pptx/object-arrange.mbt) | 多选方向和层次事务；保留源片段与有序选择 |
 | [`object-copy.mbt`](../modules/formats/src/pptx/object-copy.mbt) | 多选与嵌套组复制；复用页复制的身份与内部引用重映射 |
-| [`object-selection.mbt`](../modules/formats/src/pptx/object-selection.mbt)、[`object-alignment.mbt`](../modules/formats/src/pptx/object-alignment.mbt) | 多选包围盒、成组移动/等比例缩放、对齐及分布；保留活动对象、源几何与原子历史 |
+| [`object-selection.mbt`](../modules/formats/src/pptx/object-selection.mbt)、[`object-alignment.mbt`](../modules/formats/src/pptx/object-alignment.mbt) | 多选包围盒、成组移动/独立宽高缩放、对齐及分布；保留活动对象、源几何与原子历史 |
 | [`object-group.mbt`](../modules/formats/src/pptx/object-group.mbt)、[`group-geometry.mbt`](../modules/formats/src/pptx/group-geometry.mbt) | 组合、含缩放与嵌套组的取消组合、父组身份、归一尺寸及命名空间保留 |
 | [`theme.mbt`](../modules/formats/src/pptx/theme.mbt)、[`text-edit.mbt`](../modules/formats/src/pptx/text-edit.mbt)、[`autofit.mbt`](../modules/formats/src/pptx/autofit.mbt) | 有限主题继承、纯文本和有界字体缩放；补格式/占位符修改和相关失效 |
 | [`bridge/pptx.mbt`](../modules/bridge/src/pptx.mbt)、[`wasm/pptx.ts`](../packages/wasm/src/pptx.ts)、[`web/pptx.ts`](../packages/web/src/pptx.ts) | 延续 `PptxCommand` 与 `execute`；增量加入类型明确的操作与结果 |
@@ -83,7 +83,7 @@ PNG/JPEG 图片插入已接通核心、Wasm、Worker、宿主和默认 UI。新�
 
 对象集合现已接通核心、同步 Wasm、Worker 和默认 UI。`selection.objects` 保存最多 256 个稳定身份及选择顺序，`selection.object` 保存集合中的活动对象。Shift 点击画布或对象列表切换成员，普通点击已选成员保留集合并切换活动对象，Ctrl/Cmd+A 选择当前页对象。进入文字模式时收敛到唯一活动目标。核心返回各成员轮廓、整组包围盒与手柄；含只读成员时隐藏变换手柄并保护整组编辑。
 
-已支持成组移动、角点等比例缩放及多选删除。缩放保留各成员的旋转、局部翻转和零尺寸线段，整组非等比例变换仍拒绝。变换按手势开始时的几何计算，预览不写源；完成或删除提交一项历史，取消不改变源，撤销恢复原选择集合及活动对象。任一成员锁定、几何越界或预算失败时整项拒绝。核心已检查旋转线段、候选重算、精确历史与保护；Chromium 已检查 Shift 多选、真实拖动、取消、删除、独立 XML、保存重开和宿主调用。组合与受支持的取消组合见下文，组内编辑仍待实现。
+已支持成组移动、角点独立宽高缩放及多选删除。缩放按开始包围盒调整成员中心，保留旋转、局部翻转和零尺寸线段；成员局部尺寸采用 ONLYOFFICE 的旋转轴交换规则。共线直线的零方向保持零值，无法从零跨度派生的新宽度或高度原子拒绝。变换按手势开始时的几何计算，预览不写源；完成或删除提交一项历史，取消不改变源，撤销恢复原选择集合及活动对象。任一成员锁定、几何越界或预算失败时整项拒绝。核心已检查旋转线段、候选重算、精确历史与保护；Chromium 已检查 Shift 多选、真实拖动、取消、删除、独立 XML、保存重开和宿主调用。本次独立宽高缩放通过 10 项定向核心检查，两条不同 Chromium 流程及 2135 项安装包断言；新流程检查真实角点拖动、原生输入、精确历史、重开及 PNG/PDF 像素。组合与受支持的取消组合见下文，组内编辑仍待实现。
 
 移动采用 [ONLYOFFICE MoveShapeImageTrack](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/MoveTracks.js#L103-L145) 的原始位置加增量规则，复用核心旋转/翻转矩阵；属性面板与指针使用相同候选路径。
 

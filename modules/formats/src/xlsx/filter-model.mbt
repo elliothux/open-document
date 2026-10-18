@@ -11,6 +11,8 @@ pub(all) enum FilterRule {
   Rank(Int, top~ : Bool, percent~ : Bool)
   Average(above~ : Bool)
   Dates(Array[String], values~ : Array[String], blank~ : Bool)
+  Color(String?, cell_color~ : Bool)
+  ColorStyle(Int, cell_color~ : Bool)
 } derive(Eq)
 
 ///|
@@ -98,6 +100,16 @@ fn filter_settings(settings : FilterSettings) -> Range raise @failure.Failure {
     }
     seen[column.column] = true
     let labels = match column.rule {
+      Color(value, ..) => {
+        CellFormat::new(color=value).validate()
+        []
+      }
+      ColorStyle(index, ..) => {
+        guard index >= 0 && index < 4096 else {
+          @failure.reject("invalid-operation", "Invalid color filter style")
+        }
+        []
+      }
       Average(..) => []
       Dates(groups, values~, ..) => {
         guard !groups.is_empty() && groups.length() + values.length() <= 4096 else {
@@ -252,6 +264,22 @@ fn read_filter_node(
         @failure.reject(
           "protected-content", "This filter kind requires evaluation support",
         )
+      }
+      if filters.name == "colorFilter" {
+        filter_attributes(filters, ["dxfId", "cellColor"])
+        guard tree.children.get(filters.id).unwrap_or([]).is_empty() else {
+          @failure.reject(
+            "protected-content", "Extended color filter is protected",
+          )
+        }
+        columns.push({
+          column,
+          rule: ColorStyle(
+            natural(filters.attribute("dxfId").unwrap_or(""), 4095),
+            cell_color=flag(filters, "cellColor", fallback=true),
+          ),
+        })
+        continue
       }
       if filters.name == "top10" {
         filter_attributes(filters, ["top", "percent", "val", "filterVal"])

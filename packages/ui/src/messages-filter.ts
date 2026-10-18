@@ -1,4 +1,10 @@
 export const filterEn = {
+  filterColors: "Color filter",
+  filterColorTarget: "Filter color source",
+  filterColorValue: "Filter color",
+  filterNoFill: "No fill",
+  filterAutomaticFont: "Automatic black font",
+  filterColorApply: "Apply color filter",
   filterCells: "Value filters",
   filterRange: "Filter selected range",
   tableFilter: "Filter table data",
@@ -27,6 +33,12 @@ export const filterEn = {
 };
 
 export const filterZh = {
+  filterColors: "颜色筛选",
+  filterColorTarget: "筛选颜色来源",
+  filterColorValue: "筛选颜色",
+  filterNoFill: "无填充",
+  filterAutomaticFont: "自动黑色字体",
+  filterColorApply: "应用颜色筛选",
   filterCells: "值筛选",
   filterRange: "筛选所选区域",
   tableFilter: "筛选表数据",

@@ -76,7 +76,12 @@ export async function queryDocxSelectionGeometry(
       (geometry.layoutId !== layoutId || geometry.revision !== revision))
   )
     throw new Error("Selection geometry belongs to a stale layout");
-  return { caret, geometry };
+  const formatting =
+    selection && state.formatting?.table
+      ? await client.queryFormatting(state.revision, selection)
+      : state.formatting;
+  assertOpen();
+  return { caret, geometry, formatting };
 }
 
 export async function selectFirstDocxPosition(

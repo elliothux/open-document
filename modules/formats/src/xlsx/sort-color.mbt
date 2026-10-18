@@ -24,22 +24,22 @@ fn SortKey::sort_format(self : SortKey) -> CellFormat raise @failure.Failure {
 }
 
 ///|
-fn Session::color_sort_key(
+fn Session::effective_cell_color(
   self : Session,
   index : Int,
   address : Address,
-  key : SortKey,
+  cell_color : Bool,
   rules : ConditionalRules,
   work : FormulaWork,
-) -> SortValue raise @failure.Failure {
+) -> String raise @failure.Failure {
   let current = self.sheets[index]
-  guard key.sort_by != "fontColor" ||
+  guard cell_color ||
     current.cells
     .get(address.name())
     .map(c => c.read_only != "Rich text cell is read-only")
     .unwrap_or(true) else {
     @failure.reject(
-      "protected-content", "Rich text font-color sorting requires run color ownership",
+      "protected-content", "Rich text font colors require run color ownership",
     )
   }
   let style = rules.applied(
@@ -53,8 +53,30 @@ fn Session::color_sort_key(
   guard style.diagnostic.is_empty() else {
     @failure.reject("protected-content", style.diagnostic)
   }
-  let color = if key.sort_by == "cellColor" { style.fill } else { style.color }
   work.spend()
+  if cell_color {
+    style.fill
+  } else {
+    style.color
+  }
+}
+
+///|
+fn Session::color_sort_key(
+  self : Session,
+  index : Int,
+  address : Address,
+  key : SortKey,
+  rules : ConditionalRules,
+  work : FormulaWork,
+) -> SortValue raise @failure.Failure {
+  let color = self.effective_cell_color(
+    index,
+    address,
+    key.sort_by == "cellColor",
+    rules,
+    work,
+  )
   {
     value: Number(if color.to_lower() == key.color.to_lower() { 0 } else { 1 }),
     rank: None,

@@ -7,6 +7,10 @@ fn Session::prepare_filter(
   work : FormulaWork,
 ) -> PreparedFilter raise @failure.Failure {
   match column.rule {
+    Color(_, ..) | ColorStyle(_, ..) => {
+      let (color, cell_color) = self.filter_color(column.rule)
+      Color(color, cell_color~)
+    }
     Average(above~) => {
       let numbers = self.filter_numbers(sheet, range, column.column, work)
       let threshold = if numbers.is_empty() {

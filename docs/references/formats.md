@@ -345,7 +345,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 正文按栏顺序续排，末页在整数 twip 上有界求解平衡高度；显式分页符及段前分页进入下一张纸。进入不同宽度时，核心按原逻辑偏移重新断开剩余文字，保留整段双向分析、字体来源、光标和终止控制符；续段不重复首行缩进或列表标记。孤行和“与下段同页”按实际下一栏宽度预估，段落缓存包含续排偏移。页眉页脚保持整页宽度，页码和总页数按实际纸张计算。Canvas、PNG 和 PDF 消费同一物理页结果；分页缓存键包含全部栏参数及平衡高度。
 
-不等宽栏中的表格改为按实际起始栏解析百分比与适配宽度，续栏保持同一列网格。创建、尺寸命令及布局后的属性查询已接入实际位置；未提供布局的原生查询仍返回最窄栏上限。此增量仍为 WIP：19 项布局定向检查通过，命令与浏览器验证尚未完成。普通行、合并格与重复表头按目标栏重新取横坐标，文字、边框、底色、命中、光标和选区共用几何。固定网格超出目的栏时拒绝候选，不自动改写网格。更广跨宽度表格兼容继续实施。
+不等宽栏中的表格改为按实际起始栏解析百分比与适配宽度，续栏保持同一列网格。创建、尺寸命令及布局后的属性查询已接入实际位置；未提供布局的原生查询仍返回最窄栏上限。默认编辑器在布局后刷新表格查询，使尺寸面板使用实际栏的上限。分页缓存记录表格起始栏拟合后的列宽，复用时保持同一网格；自动表格的内容变化会使相关宽度失效。创建、调宽、适配、插删列、拆格、历史、保存重开及 PDF 已做定向检查。普通行、合并格与重复表头按目标栏重新取横坐标，文字、边框、底色、命中、光标和选区共用几何。固定网格超出目的栏时拒绝候选，不自动改写网格。更广跨宽度表格兼容继续实施。
 
 修改保留正文、选择、待输入格式、页码/页边属性及其他 OPC 部件，使用一项有界源历史。同值不新增历史，撤销/重做和保存重开恢复源与布局。非法参数、旧 revision、保护、未知属性/子节点、不透明目标源、布局或输出预算失败原子拒绝。分栏符沿上文范围编辑；多节继续实施，不能把保留源记为已支持。
 
@@ -905,17 +905,25 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 ### 值筛选
 
-`editSheet({ action: "filter", range, columns })` 设置普通工作表的值、日期组、自定义、数值排名或平均值筛选。`range` 是含标题首行、至少一行数据且最多 4096 格的 A1 矩形。`columns` 最多含 256 个互异的 值条件 `{ kind: "values", column, values, blank }` 、自定义条件 `{ kind: "custom", column, conditions, all }` 、排名条件 `{ kind: "rank", column, value, top, percent }` 、平均值条件 `{ kind: "average", column, above }` 或日期组条件 `{ kind: "dates", column, groups, values, blank }`；`column` 是范围内从 1 开始的工作表列号，`values` 是最多 4096 项互异文字，`blank` 显式决定空白是否通过。各列取交集，同列文字取并集；空条件数组显示全部数据并保留筛选范围。文字按当前已计算值和已支持的有效格式（含条件格式）显示，去除两端空白后使用固定 Unicode 16 小写映射匹配；不改变单元格类型、值、样式、公式或记录位置。未计算公式不使用导入缓存代替。普通文字匹配参考 [ONLYOFFICE Filters.isHideValue](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L10785-L10805)和 [AutoFilter.setRowHidden](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L9585-L9640)。日期组、数值排名与平均值条件见下文；颜色/日期类动态及高级筛选继续保护。
+`editSheet({ action: "filter", range, columns })` 设置普通工作表的值、日期组、自定义、数值排名、平均值或颜色筛选。`range` 是含标题首行、至少一行数据且最多 4096 格的 A1 矩形。`columns` 最多含 256 个互异的 值条件 `{ kind: "values", column, values, blank }` 、自定义条件 `{ kind: "custom", column, conditions, all }` 、排名条件 `{ kind: "rank", column, value, top, percent }` 、平均值条件 `{ kind: "average", column, above }` 、日期组条件 `{ kind: "dates", column, groups, values, blank }` 或颜色条件 `{ kind: "color", column, cellColor, color }`；`column` 是范围内从 1 开始的工作表列号，`values` 是最多 4096 项互异文字，`blank` 显式决定空白是否通过。各列取交集，同列文字取并集；空条件数组显示全部数据并保留筛选范围。文字按当前已计算值和已支持的有效格式（含条件格式）显示，去除两端空白后使用固定 Unicode 16 小写映射匹配；不改变单元格类型、值、样式、公式或记录位置。未计算公式不使用导入缓存代替。普通文字匹配参考 [ONLYOFFICE Filters.isHideValue](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L10785-L10805)和 [AutoFilter.setRowHidden](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L9585-L9640)。日期组、颜色、数值排名与平均值条件见下文；日期类动态及高级筛选继续保护。
 
 自定义筛选的 `conditions` 含一至两个 `{ operator, value }`，`all` 为 `true` 时取 AND，`false` 时取 OR。`operator` 接受标准 `equal/notEqual/greaterThan/greaterThanOrEqual/lessThan/lessThanOrEqual`，`value` 为最多 32767 单元的文字。有限数字文字按当前数值比较，包含可转换的数值文字单元格，不使用四舍五入后的显示值或导入公式缓存；空白不当作零。其他条件按去除两端空白和相同大小写映射后的标签比较，数值单元格不参与文字匹配；等于/不等于支持 `*`、`?` 和 `~` 转义，`?` 对应一个 UTF-16 单元。空文字等于可匹配空白/公式空串。比较符必须放在 `operator`，条件值内的 `<`/`>` 不被重新解析。自定义日期比较使用数值序号；日历前缀使用下节日期组，本地化解析继续实施。双条件和数值/文字分流参考 [ONLYOFFICE CustomFilters/CustomFilter](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L11130-L11456)，文字/通配符复用已有有界条件匹配。
 
-同一列仅有一类条件，值、日期组、自定义、排名和平均值面板相互替换，其他列保留并继续取交集。`query.filter.columns` 返回相同带 `kind` 的联合类型；日期组、自定义、排名和平均值列的值目录不投影条件结果，值选择初始为全部，应用后切换为值条件。默认面板支持比较符、条件值、第二条件及 AND/OR。MoonBit 使用 `FilterColumn { column, rule }` 和 `FilterRule::Values/Dates/Custom/Rank/Average`；Wasm/Web 另导出 `XlsxFilterColumn/XlsxCustomFilter/XlsxFilterCondition/XlsxFilterOperator`。
+同一列仅有一类条件，值、日期组、自定义、排名、平均值和颜色面板相互替换，其他列保留并继续取交集。`query.filter.columns` 返回相同带 `kind` 的联合类型；日期组、自定义、排名、平均值和颜色列的值目录不投影条件结果，值选择初始为全部，应用后切换为值条件。默认面板支持比较符、条件值、第二条件及 AND/OR。MoonBit 使用 `FilterColumn { column, rule }` 和 `FilterRule::Values/Dates/Custom/Rank/Average/Color/ColorStyle`；Wasm/Web 另导出 `XlsxFilterColumn/XlsxCustomFilter/XlsxFilterCondition/XlsxFilterOperator`。
 
 `filterClear` 清除全部条件并保留范围，`filterRemove` 同时移除范围，`filterReapply` 按当前值重新应用。原生输入先按原队列提交；普通编辑保留现有隐藏结果，由重新应用更新。每项使用已有 revision 和单项源历史，保持选择；相同结果不新增历史。网格、自动尺寸及 PDF 共用核心隐藏行。`query.filter` 提供 `range/columns/reason` 和逐列 `catalog`；每列返回 `column/title/blank/blankSelected` 及 `{ value, count, selected }` 选项，按归一化值合并大小写，保留当前条件中的零计数值。默认面板使用当前选区创建范围，选择列和值、空白，并提供清除、移除和重新应用。Wasm/Web 导出 `XlsxFilterSettings/XlsxFilterValues/XlsxFilterState`。
 
 保存使用标准 `autoFilter/filterColumn/filters/filter` 或 `customFilters/customFilter`（`and` 与 `operator/val`）、`sheetPr.filterMode` 和行 `hidden`。行高、原属性与非目标部件保留。`autoFilter/extLst` 内的 `urn:open-document:xlsx:filter-state` 扩展记录 `manual` 与 `filtered` 行号，可同时包含同一行；清除筛选只恢复筛选隐藏，手动隐藏继续保留。已有行高/隐藏命令同步手动来源，正行高也不能展开仍被筛选隐藏的行。复制、改名、撤销重做和保存重开保留此来源；扩展与实际隐藏行不一致时拒绝编辑。外部文件只有一个 `hidden` 字段，无法判断同一行是否同时被手动和筛选隐藏；无来源扩展时，将不匹配条件的隐藏行视为筛选隐藏，其余视为手动隐藏。外部程序若丢弃扩展，也会恢复此导入限制。
 
 每项匹配/目录共用 1048576 次公式工作预算，条件文字累计最多 1048576 个 UTF-16 单元，目录数据/标题累计最多 1048576 个单元；继续受包、源和 4 MiB 历史预算约束。未知条件、日历声明、扩展、属性、筛选内注释/处理指令、工作表保护或无法计算的显示值拒绝修改，保留源与历史。保留已知 `hiddenButton/showButton` 标记。已支持条件的排序和整行/整列插删复用候选重算与隐藏来源事务，局部单元格移位仍保护；原生表筛选归[结构化表](#结构化表与引用)；标题下拉箭头和更广组合按 [P11](../p11-xlsx-core.md) 继续接入。实现归 [`filter-model.mbt`](../../modules/formats/src/xlsx/filter-model.mbt)、[`filter-values.mbt`](../../modules/formats/src/xlsx/filter-values.mbt)、[`filter-custom.mbt`](../../modules/formats/src/xlsx/filter-custom.mbt)、[`filter-source.mbt`](../../modules/formats/src/xlsx/filter-source.mbt)、[`filter-edit.mbt`](../../modules/formats/src/xlsx/filter-edit.mbt)及 [`xlsx-filter.tsx`](../../packages/ui/src/xlsx-filter.tsx)。
+
+### 颜色筛选
+
+Wasm/Web 导出 `XlsxColorFilter`，使用 `{ kind: "color", column, cellColor, color }`。`cellColor=true` 比较填充，false 比较字体色；`color` 接受六位 RGB（不带 `#`，忽略大小写）或 null。null 分别表示无填充或自动黑色字体；查询将黑色字体归一化为 `000000`。无填充与白色填充不同。普通区域与原生表使用同一条件和默认面板，替换同列条件并保留其他列交集。
+
+核心比较直接、表样式及条件格式叠加后的当前有效颜色，包含有格式的空白格。手动隐藏、SUBTOTAL、重新应用、结构变换、源历史与输出预算复用既有筛选事务；修改颜色后须显式重新应用。标准 `colorFilter` 保存 `dxfId/cellColor`；比较色沿共享差异样式池写入填充字段，字体模式也如此。导入的字体字段可读取；相同颜色重新设置保留已有样式引用和主题关联。未知样式、富文本文字色及超限输入原子拒绝。图标、日期类动态与高级条件仍待实现。
+
+比较及存储参考 [ONLYOFFICE ColorFilter](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L12110-L12260)，未复制上游源码。实现归 [`filter-color.mbt`](../../modules/formats/src/xlsx/filter-color.mbt)、已有颜色排序的 [`sort-color.mbt`](../../modules/formats/src/xlsx/sort-color.mbt)及 [`xlsx-color-filter.tsx`](../../packages/ui/src/xlsx-color-filter.tsx)。
 
 ### 日期组筛选
 
@@ -935,7 +943,7 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 标准 `top10` 的 `val/top/percent` 已接通读取与写回，缺省 top=true、percent=false；已知有限 `filterVal` 可读取，重新应用按当前数值计算，不信任导入阈值。写回保留设置和实际可见行，不持久化派生阈值缓存。采用 [ONLYOFFICE Top10 的方向、百分比与标准字段](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L12306-L12490)及 [1–500 项交互](https://github.com/ONLYOFFICE/web-apps/blob/9c0ca538c3b211052347df09d2a4d6781f023403/apps/spreadsheeteditor/main/app/view/AutoFilterDialog.js)。已检查的 ONLYOFFICE 分支使用 parseFloat 和去重集合；本实现沿已有类型模型只接受数值，并按 [LibreOffice TopTenQuery 的数值记录和包含边界](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/core/data/table3.cxx#L2487-L2545)保留重复记录，避免将数字文字或不同值个数当作记录数。百分比沿 ONLYOFFICE 的统一向下取整规则。未复制上游源码；实现归 [`filter-rank.mbt`](../../modules/formats/src/xlsx/filter-rank.mbt)。
 
-排名复用当前最多 4096 格、公式工作、输出及历史预算。未知属性/子节点、非法标准参数或非有限缓存值保留原子拒绝；依赖畸形筛选的 SUBTOTAL 也可能在打开时拒绝。工作表复制和改名保留排名条件；整行/整列变换见[行列插入与删除](#行列插入与删除)，局部单元格移位仍受保护。颜色/图标/日期类动态/高级筛选继续实施。
+排名复用当前最多 4096 格、公式工作、输出及历史预算。未知属性/子节点、非法标准参数或非有限缓存值保留原子拒绝；依赖畸形筛选的 SUBTOTAL 也可能在打开时拒绝。工作表复制和改名保留排名条件；整行/整列变换见[行列插入与删除](#行列插入与删除)，局部单元格移位仍受保护。图标/日期类动态/高级筛选继续实施。
 
 ### 平均值筛选
 
@@ -1251,7 +1259,7 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 计算列与总计命令沿同一事务更新原生定义、单元格、依赖和缓存，支持精确历史、保存重开及现有打印。默认面板调用相同命令并先提交原生草稿。共享/数组公式源、未知表/筛选元数据、非法结果、验证失败和输出预算失败均保留原状态。总计实现归 [`table-total.mbt`](../../modules/formats/src/xlsx/table-total.mbt)及 [`table-totals.mbt`](../../modules/formats/src/xlsx/table-totals.mbt)。默认设置及聚合映射参考 [ONLYOFFICE 总计行](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L10063-L10140)；其中数值计数沿现有 `SUBTOTAL(102)` 补齐。原生计算列和总计设置分别保留。
 
-`editSheet({ action: "tableFilter", id, columns })` 设置原生表筛选。`id` 是表身份；范围由核心取标题和数据区域，排除总计行，不能由调用方另传。`columns` 沿用[普通筛选](#值筛选)的值、自定义、排名、平均值和日期组条件；列号仍是从 1 开始的工作表列号。多列取交集，空条件保留筛选范围并显示全部数据。`tableFilterClear/tableFilterRemove/tableFilterReapply` 同样携带 `id`，分别清除条件、移除原生筛选节点和按当前值重新应用。查询不重写导入源，普通数据输入也不自动重新筛选。
+`editSheet({ action: "tableFilter", id, columns })` 设置原生表筛选。`id` 是表身份；范围由核心取标题和数据区域，排除总计行，不能由调用方另传。`columns` 沿用[普通筛选](#值筛选)的值、自定义、排名、平均值、日期组和颜色条件；列号仍是从 1 开始的工作表列号。多列取交集，空条件保留筛选范围并显示全部数据。`tableFilterClear/tableFilterRemove/tableFilterReapply` 同样携带 `id`，分别清除条件、移除原生筛选节点和按当前值重新应用。查询不重写导入源，普通数据输入也不自动重新筛选。
 
 条件和隐藏来源写入所属表部件的原生 `autoFilter`，行隐藏和 `sheetPr/filterMode` 写入工作表。同一工作表上的多个原生表及普通筛选分别保留条件和筛选隐藏记录；实际隐藏取各筛选与手动隐藏的并集。清除或移除一个筛选保留其他来源。行高和分组折叠/展开同步手动来源，`SUBTOTAL` 的 1–11 与 101–111 继续区分筛选隐藏和手动隐藏。源、可见性、缓存和依赖合为一次精确历史，保存重开、工作表复制、网格和 PDF 复用同一结果。导入文件无法辨别重叠隐藏原因时，沿用普通筛选的来源限制。
 
@@ -1498,7 +1506,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `PptxSelection` 包含 `slide`、有序且唯一的 `objects: string[]`、活动 `object`、`mode`、`anchor` 和 `focus`。空集合要求活动身份为空；非空集合要求活动身份属于集合。集合最多 256 个当前页对象，身份长度最多 1024。文字模式要求唯一对象及有效字素边界。`selectPptx` 必须提供全部字段，失败保留原选择；选择不新增历史。宿主 `selectObjects(objects, active?)` 默认激活最后一项；`select(object, mode?, anchor?, focus?, extend?)` 默认替换选择，`extend=true` 在对象模式中切换成员。
 
-默认 UI 支持 Shift 点击画布/列表切换成员、点击已选成员保留集合以及 Ctrl/Cmd+A 全选。进入文字模式收敛到活动对象。`selectionPptx` 返回成员 `outlines` 和包围盒 `outline`；本地可变换成员使用四角手柄。多选 `dragPptx` 的移动及角点等比例缩放沿用开始几何；`transformPptx` 对多选接收整组世界坐标包围盒，非等比例尺寸拒绝。旋转、翻转、相对位置和零尺寸线段保留，每个成员继续受原尺寸/位置限制。任一成员受保护时整组拒绝。属性面板使用同一变换路径；候选完成后仅一项历史，取消保持源和选择。
+默认 UI 支持 Shift 点击画布/列表切换成员、点击已选成员保留集合以及 Ctrl/Cmd+A 全选。进入文字模式收敛到活动对象。`selectionPptx` 返回成员 `outlines` 和包围盒 `outline`；本地可变换成员使用四角手柄。多选 `dragPptx` 的移动及角点独立宽高缩放沿用开始几何；`transformPptx` 对多选接收整组世界坐标包围盒，宽高倍率分别计算。成员中心按世界轴缩放，旋转和翻转保持；角度规范到 0–360° 后，45–135° 及 225–315° 区间（含起点、不含终点）交换本地宽高倍率，其余角度直接使用两轴倍率。斜角成员采用这一预设规则，不生成剪切变换；结果包围盒由成员几何重新求出。零宽度或零高度的共线集合保留零跨度，不能请求扩展该方向。拖动越过相反角时按各成员的最小尺寸钳制，每个成员继续受原尺寸/位置限制。任一成员受保护时整组拒绝。属性面板使用同一变换路径；候选完成后仅一项历史，取消保持源和选择。 缩放尺寸与中心参考 [ONLYOFFICE ShapeForResizeInGroup](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L2392-L2430)，角度区间参考 [checkNormalRotate](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicObjectBase.js#L185-L188)；未复制上游执行代码。
 
 `PptxSlideEdit` 从 `wasm/pptx` 和 `web/pptx` 导出。`{ action: "move", index }` 将目标页移到从 0 开始的索引，索引包括隐藏页；`{ action: "hidden", hidden }` 修改隐藏状态。编辑宿主为 `PresentationEditor.editSlides(change, slide?)`，省略身份时作用于队列执行时的活动页。重排保持页路径、源页 ID、对象身份、关系及活动选择，仅改 `sldIdLst` 顺序；隐藏只改 slide 的 `show`。自定义放映和页间链接仍按原关系指向同一页面。相同位置/状态不新增历史，错误不提交。
 
@@ -1566,7 +1574,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 对齐与分布要求对象模式，沿用 256 成员、本地顶层对象及现有锁定/继承/未知资源保护。只改成员位置，保留顺序、活动对象、尺寸、旋转、翻转、文字、裁剪和关系；位置舍入为整数 EMU。成员越界、输出或历史预算失败不提交任何成员，成功只新增一项历史，重复操作无变化时不新增。默认面板提供参考范围、六种对齐和两种分布，活动对象参考下禁用分布。接口复用 `editPptxObjects` / `PresentationEditor.editObjects`。
 
-组合使用 `{ action: "group" }`，至少选择两个可编辑本地顶层对象。核心分配新组身份，保留成员身份、相对顺序、格式及关系，转换局部坐标；新组放在所选最上层对象的位置，选择切到新组。原组也可参与嵌套组合。顶层组沿用整体移动、缩放（含非等比例）、旋转、翻转、层次、对齐和删除事务；候选同步派生成员世界矩阵，不写已提交源。多选集合的非等比例缩放仍拒绝。
+组合使用 `{ action: "group" }`，至少选择两个可编辑本地顶层对象。核心分配新组身份，保留成员身份、相对顺序、格式及关系，转换局部坐标；新组放在所选最上层对象的位置，选择切到新组。原组也可参与嵌套组合。顶层组沿用整体移动、缩放（含非等比例）、旋转、翻转、层次、对齐和删除事务；候选同步派生成员世界矩阵，不写已提交源。多选集合的独立宽高缩放沿上文同一候选路径执行。
 
 取消组合使用 `{ action: "ungroup" }`，选择须全部为受支持顶层组。包含非等比缩放及嵌套组，成员回到原组所在层次，选择展开为直接成员，最多 256 项。核心先把累计组缩放换算为成员框的位置与尺寸，再以旋转/翻转矩阵绘制；文字字号、边距及描边宽度保持原值，文字按新框排版。候选预览和源重读使用同一几何规则；取消组合还原世界位置、尺寸、旋转及翻转，保留成员身份、命名空间和组内注释。子组保留自己的子坐标范围，可继续逐层取消组合。组内直接编辑仍保护。
 

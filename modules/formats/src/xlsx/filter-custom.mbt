@@ -18,6 +18,7 @@ priv enum PreparedFilter {
   Ranking(Double?, top~ : Bool)
   Mean(Double?, above~ : Bool)
   DateLabels(Array[(Double, Double)], Map[String, Bool], blank~ : Bool)
+  Color(String, cell_color~ : Bool)
 }
 
 ///|
@@ -28,7 +29,7 @@ fn FilterRule::prepare(
   match self {
     Dates(groups, values~, blank~) =>
       prepare_date_filter(groups, values, blank, work)
-    Rank(_, ..) | Average(..) =>
+    Rank(_, ..) | Average(..) | Color(_, ..) | ColorStyle(_, ..) =>
       @failure.reject(
         "invalid-operation", "Numeric filtering requires its source range",
       )
@@ -72,6 +73,10 @@ fn PreparedFilter::matches(
   work : FormulaWork,
 ) -> Bool raise @failure.Failure {
   match self {
+    Color(_, ..) =>
+      @failure.reject(
+        "invalid-operation", "Color filtering requires an effective style",
+      )
     DateLabels(intervals, values, blank~) =>
       if label.is_empty() {
         blank
@@ -131,8 +136,19 @@ fn PreparedFilter::matches(
 }
 
 ///|
-fn FilterColumn::json(self : FilterColumn) -> Json {
+fn FilterColumn::json(self : FilterColumn) -> Json raise @failure.Failure {
   match self.rule {
+    Color(value, cell_color~) =>
+      {
+        "kind": "color",
+        "column": self.column,
+        "cellColor": cell_color,
+        "color": value
+        .map(value => Json(value.to_upper()))
+        .unwrap_or(Json::null()),
+      }
+    ColorStyle(_, ..) =>
+      @failure.reject("invalid-operation", "Color filter style is unresolved")
     Dates(groups, values~, blank~) =>
       {
         "kind": "dates",

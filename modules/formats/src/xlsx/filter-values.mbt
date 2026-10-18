@@ -112,12 +112,26 @@ fn Session::filtered_rows(
         rules,
         work,
       )
-      if !normalized[i].matches(
+      let matched = if normalized[i] is Color(color, cell_color~) {
+        self
+        .effective_cell_color(
+          sheet,
+          { row, column: column.column, },
+          cell_color,
+          rules,
+          work,
+        )
+        .to_lower() ==
+        color
+      } else {
+        normalized[i].matches(
           self.filter_raw(sheet, row, column.column),
           value,
           date,
           work,
-        ) {
+        )
+      }
+      if !matched {
         hidden.push(row)
         break
       }
@@ -232,7 +246,11 @@ fn Session::filter_query(
           match c.rule {
             Values(_, blank~) => blank
             Dates(_, blank~, ..) => blank
-            Custom(_, ..) | Rank(_, ..) | Average(..) => true
+            Custom(_, ..)
+            | Rank(_, ..)
+            | Average(..)
+            | Color(_, ..)
+            | ColorStyle(_, ..) => true
           }
         })
         .unwrap_or(true),
@@ -250,7 +268,7 @@ fn Session::filter_query(
     }
     {
       "range": state.settings.range,
-      "columns": state.settings.columns.map(c => c.json()),
+      "columns": state.settings.columns.map(c => self.filter_column_json(c)),
       "catalog": catalog,
       "reason": reason,
     }
