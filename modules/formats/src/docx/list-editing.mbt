@@ -42,7 +42,7 @@ fn Session::edit_list_with_indent(
     .map(p => p.document)
     .unwrap_or_else(() => self.document())
   let tree = WordTree::new(document)
-  let range = self.formatting_range(document, selection)
+  let range = self.formatting_range(document, selection, whole_cells=true)
   let styles = self.styles([])
   let parts = self.parts.copy()
   let edits : Map[String, Array[@xml.Edit]] = Map([])

@@ -156,15 +156,23 @@ fn Session::formatting_range(
   self : Session,
   document : @xml.Document,
   selection : Selection,
+  whole_cells~ : Bool = false,
 ) -> ParagraphRange raise @failure.Failure {
   let tree = WordTree::new(document)
-  let range = self.paragraph_range_in(
-    document,
-    tree,
-    selection,
-    structural=true,
-    check_layout=false,
-  )
+  let cells = if whole_cells {
+    self.table_format_range(tree, selection)
+  } else {
+    None
+  }
+  let range = cells.unwrap_or_else(() => {
+    self.paragraph_range_in(
+      document,
+      tree,
+      selection,
+      structural=true,
+      check_layout=false,
+    )
+  })
   for p in self.formatting_paragraphs(document, range.paragraphs) {
     guard p.readOnlyReason.is_empty() else {
       @failure.reject("protected-content", p.readOnlyReason)
@@ -184,7 +192,9 @@ pub fn Session::query_formatting(
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
   let mut reason = ""
-  let range = try self.formatting_range(self.document(), selection) catch {
+  let range = try
+    self.formatting_range(self.document(), selection, whole_cells=true)
+  catch {
     @failure.Failure(
       code="invalid-position"
       | "stale-revision"
@@ -207,11 +217,27 @@ pub fn Session::query_formatting(
     Some(range) => self.formatting_paragraphs(self.document(), range.paragraphs)
     None => []
   }
+  let multiple_cells = range is Some(selected) &&
+    tree.nodes[selected.start.paragraph].parent !=
+    tree.nodes[selected.end.paragraph].parent
+  let text_range = if multiple_cells { None } else { range }
   {
     "revision": revision,
     "reason": reason,
-    "hyperlink": self.hyperlink_summary(tree, range, reason),
-    "table": self.table_dimensions(tree, range, layout),
+    "cellSelection": self.table_cell_selection(tree, selection) catch {
+      @failure.Failure(message~, ..) =>
+        { "value": Json::null(), "reason": message }
+    },
+    "hyperlink": self.hyperlink_summary(
+      tree,
+      text_range,
+      if multiple_cells {
+        "Select one table cell to edit a hyperlink"
+      } else {
+        reason
+      },
+    ),
+    "table": self.table_dimensions(tree, text_range, layout),
     "list": format_summary(
       match range {
         None => []

@@ -637,15 +637,10 @@ fn Foundation::dispatch(
           let selection = field_selection(request)
           session.check_position(selection.anchor)
           session.check_position(selection.focus)
-          let anchor = selection.anchor
-          let focus = selection.focus
           {
             "layoutId": self.layout_id,
             "revision": layout.revision,
-            "rects": layout.selection_rects(
-              (anchor.paragraph, anchor.offset, anchor.affinity),
-              (focus.paragraph, focus.offset, focus.affinity),
-            ),
+            "rects": session.selection_rects(layout, selection),
           }
         }
         "imageBytes" =>

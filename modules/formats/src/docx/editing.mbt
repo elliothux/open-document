@@ -244,6 +244,9 @@ pub fn Session::replace_range(
   self.check_revision(revision)
   let prepared = self.prepare_range(selection, text, input_group~)
   if prepared is Some(prepared) {
+    if prepared.edit.bytes == 0 {
+      return self.select(revision, prepared.edit.after.unwrap())
+    }
     self.commit_edit(
       prepared.edit,
       prepared.document,
@@ -321,6 +324,14 @@ fn Session::prepare_plain_range(
     }
   }
   if anchor.paragraph != focus.paragraph || text.contains("\n") {
+    if anchor.paragraph != focus.paragraph {
+      let tree = WordTree::new(self.document())
+      if self.table_cell_range(tree, selection) is Some(cells) {
+        return Some(
+          self.prepare_table_contents(tree, cells, text, check_graphemes~),
+        )
+      }
+    }
     return Some(
       self.prepare_structural_range(selection, text, check_graphemes~),
     )

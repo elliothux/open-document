@@ -69,7 +69,7 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 `navigateDocx(revision, layoutId, direction, extend = false)` 返回 `{ state, caret }`，使用核心当前选区。方向为 `left/right/up/down/home/end`，左右按逻辑字素顺序移动，Right 到达用 before、Left 到达用 after，Home/End 到当前行逻辑首尾；End 的逻辑尾若同时是下一页同段入口，显示下一页并保留基础方向，同页软换行保持前侧；非折叠选区无 Shift 时，Left 收拢到逻辑起点，Right 从逻辑末端继续前进一个逻辑字素步骤，文档末端保持边界。上下保留目标 x、优先同单元格，离开单元格时排除水平区间不重叠的旁列。`extend` 保留 anchor；成功只改变选区，不增加 revision/历史。显式选区、编辑、横向移动及换布局重置垂直目标，非法方向、旧 revision/layout、无选区或受保护目标原子失败。行携带段落方向、正文/单元格身份和可用水平区间，placed run 携带段落起点，导航复用最终 shaping/BiDi 坐标。验证范围见 [P4](../implemented/p4-docx-editing.md#验证依据与边界)。
 
-`deleteDocx(revision, direction)` 的方向为 `backward` / `forward`。已有范围整体删除；折叠选区按逻辑前/后扩展字素删除，复用范围事务和历史。组合符与 surrogate 不拆开。段首 Backspace/段尾 Delete 可合并同一正文或单元格内的相邻普通段落；文档首尾保持 revision、源和历史不变。单元格边界、表格或受保护内容整体报 `protected-content`。
+`deleteDocx(revision, direction)` 的方向为 `backward` / `forward`。已有范围整体删除；折叠选区按逻辑前/后扩展字素删除，复用范围事务和历史。组合符与 surrogate 不拆开。段首 Backspace/段尾 Delete 可合并同一正文或单元格内的相邻普通段落；文档首尾保持 revision、源和历史不变。折叠光标越过单元格边界、跨表格或受保护内容时报 `protected-content`；已有整格选区的清空归[跨格内容输入与清空](#跨格内容输入与清空)。
 
 `editState()` 返回 revision、选区、撤销/重做可用性、历史容量与受影响段落；`selectDocx(revision, selection)` 仅更新选区。`replaceRange(revision, selection, text, inputGroup?)` 可跨 run，以及同一正文或单元格中连续的普通段落；`undoDocx(revision)` / `redoDocx(revision)` 恢复内容和选区，revision 继续单调增加。`selection` 保留 anchor/focus，每个位置包含稳定 paragraph ID、段落 UTF-16 offset 与 `before` / `after` affinity；范围按 XML 顺序排序，起点 affinity 决定 run 边界的插入格式。所有命令由 MoonBit 验证，TS 只转发和校验响应。
 
@@ -79,7 +79,7 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 `selectedText(revision, selection, cut = false)` 返回核心只读纯文本，按 XML 顺序提取正/反向普通范围，跨段以 LF 分隔并保留空段，折叠范围返回空串。它沿用字素、位置、revision、容器及内容保护检查，跨单元格或未知内容整体拒绝；不改变选区、revision、历史或布局。输出最多 65536 UTF-16 单元（包括 LF），超限报错而不截断。复制与结构写回共用范围顺序/保护检查；只有写回额外检查移动结构及格式。宿主不从页面文字重建选区。
 
-段内边界使用 Unicode 13.0.0 扩展字素，跨文本节点的组合符与 ZWJ 不可拆开；修改后重新合并的字素会将光标推进到合法边界。普通空段支持 offset 0 的输入：优先在第一个已有空 run 创建 text，保留其格式；没有 run 时在段末创建普通 run/text，保留段落属性、现有前缀和非目标源片段。空段身份来自正文 `flow().paragraphs` 或 `flow().tables` 的单元格段落，不能从尚无 text 的 `query().texts` 推断。跨单元格/表格、CR、内联图片所在段、域/书签/修订/未知内联标记及受保护容器目前整体拒绝，未修改的内容仍保留。普通正文与顶层表格单元格内的事务可用；不表示带布局诊断的文件已经可视编辑。
+段内边界使用 Unicode 13.0.0 扩展字素，跨文本节点的组合符与 ZWJ 不可拆开；修改后重新合并的字素会将光标推进到合法边界。普通空段支持 offset 0 的输入：优先在第一个已有空 run 创建 text，保留其格式；没有 run 时在段末创建普通 run/text，保留段落属性、现有前缀和非目标源片段。空段身份来自正文 `flow().paragraphs` 或 `flow().tables` 的单元格段落，不能从尚无 text 的 `query().texts` 推断。跨表格及正文/表格混合范围、CR、未支持的域/修订/未知内联标记及受保护容器整体拒绝。受支持的行内图片、普通书签及跨格内容操作分别沿下文合同处理，未修改的源保留。普通正文与顶层表格单元格内的事务可用；不表示带布局诊断的文件已经可视编辑。
 
 `replaceRange` 将实际 LF 作为段落分隔，可替换折叠、段内或跨段正反向范围，首尾/连续 LF 产生空段；新段仍在原 body/单元格内，光标到最后插入文字末尾，并对字素拼接推进到合法边界。原段及移到新段的存量节点保留身份；新节点获得单调 ID。新段继承已支持的段落属性和边界 affinity 选中的字符格式，显式关闭直接或继承的段前分页。未知属性、编号、节或不可安全编辑内容整体拒绝。多分隔替换是单条历史，返回原范围与全部新增段的受影响 ID；撤销删除新段并恢复原字节，重做恢复同一组新 ID。连续输入使用核心保留的目标 text ID 继续同一字符格式；显式选择/导航、删除、外部修改、undo/redo 和关闭终止它，保存或失败不终止。字符格式的连续目标与显式输入组分工不同，均不维护第二份文档内容。
 
@@ -457,7 +457,25 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 `{ action: "splitTable" }` 在所选单元格所在行之前拆分正文表格，两表之间插入空正文段落，光标进入下表首格。首行、缺少段落的单元格、嵌套/受保护表格、未知结构及预算失败拒绝操作。两表保留列网格、宽度、边框、样式和单元格内容；原有行和未替换内容的身份保持。纵向合并跨越分界线时，内容留在上表，下表从对应位置创建空的合并起始格，复制原合并格格式并清除段前分页；后续延续格继续归属下表。分界、空格及选择一次提交历史，支持原样撤销、保存重开、继续输入及同布局 PDF。默认 UI 使用同一操作。拆表与跨度清理参考 [LibreOffice SplitTable](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sw/source/core/docnode/ndtbl.cxx#L3392-L3515)及[纵向跨度清理](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sw/source/core/table/swnewtable.cxx#L2021-L2110)。
 
-布局读取横向跨度及纵向起始/延续格，文字、背景和边框使用合并后的矩形；Tab 跳过纵向延续格。纵向合并格可跨源行与页面继续，保持起始格的内容归属、底色、边框与逻辑位置。普通行已支持[逐格跨页](#表格行跨页)，重复表头见[当前合同](#重复表头)。包含可见内容的纵向延续格明确拒绝，避免隐藏其文字。含合并格的行增删遵循上述规则；列删除按所选整格的横向范围移除相交格。默认 UI 提供从当前格指定行列数量的合并与取消合并；鼠标矩形选择及其余属性编辑仍归 [P10](../p10-docx-core.md)。
+布局读取横向跨度及纵向起始/延续格，文字、背景和边框使用合并后的矩形；Tab 跳过纵向延续格。纵向合并格可跨源行与页面继续，保持起始格的内容归属、底色、边框与逻辑位置。普通行已支持[逐格跨页](#表格行跨页)，重复表头见[当前合同](#重复表头)。包含可见内容的纵向延续格明确拒绝，避免隐藏其文字。含合并格的行增删遵循上述规则；列删除按所选整格的横向范围移除相交格。默认 UI 提供从当前格指定行列数量的合并与取消合并；鼠标属性选择归[跨单元格属性选择](#跨单元格属性选择)，其余范围编辑仍归 [P10](../p10-docx-core.md)。
+
+### 跨单元格属性选择
+
+鼠标拖动或 Shift 扩选的两个端点位于同一受支持表格的不同格时，核心按端点的逻辑网格范围选择相交整格。横向跨度与纵向合并属于同一格；修改同步全部纵向延续节点。`EditState.formatting.cellSelection` 返回表身份、半开行列边界、实际格数、底色和垂直对齐的共同值或混合值；无跨格范围时 `value` 为 null，保护失败另给 `reason`。同格内仍使用普通文字选区。
+
+默认表格面板显示所选格数，提供批量底色、清除、顶部/居中/底部对齐与恢复继承。既有 `editTable` 的单元格边距及边框操作也作用于所选整格；行跨页开关作用于端点覆盖的实际行，逐行判断无变化。属性共用候选布局检查、单项历史及输出预算，保留文字、网格、选区和其他部件；支持精确撤销、重做及保存重开。
+
+核心 `Session.selection_rects(layout, selection)` 从已有 `cellAreas` 返回完整所选格在各页的覆盖框，Wasm 和 Canvas 沿既有选择几何查询显示，不进入 PDF 或原格式。标尺在文字拖动期间保留当前显示，结束后再查询，避免中断鼠标捕获。参考 [ONLYOFFICE 相交格选择及合并归属](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L15872-L15976)，实现归 [`table-range.mbt`](../../modules/formats/src/docx/table-range.mbt)。
+
+字符与段落格式、样式应用、格式复制/应用和列表操作使用所选整格内的全部段落，包括空段落；手势端点位于文字中间时也不截断首尾格。有效格式查询沿相同范围返回共同值或混合值。字符与段落格式可合为一项历史，保留原选择端点、非目标格的源片段和其他部件；恢复后可在空段落继续原生输入。普通段落拆分候选继续按候选文档校验，不查询旧源中的新段落。规则参考 [ONLYOFFICE 所选格文字属性](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L6207-L6263)及[段落对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L7763-L7783)，写回复用既有格式事务。
+
+#### 跨格内容输入与清空
+
+所选整格的非空 `replaceRange` 输入只替换按源顺序的首个所选格，其余格保持原样。LF 在首格内拆段；Enter 先替换首格内容，再沿原有段落/列表规则处理。Delete/Backspace 或空文字替换清空全部所选格，每格留下一个空段落，光标落在首格。行列、合并归属、格属性和非目标格保持；清空后仍可 Tab 导航及原生输入。
+
+每次操作沿现有源补丁合为一项有界历史，撤销恢复全部格和原始选择；单段内容相同或已空单段格清空时只收起选择，不增加 revision 或历史。成对书签随各自格内范围收缩，保留原格归属。组合预览每次从已提交网格和选择重建，取消保留源、选择和重做；提交只替换首格。输入框的无障碍说明报告所选格数。依据 [ONLYOFFICE 所选格删除与输入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L6288-L6335)，实现归 [`table-contents.mbt`](../../modules/formats/src/docx/table-contents.mbt)。
+
+跨格剪贴板和结构操作仍保持保护，须选择单格后执行。链接、书签及批注创建沿普通文字范围规则；跨格时链接查询给出原因，默认面板禁用对应创建。跨表格、正文/表格混合范围及未知格内容沿既有保护规则；跨格边框/边距的默认面板、嵌套表格和其余结构范围操作继续实施。
 
 ### 表格尺寸
 
@@ -479,7 +497,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 `queryFormatting(...).table.tableBorders` 返回六边的默认值，`cellBorders` 返回当前格四边的实际冲突结果；合并格某边包含不同线段时该边为 null，表示混合。`DocxFlow.tables[].borders` 为核心生成的 horizontal/vertical 网格，替代旧布尔值。边宽参与行高与分页预留，左右边界至少预留半个描边宽度。分页缓存、重复表头、Canvas 和 PDF 消费相同线段及颜色，Web 不重算边框。
 
-属性沿现有单项源历史保存，保留文字、网格、选区、待输入格式和其他部件。无变化保留源片段及 revision；无文字宽度、未知目标、旧 revision、输出或历史预算失败原子拒绝。合并仍沿当前[结构规则](#表格创建)保留每行首格属性，取消合并复制相应格属性；复杂边框和跨格选择仍归 P10/P14。实现归 [`table-borders.mbt`](../../modules/formats/src/docx/table-borders.mbt)、[`table-border-editing.mbt`](../../modules/formats/src/docx/table-border-editing.mbt)及[公共边框绘制](../../modules/layout/src/table-borders.mbt)。
+属性沿现有单项源历史保存，保留文字、网格、选区、待输入格式和其他部件。无变化保留源片段及 revision；无文字宽度、未知目标、旧 revision、输出或历史预算失败原子拒绝。合并仍沿当前[结构规则](#表格创建)保留每行首格属性，取消合并复制相应格属性；跨格属性修改归[跨单元格属性选择](#跨单元格属性选择)，复杂边框仍归 P10/P14。实现归 [`table-borders.mbt`](../../modules/formats/src/docx/table-borders.mbt)、[`table-border-editing.mbt`](../../modules/formats/src/docx/table-border-editing.mbt)及[公共边框绘制](../../modules/layout/src/table-borders.mbt)。
 
 ### 表格底色
 

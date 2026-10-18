@@ -44,11 +44,21 @@ fn Session::change_table_property(
   self.check_revision(revision)
   let document = self.document()
   let tree = WordTree::new(document)
-  let grid = self.table_grid(tree, selection)
+  let selected = self.table_cell_range(tree, selection)
+  let grid = selected
+    .map(range => range.grid)
+    .unwrap_or_else(() => self.table_grid(tree, selection))
   if whole_row &&
     name == "cantSplit" &&
     attributes is Some(values) &&
-    grid.model.splitRows[grid.row] == (values.get("val") == Some(Some("0"))) {
+    (match selected {
+      Some(range) =>
+        grid.model.splitRows[range.top:range.bottom]
+        .iter()
+        .all(split => split == (values.get("val") == Some(Some("0"))))
+      None =>
+        grid.model.splitRows[grid.row] == (values.get("val") == Some(Some("0")))
+    }) {
     return self.edit_state()
   }
   if header_rows is Some(count) {
@@ -76,9 +86,16 @@ fn Session::change_table_property(
   } else if whole_table {
     [grid.table]
   } else if whole_row {
-    [grid.rows[grid.row]]
+    match selected {
+      Some(range) => grid.rows[range.top:range.bottom].to_owned()
+      None => [grid.rows[grid.row]]
+    }
   } else {
-    grid.cells.flatten().filter(cell => grid.owners[cell] == owner)
+    selected
+    .map(range => range.cells)
+    .unwrap_or_else(() => {
+      grid.cells.flatten().filter(cell => grid.owners[cell] == owner)
+    })
   }
   for index, target in targets {
     if !whole_table && !whole_row && header_rows is None {

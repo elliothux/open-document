@@ -1,5 +1,9 @@
 import { record, arrayOf } from "./validation.js";
 import { checkDocxColumns, type DocxColumns } from "./docx-columns.js";
+import {
+  checkDocxCellSelection,
+  type DocxCellSelection,
+} from "./docx-cell-selection.js";
 export { checkDocxColumns, type DocxColumns } from "./docx-columns.js";
 import type { DocxSelection } from "./docx-hit.js";
 import { isDocxSelection } from "./docx-search.js";
@@ -427,6 +431,7 @@ export interface ParagraphFormatPatch {
 export interface DocxFormatting {
   revision: number;
   reason: string;
+  cellSelection: DocxCellSelection;
   hyperlink: { target: string | null; mixed: boolean; reason: string };
   table: {
     autoFit: boolean;
@@ -547,6 +552,7 @@ export function docxFormatting(value: unknown): DocxFormatting {
     character = record(result.character),
     paragraph = record(result.paragraph);
   const hyperlink = record(result.hyperlink);
+  checkDocxCellSelection(result.cellSelection);
   checkDocxHyperlink(hyperlink.target);
   if (
     typeof hyperlink.mixed !== "boolean" ||

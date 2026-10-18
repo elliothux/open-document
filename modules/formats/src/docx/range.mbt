@@ -6,6 +6,17 @@ fn Session::prepare_structural_range(
   check_graphemes~ : Bool = true,
 ) -> PreparedEdit raise @failure.Failure {
   let document = self.document()
+  self.prepare_structural_range_in(document, selection, text, check_graphemes~)
+}
+
+///|
+fn Session::prepare_structural_range_in(
+  self : Session,
+  document : @xml.Document,
+  selection : Selection,
+  text : String,
+  check_graphemes~ : Bool = true,
+) -> PreparedEdit raise @failure.Failure {
   let source = document.source()
   let tree = WordTree::new(document)
   let range = self.paragraph_range_in(
@@ -25,8 +36,9 @@ fn Session::prepare_structural_range(
   let first_index = siblings.search(first.id).unwrap()
   let last_index = siblings.search(last.id).unwrap()
   let affected = range.paragraphs
-  let first_texts = self.editable_texts(first.id)
-  let last_texts = self.editable_texts(last.id)
+  let texts = docx_texts(tree)
+  let first_texts = texts.filter(item => item.paragraph == first.id)
+  let last_texts = texts.filter(item => item.paragraph == last.id)
   let parts = text.split("\n").map(part => part.to_owned()).collect()
   let left = first_texts.map(node => inline_text(tree.nodes[node.id])).join("")
   let right = last_texts.map(node => inline_text(tree.nodes[node.id])).join("")

@@ -7,6 +7,7 @@ import type {
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { DocxBorders } from "./docx-borders.js";
+import { DocxCellSelection } from "./docx-cell-selection.js";
 
 export function DocxTables({
   controller,
@@ -30,16 +31,34 @@ export function DocxTables({
     columnCount = Number(columns);
   const snapshot = editor.getSnapshot();
   const paragraph = snapshot.data.selection?.focus.paragraph;
-  const body = editor.layout.semantics[snapshot.page]?.lines.some(
-    (line) => line.paragraph === paragraph && line.container === 0,
-  );
-  const cell = editor.layout.semantics[snapshot.page]?.lines.some(
-    (line) => line.paragraph === paragraph && line.container > 0,
-  );
+  const protectedRange =
+    !snapshot.data.formatting || !!snapshot.data.formatting.reason;
+  const body =
+    !protectedRange &&
+    editor.layout.semantics[snapshot.page]?.lines.some(
+      (line) => line.paragraph === paragraph && line.container === 0,
+    );
+  const cell =
+    editor.layout.semantics[snapshot.page]?.lines.some(
+      (line) => line.paragraph === paragraph && line.container > 0,
+    ) &&
+    !protectedRange &&
+    !snapshot.data.formatting?.cellSelection.value;
   const size = snapshot.data.formatting?.table;
+  const selected = snapshot.data.formatting?.cellSelection.value;
   return (
     <section aria-label={t.insertTable}>
       <h3>{t.insertTable}</h3>
+      {selected && (
+        <DocxCellSelection
+          key={`${snapshot.documentId}:${snapshot.revision}:${JSON.stringify(snapshot.data.selection)}`}
+          controller={controller}
+          state={state}
+          editor={editor}
+          selected={selected}
+          disabled={disabled}
+        />
+      )}
       {size && (
         <fieldset disabled={disabled || !!snapshot.data.formatting?.reason}>
           <legend>{t.tableAutoFit}</legend>

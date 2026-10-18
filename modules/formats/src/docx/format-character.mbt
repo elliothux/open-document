@@ -25,7 +25,10 @@ fn Session::format_character_document(
   split~ : Bool = false,
 ) -> (@xml.Document, @xml.Edit)? raise @failure.Failure {
   let tree = WordTree::new(document)
-  let range = self.formatting_range(document, selection)
+  let range = self.formatting_range(document, selection, whole_cells=true)
+  let include_empty = include_empty ||
+    tree.nodes[range.start.paragraph].parent !=
+    tree.nodes[range.end.paragraph].parent
   let source = document.source()
   let changes : Array[@xml.SourceChange] = []
   let properties = patch.properties()

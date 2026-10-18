@@ -193,7 +193,7 @@ fn Session::format_paragraph_document(
       properties["pStyle"] = None
     }
   }
-  let range = self.formatting_range(document, selection)
+  let range = self.formatting_range(document, selection, whole_cells=true)
   let changes : Array[@xml.SourceChange] = []
   for paragraph in range.paragraphs {
     let nested : Map[String, String] = Map([])

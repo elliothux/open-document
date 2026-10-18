@@ -169,7 +169,11 @@ export function DocxComments({
           <button
             type="submit"
             disabled={
-              !author || !text.trim() || (!parent && !snapshot.data.selection)
+              !author ||
+              !text.trim() ||
+              (!parent &&
+                (!snapshot.data.selection ||
+                  !!snapshot.data.formatting?.cellSelection.value))
             }
           >
             {parent ? t.commentReply : t.commentAdd}

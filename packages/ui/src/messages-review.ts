@@ -1,4 +1,7 @@
 export const reviewEn = {
+  selectedCells: "Selected table cells",
+  cellSelectionText:
+    "Typing replaces the first selected cell. Delete clears every selected cell. Select one cell to change table structure.",
   pageBorders: "Page borders",
   pageBorderOffset: "Border offset from",
   pageBorderPage: "Page edge",
@@ -159,6 +162,9 @@ export const reviewEn = {
     "Provide commentAuthor in the host options to add comments or replies.",
 };
 export const reviewZh: Record<keyof typeof reviewEn, string> = {
+  selectedCells: "所选表格单元格",
+  cellSelectionText:
+    "输入会替换首个所选格的内容。删除键会清空全部所选格。请选择单格修改表格结构。",
   pageBorders: "页面边框",
   pageBorderOffset: "边框距离基准",
   pageBorderPage: "纸张边缘",

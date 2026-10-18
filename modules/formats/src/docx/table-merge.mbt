@@ -24,7 +24,10 @@ fn Session::table_grid(
   ignore(self.editable_page_section(tree))
   let row = tree.nodes[cell].parent
   let table = tree.nodes[row].parent
-  let model = self.flow().tables.iter().find_first(t => t.id == table).unwrap()
+  let model = self.flow_from(self.document()).tables
+    .iter()
+    .find_first(t => t.id == table)
+    .unwrap()
   let rows = tree.table_children(table, "tr")
   let cells = rows.map(row => tree.table_children(row, "tc"))
   guard rows.length() == model.rows.length() else {

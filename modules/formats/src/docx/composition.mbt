@@ -70,13 +70,16 @@ pub fn Session::begin_composition(
   guard self.selection is Some(selection) else {
     @failure.reject("invalid-operation", "Composition requires a selection")
   }
-  ignore(
-    self.paragraph_range(
-      WordTree::new(self.document()),
-      selection,
-      structural=selection.anchor.paragraph != selection.focus.paragraph,
-    ),
-  )
+  let tree = WordTree::new(self.document())
+  if self.table_cell_range(tree, selection) is None {
+    ignore(
+      self.paragraph_range(
+        tree,
+        selection,
+        structural=selection.anchor.paragraph != selection.focus.paragraph,
+      ),
+    )
+  }
   guard self.composition_id < 0x7fffffff else {
     @failure.reject("limit-exceeded", "Composition identity exhausted")
   }
@@ -121,6 +124,10 @@ pub fn Session::commit_composition(
   let composition = self.check_composition(revision, id)
   let prepared = self.prepare_composition(composition, text)
   if prepared is Some(prepared) {
+    if prepared.edit.bytes == 0 {
+      self.composition = None
+      return self.select(revision, prepared.edit.after.unwrap())
+    }
     self.commit_edit(prepared.edit, prepared.document)
     self.typing_text = prepared.typing_text
   }

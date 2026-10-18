@@ -168,6 +168,8 @@ export async function docxSelectionDescription(
   if (state.pictureResizeId !== null) return "Picture resize in progress";
   const selection = state.selection;
   if (!selection) return "Focus document text input to start editing";
+  const cells = state.formatting?.cellSelection.value;
+  if (cells) return `Selected table cells: ${cells.count}`;
   if (
     selection.anchor.paragraph === selection.focus.paragraph &&
     selection.anchor.offset === selection.focus.offset

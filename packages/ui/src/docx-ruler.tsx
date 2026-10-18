@@ -88,6 +88,8 @@ export function DocxRuler({
   useEffect(() => {
     let current = true;
     setDrag(undefined);
+    // Ruler queries finish editor gestures; refresh after text dragging settles.
+    if (snapshot.dragging) return;
     if (
       !snapshot.data.selection ||
       snapshot.composition ||
@@ -110,6 +112,7 @@ export function DocxRuler({
     snapshot.revision,
     selection,
     snapshot.composition,
+    snapshot.dragging,
     snapshot.stopped,
     snapshot.closed,
   ]);

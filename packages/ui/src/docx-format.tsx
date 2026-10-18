@@ -426,7 +426,7 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
         controller={controller}
         state={state}
         editor={editor}
-        disabled={disabled}
+        disabled={stylesDisabled}
       />
       <p>{formatting?.reason}</p>
       <LineSpacing

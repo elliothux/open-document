@@ -10,9 +10,15 @@ pub fn Session::enter(
   }
   self.check_position(selection.anchor)
   self.check_position(selection.focus)
+  let tree = WordTree::new(self.document())
+  let input_selection = match self.table_cell_range(tree, selection) {
+    Some(cells) =>
+      tree.cell_contents_selection(cells.owners[0], docx_texts(tree))
+    None => selection
+  }
   let prepared = if selection.anchor.paragraph != selection.focus.paragraph ||
     selection.anchor.offset != selection.focus.offset {
-    self.prepare_range(selection, "")
+    self.prepare_range(input_selection, "")
   } else {
     None
   }

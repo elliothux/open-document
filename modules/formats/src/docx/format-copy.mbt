@@ -54,7 +54,7 @@ pub fn Session::apply_format(
   }
   ignore(paragraph.properties())
   let document = self.document()
-  let range = self.formatting_range(document, selection)
+  let range = self.formatting_range(document, selection, whole_cells=true)
   let collapsed = range.start.paragraph == range.end.paragraph &&
     range.start.offset == range.end.offset
   let pending = if self.selection == Some(selection) {

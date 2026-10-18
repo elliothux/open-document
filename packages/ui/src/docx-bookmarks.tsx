@@ -54,7 +54,13 @@ export function DocxBookmarks({
           if (selection) apply({ action: "create", name, selection });
         }}
       >
-        <fieldset disabled={disabled || !editor.getSnapshot().data.selection}>
+        <fieldset
+          disabled={
+            disabled ||
+            !editor.getSnapshot().data.selection ||
+            !!editor.getSnapshot().data.formatting?.cellSelection.value
+          }
+        >
           <legend>{t.bookmarkCreate}</legend>
           <label>
             {t.bookmarkName}
