@@ -27,3 +27,29 @@ fn note_body(
     .unwrap_or("")
   opening + style + value + "</\{run.qualified}>"
 }
+
+///|
+fn insert_note_vml(
+  document : @xml.Document,
+  relation : String,
+) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
+  let tree = Tree::new(document)
+  let root = tree.root("worksheet")
+  let markup = "<od:legacyDrawing xmlns:od=\"\{spreadsheet_uri}\" xmlns:odRel=\"\{relationship_uri[:relationship_uri.length()-1]}\" odRel:id=\"\{escaped_attribute(relation)}\"/>"
+  let next = tree.children
+    .get(root.id)
+    .unwrap_or([])
+    .iter()
+    .find_first(node => {
+      [
+        "legacyDrawingHF", "picture", "oleObjects", "controls", "webPublishItems",
+        "tableParts", "extLst",
+      ].contains(node.name)
+    })
+  let change : @xml.SourceChange = if next is Some(node) {
+    { node: root.id, offset: node.start - root.start, length: 0, xml: markup, }
+  } else {
+    insertion(root, markup)
+  }
+  document.edit_source([change])
+}

@@ -7,7 +7,8 @@ fn Session::hyperlink_relation(
   edits : Array[(String, @xml.Edit)],
   created : Map[String, @xml.Document],
 ) -> String raise @failure.Failure {
-  let links = self.hyperlink_relations(sheet.id)
+  let candidate = { ..self, parts, }
+  let links = candidate.hyperlink_relations(sheet.id)
   if links
     .values()
     .find_first(r => {
@@ -30,7 +31,7 @@ fn Session::hyperlink_relation(
   let path = self.opc.names.get(path.to_lower()).unwrap_or(path)
   let markup = "<od:Relationship xmlns:od=\"http://schemas.openxmlformats.org/package/2006/relationships\" Id=\"\{id}\" Type=\"\{relationship_uri}hyperlink\" Target=\"\{escaped_attribute(target)}\" TargetMode=\"External\"/>"
   if self.opc.names.contains(path.to_lower()) || parts.contains(path) {
-    let document = self.part_xml(path)
+    let document = candidate.part_xml(path)
     let (candidate, edit) = document.edit_source([
       insertion(document.nodes()[0], markup),
     ])
@@ -157,8 +158,6 @@ fn Session::set_hyperlink(
     return self.query()
   }
   let tree = Tree::new(sheet.document)
-  let root = tree.root("worksheet")
-  let container = tree.one(root.id, "hyperlinks")
   let nodes = hyperlink_nodes(tree)
   let links = self.hyperlink_relations(id)
   let parts = self.parts.copy()
@@ -233,35 +232,7 @@ fn Session::set_hyperlink(
       )
     }
     if !additions.is_empty() {
-      if container is Some(parent) {
-        changes.push(insertion(parent, additions))
-      } else {
-        let markup = "<od:hyperlinks xmlns:od=\"\{spreadsheet_uri}\">\{additions}</od:hyperlinks>"
-        let next = tree.children
-          .get(root.id)
-          .unwrap_or([])
-          .iter()
-          .find_first(n => {
-            [
-              "printOptions", "pageMargins", "pageSetup", "headerFooter", "rowBreaks",
-              "colBreaks", "customProperties", "cellWatches", "ignoredErrors", "smartTags",
-              "drawing", "legacyDrawing", "legacyDrawingHF", "picture", "oleObjects",
-              "controls", "webPublishItems", "tableParts", "extLst",
-            ].contains(n.name)
-          })
-        changes.push(
-          if next is Some(n) {
-            {
-              node: root.id,
-              offset: n.start - root.start,
-              length: 0,
-              xml: markup,
-            }
-          } else {
-            insertion(root, markup)
-          },
-        )
-      }
+      changes.push(hyperlink_insertion(tree, additions))
     }
   }
   if changes.is_empty() {

@@ -32,6 +32,7 @@ pub(all) enum SheetEdit {
   DeleteColumns(Int, Int)
   InsertCells(String, String)
   DeleteCells(String, String)
+  MoveCells(String, String, String)
   Fill(String, String)
   Series(SeriesMode, String, String, String)
   Sort(String, SortSettings)
@@ -188,6 +189,8 @@ pub fn Session::edit_sheet(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   match change {
+    MoveCells(source_sheet, source, destination) =>
+      return self.move_cells(source_sheet, source, sheet, destination)
     GroupOutline(_, _, _, _)
     | CollapseOutline(_, _, _, _, _)
     | ClearOutline(_)
@@ -388,6 +391,7 @@ pub fn Session::edit_sheet(
     | DeleteColumns(_, _)
     | InsertCells(_, _)
     | DeleteCells(_, _)
+    | MoveCells(_, _, _)
     | Fill(_, _)
     | Series(_, _, _, _)
     | Sort(_, _)

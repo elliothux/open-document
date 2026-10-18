@@ -1,4 +1,5 @@
 import { Connection } from "./connection.js";
+import { resetCellClipboard } from "./spreadsheet-clipboard.js";
 export type {
   CopiedCell,
   CopiedCells,
@@ -255,6 +256,7 @@ export class XlsxClient {
     await this.connection.request({ operation: "font", bytes, identity });
   }
   async create(budget: Budget): Promise<XlsxQuery> {
+    resetCellClipboard(this);
     return xlsxQuery(
       await this.connection.request({ operation: "createXlsx", budget }),
     );
@@ -271,6 +273,7 @@ export class XlsxClient {
       bytes.length > Math.min(budget.fileBytes, budget.retainedBytes, 4194304)
     )
       throw new Error("Delimited input exceeds budget");
+    resetCellClipboard(this);
     return xlsxQuery(
       await this.connection.request({
         operation: "importXlsxDelimited",
@@ -292,6 +295,7 @@ export class XlsxClient {
     return bytes;
   }
   async openXlsx(bytes: Uint8Array, budget: Budget): Promise<XlsxQuery> {
+    resetCellClipboard(this);
     return xlsxQuery(
       await this.connection.request({ operation: "openXlsx", bytes, budget }),
     );

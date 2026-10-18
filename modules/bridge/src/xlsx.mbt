@@ -493,6 +493,12 @@ fn Foundation::xlsx_operation(
             field_string(change, "range"),
             field_string(change, "direction"),
           )
+        "moveCells" =>
+          @xlsx.MoveCells(
+            field_string(change, "sourceSheet"),
+            field_string(change, "source"),
+            field_string(change, "destination"),
+          )
         "visibility" => @xlsx.Visibility(field_string(change, "state"))
         "rename" => @xlsx.Rename(field_string(change, "name"))
         "rowHeight" =>

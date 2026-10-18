@@ -88,6 +88,12 @@ export type XlsxSheetEdit =
     }
   | { action: "insertCells"; range: string; direction: "down" | "right" }
   | { action: "deleteCells"; range: string; direction: "up" | "left" }
+  | {
+      action: "moveCells";
+      sourceSheet: string;
+      source: string;
+      destination: string;
+    }
   | ({ action: "pageSetup" } & XlsxPrintSetup)
   | ({ action: "printRange" } & XlsxPrintRange)
   | ({ action: "headerFooter" } & XlsxHeaderFooter)
@@ -135,6 +141,22 @@ export function checkXlsxSheetEdit(value: unknown): void {
     return;
   }
   const change = record(value);
+  if (change.action === "moveCells") {
+    const fields = ["action", "sourceSheet", "source", "destination"];
+    if (
+      Object.keys(change).length !== fields.length ||
+      Object.keys(change).some((key) => !fields.includes(key)) ||
+      typeof change.sourceSheet !== "string" ||
+      !change.sourceSheet ||
+      change.sourceSheet.length > 1024 ||
+      ![change.source, change.destination].every(
+        (range) =>
+          typeof range === "string" && range.length > 0 && range.length <= 64,
+      )
+    )
+      throw new Error("Invalid cell move command");
+    return;
+  }
   if (
     change.action === "createTable" ||
     change.action === "resizeTable" ||

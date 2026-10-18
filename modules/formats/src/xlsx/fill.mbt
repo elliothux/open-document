@@ -3,6 +3,7 @@ fn Session::check_fill_resources(
   self : Session,
   sheet : Sheet,
   range : Range,
+  hyperlinks~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   let tree = Tree::new(sheet.document)
   let root = tree.root("worksheet")
@@ -29,7 +30,12 @@ fn Session::check_fill_resources(
     let rules = match node.name {
       "conditionalFormatting" => [node]
       "dataValidations" => tree.all(node.id, "dataValidation")
-      "hyperlinks" => tree.all(node.id, "hyperlink")
+      "hyperlinks" =>
+        if hyperlinks {
+          []
+        } else {
+          tree.all(node.id, "hyperlink")
+        }
       _ => []
     }
     for rule in rules {

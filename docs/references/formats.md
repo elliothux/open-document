@@ -1152,7 +1152,7 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 `XlsxSession/Client.editSheet(revision, sheet, { action: "note", cell, text, author? })` 和 `SpreadsheetEditor.editSheet(change, sheet?)` 创建、修改或删除便笺。`cell` 是单个 A1 地址，`text: null` 删除；新文字必须非空，最多 32767 UTF-16 单元，CRLF/CR 归一为 LF。新建须显式提供非空 `author`，最多 255 单元且不含控制字符；修改保留原作者。空文本便笺可读取和删除，显式文字修改继承首个源 run 的字符属性。SpreadsheetML 转义由核心统一编码，字面的 `_x0041_` 不会变成 `A`。
 
-默认面板复用 `EditorOptions.commentAuthor.name` 创建作者，未提供时仍可修改和删除已有便笺。应用前原生单元格草稿沿既有队列提交，值、公式、格式和计算结果保持。便笺输入以当前文档/工作表/单元格绑定；切换单元格更新输入，未应用的面板草稿不写入文档。显示文字与 VML 外观不进入单元格值、查找、CSV 或默认静态 PDF。面板继续提供便笺编辑；网格角标和悬停/选中提示见下段。
+默认面板复用 `EditorOptions.commentAuthor.name` 创建作者，未提供时仍可修改和删除已有便笺。应用前原生单元格草稿沿既有队列提交，值、公式、格式和计算结果保持。便笺输入以当前文档/工作表/单元格绑定；切换单元格更新输入，未应用的面板草稿不写入文档。同格单元格输入与保存保留尚未应用的便笺文字；绑定文字在布局阶段同步，避免挂载后的同步覆盖输入。显示文字与 VML 外观不进入单元格值、查找、CSV 或默认静态 PDF。面板继续提供便笺编辑；网格角标和悬停/选中提示见下段。
 
 网格使用 R0 绘制橙色逻辑右上角标，RTL 镜像到左侧，尺寸随缩放变化；空格和合并锚点也可显示。位置与裁剪由核心沿用行列尺寸、隐藏、冻结和合并几何。`XlsxViewport.notes` 返回可见 `{ address, author, text, rect }`，rect 使用 point 的已裁剪画布坐标；跨冻结窗格的合并格可有多个可见片段，源便笺不重复。一次最多 4096 个片段及 5 Mi 文字/作者单元，含最多四窗格重复。仅便笺的远端单元格扩展网格滚动范围，不扩展默认打印区域。未知便笺继续沿既有保护和诊断处理，不暴露部分记录。
 
@@ -1167,6 +1167,8 @@ Web 复用核心矩形显示悬停或选中便笺的作者与纯文字提示，�
 普通行/列排序复用已有稳定位置映射，便笺与所属格一起移动，空值格也参与；标题、隐藏轴和范围外便笺保留。核心同步 `ref` 与 VML Row/Column，正文、作者和弹框外观保持。四向填充、自动序列与收缩填充保留每格原有便笺，不复制源便笺或覆盖目标便笺。清除内容/格式保留便笺；全部清除删除选区内文字与对应 VML shape，包括只有便笺的空格，保留范围外便笺、空部件与作者。各操作与值/公式/格式共同提交一次有界历史，支持精确撤销与重开；未知资源继续原子保护。语义参考 [ONLYOFFICE sortComments](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/CellComment.js#L840-L863)、[自动填充](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L22180-L22690)及[清除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L16657-L16703)，实现复用同一便笺源编辑器与已有操作事务。
 
 合并复用 [ONLYOFFICE mergeComments](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/CellComment.js#L1395-L1431) 的源顺序选择：先取范围内首条便笺，后续便笺的行不更大且列更小时替换保留项。保留项移到合并左上角，其余文字与 VML shape 删除；单条便笺移动不产生便笺损失。`discardedNotes` 返回额外便笺数，范围 0–4095，沿现有 `discard` 显式确认；非锚点值/公式仍独立计入 `discarded`。保留项的正文、作者、shape 身份及框外观不变，范围外便笺保持。便笺、合并几何、单元格与派生样式共用一次精确历史；合并后修改便笺使用左上角身份。取消合并保留现有便笺和资源，不恢复已确认丢弃的便笺；撤销可精确恢复它们。未知/共享资源、无法替换的 VML 坐标或预算失败继续原子保护。
+
+矩形剪切移动复用[单元格剪切移动](#单元格剪切移动)事务。同表便笺沿原地址映射，跨表保留完整富文本、作者及已有 guid，并在目标作者表中匹配或追加作者。VML 框及所用形状类型带原外观和命名空间迁入，分配目标内未占用的身份，同步 `shapeId`、`ref` 与 Row/Column；原 Anchor、偏移和外观保持。目标缺少 comments/VML 时创建独立部件与关系，只有文字资源的导入便笺按已有创建规则补齐框。目标范围内的旧便笺被覆盖，范围外原节点保持；源端保留空部件、作者与关系。已移入的便笺可继续修改、删除或移回。身份冲突、无法匹配的原 `shapeId`、未知/共享资源及预算失败整体拒绝，文字和框源的迁移合计最多 2 Mi UTF-16 单元，其他便笺及事务预算继续生效。归属依据 [ONLYOFFICE moveRangeComments](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/CellComment.js#L562-L586)，实现归 [`move-notes.mbt`](../../modules/formats/src/xlsx/move-notes.mbt)。
 
 部件及锚点格式参考 [ONLYOFFICE VmlDrawing.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/VmlDrawing.cpp#L295-L410)。实现独立使用已有 XML 编辑、单元格地址、关系及历史事务，归 [`notes-read.mbt`](../../modules/formats/src/xlsx/notes-read.mbt)、[`notes-vml.mbt`](../../modules/formats/src/xlsx/notes-vml.mbt)、[`notes-create.mbt`](../../modules/formats/src/xlsx/notes-create.mbt)、[`notes-edit.mbt`](../../modules/formats/src/xlsx/notes-edit.mbt)及 [`xlsx-format.tsx`](../../packages/ui/src/xlsx-format.tsx)。线程回复/解决、便笺外观编辑和其余资源变换仍归 [P11](../p11-xlsx-core.md)。
 
@@ -1489,11 +1491,23 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `transpose` 交换行列、合并范围和四边边框。公式先绕复制矩形原点交换引用坐标，再执行粘贴位移；绝对标记沿原引用保留，整行/列引用交换轴。引用越界按既有规则写为 `#REF!`。行为依据 [ONLYOFFICE 选择性粘贴模式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/clipboard.js#L186-L247)、[转置后应用位移](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L29818-L29881)和[引用坐标翻转](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L11010-L11034)。
 
-格式与新样式部件、内容、合并、依赖、缓存、验证、自动尺寸和选择共用一次候选事务。已有共享公式按必要范围展开；只贴格式保留目标文字源。无变化只更新选择，失败保留文档与历史。支持完整包含的普通合并格；相交但不完整的目标合并拒绝。源与目标继续复用既有填充资源保护，富文本、相交规则/链接、原生表/透视和未知工作表扩展保持显式保护。已有便笺保持原坐标，不随片段复制。日期系统不同时显式拒绝，剪切移动及规则资源片段仍待实现。
+格式与新样式部件、内容、合并、依赖、缓存、验证、自动尺寸和选择共用一次候选事务。已有共享公式按必要范围展开；只贴格式保留目标文字源。无变化只更新选择，失败保留文档与历史。支持完整包含的普通合并格；相交但不完整的目标合并拒绝。源与目标继续复用既有填充资源保护，富文本、相交规则/链接、原生表/透视和未知工作表扩展保持显式保护。已有便笺保持原坐标，不随复制片段传递。日期系统不同时显式拒绝，规则资源片段继续实施。
 
 `SpreadsheetEditor.copyCells()` 先提交原生草稿，再将片段及普通 TSV 写入系统剪贴板。`pasteCells(mode = "all", transpose = false)` 读取相同载荷，沿队列检查字体、revision 和生命周期后提交；默认面板提供四种模式和转置开关。载荷类型为 Chromium 的 `web application/x-open-document-cells`。普通原生粘贴及 `paste(text)` 保持上述 TSV 语义；普通 `copy()` 也先提交已接受草稿。读取/写入权限失败保留源，晚到读取不能修改已关闭的编辑器。
 
 片段最多 4096 格、1024 个合并范围、1048576 UTF-16 单元的值/公式文字；每格文字最多 32767 单元，公式最多 8192 单元。Web 写入的 JSON 最多 4194304 UTF-16 单元，读取最多 8 MiB。Wasm、Worker 和核心分别校验载荷，现有样式、历史、源、字体及输出预算继续生效。实现归 [`cell-fragment.mbt`](../../modules/formats/src/xlsx/cell-fragment.mbt)、[`clipboard-transpose.mbt`](../../modules/formats/src/xlsx/clipboard-transpose.mbt)及 [`spreadsheet-clipboard.ts`](../../packages/web/src/spreadsheet-clipboard.ts)。
+
+### 单元格剪切移动
+
+`editSheet(revision, targetSheet, { action: "moveCells", sourceSheet, source, destination })` 在同一工作簿内移动普通矩形。目标从 `destination` 左上角开始，大小取源范围。完整单个合并格按实际跨度移动；部分合并相交拒绝。源与目标可重叠，目标覆盖和源清除读取同一个原始快照。内容、直接格式、完整合并、链接及便笺一起移动；行列尺寸及行列格式保留。便笺的作者、富文本、VML 及跨表归属归[单元格便笺](#单元格便笺)。多表公式、名称、内部链接的目标、计算缓存、自动尺寸与选择共用一次精确历史。未变化的公式保留原表达式。
+
+完整落在源范围内的引用随格移动，包含绝对引用；部分相交的范围保持。移动到另一工作表时，原来指向源范围外的无表名引用和名称保留原表语义，不按复制规则偏移。依据 [ONLYOFFICE 移动事务与跨表公式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L9800-L9858)和[完整包含引用的移动规则](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L10155-L10227)。
+
+完整包含的普通外链与内链随所属格移动，保留提示文字、显示文字和命名空间；源选择须包含完整链接范围。目标链接只裁掉被覆盖的范围，范围外源与容器注释保留。跨表外链在目标表复用相同目标的已有关系，或分配未占用的关系身份；旧源关系保留。内链目标沿同一次引用变换，重叠移动也只变换一次。链接归属参考 [ONLYOFFICE 合并与链接移动](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L9543-L9609)。未知链接属性、混合内外目标、失效关系及不安全协议继续保护；打开外链仍须用户明确操作。
+
+`SpreadsheetEditor.copyCells(true)` 和默认“剪切单元格”按钮先写系统剪贴板，源格在粘贴成功前保留。剪切只携带显示值 TSV 和 `web application/x-open-document-cut` 的工作簿身份、源范围与 revision；核心在 `pasteCells("all", false)` 时校验并移动实际源内容，不要求先生成复制片段。网格原生剪切/粘贴复用该入口，草稿文字仍沿原生文字输入。消费后、源文档编辑后或重开工作簿后的旧载荷拒绝；跨工作簿、选择性粘贴及转置剪切也拒绝。普通 TSV 和复制片段沿原合同。
+
+移动最多 4096 格和 1024 个合并范围；工作簿源、公式及链接节点源合计最多 1 Mi UTF-16 单元，搬移与改写的单元格源合计最多 1 Mi 单元。每表最多 4096 个链接，单表生成的链接源最多 2 Mi 单元，全部变动仍受 4 MiB 历史及包输出预算约束。被保护的源、目标或受影响公式/链接拒绝。未知资源、原生表、透视及带规则/筛选/排序的工作簿保持保护，相对定义名称、跨表打印范围的归属转移继续实施。实现归 [`move-cells.mbt`](../../modules/formats/src/xlsx/move-cells.mbt)、[`move-reference.mbt`](../../modules/formats/src/xlsx/move-reference.mbt)、[`move-hyperlinks.mbt`](../../modules/formats/src/xlsx/move-hyperlinks.mbt)和 [`move-resources.mbt`](../../modules/formats/src/xlsx/move-resources.mbt)。
 
 ### 打印与资源边界
 

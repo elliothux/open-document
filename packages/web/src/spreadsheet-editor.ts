@@ -646,8 +646,8 @@ export class SpreadsheetEditor {
       ),
     );
   }
-  copyCells(): Promise<void> {
-    return this.read(() => copyCellData(this.client, this.state.revision));
+  copyCells(cut = false): Promise<void> {
+    return this.read(() => copyCellData(this.client, this.state, true, cut));
   }
   pasteCells(mode: XlsxPasteMode = "all", transpose = false): Promise<void> {
     return this.change(() =>
@@ -663,9 +663,7 @@ export class SpreadsheetEditor {
     );
   }
   copy(): Promise<void> {
-    return this.read(() =>
-      copyCellData(this.client, this.state.revision, false),
-    );
+    return this.read(() => copyCellData(this.client, this.state, false));
   }
   private history(redo: boolean): Promise<void> {
     return this.enqueue(async () => {

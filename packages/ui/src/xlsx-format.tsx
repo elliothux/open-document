@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import type { SpreadsheetEditor } from "@open-document/web/spreadsheet-editor";
 import {
   checkXlsxHyperlinkTarget,
@@ -173,7 +173,7 @@ function XlsxNote({ controller, state, editor, disabled }: Props) {
     query = editor.currentState,
     note = query.note;
   const [text, setText] = useState(note.text);
-  useEffect(() => setText(note.text), [note.text]);
+  useLayoutEffect(() => setText(note.text), [note.text]);
   const author = note.exists
     ? note.author
     : controller.options.commentAuthor?.name;

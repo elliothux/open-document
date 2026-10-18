@@ -26,6 +26,13 @@ export function XlsxClipboard({
       >
         {t.copyCells}
       </button>
+      <button
+        type="button"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => controller.run(() => editor.copyCells(true))}
+      >
+        {t.cutCells}
+      </button>
       <label>
         <input
           type="checkbox"

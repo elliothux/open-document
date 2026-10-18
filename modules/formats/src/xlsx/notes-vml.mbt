@@ -255,3 +255,87 @@ fn note_vml_document(
   let shapes = fragments.join("")
   "<xml xmlns:v=\"\{note_vml_uri}\" xmlns:o=\"\{note_office_uri}\" xmlns:x=\"\{note_excel_uri}\"><o:shapelayout v:ext=\"edit\"><o:idmap v:ext=\"edit\" data=\"1\"/></o:shapelayout><v:shapetype id=\"_x0000_t202\" coordsize=\"21600,21600\" o:spt=\"202\" path=\"m,l,21600r21600,l21600,xe\"><v:stroke joinstyle=\"miter\"/><v:path gradientshapeok=\"t\" o:connecttype=\"rect\"/></v:shapetype>\{shapes}</xml>"
 }
+
+///|
+fn moved_note_shape(
+  source : SheetNotes,
+  note : CellNote,
+  address : Address,
+  target : Tree,
+  ids : Map[String, Bool],
+  types : Map[String, String],
+) -> (String, Int) raise @failure.Failure {
+  let id = for i in 1025..<=21504 {
+    if !ids.contains("_x0000_s\{i}") {
+      break i
+    }
+  } nobreak {
+    @failure.reject("limit-exceeded", "Moved VML note identities exhausted")
+  }
+  ids["_x0000_s\{id}"] = true
+  guard source.vml is Some((_, tree, shapes)) else {
+    let kind = target.document
+      .nodes()
+      .iter()
+      .find_first(node => {
+        node.uri == note_vml_uri &&
+        node.name == "shapetype" &&
+        node.attribute("spt", uri=note_office_uri) == Some("202")
+      })
+      .unwrap()
+      .attribute("id")
+      .unwrap()
+    return (note_vml_shape(address, id, shape_type=kind), id)
+  }
+  let shape = shapes[note.address.name()]
+  let kind = shape.attribute("type").unwrap()[1:].to_owned()
+  let type_xml = StringBuilder()
+  let mapped = types
+    .get(kind)
+    .unwrap_or_else(() => {
+      let mapped = for i in 1..<=16384 {
+        let value = "odNoteType\{i}"
+        if !ids.contains(value) {
+          break value
+        }
+      } nobreak {
+        @failure.reject("limit-exceeded", "Moved VML note types exhausted")
+      }
+      ids[mapped] = true
+      types[kind] = mapped
+      let node = tree.document
+        .nodes()
+        .iter()
+        .find_first(node => {
+          node.uri == note_vml_uri &&
+          node.name == "shapetype" &&
+          node.attribute("id") == Some(kind)
+        })
+        .unwrap()
+      type_xml.write_string(
+        style_markup(
+          tree,
+          node,
+          changes=metadata_changes(node, [("id", mapped)]),
+        ),
+      )
+      mapped
+    })
+  let changes = metadata_changes(shape, [
+    ("id", "_x0000_s\{id}"),
+    ("type", "#" + mapped),
+  ])
+  let data = vml_child(tree, shape.id, note_excel_uri, "ClientData").unwrap()
+  for
+    (name, value) in [("Row", address.row - 1), ("Column", address.column - 1)] {
+    let node = vml_child(tree, data.id, note_excel_uri, name).unwrap()
+    changes.append(
+      axis_text_change(tree, node, value.to_string()).map(change => {
+        ..change,
+        node: shape.id,
+        offset: node.start - shape.start + change.offset,
+      }),
+    )
+  }
+  (type_xml.to_string() + style_markup(tree, shape, changes~), id)
+}

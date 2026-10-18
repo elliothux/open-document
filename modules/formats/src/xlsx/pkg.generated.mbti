@@ -332,6 +332,7 @@ pub(all) enum SheetEdit {
   DeleteColumns(Int, Int)
   InsertCells(String, String)
   DeleteCells(String, String)
+  MoveCells(String, String, String)
   Fill(String, String)
   Series(SeriesMode, String, String, String)
   Sort(String, SortSettings)

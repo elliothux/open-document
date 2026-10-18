@@ -174,25 +174,7 @@ fn Session::set_note(
       created,
       edits,
     )
-    let tree = Tree::new(sheet.document)
-    let root = tree.root("worksheet")
-    let markup = "<od:legacyDrawing xmlns:od=\"\{spreadsheet_uri}\" xmlns:odRel=\"\{relationship_uri[:relationship_uri.length()-1]}\" odRel:id=\"\{relation}\"/>"
-    let next = tree.children
-      .get(root.id)
-      .unwrap_or([])
-      .iter()
-      .find_first(n => {
-        [
-          "legacyDrawingHF", "picture", "oleObjects", "controls", "webPublishItems",
-          "tableParts", "extLst",
-        ].contains(n.name)
-      })
-    let change : @xml.SourceChange = if next is Some(n) {
-      { node: root.id, offset: n.start - root.start, length: 0, xml: markup, }
-    } else {
-      insertion(root, markup)
-    }
-    let (document, edit) = sheet.document.edit_source([change])
+    let (document, edit) = insert_note_vml(sheet.document, relation)
     sheet_document = document
     edits.push((id, edit))
   }
