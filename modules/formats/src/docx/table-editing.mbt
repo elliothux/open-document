@@ -74,9 +74,7 @@ pub fn Session::insert_table(
   }
   ignore(self.editable_page_section(tree))
   let flow = self.flow_from(original)
-  let width = ((flow.page.width - flow.page.left - flow.page.right) * 20)
-    .floor()
-    .to_int()
+  let width = (flow.columns.width(flow.page) * 20).floor().to_int()
   guard width / columns >= 240 else {
     @failure.reject(
       "invalid-operation", "Page content is too narrow for the requested columns",

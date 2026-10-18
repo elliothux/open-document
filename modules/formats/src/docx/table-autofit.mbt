@@ -138,7 +138,7 @@ fn Session::fit_table(
     @failure.reject("protected-content", "Table fitting requires a body table")
   }
   let flow = self.flow()
-  let available = flow.page.width - flow.page.left - flow.page.right
+  let available = flow.columns.width(flow.page)
   let current = grid.model.fit_widths(probe, profile, available)
   let changes : TableChanges = {
     items: [],

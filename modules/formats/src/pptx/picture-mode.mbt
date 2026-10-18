@@ -24,7 +24,12 @@ fn Session::set_image_mode(
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   if mode == "stretch" {
     let geometry = object.geometry.unwrap()
-    check_image_crop_bounds(geometry.width, geometry.height, object.crop)
+    check_image_crop_bounds(
+      geometry.width,
+      geometry.height,
+      object.crop,
+      insets=object.insets,
+    )
   }
   if (if object.tile is Some(_) { "tile" } else { "stretch" }) == mode {
     return self.query()

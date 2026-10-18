@@ -5,6 +5,7 @@ import type {
   DocxPageSettings,
   DocxPageSetup,
   DocxPageNumbering,
+  DocxColumns,
 } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
@@ -30,6 +31,11 @@ export function DocxPage({
     format: "decimal",
   });
   const [color, setColor] = useState("#ffffff");
+  const [columns, setColumns] = useState<DocxColumns>({
+    count: 1,
+    gap: 36,
+    separator: false,
+  });
   const [orientation, setOrientation] = useState<"portrait" | "landscape">(
     "portrait",
   );
@@ -38,6 +44,7 @@ export function DocxPage({
     setSettings(value);
     setDraft(value.page ?? undefined);
     setNumbering(value.numbering.value ?? { start: 1, format: "decimal" });
+    setColumns(value.columns.value ?? { count: 1, gap: 36, separator: false });
     setColor(`#${value.background.color ?? "ffffff"}`);
     setOrientation(
       value.page && value.page.width > value.page.height
@@ -63,6 +70,81 @@ export function DocxPage({
         {t.loadPageSetup}
       </button>
       {settings?.reason && <p>{settings.reason}</p>}
+      {settings && (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            controller.run(async () => {
+              await editor.setPageColumns(columns);
+              await load();
+            });
+          }}
+        >
+          <fieldset disabled={disabled || stale || !!settings.columns.reason}>
+            <legend>{t.pageColumns}</legend>
+            <label>
+              {t.columnCount}
+              <input
+                type="number"
+                min={1}
+                max={12}
+                step={1}
+                required
+                value={columns.count}
+                onChange={(event) =>
+                  setColumns({
+                    ...columns,
+                    count: event.currentTarget.valueAsNumber,
+                  })
+                }
+              />
+            </label>
+            <label>
+              {t.columnGap}
+              <input
+                type="number"
+                min={0}
+                max={14400}
+                step={0.05}
+                required
+                value={columns.gap}
+                onChange={(event) =>
+                  setColumns({
+                    ...columns,
+                    gap: event.currentTarget.valueAsNumber,
+                  })
+                }
+              />
+            </label>
+            <label>
+              <input
+                type="checkbox"
+                checked={columns.separator}
+                onChange={(event) =>
+                  setColumns({
+                    ...columns,
+                    separator: event.currentTarget.checked,
+                  })
+                }
+              />
+              {t.columnSeparator}
+            </label>
+            <button type="submit">{t.applyPageColumns}</button>
+            <button
+              type="button"
+              onClick={() =>
+                controller.run(async () => {
+                  await editor.setPageColumns(null);
+                  await load();
+                })
+              }
+            >
+              {t.resetPageColumns}
+            </button>
+          </fieldset>
+          {settings.columns.reason && <p>{settings.columns.reason}</p>}
+        </form>
+      )}
       {settings && (
         <form
           onSubmit={(event) => {

@@ -6,6 +6,7 @@ pub(all) enum ObjectEdit {
   ImageFill(Array[String], Bytes, String)
   ImageFillMode(String)
   ImageMode(String)
+  ImageInsets(Array[Double])
   ImageCrop(Double, Double, Double, Double)
   ImageOpacity(Double)
   Hyperlink(String, String)
@@ -277,6 +278,9 @@ pub fn Session::edit_objects(
   if change is ImageMode(mode) {
     return self.set_image_mode(mode)
   }
+  if change is ImageInsets(insets) {
+    return self.set_image_insets(insets)
+  }
   if change is ImageFill(objects, bytes, mode) {
     check_image_fill_mode(mode)
     guard objects == self.selection.objects else {
@@ -329,6 +333,7 @@ pub fn Session::edit_objects(
     | ImageFill(_, _, _)
     | ImageFillMode(_)
     | ImageMode(_)
+    | ImageInsets(_)
     | ImageCrop(_, _, _, _)
     | ImageOpacity(_)
     | Hyperlink(_, _)

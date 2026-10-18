@@ -33,6 +33,7 @@ fn Session::flow_from(
   let mut header_distance = 0.0
   let mut page = default_page_setup()
   let mut page_numbering = @layout.PageNumbering::new()
+  let mut columns = @layout.Columns::new()
   let body = tree.child(0, "body").unwrap()
   for id in tree.order {
     let node = tree.nodes[id]
@@ -40,6 +41,12 @@ fn Session::flow_from(
       continue
     }
     if node.name == "sectPr" {
+      columns = tree.page_columns(Some(id)) catch {
+        @failure.Failure(message~, ..) => {
+          diagnostics.push("unsupported-layout:columns:" + message)
+          @layout.Columns::new()
+        }
+      }
       page_numbering = tree.page_numbering(Some(id)) catch {
         @failure.Failure(message~, ..) => {
           diagnostics.push("unsupported-layout:page-numbering:" + message)
@@ -113,7 +120,7 @@ fn Session::flow_from(
             id,
             paragraphs.length(),
             diagnostics,
-            page.width - page.left - page.right,
+            columns.width(page),
             background~,
           ),
         )
@@ -156,6 +163,7 @@ fn Session::flow_from(
     pageBorders: page_borders,
     page,
     pageNumbering: page_numbering,
+    columns,
     paragraphs: paragraphs.map(p => numbered[p.id]),
     diagnostics,
     tables: tables.map(table => {

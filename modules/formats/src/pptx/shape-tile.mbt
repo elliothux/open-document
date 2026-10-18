@@ -119,7 +119,7 @@ fn Session::tile_sizes(
   let sizes : Map[String, (Int, Int)] = Map([])
   let mut count = 0
   let entries : Array[(String, ImageTile, Double, Double)] = []
-  if slide.background is Picture(key, _, _, Some(tile)) {
+  if slide.background is Picture(key, _, _, Some(tile), _) {
     entries.push((key, tile, width, height))
   }
   for object in slide.objects {
@@ -244,7 +244,12 @@ fn Session::set_image_fill_mode(
     }
     if mode == "stretch" {
       let geometry = object.geometry.unwrap()
-      check_image_crop_bounds(geometry.width, geometry.height, object.crop)
+      check_image_crop_bounds(
+        geometry.width,
+        geometry.height,
+        object.crop,
+        insets=object.insets,
+      )
     }
     if (if object.tile is Some(_) { "tile" } else { "stretch" }) == mode {
       continue

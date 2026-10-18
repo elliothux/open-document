@@ -1,4 +1,10 @@
 export const pageEn = {
+  pageColumns: "Page columns",
+  columnCount: "Column count",
+  columnGap: "Column gap (pt)",
+  columnSeparator: "Column separator",
+  applyPageColumns: "Apply page columns",
+  resetPageColumns: "Reset page columns",
   pageNumbering: "Page numbering",
   pageNumberStart: "Start at",
   pageNumberFormat: "Page number format",
@@ -8,6 +14,12 @@ export const pageEn = {
   inheritedPageNumberFormat: "Use section format",
 };
 export const pageZh = {
+  pageColumns: "页面分栏",
+  columnCount: "栏数",
+  columnGap: "栏间距（磅）",
+  columnSeparator: "栏间分隔线",
+  applyPageColumns: "应用分栏",
+  resetPageColumns: "重置分栏",
   pageNumbering: "页码编号",
   pageNumberStart: "起始页码",
   pageNumberFormat: "页码格式",

@@ -14,6 +14,10 @@ fn Pagination::body(
     Json::array(self.setups.map(page => page.to_json())),
     Json::array(self.pageSetups.map(page => page.to_json())),
     Json(flow.additiveSpacing),
+    Json(self.columns),
+    self.balance
+    .map(value => Json::array([Json(value.0), Json(value.1)]))
+    .unwrap_or(Json::null()),
     Json(cache.profile),
   ]).stringify()
   let previous = match probe.pagination {
@@ -64,7 +68,8 @@ fn Pagination::body(
         (self.pageSetups.is_empty() || now.page == before.page) &&
         self.page_at(now.page).to_json() == self.page_at(before.page).to_json() &&
         (
-          (now.page - before.page) % 2 == 0 ||
+          (now.page / self.columns.count - before.page / self.columns.count) % 2 ==
+          0 ||
           self.setups.is_empty() ||
           self.setups[1].to_json() == self.setups[2].to_json()
         ) {

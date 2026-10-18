@@ -2,7 +2,7 @@
 pub(all) enum BackgroundFill {
   Solid(String)
   Linear(String, String, Double, Bool)
-  Picture(String, Array[Double], Double, ImageTile?)
+  Picture(String, Array[Double], Double, ImageTile?, Array[Double])
 } derive(Eq, Debug)
 
 ///|
@@ -17,11 +17,12 @@ pub extend BackgroundFill with ToJson::{to_json}
 ///|
 pub impl ToJson for BackgroundFill with fn to_json(self) {
   match self {
-    Picture(key, crop, opacity, tile) =>
+    Picture(key, crop, opacity, tile, insets) =>
       {
         "kind": "image",
         "key": key,
         "crop": Json(crop),
+        "insets": Json(insets),
         "opacity": opacity,
         "mode": if tile is Some(_) {
           "tile"
@@ -46,7 +47,7 @@ fn BackgroundFill::normalized(
   self : BackgroundFill,
 ) -> BackgroundFill raise @failure.Failure {
   let colors = match self {
-    Picture(_, _, _, _) =>
+    Picture(_, _, _, _, _) =>
       @failure.reject("invalid-operation", "Use the background image operation")
     Solid(color) => [color]
     Linear(start, end, _, _) => [start, end]
@@ -59,7 +60,7 @@ fn BackgroundFill::normalized(
     )
   }
   match self {
-    Picture(_, _, _, _) => abort("Image background already rejected")
+    Picture(_, _, _, _, _) => abort("Image background already rejected")
     Solid(color) => Solid(color.to_lower())
     Linear(start, end, angle, scaled) => {
       guard !angle.is_nan() && !angle.is_inf() && angle >= 0 && angle <= 360 else {
@@ -198,13 +199,13 @@ fn read_background_fill(
     if image.node.id != properties.node.id {
       background_image_properties(properties, image)
     }
-    let (key, crop, opacity, tile) = read_shape_image(
+    let (key, crop, opacity, tile, insets) = read_shape_image(
       opc,
       image,
       parts,
       background=true,
     )
-    return Picture(key, crop, opacity, tile)
+    return Picture(key, crop, opacity, tile, insets)
   }
   if properties.node.name == "gradFill" {
     let (start, end, angle, scaled) = linear_background_source(properties)
@@ -244,7 +245,7 @@ fn read_background_fill(
 ///|
 fn BackgroundFill::markup(self : BackgroundFill) -> String {
   match self {
-    Picture(_, _, _, _) => abort("Image backgrounds require a relationship")
+    Picture(_, _, _, _, _) => abort("Image backgrounds require a relationship")
     Solid(color) => paint_markup(Some(color))
     Linear(start, end, angle, scaled) =>
       "<a:gradFill xmlns:a=\"\{drawing_uri}\"><a:gsLst><a:gs pos=\"0\"><a:srgbClr val=\"\{start}\"/></a:gs><a:gs pos=\"100000\"><a:srgbClr val=\"\{end}\"/></a:gs></a:gsLst><a:lin ang=\"\{(angle*60000).round().to_int()}\" scaled=\"\{if scaled {"1"} else {"0"}}\"/></a:gradFill>"
@@ -258,7 +259,7 @@ fn BackgroundFill::paint(
   height : Double,
   tile_sizes~ : Map[String, (Int, Int)] = Map([]),
 ) -> Array[@layout.PositionedPrimitive] raise @failure.Failure {
-  if self is Picture(key, crop, opacity, tile) {
+  if self is Picture(key, crop, opacity, tile, insets) {
     let result : Array[@layout.PositionedPrimitive] = [
       Rectangle({ x: 0, y: 0, width, height, color: "ffffff", }),
       Clip({ x: 0, y: 0, width, height, }),
@@ -266,14 +267,7 @@ fn BackgroundFill::paint(
     if tile is Some(tile) {
       result.append(tile.paint(key, opacity, width, height, tile_sizes[key]))
     } else {
-      let w = width / (1 - crop[0] - crop[2])
-      let h = height / (1 - crop[1] - crop[3])
-      result.push(
-        Image(
-          { key, x: -crop[0] * w, y: -crop[1] * h, width: w, height: h, },
-          opacity,
-        ),
-      )
+      result.append(stretched_image(key, width, height, crop, insets, opacity))
     }
     result.push(Restore)
     return result

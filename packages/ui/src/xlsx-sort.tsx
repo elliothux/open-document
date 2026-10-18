@@ -3,6 +3,7 @@ import type { SpreadsheetEditor } from "@open-document/web/spreadsheet-editor";
 import type { XlsxSortKey } from "@open-document/web/xlsx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { selectedXlsxTable } from "./xlsx-tables.js";
 
 export function XlsxSort({
   editor,
@@ -17,37 +18,7 @@ export function XlsxSort({
 }) {
   const t = messages(state.locale),
     query = editor.currentState;
-  const native = query.tables
-    .map((table) => {
-      const points = table.range.split(":").map((text) => {
-        const match = /^([A-Z]+)([0-9]+)$/.exec(text)!;
-        return {
-          row: Number(match[2]),
-          column: Array.from(match[1]!).reduce(
-            (column, letter) => column * 26 + letter.charCodeAt(0) - 64,
-            0,
-          ),
-        };
-      });
-      const first = points[0]!,
-        last = points[1] ?? first;
-      return {
-        table,
-        range: {
-          top: first.row,
-          bottom: last.row,
-          left: first.column,
-          right: last.column,
-        },
-      };
-    })
-    .find(
-      ({ range }) =>
-        range.top <= query.selection.range.top &&
-        range.bottom >= query.selection.range.bottom &&
-        range.left <= query.selection.range.left &&
-        range.right >= query.selection.range.right,
-    );
+  const native = selectedXlsxTable(query);
   const range = native?.range ?? query.selection.range;
   const [rows, setRows] = useState(true),
     [header, setHeader] = useState(false),

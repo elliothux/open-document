@@ -169,11 +169,7 @@ fn Session::check_table_layout(
     )
   }
   if probe is Some(probe) {
-    let fitted = model.fit_widths(
-      probe,
-      profile,
-      flow.page.width - flow.page.left - flow.page.right,
-    )
+    let fitted = model.fit_widths(probe, profile, flow.columns.width(flow.page))
     self.check_margin_layout({ ..fitted, autoFit: false, })
     ignore(
       @layout.paginate(

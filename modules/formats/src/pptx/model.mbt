@@ -93,6 +93,7 @@ priv struct Object {
   image : String?
   tile : ImageTile?
   crop : Array[Double]
+  insets : Array[Double]
   opacity : Double
   paragraphs : Array[TextParagraph]
   body : Body

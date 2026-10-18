@@ -3,6 +3,7 @@ import type { SpreadsheetEditor } from "@open-document/web/spreadsheet-editor";
 import type { XlsxDuplicates } from "@open-document/web/xlsx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { selectedXlsxTable } from "./xlsx-tables.js";
 
 export function XlsxDuplicates({
   editor,
@@ -18,10 +19,12 @@ export function XlsxDuplicates({
   const t = messages(state.locale),
     query = editor.currentState,
     snapshot = editor.getSnapshot(),
-    range = query.selection.range;
+    native = selectedXlsxTable(query),
+    range = native?.range ?? query.selection.range,
+    address = native?.table.range ?? query.selection.address;
   const bounded =
     (range.bottom - range.top + 1) * (range.right - range.left + 1) <= 4096;
-  const [header, setHeader] = useState(false);
+  const [header, setHeader] = useState(native?.table.headerRow ?? false);
   const [columns, setColumns] = useState(() =>
     bounded
       ? Array.from(
@@ -38,25 +41,27 @@ export function XlsxDuplicates({
     snapshot.paused ||
     snapshot.stopped ||
     !!query.readOnlyReason ||
+    !!native?.table.readOnlyReason ||
     !!query.sheets.find((s) => s.id === query.sheet)?.protected;
   const ready =
     preview &&
     preview.revision === query.revision &&
     preview.sheet === query.sheet &&
-    preview.range === query.selection.address &&
+    preview.range === address &&
     preview.header === header &&
     preview.columns.length === columns.length &&
     preview.columns.every((column, i) => column === columns[i]);
   return (
     <fieldset disabled={blocked}>
       <legend>{t.removeDuplicates}</legend>
-      <p>{query.selection.address}</p>
+      <p>{address}</p>
       <p>{t.duplicateNotice}</p>
       {!bounded && <p>{t.duplicateLimit}</p>}
       <label>
         <input
           type="checkbox"
           checked={header}
+          disabled={!!native}
           onChange={(event) => {
             setHeader(event.currentTarget.checked);
             setPreview(undefined);
@@ -93,7 +98,7 @@ export function XlsxDuplicates({
           controller.run(async () =>
             setPreview(
               await editor.duplicates({
-                range: query.selection.address,
+                range: address,
                 header,
                 columns,
               }),

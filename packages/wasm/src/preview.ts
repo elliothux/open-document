@@ -26,6 +26,7 @@ export interface TextStyle {
 }
 
 export interface DocxFlow {
+  columns: DocxColumns;
   pageNumbering: { start: number; format: string };
   pageBorders: DocxPageBorders;
   background: string;
@@ -173,6 +174,7 @@ function diagnostics(value: unknown): void {
 
 export function docxFlow(value: unknown): DocxFlow {
   const flow = fields(value, ["revision", "headerDistance", "footerDistance"]);
+  checkDocxColumns(fields(flow.columns, ["count", "gap"]));
   const numbering = fields(flow.pageNumbering, ["start"], ["format"]);
   if (
     !Number.isInteger(numbering.start) ||
@@ -498,3 +500,4 @@ export function pageLayout(value: unknown): PageLayout {
   }
   return value as PageLayout;
 }
+import { checkDocxColumns, type DocxColumns } from "./docx-columns.js";

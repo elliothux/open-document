@@ -109,17 +109,12 @@ fn WordTree::diagnose_properties(
           attribute.uri == word_uri && ["w", "type"].contains(attribute.name)
         })
       "cols" =>
-        self.children[child].is_empty() &&
-        feature.attribute("num", uri=word_uri).unwrap_or("1") == "1" &&
-        ["1", "true", "on"].contains(
-          feature.attribute("equalWidth", uri=word_uri).unwrap_or("1"),
-        ) &&
-        feature.attributes
-        .iter()
-        .all(attribute => {
-          attribute.uri == word_uri &&
-          ["num", "equalWidth", "space", "sep"].contains(attribute.name)
-        })
+        try {
+          ignore(self.page_columns(Some(id)))
+          true
+        } catch {
+          @failure.Failure(..) => false
+        }
       "docGrid" =>
         self.children[child].is_empty() &&
         feature.attribute("type", uri=word_uri).unwrap_or("default") ==

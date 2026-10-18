@@ -8,6 +8,7 @@ pub(all) enum SlideEdit {
   Background(BackgroundFill?)
   BackgroundImage(Bytes, String)
   BackgroundImageFormat(String, Array[Double], Double)
+  BackgroundImageInsets(Array[Double])
   ThemeColor(String, String)
   ThemeFont(String, String, String)
   ApplyLayout(String)
@@ -243,6 +244,8 @@ pub fn Session::edit_slides(
       return self.write_image(bytes, None, background=Some(index), mode~)
     BackgroundImageFormat(mode, crop, opacity) =>
       return self.set_background_image_format(index, mode, crop, opacity)
+    BackgroundImageInsets(insets) =>
+      return self.set_background_image_insets(index, insets)
     ThemeColor(slot, value) => return self.set_theme_color(slot, value)
     ThemeFont(kind, script, font) => {
       guard probe is Some(probe) else {

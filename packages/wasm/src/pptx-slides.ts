@@ -1,4 +1,5 @@
 import { record } from "./validation.js";
+import { imageInsets } from "./pptx-objects.js";
 import {
   checkPptxFooterContent,
   type PptxFooterContent,
@@ -25,6 +26,7 @@ export type PptxBackground =
       kind: "image";
       key: string;
       crop: [number, number, number, number];
+      insets: [number, number, number, number];
       opacity: number;
       mode: "stretch" | "tile";
     };
@@ -36,13 +38,15 @@ export function checkPptxBackground(value: unknown): void {
     return;
   }
   checkBackgroundImageFormat(fill);
+  imageInsets(fill.insets);
   if (
     typeof fill.key !== "string" ||
     !fill.key ||
     fill.key.length > 256 ||
     !fill.key.isWellFormed() ||
     Object.keys(fill).some(
-      (key) => !["kind", "key", "crop", "opacity", "mode"].includes(key),
+      (key) =>
+        !["kind", "key", "crop", "insets", "opacity", "mode"].includes(key),
     )
   )
     throw new Error("Invalid picture background");
@@ -129,6 +133,10 @@ export type PptxSlideEdit =
   | { action: "background"; value: PptxBackgroundFill | null }
   | { action: "backgroundImage"; bytes: Uint8Array; mode: "stretch" | "tile" }
   | {
+      action: "backgroundImageInsets";
+      insets: [number, number, number, number];
+    }
+  | {
       action: "backgroundImageFormat";
       mode: "stretch" | "tile";
       crop: [number, number, number, number];
@@ -138,6 +146,15 @@ export type PptxSlideEdit =
 
 export function checkPptxSlideEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "backgroundImageInsets") {
+    imageInsets(change.insets);
+    if (
+      Object.keys(change).length !== 2 ||
+      Object.keys(change).some((key) => !["action", "insets"].includes(key))
+    )
+      throw new Error("Invalid background image destination edit");
+    return;
+  }
   if (change.action === "firstSlideNumber") {
     if (
       typeof change.number !== "number" ||

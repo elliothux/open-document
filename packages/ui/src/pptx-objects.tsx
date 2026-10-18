@@ -6,7 +6,7 @@ import { messages } from "./messages.js";
 import { PptxPaint } from "./pptx-paint.js";
 import { PptxShapeAdjustments } from "./pptx-shape-adjustments.js";
 import { PptxTextFrame } from "./pptx-text-frame.js";
-import { PptxPicture } from "./pptx-picture.js";
+import { PptxPicture, ImageInsetsForm } from "./pptx-picture.js";
 import { PptxFormat, PptxParagraph } from "./pptx-format.js";
 
 type Insert = Extract<PptxObjectEdit, { action: "insert" }>;
@@ -181,6 +181,25 @@ export function PptxObjects({
         state={state}
         editor={editor}
         disabled={disabled || !!query.readOnlyReason}
+      />
+      <ImageInsetsForm
+        key={`image-insets:${state.document?.documentId}:${query.selection.objects.join(",")}`}
+        controller={controller}
+        state={state}
+        values={selected?.imageInsets ?? [0, 0, 0, 0]}
+        reason={
+          query.objects.find(
+            (object) =>
+              query.selection.objects.includes(object.id) &&
+              object.imageInsetsReason,
+          )?.imageInsetsReason ?? ""
+        }
+        disabled={
+          disabled || !objectMode || !selected || !!query.readOnlyReason
+        }
+        onApply={(insets) =>
+          editor.editObjects({ action: "imageInsets", insets })
+        }
       />
       <button
         type="button"

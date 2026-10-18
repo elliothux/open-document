@@ -1,4 +1,10 @@
 export const imageEn = {
+  imageInsets: "Image destination insets",
+  imageInsetLeft: "Image left inset (%)",
+  imageInsetTop: "Image top inset (%)",
+  imageInsetRight: "Image right inset (%)",
+  imageInsetBottom: "Image bottom inset (%)",
+  resetImageInsets: "Reset image insets",
   pictureMode: "Picture mode",
   slideBackgroundPicture: "Slide background picture",
   backgroundImageTargetChanged:
@@ -13,6 +19,12 @@ export const imageEn = {
 };
 
 export const imageZh = {
+  imageInsets: "图片目标内缩",
+  imageInsetLeft: "图片左侧内缩（%）",
+  imageInsetTop: "图片顶部内缩（%）",
+  imageInsetRight: "图片右侧内缩（%）",
+  imageInsetBottom: "图片底部内缩（%）",
+  resetImageInsets: "重置图片内缩",
   pictureMode: "图片模式",
   slideBackgroundPicture: "幻灯片背景图片",
   backgroundImageTargetChanged: "读取图片期间目标幻灯片已改变",

@@ -350,8 +350,17 @@ fn read_object(
   let mut crop = paint.13.map(value => value.1).unwrap_or([0.0, 0.0, 0.0, 0.0])
   let mut opacity = paint.13.map(value => value.2).unwrap_or(1.0)
   let mut tile = paint.13.bind(value => value.3)
+  let mut insets = paint.13
+    .map(value => value.4)
+    .unwrap_or([0.0, 0.0, 0.0, 0.0])
   if kind == "image" &&
     source.child("blipFill", uri=presentation_uri) is Some(blip_fill) {
+    insets = read_image_insets(blip_fill) catch {
+      @failure.Failure(message~, ..) => {
+        diagnostic = message
+        [0, 0, 0, 0]
+      }
+    }
     if blip_fill.child("blip") is Some(blip) {
       let embed = blip.node
         .attribute("embed", uri=relationship_uri)
@@ -384,13 +393,14 @@ fn read_object(
     }
     if blip_fill.child("tile") is Some(_) {
       try {
-        let (key, source_crop, source_opacity, source_tile) = read_shape_image(
+        let (key, source_crop, source_opacity, source_tile, source_insets) = read_shape_image(
           opc, blip_fill, parts,
         )
         image = Some(key)
         crop = source_crop
         opacity = source_opacity
         tile = source_tile
+        insets = source_insets
       } catch {
         @failure.Failure(code="unsupported-style", message~, ..) =>
           diagnostic = message
@@ -401,14 +411,10 @@ fn read_object(
   if geometry is None {
     diagnostic = "Object bounds cannot be resolved"
   }
-  if image is Some(_) &&
-    tile is None &&
-    geometry is Some(g) &&
-    (
-      g.width / (1 - crop[0] - crop[2]) > 1000000000.0 ||
-      g.height / (1 - crop[1] - crop[3]) > 1000000000.0
-    ) {
-    diagnostic = "Cropped image exceeds drawing bounds"
+  if image is Some(_) && tile is None && geometry is Some(g) {
+    check_image_crop_bounds(g.width, g.height, crop, insets~) catch {
+      @failure.Failure(message~, ..) => diagnostic = message
+    }
   }
   if !diagnostic.is_empty() {
     read_only = diagnostic
@@ -456,6 +462,7 @@ fn read_object(
     image,
     tile,
     crop,
+    insets,
     opacity,
     paragraphs,
     body,

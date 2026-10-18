@@ -3,7 +3,7 @@ fn shape_image_source(
   fill : Ref,
   background~ : Bool = false,
   implicit_stretch~ : Bool = false,
-) -> (String, Array[Double], Double, ImageTile?) raise @failure.Failure {
+) -> (String, Array[Double], Double, ImageTile?, Array[Double]) raise @failure.Failure {
   try {
     guard fill.node.attributes.all(a => {
         a.uri.is_empty() &&
@@ -62,26 +62,7 @@ fn shape_image_source(
       )
     }
     let tile = fill.child("tile").map(read_image_tile)
-    if fill.child("stretch") is Some(stretch) {
-      let rectangles = stretch.tree.children.get(stretch.node.id).unwrap_or([])
-      guard stretch.node.attributes.is_empty() &&
-        rectangles.length() <= 1 &&
-        rectangles.all(n => {
-          n.uri == drawing_uri &&
-          n.name == "fillRect" &&
-          n.text.trim().is_empty() &&
-          n.attributes.all(a => {
-            a.uri.is_empty() &&
-            ["l", "t", "r", "b"].contains(a.name) &&
-            a.value == "0"
-          }) &&
-          stretch.tree.children.get(n.id).unwrap_or([]).is_empty()
-        }) else {
-        @failure.reject(
-          "unsupported-style", "Inset image fill destinations are protected",
-        )
-      }
-    }
+    let insets = read_image_insets(fill)
     let crop = if fill.child("srcRect") is Some(rect) {
       guard rect.node.attributes.all(a => {
           a.uri.is_empty() && ["l", "t", "r", "b"].contains(a.name)
@@ -102,7 +83,7 @@ fn shape_image_source(
         "unsupported-style", "Image fill crop must retain positive area",
       )
     }
-    (embed, crop, image_opacity(blip), tile)
+    (embed, crop, image_opacity(blip), tile, insets)
   } catch {
     @failure.Failure(code="malformed-pptx", message~, ..) =>
       @failure.reject("unsupported-style", message)
@@ -116,8 +97,11 @@ fn read_shape_image(
   fill : Ref,
   parts : Map[String, @xml.Document],
   background~ : Bool = false,
-) -> (String, Array[Double], Double, ImageTile?) raise @failure.Failure {
-  let (embed, crop, opacity, tile) = shape_image_source(fill, background~)
+) -> (String, Array[Double], Double, ImageTile?, Array[Double]) raise @failure.Failure {
+  let (embed, crop, opacity, tile, insets) = shape_image_source(
+    fill,
+    background~,
+  )
   let target = image_target(opc, fill.tree.part, embed, parts)
   guard target is Some(key) &&
     [Some("image/png"), Some("image/jpeg")].contains(
@@ -127,7 +111,7 @@ fn read_shape_image(
       "unsupported-style", "Unsupported or external shape image fill",
     )
   }
-  (key, crop, opacity, tile)
+  (key, crop, opacity, tile, insets)
 }
 
 ///|
@@ -168,6 +152,7 @@ fn image_fill_markup(
   opacity : Double,
   crop : Array[Double],
   tile : ImageTile?,
+  insets~ : Array[Double] = [0, 0, 0, 0],
 ) -> String raise @failure.Failure {
   let alpha = if opacity == 1 {
     ""
@@ -181,7 +166,13 @@ fn image_fill_markup(
   }
   let mode = tile
     .map(t => t.markup())
-    .unwrap_or("<a:stretch><a:fillRect/></a:stretch>")
+    .unwrap_or(
+      if insets.all(value => value == 0) {
+        "<a:stretch><a:fillRect/></a:stretch>"
+      } else {
+        "<a:stretch>\{image_insets_markup(insets)}</a:stretch>"
+      },
+    )
   "<a:blipFill xmlns:a=\"\{drawing_uri}\" xmlns:r=\"\{relationship_uri}\"><a:blip r:embed=\"\{xml_attribute(link)}\">\{alpha}</a:blip>\{rect}\{mode}</a:blipFill>"
 }
 
@@ -203,20 +194,16 @@ fn Object::has_fill(self : Object) -> Bool {
 }
 
 ///|
-fn Object::image_primitive(
+fn Object::image_primitives(
   self : Object,
   geometry : Geometry,
-) -> @layout.PositionedPrimitive {
-  let width = geometry.width / (1 - self.crop[0] - self.crop[2])
-  let height = geometry.height / (1 - self.crop[1] - self.crop[3])
-  Image(
-    {
-      key: self.image.unwrap(),
-      x: -self.crop[0] * width,
-      y: -self.crop[1] * height,
-      width,
-      height,
-    },
+) -> Array[@layout.PositionedPrimitive] {
+  stretched_image(
+    self.image.unwrap(),
+    geometry.width,
+    geometry.height,
+    self.crop,
+    self.insets,
     self.opacity,
   )
 }

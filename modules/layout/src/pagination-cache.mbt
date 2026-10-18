@@ -89,7 +89,8 @@ fn Pagination::append_tail(
   let end = old.positions.last().unwrap()
   let count = self.count + end.count - position.count
   guard count <= 32768 &&
-    self.pages.length() + old.pages.length() - position.page - 1 <= 1024 else {
+    self.pages.length() + old.pages.length() - position.page - 1 <=
+    1024 * self.columns.count else {
     @failure.reject(
       "limit-exceeded", "Reused layout exceeds page or line budget",
     )

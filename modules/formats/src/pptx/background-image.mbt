@@ -52,7 +52,7 @@ fn Session::set_background_image_format(
   let reason = self.background_reason(slide)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let background = slide.background
-  guard background is Picture(key, _, _, _) else {
+  guard background is Picture(key, _, _, _, _) else {
     @failure.reject(
       "invalid-operation", "Set a picture background before changing its format",
     )
@@ -67,8 +67,33 @@ fn Session::set_background_image_format(
 }
 
 ///|
+fn Session::set_background_image_insets(
+  self : Session,
+  index : Int,
+  values : Array[Double],
+) -> Json raise @failure.Failure {
+  let insets = normalized_image_insets(values)
+  guard self.slides[index].background is Picture(key, crop, _, None, _) else {
+    @failure.reject(
+      "invalid-operation", "Image destination insets require a stretched background",
+    )
+  }
+  check_image_crop_bounds(self.width, self.height, crop, insets~)
+  self.write_image(
+    self.image_bytes(key),
+    None,
+    background=Some(index),
+    background_insets=Some(insets),
+  )
+}
+
+///|
 fn Slide::image_keys(self : Slide) -> Array[String] {
-  let keys = if self.background is Picture(key, _, _, _) { [key] } else { [] }
+  let keys = if self.background is Picture(key, _, _, _, _) {
+    [key]
+  } else {
+    []
+  }
   for object in self.objects {
     if object.image is Some(key) && !keys.contains(key) {
       keys.push(key)

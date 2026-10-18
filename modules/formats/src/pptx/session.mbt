@@ -480,6 +480,8 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
         "arrangeReason": self.object_edit_reason(object, "arrange"),
         "hyperlink": self.hyperlink_query(object, links),
         "shapeAdjustments": self.shape_adjustments(object),
+        "imageInsets": object.insets,
+        "imageInsetsReason": self.image_insets_reason(object),
         "picture": {
           "mode": if object.tile is Some(_) {
             "tile"

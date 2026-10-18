@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { PanelProps } from "./panels.js";
 import { messages } from "./messages.js";
+import { ImageInsetsForm } from "./pptx-picture.js";
 
 export function PptxSlideLayout({
   controller,
@@ -143,219 +144,238 @@ export function PptxBackground({
   if (file.format !== "pptx" || !background) return null;
   const editor = file.editor;
   return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (kind === "image") {
+    <>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (kind === "image") {
+            controller.run(() =>
+              editor.editSlides({
+                action: "backgroundImageFormat",
+                mode,
+                crop: [
+                  crop.left / 100,
+                  crop.top / 100,
+                  crop.right / 100,
+                  crop.bottom / 100,
+                ],
+                opacity: opacity / 100,
+              }),
+            );
+            return;
+          }
           controller.run(() =>
             editor.editSlides({
-              action: "backgroundImageFormat",
-              mode,
-              crop: [
-                crop.left / 100,
-                crop.top / 100,
-                crop.right / 100,
-                crop.bottom / 100,
-              ],
-              opacity: opacity / 100,
+              action: "background",
+              value:
+                kind === "solid"
+                  ? { kind, color: color.slice(1) }
+                  : {
+                      kind,
+                      startColor: color.slice(1),
+                      endColor: endColor.slice(1),
+                      angle: Number(angle),
+                      scaled,
+                    },
             }),
           );
-          return;
-        }
-        controller.run(() =>
-          editor.editSlides({
-            action: "background",
-            value:
-              kind === "solid"
-                ? { kind, color: color.slice(1) }
-                : {
-                    kind,
-                    startColor: color.slice(1),
-                    endColor: endColor.slice(1),
-                    angle: Number(angle),
-                    scaled,
-                  },
-          }),
-        );
-      }}
-    >
-      <fieldset disabled={disabled || !!background.reason}>
-        <legend>{t.slideBackground}</legend>
-        <label>
-          {t.backgroundType}
-          <select
-            value={kind}
-            onChange={(event) => {
-              const value = event.currentTarget.value;
-              if (value === "solid" || value === "linear" || value === "image")
-                setKind(value);
-            }}
-          >
-            <option value="solid">{t.solidColor}</option>
-            <option value="linear">{t.linearGradient}</option>
-            <option value="image">{t.imageFill}</option>
-          </select>
-        </label>
-        {kind === "image" && (
-          <>
-            <label>
-              {t.imageFillMode}
-              <select
-                value={mode}
-                onChange={(event) =>
-                  setMode(
-                    event.currentTarget.value === "tile" ? "tile" : "stretch",
-                  )
-                }
-              >
-                <option value="stretch">{t.imageStretch}</option>
-                <option value="tile">{t.imageTile}</option>
-              </select>
-            </label>
-            <fieldset disabled={fill?.kind !== "image"}>
-              <legend>{t.pictureCrop}</legend>
-              {(
-                [
-                  ["left", t.cropLeft],
-                  ["top", t.cropTop],
-                  ["right", t.cropRight],
-                  ["bottom", t.cropBottom],
-                ] as const
-              ).map(([key, label]) => (
-                <label key={key}>
-                  {label}
-                  <input
-                    type="number"
-                    required
-                    min={0}
-                    max={99.999}
-                    step={0.001}
-                    value={crop[key]}
-                    onChange={(event) =>
-                      setCrop({
-                        ...crop,
-                        [key]: event.currentTarget.valueAsNumber,
-                      })
-                    }
-                  />
-                </label>
-              ))}
-              <button
-                type="button"
-                onClick={() =>
-                  setCrop({ left: 0, top: 0, right: 0, bottom: 0 })
-                }
-              >
-                {t.resetCrop}
-              </button>
-            </fieldset>
-            {mode === "tile" && <p>{t.tileCropHint}</p>}
-            <label>
-              {t.opacityPercent}
-              <input
-                type="number"
-                required
-                min={0}
-                max={100}
-                step={0.001}
-                value={opacity}
-                onChange={(event) =>
-                  setOpacity(event.currentTarget.valueAsNumber)
-                }
-                disabled={fill?.kind !== "image"}
-              />
-            </label>
-            <label>
-              {t.slideBackgroundPicture}
-              <input
-                type="file"
-                accept=".png,.jpg,.jpeg,image/png,image/jpeg"
-                onChange={(event) => {
-                  const input = event.currentTarget.files?.[0];
-                  event.currentTarget.value = "";
-                  if (!input) return;
-                  const slide = editor.query.slide;
-                  controller.run(async () => {
-                    if (!input.size || input.size > 4194304)
-                      throw new Error(t.imageInputLimit);
-                    const bytes = new Uint8Array(await input.arrayBuffer());
-                    if (editor.query.slide !== slide)
-                      throw new Error(t.backgroundImageTargetChanged);
-                    await editor.editSlides(
-                      { action: "backgroundImage", bytes, mode },
-                      slide,
-                    );
-                  });
-                }}
-              />
-            </label>
-          </>
-        )}
-        {kind !== "image" && (
+        }}
+      >
+        <fieldset disabled={disabled || !!background.reason}>
+          <legend>{t.slideBackground}</legend>
           <label>
-            {kind === "solid" ? t.slideBackground : t.gradientStart}
-            <input
-              type="color"
-              value={color}
-              onChange={(event) => setColor(event.currentTarget.value)}
-            />
+            {t.backgroundType}
+            <select
+              value={kind}
+              onChange={(event) => {
+                const value = event.currentTarget.value;
+                if (
+                  value === "solid" ||
+                  value === "linear" ||
+                  value === "image"
+                )
+                  setKind(value);
+              }}
+            >
+              <option value="solid">{t.solidColor}</option>
+              <option value="linear">{t.linearGradient}</option>
+              <option value="image">{t.imageFill}</option>
+            </select>
           </label>
-        )}
-        {kind === "linear" && (
-          <>
+          {kind === "image" && (
+            <>
+              <label>
+                {t.imageFillMode}
+                <select
+                  value={mode}
+                  onChange={(event) =>
+                    setMode(
+                      event.currentTarget.value === "tile" ? "tile" : "stretch",
+                    )
+                  }
+                >
+                  <option value="stretch">{t.imageStretch}</option>
+                  <option value="tile">{t.imageTile}</option>
+                </select>
+              </label>
+              <fieldset disabled={fill?.kind !== "image"}>
+                <legend>{t.pictureCrop}</legend>
+                {(
+                  [
+                    ["left", t.cropLeft],
+                    ["top", t.cropTop],
+                    ["right", t.cropRight],
+                    ["bottom", t.cropBottom],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label key={key}>
+                    {label}
+                    <input
+                      type="number"
+                      required
+                      min={0}
+                      max={99.999}
+                      step={0.001}
+                      value={crop[key]}
+                      onChange={(event) =>
+                        setCrop({
+                          ...crop,
+                          [key]: event.currentTarget.valueAsNumber,
+                        })
+                      }
+                    />
+                  </label>
+                ))}
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCrop({ left: 0, top: 0, right: 0, bottom: 0 })
+                  }
+                >
+                  {t.resetCrop}
+                </button>
+              </fieldset>
+              {mode === "tile" && <p>{t.tileCropHint}</p>}
+              <label>
+                {t.opacityPercent}
+                <input
+                  type="number"
+                  required
+                  min={0}
+                  max={100}
+                  step={0.001}
+                  value={opacity}
+                  onChange={(event) =>
+                    setOpacity(event.currentTarget.valueAsNumber)
+                  }
+                  disabled={fill?.kind !== "image"}
+                />
+              </label>
+              <label>
+                {t.slideBackgroundPicture}
+                <input
+                  type="file"
+                  accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+                  onChange={(event) => {
+                    const input = event.currentTarget.files?.[0];
+                    event.currentTarget.value = "";
+                    if (!input) return;
+                    const slide = editor.query.slide;
+                    controller.run(async () => {
+                      if (!input.size || input.size > 4194304)
+                        throw new Error(t.imageInputLimit);
+                      const bytes = new Uint8Array(await input.arrayBuffer());
+                      if (editor.query.slide !== slide)
+                        throw new Error(t.backgroundImageTargetChanged);
+                      await editor.editSlides(
+                        { action: "backgroundImage", bytes, mode },
+                        slide,
+                      );
+                    });
+                  }}
+                />
+              </label>
+            </>
+          )}
+          {kind !== "image" && (
             <label>
-              {t.gradientEnd}
+              {kind === "solid" ? t.slideBackground : t.gradientStart}
               <input
                 type="color"
-                value={endColor}
-                onChange={(event) => setEndColor(event.currentTarget.value)}
+                value={color}
+                onChange={(event) => setColor(event.currentTarget.value)}
               />
             </label>
-            <label>
-              {t.gradientAngle}
-              <input
-                type="number"
-                required
-                min={0}
-                max={360}
-                step="any"
-                value={angle}
-                onChange={(event) => setAngle(event.currentTarget.value)}
-              />
-            </label>
-            <label>
-              <input
-                type="checkbox"
-                checked={scaled}
-                onChange={(event) => setScaled(event.currentTarget.checked)}
-              />
-              {t.gradientScaled}
-            </label>
-          </>
-        )}
-        <button
-          type="submit"
-          disabled={kind === "image" && fill?.kind !== "image"}
-          onMouseDown={(event) => event.preventDefault()}
-          aria-label={`${t.apply} ${t.slideBackground}`}
-        >
-          {t.apply}
-        </button>
-        <button
-          type="button"
-          disabled={!background.explicit}
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() =>
-            controller.run(() =>
-              editor.editSlides({ action: "background", value: null }),
-            )
+          )}
+          {kind === "linear" && (
+            <>
+              <label>
+                {t.gradientEnd}
+                <input
+                  type="color"
+                  value={endColor}
+                  onChange={(event) => setEndColor(event.currentTarget.value)}
+                />
+              </label>
+              <label>
+                {t.gradientAngle}
+                <input
+                  type="number"
+                  required
+                  min={0}
+                  max={360}
+                  step="any"
+                  value={angle}
+                  onChange={(event) => setAngle(event.currentTarget.value)}
+                />
+              </label>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={scaled}
+                  onChange={(event) => setScaled(event.currentTarget.checked)}
+                />
+                {t.gradientScaled}
+              </label>
+            </>
+          )}
+          <button
+            type="submit"
+            disabled={kind === "image" && fill?.kind !== "image"}
+            onMouseDown={(event) => event.preventDefault()}
+            aria-label={`${t.apply} ${t.slideBackground}`}
+          >
+            {t.apply}
+          </button>
+          <button
+            type="button"
+            disabled={!background.explicit}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() =>
+              controller.run(() =>
+                editor.editSlides({ action: "background", value: null }),
+              )
+            }
+          >
+            {t.inheritStyleProperty}
+          </button>
+        </fieldset>
+        {background.reason && <p>{background.reason}</p>}
+      </form>
+      {fill?.kind === "image" && (
+        <ImageInsetsForm
+          label={`${t.slideBackground}: ${t.imageInsets}`}
+          controller={controller}
+          state={state}
+          values={fill.insets}
+          reason={background.reason}
+          disabled={disabled || fill.mode !== "stretch"}
+          onApply={(insets) =>
+            editor.editSlides({ action: "backgroundImageInsets", insets })
           }
-        >
-          {t.inheritStyleProperty}
-        </button>
-      </fieldset>
-      {background.reason && <p>{background.reason}</p>}
-    </form>
+        />
+      )}
+    </>
   );
 }
 

@@ -71,11 +71,17 @@ fn Session::reorder_cells(
       let formula = cell
         .bind(c => c.formula)
         .map(f => {
-          parse_formula(f).source(
-            rows=to.row - from.row,
-            columns=to.column - from.column,
-            invalid_ref=true,
-          )
+          if table
+            .map(table => table.totals == 1 && from.row == table.range.bottom)
+            .unwrap_or(false) {
+            f
+          } else {
+            parse_formula(f).source(
+              rows=to.row - from.row,
+              columns=to.column - from.column,
+              invalid_ref=true,
+            )
+          }
         })
       let value : CellContent = {
         value: cell.map(c => c.value).unwrap_or(Blank),
@@ -201,6 +207,36 @@ fn Session::reorder_cells(
     self.strings,
     self.styles.length(),
   )
+  if table is Some(table) && !removed.is_empty() {
+    let range = self.compact_duplicate_table(
+      table,
+      removed.length(),
+      parts,
+      edits,
+    )
+    if table_filters.get(table.part) is Some(state) {
+      let before = table_filters.copy()
+      table_filters[table.part] = transformed_filter(
+        state,
+        { ..range, bottom: range.bottom - table.totals, },
+        None,
+      )
+      let plan : FilterPlan = {
+        states: table_filters,
+        targets: [table.part],
+        hidden: filter_plan_hidden(before, table_filters, None),
+      }
+      let document = self.write_filter_plan(sheets[index], plan, parts, edits)
+      sheets[index] = Sheet::read(
+        current.id,
+        current.name,
+        current.state,
+        document,
+        self.strings,
+        self.styles.length(),
+      )
+    }
+  }
   let mut calculation = self.calculate(
     sheets,
     self.calculation,

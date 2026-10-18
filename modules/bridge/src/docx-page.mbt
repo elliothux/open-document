@@ -124,6 +124,31 @@ fn Foundation::docx_page(
     return session.page_setup(revision)
   }
   let result = match operation {
+    "setPageColumns" => {
+      guard request is { "columns": columns, .. } else {
+        @failure.reject("invalid-operation", "Column settings are required")
+      }
+      let value = match columns {
+        Null => None
+        Object(fields) if fields.length() == 3 &&
+          fields.keys().all(key => ["count", "gap", "separator"].contains(key)) =>
+          Some(
+            @layout.Columns::new(
+              count=field_int(columns, "count"),
+              gap=xlsx_number(columns, "gap"),
+              separator=xlsx_boolean(columns, "separator"),
+            ),
+          )
+        _ => @failure.reject("invalid-operation", "Invalid column settings")
+      }
+      session.set_page_columns(
+        revision,
+        value,
+        probe=self.probe,
+        profile=xlsx_profile(request),
+        images=self.images,
+      )
+    }
     "setPageNumbering" => {
       guard request is { "numbering": numbering, .. } else {
         @failure.reject("invalid-operation", "Page numbering is required")

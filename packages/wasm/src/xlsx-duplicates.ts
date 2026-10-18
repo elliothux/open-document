@@ -8,6 +8,8 @@ export interface XlsxDuplicateSettings {
   columns: number[];
 }
 export interface XlsxDuplicates extends XlsxDuplicateSettings {
+  /** Native table totals are excluded from comparisons and moved with the table. */
+  totalRow: boolean;
   revision: number;
   sheet: string;
   keptRows: number[];
@@ -51,6 +53,7 @@ export function xlsxDuplicates(value: unknown): XlsxDuplicates {
   if (
     !integer(result.revision, 0, 2147483647) ||
     typeof result.sheet !== "string" ||
+    typeof result.totalRow !== "boolean" ||
     !result.sheet ||
     result.sheet.length > 65535 ||
     !Array.isArray(result.columns) ||
@@ -60,18 +63,26 @@ export function xlsxDuplicates(value: unknown): XlsxDuplicates {
     !Array.isArray(result.keptRows) ||
     !Array.isArray(result.removedRows) ||
     result.keptRows.length + result.removedRows.length !==
-      source.bottom - source.top + 1 - Number(result.header)
+      source.bottom -
+        source.top +
+        1 -
+        Number(result.header) -
+        Number(result.totalRow)
   )
     throw new Error("Invalid duplicate preview");
   const seen = new Set<number>(),
-    first = source.top + Number(result.header);
-  if (first <= source.bottom && result.keptRows[0] !== first)
+    first = source.top + Number(result.header),
+    last = source.bottom - Number(result.totalRow);
+  if (
+    (result.totalRow && first > last) ||
+    (first <= last && result.keptRows[0] !== first)
+  )
     throw new Error("Duplicate removal must retain the first data row");
   for (const rows of [result.keptRows, result.removedRows]) {
     let previous = first - 1;
     for (const row of rows) {
       if (
-        !integer(row, first, source.bottom) ||
+        !integer(row, first, last) ||
         Number(row) <= previous ||
         seen.has(Number(row))
       )
@@ -85,7 +96,10 @@ export function xlsxDuplicates(value: unknown): XlsxDuplicates {
     target.left !== source.left ||
     target.right !== source.right ||
     target.bottom !==
-      Math.max(source.top, first + result.keptRows.length - 1) ||
+      Math.max(
+        source.top,
+        first + result.keptRows.length + Number(result.totalRow) - 1,
+      ) ||
     !Array.isArray(result.preview) ||
     result.preview.length !== Math.min(10, result.keptRows.length)
   )

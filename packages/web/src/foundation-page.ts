@@ -4,6 +4,8 @@ import {
   checkPageBackground,
   checkPageBorders,
   checkPageNumbering,
+  checkDocxColumns,
+  type DocxColumns,
   docxPageSettings,
   editState,
   checkRunningArea,
@@ -21,6 +23,21 @@ import {
 
 /** Page commands retain the existing Worker and validation boundary. */
 export class FoundationPageClient extends FoundationReviewClient {
+  async setPageColumns(
+    revision: number,
+    columns: DocxColumns | null,
+    profile: Record<string, string>,
+  ) {
+    checkDocxColumns(columns);
+    return editState(
+      await this.connection.request({
+        operation: "setPageColumns",
+        revision,
+        columns,
+        profile,
+      }),
+    );
+  }
   async setPageNumbering(
     revision: number,
     numbering: DocxPageNumbering | null,

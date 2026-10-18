@@ -5,11 +5,13 @@ import {
   checkPageBackground,
   checkPageBorders,
   checkPageNumbering,
+  checkDocxColumns,
   docxPageSettings,
   editState,
   type DocxPageSetup,
   type DocxPageBorders,
   type DocxPageNumbering,
+  type DocxColumns,
 } from "./docx-format.js";
 
 export type DocxRunningVariant = "default" | "first" | "even";
@@ -167,6 +169,16 @@ export class FoundationPageSession extends WasmSession {
   }
   pageSetup(revision: number) {
     return docxPageSettings(this.call({ operation: "pageSetup", revision }));
+  }
+  setPageColumns(
+    revision: number,
+    columns: DocxColumns | null,
+    profile: Record<string, string>,
+  ) {
+    checkDocxColumns(columns);
+    return editState(
+      this.call({ operation: "setPageColumns", revision, columns, profile }),
+    );
   }
   setPageSetup(revision: number, page: DocxPageSetup) {
     checkPageSetup(page);

@@ -100,7 +100,7 @@ fn Session::table_dimensions(
     } else {
       Json(fill)
     },
-    "maxWidth": (flow.page.width - flow.page.left - flow.page.right).min(14400),
+    "maxWidth": flow.columns.width(flow.page).min(14400),
     "maxRowHeight": table_row_height_limit(table, index, flow.page),
   }
 }
@@ -272,7 +272,7 @@ fn Session::size_table(
         )
       }),
       profile,
-      flow.page.width - flow.page.left - flow.page.right,
+      flow.columns.width(flow.page),
     )
   } else {
     grid.model
@@ -336,8 +336,7 @@ fn Session::size_table(
       }
     }
     let next_total = widths.iter().fold(init=0L, (sum, w) => sum + w.to_int64())
-    guard next_total.to_double() / 20 <=
-      flow.page.width - flow.page.left - flow.page.right else {
+    guard next_total.to_double() / 20 <= flow.columns.width(flow.page) else {
       @failure.reject("invalid-operation", "Table width exceeds the page")
     }
     guard (if column is Some(i) {

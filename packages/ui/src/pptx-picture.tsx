@@ -1,7 +1,87 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { PresentationEditor } from "@open-document/web/presentation-editor";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+
+export function ImageInsetsForm({
+  controller,
+  state,
+  values,
+  reason,
+  disabled,
+  onApply,
+  label,
+}: {
+  controller: EditorController;
+  state: UiSnapshot;
+  values: readonly number[];
+  reason: string;
+  disabled: boolean;
+  onApply: (insets: [number, number, number, number]) => Promise<void>;
+  label?: string;
+}) {
+  const t = messages(state.locale);
+  const [left, top, right, bottom] = values;
+  const [draft, setDraft] = useState(values.map((value) => value * 100));
+  useEffect(
+    () =>
+      setDraft(
+        [left ?? 0, top ?? 0, right ?? 0, bottom ?? 0].map(
+          (value) => value * 100,
+        ),
+      ),
+    [left, top, right, bottom],
+  );
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        controller.run(() =>
+          onApply([
+            draft[0]! / 100,
+            draft[1]! / 100,
+            draft[2]! / 100,
+            draft[3]! / 100,
+          ]),
+        );
+      }}
+    >
+      <fieldset disabled={disabled || !!reason} title={reason}>
+        <legend>{label ?? t.imageInsets}</legend>
+        {[
+          t.imageInsetLeft,
+          t.imageInsetTop,
+          t.imageInsetRight,
+          t.imageInsetBottom,
+        ].map((label, index) => (
+          <label key={label}>
+            {label}
+            <input
+              type="number"
+              min={-2147483.648}
+              max={2147483.647}
+              step={0.001}
+              required
+              value={draft[index]}
+              onChange={(event) => {
+                const next = event.currentTarget.valueAsNumber;
+                setDraft((values) =>
+                  values.map((value, i) => (i === index ? next : value)),
+                );
+              }}
+            />
+          </label>
+        ))}
+        <button type="button" onClick={() => setDraft([0, 0, 0, 0])}>
+          {t.resetImageInsets}
+        </button>
+        <button type="submit">
+          {t.apply} {label ?? t.imageInsets}
+        </button>
+      </fieldset>
+    </form>
+  );
+}
 
 export function PptxPicture({
   controller,

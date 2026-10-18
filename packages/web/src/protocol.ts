@@ -13,6 +13,7 @@ import type {
   DocxListLevelUpdate,
   DocxPageSetup,
   DocxPageNumbering,
+  DocxColumns,
   DocxPageBorders,
   DocxRunningKind,
   DocxRunningVariant,
@@ -106,6 +107,12 @@ export type Operation =
       profile: Record<string, string>;
     }
   | { operation: "pageSetup"; revision: number }
+  | {
+      operation: "setPageColumns";
+      revision: number;
+      columns: DocxColumns | null;
+      profile: Record<string, string>;
+    }
   | {
       operation: "runningArea";
       revision: number;

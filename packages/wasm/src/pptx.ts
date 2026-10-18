@@ -5,6 +5,7 @@ import {
   strings,
   checkPptxObjectEdit,
   checkPptxImageFill,
+  imageInsets,
   type PptxObjectEdit,
   pptxHyperlink,
   type PptxHyperlink,
@@ -49,8 +50,6 @@ export {
   type PptxSections,
   type PptxSlideLayouts,
   pptxSlideLayouts,
-} from "./pptx-slides.js";
-export {
   pptxComments,
   type PptxComments,
   type PptxComment,
@@ -96,7 +95,6 @@ export type {
   PptxParagraphFormat,
   PptxParagraphFormatting,
 } from "./pptx-format.js";
-
 import {
   pptxPrintLayout,
   type PptxOutputCommand,
@@ -131,6 +129,8 @@ export interface PptxObject {
     reason: string;
     values: { name: "adj" | "adj1" | "adj2"; value: number; maximum: number }[];
   };
+  imageInsets: [number, number, number, number];
+  imageInsetsReason: string;
   picture: {
     mode: "stretch" | "tile";
     modeReason: string;
@@ -486,6 +486,9 @@ export function pptxQuery(value: unknown): PptxQuery {
   let units = 0;
   for (const item of query.objects) {
     const object = record(item);
+    imageInsets(object.imageInsets);
+    if (typeof object.imageInsetsReason !== "string")
+      throw new Error("Invalid image destination reason");
     const hyperlink = record(object.hyperlink),
       link = pptxHyperlink(hyperlink.value);
     if (

@@ -152,6 +152,7 @@ pub(all) struct Flow {
   pageBorders : PageBorders
   page : PageSetup
   pageNumbering : PageNumbering
+  columns : Columns
   paragraphs : Array[Paragraph]
   diagnostics : Array[String]
   tables : Array[Table]

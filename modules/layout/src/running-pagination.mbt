@@ -15,9 +15,8 @@ fn paginate_running(
   let mut page_setups : Array[PageSetup] = []
   let mut prepared : Array[Array[Line]] = []
   for attempt in 0..<8 {
-    let pagination = Pagination::new(setups[0], setups~, pageSetups=page_setups)
-    let (reflowed, reused, next) = pagination.body(
-      probe, flow, cache, profile, images,
+    let (pagination, reflowed, reused, next) = column_body(
+      probe, flow, cache, profile, images, setups, page_setups,
     )
     let previous = pagination.pages.mapi((index, _) => {
       prepared
@@ -52,7 +51,7 @@ fn paginate_running(
       }
       running.push(pattern[0])
       actual.push(setup[0])
-      if setup[0].to_json() != pagination.page_at(page).to_json() {
+      if setup[0].to_json() != pagination.sheet_setup(page).to_json() {
         stable = false
       }
     }

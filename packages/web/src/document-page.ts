@@ -2,6 +2,7 @@ import { DocumentReview } from "./document-review.js";
 import type { DocxPageSetup } from "@open-document/wasm/foundation";
 import type { DocxPageBorders } from "@open-document/wasm/foundation";
 import type { DocxPageNumbering } from "@open-document/wasm/foundation";
+import type { DocxColumns } from "@open-document/wasm/foundation";
 import type { EditorOutput } from "./editor-state.js";
 import type {
   DocxRunningKind,
@@ -11,6 +12,15 @@ import type {
 
 /** Document-wide page commands use the editor's existing read and edit queues. */
 export abstract class DocumentPage extends DocumentReview {
+  setPageColumns(columns: DocxColumns | null): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.setPageColumns(
+        this.review.snapshot().revision,
+        columns,
+        this.profile,
+      ),
+    );
+  }
   setPageNumbering(numbering: DocxPageNumbering | null): Promise<void> {
     return this.review.edit(() =>
       this.review.client.setPageNumbering(

@@ -1,5 +1,7 @@
 ///|
 priv struct Pagination {
+  columns : Columns
+  balance : (Int, Double)?
   mut page : PageSetup
   setups : Array[PageSetup]
   pageSetups : Array[PageSetup]
@@ -15,9 +17,13 @@ fn Pagination::new(
   page : PageSetup,
   setups~ : Array[PageSetup] = [],
   pageSetups~ : Array[PageSetup] = [],
+  columns~ : Columns = Columns::new(),
+  balance~ : (Int, Double)? = None,
 ) -> Pagination {
   let page = pageSetups.get(0).unwrap_or(page)
-  {
+  let result : Pagination = {
+    columns,
+    balance,
     page,
     setups,
     pageSetups,
@@ -37,11 +43,14 @@ fn Pagination::new(
     after: 0,
     gap: 0,
   }
+  result.page = result.page_at(0)
+  result.y = result.page.top
+  result
 }
 
 ///|
 fn Pagination::next_page(self : Pagination) -> Unit raise @failure.Failure {
-  guard self.pages.length() < 1024 else {
+  guard self.pages.length() < 1024 * self.columns.count else {
     @failure.reject("limit-exceeded", "Page budget exceeded")
   }
   self.page = self.page_at(self.pages.length())
@@ -82,12 +91,46 @@ fn Pagination::fit(
 
 ///|
 fn Pagination::page_at(self : Pagination, index : Int) -> PageSetup {
-  if self.pageSetups.get(index) is Some(page) {
+  let physical = index / self.columns.count
+  let page = self.sheet_setup(physical)
+  if self.columns.count == 1 {
+    return page
+  }
+  let width = (
+      page.width -
+      page.left -
+      page.right -
+      self.columns.gap * (self.columns.count - 1).to_double()
+    ) /
+    self.columns.count.to_double()
+  let left = page.left +
+    (index % self.columns.count).to_double() * (width + self.columns.gap)
+  {
+    ..page,
+    left,
+    right: page.width - left - width,
+    bottom: if self.balance is Some((target, height)) && target == physical {
+      page.height - page.top - height
+    } else {
+      page.bottom
+    },
+  }
+}
+
+///|
+fn Pagination::sheet_setup(self : Pagination, physical : Int) -> PageSetup {
+  if self.pageSetups.get(physical) is Some(page) {
     page
   } else if self.setups.is_empty() {
     self.page
   } else {
-    self.setups[if index == 0 { 0 } else if index % 2 == 1 { 1 } else { 2 }]
+    self.setups[if physical == 0 {
+      0
+    } else if physical % 2 == 1 {
+      1
+    } else {
+      2
+    }]
   }
 }
 
@@ -168,7 +211,7 @@ fn Pagination::paragraph(
       self.pages.last().unwrap().lines.iter().any(line => !line.caretOnly) ||
       !self.pages.last().unwrap().borders.is_empty()
     ) {
-    self.next_page()
+    self.sheet_break()
   }
   paragraph.validate_spacing(self.page.height)
   self.y += if additive {
@@ -217,7 +260,7 @@ fn Pagination::paragraph(
     if line.text.is_empty() && line.marker.is_empty() && line.y == -1 {
       self.place(line, self.page.left, self.y, images)
       if !ended_with_break {
-        self.next_page()
+        self.sheet_break()
       }
       ended_with_break = true
       first = true
@@ -238,7 +281,7 @@ fn Pagination::paragraph(
     first = false
     ended_with_break = line.y == -1
     if line.y == -1 {
-      self.next_page()
+      self.sheet_break()
       first = true
     }
   }

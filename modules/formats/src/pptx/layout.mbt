@@ -263,7 +263,7 @@ fn paint_slide(
             ),
           )
         } else {
-          primitives.push(object.image_primitive(geometry))
+          primitives.append(object.image_primitives(geometry))
         }
         primitives.push(Restore)
       } else if object.has_fill() || !object.stroke.is_empty() {
@@ -288,7 +288,7 @@ fn paint_slide(
               ),
             )
           } else {
-            primitives.push(object.image_primitive(geometry))
+            primitives.append(object.image_primitives(geometry))
           }
           primitives.push(Restore)
         } else if object.gradient is Some((start, end, angle, scaled)) &&

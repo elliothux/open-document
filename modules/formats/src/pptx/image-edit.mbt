@@ -100,9 +100,14 @@ fn check_image_crop_bounds(
   width : Double,
   height : Double,
   crop : Array[Double],
+  insets~ : Array[Double] = [0, 0, 0, 0],
 ) -> Unit raise @failure.Failure {
-  guard width / (1 - crop[0] - crop[2]) <= 1000000000.0 &&
-    height / (1 - crop[1] - crop[3]) <= 1000000000.0 else {
+  let w = width * (1 - insets[0] - insets[2]) / (1 - crop[0] - crop[2])
+  let h = height * (1 - insets[1] - insets[3]) / (1 - crop[1] - crop[3])
+  guard w <= 1000000000.0 &&
+    h <= 1000000000.0 &&
+    (width * insets[0] - crop[0] * w).abs() <= 1000000000.0 &&
+    (height * insets[1] - crop[1] * h).abs() <= 1000000000.0 else {
     @failure.reject("limit-exceeded", "Cropped picture exceeds drawing bounds")
   }
 }
@@ -119,7 +124,12 @@ fn Session::crop_image(
   }
   let geometry = object.geometry.unwrap()
   if object.tile is None {
-    check_image_crop_bounds(geometry.width, geometry.height, crop)
+    check_image_crop_bounds(
+      geometry.width,
+      geometry.height,
+      crop,
+      insets=object.insets,
+    )
   }
   let fill = object.source.child("blipFill", uri=presentation_uri).unwrap()
   let change = image_crop_change(fill, crop)

@@ -7,16 +7,18 @@ fn Session::write_image(
   mode~ : String = "stretch",
   background~ : Int? = None,
   background_format~ : (Array[Double], Double)? = None,
+  background_insets~ : Array[Double]? = None,
 ) -> Json raise @failure.Failure {
   let original = background
     .map(i => self.slides[i])
     .unwrap_or_else(() => self.current())
-  let (old_crop, old_opacity, old_tile) = if original.background
-    is Picture(_, crop, opacity, tile) {
-    (crop, opacity, tile)
+  let (old_crop, old_opacity, old_tile, old_insets) = if original.background
+    is Picture(_, crop, opacity, tile, insets) {
+    (crop, opacity, tile, insets)
   } else {
-    ([0.0, 0.0, 0.0, 0.0], 1.0, None)
+    ([0.0, 0.0, 0.0, 0.0], 1.0, None, [0.0, 0.0, 0.0, 0.0])
   }
+  let insets = background_insets.unwrap_or(old_insets)
   let (crop, opacity) = background_format.unwrap_or((old_crop, old_opacity))
   if background is Some(_) {
     check_image_fill_mode(mode)
@@ -53,7 +55,7 @@ fn Session::write_image(
     return self.query()
   }
   let reuse = if background is Some(_) &&
-    original.background is Picture(key, _, _, _) &&
+    original.background is Picture(key, _, _, _, _) &&
     self.image_bytes(key) == bytes {
     Some(key)
   } else {
@@ -63,6 +65,7 @@ fn Session::write_image(
     background_image_source(original) is Some(_) &&
     crop == old_crop &&
     opacity == old_opacity &&
+    insets == old_insets &&
     (if old_tile is Some(_) { "tile" } else { "stretch" }) == mode {
     return self.query()
   }
@@ -204,6 +207,9 @@ fn Session::write_image(
           image_opacity_change(blip, (opacity * 100000).round().to_int()),
         )
       }
+      if insets != old_insets {
+        changes.push(image_insets_change(fill, insets))
+      }
     } else {
       changes.push(
         background_change(
@@ -218,6 +224,7 @@ fn Session::write_image(
               } else {
                 None
               },
+              insets~,
             ),
           ),
         ),
@@ -235,7 +242,12 @@ fn Session::write_image(
       }
       if mode == "stretch" {
         let geometry = object.geometry.unwrap()
-        check_image_crop_bounds(geometry.width, geometry.height, crop)
+        check_image_crop_bounds(
+          geometry.width,
+          geometry.height,
+          crop,
+          insets=object.insets,
+        )
       }
       changes.push(
         paint_child_change(
@@ -250,6 +262,7 @@ fn Session::write_image(
             } else {
               None
             },
+            insets=object.insets,
           ),
           ["ln", "effectLst", "effectDag", "scene3d", "sp3d", "extLst"],
         ),

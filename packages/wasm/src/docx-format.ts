@@ -1,4 +1,6 @@
 import { record, arrayOf } from "./validation.js";
+import { checkDocxColumns, type DocxColumns } from "./docx-columns.js";
+export { checkDocxColumns, type DocxColumns } from "./docx-columns.js";
 import type { DocxSelection } from "./docx-hit.js";
 import { isDocxSelection } from "./docx-search.js";
 import {
@@ -48,6 +50,7 @@ export interface DocxPageSettings {
   background: { color: string | null; reason: string };
   borders: { value: DocxPageBorders; reason: string };
   numbering: { value: DocxPageNumbering | null; reason: string };
+  columns: { value: DocxColumns | null; reason: string };
 }
 
 export interface DocxPageNumbering {
@@ -160,6 +163,17 @@ export function checkPageSetup(value: DocxPageSetup): void {
 
 export function docxPageSettings(value: unknown): DocxPageSettings {
   const result = record(value);
+  const column = record(result.columns);
+  checkDocxColumns(column.value);
+  if (
+    typeof column.reason !== "string" ||
+    (column.value === null && !column.reason)
+  )
+    throw new Error("Invalid DOCX column settings");
+  const columns = {
+    value: column.value as DocxColumns | null,
+    reason: column.reason,
+  };
   const numbering = record(result.numbering);
   checkPageNumbering(numbering.value);
   if (
@@ -205,6 +219,7 @@ export function docxPageSettings(value: unknown): DocxPageSettings {
       background: paint,
       borders,
       numbering: numbers,
+      columns,
     };
   }
   const page = record(result.page);
@@ -230,6 +245,7 @@ export function docxPageSettings(value: unknown): DocxPageSettings {
     background: paint,
     borders,
     numbering: numbers,
+    columns,
   };
 }
 

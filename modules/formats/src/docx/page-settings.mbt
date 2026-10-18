@@ -185,6 +185,7 @@ pub fn Session::page_setup(
       "background": self.page_background_query(tree),
       "borders": self.page_borders_query(tree),
       "numbering": self.page_numbering_query(tree),
+      "columns": self.page_columns_query(tree),
     }
   } catch {
     @failure.Failure(message~, ..) =>
@@ -195,6 +196,7 @@ pub fn Session::page_setup(
         "background": self.page_background_query(tree),
         "borders": self.page_borders_query(tree),
         "numbering": self.page_numbering_query(tree),
+        "columns": self.page_columns_query(tree),
       }
   }
 }

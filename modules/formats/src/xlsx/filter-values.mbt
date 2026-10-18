@@ -127,31 +127,6 @@ fn Session::filtered_rows(
 }
 
 ///|
-fn Session::filter_provenance(
-  self : Session,
-  index : Int,
-  state : AutoFilterState,
-) -> (Array[Int], Array[Int]) raise @failure.Failure {
-  if state.tracked {
-    return (state.manual, state.filtered)
-  }
-  // shortcut: Imported hidden/filter overlap is ambiguous without source provenance; tracked saves retain both masks.
-  let fails = self.filtered_rows(index, state.settings)
-  let manual : Array[Int] = []
-  let filtered : Array[Int] = []
-  for row in (state.bounds.top + 1)..<=state.bounds.bottom {
-    if self.sheets[index].dimensions.rows.size(row) == 0 {
-      if fails.contains(row) {
-        filtered.push(row)
-      } else {
-        manual.push(row)
-      }
-    }
-  }
-  (manual, filtered)
-}
-
-///|
 fn Session::filter_query(
   self : Session,
   index : Int,

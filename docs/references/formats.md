@@ -871,15 +871,17 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 ### 删除重复行
 
-`XlsxSession/Client.duplicates(revision, sheet, settings)` 返回只读预览，宿主入口为 `SpreadsheetEditor.duplicates(settings)`。`XlsxDuplicateSettings` 包含显式 A1 矩形 `range`、`header` 和工作表从 1 开始的比较列 `columns`；至少选一列，各列互异且在范围内。`header=true` 保留首行。返回 `XlsxDuplicates`，包含同一设置、revision、sheet、完整 `keptRows/removedRows`、有效结果 `resultRange` 及前十条保留记录的格式化值 `preview`。两个类型从 Wasm/Web XLSX 模块导出。核心预览不修改源、选择、修订或历史；宿主沿既有队列先处理原生草稿和组合输入。
+`XlsxSession/Client.duplicates(revision, sheet, settings)` 返回只读预览，宿主入口为 `SpreadsheetEditor.duplicates(settings)`。`XlsxDuplicateSettings` 包含显式 A1 矩形 `range`、`header` 和工作表从 1 开始的比较列 `columns`；至少选一列，各列互异且在有效范围内。普通区域的 `header=true` 保留首行。返回 `XlsxDuplicates`，包含有效设置、`totalRow`、revision、sheet、完整 `keptRows/removedRows`、有效结果 `resultRange` 及前十条保留记录的格式化值 `preview`。`totalRow` 表示不参加比较的原生总计行，普通区域为 false。两个类型从 Wasm/Web XLSX 模块导出。核心预览不修改源、选择、修订或历史；宿主沿既有队列先处理原生草稿和组合输入。
 
 提交使用 `editSheet({ action: "removeDuplicates", settings, sourceRevision })`。默认面板先选择比较列和标题，再预览删除数量、原行号及保留内容，最后明确提交。设置、选区、表或修订变化后旧预览不能提交；换文档须丢弃旧结果。核心重新计算方案并核对 sourceRevision，不信任传入的删除行列表。无重复或候选源没有实际变化时不新增历史。
 
 比较使用当前已计算结果和格式化文字，区分大小写及空格；显示相同的数字与文字可匹配，不因底层类型不同而保留两份。保留首次出现的记录，包含手动隐藏行。存活单元格按原顺序向区域顶部压紧，移动值、富文本源、有效格式及相对公式；绝对引用和区域外引用坐标保持，依赖缓存同步重算。清空尾部内容及显式单元格格式，行列继承格式仍有效，不删除整张表的物理行，也不移动选区外单元格。手动尺寸和隐藏状态保留原坐标，自动尺寸沿现有路径重排。条件格式、验证及名称保留坐标，候选输入继续校验。
 
-单格链接和便笺随保留记录移动。删除重复记录时，同步移除对应便笺/VML 和完整落在该选区删除行内的链接；跨行链接保持原坐标。其他部件及源片段保留，值、公式、样式、链接、便笺和缓存合为一次精确历史；撤销、重开后输入、查找替换及 PDF 沿相同内容路径。一次最多 4096 格，格式化及条件计算共享 1048576 工作预算，搬移片段累计最多 1 Mi UTF-16，继续遵守输出和 4 MiB 历史上限。合并格、排序状态、表格/透视、绘图、未知便笺及单元格/公式元数据等沿重排保护原子拒绝；这些组合继续实施。
+单格链接和便笺随保留记录移动。删除重复记录时，同步移除对应便笺/VML 和完整落在该选区删除行内的链接；跨行链接保持原坐标。其他部件及源片段保留，值、公式、样式、链接、便笺和缓存合为一次精确历史；撤销、重开后输入、查找替换及 PDF 沿相同内容路径。有效范围一次最多 4096 格，格式化及条件计算共享 1048576 工作预算，搬移片段累计最多 1 Mi UTF-16，继续遵守输出和 4 MiB 历史上限。合并格、跨表边界、透视、绘图、未知排序/便笺及单元格/公式元数据等沿重排保护原子拒绝；这些组合继续实施。
 
 已有普通值/自定义筛选时，去重比较仍包含筛选隐藏行，保留首条记录。筛选范围、条件和已知按钮标记保留；按压紧后的当前公式结果重新应用条件，重写筛选隐藏来源和实际行可见性，手动隐藏继续保留原行号。SUBTOTAL 及依赖缓存随可见性一起重算。整个过程只有一次历史；重开后清除条件仍只恢复筛选隐藏行。未知筛选条件或不透明源原子拒绝，导入隐藏来源的歧义沿[值筛选](#值筛选)处理。
+
+选区完整位于一张原生表时，核心将有效范围扩展为整表。`header` 取原生设置，比较列可选整表中的任意列。标题和总计不参加比较，预览的 `range` 和 `resultRange` 包含它们。默认面板显示整表范围并锁定标题开关。删除后保留表/列身份、计算列模板、存活例外和样式，范围按删除数缩小；总计文字、公式和格式迁至新末行，公式沿范围调整规则保持原文。根及筛选内的已知排序范围同步裁剪，保留历史设置，不重新排序。表外普通区域也可去重，保留原生表范围，并重新计算依赖该区域的原生与普通筛选。多来源可见性、手动隐藏、依赖缓存及源变化共用一次历史；没有标题或筛选的表沿相同路径处理。
 
 比较和稳定压紧依据 [ONLYOFFICE setRemoveDuplicates](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L25977-L26181)、[清空单元格](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21142-L21166)及前述 `_sortByArray`；未复制上游源码。实现归 [`duplicates.mbt`](../../modules/formats/src/xlsx/duplicates.mbt)、[`reorder-cells.mbt`](../../modules/formats/src/xlsx/reorder-cells.mbt)及 [`xlsx-duplicates.tsx`](../../packages/ui/src/xlsx-duplicates.tsx)。其余数据工具继续按 [P11](../p11-xlsx-core.md) 实施。
 
@@ -1408,7 +1410,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `query.background.value` 的图片分支为 `{ kind: "image", key, crop: [left, top, right, bottom], opacity, mode }`，其余分支仍为纯色与线性渐变。`key` 是核心图片资源身份，`crop` 是非负源裁剪比例，`opacity` 为 0–1。按幻灯片、版式、母版顺序选择背景，并按实际来源部件解析内部图片关系；主题 `bgRef` 也按主题部件解析。导入保留 `srcRect` 和常量 `alphaModFix`，替换图片继续保留这些值；格式候选沿用原资源和整页裁剪，不生成图片副本。缺图片、非法模式/数值、舍入后空源区域、未知源及预算失败保留源、选择和历史。拉伸展开后的宽高各不超过 1e9 pt；平铺的未生效裁剪不参与这个展开检查，切回拉伸时重新验证。
 
-背景先铺白底，再裁剪到整页并使用既有图片图元，前景对象随后绘制。拉伸以有效源矩形覆盖页面；平铺复用[形状图片](#形状图片填充)的 96 DPI、缩放/偏移、九种对齐及交替翻转，保留但不应用源裁剪。背景、形状填充和独立图片合计每页最多 65536 格；写入、模式、尺寸及变换候选先验证此上限。背景图片计入全稿 256 项使用中图片及既有字节/历史预算，预览、PNG 和 PDF 使用同一资源清单。外链、非零目标内缩和未知效果继续保护；不抓取外部图片，也不删除未知源来替换背景。
+背景先铺白底，再裁剪到整页并使用既有图片图元，前景对象随后绘制。拉伸以有效源矩形覆盖页面；平铺复用[形状图片](#形状图片填充)的 96 DPI、缩放/偏移、九种对齐及交替翻转，保留但不应用源裁剪。背景、形状填充和独立图片合计每页最多 65536 格；写入、模式、尺寸及变换候选先验证此上限。背景图片计入全稿 256 项使用中图片及既有字节/历史预算，预览、PNG 和 PDF 使用同一资源清单。目标内缩归[图片目标内缩](#图片目标内缩)；外链和未知效果继续保护；不抓取外部图片，也不删除未知源来替换背景。
 
 源矩形复用 [ONLYOFFICE 图片裁剪系数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L946-L960)，读取与绘制顺序参考 [ONLYOFFICE 背景继承](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L1260-L1322)、[背景图片资源](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L1134-L1151)及[背景先于对象绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L1416-L1451)，未复制上游源码。实现归[背景图片](../../modules/formats/src/pptx/background-image.mbt)、[图片事务](../../modules/formats/src/pptx/object-image.mbt)和[共用平铺](../../modules/formats/src/pptx/shape-tile.mbt)。
 
@@ -1506,7 +1508,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 独立图片使用 `editObjects({ action: "imageMode", mode: "stretch" | "tile" })` 切换模式。`picture.mode` 返回当前有效模式，`modeReason` 返回编辑保护原因；默认图片面板提供选择和应用。命令作用于唯一选中的本地顶层图片，只改 `blipFill` 的模式节点，保持身份、外框、旋转/翻转、裁剪、不透明度、图片字节及关系。同值不增加历史。未显式声明模式的已知源按拉伸读取，首次切换插入标准平铺。导入支持已有缩放、偏移、对齐与交替翻转，范围与[形状平铺](#形状图片填充)相同。平铺使用整张源图并保留裁剪；切回拉伸时重新应用裁剪，并在提交前验证展开尺寸。
 
-图片在拉伸和平铺时均按已支持的预设图片框裁剪，矩形沿原矩形路径，椭圆等复用已有形状轮廓；变换后的框和图片使用同一矩阵。绘制入口参考 [ONLYOFFICE CImageShape.draw](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L592-L659)，平铺语义复用其 ShapeDrawer。背景、形状填充和独立图片共用每页 65536 个重复单元；尺寸和变换候选沿同一数量检查。未知模式/填充标记、外链、非零目标内缩、固定页面方向及未知效果继续保护；未知几何不放开。失败保留源、资源、选择和历史。保存重开、复制、替换、裁剪、不透明度及 Canvas/PDF 沿原路径。实现归 [`picture-mode.mbt`](../../modules/formats/src/pptx/picture-mode.mbt)及[共享平铺](../../modules/formats/src/pptx/shape-tile.mbt)。
+图片在拉伸和平铺时均按已支持的预设图片框裁剪，矩形沿原矩形路径，椭圆等复用已有形状轮廓；变换后的框和图片使用同一矩阵。绘制入口参考 [ONLYOFFICE CImageShape.draw](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L592-L659)，平铺语义复用其 ShapeDrawer。背景、形状填充和独立图片共用每页 65536 个重复单元；尺寸和变换候选沿同一数量检查。未知模式/填充标记、外链、固定页面方向及未知效果继续保护；目标内缩归[图片目标内缩](#图片目标内缩)；未知几何不放开。失败保留源、资源、选择和历史。保存重开、复制、替换、裁剪、不透明度及 Canvas/PDF 沿原路径。实现归 [`picture-mode.mbt`](../../modules/formats/src/pptx/picture-mode.mbt)及[共享平铺](../../modules/formats/src/pptx/shape-tile.mbt)。
 
 四边裁剪为 `{ action: "imageCrop", left, top, right, bottom }`，每边为源图的移除比例，范围 0 至 0.99999。核心按 OOXML 的 1/100000 网格舍入，左右及上下之和必须小于 1，派生绘图坐标继续受预算约束；不改对象外框。四个零恢复整图并移除裁剪覆盖，同值不新增历史。`PptxObject.picture` 返回四边有效比例和 `replaceReason/cropReason`，另返回 `mode` 与 `modeReason`。裁剪锁、继承/组内图片、非唯一选择、未知裁剪标记及预算失败保留源；默认 UI 提供替换文件、四边百分比和重置。替换、裁剪和后续对象编辑沿同一历史精确恢复，保存重开与 Canvas/PDF 共用已有源矩形显示路径。
 
@@ -1554,11 +1556,21 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 读取本地、版式/母版继承及主题的两端点不透明渐变；源的 `rotWithShape` 为缺省/真值，固定页面方向、多色标、透明、路径渐变、非零 tileRect 或未知标记保留源并诊断。操作先校验全部成员，复用原子源事务、无操作和精确历史；非法值、保护成员和输出预算失败保持整个文档。新增定位图元 `ClipPath(path, evenOdd)` 复用既有绘制命令，Canvas/PDF 沿相同预设路径裁剪，矩形以外区域及后续图元保持原样。实现归 [`shape-gradient.mbt`](../../modules/formats/src/pptx/shape-gradient.mbt)；参考 [ONLYOFFICE 形状渐变绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L1970-L2037)。
 
+### 图片目标内缩
+
+`editObjects({ action: "imageInsets", insets })` 设置所选本地顶层图片及图片填充形状的目标矩形。`editSlides({ action: "backgroundImageInsets", insets }, slide?)` 设置图片背景，继承背景可创建本页覆盖并复用原资源。两者沿同步 Wasm、Worker、宿主和默认面板使用相同事务。对象查询返回 `imageInsets` 与 `imageInsetsReason`；图片背景的 `value.insets` 返回有效值。
+
+`insets: [left, top, right, bottom]` 是对象或页面宽高的比例。正数向内，负数向外；四个零恢复完整目标。每项须在 DrawingML 有符号百分比范围 −21474.83648–21474.83647 内，按 1/100000 舍入后，左右与上下之和分别小于 1。默认控件使用百分比，支持四边设置、重置及一次应用。当前仅拉伸支持目标内缩；切为平铺会移除拉伸矩形，再切回拉伸使用零内缩，源裁剪继续保留。
+
+核心先把有效源裁剪映射到目标矩形，再同时裁剪到该矩形与形状轮廓或页面。内缩留白不会露出被裁掉的源像素。目标随对象旋转/翻转，透明度乘源像素 alpha；Canvas、PNG/JPEG 和 PDF 复用同一图元。读取支持本地、版式、母版与主题来源；对象内缩编辑要求本地图片或填充。替换图片、透明度及同模式格式编辑保留目标矩形；不改变对象外框、文字、图片字节或现有关系。非目标源保持，同值不增加历史，混合输入和设置可精确撤销并保存重开。
+
+目标展开后的图片宽高与位置绝对值不超过 1e9 pt，并继续遵守图片、输出和历史预算。空矩形、未知源、保护及预算失败整体拒绝。实现归 [`image-insets.mbt`](../../modules/formats/src/pptx/image-insets.mbt)，目标与源矩形的组合依据 [ONLYOFFICE drawBlipFillStretch](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L1778-L1834)，未复制上游源码。
+
 ### 形状图片填充
 
 `editObjects({ action: "imageFill", objects, bytes, mode })` 将所选本地顶层闭合形状设为 PNG/JPEG 图片填充，`mode` 必须为 `stretch` 或 `tile`。`objects` 是文件读取前捕获的有序选择，提交时须与当前选择完全一致，防止异步读取后修改其他对象。图片沿既有 4 MiB、尺寸、资源数量、输出和历史预算校验，Web 提交前检查实际解码。多选共享一个新资源及关系，保留各自身份、几何、轮廓、描边、文字、已有裁剪和有效填充不透明度。核心沿既有图片事务提交，失败不增加资源或历史；相同本地图片无操作。默认面板选择图片后直接应用，清除和纯色/渐变命令可替换受支持图片填充。
 
-查询 `appearance.imageFill` 返回资源键或 null，`imageFillMode` 返回 `stretch`、`tile` 或 null，`imageFillReason` 返回保护原因。读取本地、版式/母版和主题的内部图片关系，按来源部件解析；支持非负四边源裁剪及常量 `alphaModFix`。图片按预设形状轮廓裁剪，随对象旋转/翻转，Canvas/PDF 共用同一图元。已有本地图片填充可用 `fillOpacity` 修改透明度；继承图片先设置本地图片覆盖。带裁剪元数据的平铺复用 [ONLYOFFICE drawBlipFillTile](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L1687-L1777)：使用整张源图的 96 DPI 尺寸、对齐和翻转，保留 `srcRect`；切回拉伸才应用裁剪。模式切换、替换、透明度和精确历史保留这些值；切回拉伸的扩展尺寸及平铺数量超限原子拒绝。非零目标内缩、固定页面方向、外链、背景关联图片填充及未知/重复/不透明源继续保护，仍归 P12 后续实现。实现归 [`shape-image.mbt`](../../modules/formats/src/pptx/shape-image.mbt)和 [`object-image.mbt`](../../modules/formats/src/pptx/object-image.mbt)，语义参考 [ONLYOFFICE 图片拉伸、裁剪和透明度绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L1778-L1848)，未复制上游源码。
+查询 `appearance.imageFill` 返回资源键或 null，`imageFillMode` 返回 `stretch`、`tile` 或 null，`imageFillReason` 返回保护原因。读取本地、版式/母版和主题的内部图片关系，按来源部件解析；支持非负四边源裁剪及常量 `alphaModFix`。图片按预设形状轮廓裁剪，随对象旋转/翻转，Canvas/PDF 共用同一图元。已有本地图片填充可用 `fillOpacity` 修改透明度；继承图片先设置本地图片覆盖。带裁剪元数据的平铺复用 [ONLYOFFICE drawBlipFillTile](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L1687-L1777)：使用整张源图的 96 DPI 尺寸、对齐和翻转，保留 `srcRect`；切回拉伸才应用裁剪。模式切换、替换、透明度和精确历史保留这些值；切回拉伸的扩展尺寸及平铺数量超限原子拒绝。目标内缩归[图片目标内缩](#图片目标内缩)；固定页面方向、外链、背景关联图片填充及未知/重复/不透明源继续保护，仍归 P12 后续实现。实现归 [`shape-image.mbt`](../../modules/formats/src/pptx/shape-image.mbt)和 [`object-image.mbt`](../../modules/formats/src/pptx/object-image.mbt)，语义参考 [ONLYOFFICE 图片拉伸、裁剪和透明度绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L1778-L1848)，未复制上游源码。
 
 `editObjects({ action: "imageFillMode", mode })` 在已有本地图片上切换拉伸和平铺，不新增图片或关系；继承填充须先设置本地覆盖。默认面板提供模式选择、应用及按所选模式上传文件。平铺采用 96 DPI，即源像素乘 0.75 pt，不读取嵌入 DPI。导入支持 `sx/sy`（1–100000000，以 100000 为一倍）、`tx/ty`（±182880000 EMU）、九种 `algn` 及 `flip=none/x/y/xy`；偏移和对齐确定原始格点，负索引仍保持交替镜像相位。换图保留已有平铺参数，切换回平铺使用默认顶左对齐、原尺寸和无翻转。非零源裁剪在平铺时保留，切回拉伸后生效；未知源继续保留并诊断。
 

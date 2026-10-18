@@ -1,6 +1,24 @@
 import { record } from "./validation.js";
 import { drawingMatrix } from "./drawing.js";
 
+export function imageInsets(value: unknown): void {
+  if (
+    !Array.isArray(value) ||
+    value.length !== 4 ||
+    value.some(
+      (v) =>
+        typeof v !== "number" ||
+        !Number.isFinite(v) ||
+        v < -21474.83648 ||
+        v > 21474.83647,
+    )
+  )
+    throw new Error("Invalid image destination insets");
+  const values = value.map((v) => Math.round(v * 100000));
+  if (values[0]! + values[2]! >= 100000 || values[1]! + values[3]! >= 100000)
+    throw new Error("Image destination must retain positive area");
+}
+
 export function strings(value: unknown, count: number, units: number): void {
   if (
     !Array.isArray(value) ||
@@ -138,6 +156,7 @@ export type PptxObjectEdit =
     }
   | { action: "imageFillMode"; mode: "stretch" | "tile" }
   | { action: "imageMode"; mode: "stretch" | "tile" }
+  | { action: "imageInsets"; insets: [number, number, number, number] }
   | { action: "lineEnd"; side: "head" | "tail"; end: PptxLineEnd | null }
   | { action: "hyperlink"; link: PptxHyperlink | null }
   | {
@@ -242,6 +261,15 @@ export function number(value: unknown, low = 0, high = 0x7fffffff): number {
 }
 export function checkPptxObjectEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "imageInsets") {
+    imageInsets(change.insets);
+    if (
+      Object.keys(change).length !== 2 ||
+      Object.keys(change).some((key) => !["action", "insets"].includes(key))
+    )
+      throw new Error("Invalid image destination edit");
+    return;
+  }
   if (change.action === "lineEnd") {
     if (
       typeof change.side !== "string" ||

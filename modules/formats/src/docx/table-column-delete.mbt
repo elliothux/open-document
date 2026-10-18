@@ -11,8 +11,8 @@ fn Session::delete_table_column(
   let grid = self.table_grid(tree, selection)
   tree.check_table_structure(grid, columns=true)
   self.check_table_layout(self.flow(), grid.model, None, profile, None)
-  let page = self.flow().page
-  let available = page.width - page.left - page.right
+  let flow = self.flow()
+  let available = flow.columns.width(flow.page)
   let model = if probe is Some(probe) {
     grid.model.fit_widths(probe, profile, available)
   } else {

@@ -108,11 +108,11 @@ fn Session::split_table_cell(
   let probe = probe.unwrap_or_else(() => {
     @failure.reject("missing-font", "Cell splitting requires a text probe")
   })
-  let page = self.flow().page
+  let flow = self.flow()
   let fitted = grid.model.fit_widths(
     probe,
     profile,
-    page.width - page.left - page.right,
+    flow.columns.width(flow.page),
   )
   let positions : Array[Int] = [0]
   for width in fitted.widths {

@@ -1,0 +1,154 @@
+///|
+pub(all) struct Columns {
+  count : Int
+  gap : Double
+  separator : Bool
+} derive(ToJson)
+
+///|
+pub extend Columns with ToJson::{to_json}
+
+///|
+pub fn Columns::new(
+  count~ : Int = 1,
+  gap~ : Double = 36,
+  separator~ : Bool = false,
+) -> Columns {
+  { count, gap, separator, }
+}
+
+///|
+pub fn Columns::width(
+  self : Columns,
+  page : PageSetup,
+) -> Double raise @failure.Failure {
+  guard self.count >= 1 &&
+    self.count <= 12 &&
+    !self.gap.is_nan() &&
+    !self.gap.is_inf() &&
+    self.gap >= 0 &&
+    self.gap <= 14400 else {
+    @failure.reject("invalid-style", "Invalid page columns")
+  }
+  let width = (
+      page.width -
+      page.left -
+      page.right -
+      self.gap * (self.count - 1).to_double()
+    ) /
+    self.count.to_double()
+  guard width >= 12 else {
+    @failure.reject(
+      "layout-overflow", "Columns require at least 12pt of text width",
+    )
+  }
+  width
+}
+
+///|
+fn Pagination::sheet_break(self : Pagination) -> Unit raise @failure.Failure {
+  self.next_page()
+  while self.pages.length() % self.columns.count != 1 % self.columns.count {
+    self.next_page()
+  }
+}
+
+///|
+fn Pagination::finish_columns(self : Pagination) -> Unit {
+  if self.columns.count == 1 {
+    return
+  }
+  let frames = self.pages.copy()
+  self.pages.clear()
+  for index, frame in frames {
+    if index % self.columns.count == 0 {
+      self.pages.push(frame)
+    } else {
+      let page = self.pages.last().unwrap()
+      page.lines.append(frame.lines)
+      page.borders.append(frame.borders)
+      page.fills.append(frame.fills)
+      page.cellAreas.append(frame.cellAreas)
+      if self.columns.separator &&
+        (!frame.lines.is_empty() || !frame.cellAreas.is_empty()) {
+        let setup = self.page_at(index)
+        page.fills.push({
+          x: setup.left - self.columns.gap / 2 - 0.375,
+          y: setup.top,
+          width: 0.75,
+          height: setup.height - setup.top - setup.bottom,
+          color: "000000",
+        })
+      }
+    }
+  }
+}
+
+///|
+fn column_body(
+  probe : TextProbe,
+  flow : Flow,
+  cache : ParagraphCache,
+  profile : Map[String, String],
+  images : Images,
+  setups : Array[PageSetup],
+  page_setups : Array[PageSetup],
+) -> (Pagination, Int, Int, PaginationCache?) raise @failure.Failure {
+  let columns = flow.columns
+  ignore(columns.width(flow.page))
+  let run = fn(balance : (Int, Double)?) raise @failure.Failure {
+    let pagination = Pagination::new(
+      setups[0],
+      setups~,
+      pageSetups=page_setups,
+      columns~,
+      balance~,
+    )
+    let (reflowed, reused, next) = pagination.body(
+      probe,
+      { ..flow, page: pagination.page, },
+      cache,
+      profile,
+      images,
+    )
+    (pagination, reflowed, reused, next)
+  }
+  let initial = run(None)
+  if columns.count == 1 {
+    return initial
+  }
+  let last = (initial.0.pages.length() - 1) / columns.count
+  let setup = initial.0.page_at(last * columns.count)
+  let mut low = 1
+  let mut high = ((setup.height - setup.top - setup.bottom) * 20)
+    .ceil()
+    .to_int()
+  let mut best = initial
+  for _ in 0..<20 {
+    if low >= high {
+      break
+    }
+    let middle = low + (high - low) / 2
+    let trial = try run(Some((last, middle.to_double() / 20))) catch {
+      @failure.Failure(code="layout-overflow", ..) => None
+      error => raise error
+    } noraise {
+      value => Some(value)
+    }
+    if trial is Some(value) &&
+      value.0.pages.length() <= (last + 1) * columns.count {
+      best = value
+      high = middle
+    } else {
+      low = middle + 1
+    }
+  }
+  let (pagination, reflowed, reused, next) = best
+  pagination.finish_columns()
+  let reused = if reflowed == 0 {
+    pagination.pages.length()
+  } else {
+    reused / columns.count
+  }
+  (pagination, pagination.pages.length() - reused, reused, next)
+}
