@@ -87,6 +87,7 @@ pub(all) enum ObjectEdit {
   InsertImage(Bytes, Double, Double, Double, Double)
   InsertTable(Int, Int, Double, Double, Double, Double)
   TableStructure(String)
+  SplitTableCell(Int, Int)
   ReplaceImage(String, Bytes)
   ImageFill(Array[String], Bytes, String)
   ImageFillMode(String)

@@ -4,6 +4,7 @@ pub(all) enum ObjectEdit {
   InsertImage(Bytes, Double, Double, Double, Double)
   InsertTable(Int, Int, Double, Double, Double, Double)
   TableStructure(String)
+  SplitTableCell(Int, Int)
   ReplaceImage(String, Bytes)
   ImageFill(Array[String], Bytes, String)
   ImageFillMode(String)
@@ -99,24 +100,23 @@ fn Session::object_edit_reason(
 ) -> String {
   let duplicate = action == "duplicate"
   try {
-    let table_delete = action == "delete" &&
-      object.table is Some(_) &&
-      object.read_only ==
-      "Table object transforms and structure are not yet editable"
-    if !object.read_only.is_empty() && !table_delete {
+    let table = object.table is Some(_)
+    if !object.read_only.is_empty() {
       return object.read_only
+    }
+    if table && !["delete", "duplicate", "arrange"].contains(action) {
+      return "Native table frames do not support rotation or flipping"
     }
     let slide = self.slides[self.index(object.source.tree.part)]
     if !slide.read_only.is_empty() {
       return slide.read_only
     }
-    guard (
-        ["sp", "pic", "grpSp"].contains(object.source.node.name) || table_delete
-      ) &&
+    guard (["sp", "pic", "grpSp"].contains(object.source.node.name) || table) &&
       object.source.node.parent == shape_tree(slide.tree).id else {
       return "Only local top-level shapes and pictures support this operation"
     }
-    if ["rotate", "arrange"].contains(action) &&
+    if !table &&
+      ["rotate", "arrange"].contains(action) &&
       object.source.child(
         if object.kind == "group" {
           "grpSpPr"
@@ -270,6 +270,16 @@ pub fn Session::edit_objects(
   guard original.read_only.is_empty() else {
     @failure.reject("protected-content", original.read_only)
   }
+  if self.selection.objects.length() == 1 &&
+    original.object(self.selection.object).table is Some(_) &&
+    (
+      change is Fill(_) ||
+      change is Stroke(_, _) ||
+      change is TextInsets(_, _, _, _) ||
+      change is TextAnchor(_)
+    ) {
+    return self.format_table_cells(change, probe, profile)
+  }
   if change is TextFormat(_) ||
     change is TextAlign(_) ||
     change is TextParagraph(_) ||
@@ -285,6 +295,9 @@ pub fn Session::edit_objects(
   }
   if change is TableStructure(operation) {
     return self.edit_table_structure(operation, probe, profile)
+  }
+  if change is SplitTableCell(rows, columns) {
+    return self.split_table_cell(rows, columns, probe, profile)
   }
   if change is ImageFillMode(mode) {
     return self.set_image_fill_mode(mode)
@@ -345,6 +358,7 @@ pub fn Session::edit_objects(
     InsertImage(_, _, _, _, _)
     | InsertTable(_, _, _, _, _, _)
     | TableStructure(_)
+    | SplitTableCell(_, _)
     | ReplaceImage(_, _)
     | ImageFill(_, _, _)
     | ImageFillMode(_)
@@ -491,6 +505,13 @@ pub fn Session::edit_objects(
   if issued is Some(_) {
     for id in after.objects {
       let object = candidate.object(id)
+      if object.table is Some(_) {
+        let (_, _, warnings, _) = object.paint_table(probe, profile)
+        guard warnings.is_empty() else {
+          @failure.reject("layout-overflow", warnings.join("; "))
+        }
+        continue
+      }
       let (_, _, diagnostic) = fit_text(
         object,
         object.geometry.unwrap(),

@@ -39,6 +39,16 @@ fn Session::check_table_operation(
       (range.top != range.bottom || range.left != range.right) else {
       @failure.reject("invalid-operation", "Select one merged cell to unmerge")
     }
+    for r in range.top..<=range.bottom {
+      for c in range.left..<=range.right {
+        let cell = table.rows[r].cells[c]
+        guard cell.body.left + cell.body.right < table.widths[c] else {
+          @failure.reject(
+            "protected-content", "Cell margins require a wider column before unmerging",
+          )
+        }
+      }
+    }
     return
   }
   let rows = operation.contains("Row")

@@ -30,7 +30,20 @@ export interface PptxTable {
   firstColumn: number;
   lastColumn: number;
   reason: string;
+  splitReason: string;
   operations: Record<(typeof tableOperations)[number], string>;
+  format: {
+    fill: string | null;
+    borderColor: string | null;
+    borderWidth: number | null;
+    left: number | null;
+    top: number | null;
+    right: number | null;
+    bottom: number | null;
+    anchor: "t" | "ctr" | "b" | null;
+    reason: string;
+    borderReason: string;
+  };
 }
 const tableOperations = [
   "insertRowBefore",
@@ -53,6 +66,25 @@ export function checkPptxTable(
     rows = number(table.rows, 1, 1000),
     columns = number(table.columns, 1, 63);
   const operations = record(table.operations);
+  const format = record(table.format);
+  for (const key of ["fill", "borderColor"]) {
+    const value = format[key];
+    if (
+      value !== null &&
+      (typeof value !== "string" ||
+        (value !== "" && !/^[0-9a-f]{6}$/i.test(value)))
+    )
+      throw new Error("Invalid PPTX cell color");
+  }
+  for (const key of ["left", "top", "right", "bottom", "borderWidth"])
+    if (format[key] !== null)
+      number(format[key], 0, key === "borderWidth" ? 1000 : 14400);
+  if (
+    ![null, "t", "ctr", "b"].some((value) => value === format.anchor) ||
+    typeof format.reason !== "string" ||
+    typeof format.borderReason !== "string"
+  )
+    throw new Error("Invalid PPTX cell format");
   if (
     Object.keys(operations).length !== tableOperations.length ||
     tableOperations.some(
@@ -87,7 +119,8 @@ export function checkPptxTable(
     table.object !== active ||
     selected.length !== 1 ||
     selected[0] !== table.object ||
-    typeof table.reason !== "string"
+    typeof table.reason !== "string" ||
+    typeof table.splitReason !== "string"
   )
     throw new Error("Invalid PPTX table query");
 }
@@ -253,6 +286,7 @@ export function pptxHyperlink(value: unknown): PptxHyperlink | null {
   return value as PptxHyperlink;
 }
 export type PptxObjectEdit =
+  | { action: "splitTableCell"; rows: number; columns: number }
   | { action: "tableStructure"; operation: (typeof tableOperations)[number] }
   | {
       action: "insertTable";
@@ -375,6 +409,20 @@ export function number(value: unknown, low = 0, high = 0x7fffffff): number {
 }
 export function checkPptxObjectEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "splitTableCell") {
+    const rows = number(change.rows, 1, 1000),
+      columns = number(change.columns, 1, 63);
+    if (
+      !Number.isInteger(rows) ||
+      !Number.isInteger(columns) ||
+      rows * columns > 4096 ||
+      Object.keys(change).some(
+        (key) => !["action", "rows", "columns"].includes(key),
+      )
+    )
+      throw new Error("Invalid PPTX split cell dimensions");
+    return;
+  }
   if (change.action === "tableStructure") {
     if (
       !tableOperations.some((value) => value === change.operation) ||

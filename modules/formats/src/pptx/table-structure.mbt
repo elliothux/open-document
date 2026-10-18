@@ -14,7 +14,7 @@ fn validate_table_template(source : Ref) -> Unit raise @failure.Failure {
 }
 
 ///|
-fn blank_table_cell(cell : DrawingCell) -> String raise @failure.Failure {
+fn blank_table_content(cell : DrawingCell) -> String raise @failure.Failure {
   let paragraph = cell.paragraphs[0]
   let body = cell.source.child("txBody").unwrap()
   let properties = [
@@ -45,7 +45,12 @@ fn blank_table_cell(cell : DrawingCell) -> String raise @failure.Failure {
       "limit-exceeded", "Table cell template exceeds history budget",
     )
   }
-  "<a:tc xmlns:a=\"\{drawing_uri}\"><a:txBody>\{fragments[0]}\{fragments[1]}<a:p>\{fragments[2]}<a:r>\{format}<a:t/></a:r>\{fragments[3]}</a:p></a:txBody>\{fragments[4]}</a:tc>"
+  "<a:txBody>\{fragments[0]}\{fragments[1]}<a:p>\{fragments[2]}<a:r>\{format}<a:t/></a:r>\{fragments[3]}</a:p></a:txBody>\{fragments[4]}"
+}
+
+///|
+fn blank_table_cell(cell : DrawingCell) -> String raise @failure.Failure {
+  "<a:tc xmlns:a=\"\{drawing_uri}\">\{blank_table_content(cell)}</a:tc>"
 }
 
 ///|
@@ -83,6 +88,9 @@ fn Session::prepare_table(
 ) -> (Slide, @xml.Edit) raise @failure.Failure {
   let (candidate, edit) = self.prepare(original, changes)
   let object = candidate.object(identity)
+  guard object.table is Some(_) else {
+    @failure.reject("protected-content", object.diagnostic)
+  }
   let fit = object.table_fit_changes(probe, profile)
   if fit.is_empty() {
     return (candidate, edit)

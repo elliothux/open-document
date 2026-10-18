@@ -270,6 +270,7 @@ export const zh: Messages = {
   font: "字体",
   fontFamily: "字体名称",
   cellFormat: "单元格格式",
+  wholeTable: "整表",
   cellRange: "单元格范围",
   goToRange: "定位范围",
   formulaInput: "公式输入",

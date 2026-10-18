@@ -128,6 +128,7 @@ fn Session::transform_collection(
     )
     {
       ..object,
+      table: object.table.map(table => table.resized(width, height)),
       geometry: Some({
         ..next,
         matrix: object_matrix(

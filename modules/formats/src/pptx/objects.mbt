@@ -469,9 +469,6 @@ fn read_object(
       }
     }
   }
-  if table is Some(_) && read_only.is_empty() {
-    read_only = "Table object transforms and structure are not yet editable"
-  }
   {
     id: source.tree.part + "#" + id,
     parent: source.parent_group(),

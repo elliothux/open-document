@@ -86,8 +86,17 @@ fn format_styles(
 }
 
 ///|
-fn Session::formatting_reason(self : Session, object : Object) -> String {
-  let reason = self.text_frame_reason(object)
+fn Session::formatting_reason(
+  self : Session,
+  object : Object,
+  table~ : Bool = false,
+) -> String {
+  // Table styles have cell targets; search and hyperlinks still require frames.
+  let reason = if table && object.table is Some(_) {
+    table_format_reason(object)
+  } else {
+    self.text_frame_reason(object)
+  }
   if !reason.is_empty() {
     return reason
   }
@@ -155,19 +164,21 @@ fn Session::formatting_query(self : Session) -> Json {
     let alignments : Array[String] = []
     for id in selection.objects {
       let object = self.current().object(id)
-      let reason = self.formatting_reason(object)
+      let reason = self.formatting_reason(object, table=true)
       if !reason.is_empty() {
         result["reason"] = Json(reason)
         return Json(result)
       }
-      styles.append(format_styles(object, selection))
-      let mut offset = 0
-      for paragraph in object.paragraphs {
-        let length = paragraph_length(paragraph)
-        if paragraph_selected(selection, offset, length) {
-          alignments.push(paragraph.align)
+      for (target, selected) in object.format_targets(selection) {
+        styles.append(format_styles(target, selected))
+        let mut offset = 0
+        for paragraph in target.paragraphs {
+          let length = paragraph_length(paragraph)
+          if paragraph_selected(selected, offset, length) {
+            alignments.push(paragraph.align)
+          }
+          offset += length + 1
         }
-        offset += length + 1
       }
     }
     result["reason"] = Json("")
@@ -386,68 +397,70 @@ fn Session::format_objects(
   }
   let changes : Array[@xml.SourceChange] = []
   for id in self.selection.objects {
-    let object = self.current().object(id)
+    let owner = self.current().object(id)
     let reason = if paragraph is Some(_) || clear_paragraph {
-      self.paragraph_reason(object)
+      self.paragraph_reason(owner)
     } else {
-      self.formatting_reason(object)
+      self.formatting_reason(owner, table=true)
     }
     guard reason.is_empty() else {
       @failure.reject("protected-content", reason)
     }
-    if paragraph is Some(_) || clear_paragraph {
-      changes.append(paragraph_changes(object, self.selection, paragraph))
-    } else if format is Some(_) || clear_text {
-      changes.append(text_format_changes(object, self.selection, format))
-    } else {
-      let mut offset = 0
-      for paragraph in object.paragraphs {
-        let length = paragraph_length(paragraph)
-        if paragraph_selected(self.selection, offset, length) &&
-          paragraph.align != alignment {
-          let existing = paragraph.source.child("pPr")
-          let code = if alignment == "center" {
-            "ctr"
-          } else if alignment == "right" {
-            "r"
-          } else if alignment == "justify" {
-            "just"
-          } else {
-            "l"
-          }
-          let markup = if existing is Some(p) {
-            frame_opening(p, Map([("algn", code)])) +
-            (if p.node.empty {
-              ""
+    for (object, selected) in owner.format_targets(self.selection) {
+      if paragraph is Some(_) || clear_paragraph {
+        changes.append(paragraph_changes(object, selected, paragraph))
+      } else if format is Some(_) || clear_text {
+        changes.append(text_format_changes(object, selected, format))
+      } else {
+        let mut offset = 0
+        for paragraph in object.paragraphs {
+          let length = paragraph_length(paragraph)
+          if paragraph_selected(selected, offset, length) &&
+            paragraph.align != alignment {
+            let existing = paragraph.source.child("pPr")
+            let code = if alignment == "center" {
+              "ctr"
+            } else if alignment == "right" {
+              "r"
+            } else if alignment == "justify" {
+              "just"
             } else {
-              p.tree.document.source()[p.node.opening_end:p.node.closing_start].to_owned()
-            }) +
-            "</\{p.node.qualified}>"
-          } else {
-            "<a:pPr xmlns:a=\"\{drawing_uri}\" algn=\"\{code}\"/>"
-          }
-          changes.push(
-            if existing is Some(p) {
-              {
-                node: paragraph.source.node.id,
-                offset: p.node.start - paragraph.source.node.start,
-                length: p.node.end - p.node.start,
-                xml: markup,
-              }
-            } else if paragraph.source.node.empty {
-              insertion(paragraph.source.node, markup)
+              "l"
+            }
+            let markup = if existing is Some(p) {
+              frame_opening(p, Map([("algn", code)])) +
+              (if p.node.empty {
+                ""
+              } else {
+                p.tree.document.source()[p.node.opening_end:p.node.closing_start].to_owned()
+              }) +
+              "</\{p.node.qualified}>"
             } else {
-              {
-                node: paragraph.source.node.id,
-                offset: paragraph.source.node.opening_end -
-                paragraph.source.node.start,
-                length: 0,
-                xml: markup,
-              }
-            },
-          )
+              "<a:pPr xmlns:a=\"\{drawing_uri}\" algn=\"\{code}\"/>"
+            }
+            changes.push(
+              if existing is Some(p) {
+                {
+                  node: paragraph.source.node.id,
+                  offset: p.node.start - paragraph.source.node.start,
+                  length: p.node.end - p.node.start,
+                  xml: markup,
+                }
+              } else if paragraph.source.node.empty {
+                insertion(paragraph.source.node, markup)
+              } else {
+                {
+                  node: paragraph.source.node.id,
+                  offset: paragraph.source.node.opening_end -
+                  paragraph.source.node.start,
+                  length: 0,
+                  xml: markup,
+                }
+              },
+            )
+          }
+          offset += length + 1
         }
-        offset += length + 1
       }
     }
   }
@@ -462,14 +475,12 @@ fn Session::format_objects(
     profile,
   )
   for id in self.selection.objects {
-    ignore(
-      fit_text(
-        candidate.object(id),
-        candidate.object(id).geometry.unwrap(),
-        probe,
-        profile,
-      ),
-    )
+    let target = candidate.object(id)
+    if target.table is Some(_) {
+      ignore(target.paint_table(probe, profile))
+      continue
+    }
+    ignore(fit_text(target, target.geometry.unwrap(), probe, profile))
   }
   self.commit(candidate, edit, self.selection)
   self.query()

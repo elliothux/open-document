@@ -572,7 +572,11 @@ pub fn Session::transform(
           geometry.flip_y,
         ),
       }
-      objects[index] = { ..object, geometry: Some(geometry), }
+      objects[index] = {
+        ..object,
+        geometry: Some(geometry),
+        table: object.table.map(table => table.resized(width, height)),
+      }
     }
   }
   let preview = original.group_preview(objects)
@@ -587,6 +591,9 @@ fn transform_changes(
   object : Object,
   geometry : Geometry,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
+  if object.table is Some(_) {
+    return table_transform_changes(object, geometry)
+  }
   let properties = object.source
     .child(
       if object.kind == "group" {

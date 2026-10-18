@@ -271,6 +271,7 @@ export const en = {
   font: "Font",
   fontFamily: "Font family",
   cellFormat: "Cell format",
+  wholeTable: "Whole table",
   cellRange: "Cell range",
   goToRange: "Go to range",
   formulaInput: "Formula input",

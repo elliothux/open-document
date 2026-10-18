@@ -38,7 +38,27 @@ fn Session::prepare_fitted(
   for id in ids {
     let target = prepared.0.object(id)
     if target.table is Some(_) {
-      changes.append(target.table_fit_changes(probe, profile))
+      let fit = target.table_fit_changes(probe, profile)
+      if !fit.is_empty() {
+        let (document, _) = prepared.0.tree.document.edit_source(fit)
+        let tree = Tree::new(original.tree.part, document)
+        let source = original.object(id).source
+        // Fit uses the resized source offsets; compose back into the original frame.
+        for index = changes.length() - 1; index >= 0; index = index - 1 {
+          let change = changes[index]
+          let start = original.tree.nodes[change.node].start + change.offset
+          if start >= source.node.start &&
+            start + change.length <= source.node.end {
+            ignore(changes.remove(index))
+          }
+        }
+        changes.push(
+          table_source_change(
+            source,
+            source_xml({ tree, node: tree.nodes[target.source.node.id], }),
+          ),
+        )
+      }
       continue
     }
     if target.body.fit == "none" || target.paragraphs.is_empty() {

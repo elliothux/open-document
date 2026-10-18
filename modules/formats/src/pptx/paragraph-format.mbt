@@ -1,6 +1,10 @@
 ///|
 fn Session::paragraph_reason(self : Session, object : Object) -> String {
-  let reason = self.text_frame_reason(object)
+  let reason = if object.table is Some(_) {
+    table_format_reason(object)
+  } else {
+    self.text_frame_reason(object)
+  }
   if !reason.is_empty() {
     return reason
   }
@@ -59,13 +63,15 @@ fn Session::paragraph_query(self : Session) -> Json {
         result["reason"] = Json(reason)
         return Json(result)
       }
-      let mut offset = 0
-      for paragraph in object.paragraphs {
-        let length = paragraph_length(paragraph)
-        if paragraph_selected(selection, offset, length) {
-          values.push(paragraph_values(paragraph))
+      for (target, selected) in object.format_targets(selection) {
+        let mut offset = 0
+        for paragraph in target.paragraphs {
+          let length = paragraph_length(paragraph)
+          if paragraph_selected(selected, offset, length) {
+            values.push(paragraph_values(paragraph))
+          }
+          offset += length + 1
         }
-        offset += length + 1
       }
     }
     result["reason"] = Json("")

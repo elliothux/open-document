@@ -371,6 +371,11 @@ fn Foundation::pptx_operation(
       let change = match field_string(change, "action") {
         "tableStructure" =>
           @pptx.TableStructure(field_string(change, "operation"))
+        "splitTableCell" =>
+          @pptx.SplitTableCell(
+            field_int(change, "rows"),
+            field_int(change, "columns"),
+          )
         "imageFill" =>
           @pptx.ImageFill(
             pptx_objects(change),

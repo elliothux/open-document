@@ -42,6 +42,11 @@ fn Session::group_members(
         )
       }
     } else {
+      guard object.table is None else {
+        @failure.reject(
+          "protected-content", "Grouped tables require table scaling support",
+        )
+      }
       guard placeholder(object.source) is None else {
         @failure.reject(
           "protected-content", "Inherited placeholders cannot be grouped",

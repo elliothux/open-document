@@ -132,8 +132,7 @@ fn Session::table_position(
   }
   let reason = if !self.current().read_only.is_empty() {
     self.current().read_only
-  } else if object.read_only !=
-    "Table object transforms and structure are not yet editable" {
+  } else if !object.read_only.is_empty() {
     object.read_only
   } else if !object.text_reason.is_empty() {
     object.text_reason
@@ -192,6 +191,14 @@ fn Session::table_query(self : Session) -> Json raise @failure.Failure {
     "firstColumn": range.left,
     "lastColumn": range.right,
     "reason": reason,
+    "splitReason": if !reason.is_empty() {
+      reason
+    } else if range.owners != 1 {
+      "Select one cell to split"
+    } else {
+      ""
+    },
     "operations": Json(operations),
+    "format": table_format_query(object, selection),
   }
 }

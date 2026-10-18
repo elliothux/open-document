@@ -32,6 +32,7 @@ export function PptxArrange({
   const rotateReason = objects.find(
     (object) => object.rotateReason,
   )?.rotateReason;
+  const table = objects.some((object) => object.kind === "table");
   const unavailable =
     disabled || !object || query.selection.mode !== "object" || !!reason;
   return (
@@ -66,6 +67,8 @@ export function PptxArrange({
       {rotateReason && rotateReason !== reason && <p>{rotateReason}</p>}
       <button
         type="button"
+        disabled={table}
+        title={table ? rotateReason : undefined}
         aria-pressed={
           objects.every(
             (item) => item.geometry?.flipX === object?.geometry?.flipX,
@@ -83,6 +86,8 @@ export function PptxArrange({
       </button>
       <button
         type="button"
+        disabled={table}
+        title={table ? rotateReason : undefined}
         aria-pressed={
           objects.every(
             (item) => item.geometry?.flipY === object?.geometry?.flipY,
