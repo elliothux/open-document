@@ -1,5 +1,12 @@
 import { record } from "./validation.js";
 import { drawingMatrix } from "./drawing.js";
+import {
+  checkPptxTableStyle,
+  checkPptxTableStyleQuery,
+  type PptxTableStyle,
+  type PptxTableStyleQuery,
+} from "./pptx-table-style.js";
+export type { PptxTableStyle } from "./pptx-table-style.js";
 
 export interface PptxSelection {
   slide: string;
@@ -20,6 +27,7 @@ export interface PptxHit {
   textReadOnlyReason: string;
 }
 export interface PptxTable {
+  style: PptxTableStyleQuery;
   object: string;
   rows: number;
   columns: number;
@@ -68,6 +76,7 @@ export function checkPptxTable(
     rows = number(table.rows, 1, 1000),
     columns = number(table.columns, 1, 63);
   const operations = record(table.operations);
+  checkPptxTableStyleQuery(table.style);
   for (const key of ["rowHeight", "columnWidth"])
     if (table[key] !== null) number(table[key], 1 / 12700, 14400);
   const format = record(table.format);
@@ -290,6 +299,7 @@ export function pptxHyperlink(value: unknown): PptxHyperlink | null {
   return value as PptxHyperlink;
 }
 export type PptxObjectEdit =
+  | { action: "tableStyle"; style: PptxTableStyle }
   | { action: "tableRowHeight" | "tableColumnWidth"; value: number }
   | { action: "splitTableCell"; rows: number; columns: number }
   | { action: "tableStructure"; operation: (typeof tableOperations)[number] }
@@ -414,6 +424,12 @@ export function number(value: unknown, low = 0, high = 0x7fffffff): number {
 }
 export function checkPptxObjectEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "tableStyle") {
+    checkPptxTableStyle(change.style);
+    if (Object.keys(change).some((key) => key !== "action" && key !== "style"))
+      throw new Error("Invalid PPTX table style command");
+    return;
+  }
   if (
     change.action === "tableRowHeight" ||
     change.action === "tableColumnWidth"

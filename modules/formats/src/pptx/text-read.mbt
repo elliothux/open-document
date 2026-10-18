@@ -131,6 +131,7 @@ fn read_text(
   defaults : Ref?,
   page_number : String,
   date_time : DateTime?,
+  run_styles~ : Array[Ref] = [],
 ) -> (Array[TextParagraph], Body, String) raise @failure.Failure {
   let bodies = children(
     chain,
@@ -241,6 +242,7 @@ fn read_text(
         styles.push(value)
       }
     }
+    let local_count = styles.length()
     for item in [master_styles, defaults] {
       if item is Some(item) {
         if item.child("lvl\{level + 1}pPr") is Some(value) {
@@ -251,7 +253,9 @@ fn read_text(
         }
       }
     }
-    let run_defaults = children(styles, "defRPr")
+    let run_defaults = children(styles[:local_count].to_owned(), "defRPr")
+    run_defaults.append(run_styles)
+    run_defaults.append(children(styles[local_count:].to_owned(), "defRPr"))
     let rtl = match attribute(styles, "rtl") {
       None | Some("0" | "false") => false
       Some("1" | "true") => true

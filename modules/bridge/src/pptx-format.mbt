@@ -1,4 +1,31 @@
 ///|
+fn pptx_table_style(
+  change : Json,
+) -> @pptx.TableStyleSettings raise @failure.Failure {
+  guard change is { "style": style, .. } &&
+    style is Object(fields) &&
+    fields.length() == 7 &&
+    fields
+    .keys()
+    .all(key => {
+      [
+        "id", "firstRow", "lastRow", "firstColumn", "lastColumn", "bandRows", "bandColumns",
+      ].contains(key)
+    }) else {
+    @failure.reject("invalid-operation", "Invalid table style settings")
+  }
+  {
+    id: field_string(style, "id"),
+    first_row: xlsx_boolean(style, "firstRow"),
+    last_row: xlsx_boolean(style, "lastRow"),
+    first_column: xlsx_boolean(style, "firstColumn"),
+    last_column: xlsx_boolean(style, "lastColumn"),
+    band_rows: xlsx_boolean(style, "bandRows"),
+    band_columns: xlsx_boolean(style, "bandColumns"),
+  }
+}
+
+///|
 fn pptx_text_format(value : Json) -> @pptx.TextFormat raise @failure.Failure {
   guard value is Object(fields) &&
     fields

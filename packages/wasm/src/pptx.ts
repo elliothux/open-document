@@ -45,6 +45,7 @@ export {
   type PptxHit,
   type PptxTable,
   type PptxHyperlink,
+  type PptxTableStyle,
   type PptxDash,
   type PptxCap,
   type PptxJoin,

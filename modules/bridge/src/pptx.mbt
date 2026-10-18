@@ -374,6 +374,7 @@ fn Foundation::pptx_operation(
         "tableRowHeight" => @pptx.TableRowHeight(xlsx_number(change, "value"))
         "tableColumnWidth" =>
           @pptx.TableColumnWidth(xlsx_number(change, "value"))
+        "tableStyle" => @pptx.TableStyle(pptx_table_style(change))
         "splitTableCell" =>
           @pptx.SplitTableCell(
             field_int(change, "rows"),

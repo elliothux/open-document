@@ -27,16 +27,19 @@ fn table_format_reason(object : Object) -> String {
 }
 
 ///|
-fn table_cell_values(cell : DrawingCell) -> Array[Json] {
-  let (color, width) = cell.borders[0]
+fn table_cell_values(
+  cell : DrawingCell,
+  borders : Array[(String, Double)],
+) -> Array[Json] {
+  let (color, width) = borders[0]
   [
     Json(cell.fill),
-    if cell.borders.all(edge => edge.0 == color) {
+    if borders.all(edge => edge.0 == color) {
       Json(color)
     } else {
       Json::null()
     },
-    if cell.borders.all(edge => {
+    if borders.all(edge => {
         (if edge.0.is_empty() { 0.0 } else { edge.1 }) ==
         (if color.is_empty() { 0.0 } else { width })
       }) {
@@ -64,7 +67,7 @@ fn table_format_query(
     for c in range.left..<=range.right {
       let cell = table.rows[r].cells[c]
       if cell.owner() {
-        values.push(table_cell_values(cell))
+        values.push(table_cell_values(cell, table.cell_borders(r, c)))
       }
     }
   }

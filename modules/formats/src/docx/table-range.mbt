@@ -155,6 +155,26 @@ fn Session::table_cell_selection(
         selected.grid.model.splitRows[selected.top:selected.bottom].to_owned(),
         "",
       ),
+      "rowHeight": format_summary(
+        selected.grid.model.heights[selected.top:selected.bottom].to_owned(),
+        "",
+      ),
+      "rowHeightRule": format_summary(
+        selected.grid.model.exactHeights[selected.top:selected.bottom].map(exact => {
+          if exact {
+            "exact"
+          } else {
+            "atLeast"
+          }
+        }),
+        "",
+      ),
+      "maxRowHeight": table_row_height_limit(
+        selected.grid.model,
+        selected.top,
+        self.flow().page,
+        end=selected.bottom,
+      ),
       "margins": {
         "top": format_summary(margins.map(value => value.top), ""),
         "right": format_summary(margins.map(value => value.right), ""),

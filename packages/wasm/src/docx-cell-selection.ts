@@ -20,6 +20,9 @@ export interface DocxCellSelection {
     verticalAlign: FormatValue<"top" | "center" | "bottom">;
     margins: Record<keyof DocxCellMargins, FormatValue<number>>;
     rowSplit: FormatValue<boolean>;
+    rowHeight: FormatValue<number>;
+    rowHeightRule: FormatValue<"atLeast" | "exact">;
+    maxRowHeight: number;
     borders: Record<keyof DocxCellBorders, FormatValue<DocxBorderStyle>>;
   } | null;
 }
@@ -64,6 +67,29 @@ export function checkDocxCellSelection(value: unknown): void {
   const margins = record(cells.margins);
   const borders = record(cells.borders);
   const split = record(cells.rowSplit);
+  const height = record(cells.rowHeight),
+    rule = record(cells.rowHeightRule);
+  if (
+    typeof cells.maxRowHeight !== "number" ||
+    !Number.isFinite(cells.maxRowHeight) ||
+    cells.maxRowHeight < 0 ||
+    cells.maxRowHeight > 14400 ||
+    (height.kind !== "mixed" &&
+      !(
+        height.kind === "value" &&
+        typeof height.value === "number" &&
+        Number.isFinite(height.value) &&
+        height.value >= 0 &&
+        height.value <= 14400 &&
+        Number.isInteger(height.value * 20)
+      )) ||
+    (rule.kind !== "mixed" &&
+      !(
+        rule.kind === "value" &&
+        (rule.value === "atLeast" || rule.value === "exact")
+      ))
+  )
+    throw new Error("Invalid DOCX selected row height");
   if (
     split.kind !== "mixed" &&
     !(split.kind === "value" && typeof split.value === "boolean")

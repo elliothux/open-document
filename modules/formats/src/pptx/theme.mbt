@@ -4,6 +4,7 @@ priv struct Theme {
   colors : Map[String, Ref]
   fonts : Map[String, Map[String, String]]
   mapping : Map[String, String]
+  tables : TableStyleBook?
 }
 
 ///|
@@ -57,7 +58,7 @@ fn read_theme(
       }
     }
   }
-  { tree, colors, fonts, mapping, }
+  { tree, colors, fonts, mapping, tables: None, }
 }
 
 ///|

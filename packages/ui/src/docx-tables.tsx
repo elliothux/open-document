@@ -8,7 +8,7 @@ import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { DocxMargins } from "./docx-margins.js";
 import { DocxBorders } from "./docx-borders.js";
-import { DocxCellSelection } from "./docx-cell-selection.js";
+import { DocxCellSelection, DocxRowHeight } from "./docx-cell-selection.js";
 
 export function DocxTables({
   controller,
@@ -380,9 +380,7 @@ function TableProperties({
   const t = messages(state.locale);
   const [tableWidth, setWidth] = useState(String(width)),
     [headers, setHeaders] = useState(String(headerRows)),
-    [rowHeight, setHeight] = useState(String(height)),
     [cellFill, setFill] = useState(`#${fill ?? "ffffff"}`);
-  const [rowRule, setRowRule] = useState(heightRule);
   const [columnIndex, setColumnIndex] = useState(column),
     [columnWidth, setColumnWidth] = useState(String(columnWidths[column]));
   const maximumColumnWidth = maxWidth - width + columnWidths[columnIndex]!;
@@ -572,86 +570,52 @@ function TableProperties({
           {t.clearCellFill}
         </button>
       </form>
-      <label>
-        {t.rowHeightRule}
-        <select
-          aria-label={t.rowHeightRule}
-          value={rowRule}
-          onChange={(event) => {
-            const value = event.currentTarget.value;
-            if (value === "atLeast" || value === "exact") setRowRule(value);
+      <DocxRowHeight
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+        height={height}
+        rule={heightRule}
+        maxHeight={maxHeight}
+      />
+      {!autoFit && (
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (tableWidth !== "")
+              controller.run(() =>
+                editor.editTable({
+                  action: "tableWidth",
+                  value: Number(tableWidth),
+                }),
+              );
           }}
         >
-          <option value="atLeast">{t.rowHeightAtLeast}</option>
-          <option value="exact">{t.rowHeightExact}</option>
-        </select>
-      </label>
-      {(
-        [
-          {
-            action: "tableWidth",
-            label: t.tableWidth,
-            value: tableWidth,
-            set: setWidth,
-            min: columns * 12,
-            max: maxWidth,
-          },
-          {
-            action: "rowHeight",
-            label:
-              rowRule === "exact" ? t.rowHeightExactValue : t.rowHeightMinimum,
-            value: rowHeight,
-            set: setHeight,
-            min: 0,
-            max: maxHeight,
-          },
-        ] as const
-      ).map(
-        (field) =>
-          (!autoFit || field.action !== "tableWidth") && (
-            <form
-              key={field.action}
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (field.value !== "")
-                  controller.run(() =>
-                    editor.editTable(
-                      field.action === "rowHeight"
-                        ? {
-                            action: "rowHeight",
-                            value: Number(field.value),
-                            rule: rowRule,
-                          }
-                        : { action: "tableWidth", value: Number(field.value) },
-                    ),
-                  );
-              }}
-            >
-              <label>
-                {field.label}
-                <input
-                  type="number"
-                  required
-                  step={0.05}
-                  min={field.min}
-                  max={field.max}
-                  value={field.value}
-                  onChange={(event) => field.set(event.currentTarget.value)}
-                />
-              </label>
-              <button
-                type="submit"
-                aria-label={`${t.apply} ${field.label}`}
-                disabled={
-                  !field.value ||
-                  Number(field.value) < field.min ||
-                  Number(field.value) > field.max
-                }
-              >
-                {t.apply}
-              </button>
-            </form>
-          ),
+          <label>
+            {t.tableWidth}
+            <input
+              type="number"
+              required
+              step={0.05}
+              min={columns * 12}
+              max={maxWidth}
+              value={tableWidth}
+              onChange={(event) => setWidth(event.currentTarget.value)}
+            />
+          </label>
+          <button
+            type="submit"
+            aria-label={`${t.apply} ${t.tableWidth}`}
+            disabled={
+              tableWidth === "" ||
+              Number(tableWidth) < columns * 12 ||
+              Number(tableWidth) > maxWidth
+            }
+          >
+            {t.apply}
+          </button>
+        </form>
       )}
     </fieldset>
   );

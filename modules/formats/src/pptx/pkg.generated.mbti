@@ -90,6 +90,7 @@ pub(all) enum ObjectEdit {
   SplitTableCell(Int, Int)
   TableRowHeight(Double)
   TableColumnWidth(Double)
+  TableStyle(TableStyleSettings)
   ReplaceImage(String, Bytes)
   ImageFill(Array[String], Bytes, String)
   ImageFillMode(String)
@@ -262,6 +263,18 @@ pub(all) struct SlideTransition {
 pub fn SlideTransition::equal(Self, Self) -> Bool
 pub fn SlideTransition::not_equal(Self, Self) -> Bool
 pub fn SlideTransition::to_json(Self) -> Json
+
+pub(all) struct TableStyleSettings {
+  id : String
+  first_row : Bool
+  last_row : Bool
+  first_column : Bool
+  last_column : Bool
+  band_rows : Bool
+  band_columns : Bool
+} derive(Eq)
+pub fn TableStyleSettings::equal(Self, Self) -> Bool
+pub fn TableStyleSettings::not_equal(Self, Self) -> Bool
 
 pub(all) struct TextFormat {
   font : String?

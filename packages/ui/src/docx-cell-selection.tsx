@@ -152,6 +152,115 @@ export function DocxCellSelection({
         />
         {t.tableRowSplit}
       </label>
+      <DocxRowHeight
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+        height={
+          selected.rowHeight.kind === "value" ? selected.rowHeight.value : null
+        }
+        rule={
+          selected.rowHeightRule.kind === "value"
+            ? selected.rowHeightRule.value
+            : null
+        }
+        maxHeight={selected.maxRowHeight}
+      />
     </section>
+  );
+}
+
+export function DocxRowHeight({
+  controller,
+  state,
+  editor,
+  disabled,
+  height,
+  rule,
+  maxHeight,
+}: {
+  controller: EditorController;
+  state: UiSnapshot;
+  editor: DocumentEditor;
+  disabled: boolean;
+  height: number | null;
+  rule: "atLeast" | "exact" | null;
+  maxHeight: number;
+}) {
+  const t = messages(state.locale);
+  const [value, setValue] = useState(height === null ? "" : String(height));
+  const [mode, setMode] = useState<"atLeast" | "exact" | "">(rule ?? "");
+  const label =
+    mode === "exact"
+      ? t.rowHeightExactValue
+      : mode === "atLeast"
+        ? t.rowHeightMinimum
+        : t.tableRowHeight;
+  const valid =
+    value !== "" &&
+    mode !== "" &&
+    Number.isFinite(Number(value)) &&
+    Number(value) >= 0 &&
+    Number(value) <= maxHeight &&
+    Number.isInteger(Number(value) * 20);
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (valid)
+          controller.run(() =>
+            editor.editTable({
+              action: "rowHeight",
+              value: Number(value),
+              rule: mode,
+            }),
+          );
+      }}
+    >
+      <fieldset disabled={disabled}>
+        <legend>{t.tableRowHeight}</legend>
+        <label>
+          {t.rowHeightRule}
+          <select
+            aria-label={t.rowHeightRule}
+            value={mode}
+            required
+            onChange={(event) => {
+              const value = event.currentTarget.value;
+              if (value === "atLeast" || value === "exact") setMode(value);
+            }}
+          >
+            {rule === null && (
+              <option value="" disabled>
+                {t.mixed}
+              </option>
+            )}
+            <option value="atLeast">{t.rowHeightAtLeast}</option>
+            <option value="exact">{t.rowHeightExact}</option>
+          </select>
+        </label>
+        <label>
+          {label}
+          <input
+            type="number"
+            min={0}
+            max={maxHeight}
+            step={0.05}
+            required
+            value={value}
+            placeholder={height === null ? t.mixed : undefined}
+            onChange={(event) => setValue(event.currentTarget.value)}
+          />
+        </label>
+        <button
+          type="submit"
+          aria-label={`${t.apply} ${label}`}
+          disabled={!valid}
+        >
+          {t.apply}
+        </button>
+      </fieldset>
+    </form>
   );
 }

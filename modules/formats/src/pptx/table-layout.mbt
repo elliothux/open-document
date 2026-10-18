@@ -30,6 +30,29 @@ fn Object::paint_table(
   let mut offset = 0
   let mut paragraph = 0
   let mut units = 0
+  if !table.fill.is_empty() {
+    output.push(
+      Path(
+        shape_path(
+          "rect",
+          self.geometry.unwrap().width,
+          self.geometry.unwrap().height,
+          (0, 0),
+        ),
+        table.fill,
+        "",
+        0,
+        {
+          fillAlpha: table.alpha,
+          strokeAlpha: 1,
+          dash: [],
+          cap: 0,
+          join: 0,
+          miter: 8,
+        },
+      ),
+    )
+  }
   for r, row in table.rows {
     let mut x = 0.0
     for column, cell in row.cells {
@@ -63,27 +86,6 @@ fn Object::paint_table(
           }),
         )
         output.push(Restore)
-      }
-      for side, (color, pen) in cell.borders {
-        if color.is_empty() {
-          continue
-        }
-        let (x1, y1, x2, y2) = match side {
-          0 => (x, y, x, y + height)
-          1 => (x, y, x + width, y)
-          2 => (x + width, y, x + width, y + height)
-          _ => (x, y + height, x + width, y + height)
-        }
-        output.push(
-          Path([Move(x1, y1), Line(x2, y2)], "", color, pen, {
-            fillAlpha: 1,
-            strokeAlpha: 1,
-            dash: [],
-            cap: 0,
-            join: 0,
-            miter: 8,
-          }),
-        )
       }
       let (measured, _, diagnostic) = fit_text(
         self.table_cell(cell),
@@ -142,6 +144,7 @@ fn Object::paint_table(
     }
     y += row.height
   }
+  output.append(table.paint_edges())
   (output, lines, diagnostics, units)
 }
 

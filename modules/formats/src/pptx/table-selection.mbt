@@ -214,5 +214,6 @@ fn Session::table_query(self : Session) -> Json raise @failure.Failure {
     },
     "operations": Json(operations),
     "format": table_format_query(object, selection),
+    "style": table_style_query(table, reason),
   }
 }

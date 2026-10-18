@@ -3,6 +3,82 @@ import type { PresentationEditor } from "@open-document/web/presentation-editor"
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 
+export function PptxTableStyle({
+  controller,
+  state,
+  editor,
+  disabled,
+}: {
+  controller: EditorController;
+  state: UiSnapshot;
+  editor: PresentationEditor;
+  disabled: boolean;
+}) {
+  const t = messages(state.locale),
+    query = editor.query.table!.style;
+  const [style, setStyle] = useState(query.settings);
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        controller.run(() =>
+          editor.editObjects({ action: "tableStyle", style }),
+        );
+      }}
+    >
+      <fieldset disabled={disabled || !!query.reason}>
+        <legend>{t.tableStyle}</legend>
+        <label>
+          {t.tableStyleName}
+          <select
+            aria-label={t.tableStyleName}
+            value={style.id}
+            onChange={(event) =>
+              setStyle({ ...style, id: event.currentTarget.value })
+            }
+          >
+            {!style.id && (
+              <option value="" disabled>
+                {t.tableStyleNone}
+              </option>
+            )}
+            {query.choices.map((choice) => (
+              <option key={choice.id} value={choice.id}>
+                {choice.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        {(
+          [
+            ["firstRow", t.tableRegion_headerRow],
+            ["lastRow", t.tableRegion_totalRow],
+            ["firstColumn", t.tableFirstColumn],
+            ["lastColumn", t.tableLastColumn],
+            ["bandRows", t.tableRowStripes],
+            ["bandColumns", t.tableColumnStripes],
+          ] as const
+        ).map(([key, label]) => (
+          <label key={key}>
+            <input
+              type="checkbox"
+              checked={style[key]}
+              onChange={(event) =>
+                setStyle({ ...style, [key]: event.currentTarget.checked })
+              }
+            />
+            {label}
+          </label>
+        ))}
+        <button type="submit" disabled={!style.id}>
+          {t.applyTableStyle}
+        </button>
+        {query.reason && <p>{query.reason}</p>}
+      </fieldset>
+    </form>
+  );
+}
+
 export function PptxTableSize({
   controller,
   state,

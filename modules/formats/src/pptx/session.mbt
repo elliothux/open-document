@@ -74,9 +74,18 @@ fn read_slide(
     layout.part != theme_part else {
     @failure.reject("malformed-pptx", "Cyclic slide inheritance")
   }
-  let theme = read_theme(load_tree(opc, cache, theme_part, parts~), [
-    tree, layout, master,
-  ])
+  let theme = {
+    ..read_theme(load_tree(opc, cache, theme_part, parts~), [
+      tree, layout, master,
+    ]),
+    tables: Some(
+      read_table_styles(opc, main, cache, parts) catch {
+        @failure.Failure(code="unsupported-table", message~, ..) =>
+          { part: None, default_id: "", styles: Map([]), reason: message, }
+        error => raise error
+      },
+    ),
+  }
   let defaults = main
     .one(main.document.nodes()[0].id, "defaultTextStyle", uri=presentation_uri)
     .map(node => { tree: main, node, })

@@ -3,6 +3,10 @@ priv struct DrawingTable {
   widths : Array[Double]
   rows : Array[DrawingRow]
   owners : Array[Array[(Int, Int)]]
+  style : TableStyleSettings
+  styles : TableStyleBook
+  fill : String
+  alpha : Double
 }
 
 ///|
@@ -24,6 +28,7 @@ priv struct DrawingCell {
   fill : String
   alpha : Double
   borders : Array[(String, Double)]
+  border_priorities : Array[Int]
 }
 
 ///|
@@ -79,18 +84,25 @@ fn read_drawing_table(
   let table = data.child("tbl").unwrap()
   table.table_children(["tblPr", "tblGrid", "tr"])
   if table.child("tblPr") is Some(properties) {
-    properties.table_children(["noFill", "solidFill"])
+    properties.table_children(["noFill", "solidFill", "tableStyleId"])
     table_profile(
       properties.node.attributes.all(a => {
         a.uri.is_empty() &&
         ["firstRow", "lastRow", "firstCol", "lastCol", "bandRow", "bandCol"].contains(
           a.name,
         ) &&
-        ["0", "false"].contains(a.value)
+        ["0", "false", "1", "true"].contains(a.value)
       }),
-      "Table styles require table style resolution",
+      "Unknown table style flags",
     )
   }
+  let book = theme.tables.unwrap()
+  let settings = table_style_settings(table.child("tblPr"), book)
+  let style_parts = table_style_parts(book, settings.id)
+  let (background, background_alpha) = fill_rgba(
+    theme,
+    table.child("tblPr").map(p => [p]).unwrap_or([]),
+  )
   let grid = table
     .child("tblGrid")
     .unwrap_or_error(
@@ -120,7 +132,7 @@ fn read_drawing_table(
   )
   let rows : Array[DrawingRow] = []
   let mut units = -1
-  for node in row_nodes {
+  for row_index, node in row_nodes {
     let row : Ref = { tree: source.tree, node, }
     row.table_children(["tc"])
     table_profile(
@@ -159,6 +171,14 @@ fn read_drawing_table(
       )
       cell.table_children(["txBody", "tcPr"])
       table_profile(cell.child("txBody") is Some(_), "Missing table cell text")
+      let layers = table_style_layers(
+        settings,
+        style_parts,
+        row_index,
+        column,
+        row_nodes.length() - 1,
+        widths.length() - 1,
+      )
       let (paragraphs, body, reason) = read_text(
         theme,
         [cell],
@@ -166,6 +186,7 @@ fn read_drawing_table(
         defaults,
         page_number,
         date_time,
+        run_styles=layers.filter_map(layer => layer.text),
       )
       table_profile(
         reason.is_empty() && !paragraphs.is_empty() && body.fit == "none",
@@ -229,14 +250,27 @@ fn read_drawing_table(
         }),
         "Table cell margins leave no text width",
       )
-      let fills = properties.map(p => [p]).unwrap_or([])
-      if table.child("tblPr") is Some(p) {
-        fills.push(p)
+      let direct_fill = properties.filter(p => {
+        p.child("noFill") is Some(_) || p.child("solidFill") is Some(_)
+      })
+      let (fill, alpha) = if direct_fill is Some(p) {
+        fill_rgba(theme, [p])
+      } else {
+        table_style_fill(theme, layers).unwrap_or(("", 1))
       }
-      let (fill, alpha) = fill_rgba(theme, fills)
-      let borders = ["lnL", "lnT", "lnR", "lnB"].map(name => {
+      let (borders, border_priorities) = table_style_borders(
+        theme,
+        layers,
+        row_index,
+        column,
+        row_nodes.length(),
+        widths.length(),
+        row_span,
+        column_span,
+      )
+      for side, name in ["lnL", "lnT", "lnR", "lnB"] {
         guard properties.bind(p => p.child(name)) is Some(edge) else {
-          return ("", 0.0)
+          continue
         }
         edge.table_children(["noFill", "solidFill"])
         table_profile(
@@ -248,12 +282,13 @@ fn read_drawing_table(
           opacity == 1,
           "Transparent table cell borders require conflict resolution",
         )
-        (
+        borders[side] = (
           color,
           number(edge.node.attribute("w").unwrap_or("12700"), 1, 12700000) /
           12700,
         )
-      })
+        border_priorities[side] = 100
+      }
       cells.push({
         source: cell,
         paragraphs,
@@ -261,6 +296,7 @@ fn read_drawing_table(
         fill,
         alpha,
         borders,
+        border_priorities,
         row_span,
         column_span,
         h_merge,
@@ -274,5 +310,13 @@ fn read_drawing_table(
     0.01,
     "Table row heights and frame differ",
   )
-  Some({ widths, rows, owners: table_owners(rows, widths.length()), })
+  Some({
+    widths,
+    rows,
+    owners: table_owners(rows, widths.length()),
+    style: settings,
+    styles: book,
+    fill: background,
+    alpha: background_alpha,
+  })
 }

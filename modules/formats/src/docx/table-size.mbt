@@ -3,12 +3,12 @@ fn table_row_height_limit(
   table : @layout.Table,
   row : Int,
   page : @layout.PageSetup,
+  end~ : Int = row + 1,
 ) -> Double {
-  let border = table.border_width(row)
+  let mut limit = 14400.0
   let mut first = 0
-  let mut last = 0
-  while first <= row {
-    last = first
+  while first < end {
+    let mut last = first
     let mut r = first
     while r <= last {
       for span in table.rowSpans[r] {
@@ -16,22 +16,40 @@ fn table_row_height_limit(
       }
       r += 1
     }
-    if row <= last {
-      break
+    if last >= row {
+      let mut available = page.height -
+        page.top -
+        page.bottom -
+        table.border_width(last + 1)
+      let margins : Array[Double] = []
+      for r in first..<=last {
+        if r >= row && r < end {
+          available -= table.border_width(r)
+          margins.push(
+            table.margins[r].fold(init=0.0, (v, m) => v.max(m.top)) +
+            table.margins[r].fold(init=0.0, (v, m) => v.max(m.bottom)),
+          )
+        } else {
+          available -= table.row_minimum_height(r)
+        }
+      }
+      margins.sort()
+      let mut count = margins.length()
+      let bound = for margin in margins.rev() {
+        let value = available / count.to_double()
+        if margin <= value {
+          break value
+        }
+        available -= margin
+        count -= 1
+      } nobreak {
+        0.0
+      }
+      limit = limit.min((bound.max(0) * 20).floor() / 20)
     }
     first = last + 1
   }
-  let mut available = page.height -
-    page.top -
-    page.bottom -
-    border -
-    table.border_width(last + 1)
-  for r in first..<=last {
-    if r != row {
-      available -= table.row_minimum_height(r)
-    }
-  }
-  ((available.max(0) * 20).floor() / 20).min(14400)
+  limit
 }
 
 ///|
@@ -263,7 +281,14 @@ fn Session::size_table(
   }
   let document = self.document()
   let tree = WordTree::new(document)
-  let grid = self.table_grid(tree, selection)
+  let selected = if width {
+    None
+  } else {
+    self.table_cell_range(tree, selection)
+  }
+  let grid = selected
+    .map(range => range.grid)
+    .unwrap_or_else(() => self.table_grid(tree, selection))
   let body = tree.nodes[grid.table].parent
   guard tree.nodes[body].name == "body" && tree.nodes[body].uri == word_uri else {
     @failure.reject("protected-content", "Table sizes require a body table")
@@ -412,34 +437,38 @@ fn Session::size_table(
       }
     }
   } else {
+    let first = selected.map(range => range.top).unwrap_or(grid.row)
+    let end = selected.map(range => range.bottom).unwrap_or(grid.row + 1)
     guard rule == "exact" ||
-      value <= table_row_height_limit(model, grid.row, flow.page) else {
+      value <= table_row_height_limit(model, first, flow.page, end~) else {
       @failure.reject(
         "invalid-operation", "Minimum row heights exceed one page",
       )
     }
-    for cell in grid.cells[grid.row] {
-      tree.check_merge_cell(cell, self.main)
-    }
     guard ["atLeast", "exact"].contains(rule) else {
       @failure.reject("invalid-operation", "Unknown table row height rule")
     }
-    if value != model.heights[grid.row] ||
-      (rule == "exact") != model.exactHeights[grid.row] {
-      let attributes = if twips == 0 && rule == "atLeast" {
-        None
-      } else {
-        Some(Map([("val", Some(twips.to_string())), ("hRule", Some(rule))]))
+    for row in first..<end {
+      for cell in grid.cells[row] {
+        tree.check_merge_cell(cell, self.main)
       }
-      if tree.table_property_change(
-          document,
-          grid.rows[grid.row],
-          "trPr",
-          "trHeight",
-          attributes,
-        )
-        is Some(change) {
-        changes.push(change)
+      if value != model.heights[row] ||
+        (rule == "exact") != model.exactHeights[row] {
+        let attributes = if twips == 0 && rule == "atLeast" {
+          None
+        } else {
+          Some(Map([("val", Some(twips.to_string())), ("hRule", Some(rule))]))
+        }
+        if tree.table_property_change(
+            document,
+            grid.rows[row],
+            "trPr",
+            "trHeight",
+            attributes,
+          )
+          is Some(change) {
+          changes.push(change)
+        }
       }
     }
   }
