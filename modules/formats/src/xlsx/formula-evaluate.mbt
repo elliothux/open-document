@@ -195,6 +195,8 @@ fn Expression::evaluate(
       subtotal_function(args, sheets, sheet, values, work, depth)
     Function("SUMSQ", args) =>
       sum_squares_function(args, sheets, sheet, values, work, depth)
+    Function(name, args) if ["VAR", "VAR.S", "VARP", "VAR.P"].contains(name) =>
+      variance_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if name == "PRODUCT" || name == "MEDIAN" =>
       product_median_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if name == "COUNTA" || name == "COUNTBLANK" =>

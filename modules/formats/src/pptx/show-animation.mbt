@@ -194,6 +194,25 @@ fn ShowState::finish_entry(self : ShowState) -> ShowState {
 }
 
 ///|
+fn ShowObject::matrix(self : ShowObject, object : Object) -> @layout.Matrix {
+  let geometry = object.geometry.unwrap()
+  let (cx, cy) = geometry.matrix.point(geometry.width / 2, geometry.height / 2)
+  let rotation = self.rotation * @math.PI / 180
+  let a = @math.cos(rotation) * self.sx
+  let b = @math.sin(rotation) * self.sx
+  let c = -@math.sin(rotation) * self.sy
+  let d = @math.cos(rotation) * self.sy
+  {
+    a,
+    b,
+    c,
+    d,
+    e: cx + self.x - a * cx - c * cy,
+    f: cy + self.y - b * cx - d * cy,
+  }
+}
+
+///|
 fn animated_region(
   page : @layout.DrawingRegion,
   parts : Array[(String, Array[@layout.DrawCommand])],
@@ -217,28 +236,7 @@ fn animated_region(
         .iter()
         .find_first(object => object.id == id)
         .unwrap()
-      let geometry = object.geometry.unwrap()
-      let (cx, cy) = geometry.matrix.point(
-        geometry.width / 2,
-        geometry.height / 2,
-      )
-      let rotation = value.rotation * @math.PI / 180
-      let a = @math.cos(rotation) * value.sx
-      let b = @math.sin(rotation) * value.sx
-      let c = -@math.sin(rotation) * value.sy
-      let d = @math.cos(rotation) * value.sy
-      [
-        Transform({
-          a,
-          b,
-          c,
-          d,
-          e: cx + value.x - a * cx - c * cy,
-          f: cy + value.y - b * cx - d * cy,
-        }),
-        ..content,
-        Restore,
-      ]
+      [Transform(value.matrix(object)), ..content, Restore]
     } else {
       content
     }

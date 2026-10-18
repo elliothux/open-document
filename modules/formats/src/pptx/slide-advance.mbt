@@ -61,36 +61,12 @@ fn Session::set_advance(
 }
 
 ///|
-fn Session::show_use_timings(self : Session) -> Bool raise @failure.Failure {
-  for rel in self.relationships() {
-    if rel.owner == self.main.part &&
-      rel.kind == relationship_uri + "/presProps" {
-      guard !rel.external else {
-        @failure.reject(
-          "protected-content", "External show properties are protected",
-        )
-      }
-      let tree = load_tree(self.opc, self.cache, rel.target, parts=self.parts)
-      if tree.one(
-          tree.root("presentationPr").id,
-          "showPr",
-          uri=presentation_uri,
-        )
-        is Some(node) {
-        return flag(node, "useTimings", default=true)
-      }
-    }
-  }
-  true
-}
-
-///|
 fn Session::show_tick(
   self : Session,
   current : ShowState,
 ) -> ShowState? raise @failure.Failure {
   let mut current = current
-  // Each deadline moves forward in the active route, including repeated slides.
+  // Bound zero-duration loops to one route per tick.
   for _ in 0..<current.route.length() {
     guard !current.paused &&
       !current.animations_running() &&
@@ -116,5 +92,5 @@ fn Session::show_tick(
       )
       .advance(current.time)
   }
-  None
+  Some(current)
 }

@@ -1,9 +1,11 @@
 ///|
 priv struct ShowState {
+  scene : Double
   index : Int
   route : Array[Int]
   position : Int
   custom : String?
+  cycling : Bool
   from : Int?
   effect : SlideTransition?
   time : Double
@@ -37,10 +39,15 @@ fn ShowObject::initial() -> ShowObject {
 
 ///|
 priv struct ShowDrawing {
+  id : Int
+  previous : (Int, ShowState)?
+  frame : ShowState
   key : String
   regions : Array[@layout.DrawingRegion]
   parts : Array[Array[(String, Array[@layout.DrawCommand])]]
   images : Array[String]
+  texts : Array[TextGeometry]
+  links : Array[ShowLink]
 }
 
 ///|
@@ -72,6 +79,7 @@ fn ShowState::advance(
 fn Session::show_state(
   self : Session,
   show : ShowState?,
+  external~ : String? = None,
 ) -> Json raise @failure.Failure {
   if show is Some(show) {
     let slide = self.slides[show.index]
@@ -85,6 +93,7 @@ fn Session::show_state(
     }
     {
       "active": true,
+      "external": external.map(value => Json(value)).unwrap_or(Json::null()),
       "revision": self.revision,
       "slide": slide.tree.part,
       "index": show.index,
@@ -105,6 +114,7 @@ fn Session::show_state(
   } else {
     {
       "active": false,
+      "external": Json::null(),
       "revision": self.revision,
       "slide": Json::null(),
       "index": -1,
@@ -144,12 +154,19 @@ fn Session::show_scene(
     _ => None
   }
   let advance = read_slide_advance(self.slides[index].tree)
-  let animations = self.read_animations(self.slides[index])
+  let settings = self.read_show_settings()
+  let animations = if settings.animations {
+    self.read_animations(self.slides[index])
+  } else {
+    []
+  }
   let show : ShowState = {
+    scene: time,
     index,
     route,
     position,
     custom,
+    cycling: settings.cycling,
     from: if effect is Some(_) {
       from
     } else {
@@ -159,7 +176,7 @@ fn Session::show_scene(
     time,
     elapsed: 0,
     paused: false,
-    advance: if self.show_use_timings() {
+    advance: if settings.timings {
       advance
     } else {
       { ..advance, after: None, }

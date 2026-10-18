@@ -1,8 +1,11 @@
 import { drawingBatch, type DrawingBatch } from "./drawing.js";
 import { integer, record } from "./validation.js";
+import { pptxHyperlink } from "./pptx-objects.js";
 
 export type PptxShowAction =
   | "start"
+  | "startSettings"
+  | "followLink"
   | "end"
   | "next"
   | "previous"
@@ -16,6 +19,7 @@ export type PptxShowAction =
   | "resume";
 export interface PptxShowState {
   active: boolean;
+  external: string | null;
   paused: boolean;
   step: number;
   steps: number;
@@ -31,6 +35,12 @@ export interface PptxShowState {
   notes: { text: string; reason: string };
 }
 export interface PptxShowLayout extends DrawingBatch {
+  links: {
+    id: string;
+    label: string;
+    reason: string;
+    external: string | null;
+  }[];
   animating: boolean;
   id: number;
   revision: number;
@@ -44,6 +54,9 @@ export type PptxShowCommand =
       time: number;
       slide: string;
       custom?: string;
+      layoutId?: number;
+      x?: number;
+      y?: number;
     }
   | {
       operation: "layoutShowPptx";
@@ -69,6 +82,8 @@ export function checkPptxShow(command: PptxShowCommand): void {
     command.operation === "controlShowPptx" &&
     (![
       "start",
+      "startSettings",
+      "followLink",
       "end",
       "next",
       "previous",
@@ -83,9 +98,11 @@ export function checkPptxShow(command: PptxShowCommand): void {
     ].includes(command.action) ||
       typeof command.slide !== "string" ||
       command.slide.length > 1024 ||
-      (!["start", "goto", "gotoPosition"].includes(command.action) &&
+      (!["start", "goto", "gotoPosition", "followLink"].includes(
+        command.action,
+      ) &&
         command.slide !== "") ||
-      (["goto", "gotoPosition"].includes(command.action) &&
+      (["goto", "gotoPosition", "followLink"].includes(command.action) &&
         command.slide === "") ||
       (command.action === "gotoPosition" &&
         (!integer(Number(command.slide), 0, 255) ||
@@ -98,6 +115,29 @@ export function checkPptxShow(command: PptxShowCommand): void {
           !integer(Number(command.custom), 0, 4294967295))))
   )
     throw new Error("Invalid slideshow action or target");
+  if (command.operation === "controlShowPptx") {
+    const point = command.x !== undefined || command.y !== undefined;
+    if (
+      (command.action === "followLink" &&
+        (!integer(Number(command.slide), 0, 4095) ||
+          String(Number(command.slide)) !== command.slide ||
+          !integer(command.layoutId, 1, 0x7fffffff))) ||
+      (command.layoutId !== undefined &&
+        (!integer(command.layoutId, 1, 0x7fffffff) ||
+          (command.action !== "followLink" && !point))) ||
+      (point &&
+        (command.action !== "click" ||
+          command.layoutId === undefined ||
+          ![command.x, command.y].every(
+            (value) =>
+              typeof value === "number" &&
+              Number.isFinite(value) &&
+              value >= 0 &&
+              value <= 14400,
+          )))
+    )
+      throw new Error("Invalid slideshow interaction");
+  }
 }
 export function pptxShowState(value: unknown): void {
   const state = record(value),
@@ -120,6 +160,7 @@ export function pptxShowState(value: unknown): void {
         id.isWellFormed(),
     ) ||
     !integer(state.position, -1, state.order.length - 1) ||
+    (!state.active && state.external !== null) ||
     (state.custom !== null &&
       (typeof state.custom !== "string" ||
         String(Number(state.custom)) !== state.custom ||
@@ -150,6 +191,8 @@ export function pptxShowState(value: unknown): void {
     throw new Error("Invalid slideshow state");
   if (typeof state.text !== "string" || state.text.length > 1048576)
     throw new Error("Invalid slideshow text");
+  if (state.external !== null)
+    pptxHyperlink({ kind: "external", target: state.external });
 }
 export function pptxShowLayout(value: unknown): void {
   drawingBatch(value);
@@ -163,4 +206,36 @@ export function pptxShowLayout(value: unknown): void {
     layout.regions.length > 2
   )
     throw new Error("Invalid slideshow layout");
+  if (!Array.isArray(layout.links) || layout.links.length > 4096)
+    throw new Error("Invalid slideshow links");
+  const ids = new Set<string>();
+  let units = 0;
+  for (const item of layout.links) {
+    const link = record(item);
+    if (
+      typeof link.id !== "string" ||
+      String(Number(link.id)) !== link.id ||
+      !integer(Number(link.id), 0, 4095) ||
+      ids.has(link.id) ||
+      typeof link.label !== "string" ||
+      !link.label ||
+      link.label.length > 1024 ||
+      !link.label.isWellFormed() ||
+      typeof link.reason !== "string" ||
+      link.reason.length > 8192 ||
+      Object.keys(link).length !== 4 ||
+      Object.keys(link).some(
+        (key) => !["id", "label", "reason", "external"].includes(key),
+      )
+    )
+      throw new Error("Invalid slideshow link");
+    if (link.external !== null)
+      pptxHyperlink({ kind: "external", target: link.external });
+    ids.add(link.id);
+    units +=
+      link.label.length +
+      link.reason.length +
+      (typeof link.external === "string" ? link.external.length : 0);
+  }
+  if (units > 1048576) throw new Error("Slideshow links exceed budget");
 }

@@ -366,6 +366,8 @@ fn FormulaParser::primary(
         "_XLFN.TEXTJOIN" => "TEXTJOIN"
         "_XLFN.DAYS" => "DAYS"
         "_XLFN.XLOOKUP" => "XLOOKUP"
+        "_XLFN.VAR.S" => "VAR.S"
+        "_XLFN.VAR.P" => "VAR.P"
         name => name
       }
       if self.accept("(") {

@@ -13,7 +13,11 @@ fn Session::show_neighbor(
       return Some(next)
     }
   }
-  None
+  if forward && show.cycling {
+    show.route.search_by(index => !self.slides[index].hidden)
+  } else {
+    None
+  }
 }
 
 ///|
@@ -24,28 +28,64 @@ pub fn Session::control_show(
   slide : String,
   time : Double,
   custom~ : String? = None,
+  layout~ : Int? = None,
+  point~ : (Double, Double)? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   show_time(time)
   guard [
-      "start", "end", "next", "previous", "first", "last", "goto", "pause", "resume",
-      "tick", "click", "gotoPosition",
+      "start", "startSettings", "end", "next", "previous", "first", "last", "goto",
+      "pause", "resume", "tick", "click", "gotoPosition", "followLink",
     ].contains(action) &&
-    (["start", "goto", "gotoPosition"].contains(action) || slide.is_empty()) &&
-    (custom is None || (action == "start" && slide.is_empty())) else {
+    (
+      ["start", "goto", "gotoPosition", "followLink"].contains(action) ||
+      slide.is_empty()
+    ) &&
+    (custom is None || (action == "start" && slide.is_empty())) &&
+    (point is None || (action == "click" && layout is Some(_))) &&
+    (layout is None || action == "followLink" || point is Some(_)) &&
+    (action != "followLink" || layout is Some(_)) else {
     @failure.reject("invalid-operation", "Invalid slideshow action or target")
+  }
+  if layout is Some(layout) {
+    let drawing = self.current_show_frame(layout)
+    let link = if action == "followLink" {
+      let index = number(slide, 0, 4095).to_int()
+      guard index.to_string() == slide else {
+        @failure.reject("invalid-operation", "Invalid slideshow link identity")
+      }
+      Some(index)
+    } else {
+      let (x, y) = point.unwrap()
+      self.show_link_hit(drawing, x, y)
+    }
+    if link is Some(index) {
+      return self.apply_show_link(drawing, index, time)
+    }
   }
   let old = self.showing.map(show => show.advance(time))
   let show = if action == "end" {
     None
-  } else if action == "start" {
+  } else if action == "start" || action == "startSettings" {
     self.check_idle()
+    let settings = self.read_show_settings()
+    let custom = if action == "startSettings" {
+      match settings.slides {
+        ShowCustom(id) => Some(id)
+        _ => None
+      }
+    } else {
+      custom
+    }
     let route = if custom is Some(id) {
       let shows = self.read_custom_shows()
       guard shows.iter().find_first(show => show.id == id) is Some(show) else {
         @failure.reject("invalid-operation", "Custom show no longer exists")
       }
       show.slides.map(slide => self.index(slide))
+    } else if action == "startSettings" &&
+      settings.slides is ShowRange(first, last) {
+      Array::makei(last - first + 1, i => first - 1 + i)
     } else {
       Array::makei(self.slides.length(), i => i)
     }
@@ -117,7 +157,8 @@ pub fn Session::control_show(
         _ => abort("Validated slideshow action")
       }
       next.map(position => {
-        if position == current.position {
+        if position == current.position &&
+          !(current.cycling && ["next", "click"].contains(action)) {
           current
         } else {
           self.show_scene(
@@ -135,6 +176,9 @@ pub fn Session::control_show(
   }
   let result = self.show_state(show)
   self.showing = show
+  if action != "tick" {
+    self.invalidate_show_frame()
+  }
   if show is None {
     self.show_drawing = None
   }
@@ -170,6 +214,7 @@ pub fn Session::show_layout(
     let pages : Array[@layout.PositionedPage] = []
     let parts : Array[Array[(String, Array[@layout.DrawCommand])]] = []
     let keys : Array[String] = []
+    let texts : Array[TextGeometry] = []
     for
       role, i in [
         Some(show.index),
@@ -179,7 +224,7 @@ pub fn Session::show_layout(
       if i is Some(i) {
         let slide = self.slides[i]
         let fragments : Array[(String, Array[@layout.PositionedPrimitive])] = []
-        let (page, _, diagnostics) = paint_slide(
+        let (page, geometry, diagnostics) = paint_slide(
           slide,
           self.width,
           self.height,
@@ -192,6 +237,9 @@ pub fn Session::show_layout(
             None
           },
         )
+        if role == 0 {
+          texts.append(geometry)
+        }
         guard diagnostics.is_empty() else {
           @failure.reject(
             "unsupported-show",
@@ -229,10 +277,15 @@ pub fn Session::show_layout(
       }
     }
     let drawing : ShowDrawing = {
+      id: 0,
+      previous: None,
+      frame: show,
       key,
       regions: document.drawing(images),
       parts,
       images: resources,
+      texts,
+      links: self.show_links(self.slides[show.index]),
     }
     self.show_drawing = Some(drawing)
     drawing
@@ -262,12 +315,23 @@ pub fn Session::show_layout(
   }
   self.sequence += 1
   self.showing = Some(show)
+  self.show_drawing = Some({
+    ..drawing,
+    id: self.sequence,
+    frame: show,
+    previous: if drawing.id > 0 && drawing.frame.scene == show.scene {
+      Some((drawing.id, drawing.frame))
+    } else {
+      None
+    },
+  })
   {
     "id": self.sequence,
     "revision": revision,
     "regions": regions,
     "outlines": probe.outline_resources(),
     "images": drawing.images,
+    "links": show_link_query(drawing, show),
     "animating": !show.paused &&
     (
       show.effect is Some(_) ||

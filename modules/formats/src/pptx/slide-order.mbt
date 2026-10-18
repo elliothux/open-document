@@ -9,6 +9,7 @@ pub(all) enum SlideEdit {
   Advance(SlideAdvance)
   Animations(Array[SlideAnimation])
   CustomShows(Array[CustomShow])
+  Settings(ShowSettings)
   Background(BackgroundFill?)
   BackgroundImage(Bytes, String)
   BackgroundImageFormat(String, Array[Double], Double)
@@ -180,7 +181,12 @@ fn Session::slide_order_reason(self : Session) -> String {
         guard !relation.external else {
           return "External presentation properties are protected"
         }
-        let properties = load_tree(self.opc, self.cache, relation.target)
+        let properties = load_tree(
+          self.opc,
+          self.cache,
+          relation.target,
+          parts=self.parts,
+        )
         ignore(properties.root("presentationPr"))
         if properties.children
           .get(properties.document.nodes()[0].id)
@@ -197,12 +203,7 @@ fn Session::slide_order_reason(self : Session) -> String {
           }) {
           return "Presentation properties extensions require slide ordering support"
         }
-        if properties.document
-          .nodes()
-          .iter()
-          .any(node => node.uri == presentation_uri && node.name == "sldRg") {
-          return "Slide-index show ranges require ordering support"
-        }
+        ignore(self.read_show_settings())
       }
     }
     ""
@@ -238,6 +239,7 @@ pub fn Session::edit_slides(
     Advance(value) => return self.set_advance(index, value)
     Animations(value) => return self.set_animations(index, value)
     CustomShows(value) => return self.set_custom_shows(value)
+    Settings(value) => return self.set_show_settings(value)
     AddComment(_, _, _, _, _) | UpdateComment(_, _) | RemoveComment(_) =>
       return self.edit_comments(index, change)
     AddSection(_)

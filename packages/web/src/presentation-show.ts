@@ -64,6 +64,9 @@ export class PresentationShow {
   private started = 0;
   private pause: HTMLButtonElement | undefined;
   private labels: PresentationShowLabels = english;
+  private links: HTMLDivElement | undefined;
+  private linksKey = "";
+  private routeKey = "";
   constructor(
     private readonly client: PptxClient,
     private readonly profile: Record<string, string>,
@@ -80,7 +83,7 @@ export class PresentationShow {
     return structuredClone(this.current);
   }
   start(
-    from: "first" | "current" | { show: string } = "first",
+    from: "settings" | "first" | "current" | { show: string } = "settings",
     labels: PresentationShowLabels = english,
   ): Promise<void> {
     if (this.closed || this.active || !this.canStart())
@@ -88,6 +91,7 @@ export class PresentationShow {
         new Error("Slideshow is already active or disposed"),
       );
     if (
+      from !== "settings" &&
       from !== "first" &&
       from !== "current" &&
       (typeof from !== "object" ||
@@ -106,7 +110,7 @@ export class PresentationShow {
           operation: "controlShowPptx",
           time: this.time(),
           revision: this.revision,
-          action: "start",
+          action: from === "settings" ? "startSettings" : "start",
           slide: from === "current" ? query.slide : "",
           ...(typeof from === "object" ? { custom: from.show } : {}),
         });
@@ -130,20 +134,42 @@ export class PresentationShow {
     });
   }
   navigate(
-    action: Exclude<PptxShowAction, "start">,
+    action: Exclude<PptxShowAction, "start" | "startSettings" | "followLink">,
     slide = "",
+  ): Promise<void> {
+    return this.control(action, slide);
+  }
+  click(x: number, y: number): Promise<void> {
+    return this.control("click", "", { x, y });
+  }
+  followLink(id: string): Promise<void> {
+    return this.control("followLink", id);
+  }
+  private control(
+    action: Exclude<PptxShowAction, "start" | "startSettings">,
+    slide: string,
+    point?: { x: number; y: number },
   ): Promise<void> {
     if (this.closed || !this.current?.active || this.busy)
       return Promise.reject(new Error("Slideshow is inactive or busy"));
     this.busy = true;
+    const frame = this.drawing;
     return this.run(async () => {
+      if ((point || action === "followLink") && !frame)
+        throw new Error("Slideshow frame is unavailable");
       const state = await this.client.execute({
         operation: "controlShowPptx",
         time: this.time(),
         revision: this.revision,
         action,
         slide,
+        ...((point || action === "followLink") && frame
+          ? { layoutId: frame.id }
+          : {}),
+        ...point,
       });
+      if (state.external)
+        window.open(state.external, "_blank", "noopener,noreferrer");
       this.current = state;
       if (state.active) await this.paint();
       else {
@@ -212,13 +238,7 @@ export class PresentationShow {
     const jump = document.createElement("select");
     jump.setAttribute("aria-label", labels.jump);
     this.jump = jump;
-    for (const [index, id] of this.current!.order.entries()) {
-      const slide = query.slides.find((slide) => slide.id === id)!;
-      const option = document.createElement("option");
-      option.value = String(index);
-      option.textContent = `${index + 1}. ${slide.title}`;
-      jump.append(option);
-    }
+    this.updateJump(query);
     jump.addEventListener(
       "change",
       () => this.handle(() => this.navigate("gotoPosition", jump.value)),
@@ -279,7 +299,8 @@ export class PresentationShow {
     notes.style.whiteSpace = "pre-wrap";
     this.text = text;
     this.notes = notes;
-    dialog.append(controls, elapsed, pages, text, notes);
+    this.links = document.createElement("div");
+    dialog.append(controls, elapsed, pages, text, this.links, notes);
     stage.append(dialog);
     this.root.append(stage);
     dialog.addEventListener(
@@ -301,7 +322,10 @@ export class PresentationShow {
         )
           return;
         const actions: Partial<
-          Record<string, Exclude<PptxShowAction, "start">>
+          Record<
+            string,
+            Exclude<PptxShowAction, "start" | "startSettings" | "followLink">
+          >
         > = {
           ArrowRight: "next",
           ArrowDown: "next",
@@ -328,7 +352,18 @@ export class PresentationShow {
     );
     this.surfaces[0]!.canvas.addEventListener(
       "click",
-      () => this.handle(() => this.navigate("click")),
+      (event) => {
+        const canvas = this.surfaces[0]!.canvas,
+          rect = canvas.getBoundingClientRect(),
+          page = this.drawing?.regions[0];
+        if (!page || rect.width <= 0 || rect.height <= 0) return;
+        this.handle(() =>
+          this.click(
+            ((event.clientX - rect.left) * page.width) / rect.width,
+            ((event.clientY - rect.top) * page.height) / rect.height,
+          ),
+        );
+      },
       { signal: events.signal },
     );
     window.addEventListener("resize", () => this.resize(), {
@@ -382,6 +417,8 @@ export class PresentationShow {
     this.notes!.textContent =
       this.current.notes.reason || this.current.notes.text;
     this.text!.textContent = this.current.text;
+    this.updateJump(this.query());
+    this.updateLinks();
     this.jump!.value = String(this.current.position);
     this.pause!.textContent = this.current.paused
       ? this.labels.resume
@@ -391,6 +428,60 @@ export class PresentationShow {
     if (!this.drawing.animating)
       for (const surface of this.surfaces)
         await surface.prepareShow(this.client);
+  }
+  private updateJump(query: PptxQuery): void {
+    const key = JSON.stringify(this.current!.order);
+    if (this.routeKey === key) return;
+    this.routeKey = key;
+    this.jump!.replaceChildren(
+      ...this.current!.order.map((id, index) => {
+        const option = document.createElement("option");
+        option.value = String(index);
+        option.textContent = `${index + 1}. ${query.slides.find((slide) => slide.id === id)!.title}`;
+        return option;
+      }),
+    );
+  }
+  private updateLinks(): void {
+    const links = this.drawing!.links,
+      key = JSON.stringify(links);
+    if (this.linksKey === key) return;
+    this.linksKey = key;
+    const focused = document.activeElement;
+    const active =
+      focused instanceof HTMLElement && this.links!.contains(focused)
+        ? focused.dataset.linkId
+        : undefined;
+    this.links!.replaceChildren(
+      ...links.map((link) => {
+        if (link.external && !link.reason) {
+          const anchor = document.createElement("a");
+          anchor.href = link.external;
+          anchor.target = "_blank";
+          anchor.rel = "noopener noreferrer";
+          anchor.textContent = link.label;
+          anchor.dataset.linkId = link.id;
+          return anchor;
+        }
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = link.label;
+        button.disabled = !!link.reason;
+        button.title = link.reason;
+        button.dataset.linkId = link.id;
+        button.addEventListener("click", () =>
+          this.handle(() => this.followLink(link.id)),
+        );
+        return button;
+      }),
+    );
+    if (active !== undefined)
+      (
+        Array.from(this.links!.children).find(
+          (node): node is HTMLElement =>
+            node instanceof HTMLElement && node.dataset.linkId === active,
+        ) ?? this.dialog
+      )?.focus();
   }
   private scheduleFrame(): void {
     if (
@@ -459,6 +550,9 @@ export class PresentationShow {
     this.surfaces = [];
     this.drawing = undefined;
     this.current = undefined;
+    this.links = undefined;
+    this.linksKey = "";
+    this.routeKey = "";
     this.presenter = false;
   }
   async dispose(): Promise<void> {

@@ -5,6 +5,7 @@ import type {
 } from "@open-document/web/presentation-editor";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { PptxShowSettings } from "./pptx-show-settings.js";
 
 export function PptxShow({
   editor,
@@ -36,6 +37,14 @@ export function PptxShow({
   };
   return (
     <div>
+      <PptxShowSettings
+        key={editor.query.revision}
+        editor={editor}
+        controller={controller}
+        state={state}
+        disabled={disabled}
+        labels={labels}
+      />
       <button
         type="button"
         disabled={disabled}

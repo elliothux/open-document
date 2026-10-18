@@ -94,6 +94,9 @@ fn Session::commit_slides(
   deleted~ : Array[Slide] = [],
   removed~ : Map[String, @xml.Document] = Map([]),
 ) -> Unit raise @failure.Failure {
+  let parts = parts.copy()
+  let edits = edits.copy()
+  self.sync_show_range(slides.length(), parts, edits)
   let slides = slides.mapi((index, slide) => {
     numbered_slide(slide, presentation_number(main, index))
   })

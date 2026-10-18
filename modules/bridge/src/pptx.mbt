@@ -85,6 +85,15 @@ fn Foundation::pptx_operation(
             )
           _ => None
         },
+        layout=match request {
+          { "layoutId": _, .. } => Some(field_int(request, "layoutId"))
+          _ => None
+        },
+        point=match request {
+          { "x": _, .. } | { "y": _, .. } =>
+            Some((xlsx_number(request, "x"), xlsx_number(request, "y")))
+          _ => None
+        },
       )
     "layoutShowPptx" =>
       session.show_layout(
@@ -111,6 +120,7 @@ fn Foundation::pptx_operation(
         @failure.reject("invalid-operation", "Slide edit is required")
       }
       let change = match field_string(change, "action") {
+        "showSettings" => pptx_show_settings(change)
         "customShows" => {
           guard change is { "value": Array(items), .. } && items.length() <= 32 else {
             @failure.reject("invalid-operation", "Custom show list is required")

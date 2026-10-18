@@ -1,4 +1,9 @@
 import { record } from "./validation.js";
+import {
+  checkPptxShowSettings,
+  pptxShowSettingsState,
+  type PptxShowSettings,
+} from "./pptx-show-settings.js";
 import { checkGradientStops, type GradientStop } from "./drawing.js";
 import { imageInsets } from "./pptx-objects.js";
 import {
@@ -103,6 +108,7 @@ export interface PptxTransition {
   direction: "left" | "right" | "up" | "down";
 }
 export interface PptxPlaybackState {
+  showSettings: { value: PptxShowSettings | null; reason: string };
   customShows: {
     items: { id: string; name: string; slides: string[] }[];
     reason: string;
@@ -308,6 +314,7 @@ export function pptxPlaybackState(value: unknown): void {
   if (typeof shows.reason !== "string" || shows.reason.length > 8192)
     throw new Error("Invalid custom show state");
   pptxCustomShows(shows.items, false);
+  pptxShowSettingsState(value);
   const slides = record(value).slides;
   if (!Array.isArray(slides))
     throw new Error("Missing custom show slide identities");
@@ -326,6 +333,7 @@ export function pptxPlaybackState(value: unknown): void {
 }
 
 export type PptxSlideEdit =
+  | { action: "showSettings"; value: PptxShowSettings }
   | { action: "customShows"; value: PptxPlaybackState["customShows"]["items"] }
   | { action: "animations"; value: PptxAnimation[] }
   | { action: "advance"; value: PptxAdvance }
@@ -378,6 +386,12 @@ export type PptxSlideEdit =
 
 export function checkPptxSlideEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "showSettings") {
+    if (Object.keys(change).length !== 2)
+      throw new Error("Invalid slideshow settings edit");
+    checkPptxShowSettings(change.value);
+    return;
+  }
   if (change.action === "customShows") {
     if (Object.keys(change).some((key) => !["action", "value"].includes(key)))
       throw new Error("Invalid custom show edit");

@@ -158,21 +158,24 @@ fn subtotal_function(
       Number(0)
     }
   }
+  if [7, 8, 10, 11].contains(kind) {
+    let result = variance_result(numbers, kind == 7 || kind == 10, work)
+    return match result {
+      Number(variance) if kind == 7 || kind == 8 =>
+        finite_result(variance.sqrt())
+      _ => result
+    }
+  }
   let mut sum = 0.0
   let mut product = 1.0
   let mut minimum = numbers[0]
   let mut maximum = minimum
-  let mut mean = 0.0
-  let mut squared = 0.0
-  for index, number in numbers {
+  for number in numbers {
     work.spend()
     sum += number
     product *= number
     minimum = minimum.min(number)
     maximum = maximum.max(number)
-    let delta = number - mean
-    mean += delta / (index + 1).to_double()
-    squared += delta * (number - mean)
   }
   match kind {
     1 => finite_result(sum / count.to_double())
@@ -180,23 +183,6 @@ fn subtotal_function(
     5 => Number(minimum)
     6 => finite_result(product)
     9 => finite_result(sum)
-    _ => {
-      let sample = kind == 7 || kind == 10
-      if sample && count < 2 {
-        return Error("#DIV/0!")
-      }
-      let divisor = if sample { count - 1 } else { count }
-      if squared.is_nan() || squared.is_inf() {
-        return Error("#NUM!")
-      }
-      let variance = squared.max(0) / divisor.to_double()
-      finite_result(
-        if kind == 7 || kind == 8 {
-          variance.sqrt()
-        } else {
-          variance
-        },
-      )
-    }
+    _ => abort("Validated SUBTOTAL function code")
   }
 }

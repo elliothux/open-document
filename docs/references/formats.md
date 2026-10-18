@@ -1156,7 +1156,7 @@ General 显示按 [ONLYOFFICE 的 15 位有效数字拆分](https://github.com/O
 
 数字格式覆盖 General、`@`、整数、两位小数、千分位、百分比、`yyyy-mm-dd`、`hh:mm:ss`，以及内置 1–4、9–10、14–22、49。日期保留数值，核心解释 1900/1904 系统，1900 序号 60 显示虚构的 2 月 29 日，序号 0 显示 1900-01-00。不经过宿主时区。其他格式、颜色 tint、渐变/图案、非实线边框及额外字体装饰保留声明并诊断，不承诺显示等价。
 
-公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/SQRT/POWER/PRODUCT/MEDIAN/SUMSQ/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/EXACT/REPT/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
+公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/SQRT/POWER/PRODUCT/MEDIAN/SUMSQ/VAR/VAR.S/VARP/VAR.P/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/EXACT/REPT/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
 
 整列 `A:A`、`$A:B` 和整行 `1:1`、`$1:2` 可带工作表限定并使用反向端点。行号只接受十进制整数，范围受 1048576 行、16384 列约束；混合行/列/单格端点拒绝。内部用一个有界矩形表示，未覆盖维度在复制时固定；原公式源码保持，复制及名称展开输出对应行列记法和 `$` 标记。依赖保留区间，聚合及条件函数查询实际单元格，空白计数按逻辑面积扣除非空值。线性查找在大范围内仅检查已有单元格及各空白区间的首个搜索位置，保留正反向、错误与近似候选规则；小范围保持直接读取，二分查找沿原路径。全部沿用工作量及输出限制，保留空项的超大连接仍可能原子拒绝。
 
@@ -1164,7 +1164,7 @@ General 显示按 [ONLYOFFICE 的 15 位有效数字拆分](https://github.com/O
 
 AND/OR 接受数值和布尔，忽略引用内的文本与空白；没有有效值时返回 `#VALUE!`。文字常量返回 `#VALUE!`，不沿用数学函数的数字转换。稀疏范围只访问已有单元格，不展开整张表；即使已有确定的布尔结果，范围和后续参数中的错误仍参与，范围内按行列顺序保留首个错误。NOT 接受布尔、数值、空白及 TRUE/FALSE 文字，其他文字返回 `#VALUE!`。三项类型判断不转换数字文字，区分空白格与空字符串；当前使用标量参数，多格范围返回 `#VALUE!`。公式结果引用空白格时计算为数值 0。
 
-IF、IFERROR、IFNA 只求值选中的结果分支，依赖仍包含全部声明引用。IFERROR 捕获公式错误值，IFNA 只捕获 `#N/A`；两者不吞未知函数、循环、引用解析失败或资源超限。新输入及生成的 IFNA、CONCAT、TEXTJOIN、DAYS、XLOOKUP 按 OOXML 写入对应 `_xlfn.` 函数前缀，读取也接受这些前缀；只替换函数 token，保留同名工作表和文字常量。查询继续返回实际公式源。
+IF、IFERROR、IFNA 只求值选中的结果分支，依赖仍包含全部声明引用。IFERROR 捕获公式错误值，IFNA 只捕获 `#N/A`；两者不吞未知函数、循环、引用解析失败或资源超限。新输入及生成的 IFNA、CONCAT、TEXTJOIN、DAYS、XLOOKUP、VAR.S、VAR.P 按 OOXML 写入对应 `_xlfn.` 函数前缀，读取也接受这些前缀；只替换函数 token，保留同名工作表和文字常量。查询继续返回实际公式源。
 
 ABS 返回绝对值，INT 向负无穷取整；MOD 按 `n - d * floor(n / d)` 计算，零除数返回 `#DIV/0!`。三类舍入按有限 Double 的十进制表示处理，ROUND 的半值远离零，ROUNDUP 远离零，ROUNDDOWN 朝零；位数的小数部分朝零截断。正负位数、进位及 `ROUND(1.005,2)=1.01` 使用同一路径，不先乘十进制倍率。精度至少 324 时保持原值；截断后的精度小于 -308 时，非零 ROUNDUP 返回 `#NUM!`，其余返回 0。结果非有限也返回 `#NUM!`，不按任意精度分配字符串。
 
@@ -1175,6 +1175,10 @@ PRODUCT 按参数顺序及引用内的行列顺序相乘，重复/重叠引用�
 MEDIAN 对实际数值排序，偶数项取中间两项的平均值。沿 [ONLYOFFICE MEDIAN](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L8541-L8620)，引用中的文字、布尔、空白及错误均忽略；直接布尔参与，直接文字忽略，直接错误及空参数返回 `#VALUE!`。没有数值也返回 `#VALUE!`，平均值的非有限结果为 `#NUM!`。PRODUCT/MEDIAN 支持跨表、名称展开和整行/列的稀疏引用，不展开空矩阵；隐藏及筛选行仍参与。遍历与排序预付现有公式工作预算，资源超限整体回滚，IFERROR 不吞资源失败。四项均参与实际依赖、缓存及精确历史，不再使用未计算保护。实现归 [`formula-numeric.mbt`](../../modules/formats/src/xlsx/formula-numeric.mbt)及 [`formula-product-median.mbt`](../../modules/formats/src/xlsx/formula-product-median.mbt)。
 
 SUMSQ 按参数及引用内行列顺序累计平方和，重复引用按次数计入。直接布尔和数字文字转换，非法文字为 `#VALUE!`；引用中的文字、布尔和空白忽略。沿固定 [ONLYOFFICE SUMSQ](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L5732-L5797)，单格引用中的错误忽略，显式范围（含 `A1:A1`）及直接错误传播。没有数值返回 0，平方或累计非有限返回 `#NUM!`。跨表、名称、共享公式及整行/列稀疏引用复用已有依赖、工作预算、缓存和精确历史；不再使用未计算保护。实现归 [`formula-sum-squares.mbt`](../../modules/formats/src/xlsx/formula-sum-squares.mbt)。
+
+VAR/VAR.S 返回样本方差，VARP/VAR.P 返回总体方差。普通引用、名称、跨表、共享公式及稀疏整行/列沿现有依赖和缓存事务；引用中的文字、布尔及空白忽略，错误传播。直接布尔转为 1/0；按固定 ONLYOFFICE 规则，VAR 忽略直接文字和空白，VAR.S/VARP/VAR.P 将它们作为 0，数字文字也不按数值转换。样本少于两个数、总体没有数值时返回 `#DIV/0!`；非有限结果返回 `#NUM!`。普通方差包含隐藏和筛选行及嵌套 SUBTOTAL；可见行汇总仍使用 SUBTOTAL。
+
+方差复用 SUBTOTAL 的稳定逐项均值和平方偏差累计，避免直接作两个大平方和之差。规则依据 [ONLYOFFICE VAR/VARP/VAR.P/VAR.S](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L11619-L12008)。读取接受 `_xlfn.VAR.S`/`_xlfn.VAR.P`，新输入和生成的这两个现代名称带标准前缀；导入未改的源片段保留。独立结果、类型、空样本、错误、较大偏移、溢出、前缀、工作预算、重算和精确历史由定向用例检查；数组、动态引用及更广统计函数继续扩展。实现归 [`formula-variance.mbt`](../../modules/formats/src/xlsx/formula-variance.mbt)和 [`formula-subtotal.mbt`](../../modules/formats/src/xlsx/formula-subtotal.mbt)。
 
 数值函数复用已有数值、数字文字、布尔及空白转换；ROUND/ROUNDDOWN 的文字引用保持 `#VALUE!`，文字常量仍可转换。标量函数的多格范围返回 `#VALUE!`。实现参考 [ONLYOFFICE 数值函数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js)及其独立[舍入用例](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/tests/cell/spreadsheet-calculation/formula-tests/mathematicTests.js#L16439-L16487)。核心已检查负数、半值、进位、类型转换、有限边界、跨表重算、缓存和精确历史；默认公式栏已检查组合数值公式、依赖修改、独立 XML、保存重开及 PDF。更广浮点兼容与地区化数值解析仍归后续扩展。
 
@@ -1741,19 +1745,45 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 核心写 `cNvPr/a:hlinkClick`：外链使用 External hyperlink 关系，内链使用 slide 关系及 `ppaction://hlinksldjump`。四种导航动作写 `ppaction://hlinkshowjump?jump=…` 和空 `r:id`，不创建关系；导入时按 action 解析，允许省略、空或原有关系身份。与目标相同的关系可复用；修改不覆盖其他对象共用的关系，也不清理旧关系。保留 tooltip、tgtFrame、history、highlightClick、endSnd、相邻悬停链接、注释、文字和几何；未知属性、声音等子内容或无法解析的关系保护修改。新增关系与对象 XML 共用一项有界历史，旧 revision、活动候选、锁和输出预算失败均不提交。相同链接及重复清除不新增历史。
 
-页面重排保持内部目标，页面复制复用既有自身链接重映射，删页移除相应入链并保留对象。对象复制保留链接；带自身点击或悬停链接的组不能直接取消组合，避免丢失组动作。普通点击链接移除后可取消组合，成员自己的链接保留。静态 Canvas/PDF 保留对象外观及文字，不增加交互链接注释。悬停/一般动作编辑、放映点击行为及输出链接继续按 [P12](../p12-pptx-core.md) 实施。语义参考固定 [ONLYOFFICE 对象链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L3503-L3683)、[文字链接拆分与光标操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L7811-L8180)、[PPTX 链接下划线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L10545-L10565)、[内部页动作解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L9259-L9290)及[编辑器显式导航](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/api.js#L7243-L7264)，实现归 [`object-hyperlink.mbt`](../../modules/formats/src/pptx/object-hyperlink.mbt)和 [`text-hyperlink.mbt`](../../modules/formats/src/pptx/text-hyperlink.mbt)。
+页面重排保持内部目标，页面复制复用既有自身链接重映射，删页移除相应入链并保留对象。对象复制保留链接；带自身点击或悬停链接的组不能直接取消组合，避免丢失组动作。普通点击链接移除后可取消组合，成员自己的链接保留。静态 Canvas/PDF 保留对象外观及文字，不增加交互链接注释。放映点击归[放映链接](#放映链接)；悬停/一般动作编辑及输出链接继续按 [P12](../p12-pptx-core.md) 实施。语义参考固定 [ONLYOFFICE 对象链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L3503-L3683)、[文字链接拆分与光标操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L7811-L8180)、[PPTX 链接下划线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L10545-L10565)、[内部页动作解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L9259-L9290)及[编辑器显式导航](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/api.js#L7243-L7264)，实现归 [`object-hyperlink.mbt`](../../modules/formats/src/pptx/object-hyperlink.mbt)和 [`text-hyperlink.mbt`](../../modules/formats/src/pptx/text-hyperlink.mbt)。
 
 ### 放映与演讲者视图
 
-`PresentationEditor.slideshow.start("first" | "current" | { show: id }, labels?)` 从头、当前页或指定自定义放映开始。默认页列表提供普通放映与自定义放映入口。`labels` 使用 `PresentationShowLabels`，从 `web/presentation-editor` 导出，默认 UI 随语言提供名称。`navigate(action, slide?)` 接受 `next/previous/first/last/goto/gotoPosition/click/tick/pause/resume/end`，`end()` 退出。goto 使用页身份并定位当前序列的首次出现；gotoPosition 使用从 0 开始的条目序号字符串，可以区分重复页。click 遵守单击换页设置，next 保持显式导航；tick 根据时间推进自动换页。`active` 包含开始中的状态，`state` 返回当前快照，未放映时为 undefined；`paused` 表示切换及自动换页计时暂停。Wasm/Web PPTX 模块导出 `PptxQuery/PptxShowAction/PptxShowState/PptxShowLayout`。
+`PresentationEditor.slideshow.start("settings" | "first" | "current" | { show: id }, labels?)` 按已保存设置、从头、当前页或指定自定义放映开始。省略参数时使用 settings。默认页列表提供这些入口。`labels` 使用 `PresentationShowLabels`，从 `web/presentation-editor` 导出，默认 UI 随语言提供名称。`navigate(action, slide?)` 接受 `next/previous/first/last/goto/gotoPosition/click/tick/pause/resume/end`，`end()` 退出。goto 使用页身份并定位当前序列的首次出现；gotoPosition 使用从 0 开始的条目序号字符串，可以区分重复页。click 遵守单击换页设置，next 保持显式导航；tick 根据时间推进自动换页。`active` 包含开始中的状态，`state` 返回当前快照，未放映时为 undefined；`paused` 表示切换及自动换页计时暂停。Wasm/Web PPTX 模块导出 `PptxQuery/PptxShowAction/PptxShowState/PptxShowLayout`。
 
-核心保留编辑页及文字/对象选择，以已提交 revision 管理独立播放位置。普通及自定义导航均跳过隐藏页；当前页开始与显式跳页可到达隐藏页。自定义放映中的跳页限于该序列。没有可见页时开始拒绝。切换尚未结束时，next 先完成当前切换；再次前进才换页或退出末页。后退直接显示目标条目，条目改变后重置入场、动画与计时，包括连续重复同一页。首屏从黑底进入。`index/count` 表示源页序和源页总数，包含隐藏页；`order` 为播放条目的页身份数组，`position` 为当前条目序号，`custom` 为自定义放映 ID 或 null。条目与计数保留隐藏页，默认导航跳过它们。`nextSlide` 是序列中的下一可见页或 null。结束状态的 order 为空、position 为 −1、custom 为 null。候选须先完成或取消；放映期间核心拒绝文档、选择和历史修改。保存及静态输出读取已提交的编辑布局，不改变播放位置或源内容。
+核心保留编辑页及文字/对象选择，以已提交 revision 管理独立播放位置。普通及自定义导航均跳过隐藏页；当前页开始与显式跳页可到达隐藏页。普通 goto 在自定义放映中限于该序列；源链接的跨序列规则归[放映链接](#放映链接)。没有可见页时开始拒绝。切换尚未结束时，next 先完成当前切换；再次前进才换页或退出末页。后退直接显示目标条目，条目改变后重置入场、动画与计时，包括连续重复同一页。首屏从黑底进入。`index/count` 表示源页序和源页总数，包含隐藏页；`order` 为播放条目的页身份数组，`position` 为当前条目序号，`custom` 为自定义放映 ID 或 null。条目与计数保留隐藏页，默认导航跳过它们。`nextSlide` 是序列中的下一可见页或 null。结束状态的 order 为空、position 为 −1、custom 为 null。候选须先完成或取消；放映期间核心拒绝文档、选择和历史修改。保存及静态输出读取已提交的编辑布局，不改变播放位置或源内容。
 
-低层 controlShowPptx 携带 revision、action、slide 和必需的 time；start 可额外提供 custom ID，此时 slide 为空。layoutShowPptx 携带 revision/profile/time，返回一至两个 R0 页面及 animating。time 为 0–1000000000 的有限单调毫秒，倒退请求拒绝且保留状态。核心扣除暂停间隔后计算进度，不调用宿主时钟。Web 每帧先用 tick 更新播放位置，再准备相邻资源和布局；animating 在切换或等待自动换页时为 true。每次最多处理一项帧工作，忙时只保留最新时间。核心缓存包含播放序列与条目位置，重复页也会更新下一页预览；每帧只重组位置及透明度。结束放映清除播放缓存。imageKeysShowPptx 返回当前、切换前及下一页资源；资源池同时保留编辑页，继续受 256 个键和 16 MiB 解码上限约束。
+低层 controlShowPptx 携带 revision、action、slide 和必需的 time；start 可额外提供 custom ID，此时 slide 为空。startSettings 使用文稿默认选择，不接受 slide 或 custom。layoutShowPptx 携带 revision/profile/time，返回一至两个 R0 页面及 animating。time 为 0–1000000000 的有限单调毫秒，倒退请求拒绝且保留状态。核心扣除暂停间隔后计算进度，不调用宿主时钟。Web 每帧先用 tick 更新播放位置，再准备相邻资源和布局；animating 在切换或等待自动换页时为 true。每次最多处理一项帧工作，忙时只保留最新时间。核心缓存包含播放序列与条目位置，重复页也会更新下一页预览；每帧只重组位置及透明度。结束放映清除播放缓存。imageKeysShowPptx 返回当前、切换前及下一页资源；资源池同时保留编辑页，继续受 256 个键和 16 MiB 解码上限约束。
 
-模态视图位于所属编辑器内，容器全屏兼容 Shadow DOM。支持方向键、PageUp/PageDown、Home/End、页面点击、显式条目跳转和 Escape。演讲者开关显示下一页与普通备注；演讲已用时间继续累计，pause/resume 冻结/继续切换及自动换页计时。退出恢复原生焦点和选择；文件替换、宿主 setPaused(true) 和释放结束放映，清理画布、帧请求、监听器和计时器。媒体、对象链接点击、临时画笔及独立窗口仍待实现，源元数据保留。
+模态视图位于所属编辑器内，容器全屏兼容 Shadow DOM。支持方向键、PageUp/PageDown、Home/End、页面点击、显式条目跳转和 Escape。演讲者开关显示下一页与普通备注；演讲已用时间继续累计，pause/resume 冻结/继续切换及自动换页计时。退出恢复原生焦点和选择；文件替换、宿主 setPaused(true) 和释放结束放映，清理画布、帧请求、监听器和计时器。对象与文字点击链接已有核心命中和键盘入口，范围归[放映链接](#放映链接)。媒体、临时画笔及独立窗口仍待实现，源元数据保留。
 
 页序规则参考 [ONLYOFFICE 可见页导航](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L4641-L4742)和[显式跳页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L4978-L5003)。实现归 [`slideshow.mbt`](../../modules/formats/src/pptx/slideshow.mbt)、[`show-state.mbt`](../../modules/formats/src/pptx/show-state.mbt)及 [`presentation-show.ts`](../../packages/web/src/presentation-show.ts)。
+
+### 放映链接
+
+`PresentationEditor.slideshow.click(x, y)` 激活当前已显示帧上的位置；坐标为页面 pt，不是 CSS 像素。默认 Canvas 将点击转换为该坐标。核心按当前形状轮廓、组成员和实际文字字符区域命中；文字链接优先于对象链接，成员无链接时使用最近的组链接。无链接的前景对象阻挡后方链接。动画中的平移、缩放、旋转共用绘制矩阵；动画隐藏项不参与命中。未命中链接时保留原单击动画/换页规则。页面切换期间先完成入场，不激活链接。
+
+`slideshow.followLink(id)` 使用当前放映布局返回的链接 ID，供键盘及自定义宿主使用。`PptxShowLayout.links` 为 `{ id, label, reason, external }[]`；id 是核心分配的十进制字符串，只在当前布局有效。label 使用对象名称或文字，reason 非空时显示诊断并禁用执行；external 为已校验的外部地址或 null。默认视图给内部链接提供按钮，给外部地址提供带 `noopener noreferrer` 的新窗口链接，动画隐藏项不显示。列表更新保持仍存在项的键盘焦点。
+
+内部页链接可明确到达隐藏页，在当前序列中定位目标的第一次出现。若目标不在当前范围或自定义序列内，核心转入完整文稿页序并清除 custom，再从目标继续；此规则是当前 SDK 合同，不声称已由上游自定义放映运行结果验证。首页/末页/上一页/下一页按活动放映序列执行，默认跳过隐藏条目；起点后退停留，末尾前进退出或按循环开关返回。导航重置目标入场和计时，保留编辑选择及源历史。
+
+低层 controlShowPptx 的 click 可携带完整的 layoutId/x/y；followLink 携带 layoutId，slide 使用链接 ID。缺字段、旧 revision、其他场景及过期布局拒绝且不改变状态。同场景保留当前和上一帧，用于处理帧刷新与点击的交错；控制操作及换页会失效旧交互。外链不由核心请求：本次显式激活的 `PptxShowState.external` 返回地址，其他状态为 null。Web 通过新窗口执行，浏览器阻止弹窗时仍可使用列表中的显式链接。HTTP/HTTPS/mailto 的地址校验复用编辑链接边界，打开文件、布局和播放帧不会自动请求地址。
+
+每帧最多 4096 个链接，ID 上限 4095；标签最多 1024、诊断最多 8192 个 UTF-16 单元，标签/诊断/外链总量最多 1 Mi 单元。宏、文件地址、未知动作及扩展链接保持源并显示诊断，点击拒绝执行。已知链接在只读对象和文稿中仍可播放。静态 PDF/图片不增加交互链接注释；上次查看页、结束放映和自定义放映动作、悬停与其他动作继续实施。
+
+命中后优先处理链接、未命中再换页的依据是 [ONLYOFFICE 放映点击路径](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L5357-L5445)；动作与外部宿主分派参考[链接回调](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/api.js#L7243-L7283)。实现归 [`show-links.mbt`](../../modules/formats/src/pptx/show-links.mbt)、[`show-animation.mbt`](../../modules/formats/src/pptx/show-animation.mbt)和 [`presentation-show.ts`](../../packages/web/src/presentation-show.ts)。
+
+### 放映设置
+
+`PresentationEditor.editSlides({ action: "showSettings", value })` 修改整份文稿的默认放映。value 类型为 `NonNullable<PptxQuery["showSettings"]["value"]>`，包含 slides、timings、animations 和 loop。slides 接受 `{ kind: "all" }`、`{ kind: "range", first, last }` 或 `{ kind: "custom", id }`。范围是从 1 开始的闭区间，必须满足 first ≤ last ≤ 页数。custom 使用已有自定义放映 ID。查询返回 value/reason；未知选择、重复范围或无法解释的属性保护修改及按设置开始，源内容保持。
+
+缺省为全部页、启用计时和对象动画、关闭循环。timings=false 禁用自动换页，保留每页设置及手动导航；animations=false 直接显示完整对象，不执行对象动画，页面切换仍保留。loop=true 在向前到达末条目后回到首个可见条目，单页也重置场景；后退仍在起点停留。循环沿用暂停、相邻页缓存及隐藏页规则，零时长循环每次 tick 最多推进一个序列长度。显式 first/current/custom 入口覆盖默认范围，仍使用三个全稿开关。
+
+默认 UI 提供全部页、页码范围或自定义放映，以及计时、对象动画和循环开关。应用后合为一次历史；开始读取已提交值。页重排、增加和复制保持范围的数字位置；删页后把超出末页的起止值收窄到剩余页数。自定义组仍使用稳定页身份；被默认选择的组须先取消选择才能删除。
+
+源采用标准 `presProps/p:showPr` 的 `sldAll/sldRg/custShow` 和 useTimings/showAnimation/loop。首次编辑可创建属性部件、关系及内容类型，连同源历史一起撤销和重做；相同设置不改字节或新增历史。只修改变化的属性和选择片段，保留 showNarration、显示模式、画笔颜色和其他未改源内容。媒体、叙述、窗口模式和画笔的执行仍待实现；保存与静态输出继续使用完整文稿，不按默认放映范围裁剪。
+
+字段和序列化依据 [ONLYOFFICE ShowPr](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/ShowPr/PresentationPr.cpp#L48-L128)及[页码范围](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/ShowPr/SldRg.cpp#L42-L78)。重排与删页的数字范围规则是当前 SDK 合同，未声称由上游运行结果验证。实现归 [`show-settings.mbt`](../../modules/formats/src/pptx/show-settings.mbt)、[`show-settings-create.mbt`](../../modules/formats/src/pptx/show-settings-create.mbt)和 [`pptx-show-settings.tsx`](../../packages/ui/src/pptx-show-settings.tsx)；沿用现有编辑队列及播放状态。
 
 ### 自定义放映
 
@@ -1761,7 +1791,7 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 默认面板支持创建、命名、复制、删除、添加/移除条目、前后调整条目及显式开始。草稿经“保存自定义放映”提交，开始使用已提交的定义。修改受保护时仍可选择和播放已知定义。每次应用为一项精确历史；相同列表不新增历史。页移动和复制保持已有定义，复制页不会自动加入；删除页会移除其全部重复引用，允许组变为空。已有放映设置引用的组不能删除；存在未支持的自定义放映超链接动作时也保护删除，防止留下失效目标。重命名保持 ID 与引用。
 
-源写入标准 `p:custShowLst/p:custShow[@name,@id]/p:sldLst/p:sld[@r:id]`，复用 presentation 的 slide 关系。未修改的定义保留源片段，读写、历史和预算沿用既有事务。扩展定义、未知属性、注释、失效关系及重复身份保护修改和自定义开始，普通放映仍可运行。导入的默认放映选择保持源；本阶段通过显式入口选择自定义放映，动作链接与默认选择编辑继续实施。
+源写入标准 `p:custShowLst/p:custShow[@name,@id]/p:sldLst/p:sld[@r:id]`，复用 presentation 的 slide 关系。未修改的定义保留源片段，读写、历史和预算沿用既有事务。扩展定义、未知属性、注释、失效关系及重复身份保护修改和自定义开始，普通放映仍可运行。默认放映选择已接通读取、编辑和播放，范围归[放映设置](#放映设置)；自定义动作链接继续实施。
 
 已核对 [ONLYOFFICE 的自定义放映模型与序列化](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Presentation/PresentationChildElements.cpp#L411-L531)，该快照的名称/身份和列表输出不完整；标准结构依据 [Open XML SDK 的 CustomShow、SlideList 与 SlideListEntry](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/generated/DocumentFormat.OpenXml/DocumentFormat.OpenXml.Generator/DocumentFormat.OpenXml.Generator.OpenXmlGenerator/schemas_openxmlformats_org_presentationml_2006_main.g.cs#L12165-L12319)。隐藏页规则参考 [LibreOffice 自定义放映](https://books.libreoffice.org/en/IG70/IG7009-SlideShowsPhotoAlbums.html)。实现归 [`custom-shows.mbt`](../../modules/formats/src/pptx/custom-shows.mbt)与 [`pptx-show.tsx`](../../packages/ui/src/pptx-show.tsx)。
 
@@ -1773,7 +1803,7 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 `editSlides({ action: "advance", value }, slide?)` 设置换页。Wasm/Web 导出的 `PptxAdvance` 为 `{ click: boolean, after: number | null }`，查询位于 `query.transition.advance`。after 为 0–3600000 的整数毫秒，null 关闭自动换页。默认值为允许单击且不自动换页。默认面板分别应用效果和换页设置，每次应用各为一项历史；改变效果保留换页，改变换页保留效果。源采用 advClick/advTm，只有换页属性的 transition 也支持读取、保存与重开。
 
-自动等待从入场结束后开始；单击提前结束入场时从该时刻开始。暂停保留剩余时间。迟到帧按源页序有界追赶，跳过隐藏页，到末页退出；源、编辑选择和历史保持。presProps 中 showPr/useTimings=false 禁用自动换页，保留页设置和显式导航；该整稿开关尚无编辑入口。规则参考 [ONLYOFFICE 入场后计时](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L4486-L4504)、[单击设置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L5418-L5445)及[整稿计时开关](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L2115-L2134)，实现归 [`slide-advance.mbt`](../../modules/formats/src/pptx/slide-advance.mbt)。
+自动等待从入场结束后开始；单击提前结束入场时从该时刻开始。暂停保留剩余时间。迟到帧按源页序有界追赶，跳过隐藏页，到末页退出；源、编辑选择和历史保持。presProps 中 showPr/useTimings=false 禁用自动换页，保留页设置和显式导航；整稿开关通过[放映设置](#放映设置)编辑。规则参考 [ONLYOFFICE 入场后计时](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L4486-L4504)、[单击设置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L5418-L5445)及[整稿计时开关](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L2115-L2134)，实现归 [`slide-advance.mbt`](../../modules/formats/src/pptx/slide-advance.mbt)。
 
 方向与速度参考 [ONLYOFFICE 源方向映射](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/apiCommon.js#L429-L450)、[速度缺省](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L4440-L4467)和[整页合成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L442-L770)。未复制上游源码。实现归 [`slide-transition.mbt`](../../modules/formats/src/pptx/slide-transition.mbt)和 [`pptx-transition.tsx`](../../packages/ui/src/pptx-transition.tsx)。
 
