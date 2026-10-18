@@ -5,11 +5,16 @@ import {
   checkPptxObjectEdit,
   checkPptxSlideEdit,
   preparePptxSearch,
+  checkPptxShow,
   type PptxCommand,
   type PptxResult,
 } from "@open-document/wasm/pptx";
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type {
+  PptxTransition,
+  PptxShowAction,
+  PptxShowState,
+  PptxShowLayout,
   PptxThemeColor,
   PptxThemeFont,
   PptxThemeSlot,
@@ -72,6 +77,11 @@ export class PptxClient {
     await this.connection.request({ operation: "font", bytes, identity });
   }
   async execute<C extends PptxCommand>(command: C): Promise<PptxResult<C>> {
+    if (
+      command.operation === "controlShowPptx" ||
+      command.operation === "layoutShowPptx"
+    )
+      checkPptxShow(command);
     if (command.operation === "editPptxObjects")
       checkPptxObjectEdit(command.change);
     if (command.operation === "editPptxSlides")

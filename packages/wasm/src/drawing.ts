@@ -73,6 +73,7 @@ export type PathSegment =
   | { op: "close" };
 
 export type DrawCommand =
+  | { op: "layer"; opacity: number; commands: DrawCommand[] }
   | { op: "style"; style: DrawStyle }
   | { op: "clipPath"; path: PathSegment[]; evenOdd: boolean }
   | { op: "fillRect"; rect: DrawRect & { color: string } }
@@ -185,22 +186,25 @@ export function drawingBatch(value: unknown): DrawingBatch {
     images.add(key);
   }
   let payload = 0;
-  for (const value of batch.regions) {
-    const page = record(value);
-    if (
-      finite(page.width) <= 0 ||
-      finite(page.width) > 14400 ||
-      finite(page.height) <= 0 ||
-      finite(page.height) > 14400 ||
-      !Array.isArray(page.commands)
-    )
-      throw new Error("Invalid drawing region");
+  const validateCommands = (values: unknown[], depth: number): void => {
     let clips = 0;
-    for (const value of page.commands) {
+    for (const value of values) {
       if (++payload > 1048576)
         throw new Error("Drawing payload exceeds budget");
       const command = record(value);
       switch (command.op) {
+        case "layer": {
+          const opacity = finite(command.opacity);
+          if (
+            opacity < 0 ||
+            opacity > 1 ||
+            !Array.isArray(command.commands) ||
+            depth >= 4
+          )
+            throw new Error("Invalid drawing layer");
+          validateCommands(command.commands, depth + 1);
+          break;
+        }
         case "fillRect":
           rect(command.rect);
           color(record(command.rect).color);
@@ -318,6 +322,18 @@ export function drawingBatch(value: unknown): DrawingBatch {
       }
     }
     if (clips !== 0) throw new Error("Unclosed drawing clip");
+  };
+  for (const value of batch.regions) {
+    const page = record(value);
+    if (
+      finite(page.width) <= 0 ||
+      finite(page.width) > 14400 ||
+      finite(page.height) <= 0 ||
+      finite(page.height) > 14400 ||
+      !Array.isArray(page.commands)
+    )
+      throw new Error("Invalid drawing region");
+    validateCommands(page.commands, 0);
   }
   return value as DrawingBatch;
 }

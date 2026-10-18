@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from "react";
 import type { PresentationEditor } from "@open-document/web/presentation-editor";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { PptxShow } from "./pptx-show.js";
 
 export function PptxSlideList({
   editor,
@@ -55,6 +56,12 @@ export function PptxSlideList({
   };
   return (
     <nav className="od-sidebar" aria-label={t.slide}>
+      <PptxShow
+        editor={editor}
+        controller={controller}
+        state={state}
+        disabled={disabled}
+      />
       {sections.length > 0 && (
         <div className="od-section-actions">
           <button

@@ -71,6 +71,21 @@ fn Foundation::pptx_operation(
     @failure.reject("session-required", "Open a PPTX presentation first")
   }
   match operation {
+    "controlShowPptx" =>
+      session.control_show(
+        field_int(request, "revision"),
+        field_string(request, "action"),
+        field_string(request, "slide"),
+        xlsx_number(request, "time"),
+      )
+    "layoutShowPptx" =>
+      session.show_layout(
+        field_int(request, "revision"),
+        xlsx_number(request, "time"),
+        self.probe,
+        xlsx_profile(request),
+        self.images,
+      )
     "queryPptx" => session.query()
     "dateTimePptx" =>
       session.set_date_time(
@@ -88,6 +103,22 @@ fn Foundation::pptx_operation(
         @failure.reject("invalid-operation", "Slide edit is required")
       }
       let change = match field_string(change, "action") {
+        "transition" =>
+          @pptx.Transition(
+            match change {
+              { "value": Null, .. } => None
+              { "value": value, .. } =>
+                Some({
+                  kind: field_string(value, "kind"),
+                  duration: field_int(value, "duration"),
+                  direction: field_string(value, "direction"),
+                })
+              _ =>
+                @failure.reject(
+                  "invalid-operation", "Slide transition is required",
+                )
+            },
+          )
         "add" => @pptx.AddSlide
         "copy" => @pptx.CopySlide
         "delete" => @pptx.DeleteSlide
@@ -556,12 +587,26 @@ fn Foundation::pptx_operation(
       session.invalidate_geometry()
       { "key": self.images.get(key).identity }
     }
-    "imageKeysPptx" => {
-      let keys = session.image_keys(
-        xlsx_boolean(request, "all"),
-        xlsx_boolean(request, "hidden"),
-      )
-      self.images.retain(keys)
+    "imageKeysPptx" | "imageKeysShowPptx" => {
+      let keys = if operation == "imageKeysShowPptx" {
+        session.show_image_keys()
+      } else {
+        session.image_keys(
+          xlsx_boolean(request, "all"),
+          xlsx_boolean(request, "hidden"),
+        )
+      }
+      let retained = keys.copy()
+      for key in session.image_keys(false, false) + session.show_image_keys() {
+        if !retained.contains(key) {
+          retained.push(key)
+        }
+      }
+      guard retained.length() <= 256 else {
+        @failure.reject("limit-exceeded", "Presentation images exceed 256")
+      }
+      // Keep the editor's current images while the slideshow prepares other pages.
+      self.images.retain(retained)
       Json(keys)
     }
     "exportPptxPdf" => {

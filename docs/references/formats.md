@@ -565,6 +565,9 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 | `style` | fillAlpha/strokeAlpha、evenOdd、cap/join/miter、dash/dashOffset、multiply、imageSmoothing；设置当前图形状态 |
 | `clipPath` | 路径与 evenOdd；压入路径裁剪，空路径产生空裁剪 |
 | `clipRect` / `restore` | 压入矩形裁剪 / 恢复最近矩阵、裁剪及样式；批次须平衡 |
+| `layer` | opacity 为 0–1，commands 在独立透明表面绘制后整体合成；子内容重叠不重复应用整层透明度 |
+
+隔离层最多嵌套四级，共享原指令/资源预算；子裁剪在层内平衡。单次绘制的目标与活动临时层合计最多 16777216 像素。Web 复用同尺寸临时表面，在不再使用、尺寸变化或释放时清理；图层不包含格式规则。
 
 核心生成完整区域的绘制顺序和裁剪。`outlines: { key, path }[]` 与 `images: string[]` 独立于区域；批次中每个轮廓仅保留一份，键为字体 SHA-256 与 glyph ID。`addImage(key,width,height,rgba)` 返回由尺寸及 RGBA SHA-256 组成的资源身份；同一源键替换像素后返回新身份。平台位图按此身份缓存。Canvas 按完整批次淘汰上一页轮廓，开始绘制时重设样式；路径 `lineWidth: 0` 表示设备细线，非均匀变换时按最大尺度近似。
 
@@ -1715,6 +1718,26 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 核心写 `cNvPr/a:hlinkClick`：外链使用 External hyperlink 关系，内链使用 slide 关系及 `ppaction://hlinksldjump`。四种导航动作写 `ppaction://hlinkshowjump?jump=…` 和空 `r:id`，不创建关系；导入时按 action 解析，允许省略、空或原有关系身份。与目标相同的关系可复用；修改不覆盖其他对象共用的关系，也不清理旧关系。保留 tooltip、tgtFrame、history、highlightClick、endSnd、相邻悬停链接、注释、文字和几何；未知属性、声音等子内容或无法解析的关系保护修改。新增关系与对象 XML 共用一项有界历史，旧 revision、活动候选、锁和输出预算失败均不提交。相同链接及重复清除不新增历史。
 
 页面重排保持内部目标，页面复制复用既有自身链接重映射，删页移除相应入链并保留对象。对象复制保留链接；带自身点击或悬停链接的组不能直接取消组合，避免丢失组动作。普通点击链接移除后可取消组合，成员自己的链接保留。静态 Canvas/PDF 保留对象外观及文字，不增加交互链接注释。悬停/一般动作编辑、放映点击行为及输出链接继续按 [P12](../p12-pptx-core.md) 实施。语义参考固定 [ONLYOFFICE 对象链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L3503-L3683)、[文字链接拆分与光标操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L7811-L8180)、[PPTX 链接下划线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L10545-L10565)、[内部页动作解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L9259-L9290)及[编辑器显式导航](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/api.js#L7243-L7264)，实现归 [`object-hyperlink.mbt`](../../modules/formats/src/pptx/object-hyperlink.mbt)和 [`text-hyperlink.mbt`](../../modules/formats/src/pptx/text-hyperlink.mbt)。
+
+### 放映与演讲者视图
+
+`PresentationEditor.slideshow.start("first" | "current", labels?)` 从头或当前页开始放映。默认页列表提供两个入口。`labels` 使用 `PresentationShowLabels`，从 `web/presentation-editor` 导出，默认 UI 随语言提供名称。`navigate(action, slide?)` 接受 `next/previous/first/last/goto/pause/resume/end`，`end()` 退出。`active` 包含开始中的状态，`state` 返回当前快照，未放映时为 undefined；`paused` 表示切换暂停。Wasm/Web PPTX 模块导出 `PptxShowAction/PptxShowState/PptxShowLayout`。
+
+核心保留编辑页及文字/对象选择，以已提交 revision 管理独立播放位置。普通导航跳过隐藏页，当前页开始与显式 goto 可到达隐藏页。没有可见页时从头开始拒绝。切换尚未结束时，next 先完成当前切换；再次前进才换页或退出末页。后退直接显示目标页，其他目标改变后重置入场，首屏从黑底进入。`index` 是从 0 开始的源页序，`count` 包含隐藏页，`nextSlide` 是下一可见页或 null。候选须先完成或取消；放映期间核心拒绝文档、选择和历史修改。保存及静态输出读取已提交的编辑布局，不改变播放位置或源内容。
+
+低层 controlShowPptx 携带 revision、action、slide 和必需的 time；layoutShowPptx 携带 revision/profile/time，返回一至两个 R0 页面及 animating。time 为 0–1000000000 的有限单调毫秒，倒退请求拒绝且保留状态。核心扣除暂停间隔后计算进度，不调用宿主时钟。Web 每次最多发起一项帧请求，忙时只保留最新时间。核心复用未变页面图元，每帧只重组位置及透明度；结束放映清除播放缓存。imageKeysShowPptx 返回当前、切换前及下一页资源；资源池同时保留编辑页，继续受 256 个键和 16 MiB 解码上限约束。
+
+模态视图位于所属编辑器内，容器全屏兼容 Shadow DOM。支持方向键、PageUp/PageDown、Home/End、页面点击、显式跳页和 Escape。演讲者开关显示下一页与普通备注；演讲已用时间继续累计，pause/resume 只冻结/继续切换。退出恢复原生焦点和选择；文件替换、宿主 setPaused(true) 和释放结束放映，清理画布、帧请求、监听器和计时器。对象动画、媒体、对象链接点击、自定义放映、临时画笔及独立窗口仍待实现，源元数据保留。
+
+页序规则参考 [ONLYOFFICE 可见页导航](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L4641-L4742)和[显式跳页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L4978-L5003)。实现归 [`slideshow.mbt`](../../modules/formats/src/pptx/slideshow.mbt)、[`show-state.mbt`](../../modules/formats/src/pptx/show-state.mbt)及 [`presentation-show.ts`](../../packages/web/src/presentation-show.ts)。
+
+### 页面切换
+
+`PresentationEditor.editSlides({ action: "transition", value }, slide?)` 设置目标页切换；null 移除本地设置。`PptxTransition` 为 `{ kind, duration, direction }`，从 Wasm/Web PPTX 模块导出。kind 接受 none/fade/push。fade/push 的 duration 为 100–60000 的整数毫秒，none 只接受 0。push 的 direction 接受 left/right/up/down，表示页面移动方向；其他类型固定为 left。默认面板提供种类、时长、方向、应用与移除。`query.transition` 返回 value/reason。
+
+标准 transition 的 cut/fade/push 及 p14:dur 已接通读写；缺少 dur 时，spd 的 fast/med/slow 分别取 500/750/1000 毫秒。读取不改源，相同设置不新增历史。修改保留页、选择、其他 XML 与资源，共用一次精确历史。自动前进、禁止点击、声音、经黑场淡入和未知效果继续保护。未知源和非法参数不提交部分结果。播放采用整页隔离透明度或两页平移，保存/PDF 保持静态源布局。
+
+方向与速度参考 [ONLYOFFICE 源方向映射](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/apiCommon.js#L429-L450)、[速度缺省](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L4440-L4467)和[整页合成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L442-L770)。未复制上游源码。实现归 [`slide-transition.mbt`](../../modules/formats/src/pptx/slide-transition.mbt)和 [`pptx-transition.tsx`](../../packages/ui/src/pptx-transition.tsx)。
 
 ### 当前页 PNG 输出
 

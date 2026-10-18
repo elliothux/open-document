@@ -5,6 +5,7 @@ pub(all) enum SlideEdit {
   DeleteSlide
   MoveSlide(Int)
   HideSlide(Bool)
+  Transition(SlideTransition?)
   Background(BackgroundFill?)
   BackgroundImage(Bytes, String)
   BackgroundImageFormat(String, Array[Double], Double)
@@ -230,6 +231,7 @@ pub fn Session::edit_slides(
   }
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   match change {
+    Transition(value) => return self.set_transition(index, value)
     AddComment(_, _, _, _, _) | UpdateComment(_, _) | RemoveComment(_) =>
       return self.edit_comments(index, change)
     AddSection(_)

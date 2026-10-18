@@ -22,6 +22,8 @@ pub struct Session {
   priv mut object_sequence : Int64
   priv mut closed : Bool
   priv mut date_time : DateTime?
+  priv mut showing : ShowState?
+  priv mut show_drawing : ShowDrawing?
 }
 
 ///|
@@ -338,6 +340,8 @@ fn Session::from_package(
     object_sequence: 1,
     closed: false,
     date_time,
+    showing: None,
+    show_drawing: None,
   }
   session.validate(slides[0])
   session
@@ -352,6 +356,14 @@ fn Session::check(self : Session) -> Unit raise @failure.Failure {
 
 ///|
 pub fn Session::check_idle(self : Session) -> Unit raise @failure.Failure {
+  self.check_candidate_idle()
+  guard self.showing is None else {
+    @failure.reject("active-show", "End the slideshow before editing")
+  }
+}
+
+///|
+fn Session::check_candidate_idle(self : Session) -> Unit raise @failure.Failure {
   self.check()
   guard self.candidate is None else {
     @failure.reject(
@@ -429,6 +441,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
     "slideVisibilityReason": self.slide_visibility_reason(),
     "sections": self.section_query(),
     "notes": self.notes_query(current.tree.part),
+    "transition": self.transition_query(current),
     "footer": self.footer_query(current),
     "firstSlideNumber": presentation_first_number(self.main),
     "comments": self.comments_query(current.tree.part, links),
@@ -676,6 +689,7 @@ pub fn Session::image_bytes(
 ///|
 pub fn Session::invalidate_geometry(self : Session) -> Unit {
   self.view = None
+  self.show_drawing = None
 }
 
 ///|
@@ -689,6 +703,8 @@ pub fn Session::close(self : Session) -> Unit {
   self.media.clear()
   self.removed.clear()
   self.candidate = None
+  self.showing = None
+  self.show_drawing = None
   self.view = None
   self.history_bytes = 0
   self.opc.close()

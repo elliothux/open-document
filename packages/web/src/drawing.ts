@@ -2,6 +2,7 @@ import type {
   DrawingBatch,
   DrawGlyph,
   DrawStyle,
+  DrawCommand,
 } from "@open-document/wasm/drawing";
 import type { ShapeBatch } from "@open-document/wasm/foundation";
 
@@ -23,6 +24,33 @@ export class CanvasRenderer {
     for (const key of this.paths.keys())
       if (!retained.has(key)) this.paths.delete(key);
     this.prepare(batch.outlines);
+    this.usedLayers = 0;
+    for (const canvas of this.layers)
+      if (
+        canvas.width !== context.canvas.width ||
+        canvas.height !== context.canvas.height
+      ) {
+        canvas.width = 0;
+        canvas.height = 0;
+      }
+    try {
+      this.drawCommands(context, region.commands, images, 0);
+    } finally {
+      for (let i = this.usedLayers; i < this.layers.length; i++) {
+        this.layers[i]!.width = 0;
+        this.layers[i]!.height = 0;
+      }
+    }
+  }
+
+  private readonly layers: HTMLCanvasElement[] = [];
+  private usedLayers = 0;
+  private drawCommands(
+    context: CanvasRenderingContext2D,
+    commands: DrawCommand[],
+    images: ReadonlyMap<string, ImageBitmap>,
+    depth: number,
+  ): void {
     let clips = 0;
     let style: DrawStyle = {
       fillAlpha: 1,
@@ -40,8 +68,17 @@ export class CanvasRenderer {
     context.save();
     try {
       this.applyStyle(context, style);
-      for (const command of region.commands) {
+      for (const command of commands) {
         switch (command.op) {
+          case "layer":
+            this.layer(
+              context,
+              command.commands,
+              command.opacity,
+              images,
+              depth,
+            );
+            break;
           case "fillRect": {
             context.globalAlpha = style.fillAlpha;
             const rect = command.rect;
@@ -190,6 +227,38 @@ export class CanvasRenderer {
     }
   }
 
+  private layer(
+    context: CanvasRenderingContext2D,
+    commands: DrawCommand[],
+    opacity: number,
+    images: ReadonlyMap<string, ImageBitmap>,
+    depth: number,
+  ): void {
+    const { width, height } = context.canvas;
+    if (depth >= 4 || width * height * (depth + 2) > 16777216)
+      throw new Error("Drawing layers exceed pixel budget");
+    const canvas = this.layers[depth] ?? document.createElement("canvas");
+    this.layers[depth] = canvas;
+    this.usedLayers = Math.max(this.usedLayers, depth + 1);
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
+    const target = canvas.getContext("2d");
+    if (!target) throw new Error("Layer canvas is unavailable");
+    target.resetTransform();
+    target.clearRect(0, 0, width, height);
+    target.setTransform(context.getTransform());
+    this.drawCommands(target, commands, images, depth + 1);
+    context.save();
+    try {
+      context.resetTransform();
+      context.globalAlpha = opacity;
+      context.globalCompositeOperation = "source-over";
+      context.drawImage(canvas, 0, 0);
+    } finally {
+      context.restore();
+    }
+  }
+
   /** Standalone shaping probe, whose positions are already resolved by the core. */
   draw(
     context: CanvasRenderingContext2D,
@@ -248,6 +317,11 @@ export class CanvasRenderer {
   }
 
   dispose(): void {
+    for (const canvas of this.layers) {
+      canvas.width = 0;
+      canvas.height = 0;
+    }
+    this.layers.length = 0;
     this.paths.clear();
     this.closed = true;
   }

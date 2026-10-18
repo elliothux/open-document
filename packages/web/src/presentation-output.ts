@@ -15,8 +15,11 @@ export async function presentationOutputs(
   outputBytes: number,
   scale: number,
   observable: EditorState<PptxQuery>,
-  assertOpen: () => void,
+  closed: () => boolean,
 ): Promise<readonly EditorOutput[]> {
+  const assertOpen = () => {
+    if (closed()) throw new Error("Editor is disposed");
+  };
   const revision = state.revision;
   let buffers: Uint8Array[];
   const collection = format === "images" || format === "jpegs";
@@ -55,4 +58,44 @@ export async function presentationOutputs(
       observable.output(revision, collection ? imageFormat : format, bytes),
     ),
   );
+}
+
+export class PresentationOutput {
+  constructor(
+    private readonly generate: (
+      format: "pptx" | "pdf" | "png" | "jpeg" | "images" | "jpegs",
+      outputBytes?: number,
+      scale?: number,
+      all?: boolean,
+      hidden?: boolean,
+    ) => Promise<readonly EditorOutput[]>,
+  ) {}
+  async save(): Promise<EditorOutput> {
+    return (await this.generate("pptx"))[0]!;
+  }
+  async exportPdf(
+    all = true,
+    hidden = false,
+    outputBytes = 67108864,
+  ): Promise<EditorOutput> {
+    return (await this.generate("pdf", outputBytes, 1, all, hidden))[0]!;
+  }
+  async exportPng(scale = 1, outputBytes = 67108864): Promise<EditorOutput> {
+    return (await this.generate("png", outputBytes, scale))[0]!;
+  }
+  async exportJpeg(scale = 1, outputBytes = 67108864): Promise<EditorOutput> {
+    return (await this.generate("jpeg", outputBytes, scale))[0]!;
+  }
+  /** Exports visible slides in order at one revision, with a shared byte budget. */
+  exportPageImages(
+    scale = 1,
+    outputBytes = 67108864,
+    hidden = false,
+    format: "png" | "jpeg" = "png",
+  ): Promise<readonly EditorOutput[]> {
+    if (format !== "png" && format !== "jpeg")
+      return Promise.reject(new Error("Unsupported image output format"));
+    const kind = format === "jpeg" ? "jpegs" : "images";
+    return this.generate(kind, outputBytes, scale, true, hidden);
+  }
 }

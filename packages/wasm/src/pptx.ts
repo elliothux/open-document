@@ -1,4 +1,18 @@
 import {
+  checkPptxShow,
+  pptxShowState,
+  pptxShowLayout,
+  type PptxShowCommand,
+  type PptxShowState,
+  type PptxShowLayout,
+} from "./pptx-show.js";
+export {
+  checkPptxShow,
+  type PptxShowAction,
+  type PptxShowState,
+  type PptxShowLayout,
+} from "./pptx-show.js";
+import {
   number,
   geometry,
   points,
@@ -29,6 +43,8 @@ export {
 } from "./pptx-objects.js";
 import {
   checkPptxSlideEdit,
+  pptxTransitionState,
+  type PptxTransitionState,
   checkPptxBackgroundFill,
   checkPptxBackground,
   pptxSections,
@@ -43,6 +59,7 @@ import {
 } from "./pptx-slides.js";
 export {
   checkPptxSlideEdit,
+  type PptxTransition,
   type PptxBackgroundFill,
   type PptxBackground,
   type PptxSlideEdit,
@@ -185,7 +202,7 @@ export interface PptxObject {
       })
     | null;
 }
-export interface PptxQuery {
+export interface PptxQuery extends PptxTransitionState {
   themeColors: PptxThemeColor[];
   themeFonts: PptxThemeFont[];
   revision: number;
@@ -248,6 +265,7 @@ export interface PptxHit {
 }
 
 export type PptxCommand =
+  | PptxShowCommand
   | PptxSearchCommand
   | PptxOutputCommand
   | { operation: "createPptx"; budget: Budget; dateTime?: string }
@@ -342,66 +360,33 @@ export type PptxCommand =
       bytes: Uint8Array;
     };
 
-type Result<C extends PptxCommand> = C["operation"] extends "findPptx"
-  ? PptxSearchResult
-  : C["operation"] extends "printLayoutPptx"
-    ? PptxPrintLayout
-    : C["operation"] extends "layoutPptx"
-      ? PptxLayout
-      : C["operation"] extends "hitPptx"
-        ? PptxHit
-        : C["operation"] extends "selectionPptx"
-          ? PptxGeometry
-          : C["operation"] extends
-                "savePptx" | "imageBytesPptx" | "exportPptxPdf"
-            ? Uint8Array
-            : C["operation"] extends "imageKeysPptx"
-              ? string[]
-              : C["operation"] extends "copyPptx"
-                ? { text: string }
-                : C["operation"] extends "imagePptx"
-                  ? { key: string }
-                  : PptxQuery;
+type Result<C extends PptxCommand> = C["operation"] extends "controlShowPptx"
+  ? PptxShowState
+  : C["operation"] extends "layoutShowPptx"
+    ? PptxShowLayout
+    : C["operation"] extends "findPptx"
+      ? PptxSearchResult
+      : C["operation"] extends "printLayoutPptx"
+        ? PptxPrintLayout
+        : C["operation"] extends "layoutPptx"
+          ? PptxLayout
+          : C["operation"] extends "hitPptx"
+            ? PptxHit
+            : C["operation"] extends "selectionPptx"
+              ? PptxGeometry
+              : C["operation"] extends
+                    "savePptx" | "imageBytesPptx" | "exportPptxPdf"
+                ? Uint8Array
+                : C["operation"] extends "imageKeysPptx" | "imageKeysShowPptx"
+                  ? string[]
+                  : C["operation"] extends "copyPptx"
+                    ? { text: string }
+                    : C["operation"] extends "imagePptx"
+                      ? { key: string }
+                      : PptxQuery;
 export type PptxResult<C extends PptxCommand> = Result<C>;
 
-const names: ReadonlySet<string> = new Set([
-  "openPptx",
-  "createPptx",
-  "queryPptx",
-  "dateTimePptx",
-  "followPptxHyperlink",
-  "findPptx",
-  "replacePptxMatches",
-  "editPptxObjects",
-  "editPptxSlides",
-  "selectPptx",
-  "replacePptx",
-  "deletePptx",
-  "undoPptx",
-  "redoPptx",
-  "savePptx",
-  "copyPptx",
-  "layoutPptx",
-  "printLayoutPptx",
-  "hitPptx",
-  "selectionPptx",
-  "navigatePptx",
-  "beginPptx",
-  "transformPptx",
-  "dragPptx",
-  "finishPptx",
-  "cancelPptx",
-  "imageBytesPptx",
-  "imagePptx",
-  "imageKeysPptx",
-  "copyPptx",
-  "exportPptxPdf",
-]);
-export function isPptxCommand(value: {
-  operation: string;
-}): value is PptxCommand {
-  return names.has(value.operation);
-}
+export { isPptxCommand } from "./pptx-command.js";
 
 function integer(value: unknown, high = 0x7fffffff): void {
   if (!Number.isInteger(number(value, 0, high)))
@@ -409,6 +394,7 @@ function integer(value: unknown, high = 0x7fffffff): void {
 }
 export function pptxQuery(value: unknown): PptxQuery {
   const query = record(value);
+  pptxTransitionState(value);
   pptxThemeColors(query.themeColors);
   pptxThemeFonts(query.themeFonts);
   const notes = record(query.notes);
@@ -661,6 +647,12 @@ export function pptxResult<C extends PptxCommand>(
   value: unknown,
 ): PptxResult<C> {
   switch (command.operation) {
+    case "controlShowPptx":
+      pptxShowState(value);
+      break;
+    case "layoutShowPptx":
+      pptxShowLayout(value);
+      break;
     case "printLayoutPptx":
       pptxPrintLayout(value);
       break;
@@ -674,6 +666,7 @@ export function pptxResult<C extends PptxCommand>(
         throw new Error("Invalid PPTX output bytes");
       break;
     case "imageKeysPptx":
+    case "imageKeysShowPptx":
       strings(value, 256, 256);
       break;
     case "copyPptx":
@@ -740,6 +733,11 @@ export function pptxResult<C extends PptxCommand>(
 /** One presentation per core session. Commands retain format-specific semantics. */
 export class PptxSession extends WasmSession {
   execute<C extends PptxCommand>(command: C): PptxResult<C> {
+    if (
+      command.operation === "controlShowPptx" ||
+      command.operation === "layoutShowPptx"
+    )
+      checkPptxShow(command);
     if (command.operation === "editPptxObjects")
       checkPptxObjectEdit(command.change);
     if (command.operation === "editPptxSlides")

@@ -434,7 +434,7 @@ pub fn Session::print_layout(
   profile : Map[String, String],
 ) -> @layout.PositionedDocument raise @failure.Failure {
   self.check_revision(revision)
-  self.check_idle()
+  self.check_candidate_idle()
   let pages : Array[@layout.PositionedPage] = []
   let mut primitives = 0
   for slide in self.slides {

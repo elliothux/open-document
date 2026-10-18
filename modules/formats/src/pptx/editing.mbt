@@ -372,7 +372,7 @@ pub fn Session::save(
   revision : Int,
 ) -> Bytes raise @failure.Failure {
   self.check_revision(revision)
-  self.check_idle()
+  self.check_candidate_idle()
   let replacements = self.replacements(self.main, self.slides, self.parts)
   let bytes = self.opc.save(replacements, removed=self.removed)
   let checked = @opc.Package::open(bytes, self.budget)

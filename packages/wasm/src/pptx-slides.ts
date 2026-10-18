@@ -97,7 +97,41 @@ export function checkPptxBackgroundFill(value: unknown): void {
     throw new Error("Invalid slide background fill");
 }
 
+export interface PptxTransition {
+  kind: "none" | "fade" | "push";
+  duration: number;
+  direction: "left" | "right" | "up" | "down";
+}
+export interface PptxTransitionState {
+  transition: { value: PptxTransition | null; reason: string };
+}
+export function pptxTransition(value: unknown): void {
+  const effect = record(value);
+  if (
+    !["none", "fade", "push"].includes(String(effect.kind)) ||
+    !["left", "right", "up", "down"].includes(String(effect.direction)) ||
+    typeof effect.duration !== "number" ||
+    !Number.isInteger(effect.duration) ||
+    (effect.kind === "none"
+      ? effect.duration !== 0
+      : effect.duration < 100 || effect.duration > 60000) ||
+    (effect.kind !== "push" && effect.direction !== "left") ||
+    Object.keys(effect).length !== 3 ||
+    Object.keys(effect).some(
+      (key) => !["kind", "duration", "direction"].includes(key),
+    )
+  )
+    throw new Error("Invalid slide transition");
+}
+export function pptxTransitionState(value: unknown): void {
+  const state = record(record(value).transition);
+  if (typeof state.reason !== "string" || state.reason.length > 8192)
+    throw new Error("Invalid transition state");
+  if (state.value !== null) pptxTransition(state.value);
+}
+
 export type PptxSlideEdit =
+  | { action: "transition"; value: PptxTransition | null }
   | {
       action: "commentAdd";
       text: string;
@@ -146,6 +180,12 @@ export type PptxSlideEdit =
 
 export function checkPptxSlideEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "transition") {
+    if (Object.keys(change).some((key) => !["action", "value"].includes(key)))
+      throw new Error("Invalid transition edit");
+    if (change.value !== null) pptxTransition(change.value);
+    return;
+  }
   if (change.action === "backgroundImageInsets") {
     imageInsets(change.insets);
     if (

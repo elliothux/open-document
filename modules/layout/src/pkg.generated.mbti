@@ -96,6 +96,7 @@ pub(all) enum DrawCommand {
   Style(DrawStyle)
   ClipPath(Array[PathSegment], Bool)
   Restore
+  Layer(Double, Array[DrawCommand])
 }
 pub fn DrawCommand::to_json(Self) -> Json
 pub impl ToJson for DrawCommand

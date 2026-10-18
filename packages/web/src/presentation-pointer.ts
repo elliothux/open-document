@@ -1,5 +1,13 @@
 import type { PptxPoint } from "@open-document/wasm/pptx";
 
+export interface PresentationGesture {
+  start: PptxPoint;
+  text: boolean;
+  anchor: number;
+  handle: number;
+  token?: { revision: number; id: number };
+}
+
 export interface PresentationPointerHost {
   available(): boolean;
   point(event: MouseEvent): PptxPoint;

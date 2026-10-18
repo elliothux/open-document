@@ -87,6 +87,15 @@ export class PresentationCanvas extends CanvasSurface {
       all,
       hidden,
     });
+    await this.prepareKeys(client, keys);
+  }
+  async prepareShow(client: PptxClient): Promise<void> {
+    await this.prepareKeys(
+      client,
+      await client.execute({ operation: "imageKeysShowPptx" }),
+    );
+  }
+  private async prepareKeys(client: PptxClient, keys: string[]): Promise<void> {
     for (const key of this.keys.keys())
       if (!keys.includes(key)) this.keys.delete(key);
     const retained = new Set(this.keys.values());

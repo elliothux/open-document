@@ -56,6 +56,7 @@ pub(all) enum DrawCommand {
   Style(DrawStyle)
   ClipPath(Array[PathSegment], Bool)
   Restore
+  Layer(Double, Array[DrawCommand])
 }
 
 ///|
@@ -83,6 +84,8 @@ pub impl ToJson for DrawCommand with fn to_json(self) {
     ClipPath(path, even_odd) =>
       { "op": "clipPath", "path": path, "evenOdd": even_odd }
     Restore => { "op": "restore" }
+    Layer(opacity, commands) =>
+      { "op": "layer", "opacity": opacity, "commands": commands }
   }
 }
 
