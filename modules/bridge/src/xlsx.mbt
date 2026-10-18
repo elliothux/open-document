@@ -367,6 +367,8 @@ fn Foundation::xlsx_operation(
         | "tableColumnFormula"
         | "tableTotals"
         | "tableStyle"
+        | "tableStyleDefinition"
+        | "deleteTableStyle"
         | "tableTotal"
         | "tableFilter"
         | "tableFilterClear"

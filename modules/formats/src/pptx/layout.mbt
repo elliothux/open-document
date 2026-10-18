@@ -205,7 +205,12 @@ fn paint_slide(
   profile : Map[String, String],
   tile_sizes : Map[String, (Int, Int)],
 ) -> (@layout.PositionedPage, Array[TextGeometry], Array[String]) raise @failure.Failure {
-  let primitives = slide.background.paint(width, height, tile_sizes~)
+  let primitives : Array[@layout.PositionedPrimitive] = []
+  if slide.background is Linear(stops, _, _) &&
+    stops.any(stop => stop.opacity != 1) {
+    primitives.push(Rectangle({ x: 0, y: 0, width, height, color: "ffffff", }))
+  }
+  primitives.append(slide.background.paint(width, height, tile_sizes~))
   let texts : Array[TextGeometry] = []
   let fonts = probe.font_info()
   let diagnostics = slide.diagnostics.copy()

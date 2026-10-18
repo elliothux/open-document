@@ -34,6 +34,7 @@ fn conditional_style(
   tree : Tree,
   node : @xml.Node,
   theme : Array[String],
+  table~ : Bool = false,
 ) -> CellFormat raise @failure.Failure {
   conditional_node(tree, node, [], [
     "font", "fill", "border", "numFmt", "alignment",
@@ -139,7 +140,8 @@ fn conditional_style(
       if edges.length() < 4 {
         edges.push(edge)
       } else {
-        guard edge.map(e => e.style == "none").unwrap_or(true) else {
+        guard (table && side != "diagonal") ||
+          edge.map(e => e.style == "none").unwrap_or(true) else {
           @failure.reject(
             "protected-content", "Unsupported conditional inner border",
           )

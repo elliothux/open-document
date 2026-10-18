@@ -9,6 +9,7 @@ import type { PanelProps } from "./panels.js";
 import { messages } from "./messages.js";
 import { XlsxFilter } from "./xlsx-filter.js";
 import { XlsxTableStyleForm } from "./xlsx-table-style.js";
+import { XlsxTableStyleDefinitions } from "./xlsx-table-style-definition.js";
 
 export function selectedXlsxTable(query: SpreadsheetEditor["currentState"]) {
   return query.tables
@@ -66,6 +67,10 @@ export function XlsxTablesPanel(props: PanelProps) {
   return (
     <fieldset disabled={props.disabled}>
       <legend>{t.structuredTables}</legend>
+      <XlsxTableStyleDefinitions
+        key={props.state.document?.documentId}
+        {...props}
+      />
       <form
         onSubmit={(event) => {
           event.preventDefault();

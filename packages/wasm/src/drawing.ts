@@ -10,6 +10,7 @@ export interface DrawRect {
 export interface GradientStop {
   position: number;
   color: string;
+  opacity: number;
 }
 
 export function checkGradientStops(
@@ -21,8 +22,14 @@ export function checkGradientStops(
   for (const item of value) {
     const stop = record(item);
     if (
-      Object.keys(stop).length !== 2 ||
-      Object.keys(stop).some((key) => !["position", "color"].includes(key)) ||
+      Object.keys(stop).length !== 3 ||
+      Object.keys(stop).some(
+        (key) => !["position", "color", "opacity"].includes(key),
+      ) ||
+      typeof stop.opacity !== "number" ||
+      !Number.isFinite(stop.opacity) ||
+      stop.opacity < 0 ||
+      stop.opacity > 1 ||
       typeof stop.position !== "number" ||
       !Number.isFinite(stop.position) ||
       stop.position < previous ||

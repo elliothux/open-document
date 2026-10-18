@@ -1,5 +1,10 @@
 import { integer, record } from "./validation.js";
 import {
+  checkXlsxCellFormat,
+  type XlsxCellFormat,
+  type XlsxCellBorder,
+} from "./xlsx-format.js";
+import {
   checkXlsxFilter,
   xlsxFilterState,
   type XlsxFilterColumn,
@@ -36,6 +41,78 @@ export interface XlsxTableStyle {
   rowStripes: boolean;
   columnStripes: boolean;
 }
+export interface XlsxTableStyleChoice {
+  name: string;
+  readOnlyReason: string;
+  elements: XlsxTableStyleElement[];
+}
+export const xlsxTableStyleRegions = [
+  "wholeTable",
+  "firstColumnStripe",
+  "secondColumnStripe",
+  "firstRowStripe",
+  "secondRowStripe",
+  "lastColumn",
+  "firstColumn",
+  "headerRow",
+  "totalRow",
+  "firstHeaderCell",
+  "lastHeaderCell",
+  "firstTotalCell",
+  "lastTotalCell",
+] as const;
+export interface XlsxTableStyleElement {
+  kind: (typeof xlsxTableStyleRegions)[number];
+  size: number;
+  format: XlsxCellFormat;
+  vertical: XlsxCellBorder | null;
+  horizontal: XlsxCellBorder | null;
+}
+function checkTableStyleElements(value: unknown): void {
+  if (!Array.isArray(value) || value.length > 13)
+    throw new Error("Invalid table style regions");
+  const kinds = new Set<string>();
+  for (const item of value) {
+    const element = record(item);
+    if (
+      Object.keys(element).length !== 5 ||
+      Object.keys(element).some(
+        (key) =>
+          !["kind", "size", "format", "vertical", "horizontal"].includes(key),
+      ) ||
+      typeof element.kind !== "string" ||
+      !xlsxTableStyleRegions.some((kind) => kind === element.kind) ||
+      kinds.has(element.kind) ||
+      !integer(element.size, 1, 1048576)
+    )
+      throw new Error("Invalid table style region");
+    checkXlsxCellFormat(element.format);
+    if (element.vertical !== null)
+      checkXlsxCellFormat({ left: element.vertical });
+    if (element.horizontal !== null)
+      checkXlsxCellFormat({ top: element.horizontal });
+    kinds.add(element.kind);
+  }
+}
+export function xlsxTableStyles(value: unknown): XlsxTableStyleChoice[] {
+  if (!Array.isArray(value) || value.length > 256)
+    throw new Error("Invalid custom table style catalog");
+  const names = new Set<string>();
+  for (const item of value) {
+    const style = record(item);
+    if (
+      Object.keys(style).length !== 3 ||
+      !tableStyleName(style.name) ||
+      typeof style.readOnlyReason !== "string" ||
+      style.readOnlyReason.length > 4096 ||
+      names.has(style.name.toUpperCase())
+    )
+      throw new Error("Invalid custom table style choice");
+    checkTableStyleElements(style.elements);
+    names.add(style.name.toUpperCase());
+  }
+  return value as XlsxTableStyleChoice[];
+}
 export type XlsxTableTotalFunction =
   "average" | "countNums" | "count" | "max" | "min" | "stdDev" | "sum" | "var";
 export type XlsxTableTotal =
@@ -44,6 +121,13 @@ export type XlsxTableTotal =
   | { kind: "formula"; formula: string }
   | { kind: "aggregate"; function: XlsxTableTotalFunction };
 export type XlsxTableEdit =
+  | {
+      action: "tableStyleDefinition";
+      original: string | null;
+      name: string;
+      elements: XlsxTableStyleElement[];
+    }
+  | { action: "deleteTableStyle"; name: string; replacement: string | null }
   | { action: "tableStyle"; id: number; style: XlsxTableStyle }
   | { action: "tableFilter"; id: number; columns: XlsxFilterColumn[] }
   | {
@@ -81,8 +165,42 @@ function tableText(value: unknown, maximum: number): value is string {
 function tableName(value: unknown): value is string {
   return tableText(value, 255) && value.length > 0;
 }
+function tableStyleName(value: unknown): value is string {
+  return (
+    tableName(value) &&
+    value.trim() === value &&
+    !Array.from(value).some(
+      (character) =>
+        character.codePointAt(0)! < 32 || character.codePointAt(0) === 127,
+    )
+  );
+}
 export function checkXlsxTableEdit(value: unknown): void {
   const change = record(value);
+  if (
+    change.action === "tableStyleDefinition" ||
+    change.action === "deleteTableStyle"
+  ) {
+    const keys =
+      change.action === "tableStyleDefinition"
+        ? ["action", "original", "name", "elements"]
+        : ["action", "name", "replacement"];
+    if (
+      Object.keys(change).length !== keys.length ||
+      Object.keys(change).some((key) => !keys.includes(key)) ||
+      !tableStyleName(change.name)
+    )
+      throw new Error("Invalid table style definition command");
+    if (change.action === "tableStyleDefinition") {
+      if (!(change.original === null || tableStyleName(change.original)))
+        throw new Error("Invalid original table style");
+      checkTableStyleElements(change.elements);
+    } else if (!(
+      change.replacement === null || tableStyleName(change.replacement)
+    ))
+      throw new Error("Invalid replacement table style");
+    return;
+  }
   if (change.action === "tableStyle") {
     const style = record(change.style);
     if (
@@ -102,13 +220,7 @@ export function checkXlsxTableEdit(value: unknown): void {
             "columnStripes",
           ].includes(key),
       ) ||
-      !(
-        style.name === null ||
-        (typeof style.name === "string" &&
-          /^TableStyle(?:Medium(?:[1-9]|1[0-9]|2[0-8])|Light(?:[1-9]|1[0-9]|2[01])|Dark(?:[1-9]|1[01]))$/.exec(
-            style.name,
-          )?.[0] === style.name)
-      ) ||
+      !(style.name === null || tableStyleName(style.name)) ||
       [
         style.firstColumn,
         style.lastColumn,

@@ -58,6 +58,7 @@ pub fn write(
   }
   try {
     let document = @pdflite.pdf_document_empty()
+    document.set_version(1, 4)
     let resources : Array[(String, @syntax.PdfObject)] = []
     for index, subset in fonts {
       resources.push(
@@ -81,6 +82,7 @@ pub fn write(
     let pages : Array[@page.PdfPage] = []
     let installed_images : Map[String, (String, @syntax.PdfObject)] = Map([])
     let gradients : Map[String, (String, @syntax.PdfObject)] = Map([])
+    let gradient_masks : Map[String, @syntax.PdfObject] = Map([])
     let mut content_bytes = 0
     for frame in layout.pages {
       let ops : Array[@content.PdfContentOp] = []
@@ -126,6 +128,18 @@ pub fn write(
             ops.push(@content.Op_re(0, 0, 1, 1))
             ops.push(@content.Op_W)
             ops.push(@content.Op_n)
+            if stops.any(stop => stop.opacity != 1) {
+              let mask = gradient_masks
+                .get(key)
+                .unwrap_or_else(() => {
+                  let mask = gradient_mask(document, stops)
+                  gradient_masks[key] = mask
+                  mask
+                })
+              let state = "M" + entry.0
+              alpha_states[state] = (state, mask)
+              ops.push(@content.Op_gs(name(state)))
+            }
             ops.push(@content.Op_sh(name(entry.0)))
             ops.push(@content.Op_Q)
           }

@@ -1,9 +1,12 @@
 ///|
-fn gradient_shading(stops : Array[@layout.GradientStop]) -> @syntax.PdfObject {
+fn gradient_shading(
+  stops : Array[@layout.GradientStop],
+  alpha~ : Bool = false,
+) -> @syntax.PdfObject {
   let points : Array[@layout.GradientStop] = [
-    { position: 0, color: stops[0].color, },
+    { ..stops[0], position: 0, },
     ..stops,
-    { position: 1, color: stops.last().unwrap().color, },
+    { ..stops.last().unwrap(), position: 1, },
   ]
   let functions : Array[@syntax.PdfObject] = []
   let bounds : Array[@syntax.PdfObject] = []
@@ -17,11 +20,11 @@ fn gradient_shading(stops : Array[@layout.GradientStop]) -> @syntax.PdfObject {
     if !functions.is_empty() {
       bounds.push(@syntax.PdfReal(start.position))
     }
-    functions.push(gradient_interpolation(start.color, end.color))
+    functions.push(gradient_interpolation(start, end, alpha~))
   }
   dict([
     ("ShadingType", @syntax.PdfInteger(2)),
-    ("ColorSpace", tag("DeviceRGB")),
+    ("ColorSpace", tag(if alpha { "DeviceGray" } else { "DeviceRGB" })),
     ("Coords", @syntax.PdfArray([0, 0, 1, 0].map(v => @syntax.PdfInteger(v)))),
     (
       "Extend",
@@ -51,18 +54,74 @@ fn gradient_shading(stops : Array[@layout.GradientStop]) -> @syntax.PdfObject {
 }
 
 ///|
-fn gradient_interpolation(start : String, end : String) -> @syntax.PdfObject {
+fn gradient_interpolation(
+  start : @layout.GradientStop,
+  end : @layout.GradientStop,
+  alpha~ : Bool,
+) -> @syntax.PdfObject {
   dict([
     ("FunctionType", @syntax.PdfInteger(2)),
     ("Domain", @syntax.PdfArray([@syntax.PdfInteger(0), @syntax.PdfInteger(1)])),
     (
       "C0",
-      @syntax.PdfArray([0, 2, 4].map(i => @syntax.PdfReal(channel(start, i)))),
+      @syntax.PdfArray(
+        (if alpha {
+          [start.opacity]
+        } else {
+          [0, 2, 4].map(i => channel(start.color, i))
+        }).map(value => @syntax.PdfReal(value)),
+      ),
     ),
     (
       "C1",
-      @syntax.PdfArray([0, 2, 4].map(i => @syntax.PdfReal(channel(end, i)))),
+      @syntax.PdfArray(
+        (if alpha {
+          [end.opacity]
+        } else {
+          [0, 2, 4].map(i => channel(end.color, i))
+        }).map(value => @syntax.PdfReal(value)),
+      ),
     ),
     ("N", @syntax.PdfInteger(1)),
+  ])
+}
+
+///|
+fn gradient_mask(
+  document : @pdflite.PdfDocument,
+  stops : Array[@layout.GradientStop],
+) -> @syntax.PdfObject {
+  let shading = @syntax.PdfIndirect(
+    document.add_object(gradient_shading(stops, alpha=true)),
+  )
+  let group = document.add_object(
+    stream(@utf8.encode("/M sh\n"), [
+      ("Type", tag("XObject")),
+      ("Subtype", tag("Form")),
+      (
+        "BBox",
+        @syntax.PdfArray([0, 0, 1, 1].map(value => @syntax.PdfInteger(value))),
+      ),
+      (
+        "Group",
+        dict([
+          ("S", tag("Transparency")),
+          ("CS", tag("DeviceGray")),
+          ("I", @syntax.PdfBoolean(true)),
+        ]),
+      ),
+      ("Resources", dict([("Shading", dict([("M", shading)]))])),
+    ]),
+  )
+  dict([
+    ("Type", tag("ExtGState")),
+    (
+      "SMask",
+      dict([
+        ("S", tag("Luminosity")),
+        ("G", @syntax.PdfIndirect(group)),
+        ("BC", @syntax.PdfArray([@syntax.PdfInteger(0)])),
+      ]),
+    ),
   ])
 }

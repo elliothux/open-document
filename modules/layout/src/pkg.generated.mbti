@@ -203,6 +203,7 @@ pub fn GlyphRun::to_json(Self) -> Json
 pub(all) struct GradientStop {
   position : Double
   color : String
+  opacity : Double
 } derive(Eq, ToJson, @debug.Debug)
 pub fn GradientStop::equal(Self, Self) -> Bool
 pub fn GradientStop::not_equal(Self, Self) -> Bool

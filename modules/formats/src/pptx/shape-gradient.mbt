@@ -14,8 +14,8 @@ fn shape_gradient(
   }
   (
     points.map(point => {
-      position: point.1,
-      color: color(theme, point.0, placeholder~),
+      let (color, opacity) = color_rgba(theme, point.0, placeholder~)
+      { position: point.1, color, opacity, }
     }),
     angle,
     scaled,

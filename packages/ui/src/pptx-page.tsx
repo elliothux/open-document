@@ -140,8 +140,8 @@ export function PptxBackground({
     fill?.kind === "linear"
       ? fill.stops
       : [
-          { position: 0, color: color.slice(1) },
-          { position: 1, color: "000000" },
+          { opacity: 1, position: 0, color: color.slice(1) },
+          { opacity: 1, position: 1, color: "000000" },
         ],
   );
   const [angle, setAngle] = useState(

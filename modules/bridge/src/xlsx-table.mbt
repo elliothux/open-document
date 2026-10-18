@@ -1,6 +1,82 @@
 ///|
 fn xlsx_table_edit(change : Json) -> @xlsx.SheetEdit raise @failure.Failure {
   let action = field_string(change, "action")
+  if action == "tableStyleDefinition" || action == "deleteTableStyle" {
+    let keys = if action == "tableStyleDefinition" {
+      ["action", "original", "name", "elements"]
+    } else {
+      ["action", "name", "replacement"]
+    }
+    guard change is Object(fields) &&
+      fields.length() == keys.length() &&
+      fields.keys().all(key => keys.contains(key)) else {
+      @failure.reject(
+        "invalid-operation", "Invalid table style definition command",
+      )
+    }
+    let optional = fn(key) raise @failure.Failure {
+      match fields.get(key) {
+        Some(Null) => None
+        Some(String(value)) => Some(value)
+        _ => @failure.reject("invalid-operation", "Expected a name or null")
+      }
+    }
+    if action == "deleteTableStyle" {
+      return @xlsx.DeleteTableStyle(
+        field_string(change, "name"),
+        optional("replacement"),
+      )
+    }
+    guard fields.get("elements") is Some(Array(elements)) &&
+      elements.length() <= 13 else {
+      @failure.reject("invalid-operation", "Invalid table style regions")
+    }
+    return @xlsx.TableStyleDefinition(
+      optional("original"),
+      field_string(change, "name"),
+      elements.map(element => {
+        guard element is Object(fields) &&
+          fields.length() == 5 &&
+          fields
+          .keys()
+          .all(key => {
+            ["kind", "size", "format", "vertical", "horizontal"].contains(key)
+          }) else {
+          @failure.reject(
+            "invalid-operation", "Invalid table style region fields",
+          )
+        }
+        let border = fn(key) raise @failure.Failure {
+          guard fields.get(key) is Some(value) else {
+            @failure.reject("invalid-operation", "Missing table style border")
+          }
+          if value is Null {
+            None
+          } else {
+            guard value is Object(edge) &&
+              edge.length() == 2 &&
+              edge.contains("style") &&
+              edge.contains("color") else {
+              @failure.reject(
+                "invalid-operation", "Invalid table style border fields",
+              )
+            }
+            Some(@xlsx.CellBorder::{
+              style: field_string(value, "style"),
+              color: field_string(value, "color"),
+            })
+          }
+        }
+        @xlsx.TableStyleElement::{
+          kind: field_string(element, "kind"),
+          size: field_int(element, "size"),
+          format: xlsx_cell_format(fields["format"]),
+          vertical: border("vertical"),
+          horizontal: border("horizontal"),
+        }
+      }),
+    )
+  }
   if action == "tableStyle" {
     guard change is { "style": Object(fields) as style, .. } &&
       change is Object(command) &&

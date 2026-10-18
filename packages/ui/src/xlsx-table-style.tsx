@@ -2,6 +2,12 @@ import { useEffect, useState } from "react";
 import type { XlsxTable, XlsxTableStyle } from "@open-document/web/xlsx";
 import type { PanelProps } from "./panels.js";
 import { messages } from "./messages.js";
+export const tableStyleNames = ["Medium", "Light", "Dark"].flatMap((family) =>
+  Array.from(
+    { length: family === "Medium" ? 28 : family === "Light" ? 21 : 11 },
+    (_, index) => `TableStyle${family}${index + 1}`,
+  ),
+);
 
 export function XlsxTableStyleForm({
   table,
@@ -34,12 +40,8 @@ export function XlsxTableStyleForm({
   if (props.file.format !== "xlsx") return null;
   const editor = props.file.editor,
     t = messages(props.state.locale);
-  const choices = ["Medium", "Light", "Dark"].flatMap((family) =>
-    Array.from(
-      { length: family === "Medium" ? 28 : family === "Light" ? 21 : 11 },
-      (_, index) => `TableStyle${family}${index + 1}`,
-    ),
-  );
+  const custom = editor.currentState.tableStyles;
+  const choices = tableStyleNames;
   return (
     <form
       onSubmit={(event) => {
@@ -61,14 +63,33 @@ export function XlsxTableStyleForm({
             }
           >
             <option value="">{t.tableStyleNone}</option>
-            {style.name && !choices.includes(style.name) && (
-              <option value={style.name}>{style.name}</option>
-            )}
-            {choices.map((name) => (
-              <option key={name} value={name}>
-                {name.replace(/^TableStyle([A-Za-z]+)([0-9]+)$/, "$1 $2")}
+            {style.name &&
+              !choices.includes(style.name) &&
+              !custom.some((entry) => entry.name === style.name) && (
+                <option value={style.name}>{style.name}</option>
+              )}
+            {custom.map((entry) => (
+              <option
+                key={entry.name}
+                value={entry.name}
+                disabled={!!entry.readOnlyReason}
+              >
+                {entry.name}
+                {entry.readOnlyReason ? ` (${entry.readOnlyReason})` : ""}
               </option>
             ))}
+            {choices
+              .filter(
+                (name) =>
+                  !custom.some(
+                    (entry) => entry.name.toUpperCase() === name.toUpperCase(),
+                  ),
+              )
+              .map((name) => (
+                <option key={name} value={name}>
+                  {name.replace(/^TableStyle([A-Za-z]+)([0-9]+)$/, "$1 $2")}
+                </option>
+              ))}
           </select>
         </label>
         {(

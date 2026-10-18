@@ -1029,7 +1029,7 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 默认面板提供两个阈值、条色、显示值开关和最短/最长条长；新增、完整修改/删除、优先级及局部清除沿同一规则事务。只改阈值时保留未变的主题/索引色，不分配 dxf 或基础单元格样式。showValue 为 false 只隐藏网格/PDF 文字，值、公式、查询的逻辑 display 和原生输入保留；自动尺寸仍按实际值及有效文字格式计算。实现归 [conditional-bar.mbt](../../modules/formats/src/xlsx/conditional-bar.mbt)。
 
-共享绘制使用 `GradientRectangle(rect, stops)` 和 `gradientRect` 命令，均为从左到右的 RGB 渐变。`stops` 含 2–32 项 `{ position, color }`；位置须有限、位于 0–1 并按非递减顺序排列，颜色为六位 RGB。同位置色标形成突变，首尾外侧延续端点颜色。数据条仍使用两个端点，反向条交换颜色和起点。矩形坐标须有限、绝对值不超过 10^9，宽高非负。Canvas 按顺序添加色标，PDF 使用经矩形裁剪的轴向 shading，以 Type 3 函数拼接 Type 2 插值，复用已有变换/裁剪；PDF 相同色标序列共享资源，最多 4096 组，保留总输出预算。背景先绘制，随后数据条、边框和文字。实现归 [layout/gradient.mbt](../../modules/layout/src/gradient.mbt) 与 [pdf/write-gradient.mbt](../../modules/formats/src/pdf/write-gradient.mbt)。
+共享绘制使用 `GradientRectangle(rect, stops)` 和 `gradientRect` 命令，均为从左到右的 RGBA 渐变。`stops` 含 2–32 项 `{ position, color, opacity }`；位置须有限、位于 0–1 并按非递减顺序排列，颜色为六位 RGB，`opacity` 须有限并位于 0–1。同位置色标形成突变，首尾外侧延续端点颜色。数据条仍使用两个不透明端点，反向条交换颜色和起点。矩形坐标须有限、绝对值不超过 10^9，宽高非负。Canvas 按顺序添加色标，PDF 使用经矩形裁剪的轴向 shading，以 Type 3 函数拼接 Type 2 插值；非全不透明色标使用同位置灰度 shading 与 Luminosity 软遮罩，复用已有变换/裁剪并在局部作用域恢复状态。输出声明 PDF 1.4；PDF 相同色标序列共享资源，最多 4096 组，保留总输出预算。背景先绘制，随后数据条、边框和文字。实现归 [layout/gradient.mbt](../../modules/layout/src/gradient.mbt) 与 [pdf/write-gradient.mbt](../../modules/formats/src/pdf/write-gradient.mbt)。
 
 网格、查询 `display`、自动适配和打印使用同一有效样式。依赖格输入或公式结果改变时，自动行/数值 bestFit 列按条件样式重算，与原编辑共享一次历史；固定尺寸保持原值。规则 XML、`dxf`、基础格式和范围外部件保留，保存重开继续计算。合并格按锚点求值。
 
@@ -1221,7 +1221,7 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 原生表行排序复用 `editSheet({ action: "sort", range, ... })`。选区完全位于一张表内时，核心扩展为整张表的数据行和全部列，固定标题与总计。默认排序面板同步这些边界；多键、文字自定义列表和颜色沿[区域排序](#区域排序)规则。排序前冻结当前公式键和可见位置，手动或筛选隐藏记录留在原位；保留计算列模板、值/公式例外、富文本、便笺、链接和直接格式。候选计算后重新应用相关原生表及普通筛选，同步 SUBTOTAL 和最终值校验。
 
-排序状态写入所属表根节点 `sortState`，移除竞争的嵌套筛选排序状态，保留无关源。已支持的排序范围、键及颜色差异样式随整轴和工作表复制维护；源、值、缓存与可见性合为精确历史，支持保存重开和打印。横向表排序、跨越表边界的选区及未知元数据继续保护。已有排序的范围调整见下文。实现归 [`table-sort.mbt`](../../modules/formats/src/xlsx/table-sort.mbt)，参考 [ONLYOFFICE 表数据排序范围](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L2574-L2659)。
+排序状态写入所属表根节点 `sortState`，移除竞争的嵌套筛选排序状态，保留无关源。已支持的排序范围、键及颜色差异样式随整轴和工作表复制维护；源、值、缓存与可见性合为精确历史，支持保存重开和打印。原生表保持整行排序；跨越表边界的选区及未知元数据继续保护。方向规则沿 [ONLYOFFICE 原生表排序设置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L25584-L25608)的锁定方向。已有排序的范围调整见下文。实现归 [`table-sort.mbt`](../../modules/formats/src/xlsx/table-sort.mbt)，参考 [ONLYOFFICE 表数据排序范围](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L2574-L2659)。
 
 `XlsxQuery.tables` 返回当前工作表的原生表定义，包括 `id`、`name`、A1 `range`、`headerRow/totalRow`、`columns`、`style`、`filter` 和 `readOnlyReason`。每列返回稳定的 `id`、`name` 及可空的 `formula/totalFunction/totalLabel/totalFormula` 原生设置；表和列身份来自所属 XML，不从位置或显示文字重新生成。`filter` 沿用 `XlsxFilterState` 的范围、条件、值目录和保护原因。核心校验表关系、名称、列数、重复身份、重叠范围和合并区域，单元格仍由原有稀疏工作表持有。
 
@@ -1265,9 +1265,11 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 普通数据格沿现有输入路径编辑。直接覆盖表头、总计格或已有计算列时，核心要求相应表命令；缓存重算不受此限制。连接、资源关系、扩展、未知规则引用、受保护工作表和超限候选原子拒绝。工作簿最多 256 张结构化表、4096 列定义；每表列名累计最多 65536 个单元，改名共享 1048576 公式工作预算和原有 4 MiB 历史上限。
 
-`editSheet({ action: "tableStyle", id, style })` 修改所属表的原生样式。`style` 为 `XlsxTableStyle`，包含 `name: string | null` 和显式布尔字段 `firstColumn/lastColumn/rowStripes/columnStripes`。名称支持 `TableStyleLight1`–`TableStyleLight21`、`TableStyleMedium1`–`TableStyleMedium28` 和 `TableStyleDark1`–`TableStyleDark11`，共 60 种。null 清除样式，保留数据、模板、筛选和直接格式。查询的 `style` 返回名称或 null，四个布尔字段另行返回。
+`editSheet({ action: "tableStyle", id, style })` 修改所属表的原生样式。`style` 为 `XlsxTableStyle`，包含 `name: string | null` 和显式布尔字段 `firstColumn/lastColumn/rowStripes/columnStripes`。名称支持 `TableStyleLight1`–`TableStyleLight21`、`TableStyleMedium1`–`TableStyleMedium28` 和 `TableStyleDark1`–`TableStyleDark11`，共 60 种，以及工作簿中已有的受支持自定义样式。名称查找由核心执行，自定义名称按目录中的大小写保存。null 清除样式，保留数据、模板、筛选和直接格式。查询的 `style` 返回名称或 null，四个布尔字段另行返回。
 
-缺失的原生节点按需创建，相同设置不增加修订或历史。未知元数据、内置名称被自定义定义覆盖、保护及预算失败整体拒绝。默认面板、同步 Wasm 和 Worker 使用同一命令。样式源与自动尺寸变化合为精确历史，公式缓存、calcChain 和无关部件保持。实现归 [`table-style-edit.mbt`](../../modules/formats/src/xlsx/table-style-edit.mbt)和 [`xlsx-table-style.tsx`](../../packages/ui/src/xlsx-table-style.tsx)。
+缺失的原生节点按需创建，相同设置不增加修订或历史。未知元数据、保护及预算失败整体拒绝。自定义定义与内置名称相同时，以已有自定义定义为准；未知定义仍保护。默认面板、同步 Wasm 和 Worker 使用同一命令。样式源与自动尺寸变化合为精确历史，公式缓存、calcChain 和无关部件保持。实现归 [`table-style-edit.mbt`](../../modules/formats/src/xlsx/table-style-edit.mbt)和 [`xlsx-table-style.tsx`](../../packages/ui/src/xlsx-table-style.tsx)。
+
+自定义样式沿标准 `tableStyles/tableStyle/tableStyleElement` 与 `dxfs/dxf` 读取。`query.tableStyles: XlsxTableStyleChoice[]` 返回 `{ name, readOnlyReason }` 目录，默认面板列出可用项并禁用未知项；最多 256 个定义，每个名称最多 255 个 UTF-16 单元，首尾空白和控制字符拒绝。每个定义最多 13 类非重复区域：全表、两组行/列条纹、首末列、标题/总计行及四个角格。条纹尺寸为 1–1048576；按全表、列条纹、行条纹、末列、首列、标题、总计和角格顺序叠加。字体族/大小/粗斜体/颜色、纯色填充、数字格式、对齐/换行及已支持边框复用差异格式解析，内部横竖边按区域几何映射。直接属性逐项优先，条件格式随后覆盖；字体变体沿现有 4096 字体键和 1048576 工作预算收集。未知区域、缺失 dxf、复杂图案和对角线保持诊断与保护，不替换成内置外观。应用只改所属表的样式引用和标记，原样式定义、dxf 和其他部件保持。实现归 [`table-custom-style.mbt`](../../modules/formats/src/xlsx/table-custom-style.mbt)，区域优先级依据 [ONLYOFFICE CTableStyle.initStyle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Serialize.js#L14218-L14290)。
 
 内置样式复用已有主题及 tint 解析。各组保留原生定义的差异：
 
@@ -1283,7 +1285,7 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 | Dark1–7 | 深底浅字，强调列使用更深底色 | 标题、总计及强调列保留中等浅色分隔线 |
 | Dark8–11 | 标题与正文使用配对主题色，未强调的标题不加粗 | 浅条纹，不新增内部网格，总计使用深色双线 |
 
-Dark8–11 未声明的正文文字色和边框沿用正常单元格格式。字体请求只包含实际需要的粗体字形。直接格式按属性覆盖表样式，条件格式随后覆盖；网格、自动适配与打印使用同一结果。格式面板查询包含表样式；`none` 清除直接边框覆盖，恢复表样式。共享边只绘制一次，双线保留两条细线及间隙。宿主仍须提供字体和 profile。自定义差异样式继续保护。
+Dark8–11 未声明的正文文字色和边框沿用正常单元格格式。字体请求只包含实际需要的粗体字形。直接格式按属性覆盖表样式，条件格式随后覆盖；网格、自动适配与打印使用同一结果。格式面板查询包含表样式；`none` 清除直接边框覆盖，恢复表样式。共享边只绘制一次，双线保留两条细线及间隙。宿主仍须提供字体和 profile。自定义样式定义的新建、修改和删除继续实施。
 
 原生属性依据 ONLYOFFICE 的 [Medium 定义](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Sheets/XlsxDefaults/presetTableStyles.xml#L3-L2668)、[Light 定义](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Sheets/XlsxDefaults/presetTableStyles.xml#L2668-L4536)和 [Dark 定义](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Sheets/XlsxDefaults/presetTableStyles.xml#L4537-L5598)。实现归 [`table-style.mbt`](../../modules/formats/src/xlsx/table-style.mbt)，复用原有绘制模型。
 
@@ -1291,7 +1293,7 @@ Dark8–11 未声明的正文文字色和边框沿用正常单元格格式。字
 
 删除工作表清理其所属表部件、关系和内容类型，更新其他表的普通工作表引用及结构化依赖；失去目标的引用写为 `#REF!`。候选计算使用待删部件列表，保留仍存在的表。创建/删除部件、引用、缓存、视图和选择合为精确历史，支持保存重开和现有打印。已支持的原生筛选随副本保留独立的条件和隐藏来源；未知表资源归属、未知排序元数据、公式扩展和预算失败保持原子拒绝。复制仍受每工作簿 256 张表、4096 列定义及原有历史/输出上限。实现归 [`table-sheet.mbt`](../../modules/formats/src/xlsx/table-sheet.mbt)、[`sheet-copy.mbt`](../../modules/formats/src/xlsx/sheet-copy.mbt)及 [`sheet-delete.mbt`](../../modules/formats/src/xlsx/sheet-delete.mbt)。
 
-当前接通区域创建、范围调整、导入、查询、普通数据编辑、表/列改名、计算列创作/重填、总计设置、整行/列插删同步、工作表资源操作、含表工作簿的名称创作及原生表筛选。筛选中的范围及整轴结构同步已接通；表内行排序已接通；横向表排序和完整表样式呈现继续实施。已有样式定义保留；只有已支持的表定义和样式才解除 `tableParts` 未呈现诊断，其余仍保护打印。未知表筛选继续保护计算修改并保留源。
+当前接通区域创建、范围调整、导入、查询、普通数据编辑、表/列改名、计算列创作/重填、总计设置、整行/列插删同步、工作表资源操作、含表工作簿的名称创作及原生表筛选。筛选中的范围及整轴结构同步已接通；表内行排序已接通；原生表保持整行排序，自定义样式定义创作和其余格式覆盖继续实施。已有样式定义保留；只有已支持的表定义和样式才解除 `tableParts` 未呈现诊断，其余仍保护打印。未知表筛选继续保护计算修改并保留源。
 
 结构化引用依据 [ONLYOFFICE cStrucTable](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L2352-L2628)的行段、列身份、当前行及转义行为。实现归 [`table.mbt`](../../modules/formats/src/xlsx/table.mbt)、[`structured-reference.mbt`](../../modules/formats/src/xlsx/structured-reference.mbt)、[`table-rename.mbt`](../../modules/formats/src/xlsx/table-rename.mbt)及 [`xlsx-tables.tsx`](../../packages/ui/src/xlsx-tables.tsx)，复用既有事务和绘制模型。
 
@@ -1410,11 +1412,11 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 尺寸、页面和设计部件合为一次有界历史。相同实际尺寸不新增历史；旧 revision、活动候选、保护、坐标越界和输出/历史预算失败原子拒绝。图表/表格等未知页面对象、未知变换坐标和非空参考线暂时保护尺寸调整。未知部件与原有源片段保留。保存重开及 Canvas/PDF 使用相同的新尺寸和几何；反复改变比例可能产生 EMU 取整，撤销恢复原始源字节。
 
-页面背景使用 `PresentationEditor.editSlides({ action: "background", value }, slide?)`。`value` 是 `PptxBackgroundFill`：纯色为 `{ kind: "solid", color }`，线性渐变为 `{ kind: "linear", stops, angle, scaled }`。`stops` 含 2–32 项 `{ position, color }`，颜色均为不带 `#` 的六位 RGB。`null` 移除本页背景并恢复版式、母版继承。`query.background` 返回有效 `value`、本页是否设置 `explicit` 与保护原因 `reason`；没有背景时返回白色纯色。`value` 的查询类型为 `PptxBackground`，还包含下节的图片背景；两个类型均由 `wasm/pptx` 和 `web/pptx` 导出。核心使用 `BackgroundFill`。
+页面背景使用 `PresentationEditor.editSlides({ action: "background", value }, slide?)`。`value` 是 `PptxBackgroundFill`：纯色为 `{ kind: "solid", color }`，线性渐变为 `{ kind: "linear", stops, angle, scaled }`。`stops` 含 2–32 项 `{ position, color, opacity }`，颜色均为不带 `#` 的六位 RGB。`null` 移除本页背景并恢复版式、母版继承。`query.background` 返回有效 `value`、本页是否设置 `explicit` 与保护原因 `reason`；没有背景时返回白色纯色。`value` 的查询类型为 `PptxBackground`，还包含下节的图片背景；两个类型均由 `wasm/pptx` 和 `web/pptx` 导出。核心使用 `BackgroundFill`。
 
-渐变色标不透明，位置须有限、位于 0–1 并按非递减顺序排列。核心将位置舍入到 1/100000，写入原生整数位置，不自动排序。同位置色标形成突变，首尾可以位于内部，外侧延续对应端点颜色。`angle` 为顺时针 0–360 度，核心舍入到 1/60000 度并把 360 规范为 0；0 从左至右，90 从上至下。`scaled` 必须为布尔值；true 按页面长宽比调整角度，false 保持实际角度。导入可解析主题/系统颜色及已有明暗变换，保留未改源；透明度、路径渐变、非零平铺矩形和复杂效果继续保护；图片背景见下节。有效背景随版式/母版继承，复制页与尺寸调整沿相同解析；修改背景不改对象身份或几何。角度规则依据 [ONLYOFFICE getGradientPoints](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/editorscommon.js#L15290-L15511)。
+色标 `opacity` 须有限并位于 0–1，核心舍入到 1/100000；1 为不透明，0 为全透明。背景以白色页面为底，形状与既有内容合成。位置须有限、位于 0–1 并按非递减顺序排列。核心将位置舍入到 1/100000，写入原生整数位置，不自动排序。同位置色标形成突变，首尾可以位于内部，外侧延续对应端点颜色。`angle` 为顺时针 0–360 度，核心舍入到 1/60000 度并把 360 规范为 0；0 从左至右，90 从上至下。`scaled` 必须为布尔值；true 按页面长宽比调整角度，false 保持实际角度。导入可解析主题/系统颜色、已有明暗及按源顺序计算的 alpha/alphaMod/alphaOff 变换，保留未改源；路径渐变、非零平铺矩形和复杂效果继续保护；图片背景见下节。有效背景随版式/母版继承，复制页与尺寸调整沿相同解析；修改背景不改对象身份或几何。角度规则依据 [ONLYOFFICE getGradientPoints](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/editorscommon.js#L15290-L15511)。
 
-操作复用 revision、候选保护、输出预算和精确撤销重做；本页已有相同有效背景时为无操作。默认面板提供背景类型、色标增删、位置/颜色、角度/比例设置和恢复继承；原生文字编辑保留尚未应用的背景草稿。核心复用现有矩阵与水平渐变原语生成任意方向，Canvas/PDF 不解析 DrawingML。定向检查覆盖继承、方向/比例、色标与突变、源保真、历史、重开输入、真实 Canvas 颜色及独立 PDF 渲染颜色，证据归[测试说明](testing.md)。其他背景与母版编辑仍待实现；主题颜色和字体见下节。修改本页背景的语义参考 [ONLYOFFICE Slide.changeBackground](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L825-L829)，实现归 [`background-fill.mbt`](../../modules/formats/src/pptx/background-fill.mbt)和 [`slide-background.mbt`](../../modules/formats/src/pptx/slide-background.mbt)。
+操作复用 revision、候选保护、输出预算和精确撤销重做；本页已有相同有效背景时为无操作。默认面板提供背景类型、色标增删、位置/颜色/不透明度、角度/比例设置和恢复继承；原生文字编辑保留尚未应用的背景草稿。核心复用现有矩阵与水平渐变原语生成任意方向，Canvas/PDF 不解析 DrawingML。定向检查覆盖继承、方向/比例、色标与突变、源保真、历史、重开输入、真实 Canvas 颜色及独立 PDF 渲染颜色，证据归[测试说明](testing.md)。其他背景与母版编辑仍待实现；主题颜色和字体见下节。修改本页背景的语义参考 [ONLYOFFICE Slide.changeBackground](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L825-L829)，实现归 [`background-fill.mbt`](../../modules/formats/src/pptx/background-fill.mbt)和 [`slide-background.mbt`](../../modules/formats/src/pptx/slide-background.mbt)。
 
 ### 图片背景
 
@@ -1564,11 +1566,11 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `editPptxObjects` / `PresentationEditor.editObjects` 支持 `{ action: "fill", color }` 和 `{ action: "stroke", color, width }`。颜色为不带 `#` 的六位 RGB，核心统一小写；null 写显式 `noFill`，表示无填充或无边框。宽度为 0.1–1000 pt，舍入到整数 EMU。操作作用于对象模式下所选的本地顶层形状，包含文本框和基本形状；多选原子提交为一次历史。查询中每个对象带 `appearance: { fill, gradient, imageFill, imageFillMode, imageFillReason, stroke, width, fillOpacity, strokeOpacity, fillOpacityReason, strokeOpacityReason, dash, dashReason, cap, join, miterLimit, penReason, reason }`，颜色为有效 RGB 或 null，宽度为有效 pt，reason 说明保护原因。默认 UI 显示混合状态，分别应用填充和边框，草稿随选择或实际外观值更新。
 
-修改只覆盖目标属性，保留几何、顺序、身份、文字、其他线条属性与部件。缺失的填充/边框按 DrawingML 顺序创建，空边框保留原属性；填充覆盖会关闭 `useBgFill`。直接设置相同值不增加历史；候选、过期 revision、锁定、未知填充属性/注释及预算失败不提交任何成员。组、组内对象、继承装饰和图片仍受保护，透明/径向渐变及复杂效果编辑待扩展；图片拉伸填充见下节。纯色与受支持线型沿共同 Canvas/静态 PDF 路径绘制。实现参考 [ONLYOFFICE CShape.changeFill/changeLine](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L6421-L6461) 的局部属性覆盖及背景填充处理。
+修改只覆盖目标属性，保留几何、顺序、身份、文字、其他线条属性与部件。缺失的填充/边框按 DrawingML 顺序创建，空边框保留原属性；填充覆盖会关闭 `useBgFill`。直接设置相同值不增加历史；候选、过期 revision、锁定、未知填充属性/注释及预算失败不提交任何成员。组、组内对象、继承装饰和图片仍受保护，径向渐变及复杂效果编辑待扩展；图片拉伸填充见下节。纯色与受支持线型沿共同 Canvas/静态 PDF 路径绘制。实现参考 [ONLYOFFICE CShape.changeFill/changeLine](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L6421-L6461) 的局部属性覆盖及背景填充处理。
 
-`editObjects({ action: "gradientFill", stops, angle, scaled })` 将所选本地顶层形状设为多色标线性渐变。色标使用[页面背景](#pptx)的 2–32 项不透明颜色与位置规则。角度为 0–360° 并按 1/60000° 舍入，360° 归一为 0°；`scaled` 为必需布尔值。角度及比例规则复用页面背景，保留形状的轮廓、调节点、几何、描边和文字，随对象旋转/翻转。默认外观面板与背景共用色标增删、位置/颜色控件，另有类型、角度和按形状比例缩放。查询 `appearance.gradient` 返回 `{ kind: "linear", stops, angle, scaled }` 或 null；渐变时 `fill` 为 null、`fillOpacity` 为 1，填充不透明度命令受保护，纯色描边仍可调整。纯色/无填充命令可替换已有受支持渐变。
+`editObjects({ action: "gradientFill", stops, angle, scaled })` 将所选本地顶层形状设为多色标线性渐变。色标使用[页面背景](#pptx)的 2–32 项颜色、位置与不透明度规则。角度为 0–360° 并按 1/60000° 舍入，360° 归一为 0°；`scaled` 为必需布尔值。角度及比例规则复用页面背景，保留形状的轮廓、调节点、几何、描边和文字，随对象旋转/翻转。默认外观面板与背景共用色标增删、位置/颜色/不透明度控件，另有类型、角度和按形状比例缩放。查询 `appearance.gradient` 返回 `{ kind: "linear", stops, angle, scaled }` 或 null；渐变时 `fill` 为 null、`fillOpacity` 为 1；整体填充不透明度命令受保护，各色标不透明度沿 `gradientFill` 编辑，纯色描边仍可调整。纯色/无填充命令可替换已有受支持渐变。
 
-读取本地、版式/母版继承及主题的 2–32 项不透明渐变色标；源的 `rotWithShape` 为缺省/真值，固定页面方向、透明、路径渐变、非零 tileRect 或未知标记保留源并诊断。操作先校验全部成员，复用原子源事务、无操作和精确历史；非法值、保护成员和输出预算失败保持整个文档。定位图元 `ClipPath(path, evenOdd)` 复用既有绘制命令，Canvas/PDF 沿相同预设路径裁剪，矩形以外区域及后续图元保持原样。实现归 [`shape-gradient.mbt`](../../modules/formats/src/pptx/shape-gradient.mbt)；参考 [ONLYOFFICE 形状渐变绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L1970-L2037)的逐色标位置绘制。
+读取本地、版式/母版继承及主题的 2–32 项 RGBA 渐变色标；源的 `rotWithShape` 为缺省/真值，固定页面方向、路径渐变、非零 tileRect 或未知标记保留源并诊断。操作先校验全部成员，复用原子源事务、无操作和精确历史；非法值、保护成员和输出预算失败保持整个文档。定位图元 `ClipPath(path, evenOdd)` 复用既有绘制命令，Canvas/PDF 沿相同预设路径裁剪，矩形以外区域及后续图元保持原样。实现归 [`shape-gradient.mbt`](../../modules/formats/src/pptx/shape-gradient.mbt)；参考 [ONLYOFFICE 形状渐变绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L1970-L2037)的逐色标位置绘制。
 
 ### 图片目标内缩
 

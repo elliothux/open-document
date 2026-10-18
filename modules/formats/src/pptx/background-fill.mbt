@@ -75,6 +75,7 @@ fn BackgroundFill::normalized(
         stops.map(stop => {
           position: (stop.position * 100000).round() / 100000,
           color: stop.color.to_lower(),
+          opacity: (stop.opacity * 100000).round() / 100000,
         }),
         (angle * 60000).round() % 21600000 / 60000,
         scaled,
@@ -102,7 +103,9 @@ fn background_color_markup(reference : Ref) -> Unit raise @failure.Failure {
     .unwrap_or([])
     .all(node => {
       node.uri == drawing_uri &&
-      ["tint", "shade", "lumMod", "lumOff"].contains(node.name) &&
+      ["tint", "shade", "lumMod", "lumOff", "alpha", "alphaMod", "alphaOff"].contains(
+        node.name,
+      ) &&
       node.text.trim().is_empty() &&
       node.attributes.length() == 1 &&
       node.attribute("val") is Some(_) &&
@@ -226,8 +229,8 @@ fn read_background_fill(
     let (points, angle, scaled) = linear_background_source(properties)
     return Linear(
       points.map(point => {
-        position: point.1,
-        color: color(theme, point.0, placeholder~),
+        let (color, opacity) = color_rgba(theme, point.0, placeholder~)
+        { position: point.1, color, opacity, }
       }),
       angle,
       scaled,
@@ -267,7 +270,12 @@ fn BackgroundFill::markup(self : BackgroundFill) -> String {
     Linear(stops, angle, scaled) => {
       let markup = stops
         .map(stop => {
-          "<a:gs pos=\"\{(stop.position*100000).round().to_int()}\"><a:srgbClr val=\"\{stop.color}\"/></a:gs>"
+          let color = if stop.opacity == 1 {
+            "<a:srgbClr val=\"\{stop.color}\"/>"
+          } else {
+            "<a:srgbClr val=\"\{stop.color}\"><a:alpha val=\"\{(stop.opacity*100000).round().to_int()}\"/></a:srgbClr>"
+          }
+          "<a:gs pos=\"\{(stop.position*100000).round().to_int()}\">\{color}</a:gs>"
         })
         .join("")
       "<a:gradFill xmlns:a=\"\{drawing_uri}\"><a:gsLst>\{markup}</a:gsLst><a:lin ang=\"\{(angle*60000).round().to_int()}\" scaled=\"\{if scaled {"1"} else {"0"}}\"/></a:gradFill>"

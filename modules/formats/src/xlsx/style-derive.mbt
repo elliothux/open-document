@@ -34,6 +34,15 @@ fn CellFormat::font_markup(
 }
 
 ///|
+fn CellBorder::markup(self : CellBorder, name : String) -> String {
+  if self.style == "none" {
+    "<od:\{name} xmlns:od=\"\{spreadsheet_uri}\"/>"
+  } else {
+    "<od:\{name} xmlns:od=\"\{spreadsheet_uri}\" style=\"\{self.style}\"><od:color rgb=\"FF\{self.color.to_upper()}\"/></od:\{name}>"
+  }
+}
+
+///|
 fn CellFormat::border_markup(
   self : CellFormat,
   tree : Tree,
@@ -50,16 +59,7 @@ fn CellFormat::border_markup(
       ("bottom", self.bottom),
     ] {
     if patch is Some(border) {
-      changes.push(
-        (
-          name,
-          if border.style == "none" {
-            "<od:\{name} xmlns:od=\"\{spreadsheet_uri}\"/>"
-          } else {
-            "<od:\{name} xmlns:od=\"\{spreadsheet_uri}\" style=\"\{border.style}\"><od:color rgb=\"FF\{border.color.to_upper()}\"/></od:\{name}>"
-          },
-        ),
-      )
+      changes.push((name, border.markup(name)))
     }
   }
   style_children(document, changes).source()

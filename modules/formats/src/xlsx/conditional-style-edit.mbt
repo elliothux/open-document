@@ -10,6 +10,7 @@ priv struct ConditionalStyleEdit {
 fn CellFormat::dxf_markup(
   self : CellFormat,
   number_id : Int?,
+  inner~ : Array[CellBorder?] = [None, None],
 ) -> String raise @failure.Failure {
   let document = @xml.Document::parse(
     @utf8.encode("<dxf xmlns=\"\{spreadsheet_uri}\"><font/><border/></dxf>"),
@@ -58,10 +59,23 @@ fn CellFormat::dxf_markup(
   if !alignment.to_string().is_empty() {
     text.write_string("<od:alignment\{alignment.to_string()}/>")
   }
-  if [self.left, self.right, self.top, self.bottom].any(e => e is Some(_)) {
-    text.write_string(
-      self.border_markup(tree, tree.one(root.id, "border").unwrap()),
+  if [self.left, self.right, self.top, self.bottom, ..inner].any(e => {
+      e is Some(_)
+    }) {
+    let border = @xml.Document::parse(
+      @utf8.encode(
+        self.border_markup(tree, tree.one(root.id, "border").unwrap()),
+      ),
+      "differential-border",
+      128,
+      2097152,
     )
+    let changes = ["vertical", "horizontal"]
+      .mapi((i, name) => inner[i].map(border => (name, border.markup(name))))
+      .iter()
+      .filter_map(v => v)
+      .to_array()
+    text.write_string(style_children(border, changes).source())
   }
   text.write_string("</od:dxf>")
   text.to_string()
@@ -71,8 +85,16 @@ fn CellFormat::dxf_markup(
 fn Session::derive_conditional_styles(
   self : Session,
   patches : Array[CellFormat],
+  inner~ : Array[Array[CellBorder?]] = patches.map(_ => [None, None]),
 ) -> ConditionalStyleEdit raise @failure.Failure {
-  if patches.all(patch => patch == CellFormat::new()) {
+  guard inner.length() == patches.length() &&
+    inner.all(edges => edges.length() == 2) else {
+    @failure.reject("invalid-operation", "Invalid differential inner borders")
+  }
+  let empty = patches.mapi((index, patch) => {
+    patch == CellFormat::new() && inner[index].all(edge => edge is None)
+  })
+  if empty.all(value => value) {
     return {
       indices: patches.map(_ => None),
       parts: self.parts.copy(),
@@ -107,13 +129,16 @@ fn Session::derive_conditional_styles(
   let container = tree.one(root.id, "dxfs")
   let indices = if container is Some(_) {
     let pool = StylePool::new(tree, "dxfs", "dxf")
-    let indices = patches.map(patch => {
-      if patch == CellFormat::new() {
+    let indices = patches.mapi((index, patch) => {
+      if empty[index] {
         None
       } else {
         Some(
           pool.intern(
-            patch.dxf_markup(patch.numberFormat.bind(code => ids.get(code))),
+            patch.dxf_markup(
+              patch.numberFormat.bind(code => ids.get(code)),
+              inner=inner[index],
+            ),
           ),
         )
       }
@@ -122,12 +147,13 @@ fn Session::derive_conditional_styles(
     indices
   } else {
     let entries : Array[String] = []
-    let indices = patches.map(patch => {
-      if patch == CellFormat::new() {
+    let indices = patches.mapi((index, patch) => {
+      if empty[index] {
         None
       } else {
         let markup = patch.dxf_markup(
           patch.numberFormat.bind(code => ids.get(code)),
+          inner=inner[index],
         )
         let index = entries
           .search(markup)

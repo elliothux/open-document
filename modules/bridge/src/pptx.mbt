@@ -614,16 +614,18 @@ fn pptx_gradient_stops(
   }
   stops.map(stop => {
     guard stop is Object(fields) &&
-      fields.length() == 2 &&
+      fields.length() == 3 &&
       fields.contains("position") &&
+      fields.contains("opacity") &&
       fields.contains("color") else {
       @failure.reject(
-        "invalid-operation", "Gradient stops require a position and color",
+        "invalid-operation", "Gradient stops require position, color and opacity",
       )
     }
     {
       position: xlsx_number(stop, "position"),
       color: field_string(stop, "color"),
+      opacity: xlsx_number(stop, "opacity"),
     }
   })
 }

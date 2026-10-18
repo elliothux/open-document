@@ -447,6 +447,26 @@ pub fn Session::query(
     "sheet": current.id,
     "outline": self.outline_query(current),
     "tables": self.table_query(current),
+    "tableStyles": self
+    .custom_table_styles(self.parts)
+    .values()
+    .to_array()
+    .map(style => {
+      let value : Json = {
+        "name": style.name,
+        "readOnlyReason": style.reason,
+        "elements": if style.reason.is_empty() {
+          table_element_order()
+          .iter()
+          .filter_map(kind => style.elements.get(kind))
+          .map(TableStyleElement::json)
+          .to_array()
+        } else {
+          []
+        },
+      }
+      value
+    }),
     "view": {
       "gridLines": current.view.grid_lines,
       "headings": current.view.headings,

@@ -52,6 +52,29 @@ export function GradientStops({
             />
           </label>
           <label>
+            {t.fillOpacity} {index + 1}
+            <input
+              type="number"
+              required
+              min={0}
+              max={100}
+              step={0.001}
+              value={Number.isFinite(stop.opacity) ? stop.opacity * 100 : ""}
+              onChange={(event) =>
+                onChange(
+                  stops.map((item, i) =>
+                    i === index
+                      ? {
+                          ...item,
+                          opacity: event.currentTarget.valueAsNumber / 100,
+                        }
+                      : item,
+                  ),
+                )
+              }
+            />
+          </label>
+          <label>
             {t.gradientPosition} {index + 1}
             <input
               type="number"
@@ -95,6 +118,7 @@ export function GradientStops({
             {
               position: (last.position + previous.position) / 2,
               color: last.color,
+              opacity: (last.opacity + previous.opacity) / 2,
             },
             last,
           ]);
@@ -134,8 +158,8 @@ export function PptxPaint({
   );
   const [stops, setStops] = useState<Stops>(
     first?.gradient?.stops ?? [
-      { position: 0, color: fill.slice(1) },
-      { position: 1, color: "ffffff" },
+      { opacity: 1, position: 0, color: fill.slice(1) },
+      { opacity: 1, position: 1, color: "ffffff" },
     ],
   );
   const [angle, setAngle] = useState(String(first?.gradient?.angle ?? 0));

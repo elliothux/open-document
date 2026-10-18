@@ -67,7 +67,10 @@ export class CanvasRenderer {
               rect.y,
             );
             for (const stop of command.stops)
-              gradient.addColorStop(stop.position, `#${stop.color}`);
+              gradient.addColorStop(
+                stop.position,
+                `rgba(${Number.parseInt(stop.color.slice(0, 2), 16)},${Number.parseInt(stop.color.slice(2, 4), 16)},${Number.parseInt(stop.color.slice(4, 6), 16)},${stop.opacity})`,
+              );
             context.globalAlpha = style.fillAlpha;
             context.fillStyle = gradient;
             context.fillRect(rect.x, rect.y, rect.width, rect.height);

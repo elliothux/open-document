@@ -141,6 +141,8 @@ export function checkXlsxSheetEdit(value: unknown): void {
     change.action === "tableColumnFormula" ||
     change.action === "tableTotals" ||
     change.action === "tableStyle" ||
+    change.action === "tableStyleDefinition" ||
+    change.action === "deleteTableStyle" ||
     change.action === "tableTotal" ||
     [
       "tableFilter",

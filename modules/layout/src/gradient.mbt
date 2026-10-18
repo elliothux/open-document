@@ -2,6 +2,7 @@
 pub(all) struct GradientStop {
   position : Double
   color : String
+  opacity : Double
 } derive(Eq, ToJson, Debug)
 
 ///|
@@ -25,6 +26,10 @@ pub fn validate_gradient_stops(
       !stop.position.is_inf() &&
       stop.position >= 0 &&
       stop.position <= 1 &&
+      !stop.opacity.is_nan() &&
+      !stop.opacity.is_inf() &&
+      stop.opacity >= 0 &&
+      stop.opacity <= 1 &&
       (index == 0 || stop.position >= stops[index - 1].position) &&
       stop.color.length() == 6 &&
       stop.color.iter().all(c => c.is_ascii_hexdigit()) else {
@@ -34,7 +39,7 @@ pub fn validate_gradient_stops(
 }
 
 ///|
-/// Validate a horizontal RGB gradient before Canvas or PDF export.
+/// Validate a horizontal RGBA gradient before Canvas or PDF export.
 pub fn validate_gradient(
   rect : Border,
   stops : Array[GradientStop],

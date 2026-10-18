@@ -34,7 +34,12 @@ export {
 import { xlsxNames, type XlsxNames } from "./xlsx-names.js";
 export type { XlsxName, XlsxNames, XlsxNameEdit } from "./xlsx-names.js";
 import { xlsxStatistics, type XlsxStatistics } from "./xlsx-statistics.js";
-import { xlsxTables, type XlsxTable } from "./xlsx-tables.js";
+import {
+  xlsxTables,
+  xlsxTableStyles,
+  type XlsxTable,
+  type XlsxTableStyleChoice,
+} from "./xlsx-tables.js";
 export * from "./xlsx-tables.js";
 import { xlsxOutline, type XlsxOutline } from "./xlsx-outline.js";
 export * from "./xlsx-outline.js";
@@ -199,6 +204,7 @@ export interface XlsxCell {
 
 export interface XlsxQuery {
   tables: XlsxTable[];
+  tableStyles: XlsxTableStyleChoice[];
   outline: XlsxOutline;
   hyperlink: XlsxHyperlink;
   note: XlsxNote;
@@ -260,6 +266,7 @@ export type XlsxClearMode = "contents" | "formats" | "all";
 export function xlsxQuery(value: unknown): XlsxQuery {
   const query = record(value);
   xlsxTables(query.tables);
+  xlsxTableStyles(query.tableStyles);
   xlsxOutline(query.outline);
   xlsxStatistics(query.statistics);
   xlsxHyperlink(query.hyperlink);

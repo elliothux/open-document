@@ -27,6 +27,12 @@ fn xlsx_cell_format(value : Json) -> @xlsx.CellFormat raise @failure.Failure {
   }
   let border = fn(key) raise @failure.Failure {
     if fields.get(key) is Some(value) {
+      guard value is Object(edge) &&
+        edge.length() == 2 &&
+        edge.contains("style") &&
+        edge.contains("color") else {
+        @failure.reject("invalid-operation", "Invalid cell border fields")
+      }
       Some(@xlsx.CellBorder::{
         style: field_string(value, "style"),
         color: field_string(value, "color"),

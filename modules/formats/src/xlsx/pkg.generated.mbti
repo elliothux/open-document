@@ -298,6 +298,8 @@ pub(all) enum SheetEdit {
   TableColumnFormula(Int, Int, String?)
   TableTotals(Int, Bool)
   TableStyle(Int, TableStyleSettings)
+  TableStyleDefinition(String?, String, Array[TableStyleElement])
+  DeleteTableStyle(String, String?)
   TableColumnTotal(Int, Int, TableTotal)
   TableFilter(Int, Array[FilterColumn])
   TableFilterClear(Int)
@@ -352,6 +354,16 @@ pub(all) struct SortSettings {
   case_sensitive : Bool
   keys : Array[SortKey]
 }
+
+pub(all) struct TableStyleElement {
+  kind : String
+  size : Int
+  format : CellFormat
+  vertical : CellBorder?
+  horizontal : CellBorder?
+} derive(Eq)
+pub fn TableStyleElement::equal(Self, Self) -> Bool
+pub fn TableStyleElement::not_equal(Self, Self) -> Bool
 
 pub(all) struct TableStyleSettings {
   name : String?

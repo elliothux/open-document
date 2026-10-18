@@ -45,11 +45,16 @@ export type {
   XlsxTableEdit,
   XlsxTableTotal,
   XlsxTableStyle,
+  XlsxTableStyleElement,
+  XlsxTableStyleChoice,
   XlsxTableTotalFunction,
   XlsxOutlineGroup,
   XlsxOutlineEdit,
 } from "@open-document/wasm/xlsx";
-export { checkXlsxTextColumnSettings } from "@open-document/wasm/xlsx";
+export {
+  checkXlsxTextColumnSettings,
+  xlsxTableStyleRegions,
+} from "@open-document/wasm/xlsx";
 export type { XlsxTextColumnType } from "@open-document/wasm/xlsx";
 export type {
   XlsxTextColumnSettings,

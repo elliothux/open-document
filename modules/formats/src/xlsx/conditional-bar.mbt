@@ -180,8 +180,24 @@ fn ConditionalBar::paint(
         height: cell.height - 2.25,
       },
       [
-        { position: 0, color: if self.reverse { end } else { self.color }, },
-        { position: 1, color: if self.reverse { self.color } else { end }, },
+        {
+          opacity: 1,
+          position: 0,
+          color: if self.reverse {
+            end
+          } else {
+            self.color
+          },
+        },
+        {
+          opacity: 1,
+          position: 1,
+          color: if self.reverse {
+            self.color
+          } else {
+            end
+          },
+        },
       ],
     ),
   )

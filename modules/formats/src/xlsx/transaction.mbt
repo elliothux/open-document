@@ -38,7 +38,7 @@ fn Session::commit(
     )
   }
   let styles = self.styles_from_parts(parts)
-  ignore(self.font_keys(styles~, tables=calculation.names.tables))
+  ignore(self.font_keys(styles~, tables=calculation.names.tables, parts~))
   guard sheets.all(sheet => {
     sheet.cells.values().all(cell => cell.style < styles.length())
   }) else {

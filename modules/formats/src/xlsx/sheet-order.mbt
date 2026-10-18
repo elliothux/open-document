@@ -18,6 +18,8 @@ pub(all) enum SheetEdit {
   TableColumnFormula(Int, Int, String?)
   TableTotals(Int, Bool)
   TableStyle(Int, TableStyleSettings)
+  TableStyleDefinition(String?, String, Array[TableStyleElement])
+  DeleteTableStyle(String, String?)
   TableColumnTotal(Int, Int, TableTotal)
   TableFilter(Int, Array[FilterColumn])
   TableFilterClear(Int)
@@ -322,6 +324,20 @@ pub fn Session::edit_sheet(
     TableTotals(id, visible) =>
       return self.show_table_totals(sheet, id, visible)
     TableStyle(id, settings) => return self.set_table_style(sheet, id, settings)
+    TableStyleDefinition(original, name, elements) =>
+      return self.edit_table_style_definition(
+        sheet,
+        original,
+        name,
+        Some(elements),
+      )
+    DeleteTableStyle(name, replacement) =>
+      return self.edit_table_style_definition(
+        sheet,
+        Some(name),
+        replacement.unwrap_or(""),
+        None,
+      )
     TableColumnTotal(id, column, total) =>
       return self.set_table_total(sheet, id, column, total)
     RenameTableColumn(id, column, name) =>
@@ -397,6 +413,8 @@ pub fn Session::edit_sheet(
     | TableColumnFormula(_, _, _)
     | TableTotals(_, _)
     | TableStyle(_, _)
+    | TableStyleDefinition(_, _, _)
+    | DeleteTableStyle(_, _)
     | TableColumnTotal(_, _, _)
     | RenameTableColumn(_, _, _)
     | DeleteName(_, _)

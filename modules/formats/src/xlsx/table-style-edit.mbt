@@ -81,27 +81,27 @@ fn Session::set_table_style(
   id : Int,
   settings : TableStyleSettings,
 ) -> Json raise @failure.Failure {
-  guard settings.name is None || table_style_index(settings.name) is Some(_) else {
-    @failure.reject("invalid-operation", "Unsupported table style")
+  let custom = self.custom_table_styles(self.parts)
+  if settings.name is Some(name) {
+    if custom.get(name.to_upper()) is Some(style) {
+      guard style.reason.is_empty() else {
+        @failure.reject("protected-content", style.reason)
+      }
+    } else {
+      guard table_style_index(Some(name)) is Some(_) else {
+        @failure.reject("invalid-operation", "Unknown table style")
+      }
+    }
+  }
+  let settings = {
+    ..settings,
+    name: settings.name.map(name => {
+      custom.get(name.to_upper()).map(style => style.name).unwrap_or(name)
+    }),
   }
   let table = self.table_for_edit(sheet, id)
   let document = self.part_xml(table.part)
   let tree = table_edit_tree(table, document)
-  if settings.name is Some(name) && self.styles_part(self.parts) is Some(path) {
-    let styles = Tree::new(self.part_xml(path))
-    guard !styles
-      .one(styles.root("styleSheet").id, "tableStyles")
-      .map(parent => {
-        styles
-        .all(parent.id, "tableStyle")
-        .any(style => style.attribute("name") == Some(name))
-      })
-      .unwrap_or(false) else {
-      @failure.reject(
-        "protected-content", "Custom table style overrides the built-in name",
-      )
-    }
-  }
   if table.style == settings.name &&
     table.first_column == settings.first_column &&
     table.last_column == settings.last_column &&

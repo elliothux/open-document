@@ -4,6 +4,7 @@ priv struct TableOverride {
   color : Bool
   fill : Bool
   borders : Array[Bool]
+  properties : Array[String]
 }
 
 ///|
@@ -13,11 +14,19 @@ priv struct TableStyles {
   colors : Array[Array[String]]
   reason : String
   diagnostic : String
+  custom : Map[String, CustomTableStyle]
 }
 
 ///|
 fn TableStyles::empty() -> TableStyles {
-  { tables: [], overridden: [], colors: [], reason: "", diagnostic: "", }
+  {
+    tables: [],
+    overridden: [],
+    colors: [],
+    reason: "",
+    diagnostic: "",
+    custom: Map([]),
+  }
 }
 
 ///|
@@ -33,6 +42,7 @@ fn Session::table_styles(
     color: false,
     fill: false,
     borders: [false, false, false, false],
+    properties: [],
   }
   let mut overridden = [none]
   let mut reason = ""
@@ -63,6 +73,7 @@ fn Session::table_styles(
   if tables.is_empty() {
     return { ..TableStyles::empty(), reason, diagnostic, }
   }
+  let custom = self.custom_table_styles(parts)
   if self.styles_part(parts) is Some(part) {
     let document = parts.get(part).unwrap_or_else(() => self.opc.xml(part))
     let tree = Tree::new(document)
@@ -95,6 +106,47 @@ fn Session::table_styles(
             None
           }
           TableOverride::{
+            properties: [
+              "family", "size", "italic", "numberFormat", "horizontal", "vertical",
+              "wrap",
+            ].filter(property => {
+              match property {
+                "family" | "size" | "italic" =>
+                  font
+                  .map(node => {
+                    tree.one(
+                      node.id,
+                      match property {
+                        "family" => "name"
+                        "size" => "sz"
+                        _ => "i"
+                      },
+                    )
+                    is Some(_)
+                  })
+                  .unwrap_or(false)
+                "numberFormat" =>
+                  flag(
+                    node,
+                    "applyNumberFormat",
+                    fallback=node.attribute("numFmtId").unwrap_or("0") != "0",
+                  )
+                _ =>
+                  tree
+                  .one(node.id, "alignment")
+                  .map(node => {
+                    node.attribute(
+                      if property == "wrap" {
+                        "wrapText"
+                      } else {
+                        property
+                      },
+                    )
+                    is Some(_)
+                  })
+                  .unwrap_or(false)
+              }
+            }),
             bold: font
             .map(node => tree.one(node.id, "b") is Some(_))
             .unwrap_or(false),
@@ -116,12 +168,6 @@ fn Session::table_styles(
           }
         })
     }
-    if tree.one(root.id, "tableStyles") is Some(parent) &&
-      tree
-      .all(parent.id, "tableStyle")
-      .any(node => tables.any(table => table.style == node.attribute("name"))) {
-      reason = "Custom table styles require rendering support"
-    }
   }
   for table in tables {
     work.spend()
@@ -131,8 +177,14 @@ fn Session::table_styles(
     if !table.style_reason.is_empty() {
       reason = table.style_reason
     }
-    if table.style is Some(name) && table_style_index(Some(name)) is None {
-      reason = "Table style requires rendering support: " + name
+    if table.style is Some(name) {
+      if custom.get(name.to_upper()) is Some(style) {
+        if !style.reason.is_empty() {
+          reason = style.reason
+        }
+      } else if table_style_index(Some(name)) is None {
+        reason = "Table style requires rendering support: " + name
+      }
     }
   }
   {
@@ -183,6 +235,7 @@ fn Session::table_styles(
     }),
     reason,
     diagnostic,
+    custom,
   }
 }
 
@@ -209,6 +262,10 @@ fn TableStyles::applied(
   }
   let direct = self.overridden[sheet.style_at(address)]
   for table in self.tables {
+    if table.range.contains(address) &&
+      table.style.bind(name => self.custom.get(name.to_upper())) is Some(custom) {
+      return custom.applied(table, address, sheet.view.rtl, direct, style)
+    }
     guard table_style_index(table.style) is Some(index) &&
       table.range.contains(address) else {
       continue
@@ -463,6 +520,7 @@ fn Session::font_keys(
   self : Session,
   styles~ : Array[CellStyle] = self.styles,
   tables~ : Array[StructuredTable] = self.formula_names().tables,
+  parts~ : Map[String, @xml.Document] = self.parts,
 ) -> Array[String] raise @failure.Failure {
   let keys : Array[String] = []
   for style in styles {
@@ -482,6 +540,47 @@ fn Session::font_keys(
     let font = CellFormat::new(bold=Some(true)).applied(styles[0]).font
     if !keys.contains(font) {
       keys.push(font)
+    }
+  }
+  let custom = self.custom_table_styles(parts)
+  let used : Map[String, Bool] = Map([])
+  let fonts : Map[String, Bool] = Map(keys.map(key => (key, true)))
+  let mut work = 0
+  for table in tables {
+    guard table.style is Some(name) &&
+      !used.contains(name.to_upper()) &&
+      custom.get(name.to_upper()) is Some(style) &&
+      style.reason.is_empty() else {
+      continue
+    }
+    used[name.to_upper()] = true
+    for kind in table_element_order() {
+      guard style.elements.get(kind) is Some(element) &&
+        (
+          element.format.family is Some(_) ||
+          element.format.bold is Some(_) ||
+          element.format.italic is Some(_)
+        ) else {
+        continue
+      }
+      for key in fonts.keys().to_array() {
+        work += 1
+        guard work <= 1048576 else {
+          @failure.reject(
+            "limit-exceeded", "Custom table font variants exceed work budget",
+          )
+        }
+        let next = element.format.applied({ ..default_style(), font: key, }).font
+        if !fonts.contains(next) {
+          fonts[next] = true
+          keys.push(next)
+          guard keys.length() <= 4096 else {
+            @failure.reject(
+              "limit-exceeded", "Workbook font keys exceed budget",
+            )
+          }
+        }
+      }
     }
   }
   guard keys.length() <= 4096 else {
