@@ -39,6 +39,21 @@ fn text_hyperlink_spans(
   object : Object,
   selection : Selection,
 ) -> Array[TextHyperlinkSpan] raise @failure.Failure {
+  if object.table is Some(table) {
+    let range = table.range(selection)
+    guard !range.multiple() else {
+      @failure.reject("protected-content", "Select text within one table cell")
+    }
+    let offset = table.cell_offset(range.top, range.left)
+    return text_hyperlink_spans(
+      object.table_cell(table.rows[range.top].cells[range.left]),
+      {
+        ..selection,
+        anchor: selection.anchor - offset,
+        focus: selection.focus - offset,
+      },
+    )
+  }
   let spans : Array[TextHyperlinkSpan] = []
   let a = selection.anchor.min(selection.focus)
   let b = selection.anchor.max(selection.focus)

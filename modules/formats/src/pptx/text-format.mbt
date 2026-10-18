@@ -86,13 +86,8 @@ fn format_styles(
 }
 
 ///|
-fn Session::formatting_reason(
-  self : Session,
-  object : Object,
-  table~ : Bool = false,
-) -> String {
-  // Table styles have cell targets; search and hyperlinks still require frames.
-  let reason = if table && object.table is Some(_) {
+fn Session::formatting_reason(self : Session, object : Object) -> String {
+  let reason = if object.table is Some(_) {
     table_format_reason(object)
   } else {
     self.text_frame_reason(object)
@@ -101,6 +96,8 @@ fn Session::formatting_reason(
     return reason
   }
   try {
+    let slide = self.slides[self.index(object.source.tree.part)]
+    guard slide.read_only.is_empty() else { return slide.read_only }
     for paragraph in object.paragraphs {
       let properties = paragraph.source
         .child("endParaRPr")
@@ -164,7 +161,7 @@ fn Session::formatting_query(self : Session) -> Json {
     let alignments : Array[String] = []
     for id in selection.objects {
       let object = self.current().object(id)
-      let reason = self.formatting_reason(object, table=true)
+      let reason = self.formatting_reason(object)
       if !reason.is_empty() {
         result["reason"] = Json(reason)
         return Json(result)
@@ -401,7 +398,7 @@ fn Session::format_objects(
     let reason = if paragraph is Some(_) || clear_paragraph {
       self.paragraph_reason(owner)
     } else {
-      self.formatting_reason(owner, table=true)
+      self.formatting_reason(owner)
     }
     guard reason.is_empty() else {
       @failure.reject("protected-content", reason)

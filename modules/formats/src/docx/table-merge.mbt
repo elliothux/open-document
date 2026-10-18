@@ -364,66 +364,83 @@ fn Session::merge_table_cells(
 }
 
 ///|
-fn Session::unmerge_table_cell(
+fn Session::unmerge_table_cells(
   self : Session,
   revision : Int,
   selection : Selection,
+  probe : @layout.TextProbe?,
+  profile : Map[String, String],
+  images : @layout.Images?,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let document = self.document()
   let tree = WordTree::new(document)
-  let grid = self.table_grid(tree, selection)
-  let r = grid.row
-  let c = grid.column
-  let rows = grid.model.rowSpans[r][c]
-  let columns = grid.model.columnSpans[r][c]
-  if rows == 1 && columns == 1 {
-    return self.edit_state()
-  }
-  let left = grid.starts[r][c]
+  let selected = self.table_cell_range(tree, selection)
+  let original = selected
+    .map(range => range.grid)
+    .unwrap_or_else(() => self.table_grid(tree, selection))
+  let owners = selected
+    .map(range => range.owners)
+    .unwrap_or([original.cells[original.row][original.column]])
+  let (row, column) = original.owners[owners[0]]
+  let grid = { ..original, row, column, }
   let changes : TableChanges = {
     items: [],
     bytes: 0,
     limit: self.opc.budget.entry_bytes.min(history_byte_limit / 2),
   }
-  for row in r..<(r + rows) {
-    let col = grid.starts[row].search(left).unwrap()
-    let cell = grid.cells[row][col]
-    tree.check_merge_cell(cell, self.main)
-    let properties = tree.merged_cell_properties(
-      document,
-      cell,
-      (grid.model.widths[left] * 20).round().to_int(),
-      1,
-      "",
-    )
-    if properties_change(tree, document, cell, "tcPr", properties)
-      is Some(change) {
-      changes.push(change)
+  for owner in owners {
+    let (r, c) = grid.owners[owner]
+    let rows = grid.model.rowSpans[r][c]
+    let columns = grid.model.columnSpans[r][c]
+    if rows == 1 && columns == 1 {
+      continue
     }
-    let content = StringBuilder()
-    for column in 1..<columns {
-      let markup = self.empty_table_cell(
-        tree,
+    let left = grid.starts[r][c]
+    for row in r..<(r + rows) {
+      let col = grid.starts[row].search(left).unwrap()
+      let cell = grid.cells[row][col]
+      tree.check_merge_cell(cell, self.main)
+      let properties = tree.merged_cell_properties(
+        document,
         cell,
-        (grid.model.widths[left + column] * 20).round().to_int(),
+        (grid.model.widths[left] * 20).round().to_int(),
+        1,
+        "",
       )
-      guard markup.length() <= changes.limit - content.to_string().length() else {
-        @failure.reject(
-          "limit-exceeded", "Unmerged cells exceed history budget",
-        )
+      if properties_change(tree, document, cell, "tcPr", properties)
+        is Some(change) {
+        changes.push(change)
       }
-      content.write_string(markup)
-    }
-    if !content.to_string().is_empty() {
-      let node = tree.nodes[cell]
-      changes.push({
-        node: node.parent,
-        offset: node.end - tree.nodes[node.parent].start,
-        length: 0,
-        xml: content.to_string(),
-      })
+      let content = StringBuilder()
+      let mut units = 0
+      for column in 1..<columns {
+        let markup = self.empty_table_cell(
+          tree,
+          cell,
+          (grid.model.widths[left + column] * 20).round().to_int(),
+        )
+        guard markup.length() <= changes.limit - units else {
+          @failure.reject(
+            "limit-exceeded", "Unmerged cells exceed history budget",
+          )
+        }
+        units += markup.length()
+        content.write_string(markup)
+      }
+      if units > 0 {
+        let node = tree.nodes[cell]
+        changes.push({
+          node: node.parent,
+          offset: node.end - tree.nodes[node.parent].start,
+          length: 0,
+          xml: content.to_string(),
+        })
+      }
     }
   }
-  self.commit_table_merge(tree, grid, changes.items)
+  if changes.items.is_empty() {
+    return self.edit_state()
+  }
+  self.commit_table_merge(tree, grid, changes.items, probe?, profile~, images?)
 }

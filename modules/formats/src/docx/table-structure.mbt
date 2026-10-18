@@ -198,7 +198,10 @@ pub fn Session::edit_table(
       )
     MergeCells(rows, columns) =>
       return self.merge_table_cells(revision, selection, rows, columns)
-    UnmergeCell => return self.unmerge_table_cell(revision, selection)
+    UnmergeCell =>
+      return self.unmerge_table_cells(
+        revision, selection, probe, profile, images,
+      )
     SplitCell(rows, columns) =>
       return self.split_table_cell(
         revision, selection, rows, columns, probe, profile, images,

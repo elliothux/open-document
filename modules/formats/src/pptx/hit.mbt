@@ -354,6 +354,23 @@ pub fn Session::navigate(
     )
   }
   let object = current.object(self.selection.object)
+  if !extend_selection &&
+    self.selection.anchor != self.selection.focus &&
+    ["left", "right"].contains(direction) {
+    let focus = if direction == "left" {
+      self.selection.anchor.min(self.selection.focus)
+    } else {
+      self.selection.anchor.max(self.selection.focus)
+    }
+    return self.select(
+      revision,
+      self.selection.slide,
+      object.id,
+      "text",
+      focus,
+      focus,
+    )
+  }
   let text = object.text()
   let boundaries = @layout.grapheme_boundaries(text)
   let index = boundaries.search(self.selection.focus).unwrap()

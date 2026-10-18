@@ -449,7 +449,9 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 `{ action: "merge", rows, columns }` 从当前格的左上网格位置合并指定矩形。范围为 1–1000 行、1–63 列且最多 4096 个网格位置，不能切开已有合并格。内容按行优先顺序进入左上格，保留段落、字符格式和空段落；列网格不变，更新格宽、gridSpan 与 vMerge。`{ action: "unmerge" }` 取消当前格的合并，恢复原网格各列和行，全部内容留在首格，新增格保留相应格式并置空。两者使用同一有界源历史，可与格内输入精确混合撤销，保存后继续编辑。相同合并范围或取消未合并格不新增历史。书签等受保护锚点、未知格属性及输出预算失败原子拒绝。内容顺序参考 [ONLYOFFICE 合并](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9466-L9530)。
 
-`{ action: "splitCell", rows, columns }` 将当前单格拆成指定行列，默认 UI 提供同名操作和数量输入。普通格可新增 1–1000 行、1–63 列；纵向合并格的行数须不超过原合并行数，且能整除原行数。`1×1` 不改变源或历史。它与 `unmerge` 不同：列边界按当前有效宽度等分到整数 twip，合并原有边界后细分公共网格；其他行仅更新跨度，保持原单元格范围。
+`{ action: "splitCell", rows, columns }` 将当前单格或所选各主格分别拆成指定行列，默认 UI 提供同名操作和数量输入。普通格可新增 1–1000 行、1–63 列；纵向合并格的行数须不超过原合并行数，且能整除原行数。`1×1` 不改变源或历史。它与 `unmerge` 不同：列边界按当前有效宽度等分到整数 twip，合并原有边界后细分公共网格；未选格按新增边界更新跨度，保留原内容和横向范围。
+
+跨格操作把各主格的列切点合为一个公共网格，保留全部旧边界。同一源行中的普通格共享新增行，不按目标格重复追加。纵向合并仍按原源行组分区；相邻普通格增行时，在对应组中加入延续格，保持请求的逻辑拆分行数。所有目标合为一项源事务，光标进入首个主格；1×1 保留整个原范围及 revision。
 
 普通格新增行时复制原行属性，邻格通过纵向合并保持原内容和范围。原段落内容全部留在左上格；新格为空并复制相应格/首段格式。保留原段落身份、非目标内容和其他部件，光标进入左上格。dxa/pct 宽度偏好按列数分配并保持总量，auto/nil 保留；邻格的宽度偏好和整表固定/自动适配模式不变。
 
@@ -457,7 +459,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 `{ action: "splitTable" }` 在所选单元格所在行之前拆分正文表格，两表之间插入空正文段落，光标进入下表首格。首行、缺少段落的单元格、嵌套/受保护表格、未知结构及预算失败拒绝操作。两表保留列网格、宽度、边框、样式和单元格内容；原有行和未替换内容的身份保持。纵向合并跨越分界线时，内容留在上表，下表从对应位置创建空的合并起始格，复制原合并格格式并清除段前分页；后续延续格继续归属下表。分界、空格及选择一次提交历史，支持原样撤销、保存重开、继续输入及同布局 PDF。默认 UI 使用同一操作。拆表与跨度清理参考 [LibreOffice SplitTable](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sw/source/core/docnode/ndtbl.cxx#L3392-L3515)及[纵向跨度清理](https://github.com/LibreOffice/core/blob/2821d29a87b28785d74fa64d975465e4c99d4416/sw/source/core/table/swnewtable.cxx#L2021-L2110)。
 
-布局读取横向跨度及纵向起始/延续格，文字、背景和边框使用合并后的矩形；Tab 跳过纵向延续格。纵向合并格可跨源行与页面继续，保持起始格的内容归属、底色、边框与逻辑位置。普通行已支持[逐格跨页](#表格行跨页)，重复表头见[当前合同](#重复表头)。包含可见内容的纵向延续格明确拒绝，避免隐藏其文字。含合并格的行增删遵循上述规则；列删除按所选整格的横向范围移除相交格。默认 UI 提供从当前格指定行列数量的合并与取消合并；鼠标属性选择归[跨单元格属性选择](#跨单元格属性选择)，其余范围编辑仍归 [P10](../p10-docx-core.md)。
+布局读取横向跨度及纵向起始/延续格，文字、背景和边框使用合并后的矩形；Tab 跳过纵向延续格。纵向合并格可跨源行与页面继续，保持起始格的内容归属、底色、边框与逻辑位置。普通行已支持[逐格跨页](#表格行跨页)，重复表头见[当前合同](#重复表头)。包含可见内容的纵向延续格明确拒绝，避免隐藏其文字。含合并格的行增删遵循上述规则；列删除按所选整格的横向范围移除相交格。默认 UI 提供从当前格指定行列数量的合并，以及单格或跨格取消合并；鼠标属性选择归[跨单元格属性选择](#跨单元格属性选择)，其余范围编辑仍归 [P10](../p10-docx-core.md)。
 
 ### 跨单元格属性选择
 
@@ -489,7 +491,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 跨格 `merge` 的 rows/columns 必须等于选区的逻辑矩形尺寸；默认面板自动填入并锁定这两个数量。已有合并格须完整位于矩形内，切开已有跨度时原子拒绝；内容按源顺序进入左上格。六种行列命令及合并均沿现有源补丁一次提交历史，撤销恢复原字节和正/反向选择，保留未删内容及其他部件。删除最后全部行或列时移除表格并进入正文。源、字体、布局及输出预算继续检查，失败不提交。
 
-取消合并、拆格和拆表仍须选择单格，默认面板在跨格时禁用。链接、书签及批注创建沿普通文字范围规则；跨格时链接查询给出原因，默认面板禁用对应创建。跨表格、正文/表格混合范围及未知格内容沿既有保护规则；跨格边框/边距的默认面板、嵌套表格和其余结构范围操作继续实施。
+跨格 `unmerge` 按实际所选主格取消合并，保持原公共网格；相交的合并格整体处理，范围外合并格及普通格保持原源。每个主格的全部文字留在原格，新格为空并继承对应源行格的框与首段格式。所有修改及布局预检合为一项历史，光标定位首个所选主格；没有合并格时保留原源、范围和 revision。未知格源、无可用文字宽度、字体及预算失败整体拒绝。指定行列拆格支持同一范围，规则归上述 `splitCell` 合同。拆表仍须选择单格，默认面板在跨格时禁用。链接、书签及批注创建沿普通文字范围规则；跨格时链接查询给出原因，默认面板禁用对应创建。跨表格、正文/表格混合范围及未知格内容沿既有保护规则；跨格边框/边距的默认面板、嵌套表格和其余结构范围操作继续实施。
 
 ### 表格尺寸
 
@@ -1751,11 +1753,13 @@ list 使用 `PptxListFormat`：`{ kind: "none" }`、`{ kind: "bullet", value }` 
 
 `listFont/listColor` 使用与字符格式相同的字体家族及六位 RGB 边界。`listSize` 使用 `{ unit: "point" | "percent", value }`，支持 1–1024 pt 或正文首字符字号的 1–400%，分别舍入到百分之一点和千分之一百分比。查询返回有效字体家族、颜色及继承后的大小单位/值；随文字大小返回 100%，混合字段为 null。显式样式分别写 `buFont/buSzPts/buSzPct/buClr`；传 null 写对应的 `buFontTx/buSzTx/buClrTx`，覆盖继承并跟随正文首字符。默认面板逐项设置，并可一次恢复三项正文样式；`clearParagraphFormat` 则移除本地定义并恢复列表/版式继承。规则依据 [ONLYOFFICE 标记属性](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L12797-L12876)。只修改所选段落的对应属性，保留字符、列表定义、字体元信息和其他部件；相同直接定义不新增历史。重复或带未知内容的目标属性保护整项事务，缺字体与输出预算失败也不提交。
 
-字面查找由 `findPptx` 命令和 `PresentationEditor.find(text, options?)` 提供。`PptxFindOptions` 可含 `matchCase/wholeWord/all`；前两项默认 false，all 默认 true，并包含隐藏页。all=false 只搜索请求指定的 slide，结果导航后仍保留原搜索范围。扫描按页面顺序及本地对象源顺序进行，跨 run/段落匹配，不跨文本框；母版/版式装饰与备注不参加本次查找。页面/对象顺序参考 [ONLYOFFICE Slide.Search](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L346-L355)。分组内或带字段/扩展的已解析文字可返回结果及保护原因，替换沿现有本地顶层文本框边界开放。
+字面查找由 `findPptx` 命令和 `PresentationEditor.find(text, options?)` 提供。`PptxFindOptions` 可含 `matchCase/wholeWord/all`；前两项默认 false，all 默认 true，并包含隐藏页。all=false 只搜索请求指定的 slide，结果导航后仍保留原搜索范围。扫描按页面顺序及本地对象源顺序进行，跨 run/段落匹配，不跨文本框或表格主格；母版/版式装饰与备注不参加本次查找。页面/对象顺序参考 [ONLYOFFICE Slide.Search](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L346-L355)。分组内或带字段/扩展的已解析文字可返回结果及保护原因，替换支持本地顶层文本框及普通表格，保留各自源与布局边界。
 
 `PptxSearchResult` 返回 revision、truncated 及最多 1000 条 matches；每条含 `slide/object/anchor/focus/hidden/snippet/reason`。anchor/focus 是该对象文字的 UTF-16 范围，并对齐字素边界；跨段落使用 LF，软换行使用 U+2028，编号标记不属于逻辑文字。与 DOCX 共用公共字面搜索：简单 Unicode 小写映射、不忽略重音、全词使用字母/数字边界，结果不重叠；不提供正则、通配符或语言分词。查找不改变选择、源、revision 或历史。
 
-`replacePptxMatches` 携带同一 revision、原 slide/text/options、replacement、可选 index 和字体 profile；不提供 index 时替换全部。核心重查结果后定位各对象，按对象范围提交一项跨页历史。普通段内替换合并源补丁并继承首个选中字的字符属性，保留未选 run、段落属性及其他部件；跨段落或 LF 替换复用结构编辑。有变化时，单个替换定位到新文字末尾，全部替换保留当前页/对象并调整已有文字选区。无变化不新增历史，任一保护、缺字体/字形、适配或输出失败均保留所有页面及历史。
+`replacePptxMatches` 携带同一 revision、原 slide/text/options、replacement、可选 index 和字体 profile；不提供 index 时替换全部。核心重查结果后定位各对象，按对象范围提交一项跨页历史。普通段内替换合并源补丁并继承首个选中字的字符属性，保留未选 run、段落属性及其他部件；跨段落或 LF 替换复用结构编辑。有变化时，单个替换定位到新文字末尾，全部替换保留当前页/对象并调整已有文字选区。文字选区内按左右箭头时，只收起到对应边界；Shift 继续扩展选区。无变化不新增历史，任一保护、缺字体/字形、适配或输出失败均保留所有页面及历史。
+
+表格按行顺序逐个主格匹配，延续格不重复参与；片段只包含该格，anchor/focus 仍为整表文字位置。普通格及合并格内可跨段落匹配和插入 LF/U+2028，不跨格串接相邻文字。替换沿既有单元格源补丁和行高适配，保留网格、跨度、框属性、未改格及部件；与文本框或隐藏页的结果合为一项原子历史。整页保护、文字锁、字体、资源及输出限制保持。依据 [ONLYOFFICE 逐格搜索](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L19680-L19689)；左右收起规则依据 [MoveCursorLeft](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L5931-L5968)和 [MoveCursorRight](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L6051-L6095)。
 
 搜索文本与 replacement 各最多 32767 UTF-16 单元；replacement 接受 LF/U+2028，拒绝 CR 和非法 XML 字符。搜索总文字限 1048576 单元，截断结果禁止全部替换；结构批次另受源文字长度乘匹配数累计 64 Mi 单元和 4 MiB 历史预算限制，普通批次不按匹配重复解析整页。公共原生生成文字也在构造 XML 前限制到 2 Mi 单元。宿主的 `find/selectMatch/replaceMatches` 沿既有队列执行，并绑定 documentId/revision；换文档或文字变化后返回 stale-search。默认面板提供当前页/全部页、大小写/全词、结果定位、单个/全部替换、保护原因及过期提示。隐藏页结果可直接定位。
 
@@ -1779,7 +1783,7 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 ### 对象超链接
 
-`PresentationEditor.editObjects({ action: "hyperlink", link })` 修改所选本地顶层对象或其文字的点击链接。对象模式支持单个形状、图片或组；文字模式支持一个可编辑文本框。`link` 为 `{ kind: "external", target }`、`{ kind: "slide", target }`、`{ kind: "action", target }` 或 null；null 移除点击链接。动作 target 接受 `firstslide`、`lastslide`、`nextslide`、`previousslide`、`lastslideviewed`、`endshow`；后两类仅在放映中执行。`PptxHyperlink` 从 `wasm/pptx` 和 `web/pptx` 导出。每个 `PptxObject.hyperlink` 返回对象链接的 `{ value, reason }`；`PptxQuery.textHyperlink` 返回当前文字范围的 `{ value, mixed, reason }`。链接不一致时 value 为 null 且 mixed 为 true，默认面板仍允许统一设置或移除。多对象与继承对象继续保护。
+`PresentationEditor.editObjects({ action: "hyperlink", link })` 修改所选本地顶层对象或其文字的点击链接。对象模式支持单个形状、图片或组；文字模式支持一个可编辑文本框或普通表格中的单个主格。`link` 为 `{ kind: "external", target }`、`{ kind: "slide", target }`、`{ kind: "action", target }` 或 null；null 移除点击链接。动作 target 接受 `firstslide`、`lastslide`、`nextslide`、`previousslide`、`lastslideviewed`、`endshow`；后两类仅在放映中执行。`PptxHyperlink` 从 `wasm/pptx` 和 `web/pptx` 导出。每个 `PptxObject.hyperlink` 返回对象链接的 `{ value, reason }`；`PptxQuery.textHyperlink` 返回当前文字范围的 `{ value, mixed, reason }`。链接不一致时 value 为 null 且 mixed 为 true，默认面板仍允许统一设置或移除。多对象与继承对象继续保护。
 
 文字选区按 UTF-16 字素边界拆分 run，可跨样式、软换行及段落，只修改选中范围。链接内的光标修改当前段落中相邻且关系及提示等元数据一致的完整链接；不同提示或关系保持独立。普通光标通过空 run 或空段落末尾属性设置后续输入链接。原生输入继承链接，移除时同步对应段落末尾属性，避免清空后再次出现。保留直接字体、大小、粗斜体、颜色和源下划线；存在点击链接时派生单下划线，移除后恢复原直接定义。文字链接写入 `rPr/endParaRPr`，与对象的 `cNvPr` 链接独立；累计生成源限制为 2 Mi UTF-16 单元。
 
@@ -1788,6 +1792,8 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 核心写 `cNvPr/a:hlinkClick`：外链使用 External hyperlink 关系，内链使用 slide 关系及 `ppaction://hlinksldjump`。六种导航动作写 `ppaction://hlinkshowjump?jump=…` 和空 `r:id`，不创建关系；导入时按 action 解析，允许省略、空或原有关系身份。与目标相同的关系可复用；修改不覆盖其他对象共用的关系，也不清理旧关系。保留 tooltip、tgtFrame、history、highlightClick、endSnd、相邻悬停链接、注释、文字和几何；未知属性、声音等子内容或无法解析的关系保护修改。新增关系与对象 XML 共用一项有界历史，旧 revision、活动候选、锁和输出预算失败均不提交。相同链接及重复清除不新增历史。
 
 页面重排保持内部目标，页面复制复用既有自身链接重映射，删页移除相应入链并保留对象。对象复制保留链接；带自身点击或悬停链接的组不能直接取消组合，避免丢失组动作。普通点击链接移除后可取消组合，成员自己的链接保留。静态 Canvas/PDF 保留对象外观及文字，不增加交互链接注释。放映点击归[放映链接](#放映链接)；悬停/一般动作编辑及输出链接继续按 [P12](../p12-pptx-core.md) 实施。语义参考固定 [ONLYOFFICE 对象链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L3503-L3683)、[文字链接拆分与光标操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L7811-L8180)、[PPTX 链接下划线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L10545-L10565)、[内部页动作解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L9259-L9290)及[编辑器显式导航](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/api.js#L7243-L7264)，实现归 [`object-hyperlink.mbt`](../../modules/formats/src/pptx/object-hyperlink.mbt)和 [`text-hyperlink.mbt`](../../modules/formats/src/pptx/text-hyperlink.mbt)。
+
+表格文字链接在单个主格内使用相同的局部范围及光标规则，包含跨行列合并格和空格；范围先转换为格内位置，不改其他格及延续格。跨主格选择返回保护原因，统一设置和移除均不写入，默认面板同步禁用。新关系与单元格源仍合为一项历史；已有格式、几何及其他部件保持。放映使用表格原有逐格文字几何命中。规则依据 [ONLYOFFICE 表格链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L4601-L4630)。整表对象链接编辑仍受保护。
 
 ### 放映与演讲者视图
 
@@ -1961,7 +1967,7 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 
 `merge` 要求范围内至少两个主格，按行顺序把各格段落及字符/段落属性移入左上格，清空其他主格，并写回标准跨度。合并后的文字整体选中。所涉单元格的局部列表默认值必须为空，段落合计最多 256；其他属性、未选格及部件保留。`unmerge` 要求选中一个合并格，恢复物理单元格；文字留在左上格，其余格为空并保留原框及文字格式。每个物理格的边距必须留下正文字宽度，否则先调整边距或列宽。两项操作均共用行高适配和一项精确历史。行为依据 [ONLYOFFICE MergeTableCells](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9466-L9602)，实现归 [`table-merge.mbt`](../../modules/formats/src/pptx/table-merge.mbt)。行列操作允许在跨度边界插入、整体移动合并格或删除完整跨度，切穿其他跨度时受保护。逐项操作保护归 [`table-operations.mbt`](../../modules/formats/src/pptx/table-operations.mbt)。
 
-`editObjects({ action: "splitTableCell", rows, columns })` 拆分一个主格；`table.splitReason` 返回选择或结构保护原因。行列数为整数，分别接受 1–1000、1–63，乘积最多 4096；1×1 不改源、选择或历史。普通格可增加行，跨行合并格要求新行数不超过原跨度且整除跨度。列按主格总宽的整数 EMU 等分，保留原有网格边界；全表物理列数可能大于请求的逻辑列数。其他格调整跨度，保留文字、框属性和源间隙。原文字留在左上格，新逻辑格继承原格首段文字/段落及框格式。新延续格不复制其他格的链接内容。拆分与必要的行高增长合为一项历史，随后光标定位左上格。模板身份/资源链接、受影响列节点的未知元数据、宽度及预算失败原子拒绝。行为依据 [ONLYOFFICE SplitTableCells](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9609-L9989)，实现归 [`table-split.mbt`](../../modules/formats/src/pptx/table-split.mbt)。默认控件归 [`pptx-cells.tsx`](../../packages/ui/src/pptx-cells.tsx)。表格文字链接编辑和查找替换尚未适配逐格目标，继续返回保护原因；已有链接保持原源。
+`editObjects({ action: "splitTableCell", rows, columns })` 拆分一个主格；`table.splitReason` 返回选择或结构保护原因。行列数为整数，分别接受 1–1000、1–63，乘积最多 4096；1×1 不改源、选择或历史。普通格可增加行，跨行合并格要求新行数不超过原跨度且整除跨度。列按主格总宽的整数 EMU 等分，保留原有网格边界；全表物理列数可能大于请求的逻辑列数。其他格调整跨度，保留文字、框属性和源间隙。原文字留在左上格，新逻辑格继承原格首段文字/段落及框格式。新延续格不复制其他格的链接内容。拆分与必要的行高增长合为一项历史，随后光标定位左上格。模板身份/资源链接、受影响列节点的未知元数据、宽度及预算失败原子拒绝。行为依据 [ONLYOFFICE SplitTableCells](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9609-L9989)，实现归 [`table-split.mbt`](../../modules/formats/src/pptx/table-split.mbt)。默认控件归 [`pptx-cells.tsx`](../../packages/ui/src/pptx-cells.tsx)。单格文字链接复用[文字链接合同](#对象超链接)；表格查找替换复用上述字面匹配及事务合同。
 
 支持网格宽高与外框一致的完整矩形表格，最多 1000 行、63 列、4096 格，文字合计最多 32767 UTF-16 单元，继续受包、布局、输出及历史预算约束。不一致的延续格、预设/条件表格样式、分组和旋转等未支持配置给出诊断并保留原源；非整数跨度按现有数值规则拒绝。更广样式和表格组合仍待实现。实现归 [`table-read.mbt`](../../modules/formats/src/pptx/table-read.mbt)和 [`table-layout.mbt`](../../modules/formats/src/pptx/table-layout.mbt)。
 

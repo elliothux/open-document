@@ -229,14 +229,12 @@ pub fn Session::replace_matches(
       }
     }
     for id in ids {
-      ignore(
-        fit_text(
-          candidate.object(id),
-          candidate.object(id).geometry.unwrap(),
-          probe,
-          profile,
-        ),
-      )
+      let target = candidate.object(id)
+      if target.table is Some(_) {
+        ignore(target.paint_table(probe, profile))
+        continue
+      }
+      ignore(fit_text(target, target.geometry.unwrap(), probe, profile))
     }
     if index is Some(index) && found[index].slide == i {
       let item = found[index]

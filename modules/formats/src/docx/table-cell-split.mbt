@@ -91,20 +91,38 @@ fn Session::split_table_cell(
   }
   let document = self.document()
   let tree = WordTree::new(document)
-  let selected = self.table_grid(tree, selection)
-  let (first, c) = selected.owners[selected.cells[selected.row][selected.column]]
-  let grid = { ..selected, row: first, column: c, }
+  let selected = self.table_cell_range(tree, selection)
+  let original = selected
+    .map(range => range.grid)
+    .unwrap_or_else(() => self.table_grid(tree, selection))
+  let owners = selected
+    .map(range => range.owners)
+    .unwrap_or([original.cells[original.row][original.column]])
+  let (first, c) = original.owners[owners[0]]
+  let grid = { ..original, row: first, column: c, }
   if rows == 1 && columns == 1 {
     return self.edit_state()
   }
-  let height = grid.model.rowSpans[first][c]
-  // ONLYOFFICE SplitTableCells partitions an existing vertical merge along its row groups.
-  guard height == 1 || (rows <= height && height % rows == 0) else {
-    @failure.reject(
-      "invalid-operation", "Split row count must divide the existing vertical merge",
+  let extra_rows : Map[Int, Int] = Map([])
+  for cell in owners {
+    let (row, column) = grid.owners[cell]
+    let height = grid.model.rowSpans[row][column]
+    // Each existing vertical merge is partitioned along its original source rows.
+    guard height == 1 || (rows <= height && height % rows == 0) else {
+      @failure.reject(
+        "invalid-operation", "Split row count must divide the existing vertical merge",
+      )
+    }
+    if height == 1 {
+      extra_rows[row] = rows - 1
+    }
+  }
+  let row_edges = [0]
+  for row in 0..<grid.rows.length() {
+    row_edges.push(
+      row_edges.last().unwrap() + 1 + extra_rows.get(row).unwrap_or(0),
     )
   }
-  let extra_rows = if height == 1 { rows - 1 } else { 0 }
   let probe = probe.unwrap_or_else(() => {
     @failure.reject("missing-font", "Cell splitting requires a text probe")
   })
@@ -118,29 +136,37 @@ fn Session::split_table_cell(
   for width in fitted.widths {
     positions.push(positions.last().unwrap() + (width * 20).round().to_int())
   }
-  let left = grid.starts[first][c]
-  let right = left + grid.model.columnSpans[first][c]
-  let size = positions[right] - positions[left]
-  guard size >= columns else {
-    @failure.reject(
-      "invalid-operation", "Split columns are narrower than one twip",
-    )
-  }
-  let cuts = Array::makei(columns + 1, i => {
-    positions[left] +
-    (size.to_int64() * i.to_int64() / columns.to_int64()).to_int()
-  })
+  let targets : Map[(Int, Int), Array[Int]] = Map([])
   let refined = positions.copy()
-  for point in cuts {
-    if !refined.contains(point) {
-      refined.push(point)
+  for cell in owners {
+    let owner = grid.owners[cell]
+    let left = grid.starts[owner.0][owner.1]
+    let right = left + grid.model.columnSpans[owner.0][owner.1]
+    let size = positions[right] - positions[left]
+    guard size >= columns else {
+      @failure.reject(
+        "invalid-operation", "Split columns are narrower than one twip",
+      )
+    }
+    let cuts = Array::makei(columns + 1, i => {
+      positions[left] +
+      (size.to_int64() * i.to_int64() / columns.to_int64()).to_int()
+    })
+    targets[owner] = cuts
+    for point in cuts {
+      if !refined.contains(point) {
+        guard refined.length() < 64 else {
+          @failure.reject("limit-exceeded", "Split table exceeds column budget")
+        }
+        refined.push(point)
+      }
     }
   }
   refined.sort()
   let count = refined.length() - 1
-  guard grid.rows.length() + extra_rows <= 1000 &&
+  guard row_edges.last().unwrap() <= 1000 &&
     count <= 63 &&
-    (grid.rows.length() + extra_rows).to_int64() * count.to_int64() <= 4096 else {
+    row_edges.last().unwrap().to_int64() * count.to_int64() <= 4096 else {
     @failure.reject(
       "limit-exceeded", "Split table exceeds row column or cell budget",
     )
@@ -156,7 +182,6 @@ fn Session::split_table_cell(
   if tree.fitted_grid_change(document, grid.table, widths) is Some(change) {
     changes.push(change)
   }
-  let target = grid.cells[first][c]
   for r, row in grid.cells {
     let end = grid.model.columnSpans[r].fold(init=0, (sum, span) => sum + span)
     if tree.row_grid_change(
@@ -173,9 +198,9 @@ fn Session::split_table_cell(
       let span = refined.search(positions[end]).unwrap() -
         refined.search(positions[start]).unwrap()
       let owner = grid.owners[cell]
-      let splitting = owner == (first, c)
-      let extend_row = extra_rows > 0 &&
-        r == first &&
+      let cuts = targets.get(owner)
+      let splitting = cuts is Some(_)
+      let extend_row = extra_rows.get(r).unwrap_or(0) > 0 &&
         grid.model.rowSpans[r][col] == 1 &&
         !splitting
       if !splitting && !extend_row && span == grid.model.columnSpans[r][col] {
@@ -183,9 +208,13 @@ fn Session::split_table_cell(
       }
       tree.check_merge_cell(cell, self.main)
       let merge = if splitting {
-        if height == 1 || height / rows == 1 {
+        let height = grid.model.rowSpans[owner.0][owner.1]
+        let group = if height == 1 { 1 } else { height / rows }
+        let start = owner.0 + (r - owner.0) / group * group
+        // Neighbor splits can add continuation rows inside an original merge group.
+        if height == 1 || row_edges[start + group] - row_edges[start] == 1 {
           ""
-        } else if (r - first) % (height / rows) == 0 {
+        } else if r == start {
           "restart"
         } else {
           "continue"
@@ -203,8 +232,9 @@ fn Session::split_table_cell(
       }
       let pieces = if splitting { columns } else { 1 }
       let additions = StringBuilder()
+      let mut units = 0
       for part in 0..<pieces {
-        let piece_span = if splitting {
+        let piece_span = if cuts is Some(cuts) {
           refined.search(cuts[part + 1]).unwrap() -
           refined.search(cuts[part]).unwrap()
         } else {
@@ -219,21 +249,23 @@ fn Session::split_table_cell(
             changes.push(change)
           }
         } else {
+          let cuts = cuts.unwrap()
           let xml = self.split_empty_cell(
             tree,
             cell,
             cuts[part + 1] - cuts[part],
             props,
           )
-          guard xml.length() <= changes.limit - additions.to_string().length() else {
+          guard xml.length() <= changes.limit - units else {
             @failure.reject(
               "limit-exceeded", "Split cells exceed source budget",
             )
           }
+          units += xml.length()
           additions.write_string(xml)
         }
       }
-      if !additions.to_string().is_empty() {
+      if units > 0 {
         let node = tree.nodes[cell]
         changes.push({
           node: node.parent,
@@ -244,8 +276,11 @@ fn Session::split_table_cell(
       }
     }
   }
-  if extra_rows > 0 {
-    let row = grid.rows[first]
+  for first, row in grid.rows {
+    let extra = extra_rows.get(first).unwrap_or(0)
+    if extra == 0 {
+      continue
+    }
     let node = tree.nodes[row]
     guard node.attributes.all(a => {
         a.uri == word_uri &&
@@ -269,23 +304,28 @@ fn Session::split_table_cell(
       after=Some(count - refined.search(positions[end]).unwrap()),
     )
     let added = StringBuilder()
-    for _ in 0..<extra_rows {
-      added.write_string("<od:tr xmlns:od=\"\{word_uri}\">\{props}")
+    let mut units = 0
+    for _ in 0..<extra {
+      let opening = "<od:tr xmlns:od=\"\{word_uri}\">\{props}"
+      units += opening.length()
+      added.write_string(opening)
       for col, cell in grid.cells[first] {
         tree.check_merge_cell(cell, self.main)
         let start = grid.starts[first][col]
         let end = start + grid.model.columnSpans[first][col]
         let span = refined.search(positions[end]).unwrap() -
           refined.search(positions[start]).unwrap()
-        let pieces = if cell == target { columns } else { 1 }
+        let owner = grid.owners[cell]
+        let cuts = targets.get(owner)
+        let pieces = if cuts is Some(_) { columns } else { 1 }
         for part in 0..<pieces {
-          let piece_span = if cell == target {
+          let piece_span = if cuts is Some(cuts) {
             refined.search(cuts[part + 1]).unwrap() -
             refined.search(cuts[part]).unwrap()
           } else {
             span
           }
-          let width = if cell == target {
+          let width = if cuts is Some(cuts) {
             cuts[part + 1] - cuts[part]
           } else {
             positions[end] - positions[start]
@@ -294,7 +334,7 @@ fn Session::split_table_cell(
             document,
             cell,
             piece_span,
-            if cell == target {
+            if cuts is Some(_) && grid.model.rowSpans[owner.0][owner.1] == 1 {
               ""
             } else {
               "continue"
@@ -303,12 +343,14 @@ fn Session::split_table_cell(
             pieces,
           )
           let xml = self.split_empty_cell(tree, cell, width, properties)
-          guard xml.length() <= changes.limit - added.to_string().length() else {
+          guard xml.length() <= changes.limit - units else {
             @failure.reject("limit-exceeded", "Split rows exceed source budget")
           }
+          units += xml.length()
           added.write_string(xml)
         }
       }
+      units += "</od:tr>".length()
       added.write_string("</od:tr>")
     }
     changes.push({

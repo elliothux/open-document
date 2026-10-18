@@ -187,9 +187,7 @@ export function DocxTables({
           <button
             key={change}
             type="button"
-            disabled={
-              !!selected && (change === "unmerge" || change === "splitTable")
-            }
+            disabled={!!selected && change === "splitTable"}
             onMouseDown={(event) => event.preventDefault()}
             onClick={() =>
               controller.run(() => editor.editTable({ action: change }))
@@ -260,7 +258,7 @@ export function DocxTables({
           );
         }}
       >
-        <fieldset disabled={disabled || !cell}>
+        <fieldset disabled={disabled || (!cell && !selected)}>
           <legend>{t.splitCell}</legend>
           <label>
             {t.splitCellRows}

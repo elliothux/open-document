@@ -25,6 +25,23 @@ priv struct TextMatch {
 }
 
 ///|
+fn Object::search_texts(self : Object) -> Array[(String, Int)] {
+  guard self.table is Some(table) else { return [(self.text(), 0)] }
+  let texts : Array[(String, Int)] = []
+  let mut offset = 0
+  for row in table.rows {
+    for cell in row.cells {
+      if cell.owner() {
+        let value = self.table_cell(cell).text()
+        texts.push((value, offset))
+        offset += value.length() + 1
+      }
+    }
+  }
+  texts
+}
+
+///|
 fn Session::find_text(
   self : Session,
   slide : String,
@@ -56,32 +73,34 @@ fn Session::find_text(
       guard scanned <= 1048576 else {
         @failure.reject("limit-exceeded", "Search text budget exceeded")
       }
-      let ranges = pattern.matches(value)
-      if ranges.is_empty() {
-        continue
-      }
       let reason = self.formatting_reason(object)
-      let boundaries = @layout.grapheme_boundaries(value)
-      for (anchor, focus) in ranges {
-        if matches.length() == 1000 {
-          return (matches, true)
+      for (value, offset) in object.search_texts() {
+        let ranges = pattern.matches(value)
+        if ranges.is_empty() {
+          continue
         }
-        let a = match boundaries.binary_search((anchor - 16).max(0)) {
-          Ok(i) | Err(i) => i
+        let boundaries = @layout.grapheme_boundaries(value)
+        for (anchor, focus) in ranges {
+          if matches.length() == 1000 {
+            return (matches, true)
+          }
+          let a = match boundaries.binary_search((anchor - 16).max(0)) {
+            Ok(i) | Err(i) => i
+          }
+          let b = match
+            boundaries.binary_search((boundaries[a] + 80).min(value.length())) {
+            Ok(i) => i
+            Err(i) => i - 1
+          }
+          matches.push({
+            slide: index,
+            object: object.id,
+            anchor: offset + anchor,
+            focus: offset + focus,
+            snippet: value[boundaries[a]:boundaries[b]].to_owned(),
+            reason,
+          })
         }
-        let b = match
-          boundaries.binary_search((boundaries[a] + 80).min(value.length())) {
-          Ok(i) => i
-          Err(i) => i - 1
-        }
-        matches.push({
-          slide: index,
-          object: object.id,
-          anchor,
-          focus,
-          snippet: value[boundaries[a]:boundaries[b]].to_owned(),
-          reason,
-        })
       }
     }
   }

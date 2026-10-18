@@ -34,6 +34,7 @@ fn hyperlink_properties(object : Object) -> Ref raise @failure.Failure {
   let kind = match object.kind {
     "image" => "nvPicPr"
     "group" => "nvGrpSpPr"
+    "table" => "nvGraphicFramePr"
     _ => "nvSpPr"
   }
   object.source
