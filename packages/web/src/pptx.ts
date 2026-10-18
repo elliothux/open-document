@@ -11,6 +11,7 @@ import {
 } from "@open-document/wasm/pptx";
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type {
+  PptxQuery,
   PptxTransition,
   PptxAdvance,
   PptxAnimation,

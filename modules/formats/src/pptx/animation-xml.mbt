@@ -1,7 +1,12 @@
 ///|
-fn animation_set(id : Int, target : String, visible : Bool) -> String {
+fn animation_set(
+  id : Int,
+  target : String,
+  visible : Bool,
+  delay~ : Int = 0,
+) -> String {
   let value = if visible { "visible" } else { "hidden" }
-  "<od:set><od:cBhvr><od:cTn id=\"\{id}\" dur=\"1\" fill=\"hold\"><od:stCondLst><od:cond delay=\"0\"/></od:stCondLst></od:cTn><od:tgtEl><od:spTgt spid=\"\{target}\"/></od:tgtEl><od:attrNameLst><od:attrName>style.visibility</od:attrName></od:attrNameLst></od:cBhvr><od:to><od:strVal val=\"\{value}\"/></od:to></od:set>"
+  "<od:set><od:cBhvr><od:cTn id=\"\{id}\" dur=\"1\" fill=\"hold\"><od:stCondLst><od:cond delay=\"\{delay}\"/></od:stCondLst></od:cTn><od:tgtEl><od:spTgt spid=\"\{target}\"/></od:tgtEl><od:attrNameLst><od:attrName>style.visibility</od:attrName></od:attrNameLst></od:cBhvr><od:to><od:strVal val=\"\{value}\"/></od:to></od:set>"
 }
 
 ///|
@@ -21,7 +26,12 @@ fn animation_parallel(
 }
 
 ///|
-fn animation_markup(items : Array[SlideAnimation], part : String) -> String {
+fn animation_markup(
+  items : Array[SlideAnimation],
+  part : String,
+  width : Double,
+  height : Double,
+) -> String {
   guard !items.is_empty() else { return "" }
   let groups : Array[Array[Array[SlideAnimation]]] = []
   for item in items {
@@ -48,9 +58,21 @@ fn animation_markup(items : Array[SlideAnimation], part : String) -> String {
         let id = identity
         identity += 1
         let target = item.object[part.length() + 1:].to_owned()
-        let entrance = ["appear", "fadeIn"].contains(item.kind)
+        let entrance = ["appear", "fadeIn", "flyIn"].contains(item.kind)
+        let flight = ["flyIn", "flyOut"].contains(item.kind)
         let fade = ["fadeIn", "fadeOut"].contains(item.kind)
-        let behavior = if fade {
+        let geometric = ["scale", "rotate", "move"].contains(item.kind)
+        let behavior = if flight {
+          let markup = flight_animation_markup(item, identity, target)
+          identity += 3
+          markup
+        } else if geometric {
+          let markup = geometric_animation_markup(
+            item, identity, target, width, height,
+          )
+          identity += 1
+          markup
+        } else if fade {
           let visible = if entrance {
             let markup = animation_set(identity, target, true)
             identity += 1
@@ -68,15 +90,30 @@ fn animation_markup(items : Array[SlideAnimation], part : String) -> String {
           identity += 1
           markup
         }
-        let preset = if fade { 10 } else { 1 }
-        let class = if entrance { "entr" } else { "exit" }
+        let preset = match item.kind {
+          "scale" => 6
+          "rotate" => 8
+          "move" => 0
+          "flyIn" | "flyOut" => 2
+          _ => if fade { 10 } else { 1 }
+        }
+        let class = if item.kind == "move" {
+          "path"
+        } else if geometric {
+          "emph"
+        } else if entrance {
+          "entr"
+        } else {
+          "exit"
+        }
         let trigger = match item.trigger {
           "click" => "clickEffect"
           "with" => "withEffect"
           _ => "afterEffect"
         }
+        let subtype = if flight { item.params[0].to_int() } else { 0 }
         effects.write_string(
-          "<od:par><od:cTn id=\"\{id}\" presetID=\"\{preset}\" presetClass=\"\{class}\" presetSubtype=\"0\" fill=\"hold\" nodeType=\"\{trigger}\" dur=\"\{item.duration}\" repeatCount=\"\{item.repeat*1000}\"><od:stCondLst><od:cond delay=\"\{item.delay}\"/></od:stCondLst><od:childTnLst>\{behavior}</od:childTnLst></od:cTn></od:par>",
+          "<od:par><od:cTn id=\"\{id}\" presetID=\"\{preset}\" presetClass=\"\{class}\" presetSubtype=\"\{subtype}\" fill=\"hold\" nodeType=\"\{trigger}\" dur=\"\{item.duration}\" repeatCount=\"\{item.repeat*1000}\"><od:stCondLst><od:cond delay=\"\{item.delay}\"/></od:stCondLst><od:childTnLst>\{behavior}</od:childTnLst></od:cTn></od:par>",
         )
         span = span.max(item.delay + item.duration * item.repeat)
       }

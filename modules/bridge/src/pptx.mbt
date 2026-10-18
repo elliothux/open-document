@@ -77,6 +77,14 @@ fn Foundation::pptx_operation(
         field_string(request, "action"),
         field_string(request, "slide"),
         xlsx_number(request, "time"),
+        custom=match request {
+          { "custom": String(id), .. } => Some(id)
+          { "custom": _, .. } =>
+            @failure.reject(
+              "invalid-operation", "Custom show identity must be a string",
+            )
+          _ => None
+        },
       )
     "layoutShowPptx" =>
       session.show_layout(
@@ -103,6 +111,34 @@ fn Foundation::pptx_operation(
         @failure.reject("invalid-operation", "Slide edit is required")
       }
       let change = match field_string(change, "action") {
+        "customShows" => {
+          guard change is { "value": Array(items), .. } && items.length() <= 32 else {
+            @failure.reject("invalid-operation", "Custom show list is required")
+          }
+          @pptx.CustomShows(
+            items.map(item => {
+              guard item is { "slides": Array(slides), .. } &&
+                slides.length() <= 256 else {
+                @failure.reject(
+                  "invalid-operation", "Custom show slide list is required",
+                )
+              }
+              {
+                id: field_string(item, "id"),
+                name: field_string(item, "name"),
+                slides: slides.map(value => {
+                  match value {
+                    String(value) => value
+                    _ =>
+                      @failure.reject(
+                        "invalid-operation", "Custom show slide must be an identity",
+                      )
+                  }
+                }),
+              }
+            }),
+          )
+        }
         "animations" => {
           guard change is { "value": Array(items), .. } && items.length() <= 128 else {
             @failure.reject("invalid-operation", "Animation list is required")
@@ -115,6 +151,22 @@ fn Foundation::pptx_operation(
               delay: field_int(item, "delay"),
               duration: field_int(item, "duration"),
               repeat: field_int(item, "repeat"),
+              params: match item {
+                { "params": Array(values), .. } if values.length() <= 2 =>
+                  values.map(value => {
+                    match value {
+                      Number(value, ..) => value
+                      _ =>
+                        @failure.reject(
+                          "invalid-operation", "Animation parameters must be numeric",
+                        )
+                    }
+                  })
+                _ =>
+                  @failure.reject(
+                    "invalid-operation", "Animation parameters are required",
+                  )
+              },
             }),
           )
         }

@@ -80,14 +80,21 @@ export class PresentationShow {
     return structuredClone(this.current);
   }
   start(
-    from: "first" | "current" = "first",
+    from: "first" | "current" | { show: string } = "first",
     labels: PresentationShowLabels = english,
   ): Promise<void> {
     if (this.closed || this.active || !this.canStart())
       return Promise.reject(
         new Error("Slideshow is already active or disposed"),
       );
-    if (from !== "first" && from !== "current")
+    if (
+      from !== "first" &&
+      from !== "current" &&
+      (typeof from !== "object" ||
+        from === null ||
+        Object.keys(from).length !== 1 ||
+        typeof from.show !== "string")
+    )
       return Promise.reject(new Error("Invalid slideshow start"));
     this.starting = true;
     return this.run(async () => {
@@ -101,6 +108,7 @@ export class PresentationShow {
           revision: this.revision,
           action: "start",
           slide: from === "current" ? query.slide : "",
+          ...(typeof from === "object" ? { custom: from.show } : {}),
         });
         this.createDialog(labels, query);
         await this.paint();
@@ -204,15 +212,16 @@ export class PresentationShow {
     const jump = document.createElement("select");
     jump.setAttribute("aria-label", labels.jump);
     this.jump = jump;
-    for (const [index, slide] of query.slides.entries()) {
+    for (const [index, id] of this.current!.order.entries()) {
+      const slide = query.slides.find((slide) => slide.id === id)!;
       const option = document.createElement("option");
-      option.value = slide.id;
+      option.value = String(index);
       option.textContent = `${index + 1}. ${slide.title}`;
       jump.append(option);
     }
     jump.addEventListener(
       "change",
-      () => this.handle(() => this.navigate("goto", jump.value)),
+      () => this.handle(() => this.navigate("gotoPosition", jump.value)),
       { signal: events.signal },
     );
     controls.append(jump);
@@ -369,11 +378,11 @@ export class PresentationShow {
       this.drawing.revision !== this.revision
     )
       throw new Error("Slideshow changed before drawing");
-    this.count!.textContent = `${this.current.index + 1} / ${this.current.count}`;
+    this.count!.textContent = `${this.current.position + 1} / ${this.current.order.length}`;
     this.notes!.textContent =
       this.current.notes.reason || this.current.notes.text;
     this.text!.textContent = this.current.text;
-    this.jump!.value = this.current.slide!;
+    this.jump!.value = String(this.current.position);
     this.pause!.textContent = this.current.paused
       ? this.labels.resume
       : this.labels.pause;

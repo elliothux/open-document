@@ -1,6 +1,9 @@
 ///|
 priv struct ShowState {
   index : Int
+  route : Array[Int]
+  position : Int
+  custom : String?
   from : Int?
   effect : SlideTransition?
   time : Double
@@ -9,11 +12,27 @@ priv struct ShowState {
   advance : SlideAdvance
   settled : Double
   animations : Array[SlideAnimation]
+  flights : Array[(Double, Double)]
   starts : Array[Double]
   finished : Int
   step : Int
   ready : Double
-  leaving : Map[String, Double]
+  leaving : Map[String, ShowObject]
+}
+
+///|
+priv struct ShowObject {
+  opacity : Double
+  x : Double
+  y : Double
+  sx : Double
+  sy : Double
+  rotation : Double
+}
+
+///|
+fn ShowObject::initial() -> ShowObject {
+  { opacity: 1, x: 0, y: 0, sx: 1, sy: 1, rotation: 0, }
 }
 
 ///|
@@ -69,14 +88,17 @@ fn Session::show_state(
       "revision": self.revision,
       "slide": slide.tree.part,
       "index": show.index,
+      "order": show.route.map(index => self.slides[index].tree.part),
+      "position": show.position,
+      "custom": show.custom.map(value => Json(value)).unwrap_or(Json::null()),
       "count": self.slides.length(),
       "text": text,
       "paused": show.paused,
       "step": show.step,
       "steps": show.animations.length(),
       "nextSlide": self
-      .show_neighbor(show.index, true)
-      .map(i => Json(self.slides[i].tree.part))
+      .show_neighbor(show, true)
+      .map(i => Json(self.slides[show.route[i]].tree.part))
       .unwrap_or(Json::null()),
       "notes": self.notes_query(slide.tree.part),
     }
@@ -86,6 +108,9 @@ fn Session::show_state(
       "revision": self.revision,
       "slide": Json::null(),
       "index": -1,
+      "order": [],
+      "position": -1,
+      "custom": Json::null(),
       "count": self.slides.length(),
       "text": "",
       "paused": false,
@@ -100,12 +125,15 @@ fn Session::show_state(
 ///|
 fn Session::show_scene(
   self : Session,
-  index : Int,
+  route : Array[Int],
+  position : Int,
+  custom : String?,
   from : Int?,
   time : Double,
   animated : Bool,
-  leaving~ : Map[String, Double] = Map([]),
+  leaving~ : Map[String, ShowObject] = Map([]),
 ) -> ShowState raise @failure.Failure {
+  let index = route[position]
   let transition = if animated {
     read_slide_transition(self.slides[index].tree)
   } else {
@@ -116,8 +144,12 @@ fn Session::show_scene(
     _ => None
   }
   let advance = read_slide_advance(self.slides[index].tree)
+  let animations = self.read_animations(self.slides[index])
   let show : ShowState = {
     index,
+    route,
+    position,
+    custom,
     from: if effect is Some(_) {
       from
     } else {
@@ -133,7 +165,8 @@ fn Session::show_scene(
       { ..advance, after: None, }
     },
     settled: effect.map(v => v.duration.to_double()).unwrap_or(0),
-    animations: read_animations(self.slides[index]),
+    animations,
+    flights: self.flight_offsets(self.slides[index], animations),
     starts: [],
     finished: 0,
     step: 0,

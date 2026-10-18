@@ -8,6 +8,7 @@ pub(all) enum SlideEdit {
   Transition(SlideTransition?)
   Advance(SlideAdvance)
   Animations(Array[SlideAnimation])
+  CustomShows(Array[CustomShow])
   Background(BackgroundFill?)
   BackgroundImage(Bytes, String)
   BackgroundImageFormat(String, Array[Double], Double)
@@ -236,6 +237,7 @@ pub fn Session::edit_slides(
     Transition(value) => return self.set_transition(index, value)
     Advance(value) => return self.set_advance(index, value)
     Animations(value) => return self.set_animations(index, value)
+    CustomShows(value) => return self.set_custom_shows(value)
     AddComment(_, _, _, _, _) | UpdateComment(_, _) | RemoveComment(_) =>
       return self.edit_comments(index, change)
     AddSection(_)

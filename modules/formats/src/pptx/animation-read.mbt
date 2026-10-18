@@ -6,6 +6,7 @@ pub(all) struct SlideAnimation {
   delay : Int
   duration : Int
   repeat : Int
+  params : Array[Double]
 } derive(Eq, ToJson)
 
 ///|
@@ -65,7 +66,10 @@ fn validate_animations(
     @failure.reject("limit-exceeded", "Slide animations exceed 128")
   }
   for item in items {
-    guard ["appear", "disappear", "fadeIn", "fadeOut"].contains(item.kind) &&
+    guard [
+        "appear", "disappear", "fadeIn", "fadeOut", "scale", "rotate", "move", "flyIn",
+        "flyOut",
+      ].contains(item.kind) &&
       ["click", "with", "after"].contains(item.trigger) &&
       item.delay >= 0 &&
       item.delay <= 60000 &&
@@ -77,6 +81,22 @@ fn validate_animations(
         item.duration >= 100 && item.duration <= 60000
       }) else {
       @failure.reject("invalid-operation", "Unknown object animation")
+    }
+    guard item.params.all(value => {
+        !value.is_nan() && !value.is_inf() && value == value.round()
+      }) &&
+      (match item.kind {
+        "scale" =>
+          item.params.length() == 2 && item.params.all(v => v >= 1 && v <= 1000)
+        "rotate" => item.params.length() == 1 && item.params[0].abs() <= 3600
+        "move" =>
+          item.params.length() == 2 && item.params.all(v => v.abs() <= 14400)
+        "flyIn" | "flyOut" =>
+          item.params.length() == 1 &&
+          [1.0, 2, 3, 4, 6, 8, 9, 12].contains(item.params[0])
+        _ => item.params.is_empty()
+      }) else {
+      @failure.reject("invalid-operation", "Invalid animation parameters")
     }
     guard slide.objects.iter().find_first(object => object.id == item.object)
       is Some(object) &&
@@ -103,20 +123,31 @@ fn validate_animations(
     }
     let start = base + item.delay
     let finish = start + item.duration * item.repeat
-    let previous = intervals.get(item.object).unwrap_or([])
-    guard !previous.any(pair => start < pair.1 && finish > pair.0) else {
-      @failure.reject(
-        "protected-content", "Concurrent animations on one object require additional composition support",
-      )
+    let channels = if ["flyIn", "flyOut"].contains(item.kind) {
+      ["move", "visibility"]
+    } else if ["scale", "rotate", "move"].contains(item.kind) {
+      [item.kind]
+    } else {
+      ["visibility"]
     }
-    previous.push((start, finish))
-    intervals[item.object] = previous
+    for property in channels {
+      let channel = item.object + ":" + property
+      let previous = intervals.get(channel).unwrap_or([])
+      guard !previous.any(pair => start < pair.1 && finish > pair.0) else {
+        @failure.reject(
+          "protected-content", "Concurrent animations of one property require additional composition support",
+        )
+      }
+      previous.push((start, finish))
+      intervals[channel] = previous
+    }
     end = end.max(finish)
   }
 }
 
 ///|
-fn read_animations(
+fn Session::read_animations(
+  self : Session,
   slide : Slide,
 ) -> Array[SlideAnimation] raise @failure.Failure {
   let tree = slide.tree
@@ -189,7 +220,7 @@ fn read_animations(
       let children = animation_child(tree, second, "childTnLst")
       let mut span = 0
       for effect_index, node in tree.children.get(children.id).unwrap_or([]) {
-        let item = read_animation_effect(tree, node)
+        let item = read_animation_effect(tree, node, self.width, self.height)
         let expected = if effect_index > 0 {
           "with"
         } else if group_index > 0 {

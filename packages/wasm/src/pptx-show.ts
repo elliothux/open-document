@@ -9,6 +9,7 @@ export type PptxShowAction =
   | "first"
   | "last"
   | "goto"
+  | "gotoPosition"
   | "pause"
   | "tick"
   | "click"
@@ -22,6 +23,9 @@ export interface PptxShowState {
   slide: string | null;
   index: number;
   count: number;
+  order: string[];
+  position: number;
+  custom: string | null;
   text: string;
   nextSlide: string | null;
   notes: { text: string; reason: string };
@@ -39,6 +43,7 @@ export type PptxShowCommand =
       action: PptxShowAction;
       time: number;
       slide: string;
+      custom?: string;
     }
   | {
       operation: "layoutShowPptx";
@@ -70,6 +75,7 @@ export function checkPptxShow(command: PptxShowCommand): void {
       "first",
       "last",
       "goto",
+      "gotoPosition",
       "pause",
       "tick",
       "click",
@@ -77,8 +83,19 @@ export function checkPptxShow(command: PptxShowCommand): void {
     ].includes(command.action) ||
       typeof command.slide !== "string" ||
       command.slide.length > 1024 ||
-      (!["start", "goto"].includes(command.action) && command.slide !== "") ||
-      (command.action === "goto" && command.slide === ""))
+      (!["start", "goto", "gotoPosition"].includes(command.action) &&
+        command.slide !== "") ||
+      (["goto", "gotoPosition"].includes(command.action) &&
+        command.slide === "") ||
+      (command.action === "gotoPosition" &&
+        (!integer(Number(command.slide), 0, 255) ||
+          String(Number(command.slide)) !== command.slide)) ||
+      (command.custom !== undefined &&
+        (command.action !== "start" ||
+          command.slide !== "" ||
+          typeof command.custom !== "string" ||
+          String(Number(command.custom)) !== command.custom ||
+          !integer(Number(command.custom), 0, 4294967295))))
   )
     throw new Error("Invalid slideshow action or target");
 }
@@ -93,6 +110,26 @@ export function pptxShowState(value: unknown): void {
     !integer(state.revision, 0, 0x7fffffff) ||
     !integer(state.count, 1, 256) ||
     !integer(state.index, -1, Number(state.count) - 1) ||
+    !Array.isArray(state.order) ||
+    state.order.length > 256 ||
+    !state.order.every(
+      (id: unknown) =>
+        typeof id === "string" &&
+        id.length > 0 &&
+        id.length <= 1024 &&
+        id.isWellFormed(),
+    ) ||
+    !integer(state.position, -1, state.order.length - 1) ||
+    (state.custom !== null &&
+      (typeof state.custom !== "string" ||
+        String(Number(state.custom)) !== state.custom ||
+        !integer(Number(state.custom), 0, 4294967295))) ||
+    (state.active
+      ? Number(state.position) < 0 ||
+        state.order[Number(state.position)] !== state.slide
+      : state.order.length !== 0 ||
+        state.position !== -1 ||
+        state.custom !== null) ||
     ![state.slide, state.nextSlide].every(
       (id) =>
         id === null ||

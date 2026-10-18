@@ -1,8 +1,15 @@
 ///|
-fn Session::show_neighbor(self : Session, index : Int, forward : Bool) -> Int? {
-  for step in 1..<=self.slides.length() {
-    let next = index + (if forward { step } else { -step })
-    if next >= 0 && next < self.slides.length() && !self.slides[next].hidden {
+fn Session::show_neighbor(
+  self : Session,
+  show : ShowState,
+  forward : Bool,
+  position~ : Int = show.position,
+) -> Int? {
+  for step in 1..<=show.route.length() {
+    let next = position + (if forward { step } else { -step })
+    if next >= 0 &&
+      next < show.route.length() &&
+      !self.slides[show.route[next]].hidden {
       return Some(next)
     }
   }
@@ -16,14 +23,16 @@ pub fn Session::control_show(
   action : String,
   slide : String,
   time : Double,
+  custom~ : String? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   show_time(time)
   guard [
       "start", "end", "next", "previous", "first", "last", "goto", "pause", "resume",
-      "tick", "click",
+      "tick", "click", "gotoPosition",
     ].contains(action) &&
-    (action == "start" || action == "goto" || slide.is_empty()) else {
+    (["start", "goto", "gotoPosition"].contains(action) || slide.is_empty()) &&
+    (custom is None || (action == "start" && slide.is_empty())) else {
     @failure.reject("invalid-operation", "Invalid slideshow action or target")
   }
   let old = self.showing.map(show => show.advance(time))
@@ -31,16 +40,27 @@ pub fn Session::control_show(
     None
   } else if action == "start" {
     self.check_idle()
-    let index = if slide.is_empty() {
-      self
-      .show_neighbor(-1, true)
+    let route = if custom is Some(id) {
+      let shows = self.read_custom_shows()
+      guard shows.iter().find_first(show => show.id == id) is Some(show) else {
+        @failure.reject("invalid-operation", "Custom show no longer exists")
+      }
+      show.slides.map(slide => self.index(slide))
+    } else {
+      Array::makei(self.slides.length(), i => i)
+    }
+    let position = if slide.is_empty() {
+      route
+      .search_by(index => !self.slides[index].hidden)
       .unwrap_or_else(() => {
-        @failure.reject("invalid-slide", "There are no visible slides")
+        @failure.reject(
+          "invalid-slide", "There are no visible slides in this show",
+        )
       })
     } else {
       self.index(slide)
     }
-    Some(self.show_scene(index, None, time, true))
+    Some(self.show_scene(route, position, custom, None, time, true))
   } else {
     guard old is Some(current) else {
       @failure.reject("show-required", "Start the slideshow first")
@@ -63,31 +83,51 @@ pub fn Session::control_show(
       Some(current)
     } else {
       let next = match action {
-        "next" | "click" => self.show_neighbor(current.index, true)
+        "next" | "click" => self.show_neighbor(current, true)
         "previous" =>
+          Some(self.show_neighbor(current, false).unwrap_or(current.position))
+        "first" =>
           Some(
-            self.show_neighbor(current.index, false).unwrap_or(current.index),
+            self
+            .show_neighbor(current, true, position=-1)
+            .unwrap_or(current.position),
           )
-        "first" => Some(self.show_neighbor(-1, true).unwrap_or(current.index))
         "last" =>
           Some(
             self
-            .show_neighbor(self.slides.length(), false)
-            .unwrap_or(current.index),
+            .show_neighbor(current, false, position=current.route.length())
+            .unwrap_or(current.position),
           )
-        "goto" => Some(self.index(slide))
+        "goto" => {
+          let index = self.index(slide)
+          Some(
+            current.route
+            .search_by(item => item == index)
+            .unwrap_or_else(() => {
+              @failure.reject(
+                "invalid-slide", "Slide is outside the current show",
+              )
+            }),
+          )
+        }
+        "gotoPosition" =>
+          Some(
+            number(slide, 0, (current.route.length() - 1).to_double()).to_int(),
+          )
         _ => abort("Validated slideshow action")
       }
-      next.map(index => {
-        if index == current.index {
+      next.map(position => {
+        if position == current.position {
           current
         } else {
           self.show_scene(
-            index,
+            current.route,
+            position,
+            current.custom,
             Some(current.index),
             time,
             action != "previous",
-            leaving=current.animation_opacity(),
+            leaving=current.animation_state(),
           )
         }
       })
@@ -118,6 +158,8 @@ pub fn Session::show_layout(
   let key = Json::array([
     Json(self.revision),
     Json(show.index),
+    Json(show.route),
+    Json(show.position),
     Json(show.from),
     Json(profile),
     Json(probe.font_info()),
@@ -131,7 +173,7 @@ pub fn Session::show_layout(
     for
       role, i in [
         Some(show.index),
-        self.show_neighbor(show.index, true),
+        self.show_neighbor(show, true).map(i => show.route[i]),
         show.from,
       ] {
       if i is Some(i) {
@@ -199,7 +241,8 @@ pub fn Session::show_layout(
   painted[0] = animated_region(
     painted[0],
     drawing.parts[0],
-    show.animation_opacity(),
+    show.animation_state(),
+    self.slides[show.index],
   )
   if show.from is Some(_) {
     let last = painted.length() - 1
@@ -207,10 +250,11 @@ pub fn Session::show_layout(
       painted[last],
       drawing.parts[last],
       show.leaving,
+      self.slides[show.from.unwrap()],
     )
   }
   let regions = [self.show_region(show, painted)]
-  if self.show_neighbor(show.index, true) is Some(_) {
+  if self.show_neighbor(show, true) is Some(_) {
     regions.push(drawing.regions[1])
   }
   guard self.sequence < 2147483647 else {
@@ -240,7 +284,12 @@ pub fn Session::show_image_keys(
   self.check()
   let keys : Array[String] = []
   if self.showing is Some(show) {
-    for i in [Some(show.index), self.show_neighbor(show.index, true), show.from] {
+    for
+      i in [
+        Some(show.index),
+        self.show_neighbor(show, true).map(i => show.route[i]),
+        show.from,
+      ] {
       if i is Some(i) {
         for key in self.slides[i].image_keys() {
           if !keys.contains(key) {

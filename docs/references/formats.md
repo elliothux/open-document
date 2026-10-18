@@ -1723,15 +1723,25 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 ### 放映与演讲者视图
 
-`PresentationEditor.slideshow.start("first" | "current", labels?)` 从头或当前页开始放映。默认页列表提供两个入口。`labels` 使用 `PresentationShowLabels`，从 `web/presentation-editor` 导出，默认 UI 随语言提供名称。`navigate(action, slide?)` 接受 `next/previous/first/last/goto/click/tick/pause/resume/end`，`end()` 退出。click 遵守单击换页设置，next 保持显式导航；tick 根据时间推进自动换页。`active` 包含开始中的状态，`state` 返回当前快照，未放映时为 undefined；`paused` 表示切换及自动换页计时暂停。Wasm/Web PPTX 模块导出 `PptxShowAction/PptxShowState/PptxShowLayout`。
+`PresentationEditor.slideshow.start("first" | "current" | { show: id }, labels?)` 从头、当前页或指定自定义放映开始。默认页列表提供普通放映与自定义放映入口。`labels` 使用 `PresentationShowLabels`，从 `web/presentation-editor` 导出，默认 UI 随语言提供名称。`navigate(action, slide?)` 接受 `next/previous/first/last/goto/gotoPosition/click/tick/pause/resume/end`，`end()` 退出。goto 使用页身份并定位当前序列的首次出现；gotoPosition 使用从 0 开始的条目序号字符串，可以区分重复页。click 遵守单击换页设置，next 保持显式导航；tick 根据时间推进自动换页。`active` 包含开始中的状态，`state` 返回当前快照，未放映时为 undefined；`paused` 表示切换及自动换页计时暂停。Wasm/Web PPTX 模块导出 `PptxQuery/PptxShowAction/PptxShowState/PptxShowLayout`。
 
-核心保留编辑页及文字/对象选择，以已提交 revision 管理独立播放位置。普通导航跳过隐藏页，当前页开始与显式 goto 可到达隐藏页。没有可见页时从头开始拒绝。切换尚未结束时，next 先完成当前切换；再次前进才换页或退出末页。后退直接显示目标页，其他目标改变后重置入场，首屏从黑底进入。`index` 是从 0 开始的源页序，`count` 包含隐藏页，`nextSlide` 是下一可见页或 null。候选须先完成或取消；放映期间核心拒绝文档、选择和历史修改。保存及静态输出读取已提交的编辑布局，不改变播放位置或源内容。
+核心保留编辑页及文字/对象选择，以已提交 revision 管理独立播放位置。普通及自定义导航均跳过隐藏页；当前页开始与显式跳页可到达隐藏页。自定义放映中的跳页限于该序列。没有可见页时开始拒绝。切换尚未结束时，next 先完成当前切换；再次前进才换页或退出末页。后退直接显示目标条目，条目改变后重置入场、动画与计时，包括连续重复同一页。首屏从黑底进入。`index/count` 表示源页序和源页总数，包含隐藏页；`order` 为播放条目的页身份数组，`position` 为当前条目序号，`custom` 为自定义放映 ID 或 null。条目与计数保留隐藏页，默认导航跳过它们。`nextSlide` 是序列中的下一可见页或 null。结束状态的 order 为空、position 为 −1、custom 为 null。候选须先完成或取消；放映期间核心拒绝文档、选择和历史修改。保存及静态输出读取已提交的编辑布局，不改变播放位置或源内容。
 
-低层 controlShowPptx 携带 revision、action、slide 和必需的 time；layoutShowPptx 携带 revision/profile/time，返回一至两个 R0 页面及 animating。time 为 0–1000000000 的有限单调毫秒，倒退请求拒绝且保留状态。核心扣除暂停间隔后计算进度，不调用宿主时钟。Web 每帧先用 tick 更新播放位置，再准备相邻资源和布局；animating 在切换或等待自动换页时为 true。每次最多处理一项帧工作，忙时只保留最新时间。核心复用未变页面图元，每帧只重组位置及透明度；结束放映清除播放缓存。imageKeysShowPptx 返回当前、切换前及下一页资源；资源池同时保留编辑页，继续受 256 个键和 16 MiB 解码上限约束。
+低层 controlShowPptx 携带 revision、action、slide 和必需的 time；start 可额外提供 custom ID，此时 slide 为空。layoutShowPptx 携带 revision/profile/time，返回一至两个 R0 页面及 animating。time 为 0–1000000000 的有限单调毫秒，倒退请求拒绝且保留状态。核心扣除暂停间隔后计算进度，不调用宿主时钟。Web 每帧先用 tick 更新播放位置，再准备相邻资源和布局；animating 在切换或等待自动换页时为 true。每次最多处理一项帧工作，忙时只保留最新时间。核心缓存包含播放序列与条目位置，重复页也会更新下一页预览；每帧只重组位置及透明度。结束放映清除播放缓存。imageKeysShowPptx 返回当前、切换前及下一页资源；资源池同时保留编辑页，继续受 256 个键和 16 MiB 解码上限约束。
 
-模态视图位于所属编辑器内，容器全屏兼容 Shadow DOM。支持方向键、PageUp/PageDown、Home/End、页面点击、显式跳页和 Escape。演讲者开关显示下一页与普通备注；演讲已用时间继续累计，pause/resume 冻结/继续切换及自动换页计时。退出恢复原生焦点和选择；文件替换、宿主 setPaused(true) 和释放结束放映，清理画布、帧请求、监听器和计时器。其余对象动画、媒体、对象链接点击、自定义放映、临时画笔及独立窗口仍待实现，源元数据保留。
+模态视图位于所属编辑器内，容器全屏兼容 Shadow DOM。支持方向键、PageUp/PageDown、Home/End、页面点击、显式条目跳转和 Escape。演讲者开关显示下一页与普通备注；演讲已用时间继续累计，pause/resume 冻结/继续切换及自动换页计时。退出恢复原生焦点和选择；文件替换、宿主 setPaused(true) 和释放结束放映，清理画布、帧请求、监听器和计时器。媒体、对象链接点击、临时画笔及独立窗口仍待实现，源元数据保留。
 
 页序规则参考 [ONLYOFFICE 可见页导航](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L4641-L4742)和[显式跳页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L4978-L5003)。实现归 [`slideshow.mbt`](../../modules/formats/src/pptx/slideshow.mbt)、[`show-state.mbt`](../../modules/formats/src/pptx/show-state.mbt)及 [`presentation-show.ts`](../../packages/web/src/presentation-show.ts)。
+
+### 自定义放映
+
+`PresentationEditor.editSlides({ action: "customShows", value })` 替换整份文稿的自定义放映列表，类型可用 `PptxQuery["customShows"]["items"]`。每项为 `{ id, name, slides }`；新建时 id 为空，由核心分配 uint32 的十进制字符串，现有项保留 ID。name 为 1–255 个有效 XML 文本单元，名称忽略大小写后唯一。slides 使用稳定页身份，可重复并保留顺序。每份文稿最多 32 组，每组最多 256 个条目，合计最多 4096 个。空组可以保留，但不能开始；`query.customShows` 返回 items/reason。
+
+默认面板支持创建、命名、复制、删除、添加/移除条目、前后调整条目及显式开始。草稿经“保存自定义放映”提交，开始使用已提交的定义。修改受保护时仍可选择和播放已知定义。每次应用为一项精确历史；相同列表不新增历史。页移动和复制保持已有定义，复制页不会自动加入；删除页会移除其全部重复引用，允许组变为空。已有放映设置引用的组不能删除；存在未支持的自定义放映超链接动作时也保护删除，防止留下失效目标。重命名保持 ID 与引用。
+
+源写入标准 `p:custShowLst/p:custShow[@name,@id]/p:sldLst/p:sld[@r:id]`，复用 presentation 的 slide 关系。未修改的定义保留源片段，读写、历史和预算沿用既有事务。扩展定义、未知属性、注释、失效关系及重复身份保护修改和自定义开始，普通放映仍可运行。导入的默认放映选择保持源；本阶段通过显式入口选择自定义放映，动作链接与默认选择编辑继续实施。
+
+已核对 [ONLYOFFICE 的自定义放映模型与序列化](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Presentation/PresentationChildElements.cpp#L411-L531)，该快照的名称/身份和列表输出不完整；标准结构依据 [Open XML SDK 的 CustomShow、SlideList 与 SlideListEntry](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/generated/DocumentFormat.OpenXml/DocumentFormat.OpenXml.Generator/DocumentFormat.OpenXml.Generator.OpenXmlGenerator/schemas_openxmlformats_org_presentationml_2006_main.g.cs#L12165-L12319)。隐藏页规则参考 [LibreOffice 自定义放映](https://books.libreoffice.org/en/IG70/IG7009-SlideShowsPhotoAlbums.html)。实现归 [`custom-shows.mbt`](../../modules/formats/src/pptx/custom-shows.mbt)与 [`pptx-show.tsx`](../../packages/ui/src/pptx-show.tsx)。
 
 ### 页面切换
 
@@ -1747,21 +1757,31 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 ### 对象动画
 
-`PresentationEditor.editSlides({ action: "animations", value }, slide?)` 替换目标页的有序动画。value 是最多 128 项的 `PptxAnimation[]`，每项完整提供 `{ object, kind, trigger, delay, duration, repeat }`。类型从 Wasm/Web PPTX 模块导出。object 使用稳定对象 ID，目标限于本地顶层形状、文本框与图片。kind 接受 appear/disappear/fadeIn/fadeOut；trigger 接受 click/with/after。delay 为 0–60000 的整数毫秒。淡入淡出的 duration 为 100–60000 的整数毫秒，repeat 为 1–100 的整数；出现/消失固定为 duration=1、repeat=1。`query.animations` 返回 items/reason。
+`PresentationEditor.editSlides({ action: "animations", value }, slide?)` 替换目标页的有序动画。value 是最多 128 项的 `PptxAnimation[]`，每项完整提供 `{ object, kind, trigger, delay, duration, repeat, params }`。类型从 Wasm/Web PPTX 模块导出。object 使用稳定对象 ID，目标限于本地顶层形状、文本框与图片。kind 接受 appear/disappear/fadeIn/fadeOut/scale/rotate/move/flyIn/flyOut；trigger 接受 click/with/after。delay 为 0–60000 的整数毫秒。除出现/消失外，duration 为 100–60000 的整数毫秒，repeat 为 1–100 的整数；出现/消失固定为 duration=1、repeat=1。`query.animations` 返回 items/reason。
 
-默认面板提供目标、效果、触发、延迟、时长与重复，以及新增、修改、前后移动和移除。每次应用为一项精确历史，保留对象源、选择和其他部件；相同列表不新增历史，空列表清空已支持的动画。未知内容和无效参数保持源与历史。
+params 为数值数组。出现/消失和淡入淡出使用空数组；scale 使用 `[水平百分比, 垂直百分比]`，每轴为 1–1000 的整数；rotate 使用 `[旋转度数]`，为 −3600–3600 的整数；move 使用 `[水平距离, 垂直距离]`，单位为点，每轴为 −14400–14400 的整数。水平向右、垂直向下、顺时针旋转为正。缩放和旋转围绕源对象中心，直线路径在页面坐标中位移。三种变换分别保留各自终态，可以同时作用于同一对象；同一属性的重叠时间段仍受保护。
 
-click 开始一组；with 与当前组共享起点，各自保留延迟；after 等待当前组最长的效果（含延迟与重复）结束。首项为 with/after 时，从页面入场完成后自动开始。重复按周期重新执行，末次完成后保持终态。首项为进入效果时目标初始隐藏，首项为退出效果时初始可见。未结束的页面切换先消耗一次 next/click；之后可完成运行中的组，或触发下一点击组，全部完成后才换页。禁止单击换页仍允许触发动画。暂停冻结逻辑时间；手动完成组不会使后续组跳到过期时间。`PptxShowState.step/steps` 表示已调度和总效果数，结束时均为 0。
+flyIn/flyOut 使用 `[方向]`，表示飞入的起侧或飞出的终侧：1 上、2 右、3 右上、4 下、6 右下、8 左、9 左上、12 左下。核心按页面边界、源对象中心和几何外接矩形计算位置，保留源旋转与翻转。飞入从页外回到源位置；飞出从已有位移到页外，不变的轴保留已有位置。飞入开始时显示，飞出在每个周期最后一毫秒隐藏。飞行同时占用位移和可见性，与同一对象这两类属性的时间重叠受保护。
 
-源采用标准主序列、clickEffect/withEffect/afterEffect、stCondLst 和 repeatCount。出现/消失使用 style.visibility 的 set；淡入淡出使用 style.opacity 的线性 anim，按 ONLYOFFICE 的透明度解释读写。读取校验组间延迟、时间 ID、开始条件、目标、完整次数及属性范围，接受独立前缀和时间 ID。常见 animEffect/filter 形式尚未读取，不据此宣称完整淡入淡出兼容。
+默认面板提供目标、效果、触发、延迟、时长、重复及所选效果的缩放、角度、位移或飞行方向，以及新增、修改、前后移动和移除。每次应用为一项精确历史，保留对象源、选择和其他部件；相同列表不新增历史，空列表清空已支持的动画。未知内容和无效参数保持源与历史。
 
-核心缓存完整对象图元，每帧只按逻辑时间合成既有 R0 透明层；文字与形状重叠时整体应用一次透明度。可见性与透明度分别保留，已消失对象不会被后续退出透明度重新显示。页面切换保留离场时的显示状态；回退或跳转至其他页时从目标页初始状态开始。下一页预览保持静态源。自动换页等待所有动画及点击组完成，之后保留下一页自己的计时。保存、PDF 与图片输出使用完整静态源。
+click 开始一组；with 与当前组共享起点，各自保留延迟；after 等待当前组最长的效果（含延迟与重复）结束。首项为 with/after 时，从页面入场完成后自动开始。重复按周期重新执行，末次完成后保持终态。目标的首项可见性效果为进入时初始隐藏，为退出时初始可见；几何动画保留该可见性。未结束的页面切换先消耗一次 next/click；之后可完成运行中的组，或触发下一点击组，全部完成后才换页。禁止单击换页仍允许触发动画。暂停冻结逻辑时间；手动完成组不会使后续组跳到过期时间。`PptxShowState.step/steps` 表示已调度和总效果数，结束时均为 0。
 
-当前读取范围为无构建列表的单主序列。分组或段落子目标、同一对象的时间重叠、运动、曲线、交互触发、无限/分数重复及其他未知 timing 继续保护。查询给出原因，修改和开始播放时拒绝，保持源内容；不会把未知动画当作已播放。带 timing 引用的对象仍受原有删除/组合保护，可先移除其已支持的动画。页复制沿用现有目标 ID 重映射。
+源采用标准主序列、clickEffect/withEffect/afterEffect、stCondLst 和 repeatCount。出现/消失使用 style.visibility 的 set；淡入淡出使用 style.opacity 的线性 anim，按 ONLYOFFICE 的透明度解释读写。缩放使用 emph/6 与 animScale/by，旋转使用 emph/8 与 animRot/by；位移写为 path/0 的 animMotion，origin=layout，路径坐标按页面宽高归一化。读取接受上述几何参数及从 `M 0 0` 到单个 `L x y E` 的直线；同样接受直线预设 35/42/49/56/63/64。读取校验组间延迟、时间 ID、开始条件、目标、完整次数及属性范围，接受独立前缀和时间 ID。常见 animEffect/filter 形式尚未读取，不据此宣称完整淡入淡出兼容。
+
+飞入/飞出使用 entr/exit 的 presetID=2 和上述方向 subtype。两轴各有一个线性数值 anim，tavLst 的时间点为 0 与 100000，属性为 ppt_x/ppt_y。飞入采用 `#ppt_x/#ppt_y` 和 `0-#ppt_w/2`、`1+#ppt_w/2` 等源坐标公式；飞出采用相应不带 `#` 的已有属性公式。可见性 set 在入场 0 毫秒或出场 duration−1 毫秒触发。读取只接受这些固定公式和时点，拒绝任意表达式、额外轴、混合目标和扩展关键帧。
+
+核心缓存完整对象图元，每帧只按逻辑时间合成既有 R0 矩阵和透明层；文字与形状重叠时整体应用一次透明度。页面裁剪保持在变换外，源对象的旋转、翻转、文字和图片裁剪继续保留。可见性与透明度分别保留，已消失对象不会被几何动画或后续退出透明度重新显示。页面切换保留离场时的透明度和变换；回退或跳转至其他页时从目标页初始状态开始。下一页预览保持静态源。自动换页等待所有动画及点击组完成，之后保留下一页自己的计时。保存、PDF 与图片输出使用完整静态源。
+
+当前读取范围为无构建列表的单主序列。缩放/旋转/路径接受不带 attrNameLst 的上述 by 或路径形式，参数精度按上述整数单位限制。分组或段落子目标、同一属性的时间重叠、曲线、交互触发、无限/分数重复及其他未知 timing 继续保护。查询给出原因，修改和开始播放时拒绝，保持源内容；不会把未知动画当作已播放。带 timing 引用的对象仍受原有删除/组合保护，可先移除其已支持的动画。页复制沿用现有目标 ID 重映射。
 
 语义参考 [ONLYOFFICE 点击组](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L9112-L9167)、[可见性行为](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L9931-L9953)及[初始隐藏对象](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L12121-L12155)。未复制上游源码。实现归 [`animation-read.mbt`](../../modules/formats/src/pptx/animation-read.mbt)、[`animation-edit.mbt`](../../modules/formats/src/pptx/animation-edit.mbt)、[`show-animation.mbt`](../../modules/formats/src/pptx/show-animation.mbt)和 [`pptx-animations.tsx`](../../packages/ui/src/pptx-animations.tsx)。
 
 计时与透明度参考 [ONLYOFFICE 组间延迟](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L9086-L9110)、[属性合成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L12860-L12940)和[透明度绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L12950-L12970)。XML 定义参考 Microsoft 的[开始条件](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.presentation.condition)与[动画属性名](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.presentation.attributename)。实现归 [`animation-timing.mbt`](../../modules/formats/src/pptx/animation-timing.mbt)与 [`animation-xml.mbt`](../../modules/formats/src/pptx/animation-xml.mbt)。
+
+几何语义参考 ONLYOFFICE 的[相对路径](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L7735-L7791)、[旋转](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L8209-L8238)、[缩放](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L8380-L8417)和[中心变换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L13023-L13071)。实现归 [`animation-geometry.mbt`](../../modules/formats/src/pptx/animation-geometry.mbt)。
+
+飞行公式参考 ONLYOFFICE 的[源坐标](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L1486-L1509)、[关键帧求值](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L4530-L4628)及[进入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L14468-L14478)/[退出预设](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L14631-L14641)。实现归 [`animation-flight.mbt`](../../modules/formats/src/pptx/animation-flight.mbt)。
 
 ### 当前页 PNG 输出
 

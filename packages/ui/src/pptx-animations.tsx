@@ -34,13 +34,20 @@ export function PptxAnimations({
   const [delay, setDelay] = useState(0);
   const [duration, setDuration] = useState(1000);
   const [repeat, setRepeat] = useState(1);
+  const [params, setParams] = useState<number[]>([]);
   const [editing, setEditing] = useState<number>();
-  const fading = kind === "fadeIn" || kind === "fadeOut";
+  const timed = kind !== "appear" && kind !== "disappear";
+  const flight = kind === "flyIn" || kind === "flyOut";
   const names = {
     appear: t.animationAppear,
     disappear: t.animationDisappear,
     fadeIn: t.animationFadeIn,
     fadeOut: t.animationFadeOut,
+    scale: t.animationScale,
+    rotate: t.animationRotate,
+    move: t.animationMove,
+    flyIn: t.animationFlyIn,
+    flyOut: t.animationFlyOut,
   };
   const apply = (items: PptxAnimation[]) =>
     controller.run(() =>
@@ -74,6 +81,7 @@ export function PptxAnimations({
                 setDelay(item.delay);
                 setDuration(item.duration === 1 ? 1000 : item.duration);
                 setRepeat(item.repeat);
+                setParams(item.params);
               }}
             >
               {t.animationEdit}
@@ -109,8 +117,9 @@ export function PptxAnimations({
             kind,
             trigger,
             delay,
-            duration: fading ? duration : 1,
-            repeat: fading ? repeat : 1,
+            duration: timed ? duration : 1,
+            repeat: timed ? repeat : 1,
+            params,
           };
           apply(
             editing === undefined
@@ -146,17 +155,89 @@ export function PptxAnimations({
                 value === "appear" ||
                 value === "disappear" ||
                 value === "fadeIn" ||
-                value === "fadeOut"
-              )
+                value === "fadeOut" ||
+                value === "scale" ||
+                value === "rotate" ||
+                value === "move" ||
+                value === "flyIn" ||
+                value === "flyOut"
+              ) {
                 setKind(value);
+                setParams(
+                  value === "scale"
+                    ? [150, 150]
+                    : value === "rotate"
+                      ? [90]
+                      : value === "move"
+                        ? [100, 0]
+                        : value === "flyIn" || value === "flyOut"
+                          ? [8]
+                          : [],
+                );
+              }
             }}
           >
             <option value="appear">{t.animationAppear}</option>
             <option value="disappear">{t.animationDisappear}</option>
             <option value="fadeIn">{t.animationFadeIn}</option>
             <option value="fadeOut">{t.animationFadeOut}</option>
+            <option value="scale">{t.animationScale}</option>
+            <option value="rotate">{t.animationRotate}</option>
+            <option value="move">{t.animationMove}</option>
+            <option value="flyIn">{t.animationFlyIn}</option>
+            <option value="flyOut">{t.animationFlyOut}</option>
           </select>
         </label>
+        {flight ? (
+          <label>
+            {t.animationDirection}
+            <select
+              aria-label={t.animationDirection}
+              value={params[0]}
+              onChange={(event) =>
+                setParams([Number(event.currentTarget.value)])
+              }
+            >
+              <option value={8}>{t.flightLeft}</option>
+              <option value={2}>{t.flightRight}</option>
+              <option value={1}>{t.flightTop}</option>
+              <option value={4}>{t.flightBottom}</option>
+              <option value={9}>{t.flightTopLeft}</option>
+              <option value={3}>{t.flightTopRight}</option>
+              <option value={12}>{t.flightBottomLeft}</option>
+              <option value={6}>{t.flightBottomRight}</option>
+            </select>
+          </label>
+        ) : (
+          params.map((value, index) => (
+            <label key={index}>
+              {kind === "scale"
+                ? index === 0
+                  ? t.animationScaleX
+                  : t.animationScaleY
+                : kind === "rotate"
+                  ? t.animationAngle
+                  : index === 0
+                    ? t.animationMoveX
+                    : t.animationMoveY}
+              <input
+                type="number"
+                required
+                step={1}
+                min={kind === "scale" ? 1 : kind === "rotate" ? -3600 : -14400}
+                max={kind === "scale" ? 1000 : kind === "rotate" ? 3600 : 14400}
+                value={value}
+                onChange={(event) =>
+                  setParams(
+                    params.map((item, i) =>
+                      i === index ? event.currentTarget.valueAsNumber : item,
+                    ),
+                  )
+                }
+              />
+            </label>
+          ))
+        )}
         <label>
           {t.animationTrigger}
           <select
@@ -188,11 +269,11 @@ export function PptxAnimations({
           {t.animationDuration}
           <input
             type="number"
-            min={fading ? 100 : 1}
+            min={timed ? 100 : 1}
             max={60000}
             step={1}
-            value={fading ? duration : 1}
-            disabled={!fading}
+            value={timed ? duration : 1}
+            disabled={!timed}
             onChange={(event) => setDuration(event.currentTarget.valueAsNumber)}
           />
         </label>
@@ -203,8 +284,8 @@ export function PptxAnimations({
             min={1}
             max={100}
             step={1}
-            value={fading ? repeat : 1}
-            disabled={!fading}
+            value={timed ? repeat : 1}
+            disabled={!timed}
             onChange={(event) => setRepeat(event.currentTarget.valueAsNumber)}
           />
         </label>

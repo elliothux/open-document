@@ -1,6 +1,9 @@
 ///|
 fn Session::animation_query(self : Session, slide : Slide) -> Json {
-  { "items": read_animations(slide), "reason": self.slide_visibility_reason() } catch {
+  {
+    "items": self.read_animations(slide),
+    "reason": self.slide_visibility_reason(),
+  } catch {
     @failure.Failure(message~, ..) => { "items": [], "reason": message }
   }
 }
@@ -13,13 +16,13 @@ fn Session::set_animations(
 ) -> Json raise @failure.Failure {
   let original = self.slides[index]
   validate_animations(original, items)
-  let previous = read_animations(original)
+  let previous = self.read_animations(original)
   if previous == items {
     return self.query()
   }
   let tree = original.tree
   let root = tree.root("sld")
-  let markup = animation_markup(items, tree.part)
+  let markup = animation_markup(items, tree.part, self.width, self.height)
   let change : @xml.SourceChange = if tree.one(
       root.id,
       "timing",

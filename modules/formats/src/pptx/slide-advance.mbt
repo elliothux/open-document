@@ -90,8 +90,8 @@ fn Session::show_tick(
   current : ShowState,
 ) -> ShowState? raise @failure.Failure {
   let mut current = current
-  // Each deadline moves forward in source order, including zero-delay slides.
-  for _ in 0..<self.slides.length() {
+  // Each deadline moves forward in the active route, including repeated slides.
+  for _ in 0..<current.route.length() {
     guard !current.paused &&
       !current.animations_running() &&
       current.step == current.animations.length() &&
@@ -102,17 +102,17 @@ fn Session::show_tick(
     if current.elapsed < deadline {
       return Some(current)
     }
-    guard self.show_neighbor(current.index, true) is Some(next) else {
-      return None
-    }
+    guard self.show_neighbor(current, true) is Some(next) else { return None }
     let remaining = current.elapsed - deadline
     current = self
       .show_scene(
+        current.route,
         next,
+        current.custom,
         Some(current.index),
         current.time - remaining,
         true,
-        leaving=current.animation_opacity(),
+        leaving=current.animation_state(),
       )
       .advance(current.time)
   }

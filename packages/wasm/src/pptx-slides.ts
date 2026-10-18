@@ -103,6 +103,10 @@ export interface PptxTransition {
   direction: "left" | "right" | "up" | "down";
 }
 export interface PptxPlaybackState {
+  customShows: {
+    items: { id: string; name: string; slides: string[] }[];
+    reason: string;
+  };
   transition: {
     value: PptxTransition | null;
     advance: PptxAdvance;
@@ -112,11 +116,21 @@ export interface PptxPlaybackState {
 }
 export interface PptxAnimation {
   object: string;
-  kind: "appear" | "disappear" | "fadeIn" | "fadeOut";
+  kind:
+    | "appear"
+    | "disappear"
+    | "fadeIn"
+    | "fadeOut"
+    | "scale"
+    | "rotate"
+    | "move"
+    | "flyIn"
+    | "flyOut";
   trigger: "click" | "with" | "after";
   delay: number;
   duration: number;
   repeat: number;
+  params: number[];
 }
 function pptxAnimations(value: unknown): void {
   if (!Array.isArray(value) || value.length > 128)
@@ -128,9 +142,17 @@ function pptxAnimations(value: unknown): void {
       !animation.object ||
       animation.object.length > 1024 ||
       !animation.object.isWellFormed() ||
-      !["appear", "disappear", "fadeIn", "fadeOut"].includes(
-        String(animation.kind),
-      ) ||
+      ![
+        "appear",
+        "disappear",
+        "fadeIn",
+        "fadeOut",
+        "scale",
+        "rotate",
+        "move",
+        "flyIn",
+        "flyOut",
+      ].includes(String(animation.kind)) ||
       !["click", "with", "after"].includes(String(animation.trigger)) ||
       typeof animation.delay !== "number" ||
       !Number.isInteger(animation.delay) ||
@@ -145,7 +167,32 @@ function pptxAnimations(value: unknown): void {
       (["appear", "disappear"].includes(String(animation.kind))
         ? animation.duration !== 1 || animation.repeat !== 1
         : animation.duration < 100 || animation.duration > 60000) ||
-      Object.keys(animation).length !== 6 ||
+      !Array.isArray(animation.params) ||
+      animation.params.length > 2 ||
+      !animation.params.every(
+        (value: unknown) =>
+          typeof value === "number" &&
+          Number.isFinite(value) &&
+          Number.isInteger(value),
+      ) ||
+      (animation.kind === "scale"
+        ? animation.params.length !== 2 ||
+          !animation.params.every(
+            (value: number) => value >= 1 && value <= 1000,
+          )
+        : animation.kind === "rotate"
+          ? animation.params.length !== 1 ||
+            Math.abs(animation.params[0]) > 3600
+          : animation.kind === "flyIn" || animation.kind === "flyOut"
+            ? animation.params.length !== 1 ||
+              ![1, 2, 3, 4, 6, 8, 9, 12].includes(animation.params[0])
+            : animation.kind === "move"
+              ? animation.params.length !== 2 ||
+                !animation.params.every(
+                  (value: number) => Math.abs(value) <= 14400,
+                )
+              : animation.params.length !== 0) ||
+      Object.keys(animation).length !== 7 ||
       Object.keys(animation).some(
         (key) =>
           ![
@@ -155,11 +202,61 @@ function pptxAnimations(value: unknown): void {
             "delay",
             "duration",
             "repeat",
+            "params",
           ].includes(key),
       )
     )
       throw new Error("Invalid object animation");
   }
+}
+
+function pptxCustomShows(value: unknown, creating: boolean): void {
+  if (!Array.isArray(value) || value.length > 32)
+    throw new Error("Invalid custom show list");
+  const ids = new Set<string>(),
+    names = new Set<string>();
+  let count = 0;
+  for (const entry of value) {
+    const item = record(entry);
+    if (
+      typeof item.id !== "string" ||
+      (!(creating && item.id === "") &&
+        (String(Number(item.id)) !== item.id ||
+          !Number.isInteger(Number(item.id)) ||
+          Number(item.id) < 0 ||
+          Number(item.id) > 4294967295 ||
+          ids.has(item.id))) ||
+      typeof item.name !== "string" ||
+      !item.name.trim() ||
+      item.name.length > 255 ||
+      !item.name.isWellFormed() ||
+      item.name.split("").some((char) => {
+        const code = char.charCodeAt(0);
+        return (
+          (code < 32 && ![9, 10, 13].includes(code)) ||
+          code === 65534 ||
+          code === 65535
+        );
+      }) ||
+      names.has(item.name.toLowerCase()) ||
+      !Array.isArray(item.slides) ||
+      item.slides.length > 256 ||
+      !item.slides.every(
+        (slide: unknown) =>
+          typeof slide === "string" &&
+          !!slide &&
+          slide.length <= 1024 &&
+          slide.isWellFormed(),
+      ) ||
+      Object.keys(item).length !== 3 ||
+      Object.keys(item).some((key) => !["id", "name", "slides"].includes(key))
+    )
+      throw new Error("Invalid custom show");
+    ids.add(item.id);
+    names.add(item.name.toLowerCase());
+    count += item.slides.length;
+  }
+  if (count > 4096) throw new Error("Custom show entries exceed budget");
 }
 export interface PptxAdvance {
   click: boolean;
@@ -207,9 +304,29 @@ export function pptxPlaybackState(value: unknown): void {
   if (typeof animations.reason !== "string" || animations.reason.length > 8192)
     throw new Error("Invalid animation state");
   pptxAnimations(animations.items);
+  const shows = record(record(value).customShows);
+  if (typeof shows.reason !== "string" || shows.reason.length > 8192)
+    throw new Error("Invalid custom show state");
+  pptxCustomShows(shows.items, false);
+  const slides = record(value).slides;
+  if (!Array.isArray(slides))
+    throw new Error("Missing custom show slide identities");
+  const identities = new Set(slides.map((slide: unknown) => record(slide).id));
+  if (
+    Array.isArray(shows.items) &&
+    shows.items.some((entry: unknown) => {
+      const members = record(entry).slides;
+      return (
+        !Array.isArray(members) ||
+        members.some((slide: unknown) => !identities.has(slide))
+      );
+    })
+  )
+    throw new Error("Unknown custom show slide");
 }
 
 export type PptxSlideEdit =
+  | { action: "customShows"; value: PptxPlaybackState["customShows"]["items"] }
   | { action: "animations"; value: PptxAnimation[] }
   | { action: "advance"; value: PptxAdvance }
   | { action: "transition"; value: PptxTransition | null }
@@ -261,6 +378,12 @@ export type PptxSlideEdit =
 
 export function checkPptxSlideEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "customShows") {
+    if (Object.keys(change).some((key) => !["action", "value"].includes(key)))
+      throw new Error("Invalid custom show edit");
+    pptxCustomShows(change.value, true);
+    return;
+  }
   if (change.action === "animations") {
     if (Object.keys(change).some((key) => !["action", "value"].includes(key)))
       throw new Error("Invalid object animation edit");

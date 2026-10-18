@@ -443,6 +443,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
     "notes": self.notes_query(current.tree.part),
     "transition": self.transition_query(current),
     "animations": self.animation_query(current),
+    "customShows": self.custom_show_query(),
     "footer": self.footer_query(current),
     "firstSlideNumber": presentation_first_number(self.main),
     "comments": self.comments_query(current.tree.part, links),

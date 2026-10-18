@@ -28,7 +28,7 @@ fn animation_container(
     "childTnLst",
     [],
     if effect {
-      ["set", "anim"]
+      ["set", "anim", "animScale", "animRot", "animMotion"]
     } else {
       ["par"]
     },
@@ -85,7 +85,8 @@ fn animation_automatic(
 fn animation_behavior(
   tree : Tree,
   behavior : @xml.Node,
-  property : String,
+  property : String?,
+  delay~ : Int = 0,
 ) -> (String, Int) raise @failure.Failure {
   animation_check(tree, behavior, "cBhvr", ["override"], [
     "cTn", "tgtEl", "attrNameLst",
@@ -99,21 +100,31 @@ fn animation_behavior(
     @failure.reject("protected-content", "Unsupported animation fill")
   }
   if tree.one(clock.id, "stCondLst", uri=presentation_uri) is Some(_) {
-    guard animation_delay(tree, clock) == "0" else {
+    guard animation_delay(tree, clock) == delay.to_string() else {
       @failure.reject("protected-content", "Delayed animation behavior")
     }
+  } else if delay != 0 {
+    @failure.reject("protected-content", "Missing animation behavior delay")
   }
   let target = animation_child(tree, behavior, "tgtEl")
   animation_check(tree, target, "tgtEl", [], ["spTgt"])
   let object = animation_child(tree, target, "spTgt")
   animation_check(tree, object, "spTgt", ["spid"], [])
-  let attributes = animation_child(tree, behavior, "attrNameLst")
-  animation_check(tree, attributes, "attrNameLst", [], ["attrName"])
-  let attribute = animation_child(tree, attributes, "attrName")
-  guard attribute.text.trim() == property &&
-    attribute.attributes.is_empty() &&
-    tree.children.get(attribute.id).unwrap_or([]).is_empty() else {
-    @failure.reject("protected-content", "Unsupported animated property")
+  if property is Some(property) {
+    let attributes = animation_child(tree, behavior, "attrNameLst")
+    animation_check(tree, attributes, "attrNameLst", [], ["attrName"])
+    let attribute = animation_child(tree, attributes, "attrName")
+    guard attribute.text.trim() == property &&
+      attribute.attributes.is_empty() &&
+      tree.children.get(attribute.id).unwrap_or([]).is_empty() else {
+      @failure.reject("protected-content", "Unsupported animated property")
+    }
+  } else {
+    guard tree.one(behavior.id, "attrNameLst", uri=presentation_uri) is None else {
+      @failure.reject(
+        "protected-content", "Extended geometric animation property",
+      )
+    }
   }
   (
     tree.part + "#" + source_identity(object.attribute("spid").unwrap_or("")),
@@ -126,12 +137,14 @@ fn animation_visibility(
   tree : Tree,
   set : @xml.Node,
   visible : Bool,
+  delay~ : Int = 0,
 ) -> String raise @failure.Failure {
   animation_check(tree, set, "set", [], ["cBhvr", "to"])
   let (target, duration) = animation_behavior(
     tree,
     animation_child(tree, set, "cBhvr"),
-    "style.visibility",
+    Some("style.visibility"),
+    delay~,
   )
   guard duration == 1 else {
     @failure.reject("protected-content", "Extended visibility duration")
@@ -148,6 +161,8 @@ fn animation_visibility(
 fn read_animation_effect(
   tree : Tree,
   par : @xml.Node,
+  width : Double,
+  height : Double,
 ) -> SlideAnimation raise @failure.Failure {
   let effect = animation_container(tree, par, effect=true)
   let trigger = match effect.attribute("nodeType") {
@@ -156,10 +171,17 @@ fn read_animation_effect(
     Some("afterEffect") => "after"
     _ => @failure.reject("protected-content", "Unsupported animation trigger")
   }
+  if effect.attribute("presetID") == Some("2") &&
+    [Some("entr"), Some("exit")].contains(effect.attribute("presetClass")) {
+    return read_flight_animation(tree, effect, trigger)
+  }
   for (key, expected) in [("presetSubtype", "0"), ("grpId", "0")] {
     if effect.attribute(key) is Some(value) && value != expected {
       @failure.reject("protected-content", "Extended animation preset")
     }
+  }
+  if [Some("emph"), Some("path")].contains(effect.attribute("presetClass")) {
+    return read_geometric_animation(tree, effect, trigger, width, height)
   }
   let entrance = match effect.attribute("presetClass") {
     Some("entr") => true
@@ -184,7 +206,7 @@ fn read_animation_effect(
     let (target, duration) = animation_behavior(
       tree,
       animation_child(tree, anim, "cBhvr"),
-      "style.opacity",
+      Some("style.opacity"),
     )
     if entrance {
       guard animation_visibility(
@@ -215,6 +237,12 @@ fn read_animation_effect(
       1,
     )
   }
+  guard tree.children
+    .get(children.id)
+    .unwrap_or([])
+    .all(node => ["set", "anim"].contains(node.name)) else {
+    @failure.reject("protected-content", "Extended visibility behavior")
+  }
   if effect.attribute("dur") is Some(value) &&
     number(value, 1, 60000).to_int() != duration {
     @failure.reject("protected-content", "Conflicting animation duration")
@@ -244,5 +272,6 @@ fn read_animation_effect(
     delay: number(animation_delay(tree, effect), 0, 60000).to_int(),
     duration,
     repeat: repeat / 1000,
+    params: [],
   }
 }
