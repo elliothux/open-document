@@ -142,7 +142,7 @@ fn table_remove(tree : WordTree, id : Int) -> @xml.SourceChange {
 }
 
 ///|
-/// Edits one row or column at a supported cell range in a single source history.
+/// Edits supported selected cells, rows or columns in a single source history.
 pub fn Session::edit_table(
   self : Session,
   revision : Int,

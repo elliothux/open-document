@@ -1,7 +1,7 @@
 export const reviewEn = {
   selectedCells: "Selected table cells",
   cellSelectionText:
-    "Typing replaces the first selected cell. Delete clears every selected cell. Select one cell to change table structure.",
+    "Typing replaces the first selected cell. Delete clears every selected cell. Row and column commands use the selected cells. Select one cell to split it or the table.",
   pageBorders: "Page borders",
   pageBorderOffset: "Border offset from",
   pageBorderPage: "Page edge",
@@ -164,7 +164,7 @@ export const reviewEn = {
 export const reviewZh: Record<keyof typeof reviewEn, string> = {
   selectedCells: "所选表格单元格",
   cellSelectionText:
-    "输入会替换首个所选格的内容。删除键会清空全部所选格。请选择单格修改表格结构。",
+    "输入会替换首个所选格的内容。删除键会清空全部所选格。行列命令使用所选格。请选择单格拆格或拆表。",
   pageBorders: "页面边框",
   pageBorderOffset: "边框距离基准",
   pageBorderPage: "纸张边缘",

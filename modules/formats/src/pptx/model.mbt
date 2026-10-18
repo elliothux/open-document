@@ -96,6 +96,7 @@ priv struct Object {
   insets : Array[Double]
   opacity : Double
   paragraphs : Array[TextParagraph]
+  table : DrawingTable?
   body : Body
   read_only : String
   text_reason : String

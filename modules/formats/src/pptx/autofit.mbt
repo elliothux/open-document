@@ -37,6 +37,10 @@ fn Session::prepare_fitted(
   let prepared = self.prepare(original, changes)
   for id in ids {
     let target = prepared.0.object(id)
+    if target.table is Some(_) {
+      changes.append(target.table_fit_changes(probe, profile))
+      continue
+    }
     if target.body.fit == "none" || target.paragraphs.is_empty() {
       continue
     }

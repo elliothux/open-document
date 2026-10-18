@@ -40,7 +40,7 @@
 | [`bridge/xlsx.mbt`](../modules/bridge/src/xlsx.mbt)、[`wasm/xlsx.ts`](../packages/wasm/src/xlsx.ts)、[`web/xlsx.ts`](../packages/web/src/xlsx.ts) | 扩展现有类型化命令与查询；不增加第二套计算服务 |
 | [`spreadsheet-editor.ts`](../packages/web/src/spreadsheet-editor.ts)、[`spreadsheet-input.ts`](../packages/web/src/spreadsheet-input.ts)、[`spreadsheet-formula.ts`](../packages/web/src/spreadsheet-formula.ts)、[`ui/xlsx-formula.tsx`](../packages/ui/src/xlsx-formula.tsx) | 已接通共享原生输入的公式栏和范围定位，复用队列、Canvas 与 P9 状态；继续扩展数据面板 |
 
-已核实参数依赖的未支持函数可保留源码和缓存，并开放无关编辑；当前是 DEVSQ。SUMSQ、VAR/VAR.S/VARP/VAR.P 及 STDEV/STDEV.S/STDEVP/STDEV.P 已接通实际求值，与 SQRT/POWER/PRODUCT/MEDIAN/EXACT/REPT 共用普通重算事务。动态或无法解析的依赖仍使整本只读，范围见第 4.2 节。当前打印可按工作簿顺序合并可见表，各表保留矩形区域、页面设置、重复标题、纯文字页眉页脚和缩放。P11 必须继续修改这些能力所在层，不能只放开按钮或在 JS 中补算结果。
+已核实参数依赖的未支持函数可保留源码和缓存，并开放无关编辑；当前是 DEVSQ。MODE/MODE.SNGL、LARGE/SMALL、SUMSQ、VAR/VAR.S/VARP/VAR.P 及 STDEV/STDEV.S/STDEVP/STDEV.P 已接通实际求值，与 SQRT/POWER/PRODUCT/MEDIAN/EXACT/REPT 共用普通重算事务。动态或无法解析的依赖仍使整本只读，范围见第 4.2 节。当前打印可按工作簿顺序合并可见表，各表保留矩形区域、页面设置、重复标题、纯文字页眉页脚和缩放。P11 必须继续修改这些能力所在层，不能只放开按钮或在 JS 中补算结果。
 
 ## 3. 创建、结构与格式
 
@@ -101,7 +101,7 @@
 | 逻辑与错误 | AND、OR、NOT、IFERROR、IFNA、ISBLANK、ISNUMBER、ISTEXT |
 | 聚合与条件 | COUNTA、COUNTBLANK、SUMIF/SUMIFS、COUNTIF/COUNTIFS、AVERAGEIF/AVERAGEIFS、SUBTOTAL |
 | 数值 | ABS、ROUND、ROUNDUP、ROUNDDOWN、INT、MOD、SQRT、POWER、PRODUCT、MEDIAN |
-| 统计 | VAR、VAR.S、VARP、VAR.P、STDEV、STDEV.S、STDEVP、STDEV.P；与 SUBTOTAL 共用稳定方差累计 |
+| 统计 | VAR、VAR.S、VARP、VAR.P、STDEV、STDEV.S、STDEVP、STDEV.P 与 SUBTOTAL 共用稳定方差累计；MODE/MODE.SNGL、LARGE/SMALL 提供众数及次序统计 |
 | 文本 | LEN、LEFT、RIGHT、MID、TRIM、UPPER、LOWER、CONCAT/CONCATENATE、TEXTJOIN、FIND、SEARCH、SUBSTITUTE、EXACT、REPT |
 | 日期 | DATE、YEAR、MONTH、DAY、TIME、HOUR、MINUTE、SECOND、DAYS |
 | 查找引用 | INDEX、MATCH、VLOOKUP、HLOOKUP、XLOOKUP、ROW、COLUMN、ROWS、COLUMNS |
@@ -112,7 +112,7 @@
 
 ### 4.2 未知公式的安全编辑范围
 
-STDEV/STDEV.S/STDEVP/STDEV.P、VAR/VAR.S/VARP/VAR.P、SUMSQ、SQRT、POWER、PRODUCT、MEDIAN 及 EXACT/REPT 已真实求值，进入普通依赖重算和缓存事务。导入的 DEVSQ 已核实只读取显式参数，当前保留公式及其下游链的缓存，开放能证明参数不变的编辑。提交前复核源码、展开后的名称、稳定表身份、依赖范围、参数值及嵌套 SUBTOTAL 的隐藏/筛选语义。查询新增 `calculationReason`，默认公式栏显示原因；汇总和完整打印不冒用缓存。动态引用、自定义函数及其他未核实函数继续保护。当前合同归[显示与计算](references/formats.md#显示与计算)。
+MODE/MODE.SNGL、LARGE/SMALL、STDEV/STDEV.S/STDEVP/STDEV.P、VAR/VAR.S/VARP/VAR.P、SUMSQ、SQRT、POWER、PRODUCT、MEDIAN 及 EXACT/REPT 已真实求值，进入普通依赖重算和缓存事务。导入的 DEVSQ 已核实只读取显式参数，当前保留公式及其下游链的缓存，开放能证明参数不变的编辑。提交前复核源码、展开后的名称、稳定表身份、依赖范围、参数值及嵌套 SUBTOTAL 的隐藏/筛选语义。查询新增 `calculationReason`，默认公式栏显示原因；汇总和完整打印不冒用缓存。动态引用、自定义函数及其他未核实函数继续保护。当前合同归[显示与计算](references/formats.md#显示与计算)。
 
 把“无法计算”和“无法确定引用影响”分开：
 

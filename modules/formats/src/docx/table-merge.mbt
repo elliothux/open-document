@@ -227,9 +227,27 @@ fn Session::merge_table_cells(
   }
   let document = self.document()
   let tree = WordTree::new(document)
-  let grid = self.table_grid(tree, selection)
-  let first = grid.row
-  let left = grid.starts[first][grid.column]
+  let selected = self.table_cell_range(tree, selection)
+  let original = selected
+    .map(range => range.grid)
+    .unwrap_or_else(() => self.table_grid(tree, selection))
+  let first = selected.map(range => range.top).unwrap_or(original.row)
+  let left = selected
+    .map(range => range.left)
+    .unwrap_or_else(() => original.starts[first][original.column])
+  if selected is Some(range) {
+    guard rows == range.bottom - first && columns == range.right - left else {
+      @failure.reject(
+        "invalid-operation", "Merge dimensions must match selected cells",
+      )
+    }
+  }
+  guard original.starts[first].search(left) is Some(column) else {
+    @failure.reject(
+      "invalid-operation", "Merge rectangle cuts an existing merged cell",
+    )
+  }
+  let grid = { ..original, row: first, column, }
   let bottom = first + rows
   let right = left + columns
   guard bottom <= grid.rows.length() && right <= grid.model.widths.length() else {

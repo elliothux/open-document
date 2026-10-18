@@ -46,6 +46,12 @@ export function DocxTables({
     !snapshot.data.formatting?.cellSelection.value;
   const size = snapshot.data.formatting?.table;
   const selected = snapshot.data.formatting?.cellSelection.value;
+  const mergeRowCount = selected
+      ? selected.bottom - selected.top
+      : Number(mergeRows),
+    mergeColumnCount = selected
+      ? selected.right - selected.left
+      : Number(mergeColumns);
   return (
     <section aria-label={t.insertTable}>
       <h3>{t.insertTable}</h3>
@@ -162,7 +168,7 @@ export function DocxTables({
           </button>
         </fieldset>
       </form>
-      <fieldset disabled={disabled || !cell}>
+      <fieldset disabled={disabled || (!cell && !selected)}>
         <legend>
           {t.tableRows} / {t.tableColumns}
         </legend>
@@ -181,6 +187,9 @@ export function DocxTables({
           <button
             key={change}
             type="button"
+            disabled={
+              !!selected && (change === "unmerge" || change === "splitTable")
+            }
             onMouseDown={(event) => event.preventDefault()}
             onClick={() =>
               controller.run(() => editor.editTable({ action: change }))
@@ -196,13 +205,13 @@ export function DocxTables({
           controller.run(() =>
             editor.editTable({
               action: "merge",
-              rows: Number(mergeRows),
-              columns: Number(mergeColumns),
+              rows: mergeRowCount,
+              columns: mergeColumnCount,
             }),
           );
         }}
       >
-        <fieldset disabled={disabled || !cell}>
+        <fieldset disabled={disabled || (!cell && !selected)}>
           <legend>{t.mergeCells}</legend>
           <label>
             {t.mergeRows}
@@ -211,7 +220,8 @@ export function DocxTables({
               min={1}
               max={1000}
               required
-              value={mergeRows}
+              value={selected ? mergeRowCount : mergeRows}
+              readOnly={!!selected}
               onChange={(event) => setMergeRows(event.currentTarget.value)}
             />
           </label>
@@ -222,15 +232,16 @@ export function DocxTables({
               min={1}
               max={63}
               required
-              value={mergeColumns}
+              value={selected ? mergeColumnCount : mergeColumns}
+              readOnly={!!selected}
               onChange={(event) => setMergeColumns(event.currentTarget.value)}
             />
           </label>
           <button
             type="submit"
             disabled={
-              Number(mergeRows) * Number(mergeColumns) <= 1 ||
-              Number(mergeRows) * Number(mergeColumns) > 4096
+              mergeRowCount * mergeColumnCount <= 1 ||
+              mergeRowCount * mergeColumnCount > 4096
             }
           >
             {t.mergeCells}

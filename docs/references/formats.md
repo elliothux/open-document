@@ -77,7 +77,7 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 编辑提交与后续布局是独立操作：提交成功后布局失败不会自动恢复旧源。浏览器停止输入，但用户可以明确 Undo；宿主排空原队列、取消其暂态组合，并核对当前 revision 后撤销一项历史和重排。失败仍保留停止状态，已完成的明确撤销不伪装为未发生；外部 revision 改动须先恢复，不自动撤销他人的编辑。恢复期间重复请求拒绝，销毁等待已接受的恢复，调用者 client 保留。
 
-`selectedText(revision, selection, cut = false)` 返回核心只读纯文本，按 XML 顺序提取正/反向普通范围，跨段以 LF 分隔并保留空段，折叠范围返回空串。它沿用字素、位置、revision、容器及内容保护检查，跨单元格或未知内容整体拒绝；不改变选区、revision、历史或布局。输出最多 65536 UTF-16 单元（包括 LF），超限报错而不截断。复制与结构写回共用范围顺序/保护检查；只有写回额外检查移动结构及格式。宿主不从页面文字重建选区。
+`selectedText(revision, selection, cut = false)` 返回核心只读纯文本，按 XML 顺序提取正/反向普通范围，跨段以 LF 分隔并保留空段，折叠范围返回空串。同表跨格提取所选整格，分隔规则归[跨格纯文本剪贴板](#跨格纯文本剪贴板)。它沿用字素、位置、revision、容器及内容保护检查，未知内容整体拒绝；不改变选区、revision、历史或布局。输出最多 65536 UTF-16 单元（包括 Tab 和 LF），超限报错而不截断。复制与结构写回共用范围顺序/保护检查；只有写回额外检查移动结构及格式。宿主不从页面文字重建选区。
 
 段内边界使用 Unicode 13.0.0 扩展字素，跨文本节点的组合符与 ZWJ 不可拆开；修改后重新合并的字素会将光标推进到合法边界。普通空段支持 offset 0 的输入：优先在第一个已有空 run 创建 text，保留其格式；没有 run 时在段末创建普通 run/text，保留段落属性、现有前缀和非目标源片段。空段身份来自正文 `flow().paragraphs` 或 `flow().tables` 的单元格段落，不能从尚无 text 的 `query().texts` 推断。跨表格及正文/表格混合范围、CR、未支持的域/修订/未知内联标记及受保护容器整体拒绝。受支持的行内图片、普通书签及跨格内容操作分别沿下文合同处理，未修改的源保留。普通正文与顶层表格单元格内的事务可用；不表示带布局诊断的文件已经可视编辑。
 
@@ -435,9 +435,9 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 范围删除、段落拆分与新增节点共同提交一项历史，选区进入首格。核心失败保留已提交源与历史。保存及混合文字编辑的撤销/重做精确恢复源节点、选择和其他部件。新增格可继续输入、设置已有字符/段落格式及用 Tab 导航。固定及自动适配布局均沿同一表格模型排版。
 
-`FoundationSession/Client.editTable(revision, selection, change, profile?)` 与 `DocumentEditor.editTable(change)` 接收带 `action` 的对象。行列操作为 `{ action: "rowBefore" | "rowAfter" | "deleteRow" | "columnBefore" | "columnAfter" | "deleteColumn" }`。范围须位于一个支持的单元格内，默认 UI 提供同样的六个命令。新增行复制当前行的行/格属性及各格首段格式；新增列复制邻格属性和首段格式，不复制文字，保留格式继承。固定宽表格保持总宽，按原列宽比例缩放为整数 twip；未指定固定宽的网格按插入/删除后的列宽计算。列编辑结果须在可用页宽内，各实际单元格至少 12 pt；重建出的细分网格可更窄。全部命令遵守创建时的行列、格数及资源上限；生成源片段时累计预算，超限即停止。
+`FoundationSession/Client.editTable(revision, selection, change, profile?)` 与 `DocumentEditor.editTable(change)` 接收带 `action` 的对象。行列操作为 `{ action: "rowBefore" | "rowAfter" | "deleteRow" | "columnBefore" | "columnAfter" | "deleteColumn" }`。范围支持单格及下述[同表跨格选择](#跨格行列与矩形合并)，默认 UI 提供同样的六个命令。新增行复制当前行的行/格属性及各格首段格式；新增列复制邻格属性和首段格式，不复制文字，保留格式继承。固定宽表格保持总宽，按原列宽比例缩放为整数 twip；未指定固定宽的网格按插入/删除后的列宽计算。列编辑结果须在可用页宽内，各实际单元格至少 12 pt；重建出的细分网格可更窄。全部命令遵守创建时的行列、格数及资源上限；生成源片段时累计预算，超限即停止。
 
-行操作作用于当前格所在的实际源行。插入位置穿过纵向合并时，新行延续该合并；在合并范围外插入时，新格保持横向跨度并独立。删除起始行会删除该行内容，后续延续格成为新起始格，不转移已删文字；删除延续行保留起始格内容。保留原网格、行属性、宽度偏好及固定/自动适配模式。新增行进入首个非延续格；整行均为延续格时进入覆盖它的起始格。候选源沿现有字体上下文检查可写性、有效宽度和分页，失败保留已提交状态。合并列删除遵循下述整格相交规则。行为依据 [ONLYOFFICE 行插入与删除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9997-L10293)，实现归 [`table-row-edit.mbt`](../../modules/formats/src/docx/table-row-edit.mbt)及[`共享结构事务`](../../modules/formats/src/docx/table-grid-structure.mbt)。
+单格选择时，行操作作用于当前格所在的实际源行。插入位置穿过纵向合并时，新行延续该合并；在合并范围外插入时，新格保持横向跨度并独立。删除起始行会删除该行内容，后续延续格成为新起始格，不转移已删文字；删除延续行保留起始格内容。保留原网格、行属性、宽度偏好及固定/自动适配模式。新增行进入首个非延续格；整行均为延续格时进入覆盖它的起始格。候选源沿现有字体上下文检查可写性、有效宽度和分页，失败保留已提交状态。合并列删除遵循下述整格相交规则。行为依据 [ONLYOFFICE 行插入与删除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9997-L10293)，实现归 [`table-row-edit.mbt`](../../modules/formats/src/docx/table-row-edit.mbt)及[`共享结构事务`](../../modules/formats/src/docx/table-grid-structure.mbt)。
 
 左右插列使用所选整格的有效宽度。每行在指定边界相邻的完整单元格前后插入，不切开已有格；各行插入位置可以不同。核心按插入后的实际格边界重建公共网格和 gridSpan，固定宽表格按比例保持总宽。原文字、段落身份和纵向合并归属保留；新格复制右邻格的格/首段格式，行末复制左邻格。新格可延续同一来源的纵向合并，保持空白；dxa/pct 格偏好按有效宽度写为 dxa，auto/nil 保留，整表适配模式不变。未知源、缺字体、格宽不足、分页或预算失败均不提交。依据 [ONLYOFFICE AddTableColumn 与网格重建](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L10516-L10788)及[公共边界计算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L15005-L15155)，实现归 [`table-column-insert.mbt`](../../modules/formats/src/docx/table-column-insert.mbt)。
 
@@ -475,7 +475,21 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 每次操作沿现有源补丁合为一项有界历史，撤销恢复全部格和原始选择；单段内容相同或已空单段格清空时只收起选择，不增加 revision 或历史。成对书签随各自格内范围收缩，保留原格归属。组合预览每次从已提交网格和选择重建，取消保留源、选择和重做；提交只替换首格。输入框的无障碍说明报告所选格数。依据 [ONLYOFFICE 所选格删除与输入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L6288-L6335)，实现归 [`table-contents.mbt`](../../modules/formats/src/docx/table-contents.mbt)。
 
-跨格剪贴板和结构操作仍保持保护，须选择单格后执行。链接、书签及批注创建沿普通文字范围规则；跨格时链接查询给出原因，默认面板禁用对应创建。跨表格、正文/表格混合范围及未知格内容沿既有保护规则；跨格边框/边距的默认面板、嵌套表格和其余结构范围操作继续实施。
+#### 跨格纯文本剪贴板
+
+`selectedText` 按源顺序读取所选整格的全部文字。格内段落以 LF 分隔并保留空段，同一源行的所选格之间用 Tab，每个所选行末尾保留 LF。合并格的内容只提取一次，纵向延续不重复，也不生成占位字段；段内 Tab 和软换行沿已有纯文本合同保留。正反选结果相同，分隔符全部计入 65536 UTF-16 单元上限。规则参考 [ONLYOFFICE 所选格提取](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L7450-L7482)、[所选行末格判断](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableCell.js#L2281-L2304)及[段末分隔](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L3201-L3223)，换行统一为 SDK 已有的 LF。
+
+默认 Copy/Cut 和原生快捷键复用同一入口。核心先完成提取与保护检查；宿主写入成功后核对 revision 和原选择，再沿现有整格清空事务剪切。复制不写历史，剪切合为一项历史，保留表格结构、属性、其他部件和精确撤销。写入拒绝时保留源和选择，沿现有显式恢复入口继续。当前剪贴板只输出纯文本，格式、表格片段及矩阵粘贴继续实施；含图片或未知内容的跨格范围继续保护。
+
+#### 跨格行列与矩形合并
+
+同表跨格选择可使用既有六种行列命令，默认面板与 API 采用相同范围。插入行数等于所选格所属的不同源行数；向上插入复制首个所选行，向下插入复制末个所选行。删除这些源行及其全部内容，包括选区列外的格。纵向延续不重复计数；删除合并起始行后，存活的首个延续格成为新起始格，已删文字不转移。仅含延续的中间行可存活，仍保持正确归属。依据 [ONLYOFFICE 所选行增删](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9997-L10254)。
+
+插入列数等于首个所选源行中的实际所选格数，横向跨度不重复计数。左插使用首个所选格的有效宽度，右插使用末个所选格的有效宽度；边界取全部实际所选格的最左/最右网格边界。新列复制每行相邻格的属性，分别维护纵向归属。删除列按同样的左右边界移除各行相交整格；沿既有公共网格重建、固定总宽、行尾空缺及空行清理规则。依据 [ONLYOFFICE 所选列删除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L10329-L10426)及[插列数量、宽度与边界](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L10512-L10658)。
+
+跨格 `merge` 的 rows/columns 必须等于选区的逻辑矩形尺寸；默认面板自动填入并锁定这两个数量。已有合并格须完整位于矩形内，切开已有跨度时原子拒绝；内容按源顺序进入左上格。六种行列命令及合并均沿现有源补丁一次提交历史，撤销恢复原字节和正/反向选择，保留未删内容及其他部件。删除最后全部行或列时移除表格并进入正文。源、字体、布局及输出预算继续检查，失败不提交。
+
+取消合并、拆格和拆表仍须选择单格，默认面板在跨格时禁用。链接、书签及批注创建沿普通文字范围规则；跨格时链接查询给出原因，默认面板禁用对应创建。跨表格、正文/表格混合范围及未知格内容沿既有保护规则；跨格边框/边距的默认面板、嵌套表格和其余结构范围操作继续实施。
 
 ### 表格尺寸
 
@@ -1176,7 +1190,7 @@ General 显示按 [ONLYOFFICE 的 15 位有效数字拆分](https://github.com/O
 
 数字格式覆盖 General、`@`、整数、两位小数、千分位、百分比、`yyyy-mm-dd`、`hh:mm:ss`，以及内置 1–4、9–10、14–22、49。日期保留数值，核心解释 1900/1904 系统，1900 序号 60 显示虚构的 2 月 29 日，序号 0 显示 1900-01-00。不经过宿主时区。其他格式、颜色 tint、渐变/图案、非实线边框及额外字体装饰保留声明并诊断，不承诺显示等价。
 
-公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/SQRT/POWER/PRODUCT/MEDIAN/SUMSQ/VAR/VAR.S/VARP/VAR.P/STDEV/STDEV.S/STDEVP/STDEV.P/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/EXACT/REPT/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
+公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/SQRT/POWER/PRODUCT/MEDIAN/MODE/MODE.SNGL/LARGE/SMALL/SUMSQ/VAR/VAR.S/VARP/VAR.P/STDEV/STDEV.S/STDEVP/STDEV.P/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/EXACT/REPT/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
 
 整列 `A:A`、`$A:B` 和整行 `1:1`、`$1:2` 可带工作表限定并使用反向端点。行号只接受十进制整数，范围受 1048576 行、16384 列约束；混合行/列/单格端点拒绝。内部用一个有界矩形表示，未覆盖维度在复制时固定；原公式源码保持，复制及名称展开输出对应行列记法和 `$` 标记。依赖保留区间，聚合及条件函数查询实际单元格，空白计数按逻辑面积扣除非空值。线性查找在大范围内仅检查已有单元格及各空白区间的首个搜索位置，保留正反向、错误与近似候选规则；小范围保持直接读取，二分查找沿原路径。全部沿用工作量及输出限制，保留空项的超大连接仍可能原子拒绝。
 
@@ -1184,7 +1198,7 @@ General 显示按 [ONLYOFFICE 的 15 位有效数字拆分](https://github.com/O
 
 AND/OR 接受数值和布尔，忽略引用内的文本与空白；没有有效值时返回 `#VALUE!`。文字常量返回 `#VALUE!`，不沿用数学函数的数字转换。稀疏范围只访问已有单元格，不展开整张表；即使已有确定的布尔结果，范围和后续参数中的错误仍参与，范围内按行列顺序保留首个错误。NOT 接受布尔、数值、空白及 TRUE/FALSE 文字，其他文字返回 `#VALUE!`。三项类型判断不转换数字文字，区分空白格与空字符串；当前使用标量参数，多格范围返回 `#VALUE!`。公式结果引用空白格时计算为数值 0。
 
-IF、IFERROR、IFNA 只求值选中的结果分支，依赖仍包含全部声明引用。IFERROR 捕获公式错误值，IFNA 只捕获 `#N/A`；两者不吞未知函数、循环、引用解析失败或资源超限。新输入及生成的 IFNA、CONCAT、TEXTJOIN、DAYS、XLOOKUP、VAR.S、VAR.P、STDEV.S、STDEV.P 按 OOXML 写入对应 `_xlfn.` 函数前缀，读取也接受这些前缀；只替换函数 token，保留同名工作表和文字常量。查询继续返回实际公式源。
+IF、IFERROR、IFNA 只求值选中的结果分支，依赖仍包含全部声明引用。IFERROR 捕获公式错误值，IFNA 只捕获 `#N/A`；两者不吞未知函数、循环、引用解析失败或资源超限。新输入及生成的 IFNA、CONCAT、TEXTJOIN、DAYS、XLOOKUP、VAR.S、VAR.P、STDEV.S、STDEV.P、MODE.SNGL 按 OOXML 写入对应 `_xlfn.` 函数前缀，读取也接受这些前缀；只替换函数 token，保留同名工作表和文字常量。查询继续返回实际公式源。
 
 ABS 返回绝对值，INT 向负无穷取整；MOD 按 `n - d * floor(n / d)` 计算，零除数返回 `#DIV/0!`。三类舍入按有限 Double 的十进制表示处理，ROUND 的半值远离零，ROUNDUP 远离零，ROUNDDOWN 朝零；位数的小数部分朝零截断。正负位数、进位及 `ROUND(1.005,2)=1.01` 使用同一路径，不先乘十进制倍率。精度至少 324 时保持原值；截断后的精度小于 -308 时，非零 ROUNDUP 返回 `#NUM!`，其余返回 0。结果非有限也返回 `#NUM!`，不按任意精度分配字符串。
 
@@ -1193,6 +1207,12 @@ SQRT 计算非负平方根，负数返回 `#NUM!`。POWER 接受两个标量；�
 PRODUCT 按参数顺序及引用内的行列顺序相乘，重复/重叠引用按次数计入。引用中的数字文字可转换，布尔、空白与其他文字忽略，引用错误传播；直接布尔和数字文字转换，直接非法文字返回 `#VALUE!`，空参数忽略。没有数值返回 0；中间溢出立即返回 `#NUM!`，不会被后面的零消除。行为依据 [ONLYOFFICE PRODUCT](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L3574-L3665)。
 
 MEDIAN 对实际数值排序，偶数项取中间两项的平均值。沿 [ONLYOFFICE MEDIAN](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L8541-L8620)，引用中的文字、布尔、空白及错误均忽略；直接布尔参与，直接文字忽略，直接错误及空参数返回 `#VALUE!`。没有数值也返回 `#VALUE!`，平均值的非有限结果为 `#NUM!`。PRODUCT/MEDIAN 支持跨表、名称展开和整行/列的稀疏引用，不展开空矩阵；隐藏及筛选行仍参与。遍历与排序预付现有公式工作预算，资源超限整体回滚，IFERROR 不吞资源失败。四项均参与实际依赖、缓存及精确历史，不再使用未计算保护。实现归 [`formula-numeric.mbt`](../../modules/formats/src/xlsx/formula-numeric.mbt)及 [`formula-product-median.mbt`](../../modules/formats/src/xlsx/formula-product-median.mbt)。
+
+MODE/MODE.SNGL 返回出现次数最多的数，并列时取较小值；只有互不重复的数时返回 `#N/A`，没有数值返回 `#VALUE!`。两者复用已有有界数值收集与排序；引用中的文字、布尔、空白和错误均忽略，直接文字也忽略，直接布尔、错误和省略参数返回 `#VALUE!`。现代名称按标准 `_xlfn.MODE.SNGL` 读写。规则依据 [ONLYOFFICE MODE](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L8785-L8880)及[现代别名](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L8956-L8966)。
+
+LARGE/SMALL 接受数据与标量 k，分别返回第 k 大/小值，重复值分别占位。引用文字与空白忽略，引用错误传播；LARGE 将引用布尔转为 1/0，SMALL 忽略它们。k 沿现有数值转换；沿所选 ONLYOFFICE 规则，LARGE 将正小数 k 向上取整，非正 k 先返回 `#N/A`，超过样本数为 `#NUM!`。SMALL 的范围形式只接受有效整数 k，否则返回 `#NUM!`，范围错误先传播。LARGE 要求显式区域数据，直接标量或单格引用返回 `#NUM!`；SMALL 的标量/单格形式可转换数值，且 k 必须为 1。规则依据 [ONLYOFFICE LARGE](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L7710-L7790)及 [SMALL](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L10540-L10632)，实现归 [`formula-order-statistics.mbt`](../../modules/formats/src/xlsx/formula-order-statistics.mbt)。
+
+四种名称均参与普通静态依赖、名称/共享/跨表重算、原生公式栏、缓存与精确历史。隐藏和筛选行仍参与，整行/列按已有单元格稀疏读取。遍历及排序消耗现有工作预算，超限不被 IFERROR 吞掉；未修改的导入公式源保留。数组与动态引用继续沿既有保护边界。
 
 SUMSQ 按参数及引用内行列顺序累计平方和，重复引用按次数计入。直接布尔和数字文字转换，非法文字为 `#VALUE!`；引用中的文字、布尔和空白忽略。沿固定 [ONLYOFFICE SUMSQ](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L5732-L5797)，单格引用中的错误忽略，显式范围（含 `A1:A1`）及直接错误传播。没有数值返回 0，平方或累计非有限返回 `#NUM!`。跨表、名称、共享公式及整行/列稀疏引用复用已有依赖、工作预算、缓存和精确历史；不再使用未计算保护。实现归 [`formula-sum-squares.mbt`](../../modules/formats/src/xlsx/formula-sum-squares.mbt)。
 
@@ -1914,6 +1934,14 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 受影响字段共用已有文字测量和自动适配，框大小或缩小比例与起点合为一项历史。预检包含隐藏页和继承对象。固定框溢出、未知编号域、修改保护、缺字体、旧修订、活动候选及预算失败原子拒绝。共享自动框需要不同源尺寸时继续保护，待本地覆盖支持后扩展。其他源、资源和选择保持；Canvas、PDF 与保存重开使用相同编号。起点语义参考 [ONLYOFFICE changeSlideSize/getFirstSlideNumber](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L844-L863)，实现归 [`slide-numbering.mbt`](../../modules/formats/src/pptx/slide-numbering.mbt)及 [`autofit.mbt`](../../modules/formats/src/pptx/autofit.mbt)。
 
 当前支持带非空 `id`、可选 `rPr/t` 且无其他字段属性或子节点的形式。字号、颜色和字体沿现有文字解析；派生数字进入查询及 Canvas/PDF 共用的定位输出。重排、复制、删除与撤销重做同步更新，读取和保存不刷新源缓存，也不新增修订。字段所在框继续拒绝纯文字编辑，其他字段和带段落属性/未知扩展的字段保留缓存并诊断。创建和移除见[日期与页脚编辑](#日期与页脚编辑)，版式占位符创建沿[幻灯片版式](#幻灯片版式)；母版直接编辑继续实施。实现归 [`text-fields.mbt`](../../modules/formats/src/pptx/text-fields.mbt)。
+
+### PPTX 普通表格
+
+本地未分组的普通 DrawingML 表格沿现有对象查询返回 `kind: "table"`，单元格文字使用现有文字选择和编辑接口。核心读取固定列宽和行高、纯色或无填充、普通不透明实线边框、四边内边距及上/中/下垂直对齐。每格独立裁剪，文字、光标、命中和 PDF 复用公共文字布局。默认内边距沿 [ONLYOFFICE 表格设置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ChartSpacePrototype.js#L640-L665)；网格和图形框对应关系参考 [Create_TableGraphicFrame](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L4122-L4176)。
+
+单格输入、换段、组合输入及取消共用现有源事务。文字需要更多高度时，核心只增长对应行及外框，连同文字写入一项历史。撤销、重做及保存保留其他单元格和未改部件。查询按行连接单元格段落，以 LF 分隔；跨格文字替换和边界删除受保护，避免把两个单元格的源段落合并。
+
+支持网格宽高与外框一致的完整矩形表格，最多 1000 行、63 列、4096 格，文字合计最多 32767 UTF-16 单元，继续受包、布局、输出及历史预算约束。表格样式、合并格、分组和旋转等未支持配置给出诊断并保留原源；对象变换与结构命令保持受保护。创建、行列增删、合并拆分和更广样式仍待实现。实现归 [`table-read.mbt`](../../modules/formats/src/pptx/table-read.mbt)和 [`table-layout.mbt`](../../modules/formats/src/pptx/table-layout.mbt)。
 
 ### 演讲备注
 

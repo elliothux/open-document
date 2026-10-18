@@ -199,8 +199,12 @@ fn Expression::evaluate(
         "VAR", "VAR.S", "VARP", "VAR.P", "STDEV", "STDEV.S", "STDEVP", "STDEV.P",
       ].contains(name) =>
       statistical_function(name, args, sheets, sheet, values, work, depth)
-    Function(name, args) if name == "PRODUCT" || name == "MEDIAN" =>
-      product_median_function(name, args, sheets, sheet, values, work, depth)
+    Function(name, args) if ["PRODUCT", "MEDIAN", "MODE", "MODE.SNGL"].contains(
+        name,
+      ) =>
+      aggregate_numeric_function(name, args, sheets, sheet, values, work, depth)
+    Function(name, args) if name == "LARGE" || name == "SMALL" =>
+      order_statistic_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if name == "COUNTA" || name == "COUNTBLANK" =>
       counting_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if [

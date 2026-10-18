@@ -145,6 +145,9 @@ fn text_changes(
   let (last, end) = paragraph_location(object, b)
   let initial = object.paragraphs[first]
   let ending_paragraph = object.paragraphs[last]
+  guard initial.source.node.parent == ending_paragraph.source.node.parent else {
+    @failure.reject("protected-content", "Text replacement crosses table cells")
+  }
   let prefix = initial.source.node.qualified[:initial.source.node.qualified.length() -
   1].to_owned()
   let xml = initial.source.tree.document.source()

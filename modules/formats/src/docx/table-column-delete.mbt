@@ -8,7 +8,10 @@ fn Session::delete_table_column(
 ) -> Json raise @failure.Failure {
   let document = self.document()
   let tree = WordTree::new(document)
-  let grid = self.table_grid(tree, selection)
+  let selected = self.table_cell_range(tree, selection)
+  let grid = selected
+    .map(range => range.grid)
+    .unwrap_or_else(() => self.table_grid(tree, selection))
   tree.check_table_structure(grid, columns=true)
   self.check_table_layout(self.flow(), grid.model, None, profile, None)
   let flow = self.flow()
@@ -27,8 +30,12 @@ fn Session::delete_table_column(
   for width in model.widths {
     positions.push(positions.last().unwrap() + (width * 20).round().to_int())
   }
-  let left = grid.starts[grid.row][grid.column]
-  let right = left + model.columnSpans[grid.row][grid.column]
+  let (left, right) = selected
+    .map(range => range.column_bounds())
+    .unwrap_or_else(() => {
+      let left = grid.starts[grid.row][grid.column]
+      (left, left + model.columnSpans[grid.row][grid.column])
+    })
   let rows : Array[Int] = []
   let cells : Array[Array[Int]] = []
   let edges : Array[Array[Int]] = []

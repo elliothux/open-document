@@ -158,6 +158,11 @@ fn read_object(
     "sp" => "shape"
     "pic" => "image"
     "grpSp" => "group"
+    "graphicFrame" if source
+      .child("graphic")
+      .bind(item => item.child("graphicData"))
+      .bind(item => item.child("tbl"))
+      is Some(_) => "table"
     _ => "unsupported"
   }
   let preset = attribute(children(properties, "prstGeom"), "prst").unwrap_or(
@@ -323,7 +328,7 @@ fn read_object(
     }
     error => raise error
   }
-  let (paragraphs, body, limitation) = read_text(
+  let (plain_paragraphs, body, limitation) = read_text(
     theme, chain, master, defaults, page_number, date_time,
   ) catch {
     @failure.Failure(code~, message~, ..) if code == "unsupported-text" ||
@@ -345,6 +350,28 @@ fn read_object(
     }
     error => raise error
   }
+  let table = if kind == "table" && geometry is Some(geometry) {
+    read_drawing_table(
+      source, theme, master, defaults, geometry, page_number, date_time,
+    ) catch {
+      @failure.Failure(code~, message~, ..) if [
+          "unsupported-table", "unsupported-text", "unsupported-style",
+        ].contains(code) => {
+        diagnostic = message
+        None
+      }
+      error => raise error
+    }
+  } else {
+    None
+  }
+  let paragraphs = table
+    .map(table => {
+      table.rows
+      .map(row => row.cells.map(cell => cell.paragraphs).flatten())
+      .flatten()
+    })
+    .unwrap_or(plain_paragraphs)
   text_reason = limitation
   let mut image = paint.13.map(value => value.0)
   let mut crop = paint.13.map(value => value.1).unwrap_or([0.0, 0.0, 0.0, 0.0])
@@ -437,6 +464,9 @@ fn read_object(
       }
     }
   }
+  if table is Some(_) && read_only.is_empty() {
+    read_only = "Table object transforms and structure are not yet editable"
+  }
   {
     id: source.tree.part + "#" + id,
     parent: source.parent_group(),
@@ -465,6 +495,7 @@ fn read_object(
     insets,
     opacity,
     paragraphs,
+    table,
     body,
     read_only,
     text_reason,

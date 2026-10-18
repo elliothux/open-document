@@ -243,6 +243,17 @@ fn paint_slide(
           1,
         ),
       )
+    } else if object.table is Some(_) {
+      let (commands, lines, warnings, glyphs) = object.paint_table(
+        probe, profile,
+      )
+      primitives.append(commands)
+      texts.push({ object: object.id, matrix: geometry.matrix, lines, })
+      diagnostics.append(warnings)
+      units += glyphs
+      guard units <= 262144 else {
+        @failure.reject("limit-exceeded", "Slide glyphs exceed budget")
+      }
     } else {
       if object.kind == "image" && object.image is Some(_) {
         if object.preset == "rect" {

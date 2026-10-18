@@ -11,6 +11,25 @@ priv struct TableCellRange {
 }
 
 ///|
+fn TableCellRange::column_bounds(self : TableCellRange) -> (Int, Int) {
+  self.owners.fold(init=(self.left, self.right), (bounds, cell) => {
+    let (row, column) = self.grid.owners[cell]
+    let left = self.grid.starts[row][column]
+    (
+      bounds.0.min(left),
+      bounds.1.max(left + self.grid.model.columnSpans[row][column]),
+    )
+  })
+}
+
+///|
+fn TableCellRange::source_rows(self : TableCellRange) -> Array[Int] {
+  self.grid.rows.filter(row => {
+    self.owners.any(cell => self.grid.rows[self.grid.owners[cell].0] == row)
+  })
+}
+
+///|
 fn Session::table_cell_range(
   self : Session,
   tree : WordTree,

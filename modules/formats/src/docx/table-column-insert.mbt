@@ -29,7 +29,10 @@ fn Session::insert_table_column(
 ) -> Json raise @failure.Failure {
   let document = self.document()
   let tree = WordTree::new(document)
-  let grid = self.table_grid(tree, selection)
+  let selected = self.table_cell_range(tree, selection)
+  let grid = selected
+    .map(range => range.grid)
+    .unwrap_or_else(() => self.table_grid(tree, selection))
   tree.check_table_structure(grid, columns=true)
   let flow = self.flow()
   let available = table_column_width(flow, grid.model, probe, profile, images)
@@ -47,10 +50,28 @@ fn Session::insert_table_column(
   for width in model.widths {
     positions.push(positions.last().unwrap() + (width * 20).round().to_int())
   }
-  let start = grid.starts[grid.row][grid.column]
-  let end = start + model.columnSpans[grid.row][grid.column]
+  let (row, column) = selected
+    .map(range => {
+      grid.owners[if before {
+        range.owners[0]
+      } else {
+        range.owners.last().unwrap()
+      }]
+    })
+    .unwrap_or((grid.row, grid.column))
+  let start = grid.starts[row][column]
+  let end = start + model.columnSpans[row][column]
   let size = positions[end] - positions[start]
-  let boundary = if before { start } else { end }
+  let repeat = selected
+    .map(range => {
+      let first_row = grid.owners[range.owners[0]].0
+      range.owners.filter(cell => grid.owners[cell].0 == first_row).length()
+    })
+    .unwrap_or(1)
+  let (left, right) = selected
+    .map(range => range.column_bounds())
+    .unwrap_or((start, end))
+  let boundary = if before { left } else { right }
   let total = positions.last().unwrap()
   let fixed = tree
     .child(grid.table, "tblPr")
@@ -60,7 +81,8 @@ fn Session::insert_table_column(
       tree.preferred_table_width(id).value > 0
     })
     .unwrap_or(false)
-  let next_total = if fixed { total } else { total + size }
+  let added = size * repeat
+  let next_total = if fixed { total } else { total + added }
   guard next_total.to_double() <= available * 20 else {
     @failure.reject(
       "unsupported-layout", "Table columns exceed the page content width",
@@ -68,8 +90,8 @@ fn Session::insert_table_column(
   }
   let scale = fn(point : Int) {
     if fixed {
-      ((point.to_int64() * total.to_int64() + (total + size).to_int64() / 2) /
-      (total + size).to_int64()).to_int()
+      ((point.to_int64() * total.to_int64() + (total + added).to_int64() / 2) /
+      (total + added).to_int64()).to_int()
     } else {
       point
     }
@@ -93,8 +115,10 @@ fn Session::insert_table_column(
     let mut point = 0
     for c in 0..<=cells.length() {
       if c == index {
-        point += size
-        edges.push(scale(point))
+        for _ in 0..<repeat {
+          point += size
+          edges.push(scale(point))
+        }
       }
       if c < cells.length() {
         let left = grid.starts[r][c]
@@ -136,7 +160,7 @@ fn Session::insert_table_column(
     changes.push(change)
   }
   let mut previous_template : Int? = None
-  let mut previous_bounds : (Int, Int)? = None
+  let mut previous_bounds : Array[(Int, Int)] = []
   for r, cells in grid.cells {
     let index = insertions[r]
     let edges = row_edges[r]
@@ -150,7 +174,7 @@ fn Session::insert_table_column(
     }
     for c, cell in cells {
       tree.check_merge_cell(cell, self.main)
-      let position = c + (if c >= index { 1 } else { 0 })
+      let position = c + (if c >= index { repeat } else { 0 })
       let span = cuts.search(edges[position + 1]).unwrap() -
         cuts.search(edges[position]).unwrap()
       let merge = tree
@@ -174,31 +198,42 @@ fn Session::insert_table_column(
     let template = cells[index.min(cells.length() - 1)]
     let (owner_row, owner_column) = grid.owners[template]
     let owner = grid.cells[owner_row][owner_column]
-    let bounds = (edges[index], edges[index + 1])
-    // Copied continuation properties may only join the same original owner.
-    let merge = if owner_row < r &&
-      previous_template == Some(owner) &&
-      previous_bounds == Some(bounds) {
-      "continue"
-    } else if model.rowSpans[owner_row][owner_column] > 1 {
-      "restart"
-    } else {
-      ""
+    let current_bounds : Array[(Int, Int)] = []
+    let markup = StringBuilder()
+    for copy in 0..<repeat {
+      let bounds = (edges[index + copy], edges[index + copy + 1])
+      // Each copied column may continue only its corresponding original owner.
+      let merge = if owner_row < r &&
+        previous_template == Some(owner) &&
+        previous_bounds.get(copy) == Some(bounds) {
+        "continue"
+      } else if model.rowSpans[owner_row][owner_column] > 1 {
+        "restart"
+      } else {
+        ""
+      }
+      current_bounds.push(bounds)
+      let span = cuts.search(bounds.1).unwrap() - cuts.search(bounds.0).unwrap()
+      let width = bounds.1 - bounds.0
+      let props = tree.column_cell_properties(
+        document, template, width, span, merge,
+      )
+      let xml = self.split_empty_cell(tree, template, width, props)
+      guard xml.length() <=
+        changes.limit - changes.bytes - markup.to_string().length() else {
+        @failure.reject("limit-exceeded", "Table source exceeds history budget")
+      }
+      markup.write_string(xml)
     }
     previous_template = Some(owner)
-    previous_bounds = Some(bounds)
-    let span = cuts.search(bounds.1).unwrap() - cuts.search(bounds.0).unwrap()
-    let width = bounds.1 - bounds.0
-    let props = tree.column_cell_properties(
-      document, template, width, span, merge,
-    )
+    previous_bounds = current_bounds
     let node = tree.nodes[cells[index.min(cells.length() - 1)]]
     changes.push({
       node: grid.rows[r],
       offset: (if index == cells.length() { node.end } else { node.start }) -
       tree.nodes[grid.rows[r]].start,
       length: 0,
-      xml: self.split_empty_cell(tree, template, width, props),
+      xml: markup.to_string(),
     })
   }
   self.commit_table_structure(

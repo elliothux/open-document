@@ -15,14 +15,23 @@ fn Session::edit_table_rows(
   }
   let document = self.document()
   let tree = WordTree::new(document)
-  let grid = self.table_grid(tree, selection)
+  let selected = self.table_cell_range(tree, selection)
+  let grid = selected
+    .map(range => range.grid)
+    .unwrap_or_else(() => self.table_grid(tree, selection))
   tree.check_table_structure(grid)
-  let r = if append { grid.rows.length() - 1 } else { grid.row }
-  let row = grid.rows[r]
   let before = change is RowBefore
   let removing = change is DeleteRow
-  let whole = removing && grid.rows.length() == 1
-  let count = grid.rows.length() + (if removing { -1 } else { 1 })
+  let rows = if append {
+    [grid.rows.last().unwrap()]
+  } else {
+    selected.map(range => range.source_rows()).unwrap_or([grid.rows[grid.row]])
+  }
+  let row = if before || removing { rows[0] } else { rows.last().unwrap() }
+  let r = grid.rows.search(row).unwrap()
+  let whole = removing && grid.rows.length() == rows.length()
+  let count = grid.rows.length() +
+    (if removing { -rows.length() } else { rows.length() })
   guard count <= 1000 &&
     count.to_int64() * grid.model.widths.length().to_int64() <= 4096 else {
     @failure.reject("limit-exceeded", "Table exceeds row column or cell budget")
@@ -33,25 +42,37 @@ fn Session::edit_table_rows(
     limit: self.opc.budget.entry_bytes.min(history_byte_limit / 2),
   }
   if removing {
-    for cell in grid.cells[r] {
-      tree.check_merge_cell(cell, self.main)
+    for row in rows {
+      for cell in grid.cells[grid.rows.search(row).unwrap()] {
+        tree.check_merge_cell(cell, self.main)
+      }
     }
     if whole {
       tree.remove_body_table(grid.table, changes)
     } else {
-      changes.push(table_remove(tree, row))
-      if r + 1 < grid.rows.length() {
-        for c, cell in grid.cells[r + 1] {
+      for row in rows {
+        changes.push(table_remove(tree, row))
+      }
+      for next in (r + 1)..<grid.rows.length() {
+        if rows.contains(grid.rows[next]) {
+          continue
+        }
+        for c, cell in grid.cells[next] {
           let (owner, column) = grid.owners[cell]
-          if owner != r {
+          if !rows.contains(grid.rows[owner]) {
+            continue
+          }
+          let survivors = grid.rows[owner:owner +
+          grid.model.rowSpans[owner][column]].filter(row => !rows.contains(row))
+          if survivors[0] != grid.rows[next] {
             continue
           }
           tree.check_merge_cell(cell, self.main)
           let props = tree.split_cell_properties(
             document,
             cell,
-            grid.model.columnSpans[r + 1][c],
-            if grid.model.rowSpans[owner][column] > 2 {
+            grid.model.columnSpans[next][c],
+            if survivors.length() > 1 {
               "restart"
             } else {
               ""
@@ -106,13 +127,18 @@ fn Session::edit_table_rows(
       markup.write_string(xml)
     }
     markup.write_string("</od:tr>")
+    let xml = markup.to_string()
+    guard xml.length().to_int64() * rows.length().to_int64() <=
+      changes.limit.to_int64() else {
+      @failure.reject("limit-exceeded", "Table source exceeds history budget")
+    }
     let node = tree.nodes[row]
     changes.push({
       node: grid.table,
       offset: (if before { node.start } else { node.end }) -
       tree.nodes[grid.table].start,
       length: 0,
-      xml: markup.to_string(),
+      xml: xml.repeat(rows.length()),
     })
   }
   self.commit_table_structure(

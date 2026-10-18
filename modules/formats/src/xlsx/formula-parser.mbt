@@ -370,6 +370,7 @@ fn FormulaParser::primary(
         "_XLFN.VAR.P" => "VAR.P"
         "_XLFN.STDEV.S" => "STDEV.S"
         "_XLFN.STDEV.P" => "STDEV.P"
+        "_XLFN.MODE.SNGL" => "MODE.SNGL"
         name => name
       }
       if self.accept("(") {
@@ -408,7 +409,9 @@ fn FormulaParser::primary(
           | "ROUNDDOWN"
           | "EXACT"
           | "POWER"
-          | "REPT" => args.length() == 2
+          | "REPT"
+          | "LARGE"
+          | "SMALL" => args.length() == 2
           "NOT" | "ISBLANK" | "ISNUMBER" | "ISTEXT" | "ABS" | "INT" | "SQRT" =>
             args.length() == 1
           "LEN" | "LOWER" | "UPPER" | "TRIM" => args.length() == 1

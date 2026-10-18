@@ -132,7 +132,11 @@ fn read_text(
   page_number : String,
   date_time : DateTime?,
 ) -> (Array[TextParagraph], Body, String) raise @failure.Failure {
-  let bodies = children(chain, "txBody", uri=presentation_uri)
+  let bodies = children(
+    chain,
+    "txBody",
+    uri=if chain[0].node.name == "tc" { drawing_uri } else { presentation_uri },
+  )
   let properties = children(bodies, "bodyPr")
   let fit = for item in properties {
     if item.child("noAutofit") is Some(_) {

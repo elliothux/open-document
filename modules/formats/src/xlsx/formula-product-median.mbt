@@ -1,5 +1,5 @@
 ///|
-fn product_median_function(
+fn aggregate_numeric_function(
   name : String,
   args : Array[Expression],
   sheets : Array[Sheet],
@@ -21,10 +21,11 @@ fn product_median_function(
     }
     for value in values {
       work.spend()
-      let value = if name == "MEDIAN" {
+      let value = if name != "PRODUCT" {
         match value {
           Number(_) => value
-          Boolean(_) if reference is None => numeric_value(value)
+          Boolean(_) if reference is None && name == "MEDIAN" =>
+            numeric_value(value)
           Text(_) => continue
           _ if reference is Some(_) => continue
           _ => return Error("#VALUE!")
@@ -71,6 +72,20 @@ fn product_median_function(
     work.spend(amount=numbers.length())
   }
   numbers.sort()
+  if name == "MODE" || name == "MODE.SNGL" {
+    let mut best = numbers[0]
+    let mut longest = 1
+    let mut count = 1
+    for index in 1..<numbers.length() {
+      work.spend()
+      count = if numbers[index] == numbers[index - 1] { count + 1 } else { 1 }
+      if count > longest {
+        longest = count
+        best = numbers[index]
+      }
+    }
+    return if longest > 1 { Number(best) } else { Error("#N/A") }
+  }
   let middle = numbers.length() / 2
   finite_result(
     if numbers.length() % 2 == 0 {

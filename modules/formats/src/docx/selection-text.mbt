@@ -80,6 +80,7 @@ fn Session::paragraph_range_in(
 
 ///|
 /// Reads a supported plain-text range in document order, with LF paragraph separators.
+/// Whole-cell ranges use tabs between cells and LF after each selected row.
 /// This query preserves selection, revision, history and layout; oversized output fails.
 /// Cut preflight rejects pictures until the clipboard can retain their resources.
 pub fn Session::selected_text(
@@ -90,7 +91,11 @@ pub fn Session::selected_text(
 ) -> String raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
-  let range = self.paragraph_range(tree, selection, structural=false)
+  let cells = self.table_format_range(tree, selection)
+  let whole_cells = cells is Some(_)
+  let range = cells.unwrap_or_else(() => {
+    self.paragraph_range(tree, selection, structural=false)
+  })
   if cut {
     let texts = docx_texts(tree)
     for p in range.paragraphs {
@@ -116,8 +121,21 @@ pub fn Session::selected_text(
     }
   }
   let output = StringBuilder()
-  let mut units = 0
+  let mut units = if whole_cells { 1 } else { 0 }
   for index, paragraph in range.paragraphs {
+    let separator = if index == 0 {
+      ""
+    } else {
+      let cell = tree.nodes[paragraph].parent
+      let previous = tree.nodes[range.paragraphs[index - 1]].parent
+      if whole_cells &&
+        cell != previous &&
+        tree.nodes[cell].parent == tree.nodes[previous].parent {
+        "\t"
+      } else {
+        "\n"
+      }
+    }
     let text = self
       .editable_texts(paragraph)
       .map(node => inline_text(tree.nodes[node.id]))
@@ -132,16 +150,17 @@ pub fn Session::selected_text(
     } else {
       text.length()
     }
-    units += end - start + (if index > 0 { 1 } else { 0 })
+    units += end - start + separator.length()
     guard units <= command_limit else {
       @failure.reject("limit-exceeded", "Selection text exceeds UTF-16 budget")
     }
-    if index > 0 {
-      output.write_string("\n")
-    }
+    output.write_string(separator)
     output.write_string(
       text[start:end].to_owned().replace_all(old="\u2028", new="\n"),
     )
+  }
+  if whole_cells {
+    output.write_string("\n")
   }
   output.to_string()
 }
