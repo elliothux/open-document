@@ -89,6 +89,7 @@ fn Session::show_tick(
         current.time - remaining,
         true,
         leaving=current.animation_state(),
+        last_view=Some((current.route, current.position, current.custom)),
       )
       .advance(current.time)
   }

@@ -141,11 +141,13 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 `deleteStyle(revision, id, replacement)` 删除自定义样式，替代样式必须已支持且类型相同，也不能依赖被删样式。Web 编辑宿主省略 revision。核心同步移除定义并替换 WordprocessingML 部件中的样式引用，包括正文、页眉和编号；保留直接格式、文字、其他样式及未知内容。折叠处待输入的样式引用也映射到替代项。命令至多替换 65536 个引用，继续受包与历史预算约束。全部候选成功后一次提交，撤销同时恢复各部件与选择。默认 UI 可显式选择同类型替代样式，初始使用基础样式；无基础样式时须先选择替代项。没有有效替代项时不能删除。删除链接自定义样式时保留对端样式，解除指向被删样式的链接，再替换普通引用；未知链接内容明确拒绝。默认及内置样式不能删除。
 
-`updateStyle(id, { character: {}, paragraph: {}, reset: true })` 显式重置格式，不能同时传其他修改。当前支持文档默认段落/字符样式，以及 Normal、DefaultParagraphFont、Strong、Emphasis、Heading1–Heading9，以及 NoSpacing、Quote、Caption、QuoteChar、SubtleEmphasis、IntenseEmphasis 和 IntenseQuoteChar。默认样式恢复文档默认属性；Strong/Emphasis 继承当前默认字符样式并恢复粗体/斜体。稳定 ID、名称、默认标志、next/link 和正文直接格式保留；其他内置样式的重置规则尚未实现。默认 UI 提供同一操作。重置沿上述候选校验及单项历史提交，撤销恢复完整源内容。行为参考 [ONLYOFFICE 样式重置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js#L8854-L8889)。样式修改与删除还会校验正文继承的编号引用、有效级别属性和标记结果，失败保留原包。
+`updateStyle(id, { character: {}, paragraph: {}, reset: true })` 显式重置格式，不能同时传其他修改。当前支持文档默认段落/字符样式，以及 Normal、DefaultParagraphFont、Strong、Emphasis、Heading1–Heading9，以及 NoSpacing、Quote、Caption、QuoteChar、SubtleEmphasis、IntenseEmphasis、IntenseQuoteChar、Hyperlink 和 FollowedHyperlink。默认样式恢复文档默认属性；Strong/Emphasis 继承当前默认字符样式并恢复粗体/斜体。稳定 ID、名称、默认标志、next/link 和正文直接格式保留；其他内置样式的重置规则尚未实现。默认 UI 提供同一操作。重置沿上述候选校验及单项历史提交，撤销恢复完整源内容。行为参考 [ONLYOFFICE 样式重置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js#L8854-L8889)。样式修改与删除还会校验正文继承的编号引用、有效级别属性和标记结果，失败保留原包。
 
 新增预设继承当前对应类型的默认样式。NoSpacing 清除字符覆盖，段后距为 0、单倍行距；Quote 设置 8 pt 段前距、居中、斜体及 text1 的 BF tint；Caption 设置 10 pt 段后距、单倍行距、9 pt 普通/复杂文字字号、斜体及 text2 颜色。QuoteChar/SubtleEmphasis 使用引用的字符属性；IntenseEmphasis/IntenseQuoteChar 使用斜体及 accent1 的 BF shade。段前后其他未声明值沿基础样式继承，正文直接覆盖保持。
 
 按标准 ID 或对应英文内置名识别，名称不区分大小写，自定义标志及类型不符的样式不套用预设。名称、别名、link/next 和源元数据保持，不创建缺失样式。已有主题时保留颜色关联；相关主题色不可解析时保护重置。没有主题时写预设 RGB，不增加主题部件；之后添加主题可再次重置以建立关联。默认目录的 `canReset` 自动开放已有按钮，沿同一候选、预算、单项精确历史和保存重开，无变化不提交。预设参数参考 [ONLYOFFICE 默认样式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles/default-styles.js#L621-L795)与[题注](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles/default-styles.js#L913-L938)，实现归 [`style-presets.mbt`](../../modules/formats/src/docx/style-presets.mbt)。标题/副标题的字符间距、完整强引用边框及其余未支持预设继续保护，不以删去属性代替重置。
+
+Hyperlink 和 FollowedHyperlink 继承当前默认字符样式，恢复单下划线；无主题时分别使用 RGB `0563C1` 和 `954F72`，已有可解析主题时关联 `hlink/folHlink`，写为标准 `w:themeColor="hyperlink"/"followedHyperlink"`。新建文档同时提供这两个字符样式，创建与重置共用预设；初始重置不增加历史。用户通过现有字符样式面板显式应用或重置，正文直接格式、链接目标、提示和关系保持。链接创建仍保留原格式；打开链接不写访问历史或自动切换样式。参数依据 [ONLYOFFICE 链接样式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles/default-styles.js#L1028-L1056)。
 
 九级标题的创建和重置共用本项目的标题预设：大纲级别 0–8，字号依次为 16、14、13、12、11、11、11、11、11 pt，并设置粗体标记。重置继承当前默认段落样式；没有默认标记时尝试 Normal，均无时继承文档默认属性。字体与颜色沿基础样式继承，正文直接格式保持。按标准 ID `Heading1`–`Heading9`，或非自定义段落样式的英文名 `Heading N` 识别；名称不区分大小写。自定义样式即使同名也不作为内置标题重置。
 
@@ -1156,7 +1158,7 @@ General 显示按 [ONLYOFFICE 的 15 位有效数字拆分](https://github.com/O
 
 数字格式覆盖 General、`@`、整数、两位小数、千分位、百分比、`yyyy-mm-dd`、`hh:mm:ss`，以及内置 1–4、9–10、14–22、49。日期保留数值，核心解释 1900/1904 系统，1900 序号 60 显示虚构的 2 月 29 日，序号 0 显示 1900-01-00。不经过宿主时区。其他格式、颜色 tint、渐变/图案、非实线边框及额外字体装饰保留声明并诊断，不承诺显示等价。
 
-公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/SQRT/POWER/PRODUCT/MEDIAN/SUMSQ/VAR/VAR.S/VARP/VAR.P/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/EXACT/REPT/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
+公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/SQRT/POWER/PRODUCT/MEDIAN/SUMSQ/VAR/VAR.S/VARP/VAR.P/STDEV/STDEV.S/STDEVP/STDEV.P/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/EXACT/REPT/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
 
 整列 `A:A`、`$A:B` 和整行 `1:1`、`$1:2` 可带工作表限定并使用反向端点。行号只接受十进制整数，范围受 1048576 行、16384 列约束；混合行/列/单格端点拒绝。内部用一个有界矩形表示，未覆盖维度在复制时固定；原公式源码保持，复制及名称展开输出对应行列记法和 `$` 标记。依赖保留区间，聚合及条件函数查询实际单元格，空白计数按逻辑面积扣除非空值。线性查找在大范围内仅检查已有单元格及各空白区间的首个搜索位置，保留正反向、错误与近似候选规则；小范围保持直接读取，二分查找沿原路径。全部沿用工作量及输出限制，保留空项的超大连接仍可能原子拒绝。
 
@@ -1164,7 +1166,7 @@ General 显示按 [ONLYOFFICE 的 15 位有效数字拆分](https://github.com/O
 
 AND/OR 接受数值和布尔，忽略引用内的文本与空白；没有有效值时返回 `#VALUE!`。文字常量返回 `#VALUE!`，不沿用数学函数的数字转换。稀疏范围只访问已有单元格，不展开整张表；即使已有确定的布尔结果，范围和后续参数中的错误仍参与，范围内按行列顺序保留首个错误。NOT 接受布尔、数值、空白及 TRUE/FALSE 文字，其他文字返回 `#VALUE!`。三项类型判断不转换数字文字，区分空白格与空字符串；当前使用标量参数，多格范围返回 `#VALUE!`。公式结果引用空白格时计算为数值 0。
 
-IF、IFERROR、IFNA 只求值选中的结果分支，依赖仍包含全部声明引用。IFERROR 捕获公式错误值，IFNA 只捕获 `#N/A`；两者不吞未知函数、循环、引用解析失败或资源超限。新输入及生成的 IFNA、CONCAT、TEXTJOIN、DAYS、XLOOKUP、VAR.S、VAR.P 按 OOXML 写入对应 `_xlfn.` 函数前缀，读取也接受这些前缀；只替换函数 token，保留同名工作表和文字常量。查询继续返回实际公式源。
+IF、IFERROR、IFNA 只求值选中的结果分支，依赖仍包含全部声明引用。IFERROR 捕获公式错误值，IFNA 只捕获 `#N/A`；两者不吞未知函数、循环、引用解析失败或资源超限。新输入及生成的 IFNA、CONCAT、TEXTJOIN、DAYS、XLOOKUP、VAR.S、VAR.P、STDEV.S、STDEV.P 按 OOXML 写入对应 `_xlfn.` 函数前缀，读取也接受这些前缀；只替换函数 token，保留同名工作表和文字常量。查询继续返回实际公式源。
 
 ABS 返回绝对值，INT 向负无穷取整；MOD 按 `n - d * floor(n / d)` 计算，零除数返回 `#DIV/0!`。三类舍入按有限 Double 的十进制表示处理，ROUND 的半值远离零，ROUNDUP 远离零，ROUNDDOWN 朝零；位数的小数部分朝零截断。正负位数、进位及 `ROUND(1.005,2)=1.01` 使用同一路径，不先乘十进制倍率。精度至少 324 时保持原值；截断后的精度小于 -308 时，非零 ROUNDUP 返回 `#NUM!`，其余返回 0。结果非有限也返回 `#NUM!`，不按任意精度分配字符串。
 
@@ -1177,6 +1179,8 @@ MEDIAN 对实际数值排序，偶数项取中间两项的平均值。沿 [ONLYO
 SUMSQ 按参数及引用内行列顺序累计平方和，重复引用按次数计入。直接布尔和数字文字转换，非法文字为 `#VALUE!`；引用中的文字、布尔和空白忽略。沿固定 [ONLYOFFICE SUMSQ](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L5732-L5797)，单格引用中的错误忽略，显式范围（含 `A1:A1`）及直接错误传播。没有数值返回 0，平方或累计非有限返回 `#NUM!`。跨表、名称、共享公式及整行/列稀疏引用复用已有依赖、工作预算、缓存和精确历史；不再使用未计算保护。实现归 [`formula-sum-squares.mbt`](../../modules/formats/src/xlsx/formula-sum-squares.mbt)。
 
 VAR/VAR.S 返回样本方差，VARP/VAR.P 返回总体方差。普通引用、名称、跨表、共享公式及稀疏整行/列沿现有依赖和缓存事务；引用中的文字、布尔及空白忽略，错误传播。直接布尔转为 1/0；按固定 ONLYOFFICE 规则，VAR 忽略直接文字和空白，VAR.S/VARP/VAR.P 将它们作为 0，数字文字也不按数值转换。样本少于两个数、总体没有数值时返回 `#DIV/0!`；非有限结果返回 `#NUM!`。普通方差包含隐藏和筛选行及嵌套 SUBTOTAL；可见行汇总仍使用 SUBTOTAL。
+
+STDEV/STDEV.S 返回样本标准差，STDEVP/STDEV.P 返回总体标准差，共用方差累计并对结果开平方。按固定 ONLYOFFICE 规则，样本形式只统计引用中的数值，忽略引用和直接参数中的错误；直接数值文字、布尔和省略参数按现有数值转换，无法转换的文字忽略。样本没有数值成员时返回 0，仅有一个时返回 `#DIV/0!`。总体形式沿 VARP 的转换和错误规则：引用非数值忽略、错误传播，直接布尔转 1/0、文字和省略参数为 0；没有数值时返回 `#DIV/0!`。普通标准差包含隐藏和筛选行；现代名称读写标准 `_xlfn.` 前缀，保留未改的导入源。非有限累计返回 `#NUM!`，继续遵守现有工作预算。依据 [ONLYOFFICE STDEV/STDEV.S](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L10693-L10773)及 [STDEVP/STDEV.P](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L10841-L10938)。数字文字使用当前核心的数值转换；地区格式文字及数组仍待兼容扩展。
 
 方差复用 SUBTOTAL 的稳定逐项均值和平方偏差累计，避免直接作两个大平方和之差。规则依据 [ONLYOFFICE VAR/VARP/VAR.P/VAR.S](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L11619-L12008)。读取接受 `_xlfn.VAR.S`/`_xlfn.VAR.P`，新输入和生成的这两个现代名称带标准前缀；导入未改的源片段保留。独立结果、类型、空样本、错误、较大偏移、溢出、前缀、工作预算、重算和精确历史由定向用例检查；数组、动态引用及更广统计函数继续扩展。实现归 [`formula-variance.mbt`](../../modules/formats/src/xlsx/formula-variance.mbt)和 [`formula-subtotal.mbt`](../../modules/formats/src/xlsx/formula-subtotal.mbt)。
 
@@ -1737,13 +1741,13 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 ### 对象超链接
 
-`PresentationEditor.editObjects({ action: "hyperlink", link })` 修改所选本地顶层对象或其文字的点击链接。对象模式支持单个形状、图片或组；文字模式支持一个可编辑文本框。`link` 为 `{ kind: "external", target }`、`{ kind: "slide", target }`、`{ kind: "action", target }` 或 null；null 移除点击链接。动作 target 只接受 `firstslide`、`lastslide`、`nextslide`、`previousslide`。`PptxHyperlink` 从 `wasm/pptx` 和 `web/pptx` 导出。每个 `PptxObject.hyperlink` 返回对象链接的 `{ value, reason }`；`PptxQuery.textHyperlink` 返回当前文字范围的 `{ value, mixed, reason }`。链接不一致时 value 为 null 且 mixed 为 true，默认面板仍允许统一设置或移除。多对象与继承对象继续保护。
+`PresentationEditor.editObjects({ action: "hyperlink", link })` 修改所选本地顶层对象或其文字的点击链接。对象模式支持单个形状、图片或组；文字模式支持一个可编辑文本框。`link` 为 `{ kind: "external", target }`、`{ kind: "slide", target }`、`{ kind: "action", target }` 或 null；null 移除点击链接。动作 target 接受 `firstslide`、`lastslide`、`nextslide`、`previousslide`、`lastslideviewed`、`endshow`；后两类仅在放映中执行。`PptxHyperlink` 从 `wasm/pptx` 和 `web/pptx` 导出。每个 `PptxObject.hyperlink` 返回对象链接的 `{ value, reason }`；`PptxQuery.textHyperlink` 返回当前文字范围的 `{ value, mixed, reason }`。链接不一致时 value 为 null 且 mixed 为 true，默认面板仍允许统一设置或移除。多对象与继承对象继续保护。
 
 文字选区按 UTF-16 字素边界拆分 run，可跨样式、软换行及段落，只修改选中范围。链接内的光标修改当前段落中相邻且关系及提示等元数据一致的完整链接；不同提示或关系保持独立。普通光标通过空 run 或空段落末尾属性设置后续输入链接。原生输入继承链接，移除时同步对应段落末尾属性，避免清空后再次出现。保留直接字体、大小、粗斜体、颜色和源下划线；存在点击链接时派生单下划线，移除后恢复原直接定义。文字链接写入 `rPr/endParaRPr`，与对象的 `cNvPr` 链接独立；累计生成源限制为 2 Mi UTF-16 单元。
 
-外部地址最多 2048 UTF-16 单元，只允许 HTTP、HTTPS 和 mailto，拒绝空目标、空白、控制字符及反斜杠。内部页目标使用当前文稿的稳定 slide 部件身份，不能使用页序号；允许显式跳转隐藏页。默认面板创建、修改及移除链接，单独的打开入口才导航。外链使用新窗口和 `noopener noreferrer`。`PresentationEditor.followHyperlink()` 及 Wasm/Worker 命令 `{ operation: "followPptxHyperlink", revision }` 从当前单个对象或一致的文字链接解析内部页/动作，再由核心定位；拒绝混合链接、外链、旧修订及活动候选。四种动作按当前编辑页序执行，包含隐藏页；上一页/下一页在边界停留并保留选择。重排、复制及删除页后按新位置解析，不保存过期页序号。导航不改源、revision 或历史；显示、打开文件和布局不自动请求外链或执行动作。脚本、文件地址、相对网址、宏、上次查看页、结束放映及其他放映动作继续保护源。
+外部地址最多 2048 UTF-16 单元，只允许 HTTP、HTTPS 和 mailto，拒绝空目标、空白、控制字符及反斜杠。内部页目标使用当前文稿的稳定 slide 部件身份，不能使用页序号；允许显式跳转隐藏页。默认面板创建、修改及移除链接，单独的打开入口才导航。外链使用新窗口和 `noopener noreferrer`。`PresentationEditor.followHyperlink()` 及 Wasm/Worker 命令 `{ operation: "followPptxHyperlink", revision }` 从当前单个对象或一致的文字链接解析内部页/动作，再由核心定位；拒绝混合链接、外链、旧修订及活动候选。四种动作按当前编辑页序执行，包含隐藏页；上一页/下一页在边界停留并保留选择。重排、复制及删除页后按新位置解析，不保存过期页序号。导航不改源、revision 或历史；显示、打开文件和布局不自动请求外链或执行动作。`lastslideviewed/endshow` 可创建、修改和移除，编辑器中的 `followHyperlink()` 明确拒绝执行；默认面板提示在放映中使用。脚本、文件地址、相对网址、宏及其他未支持动作继续保护源。
 
-核心写 `cNvPr/a:hlinkClick`：外链使用 External hyperlink 关系，内链使用 slide 关系及 `ppaction://hlinksldjump`。四种导航动作写 `ppaction://hlinkshowjump?jump=…` 和空 `r:id`，不创建关系；导入时按 action 解析，允许省略、空或原有关系身份。与目标相同的关系可复用；修改不覆盖其他对象共用的关系，也不清理旧关系。保留 tooltip、tgtFrame、history、highlightClick、endSnd、相邻悬停链接、注释、文字和几何；未知属性、声音等子内容或无法解析的关系保护修改。新增关系与对象 XML 共用一项有界历史，旧 revision、活动候选、锁和输出预算失败均不提交。相同链接及重复清除不新增历史。
+核心写 `cNvPr/a:hlinkClick`：外链使用 External hyperlink 关系，内链使用 slide 关系及 `ppaction://hlinksldjump`。六种导航动作写 `ppaction://hlinkshowjump?jump=…` 和空 `r:id`，不创建关系；导入时按 action 解析，允许省略、空或原有关系身份。与目标相同的关系可复用；修改不覆盖其他对象共用的关系，也不清理旧关系。保留 tooltip、tgtFrame、history、highlightClick、endSnd、相邻悬停链接、注释、文字和几何；未知属性、声音等子内容或无法解析的关系保护修改。新增关系与对象 XML 共用一项有界历史，旧 revision、活动候选、锁和输出预算失败均不提交。相同链接及重复清除不新增历史。
 
 页面重排保持内部目标，页面复制复用既有自身链接重映射，删页移除相应入链并保留对象。对象复制保留链接；带自身点击或悬停链接的组不能直接取消组合，避免丢失组动作。普通点击链接移除后可取消组合，成员自己的链接保留。静态 Canvas/PDF 保留对象外观及文字，不增加交互链接注释。放映点击归[放映链接](#放映链接)；悬停/一般动作编辑及输出链接继续按 [P12](../p12-pptx-core.md) 实施。语义参考固定 [ONLYOFFICE 对象链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L3503-L3683)、[文字链接拆分与光标操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L7811-L8180)、[PPTX 链接下划线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L10545-L10565)、[内部页动作解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L9259-L9290)及[编辑器显式导航](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/api.js#L7243-L7264)，实现归 [`object-hyperlink.mbt`](../../modules/formats/src/pptx/object-hyperlink.mbt)和 [`text-hyperlink.mbt`](../../modules/formats/src/pptx/text-hyperlink.mbt)。
 
@@ -1767,9 +1771,11 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 内部页链接可明确到达隐藏页，在当前序列中定位目标的第一次出现。若目标不在当前范围或自定义序列内，核心转入完整文稿页序并清除 custom，再从目标继续；此规则是当前 SDK 合同，不声称已由上游自定义放映运行结果验证。首页/末页/上一页/下一页按活动放映序列执行，默认跳过隐藏条目；起点后退停留，末尾前进退出或按循环开关返回。导航重置目标入场和计时，保留编辑选择及源历史。
 
+`lastslideviewed` 返回上一个播放条目。核心只保留该条目的序列、位置和自定义组身份，不保留完整访问栈；普通导航、链接跳转和自动换页在进入新场景时更新。返回时恢复重复条目的准确位置，以及跳出自定义/范围序列前的播放顺序；连续激活在最近两个条目间往返。暂停、布局帧和外部链接不改此记录。首次开始没有记录时停留；结束或重新开始清除记录。目标入场、对象动画和计时按普通跳页重新开始。`endshow` 直接结束当前放映，清除播放缓存；默认视图沿现有退出路径关闭并恢复原生焦点、编辑选择和已提交源。这些播放细则是当前 SDK 合同；未声明已独立运行上游放映验证。标准动作序列化依据 [ONLYOFFICE ShapeWriter](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/MsBinaryFile/PptFile/PPTXWriter/ShapeWriter.cpp#L1692-L1728)。
+
 低层 controlShowPptx 的 click 可携带完整的 layoutId/x/y；followLink 携带 layoutId，slide 使用链接 ID。缺字段、旧 revision、其他场景及过期布局拒绝且不改变状态。同场景保留当前和上一帧，用于处理帧刷新与点击的交错；控制操作及换页会失效旧交互。外链不由核心请求：本次显式激活的 `PptxShowState.external` 返回地址，其他状态为 null。Web 通过新窗口执行，浏览器阻止弹窗时仍可使用列表中的显式链接。HTTP/HTTPS/mailto 的地址校验复用编辑链接边界，打开文件、布局和播放帧不会自动请求地址。
 
-每帧最多 4096 个链接，ID 上限 4095；标签最多 1024、诊断最多 8192 个 UTF-16 单元，标签/诊断/外链总量最多 1 Mi 单元。宏、文件地址、未知动作及扩展链接保持源并显示诊断，点击拒绝执行。已知链接在只读对象和文稿中仍可播放。静态 PDF/图片不增加交互链接注释；上次查看页、结束放映和自定义放映动作、悬停与其他动作继续实施。
+每帧最多 4096 个链接，ID 上限 4095；标签最多 1024、诊断最多 8192 个 UTF-16 单元，标签/诊断/外链总量最多 1 Mi 单元。宏、文件地址、未知动作及扩展链接保持源并显示诊断，点击拒绝执行。已知链接在只读对象和文稿中仍可播放。静态 PDF/图片不增加交互链接注释；自定义放映动作、悬停与其他动作继续实施。
 
 命中后优先处理链接、未命中再换页的依据是 [ONLYOFFICE 放映点击路径](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L5357-L5445)；动作与外部宿主分派参考[链接回调](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/api.js#L7243-L7283)。实现归 [`show-links.mbt`](../../modules/formats/src/pptx/show-links.mbt)、[`show-animation.mbt`](../../modules/formats/src/pptx/show-animation.mbt)和 [`presentation-show.ts`](../../packages/web/src/presentation-show.ts)。
 

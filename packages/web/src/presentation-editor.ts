@@ -90,6 +90,8 @@ export class PresentationEditor extends PresentationOutput {
       () => this.state,
       async () => {
         await this.present();
+        // Reset Chromium's text control focus after closing the modal dialog.
+        this.input.blur();
         this.focus();
       },
       () => this.available,

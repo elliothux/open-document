@@ -6,9 +6,10 @@ fn stored_formula_names(formula : String) -> String raise @failure.Failure {
   let mut copied = 0
   for index in 0..<(tokens.length() - 1) {
     if tokens[index] is Word(name) &&
-      ["IFNA", "CONCAT", "TEXTJOIN", "DAYS", "XLOOKUP", "VAR.S", "VAR.P"].contains(
-        name.to_upper(),
-      ) &&
+      [
+        "IFNA", "CONCAT", "TEXTJOIN", "DAYS", "XLOOKUP", "VAR.S", "VAR.P", "STDEV.S",
+        "STDEV.P",
+      ].contains(name.to_upper()) &&
       tokens[index + 1] is Operator("(") {
       let (start, end) = spans[index]
       output.write_view(formula[copied:start])
@@ -120,9 +121,10 @@ fn Expression::source(
       right.source(rows~, columns~, depth=depth + 1, invalid_ref~) +
       ")"
     Function(name, args) =>
-      (if ["IFNA", "CONCAT", "TEXTJOIN", "DAYS", "XLOOKUP", "VAR.S", "VAR.P"].contains(
-          name,
-        ) {
+      (if [
+          "IFNA", "CONCAT", "TEXTJOIN", "DAYS", "XLOOKUP", "VAR.S", "VAR.P", "STDEV.S",
+          "STDEV.P",
+        ].contains(name) {
         "_xlfn." + name
       } else {
         name

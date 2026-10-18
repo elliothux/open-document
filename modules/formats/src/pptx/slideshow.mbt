@@ -169,6 +169,7 @@ pub fn Session::control_show(
             time,
             action != "previous",
             leaving=current.animation_state(),
+            last_view=Some((current.route, current.position, current.custom)),
           )
         }
       })

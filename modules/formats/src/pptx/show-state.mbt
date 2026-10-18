@@ -5,6 +5,7 @@ priv struct ShowState {
   route : Array[Int]
   position : Int
   custom : String?
+  last_view : (Array[Int], Int, String?)?
   cycling : Bool
   from : Int?
   effect : SlideTransition?
@@ -142,6 +143,7 @@ fn Session::show_scene(
   time : Double,
   animated : Bool,
   leaving~ : Map[String, ShowObject] = Map([]),
+  last_view~ : (Array[Int], Int, String?)? = None,
 ) -> ShowState raise @failure.Failure {
   let index = route[position]
   let transition = if animated {
@@ -166,6 +168,7 @@ fn Session::show_scene(
     route,
     position,
     custom,
+    last_view,
     cycling: settings.cycling,
     from: if effect is Some(_) {
       from

@@ -121,7 +121,13 @@ export type PptxHyperlink =
   | { kind: "external" | "slide"; target: string }
   | {
       kind: "action";
-      target: "firstslide" | "lastslide" | "nextslide" | "previousslide";
+      target:
+        | "firstslide"
+        | "lastslide"
+        | "nextslide"
+        | "previousslide"
+        | "lastslideviewed"
+        | "endshow";
     };
 
 export function pptxHyperlink(value: unknown): PptxHyperlink | null {
@@ -137,9 +143,14 @@ export function pptxHyperlink(value: unknown): PptxHyperlink | null {
     link.target.length > (link.kind === "slide" ? 1024 : 2048) ||
     Object.keys(link).some((key) => key !== "kind" && key !== "target") ||
     (link.kind === "action" &&
-      !["firstslide", "lastslide", "nextslide", "previousslide"].includes(
-        link.target,
-      )) ||
+      ![
+        "firstslide",
+        "lastslide",
+        "nextslide",
+        "previousslide",
+        "lastslideviewed",
+        "endshow",
+      ].includes(link.target)) ||
     (link.kind === "external" &&
       (!/^(https?:\/\/|mailto:).+/i.test(link.target) ||
         /\s/u.test(link.target) ||

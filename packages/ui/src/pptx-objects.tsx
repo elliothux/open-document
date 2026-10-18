@@ -332,6 +332,8 @@ function PptxHyperlink({
     ["lastslide", t.hyperlinkLastSlide],
     ["nextslide", t.hyperlinkNextSlide],
     ["previousslide", t.hyperlinkPreviousSlide],
+    ["lastslideviewed", t.hyperlinkLastViewed],
+    ["endshow", t.hyperlinkEndShow],
   ] as const;
   const [action, setAction] = useState<
     Extract<PptxHyperlink, { kind: "action" }>["target"]
@@ -447,6 +449,9 @@ function PptxHyperlink({
           <a href={link.target} target="_blank" rel="noopener noreferrer">
             {t.hyperlinkOpen}
           </a>
+        ) : link.kind === "action" &&
+          (link.target === "lastslideviewed" || link.target === "endshow") ? (
+          <p>{t.hyperlinkShowOnly}</p>
         ) : (
           <button
             type="button"

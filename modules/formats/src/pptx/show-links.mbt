@@ -262,6 +262,8 @@ fn Session::apply_show_link(
   let show = if link.kind == "external" {
     external = Some(link.target)
     Some(current)
+  } else if link.kind == "action" && link.target == "endshow" {
+    None
   } else {
     let mut route = current.route
     let mut custom = current.custom
@@ -274,6 +276,15 @@ fn Session::apply_show_link(
         route = Array::makei(self.slides.length(), i => i)
         custom = None
         Some(target)
+      }
+    } else if link.target == "lastslideviewed" {
+      match current.last_view {
+        Some((previous_route, position, previous_custom)) => {
+          route = previous_route
+          custom = previous_custom
+          Some(position)
+        }
+        None => Some(current.position)
       }
     } else {
       match link.target {
@@ -301,6 +312,7 @@ fn Session::apply_show_link(
           time,
           true,
           leaving=current.animation_state(),
+          last_view=Some((current.route, current.position, current.custom)),
         )
       }
     })

@@ -25,7 +25,7 @@ fn variance_result(
 }
 
 ///|
-fn variance_function(
+fn statistical_function(
   name : String,
   args : Array[Expression],
   sheets : Array[Sheet],
@@ -34,6 +34,8 @@ fn variance_function(
   work : FormulaWork,
   depth : Int,
 ) -> Value raise @failure.Failure {
+  let sample_deviation = name == "STDEV" || name == "STDEV.S"
+  let deviation = sample_deviation || name == "STDEVP" || name == "STDEV.P"
   let numbers : Array[Double] = []
   for arg in args {
     let reference = arg.aggregate_range(sheets, sheet)
@@ -48,18 +50,35 @@ fn variance_function(
       work.spend()
       match value {
         Number(number) => numbers.push(number)
-        Error(_) => return value
+        Error(_) if !sample_deviation => return value
+        Text(_) | Blank if reference is None && sample_deviation =>
+          match numeric_value(value) {
+            Number(number) => numbers.push(number)
+            _ => ()
+          }
         Boolean(_) if reference is None =>
           match numeric_value(value) {
             Number(number) => numbers.push(number)
             _ => abort("Boolean converts to a number")
           }
         Text(_) | Blank if reference is None && name != "VAR" =>
-          // ONLYOFFICE treats direct text/empty as zero except in legacy VAR.
+          // ONLYOFFICE population functions and modern VAR.S count direct text/empty as zero.
           numbers.push(0)
         _ => ()
       }
     }
   }
-  variance_result(numbers, name == "VAR" || name == "VAR.S", work)
+  // ONLYOFFICE sample deviation ignores errors and returns zero for no numeric members.
+  if sample_deviation && numbers.is_empty() {
+    return Number(0)
+  }
+  let result = variance_result(
+    numbers,
+    sample_deviation || name == "VAR" || name == "VAR.S",
+    work,
+  )
+  match result {
+    Number(number) if deviation => finite_result(number.sqrt())
+    value => value
+  }
 }

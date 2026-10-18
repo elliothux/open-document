@@ -23,6 +23,8 @@ fn builtin_style_properties(
       ("IntenseEmphasis", "intense emphasis", "character"),
       ("IntenseQuoteChar", "intense quote char", "character"),
       ("Caption", "caption", "paragraph"),
+      ("Hyperlink", "hyperlink", "character"),
+      ("FollowedHyperlink", "followedhyperlink", "character"),
     ]
     .iter()
     .find_first(p => kind == p.2 && (key == p.0 || name == p.1))
@@ -37,6 +39,8 @@ fn builtin_style_properties(
     _ => ""
   }
   let (color, theme, transform) = match key {
+    "Hyperlink" => ("0563C1", "hlink", "")
+    "FollowedHyperlink" => ("954F72", "folHlink", "")
     "Caption" => ("0E2841", "text2", "")
     "IntenseEmphasis" | "IntenseQuoteChar" =>
       ("0F4761", "accent1", " od:themeShade=\"BF\"")
@@ -50,7 +54,12 @@ fn builtin_style_properties(
     }
     // shortcut: Missing themes use preset RGB; reset again after adding a theme to bind it.
     let theme = if themes.contains(theme) {
-      " od:themeColor=\"\{theme}\"" + transform
+      let name = match theme {
+        "hlink" => "hyperlink"
+        "folHlink" => "followedHyperlink"
+        name => name
+      }
+      " od:themeColor=\"\{name}\"" + transform
     } else {
       ""
     }
@@ -59,7 +68,12 @@ fn builtin_style_properties(
     } else {
       ""
     }
-    "<od:rPr xmlns:od=\"\{word_uri}\"><od:i/><od:iCs/><od:color od:val=\"\{color}\"\{theme}/>\{size}</od:rPr>"
+    let decoration = if key == "Hyperlink" || key == "FollowedHyperlink" {
+      "<od:u od:val=\"single\"/>"
+    } else {
+      "<od:i/><od:iCs/>"
+    }
+    "<od:rPr xmlns:od=\"\{word_uri}\">\{decoration}<od:color od:val=\"\{color}\"\{theme}/>\{size}</od:rPr>"
   }
   Some((paragraph, character))
 }

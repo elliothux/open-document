@@ -96,7 +96,8 @@ fn Expression::dependencies(
           "SECOND", "DAYS", "COUNTA", "COUNTBLANK", "COUNTIF", "COUNTIFS", "SUMIF",
           "SUMIFS", "AVERAGEIF", "AVERAGEIFS", "INDEX", "MATCH", "VLOOKUP", "HLOOKUP",
           "XLOOKUP", "ROW", "COLUMN", "ROWS", "COLUMNS", "SUBTOTAL", "SQRT", "POWER",
-          "PRODUCT", "MEDIAN", "SUMSQ", "VAR", "VAR.S", "VARP", "VAR.P",
+          "PRODUCT", "MEDIAN", "SUMSQ", "VAR", "VAR.S", "VARP", "VAR.P", "STDEV",
+          "STDEV.S", "STDEVP", "STDEV.P",
         ].contains(name) {
         // Only audited value-parameter functions have complete static dependencies.
         guard name == "DEVSQ" && uncomputed is Some(reasons) else {

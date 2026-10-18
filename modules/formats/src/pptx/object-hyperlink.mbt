@@ -343,7 +343,9 @@ fn hyperlink_markup(
 
 ///|
 fn navigation_action(target : String) -> Bool {
-  ["firstslide", "lastslide", "nextslide", "previousslide"].contains(target)
+  [
+    "firstslide", "lastslide", "nextslide", "previousslide", "lastslideviewed", "endshow",
+  ].contains(target)
 }
 
 ///|
@@ -387,6 +389,10 @@ pub fn Session::follow_hyperlink(
       "lastslide" => self.slides.length() - 1
       "nextslide" => (index + 1).min(self.slides.length() - 1)
       "previousslide" => (index - 1).max(0)
+      "lastslideviewed" | "endshow" =>
+        @failure.reject(
+          "invalid-operation", "This navigation action requires a slideshow",
+        )
       _ =>
         @failure.reject("invalid-operation", "Unknown slide navigation action")
     }

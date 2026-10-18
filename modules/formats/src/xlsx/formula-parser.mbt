@@ -368,6 +368,8 @@ fn FormulaParser::primary(
         "_XLFN.XLOOKUP" => "XLOOKUP"
         "_XLFN.VAR.S" => "VAR.S"
         "_XLFN.VAR.P" => "VAR.P"
+        "_XLFN.STDEV.S" => "STDEV.S"
+        "_XLFN.STDEV.P" => "STDEV.P"
         name => name
       }
       if self.accept("(") {
