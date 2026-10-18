@@ -1,5 +1,6 @@
 import { record, integer } from "./validation.js";
 import { checkXlsxOutlineEdit, type XlsxOutlineEdit } from "./xlsx-outline.js";
+import { checkXlsxTableEdit, type XlsxTableEdit } from "./xlsx-tables.js";
 import { checkXlsxNameEdit, type XlsxNameEdit } from "./xlsx-names.js";
 import { checkXlsxSort, type XlsxSortSettings } from "./xlsx-sort.js";
 import {
@@ -29,6 +30,7 @@ import {
 } from "./xlsx-print.js";
 
 export type XlsxSheetEdit =
+  | XlsxTableEdit
   | XlsxOutlineEdit
   | {
       action: "textToColumns";
@@ -133,6 +135,13 @@ export function checkXlsxSheetEdit(value: unknown): void {
     return;
   }
   const change = record(value);
+  if (
+    change.action === "renameTable" ||
+    change.action === "renameTableColumn"
+  ) {
+    checkXlsxTableEdit(value);
+    return;
+  }
   if (change.action === "textToColumns") {
     if (
       Object.keys(change).length !== 4 ||

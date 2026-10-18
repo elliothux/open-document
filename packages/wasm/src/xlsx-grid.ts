@@ -2,7 +2,7 @@ import type { CellRange, XlsxCell } from "./xlsx.js";
 import type { DrawingBatch, DrawRect } from "./drawing.js";
 import { xlsxRect } from "./xlsx-geometry.js";
 import { noteCell, noteText } from "./xlsx-sheet.js";
-import { record } from "./validation.js";
+import { record, integer, hasFields } from "./validation.js";
 
 export interface XlsxViewport extends DrawingBatch {
   id: number;
@@ -53,4 +53,46 @@ export function xlsxGridNotes(value: unknown, bounds: DrawRect): void {
     if (units > 5242880)
       throw new Error("Visible cell notes exceed text budget");
   }
+}
+
+function cellValue(value: unknown): boolean {
+  const item = record(value);
+  switch (item.kind) {
+    case "blank":
+      return item.value === null;
+    case "text":
+    case "error":
+      return typeof item.value === "string";
+    case "number":
+      return typeof item.value === "number" && Number.isFinite(item.value);
+    case "boolean":
+      return typeof item.value === "boolean";
+    default:
+      return false;
+  }
+}
+
+export function xlsxCell(value: unknown): XlsxCell {
+  const cell = record(value);
+  if (
+    !hasFields(
+      cell,
+      ["address", "input", "display", "readOnlyReason", "calculationReason"],
+      [],
+    ) ||
+    typeof cell.address !== "string" ||
+    !/^[A-Z]{1,3}[1-9][0-9]{0,6}$/.test(cell.address) ||
+    !integer(cell.row, 1, 1048576) ||
+    !integer(cell.column, 1, 16384) ||
+    !integer(cell.style, 0, 4095) ||
+    !cellValue(cell.value) ||
+    !(cell.formula === null || typeof cell.formula === "string") ||
+    !(cell.cached === null || cellValue(cell.cached)) ||
+    !(cell.calculated === null || cellValue(cell.calculated)) ||
+    !["value", "calculated", "imported-cache", "uncalculated"].includes(
+      String(cell.calculation),
+    )
+  )
+    throw new Error("Invalid XLSX cell");
+  return value as XlsxCell;
 }

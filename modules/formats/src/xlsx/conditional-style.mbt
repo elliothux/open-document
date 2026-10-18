@@ -125,7 +125,7 @@ fn conditional_style(
               "protected-content", "Conditional border color without a style is unsupported",
             )
           }
-          guard ["none", "thin", "medium", "thick"].contains(style) else {
+          guard ["none", "thin", "medium", "thick", "double"].contains(style) else {
             @failure.reject(
               "protected-content", "Unsupported conditional border style",
             )

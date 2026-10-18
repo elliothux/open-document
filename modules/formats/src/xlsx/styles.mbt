@@ -4,7 +4,8 @@ priv struct CellStyle {
   size : Double
   color : String
   fill : String
-  borders : Array[(String, Double)]
+  borders : Array[CellBorder]
+  border_priority : Array[Int]
   horizontal : String
   vertical : String
   wrap : Bool
@@ -21,7 +22,8 @@ fn default_style() -> CellStyle {
     size: 11,
     color: "000000",
     fill: "",
-    borders: Array::make(4, ("", 0.0)),
+    borders: Array::make(4, CellBorder::{ style: "none", color: "000000", }),
+    border_priority: [0, 0, 0, 0],
     horizontal: "general",
     vertical: "bottom",
     wrap: false,
@@ -93,6 +95,11 @@ fn read_color(
     fallback
   }
   let tint = node.attribute("tint").map(number).unwrap_or(0)
+  color_tint(color, tint)
+}
+
+///|
+fn color_tint(color : String, tint : Double) -> String raise @failure.Failure {
   guard tint >= -1 && tint <= 1 else {
     @failure.reject("malformed-xlsx", "Invalid color tint")
   }
@@ -247,40 +254,46 @@ fn read_styles(
     } else if tree.one(fills[fill_id].id, "gradientFill") is Some(_) {
       style = { ..style, diagnostic: "Unsupported gradient fill", }
     }
-    let edges : Array[(String, Double)] = []
+    let edges : Array[CellBorder] = []
+    let border_priority : Array[Int] = []
     if flag(borders[border_id], "diagonalUp") ||
       flag(borders[border_id], "diagonalDown") {
       style = { ..style, diagnostic: "Unsupported diagonal border", }
     }
     for side in ["left", "right", "top", "bottom"] {
       let edge = tree.one(borders[border_id].id, side)
-      let kind = edge.bind(node => node.attribute("style")).unwrap_or("none")
-      let width = match kind {
-        "thin" => 0.75
-        "medium" => 1.5
-        "thick" => 2.25
-        "none" => 0.0
-        _ => {
-          style = { ..style, diagnostic: "Unsupported border style", }
-          0.0
-        }
-      }
-      edges.push(
-        (
-          if width == 0 {
-            ""
-          } else {
-            read_color(
-              edge.bind(node => tree.one(node.id, "color")),
-              theme,
-              "000000",
-            )
-          },
-          width,
-        ),
+      border_priority.push(
+        if flag(xf, "applyBorder", fallback=border_id != 0) &&
+          edge
+          .bind(node => node.attribute("style"))
+          .map(style => style != "none")
+          .unwrap_or(false) {
+          1
+        } else {
+          0
+        },
       )
+      let kind = edge.bind(node => node.attribute("style")).unwrap_or("none")
+      let kind = if ["none", "thin", "medium", "thick", "double"].contains(kind) {
+        kind
+      } else {
+        style = { ..style, diagnostic: "Unsupported border style", }
+        "none"
+      }
+      edges.push({
+        style: kind,
+        color: if kind == "none" {
+          "000000"
+        } else {
+          read_color(
+            edge.bind(node => tree.one(node.id, "color")),
+            theme,
+            "000000",
+          )
+        },
+      })
     }
-    style = { ..style, borders: edges, }
+    style = { ..style, borders: edges, border_priority, }
     if tree.one(xf.id, "alignment") is Some(alignment) {
       let horizontal = alignment.attribute("horizontal").unwrap_or("general")
       let vertical = alignment.attribute("vertical").unwrap_or("bottom")

@@ -39,11 +39,13 @@ fn Session::fit_sizes(
     @failure.reject("protected-content", conditional.reason)
   }
   ignore(read_filter(current))
-  // shortcut: Measure table effects when their rendering is implemented.
+  guard conditional.table_styles.reason.is_empty() else {
+    @failure.reject("protected-content", conditional.table_styles.reason)
+  }
   for node in tree.children.get(root.id).unwrap_or([]) {
     if node.uri != spreadsheet_uri ||
       (
-        ["tableParts", "pivotTableParts", "extLst"].contains(node.name) &&
+        ["pivotTableParts", "extLst"].contains(node.name) &&
         !tree.children.get(node.id).unwrap_or([]).is_empty()
       ) {
       @failure.reject(

@@ -64,6 +64,7 @@ fn sheet_reference_formula(
 fn Session::sheet_rename_reason(
   self : Session,
   structure~ : Bool = true,
+  tables~ : Bool = false,
 ) -> String {
   try {
     let reason = self.sheet_edit_reason(structure~)
@@ -78,6 +79,7 @@ fn Session::sheet_rename_reason(
         return "Workbook resource references require renaming support"
       }
       if self.sheets.any(sheet => sheet.id == rel.owner) &&
+        !(tables && rel.kind == relationship_uri + "table") &&
         !["hyperlink", "comments", "vmlDrawing"].any(kind => {
           rel.kind == relationship_uri + kind
         }) {
@@ -93,12 +95,15 @@ fn Session::sheet_rename_reason(
       let filter = tree.one(root.id, "autoFilter")
       for node in tree.children.get(root.id).unwrap_or([]) {
         if node.uri != spreadsheet_uri ||
-          ![
-            "sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData",
-            "mergeCells", "sheetProtection", "pageMargins", "pageSetup", "printOptions",
-            "headerFooter", "autoFilter", "sortState", "conditionalFormatting", "dataValidations",
-            "hyperlinks", "legacyDrawing", "extLst",
-          ].contains(node.name) {
+          (
+            !(tables && node.name == "tableParts") &&
+            ![
+              "sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData",
+              "mergeCells", "sheetProtection", "pageMargins", "pageSetup", "printOptions",
+              "headerFooter", "autoFilter", "sortState", "conditionalFormatting",
+              "dataValidations", "hyperlinks", "legacyDrawing", "extLst",
+            ].contains(node.name)
+          ) {
           return "Worksheet content requires reference-aware renaming"
         }
       }
@@ -276,13 +281,7 @@ fn Session::rename_sheet(
     edits.push((sheet.id, edit))
   }
   let sheets = self.ordered_sheets(workbook, sheets, self.parts)
-  let calculation = Calculation::build(
-    sheets,
-    None,
-    [],
-    self.date1904,
-    workbook,
-  )
+  let calculation = self.calculate(sheets, None, [], workbook)
   self.commit(sheets, workbook, calculation, edits, self.selection)
   self.query()
 }

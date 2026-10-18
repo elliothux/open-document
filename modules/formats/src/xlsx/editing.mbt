@@ -489,12 +489,13 @@ pub fn Session::undo(
   }) else {
     @failure.reject("malformed-xlsx", "Cell style is outside restored styles")
   }
-  let calculation = Calculation::build(
+  let calculation = self.calculate(
     sheets,
     None,
     [],
-    self.date1904,
     workbook,
+    parts~,
+    removed=removed_parts,
   )
   // Retain XML identity allocation from later undone edits for their next redo.
   if removed is Some(_) {

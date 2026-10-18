@@ -121,6 +121,11 @@ fn decode_text(text : String) -> String raise @failure.Failure {
 
 ///|
 fn encode_text(text : String) -> String raise @failure.Failure {
+  @xml.escape_text(encoded_text(text))
+}
+
+///|
+fn encoded_text(text : String) -> String {
   // Protect escape-like literals before XML escaping.
   let output = StringBuilder()
   let mut index = 0
@@ -138,5 +143,5 @@ fn encode_text(text : String) -> String raise @failure.Failure {
       index += if character.to_int() > 0xffff { 2 } else { 1 }
     }
   }
-  @xml.escape_text(output.to_string())
+  output.to_string()
 }

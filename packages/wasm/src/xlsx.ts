@@ -34,6 +34,8 @@ export {
 import { xlsxNames, type XlsxNames } from "./xlsx-names.js";
 export type { XlsxName, XlsxNames, XlsxNameEdit } from "./xlsx-names.js";
 import { xlsxStatistics, type XlsxStatistics } from "./xlsx-statistics.js";
+import { xlsxTables, type XlsxTable } from "./xlsx-tables.js";
+export * from "./xlsx-tables.js";
 import { xlsxOutline, type XlsxOutline } from "./xlsx-outline.js";
 export * from "./xlsx-outline.js";
 export { xlsxStatistics, type XlsxStatistics } from "./xlsx-statistics.js";
@@ -127,6 +129,7 @@ export type {
 } from "./xlsx-print.js";
 import { drawingBatch, type DrawingBatch } from "./drawing.js";
 import { xlsxGridNotes, type XlsxViewport } from "./xlsx-grid.js";
+import { xlsxCell } from "./xlsx-grid.js";
 export type { XlsxViewport } from "./xlsx-grid.js";
 import {
   checkXlsxCellFormat,
@@ -195,6 +198,7 @@ export interface XlsxCell {
 }
 
 export interface XlsxQuery {
+  tables: XlsxTable[];
   outline: XlsxOutline;
   hyperlink: XlsxHyperlink;
   note: XlsxNote;
@@ -253,25 +257,9 @@ export interface XlsxQuery {
 
 export type XlsxClearMode = "contents" | "formats" | "all";
 
-function cellValue(value: unknown): boolean {
-  const item = record(value);
-  switch (item.kind) {
-    case "blank":
-      return item.value === null;
-    case "text":
-    case "error":
-      return typeof item.value === "string";
-    case "number":
-      return typeof item.value === "number" && Number.isFinite(item.value);
-    case "boolean":
-      return typeof item.value === "boolean";
-    default:
-      return false;
-  }
-}
-
 export function xlsxQuery(value: unknown): XlsxQuery {
   const query = record(value);
+  xlsxTables(query.tables);
   xlsxOutline(query.outline);
   xlsxStatistics(query.statistics);
   xlsxHyperlink(query.hyperlink);
@@ -402,31 +390,6 @@ export function xlsxQuery(value: unknown): XlsxQuery {
     addresses.add(cell.address);
   }
   return value as XlsxQuery;
-}
-
-function xlsxCell(value: unknown): XlsxCell {
-  const cell = record(value);
-  if (
-    !hasFields(
-      cell,
-      ["address", "input", "display", "readOnlyReason", "calculationReason"],
-      [],
-    ) ||
-    typeof cell.address !== "string" ||
-    !/^[A-Z]{1,3}[1-9][0-9]{0,6}$/.test(cell.address) ||
-    !integer(cell.row, 1, 1048576) ||
-    !integer(cell.column, 1, 16384) ||
-    !integer(cell.style, 0, 4095) ||
-    !cellValue(cell.value) ||
-    !(cell.formula === null || typeof cell.formula === "string") ||
-    !(cell.cached === null || cellValue(cell.cached)) ||
-    !(cell.calculated === null || cellValue(cell.calculated)) ||
-    !["value", "calculated", "imported-cache", "uncalculated"].includes(
-      String(cell.calculation),
-    )
-  )
-    throw new Error("Invalid XLSX cell");
-  return value as XlsxCell;
 }
 
 export function xlsxPrintLayout(value: unknown): XlsxPrintLayout {

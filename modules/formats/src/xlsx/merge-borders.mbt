@@ -1,20 +1,10 @@
 ///|
-fn cell_border(edge : (String, Double)) -> CellBorder {
-  {
-    style: if edge.1 == 0.75 {
-      "thin"
-    } else if edge.1 == 1.5 {
-      "medium"
-    } else if edge.1 == 2.25 {
-      "thick"
-    } else {
-      "none"
-    },
-    color: if edge.0.is_empty() {
-      "000000"
-    } else {
-      edge.0
-    },
+fn CellBorder::width(self : CellBorder) -> Double {
+  match self.style {
+    "thin" => 0.75
+    "medium" => 1.5
+    "thick" | "double" => 2.25
+    _ => 0.0
   }
 }
 
@@ -67,15 +57,18 @@ fn Session::merged_style(
       column: range.right,
     })]
   let borders = first.borders.copy()
+  let border_priority = first.border_priority.copy()
   // End-cell right/bottom borders complete the merged outline without expanding large imported ranges.
   for side in [1, 3] {
-    if last.borders[side].1 > 0 {
+    if last.borders[side].style != "none" {
       borders[side] = last.borders[side]
+      border_priority[side] = last.border_priority[side]
     }
   }
   {
     ..first,
     borders,
+    border_priority,
     diagnostic: if first.diagnostic.is_empty() {
       last.diagnostic
     } else {
@@ -104,7 +97,7 @@ fn Session::merge_formats(
   for side in 0..<4 {
     let first = if side < 2 { range.top } else { range.left }
     let last = if side < 2 { range.bottom } else { range.right }
-    let mut common : (String, Double)? = None
+    let mut common : CellBorder? = None
     let mut key : Json? = None
     let mut fragment = ""
     for position in first..<=last {
@@ -134,7 +127,7 @@ fn Session::merge_formats(
         borders[border].id,
         ["left", "right", "top", "bottom"][side],
       )
-      if edge.1 == 0 || node is None {
+      if edge.style == "none" || node is None {
         common = None
         break
       }
@@ -151,7 +144,7 @@ fn Session::merge_formats(
       common = Some(edge)
     }
     if common is Some(edge) {
-      edges[side] = cell_border(edge)
+      edges[side] = edge
       fragments[side] = fragment
     }
   }

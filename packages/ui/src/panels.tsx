@@ -21,6 +21,7 @@ import { PptxComments } from "./pptx-comments.js";
 import { PptxSlideList } from "./pptx-slides.js";
 import { XlsxSheets, XlsxFrozen, XlsxView } from "./xlsx-sheets.js";
 import { XlsxOutlinePanel } from "./xlsx-outline.js";
+import { XlsxTablesPanel } from "./xlsx-tables.js";
 import { XlsxNames } from "./xlsx-names.js";
 import { XlsxFormat } from "./xlsx-format.js";
 import { XlsxSearch } from "./xlsx-search.js";
@@ -377,6 +378,11 @@ export function Properties(props: PanelProps) {
   if (props.file.format === "xlsx")
     return (
       <aside className="od-properties">
+        <XlsxTablesPanel
+          key={`${props.state.document?.documentId}:${props.file.editor.currentState.sheet}`}
+          {...props}
+          disabled={props.disabled || !!props.state.document?.stopped}
+        />
         <XlsxOutlinePanel
           {...props}
           disabled={props.disabled || !!props.state.document?.stopped}

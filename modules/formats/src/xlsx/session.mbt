@@ -262,13 +262,7 @@ fn Session::from_package(
     }
   }
   session.calculation = Some(
-    Calculation::build(
-      session.sheets,
-      None,
-      [],
-      session.date1904,
-      session.workbook,
-    ),
+    session.calculate(session.sheets, None, [], session.workbook),
   ) catch {
     @failure.Failure(code~, message~, ..) if code == "unsupported-formula" ||
       code == "formula-syntax" ||
@@ -358,10 +352,17 @@ pub fn Session::query(
     work,
   ) catch {
     @failure.Failure(code="limit-exceeded", message~, ..) =>
-      { rules: [], reason: message, scales: Map([]), }
+      {
+        rules: [],
+        table_styles: TableStyles::empty(),
+        reason: message,
+        scales: Map([]),
+      }
     error => raise error
   }
-  let diagnostics = self.diagnostics.copy()
+  let diagnostics = self.diagnostics.filter(diagnostic => {
+    !conditional.table_styles.renders(diagnostic, current.id)
+  })
   if !conditional.reason.is_empty() {
     diagnostics.push(
       "conditional-format:" + current.id + ":" + conditional.reason,
@@ -442,17 +443,10 @@ pub fn Session::query(
       value
     }),
     "mainPart": self.main,
-    "fontKeys": self.styles
-    .map(style => style.font)
-    .iter()
-    .fold(init=[], (keys : Array[String], key) => {
-      if !keys.contains(key) {
-        keys.push(key)
-      }
-      keys
-    }),
+    "fontKeys": self.font_keys(),
     "sheet": current.id,
     "outline": self.outline_query(current),
+    "tables": self.table_query(current),
     "view": {
       "gridLines": current.view.grid_lines,
       "headings": current.view.headings,

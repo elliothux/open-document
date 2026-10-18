@@ -68,7 +68,7 @@ fn Expression::dependencies(
     )
   }
   match self {
-    Named(_, _) =>
+    Named(_, _) | Structured(_, _) =>
       self
       .resolve_names(sheets, current, work.origin, work)
       .dependencies(sheets, current, work, output, depth + 1, uncomputed~)
@@ -174,8 +174,22 @@ fn Calculation::build(
   changed : Array[(Int, Range)],
   date1904 : Bool,
   workbook : @xml.Document,
+  tables~ : Array[StructuredTable],
 ) -> Calculation raise @failure.Failure {
-  let names = read_named_definitions(workbook, sheets.length())
+  let definitions = read_named_definitions(workbook, sheets.length())
+  for table in tables {
+    guard !table.filtering else {
+      @failure.reject(
+        "unsupported-formula", "Table filtering requires calculation support",
+      )
+    }
+    guard !definitions.sources.contains((-1, table.name.to_upper())) else {
+      @failure.reject(
+        "malformed-xlsx", "Table name conflicts with a workbook defined name",
+      )
+    }
+  }
+  let names = { ..definitions, tables, }
   let previous = if previous is Some(previous) && previous.names.same(names) {
     Some(previous)
   } else {

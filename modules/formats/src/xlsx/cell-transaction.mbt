@@ -68,11 +68,10 @@ fn Session::prepare_cells(
       )
     }
   }
-  let calculation = Calculation::build(
+  let calculation = self.calculate(
     candidate,
     self.calculation,
     changed,
-    self.date1904,
     self.workbook,
   )
   self.validate_inputs(candidate, calculation, targets, accept_warnings)

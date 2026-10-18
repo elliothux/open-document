@@ -112,7 +112,10 @@ fn Session::select_name(
   scope : String?,
 ) -> Json raise @failure.Failure {
   let context = self.name_scope(scope)
-  let names = read_named_definitions(self.workbook, self.sheets.length())
+  let names = {
+    ..read_named_definitions(self.workbook, self.sheets.length()),
+    tables: self.table_definitions(self.sheets, self.workbook, self.parts),
+  }
   guard names.sources.contains((context, name.to_upper())) else {
     @failure.reject("invalid-name", "Unknown defined name in this scope")
   }
@@ -162,7 +165,7 @@ fn name_reference_formula(
   for index, token in tokens {
     guard token is Word(word) &&
       word.to_upper() == old.to_upper() &&
-      !(tokens.get(index + 1) is Some(Operator("!" | "("))) else {
+      !(tokens.get(index + 1) is Some(Operator("!" | "(") | Brackets(_))) else {
       continue
     }
     let target = if index >= 2 && tokens[index - 1] is Operator("!") {
@@ -454,13 +457,7 @@ fn Session::edit_name(
       }
     }
   }
-  let calculation = Calculation::build(
-    sheets,
-    None,
-    [],
-    self.date1904,
-    workbook,
-  )
+  let calculation = self.calculate(sheets, None, [], workbook)
   edits.append(self.cache_edits(sheets, calculation))
   let anchor = self.anchor
   let focus = self.focus

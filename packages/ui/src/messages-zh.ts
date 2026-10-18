@@ -6,8 +6,10 @@ import type { Messages } from "./messages-en.js";
 import { reviewZh } from "./messages-review.js";
 import { pageZh } from "./messages-docx-page.js";
 import { outlineZh } from "./messages-outline.js";
+import { tableZh } from "./messages-xlsx-tables.js";
 
 export const zh: Messages = {
+  ...tableZh,
   ...outlineZh,
   ...reviewZh,
   ...pageZh,

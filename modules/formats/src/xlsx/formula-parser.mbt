@@ -10,6 +10,7 @@ priv enum Expression {
   Constant(Value)
   Reference(String?, FormulaAddress, FormulaAddress?)
   Named(String?, String)
+  Structured(String?, String)
   Unary(String, Expression)
   Binary(String, Expression, Expression)
   Function(String, Array[Expression])
@@ -18,6 +19,7 @@ priv enum Expression {
 ///|
 priv enum Token {
   Word(String)
+  Brackets(String)
   Numeric(Double, String)
   Quoted(String, Bool)
   ErrorLiteral(String)
@@ -51,6 +53,14 @@ fn formula_tokens(
       continue
     }
     let token_start = index
+    if character == '[' {
+      index = structured_end(text, index)
+      tokens.push(Brackets(text[token_start:index].to_owned()))
+      if spans is Some(spans) {
+        spans.push((token_start, index))
+      }
+      continue
+    }
     if character == '#' {
       let errors = [
         "#REF!", "#DIV/0!", "#VALUE!", "#N/A", "#NAME?", "#NUM!", "#NULL!",
@@ -321,6 +331,7 @@ fn FormulaParser::primary(
         Constant(Number(value))
       }
     ErrorLiteral(value) => Constant(Error(value))
+    Brackets(selector) => Structured(None, selector)
     Quoted(value, false) => Constant(Text(value))
     Quoted(sheet, true) => {
       guard self.accept("!") else {
@@ -338,6 +349,13 @@ fn FormulaParser::primary(
       value
     }
     Word(word) => {
+      if self.tokens[self.cursor] is Brackets(selector) {
+        self.cursor += 1
+        guard name_identifier(word) else {
+          @failure.reject("formula-syntax", "Invalid table name")
+        }
+        return Structured(Some(word), selector)
+      }
       if self.accept("!") {
         return self.reference(Some(word), self.reference_token())
       }

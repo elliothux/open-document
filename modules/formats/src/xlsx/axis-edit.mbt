@@ -234,13 +234,7 @@ fn Session::edit_axes(
   if edits.is_empty() {
     return self.query()
   }
-  let mut calculation = Calculation::build(
-    sheets,
-    None,
-    [],
-    self.date1904,
-    workbook,
-  )
+  let mut calculation = self.calculate(sheets, None, [], workbook, parts~)
   if filter is Some(_) && read_filter(sheets[index]) is Some(state) {
     calculation = self.reapply_candidate_filter(
       index, state, sheets, workbook, calculation, edits,

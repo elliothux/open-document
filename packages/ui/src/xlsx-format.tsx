@@ -311,7 +311,7 @@ export function XlsxFormat({ controller, state, editor, disabled }: Props) {
                     )
                   }
                 >
-                  {options(["none", "thin", "medium", "thick"])}
+                  {options(["none", "thin", "medium", "thick", "double"])}
                 </select>
               </label>
               <label>

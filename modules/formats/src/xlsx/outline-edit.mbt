@@ -351,13 +351,7 @@ fn Session::edit_outline(
   sheets[index] = current
   let previous = self.calculation.unwrap()
   let calculation = if !hidden.is_empty() && previous.visibility_dependent() {
-    let calculation = Calculation::build(
-      sheets,
-      None,
-      [],
-      self.date1904,
-      self.workbook,
-    )
+    let calculation = self.calculate(sheets, None, [], self.workbook)
     edits.append(self.cache_edits(sheets, calculation))
     calculation
   } else {

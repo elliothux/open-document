@@ -227,6 +227,7 @@ fn Session::paint_grid(
   Array[Json],
   Array[Json],
   Array[Json],
+  TableStyles,
 ) raise @failure.Failure {
   let (header_width, header_height) = self.sheets[index].view.header_size()
   let rtl = self.sheets[index].view.rtl
@@ -491,5 +492,12 @@ fn Session::paint_grid(
       )
     }
   }
-  (primitives, cells, row_headers, column_headers, visible_notes)
+  (
+    primitives,
+    cells,
+    row_headers,
+    column_headers,
+    visible_notes,
+    conditional.table_styles,
+  )
 }

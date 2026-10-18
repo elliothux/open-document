@@ -229,7 +229,10 @@ fn Session::paint_cells(
         page.strokes.push((rect, "d9dce1", 0.5))
       }
       for side, edge in style.borders {
-        if edge.1 == 0 {
+        if edge.style == "none" ||
+          !self.border_wins(
+            style, address, range, side, rows, columns, conditional, index, work,
+          ) {
           continue
         }
         let edge_rect : @layout.Border = match side {
@@ -238,7 +241,18 @@ fn Session::paint_cells(
           2 => { ..rect, height: 0, }
           _ => { ..rect, y: rect.y + rect.height, height: 0, }
         }
-        page.strokes.push((edge_rect, edge.0, edge.1))
+        if edge.style == "double" {
+          for offset in [-0.75, 0.75] {
+            let line = if side < 2 {
+              { ..edge_rect, x: edge_rect.x + offset, }
+            } else {
+              { ..edge_rect, y: edge_rect.y + offset, }
+            }
+            page.strokes.push((line, edge.color, 0.75))
+          }
+        } else {
+          page.strokes.push((edge_rect, edge.color, edge.width()))
+        }
       }
       if !text.is_empty() && rect.width > 4.5 && rect.height > 3 {
         let mut block = probe.text_block(
@@ -430,7 +444,14 @@ pub fn Session::viewport(
     width - header_width,
     extent_column,
   )
-  let (primitives, cells, row_headers, column_headers, visible_notes) = self.paint_grid(
+  let (
+    primitives,
+    cells,
+    row_headers,
+    column_headers,
+    visible_notes,
+    table_styles,
+  ) = self.paint_grid(
     index, dimensions, rows, columns, width, height, probe, profile, notes,
   )
   let document : @layout.PositionedDocument = {
@@ -441,7 +462,9 @@ pub fn Session::viewport(
     @failure.reject("limit-exceeded", "Grid identity exhausted")
   }
   self.grid_id += 1
-  let diagnostics = self.diagnostics.copy()
+  let diagnostics = self.diagnostics.filter(diagnostic => {
+    !table_styles.renders(diagnostic, current.id)
+  })
   for cell in cells {
     if cell is { "diagnostic": String(reason), .. } && !reason.is_empty() {
       let message = "cell-style:" + sheet + ":" + reason

@@ -16,6 +16,7 @@ priv struct ConditionalRule {
 
 ///|
 priv struct ConditionalRules {
+  table_styles : TableStyles
   rules : Array[ConditionalRule]
   reason : String
   scales : Map[Int, Array[Double]]
@@ -30,6 +31,7 @@ fn Session::conditional_rules(
   work : FormulaWork,
   parts~ : Map[String, @xml.Document] = self.parts,
 ) -> ConditionalRules raise @failure.Failure {
+  let table_styles = self.table_styles(current, work, parts)
   try {
     let tree = Tree::new(current.document)
     let rules : Array[ConditionalRule] = []
@@ -219,10 +221,10 @@ fn Session::conditional_rules(
       }
     }
     rules.sort_by((a, b) => a.priority.compare(b.priority))
-    { rules, reason: "", scales: Map([]), }
+    { rules, table_styles, reason: "", scales: Map([]), }
   } catch {
     @failure.Failure(code~, message~, ..) if code != "limit-exceeded" =>
-      { rules: [], reason: message, scales: Map([]), }
+      { rules: [], table_styles, reason: message, scales: Map([]), }
     error => raise error
   }
 }
@@ -268,6 +270,8 @@ fn ConditionalRules::applied(
   values : Map[(Int, String), Value],
   work : FormulaWork,
 ) -> CellStyle raise @failure.Failure {
+  let source = self.table_styles.applied(source, sheets[index], address)
+  work.spend(amount=self.table_styles.tables.length())
   try {
     guard self.reason.is_empty() else {
       return { ..source, diagnostic: self.reason, }
@@ -348,6 +352,13 @@ fn ConditionalRules::applied(
     // Apply the highest priority last, preserving non-conflicting lower properties.
     for style in matched.rev() {
       result = style.applied(result)
+      let priorities = result.border_priority.copy()
+      for side, patch in [style.left, style.right, style.top, style.bottom] {
+        if patch is Some(_) {
+          priorities[side] = 2
+        }
+      }
+      result = { ..result, border_priority: priorities, }
     }
     { ..result, bar, }
   } catch {

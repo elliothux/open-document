@@ -62,6 +62,9 @@ fn Session::print_sheet(
       },
     )
   for diagnostic in self.diagnostics {
+    if conditional.table_styles.renders(diagnostic, sheet) {
+      continue
+    }
     if diagnostic.has_prefix("unrendered:" + sheet + ":") {
       @failure.reject(
         "unsupported-print",

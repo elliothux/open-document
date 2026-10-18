@@ -40,6 +40,9 @@ import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type { XlsxSheetEdit, XlsxClearMode } from "@open-document/wasm/xlsx";
 export type {
   XlsxOutline,
+  XlsxTable,
+  XlsxTableColumn,
+  XlsxTableEdit,
   XlsxOutlineGroup,
   XlsxOutlineEdit,
 } from "@open-document/wasm/xlsx";

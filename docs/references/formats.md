@@ -949,7 +949,7 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 ### 单元格格式编辑
 
-同步 Wasm 与 Worker 使用 `formatCells(revision, patch)`，宿主使用 `SpreadsheetEditor.formatCells(patch)`。命令作用于队列执行时的选区，宿主先提交单格草稿。`XlsxCellFormat` 从 `wasm/xlsx` 和 `web/xlsx` 导出；省略的属性保持原值。字段为 `family`、`size`、`bold`、`italic`、`color`、`fill`、`horizontal`、`vertical`、`wrap`、`numberFormat` 及 `left/right/top/bottom`。颜色为六位十六进制，空 `fill` 清除填充；四边使用 `{ style: "none" | "thin" | "medium" | "thick", color }`。字号为 1–409 磅，水平对齐为 general/left/center/right，垂直对齐为 top/center/bottom；数字格式限下节已有集合。宿主先验证新字体键存在于字体 profile。
+同步 Wasm 与 Worker 使用 `formatCells(revision, patch)`，宿主使用 `SpreadsheetEditor.formatCells(patch)`。命令作用于队列执行时的选区，宿主先提交单格草稿。`XlsxCellFormat` 从 `wasm/xlsx` 和 `web/xlsx` 导出；省略的属性保持原值。字段为 `family`、`size`、`bold`、`italic`、`color`、`fill`、`horizontal`、`vertical`、`wrap`、`numberFormat` 及 `left/right/top/bottom`。颜色为六位十六进制，空 `fill` 清除填充；四边使用 `{ style: "none" | "thin" | "medium" | "thick" | "double", color }`。字号为 1–409 磅，水平对齐为 general/left/center/right，垂直对齐为 top/center/bottom；数字格式限下节已有集合。宿主先验证新字体键存在于字体 profile。
 
 `XlsxQuery.formatting` 返回这些属性，不同值返回 `null`，并返回 `readOnlyReason` 和所选字体键 `fontKeys`。一次最多 4096 格；依赖无法隔离的公式、受保护表、富文本/未知样式及只覆盖部分合并格的范围继续保护。单格合并锚点的格式查询和编辑扩展到完整合并范围。空白格继承行样式，其次列样式，再使用基础样式；显式单元格样式优先。派生格式保留原共享记录，不改写其他格。样式和目标格共同提交有界历史，缺失样式部件时关系及内容类型一起创建和撤销。仅改格式保留值、公式源、缓存和 calcChain，后续输入保持格样式；重复设置有效状态不新增历史。格式化的空白格参与使用范围和打印。默认 UI 使用可滚动属性栏，保留网格工作区。Chromium 已检查格式设置、草稿顺序、混合历史、缺失字体恢复、保存重开和格式化公式的 PDF 输出；更多装饰和格式代码仍归 [P11](../p11-xlsx-core.md)。
 
@@ -979,7 +979,7 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 普通 `cellIs`、`expression`、`colorScale` 和 `dataBar` 规则已在核心计算。值规则支持八项比较；数值、文字和布尔保持类型区别，文字比较忽略大小写，空格按零或空文字比较。表达式沿现有公式语法求值，相对引用以全部 `sqref` 的外接左上角为原点，保留绝对/混合及跨表引用；`ROW/COLUMN` 使用当前格。公式错误不命中，未知函数或引用给出诊断。
 
-`priority` 越小越优先；命中的高优先级属性覆盖低优先级的相同属性，其余属性组合。命中 `stopIfTrue` 后不再使用后续规则，即使该规则没有差异样式。`dxfId` 从工作簿当前样式部件解析，不写回单元格样式。支持字体名、字号、粗斜体、文字色、纯色/无填充、四边 thin/medium/thick/none、现有数字格式及基本对齐/换行。颜色复用主题、索引及 tint 解析；差异填充优先采用 `bgColor`，与 [ONLYOFFICE fixForDxf](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/WorkbookElems.js#L3502-L3509)一致。差异字体仍须显式提供 profile 映射。
+`priority` 越小越优先；命中的高优先级属性覆盖低优先级的相同属性，其余属性组合。命中 `stopIfTrue` 后不再使用后续规则，即使该规则没有差异样式。`dxfId` 从工作簿当前样式部件解析，不写回单元格样式。支持字体名、字号、粗斜体、文字色、纯色/无填充、四边 thin/medium/thick/double/none、现有数字格式及基本对齐/换行。颜色复用主题、索引及 tint 解析；差异填充优先采用 `bgColor`，与 [ONLYOFFICE fixForDxf](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/WorkbookElems.js#L3502-L3509)一致。差异字体仍须显式提供 profile 映射。
 
 `XlsxConditionalFormat` 包含 `kind`（`cellIs/expression/colorScale/dataBar`）、`operator`、`formula1`、`formula2`、`stopIfTrue` 和部分属性 `format: XlsxCellFormat`。表达式的 operator 为空；仅 between/notBetween 使用第二个公式。颜色刻度的 stops 和数据条的 bar 见下文。`XlsxQuery.conditionalFormats` 返回当前表按优先级排序的全部普通规则，每项包含 `priority`、空格分隔的 A1 矩形 `ranges`、`rule` 和 `readOnlyReason`，容器也有保护原因。规则原点随完整 ranges 定位，不随当前选区变化。
 
@@ -1196,6 +1196,22 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 实现归 [`named-definitions.mbt`](../../modules/formats/src/xlsx/named-definitions.mbt)与 [`name-edit.mbt`](../../modules/formats/src/xlsx/name-edit.mbt)。作用域、定义上下文和相对偏移参考 [ONLYOFFICE DefName](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L457-L512)及 [cName](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L2173-L2262)。管理事务和改名绑定参考 [editDefinesNames](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L1086-L1125)及 [changeDefName](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L2261-L2275)。
 
 结构变换参考 [ONLYOFFICE 名称公式通知](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L559-L574)及[按保存引用移动](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L10152-L10281)，实现复用 [`axis-reference.mbt`](../../modules/formats/src/xlsx/axis-reference.mbt)和 [`axis-metadata.mbt`](../../modules/formats/src/xlsx/axis-metadata.mbt)。
+
+### 结构化表与引用
+
+`XlsxQuery.tables` 返回当前工作表的原生表定义，包括 `id`、`name`、A1 `range`、`headerRow/totalRow`、`columns`、`style` 和 `readOnlyReason`。每列返回稳定的 `id`、`name` 和 `calculated` 标记；表和列身份来自所属 XML，不从位置或显示文字重新生成。核心校验表关系、名称、列数、重复身份、重叠范围和合并区域，单元格仍由原有稀疏工作表持有。
+
+公式支持 `Sales[Amount]`、表内 `[Amount]`、`[@Amount]`、`[[First]:[Last]]`，以及 `#Data/#Headers/#Totals/#All/#This Row`。裸表名表示数据区域，标题和总计按定义排除；连续行段可组合。列名中的结构字符使用单引号转义。引用解析为现有单元格依赖和有界范围，保留原公式文字；跨表公式、名称引用，以及计算列和总计格中已有的单元格公式随普通数据重算。表元数据不会自动填充缺失的单元格公式。缺表返回 `#NAME?`，缺列或不存在的行段返回 `#REF!`，数据区域外的当前行引用返回 `#VALUE!`。不连续行列组合继续保护。
+
+`editSheet({ action: "renameTable", id, name })` 修改表名称。`editSheet({ action: "renameTableColumn", id, column, name })` 修改列标题；`column` 是稳定列身份。表名遵循已有名称规则，表名和列名最多 255 个 UTF-16 单元。核心同时更新所属表部件、表头、工作簿名称及各表公式，按词法标记替换，保留字符串常量、列身份、表关系、样式定义和无关源。默认结构化表面板调用相同命令，先提交原生草稿。源、缓存和选区进入一项精确历史，相同名称不新增历史。
+
+普通数据格沿现有输入路径编辑。直接覆盖表头、总计格或已有计算列时，核心要求相应表命令；缓存重算不受此限制。连接、资源关系、扩展、未知规则引用、受保护工作表和超限候选原子拒绝。工作簿最多 256 张结构化表、4096 列定义；每表列名累计最多 65536 个单元，改名共享 1048576 公式工作预算和原有 4 MiB 历史上限。
+
+`TableStyleMedium2` 的标题填充/文字色、行列条纹、首末列和总计字体、外框/横线及总计双线进入现有显示、打印与自动适配路径。颜色复用当前主题及 tint 解析。直接声明按属性覆盖表样式，条件格式随后覆盖；所需粗体字体键包含在查询中，宿主仍须供应字体及 profile。格式面板查询包含表样式，修改字体或边框时保留同一组件的其他可见属性；`none` 清除直接边框覆盖，恢复表样式。共享边只绘制一次，双线保留两条细线及间隙。其他内置/自定义样式和差异样式继续保护。属性依据 [ONLYOFFICE 的 Medium2 定义](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Sheets/XlsxDefaults/presetTableStyles.xml#L2492-L2579)，实现归 [`table-style.mbt`](../../modules/formats/src/xlsx/table-style.mbt)。
+
+当前接通导入、查询、普通数据编辑及名称修改。表创建、扩展区域、行列结构同步、总计设置、表筛选和完整表样式呈现继续实施。已有样式定义保留；只有已支持的表定义和样式才解除 `tableParts` 未呈现诊断，其余仍保护打印。活动表筛选尚不能区分筛选隐藏来源时，保留导入缓存并保护计算修改。工作表复制、删除和改名等未接通的表资源操作继续保护。
+
+结构化引用依据 [ONLYOFFICE cStrucTable](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L2352-L2628)的行段、列身份、当前行及转义行为。实现归 [`table.mbt`](../../modules/formats/src/xlsx/table.mbt)、[`structured-reference.mbt`](../../modules/formats/src/xlsx/structured-reference.mbt)、[`table-rename.mbt`](../../modules/formats/src/xlsx/table-rename.mbt)及 [`xlsx-tables.tsx`](../../packages/ui/src/xlsx-tables.tsx)，复用既有事务和绘制模型。
 
 ### 冻结窗格
 

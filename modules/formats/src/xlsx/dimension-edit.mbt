@@ -151,13 +151,7 @@ fn Session::resize_dimensions(
     self.strings,
     self.styles.length(),
   )
-  let calculation = Calculation::build(
-    sheets,
-    None,
-    [],
-    self.date1904,
-    self.workbook,
-  )
+  let calculation = self.calculate(sheets, None, [], self.workbook)
   if calculation.visibility_dependent() {
     edits.append(self.cache_edits(sheets, calculation))
   }

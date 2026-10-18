@@ -157,6 +157,20 @@ fn Session::format_pattern(
   let reason = self.format_reason(current, target)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let originals : Map[String, (Int, Int)] = Map([])
+  let table_styles = self.table_styles(
+    current,
+    {
+      remaining: 1048576,
+      date1904: self.date1904,
+      origin: self.focus,
+      names: self.formula_names(),
+    },
+    self.parts,
+  )
+  guard table_styles.reason.is_empty() ||
+    !table_styles.tables.any(table => table.range.intersects(target)) else {
+    @failure.reject("protected-content", table_styles.reason)
+  }
   for row in target.top..<=target.bottom {
     for column in target.left..<=target.right {
       let address : Address = { row, column, }
@@ -166,7 +180,37 @@ fn Session::format_pattern(
         pattern[0].length() +
         (column - target.left) % pattern[0].length()]
       let patch = patches[id]
-      if patch.applied(self.styles[style]) != self.styles[style] {
+      let base = table_styles.applied(self.styles[style], current, address)
+      let changed = {
+        ..patch.applied(base),
+        border_priority: base.border_priority,
+      }
+      let changed_borders = changed.borders.copy()
+      for side, edge in [patch.left, patch.right, patch.top, patch.bottom] {
+        if edge is Some({ style: "none", .. }) &&
+          self.styles[style].borders[side].style == "none" {
+          changed_borders[side] = base.borders[side]
+        }
+      }
+      let changed = { ..changed, borders: changed_borders, }
+      if changed != base {
+        let patch = if table_styles.reason.is_empty() &&
+          table_styles.tables.any(table => {
+            table.style == Some("TableStyleMedium2") &&
+            table.range.contains(address)
+          }) {
+          patch.for_table(base)
+        } else {
+          patch
+        }
+        let id = if pool.get(patch) is Some(id) {
+          id
+        } else {
+          let id = patches.length()
+          patches.push(patch)
+          pool[patch] = id
+          id
+        }
         originals[address.name()] = (style, id)
       }
     }

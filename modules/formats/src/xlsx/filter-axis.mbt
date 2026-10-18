@@ -133,7 +133,7 @@ fn Session::reapply_candidate_filter(
     self.styles.length(),
   )
   if calculation.visibility_dependent() {
-    Calculation::build(sheets, None, [], self.date1904, workbook)
+    self.calculate(sheets, None, [], workbook)
   } else {
     calculation
   }

@@ -1,11 +1,12 @@
 ///|
 priv struct NamedDefinitions {
   sources : Map[(Int, String), String]
+  tables : Array[StructuredTable]
 }
 
 ///|
 fn NamedDefinitions::empty() -> NamedDefinitions {
-  { sources: Map([]), }
+  { sources: Map([]), tables: [], }
 }
 
 ///|
@@ -13,6 +14,7 @@ fn NamedDefinitions::same(
   self : NamedDefinitions,
   other : NamedDefinitions,
 ) -> Bool {
+  self.tables == other.tables &&
   self.sources.length() == other.sources.length() &&
   self.sources.iter().all(entry => other.sources.get(entry.0) == Some(entry.1))
 }
@@ -97,6 +99,8 @@ fn Expression::resolve_names(
   }
   match self {
     Constant(_) => self
+    Structured(name, selector) =>
+      structured_reference(name, selector, sheets, sheet, origin, work)
     Reference(target, first, last) => {
       let target = if target is Some(target) {
         target
@@ -110,6 +114,17 @@ fn Expression::resolve_names(
       Reference(Some(target), first, last)
     }
     Named(target, name) => {
+      if target is None &&
+        work.names.tables.any(table => table.name.to_upper() == name.to_upper()) {
+        return structured_reference(
+          Some(name),
+          "[#Data]",
+          sheets,
+          sheet,
+          origin,
+          work,
+        )
+      }
       let context = if target is Some(_) {
         referenced_sheet(sheets, 0, target)
       } else {

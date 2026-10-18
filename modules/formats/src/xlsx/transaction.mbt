@@ -24,6 +24,7 @@ fn Session::commit(
     },
   },
 ) -> Unit raise @failure.Failure {
+  self.protect_table_cells(sheets, calculation.names.tables)
   guard self.revision < 2147483647 else {
     @failure.reject("limit-exceeded", "Workbook revision exhausted")
   }
@@ -36,6 +37,7 @@ fn Session::commit(
     )
   }
   let styles = self.styles_from_parts(parts)
+  ignore(self.font_keys(styles~, tables=calculation.names.tables))
   guard sheets.all(sheet => {
     sheet.cells.values().all(cell => cell.style < styles.length())
   }) else {

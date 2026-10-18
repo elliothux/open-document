@@ -117,7 +117,7 @@ fn CellFormat::validate(self : CellFormat) -> Unit raise @failure.Failure {
     border in [self.left, self.right, self.top, self.bottom]
     .iter()
     .filter_map(v => v) {
-    guard ["none", "thin", "medium", "thick"].contains(border.style) &&
+    guard ["none", "thin", "medium", "thick", "double"].contains(border.style) &&
       border.color.length() == 6 &&
       border.color.iter().all(c => c.is_ascii_hexdigit()) else {
       @failure.reject("invalid-operation", "Invalid cell border")
@@ -167,21 +167,18 @@ fn CellFormat::applied(self : CellFormat, source : CellStyle) -> CellStyle {
       ""
     })
   let borders = source.borders.copy()
+  let border_priority = source.border_priority.copy()
   for i, patch in [self.left, self.right, self.top, self.bottom] {
     if patch is Some(border) {
-      borders[i] = (
-        if border.style == "none" {
-          ""
+      borders[i] = {
+        ..border,
+        color: if border.style == "none" {
+          "000000"
         } else {
           border.color.to_lower()
         },
-        match border.style {
-          "thin" => 0.75
-          "medium" => 1.5
-          "thick" => 2.25
-          _ => 0.0
-        },
-      )
+      }
+      border_priority[i] = if border.style == "none" { 0 } else { 1 }
     }
   }
   {
@@ -195,5 +192,6 @@ fn CellFormat::applied(self : CellFormat, source : CellStyle) -> CellStyle {
     wrap: self.wrap.unwrap_or(source.wrap),
     format: self.numberFormat.unwrap_or(source.format),
     borders,
+    border_priority,
   }
 }

@@ -59,6 +59,7 @@ fn Expression::source(
     @failure.reject("limit-exceeded", "Formula expression depth exceeded")
   }
   match self {
+    Structured(name, selector) => name.unwrap_or("") + selector
     Named(sheet, name) =>
       sheet
       .map(sheet => "'" + sheet.replace_all(old="'", new="''") + "'!")

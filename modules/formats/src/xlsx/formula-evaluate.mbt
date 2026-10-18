@@ -89,7 +89,7 @@ fn Expression::evaluate(
     @failure.reject("limit-exceeded", "Formula evaluation depth exceeded")
   }
   match self {
-    Named(_, _) =>
+    Named(_, _) | Structured(_, _) =>
       self
       .resolve_names(sheets, sheet, work.origin, work)
       .evaluate(sheets, sheet, values, work, depth + 1)

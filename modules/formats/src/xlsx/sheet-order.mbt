@@ -12,6 +12,8 @@ pub(all) enum SheetEdit {
   CollapseOutline(String, Int, Int, Int, Bool)
   ClearOutline(String)
   OutlineSummary(String, Bool)
+  RenameTable(Int, String)
+  RenameTableColumn(Int, Int, String)
   InsertRows(Int, Int)
   DeleteRows(Int, Int)
   InsertColumns(Int, Int)
@@ -279,6 +281,9 @@ pub fn Session::edit_sheet(
     HeaderFooter(settings) => return self.set_header_footer(sheet, settings)
     Freeze(rows, columns) => return self.freeze(sheet, rows, columns)
     View(settings) => return self.set_view(sheet, settings)
+    RenameTable(id, name) => return self.rename_table(sheet, id, name)
+    RenameTableColumn(id, column, name) =>
+      return self.rename_table(sheet, id, name, column=Some(column))
     SetName(settings) => return self.edit_name(settings)
     DeleteName(name, scope) =>
       return self.edit_name(
@@ -340,6 +345,8 @@ pub fn Session::edit_sheet(
     | Freeze(_, _)
     | View(_)
     | SetName(_)
+    | RenameTable(_, _)
+    | RenameTableColumn(_, _, _)
     | DeleteName(_, _)
     | SelectName(_, _)
     | PageSetup(_)
@@ -600,13 +607,7 @@ pub fn Session::edit_sheet(
       }
     }
   }
-  let calculation = Calculation::build(
-    sheets,
-    None,
-    [],
-    self.date1904,
-    workbook,
-  )
+  let calculation = self.calculate(sheets, None, [], workbook, parts~)
   if deleted is Some(_) || change is Copy {
     edits.append(self.cache_edits(sheets, calculation))
   }

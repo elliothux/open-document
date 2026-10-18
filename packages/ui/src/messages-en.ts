@@ -5,7 +5,9 @@ import { footerEn } from "./messages-pptx-footer.js";
 import { reviewEn } from "./messages-review.js";
 import { pageEn } from "./messages-docx-page.js";
 import { outlineEn } from "./messages-outline.js";
+import { tableEn } from "./messages-xlsx-tables.js";
 export const en = {
+  ...tableEn,
   ...outlineEn,
   ...reviewEn,
   ...pageEn,

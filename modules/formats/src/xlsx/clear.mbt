@@ -94,13 +94,7 @@ pub fn Session::clear(
   let calculation = if changed.is_empty() {
     self.calculation.unwrap()
   } else {
-    Calculation::build(
-      sheets,
-      self.calculation,
-      changed,
-      self.date1904,
-      self.workbook,
-    )
+    self.calculate(sheets, self.calculation, changed, self.workbook)
   }
   if !changed.is_empty() {
     edits.append(

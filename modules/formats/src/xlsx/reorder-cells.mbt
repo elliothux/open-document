@@ -184,11 +184,10 @@ fn Session::reorder_cells(
     self.strings,
     self.styles.length(),
   )
-  let mut calculation = Calculation::build(
+  let mut calculation = self.calculate(
     sheets,
     self.calculation,
     [(index, target)],
-    self.date1904,
     self.workbook,
   )
   if filter is Some(state) {
