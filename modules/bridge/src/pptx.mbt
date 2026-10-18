@@ -371,6 +371,9 @@ fn Foundation::pptx_operation(
       let change = match field_string(change, "action") {
         "tableStructure" =>
           @pptx.TableStructure(field_string(change, "operation"))
+        "tableRowHeight" => @pptx.TableRowHeight(xlsx_number(change, "value"))
+        "tableColumnWidth" =>
+          @pptx.TableColumnWidth(xlsx_number(change, "value"))
         "splitTableCell" =>
           @pptx.SplitTableCell(
             field_int(change, "rows"),

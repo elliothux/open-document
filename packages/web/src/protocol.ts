@@ -36,6 +36,8 @@ import type {
   XlsxCellFormat,
   CopiedCellFormat,
   XlsxClearMode,
+  CopiedCells,
+  XlsxPasteMode,
   XlsxFindOptions,
   XlsxDelimitedOptions,
   XlsxTextColumnSettings,
@@ -268,7 +270,15 @@ export type Operation =
       direction: "left" | "right" | "up" | "down" | "home";
       extend: boolean;
     }
-  | { operation: "copyXlsx"; revision: number }
+  | { operation: "copyXlsx" | "captureXlsxCells"; revision: number }
+  | {
+      operation: "pasteXlsxCells";
+      revision: number;
+      copied: CopiedCells;
+      mode: XlsxPasteMode;
+      transpose: boolean;
+      acceptWarnings: boolean;
+    }
   | { operation: "clearXlsx"; revision: number; mode: XlsxClearMode }
   | {
       operation: "pasteXlsx";

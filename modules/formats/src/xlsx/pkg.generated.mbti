@@ -85,6 +85,22 @@ pub fn ConditionalThreshold::equal(Self, Self) -> Bool
 pub fn ConditionalThreshold::not_equal(Self, Self) -> Bool
 pub fn ConditionalThreshold::to_json(Self) -> Json
 
+pub(all) struct CopiedCell {
+  value : Value
+  formula : String?
+  format : CellFormat
+}
+
+pub(all) struct CopiedCells {
+  top : Int
+  left : Int
+  date1904 : Bool
+  cells : Array[Array[CopiedCell]]
+  merges : Array[Range]
+}
+pub fn CopiedCells::to_json(Self) -> Json
+pub impl ToJson for CopiedCells
+
 pub(all) struct DataBar {
   minimum : ConditionalThreshold
   maximum : ConditionalThreshold
@@ -253,6 +269,7 @@ pub struct Session {
 }
 pub fn Session::apply_format(Self, Int, Array[Array[CellFormat]], Array[Range]) -> Json raise @failure.Failure
 pub fn Session::auto_fit(Self, Int, String, Int, Int, @layout.TextProbe, Map[String, String], rows~ : Bool) -> Json raise @failure.Failure
+pub fn Session::capture_cells(Self, Int) -> CopiedCells raise @failure.Failure
 pub fn Session::capture_format(Self, Int) -> Json raise @failure.Failure
 pub fn Session::clear(Self, Int, mode? : String) -> Json raise @failure.Failure
 pub fn Session::close(Self) -> Unit
@@ -270,6 +287,7 @@ pub fn Session::invalidate_geometry(Self) -> Unit
 pub fn Session::navigate(Self, Int, String, Bool) -> Json raise @failure.Failure
 pub fn Session::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
 pub fn Session::paste(Self, Int, String, accept_warnings? : Bool) -> Json raise @failure.Failure
+pub fn Session::paste_cells(Self, Int, CopiedCells, String, transpose? : Bool, accept_warnings? : Bool) -> Json raise @failure.Failure
 pub fn Session::print_layout(Self, Int, String, String?, @layout.TextProbe, Map[String, String], setup? : @layout.PageSetup, sheets? : PrintSheets) -> @layout.PositionedDocument raise @failure.Failure
 pub fn Session::query(Self, sheet? : String?, range? : String?) -> Json raise @failure.Failure
 pub fn Session::replace(Self, Int, String, String, Array[Array[String]], literal? : Bool, accept_warnings? : Bool) -> Json raise @failure.Failure

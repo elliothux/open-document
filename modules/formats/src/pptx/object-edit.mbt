@@ -5,6 +5,8 @@ pub(all) enum ObjectEdit {
   InsertTable(Int, Int, Double, Double, Double, Double)
   TableStructure(String)
   SplitTableCell(Int, Int)
+  TableRowHeight(Double)
+  TableColumnWidth(Double)
   ReplaceImage(String, Bytes)
   ImageFill(Array[String], Bytes, String)
   ImageFillMode(String)
@@ -299,6 +301,12 @@ pub fn Session::edit_objects(
   if change is SplitTableCell(rows, columns) {
     return self.split_table_cell(rows, columns, probe, profile)
   }
+  if change is TableRowHeight(value) {
+    return self.resize_table_axis(true, value, probe, profile)
+  }
+  if change is TableColumnWidth(value) {
+    return self.resize_table_axis(false, value, probe, profile)
+  }
   if change is ImageFillMode(mode) {
     return self.set_image_fill_mode(mode)
   }
@@ -359,6 +367,8 @@ pub fn Session::edit_objects(
     | InsertTable(_, _, _, _, _, _)
     | TableStructure(_)
     | SplitTableCell(_, _)
+    | TableRowHeight(_)
+    | TableColumnWidth(_)
     | ReplaceImage(_, _)
     | ImageFill(_, _, _)
     | ImageFillMode(_)

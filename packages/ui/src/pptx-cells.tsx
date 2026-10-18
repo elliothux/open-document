@@ -3,6 +3,69 @@ import type { PresentationEditor } from "@open-document/web/presentation-editor"
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 
+export function PptxTableSize({
+  controller,
+  state,
+  editor,
+}: {
+  controller: EditorController;
+  state: UiSnapshot;
+  editor: PresentationEditor;
+}) {
+  const t = messages(state.locale),
+    table = editor.query.table!;
+  const [values, setValues] = useState({
+    rowHeight: String(table.rowHeight ?? ""),
+    columnWidth: String(table.columnWidth ?? ""),
+  });
+  return (
+    <>
+      {(
+        [
+          ["tableRowHeight", "rowHeight", t.tableRowHeight],
+          ["tableColumnWidth", "columnWidth", t.tableColumnWidth],
+        ] as const
+      ).map(([action, key, label]) => (
+        <form
+          key={key}
+          onSubmit={(event) => {
+            event.preventDefault();
+            controller.run(() =>
+              editor.editObjects({ action, value: Number(values[key]) }),
+            );
+          }}
+        >
+          <label>
+            {label}
+            <input
+              type="number"
+              min={0.1}
+              max={14400}
+              step="any"
+              required
+              value={values[key]}
+              placeholder={table[key] === null ? t.mixed : undefined}
+              onChange={(event) =>
+                setValues({ ...values, [key]: event.currentTarget.value })
+              }
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={
+              !Number.isFinite(Number(values[key])) ||
+              Number(values[key]) < 0.1 ||
+              Number(values[key]) > 14400
+            }
+          >
+            {t.apply} {label}
+          </button>
+        </form>
+      ))}
+    </>
+  );
+}
+
 export function PptxSplitCell({
   controller,
   state,

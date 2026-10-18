@@ -2,6 +2,33 @@ import { prepareGridInput } from "./spreadsheet-input.js";
 import type { CanvasSurface } from "./canvas-surface.js";
 import type { XlsxViewport } from "@open-document/wasm/xlsx";
 
+export function observeGridViewport(
+  viewport: HTMLElement,
+  input: HTMLElement,
+  signal: AbortSignal,
+  current: () => { layout: XlsxViewport | undefined; scale: number },
+  render: () => void,
+): ResizeObserver {
+  const options = { signal };
+  viewport.addEventListener(
+    "focus",
+    () => input.focus({ preventScroll: true }),
+    options,
+  );
+  viewport.addEventListener(
+    "scroll",
+    () => {
+      const { layout, scale } = current();
+      if (gridScrollChanged(viewport, layout, scale)) render();
+    },
+    options,
+  );
+  const resize = new ResizeObserver(render);
+  resize.observe(viewport);
+  window.addEventListener("resize", render, options);
+  return resize;
+}
+
 function gridScrollX(viewport: HTMLElement, scale: number): number {
   return ((viewport.dir === "rtl" ? -1 : 1) * viewport.scrollLeft) / scale;
 }

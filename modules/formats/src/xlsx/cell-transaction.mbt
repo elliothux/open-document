@@ -16,6 +16,7 @@ fn Session::prepare_cells(
   merges~ : Map[Int, Array[Range]] = Map([]),
   accept_warnings~ : Bool = false,
   formatting~ : StyleEdit? = None,
+  preserve_values~ : Bool = false,
 ) -> CellEditPlan raise @failure.Failure {
   guard self.read_only.is_empty() else {
     @failure.reject("protected-content", self.read_only)
@@ -35,6 +36,7 @@ fn Session::prepare_cells(
     let (document, edit) = current.prepare(
       values,
       styles=styles.get(index).unwrap_or(Map([])),
+      preserve_values~,
     )
     edits.push((current.id, edit))
     let document = if merges.get(index) is Some(ranges) &&

@@ -175,6 +175,8 @@ fn Foundation::dispatch(
     | "fillPreviewXlsx"
     | "navigateXlsx"
     | "copyXlsx"
+    | "captureXlsxCells"
+    | "pasteXlsxCells"
     | "pasteXlsx"
     | "clearXlsx"
     | "printXlsx"

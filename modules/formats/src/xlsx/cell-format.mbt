@@ -38,6 +38,29 @@ pub extend CellFormat with Eq::{equal, not_equal}
 pub extend CellFormat with Hash::{hash, hash_combine}
 
 ///|
+fn CellFormat::complete(self : CellFormat) -> Unit raise @failure.Failure {
+  self.validate()
+  guard self.family is Some(_) &&
+    self.size is Some(_) &&
+    self.bold is Some(_) &&
+    self.italic is Some(_) &&
+    self.color is Some(_) &&
+    self.fill is Some(_) &&
+    self.horizontal is Some(_) &&
+    self.vertical is Some(_) &&
+    self.wrap is Some(_) &&
+    self.numberFormat is Some(_) &&
+    self.left is Some(_) &&
+    self.right is Some(_) &&
+    self.top is Some(_) &&
+    self.bottom is Some(_) else {
+    @failure.reject(
+      "invalid-operation", "Copied cell formats require every property",
+    )
+  }
+}
+
+///|
 pub fn CellFormat::new(
   family~ : String? = None,
   size~ : Double? = None,

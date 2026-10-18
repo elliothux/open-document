@@ -11,6 +11,7 @@ import { XlsxFormatPainter } from "./xlsx-format-painter.js";
 import { XlsxValidation } from "./xlsx-validation.js";
 import { XlsxFormatFields } from "./xlsx-format-fields.js";
 import { XlsxConditional } from "./xlsx-conditional.js";
+import { XlsxClipboard } from "./xlsx-clipboard.js";
 
 type Props = {
   controller: EditorController;
@@ -46,6 +47,13 @@ export function XlsxFormat({ controller, state, editor, disabled }: Props) {
       }}
     >
       <h3>{t.cellFormat}</h3>
+      <XlsxClipboard
+        key={state.document?.documentId}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
       <XlsxNote
         key={`${state.document?.documentId}:${editor.currentState.sheet}:${editor.currentState.note.address}`}
         controller={controller}

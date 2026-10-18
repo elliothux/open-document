@@ -1,4 +1,11 @@
 import {
+  copiedCells,
+  checkXlsxPasteMode,
+  type CopiedCells,
+  type XlsxPasteMode,
+} from "./xlsx-clipboard.js";
+export * from "./xlsx-clipboard.js";
+import {
   checkXlsxSheetEdit,
   type XlsxSheetEdit,
   xlsxHyperlink,
@@ -734,6 +741,31 @@ export class XlsxSession extends WasmSession {
     if (typeof result.text !== "string" || result.text.length > 1048576)
       throw new Error("Invalid clipboard text");
     return result.text;
+  }
+  captureCells(revision: number): CopiedCells {
+    return copiedCells(this.call({ operation: "captureXlsxCells", revision }));
+  }
+  pasteCells(
+    revision: number,
+    copied: CopiedCells,
+    mode: XlsxPasteMode = "all",
+    transpose = false,
+    acceptWarnings = false,
+  ): XlsxQuery {
+    copiedCells(copied);
+    checkXlsxPasteMode(mode);
+    if (typeof transpose !== "boolean" || typeof acceptWarnings !== "boolean")
+      throw new Error("Invalid cell paste options");
+    return xlsxQuery(
+      this.call({
+        operation: "pasteXlsxCells",
+        revision,
+        copied,
+        mode,
+        transpose,
+        acceptWarnings,
+      }),
+    );
   }
   paste(revision: number, text: string, acceptWarnings = false): XlsxQuery {
     if (typeof acceptWarnings !== "boolean")

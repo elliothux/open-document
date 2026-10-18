@@ -190,6 +190,20 @@ fn Session::table_query(self : Session) -> Json raise @failure.Failure {
     "lastRow": range.bottom,
     "firstColumn": range.left,
     "lastColumn": range.right,
+    "rowHeight": if table.rows[range.top:range.bottom + 1].all(item => {
+        item.height == table.rows[range.top].height
+      }) {
+      Json(table.rows[range.top].height)
+    } else {
+      Json::null()
+    },
+    "columnWidth": if table.widths[range.left:range.right + 1].all(width => {
+        width == table.widths[range.left]
+      }) {
+      Json(table.widths[range.left])
+    } else {
+      Json::null()
+    },
     "reason": reason,
     "splitReason": if !reason.is_empty() {
       reason

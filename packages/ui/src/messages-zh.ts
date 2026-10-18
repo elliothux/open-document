@@ -7,8 +7,10 @@ import { reviewZh } from "./messages-review.js";
 import { pageZh } from "./messages-docx-page.js";
 import { outlineZh } from "./messages-outline.js";
 import { tableZh } from "./messages-xlsx-tables.js";
+import { clipboardZh } from "./messages-clipboard.js";
 
 export const zh: Messages = {
+  ...clipboardZh,
   ...tableZh,
   ...outlineZh,
   ...reviewZh,
@@ -542,6 +544,7 @@ export const zh: Messages = {
   tableWidth: "表格宽度（pt）",
   tableColumn: "表格列号（从 1 开始）",
   tableColumnWidth: "表格列宽（pt）",
+  tableRowHeight: "表格行高（pt）",
   rowHeightMinimum: "最小行高（pt；0 为自动）",
   rowHeightRule: "行高模式",
   rowHeightAtLeast: "最小值",
@@ -579,7 +582,6 @@ export const zh: Messages = {
   clear: "清除单元格",
   clearFormats: "清除格式",
   clearAll: "全部清除",
-  clipboard: "剪贴板",
   history: "历史",
   previous: "上一页",
   next: "下一页",
@@ -705,9 +707,6 @@ export const zh: Messages = {
   mergeCells: "合并单元格",
   discardMergedValues: "保留左上角单元格，丢弃其余值和公式",
   unmerge: "取消单元格合并",
-  pasteCells: "粘贴单元格",
-  copyCells: "复制单元格",
-  cutCells: "剪切单元格",
   tableColumns: "表格列数",
   slideEarlier: "幻灯片前移",
   slideLater: "幻灯片后移",
@@ -784,7 +783,4 @@ export const zh: Messages = {
   deleteAnnotation: "删除批注",
   choose: "请选择…",
   working: "处理中",
-  rangePaste: "粘贴纯文本",
-  pasteText: "纯文本",
-  pasteHint: "在此使用原生粘贴，再应用到文档。",
 };

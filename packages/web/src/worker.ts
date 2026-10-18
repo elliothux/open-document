@@ -164,6 +164,16 @@ async function dispatch(request: Request): Promise<unknown> {
         );
       case "copyXlsx":
         return workbook.copy(request.revision);
+      case "captureXlsxCells":
+        return workbook.captureCells(request.revision);
+      case "pasteXlsxCells":
+        return workbook.pasteCells(
+          request.revision,
+          request.copied,
+          request.mode,
+          request.transpose,
+          request.acceptWarnings,
+        );
       case "pasteXlsx":
         return workbook.paste(
           request.revision,
@@ -222,6 +232,8 @@ async function dispatch(request: Request): Promise<unknown> {
         case "fillPreviewXlsx":
         case "navigateXlsx":
         case "copyXlsx":
+        case "captureXlsxCells":
+        case "pasteXlsxCells":
         case "pasteXlsx":
         case "clearXlsx":
         case "printXlsx":

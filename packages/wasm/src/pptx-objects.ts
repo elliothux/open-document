@@ -29,6 +29,8 @@ export interface PptxTable {
   lastRow: number;
   firstColumn: number;
   lastColumn: number;
+  rowHeight: number | null;
+  columnWidth: number | null;
   reason: string;
   splitReason: string;
   operations: Record<(typeof tableOperations)[number], string>;
@@ -66,6 +68,8 @@ export function checkPptxTable(
     rows = number(table.rows, 1, 1000),
     columns = number(table.columns, 1, 63);
   const operations = record(table.operations);
+  for (const key of ["rowHeight", "columnWidth"])
+    if (table[key] !== null) number(table[key], 1 / 12700, 14400);
   const format = record(table.format);
   for (const key of ["fill", "borderColor"]) {
     const value = format[key];
@@ -286,6 +290,7 @@ export function pptxHyperlink(value: unknown): PptxHyperlink | null {
   return value as PptxHyperlink;
 }
 export type PptxObjectEdit =
+  | { action: "tableRowHeight" | "tableColumnWidth"; value: number }
   | { action: "splitTableCell"; rows: number; columns: number }
   | { action: "tableStructure"; operation: (typeof tableOperations)[number] }
   | {
@@ -409,6 +414,15 @@ export function number(value: unknown, low = 0, high = 0x7fffffff): number {
 }
 export function checkPptxObjectEdit(value: unknown): void {
   const change = record(value);
+  if (
+    change.action === "tableRowHeight" ||
+    change.action === "tableColumnWidth"
+  ) {
+    number(change.value, 0.1, 14400);
+    if (Object.keys(change).some((key) => key !== "action" && key !== "value"))
+      throw new Error("Invalid PPTX table dimension");
+    return;
+  }
   if (change.action === "splitTableCell") {
     const rows = number(change.rows, 1, 1000),
       columns = number(change.columns, 1, 63);

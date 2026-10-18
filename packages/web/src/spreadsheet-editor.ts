@@ -1,6 +1,6 @@
 import {
   createGridElements,
-  gridScrollChanged,
+  observeGridViewport,
   prepareGridViewport,
   updateGridScroll,
 } from "./spreadsheet-elements.js";
@@ -35,7 +35,11 @@ import {
   checkCopiedFormatFonts,
   checkFontMapping,
 } from "./spreadsheet-format.js";
-import { bindClipboard } from "./clipboard-input.js";
+import {
+  bindSpreadsheetClipboard,
+  copyCellData,
+  pasteSpreadsheetCells,
+} from "./spreadsheet-clipboard.js";
 import {
   EditorState,
   type EditorOutput,
@@ -57,6 +61,7 @@ import type {
   XlsxTextColumnSettings,
   XlsxTextColumns,
   XlsxFindOptions,
+  XlsxPasteMode,
 } from "@open-document/wasm/xlsx";
 /** One native cell draft; MoonBit owns committed cells, selection and geometry. */
 export class SpreadsheetEditor {
@@ -122,11 +127,6 @@ export class SpreadsheetEditor {
       () => this.handle(() => this.editFormula()),
     );
     const options = { signal: this.listeners.signal };
-    this.viewport.addEventListener(
-      "focus",
-      () => this.input.focus({ preventScroll: true }),
-      options,
-    );
     const keydown = (event: KeyboardEvent) =>
       spreadsheetKey(event, {
         rtl: this.state.view.rtl,
@@ -143,14 +143,6 @@ export class SpreadsheetEditor {
       });
     this.viewport.addEventListener("keydown", keydown, options);
     this.formula.element.addEventListener("keydown", keydown, options);
-    this.viewport.addEventListener(
-      "scroll",
-      () => {
-        if (gridScrollChanged(this.viewport, this.layout, this.scale))
-          this.requestRender();
-      },
-      options,
-    );
     this.pointer = new SpreadsheetPointer(
       this.surface,
       this.holder,
@@ -204,24 +196,22 @@ export class SpreadsheetEditor {
       },
       reject: (error) => this.report(error),
     });
-    bindClipboard(
+    bindSpreadsheetClipboard(
       this.input,
       this.listeners.signal,
-      (cut) => {
-        if (cut) {
-          this.report(new Error("Cut is unsupported; copy or clear cells"));
-          return;
-        }
-        this.handle(() => this.copy());
-      },
-      (text) => this.handle(() => this.paste(text)),
-      (error) => this.report(error),
+      this,
       () => this.composing,
       () => this.draft !== undefined || this.draftIntent !== undefined,
+      (action) => this.handle(action),
+      (error) => this.report(error),
     );
-    this.resize = new ResizeObserver(() => this.requestRender());
-    this.resize.observe(this.viewport);
-    window.addEventListener("resize", () => this.requestRender(), options);
+    this.resize = observeGridViewport(
+      this.viewport,
+      this.input,
+      this.listeners.signal,
+      () => ({ layout: this.layout, scale: this.scale }),
+      () => this.requestRender(),
+    );
     this.publish();
     this.styleInput();
   }
@@ -656,13 +646,26 @@ export class SpreadsheetEditor {
       ),
     );
   }
+  copyCells(): Promise<void> {
+    return this.read(() => copyCellData(this.client, this.state.revision));
+  }
+  pasteCells(mode: XlsxPasteMode = "all", transpose = false): Promise<void> {
+    return this.change(() =>
+      pasteSpreadsheetCells(
+        this.client,
+        this.state,
+        this.profile,
+        mode,
+        transpose,
+        this.acceptValidationWarnings,
+        () => this.closed,
+      ),
+    );
+  }
   copy(): Promise<void> {
-    return this.enqueue(async () => {
-      requireCellCompositionEnd(this.composing);
-      await navigator.clipboard.writeText(
-        await this.client.copy(this.state.revision),
-      );
-    });
+    return this.read(() =>
+      copyCellData(this.client, this.state.revision, false),
+    );
   }
   private history(redo: boolean): Promise<void> {
     return this.enqueue(async () => {
@@ -730,15 +733,18 @@ export class SpreadsheetEditor {
       true,
     );
   }
+  private preparePrint(options: PrintOptions | null): Promise<XlsxPrintLayout> {
+    return this.printView.prepare(
+      this.client,
+      this.state.revision,
+      this.state.sheet,
+      options,
+      this.profile,
+    );
+  }
   printLayout(options: PrintOptions | null = null): Promise<XlsxPrintLayout> {
     return this.read(async () => {
-      const layout = await this.printView.prepare(
-        this.client,
-        this.state.revision,
-        this.state.sheet,
-        options,
-        this.profile,
-      );
+      const layout = await this.preparePrint(options);
       this.printView.show(layout);
       this.viewport.hidden = true;
       this.pointer.cancel();
@@ -750,13 +756,7 @@ export class SpreadsheetEditor {
     outputBytes = 67108864,
   ): Promise<EditorOutput> {
     return this.output("pdf", async () => {
-      const layout = await this.printView.prepare(
-        this.client,
-        this.state.revision,
-        this.state.sheet,
-        options,
-        this.profile,
-      );
+      const layout = await this.preparePrint(options);
       return this.client.exportPdf(layout.id, outputBytes);
     });
   }

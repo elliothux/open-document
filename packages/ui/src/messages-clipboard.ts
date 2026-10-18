@@ -1,0 +1,28 @@
+export const clipboardEn = {
+  clipboard: "Clipboard",
+  pasteCells: "Paste cells",
+  copyCells: "Copy cells",
+  cutCells: "Cut cells",
+  rangePaste: "Paste plain text",
+  pasteText: "Plain text",
+  pasteHint: "Use native paste here, then apply to the document.",
+  pasteAllCells: "Paste all cells",
+  pasteCellValues: "Paste cell values",
+  pasteCellFormulas: "Paste cell formulas",
+  pasteCellFormat: "Paste cell formatting",
+  transposeCells: "Transpose cells",
+};
+export const clipboardZh = {
+  clipboard: "剪贴板",
+  pasteCells: "粘贴单元格",
+  copyCells: "复制单元格",
+  cutCells: "剪切单元格",
+  rangePaste: "粘贴纯文本",
+  pasteText: "纯文本",
+  pasteHint: "在此使用原生粘贴，再应用到文档。",
+  pasteAllCells: "粘贴全部单元格",
+  pasteCellValues: "粘贴单元格值",
+  pasteCellFormulas: "粘贴单元格公式",
+  pasteCellFormat: "粘贴单元格格式",
+  transposeCells: "转置单元格",
+};

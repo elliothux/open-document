@@ -618,6 +618,20 @@ fn Foundation::xlsx_operation(
         xlsx_boolean(request, "extend"),
       )
     "copyXlsx" => { "text": session.copy(field_int(request, "revision")) }
+    "captureXlsxCells" =>
+      Json(session.capture_cells(field_int(request, "revision")))
+    "pasteXlsxCells" => {
+      guard request is { "copied": copied, .. } else {
+        @failure.reject("invalid-operation", "Copied cells required")
+      }
+      session.paste_cells(
+        field_int(request, "revision"),
+        xlsx_copied_cells(copied),
+        field_string(request, "mode"),
+        transpose=xlsx_boolean(request, "transpose"),
+        accept_warnings=xlsx_boolean(request, "acceptWarnings"),
+      )
+    }
     "pasteXlsx" =>
       session.paste(
         field_int(request, "revision"),

@@ -1481,6 +1481,20 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `XlsxQuery.selection.address` 返回当前选择的规范 A1 地址或矩形地址。默认范围框将输入交给既有 `select`；选择只改变运行时范围和滚动，不新增文档历史。无效或倒序地址保留原选择，已有草稿先沿队列提交。当前范围框仅定位当前表的单格或矩形，名称和跨表定位仍归 [P11](../p11-xlsx-core.md)。
 
+### 结构化单元格剪贴板
+
+`XlsxSession/Client.captureCells(revision)` 返回核心生成的 `CopiedCells`：源 `top/left`、`date1904`、矩形 `cells` 及相对合并范围 `merges`。每格包含类型化 `value`、公式字符串或 `null` 和全部已支持格式属性。值是复制时的已计算结果；公式保留源表达式和位置。片段独立于之后的源编辑，不持有源会话句柄。
+
+`pasteCells(revision, copied, mode = "all", transpose = false, acceptWarnings = false)` 从当前选择的左上角写入一次片段大小的矩形，不平铺到更大的选择。`all` 写入值、相对平移公式、支持的格式和合并；`values` 只写复制时的类型值与公式结果；`formulas` 写入平移公式及非公式常量；`format` 保留目标值和公式，只写格式及合并。`values/formulas` 保留目标格式，目标须未合并。文字 `=literal` 仍是文字，不经输入解析变成公式。
+
+`transpose` 交换行列、合并范围和四边边框。公式先绕复制矩形原点交换引用坐标，再执行粘贴位移；绝对标记沿原引用保留，整行/列引用交换轴。引用越界按既有规则写为 `#REF!`。行为依据 [ONLYOFFICE 选择性粘贴模式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/clipboard.js#L186-L247)、[转置后应用位移](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L29818-L29881)和[引用坐标翻转](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L11010-L11034)。
+
+格式与新样式部件、内容、合并、依赖、缓存、验证、自动尺寸和选择共用一次候选事务。已有共享公式按必要范围展开；只贴格式保留目标文字源。无变化只更新选择，失败保留文档与历史。支持完整包含的普通合并格；相交但不完整的目标合并拒绝。源与目标继续复用既有填充资源保护，富文本、相交规则/链接、原生表/透视和未知工作表扩展保持显式保护。已有便笺保持原坐标，不随片段复制。日期系统不同时显式拒绝，剪切移动及规则资源片段仍待实现。
+
+`SpreadsheetEditor.copyCells()` 先提交原生草稿，再将片段及普通 TSV 写入系统剪贴板。`pasteCells(mode = "all", transpose = false)` 读取相同载荷，沿队列检查字体、revision 和生命周期后提交；默认面板提供四种模式和转置开关。载荷类型为 Chromium 的 `web application/x-open-document-cells`。普通原生粘贴及 `paste(text)` 保持上述 TSV 语义；普通 `copy()` 也先提交已接受草稿。读取/写入权限失败保留源，晚到读取不能修改已关闭的编辑器。
+
+片段最多 4096 格、1024 个合并范围、1048576 UTF-16 单元的值/公式文字；每格文字最多 32767 单元，公式最多 8192 单元。Web 写入的 JSON 最多 4194304 UTF-16 单元，读取最多 8 MiB。Wasm、Worker 和核心分别校验载荷，现有样式、历史、源、字体及输出预算继续生效。实现归 [`cell-fragment.mbt`](../../modules/formats/src/xlsx/cell-fragment.mbt)、[`clipboard-transpose.mbt`](../../modules/formats/src/xlsx/clipboard-transpose.mbt)及 [`spreadsheet-clipboard.ts`](../../packages/web/src/spreadsheet-clipboard.ts)。
+
 ### 打印与资源边界
 
 `editSheet({ action: "pageSetup", paper, orientation, left, top, right, bottom, scale, fitWidth, fitHeight })` 保存当前工作表的打印设置。`XlsxPrintSetup` 的纸张为 `A4` 或 `Letter`，方向为 `portrait` 或 `landscape`，边距为 point。边距须非负并在每个方向留下至少 12 pt 可打印空间；比例为 10–400 的整数，横/纵页数为 0–1024 的整数。0 表示该方向不限页数；任一页数非零时取代百分比，核心按实际行列分割，在 10%–100% 中求满足页数的最大整数比例。10% 仍不能满足时输出失败，不截断内容。页面与缩放范围参考 [ONLYOFFICE calcPrintScale](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L4580-L4808)。
@@ -1973,7 +1987,11 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 
 表格复用现有对象移动/缩放候选、`duplicate`、层次及对齐/分布命令，支持与形状混合多选；默认指针和移动/缩放控件使用同一路径。列宽、行高按原比例分配到整数 EMU，合计与新外框精确一致。预览同步派生网格，取消恢复原源；提交按文字需要增长行高及外框，并合为一项精确历史。字号、边距、单元格片段及跨度保持。宽度不能耗尽主格的文字区域，移动/缩放锁继续生效。复制分配新对象身份，保留原表及资源，副本单元格可独立编辑。`rotateReason` 及默认控件保护原生框不支持的旋转和翻转；表格组合仍受保护。行为参考 [ONLYOFFICE GraphicFrame.resize](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicFrame.js#L599-L621)和 [Table.Resize](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L18121-L18336)，网格写回归 [`table-transform.mbt`](../../modules/formats/src/pptx/table-transform.mbt)。
 
-`editObjects({ action: "tableStructure", operation })` 修改表格结构。`operation` 接受 `insertRowBefore`、`insertRowAfter`、`deleteRow`、`insertColumnBefore`、`insertColumnAfter`、`deleteColumn`、`merge`、`unmerge`。`PptxQuery.table` 返回 `{ object, rows, columns, row, column, firstRow, lastRow, firstColumn, lastColumn, reason, operations, splitReason, format }`，行列下标从零开始，范围两端均包含；没有单选普通表格时返回 `null`。`operations` 为上述八项操作各自的保护原因，空串表示可用。对象模式的结构操作从首格开始；文字模式的选择两端跨格时，核心将两端单元格作为矩形的对角，扩展到包含相交合并格的完整范围。当前光标仍使用既有 UTF-16 位置，反向选择不改变范围。默认面板直接使用核心返回的位置、范围和原因，鼠标点击结构按钮保留原生输入焦点。
+`editObjects({ action: "tableStructure", operation })` 修改表格结构。`operation` 接受 `insertRowBefore`、`insertRowAfter`、`deleteRow`、`insertColumnBefore`、`insertColumnAfter`、`deleteColumn`、`merge`、`unmerge`。`PptxQuery.table` 返回 `{ object, rows, columns, row, column, firstRow, lastRow, firstColumn, lastColumn, rowHeight, columnWidth, reason, operations, splitReason, format }`，行列下标从零开始，范围两端均包含；没有单选普通表格时返回 `null`。`operations` 为上述八项操作各自的保护原因，空串表示可用。对象模式的结构操作从首格开始；文字模式的选择两端跨格时，核心将两端单元格作为矩形的对角，扩展到包含相交合并格的完整范围。当前光标仍使用既有 UTF-16 位置，反向选择不改变范围。默认面板直接使用核心返回的位置、范围和原因，鼠标点击结构按钮保留原生输入焦点。
+
+`editObjects({ action: "tableRowHeight" | "tableColumnWidth", value })` 修改上述范围覆盖的全部实际行或列。`value` 为 0.1–14400 点的有限数值，四舍五入到整数 EMU；不按合并格总宽平均分配。对象模式只从首格及其跨度开始，整表尺寸仍使用对象缩放。其他列宽保持，所有格的文字、格式、跨度及其他部件保持；总宽高同步外框，左上角不动。行高仍是内容适配前的目标，文字需要时沿既有逐格排版增长相关行及外框，不裁掉完整内容。全表宽高各不超过 14400 点，列宽必须留下主格的正文字区域。
+
+`rowHeight`、`columnWidth` 返回选中实际行或列的有效共同点值，混合时为 `null`。默认面板分别显示共同值或空白混合提示，显式提交一个尺寸。选择、一次精确历史、无变化、锁定、活动候选、字体、源及输出预算共用既有保护；失败保留原文档。尺寸行为参考 [ONLYOFFICE SetColumnWidth/SetRowHeight](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L19008-L19058)，当前 SDK 使用完整逻辑网格、原生 EMU 和已有内容适配。实现归 [`table-size.mbt`](../../modules/formats/src/pptx/table-size.mbt)，查询和默认面板仍归上述表格模块。
 
 插入数量等于选中的行或列数。向前插入使用首行/列，向后插入使用末行/列，复制行高或列宽及各格框属性、首段字符/段落格式，文字置空。旧单元格及其他部件保持原源。网格与外框一起扩展或缩小，提交前按既有排版检查行高；插入后选中新格块，删除后光标定位相邻保留格。删除全部行或列时移除整表，并检查整表删除锁和外部对象引用。每次操作合为一项精确历史。模板中的身份扩展或资源链接、锁定、多对象选择和超限修改受保护；动画引用表格内部范围时，修改需先实现引用重映射，当前受保护。失败保留源和选择。行为依据 [ONLYOFFICE 表格命令](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L6659-L6716)、[行插入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L9997-L10146)和[列插入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L10512-L10620)。实现归 [`table-selection.mbt`](../../modules/formats/src/pptx/table-selection.mbt)和 [`table-structure.mbt`](../../modules/formats/src/pptx/table-structure.mbt)。
 

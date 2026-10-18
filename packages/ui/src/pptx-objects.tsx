@@ -8,7 +8,7 @@ import { PptxShapeAdjustments } from "./pptx-shape-adjustments.js";
 import { PptxTextFrame } from "./pptx-text-frame.js";
 import { PptxPicture, ImageInsetsForm } from "./pptx-picture.js";
 import { PptxFormat, PptxParagraph } from "./pptx-format.js";
-import { PptxCells, PptxSplitCell } from "./pptx-cells.js";
+import { PptxCells, PptxSplitCell, PptxTableSize } from "./pptx-cells.js";
 
 type Insert = Extract<PptxObjectEdit, { action: "insert" }>;
 
@@ -250,6 +250,12 @@ export function PptxObjects({
             </button>
           ))}
           {query.table.reason && <p>{query.table.reason}</p>}
+          <PptxTableSize
+            key={`${state.document?.documentId}:${JSON.stringify([query.selection, query.table.rowHeight, query.table.columnWidth])}`}
+            controller={controller}
+            state={state}
+            editor={editor}
+          />
           <PptxSplitCell
             key={`${query.table.object}:${query.table.row}:${query.table.column}`}
             controller={controller}

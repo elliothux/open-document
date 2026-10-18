@@ -1,4 +1,15 @@
 import { Connection } from "./connection.js";
+export type {
+  CopiedCell,
+  CopiedCells,
+  XlsxPasteMode,
+} from "@open-document/wasm/xlsx";
+import {
+  copiedCells,
+  checkXlsxPasteMode,
+  type CopiedCells,
+  type XlsxPasteMode,
+} from "@open-document/wasm/xlsx";
 import {
   xlsxQuery,
   checkXlsxDuplicateSettings,
@@ -446,6 +457,36 @@ export class XlsxClient {
     if (typeof value !== "string" || value.length > 1048576)
       throw new Error("Invalid clipboard text");
     return value;
+  }
+  async captureCells(revision: number): Promise<CopiedCells> {
+    return copiedCells(
+      await this.connection.request({
+        operation: "captureXlsxCells",
+        revision,
+      }),
+    );
+  }
+  async pasteCells(
+    revision: number,
+    copied: CopiedCells,
+    mode: XlsxPasteMode = "all",
+    transpose = false,
+    acceptWarnings = false,
+  ): Promise<XlsxQuery> {
+    copiedCells(copied);
+    checkXlsxPasteMode(mode);
+    if (typeof transpose !== "boolean" || typeof acceptWarnings !== "boolean")
+      throw new Error("Invalid cell paste options");
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "pasteXlsxCells",
+        revision,
+        copied,
+        mode,
+        transpose,
+        acceptWarnings,
+      }),
+    );
   }
   async paste(
     revision: number,

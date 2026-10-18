@@ -6,7 +6,9 @@ import { reviewEn } from "./messages-review.js";
 import { pageEn } from "./messages-docx-page.js";
 import { outlineEn } from "./messages-outline.js";
 import { tableEn } from "./messages-xlsx-tables.js";
+import { clipboardEn } from "./messages-clipboard.js";
 export const en = {
+  ...clipboardEn,
   ...tableEn,
   ...outlineEn,
   ...reviewEn,
@@ -546,6 +548,7 @@ export const en = {
   tableWidth: "Table width (pt)",
   tableColumn: "Table column (1-based)",
   tableColumnWidth: "Table column width (pt)",
+  tableRowHeight: "Table row height (pt)",
   rowHeightMinimum: "Minimum row height (pt; 0 = automatic)",
   rowHeightRule: "Row height rule",
   rowHeightAtLeast: "At least",
@@ -583,7 +586,6 @@ export const en = {
   clear: "Clear cells",
   clearFormats: "Clear formats",
   clearAll: "Clear all",
-  clipboard: "Clipboard",
   history: "History",
   previous: "Previous page",
   next: "Next page",
@@ -713,9 +715,6 @@ export const en = {
   discardMergedValues:
     "Keep the upper-left cell and discard all other values and formulas",
   unmerge: "Unmerge cell",
-  pasteCells: "Paste cells",
-  copyCells: "Copy cells",
-  cutCells: "Cut cells",
   tableColumns: "Table columns",
   slideEarlier: "Move slide earlier",
   slideLater: "Move slide later",
@@ -792,8 +791,5 @@ export const en = {
   deleteAnnotation: "Delete annotation",
   choose: "Choose…",
   working: "Working",
-  rangePaste: "Paste plain text",
-  pasteText: "Plain text",
-  pasteHint: "Use native paste here, then apply to the document.",
 };
 export type Messages = { readonly [K in keyof typeof en]: string };
