@@ -95,7 +95,7 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 `inputGroup` 是可选的正 i32 组号；省略时编辑命令独立成项。组号仅用于非空、无 LF 的普通输入，首项可替换支持的段内/跨段范围；核心仅在后续折叠选区等于已确认当前光标、上一项光标连续且组号相同时归并。单命令仍逐次增加 revision，整组 undo/redo 完整回放候选后一次提交、一次增加 revision，恢复首项前/末项后选区及节点身份。显式选择/导航、删除、未分组编辑、LF 输入、undo/redo 和关闭结束旧组；失败保持已确认组，核心保存不清空组/历史。组 payload 超过 4 MiB 时开启新完整项，整个历史仍按总 payload/100 项淘汰最旧完整项，文档文字保持；`historyEntries/historyBytes` 显示新的可撤销边界。宿主另在失焦、输出屏障和恢复时换组，并在接受排队意图时固定组号。当前组保留各次局部补丁，undo/redo 逐补丁重解析 XML；尚无校准延迟或峰值内存通过。
 
-`DocumentEditor` 已提供有限浏览器输入宿主，与只读 `DocumentPreview` 共用页面绘制、图片预算和释放。调用者独占交付已打开的 client，宿主不维护文档树。点击、拖选、基本键盘输入、选区、删除及 DOCX/PDF 输出经最多 64 项意图队列发送；只移动光标不重建文档布局。输出携带确切 revision，PDF 绑定已完成的 layout ID，当前 revision 与最近输出 revision 分开显示。Tab 可首次进入当前页的可编辑位置，光标滚动可见。主指针拖选通过核心命中/选区 API，两轴边缘滚动按原页序跨页；空白页保留真实端点，末次坐标先于输入与输出，取消/失焦/捕获丢失停止滚动。同段内相邻显式分页符合并为一次布局分页，跨 run 也适用，保存仍保留每个原始分页符；正文、普通换行或独立段落分隔的分页不合并。这是维护者选择的固定 LibreOffice 行为，不授予 Microsoft Word 兼容性。失败需显式恢复，销毁保留原宿主 DOM 和调用者 client；不保证取消已在途核心事务。实际支持与暂未接收的输入见[开发说明](development.md)。
+`DocumentEditor` 已提供有限浏览器输入宿主，与只读 `DocumentPreview` 共用页面绘制、图片预算和释放。调用者独占交付已打开的 client，宿主不维护文档树。点击、拖选、基本键盘输入、选区、删除及 DOCX/PDF 输出经最多 64 项意图队列发送；只移动光标不重建文档布局。默认 UI 的标尺、目录和批注在已接受输入排空后刷新最新状态，过期请求退出，避免自动查询挤占输入队列。输出携带确切 revision，PDF 绑定已完成的 layout ID，当前 revision 与最近输出 revision 分开显示。Tab 可首次进入当前页的可编辑位置，光标滚动可见。主指针拖选通过核心命中/选区 API，两轴边缘滚动按原页序跨页；空白页保留真实端点，末次坐标先于输入与输出，取消/失焦/捕获丢失停止滚动。同段内相邻显式分页符合并为一次布局分页，跨 run 也适用，保存仍保留每个原始分页符；正文、普通换行或独立段落分隔的分页不合并。这是维护者选择的固定 LibreOffice 行为，不授予 Microsoft Word 兼容性。失败需显式恢复，销毁保留原宿主 DOM 和调用者 client；不保证取消已在途核心事务。实际支持与暂未接收的输入见[开发说明](development.md)。
 
 节的 `w:cols` 只识别无子列、`num` 缺省/1、`equalWidth` 缺省/true 的单栏声明；`w:docGrid` 只识别无子节点、`type` 缺省/default 的未启用模式。这些声明与单栏无网格布局一致，源内容保留；未知属性/子节点、自定义列和启用网格仍诊断并保护。此改动让原始 POI 普通正文可进入输入宿主，不增加多栏或网格排版引擎，验证范围见 [P4](../implemented/p4-docx-editing.md#验证依据与边界)。
 
@@ -463,9 +463,13 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 ### 跨单元格属性选择
 
-鼠标拖动或 Shift 扩选的两个端点位于同一受支持表格的不同格时，核心按端点的逻辑网格范围选择相交整格。横向跨度与纵向合并属于同一格；修改同步全部纵向延续节点。`EditState.formatting.cellSelection` 返回表身份、半开行列边界、实际格数、底色和垂直对齐的共同值或混合值；无跨格范围时 `value` 为 null，保护失败另给 `reason`。同格内仍使用普通文字选区。
+鼠标拖动或 Shift 扩选的两个端点位于同一受支持表格的不同格时，核心按端点的逻辑网格范围选择相交整格。横向跨度与纵向合并属于同一格；修改同步全部纵向延续节点。`EditState.formatting.cellSelection` 返回表身份、半开行列边界、实际格数、底色和垂直对齐的共同值或混合值。`value.margins` 的 `top/right/bottom/left` 分别返回有效边距的 `{ kind: "value", value }` 或 `{ kind: "mixed" }`，数值单位为 point，包含样式、整表及单格覆盖。无跨格范围时 `value` 为 null，保护失败另给 `reason`。同格内仍使用普通文字选区。
 
-默认表格面板显示所选格数，提供批量底色、清除、顶部/居中/底部对齐与恢复继承。既有 `editTable` 的单元格边距及边框操作也作用于所选整格；行跨页开关作用于端点覆盖的实际行，逐行判断无变化。属性共用候选布局检查、单项历史及输出预算，保留文字、网格、选区和其他部件；支持精确撤销、重做及保存重开。
+默认表格面板显示所选格数，提供批量底色、清除、顶部/居中/底部对齐与恢复继承。四边边距复用单格及整表的表单，各边分别显示共同数值或留空并提示混合；填齐四边后使用既有 `cellMargins` 命令设置全部所选格。“使用继承边距”移除各目标格的直接覆盖，再按各自样式和整表默认值求有效边距。表单随文档、revision 和原选择重新加载，保留数值校验及选择。混合查询和批量重置依据 [ONLYOFFICE Get_Props](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L472-L494)及[所选格边距修改](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L1094-L1155)。
+
+`value.borders` 按 `top/right/bottom/left` 返回所选主格同名边的共同 `{ kind: "value", value: { width, color } }` 或 `{ kind: "mixed" }`。宽度为零仍是共同值；任一合并主格的同一边含不同线段时，该边保持混合。查询沿已有共享边冲突结果，保留单格查询的格式。默认面板复用 [`docx-borders.tsx`](../../packages/ui/src/docx-borders.tsx)，提供单边或各格四边的线宽、RGB、显式移除与恢复继承；范围面板只调用既有 `cellBorders`，整表入口保持独立。每个所选主格的同名边一起修改，不将“各格四边”解释为选区最外框。清除写入无边框覆盖，继承移除指定侧的直接定义；相邻格和表样式仍按[边框冲突规则](#表格边框)求最终线段。源属性和段落不变的范围外格保持。共同/混合比较参考 [ONLYOFFICE 所选格边框查询](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L397-L465)。
+
+[行跨页开关](#表格行跨页)作用于端点覆盖的实际源行，逐行判断无变化。`value.rowSplit` 返回这些行有效设置的共同布尔值或混合状态，默认面板使用半选复选框显示混合值，点击后统一允许拆分，再次点击统一禁止。同一源行的其他格共享此开关，范围外行保持。属性共用候选布局检查、单项历史及输出预算，保留文字、网格、选区和其他部件；支持精确撤销、重做及保存重开。边距面板归 [`docx-margins.tsx`](../../packages/ui/src/docx-margins.tsx)。
 
 核心 `Session.selection_rects(layout, selection)` 从已有 `cellAreas` 返回完整所选格在各页的覆盖框，Wasm 和 Canvas 沿既有选择几何查询显示，不进入 PDF 或原格式。标尺在文字拖动期间保留当前显示，结束后再查询，避免中断鼠标捕获。参考 [ONLYOFFICE 相交格选择及合并归属](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L15872-L15976)，实现归 [`table-range.mbt`](../../modules/formats/src/docx/table-range.mbt)。
 
@@ -481,7 +485,27 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 `selectedText` 按源顺序读取所选整格的全部文字。格内段落以 LF 分隔并保留空段，同一源行的所选格之间用 Tab，每个所选行末尾保留 LF。合并格的内容只提取一次，纵向延续不重复，也不生成占位字段；段内 Tab 和软换行沿已有纯文本合同保留。正反选结果相同，分隔符全部计入 65536 UTF-16 单元上限。规则参考 [ONLYOFFICE 所选格提取](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L7450-L7482)、[所选行末格判断](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableCell.js#L2281-L2304)及[段末分隔](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L3201-L3223)，换行统一为 SDK 已有的 LF。
 
-默认 Copy/Cut 和原生快捷键复用同一入口。核心先完成提取与保护检查；宿主写入成功后核对 revision 和原选择，再沿现有整格清空事务剪切。复制不写历史，剪切合为一项历史，保留表格结构、属性、其他部件和精确撤销。写入拒绝时保留源和选择，沿现有显式恢复入口继续。当前剪贴板只输出纯文本，格式、表格片段及矩阵粘贴继续实施；含图片或未知内容的跨格范围继续保护。
+默认 Copy/Cut 和原生快捷键复用同一入口。核心先完成提取与保护检查；宿主写入成功后核对 revision 和原选择，再沿现有整格清空事务剪切。复制不写历史，剪切合为一项历史，保留表格结构、属性、其他部件和精确撤销。写入拒绝时保留源和选择，沿现有显式恢复入口继续。当前复制仍输出纯文本，格式和表格片段继续实施；含图片或未知内容的跨格范围继续保护。
+
+#### 单元格矩阵粘贴
+
+`editTable({ action: "pasteCells", text })` 和默认“粘贴单元格”按钮显式读取矩形 TSV。Tab 分列，LF 分行，CRLF/CR 统一为 LF；带引号字段支持格内 Tab、换行和双写引号。空字段清空目标格，末尾行分隔不新增一行。各行字段数必须相同。普通原生粘贴继续沿已有文字输入规则处理。
+
+矩阵从当前格或所选范围按源顺序的首个主格写入。矩阵决定写入尺寸，不重复填满或清空选区余下部分。缺少的底部行和右侧列一次补足，保留目标格格式；新格沿现有源模板继承文字和框格式，新行沿表尾行模板。新增列按整数 twip 比例分配当前有效总宽，保留余数；新列和修改后的实际格宽至少 12pt。未改文字、段落身份、表属性和其他部件保持。整个操作只提交一项历史，精确撤销恢复原选择；无变化保留源、选择和 revision。
+
+目标必须是支持的普通格，覆盖任一合并格或缺失源格时整体拒绝。扩列要求源行完整。全表最多 1000 行、63 列、4096 个逻辑格，输入最多 65536 UTF-16 单元。逐格候选重解析累计最多 64 Mi UTF-16 单元，并沿既有源、历史、字体、布局和输出预算原子检查。默认按钮在读取后等待已接受输入，并核对文档、revision、选择和拖动状态；读取拒绝或目标变化保留文档，可重试。
+
+普通纯文本 Copy/Cut 不携带矩形与合并信息，也不转义格内分隔符；含这些内容的结果不能视作可往返的 TSV。需要矩形文字往返时使用下述显式复制模式。富文本及合并格矩阵粘贴继续实施。覆盖和自动补足行列的操作依据 [ONLYOFFICE InsertTableContent](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L18018-L18118)，当前 SDK 使用逻辑网格并保护合并目标，避免静默丢弃字段。实现归 [`table-paste.mbt`](../../modules/formats/src/docx/table-paste.mbt)；DOCX/XLSX 共用内部 [`TSV 解析器`](../../modules/formats/src/internal/delimited/clipboard.mbt)。
+
+#### 单元格矩阵复制与剪切
+
+`DocumentEditor.copy(cut = false, mode?: "cells")` 的显式 `"cells"` 模式对应默认“复制单元格”和“剪切单元格”按钮。核心 `tableClipboard(revision, selection)` 返回 `{ text, selection }`，查询不改源、选择或历史。`text` 为矩形 TSV，每行以 LF 结束。含 Tab、LF、CR 或双引号的字段用双引号包围，内部引号双写；格内段落和软换行统一为 LF。普通 Copy/Cut 和原生快捷键保持原合同。
+
+矩形覆盖所选主格的完整跨度，文字只写在各主格左上角。合并覆盖位置、源空缺和边界扩展后未选择的格填空字段；不递归扩大选择，也不读取或清空未选择的主格。单格光标或同格文字选择均复制该格全部段落。结果只携带文字与矩形位置，粘贴不恢复源合并、样式或资源。
+
+返回的 `selection` 是剪切清空范围：跨格保留原整格范围，单格扩展至该格全部段落。宿主写入剪贴板成功后，核对编辑器生命周期、原 revision 和选择，再沿既有 `replaceRange` 清空。写入失败或目标变化保留源；清空保留格属性、表结构和精确历史。含图片、字段或其他不支持内容时，在写入前保护拒绝。
+
+矩形最多 4096 个位置，转义与分隔符计入 65536 UTF-16 单元上限。实现归 [`table-clipboard.mbt`](../../modules/formats/src/docx/table-clipboard.mbt)，字段转义复用既有 XLSX 逻辑。整格内容依据 [ONLYOFFICE 所选格提取](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L7450-L7483)，矩形分隔和引号依据 [ONLYOFFICE 工作表文字剪贴板](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/clipboard.js#L1828-L1850)。这是当前 SDK 的有界文字投影，不代表富文本或合并结构往返。
 
 #### 跨格行列与矩形合并
 
@@ -553,7 +577,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 ### 表格行跨页
 
-`editTable({ action: "rowSplit", value })` 设置当前格所在行是否允许拆分，`value` 必须为布尔值。核心写入 `cantSplit val="0"/"1"`，有效值相同时保留源及 revision。`queryFormatting(...).table.rowSplit` 和 `DocxFlow.tables[].splitRows` 返回有效设置，包含表格样式链继承，缺省允许拆分。默认 UI 提供当前行复选框。结构操作保留并复制已有行属性；开关、文字、选择和待输入格式沿现有事务及精确历史恢复。
+`editTable({ action: "rowSplit", value })` 设置当前格所在行或跨格选区端点覆盖的实际源行是否允许拆分，`value` 必须为布尔值。核心写入 `cantSplit val="0"/"1"`，有效值相同时保留源及 revision。`queryFormatting(...).table.rowSplit` 和 `DocxFlow.tables[].splitRows` 返回有效设置，包含表格样式链继承，缺省允许拆分。跨格选择通过 `cellSelection.value.rowSplit` 返回 `{ kind: "value", value: boolean }` 或 `{ kind: "mixed" }`。默认 UI 提供单行及跨格复选框，混合时半选；所有目标合为一项历史，保留原选择和范围外行。结构操作保留并复制已有行属性；开关、文字、选择和待输入格式沿现有事务及精确历史恢复。
 
 普通自动/最小高度行按每格的实际文字行分页，各格独立继续，保留横向跨度、图片及逻辑位置。每页片段保留边框、底色、边距和单元格命中区域，短格结束后的空白定位到原内容末尾。新页首行重新应用首行行距，跨页间距不重复累积；段末间距在页底截断，不单独生成空白续页。行最小高度仍占位，单行或边距超过可用页高时明确失败，沿现有 1024 页和 32768 行预算终止。
 

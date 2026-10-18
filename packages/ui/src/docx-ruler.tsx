@@ -100,6 +100,14 @@ export function DocxRuler({
       return;
     }
     controller.run(async () => {
+      // Only the latest selection needs a ruler query after accepted input drains.
+      try {
+        await editor.whenIdle();
+      } catch (error) {
+        if (current) throw error;
+        return;
+      }
+      if (!current) return;
       const next = await editor.ruler();
       if (current) setSource(next);
     });

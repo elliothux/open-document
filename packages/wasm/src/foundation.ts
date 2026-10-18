@@ -81,6 +81,8 @@ import {
   checkDocxTableSize,
   checkDocxTableEdit,
   type DocxTableEdit,
+  docxTableClipboard,
+  type DocxTableClipboard,
 } from "./docx-table.js";
 export * from "./docx-table.js";
 import {
@@ -651,6 +653,14 @@ export class FoundationSession extends FoundationPageSession {
   selectDocx(revision: number, selection: DocxSelection): EditState {
     return editState(
       this.call({ operation: "selectDocx", revision, selection }),
+    );
+  }
+  tableClipboard(
+    revision: number,
+    selection: DocxSelection,
+  ): DocxTableClipboard {
+    return docxTableClipboard(
+      this.call({ operation: "tableClipboard", revision, selection }),
     );
   }
 

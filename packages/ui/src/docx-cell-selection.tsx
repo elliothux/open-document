@@ -1,8 +1,14 @@
 import { useState } from "react";
 import type { DocumentEditor } from "@open-document/web/editor";
 import type { DocxFormatting } from "@open-document/web/foundation";
+import type {
+  DocxCellMargins,
+  DocxCellBorders,
+} from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { DocxMargins } from "./docx-margins.js";
+import { DocxBorders } from "./docx-borders.js";
 
 export function DocxCellSelection({
   controller,
@@ -21,6 +27,19 @@ export function DocxCellSelection({
   const [fill, setFill] = useState(
     `#${selected.fill.kind === "value" ? (selected.fill.value ?? "ffffff") : "ffffff"}`,
   );
+  const margins: Partial<DocxCellMargins> = {};
+  const borders: DocxCellBorders = {
+    top: null,
+    right: null,
+    bottom: null,
+    left: null,
+  };
+  for (const side of ["top", "right", "bottom", "left"] as const) {
+    const value = selected.margins[side];
+    if (value.kind === "value") margins[side] = value.value;
+    const border = selected.borders[side];
+    if (border.kind === "value") borders[side] = border.value;
+  }
   return (
     <section aria-label={t.selectedCells}>
       <h3>
@@ -98,6 +117,41 @@ export function DocxCellSelection({
           {t.inheritStyleProperty}
         </button>
       </fieldset>
+      <DocxMargins
+        controller={controller}
+        state={state}
+        editor={editor}
+        action="cellMargins"
+        value={margins}
+        label={t.cellMargins}
+        disabled={disabled}
+      />
+      <DocxBorders
+        controller={controller}
+        state={state}
+        editor={editor}
+        cell={borders}
+        disabled={disabled}
+      />
+      <label>
+        <input
+          type="checkbox"
+          disabled={disabled}
+          checked={
+            selected.rowSplit.kind === "value" && selected.rowSplit.value
+          }
+          ref={(input) => {
+            if (input) input.indeterminate = selected.rowSplit.kind === "mixed";
+          }}
+          onChange={(event) => {
+            const value = event.currentTarget.checked;
+            controller.run(() =>
+              editor.editTable({ action: "rowSplit", value }),
+            );
+          }}
+        />
+        {t.tableRowSplit}
+      </label>
     </section>
   );
 }

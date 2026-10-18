@@ -111,6 +111,14 @@ fn Session::table_cell_selection(
   }
   let fills : Array[Json] = []
   let alignments : Array[String] = []
+  let borders = selected.owners.map(cell => {
+    let (row, column) = selected.grid.owners[cell]
+    cell_border_query(selected.grid.model, row, column)
+  })
+  let margins = selected.owners.map(cell => {
+    let (row, column) = selected.grid.owners[cell]
+    selected.grid.model.margins[row][column]
+  })
   for cell in selected.owners {
     let (row, column) = selected.grid.owners[cell]
     let fill = selected.grid.model.fills[row][column]
@@ -128,6 +136,31 @@ fn Session::table_cell_selection(
       "count": selected.owners.length(),
       "fill": format_summary(fills, ""),
       "verticalAlign": format_summary(alignments, ""),
+      "borders": Json::object(
+        Map::from_array(
+          ["top", "right", "bottom", "left"].map(side => {
+            let values = borders.map(border => border[side])
+            (
+              side,
+              if values.contains(Json::null()) {
+                { "kind": "mixed" }
+              } else {
+                format_summary(values, "")
+              },
+            )
+          }),
+        ),
+      ),
+      "rowSplit": format_summary(
+        selected.grid.model.splitRows[selected.top:selected.bottom].to_owned(),
+        "",
+      ),
+      "margins": {
+        "top": format_summary(margins.map(value => value.top), ""),
+        "right": format_summary(margins.map(value => value.right), ""),
+        "bottom": format_summary(margins.map(value => value.bottom), ""),
+        "left": format_summary(margins.map(value => value.left), ""),
+      },
     },
   }
 }

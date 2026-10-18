@@ -159,7 +159,7 @@ export class DocumentEditor extends DocumentPage {
     bindClipboard(
       this.input,
       this.listeners.signal,
-      (cut) => this.handle(() => this.copySelection(cut)),
+      (cut) => void this.copy(cut).catch(() => {}),
       (text) => {
         void this.paste(text).catch(() => {});
       },
@@ -283,8 +283,17 @@ export class DocumentEditor extends DocumentPage {
   goToPage(index: number): Promise<void> {
     return this.enqueue(() => this.showPage(index));
   }
-  copy(cut = false): Promise<void> {
-    return this.enqueue(() => this.copySelection(cut));
+  copy(cut = false, mode?: "cells"): Promise<void> {
+    return this.enqueue(async () => {
+      const state = await copyDocxSelection(
+        this.client,
+        this.state,
+        cut,
+        () => this.assertOpen(),
+        mode,
+      );
+      if (state) await this.changed(state);
+    });
   }
   private assertOpen(): void {
     if (this.closed) throw new Error("Editor is disposed");
@@ -614,14 +623,6 @@ export class DocumentEditor extends DocumentPage {
     this.assertOpen();
     await this.presentSelection(reveal);
   }
-
-  private async copySelection(cut: boolean): Promise<void> {
-    const state = await copyDocxSelection(this.client, this.state, cut, () =>
-      this.assertOpen(),
-    );
-    if (state) await this.changed(state);
-  }
-
   paste(text: string): Promise<void> {
     this.inputEvents.endGroup();
     if (text.length > this.state.commandLimit) {

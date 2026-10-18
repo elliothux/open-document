@@ -10,6 +10,7 @@ pub(all) enum TableEdit {
   UnmergeCell
   SplitCell(Int, Int)
   SplitTable
+  PasteCells(String)
   AutoFit(String)
   TableWidth(Double)
   ColumnWidth(Int, Double)
@@ -154,6 +155,10 @@ pub fn Session::edit_table(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   match change {
+    PasteCells(text) =>
+      return self.paste_table_cells(
+        revision, selection, text, probe, profile, images,
+      )
     ColumnBefore | ColumnAfter =>
       return self.insert_table_column(
         selection,

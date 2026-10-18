@@ -48,6 +48,7 @@ export type {
   DocxPictureResizeCommand,
   DocxPictures,
   DocxTableEdit,
+  DocxTableClipboard,
   DocxCellMargins,
   DocxBorderStyle,
   DocxBorderSide,
@@ -86,6 +87,8 @@ import {
   checkDocxTableSize,
   checkDocxTableEdit,
   type DocxTableEdit,
+  docxTableClipboard,
+  type DocxTableClipboard,
   shapeBatch,
   resourceBudget,
   editState,
@@ -622,6 +625,18 @@ export class FoundationClient extends FoundationPageClient {
     if (typeof result !== "string")
       throw new Error("Invalid selection text returned by Wasm");
     return result;
+  }
+  async tableClipboard(
+    revision: number,
+    selection: DocxSelection,
+  ): Promise<DocxTableClipboard> {
+    return docxTableClipboard(
+      await this.connection.request({
+        operation: "tableClipboard",
+        revision,
+        selection,
+      }),
+    );
   }
   async undoDocx(revision: number): Promise<EditState> {
     return editState(

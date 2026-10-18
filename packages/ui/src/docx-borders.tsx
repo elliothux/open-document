@@ -21,7 +21,7 @@ export function DocxBorders({
   state: UiSnapshot;
   editor: DocumentEditor;
   cell: DocxCellBorders;
-  table: DocxTableBorders;
+  table?: DocxTableBorders;
   disabled: boolean;
 }) {
   const t = messages(state.locale);
@@ -31,7 +31,8 @@ export function DocxBorders({
     [side, setSide] = useState<DocxBorderSide | "all">("all"),
     [width, setWidth] = useState("0.5"),
     [color, setColor] = useState("#000000");
-  const values: DocxBorderPatch = scope === "tableBorders" ? table : cell;
+  const values: DocxBorderPatch =
+    scope === "tableBorders" && table ? table : cell;
   const sides: DocxBorderSide[] = [
     "top",
     "right",
@@ -63,26 +64,28 @@ export function DocxBorders({
   };
   return (
     <fieldset disabled={disabled}>
-      <legend>{t.tableBorders}</legend>
-      <label>
-        {t.borderTarget}
-        <select
-          aria-label={t.borderTarget}
-          value={scope}
-          onChange={(event) => {
-            if (
-              event.currentTarget.value === "tableBorders" ||
-              event.currentTarget.value === "cellBorders"
-            ) {
-              setScope(event.currentTarget.value);
-              setSide("all");
-            }
-          }}
-        >
-          <option value="cellBorders">{t.cellBorders}</option>
-          <option value="tableBorders">{t.tableBorders}</option>
-        </select>
-      </label>
+      <legend>{table ? t.tableBorders : t.cellBorders}</legend>
+      {table && (
+        <label>
+          {t.borderTarget}
+          <select
+            aria-label={t.borderTarget}
+            value={scope}
+            onChange={(event) => {
+              if (
+                event.currentTarget.value === "tableBorders" ||
+                event.currentTarget.value === "cellBorders"
+              ) {
+                setScope(event.currentTarget.value);
+                setSide("all");
+              }
+            }}
+          >
+            <option value="cellBorders">{t.cellBorders}</option>
+            <option value="tableBorders">{t.tableBorders}</option>
+          </select>
+        </label>
+      )}
       <label>
         {t.borderSide}
         <select
@@ -137,7 +140,10 @@ export function DocxBorders({
             onChange={(event) => setColor(event.currentTarget.value)}
           />
         </label>
-        <button type="submit" aria-label={`${t.apply} ${t.tableBorders}`}>
+        <button
+          type="submit"
+          aria-label={`${t.apply} ${table ? t.tableBorders : t.cellBorders}`}
+        >
           {t.apply}
         </button>
         <button

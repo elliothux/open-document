@@ -57,6 +57,7 @@ fn Foundation::docx_table(
       "splitCell" =>
         @docx.SplitCell(field_int(fields, "rows"), field_int(fields, "columns"))
       "splitTable" => @docx.SplitTable
+      "pasteCells" => @docx.PasteCells(field_string(fields, "text"))
       "headerRows" => @docx.HeaderRows(field_int(fields, "value"))
       "rowSplit" =>
         @docx.RowSplit(

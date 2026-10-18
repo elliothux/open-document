@@ -117,7 +117,11 @@ fn WordTree::border_markup(
 }
 
 ///|
-fn cell_border_query(table : @layout.Table, row : Int, cell : Int) -> Json {
+fn cell_border_query(
+  table : @layout.Table,
+  row : Int,
+  cell : Int,
+) -> Map[String, Json] {
   let start = table.columnSpans[row][:cell].fold(init=0, (sum, n) => sum + n)
   let end = start + table.columnSpans[row][cell]
   let mut first = row

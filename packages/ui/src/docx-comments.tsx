@@ -48,6 +48,8 @@ export function DocxComments({
     let active = true;
     controller.run(async () => {
       try {
+        await editor.whenIdle();
+        if (!active) return;
         const value = await editor.comments();
         if (active) setResult(value);
       } catch (error) {

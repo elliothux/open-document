@@ -354,6 +354,11 @@ export type Operation =
       selection: DocxSelection;
     }
   | {
+      operation: "tableClipboard";
+      revision: number;
+      selection: DocxSelection;
+    }
+  | {
       operation: "selectedText";
       revision: number;
       selection: DocxSelection;

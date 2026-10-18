@@ -205,6 +205,7 @@ pub fn Session::set_theme_color(Self, Int, String, String) -> Json raise @failur
 pub fn Session::set_theme_fonts(Self, Int, Array[ThemeFontEdit], @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::style_catalog(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::tab(Self, Int, Bool) -> Json raise @failure.Failure
+pub fn Session::table_clipboard(Self, Int, Selection) -> Json raise @failure.Failure
 pub fn Session::theme_colors(Self, Int) -> Json raise @failure.Failure
 pub fn Session::theme_fonts(Self, Int) -> Json raise @failure.Failure
 pub fn Session::undo_edit(Self, Int) -> Json raise @failure.Failure
@@ -225,6 +226,7 @@ pub(all) enum TableEdit {
   UnmergeCell
   SplitCell(Int, Int)
   SplitTable
+  PasteCells(String)
   AutoFit(String)
   TableWidth(Double)
   ColumnWidth(Int, Double)

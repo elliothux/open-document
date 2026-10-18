@@ -456,6 +456,8 @@ async function dispatch(request: Request): Promise<unknown> {
             request.selection,
             request.cut,
           );
+        case "tableClipboard":
+          return foundation.tableClipboard(request.revision, request.selection);
         case "replaceRange":
           return foundation.replaceRange(
             request.revision,

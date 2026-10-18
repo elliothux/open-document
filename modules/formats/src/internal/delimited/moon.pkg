@@ -1,0 +1,4 @@
+import {
+  "open_document/core/failure",
+  "open_document/core/xml",
+}

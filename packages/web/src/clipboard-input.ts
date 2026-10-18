@@ -34,11 +34,19 @@ export async function copyDocxSelection(
   state: EditState,
   cut: boolean,
   assertOpen: () => void,
+  mode?: "cells",
 ): Promise<EditState | null> {
   const revision = state.revision,
     selection = state.selection;
   if (!selection) throw new Error("Click a document position first");
-  const text = await client.selectedText(revision, selection, cut);
+  const copied =
+    mode === "cells"
+      ? await client.tableClipboard(revision, selection)
+      : {
+          text: await client.selectedText(revision, selection, cut),
+          selection,
+        };
+  const text = copied.text;
   assertOpen();
   if (text.length === 0) return null;
   if (!navigator.clipboard) throw new Error("Clipboard API is unavailable");
@@ -48,7 +56,7 @@ export async function copyDocxSelection(
   const current = await client.editState();
   assertOpen();
   assertDocxSelection(current, revision, selection);
-  return client.replaceRange(revision, selection, "");
+  return client.replaceRange(revision, copied.selection, "");
 }
 
 /** Uses native paste data and one queued asynchronous copy/cut path. */

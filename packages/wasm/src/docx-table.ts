@@ -1,4 +1,22 @@
 import { record } from "./validation.js";
+import { isDocxSelection } from "./docx-search.js";
+import type { DocxSelection } from "./docx-hit.js";
+
+export interface DocxTableClipboard {
+  text: string;
+  selection: DocxSelection;
+}
+
+export function docxTableClipboard(value: unknown): DocxTableClipboard {
+  const result = record(value);
+  if (
+    typeof result.text !== "string" ||
+    result.text.length > 65536 ||
+    !isDocxSelection(result.selection)
+  )
+    throw new Error("Invalid table clipboard returned by Wasm");
+  return value as DocxTableClipboard;
+}
 
 export interface DocxBorderStyle {
   width: number;
@@ -73,6 +91,7 @@ export function checkDocxCellMargins(value: unknown): void {
 }
 
 export type DocxTableEdit =
+  | { action: "pasteCells"; text: string }
   | { action: "autoFit"; mode: "content" | "page" | "fixed" }
   | { action: "tableBorders" | "cellBorders"; value: DocxBorderPatch }
   | {
@@ -99,6 +118,15 @@ export type DocxTableEdit =
 
 export function checkDocxTableEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "pasteCells") {
+    if (
+      typeof change.text !== "string" ||
+      change.text.length > 65536 ||
+      Object.keys(change).some((key) => key !== "action" && key !== "text")
+    )
+      throw new Error("Invalid table clipboard text");
+    return;
+  }
   if (change.action === "rowSplit") {
     if (typeof change.value !== "boolean")
       throw new Error("Invalid row split setting");

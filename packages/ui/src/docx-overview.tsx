@@ -31,6 +31,8 @@ export function DocxOverview({
     let active = true;
     controller.run(async () => {
       try {
+        await editor.whenIdle();
+        if (!active) return;
         const value = await editor.overview();
         if (active) setResult(value);
       } catch (error) {

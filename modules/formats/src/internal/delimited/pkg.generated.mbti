@@ -1,0 +1,19 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "open_document/formats/internal/delimited"
+
+import {
+  "open_document/core/failure",
+}
+
+// Values
+pub fn parse_tsv(String) -> Array[Array[String]] raise @failure.Failure
+
+pub fn quote_field(String) -> String
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

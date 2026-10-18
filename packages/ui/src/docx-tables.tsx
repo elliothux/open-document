@@ -6,6 +6,7 @@ import type {
 } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { DocxMargins } from "./docx-margins.js";
 import { DocxBorders } from "./docx-borders.js";
 import { DocxCellSelection } from "./docx-cell-selection.js";
 
@@ -172,6 +173,40 @@ export function DocxTables({
         <legend>
           {t.tableRows} / {t.tableColumns}
         </legend>
+        {([false, true] as const).map((cut) => (
+          <button
+            key={String(cut)}
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => controller.run(() => editor.copy(cut, "cells"))}
+          >
+            {cut ? t.cutCells : t.copyCells}
+          </button>
+        ))}
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() =>
+            controller.run(async () => {
+              const before = editor.getSnapshot();
+              const text = await navigator.clipboard.readText();
+              await editor.whenIdle();
+              const current = editor.getSnapshot();
+              if (
+                current.busy !== 0 ||
+                current.dragging ||
+                current.documentId !== before.documentId ||
+                current.revision !== before.revision ||
+                JSON.stringify(current.data.selection) !==
+                  JSON.stringify(before.data.selection)
+              )
+                throw new Error("Selection changed during clipboard read");
+              return editor.editTable({ action: "pasteCells", text });
+            })
+          }
+        >
+          {t.pasteCells}
+        </button>
         {(
           [
             "rowBefore",
@@ -472,7 +507,7 @@ function TableProperties({
           ["cellMargins", margins, t.cellMargins],
         ] as const
       ).map(([action, value, label]) => (
-        <MarginFields
+        <DocxMargins
           key={action}
           controller={controller}
           state={state}
@@ -619,88 +654,5 @@ function TableProperties({
           ),
       )}
     </fieldset>
-  );
-}
-
-function MarginFields({
-  controller,
-  state,
-  editor,
-  action,
-  value,
-  label,
-}: {
-  controller: EditorController;
-  state: UiSnapshot;
-  editor: DocumentEditor;
-  action: "cellMargins" | "tableMargins";
-  value: DocxCellMargins;
-  label: string;
-}) {
-  const t = messages(state.locale);
-  const [draft, setDraft] = useState({
-    top: String(value.top),
-    right: String(value.right),
-    bottom: String(value.bottom),
-    left: String(value.left),
-  });
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        controller.run(() =>
-          editor.editTable({
-            action,
-            value: {
-              top: Number(draft.top),
-              right: Number(draft.right),
-              bottom: Number(draft.bottom),
-              left: Number(draft.left),
-            },
-          }),
-        );
-      }}
-    >
-      <fieldset>
-        <legend>{label}</legend>
-        {(
-          [
-            ["top", t.pageTop],
-            ["right", t.pageRight],
-            ["bottom", t.pageBottom],
-            ["left", t.pageLeft],
-          ] as const
-        ).map(([side, label]) => (
-          <label key={side}>
-            {label}
-            <input
-              type="number"
-              min={0}
-              max={14400}
-              step={0.05}
-              required
-              value={draft[side]}
-              onChange={(event) =>
-                setDraft({ ...draft, [side]: event.currentTarget.value })
-              }
-            />
-          </label>
-        ))}
-        <button type="submit" aria-label={`${t.apply} ${label}`}>
-          {t.apply}
-        </button>
-        <button
-          type="button"
-          onMouseDown={(event) => event.preventDefault()}
-          onClick={() =>
-            controller.run(() => editor.editTable({ action, value: null }))
-          }
-        >
-          {action === "cellMargins"
-            ? t.resetCellMargins
-            : t.inheritStyleProperty}
-        </button>
-      </fieldset>
-    </form>
   );
 }

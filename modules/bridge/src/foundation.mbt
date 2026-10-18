@@ -279,6 +279,7 @@ fn Foundation::dispatch(
     | "tabDocx"
     | "enterDocx"
     | "selectedText"
+    | "tableClipboard"
     | "beginComposition"
     | "updateComposition"
     | "commitComposition"
@@ -382,6 +383,11 @@ fn Foundation::dispatch(
               field_selection(request),
               cut=xlsx_boolean(request, "cut"),
             ),
+          )
+        "tableClipboard" =>
+          session.table_clipboard(
+            field_int(request, "revision"),
+            field_selection(request),
           )
         "selectDocx" =>
           session.select(

@@ -86,7 +86,7 @@ fn Session::table_dimensions(
     "headerRows": table.headerRows,
     "cellVerticalAlign": table.verticalAligns[index][column],
     "cellMargins": Json(table.margins[index][column]),
-    "cellBorders": cell_border_query(table, index, column),
+    "cellBorders": Json(cell_border_query(table, index, column)),
     "tableBorders": Json::object(
       Map::from_array(
         ["top", "left", "bottom", "right", "insideH", "insideV"].map(side => {

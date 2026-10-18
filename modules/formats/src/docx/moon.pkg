@@ -1,4 +1,5 @@
 import {
+  "open_document/formats/internal/delimited",
   "open_document/formats/internal/image",
   "open_document/core/archive",
   "open_document/core/opc",
