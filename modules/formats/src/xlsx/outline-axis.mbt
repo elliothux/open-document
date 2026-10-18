@@ -4,6 +4,7 @@ fn Session::axis_outline(
   original : Sheet,
   document : @xml.Document,
   change : AxisChange,
+  parts : Map[String, @xml.Document],
 ) -> (@xml.Document, Array[(String, @xml.Edit)]) raise @failure.Failure {
   if change.band is Some(_) {
     return (document, [])
@@ -99,6 +100,7 @@ fn Session::axis_outline(
       change.first,
       change.first + change.count - 1,
       0,
+      parts,
     )
     edits.append(changes)
     current = read(document)

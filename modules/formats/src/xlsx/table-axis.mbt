@@ -138,6 +138,12 @@ fn Session::axis_tables(
     let parent = tree.one(root.id, "tableColumns").unwrap()
     let nodes = tree.all(parent.id, "tableColumn")
     let changes = metadata_changes(root, [("ref", range.name())])
+    if own &&
+      change.band is None &&
+      tree.one(root.id, "sortState") is Some(sort) {
+      let (updates, _) = axis_sort_state(tree, sort, change)
+      changes.append(updates)
+    }
     if totals != table.totals {
       changes.append(
         metadata_changes(root, [
@@ -147,6 +153,12 @@ fn Session::axis_tables(
       )
     }
     if tree.one(root.id, "autoFilter") is Some(filter) {
+      if own &&
+        change.band is None &&
+        tree.one(filter.id, "sortState") is Some(sort) {
+        let (updates, _) = axis_sort_state(tree, sort, change)
+        changes.append(updates)
+      }
       changes.append(
         metadata_changes(filter, [
           ("ref", Range::{ ..range, bottom: range.bottom - totals, }.name()),

@@ -16,16 +16,48 @@ export function XlsxSort({
   disabled: boolean;
 }) {
   const t = messages(state.locale),
-    query = editor.currentState,
-    range = query.selection.range;
+    query = editor.currentState;
+  const native = query.tables
+    .map((table) => {
+      const points = table.range.split(":").map((text) => {
+        const match = /^([A-Z]+)([0-9]+)$/.exec(text)!;
+        return {
+          row: Number(match[2]),
+          column: Array.from(match[1]!).reduce(
+            (column, letter) => column * 26 + letter.charCodeAt(0) - 64,
+            0,
+          ),
+        };
+      });
+      const first = points[0]!,
+        last = points[1] ?? first;
+      return {
+        table,
+        range: {
+          top: first.row,
+          bottom: last.row,
+          left: first.column,
+          right: last.column,
+        },
+      };
+    })
+    .find(
+      ({ range }) =>
+        range.top <= query.selection.range.top &&
+        range.bottom >= query.selection.range.bottom &&
+        range.left <= query.selection.range.left &&
+        range.right >= query.selection.range.right,
+    );
+  const range = native?.range ?? query.selection.range;
   const [rows, setRows] = useState(true),
     [header, setHeader] = useState(false),
     [caseSensitive, setCaseSensitive] = useState(false),
     [keys, setKeys] = useState<XlsxSortKey[]>([
       { index: range.left, descending: false },
     ]);
-  const low = rows ? range.left : range.top,
-    high = rows ? range.right : range.bottom;
+  const rowAxis = !!native || rows,
+    low = rowAxis ? range.left : range.top,
+    high = rowAxis ? range.right : range.bottom;
   const update = (position: number, patch: Partial<XlsxSortKey>) =>
     setKeys((keys) =>
       keys.map((key, i) => (i === position ? { ...key, ...patch } : key)),
@@ -38,8 +70,8 @@ export function XlsxSort({
           editor.editSheet({
             action: "sort",
             range: query.selection.address,
-            rows,
-            header,
+            rows: rowAxis,
+            header: native ? false : header,
             caseSensitive,
             keys,
           }),
@@ -53,13 +85,19 @@ export function XlsxSort({
           !!query.sheets.find((s) => s.id === query.sheet)?.protected
         }
       >
-        <legend>{t.sortCells}</legend>
-        <p>{query.selection.address}</p>
+        <legend>{native ? t.tableSort : t.sortCells}</legend>
+        <p>{native ? native.table.range : query.selection.address}</p>
+        {native && (
+          <p>
+            {native.table.name}: {t.tableSortHelp}
+          </p>
+        )}
         <label>
           {t.sortAxis}
           <select
             aria-label={t.sortAxis}
-            value={rows ? "rows" : "columns"}
+            value={rowAxis ? "rows" : "columns"}
+            disabled={!!native}
             onChange={(event) => {
               const rows = event.currentTarget.value === "rows";
               setRows(rows);
@@ -75,7 +113,8 @@ export function XlsxSort({
         <label>
           <input
             type="checkbox"
-            checked={header}
+            checked={native ? native.table.headerRow : header}
+            disabled={!!native}
             onChange={(e) => setHeader(e.currentTarget.checked)}
           />
           {t.sortHeader}
@@ -243,7 +282,7 @@ export function XlsxSort({
         >
           {t.addSortKey}
         </button>
-        <button type="submit">{t.sortCells}</button>
+        <button type="submit">{native ? t.tableSort : t.sortCells}</button>
       </fieldset>
     </form>
   );

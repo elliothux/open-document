@@ -10,6 +10,15 @@ fn Session::table_query(
     return []
   }
   let reason = self.sheet_rename_reason(structure=false, tables=true)
+  let work : FormulaWork = {
+    remaining: 1048576,
+    date1904: self.date1904,
+    origin: self.focus,
+    names: self.formula_names(),
+  }
+  let (filters, filter_reason) = (self.sheet_filters(sheet, self.parts), "") catch {
+    @failure.Failure(message~, ..) => (Map([]), message)
+  }
   tables.map(table => {
     let value : Json = {
       "id": table.id,
@@ -35,6 +44,13 @@ fn Session::table_query(
         value
       }),
       "style": table.style.map(value => Json(value)).unwrap_or(Json::null()),
+      "filter": self.filter_query(
+        self.sheet_index(sheet.id),
+        table=Some(table),
+        states=Some(filters),
+        failure=filter_reason,
+        work=Some(work),
+      ),
       "readOnlyReason": if !reason.is_empty() {
         reason
       } else if sheet.locked {

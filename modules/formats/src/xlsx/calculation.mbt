@@ -178,7 +178,7 @@ fn Calculation::build(
 ) -> Calculation raise @failure.Failure {
   let definitions = read_named_definitions(workbook, sheets.length())
   for table in tables {
-    guard !table.filtering else {
+    guard !table.filtering || table.filter is Some(_) else {
       @failure.reject(
         "unsupported-formula", "Table filtering requires calculation support",
       )

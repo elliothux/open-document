@@ -141,6 +141,12 @@ export function checkXlsxSheetEdit(value: unknown): void {
     change.action === "tableColumnFormula" ||
     change.action === "tableTotals" ||
     change.action === "tableTotal" ||
+    [
+      "tableFilter",
+      "tableFilterClear",
+      "tableFilterRemove",
+      "tableFilterReapply",
+    ].includes(String(change.action)) ||
     change.action === "renameTable" ||
     change.action === "renameTableColumn"
   ) {

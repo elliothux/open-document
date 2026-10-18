@@ -2,7 +2,7 @@
 priv struct StoredSort {
   bounds : Range
   source : String
-}
+} derive(Eq)
 
 ///|
 fn read_sort_state(
@@ -154,9 +154,10 @@ fn stored_sort(
 fn write_sort_state(
   document : @xml.Document,
   state : StoredSort,
+  table~ : Bool = false,
 ) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
   let tree = Tree::new(document)
-  let root = tree.root("worksheet")
+  let root = tree.root(if table { "table" } else { "worksheet" })
   let change : @xml.SourceChange = if tree.one(root.id, "sortState")
     is Some(node) {
     {
@@ -166,13 +167,17 @@ fn write_sort_state(
       xml: state.source,
     }
   } else {
-    let after = [
-      "dataConsolidate", "customSheetViews", "mergeCells", "phoneticPr", "conditionalFormatting",
-      "dataValidations", "hyperlinks", "printOptions", "pageMargins", "pageSetup",
-      "headerFooter", "rowBreaks", "colBreaks", "customProperties", "cellWatches",
-      "ignoredErrors", "smartTags", "drawing", "legacyDrawing", "legacyDrawingHF",
-      "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst",
-    ]
+    let after = if table {
+      ["tableColumns", "tableStyleInfo", "extLst"]
+    } else {
+      [
+        "dataConsolidate", "customSheetViews", "mergeCells", "phoneticPr", "conditionalFormatting",
+        "dataValidations", "hyperlinks", "printOptions", "pageMargins", "pageSetup",
+        "headerFooter", "rowBreaks", "colBreaks", "customProperties", "cellWatches",
+        "ignoredErrors", "smartTags", "drawing", "legacyDrawing", "legacyDrawingHF",
+        "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst",
+      ]
+    }
     if tree.children
       .get(root.id)
       .unwrap_or([])

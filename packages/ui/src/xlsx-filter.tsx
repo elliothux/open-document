@@ -5,6 +5,7 @@ import type {
   XlsxFilterColumn,
   XlsxFilterCondition,
   XlsxFilterOperator,
+  XlsxTable,
 } from "@open-document/web/xlsx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
@@ -194,29 +195,53 @@ export function XlsxFilter({
   controller,
   state,
   disabled,
+  table,
 }: {
   editor: SpreadsheetEditor;
   controller: EditorController;
   state: UiSnapshot;
   disabled: boolean;
+  table?: XlsxTable;
 }) {
   const t = messages(state.locale),
     query = editor.currentState,
-    filter = query.filter;
+    filter = table?.filter ?? query.filter;
+  const edit = (
+    change:
+      | { action: "filter"; range: string; columns: XlsxFilterColumn[] }
+      | { action: "filterClear" | "filterRemove" | "filterReapply" },
+  ) => {
+    if (!table) return editor.editSheet(change);
+    return editor.editSheet(
+      change.action === "filter"
+        ? { action: "tableFilter", id: table.id, columns: change.columns }
+        : {
+            action:
+              change.action === "filterClear"
+                ? "tableFilterClear"
+                : change.action === "filterRemove"
+                  ? "tableFilterRemove"
+                  : "tableFilterReapply",
+            id: table.id,
+          },
+    );
+  };
   const [columnIndex, setColumn] = useState(filter.catalog[0]?.column ?? 1);
   const column =
     filter.catalog.find((c) => c.column === columnIndex) ?? filter.catalog[0];
-  const blocked = disabled || !!filter.reason;
+  const blocked = disabled || !!filter.reason || !!table?.readOnlyReason;
   return (
     <fieldset disabled={blocked}>
       <legend>{t.filterCells}</legend>
       {filter.reason && <p>{filter.reason}</p>}
       <button
         type="button"
-        disabled={query.selection.range.top === query.selection.range.bottom}
+        disabled={
+          !table && query.selection.range.top === query.selection.range.bottom
+        }
         onClick={() =>
           controller.run(() =>
-            editor.editSheet({
+            edit({
               action: "filter",
               range: query.selection.address,
               columns: [],
@@ -224,7 +249,7 @@ export function XlsxFilter({
           )
         }
       >
-        {t.filterRange}
+        {table ? t.tableFilter : t.filterRange}
       </button>
       {filter.range && (
         <>
@@ -253,7 +278,7 @@ export function XlsxFilter({
                 state={state}
                 apply={(values, blank, all) =>
                   controller.run(() =>
-                    editor.editSheet({
+                    edit({
                       action: "filter",
                       range: filter.range,
                       columns: [
@@ -288,7 +313,7 @@ export function XlsxFilter({
                 state={state}
                 apply={(conditions, all) =>
                   controller.run(() =>
-                    editor.editSheet({
+                    edit({
                       action: "filter",
                       range: filter.range,
                       columns: [
@@ -316,7 +341,7 @@ export function XlsxFilter({
                 state={state}
                 apply={(rule) =>
                   controller.run(() =>
-                    editor.editSheet({
+                    edit({
                       action: "filter",
                       range: filter.range,
                       columns: [
@@ -339,7 +364,7 @@ export function XlsxFilter({
                 state={state}
                 apply={(rule) =>
                   controller.run(() =>
-                    editor.editSheet({
+                    edit({
                       action: "filter",
                       range: filter.range,
                       columns: [
@@ -367,7 +392,7 @@ export function XlsxFilter({
                     )}
                     onClick={() =>
                       controller.run(() =>
-                        editor.editSheet({
+                        edit({
                           action: "filter",
                           range: filter.range,
                           columns: [
@@ -390,7 +415,7 @@ export function XlsxFilter({
             type="button"
             disabled={!filter.columns.length}
             onClick={() =>
-              controller.run(() => editor.editSheet({ action: "filterClear" }))
+              controller.run(() => edit({ action: "filterClear" }))
             }
           >
             {t.filterClear}
@@ -399,9 +424,7 @@ export function XlsxFilter({
             type="button"
             disabled={!filter.columns.length}
             onClick={() =>
-              controller.run(() =>
-                editor.editSheet({ action: "filterReapply" }),
-              )
+              controller.run(() => edit({ action: "filterReapply" }))
             }
           >
             {t.filterReapply}
@@ -409,7 +432,7 @@ export function XlsxFilter({
           <button
             type="button"
             onClick={() =>
-              controller.run(() => editor.editSheet({ action: "filterRemove" }))
+              controller.run(() => edit({ action: "filterRemove" }))
             }
           >
             {t.filterRemove}

@@ -9,9 +9,15 @@ fn Session::reorder_cells(
   filter~ : AutoFilterState? = None,
   sort~ : StoredSort? = None,
   formatting~ : ConditionalStyleEdit? = None,
+  table~ : StructuredTable? = None,
 ) -> Json raise @failure.Failure {
   let index = self.sheet_index(sheet)
   let current = self.sheets[index]
+  let table_filters = if table is Some(_) {
+    self.sheet_filters(current, self.parts)
+  } else {
+    Map([])
+  }
   let notes = self.read_sheet_notes(current)
   let (low, high) = if rows {
     (target.left, target.right)
@@ -165,7 +171,13 @@ fn Session::reorder_cells(
   } else {
     filter
   }
-  let document = if sort is Some(sort) && !nested {
+  if table is Some(table) && sort is Some(sort) {
+    self.write_table_sort(table, sort, parts, edits)
+    if table_filters.get(table.part) is Some(state) {
+      table_filters[table.part] = { ..state, sort: None, }
+    }
+  }
+  let document = if sort is Some(sort) && !nested && table is None {
     let (document, edit) = write_sort_state(document, sort)
     edits.push((sheet, edit))
     document
@@ -189,14 +201,38 @@ fn Session::reorder_cells(
     self.calculation,
     [(index, target)],
     self.workbook,
+    parts~,
   )
-  if filter is Some(state) {
-    calculation = self.reapply_candidate_filter(
+  if table is Some(table) {
+    let targets = table_filters
+      .keys()
+      .filter(part => {
+        part == table.part ||
+        part == sheet ||
+        !table_filters[part].settings.columns.is_empty()
+      })
+      .to_array()
+    if !targets.is_empty() {
+      calculation = self.reapply_candidate_filters(
+        index,
+        table_filters,
+        targets,
+        sheets,
+        self.workbook,
+        calculation,
+        parts,
+        edits,
+      )
+    }
+  } else if filter is Some(state) {
+    calculation = self.reapply_candidate_filters(
       index,
-      state,
+      Map([(sheet, state)]),
+      [sheet],
       sheets,
       self.workbook,
       calculation,
+      parts,
       edits,
     )
   }
@@ -214,6 +250,7 @@ fn Session::reorder_cells(
     edits,
     (sheet, target),
     parts~,
+    table_edits=table.map(table => [table.part]).unwrap_or([]),
     created_parts=formatting.map(plan => plan.created_parts).unwrap_or(Map([])),
   )
   self.query()

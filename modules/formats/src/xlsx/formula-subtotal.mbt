@@ -21,19 +21,29 @@ fn subtotal_filtered(
   work : FormulaWork,
 ) -> Array[Int] raise @failure.Failure {
   work.spend(amount=sheet.document.nodes().length())
-  guard read_filter(sheet) is Some(filter) else { return [] }
-  if filter.tracked {
-    return filter.filtered
-  }
-  if filter.settings.columns.is_empty() {
-    return []
+  let filters = work.names.tables
+    .filter(table => table.sheet == sheet.id)
+    .filter_map(table => table.filter)
+  if read_filter(sheet) is Some(filter) {
+    filters.push(filter)
   }
   // shortcut: Imported active filters have no separate hidden causes; tracked saves distinguish overlap.
   let result : Array[Int] = []
-  for row in (filter.bounds.top + 1)..<=filter.bounds.bottom {
-    work.spend()
-    if sheet.dimensions.rows.size(row) == 0 {
-      result.push(row)
+  for filter in filters {
+    if filter.tracked {
+      for row in filter.filtered {
+        work.spend()
+        if !result.contains(row) {
+          result.push(row)
+        }
+      }
+    } else if !filter.settings.columns.is_empty() {
+      for row in (filter.bounds.top + 1)..<=filter.bounds.bottom {
+        work.spend()
+        if sheet.dimensions.rows.size(row) == 0 && !result.contains(row) {
+          result.push(row)
+        }
+      }
     }
   }
   result

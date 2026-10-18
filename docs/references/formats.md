@@ -849,7 +849,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 上述存储和引用维护参考 [ONLYOFFICE SortState](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L9742-L10000)、[OOXML 排序定义](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/Test/Applications/DocxFormatCodeGen/codegen/Resource/sml.xsd#L148-L182)及[写入代码](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/XlsxFormat/Table/Autofilter.cpp#L320-L352)，没有复制上游源码。
 
-排序键归一化共享 1048576 次公式工作预算，移动片段累计最多 1 Mi UTF-16，继续使用公式、候选、源和 4 MiB 历史上限。合并区域、未知筛选/排序元数据、图标排序状态、绘图、结构化表/透视、线程批注及未知便笺、未知资源或关系、未知单元格/公式标记和工作表保护继续原子拒绝。更广合并/资源支持归 [P11](../p11-xlsx-core.md) 后续范围。实现归 [`sort.mbt`](../../modules/formats/src/xlsx/sort.mbt)、[`sort-state.mbt`](../../modules/formats/src/xlsx/sort-state.mbt)、[`sort-source.mbt`](../../modules/formats/src/xlsx/sort-source.mbt)、[`reorder-cells.mbt`](../../modules/formats/src/xlsx/reorder-cells.mbt)及 [`xlsx-sort.tsx`](../../packages/ui/src/xlsx-sort.tsx)。
+排序键归一化共享 1048576 次公式工作预算，移动片段累计最多 1 Mi UTF-16，继续使用公式、候选、源和 4 MiB 历史上限。合并区域、未知筛选/排序元数据、图标排序状态、绘图、未支持的结构化表操作/透视、线程批注及未知便笺、未知资源或关系、未知单元格/公式标记和工作表保护继续原子拒绝。更广合并/资源支持归 [P11](../p11-xlsx-core.md) 后续范围。实现归 [`sort.mbt`](../../modules/formats/src/xlsx/sort.mbt)、[`sort-state.mbt`](../../modules/formats/src/xlsx/sort-state.mbt)、[`sort-source.mbt`](../../modules/formats/src/xlsx/sort-source.mbt)、[`reorder-cells.mbt`](../../modules/formats/src/xlsx/reorder-cells.mbt)及 [`xlsx-sort.tsx`](../../packages/ui/src/xlsx-sort.tsx)。
 
 ### 文本分列
 
@@ -893,7 +893,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 保存使用标准 `autoFilter/filterColumn/filters/filter` 或 `customFilters/customFilter`（`and` 与 `operator/val`）、`sheetPr.filterMode` 和行 `hidden`。行高、原属性与非目标部件保留。`autoFilter/extLst` 内的 `urn:open-document:xlsx:filter-state` 扩展记录 `manual` 与 `filtered` 行号，可同时包含同一行；清除筛选只恢复筛选隐藏，手动隐藏继续保留。已有行高/隐藏命令同步手动来源，正行高也不能展开仍被筛选隐藏的行。复制、改名、撤销重做和保存重开保留此来源；扩展与实际隐藏行不一致时拒绝编辑。外部文件只有一个 `hidden` 字段，无法判断同一行是否同时被手动和筛选隐藏；无来源扩展时，将不匹配条件的隐藏行视为筛选隐藏，其余视为手动隐藏。外部程序若丢弃扩展，也会恢复此导入限制。
 
-每项匹配/目录共用 1048576 次公式工作预算，条件文字累计最多 1048576 个 UTF-16 单元，目录数据/标题累计最多 1048576 个单元；继续受包、源和 4 MiB 历史预算约束。未知条件、日历声明、扩展、属性、筛选内注释/处理指令、工作表保护或无法计算的显示值拒绝修改，保留源与历史。保留已知 `hiddenButton/showButton` 标记。已支持条件的排序和整行/整列插删复用候选重算与隐藏来源事务，局部单元格移位仍保护；表格筛选、标题下拉箭头和更广组合按 [P11](../p11-xlsx-core.md) 继续接入。实现归 [`filter-model.mbt`](../../modules/formats/src/xlsx/filter-model.mbt)、[`filter-values.mbt`](../../modules/formats/src/xlsx/filter-values.mbt)、[`filter-custom.mbt`](../../modules/formats/src/xlsx/filter-custom.mbt)、[`filter-source.mbt`](../../modules/formats/src/xlsx/filter-source.mbt)、[`filter-edit.mbt`](../../modules/formats/src/xlsx/filter-edit.mbt)及 [`xlsx-filter.tsx`](../../packages/ui/src/xlsx-filter.tsx)。
+每项匹配/目录共用 1048576 次公式工作预算，条件文字累计最多 1048576 个 UTF-16 单元，目录数据/标题累计最多 1048576 个单元；继续受包、源和 4 MiB 历史预算约束。未知条件、日历声明、扩展、属性、筛选内注释/处理指令、工作表保护或无法计算的显示值拒绝修改，保留源与历史。保留已知 `hiddenButton/showButton` 标记。已支持条件的排序和整行/整列插删复用候选重算与隐藏来源事务，局部单元格移位仍保护；原生表筛选归[结构化表](#结构化表与引用)；标题下拉箭头和更广组合按 [P11](../p11-xlsx-core.md) 继续接入。实现归 [`filter-model.mbt`](../../modules/formats/src/xlsx/filter-model.mbt)、[`filter-values.mbt`](../../modules/formats/src/xlsx/filter-values.mbt)、[`filter-custom.mbt`](../../modules/formats/src/xlsx/filter-custom.mbt)、[`filter-source.mbt`](../../modules/formats/src/xlsx/filter-source.mbt)、[`filter-edit.mbt`](../../modules/formats/src/xlsx/filter-edit.mbt)及 [`xlsx-filter.tsx`](../../packages/ui/src/xlsx-filter.tsx)。
 
 ### 日期组筛选
 
@@ -1201,7 +1201,11 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 ### 结构化表与引用
 
-`XlsxQuery.tables` 返回当前工作表的原生表定义，包括 `id`、`name`、A1 `range`、`headerRow/totalRow`、`columns`、`style` 和 `readOnlyReason`。每列返回稳定的 `id`、`name` 及可空的 `formula/totalFunction/totalLabel/totalFormula` 原生设置；表和列身份来自所属 XML，不从位置或显示文字重新生成。核心校验表关系、名称、列数、重复身份、重叠范围和合并区域，单元格仍由原有稀疏工作表持有。
+原生表行排序复用 `editSheet({ action: "sort", range, ... })`。选区完全位于一张表内时，核心扩展为整张表的数据行和全部列，固定标题与总计。默认排序面板同步这些边界；多键、文字自定义列表和颜色沿[区域排序](#区域排序)规则。排序前冻结当前公式键和可见位置，手动或筛选隐藏记录留在原位；保留计算列模板、值/公式例外、富文本、便笺、链接和直接格式。候选计算后重新应用相关原生表及普通筛选，同步 SUBTOTAL 和最终值校验。
+
+排序状态写入所属表根节点 `sortState`，移除竞争的嵌套筛选排序状态，保留无关源。已支持的排序范围、键及颜色差异样式随整轴和工作表复制维护；源、值、缓存与可见性合为精确历史，支持保存重开和打印。横向表排序、跨越表边界的选区、有排序状态的范围调整及未知元数据继续保护。实现归 [`table-sort.mbt`](../../modules/formats/src/xlsx/table-sort.mbt)，参考 [ONLYOFFICE 表数据排序范围](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L2574-L2659)。
+
+`XlsxQuery.tables` 返回当前工作表的原生表定义，包括 `id`、`name`、A1 `range`、`headerRow/totalRow`、`columns`、`style`、`filter` 和 `readOnlyReason`。每列返回稳定的 `id`、`name` 及可空的 `formula/totalFunction/totalLabel/totalFormula` 原生设置；表和列身份来自所属 XML，不从位置或显示文字重新生成。`filter` 沿用 `XlsxFilterState` 的范围、条件、值目录和保护原因。核心校验表关系、名称、列数、重复身份、重叠范围和合并区域，单元格仍由原有稀疏工作表持有。
 
 公式支持 `Sales[Amount]`、表内 `[Amount]`、`[@Amount]`、`[[First]:[Last]]`，以及 `#Data/#Headers/#Totals/#All/#This Row`。裸表名表示数据区域，标题和总计按定义排除；连续行段可组合。列名中的结构字符使用单引号转义。引用解析为现有单元格依赖和有界范围，保留原公式文字；跨表公式、名称引用，以及计算列和总计格中已有的单元格公式随普通数据重算。普通数据修改不自动补齐既有区域中缺失的计算列公式；扩展新行的补齐见下文。缺表返回 `#NAME?`，缺列或不存在的行段返回 `#REF!`，数据区域外的当前行引用返回 `#VALUE!`。不连续行列组合继续保护。
 
@@ -1215,7 +1219,7 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 已有总计行随末行移动：核心清除原总计行，在保留列的新位置恢复原文字/公式，目标已有内容时整体拒绝。原生 `calculatedColumnFormula` 为新增数据行中的空白格补公式，相对 A1 引用按首个数据行偏移，结构化引用保留；既有值或公式例外不覆盖。一次补齐最多涉及 4096 格，沿既有公式、输出及历史预算。此入口不新增计算列定义或总计设置，也不向整张工作表插入行列。
 
-核心同步表范围、排除总计行的筛选范围、工作簿名称和各表依赖缓存。新范围完全包含原范围时，恰好覆盖整表或单列的条件格式按新末行延长，保留原锚点；缩小时不裁剪原规则。样式、自动适配和打印沿现有表定义派生。默认面板提供范围框与同一命令，先提交原生草稿；相同范围不增加历史。活动表筛选、排序或未知列/筛选元数据、跨边界的共享局部公式、未绑定的规则引用及超限候选继续保护。实现归 [`table-resize.mbt`](../../modules/formats/src/xlsx/table-resize.mbt)及 [`table-resize-references.mbt`](../../modules/formats/src/xlsx/table-resize-references.mbt)，范围与列身份依据 [ONLYOFFICE changeRefOnRange](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L8579-L8641)，条件格式范围依据 [af_changeTableRange](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L22631-L22708)。
+核心同步表范围、排除总计行的筛选范围、工作簿名称和各表依赖缓存。新范围完全包含原范围时，恰好覆盖整表或单列的条件格式按新末行延长，保留原锚点；缩小时不裁剪原规则。样式、自动适配和打印沿现有表定义派生。默认面板提供范围框与同一命令，先提交原生草稿；相同范围不增加历史。表排序或未知列/筛选元数据、跨边界的共享局部公式、未绑定的规则引用及超限候选继续保护。实现归 [`table-resize.mbt`](../../modules/formats/src/xlsx/table-resize.mbt)及 [`table-resize-references.mbt`](../../modules/formats/src/xlsx/table-resize-references.mbt)，范围与列身份依据 [ONLYOFFICE changeRefOnRange](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L8579-L8641)，条件格式范围依据 [af_changeTableRange](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L22631-L22708)。
 
 `editSheet({ action: "tableColumnFormula", id, column, formula })` 创建或重填计算列。字符串公式可带开头的 `=`，相对 A1 引用从首个数据行偏移，结构化引用保留。命令改写所选列的全部数据格，包括已有值和公式例外；标题、总计及直接格式保持。`formula: null` 只移除原生模板，保留现有单元格公式，随后可按普通数据格编辑。相同模板且各格公式等价时不新增历史。每次最多 4096 个数据格、公式最多 8192 个 UTF-16 单元，沿现有 1048576 公式工作预算。实现归 [`table-column.mbt`](../../modules/formats/src/xlsx/table-column.mbt)。
 
@@ -1225,11 +1229,21 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 计算列与总计命令沿同一事务更新原生定义、单元格、依赖和缓存，支持精确历史、保存重开及现有打印。默认面板调用相同命令并先提交原生草稿。共享/数组公式源、未知表/筛选元数据、非法结果、验证失败和输出预算失败均保留原状态。总计实现归 [`table-total.mbt`](../../modules/formats/src/xlsx/table-total.mbt)及 [`table-totals.mbt`](../../modules/formats/src/xlsx/table-totals.mbt)。默认设置及聚合映射参考 [ONLYOFFICE 总计行](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L10063-L10140)；其中数值计数沿现有 `SUBTOTAL(102)` 补齐。原生计算列和总计设置分别保留。
 
+`editSheet({ action: "tableFilter", id, columns })` 设置原生表筛选。`id` 是表身份；范围由核心取标题和数据区域，排除总计行，不能由调用方另传。`columns` 沿用[普通筛选](#值筛选)的值、自定义、排名、平均值和日期组条件；列号仍是从 1 开始的工作表列号。多列取交集，空条件保留筛选范围并显示全部数据。`tableFilterClear/tableFilterRemove/tableFilterReapply` 同样携带 `id`，分别清除条件、移除原生筛选节点和按当前值重新应用。查询不重写导入源，普通数据输入也不自动重新筛选。
+
+条件和隐藏来源写入所属表部件的原生 `autoFilter`，行隐藏和 `sheetPr/filterMode` 写入工作表。同一工作表上的多个原生表及普通筛选分别保留条件和筛选隐藏记录；实际隐藏取各筛选与手动隐藏的并集。清除或移除一个筛选保留其他来源。行高和分组折叠/展开同步手动来源，`SUBTOTAL` 的 1–11 与 101–111 继续区分筛选隐藏和手动隐藏。源、可见性、缓存和依赖合为一次精确历史，保存重开、工作表复制、网格和 PDF 复用同一结果。导入文件无法辨别重叠隐藏原因时，沿用普通筛选的来源限制。
+
+默认结构化表面板复用现有条件控件，原生草稿先提交。筛选需要标题和至少一行数据，范围最多 4096 格、条件最多 256 列；文本、公式工作、输出及历史沿普通筛选预算。当前表目录共享 1048576 次工作预算，超限目录返回原因。未知条件、扩展、注释/处理指令、保护或预算失败保留原源、选区和历史。原生表筛选已随范围调整和整行/整列插删同步，具体规则见下文；表内行排序见下文。实现归 [`filter-visibility.mbt`](../../modules/formats/src/xlsx/filter-visibility.mbt)及既有筛选读写，参考 [ONLYOFFICE 表/区域的共同筛选入口](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L1054-L1135)和[按表身份重新应用](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L1405-L1445)。没有复制上游代码。
+
+筛选中的 `resizeTable` 保留仍在范围内的条件列和按钮标记，列号继续绑定原工作表列；移出列的条件随列移除。扩大后按当前值检查新增数据行，缩小后释放移出行的筛选隐藏，保留手动隐藏及其他表/普通筛选的来源。总计行仍不参加筛选，迁移目标须为空，已有值/公式例外沿范围调整规则保留。有排序状态的范围调整继续保护。
+
 已有 `insertRows/deleteRows/insertColumns/deleteColumns` 同步维护原生表。表之前的插入移动范围，表内部的插入扩展范围；保留原列身份，新列使用空闲身份和唯一 `ColumnN` 标题。计算列模板的相对引用按新的首个数据行重定位，绝对引用沿工作表结构变化。插入的数据行按模板生成公式，原有值/公式例外不改写；每次最多生成 4096 格。总计和筛选范围一起移动，删除总计所在行时关闭总计并保留设置。
 
-删列将所有已绑定的目标列引用写为永久 `#REF!`，包含单元格、名称及其他表的公式。删除覆盖整张表的行或列时，删除所属表部件、关系、内容类型和工作表引用，裸表名及行段引用也改为 `#REF!`。同一工作表中的其他原生表及其资源继续保留。源、生成格、依赖、缓存和资源删除合为一次精确历史；撤销能恢复导入部件，也能恢复本会话新建的部件。
+活动筛选随整轴操作移动条件列、按钮和手动/筛选隐藏记录。删去条件列时移除相应条件，仍保留其他列；插在总计之前的数据行也进入筛选。已支持的嵌套排序范围及键沿同一变换同步。候选公式先计算，再重新应用受影响的条件，最后重算 SUBTOTAL；生成格按最终结果执行数据验证。多表与普通筛选的行隐藏继续取并集，逐条合并记录，避免对手动隐藏数组反复扫描。原有排序/删除重复流程也复用同一重新应用路径。实现归 [`filter-axis.mbt`](../../modules/formats/src/xlsx/filter-axis.mbt)和 [`filter-structure.mbt`](../../modules/formats/src/xlsx/filter-structure.mbt)。
 
-部分删除表首行、删除后没有数据行、插入导致表越界、活动筛选/排序、未知表资源和超限候选继续拒绝。穿过表的局部单元格移位仍保护；无交集的移位保留表并同步已支持的引用。生成格沿数据验证检查。默认行列按钮使用原有命令，原生草稿先提交。实现归 [`table-axis.mbt`](../../modules/formats/src/xlsx/table-axis.mbt)、[`table-axis-resources.mbt`](../../modules/formats/src/xlsx/table-axis-resources.mbt)及 [`axis-edit.mbt`](../../modules/formats/src/xlsx/axis-edit.mbt)，参考 [ONLYOFFICE 行范围变化](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L2326-L2421)、[列身份维护](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L2117-L2170)及[首行删除保护](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L1468-L1478)。
+删列将所有已绑定的目标列引用写为永久 `#REF!`，包含单元格、名称及其他表的公式。删除覆盖整张表的行或列时，删除所属表部件、关系、内容类型和工作表引用，裸表名及行段引用也改为 `#REF!`。同时移除该表的筛选隐藏来源，保留其他筛选及手动隐藏。候选计算使用待删除部件列表，避免读取已删的导入表。同一工作表中的其他原生表及其资源继续保留。源、生成格、依赖、缓存和资源删除合为一次精确历史；撤销能恢复导入部件，也能恢复本会话新建的部件。
+
+部分删除表首行、删除后没有数据行、插入导致表越界、未知表排序、未知表资源和超限候选继续拒绝。穿过表的局部单元格移位仍保护；无交集的移位保留表并同步已支持的引用。生成格沿数据验证检查。默认行列按钮使用原有命令，原生草稿先提交。实现归 [`table-axis.mbt`](../../modules/formats/src/xlsx/table-axis.mbt)、[`table-axis-resources.mbt`](../../modules/formats/src/xlsx/table-axis-resources.mbt)及 [`axis-edit.mbt`](../../modules/formats/src/xlsx/axis-edit.mbt)，参考 [ONLYOFFICE 行范围变化](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L2326-L2421)、[列身份维护](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L2117-L2170)及[首行删除保护](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L1468-L1478)。
 
 普通数据格沿现有输入路径编辑。直接覆盖表头、总计格或已有计算列时，核心要求相应表命令；缓存重算不受此限制。连接、资源关系、扩展、未知规则引用、受保护工作表和超限候选原子拒绝。工作簿最多 256 张结构化表、4096 列定义；每表列名累计最多 65536 个单元，改名共享 1048576 公式工作预算和原有 4 MiB 历史上限。
 
@@ -1237,9 +1251,9 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 含受支持原生表的工作表可沿现有 `rename/copy/delete` 命令和默认按钮操作。工作表改名同步各表的 `calculatedColumnFormula/totalsRowFormula`，保留表名、表/列身份及部件路径。复制为每张表分配独立身份、空闲 `TableN` 名称和部件，并复制工作表关系与内容类型；列身份和其他原生设置保留。副本的显式表引用、工作表自引用及导入的局部名称指向相应副本，字符串常量和全局名称保持原归属。表名分配避开已有表和名称，不重命名源表。实现归 [`table-sheet-copy.mbt`](../../modules/formats/src/xlsx/table-sheet-copy.mbt)，参考 [ONLYOFFICE 工作表表副本及映射](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L7096-L7120)及[表名分配](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L1286-L1300)。
 
-删除工作表清理其所属表部件、关系和内容类型，更新其他表的普通工作表引用及结构化依赖；失去目标的引用写为 `#REF!`。候选计算使用待删部件列表，保留仍存在的表。创建/删除部件、引用、缓存、视图和选择合为精确历史，支持保存重开和现有打印。未知表资源归属、活动表筛选/排序、公式扩展和预算失败保持原子拒绝；复制仍受每工作簿 256 张表、4096 列定义及原有历史/输出上限。实现归 [`table-sheet.mbt`](../../modules/formats/src/xlsx/table-sheet.mbt)、[`sheet-copy.mbt`](../../modules/formats/src/xlsx/sheet-copy.mbt)及 [`sheet-delete.mbt`](../../modules/formats/src/xlsx/sheet-delete.mbt)。
+删除工作表清理其所属表部件、关系和内容类型，更新其他表的普通工作表引用及结构化依赖；失去目标的引用写为 `#REF!`。候选计算使用待删部件列表，保留仍存在的表。创建/删除部件、引用、缓存、视图和选择合为精确历史，支持保存重开和现有打印。已支持的原生筛选随副本保留独立的条件和隐藏来源；未知表资源归属、未知排序元数据、公式扩展和预算失败保持原子拒绝。复制仍受每工作簿 256 张表、4096 列定义及原有历史/输出上限。实现归 [`table-sheet.mbt`](../../modules/formats/src/xlsx/table-sheet.mbt)、[`sheet-copy.mbt`](../../modules/formats/src/xlsx/sheet-copy.mbt)及 [`sheet-delete.mbt`](../../modules/formats/src/xlsx/sheet-delete.mbt)。
 
-当前接通区域创建、范围调整、导入、查询、普通数据编辑、表/列改名、计算列创作/重填、总计设置、整行/列插删同步、工作表资源操作及含表工作簿的名称创作。表筛选和完整表样式呈现继续实施。已有样式定义保留；只有已支持的表定义和样式才解除 `tableParts` 未呈现诊断，其余仍保护打印。活动表筛选尚不能区分筛选隐藏来源时，保留导入缓存并保护计算修改。
+当前接通区域创建、范围调整、导入、查询、普通数据编辑、表/列改名、计算列创作/重填、总计设置、整行/列插删同步、工作表资源操作、含表工作簿的名称创作及原生表筛选。筛选中的范围及整轴结构同步已接通；表内行排序已接通；横向表排序和完整表样式呈现继续实施。已有样式定义保留；只有已支持的表定义和样式才解除 `tableParts` 未呈现诊断，其余仍保护打印。未知表筛选继续保护计算修改并保留源。
 
 结构化引用依据 [ONLYOFFICE cStrucTable](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L2352-L2628)的行段、列身份、当前行及转义行为。实现归 [`table.mbt`](../../modules/formats/src/xlsx/table.mbt)、[`structured-reference.mbt`](../../modules/formats/src/xlsx/structured-reference.mbt)、[`table-rename.mbt`](../../modules/formats/src/xlsx/table-rename.mbt)及 [`xlsx-tables.tsx`](../../packages/ui/src/xlsx-tables.tsx)，复用既有事务和绘制模型。
 

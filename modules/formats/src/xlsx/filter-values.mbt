@@ -152,21 +152,53 @@ fn Session::filter_provenance(
 }
 
 ///|
-fn Session::filter_query(self : Session, index : Int) -> Json {
+fn Session::filter_query(
+  self : Session,
+  index : Int,
+  table~ : StructuredTable? = None,
+  states~ : Map[String, AutoFilterState]? = None,
+  failure~ : String = "",
+  work~ : FormulaWork? = None,
+) -> Json {
   let current = self.sheets[index]
   let reason = self.dimension_reason(current)
   try {
-    guard read_filter(current) is Some(state) else {
+    guard failure.is_empty() else {
+      @failure.reject("protected-content", failure)
+    }
+    if table is Some(table) {
+      guard table.reason.is_empty() && table.style_reason.is_empty() else {
+        @failure.reject(
+          "protected-content",
+          if table.reason.is_empty() {
+            table.style_reason
+          } else {
+            table.reason
+          },
+        )
+      }
+      guard table.headers == 1 &&
+        table.range.bottom - table.totals > table.range.top else {
+        @failure.reject(
+          "protected-content", "Table filtering requires a header and data",
+        )
+      }
+    }
+    let states = states.unwrap_or_else(() => {
+      self.sheet_filters(current, self.parts)
+    })
+    guard states.get(table.map(table => table.part).unwrap_or(current.id))
+      is Some(state) else {
       return { "range": "", "columns": [], "catalog": [], "reason": reason }
     }
     let catalog : Array[Json] = []
     let mut units = 0
-    let work : FormulaWork = {
+    let work : FormulaWork = work.unwrap_or_else(() => {
       remaining: 1048576,
       date1904: self.date1904,
       origin: { row: state.bounds.top, column: state.bounds.left, },
       names: self.formula_names(),
-    }
+    })
     let rules = self.filter_rules(index, work)
     for column in state.bounds.left..<=state.bounds.right {
       let criterion = state.settings.columns
@@ -186,6 +218,7 @@ fn Session::filter_query(self : Session, index : Int) -> Json {
       let mut blanks = 0
       for row in (state.bounds.top + 1)..<=state.bounds.bottom {
         let (value, _) = self.filter_cell(index, row, column, rules, work)
+        work.spend(amount=value.length() + 1)
         units += value.length()
         guard units <= 1048576 else {
           @failure.reject(

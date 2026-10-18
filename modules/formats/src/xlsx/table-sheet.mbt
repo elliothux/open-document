@@ -10,7 +10,8 @@ fn Session::sheet_tables(
         "protected-content", "Table source requires worksheet resource support",
       )
     }
-    ignore(table_edit_tree(table, self.part_xml(table.part)))
+    let tree = table_edit_tree(table, self.part_xml(table.part))
+    self.check_sort_metadata(tree, table=true)
     guard !links.any(link => {
         link.owner == table.part ||
         (

@@ -68,13 +68,11 @@ fn filter_markup(state : AutoFilterState) -> String raise @failure.Failure {
 }
 
 ///|
-fn filter_write(
-  sheet : Sheet,
+fn filter_source_changes(
+  tree : Tree,
+  root : @xml.Node,
   next : AutoFilterState?,
-  hidden : Map[Int, Bool],
-) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
-  let tree = Tree::new(sheet.document)
-  let root = tree.root("worksheet")
+) -> Array[@xml.SourceChange] raise @failure.Failure {
   let existing = tree.one(root.id, "autoFilter")
   let changes : Array[@xml.SourceChange] = []
   if next is Some(state) {
@@ -95,14 +93,18 @@ fn filter_write(
       )
     } else {
       let markup = "<od:autoFilter xmlns:od=\"\{spreadsheet_uri}\" ref=\"\{state.bounds.name()}\">\{content}</od:autoFilter>"
-      let after = [
-        "sortState", "dataConsolidate", "customSheetViews", "mergeCells", "phoneticPr",
-        "conditionalFormatting", "dataValidations", "hyperlinks", "printOptions",
-        "pageMargins", "pageSetup", "headerFooter", "rowBreaks", "colBreaks", "customProperties",
-        "cellWatches", "ignoredErrors", "smartTags", "drawing", "legacyDrawing",
-        "legacyDrawingHF", "picture", "oleObjects", "controls", "webPublishItems",
-        "tableParts", "extLst",
-      ]
+      let after = if root.name == "table" {
+        ["sortState", "tableColumns", "tableStyleInfo", "extLst"]
+      } else {
+        [
+          "sortState", "dataConsolidate", "customSheetViews", "mergeCells", "phoneticPr",
+          "conditionalFormatting", "dataValidations", "hyperlinks", "printOptions",
+          "pageMargins", "pageSetup", "headerFooter", "rowBreaks", "colBreaks", "customProperties",
+          "cellWatches", "ignoredErrors", "smartTags", "drawing", "legacyDrawing",
+          "legacyDrawingHF", "picture", "oleObjects", "controls", "webPublishItems",
+          "tableParts", "extLst",
+        ]
+      }
       changes.push(
         if tree.children
           .get(root.id)
@@ -124,9 +126,21 @@ fn filter_write(
   } else if existing is Some(node) {
     changes.push(sheet_node_removal(tree, node))
   }
-  let active = next
+  changes
+}
+
+///|
+fn filter_write(
+  sheet : Sheet,
+  next : AutoFilterState?,
+  hidden : Map[Int, Bool],
+  active~ : Bool = next
     .map(state => !state.settings.columns.is_empty())
-    .unwrap_or(false)
+    .unwrap_or(false),
+) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
+  let tree = Tree::new(sheet.document)
+  let root = tree.root("worksheet")
+  let changes = filter_source_changes(tree, root, next)
   if tree.one(root.id, "sheetPr") is Some(properties) {
     changes.append(
       metadata_changes(properties, [

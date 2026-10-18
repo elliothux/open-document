@@ -78,7 +78,20 @@ fn Session::sort_cells(
   range : String,
   settings : SortSettings,
 ) -> Json raise @failure.Failure {
-  let target = Range::parse(range)
+  let selected = Range::parse(range)
+  let table = self.sorting_table(sheet, selected, settings.rows)
+  let target = table
+    .map(table => Range::{
+      ..table.range,
+      top: table.range.top + table.headers,
+      bottom: table.range.bottom - table.totals,
+    })
+    .unwrap_or(selected)
+  let settings = if table is Some(_) {
+    { ..settings, header: false, }
+  } else {
+    settings
+  }
   guard (target.bottom - target.top + 1).to_int64() *
     (target.right - target.left + 1).to_int64() <=
     4096 else {
@@ -105,11 +118,20 @@ fn Session::sort_cells(
   }
   let index = self.sheet_index(sheet)
   let current = self.sheets[index]
-  self.check_reorder_cells(current, target, filter=true)
-  let filter = read_filter(current).map(state => {
-    let (manual, filtered) = self.filter_provenance(index, state)
-    { ..state, manual, filtered, tracked: true, }
-  })
+  self.check_reorder_cells(
+    current,
+    target,
+    filter=true,
+    tables=table is Some(_),
+  )
+  let filter = if table is Some(_) {
+    None
+  } else {
+    read_filter(current).map(state => {
+      let (manual, filtered) = self.filter_provenance(index, state)
+      { ..state, manual, filtered, tracked: true, }
+    })
+  }
   let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
@@ -188,5 +210,6 @@ fn Session::sort_cells(
     filter~,
     sort=Some(stored_sort(target, settings, formatting.indices)),
     formatting=Some(formatting),
+    table~,
   )
 }

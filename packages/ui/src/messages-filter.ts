@@ -1,6 +1,7 @@
 export const filterEn = {
   filterCells: "Value filters",
   filterRange: "Filter selected range",
+  tableFilter: "Filter table data",
   filterColumn: "Filter column",
   filterValues: "Allowed values",
   filterAll: "Select all values",
@@ -28,6 +29,7 @@ export const filterEn = {
 export const filterZh = {
   filterCells: "值筛选",
   filterRange: "筛选所选区域",
+  tableFilter: "筛选表数据",
   filterColumn: "筛选列",
   filterValues: "保留值",
   filterAll: "选择所有值",

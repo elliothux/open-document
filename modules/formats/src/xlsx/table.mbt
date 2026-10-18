@@ -25,6 +25,8 @@ priv struct StructuredTable {
   column_stripes : Bool
   style_reason : String
   filtering : Bool
+  filter : AutoFilterState?
+  sort : StoredSort?
   reason : String
 } derive(Eq)
 
@@ -132,8 +134,54 @@ fn read_table(
     .one(root.id, "autoFilter")
     .map(node => !tree.all(node.id, "filterColumn").is_empty())
     .unwrap_or(false)
-  let reason = if filtering {
-    "Table filtering requires support"
+  let (filter, filter_reason) = try {
+    let state = tree
+      .one(root.id, "autoFilter")
+      .map(node => {
+        let state = read_filter_node(sheet, tree, node)
+        guard headers == 1 &&
+          state.bounds == Range::{ ..range, bottom: range.bottom - totals, } else {
+          @failure.reject(
+            "protected-content", "Table filter range must include its header and data without totals",
+          )
+        }
+        state
+      })
+    (state, "")
+  } catch {
+    @failure.Failure(message~, ..) => (None, message)
+  }
+  let (sort, sort_reason) = try {
+    let sort = read_sort_state(tree, root.id)
+    guard sort
+      .map(sort => {
+        Range::{
+          ..range,
+          top: range.top + headers,
+          bottom: range.bottom - totals,
+        }.covers(sort.bounds)
+      })
+      .unwrap_or(true) else {
+      @failure.reject(
+        "protected-content", "Table sort state is outside its data range",
+      )
+    }
+    (sort, "")
+  } catch {
+    @failure.Failure(message~, ..) => (None, message)
+  }
+  let reason = if !sort_reason.is_empty() {
+    sort_reason
+  } else if !filter_reason.is_empty() &&
+    tree
+    .one(root.id, "autoFilter")
+    .map(node => {
+      !tree.children.get(node.id).unwrap_or([]).is_empty() ||
+      document.source()[node.start:node.end].contains("<!--") ||
+      document.source()[node.start:node.end].contains("<?")
+    })
+    .unwrap_or(false) {
+    filter_reason
   } else if root.attribute("tableType").unwrap_or("worksheet") != "worksheet" ||
     root.attribute("connectionId") is Some(_) ||
     tree.one(root.id, "extLst") is Some(_) ||
@@ -219,6 +267,8 @@ fn read_table(
     .unwrap_or(false),
     style_reason,
     filtering,
+    filter,
+    sort,
     style: style
     .bind(node => node.attribute("name"))
     .bind(name => if name.is_empty() { None } else { Some(name) }),

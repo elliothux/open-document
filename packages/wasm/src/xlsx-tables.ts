@@ -1,4 +1,10 @@
 import { integer, record } from "./validation.js";
+import {
+  checkXlsxFilter,
+  xlsxFilterState,
+  type XlsxFilterColumn,
+  type XlsxFilterState,
+} from "./xlsx-filter.js";
 
 export interface XlsxTableColumn {
   id: number;
@@ -17,6 +23,7 @@ export interface XlsxTable {
   columns: XlsxTableColumn[];
   style: string | null;
   readOnlyReason: string;
+  filter: XlsxFilterState;
 }
 export type XlsxTableTotalFunction =
   "average" | "countNums" | "count" | "max" | "min" | "stdDev" | "sum" | "var";
@@ -26,6 +33,11 @@ export type XlsxTableTotal =
   | { kind: "formula"; formula: string }
   | { kind: "aggregate"; function: XlsxTableTotalFunction };
 export type XlsxTableEdit =
+  | { action: "tableFilter"; id: number; columns: XlsxFilterColumn[] }
+  | {
+      action: "tableFilterClear" | "tableFilterRemove" | "tableFilterReapply";
+      id: number;
+    }
   | { action: "tableTotals"; id: number; visible: boolean }
   | { action: "tableTotal"; id: number; column: number; total: XlsxTableTotal }
   | {
@@ -59,6 +71,28 @@ function tableName(value: unknown): value is string {
 }
 export function checkXlsxTableEdit(value: unknown): void {
   const change = record(value);
+  if (
+    [
+      "tableFilter",
+      "tableFilterClear",
+      "tableFilterRemove",
+      "tableFilterReapply",
+    ].includes(String(change.action))
+  ) {
+    const keys =
+      change.action === "tableFilter"
+        ? ["action", "id", "columns"]
+        : ["action", "id"];
+    if (
+      !integer(change.id, 1, 2147483647) ||
+      Object.keys(change).length !== keys.length ||
+      Object.keys(change).some((key) => !keys.includes(key))
+    )
+      throw new Error("Invalid table filter fields");
+    if (change.action === "tableFilter")
+      checkXlsxFilter({ range: "A1:A2", columns: change.columns });
+    return;
+  }
   if (change.action === "tableTotals" || change.action === "tableTotal") {
     const visible = change.action === "tableTotals";
     const keys = visible
@@ -171,7 +205,8 @@ export function xlsxTables(value: unknown): XlsxTable[] {
   const ids = new Set<number>(),
     names = new Set<string>();
   let columns = 0,
-    formulaUnits = 0;
+    formulaUnits = 0,
+    filterUnits = 0;
   for (const entry of value) {
     const table = record(entry);
     if (
@@ -212,6 +247,18 @@ export function xlsxTables(value: unknown): XlsxTable[] {
         Number(table.headerRow) + Number(table.totalRow)
     )
       throw new Error("Invalid table range or column count");
+    const filter = xlsxFilterState(table.filter);
+    for (const column of filter.catalog) {
+      filterUnits += column.title.length;
+      for (const entry of column.values) filterUnits += entry.value.length;
+      if (filterUnits > 2097152)
+        throw new Error("Native table filter catalogs exceed text budget");
+    }
+    const start = table.range.split(":")[0]!,
+      end = table.range.split(":")[1] ?? start;
+    const expectedFilter = `${start}:${end.replace(/[0-9]+$/, String(last.row - Number(table.totalRow)))}`;
+    if (filter.range && (!table.headerRow || filter.range !== expectedFilter))
+      throw new Error("Invalid native table filter range");
     columns += table.columns.length;
     if (columns > 4096) throw new Error("Table columns exceed budget");
     const columnIds = new Set<number>(),

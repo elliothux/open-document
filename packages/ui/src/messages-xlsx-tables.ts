@@ -1,4 +1,7 @@
 export const tableEn = {
+  tableSort: "Sort table",
+  tableSortHelp:
+    "Sort all data rows. Headers and totals stay fixed; hidden records keep their positions.",
   tableTotalsRow: "Show totals row",
   tableTotalsHelp:
     "Showing totals adds a row at an empty destination. Hiding totals preserves settings and removes the row contents.",
@@ -42,6 +45,8 @@ export const tableEn = {
     "Edit ordinary data in the grid. Rename headers here to update references.",
 };
 export const tableZh = {
+  tableSort: "排序表数据",
+  tableSortHelp: "排序全部数据行，标题和总计保持，隐藏记录保留原位。",
   tableTotalsRow: "显示总计行",
   tableTotalsHelp:
     "显示总计须在表下方增加一行，目标须为空。隐藏时保留设置，清除该行内容。",

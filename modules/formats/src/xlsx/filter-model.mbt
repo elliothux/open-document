@@ -46,7 +46,7 @@ priv struct AutoFilterState {
   tracked : Bool
   flags : Map[Int, Array[(String, String)]]
   sort : StoredSort?
-}
+} derive(Eq)
 
 ///|
 let filter_state_uri = "urn:open-document:xlsx:filter-state"
@@ -184,8 +184,25 @@ fn read_filter(sheet : Sheet) -> AutoFilterState? raise @failure.Failure {
   guard tree.one(tree.root("worksheet").id, "autoFilter") is Some(root) else {
     return None
   }
+  Some(
+    read_filter_node(
+      sheet,
+      tree,
+      root,
+      visibility=tree.one(tree.root("worksheet").id, "tableParts") is None,
+    ),
+  )
+}
+
+///|
+fn read_filter_node(
+  sheet : Sheet,
+  tree : Tree,
+  root : @xml.Node,
+  visibility~ : Bool = false,
+) -> AutoFilterState raise @failure.Failure {
   filter_attributes(root, ["ref"])
-  let source = sheet.document.source()[root.start:root.end]
+  let source = tree.document.source()[root.start:root.end]
   guard !source.contains("<!--") && !source.contains("<?") else {
     @failure.reject("protected-content", "Opaque filter source is protected")
   }
@@ -410,7 +427,7 @@ fn read_filter(sheet : Sheet) -> AutoFilterState? raise @failure.Failure {
   }
   let settings : FilterSettings = { range: range.name(), columns, }
   ignore(filter_settings(settings))
-  if tracked {
+  if tracked && visibility {
     for row in (range.top + 1)..<=range.bottom {
       guard (sheet.dimensions.rows.size(row) == 0) ==
         (manual.contains(row) || filtered.contains(row)) else {
@@ -420,5 +437,5 @@ fn read_filter(sheet : Sheet) -> AutoFilterState? raise @failure.Failure {
       }
     }
   }
-  Some({ settings, bounds: range, manual, filtered, tracked, flags, sort, })
+  { settings, bounds: range, manual, filtered, tracked, flags, sort, }
 }

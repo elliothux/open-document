@@ -127,6 +127,7 @@ fn Session::resize_dimensions(
   }
   let mut document = current.document
   let edits : Array[(String, @xml.Edit)] = []
+  let parts = self.parts.copy()
   if !changes.is_empty() {
     let (next, edit) = document.edit_source(changes)
     document = next
@@ -134,7 +135,7 @@ fn Session::resize_dimensions(
   }
   if rows {
     let (next, filter_edits) = self.filter_dimension_changes(
-      current, document, first, last, size,
+      current, document, first, last, size, parts,
     )
     document = next
     edits.append(filter_edits)
@@ -151,10 +152,10 @@ fn Session::resize_dimensions(
     self.strings,
     self.styles.length(),
   )
-  let calculation = self.calculate(sheets, None, [], self.workbook)
+  let calculation = self.calculate(sheets, None, [], self.workbook, parts~)
   if calculation.visibility_dependent() {
     edits.append(self.cache_edits(sheets, calculation))
   }
-  self.commit(sheets, self.workbook, calculation, edits, self.selection)
+  self.commit(sheets, self.workbook, calculation, edits, self.selection, parts~)
   self.query()
 }

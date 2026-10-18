@@ -1,6 +1,27 @@
 ///|
 fn xlsx_table_edit(change : Json) -> @xlsx.SheetEdit raise @failure.Failure {
   let action = field_string(change, "action")
+  if [
+      "tableFilter", "tableFilterClear", "tableFilterRemove", "tableFilterReapply",
+    ].contains(action) {
+    let keys = if action == "tableFilter" {
+      ["action", "id", "columns"]
+    } else {
+      ["action", "id"]
+    }
+    guard change is Object(fields) &&
+      fields.length() == keys.length() &&
+      fields.keys().all(key => keys.contains(key)) else {
+      @failure.reject("invalid-operation", "Invalid table filter fields")
+    }
+    let id = field_int(change, "id")
+    return match action {
+      "tableFilter" => @xlsx.TableFilter(id, xlsx_filter_columns(change))
+      "tableFilterClear" => @xlsx.TableFilterClear(id)
+      "tableFilterRemove" => @xlsx.TableFilterRemove(id)
+      _ => @xlsx.TableFilterReapply(id)
+    }
+  }
   if action == "tableTotals" ||
     action == "tableTotal" ||
     action == "tableColumnFormula" ||

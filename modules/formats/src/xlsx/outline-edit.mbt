@@ -254,6 +254,7 @@ fn Session::edit_outline(
     return self.query()
   }
   let edits : Array[(String, @xml.Edit)] = []
+  let parts = self.parts.copy()
   let mut current = original
   let updates = original.outline_metadata(rows, metadata)
   if summary is Some(after) {
@@ -326,6 +327,7 @@ fn Session::edit_outline(
         } else {
           1
         },
+        parts,
       )
       edits.append(changes)
       current = Sheet::read(
@@ -351,12 +353,12 @@ fn Session::edit_outline(
   sheets[index] = current
   let previous = self.calculation.unwrap()
   let calculation = if !hidden.is_empty() && previous.visibility_dependent() {
-    let calculation = self.calculate(sheets, None, [], self.workbook)
+    let calculation = self.calculate(sheets, None, [], self.workbook, parts~)
     edits.append(self.cache_edits(sheets, calculation))
     calculation
   } else {
     previous
   }
-  self.commit(sheets, self.workbook, calculation, edits, self.selection)
+  self.commit(sheets, self.workbook, calculation, edits, self.selection, parts~)
   self.query()
 }

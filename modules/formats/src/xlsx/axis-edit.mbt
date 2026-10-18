@@ -17,7 +17,6 @@ fn Session::edit_axes(
   let reason = self.sheet_rename_reason(structure=false, tables=true)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let target = self.sheets[index]
-  let filter = self.axis_filter_plan(index, change)
   let notes = self.read_sheet_notes(target)
   guard !target.locked && target.frozen.edit_reason.is_empty() else {
     @failure.reject(
@@ -52,6 +51,7 @@ fn Session::edit_axes(
   let parts = self.parts.copy()
   let removed : Map[String, @xml.Document] = Map([])
   let tables = self.axis_tables(target, change, parts, edits)
+  let filter = self.axis_filter_plan(index, change, tables)
   if notes is Some(notes) {
     let addresses : Map[String, Address?] = Map([])
     for note in notes.entries {
@@ -170,11 +170,11 @@ fn Session::edit_axes(
           self.strings,
           self.styles.length(),
         )
-        let (next, edit) = axis_filter_write(current, plan)
-        document = next
-        edits.push((id, edit))
+        document = self.write_filter_plan(current, plan, parts, edits)
       }
-      let (next, outline_edits) = self.axis_outline(original, document, change)
+      let (next, outline_edits) = self.axis_outline(
+        original, document, change, parts,
+      )
       document = next
       edits.append(outline_edits)
       let current = Sheet::read(
@@ -266,18 +266,46 @@ fn Session::edit_axes(
   if edits.is_empty() {
     return self.query()
   }
-  let mut calculation = self.calculate(sheets, None, [], workbook, parts~)
+  let removed_parts = self.removed.copy()
+  for part in removed.keys() {
+    if self.opc.names.contains(part.to_lower()) {
+      removed_parts.push(part)
+    }
+  }
+  let mut calculation = self.calculate(
+    sheets,
+    None,
+    [],
+    workbook,
+    parts~,
+    removed=removed_parts,
+  )
+  if filter is Some(plan) && !plan.targets.is_empty() {
+    let candidate : Session = {
+      ..self,
+      sheets,
+      workbook,
+      parts,
+      removed: removed_parts,
+      calculation: Some(calculation),
+    }
+    calculation = candidate.reapply_candidate_filters(
+      index,
+      candidate.sheet_filters(sheets[index], parts),
+      plan.targets,
+      sheets,
+      workbook,
+      calculation,
+      parts,
+      edits,
+    )
+  }
   if !table_cells.is_empty() {
     self.validate_inputs(
       sheets,
       calculation,
       Map([(index, table_cells)]),
       false,
-    )
-  }
-  if filter is Some(_) && read_filter(sheets[index]) is Some(state) {
-    calculation = self.reapply_candidate_filter(
-      index, state, sheets, workbook, calculation, edits,
     )
   }
   edits.append(self.cache_edits(sheets, calculation))

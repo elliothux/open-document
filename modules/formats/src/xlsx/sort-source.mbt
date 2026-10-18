@@ -114,6 +114,7 @@ fn Session::sort_resources(
   self : Session,
   sheet : Sheet,
   filter~ : Bool = false,
+  tables~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   let tree = Tree::new(sheet.document)
   self.check_sort_metadata(tree)
@@ -121,8 +122,13 @@ fn Session::sort_resources(
     guard node.uri == spreadsheet_uri &&
       !["drawing", "legacyDrawingHF"].contains(node.name) &&
       (filter || node.name != "autoFilter") &&
-      !(["extLst", "tableParts", "pivotTableParts"].contains(node.name) &&
-      !tree.children.get(node.id).unwrap_or([]).is_empty()) else {
+      !(["extLst", "pivotTableParts"].contains(node.name) &&
+      !tree.children.get(node.id).unwrap_or([]).is_empty()) &&
+      (
+        tables ||
+        node.name != "tableParts" ||
+        tree.children.get(node.id).unwrap_or([]).is_empty()
+      ) else {
       @failure.reject(
         "protected-content", "Worksheet resources require sorting ownership support",
       )
@@ -132,13 +138,17 @@ fn Session::sort_resources(
     if link.owner != sheet.id {
       continue
     }
-    guard ["hyperlink", "printerSettings", "comments", "vmlDrawing"].any(kind => {
-      link.kind == relationship_uri + kind
-    }) else {
+    guard (tables && link.kind == relationship_uri + "table") ||
+      ["hyperlink", "printerSettings", "comments", "vmlDrawing"].any(kind => {
+        link.kind == relationship_uri + kind
+      }) else {
       @failure.reject(
         "protected-content", "Worksheet relationships require sorting ownership support",
       )
     }
+  }
+  if tables {
+    ignore(self.sheet_tables())
   }
 }
 
@@ -148,6 +158,7 @@ fn Session::check_reorder_cells(
   current : Sheet,
   target : Range,
   filter~ : Bool = false,
+  tables~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   guard self.read_only.is_empty() && !current.locked else {
     @failure.reject(
@@ -165,7 +176,7 @@ fn Session::check_reorder_cells(
     )
   }
   ignore(self.read_sheet_notes(current))
-  self.sort_resources(current, filter~)
+  self.sort_resources(current, filter~, tables~)
   for cell in current.cells.values() {
     if target.contains(cell.address) {
       guard cell.read_only.is_empty() ||

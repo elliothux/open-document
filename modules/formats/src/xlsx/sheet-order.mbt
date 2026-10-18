@@ -18,6 +18,10 @@ pub(all) enum SheetEdit {
   TableColumnFormula(Int, Int, String?)
   TableTotals(Int, Bool)
   TableColumnTotal(Int, Int, TableTotal)
+  TableFilter(Int, Array[FilterColumn])
+  TableFilterClear(Int)
+  TableFilterRemove(Int)
+  TableFilterReapply(Int)
   RenameTableColumn(Int, Int, String)
   InsertRows(Int, Int)
   DeleteRows(Int, Int)
@@ -191,6 +195,29 @@ pub fn Session::edit_sheet(
       return self.open_hyperlink(sheet, range, source_revision)
     SetFilter(_) | ClearFilter | RemoveFilter | ReapplyFilter =>
       return self.edit_filter(sheet, change)
+    TableFilter(id, columns) => {
+      let table = self.table_for_edit(sheet, id)
+      return self.edit_filter(
+        sheet,
+        SetFilter({
+          range: Range::{
+            ..table.range,
+            bottom: table.range.bottom - table.totals,
+          }.name(),
+          columns,
+        }),
+        table=Some(table),
+      )
+    }
+    TableFilterClear(id) | TableFilterRemove(id) | TableFilterReapply(id) => {
+      let table = self.table_for_edit(sheet, id)
+      let action = match change {
+        TableFilterClear(_) => ClearFilter
+        TableFilterRemove(_) => RemoveFilter
+        _ => ReapplyFilter
+      }
+      return self.edit_filter(sheet, action, table=Some(table))
+    }
     ConditionalRule(range, priority, settings, source_revision) =>
       return self.set_conditional(
         sheet, range, priority, settings, source_revision,
@@ -349,6 +376,10 @@ pub fn Session::edit_sheet(
     | RemoveDuplicates(_, _)
     | TextToColumns(_, _, _)
     | SetFilter(_)
+    | TableFilter(_, _)
+    | TableFilterClear(_)
+    | TableFilterRemove(_)
+    | TableFilterReapply(_)
     | ClearFilter
     | RemoveFilter
     | ReapplyFilter

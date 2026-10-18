@@ -65,8 +65,9 @@ fn Session::color_sort_key(
 fn Session::check_sort_metadata(
   self : Session,
   tree : Tree,
+  table~ : Bool = false,
 ) -> Unit raise @failure.Failure {
-  let root = tree.root("worksheet")
+  let root = tree.root(if table { "table" } else { "worksheet" })
   let parents = [root.id]
   parents.append(tree.all(root.id, "autoFilter").map(node => node.id))
   let references : Array[Int] = []

@@ -41,13 +41,16 @@ fn table_edit_tree(
     .get(columns.id)
     .unwrap_or([])
     .all(node => node.uri == spreadsheet_uri && node.name == "tableColumn") &&
-    tree.one(root.id, "sortState") is None &&
+    (tree.one(root.id, "sortState") is None || table.sort is Some(_)) &&
     filter
     .map(node => {
-      node.attributes.all(attribute => {
-        attribute.uri.is_empty() && attribute.name == "ref"
-      }) &&
-      tree.children.get(node.id).unwrap_or([]).is_empty()
+      table.filter is Some(_) ||
+      (
+        node.attributes.all(attribute => {
+          attribute.uri.is_empty() && attribute.name == "ref"
+        }) &&
+        tree.children.get(node.id).unwrap_or([]).is_empty()
+      )
     })
     .unwrap_or(true) else {
     @failure.reject(

@@ -28,6 +28,7 @@ fn Session::resize_table(
   if range == table.range {
     return self.query()
   }
+  let filter_plan = self.resize_filter_plan(table, range)
   guard range.top == table.range.top &&
     range.intersects(table.range) &&
     range.bottom - range.top + 1 > table.headers + table.totals &&
@@ -91,10 +92,13 @@ fn Session::resize_table(
     .all(node => node.uri == spreadsheet_uri && node.name == "tableColumn") &&
     filter
     .map(node => {
-      node.attributes.all(attribute => {
-        attribute.uri.is_empty() && attribute.name == "ref"
-      }) &&
-      tree.children.get(node.id).unwrap_or([]).is_empty()
+      table.filter is Some(_) ||
+      (
+        node.attributes.all(attribute => {
+          attribute.uri.is_empty() && attribute.name == "ref"
+        }) &&
+        tree.children.get(node.id).unwrap_or([]).is_empty()
+      )
     })
     .unwrap_or(true) else {
     @failure.reject(
@@ -383,7 +387,38 @@ fn Session::resize_table(
       edits.push((current.id, edit))
     }
   }
-  let calculation = self.calculate(sheets, None, [], workbook, parts~)
+  if filter_plan is Some(plan) {
+    let current = sheets[index]
+    let document = self.write_filter_plan(current, plan, parts, edits)
+    sheets[index] = Sheet::read(
+      current.id,
+      current.name,
+      current.state,
+      document,
+      self.strings,
+      self.styles.length(),
+    )
+  }
+  let mut calculation = self.calculate(sheets, None, [], workbook, parts~)
+  if filter_plan is Some(plan) {
+    let candidate : Session = {
+      ..self,
+      sheets,
+      workbook,
+      parts,
+      calculation: Some(calculation),
+    }
+    calculation = candidate.reapply_candidate_filters(
+      index,
+      candidate.sheet_filters(sheets[index], parts),
+      plan.targets,
+      sheets,
+      workbook,
+      calculation,
+      parts,
+      edits,
+    )
+  }
   self.validate_inputs(
     sheets,
     calculation,

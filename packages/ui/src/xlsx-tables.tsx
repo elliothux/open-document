@@ -6,6 +6,7 @@ import type {
 } from "@open-document/web/xlsx";
 import type { PanelProps } from "./panels.js";
 import { messages } from "./messages.js";
+import { XlsxFilter } from "./xlsx-filter.js";
 
 const totalFunctions: XlsxTableTotalFunction[] = [
   "sum",
@@ -74,6 +75,14 @@ export function XlsxTablesPanel(props: PanelProps) {
           </label>
           <p>{t.tableNamesHelp}</p>
           <TableNames key={table.id} {...props} table={table} />
+          <XlsxFilter
+            key={`filter:${table.id}`}
+            editor={editor}
+            controller={props.controller}
+            state={props.state}
+            disabled={props.disabled}
+            table={table}
+          />
         </>
       )}
     </fieldset>
