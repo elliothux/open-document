@@ -4,13 +4,7 @@ fn Session::arrange_object(
   object : Object,
   change : ObjectEdit,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
-  let action = if change is Rotate(_) {
-    "rotate"
-  } else if object.table is Some(_) {
-    "flip"
-  } else {
-    "arrange"
-  }
+  let action = if change is Rotate(_) { "rotate" } else { "flip" }
   let reason = self.object_edit_reason(object, action)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let geometry = object.geometry.unwrap()

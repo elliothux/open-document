@@ -145,6 +145,7 @@ export interface PptxObject {
   duplicateReason: string;
   rotateReason: string;
   arrangeReason: string;
+  transformReason: string;
   hyperlink: { value: PptxHyperlink | null; reason: string };
   shapeAdjustments: {
     preset: string;
@@ -317,6 +318,8 @@ export type PptxCommand =
       x: number;
       y: number;
       tolerance: number;
+      /** Return editable group text members at this point. */
+      text?: boolean;
     }
   | { operation: "selectionPptx"; layoutId: number }
   | {
@@ -585,6 +588,7 @@ export function pptxQuery(value: unknown): PptxQuery {
           "duplicateReason",
           "rotateReason",
           "arrangeReason",
+          "transformReason",
         ],
         [],
       ) ||

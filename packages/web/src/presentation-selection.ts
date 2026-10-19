@@ -4,6 +4,19 @@ import type {
   PptxSelection,
 } from "@open-document/wasm/pptx";
 
+export function exitTextSelection(state: PptxQuery): PptxSelection {
+  const object = state.objects.find(
+    (item) => item.id === state.selection.object,
+  );
+  if (state.selection.mode === "object" && !object?.parent)
+    return state.selection;
+  return objectSelection(
+    state,
+    object?.parent || state.selection.object,
+    false,
+  );
+}
+
 export function objectSelection(
   state: PptxQuery,
   object: string,
@@ -39,14 +52,18 @@ export function pointerSelection(
     !hit.textReadOnlyReason &&
     (text ||
       (state.selection.mode === "text" &&
-        hit.object === state.selection.object))
+        (hit.object === state.selection.object ||
+          !!state.objects.find((object) => object.id === hit.object)?.parent)))
       ? "text"
       : "object";
   if (mode === "text")
     return {
       ...objectSelection(state, hit.object, false),
       mode,
-      anchor: extend ? state.selection.anchor : hit.offset,
+      anchor:
+        extend && hit.object === state.selection.object
+          ? state.selection.anchor
+          : hit.offset,
       focus: hit.offset,
     };
   if (

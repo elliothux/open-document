@@ -66,7 +66,7 @@ fn Session::set_first_slide_number(
           @failure.reject("layout-overflow", reason)
         }
       }
-      let updates = derived_frame_changes(object, slide, probe, profile)
+      let updates = derived_frame_changes(object, probe, profile)
       if !updates.is_empty() {
         let entry = changes.get_or_init(object.source.tree.part, () => {
           (object.source.tree, [])

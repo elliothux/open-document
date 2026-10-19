@@ -57,6 +57,39 @@ fn Ref::group_problem(self : Ref) -> String raise @failure.Failure {
 }
 
 ///|
+fn Ref::group_text_reason(self : Ref) -> String raise @failure.Failure {
+  let locks = self
+    .child("nvGrpSpPr", uri=presentation_uri)
+    .bind(nv => nv.child("cNvGrpSpPr", uri=presentation_uri))
+    .bind(properties => properties.child("grpSpLocks"))
+  if locks is Some(locks) &&
+    ["noDrilldown", "noSelect", "noTextEdit"].any(key => flag(locks.node, key)) {
+    "Group text editing is locked"
+  } else {
+    ""
+  }
+}
+
+///|
+fn Ref::parent_matrix(self : Ref) -> @layout.Matrix raise @failure.Failure {
+  let ancestors : Array[Ref] = []
+  for parent = self.node.parent
+      parent >= 0
+      parent = self.tree.nodes[parent].parent {
+    let node = self.tree.nodes[parent]
+    if node.uri == presentation_uri && node.name == "grpSp" {
+      ancestors.push({ tree: self.tree, node, })
+    }
+  }
+  let mut matrix = @layout.Matrix::identity()
+  for group in ancestors.rev() {
+    let transform = geometry([group], matrix, true).unwrap()
+    matrix = group_matrix(group, transform)
+  }
+  matrix
+}
+
+///|
 fn Slide::group_preview(
   self : Slide,
   objects : Array[Object],
@@ -185,7 +218,7 @@ fn transformed_markup(
 ) -> @xml.Document raise @failure.Failure {
   let changes : Array[@xml.SourceChange] = []
   for (object, target) in objects {
-    changes.append(transform_changes(object, target))
+    changes.append(native_transform_changes(object, target))
     let properties = object.source
       .child(
         if object.kind == "group" {

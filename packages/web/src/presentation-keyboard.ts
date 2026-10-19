@@ -29,6 +29,9 @@ export function presentationKey(
     return;
   }
   if (state.selection.mode !== "object") return;
+  const objects = state.objects.filter((object) =>
+    state.selection.objects.includes(object.id),
+  );
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "z") {
     event.preventDefault();
     return event.shiftKey ? editor.redo() : editor.undo();
@@ -39,6 +42,7 @@ export function presentationKey(
     event.key.toLowerCase() === "d"
   ) {
     event.preventDefault();
+    if (objects.some((object) => object.duplicateReason)) return;
     return editor.editObjects({ action: "duplicate", dx: 18, dy: 18 });
   }
   if (event.key === "Tab") {
@@ -56,6 +60,13 @@ export function presentationKey(
     ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)
   ) {
     event.preventDefault();
+    if (
+      objects.some(
+        (object) =>
+          object.transformReason || object.parent !== objects[0]?.parent,
+      )
+    )
+      return;
     const step = event.shiftKey ? 10 : 1;
     return editor.transform(
       event.key === "ArrowLeft" ? -step : event.key === "ArrowRight" ? step : 0,
@@ -63,6 +74,7 @@ export function presentationKey(
     );
   } else if (event.key === "Delete" || event.key === "Backspace") {
     event.preventDefault();
+    if (objects.some((object) => object.deleteReason)) return;
     return editor.editObjects({ action: "delete" });
   }
 }

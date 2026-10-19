@@ -3,17 +3,71 @@ import type { PresentationEditor } from "@open-document/web/presentation-editor"
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 
-export function PptxArrange({
-  controller,
-  state,
-  editor,
-  disabled,
-}: {
+type Props = {
   controller: EditorController;
   state: UiSnapshot;
   editor: PresentationEditor;
   disabled: boolean;
-}) {
+};
+
+export function PptxTransform({ controller, state, editor, disabled }: Props) {
+  const [dx, setDx] = useState("0"),
+    [dy, setDy] = useState("0");
+  const t = messages(state.locale),
+    query = editor.query;
+  const selected = query.objects.filter((object) =>
+    query.selection.objects.includes(object.id),
+  );
+  return (
+    <fieldset
+      disabled={
+        disabled ||
+        query.selection.mode !== "object" ||
+        selected.length === 0 ||
+        selected.some(
+          (object) =>
+            object.transformReason || object.parent !== selected[0]?.parent,
+        )
+      }
+    >
+      <legend>{t.transform}</legend>
+      <label>
+        {t.deltaX}
+        <input
+          type="number"
+          value={dx}
+          onChange={(event) => setDx(event.currentTarget.value)}
+        />
+      </label>
+      <label>
+        {t.deltaY}
+        <input
+          type="number"
+          value={dy}
+          onChange={(event) => setDy(event.currentTarget.value)}
+        />
+      </label>
+      <button
+        type="button"
+        onClick={() =>
+          controller.run(() => editor.transform(Number(dx), Number(dy)))
+        }
+      >
+        {t.move}
+      </button>
+      <button
+        type="button"
+        onClick={() =>
+          controller.run(() => editor.transform(Number(dx), Number(dy), 3))
+        }
+      >
+        {t.resize}
+      </button>
+    </fieldset>
+  );
+}
+
+export function PptxArrange({ controller, state, editor, disabled }: Props) {
   const t = messages(state.locale),
     query = editor.query;
   const object = query.objects.find(
@@ -29,12 +83,19 @@ export function PptxArrange({
       : "",
   );
   const reason = objects.find((object) => object.arrangeReason)?.arrangeReason;
+  const transformReason = objects.find(
+    (object) => object.transformReason,
+  )?.transformReason;
   const rotateReason = objects.find(
     (object) => object.rotateReason,
   )?.rotateReason;
   const table = objects.some((object) => object.kind === "table");
   const unavailable =
-    disabled || !object || query.selection.mode !== "object" || !!reason;
+    disabled ||
+    !object ||
+    query.selection.mode !== "object" ||
+    !!transformReason ||
+    objects.some((item) => item.parent !== object.parent);
   return (
     <fieldset disabled={unavailable}>
       <legend>{t.arrangeObjects}</legend>
@@ -114,6 +175,8 @@ export function PptxArrange({
         <button
           key={order}
           type="button"
+          disabled={!!reason}
+          title={reason}
           onClick={() =>
             controller.run(() => editor.editObjects({ action: "layer", order }))
           }

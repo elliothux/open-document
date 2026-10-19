@@ -41,8 +41,27 @@ fn resize_text_frame(
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> Geometry raise @failure.Failure {
-  guard object.read_only.is_empty() && object.parent.is_empty() else {
+  guard object.read_only.is_empty() ||
+    object.read_only == "Group members are read-only" else {
     @failure.reject("protected-content", "Automatic shape resizing is locked")
+  }
+  for parent = object.source.node.parent
+      parent >= 0
+      parent = object.source.tree.nodes[parent].parent {
+    let node = object.source.tree.nodes[parent]
+    if node.name == "grpSp" && node.uri == presentation_uri {
+      let group : Ref = { tree: object.source.tree, node, }
+      let locks = group
+        .child("nvGrpSpPr", uri=presentation_uri)
+        .bind(nv => nv.child("cNvGrpSpPr", uri=presentation_uri))
+        .bind(properties => properties.child("grpSpLocks"))
+      guard !(locks is Some(locks) &&
+        (flag(locks.node, "noMove") || flag(locks.node, "noResize"))) else {
+        @failure.reject(
+          "protected-content", "Automatic shape resizing is locked",
+        )
+      }
+    }
   }
   let original = object.geometry.unwrap()
   let mut geometry = { ..original, height: 14400, }

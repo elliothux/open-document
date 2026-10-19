@@ -9,7 +9,11 @@ import {
 import type { PptxFindOptions } from "@open-document/wasm/pptx";
 export type { PresentationSearchResult } from "./presentation-search.js";
 import { updatePresentationObjects } from "./presentation-semantics.js";
-import { objectSelection, pointerSelection } from "./presentation-selection.js";
+import {
+  objectSelection,
+  pointerSelection,
+  exitTextSelection,
+} from "./presentation-selection.js";
 import { PresentationCanvas } from "./presentation-canvas.js";
 import {
   presentationOutputs,
@@ -656,6 +660,7 @@ export class PresentationEditor extends PresentationOutput {
         layoutId: this.layout.id,
         ...point,
         tolerance: 4 / this.scale,
+        text: text || this.state.selection.mode === "text",
       });
       const selection = pointerSelection(this.state, hit, handle, text, extend);
       await this.selectNow(selection);
@@ -677,6 +682,7 @@ export class PresentationEditor extends PresentationOutput {
           layoutId: this.layout.id,
           ...point,
           tolerance: 4 / this.scale,
+          text: true,
         });
         if (hit.object === this.state.selection.object)
           await this.selectNow({
@@ -739,17 +745,12 @@ export class PresentationEditor extends PresentationOutput {
       () =>
         this.enqueue(
           async () => {
-            const wasText = this.state.selection.mode === "text";
             await this.cancelNow();
-            if (wasText)
-              this.state = await this.client.execute({
-                operation: "selectPptx",
-                revision: this.state.revision,
-                ...this.state.selection,
-                mode: "object",
-                anchor: 0,
-                focus: 0,
-              });
+            this.state = await this.client.execute({
+              operation: "selectPptx",
+              revision: this.state.revision,
+              ...exitTextSelection(this.state),
+            });
             await this.present();
           },
           true,

@@ -15,7 +15,7 @@ fn Session::prepare(
     parts=self.parts,
   )
   self.validate(candidate)
-  (candidate, edit)
+  (candidate.group_bounds(candidate.changed_member_transforms(slide)), edit)
 }
 
 ///|
@@ -98,7 +98,12 @@ fn Session::commit_slides(
   let edits = edits.copy()
   self.sync_show_range(slides.length(), parts, edits)
   let slides = slides.mapi((index, slide) => {
-    numbered_slide(slide, presentation_number(main, index))
+    let numbered = numbered_slide(slide, presentation_number(main, index))
+    let (bounded, edit) = self.normalize_groups(numbered, main, index, parts)
+    if edit is Some(edit) {
+      edits.push((slide.tree.part, edit))
+    }
+    bounded
   })
   guard self.revision < 2147483647 else {
     @failure.reject("limit-exceeded", "Presentation revision exhausted")
@@ -432,7 +437,7 @@ pub fn Session::begin(
     @failure.reject("invalid-operation", "Unknown gesture kind")
   }
   if kind == "transform" {
-    ignore(self.transform_objects())
+    ignore(self.transform_objects(action="transform"))
   } else {
     ignore(self.editable(true))
   }
@@ -556,22 +561,7 @@ pub fn Session::transform(
   let objects = original.objects.copy()
   for index, object in objects {
     if object.id == self.selection.object && object.geometry is Some(geometry) {
-      let geometry = {
-        ..geometry,
-        x,
-        y,
-        width,
-        height,
-        matrix: object_matrix(
-          x,
-          y,
-          width,
-          height,
-          geometry.rotation,
-          geometry.flip_x,
-          geometry.flip_y,
-        ),
-      }
+      let geometry = object.placed_geometry({ ..geometry, x, y, width, height, })
       objects[index] = {
         ..object,
         geometry: Some(geometry),
@@ -579,7 +569,16 @@ pub fn Session::transform(
       }
     }
   }
-  let preview = original.group_preview(objects)
+  let preview = original
+    .group_preview(objects)
+    .group_bounds(
+      self.selection.objects.filter(id => {
+        member_geometry_changed(
+          original.object(id).geometry.unwrap(),
+          objects.iter().find_first(o => o.id == id).unwrap().geometry.unwrap(),
+        )
+      }),
+    )
   ignore(self.tile_sizes(preview))
   self.candidate = Some({ ..candidate, slide: preview, })
   self.view = None
@@ -587,7 +586,7 @@ pub fn Session::transform(
 }
 
 ///|
-fn transform_changes(
+fn native_transform_changes(
   object : Object,
   geometry : Geometry,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
@@ -690,11 +689,12 @@ pub fn Session::drag(
   }
   let initial = object.geometry.unwrap()
   if handle == 0 {
+    let inverse = object.source.parent_frame().inverse()
     return self.transform(
       revision,
       id,
-      initial.x + dx,
-      initial.y + dy,
+      initial.x + inverse.a * dx + inverse.c * dy,
+      initial.y + inverse.b * dx + inverse.d * dy,
       initial.width,
       initial.height,
     )
@@ -720,6 +720,10 @@ pub fn Session::drag(
       0
     },
   )
+  let (fixed_x, fixed_y) = object.source
+    .parent_frame()
+    .inverse()
+    .point(fixed_x, fixed_y)
   let matrix = object_matrix(
     0,
     0,

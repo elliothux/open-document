@@ -469,6 +469,9 @@ fn read_object(
       }
     }
   }
+  if read_only.is_empty() && !source.parent_group().is_empty() {
+    read_only = "Group members are read-only"
+  }
   {
     id: source.tree.part + "#" + id,
     parent: source.parent_group(),
@@ -569,7 +572,7 @@ fn read_objects(
         master,
         defaults,
         group_matrix(source, geometry),
-        "Group members are read-only",
+        reason,
         depth + 1,
         output,
         ids,
@@ -578,7 +581,18 @@ fn read_objects(
         date_time,
       )
       let problem = source.group_problem()
-      let blocked = if !object.read_only.is_empty() {
+      let text_problem = if !problem.is_empty() {
+        problem
+      } else {
+        source.group_text_reason()
+      }
+      if !text_problem.is_empty() {
+        for i in first..<output.length() {
+          output[i] = { ..output[i], text_reason: text_problem, }
+        }
+      }
+      let blocked = if !object.read_only.is_empty() &&
+        object.read_only != "Group members are read-only" {
         object.read_only
       } else if !problem.is_empty() {
         problem
@@ -596,7 +610,7 @@ fn read_objects(
             child.diagnostic
           }
         })
-        .unwrap_or("")
+        .unwrap_or(object.read_only)
       }
       output.push({
         ..object,

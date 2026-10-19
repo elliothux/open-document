@@ -5,7 +5,7 @@ import { messages } from "./messages.js";
 import type { OwnedFile } from "./types.js";
 import { DocxFormatCommands, DocxProperties } from "./docx-format.js";
 import { PptxObjects } from "./pptx-objects.js";
-import { PptxArrange } from "./pptx-arrange.js";
+import { PptxArrange, PptxTransform } from "./pptx-arrange.js";
 import { PptxAlignment } from "./pptx-alignment.js";
 import { PptxSearch } from "./pptx-search.js";
 import { PptxTheme, PptxThemeFonts } from "./pptx-theme.js";
@@ -499,8 +499,6 @@ export function Properties(props: PanelProps) {
 }
 
 function SlideProperties({ controller, state, file, disabled }: PanelProps) {
-  const [dx, setDx] = useState("0"),
-    [dy, setDy] = useState("0");
   if (file.format !== "pptx") return null;
   const editor = file.editor,
     t = messages(state.locale),
@@ -554,51 +552,12 @@ function SlideProperties({ controller, state, file, disabled }: PanelProps) {
         editor={editor}
         disabled={disabled}
       />
-      <fieldset
-        disabled={
-          disabled ||
-          !selected ||
-          query.objects.some(
-            (object) =>
-              query.selection.objects.includes(object.id) &&
-              object.arrangeReason,
-          )
-        }
-      >
-        <legend>{t.transform}</legend>
-        <label>
-          {t.deltaX}
-          <input
-            type="number"
-            value={dx}
-            onChange={(event) => setDx(event.currentTarget.value)}
-          />
-        </label>
-        <label>
-          {t.deltaY}
-          <input
-            type="number"
-            value={dy}
-            onChange={(event) => setDy(event.currentTarget.value)}
-          />
-        </label>
-        <button
-          type="button"
-          onClick={() =>
-            controller.run(() => editor.transform(Number(dx), Number(dy)))
-          }
-        >
-          {t.move}
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            controller.run(() => editor.transform(Number(dx), Number(dy), 3))
-          }
-        >
-          {t.resize}
-        </button>
-      </fieldset>
+      <PptxTransform
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
       <PptxArrange
         key={`${state.document?.documentId}:${JSON.stringify(query.selection.objects)}:${query.selection.object}:${query.revision}`}
         controller={controller}

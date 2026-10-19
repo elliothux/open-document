@@ -139,6 +139,7 @@ pub fn Session::hit(
   x : Double,
   y : Double,
   tolerance : Double,
+  text~ : Bool = false,
 ) -> Json raise @failure.Failure {
   let view = self.current_view(id)
   guard !x.is_nan() &&
@@ -150,10 +151,17 @@ pub fn Session::hit(
     @failure.reject("invalid-hit", "Invalid point or tolerance")
   }
   let slide = self.current()
+  let context = if self.selection.mode == "object" &&
+    !self.selection.object.is_empty() {
+    slide.object(self.selection.object).parent
+  } else {
+    ""
+  }
   guard slide.read_only.is_empty() else {
     @failure.reject("protected-content", slide.read_only)
   }
-  for object in slide.objects.rev() {
+  for top in slide.objects.rev() {
+    let mut object = top
     if !object.parent.is_empty() {
       continue
     }
@@ -165,6 +173,19 @@ pub fn Session::hit(
           child.source.node.start > object.source.node.start &&
           child.source.node.end < object.source.node.end &&
           object_hit(child, x, y, tolerance) {
+          if text &&
+            child.text_reason.is_empty() &&
+            !child.paragraphs.is_empty() {
+            object = child
+          } else if !context.is_empty() {
+            let mut target = child
+            while !target.parent.is_empty() && target.parent != context {
+              target = slide.object(target.parent)
+            }
+            if target.parent == context {
+              object = target
+            }
+          }
           found = true
           break
         }
@@ -219,6 +240,9 @@ pub fn Session::selection_geometry(
     .map(item => item.selection)
     .unwrap_or(self.selection)
   let slide = self.current()
+  let same_parent = selection.objects.all(id => {
+    slide.object(id).parent == slide.object(selection.object).parent
+  })
   let mut outline : Array[Json] = []
   let outlines : Array[Array[Json]] = []
   let rects : Array[Array[Json]] = []
@@ -282,9 +306,13 @@ pub fn Session::selection_geometry(
     }
   }
   if selection.objects.length() > 1 {
-    let box = slide.selection_box(selection.objects)
+    let box = slide.selection_box(selection.objects, in_parent=same_parent)
     outline = polygon(
-      @layout.Matrix::identity(),
+      if same_parent {
+        slide.object(selection.object).source.parent_frame()
+      } else {
+        @layout.Matrix::identity()
+      },
       box.x,
       box.y,
       box.width,
@@ -297,10 +325,11 @@ pub fn Session::selection_geometry(
     "outline": outline,
     "outlines": outlines,
     "handles": if selection.mode == "object" &&
+      same_parent &&
       selection.objects.all(id => {
         let object = slide.object(id)
         object.geometry is Some(_) &&
-        self.object_edit_reason(object, "arrange").is_empty()
+        self.object_edit_reason(object, "transform").is_empty()
       }) {
       outline
     } else {

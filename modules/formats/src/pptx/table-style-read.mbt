@@ -47,21 +47,37 @@ fn read_table_styles(
       node,
     }
   }
-  let replacements : Map[String, Bytes] = Map([])
-  for part, document in parts {
-    replacements[part] = document.bytes()
-  }
-  let links = opc
-    .relationships(replacements~)
-    .filter(link => {
-      link.owner == main.part && link.kind == relationship_uri + "/tableStyles"
+  let path = relationship_part(main.part)
+  let document = parts.get(path).unwrap_or_else(() => opc.xml(path))
+  let links = document
+    .nodes()
+    .filter(node => {
+      node.parent == document.nodes()[0].id &&
+      node.name == "Relationship" &&
+      node.uri == "http://schemas.openxmlformats.org/package/2006/relationships" &&
+      node.attribute("Type") == Some(relationship_uri + "/tableStyles")
     })
   table_profile(links.length() <= 1, "Multiple table style resources")
   guard links.get(0) is Some(link) else {
     return { part: None, default_id: "", styles, reason: "", }
   }
-  table_profile(!link.external, "External table styles are protected")
-  let tree = load_tree(opc, cache, link.target, parts~)
+  table_profile(
+    link.attribute("TargetMode") != Some("External"),
+    "External table styles are protected",
+  )
+  let resolved = @opc.resolve_target(
+    main.part,
+    link.attribute("Target").unwrap_or(""),
+  )
+  let target = opc.names
+    .get(resolved.to_lower())
+    .unwrap_or_else(() => {
+      parts
+      .keys()
+      .find_first(name => name.to_lower() == resolved.to_lower())
+      .unwrap_or(resolved)
+    })
+  let tree = load_tree(opc, cache, target, parts~)
   let root = tree.root("tblStyleLst", uri=drawing_uri)
   table_profile(
     root.attributes.all(a => a.uri.is_empty() && a.name == "def"),
@@ -87,7 +103,7 @@ fn read_table_styles(
     styles[id] = { tree, node, }
   }
   {
-    part: Some(link.target),
+    part: Some(target),
     default_id: root.attribute("def").unwrap_or("").to_upper(),
     styles,
     reason: "",

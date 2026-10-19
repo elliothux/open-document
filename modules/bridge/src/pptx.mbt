@@ -639,6 +639,11 @@ fn Foundation::pptx_operation(
         xlsx_number(request, "x"),
         xlsx_number(request, "y"),
         xlsx_number(request, "tolerance"),
+        text=if request is Object(fields) && fields.contains("text") {
+          xlsx_boolean(request, "text")
+        } else {
+          false
+        },
       )
     "selectionPptx" =>
       session.selection_geometry(field_int(request, "layoutId"))

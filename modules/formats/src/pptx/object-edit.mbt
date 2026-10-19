@@ -104,22 +104,50 @@ fn Session::object_edit_reason(
   let duplicate = action == "duplicate"
   try {
     let table = object.table is Some(_)
-    if !object.read_only.is_empty() {
+    let grouped = !object.parent.is_empty() &&
+      ["transform", "rotate", "flip"].contains(action)
+    if !object.read_only.is_empty() &&
+      !(grouped && object.read_only == "Group members are read-only") {
       return object.read_only
     }
-    if table && !["delete", "duplicate", "arrange"].contains(action) {
+    if grouped {
+      if !object.diagnostic.is_empty() {
+        return object.diagnostic
+      }
+      let reason = object.member_transform_reason(action)
+      if !reason.is_empty() {
+        return reason
+      }
+    }
+    if table &&
+      !["delete", "duplicate", "arrange", "transform"].contains(action) {
       return "Native table frames do not support rotation or flipping"
     }
     let slide = self.slides[self.index(object.source.tree.part)]
     if !slide.read_only.is_empty() {
       return slide.read_only
     }
+    if grouped {
+      let mut root = slide.object(object.parent)
+      while !root.parent.is_empty() {
+        root = slide.object(root.parent)
+      }
+      if !root.read_only.is_empty() &&
+        slide.objects.any(child => {
+          child.source.tree.part == root.source.tree.part &&
+          child.source.node.start > root.source.node.start &&
+          child.source.node.end < root.source.node.end &&
+          !child.diagnostic.is_empty()
+        }) {
+        return "Unknown group members prevent bounds normalization"
+      }
+    }
     guard (["sp", "pic", "grpSp"].contains(object.source.node.name) || table) &&
-      object.source.node.parent == shape_tree(slide.tree).id else {
-      return "Only local top-level shapes and pictures support this operation"
+      (grouped || object.source.node.parent == shape_tree(slide.tree).id) else {
+      return "This operation requires local top-level shapes and pictures"
     }
     if !table &&
-      ["rotate", "arrange"].contains(action) &&
+      ["rotate", "flip", "arrange", "transform"].contains(action) &&
       object.source.child(
         if object.kind == "group" {
           "grpSpPr"
@@ -137,31 +165,30 @@ fn Session::object_edit_reason(
     let target = object.source.node
     let tree = object.source.tree
     let identities : Map[String, Bool] = Map([])
-    for node in tree.document.nodes() {
-      let inside = node.start >= target.start && node.end <= target.end
-      if inside {
-        if node.uri == presentation_uri && node.name == "cNvPr" {
-          identities[source_identity(node.attribute("id").unwrap_or(""))] = true
-        }
-        if node.name.has_suffix("Locks") &&
-          flag(
-            node,
-            match action {
-              "duplicate" => "noCopy"
-              "delete" => "noDelete"
-              "rotate" => "noRot"
-              _ => ""
-            },
-          ) {
-          return "Object operation is locked: " + action
-        }
-        if duplicate &&
-          (
-            node.name == "extLst" ||
-            ![presentation_uri, drawing_uri].contains(node.uri)
-          ) {
-          return "Unknown object extensions prevent duplication"
-        }
+    let pending = [target]
+    while pending.pop() is Some(node) {
+      pending.append(tree.children.get(node.id).unwrap_or([]))
+      if node.uri == presentation_uri && node.name == "cNvPr" {
+        identities[source_identity(node.attribute("id").unwrap_or(""))] = true
+      }
+      if node.name.has_suffix("Locks") &&
+        flag(
+          node,
+          match action {
+            "duplicate" => "noCopy"
+            "delete" => "noDelete"
+            "rotate" => "noRot"
+            _ => ""
+          },
+        ) {
+        return "Object operation is locked: " + action
+      }
+      if duplicate &&
+        (
+          node.name == "extLst" ||
+          ![presentation_uri, drawing_uri].contains(node.uri)
+        ) {
+        return "Unknown object extensions prevent duplication"
       }
     }
     if action == "delete" {
@@ -507,7 +534,10 @@ pub fn Session::edit_objects(
         return self.query()
       }
       let changes : Array[@xml.SourceChange] = []
-      for object in self.transform_objects() {
+      for
+        object in self.transform_objects(
+          action=if change is Rotate(_) { "rotate" } else { "flip" },
+        ) {
         changes.append(self.arrange_object(object, change))
       }
       (changes, self.selection)

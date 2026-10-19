@@ -7,9 +7,11 @@ fn Session::text_frame_reason(self : Session, object : Object) -> String {
     let slide = self.slides[self.index(object.source.tree.part)]
     guard slide.read_only.is_empty() else { return slide.read_only }
     guard object.kind == "shape" &&
-      object.parent.is_empty() &&
-      object.source.node.parent == shape_tree(slide.tree).id else {
-      return "Text frame editing requires a local top-level shape"
+      (
+        !object.parent.is_empty() ||
+        object.source.node.parent == shape_tree(slide.tree).id
+      ) else {
+      return "Text frame editing requires a local shape"
     }
     guard object.source.child("txBody", uri=presentation_uri) is Some(body) else {
       return "Shape has no editable text frame"

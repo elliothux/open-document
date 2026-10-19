@@ -504,6 +504,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
         "duplicateReason": self.object_edit_reason(object, "duplicate"),
         "rotateReason": self.object_edit_reason(object, "rotate"),
         "arrangeReason": self.object_edit_reason(object, "arrange"),
+        "transformReason": self.object_edit_reason(object, "transform"),
         "hyperlink": self.hyperlink_query(object, links),
         "shapeAdjustments": self.shape_adjustments(object),
         "imageInsets": object.insets,

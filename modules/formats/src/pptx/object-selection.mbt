@@ -1,14 +1,15 @@
 ///|
 fn Session::transform_objects(
   self : Session,
+  action~ : String = "arrange",
 ) -> Array[Object] raise @failure.Failure {
   guard self.selection.mode == "object" && !self.selection.objects.is_empty() else {
     @failure.reject("invalid-operation", "Select objects before transforming")
   }
   let slide = self.current()
-  self.selection.objects.map(id => {
+  let objects = self.selection.objects.map(id => {
     let object = slide.object(id)
-    let reason = self.object_edit_reason(object, "arrange")
+    let reason = self.object_edit_reason(object, action)
     guard reason.is_empty() && object.geometry is Some(_) else {
       @failure.reject(
         "protected-content",
@@ -21,6 +22,10 @@ fn Session::transform_objects(
     }
     object
   })
+  guard objects.all(object => object.parent == objects[0].parent) else {
+    @failure.reject("protected-content", "Select objects from one parent group")
+  }
+  objects
 }
 
 ///|
@@ -42,6 +47,7 @@ fn Geometry::resize_swaps_axes(self : Geometry) -> Bool {
 fn Slide::selection_box(
   self : Slide,
   ids : Array[String],
+  in_parent~ : Bool = false,
 ) -> SelectionBox raise @failure.Failure {
   let mut left = 0.0
   let mut top = 0.0
@@ -57,7 +63,20 @@ fn Slide::selection_box(
           (g.width, g.height),
           (0.0, g.height),
         ] {
-        let (x, y) = g.matrix.point(x, y)
+        let matrix = if in_parent {
+          object_matrix(
+            g.x,
+            g.y,
+            g.width,
+            g.height,
+            g.rotation,
+            g.flip_x,
+            g.flip_y,
+          )
+        } else {
+          g.matrix
+        }
+        let (x, y) = matrix.point(x, y)
         left = if initialized { left.min(x) } else { x }
         top = if initialized { top.min(y) } else { y }
         right = if initialized { right.max(x) } else { x }
@@ -79,7 +98,7 @@ fn Session::transform_collection(
   height : Double,
 ) -> Json raise @failure.Failure {
   let original = self.slides[self.index(self.selection.slide)]
-  let box = original.selection_box(self.selection.objects)
+  let box = original.selection_box(self.selection.objects, in_parent=true)
   guard [x, y, width, height].all(v => {
       !v.is_nan() && !v.is_inf() && v.abs() <= 14400
     }) &&
@@ -129,21 +148,19 @@ fn Session::transform_collection(
     {
       ..object,
       table: object.table.map(table => table.resized(width, height)),
-      geometry: Some({
-        ..next,
-        matrix: object_matrix(
-          next.x,
-          next.y,
-          next.width,
-          next.height,
-          next.rotation,
-          next.flip_x,
-          next.flip_y,
-        ),
-      }),
+      geometry: Some(object.placed_geometry(next)),
     }
   })
-  let preview = original.group_preview(objects)
+  let preview = original
+    .group_preview(objects)
+    .group_bounds(
+      self.selection.objects.filter(id => {
+        member_geometry_changed(
+          original.object(id).geometry.unwrap(),
+          objects.iter().find_first(o => o.id == id).unwrap().geometry.unwrap(),
+        )
+      }),
+    )
   ignore(self.tile_sizes(preview))
   self.candidate = Some({ ..candidate, slide: preview, })
   self.view = None
@@ -160,7 +177,14 @@ fn Session::drag_collection(
   handle : Int,
 ) -> Json raise @failure.Failure {
   let original = self.slides[self.index(self.selection.slide)]
-  let box = original.selection_box(self.selection.objects)
+  let box = original.selection_box(self.selection.objects, in_parent=true)
+  let inverse = original.object(self.selection.object).source
+    .parent_frame()
+    .inverse()
+  let (dx, dy) = (
+    inverse.a * dx + inverse.c * dy,
+    inverse.b * dx + inverse.d * dy,
+  )
   if handle == 0 {
     return self.transform(
       revision,

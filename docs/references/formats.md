@@ -1729,11 +1729,29 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 组合使用 `{ action: "group" }`，至少选择两个可编辑本地顶层对象。核心分配新组身份，保留成员身份、相对顺序、格式及关系，转换局部坐标；新组放在所选最上层对象的位置，选择切到新组。原组也可参与嵌套组合。顶层组沿用整体移动、缩放（含非等比例）、旋转、翻转、层次、对齐和删除事务；候选同步派生成员世界矩阵，不写已提交源。多选集合的独立宽高缩放沿上文同一候选路径执行。
 
-取消组合使用 `{ action: "ungroup" }`，选择须全部为受支持顶层组。包含非等比缩放及嵌套组，成员回到原组所在层次，选择展开为直接成员，最多 256 项。核心先把累计组缩放换算为成员框的位置与尺寸，再以旋转/翻转矩阵绘制；文字字号、边距及描边宽度保持原值，文字按新框排版。候选预览和源重读使用同一几何规则；取消组合还原世界位置、尺寸、旋转及翻转，保留成员身份、命名空间和组内注释。子组保留自己的子坐标范围，可继续逐层取消组合。组内直接编辑仍保护。
+取消组合使用 `{ action: "ungroup" }`，选择须全部为受支持顶层组。包含非等比缩放及嵌套组，成员回到原组所在层次，选择展开为直接成员，最多 256 项。核心先把累计组缩放换算为成员框的位置与尺寸，再以旋转/翻转矩阵绘制；文字字号、边距及描边宽度保持原值，文字按新框排版。候选预览和源重读使用同一几何规则；取消组合还原世界位置、尺寸、旋转及翻转，保留成员身份、命名空间和组内注释。子组保留自己的子坐标范围，可继续逐层取消组合。组内外观和结构编辑继续保护，几何入口见下文。
 
 尺寸归一遵循 [ONLYOFFICE 组合缩放系数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L568-L607)及[成员 normalize](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicObjectBase.js#L629-L664)，取消组合参考 [unGroupCallback](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L7045-L7108)。核心已检查非等比嵌套、旋转/翻转、预览与提交一致、取消、文字/线宽、精确历史及重开；Chromium 已检查取消组合前后 Canvas 画面、独立同字号文本的 PDF 字形边界、XML、非目标部件、历史和重开后原生输入。
 
 `PptxQuery.groupReason/ungroupReason` 返回当前选择的保护原因，默认 UI 用它禁用按钮。继承占位符、未知组效果/扩展、成员锁定、`noGrp/noUngrp`、组合所涉连接/计时引用和取消组合所移除组的引用继续保护。操作只改所属 slide XML，保留其他部件及资源；一次提交一项有界历史，撤销恢复原源与选择，失败不消耗新身份或提交部分成员。
+
+组内形状文字沿现有 `selectPptx`、`replacePptx`、格式、链接和查找替换命令编辑。`parent` 保留直接父组，`textReadOnlyReason` 独立于成员对象的 `readOnlyReason`；成员移动、缩放、旋转和翻转沿下文几何入口；复制、删除、层次、对齐及外观编辑继续保护。`hitPptx` 的可选 `text: true` 返回最上层可编辑的文字成员及核心光标位置；普通命中仍返回顶层组，前方图片、形状或未知对象继续遮挡后方文字。核心使用累计组矩阵计算光标及选区，不在 Web 中反算文字坐标。
+
+默认指针双击进入文字，文字拖选使用同一成员命中。对象列表按父子层次展开所选组及成员祖先；成员按钮进入文字，Escape 返回直接父组。文字输入、组合候选取消、字符/段落格式、框边距/垂直对齐/换行和三种适配共用原事务及默认面板。自动尺寸按累计组缩放还原局部整数 EMU，保留成员旋转/翻转和其他成员的页面姿态；本地父组外框与子坐标在同一事务中更新。缩放不改变字号、边距和线宽。
+
+母版/版式成员、未知组效果、`noDrilldown/noSelect/noTextEdit` 及原文字保护继续拒绝编辑。祖先 `noMove/noResize` 不阻止固定框内输入，但阻止自动尺寸变更。缺字体、溢出及原有资源/输出预算失败整体拒绝，源与历史保持。行为参考 [ONLYOFFICE 组内文字选择与变换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L196-L216)及[组内文字输入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L715-L730)，实现复用 [`group-geometry.mbt`](../../modules/formats/src/pptx/group-geometry.mbt)、[`text-resize.mbt`](../../modules/formats/src/pptx/text-resize.mbt)和[`文字命中`](../../modules/formats/src/pptx/hit.mbt)。
+
+组成员几何复用 `beginPptx`、`dragPptx`、`finishPptx` / `cancelPptx` 以及 `rotate` / `flip` 对象命令，`PresentationEditor.transform` 的增量仍为页面点值。对象的 `transformReason` 返回移动/缩放保护原因，`rotateReason` 返回旋转保护原因；`arrangeReason` 继续保护成员的层次和对齐操作。最多 256 个所选对象须来自同一父组，父子或跨父组选择整项拒绝。绝对 `transformPptx` 使用归一化父组坐标及尺寸，与当前 `PptxObject.geometry` 的 x/y/width/height 一致；`dragPptx` 使用页面坐标增量。
+
+核心逆变换页面增量和固定角点，再按累计组缩放还原成员局部坐标。预览舍入为原生整数 EMU，提交读取同一几何；旋转和翻转保持中心，子组变化同步其成员世界矩阵。同组多选使用父组方向的包围盒及手柄，沿原成员缩放轴交换规则调整中心和尺寸。文字、字号、边距、描边和成员身份保留；文字框自动适配共用同一局部写回，取消、撤销重做、保存重开沿原源事务。本地父组边界随成员变换及自动适配重算，坐标归一化规则见下文。
+
+默认对象列表在成员对象模式中支持普通及 Shift 同组选择；Enter 进入文字，Escape 返回直接父组。已进入组后，普通画布命中返回当前父组的直接成员，双击继续使用文字命中。移动/缩放及旋转/翻转控件复用已有面板；受保护的删除、复制和混合范围方向键不修改源，也不停止编辑器。祖先组的 `noDrilldown/noSelect/noMove/noResize`、对应旋转锁、成员锁、未知组和继承内容继续保护；原生坐标、字体、布局、源/历史及输出上限失败整项拒绝。成员填充/边线、复制、删除、层次、对齐及重新组合仍待实现。
+
+本地成员原生变换改变时，核心按内层到外层重算祖先边界。范围采用 [ONLYOFFICE GroupShape](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L1246-L1384) 的旋转象限轴交换规则。受影响顶层组的子树归一化为 `chOff=0`、`chExt=ext`；按已舍入的父坐标写回子成员，保留页面中心、大小与方向，误差限于整数 EMU。成员文字、字体、边距、描边、身份、元数据和关系保留。未移动成员的局部 `x/y` 可以改变，宿主须读取当前查询，页面姿态保持。缺省 `chOff` 写入 `chExt` 之前。实现归 [`group-bounds.mbt`](../../modules/formats/src/pptx/group-bounds.mbt)。
+
+预览只更新派生几何；提交从候选原生源重读坐标，并与原操作共用一项修订和历史，撤销/重做精确恢复源。整体组变换、复制、新建组合不强制归一化。只有当前幻灯片所属部件被改写，继承的母版/版式对象保持。未知同组成员、原生坐标及输出/历史预算失败原子拒绝。主题字体与页码自动适配沿同一坐标写回，避免重复除以组缩放。
+
+页面增量与组内原生坐标换算参考 [ONLYOFFICE MoveShapeImageTrack](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/MoveTracks.js#L95-L145)及[组缩放写回](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/MoveTracks.js#L301-L315)。独立父组权限及受支持的本地组边界为 SDK 实施范围；母版、版式组编辑仍待实现。实现归 [`member-geometry.mbt`](../../modules/formats/src/pptx/member-geometry.mbt)、[`object-selection.mbt`](../../modules/formats/src/pptx/object-selection.mbt)和[`变换面板`](../../packages/ui/src/pptx-arrange.tsx)。
 
 `editPptxObjects` / `PresentationEditor.editObjects` 支持 `{ action: "fill", color }` 和 `{ action: "stroke", color, width }`。颜色为不带 `#` 的六位 RGB，核心统一小写；null 写显式 `noFill`，表示无填充或无边框。宽度为 0.1–1000 pt，舍入到整数 EMU。操作作用于对象模式下所选的本地顶层形状，包含文本框和基本形状；多选原子提交为一次历史。查询中每个对象带 `appearance: { fill, gradient, imageFill, imageFillMode, imageFillReason, stroke, width, fillOpacity, strokeOpacity, fillOpacityReason, strokeOpacityReason, dash, dashReason, cap, join, miterLimit, penReason, reason }`，颜色为有效 RGB 或 null，宽度为有效 pt，reason 说明保护原因。默认 UI 显示混合状态，分别应用填充和边框，草稿随选择或实际外观值更新。
 
@@ -1825,7 +1843,7 @@ script 接受 `baseline`、`superscript` 或 `subscript`，分别写入 DrawingM
 
 公共制表位排版同时提供对齐后的字形、光标、选择、适配和 Canvas/PDF。字符、其他段落、属性、对象及部件保持。默认面板提供位置、对齐、间隔、清空及恢复；原生 Tab 文本沿既有粘贴入口，全部与源修改共用精确历史。实现归 [`paragraph-tabs.mbt`](../../modules/formats/src/pptx/paragraph-tabs.mbt)。
 
-`rtl` 为布尔值，写入 DrawingML 段落方向；读取沿本地、列表、版式/母版和默认属性继承。缺少显式对齐时，RTL 默认右对齐；已有显式对齐仍按物理左右解释。切换方向时镜像当前左右对齐，居中和两端对齐保持，遵循 [ONLYOFFICE SetParagraphBidi](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L16952-L16967)及[非文档段落的默认对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L11257-L11288)。缩进、标记和双向文字使用公共排版器；PPTX 显式提供 LTR/RTL 基础方向，避免阿拉伯文首字符覆盖段落设置。字体、光标、选区、Canvas/PDF 和适配共用同一结果，缓存区分基础方向。`paragraph.rtl` 返回有效布尔值或混合值 null；默认面板显示混合复选状态。清除段落直接格式同时清除方向并恢复继承。局部范围、多框、原生草稿、精确历史与重开沿用已有事务，非法方向源保留并诊断。竖排、多栏和组内直接编辑继续实施。
+`rtl` 为布尔值，写入 DrawingML 段落方向；读取沿本地、列表、版式/母版和默认属性继承。缺少显式对齐时，RTL 默认右对齐；已有显式对齐仍按物理左右解释。切换方向时镜像当前左右对齐，居中和两端对齐保持，遵循 [ONLYOFFICE SetParagraphBidi](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L16952-L16967)及[非文档段落的默认对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L11257-L11288)。缩进、标记和双向文字使用公共排版器；PPTX 显式提供 LTR/RTL 基础方向，避免阿拉伯文首字符覆盖段落设置。字体、光标、选区、Canvas/PDF 和适配共用同一结果，缓存区分基础方向。`paragraph.rtl` 返回有效布尔值或混合值 null；默认面板显示混合复选状态。清除段落直接格式同时清除方向并恢复继承。局部范围、多框、原生草稿、精确历史与重开沿用已有事务，非法方向源保留并诊断。竖排、多栏和组内外观/结构继续实施。
 
 文字模式修改光标所在或范围所涉段落，终点恰在下一段开头时不修改下一段；对象模式修改所选本地文本框中的全部段落。`PptxQuery.paragraph` 返回各字段的共同有效值和 `reason`，混合项为 null；保护时为 null 占位。类型和动作从 `wasm/pptx`、`web/pptx` 导出，宿主沿 `editObjects` 队列执行。修改只写目标 `pPr`，保留字符、未改属性、源注释、继承定义、非目标段落、部件及选择。未知间距节点内容保护该框的间距/缩进操作；无变化不新增历史，旧 revision、候选、缺字体、无可用行宽和预算失败均不提交。已有适配框重新计算比例；固定框保留溢出诊断。默认面板按各字段的有效值更新草稿，其他格式命令完成时不清掉输入。
 
@@ -1847,7 +1865,7 @@ list 使用 `PptxListFormat`：`{ kind: "none" }`、`{ kind: "bullet", value }` 
 
 搜索文本与 replacement 各最多 32767 UTF-16 单元；replacement 接受 LF/U+2028，拒绝 CR 和非法 XML 字符。搜索总文字限 1048576 单元，截断结果禁止全部替换；结构批次另受源文字长度乘匹配数累计 64 Mi 单元和 4 MiB 历史预算限制，普通批次不按匹配重复解析整页。公共原生生成文字也在构造 XML 前限制到 2 Mi 单元。宿主的 `find/selectMatch/replaceMatches` 沿既有队列执行，并绑定 documentId/revision；换文档或文字变化后返回 stale-search。默认面板提供当前页/全部页、大小写/全词、结果定位、单个/全部替换、保护原因及过期提示。隐藏页结果可直接定位。
 
-支持矩形、椭圆、直线与文本框的核心路径；PNG/JPEG、矩形源裁剪、旋转/翻转和组合坐标变换。组合成员与继承对象只读；本地顶层对象可通过核心/API/UI 旋转、翻转和调整层次。图片不发起外链请求，源压缩字节与关系不改；只为当前页准备屏幕资源。全稿 PDF 临时准备所选页资源，仍受累计图片/输出预算约束，失败不返回截断文件。
+支持矩形、椭圆、直线与文本框的核心路径；PNG/JPEG、矩形源裁剪、旋转/翻转和组合坐标变换。组合成员的外观/结构与继承对象只读，组内形状文字和几何可编辑；本地顶层对象可通过核心/API/UI 旋转、翻转和调整层次。图片不发起外链请求，源压缩字节与关系不改；只为当前页准备屏幕资源。全稿 PDF 临时准备所选页资源，仍受累计图片/输出预算约束，失败不返回截断文件。
 
 未知可见对象阻止点穿；无确定边界时，该页直接画布编辑只读，查询/保存及其他页仍可用。静态 PDF 遇到可见未支持内容、效果或未解决适配时返回页/对象原因。动画/切换只保留源。保存及全部撤销保留原解压部件；输出重新校验 ZIP/XML/OPC，不承诺整个 ZIP 字节一致。
 

@@ -212,7 +212,7 @@ fn Session::set_theme_font(
         }
         ignore(probe.font_index(identity))
       }
-      let updates = derived_frame_changes(object, slide, probe, profile)
+      let updates = derived_frame_changes(object, probe, profile)
       if !updates.is_empty() {
         let entry = changes.get_or_init(object.source.tree.part, () => {
           (object.source.tree, [])

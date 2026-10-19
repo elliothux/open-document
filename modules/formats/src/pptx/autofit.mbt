@@ -130,7 +130,6 @@ fn normal_fit_changes(
 ///|
 fn derived_frame_changes(
   object : Object,
-  slide : Slide,
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
@@ -150,36 +149,12 @@ fn derived_frame_changes(
     ].contains(object.read_only) else {
       @failure.reject("protected-content", object.read_only)
     }
-    let initial = object.geometry.unwrap()
     let next = resize_text_frame(
       { ..object, read_only: "", parent: "", },
       probe,
       profile,
     )
-    let parent = if object.parent.is_empty() {
-      @layout.Matrix::identity()
-    } else {
-      let group = slide.object(object.parent)
-      group_matrix(group.source, group.geometry.unwrap())
-    }
-    let sx = (parent.a * parent.a + parent.b * parent.b).sqrt()
-    let sy = (parent.c * parent.c + parent.d * parent.d).sqrt()
-    let raw = geometry([object.source], @layout.Matrix::identity(), false).unwrap_or({
-        ..initial,
-        x: initial.x / sx,
-        y: initial.y / sy,
-        width: initial.width / sx,
-        height: initial.height / sy,
-      },
-    )
-    let target = {
-      ..next,
-      x: next.x / sx,
-      y: next.y / sy,
-      width: next.width / sx,
-      height: next.height / sy,
-    }
-    return resized_frame_changes({ ..object, geometry: Some(raw), }, target)
+    return resized_frame_changes(object, next)
   }
   let (_, scale, diagnostic) = fit_text(
     object,
