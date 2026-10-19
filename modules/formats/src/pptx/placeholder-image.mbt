@@ -3,6 +3,15 @@ fn Session::image_replacement_reason(self : Session, object : Object) -> String 
   if object.kind == "image" {
     return self.image_reason(object, false)
   }
+  self.empty_placeholder_reason(object, ["pic", "obj"])
+}
+
+///|
+fn Session::empty_placeholder_reason(
+  self : Session,
+  object : Object,
+  kinds : Array[String],
+) -> String {
   try {
     let reason = self.appearance_reason(object)
     if !reason.is_empty() {
@@ -10,11 +19,13 @@ fn Session::image_replacement_reason(self : Session, object : Object) -> String 
     }
     guard object.kind == "shape" &&
       object.parent.is_empty() &&
-      placeholder(object.source) is Some(("pic" | "obj", _)) else {
-      return "Select a local picture or an empty picture/content placeholder"
+      placeholder(object.source)
+      .map(ph => kinds.contains(ph.0))
+      .unwrap_or(false) else {
+      return "Select a local empty placeholder of the required type"
     }
     guard object.text().is_empty() && object.text_reason.is_empty() else {
-      return "Placeholder text must be empty before inserting a picture"
+      return "Placeholder text must be empty before inserting content"
     }
     let source = object.source
     let xml = source_xml(source)

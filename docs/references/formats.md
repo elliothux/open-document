@@ -1511,7 +1511,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 源与目标的 `date1904` 不同时，核心按源格式识别已支持的日期及日期时间数值，换算 1462 天并保留日内小数。纯时间、普通数字、文字及其他类型保持原值；`format` 不转换数值。`all/formulas` 保留公式，在目标日期系统重算；`values` 转换已计算的日期结果。公式内部的普通数字常量不改写。日期验证的数字字面边界同步换算，`DATE`、引用及其他表达式沿目标公式语义处理。源或目标日历无法表示的日期整项拒绝，保留文档与历史；两本工作簿的日期系统不变。
 
-换算复用核心日期序列与格式分类，实现归 [`clipboard-date.mbt`](../../modules/formats/src/xlsx/clipboard-date.mbt)。工作簿日期标志参考 [ONLYOFFICE setDate1904](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L5813-L5825)；跨日期系统粘贴及 1462 天差值依据 [Microsoft 日期系统说明](https://support.microsoft.com/en-us/excel/date-systems-in-excel)。当前新增验证覆盖核心；日期转换的默认浏览器流程尚未专项验证。
+换算复用核心日期序列与格式分类，实现归 [`clipboard-date.mbt`](../../modules/formats/src/xlsx/clipboard-date.mbt)。工作簿日期标志参考 [ONLYOFFICE setDate1904](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L5813-L5825)；跨日期系统粘贴及 1462 天差值依据 [Microsoft 日期系统说明](https://support.microsoft.com/en-us/excel/date-systems-in-excel)。定向核心和默认系统剪贴板浏览器流程已检查，覆盖双向日期换算、值粘贴、精确历史、重开输入及 PDF。
 
 每项 `conditional` / `validations` 包含 `ranges`、`anchor` 和 `settings`，类型分别为 `CopiedConditional` / `CopiedValidation`。`ranges` 是复制矩形内的源绝对地址交集；`anchor` 保留原规则的公式原点。条件设置沿已有 `XlsxConditionalFormat`，验证设置沿 `XlsxDataValidation`。条件样式与主题颜色解析为支持的直接格式，目标重新分配差异样式，保留源规则次序；不沿用源工作簿的 `dxfId`。
 
@@ -1653,6 +1653,10 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `editObjects({ action: "replaceImage", object, bytes })` 也可向单选的空 `pic/obj` 占位框填入 PNG/JPEG。默认图片面板显示“填入占位图片”。核心转换为原生 `p:pic`，保留对象身份、名称/链接、占位符定义、样式及版式关系；提示文字留在版式。图片按 96 dpi 换算点值，居中并等比适配；小图片不放大，源像素尺寸至少按 1 mm，缩放结果各轴至少 5 mm，沿 [ONLYOFFICE addImages](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L3803-L3852) 的规则。旋转/翻转保持，必要继承几何写为局部框。填入后继续使用普通图片替换、裁剪和透明度。非空文字、其他占位类型、组成员、锁定或扩展非可视属性、未知外围源继续保护。源图片字节、关系、内容类型和对象转换合为一次精确历史，目标身份变化、输入和预算失败保留文档。实现归 [`placeholder-image.mbt`](../../modules/formats/src/pptx/placeholder-image.mbt)，复用 [`object-image.mbt`](../../modules/formats/src/pptx/object-image.mbt) 的资源事务；未复制上游源码。
 
+`editObjects({ action: "fillTable", rows, columns })` 在普通幻灯片的单选空 `tbl/obj` 占位框中创建原生表格。默认表格面板提供“填入占位表格”，对象查询的 `tableFillReason` 返回保护原因。表格沿现有新建格式，继承槽位的有效位置和宽度，行高由字体及单元格内容撑开；不将槽位高度强制分配到各行。保留 `cNvPr` 身份、名称/链接、`nvPr` 占位定义、对象顺序与选择，版式提示和其他部件保持原字节。填入后继续使用原生格输入、表格结构和格式命令。
+
+行数为 1–1000，列数为 1–63，总格数最多 4096；现有列宽、字体、候选、历史和包预算继续执行。文字非空、非目标槽位、组成员、锁定、旋转/翻转、未知外围或扩展内容继续保护；母版/版式视图保留槽位定义入口。表格转换、网格和必要行高共用一次精确历史，失败保留源、选择及身份分配。表格占位符的版式切换与重置沿[幻灯片版式](#幻灯片版式)处理。实现归 [`placeholder-table.mbt`](../../modules/formats/src/pptx/placeholder-table.mbt)，复用 [`table-create.mbt`](../../modules/formats/src/pptx/table-create.mbt)与 [`table-structure.mbt`](../../modules/formats/src/pptx/table-structure.mbt) 的候选及排版；位置/宽度和替换行为参考 [ONLYOFFICE Add_FlowTable](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L4079-L4120)，未复制上游源码。
+
 单选本地顶层形状或图片后，`editObjects({ action: "placeholder", value: { type, index } })` 修改定义；`value: null` 移除定义并保留对象、内容与资源。`index` 是 0 至 4294967295 的整数；同源相同类型/索引不得重复，比较时居中标题归为标题。每个查询对象的 `placeholder` 返回 `{ value, reason }`，普通页面可读取定义，修改需进入源视图。已知 `sz/orient/hasCustomPrompt` 保留，未知元数据和形状类型锁保护修改。需要时先固化当前源对象的继承几何；会导致引用页面丢失继承几何的修改仍整项拒绝。源、依赖页、选择与历史沿既有事务提交；默认面板提供插入和定义控件。实现归 [`placeholder-edit.mbt`](../../modules/formats/src/pptx/placeholder-edit.mbt)，索引分配参考 [ONLYOFFICE NewShapeTracks](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/NewShapeTracks.js#L869-L894)。
 
 `editSlides({ action: "addMaster" }, source?)` 在所选母版后新增空白母版、一个空白版式和独立默认主题；选择版式时使用其所属母版的位置。空白内容复用核心新建文稿的构造。`copyMaster` 接受母版源，保留名称、源设置及全部声明版式的顺序，并独立复制主题；零版式的母版也可复制。对象、字段、creationId、母版和版式身份重新分配，所属关系重映射到副本；图片字节和普通链接继续共享。图表等尚未接通复制归属的可变资源、未声明的版式关系和未知身份扩展保护复制。两项操作选择新母版并清空对象选择，保留真实页面；主目录、关系、主题及所有新源合为一次历史。目录、每个新源的对象/字体/图片、累计历史和包预算在提交前检查，失败保留源、选择和身份分配。默认源管理面板提供相同操作。实现归 [`master-create.mbt`](../../modules/formats/src/pptx/master-create.mbt)及 [`master-source.mbt`](../../modules/formats/src/pptx/master-source.mbt)。复制归属与插入位置参考 [ONLYOFFICE MasterSlide.createDuplicate](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/SlideMaster.js#L702-L741)和 [DublicateMaster](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L9214-L9253)，未复制上游源码。
@@ -1682,6 +1686,10 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 `PresentationEditor.editSlides({ action: "resetLayout" }, slide?)` 重新应用目标页的当前版式，默认面板提供重置按钮。它清除占位符受支持的本地 `xfrm`，恢复版式/母版几何，并沿相同规则补齐缺失的空占位符。保留已有匹配对象身份、用户文字、字符/段落/框属性及形状外观；普通对象和版式关系原字节保持。行为沿 [ONLYOFFICE 当前版式重置入口](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L9519-L9553)，文字格式清除仍使用既有字符/段落命令。
 
 重置仅在有覆盖或占位符变化时新增一项历史，重复调用不改源或 revision。原生草稿先独立提交，随后可精确混合撤销/重做和保存重开。移动/尺寸锁、实际旋转变化的 `noRot`、未知变换标记、无法继承几何及资源预算失败均原子拒绝；版式切换使用相同候选保护。
+
+匹配的表格占位符也支持版式切换与重置。核心使用目标槽位的有效位置和宽度，按整数 EMU 比例调整现有列网格；保留行最小高度，并按新宽度重新排版，必要时增高行及原生表格框。槽位高度不压缩已有内容。表格身份、占位定义、格内文字和直接格式保持，源版式及未修改部件保留原字节；关系、列宽、行高和选择共用一次精确历史。重置恢复位置及列宽，重复重置不新增历史。
+
+底层 `Session::edit_slides` 在表格重排时需要已有字体 `probe/profile`；Wasm、Worker 和默认面板沿现有命令传递。目标缺少匹配槽位、含旋转/翻转或未知几何，原表格锁定，列宽无法容纳边距，字体缺失，目标母版引入不支持的表格格式，或预算失败时整项拒绝。已有表格即使文字为空，也不作为可丢弃的空提示框删除。实现归 [`layout-table.mbt`](../../modules/formats/src/pptx/layout-table.mbt)，列宽及行高复用 [`table-transform.mbt`](../../modules/formats/src/pptx/table-transform.mbt)和 [`table-layout.mbt`](../../modules/formats/src/pptx/table-layout.mbt)。框重置与按宽度重排参考 [ONLYOFFICE changeLayout](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L728-L753)及 [GraphicFrame 表格重排](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicFrame.js#L413-L477)，未复制上游源码。
 
 ### 文稿与对象
 

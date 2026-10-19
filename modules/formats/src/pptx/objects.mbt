@@ -12,7 +12,11 @@ fn shape_tree(tree : Tree) -> @xml.Node raise @failure.Failure {
 fn placeholder_node(source : Ref) -> Ref? raise @failure.Failure {
   let nv = match source.child("nvSpPr", uri=presentation_uri) {
     Some(value) => Some(value)
-    None => source.child("nvPicPr", uri=presentation_uri)
+    None =>
+      match source.child("nvPicPr", uri=presentation_uri) {
+        Some(value) => Some(value)
+        None => source.child("nvGraphicFramePr", uri=presentation_uri)
+      }
   }
   nv
   .bind(item => item.child("nvPr", uri=presentation_uri))

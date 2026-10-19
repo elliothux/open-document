@@ -5,15 +5,17 @@ fn fragment_paragraph(
   styles : Styles,
   document : @xml.Document,
   limit : Int,
+  links : Map[String, @opc.Relationship],
+  bookmarks : Map[String, Bool],
 ) -> String raise @failure.Failure {
   guard paragraph.readOnlyReason.is_empty() &&
     paragraph.marker is None &&
     tree.children[paragraph.id].all(id => {
       tree.nodes[id].uri == word_uri &&
-      ["pPr", "r"].contains(tree.nodes[id].name)
+      ["pPr", "r", "hyperlink"].contains(tree.nodes[id].name)
     }) else {
     @failure.reject(
-      "protected-content", "Rich cell fragments require ordinary paragraphs without linked resources or lists",
+      "protected-content", "Rich cell fragments require ordinary paragraphs without identities or lists",
     )
   }
   let patch = ParagraphFormat::new(
@@ -58,19 +60,43 @@ fn fragment_paragraph(
   let output = StringBuilder()
   output.write_string("<od:p>" + props)
   let mut units = props.length() + 15
-  for span in paragraph.spans {
-    guard span.image is None && span.field.is_empty() else {
-      @failure.reject(
-        "protected-content", "Rich cell fragments require owned image and field transfer",
-      )
-    }
-    let run = if span.node == paragraph.id {
-      match tree.paragraph_runs(paragraph.id).get(0) {
-        Some(run) => Some(run)
-        None => tree.child(paragraph.id, "pPr")
+  for id in tree.children[paragraph.id] {
+    if tree.nodes[id].name == "hyperlink" {
+      tree.check_hyperlink(id)
+      guard !tree.children[id].is_empty() &&
+        tree.children[id].all(child => {
+          tree.nodes[child].uri == word_uri && tree.nodes[child].name == "r"
+        }) else {
+        @failure.reject(
+          "protected-content", "Rich hyperlink copies require ordinary runs without identities",
+        )
       }
-    } else {
-      Some(tree.nodes[span.node].parent)
+    }
+  }
+  let native_runs = tree.paragraph_runs(paragraph.id)
+  let runs = if native_runs.is_empty() {
+    [tree.child(paragraph.id, "pPr")]
+  } else {
+    native_runs.map(run => Some(run))
+  }
+  let mut active_link : Int? = None
+  for run in runs {
+    let link = run.bind(run => tree.run_hyperlink(run))
+    if link != active_link {
+      if active_link is Some(_) {
+        output.write_string("</od:hyperlink>")
+      }
+      if link is Some(id) {
+        let opening = fragment_link_opening(tree, id, links, bookmarks)
+        guard opening.length() + 15 <= limit - units else {
+          @failure.reject(
+            "limit-exceeded", "Rich hyperlink exceeds source budget",
+          )
+        }
+        units += opening.length() + 15
+        output.write_string(opening)
+      }
+      active_link = link
     }
     if run is Some(run) && tree.nodes[run].name == "r" {
       guard tree.children[run].all(id => {
@@ -89,7 +115,15 @@ fn fragment_paragraph(
       }
     }
     let style = styles.character_style(tree, paragraph.id, run, [])
-    let text = span.text.replace_all(old="\n", new="\u2028")
+    let text = run
+      .map(run => {
+        tree.children[run]
+        .filter(id => tree.nodes[id].name != "rPr")
+        .map(id => inline_text(tree.nodes[id]))
+        .join("")
+      })
+      .unwrap_or("")
+      .replace_all(old="\n", new="\u2028")
     for (style, text) in style.font_runs(text, styles.themes) {
       let format = CharacterFormat::new(
         style=Clear,
@@ -121,6 +155,9 @@ fn fragment_paragraph(
       output.write_string(xml)
     }
   }
+  if active_link is Some(_) {
+    output.write_string("</od:hyperlink>")
+  }
   output.write_string("</od:p>")
   output.to_string()
 }
@@ -134,6 +171,8 @@ fn Session::fragment_cell(
   column : Int,
   styles : Styles,
   limit : Int,
+  links : Map[String, @opc.Relationship],
+  bookmarks : Map[String, Bool],
 ) -> String raise @failure.Failure {
   let cell = grid.cells[row][column]
   tree.check_merge_cell(cell, self.main)
@@ -208,6 +247,8 @@ fn Session::fragment_cell(
       styles,
       self.document(),
       limit,
+      links,
+      bookmarks,
     )
     guard xml.length() <= limit - units else {
       @failure.reject(
@@ -242,7 +283,10 @@ fn Session::capture_table_fragment(
   }
   output.write_string("</od:tblGrid>")
   let styles = self.styles([])
+  let links = self.hyperlink_relationships()
+  let bookmarks = tree.bookmark_targets()
   let mut units = output.to_string().length() + 10
+  let mut hyperlink_count = 0
   for row in top..<bottom {
     output.write_string("<od:tr>")
     units += 17
@@ -263,7 +307,19 @@ fn Session::capture_table_fragment(
             "protected-content", "Rich cell copy must contain complete merged cells",
           )
         }
-        let xml = self.fragment_cell(tree, grid, row, column, styles, limit)
+        for paragraph in tree.table_children(cell, "p") {
+          hyperlink_count += tree.children[paragraph]
+            .filter(id => tree.nodes[id].name == "hyperlink")
+            .length()
+          guard hyperlink_count <= 4096 else {
+            @failure.reject(
+              "limit-exceeded", "Rich table hyperlinks exceed 4096",
+            )
+          }
+        }
+        let xml = self.fragment_cell(
+          tree, grid, row, column, styles, limit, links, bookmarks,
+        )
         guard xml.length() <= limit - units else {
           @failure.reject(
             "limit-exceeded", "Rich table fragment exceeds source budget",

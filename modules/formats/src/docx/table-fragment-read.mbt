@@ -2,6 +2,9 @@
 fn Session::read_table_fragment(
   self : Session,
   xml : String,
+  parts : Map[String, @xml.Document],
+  edits : Map[String, Array[@xml.Edit]],
+  created : Map[String, @xml.Document],
 ) -> (@xml.Document, TableGrid) raise @failure.Failure {
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
   guard !xml.is_empty() && xml.length() <= limit else {
@@ -18,6 +21,7 @@ fn Session::read_table_fragment(
     self.opc.budget.xml_depth,
     self.opc.budget.entry_bytes,
   )
+  let document = self.import_fragment_links(document, parts, edits, created)
   let tree = WordTree::new(document)
   let body = tree.child(0, "body").unwrap()
   guard tree.children[body].length() == 2 &&
@@ -72,7 +76,8 @@ fn Session::read_table_fragment(
       "tc" => ["tcPr", "p"]
       "tcPr" =>
         ["tcW", "gridSpan", "vMerge", "tcBorders", "shd", "tcMar", "vAlign"]
-      "p" => ["pPr", "r"]
+      "p" => ["pPr", "r", "hyperlink"]
+      "hyperlink" => ["r"]
       "r" => ["rPr", "t", "tab", "br", "cr"]
       "pPr" =>
         [
@@ -92,13 +97,14 @@ fn Session::read_table_fragment(
     guard tree.children[id].all(child => {
         children.contains(tree.nodes[child].name)
       }) &&
-      !["pStyle", "rStyle", "hyperlink", "bookmarkStart", "bookmarkEnd"].contains(
-        node.name,
-      ) &&
+      !["pStyle", "rStyle", "bookmarkStart", "bookmarkEnd"].contains(node.name) &&
       (node.name != "numId" || node.attribute("val", uri=word_uri) == Some("0")) else {
       @failure.reject(
         "protected-content", "Rich table fragment contains unsupported references or structure",
       )
+    }
+    if node.name == "hyperlink" {
+      tree.check_hyperlink(id)
     }
     if ["tbl", "tblPr", "tblGrid", "tr", "tc", "tcPr", "p", "pPr", "r", "rPr"].contains(
         node.name,

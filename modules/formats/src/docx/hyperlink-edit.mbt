@@ -1,27 +1,49 @@
 ///|
-fn Session::hyperlink_relationship(
+fn Session::ensure_hyperlink_relationships(
   self : Session,
-  target : String,
+  targets : Array[String],
   links : Map[String, @opc.Relationship],
   parts : Map[String, @xml.Document],
   edits : Map[String, Array[@xml.Edit]],
   created : Map[String, @xml.Document],
-) -> String raise @failure.Failure {
+) -> Map[String, String] raise @failure.Failure {
   let kind = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink"
-  if links
-    .values()
-    .find_first(r => r.external && r.kind == kind && r.target == target)
-    is Some(link) {
-    return link.id
-  }
-  let id = for i in 1..<=16384 {
-    let id = "odLink\{i}"
-    if !links.contains(id) {
-      break id
+  let result : Map[String, String] = Map([])
+  for link in links.values() {
+    if link.external && link.kind == kind && !result.contains(link.target) {
+      result[link.target] = link.id
     }
-  } nobreak {
-    @failure.reject("limit-exceeded", "Hyperlink identities exhausted")
   }
+  let additions = StringBuilder()
+  let mut units = 0
+  let mut sequence = 1
+  for target in targets {
+    if result.contains(target) {
+      continue
+    }
+    while sequence <= 16384 && links.contains("odLink\{sequence}") {
+      sequence += 1
+    }
+    guard sequence <= 16384 else {
+      @failure.reject("limit-exceeded", "Hyperlink identities exhausted")
+    }
+    let id = "odLink\{sequence}"
+    let markup = "<Relationship xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\" Id=\"\{id}\" Type=\"\{kind}\" Target=\"\{property_attribute(target)}\" TargetMode=\"External\"/>"
+    guard markup.length() <= history_byte_limit / 2 - units else {
+      @failure.reject(
+        "limit-exceeded", "Hyperlink relationships exceed source budget",
+      )
+    }
+    units += markup.length()
+    additions.write_string(markup)
+    result[target] = id
+    links[id] = { owner: self.main, id, kind, target, external: true, }
+    sequence += 1
+  }
+  if units == 0 {
+    return result
+  }
+  let markup = additions.to_string()
   let segments = self.main.split("/").to_array()
   let directory = segments[:segments.length() - 1]
     .map(s => s.to_owned())
@@ -31,11 +53,15 @@ fn Session::hyperlink_relationship(
     segments.last().unwrap().to_owned() +
     ".rels"
   let path = self.opc.names.get(path.to_lower()).unwrap_or(path)
-  let markup = "<Relationship xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\" Id=\"\{id}\" Type=\"\{kind}\" Target=\"\{property_attribute(target)}\" TargetMode=\"External\"/>"
   if self.opc.names.contains(path.to_lower()) || parts.contains(path) {
-    let (candidate, edit) = append_part_xml(self.part_xml(path), markup)
+    let original = parts.get(path).unwrap_or_else(() => self.part_xml(path))
+    let (candidate, edit) = append_part_xml(original, markup)
     parts[path] = candidate
-    edits[path] = [edit]
+    if created.contains(path) {
+      created[path] = candidate
+    } else {
+      edits.get_or_init(path, () => []).push(edit)
+    }
   } else {
     let document = @xml.Document::parse(
       @utf8.encode(
@@ -48,7 +74,7 @@ fn Session::hyperlink_relationship(
     parts[path] = document
     created[path] = document
   }
-  id
+  result
 }
 
 ///|
@@ -72,6 +98,7 @@ fn hyperlink_opening(
       .iter()
       .find_first(a => {
         (a.uri == word_uri && a.name == "anchor") ||
+        (a.uri == table_fragment_uri && a.name == "target") ||
         (
           a.uri ==
           "http://schemas.openxmlformats.org/officeDocument/2006/relationships" &&
@@ -365,7 +392,13 @@ pub fn Session::set_hyperlink(
       if target.has_prefix("#") {
         target
       } else {
-        self.hyperlink_relationship(target, links, parts, edits, created)
+        self.ensure_hyperlink_relationships(
+          [target],
+          links,
+          parts,
+          edits,
+          created,
+        )[target]
       }
     })
   }

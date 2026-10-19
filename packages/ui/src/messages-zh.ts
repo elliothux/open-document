@@ -697,6 +697,7 @@ export const zh: Messages = {
   copySlide: "复制页",
   deleteSlide: "删除幻灯片",
   insertTable: "插入表格",
+  fillTablePlaceholder: "填入占位表格",
   rowBefore: "在上方插入行",
   rowAfter: "在下方插入行",
   deleteRow: "删除行",

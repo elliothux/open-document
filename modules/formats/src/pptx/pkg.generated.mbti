@@ -88,6 +88,7 @@ pub(all) enum ObjectEdit {
   Placeholder(String?, Double)
   InsertImage(Bytes, Double, Double, Double, Double)
   InsertTable(Int, Int, Double, Double, Double, Double)
+  FillTable(Int, Int)
   TableStructure(String)
   SplitTableCell(Int, Int)
   TableRowHeight(Double)

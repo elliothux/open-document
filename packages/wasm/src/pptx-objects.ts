@@ -321,6 +321,7 @@ export type PptxObjectEdit =
   | { action: "tableStyle"; style: PptxTableStyle }
   | { action: "tableRowHeight" | "tableColumnWidth"; value: number }
   | { action: "splitTableCell"; rows: number; columns: number }
+  | { action: "fillTable"; rows: number; columns: number }
   | { action: "tableStructure"; operation: (typeof tableOperations)[number] }
   | {
       action: "insertTable";
@@ -464,7 +465,7 @@ export function checkPptxObjectEdit(value: unknown): void {
       throw new Error("Invalid PPTX table dimension");
     return;
   }
-  if (change.action === "splitTableCell") {
+  if (change.action === "splitTableCell" || change.action === "fillTable") {
     const rows = number(change.rows, 1, 1000),
       columns = number(change.columns, 1, 63);
     if (
@@ -475,7 +476,7 @@ export function checkPptxObjectEdit(value: unknown): void {
         (key) => !["action", "rows", "columns"].includes(key),
       )
     )
-      throw new Error("Invalid PPTX split cell dimensions");
+      throw new Error("Invalid PPTX table cell dimensions");
     return;
   }
   if (change.action === "tableStructure") {

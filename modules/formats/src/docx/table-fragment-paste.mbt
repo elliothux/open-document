@@ -9,7 +9,12 @@ fn Session::paste_table_fragment(
   images : @layout.Images?,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  let (incoming, source) = self.read_table_fragment(fragment)
+  let parts = self.parts.copy()
+  let part_edits : Map[String, Array[@xml.Edit]] = Map([])
+  let created : Map[String, @xml.Document] = Map([])
+  let (incoming, source) = self.read_table_fragment(
+    fragment, parts, part_edits, created,
+  )
   let original = self.document()
   let tree = WordTree::new(original)
   let selected = self.table_cell_range(tree, selection)
@@ -51,7 +56,15 @@ fn Session::paste_table_fragment(
           .table_children(cell, "p")
           .all(p => {
             tree.children[p].all(id => {
-              ["pPr", "r"].contains(tree.nodes[id].name)
+              if tree.nodes[id].name == "hyperlink" {
+                tree.check_hyperlink(id)
+                tree.children[id].all(child => {
+                  tree.nodes[child].uri == word_uri &&
+                  tree.nodes[child].name == "r"
+                })
+              } else {
+                ["pPr", "r"].contains(tree.nodes[id].name)
+              }
             })
           }) else {
           @failure.reject(
@@ -69,11 +82,14 @@ fn Session::paste_table_fragment(
   )
   let mut candidate = original
   let steps : Array[@xml.Edit] = []
-  let mut bytes = 0
+  let mut bytes = xml_part_edit_bytes(part_edits, created)
   if !growth.is_empty() {
     let (next, edit) = candidate.edit_source(growth)
     candidate = next
-    bytes = edit_bytes(edit)
+    guard edit_bytes(edit) <= history_byte_limit - bytes else {
+      @failure.reject("limit-exceeded", "Rich paste history exceeds budget")
+    }
+    bytes += edit_bytes(edit)
     steps.push(edit)
   }
   let expanded_tree = WordTree::new(candidate)
@@ -180,7 +196,7 @@ fn Session::paste_table_fragment(
     steps.push(edit)
     candidate = next
   }
-  if steps.is_empty() {
+  if steps.is_empty() && part_edits.is_empty() && created.is_empty() {
     return self.edit_state()
   }
   let flow = self.flow_from(candidate)
@@ -198,8 +214,8 @@ fn Session::paste_table_fragment(
   self.commit_edit(
     {
       xml: steps,
-      parts: Map([]),
-      created: Map([]),
+      parts: part_edits,
+      created,
       created_media: Map([]),
       before: self.selection,
       after: Some({ anchor: focus, focus, }),
@@ -207,6 +223,7 @@ fn Session::paste_table_fragment(
       bytes,
     },
     candidate,
+    parts~,
   )
   self.edit_result(affected)
 }

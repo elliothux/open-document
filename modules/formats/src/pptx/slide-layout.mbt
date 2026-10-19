@@ -249,6 +249,8 @@ fn Session::apply_layout(
   index : Int,
   id : String,
   reset~ : Bool = false,
+  probe? : @layout.TextProbe,
+  profile~ : Map[String, String] = Map([]),
 ) -> Json raise @failure.Failure {
   let original = self.slides[index]
   let current = slide_layout(self.opc, original.tree.part, self.parts)
@@ -266,6 +268,8 @@ fn Session::apply_layout(
   let changes : Array[@xml.SourceChange] = []
   let used : Map[Int, String] = Map([])
   let affected : Map[String, Bool] = Map([])
+  let tables : Array[String] = []
+  let mut layout : Slide? = None
   for node in choice.tree.document.nodes() {
     let source : Ref = { tree: choice.tree, node, }
     if placeholder(source) is Some(ph) {
@@ -284,7 +288,9 @@ fn Session::apply_layout(
       continue
     }
     if placeholder(object.source) is Some(ph) {
-      guard object.kind == "shape" || object.kind == "image" else {
+      guard object.kind == "shape" ||
+        object.kind == "image" ||
+        object.table is Some(_) else {
         @failure.reject(
           "protected-content", "Unsupported local placeholder object",
         )
@@ -295,7 +301,26 @@ fn Session::apply_layout(
           @failure.reject("protected-content", object.read_only)
         }
         used[target.node.id] = object.id
-        changes.append(layout_transform_reset(object.source))
+        if object.table is Some(_) {
+          if layout is None {
+            layout = Some(self.source_slide(choice.tree.part))
+          }
+          let slot = layout.unwrap().objects
+            .iter()
+            .find_first(slot => {
+              slot.source.tree.part == target.tree.part &&
+              slot.source.node.id == target.node.id
+            })
+          guard slot is Some(slot) else {
+            @failure.reject(
+              "protected-content", "Missing target table placeholder geometry",
+            )
+          }
+          changes.append(layout_table_changes(object, slot))
+          tables.push(object.id)
+        } else {
+          changes.append(layout_transform_reset(object.source))
+        }
         affected[object.id] = true
       } else {
         guard layout_empty_placeholder(object) else {
@@ -381,7 +406,7 @@ fn Session::apply_layout(
     edits.push((tree.part, edit))
     document
   }
-  let candidate = read_slide(
+  let mut candidate = read_slide(
     self.opc,
     self.main,
     self.cache,
@@ -390,6 +415,20 @@ fn Session::apply_layout(
     date_time=self.date_time,
     parts~,
   )
+  let fitted = candidate.layout_table_fit(tables, probe, profile)
+  if !fitted.is_empty() {
+    let (document, edit) = candidate.tree.document.edit_source(fitted)
+    edits.push((tree.part, edit))
+    candidate = read_slide(
+      self.opc,
+      self.main,
+      self.cache,
+      Tree::new(tree.part, document),
+      index=self.index(tree.part),
+      date_time=self.date_time,
+      parts~,
+    )
+  }
   guard candidate.read_only.is_empty() &&
     candidate.diagnostics.all(message => original.diagnostics.contains(message)) else {
     @failure.reject(

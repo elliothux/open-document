@@ -419,6 +419,11 @@ fn Foundation::pptx_operation(
             xlsx_number(change, "width"),
             xlsx_number(change, "height"),
           )
+        "fillTable" =>
+          @pptx.FillTable(
+            field_int(change, "rows"),
+            field_int(change, "columns"),
+          )
         "insertTable" =>
           @pptx.InsertTable(
             field_int(change, "rows"),

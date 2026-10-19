@@ -290,7 +290,7 @@ pub fn Session::edit_slides(
       }
       return self.set_theme_font(kind, script, font, probe, profile)
     }
-    ApplyLayout(id) => return self.apply_layout(index, id)
+    ApplyLayout(id) => return self.apply_layout(index, id, probe?, profile~)
     AddLayout
     | CopyLayout
     | DeleteLayout
@@ -308,6 +308,8 @@ pub fn Session::edit_slides(
           "",
         ),
         reset=true,
+        probe?,
+        profile~,
       )
     Notes(text) => return self.set_notes(index, text)
     FirstSlideNumber(number) => {

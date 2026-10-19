@@ -704,6 +704,7 @@ export const en = {
   copySlide: "Copy slide",
   deleteSlide: "Delete slide",
   insertTable: "Insert table",
+  fillTablePlaceholder: "Fill table placeholder",
   rowBefore: "Insert row above",
   rowAfter: "Insert row below",
   deleteRow: "Delete row",

@@ -256,6 +256,32 @@ export function PptxObjects({
           >
             {t.insertTable}
           </button>
+          {objectMode &&
+            query.selection.objects.length === 1 &&
+            selected?.placeholder.value &&
+            ["tbl", "obj"].includes(selected.placeholder.value.type) && (
+              <button
+                type="button"
+                disabled={
+                  !!selected.tableFillReason ||
+                  !Number.isInteger(Number(rows)) ||
+                  !Number.isInteger(Number(columns)) ||
+                  Number(rows) * Number(columns) > 4096
+                }
+                title={selected.tableFillReason}
+                onClick={() =>
+                  controller.run(() =>
+                    editor.editObjects({
+                      action: "fillTable",
+                      rows: Number(rows),
+                      columns: Number(columns),
+                    }),
+                  )
+                }
+              >
+                {t.fillTablePlaceholder}
+              </button>
+            )}
         </fieldset>
       </form>
       {query.table && (

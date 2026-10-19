@@ -526,6 +526,7 @@ export function pptxQuery(value: unknown): PptxQuery {
           "rotateReason",
           "arrangeReason",
           "transformReason",
+          "tableFillReason",
         ],
         [],
       ) ||

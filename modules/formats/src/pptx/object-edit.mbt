@@ -5,6 +5,7 @@ pub(all) enum ObjectEdit {
   Placeholder(String?, Double)
   InsertImage(Bytes, Double, Double, Double, Double)
   InsertTable(Int, Int, Double, Double, Double, Double)
+  FillTable(Int, Int)
   TableStructure(String)
   SplitTableCell(Int, Int)
   TableRowHeight(Double)
@@ -331,6 +332,9 @@ pub fn Session::edit_objects(
   if change is InsertTable(rows, columns, x, y, width, height) {
     return self.insert_table(rows, columns, x, y, width, height, probe, profile)
   }
+  if change is FillTable(rows, columns) {
+    return self.fill_table(rows, columns, probe, profile)
+  }
   if change is TableStructure(operation) {
     return self.edit_table_structure(operation, probe, profile)
   }
@@ -404,6 +408,7 @@ pub fn Session::edit_objects(
   let (changes, after) = match change {
     InsertImage(_, _, _, _, _)
     | InsertTable(_, _, _, _, _, _)
+    | FillTable(_, _)
     | TableStructure(_)
     | SplitTableCell(_, _)
     | TableRowHeight(_)
