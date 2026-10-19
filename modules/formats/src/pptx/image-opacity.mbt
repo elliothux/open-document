@@ -47,7 +47,7 @@ fn Session::set_image_opacity(
   value : Double,
 ) -> Json raise @failure.Failure {
   let amount = image_opacity_amount(value)
-  let object = self.editable(false)
+  let object = self.selected_image(false)
   let reason = self.opacity_reason(object)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   if (object.opacity * 100000).round().to_int() == amount {

@@ -108,6 +108,20 @@ fn Object::member_transform_reason(
     if locks is Some(locks) && action == "rotate" && flag(locks.node, "noRot") {
       return "Group member rotation is locked"
     }
+    if locks is Some(locks) &&
+      (
+        (action == "duplicate" && flag(locks.node, "noCopy")) ||
+        (action == "delete" && flag(locks.node, "noDelete"))
+      ) {
+      return "Group member operation is locked: " + action
+    }
+    if locks is Some(locks) &&
+      (
+        (action == "group" && flag(locks.node, "noGrp")) ||
+        (action == "ungroup" && flag(locks.node, "noUngrp"))
+      ) {
+      return "Group member grouping is locked"
+    }
   }
   ""
 }

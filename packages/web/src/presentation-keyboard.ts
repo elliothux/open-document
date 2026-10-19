@@ -22,7 +22,7 @@ export function presentationKey(
     if (state.selection.mode === "object")
       return editor.selectObjects(
         state.objects
-          .filter((object) => !object.parent)
+          .filter((peer) => peer.parent === (object?.parent ?? ""))
           .map((object) => object.id),
       );
     if (object) return editor.select(object.id, "text", 0, object.text.length);
@@ -42,7 +42,13 @@ export function presentationKey(
     event.key.toLowerCase() === "d"
   ) {
     event.preventDefault();
-    if (objects.some((object) => object.duplicateReason)) return;
+    if (
+      objects.some(
+        (object) =>
+          object.duplicateReason || object.parent !== objects[0]?.parent,
+      )
+    )
+      return;
     return editor.editObjects({ action: "duplicate", dx: 18, dy: 18 });
   }
   if (event.key === "Tab") {
@@ -74,7 +80,12 @@ export function presentationKey(
     );
   } else if (event.key === "Delete" || event.key === "Backspace") {
     event.preventDefault();
-    if (objects.some((object) => object.deleteReason)) return;
+    if (
+      objects.some(
+        (object) => object.deleteReason || object.parent !== objects[0]?.parent,
+      )
+    )
+      return;
     return editor.editObjects({ action: "delete" });
   }
 }

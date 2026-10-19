@@ -112,7 +112,7 @@ fn Session::layer_objects(
   }
   let objects = self.transform_objects()
   let tree = self.current().tree
-  let parent = shape_tree(tree)
+  let parent = tree.nodes[objects[0].source.node.parent]
   let peers = tree.children
     .get(parent.id)
     .unwrap_or([])

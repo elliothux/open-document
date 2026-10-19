@@ -139,46 +139,6 @@ fn Slide::group_preview(
 }
 
 ///|
-fn Object::ungroup_geometry(
-  self : Object,
-  parent : Geometry,
-) -> Geometry raise @failure.Failure {
-  let geometry = self.geometry.unwrap()
-  let matrix = geometry.matrix
-  guard (matrix.a * matrix.a + matrix.b * matrix.b - 1).abs() < 0.00000001 &&
-    (matrix.c * matrix.c + matrix.d * matrix.d - 1).abs() < 0.00000001 &&
-    (matrix.a * matrix.c + matrix.b * matrix.d).abs() < 0.00000001 else {
-    @failure.reject("protected-content", "Unsupported group member transform")
-  }
-  let flip_x = geometry.flip_x != parent.flip_x
-  let reflected = matrix.a * matrix.d - matrix.b * matrix.c < 0
-  let flip_y = reflected != flip_x
-  let sign = if flip_x { -1.0 } else { 1.0 }
-  let rotation = (@math.atan2(matrix.b * sign, matrix.a * sign) *
-    180 /
-    @math.PI *
-    60000).round() /
-    60000
-  let (cx, cy) = matrix.point(geometry.width / 2, geometry.height / 2)
-  let target = {
-    ..geometry,
-    x: ((cx - geometry.width / 2) * 12700).round() / 12700,
-    y: ((cy - geometry.height / 2) * 12700).round() / 12700,
-    rotation,
-    flip_x,
-    flip_y,
-  }
-  validate_object_box(
-    target.x,
-    target.y,
-    target.width,
-    target.height,
-    self.preset == "line",
-  )
-  target
-}
-
-///|
 fn Tree::standalone_markup(
   self : Tree,
   document : @xml.Document,
@@ -243,4 +203,65 @@ fn transformed_markup(
     }
   }
   original.tree.document.edit_source(changes).0
+}
+
+///|
+fn Object::promoted_geometry(
+  self : Object,
+  parent : @layout.Matrix,
+  flip_x : Bool,
+) -> Geometry raise @failure.Failure {
+  let initial = self.geometry.unwrap()
+  let matrix = initial.matrix
+  guard (matrix.a * matrix.a + matrix.b * matrix.b - 1).abs() < 0.00000001 &&
+    (matrix.c * matrix.c + matrix.d * matrix.d - 1).abs() < 0.00000001 &&
+    (matrix.a * matrix.c + matrix.b * matrix.d).abs() < 0.00000001 else {
+    @failure.reject("protected-content", "Unsupported group member transform")
+  }
+  let sx = (parent.a * parent.a + parent.b * parent.b).sqrt()
+  let sy = (parent.c * parent.c + parent.d * parent.d).sqrt()
+  let frame = {
+    ..parent,
+    a: parent.a / sx,
+    b: parent.b / sx,
+    c: parent.c / sy,
+    d: parent.d / sy,
+  }
+  let relative = frame.inverse().then(initial.matrix)
+  let sign = if flip_x { -1.0 } else { 1.0 }
+  let rotation = (@math.atan2(relative.b * sign, relative.a * sign) *
+    180 /
+    @math.PI *
+    60000).round() /
+    60000
+  let flip_y = (relative.a * relative.d - relative.b * relative.c < 0) != flip_x
+  let (cx, cy) = initial.matrix.point(initial.width / 2, initial.height / 2)
+  let (cx, cy) = frame.inverse().point(cx, cy)
+  let target = {
+    ..initial,
+    x: ((cx - initial.width / 2) / sx * 12700).round() / 12700,
+    y: ((cy - initial.height / 2) / sy * 12700).round() / 12700,
+    width: (initial.width / sx * 12700).round() / 12700,
+    height: (initial.height / sy * 12700).round() / 12700,
+    rotation,
+    flip_x,
+    flip_y,
+  }
+  guard [target.x, target.y, target.width, target.height].all(v => {
+      !v.is_nan() && !v.is_inf() && v.abs() <= 14400
+    }) &&
+    (
+      (target.width > 0 && target.height > 0) ||
+      (
+        self.preset == "line" &&
+        target.width >= 0 &&
+        target.height >= 0 &&
+        target.width + target.height > 0
+      )
+    ) else {
+    @failure.reject(
+      "invalid-transform", "Promoted group member exceeds native bounds",
+    )
+  }
+  target
 }

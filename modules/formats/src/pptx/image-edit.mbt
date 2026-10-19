@@ -4,16 +4,15 @@ fn Session::image_reason(
   object : Object,
   crop : Bool,
 ) -> String {
-  if !object.read_only.is_empty() {
-    return object.read_only
+  let reason = self.appearance_reason(object)
+  if !reason.is_empty() {
+    return reason
   }
   try {
     guard object.kind == "image" &&
       object.image is Some(_) &&
-      object.source.tree.part == self.selection.slide &&
-      object.parent.is_empty() &&
-      object.source.node.parent == shape_tree(self.current().tree).id else {
-      return "Picture editing requires a local top-level picture"
+      object.source.tree.part == self.selection.slide else {
+      return "Picture editing requires a local picture"
     }
     let fill = object.source.child("blipFill", uri=presentation_uri).unwrap()
     guard fill.child("blip") is Some(blip) &&
@@ -53,7 +52,12 @@ fn Session::selected_image(
   self : Session,
   crop : Bool,
 ) -> Object raise @failure.Failure {
-  let object = self.editable(false)
+  guard self.selection.mode == "object" && self.selection.objects.length() == 1 else {
+    @failure.reject(
+      "invalid-operation", "Picture editing requires one selected object",
+    )
+  }
+  let object = self.current().object(self.selection.object)
   let reason = self.image_reason(object, crop)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   object

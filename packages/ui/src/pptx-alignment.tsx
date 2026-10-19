@@ -30,7 +30,12 @@ export function PptxAlignment({
         disabled ||
         query.selection.mode !== "object" ||
         !selected.length ||
-        selected.some((object) => !object.geometry || object.arrangeReason)
+        selected.some(
+          (object) =>
+            !object.geometry ||
+            object.arrangeReason ||
+            object.parent !== selected[0]?.parent,
+        )
       }
     >
       <legend>{t.alignObjects}</legend>

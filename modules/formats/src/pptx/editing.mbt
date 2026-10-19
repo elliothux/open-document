@@ -15,7 +15,7 @@ fn Session::prepare(
     parts=self.parts,
   )
   self.validate(candidate)
-  (candidate.group_bounds(candidate.changed_member_transforms(slide)), edit)
+  (candidate.group_bounds(candidate.changed_group_members(slide)), edit)
 }
 
 ///|

@@ -35,7 +35,7 @@ fn Object::adjustment_values(self : Object) -> Array[(String, Double, Double)] {
 
 ///|
 fn Session::adjustment_reason(self : Session, object : Object) -> String {
-  let reason = self.object_edit_reason(object, "adjust")
+  let reason = self.appearance_reason(object)
   if !reason.is_empty() {
     return reason
   }

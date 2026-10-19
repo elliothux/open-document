@@ -78,17 +78,57 @@ fn paint_fill(properties : Ref) -> @xml.Node? raise @failure.Failure {
 }
 
 ///|
-fn Session::paint_reason(self : Session, object : Object) -> String {
-  if !object.read_only.is_empty() {
+fn Session::appearance_reason(self : Session, object : Object) -> String {
+  if !object.read_only.is_empty() &&
+    object.read_only != "Group members are read-only" {
     return object.read_only
   }
   try {
-    let slide = self.slides[self.index(object.source.tree.part)]
+    let slide = self.current()
     guard slide.read_only.is_empty() else { return slide.read_only }
-    guard object.kind == "shape" &&
-      object.parent.is_empty() &&
-      object.source.node.parent == shape_tree(slide.tree).id else {
-      return "Appearance editing requires a local top-level shape"
+    guard object.source.tree.part == slide.tree.part &&
+      (
+        !object.parent.is_empty() ||
+        object.source.node.parent == shape_tree(slide.tree).id
+      ) else {
+      return "Appearance editing requires a local object"
+    }
+    for parent = object.source.node.parent
+        parent >= 0
+        parent = object.source.tree.nodes[parent].parent {
+      let node = object.source.tree.nodes[parent]
+      if node.uri != presentation_uri || node.name != "grpSp" {
+        continue
+      }
+      let group : Ref = { tree: object.source.tree, node, }
+      let problem = group.group_problem()
+      if !problem.is_empty() {
+        return problem
+      }
+      let locks = group
+        .child("nvGrpSpPr", uri=presentation_uri)
+        .bind(nv => nv.child("cNvGrpSpPr", uri=presentation_uri))
+        .bind(properties => properties.child("grpSpLocks"))
+      if locks is Some(locks) &&
+        ["noDrilldown", "noSelect"].any(key => flag(locks.node, key)) {
+        return "Group member appearance editing is locked"
+      }
+    }
+    ""
+  } catch {
+    @failure.Failure(message~, ..) => message
+  }
+}
+
+///|
+fn Session::paint_reason(self : Session, object : Object) -> String {
+  let reason = self.appearance_reason(object)
+  if !reason.is_empty() {
+    return reason
+  }
+  try {
+    guard object.kind == "shape" else {
+      return "Appearance editing requires a shape"
     }
     guard object.source.child("spPr", uri=presentation_uri) is Some(properties) else {
       return "Missing editable shape properties"

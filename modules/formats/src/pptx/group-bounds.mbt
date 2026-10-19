@@ -10,7 +10,7 @@ fn member_geometry_changed(before : Geometry, after : Geometry) -> Bool {
 }
 
 ///|
-fn Slide::changed_member_transforms(
+fn Slide::changed_group_members(
   self : Slide,
   before : Slide,
 ) -> Array[String] raise @failure.Failure {
@@ -18,25 +18,44 @@ fn Slide::changed_member_transforms(
   for object in before.objects {
     previous[object.id] = object
   }
-  self.objects
-  .filter(object => {
-    guard object.source.tree.part == self.tree.part &&
-      !object.parent.is_empty() &&
-      previous.get(object.id) is Some(old) &&
-      old.parent == object.parent else {
-      return false
+  let current : Map[String, Object] = Map([])
+  let children : Map[String, String] = Map([])
+  for object in self.objects {
+    current[object.id] = object
+    if object.source.tree.part == self.tree.part && !object.parent.is_empty() {
+      children[object.parent] = object.id
     }
-    let properties = if object.kind == "group" { "grpSpPr" } else { "spPr" }
-    let transform = fn(object : Object) raise @failure.Failure {
-      object.source
-      .child(properties, uri=presentation_uri)
-      .bind(properties => properties.child("xfrm"))
-      .map(source_xml)
-      .unwrap_or("")
+  }
+  let changed = self.objects
+    .filter(object => {
+      guard object.source.tree.part == self.tree.part &&
+        !object.parent.is_empty() &&
+        previous.contains(object.parent) else {
+        return false
+      }
+      guard previous.get(object.id) is Some(old) && old.parent == object.parent else {
+        return true
+      }
+      let properties = if object.kind == "group" { "grpSpPr" } else { "spPr" }
+      let transform = fn(object : Object) raise @failure.Failure {
+        object.source
+        .child(properties, uri=presentation_uri)
+        .bind(properties => properties.child("xfrm"))
+        .map(source_xml)
+        .unwrap_or("")
+      }
+      transform(object) != transform(old)
+    })
+    .map(object => object.id)
+  for object in before.objects {
+    if !object.parent.is_empty() &&
+      children.get(object.parent) is Some(survivor) &&
+      !(current.get(object.id) is Some(next) && next.parent == object.parent) &&
+      !changed.contains(survivor) {
+      changed.push(survivor)
     }
-    transform(object) != transform(old)
-  })
-  .map(object => object.id)
+  }
+  changed
 }
 
 ///|
@@ -292,7 +311,7 @@ fn Session::normalize_groups(
     is Some(before) else {
     return (slide, None)
   }
-  let ids = slide.changed_member_transforms(before)
+  let ids = slide.changed_group_members(before)
   if ids.is_empty() {
     return (slide, None)
   }

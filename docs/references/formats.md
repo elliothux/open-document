@@ -1691,33 +1691,33 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 图片插入为 `{ action: "insertImage", bytes: Uint8Array, x, y, width, height }`，沿相同 `editObjects` 入口。坐标为 point，绝对值不超过 14400，宽高至少 0.1。接收本地 PNG/JPEG 原字节，单图最多 4 MiB，尺寸每轴不超过 4096，像素总数不超过 4194304，文稿最多 256 个不同图片资源；最终包与单项 4 MiB 历史预算仍可拒绝操作。核心检查文件头、声明尺寸和几何；浏览器客户端提交前验证实际解码与声明尺寸一致，坏图保留当前源和历史。同步 Wasm 入口不承担宿主解码，导入图片仍沿原有解码合同。核心分配对象与资源身份，事务新增图片、内部关系和内容类型；撤销移除本次新资源，重做恢复原字节及 ZIP 顺序。对象/页复制共用图片，删除对象/页保留资源，不清理整个包。默认 UI 选择图片文件，并采用插入面板中的 X/Y/宽高。创建矩形图片并 stretch 到给定几何的规则参考 [ONLYOFFICE fillImage](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L114-L142)。高级图片效果继续归 [P12](../p12-pptx-core.md)及后续兼容扩展。
 
-图片替换为 `{ action: "replaceImage", object, bytes: Uint8Array }`，使用相同图片预算和浏览器解码检查。要求对象模式中唯一的本地顶层图片，保持对象身份、选择、几何、旋转/翻转、裁剪及其他源属性；为它新建图片和关系，不覆盖共享资源或改变其他副本。`object` 必须与提交时唯一选中的图片身份一致；文件读取期间改变选择会拒绝替换，防止改错目标。相同原字节不新增历史。对象几何保留参考 [ONLYOFFICE replacePictureData 的 stretch 路径](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L839-L869)，当前接口保留原裁剪，不提供 fit/fill/original 模式。
+图片替换为 `{ action: "replaceImage", object, bytes: Uint8Array }`，使用相同图片预算和浏览器解码检查。要求对象模式中唯一的本地图片（含组成员），保持对象身份、选择、几何、旋转/翻转、裁剪及其他源属性；为它新建图片和关系，不覆盖共享资源或改变其他副本。`object` 必须与提交时唯一选中的图片身份一致；文件读取期间改变选择会拒绝替换，防止改错目标。相同原字节不新增历史。对象几何保留参考 [ONLYOFFICE replacePictureData 的 stretch 路径](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L839-L869)，当前接口保留原裁剪，不提供 fit/fill/original 模式。
 
-独立图片使用 `editObjects({ action: "imageMode", mode: "stretch" | "tile" })` 切换模式。`picture.mode` 返回当前有效模式，`modeReason` 返回编辑保护原因；默认图片面板提供选择和应用。命令作用于唯一选中的本地顶层图片，只改 `blipFill` 的模式节点，保持身份、外框、旋转/翻转、裁剪、不透明度、图片字节及关系。同值不增加历史。未显式声明模式的已知源按拉伸读取，首次切换插入标准平铺。导入支持已有缩放、偏移、对齐与交替翻转，范围与[形状平铺](#形状图片填充)相同。平铺使用整张源图并保留裁剪；切回拉伸时重新应用裁剪，并在提交前验证展开尺寸。
+独立图片使用 `editObjects({ action: "imageMode", mode: "stretch" | "tile" })` 切换模式。`picture.mode` 返回当前有效模式，`modeReason` 返回编辑保护原因；默认图片面板提供选择和应用。命令作用于唯一选中的本地图片（含组成员），只改 `blipFill` 的模式节点，保持身份、外框、旋转/翻转、裁剪、不透明度、图片字节及关系。同值不增加历史。未显式声明模式的已知源按拉伸读取，首次切换插入标准平铺。导入支持已有缩放、偏移、对齐与交替翻转，范围与[形状平铺](#形状图片填充)相同。平铺使用整张源图并保留裁剪；切回拉伸时重新应用裁剪，并在提交前验证展开尺寸。
 
 图片在拉伸和平铺时均按已支持的预设图片框裁剪，矩形沿原矩形路径，椭圆等复用已有形状轮廓；变换后的框和图片使用同一矩阵。绘制入口参考 [ONLYOFFICE CImageShape.draw](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L592-L659)，平铺语义复用其 ShapeDrawer。背景、形状填充和独立图片共用每页 65536 个重复单元；尺寸和变换候选沿同一数量检查。未知模式/填充标记、外链、固定页面方向及未知效果继续保护；目标内缩归[图片目标内缩](#图片目标内缩)；未知几何不放开。失败保留源、资源、选择和历史。保存重开、复制、替换、裁剪、不透明度及 Canvas/PDF 沿原路径。实现归 [`picture-mode.mbt`](../../modules/formats/src/pptx/picture-mode.mbt)及[共享平铺](../../modules/formats/src/pptx/shape-tile.mbt)。
 
-四边裁剪为 `{ action: "imageCrop", left, top, right, bottom }`，每边为源图的移除比例，范围 0 至 0.99999。核心按 OOXML 的 1/100000 网格舍入，左右及上下之和必须小于 1，派生绘图坐标继续受预算约束；不改对象外框。四个零恢复整图并移除裁剪覆盖，同值不新增历史。`PptxObject.picture` 返回四边有效比例和 `replaceReason/cropReason`，另返回 `mode` 与 `modeReason`。裁剪锁、继承/组内图片、非唯一选择、未知裁剪标记及预算失败保留源；默认 UI 提供替换文件、四边百分比和重置。替换、裁剪和后续对象编辑沿同一历史精确恢复，保存重开与 Canvas/PDF 共用已有源矩形显示路径。
+四边裁剪为 `{ action: "imageCrop", left, top, right, bottom }`，每边为源图的移除比例，范围 0 至 0.99999。核心按 OOXML 的 1/100000 网格舍入，左右及上下之和必须小于 1，派生绘图坐标继续受预算约束；不改对象外框。四个零恢复整图并移除裁剪覆盖，同值不新增历史。`PptxObject.picture` 返回四边有效比例和 `replaceReason/cropReason`，另返回 `mode` 与 `modeReason`。裁剪锁、继承图片、非唯一选择、未知裁剪标记及预算失败保留源；默认 UI 提供替换文件、四边百分比和重置。替换、裁剪和后续对象编辑沿同一历史精确恢复，保存重开与 Canvas/PDF 共用已有源矩形显示路径。
 
-图片不透明度为 `{ action: "imageOpacity", opacity }`，要求对象模式中唯一的本地顶层图片。`opacity` 为 0 至 1，0 完全透明，1 完全不透明；核心按 1/100000 网格写入 `a:alphaModFix amt`，调回 1 时移除覆盖，同值不新增历史。`picture.opacity/opacityReason` 返回当前值及修改保护原因。支持单个常量 alpha 效果，其他效果继续诊断；带未知保留标记的透明度节点保护修改。倍乘关系参考 [ONLYOFFICE CBlipFill 常量 alpha](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L3818-L3840)。操作保持身份、几何、裁剪、图片原字节及共享副本，能与替换/复制混合精确撤销和保存重开。默认 UI 显示不透明度百分比。
+图片不透明度为 `{ action: "imageOpacity", opacity }`，要求对象模式中唯一的本地图片（含组成员）。`opacity` 为 0 至 1，0 完全透明，1 完全不透明；核心按 1/100000 网格写入 `a:alphaModFix amt`，调回 1 时移除覆盖，同值不新增历史。`picture.opacity/opacityReason` 返回当前值及修改保护原因。支持单个常量 alpha 效果，其他效果继续诊断；带未知保留标记的透明度节点保护修改。倍乘关系参考 [ONLYOFFICE CBlipFill 常量 alpha](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L3818-L3840)。操作保持身份、几何、裁剪、图片原字节及共享副本，能与替换/复制混合精确撤销和保存重开。默认 UI 显示不透明度百分比。
 
 定位后的图片图元携带不透明度，DOCX 行内图片显式使用 1。Canvas 沿公共 `DrawStyle.fillAlpha` 执行，图片结束后恢复默认样式；PDF 在单张图片的作用域应用 ExtGState `ca`，与原像素的软蒙版相乘，不把共享原图改成带透明度的新像素。两个输出共用核心值和相同源像素，完全透明的对象仍保留选择及资源。
 
-删除参数为 `{ action: "delete" }`，复制为 `{ action: "duplicate", dx, dy }`。两者要求对象模式；空选区不修改文档。删除作用于整个集合，先校验全部成员，再提交一项历史；任一保护失败不删除其他成员。复制作用于整个集合，包括受支持的嵌套组；副本按原源顺序放到最上层。保留源内容、几何、组缩放、命名空间与图片/超链接关系，为副本及其全部成员分配会话内尚未使用的新 `cNvPr.id`，域身份同样更新。副本内部对象引用重映射；引用集合外对象而需联动的结构明确拒绝。副本选择保留原选择顺序及对应活动对象。一次复制合为一项历史，任一成员、字体、几何或预算失败不创建副本、不消耗身份。原对象、其他部件和资源保持原样。一次复制的 XML 片段及继承命名空间合计最多 2 Mi UTF-16 单元，在拼接前检查；最终包和历史继续受原有预算约束。删除清空选择；撤销/重做精确恢复源 XML 与选择。`PptxObject.deleteReason/duplicateReason` 返回操作保护原因，空串表示可用。继承/组成员/未知对象继续保护；复制占位符及未知扩展、删除锁定或带连接/计时引用的对象仍拒绝，含未支持所属关系的页面也保护删除。资源和关系不做清理。默认 UI 提供插入面板、复制/删除按钮；对象输入支持 Delete/Backspace 与 Ctrl/Cmd+D，默认复制偏移各 18 pt。
+删除参数为 `{ action: "delete" }`，复制为 `{ action: "duplicate", dx, dy }`。两者要求对象模式；空选区不修改文档。删除作用于整个集合，先校验全部成员，再提交一项历史；任一保护失败不删除其他成员。复制作用于整个集合，包括受支持的嵌套组；副本按原源顺序放到所属父容器的最上层。保留非变换源内容、页面几何、命名空间与图片/超链接关系，为副本及其全部成员分配会话内尚未使用的新 `cNvPr.id`，域身份同样更新。副本内部对象引用重映射；引用集合外对象而需联动的结构明确拒绝。副本选择保留原选择顺序及对应活动对象。一次复制合为一项历史，任一成员、字体、几何或预算失败不创建副本、不消耗身份。原对象的页面姿态、非变换内容、其他部件及资源保持；组内原生坐标可随边界重算归一化。一次复制的 XML 片段及继承命名空间合计最多 2 Mi UTF-16 单元，在拼接前检查；最终包和历史继续受原有预算约束。删除清空选择；撤销/重做精确恢复源 XML 与选择。`PptxObject.deleteReason/duplicateReason` 返回操作保护原因，空串表示可用。继承/跨父组选择/未知对象继续保护；复制占位符及未知扩展、删除锁定或带连接/计时引用的对象仍拒绝，含未支持所属关系的页面也保护删除。资源和关系不做清理。默认 UI 提供插入面板、复制/删除按钮；对象输入支持 Delete/Backspace 与 Ctrl/Cmd+D，默认复制偏移各 18 pt。
 
 圆角矩形使用 `roundRect`，实心箭头使用四个方向的标准 DrawingML 预设；新对象使用默认调节点。读取圆角 `adj`、箭头 `adj1/adj2` 的 `val` 数值公式，按预设上下限和实际宽高计算路径、文字矩形及命中；未知调节点或公式保留源并诊断。文字矩形先于 bodyPr 内边距，新增/复制时继续检查实际容量。Canvas 与 PDF 使用同一路径，旋转和局部翻转使用同一矩阵。
 
 三角形 `triangle`、直角三角形 `rtTriangle`、菱形 `diamond`、平行四边形 `parallelogram` 和梯形 `trapezoid` 已接通导入、插入、文字编辑、轮廓命中及 Canvas/PDF。路径和文字矩形依据 [ONLYOFFICE CreateGeometry](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L8500-L8550)，实现归 [`polygon-shapes.mbt`](../../modules/formats/src/pptx/polygon-shapes.mbt)。三角形的 `adj` 是顶点横向比例，默认 0.5，范围 0–1；平行四边形及梯形的 `adj` 是斜边偏移占短边的倍数，默认 0.25，上限分别为宽/短边及宽/(2×短边)。导入数值按几何上限夹取；编辑值越界则拒绝。直角三角形和菱形没有调节项。文字矩形先计算，再加框内边距。数值修改、恢复预设、多选保护、保存和精确历史复用既有命令；单一 `adj` 的面板批量修改要求相同预设。复杂自定义几何和指针调节手柄继续实施。
 
-`editObjects({ action: "shapeAdjustment", name, value })` 修改所选本地顶层预设形状的一个调节值。圆角 `adj` 为短边的 0–0.5 倍；四向实心箭头的 `adj1` 为箭身占横向宽度的 0–1 倍，`adj2` 为箭头长度占短边的倍数，上限是箭头方向边长除以短边。数值按十万分之一保存，沿现有公式整数范围限制在 0–21474.83647。null 只移除该调节值，恢复预设默认值；其他调节值和源内容保留。规则依据 [ONLYOFFICE 预设几何](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/common/Drawings/Format/CreateGeometry.js#L6947-L6981)，实现归 [`shape-adjustment.mbt`](../../modules/formats/src/pptx/shape-adjustment.mbt)。
+`editObjects({ action: "shapeAdjustment", name, value })` 修改所选本地预设形状的一个调节值，包含组成员。圆角 `adj` 为短边的 0–0.5 倍；四向实心箭头的 `adj1` 为箭身占横向宽度的 0–1 倍，`adj2` 为箭头长度占短边的倍数，上限是箭头方向边长除以短边。数值按十万分之一保存，沿现有公式整数范围限制在 0–21474.83647。null 只移除该调节值，恢复预设默认值；其他调节值和源内容保留。规则依据 [ONLYOFFICE 预设几何](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/common/Drawings/Format/CreateGeometry.js#L6947-L6981)，实现归 [`shape-adjustment.mbt`](../../modules/formats/src/pptx/shape-adjustment.mbt)。
 
-对象查询的 `shapeAdjustments` 返回 `preset`、`reason` 和 `values`；各值包含 `name/value/maximum`，使用与命令相同的比例。默认面板显示百分比，支持分别应用、恢复预设值及相同调节项的多选混合查询。任一对象锁定 `noAdjustHandles`、未知调节源、所选形状不支持该项或数值越过几何上限时，整项拒绝。无变化不新增历史。修改与派生的字体缩小或形状自动尺寸合为一项历史，保留文字、身份、选择及非目标部件；保存重开后可继续修改。组内、继承对象、指针拖动调节手柄和任意自定义几何编辑继续实施。
+对象查询的 `shapeAdjustments` 返回 `preset`、`reason` 和 `values`；各值包含 `name/value/maximum`，使用与命令相同的比例。默认面板显示百分比，支持分别应用、恢复预设值及相同调节项的多选混合查询。任一对象锁定 `noAdjustHandles`、未知调节源、所选形状不支持该项或数值越过几何上限时，整项拒绝。无变化不新增历史。修改与派生的字体缩小或形状自动尺寸合为一项历史，保留文字、身份、选择及非目标部件；保存重开后可继续修改。继承对象、指针拖动调节手柄和任意自定义几何编辑继续实施。
 
-旋转使用 `{ action: "rotate", angle }`，绝对角度为 -360°–360°，核心舍入到 1/60000°。`{ action: "flip", axis: "horizontal" | "vertical" }` 切换局部水平/垂直翻转。`{ action: "layer", order: "front" | "back" | "forward" | "backward" }` 调整本地顶层对象的源顺序。三者均支持本地顶层对象集合，组作为一个对象处理。各操作保留位置、尺寸、对象身份、文字、裁剪和关系；相同角度与层次边界不新增历史。旋转独立保持各对象自身中心点；翻转分别反转各对象的局部轴状态。文字、图形、图片、命中和选区消费同一矩阵。`geometry` 返回源有效 `rotation/flipX/flipY`，`rotateReason/arrangeReason` 返回对应保护原因。`noRot` 仅阻止旋转；继承/组成员与原有变换锁继续保护。默认 UI 提供角度、翻转及四种层次操作。
+旋转使用 `{ action: "rotate", angle }`，绝对角度为 -360°–360°，核心舍入到 1/60000°。`{ action: "flip", axis: "horizontal" | "vertical" }` 切换局部水平/垂直翻转。`{ action: "layer", order: "front" | "back" | "forward" | "backward" }` 调整本地顶层对象或同组成员的源顺序。三者均支持同一父容器中的本地对象集合，组作为一个对象处理。各操作保留位置、尺寸、对象身份、文字、裁剪和关系；相同角度与层次边界不新增历史。旋转独立保持各对象自身中心点；翻转分别反转各对象的局部轴状态。文字、图形、图片、命中和选区消费同一矩阵。`geometry` 返回源有效 `rotation/flipX/flipY`，`rotateReason/arrangeReason` 返回对应保护原因。`noRot` 仅阻止旋转；继承、跨父组选择与原有变换锁继续保护。默认 UI 提供角度、翻转及四种层次操作。
 
 批量旋转/翻转要求对象模式，保留各成员位置、尺寸、源顺序、关系、选择顺序及活动对象；组成员的局部源几何保持，世界矩阵随组方向更新。一次提交一项历史，任一成员、源或包预算失败不提交部分对象；相同角度无变化时不新增历史。默认角度框在值混合时留空并显示提示，翻转按钮使用 `aria-pressed="mixed"` 表示混合状态；选择集合改变时刷新角度。旋转锁检查全部成员，`noRot` 不阻止翻转。
 
-层次调整要求对象模式；空选择保持文档不变。`front/back` 按原源顺序将所选对象放到最上层/最下层。`forward` 从上到下、`backward` 从下到上处理，每个所选对象仅越过一个相邻未选对象，所选对象之间保持原顺序。组作为单个顶层对象移动，内部层次和完整矩阵保持；未知未选对象原样保留。核心只移除并插入所选源片段，保留注释、其他源内容、关系、选择顺序及活动对象。任一成员受保护或预算失败时整项拒绝，成功只提交一项历史；已到边界或全选而无变化时不新增历史。默认四个按钮支持多选。
+层次调整要求对象模式；空选择保持文档不变。`front/back` 按原源顺序将所选对象放到最上层/最下层。`forward` 从上到下、`backward` 从下到上处理，每个所选对象仅越过一个相邻未选对象，所选对象之间保持原顺序。组作为父容器中的单个对象移动，内部层次和完整矩阵保持；未知未选对象原样保留。核心只移除并插入所选源片段，保留注释、其他源内容、关系、选择顺序及活动对象。任一成员受保护或预算失败时整项拒绝，成功只提交一项历史；已到边界或全选而无变化时不新增历史。默认四个按钮支持多选。
 
 文字与变换候选基于原范围重算，不写入已提交 XML，不累积中间历史。暂态查询/布局读取候选；提交一项历史，取消恢复原选择。保存、PDF 和普通编辑在候选期间失败。Enter 是普通段落分隔 `\n`，Shift+Enter 使用对象内软换行 `U+2028`；保存为 DrawingML `p` / `br`。跨 run/段落保留范围外字符与段落属性，不重建整个 `spTree` 或 `txBody`。普通逐字符输入目前各自成项。
 
@@ -1725,45 +1725,57 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 分布使用 `{ action: "distribute", axis: "horizontal" | "vertical", relativeTo: "slide" | "selection" }`。页面分布至少需要两个对象，选区分布至少需要三个；不足时明确拒绝，不切换参考范围。按世界坐标矩形中心排序，中心相同则按选择顺序。选区分布固定排序后的首尾边缘，其余对象保持相等边缘间距。页面有余量时，内部间距与两端留白相等；总尺寸不小于页面时，两端贴页面边缘，内部间距允许为负。旋转矩形边界包含零尺寸线段，不计描边宽度。
 
-对齐与分布要求对象模式，沿用 256 成员、本地顶层对象及现有锁定/继承/未知资源保护。只改成员位置，保留顺序、活动对象、尺寸、旋转、翻转、文字、裁剪和关系；位置舍入为整数 EMU。成员越界、输出或历史预算失败不提交任何成员，成功只新增一项历史，重复操作无变化时不新增。默认面板提供参考范围、六种对齐和两种分布，活动对象参考下禁用分布。接口复用 `editPptxObjects` / `PresentationEditor.editObjects`。
+对齐与分布要求对象模式，沿用 256 成员、同一父容器中的本地对象及现有锁定/继承/未知资源保护。只改成员位置，保留顺序、活动对象、尺寸、旋转、翻转、文字、裁剪和关系；位置舍入为整数 EMU。成员越界、输出或历史预算失败不提交任何成员，成功只新增一项历史，重复操作或对齐到自身的零位移不写源、不新增历史。默认面板提供参考范围、六种对齐和两种分布，活动对象参考下禁用分布。接口复用 `editPptxObjects` / `PresentationEditor.editObjects`。
 
-组合使用 `{ action: "group" }`，至少选择两个可编辑本地顶层对象。核心分配新组身份，保留成员身份、相对顺序、格式及关系，转换局部坐标；新组放在所选最上层对象的位置，选择切到新组。原组也可参与嵌套组合。顶层组沿用整体移动、缩放（含非等比例）、旋转、翻转、层次、对齐和删除事务；候选同步派生成员世界矩阵，不写已提交源。多选集合的独立宽高缩放沿上文同一候选路径执行。
+组合使用 `{ action: "group" }`，至少选择两个同一父容器中的可编辑本地对象。核心分配新组身份，保留成员身份、相对顺序、格式及关系，转换局部坐标；新组在原父容器中放到所选最上层对象的位置，选择切到新组。原组也可参与嵌套组合。顶层组沿用整体移动、缩放（含非等比例）、旋转、翻转、层次、对齐和删除事务；候选同步派生成员世界矩阵，不写已提交源。多选集合的独立宽高缩放沿上文同一候选路径执行。
 
-取消组合使用 `{ action: "ungroup" }`，选择须全部为受支持顶层组。包含非等比缩放及嵌套组，成员回到原组所在层次，选择展开为直接成员，最多 256 项。核心先把累计组缩放换算为成员框的位置与尺寸，再以旋转/翻转矩阵绘制；文字字号、边距及描边宽度保持原值，文字按新框排版。候选预览和源重读使用同一几何规则；取消组合还原世界位置、尺寸、旋转及翻转，保留成员身份、命名空间和组内注释。子组保留自己的子坐标范围，可继续逐层取消组合。组内外观和结构编辑继续保护，几何入口见下文。
+取消组合使用 `{ action: "ungroup" }`，选择须全部为同一父容器中的受支持组。包含非等比缩放及嵌套组，成员回到原组所在层次，选择展开为直接成员，最多 256 项。核心先把累计组缩放换算为成员框的位置与尺寸，再以旋转/翻转矩阵绘制；文字字号、边距及描边宽度保持原值，文字按新框排版。候选预览和源重读使用同一几何规则；取消组合还原世界位置、尺寸、旋转及翻转，保留成员身份、命名空间和组内注释。子组保留成员和页面姿态，可继续逐层取消组合。组内组合与显式取消组合沿相同事务，坐标与保护规则见下文。
+
+组内组合先在父组方向计算包围盒，再按累计父组缩放写入原生 `off/ext` 和成员局部框；新组的 `chOff=0`、`chExt=ext`。父组保持身份、元数据及关系。取消组合把直接成员提升一级，转换到被移除组原父容器的坐标，不把嵌套成员直接提升到页面。两者保持成员页面位置、尺寸和方向，误差限于整数 EMU；组内成员集合变化与现有祖先边界重算合为一项历史。支持形状、图片和子组，混合父组及继承内容继续保护。
+
+祖先进入/几何锁、`noGrp/noUngrp`、成员锁、未知扩展、分组所涉连接/计时引用及取消组合所移除组的链接或引用继续整项拒绝。展开选择最多 256 个直接成员；几何、字体、源/输出及历史预算失败不提交任何源，也不消耗新组身份。默认按钮使用现有 `groupReason/ungroupReason`。共享坐标提升归 [`group-geometry.mbt`](../../modules/formats/src/pptx/group-geometry.mbt)，保留原矩阵正交校验；删除的单成员提升共用它。分组框和局部坐标参考 [ONLYOFFICE getBoundsForGroup/getGroup](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L6945-L7006)，取消组合参考下文。
 
 尺寸归一遵循 [ONLYOFFICE 组合缩放系数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L568-L607)及[成员 normalize](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicObjectBase.js#L629-L664)，取消组合参考 [unGroupCallback](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L7045-L7108)。核心已检查非等比嵌套、旋转/翻转、预览与提交一致、取消、文字/线宽、精确历史及重开；Chromium 已检查取消组合前后 Canvas 画面、独立同字号文本的 PDF 字形边界、XML、非目标部件、历史和重开后原生输入。
 
 `PptxQuery.groupReason/ungroupReason` 返回当前选择的保护原因，默认 UI 用它禁用按钮。继承占位符、未知组效果/扩展、成员锁定、`noGrp/noUngrp`、组合所涉连接/计时引用和取消组合所移除组的引用继续保护。操作只改所属 slide XML，保留其他部件及资源；一次提交一项有界历史，撤销恢复原源与选择，失败不消耗新身份或提交部分成员。
 
-组内形状文字沿现有 `selectPptx`、`replacePptx`、格式、链接和查找替换命令编辑。`parent` 保留直接父组，`textReadOnlyReason` 独立于成员对象的 `readOnlyReason`；成员移动、缩放、旋转和翻转沿下文几何入口；复制、删除、层次、对齐及外观编辑继续保护。`hitPptx` 的可选 `text: true` 返回最上层可编辑的文字成员及核心光标位置；普通命中仍返回顶层组，前方图片、形状或未知对象继续遮挡后方文字。核心使用累计组矩阵计算光标及选区，不在 Web 中反算文字坐标。
+组内形状文字沿现有 `selectPptx`、`replacePptx`、格式、链接和查找替换命令编辑。`parent` 保留直接父组，`textReadOnlyReason` 独立于成员对象的 `readOnlyReason`；成员移动、缩放、旋转和翻转沿下文几何入口；复制、删除、层次及对齐复用下文同组事务，成员外观沿原属性命令编辑。`hitPptx` 的可选 `text: true` 返回最上层可编辑的文字成员及核心光标位置；普通命中仍返回顶层组，前方图片、形状或未知对象继续遮挡后方文字。核心使用累计组矩阵计算光标及选区，不在 Web 中反算文字坐标。
 
 默认指针双击进入文字，文字拖选使用同一成员命中。对象列表按父子层次展开所选组及成员祖先；成员按钮进入文字，Escape 返回直接父组。文字输入、组合候选取消、字符/段落格式、框边距/垂直对齐/换行和三种适配共用原事务及默认面板。自动尺寸按累计组缩放还原局部整数 EMU，保留成员旋转/翻转和其他成员的页面姿态；本地父组外框与子坐标在同一事务中更新。缩放不改变字号、边距和线宽。
 
 母版/版式成员、未知组效果、`noDrilldown/noSelect/noTextEdit` 及原文字保护继续拒绝编辑。祖先 `noMove/noResize` 不阻止固定框内输入，但阻止自动尺寸变更。缺字体、溢出及原有资源/输出预算失败整体拒绝，源与历史保持。行为参考 [ONLYOFFICE 组内文字选择与变换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L196-L216)及[组内文字输入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L715-L730)，实现复用 [`group-geometry.mbt`](../../modules/formats/src/pptx/group-geometry.mbt)、[`text-resize.mbt`](../../modules/formats/src/pptx/text-resize.mbt)和[`文字命中`](../../modules/formats/src/pptx/hit.mbt)。
 
-组成员几何复用 `beginPptx`、`dragPptx`、`finishPptx` / `cancelPptx` 以及 `rotate` / `flip` 对象命令，`PresentationEditor.transform` 的增量仍为页面点值。对象的 `transformReason` 返回移动/缩放保护原因，`rotateReason` 返回旋转保护原因；`arrangeReason` 继续保护成员的层次和对齐操作。最多 256 个所选对象须来自同一父组，父子或跨父组选择整项拒绝。绝对 `transformPptx` 使用归一化父组坐标及尺寸，与当前 `PptxObject.geometry` 的 x/y/width/height 一致；`dragPptx` 使用页面坐标增量。
+组成员几何复用 `beginPptx`、`dragPptx`、`finishPptx` / `cancelPptx` 以及 `rotate` / `flip` 对象命令，`PresentationEditor.transform` 的增量仍为页面点值。对象的 `transformReason` 返回移动/缩放保护原因，`rotateReason` 返回旋转保护原因；`arrangeReason` 返回层次和对齐保护原因。最多 256 个所选对象须来自同一父组，父子或跨父组选择整项拒绝。绝对 `transformPptx` 使用归一化父组坐标及尺寸，与当前 `PptxObject.geometry` 的 x/y/width/height 一致；`dragPptx` 使用页面坐标增量。
 
 核心逆变换页面增量和固定角点，再按累计组缩放还原成员局部坐标。预览舍入为原生整数 EMU，提交读取同一几何；旋转和翻转保持中心，子组变化同步其成员世界矩阵。同组多选使用父组方向的包围盒及手柄，沿原成员缩放轴交换规则调整中心和尺寸。文字、字号、边距、描边和成员身份保留；文字框自动适配共用同一局部写回，取消、撤销重做、保存重开沿原源事务。本地父组边界随成员变换及自动适配重算，坐标归一化规则见下文。
 
-默认对象列表在成员对象模式中支持普通及 Shift 同组选择；Enter 进入文字，Escape 返回直接父组。已进入组后，普通画布命中返回当前父组的直接成员，双击继续使用文字命中。移动/缩放及旋转/翻转控件复用已有面板；受保护的删除、复制和混合范围方向键不修改源，也不停止编辑器。祖先组的 `noDrilldown/noSelect/noMove/noResize`、对应旋转锁、成员锁、未知组和继承内容继续保护；原生坐标、字体、布局、源/历史及输出上限失败整项拒绝。成员填充/边线、复制、删除、层次、对齐及重新组合仍待实现。
+默认对象列表在成员对象模式中支持普通及 Shift 同组选择；Enter 进入文字，Escape 返回直接父组。已进入组后，普通画布命中返回当前父组的直接成员，双击继续使用文字命中。移动/缩放及旋转/翻转控件复用已有面板；受保护的删除、复制和混合范围方向键不修改源，也不停止编辑器。祖先组的 `noDrilldown/noSelect/noMove/noResize`、对应旋转锁、成员锁、未知组和继承内容继续保护；原生坐标、字体、布局、源/历史及输出上限失败整项拒绝。同组成员组合及逐级取消组合沿原命令和按钮开放。
 
-本地成员原生变换改变时，核心按内层到外层重算祖先边界。范围采用 [ONLYOFFICE GroupShape](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L1246-L1384) 的旋转象限轴交换规则。受影响顶层组的子树归一化为 `chOff=0`、`chExt=ext`；按已舍入的父坐标写回子成员，保留页面中心、大小与方向，误差限于整数 EMU。成员文字、字体、边距、描边、身份、元数据和关系保留。未移动成员的局部 `x/y` 可以改变，宿主须读取当前查询，页面姿态保持。缺省 `chOff` 写入 `chExt` 之前。实现归 [`group-bounds.mbt`](../../modules/formats/src/pptx/group-bounds.mbt)。
+同一父组中的形状、图片及子组复用 `duplicate/delete/layer/align/distribute`。复制的 `dx/dy` 为页面点值，核心逆变换到父组坐标，再写整数 EMU；副本留在原父组，按原源顺序置于该组最上层，选择顺序与活动对象对应副本。对象身份、域身份与副本内引用沿已有复制事务重映射，图片资源共享。层次调整只改直接父容器中的源顺序，不改成员或组的原生框。对齐/分布仍使用页面包围盒、页面/选区/活动对象参考，再将页面增量写回父组；非目标成员的页面姿态保持。默认按钮复用原保护原因，父子或跨父组混选整项拒绝。对象模式下 Ctrl/Cmd+A 选择当前直接父容器中的对象，Ctrl/Cmd+D 与 Delete/Backspace 使用原复制/删除入口。
 
-预览只更新派生几何；提交从候选原生源重读坐标，并与原操作共用一项修订和历史，撤销/重做精确恢复源。整体组变换、复制、新建组合不强制归一化。只有当前幻灯片所属部件被改写，继承的母版/版式对象保持。未知同组成员、原生坐标及输出/历史预算失败原子拒绝。主题字体与页码自动适配沿同一坐标写回，避免重复除以组缩放。
+删除后，从内到外移除空组，并将单个存活成员提升到组原来的层次。核心保留成员页面姿态、尺寸、文字、身份与资源，组间注释和命名空间随存活内容保留；原生坐标按 EMU 舍入。改变的成员集合和重建边界与删除合为同一历史。删除清空对象选择，撤销恢复原源和完整选择。待折叠组的点击/悬停链接、`noUngrp/noDelete` 或连接/计时引用，以及原对象/祖先保护，会整项拒绝；查询 `deleteReason` 也显示当前选择引发的组折叠保护。资源及关系继续保留，不做包清理。规则参考 [ONLYOFFICE removeInGroup](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L5275-L5358)，实现归 [`object-delete.mbt`](../../modules/formats/src/pptx/object-delete.mbt)。
+
+本地成员原生变换或已有组的成员集合改变时，核心按内层到外层重算祖先边界。范围采用 [ONLYOFFICE GroupShape](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L1246-L1384) 的旋转象限轴交换规则。受影响顶层组的子树归一化为 `chOff=0`、`chExt=ext`；按已舍入的父坐标写回子成员，保留页面中心、大小与方向，误差限于整数 EMU。成员文字、字体、边距、描边、身份、元数据和关系保留。未移动成员的局部 `x/y` 可以改变，宿主须读取当前查询，页面姿态保持。缺省 `chOff` 写入 `chExt` 之前。实现归 [`group-bounds.mbt`](../../modules/formats/src/pptx/group-bounds.mbt)。
+
+预览只更新派生几何；提交从候选原生源重读坐标，并与原操作共用一项修订和历史，撤销/重做精确恢复源。顶层组整体变换、顶层复制与顶层新建组合不强制归一化；组内成员集合变化更新现有祖先组边界。只有当前幻灯片所属部件被改写，继承的母版/版式对象保持。未知同组成员、原生坐标及输出/历史预算失败原子拒绝。主题字体与页码自动适配沿同一坐标写回，避免重复除以组缩放。
 
 页面增量与组内原生坐标换算参考 [ONLYOFFICE MoveShapeImageTrack](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/MoveTracks.js#L95-L145)及[组缩放写回](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/MoveTracks.js#L301-L315)。独立父组权限及受支持的本地组边界为 SDK 实施范围；母版、版式组编辑仍待实现。实现归 [`member-geometry.mbt`](../../modules/formats/src/pptx/member-geometry.mbt)、[`object-selection.mbt`](../../modules/formats/src/pptx/object-selection.mbt)和[`变换面板`](../../packages/ui/src/pptx-arrange.tsx)。
 
-`editPptxObjects` / `PresentationEditor.editObjects` 支持 `{ action: "fill", color }` 和 `{ action: "stroke", color, width }`。颜色为不带 `#` 的六位 RGB，核心统一小写；null 写显式 `noFill`，表示无填充或无边框。宽度为 0.1–1000 pt，舍入到整数 EMU。操作作用于对象模式下所选的本地顶层形状，包含文本框和基本形状；多选原子提交为一次历史。查询中每个对象带 `appearance: { fill, gradient, imageFill, imageFillMode, imageFillReason, stroke, width, fillOpacity, strokeOpacity, fillOpacityReason, strokeOpacityReason, dash, dashReason, cap, join, miterLimit, penReason, reason }`，颜色为有效 RGB 或 null，宽度为有效 pt，reason 说明保护原因。默认 UI 显示混合状态，分别应用填充和边框，草稿随选择或实际外观值更新。
+组成员外观复用下列原命令和默认面板。支持形状纯色/无填充、线性渐变、图片填充、描边/端点/线型及不透明度，支持预设调节值；独立图片成员支持替换、裁剪、拉伸/平铺、不透明度与拉伸目标内缩。形状批量外观仍原子提交，图片属性要求唯一对象选择。纯外观修改保留所有成员与父组原生变换，不触发组边界归一化；调节值引起的自动适配沿已有框事务更新边界。图片替换新建资源及关系，其他共用旧资源的对象保持。
 
-修改只覆盖目标属性，保留几何、顺序、身份、文字、其他线条属性与部件。缺失的填充/边框按 DrawingML 顺序创建，空边框保留原属性；填充覆盖会关闭 `useBgFill`。直接设置相同值不增加历史；候选、过期 revision、锁定、未知填充属性/注释及预算失败不提交任何成员。组、组内对象、继承装饰和图片仍受保护，径向渐变及复杂效果编辑待扩展；图片拉伸填充见下节。纯色与受支持线型沿共同 Canvas/静态 PDF 路径绘制。实现参考 [ONLYOFFICE CShape.changeFill/changeLine](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L6421-L6461) 的局部属性覆盖及背景填充处理。
+祖先组的 `noDrilldown/noSelect`、未知组源、继承内容、原对象保护及属性专用锁继续拒绝。祖先移动/缩放锁允许不改框的外观操作；调节值引起的框变化仍遵守自动适配保护。既有未知属性、图片解码、源/资源/输出和历史预算原样执行，失败不提交部分成员。权限归 [`object-paint.mbt`](../../modules/formats/src/pptx/object-paint.mbt)，图片沿 [`image-edit.mbt`](../../modules/formats/src/pptx/image-edit.mbt)。局部填充/描边覆盖参考下文 ONLYOFFICE `changeFill/changeLine`，调节锁参考 [canChangeAdjustments](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicObjectBase.js#L1065-L1070)。
 
-`editObjects({ action: "gradientFill", stops, angle, scaled })` 将所选本地顶层形状设为多色标线性渐变。色标使用[页面背景](#pptx)的 2–32 项颜色、位置与不透明度规则。角度为 0–360° 并按 1/60000° 舍入，360° 归一为 0°；`scaled` 为必需布尔值。角度及比例规则复用页面背景，保留形状的轮廓、调节点、几何、描边和文字，随对象旋转/翻转。默认外观面板与背景共用色标增删、位置/颜色/不透明度控件，另有类型、角度和按形状比例缩放。查询 `appearance.gradient` 返回 `{ kind: "linear", stops, angle, scaled }` 或 null；渐变时 `fill` 为 null、`fillOpacity` 为 1；整体填充不透明度命令受保护，各色标不透明度沿 `gradientFill` 编辑，纯色描边仍可调整。纯色/无填充命令可替换已有受支持渐变。
+`editPptxObjects` / `PresentationEditor.editObjects` 支持 `{ action: "fill", color }` 和 `{ action: "stroke", color, width }`。颜色为不带 `#` 的六位 RGB，核心统一小写；null 写显式 `noFill`，表示无填充或无边框。宽度为 0.1–1000 pt，舍入到整数 EMU。操作作用于对象模式下所选的本地形状（含组成员），包含文本框和基本形状；多选原子提交为一次历史。查询中每个对象带 `appearance: { fill, gradient, imageFill, imageFillMode, imageFillReason, stroke, width, fillOpacity, strokeOpacity, fillOpacityReason, strokeOpacityReason, dash, dashReason, cap, join, miterLimit, penReason, reason }`，颜色为有效 RGB 或 null，宽度为有效 pt，reason 说明保护原因。默认 UI 显示混合状态，分别应用填充和边框，草稿随选择或实际外观值更新。
+
+修改只覆盖目标属性，保留几何、顺序、身份、文字、其他线条属性与部件。缺失的填充/边框按 DrawingML 顺序创建，空边框保留原属性；填充覆盖会关闭 `useBgFill`。直接设置相同值不增加历史；候选、过期 revision、锁定、未知填充属性/注释及预算失败不提交任何成员。组本身、继承装饰和独立图片的形状填充/描边仍受保护，径向渐变及复杂效果编辑待扩展；图片拉伸填充见下节。纯色与受支持线型沿共同 Canvas/静态 PDF 路径绘制。实现参考 [ONLYOFFICE CShape.changeFill/changeLine](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L6421-L6461) 的局部属性覆盖及背景填充处理。
+
+`editObjects({ action: "gradientFill", stops, angle, scaled })` 将所选本地形状（含组成员）设为多色标线性渐变。色标使用[页面背景](#pptx)的 2–32 项颜色、位置与不透明度规则。角度为 0–360° 并按 1/60000° 舍入，360° 归一为 0°；`scaled` 为必需布尔值。角度及比例规则复用页面背景，保留形状的轮廓、调节点、几何、描边和文字，随对象旋转/翻转。默认外观面板与背景共用色标增删、位置/颜色/不透明度控件，另有类型、角度和按形状比例缩放。查询 `appearance.gradient` 返回 `{ kind: "linear", stops, angle, scaled }` 或 null；渐变时 `fill` 为 null、`fillOpacity` 为 1；整体填充不透明度命令受保护，各色标不透明度沿 `gradientFill` 编辑，纯色描边仍可调整。纯色/无填充命令可替换已有受支持渐变。
 
 读取本地、版式/母版继承及主题的 2–32 项 RGBA 渐变色标；源的 `rotWithShape` 为缺省/真值，固定页面方向、路径渐变、非零 tileRect 或未知标记保留源并诊断。操作先校验全部成员，复用原子源事务、无操作和精确历史；非法值、保护成员和输出预算失败保持整个文档。定位图元 `ClipPath(path, evenOdd)` 复用既有绘制命令，Canvas/PDF 沿相同预设路径裁剪，矩形以外区域及后续图元保持原样。实现归 [`shape-gradient.mbt`](../../modules/formats/src/pptx/shape-gradient.mbt)；参考 [ONLYOFFICE 形状渐变绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L1970-L2037)的逐色标位置绘制。
 
 ### 图片目标内缩
 
-`editObjects({ action: "imageInsets", insets })` 设置所选本地顶层图片及图片填充形状的目标矩形。`editSlides({ action: "backgroundImageInsets", insets }, slide?)` 设置图片背景，继承背景可创建本页覆盖并复用原资源。两者沿同步 Wasm、Worker、宿主和默认面板使用相同事务。对象查询返回 `imageInsets` 与 `imageInsetsReason`；图片背景的 `value.insets` 返回有效值。
+`editObjects({ action: "imageInsets", insets })` 设置所选本地图片及图片填充形状（含组成员）的目标矩形。`editSlides({ action: "backgroundImageInsets", insets }, slide?)` 设置图片背景，继承背景可创建本页覆盖并复用原资源。两者沿同步 Wasm、Worker、宿主和默认面板使用相同事务。对象查询返回 `imageInsets` 与 `imageInsetsReason`；图片背景的 `value.insets` 返回有效值。
 
 `insets: [left, top, right, bottom]` 是对象或页面宽高的比例。正数向内，负数向外；四个零恢复完整目标。每项须在 DrawingML 有符号百分比范围 −21474.83648–21474.83647 内，按 1/100000 舍入后，左右与上下之和分别小于 1。默认控件使用百分比，支持四边设置、重置及一次应用。当前仅拉伸支持目标内缩；切为平铺会移除拉伸矩形，再切回拉伸使用零内缩，源裁剪继续保留。
 
@@ -1773,7 +1785,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 ### 形状图片填充
 
-`editObjects({ action: "imageFill", objects, bytes, mode })` 将所选本地顶层闭合形状设为 PNG/JPEG 图片填充，`mode` 必须为 `stretch` 或 `tile`。`objects` 是文件读取前捕获的有序选择，提交时须与当前选择完全一致，防止异步读取后修改其他对象。图片沿既有 4 MiB、尺寸、资源数量、输出和历史预算校验，Web 提交前检查实际解码。多选共享一个新资源及关系，保留各自身份、几何、轮廓、描边、文字、已有裁剪和有效填充不透明度。核心沿既有图片事务提交，失败不增加资源或历史；相同本地图片无操作。默认面板选择图片后直接应用，清除和纯色/渐变命令可替换受支持图片填充。
+`editObjects({ action: "imageFill", objects, bytes, mode })` 将所选本地闭合形状（含组成员）设为 PNG/JPEG 图片填充，`mode` 必须为 `stretch` 或 `tile`。`objects` 是文件读取前捕获的有序选择，提交时须与当前选择完全一致，防止异步读取后修改其他对象。图片沿既有 4 MiB、尺寸、资源数量、输出和历史预算校验，Web 提交前检查实际解码。多选共享一个新资源及关系，保留各自身份、几何、轮廓、描边、文字、已有裁剪和有效填充不透明度。核心沿既有图片事务提交，失败不增加资源或历史；相同本地图片无操作。默认面板选择图片后直接应用，清除和纯色/渐变命令可替换受支持图片填充。
 
 查询 `appearance.imageFill` 返回资源键或 null，`imageFillMode` 返回 `stretch`、`tile` 或 null，`imageFillReason` 返回保护原因。读取本地、版式/母版和主题的内部图片关系，按来源部件解析；支持非负四边源裁剪及常量 `alphaModFix`。图片按预设形状轮廓裁剪，随对象旋转/翻转，Canvas/PDF 共用同一图元。已有本地图片填充可用 `fillOpacity` 修改透明度；继承图片先设置本地图片覆盖。带裁剪元数据的平铺复用 [ONLYOFFICE drawBlipFillTile](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L1687-L1777)：使用整张源图的 96 DPI 尺寸、对齐和翻转，保留 `srcRect`；切回拉伸才应用裁剪。模式切换、替换、透明度和精确历史保留这些值；切回拉伸的扩展尺寸及平铺数量超限原子拒绝。目标内缩归[图片目标内缩](#图片目标内缩)；固定页面方向、外链、背景关联图片填充及未知/重复/不透明源继续保护，仍归 P12 后续实现。实现归 [`shape-image.mbt`](../../modules/formats/src/pptx/shape-image.mbt)和 [`object-image.mbt`](../../modules/formats/src/pptx/object-image.mbt)，语义参考 [ONLYOFFICE 图片拉伸、裁剪和透明度绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L1778-L1848)，未复制上游源码。
 
@@ -1785,7 +1797,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 读取已有颜色的 alpha、alphaMod 和 alphaOff，按声明顺序计算并归一到 0–1。修改保留 RGB/系统色/主题色及 tint、shade、lumMod、lumOff 等关联；继承填充写为本地声明，主题 phClr 绑定到原引用颜色，保留主题和父级源。颜色与线宽修改保留已有有效不透明度；明确移除填充后不保留隐藏的 alpha 状态。操作复用同一多选源事务、待输入文字屏障和精确历史。未知颜色标记、保留注释、只读对象及预算失败拒绝全部成员。文字和页面背景的透明度仍受原保护。算法参考 [ONLYOFFICE 颜色 alpha 变换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L2089-L2108)，实现归 [`shape-opacity.mbt`](../../modules/formats/src/pptx/shape-opacity.mbt)。
 
-`editObjects({ action: "strokeDash", dash })` 修改所选本地顶层形状的预设线型，适用已有多选、文字框和基础形状。`dash` 接受 `solid`、`dash`、`dashDot`、`dot`、`lgDash`、`lgDashDot`、`lgDashDotDot`、`sysDash`、`sysDashDot`、`sysDashDotDot` 或 `sysDot`；null 移除局部 `prstDash` 并恢复主题/父级，缺省为实线。`appearance.dash` 返回有效线型，`dashReason` 返回本操作的保护原因。默认 UI 提供线型选择、应用和恢复继承，混合选择继续显示混合状态。
+`editObjects({ action: "strokeDash", dash })` 修改所选本地形状（含组成员）的预设线型，适用已有多选、文字框和基础形状。`dash` 接受 `solid`、`dash`、`dashDot`、`dot`、`lgDash`、`lgDashDot`、`lgDashDotDot`、`sysDash`、`sysDashDot`、`sysDashDotDot` 或 `sysDot`；null 移除局部 `prstDash` 并恢复主题/父级，缺省为实线。`appearance.dash` 返回有效线型，`dashReason` 返回本操作的保护原因。默认 UI 提供线型选择、应用和恢复继承，混合选择继续显示混合状态。
 
 修改只写目标 `prstDash`；缺少 `ln` 时按 DrawingML 顺序创建局部边框，保留颜色和宽度继承，明确的 `solid` 可覆盖主题虚线。行宽、颜色、填充、几何、文字、身份及其他部件保持，整组共用一次精确历史。重复同一直接值不新增历史，源注释/处理指令或未知线型属性保护修改；自定义 dash、重复声明及未知预设保留源并诊断。
 
@@ -1793,7 +1805,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `editObjects({ action: "strokeCap", cap })` 设置 `flat/rnd/sq` 平头/圆头/方头，null 恢复继承。`{ action: "strokeJoin", join }` 设置 `round/bevel` 圆角/斜角，null 恢复继承；`{ action: "strokeJoin", join: "miter", miterLimit }` 设置斜接，比例为 1–1000，按 1/100000 舍入。查询返回有效 `cap/join/miterLimit` 及 `penReason`，默认 UI 提供两类样式、斜接上限和各自恢复按钮。
 
-局部值按属性覆盖父级/主题；连接类型相同时继承缺失的斜接上限。基础缺省值为平头、圆角和斜接比例 8，依据 [DrawingML 继承与默认值](https://learn.microsoft.com/ga-ie/openspecs/office_standards/ms-oi29500/c0c046ec-a61d-405d-88fe-74d8487a37d7)。操作沿用本地顶层形状、多选原子事务、精确历史与既有预算，保留颜色、宽度、线型、其他源属性和部件；不修改共享主题或母版。未知/重复连接、保留的连接注释、未知端点或超出支持范围的斜接值保留源并保护修改。
+局部值按属性覆盖父级/主题；连接类型相同时继承缺失的斜接上限。基础缺省值为平头、圆角和斜接比例 8，依据 [DrawingML 继承与默认值](https://learn.microsoft.com/ga-ie/openspecs/office_standards/ms-oi29500/c0c046ec-a61d-405d-88fe-74d8487a37d7)。操作沿用本地形状（含组成员）、多选原子事务、精确历史与既有预算，保留颜色、宽度、线型、其他源属性和部件；不修改共享主题或母版。未知/重复连接、保留的连接注释、未知端点或超出支持范围的斜接值保留源并保护修改。
 
 定位路径使用 `PathStyle { fillAlpha, strokeAlpha, dash, cap, join, miter }`，数值端点 0/1/2 对应平头/圆头/方头，连接 0/1/2 对应斜接/圆角/斜角。Canvas 复用既有 `DrawStyle`，每条路径后复原；PDF 在独立图形作用域写相同端点、连接、斜接、dash 及独立填充/描边 alpha。普通及斜线的端点形状参与核心命中。预览与输出不再把导入端点或连接静默画成默认值。
 
@@ -1843,7 +1855,7 @@ script 接受 `baseline`、`superscript` 或 `subscript`，分别写入 DrawingM
 
 公共制表位排版同时提供对齐后的字形、光标、选择、适配和 Canvas/PDF。字符、其他段落、属性、对象及部件保持。默认面板提供位置、对齐、间隔、清空及恢复；原生 Tab 文本沿既有粘贴入口，全部与源修改共用精确历史。实现归 [`paragraph-tabs.mbt`](../../modules/formats/src/pptx/paragraph-tabs.mbt)。
 
-`rtl` 为布尔值，写入 DrawingML 段落方向；读取沿本地、列表、版式/母版和默认属性继承。缺少显式对齐时，RTL 默认右对齐；已有显式对齐仍按物理左右解释。切换方向时镜像当前左右对齐，居中和两端对齐保持，遵循 [ONLYOFFICE SetParagraphBidi](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L16952-L16967)及[非文档段落的默认对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L11257-L11288)。缩进、标记和双向文字使用公共排版器；PPTX 显式提供 LTR/RTL 基础方向，避免阿拉伯文首字符覆盖段落设置。字体、光标、选区、Canvas/PDF 和适配共用同一结果，缓存区分基础方向。`paragraph.rtl` 返回有效布尔值或混合值 null；默认面板显示混合复选状态。清除段落直接格式同时清除方向并恢复继承。局部范围、多框、原生草稿、精确历史与重开沿用已有事务，非法方向源保留并诊断。竖排、多栏和组内外观/结构继续实施。
+`rtl` 为布尔值，写入 DrawingML 段落方向；读取沿本地、列表、版式/母版和默认属性继承。缺少显式对齐时，RTL 默认右对齐；已有显式对齐仍按物理左右解释。切换方向时镜像当前左右对齐，居中和两端对齐保持，遵循 [ONLYOFFICE SetParagraphBidi](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L16952-L16967)及[非文档段落的默认对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L11257-L11288)。缩进、标记和双向文字使用公共排版器；PPTX 显式提供 LTR/RTL 基础方向，避免阿拉伯文首字符覆盖段落设置。字体、光标、选区、Canvas/PDF 和适配共用同一结果，缓存区分基础方向。`paragraph.rtl` 返回有效布尔值或混合值 null；默认面板显示混合复选状态。清除段落直接格式同时清除方向并恢复继承。局部范围、多框、原生草稿、精确历史与重开沿用已有事务，非法方向源保留并诊断。竖排、多栏继续实施。
 
 文字模式修改光标所在或范围所涉段落，终点恰在下一段开头时不修改下一段；对象模式修改所选本地文本框中的全部段落。`PptxQuery.paragraph` 返回各字段的共同有效值和 `reason`，混合项为 null；保护时为 null 占位。类型和动作从 `wasm/pptx`、`web/pptx` 导出，宿主沿 `editObjects` 队列执行。修改只写目标 `pPr`，保留字符、未改属性、源注释、继承定义、非目标段落、部件及选择。未知间距节点内容保护该框的间距/缩进操作；无变化不新增历史，旧 revision、候选、缺字体、无可用行宽和预算失败均不提交。已有适配框重新计算比例；固定框保留溢出诊断。默认面板按各字段的有效值更新草稿，其他格式命令完成时不清掉输入。
 
@@ -1865,7 +1877,7 @@ list 使用 `PptxListFormat`：`{ kind: "none" }`、`{ kind: "bullet", value }` 
 
 搜索文本与 replacement 各最多 32767 UTF-16 单元；replacement 接受 LF/U+2028，拒绝 CR 和非法 XML 字符。搜索总文字限 1048576 单元，截断结果禁止全部替换；结构批次另受源文字长度乘匹配数累计 64 Mi 单元和 4 MiB 历史预算限制，普通批次不按匹配重复解析整页。公共原生生成文字也在构造 XML 前限制到 2 Mi 单元。宿主的 `find/selectMatch/replaceMatches` 沿既有队列执行，并绑定 documentId/revision；换文档或文字变化后返回 stale-search。默认面板提供当前页/全部页、大小写/全词、结果定位、单个/全部替换、保护原因及过期提示。隐藏页结果可直接定位。
 
-支持矩形、椭圆、直线与文本框的核心路径；PNG/JPEG、矩形源裁剪、旋转/翻转和组合坐标变换。组合成员的外观/结构与继承对象只读，组内形状文字和几何可编辑；本地顶层对象可通过核心/API/UI 旋转、翻转和调整层次。图片不发起外链请求，源压缩字节与关系不改；只为当前页准备屏幕资源。全稿 PDF 临时准备所选页资源，仍受累计图片/输出预算约束，失败不返回截断文件。
+支持矩形、椭圆、直线与文本框的核心路径；PNG/JPEG、矩形源裁剪、旋转/翻转和组合坐标变换。继承对象继续只读；组内形状文字、几何、形状/图片外观和同组复制/删除/层次/对齐可编辑；同组组合及逐级取消组合可沿原入口编辑。图片不发起外链请求，源压缩字节与关系不改；只为当前页准备屏幕资源。全稿 PDF 临时准备所选页资源，仍受累计图片/输出预算约束，失败不返回截断文件。
 
 未知可见对象阻止点穿；无确定边界时，该页直接画布编辑只读，查询/保存及其他页仍可用。静态 PDF 遇到可见未支持内容、效果或未解决适配时返回页/对象原因。动画/切换只保留源。保存及全部撤销保留原解压部件；输出重新校验 ZIP/XML/OPC，不承诺整个 ZIP 字节一致。
 

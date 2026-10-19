@@ -51,6 +51,9 @@ export function PptxObjects({
     (object) => object.id === query.selection.object,
   );
   const objectMode = query.selection.mode === "object";
+  const sameParent = query.objects
+    .filter((object) => query.selection.objects.includes(object.id))
+    .every((object) => object.parent === selected?.parent);
   const hyperlink = objectMode ? selected?.hyperlink : query.textHyperlink;
   const duplicationReason = query.objects.find(
     (object) =>
@@ -348,7 +351,13 @@ export function PptxObjects({
       />
       <button
         type="button"
-        disabled={disabled || !objectMode || !selected || !!duplicationReason}
+        disabled={
+          disabled ||
+          !objectMode ||
+          !selected ||
+          !sameParent ||
+          !!duplicationReason
+        }
         title={duplicationReason}
         onClick={() =>
           controller.run(() =>
@@ -364,6 +373,7 @@ export function PptxObjects({
           disabled ||
           query.selection.mode !== "object" ||
           !selected ||
+          !sameParent ||
           !!deletionReason
         }
         title={deletionReason}

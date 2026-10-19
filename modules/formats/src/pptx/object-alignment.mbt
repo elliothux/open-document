@@ -102,11 +102,14 @@ fn Session::position_objects(
       position - start - size * factor
     }
     let geometry = object.geometry.unwrap()
+    let inverse = object.source.parent_frame().inverse()
+    let dx = if horizontal { delta } else { 0.0 }
+    let dy = if horizontal { 0.0 } else { delta }
     let target = {
       ..geometry,
-      x: ((geometry.x + (if horizontal { delta } else { 0.0 })) * 12700).round() /
+      x: ((geometry.x + inverse.a * dx + inverse.c * dy) * 12700).round() /
       12700,
-      y: ((geometry.y + (if horizontal { 0.0 } else { delta })) * 12700).round() /
+      y: ((geometry.y + inverse.b * dx + inverse.d * dy) * 12700).round() /
       12700,
     }
     validate_object_box(
@@ -116,7 +119,7 @@ fn Session::position_objects(
       target.height,
       object.preset == "line",
     )
-    if target.x != geometry.x || target.y != geometry.y {
+    if delta != 0 && (target.x != geometry.x || target.y != geometry.y) {
       changes.append(transform_changes(object, target))
     }
     if distribute {

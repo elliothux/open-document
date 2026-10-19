@@ -10,6 +10,7 @@ fn Session::copy_objects(
     )
   }
   let slide = self.current()
+  let checked = self.transform_objects(action="duplicate")
   let selected = self.selection.objects
   let objects = slide.objects.filter(object => selected.contains(object.id))
   let changes : Array[@xml.SourceChange] = []
@@ -24,7 +25,12 @@ fn Session::copy_objects(
       @failure.reject("limit-exceeded", "Copied objects exceed history budget")
     }
     let geometry = object.geometry.unwrap()
-    let target = { ..geometry, x: geometry.x + dx, y: geometry.y + dy, }
+    let inverse = object.source.parent_frame().inverse()
+    let target = {
+      ..geometry,
+      x: geometry.x + inverse.a * dx + inverse.c * dy,
+      y: geometry.y + inverse.b * dx + inverse.d * dy,
+    }
     validate_object_box(
       target.x,
       target.y,
@@ -83,6 +89,7 @@ fn Session::copy_objects(
       object_insertion(
         slide.tree,
         copied.source()[root.opening_end:root.closing_start].to_owned(),
+        parent=Some(slide.tree.nodes[checked[0].source.node.parent]),
       ),
     ],
     {

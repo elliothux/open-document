@@ -8,7 +8,9 @@ fn Session::group_members(
       "active-gesture", "Finish the current gesture before grouping",
     )
   }
-  let objects = self.transform_objects()
+  let objects = self.transform_objects(
+    action=if ungroup { "ungroup" } else { "group" },
+  )
   guard ungroup || objects.length() >= 2 else {
     @failure.reject("invalid-operation", "Select at least two objects to group")
   }
@@ -34,7 +36,12 @@ fn Session::group_members(
         )
       }
       for child in children {
-        ignore(child.ungroup_geometry(object.geometry.unwrap()))
+        ignore(
+          child.promoted_geometry(
+            object.source.parent_matrix(),
+            child.geometry.unwrap().flip_x != object.geometry.unwrap().flip_x,
+          ),
+        )
       }
       guard !children.is_empty() else {
         @failure.reject(
@@ -119,24 +126,24 @@ fn Session::group_changes(
   let objects = slide.objects.filter(object => {
     selected.any(item => item.id == object.id)
   })
-  let box = slide.selection_box(self.selection.objects)
-  let x = (box.x * 12700).floor() / 12700
-  let y = (box.y * 12700).floor() / 12700
-  let width = (((box.x + box.width) * 12700).ceil() / 12700 - x).max(0.1)
-  let height = (((box.y + box.height) * 12700).ceil() / 12700 - y).max(0.1)
+  let matrix = objects[0].source.parent_matrix()
+  let sx = (matrix.a * matrix.a + matrix.b * matrix.b).sqrt()
+  let sy = (matrix.c * matrix.c + matrix.d * matrix.d).sqrt()
+  let box = slide.selection_box(self.selection.objects, in_parent=true)
+  let x = (box.x / sx * 12700).floor() / 12700
+  let y = (box.y / sy * 12700).floor() / 12700
+  let width = (((box.x + box.width) / sx * 12700).ceil() / 12700 - x).max(0.1)
+  let height = (((box.y + box.height) / sy * 12700).ceil() / 12700 - y).max(0.1)
   validate_object_box(x, y, width, height, false)
   let document = transformed_markup(
     slide,
     objects.map(object => {
       let geometry = object.geometry.unwrap()
-      let target = { ..geometry, x: geometry.x - x, y: geometry.y - y, }
-      validate_object_box(
-        target.x,
-        target.y,
-        target.width,
-        target.height,
-        object.preset == "line",
-      )
+      let target = object.local_geometry({
+        ..geometry,
+        x: geometry.x - x * sx,
+        y: geometry.y - y * sy,
+      })
       (object, target)
     }),
   )
@@ -150,7 +157,7 @@ fn Session::group_changes(
   let cy = (height * 12700).round().to_int64()
   let markup = "<p:grpSp xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\"><p:nvGrpSpPr><p:cNvPr id=\"\{id}\" name=\"Group \{id}\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x=\"\{(x * 12700).round().to_int64()}\" y=\"\{(y * 12700).round().to_int64()}\"/><a:ext cx=\"\{cx}\" cy=\"\{cy}\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"\{cx}\" cy=\"\{cy}\"/></a:xfrm></p:grpSpPr>\{content.to_string()}</p:grpSp>"
   let changes : Array[@xml.SourceChange] = []
-  let parent = shape_tree(slide.tree)
+  let parent = slide.tree.nodes[objects[0].source.node.parent]
   for object in objects {
     let node = object.source.node
     changes.push({
@@ -186,13 +193,19 @@ fn Session::ungroup_changes(
   let slide = self.current()
   let changes : Array[@xml.SourceChange] = []
   let selected : Array[String] = []
-  let parent = shape_tree(slide.tree)
+  let parent = slide.tree.nodes[groups[0].source.node.parent]
   for group in groups {
     let children = slide.objects.filter(child => child.parent == group.id)
     let document = transformed_markup(
       slide,
       children.map(child => {
-        (child, child.ungroup_geometry(group.geometry.unwrap()))
+        (
+          child,
+          child.promoted_geometry(
+            group.source.parent_matrix(),
+            child.geometry.unwrap().flip_x != group.geometry.unwrap().flip_x,
+          ),
+        )
       }),
     )
     let content = StringBuilder()

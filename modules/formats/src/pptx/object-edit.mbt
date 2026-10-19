@@ -105,7 +105,10 @@ fn Session::object_edit_reason(
   try {
     let table = object.table is Some(_)
     let grouped = !object.parent.is_empty() &&
-      ["transform", "rotate", "flip"].contains(action)
+      [
+        "transform", "rotate", "flip", "arrange", "duplicate", "delete", "group",
+        "ungroup",
+      ].contains(action)
     if !object.read_only.is_empty() &&
       !(grouped && object.read_only == "Group members are read-only") {
       return object.read_only
@@ -120,7 +123,9 @@ fn Session::object_edit_reason(
       }
     }
     if table &&
-      !["delete", "duplicate", "arrange", "transform"].contains(action) {
+      !["delete", "duplicate", "arrange", "transform", "group", "ungroup"].contains(
+        action,
+      ) {
       return "Native table frames do not support rotation or flipping"
     }
     let slide = self.slides[self.index(object.source.tree.part)]
@@ -228,8 +233,9 @@ fn Session::object_edit_reason(
 fn object_insertion(
   tree : Tree,
   markup : String,
+  parent~ : @xml.Node? = None,
 ) -> @xml.SourceChange raise @failure.Failure {
-  let parent = shape_tree(tree)
+  let parent = parent.unwrap_or_else(() => shape_tree(tree))
   if tree.one(parent.id, "extLst", uri=presentation_uri) is Some(node) {
     {
       node: parent.id,
@@ -482,22 +488,7 @@ pub fn Session::edit_objects(
           "invalid-operation", "Object deletion requires object selection",
         )
       }
-      let changes : Array[@xml.SourceChange] = []
-      for id in self.selection.objects {
-        let object = original.object(id)
-        let reason = self.object_edit_reason(object, "delete")
-        guard reason.is_empty() else {
-          @failure.reject("protected-content", reason)
-        }
-        let node = object.source.node
-        let parent = original.tree.nodes[node.parent]
-        changes.push({
-          node: parent.id,
-          offset: node.start - parent.start,
-          length: node.end - node.start,
-          xml: "",
-        })
-      }
+      let changes = self.remove_objects()
       (
         changes,
         {

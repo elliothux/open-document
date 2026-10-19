@@ -19,7 +19,7 @@ fn Session::set_image_mode(
   mode : String,
 ) -> Json raise @failure.Failure {
   check_image_fill_mode(mode)
-  let object = self.editable(false)
+  let object = self.selected_image(false)
   let reason = self.image_mode_reason(object)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   if mode == "stretch" {
