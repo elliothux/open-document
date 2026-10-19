@@ -4,7 +4,7 @@ fn Session::text_frame_reason(self : Session, object : Object) -> String {
     return object.text_reason
   }
   try {
-    let slide = self.slides[self.index(object.source.tree.part)]
+    let slide = self.source_slide(object.source.tree.part)
     guard slide.read_only.is_empty() else { return slide.read_only }
     guard object.kind == "shape" &&
       (

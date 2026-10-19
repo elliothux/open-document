@@ -206,16 +206,13 @@ fn Session::set_object_hyperlink(
     self.main,
     self.cache,
     Tree::new(original.tree.part, document),
-    index=self.index(original.tree.part),
+    index=self.source_index(original.tree.part),
     date_time=self.date_time,
     parts~,
   )
   edits.push((original.tree.part, edit))
-  let slides = self.slides.copy()
-  slides[self.index(original.tree.part)] = candidate
-  self.commit_slides(
-    self.main,
-    slides,
+  self.commit_page(
+    candidate,
     edits,
     self.selection,
     parts~,

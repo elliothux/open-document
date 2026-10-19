@@ -128,7 +128,7 @@ fn Session::object_edit_reason(
       ) {
       return "Native table frames do not support rotation or flipping"
     }
-    let slide = self.slides[self.index(object.source.tree.part)]
+    let slide = self.source_slide(object.source.tree.part)
     if !slide.read_only.is_empty() {
       return slide.read_only
     }
@@ -395,7 +395,7 @@ pub fn Session::edit_objects(
       probe,
       profile,
     )
-    self.commit(candidate, edit, self.selection)
+    self.commit(candidate, edit, self.selection, probe~, profile~)
     return self.query()
   }
   let mut issued : String? = None
@@ -559,7 +559,7 @@ pub fn Session::edit_objects(
       }
     }
   }
-  self.commit(candidate, edit, after)
+  self.commit(candidate, edit, after, probe~, profile~)
   if issued is Some(id) {
     self.object_sequence = number(id, 1, 4294967295).to_int64() + 1
   }

@@ -144,12 +144,9 @@ fn Session::set_table_style(
     probe,
     profile,
   )
-  let slides = self.slides.copy()
-  slides[self.index(original.tree.part)] = candidate
   edits.push((original.tree.part, edit))
-  self.commit_slides(
-    self.main,
-    slides,
+  self.commit_page(
+    candidate,
     edits,
     self.selection,
     parts~,

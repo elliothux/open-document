@@ -125,11 +125,12 @@ fn Session::merge_table_cells(
       (sum, p) => sum + paragraph_length(p) + 1,
     )
   }
-  self.commit(candidate, edit, {
-    ..self.selection,
-    mode: "text",
-    anchor: offset,
-    focus: offset + length,
-  })
+  self.commit(
+    candidate,
+    edit,
+    { ..self.selection, mode: "text", anchor: offset, focus: offset + length, },
+    probe~,
+    profile~,
+  )
   self.query()
 }

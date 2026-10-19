@@ -9,8 +9,8 @@ fn Session::theme_trees(self : Session) -> Array[Tree] raise @failure.Failure {
   let themes : Map[String, Tree] = Map([])
   for slide in self.slides {
     let layout = slide_layout(self.opc, slide.tree.part, self.parts).unwrap()
-    let master = relation(self.opc, layout, "slideMaster").unwrap()
-    let theme = relation(self.opc, master, "theme").unwrap()
+    let master = relation(self.opc, layout, "slideMaster", parts=self.parts).unwrap()
+    let theme = relation(self.opc, master, "theme", parts=self.parts).unwrap()
     if !themes.contains(theme) {
       themes[theme] = load_tree(self.opc, self.cache, theme, parts=self.parts)
     }

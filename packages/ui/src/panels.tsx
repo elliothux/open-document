@@ -4,6 +4,7 @@ import { Command, Group, NativeSlot } from "./controls.js";
 import { messages } from "./messages.js";
 import type { OwnedFile } from "./types.js";
 import { DocxFormatCommands, DocxProperties } from "./docx-format.js";
+import { PptxDesign } from "./pptx-design.js";
 import { PptxObjects } from "./pptx-objects.js";
 import { PptxArrange, PptxTransform } from "./pptx-arrange.js";
 import { PptxAlignment } from "./pptx-alignment.js";
@@ -93,6 +94,25 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
   if (file.format === "pptx" && tab === "edit") {
     const editor = file.editor,
       query = editor.query;
+    if (query.editView.kind !== "slide")
+      return (
+        <>
+          <PptxDesign
+            key={`source:${file.editor.getSnapshot().documentId}:${query.slide}:${query.editView.choices.find((choice) => choice.id === query.slide)?.name}`}
+            controller={controller}
+            state={state}
+            file={file}
+            disabled={disabled}
+          />
+          <PptxBackground
+            key={`${file.editor.getSnapshot().documentId}:${query.slide}:${JSON.stringify(query.background.value)}:${query.background.explicit}`}
+            controller={controller}
+            state={state}
+            file={file}
+            disabled={disabled}
+          />
+        </>
+      );
     const index = query.slides.findIndex((slide) => slide.id === query.slide);
     const hidden = query.slides[index]?.hidden ?? false;
     return (
@@ -508,13 +528,15 @@ function SlideProperties({ controller, state, file, disabled }: PanelProps) {
   );
   return (
     <aside className="od-properties" aria-label={t.objects}>
-      <PptxSearch
-        key={`search:${state.document?.documentId}`}
-        controller={controller}
-        state={state}
-        editor={editor}
-        disabled={disabled}
-      />
+      {query.editView.kind === "slide" && (
+        <PptxSearch
+          key={`search:${state.document?.documentId}`}
+          controller={controller}
+          state={state}
+          editor={editor}
+          disabled={disabled}
+        />
+      )}
       <h2>{t.objects}</h2>
       <NativeSlot node={editor.objectList} />
       <div className="flex gap-1" role="group" aria-label={t.edit}>

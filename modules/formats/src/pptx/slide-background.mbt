@@ -1,13 +1,13 @@
 ///|
 fn Session::background_reason(self : Session, slide : Slide) -> String {
-  let protection = self.slide_visibility_reason()
+  let protection = self.modification_reason()
   if !protection.is_empty() {
     return protection
   }
   try {
     let tree = slide.tree
     let container = tree.required(
-      tree.root("sld").id,
+      tree.document.nodes()[0].id,
       "cSld",
       uri=presentation_uri,
     )
@@ -135,16 +135,16 @@ fn Session::background_reason(self : Session, slide : Slide) -> String {
 ///|
 fn Session::set_background(
   self : Session,
-  index : Int,
+  part : String,
   value : BackgroundFill?,
 ) -> Json raise @failure.Failure {
   let value = value.map(v => v.normalized())
-  let original = self.slides[index]
+  let original = self.source_slide(part)
   let reason = self.background_reason(original)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let tree = original.tree
   let container = tree.required(
-    tree.root("sld").id,
+    tree.document.nodes()[0].id,
     "cSld",
     uri=presentation_uri,
   )

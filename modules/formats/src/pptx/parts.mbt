@@ -13,26 +13,15 @@ fn slide_layout(
   owner : String,
   parts : Map[String, @xml.Document],
 ) -> String? raise @failure.Failure {
-  guard parts.get(relationship_part(owner)) is Some(document) else {
-    return relation(opc, owner, "slideLayout")
-  }
-  let root = document.nodes()[0]
-  let links = document
-    .nodes()
-    .filter(node => {
-      node.parent == root.id &&
-      node.attribute("Type") == Some(relationship_uri + "/slideLayout")
-    })
-  guard links is [link] &&
-    link.attribute("TargetMode") != Some("External") &&
-    link.attribute("Target") is Some(target) else {
+  let layout = relation(opc, owner, "slideLayout", parts~)
+  guard layout is Some(_) || !parts.contains(relationship_part(owner)) else {
     @failure.reject(
       "malformed-pptx",
       "Invalid slide layout relationship",
       part=owner,
     )
   }
-  Some(@opc.resolve_target(owner, target))
+  layout
 }
 
 ///|

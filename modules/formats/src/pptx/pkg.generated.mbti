@@ -250,6 +250,10 @@ pub(all) enum SlideEdit {
   ThemeFont(String, String, String)
   ApplyLayout(String)
   ResetLayout
+  AddLayout
+  CopyLayout
+  DeleteLayout
+  SourceName(String)
   Notes(String)
   Footer(FooterContent, Bool)
   FirstSlideNumber(Double)

@@ -9,28 +9,43 @@ fn read_slide(
   date_time~ : DateTime? = None,
 ) -> Slide raise @failure.Failure {
   let page_number = presentation_number(main, index)
-  let root = tree.root("sld")
-  let layout_part = slide_layout(opc, tree.part, parts).unwrap_or_error(
-    @failure.Failure(
-      code="malformed-pptx",
-      part=tree.part,
-      offset=-1,
-      message="Missing slide layout",
-    ),
-  )
-  let layout = load_tree(opc, cache, layout_part, parts~)
-  ignore(layout.root("sldLayout"))
-  let master_part = relation(opc, layout.part, "slideMaster").unwrap_or_error(
-    @failure.Failure(
-      code="malformed-pptx",
-      part=layout.part,
-      offset=-1,
-      message="Missing slide master",
-    ),
-  )
-  let master = load_tree(opc, cache, master_part, parts~)
-  ignore(master.root("sldMaster"))
-  let theme_part = relation(opc, master.part, "theme").unwrap_or_error(
+  let root = tree.document.nodes()[0]
+  guard root.uri == presentation_uri &&
+    ["sld", "sldLayout", "sldMaster"].contains(root.name) else {
+    @failure.reject("malformed-pptx", "Unknown presentation source root")
+  }
+  let layout = if root.name == "sld" {
+    let layout_part = slide_layout(opc, tree.part, parts).unwrap_or_error(
+      @failure.Failure(
+        code="malformed-pptx",
+        part=tree.part,
+        offset=-1,
+        message="Missing slide layout",
+      ),
+    )
+    let layout = load_tree(opc, cache, layout_part, parts~)
+    ignore(layout.root("sldLayout"))
+    Some(layout)
+  } else {
+    None
+  }
+  let parent = layout.unwrap_or(tree)
+  let master = if root.name == "sldMaster" {
+    tree
+  } else {
+    let master_part = relation(opc, parent.part, "slideMaster", parts~).unwrap_or_error(
+      @failure.Failure(
+        code="malformed-pptx",
+        part=parent.part,
+        offset=-1,
+        message="Missing slide master",
+      ),
+    )
+    let master = load_tree(opc, cache, master_part, parts~)
+    ignore(master.root("sldMaster"))
+    master
+  }
+  let theme_part = relation(opc, master.part, "theme", parts~).unwrap_or_error(
     @failure.Failure(
       code="malformed-pptx",
       part=master.part,
@@ -38,18 +53,27 @@ fn read_slide(
       message="Missing master theme",
     ),
   )
-  guard tree.part != layout.part &&
-    layout.part != master.part &&
-    master.part != theme_part &&
-    tree.part != master.part &&
+  guard master.part != theme_part &&
     tree.part != theme_part &&
-    layout.part != theme_part else {
+    (root.name == "sldMaster" || tree.part != master.part) &&
+    layout
+    .map(item => {
+      item.part != tree.part &&
+      item.part != master.part &&
+      item.part != theme_part
+    })
+    .unwrap_or(true) else {
     @failure.reject("malformed-pptx", "Cyclic slide inheritance")
   }
+  let layers = [tree]
+  if layout is Some(layout) {
+    layers.push(layout)
+  }
+  if master.part != tree.part {
+    layers.push(master)
+  }
   let theme = {
-    ..read_theme(load_tree(opc, cache, theme_part, parts~), [
-      tree, layout, master,
-    ]),
+    ..read_theme(load_tree(opc, cache, theme_part, parts~), layers),
     tables: Some(
       read_table_styles(opc, main, cache, parts) catch {
         @failure.Failure(code="unsupported-table", message~, ..) =>
@@ -65,8 +89,11 @@ fn read_slide(
   let diagnostics : Array[String] = []
   let ids : Map[String, Bool] = Map([])
   let identity = @layout.Matrix::identity()
-  if flag(root, "showMasterSp", default=true) &&
-    flag(layout.document.nodes()[0], "showMasterSp", default=true) {
+  if master.part != tree.part &&
+    flag(root, "showMasterSp", default=true) &&
+    layout
+    .map(item => flag(item.document.nodes()[0], "showMasterSp", default=true))
+    .unwrap_or(true) {
     read_objects(
       opc,
       master,
@@ -85,7 +112,7 @@ fn read_slide(
       date_time,
     )
   }
-  if flag(root, "showMasterSp", default=true) {
+  if layout is Some(layout) && flag(root, "showMasterSp", default=true) {
     read_objects(
       opc,
       layout,
@@ -109,7 +136,7 @@ fn read_slide(
     tree,
     shape_tree(tree).id,
     theme,
-    Some(layout),
+    layout,
     master,
     defaults,
     identity,
@@ -122,7 +149,7 @@ fn read_slide(
     date_time,
   )
   let mut background = Solid("ffffff")
-  for layer in [tree, layout, master] {
+  for layer in layers {
     let container = layer.required(
       layer.document.nodes()[0].id,
       "cSld",

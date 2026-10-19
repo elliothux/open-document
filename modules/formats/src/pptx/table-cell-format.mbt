@@ -241,6 +241,6 @@ fn Session::format_table_cells(
     probe,
     profile,
   )
-  self.commit(candidate, edit, self.selection)
+  self.commit(candidate, edit, self.selection, probe~, profile~)
   self.query()
 }

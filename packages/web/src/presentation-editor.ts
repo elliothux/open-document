@@ -105,7 +105,9 @@ export class PresentationEditor extends PresentationOutput {
       revision: state.revision,
       canUndo: state.canUndo,
       canRedo: state.canRedo,
-      page: state.slides.findIndex((slide) => slide.id === state.slide),
+      page: state.slides.findIndex(
+        (slide) => slide.id === state.editView.slide,
+      ),
       pageCount: state.slides.length,
       selection: state.selection.object,
       readOnlyReason: state.readOnlyReason,
@@ -243,7 +245,7 @@ export class PresentationEditor extends PresentationOutput {
       canUndo: this.state.canUndo,
       canRedo: this.state.canRedo,
       page: this.state.slides.findIndex(
-        (slide) => slide.id === this.state.slide,
+        (slide) => slide.id === this.state.editView.slide,
       ),
       pageCount: this.state.slides.length,
       zoom: this.zoomValue,

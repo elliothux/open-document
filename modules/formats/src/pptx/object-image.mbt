@@ -5,12 +5,12 @@ fn Session::write_image(
   placement : (Double, Double, Double, Double)?,
   fill~ : Bool = false,
   mode~ : String = "stretch",
-  background~ : Int? = None,
+  background~ : String? = None,
   background_format~ : (Array[Double], Double)? = None,
   background_insets~ : Array[Double]? = None,
 ) -> Json raise @failure.Failure {
   let original = background
-    .map(i => self.slides[i])
+    .map(part => self.source_slide(part))
     .unwrap_or_else(() => self.current())
   let (old_crop, old_opacity, old_tile, old_insets) = if original.background
     is Picture(_, crop, opacity, tile, insets) {
@@ -56,7 +56,7 @@ fn Session::write_image(
   }
   let reuse = if background is Some(_) &&
     original.background is Picture(key, _, _, _, _) &&
-    self.image_bytes(key) == bytes {
+    self.image_content(key) == bytes {
     Some(key)
   } else {
     None
@@ -296,13 +296,11 @@ fn Session::write_image(
     self.main,
     self.cache,
     Tree::new(original.tree.part, document),
-    index=self.index(original.tree.part),
+    index=self.source_index(original.tree.part),
     date_time=self.date_time,
     parts~,
   )
   edits.push((original.tree.part, edit))
-  let slides = self.slides.copy()
-  slides[self.index(original.tree.part)] = candidate
   let id = original.tree.part + "#" + identity
   let after : Selection = if target is Some(_) || fill || background is Some(_) {
     self.selection
@@ -316,9 +314,8 @@ fn Session::write_image(
       focus: 0,
     }
   }
-  self.commit_slides(
-    self.main,
-    slides,
+  self.commit_page(
+    candidate,
     edits,
     after,
     parts~,

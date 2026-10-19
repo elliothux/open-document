@@ -94,6 +94,6 @@ fn Session::resize_table_axis(
   if candidate.tree.document.source() == original.tree.document.source() {
     return self.query()
   }
-  self.commit(candidate, edit, self.selection)
+  self.commit(candidate, edit, self.selection, probe~, profile~)
   self.query()
 }

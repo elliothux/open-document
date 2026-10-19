@@ -1,3 +1,4 @@
+import { viewEn } from "./messages-pptx-view.js";
 import { filterEn } from "./messages-filter.js";
 import { outputEn } from "./messages-output.js";
 import { imageEn } from "./messages-pptx-image.js";
@@ -8,6 +9,7 @@ import { outlineEn } from "./messages-outline.js";
 import { tableEn } from "./messages-xlsx-tables.js";
 import { clipboardEn } from "./messages-clipboard.js";
 export const en = {
+  ...viewEn,
   ...clipboardEn,
   ...tableEn,
   ...outlineEn,

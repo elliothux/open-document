@@ -6,11 +6,14 @@ pub struct Session {
   priv mut media : Map[String, Bytes]
   priv mut removed : Array[String]
   priv mut slide_sequence : Int64
+  priv mut layout_sequence : Int64
   priv cache : Map[String, Tree]
   priv budget : @archive.Budget
   priv mut width : Double
   priv mut height : Double
   priv mut slides : Array[Slide]
+  priv mut last_slide : String
+  priv mut source_view : Slide?
   priv mut selection : Selection
   priv mut revision : Int
   priv history : Array[History]
@@ -124,11 +127,14 @@ fn Session::from_package(
     media: Map([]),
     removed: [],
     slide_sequence: 256L,
+    layout_sequence: 2147483648L,
     cache,
     budget,
     width,
     height,
     slides,
+    last_slide: slides[0].tree.part,
+    source_view: None,
     selection: {
       slide: slides[0].tree.part,
       object: "",
@@ -206,7 +212,7 @@ fn Session::current(self : Session) -> Slide raise @failure.Failure {
   self.check()
   self.candidate
   .map(item => item.slide)
-  .unwrap_or(self.slides[self.index(self.selection.slide)])
+  .unwrap_or_else(() => self.source_slide(self.selection.slide))
 }
 
 ///|
@@ -229,17 +235,20 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
   let current = self.current()
   let links = self.relationships()
   let deletion_reason = self.deletion_group_reason()
-  let fonts = slide_font_keys(
-    self.slides.map(slide => {
-      if slide.tree.part == current.tree.part {
-        current
-      } else {
-        slide
-      }
-    }),
-  )
+  let font_slides = self.slides.map(slide => {
+    if slide.tree.part == current.tree.part {
+      current
+    } else {
+      slide
+    }
+  })
+  if !self.slides.any(slide => slide.tree.part == current.tree.part) {
+    font_slides.push(current)
+  }
+  let fonts = slide_font_keys(font_slides)
   {
     "revision": self.revision,
+    "editView": self.edit_view_query(current),
     "formatting": self.formatting_query(),
     "paragraph": self.paragraph_query(),
     "table": self.table_query(),
@@ -265,7 +274,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
       "value": current.background.to_json(),
       "explicit": current.tree.one(
         current.tree.required(
-          current.tree.root("sld").id,
+          current.tree.document.nodes()[0].id,
           "cSld",
           uri=presentation_uri,
         ).id,
@@ -427,7 +436,14 @@ pub fn Session::select(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   self.check_idle()
-  let current = self.slides[self.index(slide)]
+  let current = self.source_slide(slide)
+  if slide != self.selection.slide &&
+    !self.slides.any(item => item.tree.part == slide) {
+    guard current.objects.length() <= 4096 else {
+      @failure.reject("limit-exceeded", "Source view objects exceed 4096")
+    }
+    self.validate(current)
+  }
   guard ["object", "text"].contains(mode) else {
     @failure.reject("invalid-operation", "Unknown selection mode")
   }
@@ -478,6 +494,12 @@ pub fn Session::select(
       @failure.reject("invalid-object", "Text mode requires an object")
     }
   }
+  if self.slides.any(item => item.tree.part == slide) {
+    if self.last_slide != slide {
+      self.source_view = None
+    }
+    self.last_slide = slide
+  }
   self.selection = {
     slide,
     object,
@@ -498,10 +520,11 @@ pub fn Session::image_bytes(
   key : String,
 ) -> Bytes raise @failure.Failure {
   self.check()
-  guard self.slides.any(slide => slide.image_keys().contains(key)) else {
+  guard self.slides.any(slide => slide.image_keys().contains(key)) ||
+    self.current().image_keys().contains(key) else {
     @failure.reject("invalid-image", "Unknown presentation image")
   }
-  self.media.get(key).unwrap_or_else(() => self.opc.read(key))
+  self.image_content(key)
 }
 
 ///|
@@ -521,6 +544,7 @@ pub fn Session::close(self : Session) -> Unit {
   self.media.clear()
   self.removed.clear()
   self.candidate = None
+  self.source_view = None
   self.showing = None
   self.show_drawing = None
   self.view = None

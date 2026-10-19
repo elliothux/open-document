@@ -29,12 +29,8 @@ import {
   pptxHyperlink,
   type PptxHyperlink,
   pptxDashes,
-  type PptxDash,
   pptxCaps,
   pptxJoins,
-  type PptxCap,
-  type PptxJoin,
-  type PptxLineEnd,
   checkPptxLineEnd,
 } from "./pptx-objects.js";
 export {
@@ -62,7 +58,6 @@ import {
   pptxComments,
   type PptxComments,
   type PptxSlideEdit,
-  type PptxBackgroundFill,
   type PptxBackground,
   type PptxSections,
   type PptxSlideLayouts,
@@ -108,7 +103,7 @@ export type {
   PptxThemeSlot,
   PptxThemeFont,
 } from "./pptx-theme.js";
-import { drawingBatch, type DrawMatrix, type DrawRect } from "./drawing.js";
+import { drawingBatch, type DrawRect } from "./drawing.js";
 import type { Budget } from "./foundation.js";
 import {
   checkPptxFormatting,
@@ -133,82 +128,12 @@ import {
 } from "./pptx-output.js";
 export type { PptxPrintLayout, PptxLayout } from "./pptx-output.js";
 
-export interface PptxObject {
-  id: string;
-  parent: string;
-  name: string;
-  kind: string;
-  text: string;
-  readOnlyReason: string;
-  textReadOnlyReason: string;
-  deleteReason: string;
-  duplicateReason: string;
-  rotateReason: string;
-  arrangeReason: string;
-  transformReason: string;
-  hyperlink: { value: PptxHyperlink | null; reason: string };
-  shapeAdjustments: {
-    preset: string;
-    reason: string;
-    values: { name: "adj" | "adj1" | "adj2"; value: number; maximum: number }[];
-  };
-  imageInsets: [number, number, number, number];
-  imageInsetsReason: string;
-  picture: {
-    mode: "stretch" | "tile";
-    modeReason: string;
-    opacity: number;
-    opacityReason: string;
-    left: number;
-    top: number;
-    right: number;
-    bottom: number;
-    replaceReason: string;
-    cropReason: string;
-  };
-  appearance: {
-    imageFill: string | null;
-    imageFillMode: "stretch" | "tile" | null;
-    imageFillReason: string;
-    gradient: Extract<PptxBackgroundFill, { kind: "linear" }> | null;
-    fillOpacity: number;
-    strokeOpacity: number;
-    fillOpacityReason: string;
-    strokeOpacityReason: string;
-    cap: PptxCap;
-    join: PptxJoin;
-    miterLimit: number;
-    penReason: string;
-    headEnd: PptxLineEnd;
-    tailEnd: PptxLineEnd;
-    lineEndReason: string;
-    dash: PptxDash;
-    dashReason: string;
-    fill: string | null;
-    stroke: string | null;
-    width: number;
-    reason: string;
-  };
-  textFrame: {
-    left: number;
-    top: number;
-    right: number;
-    bottom: number;
-    anchor: string;
-    wrap: boolean;
-    fit: "none" | "shrink" | "resize";
-    reason: string;
-  };
-  geometry:
-    | (DrawRect & {
-        matrix: DrawMatrix;
-        rotation: number;
-        flipX: boolean;
-        flipY: boolean;
-      })
-    | null;
-}
+import { checkPptxEditView, type PptxEditView } from "./pptx-view.js";
+export type { PptxEditView } from "./pptx-view.js";
+import type { PptxObject } from "./pptx-query.js";
+export type { PptxObject } from "./pptx-query.js";
 export interface PptxQuery extends PptxPlaybackState {
+  editView: PptxEditView;
   table: PptxTable | null;
   themeColors: PptxThemeColor[];
   themeFonts: PptxThemeFont[];
@@ -452,8 +377,7 @@ export function pptxQuery(value: unknown): PptxQuery {
       throw new Error("Invalid PPTX slide");
     ids.add(slide.id);
   }
-  if (typeof query.slide !== "string" || !ids.has(query.slide))
-    throw new Error("Invalid current slide");
+  checkPptxEditView(query.editView, query.slide, ids);
   pptxSections(query.sections, [...ids]);
   const slideIds = new Set(ids);
   const textHyperlink = record(query.textHyperlink),

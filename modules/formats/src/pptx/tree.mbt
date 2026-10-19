@@ -132,7 +132,37 @@ fn relation(
   opc : @opc.Package,
   owner : String,
   kind : String,
+  parts~ : Map[String, @xml.Document] = Map([]),
 ) -> String? raise @failure.Failure {
+  if parts.get(relationship_part(owner)) is Some(document) {
+    let root = document.nodes()[0]
+    let links = document
+      .nodes()
+      .filter(node => {
+        node.parent == root.id &&
+        node.attribute("Type") == Some(relationship_uri + "/" + kind)
+      })
+    guard links.length() <= 1 else {
+      @failure.reject(
+        "malformed-pptx",
+        "Invalid " + kind + " relationship",
+        part=owner,
+      )
+    }
+    return links
+      .get(0)
+      .map(link => {
+        guard [None, Some("Internal")].contains(link.attribute("TargetMode")) &&
+          link.attribute("Target") is Some(target) else {
+          @failure.reject(
+            "malformed-pptx",
+            "Invalid " + kind + " relationship",
+            part=owner,
+          )
+        }
+        @opc.resolve_target(owner, target)
+      })
+  }
   let links = opc
     .relationships()
     .iter()

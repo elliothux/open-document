@@ -96,7 +96,7 @@ fn Session::formatting_reason(self : Session, object : Object) -> String {
     return reason
   }
   try {
-    let slide = self.slides[self.index(object.source.tree.part)]
+    let slide = self.source_slide(object.source.tree.part)
     guard slide.read_only.is_empty() else { return slide.read_only }
     for paragraph in object.paragraphs {
       let properties = paragraph.source
@@ -479,6 +479,6 @@ fn Session::format_objects(
     }
     ignore(fit_text(target, target.geometry.unwrap(), probe, profile))
   }
-  self.commit(candidate, edit, self.selection)
+  self.commit(candidate, edit, self.selection, probe~, profile~)
   self.query()
 }

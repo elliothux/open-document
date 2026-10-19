@@ -305,10 +305,16 @@ fn Session::normalize_groups(
   index : Int,
   parts : Map[String, @xml.Document],
 ) -> (Slide, @xml.Edit?) raise @failure.Failure {
-  guard self.slides
+  let before = if self.slides
     .iter()
     .find_first(before => before.tree.part == slide.tree.part)
-    is Some(before) else {
+    is Some(before) {
+    before
+  } else if ["sldMaster", "sldLayout"].contains(
+      slide.tree.document.nodes()[0].name,
+    ) {
+    self.source_slide(slide.tree.part)
+  } else {
     return (slide, None)
   }
   let ids = slide.changed_group_members(before)

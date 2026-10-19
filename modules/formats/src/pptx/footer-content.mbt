@@ -153,7 +153,7 @@ fn Session::footer_template(
   let master = load_tree(
     self.opc,
     self.cache,
-    relation(self.opc, layout.part, "slideMaster").unwrap(),
+    relation(self.opc, layout.part, "slideMaster", parts=self.parts).unwrap(),
     parts=self.parts,
   )
   for tree in [layout, master] {

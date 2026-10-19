@@ -1619,6 +1619,22 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 已知字体元数据 `panose/pitchFamily/charset` 保留。目标字体定义的未知属性/子节点、注释、处理指令及重复项仍保护；不能安全适配的源、尺寸锁、缺字体、旧修订、活动候选和预算失败原子拒绝。文字类别划分与语言范围沿现有字体解析，不声明全语言字体一致性。主题字体重排依据 [ONLYOFFICE CTheme.changeFontScheme](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L10662-L10673)，定义顺序参考 [FontCollection](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/FontCollection.cpp#L89-L112)。实现归 [`theme-font.mbt`](../../modules/formats/src/pptx/theme-font.mbt)，适配复用 [`autofit.mbt`](../../modules/formats/src/pptx/autofit.mbt)及 [`text-resize.mbt`](../../modules/formats/src/pptx/text-resize.mbt)。
 
+### 母版与版式编辑视图
+
+`PptxQuery.editView` 返回 `kind: "slide" | "master" | "layout"`、返回普通视图的 `slide`、`choices`、`reason` 和 `operations`。`operations` 的 `rename/addLayout/copyLayout/deleteLayout` 分别返回保护原因，空串表示允许。每项源选择包含 `id/name/kind/master`。目录沿文稿声明的母版及版式读取，包含未被页面使用的源；最多 256 个母版和 256 个版式，目录合计最多 1 Mi UTF-16 单元。未知、重复或归属错误的引用保护整个源目录。
+
+`PresentationEditor.showSlide(part)` 和 `selectPptx.slide` 接受目录中的源部件路径。`query.slide` 指向当前源，`query.slides` 始终只列真实幻灯片。默认页栏的“编辑视图”选择器切换母版、版式与普通页面。当前源的本地对象沿既有文字、外观、几何、组合及图片资源事务编辑；普通视图中的继承对象继续只读，版式视图中的母版装饰也只读。
+
+修改写回源部件并重读引用页面，保留页面直接覆盖。需要重新适配的依赖文字框复用字体度量和原有尺寸锁，源、依赖框、资源和前后选择合为一次有界历史。共享框需要不同尺寸、缺字体或预算失败时整项拒绝。未使用的当前源也检查字体、对象、图片和输出预算。当前源最多 4096 个可见对象，并与实际页面共同遵守现有总预算。
+
+保存和整稿输出始终使用真实幻灯片，当前画布输出可使用所选源。切回页面、精确撤销/重做和重开继续保留源身份与关系。模板提示文字不写入页面用户文字。母版的创建、复制、删除、占位符定义及默认文字样式等设置仍待实现；源视图暂不显示普通页的页序、备注、动画、主题及查找面板。
+
+`editSlides` 的 `addLayout` 在所选母版下新增空白版式；选择版式时新增到其后。`copyLayout` 在同一母版下复制版式，保留源名称，重映射对象身份并共享图片及链接；图表等尚无复制所有权支持的资源保护复制。`deleteLayout` 仅删除没有页面或其他部件引用的版式，同时移除目录、关系及内容类型，保留共享资源；删除当前版式后选择其母版。`sourceName` 的 `name` 修改母版或版式名称，最多 1024 UTF-16 单元，允许空串，相同名称不产生历史。这些操作复用现有命令、默认源管理面板和部件历史；新增身份在撤销后也不复用，失败保留原状态。实现归 [`source-edit.mbt`](../../modules/formats/src/pptx/source-edit.mbt)、[`layout-create.mbt`](../../modules/formats/src/pptx/layout-create.mbt)及 [`layout-delete.mbt`](../../modules/formats/src/pptx/layout-delete.mbt)。复制与目录操作参考 [ONLYOFFICE Layout.createDuplicate](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Layout.js#L282-L328) 和 [SlideMaster 目录操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/SlideMaster.js#L543-L560)，未复制上游源码。
+
+源视图沿用背景面板。`editSlides` 的 `background/backgroundImage/backgroundImageFormat/backgroundImageInsets` 同样接受母版或版式部件路径，包含未使用的版式。纯色、线性渐变、PNG/JPEG、裁剪、不透明度、拉伸/平铺和目标内缩复用[既有背景合同](#图片背景)，不新增命令或资源模型。修改只写目标源及必要图片关系/内容类型，重读引用页面；页面和版式的局部覆盖保持。清除版式背景恢复母版，清除母版背景使用白底。格式编辑复用目标源已解析的图片，即使该源不在当前画面中；公开图片读取仍按当前画面及真实页的使用范围保护。背景、资源与选择共同精确撤销，未知源、文稿保护和预算失败原子拒绝。语义依据 [ONLYOFFICE 母版背景事务](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/SlideMaster.js#L530-L534)及[版式背景事务](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Layout.js#L348-L353)，未复制上游源码。
+
+源视图采用 [ONLYOFFICE 的母版模式与依赖对象区分](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L2679-L2703)。实现归 [`page-view.mbt`](../../modules/formats/src/pptx/page-view.mbt)、[`page-read.mbt`](../../modules/formats/src/pptx/page-read.mbt)及 [`page-reflow.mbt`](../../modules/formats/src/pptx/page-reflow.mbt)。
+
 ### 幻灯片版式
 
 `PresentationEditor.editSlides({ action: "layout", id }, slide?)` 应用文稿中已有的版式。`id` 是版式部件路径，须来自 `query.slideLayout.choices`；`current` 返回当前页的版式身份，`reason` 返回目录或修改保护原因。每项选择包含 `id/name/master/masterName`，分别表示版式身份/源名称及所属母版身份/源名称。默认面板按名称和母版展示选项。空名称仅在界面使用序号，不改写源。
@@ -1631,7 +1647,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 没有匹配位置或多个对象争用同一位置时，已有用户内容明确报冲突。仅无文字、可见填充/边框、动作或未知元数据的未匹配占位符可以移除；被计时/连接引用的对象继续保护。缺少时间上下文或未支持的日期域、未知字段、包含关系的页边文字、分组或歧义占位符、未知页边开关/变换，以及导致新增显示诊断或无法解析几何的版式仍保护。新增占位符 XML 合计最多 1,048,576 UTF-16 单元，继续受包、字体、输出及历史预算限制。母版/主题继承可随切换更新，版式和母版本身保持原源。
 
-关系目标、占位符与源变化共用一次精确历史；原生文字草稿先独立提交。选择中失去的继承对象或空占位符会清除，保留对象的文字光标继续有效。相同版式切换是空操作；母版/版式的直接编辑及创建仍待实现。字体总数在候选提交前检查，避免提交后才超出查询的 256 键预算。保存重开、页面复制及 Canvas/PDF 沿相同关系与继承路径。实现归 [`slide-layout.mbt`](../../modules/formats/src/pptx/slide-layout.mbt)，匹配和几何重置参考 [ONLYOFFICE getMatchingShape](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L390-L522)及 [changeLayout](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L695-L800)。
+关系目标、占位符与源变化共用一次精确历史；原生文字草稿先独立提交。选择中失去的继承对象或空占位符会清除，保留对象的文字光标继续有效。相同版式切换是空操作；母版/版式对象编辑归[源视图](#母版与版式编辑视图)，版式新增/复制/删除及源改名归同一合同，母版创建仍待实现。字体总数在候选提交前检查，避免提交后才超出查询的 256 键预算。保存重开、页面复制及 Canvas/PDF 沿相同关系与继承路径。实现归 [`slide-layout.mbt`](../../modules/formats/src/pptx/slide-layout.mbt)，匹配和几何重置参考 [ONLYOFFICE getMatchingShape](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L390-L522)及 [changeLayout](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L695-L800)。
 
 `PresentationEditor.editSlides({ action: "resetLayout" }, slide?)` 重新应用目标页的当前版式，默认面板提供重置按钮。它清除占位符受支持的本地 `xfrm`，恢复版式/母版几何，并沿相同规则补齐缺失的空占位符。保留已有匹配对象身份、用户文字、字符/段落/框属性及形状外观；普通对象和版式关系原字节保持。行为沿 [ONLYOFFICE 当前版式重置入口](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L9519-L9553)，文字格式清除仍使用既有字符/段落命令。
 
@@ -1743,7 +1759,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 默认指针双击进入文字，文字拖选使用同一成员命中。对象列表按父子层次展开所选组及成员祖先；成员按钮进入文字，Escape 返回直接父组。文字输入、组合候选取消、字符/段落格式、框边距/垂直对齐/换行和三种适配共用原事务及默认面板。自动尺寸按累计组缩放还原局部整数 EMU，保留成员旋转/翻转和其他成员的页面姿态；本地父组外框与子坐标在同一事务中更新。缩放不改变字号、边距和线宽。
 
-母版/版式成员、未知组效果、`noDrilldown/noSelect/noTextEdit` 及原文字保护继续拒绝编辑。祖先 `noMove/noResize` 不阻止固定框内输入，但阻止自动尺寸变更。缺字体、溢出及原有资源/输出预算失败整体拒绝，源与历史保持。行为参考 [ONLYOFFICE 组内文字选择与变换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L196-L216)及[组内文字输入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L715-L730)，实现复用 [`group-geometry.mbt`](../../modules/formats/src/pptx/group-geometry.mbt)、[`text-resize.mbt`](../../modules/formats/src/pptx/text-resize.mbt)和[`文字命中`](../../modules/formats/src/pptx/hit.mbt)。
+普通视图中的母版/版式成员、未知组效果、`noDrilldown/noSelect/noTextEdit` 及原文字保护继续拒绝编辑。祖先 `noMove/noResize` 不阻止固定框内输入，但阻止自动尺寸变更。缺字体、溢出及原有资源/输出预算失败整体拒绝，源与历史保持。行为参考 [ONLYOFFICE 组内文字选择与变换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L196-L216)及[组内文字输入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L715-L730)，实现复用 [`group-geometry.mbt`](../../modules/formats/src/pptx/group-geometry.mbt)、[`text-resize.mbt`](../../modules/formats/src/pptx/text-resize.mbt)和[`文字命中`](../../modules/formats/src/pptx/hit.mbt)。
 
 组成员几何复用 `beginPptx`、`dragPptx`、`finishPptx` / `cancelPptx` 以及 `rotate` / `flip` 对象命令，`PresentationEditor.transform` 的增量仍为页面点值。对象的 `transformReason` 返回移动/缩放保护原因，`rotateReason` 返回旋转保护原因；`arrangeReason` 返回层次和对齐保护原因。最多 256 个所选对象须来自同一父组，父子或跨父组选择整项拒绝。绝对 `transformPptx` 使用归一化父组坐标及尺寸，与当前 `PptxObject.geometry` 的 x/y/width/height 一致；`dragPptx` 使用页面坐标增量。
 
@@ -1757,7 +1773,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 本地成员原生变换或已有组的成员集合改变时，核心按内层到外层重算祖先边界。范围采用 [ONLYOFFICE GroupShape](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L1246-L1384) 的旋转象限轴交换规则。受影响顶层组的子树归一化为 `chOff=0`、`chExt=ext`；按已舍入的父坐标写回子成员，保留页面中心、大小与方向，误差限于整数 EMU。成员文字、字体、边距、描边、身份、元数据和关系保留。未移动成员的局部 `x/y` 可以改变，宿主须读取当前查询，页面姿态保持。缺省 `chOff` 写入 `chExt` 之前。实现归 [`group-bounds.mbt`](../../modules/formats/src/pptx/group-bounds.mbt)。
 
-预览只更新派生几何；提交从候选原生源重读坐标，并与原操作共用一项修订和历史，撤销/重做精确恢复源。顶层组整体变换、顶层复制与顶层新建组合不强制归一化；组内成员集合变化更新现有祖先组边界。只有当前幻灯片所属部件被改写，继承的母版/版式对象保持。未知同组成员、原生坐标及输出/历史预算失败原子拒绝。主题字体与页码自动适配沿同一坐标写回，避免重复除以组缩放。
+预览只更新派生几何；提交从候选原生源重读坐标，并与原操作共用一项修订和历史，撤销/重做精确恢复源。顶层组整体变换、顶层复制与顶层新建组合不强制归一化；组内成员集合变化更新现有祖先组边界。只有当前编辑的源部件被改写，其继承对象保持；母版/版式源视图使用同一边界事务。未知同组成员、原生坐标及输出/历史预算失败原子拒绝。主题字体与页码自动适配沿同一坐标写回，避免重复除以组缩放。
 
 页面增量与组内原生坐标换算参考 [ONLYOFFICE MoveShapeImageTrack](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/MoveTracks.js#L95-L145)及[组缩放写回](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/MoveTracks.js#L301-L315)。独立父组权限及受支持的本地组边界为 SDK 实施范围；母版、版式组编辑仍待实现。实现归 [`member-geometry.mbt`](../../modules/formats/src/pptx/member-geometry.mbt)、[`object-selection.mbt`](../../modules/formats/src/pptx/object-selection.mbt)和[`变换面板`](../../packages/ui/src/pptx-arrange.tsx)。
 
@@ -1877,7 +1893,7 @@ list 使用 `PptxListFormat`：`{ kind: "none" }`、`{ kind: "bullet", value }` 
 
 搜索文本与 replacement 各最多 32767 UTF-16 单元；replacement 接受 LF/U+2028，拒绝 CR 和非法 XML 字符。搜索总文字限 1048576 单元，截断结果禁止全部替换；结构批次另受源文字长度乘匹配数累计 64 Mi 单元和 4 MiB 历史预算限制，普通批次不按匹配重复解析整页。公共原生生成文字也在构造 XML 前限制到 2 Mi 单元。宿主的 `find/selectMatch/replaceMatches` 沿既有队列执行，并绑定 documentId/revision；换文档或文字变化后返回 stale-search。默认面板提供当前页/全部页、大小写/全词、结果定位、单个/全部替换、保护原因及过期提示。隐藏页结果可直接定位。
 
-支持矩形、椭圆、直线与文本框的核心路径；PNG/JPEG、矩形源裁剪、旋转/翻转和组合坐标变换。继承对象继续只读；组内形状文字、几何、形状/图片外观和同组复制/删除/层次/对齐可编辑；同组组合及逐级取消组合可沿原入口编辑。图片不发起外链请求，源压缩字节与关系不改；只为当前页准备屏幕资源。全稿 PDF 临时准备所选页资源，仍受累计图片/输出预算约束，失败不返回截断文件。
+支持矩形、椭圆、直线与文本框的核心路径；PNG/JPEG、矩形源裁剪、旋转/翻转和组合坐标变换。普通视图的继承对象继续只读；源视图编辑当前部件。组内形状文字、几何、形状/图片外观和同组复制/删除/层次/对齐可编辑；同组组合及逐级取消组合可沿原入口编辑。图片不发起外链请求，源压缩字节与关系不改；只为当前页准备屏幕资源。全稿 PDF 临时准备所选页资源，仍受累计图片/输出预算约束，失败不返回截断文件。
 
 未知可见对象阻止点穿；无确定边界时，该页直接画布编辑只读，查询/保存及其他页仍可用。静态 PDF 遇到可见未支持内容、效果或未解决适配时返回页/对象原因。动画/切换只保留源。保存及全部撤销保留原解压部件；输出重新校验 ZIP/XML/OPC，不承诺整个 ZIP 字节一致。
 

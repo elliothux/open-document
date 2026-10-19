@@ -165,14 +165,20 @@ fn Session::edit_table_structure(
     let (candidate, edit) = self.prepare(original, [
       table_source_change(object.source, ""),
     ])
-    self.commit(candidate, edit, {
-      ..self.selection,
-      object: "",
-      objects: [],
-      mode: "object",
-      anchor: 0,
-      focus: 0,
-    })
+    self.commit(
+      candidate,
+      edit,
+      {
+        ..self.selection,
+        object: "",
+        objects: [],
+        mode: "object",
+        anchor: 0,
+        focus: 0,
+      },
+      probe~,
+      profile~,
+    )
     return self.query()
   }
   let count = current_count + (if insert { amount } else { -amount })
@@ -321,6 +327,12 @@ fn Session::edit_table_structure(
   } else {
     offset
   }
-  self.commit(candidate, edit, { ..self.selection, anchor: offset, focus, })
+  self.commit(
+    candidate,
+    edit,
+    { ..self.selection, anchor: offset, focus, },
+    probe~,
+    profile~,
+  )
   self.query()
 }

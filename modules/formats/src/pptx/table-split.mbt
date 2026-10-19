@@ -377,11 +377,12 @@ fn Session::split_table_cell(
   let offset = candidate.object(object.id).table
     .unwrap()
     .cell_offset(y.search(cuts_y[0]).unwrap(), x.search(cuts_x[0]).unwrap())
-  self.commit(candidate, edit, {
-    ..self.selection,
-    mode: "text",
-    anchor: offset,
-    focus: offset,
-  })
+  self.commit(
+    candidate,
+    edit,
+    { ..self.selection, mode: "text", anchor: offset, focus: offset, },
+    probe~,
+    profile~,
+  )
   self.query()
 }

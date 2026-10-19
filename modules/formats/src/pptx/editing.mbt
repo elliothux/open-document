@@ -10,7 +10,7 @@ fn Session::prepare(
     self.main,
     self.cache,
     Tree::new(slide.tree.part, document),
-    index=self.index(slide.tree.part),
+    index=self.source_index(slide.tree.part),
     date_time=self.date_time,
     parts=self.parts,
   )
@@ -24,7 +24,30 @@ fn Session::validate(
   candidate : Slide,
 ) -> Unit raise @failure.Failure {
   let slides = self.slides.copy()
-  slides[self.index(candidate.tree.part)] = candidate
+  let parts = self.parts.copy()
+  if slides.search_by(slide => slide.tree.part == candidate.tree.part)
+    is Some(index) {
+    slides[index] = candidate
+  } else {
+    guard candidate.objects.length() <= 4096 else {
+      @failure.reject("limit-exceeded", "Source view objects exceed 4096")
+    }
+    parts[candidate.tree.part] = candidate.tree.document
+    let updated = slides.mapi((index, slide) => {
+      read_slide(
+        self.opc,
+        self.main,
+        self.cache,
+        slide.tree,
+        index~,
+        parts~,
+        date_time=self.date_time,
+      )
+    })
+    updated.push(candidate)
+    self.validate_slides(self.main, updated, parts~)
+    return
+  }
   self.validate_slides(self.main, slides)
 }
 
@@ -73,10 +96,10 @@ fn Session::commit(
   slide : Slide,
   edit : @xml.Edit,
   after : Selection,
+  probe? : @layout.TextProbe,
+  profile~ : Map[String, String] = Map([]),
 ) -> Unit raise @failure.Failure {
-  let slides = self.slides.copy()
-  slides[self.index(slide.tree.part)] = slide
-  self.commit_slides(self.main, slides, [(slide.tree.part, edit)], after)
+  self.commit_page(slide, [(slide.tree.part, edit)], after, probe?, profile~)
 }
 
 ///|
@@ -97,6 +120,21 @@ fn Session::commit_slides(
   let parts = parts.copy()
   let edits = edits.copy()
   self.sync_show_range(slides.length(), parts, edits)
+  let slides = if source_inheritance_changed(edits, parts) {
+    slides.mapi((index, slide) => {
+      read_slide(
+        self.opc,
+        main,
+        self.cache,
+        slide.tree,
+        index~,
+        parts~,
+        date_time=self.date_time,
+      )
+    })
+  } else {
+    slides
+  }
   let slides = slides.mapi((index, slide) => {
     let numbered = numbered_slide(slide, presentation_number(main, index))
     let (bounded, edit) = self.normalize_groups(numbered, main, index, parts)
@@ -168,10 +206,14 @@ fn Session::commit_slides(
   self.width = width
   self.height = height
   self.parts = parts
+  self.source_view = None
   self.media = media
   self.removed = removed_parts
   self.slides = slides
   self.selection = after
+  if self.slides.any(slide => slide.tree.part == after.slide) {
+    self.last_slide = after.slide
+  }
   self.revision += 1
   self.view = None
 }
@@ -215,7 +257,7 @@ pub fn Session::undo(
         media[name] = bytes
       }
     }
-    if !redo && !entry.deleted.is_empty() {
+    if !redo && (!entry.deleted.is_empty() || !entry.removed.is_empty()) {
       slides.append(entry.deleted)
       for name, document in entry.removed {
         if !entry.deleted.any(slide => slide.tree.part == name) {
@@ -285,7 +327,7 @@ pub fn Session::undo(
         media.remove(name)
       }
     }
-    if redo && !entry.deleted.is_empty() {
+    if redo && (!entry.deleted.is_empty() || !entry.removed.is_empty()) {
       for deleted in entry.deleted {
         guard slides.search_by(slide => slide.tree.part == deleted.tree.part)
           is Some(index) else {
@@ -318,15 +360,7 @@ pub fn Session::undo(
       removed=removed_parts,
     )
     let (width, height) = presentation_size(main)
-    let theme_changed = entry.edits.any(entry => {
-      parts
-      .get(entry.0)
-      .map(document => {
-        let root = document.nodes()[0]
-        root.uri == drawing_uri && root.name == "theme"
-      })
-      .unwrap_or(false)
-    })
+    let theme_changed = source_inheritance_changed(entry.edits, parts)
     let slides = if width != self.width ||
       height != self.height ||
       theme_changed {
@@ -362,10 +396,14 @@ pub fn Session::undo(
     self.width = width
     self.height = height
     self.parts = parts
+    self.source_view = None
     self.media = media
     self.removed = removed_parts
     self.slides = slides
     self.selection = if redo { entry.after } else { entry.before }
+    if self.slides.any(slide => slide.tree.part == self.selection.slide) {
+      self.last_slide = self.selection.slide
+    }
     ignore(source.pop())
     target.push(entry)
     self.revision += 1
@@ -398,7 +436,7 @@ fn Session::editable(
       "invalid-operation", "This operation requires one selected object",
     )
   }
-  let slide = self.slides[self.index(self.selection.slide)]
+  let slide = self.source_slide(self.selection.slide)
   let object = slide.object(self.selection.object)
   let reason = if !slide.read_only.is_empty() {
     slide.read_only
@@ -492,7 +530,7 @@ pub fn Session::finish(
   profile : Map[String, String],
 ) -> Json raise @failure.Failure {
   let candidate = self.gesture(revision, id)
-  let original = self.slides[self.index(self.selection.slide)]
+  let original = self.source_slide(self.selection.slide)
   let prepared = if candidate.kind == "transform" {
     let changes : Array[@xml.SourceChange] = []
     for id in self.selection.objects {
@@ -523,7 +561,7 @@ pub fn Session::finish(
     candidate.edit.map(edit => (candidate.slide, edit))
   }
   if prepared is Some((slide, edit)) {
-    self.commit(slide, edit, candidate.selection)
+    self.commit(slide, edit, candidate.selection, probe~, profile~)
   }
   self.candidate = None
   self.view = None
@@ -552,7 +590,7 @@ pub fn Session::transform(
       @failure.reject("invalid-transform", "Object transform exceeds budget")
     }
   }
-  let original = self.slides[self.index(self.selection.slide)]
+  let original = self.source_slide(self.selection.slide)
   let line = original.object(self.selection.object).preset == "line"
   guard (width >= 0.1 && height >= 0.1) ||
     (line && width >= 0 && height >= 0 && width + height >= 0.1) else {
@@ -681,9 +719,9 @@ pub fn Session::drag(
     handle <= 4 else {
     @failure.reject("invalid-transform", "Invalid drag delta or handle")
   }
-  let object = self.slides[self.index(self.selection.slide)].object(
-    self.selection.object,
-  )
+  let object = self
+    .source_slide(self.selection.slide)
+    .object(self.selection.object)
   if self.selection.objects.length() > 1 {
     return self.drag_collection(revision, id, dx, dy, handle)
   }

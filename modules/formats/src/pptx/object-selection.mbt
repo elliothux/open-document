@@ -97,7 +97,7 @@ fn Session::transform_collection(
   width : Double,
   height : Double,
 ) -> Json raise @failure.Failure {
-  let original = self.slides[self.index(self.selection.slide)]
+  let original = self.source_slide(self.selection.slide)
   let box = original.selection_box(self.selection.objects, in_parent=true)
   guard [x, y, width, height].all(v => {
       !v.is_nan() && !v.is_inf() && v.abs() <= 14400
@@ -176,7 +176,7 @@ fn Session::drag_collection(
   dy : Double,
   handle : Int,
 ) -> Json raise @failure.Failure {
-  let original = self.slides[self.index(self.selection.slide)]
+  let original = self.source_slide(self.selection.slide)
   let box = original.selection_box(self.selection.objects, in_parent=true)
   let inverse = original.object(self.selection.object).source
     .parent_frame()

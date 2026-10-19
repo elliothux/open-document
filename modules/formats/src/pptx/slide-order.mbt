@@ -18,6 +18,10 @@ pub(all) enum SlideEdit {
   ThemeFont(String, String, String)
   ApplyLayout(String)
   ResetLayout
+  AddLayout
+  CopyLayout
+  DeleteLayout
+  SourceName(String)
   Notes(String)
   Footer(FooterContent, Bool)
   FirstSlideNumber(Double)
@@ -94,6 +98,14 @@ fn Session::ordered_slides(
 
 ///|
 fn Session::slide_visibility_reason(self : Session) -> String {
+  if !self.slides.any(slide => slide.tree.part == self.selection.slide) {
+    return "Return to slide view for page settings"
+  }
+  self.modification_reason()
+}
+
+///|
+fn Session::modification_reason(self : Session) -> String {
   try {
     if self.main.one(
         self.main.root("presentation").id,
@@ -224,8 +236,16 @@ pub fn Session::edit_slides(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   self.check_idle()
+  if !self.slides.any(item => item.tree.part == slide) {
+    return self.edit_source(slide, change)
+  }
   let index = self.index(slide)
-  let reason = if change is MoveSlide(_) ||
+  let reason = if change is Background(_) ||
+    change is BackgroundImage(_, _) ||
+    change is BackgroundImageFormat(_, _, _) ||
+    change is BackgroundImageInsets(_) {
+    self.modification_reason()
+  } else if change is MoveSlide(_) ||
     change is AddSlide ||
     change is CopySlide ||
     change is DeleteSlide {
@@ -249,13 +269,13 @@ pub fn Session::edit_slides(
     | DeleteSection(_)
     | MoveSection(_, _) => return self.edit_sections(index, change)
     Size(width, height) => return self.set_slide_size(width, height)
-    Background(value) => return self.set_background(index, value)
+    Background(value) => return self.set_background(slide, value)
     BackgroundImage(bytes, mode) =>
-      return self.write_image(bytes, None, background=Some(index), mode~)
+      return self.write_image(bytes, None, background=Some(slide), mode~)
     BackgroundImageFormat(mode, crop, opacity) =>
-      return self.set_background_image_format(index, mode, crop, opacity)
+      return self.set_background_image_format(slide, mode, crop, opacity)
     BackgroundImageInsets(insets) =>
-      return self.set_background_image_insets(index, insets)
+      return self.set_background_image_insets(slide, insets)
     ThemeColor(slot, value) => return self.set_theme_color(slot, value)
     ThemeFont(kind, script, font) => {
       guard probe is Some(probe) else {
@@ -266,6 +286,8 @@ pub fn Session::edit_slides(
       return self.set_theme_font(kind, script, font, probe, profile)
     }
     ApplyLayout(id) => return self.apply_layout(index, id)
+    AddLayout | CopyLayout | DeleteLayout | SourceName(_) =>
+      @failure.reject("invalid-slide", "Select a master or layout source")
     ResetLayout =>
       return self.apply_layout(
         index,

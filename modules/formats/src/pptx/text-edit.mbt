@@ -229,7 +229,7 @@ pub fn Session::replace(
   } else {
     selection_text_changes(object, self.selection, text)
   }
-  let original = self.slides[self.index(self.selection.slide)]
+  let original = self.source_slide(self.selection.slide)
   let prepared = if changes.is_empty() {
     None
   } else {
@@ -244,7 +244,7 @@ pub fn Session::replace(
     })
     self.view = None
   } else if prepared is Some((slide, edit)) {
-    self.commit(slide, edit, after)
+    self.commit(slide, edit, after, probe~, profile~)
   } else {
     self.selection = after
   }
@@ -281,13 +281,13 @@ pub fn Session::delete(
   }
   if !changes.is_empty() {
     let (slide, edit) = self.prepare_fitted(
-      self.slides[self.index(old.slide)],
+      self.source_slide(old.slide),
       changes,
       [object.id],
       probe,
       profile,
     )
-    self.commit(slide, edit, after)
+    self.commit(slide, edit, after, probe~, profile~)
   } else {
     self.selection = after
   }

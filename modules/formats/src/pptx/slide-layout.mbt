@@ -12,33 +12,10 @@ fn Session::layout_choices(
 ) -> Array[LayoutChoice] raise @failure.Failure {
   let choices : Array[LayoutChoice] = []
   let links = self.relationships()
-  let masters = self.main.required(
-    self.main.root("presentation").id,
-    "sldMasterIdLst",
-    uri=presentation_uri,
-  )
   let seen : Map[String, Bool] = Map([])
   let mut units = 0
-  let listed = self.main.all(masters.id, "sldMasterId", uri=presentation_uri)
-  guard listed.length() <= 256 else {
-    @failure.reject("limit-exceeded", "Slide master catalog exceeds budget")
-  }
-  for item in listed {
-    let id = item.attribute("id", uri=relationship_uri).unwrap_or("")
-    let link = links
-      .iter()
-      .find_first(link => link.owner == self.main.part && link.id == id)
-    guard link is Some(link) &&
-      !link.external &&
-      link.kind == relationship_uri + "/slideMaster" else {
-      @failure.reject("malformed-pptx", "Invalid listed slide master")
-    }
-    let master = load_tree(self.opc, self.cache, link.target, parts=self.parts)
+  for (master, master_name) in self.master_choices() {
     let root = master.root("sldMaster")
-    let master_name = master
-      .required(root.id, "cSld", uri=presentation_uri)
-      .attribute("name")
-      .unwrap_or("")
     if master.one(root.id, "sldLayoutIdLst", uri=presentation_uri) is Some(list) {
       for item in master.all(list.id, "sldLayoutId", uri=presentation_uri) {
         let id = item.attribute("id", uri=relationship_uri).unwrap_or("")
@@ -60,7 +37,8 @@ fn Session::layout_choices(
           parts=self.parts,
         )
         let root = tree.root("sldLayout")
-        guard relation(self.opc, tree.part, "slideMaster") == Some(master.part) else {
+        guard relation(self.opc, tree.part, "slideMaster", parts=self.parts) ==
+          Some(master.part) else {
           @failure.reject(
             "malformed-pptx", "Slide layout belongs to a different master",
           )

@@ -75,14 +75,20 @@ fn Session::insert_table(
     probe,
     profile,
   )
-  self.commit(candidate, edit, {
-    ..self.selection,
-    object: identity,
-    objects: [identity],
-    mode: "object",
-    anchor: 0,
-    focus: 0,
-  })
+  self.commit(
+    candidate,
+    edit,
+    {
+      ..self.selection,
+      object: identity,
+      objects: [identity],
+      mode: "object",
+      anchor: 0,
+      focus: 0,
+    },
+    probe~,
+    profile~,
+  )
   self.object_sequence = number(id, 1, 4294967295).to_int64() + 1
   self.query()
 }

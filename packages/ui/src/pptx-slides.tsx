@@ -56,12 +56,41 @@ export function PptxSlideList({
   };
   return (
     <nav className="od-sidebar" aria-label={t.slide}>
-      <PptxShow
-        editor={editor}
-        controller={controller}
-        state={state}
-        disabled={disabled}
-      />
+      <label htmlFor={`${prefix}-view`}>{t.pptxEditView}</label>
+      <select
+        id={`${prefix}-view`}
+        value={query.editView.kind === "slide" ? "" : query.slide}
+        disabled={disabled || !!query.editView.reason}
+        onChange={(event) => {
+          const part = event.currentTarget.value || query.editView.slide;
+          controller.run(() => editor.showSlide(part));
+        }}
+      >
+        <option value="">{t.pptxSlideView}</option>
+        {(["master", "layout"] as const).map((kind) => (
+          <optgroup
+            key={kind}
+            label={kind === "master" ? t.slideMaster : t.slideLayout}
+          >
+            {query.editView.choices
+              .filter((choice) => choice.kind === kind)
+              .map((choice) => (
+                <option key={choice.id} value={choice.id}>
+                  {choice.name || choice.id}
+                </option>
+              ))}
+          </optgroup>
+        ))}
+      </select>
+      {query.editView.reason && <p>{query.editView.reason}</p>}
+      {query.editView.kind === "slide" && (
+        <PptxShow
+          editor={editor}
+          controller={controller}
+          state={state}
+          disabled={disabled}
+        />
+      )}
       {sections.length > 0 && (
         <div className="od-section-actions">
           <button

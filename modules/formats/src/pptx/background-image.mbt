@@ -1,4 +1,12 @@
 ///|
+fn Session::image_content(
+  self : Session,
+  key : String,
+) -> Bytes raise @failure.Failure {
+  self.media.get(key).unwrap_or_else(() => self.opc.read(key))
+}
+
+///|
 fn background_image_properties(
   properties : Ref,
   image : Ref,
@@ -26,7 +34,7 @@ fn background_image_properties(
 fn background_image_source(slide : Slide) -> Ref? raise @failure.Failure {
   let tree = slide.tree
   let container = tree.required(
-    tree.root("sld").id,
+    tree.document.nodes()[0].id,
     "cSld",
     uri=presentation_uri,
   )
@@ -40,7 +48,7 @@ fn background_image_source(slide : Slide) -> Ref? raise @failure.Failure {
 ///|
 fn Session::set_background_image_format(
   self : Session,
-  index : Int,
+  part : String,
   mode : String,
   crop : Array[Double],
   opacity : Double,
@@ -48,7 +56,7 @@ fn Session::set_background_image_format(
   check_image_fill_mode(mode)
   let crop = normalized_image_crop(crop)
   let opacity = image_opacity_amount(opacity).to_double() / 100000
-  let slide = self.slides[index]
+  let slide = self.source_slide(part)
   let reason = self.background_reason(slide)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let background = slide.background
@@ -58,9 +66,9 @@ fn Session::set_background_image_format(
     )
   }
   self.write_image(
-    self.image_bytes(key),
+    self.image_content(key),
     None,
-    background=Some(index),
+    background=Some(part),
     mode~,
     background_format=Some((crop, opacity)),
   )
@@ -69,20 +77,20 @@ fn Session::set_background_image_format(
 ///|
 fn Session::set_background_image_insets(
   self : Session,
-  index : Int,
+  part : String,
   values : Array[Double],
 ) -> Json raise @failure.Failure {
   let insets = normalized_image_insets(values)
-  guard self.slides[index].background is Picture(key, crop, _, None, _) else {
+  guard self.source_slide(part).background is Picture(key, crop, _, None, _) else {
     @failure.reject(
       "invalid-operation", "Image destination insets require a stretched background",
     )
   }
   check_image_crop_bounds(self.width, self.height, crop, insets~)
   self.write_image(
-    self.image_bytes(key),
+    self.image_content(key),
     None,
-    background=Some(index),
+    background=Some(part),
     background_insets=Some(insets),
   )
 }
@@ -109,7 +117,7 @@ fn background_change(
 ) -> @xml.SourceChange raise @failure.Failure {
   let tree = original.tree
   let container = tree.required(
-    tree.root("sld").id,
+    tree.document.nodes()[0].id,
     "cSld",
     uri=presentation_uri,
   )

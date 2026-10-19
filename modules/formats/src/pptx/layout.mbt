@@ -460,9 +460,8 @@ pub fn Session::print_layout(
   self.check_candidate_idle()
   let pages : Array[@layout.PositionedPage] = []
   let mut primitives = 0
-  for slide in self.slides {
-    if (all && (hidden || !slide.hidden)) ||
-      (!all && slide.tree.part == self.selection.slide) {
+  for slide in (if all { self.slides } else { [self.current()] }) {
+    if !all || hidden || !slide.hidden {
       let (page, _, diagnostics) = paint_slide(
         slide,
         self.width,
@@ -501,9 +500,8 @@ pub fn Session::image_keys(
 ) -> Array[String] raise @failure.Failure {
   self.check()
   let keys : Array[String] = []
-  for slide in self.slides {
-    if (all && (hidden || !slide.hidden)) ||
-      (!all && slide.tree.part == self.selection.slide) {
+  for slide in (if all { self.slides } else { [self.current()] }) {
+    if !all || hidden || !slide.hidden {
       for key in slide.image_keys() {
         if !keys.contains(key) {
           keys.push(key)
