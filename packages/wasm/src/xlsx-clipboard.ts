@@ -1,4 +1,12 @@
-import { record } from "./validation.js";
+import { record, integer } from "./validation.js";
+import {
+  checkXlsxConditionalFormat,
+  type XlsxConditionalFormat,
+} from "./xlsx-conditional.js";
+import {
+  checkXlsxDataValidation,
+  type XlsxDataValidation,
+} from "./xlsx-validation.js";
 import { copiedCellFormat, type XlsxCellFormat } from "./xlsx-format.js";
 import type { CellRange, CellValue } from "./xlsx.js";
 
@@ -13,6 +21,18 @@ export interface CopiedCells {
   date1904: boolean;
   cells: CopiedCell[][];
   merges: CellRange[];
+  conditional: CopiedConditional[];
+  validations: CopiedValidation[];
+}
+export interface CopiedConditional {
+  ranges: CellRange[];
+  anchor: { row: number; column: number };
+  settings: XlsxConditionalFormat;
+}
+export interface CopiedValidation {
+  ranges: CellRange[];
+  anchor: { row: number; column: number };
+  settings: XlsxDataValidation;
 }
 export type XlsxPasteMode = "all" | "values" | "formulas" | "format";
 export function checkXlsxPasteMode(
@@ -28,7 +48,7 @@ export function copiedCells(value: unknown): CopiedCells {
   const fragment = record(value),
     rows = fragment.cells;
   if (
-    Object.keys(fragment).length !== 5 ||
+    Object.keys(fragment).length !== 7 ||
     typeof fragment.date1904 !== "boolean" ||
     typeof fragment.top !== "number" ||
     !Number.isInteger(fragment.top) ||
@@ -97,5 +117,56 @@ export function copiedCells(value: unknown): CopiedCells {
     formats.push(styles);
   }
   copiedCellFormat({ cells: formats, merges: fragment.merges });
+  let count = 0,
+    ruleUnits = 0;
+  for (const key of ["conditional", "validations"] as const) {
+    const rules: unknown = fragment[key];
+    if (!Array.isArray(rules) || rules.length > 4096)
+      throw new Error("Invalid copied cell rules");
+    for (const value of rules) {
+      const rule = record(value),
+        anchor = record(rule.anchor),
+        ranges: unknown = rule.ranges;
+      if (
+        Object.keys(rule).length !== 3 ||
+        Object.keys(anchor).length !== 2 ||
+        !integer(anchor.row, 1, 1048576) ||
+        !integer(anchor.column, 1, 16384) ||
+        !Array.isArray(ranges) ||
+        ranges.length === 0 ||
+        ranges.length > 4096
+      )
+        throw new Error("Invalid copied rule geometry");
+      for (const value of ranges) {
+        const range = record(value);
+        if (
+          Object.keys(range).length !== 4 ||
+          !integer(range.top, fragment.top, fragment.top + rows.length - 1) ||
+          !integer(
+            range.bottom,
+            Number(range.top),
+            fragment.top + rows.length - 1,
+          ) ||
+          !integer(
+            range.left,
+            fragment.left,
+            fragment.left + rows[0].length - 1,
+          ) ||
+          !integer(
+            range.right,
+            Number(range.left),
+            fragment.left + rows[0].length - 1,
+          )
+        )
+          throw new Error("Copied rule leaves source rectangle");
+      }
+      if (key === "conditional") checkXlsxConditionalFormat(rule.settings);
+      else checkXlsxDataValidation(rule.settings);
+      count += ranges.length;
+      ruleUnits += JSON.stringify(rule.settings).length;
+      if (count > 4096 || ruleUnits > 1048576)
+        throw new Error("Copied cell rules exceed budget");
+    }
+  }
   return value as CopiedCells;
 }

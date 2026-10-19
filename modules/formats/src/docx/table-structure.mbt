@@ -11,6 +11,7 @@ pub(all) enum TableEdit {
   SplitCell(Int, Int)
   SplitTable
   PasteCells(String)
+  PasteCellFragment(String)
   AutoFit(String)
   TableWidth(Double)
   ColumnWidth(Int, Double)
@@ -155,6 +156,10 @@ pub fn Session::edit_table(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   match change {
+    PasteCellFragment(fragment) =>
+      return self.paste_table_fragment(
+        revision, selection, fragment, probe, profile, images,
+      )
     PasteCells(text) =>
       return self.paste_table_cells(
         revision, selection, text, probe, profile, images,

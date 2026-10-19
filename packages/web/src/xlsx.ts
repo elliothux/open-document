@@ -3,6 +3,8 @@ import { resetCellClipboard } from "./spreadsheet-clipboard.js";
 export type {
   CopiedCell,
   CopiedCells,
+  CopiedConditional,
+  CopiedValidation,
   XlsxPasteMode,
 } from "@open-document/wasm/xlsx";
 import {

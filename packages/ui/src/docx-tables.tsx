@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { pasteDocxCells } from "@open-document/web/foundation";
 import type { DocumentEditor } from "@open-document/web/editor";
 import type {
   DocxTableEdit,
@@ -186,24 +187,7 @@ export function DocxTables({
         <button
           type="button"
           onMouseDown={(event) => event.preventDefault()}
-          onClick={() =>
-            controller.run(async () => {
-              const before = editor.getSnapshot();
-              const text = await navigator.clipboard.readText();
-              await editor.whenIdle();
-              const current = editor.getSnapshot();
-              if (
-                current.busy !== 0 ||
-                current.dragging ||
-                current.documentId !== before.documentId ||
-                current.revision !== before.revision ||
-                JSON.stringify(current.data.selection) !==
-                  JSON.stringify(before.data.selection)
-              )
-                throw new Error("Selection changed during clipboard read");
-              return editor.editTable({ action: "pasteCells", text });
-            })
-          }
+          onClick={() => controller.run(() => pasteDocxCells(editor))}
         >
           {t.pasteCells}
         </button>

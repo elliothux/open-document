@@ -77,8 +77,20 @@ pub fn Session::table_clipboard(
     }
     output.write_string("\n")
   }
+  let mut reason = ""
+  let fragment = Json(
+    self.capture_table_fragment(tree, grid, top, bottom, left, right, owners),
+  ) catch {
+    @failure.Failure(code="protected-content", message~, ..) => {
+      reason = message
+      Json::null()
+    }
+    error => raise error
+  }
   {
     "text": output.to_string(),
+    "fragment": fragment,
+    "reason": reason,
     "selection": Json(
       if selected is Some(_) {
         selection

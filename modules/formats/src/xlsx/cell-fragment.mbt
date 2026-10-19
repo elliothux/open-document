@@ -12,6 +12,8 @@ pub(all) struct CopiedCells {
   date1904 : Bool
   cells : Array[Array[CopiedCell]]
   merges : Array[Range]
+  conditional : Array[CopiedConditional]
+  validations : Array[CopiedValidation]
 }
 
 ///|
@@ -55,6 +57,16 @@ pub impl ToJson for CopiedCells with fn to_json(self) {
       })
     }),
     "merges": self.merges,
+    "conditional": self.conditional.map(rule => {
+      "ranges": Json(rule.ranges),
+      "anchor": { "row": rule.anchor.row, "column": rule.anchor.column },
+      "settings": rule.settings.json(),
+    }),
+    "validations": self.validations.map(rule => {
+      "ranges": Json(rule.ranges),
+      "anchor": { "row": rule.anchor.row, "column": rule.anchor.column },
+      "settings": Json(rule.settings),
+    }),
   }
 }
 
@@ -74,6 +86,7 @@ fn CopiedCells::validate(self : CopiedCells) -> Unit raise @failure.Failure {
     @failure.reject("invalid-operation", "Expected a bounded cell fragment")
   }
   check_format_merges(self.merges, self.cells.length(), self.cells[0].length())
+  self.check_copied_rules()
   let mut units = 0L
   for row in self.cells {
     for cell in row {
@@ -124,7 +137,7 @@ pub fn Session::capture_cells(
   let range = sheet.merge_target(selected)
   let reason = self.format_reason(sheet, range)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
-  self.check_fill_resources(sheet, range)
+  self.check_fill_resources(sheet, range, rules=true)
   check_merge_markup(Tree::new(sheet.document))
   let calculation = self.calculation.unwrap()
   let rows : Array[Array[CopiedCell]] = []
@@ -149,11 +162,14 @@ pub fn Session::capture_cells(
     }
     rows.push(cells)
   }
+  let (conditional, validations) = self.capture_cell_rules(sheet, index, range)
   let fragment : CopiedCells = {
     top: range.top,
     left: range.left,
     date1904: self.date1904,
     cells: rows,
+    conditional,
+    validations,
     merges: sheet.merges
     .filter(merge => range.covers(merge))
     .map(merge => {
@@ -207,7 +223,7 @@ pub fn Session::paste_cells(
   }
   let reason = self.format_reason(sheet, target)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
-  self.check_fill_resources(sheet, target)
+  self.check_fill_resources(sheet, target, rules=true)
   let format = mode == "all" || mode == "format"
   let merges = if format {
     sheet.format_merges(
@@ -310,13 +326,40 @@ pub fn Session::paste_cells(
       }
     }
   }
-  if updates.is_empty() && merges == sheet.merges {
+  let rules = mode == "all" || mode == "format"
+  let (conditional, validations) = if rules {
+    {
+      ..copied,
+      validations: if mode == "all" {
+        copied.validations
+      } else {
+        []
+      },
+    }.rules_at(target, transpose)
+  } else {
+    ([], [])
+  }
+  let change_rules = rules &&
+    (
+      !conditional.is_empty() ||
+      (mode == "all" && !validations.is_empty()) ||
+      sheet.has_clipboard_rules(target, mode == "all")
+    )
+  if updates.is_empty() && merges == sheet.merges && !change_rules {
     return self.select(revision, sheet.id, target.name())
   }
   let formatting = if originals.is_empty() {
     None
   } else {
     Some(self.derive_formats(originals, patches))
+  }
+  let (formatting, rule_indices) = if rules {
+    self.copied_rule_styles(
+      formatting,
+      conditional.map(rule => rule.settings.format),
+    )
+  } else {
+    (formatting, [])
   }
   let styles = formatting.map(plan => plan.indices).unwrap_or(Map([]))
   let plan = self.prepare_cells(
@@ -326,7 +369,40 @@ pub fn Session::paste_cells(
     formatting~,
     accept_warnings~,
     preserve_values=mode == "format",
+    validate_values=mode == "values" || mode == "formulas",
   )
+  if rules {
+    self.prepare_copied_rules(
+      plan,
+      index,
+      target,
+      conditional,
+      if mode == "all" {
+        validations
+      } else {
+        []
+      },
+      rule_indices,
+      mode == "all",
+    )
+  }
+  if mode == "all" {
+    let addresses = []
+    for row in target.top..<=target.bottom {
+      for column in target.left..<=target.right {
+        addresses.push(Address::{ row, column, }.name())
+      }
+    }
+    self.validate_inputs(
+      plan.sheets,
+      plan.calculation,
+      Map([(index, addresses)]),
+      accept_warnings,
+    )
+  }
+  if plan.edits.is_empty() && plan.created_parts.is_empty() {
+    return self.select(revision, sheet.id, target.name())
+  }
   self.commit(
     plan.sheets,
     self.workbook,

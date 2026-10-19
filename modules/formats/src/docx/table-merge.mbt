@@ -28,6 +28,19 @@ fn Session::table_grid(
     .iter()
     .find_first(t => t.id == table)
     .unwrap()
+  let r = tree.table_children(table, "tr").search(row).unwrap()
+  let c = tree.table_children(row, "tc").search(cell).unwrap()
+  read_table_grid(tree, model, r, c)
+}
+
+///|
+fn read_table_grid(
+  tree : WordTree,
+  model : @layout.Table,
+  row : Int,
+  column : Int,
+) -> TableGrid raise @failure.Failure {
+  let table = model.id
   let rows = tree.table_children(table, "tr")
   let cells = rows.map(row => tree.table_children(row, "tc"))
   guard rows.length() == model.rows.length() else {
@@ -52,7 +65,16 @@ fn Session::table_grid(
     for c, id in row {
       let span = model.columnSpans[r][c]
       let owner = if model.rowSpans[r][c] == 0 {
-        previous[(start, span)]
+        previous
+        .get((start, span))
+        .unwrap_or_error(
+          @failure.Failure(
+            code="invalid-table",
+            part="",
+            offset=id,
+            message="Merged continuation has no matching owner",
+          ),
+        )
       } else {
         (r, c)
       }
@@ -64,17 +86,7 @@ fn Session::table_grid(
     previous = current
     starts.push(positions)
   }
-  let r = rows.search(row).unwrap()
-  {
-    table,
-    rows,
-    cells,
-    starts,
-    owners,
-    model,
-    row: r,
-    column: cells[r].search(cell).unwrap(),
-  }
+  { table, rows, cells, starts, owners, model, row, column, }
 }
 
 ///|

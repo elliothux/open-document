@@ -97,9 +97,23 @@ pub(all) struct CopiedCells {
   date1904 : Bool
   cells : Array[Array[CopiedCell]]
   merges : Array[Range]
+  conditional : Array[CopiedConditional]
+  validations : Array[CopiedValidation]
 }
 pub fn CopiedCells::to_json(Self) -> Json
 pub impl ToJson for CopiedCells
+
+pub(all) struct CopiedConditional {
+  ranges : Array[Range]
+  anchor : Address
+  settings : ConditionalFormat
+}
+
+pub(all) struct CopiedValidation {
+  ranges : Array[Range]
+  anchor : Address
+  settings : DataValidation
+}
 
 pub(all) struct DataBar {
   minimum : ConditionalThreshold

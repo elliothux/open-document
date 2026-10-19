@@ -227,6 +227,7 @@ pub(all) enum TableEdit {
   SplitCell(Int, Int)
   SplitTable
   PasteCells(String)
+  PasteCellFragment(String)
   AutoFit(String)
   TableWidth(Double)
   ColumnWidth(Int, Double)

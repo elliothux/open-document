@@ -5,6 +5,8 @@ import type { DocxSelection } from "./docx-hit.js";
 export interface DocxTableClipboard {
   text: string;
   selection: DocxSelection;
+  fragment: string | null;
+  reason: string;
 }
 
 export function docxTableClipboard(value: unknown): DocxTableClipboard {
@@ -12,6 +14,11 @@ export function docxTableClipboard(value: unknown): DocxTableClipboard {
   if (
     typeof result.text !== "string" ||
     result.text.length > 65536 ||
+    (result.fragment !== null &&
+      (typeof result.fragment !== "string" ||
+        result.fragment.length === 0 ||
+        result.fragment.length > 2097152)) ||
+    typeof result.reason !== "string" ||
     !isDocxSelection(result.selection)
   )
     throw new Error("Invalid table clipboard returned by Wasm");
@@ -92,6 +99,7 @@ export function checkDocxCellMargins(value: unknown): void {
 
 export type DocxTableEdit =
   | { action: "pasteCells"; text: string }
+  | { action: "pasteFragment"; fragment: string }
   | { action: "autoFit"; mode: "content" | "page" | "fixed" }
   | { action: "tableBorders" | "cellBorders"; value: DocxBorderPatch }
   | {
@@ -118,6 +126,16 @@ export type DocxTableEdit =
 
 export function checkDocxTableEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "pasteFragment") {
+    if (
+      typeof change.fragment !== "string" ||
+      change.fragment.length === 0 ||
+      change.fragment.length > 2097152 ||
+      Object.keys(change).some((key) => key !== "action" && key !== "fragment")
+    )
+      throw new Error("Invalid rich table clipboard");
+    return;
+  }
   if (change.action === "pasteCells") {
     if (
       typeof change.text !== "string" ||

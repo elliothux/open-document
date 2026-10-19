@@ -499,17 +499,29 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 目标必须是支持的普通格，覆盖任一合并格或缺失源格时整体拒绝。扩列要求源行完整。全表最多 1000 行、63 列、4096 个逻辑格，输入最多 65536 UTF-16 单元。逐格候选重解析累计最多 64 Mi UTF-16 单元，并沿既有源、历史、字体、布局和输出预算原子检查。默认按钮在读取后等待已接受输入，并核对文档、revision、选择和拖动状态；读取拒绝或目标变化保留文档，可重试。
 
-普通纯文本 Copy/Cut 不携带矩形与合并信息，也不转义格内分隔符；含这些内容的结果不能视作可往返的 TSV。需要矩形文字往返时使用下述显式复制模式。富文本及合并格矩阵粘贴继续实施。覆盖和自动补足行列的操作依据 [ONLYOFFICE InsertTableContent](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L18018-L18118)，当前 SDK 使用逻辑网格并保护合并目标，避免静默丢弃字段。实现归 [`table-paste.mbt`](../../modules/formats/src/docx/table-paste.mbt)；DOCX/XLSX 共用内部 [`TSV 解析器`](../../modules/formats/src/internal/delimited/clipboard.mbt)。
+普通纯文本 Copy/Cut 不携带矩形与合并信息，也不转义格内分隔符；含这些内容的结果不能视作可往返的 TSV。需要矩形往返时使用下述显式复制模式。覆盖和自动补足行列的操作依据 [ONLYOFFICE InsertTableContent](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L18018-L18118)。纯文本入口继续保护合并目标；富文本入口见下文。实现归 [`table-paste.mbt`](../../modules/formats/src/docx/table-paste.mbt)；DOCX/XLSX 共用内部 [`TSV 解析器`](../../modules/formats/src/internal/delimited/clipboard.mbt)。
 
 #### 单元格矩阵复制与剪切
 
-`DocumentEditor.copy(cut = false, mode?: "cells")` 的显式 `"cells"` 模式对应默认“复制单元格”和“剪切单元格”按钮。核心 `tableClipboard(revision, selection)` 返回 `{ text, selection }`，查询不改源、选择或历史。`text` 为矩形 TSV，每行以 LF 结束。含 Tab、LF、CR 或双引号的字段用双引号包围，内部引号双写；格内段落和软换行统一为 LF。普通 Copy/Cut 和原生快捷键保持原合同。
+`DocumentEditor.copy(cut = false, mode?: "cells")` 的显式 `"cells"` 模式对应默认“复制单元格”和“剪切单元格”按钮。核心 `tableClipboard(revision, selection)` 返回 `{ text, selection, fragment, reason }`，查询不改源、选择或历史。`text` 为矩形 TSV，每行以 LF 结束。含 Tab、LF、CR 或双引号的字段用双引号包围，内部引号双写；格内段落和软换行统一为 LF。普通 Copy/Cut 和原生快捷键保持原合同。
 
-矩形覆盖所选主格的完整跨度，文字只写在各主格左上角。合并覆盖位置、源空缺和边界扩展后未选择的格填空字段；不递归扩大选择，也不读取或清空未选择的主格。单格光标或同格文字选择均复制该格全部段落。结果只携带文字与矩形位置，粘贴不恢复源合并、样式或资源。
+矩形覆盖所选主格的完整跨度，TSV 文字只写在各主格左上角。合并覆盖位置、源空缺和边界扩展后未选择的格填空字段；不递归扩大文字选择，也不读取或清空未选择的主格。单格光标或同格文字选择均复制该格全部段落。TSV 不恢复源合并、样式或资源；`fragment` 另携带支持的富文本矩阵。
 
 返回的 `selection` 是剪切清空范围：跨格保留原整格范围，单格扩展至该格全部段落。宿主写入剪贴板成功后，核对编辑器生命周期、原 revision 和选择，再沿既有 `replaceRange` 清空。写入失败或目标变化保留源；清空保留格属性、表结构和精确历史。含图片、字段或其他不支持内容时，在写入前保护拒绝。
 
-矩形最多 4096 个位置，转义与分隔符计入 65536 UTF-16 单元上限。实现归 [`table-clipboard.mbt`](../../modules/formats/src/docx/table-clipboard.mbt)，字段转义复用既有 XLSX 逻辑。整格内容依据 [ONLYOFFICE 所选格提取](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L7450-L7483)，矩形分隔和引号依据 [ONLYOFFICE 工作表文字剪贴板](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/clipboard.js#L1828-L1850)。这是当前 SDK 的有界文字投影，不代表富文本或合并结构往返。
+矩形最多 4096 个位置，转义与分隔符计入 65536 UTF-16 单元上限。实现归 [`table-clipboard.mbt`](../../modules/formats/src/docx/table-clipboard.mbt)，字段转义复用既有 XLSX 逻辑。整格内容依据 [ONLYOFFICE 所选格提取](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L7450-L7483)，矩形分隔和引号依据 [ONLYOFFICE 工作表文字剪贴板](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/clipboard.js#L1828-L1850)。
+
+#### 单元格富文本片段
+
+支持的普通段落和完整矩形合并生成非空 `fragment`，`reason` 为空。片段由核心生成和解析，宿主将其视作不透明字符串。字符及段落样式解析为直接属性，保留混合字符、空段落、Tab/软换行、自定义制表位、底色、边距、垂直对齐及横纵合并。片段不引用源样式身份，复制后修改或关闭源文档不改变内容。
+
+`editTable({ action: "pasteFragment", fragment })` 从当前主格写入片段矩形。它可替换完全覆盖的目标合并，并补足底部行和右侧列；部分覆盖合并整体拒绝。列宽、行高和表属性沿目标网格，格宽按目标跨度更新。未改格、格间注释和其他部件保留，写入、扩展、选择与精确撤销合为一项历史；相同源片段无操作。
+
+默认复制模式同时写 `text/plain` 和 Chromium 自定义类型 `web application/x-open-document-docx-cells`。默认“粘贴单元格”及 Web foundation 导出的 `pasteDocxCells(editor)` 优先读取片段；只有缺少此类型时读取 TSV。无效片段不回退成文字。读取后核对文档、revision、选择和生命周期，再沿既有编辑队列提交。
+
+富文本范围须包含完整所选矩形，合并边各段须有共同宽度和颜色。列表、链接/书签/批注身份、字段、图片和未知结构的资源转移继续实施；可提取文字但不能生成富文本时返回 `fragment: null` 及具体 `reason`，系统剪贴板保留原 TSV。含图片、字段等原纯文本入口不支持的内容仍在写入前拒绝。文档默认 Tab 间隔、小数点符号及其他全局设置采用目标文档；源行高及表属性不转移。覆盖包含身份或未知源的目标格整体拒绝。
+
+片段最多 2 Mi UTF-16 单元，并沿包的 XML 深度、源字节、65536 文字单元、1000 行、63 列、4096 逻辑格及既有历史/字体/布局/输出预算检查。Web 在读 Blob 前另限 4 MiB；TS 不解析 WordML。未知引用、断裂合并、超预算和缺字体均保留原文档及历史。实现归 [`table-fragment-copy.mbt`](../../modules/formats/src/docx/table-fragment-copy.mbt)、[`table-fragment-read.mbt`](../../modules/formats/src/docx/table-fragment-read.mbt)及 [`table-fragment-paste.mbt`](../../modules/formats/src/docx/table-fragment-paste.mbt)。结构依据 [ONLYOFFICE 所选内容](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L7524-L7748)与上述 `InsertTableContent`；未移植上游可执行代码。
 
 #### 跨格行列与矩形合并
 
@@ -1489,13 +1501,21 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 ### 结构化单元格剪贴板
 
-`XlsxSession/Client.captureCells(revision)` 返回核心生成的 `CopiedCells`：源 `top/left`、`date1904`、矩形 `cells` 及相对合并范围 `merges`。每格包含类型化 `value`、公式字符串或 `null` 和全部已支持格式属性。值是复制时的已计算结果；公式保留源表达式和位置。片段独立于之后的源编辑，不持有源会话句柄。
+`XlsxSession/Client.captureCells(revision)` 返回核心生成的 `CopiedCells`：源 `top/left`、`date1904`、矩形 `cells`、相对合并范围 `merges`、`conditional` 和 `validations`。每格包含类型化 `value`、公式字符串或 `null` 和全部已支持格式属性。值是复制时的已计算结果；公式保留源表达式和位置。片段独立于之后的源编辑，不持有源会话句柄。
 
-`pasteCells(revision, copied, mode = "all", transpose = false, acceptWarnings = false)` 从当前选择的左上角写入一次片段大小的矩形，不平铺到更大的选择。`all` 写入值、相对平移公式、支持的格式和合并；`values` 只写复制时的类型值与公式结果；`formulas` 写入平移公式及非公式常量；`format` 保留目标值和公式，只写格式及合并。`values/formulas` 保留目标格式，目标须未合并。文字 `=literal` 仍是文字，不经输入解析变成公式。
+`pasteCells(revision, copied, mode = "all", transpose = false, acceptWarnings = false)` 从当前选择的左上角写入一次片段大小的矩形，不平铺到更大的选择。`all` 写入值、相对平移公式、支持的格式/合并及两类规则；`values` 只写复制时的类型值与公式结果；`formulas` 写入平移公式及非公式常量；`format` 保留目标值、公式和数据验证，只写格式、合并及条件格式。`values/formulas` 保留目标格式和两类规则，目标须未合并。文字 `=literal` 仍是文字，不经输入解析变成公式。
 
 `transpose` 交换行列、合并范围和四边边框。公式先绕复制矩形原点交换引用坐标，再执行粘贴位移；绝对标记沿原引用保留，整行/列引用交换轴。引用越界按既有规则写为 `#REF!`。行为依据 [ONLYOFFICE 选择性粘贴模式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/clipboard.js#L186-L247)、[转置后应用位移](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L29818-L29881)和[引用坐标翻转](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L11010-L11034)。
 
-格式与新样式部件、内容、合并、依赖、缓存、验证、自动尺寸和选择共用一次候选事务。已有共享公式按必要范围展开；只贴格式保留目标文字源。无变化只更新选择，失败保留文档与历史。支持完整包含的普通合并格；相交但不完整的目标合并拒绝。源与目标继续复用既有填充资源保护，富文本、相交规则/链接、原生表/透视和未知工作表扩展保持显式保护。已有便笺保持原坐标，不随复制片段传递。日期系统不同时显式拒绝，规则资源片段继续实施。
+格式与新样式部件、内容、合并、依赖、缓存、验证、自动尺寸和选择共用一次候选事务。已有共享公式按必要范围展开；只贴格式保留目标文字源。失败保留文档与历史。支持完整包含的普通合并格；相交但不完整的目标合并拒绝。源与目标继续复用既有填充资源保护，富文本、相交链接、原生表/透视和未知工作表扩展保持显式保护。已有便笺保持原坐标，不随复制片段传递。日期系统不同时显式拒绝；更广资源转移继续实施。无规则的相同值/格式片段只更新选择；携带规则的粘贴可重建原生范围和优先级。
+
+每项 `conditional` / `validations` 包含 `ranges`、`anchor` 和 `settings`，类型分别为 `CopiedConditional` / `CopiedValidation`。`ranges` 是复制矩形内的源绝对地址交集；`anchor` 保留原规则的公式原点。条件设置沿已有 `XlsxConditionalFormat`，验证设置沿 `XlsxDataValidation`。条件样式与主题颜色解析为支持的直接格式，目标重新分配差异样式，保留源规则次序；不沿用源工作簿的 `dxfId`。
+
+全部粘贴裁去目标两类规则的覆盖区，再写入复制交集；格式粘贴只处理条件格式。范围外规则及目标容器的显示设置保留。格内公式按原锚点和复制位移转换；转置复用同一引用坐标交换规则。公式型色阶/数据条阈值按整条规则处理，新覆盖区共同计算统计。复制不移动源引用或其他表的依赖；源和目标使用各自的名称定义，定义及关联资源不随片段转移。规则引用语法和支持范围沿既有合同。
+
+全部粘贴在规则替换后检查新值；值/公式粘贴沿目标原验证检查。只贴格式不重新验证已有值，可保留导入文件中的无效值；后续输入仍受原验证限制。差异样式和普通格样式可同时创建同一个样式部件，关系、内容类型及全部源一起撤销。候选字体、规则、输入、工作量或输出失败保留原文档、选择和历史。
+
+两类规则各最多 4096 项，范围合计最多 4096 个矩形，设置文字合计最多 1048576 UTF-16 单元；原单格、公式、XML、样式和事务预算继续生效。非默认验证 IME 设置、未知身份与扩展继续保护。源全局提示设置留在源文档，目标全局提示设置留在目标文档。实现归 [`clipboard-rules.mbt`](../../modules/formats/src/xlsx/clipboard-rules.mbt)和 [`clipboard-rule-paste.mbt`](../../modules/formats/src/xlsx/clipboard-rule-paste.mbt)。交集复制及转置规则依据 [ONLYOFFICE 条件规则复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L13432-L13505)和[验证复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L13233-L13262)；未移植可执行代码。
 
 `SpreadsheetEditor.copyCells()` 先提交原生草稿，再将片段及普通 TSV 写入系统剪贴板。`pasteCells(mode = "all", transpose = false)` 读取相同载荷，沿队列检查字体、revision 和生命周期后提交；默认面板提供四种模式和转置开关。载荷类型为 Chromium 的 `web application/x-open-document-cells`。普通原生粘贴及 `paste(text)` 保持上述 TSV 语义；普通 `copy()` 也先提交已接受草稿。读取/写入权限失败保留源，晚到读取不能修改已关闭的编辑器。
 

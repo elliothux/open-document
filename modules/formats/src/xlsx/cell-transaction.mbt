@@ -17,6 +17,7 @@ fn Session::prepare_cells(
   accept_warnings~ : Bool = false,
   formatting~ : StyleEdit? = None,
   preserve_values~ : Bool = false,
+  validate_values~ : Bool = true,
 ) -> CellEditPlan raise @failure.Failure {
   guard self.read_only.is_empty() else {
     @failure.reject("protected-content", self.read_only)
@@ -76,7 +77,9 @@ fn Session::prepare_cells(
     changed,
     self.workbook,
   )
-  self.validate_inputs(candidate, calculation, targets, accept_warnings)
+  if validate_values {
+    self.validate_inputs(candidate, calculation, targets, accept_warnings)
+  }
   edits.append(
     self.cache_edits(candidate, calculation, style_count=cell_styles.length()),
   )

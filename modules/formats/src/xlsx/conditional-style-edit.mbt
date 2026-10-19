@@ -86,6 +86,7 @@ fn Session::derive_conditional_styles(
   self : Session,
   patches : Array[CellFormat],
   inner~ : Array[Array[CellBorder?]] = patches.map(_ => [None, None]),
+  parts~ : Map[String, @xml.Document] = self.parts,
 ) -> ConditionalStyleEdit raise @failure.Failure {
   guard inner.length() == patches.length() &&
     inner.all(edges => edges.length() == 2) else {
@@ -97,18 +98,18 @@ fn Session::derive_conditional_styles(
   if empty.all(value => value) {
     return {
       indices: patches.map(_ => None),
-      parts: self.parts.copy(),
+      parts: parts.copy(),
       edits: [],
       created_parts: Map([]),
     }
   }
-  let parts = self.parts.copy()
+  let parts = parts.copy()
   let existing = self.styles_part(parts)
   let (path, metadata) = existing
     .map(path => (path, []))
     .unwrap_or_else(() => self.new_styles_part())
   let original = if existing is Some(_) {
-    self.part_xml(path)
+    parts.get(path).unwrap_or_else(() => self.part_xml(path))
   } else {
     @xml.Document::parse(
       empty_cell_styles(),

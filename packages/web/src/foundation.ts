@@ -1,4 +1,5 @@
 import { Connection } from "./connection.js";
+export { pasteDocxCells } from "./clipboard-input.js";
 import { FoundationPageClient } from "./foundation-page.js";
 export type {
   DocxRunningArea,
