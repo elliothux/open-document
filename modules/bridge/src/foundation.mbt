@@ -198,6 +198,7 @@ fn Foundation::dispatch(
     | "savePptx"
     | "layoutPptx"
     | "controlShowPptx"
+    | "inkShowPptx"
     | "layoutShowPptx"
     | "printLayoutPptx"
     | "hitPptx"
@@ -391,6 +392,7 @@ fn Foundation::dispatch(
           session.table_clipboard(
             field_int(request, "revision"),
             field_selection(request),
+            cut=xlsx_boolean(request, "cut"),
           )
         "tableFragmentImages" =>
           session.table_fragment_images(

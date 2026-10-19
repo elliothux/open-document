@@ -469,7 +469,11 @@ async function dispatch(request: Request): Promise<unknown> {
             request.cut,
           );
         case "tableClipboard":
-          return foundation.tableClipboard(request.revision, request.selection);
+          return foundation.tableClipboard(
+            request.revision,
+            request.selection,
+            request.cut,
+          );
         case "tableFragmentImages":
           return foundation.tableFragmentImages(
             request.revision,

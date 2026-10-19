@@ -71,6 +71,7 @@ fn Foundation::pptx_operation(
     @failure.reject("session-required", "Open a PPTX presentation first")
   }
   match operation {
+    "inkShowPptx" => pptx_show_ink(session, request)
     "controlShowPptx" =>
       session.control_show(
         field_int(request, "revision"),

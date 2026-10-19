@@ -32,6 +32,7 @@ const names: ReadonlySet<string> = new Set([
   "imageKeysPptx",
   "exportPptxPdf",
   "controlShowPptx",
+  "inkShowPptx",
   "layoutShowPptx",
   "imageKeysShowPptx",
 ]);

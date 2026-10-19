@@ -652,9 +652,10 @@ export class FoundationSession extends FoundationPageSession {
   tableClipboard(
     revision: number,
     selection: DocxSelection,
+    cut = false,
   ): DocxTableClipboard {
     return docxTableClipboard(
-      this.call({ operation: "tableClipboard", revision, selection }),
+      this.call({ operation: "tableClipboard", revision, selection, cut }),
     );
   }
   tableFragmentImages(revision: number, fragment: string) {
@@ -665,7 +666,7 @@ export class FoundationSession extends FoundationPageSession {
     );
   }
 
-  /** Reads plain text; cut=true protects pictures until rich clipboard support. */
+  /** Plain-text cut protects pictures; use tableClipboard for rich cell cuts. */
   selectedText(
     revision: number,
     selection: DocxSelection,

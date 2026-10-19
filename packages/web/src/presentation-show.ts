@@ -3,11 +3,16 @@ import type {
   PptxShowAction,
   PptxShowLayout,
   PptxShowState,
+  PptxShowInkChange,
 } from "@open-document/wasm/pptx";
 import type { PptxClient } from "./pptx.js";
 import { PresentationCanvas } from "./presentation-canvas.js";
+import {
+  PresentationShowInk,
+  type PresentationInkLabels,
+} from "./presentation-show-ink.js";
 
-export interface PresentationShowLabels {
+export interface PresentationShowLabels extends PresentationInkLabels {
   title: string;
   current: string;
   next: string;
@@ -38,6 +43,9 @@ const english: PresentationShowLabels = {
   jump: "Go to slide",
   pause: "Pause",
   resume: "Resume",
+  pen: "Pen",
+  penColor: "Pen color",
+  clearInk: "Clear slide ink",
 };
 
 /** Core navigation and drawing remain bound to the editor's committed revision. */
@@ -67,6 +75,7 @@ export class PresentationShow {
   private links: HTMLDivElement | undefined;
   private linksKey = "";
   private routeKey = "";
+  private inkInput: PresentationShowInk | undefined;
   constructor(
     private readonly client: PptxClient,
     private readonly profile: Record<string, string>,
@@ -145,6 +154,25 @@ export class PresentationShow {
   followLink(id: string): Promise<void> {
     return this.control("followLink", id);
   }
+  ink(change: PptxShowInkChange, layoutId = this.drawing?.id): Promise<void> {
+    if (this.closed || !this.current?.active || !layoutId)
+      return Promise.reject(new Error("Slideshow frame is unavailable"));
+    if (change.action === "cancel" || change.action === "clear")
+      this.inkInput?.reset();
+    return this.run(async () => {
+      if (!this.current?.active)
+        throw new Error("Slideshow ended before ink input");
+      this.current = await this.client.execute({
+        operation: "inkShowPptx",
+        revision: this.revision,
+        time: this.time(),
+        layoutId,
+        change,
+      });
+      await this.paintFrame();
+      this.scheduleFrame();
+    });
+  }
   private control(
     action: Exclude<PptxShowAction, "start" | "startSettings">,
     slide: string,
@@ -153,8 +181,17 @@ export class PresentationShow {
     if (this.closed || !this.current?.active || this.busy)
       return Promise.reject(new Error("Slideshow is inactive or busy"));
     this.busy = true;
+    this.inkInput?.reset();
     const frame = this.drawing;
     return this.run(async () => {
+      if (this.current?.ink.drawing && this.drawing)
+        this.current = await this.client.execute({
+          operation: "inkShowPptx",
+          revision: this.revision,
+          time: this.time(),
+          layoutId: this.drawing.id,
+          change: { action: "cancel" },
+        });
       if ((point || action === "followLink") && !frame)
         throw new Error("Slideshow frame is unavailable");
       const state = await this.client.execute({
@@ -316,6 +353,7 @@ export class PresentationShow {
       (event) => {
         if (
           event.target instanceof HTMLSelectElement ||
+          event.target instanceof HTMLInputElement ||
           event.altKey ||
           event.ctrlKey ||
           event.metaKey
@@ -353,6 +391,7 @@ export class PresentationShow {
     this.surfaces[0]!.canvas.addEventListener(
       "click",
       (event) => {
+        if (this.inkInput?.consumeClick()) return;
         const canvas = this.surfaces[0]!.canvas,
           rect = canvas.getBoundingClientRect(),
           page = this.drawing?.regions[0];
@@ -365,6 +404,31 @@ export class PresentationShow {
         );
       },
       { signal: events.signal },
+    );
+    this.inkInput = new PresentationShowInk(
+      this.surfaces[0]!.canvas,
+      controls,
+      dialog,
+      events.signal,
+      labels,
+      () => {
+        const page = this.drawing?.regions[0],
+          slide = this.current?.slide;
+        return page && slide && this.drawing
+          ? {
+              id: this.drawing.id,
+              slide,
+              width: page.width,
+              height: page.height,
+            }
+          : undefined;
+      },
+      (change, layoutId) => this.ink(change, layoutId),
+      (error) => {
+        if (this.error)
+          this.error.textContent =
+            error instanceof Error ? error.message : String(error);
+      },
     );
     window.addEventListener("resize", () => this.resize(), {
       signal: events.signal,
@@ -393,6 +457,7 @@ export class PresentationShow {
     });
     const changed = state.slide !== this.current?.slide;
     this.current = state;
+    this.inkInput?.update(state);
     if (!state.active) {
       this.release();
       await this.restore();
@@ -538,6 +603,7 @@ export class PresentationShow {
     cancelAnimationFrame(this.frame);
     this.frame = 0;
     this.listeners?.abort();
+    this.inkInput = undefined;
     this.listeners = undefined;
     if (this.timer !== undefined) window.clearInterval(this.timer);
     this.timer = undefined;

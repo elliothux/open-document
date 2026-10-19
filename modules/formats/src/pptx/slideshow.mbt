@@ -292,24 +292,36 @@ pub fn Session::show_layout(
     drawing
   }
   let painted = drawing.regions.copy()
-  painted[0] = animated_region(
-    painted[0],
-    drawing.parts[0],
-    show.animation_state(),
-    self.slides[show.index],
+  painted[0] = ink_region(
+    animated_region(
+      painted[0],
+      drawing.parts[0],
+      show.animation_state(),
+      self.slides[show.index],
+    ),
+    show.ink.get(show.index).unwrap_or([]),
+    draft=show.ink_draft,
   )
   if show.from is Some(_) {
     let last = painted.length() - 1
-    painted[last] = animated_region(
-      painted[last],
-      drawing.parts[last],
-      show.leaving,
-      self.slides[show.from.unwrap()],
+    painted[last] = ink_region(
+      animated_region(
+        painted[last],
+        drawing.parts[last],
+        show.leaving,
+        self.slides[show.from.unwrap()],
+      ),
+      show.ink.get(show.from.unwrap()).unwrap_or([]),
     )
   }
   let regions = [self.show_region(show, painted)]
-  if self.show_neighbor(show, true) is Some(_) {
-    regions.push(drawing.regions[1])
+  if self.show_neighbor(show, true) is Some(position) {
+    regions.push(
+      ink_region(
+        drawing.regions[1],
+        show.ink.get(show.route[position]).unwrap_or([]),
+      ),
+    )
   }
   guard self.sequence < 2147483647 else {
     @failure.reject("limit-exceeded", "Layout identity exhausted")

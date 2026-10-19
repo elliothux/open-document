@@ -45,7 +45,7 @@ export async function copyDocxSelection(
   if (!selection) throw new Error("Click a document position first");
   const copied =
     mode === "cells"
-      ? await client.tableClipboard(revision, selection)
+      ? await client.tableClipboard(revision, selection, cut)
       : {
           text: await client.selectedText(revision, selection, cut),
           selection,

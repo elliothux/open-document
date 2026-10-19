@@ -82,7 +82,7 @@ fn Session::paragraph_range_in(
 /// Reads a supported plain-text range in document order, with LF paragraph separators.
 /// Whole-cell ranges use tabs between cells and LF after each selected row.
 /// This query preserves selection, revision, history and layout; oversized output fails.
-/// Cut preflight rejects pictures until the clipboard can retain their resources.
+/// Plain-text cut rejects pictures; table_clipboard checks portable resources for rich cell cuts.
 pub fn Session::selected_text(
   self : Session,
   revision : Int,

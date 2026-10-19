@@ -70,7 +70,9 @@ fn Session::picture_text_changes(
   limit : Int,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let node = tree.nodes[id]
-  let parent = tree.nodes[node.parent]
+  // Splitting a paragraph moves runs; anchor changes to its unchanged container.
+  let paragraph = tree.nodes[tree.nodes[node.parent].parent]
+  let parent = tree.nodes[paragraph.parent]
   let changes : Array[@xml.SourceChange] = []
   if image_offset is Some(offset) {
     ignore(self.editable_picture(tree, id, replace=true))

@@ -326,7 +326,7 @@ fn Session::prepare_plain_range(
   if anchor.paragraph != focus.paragraph || text.contains("\n") {
     if anchor.paragraph != focus.paragraph {
       let tree = WordTree::new(self.document())
-      if self.table_cell_range(tree, selection) is Some(cells) {
+      if self.table_cell_range(tree, selection, pictures=true) is Some(cells) {
         return Some(
           self.prepare_table_contents(tree, cells, text, check_graphemes~),
         )

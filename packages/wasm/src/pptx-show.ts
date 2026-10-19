@@ -1,6 +1,8 @@
 import { drawingBatch, type DrawingBatch } from "./drawing.js";
 import { integer, record } from "./validation.js";
 import { pptxHyperlink } from "./pptx-objects.js";
+import { checkPptxShowInk, type PptxShowInkChange } from "./pptx-show-ink.js";
+export type { PptxShowInkChange } from "./pptx-show-ink.js";
 
 export type PptxShowAction =
   | "start"
@@ -33,6 +35,7 @@ export interface PptxShowState {
   text: string;
   nextSlide: string | null;
   notes: { text: string; reason: string };
+  ink: { strokes: number; points: number; drawing: boolean };
 }
 export interface PptxShowLayout extends DrawingBatch {
   links: {
@@ -47,6 +50,13 @@ export interface PptxShowLayout extends DrawingBatch {
 }
 export type PptxShowCommand =
   | { operation: "imageKeysShowPptx" }
+  | {
+      operation: "inkShowPptx";
+      revision: number;
+      layoutId: number;
+      time: number;
+      change: PptxShowInkChange;
+    }
   | {
       operation: "controlShowPptx";
       revision: number;
@@ -67,7 +77,11 @@ export type PptxShowCommand =
 
 export function checkPptxShow(command: PptxShowCommand): void {
   if (command.operation === "imageKeysShowPptx") return;
-  if (!["controlShowPptx", "layoutShowPptx"].includes(command.operation))
+  if (
+    !["controlShowPptx", "layoutShowPptx", "inkShowPptx"].includes(
+      command.operation,
+    )
+  )
     throw new Error("Unknown slideshow command");
   if (!integer(command.revision, 0, 0x7fffffff))
     throw new Error("Invalid slideshow revision");
@@ -78,6 +92,11 @@ export function checkPptxShow(command: PptxShowCommand): void {
     command.time > 1000000000
   )
     throw new Error("Invalid slideshow time");
+  if (command.operation === "inkShowPptx") {
+    if (!integer(command.layoutId, 1, 0x7fffffff))
+      throw new Error("Invalid ink frame identity");
+    checkPptxShowInk(command.change);
+  }
   if (
     command.operation === "controlShowPptx" &&
     (![
@@ -141,10 +160,15 @@ export function checkPptxShow(command: PptxShowCommand): void {
 }
 export function pptxShowState(value: unknown): void {
   const state = record(value),
-    notes = record(state.notes);
+    notes = record(state.notes),
+    ink = record(state.ink);
   if (
     typeof state.active !== "boolean" ||
     typeof state.paused !== "boolean" ||
+    !integer(ink.strokes, 0, 256) ||
+    !integer(ink.points, 0, 32768) ||
+    typeof ink.drawing !== "boolean" ||
+    (!state.active && (ink.strokes !== 0 || ink.points !== 0 || ink.drawing)) ||
     !integer(state.steps, 0, 128) ||
     !integer(state.step, 0, Number(state.steps)) ||
     !integer(state.revision, 0, 0x7fffffff) ||

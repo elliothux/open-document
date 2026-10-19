@@ -367,6 +367,7 @@ export type Operation =
       operation: "tableClipboard";
       revision: number;
       selection: DocxSelection;
+      cut: boolean;
     }
   | { operation: "tableFragmentImages"; revision: number; fragment: string }
   | {

@@ -527,9 +527,11 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 `editTable({ action: "pasteFragment", fragment })` 从当前主格写入片段矩形。它可替换完全覆盖的目标合并，并补足底部行和右侧列；部分覆盖合并整体拒绝。列宽、行高和表属性沿目标网格，格宽按目标跨度更新。未改格、格间注释和其他部件保留，写入、扩展、选择与精确撤销合为一项历史；不含资源身份时，相同源片段无操作；列表和图片片段每次分配独立身份。
 
-默认复制模式同时写 `text/plain` 和 Chromium 自定义类型 `web application/x-open-document-docx-cells`。默认“粘贴单元格”及 Web foundation 导出的 `pasteDocxCells(editor)` 优先读取片段；只有缺少此类型时读取 TSV。无效片段不回退成文字。读取后核对文档、revision、选择和生命周期，再沿既有编辑队列提交。
+默认复制及显式“剪切单元格”同时写 `text/plain` 和 Chromium 自定义类型 `web application/x-open-document-docx-cells`。`tableClipboard(revision, selection, cut = false)` 在 `cut=true` 时检查图片的完整资源和原生删除权限，查询保持只读。剪贴板写入成功后，Web 再核对文档、revision、选择和生命周期，沿既有范围删除事务清空所选完整单元格。写入失败不修改源；切出的图片资源仍留在源包，支持精确撤销。普通文字 Cut 继续保护图片，避免仅写纯文本后丢失图片。
 
-富文本范围须包含完整所选矩形，合并边各段须有共同宽度和颜色。复杂列表、不完整或复杂书签、批注身份、字段和未知结构的资源转移继续实施；可提取文字但不能生成富文本时返回 `fragment: null` 及具体 `reason`，系统剪贴板保留原 TSV。图片格的富文本复制已支持，纯文本剪切和结构操作仍沿原保护。文档默认 Tab 间隔、小数点符号及其他全局设置采用目标文档；源行高及表属性不转移。覆盖已有图片须通过原生删除保护，其他身份或未知源仍拒绝。
+默认“粘贴单元格”及 Web foundation 导出的 `pasteDocxCells(editor)` 优先读取片段；只有缺少此类型时读取 TSV。无效片段不回退成文字。读取后核对文档、revision、选择和生命周期，再沿既有编辑队列提交。
+
+富文本范围须包含完整所选矩形，合并边各段须有共同宽度和颜色。复杂列表、不完整或复杂书签、批注身份、字段和未知结构的资源转移继续实施；可提取文字但不能生成富文本时返回 `fragment: null` 及具体 `reason`，系统剪贴板保留原 TSV。图片格已有富文本复制和显式剪切。跨格 Delete/Backspace 清空全部所选主格；文字、Enter 和组合输入只替换首个主格，保留其余格图片。图片删除锁、引用保护和候选失败沿既有原子事务执行。结构操作仍沿原保护。文档默认 Tab 间隔、小数点符号及其他全局设置采用目标文档；源行高及表属性不转移。覆盖已有图片须通过原生删除保护，其他身份或未知源仍拒绝。整格输入与清空依据 [ONLYOFFICE Table.Remove](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L6288-L6335)。
 
 每片段最多 256 张图片，逐图 base64 源最多 2 Mi 单元，解码后的压缩字节合计最多 2 MiB；共享资源的每次引用均计入检查。原生绘图身份分配最多扫描 16384 项，图片字节计入既有历史及输出预算。
 
@@ -2011,9 +2013,21 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 低层 controlShowPptx 携带 revision、action、slide 和必需的 time；start 可额外提供 custom ID，此时 slide 为空。startSettings 使用文稿默认选择，不接受 slide 或 custom。layoutShowPptx 携带 revision/profile/time，返回一至两个 R0 页面及 animating。time 为 0–1000000000 的有限单调毫秒，倒退请求拒绝且保留状态。核心扣除暂停间隔后计算进度，不调用宿主时钟。Web 每帧先用 tick 更新播放位置，再准备相邻资源和布局；animating 在切换或等待自动换页时为 true。每次最多处理一项帧工作，忙时只保留最新时间。核心缓存包含播放序列与条目位置，重复页也会更新下一页预览；每帧只重组位置及透明度。结束放映清除播放缓存。imageKeysShowPptx 返回当前、切换前及下一页资源；资源池同时保留编辑页，继续受 256 个键和 16 MiB 解码上限约束。
 
-模态视图位于所属编辑器内，容器全屏兼容 Shadow DOM。支持方向键、PageUp/PageDown、Home/End、页面点击、显式条目跳转和 Escape。演讲者开关显示下一页与普通备注；演讲已用时间继续累计，pause/resume 冻结/继续切换及自动换页计时。退出恢复原生焦点和选择；文件替换、宿主 setPaused(true) 和释放结束放映，清理画布、帧请求、监听器和计时器。对象与文字点击链接已有核心命中和键盘入口，范围归[放映链接](#放映链接)。媒体、临时画笔及独立窗口仍待实现，源元数据保留。
+模态视图位于所属编辑器内，容器全屏兼容 Shadow DOM。支持方向键、PageUp/PageDown、Home/End、页面点击、显式条目跳转和 Escape；原生选择及颜色控件保留自身按键。演讲者开关显示下一页与普通备注；演讲已用时间继续累计，pause/resume 冻结/继续切换及自动换页计时。退出恢复原生焦点和选择；文件替换、宿主 setPaused(true) 和释放结束放映，清理画布、帧请求、监听器和计时器。对象与文字点击链接已有核心命中和键盘入口，范围归[放映链接](#放映链接)。临时画笔归下文；媒体及独立窗口仍待实现，源元数据保留。
 
 页序规则参考 [ONLYOFFICE 可见页导航](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L4641-L4742)和[显式跳页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L4978-L5003)。实现归 [`slideshow.mbt`](../../modules/formats/src/pptx/slideshow.mbt)、[`show-state.mbt`](../../modules/formats/src/pptx/show-state.mbt)及 [`presentation-show.ts`](../../packages/web/src/presentation-show.ts)。
+
+### 放映临时画笔
+
+`PresentationEditor.slideshow.ink(change, layoutId?)` 仅修改当前放映的临时笔迹。省略 `layoutId` 时绑定当前显示帧。`PptxShowInkChange` 从 Wasm/Web PPTX 模块导出：`begin` 接受 RGB `color`、以 pt 为单位的 `width` 及 `{ x, y }[]` 点；`append`、`end` 接受点数组，`end` 可为空；`cancel` 丢弃当前草稿，`clear` 清空当前源页。低层 `inkShowPptx` 携带 revision、layoutId、单调 time 和 change，核心使用 `ShowInkChange` 校验。失效帧、非法笔或超预算拒绝并保留最后有效状态。
+
+核心按源页保留已完成笔画，返回圆端点、圆连接的 R0 路径；单点生成圆点。切换前后页和下一页预览使用同一笔迹图元，笔迹随页面切换合成。导航取消未完成笔画，返回同一源页恢复已完成笔迹。`PptxShowState.ink` 返回本页已完成 `strokes` 数、包含草稿的 `points` 数及 `drawing`。结束放映返回零值并释放全部笔迹；重新开始为空。文稿 revision、编辑选择、历史、保存及静态 PDF/图片不包含临时笔迹。
+
+默认放映提供画笔、颜色和清空本页。笔宽为 2.25 pt；Web 只转换指针坐标、采集与合并样本，每帧最多提交一批 64 点，由核心绘制。拖动捕获指针，页面外位置限制在页面边缘。绘画点击不触发链接或换页。Escape 取消当前笔画并回到普通指针，再按一次退出；丢失捕获和停用画笔同样取消草稿。退出、文件替换和释放停止采样及帧请求。
+
+每笔最多 4096 点，整次放映最多 256 笔、32768 点；正在输入的草稿计入点数检查。每批最多 64 点，宽度为 0.5–24 pt，坐标须为页内有限值。Web 待发送样本最多 4096 点，超限取消当前草稿并显示错误，已完成笔迹保留。保存为墨迹对象、橡皮擦、激光笔及压感继续实施。
+
+实现归 [`show-ink.mbt`](../../modules/formats/src/pptx/show-ink.mbt)及 [`presentation-show-ink.ts`](../../packages/web/src/presentation-show-ink.ts)。临时页级笔迹、取消和显式写入源的分离参考 [ONLYOFFICE SlideShowAnnotations](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/SlideShowAnnotations.js#L53-L193)。未复制上游执行代码。
 
 ### 放映链接
 

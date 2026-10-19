@@ -21,6 +21,10 @@ priv struct ShowState {
   step : Int
   ready : Double
   leaving : Map[String, ShowObject]
+  ink : Map[Int, Array[ShowInkStroke]]
+  ink_strokes : Int
+  ink_points : Int
+  ink_draft : ShowInkStroke?
 }
 
 ///|
@@ -106,6 +110,15 @@ fn Session::show_state(
       "paused": show.paused,
       "step": show.step,
       "steps": show.animations.length(),
+      "ink": {
+        "strokes": show.ink.get(show.index).unwrap_or([]).length(),
+        "points": show.ink
+        .get(show.index)
+        .unwrap_or([])
+        .fold(init=0, (sum, stroke) => sum + stroke.points.length()) +
+        show.ink_draft.map(stroke => stroke.points.length()).unwrap_or(0),
+        "drawing": show.ink_draft is Some(_),
+      },
       "nextSlide": self
       .show_neighbor(show, true)
       .map(i => Json(self.slides[show.route[i]].tree.part))
@@ -127,6 +140,7 @@ fn Session::show_state(
       "paused": false,
       "step": 0,
       "steps": 0,
+      "ink": { "strokes": 0, "points": 0, "drawing": false },
       "nextSlide": Json::null(),
       "notes": { "text": "", "reason": "" },
     }
@@ -196,6 +210,10 @@ fn Session::show_scene(
     } else {
       Map([])
     },
+    ink: self.showing.map(show => show.ink).unwrap_or(Map([])),
+    ink_strokes: self.showing.map(show => show.ink_strokes).unwrap_or(0),
+    ink_points: self.showing.map(show => show.ink_points).unwrap_or(0),
+    ink_draft: None,
   }
   if show.animations.get(0) is Some(item) && item.trigger != "click" {
     show.schedule_animations(show.settled)

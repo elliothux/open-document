@@ -200,6 +200,7 @@ pub fn Session::follow_hyperlink(Self, Int) -> Json raise @failure.Failure
 pub fn Session::hit(Self, Int, Double, Double, Double, text? : Bool) -> Json raise @failure.Failure
 pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
 pub fn Session::image_keys(Self, Bool, Bool) -> Array[String] raise @failure.Failure
+pub fn Session::ink_show(Self, Int, Int, Double, ShowInkChange) -> Json raise @failure.Failure
 pub fn Session::invalidate_geometry(Self) -> Unit
 pub fn Session::layout(Self, @layout.TextProbe, Map[String, String], @layout.Images) -> Json raise @failure.Failure
 pub fn Session::navigate(Self, Int, Int, String, Bool) -> Json raise @failure.Failure
@@ -217,6 +218,14 @@ pub fn Session::show_image_keys(Self) -> Array[String] raise @failure.Failure
 pub fn Session::show_layout(Self, Int, Double, @layout.TextProbe, Map[String, String], @layout.Images) -> Json raise @failure.Failure
 pub fn Session::transform(Self, Int, Int, Double, Double, Double, Double) -> Json raise @failure.Failure
 pub fn Session::undo(Self, Int, redo? : Bool) -> Json raise @failure.Failure
+
+pub(all) enum ShowInkChange {
+  BeginInk(String, Double, Array[(Double, Double)])
+  AppendInk(Array[(Double, Double)])
+  FinishInk(Array[(Double, Double)])
+  CancelInk
+  ClearInk
+}
 
 pub(all) enum ShowRange {
   ShowAll

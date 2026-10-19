@@ -27,6 +27,7 @@ export type {
   PptxShowAction,
   PptxShowState,
   PptxShowLayout,
+  PptxShowInkChange,
   PptxThemeColor,
   PptxThemeFont,
   PptxThemeSlot,
@@ -97,6 +98,7 @@ export class PptxClient {
   async execute<C extends PptxCommand>(command: C): Promise<PptxResult<C>> {
     if (
       command.operation === "controlShowPptx" ||
+      command.operation === "inkShowPptx" ||
       command.operation === "layoutShowPptx"
     )
       checkPptxShow(command);

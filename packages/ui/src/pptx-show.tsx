@@ -34,6 +34,9 @@ export function PptxShow({
     jump: t.showJump,
     pause: t.showPause,
     resume: t.showResume,
+    pen: t.showPen,
+    penColor: t.showPenColor,
+    clearInk: t.showClearInk,
   };
   return (
     <div>

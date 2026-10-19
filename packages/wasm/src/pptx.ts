@@ -19,6 +19,7 @@ export {
   type PptxShowAction,
   type PptxShowState,
   type PptxShowLayout,
+  type PptxShowInkChange,
 } from "./pptx-show.js";
 import {
   number,
@@ -303,7 +304,8 @@ export type PptxCommand =
       bytes: Uint8Array;
     };
 
-type Result<C extends PptxCommand> = C["operation"] extends "controlShowPptx"
+type Result<C extends PptxCommand> = C["operation"] extends
+  "controlShowPptx" | "inkShowPptx"
   ? PptxShowState
   : C["operation"] extends "layoutShowPptx"
     ? PptxShowLayout
@@ -594,6 +596,7 @@ export function pptxResult<C extends PptxCommand>(
   value: unknown,
 ): PptxResult<C> {
   switch (command.operation) {
+    case "inkShowPptx":
     case "controlShowPptx":
       pptxShowState(value);
       break;
@@ -682,6 +685,7 @@ export class PptxSession extends WasmSession {
   execute<C extends PptxCommand>(command: C): PptxResult<C> {
     if (
       command.operation === "controlShowPptx" ||
+      command.operation === "inkShowPptx" ||
       command.operation === "layoutShowPptx"
     )
       checkPptxShow(command);

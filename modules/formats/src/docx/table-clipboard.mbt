@@ -1,9 +1,10 @@
 ///|
-/// Reads selected owners as quoted TSV and returns the complete content range for cutting.
+/// Reads selected owners as quoted TSV and a portable fragment; cut checks picture retention and removal.
 pub fn Session::table_clipboard(
   self : Session,
   revision : Int,
   selection : Selection,
+  cut~ : Bool = false,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
@@ -86,6 +87,20 @@ pub fn Session::table_clipboard(
       Json::null()
     }
     error => raise error
+  }
+  if cut {
+    for cell in owners {
+      for id in tree.descendants(cell) {
+        if tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing" {
+          guard fragment != Json::null() else {
+            @failure.reject(
+              "protected-content", "Picture cut requires a complete rich fragment",
+            )
+          }
+          ignore(self.editable_picture(tree, id, remove=true))
+        }
+      }
+    }
   }
   {
     "text": output.to_string(),

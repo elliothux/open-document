@@ -146,7 +146,6 @@ export class FoundationClient extends FoundationPageClient {
   private constructor(connection: Connection) {
     super(connection);
   }
-
   static async open(
     wasm: ArrayBuffer,
     workerUrl: URL,
@@ -635,12 +634,14 @@ export class FoundationClient extends FoundationPageClient {
   async tableClipboard(
     revision: number,
     selection: DocxSelection,
+    cut = false,
   ): Promise<DocxTableClipboard> {
     return docxTableClipboard(
       await this.connection.request({
         operation: "tableClipboard",
         revision,
         selection,
+        cut,
       }),
     );
   }
@@ -768,7 +769,6 @@ export class FoundationClient extends FoundationPageClient {
       }),
     );
   }
-
   async imageBytes(key: string): Promise<Uint8Array> {
     const result = await this.connection.request({
       operation: "imageBytes",
