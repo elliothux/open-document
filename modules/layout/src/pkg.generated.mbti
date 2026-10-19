@@ -651,7 +651,7 @@ pub(all) struct TableStroke {
 pub fn TableStroke::to_json(Self) -> Json
 
 pub(all) struct TextBlock {
-  texts : Array[PositionedText]
+  lines : Array[Array[PositionedPrimitive]]
   widths : Array[Double]
   height : Double
 }
@@ -687,6 +687,7 @@ pub fn TextProbe::outline_resources(Self) -> Array[Outline] raise @failure.Failu
 pub fn TextProbe::paragraph_lines(Self, Paragraph, Map[String, String], Double, Bool, baseLevel? : Int) -> Array[Line] raise @failure.Failure
 pub fn TextProbe::shape(Self, String, Double, String, primary? : Int, base? : Int) -> ShapeBatch raise @failure.Failure
 pub fn TextProbe::source_glyph(Self, Int, Int, String, Int, Bool) -> (String, Int) raise @failure.Failure
+pub fn TextProbe::span_block(Self, Array[Span], Double, Map[String, String], Double, Bool) -> TextBlock raise @failure.Failure
 pub fn TextProbe::text_block(Self, String, TextStyle, Map[String, String], Double, Bool) -> TextBlock raise @failure.Failure
 
 pub(all) struct TextStyle {

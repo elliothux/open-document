@@ -143,6 +143,10 @@ fn Session::reflow_dimensions(
       }
     }
     let previous = old.get(candidate.id)
+    let rich_before = previous
+      .map(entry => entry.1.rich_layout_sources())
+      .unwrap_or(Map([]))
+    let rich_after = candidate.rich_layout_sources()
     let conditional = self.conditional_rules(
       candidate,
       index,
@@ -189,6 +193,7 @@ fn Session::reflow_dimensions(
           work.formulas,
         )
         if original == value &&
+          rich_before.get(name) == rich_after.get(name) &&
           before.formula == cell.formula &&
           original_style.measurement_key() == candidate_style.measurement_key() &&
           original_style.diagnostic == candidate_style.diagnostic {

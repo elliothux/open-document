@@ -144,6 +144,37 @@ fn Session::sort_cells(
   let lists = settings.keys.map(key => SortList::new(key.custom_list, work))
   let keys : Map[Int, Array[SortValue]] = Map([])
   let start = first + (if settings.header { 1 } else { 0 })
+  let rich = self.rich_text_colors(
+    index,
+    current.cells
+    .values()
+    .filter(cell => {
+      let position = if settings.rows {
+        cell.address.row
+      } else {
+        cell.address.column
+      }
+      let key_index = if settings.rows {
+        cell.address.column
+      } else {
+        cell.address.row
+      }
+      target.contains(cell.address) &&
+      position >= start &&
+      (if settings.rows {
+        current.dimensions.rows
+      } else {
+        current.dimensions.columns
+      }).size(position) !=
+      0 &&
+      settings.keys.any(key => {
+        key.sort_by == "fontColor" && key.index == key_index
+      })
+    })
+    .map(cell => cell.address)
+    .to_array(),
+    work,
+  )
   for position in start..<=last {
     if (if settings.rows {
         current.dimensions.rows
@@ -163,7 +194,14 @@ fn Session::sort_cells(
       let name = address.name()
       let cell = current.cells.get(name)
       if key.sort_by != "value" {
-        return self.color_sort_key(index, address, key, rules.unwrap(), work)
+        return self.color_sort_key(
+          index,
+          address,
+          key,
+          rules.unwrap(),
+          rich,
+          work,
+        )
       }
       let value = if cell.bind(c => c.formula) is Some(_) {
         self.calculation

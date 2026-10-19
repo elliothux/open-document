@@ -99,6 +99,25 @@ fn Session::filtered_rows(
     names: self.formula_names(),
   }
   let rules = self.filter_rules(sheet, work)
+  let rich = self.rich_text_colors(
+    sheet,
+    self.sheets[sheet].cells
+    .values()
+    .filter(cell => {
+      cell.address.row > range.top &&
+      range.contains(cell.address) &&
+      settings.columns.any(column => {
+        column.column == cell.address.column &&
+        (
+          column.rule is Color(_, cell_color=false) ||
+          column.rule is ColorStyle(_, cell_color=false)
+        )
+      })
+    })
+    .map(cell => cell.address)
+    .to_array(),
+    work,
+  )
   let normalized = settings.columns.map(column => {
     self.prepare_filter(sheet, range, column, work)
   })
@@ -113,16 +132,15 @@ fn Session::filtered_rows(
         work,
       )
       let matched = if normalized[i] is Color(color, cell_color~) {
-        self
-        .effective_cell_color(
+        self.cell_color_matches(
           sheet,
           { row, column: column.column, },
+          color,
           cell_color,
           rules,
+          rich,
           work,
         )
-        .to_lower() ==
-        color
       } else {
         normalized[i].matches(
           self.filter_raw(sheet, row, column.column),

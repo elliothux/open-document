@@ -47,7 +47,7 @@ fn place_block(
     } else {
       rect.height - 3 - block.height
     }).max(0)
-  for index, text in block.texts {
+  for index, line in block.lines {
     let x = rect.x +
       2.25 +
       (if horizontal == "right" {
@@ -59,14 +59,11 @@ fn place_block(
       }).max(0)
     page.texts.push(
       (
-        {
-          ..text,
-          runs: text.runs.map(run => {
-            ..run,
-            x: run.x + x,
-            baseline: run.baseline + top,
-          }),
-        },
+        [
+          @layout.Transform({ a: 1, b: 0, c: 0, d: 1, e: x, f: top, }),
+          ..line,
+          @layout.Restore,
+        ],
         rect,
       ),
     )
@@ -138,6 +135,18 @@ fn Session::paint_cells(
     @failure.reject("limit-exceeded", "Visible cells exceed 4096 cells")
   }
   let sheet = self.sheets[index]
+  let rich = self.rich_text_sources(
+    sheet,
+    rows
+    .map(row => {
+      columns.map(column => {
+        let range = sheet.cell_range({ row, column, })
+        Address::{ row: range.top, column: range.left, }
+      })
+    })
+    .flatten(),
+    work,
+  )
   let (header_width, header_height) = sheet.view.header_size()
   let cells : Array[Json] = []
   let seen : Map[String, Bool] = Map([])
@@ -156,7 +165,7 @@ fn Session::paint_cells(
         cell.map(cell => !cell.calculation_supported).unwrap_or(false) {
         @failure.reject("unsupported-print", "Unsupported cell value: " + key)
       }
-      let style = conditional.applied(
+      let mut style = conditional.applied(
         self.merged_style(sheet, range),
         address,
         self.sheets,
@@ -164,6 +173,17 @@ fn Session::paint_cells(
         self.calculation.map(c => c.values).unwrap_or(Map([])),
         work,
       )
+      let spans = rich
+        .get(key)
+        .bind(source => {
+          Some(rich_layout_spans(source.0, source.1, style, self.theme, work)) catch {
+            @failure.Failure(code="limit-exceeded", ..) as error => raise error
+            @failure.Failure(message~, ..) => {
+              style = { ..style, diagnostic: message, }
+              None
+            }
+          }
+        })
       let calculated = self.calculation.bind(calculation => {
         calculation.values.get((index, key))
       })
@@ -255,13 +275,23 @@ fn Session::paint_cells(
         }
       }
       if !text.is_empty() && rect.width > 4.5 && rect.height > 3 {
-        let mut block = probe.text_block(
-          text,
-          @layout.TextStyle::new(style.font, style.size, style.color),
-          profile,
-          (rect.width - 4.5).min(14400),
-          style.wrap,
-        )
+        let mut block = if spans is Some(spans) {
+          probe.span_block(
+            spans,
+            style.size,
+            profile,
+            (rect.width - 4.5).min(14400),
+            style.wrap,
+          )
+        } else {
+          probe.text_block(
+            text,
+            @layout.TextStyle::new(style.font, style.size, style.color),
+            profile,
+            (rect.width - 4.5).min(14400),
+            style.wrap,
+          )
+        }
         if !sheet.view.formulas &&
           value is Number(_) &&
           !style.wrap &&
@@ -302,7 +332,7 @@ fn Session::paint_cells(
         }
         place_block(page, block, rect, horizontal, style.vertical)
         if !printing {
-          let start = page.texts.length() - block.texts.length()
+          let start = page.texts.length() - block.lines.length()
           let clip : @layout.Border = {
             x: rect.x.max(if sheet.view.rtl { 0 } else { header_width }),
             y: rect.y.max(header_height),

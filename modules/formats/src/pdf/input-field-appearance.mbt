@@ -278,7 +278,7 @@ fn field_appearance(
       height: height - padding * 2,
     }),
   )
-  for index, line in block.texts {
+  for index, line in block.lines {
     let offset = if alignment == 1 {
       (width - padding * 2 - block.widths[index]) / 2
     } else if alignment == 2 {
@@ -287,15 +287,17 @@ fn field_appearance(
       0.0
     }
     primitives.push(
-      @layout.Text({
-        ..line,
-        runs: line.runs.map(run => {
-          ..run,
-          x: run.x + padding + offset,
-          baseline: run.baseline + padding,
-        }),
+      @layout.Transform({
+        a: 1,
+        b: 0,
+        c: 0,
+        d: 1,
+        e: padding + offset,
+        f: padding,
       }),
     )
+    primitives.append(line)
+    primitives.push(@layout.Restore)
   }
   primitives.push(@layout.Restore)
   let positioned : @layout.PositionedDocument = {

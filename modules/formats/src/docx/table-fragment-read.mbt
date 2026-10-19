@@ -22,6 +22,7 @@ fn Session::read_table_fragment(
     self.opc.budget.entry_bytes,
   )
   let document = self.import_fragment_links(document, parts, edits, created)
+  let document = self.import_fragment_bookmarks(document)
   let tree = WordTree::new(document)
   let body = tree.child(0, "body").unwrap()
   guard tree.children[body].length() == 2 &&
@@ -76,8 +77,8 @@ fn Session::read_table_fragment(
       "tc" => ["tcPr", "p"]
       "tcPr" =>
         ["tcW", "gridSpan", "vMerge", "tcBorders", "shd", "tcMar", "vAlign"]
-      "p" => ["pPr", "r", "hyperlink"]
-      "hyperlink" => ["r"]
+      "p" => ["pPr", "r", "hyperlink", "bookmarkStart", "bookmarkEnd"]
+      "hyperlink" => ["r", "bookmarkStart", "bookmarkEnd"]
       "r" => ["rPr", "t", "tab", "br", "cr"]
       "pPr" =>
         [
@@ -97,7 +98,7 @@ fn Session::read_table_fragment(
     guard tree.children[id].all(child => {
         children.contains(tree.nodes[child].name)
       }) &&
-      !["pStyle", "rStyle", "bookmarkStart", "bookmarkEnd"].contains(node.name) &&
+      !["pStyle", "rStyle"].contains(node.name) &&
       (node.name != "numId" || node.attribute("val", uri=word_uri) == Some("0")) else {
       @failure.reject(
         "protected-content", "Rich table fragment contains unsupported references or structure",

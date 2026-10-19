@@ -33,15 +33,6 @@ fn Session::effective_cell_color(
   work : FormulaWork,
 ) -> String raise @failure.Failure {
   let current = self.sheets[index]
-  guard cell_color ||
-    current.cells
-    .get(address.name())
-    .map(c => c.read_only != "Rich text cell is read-only")
-    .unwrap_or(true) else {
-    @failure.reject(
-      "protected-content", "Rich text font colors require run color ownership",
-    )
-  }
   let style = rules.applied(
     self.styles[current.style_at(address)],
     address,
@@ -68,19 +59,19 @@ fn Session::color_sort_key(
   address : Address,
   key : SortKey,
   rules : ConditionalRules,
+  rich : Map[String, Map[String, Bool]],
   work : FormulaWork,
 ) -> SortValue raise @failure.Failure {
-  let color = self.effective_cell_color(
+  let matches = self.cell_color_matches(
     index,
     address,
+    key.color,
     key.sort_by == "cellColor",
     rules,
+    rich,
     work,
   )
-  {
-    value: Number(if color.to_lower() == key.color.to_lower() { 0 } else { 1 }),
-    rank: None,
-  }
+  { value: Number(if matches { 0 } else { 1 }), rank: None, }
 }
 
 ///|

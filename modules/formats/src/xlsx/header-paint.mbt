@@ -135,7 +135,7 @@ fn Session::paint_header_footer(
           "print-overflow", "Header/footer content exceeds the page",
         )
       }
-      for index, text in block.texts {
+      for index, line in block.lines {
         let x = left +
           (if alignment == 2 {
             width - block.widths[index]
@@ -146,14 +146,11 @@ fn Session::paint_header_footer(
           })
         page.texts.push(
           (
-            {
-              ..text,
-              runs: text.runs.map(run => {
-                ..run,
-                x: run.x + x,
-                baseline: run.baseline + top,
-              }),
-            },
+            [
+              @layout.Transform({ a: 1, b: 0, c: 0, d: 1, e: x, f: top, }),
+              ..line,
+              @layout.Restore,
+            ],
             {
               x: 0,
               y: 0,

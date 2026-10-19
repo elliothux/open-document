@@ -195,7 +195,7 @@ pub fn PositionedDocument::drawing(
 
 ///|
 pub(all) struct TextBlock {
-  texts : Array[PositionedText]
+  lines : Array[Array[PositionedPrimitive]]
   widths : Array[Double]
   height : Double
 }
@@ -210,25 +210,50 @@ pub fn TextProbe::text_block(
   width : Double,
   wrap : Bool,
 ) -> TextBlock raise @failure.Failure {
+  self.span_block(
+    [{ node: 0, text, style, image: None, field: "", }],
+    style.size,
+    profile,
+    width,
+    wrap,
+  )
+}
+
+///|
+/// Shape mixed text styles with the same bounded paragraph layout as plain blocks.
+pub fn TextProbe::span_block(
+  self : TextProbe,
+  spans : Array[Span],
+  nominal_size : Double,
+  profile : Map[String, String],
+  width : Double,
+  wrap : Bool,
+) -> TextBlock raise @failure.Failure {
   self.check()
-  // shortcut: Text blocks carry only text; add effect primitives when XLSX/PPTX expose them.
-  guard !style.underline && !style.strike && style.highlight.is_empty() else {
+  guard spans.all(span => span.image is None && span.field.is_empty()) else {
     @failure.reject(
-      "unsupported-text", "Text block decorations require positioned primitives",
+      "unsupported-text", "Text blocks require ordinary text spans",
     )
   }
-  guard text.length() <= 32767 && width > 0 && width <= 14400 else {
+  let mut units = 0
+  for span in spans {
+    guard span.text.length() <= 32767 - units else {
+      @failure.reject("limit-exceeded", "Cell text layout exceeds budget")
+    }
+    units += span.text.length()
+  }
+  guard spans.length() <= 32767 && width > 0 && width <= 14400 else {
     @failure.reject("limit-exceeded", "Cell text layout exceeds budget")
   }
   let paragraph : Paragraph = {
     id: 0,
     container: 0,
-    nominalSize: style.size,
+    nominalSize: nominal_size,
     defaultTab: 36,
     tabs: [],
     decimalSymbol: ".",
     expandSoftBreak: true,
-    spans: [{ node: 0, text, style, image: None, field: "", }],
+    spans,
     before: 0,
     after: 0,
     line: Auto(240),
@@ -265,27 +290,23 @@ pub fn TextProbe::text_block(
       }
     }
   }
-  let texts : Array[PositionedText] = []
+  let lines : Array[Array[PositionedPrimitive]] = []
   let widths : Array[Double] = []
   let mut y = 0.0
+  let fonts = self.font_info()
   for item in measured {
     let line = item.line
-    texts.push({
-      text: line.markerText + line.text,
-      runs: line
-      .paint_runs()
-      .map(run => {
-        color: run.color,
-        text: run.text,
-        glyphs: run.glyphs,
-        x: run.x,
-        baseline: run.baseline + y,
-      }),
-    })
+    lines.push(
+      [
+        Transform({ a: 1, b: 0, c: 0, d: 1, e: 0, f: y, }),
+        ..line.positioned(fonts, width),
+        Restore,
+      ],
+    )
     widths.push(line.width)
     y += line.height
   }
-  { texts, widths, height: y, }
+  { lines, widths, height: y, }
 }
 
 ///|

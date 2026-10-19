@@ -92,6 +92,18 @@ fn Session::fit_sizes(
   for axis in axes {
     sizes[axis] = if rows { fallback } else { 0.0 }
   }
+  let rich = self.rich_text_sources(
+    current,
+    current.cells
+    .values()
+    .filter(cell => {
+      sizes.contains(if rows { cell.address.row } else { cell.address.column })
+    })
+    .map(cell => cell.address)
+    .to_array(),
+    work.formulas,
+    parts~,
+  )
   for cell in current.cells.values() {
     let axis = if rows { cell.address.row } else { cell.address.column }
     if !sizes.contains(axis) {
@@ -111,7 +123,15 @@ fn Session::fit_sizes(
       calculation.values,
       work.formulas,
     )
-    guard cell.read_only.is_empty() && style.diagnostic.is_empty() else {
+    guard (
+        cell.read_only.is_empty() ||
+        (
+          cell.read_only == "Rich text cell is read-only" &&
+          cell.formula is None &&
+          rich.contains(cell.address.name())
+        )
+      ) &&
+      style.diagnostic.is_empty() else {
       @failure.reject(
         "protected-content",
         "Unsupported cell layout: " + cell.address.name(),
@@ -139,6 +159,7 @@ fn Session::fit_sizes(
     )
     if rows &&
       text.is_empty() &&
+      !rich.contains(cell.address.name()) &&
       style.font == self.normal_font &&
       style.size == self.normal_size {
       continue
@@ -160,13 +181,35 @@ fn Session::fit_sizes(
     } else {
       text
     }
-    let block = probe.text_block(
-      content,
-      @layout.TextStyle::new(style.font, style.size, style.color),
-      profile,
-      (width - 4.5).max(0.75).min(14400),
-      style.wrap && !grow,
-    )
+    let block = if rich.get(cell.address.name()) is Some((tree, root)) {
+      let spans = rich_layout_spans(
+        tree,
+        root,
+        style,
+        self.theme,
+        work.formulas,
+      )
+      let spans = if content == text {
+        spans
+      } else {
+        spans.map(span => { ..span, text: " ", })
+      }
+      probe.span_block(
+        spans,
+        style.size,
+        profile,
+        (width - 4.5).max(0.75).min(14400),
+        content == text && style.wrap && !grow,
+      )
+    } else {
+      probe.text_block(
+        content,
+        @layout.TextStyle::new(style.font, style.size, style.color),
+        profile,
+        (width - 4.5).max(0.75).min(14400),
+        style.wrap && !grow,
+      )
+    }
     let measured = if rows {
       ((block.height + 3) / 0.75).ceil() * 0.75
     } else {

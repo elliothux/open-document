@@ -11,13 +11,24 @@ fn fragment_link_opening(
   tree.check_hyperlink(id)
   guard !tree.children[id].is_empty() &&
     tree.children[id].all(child => {
-      tree.nodes[child].uri == word_uri && tree.nodes[child].name == "r"
+      tree.is_bookmark(child) ||
+      (tree.nodes[child].uri == word_uri && tree.nodes[child].name == "r")
     }) else {
     @failure.reject(
       "protected-content", "Rich hyperlink copies require ordinary text runs without identities",
     )
   }
-  let target = hyperlink_target(tree, tree.children[id][0], links, bookmarks).unwrap()
+  let run = tree.children[id]
+    .iter()
+    .find_first(child => {
+      tree.nodes[child].uri == word_uri && tree.nodes[child].name == "r"
+    })
+    .unwrap_or_else(() => {
+      @failure.reject(
+        "protected-content", "Rich hyperlinks require ordinary text runs",
+      )
+    })
+  let target = hyperlink_target(tree, run, links, bookmarks).unwrap()
   let output = StringBuilder()
   output.write_string(
     "<od:hyperlink xmlns:odClip=\"\{table_fragment_uri}\" odClip:target=\"\{property_attribute(target)}\"",
@@ -42,7 +53,6 @@ fn Session::import_fragment_links(
   let tree = WordTree::new(document)
   let targets : Map[Int, String] = Map([])
   let external : Array[String] = []
-  let bookmarks = WordTree::new(self.document()).bookmark_targets()
   for node in document.nodes() {
     if node.uri != word_uri || node.name != "hyperlink" {
       continue
@@ -51,9 +61,13 @@ fn Session::import_fragment_links(
       @failure.reject("limit-exceeded", "Rich table hyperlinks exceed 4096")
     }
     guard !node.empty &&
+      tree.children[node.id].any(child => {
+        tree.nodes[child].uri == word_uri && tree.nodes[child].name == "r"
+      }) &&
       !tree.children[node.id].is_empty() &&
       tree.children[node.id].all(child => {
-        tree.nodes[child].uri == word_uri && tree.nodes[child].name == "r"
+        tree.is_bookmark(child) ||
+        (tree.nodes[child].uri == word_uri && tree.nodes[child].name == "r")
       }) &&
       node.attributes.all(a => {
         (a.uri == table_fragment_uri && a.name == "target") ||
@@ -68,13 +82,7 @@ fn Session::import_fragment_links(
       )
     }
     check_hyperlink_target(target)
-    if target.has_prefix("#") {
-      guard bookmarks.contains(target[1:].to_owned().to_lower()) else {
-        @failure.reject(
-          "protected-content", "Copied hyperlink bookmark is missing in the receiving document",
-        )
-      }
-    } else {
+    if !target.has_prefix("#") {
       external.push(target)
     }
     targets[node.id] = target

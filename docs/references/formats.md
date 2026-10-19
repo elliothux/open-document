@@ -515,13 +515,17 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 支持的普通段落和完整矩形合并生成非空 `fragment`，`reason` 为空。片段由核心生成和解析，宿主将其视作不透明字符串。字符及段落样式解析为直接属性，保留混合字符、空段落、Tab/软换行、自定义制表位、底色、边距、垂直对齐及横纵合并。片段不引用源样式身份，复制后修改或关闭源文档不改变内容。
 
-`editTable({ action: "pasteFragment", fragment })` 从当前主格写入片段矩形。它可替换完全覆盖的目标合并，并补足底部行和右侧列；部分覆盖合并整体拒绝。列宽、行高和表属性沿目标网格，格宽按目标跨度更新。未改格、格间注释和其他部件保留，写入、扩展、选择与精确撤销合为一项历史；相同源片段无操作。
+普通文字链接也随片段复制。核心保留目标、混合字符、提示文字及已支持的链接元数据，不携带源关系 ID。粘贴时在目标文档分配或复用外部链接关系，多条链接一次写入同一部件；相同目标共享关系。内部 `#书签名` 保持名称，须引用目标文档已有书签或同片段内完整复制的书签。链接遵循既有目标和 XML 校验，未知属性、源关系身份及失效书签整体拒绝。完整普通链接可被目标片段覆盖，未覆盖链接和已有关系保持。正文、关系创建及选择共用一次精确历史，失败保留源包及历史。
+
+普通成对书签随完整范围复制，支持点锚点、跨段落/单元格，以及链接中的标记。范围内各段均须被选中；遗漏端点或中间格时只提供 TSV 和原因。片段使用局部身份，粘贴时为新名称分配目标中未占用的 ID；目标已有同名书签时保留原书签，跳过复制的标记，不重命名或覆盖原目标。名称按既有规则忽略大小写比较。书签、文字及资源沿同一历史提交；保存重开后可继续改名、跳转及输入。已有目标格中的书签仍保护覆盖，包括重复粘贴到刚创建书签的格。
+
+`editTable({ action: "pasteFragment", fragment })` 从当前主格写入片段矩形。它可替换完全覆盖的目标合并，并补足底部行和右侧列；部分覆盖合并整体拒绝。列宽、行高和表属性沿目标网格，格宽按目标跨度更新。未改格、格间注释和其他部件保留，写入、扩展、选择与精确撤销合为一项历史；不含目标受保护身份时，相同源片段无操作。
 
 默认复制模式同时写 `text/plain` 和 Chromium 自定义类型 `web application/x-open-document-docx-cells`。默认“粘贴单元格”及 Web foundation 导出的 `pasteDocxCells(editor)` 优先读取片段；只有缺少此类型时读取 TSV。无效片段不回退成文字。读取后核对文档、revision、选择和生命周期，再沿既有编辑队列提交。
 
-富文本范围须包含完整所选矩形，合并边各段须有共同宽度和颜色。列表、链接/书签/批注身份、字段、图片和未知结构的资源转移继续实施；可提取文字但不能生成富文本时返回 `fragment: null` 及具体 `reason`，系统剪贴板保留原 TSV。含图片、字段等原纯文本入口不支持的内容仍在写入前拒绝。文档默认 Tab 间隔、小数点符号及其他全局设置采用目标文档；源行高及表属性不转移。覆盖包含身份或未知源的目标格整体拒绝。
+富文本范围须包含完整所选矩形，合并边各段须有共同宽度和颜色。列表、不完整或复杂书签、批注身份、字段、图片和未知结构的资源转移继续实施；可提取文字但不能生成富文本时返回 `fragment: null` 及具体 `reason`，系统剪贴板保留原 TSV。含图片、字段等原纯文本入口不支持的内容仍在写入前拒绝。文档默认 Tab 间隔、小数点符号及其他全局设置采用目标文档；源行高及表属性不转移。覆盖包含身份或未知源的目标格整体拒绝。
 
-片段最多 2 Mi UTF-16 单元，并沿包的 XML 深度、源字节、65536 文字单元、1000 行、63 列、4096 逻辑格及既有历史/字体/布局/输出预算检查。Web 在读 Blob 前另限 4 MiB；TS 不解析 WordML。未知引用、断裂合并、超预算和缺字体均保留原文档及历史。实现归 [`table-fragment-copy.mbt`](../../modules/formats/src/docx/table-fragment-copy.mbt)、[`table-fragment-read.mbt`](../../modules/formats/src/docx/table-fragment-read.mbt)及 [`table-fragment-paste.mbt`](../../modules/formats/src/docx/table-fragment-paste.mbt)。结构依据 [ONLYOFFICE 所选内容](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L7524-L7748)与上述 `InsertTableContent`；未移植上游可执行代码。
+片段最多 2 Mi UTF-16 单元、4096 条链接和 4096 个书签，目标书签目录最多 4096 项。既有 XML 深度、源字节、65536 文字单元、1000 行、63 列、4096 逻辑格及历史/字体/布局/输出预算继续执行。Web 在读 Blob 前另限 4 MiB；TS 不解析 WordML。未知引用、断裂合并、超预算和缺字体均保留原文档及历史。实现归 [`table-fragment-copy.mbt`](../../modules/formats/src/docx/table-fragment-copy.mbt)、[`table-fragment-read.mbt`](../../modules/formats/src/docx/table-fragment-read.mbt)、[`table-fragment-links.mbt`](../../modules/formats/src/docx/table-fragment-links.mbt)、[`table-fragment-bookmarks.mbt`](../../modules/formats/src/docx/table-fragment-bookmarks.mbt)及 [`table-fragment-paste.mbt`](../../modules/formats/src/docx/table-fragment-paste.mbt)。结构依据 [ONLYOFFICE 所选内容](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L7524-L7748)与上述 `InsertTableContent`；链接复制参考 [ParaHyperlink.Copy](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Hyperlink.js#L80-L87)，同名书签处理参考 [addBookmarkStart/End](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Serialize2.js#L17511-L17533)，未移植上游可执行代码。
 
 #### 跨格行列与矩形合并
 
@@ -958,7 +962,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 `sortBy` 缺省或为 `value` 时按值比较；`cellColor` 按填充色，`fontColor` 按单元格字体色。颜色键必须给出 `color`，使用六位 RGB 十六进制文字；填充色的空串表示无填充，与白色不同。颜色键不能同时使用非空自定义列表，值键不能指定非空颜色。同一轴可设置不同颜色或依据，例如先红色、再绿色，最后按该列数值；完全重复的条件仍拒绝。`descending=false` 把命中色放在前面，`true` 放在后面，同组继续比较后续键，再保持原顺序。空内容格也按其有效颜色参加此分组；隐藏行列继续保留位置。
 
-颜色取自排序前的有效样式，包含已支持条件格式及主题/索引颜色的解析。核心冻结颜色匹配结果，再使用原有单元格置换；条件规则仍留原范围，排序后重新求色，依赖位置的规则可能改变最终颜色。默认面板提供依据、RGB 输入、无填充及命中色位置。颜色条件写标准 `sortBy` 与 `dxfId`，一次批量复用或新增差异样式；首次样式部件也与数据、关系和历史一起提交。原有规则和样式身份保持，颜色引用缺失时拒绝重排或引用相关的表操作。富文本文字色和图标排序仍受保护，未知样式效果不猜测颜色。
+颜色取自排序前的有效样式，包含已支持条件格式及主题/索引颜色的解析。核心冻结颜色匹配结果，再使用原有单元格置换；条件规则仍留原范围，排序后重新求色，依赖位置的规则可能改变最终颜色。默认面板提供依据、RGB 输入、无填充及命中色位置。颜色条件写标准 `sortBy` 与 `dxfId`，一次批量复用或新增差异样式；首次样式部件也与数据、关系和历史一起提交。原有规则和样式身份保持，颜色引用缺失时拒绝重排或引用相关的表操作。普通富文本文字色沿[颜色筛选](#颜色筛选)的文字段规则匹配；图标排序及未知源继续保护。
 
 有效样式冻结及按命中色分组参考 [ONLYOFFICE _getSortElems/colorFillCmp](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21427-L21600)，`dxfId` 存储参考 [CSortCondition](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/XlsxFormat/Table/Autofilter.cpp#L96-L106)。实现归 [`sort-color.mbt`](../../modules/formats/src/xlsx/sort-color.mbt)，差异样式复用 [`conditional-style-edit.mbt`](../../modules/formats/src/xlsx/conditional-style-edit.mbt)，没有新增绘制模型或复制上游源码。
 
@@ -1022,7 +1026,11 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 Wasm/Web 导出 `XlsxColorFilter`，使用 `{ kind: "color", column, cellColor, color }`。`cellColor=true` 比较填充，false 比较字体色；`color` 接受六位 RGB（不带 `#`，忽略大小写）或 null。null 分别表示无填充或自动黑色字体；查询将黑色字体归一化为 `000000`。无填充与白色填充不同。普通区域与原生表使用同一条件和默认面板，替换同列条件并保留其他列交集。
 
-核心比较直接、表样式及条件格式叠加后的当前有效颜色，包含有格式的空白格。手动隐藏、SUBTOTAL、重新应用、结构变换、源历史与输出预算复用既有筛选事务；修改颜色后须显式重新应用。标准 `colorFilter` 保存 `dxfId/cellColor`；比较色沿共享差异样式池写入填充字段，字体模式也如此。导入的字体字段可读取；相同颜色重新设置保留已有样式引用和主题关联。未知样式、富文本文字色及超限输入原子拒绝。图标、日期类动态与高级条件仍待实现。
+核心比较直接、表样式及条件格式叠加后的当前有效颜色，包含有格式的空白格。手动隐藏、SUBTOTAL、重新应用、结构变换、源历史与输出预算复用既有筛选事务；修改颜色后须显式重新应用。标准 `colorFilter` 保存 `dxfId/cellColor`；比较色沿共享差异样式池写入填充字段，字体模式也如此。导入的字体字段可读取；相同颜色重新设置保留已有样式引用和主题关联。未知样式和超限输入原子拒绝。图标、日期类动态与高级条件仍待实现。
+
+普通行内及共享富文本按任一文字段的颜色匹配，字体色排序使用同一规则。显式 RGB、主题/索引色、明暗变换及自动黑色沿既有解析；缺省颜色继承当前单元格的有效字体色，包含条件格式。共享字符串的比较色集合按身份复用，继承色仍逐格求值，不能固化为第一个引用格的颜色。排序保留文字段及共享字符串源，富文本的文字修改继续只读；相邻普通格仍可原生输入。
+
+基本文字段的字体、字号、粗斜体、颜色、单下划线、删除线和上下标已进入共同排版，预览、静态 PDF、自动行高及列宽使用相同文字段。空文字段的大字号也参与行高；同文异字号的格重排后，自动尺寸随文字段源重新测量。字体资源由原有 `probe/profile` 提供，重开后沿既有规则重新绑定。文字块保留完整绘制指令，页眉页脚和 PDF 表单沿相同坐标变换消费。双线及会计下划线、未知文字段或注音保留源并给出诊断，受影响的自动测量及输出继续保护。颜色归 [`rich-colors.mbt`](../../modules/formats/src/xlsx/rich-colors.mbt)，文字段归 [`rich-layout.mbt`](../../modules/formats/src/xlsx/rich-layout.mbt)，共同块排版归 [`positioned.mbt`](../../modules/layout/src/positioned.mbt)。任一文字段匹配参考 [ONLYOFFICE ColorFilter.isHideValue](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L12110-L12185)与 [colorFillCmp](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21522-L21538)；未复制上游可执行代码。
 
 比较及存储参考 [ONLYOFFICE ColorFilter](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L12110-L12260)，未复制上游源码。实现归 [`filter-color.mbt`](../../modules/formats/src/xlsx/filter-color.mbt)、已有颜色排序的 [`sort-color.mbt`](../../modules/formats/src/xlsx/sort-color.mbt)及 [`xlsx-color-filter.tsx`](../../packages/ui/src/xlsx-color-filter.tsx)。
 
