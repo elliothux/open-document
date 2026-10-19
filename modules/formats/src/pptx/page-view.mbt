@@ -150,6 +150,7 @@ fn Session::edit_view_query(self : Session, current : Slide) -> Json {
       "choices": choices,
       "reason": "",
       "operations": self.source_operations(current),
+      "textStyles": self.master_text_styles(current),
     }
   } catch {
     @failure.Failure(message~, ..) =>
@@ -157,6 +158,7 @@ fn Session::edit_view_query(self : Session, current : Slide) -> Json {
         "kind": kind,
         "slide": self.last_slide,
         "choices": [],
+        "textStyles": { "items": [], "reason": message },
         "reason": message,
         "operations": {
           "rename": message,
@@ -226,6 +228,16 @@ fn Session::commit_page(
       edits.push((slide.tree.part, edit))
     }
     parts[slide.tree.part] = slide.tree.document
+    if slide.tree.document.nodes()[0].name == "sldMaster" {
+      self.reflow_master_layouts(
+        slide.tree.part,
+        parts,
+        edits,
+        probe,
+        profile,
+        media,
+      )
+    }
     slides = self.reflow_source(slides, parts, edits, probe, profile)
     // The edited source can be unused, so it must also pass object and resource limits.
     let owner = read_slide(

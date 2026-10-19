@@ -1,4 +1,31 @@
 import { record, hasFields } from "./validation.js";
+import {
+  checkPptxTextFormat,
+  checkPptxParagraphFormat,
+  checkPptxParagraphFormatting,
+  type PptxTextFormat,
+  type PptxParagraphFormat,
+  type PptxParagraphFormatting,
+} from "./pptx-format.js";
+
+export type PptxMasterParagraphFormat = Omit<PptxParagraphFormat, "level"> & {
+  alignment?: "left" | "center" | "right" | "justify";
+};
+export interface PptxMasterParagraphStyle extends PptxParagraphFormatting {
+  alignment: "left" | "center" | "right" | "justify" | null;
+}
+
+export interface PptxMasterTextStyle {
+  kind: "title" | "body" | "other";
+  level: number;
+  format: PptxTextFormat | null;
+  reason: string;
+  paragraph: PptxMasterParagraphStyle;
+}
+export interface PptxMasterTextStyles {
+  items: PptxMasterTextStyle[];
+  reason: string;
+}
 
 /** Source owners share the object editor; slides remain the presentation page list. */
 export interface PptxEditView {
@@ -11,6 +38,7 @@ export interface PptxEditView {
     master: string;
   }[];
   reason: string;
+  textStyles: PptxMasterTextStyles;
   operations: {
     rename: string;
     addLayout: string;
@@ -28,6 +56,7 @@ export function checkPptxEditView(
   slides: Set<string>,
 ): void {
   const view = record(value);
+  checkPptxMasterTextStyles(view.textStyles, view.kind);
   const operations = record(view.operations);
   for (const key of [
     "rename",
@@ -84,4 +113,88 @@ export function checkPptxEditView(
       : owners.get(current)?.kind !== view.kind)
   )
     throw new Error("Invalid current PPTX source");
+}
+
+export function checkPptxMasterTextStyles(value: unknown, kind: unknown): void {
+  const styles = record(value);
+  if (
+    typeof styles.reason !== "string" ||
+    styles.reason.length > 8192 ||
+    !Array.isArray(styles.items) ||
+    (styles.items.length !== 0 &&
+      (kind !== "master" || styles.items.length !== 27)) ||
+    (styles.items.length === 0 && styles.reason === "" && kind === "master")
+  )
+    throw new Error("Invalid master text styles query");
+  const slots = new Set<string>();
+  for (const item of styles.items) {
+    const slot = record(item);
+    const paragraph = record(slot.paragraph);
+    checkPptxParagraphFormatting(paragraph);
+    if (
+      typeof paragraph.reason !== "string" ||
+      paragraph.reason.length > 8192 ||
+      (paragraph.alignment !== null &&
+        (typeof paragraph.alignment !== "string" ||
+          !["left", "center", "right", "justify"].includes(
+            paragraph.alignment,
+          ))) ||
+      (!paragraph.reason &&
+        (paragraph.level !== slot.level ||
+          Object.values(paragraph).some((value) => value === null)))
+    )
+      throw new Error("Invalid master paragraph style query");
+    if (
+      typeof slot.kind !== "string" ||
+      !["title", "body", "other"].includes(slot.kind) ||
+      typeof slot.level !== "number" ||
+      !Number.isInteger(slot.level) ||
+      slot.level < 0 ||
+      slot.level > 8 ||
+      typeof slot.reason !== "string" ||
+      slot.reason.length > 8192
+    )
+      throw new Error("Invalid master text style slot");
+    const key = `${slot.kind}:${slot.level}`;
+    if (slots.has(key)) throw new Error("Duplicate master text style slot");
+    slots.add(key);
+    if (slot.format !== null) {
+      checkPptxTextFormat(slot.format);
+      if (Object.keys(record(slot.format)).length !== 9)
+        throw new Error("Incomplete master text style format");
+    } else if (!slot.reason)
+      throw new Error("Missing master text style format");
+  }
+}
+
+export function checkPptxMasterStyleEdit(value: unknown): void {
+  const change = record(value);
+  if (
+    Object.keys(change).length !== 4 ||
+    typeof change.kind !== "string" ||
+    !["title", "body", "other"].includes(change.kind) ||
+    typeof change.level !== "number" ||
+    !Number.isInteger(change.level) ||
+    change.level < 0 ||
+    change.level > 8
+  )
+    throw new Error("Invalid master style edit");
+  if (change.action === "masterTextStyle") {
+    if (change.format !== null) checkPptxTextFormat(change.format);
+    return;
+  }
+  if (change.action !== "masterParagraphStyle")
+    throw new Error("Invalid master style action");
+  if (change.format === null) return;
+  const format = record(change.format),
+    { alignment, ...paragraph } = format;
+  if (
+    !Object.keys(format).length ||
+    "level" in format ||
+    ("alignment" in format &&
+      (typeof alignment !== "string" ||
+        !["left", "center", "right", "justify"].includes(alignment)))
+  )
+    throw new Error("Invalid master paragraph style edit");
+  if (Object.keys(paragraph).length) checkPptxParagraphFormat(paragraph);
 }

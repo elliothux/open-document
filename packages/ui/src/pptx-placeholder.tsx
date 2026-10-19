@@ -21,6 +21,7 @@ export function PlaceholderType({
     <label>
       {t.pptxPlaceholderType}
       <select
+        aria-label={t.pptxPlaceholderType}
         value={value}
         onChange={(event) => {
           const next = pptxPlaceholderTypes.find(

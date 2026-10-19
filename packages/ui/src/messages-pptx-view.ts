@@ -1,4 +1,11 @@
 export const viewEn = {
+  pptxMasterParagraph: "Default paragraph and list",
+  pptxResetMasterParagraph: "Restore default paragraph inheritance",
+  pptxMasterText: "Master default text",
+  pptxMasterTextKind: "Default text category",
+  pptxMasterTextLevel: "Default text level",
+  pptxMasterTextOther: "Other text",
+  pptxResetMasterText: "Restore default character inheritance",
   pptxPlaceholder: "Placeholder definition",
   pptxPlaceholderType: "Placeholder type",
   pptxPlaceholderIndex: "Placeholder index",
@@ -34,6 +41,13 @@ export const viewEn = {
   pptxCopyMaster: "Copy master",
 };
 export const viewZh = {
+  pptxMasterParagraph: "默认段落和列表",
+  pptxResetMasterParagraph: "恢复默认段落继承",
+  pptxMasterText: "母版默认文字",
+  pptxMasterTextKind: "默认文字类别",
+  pptxMasterTextLevel: "默认文字级别",
+  pptxMasterTextOther: "其他文字",
+  pptxResetMasterText: "恢复默认字符继承",
   pptxPlaceholder: "占位符定义",
   pptxPlaceholderType: "占位符类型",
   pptxPlaceholderIndex: "占位符索引",

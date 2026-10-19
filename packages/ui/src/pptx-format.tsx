@@ -10,7 +10,7 @@ import type {
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 
-function TextField({
+export function TextField({
   property,
   label,
   value,
@@ -70,7 +70,7 @@ function TextField({
   );
 }
 
-function ParagraphField({
+export function ParagraphField({
   property,
   label,
   value,
@@ -339,7 +339,7 @@ export function PptxParagraph({
   );
 }
 
-function PptxTabs({
+export function PptxTabs({
   state,
   tabs,
   defaultTab,
@@ -466,7 +466,7 @@ function PptxTabs({
   );
 }
 
-function PptxListFields({
+export function PptxListFields({
   state,
   disabled,
   list,
@@ -476,7 +476,7 @@ function PptxListFields({
   state: UiSnapshot;
   disabled: boolean;
   list: PptxListFormat | null;
-  level: number | null;
+  level?: number | null;
   onApply: (format: PptxParagraphFormat) => void;
 }) {
   const t = messages(state.locale);
@@ -489,7 +489,7 @@ function PptxListFields({
   >(list?.kind === "number" ? list.value : "arabicPeriod");
   const [start, setStart] = useState(list?.kind === "number" ? list.start : 1);
   const [draftLevel, setLevel] = useState(
-    level === null ? "" : String(level + 1),
+    level == null ? "" : String(level + 1),
   );
   const numberStyles = [
     ["arabicPeriod", t.listFormat_decimal],
@@ -589,25 +589,29 @@ function PptxListFields({
       <button type="submit" disabled={disabled}>
         {t.applyList}
       </button>
-      <label>
-        {t.listLevel}
-        <input
-          aria-label={t.listLevel}
-          type="number"
-          min={1}
-          max={9}
-          placeholder={level === null ? t.mixed : ""}
-          value={draftLevel}
-          onChange={(event) => setLevel(event.currentTarget.value)}
-        />
-      </label>
-      <button
-        type="button"
-        disabled={disabled || !draftLevel}
-        onClick={() => onApply({ level: Number(draftLevel) - 1 })}
-      >
-        {t.updateListLevel}
-      </button>
+      {level !== undefined && (
+        <>
+          <label>
+            {t.listLevel}
+            <input
+              aria-label={t.listLevel}
+              type="number"
+              min={1}
+              max={9}
+              placeholder={level === null ? t.mixed : ""}
+              value={draftLevel}
+              onChange={(event) => setLevel(event.currentTarget.value)}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={disabled || !draftLevel}
+            onClick={() => onApply({ level: Number(draftLevel) - 1 })}
+          >
+            {t.updateListLevel}
+          </button>
+        </>
+      )}
     </form>
   );
 }

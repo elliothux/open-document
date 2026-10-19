@@ -1,4 +1,9 @@
 import { record } from "./validation.js";
+import type { PptxTextFormat } from "./pptx-format.js";
+import {
+  checkPptxMasterStyleEdit,
+  type PptxMasterParagraphFormat,
+} from "./pptx-view.js";
 import {
   checkPptxShowSettings,
   pptxShowSettingsState,
@@ -366,7 +371,19 @@ export type PptxSlideEdit =
         | "copyMaster";
     }
   | { action: "sourceName"; name: string }
+  | {
+      action: "masterTextStyle";
+      kind: "title" | "body" | "other";
+      level: number;
+      format: PptxTextFormat | null;
+    }
   | { action: "notes"; text: string }
+  | {
+      action: "masterParagraphStyle";
+      kind: "title" | "body" | "other";
+      level: number;
+      format: PptxMasterParagraphFormat | null;
+    }
   | { action: "firstSlideNumber"; number: number }
   | { action: "footer"; value: PptxFooterContent; allSlides: boolean }
   | { action: "sectionAdd"; name: string }
@@ -493,6 +510,13 @@ export function checkPptxSlideEdit(value: unknown): void {
   if (change.action === "sourceName") {
     if (!commentText(change.name, 1024) || Object.keys(change).length !== 2)
       throw new Error("Invalid source name edit");
+    return;
+  }
+  if (
+    change.action === "masterTextStyle" ||
+    change.action === "masterParagraphStyle"
+  ) {
+    checkPptxMasterStyleEdit(change);
     return;
   }
   if (

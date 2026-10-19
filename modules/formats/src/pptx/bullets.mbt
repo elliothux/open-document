@@ -4,8 +4,10 @@ fn bullet_style(
   styles : Array[Ref],
   text : String,
   fallback : @layout.TextStyle,
+  numbered~ : Bool = false,
 ) -> @layout.TextStyle raise @failure.Failure {
-  let mut font = fallback.font
+  let variants = fallback.font.split("|").to_array()
+  let mut font = if numbered { fallback.font } else { variants[0].to_owned() }
   let bullet_size = bullet_size(styles)
   let size = if bullet_size.unit == "point" {
     bullet_size.value
@@ -22,8 +24,8 @@ fn bullet_style(
         theme,
         source.node.attribute("typeface").unwrap_or(""),
         text,
-        false,
-        false,
+        numbered && variants.contains("bold"),
+        numbered && variants.contains("italic"),
       )
       break
     }

@@ -16,6 +16,8 @@ pub(all) enum SlideEdit {
   BackgroundImageInsets(Array[Double])
   ThemeColor(String, String)
   ThemeFont(String, String, String)
+  MasterTextStyle(String, Int, TextFormat?)
+  MasterParagraphStyle(String, Int, ParagraphFormat?, String?)
   ApplyLayout(String)
   ResetLayout
   AddLayout
@@ -295,6 +297,8 @@ pub fn Session::edit_slides(
     | DeleteMaster
     | AddMaster
     | CopyMaster
+    | MasterTextStyle(_, _, _)
+    | MasterParagraphStyle(_, _, _, _)
     | SourceName(_) =>
       @failure.reject("invalid-slide", "Select a master or layout source")
     ResetLayout =>

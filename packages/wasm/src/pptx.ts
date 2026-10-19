@@ -135,7 +135,13 @@ import {
 export type { PptxPrintLayout, PptxLayout } from "./pptx-output.js";
 
 import { checkPptxEditView, type PptxEditView } from "./pptx-view.js";
-export type { PptxEditView } from "./pptx-view.js";
+export type {
+  PptxEditView,
+  PptxMasterTextStyle,
+  PptxMasterTextStyles,
+  PptxMasterParagraphFormat,
+  PptxMasterParagraphStyle,
+} from "./pptx-view.js";
 import type { PptxObject } from "./pptx-query.js";
 export type { PptxObject } from "./pptx-query.js";
 export interface PptxQuery extends PptxPlaybackState {

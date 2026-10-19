@@ -87,15 +87,16 @@ fn read_paragraph_tabs(
 ///|
 fn paragraph_tab_markup(
   paragraph : TextParagraph,
+  properties : Ref?,
   format : ParagraphFormat,
   attrs : Map[String, String],
   changes : Map[String, String],
+  style~ : Bool = false,
 ) -> Array[String] raise @failure.Failure {
-  let properties = paragraph.source.child("pPr")
   let removed = []
   if format.default_tab is Some(value) {
     if value is Some(value) {
-      if value != paragraph.default_tab {
+      if style || value != paragraph.default_tab {
         attrs["defTabSz"] = (value * 12700).round().to_int().to_string()
       }
     } else if properties.bind(p => p.node.attribute("defTabSz")) is Some(_) {
@@ -112,12 +113,14 @@ fn paragraph_tab_markup(
       }
     }
     if value is Some(tabs) {
-      guard paragraph.inherited_tabs.is_empty() || tabs == paragraph.tabs else {
+      guard style ||
+        paragraph.inherited_tabs.is_empty() ||
+        tabs == paragraph.tabs else {
         @failure.reject(
           "protected-content", "Inherited tab stops require style-level tab editing",
         )
       }
-      if tabs != paragraph.tabs {
+      if style || tabs != paragraph.tabs {
         changes["tabLst"] = "<a:tabLst xmlns:a=\"\{drawing_uri}\">" +
           tabs
           .map(t => {

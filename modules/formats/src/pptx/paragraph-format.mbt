@@ -99,7 +99,11 @@ fn paragraph_changes(
   for paragraph in object.paragraphs {
     let length = paragraph_length(paragraph)
     if paragraph_selected(selection, offset, length) {
-      let markup = paragraph_markup(paragraph, format)
+      let markup = paragraph_markup(
+        paragraph,
+        paragraph.source.child("pPr"),
+        format,
+      )
       if !markup.is_empty() {
         changes.push(
           if paragraph.source.child("pPr") is Some(p) {

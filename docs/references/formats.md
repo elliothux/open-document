@@ -1627,7 +1627,15 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 修改写回源部件并重读引用页面，保留页面直接覆盖。需要重新适配的依赖文字框复用字体度量和原有尺寸锁，源、依赖框、资源和前后选择合为一次有界历史。共享框需要不同尺寸、缺字体或预算失败时整项拒绝。未使用的当前源也检查字体、对象、图片和输出预算。当前源最多 4096 个可见对象，并与实际页面共同遵守现有总预算。
 
-保存和整稿输出始终使用真实幻灯片，当前画布输出可使用所选源。切回页面、精确撤销/重做和重开继续保留源身份与关系。模板提示文字不写入页面用户文字。默认文字样式等设置仍待实现；源视图暂不显示普通页的页序、备注、动画、主题及查找面板。
+保存和整稿输出始终使用真实幻灯片，当前画布输出可使用所选源。切回页面、精确撤销/重做和重开继续保留源身份与关系。模板提示文字不写入页面用户文字。源视图暂不显示普通页的页序、备注、动画、主题及查找面板。
+
+`editSlides({ action: "masterTextStyle", kind, level, format }, masterPart?)` 编辑目标母版的默认字符格式。`kind` 为 `title/body/other`，`level` 为 0–8；默认面板显示为第 1–9 级。`format` 复用 `PptxTextFormat` 的字体、字号、粗斜体、颜色、下划线、删除线、高亮和上下标，按指定属性合并。`format: null` 移除该级 `defRPr`，恢复字符继承，保留段落及列表定义。缺失的 `txStyles`、类别和级别按原生顺序创建，已知元数据在普通修改时保留；扩展属性、注释、未知字体或填充标记保护目标格式。
+
+`editView.textStyles` 返回 `{ items, reason }`。母版视图含三类共 27 项 `{ kind, level, format, reason, paragraph }`，`format` 返回完整有效字符值，字体显示 Latin 槽的解析结果；受保护项返回空格式和原因。`paragraph` 沿 `PptxParagraphFormatting` 返回有效段落、列表和制表位，并增加 `alignment`；其保护原因与字符格式分开。普通页和版式视图返回空目录及切换提示。本地字符、段落、占位符列表样式继续优先于母版默认格式。母版修改按当前母版、所属全部版式、实际页面的顺序重排，包含未使用版式的本地自动框；页面沿更新后的版式尺寸适配。源组边界沿已有归一化更新，保留页面姿态及本地覆盖，源提示文字保持在源部件。字体预检、尺寸锁、几何/资源及输出预算检查共用提交，选择、源和必要框尺寸共用一次精确历史。版式重排实现归 [`layout-reflow.mbt`](../../modules/formats/src/pptx/layout-reflow.mbt)。实现归 [`master-text-style.mbt`](../../modules/formats/src/pptx/master-text-style.mbt)，继承顺序依据 [ONLYOFFICE Shape 文本样式合成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L2925-L3000)，未复制上游源码。
+
+`editSlides({ action: "masterParagraphStyle", kind, level, format }, masterPart?)` 编辑相同类别及级别的默认段落。`PptxMasterParagraphFormat` 复用段落的缩进、行段距、方向、普通项目符号/编号、标记字体/大小/颜色及制表位，并增加 `alignment: "left" | "center" | "right" | "justify"`。内层 `format.level` 拒绝，级别由外层选择。`format: null` 清除本级已支持的段落直接设置，保留字符定义、级别及其他源片段。标记属性传空值使用正文样式；制表位沿现有继承合并，移除本级定义后恢复上级。
+
+默认面板复用普通段落、列表及制表位控件，修改和清除共用母版事务及精确历史。未知间距、标记、制表位及扩展源保护修改；字符定义中的未知属性在段落修改和清除时保留。新标记字体同样在提交前预检。编号标记继承正文粗斜体，普通项目符号使用常规字形，依据 [ONLYOFFICE MergeTextPr](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Numbering/PresentationNumbering.js#L389-L456)。实现归 [`master-paragraph-style.mbt`](../../modules/formats/src/pptx/master-paragraph-style.mbt)，段落解析与写入复用 [`paragraph-read.mbt`](../../modules/formats/src/pptx/paragraph-read.mbt)和 [`paragraph-properties.mbt`](../../modules/formats/src/pptx/paragraph-properties.mbt)。未复制上游源码。
 
 `editObjects({ action: "insertPlaceholder", type, x, y, width, height, text })` 在当前母版或版式插入顶层占位文本框。`type` 使用原生 `title/body/ctrTitle/subTitle/dt/ftr/sldNum/hdr/obj/chart/tbl/clipArt/dgm/media/sldImg/pic`；核心按当前源最大索引加一分配 `idx`，从 1 开始，耗尽 uint32 时拒绝。位置、尺寸和提示文字沿用文本框限制。图表、图片、媒体等类型目前定义槽位标记，资源填入仍受各功能支持范围约束。
 

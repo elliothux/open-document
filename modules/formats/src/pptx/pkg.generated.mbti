@@ -250,6 +250,8 @@ pub(all) enum SlideEdit {
   BackgroundImageInsets(Array[Double])
   ThemeColor(String, String)
   ThemeFont(String, String, String)
+  MasterTextStyle(String, Int, TextFormat?)
+  MasterParagraphStyle(String, Int, ParagraphFormat?, String?)
   ApplyLayout(String)
   ResetLayout
   AddLayout

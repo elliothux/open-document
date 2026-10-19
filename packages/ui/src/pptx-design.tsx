@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { PanelProps } from "./panels.js";
 import { messages } from "./messages.js";
+import { PptxMasterText } from "./pptx-master-text.js";
 
 export function PptxDesign({ controller, state, file, disabled }: PanelProps) {
   const query = file.format === "pptx" ? file.editor.query : undefined,
@@ -13,77 +14,90 @@ export function PptxDesign({ controller, state, file, disabled }: PanelProps) {
   const editor = file.editor,
     operations = query.editView.operations;
   return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        controller.run(() => editor.editSlides({ action: "sourceName", name }));
-      }}
-    >
-      <fieldset disabled={disabled}>
-        <legend>{t.pptxSourceManagement}</legend>
-        <label>
-          {t.pptxSourceName}
-          <input
-            type="text"
-            maxLength={1024}
-            value={name}
-            disabled={!!operations.rename}
-            onChange={(event) => setName(event.currentTarget.value)}
-          />
-        </label>
-        <button
-          type="submit"
-          disabled={!!operations.rename}
-          title={operations.rename}
-        >
-          {t.pptxRenameSource}
-        </button>
-        {(
-          [
-            ["addLayout", t.pptxAddLayout],
-            ["copyLayout", t.pptxCopyLayout],
-            ["deleteLayout", t.pptxDeleteLayout],
-            ["addMaster", t.pptxAddMaster],
-            ["copyMaster", t.pptxCopyMaster],
-          ] as const
-        ).map(([action, label]) => (
+    <>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          controller.run(() =>
+            editor.editSlides({ action: "sourceName", name }),
+          );
+        }}
+      >
+        <fieldset disabled={disabled}>
+          <legend>{t.pptxSourceManagement}</legend>
+          <label>
+            {t.pptxSourceName}
+            <input
+              type="text"
+              maxLength={1024}
+              value={name}
+              disabled={!!operations.rename}
+              onChange={(event) => setName(event.currentTarget.value)}
+            />
+          </label>
           <button
-            key={action}
-            type="button"
-            disabled={!!operations[action]}
-            title={operations[action]}
-            onClick={() => controller.run(() => editor.editSlides({ action }))}
+            type="submit"
+            disabled={!!operations.rename}
+            title={operations.rename}
           >
-            {label}
+            {t.pptxRenameSource}
           </button>
-        ))}
-        {operations.deleteLayout && choice.kind === "layout" && (
-          <p>{operations.deleteLayout}</p>
-        )}
-        {operations.copyLayout && choice.kind === "layout" && (
-          <p>{operations.copyLayout}</p>
-        )}
-        {operations.copyMaster && choice.kind === "master" && (
-          <p>{operations.copyMaster}</p>
-        )}
-        {choice.kind === "master" && (
-          <>
+          {(
+            [
+              ["addLayout", t.pptxAddLayout],
+              ["copyLayout", t.pptxCopyLayout],
+              ["deleteLayout", t.pptxDeleteLayout],
+              ["addMaster", t.pptxAddMaster],
+              ["copyMaster", t.pptxCopyMaster],
+            ] as const
+          ).map(([action, label]) => (
             <button
+              key={action}
               type="button"
-              disabled={!!operations.deleteMaster}
-              title={operations.deleteMaster}
+              disabled={!!operations[action]}
+              title={operations[action]}
               onClick={() =>
-                controller.run(() =>
-                  editor.editSlides({ action: "deleteMaster" }),
-                )
+                controller.run(() => editor.editSlides({ action }))
               }
             >
-              {t.pptxDeleteMaster}
+              {label}
             </button>
-            {operations.deleteMaster && <p>{operations.deleteMaster}</p>}
-          </>
-        )}
-      </fieldset>
-    </form>
+          ))}
+          {operations.deleteLayout && choice.kind === "layout" && (
+            <p>{operations.deleteLayout}</p>
+          )}
+          {operations.copyLayout && choice.kind === "layout" && (
+            <p>{operations.copyLayout}</p>
+          )}
+          {operations.copyMaster && choice.kind === "master" && (
+            <p>{operations.copyMaster}</p>
+          )}
+          {choice.kind === "master" && (
+            <>
+              <button
+                type="button"
+                disabled={!!operations.deleteMaster}
+                title={operations.deleteMaster}
+                onClick={() =>
+                  controller.run(() =>
+                    editor.editSlides({ action: "deleteMaster" }),
+                  )
+                }
+              >
+                {t.pptxDeleteMaster}
+              </button>
+              {operations.deleteMaster && <p>{operations.deleteMaster}</p>}
+            </>
+          )}
+        </fieldset>
+      </form>
+      <PptxMasterText
+        key={query.slide}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
+    </>
   );
 }

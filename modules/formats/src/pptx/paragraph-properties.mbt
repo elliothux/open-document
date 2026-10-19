@@ -189,10 +189,13 @@ fn paragraph_values(paragraph : TextParagraph) -> Array[Json] {
 ///|
 fn paragraph_markup(
   paragraph : TextParagraph,
+  properties : Ref?,
   format : ParagraphFormat?,
+  name~ : String = "pPr",
+  style~ : Bool = false,
+  alignment~ : String? = None,
 ) -> String raise @failure.Failure {
-  let properties = paragraph.source.child("pPr")
-  guard format is Some(format) else {
+  if format is None && alignment is None {
     return if properties is Some(p) &&
       has_direct_properties(Some(p), paragraph=true) {
       cleared_properties(p, paragraph=true)
@@ -200,22 +203,38 @@ fn paragraph_markup(
       ""
     }
   }
+  let format = format.unwrap_or(ParagraphFormat::new())
   let attrs : Map[String, String] = Map([])
   let changes : Map[String, String] = Map([])
-  list_style_changes(paragraph, format, changes)
-  let removed = paragraph_tab_markup(paragraph, format, attrs, changes)
-  if format.rtl is Some(rtl) && rtl != paragraph.rtl {
+  list_style_changes(properties, format, changes)
+  let removed = paragraph_tab_markup(
+    paragraph,
+    properties,
+    format,
+    attrs,
+    changes,
+    style~,
+  )
+  if format.rtl is Some(rtl) && (style || rtl != paragraph.rtl) {
     attrs["rtl"] = if rtl { "1" } else { "0" }
     // ONLYOFFICE mirrors left/right alignment when switching DrawingML direction.
-    if paragraph.align == "left" {
+    if rtl != paragraph.rtl && paragraph.align == "left" {
       attrs["algn"] = "r"
-    } else if paragraph.align == "right" {
+    } else if rtl != paragraph.rtl && paragraph.align == "right" {
       attrs["algn"] = "l"
+    }
+  }
+  if alignment is Some(alignment) {
+    attrs["algn"] = match alignment {
+      "center" => "ctr"
+      "right" => "r"
+      "justify" => "just"
+      _ => "l"
     }
   }
   let mut left = format.left
   let mut first = format.first
-  if format.list is Some(list) && list != paragraph.list {
+  if format.list is Some(list) && (style || list != paragraph.list) {
     if properties is Some(p) {
       check_list_properties(p)
     }
@@ -247,7 +266,7 @@ fn paragraph_markup(
       ("marR", format.right, paragraph.right),
       ("indent", first, paragraph.first),
     ] {
-    if value is Some(value) && value != effective {
+    if value is Some(value) && (style || value != effective) {
       attrs[name] = (value * 12700).round().to_int().to_string()
     }
   }
@@ -258,7 +277,7 @@ fn paragraph_markup(
       ("lnSpc", format.line, 5),
     ] {
     if value is Some(value) &&
-      current[index] != { "unit": value.unit, "value": value.value } {
+      (style || current[index] != { "unit": value.unit, "value": value.value }) {
       let kind = if value.unit == "point" { "spcPts" } else { "spcPct" }
       let number = (value.value *
         (if value.unit == "point" { 100 } else { 1000 }))
@@ -275,7 +294,7 @@ fn paragraph_markup(
     "lnSpc", "spcBef", "spcAft", "buClrTx", "buClr", "buSzTx", "buSzPct", "buSzPts",
     "buFontTx", "buFont", "buNone", "buChar", "buAutoNum", "tabLst", "defRPr", "extLst",
   ]
-  let mut qualified = "a:pPr"
+  let mut qualified = "a:" + name
   if properties is Some(p) {
     qualified = p.node.qualified
     output.write_string(frame_opening(p, attrs, removed~))
@@ -301,7 +320,7 @@ fn paragraph_markup(
       output.write_view(source[offset:p.node.closing_start])
     }
   } else {
-    output.write_string("<a:pPr xmlns:a=\"\{drawing_uri}\"")
+    output.write_string("<a:\{name} xmlns:a=\"\{drawing_uri}\"")
     for name, value in attrs {
       output.write_string(" \{name}=\"\{value}\"")
     }

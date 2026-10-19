@@ -250,6 +250,12 @@ fn Session::edit_source(
     AddMaster => self.add_master(part)
     CopyMaster => self.add_master(part, copy=true)
     SourceName(name) => self.rename_source(part, name)
+    MasterTextStyle(kind, level, format) =>
+      self.set_master_text_style(part, kind, level, format, probe, profile)
+    MasterParagraphStyle(kind, level, format, alignment) =>
+      self.set_master_paragraph_style(
+        part, kind, level, format, alignment, probe, profile,
+      )
     Background(value) => self.set_background(part, value)
     BackgroundImage(bytes, mode) =>
       self.write_image(bytes, None, background=Some(part), mode~)

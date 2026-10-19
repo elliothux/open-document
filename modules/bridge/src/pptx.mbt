@@ -288,6 +288,8 @@ fn Foundation::pptx_operation(
             field_string(change, "script"),
             field_string(change, "font"),
           )
+        "masterTextStyle" | "masterParagraphStyle" =>
+          pptx_master_text_style(change)
         "sectionAdd" => @pptx.AddSection(field_string(change, "name"))
         "sectionRename" =>
           @pptx.RenameSection(

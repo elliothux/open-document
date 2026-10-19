@@ -114,11 +114,10 @@ fn list_style_change(
 
 ///|
 fn list_style_changes(
-  paragraph : TextParagraph,
+  properties : Ref?,
   format : ParagraphFormat,
   changes : Map[String, String],
 ) -> Unit raise @failure.Failure {
-  let properties = paragraph.source.child("pPr")
   if format.list_font is Some(font) {
     list_style_change(
       properties,

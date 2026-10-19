@@ -35,6 +35,25 @@ fn Object::fit_key(self : Object) -> Json {
 }
 
 ///|
+fn check_changed_source_fonts(
+  before : Slide,
+  after : Slide,
+  probe : @layout.TextProbe?,
+  profile : Map[String, String],
+) -> Unit raise @failure.Failure {
+  let previous = slide_font_keys([before])
+  for key in slide_font_keys([after]) {
+    if previous.contains(key) {
+      continue
+    }
+    guard probe is Some(probe) && profile.get(key) is Some(identity) else {
+      @failure.reject("missing-font", "Missing source font profile: " + key)
+    }
+    ignore(probe.font_index(identity))
+  }
+}
+
+///|
 fn Session::reflow_source(
   self : Session,
   slides : Array[Slide],
@@ -42,6 +61,7 @@ fn Session::reflow_source(
   edits : Array[(String, @xml.Edit)],
   probe : @layout.TextProbe?,
   profile : Map[String, String],
+  original~ : Array[Slide] = self.slides,
 ) -> Array[Slide] raise @failure.Failure {
   let candidates = slides.mapi((index, slide) => {
     read_slide(
@@ -49,14 +69,19 @@ fn Session::reflow_source(
       self.main,
       self.cache,
       slide.tree,
-      index~,
+      index=if slide.tree.document.nodes()[0].name == "sld" {
+        index
+      } else {
+        self.source_index(slide.tree.part)
+      },
       parts~,
       date_time=self.date_time,
     )
   })
   let updates : Map[String, (Tree, Array[@xml.SourceChange])] = Map([])
   for i, slide in candidates {
-    let before = self.slides[i]
+    let before = original[i]
+    check_changed_source_fonts(before, slide, probe, profile)
     guard slide.diagnostics.all(message => before.diagnostics.contains(message)) &&
       slide.objects.all(object => {
         object.geometry is Some(_) ||
@@ -71,10 +96,14 @@ fn Session::reflow_source(
       )
     }
     for object in slide.objects {
+      if slide.tree.document.nodes()[0].name != "sld" &&
+        object.source.tree.part != slide.tree.part {
+        continue
+      }
       if object.body.fit == "none" || object.paragraphs.is_empty() {
         continue
       }
-      let previous = self.slides[i].objects
+      let previous = before.objects
         .iter()
         .find_first(before => before.id == object.id)
       if previous
@@ -124,7 +153,7 @@ fn Session::reflow_source(
   for part, (tree, changes) in updates {
     let (document, edit) = tree.document.edit_source(changes)
     documents[part] = document
-    if !slides.any(slide => slide.tree.part == part) {
+    if !self.slides.any(slide => slide.tree.part == part) {
       parts[part] = document
     }
     edits.push((part, edit))
@@ -138,7 +167,11 @@ fn Session::reflow_source(
       .get(slide.tree.part)
       .map(document => Tree::new(slide.tree.part, document))
       .unwrap_or(slide.tree),
-      index~,
+      index=if slide.tree.document.nodes()[0].name == "sld" {
+        index
+      } else {
+        self.source_index(slide.tree.part)
+      },
       parts~,
       date_time=self.date_time,
     )
