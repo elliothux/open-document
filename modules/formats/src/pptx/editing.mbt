@@ -93,6 +93,7 @@ fn Session::validate_slides(
     )
   }
   if check_package {
+    self.check_media_budget(main, slides, parts, media, removed~)
     self.opc.validate_changes(
       self.replacements(main, slides, parts, media~),
       removed~,
@@ -163,6 +164,19 @@ fn Session::commit_slides(
     @failure.reject("limit-exceeded", "Presentation revision exhausted")
   }
   let (width, height) = presentation_size(main)
+  let media_payload = created_media
+    .iter()
+    .fold(init=0L, (sum, pair) => {
+      let content_type = image_content_type(self.opc, pair.0, parts).unwrap_or(
+        "",
+      )
+      sum +
+      (if content_type.has_prefix("audio/") || content_type.has_prefix("video/") {
+        pair.1.length().to_int64()
+      } else {
+        0L
+      })
+    })
   let payload = edits
     .iter()
     .fold(init=0L, (sum, entry) => sum + entry.1.payload_bytes()) +
@@ -187,8 +201,9 @@ fn Session::commit_slides(
     }) +
     created_media
     .values()
-    .fold(init=0L, (sum, bytes) => sum + bytes.length().to_int64())
-  guard payload <= 4194304 else {
+    .fold(init=0L, (sum, bytes) => sum + bytes.length().to_int64()) -
+    media_payload
+  guard payload <= 4194304 && media_payload <= 67108864 else {
     @failure.reject("limit-exceeded", "Edit exceeds history budget")
   }
   let removed_parts = self.removed.copy()
@@ -202,9 +217,15 @@ fn Session::commit_slides(
     self.history_bytes -= entry.bytes
   }
   self.redo.clear()
+  let mut retained_media = self.history.fold(init=0, (sum, entry) => {
+    sum + entry.media_bytes
+  })
   while self.history.length() >= 100 ||
-        payload.to_int() > 4194304 - self.history_bytes {
-    self.history_bytes -= self.history.remove(0).bytes
+        payload.to_int() > 4194304 - self.history_bytes ||
+        media_payload.to_int() > 67108864 - retained_media {
+    let removed = self.history.remove(0)
+    self.history_bytes -= removed.bytes
+    retained_media -= removed.media_bytes
   }
   self.history.push({
     edits,
@@ -216,6 +237,7 @@ fn Session::commit_slides(
     before: self.selection,
     after,
     bytes: payload.to_int(),
+    media_bytes: media_payload.to_int(),
   })
   self.history_bytes += payload.to_int()
   self.main = main

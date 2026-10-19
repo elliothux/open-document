@@ -10,7 +10,9 @@ import type { PptxBackgroundFill } from "./pptx-slides.js";
 import type { PptxPlaceholder } from "./pptx-placeholder.js";
 
 import type { PptxConnector } from "./pptx-connectors.js";
+import type { PptxMedia } from "./pptx-media.js";
 export interface PptxObject {
+  media: PptxMedia | null;
   connector: PptxConnector | null;
   id: string;
   parent: string;

@@ -7,6 +7,7 @@ pub(all) enum ObjectEdit {
   InsertPlaceholder(String, Double, Double, Double, Double, String)
   Placeholder(String?, Double)
   InsertImage(Bytes, Double, Double, Double, Double)
+  InsertMedia(String, String, Bytes, Bytes, Double, Double, Double, Double)
   InsertTable(Int, Int, Double, Double, Double, Double)
   FillTable(Int, Int)
   TableStructure(String)
@@ -110,6 +111,9 @@ fn Session::object_edit_reason(
   let duplicate = action == "duplicate"
   try {
     let table = object.table is Some(_)
+    if duplicate && object.media is Some(media) && !media.reason.is_empty() {
+      return media.reason
+    }
     let grouped = !object.parent.is_empty() &&
       [
         "transform", "rotate", "flip", "arrange", "duplicate", "delete", "group",
@@ -239,7 +243,21 @@ fn Session::object_edit_reason(
         (
           node.name == "extLst" ||
           ![presentation_uri, drawing_uri].contains(node.uri)
-        ) {
+        ) &&
+        !((
+          node.name == "extLst" &&
+          !tree.children.get(node.id).unwrap_or([]).is_empty() &&
+          tree.children
+          .get(node.id)
+          .unwrap_or([])
+          .all(child => media_extension(tree, child))
+        ) ||
+        (
+          node.uri == creation_uri &&
+          node.name == "media" &&
+          node.parent >= 0 &&
+          media_extension(tree, tree.nodes[node.parent])
+        )) {
         return "Unknown object extensions prevent duplication"
       }
     }
@@ -252,6 +270,9 @@ fn Session::object_edit_reason(
             relationship_uri + "/image",
             relationship_uri + "/hyperlink",
             relationship_uri + "/slide",
+            relationship_uri + "/audio",
+            relationship_uri + "/video",
+            media_relationship_uri,
           ].contains(rel.kind) {
           return "Slide relationship references require object deletion support"
         }
@@ -382,6 +403,18 @@ pub fn Session::edit_objects(
   if change is InsertImage(bytes, x, y, width, height) {
     return self.write_image(bytes, Some((x, y, width, height)))
   }
+  if change
+    is InsertMedia(kind, content_type, bytes, poster, x, y, width, height) {
+    ignore(check_media_input(kind, content_type, bytes))
+    guard self.source_view is None else {
+      @failure.reject("invalid-operation", "Insert media in a slide")
+    }
+    return self.write_image(
+      poster,
+      Some((x, y, width, height)),
+      clip=Some((kind, content_type, bytes)),
+    )
+  }
   if change is InsertTable(rows, columns, x, y, width, height) {
     return self.insert_table(rows, columns, x, y, width, height, probe, profile)
   }
@@ -463,6 +496,7 @@ pub fn Session::edit_objects(
     | InsertConnector(_, _)
     | ConnectorEndpoints(_, _)
     | InsertImage(_, _, _, _, _)
+    | InsertMedia(_, _, _, _, _, _, _, _)
     | InsertTable(_, _, _, _, _, _)
     | FillTable(_, _)
     | TableStructure(_)

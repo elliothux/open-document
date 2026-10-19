@@ -1,5 +1,5 @@
 import { CanvasRenderer } from "./drawing.js";
-import type { DrawingBatch } from "@open-document/wasm/drawing";
+import type { DrawingBatch, DrawCommand } from "@open-document/wasm/drawing";
 
 /** Canvas size, DPR, overlays and renderer resources shared by format hosts. */
 export class CanvasSurface {
@@ -35,6 +35,7 @@ export class CanvasSurface {
     layout: DrawingBatch & { id: number },
     index: number,
     zoom: number,
+    liveImages?: ReadonlyMap<DrawCommand, CanvasImageSource>,
   ): number {
     if (this.closed) throw new Error("Canvas surface is disposed");
     const page = layout.regions[index];
@@ -50,7 +51,7 @@ export class CanvasSurface {
     if (width * height * (this.overlayCanvas ? 2 : 1) > 16777216)
       throw new Error("Preview canvas exceeds budget");
     const key = `${layout.id}:${index}:${zoom}:${dpr}`;
-    if (this.key === key) return cssScale;
+    if (this.key === key && !liveImages?.size) return cssScale;
     const canvases = this.overlayCanvas
       ? [this.canvas, this.overlayCanvas]
       : [this.canvas];
@@ -66,9 +67,9 @@ export class CanvasSurface {
     context.clearRect(0, 0, width, height);
     context.setTransform(scale, 0, 0, scale, 0, 0);
     this.key = undefined;
-    this.renderer.drawRegion(context, layout, index, this.images);
+    this.renderer.drawRegion(context, layout, index, this.images, liveImages);
     if (this.overlayCanvas) this.clearOverlay(cssScale);
-    this.key = key;
+    this.key = liveImages?.size ? undefined : key;
     return cssScale;
   }
 

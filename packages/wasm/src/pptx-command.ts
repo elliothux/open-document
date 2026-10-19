@@ -28,11 +28,13 @@ const names: ReadonlySet<string> = new Set([
   "finishPptx",
   "cancelPptx",
   "imageBytesPptx",
+  "mediaBytesPptx",
   "imagePptx",
   "imageKeysPptx",
   "exportPptxPdf",
   "controlShowPptx",
   "inkShowPptx",
+  "mediaShowPptx",
   "layoutShowPptx",
   "imageKeysShowPptx",
 ]);

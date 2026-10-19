@@ -25,6 +25,7 @@ priv struct ShowState {
   ink_strokes : Int
   ink_points : Int
   ink_draft : ShowInkStroke?
+  media : Map[String, ShowMediaPlayback]
 }
 
 ///|
@@ -108,6 +109,7 @@ fn Session::show_state(
       "count": self.slides.length(),
       "text": text,
       "paused": show.paused,
+      "media": self.show_media_query(show),
       "step": show.step,
       "steps": show.animations.length(),
       "ink": {
@@ -138,6 +140,7 @@ fn Session::show_state(
       "count": self.slides.length(),
       "text": "",
       "paused": false,
+      "media": [],
       "step": 0,
       "steps": 0,
       "ink": { "strokes": 0, "points": 0, "drawing": false },
@@ -214,6 +217,7 @@ fn Session::show_scene(
     ink_strokes: self.showing.map(show => show.ink_strokes).unwrap_or(0),
     ink_points: self.showing.map(show => show.ink_points).unwrap_or(0),
     ink_draft: None,
+    media: Map([]),
   }
   if show.animations.get(0) is Some(item) && item.trigger != "click" {
     show.schedule_animations(show.settled)

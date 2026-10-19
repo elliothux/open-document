@@ -23,6 +23,7 @@ pub struct Session {
   priv mut candidate : Candidate?
   priv mut view : View?
   priv mut sequence : Int
+  priv mut media_sequence : Int
   priv mut object_sequence : Int64
   priv mut closed : Bool
   priv mut date_time : DateTime?
@@ -152,6 +153,7 @@ fn Session::from_package(
     candidate: None,
     view: None,
     sequence: 0,
+    media_sequence: 0,
     object_sequence: 1,
     closed: false,
     date_time,
@@ -307,6 +309,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
         "parent": object.parent,
         "name": object.name,
         "kind": object.kind,
+        "media": object.media_query(),
         "text": object.text(),
         "readOnlyReason": object.read_only,
         "textReadOnlyReason": object.text_reason,
@@ -419,7 +422,10 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
     .unwrap_or(self.selection),
     "canUndo": !self.history.is_empty(),
     "canRedo": !self.redo.is_empty(),
-    "historyBytes": self.history_bytes,
+    "historyBytes": self.history_bytes +
+    [..self.history, ..self.redo].fold(init=0, (sum, entry) => {
+      sum + entry.media_bytes
+    }),
     "candidateId": self.candidate
     .map(item => Json(item.id))
     .unwrap_or(Json::null()),

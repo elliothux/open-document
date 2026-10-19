@@ -7,6 +7,9 @@ import {
   type PptxShowLayout,
 } from "./pptx-show.js";
 import { checkPptxConnectorQuery } from "./pptx-connectors.js";
+import { checkPptxMedia } from "./pptx-media.js";
+export type { PptxMedia } from "./pptx-media.js";
+export { mediaImageCommand } from "./pptx-show-media.js";
 export type { PptxConnectorEnd, PptxConnector } from "./pptx-connectors.js";
 import { checkPptxPlaceholderQuery } from "./pptx-placeholder.js";
 export {
@@ -20,6 +23,8 @@ export {
   type PptxShowState,
   type PptxShowLayout,
   type PptxShowInkChange,
+  type PptxShowMediaChange,
+  type PptxShowMediaState,
 } from "./pptx-show.js";
 import {
   number,
@@ -305,7 +310,7 @@ export type PptxCommand =
     };
 
 type Result<C extends PptxCommand> = C["operation"] extends
-  "controlShowPptx" | "inkShowPptx"
+  "controlShowPptx" | "inkShowPptx" | "mediaShowPptx"
   ? PptxShowState
   : C["operation"] extends "layoutShowPptx"
     ? PptxShowLayout
@@ -320,7 +325,10 @@ type Result<C extends PptxCommand> = C["operation"] extends
             : C["operation"] extends "selectionPptx"
               ? PptxGeometry
               : C["operation"] extends
-                    "savePptx" | "imageBytesPptx" | "exportPptxPdf"
+                    | "savePptx"
+                    | "imageBytesPptx"
+                    | "mediaBytesPptx"
+                    | "exportPptxPdf"
                 ? Uint8Array
                 : C["operation"] extends "imageKeysPptx" | "imageKeysShowPptx"
                   ? string[]
@@ -382,7 +390,7 @@ export function pptxQuery(value: unknown): PptxQuery {
   )
     throw new Error("Invalid PPTX query");
   integer(query.revision);
-  integer(query.historyBytes, 4194304);
+  integer(query.historyBytes, 71303168);
   number(query.width, 1, 14400);
   number(query.height, 1, 14400);
   if (query.candidateId !== null) integer(query.candidateId);
@@ -418,6 +426,7 @@ export function pptxQuery(value: unknown): PptxQuery {
     const object = record(item);
     checkPptxPlaceholderQuery(object.placeholder);
     checkPptxConnectorQuery(object.connector);
+    checkPptxMedia(object.media);
     imageInsets(object.imageInsets);
     if (typeof object.imageInsetsReason !== "string")
       throw new Error("Invalid image destination reason");
@@ -597,6 +606,7 @@ export function pptxResult<C extends PptxCommand>(
 ): PptxResult<C> {
   switch (command.operation) {
     case "inkShowPptx":
+    case "mediaShowPptx":
     case "controlShowPptx":
       pptxShowState(value);
       break;
@@ -611,8 +621,13 @@ export function pptxResult<C extends PptxCommand>(
       break;
     case "savePptx":
     case "imageBytesPptx":
+    case "mediaBytesPptx":
     case "exportPptxPdf":
-      if (!(value instanceof Uint8Array) || value.length > 67108864)
+      if (
+        !(value instanceof Uint8Array) ||
+        value.length >
+          (command.operation === "mediaBytesPptx" ? 16777216 : 67108864)
+      )
         throw new Error("Invalid PPTX output bytes");
       break;
     case "imageKeysPptx":
@@ -686,6 +701,7 @@ export class PptxSession extends WasmSession {
     if (
       command.operation === "controlShowPptx" ||
       command.operation === "inkShowPptx" ||
+      command.operation === "mediaShowPptx" ||
       command.operation === "layoutShowPptx"
     )
       checkPptxShow(command);
@@ -695,6 +711,18 @@ export class PptxSession extends WasmSession {
       checkPptxSlideEdit(command.change);
     let value: unknown;
     if (
+      command.operation === "editPptxObjects" &&
+      command.change.action === "insertMedia"
+    ) {
+      value = this.call({
+        ...command,
+        change: {
+          ...command.change,
+          bytes: encodeBytes(command.change.bytes),
+          poster: encodeBytes(command.change.poster),
+        },
+      });
+    } else if (
       (command.operation === "editPptxObjects" &&
         (command.change.action === "insertImage" ||
           command.change.action === "imageFill" ||
@@ -714,6 +742,7 @@ export class PptxSession extends WasmSession {
     else if (
       command.operation === "savePptx" ||
       command.operation === "imageBytesPptx" ||
+      command.operation === "mediaBytesPptx" ||
       command.operation === "exportPptxPdf"
     )
       value = this.bytes(command);

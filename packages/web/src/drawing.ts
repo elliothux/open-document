@@ -16,6 +16,7 @@ export class CanvasRenderer {
     batch: DrawingBatch,
     index: number,
     images: ReadonlyMap<string, ImageBitmap> = new Map(),
+    liveImages: ReadonlyMap<DrawCommand, CanvasImageSource> = new Map(),
   ): void {
     if (this.closed) throw new Error("Renderer is disposed");
     const region = batch.regions[index];
@@ -34,7 +35,7 @@ export class CanvasRenderer {
         canvas.height = 0;
       }
     try {
-      this.drawCommands(context, region.commands, images, 0);
+      this.drawCommands(context, region.commands, images, 0, liveImages);
     } finally {
       for (let i = this.usedLayers; i < this.layers.length; i++) {
         this.layers[i]!.width = 0;
@@ -50,6 +51,7 @@ export class CanvasRenderer {
     commands: DrawCommand[],
     images: ReadonlyMap<string, ImageBitmap>,
     depth: number,
+    liveImages: ReadonlyMap<DrawCommand, CanvasImageSource>,
   ): void {
     let clips = 0;
     let style: DrawStyle = {
@@ -77,6 +79,7 @@ export class CanvasRenderer {
               command.opacity,
               images,
               depth,
+              liveImages,
             );
             break;
           case "fillRect": {
@@ -127,7 +130,7 @@ export class CanvasRenderer {
           case "image": {
             context.globalAlpha = style.fillAlpha;
             const image = command.image;
-            const bitmap = images.get(image.key);
+            const bitmap = liveImages.get(command) ?? images.get(image.key);
             if (!bitmap) throw new Error(`Missing image: ${image.key}`);
             context.drawImage(
               bitmap,
@@ -233,6 +236,7 @@ export class CanvasRenderer {
     opacity: number,
     images: ReadonlyMap<string, ImageBitmap>,
     depth: number,
+    liveImages: ReadonlyMap<DrawCommand, CanvasImageSource>,
   ): void {
     const { width, height } = context.canvas;
     if (depth >= 4 || width * height * (depth + 2) > 16777216)
@@ -247,7 +251,7 @@ export class CanvasRenderer {
     target.resetTransform();
     target.clearRect(0, 0, width, height);
     target.setTransform(context.getTransform());
-    this.drawCommands(target, commands, images, depth + 1);
+    this.drawCommands(target, commands, images, depth + 1, liveImages);
     context.save();
     try {
       context.resetTransform();

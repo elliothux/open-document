@@ -1,5 +1,6 @@
 import { checkPptxConnectorEdit } from "./pptx-connectors.js";
 import { record } from "./validation.js";
+import { checkPptxMediaInput } from "./pptx-media.js";
 import { pptxPlaceholder, pptxPlaceholderTypes } from "./pptx-placeholder.js";
 import { drawingMatrix } from "./drawing.js";
 import {
@@ -308,6 +309,10 @@ export function number(value: unknown, low = 0, high = 0x7fffffff): number {
 }
 export function checkPptxObjectEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "insertMedia") {
+    checkPptxMediaInput(value);
+    return;
+  }
   if (change.action === "insertDiagram") {
     number(change.x, -14400, 14400);
     number(change.y, -14400, 14400);

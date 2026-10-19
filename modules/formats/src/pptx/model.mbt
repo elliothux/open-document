@@ -94,6 +94,7 @@ priv struct Object {
   miter : Double
   ends : (LineEnd, LineEnd)
   image : String?
+  media : Media?
   tile : ImageTile?
   crop : Array[Double]
   insets : Array[Double]
@@ -145,6 +146,7 @@ priv struct History {
   before : Selection
   after : Selection
   bytes : Int
+  media_bytes : Int
 }
 
 ///|

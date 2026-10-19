@@ -4,6 +4,7 @@ import type {
   PptxShowLayout,
   PptxShowState,
   PptxShowInkChange,
+  PptxShowMediaChange,
 } from "@open-document/wasm/pptx";
 import type { PptxClient } from "./pptx.js";
 import { PresentationCanvas } from "./presentation-canvas.js";
@@ -11,8 +12,13 @@ import {
   PresentationShowInk,
   type PresentationInkLabels,
 } from "./presentation-show-ink.js";
+import {
+  PresentationShowMedia,
+  type PresentationMediaLabels,
+} from "./presentation-show-media.js";
 
-export interface PresentationShowLabels extends PresentationInkLabels {
+export interface PresentationShowLabels
+  extends PresentationInkLabels, PresentationMediaLabels {
   title: string;
   current: string;
   next: string;
@@ -46,6 +52,10 @@ const english: PresentationShowLabels = {
   pen: "Pen",
   penColor: "Pen color",
   clearInk: "Clear slide ink",
+  mediaTitle: "Media",
+  mediaPlay: "Play media",
+  mediaPause: "Pause media",
+  mediaStop: "Stop media",
 };
 
 /** Core navigation and drawing remain bound to the editor's committed revision. */
@@ -76,6 +86,7 @@ export class PresentationShow {
   private linksKey = "";
   private routeKey = "";
   private inkInput: PresentationShowInk | undefined;
+  private mediaInput: PresentationShowMedia | undefined;
   constructor(
     private readonly client: PptxClient,
     private readonly profile: Record<string, string>,
@@ -168,6 +179,27 @@ export class PresentationShow {
         time: this.time(),
         layoutId,
         change,
+      });
+      await this.paintFrame();
+      this.scheduleFrame();
+    });
+  }
+  media(change: PptxShowMediaChange): Promise<void> {
+    const feedback = ["ended", "paused", "blocked", "error"].includes(
+      change.action,
+    );
+    const layoutId = this.drawing?.id;
+    if (this.closed || !this.current?.active || (!feedback && !layoutId))
+      return Promise.reject(new Error("Slideshow frame is unavailable"));
+    return this.run(async () => {
+      if (!this.current?.active)
+        throw new Error("Slideshow ended before media input");
+      this.current = await this.client.execute({
+        operation: "mediaShowPptx",
+        revision: this.revision,
+        time: this.time(),
+        change,
+        ...(!feedback ? { layoutId: layoutId! } : {}),
       });
       await this.paintFrame();
       this.scheduleFrame();
@@ -430,6 +462,17 @@ export class PresentationShow {
             error instanceof Error ? error.message : String(error);
       },
     );
+    this.mediaInput = new PresentationShowMedia(
+      this.client,
+      controls,
+      events.signal,
+      labels,
+      (change) => this.media(change),
+      () => {
+        this.resize();
+        this.scheduleFrame();
+      },
+    );
     window.addEventListener("resize", () => this.resize(), {
       signal: events.signal,
     });
@@ -478,6 +521,7 @@ export class PresentationShow {
       this.drawing.revision !== this.revision
     )
       throw new Error("Slideshow changed before drawing");
+    await this.mediaInput?.update(this.current);
     this.count!.textContent = `${this.current.position + 1} / ${this.current.order.length}`;
     this.notes!.textContent =
       this.current.notes.reason || this.current.notes.text;
@@ -553,7 +597,7 @@ export class PresentationShow {
       this.frame ||
       this.closed ||
       !this.current?.active ||
-      !this.drawing?.animating
+      (!this.drawing?.animating && !this.mediaInput?.animating)
     )
       return;
     this.frame = requestAnimationFrame(() => {
@@ -564,7 +608,10 @@ export class PresentationShow {
       }
       this.framePending = true;
       void this.run(async () => {
-        if (!this.busy && this.current?.active) await this.paintFrame();
+        if (!this.busy && this.current?.active) {
+          if (this.drawing?.animating) await this.paintFrame();
+          else this.resize();
+        }
       })
         .catch((error) => {
           if (this.error)
@@ -593,7 +640,12 @@ export class PresentationShow {
           ((window.innerHeight - 240) * 72) / (96 * page.height),
         ),
       );
-      surface.draw(this.drawing, index, zoom);
+      surface.draw(
+        this.drawing,
+        index,
+        zoom,
+        index === 0 ? this.mediaInput?.sources(this.drawing) : undefined,
+      );
       surface.canvas.style.maxWidth = "100%";
       surface.canvas.style.height = "auto";
     }
@@ -604,6 +656,7 @@ export class PresentationShow {
     this.frame = 0;
     this.listeners?.abort();
     this.inkInput = undefined;
+    this.mediaInput = undefined;
     this.listeners = undefined;
     if (this.timer !== undefined) window.clearInterval(this.timer);
     this.timer = undefined;

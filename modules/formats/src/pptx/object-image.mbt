@@ -8,6 +8,7 @@ fn Session::write_image(
   background~ : String? = None,
   background_format~ : (Array[Double], Double)? = None,
   background_insets~ : Array[Double]? = None,
+  clip~ : (String, String, Bytes)? = None,
 ) -> Json raise @failure.Failure {
   let original = background
     .map(part => self.source_slide(part))
@@ -92,12 +93,18 @@ fn Session::write_image(
   let mut sequence = 1
   let mut path = ""
   let mut link = ""
+  let mut clip_path = ""
   let links = self.relationships()
   while true {
     path = reuse.unwrap_or(
       directory + "media/image\{identity}_\{sequence}.\{extension}",
     )
     link = "odImage\{identity}_\{sequence}"
+    clip_path = directory +
+      "media/media\{identity}_\{sequence}." +
+      clip
+      .map(value => media_extension_for(value.0, value.1).unwrap())
+      .unwrap_or("")
     if (
         reuse is Some(_) ||
         (
@@ -108,7 +115,18 @@ fn Session::write_image(
       ) &&
       !links
       .iter()
-      .any(rel => rel.owner == original.tree.part && rel.id == link) {
+      .any(rel => {
+        rel.owner == original.tree.part &&
+        [link, link + "Media", link + "Embedded"].contains(rel.id)
+      }) &&
+      (
+        clip is None ||
+        (
+          !self.opc.names.contains(clip_path.to_lower()) &&
+          !self.media.contains(clip_path) &&
+          !self.parts.contains(clip_path)
+        )
+      ) {
       break
     }
     guard sequence < 16384 else {
@@ -120,6 +138,9 @@ fn Session::write_image(
   let media = self.media.copy()
   if reuse is None {
     media[path] = bytes
+  }
+  if clip is Some((_, _, payload)) {
+    media[clip_path] = payload
   }
   let created_parts : Map[String, @xml.Document] = Map([])
   let edits : Array[(String, @xml.Edit)] = []
@@ -155,10 +176,16 @@ fn Session::write_image(
           )
         }
       })
+    let clip_links = clip
+      .map(value => {
+        "<Relationship xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\" Id=\"\{link}Media\" Type=\"\{relationship_uri}/\{value.0}\" Target=\"/\{xml_attribute(clip_path)}\"/><Relationship xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\" Id=\"\{link}Embedded\" Type=\"\{media_relationship_uri}\" Target=\"/\{xml_attribute(clip_path)}\"/>"
+      })
+      .unwrap_or("")
     let (relations, edit) = relations.edit_source([
       insertion(
         relations.nodes()[0],
-        "<Relationship xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\" Id=\"\{link}\" Type=\"\{relationship_uri}/image\" Target=\"/\{xml_attribute(path)}\"/>",
+        "<Relationship xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\" Id=\"\{link}\" Type=\"\{relationship_uri}/image\" Target=\"/\{xml_attribute(path)}\"/>" +
+        clip_links,
       ),
     ])
     parts[relations_path] = relations
@@ -174,16 +201,35 @@ fn Session::write_image(
     let types = parts
       .get(types_path)
       .unwrap_or_else(() => self.opc.xml(types_path))
+    let clip_type = clip
+      .map(value => {
+        "<Override xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{xml_attribute(clip_path)}\" ContentType=\"\{value.1}\"/>"
+      })
+      .unwrap_or("")
     let (types, edit) = types.edit_source([
       insertion(
         types.nodes()[0],
-        "<Override xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{xml_attribute(path)}\" ContentType=\"\{content_type}\"/>",
+        "<Override xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{xml_attribute(path)}\" ContentType=\"\{content_type}\"/>" +
+        clip_type,
       ),
     ])
     parts[types_path] = types
     edits.push((types_path, edit))
   }
   let markup = "<p:pic xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\" xmlns:r=\"\{relationship_uri}\"><p:nvPicPr><p:cNvPr id=\"\{identity}\" name=\"Picture \{identity}\"/><p:cNvPicPr><a:picLocks noChangeAspect=\"1\"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed=\"\{link}\"/><a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x=\"\{(x * 12700).round().to_int64()}\" y=\"\{(y * 12700).round().to_int64()}\"/><a:ext cx=\"\{(width * 12700).round().to_int64()}\" cy=\"\{(height * 12700).round().to_int64()}\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></p:spPr></p:pic>"
+  let markup = if clip is Some((kind, _, _)) {
+    markup
+    .replace_all(
+      old="name=\"Picture \{identity}\"/>",
+      new="name=\"\{kind} \{identity}\"><a:hlinkClick r:id=\"\" action=\"ppaction://media\"/></p:cNvPr>",
+    )
+    .replace_all(
+      old="<p:nvPr/>",
+      new="<p:nvPr><a:\{kind}File r:link=\"\{link}Media\"/><p:extLst><p:ext uri=\"\{media_extension_uri}\"><p14:media xmlns:p14=\"\{creation_uri}\" r:embed=\"\{link}Embedded\"/></p:ext></p:extLst></p:nvPr>",
+    )
+  } else {
+    markup
+  }
   let changes : Array[@xml.SourceChange] = []
   if background is Some(_) {
     if background_image_source(original) is Some(fill) {
@@ -331,7 +377,13 @@ fn Session::write_image(
     parts~,
     media~,
     created_parts~,
-    created_media=if reuse is None { Map([(path, bytes)]) } else { Map([]) },
+    created_media=if clip is Some((_, _, payload)) {
+      Map([(path, bytes), (clip_path, payload)])
+    } else if reuse is None {
+      Map([(path, bytes)])
+    } else {
+      Map([])
+    },
   )
   if target is None && !fill && background is None {
     self.object_sequence = number(identity, 0, 4294967295).to_int64() + 1L

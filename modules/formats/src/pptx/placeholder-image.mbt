@@ -1,5 +1,8 @@
 ///|
 fn Session::image_replacement_reason(self : Session, object : Object) -> String {
+  if object.media is Some(_) {
+    return "Media poster replacement requires an explicit media operation"
+  }
   if object.kind == "image" {
     return self.image_reason(object, false)
   }

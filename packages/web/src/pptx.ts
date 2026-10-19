@@ -1,5 +1,7 @@
 import { Connection } from "./connection.js";
 import { decodeImage } from "./image.js";
+import { verifyPresentationMedia } from "./presentation-media.js";
+export { preparePresentationMedia } from "./presentation-media.js";
 import {
   pptxResult,
   checkPptxObjectEdit,
@@ -12,6 +14,7 @@ import {
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type {
   PptxQuery,
+  PptxMedia,
   PptxPlaceholder,
   PptxPlaceholderType,
   PptxEditView,
@@ -28,6 +31,8 @@ export type {
   PptxShowState,
   PptxShowLayout,
   PptxShowInkChange,
+  PptxShowMediaChange,
+  PptxShowMediaState,
   PptxThemeColor,
   PptxThemeFont,
   PptxThemeSlot,
@@ -67,6 +72,7 @@ export {
 
 /** A Worker owns presentation state, layout, history and source bytes. */
 export class PptxClient {
+  private readonly events = new AbortController();
   private constructor(private readonly connection: Connection) {}
   static async open(
     wasm: ArrayBuffer,
@@ -99,11 +105,28 @@ export class PptxClient {
     if (
       command.operation === "controlShowPptx" ||
       command.operation === "inkShowPptx" ||
+      command.operation === "mediaShowPptx" ||
       command.operation === "layoutShowPptx"
     )
       checkPptxShow(command);
     if (command.operation === "editPptxObjects")
       checkPptxObjectEdit(command.change);
+    if (
+      command.operation === "editPptxObjects" &&
+      command.change.action === "insertMedia"
+    ) {
+      await verifyPresentationMedia(
+        command.change.bytes,
+        command.change.kind,
+        command.change.contentType,
+        this.events.signal,
+      );
+      const { bitmap } = await decodeImage(
+        command.change.poster,
+        this.events.signal,
+      );
+      bitmap.close();
+    }
     if (command.operation === "editPptxSlides")
       checkPptxSlideEdit(command.change);
     if (
@@ -125,6 +148,7 @@ export class PptxClient {
     return pptxResult(command, await this.connection.request(request));
   }
   dispose(): void {
+    this.events.abort();
     this.connection.dispose();
   }
 }

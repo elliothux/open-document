@@ -3,6 +3,19 @@ import { integer, record } from "./validation.js";
 import { pptxHyperlink } from "./pptx-objects.js";
 import { checkPptxShowInk, type PptxShowInkChange } from "./pptx-show-ink.js";
 export type { PptxShowInkChange } from "./pptx-show-ink.js";
+import {
+  checkShowMediaChange,
+  checkShowMediaState,
+  checkShowMediaDrawing,
+  type PptxShowMediaState,
+  type PptxShowMediaChange,
+  type PptxShowMediaDrawing,
+} from "./pptx-show-media.js";
+export type {
+  PptxShowMediaState,
+  PptxShowMediaChange,
+  PptxShowMediaDrawing,
+} from "./pptx-show-media.js";
 
 export type PptxShowAction =
   | "start"
@@ -20,6 +33,7 @@ export type PptxShowAction =
   | "click"
   | "resume";
 export interface PptxShowState {
+  media: PptxShowMediaState[];
   active: boolean;
   external: string | null;
   paused: boolean;
@@ -38,6 +52,7 @@ export interface PptxShowState {
   ink: { strokes: number; points: number; drawing: boolean };
 }
 export interface PptxShowLayout extends DrawingBatch {
+  media: PptxShowMediaDrawing[];
   links: {
     id: string;
     label: string;
@@ -49,6 +64,13 @@ export interface PptxShowLayout extends DrawingBatch {
   revision: number;
 }
 export type PptxShowCommand =
+  | {
+      operation: "mediaShowPptx";
+      revision: number;
+      time: number;
+      layoutId?: number;
+      change: PptxShowMediaChange;
+    }
   | { operation: "imageKeysShowPptx" }
   | {
       operation: "inkShowPptx";
@@ -78,9 +100,12 @@ export type PptxShowCommand =
 export function checkPptxShow(command: PptxShowCommand): void {
   if (command.operation === "imageKeysShowPptx") return;
   if (
-    !["controlShowPptx", "layoutShowPptx", "inkShowPptx"].includes(
-      command.operation,
-    )
+    ![
+      "controlShowPptx",
+      "layoutShowPptx",
+      "inkShowPptx",
+      "mediaShowPptx",
+    ].includes(command.operation)
   )
     throw new Error("Unknown slideshow command");
   if (!integer(command.revision, 0, 0x7fffffff))
@@ -96,6 +121,18 @@ export function checkPptxShow(command: PptxShowCommand): void {
     if (!integer(command.layoutId, 1, 0x7fffffff))
       throw new Error("Invalid ink frame identity");
     checkPptxShowInk(command.change);
+  }
+  if (command.operation === "mediaShowPptx") {
+    checkShowMediaChange(command.change);
+    const feedback = ["ended", "paused", "blocked", "error"].includes(
+      command.change.action,
+    );
+    if (
+      feedback
+        ? command.layoutId !== undefined
+        : !integer(command.layoutId, 1, 0x7fffffff)
+    )
+      throw new Error("Invalid media frame binding");
   }
   if (
     command.operation === "controlShowPptx" &&
@@ -162,6 +199,7 @@ export function pptxShowState(value: unknown): void {
   const state = record(value),
     notes = record(state.notes),
     ink = record(state.ink);
+  checkShowMediaState(state.media, state.active);
   if (
     typeof state.active !== "boolean" ||
     typeof state.paused !== "boolean" ||
@@ -219,7 +257,8 @@ export function pptxShowState(value: unknown): void {
     pptxHyperlink({ kind: "external", target: state.external });
 }
 export function pptxShowLayout(value: unknown): void {
-  drawingBatch(value);
+  const batch = drawingBatch(value);
+  checkShowMediaDrawing(batch, record(value).media);
   const layout = record(value);
   if (
     !integer(layout.id, 1, 0x7fffffff) ||

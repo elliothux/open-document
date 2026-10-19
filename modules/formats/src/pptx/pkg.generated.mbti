@@ -109,6 +109,7 @@ pub(all) enum ObjectEdit {
   InsertPlaceholder(String, Double, Double, Double, Double, String)
   Placeholder(String?, Double)
   InsertImage(Bytes, Double, Double, Double, Double)
+  InsertMedia(String, String, Bytes, Bytes, Double, Double, Double, Double)
   InsertTable(Int, Int, Double, Double, Double, Double)
   FillTable(Int, Int)
   TableStructure(String)
@@ -203,6 +204,8 @@ pub fn Session::image_keys(Self, Bool, Bool) -> Array[String] raise @failure.Fai
 pub fn Session::ink_show(Self, Int, Int, Double, ShowInkChange) -> Json raise @failure.Failure
 pub fn Session::invalidate_geometry(Self) -> Unit
 pub fn Session::layout(Self, @layout.TextProbe, Map[String, String], @layout.Images) -> Json raise @failure.Failure
+pub fn Session::media_bytes(Self, String) -> Bytes raise @failure.Failure
+pub fn Session::media_show(Self, Int, Int?, Double, ShowMediaChange) -> Json raise @failure.Failure
 pub fn Session::navigate(Self, Int, Int, String, Bool) -> Json raise @failure.Failure
 pub fn Session::open(Bytes, @archive.Budget, date_time? : String) -> Self raise @failure.Failure
 pub fn Session::print_drawing(Self, Int, Bool, Bool, @layout.TextProbe, Map[String, String], @layout.Images) -> Json raise @failure.Failure
@@ -225,6 +228,13 @@ pub(all) enum ShowInkChange {
   FinishInk(Array[(Double, Double)])
   CancelInk
   ClearInk
+}
+
+pub(all) struct ShowMediaChange {
+  object : String
+  token : Int
+  action : String
+  message : String
 }
 
 pub(all) enum ShowRange {

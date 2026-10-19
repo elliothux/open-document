@@ -71,6 +71,8 @@ fn Foundation::pptx_operation(
     @failure.reject("session-required", "Open a PPTX presentation first")
   }
   match operation {
+    "mediaShowPptx" => pptx_show_media(session, request)
+    "mediaBytesPptx" => pptx_media_bytes(session, request)
     "inkShowPptx" => pptx_show_ink(session, request)
     "controlShowPptx" =>
       session.control_show(
@@ -412,6 +414,7 @@ fn Foundation::pptx_operation(
             xlsx_number(change, "right"),
             xlsx_number(change, "bottom"),
           )
+        "insertMedia" => pptx_insert_media(change)
         "insertImage" =>
           @pptx.InsertImage(
             input_bytes(change, 4194304),

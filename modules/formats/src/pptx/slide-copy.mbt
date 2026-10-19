@@ -27,7 +27,13 @@ fn check_slide_copy_markup(tree : Tree) -> Unit raise @failure.Failure {
       node.name == "creationId" &&
       node.parent >= 0 &&
       copied_creation_extension(tree, tree.nodes[node.parent])
-    guard ([presentation_uri, drawing_uri].contains(node.uri) || creation) &&
+    let media = node.uri == creation_uri &&
+      node.name == "media" &&
+      node.parent >= 0 &&
+      media_extension(tree, tree.nodes[node.parent])
+    guard (
+        [presentation_uri, drawing_uri].contains(node.uri) || creation || media
+      ) &&
       node.attributes
       .iter()
       .all(a => {
@@ -40,7 +46,9 @@ fn check_slide_copy_markup(tree : Tree) -> Unit raise @failure.Failure {
         tree.children
         .get(node.id)
         .unwrap_or([])
-        .all(child => copied_creation_extension(tree, child))
+        .all(child => {
+          copied_creation_extension(tree, child) || media_extension(tree, child)
+        })
       ) else {
       @failure.reject(
         "protected-content",
@@ -172,7 +180,10 @@ fn Session::copy_slide_relationships(
       .iter()
       .find_first(link => link.owner == owner && link.id == id)
       .unwrap()
-    guard allowed.any(kind => link.kind == relationship_uri + "/" + kind) &&
+    guard (
+        allowed.any(kind => link.kind == relationship_uri + "/" + kind) ||
+        (allowed.contains("media") && link.kind == media_relationship_uri)
+      ) &&
       (!link.external || link.kind == relationship_uri + "/hyperlink") else {
       @failure.reject(
         "protected-content",
@@ -324,7 +335,10 @@ fn Session::copy_slide_parts(
   }
   for original, part in remapped {
     let allowed = if original == source.tree.part {
-      ["slideLayout", "image", "hyperlink", "slide", "notesSlide", "comments"]
+      [
+        "slideLayout", "image", "hyperlink", "slide", "notesSlide", "comments", "audio",
+        "video", "media",
+      ]
     } else if documents[part].nodes()[0].name == "notes" {
       ["notesMaster", "image", "hyperlink", "slide"]
     } else {

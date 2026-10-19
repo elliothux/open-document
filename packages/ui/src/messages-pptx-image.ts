@@ -1,4 +1,10 @@
 export const imageEn = {
+  insertMedia: "Insert audio or video",
+  mediaFile: "Media file",
+  mediaInputLimit: "Media must contain 1 to 16777216 bytes",
+  mediaTargetChanged: "The target slide changed while reading the media",
+  mediaInsertHint:
+    "Play media during the slideshow. Image and PDF exports use the poster.",
   fillPicturePlaceholder: "Fill picture placeholder",
   gradientStops: "Gradient color stops",
   gradientColor: "Stop color",
@@ -25,6 +31,11 @@ export const imageEn = {
 };
 
 export const imageZh = {
+  insertMedia: "插入音频或视频",
+  mediaFile: "媒体文件",
+  mediaInputLimit: "媒体文件需为 1 至 16777216 字节",
+  mediaTargetChanged: "读取媒体期间目标幻灯片已改变",
+  mediaInsertHint: "可在放映中播放媒体，图片和 PDF 输出使用封面。",
   fillPicturePlaceholder: "填入占位图片",
   gradientStops: "渐变色标",
   gradientColor: "色标颜色",

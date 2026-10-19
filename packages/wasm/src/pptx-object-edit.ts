@@ -15,6 +15,17 @@ import type {
 import type { PptxConnectorEnd } from "./pptx-connectors.js";
 export type PptxObjectEdit =
   | {
+      action: "insertMedia";
+      kind: "audio" | "video";
+      contentType: string;
+      bytes: Uint8Array;
+      poster: Uint8Array;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }
+  | {
       action: "insertDiagram";
       template: "process" | "hierarchy" | "cycle";
       items: string[];

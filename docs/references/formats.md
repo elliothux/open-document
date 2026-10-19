@@ -1727,6 +1727,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 | `undoPptx` / `redoPptx` / `savePptx` | 原子历史及绑定 revision 的源保存 |
 | `layoutPptx` / `hitPptx` / `selectionPptx` | 当前页绘制、最上层命中、对象轮廓/手柄及文字光标/选区；几何绑定 layoutId |
 | `imageKeysPptx` / `imageBytesPptx` / `imagePptx` | 准备当前页或导出范围的资源键、读压缩源、接入经过宿主校验的 RGBA |
+| `mediaBytesPptx` | 读取当前文稿已声明且受支持的内嵌音视频原字节；外部媒体拒绝 |
 | `exportPptxPdf` | 绑定 revision、字体 profile、当前页/整稿、隐藏页选择与输出预算的静态 PDF |
 
 `PptxSelection` 包含 `slide`、有序且唯一的 `objects: string[]`、活动 `object`、`mode`、`anchor` 和 `focus`。空集合要求活动身份为空；非空集合要求活动身份属于集合。集合最多 256 个当前页对象，身份长度最多 1024。文字模式要求唯一对象及有效字素边界。`selectPptx` 必须提供全部字段，失败保留原选择；选择不新增历史。宿主 `selectObjects(objects, active?)` 默认激活最后一项；`select(object, mode?, anchor?, focus?, extend?)` 默认替换选择，`extend=true` 在对象模式中切换成员。
@@ -1739,7 +1740,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `{ action: "copy" }` 在目标页后复制，激活副本并清空对象选择。保留隐藏状态、内容、几何、格式及版式继承，分配新页/对象身份，重映射对象连接与计时目标。自身页链接指向副本，其他页链接及自定义放映保持原目标。图片、版式、母版和主题复用原部件，外部超链接保留地址且不下载。普通备注和传统批注另建部件及关系；备注回链指向副本，批注保留作者和内容，分配新 idx 并更新作者 lastIdx。复制部件、作者索引和页引用进入同一有界历史，支持后续编辑、删除、保存重开和精确撤销/重做。重新复制不复用已撤销的页/对象身份。
 
-复制为已知 PowerPoint 2010 creationId 扩展及 DrawingML 字段生成新身份，保留字段类型和源缓存文字；保护其他未知 XML 身份扩展及 noCopy 锁。未知关系、图表/嵌入数据、媒体、VML 和线程批注需要对应所有权支持后开放。支持页关系为 slideLayout/image/hyperlink/slide/notesSlide/comments；备注关系为 notesMaster/image/hyperlink/slide；传统批注仅允许超链接。外部关系仅允许 hyperlink。标准计时 XML 可保留并重映射对象目标，尚不提供动画编辑或播放。复制继续受 256 页、对象/文字、输入输出和 4 MiB 历史预算约束，失败不修改已提交内容。
+复制为已知 PowerPoint 2010 creationId 扩展及 DrawingML 字段生成新身份，保留字段类型和源缓存文字；保护其他未知 XML 身份扩展及 noCopy 锁。已知 p14:media 扩展及内嵌音视频关系复用原媒体和封面。未知关系、图表/嵌入数据、VML 和线程批注需要对应所有权支持后开放。支持页关系为 slideLayout/image/hyperlink/slide/notesSlide/comments/audio/video，以及 Microsoft media；备注关系为 notesMaster/image/hyperlink/slide；传统批注仅允许超链接。外部关系仅允许 hyperlink。标准计时 XML 保留并重映射对象目标；动画编辑与执行范围归[对象动画](#对象动画)。复制继续受 256 页、对象/文字、输入输出和历史预算约束，失败不修改已提交内容。
 
 `{ action: "delete" }` 删除指定页，至少保留一页。删除活动页时选择原位置的下一页，末页则选前页，并清空对象选择；删除非活动页保留当前选择。同步移除 presentation 页引用、自定义放映中的对应条目，以及其他 XML 中指向该页的已知 DrawingML 点击/悬停链接及关系，保留链接所在对象与文字。空的自定义放映保留身份。仅删除该 slide、其关系和独占的备注/传统批注 XML 及关系，移除对应内容类型；版式、母版、主题、图片、作者与未知资源保留，不扫描清理整个包。共享备注/批注、未知或隐式引用、超出历史/输出预算时原子拒绝。删除部件快照计入有界历史，可与新增、对象及页序编辑精确混合撤销/重做，损坏历史拒绝回放且不改变当前文稿。默认 UI 提供删除页，并禁用最后一页的删除。选择规则参考 [ONLYOFFICE 删除页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L9458-L9485)。
 
@@ -1963,7 +1964,8 @@ list 使用 `PptxListFormat`：`{ kind: "none" }`、`{ kind: "bullet", value }` 
 | 幻灯片文本框 / 单段 / 全稿幻灯片文字 | 32767 / 4096 / 1048576 UTF-16；每框最多 256 段 |
 | 字体键 / 图片资源 | 各 256；图片最大 4096×4096、单图 4194304 像素、RGBA 累计 16 MiB |
 | 布局 / PDF 图元 | 每页 262144 glyph；整稿 PDF 1048576 图元；通用绘制仍受前述批次预算约束 |
-| 历史 / 宿主队列 | undo+redo 共 100 项、4 MiB 源补丁 payload；编辑与指针意图队列各 64 项，指针预览只保留待发送末次坐标 |
+| 历史 / 宿主队列 | undo+redo 共 100 项、XML/图片 payload 共 4 MiB，另有 64 MiB 音视频历史；编辑与指针意图队列各 64 项，指针预览只保留待发送末次坐标 |
+| 内嵌音视频 | 单资源 16 MiB、累计 64 MiB、64 项，按原生关系去重；封面另受图片预算约束 |
 
 P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增量创作能力与剩余范围归 [P12](../p12-pptx-core.md)。Chromium 受控输入事件已验证；没有追加系统输入源、Windows/PowerPoint、VoiceOver、其他浏览器或性能验收。
 
@@ -2005,6 +2007,16 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 表格文字链接在单个主格内使用相同的局部范围及光标规则，包含跨行列合并格和空格；范围先转换为格内位置，不改其他格及延续格。跨主格选择返回保护原因，统一设置和移除均不写入，默认面板同步禁用。新关系与单元格源仍合为一项历史；已有格式、几何及其他部件保持。放映使用表格原有逐格文字几何命中。规则依据 [ONLYOFFICE 表格链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L4601-L4630)。整表对象链接编辑仍受保护。
 
+### 嵌入音视频
+
+`PresentationEditor.editObjects({ action: "insertMedia", kind, contentType, bytes, poster, x, y, width, height })` 插入本地音频或视频。`kind` 为 audio/video，`bytes` 是媒体原字节，`poster` 是 PNG/JPEG 原字节，几何使用磅。同步 Wasm 与 Worker 复用 `editPptxObjects`，MoonBit 对应 `InsertMedia`。插入只作用于普通幻灯片；媒体、封面、内容类型、三条关系及对象选择合为一项精确历史。失败保持原包、历史与身份分配。核心检查容器签名，Web 还须成功解码首帧或音频数据，不能仅按扩展名接收。
+
+对象沿原生 `p:pic` 保留封面几何与 `kind="image"`，另有 `PptxObject.media: PptxMedia | null`，普通对象为 null。媒体描述包含 `{ kind, key, contentType, poster, reason }`，从 Wasm/Web PPTX 模块导出类型。`mediaBytesPptx` 按 key 读取已声明的受支持内嵌资源；外链或冲突关系仅返回对象级原因，不下载或提供本地字节。支持已知 a:audioFile/a:videoFile 和 p14:media；未知扩展继续保护。普通对象/页面复制分配新绘图身份，复用不可变的媒体和封面；变换、删除、撤销重做及保存重开沿现有事务。删除保留资源，未引用但仍保留的媒体关系继续计入累计预算。
+
+默认面板从显式本地文件解码生成视频首帧封面或音频播放符号。`preparePresentationMedia(bytes, signal?)` 从 `web/pptx` 导出，供宿主复用。容器声明为 audio/wav、audio/mpeg、audio/mp4、audio/webm、video/mp4 或 video/webm；浏览器拒绝编码或数据损坏时，插入失败并保留文稿。当前 Chromium 实测覆盖 PCM WAV 和 VP8 WebM，其余编码按实际解码能力处理，未据文件扩展名承诺兼容。解码帧每轴最多 4096、最多 16777216 像素；生成的封面最多 1920×1080，仍遵守图片输入/解码预算。取消、超时、失败和完成均清理临时解码器及对象 URL。
+
+媒体原字节有独立的单资源 16 MiB、累计 64 MiB 和 64 项预算，历史另限 64 MiB。XML 与图片历史仍共用原来的 4 MiB；`historyBytes` 返回两类历史的合计。原包、XML、输出和显式宿主预算同时生效，可能先达到其上限。静态 Canvas、PNG/JPEG 和 PDF 使用封面，原媒体字节保留在 PPTX。手动放映范围归[放映媒体](#放映媒体)；自动播放/循环属性及原生媒体计时继续实施。原生结构参考 [ONLYOFFICE Pic::fromPPTY](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Pic.cpp#L1205-L1256)；未复制上游执行代码。
+
 ### 放映与演讲者视图
 
 `PresentationEditor.slideshow.start("settings" | "first" | "current" | { show: id }, labels?)` 按已保存设置、从头、当前页或指定自定义放映开始。省略参数时使用 settings。默认页列表提供这些入口。`labels` 使用 `PresentationShowLabels`，从 `web/presentation-editor` 导出，默认 UI 随语言提供名称。`navigate(action, slide?)` 接受 `next/previous/first/last/goto/gotoPosition/click/tick/pause/resume/end`，`end()` 退出。goto 使用页身份并定位当前序列的首次出现；gotoPosition 使用从 0 开始的条目序号字符串，可以区分重复页。click 遵守单击换页设置，next 保持显式导航；tick 根据时间推进自动换页。`active` 包含开始中的状态，`state` 返回当前快照，未放映时为 undefined；`paused` 表示切换及自动换页计时暂停。Wasm/Web PPTX 模块导出 `PptxQuery/PptxShowAction/PptxShowState/PptxShowLayout`。
@@ -2013,9 +2025,21 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 低层 controlShowPptx 携带 revision、action、slide 和必需的 time；start 可额外提供 custom ID，此时 slide 为空。startSettings 使用文稿默认选择，不接受 slide 或 custom。layoutShowPptx 携带 revision/profile/time，返回一至两个 R0 页面及 animating。time 为 0–1000000000 的有限单调毫秒，倒退请求拒绝且保留状态。核心扣除暂停间隔后计算进度，不调用宿主时钟。Web 每帧先用 tick 更新播放位置，再准备相邻资源和布局；animating 在切换或等待自动换页时为 true。每次最多处理一项帧工作，忙时只保留最新时间。核心缓存包含播放序列与条目位置，重复页也会更新下一页预览；每帧只重组位置及透明度。结束放映清除播放缓存。imageKeysShowPptx 返回当前、切换前及下一页资源；资源池同时保留编辑页，继续受 256 个键和 16 MiB 解码上限约束。
 
-模态视图位于所属编辑器内，容器全屏兼容 Shadow DOM。支持方向键、PageUp/PageDown、Home/End、页面点击、显式条目跳转和 Escape；原生选择及颜色控件保留自身按键。演讲者开关显示下一页与普通备注；演讲已用时间继续累计，pause/resume 冻结/继续切换及自动换页计时。退出恢复原生焦点和选择；文件替换、宿主 setPaused(true) 和释放结束放映，清理画布、帧请求、监听器和计时器。对象与文字点击链接已有核心命中和键盘入口，范围归[放映链接](#放映链接)。临时画笔归下文；媒体及独立窗口仍待实现，源元数据保留。
+模态视图位于所属编辑器内，容器全屏兼容 Shadow DOM。支持方向键、PageUp/PageDown、Home/End、页面点击、显式条目跳转和 Escape；原生选择及颜色控件保留自身按键。演讲者开关显示下一页与普通备注；演讲已用时间继续累计，pause/resume 冻结/继续切换及自动换页计时。退出恢复原生焦点和选择；文件替换、宿主 setPaused(true) 和释放结束放映，清理画布、帧请求、监听器和计时器。对象与文字点击链接已有核心命中和键盘入口，范围归[放映链接](#放映链接)。临时画笔及手动媒体归下文；独立窗口仍待实现，源元数据保留。
 
 页序规则参考 [ONLYOFFICE 可见页导航](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L4641-L4742)和[显式跳页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L4978-L5003)。实现归 [`slideshow.mbt`](../../modules/formats/src/pptx/slideshow.mbt)、[`show-state.mbt`](../../modules/formats/src/pptx/show-state.mbt)及 [`presentation-show.ts`](../../packages/web/src/presentation-show.ts)。
+
+### 放映媒体
+
+`PresentationEditor.slideshow.media({ object, token, action })` 接受 play/pause/stop。`object` 是原生对象身份，`token` 取自当前 `slideshow.state.media`。该数组包含 `{ object, label, kind, key, contentType, token, state, reason, visible }`，状态为 stopped/playing/paused/ended/blocked/error。初始 token 为 0；开始新实例、重播和停止分配新标识，暂停续播保留标识。画布点击已知媒体动作也切换播放/暂停。默认界面为每个对象提供播放、暂停、停止及对象级原因，键盘可操作。
+
+核心管理动作、可见性和实例身份；Web 仅从显式资源字节解码。低层 `mediaShowPptx` 携带 revision/time/change；用户动作另带当前 layoutId。ended/paused/blocked/error 是浏览器反馈，不带 layoutId，必须携带有效 token；error 还带非空、最多 1024 UTF-16 的 message。Wasm/Web 导出 `PptxShowMediaChange/PptxShowMediaState`，MoonBit 使用 `ShowMediaChange`。过期实例、其他页面和结束后的反馈拒绝，播放事件不推进页面、不改文稿、选择、历史或静态输出。播放标识与绘制帧标识独立，反馈不会使正在输入的指针帧失效。
+
+`state="playing"` 表示播放意图。全局暂停或对象隐藏时暂停实际播放，恢复后续播；停止释放解码器并恢复封面。播放结束保留末帧，重播从头开始。换页、退出、换文件和 dispose 释放播放器、对象 URL、事件及帧请求。浏览器拒绝播放时保留“播放”重试入口；不支持的编码或损坏数据只报告到该对象，其他对象及页面继续操作。媒体读取沿宿主原有队列串行执行，错误信息保留到后续动作；控件区滚动，不随状态文字改变画布位置。
+
+视频沿核心 `PptxShowLayout.media` 给出的对象/图片命令路径绘制，保留层次、裁剪、不透明度、变换和上层笔迹。共享封面的复制对象使用不同命令实例，不共享播放帧。通用 Canvas 执行器可为指定图片命令接收临时图像源；静态输出继续使用原封面，不写入视频帧。纯视频帧重绘复用当前绘制批次，不逐帧请求核心。放映最多保留 16 个播放器，包括暂停、结束和等待重试的实例；停止可释放名额。压缩输入累计最多 64 MiB，视频帧每轴最多 4096、累计最多 16777216 像素，分辨率变化时重查；图片命令绑定累计最多 65536 条。媒体输入及图片、Canvas、包预算同时生效。
+
+当前 Chromium 实测 PCM WAV 与 VP8 WebM。自动播放、循环、音量/静音、跨页延续和更广原生媒体计时仍待实现。动作与平台边界参考 [ONLYOFFICE CCmd::getMediaData/setState](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L8664-L8737)；未复制上游执行代码。
 
 ### 放映临时画笔
 
@@ -2053,7 +2077,7 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 默认 UI 提供全部页、页码范围或自定义放映，以及计时、对象动画和循环开关。应用后合为一次历史；开始读取已提交值。页重排、增加和复制保持范围的数字位置；删页后把超出末页的起止值收窄到剩余页数。自定义组仍使用稳定页身份；被默认选择的组须先取消选择才能删除。
 
-源采用标准 `presProps/p:showPr` 的 `sldAll/sldRg/custShow` 和 useTimings/showAnimation/loop。首次编辑可创建属性部件、关系及内容类型，连同源历史一起撤销和重做；相同设置不改字节或新增历史。只修改变化的属性和选择片段，保留 showNarration、显示模式、画笔颜色和其他未改源内容。媒体、叙述、窗口模式和画笔的执行仍待实现；保存与静态输出继续使用完整文稿，不按默认放映范围裁剪。
+源采用标准 `presProps/p:showPr` 的 `sldAll/sldRg/custShow` 和 useTimings/showAnimation/loop。首次编辑可创建属性部件、关系及内容类型，连同源历史一起撤销和重做；相同设置不改字节或新增历史。只修改变化的属性和选择片段，保留 showNarration、显示模式、画笔颜色和其他未改源内容。叙述、窗口模式、默认画笔颜色及媒体自动计时仍待实现。手动媒体和临时画笔归各自合同；保存与静态输出继续使用完整文稿，不按默认放映范围裁剪。
 
 字段和序列化依据 [ONLYOFFICE ShowPr](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/ShowPr/PresentationPr.cpp#L48-L128)及[页码范围](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/ShowPr/SldRg.cpp#L42-L78)。重排与删页的数字范围规则是当前 SDK 合同，未声称由上游运行结果验证。实现归 [`show-settings.mbt`](../../modules/formats/src/pptx/show-settings.mbt)、[`show-settings-create.mbt`](../../modules/formats/src/pptx/show-settings-create.mbt)和 [`pptx-show-settings.tsx`](../../packages/ui/src/pptx-show-settings.tsx)；沿用现有编辑队列及播放状态。
 

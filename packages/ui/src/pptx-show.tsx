@@ -37,6 +37,10 @@ export function PptxShow({
     pen: t.showPen,
     penColor: t.showPenColor,
     clearInk: t.showClearInk,
+    mediaTitle: t.showMediaTitle,
+    mediaPlay: t.showMediaPlay,
+    mediaPause: t.showMediaPause,
+    mediaStop: t.showMediaStop,
   };
   return (
     <div>

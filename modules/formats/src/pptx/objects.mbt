@@ -514,6 +514,7 @@ fn read_object(
     fill_source: paint.9,
     stroke_source: paint.10,
     image,
+    media: read_media(opc, source, parts),
     tile,
     crop,
     insets,

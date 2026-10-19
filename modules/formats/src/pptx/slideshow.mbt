@@ -232,7 +232,14 @@ pub fn Session::show_layout(
           probe,
           profile,
           self.tile_sizes(slide),
-          parts=if role == 2 || (role == 0 && !show.animations.is_empty()) {
+          parts=if role == 2 ||
+            (
+              role == 0 &&
+              (
+                !show.animations.is_empty() ||
+                slide.objects.any(object => object.media is Some(_))
+              )
+            ) {
             Some(fragments)
           } else {
             None
@@ -256,7 +263,13 @@ pub fn Session::show_layout(
               pages: [{ ..page, primitives, }],
               fonts: probe.font_info(),
             }
-            (id, document.drawing(images, clear=id.is_empty())[0].commands)
+            (
+              id,
+              media_fragment(
+                slide.objects.iter().find_first(object => object.id == id),
+                document.drawing(images, clear=id.is_empty())[0].commands,
+              ),
+            )
           }),
         )
         for key in slide.image_keys() {
@@ -326,6 +339,7 @@ pub fn Session::show_layout(
   guard self.sequence < 2147483647 else {
     @failure.reject("limit-exceeded", "Layout identity exhausted")
   }
+  let (regions, media) = self.media_drawing(show, regions, images)
   self.sequence += 1
   self.showing = Some(show)
   self.show_drawing = Some({
@@ -345,6 +359,7 @@ pub fn Session::show_layout(
     "outlines": probe.outline_resources(),
     "images": drawing.images,
     "links": show_link_query(drawing, show),
+    "media": media,
     "animating": !show.paused &&
     (
       show.effect is Some(_) ||

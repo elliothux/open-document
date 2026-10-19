@@ -58,7 +58,29 @@ fn Session::show_links(
       }
       result.push({ object, start, end, label, kind, target, reason, })
     }
-    add(Some(hyperlink_properties(object)), -1, -1, object.name)
+    let properties = hyperlink_properties(object)
+    let click = properties.child("hlinkClick")
+    if object.media is Some(media) &&
+      (
+        click is None ||
+        click.unwrap().node.attribute("action") == Some("ppaction://media")
+      ) {
+      result.push({
+        object,
+        start: -1,
+        end: -1,
+        label: object.name,
+        kind: "media",
+        target: object.id,
+        reason: if !media.reason.is_empty() {
+          media.reason
+        } else {
+          object.diagnostic
+        },
+      })
+    } else {
+      add(Some(properties), -1, -1, object.name)
+    }
     let mut offset = 0
     for paragraph in object.paragraphs {
       for run in paragraph.runs {
@@ -132,7 +154,8 @@ fn show_link_query(drawing : ShowDrawing, show : ShowState) -> Array[Json] {
   let values = show.animation_state()
   let result : Array[Json] = []
   for index, link in drawing.links {
-    if show.effect is Some(_) ||
+    if link.kind == "media" ||
+      show.effect is Some(_) ||
       values
       .get(link.object.id)
       .map(value => value.opacity <= 0)
@@ -258,6 +281,23 @@ fn Session::apply_show_link(
     @failure.reject("protected-content", link.reason)
   }
   let current = self.showing.unwrap().advance(time)
+  if link.kind == "media" {
+    let media = current.media_state(link.target)
+    let (next, sequence) = self.change_show_media(current, {
+      object: link.target,
+      token: media.token,
+      action: if media.state == "playing" {
+        "pause"
+      } else {
+        "play"
+      },
+      message: "",
+    })
+    let result = self.show_state(Some(next))
+    self.showing = Some(next)
+    self.media_sequence = sequence
+    return result
+  }
   let mut external : String? = None
   let show = if link.kind == "external" {
     external = Some(link.target)
