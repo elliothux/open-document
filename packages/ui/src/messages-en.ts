@@ -1,3 +1,4 @@
+import { objectEn } from "./messages-pptx-objects.js";
 import { connectorEn } from "./messages-pptx-connectors.js";
 import { viewEn } from "./messages-pptx-view.js";
 import { filterEn } from "./messages-filter.js";
@@ -10,6 +11,7 @@ import { outlineEn } from "./messages-outline.js";
 import { tableEn } from "./messages-xlsx-tables.js";
 import { clipboardEn } from "./messages-clipboard.js";
 export const en = {
+  ...objectEn,
   ...connectorEn,
   ...viewEn,
   ...clipboardEn,
@@ -726,22 +728,6 @@ export const en = {
   hideSlide: "Hide slide",
   showSlide: "Show slide",
   objects: "Objects",
-  insertObject: "Insert object",
-  objectKind: "Object type",
-  textBox: "Text box",
-  rectangle: "Rectangle",
-  roundRectangle: "Rounded rectangle",
-  leftArrow: "Left arrow",
-  rightArrow: "Right arrow",
-  upArrow: "Up arrow",
-  downArrow: "Down arrow",
-  ellipse: "Ellipse",
-  lineShape: "Line",
-  objectX: "Object X (pt)",
-  objectY: "Object Y (pt)",
-  objectWidth: "Object width (pt)",
-  objectHeight: "Object height (pt)",
-  objectText: "Object text",
   duplicateObject: "Duplicate object",
   groupObjects: "Group objects",
   ungroupObjects: "Ungroup objects",

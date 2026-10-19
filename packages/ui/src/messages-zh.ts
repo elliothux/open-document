@@ -1,3 +1,4 @@
+import { objectZh } from "./messages-pptx-objects.js";
 import { connectorZh } from "./messages-pptx-connectors.js";
 import { viewZh } from "./messages-pptx-view.js";
 import { filterZh } from "./messages-filter.js";
@@ -12,6 +13,7 @@ import { tableZh } from "./messages-xlsx-tables.js";
 import { clipboardZh } from "./messages-clipboard.js";
 
 export const zh: Messages = {
+  ...objectZh,
   ...connectorZh,
   ...viewZh,
   ...clipboardZh,
@@ -718,22 +720,6 @@ export const zh: Messages = {
   hideSlide: "隐藏幻灯片",
   showSlide: "显示幻灯片",
   objects: "对象",
-  insertObject: "插入对象",
-  objectKind: "对象类型",
-  textBox: "文本框",
-  rectangle: "矩形",
-  roundRectangle: "圆角矩形",
-  leftArrow: "左箭头",
-  rightArrow: "右箭头",
-  upArrow: "上箭头",
-  downArrow: "下箭头",
-  ellipse: "椭圆",
-  lineShape: "线条",
-  objectX: "对象 X（pt）",
-  objectY: "对象 Y（pt）",
-  objectWidth: "对象宽度（pt）",
-  objectHeight: "对象高度（pt）",
-  objectText: "对象文字",
   duplicateObject: "复制对象",
   groupObjects: "组合对象",
   ungroupObjects: "取消组合",

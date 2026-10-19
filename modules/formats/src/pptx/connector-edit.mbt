@@ -128,8 +128,7 @@ fn Session::edit_connector(
   }
   let id = if insert { self.next_object_identity() } else { "" }
   let (changes, selection) = if insert {
-    let g = connector_geometry(start, end)
-    let markup = "<p:cxnSp xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\"><p:nvCxnSpPr><p:cNvPr id=\"\{id}\" name=\"Connector \{id}\"/><p:cNvCxnSpPr>\{connector_link(start, "stCxn")}\{connector_link(end, "endCxn")}</p:cNvCxnSpPr><p:nvPr/></p:nvCxnSpPr><p:spPr><a:xfrm flipH=\"\{if g.flip_x { 1 } else { 0 }}\" flipV=\"\{if g.flip_y { 1 } else { 0 }}\"><a:off x=\"\{(g.x * 12700).round().to_int64()}\" y=\"\{(g.y * 12700).round().to_int64()}\"/><a:ext cx=\"\{(g.width * 12700).round().to_int64()}\" cy=\"\{(g.height * 12700).round().to_int64()}\"/></a:xfrm><a:prstGeom prst=\"straightConnector1\"><a:avLst/></a:prstGeom><a:noFill/><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill></a:ln></p:spPr></p:cxnSp>"
+    let markup = connector_markup(id, start, end)
     (
       [object_insertion(slide.tree, markup)],
       {
@@ -277,4 +276,15 @@ fn Session::normalize_connectors(
     ),
     Some(edit),
   )
+}
+
+///|
+fn connector_markup(
+  id : String,
+  start : ConnectorEnd,
+  end : ConnectorEnd,
+) -> String raise @failure.Failure {
+  let g = connector_geometry(start, end)
+  let markup = "<p:cxnSp xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\"><p:nvCxnSpPr><p:cNvPr id=\"\{id}\" name=\"Connector \{id}\"/><p:cNvCxnSpPr>\{connector_link(start, "stCxn")}\{connector_link(end, "endCxn")}</p:cNvCxnSpPr><p:nvPr/></p:nvCxnSpPr><p:spPr><a:xfrm flipH=\"\{if g.flip_x { 1 } else { 0 }}\" flipV=\"\{if g.flip_y { 1 } else { 0 }}\"><a:off x=\"\{(g.x * 12700).round().to_int64()}\" y=\"\{(g.y * 12700).round().to_int64()}\"/><a:ext cx=\"\{(g.width * 12700).round().to_int64()}\" cy=\"\{(g.height * 12700).round().to_int64()}\"/></a:xfrm><a:prstGeom prst=\"straightConnector1\"><a:avLst/></a:prstGeom><a:noFill/><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill></a:ln></p:spPr></p:cxnSp>"
+  markup
 }

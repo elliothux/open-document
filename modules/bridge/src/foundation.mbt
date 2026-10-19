@@ -282,6 +282,7 @@ fn Foundation::dispatch(
     | "enterDocx"
     | "selectedText"
     | "tableClipboard"
+    | "tableFragmentImages"
     | "beginComposition"
     | "updateComposition"
     | "commitComposition"
@@ -390,6 +391,11 @@ fn Foundation::dispatch(
           session.table_clipboard(
             field_int(request, "revision"),
             field_selection(request),
+          )
+        "tableFragmentImages" =>
+          session.table_fragment_images(
+            field_int(request, "revision"),
+            field_string(request, "fragment"),
           )
         "selectDocx" =>
           session.select(

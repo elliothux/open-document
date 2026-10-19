@@ -368,6 +368,7 @@ export type Operation =
       revision: number;
       selection: DocxSelection;
     }
+  | { operation: "tableFragmentImages"; revision: number; fragment: string }
   | {
       operation: "selectedText";
       revision: number;

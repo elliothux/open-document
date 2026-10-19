@@ -308,6 +308,42 @@ export function number(value: unknown, low = 0, high = 0x7fffffff): number {
 }
 export function checkPptxObjectEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "insertDiagram") {
+    number(change.x, -14400, 14400);
+    number(change.y, -14400, 14400);
+    number(change.width, 0.1, 14400);
+    number(change.height, 0.1, 14400);
+    if (
+      !["process", "hierarchy", "cycle"].some(
+        (template) => template === change.template,
+      ) ||
+      !Array.isArray(change.items) ||
+      change.items.length < (change.template === "cycle" ? 3 : 2) ||
+      change.items.length > 16 ||
+      Object.keys(change).some(
+        (key) =>
+          ![
+            "action",
+            "template",
+            "items",
+            "x",
+            "y",
+            "width",
+            "height",
+          ].includes(key),
+      )
+    )
+      throw new Error("Invalid diagram template or labels");
+    const items: unknown[] = change.items;
+    let units = 0;
+    for (const item of items) {
+      if (typeof item !== "string" || item.length > 4096)
+        throw new Error("Invalid diagram label");
+      units += item.length;
+    }
+    if (units > 32767) throw new Error("Diagram labels exceed budget");
+    return;
+  }
   if (
     change.action === "insertConnector" ||
     change.action === "connectorEndpoints"

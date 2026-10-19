@@ -7,7 +7,7 @@ pub fn Session::table_clipboard(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
-  let selected = self.table_cell_range(tree, selection)
+  let selected = self.table_cell_range(tree, selection, pictures=true)
   let grid = selected
     .map(range => range.grid)
     .unwrap_or_else(() => self.table_grid(tree, selection))
@@ -22,7 +22,7 @@ pub fn Session::table_clipboard(
   let mut left = grid.model.widths.length()
   let mut right = 0
   for cell in owners {
-    tree.check_merge_cell(cell, self.main)
+    tree.check_merge_cell(cell, self.main, pictures=true)
     let (row, column) = grid.owners[cell]
     top = top.min(row)
     bottom = bottom.max(row + grid.model.rowSpans[row][column])

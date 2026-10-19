@@ -1,0 +1,254 @@
+///|
+fn WordTree::check_fragment_picture(
+  self : WordTree,
+  drawing : Int,
+) -> Unit raise @failure.Failure {
+  let root = self.nodes[drawing]
+  guard root.uri == word_uri &&
+    root.name == "drawing" &&
+    root.attributes.is_empty() &&
+    self.nodes[root.parent].name == "r" else {
+    @failure.reject(
+      "protected-content", "Rich pictures require ordinary inline drawings",
+    )
+  }
+  let allowed = [
+    "inline", "extent", "effectExtent", "docPr", "cNvGraphicFramePr", "graphicFrameLocks",
+    "graphic", "graphicData", "pic", "nvPicPr", "cNvPr", "cNvPicPr", "picLocks",
+    "blipFill", "blip", "srcRect", "stretch", "fillRect", "spPr", "xfrm", "off",
+    "ext", "prstGeom", "avLst",
+  ]
+  for id in self.descendants(drawing) {
+    if id == drawing {
+      continue
+    }
+    let node = self.nodes[id]
+    guard allowed.contains(node.name) &&
+      [
+        picture_inline_uri, picture_drawing_uri, "http://schemas.openxmlformats.org/drawingml/2006/picture",
+      ].contains(node.uri) &&
+      node.text.trim().is_empty() &&
+      node.attributes.all(a => {
+        a.uri.is_empty() ||
+        (
+          node.name == "blip" &&
+          (
+            (
+              a.uri ==
+              "http://schemas.openxmlformats.org/officeDocument/2006/relationships" &&
+              a.name == "embed"
+            ) ||
+            (a.uri == table_fragment_uri && a.name == "bytes")
+          )
+        )
+      }) &&
+      !(node.name.has_suffix("Locks") &&
+      ["1", "true"].contains(node.attribute("noCopy").unwrap_or("0"))) else {
+      @failure.reject(
+        "protected-content", "Rich picture metadata or copying is protected",
+      )
+    }
+  }
+  guard self
+    .descendants(drawing)
+    .filter(id => self.nodes[id].name == "docPr")
+    .length() ==
+    1 &&
+    self
+    .descendants(drawing)
+    .filter(id => self.nodes[id].name == "cNvPr")
+    .length() ==
+    1 else {
+    @failure.reject(
+      "protected-content", "Rich picture requires unique native identities",
+    )
+  }
+}
+
+///|
+fn Session::fragment_picture(
+  self : Session,
+  tree : WordTree,
+  id : Int,
+  limit : Int,
+) -> String raise @failure.Failure {
+  tree.check_fragment_picture(id)
+  let image = self.editable_picture(tree, id, replace=true).0
+  let bytes = self.image_bytes(image.key)
+  ignore(@image.type_info(bytes))
+  guard bytes.length().to_int64() * 4 / 3 + 1024 <= limit.to_int64() else {
+    @failure.reject("limit-exceeded", "Rich picture exceeds clipboard budget")
+  }
+  let blip = tree
+    .descendants(id)
+    .iter()
+    .find_first(child => tree.nodes[child].name == "blip")
+    .unwrap()
+  let node = tree.nodes[blip]
+  guard node.attribute("bytes", uri=table_fragment_uri) is None else {
+    @failure.reject(
+      "protected-content", "Source picture contains clipboard metadata",
+    )
+  }
+  let (document, _) = self
+    .document()
+    .edit_source([
+      {
+        node: blip,
+        offset: node.opening_end - node.start - (if node.empty { 2 } else { 1 }),
+        length: 0,
+        xml: " xmlns:odClip=\"\{table_fragment_uri}\" odClip:bytes=\"\{@base64.encode(bytes)}\"",
+      },
+    ])
+  WordTree::new(document).standalone_markup(document, id)
+}
+
+///|
+fn Session::import_fragment_images(
+  self : Session,
+  document : @xml.Document,
+  parts : Map[String, @xml.Document],
+  edits : Map[String, Array[@xml.Edit]],
+  created : Map[String, @xml.Document],
+  media : Map[String, Bytes],
+  created_media : Map[String, Bytes],
+) -> (@xml.Document, Map[Int, Bool]) raise @failure.Failure {
+  let tree = WordTree::new(document)
+  let drawings = tree.order.filter(id => {
+    tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing"
+  })
+  guard drawings.length() <= 256 else {
+    @failure.reject("limit-exceeded", "Rich pictures exceed 256")
+  }
+  if drawings.is_empty() {
+    return (document, Map([]))
+  }
+  let identities = self.picture_identities()
+  let changes : Array[@xml.SourceChange] = []
+  let resources : Map[String, String] = Map([])
+  let mut next = 1
+  let mut bytes_count = 0
+  for drawing in drawings {
+    tree.check_fragment_picture(drawing)
+    while identities.contains(next.to_string()) {
+      next += 1
+    }
+    guard next <= 16384 else {
+      @failure.reject("limit-exceeded", "Picture identities exhausted")
+    }
+    let id = next.to_string()
+    identities[id] = true
+    next += 1
+    let blips = tree
+      .descendants(drawing)
+      .filter(id => tree.nodes[id].name == "blip")
+    guard blips is [blip] &&
+      tree.nodes[blip].attribute("bytes", uri=table_fragment_uri)
+      is Some(encoded) &&
+      encoded.length() <= 2097152 else {
+      @failure.reject(
+        "protected-content", "Rich picture requires bounded portable bytes",
+      )
+    }
+    let bytes = @base64.decode(encoded) catch {
+      _ => @failure.reject("invalid-image", "Invalid copied image bytes")
+    }
+    let kind = @image.type_info(bytes)
+    bytes_count += bytes.length()
+    guard bytes_count <= 2097152 else {
+      @failure.reject("limit-exceeded", "Rich image resources exceed budget")
+    }
+    let link = if resources.get(encoded) is Some(link) {
+      link
+    } else {
+      let view = { ..self, parts, media, }
+      let resource = view.prepare_picture_resource(
+        next - 1,
+        bytes,
+        (kind.0, kind.1),
+      )
+      for (path, value) in resource.parts {
+        parts[path] = value
+      }
+      for (path, value) in resource.edits {
+        if created.contains(path) {
+          created[path] = parts[path]
+        } else {
+          edits.get_or_init(path, () => []).append(value)
+        }
+      }
+      for (path, value) in resource.created {
+        created[path] = value
+      }
+      media[resource.path] = bytes
+      created_media[resource.path] = bytes
+      resources[encoded] = resource.link
+      resource.link
+    }
+    for child in tree.descendants(drawing) {
+      let node = tree.nodes[child]
+      if node.name == "blip" {
+        changes.push({
+          node: node.parent,
+          offset: node.start - tree.nodes[node.parent].start,
+          length: node.end - node.start,
+          xml: "<a:blip xmlns:a=\"\{picture_drawing_uri}\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:embed=\"\{link}\"/>",
+        })
+      } else if ["docPr", "cNvPr"].contains(node.name) {
+        guard node.attribute("id") is Some(_) else {
+          @failure.reject("protected-content", "Missing copied image identity")
+        }
+        for attr in node.attributes {
+          if attr.name == "id" && attr.uri.is_empty() {
+            changes.push({
+              node: child,
+              offset: attr.start - node.start,
+              length: attr.end - attr.start,
+              xml: id,
+            })
+          }
+        }
+      }
+    }
+  }
+  let document = document.edit_source(changes).0
+  let tree = WordTree::new(document)
+  let view = { ..self, parts, media, }
+  let retained : Map[Int, Bool] = Map([])
+  for
+    drawing in tree.order.filter(id => {
+      tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing"
+    }) {
+    ignore(view.editable_picture(tree, drawing, replace=true))
+    retained[drawing] = true
+    for id in tree.descendants(drawing) {
+      retained[id] = true
+    }
+  }
+  (document, retained)
+}
+
+///|
+pub fn Session::table_fragment_images(
+  self : Session,
+  revision : Int,
+  fragment : String,
+) -> Json raise @failure.Failure {
+  self.check_revision(revision)
+  let parts = self.parts.copy()
+  let edits : Map[String, Array[@xml.Edit]] = Map([])
+  let created : Map[String, @xml.Document] = Map([])
+  let media = self.media.copy()
+  let added : Map[String, Bytes] = Map([])
+  ignore(
+    self.read_table_fragment(fragment, parts, edits, created, media, added),
+  )
+  let view = { ..self, parts, media, }
+  let images : Array[Json] = []
+  for rel in view.relationships() {
+    if rel.owner == self.main && added.get(rel.target) is Some(bytes) {
+      images.push({ "key": rel.id, "bytes": @base64.encode(bytes) })
+    }
+  }
+  { "revision": revision, "images": images }
+}

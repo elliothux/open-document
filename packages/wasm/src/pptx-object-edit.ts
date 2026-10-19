@@ -15,6 +15,15 @@ import type {
 import type { PptxConnectorEnd } from "./pptx-connectors.js";
 export type PptxObjectEdit =
   | {
+      action: "insertDiagram";
+      template: "process" | "hierarchy" | "cycle";
+      items: string[];
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }
+  | {
       action: "insertConnector" | "connectorEndpoints";
       start: PptxConnectorEnd;
       end: PptxConnectorEnd;

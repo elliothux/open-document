@@ -206,6 +206,7 @@ pub fn Session::set_theme_fonts(Self, Int, Array[ThemeFontEdit], @layout.TextPro
 pub fn Session::style_catalog(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::tab(Self, Int, Bool) -> Json raise @failure.Failure
 pub fn Session::table_clipboard(Self, Int, Selection) -> Json raise @failure.Failure
+pub fn Session::table_fragment_images(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::theme_colors(Self, Int) -> Json raise @failure.Failure
 pub fn Session::theme_fonts(Self, Int) -> Json raise @failure.Failure
 pub fn Session::undo_edit(Self, Int) -> Json raise @failure.Failure

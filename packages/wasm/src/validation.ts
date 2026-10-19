@@ -1,5 +1,15 @@
 import type { ShapeBatch } from "./foundation.js";
 
+export interface Budget {
+  fileBytes: number;
+  entryBytes: number;
+  totalBytes: number;
+  retainedBytes: number;
+  entries: number;
+  xmlDepth: number;
+  outputBytes: number;
+}
+
 export function record(value: unknown): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value))
     throw new Error("Invalid Wasm object");

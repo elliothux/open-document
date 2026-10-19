@@ -5,6 +5,8 @@ fn Session::read_table_fragment(
   parts : Map[String, @xml.Document],
   edits : Map[String, Array[@xml.Edit]],
   created : Map[String, @xml.Document],
+  media : Map[String, Bytes],
+  added_media : Map[String, Bytes],
 ) -> (@xml.Document, TableGrid) raise @failure.Failure {
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
   guard !xml.is_empty() && xml.length() <= limit else {
@@ -24,6 +26,9 @@ fn Session::read_table_fragment(
   let document = self.import_fragment_numbering(document, parts, edits, created)
   let document = self.import_fragment_links(document, parts, edits, created)
   let document = self.import_fragment_bookmarks(document)
+  let (document, pictures) = self.import_fragment_images(
+    document, parts, edits, created, media, added_media,
+  )
   let tree = WordTree::new(document)
   let body = tree.child(0, "body").unwrap()
   guard tree.children[body].length() == 2 &&
@@ -37,6 +42,9 @@ fn Session::read_table_fragment(
   let mut units = 0
   for id in nodes {
     let node = tree.nodes[id]
+    if pictures.contains(id) {
+      continue
+    }
     guard node.uri == word_uri else {
       @failure.reject(
         "protected-content", "Foreign rich table content is unsupported",
@@ -80,7 +88,7 @@ fn Session::read_table_fragment(
         ["tcW", "gridSpan", "vMerge", "tcBorders", "shd", "tcMar", "vAlign"]
       "p" => ["pPr", "r", "hyperlink", "bookmarkStart", "bookmarkEnd"]
       "hyperlink" => ["r", "bookmarkStart", "bookmarkEnd"]
-      "r" => ["rPr", "t", "tab", "br", "cr"]
+      "r" => ["rPr", "t", "tab", "br", "cr", "drawing"]
       "pPr" =>
         [
           "rPr", "spacing", "ind", "jc", "pageBreakBefore", "autoSpaceDE", "autoSpaceDN",
@@ -120,7 +128,7 @@ fn Session::read_table_fragment(
   guard tree.child(table, "tblGrid") is Some(_) else {
     @failure.reject("invalid-table", "Rich table requires a complete grid")
   }
-  let view = { ..self, parts, }
+  let view = { ..self, parts, media, }
   let model = view.flow_from(document).tables
     .get(0)
     .unwrap_or_else(() => {
@@ -144,7 +152,7 @@ fn Session::read_table_fragment(
   }
   tree.check_table_structure(grid, columns=true)
   for cell in grid.cells.flatten() {
-    tree.check_merge_cell(cell, self.main)
+    tree.check_merge_cell(cell, self.main, pictures=true)
   }
   let changes = []
   for row in model.rows {

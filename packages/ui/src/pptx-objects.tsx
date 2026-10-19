@@ -1,4 +1,5 @@
 import { PptxConnectors } from "./pptx-connectors.js";
+import { PptxDiagram } from "./pptx-diagram.js";
 import { useState } from "react";
 import type { PresentationEditor } from "@open-document/web/presentation-editor";
 import type { PptxObjectEdit, PptxHyperlink } from "@open-document/web/pptx";
@@ -198,6 +199,18 @@ export function PptxObjects({
           )}
         </fieldset>
       </form>
+      <PptxDiagram
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+        box={{
+          x: draft.x,
+          y: draft.y,
+          width: draft.width,
+          height: draft.height,
+        }}
+      />
       <PptxPlaceholder
         key={`${selected?.id}:${JSON.stringify(selected?.placeholder.value)}`}
         controller={controller}

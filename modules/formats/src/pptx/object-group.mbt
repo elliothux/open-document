@@ -161,9 +161,7 @@ fn Session::group_changes(
       slide.tree.standalone_markup(document, object.source.node.id),
     )
   }
-  let cx = (width * 12700).round().to_int64()
-  let cy = (height * 12700).round().to_int64()
-  let markup = "<p:grpSp xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\"><p:nvGrpSpPr><p:cNvPr id=\"\{id}\" name=\"Group \{id}\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x=\"\{(x * 12700).round().to_int64()}\" y=\"\{(y * 12700).round().to_int64()}\"/><a:ext cx=\"\{cx}\" cy=\"\{cy}\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"\{cx}\" cy=\"\{cy}\"/></a:xfrm></p:grpSpPr>\{content.to_string()}</p:grpSp>"
+  let markup = group_markup(id, x, y, width, height, content.to_string())
   let changes : Array[@xml.SourceChange] = []
   let parent = slide.tree.nodes[objects[0].source.node.parent]
   for object in objects {
@@ -253,4 +251,19 @@ fn Session::ungroup_changes(
       focus: 0,
     },
   )
+}
+
+///|
+fn group_markup(
+  id : String,
+  x : Double,
+  y : Double,
+  width : Double,
+  height : Double,
+  content : String,
+) -> String {
+  let cx = (width * 12700).round().to_int64()
+  let cy = (height * 12700).round().to_int64()
+  let markup = "<p:grpSp xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\"><p:nvGrpSpPr><p:cNvPr id=\"\{id}\" name=\"Group \{id}\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x=\"\{(x * 12700).round().to_int64()}\" y=\"\{(y * 12700).round().to_int64()}\"/><a:ext cx=\"\{cx}\" cy=\"\{cy}\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"\{cx}\" cy=\"\{cy}\"/></a:xfrm></p:grpSpPr>\{content}</p:grpSp>"
+  markup
 }

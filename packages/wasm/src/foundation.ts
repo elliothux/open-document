@@ -82,6 +82,7 @@ import {
   checkDocxTableEdit,
   type DocxTableEdit,
   docxTableClipboard,
+  docxFragmentImages,
   type DocxTableClipboard,
 } from "./docx-table.js";
 export * from "./docx-table.js";
@@ -120,15 +121,8 @@ export {
   type DocxSearchResult,
 } from "./docx-search.js";
 
-export interface Budget {
-  fileBytes: number;
-  entryBytes: number;
-  totalBytes: number;
-  retainedBytes: number;
-  entries: number;
-  xmlDepth: number;
-  outputBytes: number;
-}
+import type { Budget } from "./validation.js";
+export type { Budget } from "./validation.js";
 
 export type { DocxPosition, DocxSelection } from "./docx-hit.js";
 import type { DocxPosition, DocxSelection } from "./docx-hit.js";
@@ -661,6 +655,13 @@ export class FoundationSession extends FoundationPageSession {
   ): DocxTableClipboard {
     return docxTableClipboard(
       this.call({ operation: "tableClipboard", revision, selection }),
+    );
+  }
+  tableFragmentImages(revision: number, fragment: string) {
+    checkDocxTableEdit({ action: "pasteFragment", fragment });
+    return docxFragmentImages(
+      this.call({ operation: "tableFragmentImages", revision, fragment }),
+      true,
     );
   }
 

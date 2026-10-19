@@ -516,6 +516,7 @@ fn Foundation::pptx_operation(
           }
         }
         "insertConnector" | "connectorEndpoints" => pptx_connector_edit(change)
+        "insertDiagram" => pptx_diagram_edit(change)
         "shapeAdjustment" =>
           @pptx.ShapeAdjustment(
             field_string(change, "name"),

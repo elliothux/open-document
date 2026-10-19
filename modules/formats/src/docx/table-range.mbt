@@ -34,6 +34,7 @@ fn Session::table_cell_range(
   self : Session,
   tree : WordTree,
   selection : Selection,
+  pictures~ : Bool = false,
 ) -> TableCellRange? raise @failure.Failure {
   if selection.anchor.paragraph == selection.focus.paragraph {
     return None
@@ -93,7 +94,7 @@ fn Session::table_cell_range(
     .flatten()
     .filter(cell => positions.contains(grid.owners[cell]))
   for cell in cells {
-    tree.check_merge_cell(cell, self.main)
+    tree.check_merge_cell(cell, self.main, pictures~)
   }
   let paragraphs = owners.map(cell => tree.table_children(cell, "p")).flatten()
   Some({ grid, top, bottom, left, right, owners, cells, paragraphs, })
@@ -105,7 +106,7 @@ fn Session::table_cell_selection(
   tree : WordTree,
   selection : Selection,
 ) -> Json raise @failure.Failure {
-  let selected = self.table_cell_range(tree, selection)
+  let selected = self.table_cell_range(tree, selection, pictures=true)
   guard selected is Some(selected) else {
     return { "value": Json::null(), "reason": "" }
   }
@@ -251,7 +252,7 @@ pub fn Session::selection_rects(
     self.picture_resize is Some(_) {
     None
   } else {
-    self.table_cell_range(tree, selection) catch {
+    self.table_cell_range(tree, selection, pictures=true) catch {
       @failure.Failure(code="protected-content", ..) => None
       error => raise error
     }

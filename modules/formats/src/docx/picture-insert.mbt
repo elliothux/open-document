@@ -1,5 +1,7 @@
 ///|
-fn Session::next_picture_identity(self : Session) -> Int raise @failure.Failure {
+fn Session::picture_identities(
+  self : Session,
+) -> Map[String, Bool] raise @failure.Failure {
   let documents = [self.document()]
   for rel in self.relationships() {
     if !rel.external &&
@@ -20,6 +22,12 @@ fn Session::next_picture_identity(self : Session) -> Int raise @failure.Failure 
       }
     }
   }
+  used
+}
+
+///|
+fn Session::next_picture_identity(self : Session) -> Int raise @failure.Failure {
+  let used = self.picture_identities()
   for id = 1; id <= 16384; id = id + 1 {
     if !used.contains(id.to_string()) {
       return id

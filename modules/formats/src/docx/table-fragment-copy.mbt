@@ -9,6 +9,7 @@ fn fragment_paragraph(
   bookmarks : Map[String, Bool],
   markers : Map[Int, String],
   numbers : Map[Int, (Int, Int)],
+  pictures : Map[Int, String],
 ) -> String raise @failure.Failure {
   guard paragraph.readOnlyReason.is_empty() &&
     tree.children[paragraph.id].all(id => {
@@ -148,7 +149,10 @@ fn fragment_paragraph(
       guard tree.children[run].all(id => {
         let node = tree.nodes[id]
         node.uri == word_uri &&
-        ["rPr", "t", "tab", "br", "cr"].contains(node.name) &&
+        (
+          ["rPr", "t", "tab", "br", "cr"].contains(node.name) ||
+          (node.name == "drawing" && pictures.contains(id))
+        ) &&
         (
           node.name != "br" ||
           node.attribute("type", uri=word_uri).unwrap_or("textWrapping") ==
@@ -161,34 +165,23 @@ fn fragment_paragraph(
       }
     }
     let style = styles.character_style(tree, paragraph.id, run, [])
-    let text = run
-      .map(run => {
-        tree.children[run]
-        .filter(id => tree.nodes[id].name != "rPr")
-        .map(id => inline_text(tree.nodes[id]))
-        .join("")
-      })
-      .unwrap_or("")
-      .replace_all(old="\n", new="\u2028")
-    for (style, text) in style.font_runs(text, styles.themes) {
-      let format = style.fragment_format()
-      format.validate()
-      let properties = formatted_properties(
-        tree,
-        document,
-        run.unwrap_or(paragraph.id),
-        "rPr",
-        format.properties(),
+    let xml = fragment_run_markup(
+      tree,
+      document,
+      paragraph.id,
+      run,
+      style,
+      styles.themes,
+      pictures,
+      limit,
+    )
+    guard xml.length() <= limit - units else {
+      @failure.reject(
+        "limit-exceeded", "Rich cell paragraph exceeds source budget",
       )
-      let xml = "<od:r>" + properties + inline_markup(text, limit) + "</od:r>"
-      guard xml.length() <= limit - units else {
-        @failure.reject(
-          "limit-exceeded", "Rich cell paragraph exceeds source budget",
-        )
-      }
-      units += xml.length()
-      output.write_string(xml)
     }
+    units += xml.length()
+    output.write_string(xml)
   }
   if active_link is Some(_) {
     output.write_string("</od:hyperlink>")
@@ -210,9 +203,10 @@ fn Session::fragment_cell(
   bookmarks : Map[String, Bool],
   markers : Map[Int, String],
   numbers : Map[Int, (Int, Int)],
+  pictures : Map[Int, String],
 ) -> String raise @failure.Failure {
   let cell = grid.cells[row][column]
-  tree.check_merge_cell(cell, self.main)
+  tree.check_merge_cell(cell, self.main, pictures=true)
   let span = grid.model.columnSpans[row][column]
   let start = grid.starts[row][column]
   let width = grid.model.widths[start:start + span].fold(init=0.0, (sum, w) => {
@@ -288,6 +282,7 @@ fn Session::fragment_cell(
       bookmarks,
       markers,
       numbers,
+      pictures,
     )
     guard xml.length() <= limit - units else {
       @failure.reject(
@@ -329,6 +324,19 @@ fn Session::capture_table_fragment(
   let links = self.hyperlink_relationships()
   let bookmarks = tree.bookmark_targets()
   let markers = fragment_bookmark_markers(tree, grid, top, bottom, left, right)
+  let pictures : Map[Int, String] = Map([])
+  for row in top..<bottom {
+    for column, cell in grid.cells[row] {
+      let start = grid.starts[row][column]
+      if start >= left && start < right {
+        for id in tree.descendants(cell) {
+          if tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing" {
+            pictures[id] = self.fragment_picture(tree, id, limit)
+          }
+        }
+      }
+    }
+  }
   let mut units = output.to_string().length() + 10
   let mut hyperlink_count = 0
   for row in top..<bottom {
@@ -363,6 +371,7 @@ fn Session::capture_table_fragment(
         }
         let xml = self.fragment_cell(
           tree, grid, row, column, styles, limit, links, bookmarks, markers, numbers,
+          pictures,
         )
         guard xml.length() <= limit - units else {
           @failure.reject(

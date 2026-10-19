@@ -94,6 +94,7 @@ fn WordTree::check_merge_cell(
   self : WordTree,
   cell : Int,
   part : String,
+  pictures~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   guard self.child(cell, "p") is Some(_) else {
     @failure.reject(
@@ -115,7 +116,7 @@ fn WordTree::check_merge_cell(
     )
   }
   for p in self.table_children(cell, "p") {
-    self.check_editable_paragraph(p, part~)
+    self.check_editable_paragraph(p, part~, pictures~)
     self.check_structure_paragraph(p)
   }
   guard self.table_children(cell, "tcPr").length() <= 1 else {

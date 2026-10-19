@@ -39,21 +39,12 @@ fn Expression::moved(
   match self {
     Reference(sheet, first, last) => {
       let context = if sheet is Some(_) { sheet } else { before }
-      // Relative defined names resolve from each caller, not their lookup scope.
-      guard !independent ||
-        (
-          context is Some(name) &&
-          name.to_upper() != relocation.source_sheet.to_upper()
-        ) ||
-        (
-          first.fixed_row &&
-          first.fixed_column &&
-          last.map(a => a.fixed_row && a.fixed_column).unwrap_or(true)
-        ) else {
+      guard !independent || context is Some(_) else {
         @failure.reject(
-          "protected-content", "Relative defined names require contextual move support",
+          "protected-content", "Defined name cell references require a worksheet",
         )
       }
+      // Move the stored name coordinates once; evaluation still offsets relative axes from each caller.
       let range = first.range(last.unwrap_or(first))
       let follows = context
         .map(name => name.to_upper() == relocation.source_sheet.to_upper())

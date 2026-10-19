@@ -521,11 +521,17 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 普通编号与项目符号携带实际引用的原生定义、级别和重启值。目标重新分配编号及抽象定义身份，共享的源定义仍共享；不接入目标已有列表。标记从所带定义的起点计算，正文不包含伪造的编号文字。主题字体和颜色在复制时解析，段落标记字体保留来源外观。编号部件、关系、内容类型和正文合为一项历史；布局及制表位验证读取候选部件，保存重开后可继续输入和改级别。段落样式产生的不同标记下划线使用独立编号实例和原生级别覆盖，共享同一抽象定义以保持连续计数。起始覆盖只放在每个源实例的第一个样式变体中，避免遇到新样式时再次重启。已有显式级别下划线保持；未知编号资源继续保护。实现归 [`table-fragment-list-instance.mbt`](../../modules/formats/src/docx/table-fragment-list-instance.mbt)，计数与首遇覆盖依据 [ONLYOFFICE NumberingInfoEngine](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L28785-L28924)。
 
-`editTable({ action: "pasteFragment", fragment })` 从当前主格写入片段矩形。它可替换完全覆盖的目标合并，并补足底部行和右侧列；部分覆盖合并整体拒绝。列宽、行高和表属性沿目标网格，格宽按目标跨度更新。未改格、格间注释和其他部件保留，写入、扩展、选择与精确撤销合为一项历史；不含资源身份时，相同源片段无操作；列表片段每次分配独立编号身份。
+行内 PNG/JPEG 图片随普通单元格片段复制，保留文字顺序、尺寸、四边裁剪、名称和描述。相同压缩资源共享目标关系，绘图身份分别分配，已有图片身份保留。压缩字节、正文、关系及内容类型合为一次历史，保存时移除片段中的私有载荷。锁定复制、外链图片、未知绘图扩展及浮动图片继续保护。实现归 [`table-fragment-images.mbt`](../../modules/formats/src/docx/table-fragment-images.mbt)，元数据复制参考 [ONLYOFFICE Image.Copy](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L162-L200)，未复制上游执行代码。
+
+`FoundationSession.tableFragmentImages(revision, fragment)` 和异步 `FoundationClient.tableFragmentImages` 返回 `{ revision, images: [{ key, bytes }] }`，其中 `bytes` 为 `Uint8Array`。查询在副本上校验片段及资源，不改源包、选择和历史。同步宿主须先解码并用 `addImage` 注册 RGBA；Web `editTable` 自动完成解码和注册，再提交核心事务。解码失败保留原文档，沿编辑器既有 `resume()` 路径恢复。
+
+`editTable({ action: "pasteFragment", fragment })` 从当前主格写入片段矩形。它可替换完全覆盖的目标合并，并补足底部行和右侧列；部分覆盖合并整体拒绝。列宽、行高和表属性沿目标网格，格宽按目标跨度更新。未改格、格间注释和其他部件保留，写入、扩展、选择与精确撤销合为一项历史；不含资源身份时，相同源片段无操作；列表和图片片段每次分配独立身份。
 
 默认复制模式同时写 `text/plain` 和 Chromium 自定义类型 `web application/x-open-document-docx-cells`。默认“粘贴单元格”及 Web foundation 导出的 `pasteDocxCells(editor)` 优先读取片段；只有缺少此类型时读取 TSV。无效片段不回退成文字。读取后核对文档、revision、选择和生命周期，再沿既有编辑队列提交。
 
-富文本范围须包含完整所选矩形，合并边各段须有共同宽度和颜色。复杂列表、不完整或复杂书签、批注身份、字段、图片和未知结构的资源转移继续实施；可提取文字但不能生成富文本时返回 `fragment: null` 及具体 `reason`，系统剪贴板保留原 TSV。含图片、字段等原纯文本入口不支持的内容仍在写入前拒绝。文档默认 Tab 间隔、小数点符号及其他全局设置采用目标文档；源行高及表属性不转移。覆盖包含身份或未知源的目标格整体拒绝。
+富文本范围须包含完整所选矩形，合并边各段须有共同宽度和颜色。复杂列表、不完整或复杂书签、批注身份、字段和未知结构的资源转移继续实施；可提取文字但不能生成富文本时返回 `fragment: null` 及具体 `reason`，系统剪贴板保留原 TSV。图片格的富文本复制已支持，纯文本剪切和结构操作仍沿原保护。文档默认 Tab 间隔、小数点符号及其他全局设置采用目标文档；源行高及表属性不转移。覆盖已有图片须通过原生删除保护，其他身份或未知源仍拒绝。
+
+每片段最多 256 张图片，逐图 base64 源最多 2 Mi 单元，解码后的压缩字节合计最多 2 MiB；共享资源的每次引用均计入检查。原生绘图身份分配最多扫描 16384 项，图片字节计入既有历史及输出预算。
 
 片段最多 2 Mi UTF-16 单元、4096 条链接和 4096 个书签，目标书签目录最多 4096 项。编号和抽象定义各最多 4096 项，编号部件仍受片段的源码预算限制。既有 XML 深度、源字节、65536 文字单元、1000 行、63 列、4096 逻辑格及历史/字体/布局/输出预算继续执行。Web 在读 Blob 前另限 4 MiB；TS 不解析 WordML。未知引用、断裂合并、超预算和缺字体均保留原文档及历史。实现归 [`table-fragment-copy.mbt`](../../modules/formats/src/docx/table-fragment-copy.mbt)、[`table-fragment-read.mbt`](../../modules/formats/src/docx/table-fragment-read.mbt)、[`table-fragment-links.mbt`](../../modules/formats/src/docx/table-fragment-links.mbt)、[`table-fragment-bookmarks.mbt`](../../modules/formats/src/docx/table-fragment-bookmarks.mbt)、[`table-fragment-numbering.mbt`](../../modules/formats/src/docx/table-fragment-numbering.mbt)及 [`table-fragment-paste.mbt`](../../modules/formats/src/docx/table-fragment-paste.mbt)。编号资源依据 [ONLYOFFICE 所用编号定义与实例复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Serialize2.js#L4967-L5080)。结构依据 [ONLYOFFICE 所选内容](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L7524-L7748)与上述 `InsertTableContent`；链接复制参考 [ParaHyperlink.Copy](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Hyperlink.js#L80-L87)，同名书签处理参考 [addBookmarkStart/End](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Serialize2.js#L17511-L17533)，未移植上游可执行代码。
 
@@ -1547,7 +1553,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `editSheet(revision, targetSheet, { action: "moveCells", sourceSheet, source, destination })` 在同一工作簿内移动普通矩形。目标从 `destination` 左上角开始，大小取源范围。完整单个合并格按实际跨度移动；部分合并相交拒绝。源与目标可重叠，目标覆盖和源清除读取同一个原始快照。内容、直接格式、完整合并、链接及便笺一起移动；行列尺寸及行列格式保留。便笺的作者、富文本、VML 及跨表归属归[单元格便笺](#单元格便笺)。多表公式、名称、内部链接的目标、计算缓存、自动尺寸与选择共用一次精确历史。未变化的公式保留原表达式。
 
-完整落在源范围内的引用随格移动，包含绝对引用；部分相交的范围保持。移动到另一工作表时，原来指向源范围外的无表名引用和名称保留原表语义，不按复制规则偏移。依据 [ONLYOFFICE 移动事务与跨表公式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L9800-L9858)和[完整包含引用的移动规则](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L10155-L10227)。
+完整落在源范围内的引用随格移动，包含绝对引用；部分相交的范围保持。相对及混合名称在定义保存的坐标上移动一次，保留 `$`、作用域、属性及调用公式中的名称。跨表移动把定义中的目标表改为目标表，求值仍按实际调用格偏移；调用格自身移动时使用新位置，不额外补偿。此规则与上述结构操作一致，依据 [ONLYOFFICE 名称定义事务](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L561-L580)及[调用格偏移](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L2249-L2256)。移动到另一工作表时，原来指向源范围外的无表名引用和名称保留原表语义，不按复制规则偏移。依据 [ONLYOFFICE 移动事务与跨表公式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L9800-L9858)和[完整包含引用的移动规则](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L10155-L10227)。
 
 完整包含的普通外链与内链随所属格移动，保留提示文字、显示文字和命名空间；源选择须包含完整链接范围。目标链接只裁掉被覆盖的范围，范围外源与容器注释保留。跨表外链在目标表复用相同目标的已有关系，或分配未占用的关系身份；旧源关系保留。内链目标沿同一次引用变换，重叠移动也只变换一次。链接归属参考 [ONLYOFFICE 合并与链接移动](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L9543-L9609)。未知链接属性、混合内外目标、失效关系及不安全协议继续保护；打开外链仍须用户明确操作。
 
@@ -1555,7 +1561,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `SpreadsheetEditor.copyCells(true)` 和默认“剪切单元格”按钮先写系统剪贴板，源格在粘贴成功前保留。剪切只携带显示值 TSV 和 `web application/x-open-document-cut` 的工作簿身份、源范围与 revision；核心在 `pasteCells("all", false)` 时校验并移动实际源内容，不要求先生成复制片段。网格原生剪切/粘贴复用该入口，草稿文字仍沿原生文字输入。消费后、源文档编辑后或重开工作簿后的旧载荷拒绝；跨工作簿、选择性粘贴及转置剪切也拒绝。普通 TSV 和复制片段沿原合同。
 
-移动最多 4096 格和 1024 个合并范围；工作簿源、公式及链接节点源合计最多 1 Mi UTF-16 单元，搬移与改写的单元格源合计最多 1 Mi 单元。每表最多 4096 个链接，单表生成的链接源最多 2 Mi 单元。规则沿既有 100000 格、4 Mi 字符和 4096 片段工作上限；每表至多 4096 条条件规则和 4096 条验证。全部变动仍受 4 MiB 历史及包输出预算约束。被保护的源、目标或受影响公式/链接/规则拒绝。未知资源、原生表、透视及带筛选/排序的工作簿保持保护，相对定义名称、跨表打印范围的归属转移继续实施。实现归 [`move-cells.mbt`](../../modules/formats/src/xlsx/move-cells.mbt)、[`move-reference.mbt`](../../modules/formats/src/xlsx/move-reference.mbt)、[`move-hyperlinks.mbt`](../../modules/formats/src/xlsx/move-hyperlinks.mbt)、[`move-rules.mbt`](../../modules/formats/src/xlsx/move-rules.mbt)、[`rule-fragments.mbt`](../../modules/formats/src/xlsx/rule-fragments.mbt)和 [`move-resources.mbt`](../../modules/formats/src/xlsx/move-resources.mbt)。
+移动最多 4096 格和 1024 个合并范围；工作簿源、公式及链接节点源合计最多 1 Mi UTF-16 单元，搬移与改写的单元格源合计最多 1 Mi 单元。每表最多 4096 个链接，单表生成的链接源最多 2 Mi 单元。规则沿既有 100000 格、4 Mi 字符和 4096 片段工作上限；每表至多 4096 条条件规则和 4096 条验证。全部变动仍受 4 MiB 历史及包输出预算约束。被保护的源、目标或受影响公式/链接/规则拒绝。未知资源、原生表、透视及带筛选/排序的工作簿保持保护，未限定工作表的名称引用及需改写的不透明名称源继续保护；跨表打印范围的归属转移继续实施。实现归 [`move-cells.mbt`](../../modules/formats/src/xlsx/move-cells.mbt)、[`move-reference.mbt`](../../modules/formats/src/xlsx/move-reference.mbt)、[`move-hyperlinks.mbt`](../../modules/formats/src/xlsx/move-hyperlinks.mbt)、[`move-rules.mbt`](../../modules/formats/src/xlsx/move-rules.mbt)、[`rule-fragments.mbt`](../../modules/formats/src/xlsx/rule-fragments.mbt)和 [`move-resources.mbt`](../../modules/formats/src/xlsx/move-resources.mbt)。
 
 ### 打印与资源边界
 
@@ -1972,6 +1978,16 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 有连接的线通过画布端点或面板修改，直接变换继续保护。连接线与全部引用目标同时选择时可组合或复制；整个组可复制，副本的原生引用映射到副本目标。同一直接父容器中的闭合图形支持组内端点编辑/吸附、成员移动/旋转、组缩放/旋转/翻转、嵌套及取消/再次组合。核心逆变换页面端点并写整数 EMU，复用既有组边界归一化，候选与提交保持一致。重复原生端点及连接关系不增加历史。默认列表选择连接线时进入对象模式。拆散引用的组合/复制、仍被外部引用的目标删除、跨父容器连接、折线/曲线及其他预设连接点继续保护。未知连接元数据、非整数或越界索引、失去目标、锁定和输出预算失败保留源与历史；受保护连接线也阻止其目标发生无法写回的几何变化。沿用对象数量、坐标、XML、历史和输出预算。
 
 实现归 [`connector.mbt`](../../modules/formats/src/pptx/connector.mbt)、[`connector-edit.mbt`](../../modules/formats/src/pptx/connector-edit.mbt)、[`connector-gesture.mbt`](../../modules/formats/src/pptx/connector-gesture.mbt)及 [`pptx-connectors.tsx`](../../packages/ui/src/pptx-connectors.tsx)。吸附规则参考 [ONLYOFFICE ResizeTrackShapeImage](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L370-L450)及 [Geometry.findConnector](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Geometry.js#L1174-L1187)。组内连接重算及父组逆变换参考 [ONLYOFFICE CnxShape](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CnxShape.js#L624-L684)。原生点顺序参考 ONLYOFFICE `CreateGeometry` 的[矩形](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L6741)、[椭圆](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L3100)、[圆角矩形](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L7195)和[直线连接线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L8272)，未复制上游执行代码。
+
+### 简化 SmartArt 图示
+
+`PresentationEditor.editObjects({ action: "insertDiagram", template, items, x, y, width, height })` 插入一个可编辑形状组。`template` 为 `process`、`hierarchy` 或 `cycle`，分别按水平流程、首项为根的单层层级、顺时针循环排列。普通模板接受 2–16 项，循环接受 3–16 项。每项最多 4096 UTF-16 单元，总计最多 32767；文字沿原形状校验与转义规则。坐标及外框使用页面磅，沿既有对象边界校验。
+
+MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、文字和带箭头的原生 `p:cxnSp` 直线连接线。连接线位于节点下方，端点引用原生连接点。形状、组及引用复用既有创建和子树复制的身份分配，保存为普通 `p:grpSp`，不创建原生 diagram 部件或模板元数据。插入后沿普通组/成员事务修改文字、格式、几何、复制及取消组合；连接点跟随目标变换，副本引用映射到副本节点。
+
+默认面板提供三种模板及逐行标签，位置和大小使用现有对象输入，并说明保存为可编辑形状和连接线。一次插入一项历史，成功后选中新组。文字放不进节点、缺字体、身份耗尽、资源或输出预算失败时整项拒绝，保留源和选择，不消耗身份。画布、重开及 PDF 共用已有图元。原生 SmartArt 导入及更广模板兼容归 P14。
+
+实现归 [`diagram.mbt`](../../modules/formats/src/pptx/diagram.mbt)、[`object-markup.mbt`](../../modules/formats/src/pptx/object-markup.mbt)及 [`pptx-diagram.tsx`](../../packages/ui/src/pptx-diagram.tsx)。模板布局是 SDK 的简化规则；底层对象参考 [ONLYOFFICE SmartArt 形状生成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/SmartArts/SmartArtTree.js#L1838-L1864)，未复制其执行代码。连接点规则归[直线连接线](#直线连接线)。
 
 ### 对象超链接
 

@@ -10,14 +10,16 @@ fn Session::paste_table_fragment(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let parts = self.parts.copy()
+  let media = self.media.copy()
+  let added_media : Map[String, Bytes] = Map([])
   let part_edits : Map[String, Array[@xml.Edit]] = Map([])
   let created : Map[String, @xml.Document] = Map([])
   let (incoming, source) = self.read_table_fragment(
-    fragment, parts, part_edits, created,
+    fragment, parts, part_edits, created, media, added_media,
   )
   let original = self.document()
   let tree = WordTree::new(original)
-  let selected = self.table_cell_range(tree, selection)
+  let selected = self.table_cell_range(tree, selection, pictures=true)
   let grid = selected
     .map(r => r.grid)
     .unwrap_or_else(() => self.table_grid(tree, selection))
@@ -38,7 +40,12 @@ fn Session::paste_table_fragment(
     for column, cell in grid.cells[row] {
       let start = grid.starts[row][column]
       if start < right && start + grid.model.columnSpans[row][column] > left {
-        tree.check_merge_cell(cell, self.main)
+        tree.check_merge_cell(cell, self.main, pictures=true)
+        for id in tree.descendants(cell) {
+          if tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing" {
+            ignore(self.editable_picture(tree, id, remove=true))
+          }
+        }
         let (r, c) = grid.owners[cell]
         guard r >= top &&
           r + grid.model.rowSpans[r][c] <= bottom &&
@@ -83,6 +90,12 @@ fn Session::paste_table_fragment(
   let mut candidate = original
   let steps : Array[@xml.Edit] = []
   let mut bytes = xml_part_edit_bytes(part_edits, created)
+  for value in added_media.values() {
+    guard value.length() <= history_byte_limit - bytes else {
+      @failure.reject("limit-exceeded", "Copied picture history exceeds budget")
+    }
+    bytes += value.length()
+  }
   if !growth.is_empty() {
     let (next, edit) = candidate.edit_source(growth)
     candidate = next
@@ -138,7 +151,7 @@ fn Session::paste_table_fragment(
     incoming.edit_source(widths.items).0
   }
   let source_tree = WordTree::new(incoming)
-  let view = { ..self, parts, }
+  let view = { ..self, parts, media, }
   let source = read_table_grid(
     source_tree,
     view.flow_from(incoming).tables[0],
@@ -217,7 +230,7 @@ fn Session::paste_table_fragment(
       xml: steps,
       parts: part_edits,
       created,
-      created_media: Map([]),
+      created_media: added_media,
       before: self.selection,
       after: Some({ anchor: focus, focus, }),
       paragraphs: affected,
@@ -225,6 +238,7 @@ fn Session::paste_table_fragment(
     },
     candidate,
     parts~,
+    media~,
   )
   self.edit_result(affected)
 }

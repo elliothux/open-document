@@ -2,6 +2,61 @@ import { record } from "./validation.js";
 import { isDocxSelection } from "./docx-search.js";
 import type { DocxSelection } from "./docx-hit.js";
 
+export interface DocxFragmentImages {
+  revision: number;
+  images: { key: string; bytes: Uint8Array }[];
+}
+export function docxFragmentImages(
+  value: unknown,
+  encoded: boolean,
+): DocxFragmentImages {
+  const result = record(value);
+  if (
+    typeof result.revision !== "number" ||
+    !Number.isInteger(result.revision) ||
+    result.revision < 0 ||
+    !Array.isArray(result.images) ||
+    result.images.length > 256
+  )
+    throw new Error("Invalid fragment images");
+  const images: unknown[] = result.images;
+  const keys = new Set<string>();
+  let size = 0;
+  return {
+    revision: result.revision,
+    images: images.map((value) => {
+      const image = record(value);
+      if (
+        typeof image.key !== "string" ||
+        !image.key ||
+        image.key.length > 256 ||
+        keys.has(image.key) ||
+        (encoded
+          ? typeof image.bytes !== "string"
+          : !(image.bytes instanceof Uint8Array))
+      )
+        throw new Error("Invalid fragment image resource");
+      keys.add(image.key);
+      let bytes: Uint8Array;
+      if (encoded) {
+        if (typeof image.bytes !== "string" || image.bytes.length > 2097152)
+          throw new Error("Invalid encoded image bytes");
+        bytes = Uint8Array.from(atob(image.bytes), (value) =>
+          value.charCodeAt(0),
+        );
+      } else {
+        if (!(image.bytes instanceof Uint8Array))
+          throw new Error("Invalid decoded image bytes");
+        bytes = image.bytes;
+      }
+      size += bytes.length;
+      if (!bytes.length || size > 2097152)
+        throw new Error("Fragment image bytes exceed budget");
+      return { key: image.key, bytes };
+    }),
+  };
+}
+
 export interface DocxTableClipboard {
   text: string;
   selection: DocxSelection;

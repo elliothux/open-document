@@ -1,6 +1,8 @@
 import { Connection } from "./connection.js";
 export { pasteDocxCells } from "./clipboard-input.js";
 import { FoundationPageClient } from "./foundation-page.js";
+import { prepareDocxFragmentImages } from "./document-fragment-images.js";
+import { docxFragmentImages } from "@open-document/wasm/foundation";
 export type {
   DocxRunningArea,
   DocxRunningKind,
@@ -50,6 +52,7 @@ export type {
   DocxPictures,
   DocxTableEdit,
   DocxTableClipboard,
+  DocxFragmentImages,
   DocxCellMargins,
   DocxBorderStyle,
   DocxBorderSide,
@@ -399,6 +402,8 @@ export class FoundationClient extends FoundationPageClient {
     profile: Record<string, string> = {},
   ): Promise<EditState> {
     checkDocxTableEdit(change);
+    if (change.action === "pasteFragment")
+      await prepareDocxFragmentImages(this, revision, change.fragment);
     return editState(
       await this.connection.request({
         operation: "editDocxTable",
@@ -637,6 +642,17 @@ export class FoundationClient extends FoundationPageClient {
         revision,
         selection,
       }),
+    );
+  }
+  async tableFragmentImages(revision: number, fragment: string) {
+    checkDocxTableEdit({ action: "pasteFragment", fragment });
+    return docxFragmentImages(
+      await this.connection.request({
+        operation: "tableFragmentImages",
+        revision,
+        fragment,
+      }),
+      false,
     );
   }
   async undoDocx(revision: number): Promise<EditState> {
