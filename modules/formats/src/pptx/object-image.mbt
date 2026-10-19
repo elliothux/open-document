@@ -29,7 +29,7 @@ fn Session::write_image(
   }
   let targets = if fill { self.image_fill_targets() } else { [] }
   let target = if placement is None && !fill && background is None {
-    Some(self.selected_image(false))
+    Some(self.selected_image_replacement())
   } else {
     None
   }
@@ -37,8 +37,12 @@ fn Session::write_image(
   if placement is Some(_) {
     validate_object_box(x, y, width, height, false)
   }
-  let (extension, content_type, _, _) = @image.type_info(bytes)
-  if target is Some(object) && self.image_bytes(object.image.unwrap()) == bytes {
+  let (extension, content_type, pixel_width, pixel_height) = @image.type_info(
+    bytes,
+  )
+  if target is Some(object) &&
+    object.kind == "image" &&
+    self.image_bytes(object.image.unwrap()) == bytes {
     return self.query()
   }
   if fill &&
@@ -272,21 +276,27 @@ fn Session::write_image(
       }
     }
   } else if target is Some(object) {
-    let blip = object.source
-      .child("blipFill", uri=presentation_uri)
-      .unwrap()
-      .child("blip")
-      .unwrap()
-    let embed = blip.node.attributes
-      .iter()
-      .find_first(a => a.uri == relationship_uri && a.name == "embed")
-      .unwrap()
-    changes.push({
-      node: blip.node.id,
-      offset: embed.start - blip.node.start,
-      length: embed.end - embed.start,
-      xml: link,
-    })
+    if object.kind == "shape" {
+      changes.push(
+        placeholder_image_change(object, link, pixel_width, pixel_height),
+      )
+    } else {
+      let blip = object.source
+        .child("blipFill", uri=presentation_uri)
+        .unwrap()
+        .child("blip")
+        .unwrap()
+      let embed = blip.node.attributes
+        .iter()
+        .find_first(a => a.uri == relationship_uri && a.name == "embed")
+        .unwrap()
+      changes.push({
+        node: blip.node.id,
+        offset: embed.start - blip.node.start,
+        length: embed.end - embed.start,
+        xml: link,
+      })
+    }
   } else {
     changes.push(object_insertion(original.tree, markup))
   }

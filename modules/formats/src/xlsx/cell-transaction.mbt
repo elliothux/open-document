@@ -88,7 +88,9 @@ fn Session::prepare_cells(
     calculation,
     edits,
     styles: cell_styles,
-    parts: formatting.map(plan => plan.parts).unwrap_or(self.parts),
+    parts: formatting
+    .map(plan => plan.parts)
+    .unwrap_or_else(() => self.parts.copy()),
     created_parts: formatting.map(plan => plan.created_parts).unwrap_or(Map([])),
   }
 }

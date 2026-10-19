@@ -246,6 +246,7 @@ fn CopiedCells::rules_at(
   self : CopiedCells,
   target : Range,
   transpose : Bool,
+  date1904 : Bool,
 ) -> (Array[CopiedConditional], Array[CopiedValidation]) raise @failure.Failure {
   let conditional = self.conditional.map(rule => {
     let ranges = rule.ranges.map(r => self.rule_range(r, target, transpose))
@@ -293,7 +294,17 @@ fn CopiedCells::rules_at(
     let ranges = rule.ranges.map(r => self.rule_range(r, target, transpose))
     let anchor = rule_anchor(ranges, false)
     let text = (value : String) => {
-      self.rule_text(value, rule.anchor, anchor, target, transpose)
+      self.rule_text(
+        if rule.settings.kind == "date" {
+          copied_date_bound(value, self.date1904, date1904)
+        } else {
+          value
+        },
+        rule.anchor,
+        anchor,
+        target,
+        transpose,
+      )
     }
     CopiedValidation::{
       ranges,

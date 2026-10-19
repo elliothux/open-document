@@ -1,17 +1,20 @@
 ///|
 fn xlsx_copied_cells(value : Json) -> @xlsx.CopiedCells raise @failure.Failure {
   guard value is Object(fields) &&
-    fields.length() == 7 &&
+    fields.length() == 9 &&
     value
     is {
       "cells": Array(rows),
       "merges": merges,
       "conditional": Array(conditional),
       "validations": Array(validations),
+      "hyperlinks": Array(hyperlinks),
+      "notes": notes,
       ..
     } &&
     conditional.length() <= 4096 &&
     validations.length() <= 4096 &&
+    hyperlinks.length() <= 4096 &&
     !rows.is_empty() &&
     rows.length() <= 4096 else {
     @failure.reject("invalid-operation", "Expected copied cells")
@@ -93,6 +96,59 @@ fn xlsx_copied_cells(value : Json) -> @xlsx.CopiedCells raise @failure.Failure {
         settings: xlsx_validation_settings(settings),
       }
     }),
+    hyperlinks: hyperlinks.map(link => {
+      guard link is Object(fields) &&
+        fields.length() == 4 &&
+        link
+        is {
+          "range": Object(range),
+          "display": display,
+          "tooltip": tooltip,
+          ..
+        } &&
+        range.length() == 4 else {
+        @failure.reject("invalid-operation", "Invalid copied hyperlink fields")
+      }
+      let optional = fn(value : Json) raise @failure.Failure {
+        match value {
+          Null => None
+          String(value) => Some(value)
+          _ =>
+            @failure.reject(
+              "invalid-operation", "Invalid copied hyperlink text",
+            )
+        }
+      }
+      @xlsx.CopiedHyperlink::{
+        range: {
+          top: field_int(Json::object(range), "top"),
+          left: field_int(Json::object(range), "left"),
+          bottom: field_int(Json::object(range), "bottom"),
+          right: field_int(Json::object(range), "right"),
+        },
+        target: field_string(link, "target"),
+        display: optional(display),
+        tooltip: optional(tooltip),
+      }
+    }),
+    notes: match notes {
+      Null => None
+      Object(fields) if fields.length() == 2 => {
+        guard fields.get("vml") is Some(vml) else {
+          @failure.reject("invalid-operation", "Missing copied note VML")
+        }
+        let vml = match vml {
+          Null => None
+          String(value) => Some(value)
+          _ => @failure.reject("invalid-operation", "Invalid copied note VML")
+        }
+        Some(@xlsx.CopiedNotes::{
+          comments: field_string(notes, "comments"),
+          vml,
+        })
+      }
+      _ => @failure.reject("invalid-operation", "Invalid copied note fields")
+    },
   }
 }
 

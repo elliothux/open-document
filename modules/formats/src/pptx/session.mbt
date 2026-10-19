@@ -338,7 +338,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
           "top": object.crop[1],
           "right": object.crop[2],
           "bottom": object.crop[3],
-          "replaceReason": self.image_reason(object, false),
+          "replaceReason": self.image_replacement_reason(object),
           "cropReason": self.image_reason(object, true),
         },
         "appearance": {

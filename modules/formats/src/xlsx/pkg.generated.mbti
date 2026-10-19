@@ -99,6 +99,8 @@ pub(all) struct CopiedCells {
   merges : Array[Range]
   conditional : Array[CopiedConditional]
   validations : Array[CopiedValidation]
+  hyperlinks : Array[CopiedHyperlink]
+  notes : CopiedNotes?
 }
 pub fn CopiedCells::to_json(Self) -> Json
 pub impl ToJson for CopiedCells
@@ -107,6 +109,18 @@ pub(all) struct CopiedConditional {
   ranges : Array[Range]
   anchor : Address
   settings : ConditionalFormat
+}
+
+pub(all) struct CopiedHyperlink {
+  range : Range
+  target : String
+  display : String?
+  tooltip : String?
+}
+
+pub(all) struct CopiedNotes {
+  comments : String
+  vml : String?
 }
 
 pub(all) struct CopiedValidation {

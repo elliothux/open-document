@@ -5,6 +5,8 @@ export type {
   CopiedCells,
   CopiedConditional,
   CopiedValidation,
+  CopiedHyperlink,
+  CopiedNotes,
   XlsxPasteMode,
 } from "@open-document/wasm/xlsx";
 import {

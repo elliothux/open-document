@@ -1,4 +1,5 @@
 export const imageEn = {
+  fillPicturePlaceholder: "Fill picture placeholder",
   gradientStops: "Gradient color stops",
   gradientColor: "Stop color",
   gradientPosition: "Stop position (%)",
@@ -24,6 +25,7 @@ export const imageEn = {
 };
 
 export const imageZh = {
+  fillPicturePlaceholder: "填入占位图片",
   gradientStops: "渐变色标",
   gradientColor: "色标颜色",
   gradientPosition: "色标位置（%）",

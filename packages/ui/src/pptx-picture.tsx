@@ -146,7 +146,11 @@ export function PptxPicture({
         </fieldset>
       </form>
       <fieldset disabled={blocked || !object || !!picture?.replaceReason}>
-        <legend>{t.replaceImage}</legend>
+        <legend>
+          {object?.kind === "shape" && !picture?.replaceReason
+            ? t.fillPicturePlaceholder
+            : t.replaceImage}
+        </legend>
         <label>
           {t.replacementFile}
           <input

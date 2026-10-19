@@ -9,6 +9,7 @@ import {
 } from "./xlsx-validation.js";
 import { copiedCellFormat, type XlsxCellFormat } from "./xlsx-format.js";
 import type { CellRange, CellValue } from "./xlsx.js";
+import { checkXlsxHyperlinkTarget } from "./xlsx-sheet.js";
 
 export interface CopiedCell {
   value: CellValue;
@@ -23,6 +24,18 @@ export interface CopiedCells {
   merges: CellRange[];
   conditional: CopiedConditional[];
   validations: CopiedValidation[];
+  hyperlinks: CopiedHyperlink[];
+  notes: CopiedNotes | null;
+}
+export interface CopiedNotes {
+  comments: string;
+  vml: string | null;
+}
+export interface CopiedHyperlink {
+  range: CellRange;
+  target: string;
+  display: string | null;
+  tooltip: string | null;
 }
 export interface CopiedConditional {
   ranges: CellRange[];
@@ -48,7 +61,7 @@ export function copiedCells(value: unknown): CopiedCells {
   const fragment = record(value),
     rows = fragment.cells;
   if (
-    Object.keys(fragment).length !== 7 ||
+    Object.keys(fragment).length !== 9 ||
     typeof fragment.date1904 !== "boolean" ||
     typeof fragment.top !== "number" ||
     !Number.isInteger(fragment.top) ||
@@ -167,6 +180,73 @@ export function copiedCells(value: unknown): CopiedCells {
       if (count > 4096 || ruleUnits > 1048576)
         throw new Error("Copied cell rules exceed budget");
     }
+  }
+  const hyperlinks: unknown = fragment.hyperlinks;
+  if (!Array.isArray(hyperlinks) || hyperlinks.length > 4096)
+    throw new Error("Invalid copied hyperlinks");
+  const occupied = new Set<number>();
+  let linkUnits = 0;
+  for (const source of hyperlinks) {
+    const link = record(source),
+      range = record(link.range);
+    if (
+      Object.keys(link).length !== 4 ||
+      Object.keys(range).length !== 4 ||
+      !integer(range.top, fragment.top, fragment.top + rows.length - 1) ||
+      !integer(
+        range.bottom,
+        Number(range.top),
+        fragment.top + rows.length - 1,
+      ) ||
+      !integer(range.left, fragment.left, fragment.left + rows[0].length - 1) ||
+      !integer(
+        range.right,
+        Number(range.left),
+        fragment.left + rows[0].length - 1,
+      ) ||
+      typeof link.target !== "string"
+    )
+      throw new Error("Invalid copied hyperlink geometry");
+    checkXlsxHyperlinkTarget(link.target);
+    linkUnits += link.target.length;
+    for (const key of ["display", "tooltip"] as const) {
+      const text = link[key];
+      if (text !== null && (typeof text !== "string" || text.length > 32767))
+        throw new Error("Invalid copied hyperlink metadata");
+      if (typeof text === "string") linkUnits += text.length;
+    }
+    if (linkUnits > 1048576)
+      throw new Error("Copied hyperlink text exceeds budget");
+    for (let row = Number(range.top); row <= Number(range.bottom); row++)
+      for (
+        let column = Number(range.left);
+        column <= Number(range.right);
+        column++
+      ) {
+        const key =
+          (row - fragment.top) * rows[0].length + column - fragment.left;
+        if (occupied.has(key)) throw new Error("Overlapping copied hyperlinks");
+        occupied.add(key);
+      }
+  }
+  if (fragment.notes !== null) {
+    const notes = record(fragment.notes);
+    if (
+      Object.keys(notes).length !== 2 ||
+      typeof notes.comments !== "string" ||
+      !notes.comments ||
+      !notes.comments.isWellFormed() ||
+      !(
+        notes.vml === null ||
+        (typeof notes.vml === "string" &&
+          !!notes.vml &&
+          notes.vml.isWellFormed())
+      ) ||
+      notes.comments.length +
+        (typeof notes.vml === "string" ? notes.vml.length : 0) >
+        2097152
+    )
+      throw new Error("Invalid copied cell notes");
   }
   return value as CopiedCells;
 }

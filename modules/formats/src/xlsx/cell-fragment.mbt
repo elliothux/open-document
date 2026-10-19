@@ -14,6 +14,8 @@ pub(all) struct CopiedCells {
   merges : Array[Range]
   conditional : Array[CopiedConditional]
   validations : Array[CopiedValidation]
+  hyperlinks : Array[CopiedHyperlink]
+  notes : CopiedNotes?
 }
 
 ///|
@@ -67,6 +69,21 @@ pub impl ToJson for CopiedCells with fn to_json(self) {
       "anchor": { "row": rule.anchor.row, "column": rule.anchor.column },
       "settings": Json(rule.settings),
     }),
+    "hyperlinks": self.hyperlinks.map(link => {
+      "range": Json(link.range),
+      "target": Json(link.target),
+      "display": link.display.map(Json::string).unwrap_or(Json::null()),
+      "tooltip": link.tooltip.map(Json::string).unwrap_or(Json::null()),
+    }),
+    "notes": self.notes
+    .map(notes => {
+      let value : Json = {
+        "comments": notes.comments,
+        "vml": notes.vml.map(Json::string).unwrap_or(Json::null()),
+      }
+      value
+    })
+    .unwrap_or(Json::null()),
   }
 }
 
@@ -87,6 +104,8 @@ fn CopiedCells::validate(self : CopiedCells) -> Unit raise @failure.Failure {
   }
   check_format_merges(self.merges, self.cells.length(), self.cells[0].length())
   self.check_copied_rules()
+  self.check_copied_hyperlinks()
+  self.check_copied_notes()
   let mut units = 0L
   for row in self.cells {
     for cell in row {
@@ -137,7 +156,7 @@ pub fn Session::capture_cells(
   let range = sheet.merge_target(selected)
   let reason = self.format_reason(sheet, range)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
-  self.check_fill_resources(sheet, range, rules=true)
+  self.check_fill_resources(sheet, range, hyperlinks=true, rules=true)
   check_merge_markup(Tree::new(sheet.document))
   let calculation = self.calculation.unwrap()
   let rows : Array[Array[CopiedCell]] = []
@@ -170,6 +189,8 @@ pub fn Session::capture_cells(
     cells: rows,
     conditional,
     validations,
+    hyperlinks: self.capture_hyperlinks(sheet, range),
+    notes: self.capture_notes(sheet, range),
     merges: sheet.merges
     .filter(merge => range.covers(merge))
     .map(merge => {
@@ -198,9 +219,6 @@ pub fn Session::paste_cells(
     @failure.reject("invalid-operation", "Unknown cell paste mode")
   }
   copied.validate()
-  guard copied.date1904 == self.date1904 else {
-    @failure.reject("protected-content", "Clipboard date systems differ")
-  }
   let index = self.sheet_index(self.selection.0)
   let sheet = self.sheets[index]
   let rows = if transpose {
@@ -223,7 +241,7 @@ pub fn Session::paste_cells(
   }
   let reason = self.format_reason(sheet, target)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
-  self.check_fill_resources(sheet, target, rules=true)
+  self.check_fill_resources(sheet, target, hyperlinks=true, rules=true)
   let format = mode == "all" || mode == "format"
   let merges = if format {
     sheet.format_merges(
@@ -282,6 +300,11 @@ pub fn Session::paste_cells(
           )
         })
       }
+      let value = if mode != "format" && formula is None {
+        cell.calendar_value(copied.date1904, self.date1904)
+      } else {
+        cell.value
+      }
       let changed = if mode == "format" {
         { value: Blank, formula: None, keep_shared: true, }
       } else {
@@ -289,7 +312,7 @@ pub fn Session::paste_cells(
           value: if formula is Some(_) {
             Blank
           } else {
-            cell.value
+            value
           },
           formula,
           keep_shared: false,
@@ -318,7 +341,7 @@ pub fn Session::paste_cells(
             old.bind(cell => cell.formula) != formula ||
             (
               formula is None &&
-              old.map(cell => cell.value).unwrap_or(Blank) != cell.value
+              old.map(cell => cell.value).unwrap_or(Blank) != value
             )
           )
         ) {
@@ -335,7 +358,7 @@ pub fn Session::paste_cells(
       } else {
         []
       },
-    }.rules_at(target, transpose)
+    }.rules_at(target, transpose, self.date1904)
   } else {
     ([], [])
   }
@@ -345,7 +368,25 @@ pub fn Session::paste_cells(
       (mode == "all" && !validations.is_empty()) ||
       sheet.has_clipboard_rules(target, mode == "all")
     )
-  if updates.is_empty() && merges == sheet.merges && !change_rules {
+  let change_links = mode == "all" &&
+    copied.hyperlinks.map(link => {
+      (
+        copied.rule_range(link.range, target, transpose),
+        link.target,
+        link.display,
+        link.tooltip,
+      )
+    }) !=
+    self
+    .capture_hyperlinks(sheet, target)
+    .map(link => (link.range, link.target, link.display, link.tooltip))
+  let change_notes = mode == "all" &&
+    (copied.notes is Some(_) || self.capture_notes(sheet, target) is Some(_))
+  if updates.is_empty() &&
+    merges == sheet.merges &&
+    !change_rules &&
+    !change_links &&
+    !change_notes {
     return self.select(revision, sheet.id, target.name())
   }
   let formatting = if originals.is_empty() {
@@ -387,6 +428,12 @@ pub fn Session::paste_cells(
     )
   }
   if mode == "all" {
+    if change_links {
+      self.prepare_copied_hyperlinks(plan, index, target, copied, transpose)
+    }
+    if change_notes {
+      self.prepare_copied_notes(plan, index, target, copied, transpose)
+    }
     let addresses = []
     for row in target.top..<=target.bottom {
       for column in target.left..<=target.right {
