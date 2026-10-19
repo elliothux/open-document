@@ -204,7 +204,7 @@ fn Session::fit_sizes(
     } else {
       probe.text_block(
         content,
-        @layout.TextStyle::new(style.font, style.size, style.color),
+        style.text_style(),
         profile,
         (width - 4.5).max(0.75).min(14400),
         style.wrap && !grow,

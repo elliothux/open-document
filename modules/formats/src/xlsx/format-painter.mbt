@@ -126,24 +126,7 @@ pub fn Session::apply_format(
   }
   for row in pattern {
     for patch in row {
-      guard patch.family is Some(_) &&
-        patch.size is Some(_) &&
-        patch.bold is Some(_) &&
-        patch.italic is Some(_) &&
-        patch.color is Some(_) &&
-        patch.fill is Some(_) &&
-        patch.horizontal is Some(_) &&
-        patch.vertical is Some(_) &&
-        patch.wrap is Some(_) &&
-        patch.numberFormat is Some(_) &&
-        patch.left is Some(_) &&
-        patch.right is Some(_) &&
-        patch.top is Some(_) &&
-        patch.bottom is Some(_) else {
-        @failure.reject(
-          "invalid-operation", "Copied cell formats require every property",
-        )
-      }
+      patch.complete()
     }
   }
   check_format_merges(merges, pattern.length(), pattern[0].length())

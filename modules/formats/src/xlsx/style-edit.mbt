@@ -57,6 +57,9 @@ fn Session::derive_formats(
       patch.size is Some(_) ||
       patch.bold is Some(_) ||
       patch.italic is Some(_) ||
+      patch.underline is Some(_) ||
+      patch.strike is Some(_) ||
+      patch.script is Some(_) ||
       patch.color is Some(_) {
       fonts.intern(patch.font_markup(tree, fonts.nodes[font]))
     } else {

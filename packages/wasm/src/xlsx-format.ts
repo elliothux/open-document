@@ -10,6 +10,9 @@ export interface XlsxCellFormat {
   size?: number;
   bold?: boolean;
   italic?: boolean;
+  underline?: boolean;
+  strike?: boolean;
+  script?: "baseline" | "superscript" | "subscript";
   color?: string;
   fill?: string;
   horizontal?: "general" | "left" | "center" | "right";
@@ -31,6 +34,9 @@ const cellFormatFields = [
   "size",
   "bold",
   "italic",
+  "underline",
+  "strike",
+  "script",
   "color",
   "fill",
   "horizontal",
@@ -149,7 +155,7 @@ export function checkXlsxCellFormat(value: unknown): void {
         Number.isFinite(value) &&
         value >= 1 &&
         value <= 409;
-    if (["bold", "italic", "wrap"].includes(key))
+    if (["bold", "italic", "underline", "strike", "wrap"].includes(key))
       valid = typeof value === "boolean";
     if (["color", "fill"].includes(key))
       valid =
@@ -159,6 +165,10 @@ export function checkXlsxCellFormat(value: unknown): void {
       valid =
         typeof value === "string" &&
         ["general", "left", "center", "right"].includes(value);
+    if (key === "script")
+      valid =
+        typeof value === "string" &&
+        ["baseline", "superscript", "subscript"].includes(value);
     if (key === "vertical")
       valid =
         typeof value === "string" &&

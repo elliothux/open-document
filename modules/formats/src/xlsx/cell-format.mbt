@@ -19,6 +19,9 @@ pub struct CellFormat {
   size : Double?
   bold : Bool?
   italic : Bool?
+  underline : Bool?
+  strike : Bool?
+  script : String?
   color : String?
   fill : String?
   horizontal : String?
@@ -44,6 +47,9 @@ fn CellFormat::complete(self : CellFormat) -> Unit raise @failure.Failure {
     self.size is Some(_) &&
     self.bold is Some(_) &&
     self.italic is Some(_) &&
+    self.underline is Some(_) &&
+    self.strike is Some(_) &&
+    self.script is Some(_) &&
     self.color is Some(_) &&
     self.fill is Some(_) &&
     self.horizontal is Some(_) &&
@@ -66,6 +72,9 @@ pub fn CellFormat::new(
   size~ : Double? = None,
   bold~ : Bool? = None,
   italic~ : Bool? = None,
+  underline~ : Bool? = None,
+  strike~ : Bool? = None,
+  script~ : String? = None,
   color~ : String? = None,
   fill~ : String? = None,
   horizontal~ : String? = None,
@@ -82,6 +91,9 @@ pub fn CellFormat::new(
     size,
     bold,
     italic,
+    underline,
+    strike,
+    script,
     color,
     fill,
     horizontal,
@@ -120,6 +132,11 @@ fn CellFormat::validate(self : CellFormat) -> Unit raise @failure.Failure {
   }
   guard self.color != Some("") else {
     @failure.reject("invalid-operation", "Cell text color cannot be empty")
+  }
+  if self.script is Some(value) {
+    guard ["baseline", "superscript", "subscript"].contains(value) else {
+      @failure.reject("invalid-operation", "Invalid cell script")
+    }
   }
   if self.horizontal is Some(value) {
     guard ["general", "left", "center", "right"].contains(value) else {
@@ -207,6 +224,9 @@ fn CellFormat::applied(self : CellFormat, source : CellStyle) -> CellStyle {
   {
     ..source,
     font,
+    underline: self.underline.unwrap_or(source.underline),
+    strike: self.strike.unwrap_or(source.strike),
+    script: self.script.unwrap_or(source.script),
     size: self.size.unwrap_or(source.size),
     color: self.color.map(v => v.to_lower()).unwrap_or(source.color),
     fill: self.fill.map(v => v.to_lower()).unwrap_or(source.fill),

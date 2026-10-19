@@ -1,8 +1,8 @@
 ///|
 fn CellStyle::measurement_key(
   self : CellStyle,
-) -> (String, Double, Bool, String) {
-  (self.font, self.size, self.wrap, self.format)
+) -> (String, Double, Bool, String, String) {
+  (self.font, self.size, self.wrap, self.format, self.script)
 }
 
 ///|

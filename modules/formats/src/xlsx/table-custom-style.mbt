@@ -267,6 +267,21 @@ fn CustomTableStyle::applied(
       }
     })
     style = {
+      underline: if direct.properties.contains("underline") {
+        None
+      } else {
+        patch.underline
+      },
+      strike: if direct.properties.contains("strike") {
+        None
+      } else {
+        patch.strike
+      },
+      script: if direct.properties.contains("script") {
+        None
+      } else {
+        patch.script
+      },
       bold: if direct.bold {
         None
       } else {

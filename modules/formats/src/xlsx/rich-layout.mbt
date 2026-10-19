@@ -64,21 +64,10 @@ fn rich_layout_spans(
     let color = property("color")
       .map(node => conditional_color(tree, node, theme))
       .unwrap_or(base.color)
-    let underline = property("u")
-      .map(node => node.attribute("val").unwrap_or("single"))
-      .unwrap_or("none")
-    let script = property("vertAlign")
-      .map(node => node.attribute("val").unwrap_or(""))
-      .unwrap_or("baseline")
-    guard ["none", "single"].contains(underline) &&
-      ["baseline", "superscript", "subscript"].contains(script) else {
-      @failure.reject(
-        "protected-content", "Unsupported rich text underline or vertical alignment",
-      )
-    }
-    let strike = property("strike")
-      .map(node => flag(node, "val", fallback=true))
-      .unwrap_or(false)
+    let effects = properties
+      .map(node => font_decorations(tree, node))
+      .unwrap_or(CellFormat::new())
+      .applied(base)
     let text = decode_text(
       tree.one(run.id, "t").map(node => node.text).unwrap_or(""),
     )
@@ -98,9 +87,9 @@ fn rich_layout_spans(
           size,
           color,
         ),
-        underline: underline == "single",
-        strike,
-        script,
+        underline: effects.underline,
+        strike: effects.strike,
+        script: effects.script,
       },
       image: None,
       field: "",

@@ -41,8 +41,20 @@ fn conditional_style(
   ])
   let mut result = CellFormat::new()
   if tree.one(node.id, "font") is Some(font) {
-    conditional_node(tree, font, [], ["name", "sz", "b", "i", "color"])
+    conditional_node(tree, font, [], [
+      "name", "sz", "b", "i", "color", "u", "strike", "vertAlign",
+    ])
+    let effects = font_decorations(tree, font)
+    result = {
+      ..result,
+      underline: effects.underline,
+      strike: effects.strike,
+      script: effects.script,
+    }
     for child in tree.children.get(font.id).unwrap_or([]) {
+      if ["u", "strike", "vertAlign"].contains(child.name) {
+        continue
+      }
       guard tree.all(font.id, child.name).length() == 1 else {
         @failure.reject("malformed-xlsx", "Duplicate conditional font property")
       }

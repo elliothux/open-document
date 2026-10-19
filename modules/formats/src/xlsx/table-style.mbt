@@ -107,11 +107,16 @@ fn Session::table_styles(
           }
           TableOverride::{
             properties: [
-              "family", "size", "italic", "numberFormat", "horizontal", "vertical",
-              "wrap",
+              "family", "size", "italic", "underline", "strike", "script", "numberFormat",
+              "horizontal", "vertical", "wrap",
             ].filter(property => {
               match property {
-                "family" | "size" | "italic" =>
+                "family"
+                | "size"
+                | "italic"
+                | "underline"
+                | "strike"
+                | "script" =>
                   font
                   .map(node => {
                     tree.one(
@@ -119,6 +124,9 @@ fn Session::table_styles(
                       match property {
                         "family" => "name"
                         "size" => "sz"
+                        "underline" => "u"
+                        "strike" => "strike"
+                        "script" => "vertAlign"
                         _ => "i"
                       },
                     )

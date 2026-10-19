@@ -3,6 +3,9 @@ priv struct CellStyle {
   font : String
   size : Double
   color : String
+  underline : Bool
+  strike : Bool
+  script : String
   fill : String
   borders : Array[CellBorder]
   border_priority : Array[Int]
@@ -21,6 +24,9 @@ fn default_style() -> CellStyle {
     font: "Calibri",
     size: 11,
     color: "000000",
+    underline: false,
+    strike: false,
+    script: "baseline",
     fill: "",
     borders: Array::make(4, CellBorder::{ style: "none", color: "000000", }),
     border_priority: [0, 0, 0, 0],
@@ -206,11 +212,16 @@ fn read_styles(
       .get(font.id)
       .unwrap_or([])
       .any(node => {
-        !["name", "sz", "b", "i", "color", "family", "charset", "scheme"].contains(
-          node.name,
-        )
+        ![
+          "name", "sz", "b", "i", "color", "family", "charset", "scheme", "u", "strike",
+          "vertAlign",
+        ].contains(node.name)
       }) {
       style = { ..style, diagnostic: "Unsupported font decoration", }
+    }
+    style = font_decorations(tree, font).applied(style) catch {
+      @failure.Failure(..) =>
+        { ..style, diagnostic: "Unsupported font decoration", }
     }
     let toggle = fn(name) raise @failure.Failure {
       tree

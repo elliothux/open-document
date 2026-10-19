@@ -286,7 +286,7 @@ fn Session::paint_cells(
         } else {
           probe.text_block(
             text,
-            @layout.TextStyle::new(style.font, style.size, style.color),
+            style.text_style(),
             profile,
             (rect.width - 4.5).min(14400),
             style.wrap,
@@ -298,7 +298,7 @@ fn Session::paint_cells(
           block.widths.any(width => width > rect.width - 4.5) {
           let hash = probe.text_block(
             "#",
-            @layout.TextStyle::new(style.font, style.size, style.color),
+            style.text_style(),
             profile,
             14400,
             false,
@@ -312,7 +312,7 @@ fn Session::paint_cells(
           )
           block = probe.text_block(
             text,
-            @layout.TextStyle::new(style.font, style.size, style.color),
+            style.text_style(),
             profile,
             (rect.width - 4.5).min(14400),
             false,

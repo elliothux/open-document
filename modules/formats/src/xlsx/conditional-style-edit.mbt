@@ -26,6 +26,9 @@ fn CellFormat::dxf_markup(
     self.size is Some(_) ||
     self.bold is Some(_) ||
     self.italic is Some(_) ||
+    self.underline is Some(_) ||
+    self.strike is Some(_) ||
+    self.script is Some(_) ||
     self.color is Some(_) {
     text.write_string(
       self.font_markup(tree, tree.one(root.id, "font").unwrap()),

@@ -5,8 +5,9 @@ fn xlsx_cell_format(value : Json) -> @xlsx.CellFormat raise @failure.Failure {
     .keys()
     .all(key => {
       [
-        "family", "size", "bold", "italic", "color", "fill", "horizontal", "vertical",
-        "wrap", "numberFormat", "left", "right", "top", "bottom",
+        "family", "size", "bold", "italic", "underline", "strike", "script", "color",
+        "fill", "horizontal", "vertical", "wrap", "numberFormat", "left", "right",
+        "top", "bottom",
       ].contains(key)
     }) else {
     @failure.reject("invalid-operation", "Unknown cell format fields")
@@ -50,6 +51,9 @@ fn xlsx_cell_format(value : Json) -> @xlsx.CellFormat raise @failure.Failure {
     },
     bold=boolean("bold"),
     italic=boolean("italic"),
+    underline=boolean("underline"),
+    strike=boolean("strike"),
+    script=string("script"),
     color=string("color"),
     fill=string("fill"),
     horizontal=string("horizontal"),

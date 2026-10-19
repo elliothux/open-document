@@ -138,9 +138,10 @@ fn Session::paste_table_fragment(
     incoming.edit_source(widths.items).0
   }
   let source_tree = WordTree::new(incoming)
+  let view = { ..self, parts, }
   let source = read_table_grid(
     source_tree,
-    self.flow_from(incoming).tables[0],
+    view.flow_from(incoming).tables[0],
     0,
     0,
   )
@@ -199,7 +200,7 @@ fn Session::paste_table_fragment(
   if steps.is_empty() && part_edits.is_empty() && created.is_empty() {
     return self.edit_state()
   }
-  let flow = self.flow_from(candidate)
+  let flow = view.flow_from(candidate)
   let table = flow.tables.iter().find_first(t => t.id == grid.table).unwrap()
   self.check_table_layout(flow, table, Some(probe), profile, images)
   let current = WordTree::new(candidate)

@@ -8,9 +8,9 @@ fn fragment_paragraph(
   links : Map[String, @opc.Relationship],
   bookmarks : Map[String, Bool],
   markers : Map[Int, String],
+  numbers : Map[Int, (Int, Int)],
 ) -> String raise @failure.Failure {
   guard paragraph.readOnlyReason.is_empty() &&
-    paragraph.marker is None &&
     tree.children[paragraph.id].all(id => {
       tree.nodes[id].uri == word_uri &&
       (
@@ -19,7 +19,7 @@ fn fragment_paragraph(
       )
     }) else {
     @failure.reject(
-      "protected-content", "Rich cell fragments require supported ordinary paragraphs without review identities or lists",
+      "protected-content", "Rich cell fragments require supported ordinary paragraphs without review identities",
     )
   }
   let patch = ParagraphFormat::new(
@@ -45,11 +45,39 @@ fn fragment_paragraph(
       ),
     ]),
   )
+  let number = numbers.get(paragraph.id)
+  let mark = styles.character_style(tree, paragraph.id, None, [])
+  let mark = if tree.child(paragraph.id, "pPr") is Some(p) {
+    let value = styles.run_character_style(tree, p, mark, [])
+    { ..value, underline: mark.underline, }
+  } else {
+    mark
+  }
+  let mark = paragraph.marker
+    .map(marker => mark.font_runs(marker.text, styles.themes)[0].0)
+    .unwrap_or(mark)
   let nested = Map([
-    ("rPr", ""),
+    (
+      "rPr",
+      if number is Some(_) {
+        formatted_properties(
+          tree,
+          document,
+          paragraph.id,
+          "rPr",
+          mark.fragment_format().properties(),
+        )
+      } else {
+        ""
+      },
+    ),
     (
       "numPr",
-      "<od:numPr xmlns:od=\"\{word_uri}\"><od:numId od:val=\"0\"/></od:numPr>",
+      number
+      .map(reference => list_properties(reference.0, reference.1))
+      .unwrap_or(
+        "<od:numPr xmlns:od=\"\{word_uri}\"><od:numId od:val=\"0\"/></od:numPr>",
+      ),
     ),
     ("tabs", tabs_markup([], paragraph.tabs)),
   ])
@@ -143,18 +171,7 @@ fn fragment_paragraph(
       .unwrap_or("")
       .replace_all(old="\n", new="\u2028")
     for (style, text) in style.font_runs(text, styles.themes) {
-      let format = CharacterFormat::new(
-        style=Clear,
-        family=Set(style.family),
-        size=Set(style.size),
-        color=Set(style.color),
-        bold=Set(style.bold),
-        italic=Set(style.italic),
-        underline=Set(style.underline),
-        strike=Set(style.strike),
-        highlight=Set(style.highlight),
-        vertAlign=Set(style.vertAlign),
-      )
+      let format = style.fragment_format()
       format.validate()
       let properties = formatted_properties(
         tree,
@@ -192,6 +209,7 @@ fn Session::fragment_cell(
   links : Map[String, @opc.Relationship],
   bookmarks : Map[String, Bool],
   markers : Map[Int, String],
+  numbers : Map[Int, (Int, Int)],
 ) -> String raise @failure.Failure {
   let cell = grid.cells[row][column]
   tree.check_merge_cell(cell, self.main)
@@ -269,6 +287,7 @@ fn Session::fragment_cell(
       links,
       bookmarks,
       markers,
+      numbers,
     )
     guard xml.length() <= limit - units else {
       @failure.reject(
@@ -303,6 +322,10 @@ fn Session::capture_table_fragment(
   }
   output.write_string("</od:tblGrid>")
   let styles = self.styles([])
+  let (numbering, numbers) = self.fragment_numbering(
+    tree, grid, top, bottom, left, right, styles, limit,
+  )
+  output.write_string(numbering)
   let links = self.hyperlink_relationships()
   let bookmarks = tree.bookmark_targets()
   let markers = fragment_bookmark_markers(tree, grid, top, bottom, left, right)
@@ -339,7 +362,7 @@ fn Session::capture_table_fragment(
           }
         }
         let xml = self.fragment_cell(
-          tree, grid, row, column, styles, limit, links, bookmarks, markers,
+          tree, grid, row, column, styles, limit, links, bookmarks, markers, numbers,
         )
         guard xml.length() <= limit - units else {
           @failure.reject(

@@ -5,6 +5,9 @@ fn CellFormat::for_table(self : CellFormat, base : CellStyle) -> CellFormat {
     self.size is Some(_) ||
     self.bold is Some(_) ||
     self.italic is Some(_) ||
+    self.underline is Some(_) ||
+    self.strike is Some(_) ||
+    self.script is Some(_) ||
     self.color is Some(_)
   let borders = [self.left, self.right, self.top, self.bottom].any(side => {
     side is Some(_)
@@ -31,6 +34,21 @@ fn CellFormat::for_table(self : CellFormat, base : CellStyle) -> CellFormat {
       Some(self.italic.unwrap_or(pieces.contains("italic")))
     } else {
       self.italic
+    },
+    underline: if font {
+      Some(self.underline.unwrap_or(base.underline))
+    } else {
+      self.underline
+    },
+    strike: if font {
+      Some(self.strike.unwrap_or(base.strike))
+    } else {
+      self.strike
+    },
+    script: if font {
+      Some(self.script.unwrap_or(base.script))
+    } else {
+      self.script
     },
     color: if font {
       Some(self.color.unwrap_or(base.color))

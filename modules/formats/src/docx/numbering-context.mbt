@@ -25,6 +25,14 @@ fn Session::numbering_context(
     )
   }
   let document = self.part_xml(relationships[0].target)
+  NumberingContext::new(document, relationships[0].target)
+}
+
+///|
+fn NumberingContext::new(
+  document : @xml.Document,
+  part : String,
+) -> NumberingContext raise @failure.Failure {
   let numbers = WordTree::new(document)
   guard numbers.nodes[0].uri == word_uri &&
     numbers.nodes[0].name == "numbering" &&
@@ -51,14 +59,7 @@ fn Session::numbering_context(
     }
     values[index] = id
   }
-  {
-    tree: numbers,
-    document,
-    part: relationships[0].target,
-    instances,
-    abstracts,
-    definitions: Map([]),
-  }
+  { tree: numbers, document, part, instances, abstracts, definitions: Map([]), }
 }
 
 ///|

@@ -22,6 +22,15 @@ fn CellFormat::font_markup(
   if self.italic is Some(value) {
     changes.push(("i", element("i", if value { "1" } else { "0" })))
   }
+  if self.underline is Some(value) {
+    changes.push(("u", element("u", if value { "single" } else { "none" })))
+  }
+  if self.strike is Some(value) {
+    changes.push(("strike", element("strike", if value { "1" } else { "0" })))
+  }
+  if self.script is Some(value) {
+    changes.push(("vertAlign", element("vertAlign", value)))
+  }
   if self.color is Some(value) {
     changes.push(
       (
@@ -94,6 +103,9 @@ fn CellFormat::xf_markup(
     self.size is Some(_) ||
     self.bold is Some(_) ||
     self.italic is Some(_) ||
+    self.underline is Some(_) ||
+    self.strike is Some(_) ||
+    self.script is Some(_) ||
     self.color is Some(_) {
     attributes.push(("applyFont", "1"))
   }

@@ -21,6 +21,7 @@ fn Session::read_table_fragment(
     self.opc.budget.xml_depth,
     self.opc.budget.entry_bytes,
   )
+  let document = self.import_fragment_numbering(document, parts, edits, created)
   let document = self.import_fragment_links(document, parts, edits, created)
   let document = self.import_fragment_bookmarks(document)
   let tree = WordTree::new(document)
@@ -91,15 +92,14 @@ fn Session::read_table_fragment(
           "highlight", "vertAlign", "cs", "rtl",
         ]
       "tabs" => ["tab"]
-      "numPr" => ["numId"]
+      "numPr" => ["numId", "ilvl"]
       "tcBorders" | "tcMar" => ["top", "left", "bottom", "right"]
       _ => []
     }
     guard tree.children[id].all(child => {
         children.contains(tree.nodes[child].name)
       }) &&
-      !["pStyle", "rStyle"].contains(node.name) &&
-      (node.name != "numId" || node.attribute("val", uri=word_uri) == Some("0")) else {
+      !["pStyle", "rStyle"].contains(node.name) else {
       @failure.reject(
         "protected-content", "Rich table fragment contains unsupported references or structure",
       )
@@ -120,7 +120,8 @@ fn Session::read_table_fragment(
   guard tree.child(table, "tblGrid") is Some(_) else {
     @failure.reject("invalid-table", "Rich table requires a complete grid")
   }
-  let model = self.flow_from(document).tables
+  let view = { ..self, parts, }
+  let model = view.flow_from(document).tables
     .get(0)
     .unwrap_or_else(() => {
       @failure.reject("invalid-table", "Rich table has no supported grid")
@@ -156,7 +157,7 @@ fn Session::read_table_fragment(
           .child(paragraph.id, "pPr")
           .map(p => tree.paragraph_tabs(p, []))
           .unwrap_or([])
-        let markup = self.tab_markup(tree, paragraph.id, stops, style=Clear)
+        let markup = view.tab_markup(tree, paragraph.id, stops, style=Clear)
         let props = formatted_properties(
           tree,
           document,
@@ -178,6 +179,6 @@ fn Session::read_table_fragment(
   let (next, _) = document.edit_source(changes)
   (
     next,
-    read_table_grid(WordTree::new(next), self.flow_from(next).tables[0], 0, 0),
+    read_table_grid(WordTree::new(next), view.flow_from(next).tables[0], 0, 0),
   )
 }

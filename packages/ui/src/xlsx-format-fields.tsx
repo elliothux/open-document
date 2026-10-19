@@ -86,29 +86,55 @@ export function XlsxFormatFields({
           }
         />
       </label>
-      {(["bold", "italic", "wrap"] as const).map((key) => (
-        <label key={key}>
-          {t[key]}
-          <select
-            aria-label={aria(t[key])}
-            value={format[key] === undefined ? "" : String(format[key])}
-            onChange={(event) =>
-              set(
-                key,
-                event.currentTarget.value === ""
-                  ? undefined
-                  : event.currentTarget.value === "true",
-              )
-            }
-          >
-            <option value="">
-              {current?.[key] === null ? t.mixed : t.keepStyleProperty}
+      {(["bold", "italic", "underline", "strike", "wrap"] as const).map(
+        (key) => (
+          <label key={key}>
+            {t[key]}
+            <select
+              aria-label={aria(t[key])}
+              value={format[key] === undefined ? "" : String(format[key])}
+              onChange={(event) =>
+                set(
+                  key,
+                  event.currentTarget.value === ""
+                    ? undefined
+                    : event.currentTarget.value === "true",
+                )
+              }
+            >
+              <option value="">
+                {current?.[key] === null ? t.mixed : t.keepStyleProperty}
+              </option>
+              <option value="true">{t.styleOn}</option>
+              <option value="false">{t.styleOff}</option>
+            </select>
+          </label>
+        ),
+      )}
+      <label>
+        {t.superscript + " / " + t.subscript}
+        <select
+          aria-label={aria(t.superscript + " / " + t.subscript)}
+          value={format.script ?? ""}
+          onChange={(event) =>
+            set(
+              "script",
+              event.currentTarget.value === ""
+                ? undefined
+                : (event.currentTarget.value as XlsxCellFormat["script"]),
+            )
+          }
+        >
+          <option value="">
+            {current?.script === null ? t.mixed : t.keepStyleProperty}
+          </option>
+          {(["baseline", "superscript", "subscript"] as const).map((script) => (
+            <option key={script} value={script}>
+              {t[script]}
             </option>
-            <option value="true">{t.styleOn}</option>
-            <option value="false">{t.styleOff}</option>
-          </select>
-        </label>
-      ))}
+          ))}
+        </select>
+      </label>
       {(["color", "fill"] as const).map((key) => (
         <label key={key}>
           {key === "color" ? t.textColor : t.cellFill}
