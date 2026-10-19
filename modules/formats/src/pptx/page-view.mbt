@@ -163,16 +163,20 @@ fn Session::edit_view_query(self : Session, current : Slide) -> Json {
           "addLayout": message,
           "copyLayout": message,
           "deleteLayout": message,
+          "deleteMaster": message,
+          "addMaster": message,
+          "copyMaster": message,
         },
       }
   }
 }
 
 ///|
-fn source_inheritance_changed(
+fn Session::source_inheritance_changed(
+  self : Session,
   edits : Array[(String, @xml.Edit)],
   parts : Map[String, @xml.Document],
-) -> Bool {
+) -> Bool raise @failure.Failure {
   edits.any(entry => {
     parts
     .get(entry.0)
@@ -185,6 +189,11 @@ fn source_inheritance_changed(
       )
     })
     .unwrap_or(false)
+  }) ||
+  self.slides.any(slide => {
+    edits.any(entry => entry.0 == relationship_part(slide.tree.part)) &&
+    slide_layout(self.opc, slide.tree.part, self.parts) !=
+    slide_layout(self.opc, slide.tree.part, parts)
   })
 }
 

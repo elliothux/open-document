@@ -59,8 +59,8 @@ fn Session::validate_slides(
   parts~ : Map[String, @xml.Document] = self.parts,
   media~ : Map[String, Bytes] = self.media,
   removed~ : Array[String] = self.removed,
+  check_package~ : Bool = true,
 ) -> Unit raise @failure.Failure {
-  let replacements = self.replacements(main, slides, parts, media~)
   ignore(slide_font_keys(slides))
   let mut count = 0
   let mut units = 0
@@ -87,7 +87,12 @@ fn Session::validate_slides(
       "limit-exceeded", "Presentation objects or text exceed budget",
     )
   }
-  self.opc.validate_changes(replacements, removed~)
+  if check_package {
+    self.opc.validate_changes(
+      self.replacements(main, slides, parts, media~),
+      removed~,
+    )
+  }
 }
 
 ///|
@@ -120,7 +125,7 @@ fn Session::commit_slides(
   let parts = parts.copy()
   let edits = edits.copy()
   self.sync_show_range(slides.length(), parts, edits)
-  let slides = if source_inheritance_changed(edits, parts) {
+  let slides = if self.source_inheritance_changed(edits, parts) {
     slides.mapi((index, slide) => {
       read_slide(
         self.opc,
@@ -360,7 +365,7 @@ pub fn Session::undo(
       removed=removed_parts,
     )
     let (width, height) = presentation_size(main)
-    let theme_changed = source_inheritance_changed(entry.edits, parts)
+    let theme_changed = self.source_inheritance_changed(entry.edits, parts)
     let slides = if width != self.width ||
       height != self.height ||
       theme_changed {

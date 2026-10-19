@@ -21,6 +21,9 @@ pub(all) enum SlideEdit {
   AddLayout
   CopyLayout
   DeleteLayout
+  DeleteMaster
+  AddMaster
+  CopyMaster
   SourceName(String)
   Notes(String)
   Footer(FooterContent, Bool)
@@ -237,7 +240,7 @@ pub fn Session::edit_slides(
   self.check_revision(revision)
   self.check_idle()
   if !self.slides.any(item => item.tree.part == slide) {
-    return self.edit_source(slide, change)
+    return self.edit_source(slide, change, probe, profile)
   }
   let index = self.index(slide)
   let reason = if change is Background(_) ||
@@ -286,7 +289,13 @@ pub fn Session::edit_slides(
       return self.set_theme_font(kind, script, font, probe, profile)
     }
     ApplyLayout(id) => return self.apply_layout(index, id)
-    AddLayout | CopyLayout | DeleteLayout | SourceName(_) =>
+    AddLayout
+    | CopyLayout
+    | DeleteLayout
+    | DeleteMaster
+    | AddMaster
+    | CopyMaster
+    | SourceName(_) =>
       @failure.reject("invalid-slide", "Select a master or layout source")
     ResetLayout =>
       return self.apply_layout(

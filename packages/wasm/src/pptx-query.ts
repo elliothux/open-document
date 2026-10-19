@@ -7,6 +7,7 @@ import type {
   PptxDash,
 } from "./pptx-objects.js";
 import type { PptxBackgroundFill } from "./pptx-slides.js";
+import type { PptxPlaceholder } from "./pptx-placeholder.js";
 
 export interface PptxObject {
   id: string;
@@ -21,6 +22,7 @@ export interface PptxObject {
   rotateReason: string;
   arrangeReason: string;
   transformReason: string;
+  placeholder: { value: PptxPlaceholder | null; reason: string };
   hyperlink: { value: PptxHyperlink | null; reason: string };
   shapeAdjustments: {
     preset: string;

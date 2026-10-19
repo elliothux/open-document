@@ -148,6 +148,7 @@ fn Session::copy_slide_relationships(
   target : String,
   remapped : Map[String, String],
   allowed : Array[String],
+  links? : ReadOnlyArray[@opc.Relationship],
 ) -> @xml.Document? raise @failure.Failure {
   let path = relationship_part(owner)
   guard self.parts.contains(path) || self.opc.names.contains(path.to_lower()) else {
@@ -159,7 +160,7 @@ fn Session::copy_slide_relationships(
       "limit-exceeded", "Copied relationships exceed history budget",
     )
   }
-  let links = self.relationships()
+  let links = links.unwrap_or_else(() => self.relationships())
   let changes : Array[@xml.SourceChange] = []
   let tree = Tree::new(path, original)
   for node in original.nodes() {

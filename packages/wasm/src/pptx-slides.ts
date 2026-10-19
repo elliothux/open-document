@@ -356,7 +356,15 @@ export type PptxSlideEdit =
     }
   | { action: "layout"; id: string }
   | { action: "resetLayout" }
-  | { action: "addLayout" | "copyLayout" | "deleteLayout" }
+  | {
+      action:
+        | "addLayout"
+        | "copyLayout"
+        | "deleteLayout"
+        | "deleteMaster"
+        | "addMaster"
+        | "copyMaster";
+    }
   | { action: "sourceName"; name: string }
   | { action: "notes"; text: string }
   | { action: "firstSlideNumber"; number: number }
@@ -489,9 +497,15 @@ export function checkPptxSlideEdit(value: unknown): void {
   }
   if (
     typeof change.action === "string" &&
-    ["resetLayout", "addLayout", "copyLayout", "deleteLayout"].includes(
-      change.action,
-    )
+    [
+      "resetLayout",
+      "addLayout",
+      "copyLayout",
+      "deleteLayout",
+      "deleteMaster",
+      "addMaster",
+      "copyMaster",
+    ].includes(change.action)
   ) {
     if (Object.keys(change).length !== 1)
       throw new Error("Layout structure edits accept only an action");

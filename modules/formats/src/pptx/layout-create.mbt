@@ -2,6 +2,18 @@
 fn Session::layout_identity(
   self : Session,
 ) -> (String, String, Int64) raise @failure.Failure {
+  self.layout_identities(1)[0]
+}
+
+///|
+fn Session::layout_identities(
+  self : Session,
+  count : Int,
+) -> Array[(String, String, Int64)] raise @failure.Failure {
+  if count == 0 {
+    return []
+  }
+  let result : Array[(String, String, Int64)] = []
   let reserved : Map[String, Bool] = Map([])
   for (tree, _) in self.master_choices() {
     for node in tree.document.nodes() {
@@ -35,7 +47,10 @@ fn Session::layout_identity(
         )
       }) &&
       !links.any(rel => rel.id == link) {
-      return (part, link, next)
+      result.push((part, link, next))
+      if result.length() == count {
+        return result
+      }
     }
     next += 1
   }
@@ -98,7 +113,7 @@ fn Session::add_layout(
     guard choice.kind == "layout" else {
       @failure.reject("invalid-slide", "Select a layout source to copy")
     }
-    self.check_layout_copy(choice.tree)
+    check_source_copy(choice.tree, self.relationships())
   }
   let (part, link, identity) = self.layout_identity()
   let mut next_object = self.object_sequence

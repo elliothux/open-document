@@ -43,6 +43,8 @@ export function PptxDesign({ controller, state, file, disabled }: PanelProps) {
             ["addLayout", t.pptxAddLayout],
             ["copyLayout", t.pptxCopyLayout],
             ["deleteLayout", t.pptxDeleteLayout],
+            ["addMaster", t.pptxAddMaster],
+            ["copyMaster", t.pptxCopyMaster],
           ] as const
         ).map(([action, label]) => (
           <button
@@ -60,6 +62,26 @@ export function PptxDesign({ controller, state, file, disabled }: PanelProps) {
         )}
         {operations.copyLayout && choice.kind === "layout" && (
           <p>{operations.copyLayout}</p>
+        )}
+        {operations.copyMaster && choice.kind === "master" && (
+          <p>{operations.copyMaster}</p>
+        )}
+        {choice.kind === "master" && (
+          <>
+            <button
+              type="button"
+              disabled={!!operations.deleteMaster}
+              title={operations.deleteMaster}
+              onClick={() =>
+                controller.run(() =>
+                  editor.editSlides({ action: "deleteMaster" }),
+                )
+              }
+            >
+              {t.pptxDeleteMaster}
+            </button>
+            {operations.deleteMaster && <p>{operations.deleteMaster}</p>}
+          </>
         )}
       </fieldset>
     </form>

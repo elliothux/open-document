@@ -7,6 +7,7 @@ pub struct Session {
   priv mut removed : Array[String]
   priv mut slide_sequence : Int64
   priv mut layout_sequence : Int64
+  priv mut master_sequence : Int64
   priv cache : Map[String, Tree]
   priv budget : @archive.Budget
   priv mut width : Double
@@ -128,6 +129,7 @@ fn Session::from_package(
     removed: [],
     slide_sequence: 256L,
     layout_sequence: 2147483648L,
+    master_sequence: 2147483648L,
     cache,
     budget,
     width,
@@ -320,6 +322,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
         "transformReason": self.object_edit_reason(object, "transform"),
         "hyperlink": self.hyperlink_query(object, links),
         "shapeAdjustments": self.shape_adjustments(object),
+        "placeholder": self.placeholder_query(object),
         "imageInsets": object.insets,
         "imageInsetsReason": self.image_insets_reason(object),
         "picture": {

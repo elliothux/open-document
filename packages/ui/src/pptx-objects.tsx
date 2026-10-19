@@ -4,6 +4,8 @@ import type { PptxObjectEdit, PptxHyperlink } from "@open-document/web/pptx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { PptxPaint } from "./pptx-paint.js";
+import { PlaceholderType, PptxPlaceholder } from "./pptx-placeholder.js";
+import type { PptxPlaceholderType } from "@open-document/web/pptx";
 import { PptxShapeAdjustments } from "./pptx-shape-adjustments.js";
 import { PptxTextFrame } from "./pptx-text-frame.js";
 import { PptxPicture, ImageInsetsForm } from "./pptx-picture.js";
@@ -39,6 +41,8 @@ export function PptxObjects({
     text: "",
   });
   const query = editor.query;
+  const [placeholderType, setPlaceholderType] =
+    useState<PptxPlaceholderType>("body");
   const selectedRows = query.table
     ? query.table.lastRow - query.table.firstRow + 1
     : 0;
@@ -163,8 +167,43 @@ export function PptxObjects({
             />
           </label>
           <button type="submit">{t.insertObject}</button>
+          {query.editView.kind !== "slide" && (
+            <>
+              <PlaceholderType
+                value={placeholderType}
+                onChange={setPlaceholderType}
+                state={state}
+              />
+              <button
+                type="button"
+                disabled={!!query.editView.operations.rename}
+                onClick={() =>
+                  controller.run(() =>
+                    editor.editObjects({
+                      action: "insertPlaceholder",
+                      type: placeholderType,
+                      x: draft.x,
+                      y: draft.y,
+                      width: draft.width,
+                      height: draft.height,
+                      text: draft.text,
+                    }),
+                  )
+                }
+              >
+                {t.pptxInsertPlaceholder}
+              </button>
+            </>
+          )}
         </fieldset>
       </form>
+      <PptxPlaceholder
+        key={`${selected?.id}:${JSON.stringify(selected?.placeholder.value)}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
       <form
         onSubmit={(event) => {
           event.preventDefault();

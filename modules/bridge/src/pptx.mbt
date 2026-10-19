@@ -354,8 +354,13 @@ fn Foundation::pptx_operation(
         }
         "layout" => @pptx.ApplyLayout(field_string(change, "id"))
         "resetLayout" => @pptx.ResetLayout
-        "addLayout" | "copyLayout" | "deleteLayout" | "sourceName" =>
-          pptx_source_edit(change)
+        "addLayout"
+        | "copyLayout"
+        | "deleteLayout"
+        | "deleteMaster"
+        | "addMaster"
+        | "copyMaster"
+        | "sourceName" => pptx_source_edit(change)
         _ => @failure.reject("invalid-operation", "Unknown slide edit")
       }
       session.edit_slides(
@@ -421,15 +426,8 @@ fn Foundation::pptx_operation(
             xlsx_number(change, "width"),
             xlsx_number(change, "height"),
           )
-        "insert" =>
-          @pptx.Insert(
-            field_string(change, "kind"),
-            xlsx_number(change, "x"),
-            xlsx_number(change, "y"),
-            xlsx_number(change, "width"),
-            xlsx_number(change, "height"),
-            field_string(change, "text"),
-          )
+        "insert" | "insertPlaceholder" => pptx_insert_object(change)
+        "placeholder" => pptx_placeholder(change)
         "delete" => @pptx.Remove
         "clearTextFormat" => @pptx.ClearTextFormat
         "clearParagraphFormat" => @pptx.ClearParagraphFormat

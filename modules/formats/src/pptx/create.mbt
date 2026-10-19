@@ -1,4 +1,14 @@
 ///|
+fn blank_layout() -> String {
+  "<p:sldLayout xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\" type=\"blank\" preserve=\"1\"><p:cSld name=\"Blank\">\{empty_shape_tree()}</p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>"
+}
+
+///|
+fn blank_master(layouts : String) -> String {
+  "<p:sldMaster xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\" xmlns:r=\"\{relationship_uri}\"><p:cSld>\{empty_shape_tree()}</p:cSld><p:clrMap accent1=\"accent1\" accent2=\"accent2\" accent3=\"accent3\" accent4=\"accent4\" accent5=\"accent5\" accent6=\"accent6\" bg1=\"lt1\" bg2=\"lt2\" folHlink=\"folHlink\" hlink=\"hlink\" tx1=\"dk1\" tx2=\"dk2\"/><p:sldLayoutIdLst>\{layouts}</p:sldLayoutIdLst><p:txStyles><p:titleStyle/><p:bodyStyle/><p:otherStyle/></p:txStyles></p:sldMaster>"
+}
+
+///|
 fn empty_shape_tree() -> String {
   "<p:spTree><p:nvGrpSpPr><p:cNvPr id=\"1\" name=\"\"/><p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"0\" cy=\"0\"/></a:xfrm></p:grpSpPr></p:spTree>"
 }
@@ -15,10 +25,7 @@ pub fn Session::create(
   date_time? : String,
 ) -> Session raise @failure.Failure {
   let p = presentation_uri
-  let a = drawing_uri
   let r = relationship_uri
-  let group = empty_shape_tree()
-  let map = "<p:clrMap accent1=\"accent1\" accent2=\"accent2\" accent3=\"accent3\" accent4=\"accent4\" accent5=\"accent5\" accent6=\"accent6\" bg1=\"lt1\" bg2=\"lt2\" folHlink=\"folHlink\" hlink=\"hlink\" tx1=\"dk1\" tx2=\"dk2\"/>"
   let parts : Map[String, Bytes] = Map([])
   let types = StringBuilder()
   types.write_string(
@@ -86,13 +93,10 @@ pub fn Session::create(
         "<p:presentation xmlns:p=\"\{p}\" xmlns:r=\"\{r}\"><p:sldMasterIdLst><p:sldMasterId id=\"2147483648\" r:id=\"master1\"/></p:sldMasterIdLst><p:sldIdLst><p:sldId id=\"256\" r:id=\"slide1\"/></p:sldIdLst><p:sldSz cx=\"12192000\" cy=\"6858000\"/><p:notesSz cx=\"6858000\" cy=\"9144000\"/></p:presentation>",
       ),
       ("slides/slide1.xml", empty_slide()),
-      (
-        "slideLayouts/slideLayout1.xml",
-        "<p:sldLayout xmlns:p=\"\{p}\" xmlns:a=\"\{a}\" type=\"blank\" preserve=\"1\"><p:cSld name=\"Blank\">\{group}</p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr></p:sldLayout>",
-      ),
+      ("slideLayouts/slideLayout1.xml", blank_layout()),
       (
         "slideMasters/slideMaster1.xml",
-        "<p:sldMaster xmlns:p=\"\{p}\" xmlns:a=\"\{a}\" xmlns:r=\"\{r}\"><p:cSld>\{group}</p:cSld>\{map}<p:sldLayoutIdLst><p:sldLayoutId id=\"2147483649\" r:id=\"layout1\"/></p:sldLayoutIdLst><p:txStyles><p:titleStyle/><p:bodyStyle/><p:otherStyle/></p:txStyles></p:sldMaster>",
+        blank_master("<p:sldLayoutId id=\"2147483649\" r:id=\"layout1\"/>"),
       ),
       ("theme/theme1.xml", blank_theme()),
     ] {

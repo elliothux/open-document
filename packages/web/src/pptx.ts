@@ -12,6 +12,8 @@ import {
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type {
   PptxQuery,
+  PptxPlaceholder,
+  PptxPlaceholderType,
   PptxEditView,
   PptxTable,
   PptxTableStyle,
@@ -51,7 +53,10 @@ export type {
   PptxParagraphTab,
   PptxParagraphFormatting,
 } from "@open-document/wasm/pptx";
-export { checkPptxSlideEdit } from "@open-document/wasm/pptx";
+export {
+  checkPptxSlideEdit,
+  pptxPlaceholderTypes,
+} from "@open-document/wasm/pptx";
 
 /** A Worker owns presentation state, layout, history and source bytes. */
 export class PptxClient {

@@ -37,24 +37,27 @@ fn Session::layout_choice(
 }
 
 ///|
-fn Session::check_layout_copy(
-  self : Session,
+fn check_source_copy(
   tree : Tree,
+  links : ReadOnlyArray[@opc.Relationship],
 ) -> Unit raise @failure.Failure {
   guard tree.document.source().length() <= 2097152 else {
-    @failure.reject("limit-exceeded", "Copied layout exceeds history budget")
+    @failure.reject("limit-exceeded", "Copied source exceeds history budget")
   }
   check_slide_copy_markup(tree)
-  for link in self.relationships() {
+  let kinds = match tree.document.nodes()[0].name {
+    "sldMaster" => ["slideLayout", "theme", "image", "hyperlink", "slide"]
+    "theme" => ["image", "hyperlink"]
+    _ => ["slideMaster", "image", "hyperlink", "slide"]
+  }
+  for link in links {
     if link.owner != tree.part {
       continue
     }
-    guard ["slideMaster", "image", "hyperlink", "slide"].any(kind => {
-        link.kind == relationship_uri + "/" + kind
-      }) &&
+    guard kinds.any(kind => link.kind == relationship_uri + "/" + kind) &&
       (!link.external || link.kind == relationship_uri + "/hyperlink") else {
       @failure.reject(
-        "protected-content", "Layout resource ownership requires copying support",
+        "protected-content", "Source resource ownership requires copying support",
       )
     }
   }
@@ -126,7 +129,7 @@ fn Session::source_operations(self : Session, current : Slide) -> Json {
     } else if root != "sldLayout" {
       "Select a layout source"
     } else {
-      self.check_layout_copy(current.tree)
+      check_source_copy(current.tree, self.relationships())
       ""
     }
   } catch {
@@ -144,11 +147,46 @@ fn Session::source_operations(self : Session, current : Slide) -> Json {
   } catch {
     @failure.Failure(message~, ..) => message
   }
+  let remove_master = try {
+    if !base.is_empty() {
+      base
+    } else if root != "sldMaster" {
+      "Select a master source"
+    } else {
+      ignore(self.master_deletion(current.tree.part))
+      ""
+    }
+  } catch {
+    @failure.Failure(message~, ..) => message
+  }
+  let add_master = try {
+    if !rename.is_empty() {
+      rename
+    } else {
+      ignore(self.master_creation_sources(current.tree.part, false))
+      ""
+    }
+  } catch {
+    @failure.Failure(message~, ..) => message
+  }
+  let copy_master = try {
+    if !rename.is_empty() {
+      rename
+    } else {
+      ignore(self.master_creation_sources(current.tree.part, true))
+      ""
+    }
+  } catch {
+    @failure.Failure(message~, ..) => message
+  }
   {
     "rename": rename,
     "addLayout": add,
     "copyLayout": copy,
     "deleteLayout": remove,
+    "deleteMaster": remove_master,
+    "addMaster": add_master,
+    "copyMaster": copy_master,
   }
 }
 
@@ -184,9 +222,11 @@ fn Session::validate_source_target(
   self : Session,
   part : String,
   parts : Map[String, @xml.Document],
+  main~ : Tree = self.main,
+  slides~ : Array[Slide] = self.slides,
   removed~ : Array[String] = self.removed,
 ) -> Unit raise @failure.Failure {
-  let staged = { ..self, parts, removed, source_view: None, }
+  let staged = { ..self, main, slides, parts, removed, source_view: None, }
   ignore(staged.source_choices())
   staged.validate(staged.source_slide(part))
 }
@@ -196,6 +236,8 @@ fn Session::edit_source(
   self : Session,
   part : String,
   change : SlideEdit,
+  probe : @layout.TextProbe?,
+  profile : Map[String, String],
 ) -> Json raise @failure.Failure {
   ignore(self.source_slide(part))
   let reason = self.modification_reason()
@@ -204,6 +246,9 @@ fn Session::edit_source(
     AddLayout => self.add_layout(part)
     CopyLayout => self.add_layout(part, copy=true)
     DeleteLayout => self.delete_layout(part)
+    DeleteMaster => self.delete_master(part, probe, profile)
+    AddMaster => self.add_master(part)
+    CopyMaster => self.add_master(part, copy=true)
     SourceName(name) => self.rename_source(part, name)
     Background(value) => self.set_background(part, value)
     BackgroundImage(bytes, mode) =>

@@ -1,4 +1,10 @@
 import { record } from "./validation.js";
+import {
+  pptxPlaceholder,
+  pptxPlaceholderTypes,
+  type PptxPlaceholder,
+  type PptxPlaceholderType,
+} from "./pptx-placeholder.js";
 import { drawingMatrix } from "./drawing.js";
 import {
   checkPptxTableStyle,
@@ -299,6 +305,19 @@ export function pptxHyperlink(value: unknown): PptxHyperlink | null {
   return value as PptxHyperlink;
 }
 export type PptxObjectEdit =
+  | {
+      action: "placeholder";
+      value: PptxPlaceholder | null;
+    }
+  | {
+      action: "insertPlaceholder";
+      type: PptxPlaceholderType;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      text: string;
+    }
   | { action: "tableStyle"; style: PptxTableStyle }
   | { action: "tableRowHeight" | "tableColumnWidth"; value: number }
   | { action: "splitTableCell"; rows: number; columns: number }
@@ -424,6 +443,12 @@ export function number(value: unknown, low = 0, high = 0x7fffffff): number {
 }
 export function checkPptxObjectEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "placeholder") {
+    if (Object.keys(change).length !== 2)
+      throw new Error("Invalid placeholder edit");
+    pptxPlaceholder(change.value);
+    return;
+  }
   if (change.action === "tableStyle") {
     checkPptxTableStyle(change.style);
     if (Object.keys(change).some((key) => key !== "action" && key !== "style"))
@@ -709,23 +734,32 @@ export function checkPptxObjectEdit(value: unknown): void {
     return;
   }
   if (
-    change.action !== "insert" ||
-    ![
-      "text",
-      "rect",
-      "roundRect",
-      "ellipse",
-      "triangle",
-      "rtTriangle",
-      "diamond",
-      "parallelogram",
-      "trapezoid",
-      "line",
-      "leftArrow",
-      "rightArrow",
-      "upArrow",
-      "downArrow",
-    ].includes(String(change.kind))
+    change.action === "insertPlaceholder"
+      ? typeof change.type !== "string" ||
+        !pptxPlaceholderTypes.some((type) => type === change.type) ||
+        Object.keys(change).some(
+          (key) =>
+            !["action", "type", "x", "y", "width", "height", "text"].includes(
+              key,
+            ),
+        )
+      : change.action !== "insert" ||
+        ![
+          "text",
+          "rect",
+          "roundRect",
+          "ellipse",
+          "triangle",
+          "rtTriangle",
+          "diamond",
+          "parallelogram",
+          "trapezoid",
+          "line",
+          "leftArrow",
+          "rightArrow",
+          "upArrow",
+          "downArrow",
+        ].includes(String(change.kind))
   )
     throw new Error("Invalid PPTX object edit");
   number(change.x, -14400, 14400);

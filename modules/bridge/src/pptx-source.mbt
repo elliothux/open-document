@@ -9,6 +9,9 @@ fn pptx_source_edit(change : Json) -> @pptx.SlideEdit raise @failure.Failure {
     "addLayout" => @pptx.AddLayout
     "copyLayout" => @pptx.CopyLayout
     "deleteLayout" => @pptx.DeleteLayout
+    "deleteMaster" => @pptx.DeleteMaster
+    "addMaster" => @pptx.AddMaster
+    "copyMaster" => @pptx.CopyMaster
     "sourceName" => @pptx.SourceName(field_string(change, "name"))
     _ => @failure.reject("invalid-operation", "Unknown source edit")
   }

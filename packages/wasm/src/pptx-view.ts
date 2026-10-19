@@ -16,6 +16,9 @@ export interface PptxEditView {
     addLayout: string;
     copyLayout: string;
     deleteLayout: string;
+    deleteMaster: string;
+    addMaster: string;
+    copyMaster: string;
   };
 }
 
@@ -26,7 +29,15 @@ export function checkPptxEditView(
 ): void {
   const view = record(value);
   const operations = record(view.operations);
-  for (const key of ["rename", "addLayout", "copyLayout", "deleteLayout"])
+  for (const key of [
+    "rename",
+    "addLayout",
+    "copyLayout",
+    "deleteLayout",
+    "deleteMaster",
+    "addMaster",
+    "copyMaster",
+  ])
     if (typeof operations[key] !== "string" || operations[key].length > 8192)
       throw new Error("Invalid source operation reason");
   if (

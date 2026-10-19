@@ -9,7 +9,7 @@ fn shape_tree(tree : Tree) -> @xml.Node raise @failure.Failure {
 }
 
 ///|
-fn placeholder(source : Ref) -> (String, String)? raise @failure.Failure {
+fn placeholder_node(source : Ref) -> Ref? raise @failure.Failure {
   let nv = match source.child("nvSpPr", uri=presentation_uri) {
     Some(value) => Some(value)
     None => source.child("nvPicPr", uri=presentation_uri)
@@ -17,7 +17,11 @@ fn placeholder(source : Ref) -> (String, String)? raise @failure.Failure {
   nv
   .bind(item => item.child("nvPr", uri=presentation_uri))
   .bind(item => item.child("ph", uri=presentation_uri))
-  .map(item => {
+}
+
+///|
+fn placeholder(source : Ref) -> (String, String)? raise @failure.Failure {
+  placeholder_node(source).map(item => {
     let index = item.node.attribute("idx").unwrap_or("0")
     guard !index.is_empty() && index.iter().all(c => c >= '0' && c <= '9') else {
       @failure.reject("malformed-pptx", "Invalid placeholder index")

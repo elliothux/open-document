@@ -6,6 +6,12 @@ import {
   type PptxShowState,
   type PptxShowLayout,
 } from "./pptx-show.js";
+import { checkPptxPlaceholderQuery } from "./pptx-placeholder.js";
+export {
+  pptxPlaceholderTypes,
+  type PptxPlaceholder,
+  type PptxPlaceholderType,
+} from "./pptx-placeholder.js";
 export {
   checkPptxShow,
   type PptxShowAction,
@@ -395,6 +401,7 @@ export function pptxQuery(value: unknown): PptxQuery {
   let units = 0;
   for (const item of query.objects) {
     const object = record(item);
+    checkPptxPlaceholderQuery(object.placeholder);
     imageInsets(object.imageInsets);
     if (typeof object.imageInsetsReason !== "string")
       throw new Error("Invalid image destination reason");

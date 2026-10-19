@@ -1,6 +1,8 @@
 ///|
 pub(all) enum ObjectEdit {
   Insert(String, Double, Double, Double, Double, String)
+  InsertPlaceholder(String, Double, Double, Double, Double, String)
+  Placeholder(String?, Double)
   InsertImage(Bytes, Double, Double, Double, Double)
   InsertTable(Int, Int, Double, Double, Double, Double)
   TableStructure(String)
@@ -440,6 +442,26 @@ pub fn Session::edit_objects(
       result
     }
     Ungroup => self.ungroup_changes()
+    Placeholder(kind, index) =>
+      (self.placeholder_changes(kind, index), self.selection)
+    InsertPlaceholder(kind, x, y, width, height, text) => {
+      let id = self.next_object_identity()
+      let changes = self.insert_placeholder_changes(
+        id, kind, x, y, width, height, text,
+      )
+      issued = Some(id)
+      (
+        changes,
+        {
+          ..self.selection,
+          object: original.tree.part + "#" + id,
+          objects: [original.tree.part + "#" + id],
+          mode: "object",
+          anchor: 0,
+          focus: 0,
+        },
+      )
+    }
     Insert(kind, x, y, width, height, text) => {
       guard (kind == "text" || supported_shape(kind)) &&
         @xml.valid_text(text) &&

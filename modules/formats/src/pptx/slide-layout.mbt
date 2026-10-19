@@ -154,9 +154,7 @@ fn layout_placeholder_markup(
 ) -> String raise @failure.Failure {
   guard source.node.name == "sp" &&
     placeholder(source) is Some(ph) &&
-    [
-      "title", "ctrTitle", "body", "subTitle", "obj", "dt", "ftr", "hdr", "sldNum",
-    ].contains(ph.0) else {
+    placeholder_type(ph.0) else {
     @failure.reject(
       "protected-content", "This layout placeholder requires content or field insertion support",
     )
@@ -374,26 +372,7 @@ fn Session::apply_layout(
   let parts = self.parts.copy()
   let edits : Array[(String, @xml.Edit)] = []
   if current != Some(id) {
-    let path = relationship_part(tree.part)
-    let relations = parts.get(path).unwrap_or_else(() => self.opc.xml(path))
-    let links = relations
-      .nodes()
-      .filter(node => {
-        node.attribute("Type") == Some(relationship_uri + "/slideLayout")
-      })
-    guard links is [link] else {
-      @failure.reject("malformed-pptx", "Invalid slide layout relationship")
-    }
-    let relation_tree = Tree::new(path, relations)
-    let (relations, edit) = relations.edit_source([
-      attribute_change(
-        { tree: relation_tree, node: link, },
-        "Target",
-        xml_attribute("/" + id),
-      ),
-    ])
-    parts[path] = relations
-    edits.push((path, edit))
+    self.change_layout_relationship(tree.part, id, parts, edits)
   }
   let document = if changes.is_empty() {
     tree.document
