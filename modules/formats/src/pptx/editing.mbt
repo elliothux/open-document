@@ -15,7 +15,12 @@ fn Session::prepare(
     parts=self.parts,
   )
   self.validate(candidate)
-  (candidate.group_bounds(candidate.changed_group_members(slide)), edit)
+  (
+    candidate
+    .group_bounds(candidate.changed_group_members(slide))
+    .connector_bounds(slide),
+    edit,
+  )
 }
 
 ///|
@@ -146,7 +151,13 @@ fn Session::commit_slides(
     if edit is Some(edit) {
       edits.push((slide.tree.part, edit))
     }
-    bounded
+    let (connected, edit) = self.normalize_connectors(
+      bounded, main, index, parts,
+    )
+    if edit is Some(edit) {
+      edits.push((slide.tree.part, edit))
+    }
+    connected
   })
   guard self.revision < 2147483647 else {
     @failure.reject("limit-exceeded", "Presentation revision exhausted")
@@ -476,10 +487,12 @@ pub fn Session::begin(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   self.check_idle()
-  guard ["text", "transform"].contains(kind) else {
+  guard ["text", "transform", "connector"].contains(kind) else {
     @failure.reject("invalid-operation", "Unknown gesture kind")
   }
-  if kind == "transform" {
+  if kind == "connector" {
+    ignore(self.connector_for_gesture())
+  } else if kind == "transform" {
     ignore(self.transform_objects(action="transform"))
   } else {
     ignore(self.editable(true))
@@ -622,86 +635,11 @@ pub fn Session::transform(
         )
       }),
     )
+    .connector_bounds(original)
   ignore(self.tile_sizes(preview))
   self.candidate = Some({ ..candidate, slide: preview, })
   self.view = None
   self.query()
-}
-
-///|
-fn native_transform_changes(
-  object : Object,
-  geometry : Geometry,
-) -> Array[@xml.SourceChange] raise @failure.Failure {
-  if object.table is Some(_) {
-    return table_transform_changes(object, geometry)
-  }
-  let properties = object.source
-    .child(
-      if object.kind == "group" {
-        "grpSpPr"
-      } else {
-        "spPr"
-      },
-      uri=presentation_uri,
-    )
-    .unwrap_or_error(
-      @failure.Failure(
-        code="protected-content",
-        part=object.source.tree.part,
-        offset=-1,
-        message="Missing editable shape properties",
-      ),
-    )
-  let transform = properties.child("xfrm")
-  let changes : Array[@xml.SourceChange] = []
-  let off = "<a:off xmlns:a=\"\{drawing_uri}\" x=\"\{(geometry.x * 12700).round().to_int64()}\" y=\"\{(geometry.y * 12700).round().to_int64()}\"/>"
-  let ext = "<a:ext xmlns:a=\"\{drawing_uri}\" cx=\"\{(geometry.width * 12700).round().to_int64()}\" cy=\"\{(geometry.height * 12700).round().to_int64()}\"/>"
-  if transform is Some(transform) {
-    let missing = StringBuilder()
-    for (name, xml) in [("off", off), ("ext", ext)] {
-      if transform.child(name) is Some(item) {
-        for
-          (key, value) in (if name == "off" {
-            [("x", geometry.x), ("y", geometry.y)]
-          } else {
-            [("cx", geometry.width), ("cy", geometry.height)]
-          }) {
-          let attr = item.node.attributes
-            .iter()
-            .find_first(attr => attr.uri.is_empty() && attr.name == key)
-          guard attr is Some(attr) else {
-            @failure.reject("malformed-pptx", "Incomplete transform attribute")
-          }
-          changes.push({
-            node: item.node.id,
-            offset: attr.start - item.node.start,
-            length: attr.end - attr.start,
-            xml: (value * 12700).round().to_int64().to_string(),
-          })
-        }
-      } else {
-        missing.write_string(xml)
-      }
-    }
-    if !missing.to_string().is_empty() {
-      changes.push(insertion(transform.node, missing.to_string()))
-    }
-  } else {
-    let xml = "<a:xfrm xmlns:a=\"\{drawing_uri}\" rot=\"\{(geometry.rotation * 60000).round().to_int64()}\" flipH=\"\{if geometry.flip_x { 1 } else { 0 }}\" flipV=\"\{if geometry.flip_y { 1 } else { 0 }}\">\{off}\{ext}</a:xfrm>"
-    // xfrm is the first spPr child, before geometry and paint declarations.
-    if properties.node.empty {
-      changes.push(insertion(properties.node, xml))
-    } else {
-      changes.push({
-        node: properties.node.id,
-        offset: properties.node.opening_end - properties.node.start,
-        length: 0,
-        xml,
-      })
-    }
-  }
-  changes
 }
 
 ///|
@@ -712,8 +650,9 @@ pub fn Session::drag(
   dx : Double,
   dy : Double,
   handle : Int,
+  tolerance~ : Double = 0,
 ) -> Json raise @failure.Failure {
-  ignore(self.gesture(revision, id))
+  let candidate = self.gesture(revision, id)
   guard !dx.is_nan() &&
     !dx.is_inf() &&
     !dy.is_nan() &&
@@ -721,8 +660,18 @@ pub fn Session::drag(
     dx.abs() <= 14400 &&
     dy.abs() <= 14400 &&
     handle >= 0 &&
-    handle <= 4 else {
+    handle <= 4 &&
+    !tolerance.is_nan() &&
+    !tolerance.is_inf() &&
+    tolerance >= 0 &&
+    tolerance <= 64 else {
     @failure.reject("invalid-transform", "Invalid drag delta or handle")
+  }
+  if candidate.kind == "connector" {
+    return self.drag_connector(candidate, dx, dy, handle, tolerance)
+  }
+  guard candidate.kind == "transform" else {
+    @failure.reject("invalid-operation", "Not an object drag gesture")
   }
   let object = self
     .source_slide(self.selection.slide)

@@ -323,6 +323,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
         "tableFillReason": self.table_fill_reason(object),
         "hyperlink": self.hyperlink_query(object, links),
         "shapeAdjustments": self.shape_adjustments(object),
+        "connector": self.connector_query(object),
         "placeholder": self.placeholder_query(object),
         "imageInsets": object.insets,
         "imageInsetsReason": self.image_insets_reason(object),

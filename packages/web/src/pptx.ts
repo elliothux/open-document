@@ -31,6 +31,8 @@ export type {
   PptxThemeFont,
   PptxThemeSlot,
   PptxObjectEdit,
+  PptxConnectorEnd,
+  PptxConnector,
   PptxHyperlink,
   PptxDash,
   PptxCap,

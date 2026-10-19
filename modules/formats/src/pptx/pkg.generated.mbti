@@ -24,6 +24,16 @@ pub fn BackgroundFill::to_json(Self) -> Json
 pub fn BackgroundFill::to_repr(Self) -> @debug.Repr
 pub impl ToJson for BackgroundFill
 
+pub(all) struct ConnectorEnd {
+  x : Double
+  y : Double
+  target : String
+  site : Int
+} derive(Eq, ToJson)
+pub fn ConnectorEnd::equal(Self, Self) -> Bool
+pub fn ConnectorEnd::not_equal(Self, Self) -> Bool
+pub fn ConnectorEnd::to_json(Self) -> Json
+
 pub(all) struct CustomShow {
   id : String
   name : String
@@ -83,6 +93,8 @@ pub fn ListFormat::equal(Self, Self) -> Bool
 pub fn ListFormat::not_equal(Self, Self) -> Bool
 
 pub(all) enum ObjectEdit {
+  InsertConnector(ConnectorEnd, ConnectorEnd)
+  ConnectorEndpoints(ConnectorEnd, ConnectorEnd)
   Insert(String, Double, Double, Double, Double, String)
   InsertPlaceholder(String, Double, Double, Double, Double, String)
   Placeholder(String?, Double)
@@ -169,7 +181,7 @@ pub fn Session::control_show(Self, Int, String, String, Double, custom? : String
 pub fn Session::copy(Self, Int) -> String raise @failure.Failure
 pub fn Session::create(@archive.Budget, date_time? : String) -> Self raise @failure.Failure
 pub fn Session::delete(Self, Int, Bool, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
-pub fn Session::drag(Self, Int, Int, Double, Double, Int) -> Json raise @failure.Failure
+pub fn Session::drag(Self, Int, Int, Double, Double, Int, tolerance? : Double) -> Json raise @failure.Failure
 pub fn Session::edit_objects(Self, Int, ObjectEdit, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::edit_slides(Self, Int, String, SlideEdit, probe? : @layout.TextProbe, profile? : Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::find(Self, Int, String, String, FindOptions) -> Json raise @failure.Failure

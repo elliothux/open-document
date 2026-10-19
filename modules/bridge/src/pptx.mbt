@@ -515,6 +515,7 @@ fn Foundation::pptx_operation(
             )
           }
         }
+        "insertConnector" | "connectorEndpoints" => pptx_connector_edit(change)
         "shapeAdjustment" =>
           @pptx.ShapeAdjustment(
             field_string(change, "name"),
@@ -682,6 +683,11 @@ fn Foundation::pptx_operation(
         xlsx_number(request, "dx"),
         xlsx_number(request, "dy"),
         field_int(request, "handle"),
+        tolerance=if request is Object(fields) && fields.contains("tolerance") {
+          xlsx_number(request, "tolerance")
+        } else {
+          0
+        },
       )
     "finishPptx" =>
       session.finish(

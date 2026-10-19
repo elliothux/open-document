@@ -6,6 +6,8 @@ import {
   type PptxShowState,
   type PptxShowLayout,
 } from "./pptx-show.js";
+import { checkPptxConnectorQuery } from "./pptx-connectors.js";
+export type { PptxConnectorEnd, PptxConnector } from "./pptx-connectors.js";
 import { checkPptxPlaceholderQuery } from "./pptx-placeholder.js";
 export {
   pptxPlaceholderTypes,
@@ -267,7 +269,11 @@ export type PptxCommand =
         "next" | "previous" | "left" | "right" | "up" | "down" | "home" | "end";
       extend: boolean;
     }
-  | { operation: "beginPptx"; revision: number; kind: "text" | "transform" }
+  | {
+      operation: "beginPptx";
+      revision: number;
+      kind: "text" | "transform" | "connector";
+    }
   | ({
       operation: "transformPptx";
       revision: number;
@@ -280,6 +286,7 @@ export type PptxCommand =
       dx: number;
       dy: number;
       handle: number;
+      tolerance?: number;
     }
   | {
       operation: "finishPptx";
@@ -408,6 +415,7 @@ export function pptxQuery(value: unknown): PptxQuery {
   for (const item of query.objects) {
     const object = record(item);
     checkPptxPlaceholderQuery(object.placeholder);
+    checkPptxConnectorQuery(object.connector);
     imageInsets(object.imageInsets);
     if (typeof object.imageInsetsReason !== "string")
       throw new Error("Invalid image destination reason");

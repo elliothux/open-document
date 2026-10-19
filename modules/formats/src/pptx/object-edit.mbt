@@ -1,5 +1,7 @@
 ///|
 pub(all) enum ObjectEdit {
+  InsertConnector(ConnectorEnd, ConnectorEnd)
+  ConnectorEndpoints(ConnectorEnd, ConnectorEnd)
   Insert(String, Double, Double, Double, Double, String)
   InsertPlaceholder(String, Double, Double, Double, Double, String)
   Placeholder(String?, Double)
@@ -110,7 +112,7 @@ fn Session::object_edit_reason(
     let grouped = !object.parent.is_empty() &&
       [
         "transform", "rotate", "flip", "arrange", "duplicate", "delete", "group",
-        "ungroup",
+        "ungroup", "endpoints",
       ].contains(action)
     if !object.read_only.is_empty() &&
       !(grouped && object.read_only == "Group members are read-only") {
@@ -135,6 +137,19 @@ fn Session::object_edit_reason(
     if !slide.read_only.is_empty() {
       return slide.read_only
     }
+    if ["transform", "rotate", "flip", "arrange"].contains(action) {
+      for connector in slide.objects {
+        if connector.source.node.name != "cxnSp" {
+          continue
+        }
+        let linked = connector.connector_targets().contains(object.id)
+        if linked &&
+          !["", "Group members are read-only"].contains(connector.read_only) {
+          return "A protected connector prevents moving its target: " +
+            connector.read_only
+        }
+      }
+    }
     if grouped {
       let mut root = slide.object(object.parent)
       while !root.parent.is_empty() {
@@ -150,7 +165,35 @@ fn Session::object_edit_reason(
         return "Unknown group members prevent bounds normalization"
       }
     }
-    guard (["sp", "pic", "grpSp"].contains(object.source.node.name) || table) &&
+    if object.source.node.name == "cxnSp" {
+      if ["group", "duplicate"].contains(action) &&
+        object
+        .connector_targets()
+        .any(id => !self.selection.objects.contains(id)) {
+        return "Select the connector and all its linked targets together"
+      }
+      ignore(object.connector_properties())
+      let (start, end) = object.connector_ends()
+      if ["transform", "rotate", "flip", "arrange"].contains(action) &&
+        (!start.target.is_empty() || !end.target.is_empty()) {
+        return "Edit connected endpoints or disconnect them before transforming this connector"
+      }
+      if action == "endpoints" &&
+        object.source.tree.document
+        .nodes()
+        .any(node => {
+          node.start >= object.source.node.start &&
+          node.end <= object.source.node.end &&
+          node.name == "cxnSpLocks" &&
+          flag(node, "noEditPoints")
+        }) {
+        return "Connector endpoint editing is locked"
+      }
+    }
+    guard (
+        ["sp", "pic", "grpSp", "cxnSp"].contains(object.source.node.name) ||
+        table
+      ) &&
       (grouped || object.source.node.parent == shape_tree(slide.tree).id) else {
       return "This operation requires local top-level shapes and pictures"
     }
@@ -305,6 +348,12 @@ pub fn Session::edit_objects(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   self.check_idle()
+  if change is InsertConnector(start, end) {
+    return self.edit_connector(start, end, true)
+  }
+  if change is ConnectorEndpoints(start, end) {
+    return self.edit_connector(start, end, false)
+  }
   let original = self.current()
   guard original.read_only.is_empty() else {
     @failure.reject("protected-content", original.read_only)
@@ -406,7 +455,9 @@ pub fn Session::edit_objects(
   }
   let mut issued : String? = None
   let (changes, after) = match change {
-    InsertImage(_, _, _, _, _)
+    InsertConnector(_, _)
+    | ConnectorEndpoints(_, _)
+    | InsertImage(_, _, _, _, _)
     | InsertTable(_, _, _, _, _, _)
     | FillTable(_, _)
     | TableStructure(_)

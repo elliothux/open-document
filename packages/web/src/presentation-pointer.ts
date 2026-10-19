@@ -1,11 +1,41 @@
-import type { PptxPoint } from "@open-document/wasm/pptx";
+import type {
+  PptxPoint,
+  PptxGeometry,
+  PptxQuery,
+} from "@open-document/wasm/pptx";
 
 export interface PresentationGesture {
   start: PptxPoint;
-  text: boolean;
+  kind: "text" | "transform" | "connector";
   anchor: number;
   handle: number;
   token?: { revision: number; id: number };
+}
+
+export function presentationHandle(
+  geometry: PptxGeometry | undefined,
+  state: PptxQuery,
+  point: PptxPoint,
+  scale: number,
+): number {
+  if (state.selection.mode !== "object") return 0;
+  let handle = 0;
+  for (const [index, position] of (geometry?.handles ?? []).entries())
+    if (Math.hypot(point.x - position.x, point.y - position.y) <= 6 / scale)
+      handle = index + 1;
+  return handle;
+}
+
+export function presentationGestureKind(
+  state: PptxQuery,
+  handle: number,
+): PresentationGesture["kind"] {
+  if (state.selection.mode === "text") return "text";
+  return handle &&
+    state.selection.objects.length === 1 &&
+    state.objects.find((o) => o.id === state.selection.object)?.connector
+    ? "connector"
+    : "transform";
 }
 
 export interface PresentationPointerHost {

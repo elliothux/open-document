@@ -325,6 +325,14 @@ pub fn Session::selection_geometry(
     "outline": outline,
     "outlines": outlines,
     "handles": if selection.mode == "object" &&
+      selection.objects.length() == 1 &&
+      slide.object(selection.object).source.node.name == "cxnSp" &&
+      self
+      .object_edit_reason(slide.object(selection.object), "endpoints")
+      .is_empty() {
+      let (start, end) = slide.object(selection.object).connector_ends()
+      [{ "x": start.x, "y": start.y }, { "x": end.x, "y": end.y }]
+    } else if selection.mode == "object" &&
       same_parent &&
       selection.objects.all(id => {
         let object = slide.object(id)

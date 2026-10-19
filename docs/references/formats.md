@@ -1797,11 +1797,11 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 组内组合先在父组方向计算包围盒，再按累计父组缩放写入原生 `off/ext` 和成员局部框；新组的 `chOff=0`、`chExt=ext`。父组保持身份、元数据及关系。取消组合把直接成员提升一级，转换到被移除组原父容器的坐标，不把嵌套成员直接提升到页面。两者保持成员页面位置、尺寸和方向，误差限于整数 EMU；组内成员集合变化与现有祖先边界重算合为一项历史。支持形状、图片和子组，混合父组及继承内容继续保护。
 
-祖先进入/几何锁、`noGrp/noUngrp`、成员锁、未知扩展、分组所涉连接/计时引用及取消组合所移除组的链接或引用继续整项拒绝。展开选择最多 256 个直接成员；几何、字体、源/输出及历史预算失败不提交任何源，也不消耗新组身份。默认按钮使用现有 `groupReason/ungroupReason`。共享坐标提升归 [`group-geometry.mbt`](../../modules/formats/src/pptx/group-geometry.mbt)，保留原矩阵正交校验；删除的单成员提升共用它。分组框和局部坐标参考 [ONLYOFFICE getBoundsForGroup/getGroup](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L6945-L7006)，取消组合参考下文。
+祖先进入/几何锁、`noGrp/noUngrp`、成员锁、未知扩展、拆散连接关系的分组、计时引用及取消组合所移除组的链接或引用继续整项拒绝。展开选择最多 256 个直接成员；几何、字体、源/输出及历史预算失败不提交任何源，也不消耗新组身份。默认按钮使用现有 `groupReason/ungroupReason`。共享坐标提升归 [`group-geometry.mbt`](../../modules/formats/src/pptx/group-geometry.mbt)，保留原矩阵正交校验；删除的单成员提升共用它。分组框和局部坐标参考 [ONLYOFFICE getBoundsForGroup/getGroup](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L6945-L7006)，取消组合参考下文。
 
 尺寸归一遵循 [ONLYOFFICE 组合缩放系数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L568-L607)及[成员 normalize](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicObjectBase.js#L629-L664)，取消组合参考 [unGroupCallback](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L7045-L7108)。核心已检查非等比嵌套、旋转/翻转、预览与提交一致、取消、文字/线宽、精确历史及重开；Chromium 已检查取消组合前后 Canvas 画面、独立同字号文本的 PDF 字形边界、XML、非目标部件、历史和重开后原生输入。
 
-`PptxQuery.groupReason/ungroupReason` 返回当前选择的保护原因，默认 UI 用它禁用按钮。继承占位符、未知组效果/扩展、成员锁定、`noGrp/noUngrp`、组合所涉连接/计时引用和取消组合所移除组的引用继续保护。操作只改所属 slide XML，保留其他部件及资源；一次提交一项有界历史，撤销恢复原源与选择，失败不消耗新身份或提交部分成员。
+`PptxQuery.groupReason/ungroupReason` 返回当前选择的保护原因，默认 UI 用它禁用按钮。继承占位符、未知组效果/扩展、成员锁定、`noGrp/noUngrp`、拆散连接关系的组合、计时引用和取消组合所移除组的引用继续保护。操作只改所属 slide XML，保留其他部件及资源；一次提交一项有界历史，撤销恢复原源与选择，失败不消耗新身份或提交部分成员。
 
 组内形状文字沿现有 `selectPptx`、`replacePptx`、格式、链接和查找替换命令编辑。`parent` 保留直接父组，`textReadOnlyReason` 独立于成员对象的 `readOnlyReason`；成员移动、缩放、旋转和翻转沿下文几何入口；复制、删除、层次及对齐复用下文同组事务，成员外观沿原属性命令编辑。`hitPptx` 的可选 `text: true` 返回最上层可编辑的文字成员及核心光标位置；普通命中仍返回顶层组，前方图片、形状或未知对象继续遮挡后方文字。核心使用累计组矩阵计算光标及选区，不在 Web 中反算文字坐标。
 
@@ -1879,7 +1879,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 尺寸使用有效线宽的 2/3/5 倍，细线以 1.875 pt 为最低基准。该值将上游的 2.5 px 最小尺寸固定到源坐标，预览缩放与 DPR 不改变 PDF 几何。三角、凹尾和开放箭头朝外，菱形与椭圆以端点为中心；端点沿直线方向、旋转、翻转和既有组矩阵绘制。轮廓参与核心命中，使用边框颜色和不透明度，保持主体虚线而以实线绘制端点。Canvas/PDF 复用相同路径。零长度线不派生端点轮廓，保留原源。
 
-导入读取局部、版式/母版及主题声明，缺省为无端点和中尺寸。编辑只替换指定节点，保留线宽、颜色、几何、文字、身份及其他部件；多选共享原子事务、精确历史和保存重开。重复直接值不增加历史。`noChangeArrowheads` 锁、只读/继承/组内对象、未知类型/尺寸/属性/子节点、重复声明、端点内注释及预算失败继续保护。连接线吸附和目标联动仍待实现。尺寸参考 [ONLYOFFICE EndArrow](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L7331-L7400)，轮廓参考 [DrawLineEnd](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L51-L500)；未复制上游源码。实现归 [`line-end.mbt`](../../modules/formats/src/pptx/line-end.mbt)、[`line-end-edit.mbt`](../../modules/formats/src/pptx/line-end-edit.mbt)及 [`pptx-line-ends.tsx`](../../packages/ui/src/pptx-line-ends.tsx)。
+导入读取局部、版式/母版及主题声明，缺省为无端点和中尺寸。编辑只替换指定节点，保留线宽、颜色、几何、文字、身份及其他部件；多选共享原子事务、精确历史和保存重开。重复直接值不增加历史。`noChangeArrowheads` 锁、只读/继承/组内对象、未知类型/尺寸/属性/子节点、重复声明、端点内注释及预算失败继续保护。连接线端点拖动及目标联动见[直线连接线](#直线连接线)。尺寸参考 [ONLYOFFICE EndArrow](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L7331-L7400)，轮廓参考 [DrawLineEnd](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L51-L500)；未复制上游源码。实现归 [`line-end.mbt`](../../modules/formats/src/pptx/line-end.mbt)、[`line-end-edit.mbt`](../../modules/formats/src/pptx/line-end-edit.mbt)及 [`pptx-line-ends.tsx`](../../packages/ui/src/pptx-line-ends.tsx)。
 
 主题颜色支持 sRGB、带 `lastClr` 的系统色、主题/颜色映射以及 tint、shade、lumMod、lumOff。支持无填充、纯色填充、实线及标准预设虚线、主题填充/边框/背景引用和无效果样式。未知颜色变换、填充或可见效果保留源并诊断，不静默宣称完整。占位符依类型/索引匹配，当前属性按具体声明覆盖继承值；写回不修改共享主题、母版或版式。
 
@@ -1958,6 +1958,20 @@ list 使用 `PptxListFormat`：`{ kind: "none" }`、`{ kind: "bullet", value }` 
 | 历史 / 宿主队列 | undo+redo 共 100 项、4 MiB 源补丁 payload；编辑与指针意图队列各 64 项，指针预览只保留待发送末次坐标 |
 
 P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增量创作能力与剩余范围归 [P12](../p12-pptx-core.md)。Chromium 受控输入事件已验证；没有追加系统输入源、Windows/PowerPoint、VoiceOver、其他浏览器或性能验收。
+
+### 直线连接线
+
+`PresentationEditor.editObjects({ action: "insertConnector", start, end })` 创建原生 `p:cxnSp` / `straightConnector1`。`connectorEndpoints` 用相同两端参数修改唯一选中的连接线。MoonBit 使用 `ConnectorEnd`，Wasm/Web 导出 `PptxConnectorEnd`：`{ x, y, target, site }`。坐标使用磅；`target=""` 表示自由端点，`site` 必须为 0。创建时连接线及目标位于顶层。编辑时 `target` 须属于同一源部件、同一直接父容器；坐标由目标的原生连接点计算，输入坐标仍须有限且有界。自由端点与查询端点始终使用页面坐标。
+
+矩形、圆角矩形及矩形图片支持 0 上、1 左、2 下、3 右。椭圆支持 0 上、1 左上、2 左、3 左下、4 下、5 右下、6 右、7 右上。连接点经过目标的旋转和翻转矩阵，再量化为整数 EMU。目标移动、独立宽高缩放、旋转、翻转和框适配时，同一事务更新连接线的 `xfrm`，保留 `stCxn/endCxn` 引用。变换候选使用相同规则，取消不写源。母版和版式沿源视图编辑，普通页继续保护继承对象。
+
+`PptxObject.connector` 对连接线返回 `{ start, end, reason }`，其他对象为 `null`。无法解析端点时返回两个 `null` 及保护原因。默认面板可创建连接线，选择两端的对象和命名连接点，修改自由坐标或断开连接。线宽、颜色、虚线、装饰及 Canvas/PDF 路径复用既有直线实现。端点写入和目标联动各随本次编辑形成一项历史，保存重开后保留原生连接关系。
+
+单选受支持连接线时，`selectionPptx.handles` 按起点、终点返回两个实际页面坐标。默认画布可直接拖动这两个手柄；`beginPptx` 使用 `kind="connector"`，`dragPptx` 的 `handle=1/2` 对应起点/终点，`dx/dy` 始终相对手势起始端点，另一端保持。可选 `tolerance` 为 0–64 pt，缺省 0 表示不吸附；默认宿主按当前预览比例换算 6 CSS px，不乘 DPR。核心按上层对象优先、原生连接点索引顺序寻找半径内的同一直接父容器中的本地受支持目标，沿用上述旋转/翻转和 EMU 量化。离开连接点范围后，该端变为自由端点。候选只更新临时页，释放时写回端点及连接关系并提交一项历史，返回起始状态不增加历史；Escape、指针取消及丢失捕获沿原候选取消路径恢复。旧 revision/候选、错误手柄、越界、退化为零长度、锁定和输出预算失败保持最后有效候选与已提交源。
+
+有连接的线通过画布端点或面板修改，直接变换继续保护。连接线与全部引用目标同时选择时可组合或复制；整个组可复制，副本的原生引用映射到副本目标。同一直接父容器中的闭合图形支持组内端点编辑/吸附、成员移动/旋转、组缩放/旋转/翻转、嵌套及取消/再次组合。核心逆变换页面端点并写整数 EMU，复用既有组边界归一化，候选与提交保持一致。重复原生端点及连接关系不增加历史。默认列表选择连接线时进入对象模式。拆散引用的组合/复制、仍被外部引用的目标删除、跨父容器连接、折线/曲线及其他预设连接点继续保护。未知连接元数据、非整数或越界索引、失去目标、锁定和输出预算失败保留源与历史；受保护连接线也阻止其目标发生无法写回的几何变化。沿用对象数量、坐标、XML、历史和输出预算。
+
+实现归 [`connector.mbt`](../../modules/formats/src/pptx/connector.mbt)、[`connector-edit.mbt`](../../modules/formats/src/pptx/connector-edit.mbt)、[`connector-gesture.mbt`](../../modules/formats/src/pptx/connector-gesture.mbt)及 [`pptx-connectors.tsx`](../../packages/ui/src/pptx-connectors.tsx)。吸附规则参考 [ONLYOFFICE ResizeTrackShapeImage](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L370-L450)及 [Geometry.findConnector](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Geometry.js#L1174-L1187)。组内连接重算及父组逆变换参考 [ONLYOFFICE CnxShape](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CnxShape.js#L624-L684)。原生点顺序参考 ONLYOFFICE `CreateGeometry` 的[矩形](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L6741)、[椭圆](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L3100)、[圆角矩形](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L7195)和[直线连接线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L8272)，未复制上游执行代码。
 
 ### 对象超链接
 

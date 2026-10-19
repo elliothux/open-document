@@ -1,0 +1,147 @@
+import type {
+  PptxPlaceholder,
+  PptxPlaceholderType,
+} from "./pptx-placeholder.js";
+import type { PptxTableStyle } from "./pptx-table-style.js";
+import type { PptxTextFormat, PptxParagraphFormat } from "./pptx-format.js";
+import type { PptxBackgroundFill } from "./pptx-slides.js";
+import type {
+  PptxHyperlink,
+  PptxCap,
+  PptxDash,
+  PptxLineEnd,
+  PptxTable,
+} from "./pptx-objects.js";
+import type { PptxConnectorEnd } from "./pptx-connectors.js";
+export type PptxObjectEdit =
+  | {
+      action: "insertConnector" | "connectorEndpoints";
+      start: PptxConnectorEnd;
+      end: PptxConnectorEnd;
+    }
+  | {
+      action: "placeholder";
+      value: PptxPlaceholder | null;
+    }
+  | {
+      action: "insertPlaceholder";
+      type: PptxPlaceholderType;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      text: string;
+    }
+  | { action: "tableStyle"; style: PptxTableStyle }
+  | { action: "tableRowHeight" | "tableColumnWidth"; value: number }
+  | { action: "splitTableCell"; rows: number; columns: number }
+  | { action: "fillTable"; rows: number; columns: number }
+  | { action: "tableStructure"; operation: keyof PptxTable["operations"] }
+  | {
+      action: "insertTable";
+      rows: number;
+      columns: number;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }
+  | {
+      action: "imageFill";
+      objects: readonly string[];
+      bytes: Uint8Array;
+      mode: "stretch" | "tile";
+    }
+  | { action: "imageFillMode"; mode: "stretch" | "tile" }
+  | { action: "imageMode"; mode: "stretch" | "tile" }
+  | { action: "imageInsets"; insets: [number, number, number, number] }
+  | { action: "lineEnd"; side: "head" | "tail"; end: PptxLineEnd | null }
+  | { action: "hyperlink"; link: PptxHyperlink | null }
+  | {
+      action: "shapeAdjustment";
+      name: "adj" | "adj1" | "adj2";
+      value: number | null;
+    }
+  | { action: "fillOpacity" | "strokeOpacity"; opacity: number }
+  | { action: "strokeCap"; cap: PptxCap | null }
+  | { action: "strokeJoin"; join: "round" | "bevel" | null }
+  | { action: "strokeJoin"; join: "miter"; miterLimit: number }
+  | { action: "strokeDash"; dash: PptxDash | null }
+  | { action: "imageOpacity"; opacity: number }
+  | { action: "replaceImage"; object: string; bytes: Uint8Array }
+  | {
+      action: "imageCrop";
+      left: number;
+      top: number;
+      right: number;
+      bottom: number;
+    }
+  | {
+      action: "insertImage";
+      bytes: Uint8Array;
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    }
+  | {
+      action: "insert";
+      kind:
+        | "text"
+        | "rect"
+        | "roundRect"
+        | "ellipse"
+        | "triangle"
+        | "rtTriangle"
+        | "diamond"
+        | "parallelogram"
+        | "trapezoid"
+        | "line"
+        | "leftArrow"
+        | "rightArrow"
+        | "upArrow"
+        | "downArrow";
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      text: string;
+    }
+  | { action: "delete" }
+  | { action: "clearTextFormat" | "clearParagraphFormat" }
+  | { action: "textFormat"; format: PptxTextFormat }
+  | { action: "textParagraph"; format: PptxParagraphFormat }
+  | { action: "textAlign"; alignment: "left" | "center" | "right" | "justify" }
+  | { action: "fill"; color: string | null }
+  | {
+      action: "gradientFill";
+      stops: Extract<PptxBackgroundFill, { kind: "linear" }>["stops"];
+      angle: number;
+      scaled: boolean;
+    }
+  | { action: "stroke"; color: string | null; width: number }
+  | {
+      action: "textInsets";
+      left: number;
+      top: number;
+      right: number;
+      bottom: number;
+    }
+  | { action: "textAnchor"; anchor: "t" | "ctr" | "b" }
+  | { action: "textWrap"; wrap: boolean }
+  | { action: "textFit"; fit: "none" | "shrink" | "resize" }
+  | { action: "group" | "ungroup" }
+  | { action: "duplicate"; dx: number; dy: number }
+  | { action: "rotate"; angle: number }
+  | { action: "flip"; axis: "horizontal" | "vertical" }
+  | { action: "layer"; order: "front" | "back" | "forward" | "backward" }
+  | {
+      action: "align";
+      alignment: "left" | "center" | "right" | "top" | "middle" | "bottom";
+      relativeTo: "slide" | "selection" | "active";
+    }
+  | {
+      action: "distribute";
+      axis: "horizontal" | "vertical";
+      relativeTo: "slide" | "selection";
+    };

@@ -1,3 +1,4 @@
+import { connectorZh } from "./messages-pptx-connectors.js";
 import { viewZh } from "./messages-pptx-view.js";
 import { filterZh } from "./messages-filter.js";
 import { outputZh } from "./messages-output.js";
@@ -11,6 +12,7 @@ import { tableZh } from "./messages-xlsx-tables.js";
 import { clipboardZh } from "./messages-clipboard.js";
 
 export const zh: Messages = {
+  ...connectorZh,
   ...viewZh,
   ...clipboardZh,
   ...tableZh,

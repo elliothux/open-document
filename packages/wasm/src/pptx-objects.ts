@@ -1,15 +1,10 @@
+import { checkPptxConnectorEdit } from "./pptx-connectors.js";
 import { record } from "./validation.js";
-import {
-  pptxPlaceholder,
-  pptxPlaceholderTypes,
-  type PptxPlaceholder,
-  type PptxPlaceholderType,
-} from "./pptx-placeholder.js";
+import { pptxPlaceholder, pptxPlaceholderTypes } from "./pptx-placeholder.js";
 import { drawingMatrix } from "./drawing.js";
 import {
   checkPptxTableStyle,
   checkPptxTableStyleQuery,
-  type PptxTableStyle,
   type PptxTableStyleQuery,
 } from "./pptx-table-style.js";
 export type { PptxTableStyle } from "./pptx-table-style.js";
@@ -190,15 +185,10 @@ export function points(value: unknown, max = 4): void {
     number(p.y, -1e9, 1e9);
   }
 }
-import {
-  checkPptxBackgroundFill,
-  type PptxBackgroundFill,
-} from "./pptx-slides.js";
+import { checkPptxBackgroundFill } from "./pptx-slides.js";
 import {
   checkPptxTextFormat,
   checkPptxParagraphFormat,
-  type PptxTextFormat,
-  type PptxParagraphFormat,
 } from "./pptx-format.js";
 export const pptxDashes = [
   "solid",
@@ -304,133 +294,7 @@ export function pptxHyperlink(value: unknown): PptxHyperlink | null {
     throw new Error("Invalid PPTX hyperlink");
   return value as PptxHyperlink;
 }
-export type PptxObjectEdit =
-  | {
-      action: "placeholder";
-      value: PptxPlaceholder | null;
-    }
-  | {
-      action: "insertPlaceholder";
-      type: PptxPlaceholderType;
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      text: string;
-    }
-  | { action: "tableStyle"; style: PptxTableStyle }
-  | { action: "tableRowHeight" | "tableColumnWidth"; value: number }
-  | { action: "splitTableCell"; rows: number; columns: number }
-  | { action: "fillTable"; rows: number; columns: number }
-  | { action: "tableStructure"; operation: (typeof tableOperations)[number] }
-  | {
-      action: "insertTable";
-      rows: number;
-      columns: number;
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    }
-  | {
-      action: "imageFill";
-      objects: readonly string[];
-      bytes: Uint8Array;
-      mode: "stretch" | "tile";
-    }
-  | { action: "imageFillMode"; mode: "stretch" | "tile" }
-  | { action: "imageMode"; mode: "stretch" | "tile" }
-  | { action: "imageInsets"; insets: [number, number, number, number] }
-  | { action: "lineEnd"; side: "head" | "tail"; end: PptxLineEnd | null }
-  | { action: "hyperlink"; link: PptxHyperlink | null }
-  | {
-      action: "shapeAdjustment";
-      name: "adj" | "adj1" | "adj2";
-      value: number | null;
-    }
-  | { action: "fillOpacity" | "strokeOpacity"; opacity: number }
-  | { action: "strokeCap"; cap: PptxCap | null }
-  | { action: "strokeJoin"; join: "round" | "bevel" | null }
-  | { action: "strokeJoin"; join: "miter"; miterLimit: number }
-  | { action: "strokeDash"; dash: PptxDash | null }
-  | { action: "imageOpacity"; opacity: number }
-  | { action: "replaceImage"; object: string; bytes: Uint8Array }
-  | {
-      action: "imageCrop";
-      left: number;
-      top: number;
-      right: number;
-      bottom: number;
-    }
-  | {
-      action: "insertImage";
-      bytes: Uint8Array;
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-    }
-  | {
-      action: "insert";
-      kind:
-        | "text"
-        | "rect"
-        | "roundRect"
-        | "ellipse"
-        | "triangle"
-        | "rtTriangle"
-        | "diamond"
-        | "parallelogram"
-        | "trapezoid"
-        | "line"
-        | "leftArrow"
-        | "rightArrow"
-        | "upArrow"
-        | "downArrow";
-      x: number;
-      y: number;
-      width: number;
-      height: number;
-      text: string;
-    }
-  | { action: "delete" }
-  | { action: "clearTextFormat" | "clearParagraphFormat" }
-  | { action: "textFormat"; format: PptxTextFormat }
-  | { action: "textParagraph"; format: PptxParagraphFormat }
-  | { action: "textAlign"; alignment: "left" | "center" | "right" | "justify" }
-  | { action: "fill"; color: string | null }
-  | {
-      action: "gradientFill";
-      stops: Extract<PptxBackgroundFill, { kind: "linear" }>["stops"];
-      angle: number;
-      scaled: boolean;
-    }
-  | { action: "stroke"; color: string | null; width: number }
-  | {
-      action: "textInsets";
-      left: number;
-      top: number;
-      right: number;
-      bottom: number;
-    }
-  | { action: "textAnchor"; anchor: "t" | "ctr" | "b" }
-  | { action: "textWrap"; wrap: boolean }
-  | { action: "textFit"; fit: "none" | "shrink" | "resize" }
-  | { action: "group" | "ungroup" }
-  | { action: "duplicate"; dx: number; dy: number }
-  | { action: "rotate"; angle: number }
-  | { action: "flip"; axis: "horizontal" | "vertical" }
-  | { action: "layer"; order: "front" | "back" | "forward" | "backward" }
-  | {
-      action: "align";
-      alignment: "left" | "center" | "right" | "top" | "middle" | "bottom";
-      relativeTo: "slide" | "selection" | "active";
-    }
-  | {
-      action: "distribute";
-      axis: "horizontal" | "vertical";
-      relativeTo: "slide" | "selection";
-    };
+export type { PptxObjectEdit } from "./pptx-object-edit.js";
 
 export function number(value: unknown, low = 0, high = 0x7fffffff): number {
   if (
@@ -444,6 +308,13 @@ export function number(value: unknown, low = 0, high = 0x7fffffff): number {
 }
 export function checkPptxObjectEdit(value: unknown): void {
   const change = record(value);
+  if (
+    change.action === "insertConnector" ||
+    change.action === "connectorEndpoints"
+  ) {
+    checkPptxConnectorEdit(change);
+    return;
+  }
   if (change.action === "placeholder") {
     if (Object.keys(change).length !== 2)
       throw new Error("Invalid placeholder edit");

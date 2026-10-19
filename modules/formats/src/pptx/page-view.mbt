@@ -227,6 +227,15 @@ fn Session::commit_page(
     if normalized is Some(edit) {
       edits.push((slide.tree.part, edit))
     }
+    let (slide, normalized) = self.normalize_connectors(
+      slide,
+      self.main,
+      self.source_index(slide.tree.part),
+      parts,
+    )
+    if normalized is Some(edit) {
+      edits.push((slide.tree.part, edit))
+    }
     parts[slide.tree.part] = slide.tree.document
     if slide.tree.document.nodes()[0].name == "sldMaster" {
       self.reflow_master_layouts(

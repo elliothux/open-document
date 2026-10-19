@@ -75,7 +75,15 @@ fn Session::group_members(
           @failure.reject("protected-content", "Object grouping is locked")
         }
       } else {
-        // Grouping changes the coordinate owner; referenced timing/connectors need their own transaction.
+        // Native connector references move with their selected targets; timing references stay protected.
+        if node.uri == drawing_uri &&
+          ["stCxn", "endCxn"].contains(node.name) &&
+          objects.any(selected => {
+            selected.source.node.name == "cxnSp" &&
+            node.parent == selected.connector_properties().node.id
+          }) {
+          continue
+        }
         for attribute in node.attributes {
           if ["spid", "spId", "shapeId", "shapeIdRef"].contains(attribute.name) ||
             (["stCxn", "endCxn"].contains(node.name) && attribute.name == "id") {

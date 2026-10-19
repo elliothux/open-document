@@ -164,6 +164,7 @@ fn read_object(
   let mut read_only = reason
   let kind = match source.node.name {
     "sp" => "shape"
+    "cxnSp" => "shape"
     "pic" => "image"
     "grpSp" => "group"
     "graphicFrame" if source
@@ -173,9 +174,15 @@ fn read_object(
       is Some(_) => "table"
     _ => "unsupported"
   }
-  let preset = attribute(children(properties, "prstGeom"), "prst").unwrap_or(
+  let native_preset = attribute(children(properties, "prstGeom"), "prst").unwrap_or(
     "rect",
   )
+  let preset = if source.node.name == "cxnSp" &&
+    native_preset == "straightConnector1" {
+    "line"
+  } else {
+    native_preset
+  }
   let adjustments = read_shape_adjustments(
     children(properties, "prstGeom").get(0),
     preset,
@@ -385,7 +392,11 @@ fn read_object(
       .flatten()
     })
     .unwrap_or(plain_paragraphs)
-  text_reason = limitation
+  text_reason = if source.node.name == "cxnSp" {
+    "Connectors do not have editable text"
+  } else {
+    limitation
+  }
   let mut image = paint.13.map(value => value.0)
   let mut crop = paint.13.map(value => value.1).unwrap_or([0.0, 0.0, 0.0, 0.0])
   let mut opacity = paint.13.map(value => value.2).unwrap_or(1.0)

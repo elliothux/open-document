@@ -36,6 +36,16 @@ fn Session::reflow_master_layouts(
       parts[owner.tree.part] = owner.tree.document
       edits.push((owner.tree.part, edit))
     }
+    let (owner, normalized) = self.normalize_connectors(
+      owner,
+      self.main,
+      self.source_index(owner.tree.part),
+      parts,
+    )
+    if normalized is Some(edit) {
+      parts[owner.tree.part] = owner.tree.document
+      edits.push((owner.tree.part, edit))
+    }
     self.validate_slides(
       self.main,
       [owner],

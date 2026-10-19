@@ -195,6 +195,35 @@ fn read_slide(
     }
   }
   let mut read_only = ""
+  for index, object in objects {
+    if object.source.node.name == "cxnSp" &&
+      ["", "Group members are read-only"].contains(object.read_only) {
+      let problem = connector_problem(object, objects)
+      if !problem.is_empty() {
+        objects[index] = {
+          ..object,
+          read_only: problem,
+          diagnostic: problem,
+          text_reason: problem,
+        }
+      }
+    }
+  }
+  for index, object in objects {
+    if object.kind == "group" {
+      let issue = objects
+        .iter()
+        .find_first(child => {
+          child.source.tree.part == object.source.tree.part &&
+          child.source.node.start > object.source.node.start &&
+          child.source.node.end < object.source.node.end &&
+          !child.diagnostic.is_empty()
+        })
+      if issue is Some(issue) {
+        objects[index] = { ..object, read_only: issue.diagnostic, }
+      }
+    }
+  }
   for object in objects {
     if !object.diagnostic.is_empty() {
       diagnostics.push(object.id + ":" + object.diagnostic)
@@ -207,6 +236,7 @@ fn read_slide(
         ":Date fields require a supported format, language and explicit time",
       )
     } else if object.kind != "group" &&
+      object.source.node.name != "cxnSp" &&
       !object.text_reason.is_empty() &&
       !calculated_field_reason(object.text_reason) &&
       object.read_only.is_empty() {

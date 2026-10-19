@@ -1,3 +1,4 @@
+import { PptxConnectors } from "./pptx-connectors.js";
 import { useState } from "react";
 import type { PresentationEditor } from "@open-document/web/presentation-editor";
 import type { PptxObjectEdit, PptxHyperlink } from "@open-document/web/pptx";
@@ -473,6 +474,21 @@ export function PptxObjects({
         selected.duplicateReason !== selected.deleteReason && (
           <p>{selected.duplicateReason}</p>
         )}
+      <PptxConnectors
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+        insert
+      />
+      <PptxConnectors
+        key={selected?.id + ":" + JSON.stringify(selected?.connector)}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+        insert={false}
+      />
       <PptxShapeAdjustments
         key={`${state.document?.documentId}:${query.revision}:${query.selection.objects.join(",")}`}
         controller={controller}

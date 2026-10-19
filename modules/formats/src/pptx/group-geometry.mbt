@@ -20,7 +20,9 @@ fn Ref::group_problem(self : Ref) -> String raise @failure.Failure {
   }
   for node in self.tree.children.get(self.node.id).unwrap_or([]) {
     if node.uri != presentation_uri ||
-      !["nvGrpSpPr", "grpSpPr", "sp", "pic", "grpSp"].contains(node.name) {
+      !["nvGrpSpPr", "grpSpPr", "sp", "pic", "grpSp", "cxnSp"].contains(
+        node.name,
+      ) {
       return "Unsupported group member or metadata"
     }
     if node.name == "grpSpPr" &&

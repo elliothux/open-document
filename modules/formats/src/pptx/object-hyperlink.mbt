@@ -31,11 +31,15 @@ fn check_external_hyperlink(target : String) -> Unit raise @failure.Failure {
 
 ///|
 fn hyperlink_properties(object : Object) -> Ref raise @failure.Failure {
-  let kind = match object.kind {
-    "image" => "nvPicPr"
-    "group" => "nvGrpSpPr"
-    "table" => "nvGraphicFramePr"
-    _ => "nvSpPr"
+  let kind = if object.source.node.name == "cxnSp" {
+    "nvCxnSpPr"
+  } else {
+    match object.kind {
+      "image" => "nvPicPr"
+      "group" => "nvGrpSpPr"
+      "table" => "nvGraphicFramePr"
+      _ => "nvSpPr"
+    }
   }
   object.source
   .child(kind, uri=presentation_uri)

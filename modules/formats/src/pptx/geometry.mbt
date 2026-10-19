@@ -208,3 +208,79 @@ fn shape_path(
   }
   [Move(0, 0), Line(width, 0), Line(width, height), Line(0, height), Close]
 }
+
+///|
+fn native_transform_changes(
+  object : Object,
+  geometry : Geometry,
+) -> Array[@xml.SourceChange] raise @failure.Failure {
+  if object.table is Some(_) {
+    return table_transform_changes(object, geometry)
+  }
+  let properties = object.source
+    .child(
+      if object.kind == "group" {
+        "grpSpPr"
+      } else {
+        "spPr"
+      },
+      uri=presentation_uri,
+    )
+    .unwrap_or_error(
+      @failure.Failure(
+        code="protected-content",
+        part=object.source.tree.part,
+        offset=-1,
+        message="Missing editable shape properties",
+      ),
+    )
+  let transform = properties.child("xfrm")
+  let changes : Array[@xml.SourceChange] = []
+  let off = "<a:off xmlns:a=\"\{drawing_uri}\" x=\"\{(geometry.x * 12700).round().to_int64()}\" y=\"\{(geometry.y * 12700).round().to_int64()}\"/>"
+  let ext = "<a:ext xmlns:a=\"\{drawing_uri}\" cx=\"\{(geometry.width * 12700).round().to_int64()}\" cy=\"\{(geometry.height * 12700).round().to_int64()}\"/>"
+  if transform is Some(transform) {
+    let missing = StringBuilder()
+    for (name, xml) in [("off", off), ("ext", ext)] {
+      if transform.child(name) is Some(item) {
+        for
+          (key, value) in (if name == "off" {
+            [("x", geometry.x), ("y", geometry.y)]
+          } else {
+            [("cx", geometry.width), ("cy", geometry.height)]
+          }) {
+          let attr = item.node.attributes
+            .iter()
+            .find_first(attr => attr.uri.is_empty() && attr.name == key)
+          guard attr is Some(attr) else {
+            @failure.reject("malformed-pptx", "Incomplete transform attribute")
+          }
+          changes.push({
+            node: item.node.id,
+            offset: attr.start - item.node.start,
+            length: attr.end - attr.start,
+            xml: (value * 12700).round().to_int64().to_string(),
+          })
+        }
+      } else {
+        missing.write_string(xml)
+      }
+    }
+    if !missing.to_string().is_empty() {
+      changes.push(insertion(transform.node, missing.to_string()))
+    }
+  } else {
+    let xml = "<a:xfrm xmlns:a=\"\{drawing_uri}\" rot=\"\{(geometry.rotation * 60000).round().to_int64()}\" flipH=\"\{if geometry.flip_x { 1 } else { 0 }}\" flipV=\"\{if geometry.flip_y { 1 } else { 0 }}\">\{off}\{ext}</a:xfrm>"
+    // xfrm is the first spPr child, before geometry and paint declarations.
+    if properties.node.empty {
+      changes.push(insertion(properties.node, xml))
+    } else {
+      changes.push({
+        node: properties.node.id,
+        offset: properties.node.opening_end - properties.node.start,
+        length: 0,
+        xml,
+      })
+    }
+  }
+  changes
+}

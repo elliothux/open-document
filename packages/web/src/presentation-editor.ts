@@ -22,6 +22,8 @@ import {
 import { PresentationInput } from "./presentation-input.js";
 import {
   PresentationPointer,
+  presentationHandle,
+  presentationGestureKind,
   type PresentationGesture,
 } from "./presentation-pointer.js";
 import { PresentationShow } from "./presentation-show.js";
@@ -647,16 +649,12 @@ export class PresentationEditor extends PresentationOutput {
     extend: boolean,
   ): Promise<void> {
     return this.enqueue(async () => {
-      let handle = 0;
-      if (this.state.selection.mode === "object")
-        for (const [index, position] of (
-          this.geometry?.handles ?? []
-        ).entries())
-          if (
-            Math.hypot(point.x - position.x, point.y - position.y) <=
-            6 / this.scale
-          )
-            handle = index + 1;
+      const handle = presentationHandle(
+        this.geometry,
+        this.state,
+        point,
+        this.scale,
+      );
       const hit = await this.client.execute({
         operation: "hitPptx",
         layoutId: this.layout.id,
@@ -668,7 +666,7 @@ export class PresentationEditor extends PresentationOutput {
       await this.selectNow(selection);
       this.gesture = {
         start: point,
-        text: selection.mode === "text",
+        kind: presentationGestureKind(this.state, handle),
         anchor: selection.anchor,
         handle,
       };
@@ -678,7 +676,7 @@ export class PresentationEditor extends PresentationOutput {
     return this.enqueue(async () => {
       const gesture = this.gesture;
       if (!gesture || !this.state.selection.object) return;
-      if (gesture.text) {
+      if (gesture.kind === "text") {
         const hit = await this.client.execute({
           operation: "hitPptx",
           layoutId: this.layout.id,
@@ -700,7 +698,7 @@ export class PresentationEditor extends PresentationOutput {
           const state = await this.client.execute({
             operation: "beginPptx",
             revision: this.state.revision,
-            kind: "transform",
+            kind: gesture.kind,
           });
           if (state.candidateId === null)
             throw new Error("Core did not begin drag");
@@ -715,6 +713,7 @@ export class PresentationEditor extends PresentationOutput {
             dx,
             dy,
             handle: gesture.handle,
+            tolerance: 6 / this.scale,
           }),
           true,
         );
