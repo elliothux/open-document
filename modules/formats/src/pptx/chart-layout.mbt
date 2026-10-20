@@ -31,6 +31,26 @@ fn chart_label(
 }
 
 ///|
+fn chart_marker(
+  x : Double,
+  y : Double,
+  color : String,
+) -> Array[@layout.PositionedPrimitive] {
+  [
+    Transform({ a: 1, b: 0, c: 0, d: 1, e: x - 2.5, f: y - 2.5, }),
+    Path(shape_path("ellipse", 5, 5, (0, 0)), color, "", 0, {
+      fillAlpha: 1,
+      strokeAlpha: 1,
+      dash: [],
+      cap: 0,
+      join: 0,
+      miter: 8,
+    }),
+    Restore,
+  ]
+}
+
+///|
 fn DrawingChart::paint(
   self : DrawingChart,
   width : Double,
@@ -44,12 +64,6 @@ fn DrawingChart::paint(
     )
   }
   let data = self.data
-  let (low, high, step) = data.axis()
-  let horizontal = data.kind == "bar"
-  let left = if horizontal { 70.0 } else { 44.0 }
-  let top = 30.0
-  let w = width - left - 12
-  let h = height - top - 70
   let out : Array[@layout.PositionedPrimitive] = [
     Rectangle({ x: 0, y: 0, width, height, color: "ffffff", }),
     Stroke({ x: 0, y: 0, width, height, }, "d9d9d9", 0.5),
@@ -57,6 +71,16 @@ fn DrawingChart::paint(
   out.append(
     chart_label(data.title, 8, 6, width - 16, 20, 12, true, probe, profile),
   )
+  if data.kind == "pie" {
+    out.append(self.paint_pie(width, height, probe, profile))
+    return out
+  }
+  let (low, high, step) = data.axis()
+  let horizontal = data.kind == "bar"
+  let left = if horizontal { 70.0 } else { 44.0 }
+  let top = 30.0
+  let w = width - left - 12
+  let h = height - top - 70
   let ticks = ((high - low) / step).round().to_int()
   guard ticks >= 1 && ticks <= 20 else {
     @failure.reject("limit-exceeded", "Chart tick count exceeds limits")
@@ -110,6 +134,38 @@ fn DrawingChart::paint(
   }
   let slots = data.categories.length()
   let slot = (if horizontal { h } else { w }) / slots.to_double()
+  let line = data.kind == "line"
+  if line {
+    for series_index, series in data.series {
+      let path : Array[@layout.PathSegment] = []
+      let markers : Array[@layout.PositionedPrimitive] = []
+      let mut connected = false
+      for index, value in series.values {
+        if value is Some(value) {
+          let x = left + (index.to_double() + 0.5) * slot
+          let y = top + h * (1 - (value - low) / (high - low))
+          path.push(if connected { Line(x, y) } else { Move(x, y) })
+          markers.append(chart_marker(x, y, chart_color(series_index)))
+          connected = true
+        } else {
+          connected = false
+        }
+      }
+      if path.any(segment => segment is Line(_, _)) {
+        out.push(
+          Path(path, "", chart_color(series_index), 1.5, {
+            fillAlpha: 1,
+            strokeAlpha: 1,
+            dash: [],
+            cap: 0,
+            join: 0,
+            miter: 8,
+          }),
+        )
+      }
+      out.append(markers)
+    }
+  }
   let bar = slot / (data.series.length().to_double() + 1.5)
   let zero = (0.0 - low) / (high - low)
   let stride = ((if horizontal { 14.0 } else { 48.0 }) / slot)
@@ -146,6 +202,9 @@ fn DrawingChart::paint(
         ),
       )
     }
+    if line {
+      continue
+    }
     for series_index, series in data.series {
       if series.values[index] is Some(value) {
         let ratio = (value - low) / (high - low)
@@ -179,15 +238,28 @@ fn DrawingChart::paint(
   let legend_width = (width - 16) / data.series.length().to_double()
   for i, series in data.series {
     let x = 8.0 + legend_width * i.to_double()
-    out.push(
-      Rectangle({
-        x,
-        y: height - 18,
-        width: 8,
-        height: 8,
-        color: chart_color(i),
-      }),
-    )
+    if line {
+      out.push(
+        Path(
+          [Move(x, height - 14), Line(x + 8, height - 14)],
+          "",
+          chart_color(i),
+          1.5,
+          { fillAlpha: 1, strokeAlpha: 1, dash: [], cap: 0, join: 0, miter: 8, },
+        ),
+      )
+      out.append(chart_marker(x + 4, height - 14, chart_color(i)))
+    } else {
+      out.push(
+        Rectangle({
+          x,
+          y: height - 18,
+          width: 8,
+          height: 8,
+          color: chart_color(i),
+        }),
+      )
+    }
     out.append(
       chart_label(
         series.name,

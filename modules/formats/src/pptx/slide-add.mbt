@@ -53,7 +53,9 @@ fn Session::add_slide(
     identity += 1L
   }
   let parts = self.parts.copy()
+  let media = self.media.copy()
   let created_parts : Map[String, @xml.Document] = Map([])
+  let created_media : Map[String, Bytes] = Map([])
   let edits : Array[(String, @xml.Edit)] = []
   let mut extra_types = ""
   let mut object_sequence = self.object_sequence
@@ -75,7 +77,7 @@ fn Session::add_slide(
     self.budget.entry_bytes,
   )
   if copy {
-    let (copied, documents, types, metadata, next) = self.copy_slide_parts(
+    let (copied, documents, workbooks, types, metadata, next) = self.copy_slide_parts(
       current, part, identity,
     )
     document = copied
@@ -85,6 +87,10 @@ fn Session::add_slide(
       if name != relation_path {
         created_parts[name] = value
       }
+    }
+    for name, bytes in workbooks {
+      media[name] = bytes
+      created_media[name] = bytes
     }
     extra_types = types
     object_sequence = next
@@ -158,6 +164,8 @@ fn Session::add_slide(
     parts~,
     created=Some((added, relations)),
     created_parts~,
+    media~,
+    created_media~,
   )
   self.slide_sequence = identity + 1L
   self.object_sequence = object_sequence

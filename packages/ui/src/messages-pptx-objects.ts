@@ -3,6 +3,10 @@ export const objectEn = {
   chartKind: "Chart type",
   chartColumn: "Clustered column",
   chartBar: "Clustered bar",
+  chartLine: "Line with markers",
+  chartPie: "Pie",
+  chartPieHint:
+    "Pie displays the first series by absolute value. Zero and empty values have no slice. All source series remain editable.",
   chartTitle: "Chart title",
   chartData: "Chart data (TSV)",
   chartDataHint:
@@ -55,6 +59,10 @@ export const objectZh: typeof objectEn = {
   chartKind: "图表类型",
   chartColumn: "簇状柱形图",
   chartBar: "簇状条形图",
+  chartLine: "带数据点的折线图",
+  chartPie: "饼图",
+  chartPieHint:
+    "饼图按绝对值显示首个系列，零值和空值不占扇区。所有源系列仍可编辑。",
   chartTitle: "图表标题",
   chartData: "图表数据（TSV）",
   chartDataHint:

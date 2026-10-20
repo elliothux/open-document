@@ -1,9 +1,20 @@
 ///|
+priv struct CopiedObjects {
+  changes : Array[@xml.SourceChange]
+  selection : Selection
+  next : Int64
+  documents : Map[String, @xml.Document]
+  workbooks : Map[String, Bytes]
+  relationships : String
+  types : String
+}
+
+///|
 fn Session::copy_objects(
   self : Session,
   dx : Double,
   dy : Double,
-) -> (Array[@xml.SourceChange], Selection, Int64) raise @failure.Failure {
+) -> CopiedObjects raise @failure.Failure {
   guard self.selection.mode == "object" else {
     @failure.reject(
       "invalid-operation", "Object copying requires object selection",
@@ -83,9 +94,80 @@ fn Session::copy_objects(
       "#" +
       source_identity(copies[index].attribute("id").unwrap_or(""))
   }
+  let documents : Map[String, @xml.Document] = Map([])
+  let workbooks : Map[String, Bytes] = Map([])
+  let relationships = StringBuilder()
+  let types = StringBuilder()
+  let copied_tree = Tree::new(slide.tree.part, copied)
+  let chart_changes : Array[@xml.SourceChange] = []
+  let links = self.relationships()
+  let reserved : Map[String, Bool] = Map([])
+  for link in links {
+    if link.owner == slide.tree.part {
+      reserved[link.id] = true
+    }
+  }
+  for object in objects {
+    if object.chart is Some(chart) {
+      let id = identities[object.id].split("#").last().unwrap().to_owned()
+      let (part, overrides) = self.copy_chart_parts(
+        chart, id, documents, workbooks,
+      )
+      types.write_string(overrides)
+      let mut sequence = 0
+      let mut link = "odCopyChart" + id
+      while reserved.contains(link) {
+        sequence += 1
+        guard sequence <= self.budget.entries else {
+          @failure.reject(
+            "limit-exceeded", "Copied chart relationships exhausted",
+          )
+        }
+        link = "odCopyChart" + id + "_" + sequence.to_string()
+      }
+      reserved[link] = true
+      relationships <+
+        "<Relationship xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\" Id=\"\{link}\" Type=\"\{relationship_uri}/chart\" Target=\"/\{xml_attribute(part)}\"/>"
+      let identity = copied
+        .nodes()
+        .iter()
+        .find_first(n => {
+          n.uri == presentation_uri &&
+          n.name == "cNvPr" &&
+          n.attribute("id") == Some(id)
+        })
+        .unwrap()
+      let frame : Ref = {
+        tree: copied_tree,
+        node: copied_tree.nodes[copied_tree.nodes[identity.parent].parent],
+      }
+      let reference = frame
+        .child("graphic")
+        .unwrap()
+        .child("graphicData")
+        .unwrap()
+        .child("chart", uri=chart_uri)
+        .unwrap()
+      let attr = reference.node.attributes
+        .iter()
+        .find_first(a => a.uri == relationship_uri && a.name == "id")
+        .unwrap()
+      chart_changes.push({
+        node: reference.node.id,
+        offset: attr.start - reference.node.start,
+        length: attr.end - attr.start,
+        xml: link,
+      })
+    }
+  }
+  let copied = if chart_changes.is_empty() {
+    copied
+  } else {
+    copied.edit_source(chart_changes).0
+  }
   let root = copied.nodes()[0]
-  (
-    [
+  {
+    changes: [
       object_insertion(
         slide.tree,
         copied.source()[root.opening_end:root.closing_start].to_owned(),
@@ -93,7 +175,7 @@ fn Session::copy_objects(
       ),
       ..self.copy_media_settings(slide, identities),
     ],
-    {
+    selection: {
       ..self.selection,
       objects: selected.map(id => identities[id]),
       object: identities[self.selection.object],
@@ -101,5 +183,95 @@ fn Session::copy_objects(
       focus: 0,
     },
     next,
+    documents,
+    workbooks,
+    relationships: relationships.to_string(),
+    types: types.to_string(),
+  }
+}
+
+///|
+fn Session::duplicate_objects(
+  self : Session,
+  dx : Double,
+  dy : Double,
+  probe : @layout.TextProbe,
+  profile : Map[String, String],
+) -> Json raise @failure.Failure {
+  guard [dx, dy].all(v => !v.is_nan() && !v.is_inf() && v.abs() <= 14400) else {
+    @failure.reject("invalid-transform", "Invalid duplication offset")
+  }
+  if self.selection.object.is_empty() {
+    return self.query()
+  }
+  let original = self.current()
+  let copied = self.copy_objects(dx, dy)
+  let parts = self.parts.copy()
+  let media = self.media.copy()
+  for path, document in copied.documents {
+    parts[path] = document
+  }
+  for path, bytes in copied.workbooks {
+    media[path] = bytes
+  }
+  let created = copied.documents.copy()
+  let edits : Array[(String, @xml.Edit)] = []
+  for
+    (path, markup) in [
+      (relationship_part(original.tree.part), copied.relationships),
+      ("[Content_Types].xml", copied.types),
+    ] {
+    if !markup.is_empty() {
+      self.append_chart_xml(path, markup, parts, created, edits)
+    }
+  }
+  let (document, edit) = original.tree.document.edit_source(copied.changes)
+  edits.push((original.tree.part, edit))
+  let candidate = read_slide(
+    self.opc,
+    self.main,
+    self.cache,
+    Tree::new(original.tree.part, document),
+    index=self.source_index(original.tree.part),
+    date_time=self.date_time,
+    parts~,
   )
+  let candidate = candidate
+    .group_bounds(candidate.changed_group_members(original))
+    .connector_bounds(original)
+  for id in copied.selection.objects {
+    let object = candidate.object(id)
+    if object.chart is Some(chart) {
+      let geometry = object.geometry.unwrap()
+      ignore(chart.paint(geometry.width, geometry.height, probe, profile))
+    } else if object.table is Some(_) {
+      let (_, _, warnings, _) = object.paint_table(probe, profile)
+      guard warnings.is_empty() else {
+        @failure.reject("layout-overflow", warnings.join("; "))
+      }
+    } else {
+      let (_, _, diagnostic) = fit_text(
+        object,
+        object.geometry.unwrap(),
+        probe,
+        profile,
+      )
+      guard diagnostic.is_empty() else {
+        @failure.reject("layout-overflow", diagnostic)
+      }
+    }
+  }
+  self.commit_page(
+    candidate,
+    edits,
+    copied.selection,
+    parts~,
+    media~,
+    created_parts=created,
+    created_media=copied.workbooks,
+    probe~,
+    profile~,
+  )
+  self.object_sequence = copied.next
+  self.query()
 }

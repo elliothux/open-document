@@ -2253,11 +2253,19 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 ### PPTX 基础图表
 
-`editObjects({ action: "insertChart", kind, title, data, x, y, width, height })` 插入簇状柱形图 `column` 或条形图 `bar`。选中单个本地图表后，`{ action: "chartData", kind, title, data }` 修改类型、标题和数据。对象查询的 `chart` 返回 `{ kind, title, data }`，其他对象为 `null`。默认面板使用相同接口。
+`editObjects({ action: "insertChart", kind, title, data, x, y, width, height })` 插入簇状柱形图 `column`、条形图 `bar`、带圆形数据点的折线图 `line` 或饼图 `pie`。选中单个本地图表后，`{ action: "chartData", kind, title, data }` 修改类型、标题和数据。对象查询的 `chart` 返回 `{ kind, title, data }`，其他对象为 `null`。默认面板使用相同接口。
 
 `data` 为 TSV，首行给出类别轴标题和系列名，首列为类别，其余为有限数值或空值。支持 1–8 个系列、1–256 个类别、最多 65536 个 UTF-16 单元；标题及各标签最多 256 个单行单元。核心复用 XLSX 分隔文本导入，公式作为文字处理并在数值列拒绝。空值保留间隙，零值没有柱高；数轴包含零并采用 1/2/5/10 刻度间隔。参考 [ONLYOFFICE 数轴计算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L2678-L2736)。
 
-MoonBit 生成原生 `graphicFrame`、`barChart`、系列公式/缓存、关系和实际嵌入 XLSX，使用固定配色、Arial、类别轴和图例。公共图元输出 Canvas 与静态 PDF。框最小为 180×150 点，移动、缩放、对齐、层级、删除复用对象事务。旋转、翻转、组合、对象及页面复制保持保护。图表文字通过数据面板编辑。
+MoonBit 生成原生 `graphicFrame`、`barChart`、`lineChart` 或 `pieChart`、系列公式/缓存、关系和实际嵌入 XLSX，使用固定配色、Arial 及图例。公共图元输出 Canvas 与静态 PDF。框最小为 180×150 点，移动、缩放、对齐、层级、删除复用对象事务。旋转、翻转和组合保持保护。图表文字通过数据面板编辑。
+
+普通视图中的本地顶层图表支持 `editObjects({ action: "duplicate", dx, dy })` 和默认“复制对象”按钮。可与同父的普通对象一起多选复制，保留选择顺序、活动对象、内容、名称及非目标源。副本分配新对象身份、独立图表 XML、嵌入工作簿及关系；初始工作簿保留原始字节，后续改数据互不影响。复制、资源及内容类型合为一项精确历史。缓存与工作簿不一致、未知图表资源关系、复制锁、字体、布局或预算失败时整项拒绝。组内图表及母版/版式图表复制继续保护。规则参考 [ONLYOFFICE 图表复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L4959-L5028)，实现归 [`chart-copy.mbt`](../../modules/formats/src/pptx/chart-copy.mbt)和 [`object-copy.mbt`](../../modules/formats/src/pptx/object-copy.mbt)。
+
+`editSlides({ action: "copy" })` 和默认“复制页”按钮也支持含图表的页面。每个本地图表部件及嵌入工作簿克隆到新路径，页面关系指向副本，原页和新页可分别改数据。原本不同的图表保持独立；源页内部共用同一图表部件的关系结构在新页中保留，数据编辑仍遵守共享资源保护。已删除图表留下的关系也按相同原生配置和数据一致性规则克隆，未知资源保持保护。图表与工作簿、备注、批注、对象引用、隐藏状态和页面引用沿现有整页事务共同进入精确历史。删除页面继续保留未回收的图表资源。实现复用上述图表资源模块及 [`slide-copy.mbt`](../../modules/formats/src/pptx/slide-copy.mbt)、[`slide-add.mbt`](../../modules/formats/src/pptx/slide-add.mbt)。
+
+折线图按类别中心连接相邻非空数据点，空值断线，孤立点及零值仍显示圆形标记。线宽固定为 1.5 点，标记直径为 5 点；图例采用相同线段与标记。原生配置为 `standard`、`smooth=0`、`dispBlanksAs=gap`，与布局共用数据。曲线、堆积、其他标记及跨空值连接继续保护。行为参考 [ONLYOFFICE 折线与空值处理](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L9042-L9185)和[圆形标记](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L3158-L3205)。
+
+饼图显示首个系列，按绝对值计算扇区。零值和空值不占面积，全零或全空时绘图区留空。全部系列保留在查询、原生缓存及嵌入工作簿中，切回其他类型仍可使用。核心先按最大绝对值缩放再求和，避免有限数值的总和溢出。第一片从十二点方向顺时针开始，类别颜色循环使用八色。TSV 首格作为副标题，和主标题写入原生富文本标题的两个段落。饼图不生成数轴，右侧图例按框高显示，放不下时显示剩余项数量；完整数据仍可编辑。当前不提供角度、分离扇区、数据标签或配色设置。语义参考 [ONLYOFFICE 饼图与首个系列](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L12238-L12346)，实现归 [`chart-pie.mbt`](../../modules/formats/src/pptx/chart-pie.mbt)。
 
 读取仅接受当前原生结构，未知图表类型、样式、轴配置或公式保持诊断与源保护。数据编辑前核对缓存与嵌入工作簿，拒绝共享图表资源。修改数据保留对象/图表身份，并新建嵌入工作簿以支持精确撤销。旧工作簿及删除后未引用的图表资源继续保留，受现有包和历史预算限制。更广导入、样式与资源回收继续实施。实现归 [`chart-data.mbt`](../../modules/formats/src/pptx/chart-data.mbt)、[`chart-read.mbt`](../../modules/formats/src/pptx/chart-read.mbt)、[`chart-edit.mbt`](../../modules/formats/src/pptx/chart-edit.mbt)及 [`chart-layout.mbt`](../../modules/formats/src/pptx/chart-layout.mbt)。
 

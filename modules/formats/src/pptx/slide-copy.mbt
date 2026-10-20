@@ -32,7 +32,10 @@ fn check_slide_copy_markup(tree : Tree) -> Unit raise @failure.Failure {
       node.parent >= 0 &&
       media_extension(tree, tree.nodes[node.parent])
     guard (
-        [presentation_uri, drawing_uri].contains(node.uri) || creation || media
+        [presentation_uri, drawing_uri].contains(node.uri) ||
+        creation ||
+        media ||
+        chart_frame_reference(tree, node)
       ) &&
       node.attributes
       .iter()
@@ -225,6 +228,7 @@ fn Session::copy_slide_parts(
 ) -> (
   @xml.Document,
   Map[String, @xml.Document],
+  Map[String, Bytes],
   String,
   Array[(String, @xml.Document, @xml.Edit)],
   Int64,
@@ -248,6 +252,7 @@ fn Session::copy_slide_parts(
   )
   let mut next = next
   let documents : Map[String, @xml.Document] = Map([])
+  let workbooks : Map[String, Bytes] = Map([])
   let remapped = Map::from_array([(source.tree.part, target)])
   let metadata : Array[(String, @xml.Document, @xml.Edit)] = []
   let types = StringBuilder()
@@ -333,18 +338,46 @@ fn Session::copy_slide_parts(
       )
     }
   }
+  let resources = remapped.copy()
+  let copied_charts : Map[String, Bool] = Map([])
+  let mut chart_sequence = 0
+  for link in links {
+    if link.owner != source.tree.part ||
+      link.kind != relationship_uri + "/chart" {
+      continue
+    }
+    guard !link.external else {
+      @failure.reject(
+        "protected-content", "External slide charts cannot be copied",
+      )
+    }
+    if copied_charts.contains(link.target) {
+      continue
+    }
+    let chart = read_chart_part(self.opc, link.target, self.parts)
+    let (part, overrides) = self.copy_chart_parts(
+      chart,
+      "Slide\{identity}_\{chart_sequence}",
+      documents,
+      workbooks,
+    )
+    chart_sequence += 1
+    copied_charts[link.target] = true
+    resources[link.target] = part
+    types.write_string(overrides)
+  }
   for original, part in remapped {
     let allowed = if original == source.tree.part {
       [
         "slideLayout", "image", "hyperlink", "slide", "notesSlide", "comments", "audio",
-        "video", "media",
+        "video", "media", "chart",
       ]
     } else if documents[part].nodes()[0].name == "notes" {
       ["notesMaster", "image", "hyperlink", "slide"]
     } else {
       ["hyperlink"]
     }
-    if self.copy_slide_relationships(original, part, remapped, allowed)
+    if self.copy_slide_relationships(original, part, resources, allowed)
       is Some(relations) {
       bytes += relations.source().length().to_int64() * 2
       guard bytes <= 4194304L else {
@@ -358,5 +391,5 @@ fn Session::copy_slide_parts(
   guard documents.contains(relationship_part(target)) else {
     @failure.reject("malformed-pptx", "Missing source slide relationships")
   }
-  (document, documents, types.to_string(), metadata, next)
+  (document, documents, workbooks, types.to_string(), metadata, next)
 }

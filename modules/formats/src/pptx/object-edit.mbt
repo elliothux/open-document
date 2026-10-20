@@ -116,8 +116,8 @@ fn Session::object_edit_reason(
   try {
     let table = object.table is Some(_)
     if object.chart is Some(_) &&
-      !["delete", "transform", "arrange"].contains(action) {
-      return "Chart copying, grouping, rotation and flipping require support"
+      !["delete", "duplicate", "transform", "arrange"].contains(action) {
+      return "Chart grouping, rotation and flipping require support"
     }
     if duplicate && object.media is Some(media) && !media.reason.is_empty() {
       return media.reason
@@ -147,6 +147,11 @@ fn Session::object_edit_reason(
       return "Native table frames do not support rotation or flipping"
     }
     let slide = self.source_slide(object.source.tree.part)
+    if duplicate &&
+      object.chart is Some(_) &&
+      slide.tree.document.nodes()[0].name != "sld" {
+      return "Copy charts in a slide view"
+    }
     if !slide.read_only.is_empty() {
       return slide.read_only
     }
@@ -267,6 +272,11 @@ fn Session::object_edit_reason(
           node.name == "media" &&
           node.parent >= 0 &&
           media_extension(tree, tree.nodes[node.parent])
+        ) ||
+        (
+          object.chart is Some(_) &&
+          object.parent.is_empty() &&
+          chart_frame_reference(tree, node)
         )) {
         return "Unknown object extensions prevent duplication"
       }
@@ -410,6 +420,9 @@ pub fn Session::edit_objects(
   if change is ChartData(kind, title, data) {
     return self.write_chart(kind, title, data, None, probe, profile)
   }
+  if change is Duplicate(dx, dy) {
+    return self.duplicate_objects(dx, dy, probe, profile)
+  }
   if change is InsertDiagram(settings) {
     return self.insert_diagram(settings, probe, profile)
   }
@@ -538,6 +551,7 @@ pub fn Session::edit_objects(
     | InsertTable(_, _, _, _, _, _)
     | InsertChart(_, _, _, _, _, _, _)
     | ChartData(_, _, _)
+    | Duplicate(_, _)
     | FillTable(_, _)
     | TableStructure(_)
     | SplitTableCell(_, _)
@@ -634,17 +648,6 @@ pub fn Session::edit_objects(
           focus: 0,
         },
       )
-    }
-    Duplicate(dx, dy) => {
-      guard [dx, dy].all(v => !v.is_nan() && !v.is_inf() && v.abs() <= 14400) else {
-        @failure.reject("invalid-transform", "Invalid duplication offset")
-      }
-      if self.selection.object.is_empty() {
-        return self.query()
-      }
-      let (changes, selection, next) = self.copy_objects(dx, dy)
-      issued = Some((next - 1L).to_string())
-      (changes, selection)
     }
     Align(_, _) | Distribute(_, _) =>
       (self.position_objects(change), self.selection)

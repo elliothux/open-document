@@ -64,12 +64,19 @@ export function PptxCharts({
             value={draft.kind}
             onChange={(event) => {
               const kind = event.currentTarget.value;
-              if (kind === "column" || kind === "bar")
+              if (
+                kind === "column" ||
+                kind === "bar" ||
+                kind === "line" ||
+                kind === "pie"
+              )
                 setDraft({ ...draft, kind });
             }}
           >
             <option value="column">{t.chartColumn}</option>
             <option value="bar">{t.chartBar}</option>
+            <option value="line">{t.chartLine}</option>
+            <option value="pie">{t.chartPie}</option>
           </select>
         </label>
         <label>
@@ -96,6 +103,7 @@ export function PptxCharts({
           />
         </label>
         <p>{t.chartDataHint}</p>
+        {draft.kind === "pie" && <p>{t.chartPieHint}</p>}
         <button type="submit" disabled={!draft.data}>
           {chart ? t.chartApply : t.chartInsert}
         </button>

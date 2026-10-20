@@ -73,7 +73,7 @@ PNG/JPEG 图片插入已接通核心、Wasm、Worker、宿主和默认 UI。新�
 
 同一入口的 `{ action: "delete" }` 删除目标页，至少保留一页。同步移除页引用、自定义放映条目和指向该页的已知点击/悬停链接，保留链接所在对象。删除活动页时切到相邻页并清空对象选择；其他页的活动选择不变。页面、关系及独占的备注/传统批注 XML 和内容类型共同进入一项有界历史。共享图片、版式、作者和未知资源保留；未知引用、共享备注/批注或预算失败原子拒绝。具体边界归[格式合同](references/formats.md#pptx)。
 
-`{ action: "copy" }` 复制到目标页之后，激活副本并清空对象选择。核心分配新页和本地对象身份，重映射计时目标、连接引用和自身页链接。保留隐藏状态、对象内容、几何和格式，复用图片及版式/母版/主题；普通备注和传统批注复制为独立部件，备注回链指向新页，批注索引及作者 lastIdx 同步更新。已知 creationId 与 DrawingML 字段生成新身份；未知身份扩展及未接入所有权的可变资源仍受保护，含图表数据的页面暂不复制。源页、自定义放映和其他页链接不变。复制部件与后续编辑、隐藏、删除可精确混合撤销；具体边界归[格式合同](references/formats.md#pptx)。对象、备注和计时复制规则参考 [ONLYOFFICE Slide.createDuplicate](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L268-L332)。保留计时 XML 不代表已支持动画播放。
+`{ action: "copy" }` 复制到目标页之后，激活副本并清空对象选择。核心分配新页和本地对象身份，重映射计时目标、连接引用和自身页链接。保留隐藏状态、对象内容、几何和格式，复用图片及版式/母版/主题；普通备注和传统批注复制为独立部件，备注回链指向新页，批注索引及作者 lastIdx 同步更新。本地图表和嵌入工作簿也复制为独立部件，两页可分别修改数据。已知 creationId 与 DrawingML 字段生成新身份；未知身份扩展及未接入所有权的可变资源仍受保护。源页、自定义放映和其他页链接不变。复制部件与后续编辑、隐藏、删除可精确混合撤销；具体边界归[格式合同](references/formats.md#pptx)。对象、备注和计时复制规则参考 [ONLYOFFICE Slide.createDuplicate](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L268-L332)。保留计时 XML 不代表已支持动画播放。
 
 普通章节已接通核心、API 与默认面板。`sectionAdd` 在目标页前分章，`sectionRename` 保留身份，`sectionRemove` 保留页面并合并到相邻章，`sectionMove` 同步重排整章页面，`sectionDelete` 在一项事务中删除章节和所属页面。页新增/复制/删除/移动同步章节归属，空章节保留。章节、页序及原生文字共用精确历史；保存重开和静态 PDF 按实际页序输出。标准 p14 存储、上限与未知源保护归[格式合同](references/formats.md#pptx)，实现归 [`sections.mbt`](../modules/formats/src/pptx/sections.mbt)、[`section-edit.mbt`](../modules/formats/src/pptx/section-edit.mbt)及 [`section-source.mbt`](../modules/formats/src/pptx/section-source.mbt)。章节删除复用页面删除的链接同步、独占备注/批注回收及累计历史预算；失败整项拒绝，至少保留一页，空章只删除元数据。默认页列表按章节分组，支持键盘折叠/展开、全部折叠/展开，保留全稿页码和隐藏页标记。折叠只改变 React 视图状态，保留画布当前页，不修改源文件、选择或历史。外部页导航自动展开目标章；改名和重排按稳定章节身份保持状态，移除章节清理状态，更换文档重置。实现归 [`pptx-slides.tsx`](../packages/ui/src/pptx-slides.tsx)，完整边界归格式合同。`sectionRemoveAll` 一次移除全部章节并保留所有页面、选择和其他部件，只新增一项历史。没有章节时不新增历史；未知章节仍保护，章节外的未知扩展和外层标记保留。
 
@@ -171,7 +171,7 @@ PNG/JPEG 图片插入已接通核心、Wasm、Worker、宿主和默认 UI。新�
 
 ### 4.3 图表、SmartArt、公式与审阅
 
-首批簇状柱形图和条形图已接通核心、类型化 API 与默认数据面板。TSV 数据同步原生系列缓存、嵌入 XLSX 与 Canvas/PDF；支持标题、正负值、空值、移动缩放、删除、精确历史及保存重开。其他类型、样式、图表复制和组合继续实施。接口与保护边界归[基础图表](references/formats.md#pptx-基础图表)。
+首批簇状柱形图、条形图、带数据点的折线图和饼图已接通核心、类型化 API 与默认数据面板。TSV 数据同步原生系列缓存、嵌入 XLSX 与 Canvas/PDF；支持标题、正负值、空值、移动缩放、对象及页面复制、删除、精确历史及保存重开。副本持有独立图表和工作簿，可分别改数据；同父混合多选沿用默认复制按钮。折线在空值处断开，孤立点和零值保留标记。饼图按绝对值显示首个系列，保留其余系列数据，零与空值不占扇区。其他类型、样式和组合继续实施。接口与保护边界归[基础图表](references/formats.md#pptx-基础图表)。
 
 流程、层级和循环三种简化 SmartArt 模板已接通核心、类型化 API 和默认插入面板。核心一次创建可编辑形状组、文字与原生连接线，复用稳定身份、引用重映射及单项历史；保存重开后沿普通组/成员继续编辑。定向核心、默认控件、独立 XML、精确历史、原生输入和 PDF 已检查，合同归[简化图示](references/formats.md#简化-smartart-图示)。原生 diagram 导入编辑留到 P14，不删除原文件中的 diagram 部件来冒充完成。公式复用 P10 数学结构/布局并写回适用的 DrawingML/OMML；基础艺术字已接通五种纯色预设、核心居中及自动尺寸、原生全选输入、API/默认面板、精确历史与保存重开，合同归[基础艺术字](references/formats.md#基础艺术字)。不换行框已按真实宽度对齐，Canvas/PNG/PDF 使用同一绘制。文字描边、渐变、阴影及复杂变形继续实施。
 

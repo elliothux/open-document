@@ -137,19 +137,7 @@ fn Session::write_chart(
         @failure.reject("protected-content", "Chart data editing is locked")
       }
     }
-    let actual = chart_data(
-      chart.data.kind,
-      chart.data.title,
-      self.media
-      .get(chart.workbook)
-      .unwrap_or_else(() => self.opc.read(chart.workbook)),
-      self.budget,
-    )
-    guard actual == chart.data else {
-      @failure.reject(
-        "protected-content", "Chart cache and embedded workbook disagree",
-      )
-    }
+    ignore(self.chart_workbook(chart))
     Some((object, chart))
   } else {
     None
@@ -163,7 +151,9 @@ fn Session::write_chart(
   defer workbook.close()
   let bytes = workbook.save()
   let data = chart_data(kind, title, bytes, self.budget)
-  ignore(data.axis())
+  if data.kind != "pie" {
+    ignore(data.axis())
+  }
   if target is Some((_, chart)) && chart.data == data {
     return self.query()
   }

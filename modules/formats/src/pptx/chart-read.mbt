@@ -80,16 +80,28 @@ fn chart_points(
 }
 
 ///|
-fn chart_rich_title(parent : Ref) -> String raise @failure.Failure {
+fn chart_rich_title(parent : Ref, line? : Int) -> String raise @failure.Failure {
   let rich = chart_child(
     chart_child(chart_child(parent, "title"), "tx"),
     "rich",
   )
+  let target = if line is Some(index) {
+    let paragraphs = rich.tree.children
+      .get(rich.node.id)
+      .unwrap_or([])
+      .filter(n => n.uri == drawing_uri && n.name == "p")
+    guard paragraphs.get(index) is Some(node) else {
+      @failure.reject("unsupported-chart", "Missing chart title paragraph")
+    }
+    node
+  } else {
+    rich.node
+  }
   rich.tree.document
   .nodes()
   .filter(n => {
-    n.start > rich.node.start &&
-    n.end < rich.node.end &&
+    n.start > target.start &&
+    n.end < target.end &&
     n.uri == drawing_uri &&
     n.name == "t"
   })
@@ -142,6 +154,15 @@ fn read_chart(
     .attribute("id", uri=relationship_uri)
     .unwrap_or("")
   let part = chart_link(opc, source.tree.part, link, "chart", parts)
+  read_chart_part(opc, part, parts)
+}
+
+///|
+fn read_chart_part(
+  opc : @opc.Package,
+  part : String,
+  parts : Map[String, @xml.Document],
+) -> DrawingChart raise @failure.Failure {
   let document = parts.get(part).unwrap_or_else(() => opc.xml(part))
   let tree = Tree::new(part, document)
   guard document.nodes().length() <= 16384 &&
@@ -151,14 +172,22 @@ fn read_chart(
   let root : Ref = { tree, node: tree.root("chartSpace", uri=chart_uri), }
   let chart = chart_child(root, "chart")
   let plot = chart_child(chart, "plotArea")
-  let bars = chart_child(plot, "barChart")
-  let direction = chart_child(bars, "barDir").node
-    .attribute("val")
-    .unwrap_or("")
-  guard ["col", "bar"].contains(direction) else {
-    @failure.reject("unsupported-chart", "Unsupported bar chart direction")
+  let (plot_source, kind) = if plot.child("pieChart", uri=chart_uri)
+    is Some(pie) {
+    (pie, "pie")
+  } else if plot.child("lineChart", uri=chart_uri) is Some(line) {
+    (line, "line")
+  } else {
+    let bars = chart_child(plot, "barChart")
+    let direction = chart_child(bars, "barDir").node
+      .attribute("val")
+      .unwrap_or("")
+    guard ["col", "bar"].contains(direction) else {
+      @failure.reject("unsupported-chart", "Unsupported bar chart direction")
+    }
+    (bars, if direction == "col" { "column" } else { "bar" })
   }
-  let series = tree.all(bars.node.id, "ser", uri=chart_uri)
+  let series = tree.all(plot_source.node.id, "ser", uri=chart_uri)
   guard series.length() >= 1 && series.length() <= 8 else {
     @failure.reject("limit-exceeded", "Chart series exceed limits")
   }
@@ -170,13 +199,17 @@ fn read_chart(
     false,
   )
   let data : ChartData = {
-    kind: if direction == "col" {
-      "column"
+    kind,
+    title: if kind == "pie" {
+      chart_rich_title(chart, line=0)
     } else {
-      "bar"
+      chart_rich_title(chart)
     },
-    title: chart_rich_title(chart),
-    label: chart_rich_title(chart_child(plot, "catAx")),
+    label: if kind == "pie" {
+      chart_rich_title(chart, line=1)
+    } else {
+      chart_rich_title(chart_child(plot, "catAx"))
+    },
     categories,
     series: series.map(node => {
       let item : Ref = { tree, node, }
