@@ -259,7 +259,30 @@ fn paint_slide(
         @failure.reject("limit-exceeded", "Slide glyphs exceed budget")
       }
     } else {
-      if object.kind == "image" && object.image is Some(_) {
+      if !object.polyline.is_empty() {
+        primitives.push(
+          Path(
+            object.polyline_path(geometry),
+            "",
+            object.stroke,
+            object.line_width,
+            {
+              fillAlpha: 1,
+              strokeAlpha: object.stroke_alpha,
+              dash: dash_pattern(object.dash).map(v => v * object.line_width),
+              cap: line_cap_code(object.cap),
+              join: if object.join == "round" {
+                1
+              } else if object.join == "bevel" {
+                2
+              } else {
+                0
+              },
+              miter: object.miter,
+            },
+          ),
+        )
+      } else if object.kind == "image" && object.image is Some(_) {
         if object.preset == "rect" {
           primitives.push(
             Clip({ x: 0, y: 0, width: geometry.width, height: geometry.height, }),

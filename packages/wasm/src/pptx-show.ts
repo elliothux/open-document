@@ -22,6 +22,7 @@ export type PptxShowAction =
   | "startSettings"
   | "followLink"
   | "end"
+  | "saveInk"
   | "next"
   | "previous"
   | "first"
@@ -141,6 +142,7 @@ export function checkPptxShow(command: PptxShowCommand): void {
       "startSettings",
       "followLink",
       "end",
+      "saveInk",
       "next",
       "previous",
       "first",

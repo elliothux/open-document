@@ -15,6 +15,11 @@ import type {
 import type { PptxConnectorEnd } from "./pptx-connectors.js";
 import type { PptxMediaPlayback } from "./pptx-media.js";
 export type PptxObjectEdit =
+  | {
+      action: "insertWordArt";
+      preset: "blue" | "gold" | "red" | "purple" | "green-italic";
+      text: string;
+    }
   | { action: "mediaPlayback"; value: PptxMediaPlayback }
   | {
       action: "insertMedia";

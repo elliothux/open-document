@@ -169,6 +169,13 @@ export class PresentationShowInk {
     if (gesture && this.canvas.hasPointerCapture(gesture.pointer))
       this.canvas.releasePointerCapture(gesture.pointer);
   }
+  async settle(): Promise<void> {
+    await this.pending;
+    cancelAnimationFrame(this.frameRequest);
+    this.frameRequest = 0;
+    while (this.gesture?.finish) await this.flush();
+    if (this.gesture) await this.cancel();
+  }
   private cancel(): Promise<void> {
     this.reset();
     return (this.pending ?? Promise.resolve()).then(() =>

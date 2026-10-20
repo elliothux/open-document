@@ -35,7 +35,7 @@ pub fn Session::control_show(
   show_time(time)
   guard [
       "start", "startSettings", "end", "next", "previous", "first", "last", "goto",
-      "pause", "resume", "tick", "click", "gotoPosition", "followLink",
+      "pause", "resume", "tick", "click", "gotoPosition", "followLink", "saveInk",
     ].contains(action) &&
     (
       ["start", "goto", "gotoPosition", "followLink"].contains(action) ||
@@ -46,6 +46,12 @@ pub fn Session::control_show(
     (layout is None || action == "followLink" || point is Some(_)) &&
     (action != "followLink" || layout is Some(_)) else {
     @failure.reject("invalid-operation", "Invalid slideshow action or target")
+  }
+  if action == "saveInk" {
+    if self.showing is Some(show) {
+      ignore(show.advance(time))
+    }
+    return self.save_show_ink()
   }
   if layout is Some(layout) {
     let drawing = self.current_show_frame(layout)

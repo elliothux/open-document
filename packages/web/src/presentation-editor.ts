@@ -95,6 +95,7 @@ export class PresentationEditor extends PresentationOutput {
       (operation) => this.enqueue(operation, false, false, true),
       () => this.state,
       async () => {
+        this.state = await this.client.execute({ operation: "queryPptx" });
         await this.present();
         // Reset Chromium's text control focus after closing the modal dialog.
         this.input.blur();

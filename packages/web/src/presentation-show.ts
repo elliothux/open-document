@@ -26,6 +26,7 @@ export interface PresentationShowLabels
   first: string;
   last: string;
   end: string;
+  saveInk: string;
   fullscreen: string;
   presenter: string;
   notes: string;
@@ -42,6 +43,7 @@ const english: PresentationShowLabels = {
   first: "First slide",
   last: "Last slide",
   end: "End slideshow",
+  saveInk: "Save ink and end",
   fullscreen: "Fullscreen",
   presenter: "Presenter view",
   notes: "Speaker notes",
@@ -252,6 +254,10 @@ export class PresentationShow {
   end(): Promise<void> {
     return this.active ? this.navigate("end") : Promise.resolve();
   }
+  async saveInk(): Promise<void> {
+    await this.inkInput?.settle();
+    return this.navigate("saveInk");
+  }
   private handle(action: () => Promise<void>): void {
     if (this.busy) return;
     void action().catch((error) => {
@@ -328,6 +334,7 @@ export class PresentationShow {
       this.navigate(this.current?.paused ? "resume" : "pause"),
     );
     button(labels.end, () => this.end());
+    button(labels.saveInk, () => this.saveInk());
     const elapsed = document.createElement("p"),
       started = performance.now();
     const tick = () => {

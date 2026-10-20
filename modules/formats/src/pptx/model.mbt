@@ -79,6 +79,7 @@ priv struct Object {
   source : Ref
   geometry : Geometry?
   preset : String
+  polyline : Array[(Double, Double)]
   adjustments : (Double, Double)
   fill : String
   gradient : (Array[@layout.GradientStop], Double, Bool)?

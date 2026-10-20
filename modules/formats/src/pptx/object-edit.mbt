@@ -1,5 +1,6 @@
 ///|
 pub(all) enum ObjectEdit {
+  InsertWordArt(String, String)
   InsertDiagram(DiagramSettings)
   InsertConnector(ConnectorEnd, ConnectorEnd)
   ConnectorEndpoints(ConnectorEnd, ConnectorEnd)
@@ -338,8 +339,11 @@ fn validate_object_box(
 }
 
 ///|
-fn object_text_markup(text : String) -> String raise @failure.Failure {
-  let style = "<a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill><a:latin typeface=\"Arial\"/>"
+fn object_text_markup(
+  text : String,
+  style~ : String = "<a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill><a:latin typeface=\"Arial\"/>",
+  attributes~ : String = "sz=\"1800\"",
+) -> String raise @failure.Failure {
   let out = StringBuilder()
   out.write_string(
     "<p:txBody><a:bodyPr wrap=\"square\" anchor=\"t\"><a:noAutofit/></a:bodyPr><a:lstStyle/>",
@@ -352,11 +356,13 @@ fn object_text_markup(text : String) -> String raise @failure.Failure {
       }
       if !segment.is_empty() {
         out.write_string(
-          "<a:r><a:rPr sz=\"1800\">\{style}</a:rPr><a:t xml:space=\"preserve\">\{@xml.escape_text(segment.to_owned())}</a:t></a:r>",
+          "<a:r><a:rPr \{attributes}>\{style}</a:rPr><a:t xml:space=\"preserve\">\{@xml.escape_text(segment.to_owned())}</a:t></a:r>",
         )
       }
     }
-    out.write_string("<a:endParaRPr sz=\"1800\">\{style}</a:endParaRPr></a:p>")
+    out.write_string(
+      "<a:endParaRPr \{attributes}>\{style}</a:endParaRPr></a:p>",
+    )
   }
   out.write_string("</p:txBody>")
   out.to_string()
@@ -384,6 +390,9 @@ pub fn Session::edit_objects(
   }
   if change is InsertDiagram(settings) {
     return self.insert_diagram(settings, probe, profile)
+  }
+  if change is InsertWordArt(preset, text) {
+    return self.insert_word_art(preset, text, probe, profile)
   }
   if self.selection.objects.length() == 1 &&
     original.object(self.selection.object).table is Some(_) &&
@@ -497,7 +506,8 @@ pub fn Session::edit_objects(
   }
   let mut issued : String? = None
   let (changes, after) = match change {
-    InsertDiagram(_)
+    InsertWordArt(_, _)
+    | InsertDiagram(_)
     | InsertConnector(_, _)
     | ConnectorEndpoints(_, _)
     | InsertImage(_, _, _, _, _)

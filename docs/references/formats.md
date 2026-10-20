@@ -2007,6 +2007,16 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 实现归 [`connector.mbt`](../../modules/formats/src/pptx/connector.mbt)、[`connector-edit.mbt`](../../modules/formats/src/pptx/connector-edit.mbt)、[`connector-gesture.mbt`](../../modules/formats/src/pptx/connector-gesture.mbt)及 [`pptx-connectors.tsx`](../../packages/ui/src/pptx-connectors.tsx)。吸附规则参考 [ONLYOFFICE ResizeTrackShapeImage](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L370-L450)及 [Geometry.findConnector](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Geometry.js#L1174-L1187)。组内连接重算及父组逆变换参考 [ONLYOFFICE CnxShape](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CnxShape.js#L624-L684)。原生点顺序参考 ONLYOFFICE `CreateGeometry` 的[矩形](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L6741)、[椭圆](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L3100)、[圆角矩形](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L7195)和[直线连接线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L8272)，未复制上游执行代码。
 
+### 基础艺术字
+
+`editObjects({ action: "insertWordArt", preset, text })` 在当前页面或源视图创建标准 DrawingML 文字框。`preset` 支持 `blue`、`gold`、`red`、`purple`、`green-italic` 五种纯色预设；颜色分别为 4472C4、FFC000、C00000、7030A0、70AD47。文字为 Arial、54 pt、粗体，绿色另带斜体。预设写入普通 run 和段末字符属性，不添加私有样式状态；后续文字、格式、查找、复制、变换和删除沿已有对象操作。宿主须提供对应粗体及粗斜体字体，缺字体不提交。
+
+核心按实际字体度量生成不换行、水平/垂直居中、随文字调整大小的框，再置于页面中央。全部文字成为活动选择，默认面板把焦点交还原生输入，首次键入可直接替换。输入、字号或框设置变化复用既有自动适配；首次插入和后续输入各自进入一项精确历史。保存重开、Canvas、PNG/JPEG 和静态 PDF 使用同一排版。其他对象、关系及未改部件保留。
+
+`text` 必须含非空白内容，沿现有对象文字规则接受有效 XML 字符、LF 段落、软换行和 Tab；最多 32767 个 UTF-16 单元、256 段，每段最多 4096 单元。旧 revision、活动候选、放映、保护、字体及尺寸/输出/历史预算失败原子拒绝。框尺寸沿既有 14400 pt 上限。文字描边、渐变、阴影、弯曲及三维艺术字继续实施，已有变形节点继续诊断并保护源。
+
+不换行只关闭自动断行；对齐、RTL、制表位和命中继续使用实际框宽。核心不再用极大虚拟宽度对齐，并在段落缓存中区分是否换行。实现归 [`word-art.mbt`](../../modules/formats/src/pptx/word-art.mbt)、[`text-frame.mbt`](../../modules/layout/src/text-frame.mbt)和默认 [`pptx-word-art.tsx`](../../packages/ui/src/pptx-word-art.tsx)。文字框、无底色/边框、54 pt、居中与自动适配参考 [ONLYOFFICE createTextArt](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L8794-L8912)，插入历史和整段选择参考 [AddTextArt](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L11071-L11103)。五种纯色配方按 GenOffice 功能清单选择；未复制上游执行代码。
+
 ### 简化 SmartArt 图示
 
 `PresentationEditor.editObjects({ action: "insertDiagram", template, items, x, y, width, height })` 插入一个可编辑形状组。`template` 为 `process`、`hierarchy` 或 `cycle`，分别按水平流程、首项为根的单层层级、顺时针循环排列。普通模板接受 2–16 项，循环接受 3–16 项。每项最多 4096 UTF-16 单元，总计最多 32767；文字沿原形状校验与转义规则。坐标及外框使用页面磅，沿既有对象边界校验。
@@ -2083,9 +2093,13 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 默认放映提供画笔、颜色和清空本页。笔宽为 2.25 pt；Web 只转换指针坐标、采集与合并样本，每帧最多提交一批 64 点，由核心绘制。拖动捕获指针，页面外位置限制在页面边缘。绘画点击不触发链接或换页。Escape 取消当前笔画并回到普通指针，再按一次退出；丢失捕获和停用画笔同样取消草稿。退出、文件替换和释放停止采样及帧请求。
 
-每笔最多 4096 点，整次放映最多 256 笔、32768 点；正在输入的草稿计入点数检查。每批最多 64 点，宽度为 0.5–24 pt，坐标须为页内有限值。Web 待发送样本最多 4096 点，超限取消当前草稿并显示错误，已完成笔迹保留。保存为墨迹对象、橡皮擦、激光笔及压感继续实施。
+`PresentationEditor.slideshow.saveInk()` 与默认“保存墨迹并结束”显式提交全部源页上的已完成笔迹，再结束放映。低层使用 `controlShowPptx` 的 `saveInk` 动作，携带当前 revision、单调 time 和空 slide。核心为每笔创建本地 `p:sp/a:custGeom` 开放折线，保留颜色、宽度、圆端点和圆连接；每页放到现有对象上层，全部页面合为一项历史。原编辑选择和未改部件保持。保存后可命中、移动、缩放、旋转、复制、删除及修改描边，重开、Canvas、图片和 PDF 共用该路径。无笔迹时只结束，不新增历史。Web 先提交已抬笔的待发送样本，取消仍在绘制的草稿；同步核心遇到活动草稿则拒绝。任一页面保护、身份或输出/历史预算失败，全部源、序列和已完成笔迹保持，可继续放映或普通结束。
 
-实现归 [`show-ink.mbt`](../../modules/formats/src/pptx/show-ink.mbt)及 [`presentation-show-ink.ts`](../../packages/web/src/presentation-show-ink.ts)。临时页级笔迹、取消和显式写入源的分离参考 [ONLYOFFICE SlideShowAnnotations](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/SlideShowAnnotations.js#L53-L193)。未复制上游执行代码。
+原生路径读取当前只支持单个、无填充、启用描边的 moveTo/lnTo 路径、常量坐标及空引导列表，每个形状最多 4097 点。路径坐标随对象框缩放，命中按各线段距离计算。零高/宽笔迹使用最小 0.1 pt 框保持既有缩放手柄，单点保留 0.01 pt 线段以显示圆点。曲线、关闭路径、多路径、公式引导和压感数据仍诊断并保护源，不以默认矩形覆盖原源。原有对象、XML、历史及 R0 绘制预算继续适用。
+
+每笔最多 4096 点，整次放映最多 256 笔、32768 点；正在输入的草稿计入点数检查。每批最多 64 点，宽度为 0.5–24 pt，坐标须为页内有限值。Web 待发送样本最多 4096 点，超限取消当前草稿并显示错误，已完成笔迹保留。橡皮擦、激光笔、曲线平滑及压感继续实施。
+
+实现归 [`show-ink.mbt`](../../modules/formats/src/pptx/show-ink.mbt)、[`show-ink-save.mbt`](../../modules/formats/src/pptx/show-ink-save.mbt)、[`polyline.mbt`](../../modules/formats/src/pptx/polyline.mbt)及 [`presentation-show-ink.ts`](../../packages/web/src/presentation-show-ink.ts)。开放无填充路径和边界参考 [ONLYOFFICE PolyLine](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/PolyLine.js#L180-L262)，当前保留采样折线，不引入曲线拟合。临时页级笔迹、取消和显式写入源的分离参考 [ONLYOFFICE SlideShowAnnotations](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/SlideShowAnnotations.js#L53-L193)。未复制上游执行代码。
 
 ### 放映链接
 

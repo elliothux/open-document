@@ -147,6 +147,7 @@ fn ParagraphCache::lines(
   baseLevel? : Int,
   inTable~ : Bool = false,
   startOffset~ : Int = 0,
+  wrap~ : Bool = true,
 ) -> Array[MeasuredLine] raise @failure.Failure {
   probe.check()
   // Keep non-finite geometry out of retained entries.
@@ -159,6 +160,7 @@ fn ParagraphCache::lines(
       baseLevel?,
       inTable~,
       startOffset~,
+      wrap~,
     )
     self.shaped += 1
     return lines
@@ -166,7 +168,8 @@ fn ParagraphCache::lines(
   let key = self.key(paragraph, available) +
     (if startOffset == 0 { "" } else { ";start=\{startOffset}" }) +
     baseLevel.map(level => ";base=\{level}").unwrap_or("") +
-    (if inTable { ";table" } else { "" })
+    (if inTable { ";table" } else { "" }) +
+    (if wrap { "" } else { ";nowrap" })
   let cached = match self.current.get(key) {
     Some(lines) => Some(lines)
     None => self.previous.get(key)
@@ -185,6 +188,7 @@ fn ParagraphCache::lines(
         baseLevel?,
         inTable~,
         startOffset~,
+        wrap~,
       )
       self.shaped += 1
       lines

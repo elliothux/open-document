@@ -48,6 +48,9 @@ fn object_hit(
     ) {
     return x >= 0 && y >= 0 && x <= width && y <= height
   }
+  if !object.polyline.is_empty() {
+    return object.polyline_hit(geometry, x, y, margin)
+  }
   if object.preset == "line" {
     let square = width * width + height * height
     let dot = x * width + y * height

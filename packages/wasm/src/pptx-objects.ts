@@ -309,6 +309,21 @@ export function number(value: unknown, low = 0, high = 0x7fffffff): number {
 }
 export function checkPptxObjectEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "insertWordArt") {
+    const text = objectText(change.text);
+    if (
+      Object.keys(change).length !== 3 ||
+      Object.keys(change).some(
+        (key) => !["action", "preset", "text"].includes(key),
+      ) ||
+      !["blue", "gold", "red", "purple", "green-italic"].some(
+        (preset) => preset === change.preset,
+      ) ||
+      !text.trim()
+    )
+      throw new Error("Invalid solid WordArt preset or text");
+    return;
+  }
   if (change.action === "mediaPlayback") {
     if (Object.keys(change).length !== 2)
       throw new Error("Invalid media playback change");
@@ -690,7 +705,12 @@ export function checkPptxObjectEdit(value: unknown): void {
     (change.kind === "line" && width + height >= 0.1)
   ))
     throw new Error("Invalid PPTX object size");
-  const text = change.text;
+  const text = objectText(change.text);
+  if (change.kind === "line" && text !== "")
+    throw new Error("Invalid PPTX object text");
+}
+
+function objectText(text: unknown): string {
   if (
     typeof text !== "string" ||
     !text.isWellFormed() ||
@@ -704,8 +724,8 @@ export function checkPptxObjectEdit(value: unknown): void {
       );
     }) ||
     text.split("\n").length > 256 ||
-    text.split("\n").some((p) => p.length > 4096) ||
-    (change.kind === "line" && text !== "")
+    text.split("\n").some((p) => p.length > 4096)
   )
     throw new Error("Invalid PPTX object text");
+  return text;
 }

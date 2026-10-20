@@ -17,17 +17,7 @@ pub fn TextProbe::paragraph_lines(
     @failure.reject("layout-overflow", "Text frame has no usable line width")
   }
   let cache = ParagraphCache::new(self, profile)
-  let lines = cache.lines(
-    self,
-    paragraph,
-    profile,
-    if wrap {
-      width
-    } else {
-      1000000000.0
-    },
-    baseLevel?,
-  )
+  let lines = cache.lines(self, paragraph, profile, width, baseLevel?, wrap~)
   if self.paragraphs.length() >= 1024 {
     self.paragraphs.clear()
     self.text_units = 0

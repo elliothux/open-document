@@ -27,6 +27,7 @@ export function PptxShow({
     first: t.showFirst,
     last: t.showLast,
     end: t.showEnd,
+    saveInk: t.showSaveInk,
     fullscreen: t.showFullscreen,
     presenter: t.showPresenter,
     notes: t.speakerNotes,

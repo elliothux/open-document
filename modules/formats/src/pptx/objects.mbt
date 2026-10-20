@@ -125,6 +125,7 @@ fn read_object(
     @failure.reject("limit-exceeded", "Object name exceeds budget")
   }
   let properties = children(chain, "spPr", uri=presentation_uri)
+  let custom = children(properties, "custGeom").get(0)
   let geometry = if source.node.name == "graphicFrame" {
     let transforms = source.child("xfrm", uri=presentation_uri)
     transforms.map(item => {
@@ -177,8 +178,9 @@ fn read_object(
   let native_preset = attribute(children(properties, "prstGeom"), "prst").unwrap_or(
     "rect",
   )
-  let preset = if source.node.name == "cxnSp" &&
-    native_preset == "straightConnector1" {
+  let preset = if custom is Some(_) {
+    "polyline"
+  } else if source.node.name == "cxnSp" && native_preset == "straightConnector1" {
     "line"
   } else {
     native_preset
@@ -193,9 +195,18 @@ fn read_object(
     }
     error => raise error
   }
+  let polyline = custom.map(read_polyline).unwrap_or([]) catch {
+      @failure.Failure(message~, ..) => {
+        diagnostic = message
+        []
+      }
+    }
   if kind == "unsupported" ||
-    !supported_shape(preset) ||
-    !children(properties, "custGeom").is_empty() {
+    (!supported_shape(preset) && polyline.is_empty()) ||
+    (
+      custom is Some(_) &&
+      (source.node.name != "sp" || !children(properties, "prstGeom").is_empty())
+    ) {
     diagnostic = "Unsupported object geometry: " +
       source.node.name +
       "/" +
@@ -499,6 +510,7 @@ fn read_object(
     source,
     geometry,
     preset,
+    polyline,
     adjustments,
     fill: paint.0,
     gradient: paint.11,

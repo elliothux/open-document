@@ -40,6 +40,7 @@ fn paragraph_lines(
   baseLevel? : Int,
   inTable~ : Bool = false,
   startOffset~ : Int = 0,
+  wrap~ : Bool = true,
 ) -> Array[MeasuredLine] raise @failure.Failure {
   guard paragraph.defaultTab >= 0 && paragraph.defaultTab <= 1584 else {
     @failure.reject("invalid-style", "Invalid default tab interval")
@@ -310,7 +311,7 @@ fn paragraph_lines(
           width += advances[offset].1
         }
       }
-      if width > limit {
+      if wrap && width > limit {
         break
       }
       end = b
@@ -355,7 +356,7 @@ fn paragraph_lines(
             limit: available - paragraph.right,
           }),
         ).0
-      if actual <= limit {
+      if !wrap || actual <= limit {
         break actual
       }
       let previous = boundaries
@@ -392,7 +393,7 @@ fn paragraph_lines(
       boundaries,
       spaces,
       trailing=if spaces.get(visible_end) is Some(gap) {
-        if fitted_width + gap <= limit {
+        if !wrap || fitted_width + gap <= limit {
           gap
         } else {
           0.0
@@ -411,7 +412,7 @@ fn paragraph_lines(
         limit: available - paragraph.right,
       }),
     )
-    guard width <= limit else {
+    guard !wrap || width <= limit else {
       @failure.reject(
         "layout-overflow", "A grapheme or inline image exceeds line width",
       )
