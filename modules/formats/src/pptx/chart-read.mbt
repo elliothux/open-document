@@ -179,6 +179,8 @@ fn read_chart_part(
     (line, "line")
   } else if plot.child("areaChart", uri=chart_uri) is Some(area) {
     (area, "area")
+  } else if plot.child("scatterChart", uri=chart_uri) is Some(scatter) {
+    (scatter, "scatter")
   } else {
     let bars = chart_child(plot, "barChart")
     let direction = chart_child(bars, "barDir").node
@@ -195,10 +197,28 @@ fn read_chart_part(
   }
   let categories = chart_points(
     chart_child(
-      chart_child(chart_child({ tree, node: series[0], }, "cat"), "strRef"),
-      "strCache",
+      chart_child(
+        chart_child(
+          { tree, node: series[0], },
+          if kind == "scatter" {
+            "xVal"
+          } else {
+            "cat"
+          },
+        ),
+        if kind == "scatter" {
+          "numRef"
+        } else {
+          "strRef"
+        },
+      ),
+      if kind == "scatter" {
+        "numCache"
+      } else {
+        "strCache"
+      },
     ),
-    false,
+    kind == "scatter",
   )
   let data : ChartData = {
     kind,
@@ -209,6 +229,13 @@ fn read_chart_part(
     },
     label: if kind == "pie" {
       chart_rich_title(chart, line=1)
+    } else if kind == "scatter" {
+      guard tree.all(plot.node.id, "valAx", uri=chart_uri) is [x_axis, _] else {
+        @failure.reject(
+          "unsupported-chart", "Scatter charts require two value axes",
+        )
+      }
+      chart_rich_title({ tree, node: x_axis, })
     } else {
       chart_rich_title(chart_child(plot, "catAx"))
     },
@@ -223,7 +250,13 @@ fn read_chart_part(
         @failure.reject("unsupported-chart", "Chart series requires one title")
       }
       let values = chart_points(
-        chart_child(chart_child(chart_child(item, "val"), "numRef"), "numCache"),
+        chart_child(
+          chart_child(
+            chart_child(item, if kind == "scatter" { "yVal" } else { "val" }),
+            "numRef",
+          ),
+          "numCache",
+        ),
         true,
       )
       {

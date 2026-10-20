@@ -29,6 +29,18 @@ import {
 
 /** Page commands retain the existing Worker and validation boundary. */
 export class FoundationPageClient extends FoundationReviewClient {
+  async updateBodyPageFields(
+    revision: number,
+    profile: Record<string, string>,
+  ) {
+    return editState(
+      await this.connection.request({
+        operation: "updateBodyPageFields",
+        revision,
+        profile,
+      }),
+    );
+  }
   async ruler(revision: number): Promise<DocxRuler> {
     return docxRuler(
       await this.connection.request({ operation: "docxRuler", revision }),

@@ -40,7 +40,7 @@ fn Line::selection_portion(
   }
   for run in self.runs {
     for glyph in run.glyphs {
-      let offset = run.start + glyph.cluster
+      let offset = run.start + run.logical_cluster(glyph)
       if start <= offset && offset < end {
         let font = fonts[glyph.font]
         let (a, d) = scaled_line_metrics(

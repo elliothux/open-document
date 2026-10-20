@@ -152,7 +152,7 @@ pub fn Layout::semantics(self : Layout) -> Array[SemanticPage] {
       paragraph: line.paragraph,
       container: line.container,
       baseLevel: line.baseLevel,
-      text: line.text,
+      text: line.display_text(),
       marker: if line.markerText.is_empty() {
         None
       } else {

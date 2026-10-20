@@ -287,6 +287,11 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.styles(request.revision, request.kind);
         case "pageSetup":
           return foundation.pageSetup(request.revision);
+        case "updateBodyPageFields":
+          return foundation.updateBodyPageFields(
+            request.revision,
+            request.profile,
+          );
         case "setPageColumns":
           return foundation.setPageColumns(
             request.revision,

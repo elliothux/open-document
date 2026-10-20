@@ -154,6 +154,9 @@ fn Session::write_chart(
   if data.kind != "pie" {
     ignore(data.axis())
   }
+  if data.kind == "scatter" {
+    ignore(data.scatter_axis())
+  }
   if target is Some((_, chart)) && chart.data == data {
     return self.query()
   }

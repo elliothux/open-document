@@ -154,6 +154,11 @@ export class FoundationPageSession extends FoundationReviewSession {
       }),
     );
   }
+  updateBodyPageFields(revision: number, profile: Record<string, string>) {
+    return editState(
+      this.call({ operation: "updateBodyPageFields", revision, profile }),
+    );
+  }
   unlinkRunningArea(
     revision: number,
     kind: DocxRunningKind,

@@ -101,7 +101,7 @@ fn justified_line(line : Line, limit : Double) -> Line {
     let clusters : Map[Int, Bool] = Map([])
     for run in line.runs {
       for glyph in run.glyphs {
-        clusters[run.start + glyph.cluster] = true
+        clusters[run.start + run.logical_cluster(glyph)] = true
       }
     }
     let close_word = limit - width <= 0.05 * limit

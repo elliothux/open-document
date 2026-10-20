@@ -14,6 +14,14 @@ import type {
 
 /** Document-wide page commands use the editor's existing read and edit queues. */
 export abstract class DocumentPage extends DocumentReview {
+  updateBodyPageFields(): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.updateBodyPageFields(
+        this.review.snapshot().revision,
+        this.profile,
+      ),
+    );
+  }
   protected abstract downloadOutput(
     output: EditorOutput,
     filename: string,

@@ -1,9 +1,9 @@
 import { record } from "./validation.js";
 
 export interface PptxChart {
-  kind: "column" | "bar" | "line" | "pie" | "area";
+  kind: "column" | "bar" | "line" | "pie" | "area" | "scatter";
   title: string;
-  /** TSV: header row, category column, then 1-8 numeric series. Pie displays the first series by absolute value. */
+  /** TSV: header row, category column (numeric X for scatter), then 1-8 numeric series. Pie displays the first series by absolute value. */
   data: string;
 }
 
@@ -14,7 +14,7 @@ export function checkPptxChart(value: unknown): void {
     Object.keys(chart).some(
       (key) => !["kind", "title", "data"].includes(key),
     ) ||
-    !["column", "bar", "line", "pie", "area"].some(
+    !["column", "bar", "line", "pie", "area", "scatter"].some(
       (kind) => kind === chart.kind,
     ) ||
     typeof chart.title !== "string" ||

@@ -637,6 +637,7 @@ export const en = {
   theme: "Theme",
   pageSetup: "Page setup",
   loadPageSetup: "Load page setup",
+  updateBodyPageFields: "Update body page fields",
   applyPageSetup: "Apply page setup",
   reloadPageSetup: "Document changed. Load page setup again.",
   pageWidth: "Page width (pt)",

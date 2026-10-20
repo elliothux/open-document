@@ -37,7 +37,7 @@ fn chart_text(text : String) -> Unit raise @failure.Failure {
 
 ///|
 fn ChartData::validate(self : ChartData) -> Unit raise @failure.Failure {
-  guard ["column", "bar", "line", "pie", "area"].contains(self.kind) &&
+  guard ["column", "bar", "line", "pie", "area", "scatter"].contains(self.kind) &&
     self.categories.length() >= 1 &&
     self.categories.length() <= 256 &&
     self.series.length() >= 1 &&
@@ -50,6 +50,9 @@ fn ChartData::validate(self : ChartData) -> Unit raise @failure.Failure {
   chart_text(self.label)
   for category in self.categories {
     chart_text(category)
+  }
+  if self.kind == "scatter" {
+    ignore(self.scatter_values())
   }
   for series in self.series {
     chart_text(series.name)

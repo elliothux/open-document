@@ -135,6 +135,10 @@ fn DrawingChart::paint(
   let slots = data.categories.length()
   let line = data.kind == "line"
   let area = data.kind == "area"
+  let scatter = data.kind == "scatter"
+  if scatter {
+    out.append(data.paint_scatter(left, top, w, h, probe, profile))
+  }
   let slot = if area && slots > 1 {
     w / (slots - 1).to_double()
   } else {
@@ -220,69 +224,71 @@ fn DrawingChart::paint(
     .ceil()
     .to_int()
     .max(1)
-  for index, category in data.categories {
-    let position = if horizontal { slots - 1 - index } else { index }
-    let at = position.to_double() * slot
-    let (label_x, label_width) = if area {
-      let center = left + (if slots == 1 { w / 2 } else { at })
-      let first = (center - slot / 2).max(0)
-      (first, (center + slot / 2).min(width) - first)
-    } else {
-      (left + at, slot)
-    }
-    if index % stride == 0 {
-      out.append(
-        chart_label(
-          category,
-          if horizontal {
-            4
+  if !scatter {
+    for index, category in data.categories {
+      let position = if horizontal { slots - 1 - index } else { index }
+      let at = position.to_double() * slot
+      let (label_x, label_width) = if area {
+        let center = left + (if slots == 1 { w / 2 } else { at })
+        let first = (center - slot / 2).max(0)
+        (first, (center + slot / 2).min(width) - first)
+      } else {
+        (left + at, slot)
+      }
+      if index % stride == 0 {
+        out.append(
+          chart_label(
+            category,
+            if horizontal {
+              4
+            } else {
+              label_x
+            },
+            if horizontal {
+              top + at + (slot - 14) / 2
+            } else {
+              top + h + 4
+            },
+            if horizontal {
+              left - 8
+            } else {
+              label_width
+            },
+            16,
+            10,
+            !horizontal,
+            probe,
+            profile,
+          ),
+        )
+      }
+      if line || area {
+        continue
+      }
+      for series_index, series in data.series {
+        if series.values[index] is Some(value) {
+          let ratio = (value - low) / (high - low)
+          let offset = at + bar * (0.75 + series_index.to_double())
+          let rect : @layout.Fill = if horizontal {
+            {
+              x: left + w * zero.min(ratio),
+              y: top + offset,
+              width: w * (ratio - zero).abs(),
+              height: bar,
+              color: chart_color(series_index),
+            }
           } else {
-            label_x
-          },
-          if horizontal {
-            top + at + (slot - 14) / 2
-          } else {
-            top + h + 4
-          },
-          if horizontal {
-            left - 8
-          } else {
-            label_width
-          },
-          16,
-          10,
-          !horizontal,
-          probe,
-          profile,
-        ),
-      )
-    }
-    if line || area {
-      continue
-    }
-    for series_index, series in data.series {
-      if series.values[index] is Some(value) {
-        let ratio = (value - low) / (high - low)
-        let offset = at + bar * (0.75 + series_index.to_double())
-        let rect : @layout.Fill = if horizontal {
-          {
-            x: left + w * zero.min(ratio),
-            y: top + offset,
-            width: w * (ratio - zero).abs(),
-            height: bar,
-            color: chart_color(series_index),
+            {
+              x: left + offset,
+              y: top + h * (1 - zero.max(ratio)),
+              width: bar,
+              height: h * (ratio - zero).abs(),
+              color: chart_color(series_index),
+            }
           }
-        } else {
-          {
-            x: left + offset,
-            y: top + h * (1 - zero.max(ratio)),
-            width: bar,
-            height: h * (ratio - zero).abs(),
-            color: chart_color(series_index),
+          if rect.width > 0 && rect.height > 0 {
+            out.push(Rectangle(rect))
           }
-        }
-        if rect.width > 0 && rect.height > 0 {
-          out.push(Rectangle(rect))
         }
       }
     }
@@ -293,7 +299,9 @@ fn DrawingChart::paint(
   let legend_width = (width - 16) / data.series.length().to_double()
   for i, series in data.series {
     let x = 8.0 + legend_width * i.to_double()
-    if line {
+    if scatter {
+      out.append(chart_marker(x + 4, height - 14, chart_color(i)))
+    } else if line {
       out.push(
         Path(
           [Move(x, height - 14), Line(x + 8, height - 14)],

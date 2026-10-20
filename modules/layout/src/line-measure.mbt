@@ -24,7 +24,7 @@ fn measure_line(
     let b = end.min(item.end)
     if a < b {
       text.write_string(
-        item.span.text[a - item.start:b - item.start].to_owned(),
+        item.span.logical_text()[a - item.start:b - item.start].to_owned(),
       )
     }
   }
@@ -55,7 +55,9 @@ fn measure_line(
     let next = offset + (if ch.to_int() > 0xffff { 2 } else { 1 })
     if groups.last() is Some(group) &&
       group.image is None &&
+      group.field is None &&
       item.span.image is None &&
+      item.span.field.is_empty() &&
       !group.tab &&
       ch != '\t' &&
       group.font == item.font &&
@@ -74,6 +76,11 @@ fn measure_line(
         style: item.span.style,
         level: bidi.levels[i],
         image: item.span.image,
+        field: if item.span.field.is_empty() {
+          None
+        } else {
+          Some((item.span.node, item.span.text))
+        },
         tab: ch == '\t',
       })
     }
@@ -171,6 +178,23 @@ fn measure_line(
         guard leader_glyphs <= 16384 else {
           @failure.reject("limit-exceeded", "Line leader glyph budget exceeded")
         }
+        runs.push(run)
+      }
+      width += advance
+      continue
+    }
+    if group.field is Some(_) {
+      let position = start + group.start
+      let (advance, run) = group.measure_field(
+        probe, position, width, rtl, geometry,
+      )
+      if advances is Some(values) {
+        values[position] = (advance, 0)
+      }
+      if run is Some(run) {
+        let from_end = (group.level % 2 == 1) != rtl
+        after[position] = width + (if from_end { advance } else { 0 })
+        before[start + group.end] = width + (if from_end { 0 } else { advance })
         runs.push(run)
       }
       width += advance

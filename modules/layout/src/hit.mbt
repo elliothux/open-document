@@ -104,7 +104,7 @@ fn Layout::portion_caret_geometry(self : Layout, hit : Hit) -> Hit {
   let mut start = -1
   for run in line.runs {
     for glyph in run.glyphs {
-      let offset = run.start + glyph.cluster
+      let offset = run.start + run.logical_cluster(glyph)
       // At a format boundary Writer uses the preceding text portion's metrics.
       if (
           offset < hit.offset ||
@@ -131,7 +131,7 @@ fn Layout::portion_caret_geometry(self : Layout, hit : Hit) -> Hit {
       // At a multi-portion's end Writer retains the enclosing portion metrics.
       for candidate in line.runs {
         for glyph in candidate.glyphs {
-          let offset = candidate.start + glyph.cluster
+          let offset = candidate.start + candidate.logical_cluster(glyph)
           if start <= offset && offset < end {
             let font = self.fonts[glyph.font]
             let (a, d) = scaled_line_metrics(
@@ -373,7 +373,7 @@ fn nearest_caret(line : Line, page : Int, index : Int, x : Double) -> Hit {
     let end = left.offset.max(right.offset)
     for run in line.runs {
       for glyph in run.glyphs {
-        let offset = run.start + glyph.cluster
+        let offset = run.start + run.logical_cluster(glyph)
         if offset >= start && offset < end {
           advance += glyph.advance.to_double() * glyph.scale
         }

@@ -104,6 +104,24 @@ fn WordTree::running_fields(
   self : WordTree,
   paragraph : Int,
 ) -> Map[Int, String] raise @failure.Failure {
+  for id in self.descendants(paragraph) {
+    let node = self.nodes[id]
+    if node.uri == word_uri &&
+      ["fldSimple", "fldChar", "instrText"].contains(node.name) {
+      let parent = self.nodes[node.parent]
+      guard (node.name == "fldSimple" && parent.id == paragraph) ||
+        (
+          node.name != "fldSimple" &&
+          parent.name == "r" &&
+          parent.uri == word_uri &&
+          parent.parent == paragraph
+        ) else {
+        @failure.reject(
+          "protected-content", "Nested field containers require support",
+        )
+      }
+    }
+  }
   let fields : Map[Int, String] = Map([])
   let mut state = 0
   let mut instruction = ""

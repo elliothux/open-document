@@ -451,11 +451,21 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 已导入的页眉页脚支持 `PAGE` 和 `NUMPAGES` 的格式化计算，包括 `fldSimple` 和同段内的 begin/instrText/separate/result/end 成对域。接受缺省格式、十进制、大小写字母及罗马数字的显式格式开关，以及可组合的 `MERGEFORMAT`；保留首个结果 run 的有效字符样式。派生 `Span.field` 使用空串、字段名或带冒号格式后缀的字段名，格式归[页码格式与起点](#页码格式与起点)。`Span.text` 保留导入缓存，实际页边行按节编号、显式格式和物理总页数重新塑形。正文分页、历史和重开会重新计算，Canvas、语义文本和 PDF 使用相同结果。参考 [ONLYOFFICE PAGE 与 NUMPAGES](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L918-L928)。
 
-字段结果改变换行时，核心按每页实际页边高度有界重排正文，最多八轮；不收敛时保留最后完整布局并给出诊断，输出沿既有诊断保护。正文空间和分页缓存包含逐页几何，跨页表格也使用该页空间。现有 1024 页和 32768 行预算继续生效，每段最多 64 个字段。未知指令/开关、锁定、嵌套、不完整或跨段域继续保护且不执行；当前不支持多节继承、更广编号格式和正文域。实现归[字段读取](../../modules/formats/src/docx/running-fields.mbt)与[有界重排](../../modules/layout/src/running-pagination.mbt)。
+字段结果改变换行时，核心按每页实际页边高度有界重排正文，最多八轮；不收敛时保留最后完整布局并给出诊断，输出沿既有诊断保护。正文空间和分页缓存包含逐页几何，跨页表格也使用该页空间。现有 1024 页和 32768 行预算继续生效，每段最多 64 个字段。未知指令/开关、锁定、嵌套、不完整或跨段域继续保护且不执行；多节继承及更广编号格式继续实施，正文范围归[正文页码字段](#正文页码字段)。实现归[字段读取](../../modules/formats/src/docx/running-fields.mbt)与[有界重排](../../modules/layout/src/running-pagination.mbt)。
 
 计算、保存和输出不改写域代码或缓存，不增加历史，也不改变原格式未保存状态。显式应用字段内容会把当前结果与内容修改放在同一项历史；内容和距离相同时，应用用于刷新已有缓存，结果相同则不新增历史。只改距离或开关仍保留区域 XML。刷新简单域和成对域时只替换结果文字，保留域代码、属性和字符样式；未知或带注释的源继续保护。缓存的 `PAGE` 使用该变体的首次出现页，加上节起点并应用节格式或字段显式格式。首页取物理首页；偶数变体取编号后首次为偶数且未被首页占用的页面；默认变体取未被活动首页/偶数区域占用的首个页面。起点为 1 时仍分别遵循原有的 1、2 及默认区域 1/2/3 规则。非活动变体采用同一规则；`NUMPAGES` 使用当前文档总页数。屏幕/PDF 仍逐页计算。更新要求完整布局及原有历史/输出预算通过，失败保留原文档、选择和历史。行为参考 [ONLYOFFICE 字段创建与更新](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L23510-L23568)，当前写回归[有序内容及字段缓存](../../modules/formats/src/docx/running-content.mbt)。
 
 节间继承、其他字段、更广页码格式、图片/表格/审阅对象及页边原生光标仍待实现。共享同一部件的变体可显示，内容替换或缓存更新须先显式断开，避免改写其他区域；未知或带注释的目标源也不允许内容替换或缓存更新。非活动区域保持原源，启用前验证候选布局。正文查找和统计仍只覆盖既定正文范围。
+
+### 正文页码字段
+
+正文中的每个字段占一个逻辑对象位置，完整结果作为整体排版。位数改变或结果为空时保留该位置，光标和选区只落在字段前后。实际字形簇和完整显示文字用于语义文本、PNG 与 PDF，数字内部不拆行。页眉页脚保留原有排版方式。依据 [ONLYOFFICE 页码整体测量](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/RunContent/PageNum.js#L154-L176)，实现归[字段行内排版](../../modules/layout/src/field-run.mbt)。
+
+导入的正文和普通单元格支持 `PAGE`、`NUMPAGES` 的简单域及同段成对域，沿用上述格式开关和首个结果 run 的有效样式。`PAGE` 使用字段所在行的物理页及当前节编号；`NUMPAGES` 使用实际纸张总数，分栏不增加页号。核心先用有界初始值分页，再按字段位置与总页数重排，和页眉页脚共用最多八轮的收敛限制。原段落、单元格及分页缓存参与同一路径，Canvas、语义文本、PNG 与 PDF 共用结果；布局与保存不改缓存或历史。
+
+`FoundationSession/Client.updateBodyPageFields(revision, profile)` 和 `DocumentEditor.updateBodyPageFields()` 显式刷新正文缓存，默认页面面板提供同名按钮。核心只改结果文字，清空多余缓存 run 的文字，保留域代码、属性、字符样式、其他部件和原选择，一次更新合为一项精确历史。结果相同不改 revision，保留当前显示布局和后续原生导航。缺字体、未知/锁定/嵌套指令、结果内注释或处理指令、保护及原有输出/历史预算失败时整体拒绝。
+
+每段最多 64 个字段，正文布局最多 4096 个字段位置。重复表头中的 `PAGE`、不可定位的结果及未收敛结果给出布局诊断，阻止不确定的刷新或输出。字段段落仍保留原生编辑保护，其他普通段落可继续输入并触发实时重算；插入、字段指令编辑、字段段落范围编辑及其他域继续实施，不视为字段创作已完成。依据 [ONLYOFFICE 字段行所在页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L918-L928)与[实际页总数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L1312-L1315)。实现归[正文字段布局](../../modules/layout/src/body-fields.mbt)和[缓存刷新事务](../../modules/formats/src/docx/body-field-edit.mbt)。
 
 ### 表格创建
 
@@ -2291,11 +2301,11 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 ### PPTX 基础图表
 
-`editObjects({ action: "insertChart", kind, title, data, x, y, width, height })` 插入簇状柱形图 `column`、条形图 `bar`、带圆形数据点的折线图 `line`、饼图 `pie` 或面积图 `area`。选中单个本地图表后，`{ action: "chartData", kind, title, data }` 修改类型、标题和数据。对象查询的 `chart` 返回 `{ kind, title, data }`，其他对象为 `null`。默认面板使用相同接口。
+`editObjects({ action: "insertChart", kind, title, data, x, y, width, height })` 插入簇状柱形图 `column`、条形图 `bar`、带圆形数据点的折线图 `line`、饼图 `pie`、面积图 `area` 或散点图 `scatter`。选中单个本地图表后，`{ action: "chartData", kind, title, data }` 修改类型、标题和数据。对象查询的 `chart` 返回 `{ kind, title, data }`，其他对象为 `null`。默认面板使用相同接口。
 
 `data` 为 TSV，首行给出类别轴标题和系列名，首列为类别，其余为有限数值或空值。支持 1–8 个系列、1–256 个类别、最多 65536 个 UTF-16 单元；标题及各标签最多 256 个单行单元。核心复用 XLSX 分隔文本导入，公式作为文字处理并在数值列拒绝。空值保留间隙，零值没有柱高；数轴包含零并采用 1/2/5/10 刻度间隔。参考 [ONLYOFFICE 数轴计算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L2678-L2736)。
 
-MoonBit 生成原生 `graphicFrame`、`barChart`、`lineChart`、`pieChart` 或 `areaChart`、系列公式/缓存、关系和实际嵌入 XLSX，使用固定配色、Arial 及图例。公共图元输出 Canvas 与静态 PDF。框最小为 180×150 点，移动、缩放、对齐、层级、删除复用对象事务。旋转、翻转和组合保持保护。图表文字通过数据面板编辑。
+MoonBit 生成原生 `graphicFrame`、`barChart`、`lineChart`、`pieChart`、`areaChart` 或 `scatterChart`、系列公式/缓存、关系和实际嵌入 XLSX，使用固定配色、Arial 及图例。公共图元输出 Canvas 与静态 PDF。框最小为 180×150 点，移动、缩放、对齐、层级、删除复用对象事务。旋转、翻转和组合保持保护。图表文字通过数据面板编辑。
 
 普通视图中的本地顶层图表支持 `editObjects({ action: "duplicate", dx, dy })` 和默认“复制对象”按钮。可与同父的普通对象一起多选复制，保留选择顺序、活动对象、内容、名称及非目标源。副本分配新对象身份、独立图表 XML、嵌入工作簿及关系；初始工作簿保留原始字节，后续改数据互不影响。复制、资源及内容类型合为一项精确历史。缓存与工作簿不一致、未知图表资源关系、复制锁、字体、布局或预算失败时整项拒绝。组内图表及母版/版式图表复制继续保护。规则参考 [ONLYOFFICE 图表复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L4959-L5028)，实现归 [`chart-copy.mbt`](../../modules/formats/src/pptx/chart-copy.mbt)和 [`object-copy.mbt`](../../modules/formats/src/pptx/object-copy.mbt)。
 
@@ -2306,6 +2316,8 @@ MoonBit 生成原生 `graphicFrame`、`barChart`、`lineChart`、`pieChart` 或 
 饼图显示首个系列，按绝对值计算扇区。零值和空值不占面积，全零或全空时绘图区留空。全部系列保留在查询、原生缓存及嵌入工作簿中，切回其他类型仍可使用。核心先按最大绝对值缩放再求和，避免有限数值的总和溢出。第一片从十二点方向顺时针开始，类别颜色循环使用八色。TSV 首格作为副标题，和主标题写入原生富文本标题的两个段落。饼图不生成数轴，右侧图例按框高显示，放不下时显示剩余项数量；完整数据仍可编辑。当前不提供角度、分离扇区、数据标签或配色设置。语义参考 [ONLYOFFICE 饼图与首个系列](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L12238-L12346)，实现归 [`chart-pie.mbt`](../../modules/formats/src/pptx/chart-pie.mbt)。
 
 面积图使用 `kind: "area"`。类别轴按 `crossBetween=midCat` 把首末类别点放在绘图区边缘，单类别居中。每个连续非空数据段沿零轴闭合，空值断开，孤立点和全零段不产生可见面积；正负部分保留原符号。系列按原顺序用固定不透明颜色绘制，后系列可覆盖前系列，不累计数据；图例沿相同系列顺序。当前无外轮廓和数据点标记，配置为 `standard`、`varyColors=0`、`dispBlanksAs=gap`。未知堆积/百分比、透明度、标记及其他轴配置保持诊断和源保护。数据修改、切换类型、独立对象复制及精确历史复用原路径；Canvas、PNG 和 PDF 使用同一封闭图元。位置和空值规则依据 [ONLYOFFICE 面积图默认轴](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartFormat.js#L6582-L6591)、[零轴闭合与断段](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L9735-L9840)及[系列绘制顺序与空值](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L10796-L10884)。
+
+散点图使用 `kind: "scatter"`，TSV 首列为共享的有限数值 X 或空值，后续各列为 Y 系列。首格为 X 轴标题。X/Y 都存在时绘制直径 5 点的圆形标记；零值保留，缺失任一坐标时不画点。数值 X 按实际比例定位，重复、无序 X 和正负坐标保持；点之间不连线。两条数值轴分别沿相同零包含和 1/2/5/10 刻度规则取界，空数据轴使用 0–1；边界包含未成对的有限源数值。原生结构为 `scatterChart`、`scatterStyle=marker`、`varyColors=0`、两条 `valAx` 和各系列 `xVal/yVal` 数值引用/缓存，所有 X 引用同一工作簿首列。切换类型、独立复制、精确历史及重开沿既有事务。每系列独立 X、连线/平滑、气泡、其他标记和自定义轴继续保护。行为依据 [ONLYOFFICE 默认散点类型](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartFormat.js#L6251-L6267)、[双数值轴](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L13462-L13494)及[数值定位与空值](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L14843-L14934)。实现归 [`chart-scatter.mbt`](../../modules/formats/src/pptx/chart-scatter.mbt)。
 
 读取仅接受当前原生结构，未知图表类型、样式、轴配置或公式保持诊断与源保护。数据编辑前核对缓存与嵌入工作簿，拒绝共享图表资源。修改数据保留对象/图表身份，并新建嵌入工作簿以支持精确撤销。旧工作簿及删除后未引用的图表资源继续保留，受现有包和历史预算限制。更广导入、样式与资源回收继续实施。实现归 [`chart-data.mbt`](../../modules/formats/src/pptx/chart-data.mbt)、[`chart-read.mbt`](../../modules/formats/src/pptx/chart-read.mbt)、[`chart-edit.mbt`](../../modules/formats/src/pptx/chart-edit.mbt)及 [`chart-layout.mbt`](../../modules/formats/src/pptx/chart-layout.mbt)。
 

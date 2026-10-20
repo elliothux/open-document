@@ -360,18 +360,6 @@ pub fn paginate(
   probe.check()
   flow.page.validate()
   flow.pageBorders.validate()
-  guard flow.paragraphs.all(p => p.spans.all(span => span.field.is_empty())) &&
-    flow.tables.all(t => {
-      t.rows.all(row => {
-        row.all(cell => {
-          cell.all(p => p.spans.all(span => span.field.is_empty()))
-        })
-      })
-    }) else {
-    @failure.reject(
-      "unsupported-layout", "Body page fields require layout support",
-    )
-  }
   guard flow.background.length() == 6 &&
     flow.background.iter().all(c => c.is_ascii_hexdigit()) else {
     @failure.reject("invalid-style", "Invalid page background color")

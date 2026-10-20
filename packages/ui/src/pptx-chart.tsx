@@ -69,6 +69,7 @@ export function PptxCharts({
                 kind === "bar" ||
                 kind === "line" ||
                 kind === "area" ||
+                kind === "scatter" ||
                 kind === "pie"
               )
                 setDraft({ ...draft, kind });
@@ -79,6 +80,7 @@ export function PptxCharts({
             <option value="line">{t.chartLine}</option>
             <option value="pie">{t.chartPie}</option>
             <option value="area">{t.chartArea}</option>
+            <option value="scatter">{t.chartScatter}</option>
           </select>
         </label>
         <label>
@@ -106,6 +108,7 @@ export function PptxCharts({
         </label>
         <p>{t.chartDataHint}</p>
         {draft.kind === "pie" && <p>{t.chartPieHint}</p>}
+        {draft.kind === "scatter" && <p>{t.chartScatterHint}</p>}
         <button type="submit" disabled={!draft.data}>
           {chart ? t.chartApply : t.chartInsert}
         </button>

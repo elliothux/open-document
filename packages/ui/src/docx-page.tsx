@@ -81,6 +81,13 @@ export function DocxPage({
   return (
     <section aria-label={t.pageSetup}>
       <h3>{t.pageSetup}</h3>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => controller.run(() => editor.updateBodyPageFields())}
+      >
+        {t.updateBodyPageFields}
+      </button>
       <DocxRunning
         controller={controller}
         state={state}

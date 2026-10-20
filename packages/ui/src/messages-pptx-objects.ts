@@ -6,6 +6,9 @@ export const objectEn = {
   chartLine: "Line with markers",
   chartPie: "Pie",
   chartArea: "Area",
+  chartScatter: "Scatter",
+  chartScatterHint:
+    "Use numeric X values in the first column. Rows without X or Y do not draw a point.",
   chartPieHint:
     "Pie displays the first series by absolute value. Zero and empty values have no slice. All source series remain editable.",
   chartTitle: "Chart title",
@@ -63,6 +66,8 @@ export const objectZh: typeof objectEn = {
   chartLine: "带数据点的折线图",
   chartPie: "饼图",
   chartArea: "面积图",
+  chartScatter: "散点图",
+  chartScatterHint: "首列填写数值 X；缺少 X 或 Y 的行不绘制数据点。",
   chartPieHint:
     "饼图按绝对值显示首个系列，零值和空值不占扇区。所有源系列仍可编辑。",
   chartTitle: "图表标题",

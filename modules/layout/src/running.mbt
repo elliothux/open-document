@@ -51,6 +51,7 @@ fn running_lines(
             }
             {
               ..span,
+              field: "",
               text: if span.field.is_empty() {
                 span.text
               } else {

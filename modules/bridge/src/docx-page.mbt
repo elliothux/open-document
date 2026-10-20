@@ -124,6 +124,13 @@ fn Foundation::docx_page(
     return session.page_setup(revision)
   }
   let result = match operation {
+    "updateBodyPageFields" =>
+      session.update_body_page_fields(
+        revision,
+        probe=self.probe,
+        profile=xlsx_profile(request),
+        images=self.images,
+      )
     "setPageColumns" => {
       guard request is { "columns": columns, .. } else {
         @failure.reject("invalid-operation", "Column settings are required")
@@ -239,6 +246,9 @@ fn Foundation::docx_page(
       session.set_page_borders(revision, page_border_format(request))
     _ => @failure.reject("invalid-operation", "Unknown document page command")
   }
-  self.layout = None
+  if result is { "revision": Number(current, ..), .. } &&
+    current != revision.to_double() {
+    self.layout = None
+  }
   result
 }

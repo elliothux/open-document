@@ -219,6 +219,7 @@ pub fn Session::theme_colors(Self, Int) -> Json raise @failure.Failure
 pub fn Session::theme_fonts(Self, Int) -> Json raise @failure.Failure
 pub fn Session::undo_edit(Self, Int) -> Json raise @failure.Failure
 pub fn Session::unlink_running_area(Self, Int, String, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
+pub fn Session::update_body_page_fields(Self, Int, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::update_composition(Self, Int, Int, String) -> Json raise @failure.Failure
 pub fn Session::update_list_level(Self, Int, Int, Int, ListLevelFormat) -> Json raise @failure.Failure
 pub fn Session::update_picture_resize(Self, Int, Int, Double, Double, Int) -> Json raise @failure.Failure

@@ -134,6 +134,11 @@ export type Operation =
     }
   | { operation: "pageSetup"; revision: number }
   | {
+      operation: "updateBodyPageFields";
+      revision: number;
+      profile: Record<string, string>;
+    }
+  | {
       operation: "setPageColumns";
       revision: number;
       columns: DocxColumns | null;

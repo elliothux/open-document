@@ -190,8 +190,27 @@ fn Session::paragraph(
   background~ : String = "ffffff",
   running~ : Bool = false,
 ) -> @layout.Paragraph raise @failure.Failure {
-  let fields = if running { tree.running_fields(id) } else { Map([]) }
   let diagnostics : Array[String] = []
+  let has_fields = running ||
+    tree
+    .descendants(id)
+    .any(item => {
+      tree.nodes[item].uri == word_uri &&
+      ["fldSimple", "fldChar", "instrText"].contains(tree.nodes[item].name)
+    })
+  let fields = if has_fields {
+    tree.running_fields(id) catch {
+      @failure.Failure(message~, ..) => {
+        if running {
+          @failure.reject("unsupported-layout", message)
+        }
+        diagnostics.push("unsupported-layout:" + message)
+        Map([])
+      }
+    }
+  } else {
+    Map([])
+  }
   for item in tree.descendants(id) {
     tree.diagnose_properties(item, self.main, diagnostics)
   }
@@ -220,7 +239,7 @@ fn Session::paragraph(
         @failure.Failure(message~, ..) =>
           diagnostics.push("unsupported-layout:" + message)
       }
-    } else if running && node.uri == word_uri && node.name == "fldSimple" {
+    } else if has_fields && node.uri == word_uri && node.name == "fldSimple" {
       ()
     } else if !running &&
       node.uri == word_uri &&
@@ -235,7 +254,7 @@ fn Session::paragraph(
       diagnostics.push("unsupported-layout:" + node.qualified)
     }
   }
-  for run in tree.paragraph_runs(id, running~, review=!running) {
+  for run in tree.paragraph_runs(id, running=has_fields, review=!running) {
     let base = styles.run_character_style(tree, run, run_style, diagnostics)
     let review = tree.nodes[tree.nodes[run].parent]
     let style = if review.uri == word_uri && review.name == "ins" {
@@ -247,7 +266,7 @@ fn Session::paragraph(
     }
     for content in tree.children[run] {
       let item = tree.nodes[content]
-      if running && ["fldChar", "instrText"].contains(item.name) {
+      if has_fields && ["fldChar", "instrText"].contains(item.name) {
         continue
       }
       if fields.get(content) == Some("") {
@@ -379,6 +398,8 @@ fn Session::paragraph(
           revision_element(tree.nodes[item].name)
         }) {
         "Tracked revisions require review before editing"
+      } else if !running && has_fields {
+        "Page fields require field editing"
       } else {
         picture_reason
       },

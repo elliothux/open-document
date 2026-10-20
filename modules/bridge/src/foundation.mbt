@@ -260,6 +260,7 @@ fn Foundation::dispatch(
     | "setPageColumns"
     | "setPageSetup"
     | "setPageNumbering"
+    | "updateBodyPageFields"
     | "setPageBackground"
     | "setPageBorders"
     | "insertDocxTable"
@@ -454,6 +455,7 @@ fn Foundation::dispatch(
         | "setPageBackground"
         | "setPageBorders"
         | "setPageNumbering"
+        | "updateBodyPageFields"
         | "setPageSetup" => self.docx_page(session, operation, request)
         "insertDocxTable" | "editDocxTable" =>
           self.docx_table(session, operation, request)

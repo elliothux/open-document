@@ -370,7 +370,7 @@ pub fn Line::positioned(
   }
   primitives.push(
     Text({
-      text: line.markerText + line.text,
+      text: line.markerText + line.display_text(),
       runs: line
       .paint_runs()
       .map(run => {

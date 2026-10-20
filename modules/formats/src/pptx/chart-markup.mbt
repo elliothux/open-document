@@ -60,6 +60,9 @@ fn ChartData::markup(
   if self.kind == "pie" {
     return self.pie_markup(workbook_link)
   }
+  if self.kind == "scatter" {
+    return self.scatter_markup(workbook_link)
+  }
   let (low, high, step) = self.axis()
   let horizontal = self.kind == "bar"
   let line = self.kind == "line"

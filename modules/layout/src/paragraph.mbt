@@ -28,6 +28,7 @@ priv struct LineGroup {
   style : TextStyle
   level : Int
   image : InlineImage?
+  field : (Int, String)?
   tab : Bool
 }
 
@@ -113,14 +114,15 @@ fn paragraph_lines(
       }
       probe.font_index(identity)
     }
-    spans.push({ span, start: length, end: length + span.text.length(), font, })
+    let logical = span.logical_text()
+    spans.push({ span, start: length, end: length + logical.length(), font, })
     if font >= 0 {
       let (a, d) = probe.line_metrics(font, span.style.size)
       ascent = ascent.max(a)
       descent = descent.max(d)
     }
-    text.write_string(span.text)
-    length += span.text.length()
+    text.write_string(logical)
+    length += logical.length()
     size = size.max(span.style.size)
   }
   guard length <= 4096 else {
@@ -133,7 +135,7 @@ fn paragraph_lines(
     )
   }
   let source_text = if inTable {
-    paragraph.spans.map(span => span.text).join("")
+    paragraph.spans.map(span => span.logical_text()).join("")
   } else {
     text
   }
@@ -514,7 +516,13 @@ fn paragraph_lines(
         bars,
         runs: runs.map(run => {
           ..run,
-          text: source_text[run.start:run.start + run.text.length()].to_owned(),
+          text: if source_text[run.start] == 0xfffc &&
+            run.sources is [source] &&
+            source.end - source.start == 1 {
+            run.text
+          } else {
+            source_text[run.start:run.start + run.text.length()].to_owned()
+          },
           baseline: baseline - run.rise,
         }),
         images: images.map(image => { ..image, y: baseline - image.height, }),
