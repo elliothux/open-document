@@ -340,6 +340,7 @@ export const zh: Messages = {
   noTableBorder: "移除边框",
   wrap: "单元格文字换行",
   fontSize: "字号（pt）",
+  characterSpacing: "字间距（pt）",
   bold: "加粗",
   conditionalFormatting: "条件格式",
   conditionalRules: "条件规则",

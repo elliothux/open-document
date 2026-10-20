@@ -7,6 +7,7 @@ pub(all) struct TextStyle {
   strike : Bool
   highlight : String
   script : String
+  spacing : Double
 } derive(ToJson)
 
 ///|
@@ -23,6 +24,7 @@ pub fn TextStyle::new(
     strike: false,
     highlight: "",
     script: "baseline",
+    spacing: 0,
   }
 }
 

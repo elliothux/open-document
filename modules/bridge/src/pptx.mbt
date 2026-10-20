@@ -688,6 +688,16 @@ fn Foundation::pptx_operation(
         xlsx_number(request, "dx"),
         xlsx_number(request, "dy"),
         field_int(request, "handle"),
+        shift=if request is Object(fields) && fields.contains("shift") {
+          xlsx_boolean(request, "shift")
+        } else {
+          false
+        },
+        center=if request is Object(fields) && fields.contains("center") {
+          xlsx_boolean(request, "center")
+        } else {
+          false
+        },
         tolerance=if request is Object(fields) && fields.contains("tolerance") {
           xlsx_number(request, "tolerance")
         } else {
@@ -768,31 +778,4 @@ fn Foundation::pptx_operation(
     }
     _ => @failure.reject("invalid-operation", "Unknown PPTX operation")
   }
-}
-
-///|
-fn pptx_gradient_stops(
-  value : Json,
-) -> Array[@layout.GradientStop] raise @failure.Failure {
-  guard value is { "stops": Array(stops), .. } &&
-    stops.length() >= 2 &&
-    stops.length() <= 32 else {
-    @failure.reject("invalid-operation", "Gradients require 2..32 stops")
-  }
-  stops.map(stop => {
-    guard stop is Object(fields) &&
-      fields.length() == 3 &&
-      fields.contains("position") &&
-      fields.contains("opacity") &&
-      fields.contains("color") else {
-      @failure.reject(
-        "invalid-operation", "Gradient stops require position, color and opacity",
-      )
-    }
-    {
-      position: xlsx_number(stop, "position"),
-      color: field_string(stop, "color"),
-      opacity: xlsx_number(stop, "opacity"),
-    }
-  })
 }

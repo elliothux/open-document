@@ -54,6 +54,7 @@ fn TextProbe::shape_paragraph(
   spacing~ : Map[Int, Double] = Map([]),
   advances? : (Array[(Double, Double)], Int),
   context? : (Array[Char], Int),
+  tracking~ : Double = 0,
 ) -> ShapeBatch raise @failure.Failure {
   self.check()
   let inserted : Array[String] = []
@@ -71,6 +72,9 @@ fn TextProbe::shape_paragraph(
     @failure.reject("missing-font", "Unknown primary font")
   }
   guard text.length() <= 4096 &&
+    !tracking.is_nan() &&
+    !tracking.is_inf() &&
+    tracking.abs() <= 1584 &&
     size > 0 &&
     size <= 1024 &&
     language.length() <= 64 else {
@@ -176,6 +180,7 @@ fn TextProbe::shape_paragraph(
     }
   }
   let trailing_space : Map[Int, Double] = Map([])
+  let tracked : Map[Int, Double] = Map([])
   let glyphs : Array[Glyph] = []
   let outlines : Array[Outline] = []
   let run_views : Array[GlyphRun] = []
@@ -213,7 +218,14 @@ fn TextProbe::shape_paragraph(
     let features = buffer
       .gsub_features()
       .iter()
-      .filter(tag => !["frac", "numr", "dnom"].contains(tag.to_string()))
+      .filter(tag => {
+        !["frac", "numr", "dnom"].contains(tag.to_string()) &&
+        (
+          tracking == 0 ||
+          run.script.to_iso15924_tag().to_string() == "Arab" ||
+          !["liga", "clig"].contains(tag.to_string())
+        )
+      })
       .collect()
     buffer.set_gsub_features(features)
     buffer.set_gpos_features(features)
@@ -257,6 +269,14 @@ fn TextProbe::shape_paragraph(
       trailing_space[offsets[run.end]] = gap
     }
     // The MoonBit shaper returns logical order; emit horizontal RTL in visual order.
+    let cluster_widths : Map[Int, Double] = Map([])
+    if tracking != 0 {
+      for i in 0..<buffer.len() {
+        let cluster = buffer.infos()[i].cluster
+        cluster_widths[cluster] = cluster_widths.get(cluster).unwrap_or(0) +
+          buffer.positions()[i].x_advance.to_double() * ratio
+      }
+    }
     for visual_index in 0..<buffer.len() {
       let i = if run.level % 2 == 1 {
         buffer.len() - visual_index - 1
@@ -275,6 +295,21 @@ fn TextProbe::shape_paragraph(
       } else {
         position.x_advance.to_double() * ratio
       }
+      let next = if run.level % 2 == 1 { i - 1 } else { i + 1 }
+      let extra = if tracking != 0 &&
+        !control &&
+        (
+          next < 0 ||
+          next >= buffer.len() ||
+          buffer.infos()[next].cluster != info.cluster
+        ) {
+        let width = cluster_widths.get(info.cluster).unwrap_or(0)
+        let extra = (width + tracking).max(0) - width
+        tracked[info.cluster] = extra
+        extra
+      } else {
+        0.0
+      }
       if geometry && control {
         for offset in [info.cluster, info.cluster + 1] {
           controls.push({ offset, before: x, after: x, })
@@ -283,7 +318,7 @@ fn TextProbe::shape_paragraph(
       if advances is Some((values, start)) {
         let index = start + info.cluster
         let (width, gap) = values[index]
-        values[index] = (width + advance, gap)
+        values[index] = (width + advance + extra, gap)
       }
       if geometry && !control {
         let (key, path, fresh) = self.outline(run.font, info.codepoint)
@@ -305,7 +340,7 @@ fn TextProbe::shape_paragraph(
           yOffset: position.y_offset,
         })
       }
-      x += advance
+      x += advance + extra
     }
     if run.level % 2 == 0 {
       x += gap
@@ -321,7 +356,7 @@ fn TextProbe::shape_paragraph(
     text,
     carets: if geometry {
       self
-      .shape_carets(text, glyphs, run_views, controls, caret_units?)
+      .shape_carets(text, glyphs, run_views, controls, tracked, caret_units?)
       .map(caret => {
         let gap = trailing_space.get(caret.offset).unwrap_or(0)
         {

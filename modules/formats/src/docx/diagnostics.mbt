@@ -15,7 +15,7 @@ fn WordTree::diagnose_properties(
     "rPr" =>
       [
         "rStyle", "rFonts", "sz", "color", "b", "i", "lang", "bCs", "iCs", "szCs",
-        "u", "strike", "highlight", "vertAlign", "cs", "rtl",
+        "u", "strike", "highlight", "vertAlign", "cs", "rtl", "spacing",
       ]
     "sectPr" =>
       [

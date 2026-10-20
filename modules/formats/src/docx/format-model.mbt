@@ -14,6 +14,7 @@ pub(all) struct CharacterFormat {
   style : FormatChange[String]
   family : FormatChange[String]
   size : FormatChange[Double]
+  spacing : FormatChange[Double]
   color : FormatChange[String]
   bold : FormatChange[Bool]
   italic : FormatChange[Bool]
@@ -31,6 +32,7 @@ pub fn CharacterFormat::new(
   style~ : FormatChange[String] = Keep,
   family~ : FormatChange[String] = Keep,
   size~ : FormatChange[Double] = Keep,
+  spacing~ : FormatChange[Double] = Keep,
   color~ : FormatChange[String] = Keep,
   bold~ : FormatChange[Bool] = Keep,
   italic~ : FormatChange[Bool] = Keep,
@@ -43,6 +45,7 @@ pub fn CharacterFormat::new(
     style,
     family,
     size,
+    spacing,
     color,
     bold,
     italic,
@@ -57,6 +60,16 @@ pub fn CharacterFormat::new(
 fn CharacterFormat::validate(
   self : CharacterFormat,
 ) -> Unit raise @failure.Failure {
+  if self.spacing is Set(value) {
+    guard !value.is_nan() &&
+      !value.is_inf() &&
+      value.abs() <= 1584 &&
+      (value * 20).round() == value * 20 else {
+      @failure.reject(
+        "invalid-operation", "Character spacing must be in twips within -1584 and 1584 points",
+      )
+    }
+  }
   if self.highlight is Set(value) {
     ignore(
       highlight_color(value) catch {
@@ -113,6 +126,7 @@ fn CharacterFormat::merge(
     style: merge_format(self.style, patch.style),
     family: merge_format(self.family, patch.family),
     size: merge_format(self.size, patch.size),
+    spacing: merge_format(self.spacing, patch.spacing),
     color: merge_format(self.color, patch.color),
     bold: merge_format(self.bold, patch.bold),
     italic: merge_format(self.italic, patch.italic),
@@ -161,6 +175,7 @@ fn RunStyle::formatted(
       size: format_value(self.fonts.size, inherited.fonts.size, patch.size),
     },
     size: format_value(self.size, inherited.size, patch.size),
+    spacing: format_value(self.spacing, inherited.spacing, patch.spacing),
     color: format_value(self.color, inherited.color, patch.color),
     bold: format_value(self.bold, inherited.bold, patch.bold),
     italic: format_value(self.italic, inherited.italic, patch.italic),
@@ -214,6 +229,14 @@ fn CharacterFormat::properties(
       ),
       ("highlight", self.highlight),
       ("vertAlign", self.vertAlign),
+      (
+        "spacing",
+        match self.spacing {
+          Keep => Keep
+          Clear => Clear
+          Set(value) => Set((value * 20).round().to_int().to_string())
+        },
+      ),
     ] {
     match change {
       Keep => ()

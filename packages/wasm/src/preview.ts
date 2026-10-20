@@ -23,6 +23,7 @@ export interface TextStyle {
   strike: boolean;
   highlight: string;
   script: "baseline" | "superscript" | "subscript";
+  spacing: number;
 }
 
 export interface DocxFlow {
@@ -247,12 +248,13 @@ export function docxFlow(value: unknown): DocxFlow {
         throw new Error("Invalid paragraph marker");
       const style = fields(
         marker.style,
-        ["size"],
+        ["size", "spacing"],
         ["font", "color", "highlight", "script"],
       );
       if (
         typeof style.underline !== "boolean" ||
         typeof style.strike !== "boolean" ||
+        Math.abs(Number(style.spacing)) > 1584 ||
         !["baseline", "superscript", "subscript"].includes(String(style.script))
       )
         throw new Error("Invalid paragraph marker style");
@@ -287,12 +289,13 @@ export function docxFlow(value: unknown): DocxFlow {
         throw new Error("Invalid running field");
       const style = fields(
         span.style,
-        ["size"],
+        ["size", "spacing"],
         ["font", "color", "highlight", "script"],
       );
       if (
         typeof style.underline !== "boolean" ||
         typeof style.strike !== "boolean" ||
+        Math.abs(Number(style.spacing)) > 1584 ||
         !["baseline", "superscript", "subscript"].includes(String(style.script))
       )
         throw new Error("Invalid preview text decoration");

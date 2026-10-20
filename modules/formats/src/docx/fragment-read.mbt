@@ -63,7 +63,7 @@ fn check_fragment_content(
       "rPr" =>
         [
           "rFonts", "sz", "color", "b", "i", "lang", "bCs", "iCs", "szCs", "u", "strike",
-          "highlight", "vertAlign", "cs", "rtl",
+          "highlight", "vertAlign", "cs", "rtl", "spacing",
         ]
       "tabs" => ["tab"]
       "numPr" => ["numId", "ilvl"]

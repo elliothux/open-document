@@ -51,6 +51,7 @@ fn Session::snap_resize_size(
   dy : Double,
   handle : Int,
   tolerance : Double,
+  center : Bool,
 ) -> (Double, Double, (Bool, Bool)) raise @failure.Failure {
   guard self.selection.objects.length() == 1 &&
     size_snap_frame(slide.object(self.selection.object)) is Some(g) else {
@@ -59,33 +60,38 @@ fn Session::snap_resize_size(
   let targets = size_snap_targets(slide, self.selection.object)
   let left = handle == 1 || handle == 4
   let top = handle == 1 || handle == 2
-  let width = if dx == 0 {
+  let factor = if center { 2.0 } else { 1.0 }
+  let raw_width = g.width + (if left { -dx } else { dx }) * factor / g.matrix.a
+  let raw_height = g.height + (if top { -dy } else { dy }) * factor / g.matrix.d
+  let width = if dx == 0 || raw_width == 0 {
     None
   } else {
     nearest_snap_size(
       targets.map(object => object.geometry.unwrap().width),
-      g.width + (if left { -dx } else { dx }) / g.matrix.a,
-      tolerance / g.matrix.a.abs(),
-    )
+      raw_width.abs(),
+      tolerance * factor / g.matrix.a.abs(),
+    ).map(value => if raw_width < 0 { -value } else { value })
   }
-  let height = if dy == 0 {
+  let height = if dy == 0 || raw_height == 0 {
     None
   } else {
     nearest_snap_size(
       targets.map(object => object.geometry.unwrap().height),
-      g.height + (if top { -dy } else { dy }) / g.matrix.d,
-      tolerance / g.matrix.d.abs(),
-    )
+      raw_height.abs(),
+      tolerance * factor / g.matrix.d.abs(),
+    ).map(value => if raw_height < 0 { -value } else { value })
   }
   (
     width
     .map(width => {
-      (width - g.width) * (if left { -g.matrix.a } else { g.matrix.a })
+      (width - g.width) * (if left { -g.matrix.a } else { g.matrix.a }) / factor
     })
     .unwrap_or(dx),
     height
     .map(height => {
-      (height - g.height) * (if top { -g.matrix.d } else { g.matrix.d })
+      (height - g.height) *
+      (if top { -g.matrix.d } else { g.matrix.d }) /
+      factor
     })
     .unwrap_or(dy),
     (width is Some(_), height is Some(_)),

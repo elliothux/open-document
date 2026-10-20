@@ -87,6 +87,7 @@ fn Session::markup_lists(
       !marker.style.underline &&
       !marker.style.strike &&
       marker.style.highlight.is_empty() &&
+      marker.style.spacing == 0 &&
       marker.style.script == "baseline"
     lists[id] = {
       instance,

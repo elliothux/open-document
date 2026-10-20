@@ -13,6 +13,7 @@ import { DocxTabFields } from "./docx-tab-fields.js";
 
 const emptyNumbers = {
   size: "",
+  spacing: "",
   before: "",
   after: "",
   left: "",
@@ -96,6 +97,7 @@ export function DocxStyleEdit({
           paragraphPatch = { ...paragraph };
         for (const key of [
           "size",
+          "spacing",
           "before",
           "after",
           "left",
@@ -105,7 +107,8 @@ export function DocxStyleEdit({
           const draft = numbers[key];
           if (draft !== "") {
             const value = draft === "inherit" ? null : Number(draft);
-            if (key === "size") characterPatch.size = value;
+            if (key === "size" || key === "spacing")
+              characterPatch[key] = value;
             else paragraphPatch[key] = value;
           }
         }
@@ -183,6 +186,15 @@ export function DocxStyleEdit({
           step={0.5}
           value={numbers.size}
           onChange={(size) => setNumbers({ ...numbers, size })}
+        />
+        <StyleInput
+          label={`${label}: ${t.characterSpacing}`}
+          locale={state.locale}
+          min={-1584}
+          max={1584}
+          step={0.05}
+          value={numbers.spacing}
+          onChange={(spacing) => setNumbers({ ...numbers, spacing })}
         />
         {(["bold", "italic", "underline", "strike"] as const).map((key) => (
           <StyleChoice

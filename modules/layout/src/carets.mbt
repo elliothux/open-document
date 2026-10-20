@@ -15,6 +15,7 @@ fn TextProbe::shape_carets(
   glyphs : Array[Glyph],
   runs : Array[GlyphRun],
   controls : Array[Caret],
+  tracking : Map[Int, Double],
   caret_units? : Double,
 ) -> Array[Caret] raise @failure.Failure {
   let boundaries = grapheme_boundaries(text)
@@ -68,6 +69,7 @@ fn TextProbe::shape_carets(
         end,
       ]
       let count = edges.length() - 1
+      right += tracking.get(start).unwrap_or(0)
       let carets = if count > 1 { self.ligature_carets(base) } else { [] }
       let width = right - left
       let ordered = for i in 1..<carets.length() {
@@ -77,7 +79,8 @@ fn TextProbe::shape_carets(
       } nobreak {
         true
       }
-      let valid = carets.length() == count - 1 &&
+      let valid = tracking.get(start).unwrap_or(0) == 0 &&
+        carets.length() == count - 1 &&
         carets.iter().all(x => x >= 0 && x <= width) &&
         ordered
       let units = if valid && count > 1 { caret_units } else { None }

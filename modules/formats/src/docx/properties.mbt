@@ -86,6 +86,7 @@ priv struct RunStyle {
   family : String
   fonts : FontBindings
   size : Double
+  spacing : Double
   color : String
   bold : Bool
   italic : Bool
@@ -155,6 +156,10 @@ fn run_properties(
     family,
     fonts,
     size,
+    spacing: tree
+    .number(id, "spacing", "val")
+    .map(value => value / 20)
+    .unwrap_or(base.spacing),
     color,
     bold: tree.character_toggle(id, "b", base.bold, inherited),
     italic: tree.character_toggle(id, "i", base.italic, inherited),
@@ -354,6 +359,7 @@ fn Session::styles(
     strike: false,
     highlight: "none",
     vertAlign: "baseline",
+    spacing: 0,
   }
   let paragraph : @layout.Paragraph = {
     id: -1,

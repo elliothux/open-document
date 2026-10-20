@@ -331,6 +331,7 @@ export interface CharacterFormatPatch {
   style?: string | null;
   family?: string | null;
   size?: number | null;
+  spacing?: number | null;
   color?: string | null;
   bold?: boolean | null;
   italic?: boolean | null;
@@ -468,6 +469,7 @@ export interface DocxFormatting {
     strike: FormatValue<boolean>;
     highlight: FormatValue<HighlightColor>;
     vertAlign: FormatValue<"baseline" | "superscript" | "subscript">;
+    spacing: FormatValue<number>;
   };
   paragraph: {
     style: FormatValue<string>;
@@ -511,6 +513,7 @@ export function checkFormatPatch(
         style: "string",
         family: "string",
         size: "number",
+        spacing: "number",
         color: "string",
         bold: "boolean",
         italic: "boolean",
@@ -634,6 +637,7 @@ export function docxFormatting(value: unknown): DocxFormatting {
       field(character[key], "string"),
     ) ||
     !field(character.size, "number") ||
+    !field(character.spacing, "number") ||
     !["bold", "italic", "underline", "strike"].every((key) =>
       field(character[key], "boolean"),
     ) ||

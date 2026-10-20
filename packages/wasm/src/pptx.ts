@@ -313,6 +313,8 @@ export type PptxCommand =
       dy: number;
       handle: number;
       tolerance?: number;
+      shift?: boolean;
+      center?: boolean;
     }
   | {
       operation: "finishPptx";

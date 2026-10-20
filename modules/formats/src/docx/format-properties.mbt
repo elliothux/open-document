@@ -112,8 +112,8 @@ fn formatted_properties(
   }
   let order = if kind == "rPr" {
     [
-      "rStyle", "rFonts", "b", "bCs", "i", "iCs", "strike", "color", "sz", "szCs",
-      "highlight", "u", "vertAlign", "rtl", "cs", "lang",
+      "rStyle", "rFonts", "b", "bCs", "i", "iCs", "strike", "color", "spacing", "sz",
+      "szCs", "highlight", "u", "vertAlign", "rtl", "cs", "lang",
     ]
   } else {
     [

@@ -166,9 +166,10 @@ export class PresentationEditor extends PresentationOutput {
         point: (event) => this.surface.point(event, this.scale),
         press: (point, text, extend) =>
           this.gestures.press(point, text, extend),
-        move: (point, snap) => this.gestures.move(point, snap),
-        finish: (point, cancel, snap) =>
-          this.gestures.release(point, cancel, snap),
+        move: (point, snap, shift, center) =>
+          this.gestures.move(point, snap, shift, center),
+        finish: (point, cancel, snap, shift, center) =>
+          this.gestures.release(point, cancel, snap, shift, center),
         fail: (error) => this.fail(error),
       },
     );

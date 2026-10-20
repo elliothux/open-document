@@ -54,6 +54,7 @@ fn Styles::validate_style(
   CharacterFormat::new(
     family=Set(character.family),
     size=Set(character.size),
+    spacing=Set(character.spacing),
     color=Set(character.color),
     bold=Set(character.bold),
     italic=Set(character.italic),

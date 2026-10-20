@@ -234,6 +234,7 @@ fn Session::preserve_run_style(
       ("strike", if before.strike { "1" } else { "0" }),
       ("highlight", before.highlight),
       ("vertAlign", before.vertAlign),
+      ("spacing", (before.spacing * 20).round().to_int().to_string()),
     ] {
     fields.write_string(
       "<od:\{name} xmlns:od=\"\{word_uri}\" od:val=\"\{value}\"/>",

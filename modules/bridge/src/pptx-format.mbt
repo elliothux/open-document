@@ -220,3 +220,30 @@ fn pptx_list_format(value : Json) -> @pptx.ListFormat raise @failure.Failure {
     _ => @pptx.Numbered(field_string(value, "value"), field_int(value, "start"))
   }
 }
+
+///|
+fn pptx_gradient_stops(
+  value : Json,
+) -> Array[@layout.GradientStop] raise @failure.Failure {
+  guard value is { "stops": Array(stops), .. } &&
+    stops.length() >= 2 &&
+    stops.length() <= 32 else {
+    @failure.reject("invalid-operation", "Gradients require 2..32 stops")
+  }
+  stops.map(stop => {
+    guard stop is Object(fields) &&
+      fields.length() == 3 &&
+      fields.contains("position") &&
+      fields.contains("opacity") &&
+      fields.contains("color") else {
+      @failure.reject(
+        "invalid-operation", "Gradient stops require position, color and opacity",
+      )
+    }
+    {
+      position: xlsx_number(stop, "position"),
+      color: field_string(stop, "color"),
+      opacity: xlsx_number(stop, "opacity"),
+    }
+  })
+}

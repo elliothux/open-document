@@ -217,12 +217,13 @@ fn character_format(
 ) -> @docx.CharacterFormat raise @failure.Failure {
   let fields = format_fields(request, [
     "style", "family", "size", "color", "bold", "italic", "underline", "strike",
-    "highlight", "vertAlign",
+    "highlight", "vertAlign", "spacing",
   ])
   @docx.CharacterFormat::new(
     style=format_string(fields, "style"),
     family=format_string(fields, "family"),
     size=format_number(fields, "size"),
+    spacing=format_number(fields, "spacing"),
     color=format_string(fields, "color"),
     bold=format_boolean(fields, "bold"),
     italic=format_boolean(fields, "italic"),

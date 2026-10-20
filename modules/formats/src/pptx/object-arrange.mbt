@@ -1,4 +1,44 @@
 ///|
+fn Ref::pose_changes(
+  self : Ref,
+  before : Geometry,
+  after : Geometry,
+) -> Array[@xml.SourceChange] {
+  let changes : Array[@xml.SourceChange] = []
+  for
+    (name, changed, value) in [
+      (
+        "rot",
+        before.rotation != after.rotation,
+        (after.rotation * 60000).round().to_int64().to_string(),
+      ),
+      (
+        "flipH",
+        before.flip_x != after.flip_x,
+        if after.flip_x {
+          "1"
+        } else {
+          "0"
+        },
+      ),
+      (
+        "flipV",
+        before.flip_y != after.flip_y,
+        if after.flip_y {
+          "1"
+        } else {
+          "0"
+        },
+      ),
+    ] {
+    if changed {
+      changes.push(attribute_change(self, name, value))
+    }
+  }
+  changes
+}
+
+///|
 fn Session::arrange_object(
   self : Session,
   object : Object,
@@ -57,46 +97,7 @@ fn Session::arrange_object(
       ),
     )
   if properties.child("xfrm") is Some(transform) {
-    let changes : Array[@xml.SourceChange] = []
-    for
-      (name, before, after) in [
-        (
-          "rot",
-          (geometry.rotation * 60000).round().to_int64().to_string(),
-          (rotation * 60000).round().to_int64().to_string(),
-        ),
-        (
-          "flipH",
-          if geometry.flip_x {
-            "1"
-          } else {
-            "0"
-          },
-          if flip_x {
-            "1"
-          } else {
-            "0"
-          },
-        ),
-        (
-          "flipV",
-          if geometry.flip_y {
-            "1"
-          } else {
-            "0"
-          },
-          if flip_y {
-            "1"
-          } else {
-            "0"
-          },
-        ),
-      ] {
-      if before != after {
-        changes.push(attribute_change(transform, name, after))
-      }
-    }
-    changes
+    transform.pose_changes(geometry, { ..geometry, rotation, flip_x, flip_y, })
   } else {
     transform_changes(object, { ..geometry, rotation, flip_x, flip_y, })
   }

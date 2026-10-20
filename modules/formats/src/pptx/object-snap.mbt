@@ -5,6 +5,7 @@ fn Session::snap_drag(
   dy : Double,
   handle : Int,
   tolerance : Double,
+  center : Bool,
 ) -> (Double, Double, Array[Guide], (Bool, Bool), (Bool, Bool)) raise @failure.Failure {
   if tolerance == 0 || (dx == 0 && dy == 0) {
     return (dx, dy, [], (false, false), (false, false))
@@ -23,7 +24,7 @@ fn Session::snap_drag(
     }
   let slide = self.source_slide(self.selection.slide)
   let (dx, dy, size) = if handle > 0 && snap_objects {
-    self.snap_resize_size(slide, dx, dy, handle, tolerance)
+    self.snap_resize_size(slide, dx, dy, handle, tolerance, center)
   } else {
     (dx, dy, (false, false))
   }
@@ -360,6 +361,8 @@ pub fn Session::drag(
   dy : Double,
   handle : Int,
   tolerance~ : Double = 0,
+  shift~ : Bool = false,
+  center~ : Bool = false,
 ) -> Json raise @failure.Failure {
   let candidate = self.gesture(revision, id)
   guard !dx.is_nan() &&
@@ -385,13 +388,30 @@ pub fn Session::drag(
   guard candidate.kind == "transform" else {
     @failure.reject("invalid-operation", "Not an object drag gesture")
   }
-  let (dx, dy, lines, spacing, size) = self.snap_drag(dx, dy, handle, tolerance)
-  let object = self
-    .source_slide(self.selection.slide)
-    .object(self.selection.object)
+  let slide = self.source_slide(self.selection.slide)
+  let object = slide.object(self.selection.object)
+  let center = center &&
+    handle > 0 &&
+    !(self.selection.objects.length() == 1 && object.preset == "line")
+  let aspect = handle > 0 &&
+    (
+      shift ||
+      self.selection.objects.all(id => slide.object(id).kind == "image")
+    )
+  let (dx, dy, lines, spacing, size) = self.snap_drag(
+    dx,
+    dy,
+    handle,
+    if aspect {
+      0
+    } else {
+      tolerance
+    },
+    center,
+  )
   if self.selection.objects.length() > 1 {
     return self.drag_aligned(
-      self.drag_collection(revision, id, dx, dy, handle),
+      self.drag_collection(revision, id, dx, dy, handle, aspect, center),
       lines,
       spacing,
       size,
@@ -419,21 +439,41 @@ pub fn Session::drag(
   let local_y = inverse.b * dx + inverse.d * dy
   let left = handle == 1 || handle == 4
   let top = handle == 1 || handle == 2
-  let width = (initial.width + (if left { -local_x } else { local_x })).max(0.1)
-  let height = (initial.height + (if top { -local_y } else { local_y })).max(
-    0.1,
+  let factor = if center { 2.0 } else { 1.0 }
+  let raw_width = initial.width +
+    (if left { -local_x } else { local_x }) * factor
+  let raw_height = initial.height +
+    (if top { -local_y } else { local_y }) * factor
+  let can_flip = (raw_width < 0 || raw_height < 0) &&
+    self.object_edit_reason(object, "flip").is_empty()
+  let flip_x = initial.flip_x != (can_flip && raw_width < 0)
+  let flip_y = initial.flip_y != (can_flip && raw_height < 0)
+  let minimum = if object.preset == "line" { 0.0 } else { 0.1 }
+  let mut width = (if can_flip { raw_width.abs() } else { raw_width }).max(
+    minimum,
   )
+  let mut height = (if can_flip { raw_height.abs() } else { raw_height }).max(
+    minimum,
+  )
+  if width + height < 0.1 {
+    if initial.width > 0 {
+      width = 0.1
+    } else {
+      height = 0.1
+    }
+  }
+  let (width, height) = proportional_size(
+    width,
+    height,
+    initial.width,
+    initial.height,
+    aspect,
+  )
+  let anchor_x = if center { 0.5 } else if left { 1.0 } else { 0.0 }
+  let anchor_y = if center { 0.5 } else if top { 1.0 } else { 0.0 }
   let (fixed_x, fixed_y) = initial.matrix.point(
-    if left {
-      initial.width
-    } else {
-      0
-    },
-    if top {
-      initial.height
-    } else {
-      0
-    },
+    initial.width * anchor_x,
+    initial.height * anchor_y,
   )
   let (fixed_x, fixed_y) = object.source
     .parent_frame()
@@ -445,32 +485,37 @@ pub fn Session::drag(
     width,
     height,
     initial.rotation,
-    initial.flip_x,
-    initial.flip_y,
+    flip_x,
+    flip_y,
   )
-  let (offset_x, offset_y) = matrix.point(
-    if left {
-      width
-    } else {
-      0
-    },
-    if top {
-      height
-    } else {
-      0
-    },
-  )
+  let (offset_x, offset_y) = matrix.point(width * anchor_x, height * anchor_y)
   self.drag_aligned(
-    self.transform(
-      revision,
-      id,
-      fixed_x - offset_x,
-      fixed_y - offset_y,
+    self.preview_transform(candidate, {
+      ..initial,
+      x: fixed_x - offset_x,
+      y: fixed_y - offset_y,
       width,
       height,
-    ),
+      flip_x,
+      flip_y,
+    }),
     lines,
     spacing,
     size,
   )
+}
+
+///|
+fn proportional_size(
+  width : Double,
+  height : Double,
+  original_width : Double,
+  original_height : Double,
+  aspect : Bool,
+) -> (Double, Double) {
+  guard aspect && original_width > 0 && original_height > 0 else {
+    return (width, height)
+  }
+  let scale = (width / original_width).max(height / original_height)
+  (original_width * scale, original_height * scale)
 }

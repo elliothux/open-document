@@ -341,6 +341,7 @@ export const en = {
   noTableBorder: "Remove borders",
   wrap: "Wrap cell text",
   fontSize: "Font size (pt)",
+  characterSpacing: "Character spacing (pt)",
   bold: "Bold",
   conditionalFormatting: "Conditional formatting",
   conditionalRules: "Conditional rules",

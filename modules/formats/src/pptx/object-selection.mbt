@@ -96,6 +96,8 @@ fn Session::transform_collection(
   y : Double,
   width : Double,
   height : Double,
+  flip_x~ : Bool = false,
+  flip_y~ : Bool = false,
 ) -> Json raise @failure.Failure {
   let original = self.source_slide(self.selection.slide)
   let box = original.selection_box(self.selection.objects, in_parent=true)
@@ -125,18 +127,45 @@ fn Session::transform_collection(
     let height = g.height * (if g.resize_swaps_axes() { sx } else { sy })
     let next = {
       ..g,
-      x: if sx == 1 && sy == 1 {
+      x: if sx == 1 && sy == 1 && !flip_x && !flip_y {
         g.x + (x - box.x)
       } else {
-        x + (g.x + g.width / 2 - box.x) * sx - width / 2
+        x +
+        (if flip_x {
+          box.width - (g.x + g.width / 2 - box.x)
+        } else {
+          g.x + g.width / 2 - box.x
+        }) *
+        sx -
+        width / 2
       },
-      y: if sx == 1 && sy == 1 {
+      y: if sx == 1 && sy == 1 && !flip_x && !flip_y {
         g.y + (y - box.y)
       } else {
-        y + (g.y + g.height / 2 - box.y) * sy - height / 2
+        y +
+        (if flip_y {
+          box.height - (g.y + g.height / 2 - box.y)
+        } else {
+          g.y + g.height / 2 - box.y
+        }) *
+        sy -
+        height / 2
       },
       width,
       height,
+      rotation: if flip_x != flip_y {
+        -g.rotation
+      } else {
+        g.rotation
+      },
+      flip_x: g.flip_x != flip_x,
+      flip_y: g.flip_y != flip_y,
+    }
+    if flip_x || flip_y {
+      let reason = self.object_edit_reason(object, "flip")
+      guard reason.is_empty() else {
+        @failure.reject("protected-content", reason)
+      }
     }
     validate_object_box(
       next.x,
@@ -182,6 +211,8 @@ fn Session::drag_collection(
   dx : Double,
   dy : Double,
   handle : Int,
+  aspect : Bool,
+  center : Bool,
 ) -> Json raise @failure.Failure {
   let original = self.source_slide(self.selection.slide)
   let box = original.selection_box(self.selection.objects, in_parent=true)
@@ -204,6 +235,7 @@ fn Session::drag_collection(
   }
   let left = handle == 1 || handle == 4
   let top = handle == 1 || handle == 2
+  let factor = if center { 2.0 } else { 1.0 }
   let mut minimum_x = 0.0
   let mut minimum_y = 0.0
   for object_id in self.selection.objects {
@@ -220,30 +252,62 @@ fn Session::drag_collection(
     minimum_x = minimum_x.max(x)
     minimum_y = minimum_y.max(y)
   }
+  let raw_width = if box.width == 0 {
+    0.0
+  } else {
+    box.width + (if left { -dx } else { dx }) * factor
+  }
+  let raw_height = if box.height == 0 {
+    0.0
+  } else {
+    box.height + (if top { -dy } else { dy }) * factor
+  }
+  let can_flip = (raw_width < 0 || raw_height < 0) &&
+    self.selection.objects.all(id => {
+      self.object_edit_reason(original.object(id), "flip").is_empty()
+    })
+  let flip_x = can_flip && raw_width < 0
+  let flip_y = can_flip && raw_height < 0
   let width = if box.width == 0 {
     0.0
   } else {
-    (box.width + (if left { -dx } else { dx })).max(box.width * minimum_x)
+    (if can_flip { raw_width.abs() } else { raw_width }).max(
+      box.width * minimum_x,
+    )
   }
   let height = if box.height == 0 {
     0.0
   } else {
-    (box.height + (if top { -dy } else { dy })).max(box.height * minimum_y)
+    (if can_flip { raw_height.abs() } else { raw_height }).max(
+      box.height * minimum_y,
+    )
   }
-  self.transform(
-    revision,
-    id,
-    if left {
-      box.x + box.width - width
+  let (width, height) = proportional_size(
+    width,
+    height,
+    box.width,
+    box.height,
+    aspect,
+  )
+  self.transform_collection(
+    self.gesture(revision, id),
+    if center {
+      box.x + (box.width - width) / 2
+    } else if left {
+      box.x + box.width - (if flip_x { 0 } else { width })
     } else {
-      box.x
+      box.x - (if flip_x { width } else { 0 })
     },
-    if top {
-      box.y + box.height - height
+    if center {
+      box.y + (box.height - height) / 2
+    } else if top {
+      box.y + box.height - (if flip_y { 0 } else { height })
     } else {
-      box.y
+      box.y - (if flip_y { height } else { 0 })
     },
     width,
     height,
+    flip_x~,
+    flip_y~,
   )
 }

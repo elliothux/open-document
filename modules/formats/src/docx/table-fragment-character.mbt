@@ -4,6 +4,7 @@ fn RunStyle::fragment_format(self : RunStyle) -> CharacterFormat {
     style=Clear,
     family=Set(self.family),
     size=Set(self.size),
+    spacing=Set(self.spacing),
     color=Set(self.color),
     bold=Set(self.bold),
     italic=Set(self.italic),

@@ -181,28 +181,6 @@ fn transformed_markup(
   let changes : Array[@xml.SourceChange] = []
   for (object, target) in objects {
     changes.append(native_transform_changes(object, target))
-    let properties = object.source
-      .child(
-        if object.kind == "group" {
-          "grpSpPr"
-        } else {
-          "spPr"
-        },
-        uri=presentation_uri,
-      )
-      .unwrap()
-    if properties.child("xfrm") is Some(transform) {
-      for
-        (key, value) in [
-          ("rot", (target.rotation * 60000).round().to_int64().to_string()),
-          ("flipH", if target.flip_x { "1" } else { "0" }),
-          ("flipV", if target.flip_y { "1" } else { "0" }),
-        ] {
-        if transform.node.attribute(key).unwrap_or("0") != value {
-          changes.push(attribute_change(transform, key, value))
-        }
-      }
-    }
   }
   original.tree.document.edit_source(changes).0
 }

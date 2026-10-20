@@ -90,7 +90,12 @@ export class PresentationGestures {
       };
     });
   }
-  move(point: PptxPoint, snap: boolean): Promise<void> {
+  move(
+    point: PptxPoint,
+    snap: boolean,
+    shift = false,
+    center = false,
+  ): Promise<void> {
     return this.host.enqueue(async () => {
       const gesture = this.gesture,
         state = this.host.state(),
@@ -137,6 +142,8 @@ export class PresentationGestures {
             dy,
             handle: gesture.handle,
             tolerance: snap ? 6 / scale : 0,
+            shift,
+            center,
           }),
           true,
         );
@@ -147,8 +154,10 @@ export class PresentationGestures {
     point: PptxPoint,
     cancel: boolean,
     snap: boolean,
+    shift = false,
+    center = false,
   ): Promise<void> {
-    if (!cancel) await this.move(point, snap);
+    if (!cancel) await this.move(point, snap, shift, center);
     await this.host.enqueue(async () => {
       const gesture = this.gesture;
       this.gesture = undefined;
@@ -197,8 +206,19 @@ export interface PresentationPointerHost {
   available(): boolean;
   point(event: MouseEvent): PptxPoint;
   press(point: PptxPoint, text: boolean, extend: boolean): Promise<void>;
-  move(point: PptxPoint, snap: boolean): Promise<void>;
-  finish(point: PptxPoint, cancel: boolean, snap: boolean): Promise<void>;
+  move(
+    point: PptxPoint,
+    snap: boolean,
+    shift: boolean,
+    center: boolean,
+  ): Promise<void>;
+  finish(
+    point: PptxPoint,
+    cancel: boolean,
+    snap: boolean,
+    shift: boolean,
+    center: boolean,
+  ): Promise<void>;
   fail(error: Error): void;
 }
 
@@ -206,7 +226,9 @@ export interface PresentationPointerHost {
 export class PresentationPointer {
   private pointer: number | undefined;
   private frame = 0;
-  private pending: { point: PptxPoint; snap: boolean } | undefined;
+  private pending:
+    | { point: PptxPoint; snap: boolean; shift: boolean; center: boolean }
+    | undefined;
   private tail: Promise<void> = Promise.resolve();
   private queued = 0;
   private moving = false;
@@ -237,7 +259,13 @@ export class PresentationPointer {
         const point = host.point(event);
         this.append(async () => {
           await host.press(point, true, event.shiftKey);
-          await host.finish(point, false, true);
+          await host.finish(
+            point,
+            false,
+            true,
+            event.shiftKey,
+            centeredResize(event),
+          );
         });
       },
       options,
@@ -246,7 +274,12 @@ export class PresentationPointer {
       "pointermove",
       (event) => {
         if (event.pointerId !== this.pointer) return;
-        this.pending = { point: host.point(event), snap: !event.altKey };
+        this.pending = {
+          point: host.point(event),
+          snap: !event.altKey,
+          shift: event.shiftKey,
+          center: centeredResize(event),
+        };
         this.schedule();
       },
       options,
@@ -268,7 +301,11 @@ export class PresentationPointer {
           this.reset();
           const point = host.point(event);
           const snap = !event.altKey;
-          this.append(() => host.finish(point, type !== "pointerup", snap));
+          const shift = event.shiftKey;
+          const center = centeredResize(event);
+          this.append(() =>
+            host.finish(point, type !== "pointerup", snap, shift, center),
+          );
         },
         options,
       );
@@ -301,7 +338,12 @@ export class PresentationPointer {
       this.moving = true;
       this.append(async () => {
         try {
-          await this.host.move(pending.point, pending.snap);
+          await this.host.move(
+            pending.point,
+            pending.snap,
+            pending.shift,
+            pending.center,
+          );
         } finally {
           this.moving = false;
           this.schedule();
@@ -319,4 +361,8 @@ export class PresentationPointer {
     if (id !== undefined && this.canvas.hasPointerCapture(id))
       this.canvas.releasePointerCapture(id);
   }
+}
+
+function centeredResize(event: MouseEvent): boolean {
+  return event.altKey || (event.ctrlKey && !/mac/i.test(navigator.platform));
 }

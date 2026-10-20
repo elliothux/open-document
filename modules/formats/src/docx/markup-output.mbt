@@ -54,6 +54,7 @@ fn markup_span(
   span : @layout.Span,
   markdown : Bool,
 ) -> String raise @failure.Failure {
+  let markdown = markdown && span.style.spacing == 0
   let text = span.text
     .replace_all(old="\u000c", new="\n")
     .replace_all(old="\u000b", new="\n")
@@ -90,6 +91,11 @@ fn markup_span(
     span.style.size.to_string() +
     "pt;color:#" +
     span.style.color +
+    (if span.style.spacing == 0 {
+      ""
+    } else {
+      ";letter-spacing:" + span.style.spacing.to_string() + "pt"
+    }) +
     (if span.style.highlight.is_empty() {
       ""
     } else {

@@ -587,10 +587,7 @@ pub fn Session::finish(
       let object = original.object(id)
       let target = candidate.slide.object(id).geometry.unwrap()
       let initial = object.geometry.unwrap()
-      if target.x != initial.x ||
-        target.y != initial.y ||
-        target.width != initial.width ||
-        target.height != initial.height {
+      if member_geometry_changed(initial, target) {
         changes.append(transform_changes(object, target))
       }
     }
@@ -635,6 +632,25 @@ pub fn Session::transform(
   if self.selection.objects.length() > 1 {
     return self.transform_collection(candidate, x, y, width, height)
   }
+  let object = self
+    .source_slide(self.selection.slide)
+    .object(self.selection.object)
+  self.preview_transform(candidate, {
+    ..object.geometry.unwrap(),
+    x,
+    y,
+    width,
+    height,
+  })
+}
+
+///|
+fn Session::preview_transform(
+  self : Session,
+  candidate : Candidate,
+  target : Geometry,
+) -> Json raise @failure.Failure {
+  let (x, y, width, height) = (target.x, target.y, target.width, target.height)
   for value in [x, y, width, height] {
     guard !value.is_nan() && !value.is_inf() && value.abs() <= 14400 else {
       @failure.reject("invalid-transform", "Object transform exceeds budget")
@@ -649,7 +665,13 @@ pub fn Session::transform(
   let objects = original.objects.copy()
   for index, object in objects {
     if object.id == self.selection.object && object.geometry is Some(geometry) {
-      let geometry = object.placed_geometry({ ..geometry, x, y, width, height, })
+      if geometry.flip_x != target.flip_x || geometry.flip_y != target.flip_y {
+        let reason = self.object_edit_reason(object, "flip")
+        guard reason.is_empty() else {
+          @failure.reject("protected-content", reason)
+        }
+      }
+      let geometry = object.placed_geometry(target)
       objects[index] = {
         ..object,
         geometry: Some(geometry),

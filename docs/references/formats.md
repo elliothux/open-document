@@ -1773,13 +1773,41 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 等间距沿 `snapToObjects` 开关。角点缩放、零位移轴、Alt/`tolerance: 0` 和明确数值变换不使用该吸附；取消、提交、历史操作和重开清理提示。没有新增命令或保存设置。外框和间隔沿已有分布几何，参考 [ONLYOFFICE distributeHor/distributeVer](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L9484-L9585)。交互依据本地 GenOffice 的 `snap.ts` 与 `SlideCanvas.tsx`；核心独立实现有界邻居扫描，不复制其引擎。实现归 [spacing-snap.mbt](../../modules/formats/src/pptx/spacing-snap.mbt)、[object-snap.mbt](../../modules/formats/src/pptx/object-snap.mbt)及 [presentation-canvas.ts](../../packages/web/src/presentation-canvas.ts)。同尺寸提示归[缩放同尺寸吸附与提示](#缩放同尺寸吸附与提示)，扩展辅助线仍按 P12 实施。
 
+### 比例缩放手势
+
+按住 Shift 拖动对象角点时，核心保持初始框的宽高比。单张图片或仅含图片的多选默认保持比例；普通形状、整组及混合多选在未按 Shift 时沿独立宽高缩放。组内成员使用原有父坐标转换，未启用中心缩放时，旋转和翻转保持相对角点。多选以原选择框的统一比例缩放成员，最小尺寸沿原有约束。零宽或零高的选择框保留既有退化轴规则。
+
+低层 `dragPptx` 增加可选布尔值 `shift`，缺省为 `false`；MoonBit 使用 `Session.drag(..., shift=true)`。指针合并预览和最终释放各自传递当前修饰键。比例约束优先于全部吸附，清理临时对齐线、间距箭头和同尺寸标记；Alt 关闭吸附并启用[从中心缩放](#从中心缩放)，不取消比例约束。移动、连接线端点和明确数值变换继续使用既有操作规则。没有新增文稿设置，取消、单次提交、精确历史与重开沿原候选事务。
+
+缩放系数取两个尺寸绝对值系数中的较大值，依据 [ONLYOFFICE ResizeTrackShapeImage.resize](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L634-L689)。图片默认比例和比例优先于吸附的交互对照本地 GenOffice `SlideCanvas.tsx` 的 `ratioLocked` 与 `boundBoxFunc`。实现归 [object-snap.mbt](../../modules/formats/src/pptx/object-snap.mbt)、[object-selection.mbt](../../modules/formats/src/pptx/object-selection.mbt)及 [presentation-pointer.ts](../../packages/web/src/presentation-pointer.ts)。中心手势归[从中心缩放](#从中心缩放)，跨边方向归[跨边缩放与翻转](#跨边缩放与翻转)。
+
+### 从中心缩放
+
+角点缩放时按住 Alt/Option，保持初始框的中心；非 Mac 的 Ctrl 也启用同一约束。移动时 Alt 继续自由定位。低层 `dragPptx.center` 为可选布尔值，缺省 `false`；MoonBit 使用 `Session.drag(..., center=true)`。指针合并预览和最终释放分别传递当前状态，松开后回到原相对角点规则。Alt/Option 继续同时关闭吸附，不关闭 Shift 或图片默认比例。
+
+核心将活动角点在框坐标中的位移乘二，再沿现有旋转/翻转和父坐标计算中心锚点。普通形状、图片、整组及同父多选/成员共用既有候选与源事务；多选以原选择框中心统一变换。可与比例、最小尺寸、组边界、连接对象更新、取消、单次提交及精确历史共同使用。单条直线沿 ONLYOFFICE 的既有端点规则忽略中心约束；移动、连接线端点和明确数值变换保留原行为。文字和表格最终尺寸继续受既有自动适配约束。
+
+独立使用 `center=true` 且保留容差时，对象尺寸匹配按活动边的屏幕位移判断；完整宽高改变量为边位移的两倍。匹配后继续固定中心，其他轴复用原有网格/边缘/辅助线规则。实际几何仍由核心复核；比例约束优先于全部吸附。没有新增文稿设置或保存状态。
+
+位移系数与中心位置依据 [ONLYOFFICE resizeRelativeCenter](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L1019-L1120)。默认修饰键对照本地 GenOffice `SlideCanvas.tsx` 的 `centeredScaling` 与 Alt/Option 交互。实现归 [object-snap.mbt](../../modules/formats/src/pptx/object-snap.mbt)、[object-selection.mbt](../../modules/formats/src/pptx/object-selection.mbt)、[size-snap.mbt](../../modules/formats/src/pptx/size-snap.mbt)及 [presentation-pointer.ts](../../packages/web/src/presentation-pointer.ts)。跨边方向归[跨边缩放与翻转](#跨边缩放与翻转)。
+
+### 跨边缩放与翻转
+
+角点越过固定对边时，核心保留有向宽高；负值转为正尺寸，并切换对应的原生翻转位。普通缩放保持原相对角点，中心缩放保持原中心。预览始终基于手势起点，拖回原侧时恢复原方向，不累计翻转。Shift 与图片默认比例按尺寸绝对值取统一系数；接近零时沿既有最小框约束，直线保留允许的零宽或零高轴。
+
+普通形状、图片、整组及同父多选/成员沿同一候选。多选反射各成员中心；奇数次轴反射同时反向成员旋转角，继续使用既有非等比缩放规则，不生成剪切。原生表格继续限制翻转；缩到单元格边距以内时按原规则原子拒绝。连接线端点仍使用原端点手势。
+
+同尺寸吸附匹配跨边后尺寸的绝对值，再换回带方向的角点位移，保留原有容差、优先级与实际几何复核。数值变换继续接受正尺寸并从原源重算。源写回共用原生 `rot/flipH/flipV` 变更，位置和尺寸不变而仅方向变化时，也提交一次精确历史；取消、撤销重做、图片字节和其他部件沿原事务保留。
+
+尺寸符号、翻转与固定点依据 [ONLYOFFICE ResizeTrackShapeImage.resize](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L690-L760)及 [resizeRelativeCenter](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L1045-L1120)。实现归 [object-snap.mbt](../../modules/formats/src/pptx/object-snap.mbt)、[object-selection.mbt](../../modules/formats/src/pptx/object-selection.mbt)、[editing.mbt](../../modules/formats/src/pptx/editing.mbt)、[geometry.mbt](../../modules/formats/src/pptx/geometry.mbt)及 [object-arrange.mbt](../../modules/formats/src/pptx/object-arrange.mbt)。没有新增命令、文稿设置或宿主数学。
+
 ### 缩放同尺寸吸附与提示
 
 单个未旋转的本地顶层对象在角点缩放时，可匹配其他本地顶层对象的原生框宽或高。普通形状和整组沿现有变换；图片、连接线、组内成员、多选及带旋转/倾斜的活动框继续使用既有缩放规则，不参与尺寸匹配。匹配按现有屏幕容差换算到框坐标，各维度取最近值，等距保留目标源顺序。只处理有位移的轴，保持对边和相对角点。已匹配尺寸的轴优先于网格与边缘/辅助线，其他轴沿原规则处理。
 
 `PptxGeometry.snapSize` 返回零至 64 项 `PptxSizeMatch`：`{ object, width, height, outline }`。`object` 为目标身份；两个布尔值说明哪些原生尺寸与实际候选相等，至少一项为真；`outline` 是目标四角的页面坐标。相同目标合并成一项，按源顺序保留。核心在返回前重新检查实际尺寸，量化或预览约束不再匹配时隐藏提示。Canvas 仅在选择覆盖层描绘目标的虚线外框，不重算匹配和几何。
 
-尺寸匹配沿 `snapToObjects` 开关；Alt/`tolerance: 0`、明确数值变换及候选结束清理标记，取消、提交、历史和重开保留原有源事务。没有新增命令或保存设置；提示不进入文稿内容、放映或静态输出。普通比例锁定手势及更广旋转/组内尺寸匹配继续实施。坐标转换和固定点沿 [ONLYOFFICE getResizeCoefficients](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicObjectBase.js#L2212-L2312)及既有核心变换；交互对照本地 GenOffice `SlideCanvas.tsx` 的同尺寸边框提示。实现归 [size-snap.mbt](../../modules/formats/src/pptx/size-snap.mbt)、[object-snap.mbt](../../modules/formats/src/pptx/object-snap.mbt)、[pptx-view.ts](../../packages/wasm/src/pptx-view.ts)及 [presentation-canvas.ts](../../packages/web/src/presentation-canvas.ts)。
+尺寸匹配沿 `snapToObjects` 开关；Alt/`tolerance: 0`、明确数值变换及候选结束清理标记，取消、提交、历史和重开保留原有源事务。没有新增命令或保存设置；提示不进入文稿内容、放映或静态输出。比例手势归[比例缩放手势](#比例缩放手势)，更广旋转/组内尺寸匹配继续实施。坐标转换和固定点沿 [ONLYOFFICE getResizeCoefficients](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicObjectBase.js#L2212-L2312)及既有核心变换；交互对照本地 GenOffice `SlideCanvas.tsx` 的同尺寸边框提示。实现归 [size-snap.mbt](../../modules/formats/src/pptx/size-snap.mbt)、[object-snap.mbt](../../modules/formats/src/pptx/object-snap.mbt)、[pptx-view.ts](../../packages/wasm/src/pptx-view.ts)及 [presentation-canvas.ts](../../packages/web/src/presentation-canvas.ts)。
 
 ### 网格与吸附设置
 
@@ -1787,7 +1815,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `spacing` 单位为磅，接受 1 EMU（1/12700 磅）至 144 磅，并按整数 EMU 保存。网格缺省关闭，对象间吸附缺省开启，默认间距为 360000 EMU。沿 ONLYOFFICE 使用原生 `gridSpacing.cx` 作为两轴间距；导入超大单位按其 1000 倍修正规则读取。只改开关时保留原 `cx/cy`，明确修改间距才将两者设为同值。写回保留未知属性、辅助线内容、其他视图源和全部页面；缺少视图部件时创建关系及内容类型，设置与必要源变更只提交一次精确历史。旧 revision、活动候选/放映、保护、无效参数及资源失败保留原包。
 
-网格以页面中心为基准，使用原生 EMU 换算和就近取点。移动按活动对象的世界外框左上角定位；多选共同平移，组内对象沿原有父坐标转换。每个方向先找容差内的对象或辅助线，再尝试[等间距](#等间距吸附与提示)，仍未命中时落到最近网格。角点缩放先匹配[原生尺寸](#缩放同尺寸吸附与提示)，未匹配的轴将活动角点落到网格，再进行对象/辅助线吸附，最小尺寸及文字适配继续生效。位移为零的轴保持；`tolerance: 0`、Alt、键盘及明确数值变换继续自由定位。修改页面尺寸后按新页面中心计算，网格间距保持原生绝对值。编辑网格已有独立显示开关；动态对齐标记见上文。
+网格以页面中心为基准，使用原生 EMU 换算和就近取点。移动按活动对象的世界外框左上角定位；多选共同平移，组内对象沿原有父坐标转换。每个方向先找容差内的对象或辅助线，再尝试[等间距](#等间距吸附与提示)，仍未命中时落到最近网格。自由比例的角点缩放先匹配[原生尺寸](#缩放同尺寸吸附与提示)，未匹配的轴将活动角点落到网格，再进行对象/辅助线吸附，最小尺寸及文字适配继续生效。位移为零的轴保持；`tolerance: 0`、Alt、键盘及明确数值变换继续自由定位。修改页面尺寸后按新页面中心计算，网格间距保持原生绝对值。编辑网格已有独立显示开关；动态对齐标记见上文。
 
 `PresentationEditor.setGridVisible(visible)` 切换编辑网格，`gridVisible` 返回当前显示值，默认面板提供对应复选框。开关属于当前编辑宿主的临时视图，缺省隐藏；关闭文件后释放，重开重新隐藏。它独立于网格吸附开关，不写入 PPTX，不改变 revision、历史、选择、修改标记或原格式字节。沿现有队列、活动输入及保护条件使用；控件即时显示选择并与外部 API 结果同步，失败恢复实际状态。
 

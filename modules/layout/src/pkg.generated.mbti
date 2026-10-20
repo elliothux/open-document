@@ -698,6 +698,7 @@ pub(all) struct TextStyle {
   strike : Bool
   highlight : String
   script : String
+  spacing : Double
 } derive(ToJson)
 pub fn TextStyle::new(String, Double, String) -> Self
 pub fn TextStyle::to_json(Self) -> Json

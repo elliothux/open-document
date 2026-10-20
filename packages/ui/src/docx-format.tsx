@@ -168,6 +168,17 @@ export function DocxFormatCommands({
           mixed={t.mixed}
           onApply={(size) => set({ size })}
         />
+        <NumericFormat
+          label={t.characterSpacing}
+          value={character?.spacing}
+          min={-1584}
+          max={1584}
+          step={0.05}
+          disabled={disabled}
+          apply={t.apply}
+          mixed={t.mixed}
+          onApply={(spacing) => set({ spacing })}
+        />
         {(["bold", "italic", "underline", "strike"] as const).map((key) => {
           const value = character?.[key];
           return (
@@ -221,6 +232,7 @@ export function DocxFormatCommands({
               strike: null,
               highlight: null,
               vertAlign: null,
+              spacing: null,
             })
           }
         />

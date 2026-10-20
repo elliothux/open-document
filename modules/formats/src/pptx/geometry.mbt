@@ -239,6 +239,7 @@ fn native_transform_changes(
   let off = "<a:off xmlns:a=\"\{drawing_uri}\" x=\"\{(geometry.x * 12700).round().to_int64()}\" y=\"\{(geometry.y * 12700).round().to_int64()}\"/>"
   let ext = "<a:ext xmlns:a=\"\{drawing_uri}\" cx=\"\{(geometry.width * 12700).round().to_int64()}\" cy=\"\{(geometry.height * 12700).round().to_int64()}\"/>"
   if transform is Some(transform) {
+    changes.append(transform.pose_changes(object.geometry.unwrap(), geometry))
     let missing = StringBuilder()
     for (name, xml) in [("off", off), ("ext", ext)] {
       if transform.child(name) is Some(item) {

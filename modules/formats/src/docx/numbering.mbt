@@ -331,6 +331,7 @@ fn Session::apply_numbering(
           strike: character.strike,
           highlight: highlight_color(character.highlight),
           script: character.vertAlign,
+          spacing: character.spacing,
         },
       }),
     }

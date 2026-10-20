@@ -62,6 +62,7 @@ fn measure_line(
       group.style.size == item.span.style.size &&
       group.style.color == item.span.style.color &&
       group.style.script == item.span.style.script &&
+      group.style.spacing == item.span.style.spacing &&
       group.level == bidi.levels[i] {
       groups[groups.length() - 1] = { ..group, end: next, }
     } else {
@@ -225,6 +226,7 @@ fn measure_line(
       spacing~,
       advances?,
       context=(paragraph.chars, context_start + group_chars[index]),
+      tracking=group.style.spacing,
     )
     guard batch.diagnostics.is_empty() else {
       @failure.reject(

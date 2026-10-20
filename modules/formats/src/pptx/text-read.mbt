@@ -87,6 +87,7 @@ fn text_style(
     }),
     strike: strike == "sngStrike",
     highlight: text_highlight(theme, sources),
+    spacing: 0,
     script: if baseline > 0 {
       "superscript"
     } else if baseline < 0 {

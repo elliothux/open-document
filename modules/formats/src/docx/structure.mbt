@@ -217,7 +217,7 @@ fn WordTree::check_structure_properties(
       "rPr" =>
         [
           "rStyle", "rFonts", "sz", "color", "b", "i", "lang", "bCs", "iCs", "szCs",
-          "u", "strike", "highlight", "vertAlign", "cs", "rtl",
+          "u", "strike", "highlight", "vertAlign", "cs", "rtl", "spacing",
         ]
       _ => []
     }
@@ -261,7 +261,12 @@ fn WordTree::check_structure_properties(
       "cs" | "rtl" => ["val"]
       "color" => ["val", "themeColor", "themeTint", "themeShade"]
       "u" | "strike" | "highlight" | "vertAlign" => ["val"]
-      "spacing" => ["before", "after", "line", "lineRule"]
+      "spacing" =>
+        if self.nodes[node.parent].name == "rPr" {
+          ["val"]
+        } else {
+          ["before", "after", "line", "lineRule"]
+        }
       "ind" => ["left", "right", "firstLine", "hanging"]
       "rFonts" =>
         [

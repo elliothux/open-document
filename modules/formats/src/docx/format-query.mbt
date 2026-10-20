@@ -257,6 +257,7 @@ pub fn Session::query_formatting(
       "style": format_summary(character_styles, reason),
       "family": format_summary(characters.map(style => style.family), reason),
       "size": format_summary(characters.map(style => style.size), reason),
+      "spacing": format_summary(characters.map(style => style.spacing), reason),
       "color": format_summary(characters.map(style => style.color), reason),
       "bold": format_summary(characters.map(style => style.bold), reason),
       "italic": format_summary(characters.map(style => style.italic), reason),
