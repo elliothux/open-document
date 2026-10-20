@@ -41,12 +41,7 @@ fn Session::prepare_fill_sparklines(
       items.push({
         ..seed,
         cell,
-        source: seed.source.map(range => {
-          top: (range.top + rows).max(1).min(1048576),
-          bottom: (range.bottom + rows).max(1).min(1048576),
-          left: (range.left + columns).max(1).min(16384),
-          right: (range.right + columns).max(1).min(16384),
-        }),
+        source: seed.source.map(range => range.sparkline_offset(rows, columns)),
       })
     }
   }

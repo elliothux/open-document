@@ -55,7 +55,13 @@ fn Session::move_cells(
     guard reason.is_empty() else {
       @failure.reject("protected-content", reason)
     }
-    self.check_fill_resources(sheet, range, hyperlinks=true, rules=true)
+    self.check_fill_resources(
+      sheet,
+      range,
+      hyperlinks=true,
+      rules=true,
+      sparklines=true,
+    )
     ignore(self.hyperlink_at(sheet, range))
     check_merge_markup(Tree::new(sheet.document))
   }
@@ -192,6 +198,15 @@ fn Session::move_cells(
     )
     document = move_rules(
       original, document, from, to, relocation, edits, rule_work,
+    )
+    document = original.move_sparklines(
+      document,
+      from,
+      to,
+      relocation,
+      edits,
+      self.strings,
+      self.styles.length(),
     )
     sheets[index] = Sheet::read(
       original.id,

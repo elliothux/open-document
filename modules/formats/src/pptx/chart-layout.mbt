@@ -133,8 +133,56 @@ fn DrawingChart::paint(
     )
   }
   let slots = data.categories.length()
-  let slot = (if horizontal { h } else { w }) / slots.to_double()
   let line = data.kind == "line"
+  let area = data.kind == "area"
+  let slot = if area && slots > 1 {
+    w / (slots - 1).to_double()
+  } else {
+    (if horizontal { h } else { w }) / slots.to_double()
+  }
+  if area {
+    let baseline = top + h * (1 - (0 - low) / (high - low))
+    for series_index, series in data.series {
+      let path : Array[@layout.PathSegment] = []
+      let points : Array[(Double, Double)] = []
+      let finish = fn() {
+        if points.length() >= 2 {
+          path.push(Move(points[0].0, baseline))
+          for (x, y) in points {
+            path.push(Line(x, y))
+          }
+          path.push(Line(points[points.length() - 1].0, baseline))
+          path.push(Close)
+        }
+        points.clear()
+      }
+      for index, value in series.values {
+        if value is Some(value) {
+          points.push(
+            (
+              left + (if slots == 1 { w / 2 } else { index.to_double() * slot }),
+              top + h * (1 - (value - low) / (high - low)),
+            ),
+          )
+        } else {
+          finish()
+        }
+      }
+      finish()
+      if !path.is_empty() {
+        out.push(
+          Path(path, chart_color(series_index), "", 0, {
+            fillAlpha: 1,
+            strokeAlpha: 1,
+            dash: [],
+            cap: 0,
+            join: 0,
+            miter: 8,
+          }),
+        )
+      }
+    }
+  }
   if line {
     for series_index, series in data.series {
       let path : Array[@layout.PathSegment] = []
@@ -175,6 +223,13 @@ fn DrawingChart::paint(
   for index, category in data.categories {
     let position = if horizontal { slots - 1 - index } else { index }
     let at = position.to_double() * slot
+    let (label_x, label_width) = if area {
+      let center = left + (if slots == 1 { w / 2 } else { at })
+      let first = (center - slot / 2).max(0)
+      (first, (center + slot / 2).min(width) - first)
+    } else {
+      (left + at, slot)
+    }
     if index % stride == 0 {
       out.append(
         chart_label(
@@ -182,7 +237,7 @@ fn DrawingChart::paint(
           if horizontal {
             4
           } else {
-            left + at
+            label_x
           },
           if horizontal {
             top + at + (slot - 14) / 2
@@ -192,7 +247,7 @@ fn DrawingChart::paint(
           if horizontal {
             left - 8
           } else {
-            slot
+            label_width
           },
           16,
           10,
@@ -202,7 +257,7 @@ fn DrawingChart::paint(
         ),
       )
     }
-    if line {
+    if line || area {
       continue
     }
     for series_index, series in data.series {

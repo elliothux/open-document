@@ -52,7 +52,7 @@ P4 编辑 API 提供 `editState()`、`selectDocx(revision, selection)`、`select
 
 连接代码只拥有一个 in-flight 请求和 Worker 生命周期。用户字节经 structured clone 进入 Worker。字体以八位字符串调用内部 `foundation_add_font`，核心构造字节后使用原字体校验与资源拥有者。公开 `addFont` 和 32 MiB 预算保持，旧 JSON font 分支已删除。DOCX 和图片仍使用原 JSON/Base64 路径。两种路径共用响应及错误解析；连接代码不维护可编辑文档树。
 
-公开主线程入口保留 ESM 模块导入，`engine`、Wasm `foundation` 与 Web client 使用同一份 `DocumentError` 构造函数。应用构建器需要解析 `@open-document/wasm` 的公开子路径；直接加载浏览器 ESM 时，需要 import map 将使用的 `foundation`、`preview`、`drawing`、`engine` 子路径映射到对应产物。内部运行时导入使用 `.js` 扩展名。Worker 单独打包，因此不依赖主页面的 import map。公开 tarball 包含这些模块及其内部依赖，测试服务器只提供资源路由。
+公开主线程入口保留 ESM 模块导入，`engine`、Wasm `foundation` 与 Web client 使用同一份 `DocumentError` 构造函数。共用错误和预算校验位于 `session.ts`，`foundation` 保留原导出；基础会话不反向依赖 DOCX 子类，XLSX 入口可单独加载。应用构建器需要解析 `@open-document/wasm` 的公开子路径；直接加载浏览器 ESM 时，需要 import map 将使用的 `foundation`、`preview`、`drawing`、`engine` 子路径映射到对应产物。内部运行时导入使用 `.js` 扩展名。Worker 单独打包，因此不依赖主页面的 import map。公开 tarball 包含这些模块及其内部依赖，测试服务器只提供资源路由。
 
 ## 默认 Web UI
 

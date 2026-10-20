@@ -1,5 +1,37 @@
 import { record, hasFields } from "./validation.js";
-import { DocumentError, resourceBudget, type Budget } from "./foundation.js";
+import type { Budget } from "./validation.js";
+
+export class DocumentError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+    readonly part: string,
+    readonly offset: number,
+  ) {
+    super(message);
+    this.name = "DocumentError";
+  }
+}
+
+export function resourceBudget(value: unknown): Budget {
+  if (
+    !hasFields(
+      value,
+      [],
+      [
+        "fileBytes",
+        "entryBytes",
+        "totalBytes",
+        "retainedBytes",
+        "entries",
+        "xmlDepth",
+        "outputBytes",
+      ],
+    )
+  )
+    throw new Error("Invalid resource budget returned by Wasm");
+  return value as Budget;
+}
 
 export function binaryString(bytes: Uint8Array): string {
   let binary = "";

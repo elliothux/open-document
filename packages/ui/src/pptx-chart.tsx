@@ -68,6 +68,7 @@ export function PptxCharts({
                 kind === "column" ||
                 kind === "bar" ||
                 kind === "line" ||
+                kind === "area" ||
                 kind === "pie"
               )
                 setDraft({ ...draft, kind });
@@ -77,6 +78,7 @@ export function PptxCharts({
             <option value="bar">{t.chartBar}</option>
             <option value="line">{t.chartLine}</option>
             <option value="pie">{t.chartPie}</option>
+            <option value="area">{t.chartArea}</option>
           </select>
         </label>
         <label>

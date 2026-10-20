@@ -16,6 +16,7 @@ pub(all) struct CopiedCells {
   validations : Array[CopiedValidation]
   hyperlinks : Array[CopiedHyperlink]
   notes : CopiedNotes?
+  sparklines : Array[CopiedSparkline]
 }
 
 ///|
@@ -89,6 +90,14 @@ pub impl ToJson for CopiedCells with fn to_json(self) {
       value
     })
     .unwrap_or(Json::null()),
+    "sparklines": self.sparklines.map(item => {
+      let value : Json = {
+        "cell": { "row": item.cell.row, "column": item.cell.column },
+        "source": item.source.map(range => Json(range)).unwrap_or(Json::null()),
+        "kind": Json(item.kind),
+      }
+      value
+    }),
   }
 }
 
@@ -111,6 +120,7 @@ fn CopiedCells::validate(self : CopiedCells) -> Unit raise @failure.Failure {
   self.check_copied_rules()
   self.check_copied_hyperlinks()
   self.check_copied_notes()
+  self.check_copied_sparklines()
   let mut units = 0L
   for row in self.cells {
     for cell in row {
@@ -161,7 +171,13 @@ pub fn Session::capture_cells(
   let range = sheet.merge_target(selected)
   let reason = self.format_reason(sheet, range)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
-  self.check_fill_resources(sheet, range, hyperlinks=true, rules=true)
+  self.check_fill_resources(
+    sheet,
+    range,
+    hyperlinks=true,
+    rules=true,
+    sparklines=true,
+  )
   check_merge_markup(Tree::new(sheet.document))
   let calculation = self.calculation.unwrap()
   let rows : Array[Array[CopiedCell]] = []
@@ -191,6 +207,13 @@ pub fn Session::capture_cells(
     validations,
     hyperlinks: self.capture_hyperlinks(sheet, range),
     notes: self.capture_notes(sheet, range),
+    sparklines: sheet.sparklines.items
+    .filter(item => range.contains(item.cell))
+    .map(item => CopiedSparkline::{
+      cell: item.cell,
+      source: item.source,
+      kind: item.kind,
+    }),
     merges: sheet.merges
     .filter(merge => range.covers(merge))
     .map(merge => {
@@ -241,7 +264,13 @@ pub fn Session::paste_cells(
   }
   let reason = self.format_reason(sheet, target)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
-  self.check_fill_resources(sheet, target, hyperlinks=true, rules=true)
+  self.check_fill_resources(
+    sheet,
+    target,
+    hyperlinks=true,
+    rules=true,
+    sparklines=true,
+  )
   let format = mode == "all" || mode == "format"
   let merges = if format {
     sheet.format_merges(
@@ -270,6 +299,16 @@ pub fn Session::paste_cells(
     sheet.merges
   }
   let updates : Map[String, CellContent] = Map([])
+  let sparklines = if mode == "all" {
+    copied.sparklines_at(sheet, target, transpose)
+  } else {
+    sheet.sparklines.items
+  }
+  guard !sparklines.any(item => merges.any(range => range.contains(item.cell))) else {
+    @failure.reject(
+      "protected-content", "Pasted sparklines require unmerged cells",
+    )
+  }
   let originals : Map[String, (Int, Int)] = Map([])
   let patches : Array[CellFormat] = []
   let pool : Map[CellFormat, Int] = Map([])
@@ -386,7 +425,8 @@ pub fn Session::paste_cells(
     merges == sheet.merges &&
     !change_rules &&
     !change_links &&
-    !change_notes {
+    !change_notes &&
+    sparklines == sheet.sparklines.items {
     return self.select(revision, sheet.id, target.name())
   }
   let formatting = if originals.is_empty() {
@@ -428,6 +468,22 @@ pub fn Session::paste_cells(
     )
   }
   if mode == "all" {
+    if sparklines != sheet.sparklines.items {
+      // Cell preparation may merge over old destinations replaced by this paste.
+      let candidate = { ..plan.sheets[index], sparklines: sheet.sparklines, }
+      let (document, edit) = candidate.document.edit_source(
+        candidate.sparkline_changes(sparklines),
+      )
+      plan.edits.push((sheet.id, edit))
+      plan.sheets[index] = Sheet::read(
+        sheet.id,
+        sheet.name,
+        sheet.state,
+        document,
+        self.strings,
+        plan.styles.length(),
+      )
+    }
     if change_links {
       self.prepare_hyperlinks(
         plan,

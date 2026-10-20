@@ -22,6 +22,16 @@ priv struct Sparklines {
 }
 
 ///|
+fn Range::sparkline_offset(self : Range, rows : Int, columns : Int) -> Range {
+  {
+    top: (self.top + rows).max(1).min(1048576),
+    bottom: (self.bottom + rows).max(1).min(1048576),
+    left: (self.left + columns).max(1).min(16384),
+    right: (self.right + columns).max(1).min(16384),
+  }
+}
+
+///|
 fn sparkline_source(
   text : String,
   sheet : String,

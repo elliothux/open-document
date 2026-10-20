@@ -36,11 +36,7 @@ fn Session::hyperlink_relation(
       insertion(document.nodes()[0], markup),
     ])
     parts[path] = candidate
-    if created.contains(path) {
-      created[path] = candidate
-    } else {
-      edits.push((path, edit))
-    }
+    edits.push((path, edit))
   } else {
     let document = @xml.Document::parse(
       @utf8.encode(

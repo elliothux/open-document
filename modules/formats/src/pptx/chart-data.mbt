@@ -37,7 +37,7 @@ fn chart_text(text : String) -> Unit raise @failure.Failure {
 
 ///|
 fn ChartData::validate(self : ChartData) -> Unit raise @failure.Failure {
-  guard ["column", "bar", "line", "pie"].contains(self.kind) &&
+  guard ["column", "bar", "line", "pie", "area"].contains(self.kind) &&
     self.categories.length() >= 1 &&
     self.categories.length() <= 256 &&
     self.series.length() >= 1 &&

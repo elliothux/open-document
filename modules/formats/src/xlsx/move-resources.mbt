@@ -1,6 +1,6 @@
 ///|
 fn Session::check_move_resources(self : Session) -> Unit raise @failure.Failure {
-  let reason = self.sheet_rename_reason(structure=false)
+  let reason = self.sheet_rename_reason(structure=false, sparklines=true)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let mut units = self.workbook.source().length().to_int64()
   for sheet in self.sheets {
@@ -16,7 +16,8 @@ fn Session::check_move_resources(self : Session) -> Unit raise @failure.Failure 
       units += cell.formula.map(f => f.length().to_int64()).unwrap_or(0L)
     }
     for node in tree.document.nodes() {
-      if node.name == "hyperlink" {
+      if node.name == "hyperlink" ||
+        (node.uri == sparkline_uri && node.name == "sparklineGroup") {
         units += (node.end - node.start).to_int64()
       }
     }

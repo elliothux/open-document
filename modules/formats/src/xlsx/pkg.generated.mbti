@@ -106,6 +106,7 @@ pub(all) struct CopiedCells {
   validations : Array[CopiedValidation]
   hyperlinks : Array[CopiedHyperlink]
   notes : CopiedNotes?
+  sparklines : Array[CopiedSparkline]
 }
 pub fn CopiedCells::to_json(Self) -> Json
 pub impl ToJson for CopiedCells
@@ -126,6 +127,12 @@ pub(all) struct CopiedHyperlink {
 pub(all) struct CopiedNotes {
   comments : String
   vml : String?
+}
+
+pub(all) struct CopiedSparkline {
+  cell : Address
+  source : Range?
+  kind : String
 }
 
 pub(all) struct CopiedValidation {

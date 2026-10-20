@@ -5,6 +5,7 @@ export const objectEn = {
   chartBar: "Clustered bar",
   chartLine: "Line with markers",
   chartPie: "Pie",
+  chartArea: "Area",
   chartPieHint:
     "Pie displays the first series by absolute value. Zero and empty values have no slice. All source series remain editable.",
   chartTitle: "Chart title",
@@ -61,6 +62,7 @@ export const objectZh: typeof objectEn = {
   chartBar: "簇状条形图",
   chartLine: "带数据点的折线图",
   chartPie: "饼图",
+  chartArea: "面积图",
   chartPieHint:
     "饼图按绝对值显示首个系列，零值和空值不占扇区。所有源系列仍可编辑。",
   chartTitle: "图表标题",

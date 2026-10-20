@@ -177,6 +177,8 @@ fn read_chart_part(
     (pie, "pie")
   } else if plot.child("lineChart", uri=chart_uri) is Some(line) {
     (line, "line")
+  } else if plot.child("areaChart", uri=chart_uri) is Some(area) {
+    (area, "area")
   } else {
     let bars = chart_child(plot, "barChart")
     let direction = chart_child(bars, "barDir").node

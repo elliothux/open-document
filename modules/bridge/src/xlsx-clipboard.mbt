@@ -1,7 +1,7 @@
 ///|
 fn xlsx_copied_cells(value : Json) -> @xlsx.CopiedCells raise @failure.Failure {
   guard value is Object(fields) &&
-    fields.length() == 9 &&
+    fields.length() == 10 &&
     value
     is {
       "cells": Array(rows),
@@ -10,11 +10,13 @@ fn xlsx_copied_cells(value : Json) -> @xlsx.CopiedCells raise @failure.Failure {
       "validations": Array(validations),
       "hyperlinks": Array(hyperlinks),
       "notes": notes,
+      "sparklines": Array(sparklines),
       ..
     } &&
     conditional.length() <= 4096 &&
     validations.length() <= 4096 &&
     hyperlinks.length() <= 4096 &&
+    sparklines.length() <= 256 &&
     !rows.is_empty() &&
     rows.length() <= 4096 else {
     @failure.reject("invalid-operation", "Expected copied cells")
@@ -68,6 +70,36 @@ fn xlsx_copied_cells(value : Json) -> @xlsx.CopiedCells raise @failure.Failure {
     date1904: xlsx_boolean(value, "date1904"),
     cells,
     merges: ranges,
+    sparklines: sparklines.map(item => {
+      guard item is Object(fields) &&
+        fields.length() == 3 &&
+        item is { "cell": Object(cell), "source": source, .. } &&
+        cell.length() == 2 else {
+        @failure.reject("invalid-operation", "Invalid copied sparkline fields")
+      }
+      let source = match source {
+        Null => None
+        Object(fields) if fields.length() == 4 =>
+          Some(@xlsx.Range::{
+            top: field_int(source, "top"),
+            left: field_int(source, "left"),
+            bottom: field_int(source, "bottom"),
+            right: field_int(source, "right"),
+          })
+        _ =>
+          @failure.reject(
+            "invalid-operation", "Invalid copied sparkline source",
+          )
+      }
+      @xlsx.CopiedSparkline::{
+        cell: {
+          row: field_int(Json::object(cell), "row"),
+          column: field_int(Json::object(cell), "column"),
+        },
+        source,
+        kind: field_string(item, "kind"),
+      }
+    }),
     conditional: conditional.map(rule => {
       let (ranges, anchor, settings) = xlsx_copied_rule(rule)
       @xlsx.CopiedConditional::{

@@ -71,7 +71,8 @@ import {
   type DocxListEdit,
   type DocxListCatalog,
 } from "./docx-list.js";
-import { encodeBytes } from "./session.js";
+import { DocumentError, encodeBytes } from "./session.js";
+export { DocumentError, resourceBudget } from "./session.js";
 import {
   checkDocxTableSize,
   checkDocxTableEdit,
@@ -203,18 +204,6 @@ export interface ShapeBatch {
   outlineBytes: number;
 }
 
-export class DocumentError extends Error {
-  constructor(
-    readonly code: string,
-    message: string,
-    readonly part: string,
-    readonly offset: number,
-  ) {
-    super(message);
-    this.name = "DocumentError";
-  }
-}
-
 export function docxQuery(value: unknown): DocxQuery {
   const object = record(value);
   if (
@@ -236,26 +225,6 @@ export function docxQuery(value: unknown): DocxQuery {
   )
     throw new Error("Invalid DOCX query returned by Wasm");
   return value as DocxQuery;
-}
-
-export function resourceBudget(value: unknown): Budget {
-  if (
-    !hasFields(
-      value,
-      [],
-      [
-        "fileBytes",
-        "entryBytes",
-        "totalBytes",
-        "retainedBytes",
-        "entries",
-        "xmlDepth",
-        "outputBytes",
-      ],
-    )
-  )
-    throw new Error("Invalid resource budget returned by Wasm");
-  return value as Budget;
 }
 
 export function shapeBatch(value: unknown): ShapeBatch {

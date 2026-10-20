@@ -35,6 +35,7 @@ export type {
   CopiedValidation,
   CopiedHyperlink,
   CopiedNotes,
+  CopiedSparkline,
   XlsxPasteMode,
 } from "@open-document/wasm/xlsx";
 import {

@@ -1653,13 +1653,13 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 ### 结构化单元格剪贴板
 
-`XlsxSession/Client.captureCells(revision)` 返回核心生成的 `CopiedCells`：源 `top/left`、`date1904`、矩形 `cells`、相对合并范围 `merges`、`conditional`、`validations`、`hyperlinks` 和 `notes`。每格包含类型化 `value`、公式字符串或 `null` 和全部已支持格式属性。值是复制时的已计算结果；公式保留源表达式和位置。片段独立于之后的源编辑，不持有源会话句柄。
+`XlsxSession/Client.captureCells(revision)` 返回核心生成的 `CopiedCells`：源 `top/left`、`date1904`、矩形 `cells`、相对合并范围 `merges`、`conditional`、`validations`、`hyperlinks`、`notes` 和 `sparklines`。每格包含类型化 `value`、公式字符串或 `null` 和全部已支持格式属性。值是复制时的已计算结果；公式保留源表达式和位置。片段独立于之后的源编辑，不持有源会话句柄。
 
-`pasteCells(revision, copied, mode = "all", transpose = false, acceptWarnings = false)` 从当前选择的左上角写入一次片段大小的矩形，不平铺到更大的选择。`all` 写入值、相对平移公式、支持的格式/合并、两类规则、链接及便笺；`values` 只写复制时的类型值与公式结果；`formulas` 写入平移公式及非公式常量；`format` 保留目标值、公式和数据验证，只写格式、合并及条件格式。`values/formulas` 保留目标格式和两类规则，目标须未合并。文字 `=literal` 仍是文字，不经输入解析变成公式。
+`pasteCells(revision, copied, mode = "all", transpose = false, acceptWarnings = false)` 从当前选择的左上角写入一次片段大小的矩形，不平铺到更大的选择。`all` 写入值、相对平移公式、支持的格式/合并、两类规则、链接、便笺及迷你图；`values` 只写复制时的类型值与公式结果；`formulas` 写入平移公式及非公式常量；`format` 保留目标值、公式和数据验证，只写格式、合并及条件格式。`values/formulas` 保留目标格式和两类规则，目标须未合并。文字 `=literal` 仍是文字，不经输入解析变成公式。
 
 `transpose` 交换行列、合并范围和四边边框。公式先绕复制矩形原点交换引用坐标，再执行粘贴位移；绝对标记沿原引用保留，整行/列引用交换轴。引用越界按既有规则写为 `#REF!`。行为依据 [ONLYOFFICE 选择性粘贴模式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/clipboard.js#L186-L247)、[转置后应用位移](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L29818-L29881)和[引用坐标翻转](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L11010-L11034)。
 
-格式与新样式部件、内容、合并、依赖、缓存、验证、自动尺寸和选择共用一次候选事务。已有共享公式按必要范围展开；只贴格式保留目标文字源。失败保留文档与历史。支持完整包含的普通合并格；相交但不完整的目标合并拒绝。源与目标继续复用既有填充资源保护，富文本、原生表/透视和未知工作表扩展保持显式保护。便笺随全部粘贴传递，其余模式保持目标便笺。更广资源转移继续实施。不含规则/便笺且链接相同的值/格式片段只更新选择；携带规则或便笺的粘贴可重建原生范围、优先级及身份。
+格式与新样式部件、内容、合并、依赖、缓存、验证、自动尺寸和选择共用一次候选事务。已有共享公式按必要范围展开；只贴格式保留目标文字源。失败保留文档与历史。支持完整包含的普通合并格；相交但不完整的目标合并拒绝。源与目标继续复用既有填充资源保护，富文本、原生表/透视和未知工作表扩展保持显式保护。便笺和迷你图随全部粘贴传递，其余模式保持目标便笺及迷你图。更广资源转移继续实施。不含规则/便笺，且单元格、链接与迷你图均相同的片段只更新选择；携带规则或便笺的粘贴可重建原生范围、优先级及身份。
 
 源与目标的 `date1904` 不同时，核心按源格式识别已支持的日期及日期时间数值，换算 1462 天并保留日内小数。纯时间、普通数字、文字及其他类型保持原值；`format` 不转换数值。`all/formulas` 保留公式，在目标日期系统重算；`values` 转换已计算的日期结果。公式内部的普通数字常量不改写。日期验证的数字字面边界同步换算，`DATE`、引用及其他表达式沿目标公式语义处理。源或目标日历无法表示的日期整项拒绝，保留文档与历史；两本工作簿的日期系统不变。
 
@@ -1673,7 +1673,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 两类规则各最多 4096 项，范围合计最多 4096 个矩形，设置文字合计最多 1048576 UTF-16 单元；原单格、公式、XML、样式和事务预算继续生效。非默认验证 IME 设置、未知身份与扩展继续保护。源全局提示设置留在源文档，目标全局提示设置留在目标文档。实现归 [`clipboard-rules.mbt`](../../modules/formats/src/xlsx/clipboard-rules.mbt)和 [`clipboard-rule-paste.mbt`](../../modules/formats/src/xlsx/clipboard-rule-paste.mbt)。交集复制及转置规则依据 [ONLYOFFICE 条件规则复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L13432-L13505)和[验证复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L13233-L13262)；未移植可执行代码。
 
-每项 `hyperlinks` 使用 `CopiedHyperlink`，含复制矩形内的源绝对 `range`、`target` 和可空的 `display/tooltip`。捕获范围与普通原生链接取交集，保留目标及元数据；未知或重叠链接保护复制。只有 `all` 替换目标覆盖区的链接，范围外片段和属性保持；值、公式及格式模式均保留目标链接。无源链接时清除目标覆盖区，单独链接变化也进入同一历史。转置交换链接所属格，内部目标文字保持原值，不执行公式位移；跨表或工作簿后仍按目标文档解析。外链按目标表分配或复用安全关系，保留旧共享资源，不自动发起请求。链接、单元格、样式与全部关系共用候选、验证和精确历史；同值且不含规则/便笺的片段保持空操作。
+每项 `hyperlinks` 使用 `CopiedHyperlink`，含复制矩形内的源绝对 `range`、`target` 和可空的 `display/tooltip`。捕获范围与普通原生链接取交集，保留目标及元数据；未知或重叠链接保护复制。只有 `all` 替换目标覆盖区的链接，范围外片段和属性保持；值、公式及格式模式均保留目标链接。无源链接时清除目标覆盖区，单独链接变化也进入同一历史。转置交换链接所属格，内部目标文字保持原值，不执行公式位移；跨表或工作簿后仍按目标文档解析。外链按目标表分配或复用安全关系，保留旧共享资源，不自动发起请求。链接、单元格、样式与全部关系共用候选、验证和精确历史；同值、迷你图相同且不含规则/便笺的片段保持空操作。
 
 链接目录最多 4096 项，范围须在片段内且互不重叠；目标及元数据合计最多 1048576 UTF-16 单元，`display/tooltip` 各最多 32767 单元。目标沿已有 HTTP/HTTPS/mailto 和内部引用校验。候选链接输出仍限制为 4096 项及 2 Mi UTF-16 单元，全部输出和历史预算继续执行。实现归 [`clipboard-hyperlinks.mbt`](../../modules/formats/src/xlsx/clipboard-hyperlinks.mbt)，关系及原生范围裁剪复用 [`hyperlink-edit.mbt`](../../modules/formats/src/xlsx/hyperlink-edit.mbt)。目标复制与所属范围位移参考 [ONLYOFFICE 范围链接复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L22619-L22631)；本 SDK 同时裁剪源交集和目标覆盖，未复制上游源码。
 
@@ -1697,7 +1697,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `SpreadsheetEditor.copyCells(true)` 和默认“剪切单元格”按钮先写系统剪贴板，源格在粘贴成功前保留。剪切只携带显示值 TSV 和 `web application/x-open-document-cut` 的工作簿身份、源范围与 revision；核心在 `pasteCells("all", false)` 时校验并移动实际源内容，不要求先生成复制片段。网格原生剪切/粘贴复用该入口，草稿文字仍沿原生文字输入。消费后、源文档编辑后或重开工作簿后的旧载荷拒绝；跨工作簿、选择性粘贴及转置剪切也拒绝。普通 TSV 和复制片段沿原合同。
 
-移动最多 4096 格和 1024 个合并范围；工作簿源、公式及链接节点源合计最多 1 Mi UTF-16 单元，搬移与改写的单元格源合计最多 1 Mi 单元。每表最多 4096 个链接，单表生成的链接源最多 2 Mi 单元。规则沿既有 100000 格、4 Mi 字符和 4096 片段工作上限；每表至多 4096 条条件规则和 4096 条验证。全部变动仍受 4 MiB 历史及包输出预算约束。被保护的源、目标或受影响公式/链接/规则拒绝。未知资源、原生表、透视及带筛选/排序的工作簿保持保护，未限定工作表的名称引用及需改写的不透明名称源继续保护；跨表打印范围的归属转移继续实施。实现归 [`move-cells.mbt`](../../modules/formats/src/xlsx/move-cells.mbt)、[`move-reference.mbt`](../../modules/formats/src/xlsx/move-reference.mbt)、[`move-hyperlinks.mbt`](../../modules/formats/src/xlsx/move-hyperlinks.mbt)、[`move-rules.mbt`](../../modules/formats/src/xlsx/move-rules.mbt)、[`rule-fragments.mbt`](../../modules/formats/src/xlsx/rule-fragments.mbt)和 [`move-resources.mbt`](../../modules/formats/src/xlsx/move-resources.mbt)。
+移动最多 4096 格和 1024 个合并范围；工作簿源、公式、链接及迷你图组节点源合计最多 1 Mi UTF-16 单元，搬移与改写的单元格源合计最多 1 Mi 单元。每表最多 4096 个链接，单表生成的链接源最多 2 Mi 单元。规则沿既有 100000 格、4 Mi 字符和 4096 片段工作上限；每表至多 4096 条条件规则和 4096 条验证。全部变动仍受 4 MiB 历史及包输出预算约束。被保护的源、目标或受影响公式/链接/规则/迷你图拒绝。未知资源、原生表、透视及带筛选/排序的工作簿保持保护，未限定工作表的名称引用及需改写的不透明名称源继续保护；跨表打印范围的归属转移继续实施。实现归 [`move-cells.mbt`](../../modules/formats/src/xlsx/move-cells.mbt)、[`move-reference.mbt`](../../modules/formats/src/xlsx/move-reference.mbt)、[`move-hyperlinks.mbt`](../../modules/formats/src/xlsx/move-hyperlinks.mbt)、[`move-rules.mbt`](../../modules/formats/src/xlsx/move-rules.mbt)、[`rule-fragments.mbt`](../../modules/formats/src/xlsx/rule-fragments.mbt)和 [`move-resources.mbt`](../../modules/formats/src/xlsx/move-resources.mbt)。
 
 ### 单元格迷你图
 
@@ -1723,7 +1723,15 @@ Canvas 和静态 PDF 复用单元格绘制。核心从当前计算结果取数�
 
 普通区域和原生表去重移除原始重复行中、且目标格在有效选区内的迷你图；最后一个目标移除后删除本功能的空扩展。幸存图形保留原坐标与数据源，读取压紧后的当前格值；尾部格清空后，仍在该处的图形继续保留并显示空数据。范围外目标和 `#REF!` 绑定沿同一归属规则处理。便笺、链接及单元格按既有去重规则移动或删除；原生表继续缩小范围、迁移总计并保留模板、例外与筛选来源。预览保持只读，数据、图形和资源清理共用一项精确历史及输出预算，重复提交无变化时不新增历史。默认预览和删除入口沿核心资源校验；再次输入、撤销/重做、重开及 Canvas/PDF 共用当前模型。依据 [ONLYOFFICE 删除原始重复行资源后压紧](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L26112-L26136)。实现复用 [`duplicates.mbt`](../../modules/formats/src/xlsx/duplicates.mbt)、[`reorder-cells.mbt`](../../modules/formats/src/xlsx/reorder-cells.mbt)及既有迷你图删除。
 
-当前支持固定颜色、独立数轴、同一工作簿内的本表或跨表单区域及普通未合并目标。日期轴、组合轴、自定义颜色/标记、外部/三维来源和其他原生配置继续实施；未知配置保留并给出只读原因，静态 PDF 拒绝遗漏内容。区域复制、剪切及相关引用维护尚未接入，当前原子拒绝；其他表编辑沿各操作的资源保护。XLSX 普通图表对象和绘图锚点仍待实现。实现归 [`sparkline.mbt`](../../modules/formats/src/xlsx/sparkline.mbt)、[`sparkline-edit.mbt`](../../modules/formats/src/xlsx/sparkline-edit.mbt)、[`sparkline-axis.mbt`](../../modules/formats/src/xlsx/sparkline-axis.mbt)及 [`sparkline-paint.mbt`](../../modules/formats/src/xlsx/sparkline-paint.mbt)。工作表操作复用 [`sheet-rename.mbt`](../../modules/formats/src/xlsx/sheet-rename.mbt)、[`sheet-copy.mbt`](../../modules/formats/src/xlsx/sheet-copy.mbt)和 [`sheet-order.mbt`](../../modules/formats/src/xlsx/sheet-order.mbt)。
+区域复制通过结构化单元格剪贴板传递三种迷你图及失效绑定。`CopiedCells.sparklines` 为最多 256 项 `CopiedSparkline[]`，每项含源绝对目标格 `cell: { row, column }`、数据坐标 `source: CellRange | null` 和 `kind`；`null` 表示 `#REF!`。仅捕获选区内目标，快照不随之后的源图形编辑变化。源格须在矩形内、不重复且未合并；数据坐标须为有效的一行/列且至多 256 格。
+
+仅 `all` 替换目标覆盖区的迷你图，源空白位置清除原目标，范围外图形保持。复制到同表、其他表或其他工作簿时，数据坐标随粘贴起点位移，并绑定目标表；原外表来源也按此规则转为目标本表来源。绝对标记不阻止迷你图位移，越界端点截定到表边界。转置交换目标格位置，数据区域保留原方向并应用同一粘贴位移。`values/formulas/format` 保留目标图形；若格式粘贴会合并目标图形格，整项拒绝。目标容量、未知配置及包输出失败保留源、选择和历史。图形、单元格、规则、链接及便笺使用同一事务，后续输入、精确撤销/重做、重开及 Canvas/PDF 读取当前目标数据。实现归 [`clipboard-sparklines.mbt`](../../modules/formats/src/xlsx/clipboard-sparklines.mbt)；数据归属与位移依据 [ONLYOFFICE 迷你图粘贴入口](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L28529-L28539)及 [moveSparklineGroup](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L10420-L10558)。
+
+区域剪切复用同一工作簿内的 `moveCells` 事务。目标格随所选图形移动，目标覆盖区的旧图形移除；重叠区域先按源身份映射，空白源位置也清除旧目标。仅移动图形时，数据坐标和来源表保持：例如把 Sheet1 中读取 `A1:D1` 的图形搬到 Sheet2，仍读取 `'Sheet1'!A1:D1`。移动完整数据区域时，全工作簿中引用该区域的迷你图同步新坐标和来源表，保留其他表的目标位置；图形和数据一起移动时，共同归到新表。绝对地址不阻止内容移动，`#REF!` 绑定继续保留。
+
+同表沿一行/列的数据轴移动部分端点时，范围按新端点扩缩；端点越过另一端时规范为升序范围。移动中间格、跨轴搬动端点及跨表移动部分来源时，原数据区域保持，继续读取原位置中的剩余值。单区域模型不生成多区域或跨表联合来源。变换后的来源和目标各受 256 格/项上限约束，受影响图形在受保护表中时整项拒绝。图形、便笺、超链接、原生部件和计算缓存共用一项精确历史与原有输出预算，创建资源后继续添加关系的组合也可完整撤销。默认剪切/原生粘贴、后续输入、重开及 Canvas/PDF 沿同一模型；跨工作簿、转置和选择性剪切继续按剪切合同拒绝。实现归 [`move-sparklines.mbt`](../../modules/formats/src/xlsx/move-sparklines.mbt)，范围移动与端点规则依据 [ONLYOFFICE moveSparklineGroup](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L10420-L10558)。
+
+当前支持固定颜色、独立数轴、同一工作簿内的本表或跨表单区域及普通未合并目标。日期轴、组合轴、自定义颜色/标记、外部/三维来源和其他原生配置继续实施；未知配置保留并给出只读原因，静态 PDF 拒绝遗漏内容。其他表编辑沿各操作的资源保护。XLSX 普通图表对象和绘图锚点仍待实现。实现归 [`sparkline.mbt`](../../modules/formats/src/xlsx/sparkline.mbt)、[`sparkline-edit.mbt`](../../modules/formats/src/xlsx/sparkline-edit.mbt)、[`sparkline-axis.mbt`](../../modules/formats/src/xlsx/sparkline-axis.mbt)及 [`sparkline-paint.mbt`](../../modules/formats/src/xlsx/sparkline-paint.mbt)。工作表操作复用 [`sheet-rename.mbt`](../../modules/formats/src/xlsx/sheet-rename.mbt)、[`sheet-copy.mbt`](../../modules/formats/src/xlsx/sheet-copy.mbt)和 [`sheet-order.mbt`](../../modules/formats/src/xlsx/sheet-order.mbt)。
 
 ### 透视表核心
 
@@ -2283,11 +2291,11 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 ### PPTX 基础图表
 
-`editObjects({ action: "insertChart", kind, title, data, x, y, width, height })` 插入簇状柱形图 `column`、条形图 `bar`、带圆形数据点的折线图 `line` 或饼图 `pie`。选中单个本地图表后，`{ action: "chartData", kind, title, data }` 修改类型、标题和数据。对象查询的 `chart` 返回 `{ kind, title, data }`，其他对象为 `null`。默认面板使用相同接口。
+`editObjects({ action: "insertChart", kind, title, data, x, y, width, height })` 插入簇状柱形图 `column`、条形图 `bar`、带圆形数据点的折线图 `line`、饼图 `pie` 或面积图 `area`。选中单个本地图表后，`{ action: "chartData", kind, title, data }` 修改类型、标题和数据。对象查询的 `chart` 返回 `{ kind, title, data }`，其他对象为 `null`。默认面板使用相同接口。
 
 `data` 为 TSV，首行给出类别轴标题和系列名，首列为类别，其余为有限数值或空值。支持 1–8 个系列、1–256 个类别、最多 65536 个 UTF-16 单元；标题及各标签最多 256 个单行单元。核心复用 XLSX 分隔文本导入，公式作为文字处理并在数值列拒绝。空值保留间隙，零值没有柱高；数轴包含零并采用 1/2/5/10 刻度间隔。参考 [ONLYOFFICE 数轴计算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L2678-L2736)。
 
-MoonBit 生成原生 `graphicFrame`、`barChart`、`lineChart` 或 `pieChart`、系列公式/缓存、关系和实际嵌入 XLSX，使用固定配色、Arial 及图例。公共图元输出 Canvas 与静态 PDF。框最小为 180×150 点，移动、缩放、对齐、层级、删除复用对象事务。旋转、翻转和组合保持保护。图表文字通过数据面板编辑。
+MoonBit 生成原生 `graphicFrame`、`barChart`、`lineChart`、`pieChart` 或 `areaChart`、系列公式/缓存、关系和实际嵌入 XLSX，使用固定配色、Arial 及图例。公共图元输出 Canvas 与静态 PDF。框最小为 180×150 点，移动、缩放、对齐、层级、删除复用对象事务。旋转、翻转和组合保持保护。图表文字通过数据面板编辑。
 
 普通视图中的本地顶层图表支持 `editObjects({ action: "duplicate", dx, dy })` 和默认“复制对象”按钮。可与同父的普通对象一起多选复制，保留选择顺序、活动对象、内容、名称及非目标源。副本分配新对象身份、独立图表 XML、嵌入工作簿及关系；初始工作簿保留原始字节，后续改数据互不影响。复制、资源及内容类型合为一项精确历史。缓存与工作簿不一致、未知图表资源关系、复制锁、字体、布局或预算失败时整项拒绝。组内图表及母版/版式图表复制继续保护。规则参考 [ONLYOFFICE 图表复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L4959-L5028)，实现归 [`chart-copy.mbt`](../../modules/formats/src/pptx/chart-copy.mbt)和 [`object-copy.mbt`](../../modules/formats/src/pptx/object-copy.mbt)。
 
@@ -2296,6 +2304,8 @@ MoonBit 生成原生 `graphicFrame`、`barChart`、`lineChart` 或 `pieChart`、
 折线图按类别中心连接相邻非空数据点，空值断线，孤立点及零值仍显示圆形标记。线宽固定为 1.5 点，标记直径为 5 点；图例采用相同线段与标记。原生配置为 `standard`、`smooth=0`、`dispBlanksAs=gap`，与布局共用数据。曲线、堆积、其他标记及跨空值连接继续保护。行为参考 [ONLYOFFICE 折线与空值处理](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L9042-L9185)和[圆形标记](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L3158-L3205)。
 
 饼图显示首个系列，按绝对值计算扇区。零值和空值不占面积，全零或全空时绘图区留空。全部系列保留在查询、原生缓存及嵌入工作簿中，切回其他类型仍可使用。核心先按最大绝对值缩放再求和，避免有限数值的总和溢出。第一片从十二点方向顺时针开始，类别颜色循环使用八色。TSV 首格作为副标题，和主标题写入原生富文本标题的两个段落。饼图不生成数轴，右侧图例按框高显示，放不下时显示剩余项数量；完整数据仍可编辑。当前不提供角度、分离扇区、数据标签或配色设置。语义参考 [ONLYOFFICE 饼图与首个系列](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L12238-L12346)，实现归 [`chart-pie.mbt`](../../modules/formats/src/pptx/chart-pie.mbt)。
+
+面积图使用 `kind: "area"`。类别轴按 `crossBetween=midCat` 把首末类别点放在绘图区边缘，单类别居中。每个连续非空数据段沿零轴闭合，空值断开，孤立点和全零段不产生可见面积；正负部分保留原符号。系列按原顺序用固定不透明颜色绘制，后系列可覆盖前系列，不累计数据；图例沿相同系列顺序。当前无外轮廓和数据点标记，配置为 `standard`、`varyColors=0`、`dispBlanksAs=gap`。未知堆积/百分比、透明度、标记及其他轴配置保持诊断和源保护。数据修改、切换类型、独立对象复制及精确历史复用原路径；Canvas、PNG 和 PDF 使用同一封闭图元。位置和空值规则依据 [ONLYOFFICE 面积图默认轴](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartFormat.js#L6582-L6591)、[零轴闭合与断段](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L9735-L9840)及[系列绘制顺序与空值](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L10796-L10884)。
 
 读取仅接受当前原生结构，未知图表类型、样式、轴配置或公式保持诊断与源保护。数据编辑前核对缓存与嵌入工作簿，拒绝共享图表资源。修改数据保留对象/图表身份，并新建嵌入工作簿以支持精确撤销。旧工作簿及删除后未引用的图表资源继续保留，受现有包和历史预算限制。更广导入、样式与资源回收继续实施。实现归 [`chart-data.mbt`](../../modules/formats/src/pptx/chart-data.mbt)、[`chart-read.mbt`](../../modules/formats/src/pptx/chart-read.mbt)、[`chart-edit.mbt`](../../modules/formats/src/pptx/chart-edit.mbt)及 [`chart-layout.mbt`](../../modules/formats/src/pptx/chart-layout.mbt)。
 

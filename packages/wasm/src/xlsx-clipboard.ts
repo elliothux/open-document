@@ -10,6 +10,7 @@ import {
 import { copiedCellFormat, type XlsxCellFormat } from "./xlsx-format.js";
 import type { CellRange, CellValue } from "./xlsx.js";
 import { checkXlsxHyperlinkTarget } from "./xlsx-sheet.js";
+import type { XlsxSparklineKind } from "./xlsx-sparkline.js";
 
 export interface CopiedCell {
   value: CellValue;
@@ -26,6 +27,12 @@ export interface CopiedCells {
   validations: CopiedValidation[];
   hyperlinks: CopiedHyperlink[];
   notes: CopiedNotes | null;
+  sparklines: CopiedSparkline[];
+}
+export interface CopiedSparkline {
+  cell: { row: number; column: number };
+  source: CellRange | null;
+  kind: XlsxSparklineKind;
 }
 export interface CopiedNotes {
   comments: string;
@@ -61,7 +68,7 @@ export function copiedCells(value: unknown): CopiedCells {
   const fragment = record(value),
     rows = fragment.cells;
   if (
-    Object.keys(fragment).length !== 9 ||
+    Object.keys(fragment).length !== 10 ||
     typeof fragment.date1904 !== "boolean" ||
     typeof fragment.top !== "number" ||
     !Number.isInteger(fragment.top) ||
@@ -129,7 +136,7 @@ export function copiedCells(value: unknown): CopiedCells {
     }
     formats.push(styles);
   }
-  copiedCellFormat({ cells: formats, merges: fragment.merges });
+  const format = copiedCellFormat({ cells: formats, merges: fragment.merges });
   let count = 0,
     ruleUnits = 0;
   for (const key of ["conditional", "validations"] as const) {
@@ -247,6 +254,59 @@ export function copiedCells(value: unknown): CopiedCells {
         2097152
     )
       throw new Error("Invalid copied cell notes");
+  }
+  const sparklines: unknown = fragment.sparklines;
+  if (!Array.isArray(sparklines) || sparklines.length > 256)
+    throw new Error("Invalid copied sparklines");
+  const destinations = new Set<number>();
+  for (const value of sparklines) {
+    const item = record(value),
+      cell = record(item.cell),
+      row = Number(cell.row) - fragment.top + 1,
+      column = Number(cell.column) - fragment.left + 1;
+    if (
+      Object.keys(item).length !== 3 ||
+      Object.keys(cell).length !== 2 ||
+      !integer(cell.row, fragment.top, fragment.top + rows.length - 1) ||
+      !integer(
+        cell.column,
+        fragment.left,
+        fragment.left + rows[0].length - 1,
+      ) ||
+      typeof item.kind !== "string" ||
+      !["line", "column", "winLoss"].includes(item.kind) ||
+      format.merges.some(
+        (range) =>
+          row >= range.top &&
+          row <= range.bottom &&
+          column >= range.left &&
+          column <= range.right,
+      )
+    )
+      throw new Error("Invalid copied sparkline destination or type");
+    const key =
+      (Number(cell.row) - fragment.top) * rows[0].length +
+      Number(cell.column) -
+      fragment.left;
+    if (destinations.has(key)) throw new Error("Overlapping copied sparklines");
+    destinations.add(key);
+    if (item.source !== null) {
+      const source = record(item.source);
+      if (
+        Object.keys(source).length !== 4 ||
+        !integer(source.top, 1, 1048576) ||
+        !integer(source.bottom, Number(source.top), 1048576) ||
+        !integer(source.left, 1, 16384) ||
+        !integer(source.right, Number(source.left), 16384) ||
+        !(source.top === source.bottom || source.left === source.right) ||
+        Number(source.bottom) -
+          Number(source.top) +
+          Number(source.right) -
+          Number(source.left) >=
+          256
+      )
+        throw new Error("Invalid copied sparkline source");
+    }
   }
   return value as CopiedCells;
 }
