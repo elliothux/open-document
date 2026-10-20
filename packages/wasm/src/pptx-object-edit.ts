@@ -14,7 +14,37 @@ import type {
 } from "./pptx-objects.js";
 import type { PptxConnectorEnd } from "./pptx-connectors.js";
 import type { PptxMediaPlayback } from "./pptx-media.js";
+import type { PptxChart } from "./pptx-chart.js";
+export const pptxInsertKinds = [
+  "text",
+  "rect",
+  "roundRect",
+  "ellipse",
+  "triangle",
+  "rtTriangle",
+  "diamond",
+  "parallelogram",
+  "trapezoid",
+  "pentagon",
+  "hexagon",
+  "octagon",
+  "plus",
+  "star5",
+  "line",
+  "leftArrow",
+  "rightArrow",
+  "upArrow",
+  "downArrow",
+] as const;
 export type PptxObjectEdit =
+  | ({
+      action: "insertChart";
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+    } & PptxChart)
+  | ({ action: "chartData" } & PptxChart)
   | {
       action: "insertWordArt";
       preset: "blue" | "gold" | "red" | "purple" | "green-italic";
@@ -113,21 +143,7 @@ export type PptxObjectEdit =
     }
   | {
       action: "insert";
-      kind:
-        | "text"
-        | "rect"
-        | "roundRect"
-        | "ellipse"
-        | "triangle"
-        | "rtTriangle"
-        | "diamond"
-        | "parallelogram"
-        | "trapezoid"
-        | "line"
-        | "leftArrow"
-        | "rightArrow"
-        | "upArrow"
-        | "downArrow";
+      kind: (typeof pptxInsertKinds)[number];
       x: number;
       y: number;
       width: number;

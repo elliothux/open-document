@@ -8,6 +8,7 @@ import type { PptxObjectEdit, PptxHyperlink } from "@open-document/web/pptx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { PptxPaint } from "./pptx-paint.js";
+import { PptxCharts } from "./pptx-chart.js";
 import { PlaceholderType, PptxPlaceholder } from "./pptx-placeholder.js";
 import type { PptxPlaceholderType } from "@open-document/web/pptx";
 import { PptxShapeAdjustments } from "./pptx-shape-adjustments.js";
@@ -106,6 +107,11 @@ export function PptxObjects({
                   kind === "diamond" ||
                   kind === "parallelogram" ||
                   kind === "trapezoid" ||
+                  kind === "pentagon" ||
+                  kind === "hexagon" ||
+                  kind === "octagon" ||
+                  kind === "plus" ||
+                  kind === "star5" ||
                   kind === "line"
                 )
                   setDraft({ ...draft, kind });
@@ -120,6 +126,11 @@ export function PptxObjects({
               <option value="diamond">{t.diamond}</option>
               <option value="parallelogram">{t.parallelogram}</option>
               <option value="trapezoid">{t.trapezoid}</option>
+              <option value="pentagon">{t.pentagon}</option>
+              <option value="hexagon">{t.hexagon}</option>
+              <option value="octagon">{t.octagon}</option>
+              <option value="plus">{t.plusShape}</option>
+              <option value="star5">{t.star5}</option>
               <option value="line">{t.lineShape}</option>
               <option value="leftArrow">{t.leftArrow}</option>
               <option value="rightArrow">{t.rightArrow}</option>
@@ -538,6 +549,13 @@ export function PptxObjects({
       />
       <PptxPaint
         key={`${state.document?.documentId}:${query.selection.mode}:${query.selection.objects.map((id) => JSON.stringify(query.objects.find((o) => o.id === id)?.appearance)).join(",")}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
+      <PptxCharts
+        key={`chart:${query.revision}:${query.selection.object}`}
         controller={controller}
         state={state}
         editor={editor}

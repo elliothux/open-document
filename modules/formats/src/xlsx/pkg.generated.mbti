@@ -262,11 +262,12 @@ pub impl ToJson for PivotFilter
 
 pub(all) struct PivotNumberGroup {
   field : Int
-  start : Double
-  end : Double
+  start : Double?
+  end : Double?
   interval : Double
-} derive(ToJson)
+}
 pub fn PivotNumberGroup::to_json(Self) -> Json
+pub impl ToJson for PivotNumberGroup
 
 pub(all) struct PivotSettings {
   sourceSheet : String

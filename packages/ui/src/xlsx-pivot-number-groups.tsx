@@ -40,17 +40,38 @@ export function PivotNumberGroups({
             />
           </label>
           {(["start", "end", "interval"] as const).map((key) => (
-            <label key={key}>
-              {t[`pivotGroup_${key}`]}
-              <input
-                type="number"
-                step="any"
-                value={Number.isFinite(group[key]) ? group[key] : ""}
-                onChange={(event) =>
-                  update(index, { [key]: event.currentTarget.valueAsNumber })
-                }
-              />
-            </label>
+            <div key={key}>
+              {key !== "interval" && (
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={group[key] === null}
+                    onChange={(event) =>
+                      update(index, {
+                        [key]: event.currentTarget.checked
+                          ? null
+                          : key === "start"
+                            ? 0
+                            : 100,
+                      })
+                    }
+                  />
+                  {t[`pivotGroupAuto_${key}`]}
+                </label>
+              )}
+              <label>
+                {t[`pivotGroup_${key}`]}
+                <input
+                  type="number"
+                  step="any"
+                  disabled={group[key] === null}
+                  value={Number.isFinite(group[key]) ? (group[key] ?? "") : ""}
+                  onChange={(event) =>
+                    update(index, { [key]: event.currentTarget.valueAsNumber })
+                  }
+                />
+              </label>
+            </div>
           ))}
           <button
             type="button"

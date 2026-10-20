@@ -173,6 +173,11 @@ fn read_object(
       .bind(item => item.child("graphicData"))
       .bind(item => item.child("tbl"))
       is Some(_) => "table"
+    "graphicFrame" if source
+      .child("graphic")
+      .bind(item => item.child("graphicData"))
+      .bind(item => item.child("chart", uri=chart_uri))
+      is Some(_) => "chart"
     _ => "unsupported"
   }
   let native_preset = attribute(children(properties, "prstGeom"), "prst").unwrap_or(
@@ -391,6 +396,16 @@ fn read_object(
   } else {
     None
   }
+  let chart = if kind == "chart" {
+    Some(read_chart(opc, source, parts)) catch {
+      @failure.Failure(message~, ..) => {
+        diagnostic = message
+        None
+      }
+    }
+  } else {
+    None
+  }
   let paragraphs = table
     .map(table => {
       table.rows
@@ -403,7 +418,9 @@ fn read_object(
       .flatten()
     })
     .unwrap_or(plain_paragraphs)
-  text_reason = if source.node.name == "cxnSp" {
+  text_reason = if kind == "chart" {
+    "Edit chart text through chart data"
+  } else if source.node.name == "cxnSp" {
     "Connectors do not have editable text"
   } else {
     limitation
@@ -533,6 +550,7 @@ fn read_object(
     opacity,
     paragraphs,
     table,
+    chart,
     body,
     read_only,
     text_reason,

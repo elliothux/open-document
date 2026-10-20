@@ -50,8 +50,10 @@ export interface XlsxPivotDateGroup {
 export interface XlsxPivotNumberGroup {
   /** Zero-based numeric row/column field; records retain original numbers. */
   field: number;
-  start: number;
-  end: number;
+  /** Null follows the source minimum on refresh. */
+  start: number | null;
+  /** Null follows the source maximum on refresh. */
+  end: number | null;
   interval: number;
 }
 export interface XlsxPivotFilter {
@@ -212,18 +214,21 @@ export function checkXlsxPivotSettings(value: unknown): void {
       !integer(group.field, 0, width - 1) ||
       !axes.has(group.field) ||
       grouped.has(group.field) ||
-      typeof group.start !== "number" ||
-      !Number.isFinite(group.start) ||
-      typeof group.end !== "number" ||
-      !Number.isFinite(group.end) ||
+      (group.start !== null &&
+        (typeof group.start !== "number" || !Number.isFinite(group.start))) ||
+      (group.end !== null &&
+        (typeof group.end !== "number" || !Number.isFinite(group.end))) ||
       typeof group.interval !== "number" ||
       !Number.isFinite(group.interval) ||
-      group.start >= group.end ||
       group.interval <= 0 ||
-      !Number.isFinite(group.end - group.start) ||
-      !Number.isFinite(group.start + group.interval) ||
-      group.start + group.interval <= group.start ||
-      Math.ceil((group.end - group.start) / group.interval) > 4094
+      (typeof group.start === "number" &&
+        (!Number.isFinite(group.start + group.interval) ||
+          group.start + group.interval <= group.start)) ||
+      (typeof group.start === "number" &&
+        typeof group.end === "number" &&
+        (group.start >= group.end ||
+          !Number.isFinite(group.end - group.start) ||
+          Math.ceil((group.end - group.start) / group.interval) > 4094))
     )
       throw new Error("Invalid pivot numeric group");
     grouped.add(group.field);

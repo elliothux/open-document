@@ -11,6 +11,8 @@ pub(all) enum ObjectEdit {
   InsertMedia(String, String, Bytes, Bytes, Double, Double, Double, Double)
   MediaPlayback(MediaPlaybackSettings)
   InsertTable(Int, Int, Double, Double, Double, Double)
+  InsertChart(String, String, String, Double, Double, Double, Double)
+  ChartData(String, String, String)
   FillTable(Int, Int)
   TableStructure(String)
   SplitTableCell(Int, Int)
@@ -113,6 +115,10 @@ fn Session::object_edit_reason(
   let duplicate = action == "duplicate"
   try {
     let table = object.table is Some(_)
+    if object.chart is Some(_) &&
+      !["delete", "transform", "arrange"].contains(action) {
+      return "Chart copying, grouping, rotation and flipping require support"
+    }
     if duplicate && object.media is Some(media) && !media.reason.is_empty() {
       return media.reason
     }
@@ -199,12 +205,14 @@ fn Session::object_edit_reason(
     }
     guard (
         ["sp", "pic", "grpSp", "cxnSp"].contains(object.source.node.name) ||
-        table
+        table ||
+        object.chart is Some(_)
       ) &&
       (grouped || object.source.node.parent == shape_tree(slide.tree).id) else {
       return "This operation requires local top-level shapes and pictures"
     }
     if !table &&
+      object.chart is None &&
       ["rotate", "flip", "arrange", "transform"].contains(action) &&
       object.source.child(
         if object.kind == "group" {
@@ -274,6 +282,7 @@ fn Session::object_edit_reason(
             relationship_uri + "/slide",
             relationship_uri + "/audio",
             relationship_uri + "/video",
+            relationship_uri + "/chart",
             media_relationship_uri,
           ].contains(rel.kind) {
           return "Slide relationship references require object deletion support"
@@ -387,6 +396,19 @@ pub fn Session::edit_objects(
   let original = self.current()
   guard original.read_only.is_empty() else {
     @failure.reject("protected-content", original.read_only)
+  }
+  if change is InsertChart(kind, title, data, x, y, width, height) {
+    return self.write_chart(
+      kind,
+      title,
+      data,
+      Some((x, y, width, height)),
+      probe,
+      profile,
+    )
+  }
+  if change is ChartData(kind, title, data) {
+    return self.write_chart(kind, title, data, None, probe, profile)
   }
   if change is InsertDiagram(settings) {
     return self.insert_diagram(settings, probe, profile)
@@ -514,6 +536,8 @@ pub fn Session::edit_objects(
     | InsertMedia(_, _, _, _, _, _, _, _)
     | MediaPlayback(_)
     | InsertTable(_, _, _, _, _, _)
+    | InsertChart(_, _, _, _, _, _, _)
+    | ChartData(_, _, _)
     | FillTable(_, _)
     | TableStructure(_)
     | SplitTableCell(_, _)

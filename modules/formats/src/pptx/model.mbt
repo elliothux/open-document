@@ -102,6 +102,7 @@ priv struct Object {
   opacity : Double
   paragraphs : Array[TextParagraph]
   table : DrawingTable?
+  chart : DrawingChart?
   body : Body
   read_only : String
   text_reason : String

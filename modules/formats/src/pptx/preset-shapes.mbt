@@ -15,16 +15,19 @@ fn read_shape_adjustments(
   geometry : Ref?,
   preset : String,
 ) -> (Double, Double) raise @failure.Failure {
-  let single = ["roundRect", "triangle", "parallelogram", "trapezoid"].contains(
-    preset,
-  )
+  let single = [
+    "roundRect", "triangle", "parallelogram", "trapezoid", "hexagon", "octagon",
+    "plus", "star5",
+  ].contains(preset)
   let mut first = match preset {
     "roundRect" => 0.16667
-    "parallelogram" | "trapezoid" => 0.25
+    "parallelogram" | "trapezoid" | "hexagon" | "plus" => 0.25
+    "octagon" => 0.29289
+    "star5" => 0.19098
     _ => 0.5
   }
   let mut second = 0.5
-  if !single && !arrow_shape(preset) {
+  if !single && !arrow_shape(preset) && preset != "pentagon" {
     return (first, second)
   }
   if geometry.bind(source => source.child("avLst")) is Some(list) {
@@ -32,9 +35,22 @@ fn read_shape_adjustments(
     for node in list.tree.children.get(list.node.id).unwrap_or([]) {
       let name = node.attribute("name").unwrap_or("")
       let formula = node.attribute("fmla").unwrap_or("")
+      let factor = match (preset, name) {
+        ("pentagon" | "star5", "hf") => Some(1.05146)
+        ("pentagon" | "star5", "vf") => Some(1.10557)
+        ("hexagon", "vf") => Some(1.1547)
+        _ => None
+      }
       guard node.uri == drawing_uri &&
         node.name == "gd" &&
-        (if single { name == "adj" } else { ["adj1", "adj2"].contains(name) }) &&
+        (
+          factor is Some(_) ||
+          (if single {
+            name == "adj"
+          } else {
+            arrow_shape(preset) && ["adj1", "adj2"].contains(name)
+          })
+        ) &&
         !seen.contains(name) &&
         formula.has_prefix("val ") else {
         @failure.reject(
@@ -44,6 +60,15 @@ fn read_shape_adjustments(
       seen[name] = true
       let value = number(formula[4:].trim().to_owned(), -2147483648, 2147483647) /
         100000
+      if factor is Some(expected) {
+        // shortcut: Nondefault normalization guides stay protected until custom preset guides are supported.
+        guard value == expected else {
+          @failure.reject(
+            "unsupported-geometry", "Custom preset normalization requires support",
+          )
+        }
+        continue
+      }
       if name == "adj2" {
         second = value
       } else {

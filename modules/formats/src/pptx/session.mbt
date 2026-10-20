@@ -311,6 +311,9 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
         "parent": object.parent,
         "name": object.name,
         "kind": object.kind,
+        "chart": object.chart
+        .map(chart => chart.data.query())
+        .unwrap_or(Json::null()),
         "media": object.media_query(),
         "text": object.text(),
         "readOnlyReason": object.read_only,

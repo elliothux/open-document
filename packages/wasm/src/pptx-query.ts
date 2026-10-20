@@ -11,6 +11,7 @@ import type { PptxPlaceholder } from "./pptx-placeholder.js";
 
 import type { PptxConnector } from "./pptx-connectors.js";
 import type { PptxMedia } from "./pptx-media.js";
+import type { PptxChart } from "./pptx-chart.js";
 export interface PptxObject {
   media: PptxMedia | null;
   connector: PptxConnector | null;
@@ -18,6 +19,7 @@ export interface PptxObject {
   parent: string;
   name: string;
   kind: string;
+  chart: PptxChart | null;
   text: string;
   readOnlyReason: string;
   textReadOnlyReason: string;

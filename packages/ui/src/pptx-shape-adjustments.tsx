@@ -49,7 +49,15 @@ export function PptxShapeAdjustments({
               ? t.cornerRadius
               : first.preset === "triangle"
                 ? t.triangleApex
-                : t.shapeSlant
+                : first.preset === "hexagon"
+                  ? t.shapeSideInset
+                  : first.preset === "octagon"
+                    ? t.shapeCornerCut
+                    : first.preset === "plus"
+                      ? t.shapeArmInset
+                      : first.preset === "star5"
+                        ? t.shapeInnerRadius
+                        : t.shapeSlant
             : guide.name === "adj1"
               ? t.arrowShaft
               : t.arrowHead;

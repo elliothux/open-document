@@ -236,6 +236,7 @@ fn read_slide(
         ":Date fields require a supported format, language and explicit time",
       )
     } else if object.kind != "group" &&
+      object.kind != "chart" &&
       object.source.node.name != "cxnSp" &&
       !object.text_reason.is_empty() &&
       !calculated_field_reason(object.text_reason) &&

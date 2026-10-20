@@ -346,6 +346,9 @@ fn slide_font_keys(
   let fonts : Array[String] = []
   for slide in slides {
     for object in slide.objects {
+      if object.chart is Some(_) && !fonts.contains("Arial") {
+        fonts.push("Arial")
+      }
       for paragraph in object.paragraphs {
         if !paragraph.bullet.is_empty() &&
           !fonts.contains(paragraph.bullet_style.font) {

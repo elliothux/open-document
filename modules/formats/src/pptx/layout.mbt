@@ -247,6 +247,24 @@ fn paint_slide(
           1,
         ),
       )
+    } else if object.chart is Some(chart) {
+      let commands = chart.paint(
+        geometry.width,
+        geometry.height,
+        probe,
+        profile,
+      )
+      for command in commands {
+        if command is @layout.Text(text) {
+          units += text.runs.fold(init=0, (sum, run) => {
+            sum + run.glyphs.length()
+          })
+        }
+      }
+      guard units <= 262144 else {
+        @failure.reject("limit-exceeded", "Slide glyphs exceed budget")
+      }
+      primitives.append(commands)
     } else if object.table is Some(_) {
       let (commands, lines, warnings, glyphs) = object.paint_table(
         probe, profile,

@@ -7,6 +7,8 @@ import {
   type PptxShowLayout,
 } from "./pptx-show.js";
 import { checkPptxConnectorQuery } from "./pptx-connectors.js";
+import { checkPptxChart } from "./pptx-chart.js";
+export type { PptxChart } from "./pptx-chart.js";
 import {
   checkPptxMedia,
   checkMediaPlaybackQuery,
@@ -452,6 +454,7 @@ export function pptxQuery(value: unknown): PptxQuery {
     checkPptxPlaceholderQuery(object.placeholder);
     checkPptxConnectorQuery(object.connector);
     checkPptxMedia(object.media);
+    if (object.chart !== null) checkPptxChart(object.chart);
     imageInsets(object.imageInsets);
     if (typeof object.imageInsetsReason !== "string")
       throw new Error("Invalid image destination reason");

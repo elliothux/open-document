@@ -217,6 +217,38 @@ fn native_transform_changes(
   if object.table is Some(_) {
     return table_transform_changes(object, geometry)
   }
+  if object.chart is Some(_) {
+    guard geometry.rotation == 0 &&
+      !geometry.flip_x &&
+      !geometry.flip_y &&
+      geometry.width >= 180 &&
+      geometry.height >= 150 else {
+      @failure.reject(
+        "invalid-transform", "Chart requires an unrotated frame of at least 180 x 150 points",
+      )
+    }
+    let transform = object.source.child("xfrm", uri=presentation_uri).unwrap()
+    let changes : Array[@xml.SourceChange] = []
+    for
+      (node, values) in [
+        (
+          transform.child("off").unwrap(),
+          [("x", geometry.x), ("y", geometry.y)],
+        ),
+        (
+          transform.child("ext").unwrap(),
+          [("cx", geometry.width), ("cy", geometry.height)],
+        ),
+      ] {
+      for (name, value) in values {
+        let text = (value * 12700).round().to_int64().to_string()
+        if node.node.attribute(name) != Some(text) {
+          changes.push(attribute_change(node, name, text))
+        }
+      }
+    }
+    return changes
+  }
   let properties = object.source
     .child(
       if object.kind == "group" {

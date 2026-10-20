@@ -75,21 +75,32 @@ fn pivot_read_groups(
           ],
           [],
         )
-        guard !flag(range, "autoStart", fallback=true) &&
-          !flag(range, "autoEnd", fallback=true) else {
-          @failure.reject(
-            "protected-content", "Automatic numeric grouping requires support",
-          )
-        }
+        let start = number(range.attribute("startNum").unwrap_or(""))
+        let end = number(range.attribute("endNum").unwrap_or(""))
         let group : PivotNumberGroup = {
           field: base,
-          start: number(range.attribute("startNum").unwrap_or("")),
-          end: number(range.attribute("endNum").unwrap_or("")),
+          start: if flag(range, "autoStart", fallback=true) {
+            None
+          } else {
+            Some(start)
+          },
+          end: if flag(range, "autoEnd", fallback=true) {
+            None
+          } else {
+            Some(end)
+          },
           interval: number(range.attribute("groupInterval").unwrap_or("1")),
         }
         let built = group.build(
           cache.children.get(shared.id).unwrap_or([]).map(pivot_cache_value),
         )
+        guard built.settings is Numeric(_, start=actual_start, end=actual_end) &&
+          pivot_group_compare(start, actual_start) == 0 &&
+          pivot_group_compare(end, actual_end) == 0 else {
+          @failure.reject(
+            "protected-content", "Pivot automatic numeric bounds disagree with source cache",
+          )
+        }
         numbers.push(group)
         built
       } else {

@@ -423,6 +423,11 @@ fn Foundation::pptx_operation(
             xlsx_number(change, "width"),
             xlsx_number(change, "height"),
           )
+        "insertChart" | "chartData" =>
+          pptx_chart_edit(
+            change,
+            field_string(change, "action") == "insertChart",
+          )
         "insert" | "insertPlaceholder" => pptx_insert_object(change)
         "placeholder" => pptx_placeholder(change)
         "delete" => @pptx.Remove

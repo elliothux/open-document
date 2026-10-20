@@ -58,15 +58,22 @@ fn xlsx_pivot_settings(
         fields
         .keys()
         .all(key => ["field", "start", "end", "interval"].contains(key)) &&
-        fields.get("start") is Some(Number(start, ..)) &&
-        fields.get("end") is Some(Number(end, ..)) &&
         fields.get("interval") is Some(Number(interval, ..)) else {
         @failure.reject("invalid-operation", "Invalid pivot numeric group")
       }
       @xlsx.PivotNumberGroup::{
         field: field_int(group, "field"),
-        start,
-        end,
+        start: match fields.get("start") {
+          Some(Null) => None
+          Some(Number(value, ..)) => Some(value)
+          _ =>
+            @failure.reject("invalid-operation", "Invalid pivot numeric start")
+        },
+        end: match fields.get("end") {
+          Some(Null) => None
+          Some(Number(value, ..)) => Some(value)
+          _ => @failure.reject("invalid-operation", "Invalid pivot numeric end")
+        },
         interval,
       }
     }),
