@@ -159,6 +159,9 @@ fn axis_sheet_metadata(
   let own_sheet = sheet.name == target
   let changes : Array[@xml.SourceChange] = []
   let removed : Map[Int, Bool] = Map([])
+  if own_sheet {
+    changes.append(sheet.axis_sparklines(change))
+  }
   let extra : Map[Int, Int] = Map([])
   let mut split_rules = false
   let ancestors_removed = fn(node : @xml.Node) {

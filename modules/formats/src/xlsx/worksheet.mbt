@@ -28,6 +28,7 @@ priv struct Sheet {
   column_styles : Array[(Int, Int, Int)]
   frozen : Frozen
   view : ViewSettings
+  sparklines : Sparklines
 }
 
 ///|
@@ -267,6 +268,7 @@ fn Sheet::read(
     column_styles,
     frozen: read_frozen(tree),
     view: read_view(tree),
+    sparklines: read_sparklines(tree, name, merges),
   }
   sheet.expand_shared(tree)
   sheet

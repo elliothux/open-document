@@ -12,7 +12,9 @@ import { tableEn } from "./messages-xlsx-tables.js";
 import { pivotEn } from "./messages-xlsx-pivot.js";
 import { clipboardEn } from "./messages-clipboard.js";
 import { protectionEn } from "./messages-xlsx-protection.js";
+import { sparklineEn } from "./messages-xlsx-sparkline.js";
 export const en = {
+  ...sparklineEn,
   ...protectionEn,
   ...objectEn,
   ...connectorEn,

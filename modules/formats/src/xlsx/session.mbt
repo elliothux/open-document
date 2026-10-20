@@ -192,6 +192,10 @@ fn Session::from_package(
     }
     let source = Tree::new(sheet.document)
     for child in source.children.get(source.root("worksheet").id).unwrap_or([]) {
+      if sheet.sparklines.reason.is_empty() &&
+        sparkline_extension(source, child) {
+        continue
+      }
       if ![
           "sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData",
           "mergeCells", "sheetProtection", "pageMargins", "pageSetup", "printOptions",
@@ -484,6 +488,7 @@ pub fn Session::query(
       selected,
     ),
     "filter": self.filter_query(sheet_index),
+    "sparklines": self.sparkline_query(current),
     "names": self.names_query(),
     "hyperlink": self.hyperlink_query(
       current,
@@ -503,7 +508,7 @@ pub fn Session::query(
     "sheetEditReason": self.sheet_edit_reason(),
     "protection": self.protection_query(current),
     "workbookProtection": self.workbook_protection_query(),
-    "sheetRenameReason": self.sheet_rename_reason(tables=true),
+    "sheetRenameReason": self.sheet_rename_reason(tables=true, sparklines=true),
     "frozen": {
       "rows": current.frozen.rows,
       "columns": current.frozen.columns,

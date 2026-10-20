@@ -15,7 +15,7 @@ fn Session::prepare_sheet_delete(
   parts : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
 ) -> Map[String, @xml.Document] raise @failure.Failure {
-  let reason = self.sheet_rename_reason(tables=true)
+  let reason = self.sheet_rename_reason(tables=true, sparklines=true)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let deleted = self.sheets[index]
   guard self.sheets

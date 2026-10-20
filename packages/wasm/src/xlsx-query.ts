@@ -6,6 +6,7 @@ import type { XlsxStatistics } from "./xlsx-statistics.js";
 import type { XlsxFilterState } from "./xlsx-filter.js";
 import type { XlsxConditionalState } from "./xlsx-conditional.js";
 import type { XlsxValidationState } from "./xlsx-validation.js";
+import type { XlsxSparklines } from "./xlsx-sparkline.js";
 import type {
   XlsxPrintSetup,
   XlsxPrintRange,
@@ -16,6 +17,7 @@ import type { CellRange, XlsxCell } from "./xlsx.js";
 import type { XlsxProtection } from "./xlsx-protection.js";
 
 export interface XlsxQuery {
+  sparklines: XlsxSparklines;
   protection: XlsxProtection;
   workbookProtection: XlsxProtection;
   tables: XlsxTable[];

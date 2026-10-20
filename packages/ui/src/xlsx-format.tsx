@@ -13,6 +13,7 @@ import { XlsxFormatFields } from "./xlsx-format-fields.js";
 import { XlsxConditional } from "./xlsx-conditional.js";
 import { XlsxClipboard } from "./xlsx-clipboard.js";
 import { XlsxProtection } from "./xlsx-protection.js";
+import { XlsxSparkline } from "./xlsx-sparkline.js";
 
 type Props = {
   controller: EditorController;
@@ -82,6 +83,18 @@ export function XlsxFormat({ controller, state, editor, disabled }: Props) {
         disabled={disabled}
       />
       <XlsxFormatPainter
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
+      <XlsxSparkline
+        key={JSON.stringify([
+          state.document?.documentId,
+          editor.currentState.sheet,
+          editor.currentState.selection.address,
+          editor.currentState.sparklines,
+        ])}
         controller={controller}
         state={state}
         editor={editor}

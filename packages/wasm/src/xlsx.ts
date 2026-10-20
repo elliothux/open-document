@@ -103,6 +103,13 @@ export type {
   XlsxDataBar,
 } from "./xlsx-conditional.js";
 import { xlsxValidationState } from "./xlsx-validation.js";
+import { xlsxSparklines } from "./xlsx-sparkline.js";
+export type {
+  XlsxSparkline,
+  XlsxSparklineKind,
+  XlsxSparklineEdit,
+  XlsxSparklines,
+} from "./xlsx-sparkline.js";
 export {
   checkXlsxDataValidation,
   validationKinds,
@@ -222,6 +229,7 @@ export function xlsxQuery(value: unknown): XlsxQuery {
   xlsxFilterState(query.filter);
   xlsxConditionalState(query.conditionalFormats);
   xlsxValidationState(query.dataValidation);
+  xlsxSparklines(query.sparklines);
   xlsxPrintSetup(query.printSetup);
   xlsxPrintRange(query.printRange);
   xlsxHeaderFooter(query.headerFooter);

@@ -66,6 +66,7 @@ fn Session::sheet_rename_reason(
   structure~ : Bool = true,
   tables~ : Bool = false,
   pivots~ : Bool = false,
+  sparklines~ : Bool = false,
 ) -> String {
   try {
     let reason = self.sheet_edit_reason(structure~)
@@ -96,6 +97,14 @@ fn Session::sheet_rename_reason(
       ignore(read_filter(sheet))
       self.check_sort_metadata(tree)
       let filter = tree.one(root.id, "autoFilter")
+      let sparkline = if sparklines &&
+        sheet.sparklines.reason.is_empty() &&
+        tree.one(root.id, "extLst") is Some(extension) &&
+        sparkline_extension(tree, extension) {
+        Some(extension)
+      } else {
+        None
+      }
       for node in tree.children.get(root.id).unwrap_or([]) {
         if node.uri != spreadsheet_uri ||
           (
@@ -111,6 +120,11 @@ fn Session::sheet_rename_reason(
         }
       }
       for node in tree.document.nodes() {
+        if sparkline is Some(extension) &&
+          node.start >= extension.start &&
+          node.end <= extension.end {
+          continue
+        }
         // Known filter labels and visibility provenance contain no sheet references.
         if filter is Some(filter) &&
           node.start >= filter.start &&
@@ -144,17 +158,24 @@ fn sheet_reference_changes(
   old : String,
   name : String?,
   deleted_scope~ : Int? = None,
+  sparklines~ : Bool = false,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let changes : Array[@xml.SourceChange] = []
   let mut payload = 0L
   for node in document.nodes() {
-    if node.uri != spreadsheet_uri {
+    let sparkline = sparklines &&
+      node.uri == sparkline_formula_uri &&
+      node.name == "f"
+    if node.uri != spreadsheet_uri && !sparkline {
       continue
     }
-    if [
-        "f", "formula", "formula1", "formula2", "definedName", "calculatedColumnFormula",
-        "totalsRowFormula",
-      ].contains(node.name) &&
+    if (
+        [
+          "f", "formula", "formula1", "formula2", "definedName", "calculatedColumnFormula",
+          "totalsRowFormula",
+        ].contains(node.name) ||
+        sparkline
+      ) &&
       !node.text.is_empty() {
       if node.name == "definedName" &&
         node
@@ -227,7 +248,7 @@ fn Session::rename_sheet(
   index : Int,
   name : String,
 ) -> Json raise @failure.Failure {
-  let reason = self.sheet_rename_reason(tables=true)
+  let reason = self.sheet_rename_reason(tables=true, sparklines=true)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let tables = self.sheet_tables()
   validate_sheet_name(name)
@@ -254,7 +275,12 @@ fn Session::rename_sheet(
     })
   let plans : Array[(Int, Array[@xml.SourceChange])] = []
   for index, sheet in self.sheets {
-    let edits = sheet_reference_changes(sheet.document, old, Some(name))
+    let edits = sheet_reference_changes(
+      sheet.document,
+      old,
+      Some(name),
+      sparklines=true,
+    )
     payload += edits
       .iter()
       .fold(init=0L, (sum, change) => {

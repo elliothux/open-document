@@ -1695,6 +1695,22 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 移动最多 4096 格和 1024 个合并范围；工作簿源、公式及链接节点源合计最多 1 Mi UTF-16 单元，搬移与改写的单元格源合计最多 1 Mi 单元。每表最多 4096 个链接，单表生成的链接源最多 2 Mi 单元。规则沿既有 100000 格、4 Mi 字符和 4096 片段工作上限；每表至多 4096 条条件规则和 4096 条验证。全部变动仍受 4 MiB 历史及包输出预算约束。被保护的源、目标或受影响公式/链接/规则拒绝。未知资源、原生表、透视及带筛选/排序的工作簿保持保护，未限定工作表的名称引用及需改写的不透明名称源继续保护；跨表打印范围的归属转移继续实施。实现归 [`move-cells.mbt`](../../modules/formats/src/xlsx/move-cells.mbt)、[`move-reference.mbt`](../../modules/formats/src/xlsx/move-reference.mbt)、[`move-hyperlinks.mbt`](../../modules/formats/src/xlsx/move-hyperlinks.mbt)、[`move-rules.mbt`](../../modules/formats/src/xlsx/move-rules.mbt)、[`rule-fragments.mbt`](../../modules/formats/src/xlsx/rule-fragments.mbt)和 [`move-resources.mbt`](../../modules/formats/src/xlsx/move-resources.mbt)。
 
+### 单元格迷你图
+
+`editSheet(revision, sheet, { action: "sparkline", cell, source, kind })` 在未合并的目标格创建或修改迷你图。`kind` 为 `line`、`column` 或 `winLoss`；`source` 为本表一行或一列的区域，也可带本表名称。`source: null` 删除该目标格的迷你图。每表最多 256 个目标，每个数据源最多 256 格。查询 `sparklines` 返回规范化的 `items: { cell, source, kind }[]` 及 `readOnlyReason`。原有目标格内容保留，文字按原有规则显示。
+
+整行、整列插入或删除时，核心用现有范围算法同步目标格和数据源。区域内部插入扩大源，删除缩小源；删除整个源后保留目标，原生公式与查询 `source` 为 `#REF!`，图形留空。用户重新填写区域可恢复显示；重新提交 `#REF!` 可保留失效绑定。目标格被删除时移除对应迷你图，最后一个目标删除后移除本功能的空扩展。源、单元格、公式缓存和选择共用一项精确历史。插入会丢失目标、丢失源端点或使数据源超过 256 格时，整项拒绝。结构位移与目标删除依据 [ONLYOFFICE updateSparklineGroupOffset](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L10369-L10418)。
+
+局部 `insertCells` 的 down/right 与 `deleteCells` 的 up/left 沿同一事务更新迷你图。目标格在移动带内时移动或删除，源完整落在移动带内时按区域规则移动、扩缩或变为 `#REF!`。跨带源复用普通公式的引用规则：例如源为 `A1:D1` 时，在 `B1` 向下插入仍引用 `A1:D1`；删除 `A1:B1` 并向上移动后引用 `C1:D1`。插入只对完整落入移动带的源检查端点越界，不相交的源保持原样。目标格的便笺沿既有位移规则同步。依据 [ONLYOFFICE Range.isIntersectForShift](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/utils/utils.js#L614-L637)；普通合并、筛选、原生表及未知资源的保护继续生效。
+
+工作表 `rename` 更新本表原生数据公式中的表名，保留绝对地址、命名空间前缀和失效绑定。`copy` 把表内迷你图复制到新表，并把本表数据引用改到副本；原表数据与图形保持独立。隐表副本沿用隐藏状态与原有活动选择。`delete` 通过既有事务删除表内迷你图及独占资源，其他表的副本保持可编辑。既有便笺复制、公式/名称和依赖更新规则继续生效。改名及其撤销/重做按工作簿中的实际表名刷新迷你图模型。复制与数据归属参考 [ONLYOFFICE 工作表复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L7439-L7444)及 [sparkline.updateWorksheet](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L8434-L8442)。
+
+MoonBit 写入原生 x14 `sparklineGroups` 扩展、xm 数据公式与目标引用。每个目标单独保存类型，修改与删除只替换本功能拥有的扩展。其他部件和未知扩展保留。没有变化时不新增历史；源、选择及已有文档预算沿用同一事务。保存重开后仍可修改。类型与原生结构参考 [ONLYOFFICE sparklineGroup](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L7804-L7842)，数据绑定与共用图表绘制参考 [CSparklineView](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/DrawingObjects.js#L682-L755)。未复制上游实现源码。
+
+Canvas 和静态 PDF 复用单元格绘制。核心从当前计算结果取数，直接改值与公式结果变化会更新图形。源格隐藏时从序列中排除，空白、文字、布尔与错误值留空。折线在空值处断开，孤立点保留小标记；柱形与盈亏用蓝色表示正值、橙色表示负值，零值不画柱。盈亏只显示正负方向。线宽固定 0.75pt，图形在格内留 2pt 边距。自动行高只测量文字，迷你图跟随目标格尺寸。默认可访问网格通过描述暴露类型和源区域。
+
+当前支持固定颜色、独立数轴、本表单区域及普通未合并目标。跨表、日期轴、组合轴、自定义颜色/标记和其他原生配置继续实施；未知配置保留并给出只读原因，静态 PDF 拒绝遗漏内容。区域复制/填充/排序、剪切及相关引用维护尚未接入，当前原子拒绝。XLSX 普通图表对象和绘图锚点仍待实现。实现归 [`sparkline.mbt`](../../modules/formats/src/xlsx/sparkline.mbt)、[`sparkline-edit.mbt`](../../modules/formats/src/xlsx/sparkline-edit.mbt)、[`sparkline-axis.mbt`](../../modules/formats/src/xlsx/sparkline-axis.mbt)及 [`sparkline-paint.mbt`](../../modules/formats/src/xlsx/sparkline-paint.mbt)。工作表操作复用 [`sheet-rename.mbt`](../../modules/formats/src/xlsx/sheet-rename.mbt)、[`sheet-copy.mbt`](../../modules/formats/src/xlsx/sheet-copy.mbt)和 [`sheet-order.mbt`](../../modules/formats/src/xlsx/sheet-order.mbt)。
+
 ### 透视表核心
 
 普通区域行列轴透视表已接通 MoonBit、Wasm、Worker、编辑宿主和默认面板。`Session::pivot_preview(revision, settings)` 返回字段、记录数、类型化分组结果及总计，查询不写源或历史。预览最多返回前 20 个行分组，groups 和 truncated 说明完整输出行数（含小计、不含总计）及截断状态；总计与实际创建仍处理全部筛选后记录，JSON 继续受 1 Mi UTF-16 上限约束。`PivotSettings` 为 `{ sourceSheet, source, rows, columns, filters, subtotals, numberGroups, dateGroups, values }`；sourceSheet 是稳定工作表部件身份，source 包含标题行。rows 和 columns 使用相对源区域、从 0 开始的列索引；两轴不能重复字段，columns 空数组表示只有行轴；每项 values 为 `{ field, aggregate, name }`，name 是显示标题。标题按当前格式读取且不能为空，重复标题在缓存中分配唯一名称，不改源格；值标题不能与源字段名称重复。

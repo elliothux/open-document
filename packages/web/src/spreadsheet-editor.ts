@@ -453,7 +453,7 @@ export class SpreadsheetEditor {
       this.layout = layout;
       this.scale = this.surface.draw(layout, 0, this.zoomValue);
       updateGridScroll(this.viewport, this.spacer, layout, this.scale);
-      updateGridSemantics(this.semantics, layout.cells, layout.notes);
+      updateGridSemantics(this.semantics, layout, this.state);
       this.publish();
       await this.presentSelection();
     } catch (error) {

@@ -56,6 +56,7 @@ pub(all) enum SheetEdit {
   ValidationValue(Int, Int)
   ConditionalRule(String, Int?, ConditionalFormat?, Int)
   ConditionalPriority(Int, Int, Int)
+  Sparkline(String, String?, String)
   Hyperlink(String, String?)
   OpenHyperlink(String, Int)
   Note(String, String?, String)
@@ -102,10 +103,16 @@ fn Session::ordered_sheets(
     guard ["visible", "hidden", "veryHidden"].contains(state) else {
       @failure.reject("malformed-xlsx", "Invalid worksheet visibility")
     }
+    let name = node.attribute("name").unwrap_or(sheet.name)
     result.push({
       ..sheet,
       state,
-      name: node.attribute("name").unwrap_or(sheet.name),
+      name,
+      sparklines: if name == sheet.name {
+        sheet.sparklines
+      } else {
+        read_sparklines(Tree::new(sheet.document), name, sheet.merges)
+      },
     })
     sheets.remove(part) |> ignore
   }
@@ -199,6 +206,8 @@ pub fn Session::edit_sheet(
     self.calendar_date = previous_date
   }
   match change {
+    Sparkline(cell, source, kind) =>
+      return self.set_sparkline(sheet, cell, source, kind)
     WorkbookProtection(enabled, password, salt) =>
       return self.set_workbook_protection(enabled, password, salt)
     Protection(enabled, password, salt) =>
@@ -443,6 +452,7 @@ pub fn Session::edit_sheet(
     | Validation(_, _)
     | ValidationValue(_, _)
     | ConditionalRule(_, _, _, _)
+    | Sparkline(_, _, _)
     | Hyperlink(_, _)
     | OpenHyperlink(_, _)
     | Protection(_, _, _)
@@ -467,6 +477,7 @@ pub fn Session::edit_sheet(
           sheet.document,
           self.sheets[index].name,
           None,
+          sparklines=true,
         )
         if !updates.is_empty() {
           let (document, edit) = sheet.document.edit_source(updates)
@@ -484,7 +495,7 @@ pub fn Session::edit_sheet(
     }
     Add | Copy => {
       let copy = if change is Copy {
-        let reason = self.sheet_rename_reason(tables=true)
+        let reason = self.sheet_rename_reason(tables=true, sparklines=true)
         guard reason.is_empty() else {
           @failure.reject("protected-content", reason)
         }
@@ -493,6 +504,7 @@ pub fn Session::edit_sheet(
         check_sheet_copy_markup(
           sheets[index].document,
           filter=tree.one(tree.root("worksheet").id, "autoFilter"),
+          sparkline=tree.one(tree.root("worksheet").id, "extLst"),
         )
         Some(sheets[index])
       } else {

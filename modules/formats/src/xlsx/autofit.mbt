@@ -43,6 +43,10 @@ fn Session::fit_sizes(
     @failure.reject("protected-content", conditional.table_styles.reason)
   }
   for node in tree.children.get(root.id).unwrap_or([]) {
+    // Sparklines follow the cell rectangle and do not contribute text dimensions.
+    if current.sparklines.reason.is_empty() && sparkline_extension(tree, node) {
+      continue
+    }
     if node.uri != spreadsheet_uri ||
       (
         ["pivotTableParts", "extLst"].contains(node.name) &&

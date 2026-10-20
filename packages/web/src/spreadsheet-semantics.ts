@@ -55,8 +55,8 @@ export function updateGridSelection(
 /** Expose only the bounded, core-provided visible grid to assistive technology. */
 export function updateGridSemantics(
   root: HTMLElement,
-  cells: XlsxViewport["cells"],
-  notes: XlsxViewport["notes"],
+  { cells, notes }: XlsxViewport,
+  { sparklines }: XlsxQuery,
 ): void {
   const rows = new Map<number, HTMLDivElement>();
   const descriptions = new Map(
@@ -82,7 +82,15 @@ export function updateGridSemantics(
       `${item.cell.address}: ${item.display}${item.cell.readOnlyReason ? "; " + item.cell.readOnlyReason : ""}`,
     );
     cell.textContent = item.display;
-    const description = descriptions.get(item.cell.address);
+    const sparkline = sparklines.items.find(
+      (line) => line.cell === item.cell.address,
+    );
+    const description = [
+      descriptions.get(item.cell.address),
+      sparkline && `Sparkline ${sparkline.kind}: ${sparkline.source}`,
+    ]
+      .filter(Boolean)
+      .join("; ");
     if (description) cell.setAttribute("aria-description", description);
     row.append(cell);
   }

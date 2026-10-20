@@ -245,6 +245,11 @@ fn Session::paint_cells(
           text = ""
         }
       }
+      for sparkline in sheet.sparklines.items {
+        if sparkline.cell == address {
+          self.paint_sparkline(index, sparkline, page, rect, printing)
+        }
+      }
       if !printing && sheet.view.grid_lines {
         page.strokes.push((rect, "d9dce1", 0.5))
       }

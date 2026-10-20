@@ -65,6 +65,7 @@ fn Session::prepare_sheet_add(
         source.document,
         source.name,
         Some(name),
+        sparklines=true,
       )
       if changes.is_empty() {
         source.document.bytes()

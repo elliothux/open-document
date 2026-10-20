@@ -23,6 +23,12 @@ export type {
 import { resetCellClipboard } from "./spreadsheet-clipboard.js";
 export type { XlsxProtection } from "@open-document/wasm/xlsx";
 export type {
+  XlsxSparkline,
+  XlsxSparklineKind,
+  XlsxSparklineEdit,
+  XlsxSparklines,
+} from "@open-document/wasm/xlsx";
+export type {
   CopiedCell,
   CopiedCells,
   CopiedConditional,

@@ -29,9 +29,16 @@ fn Session::copied_sheet_name(
 fn check_sheet_copy_markup(
   document : @xml.Document,
   filter~ : @xml.Node? = None,
+  sparkline~ : @xml.Node? = None,
 ) -> Unit raise @failure.Failure {
   let tree = Tree::new(document)
   for node in document.nodes() {
+    if sparkline is Some(extension) &&
+      sparkline_extension(tree, extension) &&
+      node.start >= extension.start &&
+      node.end <= extension.end {
+      continue
+    }
     if filter is Some(filter) &&
       node.start >= filter.start &&
       node.end <= filter.end {

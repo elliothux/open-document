@@ -1,4 +1,8 @@
 import { record, integer } from "./validation.js";
+import {
+  checkXlsxSparklineEdit,
+  type XlsxSparklineEdit,
+} from "./xlsx-sparkline.js";
 import { checkXlsxPivotEdit, type XlsxPivotEdit } from "./xlsx-pivot.js";
 import { checkXlsxOutlineEdit, type XlsxOutlineEdit } from "./xlsx-outline.js";
 import { checkXlsxTableEdit, type XlsxTableEdit } from "./xlsx-tables.js";
@@ -31,6 +35,7 @@ import {
 } from "./xlsx-print.js";
 
 export type XlsxSheetEdit =
+  | XlsxSparklineEdit
   | XlsxPivotEdit
   | {
       action: "protection" | "workbookProtection";
@@ -133,6 +138,10 @@ export type XlsxSheetEdit =
   | { action: "visibility"; state: "visible" | "hidden" | "veryHidden" };
 
 export function checkXlsxSheetEdit(value: unknown): void {
+  if (record(value).action === "sparkline") {
+    checkXlsxSparklineEdit(value);
+    return;
+  }
   const outline = record(value);
   if (
     typeof outline.action === "string" &&

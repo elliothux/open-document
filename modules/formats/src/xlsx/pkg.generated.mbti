@@ -439,6 +439,7 @@ pub(all) enum SheetEdit {
   ValidationValue(Int, Int)
   ConditionalRule(String, Int?, ConditionalFormat?, Int)
   ConditionalPriority(Int, Int, Int)
+  Sparkline(String, String?, String)
   Hyperlink(String, String?)
   OpenHyperlink(String, Int)
   Note(String, String?, String)

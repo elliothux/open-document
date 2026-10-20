@@ -301,5 +301,11 @@ fn Sheet::used(self : Sheet) -> Range {
     bottom = bottom.max(merge.bottom)
     right = right.max(merge.right)
   }
+  for item in self.sparklines.items {
+    top = top.min(item.cell.row)
+    left = left.min(item.cell.column)
+    bottom = bottom.max(item.cell.row)
+    right = right.max(item.cell.column)
+  }
   { top: top.min(bottom), left: left.min(right), bottom, right, }
 }

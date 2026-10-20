@@ -241,6 +241,7 @@ fn Foundation::xlsx_operation(
           )
         }
         "delete" => @xlsx.Delete
+        "sparkline" => xlsx_sparkline_edit(change)
         "conditionalRule" => {
           guard change is { "priority": priority, "rule": rule, .. } else {
             @failure.reject(
