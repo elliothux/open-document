@@ -186,7 +186,7 @@ pub fn Session::create_pivot(
   }
   let cache = self.pivot_cache(settings)
   let layout = cache.layout(settings)
-  let range = layout.bounds(settings, Address::parse(destination))
+  let range = layout.bounds(Address::parse(destination))
   let source = settings.validate()
   guard !(settings.sourceSheet == sheet && source.intersects(range)) &&
     !current.merges.any(merge => merge.intersects(range)) &&
@@ -219,7 +219,7 @@ pub fn Session::create_pivot(
       }
     }
   }
-  let (updates, styles) = layout.cells(settings, range)
+  let (updates, styles) = layout.cells(range, self.styles, self.date1904)
   let plan = self.prepare_cells(
     Map([(index, updates)]),
     styles=Map([(index, styles)]),
@@ -274,7 +274,7 @@ pub fn Session::create_pivot(
   let (pivot_part, _) = self.create_sheet_resource(
     sheet,
     "pivotTable",
-    layout.definition(settings, name, cache_id, range),
+    layout.definition(name, cache_id, range),
     parts,
     created,
     edits,

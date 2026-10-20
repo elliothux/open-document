@@ -30,7 +30,29 @@ export interface XlsxPivotSettings {
   /** Ordered zero-based source columns on the column axis. */
   columns: number[];
   filters: XlsxPivotFilter[];
+  /** Outer row/column fields whose automatic subtotals follow each group. */
+  subtotals: number[];
+  numberGroups: XlsxPivotNumberGroup[];
+  dateGroups: XlsxPivotDateGroup[];
   values: XlsxPivotValue[];
+}
+export const xlsxPivotDateUnits = [
+  "years",
+  "quarters",
+  "months",
+  "days",
+] as const;
+export interface XlsxPivotDateGroup {
+  field: number;
+  /** Unique calendar levels in coarse-to-fine order; bounds follow source dates. */
+  units: (typeof xlsxPivotDateUnits)[number][];
+}
+export interface XlsxPivotNumberGroup {
+  /** Zero-based numeric row/column field; records retain original numbers. */
+  field: number;
+  start: number;
+  end: number;
+  interval: number;
 }
 export interface XlsxPivotFilter {
   field: number;
@@ -56,14 +78,21 @@ export interface XlsxPivotPreview {
   revision: number;
   settings: XlsxPivotSettings;
   fields: string[];
+  rowFields: number[];
+  columnFields: number[];
   recordCount: number;
   filteredCount: number;
   filterItems: { value: CellValue; label: string }[][];
   groups: number;
   truncated: boolean;
-  columnMembers: { members: CellValue[]; formats: string[] }[];
+  columnMembers: {
+    members: CellValue[];
+    formats: string[];
+    subtotal: boolean;
+  }[];
   columnTotals: CellValue[][];
   rows: {
+    subtotal: boolean;
     members: CellValue[];
     formats: string[];
     values: CellValue[];
@@ -135,6 +164,9 @@ export function checkXlsxPivotSettings(value: unknown): void {
       "rows",
       "columns",
       "filters",
+      "subtotals",
+      "numberGroups",
+      "dateGroups",
       "values",
     ]) ||
     !text(settings.sourceSheet, 1024) ||
@@ -153,13 +185,84 @@ export function checkXlsxPivotSettings(value: unknown): void {
       settings.rows.length + settings.columns.length ||
     !Array.isArray(settings.filters) ||
     settings.filters.length > 8 ||
+    !Array.isArray(settings.subtotals) ||
+    settings.subtotals.length > 14 ||
+    new Set(settings.subtotals).size !== settings.subtotals.length ||
+    !Array.isArray(settings.numberGroups) ||
+    settings.numberGroups.length > 16 ||
+    !Array.isArray(settings.dateGroups) ||
+    settings.dateGroups.length + settings.numberGroups.length > 16 ||
     !Array.isArray(settings.values) ||
     !settings.values.length ||
     settings.values.length > 8
   )
     throw new Error("Invalid pivot settings");
+  const outerFields = [
+    ...settings.rows.slice(0, -1),
+    ...settings.columns.slice(0, -1),
+  ];
   const names = new Set<string>();
   const axes = new Set([...settings.rows, ...settings.columns]);
+  const grouped = new Set<number>();
+  for (const value of settings.numberGroups) {
+    const group = record(value);
+    if (
+      !fields(group, ["field", "start", "end", "interval"]) ||
+      typeof group.field !== "number" ||
+      !integer(group.field, 0, width - 1) ||
+      !axes.has(group.field) ||
+      grouped.has(group.field) ||
+      typeof group.start !== "number" ||
+      !Number.isFinite(group.start) ||
+      typeof group.end !== "number" ||
+      !Number.isFinite(group.end) ||
+      typeof group.interval !== "number" ||
+      !Number.isFinite(group.interval) ||
+      group.start >= group.end ||
+      group.interval <= 0 ||
+      !Number.isFinite(group.end - group.start) ||
+      !Number.isFinite(group.start + group.interval) ||
+      group.start + group.interval <= group.start ||
+      Math.ceil((group.end - group.start) / group.interval) > 4094
+    )
+      throw new Error("Invalid pivot numeric group");
+    grouped.add(group.field);
+  }
+  let groupedUnits = settings.numberGroups.length,
+    rowDepth = settings.rows.length,
+    columnDepth = settings.columns.length;
+  for (const value of settings.dateGroups) {
+    const group = record(value);
+    if (
+      !fields(group, ["field", "units"]) ||
+      typeof group.field !== "number" ||
+      !integer(group.field, 0, width - 1) ||
+      !axes.has(group.field) ||
+      grouped.has(group.field) ||
+      !Array.isArray(group.units) ||
+      !group.units.length ||
+      group.units.length > 4
+    )
+      throw new Error("Invalid pivot calendar group");
+    grouped.add(group.field);
+    const ranks = group.units.map((unit) =>
+      xlsxPivotDateUnits.findIndex((candidate) => candidate === unit),
+    );
+    if (ranks.some((rank, i) => rank < 0 || (i > 0 && rank <= ranks[i - 1]!)))
+      throw new Error("Invalid pivot calendar unit order");
+    groupedUnits += group.units.length;
+    if (settings.rows.includes(group.field)) rowDepth += group.units.length - 1;
+    if (settings.columns.includes(group.field))
+      columnDepth += group.units.length - 1;
+    if (group.units.length > 1) outerFields.push(group.field);
+  }
+  if (
+    groupedUnits > 16 ||
+    rowDepth > 8 ||
+    columnDepth > 8 ||
+    settings.subtotals.some((field) => !outerFields.includes(field))
+  )
+    throw new Error("Invalid expanded pivot axes or subtotals");
   let units = 0;
   for (const value of settings.filters) {
     const filter = record(value);
@@ -244,15 +347,53 @@ export function xlsxPivotPreview(value: unknown): XlsxPivotPreview {
   const result = record(value);
   checkXlsxPivotSettings(result.settings);
   const settings = record(result.settings),
-    rows = settings.rows as number[],
-    columns = settings.columns as number[],
+    sourceRows = settings.rows as number[],
+    sourceColumns = settings.columns as number[],
+    dates = settings.dateGroups as XlsxPivotDateGroup[],
     filters = settings.filters as XlsxPivotFilter[],
+    subtotals = settings.subtotals as number[],
     values = settings.values as XlsxPivotValue[],
     bounds = xlsxBounds(settings.source, 65600);
+  const width = bounds.right - bounds.left + 1;
+  const fieldCount =
+    width + dates.reduce((sum, group) => sum + group.units.length - 1, 0);
+  const subtotalAxes = [new Set<number>(), new Set<number>()];
+  for (const [index, input, source] of [
+    [0, result.rowFields, sourceRows],
+    [1, result.columnFields, sourceColumns],
+  ] as const) {
+    if (
+      !Array.isArray(input) ||
+      input.length > 8 ||
+      input.some((field) => !integer(field, 0, fieldCount - 1)) ||
+      new Set(input).size !== input.length
+    )
+      throw new Error("Invalid pivot axis fields");
+    const axis = input as number[];
+    let at = 0;
+    for (const field of source) {
+      const count =
+        dates.find((group) => group.field === field)?.units.length ?? 1;
+      if (
+        axis[at + count - 1] !== field ||
+        axis.slice(at, at + count - 1).some((item) => item < width)
+      )
+        throw new Error("Invalid derived pivot axis");
+      if (subtotals.includes(field))
+        for (let i = at; i < at + count && i < axis.length - 1; i++)
+          subtotalAxes[index]!.add(axis[i]!);
+      at += count;
+    }
+    if (at !== axis.length) throw new Error("Invalid pivot axis depth");
+  }
+  const rows = result.rowFields as number[],
+    columns = result.columnFields as number[];
+  if (new Set([...rows, ...columns]).size !== rows.length + columns.length)
+    throw new Error("Duplicate pivot axis field");
   if (
     !integer(result.revision, 0, 2147483647) ||
     !Array.isArray(result.fields) ||
-    result.fields.length !== bounds.right - bounds.left + 1 ||
+    result.fields.length !== fieldCount ||
     result.fields.some((field) => !text(field, 255)) ||
     new Set(result.fields).size !== result.fields.length ||
     !integer(result.recordCount, 1, bounds.bottom - bounds.top) ||
@@ -260,7 +401,7 @@ export function xlsxPivotPreview(value: unknown): XlsxPivotPreview {
     !integer(
       result.groups,
       Number(result.filteredCount) > 0 ? 1 : 0,
-      Math.min(4096, Number(result.filteredCount)),
+      Math.min(4096, Number(result.filteredCount) * rows.length),
     ) ||
     result.truncated !== Number(result.groups) > 20 ||
     !Array.isArray(result.rows) ||
@@ -270,7 +411,8 @@ export function xlsxPivotPreview(value: unknown): XlsxPivotPreview {
     !result.total.every(cellValue) ||
     !Array.isArray(result.columnMembers) ||
     result.columnMembers.length > 4096 ||
-    result.columnMembers.length > Number(result.filteredCount) ||
+    result.columnMembers.length >
+      Number(result.filteredCount) * columns.length ||
     (columns.length === 0
       ? result.columnMembers.length !== 0
       : (result.columnMembers.length === 0) !== (result.filteredCount === 0)) ||
@@ -303,10 +445,13 @@ export function xlsxPivotPreview(value: unknown): XlsxPivotPreview {
     const row = record(item);
     if (
       !Array.isArray(row.members) ||
-      row.members.length !== rows.length ||
+      row.members.length < 1 ||
+      row.members.length > rows.length ||
+      row.subtotal !== row.members.length < rows.length ||
+      (row.subtotal && !subtotalAxes[0]!.has(rows[row.members.length - 1]!)) ||
       !row.members.every(cellValue) ||
       !Array.isArray(row.formats) ||
-      row.formats.length !== rows.length ||
+      row.formats.length !== row.members.length ||
       row.formats.some((format) => !text(format, 4096)) ||
       !Array.isArray(row.values) ||
       row.values.length !==
@@ -322,10 +467,14 @@ export function xlsxPivotPreview(value: unknown): XlsxPivotPreview {
     const column = record(item);
     if (
       !Array.isArray(column.members) ||
-      column.members.length !== columns.length ||
+      column.members.length < 1 ||
+      column.members.length > columns.length ||
+      column.subtotal !== column.members.length < columns.length ||
+      (column.subtotal &&
+        !subtotalAxes[1]!.has(columns[column.members.length - 1]!)) ||
       !column.members.every(cellValue) ||
       !Array.isArray(column.formats) ||
-      column.formats.length !== columns.length ||
+      column.formats.length !== column.members.length ||
       column.formats.some((format) => !text(format, 4096))
     )
       throw new Error("Invalid pivot column preview");

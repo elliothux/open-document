@@ -247,6 +247,12 @@ pub(all) struct NameSettings {
   formula : String
 }
 
+pub(all) struct PivotDateGroup {
+  field : Int
+  units : Array[String]
+} derive(ToJson)
+pub fn PivotDateGroup::to_json(Self) -> Json
+
 pub(all) struct PivotFilter {
   field : Int
   values : Array[Value]?
@@ -254,12 +260,23 @@ pub(all) struct PivotFilter {
 pub fn PivotFilter::to_json(Self) -> Json
 pub impl ToJson for PivotFilter
 
+pub(all) struct PivotNumberGroup {
+  field : Int
+  start : Double
+  end : Double
+  interval : Double
+} derive(ToJson)
+pub fn PivotNumberGroup::to_json(Self) -> Json
+
 pub(all) struct PivotSettings {
   sourceSheet : String
   source : String
   rows : Array[Int]
   columns : Array[Int]
   filters : Array[PivotFilter]
+  subtotals : Array[Int]
+  numberGroups : Array[PivotNumberGroup]
+  dateGroups : Array[PivotDateGroup]
   values : Array[PivotValue]
 } derive(ToJson)
 pub fn PivotSettings::to_json(Self) -> Json

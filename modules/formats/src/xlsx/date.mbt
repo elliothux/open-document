@@ -1,4 +1,9 @@
 ///|
+let date_month_names : ReadOnlyArray[String] = [
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
+]
+
+///|
 fn calendar_floor(value : Int, divisor : Int) -> Int {
   value / divisor - (if value % divisor < 0 { 1 } else { 0 })
 }

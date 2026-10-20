@@ -1,6 +1,7 @@
 ///|
 priv struct PivotLayout {
   cache : PivotCache
+  settings : PivotSettings
   members : Array[Array[Int]]
   columns : Array[Array[Int]]
   values : Array[Array[Value]]
@@ -32,13 +33,35 @@ fn PivotSettings::data_width(self : PivotSettings, columns : Int) -> Int {
 
 ///|
 fn pivot_member_order(a : Array[Int], b : Array[Int]) -> Int {
-  for index in 0..<a.length() {
+  for index in 0..<a.length().min(b.length()) {
     let order = a[index].compare(b[index])
     if order != 0 {
       return order
     }
   }
-  0
+  b.length().compare(a.length())
+}
+
+///|
+fn PivotCache::axis_members(
+  self : PivotCache,
+  settings : PivotSettings,
+  fields : Array[Int],
+  record : Array[Int],
+) -> Array[Array[Int]] {
+  let members = fields.map(field => {
+    match self.groups.get(field) {
+      Some(group) => group.indices[record[group.base()]]
+      None => record[field]
+    }
+  })
+  let result = [members]
+  for at in 0..<(fields.length() - 1).max(0) {
+    if settings.subtotals.contains(fields[at]) {
+      result.push(members[:at + 1].to_owned())
+    }
+  }
+  result
 }
 
 ///|
@@ -46,6 +69,7 @@ fn PivotCache::layout(
   self : PivotCache,
   settings : PivotSettings,
 ) -> PivotLayout raise @failure.Failure {
+  let settings = pivot_expand_settings(settings, self.axes)
   let rows : Map[String, (Array[Int], Array[PivotStatistic])] = Map([])
   let columns : Map[String, (Array[Int], Array[PivotStatistic])] = Map([])
   let cells : Map[String, Array[PivotStatistic]] = Map([])
@@ -70,6 +94,7 @@ fn PivotCache::layout(
   })
   let mut filtered_count = 0
   let mut units = 0
+  let mut work = 0
   for record in self.records {
     if filters.any(filter => {
         filter.1.map(keys => !keys.contains(record[filter.0])).unwrap_or(false)
@@ -77,26 +102,40 @@ fn PivotCache::layout(
       continue
     }
     filtered_count += 1
-    let row = settings.rows.map(field => record[field])
-    let column = settings.columns.map(field => record[field])
-    let row_key = Json(row).stringify()
-    let column_key = Json(column).stringify()
+    let row_members = self.axis_members(settings, settings.rows, record)
+    let column_members = self.axis_members(settings, settings.columns, record)
+    work += (
+        row_members.length() * column_members.length() +
+        row_members.length() +
+        column_members.length() +
+        1
+      ) *
+      settings.values.length()
+    guard work <= 1048576 else {
+      @failure.reject("limit-exceeded", "Pivot aggregation work exceeds budget")
+    }
     for
-      (groups, key, members, fields) in [
-        (rows, row_key, row, settings.rows),
-        (columns, column_key, column, settings.columns),
+      (groups, combinations, fields) in [
+        (rows, row_members, settings.rows),
+        (columns, column_members, settings.columns),
       ] {
-      if !groups.contains(key) {
-        guard groups.length() < 4096 else {
-          @failure.reject("limit-exceeded", "Pivot axis exceeds group budget")
+      for members in combinations {
+        let key = Json(members).stringify()
+        if !groups.contains(key) {
+          guard groups.length() < 4096 else {
+            @failure.reject("limit-exceeded", "Pivot axis exceeds group budget")
+          }
+          for at, item in members {
+            units += self.axis_items(fields[at])[item].display().length()
+          }
+          guard units <= 1048576 else {
+            @failure.reject("limit-exceeded", "Pivot axis text exceeds budget")
+          }
+          groups[key] = (
+            members,
+            settings.values.map(_ => PivotStatistic::new()),
+          )
         }
-        for at, item in members {
-          units += self.items[fields[at]][item].display().length()
-        }
-        guard units <= 1048576 else {
-          @failure.reject("limit-exceeded", "Pivot axis text exceeds budget")
-        }
-        groups[key] = (members, settings.values.map(_ => PivotStatistic::new()))
       }
     }
     guard (rows.length() + settings.page_rows() + settings.header_rows() + 1).to_int64() *
@@ -104,20 +143,31 @@ fn PivotCache::layout(
       32768 else {
       @failure.reject("limit-exceeded", "Pivot output exceeds budget")
     }
-    let key = Json((row, column)).stringify()
-    let statistics = match cells.get(key) {
-      Some(value) => value
-      None => {
-        let value = settings.values.map(_ => PivotStatistic::new())
-        cells[key] = value
-        value
+    for row in row_members {
+      for column in column_members {
+        let key = Json((row, column)).stringify()
+        let statistics = match cells.get(key) {
+          Some(value) => value
+          None => {
+            let value = settings.values.map(_ => PivotStatistic::new())
+            cells[key] = value
+            value
+          }
+        }
+        for at, field in settings.values {
+          let value = self.items[field.field][record[field.field]]
+          statistics[at].add(value)
+        }
       }
     }
     for at, field in settings.values {
       let value = self.items[field.field][record[field.field]]
-      statistics[at].add(value)
-      rows[row_key].1[at].add(value)
-      columns[column_key].1[at].add(value)
+      for row in row_members {
+        rows[Json(row).stringify()].1[at].add(value)
+      }
+      for column in column_members {
+        columns[Json(column).stringify()].1[at].add(value)
+      }
       total[at].add(value)
     }
   }
@@ -133,6 +183,7 @@ fn PivotCache::layout(
   }
   {
     cache: self,
+    settings,
     members: row_groups.map(group => group.0),
     columns: column_groups.map(group => group.0),
     values: row_groups.map(row => {
@@ -155,9 +206,9 @@ fn PivotCache::layout(
 ///|
 fn PivotLayout::bounds(
   self : PivotLayout,
-  settings : PivotSettings,
   address : Address,
 ) -> Range raise @failure.Failure {
+  let settings = self.settings
   let range : Range = {
     top: address.row,
     left: address.column,
@@ -175,11 +226,8 @@ fn PivotLayout::bounds(
 }
 
 ///|
-fn PivotLayout::caption(
-  self : PivotLayout,
-  settings : PivotSettings,
-  original : String,
-) -> String {
+fn PivotLayout::caption(self : PivotLayout, original : String) -> String {
+  let settings = self.settings
   let names = self.cache.headers.map(name => name.to_lower()) +
     settings.values.map(value => value.name.to_lower())
   let base = if original.is_empty() { "Values" } else { original }
@@ -195,10 +243,12 @@ fn PivotLayout::caption(
 ///|
 fn PivotLayout::cells(
   self : PivotLayout,
-  settings : PivotSettings,
   range : Range,
+  cell_styles : Array[CellStyle],
+  date1904 : Bool,
   data_caption~ : String = "",
 ) -> (Map[String, CellContent], Map[String, Int]) raise @failure.Failure {
+  let settings = self.settings
   let updates : Map[String, CellContent] = Map([])
   let styles : Map[String, Int] = Map([])
   let header = settings.header_rows()
@@ -206,7 +256,7 @@ fn PivotLayout::cells(
   let values = settings.values.length()
   let width = self.columns.length() * values
   let has_columns = !settings.columns.is_empty()
-  let caption = self.caption(settings, data_caption)
+  let caption = self.caption(data_caption)
   let mut units = 0
   for row in range.top..<=range.bottom {
     for column in range.left..<=range.right {
@@ -256,11 +306,19 @@ fn PivotLayout::cells(
           }
         } else if level <= settings.columns.length() && value_column < width {
           let field = settings.columns[level - 1]
-          let item = self.columns[value_column / values][level - 1]
-          style = Some(self.cache.styles[field][item])
-          match self.cache.items[field][item] {
-            Blank => Text("(blank)")
-            value => value
+          let members = self.columns[value_column / values]
+          if level > members.length() {
+            Blank
+          } else {
+            let item = members[level - 1]
+            style = Some(self.cache.axis_style(field, item))
+            pivot_member_value(
+              self.cache.axis_items(field)[item],
+              level == members.length() &&
+              members.length() < settings.columns.length(),
+              cell_styles[self.cache.axis_style(field, item)].format,
+              date1904,
+            )
           }
         } else if level == 1 && value_column == width {
           Text("Grand Total")
@@ -279,12 +337,20 @@ fn PivotLayout::cells(
             Blank
           }
         } else {
-          let field = settings.rows[offset]
-          let item = self.members[data][offset]
-          style = Some(self.cache.styles[field][item])
-          match self.cache.items[field][item] {
-            Blank => Text("(blank)")
-            value => value
+          let members = self.members[data]
+          if offset >= members.length() {
+            Blank
+          } else {
+            let field = settings.rows[offset]
+            let item = members[offset]
+            style = Some(self.cache.axis_style(field, item))
+            pivot_member_value(
+              self.cache.axis_items(field)[item],
+              offset == members.length() - 1 &&
+              members.length() < settings.rows.length(),
+              cell_styles[self.cache.axis_style(field, item)].format,
+              date1904,
+            )
           }
         }
       } else if value_column < width {
@@ -313,4 +379,19 @@ fn PivotLayout::cells(
     }
   }
   (updates, styles)
+}
+
+///|
+fn pivot_member_value(
+  value : Value,
+  subtotal : Bool,
+  format : String,
+  date1904 : Bool,
+) -> Value {
+  let value = if value == Blank { Text("(blank)") } else { value }
+  if subtotal {
+    Text(formatted(value, format, date1904) + " Total")
+  } else {
+    value
+  }
 }

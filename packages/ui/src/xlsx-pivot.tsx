@@ -8,10 +8,14 @@ import {
   type XlsxPivotPreview,
   type XlsxPivots,
   type XlsxPivotFilter,
+  type XlsxPivotNumberGroup,
+  type XlsxPivotDateGroup,
 } from "@open-document/web/xlsx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { PivotFilters } from "./xlsx-pivot-filters.js";
+import { PivotNumberGroups } from "./xlsx-pivot-number-groups.js";
+import { PivotDateGroups } from "./xlsx-pivot-date-groups.js";
 
 export function XlsxPivotsPanel({
   editor,
@@ -32,6 +36,9 @@ export function XlsxPivotsPanel({
     [rows, setRows] = useState("1"),
     [columns, setColumns] = useState(""),
     [filters, setFilters] = useState<XlsxPivotFilter[]>([]),
+    [subtotals, setSubtotals] = useState(""),
+    [numberGroups, setNumberGroups] = useState<XlsxPivotNumberGroup[]>([]),
+    [dateGroups, setDateGroups] = useState<XlsxPivotDateGroup[]>([]),
     [values, setValues] = useState<XlsxPivotValue[]>([
       { field: 1, aggregate: "sum", name: t.pivotDefaultCaption },
     ]),
@@ -48,6 +55,11 @@ export function XlsxPivotsPanel({
       ? columns.split(",").map((field) => Number(field.trim()) - 1)
       : [],
     filters,
+    subtotals: subtotals.trim()
+      ? subtotals.split(",").map((field) => Number(field.trim()) - 1)
+      : [],
+    numberGroups,
+    dateGroups,
     values,
   };
   let valid = true;
@@ -143,6 +155,31 @@ export function XlsxPivotsPanel({
         setFilters={setFilters}
         choices={filterChoices}
         axes={[...settings.rows, ...settings.columns]}
+        state={state}
+      />
+      <PivotDateGroups
+        groups={dateGroups}
+        setGroups={setDateGroups}
+        axes={[...settings.rows, ...settings.columns].filter(
+          (field) => !numberGroups.some((group) => group.field === field),
+        )}
+        state={state}
+      />
+      <label>
+        {t.pivotSubtotals}
+        <input
+          value={subtotals}
+          maxLength={64}
+          onChange={(event) => setSubtotals(event.currentTarget.value)}
+        />
+      </label>
+      <p>{t.pivotSubtotalsHelp}</p>
+      <PivotNumberGroups
+        groups={numberGroups}
+        setGroups={setNumberGroups}
+        axes={[...settings.rows, ...settings.columns].filter(
+          (field) => !dateGroups.some((group) => group.field === field),
+        )}
         state={state}
       />
       {values.map((value, index) => (
@@ -241,17 +278,17 @@ export function XlsxPivotsPanel({
           <div style={{ overflow: "auto", maxHeight: "16rem" }}>
             <table aria-label={t.pivotPreview}>
               <thead>
-                {preview.settings.columns.length > 0 ? (
+                {preview.columnFields.length > 0 ? (
                   <>
-                    {preview.settings.columns.map((_, level) => (
+                    {preview.columnFields.map((_, level) => (
                       <tr key={level}>
                         {level === 0 &&
-                          preview.settings.rows.map((field) => (
+                          preview.rowFields.map((field) => (
                             <th
                               key={field}
                               scope="col"
                               rowSpan={
-                                preview.settings.columns.length +
+                                preview.columnFields.length +
                                 (preview.settings.values.length > 1 ? 1 : 0)
                               }
                             >
@@ -264,14 +301,18 @@ export function XlsxPivotsPanel({
                             scope="colgroup"
                             colSpan={preview.settings.values.length}
                           >
-                            {display(column.members[level]!)}
+                            {column.members[level] &&
+                              display(column.members[level])}
+                            {column.subtotal &&
+                              level === column.members.length - 1 &&
+                              ` ${t.pivotSubtotal}`}
                           </th>
                         ))}
                         {level === 0 && (
                           <th
                             scope="colgroup"
                             colSpan={preview.settings.values.length}
-                            rowSpan={preview.settings.columns.length}
+                            rowSpan={preview.columnFields.length}
                           >
                             {t.pivotTotal}
                           </th>
@@ -292,7 +333,7 @@ export function XlsxPivotsPanel({
                   </>
                 ) : (
                   <tr>
-                    {preview.settings.rows.map((field) => (
+                    {preview.rowFields.map((field) => (
                       <th key={field} scope="col">
                         {preview.fields[field]}
                       </th>
@@ -308,15 +349,18 @@ export function XlsxPivotsPanel({
               <tbody>
                 {preview.rows.map((row, i) => (
                   <tr key={i}>
-                    {row.members.map((cell, j) => (
+                    {preview.rowFields.map((_, j) => (
                       <th key={j} scope="row">
-                        {display(cell)}
+                        {row.members[j] && display(row.members[j])}
+                        {row.subtotal &&
+                          j === row.members.length - 1 &&
+                          ` ${t.pivotSubtotal}`}
                       </th>
                     ))}
                     {row.values.map((cell, j) => (
                       <td key={j}>{display(cell)}</td>
                     ))}
-                    {preview.settings.columns.length > 0 &&
+                    {preview.columnFields.length > 0 &&
                       row.total.map((cell, j) => (
                         <td key={`total:${j}`}>{display(cell)}</td>
                       ))}
@@ -325,10 +369,10 @@ export function XlsxPivotsPanel({
               </tbody>
               <tfoot>
                 <tr>
-                  <th scope="row" colSpan={preview.settings.rows.length}>
+                  <th scope="row" colSpan={preview.rowFields.length}>
                     {t.pivotTotal}
                   </th>
-                  {(preview.settings.columns.length > 0
+                  {(preview.columnFields.length > 0
                     ? [...preview.columnTotals.flat(), ...preview.total]
                     : preview.total
                   ).map((cell, i) => (
@@ -444,6 +488,13 @@ export function XlsxPivotsPanel({
                     pivot.settings.columns.map((field) => field + 1).join(","),
                   );
                   setFilters(pivot.settings.filters);
+                  setNumberGroups(pivot.settings.numberGroups);
+                  setDateGroups(pivot.settings.dateGroups);
+                  setSubtotals(
+                    pivot.settings.subtotals
+                      .map((field) => field + 1)
+                      .join(","),
+                  );
                   setValues(pivot.settings.values);
                   setPreview(undefined);
                 }}

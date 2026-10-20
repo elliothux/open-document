@@ -7,11 +7,14 @@ import {
 } from "@open-document/wasm/xlsx";
 export {
   xlsxPivotAggregates,
+  xlsxPivotDateUnits,
   checkXlsxPivotSettings,
 } from "@open-document/wasm/xlsx";
 export type {
   XlsxPivotSettings,
   XlsxPivotFilter,
+  XlsxPivotNumberGroup,
+  XlsxPivotDateGroup,
   XlsxPivotValue,
   XlsxPivotPreview,
   XlsxPivots,

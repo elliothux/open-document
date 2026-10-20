@@ -48,14 +48,14 @@ fn Session::pivot_settings(
       "protected-content", "Pivot layout or source requires additional editing support",
     )
   }
-  let rows = tree
+  let native_rows = tree
     .one(root.id, "rowFields")
     .map(node => {
       tree
       .all(node.id, "field")
       .map(field => {
         conditional_node(tree, field, ["x"], [])
-        natural(field.attribute("x").unwrap_or(""), 63)
+        natural(field.attribute("x").unwrap_or(""), 79)
       })
     })
     .unwrap_or([])
@@ -78,25 +78,71 @@ fn Session::pivot_settings(
     .one(root.id, "colFields")
     .map(node => tree.all(node.id, "field"))
     .unwrap_or([])
-  let columns = column_nodes
+  let native_columns = column_nodes
     .filter(node => node.attribute("x") != Some("-2"))
-    .map(node => natural(node.attribute("x").unwrap_or(""), 63))
+    .map(node => natural(node.attribute("x").unwrap_or(""), 79))
   let filters = pivot_read_filters(tree, Tree::new(self.part_xml(pivot.cache)))
+  let width = source.right - source.left + 1
+  let (number_groups, date_groups, axes) = pivot_read_groups(
+    Tree::new(self.part_xml(pivot.cache)),
+    self.date1904,
+    width,
+    values.map(value => value.name),
+  )
+  let rows = pivot_source_axis(native_rows, axes, width)
+  let columns = pivot_source_axis(native_columns, axes, width)
+  let native_subtotals = tree
+    .all(tree.one(root.id, "pivotFields").unwrap().id, "pivotField")
+    .mapi((index, field) => {
+      (index, flag(field, "defaultSubtotal", fallback=true))
+    })
+    .filter(field => field.1)
+    .map(field => field.0)
+  let subtotals : Array[Int] = []
+  for field in native_subtotals {
+    let base = if field < width {
+      field
+    } else {
+      axes
+      .iter()
+      .find_first(pair => pair.1.contains(field))
+      .map(pair => pair.0)
+      .unwrap_or(-1)
+    }
+    guard base >= 0 else {
+      @failure.reject(
+        "protected-content", "Pivot subtotal field is unavailable",
+      )
+    }
+    if !subtotals.contains(base) {
+      subtotals.push(base)
+    }
+  }
   let settings : PivotSettings = {
     sourceSheet: source_sheet,
     source: source.name(),
     rows,
     columns,
     filters,
+    subtotals,
+    numberGroups: number_groups,
+    dateGroups: date_groups,
     values,
   }
   ignore(settings.validate())
+  let expanded = pivot_expand_settings(settings, axes)
+  guard expanded.subtotals.length() == native_subtotals.length() &&
+    expanded.subtotals.all(field => native_subtotals.contains(field)) else {
+    @failure.reject(
+      "protected-content", "Partial calendar subtotals require support",
+    )
+  }
   guard tree.one(root.id, "location") is Some(location) &&
     location.attribute("firstHeaderRow") ==
     Some(if columns.is_empty() { "0" } else { "1" }) &&
     location.attribute("firstDataRow") ==
-    Some(settings.header_rows().to_string()) &&
-    location.attribute("firstDataCol") == Some(rows.length().to_string()) &&
+    Some(expanded.header_rows().to_string()) &&
+    location.attribute("firstDataCol") == Some(native_rows.length().to_string()) &&
     flag(root, "colGrandTotals", fallback=true) == !columns.is_empty() else {
     @failure.reject(
       "protected-content", "Extended pivot header layout requires support",
@@ -113,7 +159,9 @@ fn Session::pivot_settings(
       ),
     )
   let field_nodes = tree.all(fields.id, "pivotField")
-  guard field_nodes.length() == source.right - source.left + 1 else {
+  guard field_nodes.length() ==
+    width +
+    date_groups.fold(init=0, (sum, group) => sum + group.units.length() - 1) else {
     @failure.reject(
       "protected-content", "Pivot field count disagrees with source",
     )
@@ -124,14 +172,14 @@ fn Session::pivot_settings(
       field,
       [
         "axis", "dataField", "defaultSubtotal", "showAll", "compact", "outline",
-        "multipleItemSelectionAllowed",
+        "multipleItemSelectionAllowed", "subtotalTop",
       ],
       ["items"],
     )
     guard field.attribute("axis") ==
-      (if rows.contains(index) {
+      (if native_rows.contains(index) {
         Some("axisRow")
-      } else if columns.contains(index) {
+      } else if native_columns.contains(index) {
         Some("axisCol")
       } else if filters.any(filter => filter.field == index) {
         Some("axisPage")
@@ -139,7 +187,10 @@ fn Session::pivot_settings(
         None
       }) &&
       flag(field, "dataField") == values.any(value => value.field == index) &&
-      !flag(field, "defaultSubtotal", fallback=true) &&
+      (
+        !native_subtotals.contains(index) ||
+        !flag(field, "subtotalTop", fallback=true)
+      ) &&
       !flag(field, "showAll", fallback=true) &&
       !flag(field, "compact", fallback=true) &&
       !flag(field, "outline", fallback=true) &&
@@ -154,9 +205,16 @@ fn Session::pivot_settings(
     let page = filters.any(filter => filter.field == index)
     if tree.one(field.id, "items") is Some(items) {
       conditional_node(tree, items, ["count"], ["item"])
-      for index, item in tree.all(items.id, "item") {
+      let entries = tree.all(items.id, "item")
+      for at, item in entries {
+        if item.attribute("t") == Some("default") &&
+          native_subtotals.contains(index) &&
+          at == entries.length() - 1 {
+          conditional_node(tree, item, ["t"], [])
+          continue
+        }
         conditional_node(tree, item, if page { ["x", "h"] } else { ["x"] }, [])
-        guard item.attribute("x") == Some(index.to_string()) else {
+        guard item.attribute("x") == Some(at.to_string()) else {
           @failure.reject(
             "protected-content", "Manual pivot item order requires refresh support",
           )
@@ -181,12 +239,35 @@ fn Session::pivot_settings(
       if name == "rowItems" || name == "colItems" {
         for item in tree.all(node.id, "i") {
           conditional_node(tree, item, ["t", "r", "i"], ["x"])
-          guard [None, Some("data"), Some("grand")].contains(
-            item.attribute("t"),
-          ) else {
-            @failure.reject(
-              "protected-content", "Pivot subtotals require layout support",
+          if item.attribute("t") == Some("default") {
+            let axis = if name == "rowItems" {
+              native_rows
+            } else {
+              native_columns
+            }
+            guard axis.length() > 1 else {
+              @failure.reject(
+                "protected-content", "Pivot subtotal axis is unavailable",
+              )
+            }
+            let depth = natural(
+              item.attribute("r").unwrap_or(""),
+              axis.length() - 2,
             )
+            guard native_subtotals.contains(axis[depth]) &&
+              tree.all(item.id, "x").length() == 1 else {
+              @failure.reject(
+                "protected-content", "Pivot subtotal field is inconsistent",
+              )
+            }
+          } else {
+            guard [None, Some("data"), Some("grand")].contains(
+              item.attribute("t"),
+            ) else {
+              @failure.reject(
+                "protected-content", "Pivot subtotals require layout support",
+              )
+            }
           }
           for x in tree.all(item.id, "x") {
             conditional_node(tree, x, ["v"], [])
@@ -195,7 +276,7 @@ fn Session::pivot_settings(
       }
     }
   }
-  let expected_columns = columns.map(field => field.to_string()) +
+  let expected_columns = native_columns.map(field => field.to_string()) +
     (if values.length() > 1 { ["-2"] } else { [] })
   guard column_nodes.map(node => node.attribute("x").unwrap_or("")) ==
     expected_columns else {
@@ -242,8 +323,10 @@ fn Session::pivot_settings(
       "pivotCacheDefinition" => ["cacheSource", "cacheFields"]
       "cacheSource" => ["worksheetSource"]
       "cacheFields" => ["cacheField"]
-      "cacheField" => ["sharedItems"]
-      "sharedItems" => ["n", "s", "b", "e", "m"]
+      "cacheField" => ["sharedItems", "fieldGroup"]
+      "fieldGroup" => ["rangePr", "groupItems"]
+      "groupItems" => ["s"]
+      "sharedItems" => ["n", "s", "b", "e", "m", "d"]
       _ => []
     }
     if node.id != 0 {
@@ -251,13 +334,21 @@ fn Session::pivot_settings(
         "cacheSource" => ["type"]
         "worksheetSource" => ["ref", "sheet"]
         "cacheFields" => ["count"]
-        "cacheField" => ["name"]
+        "cacheField" => ["name", "databaseField"]
+        "fieldGroup" => ["base", "par"]
+        "rangePr" =>
+          [
+            "autoStart", "autoEnd", "groupBy", "startNum", "endNum", "groupInterval",
+            "startDate", "endDate",
+          ]
+        "groupItems" => ["count"]
         "sharedItems" =>
           [
             "count", "containsNumber", "containsString", "containsBlank", "containsNonDate",
-            "containsSemiMixedTypes", "containsMixedTypes", "containsInteger", "longText",
+            "containsDate", "containsSemiMixedTypes", "containsMixedTypes", "containsInteger",
+            "longText",
           ]
-        "n" | "s" | "b" | "e" => ["v"]
+        "n" | "s" | "b" | "e" | "d" => ["v"]
         _ => []
       }
       conditional_node(cache_tree, node, attributes, children)
@@ -313,6 +404,20 @@ fn Session::pivot_settings(
     .map(node => cache_tree.children.get(node.id).unwrap_or([]).length())
     .unwrap_or(0)
   })
+  for index, field in cache_fields {
+    if cache_tree.one(field.id, "sharedItems") is Some(items) {
+      for node in cache_tree.children.get(items.id).unwrap_or([]) {
+        if node.name == "d" {
+          guard date_groups.any(group => group.field == index) else {
+            @failure.reject(
+              "protected-content", "Ungrouped native date cache requires support",
+            )
+          }
+          ignore(pivot_date_cache_value(node, self.date1904))
+        }
+      }
+    }
+  }
   let cache_rows = data_tree.all(data_root.id, "r")
   guard natural(data_root.attribute("count").unwrap_or("0"), 65536) ==
     cache_rows.length() &&
@@ -324,7 +429,7 @@ fn Session::pivot_settings(
   }
   for row in cache_rows {
     let values = data_tree.children.get(row.id).unwrap_or([])
-    guard values.length() == counts.length() else {
+    guard values.length() == width else {
       @failure.reject(
         "malformed-xlsx", "Pivot cache record width is inconsistent",
       )
@@ -422,10 +527,7 @@ fn Session::write_pivot(
   let settings = replacement.unwrap_or(original_settings)
   let cache = self.pivot_cache(settings)
   let layout = cache.layout(settings)
-  let range = layout.bounds(settings, {
-    row: pivot.range.top,
-    column: pivot.range.left,
-  })
+  let range = layout.bounds({ row: pivot.range.top, column: pivot.range.left, })
   guard !(settings.sourceSheet == sheet &&
     (
       settings.validate().intersects(range) ||
@@ -507,7 +609,6 @@ fn Session::write_pivot(
     (
       part,
       layout.definition(
-        settings,
         pivot.name,
         cache_id,
         range,
@@ -525,8 +626,9 @@ fn Session::write_pivot(
     (records, cache.record_markup()),
   ]
   let (updates, styles) = layout.cells(
-    settings,
     range,
+    self.styles,
+    self.date1904,
     data_caption=pivot_root.attribute("dataCaption").unwrap_or("Values"),
   )
   for row in pivot.range.top..<=pivot.range.bottom {

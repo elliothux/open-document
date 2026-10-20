@@ -15,6 +15,9 @@ pub(all) struct PivotSettings {
   rows : Array[Int]
   columns : Array[Int]
   filters : Array[PivotFilter]
+  subtotals : Array[Int]
+  numberGroups : Array[PivotNumberGroup]
+  dateGroups : Array[PivotDateGroup]
   values : Array[PivotValue]
 } derive(ToJson)
 
@@ -27,6 +30,10 @@ priv struct PivotCache {
   items : Array[Array[Value]]
   styles : Array[Array[Int]]
   records : Array[Array[Int]]
+  groups : Map[Int, PivotGroupItems]
+  date1904 : Bool
+  source_width : Int
+  axes : Map[Int, Array[Int]]
 }
 
 ///|
@@ -48,6 +55,9 @@ fn PivotSettings::validate(
     self.rows.length() <= 8 &&
     self.columns.length() <= 8 &&
     self.filters.length() <= 8 &&
+    self.numberGroups.length() +
+    self.dateGroups.fold(init=0, (sum, group) => sum + group.units.length()) <=
+    16 &&
     self.values.length() > 0 &&
     self.values.length() <= 8 else {
     @failure.reject(
@@ -65,7 +75,54 @@ fn PivotSettings::validate(
     seen[field] = true
   }
   let captions : Map[String, Bool] = Map([])
+  let subtotal_fields = self.rows[:self.rows.length() - 1].to_owned() +
+    self.columns[:(self.columns.length() - 1).max(0)].to_owned() +
+    self.dateGroups
+    .filter(group => group.units.length() > 1)
+    .map(group => group.field)
+  let selected : Map[Int, Bool] = Map([])
+  for field in self.subtotals {
+    guard subtotal_fields.contains(field) && !selected.contains(field) else {
+      @failure.reject(
+        "invalid-operation", "Pivot subtotals require unique outer axis fields",
+      )
+    }
+    selected[field] = true
+  }
   let mut units = 0
+  let grouped : Map[Int, Bool] = Map([])
+  for group in self.numberGroups {
+    guard (self.rows + self.columns).contains(group.field) &&
+      !grouped.contains(group.field) else {
+      @failure.reject(
+        "invalid-operation", "Pivot numeric grouping requires unique axis fields",
+      )
+    }
+    group.validate()
+    grouped[group.field] = true
+  }
+  for group in self.dateGroups {
+    guard (self.rows + self.columns).contains(group.field) &&
+      !grouped.contains(group.field) else {
+      @failure.reject(
+        "invalid-operation", "Pivot calendar grouping requires unique axis fields",
+      )
+    }
+    group.validate()
+    grouped[group.field] = true
+  }
+  for axis in [self.rows, self.columns] {
+    guard axis.length() +
+      self.dateGroups.fold(init=0, (sum, group) => {
+        sum +
+        (if axis.contains(group.field) { group.units.length() - 1 } else { 0 })
+      }) <=
+      8 else {
+      @failure.reject(
+        "limit-exceeded", "Expanded pivot calendar axis exceeds field budget",
+      )
+    }
+  }
   for filter in self.filters {
     if filter.values is Some(values) {
       guard !values.is_empty() && values.length() <= 4096 else {
@@ -251,7 +308,70 @@ fn Session::pivot_cache(
       @failure.reject("limit-exceeded", "Pivot report items exceed budget")
     }
   }
-  { headers, items, styles, records, }
+  let groups : Map[Int, PivotGroupItems] = Map([])
+  for group in settings.numberGroups {
+    let data = group.build(items[group.field])
+    units += data.items.fold(init=0, (sum, value) => {
+      sum + value.display().length()
+    })
+    guard units <= 1048576 else {
+      @failure.reject(
+        "limit-exceeded", "Pivot shared and grouped item text exceeds budget",
+      )
+    }
+    groups[group.field] = data
+  }
+  let axes : Map[Int, Array[Int]] = Map([])
+  let date_groups = settings.dateGroups.copy()
+  date_groups.sort_by((a, b) => a.field.compare(b.field))
+  let source_width = headers.length()
+  let field_names = headers.copy() + settings.values.map(value => value.name)
+  for group in date_groups {
+    for value in items[group.field] {
+      if value is Number(value) {
+        units += pivot_date_text(value, self.date1904).length()
+      }
+      guard units <= 1048576 else {
+        @failure.reject(
+          "limit-exceeded", "Pivot native date item text exceeds budget",
+        )
+      }
+    }
+    let fields : Array[Int] = [group.field]
+    for offset in 0..<group.units.length() {
+      let unit = group.units[group.units.length() - 1 - offset]
+      let data = group.build(items[group.field], self.date1904, unit~)
+      units += data.items.fold(init=0, (sum, value) => {
+        sum + value.display().length()
+      })
+      guard units <= 1048576 else {
+        @failure.reject(
+          "limit-exceeded", "Pivot shared and calendar item text exceeds budget",
+        )
+      }
+      if offset == 0 {
+        groups[group.field] = data
+      } else {
+        let field = headers.length()
+        headers.push(pivot_date_field_name(unit, field_names))
+        items.push([])
+        styles.push([])
+        groups[field] = data
+        fields.insert(0, field)
+      }
+    }
+    axes[group.field] = fields
+  }
+  {
+    headers,
+    items,
+    styles,
+    records,
+    groups,
+    date1904: self.date1904,
+    source_width,
+    axes,
+  }
 }
 
 ///|
@@ -363,10 +483,13 @@ pub fn Session::pivot_preview(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let layout = self.pivot_cache(settings).layout(settings)
+  let axes = layout.settings
   let preview : Json = {
     "revision": revision,
     "settings": settings,
     "fields": layout.cache.headers,
+    "rowFields": axes.rows,
+    "columnFields": axes.columns,
     "recordCount": layout.cache.records.length(),
     "filteredCount": layout.filtered_count,
     "filterItems": settings.filters.map(filter => {
@@ -388,31 +511,30 @@ pub fn Session::pivot_preview(
     }),
     "groups": layout.members.length(),
     "truncated": layout.members.length() > 20,
-    "columnMembers": (if settings.columns.is_empty() {
-      []
-    } else {
-      layout.columns
-    }).map(members => {
-      let column : Json = {
-        "members": members.mapi((at, item) => {
-          layout.cache.items[settings.columns[at]][item]
-        }),
-        "formats": members.mapi((at, item) => {
-          self.styles[layout.cache.styles[settings.columns[at]][item]].format
-        }),
-      }
-      column
-    }),
+    "columnMembers": (if axes.columns.is_empty() { [] } else { layout.columns }).map(members => {
+        let column : Json = {
+          "subtotal": members.length() < axes.columns.length(),
+          "members": members.mapi((at, item) => {
+            layout.cache.axis_items(axes.columns[at])[item]
+          }),
+          "formats": members.mapi((at, item) => {
+            self.styles[layout.cache.axis_style(axes.columns[at], item)].format
+          }),
+        }
+        column
+      },
+    ),
     "columnTotals": layout.column_totals,
     "rows": layout.members[:layout.members.length().min(20)]
     .to_owned()
     .mapi((index, members) => {
       let row : Json = {
+        "subtotal": members.length() < axes.rows.length(),
         "members": members.mapi((at, item) => {
-          layout.cache.items[settings.rows[at]][item]
+          layout.cache.axis_items(axes.rows[at])[item]
         }),
         "formats": members.mapi((at, item) => {
-          self.styles[layout.cache.styles[settings.rows[at]][item]].format
+          self.styles[layout.cache.axis_style(axes.rows[at], item)].format
         }),
         "values": layout.values[index],
         "total": layout.row_totals[index],

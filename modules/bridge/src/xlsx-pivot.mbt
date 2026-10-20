@@ -3,19 +3,26 @@ fn xlsx_pivot_settings(
   value : Json,
 ) -> @xlsx.PivotSettings raise @failure.Failure {
   guard value is Object(fields) &&
-    fields.length() == 6 &&
+    fields.length() == 9 &&
     fields
     .keys()
     .all(k => {
-      ["sourceSheet", "source", "rows", "columns", "filters", "values"].contains(
-        k,
-      )
+      [
+        "sourceSheet", "source", "rows", "columns", "filters", "subtotals", "numberGroups",
+        "dateGroups", "values",
+      ].contains(k)
     }) &&
     fields.get("rows") is Some(Array(rows)) &&
     fields.get("columns") is Some(Array(columns)) &&
     columns.length() <= 8 &&
     fields.get("filters") is Some(Array(filters)) &&
     filters.length() <= 8 &&
+    fields.get("subtotals") is Some(Array(subtotals)) &&
+    subtotals.length() <= 14 &&
+    fields.get("numberGroups") is Some(Array(groups)) &&
+    groups.length() <= 16 &&
+    fields.get("dateGroups") is Some(Array(dates)) &&
+    dates.length() + groups.length() <= 16 &&
     fields.get("values") is Some(Array(values)) &&
     rows.length() > 0 &&
     rows.length() <= 8 &&
@@ -26,6 +33,52 @@ fn xlsx_pivot_settings(
   {
     sourceSheet: field_string(value, "sourceSheet"),
     source: field_string(value, "source"),
+    dateGroups: dates.map(group => {
+      guard group is Object(fields) &&
+        fields.length() == 2 &&
+        fields.keys().all(key => ["field", "units"].contains(key)) &&
+        fields.get("units") is Some(Array(units)) &&
+        units.length() > 0 &&
+        units.length() <= 4 else {
+        @failure.reject("invalid-operation", "Invalid pivot calendar group")
+      }
+      @xlsx.PivotDateGroup::{
+        field: field_int(group, "field"),
+        units: units.map(value => {
+          guard value is String(unit) else {
+            @failure.reject("invalid-operation", "Invalid pivot calendar unit")
+          }
+          unit
+        }),
+      }
+    }),
+    numberGroups: groups.map(group => {
+      guard group is Object(fields) &&
+        fields.length() == 4 &&
+        fields
+        .keys()
+        .all(key => ["field", "start", "end", "interval"].contains(key)) &&
+        fields.get("start") is Some(Number(start, ..)) &&
+        fields.get("end") is Some(Number(end, ..)) &&
+        fields.get("interval") is Some(Number(interval, ..)) else {
+        @failure.reject("invalid-operation", "Invalid pivot numeric group")
+      }
+      @xlsx.PivotNumberGroup::{
+        field: field_int(group, "field"),
+        start,
+        end,
+        interval,
+      }
+    }),
+    subtotals: subtotals.map(value => {
+      guard value is Number(number, ..) &&
+        number >= 0 &&
+        number < 64 &&
+        number == number.trunc() else {
+        @failure.reject("invalid-operation", "Invalid pivot subtotal field")
+      }
+      number.to_int()
+    }),
     rows: rows.map(value => {
       guard value is Number(number, ..) &&
         number >= 0 &&

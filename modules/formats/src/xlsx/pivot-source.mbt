@@ -37,8 +37,17 @@ fn PivotCache::definition(
   out <+
     "<pivotCacheDefinition xmlns=\"\{spreadsheet_uri}\" xmlns:r=\"\{relationship_uri[:relationship_uri.length() - 1]}\" r:id=\"\{records}\" recordCount=\"\{self.records.length()}\" saveData=\"1\" refreshOnLoad=\"0\" enableRefresh=\"1\" invalid=\"0\" createdVersion=\"6\" refreshedVersion=\"6\" minRefreshableVersion=\"3\"><cacheSource type=\"worksheet\"><worksheetSource ref=\"\{range}\" sheet=\"\{escaped_attribute(sheet)}\"/></cacheSource><cacheFields count=\"\{self.headers.length()}\">"
   for index, name in self.headers {
+    if index >= self.source_width {
+      out <+
+        "<cacheField name=\"\{escaped_attribute(encoded_text(name))}\" databaseField=\"0\">\{self.groups[index].markup(self.date1904)}</cacheField>"
+      continue
+    }
     let items = self.items[index]
-    let numeric = items.any(v => v is Number(_))
+    let date = self.groups
+      .get(index)
+      .map(group => group.settings is DateBuckets(_, ..))
+      .unwrap_or(false)
+    let numeric = !date && items.any(v => v is Number(_))
     let text = items.any(v => v is Text(_) || v is Boolean(_) || v is Error(_))
     let blank = items.contains(Blank)
     let integer = numeric &&
@@ -47,11 +56,22 @@ fn PivotCache::definition(
       value is Text(text) && text.length() > 255
     })
     out <+
-      "<cacheField name=\"\{escaped_attribute(encoded_text(name))}\"><sharedItems count=\"\{items.length()}\" containsNumber=\"\{if numeric { 1 } else { 0 }}\" containsString=\"\{if text { 1 } else { 0 }}\" containsBlank=\"\{if blank { 1 } else { 0 }}\" containsNonDate=\"1\" containsSemiMixedTypes=\"\{if text || blank { 1 } else { 0 }}\" containsMixedTypes=\"\{if numeric && text { 1 } else { 0 }}\" containsInteger=\"\{if integer { 1 } else { 0 }}\" longText=\"\{if long_text { 1 } else { 0 }}\">"
+      "<cacheField name=\"\{escaped_attribute(encoded_text(name))}\"><sharedItems count=\"\{items.length()}\" containsNumber=\"\{if numeric { 1 } else { 0 }}\" containsString=\"\{if text { 1 } else { 0 }}\" containsBlank=\"\{if blank { 1 } else { 0 }}\" containsNonDate=\"\{if date {0} else {1}}\"\{if date {" containsDate=\"1\""} else {""}} containsSemiMixedTypes=\"\{if text || blank { 1 } else { 0 }}\" containsMixedTypes=\"\{if numeric && text { 1 } else { 0 }}\" containsInteger=\"\{if integer { 1 } else { 0 }}\" longText=\"\{if long_text { 1 } else { 0 }}\">"
     for value in items {
+      if date && value is Number(value) {
+        out <+ "<d v=\"\{pivot_date_text(value,self.date1904)}\"/>"
+        continue
+      }
       out.write_string(pivot_item_markup(value))
     }
-    out <+ "</sharedItems></cacheField>"
+    out <+ "</sharedItems>"
+    if self.groups.get(index) is Some(group) {
+      let parent = self.axes
+        .get(index)
+        .bind(fields => if fields.length() > 1 { Some(fields[0]) } else { None })
+      out.write_string(group.markup(self.date1904, parent?))
+    }
+    out <+ "</cacheField>"
   }
   out <+ "</cacheFields></pivotCacheDefinition>"
   out.to_string()
@@ -76,14 +96,14 @@ fn PivotCache::record_markup(self : PivotCache) -> String {
 ///|
 fn PivotLayout::definition(
   self : PivotLayout,
-  settings : PivotSettings,
   name : String,
   cache : Int,
   range : Range,
   data_caption~ : String = "",
 ) -> String raise @failure.Failure {
+  let settings = self.settings
   let out = StringBuilder()
-  let caption = self.caption(settings, data_caption)
+  let caption = self.caption(data_caption)
   let range = settings.body(range)
   let ordinary_columns = !settings.columns.is_empty()
   let first_header = if ordinary_columns { 1 } else { 0 }
@@ -109,11 +129,13 @@ fn PivotLayout::definition(
       .bind(filter => filter.values)
       .map(values => values.length() > 1)
       .unwrap_or(false)
+    let subtotal = settings.subtotals.contains(field)
     out <+
-      "<pivotField\{axis} dataField=\"\{if value { 1 } else { 0 }}\" defaultSubtotal=\"0\" showAll=\"0\" compact=\"0\" outline=\"0\"\{if multiple {" multipleItemSelectionAllowed=\"1\""} else {""}}>"
+      "<pivotField\{axis} dataField=\"\{if value { 1 } else { 0 }}\" defaultSubtotal=\"\{if subtotal {1} else {0}}\" subtotalTop=\"0\" showAll=\"0\" compact=\"0\" outline=\"0\"\{if multiple {" multipleItemSelectionAllowed=\"1\""} else {""}}>"
     if row || column || filter is Some(_) {
-      out <+ "<items count=\"\{self.cache.items[field].length()}\">"
-      for item in 0..<self.cache.items[field].length() {
+      out <+
+        "<items count=\"\{self.cache.axis_items(field).length() + (if subtotal {1} else {0})}\">"
+      for item in 0..<self.cache.axis_items(field).length() {
         let hidden = filter
           .bind(filter => filter.values)
           .map(values => {
@@ -125,6 +147,9 @@ fn PivotLayout::definition(
           .unwrap_or(false)
         out <+ "<item x=\"\{item}\"\{if hidden {" h=\"1\""} else {""}}/>"
       }
+      if subtotal {
+        out <+ "<item t=\"default\"/>"
+      }
       out <+ "</items>"
     }
     out <+ "</pivotField>"
@@ -135,9 +160,14 @@ fn PivotLayout::definition(
   }
   out <+ "</rowFields><rowItems count=\"\{self.members.length() + 1}\">"
   for members in self.members {
-    out <+ "<i>"
-    for item in members {
-      out <+ "<x v=\"\{item}\"/>"
+    if members.length() < settings.rows.length() {
+      out <+
+        "<i t=\"default\" r=\"\{members.length()-1}\"><x v=\"\{members[members.length()-1]}\"/>"
+    } else {
+      out <+ "<i>"
+      for item in members {
+        out <+ "<x v=\"\{item}\"/>"
+      }
     }
     out <+ "</i>"
   }
@@ -156,12 +186,17 @@ fn PivotLayout::definition(
       "</colFields><colItems count=\"\{(self.columns.length()+(if ordinary_columns {1} else {0}))*settings.values.length()}\">"
     for members in self.columns {
       for index in 0..<settings.values.length() {
-        out <+ "<i i=\"\{index}\">"
-        for item in members {
-          out <+ "<x v=\"\{item}\"/>"
-        }
-        if multiple {
-          out <+ "<x v=\"\{index}\"/>"
+        if members.length() < settings.columns.length() {
+          out <+
+            "<i i=\"\{index}\" t=\"default\" r=\"\{members.length()-1}\"><x v=\"\{members[members.length()-1]}\"/>"
+        } else {
+          out <+ "<i i=\"\{index}\">"
+          for item in members {
+            out <+ "<x v=\"\{item}\"/>"
+          }
+          if multiple {
+            out <+ "<x v=\"\{index}\"/>"
+          }
         }
         out <+ "</i>"
       }

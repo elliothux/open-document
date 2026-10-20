@@ -69,10 +69,7 @@ fn formatted(value : Value, format : String, date1904 : Bool) -> String {
         padded(date, 2) +
         "-" +
         padded(year % 100, 2)
-      let month_name = [
-          "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov",
-          "Dec",
-        ][month - 1]
+      let month_name = date_month_names[month - 1]
       match format {
         "yyyy-mm-dd" =>
           padded(year, 4) + "-" + padded(month, 2) + "-" + padded(date, 2)
