@@ -98,6 +98,7 @@ fn Session::derive_formats(
       derived_fill,
       derived_border,
       patch.numberFormat.bind(code => number_ids.get(code)),
+      self.styles[base],
     )
     units += markup.length() +
       fonts.entries[derived_font].length() +

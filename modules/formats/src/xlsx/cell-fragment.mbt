@@ -34,6 +34,8 @@ fn CellStyle::copied_format(self : CellStyle) -> CellFormat {
     horizontal=Some(self.horizontal),
     vertical=Some(self.vertical),
     wrap=Some(self.wrap),
+    locked=Some(self.locked),
+    formulaHidden=Some(self.formula_hidden),
     numberFormat=Some(self.format),
     left=Some(self.borders[0]),
     right=Some(self.borders[1]),

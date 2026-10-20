@@ -45,6 +45,8 @@ pub struct CellFormat {
   horizontal : String?
   vertical : String?
   wrap : Bool?
+  locked : Bool?
+  formulaHidden : Bool?
   numberFormat : String?
   left : CellBorder?
   right : CellBorder?
@@ -54,7 +56,7 @@ pub struct CellFormat {
 pub fn CellFormat::equal(Self, Self) -> Bool
 pub fn CellFormat::hash(Self) -> Int
 pub fn CellFormat::hash_combine(Self, Hasher) -> Unit
-pub fn CellFormat::new(family? : String?, size? : Double?, bold? : Bool?, italic? : Bool?, underline? : Bool?, strike? : Bool?, script? : String?, color? : String?, fill? : String?, horizontal? : String?, vertical? : String?, wrap? : Bool?, numberFormat? : String?, left? : CellBorder?, right? : CellBorder?, top? : CellBorder?, bottom? : CellBorder?) -> Self
+pub fn CellFormat::new(family? : String?, size? : Double?, bold? : Bool?, italic? : Bool?, underline? : Bool?, strike? : Bool?, script? : String?, color? : String?, fill? : String?, horizontal? : String?, vertical? : String?, wrap? : Bool?, locked? : Bool?, formulaHidden? : Bool?, numberFormat? : String?, left? : CellBorder?, right? : CellBorder?, top? : CellBorder?, bottom? : CellBorder?) -> Self
 pub fn CellFormat::not_equal(Self, Self) -> Bool
 
 pub(all) struct ConditionalFormat {
@@ -390,6 +392,8 @@ pub(all) enum SheetEdit {
   Hyperlink(String, String?)
   OpenHyperlink(String, Int)
   Note(String, String?, String)
+  Protection(Bool, String, Bytes)
+  WorkbookProtection(Bool, String, Bytes)
 }
 
 pub(all) struct SortKey {

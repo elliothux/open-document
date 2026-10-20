@@ -864,6 +864,44 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 `XlsxQuery` 返回 `sheets`、`sheet`、`selection`、`revision`、历史状态、`date1904`、`fontKeys` 和诊断。每格分别返回 `value`、`formula`、`cached`、`calculated`、`calculation`、`calculationReason`、`display`、`input` 与 `readOnlyReason`。空格、空字符串、零、布尔值与错误独立表示。`input` 是核心生成的可编辑源码，文字带前导单引号，避免重新提交时误作公式或数值。
 
+### 工作表保护
+
+`editSheet({ action: "protection", enabled, password? })` 启用或解除当前工作表保护。同步 Wasm、Worker 和编辑宿主复用同一入口；宿主先提交已接受的原生草稿。`password` 省略或为空串时创建无密码保护，否则使用原字符串，不裁剪或归一化。密码最多 255 个 UTF-16 单元，须为有效 XML 文字。已保护表须先解除，才能更改密码；解除未保护表不增加历史。
+
+新密码使用标准 `SHA-512`、16 字节安全随机盐及 100000 次迭代。平台通过 Web Crypto 提供盐，MoonBit 计算散列，写入 `algorithmName/hashValue/saltValue/spinCount`，不把明文密码写入源、历史或查询。解除支持 SHA-512 与旧式 `password` 摘要；旧式摘要只用于导入验证，不用于新建密码。SHA-512 输入盐限 1–64 字节，摘要为 64 字节，迭代接受 0–1000000；编码属性先检查长度。未知算法、混合或残缺凭据、超限与未知保护元数据明确拒绝。
+
+`XlsxQuery.protection` 返回 `{ protected, passwordRequired, reason }`，Wasm/Web 导出 `XlsxProtection`。`reason` 说明当前保护改写限制，不包含密码或散列。默认 UI 显示状态，提供密码输入和新密码确认；操作结束后清空输入。工作表保护限制编辑，不加密文件内容。新保护使用标准默认操作权限，保留选择锁定和未锁定格；细分操作授权及选择限制创作仍待实现。
+
+保护节点按工作表标准顺序插入或移除，沿既有有界源事务与精确历史。错误密码、无效输入、旧 revision 和输出失败保留文档、选择及历史；锁定格、未锁定格、隐藏公式与重算规则见下文。节点内注释、处理指令或未知文字阻止保护改写，保留原内容。默认无密码保护、错误密码恢复、保存重开、混合历史与 PDF 已检查。[工作簿结构保护](#工作簿结构保护)见下节，授权区域及其他密码算法继续实施。
+
+实现归 [`protection-edit.mbt`](../../modules/formats/src/xlsx/protection-edit.mbt)和 [`protection-password.mbt`](../../modules/formats/src/xlsx/protection-password.mbt)。复用固定版本 `moonbitlang/x` 的 SHA-512，无新增依赖。标准凭据及旧式摘要参考 [ONLYOFFICE 保护入口](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookProtection.js#L521-L531)、[默认盐与迭代](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/editorscommon.js#L14917-L14919)、[写保护散列](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OfficeCryptReader/source/CryptTransform.cpp#L905-L928)及[旧式密码摘要](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookProtection.js#L132-L147)。未复制上游执行代码。
+
+### 工作簿结构保护
+
+`editSheet({ action: "workbookProtection", enabled, password? })` 启用或解除整本工作簿的结构保护。入口沿现有 `editSheet` 传递表身份；操作作用于工作簿，保留活动表、选区、表身份及原有资源。保护期间，新增、复制、删除、移动、改名、隐藏和显示工作表由核心拒绝，默认管理控件按 `sheetEditReason/sheetRenameReason` 禁用。单元格内容、格式、行列和工作表保护继续遵守各自规则，不把结构保护当作整本只读。
+
+`XlsxQuery.workbookProtection` 使用同一 `XlsxProtection` 类型，返回 `{ protected, passwordRequired, reason }`。`protected` 表示 `lockStructure`，与 `sheets[].protected` 的工作表保护分开；`reason` 是保护设置改写限制。默认 UI 提供独立状态、密码和确认表单，操作后清空输入。错误密码及预算失败不提交修改；解除未保护的工作簿不新增历史。关闭状态的标准保护节点可重新启用。
+
+新密码复用上述长度、随机盐、SHA-512 与迭代预算，保存为原生 `workbookAlgorithmName/workbookHashValue/workbookSaltValue/workbookSpinCount`。旧式 `workbookPassword` 摘要可用于解除导入保护；无密码保护可直接解除。保护节点按工作簿标准顺序插入或移除，单次保护改写只修改 workbook 部件；内容编辑、保护与结构操作可精确混合撤销，保存重开后权限仍有效。
+
+未知保护属性、节点文字/注释/处理指令、活动窗口/修订保护及修订凭据继续保护原源；当前只改工作簿结构保护。其他密码算法与细分工作表授权仍待实现。核心、默认 UI、独立散列/原生 XML、失败保持、保存重开及 PDF 已检查。保护限制编辑，不加密文件内容。
+
+实现归 [`workbook-protection.mbt`](../../modules/formats/src/xlsx/workbook-protection.mbt)，密码算法复用 [`protection-password.mbt`](../../modules/formats/src/xlsx/protection-password.mbt)。字段和行为参考 [ONLYOFFICE 工作簿保护模型](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookProtection.js#L588-L610)、[凭据字段](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookProtection.js#L687-L696)及[结构保护入口](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookProtection.js#L826-L839)。未复制上游执行代码。
+
+### 受保护工作表的单元格输入
+
+导入的 `sheetProtection sheet="1"` 工作表按有效 `locked` 格式判断输入权限。默认格锁定；显式单元格样式优先于行样式和列样式，基础 `cellStyleXfs` 及 `applyProtection` 沿既有样式继承解析。条件格式只改变显示，不授予编辑权限。查询和视口的每格 `readOnlyReason` 使用同一判断，默认原生输入随活动格更新。
+
+`formatCells({ locked?, formulaHidden? })` 设置普通矩形单元格的锁定和公式隐藏格式。两项均为布尔值，省略时保留有效值；修改其中一项时保留另一项的基础样式继承结果，不激活原本被 `applyProtection="0"` 忽略的局部值。核心派生 `cellXfs`，写入标准 `protection` 和 `applyProtection="1"`；保留值、公式、其他样式及无关部件。`formatting.locked/formulaHidden` 返回共同布尔值或混合态 null；默认格式面板提供保留/开/关及生效提示。设置仅在工作表启用保护时生效，当前受保护表仍拒绝格式修改。未知保护元数据和输出预算失败保留原源。
+
+格式刷和结构化复制/粘贴的完整格式携带这两项属性，沿既有矩形、合并及精确历史规则转移。完整复制格式必须包含两项；普通格式补丁仍可省略。条件格式和自定义表样式不接受保护属性，不把显示规则当作权限。行为参考 [ONLYOFFICE 单元格保护入口](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/api.js#L6506-L6514)及[范围格式写入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L19768-L19809)，实现复用 [`style-derive.mbt`](../../modules/formats/src/xlsx/style-derive.mbt)和既有格式事务。
+
+未锁定格可输入、清除内容、粘贴 TSV、选择验证列表和替换查找结果。混合范围含锁定格时整项拒绝，不提交部分内容或历史；数据验证、富文本和未知单元格结构继续沿原保护。输入引起的锁定公式缓存重算仍允许，公式源及原有保护设置保持。每项成功编辑共用既有精确历史、保存、重开与 PDF 路径。隐藏公式不出现在输入源码或公式查找结果中，无论该格是否锁定。
+
+工作簿只读原因优先；未知工作表保护属性、子节点、根扩展、授权区域 `protectedRanges` 或选择限制继续阻止受保护表的输入。内容输入保留原密码凭据；启用、解除和凭据校验归[工作表保护](#工作表保护)。格式、结构及其他尚未接通的授权操作仍受工作表保护限制。内容输入复用 `replace`、`paste`、`clear`、`replaceMatches` 和验证选择入口。
+
+权限判断归 [`sheet-protection.mbt`](../../modules/formats/src/xlsx/sheet-protection.mbt)，所有内容事务在 [`cell-transaction.mbt`](../../modules/formats/src/xlsx/cell-transaction.mbt)复查原始目标。行为参考 [ONLYOFFICE 受保护范围编辑](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L27030-L27104)和[范围锁定判断](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L13956-L14052)。未复制上游执行代码。
+
 ### 选区统计
 
 `XlsxQuery.statistics` 返回 `{ range, count, countNumbers, sum, average, min, max, reason }`，Wasm/Web 导出 `XlsxStatistics`。`range` 是此次查询的矩形；默认 UI 状态栏使用当前选区。查询及选区变化不改 revision、文档源、历史或保存状态。输入草稿期间显示已提交值；提交后使用当前公式结果，随历史、筛选及行隐藏更新。

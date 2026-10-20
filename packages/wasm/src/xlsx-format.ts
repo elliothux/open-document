@@ -18,6 +18,10 @@ export interface XlsxCellFormat {
   horizontal?: "general" | "left" | "center" | "right";
   vertical?: "top" | "center" | "bottom";
   wrap?: boolean;
+  /** Input protection takes effect when worksheet protection is enabled. */
+  locked?: boolean;
+  /** Conceals formula source while worksheet protection is enabled. */
+  formulaHidden?: boolean;
   numberFormat?: string;
   left?: XlsxCellBorder;
   right?: XlsxCellBorder;
@@ -42,6 +46,8 @@ const cellFormatFields = [
   "horizontal",
   "vertical",
   "wrap",
+  "locked",
+  "formulaHidden",
   "numberFormat",
   "left",
   "right",
@@ -155,7 +161,17 @@ export function checkXlsxCellFormat(value: unknown): void {
         Number.isFinite(value) &&
         value >= 1 &&
         value <= 409;
-    if (["bold", "italic", "underline", "strike", "wrap"].includes(key))
+    if (
+      [
+        "bold",
+        "italic",
+        "underline",
+        "strike",
+        "wrap",
+        "locked",
+        "formulaHidden",
+      ].includes(key)
+    )
       valid = typeof value === "boolean";
     if (["color", "fill"].includes(key))
       valid =

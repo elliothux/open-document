@@ -136,6 +136,47 @@ fn Foundation::xlsx_operation(
         @failure.reject("invalid-operation", "Worksheet edit is required")
       }
       let change = match field_string(change, "action") {
+        "protection" | "workbookProtection" => {
+          guard change is Object(fields) &&
+            fields
+            .keys()
+            .all(k => ["action", "enabled", "password"].contains(k)) else {
+            @failure.reject(
+              "invalid-operation", "Invalid worksheet protection fields",
+            )
+          }
+          let salt = match request {
+            { "passwordSalt": String(value), .. } => {
+              guard value.length() <= 24 else {
+                @failure.reject(
+                  "invalid-operation", "Invalid worksheet password salt",
+                )
+              }
+              @base64.decode(value[:]) catch {
+                _ =>
+                  @failure.reject(
+                    "invalid-operation", "Invalid worksheet password salt",
+                  )
+              }
+            }
+            _ => b""
+          }
+          let password = match fields.get("password") {
+            Some(String(value)) => value
+            None => ""
+            _ =>
+              @failure.reject("invalid-operation", "Invalid worksheet password")
+          }
+          if field_string(change, "action") == "workbookProtection" {
+            @xlsx.WorkbookProtection(
+              xlsx_boolean(change, "enabled"),
+              password,
+              salt,
+            )
+          } else {
+            @xlsx.Protection(xlsx_boolean(change, "enabled"), password, salt)
+          }
+        }
         "add" => @xlsx.Add
         "copy" => @xlsx.Copy
         "textToColumns" => {

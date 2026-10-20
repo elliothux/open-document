@@ -12,7 +12,7 @@ MoonBit 0.1.20261010 要求新配置格式。[依赖准备工具](../../tools/pr
 | [moonbit-community/bidi](https://github.com/moonbit-community/tonyfettes-unicode) 0.5.2 | UAX #9，目标 Unicode 16.0.0；Apache-2.0 与 Unicode 数据许可 | 复用顺序/镜像 API；不重写 Unicode 表，不扩展到完整字素导航 |
 | [moonbit-community/ucd](https://github.com/moonbit-community/ucd) 0.5.2 | Unicode 16.0.0 完整大小写与 General_Category；Apache-2.0 与 Unicode 数据许可 | P11 文本函数复用完整映射；词尾 Sigma 所需属性差集来自固定 Unicode 数据，不另建字符数据库 |
 | Milky2018/moon_cosmic 0.3.7 | 仅 unicode_linebreak 的断行与字素分段；Apache-2.0 与 Unicode 数据许可 | 复用换行位置和 Unicode 13.0.0 扩展字素，不使用其 editor、排版或字体 owner；断行的 Unicode 15 向量沿用上游 tailoring；字素单独检查完整 Unicode 13 的 602 条标准向量，不声明较新版本 |
-| moonbitlang/x 0.5.5 | SHA-256、Unicode 简单小写映射与字符分类；Apache-2.0 | 字体字节身份、构建补丁核验与 P10 字面查找；复用固定字符数据 |
+| moonbitlang/x 0.5.5 | SHA-256/SHA-512、Unicode 简单小写映射与字符分类；Apache-2.0 | 字体字节身份、构建补丁核验、P10 字面查找及 P11 工作表保护；复用固定字符数据 |
 | moonbitlang/pdflite 0.3.8 | 严格 reader、源对象、内容/字体映射、序列化、字体子集；Apache-2.0，Typst subsetter 0.2.6 为 MIT OR Apache-2.0 | Office 输出复用 PositionedDocument；PDF 输入复用严格 reader 与源位置，编辑复用对象 writer |
 
 公开 Wasm 包分发项目 Apache LICENSE、完整 HarfBuzz NOTICE 与 UNICODE-LICENSE。固定 Noto 字体、W3C XML 和 POI 测试材料仅保存在私有语料库，保留各自许可和来源；公开 SDK 不打包字体或 fixtures。

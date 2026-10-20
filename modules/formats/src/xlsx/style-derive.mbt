@@ -83,6 +83,7 @@ fn CellFormat::xf_markup(
   fill : Int,
   border : Int,
   number_format : Int?,
+  source : CellStyle,
 ) -> String raise @failure.Failure {
   let original = style_fragment(tree, node)
   check_style_fragment(original)
@@ -154,6 +155,32 @@ fn CellFormat::xf_markup(
     document = document.edit_source(changes).0
     document = metadata_attributes(document, document.nodes()[0], [
       ("applyAlignment", "1"),
+    ])
+  }
+  if self.locked is Some(_) || self.formulaHidden is Some(_) {
+    let tree = Tree::new(document)
+    let root = document.nodes()[0]
+    let effective = self.applied(source)
+    let values = [
+      ("locked", if effective.locked { "1" } else { "0" }),
+      ("hidden", if effective.formula_hidden { "1" } else { "0" }),
+    ]
+    let changes = if tree.one(root.id, "protection") is Some(protection) {
+      conditional_node(tree, protection, ["locked", "hidden"], [])
+      metadata_changes(protection, values)
+    } else {
+      [
+        insertion(
+          root,
+          "<od:protection xmlns:od=\"\{spreadsheet_uri}\" " +
+          values.map(v => "\{v.0}=\"\{v.1}\"").join(" ") +
+          "/>",
+        ),
+      ]
+    }
+    document = document.edit_source(changes).0
+    document = metadata_attributes(document, document.nodes()[0], [
+      ("applyProtection", "1"),
     ])
   }
   document.source()

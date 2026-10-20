@@ -1,3 +1,7 @@
+import type { XlsxQuery } from "./xlsx-query.js";
+export type { XlsxQuery } from "./xlsx-query.js";
+import { protectionSalt, xlsxProtection } from "./xlsx-protection.js";
+export type { XlsxProtection } from "./xlsx-protection.js";
 import {
   copiedCells,
   checkXlsxPasteMode,
@@ -9,9 +13,7 @@ import {
   checkXlsxSheetEdit,
   type XlsxSheetEdit,
   xlsxHyperlink,
-  type XlsxHyperlink,
   xlsxNote,
-  type XlsxNote,
 } from "./xlsx-sheet.js";
 export {
   checkXlsxHyperlinkTarget,
@@ -38,17 +40,12 @@ export {
   type XlsxFillTarget,
   type XlsxFillPreview,
 } from "./xlsx-fill.js";
-import { xlsxNames, type XlsxNames } from "./xlsx-names.js";
+import { xlsxNames } from "./xlsx-names.js";
 export type { XlsxName, XlsxNames, XlsxNameEdit } from "./xlsx-names.js";
-import { xlsxStatistics, type XlsxStatistics } from "./xlsx-statistics.js";
-import {
-  xlsxTables,
-  xlsxTableStyles,
-  type XlsxTable,
-  type XlsxTableStyleChoice,
-} from "./xlsx-tables.js";
+import { xlsxStatistics } from "./xlsx-statistics.js";
+import { xlsxTables, xlsxTableStyles } from "./xlsx-tables.js";
 export * from "./xlsx-tables.js";
-import { xlsxOutline, type XlsxOutline } from "./xlsx-outline.js";
+import { xlsxOutline } from "./xlsx-outline.js";
 export * from "./xlsx-outline.js";
 export { xlsxStatistics, type XlsxStatistics } from "./xlsx-statistics.js";
 export type { XlsxSortSettings, XlsxSortKey } from "./xlsx-sort.js";
@@ -68,7 +65,7 @@ import {
   type XlsxTextColumns,
 } from "./xlsx-delimited.js";
 export * from "./xlsx-delimited.js";
-import { xlsxFilterState, type XlsxFilterState } from "./xlsx-filter.js";
+import { xlsxFilterState } from "./xlsx-filter.js";
 export type {
   XlsxFilterValues,
   XlsxFilterColumn,
@@ -82,10 +79,7 @@ export type {
   XlsxFilterSettings,
   XlsxFilterState,
 } from "./xlsx-filter.js";
-import {
-  xlsxConditionalState,
-  type XlsxConditionalState,
-} from "./xlsx-conditional.js";
+import { xlsxConditionalState } from "./xlsx-conditional.js";
 export {
   checkXlsxConditionalFormat,
   conditionalThresholds,
@@ -98,10 +92,7 @@ export type {
   XlsxConditionalThreshold,
   XlsxDataBar,
 } from "./xlsx-conditional.js";
-import {
-  xlsxValidationState,
-  type XlsxValidationState,
-} from "./xlsx-validation.js";
+import { xlsxValidationState } from "./xlsx-validation.js";
 export {
   checkXlsxDataValidation,
   validationKinds,
@@ -127,9 +118,6 @@ import {
   checkPrintOptions,
   xlsxPrintSetup,
   type PrintOptions,
-  type XlsxPrintSetup,
-  type XlsxPrintRange,
-  type XlsxHeaderFooter,
   xlsxPrintRange,
   xlsxHeaderFooter,
 } from "./xlsx-print.js";
@@ -150,7 +138,6 @@ import {
   copiedCellFormat,
   type CopiedCellFormat,
   type XlsxCellFormat,
-  type XlsxFormatting,
 } from "./xlsx-format.js";
 export {
   checkXlsxCellFormat,
@@ -210,69 +197,12 @@ export interface XlsxCell {
   readOnlyReason: string;
 }
 
-export interface XlsxQuery {
-  tables: XlsxTable[];
-  tableStyles: XlsxTableStyleChoice[];
-  outline: XlsxOutline;
-  hyperlink: XlsxHyperlink;
-  note: XlsxNote;
-  names: XlsxNames;
-  statistics: XlsxStatistics;
-  filter: XlsxFilterState;
-  conditionalFormats: XlsxConditionalState;
-  dataValidation: XlsxValidationState;
-  printSetup: XlsxPrintSetup & { readOnlyReason: string };
-  printRange: XlsxPrintRange & { readOnlyReason: string };
-  headerFooter: XlsxHeaderFooter & { readOnlyReason: string };
-  revision: number;
-  mainPart: string;
-  fontKeys: string[];
-  normalFont: string;
-  merging: {
-    range: string;
-    merged: boolean;
-    discarded: number;
-    discardedNotes: number;
-    mergeReason: string;
-    unmergeReason: string;
-  };
-  sheets: {
-    id: string;
-    name: string;
-    state: "visible" | "hidden" | "veryHidden";
-    protected: boolean;
-  }[];
-  sheet: string;
-  cells: XlsxCell[];
-  selection: { sheet: string; range: CellRange; address: string };
-  canUndo: boolean;
-  canRedo: boolean;
-  historyBytes: number;
-  readOnlyReason: string;
-  sheetEditReason: string;
-  sheetRenameReason: string;
-  dimensions: {
-    rowHeight: number | null;
-    columnWidth: number | null;
-    readOnlyReason: string;
-  };
-  frozen: { rows: number; columns: number; readOnlyReason: string };
-  view: {
-    gridLines: boolean;
-    headings: boolean;
-    rtl: boolean;
-    formulas: boolean;
-    readOnlyReason: string;
-  };
-  formatting: XlsxFormatting;
-  diagnostics: string[];
-  date1904: boolean;
-}
-
 export type XlsxClearMode = "contents" | "formats" | "all";
 
 export function xlsxQuery(value: unknown): XlsxQuery {
   const query = record(value);
+  xlsxProtection(query.protection);
+  xlsxProtection(query.workbookProtection);
   xlsxTables(query.tables);
   xlsxTableStyles(query.tableStyles);
   xlsxOutline(query.outline);
@@ -597,7 +527,13 @@ export class XlsxSession extends WasmSession {
   editSheet(revision: number, sheet: string, change: XlsxSheetEdit): XlsxQuery {
     checkXlsxSheetEdit(change);
     return xlsxQuery(
-      this.call({ operation: "editXlsxSheet", revision, sheet, change }),
+      this.call({
+        operation: "editXlsxSheet",
+        revision,
+        sheet,
+        change,
+        passwordSalt: protectionSalt(change),
+      }),
     );
   }
   duplicates(

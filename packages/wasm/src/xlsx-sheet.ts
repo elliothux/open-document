@@ -30,6 +30,11 @@ import {
 } from "./xlsx-print.js";
 
 export type XlsxSheetEdit =
+  | {
+      action: "protection" | "workbookProtection";
+      enabled: boolean;
+      password?: string;
+    }
   | XlsxTableEdit
   | XlsxOutlineEdit
   | {
@@ -141,6 +146,20 @@ export function checkXlsxSheetEdit(value: unknown): void {
     return;
   }
   const change = record(value);
+  if (
+    change.action === "protection" ||
+    change.action === "workbookProtection"
+  ) {
+    if (
+      typeof change.enabled !== "boolean" ||
+      (change.password !== undefined && !noteText(change.password, 255)) ||
+      Object.keys(change).some(
+        (key) => !["action", "enabled", "password"].includes(key),
+      )
+    )
+      throw new Error("Invalid protection command");
+    return;
+  }
   if (change.action === "moveCells") {
     const fields = ["action", "sourceSheet", "source", "destination"];
     if (

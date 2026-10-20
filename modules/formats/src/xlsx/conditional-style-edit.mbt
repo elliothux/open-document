@@ -12,6 +12,11 @@ fn CellFormat::dxf_markup(
   number_id : Int?,
   inner~ : Array[CellBorder?] = [None, None],
 ) -> String raise @failure.Failure {
+  guard self.locked is None && self.formulaHidden is None else {
+    @failure.reject(
+      "invalid-operation", "Differential styles cannot change cell protection",
+    )
+  }
   let document = @xml.Document::parse(
     @utf8.encode("<dxf xmlns=\"\{spreadsheet_uri}\"><font/><border/></dxf>"),
     "conditional-style",

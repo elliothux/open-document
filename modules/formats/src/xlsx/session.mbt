@@ -497,6 +497,8 @@ pub fn Session::query(
     "readOnlyReason": self.read_only,
     "note": self.note_query(current, range.unwrap()),
     "sheetEditReason": self.sheet_edit_reason(),
+    "protection": self.protection_query(current),
+    "workbookProtection": self.workbook_protection_query(),
     "sheetRenameReason": self.sheet_rename_reason(tables=true),
     "frozen": {
       "rows": current.frozen.rows,

@@ -14,6 +14,8 @@ fn CellStyle::format_values(self : CellStyle) -> Map[String, Json] {
     "horizontal": Json(self.horizontal),
     "vertical": Json(self.vertical),
     "wrap": Json(self.wrap),
+    "locked": Json(self.locked),
+    "formulaHidden": Json(self.formula_hidden),
     "numberFormat": Json(self.format),
   }
   for i, side in ["left", "right", "top", "bottom"] {

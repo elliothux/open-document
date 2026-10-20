@@ -1,6 +1,6 @@
 harfbuzz.mbt
 P3 dependencies: Milky2018/moon_cosmic 0.3.7 (unicode_linebreak only),
-Milky2018/moon_swash 0.1.13 (Unicode data), moonbitlang/x 0.5.5 (SHA-256
+Milky2018/moon_swash 0.1.13 (Unicode data), moonbitlang/x 0.5.5 (SHA-256/SHA-512
 and Unicode lowercase/character classification),
 and moonbitlang/pdflite 0.3.8 (PDF objects, writer and font subsetter).
 P11 also uses moonbit-community/ucd 0.5.2 for Unicode 16.0.0 case mapping

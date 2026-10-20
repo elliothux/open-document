@@ -12,6 +12,7 @@ import { XlsxValidation } from "./xlsx-validation.js";
 import { XlsxFormatFields } from "./xlsx-format-fields.js";
 import { XlsxConditional } from "./xlsx-conditional.js";
 import { XlsxClipboard } from "./xlsx-clipboard.js";
+import { XlsxProtection } from "./xlsx-protection.js";
 
 type Props = {
   controller: EditorController;
@@ -157,6 +158,21 @@ export function XlsxFormat({ controller, state, editor, disabled }: Props) {
         </fieldset>
       </form>
       {current.readOnlyReason && <p>{current.readOnlyReason}</p>}
+      <XlsxProtection
+        key={`protection:${state.document?.documentId}:${editor.currentState.sheet}:${editor.currentState.protection.protected}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
+      <XlsxProtection
+        key={`workbook-protection:${state.document?.documentId}:${editor.currentState.workbookProtection.protected}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+        workbook
+      />
       <XlsxValidation
         key={`${state.document?.documentId}:${editor.currentState.sheet}:${editor.currentState.selection.address}:${JSON.stringify(editor.currentState.dataValidation)}`}
         controller={controller}

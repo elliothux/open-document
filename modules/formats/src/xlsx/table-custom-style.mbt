@@ -327,6 +327,8 @@ fn CustomTableStyle::applied(
       } else {
         patch.vertical
       },
+      locked: None,
+      formulaHidden: None,
       wrap: if direct.properties.contains("wrap") {
         None
       } else {

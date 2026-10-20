@@ -1,5 +1,9 @@
 ///|
-fn sheet_protection_reason(tree : Tree, root : Int) -> String {
+fn sheet_protection_reason(
+  tree : Tree,
+  root : Int,
+  selection~ : Bool = true,
+) -> String {
   let nodes = tree.all(root, "sheetProtection")
   guard nodes is [node] else {
     return if nodes.is_empty() { "" } else { "Duplicate worksheet protection" }
@@ -37,7 +41,8 @@ fn sheet_protection_reason(tree : Tree, root : Int) -> String {
     }) else {
     return "Unsupported worksheet protection metadata"
   }
-  if ["selectLockedCells", "selectUnlockedCells"].any(name => {
+  if selection &&
+    ["selectLockedCells", "selectUnlockedCells"].any(name => {
       ["1", "true"].contains(node.attribute(name).unwrap_or("0"))
     }) {
     return "Worksheet selection restrictions require editing support"

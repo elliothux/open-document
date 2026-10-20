@@ -1,5 +1,7 @@
 # 测试说明
 
+P11 工作表与工作簿结构保护通过 19 项定向核心检查，覆盖保护启用/解除、密码、无密码和旧式摘要、结构拒绝与内容编辑、单元格保护格式、精确历史、重开及失败保持。节点内文字、注释和处理指令的保留回归通过。最新两条 Chromium 流程检查默认保护控件、结构禁用及恢复、独立 SHA-512 与原生 XML、原生输入、精确历史、保存重开和 PDF；前序格式刷与验证列表流程沿原定向证据复用。新安装包通过 3149 项断言和严格公开宿主编译，根 api/check/build 与静态检查通过。当前证据归 `workbookProtectionCheckpoint`，前序证据保留于 `worksheetProtectionCheckpoint`、`protectionFormatCheckpoint` 和 `unlockedInputCheckpoint`。未跑全量或外部 Office；细分授权、窗口/修订保护及其他密码算法继续实施，P11 保持 planned。
+
 P10 正文 HTML/Markdown 导出及结构列表通过 6 项定向核心检查，覆盖正文资源、原生嵌套、非 1 起点、续号/重启、软换行缩进、空项、跨表格计数、特殊标签、RTL 和失败保持；既有编号规则回归同时通过。两条 Chromium 流程有通过证据，检查默认菜单/回调/下载、独立 HTML 渲染、图片字节/裁剪像素、列表层级和实际值、标记颜色/像素、正文格式隔离及 RTL 方向，保留原生文件和失败后的编辑。根 api/check/build 和私有静态检查通过；公开接口未变，复用此前 3125 项安装包断言及严格宿主编译。证据归 `markupListsCheckpoint`，先前交换输出归 `markupOutputCheckpoint`。未跑全量或外部 Office；复杂列表仍需读取器支持内嵌 HTML/CSS，页边区域/审阅/字段和 HTML/Markdown 导入继续实施，P10/P11/P12 保持 planned。
 
 P10 正文富文本片段通过 17 项定向核心检查，覆盖部分字符、跨段落、列表、链接、完整书签、行内图片、目标格式保持、精确历史，以及无效源、缺字体、旧 revision 和预算失败；既有单元格片段回归同时通过。新 Chromium 流程检查默认跨文档源格式粘贴、Ctrl/Cmd+V/X、独立 ZIP/XML 与图片字节、继续输入格式、精确混合历史、重开及独立 PDF 文字和像素，原有单元格图片流程也通过。新安装包通过 3125 项断言、严格宿主编译和打包；根 api/check/build 通过，详细证据归 `bodyFragmentCheckpoint`。未跑全量或外部 Office；HTML/Markdown、跨表结构及部分书签转移仍未完成，P10/P11/P12 保持 planned。

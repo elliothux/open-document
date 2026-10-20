@@ -1,5 +1,6 @@
 import { Connection } from "./connection.js";
 import { resetCellClipboard } from "./spreadsheet-clipboard.js";
+export type { XlsxProtection } from "@open-document/wasm/xlsx";
 export type {
   CopiedCell,
   CopiedCells,

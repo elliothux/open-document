@@ -59,6 +59,8 @@ pub(all) enum SheetEdit {
   Hyperlink(String, String?)
   OpenHyperlink(String, Int)
   Note(String, String?, String)
+  Protection(Bool, String, Bytes)
+  WorkbookProtection(Bool, String, Bytes)
 }
 
 ///|
@@ -189,6 +191,10 @@ pub fn Session::edit_sheet(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   match change {
+    WorkbookProtection(enabled, password, salt) =>
+      return self.set_workbook_protection(enabled, password, salt)
+    Protection(enabled, password, salt) =>
+      return self.set_protection(sheet, enabled, password, salt)
     MoveCells(source_sheet, source, destination) =>
       return self.move_cells(source_sheet, source, sheet, destination)
     GroupOutline(_, _, _, _)
@@ -431,6 +437,8 @@ pub fn Session::edit_sheet(
     | ConditionalRule(_, _, _, _)
     | Hyperlink(_, _)
     | OpenHyperlink(_, _)
+    | Protection(_, _, _)
+    | WorkbookProtection(_, _, _)
     | Note(_, _, _)
     | ConditionalPriority(_, _, _) => abort("Dimension edit was dispatched")
     Rename(name) => return self.rename_sheet(index, name)

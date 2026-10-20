@@ -111,6 +111,31 @@ export function XlsxFormatFields({
           </label>
         ),
       )}
+      {current &&
+        (["locked", "formulaHidden"] as const).map((key) => (
+          <label key={key}>
+            {t[key]}
+            <select
+              aria-label={t[key]}
+              value={format[key] === undefined ? "" : String(format[key])}
+              onChange={(event) =>
+                set(
+                  key,
+                  event.currentTarget.value === ""
+                    ? undefined
+                    : event.currentTarget.value === "true",
+                )
+              }
+            >
+              <option value="">
+                {current[key] === null ? t.mixed : t.keepStyleProperty}
+              </option>
+              <option value="true">{t.styleOn}</option>
+              <option value="false">{t.styleOff}</option>
+            </select>
+          </label>
+        ))}
+      {current && <p>{t.cellProtectionHint}</p>}
       <label>
         {t.superscript + " / " + t.subscript}
         <select

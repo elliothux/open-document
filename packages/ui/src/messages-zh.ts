@@ -11,8 +11,10 @@ import { pageZh } from "./messages-docx-page.js";
 import { outlineZh } from "./messages-outline.js";
 import { tableZh } from "./messages-xlsx-tables.js";
 import { clipboardZh } from "./messages-clipboard.js";
+import { protectionZh } from "./messages-xlsx-protection.js";
 
 export const zh: Messages = {
+  ...protectionZh,
   ...objectZh,
   ...connectorZh,
   ...viewZh,

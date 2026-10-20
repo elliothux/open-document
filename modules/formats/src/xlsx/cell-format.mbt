@@ -27,6 +27,8 @@ pub struct CellFormat {
   horizontal : String?
   vertical : String?
   wrap : Bool?
+  locked : Bool?
+  formulaHidden : Bool?
   numberFormat : String?
   left : CellBorder?
   right : CellBorder?
@@ -55,6 +57,8 @@ fn CellFormat::complete(self : CellFormat) -> Unit raise @failure.Failure {
     self.horizontal is Some(_) &&
     self.vertical is Some(_) &&
     self.wrap is Some(_) &&
+    self.locked is Some(_) &&
+    self.formulaHidden is Some(_) &&
     self.numberFormat is Some(_) &&
     self.left is Some(_) &&
     self.right is Some(_) &&
@@ -80,6 +84,8 @@ pub fn CellFormat::new(
   horizontal~ : String? = None,
   vertical~ : String? = None,
   wrap~ : Bool? = None,
+  locked~ : Bool? = None,
+  formulaHidden~ : Bool? = None,
   numberFormat~ : String? = None,
   left~ : CellBorder? = None,
   right~ : CellBorder? = None,
@@ -99,6 +105,8 @@ pub fn CellFormat::new(
     horizontal,
     vertical,
     wrap,
+    locked,
+    formulaHidden,
     numberFormat,
     left,
     right,
@@ -233,6 +241,8 @@ fn CellFormat::applied(self : CellFormat, source : CellStyle) -> CellStyle {
     horizontal: self.horizontal.unwrap_or(source.horizontal),
     vertical: self.vertical.unwrap_or(source.vertical),
     wrap: self.wrap.unwrap_or(source.wrap),
+    locked: self.locked.unwrap_or(source.locked),
+    formula_hidden: self.formulaHidden.unwrap_or(source.formula_hidden),
     format: self.numberFormat.unwrap_or(source.format),
     borders,
     border_priority,
