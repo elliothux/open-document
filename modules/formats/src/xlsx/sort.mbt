@@ -79,7 +79,12 @@ fn Session::sort_cells(
   settings : SortSettings,
 ) -> Json raise @failure.Failure {
   let selected = Range::parse(range)
-  let table = self.sorting_table(sheet, selected, settings.rows)
+  let table = self.sorting_table(
+    sheet,
+    selected,
+    settings.rows,
+    sparklines=true,
+  )
   let target = table
     .map(table => Range::{
       ..table.range,
@@ -123,6 +128,7 @@ fn Session::sort_cells(
     target,
     filter=true,
     tables=self.formula_names().tables.any(table => table.sheet == sheet),
+    sparklines=true,
   )
   let filter = if table is Some(_) {
     None

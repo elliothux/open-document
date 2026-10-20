@@ -4,6 +4,7 @@ fn Session::sorting_table(
   sheet : String,
   range : Range,
   rows : Bool,
+  sparklines~ : Bool = false,
 ) -> StructuredTable? raise @failure.Failure {
   let tables = self
     .table_definitions(self.sheets, self.workbook, self.parts)
@@ -19,7 +20,7 @@ fn Session::sorting_table(
   guard table.range.bottom - table.totals >= table.range.top + table.headers else {
     @failure.reject("invalid-operation", "Table sorting requires data rows")
   }
-  Some(self.table_for_edit(sheet, table.id))
+  Some(self.table_for_edit(sheet, table.id, sparklines~))
 }
 
 ///|

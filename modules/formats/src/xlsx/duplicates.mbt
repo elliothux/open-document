@@ -23,7 +23,7 @@ fn Session::duplicate_plan(
   settings : DuplicateSettings,
 ) -> DuplicatePlan raise @failure.Failure {
   let requested = Range::parse(settings.range)
-  let table = self.sorting_table(sheet, requested, true)
+  let table = self.sorting_table(sheet, requested, true, sparklines=true)
   let target = table.map(table => table.range).unwrap_or(requested)
   let header = table.map(table => table.headers == 1).unwrap_or(settings.header)
   guard (target.bottom - target.top + 1).to_int64() *
@@ -55,6 +55,7 @@ fn Session::duplicate_plan(
     target,
     filter=true,
     tables=self.formula_names().tables.any(table => table.sheet == sheet),
+    sparklines=true,
   )
   let filter = if table is Some(_) {
     None

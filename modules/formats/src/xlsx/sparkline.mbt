@@ -11,6 +11,7 @@ let sparkline_extension_uri = "{05C60535-1F16-4fd2-B633-F4F36F0B64E0}"
 priv struct Sparkline {
   cell : Address
   source : Range?
+  owner : String?
   kind : String
 } derive(Eq)
 
@@ -24,16 +25,18 @@ priv struct Sparklines {
 fn sparkline_source(
   text : String,
   sheet : String,
-) -> Range? raise @failure.Failure {
+) -> (String?, Range?) raise @failure.Failure {
   if text == "#REF!" {
-    return None
+    return (None, None)
   }
   guard text.length() <= 256 &&
-    parse_formula(text) is Reference(target, first, last) &&
-    target.map(name => name.to_lower() == sheet.to_lower()).unwrap_or(true) else {
+    parse_formula(text) is Reference(target, first, last) else {
     @failure.reject(
-      "protected-content", "Sparkline requires a local cell range",
+      "protected-content", "Sparkline requires a worksheet cell range",
     )
+  }
+  if target is Some(name) {
+    validate_sheet_name(name)
   }
   let range = first.range(last.unwrap_or(first))
   guard (range.top == range.bottom || range.left == range.right) &&
@@ -42,7 +45,42 @@ fn sparkline_source(
       "limit-exceeded", "Sparkline requires at most 256 cells in one row or column",
     )
   }
-  Some(range)
+  (target.filter(name => name.to_lower() != sheet.to_lower()), Some(range))
+}
+
+///|
+fn sparkline_sheet_index(sheets : Array[Sheet], name : String) -> Int? {
+  for index, sheet in sheets {
+    if sheet.name.to_lower() == name.to_lower() {
+      return Some(index)
+    }
+  }
+  None
+}
+
+///|
+fn sparkline_reason(sheet : Sheet, sheets : Array[Sheet]) -> String {
+  if !sheet.sparklines.reason.is_empty() {
+    return sheet.sparklines.reason
+  }
+  for item in sheet.sparklines.items {
+    if item.owner is Some(name) && sparkline_sheet_index(sheets, name) is None {
+      return "Sparkline source worksheet is missing: " + name
+    }
+  }
+  ""
+}
+
+///|
+fn Sparkline::source_name(self : Sparkline) -> String raise @failure.Failure {
+  self.source
+  .map(range => {
+    self.owner
+    .map(name => "'" + name.replace_all(old="'", new="''") + "'!")
+    .unwrap_or("") +
+    range.name()
+  })
+  .unwrap_or("#REF!")
 }
 
 ///|
@@ -145,9 +183,11 @@ fn read_sparklines(
               "protected-content", "Overlapping sparkline locations",
             )
           }
+          let (owner, source) = sparkline_source(formula.text, sheet)
           items.push({
             cell,
-            source: sparkline_source(formula.text, sheet),
+            source,
+            owner,
             kind: if native == "stacked" {
               "winLoss"
             } else {
@@ -189,13 +229,13 @@ fn Session::sparkline_query(
   } else if sheet.locked {
     "Worksheet is protected"
   } else {
-    sheet.sparklines.reason
+    sparkline_reason(sheet, self.sheets)
   }
   {
     "items": sheet.sparklines.items.map(item => {
       let value : Json = {
         "cell": item.cell.name(),
-        "source": item.source.map(Range::name).unwrap_or("#REF!"),
+        "source": item.source_name(),
         "kind": item.kind,
       }
       value

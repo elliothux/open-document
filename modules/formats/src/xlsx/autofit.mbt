@@ -44,7 +44,8 @@ fn Session::fit_sizes(
   }
   for node in tree.children.get(root.id).unwrap_or([]) {
     // Sparklines follow the cell rectangle and do not contribute text dimensions.
-    if current.sparklines.reason.is_empty() && sparkline_extension(tree, node) {
+    if sparkline_reason(current, sheets).is_empty() &&
+      sparkline_extension(tree, node) {
       continue
     }
     if node.uri != spreadsheet_uri ||

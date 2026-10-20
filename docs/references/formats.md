@@ -986,7 +986,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 核心复制类型值及有效格式，文字中的 `=` 保持文字；公式只平移相对引用，保留绝对与跨表引用，越界生成 `#REF!`。受影响共享公式有界展开。值、格式、依赖缓存和选区共用既有事务、自动尺寸及一次精确历史；保存重开后可继续编辑。复制文字和公式源码累计最多 1 Mi 字符，单公式最多 8192 字符，候选、源和历史仍受既有预算约束。
 
-四向填充、序列和向外填充柄已支持普通条件格式与数据验证，细节见下段。普通链接已接通完整源范围复制及目标裁剪；传统便笺保留各格原有文字与框，不随源复制，见[单元格便笺](#单元格便笺)；合并几何见下段；未知扩展、表格/透视和线程批注继续保护。范围外规则与元数据保留。默认按钮使用当前选区，沿既有队列提交原生草稿。核心已检查四向、相邻边界、类型值、有效格式、共享公式、重算、精确历史、重开及原子失败；Chromium 已检查四向按钮、原生草稿、独立公式/样式/缓存源、混合历史、保存重开和 PDF。重新打包的参数检查与严格宿主调用通过。数字序列见[数字序列](#数字序列)，基本拖动与键盘操作见[填充柄](#填充柄)。来源选择参考 [ONLYOFFICE prepareFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L27533-L27590)，实现归 [`fill.mbt`](../../modules/formats/src/xlsx/fill.mbt)。
+四向填充、序列和向外填充柄已支持普通条件格式与数据验证，细节见下段。普通链接已接通完整源范围复制及目标裁剪；传统便笺保留各格原有文字与框，不随源复制，见[单元格便笺](#单元格便笺)；已识别迷你图随源模式复制并平移数据源，见[单元格迷你图](#单元格迷你图)；合并几何见下段；未知扩展、表格/透视和线程批注继续保护。范围外规则与元数据保留。默认按钮使用当前选区，沿既有队列提交原生草稿。核心已检查四向、相邻边界、类型值、有效格式、共享公式、重算、精确历史、重开及原子失败；Chromium 已检查四向按钮、原生草稿、独立公式/样式/缓存源、混合历史、保存重开和 PDF。重新打包的参数检查与严格宿主调用通过。数字序列见[数字序列](#数字序列)，基本拖动与键盘操作见[填充柄](#填充柄)。来源选择参考 [ONLYOFFICE prepareFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L27533-L27590)，实现归 [`fill.mbt`](../../modules/formats/src/xlsx/fill.mbt)。
 
 #### 合并格填充
 
@@ -1064,6 +1064,8 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 ### 区域排序
 
+已识别迷你图的普通行列排序和原生表行排序沿同一事务执行。目标地址、源范围及原生扩展字节保持，图形从排序后的当前格值重绘。图形位置与便笺归属分别处理，便笺仍随单元格移动。详细边界归[单元格迷你图](#单元格迷你图)。
+
 同一工作表含受支持原生表时，表外普通矩形仍可按行或列排序。核心检查表资源归属，保留表范围、列身份、计算列模板和原生排序状态。按当前全部筛选来源冻结可见位置，候选计算后重新应用相关条件；手动隐藏和各筛选来源分别保留，最终隐藏取并集。普通筛选内的排序状态仍写入所属筛选，其他普通排序写入工作表；原生表的排序状态独立保存。选区与表相交时沿[原生表行排序](#结构化表与引用)规则，跨表边界仍保护。范围归属参考 [ONLYOFFICE searchRangeInTableParts](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/autofilters.js#L1479-L1500)。
 
 `editSheet({ action: "sort", range, rows, header, caseSensitive, keys })` 对最多 4096 格的显式 A1 矩形排序。`rows=true` 按行重排，键 `index` 是工作表从 1 开始的列号；`rows=false` 按列重排，键为行号。`keys` 为 1–16 个互异条件 `{ index, descending, customList?, sortBy?, color? }`，索引必须在范围内，按数组顺序比较。三个布尔字段必须显式提供，`header=true` 保留所选范围的第一行或第一列。默认面板使用当前选区，提供方向、标题、大小写、增删多键、每键自定义列表及颜色依据。`XlsxSortSettings/XlsxSortKey` 从 Wasm/Web XLSX 模块导出。
@@ -1109,6 +1111,8 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 功能入口参考 GenOffice 单列分列操作，编辑值与文本粘贴事务参考固定 [ONLYOFFICE asc_TextToColumns](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/api.js#L846-L902)及 [getRangeText](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L23563-L23594)。固定宽度参考 [LibreOffice 列宽推进](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/ui/docshell/impex.cxx#L529-L557)、[段落提取](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/ui/docshell/impex.cxx#L1490-L1534)及[分列事务](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/ui/docshell/impex.cxx#L1641-L1689)，补齐字素完整性。本实现默认保留文字，转换需要明确选择，不声称覆盖完整文本导入向导；未复制上游源码。实现归 [`text-columns.mbt`](../../modules/formats/src/xlsx/text-columns.mbt)、[`text-columns-convert.mbt`](../../modules/formats/src/xlsx/text-columns-convert.mbt)、[`text-columns-fixed.mbt`](../../modules/formats/src/xlsx/text-columns-fixed.mbt)、既有 [`delimited.mbt`](../../modules/formats/src/xlsx/delimited.mbt)和 [`xlsx-text-columns.tsx`](../../packages/ui/src/xlsx-text-columns.tsx)。
 
 ### 删除重复行
+
+已识别迷你图的普通区域与原生表去重沿同一预览和事务执行。移除原始重复行内的图形，幸存图形保留坐标和数据源；具体归属见[单元格迷你图](#单元格迷你图)。
 
 `XlsxSession/Client.duplicates(revision, sheet, settings)` 返回只读预览，宿主入口为 `SpreadsheetEditor.duplicates(settings)`。`XlsxDuplicateSettings` 包含显式 A1 矩形 `range`、`header` 和工作表从 1 开始的比较列 `columns`；至少选一列，各列互异且在有效范围内。普通区域的 `header=true` 保留首行。返回 `XlsxDuplicates`，包含有效设置、`totalRow`、revision、sheet、完整 `keptRows/removedRows`、有效结果 `resultRange` 及前十条保留记录的格式化值 `preview`。`totalRow` 表示不参加比较的原生总计行，普通区域为 false。两个类型从 Wasm/Web XLSX 模块导出。核心预览不修改源、选择、修订或历史；宿主沿既有队列先处理原生草稿和组合输入。
 
@@ -1246,7 +1250,7 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 `formats` 将目标格恢复为工作簿内置 Normal 样式，派生或复用 cellXF，保留原共享样式、值、公式、缓存和 calcChain。两种格式清除都会取消完整合并，并从选区清除既有条件格式。`all` 还清除值和公式、选区内验证规则及完整覆盖的超链接；部分覆盖的超链接保持原范围；被清除的共享公式组将存活成员展开为普通公式，并重算受影响依赖。行列尺寸与范围外单元格保持原样，内容变化沿既有保存路径更新计算元数据及共享字符串计数。
 
-一次最多 4096 格，单格合并锚点扩展到完整合并范围。`XlsxQuery.normalFont` 返回 Normal 样式的字体键；宿主在格式清除前检查对应 profile。Normal 不等同于第 0 个 cellXF，也不依赖本地化样式名。未知模式、受保护内容、缺失字体和预算失败不提交清除。部分覆盖的合并、需要平移且无法解析的规则公式，以及未知规则结构继续保护；非空扩展、表格/透视表资源、线程批注及未知便笺也继续保护；传统便笺的清除归[单元格便笺](#单元格便笺)。规则之外的资源不推断所有权。
+一次最多 4096 格，单格合并锚点扩展到完整合并范围。`XlsxQuery.normalFont` 返回 Normal 样式的字体键；宿主在格式清除前检查对应 profile。Normal 不等同于第 0 个 cellXF，也不依赖本地化样式名。未知模式、受保护内容、缺失字体和预算失败不提交清除。部分覆盖的合并、需要平移且无法解析的规则公式，以及未知规则结构继续保护；未支持的非空扩展、表格/透视表资源、线程批注及未知便笺也继续保护；传统便笺的清除归[单元格便笺](#单元格便笺)，已识别迷你图的清除归[单元格迷你图](#单元格迷你图)。规则之外的资源不推断所有权。
 
 条件格式和验证的 `sqref` 从各原矩形扣除选区，保留不相交区域，最多留下 4096 个矩形。条件格式按范围外接矩形左上角定位，验证按第一个 `sqref` 区域定位；锚点变化时复用核心公式解析器平移相对引用，保持绝对/混合引用、跨表引用和字符串。条件公式、验证的两个公式及公式阈值一并更新，越界引用变为 `#REF!`。锚点不变时保留公式源；清空全部范围才删除规则，验证容器计数同步更新。规则计算、显示与编辑范围分别归[条件格式](#条件格式)和[数据验证](#数据验证)。范围扣除参考 [ONLYOFFICE 条件规则清除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L13347-L13386)与[验证范围清除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/DataValidation.js#L1068-L1088)；验证公式源位置参考 [LibreOffice 导入](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/filter/oox/worksheethelper.cxx#L1096-L1119)。核心已检查四块残留、多个原范围、混合引用、字符串、阈值越界、上限拒绝和精确历史；Chromium 通过默认按钮清除并用独立 XML 检查范围与公式，保存重开后可继续输入。
 
@@ -1697,19 +1701,29 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 ### 单元格迷你图
 
-`editSheet(revision, sheet, { action: "sparkline", cell, source, kind })` 在未合并的目标格创建或修改迷你图。`kind` 为 `line`、`column` 或 `winLoss`；`source` 为本表一行或一列的区域，也可带本表名称。`source: null` 删除该目标格的迷你图。每表最多 256 个目标，每个数据源最多 256 格。查询 `sparklines` 返回规范化的 `items: { cell, source, kind }[]` 及 `readOnlyReason`。原有目标格内容保留，文字按原有规则显示。
+`editSheet(revision, sheet, { action: "sparkline", cell, source, kind })` 在未合并的目标格创建或修改迷你图。`kind` 为 `line`、`column` 或 `winLoss`；`source` 为同一工作簿中一行或一列的区域，缺省使用本表，也可加工作表名称，例如 `'Source data'!A1:D1`。名称匹配忽略大小写，名称中的单引号写成两个单引号。`source: null` 删除该目标格的迷你图。每表最多 256 个目标，每个数据源最多 256 格。查询 `sparklines` 返回 `items: { cell, source, kind }[]` 及 `readOnlyReason`；本表源返回规范化区域，跨表源返回带引号的表名及区域。原有目标格内容保留，文字按原有规则显示。
+
+核心单独保存来源表归属，从该表当前计算结果及行列可见性取数。来源改值或公式结果变化后，目标 Canvas/PDF 读取新数据；来源格隐藏时排除该格，目标表同坐标的值和尺寸不参与取数。目标表与来源表的整轴和局部单元格插删分别更新目标位置与实际源范围，沿现有范围、端点和 256 格上限。来源表缺失的新命令拒绝；导入的缺失来源保留原始定义，并在查询和诊断中说明原因，静态输出拒绝遗漏内容。外部工作簿及三维来源仍保护。数据绑定参考 [ONLYOFFICE sparkline.setF](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L8430-L8442)，绘制仍归共同迷你图图元。
+
+清除内容和清除格式保留迷你图的原生定义及便笺。全部清除移除目标格在选区内的迷你图，包括空白目标；同次提交清除值、样式、规则及所属便笺。移除最后一个目标后删除本功能的空扩展。仅清除数据源时，选区外迷你图继续绑定原地址，图形随空值留空；重新输入数据后恢复 Canvas/PDF，无需重新绑定。已有 `#REF!` 保持失效。相关操作沿同一历史和输出预算，未知迷你图配置及未知扩展继续保护。默认三种清除按钮沿既有接口接入。行为参考 [ONLYOFFICE 清除选项](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L16669-L16704)，实现复用 [`clear.mbt`](../../modules/formats/src/xlsx/clear.mbt)及 [`clear-rules.mbt`](../../modules/formats/src/xlsx/clear-rules.mbt)。
+
+四向填充及向外序列按源矩形循环复制迷你图的类型和位置。数据源按每个副本的行列位移平移，已有绝对地址也沿迷你图规则移动；每个端点裁到工作表边界，`#REF!` 保持失效。尾块只复制落入目标的格。目标原有迷你图先移除，因此源模式中的空白图形位置也会清除对应目标；范围外迷你图和各格便笺保留。只有图形变化时同样生成一项历史，重复填充有效状态不新增历史。向内缩减保留图形、绑定、格式和便笺，仅清除内容。新目标仍须未合并；合并源覆盖旧目标图形时先移除旧图形，保留新合并。每表 256 个目标及已有包/历史预算继续生效，失败不提交。默认四向按钮、原生改值、保存重开和 Canvas/PDF 沿同一核心结果。复制依据 [ONLYOFFICE 目标替换与平铺](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L22677-L22691)、[迷你图数据源位移](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L8070-L8091)及[端点边界](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/utils/utils.js#L930-L972)。实现归 [`sparkline-fill.mbt`](../../modules/formats/src/xlsx/sparkline-fill.mbt)，复用现有填充事务。
 
 整行、整列插入或删除时，核心用现有范围算法同步目标格和数据源。区域内部插入扩大源，删除缩小源；删除整个源后保留目标，原生公式与查询 `source` 为 `#REF!`，图形留空。用户重新填写区域可恢复显示；重新提交 `#REF!` 可保留失效绑定。目标格被删除时移除对应迷你图，最后一个目标删除后移除本功能的空扩展。源、单元格、公式缓存和选择共用一项精确历史。插入会丢失目标、丢失源端点或使数据源超过 256 格时，整项拒绝。结构位移与目标删除依据 [ONLYOFFICE updateSparklineGroupOffset](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L10369-L10418)。
 
 局部 `insertCells` 的 down/right 与 `deleteCells` 的 up/left 沿同一事务更新迷你图。目标格在移动带内时移动或删除，源完整落在移动带内时按区域规则移动、扩缩或变为 `#REF!`。跨带源复用普通公式的引用规则：例如源为 `A1:D1` 时，在 `B1` 向下插入仍引用 `A1:D1`；删除 `A1:B1` 并向上移动后引用 `C1:D1`。插入只对完整落入移动带的源检查端点越界，不相交的源保持原样。目标格的便笺沿既有位移规则同步。依据 [ONLYOFFICE Range.isIntersectForShift](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/utils/utils.js#L614-L637)；普通合并、筛选、原生表及未知资源的保护继续生效。
 
-工作表 `rename` 更新本表原生数据公式中的表名，保留绝对地址、命名空间前缀和失效绑定。`copy` 把表内迷你图复制到新表，并把本表数据引用改到副本；原表数据与图形保持独立。隐表副本沿用隐藏状态与原有活动选择。`delete` 通过既有事务删除表内迷你图及独占资源，其他表的副本保持可编辑。既有便笺复制、公式/名称和依赖更新规则继续生效。改名及其撤销/重做按工作簿中的实际表名刷新迷你图模型。复制与数据归属参考 [ONLYOFFICE 工作表复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L7439-L7444)及 [sparkline.updateWorksheet](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L8434-L8442)。
+工作表 `rename` 更新所有已识别迷你图数据公式中的表名，保留绝对地址、命名空间前缀和失效绑定。`copy` 把表内迷你图复制到新表，本表数据引用改到副本，跨表数据引用保留原来源表；原表数据与图形保持独立。隐表副本沿用隐藏状态与原有活动选择。`delete` 通过既有事务删除表内迷你图及独占资源；其他表引用该来源的迷你图变为可重新绑定的 `#REF!`，其他来源保持可编辑。既有便笺复制、公式/名称和依赖更新规则继续生效。改名及其撤销/重做按工作簿中的实际表名刷新迷你图模型。复制与数据归属参考 [ONLYOFFICE 工作表复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L7439-L7444)及 [sparkline.updateWorksheet](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L8434-L8442)。
 
 MoonBit 写入原生 x14 `sparklineGroups` 扩展、xm 数据公式与目标引用。每个目标单独保存类型，修改与删除只替换本功能拥有的扩展。其他部件和未知扩展保留。没有变化时不新增历史；源、选择及已有文档预算沿用同一事务。保存重开后仍可修改。类型与原生结构参考 [ONLYOFFICE sparklineGroup](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L7804-L7842)，数据绑定与共用图表绘制参考 [CSparklineView](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/DrawingObjects.js#L682-L755)。未复制上游实现源码。
 
 Canvas 和静态 PDF 复用单元格绘制。核心从当前计算结果取数，直接改值与公式结果变化会更新图形。源格隐藏时从序列中排除，空白、文字、布尔与错误值留空。折线在空值处断开，孤立点保留小标记；柱形与盈亏用蓝色表示正值、橙色表示负值，零值不画柱。盈亏只显示正负方向。线宽固定 0.75pt，图形在格内留 2pt 边距。自动行高只测量文字，迷你图跟随目标格尺寸。默认可访问网格通过描述暴露类型和源区域。
 
-当前支持固定颜色、独立数轴、本表单区域及普通未合并目标。跨表、日期轴、组合轴、自定义颜色/标记和其他原生配置继续实施；未知配置保留并给出只读原因，静态 PDF 拒绝遗漏内容。区域复制/填充/排序、剪切及相关引用维护尚未接入，当前原子拒绝。XLSX 普通图表对象和绘图锚点仍待实现。实现归 [`sparkline.mbt`](../../modules/formats/src/xlsx/sparkline.mbt)、[`sparkline-edit.mbt`](../../modules/formats/src/xlsx/sparkline-edit.mbt)、[`sparkline-axis.mbt`](../../modules/formats/src/xlsx/sparkline-axis.mbt)及 [`sparkline-paint.mbt`](../../modules/formats/src/xlsx/sparkline-paint.mbt)。工作表操作复用 [`sheet-rename.mbt`](../../modules/formats/src/xlsx/sheet-rename.mbt)、[`sheet-copy.mbt`](../../modules/formats/src/xlsx/sheet-copy.mbt)和 [`sheet-order.mbt`](../../modules/formats/src/xlsx/sheet-order.mbt)。
+普通行列排序和原生表行排序保留迷你图目标地址、类型、数据源公式与原生扩展字节。即使目标格在排序范围内，图形仍读取原地址中的当前值；例如目标 `F2` 的源为 `B2:C2` 时，行排序后继续显示新 `B2:C2` 的值。标题、手动隐藏及筛选后的可见位置沿现有排序规则处理，便笺随所属单元格移动。原生表排序仍扩至完整数据行，保留筛选来源、计算模板及例外。再次改值继续更新图形，撤销/重做与保存重开保留同一绑定。未知配置、资源和预算失败保持原子拒绝。此行为沿 [ONLYOFFICE 单元格排序](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21651-L21777)及[排序后的便笺和绘制更新](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L20693-L20700)。实现只为 [`sort-source.mbt`](../../modules/formats/src/xlsx/sort-source.mbt)、[`sort.mbt`](../../modules/formats/src/xlsx/sort.mbt)及原生表排序入口放行已验证扩展，复用既有排序与重绘。
+
+普通区域和原生表去重移除原始重复行中、且目标格在有效选区内的迷你图；最后一个目标移除后删除本功能的空扩展。幸存图形保留原坐标与数据源，读取压紧后的当前格值；尾部格清空后，仍在该处的图形继续保留并显示空数据。范围外目标和 `#REF!` 绑定沿同一归属规则处理。便笺、链接及单元格按既有去重规则移动或删除；原生表继续缩小范围、迁移总计并保留模板、例外与筛选来源。预览保持只读，数据、图形和资源清理共用一项精确历史及输出预算，重复提交无变化时不新增历史。默认预览和删除入口沿核心资源校验；再次输入、撤销/重做、重开及 Canvas/PDF 共用当前模型。依据 [ONLYOFFICE 删除原始重复行资源后压紧](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L26112-L26136)。实现复用 [`duplicates.mbt`](../../modules/formats/src/xlsx/duplicates.mbt)、[`reorder-cells.mbt`](../../modules/formats/src/xlsx/reorder-cells.mbt)及既有迷你图删除。
+
+当前支持固定颜色、独立数轴、同一工作簿内的本表或跨表单区域及普通未合并目标。日期轴、组合轴、自定义颜色/标记、外部/三维来源和其他原生配置继续实施；未知配置保留并给出只读原因，静态 PDF 拒绝遗漏内容。区域复制、剪切及相关引用维护尚未接入，当前原子拒绝；其他表编辑沿各操作的资源保护。XLSX 普通图表对象和绘图锚点仍待实现。实现归 [`sparkline.mbt`](../../modules/formats/src/xlsx/sparkline.mbt)、[`sparkline-edit.mbt`](../../modules/formats/src/xlsx/sparkline-edit.mbt)、[`sparkline-axis.mbt`](../../modules/formats/src/xlsx/sparkline-axis.mbt)及 [`sparkline-paint.mbt`](../../modules/formats/src/xlsx/sparkline-paint.mbt)。工作表操作复用 [`sheet-rename.mbt`](../../modules/formats/src/xlsx/sheet-rename.mbt)、[`sheet-copy.mbt`](../../modules/formats/src/xlsx/sheet-copy.mbt)和 [`sheet-order.mbt`](../../modules/formats/src/xlsx/sheet-order.mbt)。
 
 ### 透视表核心
 

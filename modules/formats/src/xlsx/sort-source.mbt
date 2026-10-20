@@ -115,10 +115,18 @@ fn Session::sort_resources(
   sheet : Sheet,
   filter~ : Bool = false,
   tables~ : Bool = false,
+  sparklines~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   let tree = Tree::new(sheet.document)
   self.check_sort_metadata(tree)
+  let reason = sparkline_reason(sheet, self.sheets)
+  if sparklines && !reason.is_empty() {
+    @failure.reject("protected-content", reason)
+  }
   for node in tree.children.get(tree.root("worksheet").id).unwrap_or([]) {
+    if sparklines && sparkline_extension(tree, node) {
+      continue
+    }
     guard node.uri == spreadsheet_uri &&
       !["drawing", "legacyDrawingHF"].contains(node.name) &&
       (filter || node.name != "autoFilter") &&
@@ -159,6 +167,7 @@ fn Session::check_reorder_cells(
   target : Range,
   filter~ : Bool = false,
   tables~ : Bool = false,
+  sparklines~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   guard self.read_only.is_empty() && !current.locked else {
     @failure.reject(
@@ -176,7 +185,7 @@ fn Session::check_reorder_cells(
     )
   }
   ignore(self.read_sheet_notes(current))
-  self.sort_resources(current, filter~, tables~)
+  self.sort_resources(current, filter~, tables~, sparklines~)
   for cell in current.cells.values() {
     if target.contains(cell.address) {
       guard cell.read_only.is_empty() ||

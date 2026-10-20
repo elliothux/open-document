@@ -11,6 +11,14 @@ fn Session::paint_sparkline(
     return
   }
   guard item.source is Some(source) else { return }
+  let index = if item.owner is Some(name) {
+    guard sparkline_sheet_index(self.sheets, name) is Some(index) else {
+      return
+    }
+    index
+  } else {
+    index
+  }
   let sheet = self.sheets[index]
   let values : Array[Double?] = []
   for row in source.top..<=source.bottom {

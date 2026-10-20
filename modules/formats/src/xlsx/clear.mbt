@@ -18,6 +18,8 @@ pub fn Session::clear(
   let target = current.merge_target(selected)
   let reason = self.format_reason(current, target)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
+  let reason = sparkline_reason(current, self.sheets)
+  guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let (normal, styles, style_edits) = self.normal_style()
   guard styles[normal].diagnostic.is_empty() else {
     @failure.reject("protected-content", styles[normal].diagnostic)
@@ -59,9 +61,25 @@ pub fn Session::clear(
     document = next
     edits.push((id, edit))
   }
-  let rules = clear_rules(document, target, all)
+  let rules = clear_rules(document, target, all, sparklines=true)
   if !rules.is_empty() {
     let (next, edit) = document.edit_source(rules)
+    document = next
+    edits.push((id, edit))
+  }
+  if all && current.sparklines.items.any(item => target.contains(item.cell)) {
+    let candidate = Sheet::read(
+      id,
+      current.name,
+      current.state,
+      document,
+      self.strings,
+      styles.length(),
+    )
+    let changes = candidate.sparkline_changes(
+      candidate.sparklines.items.filter(item => !target.contains(item.cell)),
+    )
+    let (next, edit) = document.edit_source(changes)
     document = next
     edits.push((id, edit))
   }

@@ -3,8 +3,13 @@ fn Session::table_for_edit(
   self : Session,
   sheet : String,
   id : Int,
+  sparklines~ : Bool = false,
 ) -> StructuredTable raise @failure.Failure {
-  let reason = self.sheet_rename_reason(structure=false, tables=true)
+  let reason = self.sheet_rename_reason(
+    structure=false,
+    tables=true,
+    sparklines~,
+  )
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   guard self
     .table_definitions(self.sheets, self.workbook, self.parts)

@@ -49,6 +49,7 @@ fn clear_rules(
   target : Range,
   all : Bool,
   table_parts~ : Bool = false,
+  sparklines~ : Bool = false,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let tree = Tree::new(document)
   let root = tree.root("worksheet")
@@ -58,6 +59,9 @@ fn clear_rules(
       @failure.reject(
         "protected-content", "Unknown worksheet namespace requires clearing support",
       )
+    }
+    if sparklines && sparkline_extension(tree, node) {
+      continue
     }
     if (
         ["extLst", "pivotTableParts"].contains(node.name) ||

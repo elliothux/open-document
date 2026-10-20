@@ -72,9 +72,8 @@ fn Session::print_sheet(
       )
     }
   }
-  guard current.sparklines.reason.is_empty() else {
-    @failure.reject("unsupported-print", current.sparklines.reason)
-  }
+  let reason = sparkline_reason(current, self.sheets)
+  guard reason.is_empty() else { @failure.reject("unsupported-print", reason) }
   let dimensions = self.resolved_dimensions(current, probe, profile)
   let rows = dimensions.rows.visible(range.top, range.bottom)
   let columns = dimensions.columns.visible(range.left, range.right)

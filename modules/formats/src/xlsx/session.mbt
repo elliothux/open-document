@@ -214,6 +214,12 @@ fn Session::from_package(
   guard !sheets.is_empty() && sheets.any(sheet => sheet.state == "visible") else {
     @failure.reject("malformed-xlsx", "Workbook has no visible worksheet")
   }
+  for sheet in sheets {
+    let reason = sparkline_reason(sheet, sheets)
+    if sheet.sparklines.reason.is_empty() && !reason.is_empty() {
+      diagnostics.push("unrendered:" + sheet.id + ":" + reason)
+    }
+  }
   let active = tree
     .one(root.id, "bookViews")
     .bind(node => tree.all(node.id, "workbookView").get(0))

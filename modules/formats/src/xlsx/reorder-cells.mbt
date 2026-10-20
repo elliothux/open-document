@@ -169,6 +169,27 @@ fn Session::reorder_cells(
     edits.push((sheet, edit))
     next
   }
+  let sparklines = current.sparklines.items.filter(item => {
+    !target.contains(item.cell) ||
+    !removed.contains(if rows { item.cell.row } else { item.cell.column })
+  })
+  let document = if sparklines.length() == current.sparklines.items.length() {
+    document
+  } else {
+    let candidate = Sheet::read(
+      current.id,
+      current.name,
+      current.state,
+      document,
+      self.strings,
+      self.styles.length(),
+    )
+    let (next, edit) = document.edit_source(
+      candidate.sparkline_changes(sparklines),
+    )
+    edits.push((sheet, edit))
+    next
+  }
   let nested = filter
     .map(state => {
       sort.map(sort => state.bounds.covers(sort.bounds)).unwrap_or(false)

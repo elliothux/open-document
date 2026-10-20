@@ -98,7 +98,7 @@ fn Session::sheet_rename_reason(
       self.check_sort_metadata(tree)
       let filter = tree.one(root.id, "autoFilter")
       let sparkline = if sparklines &&
-        sheet.sparklines.reason.is_empty() &&
+        sparkline_reason(sheet, self.sheets).is_empty() &&
         tree.one(root.id, "extLst") is Some(extension) &&
         sparkline_extension(tree, extension) {
         Some(extension)

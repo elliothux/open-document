@@ -41,7 +41,6 @@ export function XlsxDuplicates({
     snapshot.paused ||
     snapshot.stopped ||
     !!query.readOnlyReason ||
-    !!native?.table.readOnlyReason ||
     !!query.sheets.find((s) => s.id === query.sheet)?.protected;
   const ready =
     preview &&

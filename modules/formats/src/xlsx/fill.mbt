@@ -5,9 +5,14 @@ fn Session::check_fill_resources(
   range : Range,
   hyperlinks~ : Bool = false,
   rules~ : Bool = false,
+  sparklines~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   let tree = Tree::new(sheet.document)
   let root = tree.root("worksheet")
+  let reason = sparkline_reason(sheet, self.sheets)
+  if sparklines && !reason.is_empty() {
+    @failure.reject("protected-content", reason)
+  }
   for cell in sheet.cells.values() {
     if range.contains(cell.address) &&
       tree.one(cell.node, "extLst") is Some(extension) &&
@@ -21,6 +26,9 @@ fn Session::check_fill_resources(
     }
   }
   for node in tree.children.get(root.id).unwrap_or([]) {
+    if sparklines && sparkline_extension(tree, node) {
+      continue
+    }
     guard node.uri == spreadsheet_uri &&
       !(["extLst", "tableParts", "pivotTableParts"].contains(node.name) &&
       !tree.children.get(node.id).unwrap_or([]).is_empty()) else {
@@ -168,7 +176,8 @@ fn Session::commit_fill(
   let merges = merges.unwrap_or(current.merges)
   let fill = fill.filter(pair => {
     current.has_clipboard_rules(pair.1, true) ||
-    !self.capture_hyperlinks(current, pair.1).is_empty()
+    !self.capture_hyperlinks(current, pair.1).is_empty() ||
+    current.sparklines.items.any(item => pair.1.contains(item.cell))
   })
   if updates.is_empty() && merges == current.merges && fill is None {
     return self.query()
@@ -200,10 +209,14 @@ fn Session::commit_fill(
     let links_changed = self.prepare_fill_hyperlinks(
       plan, index, source, target,
     )
+    let sparklines_changed = self.prepare_fill_sparklines(
+      plan, index, source, target,
+    )
     if updates.is_empty() &&
       merges == current.merges &&
       !rules_changed &&
-      !links_changed {
+      !links_changed &&
+      !sparklines_changed {
       return self.query()
     }
     let addresses = []

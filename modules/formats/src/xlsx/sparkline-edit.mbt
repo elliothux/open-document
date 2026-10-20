@@ -7,7 +7,10 @@ fn sparkline_markup(
   for item in items {
     let formula = item.source
       .map(source => {
-        "'" + name.replace_all(old="'", new="''") + "'!" + source.name()
+        "'" +
+        item.owner.unwrap_or(name).replace_all(old="'", new="''") +
+        "'!" +
+        source.name()
       })
       .unwrap_or("#REF!")
     let kind = if item.kind == "winLoss" { "stacked" } else { item.kind }
@@ -34,7 +37,7 @@ fn Session::set_sparkline(
   let address = Address::parse(cell)
   guard self.read_only.is_empty() &&
     !sheet.locked &&
-    sheet.sparklines.reason.is_empty() else {
+    sparkline_reason(sheet, self.sheets).is_empty() else {
     @failure.reject(
       "protected-content", "Protected or unsupported sparkline content",
     )
@@ -46,11 +49,19 @@ fn Session::set_sparkline(
   }
   let items = sheet.sparklines.items.filter(item => item.cell != address)
   if source is Some(source) {
-    let range = sparkline_source(source, sheet.name)
+    let (owner, range) = sparkline_source(source, sheet.name)
+    let owner = owner.map(name => {
+      guard sparkline_sheet_index(self.sheets, name) is Some(index) else {
+        @failure.reject(
+          "protected-content", "Sparkline source worksheet is missing",
+        )
+      }
+      self.sheets[index].name
+    })
     guard items.length() < 256 else {
       @failure.reject("limit-exceeded", "Sparkline count exceeds 256")
     }
-    items.push({ cell: address, source: range, kind, })
+    items.push({ cell: address, source: range, owner, kind, })
   }
   items.sort_by((a, b) => {
     if a.cell.row == b.cell.row {
