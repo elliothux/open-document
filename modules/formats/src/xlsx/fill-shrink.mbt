@@ -49,7 +49,8 @@ fn Session::shrink_fill(
     @failure.reject("limit-exceeded", "Fill shrink exceeds 4096 cells")
   }
   self.check_fill_cells(current, [source, cleared])
-  self.check_fill_resources(current, source)
+  self.check_fill_resources(current, source, hyperlinks=true, rules=true)
+  ignore(self.hyperlink_at(current, source))
   let updates : Map[String, CellContent] = Map([])
   for row in cleared.top..<=cleared.bottom {
     for column in cleared.left..<=cleared.right {

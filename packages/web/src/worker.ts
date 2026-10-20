@@ -484,6 +484,24 @@ async function dispatch(request: Request): Promise<unknown> {
             request.selection,
             request.cut,
           );
+        case "docxClipboard":
+          return foundation.clipboard(
+            request.revision,
+            request.selection,
+            request.cut,
+          );
+        case "bodyFragmentImages":
+          return foundation.bodyFragmentImages(
+            request.revision,
+            request.fragment,
+          );
+        case "pasteBodyFragment":
+          return foundation.pasteBodyFragment(
+            request.revision,
+            request.selection,
+            request.fragment,
+            request.profile,
+          );
         case "tableFragmentImages":
           return foundation.tableFragmentImages(
             request.revision,

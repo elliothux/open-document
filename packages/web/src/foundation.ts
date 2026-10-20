@@ -1,8 +1,7 @@
 import { Connection } from "./connection.js";
-export { pasteDocxCells } from "./clipboard-input.js";
-import { FoundationPageClient } from "./foundation-page.js";
+export { pasteDocxCells, pasteDocxSelection } from "./clipboard-input.js";
+import { FoundationClipboardClient } from "./foundation-clipboard.js";
 import { prepareDocxFragmentImages } from "./document-fragment-images.js";
-import { docxFragmentImages } from "@open-document/wasm/foundation";
 export { checkDocxComment } from "@open-document/wasm/foundation";
 export type {
   DocxRunningArea,
@@ -50,6 +49,7 @@ export type {
   DocxPictures,
   DocxTableEdit,
   DocxTableClipboard,
+  DocxClipboard,
   DocxFragmentImages,
   DocxCellMargins,
   DocxBorderStyle,
@@ -89,8 +89,6 @@ import {
   checkDocxTableSize,
   checkDocxTableEdit,
   type DocxTableEdit,
-  docxTableClipboard,
-  type DocxTableClipboard,
   shapeBatch,
   resourceBudget,
   editState,
@@ -140,7 +138,7 @@ import {
 } from "@open-document/wasm/foundation";
 
 /** Text shaping, bounded DOCX operations and preview/PDF, owned by one Worker. */
-export class FoundationClient extends FoundationPageClient {
+export class FoundationClient extends FoundationClipboardClient {
   private constructor(connection: Connection) {
     super(connection);
   }
@@ -612,46 +610,6 @@ export class FoundationClient extends FoundationPageClient {
         text,
         inputGroup,
       }),
-    );
-  }
-  async selectedText(
-    revision: number,
-    selection: DocxSelection,
-    cut = false,
-  ): Promise<string> {
-    const result = await this.connection.request({
-      operation: "selectedText",
-      revision,
-      selection,
-      cut,
-    });
-    if (typeof result !== "string")
-      throw new Error("Invalid selection text returned by Wasm");
-    return result;
-  }
-  async tableClipboard(
-    revision: number,
-    selection: DocxSelection,
-    cut = false,
-  ): Promise<DocxTableClipboard> {
-    return docxTableClipboard(
-      await this.connection.request({
-        operation: "tableClipboard",
-        revision,
-        selection,
-        cut,
-      }),
-    );
-  }
-  async tableFragmentImages(revision: number, fragment: string) {
-    checkDocxTableEdit({ action: "pasteFragment", fragment });
-    return docxFragmentImages(
-      await this.connection.request({
-        operation: "tableFragmentImages",
-        revision,
-        fragment,
-      }),
-      false,
     );
   }
   async undoDocx(revision: number): Promise<EditState> {

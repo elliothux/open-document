@@ -8,6 +8,8 @@ fn fragment_run_markup(
   themes : Map[String, String],
   pictures : Map[Int, String],
   limit : Int,
+  start~ : Int = 0,
+  end~ : Int = 2147483647,
 ) -> String raise @failure.Failure {
   let chunks : Array[(String, Int?)] = []
   let mut pending = StringBuilder()
@@ -26,7 +28,20 @@ fn fragment_run_markup(
   chunks.push((pending.to_string(), None))
   let output = StringBuilder()
   let mut units = 0
+  let mut cursor = 0
   for (text, drawing) in chunks {
+    let count = if drawing is Some(_) { 1 } else { text.length() }
+    let left = (start - cursor).clamp(min=0, max=count)
+    let right = (end - cursor).clamp(min=0, max=count)
+    cursor += count
+    if count > 0 && left == right {
+      continue
+    }
+    let text = if drawing is Some(_) {
+      text
+    } else {
+      text[left:right].to_owned()
+    }
     let pieces = style.font_runs(
       if drawing is Some(_) {
         "\ufffc"

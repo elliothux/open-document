@@ -1,5 +1,5 @@
 import { docxOutputs, downloadDocxOutput } from "./document-output.js";
-import { DocumentPage } from "./document-page.js";
+import { DocumentClipboard } from "./document-clipboard.js";
 export type { DocumentRuler } from "./document-page.js";
 export type { DocumentComments, DocumentRevisions } from "./document-review.js";
 import { createDocumentElements, docxPageText } from "./document-elements.js";
@@ -12,8 +12,12 @@ import {
 import { revealInput } from "./pointer-selection.js";
 import { DocumentPointer } from "./document-pointer.js";
 import { TextInput } from "./text-input.js";
-import { DocumentError, DOCX_SOFT_BREAK } from "@open-document/wasm/foundation";
-import { bindClipboard, copyDocxSelection } from "./clipboard-input.js";
+import { DocumentError } from "@open-document/wasm/foundation";
+import {
+  bindClipboard,
+  copyDocxSelection,
+  pasteDocxSelection,
+} from "./clipboard-input.js";
 import {
   EditorState,
   type EditorOutput,
@@ -49,7 +53,7 @@ import type {
   DocxSelectionGeometry,
 } from "@open-document/wasm/foundation";
 /** Owns browser input order. The caller owns fonts, the opened DOCX and client lifetime. */
-export class DocumentEditor extends DocumentPage {
+export class DocumentEditor extends DocumentClipboard {
   private readonly container: HTMLDivElement;
   private readonly viewport: HTMLDivElement;
   private readonly input: HTMLTextAreaElement;
@@ -160,11 +164,16 @@ export class DocumentEditor extends DocumentPage {
       this.input,
       this.listeners.signal,
       (cut) => void this.copy(cut).catch(() => {}),
-      (text) => {
-        void this.paste(text).catch(() => {});
-      },
+      (text) => void this.paste(text).catch(() => {}),
       (error) => this.stop(error),
       () => this.inputEvents.active,
+      () => false,
+      () =>
+        void pasteDocxSelection(this).catch((error: unknown) => {
+          this.observable.update({
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }),
     );
     this.input.addEventListener(
       "blur",
@@ -449,7 +458,7 @@ export class DocumentEditor extends DocumentPage {
     );
     return result;
   }
-  private selection(): DocxSelection {
+  protected selection(): DocxSelection {
     const selection = this.state.selection;
     if (!selection) throw new Error("Click a document position first");
     return selection;
@@ -633,9 +642,6 @@ export class DocumentEditor extends DocumentPage {
         ),
       );
     });
-  }
-  insertSoftBreak(): Promise<void> {
-    return this.paste(DOCX_SOFT_BREAK);
   }
   private async presentSelection(reveal = true): Promise<void> {
     this.assertOpen();

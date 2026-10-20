@@ -1,4 +1,5 @@
-import { FoundationPageSession } from "./docx-page.js";
+import { FoundationClipboardSession } from "./docx-clipboard.js";
+export * from "./docx-clipboard.js";
 export {
   checkRunningArea,
   checkRunningKind,
@@ -75,9 +76,6 @@ import {
   checkDocxTableSize,
   checkDocxTableEdit,
   type DocxTableEdit,
-  docxTableClipboard,
-  docxFragmentImages,
-  type DocxTableClipboard,
 } from "./docx-table.js";
 export * from "./docx-table.js";
 import {
@@ -303,7 +301,7 @@ export function shapeBatch(value: unknown): ShapeBatch {
   return value as ShapeBatch;
 }
 
-export class FoundationSession extends FoundationPageSession {
+export class FoundationSession extends FoundationClipboardSession {
   shape(text: string, size = 32, language = "und"): ShapeBatch {
     return shapeBatch(this.call({ operation: "shape", text, size, language }));
   }
@@ -614,40 +612,6 @@ export class FoundationSession extends FoundationPageSession {
       this.call({ operation: "selectDocx", revision, selection }),
     );
   }
-  tableClipboard(
-    revision: number,
-    selection: DocxSelection,
-    cut = false,
-  ): DocxTableClipboard {
-    return docxTableClipboard(
-      this.call({ operation: "tableClipboard", revision, selection, cut }),
-    );
-  }
-  tableFragmentImages(revision: number, fragment: string) {
-    checkDocxTableEdit({ action: "pasteFragment", fragment });
-    return docxFragmentImages(
-      this.call({ operation: "tableFragmentImages", revision, fragment }),
-      true,
-    );
-  }
-
-  /** Plain-text cut protects pictures; use tableClipboard for rich cell cuts. */
-  selectedText(
-    revision: number,
-    selection: DocxSelection,
-    cut = false,
-  ): string {
-    const result = this.call({
-      operation: "selectedText",
-      revision,
-      selection,
-      cut,
-    });
-    if (typeof result !== "string")
-      throw new Error("Invalid selection text returned by Wasm");
-    return result;
-  }
-
   replaceRange(
     revision: number,
     selection: DocxSelection,

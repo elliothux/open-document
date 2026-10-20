@@ -103,6 +103,7 @@ pub fn Session::table_clipboard(
     }
   }
   {
+    "kind": "cells",
     "text": output.to_string(),
     "fragment": fragment,
     "reason": reason,

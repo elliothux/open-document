@@ -140,12 +140,14 @@ pub struct Session {
 pub fn Session::apply_format(Self, Int, Selection, CharacterFormat, ParagraphFormat) -> Json raise @failure.Failure
 pub fn Session::begin_composition(Self, Int) -> Json raise @failure.Failure
 pub fn Session::begin_picture_resize(Self, Int, Int) -> Json raise @failure.Failure
+pub fn Session::body_fragment_images(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::bookmarks(Self, Int) -> Json raise @failure.Failure
 pub fn Session::cancel_composition(Self, Int, Int) -> Json raise @failure.Failure
 pub fn Session::cancel_picture_resize(Self, Int, Int) -> Json raise @failure.Failure
 pub fn Session::capture_format(Self, Int, Selection) -> Json raise @failure.Failure
 pub fn Session::check_idle(Self) -> Unit raise @failure.Failure
 pub fn Session::check_position(Self, Position) -> Unit raise @failure.Failure
+pub fn Session::clipboard(Self, Int, Selection, cut? : Bool) -> Json raise @failure.Failure
 pub fn Session::close(Self) -> Unit
 pub fn Session::comment_overlays(Self, @layout.Layout) -> Json raise @failure.Failure
 pub fn Session::comments(Self, Int) -> Json raise @failure.Failure
@@ -175,6 +177,7 @@ pub fn Session::navigate_comment(Self, Int, String) -> Json raise @failure.Failu
 pub fn Session::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
 pub fn Session::overview(Self, Int) -> Json raise @failure.Failure
 pub fn Session::page_setup(Self, Int) -> Json raise @failure.Failure
+pub fn Session::paste_body_fragment(Self, Int, Selection, String, @layout.TextProbe, Map[String, String], images? : @layout.Images?) -> Json raise @failure.Failure
 pub fn Session::pictures(Self, Int) -> Json raise @failure.Failure
 pub fn Session::query(Self) -> Json raise @failure.Failure
 pub fn Session::query_formatting(Self, Int, Selection, layout? : @layout.Layout) -> Json raise @failure.Failure

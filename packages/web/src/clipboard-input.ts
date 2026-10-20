@@ -7,6 +7,7 @@ import type { DocumentEditor } from "./editor.js";
 import type { DocxTableEdit } from "@open-document/wasm/foundation";
 
 const docxCellsMime = "web application/x-open-document-docx-cells";
+const docxBodyMime = "web application/x-open-document-docx-body";
 
 export async function copyPptxSelection(
   client: PptxClient,
@@ -45,22 +46,22 @@ export async function copyDocxSelection(
   if (!selection) throw new Error("Click a document position first");
   const copied =
     mode === "cells"
-      ? await client.tableClipboard(revision, selection, cut)
-      : {
-          text: await client.selectedText(revision, selection, cut),
-          selection,
-          fragment: null,
-        };
+      ? {
+          ...(await client.tableClipboard(revision, selection, cut)),
+          kind: "cells" as const,
+        }
+      : await client.clipboard(revision, selection, cut);
   const text = copied.text;
   assertOpen();
   if (text.length === 0) return null;
   if (!navigator.clipboard) throw new Error("Clipboard API is unavailable");
   if (copied.fragment !== null) {
+    const mime = copied.kind === "cells" ? docxCellsMime : docxBodyMime;
     await navigator.clipboard.write([
       new ClipboardItem({
         "text/plain": new Blob([text], { type: "text/plain" }),
-        [docxCellsMime]: new Blob([copied.fragment], {
-          type: "application/x-open-document-docx-cells",
+        [mime]: new Blob([copied.fragment], {
+          type: mime.slice(4),
         }),
       }),
     ]);
@@ -75,12 +76,30 @@ export async function copyDocxSelection(
 
 /** Pastes a core-owned cell fragment, or a plain-text matrix from other apps. */
 export async function pasteDocxCells(editor: DocumentEditor): Promise<void> {
+  return pasteDocxClipboard(editor, true);
+}
+
+/** Reads the bounded core fragment; ordinary external text retains plain paste behavior. */
+export async function pasteDocxSelection(
+  editor: DocumentEditor,
+): Promise<void> {
+  return pasteDocxClipboard(editor, false);
+}
+
+async function pasteDocxClipboard(
+  editor: DocumentEditor,
+  cells: boolean,
+): Promise<void> {
+  await editor.whenIdle();
   const before = editor.getSnapshot();
   const items = await navigator.clipboard.read();
-  const item = items.find((item) => item.types.includes(docxCellsMime));
+  const body = !cells
+    ? items.find((item) => item.types.includes(docxBodyMime))
+    : undefined;
+  const item = body ?? items.find((item) => item.types.includes(docxCellsMime));
   let change: DocxTableEdit;
   if (item) {
-    const blob = await item.getType(docxCellsMime);
+    const blob = await item.getType(body ? docxBodyMime : docxCellsMime);
     if (blob.size > 4194304)
       throw new Error("Rich table clipboard exceeds byte budget");
     change = { action: "pasteFragment", fragment: await blob.text() };
@@ -105,6 +124,10 @@ export async function pasteDocxCells(editor: DocumentEditor): Promise<void> {
       JSON.stringify(before.data.selection)
   )
     throw new Error("Selection changed during clipboard read");
+  if (body && change.action === "pasteFragment")
+    return editor.pasteFragment(change.fragment);
+  if (!cells && !item && change.action === "pasteCells")
+    return editor.paste(change.text);
   return editor.editTable(change);
 }
 
@@ -117,6 +140,7 @@ export function bindClipboard(
   reject: (error: Error) => void,
   composing: () => boolean,
   native: () => boolean = () => false,
+  richPaste?: () => void,
 ): void {
   const options = { signal };
   for (const type of ["copy", "cut"] as const)
@@ -137,6 +161,15 @@ export function bindClipboard(
       if (event.isComposing || composing()) return;
       const key = event.key.toLowerCase();
       if (
+        richPaste &&
+        (event.ctrlKey || event.metaKey) &&
+        !event.altKey &&
+        !event.shiftKey &&
+        key === "v"
+      ) {
+        event.preventDefault();
+        richPaste();
+      } else if (
         (event.ctrlKey || event.metaKey) &&
         !event.altKey &&
         !event.shiftKey &&

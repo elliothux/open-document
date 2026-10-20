@@ -10,13 +10,15 @@ fn fragment_paragraph(
   markers : Map[Int, String],
   numbers : Map[Int, (Int, Int)],
   pictures : Map[Int, String],
+  start~ : Int = 0,
+  end~ : Int = 2147483647,
 ) -> String raise @failure.Failure {
   guard paragraph.readOnlyReason.is_empty() &&
     tree.children[paragraph.id].all(id => {
       tree.nodes[id].uri == word_uri &&
       (
         ["pPr", "r", "hyperlink"].contains(tree.nodes[id].name) ||
-        markers.contains(id)
+        tree.is_bookmark(id)
       )
     }) else {
     @failure.reject(
@@ -99,7 +101,7 @@ fn fragment_paragraph(
       guard !tree.children[id].is_empty() &&
         tree.children[id].all(child => {
           (tree.nodes[child].uri == word_uri && tree.nodes[child].name == "r") ||
-          markers.contains(child)
+          tree.is_bookmark(child)
         }) else {
         @failure.reject(
           "protected-content", "Rich hyperlink copies require ordinary runs without identities",
@@ -119,7 +121,32 @@ fn fragment_paragraph(
     runs.push(tree.child(paragraph.id, "pPr"))
   }
   let mut active_link : Int? = None
+  let mut cursor = 0
   for run in runs {
+    if run is Some(id) && tree.is_bookmark(id) && !markers.contains(id) {
+      continue
+    }
+    let count = run
+      .map(id => {
+        if tree.nodes[id].name == "r" {
+          tree.children[id]
+          .filter(child => {
+            ["t", "tab", "br", "cr", "drawing"].contains(tree.nodes[child].name)
+          })
+          .fold(init=0, (sum, child) => {
+            sum + inline_text(tree.nodes[child]).length()
+          })
+        } else {
+          0
+        }
+      })
+      .unwrap_or(0)
+    let left = (start - cursor).clamp(min=0, max=count)
+    let right = (end - cursor).clamp(min=0, max=count)
+    cursor += count
+    if count > 0 && left == right {
+      continue
+    }
     let link = run.bind(run => tree.run_hyperlink(run))
     if link != active_link {
       if active_link is Some(_) {
@@ -151,7 +178,7 @@ fn fragment_paragraph(
         node.uri == word_uri &&
         (
           ["rPr", "t", "tab", "br", "cr"].contains(node.name) ||
-          (node.name == "drawing" && pictures.contains(id))
+          node.name == "drawing"
         ) &&
         (
           node.name != "br" ||
@@ -174,6 +201,8 @@ fn fragment_paragraph(
       styles.themes,
       pictures,
       limit,
+      start=left,
+      end=right,
     )
     guard xml.length() <= limit - units else {
       @failure.reject(

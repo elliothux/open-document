@@ -162,10 +162,15 @@ fn Session::commit_fill(
   updates : Map[String, CellContent],
   styles : Map[String, Int],
   merges~ : Array[Range]? = None,
+  fill~ : (Range, Range)? = None,
 ) -> Json raise @failure.Failure {
   let current = self.sheets[index]
   let merges = merges.unwrap_or(current.merges)
-  if updates.is_empty() && merges == current.merges {
+  let fill = fill.filter(pair => {
+    current.has_clipboard_rules(pair.1, true) ||
+    !self.capture_hyperlinks(current, pair.1).is_empty()
+  })
+  if updates.is_empty() && merges == current.merges && fill is None {
     return self.query()
   }
   current.expand_shared_updates(updates)
@@ -182,6 +187,47 @@ fn Session::commit_fill(
     @failure.reject(
       "limit-exceeded", "Expanded fill formulas exceed source budget",
     )
+  }
+  if fill is Some((source, range)) {
+    let plan = self.prepare_cells(
+      Map([(index, updates)]),
+      styles=Map([(index, styles)]),
+      merges=Map([(index, merges)]),
+      validate_values=false,
+    )
+    let target = range.without(source)[0]
+    let rules_changed = self.prepare_fill_rules(plan, index, source, target)
+    let links_changed = self.prepare_fill_hyperlinks(
+      plan, index, source, target,
+    )
+    if updates.is_empty() &&
+      merges == current.merges &&
+      !rules_changed &&
+      !links_changed {
+      return self.query()
+    }
+    let addresses = []
+    for row in target.top..<=target.bottom {
+      for column in target.left..<=target.right {
+        addresses.push(Address::{ row, column, }.name())
+      }
+    }
+    self.validate_inputs(
+      plan.sheets,
+      plan.calculation,
+      Map([(index, addresses)]),
+      false,
+    )
+    self.commit(
+      plan.sheets,
+      self.workbook,
+      plan.calculation,
+      plan.edits,
+      (current.id, selected),
+      parts=plan.parts,
+      created_parts=plan.created_parts,
+    )
+    return self.query()
   }
   self.commit_cells(
     Map([(index, updates)]),

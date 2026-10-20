@@ -5,6 +5,7 @@ import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import type { OwnedFile } from "./types.js";
 import { Icon } from "./icons.js";
+import { pasteDocxSelection } from "@open-document/web/foundation";
 
 export function Command({
   label,
@@ -465,6 +466,21 @@ export function ClipboardGroup({
                 {t.rangePaste}
               </Dialog.Title>
               <Dialog.Description>{t.pasteHint}</Dialog.Description>
+              {file.format === "docx" && (
+                <button
+                  type="button"
+                  disabled={writeDisabled}
+                  onClick={() =>
+                    controller.run(async () => {
+                      await pasteDocxSelection(file.editor);
+                      setOpen(false);
+                      file.editor.focus();
+                    })
+                  }
+                >
+                  {t.pasteFormatting}
+                </button>
+              )}
               <label className="od-paste-label">
                 {t.pasteText}
                 <textarea

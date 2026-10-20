@@ -1,4 +1,5 @@
 export const clipboardEn = {
+  pasteFormatting: "Paste with source formatting",
   clipboard: "Clipboard",
   pasteCells: "Paste cells",
   copyCells: "Copy cells",
@@ -13,6 +14,7 @@ export const clipboardEn = {
   transposeCells: "Transpose cells",
 };
 export const clipboardZh = {
+  pasteFormatting: "按源格式粘贴",
   clipboard: "剪贴板",
   pasteCells: "粘贴单元格",
   copyCells: "复制单元格",

@@ -287,6 +287,9 @@ fn Foundation::dispatch(
     | "tabDocx"
     | "enterDocx"
     | "selectedText"
+    | "docxClipboard"
+    | "bodyFragmentImages"
+    | "pasteBodyFragment"
     | "tableClipboard"
     | "tableFragmentImages"
     | "beginComposition"
@@ -387,25 +390,12 @@ fn Foundation::dispatch(
           self.layout = None
           result
         }
-        "selectedText" =>
-          Json(
-            session.selected_text(
-              field_int(request, "revision"),
-              field_selection(request),
-              cut=xlsx_boolean(request, "cut"),
-            ),
-          )
-        "tableClipboard" =>
-          session.table_clipboard(
-            field_int(request, "revision"),
-            field_selection(request),
-            cut=xlsx_boolean(request, "cut"),
-          )
-        "tableFragmentImages" =>
-          session.table_fragment_images(
-            field_int(request, "revision"),
-            field_string(request, "fragment"),
-          )
+        "selectedText"
+        | "tableClipboard"
+        | "tableFragmentImages"
+        | "docxClipboard"
+        | "bodyFragmentImages"
+        | "pasteBodyFragment" => self.clipboard_command(session, request)
         "selectDocx" =>
           session.select(
             field_int(request, "revision"),

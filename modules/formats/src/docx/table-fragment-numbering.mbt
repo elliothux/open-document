@@ -75,19 +75,32 @@ fn Session::fragment_numbering(
   styles : Styles,
   limit : Int,
 ) -> (String, Map[Int, (Int, Int)]) raise @failure.Failure {
-  let instances : Map[Int, Bool] = Map([])
-  let paragraphs : Map[Int, (Int, Int)] = Map([])
+  let selected = []
   for row in top..<bottom {
     for column, cell in grid.cells[row] {
       let start = grid.starts[row][column]
       if start >= left && start < right {
-        for p in tree.table_children(cell, "p") {
-          if styles.numbering_reference(tree, p) is Some((instance, level)) {
-            instances[instance] = true
-            paragraphs[p] = (instance, level)
-          }
-        }
+        selected.append(tree.table_children(cell, "p"))
       }
+    }
+  }
+  self.fragment_paragraph_numbering(tree, selected, styles, limit)
+}
+
+///|
+fn Session::fragment_paragraph_numbering(
+  self : Session,
+  tree : WordTree,
+  selected : Array[Int],
+  styles : Styles,
+  limit : Int,
+) -> (String, Map[Int, (Int, Int)]) raise @failure.Failure {
+  let instances : Map[Int, Bool] = Map([])
+  let paragraphs : Map[Int, (Int, Int)] = Map([])
+  for p in selected {
+    if styles.numbering_reference(tree, p) is Some((instance, level)) {
+      instances[instance] = true
+      paragraphs[p] = (instance, level)
     }
   }
   if instances.is_empty() {
@@ -319,7 +332,7 @@ fn Session::import_fragment_numbering(
   }
   let wrapper = tree.nodes[wrappers[0]]
   guard tree.nodes[wrapper.parent].uri == word_uri &&
-    tree.nodes[wrapper.parent].name == "tbl" &&
+    ["tbl", "body"].contains(tree.nodes[wrapper.parent].name) &&
     wrapper.attributes.is_empty() &&
     wrapper.text.trim().is_empty() &&
     tree.children[wrapper.id].length() == 1 else {

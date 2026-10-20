@@ -24,6 +24,15 @@ fn fragment_bookmark_markers(
       }
     }
   }
+  fragment_bookmark_nodes(tree, paragraphs, selected)
+}
+
+///|
+fn fragment_bookmark_nodes(
+  tree : WordTree,
+  paragraphs : Map[Int, Bool],
+  selected : Map[Int, Bool],
+) -> Map[Int, String] raise @failure.Failure {
   if selected.is_empty() {
     return Map([])
   }

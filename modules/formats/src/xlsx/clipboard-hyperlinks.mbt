@@ -62,12 +62,13 @@ fn Session::capture_hyperlinks(
   self : Session,
   sheet : Sheet,
   selected : Range,
+  complete~ : Bool = false,
 ) -> Array[CopiedHyperlink] raise @failure.Failure {
   let tree = Tree::new(sheet.document)
   let relations = self.hyperlink_relations(sheet.id)
   hyperlink_nodes(tree).filter_map(node => {
     let range = Range::parse(node.attribute("ref").unwrap_or(""))
-    if !range.intersects(selected) {
+    if !range.intersects(selected) || (complete && !selected.covers(range)) {
       return None
     }
     Some(CopiedHyperlink::{
@@ -85,13 +86,12 @@ fn Session::capture_hyperlinks(
 }
 
 ///|
-fn Session::prepare_copied_hyperlinks(
+fn Session::prepare_hyperlinks(
   self : Session,
   plan : CellEditPlan,
   index : Int,
   target : Range,
-  copied : CopiedCells,
-  transpose : Bool,
+  hyperlinks : Array[CopiedHyperlink],
 ) -> Unit raise @failure.Failure {
   let sheet = plan.sheets[index]
   let tree = Tree::new(sheet.document)
@@ -124,8 +124,8 @@ fn Session::prepare_copied_hyperlinks(
     })
   }
   let additions = StringBuilder()
-  for link in copied.hyperlinks {
-    let range = copied.rule_range(link.range, target, transpose)
+  for link in hyperlinks {
+    let range = link.range
     let destination = if link.target.has_prefix("#") {
       "location=\"\{escaped_attribute(link.target[1:].to_owned())}\""
     } else {

@@ -427,7 +427,15 @@ pub fn Session::paste_cells(
   }
   if mode == "all" {
     if change_links {
-      self.prepare_copied_hyperlinks(plan, index, target, copied, transpose)
+      self.prepare_hyperlinks(
+        plan,
+        index,
+        target,
+        copied.hyperlinks.map(link => {
+          ..link,
+          range: copied.rule_range(link.range, target, transpose),
+        }),
+      )
     }
     if change_notes {
       self.prepare_copied_notes(plan, index, target, copied, transpose)

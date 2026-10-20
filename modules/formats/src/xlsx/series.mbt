@@ -209,7 +209,8 @@ fn Session::fill_series(
     return self.query()
   }
   self.check_fill_cells(current, [source, selected])
-  self.check_fill_resources(current, selected)
+  self.check_fill_resources(current, selected, hyperlinks=true, rules=true)
+  ignore(self.hyperlink_at(current, selected))
   let merges = current.fill_merges(source, selected, direction)
   if read_filter(current) is Some(filter) &&
     !filter.settings.columns.is_empty() &&
@@ -399,5 +400,6 @@ fn Session::fill_series(
     updates,
     styles,
     merges=Some(merges),
+    fill=Some((source, selected)),
   )
 }

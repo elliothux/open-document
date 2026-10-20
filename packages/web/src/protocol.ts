@@ -377,12 +377,23 @@ export type Operation =
       selection: DocxSelection;
     }
   | {
-      operation: "tableClipboard";
+      operation: "tableClipboard" | "docxClipboard";
       revision: number;
       selection: DocxSelection;
       cut: boolean;
     }
-  | { operation: "tableFragmentImages"; revision: number; fragment: string }
+  | {
+      operation: "tableFragmentImages" | "bodyFragmentImages";
+      revision: number;
+      fragment: string;
+    }
+  | {
+      operation: "pasteBodyFragment";
+      revision: number;
+      selection: DocxSelection;
+      fragment: string;
+      profile: Record<string, string>;
+    }
   | {
       operation: "selectedText";
       revision: number;

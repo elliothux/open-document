@@ -549,7 +549,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 `editTable({ action: "pasteFragment", fragment })` 从当前主格写入片段矩形。它可替换完全覆盖的目标合并，并补足底部行和右侧列；部分覆盖合并整体拒绝。列宽、行高和表属性沿目标网格，格宽按目标跨度更新。未改格、格间注释和其他部件保留，写入、扩展、选择与精确撤销合为一项历史；不含资源身份时，相同源片段无操作；列表和图片片段每次分配独立身份。
 
-默认复制及显式“剪切单元格”同时写 `text/plain` 和 Chromium 自定义类型 `web application/x-open-document-docx-cells`。`tableClipboard(revision, selection, cut = false)` 在 `cut=true` 时检查图片的完整资源和原生删除权限，查询保持只读。剪贴板写入成功后，Web 再核对文档、revision、选择和生命周期，沿既有范围删除事务清空所选完整单元格。写入失败不修改源；切出的图片资源仍留在源包，支持精确撤销。普通文字 Cut 继续保护图片，避免仅写纯文本后丢失图片。
+默认复制及显式“剪切单元格”同时写 `text/plain` 和 Chromium 自定义类型 `web application/x-open-document-docx-cells`。`tableClipboard(revision, selection, cut = false)` 在 `cut=true` 时检查图片的完整资源和原生删除权限，查询保持只读。剪贴板写入成功后，Web 再核对文档、revision、选择和生命周期，沿既有范围删除事务清空所选完整单元格。写入失败不修改源；切出的图片资源仍留在源包，支持精确撤销。底层纯文本 selectedText(cut=true) 继续保护图片；默认正文富文本剪切归下节。
 
 默认“粘贴单元格”及 Web foundation 导出的 `pasteDocxCells(editor)` 优先读取片段；只有缺少此类型时读取 TSV。无效片段不回退成文字。读取后核对文档、revision、选择和生命周期，再沿既有编辑队列提交。
 
@@ -568,6 +568,18 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 跨格 `merge` 的 rows/columns 必须等于选区的逻辑矩形尺寸；默认面板自动填入并锁定这两个数量。已有合并格须完整位于矩形内，切开已有跨度时原子拒绝；内容按源顺序进入左上格。六种行列命令及合并均沿现有源补丁一次提交历史，撤销恢复原字节和正/反向选择，保留未删内容及其他部件。删除最后全部行或列时移除表格并进入正文。源、字体、布局及输出预算继续检查，失败不提交。
 
 跨格 `unmerge` 按实际所选主格取消合并，保持原公共网格；相交的合并格整体处理，范围外合并格及普通格保持原源。每个主格的全部文字留在原格，新格为空并继承对应源行格的框与首段格式。所有修改及布局预检合为一项历史，光标定位首个所选主格；没有合并格时保留原源、范围和 revision。未知格源、无可用文字宽度、字体及预算失败整体拒绝。指定行列拆格支持同一范围，规则归上述 `splitCell` 合同。拆表仍须选择单格，默认面板在跨格时禁用。链接、书签及批注创建沿普通文字范围规则；跨格时链接查询给出原因，默认面板禁用对应创建。跨表格、正文/表格混合范围及未知格内容沿既有保护规则；跨格边框/边距的默认面板、嵌套表格和其余结构范围操作继续实施。
+
+### 正文富文本片段
+
+`FoundationSession.clipboard(revision, selection, cut = false)` 和异步 `FoundationClient.clipboard` 返回 `DocxClipboard`：`{ kind: "body" | "cells", text, fragment, reason, selection }`。普通正文和同一单元格中的文字范围可截取部分字符及跨段落内容；跨格整格范围沿既有矩形片段。查询保持源、选择和历史。不能转移的已知内容返回纯文本及原因，图片剪切须成功生成富文本并通过原生删除保护。
+
+正文片段携带解析后的字符/段落格式、完整普通书签、链接、编号及行内 PNG/JPEG。资源校验和目标身份分配复用[单元格富文本片段](#单元格富文本片段)。`bodyFragmentImages(revision, fragment)` 只读预检图片；同步宿主先解码并注册 RGBA。`pasteBodyFragment(revision, selection, fragment, profile)` 原子替换范围；Web 自动解码，`DocumentEditor.pasteFragment(fragment)` 沿既有编辑队列提交。字体、布局、资源、历史或输出失败保留原文档。
+
+单段粘贴保留目标段落属性，源字符格式随文字插入。多段粘贴使用源段落属性，保留目标前后文字的字符格式；最后一个部分段落当前也使用源段落属性。光标停在插入末尾，继续输入继承源字符格式。文字、资源、选择和所有段落合为一项精确历史。
+
+默认 Copy/Cut 与原生快捷键携带 `text/plain` 及 Chromium 自定义类型 `web application/x-open-document-docx-body`。写入成功且文档、revision、选择仍一致时才剪切。默认粘贴面板的“保留源格式粘贴”、Ctrl/Cmd+V 和导出的 `pasteDocxSelection(editor)` 优先读取正文片段，其次读取单元格片段，缺少原生类型时粘贴纯文本。无效原生片段拒绝，读取期间目标变化保留文档。`paste(text)` 及原生普通 paste 事件继续采用纯文本路径。
+
+最多 1024 个普通段落、65536 文字单元；片段、图片、链接、书签及编号采用上述共享预算，Web 读取 Blob 前限 4 MiB。跨表与正文/表格混合结构、HTML/Markdown、批注/修订/字段及部分书签转移继续实施。实现归 [`fragment-copy.mbt`](../../modules/formats/src/docx/fragment-copy.mbt)、[`fragment-import.mbt`](../../modules/formats/src/docx/fragment-import.mbt) 和 [`fragment-paste.mbt`](../../modules/formats/src/docx/fragment-paste.mbt)。段落拆分和首尾合并参考 [ONLYOFFICE SelectedContent](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/SelectedContent.js#L1021-L1198)，未复制上游执行代码。
 
 ### 表格尺寸
 
@@ -916,7 +928,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 核心复制类型值及有效格式，文字中的 `=` 保持文字；公式只平移相对引用，保留绝对与跨表引用，越界生成 `#REF!`。受影响共享公式有界展开。值、格式、依赖缓存和选区共用既有事务、自动尺寸及一次精确历史；保存重开后可继续编辑。复制文字和公式源码累计最多 1 Mi 字符，单公式最多 8192 字符，候选、源和历史仍受既有预算约束。
 
-源或目标相交条件格式、验证或链接时拒绝填充；传统便笺保留各格原有文字与框，不随源复制，见[单元格便笺](#单元格便笺)；合并几何见下段；未知扩展、表格/透视和线程批注继续保护。范围外规则与元数据保留。默认按钮使用当前选区，沿既有队列提交原生草稿。核心已检查四向、相邻边界、类型值、有效格式、共享公式、重算、精确历史、重开及原子失败；Chromium 已检查四向按钮、原生草稿、独立公式/样式/缓存源、混合历史、保存重开和 PDF。重新打包的参数检查与严格宿主调用通过。数字序列见[数字序列](#数字序列)，基本拖动与键盘操作见[填充柄](#填充柄)。来源选择参考 [ONLYOFFICE prepareFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L27533-L27590)，实现归 [`fill.mbt`](../../modules/formats/src/xlsx/fill.mbt)。
+四向填充、序列和向外填充柄已支持普通条件格式与数据验证，细节见下段。普通链接已接通完整源范围复制及目标裁剪；传统便笺保留各格原有文字与框，不随源复制，见[单元格便笺](#单元格便笺)；合并几何见下段；未知扩展、表格/透视和线程批注继续保护。范围外规则与元数据保留。默认按钮使用当前选区，沿既有队列提交原生草稿。核心已检查四向、相邻边界、类型值、有效格式、共享公式、重算、精确历史、重开及原子失败；Chromium 已检查四向按钮、原生草稿、独立公式/样式/缓存源、混合历史、保存重开和 PDF。重新打包的参数检查与严格宿主调用通过。数字序列见[数字序列](#数字序列)，基本拖动与键盘操作见[填充柄](#填充柄)。来源选择参考 [ONLYOFFICE prepareFillHandle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L27533-L27590)，实现归 [`fill.mbt`](../../modules/formats/src/xlsx/fill.mbt)。
 
 #### 合并格填充
 
@@ -940,13 +952,27 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 词表、大小写及相邻源消歧参考 [ONLYOFFICE 时间名称自动填充](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L22051-L22165)及 [中文文化数据](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/NumFormat.js#L6090-L6120)。循环的展开/反推复用本项目整数趋势；实现归 [`series-cycle.mbt`](../../modules/formats/src/xlsx/series-cycle.mbt)与 [`series-text.mbt`](../../modules/formats/src/xlsx/series-text.mbt)。
 
+#### 条件格式与验证
+
+条件格式和数据验证随源范围按原周期扩展，覆盖目标内旧规则并保留范围外部分。复制、自动、线性、增长、日期及文本序列共用此事务。核心保留原生规则与差异样式引用、优先级相对顺序、验证提示和容器元数据；色阶、数据条的最小/最大值仍按源和新范围共同计算。向上/左填充重新绑定相对公式锚点，绝对引用及全局阈值沿既有规则变换。条件格式裁短最后一块；数据验证仅复制目标能完整容纳的源规则片段，部分尾块不保留旧验证。生成值按最终规则校验，失败保留原包、选区、修订和历史。向内缩减只清内容，保留规则与格式。
+
+规则、值、公式缓存及合并几何合为一次精确历史。相同值仍可转移不同规则，重复同一结果不新增历史。沿已有 4096 格、4096 规则/范围和 1 Mi 单元格源限制；相对规则变换沿既有 100000 格、4 Mi 公式工作及历史/输出预算，超限原子拒绝。未知规则元数据、表/透视资源和线程批注继续保护。普通链接沿下段合同复制，不自动打开外链。实现归 [`fill-rules.mbt`](../../modules/formats/src/xlsx/fill-rules.mbt)，语义参考 [ONLYOFFICE promote 的验证与条件规则扩展](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L22638-L22755)；未复制上游执行代码。
+
+#### 链接填充
+
+四向、复制、自动和其他序列只复制完整落在源范围内的普通链接，并按源周期放到能完整容纳链接的目标片段。部分源链接及不足的尾块不复制。外部 HTTP/HTTPS/mailto 目标与内部 `#` 目标保持原字符串，不按公式相对引用平移；提示与显示标签保留，格内值仍沿所选填充模式生成。核心不请求链接，默认界面继续由用户显式打开或导航。
+
+目标旧链接按本 SDK 既有矩形粘贴规则裁剪，保留范围外片段；新范围没有源链接时清除旧链接。链接、值、公式缓存、格式和普通规则合为一次精确历史；同值也能更新链接，重复结果不新增历史。关系复用现有目标身份，重开后可继续输入和内部跳转；向内缩减只清内容，保留链接及其元数据。未知/组合元数据、重叠链接、不安全地址、未解析关系及超限原子拒绝。沿 4096 格/链接、1 Mi 复制链接文字、单项标签/提示 32767 单元和 2 Mi 目标链接源码上限，以及已有历史/输出预算。
+
+完整范围与尾块规则参考 [ONLYOFFICE promote 的链接复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L22619-L22636)，缩减参考 [cleanText](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21114-L21129)。目标裁剪复用本项目的链接粘贴事务；实现归 [`fill-hyperlinks.mbt`](../../modules/formats/src/xlsx/fill-hyperlinks.mbt)和 [`clipboard-hyperlinks.mbt`](../../modules/formats/src/xlsx/clipboard-hyperlinks.mbt)，不新增公开 API。
+
 ### 填充柄
 
 普通网格在选区末格显示填充柄；RTL 使用左下角。拖动向外扩展一条行带或列带，核心按物理距离选择轴。向内拖动选择要清除的末尾行带或列带，只清内容和公式并保留格式；边界按命中格的半格位置吸附，角点附近未越过边界时无操作。拖到源起点可清空整块内容。聚焦填充柄后，方向键延伸一行或一列，左右键遵循 RTL 的物理方向。支持缩放、冻结窗格和边缘滚动。Ctrl 将向外填充切换为循环复制；单个普通数值改为逐格加一。日期/时间、文字及公式按源模式复制，公式仍平移相对引用。拖动中按下或松开 Ctrl 即可切换，释放使用当时的状态；方向键也支持 Ctrl。向内清除规则不变。双击填充柄，或聚焦后按 Enter/Space，按相邻连续区域向下自动填充。下方首行全部有内容时延伸至首个缺格行之前；部分有内容时不操作；全空时从左右及对角相连的区域推导末行，并停在目标列下一处内容之前。样式空格不延长区域，隐藏行仍参与推导；相邻筛选区域不能借作跨区向导。源内的完整合并可沿填充事务复制；源外参与推导的合并向导仍明确拒绝。没有可延伸范围时不增加修订或历史。
 
 `XlsxSession/XlsxClient.fillPreview(layoutId, target)` 接受 `{ kind: "point", x, y }`、`{ kind: "direction", direction }` 或 `{ kind: "adjacent" }`。三种 target 都接受可选布尔字段 `ctrl`，默认 false。核心返回 `source/range/direction/mode/geometry/end`。Ctrl 向外操作返回 `mode=copy` 或单个普通数字的 `mode=linear`，range 与自动向外操作相同。`mode=auto` 的 range 是源与向外目标的并集，`mode=shrink` 的 range 是待清尾带；geometry 显示此操作区域，end 定位提交后的末格。预览不改文档、选区、revision 或历史。过期布局、非法目标和超过 4096 格的范围拒绝。宿主只发送指针与键盘意图，范围和冻结裁剪由核心计算。
 
-原生草稿先独立提交，再恢复拖动前的源范围。预览不写源；释放时按预览的自动、复制、线性或缩减模式执行一次事务，后续保存排在该操作之后。未释放时，Escape、失焦、指针取消、暂停和销毁取消拖动。相交规则、链接及其他资源沿用填充保护，合并源沿下述几何规则处理；失败保持源和历史。含未渲染超链接的工作表仍按既有规则拒绝 PDF 导出。
+原生草稿先独立提交，再恢复拖动前的源范围。预览不写源；释放时按预览的自动、复制、线性或缩减模式执行一次事务，后续保存排在该操作之后。未释放时，Escape、失焦、指针取消、暂停和销毁取消拖动。普通规则沿下述填充合同扩展；向内清除内容保留原规则和格式。普通链接随同一次填充复制，向内缩减保留链接；其他未知资源继续保护，合并源沿下述几何规则处理；失败保持源和历史。普通支持的链接不阻止静态 PDF；未知工作表扩展仍明确拒绝完整输出。
 
 `editSheet({ action: "series", mode: "shrink", source, range, direction })` 提供同一缩减操作。source 是原选区，range 必须是其中完整的末尾行带（direction=up）或末尾列带（direction=left），原范围限 4096 格。保留左上区域成为选区；全清时仍选择原范围。没有内容可清时仅调整选区，不新增 revision 或历史。共享公式展开和依赖缓存复用已有单元格事务；其他单元格、行列尺寸及源元信息保持。规则依据 [ONLYOFFICE canPromote](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L21961-L22003)及[缩减仅清内容](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L22296-L22303)，实现归 [`fill-shrink.mbt`](../../modules/formats/src/xlsx/fill-shrink.mbt)。
 

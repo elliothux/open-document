@@ -3,11 +3,18 @@ import { decodeImage } from "./image.js";
 
 /** Decode incoming resources before the core commits the table and media transaction. */
 export async function prepareDocxFragmentImages(
-  client: FoundationClient,
+  client: Pick<
+    FoundationClient,
+    "tableFragmentImages" | "bodyFragmentImages" | "addImage"
+  >,
   revision: number,
   fragment: string,
+  kind: "body" | "cells" = "cells",
 ): Promise<void> {
-  const resources = await client.tableFragmentImages(revision, fragment);
+  const resources =
+    kind === "body"
+      ? await client.bodyFragmentImages(revision, fragment)
+      : await client.tableFragmentImages(revision, fragment);
   for (const image of resources.images) {
     const { bitmap, rgba } = await decodeImage(image.bytes);
     try {

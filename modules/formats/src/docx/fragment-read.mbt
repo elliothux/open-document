@@ -1,0 +1,94 @@
+///|
+fn check_fragment_content(
+  tree : WordTree,
+  nodes : Array[Int],
+  pictures : Map[Int, Bool],
+) -> Unit raise @failure.Failure {
+  let mut units = 0
+  for id in nodes {
+    let node = tree.nodes[id]
+    if pictures.contains(id) {
+      continue
+    }
+    guard node.uri == word_uri else {
+      @failure.reject(
+        "protected-content", "Foreign rich table content is unsupported",
+      )
+    }
+    if node.name == "t" {
+      guard node.text.length() <= command_limit - units else {
+        @failure.reject(
+          "limit-exceeded", "Rich table text exceeds UTF-16 budget",
+        )
+      }
+      units += node.text.length()
+    } else {
+      guard node.text.trim().is_empty() else {
+        @failure.reject(
+          "protected-content", "Rich table contains misplaced text",
+        )
+      }
+    }
+    guard (
+        node.name != "br" ||
+        node.attribute("type", uri=word_uri).unwrap_or("textWrapping") ==
+        "textWrapping"
+      ) &&
+      !node.attributes.any(a => {
+        a.name.has_suffix("Theme") ||
+        a.name.has_prefix("theme") ||
+        a.name == "cstheme"
+      }) else {
+      @failure.reject(
+        "protected-content", "Rich table contains unresolved style resources or breaks",
+      )
+    }
+    let children = match node.name {
+      "body" => ["p"]
+      "tbl" => ["tblPr", "tblGrid", "tr"]
+      "tblPr" => ["tblLayout"]
+      "tblGrid" => ["gridCol"]
+      "tr" => ["tc"]
+      "tc" => ["tcPr", "p"]
+      "tcPr" =>
+        ["tcW", "gridSpan", "vMerge", "tcBorders", "shd", "tcMar", "vAlign"]
+      "p" => ["pPr", "r", "hyperlink", "bookmarkStart", "bookmarkEnd"]
+      "hyperlink" => ["r", "bookmarkStart", "bookmarkEnd"]
+      "r" => ["rPr", "t", "tab", "br", "cr", "drawing"]
+      "pPr" =>
+        [
+          "rPr", "spacing", "ind", "jc", "pageBreakBefore", "autoSpaceDE", "autoSpaceDN",
+          "tabs", "bidi", "numPr", "outlineLvl", "keepLines", "keepNext", "widowControl",
+        ]
+      "rPr" =>
+        [
+          "rFonts", "sz", "color", "b", "i", "lang", "bCs", "iCs", "szCs", "u", "strike",
+          "highlight", "vertAlign", "cs", "rtl",
+        ]
+      "tabs" => ["tab"]
+      "numPr" => ["numId", "ilvl"]
+      "tcBorders" | "tcMar" => ["top", "left", "bottom", "right"]
+      _ => []
+    }
+    guard tree.children[id].all(child => {
+        children.contains(tree.nodes[child].name)
+      }) &&
+      !["pStyle", "rStyle"].contains(node.name) else {
+      @failure.reject(
+        "protected-content", "Rich table fragment contains unsupported references or structure",
+      )
+    }
+    if node.name == "hyperlink" {
+      tree.check_hyperlink(id)
+    }
+    if [
+        "body", "tbl", "tblPr", "tblGrid", "tr", "tc", "tcPr", "p", "pPr", "r", "rPr",
+      ].contains(node.name) {
+      guard node.attributes.is_empty() && node.text.trim().is_empty() else {
+        @failure.reject(
+          "protected-content", "Rich table identity metadata is unsupported",
+        )
+      }
+    }
+  }
+}
