@@ -72,6 +72,13 @@ pub(all) enum FooterDate {
 pub fn FooterDate::equal(Self, Self) -> Bool
 pub fn FooterDate::not_equal(Self, Self) -> Bool
 
+pub(all) struct Guide {
+  orientation : String
+  position : Double
+} derive(Eq)
+pub fn Guide::equal(Self, Self) -> Bool
+pub fn Guide::not_equal(Self, Self) -> Bool
+
 pub struct ImageTile {
   sx : Double
   sy : Double
@@ -195,6 +202,7 @@ pub struct Session {
   // private fields
 }
 pub fn Session::begin(Self, Int, String) -> Json raise @failure.Failure
+pub fn Session::begin_guide(Self, Int, Double, Double, Double) -> Json raise @failure.Failure
 pub fn Session::cancel(Self, Int, Int) -> Json raise @failure.Failure
 pub fn Session::check_idle(Self) -> Unit raise @failure.Failure
 pub fn Session::close(Self) -> Unit
@@ -296,6 +304,7 @@ pub(all) enum SlideEdit {
   Animations(Array[SlideAnimation])
   CustomShows(Array[CustomShow])
   Settings(ShowSettings)
+  Guides(Bool, Array[Guide])
   Background(BackgroundFill?)
   BackgroundImage(Bytes, String)
   BackgroundImageFormat(String, Array[Double], Double)

@@ -23,6 +23,7 @@ const names: ReadonlySet<string> = new Set([
   "selectionPptx",
   "navigatePptx",
   "beginPptx",
+  "beginGuidePptx",
   "transformPptx",
   "dragPptx",
   "finishPptx",

@@ -163,6 +163,9 @@ fn Session::slide_size_reason(self : Session) -> String {
     return reason
   }
   try {
+    if self.guide_properties() is Some(tree) {
+      ignore(guide_size_changes(tree, 1, 1))
+    }
     for tree in self.size_trees() {
       ignore(size_changes(tree, 1, 1))
     }
@@ -212,6 +215,18 @@ fn Session::set_slide_size(
   let main = Tree::new(self.main.part, document)
   let edits = [(main.part, edit)]
   let parts = self.parts.copy()
+  if self.guide_properties() is Some(tree) {
+    let changes = guide_size_changes(
+      tree,
+      width / self.width,
+      height / self.height,
+    )
+    if !changes.is_empty() {
+      let (document, edit) = tree.document.edit_source(changes)
+      parts[tree.part] = document
+      edits.push((tree.part, edit))
+    }
+  }
   let documents : Map[String, @xml.Document] = Map([])
   // ONLYOFFICE scales group child coordinates as well as each local transform.
   for tree in self.size_trees() {

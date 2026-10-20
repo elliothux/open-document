@@ -206,6 +206,7 @@ fn Foundation::dispatch(
     | "selectionPptx"
     | "navigatePptx"
     | "beginPptx"
+    | "beginGuidePptx"
     | "transformPptx"
     | "dragPptx"
     | "finishPptx"

@@ -305,6 +305,10 @@ fn Session::normalize_groups(
   index : Int,
   parts : Map[String, @xml.Document],
 ) -> (Slide, @xml.Edit?) raise @failure.Failure {
+  // Page resizing scales native group frames together; rebounding would move their origins.
+  if presentation_size(main) != (self.width, self.height) {
+    return (slide, None)
+  }
   let before = if self.slides
     .iter()
     .find_first(before => before.tree.part == slide.tree.part)

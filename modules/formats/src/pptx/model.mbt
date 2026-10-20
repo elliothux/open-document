@@ -158,6 +158,7 @@ priv struct Candidate {
   slide : Slide
   edit : @xml.Edit?
   kind : String
+  guide : GuideDrag?
 }
 
 ///|

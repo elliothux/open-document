@@ -11,7 +11,6 @@ export type { PresentationSearchResult } from "./presentation-search.js";
 import { updatePresentationObjects } from "./presentation-semantics.js";
 import {
   objectSelection,
-  pointerSelection,
   exitTextSelection,
 } from "./presentation-selection.js";
 import { PresentationCanvas } from "./presentation-canvas.js";
@@ -22,9 +21,7 @@ import {
 import { PresentationInput } from "./presentation-input.js";
 import {
   PresentationPointer,
-  presentationHandle,
-  presentationGestureKind,
-  type PresentationGesture,
+  PresentationGestures,
 } from "./presentation-pointer.js";
 import { PresentationShow } from "./presentation-show.js";
 export type { PresentationShowLabels } from "./presentation-show.js";
@@ -40,7 +37,6 @@ import type {
   PptxLayout,
   PptxGeometry,
   PptxSelection,
-  PptxPoint,
   PptxObjectEdit,
   PptxSlideEdit,
 } from "@open-document/wasm/pptx";
@@ -70,7 +66,7 @@ export class PresentationEditor extends PresentationOutput {
   private closing = false;
   private blocked = false;
   private frame = 0;
-  private gesture: PresentationGesture | undefined;
+  private readonly gestures: PresentationGestures;
 
   private constructor(
     private readonly root: HTMLElement,
@@ -148,6 +144,16 @@ export class PresentationEditor extends PresentationOutput {
       (error) => this.fail(error),
       () => this.inputEvents.active,
     );
+    this.gestures = new PresentationGestures(client, profile, {
+      state: () => this.state,
+      geometry: () => this.geometry,
+      layoutId: () => this.layout.id,
+      scale: () => this.scale,
+      select: (selection) => this.selectNow(selection),
+      focus: () => this.input.focus({ preventScroll: true }),
+      changed: (state, relayout) => this.changed(state, relayout),
+      enqueue: (operation) => this.enqueue(operation, true),
+    });
     this.pointer = new PresentationPointer(
       this.surface.canvas,
       this.listeners.signal,
@@ -157,9 +163,11 @@ export class PresentationEditor extends PresentationOutput {
           !this.state.readOnlyReason &&
           !this.inputEvents.active,
         point: (event) => this.surface.point(event, this.scale),
-        press: (point, text, extend) => this.press(point, text, extend),
-        move: (point) => this.move(point),
-        finish: (point, cancel) => this.release(point, cancel),
+        press: (point, text, extend) =>
+          this.gestures.press(point, text, extend),
+        move: (point, snap) => this.gestures.move(point, snap),
+        finish: (point, cancel, snap) =>
+          this.gestures.release(point, cancel, snap),
         fail: (error) => this.fail(error),
       },
     );
@@ -254,7 +262,7 @@ export class PresentationEditor extends PresentationOutput {
       zoom: this.zoomValue,
       selection: this.state.selection.object,
       composition: this.inputEvents?.active ?? false,
-      dragging: !!this.gesture || (this.pointer?.active ?? false),
+      dragging: this.gestures?.active || (this.pointer?.active ?? false),
       busy: this.pending,
       paused: this.paused,
       stopped: this.blocked,
@@ -292,7 +300,7 @@ export class PresentationEditor extends PresentationOutput {
       return Promise.reject(new Error("Refresh or undo before editing"));
     if (
       !gesture &&
-      (this.inputEvents.active || this.pointer.active || this.gesture)
+      (this.inputEvents.active || this.pointer.active || this.gestures.active)
     )
       return Promise.reject(
         new Error("Complete or cancel the active gesture first"),
@@ -358,7 +366,8 @@ export class PresentationEditor extends PresentationOutput {
       layoutId: this.layout.id,
     });
     this.geometry = geometry;
-    this.surface.drawSelection(geometry, this.scale, this.input);
+    const { surface, scale, input, state } = this;
+    surface.drawSelection(geometry, scale, input, state.guides);
     this.publish();
   }
   private updateSemantics(): void {
@@ -499,7 +508,7 @@ export class PresentationEditor extends PresentationOutput {
   }
   private async cancelNow(): Promise<void> {
     this.pointer.reset();
-    this.gesture = undefined;
+    this.gestures.reset();
     await this.inputEvents.cancel();
     const state = await this.client.execute({ operation: "queryPptx" });
     this.state =
@@ -643,101 +652,6 @@ export class PresentationEditor extends PresentationOutput {
         }),
       ),
     );
-  }
-  private press(
-    point: PptxPoint,
-    text: boolean,
-    extend: boolean,
-  ): Promise<void> {
-    return this.enqueue(async () => {
-      const handle = presentationHandle(
-        this.geometry,
-        this.state,
-        point,
-        this.scale,
-      );
-      const hit = await this.client.execute({
-        operation: "hitPptx",
-        layoutId: this.layout.id,
-        ...point,
-        tolerance: 4 / this.scale,
-        text: text || this.state.selection.mode === "text",
-      });
-      const selection = pointerSelection(this.state, hit, handle, text, extend);
-      await this.selectNow(selection);
-      this.gesture = {
-        start: point,
-        kind: presentationGestureKind(this.state, handle),
-        anchor: selection.anchor,
-        handle,
-      };
-    }, true);
-  }
-  private move(point: PptxPoint): Promise<void> {
-    return this.enqueue(async () => {
-      const gesture = this.gesture;
-      if (!gesture || !this.state.selection.object) return;
-      if (gesture.kind === "text") {
-        const hit = await this.client.execute({
-          operation: "hitPptx",
-          layoutId: this.layout.id,
-          ...point,
-          tolerance: 4 / this.scale,
-          text: true,
-        });
-        if (hit.object === this.state.selection.object)
-          await this.selectNow({
-            ...this.state.selection,
-            anchor: gesture.anchor,
-            focus: hit.offset,
-          });
-      } else {
-        const dx = point.x - gesture.start.x,
-          dy = point.y - gesture.start.y;
-        if (!gesture.token && Math.hypot(dx, dy) < 2 / this.scale) return;
-        if (!gesture.token) {
-          const state = await this.client.execute({
-            operation: "beginPptx",
-            revision: this.state.revision,
-            kind: gesture.kind,
-          });
-          if (state.candidateId === null)
-            throw new Error("Core did not begin drag");
-          gesture.token = { revision: state.revision, id: state.candidateId };
-          this.state = state;
-        }
-        await this.changed(
-          await this.client.execute({
-            operation: "dragPptx",
-            revision: gesture.token.revision,
-            candidateId: gesture.token.id,
-            dx,
-            dy,
-            handle: gesture.handle,
-            tolerance: 6 / this.scale,
-          }),
-          true,
-        );
-      }
-    }, true);
-  }
-  private async release(point: PptxPoint, cancel: boolean): Promise<void> {
-    if (!cancel) await this.move(point);
-    await this.enqueue(async () => {
-      const gesture = this.gesture;
-      this.gesture = undefined;
-      if (gesture?.token)
-        await this.changed(
-          await this.client.execute({
-            revision: gesture.token.revision,
-            candidateId: gesture.token.id,
-            ...(cancel
-              ? { operation: "cancelPptx" as const }
-              : { operation: "finishPptx" as const, profile: this.profile }),
-          }),
-          true,
-        );
-    }, true);
   }
   private readonly key = (event: KeyboardEvent): void => {
     const action = presentationKey(

@@ -156,12 +156,15 @@ export type {
 } from "./pptx-view.js";
 import type { PptxObject } from "./pptx-query.js";
 export type { PptxObject } from "./pptx-query.js";
+import { checkPptxGuides, type PptxGuides } from "./pptx-view.js";
+export type { PptxGuide, PptxGuides } from "./pptx-view.js";
 export interface PptxQuery extends PptxPlaybackState {
   mediaPlayback: {
     value: PptxMediaPlayback | null;
     reason: string;
   };
   editView: PptxEditView;
+  guides: PptxGuides;
   table: PptxTable | null;
   themeColors: PptxThemeColor[];
   themeFonts: PptxThemeFont[];
@@ -289,6 +292,11 @@ export type PptxCommand =
       kind: "text" | "transform" | "connector";
     }
   | ({
+      operation: "beginGuidePptx";
+      revision: number;
+      tolerance: number;
+    } & PptxPoint)
+  | ({
       operation: "transformPptx";
       revision: number;
       candidateId: number;
@@ -355,6 +363,7 @@ function integer(value: unknown, high = 0x7fffffff): void {
 }
 export function pptxQuery(value: unknown): PptxQuery {
   const query = record(value);
+  checkPptxGuides(query.guides);
   checkMediaPlaybackQuery(query.mediaPlayback);
   pptxPlaybackState(value);
   pptxThemeColors(query.themeColors);

@@ -2,6 +2,7 @@ import type {
   PptxGeometry,
   PptxPoint,
   PptxLayout,
+  PptxGuides,
 } from "@open-document/wasm/pptx";
 import { CanvasSurface } from "./canvas-surface.js";
 import { decodeImage } from "./image.js";
@@ -129,8 +130,29 @@ export class PresentationCanvas extends CanvasSurface {
     geometry: PptxGeometry,
     scale: number,
     input: HTMLTextAreaElement,
+    guides: PptxGuides,
   ): void {
     const context = this.clearOverlay(scale);
+    if (guides.visible) {
+      context.save();
+      context.strokeStyle = "#dc2626";
+      context.lineWidth = 1 / scale;
+      context.setLineDash([4 / scale, 4 / scale]);
+      const width = this.canvas.getBoundingClientRect().width / scale,
+        height = this.canvas.getBoundingClientRect().height / scale;
+      context.beginPath();
+      for (const guide of guides.items) {
+        if (guide.orientation === "horz") {
+          context.moveTo(0, guide.position);
+          context.lineTo(width, guide.position);
+        } else {
+          context.moveTo(guide.position, 0);
+          context.lineTo(guide.position, height);
+        }
+      }
+      context.stroke();
+      context.restore();
+    }
     const polygon = (points: PptxPoint[]) => {
       context.beginPath();
       for (const [i, point] of points.entries())

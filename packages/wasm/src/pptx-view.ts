@@ -1,4 +1,37 @@
 import { record, hasFields } from "./validation.js";
+
+export interface PptxGuide {
+  orientation: "horz" | "vert";
+  position: number;
+}
+export interface PptxGuides {
+  visible: boolean;
+  items: PptxGuide[];
+  reason: string;
+}
+export function checkPptxGuides(value: unknown): void {
+  const guides = record(value);
+  if (
+    typeof guides.visible !== "boolean" ||
+    typeof guides.reason !== "string" ||
+    guides.reason.length > 8192 ||
+    !Array.isArray(guides.items) ||
+    guides.items.length > 64
+  )
+    throw new Error("Invalid presentation guides");
+  for (const item of guides.items) {
+    const guide = record(item);
+    if (
+      Object.keys(guide).length !== 2 ||
+      (guide.orientation !== "horz" && guide.orientation !== "vert") ||
+      typeof guide.position !== "number" ||
+      !Number.isFinite(guide.position) ||
+      guide.position < -268435456 ||
+      guide.position > 268435455.875
+    )
+      throw new Error("Invalid presentation guide");
+  }
+}
 import {
   checkPptxTextFormat,
   checkPptxParagraphFormat,

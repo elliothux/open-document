@@ -560,3 +560,7 @@
   max-height: 12rem;
   overflow: auto;
 }
+.od-guide-list {
+  max-height: 8rem;
+  overflow: auto;
+}

@@ -1,4 +1,16 @@
 export const viewEn = {
+  pptxGuides: "Slide guides",
+  pptxShowGuides: "Show guides",
+  pptxGuidesHint:
+    "Positions are in points from the top or left edge. Guides appear only while editing. Drag objects to align with guides; hold Alt to move freely.",
+  pptxAddHorizontalGuide: "Add horizontal guide",
+  pptxAddVerticalGuide: "Add vertical guide",
+  pptxHorizontalGuide: "Horizontal guide",
+  pptxVerticalGuide: "Vertical guide",
+  pptxGuidePosition: "Guide position",
+  pptxRemoveGuide: "Remove guide",
+  pptxClearGuides: "Clear guides",
+  pptxApplyGuides: "Apply guides",
   pptxMasterParagraph: "Default paragraph and list",
   pptxResetMasterParagraph: "Restore default paragraph inheritance",
   pptxMasterText: "Master default text",
@@ -41,6 +53,18 @@ export const viewEn = {
   pptxCopyMaster: "Copy master",
 };
 export const viewZh = {
+  pptxGuides: "幻灯片辅助线",
+  pptxShowGuides: "显示辅助线",
+  pptxGuidesHint:
+    "位置以磅计，从顶部或左侧起算。辅助线仅在编辑时显示。拖动对象时吸附辅助线，按住 Alt 可自由移动。",
+  pptxAddHorizontalGuide: "添加水平辅助线",
+  pptxAddVerticalGuide: "添加垂直辅助线",
+  pptxHorizontalGuide: "水平辅助线",
+  pptxVerticalGuide: "垂直辅助线",
+  pptxGuidePosition: "辅助线位置",
+  pptxRemoveGuide: "移除辅助线",
+  pptxClearGuides: "清空辅助线",
+  pptxApplyGuides: "应用辅助线",
   pptxMasterParagraph: "默认段落和列表",
   pptxResetMasterParagraph: "恢复默认段落继承",
   pptxMasterText: "母版默认文字",

@@ -1,21 +1,4 @@
 ///|
-fn pptx_objects(request : Json) -> Array[String] raise @failure.Failure {
-  guard request is Object(fields) &&
-    fields.get("objects") is Some(Array(values)) &&
-    values.length() <= 256 else {
-    @failure.reject(
-      "invalid-operation", "A bounded object selection is required",
-    )
-  }
-  values.map(value => {
-    guard value is String(id) && id.length() <= 1024 else {
-      @failure.reject("invalid-object", "Invalid selected object identity")
-    }
-    id
-  })
-}
-
-///|
 fn Foundation::pptx_operation(
   self : Foundation,
   operation : String,
@@ -123,6 +106,7 @@ fn Foundation::pptx_operation(
         @failure.reject("invalid-operation", "Slide edit is required")
       }
       let change = match field_string(change, "action") {
+        "guides" => pptx_guide_edit(change)
         "showSettings" => pptx_show_settings(change)
         "customShows" => {
           guard change is { "value": Array(items), .. } && items.length() <= 32 else {
@@ -668,6 +652,13 @@ fn Foundation::pptx_operation(
         field_int(request, "layoutId"),
         field_string(request, "direction"),
         xlsx_boolean(request, "extend"),
+      )
+    "beginGuidePptx" =>
+      session.begin_guide(
+        field_int(request, "revision"),
+        xlsx_number(request, "x"),
+        xlsx_number(request, "y"),
+        xlsx_number(request, "tolerance"),
       )
     "beginPptx" =>
       session.begin(

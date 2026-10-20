@@ -530,6 +530,7 @@ pub fn Session::begin(
     slide: self.current(),
     edit: None,
     kind,
+    guide: None,
   })
   self.query()
 }
@@ -570,6 +571,12 @@ pub fn Session::finish(
   profile : Map[String, String],
 ) -> Json raise @failure.Failure {
   let candidate = self.gesture(revision, id)
+  if candidate.guide is Some(guide) {
+    ignore(self.commit_guide(guide))
+    self.candidate = None
+    self.view = None
+    return self.query()
+  }
   let original = self.source_slide(self.selection.slide)
   let prepared = if candidate.kind == "transform" {
     let changes : Array[@xml.SourceChange] = []
@@ -692,9 +699,13 @@ pub fn Session::drag(
   if candidate.kind == "connector" {
     return self.drag_connector(candidate, dx, dy, handle, tolerance)
   }
+  if candidate.guide is Some(guide) {
+    return self.drag_guide(candidate, guide, dx, dy, handle)
+  }
   guard candidate.kind == "transform" else {
     @failure.reject("invalid-operation", "Not an object drag gesture")
   }
+  let (dx, dy) = self.snap_drag_to_guides(dx, dy, handle, tolerance)
   let object = self
     .source_slide(self.selection.slide)
     .object(self.selection.object)

@@ -1711,7 +1711,27 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `PresentationEditor.editSlides({ action: "size", width, height })` 修改全稿尺寸，单位为 pt，每边 1–14400，核心取整到 EMU。默认 UI 提供 16:9、4:3 和自定义宽高。`query.width/height` 返回实际尺寸，`slideSizeReason` 返回保护原因。各轴按新旧尺寸比例缩放全部页面及关联版式、母版的本地位置与尺寸；组的子坐标原点、范围及成员同时缩放。字号、描边宽度、旋转/翻转、对象身份、选择与其他资源保持。该规则依据 [ONLYOFFICE Presentation.changeSlideSizeFunction](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L805-L850)、[Shape.changeSize](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L3235-L3266)和 [GroupShape.changeSize](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L789-L805)。
 
-尺寸、页面和设计部件合为一次有界历史。相同实际尺寸不新增历史；旧 revision、活动候选、保护、坐标越界和输出/历史预算失败原子拒绝。图表/表格等未知页面对象、未知变换坐标和非空参考线暂时保护尺寸调整。未知部件与原有源片段保留。保存重开及 Canvas/PDF 使用相同的新尺寸和几何；反复改变比例可能产生 EMU 取整，撤销恢复原始源字节。
+尺寸、页面和设计部件合为一次有界历史。相同实际尺寸不新增历史；旧 revision、活动候选、保护、坐标越界和输出/历史预算失败原子拒绝。图表/表格等未知页面对象、未知变换坐标和未支持的扩展辅助线保护尺寸调整。原生视图辅助线同步按轴缩放，组不再次重算边界，保留缩放后的子坐标原点。未知部件与原有源片段保留。保存重开及 Canvas/PDF 使用相同的新尺寸和几何；反复改变比例可能产生 EMU 或辅助线坐标取整，撤销恢复原始源字节。
+
+### 幻灯片辅助线
+
+`PresentationEditor.editSlides({ action: "guides", visible, items })` 修改文稿的原生视图辅助线。同步 Wasm/Worker 使用相同的 `editPptxSlides` 命令；核心使用 `SlideEdit::Guides`。`PptxQuery.guides` 返回 `{ visible, items, reason }`。`PptxGuide` 为 `{ orientation: "horz" | "vert", position: number }`，`position` 从页面顶部或左侧起算，单位为磅。`PptxGuide` 和 `PptxGuides` 从 `wasm/pptx` 与 `web/pptx` 导出。
+
+一次命令提交完整列表与显示设置，最多 64 条。核心将有限位置取整到 1/8 磅，原生 `pos` 保持有符号 32 位整数，允许页面外的位置。默认面板可新增水平或垂直线、修改位置、移除单线或清空；新增从页面中点开始，同向后续线向后偏移 12.5 磅并限制在页面边界。面板草稿须显式应用。编辑 Canvas 以虚线显示，隐藏保留列表；放映及静态 PNG/JPEG/PDF 使用内容布局，不包含辅助线。
+
+写回只改 `viewProps` 中的 `slideViewPr/cSldViewPr` 显示属性与 `guideLst`。缺少视图部件时创建标准部件、关系和内容类型，合为一项精确历史。其他视图设置、吸附属性、外围注释、页面内容、选择和对象身份保留。页面改尺寸时，水平位置按高度比例、垂直位置按宽度比例一起缩放。相同实际值无操作；旧 revision、活动候选/放映、修改保护、歧义或外部视图关系、未知辅助线结构或范围内注释及资源失败整体拒绝并保留原包。
+
+编辑 Canvas 已支持拖动。已选对象及其尺寸手柄优先，其他位置按 4 个屏幕像素的容差查找辅助线；交叉或重叠时选择源顺序最后的一条。`beginGuidePptx` 接收 `{ revision, x, y, tolerance }`，核心未命中或辅助线隐藏时返回无候选的当前查询；命中则返回既有 `candidateId`。后续使用 `dragPptx` 的相对指针位移和 `handle: 0`，只改变水平线的纵坐标或垂直线的横坐标，在页面边缘按原生精度取整。横向移动水平线、纵向移动垂直线以及零位移均不改位置。
+
+拖动预览只更新候选及 `guides.items`，保持 revision、原生源和历史。`cancelPptx` 或默认输入的 Escape/指针取消恢复原值；`finishPptx` 复用既有提交、预算和精确历史，成功移动只新增一项。活动候选期间，保存、结构修改及其他编辑继续沿既有保护。普通数值面板仍提供键盘可操作入口。移动与边界规则参考 [ONLYOFFICE CGuideTrack](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/MoveTracks.js#L954-L1025)。候选实现归 [`guide-gesture.mbt`](../../modules/formats/src/pptx/guide-gesture.mbt)，平台指针队列归 [`presentation-pointer.ts`](../../packages/web/src/presentation-pointer.ts)。
+
+对象移动和角点缩放已支持吸附辅助线。移动按各叶对象的四个变换后角点与中心计算，整组使用成员点，多选使用全部所选点。缩放使用所拖角点；组内对象和多选框沿同一世界坐标计算，再回到原有父坐标变换。两个轴各取容差内绝对距离最小的修正，等距保留先遇到的对象点和辅助线。某轴位移为零时保持该轴，最小尺寸、文字适配和资源限制继续生效。
+
+`dragPptx.tolerance` 沿用页面磅值，缺省为 0，不吸附。默认指针使用 6 个屏幕像素换算的容差，按住 Alt 或在释放时保留 Alt 则传 0；预览队列和最终指针位置保留修饰键。键盘移动、数值变换仍按明确坐标定位。隐藏只控制辅助线显示，已有位置仍可吸附；清空列表移除这些目标。未知辅助线保留原源，不参与吸附，其原因继续显示于 `guides.reason`。取消、一次提交、精确历史和保存重开共用原有对象事务，辅助线部件不因对象吸附而改写。
+
+取点与最近距离依据 [ONLYOFFICE calculateSnapArrays](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicObjectBase.js#L733-L746)、[最近点](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L10510-L10557)及[移动轴修正](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/States.js#L1633-L1736)。实现归 [`guide-snap.mbt`](../../modules/formats/src/pptx/guide-snap.mbt)。默认辅助线列表有高度上限并可滚动，避免大量条目占满编辑区。
+
+位置换算及新增规则参考 [ONLYOFFICE ViewPr](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ViewPr.js#L441-L452)、[新增](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ViewPr.js#L576-L618)及[缩放](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ViewPr.js#L774-L781)；原生部件结构参考 [ONLYOFFICE CSldViewPr](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/ViewProps/CSldViewPr.cpp)。实现归 [`guides.mbt`](../../modules/formats/src/pptx/guides.mbt)与 [`pptx-guides.tsx`](../../packages/ui/src/pptx-guides.tsx)。网格、对象对齐吸附、母版/版式的扩展辅助线及备注辅助线继续实施。
 
 页面背景使用 `PresentationEditor.editSlides({ action: "background", value }, slide?)`。`value` 是 `PptxBackgroundFill`：纯色为 `{ kind: "solid", color }`，线性渐变为 `{ kind: "linear", stops, angle, scaled }`。`stops` 含 2–32 项 `{ position, color, opacity }`，颜色均为不带 `#` 的六位 RGB。`null` 移除本页背景并恢复版式、母版继承。`query.background` 返回有效 `value`、本页是否设置 `explicit` 与保护原因 `reason`；没有背景时返回白色纯色。`value` 的查询类型为 `PptxBackground`，还包含下节的图片背景；两个类型均由 `wasm/pptx` 和 `web/pptx` 导出。核心使用 `BackgroundFill`。
 

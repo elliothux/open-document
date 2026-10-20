@@ -14,6 +14,8 @@ import {
 import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type {
   PptxQuery,
+  PptxGuide,
+  PptxGuides,
   PptxMedia,
   PptxMediaPlayback,
   PptxPlaceholder,

@@ -5,6 +5,7 @@ import { messages } from "./messages.js";
 import type { OwnedFile } from "./types.js";
 import { DocxFormatCommands, DocxProperties } from "./docx-format.js";
 import { PptxDesign } from "./pptx-design.js";
+import { PptxGuides } from "./pptx-guides.js";
 import { PptxObjects } from "./pptx-objects.js";
 import { PptxArrange, PptxTransform } from "./pptx-arrange.js";
 import { PptxAlignment } from "./pptx-alignment.js";
@@ -252,6 +253,13 @@ export function FormatCommands(props: PanelProps & { tab: string }) {
         />
         <PptxSize
           key={`${file.editor.getSnapshot().documentId}:${query.revision}`}
+          controller={controller}
+          state={state}
+          file={file}
+          disabled={disabled}
+        />
+        <PptxGuides
+          key={`guides:${file.editor.getSnapshot().documentId}:${JSON.stringify(query.guides)}`}
           controller={controller}
           state={state}
           file={file}
