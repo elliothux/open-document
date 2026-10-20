@@ -25,11 +25,19 @@ fn builtin_style_properties(
       ("Caption", "caption", "paragraph"),
       ("Hyperlink", "hyperlink", "character"),
       ("FollowedHyperlink", "followedhyperlink", "character"),
+      ("Title", "title", "paragraph"),
+      ("TitleChar", "title char", "character"),
+      ("Subtitle", "subtitle", "paragraph"),
+      ("SubtitleChar", "subtitle char", "character"),
     ]
     .iter()
     .find_first(p => kind == p.2 && (key == p.0 || name == p.1))
   guard preset is Some((key, _, _)) else { return None }
   let paragraph = match key {
+    "Title" =>
+      "<od:pPr xmlns:od=\"\{word_uri}\"><od:spacing od:after=\"80\" od:line=\"240\" od:lineRule=\"auto\"/><od:contextualSpacing/></od:pPr>"
+    "Subtitle" =>
+      "<od:pPr xmlns:od=\"\{word_uri}\"><od:numPr><od:ilvl od:val=\"1\"/></od:numPr></od:pPr>"
     "NoSpacing" =>
       "<od:pPr xmlns:od=\"\{word_uri}\"><od:spacing od:after=\"0\" od:line=\"240\" od:lineRule=\"auto\"/></od:pPr>"
     "Quote" =>
@@ -38,10 +46,19 @@ fn builtin_style_properties(
       "<od:pPr xmlns:od=\"\{word_uri}\"><od:spacing od:after=\"200\" od:line=\"240\" od:lineRule=\"auto\"/></od:pPr>"
     _ => ""
   }
+  if key == "Title" || key == "TitleChar" {
+    return Some(
+      (
+        paragraph,
+        "<od:rPr xmlns:od=\"\{word_uri}\"><od:rFonts od:ascii=\"Arial\" od:hAnsi=\"Arial\" od:eastAsia=\"Arial\" od:cs=\"Arial\"/><od:spacing od:val=\"-10\"/><od:sz od:val=\"56\"/><od:szCs od:val=\"56\"/></od:rPr>",
+      ),
+    )
+  }
   let (color, theme, transform) = match key {
     "Hyperlink" => ("0563C1", "hlink", "")
     "FollowedHyperlink" => ("954F72", "folHlink", "")
     "Caption" => ("0E2841", "text2", "")
+    "Subtitle" | "SubtitleChar" => ("595959", "text1", " od:themeTint=\"A6\"")
     "IntenseEmphasis" | "IntenseQuoteChar" =>
       ("0F4761", "accent1", " od:themeShade=\"BF\"")
     _ => ("404040", "text1", " od:themeTint=\"BF\"")
@@ -63,13 +80,16 @@ fn builtin_style_properties(
     } else {
       ""
     }
-    let size = if key == "Caption" {
-      "<od:sz od:val=\"18\"/><od:szCs od:val=\"18\"/>"
-    } else {
-      ""
+    let size = match key {
+      "Caption" => "<od:sz od:val=\"18\"/><od:szCs od:val=\"18\"/>"
+      "Subtitle" | "SubtitleChar" =>
+        "<od:spacing od:val=\"15\"/><od:sz od:val=\"28\"/><od:szCs od:val=\"28\"/>"
+      _ => ""
     }
     let decoration = if key == "Hyperlink" || key == "FollowedHyperlink" {
       "<od:u od:val=\"single\"/>"
+    } else if key == "Subtitle" || key == "SubtitleChar" {
+      ""
     } else {
       "<od:i/><od:iCs/>"
     }

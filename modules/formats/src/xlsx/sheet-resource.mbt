@@ -12,14 +12,24 @@ fn Session::create_sheet_resource(
   ignore(directory.pop())
   let prefix = if directory.is_empty() { "" } else { directory.join("/") + "/" }
   let extension = if kind == "vmlDrawing" { "vml" } else { "xml" }
-  let folder = if kind == "table" {
+  let folder = if kind == "pivotTable" {
+    "pivotTables"
+  } else if kind == "pivotCacheDefinition" || kind == "pivotCacheRecords" {
+    "pivotCache"
+  } else if kind == "table" {
     "tables"
   } else if kind == "comments" {
     "comments"
   } else {
     "drawings"
   }
-  let stem = if kind == "table" { "odTable" } else { "odNotes" }
+  let stem = if kind.has_prefix("pivot") {
+    "od" + kind
+  } else if kind == "table" {
+    "odTable"
+  } else {
+    "odNotes"
+  }
   let part = for i in 1..<=self.budget.entries {
     let candidate = prefix + folder + "/\{stem}\{i}.\{extension}"
     if !self.opc.names.contains(candidate.to_lower()) &&
@@ -52,7 +62,13 @@ fn Session::create_sheet_resource(
     None
   }
   let id = for i in 1..<=16384 {
-    let id = (if kind == "table" { "odTable" } else { "odNote" }) +
+    let id = (if kind.has_prefix("pivot") {
+        "od" + kind
+      } else if kind == "table" {
+        "odTable"
+      } else {
+        "odNote"
+      }) +
       i.to_string()
     if !links.any(l => l.owner == owner && l.id == id) &&
       !existing
@@ -86,7 +102,9 @@ fn Session::create_sheet_resource(
   }
   let path = "[Content_Types].xml"
   let original = parts.get(path).unwrap_or_else(() => self.part_xml(path))
-  let content_type = if kind == "table" {
+  let content_type = if kind.has_prefix("pivot") {
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.\{kind}+xml"
+  } else if kind == "table" {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml"
   } else if kind == "comments" {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"

@@ -64,7 +64,7 @@ fn ParagraphFormat::properties(
       for
         name in [
           "jc", "spacing", "ind", "pageBreakBefore", "keepLines", "keepNext", "widowControl",
-          "bidi", "outlineLvl",
+          "bidi", "outlineLvl", "contextualSpacing",
         ] {
         result[name] = None
       }

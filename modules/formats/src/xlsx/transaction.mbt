@@ -12,6 +12,7 @@ fn Session::commit(
   deleted~ : Sheet? = None,
   removed~ : Map[String, @xml.Document] = Map([]),
   table_edits~ : Array[String] = [],
+  pivot_edits~ : Array[String] = [],
   font_context~ : (@layout.TextProbe, Map[String, String])? = self.font_context,
   fit_work~ : FitWork = {
     axes: 0,
@@ -25,6 +26,8 @@ fn Session::commit(
     },
   },
 ) -> Unit raise @failure.Failure {
+  let parts = parts.copy()
+  self.maintain_pivots(sheets, calculation, parts, edits, pivot_edits)
   self.protect_table_cells(sheets, calculation.names.tables, edited=table_edits)
   guard self.revision < 2147483647 else {
     @failure.reject("limit-exceeded", "Workbook revision exhausted")

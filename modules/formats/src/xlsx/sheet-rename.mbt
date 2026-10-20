@@ -65,6 +65,7 @@ fn Session::sheet_rename_reason(
   self : Session,
   structure~ : Bool = true,
   tables~ : Bool = false,
+  pivots~ : Bool = false,
 ) -> String {
   try {
     let reason = self.sheet_edit_reason(structure~)
@@ -73,12 +74,14 @@ fn Session::sheet_rename_reason(
     }
     for rel in self.relationships() {
       if rel.owner == self.main &&
+        !(pivots && rel.kind == relationship_uri + "pivotCacheDefinition") &&
         !["worksheet", "styles", "sharedStrings", "theme", "calcChain"].any(kind => {
           rel.kind == relationship_uri + kind
         }) {
         return "Workbook resource references require renaming support"
       }
       if self.sheets.any(sheet => sheet.id == rel.owner) &&
+        !(pivots && rel.kind == relationship_uri + "pivotTable") &&
         !(tables && rel.kind == relationship_uri + "table") &&
         !["hyperlink", "comments", "vmlDrawing"].any(kind => {
           rel.kind == relationship_uri + kind

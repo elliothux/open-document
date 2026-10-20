@@ -1,0 +1,526 @@
+///|
+fn pivot_plain_source(document : @xml.Document) -> Unit raise @failure.Failure {
+  let root = document.nodes()[0]
+  let source = document.source()[root.start:root.end]
+  guard !source.contains("<!--") && !source.contains("<?") else {
+    @failure.reject(
+      "protected-content", "Pivot source comments or processing instructions require preservation support",
+    )
+  }
+}
+
+///|
+fn Session::pivot_settings(
+  self : Session,
+  pivot : PivotLocation,
+) -> (PivotSettings, String) raise @failure.Failure {
+  let document = self.part_xml(pivot.part)
+  pivot_plain_source(document)
+  let tree = Tree::new(document)
+  let root = tree.root("pivotTableDefinition")
+  conditional_node(
+    tree,
+    root,
+    [
+      "name", "cacheId", "dataCaption", "rowGrandTotals", "colGrandTotals", "compact",
+      "compactData", "outline", "outlineData", "gridDropZones", "createdVersion",
+      "updatedVersion", "minRefreshableVersion",
+    ],
+    [
+      "location", "pivotFields", "rowFields", "rowItems", "colFields", "colItems",
+      "dataFields",
+    ],
+  )
+  if tree.one(root.id, "location") is Some(location) {
+    conditional_node(
+      tree,
+      location,
+      ["ref", "firstHeaderRow", "firstDataRow", "firstDataCol"],
+      [],
+    )
+  }
+  guard flag(root, "rowGrandTotals", fallback=true) &&
+    !flag(root, "colGrandTotals", fallback=true) &&
+    !flag(root, "compact", fallback=true) &&
+    !flag(root, "outline") &&
+    pivot.sourceSheet is Some(source_sheet) &&
+    pivot.source is Some(source) else {
+    @failure.reject(
+      "protected-content", "Pivot layout or source requires additional editing support",
+    )
+  }
+  let rows = tree
+    .one(root.id, "rowFields")
+    .map(node => {
+      tree
+      .all(node.id, "field")
+      .map(field => {
+        conditional_node(tree, field, ["x"], [])
+        natural(field.attribute("x").unwrap_or(""), 63)
+      })
+    })
+    .unwrap_or([])
+  let values = tree
+    .one(root.id, "dataFields")
+    .map(node => {
+      tree
+      .all(node.id, "dataField")
+      .map(field => {
+        conditional_node(tree, field, ["name", "fld", "subtotal"], [])
+        PivotValue::{
+          field: natural(field.attribute("fld").unwrap_or(""), 63),
+          aggregate: field.attribute("subtotal").unwrap_or("sum"),
+          name: decode_text(field.attribute("name").unwrap_or("")),
+        }
+      })
+    })
+    .unwrap_or([])
+  let settings : PivotSettings = {
+    sourceSheet: source_sheet,
+    source: source.name(),
+    rows,
+    values,
+  }
+  ignore(settings.validate())
+  guard tree.one(root.id, "location") is Some(location) &&
+    location.attribute("firstHeaderRow") == Some("0") &&
+    location.attribute("firstDataRow") == Some("1") &&
+    location.attribute("firstDataCol") == Some(rows.length().to_string()) else {
+    @failure.reject(
+      "protected-content", "Extended pivot header layout requires support",
+    )
+  }
+  let fields = tree
+    .one(root.id, "pivotFields")
+    .unwrap_or_error(
+      @failure.Failure(
+        code="malformed-xlsx",
+        message="Missing pivot fields",
+        part=pivot.part,
+        offset=-1,
+      ),
+    )
+  let field_nodes = tree.all(fields.id, "pivotField")
+  guard field_nodes.length() == source.right - source.left + 1 else {
+    @failure.reject(
+      "protected-content", "Pivot field count disagrees with source",
+    )
+  }
+  for index, field in field_nodes {
+    conditional_node(
+      tree,
+      field,
+      ["axis", "dataField", "defaultSubtotal", "showAll", "compact", "outline"],
+      ["items"],
+    )
+    guard field.attribute("axis") ==
+      (if rows.contains(index) { Some("axisRow") } else { None }) &&
+      flag(field, "dataField") == values.any(value => value.field == index) &&
+      !flag(field, "defaultSubtotal", fallback=true) &&
+      !flag(field, "showAll", fallback=true) &&
+      !flag(field, "compact", fallback=true) &&
+      !flag(field, "outline", fallback=true) else {
+      @failure.reject(
+        "protected-content", "Pivot field grouping, visibility or subtotal requires support",
+      )
+    }
+    if tree.one(field.id, "items") is Some(items) {
+      conditional_node(tree, items, ["count"], ["item"])
+      for index, item in tree.all(items.id, "item") {
+        conditional_node(tree, item, ["x"], [])
+        guard item.attribute("x") == Some(index.to_string()) else {
+          @failure.reject(
+            "protected-content", "Manual pivot item order requires refresh support",
+          )
+        }
+      }
+    }
+  }
+  for name in ["rowFields", "rowItems", "colFields", "colItems", "dataFields"] {
+    if tree.one(root.id, name) is Some(node) {
+      conditional_node(
+        tree,
+        node,
+        ["count"],
+        if name == "rowFields" || name == "colFields" {
+          ["field"]
+        } else if name == "dataFields" {
+          ["dataField"]
+        } else {
+          ["i"]
+        },
+      )
+      if name == "rowItems" || name == "colItems" {
+        for item in tree.all(node.id, "i") {
+          conditional_node(tree, item, ["t", "r", "i"], ["x"])
+          guard [None, Some("data"), Some("grand")].contains(
+            item.attribute("t"),
+          ) else {
+            @failure.reject(
+              "protected-content", "Pivot subtotals require layout support",
+            )
+          }
+          for x in tree.all(item.id, "x") {
+            conditional_node(tree, x, ["v"], [])
+          }
+        }
+      }
+    }
+  }
+  let columns = tree
+    .one(root.id, "colFields")
+    .map(node => tree.all(node.id, "field"))
+    .unwrap_or([])
+  guard (values.length() == 1 && columns.is_empty()) ||
+    (
+      values.length() > 1 &&
+      columns is [field] &&
+      field.attribute("x") == Some("-2")
+    ) else {
+    @failure.reject(
+      "protected-content", "Pivot column dimensions require layout support",
+    )
+  }
+  for field in columns {
+    conditional_node(tree, field, ["x"], [])
+  }
+  let links = self.relationships()
+  guard links.filter(link => {
+      link.kind == relationship_uri + "pivotCacheDefinition" &&
+      link.owner != self.main &&
+      link.target == pivot.cache
+    })
+    is [owner] &&
+    owner.owner == pivot.part &&
+    links.filter(link => {
+      link.owner == pivot.cache &&
+      link.kind == relationship_uri + "pivotCacheRecords"
+    })
+    is [records] &&
+    !records.external else {
+    @failure.reject(
+      "protected-content", "Shared or external pivot caches require coordinated refresh",
+    )
+  }
+  let cache = self.part_xml(pivot.cache)
+  pivot_plain_source(cache)
+  let cache_tree = Tree::new(cache)
+  let cache_root = cache_tree.root("pivotCacheDefinition")
+  guard cache_root.attribute(
+      "id",
+      uri=relationship_uri[:relationship_uri.length() - 1].to_owned(),
+    ) ==
+    Some(records.id) else {
+    @failure.reject(
+      "malformed-xlsx", "Pivot record relationship disagrees with cache",
+    )
+  }
+  for node in cache.nodes() {
+    let children = match node.name {
+      "pivotCacheDefinition" => ["cacheSource", "cacheFields"]
+      "cacheSource" => ["worksheetSource"]
+      "cacheFields" => ["cacheField"]
+      "cacheField" => ["sharedItems"]
+      "sharedItems" => ["n", "s", "b", "e", "m"]
+      _ => []
+    }
+    if node.id != 0 {
+      let attributes = match node.name {
+        "cacheSource" => ["type"]
+        "worksheetSource" => ["ref", "sheet"]
+        "cacheFields" => ["count"]
+        "cacheField" => ["name"]
+        "sharedItems" =>
+          [
+            "count", "containsNumber", "containsString", "containsBlank", "containsNonDate",
+            "containsSemiMixedTypes", "containsMixedTypes", "containsInteger", "longText",
+          ]
+        "n" | "s" | "b" | "e" => ["v"]
+        _ => []
+      }
+      conditional_node(cache_tree, node, attributes, children)
+    }
+  }
+  guard cache_root.attributes.all(attribute => {
+      (
+        attribute.uri ==
+        relationship_uri[:relationship_uri.length() - 1].to_owned() &&
+        attribute.name == "id"
+      ) ||
+      (
+        attribute.uri.is_empty() &&
+        [
+          "recordCount", "saveData", "refreshOnLoad", "enableRefresh", "invalid",
+          "createdVersion", "refreshedVersion", "minRefreshableVersion",
+        ].contains(attribute.name)
+      )
+    }) &&
+    cache_tree.children
+    .get(cache_root.id)
+    .unwrap_or([])
+    .all(node => {
+      node.uri == spreadsheet_uri &&
+      ["cacheSource", "cacheFields"].contains(node.name)
+    }) &&
+    flag(cache_root, "enableRefresh", fallback=true) &&
+    flag(cache_root, "saveData", fallback=true) else {
+    @failure.reject(
+      "protected-content", "Extended pivot cache metadata requires support",
+    )
+  }
+  let data = self.part_xml(records.target)
+  pivot_plain_source(data)
+  let data_tree = Tree::new(data)
+  let data_root = data_tree.root("pivotCacheRecords")
+  let cache_fields = cache_tree
+    .one(cache_root.id, "cacheFields")
+    .map(node => cache_tree.all(node.id, "cacheField"))
+    .unwrap_or([])
+  guard cache_fields.length() == field_nodes.length() &&
+    cache_tree
+    .one(cache_root.id, "cacheSource")
+    .map(node => node.attribute("type") == Some("worksheet"))
+    .unwrap_or(false) else {
+    @failure.reject(
+      "malformed-xlsx", "Pivot cache source or field count is invalid",
+    )
+  }
+  let counts = cache_fields.map(field => {
+    cache_tree
+    .one(field.id, "sharedItems")
+    .map(node => cache_tree.children.get(node.id).unwrap_or([]).length())
+    .unwrap_or(0)
+  })
+  let cache_rows = data_tree.all(data_root.id, "r")
+  guard natural(data_root.attribute("count").unwrap_or("0"), 65536) ==
+    cache_rows.length() &&
+    natural(cache_root.attribute("recordCount").unwrap_or("0"), 65536) ==
+    cache_rows.length() else {
+    @failure.reject(
+      "malformed-xlsx", "Pivot cache record count is inconsistent",
+    )
+  }
+  for row in cache_rows {
+    let values = data_tree.children.get(row.id).unwrap_or([])
+    guard values.length() == counts.length() else {
+      @failure.reject(
+        "malformed-xlsx", "Pivot cache record width is inconsistent",
+      )
+    }
+    for field, item in values {
+      if item.name == "x" {
+        guard counts[field] > 0 &&
+          natural(item.attribute("v").unwrap_or(""), 65535) < counts[field] else {
+          @failure.reject(
+            "malformed-xlsx", "Pivot cache record index is invalid",
+          )
+        }
+      }
+    }
+  }
+  for node in data.nodes() {
+    conditional_node(
+      data_tree,
+      node,
+      if node.name == "pivotCacheRecords" {
+        ["count"]
+      } else if node.name == "r" || node.name == "m" {
+        []
+      } else {
+        ["v"]
+      },
+      if node.name == "pivotCacheRecords" {
+        ["r"]
+      } else if node.name == "r" {
+        ["x", "n", "s", "b", "e", "m"]
+      } else {
+        []
+      },
+    )
+  }
+  (settings, records.target)
+}
+
+///|
+/// Refreshes a supported native row pivot atomically; expansion never overwrites existing content.
+pub fn Session::refresh_pivot(
+  self : Session,
+  revision : Int,
+  sheet : String,
+  part : String,
+) -> Json raise @failure.Failure {
+  self.check_revision(revision)
+  let index = self.sheet_index(sheet)
+  let current = self.sheets[index]
+  guard !current.locked && current.state == "visible" else {
+    @failure.reject(
+      "protected-content", "Pivot destination is protected or hidden",
+    )
+  }
+  let pivots = self.pivot_locations()
+  guard pivots
+    .iter()
+    .find_first(pivot => pivot.sheet == sheet && pivot.part == part)
+    is Some(pivot) else {
+    @failure.reject(
+      "invalid-operation", "Pivot is outside the selected worksheet",
+    )
+  }
+  guard (pivot.range.bottom - pivot.range.top + 1).to_int64() *
+    (pivot.range.right - pivot.range.left + 1).to_int64() <=
+    32768 else {
+    @failure.reject(
+      "limit-exceeded", "Pivot refresh location exceeds output budget",
+    )
+  }
+  let (settings, records) = self.pivot_settings(pivot)
+  let cache = self.pivot_cache(settings)
+  let layout = cache.layout(settings)
+  let range = layout.bounds(settings, {
+    row: pivot.range.top,
+    column: pivot.range.left,
+  })
+  guard !(settings.sourceSheet == sheet && settings.validate().intersects(range)) &&
+    !current.merges.any(merge => merge.intersects(range)) &&
+    !pivots.any(other => {
+      other.part != part &&
+      other.sheet == sheet &&
+      other.range.intersects(range)
+    }) &&
+    !self
+    .table_definitions(self.sheets, self.workbook, self.parts)
+    .any(table => table.sheet == sheet && table.range.intersects(range)) else {
+    @failure.reject(
+      "protected-content", "Pivot expansion overlaps source or a structured range",
+    )
+  }
+  let tree = Tree::new(self.part_xml(pivot.cache))
+  let original_fields = tree
+    .one(0, "cacheFields")
+    .map(node => {
+      tree
+      .all(node.id, "cacheField")
+      .map(node => decode_text(node.attribute("name").unwrap_or("")))
+    })
+    .unwrap_or([])
+  guard original_fields == cache.headers else {
+    @failure.reject(
+      "protected-content", "Pivot source headers changed; field remapping is required",
+    )
+  }
+  for cell in current.cells.values() {
+    if range.contains(cell.address) && !pivot.range.contains(cell.address) {
+      guard cell.value == Blank &&
+        cell.formula is None &&
+        cell.read_only.is_empty() else {
+        @failure.reject(
+          "protected-content", "Pivot expansion requires empty cells",
+        )
+      }
+    }
+  }
+  let notes = self.read_sheet_notes(current)
+  guard !notes
+    .map(notes => {
+      notes.entries.any(note => {
+        range.contains(note.address) && !pivot.range.contains(note.address)
+      })
+    })
+    .unwrap_or(false) else {
+    @failure.reject("protected-content", "Pivot expansion contains notes")
+  }
+  for link in hyperlink_nodes(Tree::new(current.document)) {
+    let bounds = Range::parse(link.attribute("ref").unwrap_or(""))
+    guard !bounds.intersects(range) || bounds.intersects(pivot.range) else {
+      @failure.reject(
+        "protected-content", "Pivot expansion contains hyperlinks",
+      )
+    }
+  }
+  let links = self.relationships()
+  let record_link = links
+    .iter()
+    .find_first(link => link.owner == pivot.cache && link.target == records)
+    .unwrap().id
+  let pivot_root = self.part_xml(part).nodes()[0]
+  let cache_id = natural(
+    pivot_root.attribute("cacheId").unwrap_or(""),
+    2147483647,
+  )
+  let sources = [
+    (
+      part,
+      layout.definition(
+        settings,
+        pivot.name,
+        cache_id,
+        range,
+        data_caption=pivot_root.attribute("dataCaption").unwrap_or("Values"),
+      ),
+    ),
+    (
+      pivot.cache,
+      cache.definition(
+        self.sheets[self.sheet_index(settings.sourceSheet)].name,
+        settings.validate().name(),
+        record_link,
+      ),
+    ),
+    (records, cache.record_markup()),
+  ]
+  let (updates, styles) = layout.cells(settings, range)
+  for row in pivot.range.top..<=pivot.range.bottom {
+    for column in pivot.range.left..<=pivot.range.right {
+      let address : Address = { row, column, }
+      if !range.contains(address) {
+        updates[address.name()] = {
+          value: Blank,
+          formula: None,
+          keep_shared: false,
+        }
+      }
+    }
+  }
+  for key in styles.keys().to_array() {
+    if pivot.range.contains(Address::parse(key)) {
+      ignore(styles.remove(key))
+    }
+  }
+  let unchanged = sources.all(pair => self.part_xml(pair.0).source() == pair.1) &&
+    updates
+    .iter()
+    .all(pair => {
+      current.cells
+      .get(pair.0)
+      .map(cell => cell.value == pair.1.value && cell.formula is None)
+      .unwrap_or(pair.1.value == Blank)
+    })
+  if unchanged {
+    return self.pivots(revision, sheet)
+  }
+  let plan = self.prepare_cells(
+    Map([(index, updates)]),
+    styles=Map([(index, styles)]),
+  )
+  let parts = plan.parts
+  let edits = plan.edits
+  for (path, markup) in sources {
+    let original = self.part_xml(path)
+    if original.source() != markup {
+      let (document, edit) = pivot_root_edit(original, markup)
+      parts[path] = document
+      edits.push((path, edit))
+    }
+  }
+  self.commit(
+    plan.sheets,
+    self.workbook,
+    plan.calculation,
+    edits,
+    (sheet, range),
+    parts~,
+    created_parts=plan.created_parts,
+    pivot_edits=[part],
+  )
+  self.pivots(self.revision, sheet)
+}

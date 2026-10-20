@@ -89,6 +89,7 @@ fn Session::running_paragraphs(
     backgrounds[id] = background
   }
   self.apply_numbering(tree, styles, paragraphs, backgrounds)
+  styles.apply_contextual_spacing(tree, paragraphs)
   tree.children[0].map(id => {
     ..paragraphs[id],
     id: -1 -

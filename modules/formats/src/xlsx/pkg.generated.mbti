@@ -247,6 +247,21 @@ pub(all) struct NameSettings {
   formula : String
 }
 
+pub(all) struct PivotSettings {
+  sourceSheet : String
+  source : String
+  rows : Array[Int]
+  values : Array[PivotValue]
+} derive(ToJson)
+pub fn PivotSettings::to_json(Self) -> Json
+
+pub(all) struct PivotValue {
+  field : Int
+  aggregate : String
+  name : String
+} derive(ToJson)
+pub fn PivotValue::to_json(Self) -> Json
+
 pub(all) struct PrintRange {
   area : String
   rows : String
@@ -310,6 +325,7 @@ pub fn Session::clear(Self, Int, mode? : String) -> Json raise @failure.Failure
 pub fn Session::close(Self) -> Unit
 pub fn Session::copy(Self, Int) -> String raise @failure.Failure
 pub fn Session::create(@archive.Budget, date? : String?) -> Self raise @failure.Failure
+pub fn Session::create_pivot(Self, Int, String, String, String, PivotSettings) -> Json raise @failure.Failure
 pub fn Session::duplicates(Self, Int, String, DuplicateSettings) -> Json raise @failure.Failure
 pub fn Session::edit_sheet(Self, Int, String, SheetEdit, date? : String?) -> Json raise @failure.Failure
 pub fn Session::export_csv(Self, Int, selection? : Bool) -> Bytes raise @failure.Failure
@@ -323,8 +339,11 @@ pub fn Session::navigate(Self, Int, String, Bool) -> Json raise @failure.Failure
 pub fn Session::open(Bytes, @archive.Budget, date? : String?) -> Self raise @failure.Failure
 pub fn Session::paste(Self, Int, String, accept_warnings? : Bool) -> Json raise @failure.Failure
 pub fn Session::paste_cells(Self, Int, CopiedCells, String, transpose? : Bool, accept_warnings? : Bool) -> Json raise @failure.Failure
+pub fn Session::pivot_preview(Self, Int, PivotSettings) -> Json raise @failure.Failure
+pub fn Session::pivots(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::print_layout(Self, Int, String, String?, @layout.TextProbe, Map[String, String], setup? : @layout.PageSetup, sheets? : PrintSheets) -> @layout.PositionedDocument raise @failure.Failure
 pub fn Session::query(Self, sheet? : String?, range? : String?) -> Json raise @failure.Failure
+pub fn Session::refresh_pivot(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::replace(Self, Int, String, String, Array[Array[String]], literal? : Bool, accept_warnings? : Bool) -> Json raise @failure.Failure
 pub fn Session::replace_matches(Self, Int, String, String, FindOptions, String, Int?) -> Json raise @failure.Failure
 pub fn Session::save(Self) -> Bytes raise @failure.Failure

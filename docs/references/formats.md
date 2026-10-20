@@ -105,7 +105,11 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 `FoundationSession/Client.queryFormatting(revision, selection)` 返回字符与段落属性。每项使用 `{ kind: "value", value }`、`{ kind: "mixed" }` 或 `{ kind: "unavailable", reason }`，同时返回 revision 和限制原因。`EditState.formatting` 包含当前选区的同一查询；没有选区或组合进行中为 null。查询只读取目标段落与继承样式，不要求解析无关图片。
 
-`setCharacterFormat(revision, selection, format)` 支持 `family`、`size`、`color`、`bold`、`italic`、`underline`、`strike`、`highlight` 和 `vertAlign`。字号为 0.5–1024 pt 的半点增量；颜色为六位 RGB 或 `"auto"`。`underline/strike` 为布尔值，写单下划线与单删除线；`vertAlign` 为 `"baseline" | "superscript" | "subscript"`。`highlight` 使用 OOXML 的 `none` 和十六种命名颜色，Wasm/Web 的 `HighlightColor` 与 `highlightColors` 提供类型和完整选项；`none` 关闭高亮，null 恢复继承。
+`setCharacterFormat(revision, selection, format)` 支持 `family`、`size`、`spacing`、`color`、`bold`、`italic`、`underline`、`strike`、`highlight` 和 `vertAlign`。字号为 0.5–1024 pt 的半点增量；颜色为六位 RGB 或 `"auto"`。`underline/strike` 为布尔值，写单下划线与单删除线；`vertAlign` 为 `"baseline" | "superscript" | "subscript"`。`highlight` 使用 OOXML 的 `none` 和十六种命名颜色，Wasm/Web 的 `HighlightColor` 与 `highlightColors` 提供类型和完整选项；`none` 关闭高亮，null 恢复继承。
+
+`spacing` 是以 pt 表示的字符间距，范围为 −1584–1584，须能表示成整数 twip。正值扩展，负值紧缩，0 使用正常间距，null 清除直接定义并恢复继承。核心读取和写回原生 `w:rPr/w:spacing`，默认值为 0。格式查询、折叠处后续输入、格式复制、正文片段、样式修改和清除直接格式使用同一属性；默认格式和样式面板提供数值控件。每次实际修改沿现有事务提交，撤销、重做和保存重开保留原生定义。HTML 与 Markdown 的带格式片段输出 `letter-spacing`，逻辑文字保持。
+
+共享塑形层在每个塑形簇后增加间距，簇的总前进宽度下限为 0。非零间距关闭可选 Latin 连字，保留阿拉伯文标准连字和连接塑形；簇内光标沿调整后的宽度分配。该宽度参与混合片段、换行、分页缓存、装饰与选区，Canvas 和 PDF 使用同一绘制结果。依据 [ONLYOFFICE 间距度量](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/TextShaper.js#L194-L247)及[阿拉伯文标准连字](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/TextShaper.js#L112-L119)。实现归 [`shape.mbt`](../../modules/layout/src/shape.mbt)和 [`format-model.mbt`](../../modules/formats/src/docx/format-model.mbt)。
 
 `setParagraphFormat` 支持 `align: "left" | "center" | "right" | "both"`、`before/after/left/right/first`、`line`、`pageBreakBefore`、`keepLines`、`keepNext`、`widowControl` 和 `rtl`。`both` 为两端对齐，写回 OOXML `w:jc`；默认 UI 提供同名按钮。距离单位为 pt，须能表示成整数 twip；范围 0–1584 pt，`first` 可为负值以设置悬挂缩进。`line: { rule, value }` 使用 OOXML 整数单位：`auto` 为每行 240，取值 120–2400；`exact/atLeast` 为 twip，取值 1–31680。UI 显示多倍行距或 pt，确认后转换为这些单位；清除段落直接格式也清除行距。
 
@@ -141,11 +145,15 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 `deleteStyle(revision, id, replacement)` 删除自定义样式，替代样式必须已支持且类型相同，也不能依赖被删样式。Web 编辑宿主省略 revision。核心同步移除定义并替换 WordprocessingML 部件中的样式引用，包括正文、页眉和编号；保留直接格式、文字、其他样式及未知内容。折叠处待输入的样式引用也映射到替代项。命令至多替换 65536 个引用，继续受包与历史预算约束。全部候选成功后一次提交，撤销同时恢复各部件与选择。默认 UI 可显式选择同类型替代样式，初始使用基础样式；无基础样式时须先选择替代项。没有有效替代项时不能删除。删除链接自定义样式时保留对端样式，解除指向被删样式的链接，再替换普通引用；未知链接内容明确拒绝。默认及内置样式不能删除。
 
-`updateStyle(id, { character: {}, paragraph: {}, reset: true })` 显式重置格式，不能同时传其他修改。当前支持文档默认段落/字符样式，以及 Normal、DefaultParagraphFont、Strong、Emphasis、Heading1–Heading9，以及 NoSpacing、Quote、Caption、QuoteChar、SubtleEmphasis、IntenseEmphasis、IntenseQuoteChar、Hyperlink 和 FollowedHyperlink。默认样式恢复文档默认属性；Strong/Emphasis 继承当前默认字符样式并恢复粗体/斜体。稳定 ID、名称、默认标志、next/link 和正文直接格式保留；其他内置样式的重置规则尚未实现。默认 UI 提供同一操作。重置沿上述候选校验及单项历史提交，撤销恢复完整源内容。行为参考 [ONLYOFFICE 样式重置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js#L8854-L8889)。样式修改与删除还会校验正文继承的编号引用、有效级别属性和标记结果，失败保留原包。
+`updateStyle(id, { character: {}, paragraph: {}, reset: true })` 显式重置格式，不能同时传其他修改。当前支持文档默认段落/字符样式，以及 Normal、DefaultParagraphFont、Strong、Emphasis、Heading1–Heading9，以及 NoSpacing、Quote、Caption、QuoteChar、SubtleEmphasis、IntenseEmphasis、IntenseQuoteChar、Hyperlink、FollowedHyperlink、Title、Subtitle、TitleChar 和 SubtitleChar。默认样式恢复文档默认属性；Strong/Emphasis 继承当前默认字符样式并恢复粗体/斜体。稳定 ID、名称、默认标志、next/link 和正文直接格式保留；其他内置样式的重置规则尚未实现。默认 UI 提供同一操作。重置沿上述候选校验及单项历史提交，撤销恢复完整源内容。行为参考 [ONLYOFFICE 样式重置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js#L8854-L8889)。样式修改与删除还会校验正文继承的编号引用、有效级别属性和标记结果，失败保留原包。
 
 新增预设继承当前对应类型的默认样式。NoSpacing 清除字符覆盖，段后距为 0、单倍行距；Quote 设置 8 pt 段前距、居中、斜体及 text1 的 BF tint；Caption 设置 10 pt 段后距、单倍行距、9 pt 普通/复杂文字字号、斜体及 text2 颜色。QuoteChar/SubtleEmphasis 使用引用的字符属性；IntenseEmphasis/IntenseQuoteChar 使用斜体及 accent1 的 BF shade。段前后其他未声明值沿基础样式继承，正文直接覆盖保持。
 
-按标准 ID 或对应英文内置名识别，名称不区分大小写，自定义标志及类型不符的样式不套用预设。名称、别名、link/next 和源元数据保持，不创建缺失样式。已有主题时保留颜色关联；相关主题色不可解析时保护重置。没有主题时写预设 RGB，不增加主题部件；之后添加主题可再次重置以建立关联。默认目录的 `canReset` 自动开放已有按钮，沿同一候选、预算、单项精确历史和保存重开，无变化不提交。预设参数参考 [ONLYOFFICE 默认样式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles/default-styles.js#L621-L795)与[题注](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles/default-styles.js#L913-L938)，实现归 [`style-presets.mbt`](../../modules/formats/src/docx/style-presets.mbt)。标题/副标题的字符间距、完整强引用边框及其余未支持预设继续保护，不以删去属性代替重置。
+Title/TitleChar 恢复四个 Arial 字体槽、28 pt 普通/复杂文字字号和 −0.5 pt 字间距。Title 段落设置 4 pt 段后距、单倍行距与 `contextualSpacing`。Subtitle/SubtitleChar 恢复 14 pt 字号、0.75 pt 字间距及 text1 的 A6 tint；无主题时使用 RGB `595959`。Subtitle 段落保留原生编号级别 1，不新增编号实例。名称、next/link、正文直接覆盖及其他部件沿上述重置合同保留。预设依据 [ONLYOFFICE 标题与副标题](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles/default-styles.js#L536-L623)。
+
+原生 `contextualSpacing` 按文档默认值、样式继承和直接定义解析。本段开启时，与相邻段落的原生样式引用相同，便省略本段对应的段前或段后距；直接关闭只影响本段。正文、普通表格及已支持的页眉页脚在核心 Flow 中使用计算后的距离，格式查询和原始 XML 保留声明值。表格按同一行相邻单元格比较，首行首格还参考表格前的元素；不把上一行末格当作相邻格。段落样式应用清除直接标志。当前通过原生读取及预设重置使用该属性，未增加独立格式补丁或控件。规则归 [ONLYOFFICE 段距计算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L10806-L10965)和[单元格相邻元素](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableCell.js#L2445-L2495)，实现归 [`contextual-spacing.mbt`](../../modules/formats/src/docx/contextual-spacing.mbt)。
+
+按标准 ID 或对应英文内置名识别，名称不区分大小写，自定义标志及类型不符的样式不套用预设。名称、别名、link/next 和源元数据保持，不创建缺失样式。已有主题时保留颜色关联；相关主题色不可解析时保护重置。没有主题时写预设 RGB，不增加主题部件；之后添加主题可再次重置以建立关联。默认目录的 `canReset` 自动开放已有按钮，沿同一候选、预算、单项精确历史和保存重开，无变化不提交。预设参数参考 [ONLYOFFICE 默认样式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles/default-styles.js#L621-L795)与[题注](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles/default-styles.js#L913-L938)，实现归 [`style-presets.mbt`](../../modules/formats/src/docx/style-presets.mbt)。完整强引用边框及其余未支持预设继续保护，不以删去属性代替重置。
 
 Hyperlink 和 FollowedHyperlink 继承当前默认字符样式，恢复单下划线；无主题时分别使用 RGB `0563C1` 和 `954F72`，已有可解析主题时关联 `hlink/folHlink`，写为标准 `w:themeColor="hyperlink"/"followedHyperlink"`。新建文档同时提供这两个字符样式，创建与重置共用预设；初始重置不增加历史。用户通过现有字符样式面板显式应用或重置，正文直接格式、链接目标、提示和关系保持。链接创建仍保留原格式；打开链接不写访问历史或自动切换样式。参数依据 [ONLYOFFICE 链接样式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles/default-styles.js#L1028-L1056)。
 
@@ -805,7 +813,7 @@ DOCX 的显式页面宽、高按固定 LibreOffice 25.8.2.2 的[导入规则](ht
 
 `flow().additiveSpacing` 指明段距策略。普通同页相邻段落在 `settings.xml` 存在且 `doNotUseHTMLParagraphAutoSpacing` 缺省或为 false/0/off 时，合并为 `max(previous.after, current.before)`；该标志开启时累加。缺少整个 settings 部件时，保留固定 LibreOffice 配置的累加默认值。正文和同一单元格使用相同规则；自然换页舍弃跨页间距，显式段前分页保留当前段前距，单元格首段前距与末段后距计入行高。段内显式分页结束时舍弃该段段后距。固定参考转换分别核对了这几类边界。
 
-上述策略结合 [ONLYOFFICE 普通段距与特殊分支](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L10805-L10860)、[LibreOffice 布局分支](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/core/layout/flowfrm.cxx#L1582-L1770) 与固定引擎结果；不是完整 Word 间距规则。`contextualSpacing`、自动段距、按行指定的段距及上述范围外的编号仍不支持，直接格式和实际应用的默认值、样式链都会报告部件与特性，例如 `unsupported-layout:word/styles.xml:w:vanish`。未使用的命名样式不产生诊断。原始内容照常保留，应用不能把带诊断的结果称为保真布局。
+上述策略结合 [ONLYOFFICE 普通段距与特殊分支](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L10805-L10860)、[LibreOffice 布局分支](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/core/layout/flowfrm.cxx#L1582-L1770) 与固定引擎结果；不是完整 Word 间距规则。`contextualSpacing` 的支持范围归 [P10 当前格式编辑](#p10-当前格式编辑)。自动段距、按行指定的段距及上述范围外的编号仍不支持，直接格式和实际应用的默认值、样式链都会报告部件与特性，例如 `unsupported-layout:word/styles.xml:w:vanish`。未使用的命名样式不产生诊断。原始内容照常保留，应用不能把带诊断的结果称为保真布局。
 
 自动断行前只解析一次整段 BiDi 层级；选定行执行 UAX #9 L1/L2，塑形沿用该层级与镜像规则。同样式源 run 拆分不会改变阅读顺序；使用独立 FriBidi 1.0.16 的整段层级核对 RTL、数字、括号及拉丁后缀，不以片段重新推断方向生成答案。
 
@@ -1687,6 +1695,18 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 移动最多 4096 格和 1024 个合并范围；工作簿源、公式及链接节点源合计最多 1 Mi UTF-16 单元，搬移与改写的单元格源合计最多 1 Mi 单元。每表最多 4096 个链接，单表生成的链接源最多 2 Mi 单元。规则沿既有 100000 格、4 Mi 字符和 4096 片段工作上限；每表至多 4096 条条件规则和 4096 条验证。全部变动仍受 4 MiB 历史及包输出预算约束。被保护的源、目标或受影响公式/链接/规则拒绝。未知资源、原生表、透视及带筛选/排序的工作簿保持保护，未限定工作表的名称引用及需改写的不透明名称源继续保护；跨表打印范围的归属转移继续实施。实现归 [`move-cells.mbt`](../../modules/formats/src/xlsx/move-cells.mbt)、[`move-reference.mbt`](../../modules/formats/src/xlsx/move-reference.mbt)、[`move-hyperlinks.mbt`](../../modules/formats/src/xlsx/move-hyperlinks.mbt)、[`move-rules.mbt`](../../modules/formats/src/xlsx/move-rules.mbt)、[`rule-fragments.mbt`](../../modules/formats/src/xlsx/rule-fragments.mbt)和 [`move-resources.mbt`](../../modules/formats/src/xlsx/move-resources.mbt)。
 
+### 透视表核心
+
+当前只接通 MoonBit 核心。`Session::pivot_preview(revision, settings)` 返回字段、记录数、类型化分组结果及总计，查询不写源或历史。预览最多返回前 20 组，groups 和 truncated 说明完整组数及截断状态；总计与实际创建仍处理全部记录，JSON 继续受 1 Mi UTF-16 上限约束。`PivotSettings` 为 `{ sourceSheet, source, rows, values }`；sourceSheet 是稳定工作表部件身份，source 包含标题行。rows 使用相对源区域、从 0 开始的列索引；每项 values 为 `{ field, aggregate, name }`，name 是显示标题。标题按当前格式读取且不能为空，重复标题在缓存中分配唯一名称，不改源格；值标题不能与源字段名称重复。
+
+`Session::create_pivot(revision, sheet, name, destination, settings)` 在可见、未保护工作表的空白位置创建透视表。destination 是左上格。核心保存标准 `pivotTableDefinition`、`pivotCacheDefinition`、共享项及索引记录，使用工作簿缓存入口与部件关系链接；实际结果写入类型化单元格。行字段组合按成员首次出现的顺序分层排列，文字比较合并大小写并保留首个拼写；数字、文字数字和布尔值各自分组。内部空白记录保留，末尾连续全空记录合为一条空白记录。结果包含一行标题、分组行和总计；多值使用原生 Values 列轴，尚无普通列维度或小计。
+
+`Session::pivots(revision, sheet)` 返回 `{ revision, items }`。每项包含 part、name、range、sourceSheet、source、stale、settings 和 reason；不支持的原生定义返回 null settings 和保护原因。`Session::refresh_pivot(revision, sheet, part)` 重新读取当前计算值，整体替换缓存、记录、定义和输出。源值或依赖公式变化在普通事务中写入缓存失效标志；普通输入不自动刷新结果。结果格拒绝普通值/公式写入。刷新扩张必须有空白空间，缩小清空移出的结果格，保持区域外内容；旧位置内的直接格式保留。相同源与结果的刷新不新增历史。创建、源数据失效和刷新各用现有 revision、有界部件历史和包校验，保存重开后仍可刷新。
+
+aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`product`、`stdDev`、`stdDevp`、`var` 和 `varp`。count 统计非空记录，countNums 只统计数值。文字与布尔值不加入数值聚合，错误值沿数值结果传播；平均值和样本/总体统计按有效数值数目处理。规则依据 [ONLYOFFICE 聚合状态](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/databaseFunctions.js#L51-L220)、[类型与大小写缓存](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L3075-L3184)和[原生行列项](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L5289-L5620)。
+
+源最多 64 列、65536 个数据格，共享项及输出文字各最多 1 Mi UTF-16；行/值字段各最多 8 项，分组最多 4096 项，输出最多 32768 格。新建总数最多 16 项；导入目录读取最多 64 项。普通事务检查还受 1048576 项工作量、4 MiB 历史及包预算约束。输出与源、合并或结构化区域相交时拒绝，扩张时也保护便笺和链接。支持的刷新范围是未分组的原生普通区域行轴定义；共享缓存、列维度、分页字段、手动成员顺序、扩展头部、未知源标记及属性继续保护。源标题变更需要字段映射，当前拒绝刷新；不能解析的源范围保护单元格编辑。Wasm/Worker、宿主和默认面板、字段修改与删除、样式及更广兼容继续实施。实现归 [`pivot-cache.mbt`](../../modules/formats/src/xlsx/pivot-cache.mbt)、[`pivot.mbt`](../../modules/formats/src/xlsx/pivot.mbt)、[`pivot-refresh.mbt`](../../modules/formats/src/xlsx/pivot-refresh.mbt)和 [`pivot-protection.mbt`](../../modules/formats/src/xlsx/pivot-protection.mbt)。
+
 ### 打印与资源边界
 
 `editSheet({ action: "pageSetup", paper, orientation, left, top, right, bottom, scale, fitWidth, fitHeight })` 保存当前工作表的打印设置。`XlsxPrintSetup` 的纸张为 `A4` 或 `Letter`，方向为 `portrait` 或 `landscape`，边距为 point。边距须非负并在每个方向留下至少 12 pt 可打印空间；比例为 10–400 的整数，横/纵页数为 0–1024 的整数。0 表示该方向不限页数；任一页数非零时取代百分比，核心按实际行列分割，在 10%–100% 中求满足页数的最大整数比例。10% 仍不能满足时输出失败，不截断内容。页面与缩放范围参考 [ONLYOFFICE calcPrintScale](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L4580-L4808)。
@@ -1727,7 +1747,7 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 | 历史 / 队列 | undo+redo 共 100 项、4 MiB 源补丁 payload；宿主 64 项 |
 | 打印 | 整次输出 32768 格（含重复标题）和 1024 页；每表单轴 4096 项；每页继续受绘制文字/单元格上限约束 |
 
-当前范围不含模板向导、高级筛选、图表/透视表/图片编辑和协作。工作表/行列、格式、填充与普通区域排序的当前支持面见本节对应合同。XLS/XLSB/XLSM、其他浏览器、Windows/Excel、VoiceOver、性能专项与发布验收未进入本期验证。
+当前 Web 范围不含模板向导、高级筛选、图表/透视表/图片编辑和协作。透视表的 MoonBit 范围归[透视表核心](#透视表核心)。工作表/行列、格式、填充与普通区域排序的当前支持面见本节对应合同。XLS/XLSB/XLSM、其他浏览器、Windows/Excel、VoiceOver、性能专项与发布验收未进入本期验证。
 
 ## PPTX
 

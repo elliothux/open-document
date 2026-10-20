@@ -59,6 +59,7 @@ fn check_fragment_content(
         [
           "rPr", "spacing", "ind", "jc", "pageBreakBefore", "autoSpaceDE", "autoSpaceDN",
           "tabs", "bidi", "numPr", "outlineLvl", "keepLines", "keepNext", "widowControl",
+          "contextualSpacing",
         ]
       "rPr" =>
         [

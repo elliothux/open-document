@@ -10,7 +10,7 @@ fn WordTree::diagnose_properties(
       [
         "pStyle", "rPr", "spacing", "ind", "jc", "pageBreakBefore", "autoSpaceDE",
         "autoSpaceDN", "tabs", "bidi", "numPr", "outlineLvl", "keepLines", "keepNext",
-        "widowControl",
+        "widowControl", "contextualSpacing",
       ]
     "rPr" =>
       [
@@ -82,7 +82,8 @@ fn WordTree::diagnose_properties(
       | "cantSplit"
       | "keepLines"
       | "keepNext"
-      | "widowControl" => self.valid_on_off_property(child)
+      | "widowControl"
+      | "contextualSpacing" => self.valid_on_off_property(child)
       "numPr" => self.valid_numbering_properties(child)
       "outlineLvl" =>
         try {

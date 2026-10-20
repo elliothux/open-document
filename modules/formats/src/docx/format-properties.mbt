@@ -118,8 +118,8 @@ fn formatted_properties(
   } else {
     [
       "pStyle", "keepNext", "keepLines", "pageBreakBefore", "widowControl", "numPr",
-      "tabs", "bidi", "spacing", "ind", "jc", "autoSpaceDE", "autoSpaceDN", "outlineLvl",
-      "rPr",
+      "tabs", "bidi", "spacing", "ind", "contextualSpacing", "jc", "autoSpaceDE",
+      "autoSpaceDN", "outlineLvl", "rPr",
     ]
   }
   let out = StringBuilder()

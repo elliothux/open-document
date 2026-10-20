@@ -156,6 +156,7 @@ fn Session::flow_from(
     }
   }
   self.apply_numbering(tree, styles, numbered, backgrounds)
+  styles.apply_contextual_spacing(tree, numbered)
   {
     revision: self.revision,
     background,
