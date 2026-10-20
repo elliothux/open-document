@@ -33,7 +33,12 @@ pub fn Session::paste_body_fragment(
     .unwrap_or("")
   let original = self.document()
   let original_tree = WordTree::new(original)
-  let range = self.paragraph_range(original_tree, selection, structural=true)
+  let range = self.paragraph_range(
+    original_tree,
+    selection,
+    structural=true,
+    fields=true,
+  )
   let prepared = self.prepare_structural_range_in(original, selection, "\n")
   let steps = prepared.edit.xml.copy()
   let mut candidate = prepared.document
@@ -69,7 +74,7 @@ pub fn Session::paste_body_fragment(
   let styles = view.styles([])
   let changes = []
   if paragraphs.length() > 1 {
-    for run in tree.paragraph_runs(left) {
+    for run in tree.paragraph_runs(left, running=true) {
       if view.preserve_run_style(tree, styles, run, inserted[0]) is Some(change) {
         changes.push(change)
       }
@@ -123,14 +128,36 @@ pub fn Session::paste_body_fragment(
   steps.append(merged.edit.xml)
   let view = { ..self, document: Some(candidate), parts, media, }
   let flow = view.flow_from(candidate)
-  ignore(
-    @layout.paginate(
-      probe,
-      flow,
-      profile,
-      images.unwrap_or_else(() => @layout.Images::new()),
-    ),
+  let layout = @layout.paginate(
+    probe,
+    flow,
+    profile,
+    images.unwrap_or_else(() => @layout.Images::new()),
   )
+  let tree = WordTree::new(candidate)
+  let fields = tree.order.filter(id => {
+    tree.nodes[id].uri == word_uri &&
+    tree.nodes[id].name == "fldSimple" &&
+    !original_tree.nodes.contains(id)
+  })
+  let values = self.field_values(tree, fields, Some(layout))
+  let changes : Map[Int, String] = Map([])
+  for id in fields {
+    let primary = tree.child(tree.field_result_run(id).unwrap(), "t").unwrap()
+    for text in tree.descendants(id) {
+      if tree.nodes[text].uri == word_uri && tree.nodes[text].name == "t" {
+        let value = if text == primary { values[id] } else { "" }
+        if tree.nodes[text].text != value {
+          changes[text] = value
+        }
+      }
+    }
+  }
+  if !changes.is_empty() {
+    let (document, edit) = candidate.edit_text(changes)
+    candidate = document
+    steps.push(edit)
+  }
   let mut bytes = xml_part_edit_bytes(part_edits, created)
   for value in added.values() {
     guard value.length() <= history_byte_limit - bytes else {

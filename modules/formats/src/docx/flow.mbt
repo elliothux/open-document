@@ -399,7 +399,17 @@ fn Session::paragraph(
         }) {
         "Tracked revisions require review before editing"
       } else if !running && has_fields {
-        "Page fields require field editing"
+        try {
+          tree.check_editable_paragraph(
+            id,
+            part=self.main,
+            pictures=true,
+            fields=true,
+          )
+          picture_reason
+        } catch {
+          @failure.Failure(..) => "Page fields require field editing"
+        }
       } else {
         picture_reason
       },

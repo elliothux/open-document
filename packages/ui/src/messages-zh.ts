@@ -631,6 +631,8 @@ export const zh: Messages = {
   pageSetup: "页面设置",
   loadPageSetup: "读取页面设置",
   updateBodyPageFields: "更新正文页码字段",
+  insertBodyPageNumber: "插入正文页码",
+  insertBodyPageCount: "插入正文总页数",
   applyPageSetup: "应用页面设置",
   reloadPageSetup: "文档已改变，请重新读取页面设置。",
   pageWidth: "页面宽度（pt）",

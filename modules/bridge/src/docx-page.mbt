@@ -124,6 +124,25 @@ fn Foundation::docx_page(
     return session.page_setup(revision)
   }
   let result = match operation {
+    "insertBodyPageField" => {
+      guard request is { "field": item, .. } else {
+        @failure.reject("invalid-operation", "Page field is required")
+      }
+      let field = running_content({ "content": [item] })[0]
+      let code = match field {
+        @docx.RunningContent::Field(code) => code
+        @docx.RunningContent::FormattedField(code, format) =>
+          code + ":" + format
+        _ => @failure.reject("invalid-operation", "Expected a page field")
+      }
+      session.insert_body_page_field(
+        revision,
+        code,
+        probe=self.probe,
+        profile=xlsx_profile(request),
+        images=self.images,
+      )
+    }
     "updateBodyPageFields" =>
       session.update_body_page_fields(
         revision,

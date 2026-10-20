@@ -56,8 +56,31 @@ fn Session::search_groups(
   tree : WordTree,
 ) -> Array[SearchGroup] raise @failure.Failure {
   let by_paragraph : Map[Int, StringBuilder] = Map([])
+  let fields = Map::from_array(
+    docx_texts(tree)
+    .filter(item => tree.nodes[item.id].name == "fldSimple")
+    .map(item => (item.id, item.paragraph)),
+  )
   for id in tree.order {
     let node = tree.nodes[id]
+    if fields.get(id) is Some(paragraph) {
+      by_paragraph
+      .get_or_init(paragraph, () => StringBuilder())
+      .write_string("\ufffc")
+      continue
+    }
+    let inside_field = for ancestor = node.parent
+                           ancestor >= 0
+                           ancestor = tree.nodes[ancestor].parent {
+      if fields.contains(ancestor) {
+        break true
+      }
+    } nobreak {
+      false
+    }
+    if inside_field {
+      continue
+    }
     if node.uri != word_uri || !["t", "tab", "br", "cr"].contains(node.name) {
       continue
     }

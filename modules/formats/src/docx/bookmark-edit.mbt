@@ -22,8 +22,14 @@ fn bookmark_boundary(
         inline_text(tree.nodes[t.id]).length()
     }
   }
-  let at = for run in tree.paragraph_runs(p.id); offset = 0 {
-    let node = tree.nodes[run]
+  let at = for run in tree.paragraph_runs(p.id, running=true); offset = 0 {
+    let original = tree.nodes[run]
+    let field = tree.nodes[original.parent].uri == word_uri &&
+      tree.nodes[original.parent].name == "fldSimple"
+    if field && tree.field_result_run(original.parent) != Some(run) {
+      continue offset
+    }
+    let node = if field { tree.nodes[original.parent] } else { original }
     if position.offset == offset {
       break node.start
     }
@@ -52,8 +58,9 @@ fn Session::split_bookmark_boundary(
   self : Session,
   document : @xml.Document,
   selection : Selection,
+  fields~ : Bool = false,
 ) -> (@xml.Document, Array[@xml.Edit]) raise @failure.Failure {
-  let range = self.formatting_range(document, selection)
+  let range = self.formatting_range(document, selection, fields~)
   let selection = if range.start.paragraph == range.end.paragraph &&
     range.start.offset == range.end.offset {
     { anchor: { ..range.start, offset: 0, }, focus: range.end, }
@@ -66,6 +73,7 @@ fn Session::split_bookmark_boundary(
       selection,
       CharacterFormat::new(),
       split=true,
+      fields~,
     ) {
     Some((candidate, edit)) => (candidate, [edit])
     None => (document, [])
@@ -105,7 +113,11 @@ fn Session::restore_bookmarks(
     return prepared
   }
   let after = prepared.edit.after.unwrap()
-  let (document, steps) = self.split_bookmark_boundary(prepared.document, after)
+  let (document, steps) = self.split_bookmark_boundary(
+    prepared.document,
+    after,
+    fields=true,
+  )
   let starts = StringBuilder()
   let ends = StringBuilder()
   for id in before.order {

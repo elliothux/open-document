@@ -21,6 +21,7 @@ import type {
   DocxRunningKind,
   DocxRunningVariant,
   DocxRunningContent,
+  DocxPageField,
   DocxPictureEdit,
   DocxPictureResizeCommand,
   DocxTableEdit,
@@ -133,6 +134,12 @@ export type Operation =
       profile: Record<string, string>;
     }
   | { operation: "pageSetup"; revision: number }
+  | {
+      operation: "insertBodyPageField";
+      revision: number;
+      field: DocxPageField;
+      profile: Record<string, string>;
+    }
   | {
       operation: "updateBodyPageFields";
       revision: number;

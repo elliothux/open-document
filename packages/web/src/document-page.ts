@@ -10,10 +10,20 @@ import type {
   DocxRunningKind,
   DocxRunningVariant,
   DocxRunningContent,
+  DocxPageField,
 } from "@open-document/wasm/foundation";
 
 /** Document-wide page commands use the editor's existing read and edit queues. */
 export abstract class DocumentPage extends DocumentReview {
+  insertBodyPageField(field: DocxPageField): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.insertBodyPageField(
+        this.review.snapshot().revision,
+        field,
+        this.profile,
+      ),
+    );
+  }
   updateBodyPageFields(): Promise<void> {
     return this.review.edit(() =>
       this.review.client.updateBodyPageFields(

@@ -77,6 +77,7 @@ pub fn Session::begin_composition(
         tree,
         selection,
         structural=selection.anchor.paragraph != selection.focus.paragraph,
+        fields=true,
       ),
     )
   }

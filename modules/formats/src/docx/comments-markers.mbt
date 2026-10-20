@@ -108,7 +108,12 @@ fn WordTree::comment_anchors(self : WordTree) -> Array[CommentAnchor] {
         let p = positions[id].paragraph
         if !checked.contains(p) {
           checked[p] = try {
-            self.check_editable_paragraph(p, part="", pictures=true)
+            self.check_editable_paragraph(
+              p,
+              part="",
+              pictures=true,
+              fields=true,
+            )
             ""
           } catch {
             @failure.Failure(message~, ..) => message

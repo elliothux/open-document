@@ -2,14 +2,51 @@
 fn docx_texts(tree : WordTree) -> Array[TextNode] {
   let body = tree.child(0, "body").unwrap()
   let texts : Array[TextNode] = []
+  let fields : Map[Int, Bool] = Map([])
   for id in tree.order {
     let node = tree.nodes[id]
+    if node.uri == word_uri &&
+      node.name == "fldSimple" &&
+      node.parent >= 0 &&
+      tree.nodes[node.parent].name == "p" &&
+      tree.nodes[node.parent].uri == word_uri {
+      let in_body = for ancestor = node.parent
+                        ancestor >= 0
+                        ancestor = tree.nodes[ancestor].parent {
+        if ancestor == body {
+          break true
+        }
+      } nobreak {
+        false
+      }
+      let supported = fields.get_or_init(node.parent, () => {
+        try {
+          ignore(tree.running_fields(node.parent))
+          true
+        } catch {
+          @failure.Failure(..) => false
+        }
+      })
+      if in_body && supported {
+        texts.push({
+          id,
+          paragraph: node.parent,
+          run: tree.field_result_run(id).unwrap_or(id),
+        })
+      }
+      continue
+    }
     if node.uri != word_uri ||
       !["t", "br", "cr", "tab", "drawing"].contains(node.name) {
       continue
     }
     let run = node.parent
     if run < 0 || tree.nodes[run].uri != word_uri || tree.nodes[run].name != "r" {
+      continue
+    }
+    if tree.nodes[run].parent >= 0 &&
+      tree.nodes[tree.nodes[run].parent].uri == word_uri &&
+      tree.nodes[tree.nodes[run].parent].name == "fldSimple" {
       continue
     }
     let paragraph = tree.run_paragraph(run)
@@ -46,6 +83,7 @@ fn inline_text(node : @xml.Node) -> String {
     "cr" => "\u2028"
     "tab" => "\t"
     "drawing" => "\ufffc"
+    "fldSimple" => "\ufffc"
     _ => node.text
   }
 }

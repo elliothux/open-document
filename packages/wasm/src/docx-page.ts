@@ -32,12 +32,17 @@ export function checkRunningOptions(first: unknown, even: unknown): void {
     throw new Error("Invalid running options");
 }
 export type DocxRunningKind = "header" | "footer";
-export type DocxRunningContent =
-  | { text: string }
-  | {
-      field: "PAGE" | "NUMPAGES";
-      format?: Exclude<DocxPageNumbering["format"], "decimalZero">;
-    };
+export type DocxPageField = {
+  field: "PAGE" | "NUMPAGES";
+  format?: Exclude<DocxPageNumbering["format"], "decimalZero">;
+};
+export type DocxRunningContent = { text: string } | DocxPageField;
+export function checkPageField(value: unknown): asserts value is DocxPageField {
+  const item = record(value);
+  if (item.field !== "PAGE" && item.field !== "NUMPAGES")
+    throw new Error("Invalid body page field");
+  checkRunningArea("header", "default", [value], 0);
+}
 export interface DocxRunningArea {
   revision: number;
   /** LF separates paragraphs; U+2028 is an inline soft break. */
@@ -123,6 +128,16 @@ export function docxRunningArea(value: unknown): DocxRunningArea {
 
 /** Page commands share the session's revision and source transaction. */
 export class FoundationPageSession extends FoundationReviewSession {
+  insertBodyPageField(
+    revision: number,
+    field: DocxPageField,
+    profile: Record<string, string>,
+  ) {
+    checkPageField(field);
+    return editState(
+      this.call({ operation: "insertBodyPageField", revision, field, profile }),
+    );
+  }
   ruler(revision: number): DocxRuler {
     return docxRuler(this.call({ operation: "docxRuler", revision }));
   }

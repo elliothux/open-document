@@ -465,7 +465,15 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 `FoundationSession/Client.updateBodyPageFields(revision, profile)` 和 `DocumentEditor.updateBodyPageFields()` 显式刷新正文缓存，默认页面面板提供同名按钮。核心只改结果文字，清空多余缓存 run 的文字，保留域代码、属性、字符样式、其他部件和原选择，一次更新合为一项精确历史。结果相同不改 revision，保留当前显示布局和后续原生导航。缺字体、未知/锁定/嵌套指令、结果内注释或处理指令、保护及原有输出/历史预算失败时整体拒绝。
 
-每段最多 64 个字段，正文布局最多 4096 个字段位置。重复表头中的 `PAGE`、不可定位的结果及未收敛结果给出布局诊断，阻止不确定的刷新或输出。字段段落仍保留原生编辑保护，其他普通段落可继续输入并触发实时重算；插入、字段指令编辑、字段段落范围编辑及其他域继续实施，不视为字段创作已完成。依据 [ONLYOFFICE 字段行所在页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L918-L928)与[实际页总数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L1312-L1315)。实现归[正文字段布局](../../modules/layout/src/body-fields.mbt)和[缓存刷新事务](../../modules/formats/src/docx/body-field-edit.mbt)。
+`FoundationSession/Client.insertBodyPageField(revision, field, profile)` 和 `DocumentEditor.insertBodyPageField(field)` 将当前范围替换为一个原生简单域。`DocxPageField` 使用 `{ field: "PAGE" | "NUMPAGES", format? }`，可选格式沿用上述五种显式格式。默认页面面板提供“插入正文页码”和“插入正文总页数”。核心保留附近字符格式，写入实际布局值，将光标放到域后，插入与范围删除合为一项精确历史。正文、空段落和普通单元格共用事务。未知源、超限、缺字体及不完整布局整体拒绝，不改其他域的旧缓存。依据 [ONLYOFFICE 插入字段及直接格式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L23510-L23565)，实现归[正文域插入](../../modules/formats/src/docx/body-field-insert.mbt)。
+
+仅含受支持简单域和普通内容的段落，已有原生光标、相邻文字输入、同段范围替换、整域 Delete/Backspace 和组合输入。一个域保持一个源位置，删除整个源元素，不把结果拆成可编辑数字。查找中的后续文字也沿用逻辑位置。域的正文范围剪贴板沿用[正文富文本片段](#正文富文本片段)；复杂域范围、整格/跨格域片段及指令编辑继续保护。其他普通段落可继续输入并触发实时重算。实现归[正文域输入](../../modules/formats/src/docx/body-field-input.mbt)。
+
+正文及同一普通单元格内，Enter 可在简单域两侧拆段，段落边界 Delete/Backspace 可合并。跨段范围替换和组合输入将所选域完整移除，保留范围外的域、代码和缓存。合并时补齐移动元素的命名空间，将原段落继承的字符格式保留为直接属性。书签和批注锚点随拆合移动，被删段落中的锚点恢复到正确逻辑位置；源、选择及其他部件沿同一精确历史保存重开。跨容器、复杂/未知/锁定域和原有预算失败仍整体拒绝。依据 [ONLYOFFICE 域不可拆分](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Field.js#L169-L177)与[段落拆分及属性继承](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L13838-L13869)，实现归[正文域输入](../../modules/formats/src/docx/body-field-input.mbt)和[跨段源事务](../../modules/formats/src/docx/range.mbt)。
+
+简单域整体参与已有字符格式查询和修改，也支持所在段落的对齐、间距等段落格式。默认格式面板、格式捕获和光标处的待输入格式共用原有命令。核心查询并修改首个实际结果 run，保留域代码、缓存文字、前置空 run 和其他缓存样式。域与邻接普通文字混合选择时，普通 run 按边界拆分，域保持完整；格式修改与后续输入各自沿精确历史保存重开。复杂域、未知字段或结果属性继续拒绝格式修改。依据 [ONLYOFFICE 字段结果格式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L1774-L1812)，实现归[格式查询](../../modules/formats/src/docx/format-query.mbt)与[字符格式事务](../../modules/formats/src/docx/format-character.mbt)。
+
+每段最多 64 个字段，正文布局最多 4096 个字段位置。重复表头中的 `PAGE`、不可定位的结果及未收敛结果给出布局诊断，阻止不确定的刷新或输出。其他域及完整字段创作继续实施。依据 [ONLYOFFICE 字段行所在页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L918-L928)与[实际页总数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L1312-L1315)。实现归[正文字段布局](../../modules/layout/src/body-fields.mbt)和[缓存刷新事务](../../modules/formats/src/docx/body-field-edit.mbt)。
 
 ### 表格创建
 
@@ -589,15 +597,17 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 ### 正文富文本片段
 
-`FoundationSession.clipboard(revision, selection, cut = false)` 和异步 `FoundationClient.clipboard` 返回 `DocxClipboard`：`{ kind: "body" | "cells", text, fragment, reason, selection }`。普通正文和同一单元格中的文字范围可截取部分字符及跨段落内容；跨格整格范围沿既有矩形片段。查询保持源、选择和历史。不能转移的已知内容返回纯文本及原因，图片剪切须成功生成富文本并通过原生删除保护。
+`FoundationSession.clipboard(revision, selection, cut = false)` 和异步 `FoundationClient.clipboard` 返回 `DocxClipboard`：`{ kind: "body" | "cells", text, fragment, reason, selection }`。普通正文和同一单元格中的文字范围可截取部分字符及跨段落内容；跨格整格范围沿既有矩形片段。查询保持源、选择和历史。不能转移的已知内容返回纯文本及原因，图片和域的剪切须成功生成富文本并通过原生删除保护。
 
 正文片段携带解析后的字符/段落格式、完整普通书签、链接、编号及行内 PNG/JPEG。资源校验和目标身份分配复用[单元格富文本片段](#单元格富文本片段)。`bodyFragmentImages(revision, fragment)` 只读预检图片；同步宿主先解码并注册 RGBA。`pasteBodyFragment(revision, selection, fragment, profile)` 原子替换范围；Web 自动解码，`DocumentEditor.pasteFragment(fragment)` 沿既有编辑队列提交。字体、布局、资源、历史或输出失败保留原文档。
+
+简单 `PAGE`、`NUMPAGES` 域也随正文片段转移，保留指令、显式编号格式及已解析的字符格式。纯文本输出取当前完整布局的实际结果，长度变化不改变用于剪切的逻辑范围；缺少、过时或不完整布局时拒绝读取所选域，不退回旧缓存。同步和 Worker 桥使用当前布局，调用方先完成相同 revision 的排版；MoonBit `selected_text`、`clipboard` 可显式传入 `layout`。粘贴按目标位置重算新域缓存，保留已有域的旧缓存，并与文字及资源合为一项历史。空结果域仍携带富文本片段，不视为空选择。整格/跨格片段中的域继续保护。依据 [ONLYOFFICE 原生简单域序列化](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Serialize2.js#L5513-L5528)，实现归[域剪贴板值与格式](../../modules/formats/src/docx/field-clipboard.mbt)。
 
 单段粘贴保留目标段落属性，源字符格式随文字插入。多段粘贴使用源段落属性，保留目标前后文字的字符格式；最后一个部分段落当前也使用源段落属性。光标停在插入末尾，继续输入继承源字符格式。文字、资源、选择和所有段落合为一项精确历史。
 
 默认 Copy/Cut 与原生快捷键携带 `text/plain` 及 Chromium 自定义类型 `web application/x-open-document-docx-body`。写入成功且文档、revision、选择仍一致时才剪切。默认粘贴面板的“保留源格式粘贴”、Ctrl/Cmd+V 和导出的 `pasteDocxSelection(editor)` 优先读取正文片段，其次读取单元格片段，缺少原生类型时粘贴纯文本。无效原生片段拒绝，读取期间目标变化保留文档。`paste(text)` 及原生普通 paste 事件继续采用纯文本路径。
 
-最多 1024 个普通段落、65536 文字单元；片段、图片、链接、书签及编号采用上述共享预算，Web 读取 Blob 前限 4 MiB。跨表与正文/表格混合结构、HTML/Markdown、批注/修订/字段及部分书签转移继续实施。实现归 [`fragment-copy.mbt`](../../modules/formats/src/docx/fragment-copy.mbt)、[`fragment-import.mbt`](../../modules/formats/src/docx/fragment-import.mbt) 和 [`fragment-paste.mbt`](../../modules/formats/src/docx/fragment-paste.mbt)。段落拆分和首尾合并参考 [ONLYOFFICE SelectedContent](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/SelectedContent.js#L1021-L1198)，未复制上游执行代码。
+最多 1024 个普通段落、65536 文字单元；片段、图片、链接、书签及编号采用上述共享预算，Web 读取 Blob 前限 4 MiB。域另沿用每段 64 个及正文布局 4096 个位置的上限。跨表与正文/表格混合结构、HTML/Markdown、批注/修订/复杂域及部分书签转移继续实施。实现归 [`fragment-copy.mbt`](../../modules/formats/src/docx/fragment-copy.mbt)、[`fragment-import.mbt`](../../modules/formats/src/docx/fragment-import.mbt) 和 [`fragment-paste.mbt`](../../modules/formats/src/docx/fragment-paste.mbt)。段落拆分和首尾合并参考 [ONLYOFFICE SelectedContent](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/SelectedContent.js#L1021-L1198)，未复制上游执行代码。
 
 ### 表格尺寸
 

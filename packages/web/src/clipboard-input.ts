@@ -53,7 +53,13 @@ export async function copyDocxSelection(
       : await client.clipboard(revision, selection, cut);
   const text = copied.text;
   assertOpen();
-  if (text.length === 0) return null;
+  if (
+    text.length === 0 &&
+    (copied.fragment === null ||
+      (selection.anchor.paragraph === selection.focus.paragraph &&
+        selection.anchor.offset === selection.focus.offset))
+  )
+    return null;
   if (!navigator.clipboard) throw new Error("Clipboard API is unavailable");
   if (copied.fragment !== null) {
     const mime = copied.kind === "cells" ? docxCellsMime : docxBodyMime;

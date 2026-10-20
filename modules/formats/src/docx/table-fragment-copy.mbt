@@ -10,6 +10,7 @@ fn fragment_paragraph(
   markers : Map[Int, String],
   numbers : Map[Int, (Int, Int)],
   pictures : Map[Int, String],
+  fields~ : Map[Int, String] = Map([]),
   start~ : Int = 0,
   end~ : Int = 2147483647,
 ) -> String raise @failure.Failure {
@@ -17,7 +18,7 @@ fn fragment_paragraph(
     tree.children[paragraph.id].all(id => {
       tree.nodes[id].uri == word_uri &&
       (
-        ["pPr", "r", "hyperlink"].contains(tree.nodes[id].name) ||
+        ["pPr", "r", "hyperlink", "fldSimple"].contains(tree.nodes[id].name) ||
         tree.is_bookmark(id)
       )
     }) else {
@@ -117,7 +118,7 @@ fn fragment_paragraph(
       runs.push(Some(id))
     }
   }
-  if tree.paragraph_runs(paragraph.id).is_empty() {
+  if tree.paragraph_runs(paragraph.id, running=true).is_empty() {
     runs.push(tree.child(paragraph.id, "pPr"))
   }
   let mut active_link : Int? = None
@@ -136,6 +137,8 @@ fn fragment_paragraph(
           .fold(init=0, (sum, child) => {
             sum + inline_text(tree.nodes[child]).length()
           })
+        } else if tree.nodes[id].name == "fldSimple" {
+          1
         } else {
           0
         }
@@ -170,6 +173,25 @@ fn fragment_paragraph(
       }
       units += markup.length()
       output.write_string(markup)
+      continue
+    }
+    if run is Some(id) && tree.nodes[id].name == "fldSimple" {
+      guard fields.get(id) is Some(value) else {
+        @failure.reject(
+          "protected-content", "Rich field copy requires its current layout value",
+        )
+      }
+      let xml = fragment_field_markup(
+        tree,
+        document,
+        paragraph.id,
+        id,
+        styles,
+        value,
+        limit - units,
+      )
+      units += xml.length()
+      output.write_string(xml)
       continue
     }
     if run is Some(run) && tree.nodes[run].name == "r" {

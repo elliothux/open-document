@@ -25,10 +25,27 @@ import {
   type DocxRunningKind,
   type DocxRunningVariant,
   type DocxRunningContent,
+  type DocxPageField,
+  checkPageField,
 } from "@open-document/wasm/foundation";
 
 /** Page commands retain the existing Worker and validation boundary. */
 export class FoundationPageClient extends FoundationReviewClient {
+  async insertBodyPageField(
+    revision: number,
+    field: DocxPageField,
+    profile: Record<string, string>,
+  ) {
+    checkPageField(field);
+    return editState(
+      await this.connection.request({
+        operation: "insertBodyPageField",
+        revision,
+        field,
+        profile,
+      }),
+    );
+  }
   async updateBodyPageFields(
     revision: number,
     profile: Record<string, string>,

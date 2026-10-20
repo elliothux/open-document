@@ -41,7 +41,7 @@ fn Session::read_body_fragment(
       "invalid-operation", "Rich text requires one body containing ordinary paragraphs",
     )
   }
-  check_fragment_content(tree, tree.descendants(body), pictures)
+  check_fragment_content(tree, tree.descendants(body), pictures, fields=true)
   let view = { ..self, parts, media, }
   let flow = view.flow_from(document)
   guard flow.paragraphs.length() == tree.children[body].length() &&

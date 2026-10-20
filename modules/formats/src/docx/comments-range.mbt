@@ -32,7 +32,11 @@ fn Session::restore_comments(
     return prepared
   }
   let after = prepared.edit.after.unwrap()
-  let (document, steps) = self.split_bookmark_boundary(prepared.document, after)
+  let (document, steps) = self.split_bookmark_boundary(
+    prepared.document,
+    after,
+    fields=true,
+  )
   let starts = StringBuilder()
   let ends = StringBuilder()
   let references = StringBuilder()

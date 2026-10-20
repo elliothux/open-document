@@ -2,10 +2,17 @@
 fn Session::capture_body_fragment(
   self : Session,
   selection : Selection,
+  layout? : @layout.Layout,
 ) -> String raise @failure.Failure {
   let document = self.document()
   let tree = WordTree::new(document)
-  let range = self.paragraph_range(tree, selection, structural=true)
+  let range = self.paragraph_range(
+    tree,
+    selection,
+    structural=true,
+    fields=true,
+  )
+  let fields = self.selection_field_values(tree, range, layout)
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
   let styles = self.styles([])
   let (numbering, numbers) = self.fragment_paragraph_numbering(
@@ -77,6 +84,7 @@ fn Session::capture_body_fragment(
       markers,
       numbers,
       pictures,
+      fields~,
       start~,
       end~,
     )
@@ -107,20 +115,22 @@ fn Session::capture_body_fragment(
 
 ///|
 /// Captures an editable text range with portable formatting and resources.
+/// Supply the current layout when the selected range contains page fields.
 pub fn Session::clipboard(
   self : Session,
   revision : Int,
   selection : Selection,
   cut~ : Bool = false,
+  layout? : @layout.Layout,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
   if self.table_cell_range(tree, selection, pictures=true) is Some(_) {
     return self.table_clipboard(revision, selection, cut~)
   }
-  let text = self.selected_text(revision, selection)
+  let text = self.selected_text(revision, selection, layout?)
   let mut reason = ""
-  let fragment = Json(self.capture_body_fragment(selection)) catch {
+  let fragment = Json(self.capture_body_fragment(selection, layout?)) catch {
     @failure.Failure(code="protected-content", message~, ..) => {
       reason = message
       Json::null()
@@ -129,12 +139,12 @@ pub fn Session::clipboard(
   }
   if cut {
     if fragment == Json::null() {
-      ignore(self.selected_text(revision, selection, cut=true))
+      ignore(self.selected_text(revision, selection, cut=true, layout?))
     } else {
       let tree = WordTree::new(self.document())
       self.check_picture_range(
         tree,
-        self.paragraph_range(tree, selection, structural=true),
+        self.paragraph_range(tree, selection, structural=true, fields=true),
       )
     }
   }

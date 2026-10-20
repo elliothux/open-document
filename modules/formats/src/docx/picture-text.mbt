@@ -17,10 +17,14 @@ fn WordTree::has_picture_range(
   texts : Array[TextNode],
   start : Int,
   end : Int,
+  fields~ : Bool = false,
 ) -> Bool {
   for item in texts; cursor = 0 {
     let length = inline_text(self.nodes[item.id]).length()
-    if self.nodes[item.id].name == "drawing" &&
+    if (
+        self.nodes[item.id].name == "drawing" ||
+        (fields && self.nodes[item.id].name == "fldSimple")
+      ) &&
       start < cursor + length &&
       end > cursor {
       return true

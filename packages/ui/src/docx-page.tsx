@@ -83,6 +83,26 @@ export function DocxPage({
       <h3>{t.pageSetup}</h3>
       <button
         type="button"
+        disabled={disabled || !editor.getSnapshot().data.selection}
+        onClick={() =>
+          controller.run(() => editor.insertBodyPageField({ field: "PAGE" }))
+        }
+      >
+        {t.insertBodyPageNumber}
+      </button>
+      <button
+        type="button"
+        disabled={disabled || !editor.getSnapshot().data.selection}
+        onClick={() =>
+          controller.run(() =>
+            editor.insertBodyPageField({ field: "NUMPAGES" }),
+          )
+        }
+      >
+        {t.insertBodyPageCount}
+      </button>
+      <button
+        type="button"
         disabled={disabled}
         onClick={() => controller.run(() => editor.updateBodyPageFields())}
       >

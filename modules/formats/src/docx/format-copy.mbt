@@ -54,7 +54,12 @@ pub fn Session::apply_format(
   }
   ignore(paragraph.properties())
   let document = self.document()
-  let range = self.formatting_range(document, selection, whole_cells=true)
+  let range = self.formatting_range(
+    document,
+    selection,
+    whole_cells=true,
+    fields=true,
+  )
   let collapsed = range.start.paragraph == range.end.paragraph &&
     range.start.offset == range.end.offset
   let pending = if self.selection == Some(selection) {
@@ -65,12 +70,17 @@ pub fn Session::apply_format(
   let mut candidate = document
   let edits : Array[@xml.Edit] = []
   if !collapsed &&
-    self.format_character_document(candidate, selection, character)
+    self.format_character_document(candidate, selection, character, fields=true)
     is Some((updated, edit)) {
     candidate = updated
     edits.push(edit)
   }
-  if self.format_paragraph_document(candidate, selection, paragraph)
+  if self.format_paragraph_document(
+      candidate,
+      selection,
+      paragraph,
+      fields=true,
+    )
     is Some((updated, edit)) {
     candidate = updated
     edits.push(edit)

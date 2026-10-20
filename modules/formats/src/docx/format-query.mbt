@@ -157,6 +157,7 @@ fn Session::formatting_range(
   document : @xml.Document,
   selection : Selection,
   whole_cells~ : Bool = false,
+  fields~ : Bool = false,
 ) -> ParagraphRange raise @failure.Failure {
   let tree = WordTree::new(document)
   let cells = if whole_cells {
@@ -170,6 +171,7 @@ fn Session::formatting_range(
       tree,
       selection,
       structural=true,
+      fields~,
       check_layout=false,
     )
   })
@@ -193,7 +195,12 @@ pub fn Session::query_formatting(
   let tree = WordTree::new(self.document())
   let mut reason = ""
   let range = try
-    self.formatting_range(self.document(), selection, whole_cells=true)
+    self.formatting_range(
+      self.document(),
+      selection,
+      whole_cells=true,
+      fields=true,
+    )
   catch {
     @failure.Failure(
       code="invalid-position"

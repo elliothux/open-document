@@ -148,7 +148,7 @@ pub fn Session::cancel_picture_resize(Self, Int, Int) -> Json raise @failure.Fai
 pub fn Session::capture_format(Self, Int, Selection) -> Json raise @failure.Failure
 pub fn Session::check_idle(Self) -> Unit raise @failure.Failure
 pub fn Session::check_position(Self, Position) -> Unit raise @failure.Failure
-pub fn Session::clipboard(Self, Int, Selection, cut? : Bool) -> Json raise @failure.Failure
+pub fn Session::clipboard(Self, Int, Selection, cut? : Bool, layout? : @layout.Layout) -> Json raise @failure.Failure
 pub fn Session::close(Self) -> Unit
 pub fn Session::comment_overlays(Self, @layout.Layout) -> Json raise @failure.Failure
 pub fn Session::comments(Self, Int) -> Json raise @failure.Failure
@@ -171,6 +171,7 @@ pub fn Session::find(Self, Int, String, FindOptions) -> Json raise @failure.Fail
 pub fn Session::finish_picture_resize(Self, Int, Int, Double, Double, Int) -> Json raise @failure.Failure
 pub fn Session::flow(Self) -> @layout.Flow raise @failure.Failure
 pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
+pub fn Session::insert_body_page_field(Self, Int, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_picture(Self, Int, Double, Double, Bytes) -> Json raise @failure.Failure
 pub fn Session::insert_table(Self, Int, Selection, Int, Int, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::list_catalog(Self, Int) -> Json raise @failure.Failure
@@ -196,7 +197,7 @@ pub fn Session::ruler(Self, Int, @layout.Layout) -> Json raise @failure.Failure
 pub fn Session::running_area(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::save(Self) -> Bytes raise @failure.Failure
 pub fn Session::select(Self, Int, Selection) -> Json raise @failure.Failure
-pub fn Session::selected_text(Self, Int, Selection, cut? : Bool) -> String raise @failure.Failure
+pub fn Session::selected_text(Self, Int, Selection, cut? : Bool, layout? : @layout.Layout) -> String raise @failure.Failure
 pub fn Session::selection_rects(Self, @layout.Layout, Selection) -> Array[@layout.SelectionRect] raise @failure.Failure
 pub fn Session::set_character_format(Self, Int, Selection, CharacterFormat) -> Json raise @failure.Failure
 pub fn Session::set_default_tab_stop(Self, Int, Double?) -> Json raise @failure.Failure

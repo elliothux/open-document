@@ -99,7 +99,7 @@ fn Session::edit_inline_text(
   document : @xml.Document,
   replacements : Map[Int, String],
   source~ : Array[@xml.SourceChange] = [],
-  image_offsets~ : Map[Int, Int] = Map([]),
+  object_offsets~ : Map[Int, Int] = Map([]),
 ) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
   let plain : Map[Int, String] = Map([])
   let changes = source.copy()
@@ -109,6 +109,24 @@ fn Session::edit_inline_text(
   let mut units = 0
   for id, text in replacements {
     let node = document.node(id)
+    if node.name == "fldSimple" {
+      let items = field_text_changes(
+        tree,
+        document,
+        id,
+        text,
+        object_offsets.get(id),
+        limit - units,
+      )
+      for item in items {
+        units += item.xml.length()
+        guard units <= limit else {
+          @failure.reject("limit-exceeded", "Field text source exceeds budget")
+        }
+        changes.push(item)
+      }
+      continue
+    }
     let paragraph = tree.run_paragraph(node.parent)
     tree.check_region_break_input(paragraph, text)
     if node.name == "drawing" {
@@ -116,7 +134,7 @@ fn Session::edit_inline_text(
         tree,
         id,
         text,
-        image_offsets.get(id),
+        object_offsets.get(id),
         limit - units,
       )
       for item in items {
@@ -137,7 +155,12 @@ fn Session::edit_inline_text(
       plain[id] = text
       continue
     }
-    tree.check_editable_paragraph(paragraph, part=self.main, pictures=true)
+    tree.check_editable_paragraph(
+      paragraph,
+      part=self.main,
+      pictures=true,
+      fields=true,
+    )
     self.check_native_pictures(tree, paragraph)
     guard node.attributes
       .iter()

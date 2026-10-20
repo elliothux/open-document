@@ -3,7 +3,7 @@ fn WordTree::run_paragraph(self : WordTree, run : Int) -> Int {
   let parent = self.nodes[run].parent
   if parent >= 0 &&
     self.nodes[parent].uri == word_uri &&
-    self.nodes[parent].name == "hyperlink" {
+    ["hyperlink", "fldSimple"].contains(self.nodes[parent].name) {
     self.nodes[parent].parent
   } else {
     parent

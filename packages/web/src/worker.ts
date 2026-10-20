@@ -292,6 +292,12 @@ async function dispatch(request: Request): Promise<unknown> {
             request.revision,
             request.profile,
           );
+        case "insertBodyPageField":
+          return foundation.insertBodyPageField(
+            request.revision,
+            request.field,
+            request.profile,
+          );
         case "setPageColumns":
           return foundation.setPageColumns(
             request.revision,

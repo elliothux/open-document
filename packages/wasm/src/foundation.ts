@@ -8,6 +8,8 @@ export {
   docxRunningArea,
   type DocxRunningArea,
   type DocxRunningContent,
+  type DocxPageField,
+  checkPageField,
   type DocxRunningKind,
   type DocxRunningVariant,
 } from "./docx-page.js";

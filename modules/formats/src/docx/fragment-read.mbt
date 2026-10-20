@@ -3,6 +3,7 @@ fn check_fragment_content(
   tree : WordTree,
   nodes : Array[Int],
   pictures : Map[Int, Bool],
+  fields~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   let mut units = 0
   for id in nodes {
@@ -52,7 +53,10 @@ fn check_fragment_content(
       "tc" => ["tcPr", "p"]
       "tcPr" =>
         ["tcW", "gridSpan", "vMerge", "tcBorders", "shd", "tcMar", "vAlign"]
-      "p" => ["pPr", "r", "hyperlink", "bookmarkStart", "bookmarkEnd"]
+      "p" =>
+        ["pPr", "r", "hyperlink", "bookmarkStart", "bookmarkEnd"] +
+        (if fields { ["fldSimple"] } else { [] })
+      "fldSimple" if fields => ["r"]
       "hyperlink" => ["r", "bookmarkStart", "bookmarkEnd"]
       "r" => ["rPr", "t", "tab", "br", "cr", "drawing"]
       "pPr" =>
@@ -81,6 +85,16 @@ fn check_fragment_content(
     }
     if node.name == "hyperlink" {
       tree.check_hyperlink(id)
+    }
+    if node.name == "fldSimple" {
+      guard fields &&
+        tree.nodes[node.parent].uri == word_uri &&
+        tree.nodes[node.parent].name == "p" else {
+        @failure.reject(
+          "protected-content", "Rich fields require a paragraph container",
+        )
+      }
+      tree.simple_page_fields(node.parent)
     }
     if [
         "body", "tbl", "tblPr", "tblGrid", "tr", "tc", "tcPr", "p", "pPr", "r", "rPr",

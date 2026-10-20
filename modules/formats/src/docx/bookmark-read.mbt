@@ -144,7 +144,12 @@ fn WordTree::bookmarks(self : WordTree) -> Array[Bookmark] {
       for p in [positions[id].paragraph, positions[end].paragraph] {
         if !checked.contains(p) {
           checked[p] = try {
-            self.check_editable_paragraph(p, part="", pictures=true)
+            self.check_editable_paragraph(
+              p,
+              part="",
+              pictures=true,
+              fields=true,
+            )
             ""
           } catch {
             @failure.Failure(message~, ..) => message

@@ -23,9 +23,15 @@ fn Session::format_character_document(
   patch : CharacterFormat,
   include_empty~ : Bool = false,
   split~ : Bool = false,
+  fields~ : Bool = false,
 ) -> (@xml.Document, @xml.Edit)? raise @failure.Failure {
   let tree = WordTree::new(document)
-  let range = self.formatting_range(document, selection, whole_cells=true)
+  let range = self.formatting_range(
+    document,
+    selection,
+    whole_cells=true,
+    fields~,
+  )
   let include_empty = include_empty ||
     tree.nodes[range.start.paragraph].parent !=
     tree.nodes[range.end.paragraph].parent
@@ -242,6 +248,7 @@ fn Session::prepare_formatted_input(
       range,
       patch,
       include_empty=true,
+      fields=true,
     )
     is Some((document, xml)) else {
     return prepared

@@ -24,6 +24,7 @@ fn Session::prepare_structural_range_in(
     tree,
     selection,
     structural=true,
+    fields=true,
     check_graphemes~,
   )
   self.check_picture_range(tree, range)
@@ -53,7 +54,7 @@ fn Session::prepare_structural_range_in(
     first_texts.last().map(node => node.id)
   }
   let replacements : Map[Int, String] = Map([])
-  let image_offsets : Map[Int, Int] = Map([])
+  let object_offsets : Map[Int, Int] = Map([])
   let mut insertion_offset = 0
   for node in first_texts; offset = 0 {
     let before = inline_text(tree.nodes[node.id])
@@ -69,9 +70,9 @@ fn Session::prepare_structural_range_in(
     if insertion == Some(node.id) {
       insertion_offset = keep
     }
-    let picture = tree.nodes[node.id].name == "drawing"
+    let picture = ["drawing", "fldSimple"].contains(tree.nodes[node.id].name)
     if picture && keep == remove {
-      image_offsets[node.id] = if keep == 0 && insertion == Some(node.id) {
+      object_offsets[node.id] = if keep == 0 && insertion == Some(node.id) {
         parts[0].length()
       } else {
         0
@@ -86,8 +87,9 @@ fn Session::prepare_structural_range_in(
     let before = inline_text(tree.nodes[node.id])
     let remove = (end.offset - offset).clamp(min=0, max=before.length())
     let after = before[remove:].to_owned()
-    if tree.nodes[node.id].name == "drawing" && remove == 0 {
-      image_offsets[node.id] = 0
+    if ["drawing", "fldSimple"].contains(tree.nodes[node.id].name) &&
+      remove == 0 {
+      object_offsets[node.id] = 0
     }
     if before != after {
       replacements[node.id] = after
@@ -225,7 +227,7 @@ fn Session::prepare_structural_range_in(
         id in tree.children[last.id].filter(id => {
           tree.nodes[id].uri == word_uri &&
           [
-            "r", "hyperlink", "bookmarkStart", "bookmarkEnd", "commentRangeStart",
+            "r", "hyperlink", "fldSimple", "bookmarkStart", "bookmarkEnd", "commentRangeStart",
             "commentRangeEnd",
           ].contains(tree.nodes[id].name)
         }) {
@@ -242,7 +244,7 @@ fn Session::prepare_structural_range_in(
           })
         }
       }
-      for id in tree.paragraph_runs(last.id) {
+      for id in tree.paragraph_runs(last.id, running=true) {
         if self.preserve_run_style(tree, styles, id, first.id) is Some(change) {
           changes.push(change)
         }
@@ -268,7 +270,7 @@ fn Session::prepare_structural_range_in(
     document,
     replacements,
     source=changes,
-    image_offsets~,
+    object_offsets~,
   )
   let updated_tree = WordTree::new(candidate)
   let paragraph = updated_tree.children[parent.id][first_index +

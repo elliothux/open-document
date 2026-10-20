@@ -12,6 +12,7 @@ fn Foundation::clipboard_command(
           revision,
           field_selection(request),
           cut=xlsx_boolean(request, "cut"),
+          layout?=self.layout,
         ),
       )
     "tableClipboard" =>
@@ -25,6 +26,7 @@ fn Foundation::clipboard_command(
         revision,
         field_selection(request),
         cut=xlsx_boolean(request, "cut"),
+        layout?=self.layout,
       )
     "tableFragmentImages" =>
       session.table_fragment_images(revision, field_string(request, "fragment"))

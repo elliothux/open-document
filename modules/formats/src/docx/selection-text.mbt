@@ -11,8 +11,15 @@ fn Session::paragraph_range(
   tree : WordTree,
   selection : Selection,
   structural~ : Bool,
+  fields~ : Bool = false,
 ) -> ParagraphRange raise @failure.Failure {
-  self.paragraph_range_in(self.document(), tree, selection, structural~)
+  self.paragraph_range_in(
+    self.document(),
+    tree,
+    selection,
+    structural~,
+    fields~,
+  )
 }
 
 ///|
@@ -22,6 +29,7 @@ fn Session::paragraph_range_in(
   tree : WordTree,
   selection : Selection,
   structural~ : Bool,
+  fields~ : Bool = false,
   check_layout~ : Bool = true,
   check_graphemes~ : Bool = true,
 ) -> ParagraphRange raise @failure.Failure {
@@ -51,10 +59,10 @@ fn Session::paragraph_range_in(
     guard tree.nodes[id].uri == word_uri && tree.nodes[id].name == "p" else {
       @failure.reject("protected-content", "Range crosses protected content")
     }
-    tree.check_editable_paragraph(id, part=self.main, pictures=true)
+    tree.check_editable_paragraph(id, part=self.main, pictures=true, fields~)
     self.check_native_pictures(tree, id)
     if structural {
-      tree.check_structure_paragraph(id)
+      tree.check_structure_paragraph(id, running=fields)
     }
   }
   if !check_layout {
@@ -82,19 +90,21 @@ fn Session::paragraph_range_in(
 /// Reads a supported plain-text range in document order, with LF paragraph separators.
 /// Whole-cell ranges use tabs between cells and LF after each selected row.
 /// This query preserves selection, revision, history and layout; oversized output fails.
-/// Plain-text cut rejects pictures; table_clipboard checks portable resources for rich cell cuts.
+/// Supply the current layout when the selected range contains page fields.
+/// Plain-text cut rejects inline objects; rich clipboard validates their portable source.
 pub fn Session::selected_text(
   self : Session,
   revision : Int,
   selection : Selection,
   cut~ : Bool = false,
+  layout? : @layout.Layout,
 ) -> String raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
   let cells = self.table_format_range(tree, selection)
   let whole_cells = cells is Some(_)
   let range = cells.unwrap_or_else(() => {
-    self.paragraph_range(tree, selection, structural=false)
+    self.paragraph_range(tree, selection, structural=false, fields=true)
   })
   if cut {
     let texts = docx_texts(tree)
@@ -113,13 +123,15 @@ pub fn Session::selected_text(
         texts.filter(item => item.paragraph == p),
         start,
         end,
+        fields=true,
       ) else {
         @failure.reject(
-          "protected-content", "Cutting pictures requires rich clipboard support",
+          "protected-content", "Cutting inline objects requires rich clipboard support",
         )
       }
     }
   }
+  let fields = self.selection_field_values(tree, range, layout)
   let output = StringBuilder()
   let mut units = if whole_cells { 1 } else { 0 }
   for index, paragraph in range.paragraphs {
@@ -136,10 +148,8 @@ pub fn Session::selected_text(
         "\n"
       }
     }
-    let text = self
-      .editable_texts(paragraph)
-      .map(node => inline_text(tree.nodes[node.id]))
-      .join("")
+    let texts = self.editable_texts(paragraph)
+    let text = texts.map(node => inline_text(tree.nodes[node.id])).join("")
     let start = if paragraph == range.start.paragraph {
       range.start.offset
     } else {
@@ -150,14 +160,30 @@ pub fn Session::selected_text(
     } else {
       text.length()
     }
-    units += end - start + separator.length()
+    units += separator.length()
     guard units <= command_limit else {
       @failure.reject("limit-exceeded", "Selection text exceeds UTF-16 budget")
     }
     output.write_string(separator)
-    output.write_string(
-      text[start:end].to_owned().replace_all(old="\u2028", new="\n"),
-    )
+    for item in texts; offset = 0 {
+      let value = inline_text(tree.nodes[item.id])
+      let left = (start - offset).clamp(min=0, max=value.length())
+      let right = (end - offset).clamp(min=0, max=value.length())
+      if left < right {
+        let selected = fields
+          .get(item.id)
+          .unwrap_or_else(() => value[left:right].to_owned())
+          .replace_all(old="\u2028", new="\n")
+        guard selected.length() <= command_limit - units else {
+          @failure.reject(
+            "limit-exceeded", "Selection text exceeds UTF-16 budget",
+          )
+        }
+        units += selected.length()
+        output.write_string(selected)
+      }
+      continue offset + value.length()
+    }
   }
   if whole_cells {
     output.write_string("\n")

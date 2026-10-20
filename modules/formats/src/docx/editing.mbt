@@ -76,7 +76,12 @@ fn Session::editable_texts(
   paragraph : Int,
 ) -> Array[TextNode] raise @failure.Failure {
   let tree = WordTree::new(self.document())
-  tree.check_editable_paragraph(paragraph, part=self.main, pictures=true)
+  tree.check_editable_paragraph(
+    paragraph,
+    part=self.main,
+    pictures=true,
+    fields=true,
+  )
   self.check_native_pictures(tree, paragraph)
   self.texts.filter(node => node.paragraph == paragraph)
 }
@@ -208,6 +213,7 @@ fn Session::check_position_in(
     position.paragraph,
     part=self.main,
     pictures=true,
+    fields=true,
   )
   self.check_native_pictures(tree, position.paragraph)
   let nodes = tree.nodes
@@ -345,7 +351,8 @@ fn Session::prepare_plain_range(
   validate_position(focus, boundaries)
   let start = anchor.offset.min(focus.offset)
   let end = anchor.offset.max(focus.offset)
-  if content[start:end] == text && !tree.has_picture_range(texts, start, end) {
+  if content[start:end] == text &&
+    !tree.has_picture_range(texts, start, end, fields=true) {
     return None
   }
   if texts.is_empty() {
@@ -376,7 +383,7 @@ fn Session::prepare_plain_range(
     texts.last().unwrap().id
   }
   let changes : Map[Int, String] = Map([])
-  let image_offsets : Map[Int, Int] = Map([])
+  let object_offsets : Map[Int, Int] = Map([])
   let mut offset = 0
   for node in texts {
     let before = inline_text(nodes[node.id])
@@ -386,9 +393,9 @@ fn Session::prepare_plain_range(
     let after = before[:left].to_owned() +
       (if node.id == insertion { text } else { "" }) +
       before[right:].to_owned()
-    let picture = nodes[node.id].name == "drawing"
+    let picture = ["drawing", "fldSimple"].contains(nodes[node.id].name)
     if picture && left == right {
-      image_offsets[node.id] = if left == 0 && node.id == insertion {
+      object_offsets[node.id] = if left == 0 && node.id == insertion {
         text.length()
       } else {
         0
@@ -417,7 +424,7 @@ fn Session::prepare_plain_range(
     changes,
     Some(after),
     anchor.paragraph,
-    image_offsets~,
+    object_offsets~,
   )
   Some({
     ..prepared,
@@ -458,12 +465,12 @@ fn Session::prepare_text(
   changes : Map[Int, String],
   after : Selection?,
   paragraph : Int,
-  image_offsets~ : Map[Int, Int] = Map([]),
+  object_offsets~ : Map[Int, Int] = Map([]),
 ) -> PreparedEdit raise @failure.Failure {
   let (candidate, xml) = self.edit_inline_text(
     self.document(),
     changes,
-    image_offsets~,
+    object_offsets~,
   )
   {
     edit: {

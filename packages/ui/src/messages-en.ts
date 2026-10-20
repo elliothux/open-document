@@ -638,6 +638,8 @@ export const en = {
   pageSetup: "Page setup",
   loadPageSetup: "Load page setup",
   updateBodyPageFields: "Update body page fields",
+  insertBodyPageNumber: "Insert body page number",
+  insertBodyPageCount: "Insert body page count",
   applyPageSetup: "Apply page setup",
   reloadPageSetup: "Document changed. Load page setup again.",
   pageWidth: "Page width (pt)",
