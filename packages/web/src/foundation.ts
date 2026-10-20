@@ -656,6 +656,21 @@ export class FoundationClient extends FoundationClipboardClient {
       throw new Error("Invalid byte response");
     return result;
   }
+  async exportMarkup(
+    revision: number,
+    format: "html" | "markdown",
+    outputBytes = 67108864,
+  ): Promise<Uint8Array> {
+    const result = await this.connection.request({
+      operation: "exportDocxMarkup",
+      revision,
+      format,
+      outputBytes,
+    });
+    if (!(result instanceof Uint8Array))
+      throw new Error("Invalid markup bytes");
+    return result;
+  }
   async flow(): Promise<DocxFlow> {
     return docxFlow(await this.connection.request({ operation: "flow" }));
   }

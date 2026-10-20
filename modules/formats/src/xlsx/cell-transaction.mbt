@@ -32,6 +32,12 @@ fn Session::prepare_cells(
   for index in indices {
     let current = self.sheets[index]
     let values = updates[index]
+    for key in values.keys() {
+      let reason = self.cell_edit_reason(current, Address::parse(key))
+      guard reason.is_empty() else {
+        @failure.reject("protected-content", reason)
+      }
+    }
     targets[index] = values.keys().to_array()
     current.expand_shared_updates(values)
     let (document, edit) = current.prepare(

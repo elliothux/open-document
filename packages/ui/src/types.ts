@@ -109,6 +109,8 @@ export const mime: Record<EditorOutput["format"], string> = {
   png: "image/png",
   jpeg: "image/jpeg",
   csv: "text/csv;charset=utf-8",
+  html: "text/html;charset=utf-8",
+  markdown: "text/markdown;charset=utf-8",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",

@@ -149,6 +149,22 @@ export function FileMenu({
                   )}
                 </>
               )}
+              {state.file?.format === "docx" &&
+                (["html", "markdown"] as const).map((format) => (
+                  <Menu.Item
+                    key={format}
+                    title={
+                      format === "markdown" ? t.markdownExportHint : undefined
+                    }
+                    className="od-menu-item"
+                    disabled={unavailable}
+                    onClick={() =>
+                      controller.run(() => controller.exportMarkup(format))
+                    }
+                  >
+                    {format === "html" ? t.exportHtml : t.exportMarkdown}
+                  </Menu.Item>
+                ))}
               {(state.file?.format === "pptx" ||
                 state.file?.format === "docx") && (
                 <Menu.Item

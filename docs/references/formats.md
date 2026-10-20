@@ -39,7 +39,7 @@ DOCX、XLSX、PPTX 也接受 `document: { name, blank: true }`，`OfficeDocument
 
 框架无关的四类编辑宿主提供 `getSnapshot()`、`subscribe()`、`focus()`、`setPaused()`、`markSaved(output)` 和 `markDownloaded(output)`。快照包含会话身份、revision、导航、缩放、选区摘要、历史、诊断、停止/错误、在途操作及组合/拖动/草稿状态，并附格式当前查询。未变化时保持对象身份；已提交但绘制失败仍发布新 revision，保留保存与恢复入口。低层宿主借用 client，调用者等待宿主释放后另行关闭 client。
 
-编辑宿主的原格式保存、Office PDF、DOCX/PPTX PNG、PPTX JPEG 和 XLSX CSV 输出统一返回 `EditorOutput = { documentId, revision, format, bytes }`。`format` 包含 `csv`、`png` 和 `jpeg`；编辑器输入格式仍为 DOCX/XLSX/PPTX/PDF。默认 UI 另加文件名 `name`。全页图片返回按页序排列的只读 `EditorOutput` 数组，具体合同见[DOCX 页面 PNG](#docx-页面-png)及[PPTX 图片输出](#当前页-png-输出)。此约定不改变原始 Wasm/client 的保存结果。只有该宿主实际产生的原格式输出可以 `markSaved`；旧会话、其他格式和任意裸 revision 都不能确认保存。确认的是输出 revision，其后新编辑仍显示未保存。导航、缩放和 UI 变化不修改文档。
+编辑宿主的原格式保存、Office PDF、DOCX/PPTX PNG、PPTX JPEG、XLSX CSV 和 DOCX HTML/Markdown 输出统一返回 `EditorOutput = { documentId, revision, format, bytes }`。`format` 另包含 `csv`、`png`、`jpeg`、`html` 和 `markdown`；编辑器输入格式仍为 DOCX/XLSX/PPTX/PDF。默认 UI 另加文件名 `name`。全页图片返回按页序排列的只读 `EditorOutput` 数组，具体合同见[DOCX 页面 PNG](#docx-页面-png)及[PPTX 图片输出](#当前页-png-输出)。此约定不改变原始 Wasm/client 的保存结果。只有该宿主实际产生的原格式输出可以 `markSaved`；旧会话、其他格式和任意裸 revision 都不能确认保存。确认的是输出 revision，其后新编辑仍显示未保存。导航、缩放和 UI 变化不修改文档。
 
 原格式 `onSave` 成功才确认保存基线；失败保留修改并允许重试。缺省下载只提示“已生成下载”，不确认磁盘持久化，也不清除修改。PDF、PNG 和 CSV 导出不清除 Office 修改。关闭前选择“导出并继续”明确包含放弃内存会话。`dispose` 不等待宿主存储回调，晚到回执不更新已释放实例。
 
@@ -738,6 +738,18 @@ Web 宿主 `DocumentEditor.exportPng(scale = 1, outputBytes = 67108864)` 返回�
 输出 Canvas 与保留的预览/覆盖层合计最多 16777216 像素，输出字节预算为 1–67108864；尺寸在分配前检查，编码后检查实际字节数，并在成功或失败后释放临时 Canvas。PNG 失败保留源、选择及历史，不停止编辑；下一项成功操作清除 PNG 错误。销毁期间不交付图片。原格式保存与 PDF 继续沿原有恢复规则。
 
 图片输出目标参考 [GenOffice exportImages](https://github.com/genspark-ai/genoffice/blob/5eab98adc8d0ebf6ecea687e42400a791ef58d64/apps/docs/src/renderer/file-actions.ts#L1463-L1540)。当前复用已有核心绘制和 [Canvas 编码](../../packages/web/src/canvas-surface.ts)，未移植其 Electron/PDF.js 导出路径；队列与入口归 [`document-page.ts`](../../packages/web/src/document-page.ts)及 [`document-output.ts`](../../packages/web/src/document-output.ts)。这是 Chrome/Chromium 的 Web 输出；其他编码和无浏览器图片输出继续实施。
+
+### DOCX HTML 与 Markdown
+
+核心 `Session.export_markup(revision, format, output_bytes)` 与同步/异步 `FoundationSession/Client.exportMarkup(revision, format, outputBytes = 67108864)` 返回 UTF-8 字节。`format` 为 `html` 或 `markdown`。Web `DocumentEditor.exportHtml/exportMarkdown(outputBytes = 67108864)` 沿既有输出屏障返回 `EditorOutput`，绑定文档身份与修订。默认文件菜单输出原基名的 `.html`/`.md`，复用 `onSave` 或浏览器下载；导出不改变源、选择、历史和 DOCX 保存基线。
+
+正文与普通表格按源顺序输出，保留逻辑文字、空段落、Tab/换行、前六级标题、粗斜体、下划线、删除线、上下标、内外链接、提示及书签锚点。HTML 使用解析后的字体、字号、颜色、高亮、背景、段距、缩进、方向与对齐；表格携带网格列宽、合并跨度、表头、底色、边距和共同边线。列表使用原生 `ol/ul/li`、`start/value` 和 `aria-level`，保留多级嵌套、实际起点、续号与重启。计数复用核心编号规则；正文和各单元格分别关闭列表容器，跨区域的计数仍连续。空项保留行高，标记与正文各自使用有效格式；RTL 列表使用逻辑起始边缩进。简单标签使用原生 HTML 计数器；复杂标签、装饰、超过 z 的 Word 字母序列及超出浏览器罗马计数范围的标签，使用已计算样式文字保留外观，同时保留列表结构与实际数值。
+
+行内 PNG/JPEG 内嵌原始压缩字节，保留替代文字、显示尺寸及裁剪；复制锁、外链或未知图片沿原保护。Markdown 使用原生标题、转义文字、硬换行及普通十进制/圆点列表。子项和续行按父项标记宽度缩进，保留非 1 起点、空项和中断后的续号。编号实例切换、特殊标签、超过九位的序号、跳级或 RTL 无法直接表达时，使用嵌套 HTML 列表；字符装饰、链接、图片及表格也使用内嵌 HTML，读取器须允许这些 HTML。HTML 列表片段及表格保留源背景，避免自动白色文字落在默认白底。普通 Markdown 段落不携带字体、颜色和页面几何；导出后的自动换行由读取器决定。分页/分栏断点转为换行；页面边框、分页约束及制表对齐不转移。
+
+含页眉页脚、批注、待处理修订、字段或布局不支持内容时明确拒绝。合并格边线不统一时也拒绝。未知资源、非法链接、活动候选、旧 revision 及超限保留原包。文字、属性和 CSS 字符串分别转义；链接沿既有 HTTP/HTTPS/mailto/书签白名单，不输出脚本、事件、外链图片或外部样式。默认上限 64 MiB，并取原会话输出预算的较小值；UTF-16 中间结果和最终 UTF-8 字节分别检查，图片编码前预检剩余预算。Web 输出失败后可继续原生编辑。
+
+实现归 [`markup-output.mbt`](../../modules/formats/src/docx/markup-output.mbt)及 [`markup-lists.mbt`](../../modules/formats/src/docx/markup-lists.mbt)。列表嵌套与续号参考 [ONLYOFFICE 列表栈](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L858-L951)，实际数值沿本项目共享的 `NumberCounter.advance`。标题和普通段落转换参考 [ONLYOFFICE CopyParagraph](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L728-L858)，合并格参考 [CopyCell](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L1035-L1066)。未复制上游执行代码。更广区域和 HTML/Markdown 导入继续实施。
 
 ## 预算
 

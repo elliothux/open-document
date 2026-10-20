@@ -165,6 +165,7 @@ pub fn Session::edit_ruler(Self, Int, @layout.Layout, Selection, RulerEdit) -> J
 pub fn Session::edit_state(Self) -> Json raise @failure.Failure
 pub fn Session::edit_table(Self, Int, Selection, TableEdit, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::enter(Self, Int) -> Json raise @failure.Failure
+pub fn Session::export_markup(Self, Int, String, Int) -> Bytes raise @failure.Failure
 pub fn Session::find(Self, Int, String, FindOptions) -> Json raise @failure.Failure
 pub fn Session::finish_picture_resize(Self, Int, Int, Double, Double, Int) -> Json raise @failure.Failure
 pub fn Session::flow(Self) -> @layout.Flow raise @failure.Failure

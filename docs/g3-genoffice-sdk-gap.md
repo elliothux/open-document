@@ -47,7 +47,7 @@ GenOffice 的主要依据是 [DOCX 引擎导出][d-engine]、[Ribbon][d-ribbon]�
 | D21 设计与绘注 | 封面、页面背景、水印、边框、墨迹等入口与序列化 | 已有 RGB 页面背景色及恢复默认的核心/API/UI、自动文字对比、精确历史、重开与整页 Canvas/PDF；已有单节页面四边实线、独立颜色/宽度/距离、基准、首页/后续页与前后层次、精确历史及同布局输出，合同归[页面边框](references/formats.md#页面边框)；封面、水印及其他绘注待实现 | P0；扩展 P1 |
 | D22 导航与校对 | 标题导航、标尺、字数、查找；拼写替换/自动更正有平台依赖 | 已有正文/单元格字面查找、结果定位、单项/全部替换及历史；已有基于有效大纲级别的标题导航、正文/单元格逻辑文字统计及 API/UI，支持原生输入、历史和保存重开；已有基于焦点行实际布局的水平标尺及鼠标/键盘交互；统计排除自动编号与其他文档区域；校对词库和服务须另定宿主边界 | 导航 P0；校对 P2 |
 | D23 保护与加密 | 编辑保护；[Node 中解密 Standard/Agile DOCX，并写出 Agile 加密文件][d-encryption] | 已有保护性拒绝；缺可用的保护编辑和加密文件流程，不能直接移植 Node 路径 | 保护 P0；加密 P1 |
-| D24 输出 | DOCX、PDF、图片、HTML、Markdown；PDF/图片含桌面导出路径 | 已有有限同布局 PDF，以及沿相同 R0 的 Web 当前页/全页 PNG、同修订页序集合、缩放/总预算、自动页号命名、默认菜单与逐页保存回调及部分保存恢复，合同归[DOCX 页面 PNG](references/formats.md#docx-页面-png)；完整页面输出、HTML/Markdown 导出和打印 UI 继续实施 | P0；保真扩展 P1 |
+| D24 输出 | DOCX、PDF、图片、HTML、Markdown；PDF/图片含桌面导出路径 | 已有有限同布局 PDF，以及沿相同 R0 的 Web 当前页/全页 PNG、同修订页序集合、缩放/总预算、自动页号命名、默认菜单与逐页保存回调及部分保存恢复，合同归[DOCX 页面 PNG](references/formats.md#docx-页面-png)；正文 HTML/Markdown 已有核心/API/默认菜单、结构列表/续号/重启、普通表格与内嵌图片，边界归[交换输出](references/formats.md#docx-html-与-markdown)；更广区域、完整页面输出和打印 UI 继续实施 | P0；保真扩展 P1 |
 
 实施归 [P10 技术方案](p10-docx-core.md)；复杂排版与导入变体在阶段 P14 扩展。以 ONLYOFFICE 的布局和编辑规则补全核心，保留已有 LibreOffice 证据的真实来源。不能直接把 Tiptap 文档树或 DOM 测量结果变成本项目权威状态。
 

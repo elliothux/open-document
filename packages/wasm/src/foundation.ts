@@ -655,6 +655,18 @@ export class FoundationSession extends FoundationClipboardSession {
   saveDocx(): Uint8Array {
     return this.bytes({ operation: "saveDocx" });
   }
+  exportMarkup(
+    revision: number,
+    format: "html" | "markdown",
+    outputBytes = 67108864,
+  ): Uint8Array {
+    return this.bytes({
+      operation: "exportDocxMarkup",
+      revision,
+      format,
+      outputBytes,
+    });
+  }
 
   flow(): DocxFlow {
     return docxFlow(this.call({ operation: "flow" }));

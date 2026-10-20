@@ -371,7 +371,7 @@ pub fn Session::query(
   for cell in selected {
     let json = current.cell_json(
       cell.address,
-      self.read_only,
+      self.cell_edit_reason(current, cell.address),
       self.calculation.bind(calculation => {
         calculation.values.get((sheet_index, cell.address.name()))
       }),
@@ -424,7 +424,7 @@ pub fn Session::query(
     cells.push(
       current.cell_json(
         { row: range.top, column: range.left, },
-        self.read_only,
+        self.cell_edit_reason(current, { row: range.top, column: range.left, }),
         None,
         hide_formula=false,
         calculation_reason="",

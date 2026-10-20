@@ -351,7 +351,7 @@ fn Session::paint_cells(
       cells.push({
         "cell": sheet.cell_json(
           address,
-          self.read_only,
+          self.cell_edit_reason(sheet, address),
           calculated,
           hide_formula=style.formula_hidden,
           calculation_reason=self.read_only,

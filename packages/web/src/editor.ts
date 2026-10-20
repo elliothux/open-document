@@ -324,7 +324,7 @@ export class DocumentEditor extends DocumentClipboard {
     operation: () => Promise<T>,
     pointer = false,
     composition = false,
-    output: false | "docx" | "pdf" | "png" | "images" = false,
+    output: false | EditorOutput["format"] | "images" = false,
   ): Promise<T> {
     if (!pointer) this.pointerSelection.finish();
     try {
@@ -362,7 +362,7 @@ export class DocumentEditor extends DocumentClipboard {
         if (!this.blocked) this.outputError = "";
         return value;
       } catch (error) {
-        if ((output === "png" || output === "images") && !this.blocked) {
+        if (output && output !== "pdf" && output !== "docx" && !this.blocked) {
           this.outputError =
             error instanceof Error ? error.message : String(error);
           throw error;
@@ -735,7 +735,7 @@ export class DocumentEditor extends DocumentClipboard {
     });
   }
   protected outputs(
-    format: "docx" | "pdf" | "png" | "images",
+    format: "docx" | "pdf" | "png" | "images" | "html" | "markdown",
     outputBytes = 67108864,
     scale = 1,
   ): Promise<readonly EditorOutput[]> {

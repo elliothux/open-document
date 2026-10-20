@@ -372,6 +372,12 @@ export type Operation =
     }
   | { operation: "budget" | "query" | "saveDocx" | "flow" | "editState" }
   | {
+      operation: "exportDocxMarkup";
+      revision: number;
+      format: "html" | "markdown";
+      outputBytes: number;
+    }
+  | {
       operation: "selectDocx";
       revision: number;
       selection: DocxSelection;

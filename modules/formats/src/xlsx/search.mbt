@@ -126,6 +126,11 @@ fn Session::find_cells(
       }
     })
     for cell in cells {
+      if pattern.options.formulas &&
+        current.locked &&
+        self.styles[current.style_at(cell.address)].formula_hidden {
+        continue
+      }
       let text = if pattern.options.formulas && cell.formula is Some(source) {
         "=" + source
       } else {
@@ -147,12 +152,9 @@ fn Session::find_cells(
         return (matches, true)
       }
       let merged = current.cell_range(cell.address)
-      let reason = if !self.read_only.is_empty() {
-        self.read_only
-      } else if current.locked {
-        "Worksheet is protected"
-      } else if !cell.read_only.is_empty() {
-        cell.read_only
+      let edit_reason = self.cell_edit_reason(current, cell.address)
+      let reason = if !edit_reason.is_empty() {
+        edit_reason
       } else if cell.address.row != merged.top ||
         cell.address.column != merged.left {
         "Merged-cell contents are protected"

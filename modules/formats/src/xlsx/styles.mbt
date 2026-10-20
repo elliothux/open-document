@@ -16,6 +16,7 @@ priv struct CellStyle {
   diagnostic : String
   bar : ConditionalBar?
   formula_hidden : Bool
+  locked : Bool
 } derive(Eq)
 
 ///|
@@ -37,6 +38,7 @@ fn default_style() -> CellStyle {
     diagnostic: "",
     bar: None,
     formula_hidden: false,
+    locked: true,
   }
 }
 
@@ -334,10 +336,22 @@ fn read_styles(
     } else {
       inherited_hidden
     }
+    let inherited_locked = bases
+      .get(natural(xf.attribute("xfId").unwrap_or("0"), 4095))
+      .bind(base => tree.one(base.id, "protection"))
+      .map(node => flag(node, "locked", fallback=true))
+      .unwrap_or(true)
+    let locked = if tree.one(xf.id, "protection") is Some(protection) &&
+      flag(xf, "applyProtection", fallback=true) {
+      flag(protection, "locked", fallback=inherited_locked)
+    } else {
+      inherited_locked
+    }
     style = {
       ..style,
       format: formats.get(format_id).unwrap_or("unsupported:\{format_id}"),
       formula_hidden,
+      locked,
     }
     if !supported_format(style.format) {
       style = {

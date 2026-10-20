@@ -222,6 +222,9 @@ export class EditorController {
   exportPng(): Promise<SavedDocument> {
     return this.output("png");
   }
+  exportMarkup(format: "html" | "markdown"): Promise<SavedDocument> {
+    return this.output(format);
+  }
   exportJpeg(): Promise<SavedDocument> {
     return this.output("jpeg");
   }
@@ -249,13 +252,17 @@ export class EditorController {
       kind === "original"
         ? targetName
         : this.value.name.replace(/\.[^.]*$/, "") +
-          (kind === "png"
-            ? ".png"
-            : kind === "jpeg"
-              ? ".jpg"
-              : kind.startsWith("csv")
-                ? ".csv"
-                : ".pdf");
+          (kind === "html"
+            ? ".html"
+            : kind === "markdown"
+              ? ".md"
+              : kind === "png"
+                ? ".png"
+                : kind === "jpeg"
+                  ? ".jpg"
+                  : kind.startsWith("csv")
+                    ? ".csv"
+                    : ".pdf");
     const operation = async (): Promise<SavedDocument> => {
       if (kind === "images" || kind === "jpegs") {
         if (file.format !== "docx" && file.format !== "pptx")
@@ -310,6 +317,13 @@ export class EditorController {
         if (file.format !== "pptx")
           throw new Error("JPEG export requires a presentation");
         output = await file.editor.exportJpeg();
+      } else if (kind === "html" || kind === "markdown") {
+        if (file.format !== "docx")
+          throw new Error("Markup export requires a document");
+        output =
+          kind === "html"
+            ? await file.editor.exportHtml()
+            : await file.editor.exportMarkdown();
       } else if (kind.startsWith("csv")) {
         if (file.format !== "xlsx")
           throw new Error("CSV export requires a workbook");

@@ -260,9 +260,6 @@ pub fn Session::replace(
   }
   let index = self.sheet_index(sheet)
   let current = self.sheets[index]
-  guard !current.locked else {
-    @failure.reject("protected-content", "Worksheet is protected")
-  }
   let parsed = Range::parse(range)
   let target = if parsed.top == parsed.bottom && parsed.left == parsed.right {
     let merged = current.cell_range({ row: parsed.top, column: parsed.left, })
@@ -305,8 +302,9 @@ pub fn Session::replace(
       }
       let key = address.name()
       let cell = current.cells.get(key)
-      guard cell.map(cell => cell.read_only.is_empty()).unwrap_or(true) else {
-        @failure.reject("protected-content", cell.unwrap().read_only)
+      let reason = self.cell_edit_reason(current, address)
+      guard reason.is_empty() else {
+        @failure.reject("protected-content", reason)
       }
       units += text.length()
       guard units <= 1048576 else {

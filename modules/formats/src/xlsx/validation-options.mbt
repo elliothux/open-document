@@ -58,14 +58,8 @@ fn Session::validation_options(
   rule : DataValidation,
 ) -> Array[Value] raise @failure.Failure {
   let address : Address = { row: range.top, column: range.left, }
-  let reason = self.dimension_reason(self.sheets[sheet])
-  guard reason.is_empty() &&
-    self.sheets[sheet].cells
-    .get(address.name())
-    .map(c => c.read_only.is_empty())
-    .unwrap_or(true) else {
-    @failure.reject("protected-content", "Cell input is protected")
-  }
+  let reason = self.cell_edit_reason(self.sheets[sheet], address)
+  guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   guard range == self.sheets[sheet].cell_range(address) else {
     @failure.reject(
       "invalid-operation", "Select one cell to use the validation list",
@@ -121,13 +115,8 @@ fn Session::pick_validation(
     @failure.reject("invalid-operation", "Invalid validation list option")
   }
   let address : Address = { row: range.top, column: range.left, }
-  guard !self.sheets[sheet].locked &&
-    self.sheets[sheet].cells
-    .get(address.name())
-    .map(cell => cell.read_only.is_empty())
-    .unwrap_or(true) else {
-    @failure.reject("protected-content", "Cell input is protected")
-  }
+  let reason = self.cell_edit_reason(self.sheets[sheet], address)
+  guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let current = self.sheets[sheet].cells.get(address.name())
   if current.map(c => c.value).unwrap_or(Blank) == value &&
     current.bind(c => c.formula) is None {

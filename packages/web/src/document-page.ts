@@ -99,7 +99,7 @@ export abstract class DocumentPage extends DocumentReview {
     );
   }
   protected abstract outputs(
-    format: "docx" | "pdf" | "png" | "images",
+    format: "docx" | "pdf" | "png" | "images" | "html" | "markdown",
     outputBytes?: number,
     scale?: number,
   ): Promise<readonly EditorOutput[]>;
@@ -109,6 +109,12 @@ export abstract class DocumentPage extends DocumentReview {
   }
   async exportPdf(outputBytes = 67108864): Promise<EditorOutput> {
     return (await this.outputs("pdf", outputBytes))[0]!;
+  }
+  async exportHtml(outputBytes = 67108864): Promise<EditorOutput> {
+    return (await this.outputs("html", outputBytes))[0]!;
+  }
+  async exportMarkdown(outputBytes = 67108864): Promise<EditorOutput> {
+    return (await this.outputs("markdown", outputBytes))[0]!;
   }
   /** Exports the current page at pixels per point, independent of preview zoom and DPR. */
   async exportPng(scale = 1, outputBytes = 67108864): Promise<EditorOutput> {

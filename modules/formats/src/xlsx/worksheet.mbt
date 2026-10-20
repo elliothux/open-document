@@ -21,6 +21,7 @@ priv struct Sheet {
   rows : Map[Int, Int]
   merges : Array[Range]
   locked : Bool
+  protection_reason : String
   data : Int
   dimensions : Dimensions
   row_styles : Map[Int, Int]
@@ -202,9 +203,7 @@ fn Sheet::read(
         .any(attribute => {
           attribute.uri != "" || !["r", "s", "t"].contains(attribute.name)
         })
-      let read_only = if locked {
-        "Worksheet is protected"
-      } else if rich {
+      let read_only = if rich {
         "Rich text cell is read-only"
       } else if unknown ||
         !["n", "b", "e", "s", "inlineStr", "str"].contains(kind) {
@@ -261,6 +260,7 @@ fn Sheet::read(
     rows,
     merges,
     locked,
+    protection_reason: sheet_protection_reason(tree, root.id),
     data: data.id,
     dimensions: read_dimensions(tree, root, data),
     row_styles,
@@ -286,9 +286,7 @@ fn Sheet::cell_json(
   let value = cell.map(cell => cell.value).unwrap_or(Blank)
   let formula = cell.bind(cell => cell.formula)
   let hide_formula = self.locked && hide_formula && formula is Some(_)
-  let cell_reason = cell
-    .map(cell => cell.read_only)
-    .unwrap_or(if self.locked { "Worksheet is protected" } else { "" })
+  let cell_reason = cell.map(cell => cell.read_only).unwrap_or("")
   {
     "address": key,
     "row": address.row,

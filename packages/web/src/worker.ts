@@ -528,6 +528,12 @@ async function dispatch(request: Request): Promise<unknown> {
           );
         case "saveDocx":
           return foundation.saveDocx();
+        case "exportDocxMarkup":
+          return foundation.exportMarkup(
+            request.revision,
+            request.format,
+            request.outputBytes,
+          );
         case "flow":
           return foundation.flow();
         case "layout":

@@ -30,7 +30,7 @@ export async function docxOutputs(
   layout: PageLayout,
   surface: CanvasSurface,
   page: number,
-  format: "docx" | "pdf" | "png" | "images",
+  format: "docx" | "pdf" | "png" | "images" | "html" | "markdown",
   outputBytes: number,
   scale: number,
   observable: EditorState<EditState>,
@@ -63,7 +63,9 @@ export async function docxOutputs(
     buffers.push(
       format === "docx"
         ? await client.saveDocx()
-        : await client.exportPdf(outputBytes, layout.id),
+        : format === "html" || format === "markdown"
+          ? await client.exportMarkup(revision, format, outputBytes)
+          : await client.exportPdf(outputBytes, layout.id),
     );
   }
   assertOpen();
@@ -83,7 +85,13 @@ export function downloadDocxOutput(
   try {
     downloadBytes(
       output.bytes,
-      output.format === "docx" ? docxContentType : "application/pdf",
+      output.format === "docx"
+        ? docxContentType
+        : output.format === "html"
+          ? "text/html;charset=utf-8"
+          : output.format === "markdown"
+            ? "text/markdown;charset=utf-8"
+            : "application/pdf",
       filename,
     );
   } catch (error) {

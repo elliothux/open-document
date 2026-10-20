@@ -302,6 +302,7 @@ fn Foundation::dispatch(
     | "redoDocx"
     | "replaceNode"
     | "saveDocx"
+    | "exportDocxMarkup"
     | "flow"
     | "layout"
     | "hitTest"
@@ -315,6 +316,16 @@ fn Foundation::dispatch(
         @failure.reject("invalid-operation", "Open a DOCX session first")
       }
       match operation {
+        "exportDocxMarkup" =>
+          {
+            "bytes": @base64.encode(
+              session.export_markup(
+                field_int(request, "revision"),
+                field_string(request, "format"),
+                field_int(request, "outputBytes"),
+              ),
+            ),
+          }
         "query" => session.query()
         "editState" => session.edit_state()
         "enterDocx" => {
