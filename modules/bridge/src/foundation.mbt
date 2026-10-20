@@ -160,6 +160,8 @@ fn Foundation::dispatch(
     | "captureXlsxFormat"
     | "applyXlsxFormat"
     | "queryXlsx"
+    | "pivotsXlsx"
+    | "pivotPreviewXlsx"
     | "duplicatesXlsx"
     | "textColumnsXlsx"
     | "selectXlsx"

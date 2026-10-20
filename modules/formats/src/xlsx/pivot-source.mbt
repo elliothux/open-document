@@ -83,30 +83,47 @@ fn PivotLayout::definition(
   data_caption~ : String = "",
 ) -> String raise @failure.Failure {
   let out = StringBuilder()
-  let names = self.cache.headers.map(name => name.to_lower()) +
-    settings.values.map(value => value.name.to_lower())
-  let mut caption = if data_caption.is_empty() {
-    "Values"
-  } else {
-    data_caption
-  }
-  let mut suffix = 2
-  while data_caption.is_empty() && names.contains(caption.to_lower()) {
-    caption = "Values" + suffix.to_string()
-    suffix += 1
-  }
+  let caption = self.caption(settings, data_caption)
+  let range = settings.body(range)
+  let ordinary_columns = !settings.columns.is_empty()
+  let first_header = if ordinary_columns { 1 } else { 0 }
   out <+
-    "<pivotTableDefinition xmlns=\"\{spreadsheet_uri}\" name=\"\{escaped_attribute(name)}\" cacheId=\"\{cache}\" dataCaption=\"\{escaped_attribute(caption)}\" rowGrandTotals=\"1\" colGrandTotals=\"0\" compact=\"0\" compactData=\"0\" outline=\"0\" outlineData=\"0\" gridDropZones=\"1\" createdVersion=\"6\" updatedVersion=\"6\" minRefreshableVersion=\"3\"><location ref=\"\{range.name()}\" firstHeaderRow=\"0\" firstDataRow=\"1\" firstDataCol=\"\{settings.rows.length()}\"/><pivotFields count=\"\{self.cache.headers.length()}\">"
+    "<pivotTableDefinition xmlns=\"\{spreadsheet_uri}\" name=\"\{escaped_attribute(name)}\" cacheId=\"\{cache}\" dataCaption=\"\{escaped_attribute(caption)}\" rowGrandTotals=\"1\" colGrandTotals=\"\{if ordinary_columns {1} else {0}}\" compact=\"0\" compactData=\"0\" outline=\"0\" outlineData=\"0\" gridDropZones=\"1\" createdVersion=\"6\" updatedVersion=\"6\" minRefreshableVersion=\"3\"><location ref=\"\{range.name()}\" firstHeaderRow=\"\{first_header}\" firstDataRow=\"\{settings.header_rows()}\" firstDataCol=\"\{settings.rows.length()}\"/><pivotFields count=\"\{self.cache.headers.length()}\">"
   for field in 0..<self.cache.headers.length() {
     let row = settings.rows.contains(field)
     let value = settings.values.any(value => value.field == field)
-    let axis = if row { " axis=\"axisRow\"" } else { "" }
+    let column = settings.columns.contains(field)
+    let filter = settings.filters
+      .iter()
+      .find_first(filter => filter.field == field)
+    let axis = if row {
+      " axis=\"axisRow\""
+    } else if column {
+      " axis=\"axisCol\""
+    } else if filter is Some(_) {
+      " axis=\"axisPage\""
+    } else {
+      ""
+    }
+    let multiple = filter
+      .bind(filter => filter.values)
+      .map(values => values.length() > 1)
+      .unwrap_or(false)
     out <+
-      "<pivotField\{axis} dataField=\"\{if value { 1 } else { 0 }}\" defaultSubtotal=\"0\" showAll=\"0\" compact=\"0\" outline=\"0\">"
-    if row {
+      "<pivotField\{axis} dataField=\"\{if value { 1 } else { 0 }}\" defaultSubtotal=\"0\" showAll=\"0\" compact=\"0\" outline=\"0\"\{if multiple {" multipleItemSelectionAllowed=\"1\""} else {""}}>"
+    if row || column || filter is Some(_) {
       out <+ "<items count=\"\{self.cache.items[field].length()}\">"
       for item in 0..<self.cache.items[field].length() {
-        out <+ "<item x=\"\{item}\"/>"
+        let hidden = filter
+          .bind(filter => filter.values)
+          .map(values => {
+            !values.any(value => {
+              pivot_item_key(value) ==
+              pivot_item_key(self.cache.items[field][item])
+            })
+          })
+          .unwrap_or(false)
+        out <+ "<item x=\"\{item}\"\{if hidden {" h=\"1\""} else {""}}/>"
       }
       out <+ "</items>"
     }
@@ -125,15 +142,54 @@ fn PivotLayout::definition(
     out <+ "</i>"
   }
   out <+ "<i t=\"grand\"><x/></i></rowItems>"
-  if settings.values.length() > 1 {
+  if ordinary_columns || settings.values.length() > 1 {
+    let multiple = settings.values.length() > 1
     out <+
-      "<colFields count=\"1\"><field x=\"-2\"/></colFields><colItems count=\"\{settings.values.length()}\">"
-    for index in 0..<settings.values.length() {
-      out <+ "<i i=\"\{index}\"><x v=\"\{index}\"/></i>"
+      "<colFields count=\"\{settings.columns.length()+(if multiple {1} else {0})}\">"
+    for field in settings.columns {
+      out <+ "<field x=\"\{field}\"/>"
+    }
+    if multiple {
+      out <+ "<field x=\"-2\"/>"
+    }
+    out <+
+      "</colFields><colItems count=\"\{(self.columns.length()+(if ordinary_columns {1} else {0}))*settings.values.length()}\">"
+    for members in self.columns {
+      for index in 0..<settings.values.length() {
+        out <+ "<i i=\"\{index}\">"
+        for item in members {
+          out <+ "<x v=\"\{item}\"/>"
+        }
+        if multiple {
+          out <+ "<x v=\"\{index}\"/>"
+        }
+        out <+ "</i>"
+      }
+    }
+    if ordinary_columns {
+      for index in 0..<settings.values.length() {
+        out <+ "<i t=\"grand\" i=\"\{index}\"><x/></i>"
+      }
     }
     out <+ "</colItems>"
   } else {
     out <+ "<colItems count=\"1\"><i/></colItems>"
+  }
+  if !settings.filters.is_empty() {
+    out <+ "<pageFields count=\"\{settings.filters.length()}\">"
+    for filter in settings.filters {
+      let item = match filter.values {
+        Some([value]) => {
+          let index = self.cache.items[filter.field]
+            .search_by(item => pivot_item_key(item) == pivot_item_key(value))
+            .unwrap()
+          " item=\"\{index}\""
+        }
+        _ => ""
+      }
+      out <+ "<pageField fld=\"\{filter.field}\" hier=\"-1\"\{item}/>"
+    }
+    out <+ "</pageFields>"
   }
   out <+ "<dataFields count=\"\{settings.values.length()}\">"
   for value in settings.values {

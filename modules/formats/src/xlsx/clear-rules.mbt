@@ -48,6 +48,7 @@ fn clear_rules(
   document : @xml.Document,
   target : Range,
   all : Bool,
+  table_parts~ : Bool = false,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let tree = Tree::new(document)
   let root = tree.root("worksheet")
@@ -58,7 +59,10 @@ fn clear_rules(
         "protected-content", "Unknown worksheet namespace requires clearing support",
       )
     }
-    if ["extLst", "tableParts", "pivotTableParts"].contains(node.name) &&
+    if (
+        ["extLst", "pivotTableParts"].contains(node.name) ||
+        (node.name == "tableParts" && !table_parts)
+      ) &&
       !tree.children.get(node.id).unwrap_or([]).is_empty() {
       @failure.reject(
         "protected-content", "Cell-bound table or extension resources require clearing support",

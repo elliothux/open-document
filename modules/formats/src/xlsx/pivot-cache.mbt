@@ -13,6 +13,8 @@ pub(all) struct PivotSettings {
   sourceSheet : String
   source : String
   rows : Array[Int]
+  columns : Array[Int]
+  filters : Array[PivotFilter]
   values : Array[PivotValue]
 } derive(ToJson)
 
@@ -44,6 +46,8 @@ fn PivotSettings::validate(
     (source.bottom - source.top).to_int64() * width.to_int64() <= 65536 &&
     self.rows.length() > 0 &&
     self.rows.length() <= 8 &&
+    self.columns.length() <= 8 &&
+    self.filters.length() <= 8 &&
     self.values.length() > 0 &&
     self.values.length() <= 8 else {
     @failure.reject(
@@ -51,15 +55,38 @@ fn PivotSettings::validate(
     )
   }
   let seen : Map[Int, Bool] = Map([])
-  for field in self.rows {
+  for
+    field in self.rows + self.columns + self.filters.map(filter => filter.field) {
     guard field >= 0 && field < width && !seen.contains(field) else {
       @failure.reject(
-        "invalid-operation", "Invalid or duplicate pivot row field",
+        "invalid-operation", "Invalid or duplicate pivot axis field",
       )
     }
     seen[field] = true
   }
   let captions : Map[String, Bool] = Map([])
+  let mut units = 0
+  for filter in self.filters {
+    if filter.values is Some(values) {
+      guard !values.is_empty() && values.length() <= 4096 else {
+        @failure.reject(
+          "limit-exceeded", "Pivot report selection exceeds budget",
+        )
+      }
+      let seen : Map[String, Bool] = Map([])
+      for value in values {
+        pivot_filter_value(value)
+        let key = pivot_item_key(value)
+        units += key.length()
+        guard units <= 1048576 && !seen.contains(key) else {
+          @failure.reject(
+            "invalid-operation", "Duplicate or excessive pivot report values",
+          )
+        }
+        seen[key] = true
+      }
+    }
+  }
   for value in self.values {
     guard value.field >= 0 &&
       value.field < width &&
@@ -203,6 +230,27 @@ fn Session::pivot_cache(
       "invalid-operation", "Pivot value captions must differ from source field names",
     )
   }
+  for filter in settings.filters {
+    if filter.values is Some(values) {
+      for value in values {
+        let key = pivot_item_key(value)
+        if !maps[filter.field].contains(key) {
+          units += key.length()
+          guard units <= 1048576 else {
+            @failure.reject(
+              "limit-exceeded", "Pivot shared item text exceeds budget",
+            )
+          }
+          maps[filter.field][key] = items[filter.field].length()
+          items[filter.field].push(value)
+          styles[filter.field].push(0)
+        }
+      }
+    }
+    guard items[filter.field].length() <= 4096 else {
+      @failure.reject("limit-exceeded", "Pivot report items exceed budget")
+    }
+  }
   { headers, items, styles, records, }
 }
 
@@ -307,75 +355,6 @@ fn PivotStatistic::value(self : PivotStatistic, aggregate : String) -> Value {
 }
 
 ///|
-priv struct PivotLayout {
-  cache : PivotCache
-  members : Array[Array[Int]]
-  values : Array[Array[Value]]
-  total : Array[Value]
-}
-
-///|
-fn PivotCache::layout(
-  self : PivotCache,
-  settings : PivotSettings,
-) -> PivotLayout raise @failure.Failure {
-  let groups : Map[String, (Array[Int], Array[PivotStatistic])] = Map([])
-  let mut units = 0
-  let total = settings.values.map(_ => PivotStatistic::new())
-  for record in self.records {
-    let members = settings.rows.map(field => record[field])
-    let key = Json(members).stringify()
-    let statistics = match groups.get(key) {
-      Some((_, statistics)) => statistics
-      None => {
-        for index, item in members {
-          units += self.items[settings.rows[index]][item].display().length()
-        }
-        guard groups.length() < 4096 &&
-          (groups.length() + 3) *
-          (settings.rows.length() + settings.values.length()) <=
-          32768 else {
-          @failure.reject("limit-exceeded", "Pivot output exceeds budget")
-        }
-        guard units <= 1048576 else {
-          @failure.reject("limit-exceeded", "Pivot output text exceeds budget")
-        }
-        let statistics = settings.values.map(_ => PivotStatistic::new())
-        groups[key] = (members, statistics)
-        statistics
-      }
-    }
-    for index, field in settings.values {
-      let value = self.items[field.field][record[field.field]]
-      statistics[index].add(value)
-      total[index].add(value)
-    }
-  }
-  let ordered = groups.values().to_array()
-  ordered.sort_by((a, b) => {
-    for index in 0..<a.0.length() {
-      let order = a.0[index].compare(b.0[index])
-      if order != 0 {
-        return order
-      }
-    }
-    0
-  })
-  {
-    cache: self,
-    members: ordered.map(group => group.0),
-    values: ordered.map(group => {
-      group.1.mapi((index, value) => {
-        value.value(settings.values[index].aggregate)
-      })
-    }),
-    total: total.mapi((index, value) => {
-      value.value(settings.values[index].aggregate)
-    }),
-  }
-}
-
-///|
 /// Returns typed grouped values without changing cells, source or history.
 pub fn Session::pivot_preview(
   self : Session,
@@ -389,8 +368,42 @@ pub fn Session::pivot_preview(
     "settings": settings,
     "fields": layout.cache.headers,
     "recordCount": layout.cache.records.length(),
+    "filteredCount": layout.filtered_count,
+    "filterItems": settings.filters.map(filter => {
+      layout.cache.items[filter.field].mapi((at, value) => {
+        let item : Json = {
+          "value": value,
+          "label": if value == Blank {
+            "(blank)"
+          } else {
+            formatted(
+              value,
+              self.styles[layout.cache.styles[filter.field][at]].format,
+              self.date1904,
+            )
+          },
+        }
+        item
+      })
+    }),
     "groups": layout.members.length(),
     "truncated": layout.members.length() > 20,
+    "columnMembers": (if settings.columns.is_empty() {
+      []
+    } else {
+      layout.columns
+    }).map(members => {
+      let column : Json = {
+        "members": members.mapi((at, item) => {
+          layout.cache.items[settings.columns[at]][item]
+        }),
+        "formats": members.mapi((at, item) => {
+          self.styles[layout.cache.styles[settings.columns[at]][item]].format
+        }),
+      }
+      column
+    }),
+    "columnTotals": layout.column_totals,
     "rows": layout.members[:layout.members.length().min(20)]
     .to_owned()
     .mapi((index, members) => {
@@ -402,6 +415,7 @@ pub fn Session::pivot_preview(
           self.styles[layout.cache.styles[settings.rows[at]][item]].format
         }),
         "values": layout.values[index],
+        "total": layout.row_totals[index],
       }
       row
     }),

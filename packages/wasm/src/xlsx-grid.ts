@@ -55,7 +55,7 @@ export function xlsxGridNotes(value: unknown, bounds: DrawRect): void {
   }
 }
 
-function cellValue(value: unknown): boolean {
+export function cellValue(value: unknown): boolean {
   const item = record(value);
   switch (item.kind) {
     case "blank":

@@ -1,4 +1,22 @@
 import { Connection } from "./connection.js";
+import {
+  checkXlsxPivotSettings,
+  xlsxPivotPreview,
+  xlsxPivots,
+  type XlsxPivotSettings,
+} from "@open-document/wasm/xlsx";
+export {
+  xlsxPivotAggregates,
+  checkXlsxPivotSettings,
+} from "@open-document/wasm/xlsx";
+export type {
+  XlsxPivotSettings,
+  XlsxPivotFilter,
+  XlsxPivotValue,
+  XlsxPivotPreview,
+  XlsxPivots,
+  XlsxPivotEdit,
+} from "@open-document/wasm/xlsx";
 import { resetCellClipboard } from "./spreadsheet-clipboard.js";
 export type { XlsxProtection } from "@open-document/wasm/xlsx";
 export type {
@@ -148,6 +166,25 @@ export type {
 
 /** Browser workbook transport; one Worker owns the complete core session. */
 export class XlsxClient {
+  async pivots(revision: number, sheet: string) {
+    return xlsxPivots(
+      await this.connection.request({
+        operation: "pivotsXlsx",
+        revision,
+        sheet,
+      }),
+    );
+  }
+  async pivotPreview(revision: number, settings: XlsxPivotSettings) {
+    checkXlsxPivotSettings(settings);
+    return xlsxPivotPreview(
+      await this.connection.request({
+        operation: "pivotPreviewXlsx",
+        revision,
+        settings,
+      }),
+    );
+  }
   async find(
     revision: number,
     sheet: string,

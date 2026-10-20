@@ -1697,15 +1697,31 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 ### 透视表核心
 
-当前只接通 MoonBit 核心。`Session::pivot_preview(revision, settings)` 返回字段、记录数、类型化分组结果及总计，查询不写源或历史。预览最多返回前 20 组，groups 和 truncated 说明完整组数及截断状态；总计与实际创建仍处理全部记录，JSON 继续受 1 Mi UTF-16 上限约束。`PivotSettings` 为 `{ sourceSheet, source, rows, values }`；sourceSheet 是稳定工作表部件身份，source 包含标题行。rows 使用相对源区域、从 0 开始的列索引；每项 values 为 `{ field, aggregate, name }`，name 是显示标题。标题按当前格式读取且不能为空，重复标题在缓存中分配唯一名称，不改源格；值标题不能与源字段名称重复。
+普通区域行列轴透视表已接通 MoonBit、Wasm、Worker、编辑宿主和默认面板。`Session::pivot_preview(revision, settings)` 返回字段、记录数、类型化分组结果及总计，查询不写源或历史。预览最多返回前 20 个行分组，groups 和 truncated 说明完整行组数及截断状态；总计与实际创建仍处理全部筛选后记录，JSON 继续受 1 Mi UTF-16 上限约束。`PivotSettings` 为 `{ sourceSheet, source, rows, columns, filters, values }`；sourceSheet 是稳定工作表部件身份，source 包含标题行。rows 和 columns 使用相对源区域、从 0 开始的列索引；两轴不能重复字段，columns 空数组表示只有行轴；每项 values 为 `{ field, aggregate, name }`，name 是显示标题。标题按当前格式读取且不能为空，重复标题在缓存中分配唯一名称，不改源格；值标题不能与源字段名称重复。
 
-`Session::create_pivot(revision, sheet, name, destination, settings)` 在可见、未保护工作表的空白位置创建透视表。destination 是左上格。核心保存标准 `pivotTableDefinition`、`pivotCacheDefinition`、共享项及索引记录，使用工作簿缓存入口与部件关系链接；实际结果写入类型化单元格。行字段组合按成员首次出现的顺序分层排列，文字比较合并大小写并保留首个拼写；数字、文字数字和布尔值各自分组。内部空白记录保留，末尾连续全空记录合为一条空白记录。结果包含一行标题、分组行和总计；多值使用原生 Values 列轴，尚无普通列维度或小计。
+filters 为 0–8 项 `{ field, values }`，field 使用源列索引且与行列轴及其他筛选字段互斥。values 为 null 时选择全部成员，自动包含后续新增成员；非空类型化 Value 数组表示固定选择，单字段内取并集，字段之间取交集。文字匹配合并大小写，数字、文字数字、布尔、错误与空白保持类型；每字段最多 4096 个成员。核心保留完整缓存记录与已选但暂时缺失的成员，刷新不静默重置选择。预览 recordCount 是源记录数，filteredCount 是筛选后记录数，filterItems 是各字段的 `{ value, label }` 候选项，label 由核心按源格式生成。零匹配允许，返回空分组及空白总计。
+
+报表筛选格按字段顺序纵向排列，其后留一空行。目录 range、覆盖保护、更新原点和删除范围包含筛选格；原生 location.ref 仅含表头及聚合结果。选择保存为原生 pageFields、axisPage、item 与隐藏成员标记。默认面板提供全部/类型化多选，改动后预览再应用。横向、换行或未知原生分页布局保持保护。布局和成员筛选依据 [ONLYOFFICE 报表位置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L4323-L4342)、[成员筛选](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L5103-L5139)与[报表值](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L5237-L5267)。
+
+预览的 columnMembers 按列组合返回 `{ members, formats }`，columnTotals 为每个列组合的值字段总计。每项 rows.values 按“列组合、值字段”展平，rows.total 是该行全部记录的总计；根 total 是筛选后源记录的总计。没有列轴时 columnMembers 为空、columnTotals 只含根总计，rows.values 仍按值字段排列。缺少记录的交叉格为空。行列边际直接累积源记录，平均值和样本统计不会对显示聚合值二次聚合。预览只截断行，全部有界列组仍受结果格数及 JSON 文字预算约束。
+
+同步 `XlsxSession` 和 Worker `XlsxClient` 提供 `pivotPreview(revision, settings)` 与 `pivots(revision, sheet)`，返回 `XlsxPivotPreview` 和 `XlsxPivots`。目录的 sourceSheet、source、settings 使用对象/字符串或 null；不使用单元素数组表示可选字段。创建复用 `editSheet(revision, sheet, { action: "createPivot", settings, sourceRevision, name, destination })`；sourceRevision 必须等于当前 revision，拒绝沿用过期预览。刷新复用 `{ action: "refreshPivot", part }`。两种编辑返回普通 `XlsxQuery`，仍沿同一布局、恢复与保存路径。
+
+已有行列轴透视表支持 `{ action: "updatePivot", part, settings, sourceRevision }`，对应 `Session::update_pivot(revision, sheet, part, settings)`。修改源表/范围、有序行列字段、值字段顺序、聚合与标题，保持透视表、缓存和记录部件身份及左上位置。源标题改变时，普通刷新仍拒绝推断映射；用户可按新源列号明确设置并预览后应用。至少保留一个行字段和一个值字段。更新复用刷新事务、扩张保护、缩小清理、格式保留和精确历史；相同定义与数据不新增历史。Values 轴标题与新字段冲突时分配唯一名称。字段行为依据 [ONLYOFFICE 行字段](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L6142-L6177)、[字段移除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L6285-L6315)和[值聚合](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L18305-L18308)。
+
+`{ action: "deletePivot", part }` 对应 `Session::delete_pivot(revision, sheet, part)`。删除支持的独占透视表及结果，清除结果区的直接格式、受支持规则、便笺和完整包含的链接，重算依赖公式；其他透视表、普通数据和不相交结构化表保持。核心移除独占缓存、记录、定义及其关系部件、工作簿缓存入口和对应内容类型；最后一项同时移除 pivotCaches 容器。其他对象指向这些资源、共享缓存、未知定义/资源、合并或结构化范围重叠时拒绝；普通历史可精确恢复全部源与资源。删除语义依据 [ONLYOFFICE 对象移除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L11773-L11791)与[结果清理](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L10766-L10777)。
+
+`SpreadsheetEditor.pivotPreview(settings)`、`pivots()` 与既有 `editSheet(change, sheet?)` 使用同一队列，读取前提交已接受的原生草稿。默认面板选择源工作表、含标题的范围、有序行/列字段及最多八项值字段；UI 列号从 1 开始，API 从 0 开始。预览展示真实字段、类型化结果和总计，字段或 revision 改变后须重新预览；创建到当前工作表的指定空白格。目录显式读取当前工作表，显示源、结果范围、缓存状态和保护原因；工作簿改变后重新读取再刷新。预览与目录状态仅供显示，核心继续验证当前源、revision、覆盖冲突和资源预算。
+
+目录中的“编辑透视字段”加载原生设置，预览后一次应用。行/列字段按输入次序排列，值字段可添加、删除并选择聚合；编辑时名称和目的位置保持。“创建另一张透视表”退出编辑模式。“删除透视表及结果”沿同一队列提交，完成后显示剩余目录；撤销和重做复用普通历史。
+
+`Session::create_pivot(revision, sheet, name, destination, settings)` 在可见、未保护工作表的空白位置创建透视表。destination 是左上格。核心保存标准 `pivotTableDefinition`、`pivotCacheDefinition`、共享项及索引记录，使用工作簿缓存入口与部件关系链接；实际结果写入类型化单元格。行列字段组合按成员首次出现的顺序分层排列，文字比较合并大小写并保留首个拼写；数字、文字数字和布尔值各自分组。内部空白记录保留，末尾连续全空记录合为一条空白记录。只有行轴时保留单行标题和底部总计；有列轴时生成原生字段标题区、多级成员行、值标题行及底部/右侧总计。多值使用最后一项 Values 列轴，原生项保留值字段索引。位置、首数据行和列宽依据 [ONLYOFFICE 定位](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L5657-L5723)与[表头写入](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L10838-L10920)。小计继续实施。
 
 `Session::pivots(revision, sheet)` 返回 `{ revision, items }`。每项包含 part、name、range、sourceSheet、source、stale、settings 和 reason；不支持的原生定义返回 null settings 和保护原因。`Session::refresh_pivot(revision, sheet, part)` 重新读取当前计算值，整体替换缓存、记录、定义和输出。源值或依赖公式变化在普通事务中写入缓存失效标志；普通输入不自动刷新结果。结果格拒绝普通值/公式写入。刷新扩张必须有空白空间，缩小清空移出的结果格，保持区域外内容；旧位置内的直接格式保留。相同源与结果的刷新不新增历史。创建、源数据失效和刷新各用现有 revision、有界部件历史和包校验，保存重开后仍可刷新。
 
 aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`product`、`stdDev`、`stdDevp`、`var` 和 `varp`。count 统计非空记录，countNums 只统计数值。文字与布尔值不加入数值聚合，错误值沿数值结果传播；平均值和样本/总体统计按有效数值数目处理。规则依据 [ONLYOFFICE 聚合状态](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/databaseFunctions.js#L51-L220)、[类型与大小写缓存](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L3075-L3184)和[原生行列项](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L5289-L5620)。
 
-源最多 64 列、65536 个数据格，共享项及输出文字各最多 1 Mi UTF-16；行/值字段各最多 8 项，分组最多 4096 项，输出最多 32768 格。新建总数最多 16 项；导入目录读取最多 64 项。普通事务检查还受 1048576 项工作量、4 MiB 历史及包预算约束。输出与源、合并或结构化区域相交时拒绝，扩张时也保护便笺和链接。支持的刷新范围是未分组的原生普通区域行轴定义；共享缓存、列维度、分页字段、手动成员顺序、扩展头部、未知源标记及属性继续保护。源标题变更需要字段映射，当前拒绝刷新；不能解析的源范围保护单元格编辑。Wasm/Worker、宿主和默认面板、字段修改与删除、样式及更广兼容继续实施。实现归 [`pivot-cache.mbt`](../../modules/formats/src/xlsx/pivot-cache.mbt)、[`pivot.mbt`](../../modules/formats/src/xlsx/pivot.mbt)、[`pivot-refresh.mbt`](../../modules/formats/src/xlsx/pivot-refresh.mbt)和 [`pivot-protection.mbt`](../../modules/formats/src/xlsx/pivot-protection.mbt)。
+源最多 64 列、65536 个数据格，共享项及输出文字各最多 1 Mi UTF-16；行/值字段各为 1–8 项，列字段为 0–8 项，两轴各最多 4096 个组合，输出最多 32768 格。新建总数最多 16 项；导入目录读取最多 64 项。普通事务检查还受 1048576 项工作量、4 MiB 历史及包预算约束。输出与源、合并或结构化区域相交时拒绝，扩张时也保护便笺和链接。支持的刷新范围是未分组的原生普通区域行列轴及纵向报表筛选定义；共享缓存、横向或换行分页字段、手动成员顺序、扩展头部、未知源标记及属性继续保护。源标题变更需要字段映射，当前拒绝刷新；不能解析的源范围保护单元格编辑。样式、共享缓存及更广兼容继续实施。布局归 [`pivot-layout.mbt`](../../modules/formats/src/xlsx/pivot-layout.mbt)，其余实现归 [`pivot-cache.mbt`](../../modules/formats/src/xlsx/pivot-cache.mbt)、[`pivot.mbt`](../../modules/formats/src/xlsx/pivot.mbt)、[`pivot-refresh.mbt`](../../modules/formats/src/xlsx/pivot-refresh.mbt)、[`pivot-protection.mbt`](../../modules/formats/src/xlsx/pivot-protection.mbt)、[传输校验](../../packages/wasm/src/xlsx-pivot.ts)和[默认面板](../../packages/ui/src/xlsx-pivot.tsx)。
 
 ### 打印与资源边界
 
@@ -1747,7 +1763,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 | 历史 / 队列 | undo+redo 共 100 项、4 MiB 源补丁 payload；宿主 64 项 |
 | 打印 | 整次输出 32768 格（含重复标题）和 1024 页；每表单轴 4096 项；每页继续受绘制文字/单元格上限约束 |
 
-当前 Web 范围不含模板向导、高级筛选、图表/透视表/图片编辑和协作。透视表的 MoonBit 范围归[透视表核心](#透视表核心)。工作表/行列、格式、填充与普通区域排序的当前支持面见本节对应合同。XLS/XLSB/XLSM、其他浏览器、Windows/Excel、VoiceOver、性能专项与发布验收未进入本期验证。
+当前 Web 范围不含模板向导、高级筛选、图表/图片编辑和协作。透视表的当前范围归[透视表核心](#透视表核心)。工作表/行列、格式、填充与普通区域排序的当前支持面见本节对应合同。XLS/XLSB/XLSM、其他浏览器、Windows/Excel、VoiceOver、性能专项与发布验收未进入本期验证。
 
 ## PPTX
 

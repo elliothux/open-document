@@ -1,4 +1,11 @@
 import type { XlsxQuery } from "./xlsx-query.js";
+import {
+  checkXlsxPivotSettings,
+  xlsxPivotPreview,
+  xlsxPivots,
+  type XlsxPivotSettings,
+} from "./xlsx-pivot.js";
+export * from "./xlsx-pivot.js";
 export type { XlsxQuery } from "./xlsx-query.js";
 import { protectionSalt, xlsxProtection } from "./xlsx-protection.js";
 export type { XlsxProtection } from "./xlsx-protection.js";
@@ -444,6 +451,15 @@ export function xlsxViewport(value: unknown): XlsxViewport {
 
 /** One workbook owner; values, XML transactions and history stay in MoonBit. */
 export class XlsxSession extends WasmSession {
+  pivots(revision: number, sheet: string) {
+    return xlsxPivots(this.call({ operation: "pivotsXlsx", revision, sheet }));
+  }
+  pivotPreview(revision: number, settings: XlsxPivotSettings) {
+    checkXlsxPivotSettings(settings);
+    return xlsxPivotPreview(
+      this.call({ operation: "pivotPreviewXlsx", revision, settings }),
+    );
+  }
   find(
     revision: number,
     sheet: string,

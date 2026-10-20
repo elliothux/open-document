@@ -247,10 +247,19 @@ pub(all) struct NameSettings {
   formula : String
 }
 
+pub(all) struct PivotFilter {
+  field : Int
+  values : Array[Value]?
+}
+pub fn PivotFilter::to_json(Self) -> Json
+pub impl ToJson for PivotFilter
+
 pub(all) struct PivotSettings {
   sourceSheet : String
   source : String
   rows : Array[Int]
+  columns : Array[Int]
+  filters : Array[PivotFilter]
   values : Array[PivotValue]
 } derive(ToJson)
 pub fn PivotSettings::to_json(Self) -> Json
@@ -326,6 +335,7 @@ pub fn Session::close(Self) -> Unit
 pub fn Session::copy(Self, Int) -> String raise @failure.Failure
 pub fn Session::create(@archive.Budget, date? : String?) -> Self raise @failure.Failure
 pub fn Session::create_pivot(Self, Int, String, String, String, PivotSettings) -> Json raise @failure.Failure
+pub fn Session::delete_pivot(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::duplicates(Self, Int, String, DuplicateSettings) -> Json raise @failure.Failure
 pub fn Session::edit_sheet(Self, Int, String, SheetEdit, date? : String?) -> Json raise @failure.Failure
 pub fn Session::export_csv(Self, Int, selection? : Bool) -> Bytes raise @failure.Failure
@@ -351,6 +361,7 @@ pub fn Session::select(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::selection_geometry(Self, Int) -> Json raise @failure.Failure
 pub fn Session::text_columns(Self, Int, String, TextColumnSettings) -> Json raise @failure.Failure
 pub fn Session::undo(Self, Int, redo? : Bool) -> Json raise @failure.Failure
+pub fn Session::update_pivot(Self, Int, String, String, PivotSettings) -> Json raise @failure.Failure
 pub fn Session::viewport(Self, String, Double, Double, Double, Double, @layout.TextProbe, Map[String, String], reveal? : Bool) -> Json raise @failure.Failure
 
 pub(all) enum SheetEdit {

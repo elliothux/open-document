@@ -32,6 +32,7 @@ import type {
 import type {
   GridViewport,
   XlsxDuplicateSettings,
+  XlsxPivotSettings,
   PrintOptions,
   XlsxSheetEdit,
   XlsxCellFormat,
@@ -48,6 +49,12 @@ import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
+  | { operation: "pivotsXlsx"; revision: number; sheet: string }
+  | {
+      operation: "pivotPreviewXlsx";
+      revision: number;
+      settings: XlsxPivotSettings;
+    }
   | { operation: "docxRuler"; revision: number }
   | { operation: "editDocxRuler"; source: DocxRuler; change: DocxRulerEdit }
   | {

@@ -36,19 +36,7 @@ fn xlsx_copied_cells(value : Json) -> @xlsx.CopiedCells raise @failure.Failure {
         parts.length() == 2 else {
         @failure.reject("invalid-operation", "Invalid copied cell fields")
       }
-      let value = match field_string(content, "kind") {
-        "blank" => {
-          guard content is { "value": Null, .. } else {
-            @failure.reject("invalid-operation", "Expected blank value")
-          }
-          @xlsx.Blank
-        }
-        "text" => @xlsx.Text(field_string(content, "value"))
-        "error" => @xlsx.Error(field_string(content, "value"))
-        "number" => @xlsx.Number(xlsx_number(content, "value"))
-        "boolean" => @xlsx.Boolean(xlsx_boolean(content, "value"))
-        _ => @failure.reject("invalid-operation", "Unknown copied value kind")
-      }
+      let value = xlsx_value(content)
       let formula = match formula {
         Null => None
         String(value) => Some(value)

@@ -26,6 +26,7 @@ import { PptxAnimations } from "./pptx-animations.js";
 import { XlsxSheets, XlsxFrozen, XlsxView } from "./xlsx-sheets.js";
 import { XlsxOutlinePanel } from "./xlsx-outline.js";
 import { XlsxTablesPanel } from "./xlsx-tables.js";
+import { XlsxPivotsPanel } from "./xlsx-pivot.js";
 import { XlsxNames } from "./xlsx-names.js";
 import { XlsxFormat } from "./xlsx-format.js";
 import { XlsxSearch } from "./xlsx-search.js";
@@ -34,7 +35,6 @@ import { XlsxDuplicates } from "./xlsx-duplicates.js";
 import { XlsxTextColumns } from "./xlsx-text-columns.js";
 import { XlsxFilter } from "./xlsx-filter.js";
 import { XlsxPrintSetup, XlsxPrintCommands } from "./xlsx-print-setup.js";
-
 export interface PanelProps {
   controller: EditorController;
   state: UiSnapshot;
@@ -472,6 +472,11 @@ export function Properties(props: PanelProps) {
           state={props.state}
           editor={props.file.editor}
           disabled={props.disabled || !!props.state.document?.stopped}
+        />
+        <XlsxPivotsPanel
+          key={`pivots:${props.state.document?.documentId}:${props.file.editor.currentState.sheet}`}
+          {...props}
+          editor={props.file.editor}
         />
         <XlsxFormat
           controller={props.controller}

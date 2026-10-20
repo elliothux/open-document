@@ -3,8 +3,37 @@ import {
   type CopiedCellFormat,
   type XlsxCellFormat,
   type XlsxFormatting,
+  type XlsxQuery,
 } from "@open-document/wasm/xlsx";
+import type { XlsxClient } from "./xlsx.js";
 import { DocumentError } from "@open-document/wasm/foundation";
+
+export function autoFitGrid(
+  client: XlsxClient,
+  query: XlsxQuery,
+  axis: "rows" | "columns",
+  profile: Record<string, string>,
+) {
+  const range = query.selection.range;
+  return client.autoFit(
+    query.revision,
+    query.sheet,
+    axis === "rows" ? range.top : range.left,
+    axis === "rows" ? range.bottom : range.right,
+    axis,
+    profile,
+  );
+}
+
+export function formatGrid(
+  client: XlsxClient,
+  query: XlsxQuery,
+  patch: XlsxCellFormat,
+  profile: Record<string, string>,
+) {
+  checkFormatFonts(patch, query.formatting, profile);
+  return client.formatCells(query.revision, patch);
+}
 
 export function checkFontMapping(
   key: string,

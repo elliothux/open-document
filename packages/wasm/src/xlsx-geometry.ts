@@ -1,7 +1,10 @@
 import type { DrawRect } from "./drawing.js";
 import { record } from "./validation.js";
 
-export function xlsxBounds(value: unknown): {
+export function xlsxBounds(
+  value: unknown,
+  maxCells = 4096,
+): {
   top: number;
   bottom: number;
   left: number;
@@ -24,7 +27,8 @@ export function xlsxBounds(value: unknown): {
     result.bottom > 1048576 ||
     result.left > result.right ||
     result.right > 16384 ||
-    (result.bottom - result.top + 1) * (result.right - result.left + 1) > 4096
+    (result.bottom - result.top + 1) * (result.right - result.left + 1) >
+      maxCells
   )
     throw new Error("XLSX range exceeds bounds");
   return result;

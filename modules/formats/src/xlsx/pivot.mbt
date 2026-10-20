@@ -33,7 +33,28 @@ fn Session::pivot_locations(
           "protected-content", "Pivot output location is unavailable",
         )
       }
-      let range = Range::parse(location.attribute("ref").unwrap_or(""))
+      let body = Range::parse(location.attribute("ref").unwrap_or(""))
+      let pages = pivot
+        .one(root.id, "pageFields")
+        .map(node => pivot.all(node.id, "pageField").length())
+        .unwrap_or(0)
+      guard pages <= 8 &&
+        (
+          pages == 0 ||
+          (
+            root.attribute("pageWrap").unwrap_or("0") == "0" &&
+            !flag(root, "pageOverThenDown")
+          )
+        ) &&
+        body.top > (if pages > 0 { pages + 1 } else { 0 }) else {
+        @failure.reject(
+          "protected-content", "Pivot report field positions require layout support",
+        )
+      }
+      let range : Range = {
+        ..body,
+        top: body.top - (if pages > 0 { pages + 1 } else { 0 }),
+      }
       guard relations.filter(link => {
           link.owner == rel.target &&
           link.kind == relationship_uri + "pivotCacheDefinition"
@@ -119,84 +140,19 @@ pub fn Session::pivots(
         "part": pivot.part,
         "name": pivot.name,
         "range": pivot.range.name(),
-        "sourceSheet": pivot.sourceSheet,
-        "source": pivot.source.map(range => range.name()),
+        "sourceSheet": pivot.sourceSheet
+        .map(value => Json(value))
+        .unwrap_or(Json::null()),
+        "source": pivot.source
+        .map(range => Json(range.name()))
+        .unwrap_or(Json::null()),
         "stale": flag(self.part_xml(pivot.cache).nodes()[0], "invalid"),
-        "settings": settings,
+        "settings": settings.map(value => Json(value)).unwrap_or(Json::null()),
         "reason": reason,
       }
       item
     })
   { "revision": revision, "items": items }
-}
-
-///|
-fn PivotLayout::bounds(
-  self : PivotLayout,
-  settings : PivotSettings,
-  address : Address,
-) -> Range raise @failure.Failure {
-  let range : Range = {
-    top: address.row,
-    left: address.column,
-    bottom: address.row + self.members.length() + 1,
-    right: address.column +
-    settings.rows.length() +
-    settings.values.length() -
-    1,
-  }
-  ignore(Range::parse(range.name()))
-  range
-}
-
-///|
-fn PivotLayout::cells(
-  self : PivotLayout,
-  settings : PivotSettings,
-  range : Range,
-) -> (Map[String, CellContent], Map[String, Int]) raise @failure.Failure {
-  let updates : Map[String, CellContent] = Map([])
-  let styles : Map[String, Int] = Map([])
-  let labels = settings.rows.map(field => self.cache.headers[field]) +
-    settings.values.map(field => field.name)
-  for row in range.top..<=range.bottom {
-    for column in range.left..<=range.right {
-      let offset = column - range.left
-      let data = row - range.top - 1
-      let field = if offset < settings.rows.length() {
-        Some(settings.rows[offset])
-      } else {
-        None
-      }
-      let value = if row == range.top {
-        Text(labels[offset])
-      } else if row == range.bottom {
-        if offset == 0 {
-          Text("Grand Total")
-        } else if field is Some(_) {
-          Blank
-        } else {
-          self.total[offset - settings.rows.length()]
-        }
-      } else if field is Some(field) {
-        let item = self.members[data][offset]
-        let value = self.cache.items[field][item]
-        if value == Blank {
-          Text("(blank)")
-        } else {
-          value
-        }
-      } else {
-        self.values[data][offset - settings.rows.length()]
-      }
-      let key = Address::{ row, column, }.name()
-      updates[key] = { value, formula: None, keep_shared: false, }
-      if row != range.top && row != range.bottom && field is Some(field) {
-        styles[key] = self.cache.styles[field][self.members[data][offset]]
-      }
-    }
-  }
-  (updates, styles)
 }
 
 ///|

@@ -24,11 +24,11 @@ fn Session::pivot_settings(
     [
       "name", "cacheId", "dataCaption", "rowGrandTotals", "colGrandTotals", "compact",
       "compactData", "outline", "outlineData", "gridDropZones", "createdVersion",
-      "updatedVersion", "minRefreshableVersion",
+      "updatedVersion", "minRefreshableVersion", "pageWrap", "pageOverThenDown",
     ],
     [
       "location", "pivotFields", "rowFields", "rowItems", "colFields", "colItems",
-      "dataFields",
+      "dataFields", "pageFields",
     ],
   )
   if tree.one(root.id, "location") is Some(location) {
@@ -40,7 +40,6 @@ fn Session::pivot_settings(
     )
   }
   guard flag(root, "rowGrandTotals", fallback=true) &&
-    !flag(root, "colGrandTotals", fallback=true) &&
     !flag(root, "compact", fallback=true) &&
     !flag(root, "outline") &&
     pivot.sourceSheet is Some(source_sheet) &&
@@ -75,17 +74,30 @@ fn Session::pivot_settings(
       })
     })
     .unwrap_or([])
+  let column_nodes = tree
+    .one(root.id, "colFields")
+    .map(node => tree.all(node.id, "field"))
+    .unwrap_or([])
+  let columns = column_nodes
+    .filter(node => node.attribute("x") != Some("-2"))
+    .map(node => natural(node.attribute("x").unwrap_or(""), 63))
+  let filters = pivot_read_filters(tree, Tree::new(self.part_xml(pivot.cache)))
   let settings : PivotSettings = {
     sourceSheet: source_sheet,
     source: source.name(),
     rows,
+    columns,
+    filters,
     values,
   }
   ignore(settings.validate())
   guard tree.one(root.id, "location") is Some(location) &&
-    location.attribute("firstHeaderRow") == Some("0") &&
-    location.attribute("firstDataRow") == Some("1") &&
-    location.attribute("firstDataCol") == Some(rows.length().to_string()) else {
+    location.attribute("firstHeaderRow") ==
+    Some(if columns.is_empty() { "0" } else { "1" }) &&
+    location.attribute("firstDataRow") ==
+    Some(settings.header_rows().to_string()) &&
+    location.attribute("firstDataCol") == Some(rows.length().to_string()) &&
+    flag(root, "colGrandTotals", fallback=true) == !columns.is_empty() else {
     @failure.reject(
       "protected-content", "Extended pivot header layout requires support",
     )
@@ -110,24 +122,40 @@ fn Session::pivot_settings(
     conditional_node(
       tree,
       field,
-      ["axis", "dataField", "defaultSubtotal", "showAll", "compact", "outline"],
+      [
+        "axis", "dataField", "defaultSubtotal", "showAll", "compact", "outline",
+        "multipleItemSelectionAllowed",
+      ],
       ["items"],
     )
     guard field.attribute("axis") ==
-      (if rows.contains(index) { Some("axisRow") } else { None }) &&
+      (if rows.contains(index) {
+        Some("axisRow")
+      } else if columns.contains(index) {
+        Some("axisCol")
+      } else if filters.any(filter => filter.field == index) {
+        Some("axisPage")
+      } else {
+        None
+      }) &&
       flag(field, "dataField") == values.any(value => value.field == index) &&
       !flag(field, "defaultSubtotal", fallback=true) &&
       !flag(field, "showAll", fallback=true) &&
       !flag(field, "compact", fallback=true) &&
-      !flag(field, "outline", fallback=true) else {
+      !flag(field, "outline", fallback=true) &&
+      (
+        filters.any(filter => filter.field == index) ||
+        !flag(field, "multipleItemSelectionAllowed")
+      ) else {
       @failure.reject(
         "protected-content", "Pivot field grouping, visibility or subtotal requires support",
       )
     }
+    let page = filters.any(filter => filter.field == index)
     if tree.one(field.id, "items") is Some(items) {
       conditional_node(tree, items, ["count"], ["item"])
       for index, item in tree.all(items.id, "item") {
-        conditional_node(tree, item, ["x"], [])
+        conditional_node(tree, item, if page { ["x", "h"] } else { ["x"] }, [])
         guard item.attribute("x") == Some(index.to_string()) else {
           @failure.reject(
             "protected-content", "Manual pivot item order requires refresh support",
@@ -167,21 +195,15 @@ fn Session::pivot_settings(
       }
     }
   }
-  let columns = tree
-    .one(root.id, "colFields")
-    .map(node => tree.all(node.id, "field"))
-    .unwrap_or([])
-  guard (values.length() == 1 && columns.is_empty()) ||
-    (
-      values.length() > 1 &&
-      columns is [field] &&
-      field.attribute("x") == Some("-2")
-    ) else {
+  let expected_columns = columns.map(field => field.to_string()) +
+    (if values.length() > 1 { ["-2"] } else { [] })
+  guard column_nodes.map(node => node.attribute("x").unwrap_or("")) ==
+    expected_columns else {
     @failure.reject(
-      "protected-content", "Pivot column dimensions require layout support",
+      "protected-content", "Pivot value axis order requires layout support",
     )
   }
-  for field in columns {
+  for field in column_nodes {
     conditional_node(tree, field, ["x"], [])
   }
   let links = self.relationships()
@@ -349,6 +371,29 @@ pub fn Session::refresh_pivot(
   sheet : String,
   part : String,
 ) -> Json raise @failure.Failure {
+  self.write_pivot(revision, sheet, part, None)
+}
+
+///|
+/// Replaces the supported source and row/value fields using the same atomic refresh transaction.
+pub fn Session::update_pivot(
+  self : Session,
+  revision : Int,
+  sheet : String,
+  part : String,
+  settings : PivotSettings,
+) -> Json raise @failure.Failure {
+  self.write_pivot(revision, sheet, part, Some(settings))
+}
+
+///|
+fn Session::write_pivot(
+  self : Session,
+  revision : Int,
+  sheet : String,
+  part : String,
+  replacement : PivotSettings?,
+) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let index = self.sheet_index(sheet)
   let current = self.sheets[index]
@@ -373,14 +418,19 @@ pub fn Session::refresh_pivot(
       "limit-exceeded", "Pivot refresh location exceeds output budget",
     )
   }
-  let (settings, records) = self.pivot_settings(pivot)
+  let (original_settings, records) = self.pivot_settings(pivot)
+  let settings = replacement.unwrap_or(original_settings)
   let cache = self.pivot_cache(settings)
   let layout = cache.layout(settings)
   let range = layout.bounds(settings, {
     row: pivot.range.top,
     column: pivot.range.left,
   })
-  guard !(settings.sourceSheet == sheet && settings.validate().intersects(range)) &&
+  guard !(settings.sourceSheet == sheet &&
+    (
+      settings.validate().intersects(range) ||
+      settings.validate().intersects(pivot.range)
+    )) &&
     !current.merges.any(merge => merge.intersects(range)) &&
     !pivots.any(other => {
       other.part != part &&
@@ -403,7 +453,7 @@ pub fn Session::refresh_pivot(
       .map(node => decode_text(node.attribute("name").unwrap_or("")))
     })
     .unwrap_or([])
-  guard original_fields == cache.headers else {
+  guard replacement is Some(_) || original_fields == cache.headers else {
     @failure.reject(
       "protected-content", "Pivot source headers changed; field remapping is required",
     )
@@ -431,7 +481,13 @@ pub fn Session::refresh_pivot(
   }
   for link in hyperlink_nodes(Tree::new(current.document)) {
     let bounds = Range::parse(link.attribute("ref").unwrap_or(""))
-    guard !bounds.intersects(range) || bounds.intersects(pivot.range) else {
+    guard !bounds.intersects(range) ||
+      (
+        bounds.left.max(range.left) >= pivot.range.left &&
+        bounds.right.min(range.right) <= pivot.range.right &&
+        bounds.top.max(range.top) >= pivot.range.top &&
+        bounds.bottom.min(range.bottom) <= pivot.range.bottom
+      ) else {
       @failure.reject(
         "protected-content", "Pivot expansion contains hyperlinks",
       )
@@ -468,7 +524,11 @@ pub fn Session::refresh_pivot(
     ),
     (records, cache.record_markup()),
   ]
-  let (updates, styles) = layout.cells(settings, range)
+  let (updates, styles) = layout.cells(
+    settings,
+    range,
+    data_caption=pivot_root.attribute("dataCaption").unwrap_or("Values"),
+  )
   for row in pivot.range.top..<=pivot.range.bottom {
     for column in pivot.range.left..<=pivot.range.right {
       let address : Address = { row, column, }

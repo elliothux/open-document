@@ -10,6 +10,7 @@ import { reviewZh } from "./messages-review.js";
 import { pageZh } from "./messages-docx-page.js";
 import { outlineZh } from "./messages-outline.js";
 import { tableZh } from "./messages-xlsx-tables.js";
+import { pivotZh } from "./messages-xlsx-pivot.js";
 import { clipboardZh } from "./messages-clipboard.js";
 import { protectionZh } from "./messages-xlsx-protection.js";
 
@@ -20,6 +21,7 @@ export const zh: Messages = {
   ...viewZh,
   ...clipboardZh,
   ...tableZh,
+  ...pivotZh,
   ...outlineZh,
   ...reviewZh,
   ...pageZh,

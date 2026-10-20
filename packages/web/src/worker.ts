@@ -83,6 +83,10 @@ async function dispatch(request: Request): Promise<unknown> {
         return workbook.exportCsv(request.revision, request.selection);
       case "queryXlsx":
         return workbook.query(request.sheet, request.range);
+      case "pivotsXlsx":
+        return workbook.pivots(request.revision, request.sheet);
+      case "pivotPreviewXlsx":
+        return workbook.pivotPreview(request.revision, request.settings);
       case "duplicatesXlsx":
         return workbook.duplicates(
           request.revision,
@@ -219,6 +223,8 @@ async function dispatch(request: Request): Promise<unknown> {
         case "captureXlsxFormat":
         case "applyXlsxFormat":
         case "queryXlsx":
+        case "pivotsXlsx":
+        case "pivotPreviewXlsx":
         case "duplicatesXlsx":
         case "textColumnsXlsx":
         case "selectXlsx":

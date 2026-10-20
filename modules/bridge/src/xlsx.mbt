@@ -58,6 +58,20 @@ fn Foundation::xlsx_operation(
     @failure.reject("session-required", "Open an XLSX workbook first")
   }
   match operation {
+    "pivotsXlsx" =>
+      session.pivots(
+        field_int(request, "revision"),
+        field_string(request, "sheet"),
+      )
+    "pivotPreviewXlsx" => {
+      guard request is { "settings": settings, .. } else {
+        @failure.reject("invalid-operation", "Pivot settings are required")
+      }
+      session.pivot_preview(
+        field_int(request, "revision"),
+        xlsx_pivot_settings(settings),
+      )
+    }
     "duplicatesXlsx" | "textColumnsXlsx" =>
       xlsx_data(session, operation, request)
     "exportXlsxCsv" =>
@@ -136,6 +150,16 @@ fn Foundation::xlsx_operation(
     "editXlsxSheet" => {
       guard request is { "change": change, .. } else {
         @failure.reject("invalid-operation", "Worksheet edit is required")
+      }
+      if ["createPivot", "refreshPivot", "updatePivot", "deletePivot"].contains(
+          field_string(change, "action"),
+        ) {
+        return xlsx_pivot_edit(
+          session,
+          field_int(request, "revision"),
+          field_string(request, "sheet"),
+          change,
+        )
       }
       let change = match field_string(change, "action") {
         "protection" | "workbookProtection" => {

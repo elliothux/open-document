@@ -31,7 +31,8 @@ import {
   showCellDraft,
 } from "./spreadsheet-input.js";
 import {
-  checkFormatFonts,
+  autoFitGrid,
+  formatGrid,
   checkCopiedFormatFonts,
   checkFontMapping,
 } from "./spreadsheet-format.js";
@@ -48,6 +49,7 @@ import {
 import type { XlsxClient } from "./xlsx.js";
 import type {
   XlsxQuery,
+  XlsxPivotSettings,
   XlsxViewport,
   XlsxPrintLayout,
   PrintOptions,
@@ -63,7 +65,6 @@ import type {
   XlsxFindOptions,
   XlsxPasteMode,
 } from "@open-document/wasm/xlsx";
-/** One native cell draft; MoonBit owns committed cells, selection and geometry. */
 export class SpreadsheetEditor {
   acceptValidationWarnings = false;
   private readonly container: HTMLDivElement;
@@ -557,17 +558,19 @@ export class SpreadsheetEditor {
     );
   }
   autoFit(axis: "rows" | "columns"): Promise<void> {
-    return this.change(() => {
-      const range = this.state.selection.range;
-      return this.client.autoFit(
-        this.state.revision,
-        this.state.sheet,
-        axis === "rows" ? range.top : range.left,
-        axis === "rows" ? range.bottom : range.right,
-        axis,
-        this.profile,
-      );
-    });
+    return this.change(() =>
+      autoFitGrid(this.client, this.state, axis, this.profile),
+    );
+  }
+  pivots() {
+    return this.read(() =>
+      this.client.pivots(this.state.revision, this.state.sheet),
+    );
+  }
+  pivotPreview(settings: XlsxPivotSettings) {
+    return this.read(() =>
+      this.client.pivotPreview(this.state.revision, settings),
+    );
   }
   editSheet(change: XlsxSheetEdit, sheet?: string): Promise<void> {
     return this.change(() =>
@@ -589,10 +592,9 @@ export class SpreadsheetEditor {
     );
   }
   formatCells(patch: XlsxCellFormat): Promise<void> {
-    return this.change(() => {
-      checkFormatFonts(patch, this.state.formatting, this.profile);
-      return this.client.formatCells(this.state.revision, patch);
-    });
+    return this.change(() =>
+      formatGrid(this.client, this.state, patch, this.profile),
+    );
   }
   captureFormat(): Promise<CopiedCellFormat> {
     return this.read(() => this.client.captureFormat(this.state.revision));

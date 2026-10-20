@@ -1,4 +1,5 @@
 import { record, integer } from "./validation.js";
+import { checkXlsxPivotEdit, type XlsxPivotEdit } from "./xlsx-pivot.js";
 import { checkXlsxOutlineEdit, type XlsxOutlineEdit } from "./xlsx-outline.js";
 import { checkXlsxTableEdit, type XlsxTableEdit } from "./xlsx-tables.js";
 import { checkXlsxNameEdit, type XlsxNameEdit } from "./xlsx-names.js";
@@ -30,6 +31,7 @@ import {
 } from "./xlsx-print.js";
 
 export type XlsxSheetEdit =
+  | XlsxPivotEdit
   | {
       action: "protection" | "workbookProtection";
       enabled: boolean;
@@ -195,6 +197,14 @@ export function checkXlsxSheetEdit(value: unknown): void {
     change.action === "renameTableColumn"
   ) {
     checkXlsxTableEdit(value);
+    return;
+  }
+  if (
+    ["createPivot", "refreshPivot", "updatePivot", "deletePivot"].includes(
+      String(change.action),
+    )
+  ) {
+    checkXlsxPivotEdit(value);
     return;
   }
   if (change.action === "textToColumns") {
