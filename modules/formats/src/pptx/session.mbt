@@ -415,6 +415,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
       }
       value
     }),
+    "mediaPlayback": self.media_playback_query(),
     "fontKeys": fonts,
     "imageKeys": self.image_keys(false, false),
     "selection": self.candidate

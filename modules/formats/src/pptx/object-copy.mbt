@@ -91,6 +91,7 @@ fn Session::copy_objects(
         copied.source()[root.opening_end:root.closing_start].to_owned(),
         parent=Some(slide.tree.nodes[checked[0].source.node.parent]),
       ),
+      ..self.copy_media_settings(slide, identities),
     ],
     {
       ..self.selection,

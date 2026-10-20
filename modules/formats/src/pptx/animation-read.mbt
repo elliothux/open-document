@@ -68,14 +68,16 @@ fn validate_animations(
   for item in items {
     guard [
         "appear", "disappear", "fadeIn", "fadeOut", "scale", "rotate", "move", "flyIn",
-        "flyOut",
+        "flyOut", "mediaPlay", "mediaPause", "mediaStop",
       ].contains(item.kind) &&
       ["click", "with", "after"].contains(item.trigger) &&
       item.delay >= 0 &&
       item.delay <= 60000 &&
       item.repeat >= 1 &&
       item.repeat <= 100 &&
-      (if ["appear", "disappear"].contains(item.kind) {
+      (if ["appear", "disappear", "mediaPlay", "mediaPause", "mediaStop"].contains(
+          item.kind,
+        ) {
         item.duration == 1 && item.repeat == 1
       } else {
         item.duration >= 100 && item.duration <= 60000
@@ -109,6 +111,15 @@ fn validate_animations(
         "protected-content", "Animation requires a local shape or picture",
       )
     }
+    if item.kind.has_prefix("media") {
+      guard object.media is Some(media) &&
+        media.reason.is_empty() &&
+        object.image is Some(_) else {
+        @failure.reject(
+          "protected-content", "Media animation requires playable embedded media",
+        )
+      }
+    }
   }
   let intervals : Map[String, Array[(Int, Int)]] = Map([])
   let mut base = 0
@@ -123,7 +134,9 @@ fn validate_animations(
     }
     let start = base + item.delay
     let finish = start + item.duration * item.repeat
-    let channels = if ["flyIn", "flyOut"].contains(item.kind) {
+    let channels = if item.kind.has_prefix("media") {
+      []
+    } else if ["flyIn", "flyOut"].contains(item.kind) {
       ["move", "visibility"]
     } else if ["scale", "rotate", "move"].contains(item.kind) {
       [item.kind]
@@ -151,29 +164,24 @@ fn Session::read_animations(
   slide : Slide,
 ) -> Array[SlideAnimation] raise @failure.Failure {
   let tree = slide.tree
-  guard tree.one(tree.root("sld").id, "timing", uri=presentation_uri)
-    is Some(timing) else {
+  guard animation_root(tree) is Some(children) else { return [] }
+  let media = read_media_nodes(tree)
+  for id, (kind, _) in media {
+    guard slide.objects
+      .iter()
+      .find_first(object => {
+        object.id == id &&
+        object.media.map(value => value.kind == kind).unwrap_or(false)
+      })
+      is Some(_) else {
+      @failure.reject(
+        "protected-content", "Media timeline target is unavailable or has a different kind",
+      )
+    }
+  }
+  guard tree.one(children.id, "seq", uri=presentation_uri) is Some(seq) else {
     return []
   }
-  let source = tree.document.source()[timing.start:timing.end]
-  guard !source.contains("<!--") && !source.contains("<?") else {
-    @failure.reject("protected-content", "Opaque animation source is protected")
-  }
-  animation_check(tree, timing, "timing", [], ["tnLst"])
-  let list = animation_child(tree, timing, "tnLst")
-  animation_check(tree, list, "tnLst", [], ["par"])
-  let par = animation_child(tree, list, "par")
-  animation_check(tree, par, "par", [], ["cTn"])
-  let root = animation_child(tree, par, "cTn")
-  animation_check(tree, root, "cTn", ["id", "dur", "restart", "nodeType"], [
-    "childTnLst",
-  ])
-  animation_value(root, "dur", "indefinite")
-  animation_value(root, "restart", "never")
-  animation_value(root, "nodeType", "tmRoot")
-  let children = animation_child(tree, root, "childTnLst")
-  animation_check(tree, children, "childTnLst", [], ["seq"])
-  let seq = animation_child(tree, children, "seq")
   animation_check(tree, seq, "seq", ["concurrent", "nextAc"], [
     "cTn", "prevCondLst", "nextCondLst",
   ])
@@ -248,20 +256,6 @@ fn Session::read_animations(
         span = span.max(item.delay + item.duration * item.repeat)
       }
       offset += span
-    }
-  }
-  let identities : Map[String, Bool] = Map([])
-  for node in tree.document.nodes() {
-    if node.start >= timing.start &&
-      node.end <= timing.end &&
-      node.name == "cTn" {
-      let id = number(node.attribute("id").unwrap_or(""), 1, 2147483647)
-        .to_int()
-        .to_string()
-      guard !identities.contains(id) else {
-        @failure.reject("malformed-pptx", "Duplicate animation time identity")
-      }
-      identities[id] = true
     }
   }
   validate_animations(slide, result)

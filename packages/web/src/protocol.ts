@@ -1,4 +1,5 @@
 import type {
+  DocxRevisionEdit,
   Budget,
   DocxRuler,
   DocxRulerEdit,
@@ -63,6 +64,12 @@ export type Operation =
     }
   | { operation: "editBookmark"; revision: number; change: DocxBookmarkEdit }
   | { operation: "docxComments"; revision: number }
+  | { operation: "docxRevisions"; revision: number }
+  | {
+      operation: "resolveDocxRevisions";
+      revision: number;
+      change: DocxRevisionEdit;
+    }
   | {
       operation: "navigateComment";
       revision: number;

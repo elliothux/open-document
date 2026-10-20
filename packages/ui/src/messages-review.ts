@@ -1,4 +1,15 @@
 export const reviewEn = {
+  docxRevisions: "Document revisions",
+  revisionScope:
+    "Review ordinary text insertions and deletions. Other revision structures remain protected.",
+  revisionAuthor: "Revision author",
+  revisionAllAuthors: "All authors",
+  revisionAnonymous: "Unknown author",
+  revisionNone: "No body revisions",
+  revisionInsertion: "Insertion",
+  revisionDeletion: "Deletion",
+  revisionAccept: "Accept change",
+  revisionReject: "Reject change",
   selectedCells: "Selected table cells",
   cellSelectionText:
     "Typing replaces the first selected cell. Delete clears every selected cell. Row and column commands use the selected cells. Select one cell to split it or the table.",
@@ -162,6 +173,16 @@ export const reviewEn = {
     "Provide commentAuthor in the host options to add comments or replies.",
 };
 export const reviewZh: Record<keyof typeof reviewEn, string> = {
+  docxRevisions: "文档修订",
+  revisionScope: "可审阅普通文字的插入和删除。其他修订结构保持保护。",
+  revisionAuthor: "修订作者",
+  revisionAllAuthors: "全部作者",
+  revisionAnonymous: "未知作者",
+  revisionNone: "正文没有修订",
+  revisionInsertion: "插入",
+  revisionDeletion: "删除",
+  revisionAccept: "接受修改",
+  revisionReject: "拒绝修改",
   selectedCells: "所选表格单元格",
   cellSelectionText:
     "输入会替换首个所选格的内容。删除键会清空全部所选格。行列命令使用所选格。请选择单格拆格或拆表。",

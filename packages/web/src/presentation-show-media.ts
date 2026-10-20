@@ -300,6 +300,9 @@ export class PresentationShowMedia {
       .catch((error) => this.fail(media.object, player, "error", error));
   }
   private apply(media: PptxShowMediaState, player: Player): void {
+    player.video.loop = media.playback.loop;
+    player.video.volume = media.playback.volume / 100000;
+    player.video.muted = media.playback.mute;
     if (player.failed || player.closed || player.video.readyState < 2) return;
     const want =
       media.state === "playing" && !this.state?.paused && media.visible;

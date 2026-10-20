@@ -26,6 +26,7 @@ priv struct ShowState {
   ink_points : Int
   ink_draft : ShowInkStroke?
   media : Map[String, ShowMediaPlayback]
+  media_cues : Map[Int, Bool]
 }
 
 ///|
@@ -218,6 +219,7 @@ fn Session::show_scene(
     ink_points: self.showing.map(show => show.ink_points).unwrap_or(0),
     ink_draft: None,
     media: Map([]),
+    media_cues: Map([]),
   }
   if show.animations.get(0) is Some(item) && item.trigger != "click" {
     show.schedule_animations(show.settled)

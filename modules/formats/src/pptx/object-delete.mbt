@@ -186,18 +186,31 @@ fn Session::remove_objects(
   }
   let document = transformed_markup(slide, promoted)
   let root = shape_tree(slide.tree)
-  children
-  .get("")
-  .unwrap_or([])
-  .filter(object => {
-    object.source.tree.part == slide.tree.part && affected.contains(object.id)
-  })
-  .map(object => {
-    node: root.id,
-    offset: object.source.node.start - root.start,
-    length: object.source.node.end - object.source.node.start,
-    xml: deletion_markup(
-      object, document, children, removed, collapsed, affected,
-    ),
-  })
+  let changes : Array[@xml.SourceChange] = children
+    .get("")
+    .unwrap_or([])
+    .filter(object => {
+      object.source.tree.part == slide.tree.part && affected.contains(object.id)
+    })
+    .map(object => {
+      node: root.id,
+      offset: object.source.node.start - root.start,
+      length: object.source.node.end - object.source.node.start,
+      xml: deletion_markup(
+        object, document, children, removed, collapsed, affected,
+      ),
+    })
+  if has_media_settings(slide.tree, removed.keys().to_array()) {
+    let media = read_media_nodes(slide.tree)
+    let remaining : Map[String, (String, MediaPlaybackSettings)] = Map([])
+    for id, value in media {
+      if !removed.contains(id) {
+        remaining[id] = value
+      }
+    }
+    changes.push(
+      self.animation_change(slide, self.read_animations(slide), remaining),
+    )
+  }
+  changes
 }

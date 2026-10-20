@@ -416,6 +416,10 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.editBookmark(request.revision, request.change);
         case "docxComments":
           return foundation.comments(request.revision);
+        case "docxRevisions":
+          return foundation.revisions(request.revision);
+        case "resolveDocxRevisions":
+          return foundation.resolveRevisions(request.revision, request.change);
         case "navigateComment":
           return foundation.navigateComment(
             request.revision,

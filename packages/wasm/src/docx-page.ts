@@ -1,4 +1,4 @@
-import { WasmSession } from "./session.js";
+import { FoundationReviewSession } from "./docx-revisions.js";
 import {
   docxRuler,
   checkDocxRulerEdit,
@@ -122,7 +122,7 @@ export function docxRunningArea(value: unknown): DocxRunningArea {
 }
 
 /** Page commands share the session's revision and source transaction. */
-export class FoundationPageSession extends WasmSession {
+export class FoundationPageSession extends FoundationReviewSession {
   ruler(revision: number): DocxRuler {
     return docxRuler(this.call({ operation: "docxRuler", revision }));
   }

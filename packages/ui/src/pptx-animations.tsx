@@ -36,7 +36,8 @@ export function PptxAnimations({
   const [repeat, setRepeat] = useState(1);
   const [params, setParams] = useState<number[]>([]);
   const [editing, setEditing] = useState<number>();
-  const timed = kind !== "appear" && kind !== "disappear";
+  const media = kind.startsWith("media");
+  const timed = kind !== "appear" && kind !== "disappear" && !media;
   const flight = kind === "flyIn" || kind === "flyOut";
   const names = {
     appear: t.animationAppear,
@@ -48,6 +49,9 @@ export function PptxAnimations({
     move: t.animationMove,
     flyIn: t.animationFlyIn,
     flyOut: t.animationFlyOut,
+    mediaPlay: t.animationMediaPlay,
+    mediaPause: t.animationMediaPause,
+    mediaStop: t.animationMediaStop,
   };
   const apply = (items: PptxAnimation[]) =>
     controller.run(() =>
@@ -160,7 +164,10 @@ export function PptxAnimations({
                 value === "rotate" ||
                 value === "move" ||
                 value === "flyIn" ||
-                value === "flyOut"
+                value === "flyOut" ||
+                value === "mediaPlay" ||
+                value === "mediaPause" ||
+                value === "mediaStop"
               ) {
                 setKind(value);
                 setParams(
@@ -186,6 +193,9 @@ export function PptxAnimations({
             <option value="move">{t.animationMove}</option>
             <option value="flyIn">{t.animationFlyIn}</option>
             <option value="flyOut">{t.animationFlyOut}</option>
+            <option value="mediaPlay">{t.animationMediaPlay}</option>
+            <option value="mediaPause">{t.animationMediaPause}</option>
+            <option value="mediaStop">{t.animationMediaStop}</option>
           </select>
         </label>
         {flight ? (
@@ -292,7 +302,9 @@ export function PptxAnimations({
         <button
           type="submit"
           disabled={
-            !object || (editing === undefined && current.items.length >= 128)
+            !object ||
+            (media && !targets.find((target) => target.id === object)?.media) ||
+            (editing === undefined && current.items.length >= 128)
           }
         >
           {editing === undefined ? t.animationAdd : t.animationApply}

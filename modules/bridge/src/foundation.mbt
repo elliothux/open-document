@@ -278,6 +278,8 @@ fn Foundation::dispatch(
     | "findDocx"
     | "docxOverview"
     | "docxComments"
+    | "docxRevisions"
+    | "resolveDocxRevisions"
     | "navigateComment"
     | "editDocxComment"
     | "replaceDocxMatches"
@@ -330,6 +332,8 @@ fn Foundation::dispatch(
         }
         "docxOverview" => session.overview(field_int(request, "revision"))
         "docxComments" => session.comments(field_int(request, "revision"))
+        "docxRevisions" | "resolveDocxRevisions" =>
+          self.docx_revisions(session, request, operation)
         "navigateComment" =>
           session.navigate_comment(
             field_int(request, "revision"),

@@ -101,6 +101,14 @@ pub(all) enum ListFormat {
 pub fn ListFormat::equal(Self, Self) -> Bool
 pub fn ListFormat::not_equal(Self, Self) -> Bool
 
+pub(all) struct MediaPlaybackSettings {
+  cycling : Bool
+  volume : Int
+  mute : Bool
+} derive(Eq)
+pub fn MediaPlaybackSettings::equal(Self, Self) -> Bool
+pub fn MediaPlaybackSettings::not_equal(Self, Self) -> Bool
+
 pub(all) enum ObjectEdit {
   InsertDiagram(DiagramSettings)
   InsertConnector(ConnectorEnd, ConnectorEnd)
@@ -110,6 +118,7 @@ pub(all) enum ObjectEdit {
   Placeholder(String?, Double)
   InsertImage(Bytes, Double, Double, Double, Double)
   InsertMedia(String, String, Bytes, Bytes, Double, Double, Double, Double)
+  MediaPlayback(MediaPlaybackSettings)
   InsertTable(Int, Int, Double, Double, Double, Double)
   FillTable(Int, Int)
   TableStructure(String)

@@ -136,7 +136,10 @@ export interface PptxAnimation {
     | "rotate"
     | "move"
     | "flyIn"
-    | "flyOut";
+    | "flyOut"
+    | "mediaPlay"
+    | "mediaPause"
+    | "mediaStop";
   trigger: "click" | "with" | "after";
   delay: number;
   duration: number;
@@ -163,6 +166,9 @@ function pptxAnimations(value: unknown): void {
         "move",
         "flyIn",
         "flyOut",
+        "mediaPlay",
+        "mediaPause",
+        "mediaStop",
       ].includes(String(animation.kind)) ||
       !["click", "with", "after"].includes(String(animation.trigger)) ||
       typeof animation.delay !== "number" ||
@@ -175,7 +181,9 @@ function pptxAnimations(value: unknown): void {
       !Number.isInteger(animation.repeat) ||
       animation.repeat < 1 ||
       animation.repeat > 100 ||
-      (["appear", "disappear"].includes(String(animation.kind))
+      (["appear", "disappear", "mediaPlay", "mediaPause", "mediaStop"].includes(
+        String(animation.kind),
+      )
         ? animation.duration !== 1 || animation.repeat !== 1
         : animation.duration < 100 || animation.duration > 60000) ||
       !Array.isArray(animation.params) ||

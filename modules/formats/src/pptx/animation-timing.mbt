@@ -28,7 +28,7 @@ fn animation_container(
     "childTnLst",
     [],
     if effect {
-      ["set", "anim", "animScale", "animRot", "animMotion"]
+      ["set", "anim", "animScale", "animRot", "animMotion", "cmd"]
     } else {
       ["par"]
     },
@@ -182,6 +182,9 @@ fn read_animation_effect(
   }
   if [Some("emph"), Some("path")].contains(effect.attribute("presetClass")) {
     return read_geometric_animation(tree, effect, trigger, width, height)
+  }
+  if effect.attribute("presetClass") == Some("mediacall") {
+    return read_media_animation(tree, effect, trigger)
   }
   let entrance = match effect.attribute("presetClass") {
     Some("entr") => true

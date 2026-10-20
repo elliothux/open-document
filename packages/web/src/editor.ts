@@ -1,7 +1,7 @@
 import { docxOutputs, downloadDocxOutput } from "./document-output.js";
 import { DocumentPage } from "./document-page.js";
 export type { DocumentRuler } from "./document-page.js";
-export type { DocumentComments } from "./document-review.js";
+export type { DocumentComments, DocumentRevisions } from "./document-review.js";
 import { createDocumentElements, docxPageText } from "./document-elements.js";
 import type { FoundationClient } from "./foundation.js";
 import { PageCanvas } from "./page-canvas.js";

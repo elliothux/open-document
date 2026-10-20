@@ -31,8 +31,9 @@ fn animation_markup(
   part : String,
   width : Double,
   height : Double,
+  media~ : Map[String, (String, MediaPlaybackSettings)] = Map([]),
 ) -> String {
-  guard !items.is_empty() else { return "" }
+  guard !items.is_empty() || !media.is_empty() else { return "" }
   let groups : Array[Array[Array[SlideAnimation]]] = []
   for item in items {
     if groups.is_empty() || item.trigger == "click" {
@@ -62,7 +63,12 @@ fn animation_markup(
         let flight = ["flyIn", "flyOut"].contains(item.kind)
         let fade = ["fadeIn", "fadeOut"].contains(item.kind)
         let geometric = ["scale", "rotate", "move"].contains(item.kind)
-        let behavior = if flight {
+        let media = item.kind.has_prefix("media")
+        let behavior = if media {
+          let markup = media_animation_markup(item, identity, target)
+          identity += 1
+          markup
+        } else if flight {
           let markup = flight_animation_markup(item, identity, target)
           identity += 3
           markup
@@ -91,13 +97,18 @@ fn animation_markup(
           markup
         }
         let preset = match item.kind {
+          "mediaPlay" => 2
+          "mediaPause" => 1
+          "mediaStop" => 3
           "scale" => 6
           "rotate" => 8
           "move" => 0
           "flyIn" | "flyOut" => 2
           _ => if fade { 10 } else { 1 }
         }
-        let class = if item.kind == "move" {
+        let class = if media {
+          "mediacall"
+        } else if item.kind == "move" {
           "path"
         } else if geometric {
           "emph"
@@ -132,5 +143,5 @@ fn animation_markup(
     )
   }
   let conditions = "<od:prevCondLst><od:cond evt=\"onPrev\" delay=\"0\"><od:tgtEl><od:sldTgt/></od:tgtEl></od:cond></od:prevCondLst><od:nextCondLst><od:cond evt=\"onNext\" delay=\"0\"><od:tgtEl><od:sldTgt/></od:tgtEl></od:cond></od:nextCondLst>"
-  "<od:timing xmlns:od=\"\{presentation_uri}\"><od:tnLst><od:par><od:cTn id=\"1\" dur=\"indefinite\" restart=\"never\" nodeType=\"tmRoot\"><od:childTnLst><od:seq concurrent=\"1\" nextAc=\"seek\"><od:cTn id=\"2\" dur=\"indefinite\" nodeType=\"mainSeq\"><od:childTnLst>\{sequence.to_string()}</od:childTnLst></od:cTn>\{conditions}</od:seq></od:childTnLst></od:cTn></od:par></od:tnLst></od:timing>"
+  "<od:timing xmlns:od=\"\{presentation_uri}\"><od:tnLst><od:par><od:cTn id=\"1\" dur=\"indefinite\" restart=\"never\" nodeType=\"tmRoot\"><od:childTnLst><od:seq concurrent=\"1\" nextAc=\"seek\"><od:cTn id=\"2\" dur=\"indefinite\" nodeType=\"mainSeq\"><od:childTnLst>\{sequence.to_string()}</od:childTnLst></od:cTn>\{conditions}</od:seq>\{media_nodes_markup(media, part, identity)}</od:childTnLst></od:cTn></od:par></od:tnLst></od:timing>"
 }

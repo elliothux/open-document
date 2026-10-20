@@ -40,6 +40,12 @@ fn Session::show_media_query(
   let result : Array[Json] = []
   let mut units = 0
   let visibility = show.animation_state()
+  let (settings, settings_reason) = (
+    read_media_nodes(self.slides[show.index].tree),
+    "",
+  ) catch {
+    @failure.Failure(message~, ..) => (Map([]), message)
+  }
   for object in self.slides[show.index].objects {
     guard object.media is Some(media) else { continue }
     let state = show.media_state(object.id)
@@ -47,8 +53,10 @@ fn Session::show_media_query(
       media.reason
     } else if !object.diagnostic.is_empty() {
       object.diagnostic
-    } else {
+    } else if settings_reason.is_empty() {
       state.reason
+    } else {
+      settings_reason
     }
     units += object.id.length() +
       object.name.length() +
@@ -72,6 +80,11 @@ fn Session::show_media_query(
       "visible": show.effect is None &&
       object.geometry is Some(_) &&
       visibility.get(object.id).map(value => value.opacity > 0).unwrap_or(true),
+      "playback": settings
+      .get(object.id)
+      .map(value => value.1)
+      .unwrap_or(MediaPlaybackSettings::initial())
+      .json(),
     })
   }
   result
@@ -82,6 +95,8 @@ fn Session::change_show_media(
   self : Session,
   show : ShowState,
   change : ShowMediaChange,
+  sequence~ : Int = self.media_sequence,
+  scripted~ : Bool = false,
 ) -> (ShowState, Int) raise @failure.Failure {
   let object = self.slides[show.index].object(change.object)
   guard object.media is Some(media) else {
@@ -112,6 +127,7 @@ fn Session::change_show_media(
       )
     }
   } else {
+    ignore(read_media_nodes(self.slides[show.index].tree))
     guard media.reason.is_empty() &&
       object.diagnostic.is_empty() &&
       object.image is Some(_) else {
@@ -119,18 +135,19 @@ fn Session::change_show_media(
         "protected-content", "Media source or poster is unavailable",
       )
     }
-    if action == "play" {
+    if action == "play" && !scripted {
       guard show_media_visible(object, show) else {
         @failure.reject("invalid-operation", "Media is not currently visible")
       }
     }
   }
-  let restart = action == "play" && !["playing", "paused"].contains(old.state)
+  let restart = action == "play" &&
+    (scripted || !["playing", "paused"].contains(old.state))
   let token = if restart || action == "stop" {
-    guard self.media_sequence < 2147483647 else {
+    guard sequence < 2147483647 else {
       @failure.reject("limit-exceeded", "Media playback identity exhausted")
     }
-    self.media_sequence + 1
+    sequence + 1
   } else {
     old.token
   }
@@ -171,7 +188,7 @@ fn Session::change_show_media(
     if restart || action == "stop" {
       token
     } else {
-      self.media_sequence
+      sequence
     },
   )
 }
@@ -214,7 +231,16 @@ pub fn Session::media_show(
   guard self.showing is Some(show) else {
     @failure.reject("show-required", "Start the slideshow first")
   }
-  let (next, sequence) = self.change_show_media(show.advance(time), change)
+  let (advanced, sequence) = if feedback {
+    (Some(show.advance(time)), self.media_sequence)
+  } else {
+    self.show_media_cues(Some(show.advance(time)))
+  }
+  let (next, sequence) = self.change_show_media(
+    advanced.unwrap(),
+    change,
+    sequence~,
+  )
   let result = self.show_state(Some(next))
   self.showing = Some(next)
   self.media_sequence = sequence

@@ -415,6 +415,7 @@ fn Foundation::pptx_operation(
             xlsx_number(change, "bottom"),
           )
         "insertMedia" => pptx_insert_media(change)
+        "mediaPlayback" => pptx_media_playback(change)
         "insertImage" =>
           @pptx.InsertImage(
             input_bytes(change, 4194304),

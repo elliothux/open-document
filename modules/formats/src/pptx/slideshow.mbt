@@ -64,6 +64,13 @@ pub fn Session::control_show(
     }
   }
   let old = self.showing.map(show => show.advance(time))
+  let (old, media_sequence) = if ["start", "startSettings", "end"].contains(
+      action,
+    ) {
+    (old, self.media_sequence)
+  } else {
+    self.show_media_cues(old)
+  }
   let show = if action == "end" {
     None
   } else if action == "start" || action == "startSettings" {
@@ -175,8 +182,13 @@ pub fn Session::control_show(
       })
     }
   }
+  let (show, media_sequence) = self.show_media_cues(
+    show,
+    initial=media_sequence,
+  )
   let result = self.show_state(show)
   self.showing = show
+  self.media_sequence = media_sequence
   if action != "tick" {
     self.invalidate_show_frame()
   }
@@ -364,7 +376,8 @@ pub fn Session::show_layout(
     (
       show.effect is Some(_) ||
       show.advance.after is Some(_) ||
-      show.animations_running()
+      show.animations_running() ||
+      show.pending_media_cues()
     ),
   }
 }

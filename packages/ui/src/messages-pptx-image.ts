@@ -1,6 +1,10 @@
 export const imageEn = {
   insertMedia: "Insert audio or video",
   mediaFile: "Media file",
+  mediaLoop: "Loop media",
+  mediaVolume: "Media volume (%)",
+  mediaMute: "Mute media",
+  mediaPlaybackApply: "Apply media playback",
   mediaInputLimit: "Media must contain 1 to 16777216 bytes",
   mediaTargetChanged: "The target slide changed while reading the media",
   mediaInsertHint:
@@ -33,6 +37,10 @@ export const imageEn = {
 export const imageZh = {
   insertMedia: "插入音频或视频",
   mediaFile: "媒体文件",
+  mediaLoop: "循环播放媒体",
+  mediaVolume: "媒体音量（%）",
+  mediaMute: "媒体静音",
+  mediaPlaybackApply: "应用媒体播放设置",
   mediaInputLimit: "媒体文件需为 1 至 16777216 字节",
   mediaTargetChanged: "读取媒体期间目标幻灯片已改变",
   mediaInsertHint: "可在放映中播放媒体，图片和 PDF 输出使用封面。",

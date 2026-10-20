@@ -1,4 +1,34 @@
-import { record } from "./validation.js";
+import { integer, record } from "./validation.js";
+
+export interface PptxMediaPlayback {
+  loop: boolean;
+  /** Native OOXML volume units, from 0 to 100000. */
+  volume: number;
+  mute: boolean;
+}
+export function checkMediaPlayback(value: unknown): void {
+  const settings = record(value);
+  if (
+    typeof settings.loop !== "boolean" ||
+    !integer(settings.volume, 0, 100000) ||
+    typeof settings.mute !== "boolean" ||
+    Object.keys(settings).length !== 3 ||
+    Object.keys(settings).some(
+      (key) => !["loop", "volume", "mute"].includes(key),
+    )
+  )
+    throw new Error("Invalid media playback settings");
+}
+export function checkMediaPlaybackQuery(value: unknown): void {
+  const query = record(value);
+  if (
+    typeof query.reason !== "string" ||
+    query.reason.length > 8192 ||
+    (query.value !== null && query.reason)
+  )
+    throw new Error("Invalid media playback query");
+  if (query.value !== null) checkMediaPlayback(query.value);
+}
 
 export interface PptxMedia {
   kind: "audio" | "video";

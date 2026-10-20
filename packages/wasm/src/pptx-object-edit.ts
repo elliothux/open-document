@@ -13,7 +13,9 @@ import type {
   PptxTable,
 } from "./pptx-objects.js";
 import type { PptxConnectorEnd } from "./pptx-connectors.js";
+import type { PptxMediaPlayback } from "./pptx-media.js";
 export type PptxObjectEdit =
+  | { action: "mediaPlayback"; value: PptxMediaPlayback }
   | {
       action: "insertMedia";
       kind: "audio" | "video";

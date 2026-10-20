@@ -7,8 +7,12 @@ import {
   type PptxShowLayout,
 } from "./pptx-show.js";
 import { checkPptxConnectorQuery } from "./pptx-connectors.js";
-import { checkPptxMedia } from "./pptx-media.js";
-export type { PptxMedia } from "./pptx-media.js";
+import {
+  checkPptxMedia,
+  checkMediaPlaybackQuery,
+  type PptxMediaPlayback,
+} from "./pptx-media.js";
+export type { PptxMedia, PptxMediaPlayback } from "./pptx-media.js";
 export { mediaImageCommand } from "./pptx-show-media.js";
 export type { PptxConnectorEnd, PptxConnector } from "./pptx-connectors.js";
 import { checkPptxPlaceholderQuery } from "./pptx-placeholder.js";
@@ -153,6 +157,10 @@ export type {
 import type { PptxObject } from "./pptx-query.js";
 export type { PptxObject } from "./pptx-query.js";
 export interface PptxQuery extends PptxPlaybackState {
+  mediaPlayback: {
+    value: PptxMediaPlayback | null;
+    reason: string;
+  };
   editView: PptxEditView;
   table: PptxTable | null;
   themeColors: PptxThemeColor[];
@@ -347,6 +355,7 @@ function integer(value: unknown, high = 0x7fffffff): void {
 }
 export function pptxQuery(value: unknown): PptxQuery {
   const query = record(value);
+  checkMediaPlaybackQuery(query.mediaPlayback);
   pptxPlaybackState(value);
   pptxThemeColors(query.themeColors);
   pptxThemeFonts(query.themeFonts);

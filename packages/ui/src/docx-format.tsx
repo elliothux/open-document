@@ -18,6 +18,7 @@ import { messages } from "./messages.js";
 import { DocxSearch } from "./docx-search.js";
 import { DocxOverview } from "./docx-overview.js";
 import { DocxComments } from "./docx-comments.js";
+import { DocxRevisions } from "./docx-revisions.js";
 import { DocxTabs, DocxDefaultTab } from "./docx-tabs.js";
 import { DocxStyles } from "./docx-styles.js";
 import { DocxLists } from "./docx-lists.js";
@@ -374,6 +375,12 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
   disabled ||= !formatting || !!formatting.reason;
   return (
     <aside className="od-properties" aria-label={t.paragraph}>
+      <DocxRevisions
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={stylesDisabled}
+      />
       <DocxOverview
         controller={controller}
         state={state}

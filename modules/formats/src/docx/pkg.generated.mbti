@@ -184,6 +184,8 @@ pub fn Session::replace_all(Self, Int, String, FindOptions, String) -> Json rais
 pub fn Session::replace_matches(Self, Int, Array[Selection], String) -> Json raise @failure.Failure
 pub fn Session::replace_picture(Self, Int, Int, Bytes) -> Json raise @failure.Failure
 pub fn Session::replace_range(Self, Int, Selection, String, input_group? : Int?) -> Json raise @failure.Failure
+pub fn Session::resolve_revisions(Self, Int, Array[String], Bool) -> Json raise @failure.Failure
+pub fn Session::revisions(Self, Int) -> Json raise @failure.Failure
 pub fn Session::ruler(Self, Int, @layout.Layout) -> Json raise @failure.Failure
 pub fn Session::running_area(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::save(Self) -> Bytes raise @failure.Failure

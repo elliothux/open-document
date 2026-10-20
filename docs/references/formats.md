@@ -279,6 +279,18 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 标记与正文属性依据 [ONLYOFFICE Annotations.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Logic/Annotations.cpp#L70-L145)、[RunContent.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Logic/RunContent.cpp#L752-L803)及 [Comments.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Comments.cpp#L281-L291)；跨段端点参考 [Document.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L22584-L22616)。线程格式依据 [Comments.cpp 的扩展属性](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Comments.cpp#L420-L433)、[ReaderClasses.cpp 的末段身份与父关系](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Document/BinReader/ReaderClasses.cpp#L659-L748)及 [BinaryWriterD.cpp 的回复映射](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Document/BinWriter/BinaryWriterD.cpp#L8692-L8738)。高亮与命中参考 [Comments.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Comments.js#L923-L953)及[标记绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Comments.js#L1383-L1421)。未复制上游源码。实现归 [`comments-read.mbt`](../../modules/formats/src/docx/comments-read.mbt)、[`comments-edit.mbt`](../../modules/formats/src/docx/comments-edit.mbt)、[`comments-threads.mbt`](../../modules/formats/src/docx/comments-threads.mbt)、[`comments-range.mbt`](../../modules/formats/src/docx/comments-range.mbt)、[`comments-layout.mbt`](../../modules/formats/src/docx/comments-layout.mbt)及 [`docx-comments.tsx`](../../packages/ui/src/docx-comments.tsx)。现代批注兼容继续按 [P10](../p10-docx-core.md) 实施。
 
+### DOCX 文字修订审阅
+
+`DocumentEditor.revisions()` 返回绑定 `documentId/revision` 的 `DocumentRevisions`。目录按正文源顺序列出 `id/sourceId/kind/element/author/date/text/paragraph/reason`；`kind` 为 `insert`、`delete` 或 `unsupported`。`id` 是当前 XML 节点身份，`sourceId` 保留原生修订编号，不能互换。查询不改变源、选择或历史。默认面板显示文字预览、作者和日期，提供作者筛选及逐项接受/拒绝。
+
+`DocumentEditor.resolveRevisions(catalog, { action: "accept" | "reject", ids })` 显式处理目录内的一项或一批修订。Wasm/Worker 使用 `docxRevisions` 和 `resolveDocxRevisions`，携带 revision；同步会话提供对应方法。旧目录或其他文档的目录被拒绝。核心预检整批后提交一次源历史：接受插入或拒绝删除保留普通 run，接受删除或拒绝插入移除包装及内容。拒绝删除把 `delText` 恢复为 `t`，保留样式、命名空间、空白、Tab 和软换行；其他源内容及部件保持。撤销/重做恢复精确源，处理后的普通段落可继续输入。
+
+当前仅处理正文直属段落及普通正文表格单元格内、直接包裹普通 run 的 `w:ins/w:del`。字段、图片、嵌套修订、移动、属性/段落结构修订、未知内容或元数据保持保护并给出条目原因。启用的文档保护由核心拒绝，保留保护标记。未处理的修订仍沿既有段落保护和布局诊断；面板文字预览不代表正文已有修订标记渲染。记录新修改、属性修订、正文定位及更广兼容继续实施。
+
+目录最多 4096 项，每项预览最多 32767 UTF-16 单元，总预览最多 1 Mi 单元；作者最多 255，日期及源编号最多 128。提交接受现有 XML、包输出和历史预算，空批次、重复或缺失身份、活动候选及任意受保护项使整批失败。保留选区位于未受影响段落时的原位置；受影响时移至首个可编辑的处理段落，否则清除选区。
+
+行为依据 [ONLYOFFICE 接受修订](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L11139-L11226)及[拒绝修订](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L11232-L11340)；未复制上游执行代码。实现归 [`revisions.mbt`](../../modules/formats/src/docx/revisions.mbt)、[`document-review.ts`](../../packages/web/src/document-review.ts)及 [`docx-revisions.tsx`](../../packages/ui/src/docx-revisions.tsx)。
+
 ### DOCX 主题颜色
 
 `FoundationSession/Client.themeColors(revision)` 返回 `DocxThemeColors = { revision, colors }`，包含 `dk1/lt1/dk2/lt2`、`accent1`–`accent6`、`hlink/folHlink` 十二项。每项含 `slot/color/reason`；无法读取的色项颜色为 null，限制原因单独返回。`DocxThemeSlot` 与查询类型沿 `wasm/foundation`、`web/foundation` 导出。查询不修改源或历史；没有主题时返回新主题的默认颜色。
@@ -2015,7 +2027,7 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 默认面板从显式本地文件解码生成视频首帧封面或音频播放符号。`preparePresentationMedia(bytes, signal?)` 从 `web/pptx` 导出，供宿主复用。容器声明为 audio/wav、audio/mpeg、audio/mp4、audio/webm、video/mp4 或 video/webm；浏览器拒绝编码或数据损坏时，插入失败并保留文稿。当前 Chromium 实测覆盖 PCM WAV 和 VP8 WebM，其余编码按实际解码能力处理，未据文件扩展名承诺兼容。解码帧每轴最多 4096、最多 16777216 像素；生成的封面最多 1920×1080，仍遵守图片输入/解码预算。取消、超时、失败和完成均清理临时解码器及对象 URL。
 
-媒体原字节有独立的单资源 16 MiB、累计 64 MiB 和 64 项预算，历史另限 64 MiB。XML 与图片历史仍共用原来的 4 MiB；`historyBytes` 返回两类历史的合计。原包、XML、输出和显式宿主预算同时生效，可能先达到其上限。静态 Canvas、PNG/JPEG 和 PDF 使用封面，原媒体字节保留在 PPTX。手动放映范围归[放映媒体](#放映媒体)；自动播放/循环属性及原生媒体计时继续实施。原生结构参考 [ONLYOFFICE Pic::fromPPTY](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Pic.cpp#L1205-L1256)；未复制上游执行代码。
+媒体原字节有独立的单资源 16 MiB、累计 64 MiB 和 64 项预算，历史另限 64 MiB。XML 与图片历史仍共用原来的 4 MiB；`historyBytes` 返回两类历史的合计。原包、XML、输出和显式宿主预算同时生效，可能先达到其上限。静态 Canvas、PNG/JPEG 和 PDF 使用封面，原媒体字节保留在 PPTX。手动及已支持的动画命令归[放映媒体](#放映媒体)和[对象动画](#对象动画)；循环、音量及静音归[媒体播放属性](#媒体播放属性)；更广原生媒体计时继续实施。原生结构参考 [ONLYOFFICE Pic::fromPPTY](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Pic.cpp#L1205-L1256)；未复制上游执行代码。
 
 ### 放映与演讲者视图
 
@@ -2029,9 +2041,19 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 页序规则参考 [ONLYOFFICE 可见页导航](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L4641-L4742)和[显式跳页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/Transitions.js#L4978-L5003)。实现归 [`slideshow.mbt`](../../modules/formats/src/pptx/slideshow.mbt)、[`show-state.mbt`](../../modules/formats/src/pptx/show-state.mbt)及 [`presentation-show.ts`](../../packages/web/src/presentation-show.ts)。
 
+### 媒体播放属性
+
+`PresentationEditor.editObjects({ action: "mediaPlayback", value: { loop, volume, mute } })` 修改单个本地顶层音视频对象。`loop/mute` 为布尔值；`volume` 为 0–100000 的整数，沿用原生音量单位，100000 表示 100%。默认值为 false/100000/false。Wasm/Web 导出 `PptxMediaPlayback`，MoonBit 使用 `MediaPlaybackSettings`，其中循环字段名为 `cycling`。`query.mediaPlayback` 返回当前对象的 `{ value, reason }`，普通对象的 value 为 null；默认媒体面板提供循环、百分比音量、静音及一次应用。多个字段合为一项精确历史，无变化不提交；原生草稿仍先沿既有屏障提交。
+
+属性保存为原生动画根节点下的 `p:audio/p:video`、`cMediaNode.vol/mute` 及 `cTn.repeatCount="indefinite"`。保留单页封面，等待媒体动作启动，并在页导航时停止。仅有播放属性而没有主动画序列的源也可读取；新建媒体动画同时补齐其原生媒体节点，动画列表修改和清空保留播放属性。对象和页面复制重映射目标及时间身份，复制对象独立修改设置，共享不可变媒体字节。仅有播放属性引用时，删除对象同时回收该节点；其他动画及连接引用继续保护。
+
+`slideshow.state.media[].playback` 返回实际使用的属性。浏览器将循环、音量比例和静音传给已有解码器，保留实例 token、暂停、停止、故障及释放规则。循环不重复分配播放器，也不推进页面；停止恢复封面并释放资源。放映不修改文稿和历史，静态 Canvas/PDF 仍使用封面。Chromium 已检查 PCM WAV 的多次实际回卷、精确音量比例及静音属性；未据此声明实际扬声器音量验收。
+
+当前读取普通单页、保留封面、无限循环或单次播放的媒体节点。有限重复、自动开始的独立媒体节点、跨页延续、全屏、叙述、隐藏封面及未知节点/属性继续保护；自动播放使用已支持的媒体动画命令。无关普通对象的复制/删除保留未知媒体源。原生字段依据 [ONLYOFFICE CMediaNode](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Timing/CMediaNode.cpp#L42-L68)和 [CTn](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Timing/CTn.cpp#L42-L103)；未复制执行代码。实现归 [`media-playback.mbt`](../../modules/formats/src/pptx/media-playback.mbt)。
+
 ### 放映媒体
 
-`PresentationEditor.slideshow.media({ object, token, action })` 接受 play/pause/stop。`object` 是原生对象身份，`token` 取自当前 `slideshow.state.media`。该数组包含 `{ object, label, kind, key, contentType, token, state, reason, visible }`，状态为 stopped/playing/paused/ended/blocked/error。初始 token 为 0；开始新实例、重播和停止分配新标识，暂停续播保留标识。画布点击已知媒体动作也切换播放/暂停。默认界面为每个对象提供播放、暂停、停止及对象级原因，键盘可操作。
+`PresentationEditor.slideshow.media({ object, token, action })` 接受 play/pause/stop。`object` 是原生对象身份，`token` 取自当前 `slideshow.state.media`。该数组包含 `{ object, label, kind, key, contentType, token, state, reason, visible, playback }`，状态为 stopped/playing/paused/ended/blocked/error。初始 token 为 0；开始新实例、重播和停止分配新标识，暂停续播保留标识。画布点击已知媒体动作也切换播放/暂停。默认界面为每个对象提供播放、暂停、停止及对象级原因，键盘可操作。
 
 核心管理动作、可见性和实例身份；Web 仅从显式资源字节解码。低层 `mediaShowPptx` 携带 revision/time/change；用户动作另带当前 layoutId。ended/paused/blocked/error 是浏览器反馈，不带 layoutId，必须携带有效 token；error 还带非空、最多 1024 UTF-16 的 message。Wasm/Web 导出 `PptxShowMediaChange/PptxShowMediaState`，MoonBit 使用 `ShowMediaChange`。过期实例、其他页面和结束后的反馈拒绝，播放事件不推进页面、不改文稿、选择、历史或静态输出。播放标识与绘制帧标识独立，反馈不会使正在输入的指针帧失效。
 
@@ -2039,7 +2061,7 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 视频沿核心 `PptxShowLayout.media` 给出的对象/图片命令路径绘制，保留层次、裁剪、不透明度、变换和上层笔迹。共享封面的复制对象使用不同命令实例，不共享播放帧。通用 Canvas 执行器可为指定图片命令接收临时图像源；静态输出继续使用原封面，不写入视频帧。纯视频帧重绘复用当前绘制批次，不逐帧请求核心。放映最多保留 16 个播放器，包括暂停、结束和等待重试的实例；停止可释放名额。压缩输入累计最多 64 MiB，视频帧每轴最多 4096、累计最多 16777216 像素，分辨率变化时重查；图片命令绑定累计最多 65536 条。媒体输入及图片、Canvas、包预算同时生效。
 
-当前 Chromium 实测 PCM WAV 与 VP8 WebM。自动播放、循环、音量/静音、跨页延续和更广原生媒体计时仍待实现。动作与平台边界参考 [ONLYOFFICE CCmd::getMediaData/setState](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L8664-L8737)；未复制上游执行代码。
+当前 Chromium 实测 PCM WAV 与 VP8 WebM。点击及自动媒体命令归[对象动画](#对象动画)，循环和音量/静音归[媒体播放属性](#媒体播放属性)；跨页延续和更广原生媒体计时仍待实现。动作与平台边界参考 [ONLYOFFICE CCmd::getMediaData/setState](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L8664-L8737)；未复制上游执行代码。
 
 ### 放映临时画笔
 
@@ -2077,7 +2099,7 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 默认 UI 提供全部页、页码范围或自定义放映，以及计时、对象动画和循环开关。应用后合为一次历史；开始读取已提交值。页重排、增加和复制保持范围的数字位置；删页后把超出末页的起止值收窄到剩余页数。自定义组仍使用稳定页身份；被默认选择的组须先取消选择才能删除。
 
-源采用标准 `presProps/p:showPr` 的 `sldAll/sldRg/custShow` 和 useTimings/showAnimation/loop。首次编辑可创建属性部件、关系及内容类型，连同源历史一起撤销和重做；相同设置不改字节或新增历史。只修改变化的属性和选择片段，保留 showNarration、显示模式、画笔颜色和其他未改源内容。叙述、窗口模式、默认画笔颜色及媒体自动计时仍待实现。手动媒体和临时画笔归各自合同；保存与静态输出继续使用完整文稿，不按默认放映范围裁剪。
+源采用标准 `presProps/p:showPr` 的 `sldAll/sldRg/custShow` 和 useTimings/showAnimation/loop。首次编辑可创建属性部件、关系及内容类型，连同源历史一起撤销和重做；相同设置不改字节或新增历史。只修改变化的属性和选择片段，保留 showNarration、显示模式、画笔颜色和其他未改源内容。叙述、窗口模式、默认画笔颜色及更广媒体计时仍待实现。媒体命令和临时画笔归各自合同；保存与静态输出继续使用完整文稿，不按默认放映范围裁剪。
 
 字段和序列化依据 [ONLYOFFICE ShowPr](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/ShowPr/PresentationPr.cpp#L48-L128)及[页码范围](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/ShowPr/SldRg.cpp#L42-L78)。重排与删页的数字范围规则是当前 SDK 合同，未声称由上游运行结果验证。实现归 [`show-settings.mbt`](../../modules/formats/src/pptx/show-settings.mbt)、[`show-settings-create.mbt`](../../modules/formats/src/pptx/show-settings-create.mbt)和 [`pptx-show-settings.tsx`](../../packages/ui/src/pptx-show-settings.tsx)；沿用现有编辑队列及播放状态。
 
@@ -2105,7 +2127,11 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 ### 对象动画
 
-`PresentationEditor.editSlides({ action: "animations", value }, slide?)` 替换目标页的有序动画。value 是最多 128 项的 `PptxAnimation[]`，每项完整提供 `{ object, kind, trigger, delay, duration, repeat, params }`。类型从 Wasm/Web PPTX 模块导出。object 使用稳定对象 ID，目标限于本地顶层形状、文本框与图片。kind 接受 appear/disappear/fadeIn/fadeOut/scale/rotate/move/flyIn/flyOut；trigger 接受 click/with/after。delay 为 0–60000 的整数毫秒。除出现/消失外，duration 为 100–60000 的整数毫秒，repeat 为 1–100 的整数；出现/消失固定为 duration=1、repeat=1。`query.animations` 返回 items/reason。
+媒体命令 `mediaPlay/mediaPause/mediaStop` 仅接受具有可用本地资源及封面的顶层音视频对象，`params=[]`。默认动画面板共用目标、触发、延迟、顺序、修改和删除控件，固定命令时长及次数。源使用 `presetClass="mediacall"` 与 `p:cmd type="call"`；播放写 `playFrom(0.0)`，暂停写 `pause`，停止写 `stop`。播放命令从头建立新实例；手动媒体面板的暂停续播仍保留播放位置。`after` 等待命令本身的 1 毫秒及延迟，不等待媒体解码结束；结束反馈仍只更新播放器。读取按命令字符串解释行为，书签/裁切起点、扩展命令和重复继续保护。
+
+核心按调度时间、同时间的源顺序执行命令，每页场景中的每项只执行一次。首项为 with/after 时，在入场完成及延迟后自动执行；暂停冻结逻辑时间，手动完成组同时执行该组尚未到时的命令。布局跨过触发时间后继续请求 tick，直到动作状态已发布；视频解码及逐帧绘制沿既有媒体宿主。新实例分配独立 token，旧反馈不能终止新播放；回到页面重置步骤和实例，源、选择、历史与静态输出保持。超出 16 个保留播放器时只报告到超限对象，其他实例及页面继续操作；浏览器拒绝自动播放时仍有手动重试入口。命令与平台边界依据 [ONLYOFFICE CCmd](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Timing.js#L8714-L8732)，未复制执行代码；实现归 [`animation-media.mbt`](../../modules/formats/src/pptx/animation-media.mbt)。
+
+`PresentationEditor.editSlides({ action: "animations", value }, slide?)` 替换目标页的有序动画。value 是最多 128 项的 `PptxAnimation[]`，每项完整提供 `{ object, kind, trigger, delay, duration, repeat, params }`。类型从 Wasm/Web PPTX 模块导出。object 使用稳定对象 ID，目标限于本地顶层形状、文本框与图片。kind 接受 appear/disappear/fadeIn/fadeOut/scale/rotate/move/flyIn/flyOut/mediaPlay/mediaPause/mediaStop；trigger 接受 click/with/after。delay 为 0–60000 的整数毫秒。除出现/消失与媒体命令外，duration 为 100–60000 的整数毫秒，repeat 为 1–100 的整数；出现/消失与媒体命令固定为 duration=1、repeat=1。`query.animations` 返回 items/reason。
 
 params 为数值数组。出现/消失和淡入淡出使用空数组；scale 使用 `[水平百分比, 垂直百分比]`，每轴为 1–1000 的整数；rotate 使用 `[旋转度数]`，为 −3600–3600 的整数；move 使用 `[水平距离, 垂直距离]`，单位为点，每轴为 −14400–14400 的整数。水平向右、垂直向下、顺时针旋转为正。缩放和旋转围绕源对象中心，直线路径在页面坐标中位移。三种变换分别保留各自终态，可以同时作用于同一对象；同一属性的重叠时间段仍受保护。
 

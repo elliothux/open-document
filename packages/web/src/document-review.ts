@@ -2,6 +2,10 @@ import type { FoundationClient } from "./foundation.js";
 import type { Connection } from "./connection.js";
 import type { DocumentOverview } from "./document-selection.js";
 import {
+  docxRevisions,
+  checkDocxRevisionEdit,
+  type DocxRevisions,
+  type DocxRevisionEdit,
   checkDocxBookmark,
   checkDocxComment,
   docxOverview,
@@ -19,10 +23,31 @@ import {
 export interface DocumentComments extends DocxComments {
   documentId: string;
 }
+export interface DocumentRevisions extends DocxRevisions {
+  documentId: string;
+}
 
 /** Review calls retain the same Worker protocol and validation as other document commands. */
 export class FoundationReviewClient {
   constructor(protected readonly connection: Connection) {}
+  async revisions(revision: number): Promise<DocxRevisions> {
+    return docxRevisions(
+      await this.connection.request({ operation: "docxRevisions", revision }),
+    );
+  }
+  async resolveRevisions(
+    revision: number,
+    change: DocxRevisionEdit,
+  ): Promise<EditState> {
+    checkDocxRevisionEdit(change);
+    return editState(
+      await this.connection.request({
+        operation: "resolveDocxRevisions",
+        revision,
+        change,
+      }),
+    );
+  }
   async overview(revision: number): Promise<DocxOverview> {
     return docxOverview(
       await this.connection.request({ operation: "docxOverview", revision }),
@@ -89,6 +114,34 @@ export class DocumentReview {
       snapshot(): { revision: number; documentId: string };
     },
   ) {}
+  revisions(): Promise<DocumentRevisions> {
+    return this.review.read(async () => ({
+      ...(await this.review.client.revisions(this.review.snapshot().revision)),
+      documentId: this.review.snapshot().documentId,
+    }));
+  }
+  resolveRevisions(
+    source: DocumentRevisions,
+    change: DocxRevisionEdit,
+  ): Promise<void> {
+    const current = this.review.snapshot();
+    if (
+      source.documentId !== current.documentId ||
+      source.revision !== current.revision
+    )
+      return Promise.reject(
+        new Error("Revision catalog belongs to an older document state"),
+      );
+    return this.review.edit(() => {
+      const current = this.review.snapshot();
+      if (
+        source.documentId !== current.documentId ||
+        source.revision !== current.revision
+      )
+        throw new Error("Revision catalog belongs to an older document state");
+      return this.review.client.resolveRevisions(source.revision, change);
+    });
+  }
   overview(): Promise<DocumentOverview> {
     return this.review.read(async () => ({
       ...(await this.review.client.overview(this.review.snapshot().revision)),

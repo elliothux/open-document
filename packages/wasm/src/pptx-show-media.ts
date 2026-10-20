@@ -1,5 +1,6 @@
 import { integer, record } from "./validation.js";
 import type { DrawingBatch, DrawCommand } from "./drawing.js";
+import { checkMediaPlayback, type PptxMediaPlayback } from "./pptx-media.js";
 
 export interface PptxShowMediaState {
   object: string;
@@ -11,6 +12,7 @@ export interface PptxShowMediaState {
   state: "stopped" | "playing" | "paused" | "ended" | "blocked" | "error";
   reason: string;
   visible: boolean;
+  playback: PptxMediaPlayback;
 }
 export interface PptxShowMediaChange {
   object: string;
@@ -58,6 +60,7 @@ export function checkShowMediaState(value: unknown, active: unknown): void {
     players = 0;
   for (const item of value) {
     const media = record(item);
+    checkMediaPlayback(media.playback);
     if (
       typeof media.object !== "string" ||
       !media.object ||

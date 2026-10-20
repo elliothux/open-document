@@ -31,14 +31,6 @@ import {
   type CharacterFormatPatch,
   type ParagraphFormatPatch,
 } from "./docx-format.js";
-import {
-  checkDocxComment,
-  docxComments,
-  docxCommentNavigation,
-  type DocxCommentNavigation,
-  type DocxCommentEdit,
-  type DocxComments,
-} from "./docx-comments.js";
 export {
   checkDocxComment,
   docxComments,
@@ -51,12 +43,13 @@ export * from "./docx-format.js";
 export * from "./docx-ruler.js";
 export * from "./docx-picture.js";
 export * from "./docx-overview.js";
-import {
-  docxOverview,
-  type DocxOverview,
-  checkDocxBookmark,
-  type DocxBookmarkEdit,
-} from "./docx-overview.js";
+export {
+  docxRevisions,
+  checkDocxRevisionEdit,
+  type DocxRevisions,
+  type DocxRevisionEdit,
+} from "./docx-revisions.js";
+
 import {
   prepareDocxPictureEdit,
   docxPictures,
@@ -330,35 +323,6 @@ export class FoundationSession extends FoundationPageSession {
   query(): DocxQuery {
     return docxQuery(this.call({ operation: "query" }));
   }
-  overview(revision: number): DocxOverview {
-    return docxOverview(this.call({ operation: "docxOverview", revision }));
-  }
-  comments(revision: number): DocxComments {
-    return docxComments(this.call({ operation: "docxComments", revision }));
-  }
-  navigateComment(
-    revision: number,
-    direction: "previous" | "next",
-  ): DocxCommentNavigation {
-    if (direction !== "previous" && direction !== "next")
-      throw new Error("Invalid comment navigation direction");
-    return docxCommentNavigation(
-      this.call({ operation: "navigateComment", revision, direction }),
-    );
-  }
-  editComment(revision: number, change: DocxCommentEdit): EditState {
-    checkDocxComment(change);
-    return editState(
-      this.call({ operation: "editDocxComment", revision, change }),
-    );
-  }
-  editBookmark(revision: number, change: DocxBookmarkEdit): EditState {
-    checkDocxBookmark(change);
-    return editState(
-      this.call({ operation: "editBookmark", revision, change }),
-    );
-  }
-
   createDocx(budget: Budget): DocxQuery {
     return docxQuery(this.call({ operation: "createDocx", budget }));
   }

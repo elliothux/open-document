@@ -280,19 +280,26 @@ fn Session::apply_show_link(
   guard link.reason.is_empty() else {
     @failure.reject("protected-content", link.reason)
   }
-  let current = self.showing.unwrap().advance(time)
+  let (advanced, media_sequence) = self.show_media_cues(
+    Some(self.showing.unwrap().advance(time)),
+  )
+  let current = advanced.unwrap()
   if link.kind == "media" {
     let media = current.media_state(link.target)
-    let (next, sequence) = self.change_show_media(current, {
-      object: link.target,
-      token: media.token,
-      action: if media.state == "playing" {
-        "pause"
-      } else {
-        "play"
+    let (next, sequence) = self.change_show_media(
+      current,
+      {
+        object: link.target,
+        token: media.token,
+        action: if media.state == "playing" {
+          "pause"
+        } else {
+          "play"
+        },
+        message: "",
       },
-      message: "",
-    })
+      sequence=media_sequence,
+    )
     let result = self.show_state(Some(next))
     self.showing = Some(next)
     self.media_sequence = sequence
@@ -357,8 +364,13 @@ fn Session::apply_show_link(
       }
     })
   }
+  let (show, media_sequence) = self.show_media_cues(
+    show,
+    initial=media_sequence,
+  )
   let result = self.show_state(show, external~)
   self.showing = show
+  self.media_sequence = media_sequence
   self.invalidate_show_frame()
   if show is None {
     self.show_drawing = None

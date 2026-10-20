@@ -8,6 +8,7 @@ pub(all) enum ObjectEdit {
   Placeholder(String?, Double)
   InsertImage(Bytes, Double, Double, Double, Double)
   InsertMedia(String, String, Bytes, Bytes, Double, Double, Double, Double)
+  MediaPlayback(MediaPlaybackSettings)
   InsertTable(Int, Int, Double, Double, Double, Double)
   FillTable(Int, Int)
   TableStructure(String)
@@ -284,7 +285,8 @@ fn Session::object_edit_reason(
         for attribute in node.attributes {
           if ["spid", "spId", "shapeId", "shapeIdRef"].contains(attribute.name) ||
             (["stCxn", "endCxn"].contains(node.name) && attribute.name == "id") {
-            if identities.contains(source_identity(attribute.value)) {
+            if identities.contains(source_identity(attribute.value)) &&
+              !media_setting_reference(tree, node) {
               return "Referenced objects require connector or timing updates before deletion"
             }
           }
@@ -400,6 +402,9 @@ pub fn Session::edit_objects(
     change is ClearParagraphFormat {
     return self.format_objects(change, probe, profile)
   }
+  if change is MediaPlayback(value) {
+    return self.set_media_playback(value)
+  }
   if change is InsertImage(bytes, x, y, width, height) {
     return self.write_image(bytes, Some((x, y, width, height)))
   }
@@ -497,6 +502,7 @@ pub fn Session::edit_objects(
     | ConnectorEndpoints(_, _)
     | InsertImage(_, _, _, _, _)
     | InsertMedia(_, _, _, _, _, _, _, _)
+    | MediaPlayback(_)
     | InsertTable(_, _, _, _, _, _)
     | FillTable(_, _)
     | TableStructure(_)

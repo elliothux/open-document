@@ -19,3 +19,20 @@ fn pptx_media_bytes(
 ) -> Json raise @failure.Failure {
   { "bytes": @base64.encode(session.media_bytes(field_string(request, "key"))) }
 }
+
+///|
+fn pptx_media_playback(
+  change : Json,
+) -> @pptx.ObjectEdit raise @failure.Failure {
+  guard change is { "value": Object(value), .. } &&
+    value.length() == 3 &&
+    value.keys().all(key => ["loop", "volume", "mute"].contains(key)) else {
+    @failure.reject("invalid-operation", "Media playback settings are required")
+  }
+  let value = Json::object(value)
+  @pptx.MediaPlayback({
+    cycling: xlsx_boolean(value, "loop"),
+    volume: field_int(value, "volume"),
+    mute: xlsx_boolean(value, "mute"),
+  })
+}

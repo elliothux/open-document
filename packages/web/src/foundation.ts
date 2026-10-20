@@ -3,19 +3,17 @@ export { pasteDocxCells } from "./clipboard-input.js";
 import { FoundationPageClient } from "./foundation-page.js";
 import { prepareDocxFragmentImages } from "./document-fragment-images.js";
 import { docxFragmentImages } from "@open-document/wasm/foundation";
+export { checkDocxComment } from "@open-document/wasm/foundation";
 export type {
   DocxRunningArea,
   DocxRunningKind,
   DocxRunningVariant,
   DocxRunningContent,
-} from "@open-document/wasm/foundation";
-export type {
   DocxCommentEdit,
   DocxComments,
   DocxCommentNavigation,
-} from "@open-document/wasm/foundation";
-export { checkDocxComment } from "@open-document/wasm/foundation";
-export type {
+  DocxRevisions,
+  DocxRevisionEdit,
   FormatValue,
   DocxRuler,
   DocxRulerEdit,

@@ -20,15 +20,38 @@ fn Session::set_animations(
   if previous == items {
     return self.query()
   }
+  let media = read_media_nodes(original.tree)
+  for item in items {
+    if item.kind.has_prefix("media") && !media.contains(item.object) {
+      media[item.object] = (
+        original.object(item.object).media.unwrap().kind,
+        MediaPlaybackSettings::initial(),
+      )
+    }
+  }
+  let change = self.animation_change(original, items, media)
+  let (candidate, edit) = self.prepare(original, [change])
+  self.commit(candidate, edit, self.selection)
+  self.query()
+}
+
+///|
+fn Session::animation_change(
+  self : Session,
+  original : Slide,
+  items : Array[SlideAnimation],
+  media : Map[String, (String, MediaPlaybackSettings)],
+) -> @xml.SourceChange raise @failure.Failure {
   let tree = original.tree
   let root = tree.root("sld")
-  let markup = animation_markup(items, tree.part, self.width, self.height)
-  let change : @xml.SourceChange = if tree.one(
-      root.id,
-      "timing",
-      uri=presentation_uri,
-    )
-    is Some(node) {
+  let markup = animation_markup(
+    items,
+    tree.part,
+    self.width,
+    self.height,
+    media~,
+  )
+  if tree.one(root.id, "timing", uri=presentation_uri) is Some(node) {
     {
       node: root.id,
       offset: node.start - root.start,
@@ -40,7 +63,4 @@ fn Session::set_animations(
   } else {
     insertion(root, markup)
   }
-  let (candidate, edit) = self.prepare(original, [change])
-  self.commit(candidate, edit, self.selection)
-  self.query()
 }
