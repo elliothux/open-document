@@ -195,6 +195,8 @@ fn Expression::evaluate(
       subtotal_function(args, sheets, sheet, values, work, depth)
     Function("SUMSQ", args) =>
       sum_squares_function(args, sheets, sheet, values, work, depth)
+    Function("DEVSQ", args) =>
+      deviation_squares_function(args, sheets, sheet, values, work, depth)
     Function(name, args) if [
         "VAR", "VAR.S", "VARP", "VAR.P", "STDEV", "STDEV.S", "STDEVP", "STDEV.P",
       ].contains(name) =>

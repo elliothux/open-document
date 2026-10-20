@@ -14,7 +14,7 @@ export type DocumentOverview = DocxOverview & { documentId: string };
 
 export function headingSelection(
   result: DocumentOverview,
-  snapshot: EditorSnapshot,
+  snapshot: Pick<EditorSnapshot, "revision" | "documentId">,
   index: number,
 ): DocxSelection {
   const heading = result.headings[index];

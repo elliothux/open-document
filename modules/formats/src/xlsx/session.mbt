@@ -376,7 +376,7 @@ pub fn Session::query(
         calculation.values.get((sheet_index, cell.address.name()))
       }),
       hide_formula=self.styles[current.style_at(cell.address)].formula_hidden,
-      calculation_reason=self.calculation_reason(sheet_index, cell.address),
+      calculation_reason=self.read_only,
     )
     if json is Object(fields) {
       let value = self.calculation

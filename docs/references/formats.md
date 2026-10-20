@@ -279,17 +279,27 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 标记与正文属性依据 [ONLYOFFICE Annotations.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Logic/Annotations.cpp#L70-L145)、[RunContent.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Logic/RunContent.cpp#L752-L803)及 [Comments.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Comments.cpp#L281-L291)；跨段端点参考 [Document.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L22584-L22616)。线程格式依据 [Comments.cpp 的扩展属性](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Comments.cpp#L420-L433)、[ReaderClasses.cpp 的末段身份与父关系](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Document/BinReader/ReaderClasses.cpp#L659-L748)及 [BinaryWriterD.cpp 的回复映射](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Document/BinWriter/BinaryWriterD.cpp#L8692-L8738)。高亮与命中参考 [Comments.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Comments.js#L923-L953)及[标记绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Comments.js#L1383-L1421)。未复制上游源码。实现归 [`comments-read.mbt`](../../modules/formats/src/docx/comments-read.mbt)、[`comments-edit.mbt`](../../modules/formats/src/docx/comments-edit.mbt)、[`comments-threads.mbt`](../../modules/formats/src/docx/comments-threads.mbt)、[`comments-range.mbt`](../../modules/formats/src/docx/comments-range.mbt)、[`comments-layout.mbt`](../../modules/formats/src/docx/comments-layout.mbt)及 [`docx-comments.tsx`](../../packages/ui/src/docx-comments.tsx)。现代批注兼容继续按 [P10](../p10-docx-core.md) 实施。
 
-### DOCX 文字修订审阅
+### DOCX 修订审阅
 
-`DocumentEditor.revisions()` 返回绑定 `documentId/revision` 的 `DocumentRevisions`。目录按正文源顺序列出 `id/sourceId/kind/element/author/date/text/paragraph/reason`；`kind` 为 `insert`、`delete` 或 `unsupported`。`id` 是当前 XML 节点身份，`sourceId` 保留原生修订编号，不能互换。查询不改变源、选择或历史。默认面板显示文字预览、作者和日期，提供作者筛选及逐项接受/拒绝。
+`DocumentEditor.revisions()` 返回绑定 `documentId/revision` 的 `DocumentRevisions`。目录按正文源顺序列出 `id/sourceId/kind/element/author/date/text/paragraph/reason`；`kind` 为 `insert`、`delete`、`characterFormat`、`paragraphFormat` 或 `unsupported`。`id` 是当前 XML 节点身份，`sourceId` 保留原生修订编号，不能互换。查询不改变源、选择或历史。默认面板显示文字预览、作者和日期，提供作者与类型组合筛选及逐项接受/拒绝。
 
 `DocumentEditor.resolveRevisions(catalog, { action: "accept" | "reject", ids })` 显式处理目录内的一项或一批修订。Wasm/Worker 使用 `docxRevisions` 和 `resolveDocxRevisions`，携带 revision；同步会话提供对应方法。旧目录或其他文档的目录被拒绝。核心预检整批后提交一次源历史：接受插入或拒绝删除保留普通 run，接受删除或拒绝插入移除包装及内容。拒绝删除把 `delText` 恢复为 `t`，保留样式、命名空间、空白、Tab 和软换行；其他源内容及部件保持。撤销/重做恢复精确源，处理后的普通段落可继续输入。
 
-当前仅处理正文直属段落及普通正文表格单元格内、直接包裹普通 run 的 `w:ins/w:del`。字段、图片、嵌套修订、移动、属性/段落结构修订、未知内容或元数据保持保护并给出条目原因。启用的文档保护由核心拒绝，保留保护标记。未处理的修订仍沿既有段落保护和布局诊断；面板文字预览不代表正文已有修订标记渲染。记录新修改、属性修订、正文定位及更广兼容继续实施。
+受支持的待处理文字修订参与正文和普通单元格的同一份布局。插入文字加下划线，删除文字加删除线，保留原字体、颜色及其他字符属性；属性修订显示当前格式。语义文本、Canvas、页面图片和 PDF 共用这些标记，处理修订后恢复普通输出。默认面板明确说明导出页面也会包含待处理标记。包含修订的段落继续拒绝普通光标编辑，查找与统计保留既有保护说明，不把已显示的修订文字伪装为可编辑位置。
+
+`DocumentEditor.showRevision(catalog, id)` 定位目录中的普通文字或属性修订。它复用现有队列，请求当前布局的核心区域，显示首个区域所在页并滚动、高亮；跨页范围返回各页区域，定位时高亮首段所在页。定位不改变正文编辑选区、revision、历史、源或修改状态。高亮是临时覆盖层，其他编辑或页面操作会清除，也不进入导出。同步会话和 `FoundationClient` 提供 `revisionGeometry(revision, layoutId, id)`，返回既有 `{ layoutId, revision, rects }` 结构；底层 `docxRevisionGeometry` 命令使用 `revisionId` 字段，避免与 Worker 消息序号混用。
+
+核心从可显示的源节点计算范围，再沿塑形后的字符边界向外对齐，处理跨页、单元格裁剪和空修订的 1.5 pt 定位线。单次最多 65536 个区域，继续受布局预算限制。旧文档目录、旧 revision/layout、未知目标、活动候选、无可见范围或不完整段落布局拒绝定位；只读定位失败保留后续编辑入口。Web 在绘制前校验布局身份和页面边界，不自行解释 OOXML 位置。
+
+当前处理正文直属段落及普通正文表格单元格内、直接包裹普通 run 的 `w:ins/w:del`，以及普通 run 的 `rPr/rPrChange` 和段落的 `pPr/pPrChange`。属性修订必须含一份匹配的旧属性，当前与旧属性均沿已有结构属性校验；字符属性预览该 run 的文字，段落属性预览该段文字。接受移除修订记录并保留当前属性，拒绝恢复旧属性及其命名空间；拒绝段落属性保留当前段落标记的 `rPr`，不把标记格式当作旧段落属性覆盖。空旧属性恢复继承。属性和文字修订可在一个显式批次内处理，共用历史与预算。
+
+字段、图片、嵌套修订、移动、段落结构修订、未知内容或元数据保持保护并给出条目原因。当前或旧属性中的未知项、重复属性、旧段落属性包含标记格式或节结构、属性源中的注释/处理指令，以及段落标记自身的修订继续保护。启用的文档保护由核心拒绝接受/拒绝事务，保留保护标记；只读定位不移除保护。未支持内容继续给出布局诊断，不声明完整显示。记录新修改、作者颜色、更广结构及显示模式兼容继续实施。
 
 目录最多 4096 项，每项预览最多 32767 UTF-16 单元，总预览最多 1 Mi 单元；作者最多 255，日期及源编号最多 128。提交接受现有 XML、包输出和历史预算，空批次、重复或缺失身份、活动候选及任意受保护项使整批失败。保留选区位于未受影响段落时的原位置；受影响时移至首个可编辑的处理段落，否则清除选区。
 
-行为依据 [ONLYOFFICE 接受修订](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L11139-L11226)及[拒绝修订](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L11232-L11340)；未复制上游执行代码。实现归 [`revisions.mbt`](../../modules/formats/src/docx/revisions.mbt)、[`document-review.ts`](../../packages/web/src/document-review.ts)及 [`docx-revisions.tsx`](../../packages/ui/src/docx-revisions.tsx)。
+行为依据 [ONLYOFFICE 接受修订](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L11139-L11226)及[拒绝修订](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L11232-L11340)，属性恢复依据 [Run.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L8755-L8771)及 [Paragraph.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L15855-L15865)。旧段落属性排除标记格式依据 [ParagraphProperty.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Logic/ParagraphProperty.cpp#L568-L571)。未复制上游执行代码。实现归 [`revisions.mbt`](../../modules/formats/src/docx/revisions.mbt)、[`revision-properties.mbt`](../../modules/formats/src/docx/revision-properties.mbt)、[`document-review.ts`](../../packages/web/src/document-review.ts)及 [`docx-revisions.tsx`](../../packages/ui/src/docx-revisions.tsx)。
+
+插入下划线和删除线依据 [ONLYOFFICE line-draw-state.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/draw/line-draw-state.js#L665-L695)；范围定位参考 [Document.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L18105-L18134)。当前定位保留编辑选区，使用独立审阅高亮。实现归 [`revision-layout.mbt`](../../modules/formats/src/docx/revision-layout.mbt)、[`flow.mbt`](../../modules/formats/src/docx/flow.mbt)及 [`page-canvas.ts`](../../packages/web/src/page-canvas.ts)。
 
 ### DOCX 主题颜色
 
@@ -1264,7 +1274,7 @@ General 显示按 [ONLYOFFICE 的 15 位有效数字拆分](https://github.com/O
 
 数字格式覆盖 General、`@`、整数、两位小数、千分位、百分比、`yyyy-mm-dd`、`hh:mm:ss`，以及内置 1–4、9–10、14–22、49。日期保留数值，核心解释 1900/1904 系统，1900 序号 60 显示虚构的 2 月 29 日，序号 0 显示 1900-01-00。不经过宿主时区。其他格式、颜色 tint、渐变/图案、非实线边框及额外字体装饰保留声明并诊断，不承诺显示等价。
 
-公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/SQRT/POWER/PRODUCT/MEDIAN/MODE/MODE.SNGL/LARGE/SMALL/SUMSQ/VAR/VAR.S/VARP/VAR.P/STDEV/STDEV.S/STDEVP/STDEV.P/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/EXACT/REPT/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
+公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/SQRT/POWER/PRODUCT/MEDIAN/MODE/MODE.SNGL/LARGE/SMALL/SUMSQ/DEVSQ/VAR/VAR.S/VARP/VAR.P/STDEV/STDEV.S/STDEVP/STDEV.P/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/EXACT/REPT/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
 
 整列 `A:A`、`$A:B` 和整行 `1:1`、`$1:2` 可带工作表限定并使用反向端点。行号只接受十进制整数，范围受 1048576 行、16384 列约束；混合行/列/单格端点拒绝。内部用一个有界矩形表示，未覆盖维度在复制时固定；原公式源码保持，复制及名称展开输出对应行列记法和 `$` 标记。依赖保留区间，聚合及条件函数查询实际单元格，空白计数按逻辑面积扣除非空值。线性查找在大范围内仅检查已有单元格及各空白区间的首个搜索位置，保留正反向、错误与近似候选规则；小范围保持直接读取，二分查找沿原路径。全部沿用工作量及输出限制，保留空项的超大连接仍可能原子拒绝。
 
@@ -1290,11 +1300,13 @@ LARGE/SMALL 接受数据与标量 k，分别返回第 k 大/小值，重复值�
 
 SUMSQ 按参数及引用内行列顺序累计平方和，重复引用按次数计入。直接布尔和数字文字转换，非法文字为 `#VALUE!`；引用中的文字、布尔和空白忽略。沿固定 [ONLYOFFICE SUMSQ](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L5732-L5797)，单格引用中的错误忽略，显式范围（含 `A1:A1`）及直接错误传播。没有数值返回 0，平方或累计非有限返回 `#NUM!`。跨表、名称、共享公式及整行/列稀疏引用复用已有依赖、工作预算、缓存和精确历史；不再使用未计算保护。实现归 [`formula-sum-squares.mbt`](../../modules/formats/src/xlsx/formula-sum-squares.mbt)。
 
+DEVSQ 返回离均差平方和，接受 1–255 个参数。引用仅统计数值，忽略文字、布尔、空白及错误；直接布尔转 1/0，直接文字（含数字文字）忽略，直接错误或空参数返回 `#VALUE!`。无数值返回 0，非有限累计返回 `#NUM!`。参数规则依据固定 [ONLYOFFICE DEVSQ](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L5743-L5822)，核心采用下述稳定累计替代上游直接均值算法。普通 DEVSQ 包含隐藏和筛选行；数组和动态引用仍未支持。实现归 [`formula-deviation-squares.mbt`](../../modules/formats/src/xlsx/formula-deviation-squares.mbt)。
+
 VAR/VAR.S 返回样本方差，VARP/VAR.P 返回总体方差。普通引用、名称、跨表、共享公式及稀疏整行/列沿现有依赖和缓存事务；引用中的文字、布尔及空白忽略，错误传播。直接布尔转为 1/0；按固定 ONLYOFFICE 规则，VAR 忽略直接文字和空白，VAR.S/VARP/VAR.P 将它们作为 0，数字文字也不按数值转换。样本少于两个数、总体没有数值时返回 `#DIV/0!`；非有限结果返回 `#NUM!`。普通方差包含隐藏和筛选行及嵌套 SUBTOTAL；可见行汇总仍使用 SUBTOTAL。
 
 STDEV/STDEV.S 返回样本标准差，STDEVP/STDEV.P 返回总体标准差，共用方差累计并对结果开平方。按固定 ONLYOFFICE 规则，样本形式只统计引用中的数值，忽略引用和直接参数中的错误；直接数值文字、布尔和省略参数按现有数值转换，无法转换的文字忽略。样本没有数值成员时返回 0，仅有一个时返回 `#DIV/0!`。总体形式沿 VARP 的转换和错误规则：引用非数值忽略、错误传播，直接布尔转 1/0、文字和省略参数为 0；没有数值时返回 `#DIV/0!`。普通标准差包含隐藏和筛选行；现代名称读写标准 `_xlfn.` 前缀，保留未改的导入源。非有限累计返回 `#NUM!`，继续遵守现有工作预算。依据 [ONLYOFFICE STDEV/STDEV.S](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L10693-L10773)及 [STDEVP/STDEV.P](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L10841-L10938)。数字文字使用当前核心的数值转换；地区格式文字及数组仍待兼容扩展。
 
-方差复用 SUBTOTAL 的稳定逐项均值和平方偏差累计，避免直接作两个大平方和之差。规则依据 [ONLYOFFICE VAR/VARP/VAR.P/VAR.S](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L11619-L12008)。读取接受 `_xlfn.VAR.S`/`_xlfn.VAR.P`，新输入和生成的这两个现代名称带标准前缀；导入未改的源片段保留。独立结果、类型、空样本、错误、较大偏移、溢出、前缀、工作预算、重算和精确历史由定向用例检查；数组、动态引用及更广统计函数继续扩展。实现归 [`formula-variance.mbt`](../../modules/formats/src/xlsx/formula-variance.mbt)和 [`formula-subtotal.mbt`](../../modules/formats/src/xlsx/formula-subtotal.mbt)。
+方差、标准差、DEVSQ 和 SUBTOTAL 共用平方偏差累计。先减去首个值，再逐项更新均值和平方偏差，避免大偏移下丢失相邻值的差，也避免直接作两个大平方和之差。规则依据 [ONLYOFFICE VAR/VARP/VAR.P/VAR.S](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L11619-L12008)。读取接受 `_xlfn.VAR.S`/`_xlfn.VAR.P`，新输入和生成的这两个现代名称带标准前缀；导入未改的源片段保留。独立结果、类型、空样本、错误、较大偏移、溢出、前缀、工作预算、重算和精确历史由定向用例检查；数组、动态引用及更广统计函数继续扩展。实现归 [`formula-variance.mbt`](../../modules/formats/src/xlsx/formula-variance.mbt)和 [`formula-subtotal.mbt`](../../modules/formats/src/xlsx/formula-subtotal.mbt)。
 
 数值函数复用已有数值、数字文字、布尔及空白转换；ROUND/ROUNDDOWN 的文字引用保持 `#VALUE!`，文字常量仍可转换。标量函数的多格范围返回 `#VALUE!`。实现参考 [ONLYOFFICE 数值函数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js)及其独立[舍入用例](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/tests/cell/spreadsheet-calculation/formula-tests/mathematicTests.js#L16439-L16487)。核心已检查负数、半值、进位、类型转换、有限边界、跨表重算、缓存和精确历史；默认公式栏已检查组合数值公式、依赖修改、独立 XML、保存重开及 PDF。更广浮点兼容与地区化数值解析仍归后续扩展。
 
@@ -1342,9 +1354,9 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 结构化/外部/三维引用、数组、动态数组、易变函数及迭代计算未支持。依赖无法确定、函数参数语义未核实或存在原有循环时，整个工作簿只读。公式不访问网络、宏或宿主脚本。
 
-导入的 DEVSQ 尚不求值，但已核实只读取显式参数，沿既有语法和名称展开建立静态依赖。保留其源码和导入缓存，依赖它们的公式也标为未计算。核心只把实际求值的结果放入 `calculated`，缓存不参与新的公式、条件格式、验证或筛选计算。每格新增 `calculationReason`：已计算/普通值为空，未计算时说明未支持函数或上游位置。默认公式栏显示原因；有缓存时显示缓存，缺缓存显示未计算。选区含未计算公式时，计数仍可读，四项汇总均为 null 并给出原因。
+DEVSQ 已真实求值，接入名称、共享公式、跨表、稀疏引用及普通重算、缓存和历史事务。原 DEVSQ 专用未计算链及其隔离检查已移除。核心只把实际求值结果放入 `calculated`，缓存不参与新的公式、条件格式、验证或筛选计算。每格 `calculationReason` 在已计算/普通值时为空，未知公式只读时说明工作簿保护原因。默认公式栏显示原因；有缓存时显示缓存，缺缓存显示未计算。选区含未计算公式时，计数仍可读，四项汇总均为 null 并给出原因。
 
-所有源提交先比较未计算链的源码、展开表达式、稳定表身份、依赖矩形及参数值。新增的稀疏参数格也参与；嵌套 SUBTOTAL 另检查手动隐藏与筛选来源。相同参数下可编辑无关值、已支持公式、格式和视图，并沿原有重算、源事务、预算与精确历史保存；会改变该链或参数的输入、结构/名称及可见性操作原子拒绝。新增未支持公式及 CSV/TSV 公式转换继续拒绝。其他未核实函数、INDIRECT/OFFSET、CELL 等环境/格式查询、自定义函数及其嵌套继续整本保护。未计算函数的参数行为参考固定 [ONLYOFFICE DEVSQ](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L5743-L5822)；保护实现在 [`calculation-protection.mbt`](../../modules/formats/src/xlsx/calculation-protection.mbt)。
+新增未支持公式及 CSV/TSV 中的未支持公式转换在提交前拒绝。导入含未知函数、INDIRECT/OFFSET、CELL 等环境/格式查询、自定义函数及其嵌套时继续整本只读，保留原始源码和缓存。
 
 未计算公式即使有缓存也不能作为计算结果打印；只含已计算内容的独立打印区域可输出。XLSX 原格式保存保留未计算公式及缓存，CSV 值导出沿既有有缓存才可导出的合同，不赋予缓存已计算状态。
 

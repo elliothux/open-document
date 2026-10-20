@@ -66,6 +66,12 @@ export type Operation =
   | { operation: "docxComments"; revision: number }
   | { operation: "docxRevisions"; revision: number }
   | {
+      operation: "docxRevisionGeometry";
+      revision: number;
+      layoutId: number;
+      revisionId: string;
+    }
+  | {
       operation: "resolveDocxRevisions";
       revision: number;
       change: DocxRevisionEdit;

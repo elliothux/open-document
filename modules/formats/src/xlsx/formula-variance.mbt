@@ -1,4 +1,25 @@
 ///|
+fn squared_deviations_result(
+  numbers : Array[Double],
+  work : FormulaWork,
+) -> Value raise @failure.Failure {
+  let mut mean = 0.0
+  let mut squared = 0.0
+  let origin = numbers.get(0).unwrap_or(0)
+  for index, number in numbers {
+    work.spend()
+    let number = number - origin
+    let delta = number - mean
+    mean += delta / (index + 1).to_double()
+    squared += delta * (number - mean)
+  }
+  if squared.is_nan() || squared.is_inf() {
+    return Error("#NUM!")
+  }
+  finite_result(squared.max(0))
+}
+
+///|
 fn variance_result(
   numbers : Array[Double],
   sample : Bool,
@@ -8,20 +29,13 @@ fn variance_result(
   if count < (if sample { 2 } else { 1 }) {
     return Error("#DIV/0!")
   }
-  let mut mean = 0.0
-  let mut squared = 0.0
-  for index, number in numbers {
-    work.spend()
-    let delta = number - mean
-    mean += delta / (index + 1).to_double()
-    squared += delta * (number - mean)
+  match squared_deviations_result(numbers, work) {
+    Number(squared) =>
+      finite_result(
+        squared / (if sample { count - 1 } else { count }).to_double(),
+      )
+    value => value
   }
-  if squared.is_nan() || squared.is_inf() {
-    return Error("#NUM!")
-  }
-  finite_result(
-    squared.max(0) / (if sample { count - 1 } else { count }).to_double(),
-  )
 }
 
 ///|

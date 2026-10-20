@@ -44,6 +44,18 @@ fn WordTree::diagnose_properties(
   }
   for child in self.children[id] {
     let feature = self.nodes[child]
+    if feature.uri == word_uri &&
+      ["rPrChange", "pPrChange"].contains(feature.name) {
+      let supported = try {
+        ignore(self.check_property_revision(child))
+        true
+      } catch {
+        @failure.Failure(..) => false
+      }
+      if supported {
+        continue
+      }
+    }
     let inactive = match feature.name {
       "tblLayout" =>
         self.children[child].is_empty() &&

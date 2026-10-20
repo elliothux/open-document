@@ -21,6 +21,7 @@ export function DocxRevisions({
     snapshot = editor.getSnapshot();
   const [result, setResult] = useState<DocumentRevisions>(),
     [author, setAuthor] = useState<string | null>(null),
+    [kind, setKind] = useState("all"),
     [error, setError] = useState("");
   const blocked =
     !!snapshot.composition ||
@@ -61,10 +62,18 @@ export function DocxRevisions({
     !result ||
     result.documentId !== snapshot.documentId ||
     result.revision !== snapshot.revision;
+  const kinds = {
+    insert: t.revisionInsertion,
+    delete: t.revisionDeletion,
+    characterFormat: t.revisionCharacterFormat,
+    paragraphFormat: t.revisionParagraphFormat,
+    unsupported: t.revisionUnsupported,
+  };
   return (
     <section aria-label={t.docxRevisions}>
       <h3>{t.docxRevisions}</h3>
       <p>{t.revisionScope}</p>
+      <p>{t.revisionDisplay}</p>
       {error && <p role="alert">{error}</p>}
       {result?.reason && <p role="status">{result.reason}</p>}
       <label>
@@ -88,24 +97,48 @@ export function DocxRevisions({
           ))}
         </select>
       </label>
+      <label>
+        {t.revisionType}
+        <select
+          aria-label={t.revisionType}
+          value={kind}
+          onChange={(event) => setKind(event.currentTarget.value)}
+        >
+          <option value="all">{t.revisionAllTypes}</option>
+          {Object.entries(kinds).map(([value, label]) => (
+            <option value={value} key={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </label>
       {!stale && result.items.length === 0 && (
         <p role="status">{t.revisionNone}</p>
       )}
       <ol>
         {result?.items
-          .filter((item) => author === null || item.author === author)
+          .filter(
+            (item) =>
+              (author === null || item.author === author) &&
+              (kind === "all" || item.kind === kind),
+          )
           .map((item) => (
             <li key={item.id}>
               <p>
-                {item.kind === "insert"
-                  ? t.revisionInsertion
-                  : item.kind === "delete"
-                    ? t.revisionDeletion
-                    : item.element}
-                : {item.author || t.revisionAnonymous} {item.date}
+                {kinds[item.kind]}: {item.author || t.revisionAnonymous}{" "}
+                {item.date}
               </p>
               <p style={{ whiteSpace: "pre-wrap" }}>{item.text}</p>
               {item.reason && <p>{item.reason}</p>}
+              <button
+                type="button"
+                disabled={disabled || !!blocked || stale || !!item.reason}
+                onClick={() =>
+                  controller.run(() => editor.showRevision(result, item.id))
+                }
+              >
+                {t.revisionShow}
+              </button>
               {(["accept", "reject"] as const).map((action) => (
                 <button
                   key={action}

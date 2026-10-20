@@ -418,6 +418,12 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.comments(request.revision);
         case "docxRevisions":
           return foundation.revisions(request.revision);
+        case "docxRevisionGeometry":
+          return foundation.revisionGeometry(
+            request.revision,
+            request.layoutId,
+            request.revisionId,
+          );
         case "resolveDocxRevisions":
           return foundation.resolveRevisions(request.revision, request.change);
         case "navigateComment":

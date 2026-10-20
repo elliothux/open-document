@@ -15,12 +15,25 @@ fn WordTree::paragraph_runs(
   self : WordTree,
   paragraph : Int,
   running~ : Bool = false,
+  review~ : Bool = false,
 ) -> Array[Int] {
   let runs : Array[Int] = []
   for child in self.children[paragraph] {
     let node = self.nodes[child]
     if node.uri == word_uri && node.name == "r" {
       runs.push(child)
+    } else if review &&
+      node.uri == word_uri &&
+      ["ins", "del"].contains(node.name) {
+      let supported = try {
+        ignore(self.check_text_revision(child))
+        true
+      } catch {
+        @failure.Failure(..) => false
+      }
+      if supported {
+        runs.append(self.children[child])
+      }
     } else if node.uri == word_uri &&
       (node.name == "hyperlink" || (running && node.name == "fldSimple")) {
       runs.append(

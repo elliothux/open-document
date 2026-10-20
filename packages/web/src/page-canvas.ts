@@ -99,6 +99,27 @@ export class PageCanvas extends CanvasSurface {
       context.fillRect(caret.x, caret.y, 1 / scale, caret.height);
     }
   }
+  drawRevision(
+    geometry: DocxSelectionGeometry,
+    page: number,
+    scale: number,
+    viewport: HTMLElement,
+  ): void {
+    const context = this.clearOverlay(scale);
+    context.fillStyle = "rgba(30, 100, 220, 0.25)";
+    for (const rect of geometry.rects)
+      if (rect.page === page)
+        context.fillRect(rect.x, rect.y, rect.width, rect.height);
+    const target = geometry.rects[0]!,
+      canvas = this.canvas.getBoundingClientRect(),
+      bounds = viewport.getBoundingClientRect();
+    viewport.scrollBy({
+      top:
+        canvas.top - bounds.top + target.y * scale - viewport.clientHeight / 3,
+      left:
+        canvas.left - bounds.left + target.x * scale - viewport.clientWidth / 3,
+    });
+  }
   static async create(
     client: FoundationClient,
     signal?: AbortSignal,

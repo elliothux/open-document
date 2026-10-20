@@ -168,11 +168,6 @@ pub fn Session::capture_cells(
     for column in range.left..<=range.right {
       let address : Address = { row, column, }
       let key = address.name()
-      guard !calculation.uncomputed.contains((index, key)) else {
-        @failure.reject(
-          "unsupported-formula", "Copied formula has not been calculated",
-        )
-      }
       let cell = sheet.cells.get(key)
       cells.push({
         value: calculation.values

@@ -15,6 +15,10 @@ import {
 import { WasmSession } from "./session.js";
 import { integer, record } from "./validation.js";
 import { editState, type EditState } from "./docx-format.js";
+import {
+  docxSelectionGeometry,
+  type DocxSelectionGeometry,
+} from "./docx-hit.js";
 
 export interface DocxRevisions {
   revision: number;
@@ -22,7 +26,12 @@ export interface DocxRevisions {
   items: {
     id: string;
     sourceId: string;
-    kind: "insert" | "delete" | "unsupported";
+    kind:
+      | "insert"
+      | "delete"
+      | "characterFormat"
+      | "paragraphFormat"
+      | "unsupported";
     element: string;
     author: string;
     date: string;
@@ -78,7 +87,13 @@ export function docxRevisions(value: unknown): DocxRevisions {
       !identity(item.id) ||
       ids.has(item.id) ||
       !text(item.sourceId, 128) ||
-      !["insert", "delete", "unsupported"].includes(String(item.kind)) ||
+      ![
+        "insert",
+        "delete",
+        "characterFormat",
+        "paragraphFormat",
+        "unsupported",
+      ].includes(String(item.kind)) ||
       typeof item.kind !== "string" ||
       !text(item.element, 64) ||
       !text(item.author, 255) ||
@@ -95,8 +110,42 @@ export function docxRevisions(value: unknown): DocxRevisions {
   }
   return value as DocxRevisions;
 }
+export function docxRevisionGeometry(value: unknown): DocxSelectionGeometry {
+  const geometry = docxSelectionGeometry(value);
+  if (
+    !integer(geometry.layoutId, 0, 2147483647) ||
+    !integer(geometry.revision, 0, 2147483647) ||
+    !geometry.rects.length ||
+    geometry.rects.length > 65536 ||
+    geometry.rects.some(
+      (rect) =>
+        !integer(rect.page, 0, 2147483647) ||
+        !integer(rect.line, 0, 2147483647) ||
+        rect.x < 0 ||
+        rect.y < 0 ||
+        rect.width <= 0,
+    )
+  )
+    throw new Error("Invalid revision geometry");
+  return geometry;
+}
 
 export class FoundationReviewSession extends WasmSession {
+  revisionGeometry(
+    revision: number,
+    layoutId: number,
+    id: string,
+  ): DocxSelectionGeometry {
+    if (!identity(id)) throw new Error("Invalid revision identity");
+    return docxRevisionGeometry(
+      this.call({
+        operation: "docxRevisionGeometry",
+        revision,
+        layoutId,
+        revisionId: id,
+      }),
+    );
+  }
   overview(revision: number): DocxOverview {
     return docxOverview(this.call({ operation: "docxOverview", revision }));
   }

@@ -137,14 +137,6 @@ fn Session::prepare_text_columns(
     styles=Map([(index, formatting.map(p => p.indices).unwrap_or(Map([])))]),
     formatting~,
   )
-  for key, value in updates {
-    if value.formula is Some(_) &&
-      edit.calculation.uncomputed.contains((index, key)) {
-      @failure.reject(
-        "unsupported-formula", "Text import requires supported formula calculation",
-      )
-    }
-  }
   (edit, !updates.is_empty())
 }
 

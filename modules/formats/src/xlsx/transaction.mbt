@@ -29,14 +29,6 @@ fn Session::commit(
   guard self.revision < 2147483647 else {
     @failure.reject("limit-exceeded", "Workbook revision exhausted")
   }
-  if self.calculation is Some(previous) {
-    previous.protect_uncomputed(
-      self.sheets,
-      calculation,
-      sheets,
-      fit_work.formulas,
-    )
-  }
   let styles = self.styles_from_parts(parts)
   ignore(self.font_keys(styles~, tables=calculation.names.tables, parts~))
   guard sheets.all(sheet => {

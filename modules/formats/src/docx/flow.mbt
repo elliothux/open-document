@@ -221,12 +221,29 @@ fn Session::paragraph(
       }
     } else if running && node.uri == word_uri && node.name == "fldSimple" {
       ()
+    } else if !running &&
+      node.uri == word_uri &&
+      ["ins", "del"].contains(node.name) {
+      try tree.check_text_revision(child) catch {
+        @failure.Failure(..) =>
+          diagnostics.push("unsupported-layout:" + node.qualified)
+      } noraise {
+        _ => ()
+      }
     } else if Some(child) != props && (node.uri != word_uri || node.name != "r") {
       diagnostics.push("unsupported-layout:" + node.qualified)
     }
   }
-  for run in tree.paragraph_runs(id, running~) {
-    let style = styles.run_character_style(tree, run, run_style, diagnostics)
+  for run in tree.paragraph_runs(id, running~, review=!running) {
+    let base = styles.run_character_style(tree, run, run_style, diagnostics)
+    let review = tree.nodes[tree.nodes[run].parent]
+    let style = if review.uri == word_uri && review.name == "ins" {
+      { ..base, underline: true, }
+    } else if review.uri == word_uri && review.name == "del" {
+      { ..base, strike: true, }
+    } else {
+      base
+    }
     for content in tree.children[run] {
       let item = tree.nodes[content]
       if running && ["fldChar", "instrText"].contains(item.name) {
@@ -246,6 +263,7 @@ fn Session::paragraph(
       }
       let text = match item.name {
         "t" => item.text
+        "delText" if review.uri == word_uri && review.name == "del" => item.text
         "br" => inline_text(item).replace_all(old="\u2028", new="\n")
         "cr" => "\n"
         "tab" => "\t"
@@ -348,6 +366,19 @@ fn Session::paragraph(
     } else {
       0
     },
-    readOnlyReason: diagnostics.get(0).unwrap_or(picture_reason),
+    readOnlyReason: diagnostics
+    .get(0)
+    .unwrap_or(
+      if tree
+        .descendants(id)
+        .any(item => {
+          tree.nodes[item].uri == word_uri &&
+          revision_element(tree.nodes[item].name)
+        }) {
+        "Tracked revisions require review before editing"
+      } else {
+        picture_reason
+      },
+    ),
   }
 }

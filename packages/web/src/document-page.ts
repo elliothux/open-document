@@ -14,6 +14,19 @@ import type {
 
 /** Document-wide page commands use the editor's existing read and edit queues. */
 export abstract class DocumentPage extends DocumentReview {
+  protected abstract downloadOutput(
+    output: EditorOutput,
+    filename: string,
+  ): void;
+  async downloadPdf(
+    filename = "document.pdf",
+    outputBytes = 67108864,
+  ): Promise<void> {
+    this.downloadOutput(await this.exportPdf(outputBytes), filename);
+  }
+  async downloadDocx(filename = "document.docx"): Promise<void> {
+    this.downloadOutput(await this.saveDocx(), filename);
+  }
   ruler(): Promise<DocumentRuler> {
     return this.review.read(async () => ({
       ...(await this.review.client.ruler(this.review.snapshot().revision)),

@@ -1,5 +1,5 @@
 ///|
-priv struct TextRevision {
+priv struct RevisionEntry {
   node : Int
   source_id : String
   kind : String
@@ -39,29 +39,7 @@ fn WordTree::check_text_revision(
     )
   }
   ignore(comment_key(node.attribute("id", uri=word_uri).unwrap_or("")))
-  let parent = self.nodes[paragraph.parent]
-  let body = if parent.name == "body" && parent.uri == word_uri {
-    parent.id
-  } else if parent.name == "tc" &&
-    parent.uri == word_uri &&
-    self.nodes.get(parent.parent) is Some(row) &&
-    row.name == "tr" &&
-    row.uri == word_uri &&
-    self.nodes.get(row.parent) is Some(table) &&
-    table.name == "tbl" &&
-    table.uri == word_uri {
-    table.parent
-  } else {
-    -1
-  }
-  guard self.nodes.get(body) is Some(body) &&
-    body.name == "body" &&
-    body.uri == word_uri &&
-    body.parent == 0 else {
-    @failure.reject(
-      "protected-content", "Revision is inside a protected content region",
-    )
-  }
+  self.check_revision_paragraph(paragraph.id)
   let fragment = self.source[node.start:node.end]
   guard !fragment.contains("<!--") &&
     !fragment.contains("<?") &&
@@ -115,11 +93,11 @@ fn WordTree::check_text_revision(
 }
 
 ///|
-fn WordTree::text_revisions(
+fn WordTree::revision_entries(
   self : WordTree,
-) -> Array[TextRevision] raise @failure.Failure {
+) -> Array[RevisionEntry] raise @failure.Failure {
   let body = self.child(0, "body").unwrap()
-  let entries : Array[TextRevision] = []
+  let entries : Array[RevisionEntry] = []
   let mut units = 0
   for id in self.descendants(body) {
     let node = self.nodes[id]
@@ -127,9 +105,29 @@ fn WordTree::text_revisions(
     guard entries.length() < 4096 else {
       @failure.reject("limit-exceeded", "Revision catalog exceeds 4096 entries")
     }
+    let (paragraph, reason) = try {
+      let paragraph = if ["rPrChange", "pPrChange"].contains(node.name) {
+        self.check_property_revision(id)
+      } else {
+        self.check_text_revision(id)
+      }
+      (Some(paragraph), "")
+    } catch {
+      @failure.Failure(message~, ..) => (None, message)
+    }
+    let preview = if ["rPrChange", "pPrChange"].contains(node.name) &&
+      paragraph is Some(paragraph) {
+      if node.name == "rPrChange" {
+        self.nodes[node.parent].parent
+      } else {
+        paragraph
+      }
+    } else {
+      id
+    }
     let text = StringBuilder()
     let mut length = 0
-    for child in self.descendants(id) {
+    for child in self.descendants(preview) {
       let item = self.nodes[child]
       if item.uri != word_uri ||
         !["t", "delText", "br", "cr", "tab"].contains(item.name) {
@@ -156,9 +154,6 @@ fn WordTree::text_revisions(
         "limit-exceeded", "Revision metadata exceeds catalog budget",
       )
     }
-    let (paragraph, reason) = (Some(self.check_text_revision(id)), "") catch {
-      @failure.Failure(message~, ..) => (None, message)
-    }
     entries.push({
       node: id,
       source_id,
@@ -166,6 +161,8 @@ fn WordTree::text_revisions(
       kind: match node.name {
         "ins" => "insert"
         "del" => "delete"
+        "rPrChange" => "characterFormat"
+        "pPrChange" => "paragraphFormat"
         _ => "unsupported"
       },
       author,
@@ -208,7 +205,7 @@ pub fn Session::revisions(
   revision : Int,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  let entries = WordTree::new(self.document()).text_revisions()
+  let entries = WordTree::new(self.document()).revision_entries()
   let reason = try {
     self.check_revision_protection()
     ""
@@ -312,7 +309,7 @@ pub fn Session::resolve_revisions(
   let document = self.document()
   let tree = WordTree::new(document)
   let entries = tree
-    .text_revisions()
+    .revision_entries()
     .filter(entry => wanted.contains(entry.node.to_string()))
   guard entries.length() == ids.length() else {
     @failure.reject("invalid-operation", "Revision entry no longer exists")
@@ -328,23 +325,28 @@ pub fn Session::resolve_revisions(
     if !affected.contains(paragraph) {
       affected.push(paragraph)
     }
-    let retain = (entry.kind == "insert") == accept
-    let markup = if retain {
-      revision_retained_text(document, tree, entry.node, limit)
+    let change = if ["characterFormat", "paragraphFormat"].contains(entry.kind) {
+      property_revision_change(document, tree, entry.node, accept)
     } else {
-      ""
+      let retain = (entry.kind == "insert") == accept
+      let markup = if retain {
+        revision_retained_text(document, tree, entry.node, limit)
+      } else {
+        ""
+      }
+      let node = tree.nodes[entry.node]
+      {
+        node: node.parent,
+        offset: node.start - tree.nodes[node.parent].start,
+        length: node.end - node.start,
+        xml: markup,
+      }
     }
-    guard markup.length() <= limit - units else {
+    guard change.xml.length() <= limit - units else {
       @failure.reject("limit-exceeded", "Revision result exceeds source budget")
     }
-    units += markup.length()
-    let node = tree.nodes[entry.node]
-    changes.push({
-      node: node.parent,
-      offset: node.start - tree.nodes[node.parent].start,
-      length: node.end - node.start,
-      xml: markup,
-    })
+    units += change.xml.length()
+    changes.push(change)
   }
   let (candidate, step) = document.edit_source(changes)
   let bytes = edit_bytes(step)

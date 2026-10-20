@@ -24,10 +24,8 @@ import {
   docxSelectionDescription,
   queryDocxSelectionGeometry,
   searchSelections,
-  headingSelection,
   selectFirstDocxPosition,
   type DocumentSearchResult,
-  type DocumentOverview,
 } from "./document-selection.js";
 export type {
   DocumentSearchResult,
@@ -48,6 +46,7 @@ import type {
   DocxTableEdit,
   DocxThemeSlot,
   DocxThemeFontEdit,
+  DocxSelectionGeometry,
 } from "@open-document/wasm/foundation";
 /** Owns browser input order. The caller owns fonts, the opened DOCX and client lifetime. */
 export class DocumentEditor extends DocumentPage {
@@ -85,6 +84,7 @@ export class DocumentEditor extends DocumentPage {
       read: (operation) => this.enqueue(operation),
       edit: (operation) => this.format(operation),
       snapshot: () => this.getSnapshot(),
+      layout: () => this.currentLayout,
     });
     const elements = createDocumentElements(
       surface.canvas,
@@ -454,14 +454,6 @@ export class DocumentEditor extends DocumentPage {
     if (!selection) throw new Error("Click a document position first");
     return selection;
   }
-  selectHeading(result: DocumentOverview, index: number): Promise<void> {
-    return this.format(() =>
-      this.client.selectDocx(
-        result.revision,
-        headingSelection(result, this.getSnapshot(), index),
-      ),
-    );
-  }
   find(
     text: string,
     options: DocxFindOptions = {},
@@ -764,16 +756,18 @@ export class DocumentEditor extends DocumentPage {
       format,
     );
   }
-  async downloadPdf(
-    filename = "document.pdf",
-    outputBytes = 67108864,
+  protected async showRevisionGeometry(
+    geometry: DocxSelectionGeometry,
   ): Promise<void> {
-    this.downloadOutput(await this.exportPdf(outputBytes), filename);
+    await this.showPage(geometry.rects[0]!.page);
+    this.surface.drawRevision(
+      geometry,
+      this.page,
+      this.cssScale,
+      this.viewport,
+    );
   }
-  async downloadDocx(filename = "document.docx"): Promise<void> {
-    this.downloadOutput(await this.saveDocx(), filename);
-  }
-  private downloadOutput(output: EditorOutput, filename: string): void {
+  protected downloadOutput(output: EditorOutput, filename: string): void {
     this.assertOpen();
     downloadDocxOutput(output, filename, this.observable, !this.blocked);
   }

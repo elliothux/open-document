@@ -45,6 +45,7 @@ export * from "./docx-picture.js";
 export * from "./docx-overview.js";
 export {
   docxRevisions,
+  docxRevisionGeometry,
   checkDocxRevisionEdit,
   type DocxRevisions,
   type DocxRevisionEdit,

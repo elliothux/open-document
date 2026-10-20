@@ -32,7 +32,6 @@ priv struct Calculation {
   expressions : Map[(Int, String), Expression]
   dependencies : Map[(Int, String), Array[Dependency]]
   values : Map[(Int, String), Value]
-  uncomputed : Map[(Int, String), String]
   order : Array[(Int, String)]
 }
 
@@ -59,7 +58,6 @@ fn Expression::dependencies(
   work : FormulaWork,
   output : Array[Dependency],
   depth : Int,
-  uncomputed~ : Array[String]? = None,
 ) -> Unit raise @failure.Failure {
   work.spend()
   guard depth <= 64 && output.length() < 4096 else {
@@ -71,7 +69,7 @@ fn Expression::dependencies(
     Named(_, _) | Structured(_, _) =>
       self
       .resolve_names(sheets, current, work.origin, work)
-      .dependencies(sheets, current, work, output, depth + 1, uncomputed~)
+      .dependencies(sheets, current, work, output, depth + 1)
     Constant(_) => ()
     Reference(name, first, last) => {
       let last = last.unwrap_or(first)
@@ -81,10 +79,10 @@ fn Expression::dependencies(
       })
     }
     Unary(_, value) =>
-      value.dependencies(sheets, current, work, output, depth + 1, uncomputed~)
+      value.dependencies(sheets, current, work, output, depth + 1)
     Binary(_, left, right) => {
-      left.dependencies(sheets, current, work, output, depth + 1, uncomputed~)
-      right.dependencies(sheets, current, work, output, depth + 1, uncomputed~)
+      left.dependencies(sheets, current, work, output, depth + 1)
+      right.dependencies(sheets, current, work, output, depth + 1)
     }
     Function(name, args) => {
       if ![
@@ -96,17 +94,11 @@ fn Expression::dependencies(
           "SECOND", "DAYS", "COUNTA", "COUNTBLANK", "COUNTIF", "COUNTIFS", "SUMIF",
           "SUMIFS", "AVERAGEIF", "AVERAGEIFS", "INDEX", "MATCH", "VLOOKUP", "HLOOKUP",
           "XLOOKUP", "ROW", "COLUMN", "ROWS", "COLUMNS", "SUBTOTAL", "SQRT", "POWER",
-          "PRODUCT", "MEDIAN", "SUMSQ", "VAR", "VAR.S", "VARP", "VAR.P", "STDEV",
-          "STDEV.S", "STDEVP", "STDEV.P", "MODE", "MODE.SNGL", "LARGE", "SMALL",
+          "PRODUCT", "MEDIAN", "SUMSQ", "DEVSQ", "VAR", "VAR.S", "VARP", "VAR.P",
+          "STDEV", "STDEV.S", "STDEVP", "STDEV.P", "MODE", "MODE.SNGL", "LARGE",
+          "SMALL",
         ].contains(name) {
-        // Only audited value-parameter functions have complete static dependencies.
-        guard name == "DEVSQ" && uncomputed is Some(reasons) else {
-          @failure.reject(
-            "unsupported-formula",
-            "Unsupported function: " + name,
-          )
-        }
-        reasons.push("Unsupported function: " + name)
+        @failure.reject("unsupported-formula", "Unsupported function: " + name)
       }
       for index, arg in args {
         if ["ROW", "COLUMN", "ROWS", "COLUMNS"].contains(name) &&
@@ -128,7 +120,7 @@ fn Expression::dependencies(
           output.push({ sheet: target.sheet, range: target.bounds, })
           continue
         }
-        arg.dependencies(sheets, current, work, output, depth + 1, uncomputed~)
+        arg.dependencies(sheets, current, work, output, depth + 1)
       }
     }
   }
@@ -202,7 +194,6 @@ fn Calculation::build(
     expressions: Map([]),
     dependencies: Map([]),
     values: Map([]),
-    uncomputed: Map([]),
     order: [],
   }
   let work = FormulaWork::{
@@ -235,18 +226,7 @@ fn Calculation::build(
           )
         }
         let dependencies : Array[Dependency] = []
-        let reasons : Array[String] = []
-        expression.dependencies(
-          sheets,
-          index,
-          work,
-          dependencies,
-          0,
-          uncomputed=Some(reasons),
-        )
-        if reasons.get(0) is Some(reason) {
-          calculation.uncomputed[key] = reason
-        }
+        expression.dependencies(sheets, index, work, dependencies, 0)
         references += dependencies.length()
         guard references <= 32768 else {
           @failure.reject(
@@ -271,22 +251,6 @@ fn Calculation::build(
   let invalid = changed.copy()
   for key in calculation.order {
     work.origin = Address::parse(key.1)
-    for dependency in calculation.dependencies[key] {
-      for candidate in formulas.get(dependency.sheet).unwrap_or([]) {
-        work.spend()
-        if calculation.uncomputed.contains(candidate) &&
-          dependency.range.contains(Address::parse(candidate.1)) &&
-          !calculation.uncomputed.contains(key) {
-          calculation.uncomputed[key] = "Uncalculated dependency: " +
-            sheets[candidate.0].name +
-            "!" +
-            candidate.1
-        }
-      }
-    }
-    if calculation.uncomputed.contains(key) {
-      continue
-    }
     let affected = calculation.dependencies[key].any(dependency => {
         invalid.any(item => {
           work.spend()

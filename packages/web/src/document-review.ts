@@ -1,6 +1,10 @@
 import type { FoundationClient } from "./foundation.js";
 import type { Connection } from "./connection.js";
-import type { DocumentOverview } from "./document-selection.js";
+import {
+  headingSelection,
+  type DocumentOverview,
+} from "./document-selection.js";
+import type { PageLayout } from "@open-document/wasm/preview";
 import {
   docxRevisions,
   checkDocxRevisionEdit,
@@ -12,6 +16,8 @@ import {
   docxComments,
   docxCommentNavigation,
   editState,
+  docxRevisionGeometry,
+  type DocxSelectionGeometry,
   type DocxBookmarkEdit,
   type DocxCommentEdit,
   type DocxComments,
@@ -30,6 +36,26 @@ export interface DocumentRevisions extends DocxRevisions {
 /** Review calls retain the same Worker protocol and validation as other document commands. */
 export class FoundationReviewClient {
   constructor(protected readonly connection: Connection) {}
+  async revisionGeometry(
+    revision: number,
+    layoutId: number,
+    id: string,
+  ): Promise<DocxSelectionGeometry> {
+    if (
+      typeof id !== "string" ||
+      !/^(0|[1-9]\d{0,9})$/.test(id) ||
+      Number(id) > 2147483647
+    )
+      throw new Error("Invalid revision identity");
+    return docxRevisionGeometry(
+      await this.connection.request({
+        operation: "docxRevisionGeometry",
+        revision,
+        layoutId,
+        revisionId: id,
+      }),
+    );
+  }
   async revisions(revision: number): Promise<DocxRevisions> {
     return docxRevisions(
       await this.connection.request({ operation: "docxRevisions", revision }),
@@ -101,7 +127,7 @@ export class FoundationReviewClient {
 }
 
 /** Review catalogs and commands use the editor's existing input and output queue. */
-export class DocumentReview {
+export abstract class DocumentReview {
   private commentFocus: Readonly<{ id: string }> | undefined;
   getCommentFocus(): Readonly<{ id: string }> | undefined {
     return this.commentFocus;
@@ -112,8 +138,71 @@ export class DocumentReview {
       read<T>(operation: () => Promise<T>): Promise<T>;
       edit(operation: () => Promise<EditState>): Promise<void>;
       snapshot(): { revision: number; documentId: string };
+      layout(): PageLayout;
     },
   ) {}
+  protected abstract showRevisionGeometry(
+    geometry: DocxSelectionGeometry,
+  ): Promise<void>;
+  showRevision(source: DocumentRevisions, id: string): Promise<void> {
+    const check = () => {
+      const current = this.review.snapshot(),
+        entry = source.items.find((item) => item.id === id);
+      if (
+        source.documentId !== current.documentId ||
+        source.revision !== current.revision ||
+        !entry ||
+        entry.reason
+      )
+        throw new Error(
+          entry?.reason ||
+            "Revision catalog belongs to an older document state",
+        );
+    };
+    try {
+      check();
+    } catch (error) {
+      return Promise.reject(error);
+    }
+    return this.review
+      .read(async () => {
+        // Read-only review failures leave the editor's input queue usable.
+        try {
+          check();
+          const layout = this.review.layout(),
+            geometry = await this.review.client.revisionGeometry(
+              source.revision,
+              layout.id,
+              id,
+            );
+          if (
+            geometry.layoutId !== layout.id ||
+            geometry.revision !== source.revision ||
+            !geometry.rects.length ||
+            geometry.rects.length > 65536 ||
+            geometry.rects.some((rect) => {
+              const page = layout.regions[rect.page];
+              return (
+                !page ||
+                rect.x < 0 ||
+                rect.y < 0 ||
+                rect.width <= 0 ||
+                rect.x + rect.width > page.width ||
+                rect.y + rect.height > page.height
+              );
+            })
+          )
+            throw new Error("Invalid revision geometry");
+          await this.showRevisionGeometry(geometry);
+          return { ok: true as const };
+        } catch (error) {
+          return { ok: false as const, error };
+        }
+      })
+      .then((result) => {
+        if (!result.ok) throw result.error;
+      });
+  }
   revisions(): Promise<DocumentRevisions> {
     return this.review.read(async () => ({
       ...(await this.review.client.revisions(this.review.snapshot().revision)),
@@ -147,6 +236,14 @@ export class DocumentReview {
       ...(await this.review.client.overview(this.review.snapshot().revision)),
       documentId: this.review.snapshot().documentId,
     }));
+  }
+  selectHeading(result: DocumentOverview, index: number): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.selectDocx(
+        result.revision,
+        headingSelection(result, this.review.snapshot(), index),
+      ),
+    );
   }
   comments(): Promise<DocumentComments> {
     return this.review.read(async () => ({
