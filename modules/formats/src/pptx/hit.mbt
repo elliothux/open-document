@@ -237,6 +237,7 @@ fn polygon(
 pub fn Session::selection_geometry(
   self : Session,
   id : Int,
+  grid_scale~ : Double? = None,
 ) -> Json raise @failure.Failure {
   let view = self.current_view(id)
   let selection = self.candidate
@@ -324,6 +325,8 @@ pub fn Session::selection_geometry(
   }
   {
     "layoutId": id,
+    "grid": self.grid_geometry(grid_scale),
+    "snapLines": self.snap_lines(),
     "revision": self.revision,
     "outline": outline,
     "outlines": outlines,

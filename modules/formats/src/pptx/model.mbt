@@ -159,6 +159,7 @@ priv struct Candidate {
   edit : @xml.Edit?
   kind : String
   guide : GuideDrag?
+  snap_lines : Array[Guide]
 }
 
 ///|

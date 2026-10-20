@@ -3,6 +3,8 @@ import type { PptxTextFormat } from "./pptx-format.js";
 import {
   checkPptxMasterStyleEdit,
   checkPptxGuides,
+  checkPptxSnapSettings,
+  type PptxSnapSettings,
   type PptxGuide,
   type PptxMasterParagraphFormat,
 } from "./pptx-view.js";
@@ -311,6 +313,7 @@ export type PptxSlideEdit =
       format: PptxTextFormat | null;
     }
   | { action: "guides"; visible: boolean; items: PptxGuide[] }
+  | ({ action: "snapping" } & PptxSnapSettings)
   | { action: "notes"; text: string }
   | {
       action: "masterParagraphStyle";
@@ -347,6 +350,11 @@ export type PptxSlideEdit =
 
 export function checkPptxSlideEdit(value: unknown): void {
   const change = record(value);
+  if (change.action === "snapping") {
+    const { action: _action, ...settings } = change;
+    checkPptxSnapSettings(settings);
+    return;
+  }
   if (change.action === "guides") {
     if (Object.keys(change).length !== 3) throw new Error("Invalid guide edit");
     checkPptxGuides({ ...change, reason: "" });

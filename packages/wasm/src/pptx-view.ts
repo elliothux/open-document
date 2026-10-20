@@ -1,5 +1,33 @@
 import { record, hasFields } from "./validation.js";
 
+export interface PptxSnapSettings {
+  grid: boolean;
+  objects: boolean;
+  spacing: number;
+}
+export interface PptxSnapping extends PptxSnapSettings {
+  reason: string;
+}
+export function checkPptxSnapSettings(value: unknown): void {
+  const settings = record(value);
+  if (
+    Object.keys(settings).length !== 3 ||
+    typeof settings.grid !== "boolean" ||
+    typeof settings.objects !== "boolean" ||
+    typeof settings.spacing !== "number" ||
+    !Number.isFinite(settings.spacing) ||
+    settings.spacing < 1 / 12700 ||
+    settings.spacing > 144
+  )
+    throw new Error("Invalid presentation snapping settings");
+}
+export function checkPptxSnapping(value: unknown): void {
+  const { reason, ...settings } = record(value);
+  checkPptxSnapSettings(settings);
+  if (typeof reason !== "string" || reason.length > 8192)
+    throw new Error("Invalid presentation snapping reason");
+}
+
 export interface PptxGuide {
   orientation: "horz" | "vert";
   position: number;

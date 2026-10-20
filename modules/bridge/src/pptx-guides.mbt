@@ -21,3 +21,17 @@ fn pptx_guide_edit(change : Json) -> @pptx.SlideEdit raise @failure.Failure {
     }),
   )
 }
+
+///|
+fn pptx_snapping_edit(change : Json) -> @pptx.SlideEdit raise @failure.Failure {
+  guard change is Object(fields) && fields.length() == 4 else {
+    @failure.reject(
+      "invalid-operation", "Snapping requires grid, objects and spacing",
+    )
+  }
+  @pptx.Snapping({
+    grid: xlsx_boolean(change, "grid"),
+    objects: xlsx_boolean(change, "objects"),
+    spacing: xlsx_number(change, "spacing"),
+  })
+}

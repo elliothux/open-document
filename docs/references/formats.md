@@ -1725,13 +1725,37 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 拖动预览只更新候选及 `guides.items`，保持 revision、原生源和历史。`cancelPptx` 或默认输入的 Escape/指针取消恢复原值；`finishPptx` 复用既有提交、预算和精确历史，成功移动只新增一项。活动候选期间，保存、结构修改及其他编辑继续沿既有保护。普通数值面板仍提供键盘可操作入口。移动与边界规则参考 [ONLYOFFICE CGuideTrack](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/MoveTracks.js#L954-L1025)。候选实现归 [`guide-gesture.mbt`](../../modules/formats/src/pptx/guide-gesture.mbt)，平台指针队列归 [`presentation-pointer.ts`](../../packages/web/src/presentation-pointer.ts)。
 
-对象移动和角点缩放已支持吸附辅助线。移动按各叶对象的四个变换后角点与中心计算，整组使用成员点，多选使用全部所选点。缩放使用所拖角点；组内对象和多选框沿同一世界坐标计算，再回到原有父坐标变换。两个轴各取容差内绝对距离最小的修正，等距保留先遇到的对象点和辅助线。某轴位移为零时保持该轴，最小尺寸、文字适配和资源限制继续生效。
+对象移动和角点缩放已支持吸附辅助线及其他对象。移动按各叶对象的四个变换后角点与中心计算，整组使用成员点，多选使用全部所选点。缩放使用所拖角点；组内对象和多选框沿同一世界坐标计算，再回到原有父坐标变换。目标取当前源部件的未选叶对象，同样使用变换后四角与中心；所选组的全部成员排除，普通视图不使用继承的母版/版式对象。旋转、翻转、嵌套组和无宽/高直线沿已有几何。两个轴各取容差内绝对距离最小的修正，等距保留先遇到的移动点，再按目标源顺序保留；对象目标先于等距辅助线。目标排序并二分查找，避免多选逐点全配对。某轴位移为零时保持该轴，最小尺寸、文字适配和资源限制继续生效。
+
+对象间吸附缺省开启；导入视图 `cSldViewPr.snapToObjects="0"` 时关闭，未知属性值不用于对象吸附。辅助线继续独立参与计算。对象拖动不改写视图设置、目标对象或其资源，Alt 仍提供自由定位。网格与永久设置、动态对齐标记见下文。
 
 `dragPptx.tolerance` 沿用页面磅值，缺省为 0，不吸附。默认指针使用 6 个屏幕像素换算的容差，按住 Alt 或在释放时保留 Alt 则传 0；预览队列和最终指针位置保留修饰键。键盘移动、数值变换仍按明确坐标定位。隐藏只控制辅助线显示，已有位置仍可吸附；清空列表移除这些目标。未知辅助线保留原源，不参与吸附，其原因继续显示于 `guides.reason`。取消、一次提交、精确历史和保存重开共用原有对象事务，辅助线部件不因对象吸附而改写。
 
-取点与最近距离依据 [ONLYOFFICE calculateSnapArrays](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicObjectBase.js#L733-L746)、[最近点](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L10510-L10557)及[移动轴修正](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/States.js#L1633-L1736)。实现归 [`guide-snap.mbt`](../../modules/formats/src/pptx/guide-snap.mbt)。默认辅助线列表有高度上限并可滚动，避免大量条目占满编辑区。
+取点与最近距离依据 [ONLYOFFICE calculateSnapArrays](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicObjectBase.js#L733-L746)、[最近点](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L10510-L10557)及[移动轴修正](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/States.js#L1633-L1736)。实现归 [`object-snap.mbt`](../../modules/formats/src/pptx/object-snap.mbt)。默认辅助线列表有高度上限并可滚动，避免大量条目占满编辑区。
 
-位置换算及新增规则参考 [ONLYOFFICE ViewPr](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ViewPr.js#L441-L452)、[新增](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ViewPr.js#L576-L618)及[缩放](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ViewPr.js#L774-L781)；原生部件结构参考 [ONLYOFFICE CSldViewPr](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/ViewProps/CSldViewPr.cpp)。实现归 [`guides.mbt`](../../modules/formats/src/pptx/guides.mbt)与 [`pptx-guides.tsx`](../../packages/ui/src/pptx-guides.tsx)。网格、对象对齐吸附、母版/版式的扩展辅助线及备注辅助线继续实施。
+位置换算及新增规则参考 [ONLYOFFICE ViewPr](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ViewPr.js#L441-L452)、[新增](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ViewPr.js#L576-L618)及[缩放](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ViewPr.js#L774-L781)；原生部件结构参考 [ONLYOFFICE CSldViewPr](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/ViewProps/CSldViewPr.cpp)。实现归 [`guides.mbt`](../../modules/formats/src/pptx/guides.mbt)与 [`pptx-guides.tsx`](../../packages/ui/src/pptx-guides.tsx)。母版/版式的扩展辅助线及备注辅助线继续实施。
+
+### 动态对齐标记
+
+对象移动或角点缩放命中其他对象时，`PptxGeometry.snapLines` 返回临时对齐线。每项复用 `PptxGuide` 的 `{ orientation, position }`，位置为页面磅值；未命中、Alt/`tolerance: 0` 或非对象变换时返回空数组。默认 Canvas 用独立颜色的虚线绘制，复用辅助线绘制路径。标记仅属于当前候选，不写入视图部件、文稿历史或内容布局。
+
+核心沿已选叶对象的四角/中心及活动缩放角点取目标，保留与最终吸附修正在原生 EMU 精度内一致的对象位置；等距目标仍按原有规则选择。每个方向去重并最多保留 64 条，顺序沿移动源点采样。返回前核对实际候选的世界坐标，最小尺寸或其他预览约束使对象未到达目标时隐藏该线。来源为已有辅助线或网格的吸附不额外生成对象标记，零位移轴保持无标记。多选、整组、旋转及嵌套成员沿同一规则。
+
+后续拖动样本重新计算标记；明确数值变换、取消、提交、撤销重做及重开不保留它们。布局身份与现有选择几何共用，Web 只执行核心返回的位置，不重算吸附。源及历史继续使用原有候选事务，放映和静态输出沿内容布局。取点、同位移目标及辅助线排除依据 [ONLYOFFICE MoveState](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/States.js#L1633-L1774)，显示入口依据 [DrawVerAnchor/DrawHorAnchor](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Drawing/DrawingDocument.js#L2793-L2832)。实现归 [object-snap.mbt](../../modules/formats/src/pptx/object-snap.mbt)、[hit.mbt](../../modules/formats/src/pptx/hit.mbt)及 [presentation-canvas.ts](../../packages/web/src/presentation-canvas.ts)。
+
+### 网格与吸附设置
+
+`PresentationEditor.editSlides({ action: "snapping", grid, objects, spacing })` 同时修改网格开关、对象间吸附开关和统一间距。同步 Wasm/Worker 使用既有 `editPptxSlides`，核心使用 `SlideEdit::Snapping(SnapSettings)`。`query.snapping` 返回 `{ grid, objects, spacing, reason }`；类型 `PptxSnapSettings` 和含原因的 `PptxSnapping` 从 `wasm/pptx` 与 `web/pptx` 导出。默认面板提供这三项设置和显式应用，普通对象或文字编辑保留未应用草稿。辅助线吸附独立于两个开关。
+
+`spacing` 单位为磅，接受 1 EMU（1/12700 磅）至 144 磅，并按整数 EMU 保存。网格缺省关闭，对象间吸附缺省开启，默认间距为 360000 EMU。沿 ONLYOFFICE 使用原生 `gridSpacing.cx` 作为两轴间距；导入超大单位按其 1000 倍修正规则读取。只改开关时保留原 `cx/cy`，明确修改间距才将两者设为同值。写回保留未知属性、辅助线内容、其他视图源和全部页面；缺少视图部件时创建关系及内容类型，设置与必要源变更只提交一次精确历史。旧 revision、活动候选/放映、保护、无效参数及资源失败保留原包。
+
+网格以页面中心为基准，使用原生 EMU 换算和就近取点。移动按活动对象的世界外框左上角定位；多选共同平移，组内对象沿原有父坐标转换。每个方向先找容差内的对象或辅助线，未命中时再落到最近网格。角点缩放先将活动角点落到网格，再进行对象/辅助线吸附，最小尺寸及文字适配继续生效。位移为零的轴保持；`tolerance: 0`、Alt、键盘及明确数值变换继续自由定位。修改页面尺寸后按新页面中心计算，网格间距保持原生绝对值。编辑网格已有独立显示开关；动态对齐标记见上文。
+
+`PresentationEditor.setGridVisible(visible)` 切换编辑网格，`gridVisible` 返回当前显示值，默认面板提供对应复选框。开关属于当前编辑宿主的临时视图，缺省隐藏；关闭文件后释放，重开重新隐藏。它独立于网格吸附开关，不写入 PPTX，不改变 revision、历史、选择、修改标记或原格式字节。沿现有队列、活动输入及保护条件使用；控件即时显示选择并与外部 API 结果同步，失败恢复实际状态。
+
+低层 `selectionPptx` 可传 `gridScale`，单位为每磅的 CSS 像素数，有限且位于 0.1–16。MoonBit 使用 `Session.selection_geometry(layoutId, grid_scale=Some(scale))` 生成网格；`PptxGeometry.grid` 返回 `{ points, cross }`，未请求时为 `null`。几何绑定已有布局，旧布局拒绝。核心共用原生中心及间距，按上游最小内间隔和主线间隔生成点阵；缩放后使用点或十字。每次最多 16384 点，极细间距或大页面只降低显示密度，保留实际吸附间距和源设置。Web 只绘制这些点，网格、辅助线和选择保持独立绘制状态。放映及静态 PNG/JPEG/PDF 使用内容布局，不包含编辑网格。显示密度依据 [ONLYOFFICE CStrideData.drawGrid](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L1565-L1683)，开关与输出边界依据 [drawViewPrMarks](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L1685-L1713)。
+
+依据为 [ONLYOFFICE 网格间距](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/ViewPr.js#L241-L263)、[CStrideData](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L1512-L1564)、[移动回退](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/States.js#L1738-L1774)与[缩放指针](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/States.js#L1468-L1481)。实现归 [`snapping.mbt`](../../modules/formats/src/pptx/snapping.mbt)、[`object-snap.mbt`](../../modules/formats/src/pptx/object-snap.mbt)及共用的 [`view-properties.mbt`](../../modules/formats/src/pptx/view-properties.mbt)。
 
 页面背景使用 `PresentationEditor.editSlides({ action: "background", value }, slide?)`。`value` 是 `PptxBackgroundFill`：纯色为 `{ kind: "solid", color }`，线性渐变为 `{ kind: "linear", stops, angle, scaled }`。`stops` 含 2–32 项 `{ position, color, opacity }`，颜色均为不带 `#` 的六位 RGB。`null` 移除本页背景并恢复版式、母版继承。`query.background` 返回有效 `value`、本页是否设置 `explicit` 与保护原因 `reason`；没有背景时返回白色纯色。`value` 的查询类型为 `PptxBackground`，还包含下节的图片背景；两个类型均由 `wasm/pptx` 和 `web/pptx` 导出。核心使用 `BackgroundFill`。
 

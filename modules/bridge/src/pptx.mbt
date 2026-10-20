@@ -107,6 +107,7 @@ fn Foundation::pptx_operation(
       }
       let change = match field_string(change, "action") {
         "guides" => pptx_guide_edit(change)
+        "snapping" => pptx_snapping_edit(change)
         "showSettings" => pptx_show_settings(change)
         "customShows" => {
           guard change is { "value": Array(items), .. } && items.length() <= 32 else {
@@ -645,7 +646,13 @@ fn Foundation::pptx_operation(
         },
       )
     "selectionPptx" =>
-      session.selection_geometry(field_int(request, "layoutId"))
+      session.selection_geometry(
+        field_int(request, "layoutId"),
+        grid_scale=match request {
+          { "gridScale": _, .. } => Some(xlsx_number(request, "gridScale"))
+          _ => None
+        },
+      )
     "navigatePptx" =>
       session.navigate(
         field_int(request, "revision"),

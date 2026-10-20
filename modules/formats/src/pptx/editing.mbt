@@ -531,6 +531,7 @@ pub fn Session::begin(
     edit: None,
     kind,
     guide: None,
+    snap_lines: [],
   })
   self.query()
 }
@@ -666,7 +667,7 @@ pub fn Session::transform(
     )
     .connector_bounds(original)
   ignore(self.tile_sizes(preview))
-  self.candidate = Some({ ..candidate, slide: preview, })
+  self.candidate = Some({ ..candidate, slide: preview, snap_lines: [], })
   self.view = None
   self.query()
 }
@@ -705,23 +706,29 @@ pub fn Session::drag(
   guard candidate.kind == "transform" else {
     @failure.reject("invalid-operation", "Not an object drag gesture")
   }
-  let (dx, dy) = self.snap_drag_to_guides(dx, dy, handle, tolerance)
+  let (dx, dy, lines) = self.snap_drag(dx, dy, handle, tolerance)
   let object = self
     .source_slide(self.selection.slide)
     .object(self.selection.object)
   if self.selection.objects.length() > 1 {
-    return self.drag_collection(revision, id, dx, dy, handle)
+    return self.drag_aligned(
+      self.drag_collection(revision, id, dx, dy, handle),
+      lines,
+    )
   }
   let initial = object.geometry.unwrap()
   if handle == 0 {
     let inverse = object.source.parent_frame().inverse()
-    return self.transform(
-      revision,
-      id,
-      initial.x + inverse.a * dx + inverse.c * dy,
-      initial.y + inverse.b * dx + inverse.d * dy,
-      initial.width,
-      initial.height,
+    return self.drag_aligned(
+      self.transform(
+        revision,
+        id,
+        initial.x + inverse.a * dx + inverse.c * dy,
+        initial.y + inverse.b * dx + inverse.d * dy,
+        initial.width,
+        initial.height,
+      ),
+      lines,
     )
   }
   let inverse = initial.matrix.inverse()
@@ -770,12 +777,15 @@ pub fn Session::drag(
       0
     },
   )
-  self.transform(
-    revision,
-    id,
-    fixed_x - offset_x,
-    fixed_y - offset_y,
-    width,
-    height,
+  self.drag_aligned(
+    self.transform(
+      revision,
+      id,
+      fixed_x - offset_x,
+      fixed_y - offset_y,
+      width,
+      height,
+    ),
+    lines,
   )
 }

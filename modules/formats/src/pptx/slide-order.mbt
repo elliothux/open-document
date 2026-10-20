@@ -11,6 +11,7 @@ pub(all) enum SlideEdit {
   CustomShows(Array[CustomShow])
   Settings(ShowSettings)
   Guides(Bool, Array[Guide])
+  Snapping(SnapSettings)
   Background(BackgroundFill?)
   BackgroundImage(Bytes, String)
   BackgroundImageFormat(String, Array[Double], Double)
@@ -267,6 +268,7 @@ pub fn Session::edit_slides(
     CustomShows(value) => return self.set_custom_shows(value)
     Settings(value) => return self.set_show_settings(value)
     Guides(visible, guides) => return self.set_guides(visible, guides)
+    Snapping(value) => return self.set_snapping(value)
     AddComment(_, _, _, _, _) | UpdateComment(_, _) | RemoveComment(_) =>
       return self.edit_comments(index, change)
     AddSection(_)

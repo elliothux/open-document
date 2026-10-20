@@ -1,6 +1,6 @@
 # 测试说明
 
-P12 辅助线吸附通过 11 项定向核心检查，覆盖四角/中心、最近点/等距顺序、隐藏辅助线、零轴位移、多选、整组和嵌套成员的世界坐标、角点缩放、预览取消、精确历史及重开；未知视图源保持且不参与吸附。三条 Chromium 流程检查屏幕像素容差、Alt、默认指针最终位置、连接线回归、取消、角点缩放、独立原生 XML、未改部件、键盘精确历史及重开后输入。既有控件、PNG/PDF、尺寸及安装包检查继续复用。本轮公开接口和包入口未变，未重复打包。根 api/check/build、静态检查及文件行数检查通过。当前证据归 `guideSnapCheckpoint`，前序证据保留于 `guideDragCheckpoint` 和 `guidesCheckpoint`。未跑全量或外部 Office；网格、对象对齐吸附和扩展辅助线继续实施，P10/P11/P12 保持 planned。
+P12 动态对齐标记的 14 项定向核心检查有通过证据，覆盖角点/中心、多个同位移目标、零轴、Alt/明确数值定位、最小尺寸后的实际几何核对、预览源保持、取消/提交、精确历史及重开，并保留多选/旋转组、嵌套、网格、选择和连接线回归。三条 Chromium 流程有通过证据，检查实际标记像素、Alt 中途隐藏/恢复、取消和提交清理、角点缩放、纯辅助线不重复标记，并保留网格显示、PNG 隔离、原生 XML、精确历史和输入。新公开几何通过 3201 项安装包断言及严格宿主编译，根 api/check/build 和私有静态检查通过。前序辅助线拖动、PDF、尺寸等证据保留原范围。当前证据归 snapLinesCheckpoint，前序归 gridDisplayCheckpoint、snappingCheckpoint、objectSnapCheckpoint、guideSnapCheckpoint、guideDragCheckpoint 与 guidesCheckpoint。未跑全量或外部 Office；扩展辅助线及 P10/P11/P12 其余范围继续实施。
 
 P11 工作表与工作簿结构保护通过 19 项定向核心检查，覆盖保护启用/解除、密码、无密码和旧式摘要、结构拒绝与内容编辑、单元格保护格式、精确历史、重开及失败保持。节点内文字、注释和处理指令的保留回归通过。最新两条 Chromium 流程检查默认保护控件、结构禁用及恢复、独立 SHA-512 与原生 XML、原生输入、精确历史、保存重开和 PDF；前序格式刷与验证列表流程沿原定向证据复用。新安装包通过 3149 项断言和严格公开宿主编译，根 api/check/build 与静态检查通过。当前证据归 `workbookProtectionCheckpoint`，前序证据保留于 `worksheetProtectionCheckpoint`、`protectionFormatCheckpoint` 和 `unlockedInputCheckpoint`。未跑全量或外部 Office；细分授权、窗口/修订保护及其他密码算法继续实施，P11 保持 planned。
 

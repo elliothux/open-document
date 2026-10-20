@@ -33,15 +33,16 @@ export {
 import {
   number,
   geometry,
-  points,
   strings,
   checkPptxObjectEdit,
+  checkPptxGeometry,
   checkPptxImageFill,
   imageInsets,
   type PptxObjectEdit,
   type PptxSelection,
   type PptxPoint,
   type PptxHit,
+  type PptxGeometry,
   type PptxTable,
   checkPptxTable,
   pptxHyperlink,
@@ -57,6 +58,7 @@ export {
   type PptxSelection,
   type PptxPoint,
   type PptxHit,
+  type PptxGeometry,
   type PptxTable,
   type PptxHyperlink,
   type PptxTableStyle,
@@ -146,18 +148,27 @@ import {
 } from "./pptx-output.js";
 export type { PptxPrintLayout, PptxLayout } from "./pptx-output.js";
 
-import { checkPptxEditView, type PptxEditView } from "./pptx-view.js";
+import {
+  checkPptxEditView,
+  checkPptxGuides,
+  checkPptxSnapping,
+  type PptxEditView,
+  type PptxGuides,
+  type PptxSnapping,
+} from "./pptx-view.js";
 export type {
   PptxEditView,
   PptxMasterTextStyle,
   PptxMasterTextStyles,
   PptxMasterParagraphFormat,
   PptxMasterParagraphStyle,
+  PptxGuide,
+  PptxGuides,
+  PptxSnapSettings,
+  PptxSnapping,
 } from "./pptx-view.js";
 import type { PptxObject } from "./pptx-query.js";
 export type { PptxObject } from "./pptx-query.js";
-import { checkPptxGuides, type PptxGuides } from "./pptx-view.js";
-export type { PptxGuide, PptxGuides } from "./pptx-view.js";
 export interface PptxQuery extends PptxPlaybackState {
   mediaPlayback: {
     value: PptxMediaPlayback | null;
@@ -165,6 +176,7 @@ export interface PptxQuery extends PptxPlaybackState {
   };
   editView: PptxEditView;
   guides: PptxGuides;
+  snapping: PptxSnapping;
   table: PptxTable | null;
   themeColors: PptxThemeColor[];
   themeFonts: PptxThemeFont[];
@@ -207,16 +219,6 @@ export interface PptxQuery extends PptxPlaybackState {
   slideLayout: PptxSlideLayouts;
   diagnostics: string[];
 }
-export interface PptxGeometry {
-  layoutId: number;
-  revision: number;
-  outline: PptxPoint[];
-  outlines: PptxPoint[][];
-  handles: PptxPoint[];
-  rects: PptxPoint[][];
-  caret: (PptxPoint & { endX: number; endY: number; height: number }) | null;
-}
-
 export type PptxCommand =
   | PptxShowCommand
   | PptxSearchCommand
@@ -277,7 +279,7 @@ export type PptxCommand =
       /** Return editable group text members at this point. */
       text?: boolean;
     }
-  | { operation: "selectionPptx"; layoutId: number }
+  | { operation: "selectionPptx"; layoutId: number; gridScale?: number }
   | {
       operation: "navigatePptx";
       revision: number;
@@ -364,6 +366,7 @@ function integer(value: unknown, high = 0x7fffffff): void {
 export function pptxQuery(value: unknown): PptxQuery {
   const query = record(value);
   checkPptxGuides(query.guides);
+  checkPptxSnapping(query.snapping);
   checkMediaPlaybackQuery(query.mediaPlayback);
   pptxPlaybackState(value);
   pptxThemeColors(query.themeColors);
@@ -687,26 +690,9 @@ export function pptxResult<C extends PptxCommand>(
       integer(hit.offset, 32767);
       break;
     }
-    case "selectionPptx": {
-      const selection = record(value);
-      integer(selection.layoutId);
-      integer(selection.revision);
-      points(selection.outline);
-      points(selection.handles);
-      if (!Array.isArray(selection.outlines) || selection.outlines.length > 256)
-        throw new Error("Invalid PPTX object outlines");
-      for (const outline of selection.outlines) points(outline);
-      if (!Array.isArray(selection.rects) || selection.rects.length > 32767)
-        throw new Error("Invalid PPTX selection rectangles");
-      for (const rect of selection.rects) points(rect);
-      if (selection.caret !== null) {
-        const caret = record(selection.caret);
-        for (const key of ["x", "y", "endX", "endY"])
-          number(caret[key], -1e9, 1e9);
-        number(caret.height, 0, 14400);
-      }
+    case "selectionPptx":
+      checkPptxGeometry(value);
       break;
-    }
     default:
       pptxQuery(value);
   }

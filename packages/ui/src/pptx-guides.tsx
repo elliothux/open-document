@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { PptxGuide } from "@open-document/web/pptx";
 import type { PanelProps } from "./panels.js";
 import { messages } from "./messages.js";
@@ -114,6 +114,103 @@ export function PptxGuides({ controller, state, file, disabled }: PanelProps) {
         </button>
       </fieldset>
       {query.guides.reason && <p>{query.guides.reason}</p>}
+    </form>
+  );
+}
+
+export function PptxSnapping({
+  controller,
+  state,
+  file,
+  disabled,
+}: PanelProps) {
+  const value = file.format === "pptx" ? file.editor.query.snapping : undefined,
+    t = messages(state.locale);
+  const [grid, setGrid] = useState(value?.grid ?? false),
+    [objects, setObjects] = useState(value?.objects ?? true),
+    [spacing, setSpacing] = useState(String(value?.spacing ?? ""));
+  const actualVisible = file.format === "pptx" && file.editor.gridVisible;
+  const [visible, setVisible] = useState(actualVisible);
+  useEffect(() => setVisible(actualVisible), [actualVisible]);
+  if (file.format !== "pptx" || !value) return null;
+  const editor = file.editor;
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        controller.run(() =>
+          editor.editSlides({
+            action: "snapping",
+            grid,
+            objects,
+            spacing: Number(spacing),
+          }),
+        );
+      }}
+    >
+      <label>
+        <input
+          type="checkbox"
+          disabled={disabled || !!value.reason}
+          checked={visible}
+          onChange={(event) => {
+            const visible = event.currentTarget.checked;
+            setVisible(visible);
+            controller.run(async () => {
+              try {
+                await editor.setGridVisible(visible);
+              } catch (error) {
+                setVisible(editor.gridVisible);
+                throw error;
+              }
+            });
+          }}
+        />
+        {t.pptxShowGrid}
+      </label>
+      <fieldset disabled={disabled || !!value.reason}>
+        <legend>{t.pptxSnapping}</legend>
+        <label>
+          <input
+            type="checkbox"
+            checked={grid}
+            onChange={(event) => setGrid(event.currentTarget.checked)}
+          />
+          {t.pptxSnapToGrid}
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={objects}
+            onChange={(event) => setObjects(event.currentTarget.checked)}
+          />
+          {t.pptxSnapToObjects}
+        </label>
+        <label>
+          {t.pptxGridSpacing}
+          <input
+            type="number"
+            required
+            min={1 / 12700}
+            max={144}
+            step="any"
+            value={spacing}
+            onChange={(event) => setSpacing(event.currentTarget.value)}
+          />
+        </label>
+        <p>{t.pptxSnappingHint}</p>
+        <button
+          type="submit"
+          disabled={
+            grid === value.grid &&
+            objects === value.objects &&
+            Number(spacing) === value.spacing
+          }
+        >
+          {t.pptxApplySnapping}
+        </button>
+      </fieldset>
+      {value.reason && <p>{value.reason}</p>}
     </form>
   );
 }

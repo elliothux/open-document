@@ -254,6 +254,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
     "revision": self.revision,
     "editView": self.edit_view_query(current),
     "guides": self.guides_query(),
+    "snapping": self.snapping_query(),
     "formatting": self.formatting_query(),
     "paragraph": self.paragraph_query(),
     "table": self.table_query(),

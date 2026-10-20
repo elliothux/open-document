@@ -1,8 +1,16 @@
 export const viewEn = {
+  pptxShowGrid: "Show editing grid",
+  pptxSnapping: "Object snapping",
+  pptxSnapToGrid: "Snap to grid",
+  pptxSnapToObjects: "Snap to other objects",
+  pptxGridSpacing: "Grid spacing (pt)",
+  pptxApplySnapping: "Apply snapping",
+  pptxSnappingHint:
+    "The grid is centred on the slide. Hold Alt to position freely. Guides remain independent of these switches.",
   pptxGuides: "Slide guides",
   pptxShowGuides: "Show guides",
   pptxGuidesHint:
-    "Positions are in points from the top or left edge. Guides appear only while editing. Drag objects to align with guides; hold Alt to move freely.",
+    "Positions are in points from the top or left edge. Guides appear only while editing. Drag objects to align with guides and other objects; hold Alt to move freely.",
   pptxAddHorizontalGuide: "Add horizontal guide",
   pptxAddVerticalGuide: "Add vertical guide",
   pptxHorizontalGuide: "Horizontal guide",
@@ -53,10 +61,18 @@ export const viewEn = {
   pptxCopyMaster: "Copy master",
 };
 export const viewZh = {
+  pptxShowGrid: "显示编辑网格",
+  pptxSnapping: "对象吸附",
+  pptxSnapToGrid: "吸附网格",
+  pptxSnapToObjects: "吸附其他对象",
+  pptxGridSpacing: "网格间距（磅）",
+  pptxApplySnapping: "应用吸附设置",
+  pptxSnappingHint:
+    "网格以页面中心为基准。按住 Alt 可自由定位。辅助线吸附独立于这两个开关。",
   pptxGuides: "幻灯片辅助线",
   pptxShowGuides: "显示辅助线",
   pptxGuidesHint:
-    "位置以磅计，从顶部或左侧起算。辅助线仅在编辑时显示。拖动对象时吸附辅助线，按住 Alt 可自由移动。",
+    "位置以磅计，从顶部或左侧起算。辅助线仅在编辑时显示。拖动时吸附辅助线和其他对象，按住 Alt 可自由移动。",
   pptxAddHorizontalGuide: "添加水平辅助线",
   pptxAddVerticalGuide: "添加垂直辅助线",
   pptxHorizontalGuide: "水平辅助线",

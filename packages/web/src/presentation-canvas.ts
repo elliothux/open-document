@@ -3,6 +3,7 @@ import type {
   PptxPoint,
   PptxLayout,
   PptxGuides,
+  PptxGuide,
 } from "@open-document/wasm/pptx";
 import { CanvasSurface } from "./canvas-surface.js";
 import { decodeImage } from "./image.js";
@@ -133,15 +134,30 @@ export class PresentationCanvas extends CanvasSurface {
     guides: PptxGuides,
   ): void {
     const context = this.clearOverlay(scale);
-    if (guides.visible) {
+    if (geometry.grid) {
       context.save();
-      context.strokeStyle = "#dc2626";
+      context.fillStyle = "#94a3b8";
+      const unit = 1 / scale;
+      for (const point of geometry.grid.points) {
+        const x = Math.round(point.x * scale) / scale,
+          y = Math.round(point.y * scale) / scale;
+        if (geometry.grid.cross) {
+          context.fillRect(x - unit, y, 3 * unit, unit);
+          context.fillRect(x, y - unit, unit, 3 * unit);
+        } else context.fillRect(x, y, unit, unit);
+      }
+      context.restore();
+    }
+    const drawLines = (items: PptxGuide[], color: string) => {
+      if (!items.length) return;
+      context.save();
+      context.strokeStyle = color;
       context.lineWidth = 1 / scale;
       context.setLineDash([4 / scale, 4 / scale]);
       const width = this.canvas.getBoundingClientRect().width / scale,
         height = this.canvas.getBoundingClientRect().height / scale;
       context.beginPath();
-      for (const guide of guides.items) {
+      for (const guide of items) {
         if (guide.orientation === "horz") {
           context.moveTo(0, guide.position);
           context.lineTo(width, guide.position);
@@ -152,7 +168,9 @@ export class PresentationCanvas extends CanvasSurface {
       }
       context.stroke();
       context.restore();
-    }
+    };
+    if (guides.visible) drawLines(guides.items, "#dc2626");
+    drawLines(geometry.snapLines, "#db2777");
     const polygon = (points: PptxPoint[]) => {
       context.beginPath();
       for (const [i, point] of points.entries())

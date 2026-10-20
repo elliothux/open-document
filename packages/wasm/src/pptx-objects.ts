@@ -3,6 +3,7 @@ import { record } from "./validation.js";
 import { checkPptxMediaInput, checkMediaPlayback } from "./pptx-media.js";
 import { pptxPlaceholder, pptxPlaceholderTypes } from "./pptx-placeholder.js";
 import { drawingMatrix } from "./drawing.js";
+import type { PptxGuide } from "./pptx-view.js";
 import {
   checkPptxTableStyle,
   checkPptxTableStyleQuery,
@@ -21,6 +22,17 @@ export interface PptxSelection {
 export interface PptxPoint {
   x: number;
   y: number;
+}
+export interface PptxGeometry {
+  snapLines: PptxGuide[];
+  grid: { points: PptxPoint[]; cross: boolean } | null;
+  layoutId: number;
+  revision: number;
+  outline: PptxPoint[];
+  outlines: PptxPoint[][];
+  handles: PptxPoint[];
+  rects: PptxPoint[][];
+  caret: (PptxPoint & { endX: number; endY: number; height: number }) | null;
 }
 export interface PptxHit {
   object: string;
@@ -184,6 +196,51 @@ export function points(value: unknown, max = 4): void {
     const p = record(point);
     number(p.x, -1e9, 1e9);
     number(p.y, -1e9, 1e9);
+  }
+}
+export function checkPptxGeometry(value: unknown): void {
+  const selection = record(value);
+  if (!Array.isArray(selection.snapLines) || selection.snapLines.length > 128)
+    throw new Error("Invalid PPTX alignment marks");
+  for (const item of selection.snapLines) {
+    const line = record(item);
+    if (
+      Object.keys(line).length !== 2 ||
+      (line.orientation !== "vert" && line.orientation !== "horz")
+    )
+      throw new Error("Invalid PPTX alignment line");
+    number(line.position, 0, 14400);
+  }
+  for (const key of ["layoutId", "revision"])
+    if (!Number.isInteger(number(selection[key], 0, 0x7fffffff)))
+      throw new Error("Invalid PPTX geometry identity");
+  points(selection.outline);
+  points(selection.handles);
+  if (!Array.isArray(selection.outlines) || selection.outlines.length > 256)
+    throw new Error("Invalid PPTX object outlines");
+  for (const outline of selection.outlines) points(outline);
+  if (!Array.isArray(selection.rects) || selection.rects.length > 32767)
+    throw new Error("Invalid PPTX selection rectangles");
+  for (const rect of selection.rects) points(rect);
+  if (selection.caret !== null) {
+    const caret = record(selection.caret);
+    for (const key of ["x", "y", "endX", "endY"]) number(caret[key], -1e9, 1e9);
+    number(caret.height, 0, 14400);
+  }
+  if (selection.grid !== null) {
+    const grid = record(selection.grid);
+    if (
+      Object.keys(grid).length !== 2 ||
+      typeof grid.cross !== "boolean" ||
+      !Array.isArray(grid.points) ||
+      grid.points.length > 16384
+    )
+      throw new Error("Invalid PPTX grid marks");
+    for (const point of grid.points) {
+      const p = record(point);
+      number(p.x, 0, 14400);
+      number(p.y, 0, 14400);
+    }
   }
 }
 import { checkPptxBackgroundFill } from "./pptx-slides.js";

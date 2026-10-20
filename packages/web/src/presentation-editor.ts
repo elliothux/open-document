@@ -59,6 +59,7 @@ export class PresentationEditor extends PresentationOutput {
   private drawing: PptxLayout | undefined;
   private geometry: PptxGeometry | undefined;
   private zoomValue = 1;
+  private gridVisibleValue = false;
   private scale = 96 / 72;
   private tail: Promise<void> = Promise.resolve();
   private pending = 0;
@@ -225,6 +226,9 @@ export class PresentationEditor extends PresentationOutput {
   get query(): PptxQuery {
     return structuredClone(this.state);
   }
+  get gridVisible(): boolean {
+    return this.gridVisibleValue;
+  }
   readonly getSnapshot = (): EditorSnapshot<PptxQuery> =>
     this.observable.getSnapshot();
   readonly subscribe = (listener: () => void): (() => void) =>
@@ -364,6 +368,7 @@ export class PresentationEditor extends PresentationOutput {
     const geometry = await this.client.execute({
       operation: "selectionPptx",
       layoutId: this.layout.id,
+      ...(this.gridVisibleValue ? { gridScale: this.scale } : {}),
     });
     this.geometry = geometry;
     const { surface, scale, input, state } = this;
@@ -444,6 +449,20 @@ export class PresentationEditor extends PresentationOutput {
         throw new Error("Invalid zoom");
       this.zoomValue = zoom;
       await this.paint();
+    });
+  }
+  setGridVisible(visible: boolean): Promise<void> {
+    return this.enqueue(async () => {
+      if (typeof visible !== "boolean")
+        throw new Error("Invalid grid visibility");
+      const previous = this.gridVisibleValue;
+      this.gridVisibleValue = visible;
+      try {
+        await this.paintSelection();
+      } catch (error) {
+        this.gridVisibleValue = previous;
+        throw error;
+      }
     });
   }
   transform(dx: number, dy: number, handle = 0): Promise<void> {

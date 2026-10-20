@@ -16,6 +16,8 @@ export type {
   PptxQuery,
   PptxGuide,
   PptxGuides,
+  PptxSnapSettings,
+  PptxSnapping,
   PptxMedia,
   PptxMediaPlayback,
   PptxPlaceholder,
