@@ -171,6 +171,34 @@ export class PresentationCanvas extends CanvasSurface {
     };
     if (guides.visible) drawLines(guides.items, "#dc2626");
     drawLines(geometry.snapLines, "#db2777");
+    if (geometry.snapSpacing.length) {
+      context.save();
+      context.strokeStyle = "#db2777";
+      context.lineWidth = 1 / scale;
+      const head = 4 / scale;
+      for (const mark of geometry.snapSpacing) {
+        context.save();
+        if (mark.axis === "x") context.translate(0, mark.at);
+        else {
+          context.translate(mark.at, 0);
+          context.rotate(Math.PI / 2);
+        }
+        context.beginPath();
+        context.moveTo(mark.from, 0);
+        context.lineTo(mark.to, 0);
+        for (const [end, direction] of [
+          [mark.from, 1],
+          [mark.to, -1],
+        ] as const) {
+          context.moveTo(end + direction * head, -head);
+          context.lineTo(end, 0);
+          context.lineTo(end + direction * head, head);
+        }
+        context.stroke();
+        context.restore();
+      }
+      context.restore();
+    }
     const polygon = (points: PptxPoint[]) => {
       context.beginPath();
       for (const [i, point] of points.entries())
@@ -178,6 +206,17 @@ export class PresentationCanvas extends CanvasSurface {
         else context.lineTo(point.x, point.y);
       context.closePath();
     };
+    if (geometry.snapSize.length) {
+      context.save();
+      context.strokeStyle = "#db2777";
+      context.lineWidth = 1 / scale;
+      context.setLineDash([4 / scale, 4 / scale]);
+      for (const match of geometry.snapSize) {
+        polygon(match.outline);
+        context.stroke();
+      }
+      context.restore();
+    }
     context.fillStyle = "rgba(59,130,246,0.25)";
     for (const rect of geometry.rects) {
       polygon(rect);

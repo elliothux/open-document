@@ -327,6 +327,8 @@ pub fn Session::selection_geometry(
     "layoutId": id,
     "grid": self.grid_geometry(grid_scale),
     "snapLines": self.snap_lines(),
+    "snapSpacing": self.snap_spacing(),
+    "snapSize": self.snap_size(),
     "revision": self.revision,
     "outline": outline,
     "outlines": outlines,

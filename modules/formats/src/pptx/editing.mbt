@@ -532,6 +532,8 @@ pub fn Session::begin(
     kind,
     guide: None,
     snap_lines: [],
+    snap_spacing: (false, false),
+    snap_size: (false, false),
   })
   self.query()
 }
@@ -667,125 +669,13 @@ pub fn Session::transform(
     )
     .connector_bounds(original)
   ignore(self.tile_sizes(preview))
-  self.candidate = Some({ ..candidate, slide: preview, snap_lines: [], })
+  self.candidate = Some({
+    ..candidate,
+    slide: preview,
+    snap_lines: [],
+    snap_spacing: (false, false),
+    snap_size: (false, false),
+  })
   self.view = None
   self.query()
-}
-
-///|
-pub fn Session::drag(
-  self : Session,
-  revision : Int,
-  id : Int,
-  dx : Double,
-  dy : Double,
-  handle : Int,
-  tolerance~ : Double = 0,
-) -> Json raise @failure.Failure {
-  let candidate = self.gesture(revision, id)
-  guard !dx.is_nan() &&
-    !dx.is_inf() &&
-    !dy.is_nan() &&
-    !dy.is_inf() &&
-    dx.abs() <= 14400 &&
-    dy.abs() <= 14400 &&
-    handle >= 0 &&
-    handle <= 4 &&
-    !tolerance.is_nan() &&
-    !tolerance.is_inf() &&
-    tolerance >= 0 &&
-    tolerance <= 64 else {
-    @failure.reject("invalid-transform", "Invalid drag delta or handle")
-  }
-  if candidate.kind == "connector" {
-    return self.drag_connector(candidate, dx, dy, handle, tolerance)
-  }
-  if candidate.guide is Some(guide) {
-    return self.drag_guide(candidate, guide, dx, dy, handle)
-  }
-  guard candidate.kind == "transform" else {
-    @failure.reject("invalid-operation", "Not an object drag gesture")
-  }
-  let (dx, dy, lines) = self.snap_drag(dx, dy, handle, tolerance)
-  let object = self
-    .source_slide(self.selection.slide)
-    .object(self.selection.object)
-  if self.selection.objects.length() > 1 {
-    return self.drag_aligned(
-      self.drag_collection(revision, id, dx, dy, handle),
-      lines,
-    )
-  }
-  let initial = object.geometry.unwrap()
-  if handle == 0 {
-    let inverse = object.source.parent_frame().inverse()
-    return self.drag_aligned(
-      self.transform(
-        revision,
-        id,
-        initial.x + inverse.a * dx + inverse.c * dy,
-        initial.y + inverse.b * dx + inverse.d * dy,
-        initial.width,
-        initial.height,
-      ),
-      lines,
-    )
-  }
-  let inverse = initial.matrix.inverse()
-  let local_x = inverse.a * dx + inverse.c * dy
-  let local_y = inverse.b * dx + inverse.d * dy
-  let left = handle == 1 || handle == 4
-  let top = handle == 1 || handle == 2
-  let width = (initial.width + (if left { -local_x } else { local_x })).max(0.1)
-  let height = (initial.height + (if top { -local_y } else { local_y })).max(
-    0.1,
-  )
-  let (fixed_x, fixed_y) = initial.matrix.point(
-    if left {
-      initial.width
-    } else {
-      0
-    },
-    if top {
-      initial.height
-    } else {
-      0
-    },
-  )
-  let (fixed_x, fixed_y) = object.source
-    .parent_frame()
-    .inverse()
-    .point(fixed_x, fixed_y)
-  let matrix = object_matrix(
-    0,
-    0,
-    width,
-    height,
-    initial.rotation,
-    initial.flip_x,
-    initial.flip_y,
-  )
-  let (offset_x, offset_y) = matrix.point(
-    if left {
-      width
-    } else {
-      0
-    },
-    if top {
-      height
-    } else {
-      0
-    },
-  )
-  self.drag_aligned(
-    self.transform(
-      revision,
-      id,
-      fixed_x - offset_x,
-      fixed_y - offset_y,
-      width,
-      height,
-    ),
-    lines,
-  )
 }

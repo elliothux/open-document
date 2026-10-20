@@ -6,7 +6,7 @@ export const viewEn = {
   pptxGridSpacing: "Grid spacing (pt)",
   pptxApplySnapping: "Apply snapping",
   pptxSnappingHint:
-    "The grid is centred on the slide. Hold Alt to position freely. Guides remain independent of these switches.",
+    "Drag objects to align edges or equal gaps; resize to match other objects. The grid is centred on the slide. Hold Alt to position freely. Guides remain independent of these switches.",
   pptxGuides: "Slide guides",
   pptxShowGuides: "Show guides",
   pptxGuidesHint:
@@ -68,7 +68,7 @@ export const viewZh = {
   pptxGridSpacing: "网格间距（磅）",
   pptxApplySnapping: "应用吸附设置",
   pptxSnappingHint:
-    "网格以页面中心为基准。按住 Alt 可自由定位。辅助线吸附独立于这两个开关。",
+    "移动对象可对齐边缘与间距，缩放可匹配其他对象尺寸。网格以页面中心为基准。按住 Alt 可自由定位。辅助线吸附独立于这两个开关。",
   pptxGuides: "幻灯片辅助线",
   pptxShowGuides: "显示辅助线",
   pptxGuidesHint:

@@ -26,7 +26,7 @@ fn Foundation::xlsx_operation(
       output_bytes: field_int(budget, "outputBytes"),
     }
     let session = if operation == "createXlsx" {
-      @xlsx.Session::create(budget)
+      @xlsx.Session::create(budget, date=xlsx_calendar_date(request))
     } else if operation == "importXlsxDelimited" {
       guard request is { "options": options, .. } else {
         @failure.reject("invalid-operation", "Import options are required")
@@ -41,11 +41,13 @@ fn Foundation::xlsx_operation(
         numbers=xlsx_boolean(options, "numbers"),
         dates=xlsx_boolean(options, "dates"),
         formulas=xlsx_boolean(options, "formulas"),
+        date=xlsx_calendar_date(request),
       )
     } else {
       @xlsx.Session::open(
         input_bytes(request, budget.file_bytes.min(budget.retained_bytes)),
         budget,
+        date=xlsx_calendar_date(request),
       )
     }
     let result = session.query()
@@ -491,6 +493,7 @@ fn Foundation::xlsx_operation(
         field_int(request, "revision"),
         field_string(request, "sheet"),
         change,
+        date=xlsx_calendar_date(request),
       )
     }
     "queryXlsx" =>

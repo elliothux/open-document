@@ -15,6 +15,8 @@ import { resourceBudget, type Budget } from "@open-document/wasm/foundation";
 export type {
   PptxQuery,
   PptxGuide,
+  PptxSpacing,
+  PptxSizeMatch,
   PptxGuides,
   PptxSnapSettings,
   PptxSnapping,

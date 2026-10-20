@@ -65,7 +65,8 @@ import {
   type XlsxTextColumns,
 } from "./xlsx-delimited.js";
 export * from "./xlsx-delimited.js";
-import { xlsxFilterState } from "./xlsx-filter.js";
+import { xlsxFilterState, spreadsheetDate } from "./xlsx-filter.js";
+export { xlsxRelativeDatePeriods, spreadsheetDate } from "./xlsx-filter.js";
 export type {
   XlsxFilterValues,
   XlsxFilterColumn,
@@ -75,6 +76,8 @@ export type {
   XlsxRankFilter,
   XlsxAverageFilter,
   XlsxDateFilter,
+  XlsxCalendarFilter,
+  XlsxRelativeDateFilter,
   XlsxColorFilter,
   XlsxFilterSettings,
   XlsxFilterState,
@@ -524,7 +527,12 @@ export class XlsxSession extends WasmSession {
       this.call({ operation: "formatXlsxCells", revision, patch }),
     );
   }
-  editSheet(revision: number, sheet: string, change: XlsxSheetEdit): XlsxQuery {
+  editSheet(
+    revision: number,
+    sheet: string,
+    change: XlsxSheetEdit,
+    date?: string,
+  ): XlsxQuery {
     checkXlsxSheetEdit(change);
     return xlsxQuery(
       this.call({
@@ -532,6 +540,7 @@ export class XlsxSession extends WasmSession {
         revision,
         sheet,
         change,
+        date: spreadsheetDate(date),
         passwordSalt: protectionSalt(change),
       }),
     );
@@ -556,14 +565,21 @@ export class XlsxSession extends WasmSession {
       this.call({ operation: "textColumnsXlsx", revision, sheet, settings }),
     );
   }
-  create(budget: Budget): XlsxQuery {
-    return xlsxQuery(this.call({ operation: "createXlsx", budget }));
+  create(budget: Budget, date?: string): XlsxQuery {
+    return xlsxQuery(
+      this.call({
+        operation: "createXlsx",
+        budget,
+        date: spreadsheetDate(date),
+      }),
+    );
   }
   importDelimited(
     bytes: Uint8Array,
     delimiter: "," | "\t",
     budget: Budget,
     options: XlsxDelimitedOptions = {},
+    date?: string,
   ): XlsxQuery {
     if (delimiter !== "," && delimiter !== "\t")
       throw new Error("Invalid delimiter");
@@ -578,6 +594,7 @@ export class XlsxSession extends WasmSession {
         delimiter,
         budget,
         options: xlsxDelimitedOptions(options),
+        date: spreadsheetDate(date),
       }),
     );
   }
@@ -585,7 +602,7 @@ export class XlsxSession extends WasmSession {
     if (typeof selection !== "boolean") throw new Error("Invalid CSV scope");
     return this.bytes({ operation: "exportXlsxCsv", revision, selection });
   }
-  open(bytes: Uint8Array, budget: Budget): XlsxQuery {
+  open(bytes: Uint8Array, budget: Budget, date?: string): XlsxQuery {
     if (bytes.length > budget.fileBytes || bytes.length > budget.retainedBytes)
       throw new DocumentError(
         "limit-exceeded",
@@ -594,7 +611,12 @@ export class XlsxSession extends WasmSession {
         -1,
       );
     return xlsxQuery(
-      this.call({ operation: "openXlsx", bytes: encodeBytes(bytes), budget }),
+      this.call({
+        operation: "openXlsx",
+        bytes: encodeBytes(bytes),
+        budget,
+        date: spreadsheetDate(date),
+      }),
     );
   }
   query(sheet?: string, range?: string): XlsxQuery {

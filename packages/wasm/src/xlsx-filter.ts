@@ -1,5 +1,55 @@
 import { record, integer } from "./validation.js";
 
+export const xlsxRelativeDatePeriods = [
+  "yesterday",
+  "today",
+  "tomorrow",
+  "lastWeek",
+  "thisWeek",
+  "nextWeek",
+  "lastMonth",
+  "thisMonth",
+  "nextMonth",
+  "lastQuarter",
+  "thisQuarter",
+  "nextQuarter",
+  "lastYear",
+  "thisYear",
+  "nextYear",
+  "yearToDate",
+] as const;
+export interface XlsxRelativeDateFilter {
+  kind: "relativeDate";
+  column: number;
+  period: (typeof xlsxRelativeDatePeriods)[number];
+}
+
+/** Supply local calendar components; the core computes date intervals. */
+export function spreadsheetDate(value?: string): string {
+  if (value === undefined) {
+    const now = new Date();
+    value =
+      String(now.getFullYear()).padStart(4, "0") +
+      "-" +
+      String(now.getMonth() + 1).padStart(2, "0") +
+      "-" +
+      String(now.getDate()).padStart(2, "0");
+  }
+  if (
+    typeof value !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+    value.startsWith("0000")
+  )
+    throw new Error("Invalid current calendar date");
+  const parsed = new Date(value + "T00:00:00Z");
+  if (
+    !Number.isFinite(parsed.getTime()) ||
+    parsed.toISOString().slice(0, 10) !== value
+  )
+    throw new Error("Invalid current calendar date");
+  return value;
+}
+
 export interface XlsxFilterValues {
   kind: "values";
   /** One-based worksheet column. Values match trimmed, formatted labels without case. */
@@ -49,6 +99,14 @@ export interface XlsxDateFilter {
   values: string[];
   blank: boolean;
 }
+export interface XlsxCalendarFilter {
+  kind: "calendar";
+  column: number;
+  /** A month (1..12) or quarter (1..4), across all years in the workbook date system. */
+  unit: "month" | "quarter";
+  /** Numeric serials match regardless of display format; other cell types do not match. */
+  value: number;
+}
 export interface XlsxColorFilter {
   kind: "color";
   column: number;
@@ -63,6 +121,8 @@ export type XlsxFilterColumn =
   | XlsxRankFilter
   | XlsxAverageFilter
   | XlsxDateFilter
+  | XlsxCalendarFilter
+  | XlsxRelativeDateFilter
   | XlsxColorFilter;
 export interface XlsxFilterSettings {
   /** Explicit rectangle with a header in its first row. */
@@ -98,7 +158,27 @@ export function checkXlsxFilter(value: unknown): void {
       throw new Error("Invalid filter column");
     seen.add(Number(column.column));
     let values: unknown[];
-    if (column.kind === "color") {
+    if (column.kind === "relativeDate") {
+      if (
+        typeof column.period !== "string" ||
+        !xlsxRelativeDatePeriods.some((period) => period === column.period) ||
+        Object.keys(column).some(
+          (key) => !["kind", "column", "period"].includes(key),
+        )
+      )
+        throw new Error("Invalid relative date filter");
+      values = [];
+    } else if (column.kind === "calendar") {
+      if (
+        (column.unit !== "month" && column.unit !== "quarter") ||
+        !integer(column.value, 1, column.unit === "month" ? 12 : 4) ||
+        Object.keys(column).some(
+          (key) => !["kind", "column", "unit", "value"].includes(key),
+        )
+      )
+        throw new Error("Invalid calendar filter");
+      values = [];
+    } else if (column.kind === "color") {
       if (
         typeof column.cellColor !== "boolean" ||
         (column.color !== null &&

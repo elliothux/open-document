@@ -18,6 +18,7 @@ import {
 } from "@open-document/wasm/xlsx";
 import {
   xlsxQuery,
+  spreadsheetDate,
   checkXlsxDuplicateSettings,
   xlsxDuplicates,
   type XlsxDuplicateSettings,
@@ -104,9 +105,15 @@ export type {
   XlsxRankFilter,
   XlsxAverageFilter,
   XlsxDateFilter,
+  XlsxCalendarFilter,
+  XlsxRelativeDateFilter,
   XlsxColorFilter,
   XlsxFilterSettings,
   XlsxFilterState,
+} from "@open-document/wasm/xlsx";
+export {
+  xlsxRelativeDatePeriods,
+  spreadsheetDate,
 } from "@open-document/wasm/xlsx";
 export type {
   XlsxConditionalFormat,
@@ -260,10 +267,14 @@ export class XlsxClient {
   async addFont(bytes: Uint8Array, identity: string): Promise<void> {
     await this.connection.request({ operation: "font", bytes, identity });
   }
-  async create(budget: Budget): Promise<XlsxQuery> {
+  async create(budget: Budget, date?: string): Promise<XlsxQuery> {
     resetCellClipboard(this);
     return xlsxQuery(
-      await this.connection.request({ operation: "createXlsx", budget }),
+      await this.connection.request({
+        operation: "createXlsx",
+        budget,
+        date: spreadsheetDate(date),
+      }),
     );
   }
   async importDelimited(
@@ -271,6 +282,7 @@ export class XlsxClient {
     delimiter: "," | "\t",
     budget: Budget,
     options: XlsxDelimitedOptions = {},
+    date?: string,
   ): Promise<XlsxQuery> {
     if (delimiter !== "," && delimiter !== "\t")
       throw new Error("Invalid delimiter");
@@ -286,6 +298,7 @@ export class XlsxClient {
         delimiter,
         budget,
         options: xlsxDelimitedOptions(options),
+        date: spreadsheetDate(date),
       }),
     );
   }
@@ -299,10 +312,19 @@ export class XlsxClient {
     if (!(bytes instanceof Uint8Array)) throw new Error("Invalid CSV bytes");
     return bytes;
   }
-  async openXlsx(bytes: Uint8Array, budget: Budget): Promise<XlsxQuery> {
+  async openXlsx(
+    bytes: Uint8Array,
+    budget: Budget,
+    date?: string,
+  ): Promise<XlsxQuery> {
     resetCellClipboard(this);
     return xlsxQuery(
-      await this.connection.request({ operation: "openXlsx", bytes, budget }),
+      await this.connection.request({
+        operation: "openXlsx",
+        bytes,
+        budget,
+        date: spreadsheetDate(date),
+      }),
     );
   }
   async query(sheet?: string, range?: string): Promise<XlsxQuery> {
@@ -328,6 +350,7 @@ export class XlsxClient {
     revision: number,
     sheet: string,
     change: XlsxSheetEdit,
+    date?: string,
   ): Promise<XlsxQuery> {
     checkXlsxSheetEdit(change);
     return xlsxQuery(
@@ -336,6 +359,7 @@ export class XlsxClient {
         revision,
         sheet,
         change,
+        date: spreadsheetDate(date),
       }),
     );
   }

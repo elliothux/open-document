@@ -7,6 +7,13 @@ fn Session::prepare_filter(
   work : FormulaWork,
 ) -> PreparedFilter raise @failure.Failure {
   match column.rule {
+    Relative(period, cache) => {
+      let (start, end) = match cache {
+        Some(bounds) => bounds
+        None => self.relative_filter_interval(period)
+      }
+      DateInterval(start, end)
+    }
     Color(_, ..) | ColorStyle(_, ..) => {
       let (color, cell_color) = self.filter_color(column.rule)
       Color(color, cell_color~)

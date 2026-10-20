@@ -267,6 +267,8 @@ fn Session::filter_query(
             Custom(_, ..)
             | Rank(_, ..)
             | Average(..)
+            | Calendar(_, _)
+            | Relative(_, _)
             | Color(_, ..)
             | ColorStyle(_, ..) => true
           }

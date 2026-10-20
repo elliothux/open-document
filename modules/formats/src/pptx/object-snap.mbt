@@ -5,9 +5,9 @@ fn Session::snap_drag(
   dy : Double,
   handle : Int,
   tolerance : Double,
-) -> (Double, Double, Array[Guide]) raise @failure.Failure {
+) -> (Double, Double, Array[Guide], (Bool, Bool), (Bool, Bool)) raise @failure.Failure {
   if tolerance == 0 || (dx == 0 && dy == 0) {
-    return (dx, dy, [])
+    return (dx, dy, [], (false, false), (false, false))
   }
   // Unknown view metadata stays intact and does not prevent independent object edits.
   let view = self.guide_properties() catch { _ => None }
@@ -22,6 +22,11 @@ fn Session::snap_drag(
       _ => false
     }
   let slide = self.source_slide(self.selection.slide)
+  let (dx, dy, size) = if handle > 0 && snap_objects {
+    self.snap_resize_size(slide, dx, dy, handle, tolerance)
+  } else {
+    (dx, dy, (false, false))
+  }
   let moving = slide.snap_members(self.selection.objects)
   let targets_x : Array[(Double, Int)] = []
   let targets_y : Array[(Double, Int)] = []
@@ -106,13 +111,13 @@ fn Session::snap_drag(
   let (dx, dy) = if handle > 0 && grid is Some(spacing) {
     let (x, y) = points[0]
     (
-      if dx == 0 {
-        0.0
+      if dx == 0 || size.0 {
+        dx
       } else {
         nearest_grid_point(x + dx, self.width, spacing) - x
       },
-      if dy == 0 {
-        0.0
+      if dy == 0 || size.1 {
+        dy
       } else {
         nearest_grid_point(y + dy, self.height, spacing) - y
       },
@@ -121,7 +126,7 @@ fn Session::snap_drag(
     (dx, dy)
   }
   for (x, y) in points {
-    if dx != 0 {
+    if dx != 0 && !size.0 {
       if nearest_snap_target(targets_x, x + dx) is Some((position, order)) {
         let distance = position - (x + dx)
         if distance.abs() <= tolerance {
@@ -144,7 +149,7 @@ fn Session::snap_drag(
         }
       }
     }
-    if dy != 0 {
+    if dy != 0 && !size.1 {
       if nearest_snap_target(targets_y, y + dy) is Some((position, order)) {
         let distance = position - (y + dy)
         if distance.abs() <= tolerance {
@@ -168,6 +173,31 @@ fn Session::snap_drag(
       }
     }
   }
+  let mut spacing_x = false
+  let mut spacing_y = false
+  if handle == 0 &&
+    snap_objects &&
+    ((dx != 0 && snap_x is None) || (dy != 0 && snap_y is None)) {
+    let original = slide.selection_box(self.selection.objects)
+    let box = {
+      ..original,
+      x: original.x + dx + snap_x.unwrap_or(0),
+      y: original.y + dy + snap_y.unwrap_or(0),
+    }
+    let neighbors = self.spacing_neighbors(slide)
+    if dx != 0 &&
+      snap_x is None &&
+      spacing_axis(box, neighbors, tolerance, true) is Some((target, _)) {
+      snap_x = Some(target - box.x)
+      spacing_x = true
+    }
+    if dy != 0 &&
+      snap_y is None &&
+      spacing_axis(box, neighbors, tolerance, false) is Some((target, _)) {
+      snap_y = Some(target - box.y)
+      spacing_y = true
+    }
+  }
   if handle == 0 && grid is Some(spacing) {
     let box = slide.selection_box([self.selection.object])
     if dx != 0 && snap_x is None {
@@ -188,7 +218,13 @@ fn Session::snap_drag(
   for position in lines_y {
     lines.push({ orientation: "horz", position, })
   }
-  (dx + snap_x.unwrap_or(0), dy + snap_y.unwrap_or(0), lines)
+  (
+    dx + snap_x.unwrap_or(0),
+    dy + snap_y.unwrap_or(0),
+    lines,
+    (spacing_x, spacing_y),
+    size,
+  )
 }
 
 ///|
@@ -272,8 +308,15 @@ fn Session::drag_aligned(
   self : Session,
   query : Json,
   lines : Array[Guide],
+  spacing : (Bool, Bool),
+  size : (Bool, Bool),
 ) -> Json {
-  self.candidate = Some({ ..self.candidate.unwrap(), snap_lines: lines, })
+  self.candidate = Some({
+    ..self.candidate.unwrap(),
+    snap_lines: lines,
+    snap_spacing: spacing,
+    snap_size: size,
+  })
   query
 }
 
@@ -306,4 +349,128 @@ fn Session::snap_lines(self : Session) -> Array[Json] raise @failure.Failure {
     .unwrap_or(false)
   })
   .map(line => { "orientation": line.orientation, "position": line.position })
+}
+
+///|
+pub fn Session::drag(
+  self : Session,
+  revision : Int,
+  id : Int,
+  dx : Double,
+  dy : Double,
+  handle : Int,
+  tolerance~ : Double = 0,
+) -> Json raise @failure.Failure {
+  let candidate = self.gesture(revision, id)
+  guard !dx.is_nan() &&
+    !dx.is_inf() &&
+    !dy.is_nan() &&
+    !dy.is_inf() &&
+    dx.abs() <= 14400 &&
+    dy.abs() <= 14400 &&
+    handle >= 0 &&
+    handle <= 4 &&
+    !tolerance.is_nan() &&
+    !tolerance.is_inf() &&
+    tolerance >= 0 &&
+    tolerance <= 64 else {
+    @failure.reject("invalid-transform", "Invalid drag delta or handle")
+  }
+  if candidate.kind == "connector" {
+    return self.drag_connector(candidate, dx, dy, handle, tolerance)
+  }
+  if candidate.guide is Some(guide) {
+    return self.drag_guide(candidate, guide, dx, dy, handle)
+  }
+  guard candidate.kind == "transform" else {
+    @failure.reject("invalid-operation", "Not an object drag gesture")
+  }
+  let (dx, dy, lines, spacing, size) = self.snap_drag(dx, dy, handle, tolerance)
+  let object = self
+    .source_slide(self.selection.slide)
+    .object(self.selection.object)
+  if self.selection.objects.length() > 1 {
+    return self.drag_aligned(
+      self.drag_collection(revision, id, dx, dy, handle),
+      lines,
+      spacing,
+      size,
+    )
+  }
+  let initial = object.geometry.unwrap()
+  if handle == 0 {
+    let inverse = object.source.parent_frame().inverse()
+    return self.drag_aligned(
+      self.transform(
+        revision,
+        id,
+        initial.x + inverse.a * dx + inverse.c * dy,
+        initial.y + inverse.b * dx + inverse.d * dy,
+        initial.width,
+        initial.height,
+      ),
+      lines,
+      spacing,
+      size,
+    )
+  }
+  let inverse = initial.matrix.inverse()
+  let local_x = inverse.a * dx + inverse.c * dy
+  let local_y = inverse.b * dx + inverse.d * dy
+  let left = handle == 1 || handle == 4
+  let top = handle == 1 || handle == 2
+  let width = (initial.width + (if left { -local_x } else { local_x })).max(0.1)
+  let height = (initial.height + (if top { -local_y } else { local_y })).max(
+    0.1,
+  )
+  let (fixed_x, fixed_y) = initial.matrix.point(
+    if left {
+      initial.width
+    } else {
+      0
+    },
+    if top {
+      initial.height
+    } else {
+      0
+    },
+  )
+  let (fixed_x, fixed_y) = object.source
+    .parent_frame()
+    .inverse()
+    .point(fixed_x, fixed_y)
+  let matrix = object_matrix(
+    0,
+    0,
+    width,
+    height,
+    initial.rotation,
+    initial.flip_x,
+    initial.flip_y,
+  )
+  let (offset_x, offset_y) = matrix.point(
+    if left {
+      width
+    } else {
+      0
+    },
+    if top {
+      height
+    } else {
+      0
+    },
+  )
+  self.drag_aligned(
+    self.transform(
+      revision,
+      id,
+      fixed_x - offset_x,
+      fixed_y - offset_y,
+      width,
+      height,
+    ),
+    lines,
+    spacing,
+    size,
+  )
 }

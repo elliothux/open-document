@@ -1,5 +1,82 @@
 import { record, hasFields } from "./validation.js";
 
+export interface PptxSizeMatch {
+  object: string;
+  width: boolean;
+  height: boolean;
+  outline: { x: number; y: number }[];
+}
+export function checkPptxSizeMatches(value: unknown): void {
+  if (!Array.isArray(value) || value.length > 64)
+    throw new Error("Invalid PPTX size matches");
+  const seen = new Set<string>();
+  for (const item of value) {
+    const match = record(item);
+    if (
+      Object.keys(match).length !== 4 ||
+      Object.keys(match).some(
+        (key) => !["object", "width", "height", "outline"].includes(key),
+      ) ||
+      typeof match.object !== "string" ||
+      !match.object ||
+      match.object.length > 1024 ||
+      seen.has(match.object) ||
+      typeof match.width !== "boolean" ||
+      typeof match.height !== "boolean" ||
+      (!match.width && !match.height) ||
+      !Array.isArray(match.outline) ||
+      match.outline.length !== 4
+    )
+      throw new Error("Invalid PPTX size match");
+    seen.add(match.object);
+    for (const value of match.outline) {
+      const point = record(value);
+      if (
+        Object.keys(point).length !== 2 ||
+        Object.keys(point).some((key) => key !== "x" && key !== "y") ||
+        [point.x, point.y].some(
+          (value) =>
+            typeof value !== "number" ||
+            !Number.isFinite(value) ||
+            Math.abs(value) > 1e9,
+        )
+      )
+        throw new Error("Invalid PPTX size match outline");
+    }
+  }
+}
+
+export interface PptxSpacing {
+  axis: "x" | "y";
+  from: number;
+  to: number;
+  at: number;
+}
+export function checkPptxSpacing(value: unknown): void {
+  if (!Array.isArray(value) || value.length > 4)
+    throw new Error("Invalid PPTX spacing marks");
+  const coordinate = (value: unknown): value is number =>
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    value >= 0 &&
+    value <= 14400;
+  for (const item of value) {
+    const mark = record(item);
+    if (
+      Object.keys(mark).length !== 4 ||
+      Object.keys(mark).some(
+        (key) => !["axis", "from", "to", "at"].includes(key),
+      ) ||
+      (mark.axis !== "x" && mark.axis !== "y") ||
+      !coordinate(mark.from) ||
+      !coordinate(mark.to) ||
+      !coordinate(mark.at) ||
+      mark.from > mark.to
+    )
+      throw new Error("Invalid PPTX spacing arrow");
+  }
+}
+
 export interface PptxSnapSettings {
   grid: boolean;
   objects: boolean;

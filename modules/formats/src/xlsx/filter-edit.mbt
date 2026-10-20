@@ -29,7 +29,13 @@ fn Session::edit_filter(
   let settings = settings.map(settings => {
     ..settings,
     columns: settings.columns.map(column => {
-      if column.rule is Color(_, ..) &&
+      if column.rule is Relative(period, cache) {
+        validate_relative_filter(period, cache)
+        {
+          ..column,
+          rule: Relative(period, Some(self.relative_filter_interval(period))),
+        }
+      } else if column.rule is Color(_, ..) &&
         old.bind(state => {
           state.settings.columns
           .iter()

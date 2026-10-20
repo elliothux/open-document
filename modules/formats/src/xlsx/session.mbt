@@ -27,6 +27,7 @@ pub struct Session {
   priv normal_size : Double
   priv mut font_context : (@layout.TextProbe, Map[String, String])?
   priv date1904 : Bool
+  priv mut calendar_date : (Int, Int, Int)?
   priv mut sheets : Array[Sheet]
   priv mut selection : (String, Range)
   priv mut anchor : Address
@@ -47,14 +48,16 @@ pub struct Session {
 pub fn Session::open(
   bytes : Bytes,
   budget : @archive.Budget,
+  date~ : String? = None,
 ) -> Session raise @failure.Failure {
-  Session::from_package(@opc.Package::open(bytes, budget), budget)
+  Session::from_package(@opc.Package::open(bytes, budget), budget, date~)
 }
 
 ///|
 fn Session::from_package(
   opc : @opc.Package,
   budget : @archive.Budget,
+  date~ : String? = None,
 ) -> Session raise @failure.Failure {
   errdefer opc.close()
   guard !opc.signed else {
@@ -230,6 +233,7 @@ fn Session::from_package(
     normal_font: base_font.0,
     normal_size: base_font.1,
     font_context: None,
+    calendar_date: date.map(filter_current_date),
     date1904: tree
     .one(root.id, "workbookPr")
     .map(node => flag(node, "date1904"))

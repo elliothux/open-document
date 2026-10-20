@@ -49,6 +49,8 @@ pub fn Session::begin_guide(
         kind: "guide",
         guide: Some({ index, start, position: guide.position, }),
         snap_lines: [],
+        snap_spacing: (false, false),
+        snap_size: (false, false),
       })
       return self.query()
     }

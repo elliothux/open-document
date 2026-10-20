@@ -18,6 +18,8 @@ priv enum PreparedFilter {
   Ranking(Double?, top~ : Bool)
   Mean(Double?, above~ : Bool)
   DateLabels(Array[(Double, Double)], Map[String, Bool], blank~ : Bool)
+  CalendarMonths(Int, Int)
+  DateInterval(Double, Double)
   Color(String, cell_color~ : Bool)
 }
 
@@ -27,6 +29,18 @@ fn FilterRule::prepare(
   work : FormulaWork,
 ) -> PreparedFilter raise @failure.Failure {
   match self {
+    Relative(_, _) =>
+      @failure.reject(
+        "invalid-operation", "Relative dates require a session calendar context",
+      )
+    Calendar(unit, value) => {
+      ignore(filter_calendar_type(unit, value))
+      if unit == "month" {
+        CalendarMonths(value, value)
+      } else {
+        CalendarMonths((value - 1) * 3 + 1, value * 3)
+      }
+    }
     Dates(groups, values~, blank~) =>
       prepare_date_filter(groups, values, blank, work)
     Rank(_, ..) | Average(..) | Color(_, ..) | ColorStyle(_, ..) =>
@@ -73,6 +87,20 @@ fn PreparedFilter::matches(
   work : FormulaWork,
 ) -> Bool raise @failure.Failure {
   match self {
+    DateInterval(start, end) =>
+      match raw {
+        Number(value) =>
+          value >= 0 &&
+          value < (if work.date1904 { 2957004 } else { 2958466 }) &&
+          value >= start &&
+          value < end
+        _ => false
+      }
+    CalendarMonths(first, last) =>
+      match raw {
+        Number(value) => filter_calendar_matches(first, last, value, work)
+        _ => false
+      }
     Color(_, ..) =>
       @failure.reject(
         "invalid-operation", "Color filtering requires an effective style",
@@ -138,6 +166,15 @@ fn PreparedFilter::matches(
 ///|
 fn FilterColumn::json(self : FilterColumn) -> Json raise @failure.Failure {
   match self.rule {
+    Relative(period, _) =>
+      { "kind": "relativeDate", "column": self.column, "period": period }
+    Calendar(unit, value) =>
+      {
+        "kind": "calendar",
+        "column": self.column,
+        "unit": unit,
+        "value": value,
+      }
     Color(value, cell_color~) =>
       {
         "kind": "color",

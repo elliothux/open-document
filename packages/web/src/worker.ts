@@ -68,15 +68,16 @@ async function dispatch(request: Request): Promise<unknown> {
         workbook.addFont(request.bytes, request.identity);
         return null;
       case "openXlsx":
-        return workbook.open(request.bytes, request.budget);
+        return workbook.open(request.bytes, request.budget, request.date);
       case "createXlsx":
-        return workbook.create(request.budget);
+        return workbook.create(request.budget, request.date);
       case "importXlsxDelimited":
         return workbook.importDelimited(
           request.bytes,
           request.delimiter,
           request.budget,
           request.options,
+          request.date,
         );
       case "exportXlsxCsv":
         return workbook.exportCsv(request.revision, request.selection);
@@ -126,6 +127,7 @@ async function dispatch(request: Request): Promise<unknown> {
           request.revision,
           request.sheet,
           request.change,
+          request.date,
         );
       case "autoFitXlsx":
         return workbook.autoFit(

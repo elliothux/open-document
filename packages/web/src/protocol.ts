@@ -208,10 +208,11 @@ export type Operation =
     }
   | { operation: "openFoundation"; wasm: ArrayBuffer }
   | { operation: "openSpreadsheet"; wasm: ArrayBuffer }
-  | { operation: "openXlsx"; bytes: Uint8Array; budget: Budget }
-  | { operation: "createXlsx"; budget: Budget }
+  | { operation: "openXlsx"; bytes: Uint8Array; budget: Budget; date: string }
+  | { operation: "createXlsx"; budget: Budget; date: string }
   | {
       operation: "importXlsxDelimited";
+      date: string;
       bytes: Uint8Array;
       delimiter: "," | "\t";
       budget: Budget;
@@ -252,6 +253,7 @@ export type Operation =
     }
   | {
       operation: "editXlsxSheet";
+      date: string;
       revision: number;
       sheet: string;
       change: XlsxSheetEdit;

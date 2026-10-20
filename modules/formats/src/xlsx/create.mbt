@@ -7,6 +7,7 @@ fn empty_worksheet() -> Bytes {
 /// Creates one empty, visible worksheet with the normal cell style and an A1 selection.
 pub fn Session::create(
   budget : @archive.Budget,
+  date~ : String? = None,
 ) -> Session raise @failure.Failure {
   let parts = Map::from_array([
     (
@@ -24,5 +25,5 @@ pub fn Session::create(
     ("xl/worksheets/sheet1.xml", empty_worksheet()),
     ("xl/styles.xml", empty_cell_styles()),
   ])
-  Session::from_package(@opc.Package::create(parts, budget), budget)
+  Session::from_package(@opc.Package::create(parts, budget), budget, date~)
 }

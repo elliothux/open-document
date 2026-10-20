@@ -3,7 +3,13 @@ import { record } from "./validation.js";
 import { checkPptxMediaInput, checkMediaPlayback } from "./pptx-media.js";
 import { pptxPlaceholder, pptxPlaceholderTypes } from "./pptx-placeholder.js";
 import { drawingMatrix } from "./drawing.js";
-import type { PptxGuide } from "./pptx-view.js";
+import {
+  checkPptxSpacing,
+  checkPptxSizeMatches,
+  type PptxGuide,
+  type PptxSpacing,
+  type PptxSizeMatch,
+} from "./pptx-view.js";
 import {
   checkPptxTableStyle,
   checkPptxTableStyleQuery,
@@ -24,6 +30,8 @@ export interface PptxPoint {
   y: number;
 }
 export interface PptxGeometry {
+  snapSize: PptxSizeMatch[];
+  snapSpacing: PptxSpacing[];
   snapLines: PptxGuide[];
   grid: { points: PptxPoint[]; cross: boolean } | null;
   layoutId: number;
@@ -200,6 +208,8 @@ export function points(value: unknown, max = 4): void {
 }
 export function checkPptxGeometry(value: unknown): void {
   const selection = record(value);
+  checkPptxSpacing(selection.snapSpacing);
+  checkPptxSizeMatches(selection.snapSize);
   if (!Array.isArray(selection.snapLines) || selection.snapLines.length > 128)
     throw new Error("Invalid PPTX alignment marks");
   for (const item of selection.snapLines) {

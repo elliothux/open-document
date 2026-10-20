@@ -10,6 +10,8 @@ pub(all) enum FilterRule {
   Custom(Array[FilterCondition], all~ : Bool)
   Rank(Int, top~ : Bool, percent~ : Bool)
   Average(above~ : Bool)
+  Calendar(String, Int)
+  Relative(String, (Double, Double)?)
   Dates(Array[String], values~ : Array[String], blank~ : Bool)
   Color(String?, cell_color~ : Bool)
   ColorStyle(Int, cell_color~ : Bool)
@@ -111,6 +113,14 @@ fn filter_settings(settings : FilterSettings) -> Range raise @failure.Failure {
         []
       }
       Average(..) => []
+      Relative(period, cache) => {
+        validate_relative_filter(period, cache)
+        []
+      }
+      Calendar(unit, value) => {
+        ignore(filter_calendar_type(unit, value))
+        []
+      }
       Dates(groups, values~, ..) => {
         guard !groups.is_empty() && groups.length() + values.length() <= 4096 else {
           @failure.reject(
@@ -309,9 +319,14 @@ fn read_filter_node(
       }
       if filters.name == "dynamicFilter" {
         filter_attributes(filters, ["type", "val", "maxVal"])
+        let kind = filters.attribute("type").unwrap_or("")
+        let calendar = read_calendar_filter(kind)
+        let relative = relative_filter_periods.contains(kind)
         guard tree.children.get(filters.id).unwrap_or([]).is_empty() &&
-          ["aboveAverage", "belowAverage"].contains(
-            filters.attribute("type").unwrap_or(""),
+          (
+            ["aboveAverage", "belowAverage"].contains(kind) ||
+            calendar is Some(_) ||
+            relative
           ) else {
           @failure.reject(
             "protected-content", "This dynamic filter requires evaluation support",
@@ -322,19 +337,50 @@ fn read_filter_node(
             let value = @string.parse_double(value[:]) catch {
               _ =>
                 @failure.reject(
-                  "protected-content", "Invalid average filter cache",
+                  "protected-content", "Invalid dynamic filter cache",
                 )
             }
             guard !value.is_nan() && !value.is_inf() else {
               @failure.reject(
-                "protected-content", "Invalid average filter cache",
+                "protected-content", "Invalid dynamic filter cache",
               )
             }
           }
         }
+        let relative_cache = if relative {
+          match (filters.attribute("val"), filters.attribute("maxVal")) {
+            (Some(start), Some(end)) => {
+              let bounds = (
+                @string.parse_double(start[:]) catch {
+                  _ => abort("Checked cache")
+                },
+                @string.parse_double(end[:]) catch {
+                  _ => abort("Checked cache")
+                },
+              )
+              guard bounds.0 < bounds.1 else {
+                @failure.reject(
+                  "protected-content", "Invalid relative date filter cache",
+                )
+              }
+              Some(bounds)
+            }
+            (None, None) => None
+            _ =>
+              @failure.reject(
+                "protected-content", "Incomplete relative date filter cache",
+              )
+          }
+        } else {
+          None
+        }
         columns.push({
           column,
-          rule: Average(above=filters.attribute("type") == Some("aboveAverage")),
+          rule: if relative {
+            Relative(kind, relative_cache)
+          } else {
+            calendar.unwrap_or(Average(above=kind == "aboveAverage"))
+          },
         })
         continue
       }

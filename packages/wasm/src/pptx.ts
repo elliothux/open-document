@@ -163,6 +163,8 @@ export type {
   PptxMasterParagraphFormat,
   PptxMasterParagraphStyle,
   PptxGuide,
+  PptxSpacing,
+  PptxSizeMatch,
   PptxGuides,
   PptxSnapSettings,
   PptxSnapping,

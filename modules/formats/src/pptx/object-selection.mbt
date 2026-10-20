@@ -163,7 +163,13 @@ fn Session::transform_collection(
     )
     .connector_bounds(original)
   ignore(self.tile_sizes(preview))
-  self.candidate = Some({ ..candidate, slide: preview, snap_lines: [], })
+  self.candidate = Some({
+    ..candidate,
+    slide: preview,
+    snap_lines: [],
+    snap_spacing: (false, false),
+    snap_size: (false, false),
+  })
   self.view = None
   self.query()
 }

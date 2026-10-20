@@ -91,6 +91,7 @@ pub fn Session::import_delimited(
   numbers~ : Bool = false,
   dates~ : Bool = false,
   formulas~ : Bool = false,
+  date~ : String? = None,
 ) -> Session raise @failure.Failure {
   guard [",", "\t"].contains(delimiter) else {
     @failure.reject(
@@ -182,7 +183,7 @@ pub fn Session::import_delimited(
       new="<sheetData>\{xml.to_string()}</sheetData>",
     )
   replacements["xl/worksheets/sheet1.xml"] = @utf8.encode(worksheet)
-  let session = Session::open(blank.opc.save(replacements), budget)
+  let session = Session::open(blank.opc.save(replacements), budget, date~)
   errdefer session.close()
   guard session.read_only == "" else {
     @failure.reject("invalid-delimited", session.read_only)

@@ -22,6 +22,15 @@ fn filter_markup(state : AutoFilterState) -> String raise @failure.Failure {
     if state.settings.columns.iter().find_first(c => c.column == index)
       is Some(column) {
       match column.rule {
+        Relative(period, cache) => {
+          let attributes = cache
+            .map(bounds => " val=\"\{bounds.0}\" maxVal=\"\{bounds.1}\"")
+            .unwrap_or("")
+          out <+ "<od:dynamicFilter type=\"\{period}\"\{attributes}/>"
+        }
+        Calendar(unit, value) =>
+          out <+
+            "<od:dynamicFilter type=\"\{filter_calendar_type(unit, value)}\"/>"
         ColorStyle(index, cell_color~) =>
           out <+
             "<od:colorFilter dxfId=\"\{index}\" cellColor=\"\{if cell_color {1} else {0}}\"/>"

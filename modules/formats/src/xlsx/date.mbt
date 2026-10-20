@@ -53,7 +53,11 @@ fn date_serial(year : Int, month : Int, day : Int, date1904 : Bool) -> Int64 {
   if !date1904 && year == 1900 && month == 2 && day == 29 {
     return 60
   }
-  let ordinal = calendar_ordinal(year, month, day)
+  serial_from_ordinal(calendar_ordinal(year, month, day), date1904)
+}
+
+///|
+fn serial_from_ordinal(ordinal : Int64, date1904 : Bool) -> Int64 {
   if date1904 {
     ordinal - calendar_ordinal(1904, 1, 1)
   } else {

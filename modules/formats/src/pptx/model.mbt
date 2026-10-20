@@ -160,6 +160,8 @@ priv struct Candidate {
   kind : String
   guide : GuideDrag?
   snap_lines : Array[Guide]
+  snap_spacing : (Bool, Bool)
+  snap_size : (Bool, Bool)
 }
 
 ///|

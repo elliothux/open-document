@@ -15,6 +15,24 @@ fn xlsx_filter_columns(
   }
   columns.map(column => {
     let rule = match field_string(column, "kind") {
+      "relativeDate" => {
+        guard column is Object(fields) &&
+          fields.keys().all(k => ["kind", "column", "period"].contains(k)) else {
+          @failure.reject(
+            "invalid-operation", "Unknown relative date filter field",
+          )
+        }
+        @xlsx.Relative(field_string(column, "period"), None)
+      }
+      "calendar" => {
+        guard column is Object(fields) &&
+          fields
+          .keys()
+          .all(k => ["kind", "column", "unit", "value"].contains(k)) else {
+          @failure.reject("invalid-operation", "Unknown calendar filter field")
+        }
+        @xlsx.Calendar(field_string(column, "unit"), field_int(column, "value"))
+      }
       "color" => {
         guard column is Object(fields) &&
           fields
@@ -119,4 +137,14 @@ fn xlsx_filter_columns(
     }
     { column: field_int(column, "column"), rule, }
   })
+}
+
+///|
+fn xlsx_calendar_date(request : Json) -> String? raise @failure.Failure {
+  match request {
+    { "date": String(value), .. } => Some(value)
+    { "date": _, .. } =>
+      @failure.reject("invalid-operation", "Invalid current calendar date")
+    _ => None
+  }
 }

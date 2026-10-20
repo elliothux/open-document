@@ -188,8 +188,16 @@ pub fn Session::edit_sheet(
   revision : Int,
   sheet : String,
   change : SheetEdit,
+  date~ : String? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  let previous_date = self.calendar_date
+  if date is Some(date) {
+    self.calendar_date = Some(filter_current_date(date))
+  }
+  defer {
+    self.calendar_date = previous_date
+  }
   match change {
     WorkbookProtection(enabled, password, salt) =>
       return self.set_workbook_protection(enabled, password, salt)
