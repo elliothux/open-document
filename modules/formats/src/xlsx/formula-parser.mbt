@@ -141,9 +141,9 @@ fn formula_tokens(
       continue
     }
     let one = String::from_array([character])
-    if ["+", "-", "*", "/", "(", ")", ",", ":", "!", "=", "<", ">"].contains(
-        one,
-      ) {
+    if [
+        "+", "-", "*", "/", "&", "^", "%", "(", ")", ",", ":", "!", "=", "<", ">",
+      ].contains(one) {
       let mut operator = one
       index += 1
       if index < text.length() &&
@@ -165,9 +165,6 @@ fn formula_tokens(
       character != '{' &&
       character != '}' &&
       character != ';' &&
-      character != '%' &&
-      character != '^' &&
-      character != '&' &&
       character != '#' else {
       @failure.reject("unsupported-formula", "Unsupported formula syntax")
     }
@@ -316,7 +313,7 @@ fn FormulaAddress::range(self : FormulaAddress, last : FormulaAddress) -> Range 
 }
 
 ///|
-fn FormulaParser::primary(
+fn FormulaParser::atom(
   self : FormulaParser,
   depth : Int,
 ) -> Expression raise @failure.Failure {
@@ -339,8 +336,8 @@ fn FormulaParser::primary(
       }
       self.reference(Some(sheet), self.reference_token())
     }
-    Operator("+") => Unary("+", self.primary(depth + 1))
-    Operator("-") => Unary("-", self.primary(depth + 1))
+    Operator("+") => Unary("+", self.atom(depth + 1))
+    Operator("-") => Unary("-", self.atom(depth + 1))
     Operator("(") => {
       let value = self.expression(1, depth + 1)
       guard self.accept(")") else {
@@ -401,6 +398,7 @@ fn FormulaParser::primary(
         }
         guard (match name {
           "IF" => args.length() == 2 || args.length() == 3
+          "HYPERLINK" => args.length() == 1 || args.length() == 2
           "IFERROR"
           | "IFNA"
           | "MOD"
@@ -457,6 +455,18 @@ fn FormulaParser::primary(
 }
 
 ///|
+fn FormulaParser::primary(
+  self : FormulaParser,
+  depth : Int,
+) -> Expression raise @failure.Failure {
+  let mut value = self.atom(depth)
+  while self.accept("%") {
+    value = Unary("%", value)
+  }
+  value
+}
+
+///|
 fn FormulaParser::expression(
   self : FormulaParser,
   minimum : Int,
@@ -466,8 +476,10 @@ fn FormulaParser::expression(
   while self.tokens[self.cursor] is Operator(operator) {
     let precedence = match operator {
       "=" | "<>" | "<" | ">" | "<=" | ">=" => 1
-      "+" | "-" => 2
-      "*" | "/" => 3
+      "&" => 2
+      "+" | "-" => 3
+      "*" | "/" => 4
+      "^" => 5
       _ => 0
     }
     if precedence < minimum {

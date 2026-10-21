@@ -109,6 +109,8 @@ fn Expression::source(
           "#REF!"
         error => raise error
       }
+    Unary("%", value) =>
+      "(" + value.source(rows~, columns~, depth=depth + 1, invalid_ref~) + ")%"
     Unary(operator, value) =>
       operator +
       "(" +

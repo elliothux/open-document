@@ -30,6 +30,7 @@ fn logical_function(
   values : Map[(Int, String), Value],
   work : FormulaWork,
   depth : Int,
+  hyperlink~ : Ref[String?]? = None,
 ) -> Value raise @failure.Failure {
   if name == "AND" || name == "OR" {
     let mut result = name == "AND"
@@ -100,14 +101,21 @@ fn logical_function(
     first.address != last.address {
     return Error("#VALUE!")
   }
-  let value = args[0].evaluate(sheets, sheet, values, work, depth + 1)
+  let value = args[0].evaluate(
+    sheets,
+    sheet,
+    values,
+    work,
+    depth + 1,
+    hyperlink=if name == "IFERROR" || name == "IFNA" { hyperlink } else { None },
+  )
   match name {
     "IFERROR" | "IFNA" => {
       let fallback = value is Error(message) &&
         (name == "IFERROR" || message == "#N/A")
       formula_result(
         if fallback {
-          args[1].evaluate(sheets, sheet, values, work, depth + 1)
+          args[1].evaluate(sheets, sheet, values, work, depth + 1, hyperlink~)
         } else {
           value
         },

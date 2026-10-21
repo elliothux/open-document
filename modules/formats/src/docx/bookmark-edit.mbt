@@ -278,6 +278,16 @@ pub fn Session::edit_bookmark(
   change : BookmarkEdit,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  let names = match change {
+    GoToBookmark(_) => []
+    CreateBookmark(name, _) | RemoveBookmark(name) => [name]
+    RenameBookmark(name, replacement) => [name, replacement]
+  }
+  guard !names.any(name => name.to_lower() == cover_bookmark.to_lower()) else {
+    @failure.reject(
+      "protected-content", "Use the cover page command to change its bookmark",
+    )
+  }
   let original = self.document()
   let tree = WordTree::new(original)
   let catalog = tree.bookmarks()
@@ -302,24 +312,7 @@ pub fn Session::edit_bookmark(
       let (candidate, steps) = self.split_bookmark_boundary(original, selection)
       document = candidate
       xml.append(steps)
-      let used : Map[String, Bool] = Map([])
-      for id in tree.order {
-        if tree.is_bookmark(id) {
-          let key = tree.nodes[id].attribute("id", uri=word_uri).unwrap_or("")
-          used[key] = true
-          let number = @string.parse_int(key) catch { _ => -1 }
-          if number >= 0 {
-            used[number.to_string()] = true
-          }
-        }
-      }
-      let key = for i in 0..<16384 {
-        if !used.contains(i.to_string()) {
-          break i.to_string()
-        }
-      } nobreak {
-        @failure.reject("limit-exceeded", "Bookmark identities exhausted")
-      }
+      let key = tree.next_bookmark_key()
       let start = "<od:bookmarkStart xmlns:od=\"\{word_uri}\" od:id=\"\{key}\" od:name=\"\{name}\"/>"
       let end = "<od:bookmarkEnd xmlns:od=\"\{word_uri}\" od:id=\"\{key}\"/>"
       if range.start.paragraph == range.end.paragraph &&

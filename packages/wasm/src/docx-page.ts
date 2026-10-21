@@ -6,6 +6,40 @@ import {
   type DocxRulerEdit,
 } from "./docx-ruler.js";
 import { record } from "./validation.js";
+
+export interface DocxCoverPage {
+  title: string;
+  subtitle: string;
+}
+export function checkDocxCoverPage(
+  value: unknown,
+): asserts value is DocxCoverPage | null {
+  if (value === null) return;
+  const cover = record(value);
+  const text = (value: unknown, max: number): value is string =>
+    typeof value === "string" &&
+    value.length <= max &&
+    value.isWellFormed() &&
+    Array.from(value).every((c) => {
+      const n = c.codePointAt(0)!;
+      return (
+        n >= 32 &&
+        n !== 127 &&
+        n !== 8232 &&
+        n !== 8233 &&
+        n !== 65534 &&
+        n !== 65535
+      );
+    });
+  if (
+    Object.keys(cover).length !== 2 ||
+    Object.keys(cover).some((key) => key !== "title" && key !== "subtitle") ||
+    !text(cover.title, 256) ||
+    !cover.title.trim() ||
+    !text(cover.subtitle, 512)
+  )
+    throw new Error("Invalid cover page title or subtitle");
+}
 import { checkDocxHyperlink } from "./docx-format.js";
 import { docxProtection, checkDocxProtection } from "./docx-protection.js";
 import { protectionSalt } from "./protection-password.js";
@@ -333,6 +367,16 @@ export class FoundationPageSession extends FoundationReviewSession {
     checkPageBackground(color);
     return editState(
       this.call({ operation: "setPageBackground", revision, color }),
+    );
+  }
+  setCoverPage(
+    revision: number,
+    cover: DocxCoverPage | null,
+    profile: Record<string, string>,
+  ) {
+    checkDocxCoverPage(cover);
+    return editState(
+      this.call({ operation: "setCoverPage", revision, cover, profile }),
     );
   }
   setPageBorders(revision: number, borders: DocxPageBorders | null) {

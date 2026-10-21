@@ -16,6 +16,7 @@ import type {
   DocxListEdit,
   DocxListLevelUpdate,
   DocxPageSetup,
+  DocxCoverPage,
   DocxPageNumbering,
   DocxColumns,
   DocxPageBorders,
@@ -238,6 +239,12 @@ export type Operation =
       profile: Record<string, string>;
     }
   | { operation: "setPageBackground"; revision: number; color: string | null }
+  | {
+      operation: "setCoverPage";
+      revision: number;
+      cover: DocxCoverPage | null;
+      profile: Record<string, string>;
+    }
   | {
       operation: "setPageBorders";
       revision: number;

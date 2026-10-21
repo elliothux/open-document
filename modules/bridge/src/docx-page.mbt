@@ -132,6 +132,23 @@ fn Foundation::docx_page(
     return session.page_setup(revision)
   }
   let result = match operation {
+    "setCoverPage" => {
+      let (title, subtitle) = match request {
+        { "cover": Null, .. } => (None, "")
+        { "cover": Object(fields) as cover, .. } if fields.length() == 2 &&
+          fields.keys().all(key => ["title", "subtitle"].contains(key)) =>
+          (Some(field_string(cover, "title")), field_string(cover, "subtitle"))
+        _ => @failure.reject("invalid-operation", "Invalid cover page fields")
+      }
+      session.set_cover_page(
+        revision,
+        title,
+        subtitle,
+        probe=self.probe,
+        profile=xlsx_profile(request),
+        images=self.images,
+      )
+    }
     "setDocumentProtection" => {
       let salt = field_string(request, "passwordSalt")
       guard salt.length() <= 32 else {

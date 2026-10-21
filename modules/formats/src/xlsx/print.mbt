@@ -10,7 +10,7 @@ fn Session::print_sheet(
 ) -> PrintedSheet raise @failure.Failure {
   let current = self.sheets[index]
   let sheet = current.id
-  let hyperlinks : Array[(Range, String)] = []
+  let mut hyperlinks : Array[(Range, String)] = []
   try {
     let tree = Tree::new(current.document)
     ignore(self.read_sheet_notes(current))
@@ -27,6 +27,11 @@ fn Session::print_sheet(
         hyperlinks.push((range, hyperlink_target(tree, node, links)))
       }
     }
+    hyperlinks = self.with_formula_hyperlinks(
+      current,
+      hyperlinks,
+      work=work.formulas,
+    )
   } catch {
     @failure.Failure(code="limit-exceeded", ..) as error => raise error
     @failure.Failure(message~, ..) =>

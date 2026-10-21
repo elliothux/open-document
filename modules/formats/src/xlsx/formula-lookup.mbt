@@ -44,6 +44,7 @@ fn lookup_function(
   calculated : Map[(Int, String), Value],
   work : FormulaWork,
   depth : Int,
+  hyperlink~ : Ref[String?]? = None,
 ) -> Value raise @failure.Failure {
   let argument = (index : Int, default : Value) => {
     match args.get(index) {
@@ -53,7 +54,19 @@ fn lookup_function(
   }
   if name == "INDEX" {
     let range = args[0].aggregate_range(sheets, sheet)
-    let scalar = if range is None { argument(0, Blank) } else { Blank }
+    let scalar_link : Ref[String?] = Ref(None)
+    let scalar = if range is None {
+      args[0].evaluate(
+        sheets,
+        sheet,
+        calculated,
+        work,
+        depth + 1,
+        hyperlink=Some(scalar_link),
+      )
+    } else {
+      Blank
+    }
     if scalar is Error(_) {
       return scalar
     }
@@ -96,6 +109,9 @@ fn lookup_function(
     let column = if column == 0 && width == 1 { 1.0 } else { column }
     if row == 0 || column == 0 {
       return Error("#VALUE!")
+    }
+    if range is None && hyperlink is Some(hyperlink) {
+      hyperlink.val = scalar_link.val
     }
     return formula_result(
       if range is Some(range) {
@@ -204,7 +220,20 @@ fn lookup_function(
     Failed(error) => Error(error)
     Missing =>
       if name == "XLOOKUP" && !(args.get(3) is Some(Constant(Blank))) {
-        formula_result(argument(3, Error("#N/A")))
+        formula_result(
+          match args.get(3) {
+            Some(arg) =>
+              arg.evaluate(
+                sheets,
+                sheet,
+                calculated,
+                work,
+                depth + 1,
+                hyperlink~,
+              )
+            None => Error("#N/A")
+          },
+        )
       } else {
         Error("#N/A")
       }

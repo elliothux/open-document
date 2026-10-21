@@ -143,7 +143,7 @@ fn Session::hyperlink_at(
   let nodes = hyperlink_nodes(tree)
   let anchor : Address = { row: target.top, column: target.left, }
   let mut value : String? = None
-  let picked : Array[(Range, String)] = []
+  let mut picked : Array[(Range, String)] = []
   for node in nodes {
     let range = Range::parse(node.attribute("ref").unwrap_or(""))
     if !range.intersects(target) {
@@ -156,6 +156,9 @@ fn Session::hyperlink_at(
     }
     let text = hyperlink_target(tree, node, links)
     picked.push((range, text))
+  }
+  picked = self.with_formula_hyperlinks(sheet, picked, target~)
+  for (range, text) in picked {
     if range.contains(anchor) {
       value = Some(text)
     }
@@ -240,6 +243,9 @@ fn Session::hyperlink_reason(
   }
   if sheet.merges.any(m => m.intersects(range) && !range.covers(m)) {
     return "Hyperlink range must contain each intersected merged cell"
+  }
+  if self.formula_hyperlink_owner(sheet, range) {
+    return "Edit HYPERLINK through the cell formula"
   }
   ""
 }

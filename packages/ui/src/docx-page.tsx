@@ -1,6 +1,7 @@
 import { DocxRunning } from "./docx-running.js";
 import { DocxBodyField } from "./docx-body-field.js";
 import { DocxProtection } from "./docx-protection.js";
+import { DocxCover } from "./docx-cover.js";
 import { useState } from "react";
 import type { DocumentEditor } from "@open-document/web/editor";
 import type {
@@ -117,6 +118,12 @@ export function DocxPage({
         disabled={disabled}
       />
       <DocxBodyField
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
+      <DocxCover
         controller={controller}
         state={state}
         editor={editor}

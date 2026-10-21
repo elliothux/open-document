@@ -291,7 +291,6 @@ function XlsxHyperlink({ controller, state, editor, disabled }: Props) {
     () => setAddress(link.target ?? ""),
     [editor, link.target, link.mixed],
   );
-  disabled ||= !!link.readOnlyReason;
   return (
     <section aria-label={t.cellHyperlink}>
       <form
@@ -307,7 +306,7 @@ function XlsxHyperlink({ controller, state, editor, disabled }: Props) {
           });
         }}
       >
-        <fieldset disabled={disabled}>
+        <fieldset disabled={disabled || !!link.readOnlyReason}>
           <legend>{t.cellHyperlink}</legend>
           <label>
             {t.hyperlinkAddress}

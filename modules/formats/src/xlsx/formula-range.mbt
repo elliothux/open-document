@@ -5,6 +5,36 @@ priv struct FormulaRange {
 }
 
 ///|
+fn Expression::scalar_argument(
+  self : Expression,
+  sheets : Array[Sheet],
+  sheet : Int,
+  values : Map[(Int, String), Value],
+  work : FormulaWork,
+  depth : Int,
+) -> Value raise @failure.Failure {
+  guard self.aggregate_range(sheets, sheet) is Some(range) else {
+    return self.evaluate(sheets, sheet, values, work, depth)
+  }
+  work.spend()
+  let bounds = range.bounds
+  let address = if bounds.top == bounds.bottom && bounds.left == bounds.right {
+    Address::{ row: bounds.top, column: bounds.left, }
+  } else if bounds.left == bounds.right &&
+    work.origin.row >= bounds.top &&
+    work.origin.row <= bounds.bottom {
+    Address::{ row: work.origin.row, column: bounds.left, }
+  } else if bounds.top == bounds.bottom &&
+    work.origin.column >= bounds.left &&
+    work.origin.column <= bounds.right {
+    Address::{ row: bounds.top, column: work.origin.column, }
+  } else {
+    return Error("#VALUE!")
+  }
+  calculated_cell(sheets, values, range.sheet, address)
+}
+
+///|
 fn Expression::aggregate_range(
   self : Expression,
   sheets : Array[Sheet],

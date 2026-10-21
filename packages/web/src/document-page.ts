@@ -8,6 +8,7 @@ import type { DocxColumns } from "@open-document/wasm/foundation";
 import type { EditorOutput } from "./editor-state.js";
 import type {
   DocxRunningKind,
+  DocxCoverPage,
   DocxRunningVariant,
   DocxRunningContent,
   DocxBodyField,
@@ -254,6 +255,15 @@ export abstract class DocumentPage extends DocumentReview {
       this.review.client.setPageBackground(
         this.review.snapshot().revision,
         color,
+      ),
+    );
+  }
+  setCoverPage(cover: DocxCoverPage | null): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.setCoverPage(
+        this.review.snapshot().revision,
+        cover,
+        this.profile,
       ),
     );
   }

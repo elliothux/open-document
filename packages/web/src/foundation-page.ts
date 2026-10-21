@@ -7,6 +7,8 @@ import {
 } from "@open-document/wasm/foundation";
 import {
   checkPageSetup,
+  checkDocxCoverPage,
+  type DocxCoverPage,
   checkPageBackground,
   checkPageBorders,
   checkPageNumbering,
@@ -214,6 +216,21 @@ export class FoundationPageClient extends FoundationReviewClient {
         operation: "setPageBackground",
         revision,
         color,
+      }),
+    );
+  }
+  async setCoverPage(
+    revision: number,
+    cover: DocxCoverPage | null,
+    profile: Record<string, string>,
+  ) {
+    checkDocxCoverPage(cover);
+    return editState(
+      await this.connection.request({
+        operation: "setCoverPage",
+        revision,
+        cover,
+        profile,
       }),
     );
   }

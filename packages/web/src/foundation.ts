@@ -5,6 +5,7 @@ import { prepareDocxFragmentImages } from "./document-fragment-images.js";
 export { checkDocxComment } from "@open-document/wasm/foundation";
 export type {
   DocxRunningArea,
+  DocxCoverPage,
   DocxRunningKind,
   DocxRunningVariant,
   DocxRunningContent,

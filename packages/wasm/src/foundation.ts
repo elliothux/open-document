@@ -10,6 +10,8 @@ export {
   checkRunningKind,
   checkRunningVariant,
   checkRunningOptions,
+  checkDocxCoverPage,
+  type DocxCoverPage,
   docxRunningArea,
   type DocxRunningArea,
   type DocxRunningContent,

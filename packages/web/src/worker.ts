@@ -451,6 +451,12 @@ async function dispatch(request: Request): Promise<unknown> {
           );
         case "setPageBackground":
           return foundation.setPageBackground(request.revision, request.color);
+        case "setCoverPage":
+          return foundation.setCoverPage(
+            request.revision,
+            request.cover,
+            request.profile,
+          );
         case "setPageBorders":
           return foundation.setPageBorders(request.revision, request.borders);
         case "docxPictures":

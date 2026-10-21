@@ -1,4 +1,9 @@
 export const pageEn = {
+  coverPage: "Cover page",
+  coverTitle: "Cover title",
+  coverSubtitle: "Cover subtitle",
+  applyCover: "Insert or replace cover",
+  removeCover: "Remove cover",
   bodyPageField: "Body page field",
   pageReference: "Bookmark page reference",
   pageReferenceTarget: "Page reference bookmark",
@@ -40,6 +45,11 @@ export const pageEn = {
   inheritedPageNumberFormat: "Use section format",
 };
 export const pageZh = {
+  coverPage: "封面",
+  coverTitle: "封面标题",
+  coverSubtitle: "封面副标题",
+  applyCover: "插入或替换封面",
+  removeCover: "移除封面",
   bodyPageField: "正文页码域",
   pageReference: "书签页码引用",
   pageReferenceTarget: "页码引用目标书签",

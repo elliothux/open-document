@@ -213,6 +213,7 @@ pub fn Session::select(Self, Int, Selection) -> Json raise @failure.Failure
 pub fn Session::selected_text(Self, Int, Selection, cut? : Bool, layout? : @layout.Layout) -> String raise @failure.Failure
 pub fn Session::selection_rects(Self, @layout.Layout, Selection) -> Array[@layout.SelectionRect] raise @failure.Failure
 pub fn Session::set_character_format(Self, Int, Selection, CharacterFormat) -> Json raise @failure.Failure
+pub fn Session::set_cover_page(Self, Int, String?, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_default_tab_stop(Self, Int, Double?) -> Json raise @failure.Failure
 pub fn Session::set_document_protection(Self, Int, Bool, String, Bytes) -> Json raise @failure.Failure
 pub fn Session::set_drawing_anchor(Self, Int, Int, @layout.DrawingAnchor?, target? : Position, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure

@@ -9,6 +9,29 @@ priv struct Bookmark {
 }
 
 ///|
+fn WordTree::next_bookmark_key(
+  self : WordTree,
+) -> String raise @failure.Failure {
+  let used : Map[String, Bool] = Map([])
+  for id in self.order {
+    if self.is_bookmark(id) {
+      let key = self.nodes[id].attribute("id", uri=word_uri).unwrap_or("")
+      used[key] = true
+      let number = @string.parse_int(key) catch { _ => -1 }
+      if number >= 0 {
+        used[number.to_string()] = true
+      }
+    }
+  }
+  for i in 0..<16384 {
+    if !used.contains(i.to_string()) {
+      return i.to_string()
+    }
+  }
+  @failure.reject("limit-exceeded", "Bookmark identities exhausted")
+}
+
+///|
 fn check_bookmark_name(name : String) -> Unit raise @failure.Failure {
   guard !name.is_empty() &&
     name.length() <= 40 &&

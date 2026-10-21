@@ -32,6 +32,7 @@ priv struct Calculation {
   expressions : Map[(Int, String), Expression]
   dependencies : Map[(Int, String), Array[Dependency]]
   values : Map[(Int, String), Value]
+  hyperlinks : Map[(Int, String), String?]
   order : Array[(Int, String)]
 }
 
@@ -58,6 +59,7 @@ fn Expression::dependencies(
   work : FormulaWork,
   output : Array[Dependency],
   depth : Int,
+  hyperlink~ : Ref[Bool]? = None,
 ) -> Unit raise @failure.Failure {
   work.spend()
   guard depth <= 64 && output.length() < 4096 else {
@@ -69,7 +71,7 @@ fn Expression::dependencies(
     Named(_, _) | Structured(_, _) =>
       self
       .resolve_names(sheets, current, work.origin, work)
-      .dependencies(sheets, current, work, output, depth + 1)
+      .dependencies(sheets, current, work, output, depth + 1, hyperlink~)
     Constant(_) => ()
     Reference(name, first, last) => {
       let last = last.unwrap_or(first)
@@ -79,12 +81,15 @@ fn Expression::dependencies(
       })
     }
     Unary(_, value) =>
-      value.dependencies(sheets, current, work, output, depth + 1)
+      value.dependencies(sheets, current, work, output, depth + 1, hyperlink~)
     Binary(_, left, right) => {
-      left.dependencies(sheets, current, work, output, depth + 1)
-      right.dependencies(sheets, current, work, output, depth + 1)
+      left.dependencies(sheets, current, work, output, depth + 1, hyperlink~)
+      right.dependencies(sheets, current, work, output, depth + 1, hyperlink~)
     }
     Function(name, args) => {
+      if name == "HYPERLINK" && hyperlink is Some(hyperlink) {
+        hyperlink.val = true
+      }
       if ![
           "SUM", "AVERAGE", "MIN", "MAX", "COUNT", "IF", "AND", "OR", "NOT", "IFERROR",
           "IFNA", "ISBLANK", "ISNUMBER", "ISTEXT", "ABS", "INT", "MOD", "ROUND",
@@ -96,7 +101,7 @@ fn Expression::dependencies(
           "XLOOKUP", "ROW", "COLUMN", "ROWS", "COLUMNS", "SUBTOTAL", "SQRT", "POWER",
           "PRODUCT", "MEDIAN", "SUMSQ", "DEVSQ", "VAR", "VAR.S", "VARP", "VAR.P",
           "STDEV", "STDEV.S", "STDEVP", "STDEV.P", "MODE", "MODE.SNGL", "LARGE",
-          "SMALL", "SUMPRODUCT",
+          "SMALL", "SUMPRODUCT", "HYPERLINK",
         ].contains(name) {
         @failure.reject("unsupported-formula", "Unsupported function: " + name)
       }
@@ -120,7 +125,7 @@ fn Expression::dependencies(
           output.push({ sheet: target.sheet, range: target.bounds, })
           continue
         }
-        arg.dependencies(sheets, current, work, output, depth + 1)
+        arg.dependencies(sheets, current, work, output, depth + 1, hyperlink~)
       }
     }
   }
@@ -194,6 +199,7 @@ fn Calculation::build(
     expressions: Map([]),
     dependencies: Map([]),
     values: Map([]),
+    hyperlinks: Map([]),
     order: [],
   }
   let work = FormulaWork::{
@@ -226,7 +232,18 @@ fn Calculation::build(
           )
         }
         let dependencies : Array[Dependency] = []
-        expression.dependencies(sheets, index, work, dependencies, 0)
+        let hyperlink = Ref(false)
+        expression.dependencies(
+          sheets,
+          index,
+          work,
+          dependencies,
+          0,
+          hyperlink=Some(hyperlink),
+        )
+        if hyperlink.val {
+          calculation.hyperlinks[key] = None
+        }
         references += dependencies.length()
         guard references <= 32768 else {
           @failure.reject(
@@ -249,6 +266,7 @@ fn Calculation::build(
     calculation.visit(key, formulas, marks, work, 0)
   }
   let invalid = changed.copy()
+  let mut link_units = 0
   for key in calculation.order {
     work.origin = Address::parse(key.1)
     let affected = calculation.dependencies[key].any(dependency => {
@@ -261,10 +279,12 @@ fn Calculation::build(
         work.spend()
         item.0 == key.0 && item.1.contains(Address::parse(key.1))
       })
+    let hyperlink : Ref[String?] = Ref(None)
     let value = if previous is Some(previous) &&
       !affected &&
       previous.sources.get(key) == calculation.sources.get(key) &&
       previous.values.get(key) is Some(value) {
+      hyperlink.val = previous.hyperlinks.get(key).bind(value => value)
       value
     } else {
       calculation.expressions[key].evaluate(
@@ -273,9 +293,20 @@ fn Calculation::build(
         calculation.values,
         work,
         0,
+        hyperlink=Some(hyperlink),
       )
     }
     calculation.values[key] = formula_result(value)
+    if calculation.hyperlinks.contains(key) {
+      let target = if value is Error(_) { None } else { hyperlink.val }
+      link_units += target.map(t => t.length()).unwrap_or(0)
+      guard link_units <= 1048576 else {
+        @failure.reject(
+          "limit-exceeded", "Formula hyperlink targets exceed the text budget",
+        )
+      }
+      calculation.hyperlinks[key] = target
+    }
     if affected {
       let address = Address::parse(key.1)
       invalid.push(

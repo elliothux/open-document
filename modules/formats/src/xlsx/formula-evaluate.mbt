@@ -83,7 +83,11 @@ fn Expression::evaluate(
   values : Map[(Int, String), Value],
   work : FormulaWork,
   depth : Int,
+  hyperlink~ : Ref[String?]? = None,
 ) -> Value raise @failure.Failure {
+  if hyperlink is Some(hyperlink) {
+    hyperlink.val = None
+  }
   work.spend()
   guard depth <= 64 else {
     @failure.reject("limit-exceeded", "Formula evaluation depth exceeded")
@@ -92,7 +96,7 @@ fn Expression::evaluate(
     Named(_, _) | Structured(_, _) =>
       self
       .resolve_names(sheets, sheet, work.origin, work)
-      .evaluate(sheets, sheet, values, work, depth + 1)
+      .evaluate(sheets, sheet, values, work, depth + 1, hyperlink~)
     Constant(value) => value
     Reference(name, first, last) => {
       if last is Some(last) && last.address != first.address {
@@ -105,6 +109,14 @@ fn Expression::evaluate(
         first.address,
       )
     }
+    Unary("%", expression) =>
+      match
+        numeric_value(
+          expression.scalar_argument(sheets, sheet, values, work, depth + 1),
+        ) {
+        Number(value) => finite_result(value / 100)
+        value => value
+      }
     Unary(operator, expression) =>
       match
         numeric_value(
@@ -114,6 +126,24 @@ fn Expression::evaluate(
           finite_result(if operator == "-" { -value } else { value })
         value => value
       }
+    Binary("^", a, b) =>
+      numeric_function("POWER", [a, b], sheets, sheet, values, work, depth)
+    Binary("&", a, b) => {
+      let left = a.scalar_argument(sheets, sheet, values, work, depth + 1)
+      if left is Error(_) {
+        return left
+      }
+      let right = b.scalar_argument(sheets, sheet, values, work, depth + 1)
+      if right is Error(_) {
+        return right
+      }
+      let text = FormulaText::new()
+      if !text.append(left.display(), work) ||
+        !text.append(right.display(), work) {
+        return Error("#VALUE!")
+      }
+      Text(text.output.to_string())
+    }
     Binary(operator, a, b) => {
       let left = a.evaluate(sheets, sheet, values, work, depth + 1)
       if left is Error(_) {
@@ -164,15 +194,55 @@ fn Expression::evaluate(
             return Boolean(false)
           }
           formula_result(
-            expression.evaluate(sheets, sheet, values, work, depth + 1),
+            expression.evaluate(
+              sheets,
+              sheet,
+              values,
+              work,
+              depth + 1,
+              hyperlink~,
+            ),
           )
         }
         _ => Error("#VALUE!")
       }
+    Function("HYPERLINK", args) => {
+      let target = args[0].scalar_argument(
+        sheets,
+        sheet,
+        values,
+        work,
+        depth + 1,
+      )
+      let friendly = args
+        .get(1)
+        .map(arg => arg.scalar_argument(sheets, sheet, values, work, depth + 1))
+      if target is Error(_) {
+        return target
+      }
+      if friendly is Some(Error(_) as error) {
+        return error
+      }
+      let target = target.display()
+      work.spend(amount=target.length())
+      if hyperlink is Some(hyperlink) && !target.is_empty() {
+        hyperlink.val = Some(target)
+      }
+      friendly.map(formula_result).unwrap_or(Text(target))
+    }
     Function(name, args) if [
         "AND", "OR", "NOT", "IFERROR", "IFNA", "ISBLANK", "ISNUMBER", "ISTEXT",
       ].contains(name) =>
-      logical_function(name, args, sheets, sheet, values, work, depth)
+      logical_function(
+        name,
+        args,
+        sheets,
+        sheet,
+        values,
+        work,
+        depth,
+        hyperlink~,
+      )
     Function(name, args) if [
         "DATE", "YEAR", "MONTH", "DAY", "TIME", "HOUR", "MINUTE", "SECOND", "DAYS",
       ].contains(name) =>
@@ -190,7 +260,17 @@ fn Expression::evaluate(
       position_function(name, args, sheets, sheet, work)
     Function(name, args) if ["INDEX", "MATCH", "VLOOKUP", "HLOOKUP", "XLOOKUP"].contains(
         name,
-      ) => lookup_function(name, args, sheets, sheet, values, work, depth)
+      ) =>
+      lookup_function(
+        name,
+        args,
+        sheets,
+        sheet,
+        values,
+        work,
+        depth,
+        hyperlink~,
+      )
     Function("SUBTOTAL", args) =>
       subtotal_function(args, sheets, sheet, values, work, depth)
     Function("SUMSQ", args) =>
