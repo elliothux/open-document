@@ -13,11 +13,27 @@ fn Session::editable_picture(
   replace~ : Bool = false,
   position~ : Bool = false,
 ) -> (PictureFrame, Int, Int, Int?) raise @failure.Failure {
+  let paragraph = self.drawing_paragraph(tree, id)
+  let image = self.image_frame(tree, id) catch {
+    @failure.Failure(code="unsupported-layout", message~, ..) =>
+      @failure.reject("protected-content", message)
+    error => raise error
+  }
+  let (fill, crop) = tree.picture_content(id, remove~, replace~, position~)
+  (image, paragraph, fill, crop)
+}
+
+///|
+fn Session::drawing_paragraph(
+  self : Session,
+  tree : WordTree,
+  id : Int,
+) -> Int raise @failure.Failure {
   self.check_picture_context(tree)
   guard tree.nodes.get(id) is Some(node) &&
     node.uri == word_uri &&
     node.name == "drawing" else {
-    @failure.reject("invalid-operation", "Unknown picture")
+    @failure.reject("invalid-operation", "Unknown drawing")
   }
   let run = tree.nodes
     .get(node.parent)
@@ -51,11 +67,17 @@ fn Session::editable_picture(
       )
     }
   }
-  let image = self.image_frame(tree, id) catch {
-    @failure.Failure(code="unsupported-layout", message~, ..) =>
-      @failure.reject("protected-content", message)
-    error => raise error
-  }
+  paragraph.id
+}
+
+///|
+fn WordTree::picture_content(
+  tree : WordTree,
+  id : Int,
+  remove~ : Bool,
+  replace~ : Bool,
+  position~ : Bool,
+) -> (Int, Int?) raise @failure.Failure {
   let extents : Array[Int] = []
   let fills : Array[Int] = []
   let crops : Array[Int] = []
@@ -154,7 +176,7 @@ fn Session::editable_picture(
   if remove {
     tree.check_picture_references(id)
   }
-  (image, paragraph.id, fills[0], crops.get(0))
+  (fills[0], crops.get(0))
 }
 
 ///|

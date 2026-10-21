@@ -16,7 +16,7 @@ fn WordTree::split_input(
     )
   }
   if insertion is Some(id) && self.nodes[id].name == "drawing" {
-    return self.split_picture_input(
+    return self.split_drawing_input(
       document, paragraph, id, offset, parts, tail, source_limit,
     )
   }

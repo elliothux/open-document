@@ -82,7 +82,7 @@ fn Session::editable_texts(
     pictures=true,
     fields=true,
   )
-  self.check_native_pictures(tree, paragraph)
+  self.check_native_drawings(tree, paragraph)
   self.texts.filter(node => node.paragraph == paragraph)
 }
 
@@ -216,7 +216,7 @@ fn Session::check_position_in(
     pictures=true,
     fields=true,
   )
-  self.check_native_pictures(tree, position.paragraph)
+  self.check_native_drawings(tree, position.paragraph)
   let nodes = tree.nodes
   let texts = docx_texts(tree).filter(node => {
     node.paragraph == position.paragraph
@@ -354,7 +354,7 @@ fn Session::prepare_plain_range(
   let start = anchor.offset.min(focus.offset)
   let end = anchor.offset.max(focus.offset)
   if content[start:end] == text &&
-    !tree.has_picture_range(texts, start, end, fields=true) {
+    !tree.has_drawing_range(texts, start, end, fields=true) {
     return None
   }
   if texts.is_empty() {

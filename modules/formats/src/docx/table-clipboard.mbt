@@ -125,7 +125,7 @@ pub fn Session::table_clipboard(
             )
           }
           if tree.nodes[id].name == "drawing" {
-            ignore(self.editable_picture(tree, id, remove=true))
+            self.check_drawing_text(tree, id, remove=true)
           }
         }
       }

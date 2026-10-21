@@ -177,6 +177,7 @@ pub fn Session::paste_body_fragment(
     focus = merged.edit.after.unwrap().focus
   }
   let view = { ..self, document: Some(candidate), parts, media, }
+  WordTree::new(candidate).check_drawing_budget()
   let flow = view.flow_from(candidate)
   let layout = @layout.paginate(
     probe,

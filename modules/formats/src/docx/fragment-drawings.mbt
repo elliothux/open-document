@@ -1,0 +1,149 @@
+///|
+fn WordTree::check_fragment_shape(
+  self : WordTree,
+  drawing : Int,
+) -> Unit raise @failure.Failure {
+  let root = self.nodes[drawing]
+  guard root.uri == word_uri &&
+    root.name == "drawing" &&
+    root.attributes.is_empty() &&
+    self.nodes[root.parent].name == "r" else {
+    @failure.reject(
+      "protected-content", "Rich shapes require ordinary inline drawings",
+    )
+  }
+  let (frame, data) = self.drawing_data(drawing)
+  guard frame.name == "inline" && data.attribute("uri") == Some(word_shape_uri) else {
+    @failure.reject(
+      "protected-content", "Rich shapes require an inline WordprocessingShape",
+    )
+  }
+  ignore(self.read_basic_shape(drawing, data.id)) catch {
+    @failure.Failure(code="unsupported-layout", message~, ..) =>
+      @failure.reject("protected-content", message)
+    error => raise error
+  }
+  for id in self.descendants(drawing) {
+    let node = self.nodes[id]
+    let attributes = match node.name {
+      "drawing"
+      | "graphic"
+      | "wsp"
+      | "spPr"
+      | "solidFill"
+      | "noFill"
+      | "avLst"
+      | "cNvGraphicFramePr"
+      | "noAutofit"
+      | "spAutoFit" => []
+      "inline" => ["distT", "distB", "distL", "distR"]
+      "extent" | "ext" => ["cx", "cy"]
+      "effectExtent" => ["l", "t", "r", "b"]
+      "docPr" | "cNvPr" => ["id", "name", "descr", "title", "hidden"]
+      "graphicData" => ["uri"]
+      "cNvSpPr" => ["txBox"]
+      "spLocks" | "graphicFrameLocks" =>
+        [
+          "noGrp", "noSelect", "noRot", "noChangeAspect", "noMove", "noResize", "noEditPoints",
+          "noAdjustHandles", "noChangeArrowheads", "noChangeShapeType", "noTextEdit",
+          "noDelete", "noChangeWrap", "noDrilldown", "noCopy",
+        ]
+      "bodyPr" => ["rot"]
+      "xfrm" => ["rot", "flipH", "flipV"]
+      "off" => ["x", "y"]
+      "prstGeom" | "prstTxWarp" => ["prst"]
+      "srgbClr" | "prstDash" => ["val"]
+      "ln" => ["w"]
+      "normAutofit" => ["fontScale", "lnSpcReduction"]
+      _ => @failure.reject("protected-content", "Unknown rich shape content")
+    }
+    guard [word_uri, word_shape_uri, picture_inline_uri, picture_drawing_uri].contains(
+        node.uri,
+      ) &&
+      node.attributes.all(a => a.uri.is_empty() && attributes.contains(a.name)) &&
+      (node.name != "bodyPr" || node.attribute("rot").unwrap_or("0") == "0") else {
+      @failure.reject(
+        "protected-content", "Shape clipboard metadata requires support",
+      )
+    }
+    if ["docPr", "cNvPr"].contains(node.name) {
+      let identity = @string.parse_int64(node.attribute("id").unwrap_or("")[:]) catch {
+        _ =>
+          @failure.reject("protected-content", "Invalid copied shape identity")
+      }
+      guard identity >= 0 && identity <= 4294967295L else {
+        @failure.reject(
+          "protected-content", "Copied shape identity exceeds native range",
+        )
+      }
+    }
+  }
+  guard !self.shape_locked(drawing, "noCopy") else {
+    @failure.reject("protected-content", "Shape copying is locked")
+  }
+}
+
+///|
+fn Session::fragment_drawing(
+  self : Session,
+  tree : WordTree,
+  id : Int,
+  limit : Int,
+) -> String raise @failure.Failure {
+  if tree.drawing_data(id).1.attribute("uri") != Some(word_shape_uri) {
+    return self.fragment_picture(tree, id, limit)
+  }
+  tree.check_fragment_shape(id)
+  ignore(self.editable_shape(tree, id))
+  guard tree.nodes[id].end - tree.nodes[id].start <= limit else {
+    @failure.reject("limit-exceeded", "Rich shape exceeds clipboard budget")
+  }
+  let markup = tree.standalone_markup(self.document(), id)
+  guard markup.length() <= limit else {
+    @failure.reject(
+      "limit-exceeded", "Rich shape namespaces exceed clipboard budget",
+    )
+  }
+  markup
+}
+
+///|
+fn WordTree::remap_fragment_drawing_identity(
+  self : WordTree,
+  drawing : Int,
+  identity : String,
+  changes : Array[@xml.SourceChange],
+) -> Unit raise @failure.Failure {
+  for id in self.descendants(drawing) {
+    let node = self.nodes[id]
+    if ["docPr", "cNvPr"].contains(node.name) {
+      guard node.attribute("id") is Some(_) else {
+        @failure.reject("protected-content", "Missing copied drawing identity")
+      }
+      for attr in node.attributes {
+        if attr.name == "id" && attr.uri.is_empty() {
+          changes.push({
+            node: id,
+            offset: attr.start - node.start,
+            length: attr.end - attr.start,
+            xml: identity,
+          })
+        }
+      }
+    }
+  }
+}
+
+///|
+fn WordTree::check_drawing_budget(
+  self : WordTree,
+) -> Unit raise @failure.Failure {
+  guard self.order
+    .filter(id => {
+      self.nodes[id].uri == word_uri && self.nodes[id].name == "drawing"
+    })
+    .length() <=
+    256 else {
+    @failure.reject("limit-exceeded", "Document drawings exceed 256")
+  }
+}

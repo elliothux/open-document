@@ -367,13 +367,9 @@ fn Session::paragraph(
       document_diagnostics.push(message)
     }
   }
-  let picture_reason = if spans.any(span => {
-      span.drawing is Some({ content: @layout.Shape(_), .. })
-    }) {
-    "Shape editing requires drawing commands"
-  } else if spans.any(span => span.drawing is Some(_)) {
+  let picture_reason = if spans.any(span => span.drawing is Some(_)) {
     try {
-      self.check_native_pictures(tree, id)
+      self.check_native_drawings(tree, id)
       paragraph.readOnlyReason
     } catch {
       @failure.Failure(message~, ..) => message

@@ -412,7 +412,7 @@ fn Session::capture_table_fragment(
       if start >= left && start < right {
         for id in tree.descendants(cell) {
           if tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing" {
-            pictures[id] = self.fragment_picture(tree, id, limit)
+            pictures[id] = self.fragment_drawing(tree, id, limit)
           }
         }
       }

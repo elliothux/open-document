@@ -7,6 +7,9 @@ import {
 import type { PageLayout } from "@open-document/wasm/preview";
 import {
   docxRevisions,
+  docxShapes,
+  checkDocxShapeEdit,
+  type DocxShapeEdit,
   checkDocxRevisionEdit,
   type DocxRevisions,
   type DocxRevisionEdit,
@@ -36,6 +39,26 @@ export interface DocumentRevisions extends DocxRevisions {
 /** Review calls retain the same Worker protocol and validation as other document commands. */
 export class FoundationReviewClient {
   constructor(protected readonly connection: Connection) {}
+  async shapes(revision: number) {
+    return docxShapes(
+      await this.connection.request({ operation: "docxShapes", revision }),
+    );
+  }
+  async editShape(
+    revision: number,
+    shape: DocxShapeEdit,
+    profile: Record<string, string> = {},
+  ): Promise<EditState> {
+    checkDocxShapeEdit(shape);
+    return editState(
+      await this.connection.request({
+        operation: "editDocxShape",
+        revision,
+        shape,
+        profile,
+      }),
+    );
+  }
   async revisionGeometry(
     revision: number,
     layoutId: number,

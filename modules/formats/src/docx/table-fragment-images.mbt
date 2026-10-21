@@ -104,7 +104,7 @@ fn Session::fragment_picture(
 }
 
 ///|
-fn Session::import_fragment_images(
+fn Session::import_fragment_drawings(
   self : Session,
   document : @xml.Document,
   parts : Map[String, @xml.Document],
@@ -118,18 +118,24 @@ fn Session::import_fragment_images(
     tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing"
   })
   guard drawings.length() <= 256 else {
-    @failure.reject("limit-exceeded", "Rich pictures exceed 256")
+    @failure.reject("limit-exceeded", "Rich drawings exceed 256")
   }
   if drawings.is_empty() {
     return (document, Map([]))
   }
-  let identities = self.picture_identities()
+  let identities = self.drawing_identities()
   let changes : Array[@xml.SourceChange] = []
   let resources : Map[String, String] = Map([])
   let mut next = 1
   let mut bytes_count = 0
   for drawing in drawings {
-    tree.check_fragment_picture(drawing)
+    let shape = tree.drawing_data(drawing).1.attribute("uri") ==
+      Some(word_shape_uri)
+    if shape {
+      tree.check_fragment_shape(drawing)
+    } else {
+      tree.check_fragment_picture(drawing)
+    }
     while identities.contains(next.to_string()) {
       next += 1
     }
@@ -139,6 +145,10 @@ fn Session::import_fragment_images(
     let id = next.to_string()
     identities[id] = true
     next += 1
+    tree.remap_fragment_drawing_identity(drawing, id, changes)
+    if shape {
+      continue
+    }
     let blips = tree
       .descendants(drawing)
       .filter(id => tree.nodes[id].name == "blip")
@@ -194,20 +204,6 @@ fn Session::import_fragment_images(
           length: node.end - node.start,
           xml: "<a:blip xmlns:a=\"\{picture_drawing_uri}\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\" r:embed=\"\{link}\"/>",
         })
-      } else if ["docPr", "cNvPr"].contains(node.name) {
-        guard node.attribute("id") is Some(_) else {
-          @failure.reject("protected-content", "Missing copied image identity")
-        }
-        for attr in node.attributes {
-          if attr.name == "id" && attr.uri.is_empty() {
-            changes.push({
-              node: child,
-              offset: attr.start - node.start,
-              length: attr.end - attr.start,
-              xml: id,
-            })
-          }
-        }
       }
     }
   }
@@ -219,7 +215,7 @@ fn Session::import_fragment_images(
     drawing in tree.order.filter(id => {
       tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing"
     }) {
-    ignore(view.editable_picture(tree, drawing, replace=true))
+    view.check_drawing_text(tree, drawing)
     retained[drawing] = true
     for id in tree.descendants(drawing) {
       retained[id] = true

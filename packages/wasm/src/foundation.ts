@@ -52,6 +52,12 @@ export {
 export * from "./docx-format.js";
 export * from "./docx-ruler.js";
 export * from "./docx-picture.js";
+export * from "./docx-shape.js";
+import {
+  docxShapes,
+  checkDocxShapeEdit,
+  type DocxShapeEdit,
+} from "./docx-shape.js";
 export * from "./docx-overview.js";
 export {
   docxRevisions,
@@ -460,6 +466,19 @@ export class FoundationSession extends FoundationClipboardSession {
   }
   pictures(revision: number) {
     return docxPictures(this.call({ operation: "docxPictures", revision }));
+  }
+  shapes(revision: number) {
+    return docxShapes(this.call({ operation: "docxShapes", revision }));
+  }
+  editShape(
+    revision: number,
+    shape: DocxShapeEdit,
+    profile: Record<string, string> = {},
+  ): EditState {
+    checkDocxShapeEdit(shape);
+    return editState(
+      this.call({ operation: "editDocxShape", revision, shape, profile }),
+    );
   }
   pictureGesture(
     revision: number,

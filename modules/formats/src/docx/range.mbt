@@ -28,7 +28,7 @@ fn Session::prepare_structural_range_in(
     tables=true,
     check_graphemes~,
   )
-  self.check_picture_range(tree, range)
+  self.check_drawing_range(tree, range)
   let start = range.start
   let end = range.end
   let first = tree.nodes[start.paragraph]

@@ -14,12 +14,23 @@ import type {
   DocxBodyPageField,
   DocxSelection,
   DocxProtection,
+  DocxShapeEdit,
 } from "@open-document/wasm/foundation";
 export type DocumentBodyPageField = DocxBodyPageField & { documentId: string };
 export type DocumentProtection = DocxProtection & { documentId: string };
 
 /** Document-wide page commands use the editor's existing read and edit queues. */
 export abstract class DocumentPage extends DocumentReview {
+  shapes() {
+    return this.review.read(() =>
+      this.review.client.shapes(this.review.snapshot().revision),
+    );
+  }
+  editShape(revision: number, shape: DocxShapeEdit): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.editShape(revision, shape, this.profile),
+    );
+  }
   documentProtection(): Promise<DocumentProtection> {
     return this.review.read(async () => ({
       ...(await this.review.client.documentProtection(

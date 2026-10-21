@@ -25,6 +25,7 @@ import { DocxLists } from "./docx-lists.js";
 import { DocxPage } from "./docx-page.js";
 import { DocxTheme, DocxThemeFontsPanel } from "./docx-theme.js";
 import { DocxPictures } from "./docx-pictures.js";
+import { DocxShapes } from "./docx-shapes.js";
 import { DocxTables } from "./docx-tables.js";
 
 interface Props {
@@ -435,6 +436,13 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
         disabled={stylesDisabled}
       />
       <DocxPictures
+        key={editor.getSnapshot().documentId}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={stylesDisabled}
+      />
+      <DocxShapes
         key={editor.getSnapshot().documentId}
         controller={controller}
         state={state}

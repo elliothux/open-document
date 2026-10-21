@@ -130,7 +130,7 @@ fn Session::edit_inline_text(
     let paragraph = tree.run_paragraph(node.parent)
     tree.check_region_break_input(paragraph, text)
     if node.name == "drawing" {
-      let items = self.picture_text_changes(
+      let items = self.drawing_text_changes(
         tree,
         id,
         text,
@@ -161,7 +161,7 @@ fn Session::edit_inline_text(
       pictures=true,
       fields=true,
     )
-    self.check_native_pictures(tree, paragraph)
+    self.check_native_drawings(tree, paragraph)
     guard node.attributes
       .iter()
       .all(attribute => {

@@ -24,6 +24,7 @@ import type {
   DocxRunningContent,
   DocxPageField,
   DocxPictureEdit,
+  DocxShapeEdit,
   DocxPictureGestureCommand,
   DocxTableEdit,
   DocxThemeSlot,
@@ -154,6 +155,13 @@ export type Operation =
       profile: Record<string, string>;
     }
   | { operation: "docxPictures"; revision: number }
+  | { operation: "docxShapes"; revision: number }
+  | {
+      operation: "editDocxShape";
+      revision: number;
+      shape: DocxShapeEdit;
+      profile: Record<string, string>;
+    }
   | {
       operation: "editDocxPicture";
       revision: number;

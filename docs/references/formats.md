@@ -359,9 +359,21 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 Flow 使用 `spans[].drawing: DrawingFrame | null`。框为 `{ width, height, anchor, content }`；图片内容为 `{ kind: "picture", key, crop }`，基础图形内容为 `{ kind: "shape", preset, fill, stroke, lineWidth }`。`preset` 为 `rect/ellipse/line`，颜色为六位 RGB 或空字符串，尺寸和线宽使用 point。空颜色表示不绘制该项。共享锚点类型为 `DrawingAnchor/DrawingAxis`；原生定位结果为 `Line.drawings: PlacedDrawingFrame[]`，命中使用 `Hit.drawingStart`。图片源编辑命令、裁剪值和资源键继续表达图片本身。正文可访问文字把对象单元标为 `[drawing]`。
 
-导入图形所在段落当前保持编辑保护；其他普通段落仍可原生输入并撤销重做。保存保留原图形 XML、身份和其他部件，重开继续显示。图片目录只返回图片。图形创建、属性/几何编辑、文字框内容及对应默认控件仍待实现；主题样式、渐变、变换、箭头、复杂图形和未知扩展继续拒绝输出，保留原始源与历史。HTML/Markdown 的图形转换尚未接通。
+`DocumentEditor.shapes()` 返回 `{ revision, items }`，每项包含 `{ id, name, preset, width, height, fill, stroke, lineWidth, reason, sizeReason, deleteReason }`。同步 `FoundationSession` 与 Worker `FoundationClient` 使用 `shapes(revision)`。目录最多 256 项，节点身份仅在当前会话有效；重开后重新查询。
 
-实现归 [drawing-frame.mbt](../../modules/layout/src/drawing-frame.mbt)、[drawing.mbt](../../modules/formats/src/docx/drawing.mbt)和[shape-read.mbt](../../modules/formats/src/docx/shape-read.mbt)。轮廓复用 [basic-shape.mbt](../../modules/layout/src/basic-shape.mbt)。源结构参考 [ONLYOFFICE Shape 读取与 DOCX 写出](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Shape.cpp#L89-L168)。当前范围归 [P10](../p10-docx-core.md)。
+`editShape(revision, { action: "properties", id, width, height, fill, stroke, lineWidth })` 修改完整尺寸和画笔；`{ action: "delete", id }` 显式删除。尺寸范围为 0–14400 pt，矩形/椭圆的两轴必须正值，线允许一轴为零；线宽为 0–1584 pt，有线条颜色时必须正值。核心舍入到整数 EMU，颜色使用六位 RGB 或空字符串。同步和 Worker 客户端可传字体 profile，默认宿主沿原输入屏障与队列提交。默认图形面板提供目录选择、尺寸、填充/线条、线宽及删除；旧修订的控件需要重新读取目录。
+
+`editShape(revision, { action: "insert", preset, width, height, fill, stroke, lineWidth })` 在当前文字选择处创建行内图形。`preset` 使用 `DocxShapePreset` 的 `rect/ellipse/line`。正文、空段和普通单元格复用图片插入的源事务；受支持的跨段范围先删除并合段，再插入图形。一次实际创建只记一项历史，光标落在图形之后，继承原运行格式。图形与图片共用主文档、页眉和页脚中的未用身份，不新增媒体或关系。失败保留源、选择和历史。默认面板提供类型和尺寸，创建后选中新图形属性；初始填充为 `4472C4`，线条为黑色、1 pt，可在属性面板修改。
+
+属性事务保留对象身份、锚点、环绕、周围运行格式和非目标部件；删除只移除目标 `w:drawing`，保留共享资源和关系。每次实际修改记一项精确历史，无变化保持修订。`noResize` 只阻止尺寸变化，`noChangeAspect` 要求保持原比例，`noDelete` 和外部对象引用阻止删除；移动锁不阻止画笔修改。文档保护、修订容器、未知锁及将被覆盖的注释/处理指令保持保护。环绕重排沿原布局预检，失败保留源、选择和历史。
+
+普通无文字行内图形已随正文和完整普通/合并单元格的富文本片段复制、剪切及跨文档粘贴。默认按钮和原生快捷键沿既有片段协议执行。复制保留原生几何、画笔、名称、描述、标题及图形内的源间隙；粘贴为 `wp:docPr` 和可选 `wps:cNvPr` 分配目标中的未用身份。重复粘贴生成独立对象，源图形和目标已有身份保持。`bodyFragmentImages`、`tableFragmentImages` 的纯图形预检返回空 `images`；混合片段只解码图片，图形不创建媒体或关系。一次实际粘贴或剪切合为一项精确历史。
+
+`noCopy` 阻止图形富文本复制和剪切，`noDelete` 只阻止剪切及删除。未知绘图元数据、引用属性、外部关系及浮动图形继续保护复制；普通行内图形只携带已支持的独立属性。正文及整格粘贴在最终候选上检查图片与图形合计不超过 256 项，先扣除被替换对象，满额时仍可等量替换。格式、布局、输出或数量预算失败保留原包、选择和历史。片段校验、身份重映射及源保留归 [fragment-drawings.mbt](../../modules/formats/src/docx/fragment-drawings.mbt)，复制依据 [ONLYOFFICE Shape.copy/fillObject](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L2772-L2833)。
+
+受支持图形段落已接通前后原生/组合输入、字符格式、查找、拆段合段和范围删除。图形占一个逻辑 `U+FFFC`，输入同名字符仍是文字。保留图形源、资源和精确混合历史，删除继续检查独立锁与外部引用。普通文字光标可命中图形边界；图片命中和句柄只作用于图片。图片目录只返回图片。浮动图形的富文本剪贴板、独立对象指针选取/变换、定位修改、文字框内容及 WordArt 仍待实现；主题样式、渐变、旋转/翻转、箭头、复杂图形和未知扩展继续拒绝输出，保留原始源与历史。HTML/Markdown 的图形转换尚未接通。
+
+实现归 [drawing-frame.mbt](../../modules/layout/src/drawing-frame.mbt)、[drawing.mbt](../../modules/formats/src/docx/drawing.mbt)、[shape-read.mbt](../../modules/formats/src/docx/shape-read.mbt)、[shape-editing.mbt](../../modules/formats/src/docx/shape-editing.mbt)、[shape-insert.mbt](../../modules/formats/src/docx/shape-insert.mbt)、[共享插入事务](../../modules/formats/src/docx/drawing-insert.mbt)、[文字事务](../../modules/formats/src/docx/drawing-text.mbt)及[默认面板](../../packages/ui/src/docx-shapes.tsx)。轮廓复用 [basic-shape.mbt](../../modules/layout/src/basic-shape.mbt)。源结构参考 [ONLYOFFICE Shape 读取](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Shape.cpp#L89-L168)与 [DOCX 写出](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Shape.cpp#L238-L332)，独立锁参考 [CNvSpPr](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/CNvSpPr.cpp#L87-L122)。当前范围归 [P10](../p10-docx-core.md)。
 
 ### 行内图片尺寸与裁剪
 
@@ -625,7 +637,7 @@ Flow 使用 `spans[].drawing: DrawingFrame | null`。框为 `{ width, height, an
 
 `FoundationSession.tableFragmentImages(revision, fragment)` 和异步 `FoundationClient.tableFragmentImages` 返回 `{ revision, images: [{ key, bytes }] }`，其中 `bytes` 为 `Uint8Array`。查询在副本上校验片段及资源，不改源包、选择和历史。同步宿主须先解码并用 `addImage` 注册 RGBA；Web `editTable` 自动完成解码和注册，再提交核心事务。解码失败保留原文档，沿编辑器既有 `resume()` 路径恢复。
 
-`editTable({ action: "pasteFragment", fragment })` 从当前主格写入片段矩形。它可替换完全覆盖的目标合并，并补足底部行和右侧列；部分覆盖合并整体拒绝。列宽、行高和表属性沿目标网格，格宽按目标跨度更新。未改格、格间注释和其他部件保留，写入、扩展、选择与精确撤销合为一项历史；不含资源身份时，相同源片段无操作；列表和图片片段每次分配独立身份。
+`editTable({ action: "pasteFragment", fragment })` 从当前主格写入片段矩形。它可替换完全覆盖的目标合并，并补足底部行和右侧列；部分覆盖合并整体拒绝。列宽、行高和表属性沿目标网格，格宽按目标跨度更新。未改格、格间注释和其他部件保留，写入、扩展、选择与精确撤销合为一项历史；不含资源身份时，相同源片段无操作；列表、图片和基础图形片段每次分配独立身份。
 
 简单 `PAGE`、`NUMPAGES` 域可随整格、跨格矩形及完整合并格转移。TSV 使用当前布局的实际值，富文本保留原生指令、显式编号格式和解析后的字符格式。布局要求及缓存规则复用[正文域片段](#正文富文本片段)；MoonBit `table_clipboard` 也接受可选 `layout`，同步及 Worker 桥传入当前布局。粘贴可覆盖目标简单域并扩展网格，只更新新域缓存；已有域缓存保持。域、图片、文字及扩表共用一项精确历史。原生输入、Enter 和组合输入沿所选主格处理，整格删除清空域并保留网格。含简单域段落的普通文字可查找替换；图片和域均占一个逻辑位置。
 

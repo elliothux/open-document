@@ -103,7 +103,7 @@ fn Session::capture_body_fragment(
       if tree.nodes[text.id].name == "drawing" &&
         offset >= start &&
         offset < end {
-        pictures[text.id] = self.fragment_picture(tree, text.id, limit)
+        pictures[text.id] = self.fragment_drawing(tree, text.id, limit)
       }
       continue offset + count
     }
@@ -177,7 +177,7 @@ pub fn Session::clipboard(
       ignore(self.selected_text(revision, selection, cut=true, layout?))
     } else {
       let tree = WordTree::new(self.document())
-      self.check_picture_range(
+      self.check_drawing_range(
         tree,
         self.paragraph_range(
           tree,

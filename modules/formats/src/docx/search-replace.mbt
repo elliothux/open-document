@@ -174,7 +174,7 @@ pub fn Session::replace_matches(
             pictures=true,
             fields=true,
           )
-          self.check_native_pictures(tree, position.paragraph)
+          self.check_native_drawings(tree, position.paragraph)
           let frame = replacement_paragraph(
             tree,
             by_paragraph.get(position.paragraph).unwrap_or([]),

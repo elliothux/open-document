@@ -1,18 +1,38 @@
 ///|
-fn Session::check_native_pictures(
+fn Session::check_drawing_text(
+  self : Session,
+  tree : WordTree,
+  id : Int,
+  remove~ : Bool = false,
+) -> Unit raise @failure.Failure {
+  if tree.drawing_data(id).1.attribute("uri") == Some(word_shape_uri) {
+    ignore(self.editable_shape(tree, id))
+    if remove {
+      guard !tree.shape_locked(id, "noDelete") else {
+        @failure.reject("protected-content", "Shape deletion is locked")
+      }
+      tree.check_picture_references(id)
+    }
+  } else {
+    ignore(self.editable_picture(tree, id, replace=!remove, remove~))
+  }
+}
+
+///|
+fn Session::check_native_drawings(
   self : Session,
   tree : WordTree,
   paragraph : Int,
 ) -> Unit raise @failure.Failure {
   for id in tree.descendants(paragraph) {
     if tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing" {
-      ignore(self.editable_picture(tree, id, replace=true))
+      self.check_drawing_text(tree, id)
     }
   }
 }
 
 ///|
-fn WordTree::has_picture_range(
+fn WordTree::has_drawing_range(
   self : WordTree,
   texts : Array[TextNode],
   start : Int,
@@ -35,7 +55,7 @@ fn WordTree::has_picture_range(
 }
 
 ///|
-fn Session::check_picture_range(
+fn Session::check_drawing_range(
   self : Session,
   tree : WordTree,
   range : ParagraphRange,
@@ -57,7 +77,7 @@ fn Session::check_picture_range(
       if tree.nodes[item.id].name == "drawing" &&
         start < cursor + length &&
         end > cursor {
-        ignore(self.editable_picture(tree, item.id, remove=true))
+        self.check_drawing_text(tree, item.id, remove=true)
       }
       continue cursor + length
     }
@@ -65,7 +85,7 @@ fn Session::check_picture_range(
 }
 
 ///|
-fn Session::picture_text_changes(
+fn Session::drawing_text_changes(
   self : Session,
   tree : WordTree,
   id : Int,
@@ -79,7 +99,7 @@ fn Session::picture_text_changes(
   let parent = tree.nodes[paragraph.parent]
   let changes : Array[@xml.SourceChange] = []
   if image_offset is Some(offset) {
-    ignore(self.editable_picture(tree, id, replace=true))
+    self.check_drawing_text(tree, id)
     guard offset >= 0 && offset < text.length() && text[offset] == '\ufffc' else {
       abort("Invalid retained image position")
     }
@@ -98,7 +118,7 @@ fn Session::picture_text_changes(
       }
     }
   } else {
-    ignore(self.editable_picture(tree, id, remove=true))
+    self.check_drawing_text(tree, id, remove=true)
     changes.push({
       node: parent.id,
       offset: node.start - parent.start,
@@ -114,7 +134,7 @@ fn Session::picture_text_changes(
 }
 
 ///|
-fn WordTree::split_picture_input(
+fn WordTree::split_drawing_input(
   self : WordTree,
   document : @xml.Document,
   paragraph : Int,

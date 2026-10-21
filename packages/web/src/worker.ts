@@ -455,6 +455,14 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.setPageBorders(request.revision, request.borders);
         case "docxPictures":
           return foundation.pictures(request.revision);
+        case "docxShapes":
+          return foundation.shapes(request.revision);
+        case "editDocxShape":
+          return foundation.editShape(
+            request.revision,
+            request.shape,
+            request.profile,
+          );
         case "docxPictureGesture":
           return foundation.pictureGesture(
             request.revision,

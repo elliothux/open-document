@@ -48,7 +48,7 @@ fn Session::paste_table_fragment(
         tree.check_merge_cell(cell, self.main, pictures=true, fields=true)
         for id in tree.descendants(cell) {
           if tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing" {
-            ignore(self.editable_picture(tree, id, remove=true))
+            self.check_drawing_text(tree, id, remove=true)
           }
         }
         let (r, c) = grid.owners[cell]
@@ -218,6 +218,7 @@ fn Session::paste_table_fragment(
   if steps.is_empty() && part_edits.is_empty() && created.is_empty() {
     return self.edit_state()
   }
+  WordTree::new(candidate).check_drawing_budget()
   let flow = view.flow_from(candidate)
   let table = flow.tables.iter().find_first(t => t.id == grid.table).unwrap()
   self.check_table_layout(flow, table, Some(probe), profile, images)

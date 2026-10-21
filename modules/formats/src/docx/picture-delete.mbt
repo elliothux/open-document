@@ -50,6 +50,17 @@ pub fn Session::delete_picture(
   let document = self.document()
   let tree = WordTree::new(document)
   let (_, paragraph, _, _) = self.editable_picture(tree, id, remove=true)
+  self.delete_drawing(document, tree, id, paragraph)
+}
+
+///|
+fn Session::delete_drawing(
+  self : Session,
+  document : @xml.Document,
+  tree : WordTree,
+  id : Int,
+  paragraph : Int,
+) -> Json raise @failure.Failure {
   let target = tree.nodes[id]
   let offset = self.texts
     .iter()

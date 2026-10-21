@@ -230,7 +230,7 @@ fn Session::find_matches(
                 pictures=true,
                 fields=true,
               )
-              self.check_native_pictures(tree, id)
+              self.check_native_drawings(tree, id)
               tree.check_structure_paragraph(id, running=true)
               let styles = match styles {
                 Ok(styles) => styles

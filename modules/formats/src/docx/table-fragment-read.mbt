@@ -26,7 +26,7 @@ fn Session::read_table_fragment(
   let document = self.import_fragment_numbering(document, parts, edits, created)
   let document = self.import_fragment_links(document, parts, edits, created)
   let document = self.import_fragment_bookmarks(document)
-  let (document, pictures) = self.import_fragment_images(
+  let (document, pictures) = self.import_fragment_drawings(
     document, parts, edits, created, media, added_media,
   )
   let tree = WordTree::new(document)

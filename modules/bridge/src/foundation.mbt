@@ -52,6 +52,7 @@ fn Foundation::dispatch(
   }
   let operation = field_string(request, "operation")
   match operation {
+    "docxShapes" | "editDocxShape" => self.shape_operation(operation, request)
     "docxPictures" | "editDocxPicture" | "docxPictureGesture" =>
       self.picture_operation(operation, request)
     "budget" => {

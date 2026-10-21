@@ -112,7 +112,7 @@ fn Session::paragraph_range_in(
       )
     }
     tree.check_editable_paragraph(id, part=self.main, pictures=true, fields~)
-    self.check_native_pictures(tree, id)
+    self.check_native_drawings(tree, id)
     if structural {
       tree.check_structure_paragraph(id, running=fields)
     }
@@ -182,7 +182,7 @@ pub fn Session::selected_text(
       } else {
         0x7fffffff
       }
-      guard !tree.has_picture_range(
+      guard !tree.has_drawing_range(
         texts.filter(item => item.paragraph == p),
         start,
         end,
