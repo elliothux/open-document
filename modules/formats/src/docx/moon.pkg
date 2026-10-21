@@ -1,4 +1,7 @@
 import {
+  "moonbit-community/html" @html5,
+  "moonbit-community/cmark/cmark",
+  "moonbit-community/cmark/cmark_base",
   "open_document/formats/internal/delimited",
   "open_document/formats/internal/protection",
   "open_document/formats/internal/image",

@@ -8,6 +8,15 @@ and categories (Apache-2.0 and Unicode data terms). Unicode context property
 entries derive from Unicode 16.0.0 DerivedCoreProperties.txt, Unicode, Inc.
 MoonBit-specific code: Copyright 2025-2026 International Digital Economy Academy.
 These components use Apache License 2.0; see the distributed LICENSE.
+P10 Markdown input uses moonbit-community/cmark 0.4.12, with
+moonbit-community/casefold 0.1.7 and moonbit-community/charclass 0.1.4,
+under Apache License 2.0. Cmark began as a MoonBit rewrite of Daniel Bünzli's
+cmarkit CommonMark toolkit; its README acknowledges cmarkit, CommonMark,
+cmark and md4c. Only parser packages enter the SDK; dependency test data and
+HTML renderers are not distributed.
+P10 HTML input uses moonbit-community/html 0.2.1 (html5-mbt),
+Copyright 2025 International Digital Economy Academy, under Apache License 2.0.
+Its QuickCheck dependency is test-only and is not part of the SDK runtime.
 pdflite/subsetter ports Typst subsetter 0.2.6, available under MIT OR Apache-2.0.
 unicode_linebreak ports unicode-linebreak tables and swash Unicode 13.0.0 data.
 Unicode data terms are reproduced in UNICODE-LICENSE.

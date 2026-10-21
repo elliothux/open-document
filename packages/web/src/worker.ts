@@ -531,12 +531,35 @@ async function dispatch(request: Request): Promise<unknown> {
             request.revision,
             request.fragment,
           );
+        case "markupImages":
+          return foundation.markupImages(
+            request.revision,
+            request.kind,
+            request.input,
+            request.mode,
+          );
         case "pasteBodyFragment":
           return foundation.pasteBodyFragment(
             request.revision,
             request.selection,
             request.fragment,
             request.profile,
+          );
+        case "pasteMarkdown":
+          return foundation.pasteMarkdown(
+            request.revision,
+            request.selection,
+            request.markdown,
+            request.profile,
+            request.mode,
+          );
+        case "pasteHtml":
+          return foundation.pasteHtml(
+            request.revision,
+            request.selection,
+            request.html,
+            request.profile,
+            request.mode,
           );
         case "tableFragmentImages":
           return foundation.tableFragmentImages(

@@ -102,11 +102,7 @@ pub fn Session::insert_picture(
     .last()
     .map(item => (item.id, inline_text(tree.nodes[item.id]).length()))
   }
-  let rel = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
-  let picture = "http://schemas.openxmlformats.org/drawingml/2006/picture"
-  let cx = (width * 12700).round().to_int64().to_string()
-  let cy = (height * 12700).round().to_int64().to_string()
-  let drawing = "<od:drawing xmlns:od=\"\{word_uri}\" xmlns:wp=\"\{picture_inline_uri}\" xmlns:a=\"\{picture_drawing_uri}\" xmlns:pic=\"\{picture}\" xmlns:r=\"\{rel}\"><wp:inline><wp:extent cx=\"\{cx}\" cy=\"\{cy}\"/><wp:docPr id=\"\{identity}\" name=\"Picture \{identity}\"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect=\"1\"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri=\"\{picture}\"><pic:pic><pic:nvPicPr><pic:cNvPr id=\"\{identity}\" name=\"Picture \{identity}\"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed=\"\{resource.link}\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"\{cx}\" cy=\"\{cy}\"/></a:xfrm><a:prstGeom prst=\"rect\"/></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></od:drawing>"
+  let drawing = picture_markup(identity, resource.link, width, height)
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
   let change : @xml.SourceChange = if target is Some((id, offset)) {
     let node = tree.nodes[id]

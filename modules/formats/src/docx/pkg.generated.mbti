@@ -178,12 +178,15 @@ pub fn Session::insert_body_page_field(Self, Int, String, probe~ : @layout.TextP
 pub fn Session::insert_picture(Self, Int, Double, Double, Bytes) -> Json raise @failure.Failure
 pub fn Session::insert_table(Self, Int, Selection, Int, Int, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::list_catalog(Self, Int) -> Json raise @failure.Failure
+pub fn Session::markup_images(Self, Int, String, String, mode? : String) -> Json raise @failure.Failure
 pub fn Session::navigate(Self, Int, @layout.Layout, Int, String, extend_selection~ : Bool) -> @layout.Hit raise @failure.Failure
 pub fn Session::navigate_comment(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
 pub fn Session::overview(Self, Int) -> Json raise @failure.Failure
 pub fn Session::page_setup(Self, Int) -> Json raise @failure.Failure
 pub fn Session::paste_body_fragment(Self, Int, Selection, String, @layout.TextProbe, Map[String, String], images? : @layout.Images?) -> Json raise @failure.Failure
+pub fn Session::paste_html(Self, Int, Selection, String, @layout.TextProbe, Map[String, String], images? : @layout.Images?, mode? : String) -> Json raise @failure.Failure
+pub fn Session::paste_markdown(Self, Int, Selection, String, @layout.TextProbe, Map[String, String], images? : @layout.Images?, mode? : String) -> Json raise @failure.Failure
 pub fn Session::pictures(Self, Int) -> Json raise @failure.Failure
 pub fn Session::query(Self) -> Json raise @failure.Failure
 pub fn Session::query_formatting(Self, Int, Selection, layout? : @layout.Layout) -> Json raise @failure.Failure

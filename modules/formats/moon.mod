@@ -15,4 +15,6 @@ import {
   "moonbit-community/flate@0.8.5",
   "moonbitlang/x@0.5.5",
   "moonbit-community/ucd@0.5.2",
+  "moonbit-community/cmark@0.4.12",
+  "moonbit-community/html@0.2.1",
 }

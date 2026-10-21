@@ -53,6 +53,7 @@ export type {
   DocxTableEdit,
   DocxTableClipboard,
   DocxClipboard,
+  DocxPasteMode,
   DocxFragmentImages,
   DocxCellMargins,
   DocxBorderStyle,

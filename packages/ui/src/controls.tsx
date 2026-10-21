@@ -5,7 +5,10 @@ import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import type { OwnedFile } from "./types.js";
 import { Icon } from "./icons.js";
-import { pasteDocxSelection } from "@open-document/web/foundation";
+import {
+  pasteDocxSelection,
+  type DocxPasteMode,
+} from "@open-document/web/foundation";
 
 export function Command({
   label,
@@ -442,11 +445,17 @@ export function ClipboardGroup({
         (object) => object.id === file.editor.query.selection.object,
       )?.textReadOnlyReason);
   const [open, setOpen] = useState(false),
-    [text, setText] = useState("");
+    [text, setText] = useState(""),
+    [pasteFormat, setPasteFormat] = useState("plain"),
+    [pasteMode, setPasteMode] = useState<DocxPasteMode>("source");
   const field = useRef<HTMLTextAreaElement>(null);
   const paste = async () => {
     if (file.format === "pdf") return;
-    await file.editor.paste(text);
+    if (file.format === "docx" && pasteFormat === "html")
+      await file.editor.pasteHtml(text, pasteMode);
+    else if (file.format === "docx" && pasteFormat === "markdown")
+      await file.editor.pasteMarkdown(text, pasteMode);
+    else await file.editor.paste(text);
     setOpen(false);
     setText("");
     file.editor.focus();
@@ -479,7 +488,11 @@ export function ClipboardGroup({
             <Dialog.Backdrop className="od-backdrop" />
             <Dialog.Popup className="od-dialog" initialFocus={field}>
               <Dialog.Title className="od-dialog-title">
-                {t.rangePaste}
+                {file.format === "docx" && pasteFormat !== "plain"
+                  ? pasteFormat === "html"
+                    ? t.pasteHtml
+                    : t.pasteMarkdown
+                  : t.rangePaste}
               </Dialog.Title>
               <Dialog.Description>{t.pasteHint}</Dialog.Description>
               {file.format === "docx" && (
@@ -498,13 +511,53 @@ export function ClipboardGroup({
                 </button>
               )}
               <label className="od-paste-label">
-                {t.pasteText}
+                {file.format === "docx" && pasteFormat !== "plain"
+                  ? pasteFormat === "html"
+                    ? "HTML"
+                    : "Markdown"
+                  : t.pasteText}
                 <textarea
                   ref={field}
                   value={text}
                   onChange={(event) => setText(event.currentTarget.value)}
                 />
               </label>
+              {file.format === "docx" && (
+                <label>
+                  {t.pasteFormat}
+                  <select
+                    value={pasteFormat}
+                    onChange={(event) =>
+                      setPasteFormat(event.currentTarget.value)
+                    }
+                  >
+                    <option value="plain">{t.pasteText}</option>
+                    <option value="markdown">Markdown</option>
+                    <option value="html">HTML</option>
+                  </select>
+                </label>
+              )}
+              {file.format === "docx" && pasteFormat !== "plain" && (
+                <label>
+                  {t.pasteMode}
+                  <select
+                    value={pasteMode}
+                    onChange={(event) => {
+                      const value = event.currentTarget.value;
+                      if (
+                        value === "source" ||
+                        value === "merge" ||
+                        value === "text"
+                      )
+                        setPasteMode(value);
+                    }}
+                  >
+                    <option value="source">{t.keepSourceFormat}</option>
+                    <option value="merge">{t.matchTargetFormat}</option>
+                    <option value="text">{t.keepTextOnly}</option>
+                  </select>
+                </label>
+              )}
               <div className="od-dialog-actions">
                 <Dialog.Close>{t.cancel}</Dialog.Close>
                 <button

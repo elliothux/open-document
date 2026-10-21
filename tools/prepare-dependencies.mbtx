@@ -55,26 +55,35 @@ fn apply_edits(source : String, edits : Array[Json]) -> String raise {
 ///|
 // shortcut: remove these patches when a pinned upstream release covers the documented gaps.
 async fn main {
-  let resolution = @shell.Cmd("moon", [
-    "check", "--target", "wasm-gc", "--dry-run",
-  ]).output()
-  // Pinned third-party releases still ship JSON manifests. Migrate metadata only.
-  let dependency = ".mooncakes/moonbit-community/harfbuzz"
-  if @fs.exists(dependency) {
-    @fs.walk(dependency, (directory, files) => {
-      for filename in files {
-        if filename == "moon.mod.json" || filename == "moon.pkg.json" {
-          let source = directory + "/" + filename
-          let target = source[:source.length() - 5].to_owned()
-          let formatted = @shell.Cmd("moonfmt", [source]).output()
-          formatted.check()
-          @fs.write_file(target, formatted.stdout() + "\n")
-          @fs.remove(source)
-        }
+  for _ in 0..<2 {
+    let resolution = @shell.Cmd("moon", [
+      "check", "--target", "wasm-gc", "--dry-run",
+    ]).output()
+    // Pinned third-party releases still ship JSON manifests. Migrate metadata only.
+    for
+      dependency in [
+        ".mooncakes/moonbit-community/harfbuzz", ".mooncakes/moonbitlang/quickcheck",
+      ] {
+      if !@fs.exists(dependency) {
+        continue
       }
-    })
-  } else {
-    resolution.check()
+      @fs.walk(dependency, (directory, files) => {
+        for filename in files {
+          if filename == "moon.mod.json" || filename == "moon.pkg.json" {
+            let source = directory + "/" + filename
+            let target = source[:source.length() - 5].to_owned()
+            let formatted = @shell.Cmd("moonfmt", [source]).output()
+            formatted.check()
+            @fs.write_file(target, formatted.stdout() + "\n")
+            @fs.remove(source)
+          }
+        }
+      })
+    }
+    // Dependency resolution can stop at an old manifest before downloading later entries.
+    if resolution.exit_code() == 0 {
+      break
+    }
   }
   apply_patches(
     "tools/harfbuzz-patches/", "moonbit-community/harfbuzz@0.1.0", ".mooncakes/moonbit-community/harfbuzz/src/",

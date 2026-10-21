@@ -613,6 +613,54 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 跨格 `unmerge` 按实际所选主格取消合并，保持原公共网格；相交的合并格整体处理，范围外合并格及普通格保持原源。每个主格的全部文字留在原格，新格为空并继承对应源行格的框与首段格式。所有修改及布局预检合为一项历史，光标定位首个所选主格；没有合并格时保留原源、范围和 revision。未知格源、无可用文字宽度、字体及预算失败整体拒绝。指定行列拆格支持同一范围，规则归上述 `splitCell` 合同。拆表仍须选择单格，默认面板在跨格时禁用。链接、书签及批注创建沿普通文字范围规则；跨格时链接查询给出原因，默认面板禁用对应创建。跨表格、正文/表格混合范围及未知格内容沿既有保护规则；跨格边框/边距的默认面板、嵌套表格和其余结构范围操作继续实施。
 
+### HTML/Markdown 内嵌图片
+
+HTML 的 img/src 和 Markdown 的直接/引用式图片接受 `data:image/png;base64,...` 或 `data:image/jpeg;base64,...`。核心校验 MIME、文件头、像素和尺寸预算，复用原生行内 DrawingML、关系、内容类型及图片部件。保留 alt/title；同片段重复字节共用源部件，绘图身份分别分配。源数据按原压缩字节保存，不重新编码。
+
+默认图片框按 96 dpi 把原始像素换算为点。HTML 的 width/height 属性按像素处理，内联 width/height 支持数值、px、pt，覆盖相同属性；只设一边时保持原始比例，两边都设时使用明确尺寸。百分比、auto、裁剪、变换、浮动和链接内图片尚不在本入口范围；HTTP/file/cid 等来源不请求且明确拒绝。原有行内图片编辑、资源完整性和历史规则继续适用。
+
+`FoundationSession.markupImages(revision, kind, input, mode = "source")` 和异步 `FoundationClient.markupImages` 返回原有 `DocxFragmentImages`：`{ revision, images: [{ key, bytes }] }`。kind 为 html/markdown。查询保留原源、选择、revision 和历史。同步宿主先解码返回的压缩字节，并用原有 `addImage(key, width, height, rgba)` 登记，再调用相同输入/方式的粘贴命令。Web 客户端在需要绘图的方式下自动执行清单、浏览器本地解码、登记及最终粘贴；损坏像素在提交前拒绝，bitmap 总会释放。
+
+源格式和匹配目标格式都保留图片框及资源；纯文本方式保留 alt，省略无 alt 的图片，不创建图片部件。所有方式仍验证图片源及尺寸。每片段最多 256 张，压缩字节累计最多 2 MiB，元数据各最多 1024 个 UTF-16 单元；总输入仍限 65536 单元。单图最多 4096×4096、4194304 像素，解码缓存继续限 16 MiB/256 项。图片框沿原 0.1–14400 pt 范围。实现归[图片输入与预检](../../modules/formats/src/docx/markup-images.mbt)及[共享原生图片构造](../../modules/formats/src/docx/picture-markup.mbt)。尺寸换算参考 [ONLYOFFICE 图片尺寸处理](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L13583-L13625)，未移植上游可执行代码。
+
+### HTML/Markdown 粘贴方式
+
+两种输入均接受可选 `mode: DocxPasteMode = "source"`，类型从 Wasm/Web 的 `foundation` 导出。默认对话框在 HTML 或 Markdown 输入下显示三种方式：
+
+| mode | 行为 |
+| --- | --- |
+| `source` | 保留已支持的源字符和段落格式；沿原生正文片段事务写入 |
+| `merge` | 使用插入点的有效字体、字号、颜色、字符间距、突出显示及段落格式；保留源强调、上下标、链接、列表编号和标题级别 |
+| `text` | 提取文字、图片 alt、Tab、换行及列表标记，清除源格式和链接；沿普通文字替换事务，继承目标和待输入格式 |
+
+匹配格式按范围文档顺序的起点取值，保留光标亲和；反向选择使用同一插入点。目标段落的对齐、方向、间距、缩进、Tab 和分页属性作用于导入段落，源编号/标题结构保留。不要求加载被替换的源字体，但保留的强调仍需目标字体对应资源。
+
+纯文本方式先解释受支持的语法，不把 HTML 标签或 Markdown 标记作为文字。列表标记写为普通文字，段落和硬换行沿普通输入拆段；编号、链接和其他临时候选不写入文档。输入格式直接选“纯文本”时，仍按原输入文字粘贴。三种方式都执行原输入、资源、保护、范围及预算检查，不绕过未知结构限制。
+
+每次粘贴最多一项历史，后续输入独立撤销；错误不改变源、选择或历史。普通系统剪贴板和私有原生片段仍默认保留源格式，方式选择作用于显式 HTML/Markdown 输入。实现归[粘贴方式](../../modules/formats/src/docx/markup-mode.mbt)，原生属性合并参考 [ONLYOFFICE 段落与文字转换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L3624-L3710)。
+
+### HTML 粘贴
+
+`FoundationSession`、`FoundationClient` 提供 `pasteHtml(revision, selection, html, profile, mode = "source")`；`DocumentEditor.pasteHtml(html, mode = "source")` 沿现有队列使用当前选择，方式归上节。默认粘贴对话框选择 HTML 后解释输入。普通 Ctrl/Cmd+V 或源格式粘贴先读私有原生片段，再读系统 `text/html`，最后读纯文本；显式单元格矩阵粘贴沿原规则。异步读取期间文档或选择变化时拒绝提交。
+
+核心用固定 html 0.2.1 解析 HTML5，再写入与 Markdown 相同的[正文富文本片段](#正文富文本片段)。支持正文/单格范围替换、div/p、h1–h6、blockquote、pre/code、十进制 ol 起始值/ul、普通 li、span、b/strong、i/em、u、s/strike/del、sup/sub、br、受支持的内嵌 img 和 HTTP/HTTPS/mailto 链接。HTML5 容错由解析库完成；普通 ASCII 空白折叠，NBSP 保留，pre 和指定保留模式写原生 Tab/换行。
+
+仅使用 style、dir、hidden，以及 a 的 href/title、ol 的 start 和 img 的 src/alt/title/width/height。字符格式支持 font-family、pt/px 字号、粗斜体、RGB 颜色、下划线/删除线和上下标；段落支持对齐、方向、标题 outlineLvl、引用及列表缩进。字号换算到原生半点。white-space 支持 normal/nowrap/pre/pre-wrap/break-spaces。display:none、visibility:hidden/collapse 和 hidden 属性移除对应子树。其他属性及未声明 CSS 丢弃，不把 CSS 写入 DOCX。
+
+script/style/head 元数据和 iframe/object/embed/template/noscript 子树全部移除，事件属性不参与转换。核心不执行脚本，也不请求图片、样式、框架或链接。未知元素、表格、未支持图片来源、水平线、SVG/MathML、本地锚点、逆序/逐项改号及不支持的已声明格式明确拒绝；不会回退成纯文本掩盖失败。更广 HTML 结构和图片引用形式仍待实施。
+
+源最多 65536 个 UTF-16 单元及 2048 个 `<`；树最多 4096 个节点。转换沿共同的 32 层、512 段落、256 列表、9 级编号和片段/字体/历史/输出预算。格式、关系及编号共用一项事务，失败保留原源、选区和历史；保存重开后继续原生输入。实现归 [HTML 输入](../../modules/formats/src/docx/html-input.mbt)及[内联格式](../../modules/formats/src/docx/html-style.mbt)，参考 [ONLYOFFICE HTML 粘贴入口](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L12167-L12230)，未移植上游可执行代码。
+
+### Markdown 粘贴
+
+`FoundationSession`、`FoundationClient` 提供 `pasteMarkdown(revision, selection, markdown, profile, mode = "source")`。`DocumentEditor.pasteMarkdown(markdown, mode = "source")` 在现有编辑队列中使用当前选择，沿上述三种粘贴方式。默认粘贴对话框选择 Markdown 后解释输入；原生普通文字粘贴不自动猜测语法。
+
+核心用固定 cmark 0.4.12 解析 CommonMark，转换为[正文富文本片段](#正文富文本片段)，复用格式、编号、链接及源事务。支持普通正文或单个普通格的范围替换、ATX/Setext 标题、粗体/斜体、实体/转义、软换行和硬换行、引用缩进、行内/块代码、有序/无序嵌套列表、续行段落，以及 HTTP/HTTPS/mailto 的直接、引用式和自动链接。标题写原生 outlineLvl 与粗体；代码写 Courier New 和原生 Tab/换行，字体仍由宿主 profile 显式提供。
+
+一次导入合为一项精确历史，保留目标前后文字及其他源部件，保存重开后继续编辑。编号定义、实例、外链和内嵌图片关系沿原片段事务分配身份；不访问链接。图片范围归上述[内嵌图片](#htmlmarkdown-内嵌图片)。Markdown 内嵌 HTML、外链图片、本地锚点及水平线明确拒绝，不静默丢弃。扩展语法按普通 CommonMark 文字解释，不声明 GFM 表格、删除线、任务框、数学或脚注导入。独立 HTML 入口归[HTML 粘贴](#html-粘贴)；Markdown 内嵌 HTML 及更广交换结构仍待实施。
+
+源文本最多 65536 个 UTF-16 单元；解析前限制 `[]()*_>` 及反引号共 1024 个。转换树最多 4096 个节点、32 层、512 个段落、256 个列表及 9 级编号；生成片段仍受原 XML、资源、字体、历史和输出预算限制。未知内容、缺字体、旧 revision、保护及预算失败均不提交源变化。实现归[Markdown 输入](../../modules/formats/src/docx/markdown-input.mbt)。格式转换参考 [ONLYOFFICE 粘贴段落与文本](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L12167-L12230)，未移植上游可执行代码。
+
 ### 正文富文本片段
 
 `FoundationSession.clipboard(revision, selection, cut = false)` 和异步 `FoundationClient.clipboard` 返回 `DocxClipboard`：`{ kind: "body" | "cells", text, fragment, reason, selection }`。普通正文和同一单元格中的文字范围可截取部分字符及跨段落内容；跨格整格范围沿既有矩形片段。查询保持源、选择和历史。不能转移的已知内容返回纯文本及原因，图片和域的剪切须成功生成富文本并通过原生删除保护。

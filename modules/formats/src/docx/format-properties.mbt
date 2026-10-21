@@ -110,18 +110,7 @@ fn formatted_properties(
       })
       .unwrap_or("")
   }
-  let order = if kind == "rPr" {
-    [
-      "rStyle", "rFonts", "b", "bCs", "i", "iCs", "strike", "color", "spacing", "sz",
-      "szCs", "highlight", "u", "vertAlign", "rtl", "cs", "lang",
-    ]
-  } else {
-    [
-      "pStyle", "keepNext", "keepLines", "pageBreakBefore", "widowControl", "numPr",
-      "tabs", "bidi", "spacing", "ind", "contextualSpacing", "jc", "autoSpaceDE",
-      "autoSpaceDN", "outlineLvl", "rPr",
-    ]
-  }
+  let order = format_property_order(kind)
   let out = StringBuilder()
   for name in order {
     out.write_string(gaps.get(name).unwrap_or(""))
@@ -139,6 +128,42 @@ fn formatted_properties(
       structure_opening(node) + content + "</\{node.qualified}>"
     }
   }
+}
+
+///|
+fn format_property_order(kind : String) -> Array[String] {
+  if kind == "rPr" {
+    [
+      "rStyle", "rFonts", "b", "bCs", "i", "iCs", "strike", "color", "spacing", "sz",
+      "szCs", "highlight", "u", "vertAlign", "rtl", "cs", "lang",
+    ]
+  } else {
+    [
+      "pStyle", "keepNext", "keepLines", "pageBreakBefore", "widowControl", "numPr",
+      "tabs", "bidi", "spacing", "ind", "contextualSpacing", "jc", "autoSpaceDE",
+      "autoSpaceDN", "outlineLvl", "rPr",
+    ]
+  }
+}
+
+///|
+fn character_properties_markup(
+  format : CharacterFormat,
+) -> String raise @failure.Failure {
+  let output = StringBuilder()
+  let properties = format.properties()
+  for name in format_property_order("rPr") {
+    if properties.get(name) is Some(Some(attributes)) {
+      output.write_string("<od:\{name}")
+      for key, value in attributes {
+        if value is Some(value) {
+          output.write_string(" od:\{key}=\"\{property_attribute(value)}\"")
+        }
+      }
+      output.write_string("/>")
+    }
+  }
+  output.to_string()
 }
 
 ///|

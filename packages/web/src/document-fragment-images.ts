@@ -1,5 +1,6 @@
 import type { FoundationClient } from "./foundation.js";
 import { decodeImage } from "./image.js";
+import type { DocxFragmentImages } from "@open-document/wasm/foundation";
 
 /** Decode incoming resources before the core commits the table and media transaction. */
 export async function prepareDocxFragmentImages(
@@ -15,6 +16,14 @@ export async function prepareDocxFragmentImages(
     kind === "body"
       ? await client.bodyFragmentImages(revision, fragment)
       : await client.tableFragmentImages(revision, fragment);
+  await prepareDocxImages(client, resources);
+}
+
+/** Decode only core-validated local resources and release every platform bitmap. */
+export async function prepareDocxImages(
+  client: Pick<FoundationClient, "addImage">,
+  resources: DocxFragmentImages,
+): Promise<void> {
   for (const image of resources.images) {
     const { bitmap, rgba } = await decodeImage(image.bytes);
     try {

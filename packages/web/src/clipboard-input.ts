@@ -103,12 +103,23 @@ async function pasteDocxClipboard(
     ? items.find((item) => item.types.includes(docxBodyMime))
     : undefined;
   const item = body ?? items.find((item) => item.types.includes(docxCellsMime));
+  const htmlItem =
+    !cells && !item
+      ? items.find((item) => item.types.includes("text/html"))
+      : undefined;
+  let html: string | undefined;
   let change: DocxTableEdit;
   if (item) {
     const blob = await item.getType(body ? docxBodyMime : docxCellsMime);
     if (blob.size > 4194304)
       throw new Error("Rich table clipboard exceeds byte budget");
     change = { action: "pasteFragment", fragment: await blob.text() };
+  } else if (htmlItem) {
+    const blob = await htmlItem.getType("text/html");
+    if (blob.size > 262144)
+      throw new Error("HTML clipboard exceeds byte budget");
+    html = await blob.text();
+    change = { action: "pasteCells", text: "" };
   } else {
     const plain = items.find((item) => item.types.includes("text/plain"));
     const blob = plain ? await plain.getType("text/plain") : null;
@@ -130,6 +141,7 @@ async function pasteDocxClipboard(
       JSON.stringify(before.data.selection)
   )
     throw new Error("Selection changed during clipboard read");
+  if (html !== undefined) return editor.pasteHtml(html);
   if (body && change.action === "pasteFragment")
     return editor.pasteFragment(change.fragment);
   if (!cells && !item && change.action === "pasteCells")

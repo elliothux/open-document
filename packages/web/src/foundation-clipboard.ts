@@ -4,12 +4,84 @@ import {
   docxTableClipboard,
   docxFragmentImages,
   checkDocxTableEdit,
+  checkMarkdown,
+  checkHtml,
+  checkDocxPasteMode,
   editState,
   type DocxTableClipboard,
   type DocxSelection,
+  type DocxPasteMode,
 } from "@open-document/wasm/foundation";
-import { prepareDocxFragmentImages } from "./document-fragment-images.js";
+import {
+  prepareDocxFragmentImages,
+  prepareDocxImages,
+} from "./document-fragment-images.js";
 export abstract class FoundationClipboardClient extends FoundationPageClient {
+  async markupImages(
+    revision: number,
+    kind: "html" | "markdown",
+    input: string,
+    mode: DocxPasteMode = "source",
+  ) {
+    checkDocxPasteMode(mode);
+    if (kind === "html") checkHtml(input);
+    else if (kind === "markdown") checkMarkdown(input);
+    else throw new Error("Unknown markup input format");
+    return docxFragmentImages(
+      await this.connection.request({
+        operation: "markupImages",
+        revision,
+        kind,
+        input,
+        mode,
+      }),
+      false,
+    );
+  }
+  async pasteHtml(
+    revision: number,
+    selection: DocxSelection,
+    html: string,
+    profile: Record<string, string>,
+    mode: DocxPasteMode = "source",
+  ) {
+    await prepareDocxImages(
+      this,
+      await this.markupImages(revision, "html", html, mode),
+    );
+    return editState(
+      await this.connection.request({
+        operation: "pasteHtml",
+        revision,
+        selection,
+        html,
+        profile,
+        mode,
+      }),
+    );
+  }
+  async pasteMarkdown(
+    revision: number,
+    selection: DocxSelection,
+    markdown: string,
+    profile: Record<string, string>,
+    mode: DocxPasteMode = "source",
+  ) {
+    await prepareDocxImages(
+      this,
+      await this.markupImages(revision, "markdown", markdown, mode),
+    );
+    return editState(
+      await this.connection.request({
+        operation: "pasteMarkdown",
+        revision,
+        selection,
+        markdown,
+        profile,
+        mode,
+      }),
+    );
+  }
   abstract addImage(
     key: string,
     width: number,

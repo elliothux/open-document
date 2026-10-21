@@ -33,6 +33,39 @@ fn Foundation::clipboard_command(
       session.table_fragment_images(revision, field_string(request, "fragment"))
     "bodyFragmentImages" =>
       session.body_fragment_images(revision, field_string(request, "fragment"))
+    "markupImages" =>
+      session.markup_images(
+        revision,
+        field_string(request, "kind"),
+        field_string(request, "input"),
+        mode=field_string(request, "mode"),
+      )
+    "pasteHtml" => {
+      let result = session.paste_html(
+        revision,
+        field_selection(request),
+        field_string(request, "html"),
+        self.probe,
+        xlsx_profile(request),
+        images=Some(self.images),
+        mode=field_string(request, "mode"),
+      )
+      self.layout = None
+      result
+    }
+    "pasteMarkdown" => {
+      let result = session.paste_markdown(
+        revision,
+        field_selection(request),
+        field_string(request, "markdown"),
+        self.probe,
+        xlsx_profile(request),
+        images=Some(self.images),
+        mode=field_string(request, "mode"),
+      )
+      self.layout = None
+      result
+    }
     "pasteBodyFragment" => {
       let result = session.paste_body_fragment(
         revision,

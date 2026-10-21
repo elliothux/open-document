@@ -1,4 +1,11 @@
 export const clipboardEn = {
+  pasteMode: "Paste mode",
+  keepSourceFormat: "Keep source formatting",
+  matchTargetFormat: "Match destination formatting",
+  keepTextOnly: "Keep text only",
+  pasteHtml: "Paste HTML",
+  pasteFormat: "Paste format",
+  pasteMarkdown: "Paste Markdown",
   pasteFormatting: "Paste with source formatting",
   clipboard: "Clipboard",
   pasteCells: "Paste cells",
@@ -14,6 +21,13 @@ export const clipboardEn = {
   transposeCells: "Transpose cells",
 };
 export const clipboardZh = {
+  pasteMode: "粘贴方式",
+  keepSourceFormat: "保留源格式",
+  matchTargetFormat: "匹配目标格式",
+  keepTextOnly: "仅保留文字",
+  pasteHtml: "粘贴 HTML",
+  pasteFormat: "粘贴格式",
+  pasteMarkdown: "粘贴 Markdown",
   pasteFormatting: "按源格式粘贴",
   clipboard: "剪贴板",
   pasteCells: "粘贴单元格",

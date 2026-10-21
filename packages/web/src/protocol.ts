@@ -1,5 +1,6 @@
 import type {
   DocxRevisionEdit,
+  DocxPasteMode,
   Budget,
   DocxRuler,
   DocxRulerEdit,
@@ -435,6 +436,29 @@ export type Operation =
       selection: DocxSelection;
       fragment: string;
       profile: Record<string, string>;
+    }
+  | {
+      operation: "pasteMarkdown";
+      revision: number;
+      selection: DocxSelection;
+      markdown: string;
+      profile: Record<string, string>;
+      mode: DocxPasteMode;
+    }
+  | {
+      operation: "pasteHtml";
+      revision: number;
+      selection: DocxSelection;
+      html: string;
+      profile: Record<string, string>;
+      mode: DocxPasteMode;
+    }
+  | {
+      operation: "markupImages";
+      revision: number;
+      kind: "html" | "markdown";
+      input: string;
+      mode: DocxPasteMode;
     }
   | {
       operation: "selectedText";

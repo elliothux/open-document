@@ -2,10 +2,12 @@
 
 生产依赖用 `moon.mod` 固定精确版本，不使用根 `references/` 研究副本构建。MoonBit 标准库随工具链固定；下表列直接依赖，传递依赖由 Moon 固定版本解析。
 
-MoonBit 0.1.20261010 要求新配置格式。[依赖准备工具](../../tools/prepare-dependencies.mbtx)先用官方 `moonfmt` 转换固定 HarfBuzz 发布包的 JSON 配置，再核对并应用补丁。源码内容不参与配置转换。颜色结构中与新关键字冲突的 `extend` 改为 `extendMode`，调用方一并修改；两份源码补丁保留原始与结果 hash。依赖版本和许可证保持原值。
+MoonBit 0.1.20261010 要求新配置格式。[依赖准备工具](../../tools/prepare-dependencies.mbtx)先用官方 `moonfmt` 转换固定 HarfBuzz 和 HTML 测试依赖 QuickCheck 0.14.0 的 JSON 配置，再核对并应用既有补丁。解析器可在首份旧配置处停止下载，工具最多完成两轮元数据迁移；最终依赖解析仍须通过。源码内容不参与配置转换。颜色结构中与新关键字冲突的 `extend` 改为 `extendMode`，调用方一并修改；两份源码补丁保留原始与结果 hash。依赖版本和许可证保持原值。
 
 | 固定 module | 用到的能力 / 许可 | 必要本地工作 |
 | --- | --- | --- |
+| [moonbit-community/html](https://mooncakes.io/docs/moonbit-community/html@0.2.1) 0.2.1 | HTML5 解析与容错；Apache-2.0 | 只用解析树，按元素和格式白名单生成原生正文片段；清除脚本/事件，禁止资源请求。QuickCheck 仅为上游测试依赖，不进入浏览器产物；不修改解析器源码 |
+| [moonbit-community/cmark](https://mooncakes.io/docs/moonbit-community/cmark@0.4.12) 0.4.12 | CommonMark 解析；Apache-2.0 | Markdown 在 formats/docx 内转换为既有原生正文片段；不使用 HTML renderer 或浏览器 DOM。输入和树转换均有预算，无源码补丁 |
 | [moonbit-community/flate](https://github.com/moonbit-community/flate) 0.8.5 | limited raw DEFLATE、CRC32；Apache-2.0 | 现成 ZIP `read` 急切读取且不承担本项目 CRC/源记录/预算合同；archive 只补 checked ZIP32 索引、缓存与保真封装，不复制压缩器 |
 | [Milky2018/xml](https://github.com/moonbit-community/xml-mbt) 0.5.0 | namespace-aware pull reader、source spans、escape；Apache-2.0 | xml 层拥有严格字节解码、禁 DTD、深度预算和文本源片段修改。该版将短 ASCII 的 UTF-16 声明按解码后字符串启发式拒绝；独立解析声明 pseudo-attributes，再以等长空白保留 offset，复用原 parser 验证正文。另补 NS1.0 的 PI target 冒号规则 |
 | [moonbit-community/harfbuzz](https://github.com/moonbit-community/harfbuzz.mbt) 0.1.0 | OpenType shaping、glyf DrawFuncs；MoonBit 代码 Apache-2.0，上游附 Old MIT 等完整 notices | 该版 Face metrics getter 在目录准备后仍返回未加载值；直接复用 HeadTable::parse 取 upem。RTL buffer 输出逻辑顺序，核心按 BiDi run 输出视觉顺序。draw 不支持 CFF，入口明确拒绝而不回退成空白字形 |

@@ -272,6 +272,9 @@ fn Foundation::dispatch(
     | "docxClipboard"
     | "bodyFragmentImages"
     | "pasteBodyFragment"
+    | "pasteMarkdown"
+    | "pasteHtml"
+    | "markupImages"
     | "tableClipboard"
     | "tableFragmentImages"
     | "beginComposition"
@@ -388,7 +391,10 @@ fn Foundation::dispatch(
         | "tableFragmentImages"
         | "docxClipboard"
         | "bodyFragmentImages"
-        | "pasteBodyFragment" => self.clipboard_command(session, request)
+        | "pasteBodyFragment"
+        | "pasteMarkdown"
+        | "pasteHtml"
+        | "markupImages" => self.clipboard_command(session, request)
         "selectDocx" =>
           session.select(
             field_int(request, "revision"),
