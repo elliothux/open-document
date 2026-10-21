@@ -1,6 +1,6 @@
 ///|
-fn Picture::transform_change(
-  self : Picture,
+fn SheetObject::transform_change(
+  self : SheetObject,
   rect : @layout.Border,
 ) -> @xml.SourceChange raise @failure.Failure {
   let props = self.tree.picture_node(self.source.id, "spPr")
@@ -17,6 +17,40 @@ fn Picture::transform_change(
     insertion(props, xml)
   } else {
     { node: props.id, offset: props.opening_end - props.start, length: 0, xml, }
+  }
+}
+
+///|
+fn SheetObject::transform_matches(self : SheetObject) -> Bool {
+  try {
+    let props = self.tree.picture_node(self.source.id, "spPr")
+    let transform = self.tree.picture_node(
+      props.id,
+      "xfrm",
+      uri=picture_drawing_uri,
+    )
+    let position = self.tree.picture_node(
+      transform.id,
+      "off",
+      uri=picture_drawing_uri,
+    )
+    let extent = self.tree.picture_node(
+      transform.id,
+      "ext",
+      uri=picture_drawing_uri,
+    )
+    [
+      (position, "x", self.rect.x),
+      (position, "y", self.rect.y),
+      (extent, "cx", self.rect.width),
+      (extent, "cy", self.rect.height),
+    ].all(entry => {
+      let (node, name, value) = entry
+      picture_integer(node.attribute(name).unwrap_or("")) ==
+      (value * 12700).round()
+    })
+  } catch {
+    @failure.Failure(..) => false
   }
 }
 
@@ -50,18 +84,14 @@ fn Session::reflow_pictures(
     }
     let after = self.resolved_dimensions(sheet, probe, profile)
     let view = { ..self, parts, }
-    let next_pictures = view.sheet_pictures(sheet, after) catch {
+    let next_pictures = view.sheet_objects(sheet, after) catch {
       @failure.Failure(code="unsupported-drawing", ..) => []
       error => raise error
     }
     let changes : Array[@xml.SourceChange] = []
     for picture in next_pictures {
-      let change = picture.transform_change(picture.rect)
-      let parent = picture.tree.nodes[change.node]
-      let offset = parent.start + change.offset
-      if picture.tree.document.source()[offset:offset + change.length].to_owned() !=
-        change.xml {
-        changes.push(change)
+      if picture.anchor != "fixed" && !picture.transform_matches() {
+        changes.push(picture.transform_change(picture.rect))
       }
     }
     if !changes.is_empty() {

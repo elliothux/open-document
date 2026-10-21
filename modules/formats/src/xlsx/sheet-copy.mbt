@@ -346,6 +346,7 @@ fn Session::copied_sheet_parts(
       "<od:Override xmlns:od=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{escaped_attribute(part)}\" ContentType=\"application/vnd.openxmlformats-officedocument.vmlDrawing\"/>",
     )
   }
+  self.copy_sheet_pictures(source, number, created, remapped, types)
   let tables = self.copy_sheet_tables(
     source, target, number, created, remapped, types,
   )

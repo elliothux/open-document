@@ -591,6 +591,11 @@ fn Session::font_keys(
       }
     }
   }
+  for key in self.drawing_font_keys(parts) {
+    if !keys.contains(key) {
+      keys.push(key)
+    }
+  }
   guard keys.length() <= 4096 else {
     @failure.reject("limit-exceeded", "Workbook font keys exceed budget")
   }

@@ -1,5 +1,11 @@
 # 测试说明
 
+工作表图片裁剪通过 14 项定向核心检查及 27 个传输断言，覆盖原生精度、无变化、重置、图片字节、手势与复制保留、精确混合历史及重开输入。无效值、舍入后为空、锁定、未知裁剪元数据及绘制超限原子拒绝。新增 Chromium 流程通过 1/1，覆盖默认百分比面板、无效组合禁用、实际四色裁剪/重置、对象键盘、只重置裁剪、独立 XML/PNG、混合历史、重开及 PDF 文字/像素。根 api/check/build 和私有 typecheck/lint 通过；证据归 `xlsxWorksheetPictureCropCheckpoint`。未跑全量或外部 Office；负裁剪扩边、复杂绘图和其余图片交互继续实施，P10/P11/P12 保持 planned。
+
+普通图片表的复制、改名及删除通过 17 项定向核心检查，覆盖独立绘图与关系、不可变图片字节、表格/便笺共存、自身公式、混合输入、精确历史和重开。未知对象/链接/身份、共享绘图、结构保护及输出超限原子拒绝。新增 Chromium 流程通过 1/1，覆盖首次打开和重开后的可用按钮、副本独立图片编辑、删除源表与副本、实际 Canvas、独立 OPC/XML/PNG、原生输入及 PDF 文字/像素。首次状态刷新沿现有队列串行执行；根 api/check/build 和私有 typecheck/lint 通过。证据归 `xlsxWorksheetPictureSheetsCheckpoint`。未跑全量或外部 Office；复杂绘图和局部单元格迁移继续实施，P10/P11/P12 保持 planned。
+
+工作表图片行列结构通过 19 项定向核心检查，覆盖三种锚点、插入/截断、偏移与最小跨度、自动行高后的姿态、未受影响的原源、精确历史和重开。未知/共享绘图、保护、局部移位、越界及预算失败保留源与历史。新增 Chromium 流程通过 1/1，覆盖默认行列按钮、实际 Canvas、独立锚点/姿态 XML、PNG 字节、混合输入、精确撤销/重做、重开及 PDF 文字/像素。根 api/check/build 和私有 typecheck/lint 通过；证据归 `xlsxWorksheetPictureAxisCheckpoint`。未跑全量或外部 Office；局部单元格移位及其余绘图继续实施，P10/P11/P12 保持 planned。
+
 工作表图片图层通过 6 项定向核心检查，覆盖四种顺序、边界无变化、原始锚点/资源/注释空白、精确混合历史、重开与失败保护。新图层及原手势流程分别通过 1/1 Chromium；独立 XML/PNG 字节、真实重叠颜色、ShadowRoot 点击目标、默认按钮、原生输入、重开及 PDF 顶层像素通过。传输通过 1 项、13 个断言；根 api/check/build 和私有 typecheck/lint 通过。证据归 `xlsxWorksheetPictureLayerCheckpoint`。未跑全量或外部 Office；混合绘图、组和边缘自动滚动继续实施，P10/P11/P12 保持 planned。
 
 工作表图片手势通过 23 项定向核心检查，新增候选只读、绘制身份、单项原生历史、图片选择恢复、四角比例、冻结/RTL 和过期几何保护。新 Chromium 手势流程通过 1/1，原图片面板回归也通过 1/1；覆盖实际预览/取消、保存取消、拖动/缩放、对象键盘、原生输入、精确历史、独立 XML/PNG、重开及 PDF 文字/像素。传输检查通过 1 项、19 个断言；根 api/check/build 及私有 typecheck/lint 通过。证据归 `xlsxWorksheetPicturePointerCheckpoint`。未跑全量或外部 Office；边缘自动滚动继续实施，P10/P11/P12 保持 planned。

@@ -19,7 +19,7 @@ pub fn Session::insert_picture(
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   check_picture_text(name, description)
   let dimensions = self.resolved_dimensions(current, probe, profile)
-  let pictures = self.sheet_pictures(current, dimensions)
+  let pictures = self.sheet_objects(current, dimensions)
   guard pictures.length() < 256 else {
     @failure.reject("limit-exceeded", "Worksheet picture count exceeds256")
   }
@@ -118,10 +118,11 @@ pub fn Session::insert_picture(
 }
 
 ///|
-fn Picture::check_change(
-  self : Picture,
+fn SheetObject::check_change(
+  self : SheetObject,
   remove : Bool,
   rect? : @layout.Border,
+  crop? : Array[Double],
 ) -> Unit raise @failure.Failure {
   for node in self.tree.document.nodes() {
     if node.start < self.source.start ||
@@ -151,6 +152,11 @@ fn Picture::check_change(
         "protected-content", "Worksheet picture changes are locked",
       )
     }
+    guard crop
+      .map(value => value == self.crop || !flag(node, "noCrop"))
+      .unwrap_or(true) else {
+      @failure.reject("protected-content", "Worksheet picture crop is locked")
+    }
     if !remove && flag(node, "noChangeAspect") && rect is Some(rect) {
       guard (rect.width * self.rect.height - rect.height * self.rect.width).abs() <=
         0.01 else {
@@ -174,6 +180,7 @@ pub fn Session::set_picture(
   description : String,
   probe : @layout.TextProbe,
   profile : Map[String, String],
+  crop~ : Array[Double],
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let current = self.sheets[self.sheet_index(sheet)]
@@ -182,6 +189,7 @@ pub fn Session::set_picture(
   check_picture_text(name, description)
   let dimensions = self.resolved_dimensions(current, probe, profile)
   check_picture_rect(anchor, rect, dimensions)
+  let crop = checked_picture_crop(crop, rect)
   let picture = self
     .sheet_pictures(current, dimensions)
     .iter()
@@ -189,14 +197,15 @@ pub fn Session::set_picture(
     .unwrap_or_else(() => {
       @failure.reject("invalid-operation", "Worksheet picture no longer exists")
     })
-  picture.check_change(false, rect~)
+  picture.check_change(false, rect~, crop~)
   if picture.anchor == anchor &&
     picture.rect.x == rect.x &&
     picture.rect.y == rect.y &&
     picture.rect.width == rect.width &&
     picture.rect.height == rect.height &&
     picture.name == name &&
-    picture.description == description {
+    picture.description == description &&
+    picture.crop == crop {
     return self.query()
   }
   let tree = picture.tree
@@ -207,6 +216,7 @@ pub fn Session::set_picture(
     ("descr", description),
   ])
   changes.push(picture.transform_change(rect))
+  changes.append(picture.crop_changes(crop))
   let (document, style_edit) = tree.document.edit_source(changes)
   let markup = Tree::new(document).picture_markup(picture.source.id)
   let next = Tree::new(document)
@@ -249,15 +259,43 @@ pub fn Session::delete_picture(
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> Json raise @failure.Failure {
+  self.delete_sheet_object(revision, sheet, id, false, probe, profile)
+}
+
+///|
+pub fn Session::delete_shape(
+  self : Session,
+  revision : Int,
+  sheet : String,
+  id : String,
+  probe : @layout.TextProbe,
+  profile : Map[String, String],
+) -> Json raise @failure.Failure {
+  self.delete_sheet_object(revision, sheet, id, true, probe, profile)
+}
+
+///|
+fn Session::delete_sheet_object(
+  self : Session,
+  revision : Int,
+  sheet : String,
+  id : String,
+  shape : Bool,
+  probe : @layout.TextProbe,
+  profile : Map[String, String],
+) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let current = self.sheets[self.sheet_index(sheet)]
   let reason = self.dimension_reason(current)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let dimensions = self.resolved_dimensions(current, probe, profile)
   let picture = self
-    .sheet_pictures(current, dimensions)
+    .sheet_objects(current, dimensions)
     .iter()
-    .find_first(p => p.id == id)
+    .find_first(p => {
+      p.id == id &&
+      (if shape { p.shape is Some(_) } else { p.media is Some(_) })
+    })
     .unwrap_or_else(() => {
       @failure.reject("invalid-operation", "Worksheet picture no longer exists")
     })

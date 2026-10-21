@@ -161,21 +161,8 @@ fn shape_path(
   height : Double,
   adjustments : (Double, Double),
 ) -> Array[@layout.PathSegment] {
-  if preset == "line" {
-    return [Move(0, 0), Line(width, height)]
-  }
-  if preset == "ellipse" {
-    let k = 0.5522847498307936
-    let x = width / 2
-    let y = height / 2
-    return [
-      Move(width, y),
-      Cubic(width, y + k * y, x + k * x, height, x, height),
-      Cubic(x - k * x, height, 0, y + k * y, 0, y),
-      Cubic(0, y - k * y, x - k * x, 0, x, 0),
-      Cubic(x + k * x, 0, width, y - k * y, width, y),
-      Close,
-    ]
+  if ["rect", "line", "ellipse"].contains(preset) {
+    return @layout.basic_shape_path(preset, width, height)
   }
   if preset == "roundRect" {
     let r = width.min(height) * adjustments.0.max(0).min(0.5)

@@ -290,6 +290,7 @@ export class XlsxClient {
   ): Promise<XlsxQuery> {
     checkXlsxPictureSettings({
       anchor: "move",
+      crop: [0, 0, 0, 0],
       x: 0,
       y: 0,
       width,

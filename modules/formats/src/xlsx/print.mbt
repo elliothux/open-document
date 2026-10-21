@@ -41,7 +41,7 @@ fn Session::print_sheet(
   let first_page = print_first_page(current)
   let setup = setup.unwrap_or(settings.page())
   let dimensions = self.resolved_dimensions(current, probe, profile)
-  let pictures = (self.sheet_pictures(current, dimensions) catch {
+  let pictures = (self.sheet_objects(current, dimensions) catch {
     @failure.Failure(code="limit-exceeded", ..) as error => raise error
     @failure.Failure(message~, ..) =>
       @failure.reject("unsupported-print", message, part=sheet)
@@ -203,10 +203,10 @@ fn Session::print_sheet(
                 (setup.width + setup.left - setup.right) / scale,
                 current.view.rtl,
               )
-              let visible = grid_intersection(rect, clip)
+              let visible = grid_intersection(picture.paint_bounds(rect), clip)
               if visible.width > 0 && visible.height > 0 {
                 picture_paint.push(Clip(clip))
-                picture.paint(picture_paint, rect)
+                picture.paint(picture_paint, rect, probe, profile)
                 picture_paint.push(Restore)
               }
             }

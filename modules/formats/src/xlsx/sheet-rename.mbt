@@ -100,12 +100,7 @@ fn Session::sheet_rename_reason(
         guard self.font_context is Some((probe, profile)) else {
           return "Measure worksheet picture anchors with an explicit font profile before structural editing"
         }
-        ignore(
-          self.sheet_pictures(
-            sheet,
-            self.resolved_dimensions(sheet, probe, profile),
-          ),
-        )
+        self.check_sheet_pictures(sheet, probe, profile)
       }
       ignore(read_filter(sheet))
       self.check_sort_metadata(tree)
@@ -262,7 +257,11 @@ fn Session::rename_sheet(
   index : Int,
   name : String,
 ) -> Json raise @failure.Failure {
-  let reason = self.sheet_rename_reason(tables=true, sparklines=true)
+  let reason = self.sheet_rename_reason(
+    tables=true,
+    sparklines=true,
+    pictures=true,
+  )
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let tables = self.sheet_tables()
   validate_sheet_name(name)

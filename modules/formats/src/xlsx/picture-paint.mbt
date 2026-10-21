@@ -1,9 +1,17 @@
 ///|
-fn Picture::paint(
-  self : Picture,
+fn SheetObject::paint(
+  self : SheetObject,
   primitives : Array[@layout.PositionedPrimitive],
   rect : @layout.Border,
-) -> Unit {
+  probe : @layout.TextProbe,
+  profile : Map[String, String],
+) -> Unit raise @failure.Failure {
+  if self.shape is Some(shape) {
+    if self.visible {
+      shape.paint(primitives, rect, probe, profile)
+    }
+    return
+  }
   if !self.visible || rect.width <= 0 || rect.height <= 0 {
     return
   }
@@ -13,7 +21,7 @@ fn Picture::paint(
   primitives.push(
     Image(
       {
-        key: picture_key(self.media),
+        key: picture_key(self.media.unwrap()),
         x: rect.x - self.crop[0] * width,
         y: rect.y - self.crop[1] * height,
         width,
@@ -28,7 +36,7 @@ fn Picture::paint(
 ///|
 fn picture_used(
   used : Range,
-  pictures : Array[Picture],
+  pictures : Array[SheetObject],
   dimensions : Dimensions,
 ) -> Range {
   pictures.fold(init=used, (range, picture) => {

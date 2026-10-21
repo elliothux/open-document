@@ -20,7 +20,7 @@ fn Session::order_picture(
     )
   }
   let dimensions = self.resolved_dimensions(current, probe, profile)
-  let pictures = self.sheet_pictures(current, dimensions)
+  let pictures = self.sheet_objects(current, dimensions)
   let index = for index, picture in pictures {
     if picture.id == id {
       break index

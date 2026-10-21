@@ -15,7 +15,7 @@ priv struct Grid {
   result : Json
   rows : Array[GridBand]
   columns : Array[GridBand]
-  pictures : Array[Picture]
+  pictures : Array[SheetObject]
 }
 
 ///|
@@ -403,7 +403,7 @@ pub fn Session::viewport(
   }
   let dimensions = self.resolved_dimensions(current, probe, profile)
   let mut picture_reason = ""
-  let pictures = self.sheet_pictures(current, dimensions) catch {
+  let pictures = self.sheet_objects(current, dimensions) catch {
     @failure.Failure(code="limit-exceeded", ..) as error => raise error
     @failure.Failure(message~, ..) => {
       picture_reason = message
@@ -557,7 +557,7 @@ pub fn Session::viewport(
     "images": document.drawing_images(images),
     "cells": cells,
     "notes": visible_notes,
-    "pictures": pictures.map(fn(picture : Picture) -> Json {
+    "pictures": pictures.map(fn(picture : SheetObject) -> Json {
       {
         "id": picture.id,
         "name": picture.name,

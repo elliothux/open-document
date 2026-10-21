@@ -1,5 +1,5 @@
 ///|
-fn Grid::picture_regions(self : Grid, picture : Picture) -> Array[Json] {
+fn Grid::picture_regions(self : Grid, picture : SheetObject) -> Array[Json] {
   let regions : Array[Json] = []
   if !picture.visible {
     return regions
@@ -25,6 +25,7 @@ fn Grid::picture_regions(self : Grid, picture : Picture) -> Array[Json] {
         self.width,
         self.rtl,
       )
+      let rect = picture.paint_bounds(rect)
       let visible = grid_intersection(rect, clip)
       if visible.width > 0 && visible.height > 0 {
         regions.push({ "rect": rect, "clip": visible })
@@ -53,7 +54,7 @@ fn Session::picture_grid(
 fn Session::picture_pointer_state(
   self : Session,
   grid : Grid,
-  picture : Picture?,
+  picture : SheetObject?,
 ) -> Json {
   {
     "revision": self.revision,
@@ -92,8 +93,8 @@ pub fn Session::select_picture(
 }
 
 ///|
-fn Picture::pointer_rect(
-  self : Picture,
+fn SheetObject::pointer_rect(
+  self : SheetObject,
   grid : Grid,
   handle : Int,
   dx : Double,
@@ -189,6 +190,7 @@ pub fn Session::picture_gesture(
     picture.description,
     probe,
     profile,
+    crop=picture.crop,
   )
   let selection = self.picture_pointer_state(grid, Some({ ..picture, rect, }))
   let drawing = if commit {

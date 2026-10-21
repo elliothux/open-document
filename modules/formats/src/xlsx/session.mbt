@@ -521,7 +521,11 @@ pub fn Session::query(
     "sheetEditReason": self.sheet_edit_reason(),
     "protection": self.protection_query(current),
     "workbookProtection": self.workbook_protection_query(),
-    "sheetRenameReason": self.sheet_rename_reason(tables=true, sparklines=true),
+    "sheetRenameReason": self.sheet_rename_reason(
+      tables=true,
+      sparklines=true,
+      pictures=true,
+    ),
     "frozen": {
       "rows": current.frozen.rows,
       "columns": current.frozen.columns,

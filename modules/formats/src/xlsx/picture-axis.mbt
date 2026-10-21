@@ -65,8 +65,8 @@ fn AxisChange::picture_markers(
 }
 
 ///|
-fn Picture::axis_marker_changes(
-  self : Picture,
+fn SheetObject::axis_marker_changes(
+  self : SheetObject,
   change : AxisChange,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   if self.anchor == "fixed" {
@@ -149,7 +149,7 @@ fn Session::axis_pictures(
   }
   let before_dimensions = self.resolved_dimensions(before, probe, profile)
   let after_dimensions = self.resolved_dimensions(after, probe, profile)
-  let pictures = self.sheet_pictures(before, before_dimensions)
+  let pictures = self.sheet_objects(before, before_dimensions)
   if pictures.is_empty() {
     return
   }
@@ -164,7 +164,7 @@ fn Session::axis_pictures(
     edits.push((part, edit))
   }
   let candidate = { ..self, parts, }
-  let next = candidate.sheet_pictures(after, after_dimensions)
+  let next = candidate.sheet_objects(after, after_dimensions)
   let transforms : Array[@xml.SourceChange] = []
   for index, picture in next {
     let previous = pictures[index]

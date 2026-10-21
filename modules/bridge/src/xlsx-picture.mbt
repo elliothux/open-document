@@ -92,6 +92,17 @@ fn Foundation::xlsx_picture_operation(
       guard request is { "settings": settings, .. } else {
         @failure.reject("invalid-operation", "Picture settings are required")
       }
+      guard settings is { "crop": Array(values), .. } && values.length() == 4 else {
+        @failure.reject(
+          "invalid-operation", "Four picture crop values are required",
+        )
+      }
+      let crop = values.map(value => {
+        guard value is Number(number, ..) else {
+          @failure.reject("invalid-operation", "Picture crop must be numeric")
+        }
+        number
+      })
       session.set_picture(
         revision,
         field_string(request, "sheet"),
@@ -107,6 +118,7 @@ fn Foundation::xlsx_picture_operation(
         field_string(settings, "description"),
         self.probe,
         xlsx_profile(request),
+        crop~,
       )
     }
     "deletePictureXlsx" =>

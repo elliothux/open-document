@@ -177,7 +177,7 @@ pub fn Session::pictures(
     "revision": revision,
     "sheet": sheet.id,
     "reason": reason,
-    "items": entries.map(fn(p : Picture) -> Json {
+    "items": entries.map(fn(p : SheetObject) -> Json {
       {
         "id": p.id,
         "name": p.name,
@@ -188,7 +188,7 @@ pub fn Session::pictures(
         "width": p.rect.width,
         "height": p.rect.height,
         "crop": p.crop,
-        "key": picture_key(p.media),
+        "key": picture_key(p.media.unwrap()),
       }
     }),
   }

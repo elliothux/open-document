@@ -5,12 +5,13 @@ let picture_uri = "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetD
 let picture_drawing_uri = "http://schemas.openxmlformats.org/drawingml/2006/main"
 
 ///|
-priv struct Picture {
+priv struct SheetObject {
   id : String
   name : String
   description : String
   part : String
-  media : String
+  media : String?
+  shape : SheetShape?
   tree : Tree
   frame : @xml.Node
   source : @xml.Node
@@ -149,11 +150,11 @@ fn Session::picture_bytes(
 }
 
 ///|
-fn Session::sheet_pictures(
+fn Session::sheet_objects(
   self : Session,
   sheet : Sheet,
   dimensions : Dimensions,
-) -> Array[Picture] raise @failure.Failure {
+) -> Array[SheetObject] raise @failure.Failure {
   guard self.picture_drawing(sheet) is Some((part, tree)) else { return [] }
   let root = tree.document.nodes()[0]
   guard root.uri == picture_uri &&
@@ -167,7 +168,7 @@ fn Session::sheet_pictures(
   }
   let relationships = self.relationships()
   let ids : Map[String, Unit] = Map([])
-  let result : Array[Picture] = []
+  let result : Array[SheetObject] = []
   let mut source_bytes = 0
   for frame in anchors {
     guard frame.uri == picture_uri &&
@@ -189,11 +190,25 @@ fn Session::sheet_pictures(
       .unwrap_or([])
       .all(node => {
         node.uri == picture_uri &&
-        (coordinates + ["pic", "clientData"]).contains(node.name)
+        (coordinates + ["pic", "sp", "clientData"]).contains(node.name)
       }) else {
       @failure.reject(
         "unsupported-drawing", "Only ordinary worksheet pictures are supported",
       )
+    }
+    if tree.picture_child(frame.id, "sp") is Some(source) {
+      guard tree.picture_child(frame.id, "pic") is None else {
+        @failure.reject(
+          "unsupported-drawing", "Drawing anchor has multiple objects",
+        )
+      }
+      let shape = self.read_sheet_shape(part, tree, frame, source, dimensions)
+      guard !ids.contains(shape.id) else {
+        @failure.reject("unsupported-drawing", "Duplicate drawing identity")
+      }
+      ids[shape.id] = ()
+      result.push(shape)
+      continue
     }
     let source = tree.picture_node(frame.id, "pic")
     guard tree.children
@@ -341,49 +356,11 @@ fn Session::sheet_pictures(
       crop[1] + crop[3] < 1 else {
       @failure.reject("unsupported-drawing", "Invalid worksheet image crop")
     }
-    let anchor = if frame.name == "absoluteAnchor" {
-      "fixed"
-    } else if frame.name == "oneCellAnchor" {
-      "move"
-    } else {
-      guard frame.attribute("editAs").unwrap_or("twoCell") == "twoCell" else {
-        @failure.reject(
-          "unsupported-drawing", "This two-cell edit policy requires anchor normalization",
-        )
-      }
-      "size"
-    }
-    let (x, y) = if anchor == "fixed" {
-      let pos = tree.picture_node(frame.id, "pos")
-      (
-        picture_integer(pos.attribute("x").unwrap_or("")) / 12700,
-        picture_integer(pos.attribute("y").unwrap_or("")) / 12700,
-      )
-    } else {
-      tree.picture_mark(frame.id, "from", dimensions)
-    }
-    let (width, height) = if anchor == "size" {
-      let (right, bottom) = tree.picture_mark(frame.id, "to", dimensions)
-      (right - x, bottom - y)
-    } else {
-      let ext = tree.picture_node(frame.id, "ext")
-      (
-        picture_integer(ext.attribute("cx").unwrap_or("")) / 12700,
-        picture_integer(ext.attribute("cy").unwrap_or("")) / 12700,
-      )
-    }
-    guard x >= 0 &&
-      y >= 0 &&
-      width >= 0 &&
-      height >= 0 &&
-      width <= 14400 &&
-      height <= 14400 &&
-      width / (1 - crop[0] - crop[2]) <= 1000000000 &&
-      height / (1 - crop[1] - crop[3]) <= 1000000000 &&
-      x + width <= dimensions.columns.position(16385) &&
-      y + height <= dimensions.rows.position(1048577) else {
+    let (anchor, rect) = tree.drawing_rect(frame, dimensions)
+    guard rect.width / (1 - crop[0] - crop[2]) <= 1000000000 &&
+      rect.height / (1 - crop[1] - crop[3]) <= 1000000000 else {
       @failure.reject(
-        "limit-exceeded", "Worksheet picture exceeds sheet or drawing bounds",
+        "limit-exceeded", "Expanded worksheet picture exceeds drawing bounds",
       )
     }
     result.push({
@@ -391,12 +368,13 @@ fn Session::sheet_pictures(
       name: identity.attribute("name").unwrap_or("Picture"),
       description: identity.attribute("descr").unwrap_or(""),
       part,
-      media: link.target,
+      media: Some(link.target),
+      shape: None,
       tree,
       source,
       frame,
       anchor,
-      rect: { x, y, width, height, },
+      rect,
       crop,
       printable: client
       .map(node => flag(node, "fPrintsWithSheet", fallback=true))
@@ -405,4 +383,15 @@ fn Session::sheet_pictures(
     })
   }
   result
+}
+
+///|
+fn Session::sheet_pictures(
+  self : Session,
+  sheet : Sheet,
+  dimensions : Dimensions,
+) -> Array[SheetObject] raise @failure.Failure {
+  self
+  .sheet_objects(sheet, dimensions)
+  .filter(object => object.media is Some(_))
 }

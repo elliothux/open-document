@@ -499,7 +499,11 @@ pub fn Session::edit_sheet(
     }
     Add | Copy => {
       let copy = if change is Copy {
-        let reason = self.sheet_rename_reason(tables=true, sparklines=true)
+        let reason = self.sheet_rename_reason(
+          tables=true,
+          sparklines=true,
+          pictures=true,
+        )
         guard reason.is_empty() else {
           @failure.reject("protected-content", reason)
         }

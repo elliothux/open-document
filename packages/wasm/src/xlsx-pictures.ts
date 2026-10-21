@@ -17,11 +17,11 @@ export interface XlsxPictureSettings {
   height: number;
   name: string;
   description: string;
+  crop: number[];
 }
 export interface XlsxPicture extends XlsxPictureSettings {
   id: string;
   key: string;
-  crop: number[];
 }
 export interface XlsxPictures {
   revision: number;
@@ -33,7 +33,8 @@ export interface XlsxPictures {
 function pictureSettings(value: unknown, minimum: number): void {
   const p = record(value);
   if (
-    !["fixed", "move", "size"].includes(String(p.anchor)) ||
+    typeof p.anchor !== "string" ||
+    !["fixed", "move", "size"].includes(p.anchor) ||
     !["x", "y", "width", "height"].every((key) => finite(p[key], 0, 1e9)) ||
     !finite(p.width, minimum, 14400) ||
     !finite(p.height, minimum, 14400) ||
@@ -41,7 +42,12 @@ function pictureSettings(value: unknown, minimum: number): void {
     !p.name.trim() ||
     p.name.length > 255 ||
     typeof p.description !== "string" ||
-    p.description.length > 1024
+    p.description.length > 1024 ||
+    !Array.isArray(p.crop) ||
+    p.crop.length !== 4 ||
+    !p.crop.every((value) => finite(value, 0, 0.999999)) ||
+    p.crop[0] + p.crop[2] >= 1 ||
+    p.crop[1] + p.crop[3] >= 1
   )
     throw new Error("Invalid worksheet picture settings");
 }
@@ -70,10 +76,7 @@ export function xlsxPictures(value: unknown): XlsxPictures {
       ids.has(p.id) ||
       typeof p.key !== "string" ||
       !p.key ||
-      p.key.length > 256 ||
-      !Array.isArray(p.crop) ||
-      p.crop.length !== 4 ||
-      !p.crop.every((value) => finite(value, 0, 0.999999))
+      p.key.length > 256
     )
       throw new Error("Invalid worksheet picture identity or crop");
     ids.add(p.id);

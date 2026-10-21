@@ -231,6 +231,8 @@ export class SpreadsheetEditor extends SpreadsheetObjects {
     );
     try {
       await editor.enqueue(() => editor.present(true));
+      editor.state = await editor.enqueue(() => client.query());
+      editor.publish();
       return editor;
     } catch (error) {
       await editor.dispose();

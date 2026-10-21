@@ -1044,9 +1044,9 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 `{ action: "delete" }` 删除指定表，至少保留一张可见表。删除活动表时优先选择右侧可见表，再向左查找，定位 A1；删除其他表保留活动表与范围。同步剩余名称的 `localSheetId`、工作簿窗口及工作表视图；移除被删表的局部名称。将指向该表的已支持单元格/区域引用整体替换为 `#REF!`，覆盖单元格公式、保留的定义名称和既有条件格式/数据验证公式；移除指向它的内部超链接，保留外部链接及字符串常量。共享公式组继续保存为共享组，失去目标的错误参与依赖计算和缓存写回。核心现可解析七种标准公式错误常量，保留错误传播和 IF 的按需求值规则。引用错误在网格和 PDF 中使用同一结果。
 
-`{ action: "copy" }` 在目标表后复制，分配新的 sheetId、部件及关系身份。名称从 `原名 (1)` 起避让重名，长度不超过 31 个 UTF-16 单元且不切断代理对。副本保留内容、格式、尺寸和可见性，更新自身显式引用与复制的局部名称；其他表的引用及字符串常量不变。已有普通便笺及对应 VML 复制为独立部件，清除副本的可选 guid/shapeId，源便笺不变；外部链接只保留地址。可见副本激活 A1，隐藏副本保留当前选择。副本部件和元数据使用同一有界历史，失败不修改文档。绘图、表格、非便笺 VML、线程批注及未知身份扩展仍受保护；便笺范围归[单元格便笺](#单元格便笺)。
+`{ action: "copy" }` 在目标表后复制，分配新的 sheetId、部件及关系身份。名称从 `原名 (1)` 起避让重名，长度不超过 31 个 UTF-16 单元且不切断代理对。副本保留内容、格式、尺寸和可见性，更新自身显式引用与复制的局部名称；其他表的引用及字符串常量不变。已有普通便笺及对应 VML 复制为独立部件，清除副本的可选 guid/shapeId，源便笺不变；外部链接只保留地址。可见副本激活 A1，隐藏副本保留当前选择。副本部件和元数据使用同一有界历史，失败不修改文档。[结构化表](#结构化表与引用)和[普通图片](#工作表图片)同时建立各自独立部件；复杂绘图、非便笺 VML、线程批注及未知身份扩展仍受保护。便笺范围归[单元格便笺](#单元格便笺)。
 
-删除移除工作表 XML、其关系、失效 calcChain 及其关系，以及独占的普通便笺 XML/VML，更新工作簿关系和内容类型。其余源资源保留，不回收共享字符串条目或重排字符串索引；保存更新使用计数并沿现有规则标记重算。删除部件快照、引用、缓存和选择共同提交一项有界历史，可与新增、输入和改名精确混合撤销/重做；损坏回放或预算失败保留已提交文档。选择与错误引用规则参考 [ONLYOFFICE 删除工作表](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L4122-L4188)和[引用转换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L10419-L10455)。
+删除移除工作表 XML、其关系、失效 calcChain 及其关系，以及独占的普通便笺 XML/VML、结构化表和普通图片绘图 XML/关系，更新工作簿关系和内容类型。其余源资源及可能共享的图片字节保留，不回收共享字符串条目或重排字符串索引；保存更新使用计数并沿现有规则标记重算。删除部件快照、引用、缓存和选择共同提交一项有界历史，可与新增、输入和改名精确混合撤销/重做；损坏回放或预算失败保留已提交文档。选择与错误引用规则参考 [ONLYOFFICE 删除工作表](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L4122-L4188)和[引用转换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L10419-L10455)。
 
 `XlsxQuery.sheetRenameReason` 包含结构保护原因，并保护尚未接入引用更新的工作簿/工作表资源关系、未知工作表内容、非空扩展及非普通/共享公式组。复制和删除沿用该引用保护；复制另保护未知身份属性，删除另拒绝未知的部件入站引用。默认 UI 显示原因，提供名称输入、复制、改名与删除入口，并禁用最后可见表的删除。更广资源及引用处理仍归 [P11](../p11-xlsx-core.md)。
 
@@ -1064,7 +1064,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 普通值、自定义、数值排名及平均值筛选随整行/整列插删同步。范围前插入移动整个筛选，范围内插入扩展矩形并重新匹配新增空行；删除缩短矩形，删除的条件列和按钮标记一起移除。手动隐藏及筛选隐藏来源随行移动；删除标题后，首个存活行成为标题并清除其筛选隐藏来源。失去全部列或数据行时移除筛选，仅保留存活的手动隐藏。嵌套标准排序范围和键沿既有结构变换维护。候选公式重算后重新应用条件，再更新 SUBTOTAL 缓存，与源和选区合为一次精确历史；范围后的操作保留既有筛选源及隐藏状态。变换后的矩形继续受 4096 格上限约束，插入不得裁掉工作表边缘的筛选端点。规则参考 [ONLYOFFICE 列筛选变换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/AutoFilters.js#L2115-L2215)和[行筛选变换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/AutoFilters.js#L2326-L2395)，实现归 [`filter-axis.mbt`](../../modules/formats/src/xlsx/filter-axis.mbt)。
 
-插入会推掉实际源行、单元格或便笺时拒绝。[传统便笺](#单元格便笺)的归属已随结构事务维护。工作表保护、未知公式/引用/属性、非空扩展、未知筛选、绘图、表格、线程批注及未知便笺资源继续保护，保留文档与历史；仅锁定工作簿结构不禁止行列插删。筛选表的局部单元格移位仍受保护。四向单元格移位插删见下节；其余引用资源按 [P11](../p11-xlsx-core.md) 继续接入。
+插入会推掉实际源行、单元格或便笺时拒绝。[传统便笺](#单元格便笺)、[结构化表](#结构化表与引用)和[普通图片](#工作表图片)沿各自合同维护归属。工作表保护、未知公式/引用/属性、非空扩展、未知筛选、未知绘图、线程批注及未知便笺资源继续保护，保留文档与历史；仅锁定工作簿结构不禁止行列插删。筛选表的局部单元格移位仍受保护。四向单元格移位插删见下节；其余引用资源按 [P11](../p11-xlsx-core.md) 继续接入。
 
 ### 单元格移位插入与删除
 
@@ -1801,9 +1801,21 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 `SpreadsheetEditor.pictures()` 返回当前表的 `{ revision, sheet, reason, items }`。每项包含稳定的原生 `id`、名称、替代文字、锚点、point 几何、源裁剪及图片资源键。`insertPicture(bytes, width, height, name?, description?)` 在选定单元格插入普通 PNG/JPEG；`setPicture(id, settings)` 修改锚点、位置、尺寸及文字，`deletePicture(id)` 删除目标锚点。默认图片面板复用这些入口，调整尺寸保留当前比例。同步 `XlsxSession` 和异步 `XlsxClient` 提供对应显式 revision/sheet/profile 接口；Web 在提交前完成图片预检和像素解码。
 
-`anchor` 接受 `fixed`、`move`、`size`，分别保存 `absoluteAnchor`、`oneCellAnchor` 和普通 `twoCellAnchor`。核心按原生行高/列宽解释几何，尺寸编辑在同一历史中同步图片姿态。网格按冻结窗格裁剪图片，RTL 只移动对象位置；打印沿现有分页、区域和缩放裁剪，保留隐藏和 `fPrintsWithSheet` 策略。已支持的源裁剪参与绘制，当前编辑入口不修改裁剪。资源、关系、源补丁和原生输入共用精确历史，撤销与重做恢复相同字节，失败保留文档。删除保留可能共享的关系和媒体，解码缓存只保留实际引用的图片。
+`anchor` 接受 `fixed`、`move`、`size`，分别保存 `absoluteAnchor`、`oneCellAnchor` 和普通 `twoCellAnchor`。核心按原生行高/列宽解释几何，尺寸编辑在同一历史中同步图片姿态。网格按冻结窗格裁剪图片，RTL 只移动对象位置；打印沿现有分页、区域和缩放裁剪，保留隐藏和 `fPrintsWithSheet` 策略。源裁剪参与同一 Canvas/PDF 绘制。资源、关系、源补丁和原生输入共用精确历史，撤销与重做恢复相同字节，失败保留文档。删除保留可能共享的关系和媒体，解码缓存只保留实际引用的图片。
 
-每表最多 256 张图片，压缩源合计最多 16 MiB；新输入最多 2 MiB，尺寸为 0.1–14400 pt。字体、RGBA、历史及包输出继续沿用共享预算。工作表保护、对象锁、未知锚点/图形、旋转/翻转、外链及不支持的绘图样式保持保护并返回原因。`twoCellAnchor` 的其他 `editAs` 变体和复杂图形继续实施；带绘图的工作表复制及结构迁移继续沿现有资源保护。实现归 [`picture-read.mbt`](../../modules/formats/src/xlsx/picture-read.mbt)、[`picture-edit.mbt`](../../modules/formats/src/xlsx/picture-edit.mbt)、[`picture-reflow.mbt`](../../modules/formats/src/xlsx/picture-reflow.mbt)及 [`spreadsheet-canvas.ts`](../../packages/web/src/spreadsheet-canvas.ts)。
+`XlsxPictureSettings.crop` 必填，按左、上、右、下保存四个源裁剪比例；每项为 0–1 之间的有限数，不含 1。核心按原生 1/100000 精度舍入，再检查对边之和小于 1。裁剪保留框的位置与尺寸，不改压缩图片字节；全零移除原生 `srcRect`。拖动、缩放和整表复制保留裁剪。默认图片面板提供四边百分比，步长为 0.001%，沿原属性按钮提交；“重置裁剪”只恢复完整图片，不提交其他未应用草稿。
+
+`noCrop` 锁阻止改变裁剪，原有对象选择/尺寸锁继续生效。未知裁剪属性、子内容、注释和处理指令保护源；裁剪展开后的每轴尺寸最多 1e9 pt。无效值、舍入后为空或预算失败整体拒绝；相同裁剪、位置、尺寸及文字不新增历史。实现归 [`picture-crop.mbt`](../../modules/formats/src/xlsx/picture-crop.mbt)，复用 DOCX 裁剪精度与现有图片事务。比例解释参考 [ONLYOFFICE 图片裁剪系数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L947-L959)，原生顺序沿 [BlipFill 序列化](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Fills/BlipFill.cpp#L159-L173)。
+
+每表最多 256 张图片，压缩源合计最多 16 MiB；新输入最多 2 MiB，尺寸为 0.1–14400 pt。字体、RGBA、历史及包输出继续沿用共享预算。工作表保护、对象锁、未知锚点/图形、旋转/翻转、外链及不支持的绘图样式保持保护并返回原因。`twoCellAnchor` 的其他 `editAs` 变体和复杂图形继续实施；其余资源迁移沿现有保护。实现归 [`picture-read.mbt`](../../modules/formats/src/xlsx/picture-read.mbt)、[`picture-edit.mbt`](../../modules/formats/src/xlsx/picture-edit.mbt)、[`picture-reflow.mbt`](../../modules/formats/src/xlsx/picture-reflow.mbt)及 [`spreadsheet-canvas.ts`](../../packages/web/src/spreadsheet-canvas.ts)。
+
+普通图片随整表复制、改名及删除，沿现有 `editSheet` 命令和默认表管理按钮操作。复制创建独立绘图 XML 与关系，保留三种锚点、图层、文字、裁剪及部件内图片身份；不可变 PNG/JPEG 字节共用。副本图片可单独修改，源图片保持；同表便笺和结构化表继续各自建立副本。改名沿原有引用事务保留绘图归属。删除移除该表的绘图 XML、关系及内容类型，保留可能共享的图片字节。源与副本的编辑、删除及输入共用精确历史；保存重开后可继续编辑。
+
+表管理先验证普通图片及独立绘图归属；未知对象、共享绘图、图片链接/扩展身份和非图片绘图关系继续保护。原始客户端先提供字体 profile，默认宿主在首次资源测量后沿现有队列刷新可用状态。工作簿结构保护、资源和历史预算继续生效。实现归 [`picture-sheets.mbt`](../../modules/formats/src/xlsx/picture-sheets.mbt)，锚点及对象独立复制参考 [ONLYOFFICE copyObjects](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L7391-L7421)。
+
+整行、整列插入或删除复用原有 `editSheet` 命令和默认按钮。固定图片保持位置与尺寸；单格锚点只随起点之前的行列移动；双格锚点同时维护起止标记，在图片内部插入或删除时改变尺寸。删除覆盖单格锚点时保留原索引与偏移；覆盖双格起点时截到删除起点，至少保留一格跨度。截断只清零受影响轴的偏移，另一轴保留。图片身份、替代文字、裁剪、锁和资源保持，自动行高重排后同步最终原生姿态；几何未变的姿态片段保留原源。图片、单元格、引用和选择共用一次精确历史，重开后可继续输入及输出 PDF。
+
+结构编辑先验证工作簿中的全部普通图片。原始客户端须先以相同 revision 的 `pictures` 或 `viewport` 提供字体 profile，默认宿主自动准备。未知绘图、共享绘图部件、工作表保护、锚点越界及候选预算失败整体拒绝；带图片目标表的局部单元格移位继续保护。依赖行列变化沿锚点策略调整，直接对象修改仍遵守对象锁。实现归 [`picture-axis.mbt`](../../modules/formats/src/xlsx/picture-axis.mbt)，移动和缩放策略依据 [ONLYOFFICE 行列绘图更新](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/DrawingObjects.js#L3232-L3511)。
 
 画布图片可以选择、拖动及四角等比缩放。图片覆盖范围和可见手柄由核心按冻结窗格裁剪，重叠图片沿源顺序命中；方向键以 1 pt 操作，Shift 改为 10 pt，Delete 删除对象。核心保留图片选择，普通单元格选择结束图片选择；原生事务及撤销/重做同步恢复它。候选完整网格沿同一 Canvas 绘制，抬笔只提交一项历史。Escape、失焦、捕获丢失、滚动及过期几何取消候选。保存及常规修改入口先取消候选；其他命令改变几何后也会取消过期候选。只读查询保留候选。
 

@@ -197,7 +197,57 @@ export function XlsxPictures({
                 />
               </label>
             ))}
-            <button type="submit">{t.xlsxPictureApply}</button>
+            {[t.cropLeft, t.cropTop, t.cropRight, t.cropBottom].map(
+              (label, index) => (
+                <label key={label}>
+                  {label}
+                  <input
+                    type="number"
+                    min={0}
+                    max={99.999}
+                    step={0.001}
+                    required
+                    value={
+                      Number.isFinite(draft.crop[index])
+                        ? draft.crop[index]! * 100
+                        : ""
+                    }
+                    onChange={(event) => {
+                      const crop = [...draft.crop];
+                      crop[index] = event.currentTarget.valueAsNumber / 100;
+                      setDraft({ ...draft, crop });
+                    }}
+                  />
+                </label>
+              ),
+            )}
+            <button
+              type="submit"
+              disabled={
+                draft.crop[0]! + draft.crop[2]! >= 1 ||
+                draft.crop[1]! + draft.crop[3]! >= 1
+              }
+            >
+              {t.xlsxPictureApply}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                controller.run(async () => {
+                  const picture = catalog?.items.find(
+                    (item) => item.id === draft.id,
+                  );
+                  if (!picture) return;
+                  await editor.setPicture(draft.id, {
+                    ...picture,
+                    crop: [0, 0, 0, 0],
+                  });
+                  await load();
+                })
+              }
+            >
+              {t.resetCrop}
+            </button>
             {(
               [
                 ["front", t.bringFront],
