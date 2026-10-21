@@ -382,6 +382,9 @@ pub fn Session::drag(
   if candidate.kind == "connector" {
     return self.drag_connector(candidate, dx, dy, handle, tolerance)
   }
+  if candidate.kind == "adjustment" {
+    return self.drag_adjustment(candidate, dx, dy, handle)
+  }
   if candidate.guide is Some(guide) {
     return self.drag_guide(candidate, guide, dx, dy, handle)
   }

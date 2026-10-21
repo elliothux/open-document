@@ -35,20 +35,31 @@ fn Session::read_body_fragment(
     !tree.children[body].is_empty() &&
     tree.children[body].length() <= 1024 &&
     tree.children[body].all(id => {
-      tree.nodes[id].uri == word_uri && tree.nodes[id].name == "p"
+      tree.nodes[id].uri == word_uri &&
+      ["p", "tbl"].contains(tree.nodes[id].name)
     }) else {
     @failure.reject(
-      "invalid-operation", "Rich text requires one body containing ordinary paragraphs",
+      "invalid-operation", "Rich text requires one body containing supported paragraphs or tables",
     )
   }
   check_fragment_content(tree, tree.descendants(body), pictures, fields=true)
   let view = { ..self, parts, media, }
   let flow = view.flow_from(document)
-  guard flow.paragraphs.length() == tree.children[body].length() &&
+  guard flow.paragraphs.length() + flow.tables.length() ==
+    tree.children[body].length() &&
+    flow.tables.length() <= 32 &&
     flow.paragraphs.all(p => p.readOnlyReason.is_empty()) else {
     @failure.reject(
       "protected-content", "Rich document fragment contains unsupported paragraphs",
     )
+  }
+  let mut cells = 0L
+  for table in flow.tables {
+    ignore(view.check_fragment_table(tree, table))
+    cells += table.rows.length().to_int64() * table.widths.length().to_int64()
+    guard cells <= 4096L else {
+      @failure.reject("limit-exceeded", "Rich body tables exceed 4096 cells")
+    }
   }
   document
 }

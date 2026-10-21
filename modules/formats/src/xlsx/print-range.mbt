@@ -26,6 +26,18 @@ fn print_area(value : String) -> Range raise @failure.Failure {
 }
 
 ///|
+fn print_areas(value : String) -> Array[Range] raise @failure.Failure {
+  guard !value.trim().is_empty() && value.length() <= 2048 else {
+    @failure.reject("invalid-address", "Print areas exceed address budget")
+  }
+  let areas = value.split(",").to_array()
+  guard areas.length() <= 32 else {
+    @failure.reject("limit-exceeded", "Print areas exceed 32 rectangles")
+  }
+  areas.map(area => print_area(area.to_owned()))
+}
+
+///|
 fn print_title(
   value : String,
   rows : Bool,
@@ -88,7 +100,7 @@ fn PrintRange::normalized(
     area: if self.area.trim().is_empty() {
       ""
     } else {
-      print_area(self.area).name()
+      print_areas(self.area).map(area => area.name()).join(",")
     },
     rows: title(self.rows, true),
     columns: title(self.columns, false),
@@ -138,7 +150,7 @@ fn Session::read_print_range(
   self : Session,
   index : Int,
 ) -> PrintRange raise @failure.Failure {
-  let mut area = ""
+  let areas : Array[String] = []
   let mut rows = ""
   let mut columns = ""
   for node in self.print_names(index) {
@@ -163,12 +175,10 @@ fn Session::read_print_range(
       }
       let value = node.text[spans[start + 2].0:spans[cursor - 1].1].to_owned()
       if is_area {
-        guard area.is_empty() else {
-          @failure.reject(
-            "unsupported-print", "Multiple print areas require separate-area pagination",
-          )
+        guard areas.length() < 32 else {
+          @failure.reject("limit-exceeded", "Print areas exceed 32 rectangles")
         }
-        area = print_area(value).name()
+        areas.push(print_area(value).name())
       } else {
         let ends = value.split(":").to_array()
         guard ends.length() == 2 else {
@@ -195,7 +205,7 @@ fn Session::read_print_range(
       start = cursor + 1
     }
   }
-  ({ area, rows, columns, } : PrintRange).normalized()
+  ({ area: areas.join(","), rows, columns, } : PrintRange).normalized()
 }
 
 ///|
@@ -256,16 +266,19 @@ fn Session::set_print_range(
   let area = if settings.area.is_empty() {
     ""
   } else {
-    let bounds = print_area(settings.area)
-    quoted +
-    "$" +
-    print_column(bounds.left) +
-    "$" +
-    bounds.top.to_string() +
-    ":$" +
-    print_column(bounds.right) +
-    "$" +
-    bounds.bottom.to_string()
+    print_areas(settings.area)
+    .map(bounds => {
+      quoted +
+      "$" +
+      print_column(bounds.left) +
+      "$" +
+      bounds.top.to_string() +
+      ":$" +
+      print_column(bounds.right) +
+      "$" +
+      bounds.bottom.to_string()
+    })
+    .join(",")
   }
   let titles : Array[String] = []
   for (value, by_row) in [(settings.columns, false), (settings.rows, true)] {

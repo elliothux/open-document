@@ -238,6 +238,18 @@ export class PresentationCanvas extends CanvasSurface {
       context.fillRect(point.x - size / 2, point.y - size / 2, size, size);
       context.strokeRect(point.x - size / 2, point.y - size / 2, size, size);
     }
+    context.fillStyle = "#facc15";
+    for (const point of geometry.adjustmentHandles) {
+      const size = 5 / scale;
+      context.beginPath();
+      context.moveTo(point.x, point.y - size);
+      context.lineTo(point.x + size, point.y);
+      context.lineTo(point.x, point.y + size);
+      context.lineTo(point.x - size, point.y);
+      context.closePath();
+      context.fill();
+      context.stroke();
+    }
 
     const caret = geometry.caret;
     if (caret) {

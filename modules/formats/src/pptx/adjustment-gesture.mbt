@@ -1,0 +1,157 @@
+///|
+priv struct AdjustmentHandle {
+  name : String
+  value : Double
+  maximum : Double
+  x : Double
+  y : Double
+  dx : Double
+  dy : Double
+}
+
+///|
+fn Object::adjustment_handles(self : Object) -> Array[AdjustmentHandle] {
+  guard self.geometry is Some(g) && g.width > 0 && g.height > 0 else {
+    return []
+  }
+  let w = g.width
+  let h = g.height
+  let side = w.min(h)
+  self
+  .adjustment_values()
+  .map(item => {
+    // ONLYOFFICE preset XY handles vary one guide linearly on its declared local axis.
+    let (x, y, dx, dy) = match (self.preset, item.0) {
+      ("rightArrow", "adj1") => (0.0, h / 2, 0.0, -h / 2)
+      ("leftArrow", "adj1") => (w, h / 2, 0.0, -h / 2)
+      ("upArrow", "adj1") => (w / 2, h, -w / 2, 0.0)
+      ("downArrow", "adj1") => (w / 2, 0.0, -w / 2, 0.0)
+      ("rightArrow", "adj2") => (w, 0.0, -side, 0.0)
+      ("leftArrow", "adj2") => (0.0, 0.0, side, 0.0)
+      ("upArrow", "adj2") => (0.0, 0.0, 0.0, side)
+      ("downArrow", "adj2") => (0.0, h, 0.0, -side)
+      ("triangle", _) => (0.0, 0.0, w, 0.0)
+      ("star5", _) => (w / 2, h / 2 * 1.10557, 0.0, -h * 1.10557)
+      _ => (0.0, 0.0, side, 0.0)
+    }
+    {
+      name: item.0,
+      value: item.1,
+      maximum: item.2,
+      x: x + dx * item.1,
+      y: y + dy * item.1,
+      dx,
+      dy,
+    }
+  })
+}
+
+///|
+fn Session::adjustment_object(self : Session) -> Object raise @failure.Failure {
+  guard self.selection.mode == "object" && self.selection.objects.length() == 1 else {
+    @failure.reject(
+      "invalid-operation", "Select one shape before dragging an adjustment",
+    )
+  }
+  let object = self
+    .source_slide(self.selection.slide)
+    .object(self.selection.object)
+  let reason = self.adjustment_reason(object)
+  guard reason.is_empty() else { @failure.reject("protected-content", reason) }
+  object
+}
+
+///|
+fn Session::drag_adjustment(
+  self : Session,
+  candidate : Candidate,
+  dx : Double,
+  dy : Double,
+  handle : Int,
+) -> Json raise @failure.Failure {
+  let object = self.adjustment_object()
+  let handles = object.adjustment_handles()
+  guard handle >= 1 && handle <= handles.length() else {
+    @failure.reject("invalid-transform", "Select a shape adjustment handle")
+  }
+  let knob = handles[handle - 1]
+  let inverse = object.geometry.unwrap().matrix.inverse()
+  let (x, y) = (
+    inverse.a * dx + inverse.c * dy,
+    inverse.b * dx + inverse.d * dy,
+  )
+  let delta = (knob.dx * x + knob.dy * y) /
+    (knob.dx * knob.dx + knob.dy * knob.dy)
+  let original = self.source_slide(self.selection.slide)
+  let base = { ..self, candidate: None, }
+  let changes = if delta == 0 {
+    []
+  } else {
+    base.adjust_shape(
+      knob.name,
+      Some((knob.value + delta).max(0).min(knob.maximum)),
+    )
+  }
+  let (slide, edit) = if changes.is_empty() {
+    (original, None)
+  } else {
+    let (slide, edit) = self.prepare(original, changes)
+    (slide, Some(edit))
+  }
+  self.candidate = Some({ ..candidate, slide, edit, })
+  self.view = None
+  self.query()
+}
+
+///|
+fn Session::finish_adjustment(
+  self : Session,
+  candidate : Candidate,
+  probe : @layout.TextProbe,
+  profile : Map[String, String],
+) -> (Slide, @xml.Edit)? raise @failure.Failure {
+  guard candidate.edit is Some(_) else { return None }
+  let original = self.source_slide(self.selection.slide)
+  let base = { ..self, candidate: None, }
+  let changes : Array[@xml.SourceChange] = []
+  let initial = original.object(self.selection.object).adjustment_values()
+  for
+    (name, value, _) in candidate.slide
+    .object(self.selection.object)
+    .adjustment_values() {
+    if initial.iter().find_first(item => item.0 == name).unwrap().1 != value {
+      changes.append(base.adjust_shape(name, Some(value)))
+    }
+  }
+  if changes.is_empty() {
+    None
+  } else {
+    Some(
+      self.prepare_fitted(
+        original,
+        changes,
+        self.selection.objects,
+        probe,
+        profile,
+      ),
+    )
+  }
+}
+
+///|
+fn Session::adjustment_geometry(
+  self : Session,
+) -> Array[Json] raise @failure.Failure {
+  guard self.selection.mode == "object" && self.selection.objects.length() == 1 else {
+    return []
+  }
+  let object = self.current().object(self.selection.object)
+  guard self.adjustment_reason(object).is_empty() else { return [] }
+  let matrix = object.geometry.unwrap().matrix
+  object
+  .adjustment_handles()
+  .map(handle => {
+    let (x, y) = matrix.point(handle.x, handle.y)
+    { "name": handle.name, "x": x, "y": y }
+  })
+}

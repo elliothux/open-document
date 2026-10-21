@@ -1,5 +1,11 @@
 # 测试说明
 
+HTML 普通表格通过 16 项定向核心检查，覆盖合并网格、列组宽度、格内格式/列表/链接/图片、三种方式、段落边界与段前分页、精确混合历史、重开及失败原子性。新 Chromium 流程与原 HTML 流程先通过 2/2，补齐列组与边界后只复跑新流程，通过 1/1；独立 XML、PNG 字节、原生格内输入、重开、实际 PDF 文字及黄色底色/图片三色像素通过。根 api/check/build 与私有 typecheck/lint 通过，证据归 `docxHtmlTableInputCheckpoint`。未跑全量、外部 Office 或安装包全功能矩阵；嵌套表格、caption、重复表头及更广 CSS 继续实施，P10/P11/P12 保持 planned。
+
+PPTX 调节手柄通过 13 项定向核心检查，覆盖现有 12 种可调预设的局部轴、旋转/翻转、候选只读、上下限、取消、精确混合历史、重开和失败原子性。既有连接线回归发现重复变换写入，修改前代码也能复现；修正源姿态比较后，两项端点流程通过。新增指针流程与原辅助线流程共 2/2 Chromium，通过独立 XML、原生输入、保存重开及 Canvas/PDF 像素；传输 1 项、11 个断言通过。根 api/check/build 与私有 typecheck/lint 通过，证据归 `pptxAdjustmentGestureCheckpoint`。未跑全量、外部 Office 或安装包全功能矩阵；P10/P11/P12 保持 planned。
+
+XLSX 多打印区域通过 9 项定向核心检查，覆盖顺序、独立分页、重复标题、共用缩放、连续页码、跨表总页数、联合引用维护、精确混合历史、保存重开与累计上限。既有 Chromium 流程扩展到两个区域，通过独立 XML、8 页实际 PDF、全部正文/标题文字、原生草稿和重开输入；传输检查 1 项、22 个断言通过。根 api/check/build 与私有 typecheck/lint 通过，证据归 `xlsxMultiplePrintAreasCheckpoint`。未跑全量、外部 Office 或安装包全功能矩阵；P10/P11/P12 保持 planned。
+
 HTML/Markdown 内嵌 PNG/JPEG 通过 17 项定向核心检查，含新增两项及三种方式、两类输入、正文片段、旧图片插入和单元格图片回归。覆盖资源预检只读、MIME/尺寸/预算、alt/title、同源去重、原生身份/部件、三种方式、精确混合历史、重开及失败原子性。新 Chromium 流程通过默认面板、本地实际解码、PNG/JPEG 独立字节/XML、继续输入、历史、重开和 PNG/PDF 真像素；外链零请求，损坏压缩数据在提交前拒绝，纯文本仅提取 alt 且不增部件。根 api/check/build、私有 typecheck/lint 和新安装包严格宿主编译通过；证据归 `docxMarkupImageInputCheckpoint`。未跑全量或外部 Office；表格、水平线、外链/复杂图片和更广输入继续实施。
 
 HTML/Markdown 三种粘贴方式通过 9 项定向核心检查，含新增两项及既有两类输入和正文片段回归。覆盖源格式、插入点格式合并、纯文本、反向范围、强调/链接/列表/标题、单格待输入格式、源字体消除、精确混合历史及失败原子性。纯文本不创建编号或关系部件，并在提交前预检目标字体/布局。该缺字体回归先失败，再通过原子拒绝检查；最后只重跑受影响 HTML 流程，通过 1/1，沿用已通过的 Markdown 回归。既有 HTML 浏览器流程扩展到默认方式选择、独立 XML/部件、继续输入、历史、重开及实际 PDF，与 Markdown 回归共 2/2。根 api/check/build、私有 typecheck/lint 和新安装包严格宿主编译通过；证据归 `docxMarkupPasteModeCheckpoint`。未跑全量或外部 Office；图片、表格、水平线及更广交换结构继续实施。

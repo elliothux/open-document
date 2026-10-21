@@ -187,7 +187,7 @@ export const en = {
   printTitleRows: "Repeat title rows",
   printTitleColumns: "Repeat title columns",
   printRangeNotice:
-    "Leave a field empty to clear it. Use one cell rectangle, whole rows (1:2) or whole columns (A:B). Titles before each page start repeat without duplicating its body.",
+    "Leave a field empty to clear it. Separate up to 32 cell rectangles with commas; each starts a new page. Titles use whole rows (1:2) or columns (A:B) and repeat without duplicating each page's body.",
   printPaper: "Paper size",
   printScale: "Print scale (%)",
   printFitWidth: "Fit pages wide (0 = unlimited)",

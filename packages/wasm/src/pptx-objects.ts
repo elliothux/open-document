@@ -41,6 +41,7 @@ export interface PptxGeometry {
   outline: PptxPoint[];
   outlines: PptxPoint[][];
   handles: PptxPoint[];
+  adjustmentHandles: (PptxPoint & { name: "adj" | "adj1" | "adj2" })[];
   rects: PptxPoint[][];
   caret: (PptxPoint & { endX: number; endY: number; height: number }) | null;
 }
@@ -228,6 +229,13 @@ export function checkPptxGeometry(value: unknown): void {
       throw new Error("Invalid PPTX geometry identity");
   points(selection.outline);
   points(selection.handles);
+  const handles = selection.adjustmentHandles;
+  if (!Array.isArray(handles))
+    throw new Error("Invalid PPTX adjustment handles");
+  points(handles, 2);
+  for (const handle of handles)
+    if (!["adj", "adj1", "adj2"].includes(String(record(handle).name)))
+      throw new Error("Invalid PPTX adjustment handle");
   if (!Array.isArray(selection.outlines) || selection.outlines.length > 256)
     throw new Error("Invalid PPTX object outlines");
   for (const outline of selection.outlines) points(outline);

@@ -10,6 +10,7 @@ interface PrintPaper {
 }
 /** Select visible sheets and optionally override all six paper fields together. */
 export type PrintOptions = {
+  /** Up to 32 comma-separated cell rectangles, replacing the saved print areas. */
   range?: string;
   sheets?: "visible" | readonly string[];
 } & (PrintPaper | { [K in keyof PrintPaper]?: never });
@@ -25,6 +26,7 @@ export interface XlsxPrintSetup {
   fitHeight: number;
 }
 export interface XlsxPrintRange {
+  /** Up to 32 comma-separated cell rectangles; an empty string clears the areas. */
   area: string;
   rows: string;
   columns: string;
@@ -82,7 +84,7 @@ export function checkXlsxPrintRange(value: unknown): void {
     !(["area", "rows", "columns"] as const).every(
       (key) =>
         typeof range[key] === "string" &&
-        range[key].length <= (key === "area" ? 64 : 32),
+        range[key].length <= (key === "area" ? 2048 : 32),
     )
   )
     throw new Error("Invalid worksheet print range");
@@ -142,7 +144,7 @@ export function checkPrintOptions(value: unknown): void {
     (options.range !== undefined &&
       (typeof options.range !== "string" ||
         options.range.length === 0 ||
-        options.range.length > 64)) ||
+        options.range.length > 2048)) ||
     (options.sheets !== undefined &&
       options.sheets !== "visible" &&
       (!Array.isArray(options.sheets) ||

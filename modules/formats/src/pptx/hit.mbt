@@ -332,6 +332,7 @@ pub fn Session::selection_geometry(
     "revision": self.revision,
     "outline": outline,
     "outlines": outlines,
+    "adjustmentHandles": self.adjustment_geometry(),
     "handles": if selection.mode == "object" &&
       selection.objects.length() == 1 &&
       slide.object(selection.object).source.node.name == "cxnSp" &&

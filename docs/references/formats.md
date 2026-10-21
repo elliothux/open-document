@@ -631,7 +631,7 @@ HTML 的 img/src 和 Markdown 的直接/引用式图片接受 `data:image/png;ba
 | --- | --- |
 | `source` | 保留已支持的源字符和段落格式；沿原生正文片段事务写入 |
 | `merge` | 使用插入点的有效字体、字号、颜色、字符间距、突出显示及段落格式；保留源强调、上下标、链接、列表编号和标题级别 |
-| `text` | 提取文字、图片 alt、Tab、换行及列表标记，清除源格式和链接；沿普通文字替换事务，继承目标和待输入格式 |
+| `text` | 提取文字、图片 alt、Tab、换行及列表标记，表格转为 TSV；清除源格式和链接，沿普通文字替换事务，继承目标和待输入格式 |
 
 匹配格式按范围文档顺序的起点取值，保留光标亲和；反向选择使用同一插入点。目标段落的对齐、方向、间距、缩进、Tab 和分页属性作用于导入段落，源编号/标题结构保留。不要求加载被替换的源字体，但保留的强调仍需目标字体对应资源。
 
@@ -647,9 +647,19 @@ HTML 的 img/src 和 Markdown 的直接/引用式图片接受 `data:image/png;ba
 
 仅使用 style、dir、hidden，以及 a 的 href/title、ol 的 start 和 img 的 src/alt/title/width/height。字符格式支持 font-family、pt/px 字号、粗斜体、RGB 颜色、下划线/删除线和上下标；段落支持对齐、方向、标题 outlineLvl、引用及列表缩进。字号换算到原生半点。white-space 支持 normal/nowrap/pre/pre-wrap/break-spaces。display:none、visibility:hidden/collapse 和 hidden 属性移除对应子树。其他属性及未声明 CSS 丢弃，不把 CSS 写入 DOCX。
 
-script/style/head 元数据和 iframe/object/embed/template/noscript 子树全部移除，事件属性不参与转换。核心不执行脚本，也不请求图片、样式、框架或链接。未知元素、表格、未支持图片来源、水平线、SVG/MathML、本地锚点、逆序/逐项改号及不支持的已声明格式明确拒绝；不会回退成纯文本掩盖失败。更广 HTML 结构和图片引用形式仍待实施。
+script/style/head 元数据和 iframe/object/embed/template/noscript 子树全部移除，事件属性不参与转换。核心不执行脚本，也不请求图片、样式、框架或链接。未知元素、未支持图片来源、水平线、SVG/MathML、本地锚点、逆序/逐项改号及不支持的已声明格式明确拒绝；不会回退成纯文本掩盖失败。普通表格归下节，更广 HTML 结构和图片引用形式仍待实施。
 
 源最多 65536 个 UTF-16 单元及 2048 个 `<`；树最多 4096 个节点。转换沿共同的 32 层、512 段落、256 列表、9 级编号和片段/字体/历史/输出预算。格式、关系及编号共用一项事务，失败保留原源、选区和历史；保存重开后继续原生输入。实现归 [HTML 输入](../../modules/formats/src/docx/html-input.mbt)及[内联格式](../../modules/formats/src/docx/html-style.mbt)，参考 [ONLYOFFICE HTML 粘贴入口](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L12167-L12230)，未移植上游可执行代码。
+
+### HTML 表格
+
+HTML 输入支持 `table`、`thead/tbody/tfoot` 行组、`tr`、`td/th` 及 `colgroup/col`。核心将网格写为原生 Word 表格，`rowspan/colspan` 生成纵向延续与列跨度；`rowspan=0` 延续到当前行组末尾，超过行组的跨度截到该边界。缺少的普通格补为空格。`th` 默认粗体和居中，显式字符/段落样式继续覆盖。格内段落、列表、链接及内嵌 PNG/JPEG 沿现有转换与资源事务，禁止嵌套表格。
+
+表格 `width` 属性或 CSS 支持数字/px、pt 和大于 0、不超过 100% 的宽度，默认 100% 的可用栏宽。`colgroup/col` 的 `span` 和数字/px/pt 宽度生成原生列宽与合并格宽度，缺省列为 72 pt；列组宽度按子列继承，未声明的余列等宽。表格百分比在实际接收栏位解析，绝对列宽保留比例。单格 `bgcolor/background-color`、`valign/vertical-align` 与 table 的 0–16 px `border` 已接通原生底色、垂直对齐及黑色实线边框。其他 CSS 沿上述白名单处理；caption、百分比列宽、按内容自动估算列宽、重复表头及更广边框/尺寸继续实施。
+
+源格式和匹配格式保留表格结构，匹配格式将插入点的字符/段落格式应用到各格，保留源强调、编号、链接和表格属性。纯文本按表格位置插入带引号的 TSV，跨列和纵向延续格留空，主格文字仅出现一次。正文可一次粘贴段落与表格；首尾段落与目标文字合并，表格两侧文字各自保留。段首插表不新增前置空段，段前分页随第一格转移。目标在单元格内时，含表格的源/匹配方式拒绝嵌套；纯文本方式仍沿普通输入。
+
+既有正文片段读取和粘贴复用同一路径，允许最多 32 个普通表格、合计 4096 个网格单元，每表最多 1000 行和 63 列；HTML 的 512 段落上限包含各格及纵向延续。图片预检只读，实际像素解码后才提交，正文、编号、链接和媒体合为一项精确历史。未知/重叠网格、字体、布局、保护及预算失败整体拒绝。实现归[HTML 表格](../../modules/formats/src/docx/html-table.mbt)和[正文片段事务](../../modules/formats/src/docx/fragment-paste.mbt)，网格跨度及延续参考 [ONLYOFFICE 表格行转换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L11763-L11901)；未移植上游可执行代码。
 
 ### Markdown 粘贴
 
@@ -673,7 +683,7 @@ script/style/head 元数据和 iframe/object/embed/template/noscript 子树全�
 
 默认 Copy/Cut 与原生快捷键携带 `text/plain` 及 Chromium 自定义类型 `web application/x-open-document-docx-body`。写入成功且文档、revision、选择仍一致时才剪切。默认粘贴面板的“保留源格式粘贴”、Ctrl/Cmd+V 和导出的 `pasteDocxSelection(editor)` 优先读取正文片段，其次读取单元格片段，缺少原生类型时粘贴纯文本。无效原生片段拒绝，读取期间目标变化保留文档。`paste(text)` 及原生普通 paste 事件继续采用纯文本路径。
 
-最多 1024 个普通段落、65536 文字单元；片段、图片、链接、书签及编号采用上述共享预算，Web 读取 Blob 前限 4 MiB。域另沿用每段 64 个及正文布局 4096 个位置的上限。跨表与正文/表格混合结构、HTML/Markdown、批注/修订/复杂域及部分书签转移继续实施。实现归 [`fragment-copy.mbt`](../../modules/formats/src/docx/fragment-copy.mbt)、[`fragment-import.mbt`](../../modules/formats/src/docx/fragment-import.mbt) 和 [`fragment-paste.mbt`](../../modules/formats/src/docx/fragment-paste.mbt)。段落拆分和首尾合并参考 [ONLYOFFICE SelectedContent](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/SelectedContent.js#L1021-L1198)，未复制上游执行代码。
+最多 1024 个正文块、65536 文字单元；表格读取和粘贴另沿用[HTML 表格](#html-表格)的数量与网格预算。片段、图片、链接、书签及编号采用上述共享预算，Web 读取 Blob 前限 4 MiB。域另沿用每段 64 个及正文布局 4096 个位置的上限。跨表及正文/表格混合范围的剪贴板捕获、批注/修订/复杂域及部分书签转移继续实施；HTML/Markdown 输入范围归各自章节。实现归 [`fragment-copy.mbt`](../../modules/formats/src/docx/fragment-copy.mbt)、[`fragment-import.mbt`](../../modules/formats/src/docx/fragment-import.mbt) 和 [`fragment-paste.mbt`](../../modules/formats/src/docx/fragment-paste.mbt)。段落拆分和首尾合并参考 [ONLYOFFICE SelectedContent](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/SelectedContent.js#L1021-L1198)，未复制上游执行代码。
 
 ### 表格尺寸
 
@@ -1863,9 +1873,11 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 `XlsxQuery.printSetup` 返回上述设置及 `readOnlyReason`。修改 `pageMargins`、`pageSetup` 和 `sheetPr/pageSetUpPr`，按 XML 顺序创建缺失节点，保留其他部件、单元格、公式缓存及计算链。边距写回 inch，查询和排版统一使用 point；新页边距包含 header/footer 的标准字段。一次设置一项历史，保持选择，重复设置不增加历史。保护、旧 revision、未知打印属性或预算失败保持源和历史。未知设置返回保护原因，其查询字段使用默认值占位，不能视为源文件的实际设置。
 
-`editSheet({ action: "printRange", area, rows, columns })` 保存单个矩形打印区域及重复标题。`area` 使用当前表 A1 矩形，`rows` 使用整行区间（如 `1:2`），`columns` 使用整列区间（如 `A:B`）；各字段留空即清除该设置。接受绝对引用和小写列名，核心返回规范形式。`XlsxQuery.printRange` 返回这三个字段及 `readOnlyReason`，类型为 `XlsxPrintRange` 加保护原因。受保护源的空字段是查询占位，不能当作实际设置。
+`editSheet({ action: "printRange", area, rows, columns })` 保存打印区域及重复标题。`area` 使用当前表 A1 矩形，多个矩形以逗号分隔（如 `A1:D20,F1:H20`），最多 32 项和 2048 UTF-16 单元；`rows` 使用整行区间（如 `1:2`），`columns` 使用整列区间（如 `A:B`），各最多 32 UTF-16 单元。各字段留空即清除该设置。接受绝对引用和小写列名，核心返回规范形式并保留区域顺序。`XlsxQuery.printRange` 返回这三个字段及 `readOnlyReason`，类型为 `XlsxPrintRange` 加保护原因。受保护源的空字段是查询占位，不能当作实际设置。
 
-核心写入 `workbook/definedNames` 中带 `localSheetId` 的 `_xlnm.Print_Area` 和 `_xlnm.Print_Titles`，保留其他名称、已有名称属性、工作表源及计算缓存。改名、复制、重排和删除沿已有名称引用事务同步；名称中的空格、逗号和单引号按工作表引用规则处理。一次设置一项精确历史，重复设置不新增历史；旧 revision、表/工作簿结构保护及源/输出预算失败原子拒绝。重复或无作用域的打印名称、跨表定义、非连续多区域和含未知内部标记的定义暂时保护。
+核心写入 `workbook/definedNames` 中带 `localSheetId` 的 `_xlnm.Print_Area` 和 `_xlnm.Print_Titles`，保留其他名称、已有名称属性、工作表源及计算缓存。每个区域分别写入带表名的绝对引用；导入的同表多区域定义使用同一路径。改名、复制、重排、删除及行列结构变化沿已有名称引用事务同步；名称中的空格、逗号和单引号按工作表引用规则处理。一次设置一项精确历史，重复设置不新增历史；旧 revision、表/工作簿结构保护及源/输出预算失败原子拒绝。重复或无作用域的打印名称、跨表定义和含未知内部标记的定义继续保护。
+
+多个区域按定义顺序分别起页，不按地址排序、合并或去重；相交格会随各区域分别打印。各区域复用标题，每表共用满足全部区域页数设置的最大缩放比例；百分比模式保持指定比例。页码和首页/奇偶模板在同表区域之间连续，切表才重新开始。该规则参考 [ONLYOFFICE 多区域分页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L3795-L3914)及[共用缩放](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L4698-L4735)。
 
 重复标题只补当前页起点之前的行列，和正文重合时绘制一次。标题可在打印区域之外；隐藏行列保持隐藏。分页和适合页数都预留标题尺寸，过大的标题明确失败；不截掉标题来满足页数。该行为参考 [ONLYOFFICE 打印标题分页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L3286-L3390)及[名称写回](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L23501-L23556)。
 
@@ -1875,7 +1887,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 六段与标志写入工作表 `headerFooter`，距离写入 `pageMargins` 的 inch 字段。缺失节点按源顺序创建，保留其他边距、根注释、单元格、计算缓存和非目标部件；重复设置不增加历史。表保护、未知标记、旧 revision、预算失败均不提交部分结果。未知源查询返回保护原因和默认占位值。页眉页脚沿核心字体与有序图元输出，随表缩放时仍保留物理边距和距离；关闭边距对齐时使用 17.8 mm 左右边距。页眉页脚按保存的位置绘制，不移动正文；距离和正文边距可产生重叠，越出纸张则拒绝输出。默认 UI 和自定义 UI 使用同一事务与输出屏障。
 
-`SpreadsheetEditor.printLayout()` / `exportPdf()` 默认传递 null，打印当前表并使用已保存的纸张、边距和缩放。没有源设置时，核心默认 A4 纵向、四边 36 pt 和 100%。默认范围优先使用各表保存的打印区域，没有定义时使用该表有内容的矩形。`PrintOptions` 可单独给出 `range`、`sheets`，或一起给出六个临时 point 纸张字段 `width/height/left/top/right/bottom`；纸张字段必须全部提供。临时纸张和范围应用到每个目标表，保存的缩放、重复标题及页眉页脚继续适用。`checkPrintOptions` 校验同一边界。
+`SpreadsheetEditor.printLayout()` / `exportPdf()` 默认传递 null，打印当前表并使用已保存的纸张、边距和缩放。没有源设置时，核心默认 A4 纵向、四边 36 pt 和 100%。默认范围优先使用各表保存的打印区域，没有定义时使用该表有内容的矩形。`PrintOptions` 可单独给出 `range`、`sheets`，或一起给出六个临时 point 纸张字段 `width/height/left/top/right/bottom`；纸张字段必须全部提供。`range` 支持相同上限的逗号分隔矩形，非空时替代保存的全部区域。临时纸张和范围应用到每个目标表，保存的缩放、重复标题及页眉页脚继续适用。`checkPrintOptions` 校验同一边界。
 
 `{ sheets: "visible" }` 打印全部可见表，`{ sheets: [id, ...] }` 打印指定的可见表，按当前工作簿顺序合并；列表顺序不改变工作簿顺序。列表须含 1–256 个不重复的稳定表身份，未知或隐藏表明确拒绝。各表保留自己的页面尺寸、缩放、打印区域、重复标题和页眉页脚；空表仍生成一页。页码起点及首页/奇偶模板在切表时重新开始，`&N` 使用整次输出的总页数。整体分页与字段语义参考 [ONLYOFFICE 工作簿打印](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorkbookView.js#L4144-L4200)及[切表后的页码](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L3978-L4002)。
 
@@ -1883,7 +1895,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 编辑会关闭旧预览，隐藏网格不再触发布局失败。参数草稿在普通命令繁忙时保持可编辑，提交仍等待队列，组合输入和文档切换继续阻止操作。
 
-各表分页先向下再向右，沿行列边界分割；空表一页，超宽单列、超高单行、跨页/范围/标题边界合并、未计算公式、未支持显示或未呈现内容明确拒绝。网格和打印共享字体与尺寸，缩放在核心有序图元中完成。屏幕滚动、缩放和 DPR 不改变打印布局。各表仍限一个矩形；非连续多区域和更多纸张/布局变体继续实施。标题计入轴和单元格上限，标题与页眉页脚都计入每页文字上限。
+各区域分页先向下再向右，沿行列边界分割；无可见格的区域仍生成一页，超宽单列、超高单行、跨页/范围/标题边界合并、未计算公式、未支持显示或未呈现内容明确拒绝。网格和打印共享字体与尺寸，缩放在核心有序图元中完成。屏幕滚动、缩放和 DPR 不改变打印布局。区域与工作表共用整次输出预算，不为每个区域重置。更多纸张/布局变体继续实施。标题计入轴和单元格上限，标题与页眉页脚都计入每页文字上限。
 
 继续使用前文文件、字体、输出与 Canvas 上限，另有以下操作上限。载荷计数不代表进程峰值或性能保证。
 
@@ -2166,7 +2178,11 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 `editObjects({ action: "shapeAdjustment", name, value })` 修改所选本地预设形状的一个调节值，包含组成员。圆角 `adj` 为短边的 0–0.5 倍；四向实心箭头的 `adj1` 为箭身占横向宽度的 0–1 倍，`adj2` 为箭头长度占短边的倍数，上限是箭头方向边长除以短边。数值按十万分之一保存，沿现有公式整数范围限制在 0–21474.83647。null 只移除该调节值，恢复预设默认值；其他调节值和源内容保留。规则依据 [ONLYOFFICE 预设几何](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/common/Drawings/Format/CreateGeometry.js#L6947-L6981)，实现归 [`shape-adjustment.mbt`](../../modules/formats/src/pptx/shape-adjustment.mbt)。
 
-对象查询的 `shapeAdjustments` 返回 `preset`、`reason` 和 `values`；各值包含 `name/value/maximum`，使用与命令相同的比例。默认面板显示百分比，支持分别应用、恢复预设值及相同调节项的多选混合查询。任一对象锁定 `noAdjustHandles`、未知调节源、所选形状不支持该项或数值越过几何上限时，整项拒绝。无变化不新增历史。修改与派生的字体缩小或形状自动尺寸合为一项历史，保留文字、身份、选择及非目标部件；保存重开后可继续修改。继承对象、指针拖动调节手柄和任意自定义几何编辑继续实施。
+对象查询的 `shapeAdjustments` 返回 `preset`、`reason` 和 `values`；各值包含 `name/value/maximum`，使用与命令相同的比例。默认面板显示百分比，支持分别应用、恢复预设值及相同调节项的多选混合查询。任一对象锁定 `noAdjustHandles`、未知调节源、所选形状不支持该项或数值越过几何上限时，整项拒绝。无变化不新增历史。修改与派生的字体缩小或形状自动尺寸合为一项历史，保留文字、身份、选择及非目标部件；保存重开后可继续修改。继承对象和任意自定义几何编辑继续实施。
+
+单选可调本地形状时，`selectionPptx` 的 `adjustmentHandles` 返回最多两个 `{ name, x, y }` 页面坐标，顺序与 `shapeAdjustments.values` 一致。圆角矩形、四向实心箭头、三角形、平行四边形、梯形、六边形、八边形、十字和五角星使用标准 XY 调节位置；旋转、翻转及父容器缩放沿对象矩阵。受保护、多选、文字选择及无调节项时返回空数组。既有 `handles` 继续表示尺寸或连接线端点。
+
+默认 Canvas 用黄色菱形绘制调节手柄，命中优先于尺寸手柄；参数面板继续提供键盘入口。`beginPptx` 使用 `kind="adjustment"`，后续 `dragPptx` 的 `handle=1/2` 对应该项顺序，`dx/dy` 是相对手势起始指针的页面位移。核心逆变换到局部轴，忽略垂直于该轴的位移，并限制在当前几何上限。候选显示预览，revision、已提交源及历史保持；回到起点无历史，松开将最终调节和必要文字适配合为一项历史，Escape、指针取消及丢失捕获使用现有取消路径。旧身份、锁定、无效手柄、字体/布局及资源失败保持最后有效候选和已提交源。位置与拖动规则参考 [ONLYOFFICE 预设 XY 调节](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L6950-L6982)及[逆变换与上下限](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/AdjustmentTracks.js#L195-L252)，实现归 [`adjustment-gesture.mbt`](../../modules/formats/src/pptx/adjustment-gesture.mbt)。
 
 旋转使用 `{ action: "rotate", angle }`，绝对角度为 -360°–360°，核心舍入到 1/60000°。`{ action: "flip", axis: "horizontal" | "vertical" }` 切换局部水平/垂直翻转。`{ action: "layer", order: "front" | "back" | "forward" | "backward" }` 调整本地顶层对象或同组成员的源顺序。三者均支持同一父容器中的本地对象集合，组作为一个对象处理。各操作保留位置、尺寸、对象身份、文字、裁剪和关系；相同角度与层次边界不新增历史。旋转独立保持各对象自身中心点；翻转分别反转各对象的局部轴状态。文字、图形、图片、命中和选区消费同一矩阵。`geometry` 返回源有效 `rotation/flipX/flipY`，`rotateReason/arrangeReason` 返回对应保护原因。`noRot` 仅阻止旋转；继承、跨父组选择与原有变换锁继续保护。默认 UI 提供角度、翻转及四种层次操作。
 

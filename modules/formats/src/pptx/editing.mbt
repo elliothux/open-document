@@ -509,10 +509,12 @@ pub fn Session::begin(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   self.check_idle()
-  guard ["text", "transform", "connector"].contains(kind) else {
+  guard ["text", "transform", "connector", "adjustment"].contains(kind) else {
     @failure.reject("invalid-operation", "Unknown gesture kind")
   }
-  if kind == "connector" {
+  if kind == "adjustment" {
+    ignore(self.adjustment_object())
+  } else if kind == "connector" {
     ignore(self.connector_for_gesture())
   } else if kind == "transform" {
     ignore(self.transform_objects(action="transform"))
@@ -604,6 +606,8 @@ pub fn Session::finish(
         ),
       )
     }
+  } else if candidate.kind == "adjustment" {
+    self.finish_adjustment(candidate, probe, profile)
   } else {
     candidate.edit.map(edit => (candidate.slide, edit))
   }

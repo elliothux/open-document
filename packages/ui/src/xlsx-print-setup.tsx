@@ -192,7 +192,7 @@ export function XlsxPrintSetup({
         >
           {(
             [
-              ["area", t.printArea, "A1:T40"],
+              ["area", t.printArea, "A1:D20,F1:H20"],
               ["rows", t.printTitleRows, "1:2"],
               ["columns", t.printTitleColumns, "A:B"],
             ] as const
@@ -202,7 +202,7 @@ export function XlsxPrintSetup({
               <input
                 value={range[key]}
                 placeholder={placeholder}
-                maxLength={key === "area" ? 64 : 32}
+                maxLength={key === "area" ? 2048 : 32}
                 onChange={(event) => {
                   const value = event.currentTarget.value;
                   setRange((previous) => ({ ...previous, [key]: value }));

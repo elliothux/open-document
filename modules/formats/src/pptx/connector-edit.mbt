@@ -59,9 +59,9 @@ fn connector_transform_changes(
   object : Object,
   g : Geometry,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
-  let changes = native_transform_changes(object, g)
-  changes.append(connector_axes_changes(object, g))
-  changes
+  // Derived endpoints can differ from the serialized pose; write each source axis once.
+  let raw = geometry([object.source], @layout.Matrix::identity(), false).unwrap()
+  native_transform_changes({ ..object, geometry: Some(raw), }, g)
 }
 
 ///|

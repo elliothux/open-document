@@ -295,7 +295,7 @@ export type PptxCommand =
   | {
       operation: "beginPptx";
       revision: number;
-      kind: "text" | "transform" | "connector";
+      kind: "text" | "transform" | "connector" | "adjustment";
     }
   | ({
       operation: "beginGuidePptx";

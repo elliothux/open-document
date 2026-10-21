@@ -12,7 +12,7 @@
 
 第 5 批已接通 UTF-8 CSV/TSV 导入及独立的数字、日期、公式转换选项，默认保留文字。当前表/选区 CSV 值导出包含默认 UI、首次 XLSX 保存、坏文件恢复与安全前缀提示。原格式保存、CSV 和 PDF 共用输出屏障，CSV 不清除未保存状态。转换复用核心值、日期格式与计算缓存，初始无历史。合同归[输入与保存](references/formats.md#输入与保存)。
 
-页面设置已接通 A4/Letter、方向、四边距、百分比与适合横/纵页数，默认预览和 PDF 使用保存的设置。已接通单个矩形打印区域、重复标题行/列及清除，保存工作表作用域的标准名称。分页预留标题空间，不重复正文中的标题；冻结不改变打印。名称随改名、复制、移动和删除同步，保留其他名称及部件。纯文字页眉页脚已接通六段、首页/奇偶页区别、页码/总页数/表名、距离、缩放和边距对齐；未知控制码保护源。多表预览和 PDF 已接通，按工作簿顺序打印可见表，保留各表设置和页面尺寸；页码与模板按表重置，总页数覆盖整次输出。默认 UI 提供全部可见表与当前表出口，导出不清除 XLSX 的未保存状态。非连续多区域、更多页眉页脚变体及后续图形输出继续实施，不标记第 5 批完成。合同归[打印与资源边界](references/formats.md#打印与资源边界)。
+页面设置已接通 A4/Letter、方向、四边距、百分比与适合横/纵页数，默认预览和 PDF 使用保存的设置。已接通最多 32 个矩形打印区域、重复标题行/列及清除，保存工作表作用域的标准名称。分页预留标题空间，不重复正文中的标题；冻结不改变打印。名称随改名、复制、移动和删除同步，保留其他名称及部件。纯文字页眉页脚已接通六段、首页/奇偶页区别、页码/总页数/表名、距离、缩放和边距对齐；未知控制码保护源。多表预览和 PDF 已接通，按工作簿顺序打印可见表，保留各表设置和页面尺寸；页码与模板按表重置，总页数覆盖整次输出。默认 UI 提供全部可见表与当前表出口，导出不清除 XLSX 的未保存状态。更多页眉页脚变体及后续图形输出继续实施，不标记第 5 批完成。合同归[打印与资源边界](references/formats.md#打印与资源边界)。多个区域按定义顺序独立起页，共用满足所有区域的适合页数比例。同表页码连续，重复标题按各页计算；原生联合引用随改名、复制及行列插入维护。定向核心、默认面板、精确历史、重开原生输入及 8 页实际 PDF 已检查。
 
 用户能新建工作簿，维护工作表与行列，编辑格式和常用公式，排序筛选、建立表格和透视分析，插入图表，并保存和打印。程序化 API 与默认 UI 调用同一核心操作。GenOffice/Univer 集成用于核对功能和 UI；计算、引用变化与文件写回优先参考 ONLYOFFICE，其次 LibreOffice。
 
@@ -40,7 +40,7 @@
 | [`bridge/xlsx.mbt`](../modules/bridge/src/xlsx.mbt)、[`wasm/xlsx.ts`](../packages/wasm/src/xlsx.ts)、[`web/xlsx.ts`](../packages/web/src/xlsx.ts) | 扩展现有类型化命令与查询；不增加第二套计算服务 |
 | [`spreadsheet-editor.ts`](../packages/web/src/spreadsheet-editor.ts)、[`spreadsheet-input.ts`](../packages/web/src/spreadsheet-input.ts)、[`spreadsheet-formula.ts`](../packages/web/src/spreadsheet-formula.ts)、[`ui/xlsx-formula.tsx`](../packages/ui/src/xlsx-formula.tsx) | 已接通共享原生输入的公式栏和范围定位，复用队列、Canvas 与 P9 状态；继续扩展数据面板 |
 
-DEVSQ、MODE/MODE.SNGL、LARGE/SMALL、SUMSQ、VAR/VAR.S/VARP/VAR.P 及 STDEV/STDEV.S/STDEVP/STDEV.P 已接通实际求值，与 SQRT/POWER/PRODUCT/MEDIAN/EXACT/REPT 共用普通重算事务。未知函数、动态或无法解析的依赖仍使整本只读，范围见第 4.2 节。当前打印可按工作簿顺序合并可见表，各表保留矩形区域、页面设置、重复标题、纯文字页眉页脚和缩放。P11 必须继续修改这些能力所在层，不能只放开按钮或在 JS 中补算结果。
+DEVSQ、MODE/MODE.SNGL、LARGE/SMALL、SUMSQ、VAR/VAR.S/VARP/VAR.P 及 STDEV/STDEV.S/STDEVP/STDEV.P 已接通实际求值，与 SQRT/POWER/PRODUCT/MEDIAN/EXACT/REPT 共用普通重算事务。未知函数、动态或无法解析的依赖仍使整本只读，范围见第 4.2 节。当前打印可按工作簿顺序合并可见表，各表保留多个矩形区域、页面设置、重复标题、纯文字页眉页脚和缩放。P11 必须继续修改这些能力所在层，不能只放开按钮或在 JS 中补算结果。
 
 ## 3. 创建、结构与格式
 

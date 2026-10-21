@@ -82,6 +82,10 @@ fn html_style(
   let mut context = original
   let mut format = original.format
   match tag {
+    "th" => {
+      format = { ..format, bold: Set(true), }
+      context = { ..context, align: "center", }
+    }
     "b" | "strong" => format = { ..format, bold: Set(true), }
     "i" | "em" => format = { ..format, italic: Set(true), }
     "u" => format = { ..format, underline: Set(true), }
@@ -194,6 +198,8 @@ fn html_style(
           strike: Set(words.contains("line-through")),
         }
       }
+      "vertical-align" if ["td", "th"].contains(tag) &&
+        ["top", "middle", "bottom"].contains(lower) => ()
       "vertical-align" => {
         guard ["baseline", "super", "sub"].contains(lower) else {
           @failure.reject(

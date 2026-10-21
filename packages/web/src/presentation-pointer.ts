@@ -9,7 +9,7 @@ import { pointerSelection } from "./presentation-selection.js";
 
 export interface PresentationGesture {
   start: PptxPoint;
-  kind: "text" | "transform" | "connector" | "guide";
+  kind: "text" | "transform" | "connector" | "guide" | "adjustment";
   anchor: number;
   handle: number;
   token?: { revision: number; id: number };
@@ -140,7 +140,10 @@ export class PresentationGestures {
             candidateId: gesture.token.id,
             dx,
             dy,
-            handle: gesture.handle,
+            handle:
+              gesture.kind === "adjustment"
+                ? gesture.handle - 4
+                : gesture.handle,
             tolerance: snap ? 6 / scale : 0,
             shift,
             center,
@@ -187,6 +190,9 @@ export function presentationHandle(
   for (const [index, position] of (geometry?.handles ?? []).entries())
     if (Math.hypot(point.x - position.x, point.y - position.y) <= 6 / scale)
       handle = index + 1;
+  for (const [index, position] of (geometry?.adjustmentHandles ?? []).entries())
+    if (Math.hypot(point.x - position.x, point.y - position.y) <= 6 / scale)
+      handle = index + 5;
   return handle;
 }
 
@@ -195,6 +201,7 @@ export function presentationGestureKind(
   handle: number,
 ): PresentationGesture["kind"] {
   if (state.selection.mode === "text") return "text";
+  if (handle > 4) return "adjustment";
   return handle &&
     state.selection.objects.length === 1 &&
     state.objects.find((o) => o.id === state.selection.object)?.connector

@@ -6,6 +6,15 @@ priv struct HtmlInput {
   mut pendingSpace : Bool
   mut textStarted : Bool
   mut link : (String, String)?
+  mut inTable : Bool
+}
+
+///|
+fn html_ignored_element(tag : String) -> Bool {
+  [
+    "script", "style", "head", "meta", "link", "base", "title", "noscript", "iframe",
+    "object", "embed", "template",
+  ].contains(tag)
 }
 
 ///|
@@ -140,17 +149,14 @@ fn HtmlInput::walk(
     Some(ElementNode(element)) => {
       let tag = element.tag_name
       // Remove executable/metadata subtrees without interpreting their attributes or text.
-      if [
-          "script", "style", "head", "meta", "link", "base", "title", "noscript",
-          "iframe", "object", "embed", "template",
-        ].contains(tag) {
+      if html_ignored_element(tag) {
         return
       }
       guard element.ns is HTML &&
         [
           "html", "body", "div", "p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote",
           "ul", "ol", "li", "pre", "span", "b", "strong", "i", "em", "u", "s", "strike",
-          "del", "sup", "sub", "code", "a", "br", "img",
+          "del", "sup", "sub", "code", "a", "br", "img", "table",
         ].contains(tag) else {
         @failure.reject(
           "unsupported-input",
@@ -159,6 +165,10 @@ fn HtmlInput::walk(
       }
       let mut context = html_style(self.document, id, context)
       if context.hidden || self.document.has_attribute(id, "hidden") {
+        return
+      }
+      if tag == "table" {
+        self.table(id, context, depth)
         return
       }
       if tag == "img" {
@@ -322,6 +332,7 @@ fn Session::html_fragment(
     pendingSpace: false,
     textStarted: false,
     link: None,
+    inTable: false,
   }
   let context : HtmlContext = {
     format: CharacterFormat::new(),

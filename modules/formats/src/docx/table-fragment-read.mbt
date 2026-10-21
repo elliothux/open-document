@@ -49,33 +49,11 @@ fn Session::read_table_fragment(
     .unwrap_or_else(() => {
       @failure.reject("invalid-table", "Rich table has no supported grid")
     })
-  guard model.rows.length() > 0 &&
-    model.rows.length() <= 1000 &&
-    model.widths.length() > 0 &&
-    model.widths.length() <= 63 &&
-    model.rows.length().to_int64() * model.widths.length().to_int64() <= 4096 else {
-    @failure.reject("limit-exceeded", "Rich table dimensions exceed budget")
-  }
-  let grid = read_table_grid(tree, model, 0, 0)
-  for spans in model.columnSpans {
-    guard spans.all(span => span > 0) &&
-      spans.fold(init=0, (sum, span) => sum + span) == model.widths.length() else {
-      @failure.reject(
-        "invalid-table", "Rich table rows must cover the complete grid",
-      )
-    }
-  }
-  tree.check_table_structure(grid, columns=true)
-  for cell in grid.cells.flatten() {
-    tree.check_merge_cell(cell, self.main, pictures=true, fields=true)
-  }
+  let grid = view.check_fragment_table(tree, model)
   let changes = []
   for row in model.rows {
     for paragraphs in row {
       for paragraph in paragraphs {
-        guard paragraph.readOnlyReason.is_empty() else {
-          @failure.reject("protected-content", paragraph.readOnlyReason)
-        }
         let stops = tree
           .child(paragraph.id, "pPr")
           .map(p => tree.paragraph_tabs(p, []))
@@ -104,4 +82,45 @@ fn Session::read_table_fragment(
     next,
     read_table_grid(WordTree::new(next), view.flow_from(next).tables[0], 0, 0),
   )
+}
+
+///|
+fn Session::check_fragment_table(
+  self : Session,
+  tree : WordTree,
+  model : @layout.Table,
+) -> TableGrid raise @failure.Failure {
+  guard tree.child(model.id, "tblGrid") is Some(_) else {
+    @failure.reject("invalid-table", "Rich table requires a complete grid")
+  }
+  guard model.rows.length() > 0 &&
+    model.rows.length() <= 1000 &&
+    model.widths.length() > 0 &&
+    model.widths.length() <= 63 &&
+    model.rows.length().to_int64() * model.widths.length().to_int64() <= 4096 else {
+    @failure.reject("limit-exceeded", "Rich table dimensions exceed budget")
+  }
+  let grid = read_table_grid(tree, model, 0, 0)
+  for spans in model.columnSpans {
+    guard spans.all(span => span > 0) &&
+      spans.fold(init=0, (sum, span) => sum + span) == model.widths.length() else {
+      @failure.reject(
+        "invalid-table", "Rich table rows must cover the complete grid",
+      )
+    }
+  }
+  tree.check_table_structure(grid, columns=true)
+  for cell in grid.cells.flatten() {
+    tree.check_merge_cell(cell, self.main, pictures=true, fields=true)
+  }
+  for row in model.rows {
+    for paragraphs in row {
+      for paragraph in paragraphs {
+        guard paragraph.readOnlyReason.is_empty() else {
+          @failure.reject("protected-content", paragraph.readOnlyReason)
+        }
+      }
+    }
+  }
+  grid
 }

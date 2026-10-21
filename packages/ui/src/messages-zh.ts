@@ -188,7 +188,7 @@ export const zh: Messages = {
   printTitleRows: "重复标题行",
   printTitleColumns: "重复标题列",
   printRangeNotice:
-    "留空可清除。区域使用单个矩形，标题使用整行（1:2）或整列（A:B）。每页起点之前的标题会重复，不重复该页正文。",
+    "留空可清除。用逗号分隔最多 32 个矩形，各区域独立起页。标题使用整行（1:2）或整列（A:B），重复时不重复该页正文。",
   printPaper: "纸张大小",
   printScale: "打印比例（%）",
   printFitWidth: "横向页数（0 为不限）",

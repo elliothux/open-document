@@ -40,16 +40,7 @@ fn Session::paste_markup_fragment(
     )
     let view = { ..self, parts, }
     let flow = view.flow_from(document)
-    let text = flow.paragraphs
-      .map(p => {
-        p.marker
-        .map(marker => {
-          marker.text + (if marker.suffix == "nothing" { "" } else { "\t" })
-        })
-        .unwrap_or("") +
-        p.spans.map(s => s.text).join("")
-      })
-      .join("\n")
+    let text = markup_plain_text(flow)
     // Imports preflight the receiving layout before the ordinary text transaction commits.
     if self.prepare_range(selection, text) is Some(prepared) &&
       prepared.edit.bytes > 0 {
@@ -171,4 +162,45 @@ fn Session::paste_markup_fragment(
     profile,
     images~,
   )
+}
+
+///|
+fn markup_paragraph_text(p : @layout.Paragraph) -> String {
+  p.marker
+  .map(marker => {
+    marker.text + (if marker.suffix == "nothing" { "" } else { "\t" })
+  })
+  .unwrap_or("") +
+  p.spans.map(s => s.text).join("")
+}
+
+///|
+fn markup_plain_text(flow : @layout.Flow) -> String {
+  let lines : Array[String] = []
+  for position in 0..<=flow.paragraphs.length() {
+    for table in flow.tables {
+      if table.beforeParagraph != position {
+        continue
+      }
+      for r, row in table.rows {
+        let values : Array[String] = []
+        for c, paragraphs in row {
+          let text = if table.rowSpans[r][c] == 0 {
+            ""
+          } else {
+            paragraphs.map(markup_paragraph_text).join("\n")
+          }
+          values.push(@delimited.quote_field(text))
+          for _ in 1..<table.columnSpans[r][c] {
+            values.push("")
+          }
+        }
+        lines.push(values.join("\t"))
+      }
+    }
+    if flow.paragraphs.get(position) is Some(p) {
+      lines.push(markup_paragraph_text(p))
+    }
+  }
+  lines.join("\n")
 }

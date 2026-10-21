@@ -45,9 +45,9 @@ fn check_fragment_content(
       )
     }
     let children = match node.name {
-      "body" => ["p"]
+      "body" => ["p", "tbl"]
       "tbl" => ["tblPr", "tblGrid", "tr"]
-      "tblPr" => ["tblLayout"]
+      "tblPr" => ["tblLayout", "tblW"]
       "tblGrid" => ["gridCol"]
       "tr" => ["tc"]
       "tc" => ["tcPr", "p"]
