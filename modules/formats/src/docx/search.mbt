@@ -81,7 +81,8 @@ fn Session::search_groups(
     if inside_field {
       continue
     }
-    if node.uri != word_uri || !["t", "tab", "br", "cr"].contains(node.name) {
+    if node.uri != word_uri ||
+      !["t", "tab", "br", "cr", "drawing"].contains(node.name) {
       continue
     }
     // Tab-stop definitions are paragraph properties, not logical text.
@@ -107,6 +108,7 @@ fn Session::search_groups(
         match node.name {
           "t" => node.text
           "tab" => "\t"
+          "drawing" => "\ufffc"
           "br" => inline_text(node).replace_all(old="\u2028", new="\n")
           _ => "\n"
         },
@@ -222,9 +224,14 @@ fn Session::find_matches(
           Some(value) => value
           None => {
             let value = try {
-              tree.check_editable_paragraph(id, part=self.main, pictures=true)
+              tree.check_editable_paragraph(
+                id,
+                part=self.main,
+                pictures=true,
+                fields=true,
+              )
               self.check_native_pictures(tree, id)
-              tree.check_structure_paragraph(id)
+              tree.check_structure_paragraph(id, running=true)
               let styles = match styles {
                 Ok(styles) => styles
                 Err(error) => raise error

@@ -27,6 +27,7 @@ pub fn Session::begin_picture_resize(
   picture : Int,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  self.check_document_protection()
   let tree = WordTree::new(self.document())
   guard self.selected_picture(tree) == Some(picture) else {
     @failure.reject(

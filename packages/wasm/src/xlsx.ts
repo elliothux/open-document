@@ -7,7 +7,8 @@ import {
 } from "./xlsx-pivot.js";
 export * from "./xlsx-pivot.js";
 export type { XlsxQuery } from "./xlsx-query.js";
-import { protectionSalt, xlsxProtection } from "./xlsx-protection.js";
+import { xlsxProtection } from "./xlsx-protection.js";
+import { protectionSalt } from "./protection-password.js";
 export type { XlsxProtection } from "./xlsx-protection.js";
 import {
   copiedCells,
@@ -565,7 +566,11 @@ export class XlsxSession extends WasmSession {
         sheet,
         change,
         date: spreadsheetDate(date),
-        passwordSalt: protectionSalt(change),
+        passwordSalt:
+          change.action === "protection" ||
+          change.action === "workbookProtection"
+            ? protectionSalt(change.enabled, change.password ?? "")
+            : "",
       }),
     );
   }

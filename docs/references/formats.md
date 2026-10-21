@@ -309,6 +309,16 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 插入下划线和删除线依据 [ONLYOFFICE line-draw-state.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/draw/line-draw-state.js#L665-L695)；范围定位参考 [Document.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L18105-L18134)。当前定位保留编辑选区，使用独立审阅高亮。实现归 [`revision-layout.mbt`](../../modules/formats/src/docx/revision-layout.mbt)、[`flow.mbt`](../../modules/formats/src/docx/flow.mbt)及 [`page-canvas.ts`](../../packages/web/src/page-canvas.ts)。
 
+### DOCX 只读编辑保护
+
+`FoundationSession/Client.documentProtection(revision)` 返回 `DocxProtection = { revision, protected, passwordRequired, reason }`，不返回密码、盐或摘要。`setDocumentProtection(revision, enabled, password)` 启用 `readOnly` 保护或验证密码后解除。`DocumentEditor.documentProtection()` 返回附有 `documentId` 的 `DocumentProtection`；`setDocumentProtection(source, enabled, password = "")` 核对文档和 revision 后提交。默认页面面板提供读取、密码确认、启用及解除，提交后清空密码输入。
+
+保护写入原生 `w:documentProtection`，可不设密码。新密码使用平台生成的 16 字节随机盐、SHA-512 和 100000 轮散列；密码最多 255 个有效 UTF-16 单元。接受 `algorithmName="SHA-512"`、`hashValue`、`saltValue`、`spinCount` 的完整凭据，导入盐限 1–64 字节、轮数限 1000000；比较摘要时累计全部字节差异。文件内容仍可读取，保存、查询、选择、复制及现有输出保持可用。
+
+核心统一提交入口拒绝受保护文档的正文、格式、表格、资源及其他部件修改；组合输入和图片缩放也在开始候选前检查。格式查询返回限制原因，默认格式控件和原生文字输入进入只读状态。缺少设置部件时，设置、关系及内容类型一并创建；解除只删除已知保护节点，保留其他设置和原部件。保护开关沿现有精确历史撤销/重做，重新打开不创建历史。错误密码、旧 revision、未知源、活动候选及预算失败保留文档和历史。
+
+当前支持只读模式及上述完整 SHA-512 凭据。其他限制类型、格式保护、`cryptAlgorithmSid` 等旧式参数、未知/混合算法、重复节点及节点内注释继续保护，查询给出原因。细分授权和文件加密仍待实现。设置及算法依据 [ONLYOFFICE 设置序列化](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Settings/Settings.cpp#L872-L903)与[密码验证事务](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/api.js#L14372-L14483)。实现归[保护源及事务](../../modules/formats/src/docx/protection.mbt)、[共享散列](../../modules/formats/src/internal/protection/password.mbt)和[默认面板](../../packages/ui/src/docx-protection.tsx)，未复制上游执行代码。
+
 ### DOCX 主题颜色
 
 `FoundationSession/Client.themeColors(revision)` 返回 `DocxThemeColors = { revision, colors }`，包含 `dk1/lt1/dk2/lt2`、`accent1`–`accent6`、`hlink/folHlink` 十二项。每项含 `slot/color/reason`；无法读取的色项颜色为 null，限制原因单独返回。`DocxThemeSlot` 与查询类型沿 `wasm/foundation`、`web/foundation` 导出。查询不修改源或历史；没有主题时返回新主题的默认颜色。
@@ -467,11 +477,17 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 `FoundationSession/Client.insertBodyPageField(revision, field, profile)` 和 `DocumentEditor.insertBodyPageField(field)` 将当前范围替换为一个原生简单域。`DocxPageField` 使用 `{ field: "PAGE" | "NUMPAGES", format? }`，可选格式沿用上述五种显式格式。默认页面面板提供“插入正文页码”和“插入正文总页数”。核心保留附近字符格式，写入实际布局值，将光标放到域后，插入与范围删除合为一项精确历史。正文、空段落和普通单元格共用事务。未知源、超限、缺字体及不完整布局整体拒绝，不改其他域的旧缓存。依据 [ONLYOFFICE 插入字段及直接格式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L23510-L23565)，实现归[正文域插入](../../modules/formats/src/docx/body-field-insert.mbt)。
 
-仅含受支持简单域和普通内容的段落，已有原生光标、相邻文字输入、同段范围替换、整域 Delete/Backspace 和组合输入。一个域保持一个源位置，删除整个源元素，不把结果拆成可编辑数字。查找中的后续文字也沿用逻辑位置。域的正文范围剪贴板沿用[正文富文本片段](#正文富文本片段)；复杂域范围、整格/跨格域片段及指令编辑继续保护。其他普通段落可继续输入并触发实时重算。实现归[正文域输入](../../modules/formats/src/docx/body-field-input.mbt)。
+仅含受支持简单域和普通内容的段落，已有原生光标、相邻文字输入、同段范围替换、整域 Delete/Backspace 和组合输入。一个域保持一个源位置，删除整个源元素，不把结果拆成可编辑数字。查找中的后续文字也沿用逻辑位置。域的正文范围及整格剪贴板分别沿用[正文富文本片段](#正文富文本片段)与[单元格富文本片段](#单元格富文本片段)；复杂域范围及其他指令继续保护。其他普通段落可继续输入并触发实时重算。实现归[正文域输入](../../modules/formats/src/docx/body-field-input.mbt)。
 
 正文及同一普通单元格内，Enter 可在简单域两侧拆段，段落边界 Delete/Backspace 可合并。跨段范围替换和组合输入将所选域完整移除，保留范围外的域、代码和缓存。合并时补齐移动元素的命名空间，将原段落继承的字符格式保留为直接属性。书签和批注锚点随拆合移动，被删段落中的锚点恢复到正确逻辑位置；源、选择及其他部件沿同一精确历史保存重开。跨容器、复杂/未知/锁定域和原有预算失败仍整体拒绝。依据 [ONLYOFFICE 域不可拆分](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Field.js#L169-L177)与[段落拆分及属性继承](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L13838-L13869)，实现归[正文域输入](../../modules/formats/src/docx/body-field-input.mbt)和[跨段源事务](../../modules/formats/src/docx/range.mbt)。
 
 简单域整体参与已有字符格式查询和修改，也支持所在段落的对齐、间距等段落格式。默认格式面板、格式捕获和光标处的待输入格式共用原有命令。核心查询并修改首个实际结果 run，保留域代码、缓存文字、前置空 run 和其他缓存样式。域与邻接普通文字混合选择时，普通 run 按边界拆分，域保持完整；格式修改与后续输入各自沿精确历史保存重开。复杂域、未知字段或结果属性继续拒绝格式修改。依据 [ONLYOFFICE 字段结果格式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L1774-L1812)，实现归[格式查询](../../modules/formats/src/docx/format-query.mbt)与[字符格式事务](../../modules/formats/src/docx/format-character.mbt)。
+
+`FoundationSession/Client.bodyPageField(revision, selection)` 返回 `DocxBodyPageField`：`{ revision, selection, field, reason }`。完整选择一个简单域，或把光标放在其前后的对应亲和侧时，`field` 为原有 `DocxPageField`；没有可编辑域时返回 `null` 及原因。普通文字、多个域、跨段及复杂域不能作为一个域修改。查询保持原源、选择和历史。
+
+`editBodyPageField(revision, selection, field, profile)` 修改该域的 `PAGE`／`NUMPAGES` 与显式编号格式，省略 `format` 恢复节格式。核心只改指令属性和当前域的实际结果，保留 `MERGEFORMAT`、其他源属性、结果格式、空 run、选择及其他域缓存；多余结果文字清空。修改合为一项精确历史，相同语义指令不刷新缓存或增加历史。未知指令、锁定、缺字体、布局或预算失败保持原文档。显式结果刷新仍使用 `updateBodyPageFields`。
+
+`DocumentEditor.bodyPageField()` 返回附有 `documentId` 的 `DocumentBodyPageField`；`editBodyPageField(source, field)` 核对文档、revision 和选择后提交。默认页面面板提供读取、类型、编号格式和应用控件；切换选择后须重新读取。代码修改依据 [ONLYOFFICE ChangeInstruction](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L2074-L2095)，原生简单域结构沿用已有序列化。实现归[正文域代码事务](../../modules/formats/src/docx/body-field-edit.mbt)，未移植上游执行代码。
 
 每段最多 64 个字段，正文布局最多 4096 个字段位置。重复表头中的 `PAGE`、不可定位的结果及未收敛结果给出布局诊断，阻止不确定的刷新或输出。其他域及完整字段创作继续实施。依据 [ONLYOFFICE 字段行所在页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L918-L928)与[实际页总数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L1312-L1315)。实现归[正文字段布局](../../modules/layout/src/body-fields.mbt)和[缓存刷新事务](../../modules/formats/src/docx/body-field-edit.mbt)。
 
@@ -575,11 +591,13 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 `editTable({ action: "pasteFragment", fragment })` 从当前主格写入片段矩形。它可替换完全覆盖的目标合并，并补足底部行和右侧列；部分覆盖合并整体拒绝。列宽、行高和表属性沿目标网格，格宽按目标跨度更新。未改格、格间注释和其他部件保留，写入、扩展、选择与精确撤销合为一项历史；不含资源身份时，相同源片段无操作；列表和图片片段每次分配独立身份。
 
-默认复制及显式“剪切单元格”同时写 `text/plain` 和 Chromium 自定义类型 `web application/x-open-document-docx-cells`。`tableClipboard(revision, selection, cut = false)` 在 `cut=true` 时检查图片的完整资源和原生删除权限，查询保持只读。剪贴板写入成功后，Web 再核对文档、revision、选择和生命周期，沿既有范围删除事务清空所选完整单元格。写入失败不修改源；切出的图片资源仍留在源包，支持精确撤销。底层纯文本 selectedText(cut=true) 继续保护图片；默认正文富文本剪切归下节。
+简单 `PAGE`、`NUMPAGES` 域可随整格、跨格矩形及完整合并格转移。TSV 使用当前布局的实际值，富文本保留原生指令、显式编号格式和解析后的字符格式。布局要求及缓存规则复用[正文域片段](#正文富文本片段)；MoonBit `table_clipboard` 也接受可选 `layout`，同步及 Worker 桥传入当前布局。粘贴可覆盖目标简单域并扩展网格，只更新新域缓存；已有域缓存保持。域、图片、文字及扩表共用一项精确历史。原生输入、Enter 和组合输入沿所选主格处理，整格删除清空域并保留网格。含简单域段落的普通文字可查找替换；图片和域均占一个逻辑位置。
+
+默认复制及显式“剪切单元格”同时写 `text/plain` 和 Chromium 自定义类型 `web application/x-open-document-docx-cells`。`tableClipboard(revision, selection, cut = false)` 在 `cut=true` 时检查图片和域的完整富文本及原生删除权限，查询保持只读。剪贴板写入成功后，Web 再核对文档、revision、选择和生命周期，沿既有范围删除事务清空所选完整单元格。写入失败不修改源；切出的图片资源仍留在源包，支持精确撤销。底层纯文本 selectedText(cut=true) 继续保护图片和域；默认正文富文本剪切归下节。
 
 默认“粘贴单元格”及 Web foundation 导出的 `pasteDocxCells(editor)` 优先读取片段；只有缺少此类型时读取 TSV。无效片段不回退成文字。读取后核对文档、revision、选择和生命周期，再沿既有编辑队列提交。
 
-富文本范围须包含完整所选矩形，合并边各段须有共同宽度和颜色。复杂列表、不完整或复杂书签、批注身份、字段和未知结构的资源转移继续实施；可提取文字但不能生成富文本时返回 `fragment: null` 及具体 `reason`，系统剪贴板保留原 TSV。图片格已有富文本复制和显式剪切。跨格 Delete/Backspace 清空全部所选主格；文字、Enter 和组合输入只替换首个主格，保留其余格图片。图片删除锁、引用保护和候选失败沿既有原子事务执行。结构操作仍沿原保护。文档默认 Tab 间隔、小数点符号及其他全局设置采用目标文档；源行高及表属性不转移。覆盖已有图片须通过原生删除保护，其他身份或未知源仍拒绝。整格输入与清空依据 [ONLYOFFICE Table.Remove](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L6288-L6335)。
+富文本范围须包含完整所选矩形，合并边各段须有共同宽度和颜色。复杂列表、不完整或复杂书签、批注身份、复杂域和未知结构的资源转移继续实施；可提取文字但不能生成富文本时返回 `fragment: null` 及具体 `reason`，系统剪贴板保留原 TSV。图片格已有富文本复制和显式剪切。跨格 Delete/Backspace 清空全部所选主格；文字、Enter 和组合输入只替换首个主格，保留其余格图片和域。图片删除锁、引用保护和候选失败沿既有原子事务执行。结构操作仍沿原保护。文档默认 Tab 间隔、小数点符号及其他全局设置采用目标文档；源行高及表属性不转移。覆盖已有图片须通过原生删除保护，其他身份或未知源仍拒绝。整格输入与清空依据 [ONLYOFFICE Table.Remove](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L6288-L6335)。
 
 每片段最多 256 张图片，逐图 base64 源最多 2 Mi 单元，解码后的压缩字节合计最多 2 MiB；共享资源的每次引用均计入检查。原生绘图身份分配最多扫描 16384 项，图片字节计入既有历史及输出预算。
 
@@ -601,7 +619,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 正文片段携带解析后的字符/段落格式、完整普通书签、链接、编号及行内 PNG/JPEG。资源校验和目标身份分配复用[单元格富文本片段](#单元格富文本片段)。`bodyFragmentImages(revision, fragment)` 只读预检图片；同步宿主先解码并注册 RGBA。`pasteBodyFragment(revision, selection, fragment, profile)` 原子替换范围；Web 自动解码，`DocumentEditor.pasteFragment(fragment)` 沿既有编辑队列提交。字体、布局、资源、历史或输出失败保留原文档。
 
-简单 `PAGE`、`NUMPAGES` 域也随正文片段转移，保留指令、显式编号格式及已解析的字符格式。纯文本输出取当前完整布局的实际结果，长度变化不改变用于剪切的逻辑范围；缺少、过时或不完整布局时拒绝读取所选域，不退回旧缓存。同步和 Worker 桥使用当前布局，调用方先完成相同 revision 的排版；MoonBit `selected_text`、`clipboard` 可显式传入 `layout`。粘贴按目标位置重算新域缓存，保留已有域的旧缓存，并与文字及资源合为一项历史。空结果域仍携带富文本片段，不视为空选择。整格/跨格片段中的域继续保护。依据 [ONLYOFFICE 原生简单域序列化](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Serialize2.js#L5513-L5528)，实现归[域剪贴板值与格式](../../modules/formats/src/docx/field-clipboard.mbt)。
+简单 `PAGE`、`NUMPAGES` 域也随正文片段转移，保留指令、显式编号格式及已解析的字符格式。纯文本输出取当前完整布局的实际结果，长度变化不改变用于剪切的逻辑范围；缺少、过时或不完整布局时拒绝读取所选域，不退回旧缓存。同步和 Worker 桥使用当前布局，调用方先完成相同 revision 的排版；MoonBit `selected_text`、`clipboard` 可显式传入 `layout`。粘贴按目标位置重算新域缓存，保留已有域的旧缓存，并与文字及资源合为一项历史。空结果域仍携带富文本片段，不视为空选择。整格/跨格及完整合并格中的简单域复用相同规则，范围归[单元格富文本片段](#单元格富文本片段)。依据 [ONLYOFFICE 原生简单域序列化](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Serialize2.js#L5513-L5528)，实现归[域剪贴板值与格式](../../modules/formats/src/docx/field-clipboard.mbt)。
 
 单段粘贴保留目标段落属性，源字符格式随文字插入。多段粘贴使用源段落属性，保留目标前后文字的字符格式；最后一个部分段落当前也使用源段落属性。光标停在插入末尾，继续输入继承源字符格式。文字、资源、选择和所有段落合为一项精确历史。
 

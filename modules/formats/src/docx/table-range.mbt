@@ -35,6 +35,7 @@ fn Session::table_cell_range(
   tree : WordTree,
   selection : Selection,
   pictures~ : Bool = false,
+  fields~ : Bool = false,
 ) -> TableCellRange? raise @failure.Failure {
   if selection.anchor.paragraph == selection.focus.paragraph {
     return None
@@ -52,10 +53,11 @@ fn Session::table_cell_range(
     tree.nodes[tree.nodes[last].parent].parent {
     return None
   }
-  let grid = self.table_grid(tree, {
-    anchor: selection.anchor,
-    focus: selection.anchor,
-  })
+  let grid = self.table_grid(
+    tree,
+    { anchor: selection.anchor, focus: selection.anchor, },
+    fields~,
+  )
   guard grid.owners.get(last) is Some((end_row, end_column)) else {
     @failure.reject(
       "protected-content", "Selection crosses an unsupported table cell",
@@ -94,7 +96,7 @@ fn Session::table_cell_range(
     .flatten()
     .filter(cell => positions.contains(grid.owners[cell]))
   for cell in cells {
-    tree.check_merge_cell(cell, self.main, pictures~)
+    tree.check_merge_cell(cell, self.main, pictures~, fields~)
   }
   let paragraphs = owners.map(cell => tree.table_children(cell, "p")).flatten()
   Some({ grid, top, bottom, left, right, owners, cells, paragraphs, })
@@ -106,7 +108,12 @@ fn Session::table_cell_selection(
   tree : WordTree,
   selection : Selection,
 ) -> Json raise @failure.Failure {
-  let selected = self.table_cell_range(tree, selection, pictures=true)
+  let selected = self.table_cell_range(
+    tree,
+    selection,
+    pictures=true,
+    fields=true,
+  )
   guard selected is Some(selected) else {
     return { "value": Json::null(), "reason": "" }
   }
@@ -191,6 +198,7 @@ fn Session::table_format_range(
   self : Session,
   tree : WordTree,
   selection : Selection,
+  fields~ : Bool = false,
 ) -> ParagraphRange? raise @failure.Failure {
   let first_cell = tree.nodes
     .get(selection.anchor.paragraph)
@@ -206,7 +214,7 @@ fn Session::table_format_range(
     last_cell.name == "tc" else {
     return None
   }
-  guard self.table_cell_range(tree, selection) is Some(cells) else {
+  guard self.table_cell_range(tree, selection, fields~) is Some(cells) else {
     return None
   }
   let first = cells.paragraphs[0]
@@ -252,7 +260,7 @@ pub fn Session::selection_rects(
     self.picture_resize is Some(_) {
     None
   } else {
-    self.table_cell_range(tree, selection, pictures=true) catch {
+    self.table_cell_range(tree, selection, pictures=true, fields=true) catch {
       @failure.Failure(code="protected-content", ..) => None
       error => raise error
     }

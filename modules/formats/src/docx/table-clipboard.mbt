@@ -1,17 +1,24 @@
 ///|
 /// Reads selected owners as quoted TSV and a portable fragment; cut checks picture retention and removal.
+/// Supply the current layout when selected cells contain page fields.
 pub fn Session::table_clipboard(
   self : Session,
   revision : Int,
   selection : Selection,
   cut~ : Bool = false,
+  layout? : @layout.Layout,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
-  let selected = self.table_cell_range(tree, selection, pictures=true)
+  let selected = self.table_cell_range(
+    tree,
+    selection,
+    pictures=true,
+    fields=true,
+  )
   let grid = selected
     .map(range => range.grid)
-    .unwrap_or_else(() => self.table_grid(tree, selection))
+    .unwrap_or_else(() => self.table_grid(tree, selection, fields=true))
   let owners = selected
     .map(range => range.owners)
     .unwrap_or_else(() => {
@@ -23,7 +30,7 @@ pub fn Session::table_clipboard(
   let mut left = grid.model.widths.length()
   let mut right = 0
   for cell in owners {
-    tree.check_merge_cell(cell, self.main, pictures=true)
+    tree.check_merge_cell(cell, self.main, pictures=true, fields=true)
     let (row, column) = grid.owners[cell]
     top = top.min(row)
     bottom = bottom.max(row + grid.model.rowSpans[row][column])
@@ -36,6 +43,23 @@ pub fn Session::table_clipboard(
   guard positions > 0 && positions <= 4096 else {
     @failure.reject("limit-exceeded", "Copied table matrix exceeds cell budget")
   }
+  let values = self.field_values(
+    tree,
+    owners
+    .map(cell => tree.descendants(cell))
+    .flatten()
+    .filter(id => {
+      tree.nodes[id].uri == word_uri && tree.nodes[id].name == "fldSimple"
+    }),
+    layout,
+  )
+  fn displayed(span : @layout.Span) -> String {
+    if span.field.is_empty() {
+      span.text
+    } else {
+      values[tree.nodes[tree.nodes[span.node].parent].parent]
+    }
+  }
   // Each row has one separator per column, including its final LF.
   let mut units = positions.to_int()
   let fields : Map[(Int, Int), String] = Map([])
@@ -47,7 +71,7 @@ pub fn Session::table_clipboard(
       paragraph,
     ) => {
       paragraph.spans.fold(init=sum, (sum, span) => {
-        sum + span.text.length().to_int64()
+        sum + displayed(span).length().to_int64()
       })
     })
     guard size <= (command_limit - units).to_int64() else {
@@ -56,7 +80,7 @@ pub fn Session::table_clipboard(
       )
     }
     let text = paragraphs
-      .map(p => p.spans.map(span => span.text).join(""))
+      .map(p => p.spans.map(displayed).join(""))
       .join("\n")
       .replace_all(old="\u2028", new="\n")
     let field = @delimited.quote_field(text)
@@ -80,7 +104,9 @@ pub fn Session::table_clipboard(
   }
   let mut reason = ""
   let fragment = Json(
-    self.capture_table_fragment(tree, grid, top, bottom, left, right, owners),
+    self.capture_table_fragment(
+      tree, grid, top, bottom, left, right, owners, values,
+    ),
   ) catch {
     @failure.Failure(code="protected-content", message~, ..) => {
       reason = message
@@ -91,13 +117,16 @@ pub fn Session::table_clipboard(
   if cut {
     for cell in owners {
       for id in tree.descendants(cell) {
-        if tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing" {
+        if tree.nodes[id].uri == word_uri &&
+          ["drawing", "fldSimple"].contains(tree.nodes[id].name) {
           guard fragment != Json::null() else {
             @failure.reject(
-              "protected-content", "Picture cut requires a complete rich fragment",
+              "protected-content", "Inline object cut requires a complete rich fragment",
             )
           }
-          ignore(self.editable_picture(tree, id, remove=true))
+          if tree.nodes[id].name == "drawing" {
+            ignore(self.editable_picture(tree, id, remove=true))
+          }
         }
       }
     }

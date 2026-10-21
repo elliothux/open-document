@@ -67,11 +67,12 @@ pub fn Session::begin_composition(
   revision : Int,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  self.check_document_protection()
   guard self.selection is Some(selection) else {
     @failure.reject("invalid-operation", "Composition requires a selection")
   }
   let tree = WordTree::new(self.document())
-  if self.table_cell_range(tree, selection, pictures=true) is None {
+  if self.table_cell_range(tree, selection, pictures=true, fields=true) is None {
     ignore(
       self.paragraph_range(
         tree,

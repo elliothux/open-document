@@ -255,9 +255,10 @@ fn Session::fragment_cell(
   markers : Map[Int, String],
   numbers : Map[Int, (Int, Int)],
   pictures : Map[Int, String],
+  fields : Map[Int, String],
 ) -> String raise @failure.Failure {
   let cell = grid.cells[row][column]
-  tree.check_merge_cell(cell, self.main, pictures=true)
+  tree.check_merge_cell(cell, self.main, pictures=true, fields=true)
   let span = grid.model.columnSpans[row][column]
   let start = grid.starts[row][column]
   let width = grid.model.widths[start:start + span].fold(init=0.0, (sum, w) => {
@@ -334,6 +335,7 @@ fn Session::fragment_cell(
       markers,
       numbers,
       pictures,
+      fields~,
     )
     guard xml.length() <= limit - units else {
       @failure.reject(
@@ -357,6 +359,7 @@ fn Session::capture_table_fragment(
   left : Int,
   right : Int,
   owners : Array[Int],
+  fields : Map[Int, String],
 ) -> String raise @failure.Failure {
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
   let output = StringBuilder()
@@ -422,7 +425,7 @@ fn Session::capture_table_fragment(
         }
         let xml = self.fragment_cell(
           tree, grid, row, column, styles, limit, links, bookmarks, markers, numbers,
-          pictures,
+          pictures, fields,
         )
         guard xml.length() <= limit - units else {
           @failure.reject(

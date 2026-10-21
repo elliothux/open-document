@@ -332,7 +332,8 @@ fn Session::prepare_plain_range(
   if anchor.paragraph != focus.paragraph || text.contains("\n") {
     if anchor.paragraph != focus.paragraph {
       let tree = WordTree::new(self.document())
-      if self.table_cell_range(tree, selection, pictures=true) is Some(cells) {
+      if self.table_cell_range(tree, selection, pictures=true, fields=true)
+        is Some(cells) {
         return Some(
           self.prepare_table_contents(tree, cells, text, check_graphemes~),
         )
@@ -500,7 +501,11 @@ fn Session::commit_edit(
   media~ : Map[String, Bytes] = self.media,
   bookmark_edit~ : Bool = false,
   comment_edit~ : Bool = false,
+  protection_edit~ : Bool = false,
 ) -> Unit raise @failure.Failure {
+  if !protection_edit {
+    self.check_document_protection()
+  }
   if !bookmark_edit {
     check_bookmark_integrity(self.document(), candidate)
   }

@@ -125,8 +125,9 @@ pub fn Session::clipboard(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
-  if self.table_cell_range(tree, selection, pictures=true) is Some(_) {
-    return self.table_clipboard(revision, selection, cut~)
+  if self.table_cell_range(tree, selection, pictures=true, fields=true)
+    is Some(_) {
+    return self.table_clipboard(revision, selection, cut~, layout?)
   }
   let text = self.selected_text(revision, selection, layout?)
   let mut reason = ""

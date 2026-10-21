@@ -142,6 +142,7 @@ pub fn Session::apply_format(Self, Int, Selection, CharacterFormat, ParagraphFor
 pub fn Session::begin_composition(Self, Int) -> Json raise @failure.Failure
 pub fn Session::begin_picture_resize(Self, Int, Int) -> Json raise @failure.Failure
 pub fn Session::body_fragment_images(Self, Int, String) -> Json raise @failure.Failure
+pub fn Session::body_page_field(Self, Int, Selection) -> Json raise @failure.Failure
 pub fn Session::bookmarks(Self, Int) -> Json raise @failure.Failure
 pub fn Session::cancel_composition(Self, Int, Int) -> Json raise @failure.Failure
 pub fn Session::cancel_picture_resize(Self, Int, Int) -> Json raise @failure.Failure
@@ -158,6 +159,8 @@ pub fn Session::create_style(Self, Int, String, String, based_on? : String?) -> 
 pub fn Session::delete(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::delete_picture(Self, Int, Int) -> Json raise @failure.Failure
 pub fn Session::delete_style(Self, Int, String, String) -> Json raise @failure.Failure
+pub fn Session::document_protection(Self, Int) -> Json raise @failure.Failure
+pub fn Session::edit_body_page_field(Self, Int, Selection, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::edit_bookmark(Self, Int, BookmarkEdit) -> Json raise @failure.Failure
 pub fn Session::edit_comment(Self, Int, CommentEdit) -> Json raise @failure.Failure
 pub fn Session::edit_list(Self, Int, Selection, ListEdit) -> Json raise @failure.Failure
@@ -201,6 +204,7 @@ pub fn Session::selected_text(Self, Int, Selection, cut? : Bool, layout? : @layo
 pub fn Session::selection_rects(Self, @layout.Layout, Selection) -> Array[@layout.SelectionRect] raise @failure.Failure
 pub fn Session::set_character_format(Self, Int, Selection, CharacterFormat) -> Json raise @failure.Failure
 pub fn Session::set_default_tab_stop(Self, Int, Double?) -> Json raise @failure.Failure
+pub fn Session::set_document_protection(Self, Int, Bool, String, Bytes) -> Json raise @failure.Failure
 pub fn Session::set_hyperlink(Self, Int, Selection, String?, text? : String?) -> Json raise @failure.Failure
 pub fn Session::set_page_background(Self, Int, String?) -> Json raise @failure.Failure
 pub fn Session::set_page_borders(Self, Int, @layout.PageBorders?) -> Json raise @failure.Failure
@@ -214,7 +218,7 @@ pub fn Session::set_theme_color(Self, Int, String, String) -> Json raise @failur
 pub fn Session::set_theme_fonts(Self, Int, Array[ThemeFontEdit], @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::style_catalog(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::tab(Self, Int, Bool) -> Json raise @failure.Failure
-pub fn Session::table_clipboard(Self, Int, Selection, cut? : Bool) -> Json raise @failure.Failure
+pub fn Session::table_clipboard(Self, Int, Selection, cut? : Bool, layout? : @layout.Layout) -> Json raise @failure.Failure
 pub fn Session::table_fragment_images(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::theme_colors(Self, Int) -> Json raise @failure.Failure
 pub fn Session::theme_fonts(Self, Int) -> Json raise @failure.Failure

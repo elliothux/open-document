@@ -11,10 +11,75 @@ import type {
   DocxRunningVariant,
   DocxRunningContent,
   DocxPageField,
+  DocxBodyPageField,
+  DocxSelection,
+  DocxProtection,
 } from "@open-document/wasm/foundation";
+export type DocumentBodyPageField = DocxBodyPageField & { documentId: string };
+export type DocumentProtection = DocxProtection & { documentId: string };
 
 /** Document-wide page commands use the editor's existing read and edit queues. */
 export abstract class DocumentPage extends DocumentReview {
+  documentProtection(): Promise<DocumentProtection> {
+    return this.review.read(async () => ({
+      ...(await this.review.client.documentProtection(
+        this.review.snapshot().revision,
+      )),
+      documentId: this.review.snapshot().documentId,
+    }));
+  }
+  setDocumentProtection(
+    source: DocumentProtection,
+    enabled: boolean,
+    password = "",
+  ): Promise<void> {
+    return this.review.edit(() => {
+      const current = this.review.snapshot();
+      if (
+        source.documentId !== current.documentId ||
+        source.revision !== current.revision
+      )
+        throw new Error("Document protection state is stale");
+      return this.review.client.setDocumentProtection(
+        source.revision,
+        enabled,
+        password,
+      );
+    });
+  }
+  protected abstract selection(): DocxSelection;
+  bodyPageField(): Promise<DocumentBodyPageField> {
+    return this.review.read(async () => {
+      const state = this.review.snapshot();
+      return {
+        ...(await this.review.client.bodyPageField(
+          state.revision,
+          this.selection(),
+        )),
+        documentId: state.documentId,
+      };
+    });
+  }
+  editBodyPageField(
+    source: DocumentBodyPageField,
+    field: DocxPageField,
+  ): Promise<void> {
+    return this.review.edit(() => {
+      const current = this.review.snapshot();
+      if (
+        source.documentId !== current.documentId ||
+        source.revision !== current.revision ||
+        JSON.stringify(source.selection) !== JSON.stringify(this.selection())
+      )
+        throw new Error("Document or field selection changed");
+      return this.review.client.editBodyPageField(
+        source.revision,
+        source.selection,
+        field,
+        this.profile,
+      );
+    });
+  }
   insertBodyPageField(field: DocxPageField): Promise<void> {
     return this.review.edit(() =>
       this.review.client.insertBodyPageField(

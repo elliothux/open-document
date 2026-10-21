@@ -287,6 +287,23 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.styles(request.revision, request.kind);
         case "pageSetup":
           return foundation.pageSetup(request.revision);
+        case "documentProtection":
+          return foundation.documentProtection(request.revision);
+        case "setDocumentProtection":
+          return foundation.setDocumentProtection(
+            request.revision,
+            request.enabled,
+            request.password,
+          );
+        case "bodyPageField":
+          return foundation.bodyPageField(request.revision, request.selection);
+        case "editBodyPageField":
+          return foundation.editBodyPageField(
+            request.revision,
+            request.selection,
+            request.field,
+            request.profile,
+          );
         case "updateBodyPageFields":
           return foundation.updateBodyPageFields(
             request.revision,

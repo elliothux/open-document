@@ -134,6 +134,21 @@ export type Operation =
       profile: Record<string, string>;
     }
   | { operation: "pageSetup"; revision: number }
+  | { operation: "documentProtection"; revision: number }
+  | {
+      operation: "setDocumentProtection";
+      revision: number;
+      enabled: boolean;
+      password: string;
+    }
+  | { operation: "bodyPageField"; revision: number; selection: DocxSelection }
+  | {
+      operation: "editBodyPageField";
+      revision: number;
+      selection: DocxSelection;
+      field: DocxPageField;
+      profile: Record<string, string>;
+    }
   | {
       operation: "insertBodyPageField";
       revision: number;

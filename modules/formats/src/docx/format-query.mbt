@@ -161,7 +161,7 @@ fn Session::formatting_range(
 ) -> ParagraphRange raise @failure.Failure {
   let tree = WordTree::new(document)
   let cells = if whole_cells {
-    self.table_format_range(tree, selection)
+    self.table_format_range(tree, selection, fields~)
   } else {
     None
   }
@@ -194,14 +194,16 @@ pub fn Session::query_formatting(
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
   let mut reason = ""
-  let range = try
-    self.formatting_range(
+  let range = try {
+    let range = self.formatting_range(
       self.document(),
       selection,
       whole_cells=true,
       fields=true,
     )
-  catch {
+    self.check_document_protection()
+    range
+  } catch {
     @failure.Failure(
       code="invalid-position"
       | "stale-revision"

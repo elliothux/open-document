@@ -39,7 +39,7 @@ fn Session::read_table_fragment(
   }
   let table = tree.table_children(body, "tbl")[0]
   let nodes = tree.descendants(table)
-  check_fragment_content(tree, nodes, pictures)
+  check_fragment_content(tree, nodes, pictures, fields=true)
   guard tree.child(table, "tblGrid") is Some(_) else {
     @failure.reject("invalid-table", "Rich table requires a complete grid")
   }
@@ -67,7 +67,7 @@ fn Session::read_table_fragment(
   }
   tree.check_table_structure(grid, columns=true)
   for cell in grid.cells.flatten() {
-    tree.check_merge_cell(cell, self.main, pictures=true)
+    tree.check_merge_cell(cell, self.main, pictures=true, fields=true)
   }
   let changes = []
   for row in model.rows {

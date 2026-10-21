@@ -1,9 +1,7 @@
 import { DocumentPage } from "./document-page.js";
-import type { DocxSelection } from "@open-document/wasm/foundation";
 import { DOCX_SOFT_BREAK } from "@open-document/wasm/foundation";
 /** Rich text uses the existing edit queue and core-owned resource transaction. */
 export abstract class DocumentClipboard extends DocumentPage {
-  protected abstract selection(): DocxSelection;
   abstract paste(text: string): Promise<void>;
   insertSoftBreak(): Promise<void> {
     return this.paste(DOCX_SOFT_BREAK);

@@ -15,8 +15,9 @@ fn Session::table_grid(
   self : Session,
   tree : WordTree,
   selection : Selection,
+  fields~ : Bool = false,
 ) -> TableGrid raise @failure.Failure {
-  let range = self.paragraph_range(tree, selection, structural=true)
+  let range = self.paragraph_range(tree, selection, structural=true, fields~)
   let cell = tree.nodes[range.start.paragraph].parent
   guard tree.nodes[cell].uri == word_uri && tree.nodes[cell].name == "tc" else {
     @failure.reject("invalid-operation", "Select a table cell first")
@@ -95,6 +96,7 @@ fn WordTree::check_merge_cell(
   cell : Int,
   part : String,
   pictures~ : Bool = false,
+  fields~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   guard self.child(cell, "p") is Some(_) else {
     @failure.reject(
@@ -116,8 +118,8 @@ fn WordTree::check_merge_cell(
     )
   }
   for p in self.table_children(cell, "p") {
-    self.check_editable_paragraph(p, part~, pictures~)
-    self.check_structure_paragraph(p)
+    self.check_editable_paragraph(p, part~, pictures~, fields~)
+    self.check_structure_paragraph(p, running=fields)
   }
   guard self.table_children(cell, "tcPr").length() <= 1 else {
     @failure.reject("protected-content", "Duplicate cell properties")

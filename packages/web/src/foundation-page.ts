@@ -27,10 +27,63 @@ import {
   type DocxRunningContent,
   type DocxPageField,
   checkPageField,
+  docxBodyPageField,
+  docxProtection,
+  checkDocxProtection,
 } from "@open-document/wasm/foundation";
+import type { DocxSelection } from "@open-document/wasm/foundation";
 
 /** Page commands retain the existing Worker and validation boundary. */
 export class FoundationPageClient extends FoundationReviewClient {
+  async documentProtection(revision: number) {
+    return docxProtection(
+      await this.connection.request({
+        operation: "documentProtection",
+        revision,
+      }),
+    );
+  }
+  async setDocumentProtection(
+    revision: number,
+    enabled: boolean,
+    password: string,
+  ) {
+    checkDocxProtection(enabled, password);
+    return editState(
+      await this.connection.request({
+        operation: "setDocumentProtection",
+        revision,
+        enabled,
+        password,
+      }),
+    );
+  }
+  async bodyPageField(revision: number, selection: DocxSelection) {
+    return docxBodyPageField(
+      await this.connection.request({
+        operation: "bodyPageField",
+        revision,
+        selection,
+      }),
+    );
+  }
+  async editBodyPageField(
+    revision: number,
+    selection: DocxSelection,
+    field: DocxPageField,
+    profile: Record<string, string>,
+  ) {
+    checkPageField(field);
+    return editState(
+      await this.connection.request({
+        operation: "editBodyPageField",
+        revision,
+        selection,
+        field,
+        profile,
+      }),
+    );
+  }
   async insertBodyPageField(
     revision: number,
     field: DocxPageField,

@@ -100,6 +100,7 @@ fn Session::paste_grid_changes(
           tree,
           cells.last().unwrap(),
           widths[column],
+          fields=true,
         )
         guard xml.length() <= changes.limit - units else {
           @failure.reject(
@@ -142,6 +143,7 @@ fn Session::paste_grid_changes(
           tree,
           grid.cells[last][index],
           widths[column],
+          fields=true,
         )
         guard xml.length() <= changes.limit - units else {
           @failure.reject("limit-exceeded", "Pasted row source exceeds budget")

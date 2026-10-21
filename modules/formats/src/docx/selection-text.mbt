@@ -101,7 +101,7 @@ pub fn Session::selected_text(
 ) -> String raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
-  let cells = self.table_format_range(tree, selection)
+  let cells = self.table_format_range(tree, selection, fields=true)
   let whole_cells = cells is Some(_)
   let range = cells.unwrap_or_else(() => {
     self.paragraph_range(tree, selection, structural=false, fields=true)

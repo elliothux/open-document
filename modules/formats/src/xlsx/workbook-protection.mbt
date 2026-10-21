@@ -61,7 +61,7 @@ fn Session::set_workbook_protection(
   password : String,
   salt : Bytes,
 ) -> Json raise @failure.Failure {
-  protection_password(password)
+  @protection.password(password)
   guard salt.length() == (if enabled && !password.is_empty() { 16 } else { 0 }) else {
     @failure.reject(
       "invalid-operation", "Workbook protection requires a 16-byte random salt for a new password",
@@ -85,7 +85,7 @@ fn Session::set_workbook_protection(
     let attributes = if password.is_empty() {
       ""
     } else {
-      " workbookAlgorithmName=\"SHA-512\" workbookHashValue=\"\{@base64.encode(protection_hash(password,salt,100000)[:])}\" workbookSaltValue=\"\{@base64.encode(salt[:])}\" workbookSpinCount=\"100000\""
+      " workbookAlgorithmName=\"SHA-512\" workbookHashValue=\"\{@base64.encode(@protection.hash(password,salt,100000)[:])}\" workbookSaltValue=\"\{@base64.encode(salt[:])}\" workbookSpinCount=\"100000\""
     }
     "<od:workbookProtection xmlns:od=\"\{spreadsheet_uri}\" lockStructure=\"1\"\{attributes}/>"
   } else {

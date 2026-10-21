@@ -1,6 +1,10 @@
 import { docxOutputs, downloadDocxOutput } from "./document-output.js";
-import { DocumentClipboard } from "./document-clipboard.js";
-export type { DocumentRuler } from "./document-page.js";
+import { DocumentTables } from "./document-tables.js";
+export type {
+  DocumentRuler,
+  DocumentBodyPageField,
+  DocumentProtection,
+} from "./document-page.js";
 export type { DocumentComments, DocumentRevisions } from "./document-review.js";
 import { createDocumentElements, docxPageText } from "./document-elements.js";
 import type { FoundationClient } from "./foundation.js";
@@ -47,13 +51,12 @@ import type {
   DocxListEdit,
   DocxListLevelUpdate,
   DocxPictureEdit,
-  DocxTableEdit,
   DocxThemeSlot,
   DocxThemeFontEdit,
   DocxSelectionGeometry,
 } from "@open-document/wasm/foundation";
 /** Owns browser input order. The caller owns fonts, the opened DOCX and client lifetime. */
-export class DocumentEditor extends DocumentClipboard {
+export class DocumentEditor extends DocumentTables {
   private readonly container: HTMLDivElement;
   private readonly viewport: HTMLDivElement;
   private readonly input: HTMLTextAreaElement;
@@ -278,7 +281,11 @@ export class DocumentEditor extends DocumentClipboard {
     if (paused) this.pointerSelection.finish();
     this.paused = paused;
     this.container.inert = paused;
-    this.input.readOnly = paused || !!this.blocked || this.resuming;
+    this.input.readOnly =
+      paused ||
+      !!this.blocked ||
+      this.resuming ||
+      !!this.state.formatting?.reason;
     this.publish();
     if (paused) await this.tail;
     else await this.enqueue(() => this.presentSelection(false), true);
@@ -448,7 +455,8 @@ export class DocumentEditor extends DocumentClipboard {
         throw error;
       } finally {
         this.resuming = false;
-        this.input.readOnly = this.closed || !!this.blocked;
+        this.input.readOnly =
+          this.closed || !!this.blocked || !!this.state.formatting?.reason;
         this.publish();
       }
     });
@@ -548,23 +556,6 @@ export class DocumentEditor extends DocumentClipboard {
   }
   editPicture(revision: number, picture: DocxPictureEdit): Promise<void> {
     return this.format(() => this.client.editPicture(revision, picture));
-  }
-  insertTable(rows: number, cols: number): Promise<void> {
-    return this.format(() =>
-      this.client.insertTable(
-        this.state.revision,
-        this.selection(),
-        rows,
-        cols,
-        this.profile,
-      ),
-    );
-  }
-  editTable(change: DocxTableEdit): Promise<void> {
-    return this.format(() => {
-      const args = [this.state.revision, this.selection(), change] as const;
-      return this.client.editTable(...args, this.profile);
-    });
   }
   setDefaultTabStop(interval: number | null): Promise<void> {
     return this.format(() =>
@@ -685,7 +676,11 @@ export class DocumentEditor extends DocumentClipboard {
       this.cssScale,
     );
     // Focus and pointer selection run before text intents in the same queue.
-    this.input.readOnly = this.paused || !!this.blocked || this.resuming;
+    this.input.readOnly =
+      this.paused ||
+      !!this.blocked ||
+      this.resuming ||
+      !!this.state.formatting?.reason;
     this.text.textContent = docxPageText(this.currentLayout, this.page);
     this.publish();
   }

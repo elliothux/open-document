@@ -20,6 +20,7 @@ fn Foundation::clipboard_command(
         revision,
         field_selection(request),
         cut=xlsx_boolean(request, "cut"),
+        layout?=self.layout,
       )
     "docxClipboard" =>
       session.clipboard(

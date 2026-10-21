@@ -113,6 +113,12 @@ fn Foundation::docx_page(
   request : Json,
 ) -> Json raise @failure.Failure {
   let revision = field_int(request, "revision")
+  if operation == "documentProtection" {
+    return session.document_protection(revision)
+  }
+  if operation == "bodyPageField" {
+    return session.body_page_field(revision, field_selection(request))
+  }
   if operation == "runningArea" {
     return session.running_area(
       revision,
@@ -124,7 +130,25 @@ fn Foundation::docx_page(
     return session.page_setup(revision)
   }
   let result = match operation {
-    "insertBodyPageField" => {
+    "setDocumentProtection" => {
+      let salt = field_string(request, "passwordSalt")
+      guard salt.length() <= 32 else {
+        @failure.reject("invalid-operation", "Invalid document protection salt")
+      }
+      let salt = @base64.decode(salt[:]) catch {
+        _ =>
+          @failure.reject(
+            "invalid-operation", "Invalid document protection salt",
+          )
+      }
+      session.set_document_protection(
+        revision,
+        xlsx_boolean(request, "enabled"),
+        field_string(request, "password"),
+        salt,
+      )
+    }
+    "insertBodyPageField" | "editBodyPageField" => {
       guard request is { "field": item, .. } else {
         @failure.reject("invalid-operation", "Page field is required")
       }
@@ -135,13 +159,24 @@ fn Foundation::docx_page(
           code + ":" + format
         _ => @failure.reject("invalid-operation", "Expected a page field")
       }
-      session.insert_body_page_field(
-        revision,
-        code,
-        probe=self.probe,
-        profile=xlsx_profile(request),
-        images=self.images,
-      )
+      if operation == "editBodyPageField" {
+        session.edit_body_page_field(
+          revision,
+          field_selection(request),
+          code,
+          probe=self.probe,
+          profile=xlsx_profile(request),
+          images=self.images,
+        )
+      } else {
+        session.insert_body_page_field(
+          revision,
+          code,
+          probe=self.probe,
+          profile=xlsx_profile(request),
+          images=self.images,
+        )
+      }
     }
     "updateBodyPageFields" =>
       session.update_body_page_fields(

@@ -1,5 +1,6 @@
 import {
   "open_document/formats/internal/delimited",
+  "open_document/formats/internal/protection",
   "open_document/core/archive",
   "open_document/core/opc",
   "open_document/core/xml",
@@ -8,9 +9,7 @@ import {
   "moonbitlang/core/string",
   "moonbitlang/core/math",
   "moonbitlang/core/encoding/utf8",
-  "moonbitlang/core/encoding/utf16",
   "moonbitlang/core/encoding/base64",
-  "moonbitlang/x/crypto",
   "moonbit-community/ucd",
 }
 

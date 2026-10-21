@@ -19,10 +19,15 @@ fn Session::paste_table_fragment(
   )
   let original = self.document()
   let tree = WordTree::new(original)
-  let selected = self.table_cell_range(tree, selection, pictures=true)
+  let selected = self.table_cell_range(
+    tree,
+    selection,
+    pictures=true,
+    fields=true,
+  )
   let grid = selected
     .map(r => r.grid)
-    .unwrap_or_else(() => self.table_grid(tree, selection))
+    .unwrap_or_else(() => self.table_grid(tree, selection, fields=true))
   let (top, c) = selected
     .map(r => grid.owners[r.owners[0]])
     .unwrap_or_else(() => grid.owners[grid.cells[grid.row][grid.column]])
@@ -40,7 +45,7 @@ fn Session::paste_table_fragment(
     for column, cell in grid.cells[row] {
       let start = grid.starts[row][column]
       if start < right && start + grid.model.columnSpans[row][column] > left {
-        tree.check_merge_cell(cell, self.main, pictures=true)
+        tree.check_merge_cell(cell, self.main, pictures=true, fields=true)
         for id in tree.descendants(cell) {
           if tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing" {
             ignore(self.editable_picture(tree, id, remove=true))
@@ -70,7 +75,7 @@ fn Session::paste_table_fragment(
                   tree.nodes[child].name == "r"
                 })
               } else {
-                ["pPr", "r"].contains(tree.nodes[id].name)
+                ["pPr", "r", "fldSimple"].contains(tree.nodes[id].name)
               }
             })
           }) else {
@@ -217,6 +222,29 @@ fn Session::paste_table_fragment(
   let table = flow.tables.iter().find_first(t => t.id == grid.table).unwrap()
   self.check_table_layout(flow, table, Some(probe), profile, images)
   let current = WordTree::new(candidate)
+  let fields = current.order.filter(id => {
+    current.nodes[id].uri == word_uri &&
+    current.nodes[id].name == "fldSimple" &&
+    !tree.nodes.contains(id)
+  })
+  if !fields.is_empty() {
+    let layout = @layout.paginate(
+      probe,
+      flow,
+      profile,
+      images.unwrap_or_else(() => @layout.Images::new()),
+    )
+    let changes = self.field_cache_changes(current, fields, layout)
+    if !changes.is_empty() {
+      let (next, edit) = candidate.edit_text(changes)
+      guard edit_bytes(edit) <= history_byte_limit - bytes else {
+        @failure.reject("limit-exceeded", "Rich field history exceeds budget")
+      }
+      bytes += edit_bytes(edit)
+      steps.push(edit)
+      candidate = next
+    }
+  }
   let final_grid = read_table_grid(current, table, top, 0)
   let first = final_grid.cells[top][final_grid.starts[top].search(left).unwrap()]
   let focus = {

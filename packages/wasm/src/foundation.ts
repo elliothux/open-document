@@ -1,6 +1,11 @@
 import { FoundationClipboardSession } from "./docx-clipboard.js";
 export * from "./docx-clipboard.js";
 export {
+  docxProtection,
+  checkDocxProtection,
+  type DocxProtection,
+} from "./docx-protection.js";
+export {
   checkRunningArea,
   checkRunningKind,
   checkRunningVariant,
@@ -10,6 +15,8 @@ export {
   type DocxRunningContent,
   type DocxPageField,
   checkPageField,
+  type DocxBodyPageField,
+  docxBodyPageField,
   type DocxRunningKind,
   type DocxRunningVariant,
 } from "./docx-page.js";

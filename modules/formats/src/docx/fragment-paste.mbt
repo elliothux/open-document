@@ -140,19 +140,7 @@ pub fn Session::paste_body_fragment(
     tree.nodes[id].name == "fldSimple" &&
     !original_tree.nodes.contains(id)
   })
-  let values = self.field_values(tree, fields, Some(layout))
-  let changes : Map[Int, String] = Map([])
-  for id in fields {
-    let primary = tree.child(tree.field_result_run(id).unwrap(), "t").unwrap()
-    for text in tree.descendants(id) {
-      if tree.nodes[text].uri == word_uri && tree.nodes[text].name == "t" {
-        let value = if text == primary { values[id] } else { "" }
-        if tree.nodes[text].text != value {
-          changes[text] = value
-        }
-      }
-    }
-  }
+  let changes = self.field_cache_changes(tree, fields, layout)
   if !changes.is_empty() {
     let (document, edit) = candidate.edit_text(changes)
     candidate = document

@@ -172,6 +172,7 @@ pub fn Session::replace_matches(
             position.paragraph,
             part=self.main,
             pictures=true,
+            fields=true,
           )
           self.check_native_pictures(tree, position.paragraph)
           let frame = replacement_paragraph(
@@ -233,7 +234,9 @@ pub fn Session::replace_matches(
     let mut bytes = 0
     let mut selection = self.selection
     for index = targets.length() - 1; index >= 0; index = index - 1 {
-      ignore(self.paragraph_range(tree, targets[index], structural=true))
+      ignore(
+        self.paragraph_range(tree, targets[index], structural=true, fields=true),
+      )
       let working = {
         ..self,
         document: Some(candidate),

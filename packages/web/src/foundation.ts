@@ -9,6 +9,8 @@ export type {
   DocxRunningVariant,
   DocxRunningContent,
   DocxPageField,
+  DocxProtection,
+  DocxBodyPageField,
   DocxCommentEdit,
   DocxComments,
   DocxCommentNavigation,

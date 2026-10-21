@@ -94,6 +94,29 @@ fn Session::selection_field_values(
 }
 
 ///|
+fn Session::field_cache_changes(
+  self : Session,
+  tree : WordTree,
+  fields : Array[Int],
+  layout : @layout.Layout,
+) -> Map[Int, String] raise @failure.Failure {
+  let values = self.field_values(tree, fields, Some(layout))
+  let changes : Map[Int, String] = Map([])
+  for id in fields {
+    let primary = tree.child(tree.field_result_run(id).unwrap(), "t").unwrap()
+    for text in tree.descendants(id) {
+      if tree.nodes[text].uri == word_uri && tree.nodes[text].name == "t" {
+        let value = if text == primary { values[id] } else { "" }
+        if tree.nodes[text].text != value {
+          changes[text] = value
+        }
+      }
+    }
+  }
+  changes
+}
+
+///|
 fn fragment_field_markup(
   tree : WordTree,
   document : @xml.Document,

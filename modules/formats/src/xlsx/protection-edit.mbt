@@ -63,7 +63,7 @@ fn Session::set_protection(
   password : String,
   salt : Bytes,
 ) -> Json raise @failure.Failure {
-  protection_password(password)
+  @protection.password(password)
   guard salt.length() == (if enabled && !password.is_empty() { 16 } else { 0 }) else {
     @failure.reject(
       "invalid-operation", "Worksheet protection requires a 16-byte random salt for a new password",
@@ -87,7 +87,7 @@ fn Session::set_protection(
     let attributes = if password.is_empty() {
       ""
     } else {
-      " algorithmName=\"SHA-512\" hashValue=\"\{@base64.encode(protection_hash(password,salt,100000)[:])}\" saltValue=\"\{@base64.encode(salt[:])}\" spinCount=\"100000\""
+      " algorithmName=\"SHA-512\" hashValue=\"\{@base64.encode(@protection.hash(password,salt,100000)[:])}\" saltValue=\"\{@base64.encode(salt[:])}\" spinCount=\"100000\""
     }
     let markup = "<od:sheetProtection xmlns:od=\"\{spreadsheet_uri}\" sheet=\"1\" objects=\"1\" scenarios=\"1\"\{attributes}/>"
     let next = tree.children

@@ -6,6 +6,10 @@ import {
   type DocxRulerEdit,
 } from "./docx-ruler.js";
 import { record } from "./validation.js";
+import { docxProtection, checkDocxProtection } from "./docx-protection.js";
+import { protectionSalt } from "./protection-password.js";
+import { isDocxSelection } from "./docx-search.js";
+import type { DocxSelection } from "./docx-hit.js";
 import {
   checkPageSetup,
   checkPageBackground,
@@ -37,6 +41,30 @@ export type DocxPageField = {
   format?: Exclude<DocxPageNumbering["format"], "decimalZero">;
 };
 export type DocxRunningContent = { text: string } | DocxPageField;
+export interface DocxBodyPageField {
+  revision: number;
+  selection: DocxSelection;
+  field: DocxPageField | null;
+  reason: string;
+}
+export function docxBodyPageField(value: unknown): DocxBodyPageField {
+  const result = record(value);
+  if (
+    !Number.isSafeInteger(result.revision) ||
+    Number(result.revision) < 0 ||
+    !isDocxSelection(result.selection) ||
+    typeof result.reason !== "string" ||
+    Object.keys(result).length !== 4 ||
+    Object.keys(result).some(
+      (key) => !["revision", "selection", "field", "reason"].includes(key),
+    )
+  )
+    throw new Error("Invalid body page field response");
+  if (result.field !== null) checkPageField(result.field);
+  if ((result.field === null) !== result.reason.length > 0)
+    throw new Error("Invalid body page field availability");
+  return value as DocxBodyPageField;
+}
 export function checkPageField(value: unknown): asserts value is DocxPageField {
   const item = record(value);
   if (item.field !== "PAGE" && item.field !== "NUMPAGES")
@@ -128,6 +156,45 @@ export function docxRunningArea(value: unknown): DocxRunningArea {
 
 /** Page commands share the session's revision and source transaction. */
 export class FoundationPageSession extends FoundationReviewSession {
+  documentProtection(revision: number) {
+    return docxProtection(
+      this.call({ operation: "documentProtection", revision }),
+    );
+  }
+  setDocumentProtection(revision: number, enabled: boolean, password: string) {
+    checkDocxProtection(enabled, password);
+    return editState(
+      this.call({
+        operation: "setDocumentProtection",
+        revision,
+        enabled,
+        password,
+        passwordSalt: protectionSalt(enabled, password),
+      }),
+    );
+  }
+  bodyPageField(revision: number, selection: DocxSelection): DocxBodyPageField {
+    return docxBodyPageField(
+      this.call({ operation: "bodyPageField", revision, selection }),
+    );
+  }
+  editBodyPageField(
+    revision: number,
+    selection: DocxSelection,
+    field: DocxPageField,
+    profile: Record<string, string>,
+  ) {
+    checkPageField(field);
+    return editState(
+      this.call({
+        operation: "editBodyPageField",
+        revision,
+        selection,
+        field,
+        profile,
+      }),
+    );
+  }
   insertBodyPageField(
     revision: number,
     field: DocxPageField,
