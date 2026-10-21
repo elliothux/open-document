@@ -55,6 +55,7 @@ export type {
   DocxShapePreset,
   DocxShapes,
   DocxShapeEdit,
+  DocxTextBoxProperties,
   DrawingAnchor,
   DrawingAxis,
   DocxTableEdit,

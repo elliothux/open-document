@@ -96,7 +96,7 @@ fn Expression::dependencies(
           "XLOOKUP", "ROW", "COLUMN", "ROWS", "COLUMNS", "SUBTOTAL", "SQRT", "POWER",
           "PRODUCT", "MEDIAN", "SUMSQ", "DEVSQ", "VAR", "VAR.S", "VARP", "VAR.P",
           "STDEV", "STDEV.S", "STDEVP", "STDEV.P", "MODE", "MODE.SNGL", "LARGE",
-          "SMALL",
+          "SMALL", "SUMPRODUCT",
         ].contains(name) {
         @failure.reject("unsupported-formula", "Unsupported function: " + name)
       }

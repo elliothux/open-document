@@ -190,8 +190,17 @@ pub struct DrawingTextBox {
 }
 pub fn DrawingTextBox::new(Array[Paragraph], Array[Double], String, Bool, Bool) -> Self
 pub fn DrawingTextBox::paragraphs(Self) -> Array[Paragraph]
+pub fn DrawingTextBox::properties(Self) -> DrawingTextBoxProperties
 pub fn DrawingTextBox::to_json(Self) -> Json
 pub impl ToJson for DrawingTextBox
+
+pub(all) struct DrawingTextBoxProperties {
+  insets : Array[Double]
+  anchor : String
+  wrap : Bool
+  clip : Bool
+} derive(ToJson)
+pub fn DrawingTextBoxProperties::to_json(Self) -> Json
 
 pub(all) struct Fill {
   x : Double

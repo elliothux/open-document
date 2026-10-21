@@ -15,6 +15,15 @@ fn Foundation::shape_operation(
     @failure.reject("invalid-operation", "Shape settings are required")
   }
   let result = match field_string(shape, "action") {
+    "insertWordArt" =>
+      session.insert_word_art(
+        revision,
+        field_string(shape, "preset"),
+        field_string(shape, "text"),
+        probe=self.probe,
+        profile=xlsx_profile(request),
+        images=self.images,
+      )
     "insert" =>
       session.insert_shape(
         revision,
@@ -34,6 +43,32 @@ fn Foundation::shape_operation(
         images=self.images,
       )
     "delete" => session.delete_shape(revision, field_int(shape, "id"))
+    "textBox" => {
+      guard shape is { "properties": properties, .. } &&
+        properties is { "insets": Array(insets), .. } else {
+        @failure.reject("invalid-operation", "Text box properties are required")
+      }
+      session.edit_text_box(
+        revision,
+        field_int(shape, "id"),
+        {
+          insets: insets.map(value => {
+            guard value is Number(number, ..) else {
+              @failure.reject(
+                "invalid-operation", "Text box insets require numbers",
+              )
+            }
+            number
+          }),
+          anchor: field_string(properties, "anchor"),
+          wrap: xlsx_boolean(properties, "wrap"),
+          clip: xlsx_boolean(properties, "clip"),
+        },
+        probe=self.probe,
+        profile=xlsx_profile(request),
+        images=self.images,
+      )
+    }
     "position" =>
       session.set_drawing_anchor(
         revision,

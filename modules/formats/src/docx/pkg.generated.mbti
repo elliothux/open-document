@@ -170,6 +170,7 @@ pub fn Session::edit_ruler(Self, Int, @layout.Layout, Selection, RulerEdit) -> J
 pub fn Session::edit_shape(Self, Int, Int, Double, Double, String, String, Double, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::edit_state(Self) -> Json raise @failure.Failure
 pub fn Session::edit_table(Self, Int, Selection, TableEdit, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
+pub fn Session::edit_text_box(Self, Int, Int, @layout.DrawingTextBoxProperties, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::enter(Self, Int) -> Json raise @failure.Failure
 pub fn Session::export_markup(Self, Int, String, Int) -> Bytes raise @failure.Failure
 pub fn Session::find(Self, Int, String, FindOptions) -> Json raise @failure.Failure
@@ -180,6 +181,7 @@ pub fn Session::insert_body_page_field(Self, Int, String, probe~ : @layout.TextP
 pub fn Session::insert_picture(Self, Int, Double, Double, Bytes) -> Json raise @failure.Failure
 pub fn Session::insert_shape(Self, Int, String, Double, Double, String, String, Double, text? : String, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_table(Self, Int, Selection, Int, Int, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
+pub fn Session::insert_word_art(Self, Int, String, String, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::list_catalog(Self, Int) -> Json raise @failure.Failure
 pub fn Session::markup_images(Self, Int, String, String, mode? : String) -> Json raise @failure.Failure
 pub fn Session::navigate(Self, Int, @layout.Layout, Int, String, extend_selection~ : Bool) -> @layout.Hit raise @failure.Failure

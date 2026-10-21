@@ -15,6 +15,31 @@ pub fn Session::insert_shape(
   images? : @layout.Images,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  let prepared = self.prepare_shape_insertion(
+    preset,
+    width,
+    height,
+    fill,
+    stroke,
+    line_width,
+    text?,
+  )
+  self.check_picture_layout(prepared.document, probe, profile, images)
+  self.commit_edit(prepared.edit, prepared.document)
+  self.edit_result(prepared.edit.paragraphs)
+}
+
+///|
+fn Session::prepare_shape_insertion(
+  self : Session,
+  preset : String,
+  width : Double,
+  height : Double,
+  fill : String,
+  stroke : String,
+  line_width : Double,
+  text? : String,
+) -> PreparedEdit raise @failure.Failure {
   let (width, height, line_width) = check_shape_properties(
     preset, width, height, fill, stroke, line_width,
   )
@@ -86,9 +111,7 @@ pub fn Session::insert_shape(
   } else {
     prepared
   }
-  self.check_picture_layout(prepared.document, probe, profile, images)
-  self.commit_edit(prepared.edit, prepared.document)
-  self.edit_result(prepared.edit.paragraphs)
+  prepared
 }
 
 ///|

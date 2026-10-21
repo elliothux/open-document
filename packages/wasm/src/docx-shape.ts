@@ -7,6 +7,15 @@ import {
 
 export type DocxShapePreset = "rect" | "ellipse" | "line";
 
+export interface DocxTextBoxProperties {
+  /** Top, right, bottom and left text margins, in points. */
+  insets: [number, number, number, number];
+  anchor: "t" | "ctr" | "b";
+  wrap: boolean;
+  /** Clip both overflow axes to the frame. */
+  clip: boolean;
+}
+
 export interface DocxShape {
   id: number;
   width: number;
@@ -27,9 +36,16 @@ export interface DocxShapes {
     deleteReason: string;
     anchor: DrawingAnchor | null;
     positionReason: string;
+    textBox: DocxTextBoxProperties | null;
+    textReason: string;
   })[];
 }
 export type DocxShapeEdit =
+  | {
+      action: "insertWordArt";
+      preset: "blue" | "gold" | "red" | "purple" | "green-italic";
+      text: string;
+    }
   | (Omit<DocxShape, "id"> & {
       action: "insert";
       preset: DocxShapePreset;
@@ -37,12 +53,26 @@ export type DocxShapeEdit =
       text?: string;
     })
   | (DocxShape & { action: "properties" })
+  | { action: "textBox"; id: number; properties: DocxTextBoxProperties }
   | { action: "delete"; id: number }
   | DocxDrawingPositionEdit;
 
 export function checkDocxShapeEdit(value: unknown): void {
   const shape = record(value);
   if (shape.action === "position") return checkDocxDrawingPosition(shape);
+  if (shape.action === "insertWordArt") {
+    if (
+      typeof shape.preset !== "string" ||
+      !["blue", "gold", "red", "purple", "green-italic"].includes(
+        shape.preset,
+      ) ||
+      typeof shape.text !== "string" ||
+      !shape.text.trim()
+    )
+      throw new Error("Invalid solid WordArt preset or text");
+    checkTextBoxText(shape.text);
+    return;
+  }
   if (shape.action === "insert") {
     if (
       shape.preset !== "rect" &&
@@ -50,28 +80,19 @@ export function checkDocxShapeEdit(value: unknown): void {
       shape.preset !== "line"
     )
       throw new Error("Invalid DOCX shape preset");
-    if (
-      shape.text !== undefined &&
-      (shape.preset === "line" ||
-        typeof shape.text !== "string" ||
-        shape.text.length > 32767 ||
-        shape.text.split("\n").length > 256 ||
-        shape.text.split("\n").some((part) => part.length > 4096) ||
-        [...shape.text].some((character) => {
-          const code = character.codePointAt(0)!;
-          return (
-            (code < 32 && code !== 9 && code !== 10) ||
-            (code >= 0xd800 && code <= 0xdfff) ||
-            code === 0xfffe ||
-            code === 0xffff
-          );
-        }))
-    )
-      throw new Error("Invalid DOCX text box initial text");
+    if (shape.text !== undefined) {
+      if (shape.preset === "line")
+        throw new Error("Line shapes cannot contain text");
+      checkTextBoxText(shape.text);
+    }
   } else {
     if (!integer(shape.id, 0, 2147483647))
       throw new Error("Invalid DOCX shape identity");
     if (shape.action === "delete") return;
+    if (shape.action === "textBox") {
+      checkTextBoxProperties(shape.properties);
+      return;
+    }
     if (shape.action !== "properties")
       throw new Error("Invalid DOCX shape action");
   }
@@ -96,6 +117,41 @@ export function checkDocxShapeEdit(value: unknown): void {
     throw new Error("Invalid DOCX shape dimensions or paint");
 }
 
+function checkTextBoxText(text: unknown): void {
+  if (
+    typeof text !== "string" ||
+    text.length > 32767 ||
+    text.split("\n").length > 256 ||
+    text.split("\n").some((part) => part.length > 4096) ||
+    [...text].some((character) => {
+      const code = character.codePointAt(0)!;
+      return (
+        (code < 32 && code !== 9 && code !== 10) ||
+        (code >= 0xd800 && code <= 0xdfff) ||
+        code === 0xfffe ||
+        code === 0xffff
+      );
+    })
+  )
+    throw new Error("Invalid DOCX text box initial text");
+}
+
+function checkTextBoxProperties(value: unknown): void {
+  const body = record(value);
+  if (
+    !Array.isArray(body.insets) ||
+    body.insets.length !== 4 ||
+    !body.insets.every(
+      (v) =>
+        typeof v === "number" && Number.isFinite(v) && v >= 0 && v <= 14400,
+    ) ||
+    (body.anchor !== "t" && body.anchor !== "ctr" && body.anchor !== "b") ||
+    typeof body.wrap !== "boolean" ||
+    typeof body.clip !== "boolean"
+  )
+    throw new Error("Invalid DOCX text box properties");
+}
+
 export function docxShapes(value: unknown): DocxShapes {
   const source = record(value);
   if (
@@ -113,9 +169,14 @@ export function docxShapes(value: unknown): DocxShapes {
       typeof shape.selected !== "boolean" ||
       !integer(shape.id, 0, 2147483647) ||
       seen.has(shape.id) ||
-      !["name", "reason", "sizeReason", "deleteReason", "positionReason"].every(
-        (key) => typeof shape[key] === "string",
-      ) ||
+      ![
+        "name",
+        "reason",
+        "sizeReason",
+        "deleteReason",
+        "positionReason",
+        "textReason",
+      ].every((key) => typeof shape[key] === "string") ||
       (shape.preset !== "rect" &&
         shape.preset !== "ellipse" &&
         shape.preset !== "line") ||
@@ -124,6 +185,11 @@ export function docxShapes(value: unknown): DocxShapes {
       throw new Error("Invalid DOCX shape entry");
     seen.add(shape.id);
     checkDrawingAnchor(shape.anchor);
+    if (shape.textBox !== null) {
+      if (shape.preset === "line")
+        throw new Error("Line shapes cannot contain text");
+      checkTextBoxProperties(shape.textBox);
+    }
   }
   return value as DocxShapes;
 }

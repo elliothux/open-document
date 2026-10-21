@@ -359,7 +359,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 Flow 使用 `spans[].drawing: DrawingFrame | null`。框为 `{ width, height, anchor, content }`；图片内容为 `{ kind: "picture", key, crop }`，基础图形内容为 `{ kind: "shape", preset, fill, stroke, lineWidth }`。`preset` 为 `rect/ellipse/line`，颜色为六位 RGB 或空字符串，尺寸和线宽使用 point。空颜色表示不绘制该项。共享锚点类型为 `DrawingAnchor/DrawingAxis`；原生定位结果为 `Line.drawings: PlacedDrawingFrame[]`，命中使用 `Hit.drawingStart`。图片源编辑命令、裁剪值和资源键继续表达图片本身。正文可访问文字把对象单元标为 `[drawing]`。
 
-`DocumentEditor.shapes()` 返回 `{ revision, items }`，每项包含 `{ id, name, selected, preset, width, height, fill, stroke, lineWidth, anchor, reason, sizeReason, deleteReason, positionReason }`。同步 `FoundationSession` 与 Worker `FoundationClient` 使用 `shapes(revision)`。目录最多 256 项，节点身份仅在当前会话有效；重开后重新查询。
+`DocumentEditor.shapes()` 返回 `{ revision, items }`，每项包含 `{ id, name, selected, preset, width, height, fill, stroke, lineWidth, anchor, reason, sizeReason, deleteReason, positionReason, textBox, textReason }`。文本框的 `textBox` 返回下述文字区域属性，普通无文字图形返回 `null`；`textReason` 说明文字区域编辑的保护原因。同步 `FoundationSession` 与 Worker `FoundationClient` 使用 `shapes(revision)`。目录最多 256 项，节点身份仅在当前会话有效；重开后重新查询。
 
 `editShape(revision, { action: "properties", id, width, height, fill, stroke, lineWidth })` 修改完整尺寸和画笔；`{ action: "delete", id }` 显式删除。尺寸范围为 0–14400 pt，矩形/椭圆的两轴必须正值，线允许一轴为零；线宽为 0–1584 pt，有线条颜色时必须正值。核心舍入到整数 EMU，颜色使用六位 RGB 或空字符串。同步和 Worker 客户端可传字体 profile，默认宿主沿原输入屏障与队列提交。默认图形面板提供目录选择、尺寸、填充/线条、线宽及删除；旧修订的控件需要重新读取目录。
 
@@ -371,13 +371,25 @@ Flow 使用 `spans[].drawing: DrawingFrame | null`。框为 `{ width, height, an
 
 `noCopy` 阻止图形富文本复制和剪切，`noDelete` 只阻止剪切及删除。未知绘图元数据、引用属性及外部关系继续保护复制；图形只携带已支持的独立属性。正文及整格粘贴在最终候选上检查图片与图形合计不超过 256 项，先扣除被替换对象，满额时仍可等量替换。格式、布局、输出或数量预算失败保留原包、选择和历史。片段校验、身份重映射及源保留归 [fragment-drawings.mbt](../../modules/formats/src/docx/fragment-drawings.mbt)，复制依据 [ONLYOFFICE Shape.copy/fillObject](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L2772-L2833)。
 
-受支持图形段落已接通前后原生/组合输入、字符格式、查找、拆段合段和范围删除。图形占一个逻辑 `U+FFFC`，输入同名字符仍是文字。保留图形源、资源和精确混合历史，删除继续检查独立锁与外部引用。普通文字光标可命中图形边界；绘图命中和句柄同时支持图片与基础图形。图片目录只返回图片。框内文字编辑见下方文本框；WordArt、主题画笔、渐变、旋转/翻转、箭头、复杂图形和未知扩展继续拒绝输出，保留原始源与历史。HTML/Markdown 的图形转换尚未接通。
+受支持图形段落已接通前后原生/组合输入、字符格式、查找、拆段合段和范围删除。图形占一个逻辑 `U+FFFC`，输入同名字符仍是文字。保留图形源、资源和精确混合历史，删除继续检查独立锁与外部引用。普通文字光标可命中图形边界；绘图命中和句柄同时支持图片与基础图形。图片目录只返回图片。框内文字编辑见下方文本框，纯色艺术字见 [DOCX 基础艺术字](#docx-基础艺术字)；文字描边、主题画笔、渐变、旋转/翻转、箭头、复杂图形和未知扩展继续拒绝输出，保留原始源与历史。HTML/Markdown 的图形转换尚未接通。
 
 实现归 [drawing-frame.mbt](../../modules/layout/src/drawing-frame.mbt)、[drawing.mbt](../../modules/formats/src/docx/drawing.mbt)、[shape-read.mbt](../../modules/formats/src/docx/shape-read.mbt)、[shape-editing.mbt](../../modules/formats/src/docx/shape-editing.mbt)、[shape-insert.mbt](../../modules/formats/src/docx/shape-insert.mbt)、[共享插入事务](../../modules/formats/src/docx/drawing-insert.mbt)、[文字事务](../../modules/formats/src/docx/drawing-text.mbt)及[默认面板](../../packages/ui/src/docx-shapes.tsx)。轮廓复用 [basic-shape.mbt](../../modules/layout/src/basic-shape.mbt)。源结构参考 [ONLYOFFICE Shape 读取](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Shape.cpp#L89-L168)与 [DOCX 写出](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Shape.cpp#L238-L332)，独立锁参考 [CNvSpPr](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/CNvSpPr.cpp#L87-L122)。当前范围归 [P10](../p10-docx-core.md)。
 
 `editShape(revision, { action: "position", id, anchor, target? })` 修改图形定位。图形与图片共用 `DocxDrawingPositionEdit`、核心 `set_drawing_anchor` 和默认定位面板。`anchor` 为 `null` 时恢复行内；浮动框支持前置/后置、两轴基准与偏移/对齐、层次、方形/上下型环绕和四边间距，参数归[图片定位](#图片定位)。图形目录返回当前 `anchor` 及 `positionReason`。
 
 `target` 显式把浮动图形重锚到正文段落，可跨页；偏移按移除前文档计算。事务保留原运行格式、命名空间、身份、矢量源和非目标部件，选择新逻辑范围，修改合为一项精确历史。`noMove`、`noChangeWrap` 阻止定位，`noResize`、`noCopy`、`noDelete` 不阻止定位。跨段迁移遵循 `wp:anchor locked`。浮动图形要求正文容器；源不明、位置无效、布局或预算失败保持原文档与历史。默认宿主已接通指针选择、四角及键盘缩放、浮动拖动、跨段/跨页重锚和边缘翻页。图形目录的 `selected` 标记当前单对象范围，默认面板自动跟随；`noSelect` 阻止图形手势。图形允许独立调整宽高，`noChangeAspect` 存在时保持比例，`noResize` 保护缩放；图片继续保持原比例与裁剪。矩形/椭圆的最小尺寸为一个 EMU；线允许零轴，交互命中与选择框将零轴扩展为 6 pt，源尺寸和绘制不变。候选、取消、最终坐标、原生删除、历史与持久化屏障复用[绘图对象手势](#绘图对象移动与缩放手势)。
+
+### DOCX 基础艺术字
+
+`editShape(revision, { action: "insertWordArt", preset, text })` 在当前正文文字选择处创建原生艺术字文本框。五种纯色预设为 `blue/gold/red/purple/green-italic`，RGB 分别为 `4472C4/FFC000/C00000/7030A0/70AD47`。文字沿文档默认字体，使用 36 pt、粗体，绿色另带斜体；段落居中、单倍行距且段前后距为零。字符属性同时写入运行和段末属性，后续原生输入保留格式。
+
+初始框为 2700000 × 720000 EMU（约 212.6 × 56.7 pt），透明、无边框。默认浮于正文前方，两轴分别以分栏和锚点段落为基准，偏移为零，不排斥周围文字。框内垂直居中，不自动换行，使用原生 `noAutofit`；长文字可溢出，用户通过现有尺寸、文字区域及字符控件继续调整。这里提供固定初始框，内容驱动的自动尺寸仍待实现。
+
+创建复用图形范围替换、身份分配和浮动定位候选，全部源修改合为一项精确历史，失败保留原包、选择和历史。创建后全选框内文字，默认表单聚焦既有输入控件，用户可直接替换。文字排版、查找、剪贴板、手势、删除、Canvas/PDF 和重开输入沿普通文本框路径；不新增媒体、关系或私有艺术字状态。默认 DOCX 与 PPTX 表单共用 [word-art.tsx](../../packages/ui/src/word-art.tsx)。
+
+`text` 必须含非空白内容，沿文本框的 XML 字符、LF 段落、Tab、软换行及 32767/256/4096 上限。默认浮动创建要求普通正文位置；单元格、嵌套文本框及其他保护容器明确拒绝。字体 probe 可用时预检普通及粗体/粗斜体字体；缺字体、过期修订、活动候选、源或历史预算失败不提交。文字描边、渐变、阴影、变形和三维效果继续实施。
+
+实现归 [word-art.mbt](../../modules/formats/src/docx/word-art.mbt)。36 pt、透明无边框、居中和原生 Word 段落沿 [ONLYOFFICE createTextArt](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L8794-L8912)；字体大小的格式区分另见 [private_createWordArt](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/apiBuilder.js#L33296-L33365)。五种纯色配方与固定初始框取自 GenOffice 功能目标；未复制上游执行代码。
 
 ### DOCX 文本框
 
@@ -389,11 +401,19 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 默认图形面板提供文本框类型与初始文字，创建矩形框后聚焦原输入控件。初始填充为白色，线条为黑色、1 pt；SDK 也可创建椭圆文本框。空框保留一个原生空段落。
 
+普通文本框已随正文富文本片段复制、剪切及跨文档粘贴；行内文本框还可随完整普通/合并单元格转移。复制保留原生框、画笔、边距、垂直对齐、换行、溢出和锚点。框内段落复用原片段序列化，把源样式和主题转成明确格式；粘贴不依赖源文档的样式身份。文字、空段、Tab 和软换行保留，文字不转成图片。`docPr`、`cNvPr` 及可选 `txbx` 身份使用目标中的未用值，重复粘贴后可独立编辑。纯文本框预检不返回图片，也不创建媒体或关系。
+
+选择边框后，默认复制按钮和原生剪切/粘贴快捷键沿既有协议执行。框内文字范围也可复制为普通富文本片段，再粘贴到已有文字区域。一次剪切或粘贴只记一项精确历史，保存重开后仍可编辑。`noCopy` 阻止复制和剪切，`noDelete` 只阻止剪切；`noTextEdit` 保留在对象上，继续保护框内输入。未知文字元数据、未解析的样式/主题引用、嵌套绘图和不支持的内容继续保护。浮动文本框要求正文目标；最终布局、数量或历史预算失败保留源、选择及历史。行为参考 [ONLYOFFICE 文本框内容与 bodyPr 复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L2772-L2833)，实现归 [fragment-drawings.mbt](../../modules/formats/src/docx/fragment-drawings.mbt)。
+
 已有文本框可通过 `shapes()`、`editShape` 和默认图形面板修改尺寸、画笔及定位，也可使用原绘图手势。事务保留 `txbxContent` 原文、样式与非目标部件，复用独立锁、单项历史和保存重开。创建与读取共用预设文字区域及边距校验，无可用区域时直接拒绝。提供字体 probe 时，框创建或修改同时预检内部文字排版；字体、尺寸或布局失败保留源与历史。
+
+`editShape(revision, { action: "textBox", id, properties: { insets, anchor, wrap, clip } })` 修改已有文本框的文字区域。`DocxTextBoxProperties.insets` 为上、右、下、左四边距，单位为 pt，各值范围 0–14400，核心舍入到整数 EMU；预设文字区域扣除边距后必须仍有可用宽高。`anchor` 支持 `t/ctr/b`，`wrap` 控制框内换行，`clip` 同时控制两轴是否裁剪到框边界。默认面板提供对应控件与“应用文本框排版”。
+
+命令只更新原生 `bodyPr` 对应属性，保留其他声明、子节点、注释、框内文字、绘图身份、框尺寸、锚点和选择。缺失 `bodyPr` 时创建普通无自动适配的声明；有效属性相同时不写源、不增加修订或历史。一次实际修改只记一项精确历史，保存重开后保留属性和框内输入能力。`noTextEdit`、`noSelect` 及文档保护阻止该命令；尺寸、移动和删除锁继续各自作用于框操作。提供字体 probe 时沿原布局预检；无效属性、无可用文字区域、缺字体或布局预算失败保留源、选择与历史。实现归 [text-box-properties.mbt](../../modules/formats/src/docx/text-box-properties.mbt)及[默认控件](../../packages/ui/src/docx-text-box-properties.tsx)，语义参考 [ONLYOFFICE 垂直对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L1942-L1968)与[边距修改](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L2037-L2083)。自动适配、多栏、竖排及独立两轴溢出继续实施。
 
 单击文本框内侧进入文字选择，边框仍用于选择整个对象。框内命中、光标、扩选、方向键与 Home/End 使用最终行几何；标尺使用框内可用文字区域。现有原生输入、组合候选/取消/最终提交、字符/段落格式及拆段合段复用同一源事务和精确历史。保存重开后仍可继续输入。查询中的文本节点带独立段落身份；正文与文本框、不同文本框之间的文字范围保持保护，不能把框内偏移当成正文偏移。查找按内容区域分组，框内段落不打断相邻正文段落。
 
-当前每框限 256 段、32767 个 UTF-16 单元，单段沿既有 4096 单元上限。普通运行文字、Tab 和软换行可编辑。`noTextEdit` 和 `noSelect` 阻止框内文字编辑，沿既有文档保护检查；帧属性仍遵循各自的锁。候选和提交前校验段落结构及内容上限，失败保留最后有效候选或原文档。表格、列表、字段、嵌套绘图、链接文本框、多栏、竖排、旋转、自动适配及独立两轴溢出设置继续拒绝输出，保留源与历史。整个对象的富文本剪贴板及更多兼容继续实施；已有剪切保护阻止把对象降成占位字符后删除原内容。
+当前每框限 256 段、32767 个 UTF-16 单元，单段沿既有 4096 单元上限。普通运行文字、Tab 和软换行可编辑。`noTextEdit` 和 `noSelect` 阻止框内文字编辑，沿既有文档保护检查；帧属性仍遵循各自的锁。候选和提交前校验段落结构及内容上限，失败保留最后有效候选或原文档。表格、列表、字段、嵌套绘图、链接文本框、多栏、竖排、旋转、自动适配及独立两轴溢出设置继续拒绝输出，保留源与历史。更多兼容继续实施；不支持的剪切仍受保护，避免把对象降成占位字符后删除原内容。
 
 实现归 [shape-text.mbt](../../modules/formats/src/docx/shape-text.mbt)、[drawing-text-box.mbt](../../modules/layout/src/drawing-text-box.mbt)、[文字区域交互](../../modules/layout/src/text-box-interaction.mbt)及[框内编辑保护](../../modules/formats/src/docx/text-box-editing.mbt)。原生内容与 `bodyPr` 参考 [ONLYOFFICE Shape 读取](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Shape.cpp#L111-L168)，默认边距与文字区域参考 [Shape.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L1571-L1625)，默认 bodyPr 参考 [Format.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L11945-L11964)，文字命中与选区坐标转换参考 [selectionSetStart/End](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L5372-L5415)。当前范围归 [P10](../p10-docx-core.md)。
 
@@ -1556,7 +1576,9 @@ General 显示按 [ONLYOFFICE 的 15 位有效数字拆分](https://github.com/O
 
 数字格式覆盖 General、`@`、整数、两位小数、千分位、百分比、`yyyy-mm-dd`、`hh:mm:ss`，以及内置 1–4、9–10、14–22、49。日期保留数值，核心解释 1900/1904 系统，1900 序号 60 显示虚构的 2 月 29 日，序号 0 显示 1900-01-00。不经过宿主时区。其他格式、颜色 tint、渐变/图案、非实线边框及额外字体装饰保留声明并诊断，不承诺显示等价。
 
-公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/SQRT/POWER/PRODUCT/MEDIAN/MODE/MODE.SNGL/LARGE/SMALL/SUMSQ/DEVSQ/VAR/VAR.S/VARP/VAR.P/STDEV/STDEV.S/STDEVP/STDEV.P/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/EXACT/REPT/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
+公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * /`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/SQRT/POWER/PRODUCT/MEDIAN/MODE/MODE.SNGL/LARGE/SMALL/SUMSQ/SUMPRODUCT/DEVSQ/VAR/VAR.S/VARP/VAR.P/STDEV/STDEV.S/STDEVP/STDEV.P/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/EXACT/REPT/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
+
+`SUMPRODUCT` 接受静态范围及其中的一元、算术和比较表达式。名称、共享与跨表引用沿普通依赖重算；稀疏整列按已有单元格和逻辑空白区域求值，沿用工作量预算。标量函数子表达式仍使用原有求值规则，通用数组常量和数组函数形式继续实施。参数规则参考 [ONLYOFFICE SUMPRODUCT](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L5645-L5743)：数字文字转换，布尔和非数字文字计为零；单格空白引用返回 `#VALUE!`，空白范围元素计为零。顶层参数尺寸按依次增长的最大行列检查：后续较小参数返回 `#NUM!`，较早的小参数在后续坐标补空白。错误按行列及参数顺序传播。范围表达式内部的两个范围必须同尺寸；标量可参与逐元素运算。空白区域批量累计不承诺与 Excel 的浮点逐项累加位级一致。实现归 [`formula-sum-product.mbt`](../../modules/formats/src/xlsx/formula-sum-product.mbt)。
 
 整列 `A:A`、`$A:B` 和整行 `1:1`、`$1:2` 可带工作表限定并使用反向端点。行号只接受十进制整数，范围受 1048576 行、16384 列约束；混合行/列/单格端点拒绝。内部用一个有界矩形表示，未覆盖维度在复制时固定；原公式源码保持，复制及名称展开输出对应行列记法和 `$` 标记。依赖保留区间，聚合及条件函数查询实际单元格，空白计数按逻辑面积扣除非空值。线性查找在大范围内仅检查已有单元格及各空白区间的首个搜索位置，保留正反向、错误与近似候选规则；小范围保持直接读取，二分查找沿原路径。全部沿用工作量及输出限制，保留空项的超大连接仍可能原子拒绝。
 
@@ -2503,7 +2525,7 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 `text` 必须含非空白内容，沿现有对象文字规则接受有效 XML 字符、LF 段落、软换行和 Tab；最多 32767 个 UTF-16 单元、256 段，每段最多 4096 单元。旧 revision、活动候选、放映、保护、字体及尺寸/输出/历史预算失败原子拒绝。框尺寸沿既有 14400 pt 上限。文字描边、渐变、阴影、弯曲及三维艺术字继续实施，已有变形节点继续诊断并保护源。
 
-不换行只关闭自动断行；对齐、RTL、制表位和命中继续使用实际框宽。核心不再用极大虚拟宽度对齐，并在段落缓存中区分是否换行。实现归 [`word-art.mbt`](../../modules/formats/src/pptx/word-art.mbt)、[`text-frame.mbt`](../../modules/layout/src/text-frame.mbt)和默认 [`pptx-word-art.tsx`](../../packages/ui/src/pptx-word-art.tsx)。文字框、无底色/边框、54 pt、居中与自动适配参考 [ONLYOFFICE createTextArt](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L8794-L8912)，插入历史和整段选择参考 [AddTextArt](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L11071-L11103)。五种纯色配方按 GenOffice 功能清单选择；未复制上游执行代码。
+不换行只关闭自动断行；对齐、RTL、制表位和命中继续使用实际框宽。核心不再用极大虚拟宽度对齐，并在段落缓存中区分是否换行。实现归 [`word-art.mbt`](../../modules/formats/src/pptx/word-art.mbt)、[`text-frame.mbt`](../../modules/layout/src/text-frame.mbt)和默认 [`word-art.tsx`](../../packages/ui/src/word-art.tsx)。文字框、无底色/边框、54 pt、居中与自动适配参考 [ONLYOFFICE createTextArt](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L8794-L8912)，插入历史和整段选择参考 [AddTextArt](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L11071-L11103)。五种纯色配方按 GenOffice 功能清单选择；未复制上游执行代码。
 
 ### PPTX 基础图表
 

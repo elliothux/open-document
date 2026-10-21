@@ -131,6 +131,16 @@ pub fn Session::shapes(
       "fill": shape.fill,
       "stroke": shape.stroke,
       "lineWidth": shape.lineWidth,
+      "textBox": match frame.content {
+        @layout.TextBox(_, text) => Json(text.properties())
+        _ => Json::null()
+      },
+      "textReason": if tree.shape_locked(id, "noTextEdit") ||
+        tree.shape_locked(id, "noSelect") {
+        "Text box text editing is locked"
+      } else {
+        reason
+      },
       "anchor": frame.anchor
       .map(value => value.to_json())
       .unwrap_or(Json::null()),

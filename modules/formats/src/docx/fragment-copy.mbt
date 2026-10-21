@@ -44,6 +44,13 @@ fn Session::capture_body_fragment(
   let flow = self.flow()
   let all = flow.paragraphs.copy()
   all.append(flow.tables.map(table => table.rows.flatten().flatten()).flatten())
+  for paragraph in all.copy() {
+    for span in paragraph.spans {
+      if span.drawing is Some({ content: @layout.TextBox(_, text), .. }) {
+        all.append(text.paragraphs())
+      }
+    }
+  }
   let models = Map::from_array(all.map(p => (p.id, p)))
   let output = StringBuilder()
   output.write_string("<od:body xmlns:od=\"\{word_uri}\">")

@@ -1,25 +1,23 @@
 import { useState } from "react";
-import type { PresentationEditor } from "@open-document/web/presentation-editor";
-import type { PptxObjectEdit } from "@open-document/web/pptx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 
-export function PptxWordArt({
-  editor,
+export function WordArt({
+  apply,
   controller,
   state,
   disabled,
 }: {
-  editor: PresentationEditor;
+  apply: (
+    preset: "blue" | "gold" | "red" | "purple" | "green-italic",
+    text: string,
+  ) => Promise<void>;
   controller: EditorController;
   state: UiSnapshot;
   disabled: boolean;
 }) {
   const t = messages(state.locale);
-  const [preset, setPreset] =
-    useState<Extract<PptxObjectEdit, { action: "insertWordArt" }>["preset"]>(
-      "blue",
-    );
+  const [preset, setPreset] = useState<Parameters<typeof apply>[0]>("blue");
   const [text, setText] = useState("");
   const presets = {
     blue: t.wordArtBlue,
@@ -33,16 +31,16 @@ export function PptxWordArt({
       onSubmit={(event) => {
         event.preventDefault();
         controller.run(async () => {
-          await editor.editObjects({ action: "insertWordArt", preset, text });
-          editor.focus();
+          await apply(preset, text);
         });
       }}
     >
-      <fieldset disabled={disabled || !!editor.query.readOnlyReason}>
+      <fieldset disabled={disabled}>
         <legend>{t.insertWordArt}</legend>
         <label>
           {t.wordArtPreset}
           <select
+            aria-label={t.wordArtPreset}
             value={preset}
             onChange={(event) => {
               const value = event.currentTarget.value;

@@ -8,6 +8,8 @@ import type {
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { DocxDrawingPosition } from "./docx-drawing-position.js";
+import { DocxTextBoxProperties } from "./docx-text-box-properties.js";
+import { WordArt } from "./word-art.js";
 
 export function DocxShapes({
   controller,
@@ -84,6 +86,21 @@ export function DocxShapes({
   return (
     <section aria-label={t.docxShapeProperties}>
       <h3>{t.docxShapeProperties}</h3>
+      <WordArt
+        controller={controller}
+        state={state}
+        disabled={disabled || !editor.getSnapshot().data.selection}
+        apply={async (preset, text) => {
+          const before = await editor.shapes();
+          await editor.editShape(before.revision, {
+            action: "insertWordArt",
+            preset,
+            text,
+          });
+          await load(new Set(before.items.map((item) => item.id)));
+          editor.focus();
+        }}
+      />
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -209,6 +226,25 @@ export function DocxShapes({
       {shape?.reason && <p>{shape.reason}</p>}
       {draft && shape && (
         <>
+          {shape.textBox && (
+            <DocxTextBoxProperties
+              key={`text:${shape.id}:${catalog?.revision}`}
+              controller={controller}
+              state={state}
+              value={shape.textBox}
+              reason={shape.textReason}
+              disabled={disabled || stale}
+              apply={async (properties) => {
+                if (!catalog) return;
+                await editor.editShape(catalog.revision, {
+                  action: "textBox",
+                  id: shape.id,
+                  properties,
+                });
+                await load();
+              }}
+            />
+          )}
           <DocxDrawingPosition
             key={`${shape.id}:${catalog?.revision}`}
             controller={controller}

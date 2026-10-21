@@ -1,6 +1,6 @@
 import { PptxConnectors } from "./pptx-connectors.js";
 import { PptxDiagram } from "./pptx-diagram.js";
-import { PptxWordArt } from "./pptx-word-art.js";
+import { WordArt } from "./word-art.js";
 import { PptxMedia } from "./pptx-media.js";
 import { useState } from "react";
 import type { PresentationEditor } from "@open-document/web/presentation-editor";
@@ -212,11 +212,14 @@ export function PptxObjects({
           )}
         </fieldset>
       </form>
-      <PptxWordArt
-        editor={editor}
+      <WordArt
         controller={controller}
         state={state}
-        disabled={disabled}
+        disabled={disabled || !!editor.query.readOnlyReason}
+        apply={async (preset, text) => {
+          await editor.editObjects({ action: "insertWordArt", preset, text });
+          editor.focus();
+        }}
       />
       <PptxDiagram
         controller={controller}

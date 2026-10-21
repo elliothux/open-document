@@ -40,7 +40,7 @@
 | [`bridge/xlsx.mbt`](../modules/bridge/src/xlsx.mbt)、[`wasm/xlsx.ts`](../packages/wasm/src/xlsx.ts)、[`web/xlsx.ts`](../packages/web/src/xlsx.ts) | 扩展现有类型化命令与查询；不增加第二套计算服务 |
 | [`spreadsheet-editor.ts`](../packages/web/src/spreadsheet-editor.ts)、[`spreadsheet-input.ts`](../packages/web/src/spreadsheet-input.ts)、[`spreadsheet-formula.ts`](../packages/web/src/spreadsheet-formula.ts)、[`ui/xlsx-formula.tsx`](../packages/ui/src/xlsx-formula.tsx) | 已接通共享原生输入的公式栏和范围定位，复用队列、Canvas 与 P9 状态；继续扩展数据面板 |
 
-DEVSQ、MODE/MODE.SNGL、LARGE/SMALL、SUMSQ、VAR/VAR.S/VARP/VAR.P 及 STDEV/STDEV.S/STDEVP/STDEV.P 已接通实际求值，与 SQRT/POWER/PRODUCT/MEDIAN/EXACT/REPT 共用普通重算事务。未知函数、动态或无法解析的依赖仍使整本只读，范围见第 4.2 节。当前打印可按工作簿顺序合并可见表，各表保留多个矩形区域、页面设置、重复标题、纯文字页眉页脚和缩放。P11 必须继续修改这些能力所在层，不能只放开按钮或在 JS 中补算结果。
+DEVSQ、MODE/MODE.SNGL、LARGE/SMALL、SUMSQ、SUMPRODUCT、VAR/VAR.S/VARP/VAR.P 及 STDEV/STDEV.S/STDEVP/STDEV.P 已接通实际求值，与 SQRT/POWER/PRODUCT/MEDIAN/EXACT/REPT 共用普通重算事务。未知函数、动态或无法解析的依赖仍使整本只读，范围见第 4.2 节。当前打印可按工作簿顺序合并可见表，各表保留多个矩形区域、页面设置、重复标题、纯文字页眉页脚和缩放。P11 必须继续修改这些能力所在层，不能只放开按钮或在 JS 中补算结果。
 
 ## 3. 创建、结构与格式
 
@@ -112,7 +112,7 @@ DEVSQ、MODE/MODE.SNGL、LARGE/SMALL、SUMSQ、VAR/VAR.S/VARP/VAR.P 及 STDEV/ST
 
 ### 4.2 未知公式的安全编辑范围
 
-DEVSQ、MODE/MODE.SNGL、LARGE/SMALL、STDEV/STDEV.S/STDEVP/STDEV.P、VAR/VAR.S/VARP/VAR.P、SUMSQ、SQRT、POWER、PRODUCT、MEDIAN 及 EXACT/REPT 已真实求值，进入普通依赖重算和缓存事务。DEVSQ 支持名称、共享公式、跨表和稀疏引用；与方差和标准差共用平移后的稳定平方偏差累计。DEVSQ 专用未计算链保护已移除。动态引用、自定义函数及其他未核实函数继续整本保护；查询 `calculationReason` 和默认公式栏说明原因，汇总和完整打印不冒用缓存。当前合同归[显示与计算](references/formats.md#显示与计算)。
+DEVSQ、MODE/MODE.SNGL、LARGE/SMALL、STDEV/STDEV.S/STDEVP/STDEV.P、VAR/VAR.S/VARP/VAR.P、SUMSQ、SUMPRODUCT、SQRT、POWER、PRODUCT、MEDIAN 及 EXACT/REPT 已真实求值，进入普通依赖重算和缓存事务。DEVSQ 支持名称、共享公式、跨表和稀疏引用；与方差和标准差共用平移后的稳定平方偏差累计。DEVSQ 专用未计算链保护已移除。动态引用、自定义函数及其他未核实函数继续整本保护；查询 `calculationReason` 和默认公式栏说明原因，汇总和完整打印不冒用缓存。当前合同归[显示与计算](references/formats.md#显示与计算)。
 
 把“无法计算”和“无法确定引用影响”分开：
 

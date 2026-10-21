@@ -15,7 +15,9 @@ fn Session::drawing_identities(
   let used : Map[String, Bool] = Map([])
   for document in documents {
     for node in document.nodes() {
-      if node.name == "docPr" || node.name == "cNvPr" {
+      if node.name == "docPr" ||
+        node.name == "cNvPr" ||
+        (node.uri == word_shape_uri && node.name == "txbx") {
         if node.attribute("id") is Some(value) {
           used[picture_identity(value)] = true
         }

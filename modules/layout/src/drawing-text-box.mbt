@@ -1,4 +1,15 @@
 ///|
+pub(all) struct DrawingTextBoxProperties {
+  insets : Array[Double]
+  anchor : String
+  wrap : Bool
+  clip : Bool
+} derive(ToJson)
+
+///|
+pub extend DrawingTextBoxProperties with ToJson::{to_json}
+
+///|
 pub struct DrawingTextBox {
   paragraphs : Array[Paragraph]
   insets : Array[Double]
@@ -24,6 +35,19 @@ pub fn DrawingTextBox::new(
 ///|
 pub fn DrawingTextBox::paragraphs(self : DrawingTextBox) -> Array[Paragraph] {
   self.paragraphs
+}
+
+///|
+/// Returns the native text area settings; insets are top, right, bottom and left in points.
+pub fn DrawingTextBox::properties(
+  self : DrawingTextBox,
+) -> DrawingTextBoxProperties {
+  {
+    insets: self.insets,
+    anchor: self.anchor,
+    wrap: self.wrap,
+    clip: self.clip,
+  }
 }
 
 ///|

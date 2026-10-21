@@ -40,8 +40,7 @@ fn Session::shape_text(
       .all(id => {
         let child = tree.nodes[id]
         ![
-          "drawing", "pict", "object", "numPr", "sectPr", "fldSimple", "fldChar",
-          "instrText",
+          "drawing", "pict", "object", "sectPr", "fldSimple", "fldChar", "instrText",
         ].contains(child.name) &&
         (
           child.name != "br" ||

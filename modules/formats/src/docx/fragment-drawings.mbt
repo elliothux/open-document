@@ -23,7 +23,24 @@ fn WordTree::check_fragment_shape(
       @failure.reject("protected-content", message)
     error => raise error
   }
+  let text_nodes : Map[Int, Bool] = Map([])
+  for
+    content in self
+    .descendants(drawing)
+    .filter(id => {
+      self.nodes[id].uri == word_uri && self.nodes[id].name == "txbxContent"
+    }) {
+    let nodes = self.descendants(content).filter(id => id != content)
+    check_fragment_content(self, nodes, Map([]))
+    for id in nodes {
+      self.check_text_box_clipboard_metadata(id)
+      text_nodes[id] = true
+    }
+  }
   for id in self.descendants(drawing) {
+    if text_nodes.contains(id) {
+      continue
+    }
     let node = self.nodes[id]
     let attributes = match node.name {
       "drawing"
@@ -36,6 +53,8 @@ fn WordTree::check_fragment_shape(
       | "cNvGraphicFramePr"
       | "noAutofit"
       | "spAutoFit" => []
+      "txbx" => ["id"]
+      "txbxContent" => []
       "inline" => ["distT", "distB", "distL", "distR"]
       "anchor" =>
         [
@@ -58,7 +77,12 @@ fn WordTree::check_fragment_shape(
           "noAdjustHandles", "noChangeArrowheads", "noChangeShapeType", "noTextEdit",
           "noDelete", "noChangeWrap", "noDrilldown", "noCopy",
         ]
-      "bodyPr" => ["rot"]
+      "bodyPr" =>
+        [
+          "rot", "lIns", "rIns", "tIns", "bIns", "anchor", "wrap", "horzOverflow",
+          "vertOverflow", "spcCol", "vert", "numCol", "anchorCtr", "rtlCol", "upright",
+          "fromWordArt", "forceAA", "spcFirstLastPara",
+        ]
       "xfrm" => ["rot", "flipH", "flipV"]
       "off" => ["x", "y"]
       "prstGeom" | "prstTxWarp" => ["prst"]
@@ -86,7 +110,8 @@ fn WordTree::check_fragment_shape(
         "protected-content", "Shape clipboard metadata requires support",
       )
     }
-    if ["docPr", "cNvPr"].contains(node.name) {
+    if ["docPr", "cNvPr"].contains(node.name) ||
+      (node.name == "txbx" && node.attribute("id") is Some(_)) {
       let identity = @string.parse_int64(node.attribute("id").unwrap_or("")[:]) catch {
         _ =>
           @failure.reject("protected-content", "Invalid copied shape identity")
@@ -113,18 +138,99 @@ fn Session::fragment_drawing(
   if tree.drawing_data(id).1.attribute("uri") != Some(word_shape_uri) {
     return self.fragment_picture(tree, id, limit)
   }
-  tree.check_fragment_shape(id)
-  ignore(self.editable_shape(tree, id))
+  let (_, frame, _) = self.editable_shape(tree, id)
   guard tree.nodes[id].end - tree.nodes[id].start <= limit else {
     @failure.reject("limit-exceeded", "Rich shape exceeds clipboard budget")
   }
-  let markup = tree.standalone_markup(self.document(), id)
+  let document = if frame.content is @layout.TextBox(_, text) {
+    let content = tree
+      .descendants(id)
+      .iter()
+      .find_first(child => {
+        tree.nodes[child].uri == word_uri &&
+        tree.nodes[child].name == "txbxContent"
+      })
+      .unwrap()
+    let styles = self.styles([])
+    let output = StringBuilder()
+    let mut units = 0
+    for paragraph in text.paragraphs() {
+      for child in tree.descendants(paragraph.id) {
+        tree.check_text_box_clipboard_metadata(child)
+      }
+      let markup = fragment_paragraph(
+        tree,
+        paragraph,
+        styles,
+        self.document(),
+        limit - units,
+        Map([]),
+        Map([]),
+        Map([]),
+        Map([]),
+        Map([]),
+      )
+      let markup = markup.replace(
+        old="<od:p>",
+        new="<od:p xmlns:od=\"\{word_uri}\">",
+      )
+      guard markup.length() <= limit - units else {
+        @failure.reject(
+          "limit-exceeded", "Rich text box exceeds clipboard budget",
+        )
+      }
+      units += markup.length()
+      output.write_string(markup)
+    }
+    let node = tree.nodes[content]
+    self
+    .document()
+    .edit_source([
+      {
+        node: content,
+        offset: node.opening_end - node.start,
+        length: node.closing_start - node.opening_end,
+        xml: output.to_string(),
+      },
+    ]).0
+  } else {
+    self.document()
+  }
+  let tree = WordTree::new(document)
+  tree.check_fragment_shape(id)
+  let markup = tree.standalone_markup(document, id)
   guard markup.length() <= limit else {
     @failure.reject(
       "limit-exceeded", "Rich shape namespaces exceed clipboard budget",
     )
   }
   markup
+}
+
+///|
+fn WordTree::check_text_box_clipboard_metadata(
+  self : WordTree,
+  id : Int,
+) -> Unit raise @failure.Failure {
+  let node = self.nodes[id]
+  guard (match node.name {
+    "t" =>
+      node.attributes.all(a => {
+        a.uri == "http://www.w3.org/XML/1998/namespace" &&
+        a.name == "space" &&
+        ["preserve", "default"].contains(a.value)
+      })
+    "tab" | "cr" => node.attributes.is_empty()
+    "br" =>
+      node.attributes.all(a => {
+        a.uri == word_uri && a.name == "type" && a.value == "textWrapping"
+      })
+    _ => true
+  }) else {
+    @failure.reject(
+      "protected-content", "Text box clipboard contains unknown text metadata",
+    )
+  }
 }
 
 ///|
@@ -150,7 +256,12 @@ fn WordTree::remap_fragment_drawing_identity(
         }
       }
     }
-    if ["docPr", "cNvPr"].contains(node.name) {
+    if ["docPr", "cNvPr"].contains(node.name) ||
+      (
+        node.uri == word_shape_uri &&
+        node.name == "txbx" &&
+        node.attribute("id") is Some(_)
+      ) {
       guard node.attribute("id") is Some(_) else {
         @failure.reject("protected-content", "Missing copied drawing identity")
       }
