@@ -10,6 +10,11 @@ export abstract class SpreadsheetObjects {
   protected abstract read<T>(action: () => Promise<T>): Promise<T>;
   protected abstract change(action: () => Promise<XlsxQuery>): Promise<void>;
   abstract get currentState(): XlsxQuery;
+  select(range: string, sheet = this.currentState.sheet): Promise<void> {
+    return this.change(() =>
+      this.client.select(this.currentState.revision, sheet, range),
+    );
+  }
 
   editSheet(change: XlsxSheetEdit, sheet?: string): Promise<void> {
     return this.change(() =>

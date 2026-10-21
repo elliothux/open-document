@@ -157,6 +157,7 @@ export class SpreadsheetEditor extends SpreadsheetObjects {
           query: this.state,
           layout: this.layout,
           scale: this.scale,
+          profile: this.profile,
           disabled:
             this.closed || this.paused || this.blocked || this.composing,
         }),
@@ -525,11 +526,6 @@ export class SpreadsheetEditor extends SpreadsheetObjects {
       data,
     });
   }
-  select(range: string, sheet = this.state.sheet): Promise<void> {
-    return this.change(() =>
-      this.client.select(this.state.revision, sheet, range),
-    );
-  }
   find(
     text: string,
     options: XlsxFindOptions = {},
@@ -612,6 +608,7 @@ export class SpreadsheetEditor extends SpreadsheetObjects {
     });
   }
   protected override change(action: () => Promise<XlsxQuery>): Promise<void> {
+    this.pointer.cancel();
     return this.read(async () => {
       this.state = await action();
       if (this.printView.visible) {
@@ -718,6 +715,7 @@ export class SpreadsheetEditor extends SpreadsheetObjects {
     format: EditorOutput["format"],
     bytes: () => Promise<Uint8Array>,
   ): Promise<EditorOutput> {
+    this.pointer.cancel();
     return this.enqueue(
       async () => {
         requireCellCompositionEnd(this.composing);

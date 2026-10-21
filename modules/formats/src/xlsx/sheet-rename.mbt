@@ -67,6 +67,7 @@ fn Session::sheet_rename_reason(
   tables~ : Bool = false,
   pivots~ : Bool = false,
   sparklines~ : Bool = false,
+  pictures~ : Bool = false,
 ) -> String {
   try {
     let reason = self.sheet_edit_reason(structure~)
@@ -84,6 +85,7 @@ fn Session::sheet_rename_reason(
       if self.sheets.any(sheet => sheet.id == rel.owner) &&
         !(pivots && rel.kind == relationship_uri + "pivotTable") &&
         !(tables && rel.kind == relationship_uri + "table") &&
+        !(pictures && rel.kind == relationship_uri + "drawing") &&
         !["hyperlink", "comments", "vmlDrawing"].any(kind => {
           rel.kind == relationship_uri + kind
         }) {
@@ -94,6 +96,17 @@ fn Session::sheet_rename_reason(
       ignore(self.read_sheet_notes(sheet))
       let tree = Tree::new(sheet.document)
       let root = tree.root("worksheet")
+      if pictures && tree.one(root.id, "drawing") is Some(_) {
+        guard self.font_context is Some((probe, profile)) else {
+          return "Measure worksheet picture anchors with an explicit font profile before structural editing"
+        }
+        ignore(
+          self.sheet_pictures(
+            sheet,
+            self.resolved_dimensions(sheet, probe, profile),
+          ),
+        )
+      }
       ignore(read_filter(sheet))
       self.check_sort_metadata(tree)
       let filter = tree.one(root.id, "autoFilter")
@@ -109,6 +122,7 @@ fn Session::sheet_rename_reason(
         if node.uri != spreadsheet_uri ||
           (
             !(tables && node.name == "tableParts") &&
+            !(pictures && node.name == "drawing") &&
             ![
               "sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData",
               "mergeCells", "sheetProtection", "pageMargins", "pageSetup", "printOptions",

@@ -157,6 +157,8 @@ fn Foundation::dispatch(
     | "printXlsx"
     | "exportXlsxPdf" => self.xlsx_operation(operation, request)
     "picturesXlsx"
+    | "selectPictureXlsx"
+    | "pictureGestureXlsx"
     | "pictureResourceXlsx"
     | "imageBytesXlsx"
     | "imageXlsx"

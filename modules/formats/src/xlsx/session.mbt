@@ -9,6 +9,8 @@ priv struct History {
   bytes : Int
   before : (String, Range)
   after : (String, Range)
+  before_picture : (String, String)?
+  after_picture : (String, String)?
 }
 
 ///|
@@ -32,6 +34,7 @@ pub struct Session {
   priv mut calendar_date : (Int, Int, Int)?
   priv mut sheets : Array[Sheet]
   priv mut selection : (String, Range)
+  priv mut picture_selection : (String, String)?
   priv mut anchor : Address
   priv mut focus : Address
   priv mut grid : Grid?
@@ -256,6 +259,7 @@ fn Session::from_package(
     anchor: { row: 1, column: 1, },
     focus: { row: 1, column: 1, },
     grid: None,
+    picture_selection: None,
     grid_id: 0,
     revision: 0,
     history: [],
@@ -578,6 +582,7 @@ pub fn Session::select(
   }
   let result = self.query(sheet=Some(sheet), range=Some(selected.name()))
   self.selection = (sheet, selected)
+  self.picture_selection = None
   self.anchor = { row: selected.top, column: selected.left, }
   self.focus = { row: selected.bottom, column: selected.right, }
   if result is Object(fields) {
@@ -605,5 +610,6 @@ pub fn Session::close(self : Session) -> Unit {
   self.calculation = None
   self.font_context = None
   self.grid = None
+  self.picture_selection = None
   self.opc.close()
 }

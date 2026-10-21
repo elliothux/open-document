@@ -1,5 +1,9 @@
 # 测试说明
 
+工作表图片图层通过 6 项定向核心检查，覆盖四种顺序、边界无变化、原始锚点/资源/注释空白、精确混合历史、重开与失败保护。新图层及原手势流程分别通过 1/1 Chromium；独立 XML/PNG 字节、真实重叠颜色、ShadowRoot 点击目标、默认按钮、原生输入、重开及 PDF 顶层像素通过。传输通过 1 项、13 个断言；根 api/check/build 和私有 typecheck/lint 通过。证据归 `xlsxWorksheetPictureLayerCheckpoint`。未跑全量或外部 Office；混合绘图、组和边缘自动滚动继续实施，P10/P11/P12 保持 planned。
+
+工作表图片手势通过 23 项定向核心检查，新增候选只读、绘制身份、单项原生历史、图片选择恢复、四角比例、冻结/RTL 和过期几何保护。新 Chromium 手势流程通过 1/1，原图片面板回归也通过 1/1；覆盖实际预览/取消、保存取消、拖动/缩放、对象键盘、原生输入、精确历史、独立 XML/PNG、重开及 PDF 文字/像素。传输检查通过 1 项、19 个断言；根 api/check/build 及私有 typecheck/lint 通过。证据归 `xlsxWorksheetPicturePointerCheckpoint`。未跑全量或外部 Office；边缘自动滚动继续实施，P10/P11/P12 保持 planned。
+
 工作表图片通过 22 项定向核心检查，覆盖三种锚点、行列尺寸、冻结/RTL、分页裁剪、不随表打印、资源事务、精确混合历史、重开及失败原子性，并复用便笺和打印回归。新增 Chromium 流程通过 1/1，覆盖默认面板、PNG/JPEG 原生字节、位置/尺寸/文字、删除、原生输入、精确历史、重开、实际 Canvas/PDF 像素及损坏图片拒绝。根 api/check/build、私有 typecheck/lint 通过；证据归 `xlsxWorksheetPictureCheckpoint`。未跑全量或外部 Office；复杂绘图和更多锚点变体继续实施，P10/P11/P12 保持 planned。
 
 正文完整跨表格范围通过 39 项定向核心检查，覆盖共享编号/书签、合并网格、链接/图片/简单域、复制/剪切/替换、输入法取消、范围格式、精确历史及失败原子性。新流程和既有正文剪贴板回归先通过 2/2 Chromium，补齐整表属性后只复跑新流程，通过 1/1；覆盖实际鼠标选择、默认 Copy、快捷键剪切、跨文档原生粘贴、独立 XML/PNG 字节、格内输入、重开及 PDF 文字/四色像素。根 api/check/build 与私有 typecheck/lint 通过；详细失败定位及证据归 `docxMixedBodyTableClipboardCheckpoint`。未跑全量、外部 Office 或安装包矩阵；部分跨入单元格、跨不同表格端点和嵌套结构继续实施，P10/P11/P12 保持 planned。

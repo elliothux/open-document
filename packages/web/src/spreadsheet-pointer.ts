@@ -7,13 +7,15 @@ import type {
 import type { CanvasSurface } from "./canvas-surface.js";
 import { paintGridSelection } from "./spreadsheet-input.js";
 import { SpreadsheetNotes } from "./spreadsheet-notes.js";
+import { SpreadsheetPicturePointer } from "./spreadsheet-picture-pointer.js";
 
-interface PointerHost {
+export interface PointerHost {
   current(): {
     query: XlsxQuery;
     layout: XlsxViewport | undefined;
     scale: number;
     disabled: boolean;
+    profile: Record<string, string>;
   };
   run<T>(action: () => Promise<T>): Promise<T>;
   prepare(): Promise<void>;
@@ -44,7 +46,7 @@ interface Drag {
 /** Pointer intents and overlays; core geometry and the normal command queue own the result. */
 export class SpreadsheetPointer {
   get dragging(): boolean {
-    return this.drag !== undefined;
+    return this.drag !== undefined || this.pictures.active;
   }
   private readonly handle = document.createElement("button");
   private geometry: XlsxSelectionGeometry | undefined;
@@ -52,6 +54,7 @@ export class SpreadsheetPointer {
   private frame = 0;
   private preparing = false;
   private readonly notes: SpreadsheetNotes;
+  private readonly pictures: SpreadsheetPicturePointer;
   constructor(
     private readonly surface: CanvasSurface,
     holder: HTMLElement,
@@ -61,6 +64,14 @@ export class SpreadsheetPointer {
     private readonly signal: AbortSignal,
     private readonly host: PointerHost,
   ) {
+    this.pictures = new SpreadsheetPicturePointer(
+      surface,
+      holder,
+      viewport,
+      client,
+      signal,
+      host,
+    );
     this.notes = new SpreadsheetNotes(
       surface.canvas,
       holder,
@@ -310,6 +321,10 @@ export class SpreadsheetPointer {
   update(geometry: XlsxSelectionGeometry): void {
     this.notes.update();
     this.geometry = geometry;
+    if (this.pictures.update()) {
+      this.handle.hidden = true;
+      return;
+    }
     const now = this.host.current();
     if (this.drag) {
       if (
@@ -563,6 +578,7 @@ export class SpreadsheetPointer {
     else this.host.focus();
   }
   cancel(paint = true): void {
+    this.pictures.cancel();
     const drag = this.drag;
     if (paint && drag?.released) return;
     this.drag = undefined;

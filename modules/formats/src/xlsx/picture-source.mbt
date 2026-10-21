@@ -172,6 +172,7 @@ pub fn Session::pictures(
       []
     }
   }
+  self.font_context = Some((probe, profile.copy()))
   {
     "revision": revision,
     "sheet": sheet.id,

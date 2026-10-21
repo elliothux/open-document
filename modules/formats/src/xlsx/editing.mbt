@@ -542,6 +542,11 @@ pub fn Session::undo(
   self.styles = styles
   self.calculation = Some(calculation)
   self.selection = if redo { entry.after } else { entry.before }
+  self.picture_selection = if redo {
+    entry.after_picture
+  } else {
+    entry.before_picture
+  }
   self.anchor = { row: self.selection.1.top, column: self.selection.1.left, }
   self.focus = { row: self.selection.1.bottom, column: self.selection.1.right, }
   self.grid = None

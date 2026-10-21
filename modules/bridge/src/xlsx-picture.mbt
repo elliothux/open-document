@@ -1,4 +1,19 @@
 ///|
+fn xlsx_picture_order(change : Json) -> @xlsx.SheetEdit raise @failure.Failure {
+  guard change is Object(fields) &&
+    fields.length() == 3 &&
+    fields.keys().all(key => ["action", "pictureId", "direction"].contains(key)) else {
+    @failure.reject(
+      "invalid-operation", "Invalid worksheet picture layer command fields",
+    )
+  }
+  @xlsx.PictureOrder(
+    field_string(change, "pictureId"),
+    field_string(change, "direction"),
+  )
+}
+
+///|
 fn Foundation::xlsx_picture_operation(
   self : Foundation,
   operation : String,
@@ -9,6 +24,29 @@ fn Foundation::xlsx_picture_operation(
   }
   let revision = field_int(request, "revision")
   match operation {
+    "selectPictureXlsx" => {
+      let picture = match request {
+        { "pictureId": String(id), .. } => Some(id)
+        { "pictureId": Null, .. } => None
+        _ =>
+          @failure.reject(
+            "invalid-operation", "Picture identity or null is required",
+          )
+      }
+      session.select_picture(revision, field_int(request, "layout"), picture)
+    }
+    "pictureGestureXlsx" =>
+      session.picture_gesture(
+        revision,
+        field_int(request, "layout"),
+        field_int(request, "handle"),
+        xlsx_number(request, "dx"),
+        xlsx_number(request, "dy"),
+        xlsx_boolean(request, "commit"),
+        self.probe,
+        xlsx_profile(request),
+        images=self.images,
+      )
     "picturesXlsx" =>
       session.pictures(
         revision,

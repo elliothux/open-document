@@ -91,6 +91,19 @@ async function dispatch(request: Request): Promise<unknown> {
         );
       case "pictureResourceXlsx":
         return workbook.pictureResource(request.revision, request.bytes);
+      case "selectPictureXlsx":
+        return workbook.selectPicture(
+          request.revision,
+          request.layout,
+          request.pictureId,
+        );
+      case "pictureGestureXlsx":
+        return workbook.pictureGesture(
+          request.revision,
+          request.layout,
+          request,
+          request.profile,
+        );
       case "imageBytesXlsx":
         return workbook.imageBytes(request.revision, request.key);
       case "imageXlsx":

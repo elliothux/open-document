@@ -18,6 +18,7 @@ fn Session::edit_axes(
     structure=false,
     tables=true,
     sparklines=true,
+    pictures=true,
   )
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let target = self.sheets[index]
@@ -29,7 +30,7 @@ fn Session::edit_axes(
   }
   for relation in self.relationships() {
     if relation.owner == id &&
-      !["hyperlink", "comments", "vmlDrawing", "table"].any(kind => {
+      !["hyperlink", "comments", "vmlDrawing", "table", "drawing"].any(kind => {
         relation.kind == relationship_uri + kind
       }) {
       @failure.reject(
@@ -38,12 +39,18 @@ fn Session::edit_axes(
     }
   }
   let tree = Tree::new(target.document)
+  guard change.band is None ||
+    tree.one(tree.root("worksheet").id, "drawing") is None else {
+    @failure.reject(
+      "protected-content", "Worksheet pictures require whole row or column structural editing",
+    )
+  }
   for node in tree.children.get(tree.root("worksheet").id).unwrap_or([]) {
     guard [
       "sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData",
       "mergeCells", "sheetProtection", "pageMargins", "pageSetup", "printOptions",
       "headerFooter", "sortState", "conditionalFormatting", "dataValidations", "hyperlinks",
-      "legacyDrawing", "extLst", "autoFilter", "tableParts",
+      "legacyDrawing", "extLst", "autoFilter", "tableParts", "drawing",
     ].contains(node.name) else {
       @failure.reject(
         "protected-content", "Worksheet metadata requires structural range support",
@@ -228,6 +235,7 @@ fn Session::edit_axes(
     edits,
   )
   sheets[index] = table_sheet
+  self.axis_pictures(target, sheets[index], change, parts, edits)
   let after = if change.band is Some((first, last)) {
     (
       id,
@@ -322,6 +330,7 @@ fn Session::edit_axes(
     parts~,
     removed~,
     table_edits=tables.map(plan => plan.before.part),
+    picture_selection=self.picture_selection,
   )
   self.query()
 }

@@ -39,7 +39,7 @@ fn Session::reflow_pictures(
       ) else {
       continue
     }
-    let tree = Tree::new(old.document)
+    let tree = Tree::new(sheet.document)
     if tree.one(tree.root("worksheet").id, "drawing") is None {
       continue
     }
@@ -48,36 +48,25 @@ fn Session::reflow_pictures(
         "missing-font", "Measure worksheet picture anchors with an explicit font profile before editing dimensions",
       )
     }
-    let before = self.resolved_dimensions(old, probe, profile)
     let after = self.resolved_dimensions(sheet, probe, profile)
     let view = { ..self, parts, }
-    let old_pictures = view.sheet_pictures(sheet, before) catch {
-      @failure.Failure(code="unsupported-drawing", ..) => []
-      error => raise error
-    }
     let next_pictures = view.sheet_pictures(sheet, after) catch {
       @failure.Failure(code="unsupported-drawing", ..) => []
       error => raise error
     }
-    if old_pictures.is_empty() {
-      continue
-    }
     let changes : Array[@xml.SourceChange] = []
     for picture in next_pictures {
-      let previous = old_pictures
-        .iter()
-        .find_first(old => old.id == picture.id)
-        .unwrap()
-      if previous.rect.x != picture.rect.x ||
-        previous.rect.y != picture.rect.y ||
-        previous.rect.width != picture.rect.width ||
-        previous.rect.height != picture.rect.height {
-        changes.push(picture.transform_change(picture.rect))
+      let change = picture.transform_change(picture.rect)
+      let parent = picture.tree.nodes[change.node]
+      let offset = parent.start + change.offset
+      if picture.tree.document.source()[offset:offset + change.length].to_owned() !=
+        change.xml {
+        changes.push(change)
       }
     }
     if !changes.is_empty() {
-      let part = old_pictures[0].part
-      let (document, edit) = old_pictures[0].tree.document.edit_source(changes)
+      let part = next_pictures[0].part
+      let (document, edit) = next_pictures[0].tree.document.edit_source(changes)
       parts[part] = document
       edits.push((part, edit))
     }

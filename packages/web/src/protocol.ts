@@ -261,6 +261,22 @@ export type Operation =
       profile: Record<string, string>;
     }
   | { operation: "pictureResourceXlsx"; revision: number; bytes: Uint8Array }
+  | {
+      operation: "selectPictureXlsx";
+      revision: number;
+      layout: number;
+      pictureId: string | null;
+    }
+  | {
+      operation: "pictureGestureXlsx";
+      revision: number;
+      layout: number;
+      handle: number;
+      dx: number;
+      dy: number;
+      commit: boolean;
+      profile: Record<string, string>;
+    }
   | { operation: "imageBytesXlsx"; revision: number; key: string }
   | {
       operation: "imageXlsx";

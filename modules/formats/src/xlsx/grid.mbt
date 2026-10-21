@@ -15,6 +15,7 @@ priv struct Grid {
   result : Json
   rows : Array[GridBand]
   columns : Array[GridBand]
+  pictures : Array[Picture]
 }
 
 ///|
@@ -462,6 +463,7 @@ pub fn Session::viewport(
   }
   let key = Json::array([
     Json(self.revision),
+    Json(self.picture_selection),
     Json(sheet),
     Json(x),
     Json(y),
@@ -521,6 +523,24 @@ pub fn Session::viewport(
       }
     }
   }
+  let grid : Grid = {
+    id: self.grid_id,
+    revision: self.revision,
+    sheet,
+    key,
+    dimensions,
+    scroll_x: x,
+    scroll_y: y,
+    width,
+    height,
+    header_width,
+    header_height,
+    rtl: current.view.rtl,
+    result: Json::null(),
+    rows,
+    columns,
+    pictures,
+  }
   let result : Json = {
     "id": self.grid_id,
     "revision": self.revision,
@@ -537,27 +557,19 @@ pub fn Session::viewport(
     "images": document.drawing_images(images),
     "cells": cells,
     "notes": visible_notes,
+    "pictures": pictures.map(fn(picture : Picture) -> Json {
+      {
+        "id": picture.id,
+        "name": picture.name,
+        "selected": self.picture_selection == Some((sheet, picture.id)),
+        "regions": grid.picture_regions(picture),
+      }
+    }),
     "rows": row_headers,
     "columns": column_headers,
     "diagnostics": diagnostics,
   }
-  self.grid = Some({
-    id: self.grid_id,
-    revision: self.revision,
-    sheet,
-    key,
-    dimensions,
-    scroll_x: x,
-    scroll_y: y,
-    width,
-    height,
-    header_width,
-    header_height,
-    rtl: current.view.rtl,
-    result,
-    rows,
-    columns,
-  })
+  self.grid = Some({ ..grid, result, })
   self.font_context = Some((probe, profile.copy()))
   result
 }

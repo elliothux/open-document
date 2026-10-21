@@ -111,6 +111,7 @@ pub fn Session::insert_picture(
     created_parts=created,
     media~,
     added_media=Map([(media_part, bytes)]),
+    picture_selection=Some((sheet, identity)),
     font_context=Some((probe, profile.copy())),
   )
   self.query()
@@ -232,6 +233,7 @@ pub fn Session::set_picture(
     self.calculation.unwrap(),
     [(picture.part, style_edit), (picture.part, frame_edit)],
     self.selection,
+    picture_selection=self.picture_selection,
     parts~,
     font_context=Some((probe, profile.copy())),
   )

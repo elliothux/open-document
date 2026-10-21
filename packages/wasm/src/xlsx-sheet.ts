@@ -51,6 +51,11 @@ export type XlsxSheetEdit =
       overwrite: boolean;
     }
   | { action: "note"; cell: string; text: string | null; author?: string }
+  | {
+      action: "pictureOrder";
+      pictureId: string;
+      direction: "front" | "back" | "forward" | "backward";
+    }
   | { action: "hyperlink"; range: string; target: string | null }
   | { action: "openHyperlink"; range: string; sourceRevision: number }
   | XlsxNameEdit
@@ -157,6 +162,23 @@ export function checkXlsxSheetEdit(value: unknown): void {
     return;
   }
   const change = record(value);
+  if (change.action === "pictureOrder") {
+    if (
+      typeof change.pictureId !== "string" ||
+      !/^[1-9][0-9]{0,9}$/.test(change.pictureId) ||
+      Number(change.pictureId) > 2147483647 ||
+      typeof change.direction !== "string" ||
+      !["front", "back", "forward", "backward"].includes(
+        String(change.direction),
+      ) ||
+      Object.keys(change).length !== 3 ||
+      Object.keys(change).some(
+        (key) => !["action", "pictureId", "direction"].includes(key),
+      )
+    )
+      throw new Error("Invalid worksheet picture layer command");
+    return;
+  }
   if (
     change.action === "protection" ||
     change.action === "workbookProtection"

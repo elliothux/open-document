@@ -4,11 +4,18 @@ import {
   xlsxPictureResource,
   checkXlsxPictureSettings,
   type XlsxPictureSettings,
+  xlsxPictureSelection,
+  xlsxPicturePreview,
+  checkPictureGesture,
+  type XlsxPictureGesture,
 } from "@open-document/wasm/xlsx";
 export type {
   XlsxPictureSettings,
   XlsxPicture,
   XlsxPictures,
+  XlsxPictureSelection,
+  XlsxPictureGesture,
+  XlsxPicturePreview,
 } from "@open-document/wasm/xlsx";
 import {
   checkXlsxPivotSettings,
@@ -187,6 +194,37 @@ export type {
 
 /** Browser workbook transport; one Worker owns the complete core session. */
 export class XlsxClient {
+  async selectPicture(
+    revision: number,
+    layout: number,
+    pictureId: string | null,
+  ) {
+    return xlsxPictureSelection(
+      await this.connection.request({
+        operation: "selectPictureXlsx",
+        revision,
+        layout,
+        pictureId,
+      }),
+    );
+  }
+  async pictureGesture(
+    revision: number,
+    layout: number,
+    gesture: XlsxPictureGesture,
+    profile: Record<string, string>,
+  ) {
+    checkPictureGesture(gesture);
+    return xlsxPicturePreview(
+      await this.connection.request({
+        operation: "pictureGestureXlsx",
+        revision,
+        layout,
+        ...gesture,
+        profile,
+      }),
+    );
+  }
   async pictures(
     revision: number,
     sheet: string,

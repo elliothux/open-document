@@ -198,6 +198,31 @@ export function XlsxPictures({
               </label>
             ))}
             <button type="submit">{t.xlsxPictureApply}</button>
+            {(
+              [
+                ["front", t.bringFront],
+                ["back", t.sendBack],
+                ["forward", t.bringForward],
+                ["backward", t.sendBackward],
+              ] as const
+            ).map(([direction, label]) => (
+              <button
+                key={direction}
+                type="button"
+                onClick={() =>
+                  controller.run(async () => {
+                    await editor.editSheet({
+                      action: "pictureOrder",
+                      pictureId: draft.id,
+                      direction,
+                    });
+                    await load();
+                  })
+                }
+              >
+                {label}
+              </button>
+            ))}
             <button
               type="button"
               onClick={() =>

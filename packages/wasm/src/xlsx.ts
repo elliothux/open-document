@@ -136,7 +136,27 @@ export type {
   XlsxHeaderFooter,
 } from "./xlsx-print.js";
 import { drawingBatch, type DrawingBatch } from "./drawing.js";
-import { xlsxGridNotes, type XlsxViewport } from "./xlsx-grid.js";
+import {
+  xlsxGridNotes,
+  xlsxGridPictures,
+  type XlsxViewport,
+} from "./xlsx-grid.js";
+import {
+  xlsxPictureSelection,
+  xlsxPicturePreview,
+  checkPictureGesture,
+  type XlsxPictureGesture,
+} from "./xlsx-picture-pointer.js";
+export {
+  xlsxPictureSelection,
+  xlsxPicturePreview,
+  checkPictureGesture,
+} from "./xlsx-picture-pointer.js";
+export type {
+  XlsxPictureSelection,
+  XlsxPictureGesture,
+  XlsxPicturePreview,
+} from "./xlsx-picture-pointer.js";
 import { xlsxCell } from "./xlsx-grid.js";
 export type { XlsxViewport } from "./xlsx-grid.js";
 import {
@@ -246,6 +266,7 @@ export function xlsxViewport(value: unknown): XlsxViewport {
     width: layout.regions[0]!.width - Number(grid.headerWidth),
     height: layout.regions[0]!.height - Number(grid.headerHeight),
   });
+  xlsxGridPictures(grid.pictures);
   const addresses = new Set<string>();
   for (const value of grid.cells) {
     const item = record(value),
@@ -309,6 +330,33 @@ export function xlsxViewport(value: unknown): XlsxViewport {
 
 /** One workbook owner; values, XML transactions and history stay in MoonBit. */
 export class XlsxSession extends WasmSession {
+  selectPicture(revision: number, layout: number, pictureId: string | null) {
+    return xlsxPictureSelection(
+      this.call({
+        operation: "selectPictureXlsx",
+        revision,
+        layout,
+        pictureId,
+      }),
+    );
+  }
+  pictureGesture(
+    revision: number,
+    layout: number,
+    gesture: XlsxPictureGesture,
+    profile: Record<string, string>,
+  ) {
+    checkPictureGesture(gesture);
+    return xlsxPicturePreview(
+      this.call({
+        operation: "pictureGestureXlsx",
+        revision,
+        layout,
+        ...gesture,
+        profile,
+      }),
+    );
+  }
   pictures(revision: number, sheet: string, profile: Record<string, string>) {
     return xlsxPictures(
       this.call({ operation: "picturesXlsx", revision, sheet, profile }),

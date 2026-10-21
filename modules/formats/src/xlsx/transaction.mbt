@@ -13,6 +13,7 @@ fn Session::commit(
   removed~ : Map[String, @xml.Document] = Map([]),
   media~ : Map[String, Bytes] = self.media,
   added_media~ : Map[String, Bytes] = Map([]),
+  picture_selection~ : (String, String)? = None,
   table_edits~ : Array[String] = [],
   pivot_edits~ : Array[String] = [],
   font_context~ : (@layout.TextProbe, Map[String, String])? = self.font_context,
@@ -88,6 +89,8 @@ fn Session::commit(
     bytes: payload.to_int(),
     before: self.selection,
     after,
+    before_picture: self.picture_selection,
+    after_picture: picture_selection,
   }
   while self.history.length() >= 100 ||
         entry.bytes > 4194304 - self.history_bytes {
@@ -104,6 +107,7 @@ fn Session::commit(
   self.calculation = Some(calculation)
   self.font_context = font_context
   self.selection = after
+  self.picture_selection = picture_selection
   self.anchor = { row: after.1.top, column: after.1.left, }
   self.focus = { row: after.1.bottom, column: after.1.right, }
   self.grid = None

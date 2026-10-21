@@ -60,6 +60,7 @@ pub(all) enum SheetEdit {
   Hyperlink(String, String?)
   OpenHyperlink(String, Int)
   Note(String, String?, String)
+  PictureOrder(String, String)
   Protection(Bool, String, Bytes)
   WorkbookProtection(Bool, String, Bytes)
 }
@@ -219,6 +220,8 @@ pub fn Session::edit_sheet(
     | ClearOutline(_)
     | OutlineSummary(_, _) => return self.edit_outline(sheet, change)
     Note(cell, text, author) => return self.set_note(sheet, cell, text, author)
+    PictureOrder(id, direction) =>
+      return self.order_picture(sheet, id, direction)
     Hyperlink(range, target) => return self.set_hyperlink(sheet, range, target)
     OpenHyperlink(range, source_revision) =>
       return self.open_hyperlink(sheet, range, source_revision)
@@ -458,6 +461,7 @@ pub fn Session::edit_sheet(
     | Protection(_, _, _)
     | WorkbookProtection(_, _, _)
     | Note(_, _, _)
+    | PictureOrder(_, _)
     | ConditionalPriority(_, _, _) => abort("Dimension edit was dispatched")
     Rename(name) => return self.rename_sheet(index, name)
     Delete => {
