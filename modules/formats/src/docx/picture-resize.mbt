@@ -2,7 +2,7 @@
 priv struct PictureResize {
   id : Int
   picture : Int
-  initial : @layout.InlineImage
+  initial : @layout.ImageFrame
   prepared : PreparedEdit?
 }
 

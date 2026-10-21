@@ -11,7 +11,7 @@ fn Session::editable_picture(
   id : Int,
   remove~ : Bool = false,
   replace~ : Bool = false,
-) -> (@layout.InlineImage, Int, Int, Int?) raise @failure.Failure {
+) -> (@layout.ImageFrame, Int, Int, Int?) raise @failure.Failure {
   self.check_picture_context(tree)
   guard tree.nodes.get(id) is Some(node) &&
     node.uri == word_uri &&
@@ -50,7 +50,7 @@ fn Session::editable_picture(
       )
     }
   }
-  let image = self.inline_image(tree, id) catch {
+  let image = self.image_frame(tree, id) catch {
     @failure.Failure(code="unsupported-layout", message~, ..) =>
       @failure.reject("protected-content", message)
     error => raise error

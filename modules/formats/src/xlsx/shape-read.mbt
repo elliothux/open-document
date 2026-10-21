@@ -9,6 +9,16 @@ fn Tree::shape_children(
   guard children.all(child => child.uri == uri && names.contains(child.name)) else {
     @failure.reject("unsupported-drawing", "Unknown worksheet shape content")
   }
+  let seen : Map[String, Unit] = Map([])
+  for child in children {
+    if ["p", "r", "br"].contains(child.name) {
+      continue
+    }
+    guard !seen.contains(child.name) else {
+      @failure.reject("unsupported-drawing", "Duplicate shape " + child.name)
+    }
+    seen[child.name] = ()
+  }
   children
 }
 
@@ -20,6 +30,12 @@ fn Session::shape_color(
   fallback : String,
 ) -> String raise @failure.Failure {
   guard parent is Some(parent) else { return fallback }
+  guard !(tree.picture_child(parent.id, "noFill", uri=picture_drawing_uri)
+    is Some(_) &&
+    tree.picture_child(parent.id, "solidFill", uri=picture_drawing_uri)
+    is Some(_)) else {
+    @failure.reject("unsupported-drawing", "Conflicting shape fills")
+  }
   if tree.picture_child(parent.id, "noFill", uri=picture_drawing_uri)
     is Some(node) {
     guard tree.children.get(node.id).unwrap_or([]).is_empty() else {
@@ -129,6 +145,9 @@ fn Session::read_sheet_shape(
     @failure.reject("unsupported-drawing", "Invalid shape identity")
   }
   let nonvisual = tree.picture_node(nv.id, "cNvSpPr")
+  guard nonvisual.attributes.all(a => a.uri.is_empty() && a.name == "txBox") else {
+    @failure.reject("unsupported-drawing", "Unknown shape nonvisual settings")
+  }
   ignore(tree.shape_children(nonvisual, ["spLocks"]))
   let properties = tree.picture_node(source.id, "spPr")
   ignore(
@@ -200,6 +219,11 @@ fn Session::read_sheet_shape(
         tree.children.get(fit.id).unwrap_or([]).is_empty() else {
         @failure.reject("unsupported-drawing", "Unknown shape text fit")
       }
+    }
+    guard !flag(body_pr, "rtlCol") else {
+      @failure.reject(
+        "unsupported-drawing", "Right-to-left shape columns require support",
+      )
     }
     wrap = body_pr.attribute("wrap").unwrap_or("square") != "none"
     guard [None, Some("square"), Some("none")].contains(
@@ -316,6 +340,10 @@ fn Session::read_sheet_shape(
     }
   }
   let text = paragraphs.join("\n")
+  guard (preset != "line" || text.is_empty()) &&
+    (!flag(nonvisual, "txBox") || preset == "rect") else {
+    @failure.reject("unsupported-drawing", "Unsupported shape text geometry")
+  }
   guard text.length() <= 32767 else {
     @failure.reject("limit-exceeded", "Worksheet shape text exceeds budget")
   }

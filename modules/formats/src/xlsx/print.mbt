@@ -41,7 +41,7 @@ fn Session::print_sheet(
   let first_page = print_first_page(current)
   let setup = setup.unwrap_or(settings.page())
   let dimensions = self.resolved_dimensions(current, probe, profile)
-  let pictures = (self.sheet_objects(current, dimensions) catch {
+  let objects = (self.sheet_objects(current, dimensions) catch {
     @failure.Failure(code="limit-exceeded", ..) as error => raise error
     @failure.Failure(message~, ..) =>
       @failure.reject("unsupported-print", message, part=sheet)
@@ -62,14 +62,14 @@ fn Session::print_sheet(
     .map(print_areas)
     .unwrap_or(
       if print_range.area.is_empty() {
-        [picture_used(current.used(), pictures, dimensions)]
+        [drawing_used(current.used(), objects, dimensions)]
       } else {
         print_areas(print_range.area)
       },
     )
   for diagnostic in self.diagnostics {
     if conditional.table_styles.renders(diagnostic, sheet) ||
-      picture_diagnostic(current, diagnostic) {
+      drawing_diagnostic(current, diagnostic) {
       continue
     }
     if diagnostic.has_prefix("unrendered:" + sheet + ":") {
@@ -193,7 +193,7 @@ fn Session::print_sheet(
               (setup.width + setup.left - setup.right) / scale,
               current.view.rtl,
             )
-            for picture in pictures {
+            for picture in objects {
               let rect = grid_rect(
                 {
                   ..picture.rect,

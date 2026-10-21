@@ -3,6 +3,7 @@ priv struct Pagination {
   columns : Columns
   balance : (Int, Double)?
   mut page : PageSetup
+  anchorPage : PageSetup
   setups : Array[PageSetup]
   pageSetups : Array[PageSetup]
   pages : Array[PageFrame]
@@ -22,11 +23,13 @@ fn Pagination::new(
   columns~ : Columns = Columns::new(),
   balance~ : (Int, Double)? = None,
 ) -> Pagination {
+  let anchor_page = page
   let page = pageSetups.get(0).unwrap_or(page)
   let result : Pagination = {
     columns,
     balance,
     page,
+    anchorPage: anchor_page,
     setups,
     pageSetups,
     tables: Map([]),
@@ -148,7 +151,16 @@ fn Pagination::place(
   }
   let x = left + line.x
   let y = top
-  self.pages[page.unwrap_or(self.pages.length() - 1)].lines.push({
+  let target = page.unwrap_or(self.pages.length() - 1)
+  let placed = self.pages[target]
+  let paragraph_top = placed.lines
+    .iter()
+    .find_first(prior => prior.paragraph == line.paragraph)
+    .map(prior => prior.y)
+    .unwrap_or(top)
+  let physical = self.anchorPage
+  let frame = self.page_at(target)
+  placed.lines.push({
     ..line,
     x,
     y,
@@ -170,9 +182,25 @@ fn Pagination::place(
       baseline: top + run.baseline,
     }),
     images: line.images.map(image => {
-      ..image,
-      x: x + image.x,
-      y: top + image.y,
+      if image.anchor is Some(anchor) {
+        {
+          ..image,
+          x: anchor.horizontal.position(
+            (0, frame.width),
+            (physical.left, physical.width - physical.left - physical.right),
+            (frame.left, frame.width - frame.left - frame.right),
+            image.width,
+          ),
+          y: anchor.vertical.position(
+            (0, frame.height),
+            (physical.top, physical.height - physical.top - physical.bottom),
+            (paragraph_top, 0),
+            image.height,
+          ),
+        }
+      } else {
+        { ..image, x: x + image.x, y: top + image.y, }
+      }
     }),
   })
 }
@@ -360,6 +388,7 @@ pub fn paginate(
   probe.check()
   flow.page.validate()
   flow.pageBorders.validate()
+  flow.validate_floating_images()
   guard flow.background.length() == 6 &&
     flow.background.iter().all(c => c.is_ascii_hexdigit()) else {
     @failure.reject("invalid-style", "Invalid page background color")
@@ -385,6 +414,7 @@ pub fn paginate(
     )
   }
   let result : Layout = {
+    background: flow.background,
     revision: flow.revision,
     shapedParagraphs: cache.shaped,
     reusedParagraphs: cache.reused,
@@ -399,27 +429,10 @@ pub fn paginate(
       } else {
         []
       },
-      fills: if flow.background.to_lower() == "ffffff" {
-        if flow.pageBorders.zOrder == "back" {
-          [..flow.pageBorders.fills(flow.page, index), ..page.fills]
-        } else {
-          page.fills
-        }
+      fills: if flow.pageBorders.zOrder == "back" {
+        [..flow.pageBorders.fills(flow.page, index), ..page.fills]
       } else {
-        [
-          {
-            x: 0.0,
-            y: 0.0,
-            width: page.width,
-            height: page.height,
-            color: flow.background,
-          },
-          ..if flow.pageBorders.zOrder == "back" {
-            [..flow.pageBorders.fills(flow.page, index), ..page.fills]
-          } else {
-            page.fills
-          },
-        ]
+        page.fills
       },
     }),
     diagnostics: flow.diagnostics + diagnostics,

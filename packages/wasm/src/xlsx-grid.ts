@@ -1,12 +1,13 @@
 import type { CellRange, XlsxCell } from "./xlsx.js";
+import { xlsxShapeKinds, type XlsxShapeKind } from "./xlsx-shapes.js";
 import type { DrawingBatch, DrawRect } from "./drawing.js";
 import { xlsxRect } from "./xlsx-geometry.js";
 import { noteCell, noteText } from "./xlsx-sheet.js";
 import { record, integer, hasFields } from "./validation.js";
 import {
-  pictureRegions,
-  type XlsxPictureRegion,
-} from "./xlsx-picture-pointer.js";
+  drawingRegions,
+  type XlsxDrawingRegion,
+} from "./xlsx-drawing-pointer.js";
 
 export interface XlsxViewport extends DrawingBatch {
   id: number;
@@ -28,18 +29,19 @@ export interface XlsxViewport extends DrawingBatch {
     diagnostic: string;
   }[];
   notes: { address: string; author: string; text: string; rect: DrawRect }[];
-  pictures: {
+  objects: {
     id: string;
+    kind: "picture" | XlsxShapeKind;
     name: string;
     selected: boolean;
-    regions: XlsxPictureRegion[];
+    regions: XlsxDrawingRegion[];
   }[];
   rows: { index: number; position: number; size: number }[];
   columns: XlsxViewport["rows"];
   diagnostics: string[];
 }
 
-export function xlsxGridPictures(value: unknown): void {
+export function xlsxGridObjects(value: unknown): void {
   if (!Array.isArray(value) || value.length > 256)
     throw new Error("Invalid grid picture list");
   const ids = new Set<string>();
@@ -49,12 +51,16 @@ export function xlsxGridPictures(value: unknown): void {
       typeof picture.id !== "string" ||
       !/^[1-9][0-9]*$/.test(picture.id) ||
       ids.has(picture.id) ||
+      !(
+        picture.kind === "picture" ||
+        xlsxShapeKinds.some((kind) => kind === picture.kind)
+      ) ||
       typeof picture.name !== "string" ||
       picture.name.length > 255 ||
       typeof picture.selected !== "boolean"
     )
       throw new Error("Invalid grid picture identity");
-    pictureRegions(picture.regions);
+    drawingRegions(picture.regions);
     ids.add(picture.id);
   }
 }

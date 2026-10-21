@@ -221,7 +221,7 @@ fn Session::paint_grid(
   probe : @layout.TextProbe,
   profile : Map[String, String],
   notes : Map[String, CellNote],
-  pictures : Array[SheetObject],
+  objects : Array[SheetObject],
 ) -> (
   Array[@layout.PositionedPrimitive],
   Array[Json],
@@ -337,7 +337,7 @@ fn Session::paint_grid(
         primitives.append(markers)
         primitives.push(Restore)
       }
-      for picture in pictures {
+      for picture in objects {
         let rect = grid_rect(
           {
             ..picture.rect,

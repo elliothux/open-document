@@ -91,6 +91,23 @@ pub fn Layout::positioned(self : Layout) -> PositionedDocument {
     fonts: self.fonts,
     pages: self.pages.mapi((index, page) => {
       let primitives : Array[PositionedPrimitive] = []
+      if self.background.to_lower() != "ffffff" {
+        primitives.push(
+          Rectangle({
+            x: 0,
+            y: 0,
+            width: page.width,
+            height: page.height,
+            color: self.background,
+          }),
+        )
+      }
+      let floating = page.floating_images()
+      for (_, image) in floating {
+        if image.anchor.unwrap().behind {
+          image.paint(primitives)
+        }
+      }
       for fill in page.fills {
         primitives.push(Rectangle(fill))
       }
@@ -104,6 +121,11 @@ pub fn Layout::positioned(self : Layout) -> PositionedDocument {
         primitives.append(line.positioned(self.fonts, page.width))
         if line.cellClip is Some(_) {
           primitives.push(Restore)
+        }
+      }
+      for (_, image) in floating {
+        if !image.anchor.unwrap().behind {
+          image.paint(primitives)
         }
       }
       for border in page.pageBorders {
@@ -338,25 +360,9 @@ pub fn Line::positioned(
     primitives.push(Clip({ x: 0, y: line.y, width, height: line.height, }))
   }
   for image in line.images {
-    let crop = image.crop
-    let width = image.width / (1 - crop[0] - crop[2])
-    let height = image.height / (1 - crop[1] - crop[3])
-    primitives.push(
-      Clip({ x: image.x, y: image.y, width: image.width, height: image.height, }),
-    )
-    primitives.push(
-      Image(
-        {
-          key: image.key,
-          x: image.x - crop[0] * width,
-          y: image.y - crop[1] * height,
-          width,
-          height,
-        },
-        1,
-      ),
-    )
-    primitives.push(Restore)
+    if image.anchor is None {
+      image.paint(primitives)
+    }
   }
   for x in line.bars {
     primitives.push(

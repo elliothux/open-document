@@ -277,7 +277,7 @@ fn Session::paragraph(
         continue
       }
       let image = if item.name == "drawing" {
-        Some(self.inline_image(tree, content))
+        Some(self.image_frame(tree, content))
       } else {
         None
       }

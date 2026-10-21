@@ -206,6 +206,9 @@ pub fn Layout::hit_test(
       "invalid-position", "Hit coordinates must be finite and inside the page",
     )
   }
+  if self.floating_image_hit(page, x, y) is Some(hit) {
+    return hit
+  }
   for index, line in self.running.get(page).unwrap_or([]) {
     if y >= line.y &&
       y < line.y + line.height &&
@@ -244,43 +247,13 @@ pub fn Layout::hit_test(
       continue
     }
     for image in line.images {
-      if x >= image.x &&
+      if image.anchor is None &&
+        x >= image.x &&
         x <= image.x + image.width &&
         y >= image.y &&
         y <= image.y + image.height &&
         (!line.clip || (y >= line.y && y <= line.y + line.height)) {
-        let leading = (x < image.x + image.width / 2) == (image.level % 2 == 0)
-        let top = if line.clip { image.y.max(line.y) } else { image.y }
-        let bottom = if line.clip {
-          (image.y + image.height).min(line.y + line.height)
-        } else {
-          image.y + image.height
-        }
-        return self.clip_cell_hit(
-          {
-            paragraph: line.paragraph,
-            offset: image.start + (if leading { 0 } else { 1 }),
-            affinity: if leading {
-              "after"
-            } else {
-              "before"
-            },
-            bidiLevel: Some(image.level),
-            frameStart: None,
-            imageStart: Some(image.start),
-            page,
-            line: index,
-            x: if x < image.x + image.width / 2 {
-              image.x
-            } else {
-              image.x + image.width
-            },
-            y: top,
-            height: (bottom - top).max(0),
-            reason: line.readOnlyReason,
-          },
-          line,
-        )
+        return self.image_hit(line, image, page, index, x)
       }
     }
     if line.carets.is_empty() {

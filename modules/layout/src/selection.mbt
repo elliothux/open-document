@@ -34,8 +34,9 @@ pub fn Layout::selection_rects(
           if image.start != anchor.1.min(focus.1) {
             continue
           }
-          let y = if line.clip { image.y.max(line.y) } else { image.y }
-          let bottom = if line.clip {
+          let clip = line.clip && image.anchor is None
+          let y = if clip { image.y.max(line.y) } else { image.y }
+          let bottom = if clip {
             (image.y + image.height).min(line.y + line.height)
           } else {
             image.y + image.height

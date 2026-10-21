@@ -330,7 +330,7 @@ fn Session::edit_axes(
     parts~,
     removed~,
     table_edits=tables.map(plan => plan.before.part),
-    picture_selection=self.picture_selection,
+    drawing_selection=self.drawing_selection,
   )
   self.query()
 }

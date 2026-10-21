@@ -89,16 +89,47 @@ async function dispatch(request: Request): Promise<unknown> {
           request.sheet,
           request.profile,
         );
+      case "shapesXlsx":
+        return workbook.shapes(
+          request.revision,
+          request.sheet,
+          request.profile,
+        );
+      case "insertShapeXlsx":
+        return workbook.insertShape(
+          request.revision,
+          request.sheet,
+          request.kind,
+          request.width,
+          request.height,
+          request.text,
+          request.profile,
+        );
+      case "setShapeXlsx":
+        return workbook.setShape(
+          request.revision,
+          request.sheet,
+          request.objectId,
+          request.settings,
+          request.profile,
+        );
+      case "deleteShapeXlsx":
+        return workbook.deleteShape(
+          request.revision,
+          request.sheet,
+          request.objectId,
+          request.profile,
+        );
       case "pictureResourceXlsx":
         return workbook.pictureResource(request.revision, request.bytes);
-      case "selectPictureXlsx":
-        return workbook.selectPicture(
+      case "selectDrawingXlsx":
+        return workbook.selectDrawing(
           request.revision,
           request.layout,
-          request.pictureId,
+          request.objectId,
         );
-      case "pictureGestureXlsx":
-        return workbook.pictureGesture(
+      case "drawingGestureXlsx":
+        return workbook.drawingGesture(
           request.revision,
           request.layout,
           request,
@@ -304,6 +335,10 @@ async function dispatch(request: Request): Promise<unknown> {
         case "printXlsx":
         case "exportXlsxPdf":
         case "picturesXlsx":
+        case "shapesXlsx":
+        case "insertShapeXlsx":
+        case "setShapeXlsx":
+        case "deleteShapeXlsx":
         case "pictureResourceXlsx":
         case "imageBytesXlsx":
         case "imageXlsx":

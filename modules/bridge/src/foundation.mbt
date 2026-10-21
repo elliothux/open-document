@@ -43,21 +43,6 @@ fn Foundation::current_layout(
 }
 
 ///|
-fn input_bytes(json : Json, ceiling : Int) -> Bytes raise @failure.Failure {
-  let encoded = field_string(json, "bytes")
-  guard encoded.length().to_int64() <= (ceiling.to_int64() + 2) / 3 * 4 else {
-    @failure.reject("limit-exceeded", "Encoded byte input exceeds budget")
-  }
-  let bytes = @base64.decode(encoded) catch {
-    _ => @failure.reject("invalid-operation", "Invalid base64 byte input")
-  }
-  guard bytes.length() <= ceiling else {
-    @failure.reject("limit-exceeded", "Byte input exceeds budget")
-  }
-  bytes
-}
-
-///|
 fn Foundation::dispatch(
   self : Foundation,
   request : Json,
@@ -156,15 +141,17 @@ fn Foundation::dispatch(
     | "clearXlsx"
     | "printXlsx"
     | "exportXlsxPdf" => self.xlsx_operation(operation, request)
+    "shapesXlsx" | "insertShapeXlsx" | "setShapeXlsx" | "deleteShapeXlsx" =>
+      self.xlsx_shape_operation(operation, request)
     "picturesXlsx"
-    | "selectPictureXlsx"
-    | "pictureGestureXlsx"
+    | "selectDrawingXlsx"
+    | "drawingGestureXlsx"
     | "pictureResourceXlsx"
     | "imageBytesXlsx"
     | "imageXlsx"
     | "insertPictureXlsx"
     | "setPictureXlsx"
-    | "deletePictureXlsx" => self.xlsx_picture_operation(operation, request)
+    | "deletePictureXlsx" => self.xlsx_drawing_operation(operation, request)
     "openPptx"
     | "createPptx"
     | "queryPptx"

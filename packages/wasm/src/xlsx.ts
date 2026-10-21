@@ -1,10 +1,6 @@
 import { xlsxQuery, type XlsxQuery } from "./xlsx-query.js";
-import {
-  xlsxPictures,
-  xlsxPictureResource,
-  checkXlsxPictureSettings,
-  type XlsxPictureSettings,
-} from "./xlsx-pictures.js";
+import { XlsxDrawingSession } from "./xlsx-drawings.js";
+export * from "./xlsx-shapes.js";
 export * from "./xlsx-pictures.js";
 export { xlsxQuery } from "./xlsx-query.js";
 import {
@@ -116,7 +112,7 @@ export type {
   XlsxValidationState,
 } from "./xlsx-validation.js";
 export { checkXlsxSheetEdit, type XlsxSheetEdit } from "./xlsx-sheet.js";
-import { WasmSession, encodeBytes } from "./session.js";
+import { encodeBytes } from "./session.js";
 import { DocumentError, type Budget } from "./foundation.js";
 import {
   xlsxFindOptions,
@@ -138,25 +134,25 @@ export type {
 import { drawingBatch, type DrawingBatch } from "./drawing.js";
 import {
   xlsxGridNotes,
-  xlsxGridPictures,
+  xlsxGridObjects,
   type XlsxViewport,
 } from "./xlsx-grid.js";
 import {
-  xlsxPictureSelection,
-  xlsxPicturePreview,
-  checkPictureGesture,
-  type XlsxPictureGesture,
-} from "./xlsx-picture-pointer.js";
+  xlsxDrawingSelection,
+  xlsxDrawingPreview,
+  checkDrawingGesture,
+  type XlsxDrawingGesture,
+} from "./xlsx-drawing-pointer.js";
 export {
-  xlsxPictureSelection,
-  xlsxPicturePreview,
-  checkPictureGesture,
-} from "./xlsx-picture-pointer.js";
+  xlsxDrawingSelection,
+  xlsxDrawingPreview,
+  checkDrawingGesture,
+} from "./xlsx-drawing-pointer.js";
 export type {
-  XlsxPictureSelection,
-  XlsxPictureGesture,
-  XlsxPicturePreview,
-} from "./xlsx-picture-pointer.js";
+  XlsxDrawingSelection,
+  XlsxDrawingGesture,
+  XlsxDrawingPreview,
+} from "./xlsx-drawing-pointer.js";
 import { xlsxCell } from "./xlsx-grid.js";
 export type { XlsxViewport } from "./xlsx-grid.js";
 import {
@@ -266,7 +262,7 @@ export function xlsxViewport(value: unknown): XlsxViewport {
     width: layout.regions[0]!.width - Number(grid.headerWidth),
     height: layout.regions[0]!.height - Number(grid.headerHeight),
   });
-  xlsxGridPictures(grid.pictures);
+  xlsxGridObjects(grid.objects);
   const addresses = new Set<string>();
   for (const value of grid.cells) {
     const item = record(value),
@@ -329,139 +325,30 @@ export function xlsxViewport(value: unknown): XlsxViewport {
 }
 
 /** One workbook owner; values, XML transactions and history stay in MoonBit. */
-export class XlsxSession extends WasmSession {
-  selectPicture(revision: number, layout: number, pictureId: string | null) {
-    return xlsxPictureSelection(
+export class XlsxSession extends XlsxDrawingSession {
+  selectDrawing(revision: number, layout: number, objectId: string | null) {
+    return xlsxDrawingSelection(
       this.call({
-        operation: "selectPictureXlsx",
+        operation: "selectDrawingXlsx",
         revision,
         layout,
-        pictureId,
+        objectId,
       }),
     );
   }
-  pictureGesture(
+  drawingGesture(
     revision: number,
     layout: number,
-    gesture: XlsxPictureGesture,
+    gesture: XlsxDrawingGesture,
     profile: Record<string, string>,
   ) {
-    checkPictureGesture(gesture);
-    return xlsxPicturePreview(
+    checkDrawingGesture(gesture);
+    return xlsxDrawingPreview(
       this.call({
-        operation: "pictureGestureXlsx",
+        operation: "drawingGestureXlsx",
         revision,
         layout,
         ...gesture,
-        profile,
-      }),
-    );
-  }
-  pictures(revision: number, sheet: string, profile: Record<string, string>) {
-    return xlsxPictures(
-      this.call({ operation: "picturesXlsx", revision, sheet, profile }),
-    );
-  }
-  pictureResource(revision: number, bytes: Uint8Array) {
-    if (bytes.length > 2097152) throw new Error("Picture input exceeds2MiB");
-    return xlsxPictureResource(
-      this.call({
-        operation: "pictureResourceXlsx",
-        revision,
-        bytes: encodeBytes(bytes),
-      }),
-    );
-  }
-  imageBytes(revision: number, key: string): Uint8Array {
-    return this.bytes({ operation: "imageBytesXlsx", revision, key });
-  }
-  addImage(
-    revision: number,
-    key: string,
-    width: number,
-    height: number,
-    bytes: Uint8Array,
-  ): string {
-    const result = record(
-      this.call({
-        operation: "imageXlsx",
-        revision,
-        key,
-        width,
-        height,
-        bytes: encodeBytes(bytes),
-      }),
-    );
-    if (typeof result.key !== "string" || !result.key)
-      throw new Error("Invalid worksheet image resource");
-    return result.key;
-  }
-  insertPicture(
-    revision: number,
-    sheet: string,
-    width: number,
-    height: number,
-    bytes: Uint8Array,
-    profile: Record<string, string>,
-    name = "Picture",
-    description = "",
-  ): XlsxQuery {
-    checkXlsxPictureSettings({
-      anchor: "move",
-      crop: [0, 0, 0, 0],
-      x: 0,
-      y: 0,
-      width,
-      height,
-      name,
-      description,
-    });
-    if (bytes.length > 2097152) throw new Error("Picture input exceeds2MiB");
-    return xlsxQuery(
-      this.call({
-        operation: "insertPictureXlsx",
-        revision,
-        sheet,
-        width,
-        height,
-        bytes: encodeBytes(bytes),
-        profile,
-        name,
-        description,
-      }),
-    );
-  }
-  setPicture(
-    revision: number,
-    sheet: string,
-    id: string,
-    settings: XlsxPictureSettings,
-    profile: Record<string, string>,
-  ): XlsxQuery {
-    checkXlsxPictureSettings(settings);
-    return xlsxQuery(
-      this.call({
-        operation: "setPictureXlsx",
-        revision,
-        sheet,
-        id,
-        settings,
-        profile,
-      }),
-    );
-  }
-  deletePicture(
-    revision: number,
-    sheet: string,
-    id: string,
-    profile: Record<string, string>,
-  ): XlsxQuery {
-    return xlsxQuery(
-      this.call({
-        operation: "deletePictureXlsx",
-        revision,
-        sheet,
-        id,
         profile,
       }),
     );

@@ -18,7 +18,7 @@ pub fn Session::insert_shape(
   let dimensions = self.resolved_dimensions(current, probe, profile)
   let objects = self.sheet_objects(current, dimensions)
   guard objects.length() < 256 else {
-    @failure.reject("limit-exceeded", "Worksheet drawings exceed256 entries")
+    @failure.reject("limit-exceeded", "Worksheet drawings exceed 256 entries")
   }
   let range = if self.selection.0 == sheet {
     self.selection.1
@@ -125,7 +125,7 @@ pub fn Session::insert_shape(
     self.selection,
     parts~,
     created_parts=created,
-    picture_selection=Some((sheet, id)),
+    drawing_selection=Some((sheet, id)),
     font_context=Some((probe, profile.copy())),
   )
   self.query()
@@ -155,6 +155,7 @@ pub fn Session::set_shape(
       @failure.reject("invalid-operation", "Worksheet shape no longer exists")
     })
   object.check_change(false, rect=settings.rect)
+  object.check_shape_locks(shape)
   if object.shape == Some(shape) &&
     object.anchor == settings.anchor &&
     (object.rect.x, object.rect.y, object.rect.width, object.rect.height) ==
@@ -168,12 +169,7 @@ pub fn Session::set_shape(
     object.description == settings.description {
     return self.query()
   }
-  let raw = object.tree.document.source()[object.source.start:object.source.end]
-  guard !raw.contains("<!--") && !raw.contains("<?") else {
-    @failure.reject(
-      "protected-content", "Shape source annotations require preservation support",
-    )
-  }
+  object.check_shape_source()
   let preview : Array[@layout.PositionedPrimitive] = []
   shape.paint(preview, settings.rect, probe, profile)
   let nv = object.tree.picture_node(object.source.id, "nvSpPr")
@@ -221,7 +217,7 @@ pub fn Session::set_shape(
     [(object.part, metadata), (object.part, edit)],
     self.selection,
     parts~,
-    picture_selection=self.picture_selection,
+    drawing_selection=self.drawing_selection,
     font_context=Some((probe, profile.copy())),
   )
   self.query()

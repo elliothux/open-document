@@ -1,5 +1,5 @@
 ///|
-fn Session::order_picture(
+fn Session::order_drawing(
   self : Session,
   sheet : String,
   id : String,
@@ -63,7 +63,7 @@ fn Session::order_picture(
     [(picture.part, edit)],
     self.selection,
     parts~,
-    picture_selection=Some((sheet, id)),
+    drawing_selection=Some((sheet, id)),
   )
   self.query()
 }

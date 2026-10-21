@@ -1,21 +1,28 @@
+import { XlsxDrawingClient } from "./xlsx-drawings.js";
+export {
+  xlsxShapeKinds,
+  checkXlsxShapeSettings,
+} from "@open-document/wasm/xlsx";
+export type {
+  XlsxShapeKind,
+  XlsxShapeSettings,
+  XlsxShape,
+  XlsxShapes,
+} from "@open-document/wasm/xlsx";
 import { Connection } from "./connection.js";
 import {
-  xlsxPictures,
-  xlsxPictureResource,
-  checkXlsxPictureSettings,
-  type XlsxPictureSettings,
-  xlsxPictureSelection,
-  xlsxPicturePreview,
-  checkPictureGesture,
-  type XlsxPictureGesture,
+  xlsxDrawingSelection,
+  xlsxDrawingPreview,
+  checkDrawingGesture,
+  type XlsxDrawingGesture,
 } from "@open-document/wasm/xlsx";
 export type {
   XlsxPictureSettings,
   XlsxPicture,
   XlsxPictures,
-  XlsxPictureSelection,
-  XlsxPictureGesture,
-  XlsxPicturePreview,
+  XlsxDrawingSelection,
+  XlsxDrawingGesture,
+  XlsxDrawingPreview,
 } from "@open-document/wasm/xlsx";
 import {
   checkXlsxPivotSettings,
@@ -193,156 +200,34 @@ export type {
 } from "@open-document/wasm/xlsx";
 
 /** Browser workbook transport; one Worker owns the complete core session. */
-export class XlsxClient {
-  async selectPicture(
+export class XlsxClient extends XlsxDrawingClient {
+  async selectDrawing(
     revision: number,
     layout: number,
-    pictureId: string | null,
+    objectId: string | null,
   ) {
-    return xlsxPictureSelection(
+    return xlsxDrawingSelection(
       await this.connection.request({
-        operation: "selectPictureXlsx",
+        operation: "selectDrawingXlsx",
         revision,
         layout,
-        pictureId,
+        objectId,
       }),
     );
   }
-  async pictureGesture(
+  async drawingGesture(
     revision: number,
     layout: number,
-    gesture: XlsxPictureGesture,
+    gesture: XlsxDrawingGesture,
     profile: Record<string, string>,
   ) {
-    checkPictureGesture(gesture);
-    return xlsxPicturePreview(
+    checkDrawingGesture(gesture);
+    return xlsxDrawingPreview(
       await this.connection.request({
-        operation: "pictureGestureXlsx",
+        operation: "drawingGestureXlsx",
         revision,
         layout,
         ...gesture,
-        profile,
-      }),
-    );
-  }
-  async pictures(
-    revision: number,
-    sheet: string,
-    profile: Record<string, string>,
-  ) {
-    return xlsxPictures(
-      await this.connection.request({
-        operation: "picturesXlsx",
-        revision,
-        sheet,
-        profile,
-      }),
-    );
-  }
-  async pictureResource(revision: number, bytes: Uint8Array) {
-    if (bytes.length > 2097152) throw new Error("Picture input exceeds2MiB");
-    return xlsxPictureResource(
-      await this.connection.request({
-        operation: "pictureResourceXlsx",
-        revision,
-        bytes,
-      }),
-    );
-  }
-  async imageBytes(revision: number, key: string): Promise<Uint8Array> {
-    const result = await this.connection.request({
-      operation: "imageBytesXlsx",
-      revision,
-      key,
-    });
-    if (!(result instanceof Uint8Array))
-      throw new Error("Invalid worksheet image bytes");
-    return result;
-  }
-  async addImage(
-    revision: number,
-    key: string,
-    width: number,
-    height: number,
-    bytes: Uint8Array,
-  ): Promise<string> {
-    const result = await this.connection.request({
-      operation: "imageXlsx",
-      revision,
-      key,
-      width,
-      height,
-      bytes,
-    });
-    if (typeof result !== "string" || !result)
-      throw new Error("Invalid worksheet image identity");
-    return result;
-  }
-  async insertPicture(
-    revision: number,
-    sheet: string,
-    width: number,
-    height: number,
-    bytes: Uint8Array,
-    profile: Record<string, string>,
-    name = "Picture",
-    description = "",
-  ): Promise<XlsxQuery> {
-    checkXlsxPictureSettings({
-      anchor: "move",
-      crop: [0, 0, 0, 0],
-      x: 0,
-      y: 0,
-      width,
-      height,
-      name,
-      description,
-    });
-    return xlsxQuery(
-      await this.connection.request({
-        operation: "insertPictureXlsx",
-        revision,
-        sheet,
-        width,
-        height,
-        bytes,
-        profile,
-        name,
-        description,
-      }),
-    );
-  }
-  async setPicture(
-    revision: number,
-    sheet: string,
-    id: string,
-    settings: XlsxPictureSettings,
-    profile: Record<string, string>,
-  ): Promise<XlsxQuery> {
-    checkXlsxPictureSettings(settings);
-    return xlsxQuery(
-      await this.connection.request({
-        operation: "setPictureXlsx",
-        revision,
-        sheet,
-        pictureId: id,
-        settings,
-        profile,
-      }),
-    );
-  }
-  async deletePicture(
-    revision: number,
-    sheet: string,
-    id: string,
-    profile: Record<string, string>,
-  ): Promise<XlsxQuery> {
-    return xlsxQuery(
-      await this.connection.request({
-        operation: "deletePictureXlsx",
-        revision,
-        sheet,
-        pictureId: id,
         profile,
       }),
     );
@@ -456,7 +341,9 @@ export class XlsxClient {
       }),
     );
   }
-  private constructor(private readonly connection: Connection) {}
+  private constructor(connection: Connection) {
+    super(connection);
+  }
 
   static async open(
     wasm: ArrayBuffer,

@@ -10,6 +10,13 @@ pub fn TextProbe::paragraph_lines(
   baseLevel? : Int,
 ) -> Array[Line] raise @failure.Failure {
   self.check()
+  guard paragraph.spans.all(span => {
+    span.image.bind(image => image.anchor) is None
+  }) else {
+    @failure.reject(
+      "unsupported-layout", "Floating images require document pagination",
+    )
+  }
   guard baseLevel is (None | Some(0 | 1)) else {
     @failure.reject("invalid-style", "Bidi base level must be 0 or 1")
   }

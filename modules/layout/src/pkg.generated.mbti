@@ -237,6 +237,31 @@ pub(all) struct Hit {
 } derive(ToJson)
 pub fn Hit::to_json(Self) -> Json
 
+pub(all) struct ImageAnchor {
+  horizontal : ImageAxis
+  vertical : ImageAxis
+  behind : Bool
+  order : Int64
+} derive(ToJson)
+pub fn ImageAnchor::to_json(Self) -> Json
+pub fn ImageAnchor::validate(Self) -> Unit raise @failure.Failure
+
+pub(all) enum ImageAxis {
+  Offset(String, Double)
+  Aligned(String, String)
+}
+pub fn ImageAxis::to_json(Self) -> Json
+pub impl ToJson for ImageAxis
+
+pub(all) struct ImageFrame {
+  key : String
+  width : Double
+  height : Double
+  crop : Array[Double]
+  anchor : ImageAnchor?
+} derive(ToJson)
+pub fn ImageFrame::to_json(Self) -> Json
+
 pub(all) struct ImageResource {
   identity : String
   width : Int
@@ -254,15 +279,8 @@ pub fn Images::get(Self, String) -> ImageResource raise @failure.Failure
 pub fn Images::new() -> Self
 pub fn Images::retain(Self, Array[String]) -> Unit
 
-pub(all) struct InlineImage {
-  key : String
-  width : Double
-  height : Double
-  crop : Array[Double]
-} derive(ToJson)
-pub fn InlineImage::to_json(Self) -> Json
-
 pub(all) struct Layout {
+  background : String
   revision : Int
   shapedParagraphs : Int
   reusedParagraphs : Int
@@ -308,7 +326,7 @@ pub(all) struct Line {
   marker : Array[PlacedRun]
   markerText : String
   runs : Array[PlacedRun]
-  images : Array[PlacedInlineImage]
+  images : Array[PlacedImageFrame]
   carets : Array[Caret]
   readOnlyReason : String
 } derive(ToJson)
@@ -466,7 +484,7 @@ pub(all) struct PlacedImage {
 } derive(ToJson)
 pub fn PlacedImage::to_json(Self) -> Json
 
-pub(all) struct PlacedInlineImage {
+pub(all) struct PlacedImageFrame {
   key : String
   start : Int
   level : Int
@@ -475,8 +493,9 @@ pub(all) struct PlacedInlineImage {
   width : Double
   height : Double
   crop : Array[Double]
+  anchor : ImageAnchor?
 } derive(ToJson)
-pub fn PlacedInlineImage::to_json(Self) -> Json
+pub fn PlacedImageFrame::to_json(Self) -> Json
 
 pub(all) struct PlacedRun {
   start : Int
@@ -599,7 +618,7 @@ pub(all) struct Span {
   node : Int
   text : String
   style : TextStyle
-  image : InlineImage?
+  image : ImageFrame?
   field : String
 }
 pub fn Span::to_json(Self) -> Json

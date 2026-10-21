@@ -269,7 +269,7 @@ fn Foundation::xlsx_operation(
             field_int(change, "position"),
             field_int(change, "sourceRevision"),
           )
-        "pictureOrder" => xlsx_picture_order(change)
+        "drawingOrder" => xlsx_drawing_order(change)
         "note" => {
           guard change is Object(fields) &&
             fields

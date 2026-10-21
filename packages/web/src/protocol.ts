@@ -47,11 +47,44 @@ import type {
   XlsxTextColumnSettings,
   XlsxFillTarget,
   XlsxPictureSettings,
+  XlsxShapeKind,
+  XlsxShapeSettings,
 } from "@open-document/wasm/xlsx";
 import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
+  | {
+      operation: "shapesXlsx";
+      revision: number;
+      sheet: string;
+      profile: Record<string, string>;
+    }
+  | {
+      operation: "insertShapeXlsx";
+      revision: number;
+      sheet: string;
+      kind: XlsxShapeKind;
+      width: number;
+      height: number;
+      text: string;
+      profile: Record<string, string>;
+    }
+  | {
+      operation: "setShapeXlsx";
+      revision: number;
+      sheet: string;
+      objectId: string;
+      settings: XlsxShapeSettings;
+      profile: Record<string, string>;
+    }
+  | {
+      operation: "deleteShapeXlsx";
+      revision: number;
+      sheet: string;
+      objectId: string;
+      profile: Record<string, string>;
+    }
   | { operation: "pivotsXlsx"; revision: number; sheet: string }
   | {
       operation: "pivotPreviewXlsx";
@@ -262,13 +295,13 @@ export type Operation =
     }
   | { operation: "pictureResourceXlsx"; revision: number; bytes: Uint8Array }
   | {
-      operation: "selectPictureXlsx";
+      operation: "selectDrawingXlsx";
       revision: number;
       layout: number;
-      pictureId: string | null;
+      objectId: string | null;
     }
   | {
-      operation: "pictureGestureXlsx";
+      operation: "drawingGestureXlsx";
       revision: number;
       layout: number;
       handle: number;

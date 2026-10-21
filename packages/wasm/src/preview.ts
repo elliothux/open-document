@@ -53,7 +53,7 @@ export interface DocxFlow {
       node: number;
       text: string;
       style: TextStyle;
-      image: InlineImage | null;
+      image: ImageFrame | null;
       field:
         | ""
         | "PAGE"
@@ -107,11 +107,59 @@ export interface DocxFlow {
   }[];
 }
 
-export interface InlineImage {
+export interface ImageFrame {
   key: string;
   width: number;
   height: number;
   crop: number[];
+  anchor: ImageAnchor | null;
+}
+
+export type ImageAxis =
+  | { relativeTo: string; offset: number; align: null }
+  | { relativeTo: string; offset: null; align: string };
+export interface ImageAnchor {
+  horizontal: ImageAxis;
+  vertical: ImageAxis;
+  behind: boolean;
+  order: number;
+}
+
+function imageAnchor(value: unknown): void {
+  if (value === null) return;
+  const anchor = record(value);
+  if (
+    typeof anchor.behind !== "boolean" ||
+    !Number.isSafeInteger(anchor.order) ||
+    Number(anchor.order) < 0 ||
+    Number(anchor.order) > 4294967295
+  )
+    throw new Error("Invalid floating image layer");
+  for (const key of ["horizontal", "vertical"] as const) {
+    const axis = record(anchor[key]);
+    const references =
+      key === "horizontal"
+        ? ["page", "margin", "column"]
+        : ["page", "margin", "paragraph"];
+    const alignments =
+      key === "horizontal"
+        ? ["left", "center", "right"]
+        : ["top", "center", "bottom"];
+    if (
+      typeof axis.relativeTo !== "string" ||
+      !references.includes(axis.relativeTo) ||
+      !(
+        (axis.align === null &&
+          typeof axis.offset === "number" &&
+          Number.isFinite(axis.offset) &&
+          Math.abs(axis.offset) <= 14400) ||
+        (axis.offset === null &&
+          typeof axis.align === "string" &&
+          alignments.includes(axis.align))
+      )
+    )
+      throw new Error("Invalid floating image position");
+  }
 }
 
 export interface PageLayout extends DrawingBatch {
@@ -301,6 +349,7 @@ export function docxFlow(value: unknown): DocxFlow {
         throw new Error("Invalid preview text decoration");
       if (span.image !== null) {
         const image = fields(span.image, ["width", "height"], ["key"]);
+        imageAnchor(image.anchor);
         if (
           !Array.isArray(image.crop) ||
           image.crop.length !== 4 ||

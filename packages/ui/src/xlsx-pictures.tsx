@@ -262,8 +262,8 @@ export function XlsxPictures({
                 onClick={() =>
                   controller.run(async () => {
                     await editor.editSheet({
-                      action: "pictureOrder",
-                      pictureId: draft.id,
+                      action: "drawingOrder",
+                      objectId: draft.id,
                       direction,
                     });
                     await load();

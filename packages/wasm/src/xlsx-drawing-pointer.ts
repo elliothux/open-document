@@ -4,32 +4,32 @@ import { xlsxViewport, type XlsxViewport, type XlsxQuery } from "./xlsx.js";
 import { xlsxQuery } from "./xlsx-query.js";
 import type { DrawRect } from "./drawing.js";
 
-export interface XlsxPictureRegion {
+export interface XlsxDrawingRegion {
   rect: DrawRect;
   clip: DrawRect;
 }
-export interface XlsxPictureSelection {
+export interface XlsxDrawingSelection {
   revision: number;
   sheet: string;
   id: string | null;
-  regions: XlsxPictureRegion[];
+  regions: XlsxDrawingRegion[];
 }
-export interface XlsxPictureGesture {
+export interface XlsxDrawingGesture {
   handle: number;
   dx: number;
   dy: number;
   commit: boolean;
 }
-export interface XlsxPicturePreview {
+export interface XlsxDrawingPreview {
   query: XlsxQuery | null;
   drawing: XlsxViewport | null;
-  selection: XlsxPictureSelection;
+  selection: XlsxDrawingSelection;
 }
-export function pictureRegions(
+export function drawingRegions(
   value: unknown,
-): asserts value is XlsxPictureRegion[] {
+): asserts value is XlsxDrawingRegion[] {
   if (!Array.isArray(value) || value.length > 4)
-    throw new Error("Invalid worksheet picture regions");
+    throw new Error("Invalid worksheet object regions");
   for (const item of value) {
     const region = record(item),
       rect = xlsxRect(region.rect),
@@ -44,10 +44,10 @@ export function pictureRegions(
       clip.x + clip.width > rect.x + rect.width + 0.000001 ||
       clip.y + clip.height > rect.y + rect.height + 0.000001
     )
-      throw new Error("Invalid worksheet picture clip");
+      throw new Error("Invalid worksheet object clip");
   }
 }
-export function xlsxPictureSelection(value: unknown): XlsxPictureSelection {
+export function xlsxDrawingSelection(value: unknown): XlsxDrawingSelection {
   const state = record(value);
   if (
     !integer(state.revision, 0, 2147483647) ||
@@ -57,13 +57,13 @@ export function xlsxPictureSelection(value: unknown): XlsxPictureSelection {
       (typeof state.id === "string" && /^[1-9][0-9]*$/.test(state.id))
     )
   )
-    throw new Error("Invalid worksheet picture selection");
-  pictureRegions(state.regions);
+    throw new Error("Invalid worksheet object selection");
+  drawingRegions(state.regions);
   if (state.id === null && state.regions.length)
-    throw new Error("Unselected worksheet picture has regions");
-  return value as XlsxPictureSelection;
+    throw new Error("Unselected worksheet object has regions");
+  return value as XlsxDrawingSelection;
 }
-export function checkPictureGesture(value: XlsxPictureGesture): void {
+export function checkDrawingGesture(value: XlsxDrawingGesture): void {
   if (
     !integer(value.handle, 0, 4) ||
     ![value.dx, value.dy].every(
@@ -71,14 +71,14 @@ export function checkPictureGesture(value: XlsxPictureGesture): void {
     ) ||
     typeof value.commit !== "boolean"
   )
-    throw new Error("Invalid worksheet picture pointer delta");
+    throw new Error("Invalid worksheet object pointer delta");
 }
-export function xlsxPicturePreview(value: unknown): XlsxPicturePreview {
+export function xlsxDrawingPreview(value: unknown): XlsxDrawingPreview {
   const result = record(value);
-  xlsxPictureSelection(result.selection);
+  xlsxDrawingSelection(result.selection);
   if (result.query !== null) xlsxQuery(result.query);
   if (result.drawing !== null) xlsxViewport(result.drawing);
   if ((result.query === null) === (result.drawing === null))
-    throw new Error("Invalid worksheet picture preview state");
-  return value as XlsxPicturePreview;
+    throw new Error("Invalid worksheet object preview state");
+  return value as XlsxDrawingPreview;
 }

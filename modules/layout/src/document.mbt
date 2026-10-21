@@ -52,7 +52,7 @@ pub(all) struct Span {
   node : Int
   text : String
   style : TextStyle
-  image : InlineImage?
+  image : ImageFrame?
   field : String
 }
 
@@ -235,7 +235,7 @@ pub(all) struct Line {
   marker : Array[PlacedRun]
   markerText : String
   runs : Array[PlacedRun]
-  images : Array[PlacedInlineImage]
+  images : Array[PlacedImageFrame]
   carets : Array[Caret]
   readOnlyReason : String
 } derive(ToJson)
@@ -271,6 +271,7 @@ pub extend PageFrame with ToJson::{to_json}
 
 ///|
 pub(all) struct Layout {
+  background : String
   revision : Int
   shapedParagraphs : Int
   reusedParagraphs : Int
@@ -306,18 +307,19 @@ fn PageSetup::validate(self : PageSetup) -> Unit raise @failure.Failure {
 }
 
 ///|
-pub(all) struct InlineImage {
+pub(all) struct ImageFrame {
   key : String
   width : Double
   height : Double
   crop : Array[Double]
+  anchor : ImageAnchor?
 } derive(ToJson)
 
 ///|
-pub extend InlineImage with ToJson::{to_json}
+pub extend ImageFrame with ToJson::{to_json}
 
 ///|
-pub(all) struct PlacedInlineImage {
+pub(all) struct PlacedImageFrame {
   key : String
   start : Int
   level : Int
@@ -326,10 +328,11 @@ pub(all) struct PlacedInlineImage {
   width : Double
   height : Double
   crop : Array[Double]
+  anchor : ImageAnchor?
 } derive(ToJson)
 
 ///|
-pub extend PlacedInlineImage with ToJson::{to_json}
+pub extend PlacedImageFrame with ToJson::{to_json}
 
 ///|
 pub(all) struct PlacedImage {

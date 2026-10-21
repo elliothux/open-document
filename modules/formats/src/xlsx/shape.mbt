@@ -51,6 +51,42 @@ fn SheetObject::kind(self : SheetObject) -> String {
 }
 
 ///|
+fn SheetObject::shape_settings(
+  self : SheetObject,
+  rect : @layout.Border,
+) -> ShapeSettings {
+  let shape = self.shape.unwrap()
+  {
+    kind: self.kind(),
+    anchor: self.anchor,
+    rect,
+    name: self.name,
+    description: self.description,
+    fill: if shape.fill.is_empty() {
+      None
+    } else {
+      Some(shape.fill)
+    },
+    stroke: if shape.stroke.is_empty() {
+      None
+    } else {
+      Some(shape.stroke)
+    },
+    line_width: shape.line_width,
+    text: shape.text,
+    font: shape.font,
+    bold: shape.bold,
+    italic: shape.italic,
+    size: shape.size,
+    color: shape.color,
+    wrap: shape.wrap,
+    align: shape.align,
+    vertical: shape.vertical,
+    insets: [shape.left, shape.top, shape.right, shape.bottom],
+  }
+}
+
+///|
 fn SheetObject::shape_json(self : SheetObject) -> Json {
   let shape = self.shape.unwrap()
   {

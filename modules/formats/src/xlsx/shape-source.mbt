@@ -44,8 +44,19 @@ fn ShapeSettings::checked(
       "invalid-operation", "Invalid worksheet shape text or appearance",
     )
   }
-  let fill = self.fill.map(color_hex).unwrap_or("")
-  let stroke = self.stroke.map(color_hex).unwrap_or("")
+  fn color(value : String) -> String raise @failure.Failure {
+    guard value.length() == 6 else {
+      @failure.reject(
+        "invalid-operation", "Shape colors require six RGB digits",
+      )
+    }
+    color_hex(value) catch {
+      @failure.Failure(..) =>
+        @failure.reject("invalid-operation", "Invalid worksheet shape color")
+    }
+  }
+  let fill = self.fill.map(color).unwrap_or("")
+  let stroke = self.stroke.map(color).unwrap_or("")
   {
     preset: if self.kind == "textBox" {
       "rect"
@@ -63,7 +74,7 @@ fn ShapeSettings::checked(
     bold: self.bold,
     italic: self.italic,
     size: (self.size * 100).round() / 100,
-    color: color_hex(self.color),
+    color: color(self.color),
     left: (self.insets[0] * 12700).round() / 12700,
     top: (self.insets[1] * 12700).round() / 12700,
     right: (self.insets[2] * 12700).round() / 12700,

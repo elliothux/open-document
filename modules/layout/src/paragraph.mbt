@@ -27,7 +27,7 @@ priv struct LineGroup {
   font : Int
   style : TextStyle
   level : Int
-  image : InlineImage?
+  image : ImageFrame?
   field : (Int, String)?
   tab : Bool
 }
@@ -83,6 +83,9 @@ fn paragraph_lines(
       span
     }
     if span.image is Some(image) {
+      if image.anchor is Some(anchor) {
+        anchor.validate()
+      }
       guard image.crop.length() == 4 &&
         image.crop.all(v => !v.is_nan() && !v.is_inf() && v >= 0 && v < 1) &&
         image.crop[0] + image.crop[2] < 1 &&
@@ -454,7 +457,8 @@ fn paragraph_lines(
         }
       }
     }
-    if line_ascent + line_descent == 0 && images.is_empty() {
+    let inline_images = images.filter(image => image.anchor is None)
+    if line_ascent + line_descent == 0 && inline_images.is_empty() {
       line_ascent = if ascent > 0 { ascent } else { size * 0.8 }
       line_descent = if descent > 0 { descent } else { size * 0.2 }
     }
@@ -464,13 +468,13 @@ fn paragraph_lines(
     let height = if clip {
       line_height
     } else {
-      images
+      inline_images
       .iter()
       .fold(init=line_height, (height, image) => {
         height.max(image.height + line_descent)
       })
     }
-    let baseline = if clip || images.is_empty() {
+    let baseline = if clip || inline_images.is_empty() {
       line_baseline
     } else {
       height - line_descent
@@ -525,7 +529,14 @@ fn paragraph_lines(
           },
           baseline: baseline - run.rise,
         }),
-        images: images.map(image => { ..image, y: baseline - image.height, }),
+        images: images.map(image => {
+          ..image,
+          y: if image.anchor is Some(_) {
+            0
+          } else {
+            baseline - image.height
+          },
+        }),
         carets,
         readOnlyReason: paragraph.readOnlyReason,
       },

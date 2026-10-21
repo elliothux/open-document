@@ -11,6 +11,7 @@ fn Pagination::body(
   let keys = pagination_keys(blocks)
   let context = Json::array([
     self.page.to_json(),
+    self.anchorPage.to_json(),
     Json::array(self.setups.map(page => page.to_json())),
     Json::array(self.pageSetups.map(page => page.to_json())),
     Json(flow.additiveSpacing),

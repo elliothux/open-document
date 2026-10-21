@@ -12,10 +12,10 @@ fn measure_line(
   advances? : Array[(Double, Double)],
   tabs~ : TabLayout? = None,
   rtl~ : Bool = false,
-) -> (Double, Array[PlacedRun], Array[PlacedInlineImage], Array[Caret]) raise @failure.Failure {
+) -> (Double, Array[PlacedRun], Array[PlacedImageFrame], Array[Caret]) raise @failure.Failure {
   probe.check()
   let runs : Array[PlacedRun] = []
-  let images : Array[PlacedInlineImage] = []
+  let images : Array[PlacedImageFrame] = []
   let before : Map[Int, Double] = Map([])
   let after : Map[Int, Double] = Map([])
   let text = StringBuilder()
@@ -201,22 +201,23 @@ fn measure_line(
       continue
     }
     if group.image is Some(image) {
+      let advance = if image.anchor is Some(_) { 0.0 } else { image.width }
       if advances is Some(values) {
         let index = start + group.start
         let (width, gap) = values[index]
-        values[index] = (width + image.width, gap)
+        values[index] = (width + advance, gap)
       }
       if geometry {
         after[start + group.start] = width +
-          (if (group.level % 2 == 0) != rtl { 0.0 } else { image.width })
+          (if (group.level % 2 == 0) != rtl { 0.0 } else { advance })
         before[start + group.end] = width +
-          (if (group.level % 2 == 0) != rtl { image.width } else { 0.0 })
+          (if (group.level % 2 == 0) != rtl { advance } else { 0.0 })
         images.push({
           key: image.key,
           start: start + group.start,
           level: group.level,
           x: if rtl {
-            -width - image.width
+            -width - advance
           } else {
             width
           },
@@ -224,9 +225,10 @@ fn measure_line(
           width: image.width,
           height: image.height,
           crop: image.crop.copy(),
+          anchor: image.anchor,
         })
       }
-      width += image.width
+      width += advance
       continue
     }
     let fragment = text[group.start:group.end].to_owned()

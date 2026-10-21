@@ -1,10 +1,10 @@
 import type { CanvasSurface } from "./canvas-surface.js";
-import type { XlsxClient, XlsxPictureSelection } from "./xlsx.js";
+import type { XlsxClient, XlsxDrawingSelection } from "./xlsx.js";
 import type { PointerHost } from "./spreadsheet-pointer.js";
 import { PointerSelection, type PointerPoint } from "./pointer-selection.js";
 
 interface Gesture {
-  picture: string;
+  object: string;
   handle: number;
   origin: PointerPoint;
   point: PointerPoint;
@@ -16,7 +16,7 @@ interface Gesture {
 }
 
 /** Core selection and candidate drawing; only pointer samples live in this host. */
-export class SpreadsheetPicturePointer {
+export class SpreadsheetDrawingPointer {
   private readonly controls = document.createElement("div");
   private readonly targets = new Map<
     string,
@@ -74,7 +74,7 @@ export class SpreadsheetPicturePointer {
   }
   private target(
     key: string,
-    picture: string,
+    object: string,
     handle: number,
     label: string,
   ): HTMLButtonElement {
@@ -117,7 +117,7 @@ export class SpreadsheetPicturePointer {
           if (!now.layout) return;
           const sheet = now.query.sheet;
           const gesture: Gesture = {
-            picture,
+            object,
             handle,
             origin: point,
             point,
@@ -135,14 +135,14 @@ export class SpreadsheetPicturePointer {
               const current = this.host.current();
               if (gesture.cancelled || !current.layout) return;
               if (current.query.sheet !== sheet)
-                throw new Error("Worksheet picture target changed");
+                throw new Error("Worksheet object target changed");
               gesture.revision = current.query.revision;
               gesture.layout = current.layout.id;
               gesture.ready = true;
-              const selection = await this.client.selectPicture(
+              const selection = await this.client.selectDrawing(
                 gesture.revision,
                 gesture.layout,
-                picture,
+                object,
               );
               this.paint(selection);
             })
@@ -157,7 +157,7 @@ export class SpreadsheetPicturePointer {
         return this.host
           .run(async () => {
             if (gesture.cancelled || this.gesture !== gesture) return;
-            const preview = await this.client.pictureGesture(
+            const preview = await this.client.drawingGesture(
               gesture.revision,
               gesture.layout,
               { handle, ...this.delta(gesture), commit: false },
@@ -182,7 +182,7 @@ export class SpreadsheetPicturePointer {
         try {
           await this.host.run(async () => {
             if (!gesture.cancelled) {
-              const result = await this.client.pictureGesture(
+              const result = await this.client.drawingGesture(
                 gesture.revision,
                 gesture.layout,
                 { handle, ...this.delta(gesture), commit: true },
@@ -234,24 +234,35 @@ export class SpreadsheetPicturePointer {
             await this.host.prepare();
             const now = this.host.current();
             if (now.query.sheet !== sheet)
-              throw new Error("Worksheet picture target changed");
+              throw new Error("Worksheet object target changed");
             if (!now.layout) return;
-            await this.client.selectPicture(
+            await this.client.selectDrawing(
               now.query.revision,
               now.layout.id,
-              picture,
+              object,
             );
-            if (event.key === "Delete")
-              this.host.assign(
-                await this.client.deletePicture(
-                  now.query.revision,
-                  now.query.sheet,
-                  picture,
-                  now.profile,
-                ),
+            if (event.key === "Delete") {
+              const target = now.layout.objects.find(
+                (item) => item.id === object,
               );
-            else {
-              const result = await this.client.pictureGesture(
+              if (!target) throw new Error("Worksheet object no longer exists");
+              this.host.assign(
+                await (target.kind === "picture"
+                  ? this.client.deletePicture(
+                      now.query.revision,
+                      now.query.sheet,
+                      object,
+                      now.profile,
+                    )
+                  : this.client.deleteShape(
+                      now.query.revision,
+                      now.query.sheet,
+                      object,
+                      now.profile,
+                    )),
+              );
+            } else {
+              const result = await this.client.drawingGesture(
                 now.query.revision,
                 now.layout.id,
                 { handle, dx, dy, commit: true },
@@ -276,12 +287,12 @@ export class SpreadsheetPicturePointer {
             await this.host.prepare();
             const now = this.host.current();
             if (now.query.sheet !== sheet)
-              throw new Error("Worksheet picture target changed");
+              throw new Error("Worksheet object target changed");
             if (now.layout)
-              await this.client.selectPicture(
+              await this.client.selectDrawing(
                 now.query.revision,
                 now.layout.id,
-                picture,
+                object,
               );
             await this.host.render();
           })
@@ -292,7 +303,7 @@ export class SpreadsheetPicturePointer {
     this.targets.set(key, { button, pointer, abort });
     return button;
   }
-  private paint(selection: XlsxPictureSelection): void {
+  private paint(selection: XlsxDrawingSelection): void {
     const context = this.surface.clearOverlay(this.host.current().scale);
     context.strokeStyle = "#2563eb";
     context.lineWidth = 1;
@@ -328,14 +339,14 @@ export class SpreadsheetPicturePointer {
       seen = new Set<string>();
     let selected = false;
     if (now.layout && !this.viewport.hidden && !now.disabled)
-      for (const [layer, picture] of now.layout.pictures.entries()) {
-        for (const [index, region] of picture.regions.entries()) {
-          const key = `${picture.id}:${index}:move`,
+      for (const [layer, object] of now.layout.objects.entries()) {
+        for (const [index, region] of object.regions.entries()) {
+          const key = `${object.id}:${index}:move`,
             button = this.target(
               key,
-              picture.id,
+              object.id,
               0,
-              `Move picture ${picture.name}`,
+              `Move object ${object.name}`,
             );
           seen.add(key);
           Object.assign(button.style, {
@@ -344,9 +355,9 @@ export class SpreadsheetPicturePointer {
             width: `${region.clip.width * now.scale}px`,
             height: `${region.clip.height * now.scale}px`,
             zIndex: String(layer + 4),
-            outline: picture.selected ? "1px solid #2563eb" : "none",
+            outline: object.selected ? "1px solid #2563eb" : "none",
           });
-          if (!picture.selected) continue;
+          if (!object.selected) continue;
           selected = true;
           for (const [corner, name] of [
             "top left",
@@ -365,12 +376,12 @@ export class SpreadsheetPicturePointer {
               y > region.clip.y + region.clip.height + 0.001
             )
               continue;
-            const key = `${picture.id}:${index}:${corner}`,
+            const key = `${object.id}:${index}:${corner}`,
               button = this.target(
                 key,
-                picture.id,
+                object.id,
                 corner + 1,
-                `Resize worksheet picture ${name}`,
+                `Resize worksheet object ${name}`,
               );
             seen.add(key);
             Object.assign(button.style, {
@@ -378,7 +389,7 @@ export class SpreadsheetPicturePointer {
               top: `${y * now.scale - 5}px`,
               width: "10px",
               height: "10px",
-              zIndex: String(now.layout.pictures.length + 4),
+              zIndex: String(now.layout.objects.length + 4),
               border: "1px solid white",
             });
           }

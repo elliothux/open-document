@@ -34,7 +34,7 @@ fn SheetObject::paint(
 }
 
 ///|
-fn picture_used(
+fn drawing_used(
   used : Range,
   pictures : Array[SheetObject],
   dimensions : Dimensions,
@@ -52,7 +52,7 @@ fn picture_used(
 }
 
 ///|
-fn picture_diagnostic(
+fn drawing_diagnostic(
   sheet : Sheet,
   diagnostic : String,
 ) -> Bool raise @failure.Failure {

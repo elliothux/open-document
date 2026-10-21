@@ -1,9 +1,9 @@
 ///|
-fn Session::inline_image(
+fn Session::image_frame(
   self : Session,
   tree : WordTree,
   id : Int,
-) -> @layout.InlineImage raise @failure.Failure {
+) -> @layout.ImageFrame raise @failure.Failure {
   let wp = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
   let drawing = "http://schemas.openxmlformats.org/drawingml/2006/main"
   let rel_uri = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -11,6 +11,7 @@ fn Session::inline_image(
   let mut height = None
   let mut target = None
   let mut inline = false
+  let mut anchor = None
   let crop : Array[Double] = [0, 0, 0, 0]
   let mut seen_crop = false
   for item in tree.descendants(id) {
@@ -19,7 +20,10 @@ fn Session::inline_image(
       continue
     }
     if node.uri == wp && node.name == "anchor" {
-      @failure.reject("unsupported-layout", "Floating images are unsupported")
+      guard anchor is None else {
+        @failure.reject("unsupported-layout", "Duplicate floating image anchor")
+      }
+      anchor = Some(tree.image_anchor(id, item))
     }
     if node.uri == wp && node.name == "inline" {
       inline = true
@@ -74,7 +78,7 @@ fn Session::inline_image(
       )
     }
   }
-  guard inline &&
+  guard inline != (anchor is Some(_)) &&
     width is Some(width) &&
     height is Some(height) &&
     target is Some(target) &&
@@ -98,7 +102,7 @@ fn Session::inline_image(
       "missing-image", "External images require supplied resources",
     )
   }
-  { key: target, width, height, crop, }
+  { key: target, width, height, crop, anchor, }
 }
 
 ///|

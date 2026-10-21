@@ -15,7 +15,7 @@ priv struct Grid {
   result : Json
   rows : Array[GridBand]
   columns : Array[GridBand]
-  pictures : Array[SheetObject]
+  objects : Array[SheetObject]
 }
 
 ///|
@@ -403,7 +403,7 @@ pub fn Session::viewport(
   }
   let dimensions = self.resolved_dimensions(current, probe, profile)
   let mut picture_reason = ""
-  let pictures = self.sheet_objects(current, dimensions) catch {
+  let objects = self.sheet_objects(current, dimensions) catch {
     @failure.Failure(code="limit-exceeded", ..) as error => raise error
     @failure.Failure(message~, ..) => {
       picture_reason = message
@@ -414,7 +414,7 @@ pub fn Session::viewport(
   let source_notes = self.read_sheet_notes(current) catch {
     @failure.Failure(..) => None
   }
-  let mut used = picture_used(current.used(), pictures, dimensions)
+  let mut used = drawing_used(current.used(), objects, dimensions)
   if source_notes is Some(source_notes) {
     for note in source_notes.entries {
       notes[note.address.name()] = note
@@ -463,7 +463,7 @@ pub fn Session::viewport(
   }
   let key = Json::array([
     Json(self.revision),
-    Json(self.picture_selection),
+    Json(self.drawing_selection),
     Json(sheet),
     Json(x),
     Json(y),
@@ -498,7 +498,7 @@ pub fn Session::viewport(
     visible_notes,
     table_styles,
   ) = self.paint_grid(
-    index, dimensions, rows, columns, width, height, probe, profile, notes, pictures,
+    index, dimensions, rows, columns, width, height, probe, profile, notes, objects,
   )
   let document : @layout.PositionedDocument = {
     pages: [{ width, height, primitives, }],
@@ -510,7 +510,7 @@ pub fn Session::viewport(
   self.grid_id += 1
   let diagnostics = self.diagnostics.filter(diagnostic => {
     !table_styles.renders(diagnostic, current.id) &&
-    !(picture_reason.is_empty() && picture_diagnostic(current, diagnostic))
+    !(picture_reason.is_empty() && drawing_diagnostic(current, diagnostic))
   })
   if !picture_reason.is_empty() {
     diagnostics.push("unrendered:" + current.id + ":" + picture_reason)
@@ -539,7 +539,7 @@ pub fn Session::viewport(
     result: Json::null(),
     rows,
     columns,
-    pictures,
+    objects,
   }
   let result : Json = {
     "id": self.grid_id,
@@ -557,12 +557,13 @@ pub fn Session::viewport(
     "images": document.drawing_images(images),
     "cells": cells,
     "notes": visible_notes,
-    "pictures": pictures.map(fn(picture : SheetObject) -> Json {
+    "objects": objects.map(fn(picture : SheetObject) -> Json {
       {
         "id": picture.id,
+        "kind": picture.kind(),
         "name": picture.name,
-        "selected": self.picture_selection == Some((sheet, picture.id)),
-        "regions": grid.picture_regions(picture),
+        "selected": self.drawing_selection == Some((sheet, picture.id)),
+        "regions": grid.drawing_regions(picture),
       }
     }),
     "rows": row_headers,

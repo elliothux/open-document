@@ -1,8 +1,13 @@
-import type { XlsxClient, XlsxPictureSettings } from "./xlsx.js";
+import type {
+  XlsxClient,
+  XlsxPictureSettings,
+  XlsxShapeKind,
+  XlsxShapeSettings,
+} from "./xlsx.js";
 import type { XlsxQuery, XlsxSheetEdit } from "@open-document/wasm/xlsx";
 import type { SpreadsheetCanvas } from "./spreadsheet-canvas.js";
 
-/** Sheet structure and pictures use the host's draft barrier and ordered queue. */
+/** Sheet structure and drawings use the host's draft barrier and ordered queue. */
 export abstract class SpreadsheetObjects {
   protected abstract readonly client: XlsxClient;
   protected abstract readonly profile: Record<string, string>;
@@ -10,6 +15,54 @@ export abstract class SpreadsheetObjects {
   protected abstract read<T>(action: () => Promise<T>): Promise<T>;
   protected abstract change(action: () => Promise<XlsxQuery>): Promise<void>;
   abstract get currentState(): XlsxQuery;
+  shapes() {
+    return this.read(() =>
+      this.client.shapes(
+        this.currentState.revision,
+        this.currentState.sheet,
+        this.profile,
+      ),
+    );
+  }
+  insertShape(
+    kind: XlsxShapeKind,
+    width: number,
+    height: number,
+    text: string,
+  ): Promise<void> {
+    return this.change(() =>
+      this.client.insertShape(
+        this.currentState.revision,
+        this.currentState.sheet,
+        kind,
+        width,
+        height,
+        text,
+        this.profile,
+      ),
+    );
+  }
+  setShape(id: string, settings: XlsxShapeSettings): Promise<void> {
+    return this.change(() =>
+      this.client.setShape(
+        this.currentState.revision,
+        this.currentState.sheet,
+        id,
+        settings,
+        this.profile,
+      ),
+    );
+  }
+  deleteShape(id: string): Promise<void> {
+    return this.change(() =>
+      this.client.deleteShape(
+        this.currentState.revision,
+        this.currentState.sheet,
+        id,
+        this.profile,
+      ),
+    );
+  }
   select(range: string, sheet = this.currentState.sheet): Promise<void> {
     return this.change(() =>
       this.client.select(this.currentState.revision, sheet, range),
