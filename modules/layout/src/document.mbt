@@ -313,7 +313,20 @@ pub(all) struct ImageFrame {
   height : Double
   crop : Array[Double]
   anchor : ImageAnchor?
-} derive(ToJson)
+}
+
+///|
+pub impl ToJson for ImageFrame with fn to_json(self) {
+  {
+    "key": self.key,
+    "width": self.width,
+    "height": self.height,
+    "crop": self.crop,
+    "anchor": self.anchor
+    .map(anchor => anchor.to_json())
+    .unwrap_or(Json::null()),
+  }
+}
 
 ///|
 pub extend ImageFrame with ToJson::{to_json}

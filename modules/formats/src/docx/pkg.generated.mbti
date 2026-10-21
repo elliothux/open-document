@@ -140,7 +140,7 @@ pub struct Session {
 }
 pub fn Session::apply_format(Self, Int, Selection, CharacterFormat, ParagraphFormat) -> Json raise @failure.Failure
 pub fn Session::begin_composition(Self, Int) -> Json raise @failure.Failure
-pub fn Session::begin_picture_resize(Self, Int, Int) -> Json raise @failure.Failure
+pub fn Session::begin_picture_resize(Self, Int, Int, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::body_fragment_images(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::body_page_field(Self, Int, Selection) -> Json raise @failure.Failure
 pub fn Session::bookmarks(Self, Int) -> Json raise @failure.Failure
@@ -164,7 +164,7 @@ pub fn Session::edit_body_page_field(Self, Int, Selection, String, probe~ : @lay
 pub fn Session::edit_bookmark(Self, Int, BookmarkEdit) -> Json raise @failure.Failure
 pub fn Session::edit_comment(Self, Int, CommentEdit) -> Json raise @failure.Failure
 pub fn Session::edit_list(Self, Int, Selection, ListEdit) -> Json raise @failure.Failure
-pub fn Session::edit_picture(Self, Int, Int, Double, Double, Array[Double]) -> Json raise @failure.Failure
+pub fn Session::edit_picture(Self, Int, Int, Double, Double, Array[Double], probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::edit_ruler(Self, Int, @layout.Layout, Selection, RulerEdit) -> Json raise @failure.Failure
 pub fn Session::edit_state(Self) -> Json raise @failure.Failure
 pub fn Session::edit_table(Self, Int, Selection, TableEdit, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
@@ -215,6 +215,7 @@ pub fn Session::set_page_columns(Self, Int, @layout.Columns?, probe~ : @layout.T
 pub fn Session::set_page_numbering(Self, Int, @layout.PageNumbering?, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_page_setup(Self, Int, @layout.PageSetup, orientation? : String?) -> Json raise @failure.Failure
 pub fn Session::set_paragraph_format(Self, Int, Selection, ParagraphFormat) -> Json raise @failure.Failure
+pub fn Session::set_picture_anchor(Self, Int, Int, @layout.ImageAnchor?, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_running_area(Self, Int, String, String, Array[RunningContent], Double, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_running_options(Self, Int, Bool, Bool, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_theme_color(Self, Int, String, String) -> Json raise @failure.Failure

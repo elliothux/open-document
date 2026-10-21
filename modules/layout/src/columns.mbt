@@ -173,21 +173,47 @@ fn column_body(
     ignore(columns.width(setup))
   }
   let run = fn(balance : (Int, Double)?) raise @failure.Failure {
-    let pagination = Pagination::new(
-      setups[0],
-      setups~,
-      pageSetups=page_setups,
-      columns~,
-      balance~,
+    let wraps = flow.paragraphs.any(p => {
+      p.spans.any(span => {
+        span.image
+        .bind(image => image.anchor)
+        .map(anchor => anchor.wrapping != "none")
+        .unwrap_or(false)
+      })
+    })
+    let mut wrapping = if wraps {
+      probe.pagination
+      .map(old => wrapping_rects(old.pages, columns.count))
+      .unwrap_or([])
+    } else {
+      []
+    }
+    for _ in 0..<8 {
+      let pagination = Pagination::new(
+        setups[0],
+        setups~,
+        pageSetups=page_setups,
+        columns~,
+        balance~,
+        anchorPage=Some(flow.page),
+        wrapping=wrapping.copy(),
+      )
+      let (reflowed, reused, next) = pagination.body(
+        probe,
+        { ..flow, page: pagination.page, },
+        cache,
+        profile,
+        images,
+      )
+      let current = wrapping_rects(pagination.pages, columns.count)
+      if !wraps || Json(current) == Json(wrapping) {
+        return (pagination, reflowed, reused, next)
+      }
+      wrapping = current
+    }
+    @failure.reject(
+      "layout-overflow", "Floating image wrapping did not converge within eight passes",
     )
-    let (reflowed, reused, next) = pagination.body(
-      probe,
-      { ..flow, page: pagination.page, },
-      cache,
-      profile,
-      images,
-    )
-    (pagination, reflowed, reused, next)
   }
   let initial = run(None)
   if columns.count == 1 {

@@ -70,6 +70,7 @@ fn Pagination::widow_breaks(
     let mut bottom = y
     while end < lines.length() {
       let height = lines[end].1.spaced(paragraph.line, end == start).height
+      bottom = self.wrapping_floor(page_index, bottom, height)
       if bottom + height > limit {
         break
       }

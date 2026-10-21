@@ -13,6 +13,8 @@ priv struct Pagination {
   mut count : Int
   mut after : Double
   mut gap : Double
+  wrapping : Array[WrappingRect]
+  placedWrapping : Map[(Int, Int), Unit]
 }
 
 ///|
@@ -22,8 +24,10 @@ fn Pagination::new(
   pageSetups~ : Array[PageSetup] = [],
   columns~ : Columns = Columns::new(),
   balance~ : (Int, Double)? = None,
+  anchorPage~ : PageSetup? = None,
+  wrapping~ : Array[WrappingRect] = [],
 ) -> Pagination {
-  let anchor_page = page
+  let anchor_page = anchorPage.unwrap_or(page)
   let page = pageSetups.get(0).unwrap_or(page)
   let result : Pagination = {
     columns,
@@ -49,6 +53,8 @@ fn Pagination::new(
     count: 0,
     after: 0,
     gap: 0,
+    wrapping,
+    placedWrapping: Map([]),
   }
   result.page = result.page_at(0)
   result.y = result.page.top
@@ -85,7 +91,8 @@ fn Pagination::fit(
       "layout-overflow", "Object is taller than the page content area",
     )
   }
-  for _ in 0..<3 {
+  for _ in 0..<(3 + self.wrapping.length()) {
+    self.avoid_wrapping(height)
     if self.y + height <= self.page.height - self.page.bottom {
       return
     }
@@ -261,6 +268,11 @@ fn Pagination::paragraph(
       width,
       startOffset=start_offset,
     )
+    if measured_lines.get(0) is Some(measured) &&
+      self.y + measured.spaced(paragraph.line, first).height <=
+      self.page.height - self.page.bottom {
+      ignore(self.detach_wrapping_images(measured.line, images))
+    }
     if start_offset == 0 &&
       paragraph.keepLines &&
       !measured_lines.any(line => line.line.y < 0) {
@@ -270,13 +282,26 @@ fn Pagination::paragraph(
         if measured.line.caretOnly {
           continue
         }
-        height += measured.spaced(paragraph.line, first_line).height
+        let current = measured.spaced(paragraph.line, first_line).height
+        height = self.wrapping_floor(
+            self.pages.length() - 1,
+            self.y + height,
+            current,
+          ) -
+          self.y +
+          current
         first_line = false
       }
       let limit = self.page.height - self.page.bottom
       if self.y + height > limit {
         if self.pages.last().unwrap().lines.any(line => !line.caretOnly) ||
-          !self.pages.last().unwrap().borders.is_empty() {
+          !self.pages.last().unwrap().borders.is_empty() ||
+          self.pages.last().unwrap().lines.any(line => {
+            line.paragraph == paragraph.id &&
+            line.images.any(image => {
+              image.anchor is Some(anchor) && anchor.wrapping != "none"
+            })
+          }) {
           self.next_page()
         } else if height <= limit - self.page.top {
           self.y = self.page.top
@@ -330,6 +355,7 @@ fn Pagination::paragraph(
           break
         }
       }
+      line = self.detach_wrapping_images(line, images)
       self.fit(line.height)
       if available() != width {
         start_offset = line.start

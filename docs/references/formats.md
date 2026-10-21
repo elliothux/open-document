@@ -363,21 +363,21 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 撤销/重做精确恢复文字、图片、选区与资源。节点 ID 仅在当前会话有效，保存重开后须重新查询。未知图片源、扩展、效果或不支持的布局仍保护相应段落。含图片单元格的表格结构命令继续保护，避免绕过对象锁；浮动环绕继续归 [P10](../p10-docx-core.md)。
 
-同步 Wasm 和 Worker 的 `pictures(revision)` 返回 `{ revision, images }`。每项包含会话内绘图节点 `id`、`name`、是否被当前单图片范围选中的 `selected`、point 单位的 `width/height`、四项 `crop`、尺寸/裁剪保护原因 `reason`、删除保护原因 `deleteReason` 和替换保护原因 `replaceReason`。`crop` 依次为源图左、上、右、下移除的比例。受尺寸/裁剪保护的项使用零尺寸及零裁剪，原因供 UI 显示；列表最多 256 项。宿主 `DocumentEditor.pictures()` 复用现有队列，默认图片面板从列表选择目标。
+同步 Wasm 和 Worker 的 `pictures(revision)` 返回 `{ revision, images }`。每项包含会话内绘图节点 `id`、`name`、是否被当前单图片范围选中的 `selected`、point 单位的 `width/height`、四项 `crop`、尺寸/裁剪保护原因 `reason`、删除保护原因 `deleteReason`、替换保护原因 `replaceReason`，以及下方定位使用的 `anchor` 和 `positionReason`。`crop` 依次为源图左、上、右、下移除的比例。受尺寸/裁剪保护的项使用零尺寸及零裁剪，原因供 UI 显示；列表最多 256 项。宿主 `DocumentEditor.pictures()` 复用现有队列，默认图片面板从列表选择目标。
 
-点击受支持的行内图片会选择其一个逻辑单元，复用现有文字选择、历史与输入路径，不增加 revision 或历史。相同图片资源仍按各绘图的段内 offset 区分。布局 `PlacedInlineImage.start/level` 保留逻辑起点和双向级别，`Hit.imageStart` 标记图片命中；左右半部返回相应文字边缘，RTL 调换逻辑方向。选择框按图片本身的框计算，并裁剪到行/单元格的可见区域，不按展开后的源裁剪尺寸命中。
+点击受支持的行内图片会选择其一个逻辑单元，复用现有文字选择、历史与输入路径，不增加 revision 或历史。相同图片资源仍按各绘图的段内 offset 区分。布局 `PlacedImageFrame.start/level` 保留逻辑起点和双向级别，`Hit.imageStart` 标记图片命中；左右半部返回相应文字边缘，RTL 调换逻辑方向。选择框按图片本身的框计算，并裁剪到行/单元格的可见区域，不按展开后的源裁剪尺寸命中。
 
 `hitTest(layoutId, page, x, y)` 的 `DocxHit.picture` 为图片的 `DocxSelection` 或 null；`position` 仍是最近文字边缘。核心检查图片两端的逻辑位置和原有保护。默认宿主普通点击使用 picture 范围，拖选和 Shift 点击沿 position 扩展文字范围。命中只查询当前布局，旧布局及无效坐标仍拒绝。默认面板在手势结束后读取 selected 项，自动切换尺寸/裁剪/删除目标；过期、组合、暂停和替换沿现有屏障，晚到的面板读取不覆盖新文档。
 
 原生 Backspace/Delete 和输入可删除或替换被选图片，撤销恢复原图片及选区；列表和命中不改变源包。屏幕阅读文本将占位字符描述为 [image]。普通单元格复用同一位置与裁剪，结构操作和图片剪切仍保留前述保护。行为参考 [ONLYOFFICE ParaDrawing.select](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/word/Editor/Paragraph/ParaDrawing.js#L2784-L2795) 与 [GraphicObjects.OnMouseDown](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/word/Editor/GraphicObjects/GraphicObjects.js#L1594-L1606) 的图片选择与文字输入分工。本项目通过已有逻辑范围连接两者；实现归 [picture-selection.mbt](../../modules/formats/src/docx/picture-selection.mbt) 和 [docx-hit.mbt](../../modules/bridge/src/docx-hit.mbt)。
 
-`editPicture(revision, { action: "resize", id, width, height, crop })` 修改已有受支持的正文行内图片。宿主也显式传入图片列表的 revision，防止读取后改动文档而误用节点身份；默认面板过期后须重新读取。尺寸为 0.1–14400 pt，舍入到整数 EMU；裁剪输入为 0–1 的四个比例，按 1/100000 舍入，两侧之和须小于 1。保持目标框，只裁源图再拉伸至框；重置写四边零值。源图原字节、关系、替代文字、身份和范围外 XML 保持；同时更新行内框及图片变换尺寸。一次命令一项精确历史，保持原文字选择，重复有效值不新增 revision 或废弃布局。
+`editPicture(revision, { action: "resize", id, width, height, crop })` 修改已有受支持的正文图片。宿主也显式传入图片列表的 revision，防止读取后改动文档而误用节点身份；默认面板过期后须重新读取。尺寸为 0.1–14400 pt，舍入到整数 EMU；裁剪输入为 0–1 的四个比例，按 1/100000 舍入，两侧之和须小于 1。保持目标框，只裁源图再拉伸至框；重置写四边零值。源图原字节、关系、替代文字、身份和范围外 XML 保持；同时更新行内框及图片变换尺寸。一次命令一项精确历史，保持原文字选择，重复有效值不新增 revision 或废弃布局。
 
 `editPicture(revision, { action: "delete", id })` 只删除目标绘图元素，保留 run、段落和周围文字。目标段落可编辑时，光标落在图片原位置后的合法字素边界；若其他对象仍保护该段落，则保留原文字选择。删除保留包内图片和关系，避免误删共享资源；撤销/重做精确恢复源与选择。`noDelete`、外部对象引用及启用修订记录的文档保护删除；尺寸/裁剪锁不单独阻止删除。默认面板按 `deleteReason` 启用按钮。行为参考 [ONLYOFFICE 从 run 移除绘图](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Run.js#L2899-L2963)。
 
 `editPicture(revision, { action: "replace", id, bytes })` 替换目标图片的压缩源。`bytes` 为 `Uint8Array`，支持 PNG/JPEG，输入不超过 4 MiB，单轴不超过 4096 像素，总像素不超过 4194304；核心复用 PPTX 的文件头与尺寸校验，平台负责实际解码。目标框、裁剪、替代文字、身份和文字选择保持不变。核心创建独立资源、关系和内容类型，避免改变共享原图；这些修改合为一项历史，撤销移除新增资源，重做恢复相同字节。其他部件及原资源保留。相同字节不新增 revision；源保护、输出及 4 MiB 历史预算失败不留下部分资源。替换不受尺寸/裁剪锁单独限制，默认面板按 `replaceReason` 启用文件选择。固定框替换参考 [ONLYOFFICE replacePictureData](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/common/Drawings/Format/Image.js#L836-L859)；本操作保留已有裁剪。宿主在重新布局前准备新增图片；核心与 Canvas 回收当前流中不再使用的解码资源，撤销/重做时按需重新准备。
 
-核心 `InlineImage.crop` 与 `PlacedInlineImage` 保留框和源裁剪；公共定位路径产生矩形裁剪及展开后的原图坐标，Canvas/PDF 使用同一结果。展开后的源图宽高各不超过 1e9 pt，沿用绘制坐标预算。资源仍按原键准备，不生成修改后的图片副本。缓存复制裁剪数组，调用者不能改写已保留的几何。未知裁剪/扩展、图片效果或锁定、修订容器、浮动/旋转/翻转图片、外部图片及未支持节设置继续保护。现有 noChangeAspect 约束禁止改变宽高比；noCrop/noResize 保护整项编辑。负裁剪扩边及浮动环绕仍按 [P10](../p10-docx-core.md) 实施。源比例对应 [ONLYOFFICE 图片裁剪系数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L946-L960)，实现归 [`picture-editing.mbt`](../../modules/formats/src/docx/picture-editing.mbt)。
+核心 `ImageFrame.crop` 与 `PlacedImageFrame` 保留框和源裁剪；公共定位路径产生矩形裁剪及展开后的原图坐标，Canvas/PDF 使用同一结果。展开后的源图宽高各不超过 1e9 pt，沿用绘制坐标预算。资源仍按原键准备，不生成修改后的图片副本。缓存复制裁剪数组，调用者不能改写已保留的几何。未知裁剪/扩展、图片效果或锁定、修订容器、未知浮动锚点及旋转/翻转图片、外部图片及未支持节设置继续保护。现有 noChangeAspect 约束禁止改变宽高比；noCrop/noResize 保护整项编辑。负裁剪扩边及浮动环绕仍按 [P10](../p10-docx-core.md) 实施。源比例对应 [ONLYOFFICE 图片裁剪系数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L946-L960)，实现归 [`picture-editing.mbt`](../../modules/formats/src/docx/picture-editing.mbt)。
 
 ### 行内图片拖动缩放
 
@@ -388,6 +388,22 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 开始要求当前正好选中该图片，并通过原尺寸编辑保护。`EditState.pictureResizeId` 在普通状态为 null，与 `compositionId` 互斥。候选复用尺寸命令的校验和源补丁；`flow` 与布局展示候选，已提交源、revision 和历史保持。更新失败保留最后有效候选；错误身份、过期 revision、未知图片源及资源上限继续拒绝。候选期间其他编辑、文字组合及直接 DOCX/PDF 持久化返回 busy。提交按最终坐标重新准备源，只新增一项历史；返回原尺寸则不新增历史。取消恢复原显示和选择，不改变源与历史。图片字节、关系、替代文字、原裁剪及非目标部件保留。
 
 松开提交，Escape、指针取消、捕获丢失及窗口失焦取消。手柄方向键沿对应方向移动 1 pt，Shift 为 10 pt，每次按键产生一项有界编辑。普通命令、保存和暂停先处理末次坐标；`whenIdle()` 只等已接收的候选更新。恢复与销毁会取消未提交候选，已提交历史继续保留。缩放使用当前 CSS 比例，DPR 留给原绘制层；缩放手柄不触发文字选择的边缘自动滚动。核心候选布局和正式布局共用 Canvas/PDF，平台不保存另一份文档树。实现归 [`picture-resize.mbt`](../../modules/formats/src/docx/picture-resize.mbt)、[`document-picture-resize.ts`](../../packages/web/src/document-picture-resize.ts)及 [`document-pointer.ts`](../../packages/web/src/document-pointer.ts)。
+
+### 图片定位
+
+`editPicture(revision, { action: "position", id, anchor })` 在正文行内图片、前置/后置的无环绕浮动图片及上下型环绕之间切换，也可修改既有锚点。默认图片面板提供相同操作。`anchor: null` 表示行内；浮动值为 `{ horizontal, vertical, behind, order, wrapping, distance }`。两轴使用 `{ relativeTo, offset, align }`：偏移为 point 数值并令 `align: null`；对齐则令 `offset: null`。水平基准支持 `page/margin/column`，对齐支持 `left/center/right`；垂直基准支持 `page/margin/paragraph`，对齐支持 `top/center/bottom`。段落对齐沿 ONLYOFFICE 规则落在段首，数值偏移相对段首计算。
+
+偏移为有限的 ±14400 pt，按整数 EMU 舍入。`behind` 为布尔值；`order` 为 0–4294967295 的整数，传输为 JSON 数字。图片目录的 `anchor` 与 Flow 的 `ImageFrame.anchor` 显式返回浮动值或 null。`positionReason` 独立于尺寸/裁剪锁，`noMove/noChangeWrap` 和文档保护继续拒绝定位。未知位置元数据或被覆盖的位置节点中的注释/处理指令保留源并拒绝覆盖；把含扩展身份的锚点改为行内也继续保护。表格、页眉页脚、简单定位、禁止重叠、效果和其他参考系仍不支持浮动编辑。
+
+核心先按纸张、源页边距、当前栏或锚点段落放置图片；页眉页脚让出的正文空间不改变源页边距基准。浮动图片不增加文字行宽与行高，仍占一个逻辑单元。后置图片先于文字绘制，前置图片后于文字绘制；同层按顺序及源位置排列。前置图片优先命中；后置图片在文字行外可选，文字行内保留文字输入。浮动选区按完整图片框计算，沿同一 Canvas/PDF 输出。
+
+`wrapping` 为 `none` 或 `topBottom`；`distance` 为 `{ top, right, bottom, left }`，各值为 0–14400 pt，按整数 EMU 舍入。上下型环绕在水平相交的栏中排除图片及间距覆盖的纵向区域；文字行、表格和续页避让同一区域，段落保留和孤行规则沿用核心分页。源锚点与文字行分离，整页图片留在原页，后续文字进入下一页。排除区域变化会使相关分页失效，稳定输入可复用缓存。核心最多迭代八次；循环依赖或超限明确失败。
+
+读取时支持 `wp:wrapTopAndBottom` 的 `distT/distB` 覆盖锚点间距，零效果范围保留支持；未设置的左右间距沿 ONLYOFFICE 使用 3.2 mm，显式零值保持。环绕属性写回原生 XML，保留图片字节、关系及未改源。依据为 [ONLYOFFICE 上下型排除区](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/GraphicObjects/WrapManager.js#L298-L305)及[图片间距默认值](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ParaDrawing.js#L1712-L1716)。
+
+同步 Wasm 和 Worker 的 `editPicture`、`pictureResize` 接受第三个字体 `profile` 参数，默认 `{}`；宿主自动传入当前映射。涉及环绕的定位、尺寸和缩放候选在提交前预检完整布局，缺字体、缺解码图片或排版失败保持文档、选择和历史；候选更新失败保留最后有效候选。直接 MoonBit 会话可显式传入 `probe/profile/images` 启用相同预检，纯源编辑继续使用既有有界事务。
+
+定位保持原文字选择、资源、名称/替代文字及未改 XML；一次命令一项精确历史，相同有效值不新增历史。旧修订、无效值、未知源和输出超限原子拒绝。实现归 [picture-position.mbt](../../modules/formats/src/docx/picture-position.mbt)、[floating-image.mbt](../../modules/layout/src/floating-image.mbt)及[image-wrapping.mbt](../../modules/layout/src/image-wrapping.mbt)，依据为 [ONLYOFFICE 图片放置属性](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ParaDrawing.js#L986-L1057)。方形文字环绕、拖动移动和更广对象继续归 [P10](../p10-docx-core.md)，不以上下型环绕代替这些要求。
 
 ### 页面设置
 

@@ -4,6 +4,9 @@ priv struct PictureResize {
   picture : Int
   initial : @layout.ImageFrame
   prepared : PreparedEdit?
+  probe : @layout.TextProbe?
+  profile : Map[String, String]
+  images : @layout.Images?
 }
 
 ///|
@@ -20,19 +23,20 @@ fn Session::picture_resize_gesture(
 }
 
 ///|
-/// Begins a tentative resize of the exactly selected inline picture.
+/// Begins a tentative resize of the exactly selected picture.
 pub fn Session::begin_picture_resize(
   self : Session,
   revision : Int,
   picture : Int,
+  probe? : @layout.TextProbe,
+  profile~ : Map[String, String] = Map([]),
+  images? : @layout.Images,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   self.check_document_protection()
   let tree = WordTree::new(self.document())
   guard self.selected_picture(tree) == Some(picture) else {
-    @failure.reject(
-      "invalid-operation", "Select the inline picture before resizing",
-    )
+    @failure.reject("invalid-operation", "Select the picture before resizing")
   }
   let initial = self.editable_picture(tree, picture).0
   guard self.picture_resize_id < 2147483647 else {
@@ -44,6 +48,9 @@ pub fn Session::begin_picture_resize(
     picture,
     initial,
     prepared: None,
+    probe,
+    profile: profile.copy(),
+    images,
   })
   self.input_group = None
   self.typing_text = None
@@ -88,12 +95,21 @@ fn Session::prepare_picture_gesture(
     .min(1000000000.0 * (1.0 - image.crop[0] - image.crop[2]) / image.width)
     .min(1000000000.0 * (1.0 - image.crop[1] - image.crop[3]) / image.height)
   let factor = factor.max(0.1 / image.width.min(image.height)).min(maximum)
-  self.prepare_picture_resize(
+  let prepared = self.prepare_picture_resize(
     gesture.picture,
     image.width * factor,
     image.height * factor,
     image.crop,
   )
+  if prepared is Some(prepared) {
+    self.check_picture_layout(
+      prepared.document,
+      gesture.probe,
+      gesture.profile,
+      gesture.images,
+    )
+  }
+  prepared
 }
 
 ///|

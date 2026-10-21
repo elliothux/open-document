@@ -11,12 +11,13 @@ fn Session::editable_picture(
   id : Int,
   remove~ : Bool = false,
   replace~ : Bool = false,
+  position~ : Bool = false,
 ) -> (@layout.ImageFrame, Int, Int, Int?) raise @failure.Failure {
   self.check_picture_context(tree)
   guard tree.nodes.get(id) is Some(node) &&
     node.uri == word_uri &&
     node.name == "drawing" else {
-    @failure.reject("invalid-operation", "Unknown inline picture")
+    @failure.reject("invalid-operation", "Unknown picture")
   }
   let run = tree.nodes
     .get(node.parent)
@@ -72,6 +73,8 @@ fn Session::editable_picture(
       node.attributes.any(attr => {
         (if remove {
           ["noDelete"]
+        } else if position {
+          ["noMove", "noChangeWrap"]
         } else if replace {
           []
         } else {
@@ -124,7 +127,7 @@ fn Session::editable_picture(
     .length() ==
     1 else {
     @failure.reject(
-      "protected-content", "Picture requires one inline frame and stretch fill",
+      "protected-content", "Picture requires one frame and stretch fill",
     )
   }
   for extent in extents {
@@ -195,6 +198,12 @@ pub fn Session::pictures(
     } catch {
       @failure.Failure(message~, ..) => message
     }
+    let (position_image, position_reason) = (
+      Some(self.editable_picture(tree, id, position=true).0),
+      "",
+    ) catch {
+      @failure.Failure(message~, ..) => (None, message)
+    }
     images.push({
       "id": id,
       "selected": selected == Some(id),
@@ -205,6 +214,11 @@ pub fn Session::pictures(
       "reason": reason,
       "deleteReason": delete_reason,
       "replaceReason": replace_reason,
+      "anchor": position_image
+      .bind(image => image.anchor)
+      .map(anchor => anchor.to_json())
+      .unwrap_or(Json::null()),
+      "positionReason": position_reason,
     })
   }
   { "revision": revision, "images": images }
@@ -218,10 +232,14 @@ pub fn Session::edit_picture(
   width : Double,
   height : Double,
   crop : Array[Double],
+  probe? : @layout.TextProbe,
+  profile~ : Map[String, String] = Map([]),
+  images? : @layout.Images,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let prepared = self.prepare_picture_resize(id, width, height, crop)
   if prepared is Some(prepared) {
+    self.check_picture_layout(prepared.document, probe, profile, images)
     self.commit_edit(prepared.edit, prepared.document)
   }
   self.edit_result(prepared.map(p => p.edit.paragraphs).unwrap_or([]))

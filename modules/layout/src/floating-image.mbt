@@ -23,7 +23,21 @@ pub(all) struct ImageAnchor {
   vertical : ImageAxis
   behind : Bool
   order : Int64
-} derive(ToJson)
+  wrapping : String
+  distance : CellMargins
+}
+
+///|
+pub impl ToJson for ImageAnchor with fn to_json(self) {
+  {
+    "horizontal": self.horizontal,
+    "vertical": self.vertical,
+    "behind": self.behind,
+    "order": self.order.to_double(),
+    "wrapping": self.wrapping,
+    "distance": self.distance,
+  }
+}
 
 ///|
 pub extend ImageAnchor with ToJson::{to_json}
@@ -73,6 +87,19 @@ pub fn ImageAnchor::validate(self : ImageAnchor) -> Unit raise @failure.Failure 
   self.vertical.validate(false)
   guard self.order >= 0 && self.order <= 4294967295L else {
     @failure.reject("invalid-image", "Invalid floating image layer order")
+  }
+  guard ["none", "topBottom"].contains(self.wrapping) &&
+    [
+      self.distance.top,
+      self.distance.right,
+      self.distance.bottom,
+      self.distance.left,
+    ].all(value => {
+      !value.is_nan() && !value.is_inf() && value >= 0 && value <= 14400
+    }) else {
+    @failure.reject(
+      "invalid-image", "Invalid floating image wrapping or text distance",
+    )
   }
 }
 

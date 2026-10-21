@@ -152,6 +152,7 @@ fn Pagination::table_rows(
   )
   let total = heights.iter().fold(init=0.0, (sum, value) => sum + value)
   let bottom = table.border_width(last_row + 1)
+  self.avoid_wrapping(total + bottom)
   if first_row == last_row &&
     !table.exactHeights[first_row] &&
     self.y + total + bottom > self.page.height - self.page.bottom {
@@ -248,9 +249,14 @@ fn Pagination::repeat_table_header(
 ) -> Unit raise @failure.Failure {
   if first_row >= table.headerRows &&
     table.headerRows > 0 &&
-    self.y == self.page.top &&
+    self.y ==
+    self.wrapping_floor(
+      self.pages.length() - 1,
+      self.page.top,
+      self.page.height,
+    ) &&
     first_row > 0 {
-    let header = Pagination::new(self.page)
+    let header = Pagination::new({ ..self.page, top: self.y, })
     let ready = try {
       header.table_rows(
         cache,

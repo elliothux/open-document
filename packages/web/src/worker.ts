@@ -456,9 +456,17 @@ async function dispatch(request: Request): Promise<unknown> {
         case "docxPictures":
           return foundation.pictures(request.revision);
         case "docxPictureResize":
-          return foundation.pictureResize(request.revision, request.change);
+          return foundation.pictureResize(
+            request.revision,
+            request.change,
+            request.profile,
+          );
         case "editDocxPicture":
-          return foundation.editPicture(request.revision, request.picture);
+          return foundation.editPicture(
+            request.revision,
+            request.picture,
+            request.profile,
+          );
         case "setPageSetup":
           return foundation.setPageSetup(request.revision, request.page);
         case "setPageNumbering":

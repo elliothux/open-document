@@ -6,6 +6,7 @@ import type {
 } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { DocxPicturePosition } from "./docx-picture-position.js";
 
 export function DocxPictures({
   controller,
@@ -180,6 +181,16 @@ export function DocxPictures({
       {image?.reason && <p>{image.reason}</p>}
       {image && (
         <>
+          <DocxPicturePosition
+            key={`${image.id}:${catalog?.revision}`}
+            controller={controller}
+            state={state}
+            editor={editor}
+            image={image}
+            revision={catalog!.revision}
+            disabled={disabled || stale}
+            applied={load}
+          />
           <label>
             {t.replacementFile}
             <input

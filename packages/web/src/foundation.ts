@@ -50,6 +50,8 @@ export type {
   DocxPictureEdit,
   DocxPictureResizeCommand,
   DocxPictures,
+  ImageAnchor,
+  ImageAxis,
   DocxTableEdit,
   DocxTableClipboard,
   DocxClipboard,
@@ -339,19 +341,25 @@ export class FoundationClient extends FoundationClipboardClient {
       await this.connection.request({ operation: "docxPictures", revision }),
     );
   }
-  async pictureResize(revision: number, change: DocxPictureResizeCommand) {
+  async pictureResize(
+    revision: number,
+    change: DocxPictureResizeCommand,
+    profile: Record<string, string> = {},
+  ) {
     checkDocxPictureResize(change);
     return editState(
       await this.connection.request({
         operation: "docxPictureResize",
         revision,
         change,
+        profile,
       }),
     );
   }
   async editPicture(
     revision: number,
     picture: DocxPictureEdit,
+    profile: Record<string, string> = {},
   ): Promise<EditState> {
     checkDocxPictureEdit(picture);
     return editState(
@@ -359,6 +367,7 @@ export class FoundationClient extends FoundationClipboardClient {
         operation: "editDocxPicture",
         revision,
         picture,
+        profile,
       }),
     );
   }

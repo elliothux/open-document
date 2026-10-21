@@ -1,5 +1,9 @@
 # 测试说明
 
+DOCX 图片上下型环绕通过 18 项定向核心检查，包含普通/合并表格续页的 6 项原回归。覆盖前文避让、四边间距与源覆盖、整页图片锚点、段落保留/孤行、长表表头、缓存、命中/选区、精确历史，以及缺字体/解码资源时的原子拒绝。传输及 Flow 通过 4 项、168 个断言；扩展既有 Chromium 默认流程，检查原生环绕 XML、文字避让的实际 Canvas/PDF 像素、整页图片后的文字续页、尺寸/环绕混合历史与重开。根 api/check/build、私有 typecheck/lint/format 和源码上限已检查。证据归 `docxTopBottomWrappingCheckpoint`。未跑全量、安装包或外部 Office；方形环绕、拖动移动及其余 P10/P11/P12 继续实施。
+
+DOCX 图片定位通过 9 项定向核心检查，覆盖行内/前置/后置切换、两轴参考系、页眉避让后的源边距、缓存、命中/选区、裁剪、精确历史、重开和失败原子性。传输及 Flow 检查通过 4 项、163 个断言。Chromium 默认流程覆盖创建后定位、原生参数、无变化、层次、独立 ZIP/XML/资源、精确历史、重开点击/输入及 Canvas/PDF 像素；证据归 `docxPicturePositionCheckpoint`。未跑全量、安装包或外部 Office；方形/上下型环绕、拖动移动和其余 P10/P11/P12 继续实施。
+
 工作表基础图形的默认面板和通用画布控件通过 17 项定向核心检查；参数、选择及层次传输通过 3 项、58 个断言。新增 Chromium 默认流程通过 1/1，覆盖四种对象创建、属性与统一文字设置、自由缩放候选/取消、移动和键盘、零轴直线命中、图片/图形分别删除与恢复、混合图层、无变化、完整混合历史、独立原生源、重开输入和 PDF。原图片手势与图形 SDK 分别通过 1/1，复查通用 `objects` 目录及新绘图入口。根 api/check/build 通过，私有 typecheck/lint/format 和源码上限、链接、阶段状态已检查。证据归 `xlsxWorksheetShapeControlsCheckpoint`。未跑全量或外部 Office；复杂图形、更多文字变体和边缘自动滚动继续实施，P10/P11/P12 保持 planned。
 
 工作表基础图形的核心与 SDK 通过 17 项定向核心检查和 22 个传输断言。覆盖四种基本对象、混合图片身份/顺序、文字和字体、椭圆文字边界、零轴直线、自由缩放候选、精确历史、行列锚点、工作表复制、重开及失败保护。新增 Chromium SDK 流程通过 1/1，覆盖真实 Worker 与同步 Wasm API、独立 XML/PNG、Canvas 颜色、原生粗体文字、无变化、删除恢复、重开输入及 PDF 文字/颜色。原图片裁剪流程也通过 1/1，复查拆分后的图片传输。证据归 `xlsxWorksheetShapeSdkCheckpoint`。此记录对应核心与 SDK 切片；默认界面与画布交互的后续证据见 `xlsxWorksheetShapeControlsCheckpoint`。未跑全量或外部 Office，P10/P11/P12 保持 planned。

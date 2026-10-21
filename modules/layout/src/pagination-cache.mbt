@@ -81,6 +81,16 @@ fn Pagination::restore(
   }
   prefix.validate_images(images)
   self.pages.push(prefix)
+  self.placedWrapping.clear()
+  for frame in self.pages {
+    for line in frame.lines {
+      for image in line.images {
+        if image.anchor is Some(anchor) && anchor.wrapping == "topBottom" {
+          self.placedWrapping[(line.paragraph, image.start)] = ()
+        }
+      }
+    }
+  }
   self.page = self.page_at(position.page)
   self.y = position.y
   self.after = position.after

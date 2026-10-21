@@ -242,9 +242,12 @@ pub(all) struct ImageAnchor {
   vertical : ImageAxis
   behind : Bool
   order : Int64
-} derive(ToJson)
+  wrapping : String
+  distance : CellMargins
+}
 pub fn ImageAnchor::to_json(Self) -> Json
 pub fn ImageAnchor::validate(Self) -> Unit raise @failure.Failure
+pub impl ToJson for ImageAnchor
 
 pub(all) enum ImageAxis {
   Offset(String, Double)
@@ -259,8 +262,9 @@ pub(all) struct ImageFrame {
   height : Double
   crop : Array[Double]
   anchor : ImageAnchor?
-} derive(ToJson)
+}
 pub fn ImageFrame::to_json(Self) -> Json
+pub impl ToJson for ImageFrame
 
 pub(all) struct ImageResource {
   identity : String

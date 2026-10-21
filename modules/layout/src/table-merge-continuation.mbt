@@ -189,22 +189,33 @@ fn Pagination::continue_table_group(
   let base_page = self.pages.length() - 1
   for index in base_page..<(1024 * self.columns.count) {
     let page = self.page_at(index)
-    let capacity = page.height - page.top - page.bottom - bottom - header_height
-    guard capacity > 0 else {
+    let raw_capacity = page.height -
+      page.top -
+      page.bottom -
+      bottom -
+      header_height
+    guard raw_capacity > 0 else {
       @failure.reject(
         "layout-overflow", "Table borders leave no page content area",
       )
     }
-    tops.push(page.top + header_height)
+    let top = self.wrapping_floor(index, page.top, page.height) + header_height
+    let capacity = (page.height - page.bottom - bottom - top).max(0)
+    tops.push(top)
     capacities.push(capacity)
     let available = if index == base_page {
-      (page.height - page.bottom - bottom - self.y).max(0)
+      (page.height - page.bottom - bottom - self.y.max(top)).max(0)
     } else {
       capacity
     }
     page_starts.push(page_starts.last().unwrap() + available)
   }
-  let space = { initial: self.y, starts: page_starts, tops, capacities, }
+  let space = {
+    initial: self.y.max(tops[0]),
+    starts: page_starts,
+    tops,
+    capacities,
+  }
   let count = last_row - first_row + 1
   let starts = Array::make(count, 0.0)
   let ends = Array::make(count, 0.0)
@@ -246,8 +257,11 @@ fn Pagination::continue_table_group(
   let final_page = space.index((cursor - 0.000001).max(0))
   for _ in 0..<final_page {
     self.next_page()
-    if repeat {
-      let repeated = Pagination::new(self.page)
+    if repeat && capacities[self.pages.length() - base_page - 1] > 0 {
+      let repeated = Pagination::new({
+        ..self.page,
+        top: tops[self.pages.length() - base_page - 1] - header_height,
+      })
       repeated.table_rows(
         cache,
         probe,
@@ -271,6 +285,9 @@ fn Pagination::continue_table_group(
     for page in first_page..<=last_page {
       let a = start.max(space.start(page))
       let b = end.min(space.start(page + 1))
+      if b <= a && capacities[page] == 0 {
+        continue
+      }
       table.paint_borders(
         self.pages[base_page + page],
         row,
@@ -312,6 +329,9 @@ fn Pagination::continue_table_group(
       let x = table.left(self.page_at(base_page + page)) + offset
       let a = start.max(space.start(page))
       let b = end.min(space.start(page + 1))
+      if b <= a && capacities[page] == 0 {
+        continue
+      }
       let frame = self.pages[base_page + page]
       let area = {
         x,

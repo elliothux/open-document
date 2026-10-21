@@ -151,9 +151,15 @@ export type Operation =
       operation: "docxPictureResize";
       revision: number;
       change: DocxPictureResizeCommand;
+      profile: Record<string, string>;
     }
   | { operation: "docxPictures"; revision: number }
-  | { operation: "editDocxPicture"; revision: number; picture: DocxPictureEdit }
+  | {
+      operation: "editDocxPicture";
+      revision: number;
+      picture: DocxPictureEdit;
+      profile: Record<string, string>;
+    }
   | {
       operation: "editDocxTable";
       profile: Record<string, string>;

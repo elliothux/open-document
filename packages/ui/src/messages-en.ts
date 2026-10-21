@@ -1,3 +1,4 @@
+import { docxPicturesEn } from "./messages-docx-pictures.js";
 import { objectEn } from "./messages-pptx-objects.js";
 import { connectorEn } from "./messages-pptx-connectors.js";
 import { viewEn } from "./messages-pptx-view.js";
@@ -104,25 +105,7 @@ export const en = {
   pictureOpacity: "Picture opacity",
   opacityPercent: "Opacity (%)",
   applyOpacity: "Apply opacity",
-  pictureProperties: "Picture properties",
-  loadPictures: "Load pictures",
-  choosePicture: "Picture",
-  applyPicture: "Apply picture size and crop",
-  deletePicture: "Delete picture",
-  replaceImage: "Replace picture",
-  replacementFile: "Replacement picture (PNG, JPEG)",
-  pictureCrop: "Picture crop",
-  cropLeft: "Crop left (%)",
-  cropTop: "Crop top (%)",
-  cropRight: "Crop right (%)",
-  cropBottom: "Crop bottom (%)",
-  applyCrop: "Apply crop",
-  resetCrop: "Reset crop",
-  insertImage: "Insert picture",
-  insertPictureWidth: "Inserted picture width (pt)",
-  insertPictureHeight: "Inserted picture height (pt)",
-  pictureFile: "Picture file (PNG, JPEG)",
-  imageInputLimit: "Choose a nonempty picture up to 4 MiB.",
+  ...docxPicturesEn,
   sheetPrintSetup: "Sheet print setup",
   printWorkbook: "Preview visible sheets",
   sheetHeaderFooter: "Headers and footers",

@@ -54,7 +54,13 @@ fn Foundation::picture_operation(
     }
     let result = match field_string(change, "action") {
       "begin" =>
-        session.begin_picture_resize(revision, field_int(change, "picture"))
+        session.begin_picture_resize(
+          revision,
+          field_int(change, "picture"),
+          probe=self.probe,
+          profile=xlsx_profile(request),
+          images=self.images,
+        )
       "cancel" =>
         session.cancel_picture_resize(revision, field_int(change, "id"))
       "update" =>
@@ -97,7 +103,24 @@ fn Foundation::picture_operation(
         field_int(picture, "id"),
         input_bytes(picture, 4194304),
       )
-    "resize" => resize_picture(session, revision, picture)
+    "resize" =>
+      resize_picture(
+        session,
+        revision,
+        picture,
+        self.probe,
+        xlsx_profile(request),
+        self.images,
+      )
+    "position" =>
+      session.set_picture_anchor(
+        revision,
+        field_int(picture, "id"),
+        picture_anchor(picture),
+        probe=self.probe,
+        profile=xlsx_profile(request),
+        images=self.images,
+      )
     _ => @failure.reject("invalid-operation", "Invalid picture action")
   }
   if result is { "revision": Number(current, ..), .. } &&
@@ -108,10 +131,69 @@ fn Foundation::picture_operation(
 }
 
 ///|
+fn picture_anchor(
+  picture : Json,
+) -> @layout.ImageAnchor? raise @failure.Failure {
+  guard picture is { "anchor": value, .. } else {
+    @failure.reject("invalid-operation", "Picture anchor is required")
+  }
+  if value is Null {
+    return None
+  }
+  fn axis(value : Json) -> @layout.ImageAxis raise @failure.Failure {
+    let reference = field_string(value, "relativeTo")
+    match value {
+      { "offset": Number(offset, ..), "align": Null, .. } =>
+        @layout.Offset(reference, offset)
+      { "offset": Null, "align": String(align), .. } =>
+        @layout.Aligned(reference, align)
+      _ => @failure.reject("invalid-operation", "Invalid picture position")
+    }
+  }
+  guard value
+    is {
+      "horizontal": horizontal,
+      "vertical": vertical,
+      "behind": True
+      | False,
+      ..
+    } else {
+    @failure.reject("invalid-operation", "Invalid picture anchor")
+  }
+  let order = xlsx_number(value, "order")
+  guard order >= 0 && order <= 4294967295 && order == order.floor() else {
+    @failure.reject("invalid-operation", "Invalid picture layer order")
+  }
+  Some({
+    horizontal: axis(horizontal),
+    vertical: axis(vertical),
+    behind: value is { "behind": True, .. },
+    order: order.to_int64(),
+    wrapping: field_string(value, "wrapping"),
+    distance: {
+      guard value is { "distance": distance, .. } else {
+        @failure.reject(
+          "invalid-operation", "Picture text distance is required",
+        )
+      }
+      {
+        top: xlsx_number(distance, "top"),
+        right: xlsx_number(distance, "right"),
+        bottom: xlsx_number(distance, "bottom"),
+        left: xlsx_number(distance, "left"),
+      }
+    },
+  })
+}
+
+///|
 fn resize_picture(
   session : @docx.Session,
   revision : Int,
   picture : Json,
+  probe : @layout.TextProbe,
+  profile : Map[String, String],
+  images : @layout.Images,
 ) -> Json raise @failure.Failure {
   guard picture
     is {
@@ -128,5 +210,14 @@ fn resize_picture(
       _ => @failure.reject("invalid-operation", "Invalid crop value")
     }
   })
-  session.edit_picture(revision, field_int(picture, "id"), width, height, crop)
+  session.edit_picture(
+    revision,
+    field_int(picture, "id"),
+    width,
+    height,
+    crop,
+    probe~,
+    profile~,
+    images~,
+  )
 }

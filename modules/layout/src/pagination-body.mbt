@@ -16,6 +16,7 @@ fn Pagination::body(
     Json::array(self.pageSetups.map(page => page.to_json())),
     Json(flow.additiveSpacing),
     Json(self.columns),
+    Json(self.wrapping),
     self.balance
     .map(value => Json::array([Json(value.0), Json(value.1)]))
     .unwrap_or(Json::null()),

@@ -157,6 +157,7 @@ export class DocumentEditor extends DocumentTables {
             const state = await this.client.pictureResize(
               this.state.revision,
               change(),
+              this.profile,
             );
             await this.changed(state, true, false);
           }, true);
@@ -555,7 +556,9 @@ export class DocumentEditor extends DocumentTables {
     return this.enqueue(() => this.client.pictures(this.state.revision));
   }
   editPicture(revision: number, picture: DocxPictureEdit): Promise<void> {
-    return this.format(() => this.client.editPicture(revision, picture));
+    return this.format(() =>
+      this.client.editPicture(revision, picture, this.profile),
+    );
   }
   setDefaultTabStop(interval: number | null): Promise<void> {
     return this.format(() =>

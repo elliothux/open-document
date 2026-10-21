@@ -461,18 +461,27 @@ export class FoundationSession extends FoundationClipboardSession {
   pictures(revision: number) {
     return docxPictures(this.call({ operation: "docxPictures", revision }));
   }
-  pictureResize(revision: number, change: DocxPictureResizeCommand) {
+  pictureResize(
+    revision: number,
+    change: DocxPictureResizeCommand,
+    profile: Record<string, string> = {},
+  ) {
     checkDocxPictureResize(change);
     return editState(
-      this.call({ operation: "docxPictureResize", revision, change }),
+      this.call({ operation: "docxPictureResize", revision, change, profile }),
     );
   }
-  editPicture(revision: number, picture: DocxPictureEdit): EditState {
+  editPicture(
+    revision: number,
+    picture: DocxPictureEdit,
+    profile: Record<string, string> = {},
+  ): EditState {
     return editState(
       this.call({
         operation: "editDocxPicture",
         revision,
         picture: prepareDocxPictureEdit(picture),
+        profile,
       }),
     );
   }

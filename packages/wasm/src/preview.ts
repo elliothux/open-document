@@ -123,11 +123,26 @@ export interface ImageAnchor {
   vertical: ImageAxis;
   behind: boolean;
   order: number;
+  wrapping: "none" | "topBottom";
+  distance: DocxCellMargins;
 }
 
-function imageAnchor(value: unknown): void {
+export function checkImageAnchor(value: unknown): void {
   if (value === null) return;
   const anchor = record(value);
+  if (anchor.wrapping !== "none" && anchor.wrapping !== "topBottom")
+    throw new Error("Invalid floating image wrapping");
+  const distance = record(anchor.distance);
+  if (
+    !["top", "right", "bottom", "left"].every(
+      (key) =>
+        typeof distance[key] === "number" &&
+        Number.isFinite(distance[key]) &&
+        Number(distance[key]) >= 0 &&
+        Number(distance[key]) <= 14400,
+    )
+  )
+    throw new Error("Invalid floating image text distance");
   if (
     typeof anchor.behind !== "boolean" ||
     !Number.isSafeInteger(anchor.order) ||
@@ -349,7 +364,7 @@ export function docxFlow(value: unknown): DocxFlow {
         throw new Error("Invalid preview text decoration");
       if (span.image !== null) {
         const image = fields(span.image, ["width", "height"], ["key"]);
-        imageAnchor(image.anchor);
+        checkImageAnchor(image.anchor);
         if (
           !Array.isArray(image.crop) ||
           image.crop.length !== 4 ||

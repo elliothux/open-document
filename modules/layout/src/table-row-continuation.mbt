@@ -24,6 +24,11 @@ fn Pagination::split_table_row(
     self.next_page()
   }
   while minimum > 0 || table_row_pending(cells, indices) {
+    self.avoid_wrapping(whole)
+    if self.y >= self.page.height - self.page.bottom {
+      self.next_page()
+      continue
+    }
     let limit = self.page.height - self.page.bottom
     let full = limit - self.page.top
     let required = table.fragment_required(

@@ -1,5 +1,7 @@
 import { record, integer } from "./validation.js";
 import { encodeBytes } from "./session.js";
+import { checkImageAnchor, type ImageAnchor } from "./preview.js";
+export type { ImageAnchor, ImageAxis } from "./preview.js";
 
 export interface DocxPicture {
   id: number;
@@ -16,13 +18,16 @@ export interface DocxPictures {
     reason: string;
     deleteReason: string;
     replaceReason: string;
+    anchor: ImageAnchor | null;
+    positionReason: string;
   })[];
 }
 export type DocxPictureEdit =
   | (DocxPicture & { action: "resize" })
   | { action: "insert"; width: number; height: number; bytes: Uint8Array }
   | { action: "replace"; id: number; bytes: Uint8Array }
-  | { action: "delete"; id: number };
+  | { action: "delete"; id: number }
+  | { action: "position"; id: number; anchor: ImageAnchor | null };
 
 export type DocxPictureResizeCommand =
   | { action: "begin"; picture: number }
@@ -56,6 +61,12 @@ export function checkDocxPictureResize(value: unknown): void {
 export function checkDocxPictureEdit(value: unknown): void {
   const edit = record(value);
   if (edit.action === "resize") return checkDocxPicture(value);
+  if (edit.action === "position") {
+    if (!integer(edit.id, 0, 2147483647))
+      throw new Error("Invalid DOCX picture identity");
+    checkImageAnchor(edit.anchor);
+    return;
+  }
   if (edit.action === "insert") {
     checkDocxPicture({
       id: 0,
@@ -123,10 +134,12 @@ export function docxPictures(value: unknown): DocxPictures {
       typeof image.reason !== "string" ||
       typeof image.deleteReason !== "string" ||
       typeof image.replaceReason !== "string" ||
+      typeof image.positionReason !== "string" ||
       !Number.isSafeInteger(image.id) ||
       Number(image.id) < 0
     )
       throw new Error("Invalid DOCX picture entry");
+    checkImageAnchor(image.anchor);
     if (!image.reason) checkDocxPicture(image);
     else if (
       image.width !== 0 ||

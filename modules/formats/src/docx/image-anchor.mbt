@@ -63,7 +63,8 @@ fn WordTree::image_axis(
   id : Int,
 ) -> @layout.ImageAxis raise @failure.Failure {
   let node = self.nodes[id]
-  guard node.attributes.all(a => a.uri.is_empty() && a.name == "relativeFrom") else {
+  guard node.text.trim().is_empty() &&
+    node.attributes.all(a => a.uri.is_empty() && a.name == "relativeFrom") else {
     @failure.reject("unsupported-layout", "Unknown floating image position")
   }
   self.anchor_children(id, ["posOffset", "align"])
@@ -120,8 +121,13 @@ fn WordTree::image_anchor(
   }
   ignore(anchor_flag(node, "layoutInCell", true))
   ignore(anchor_flag(node, "locked", false))
+  let distances : Map[String, Double] = Map([])
   for key in ["distT", "distB", "distL", "distR"] {
-    let distance = @string.parse_int64(node.attribute(key).unwrap_or("0")[:]) catch {
+    let distance = @string.parse_int64(
+      node
+      .attribute(key)
+      .unwrap_or(if key == "distL" || key == "distR" { "115200" } else { "0" })[:],
+    ) catch {
       _ =>
         @failure.reject("invalid-image", "Invalid floating image text distance")
     }
@@ -130,10 +136,11 @@ fn WordTree::image_anchor(
         "limit-exceeded", "Floating image text distance exceeds budget",
       )
     }
+    distances[key] = distance.to_double() / 12700
   }
   self.anchor_children(id, [
     "simplePos", "positionH", "positionV", "extent", "effectExtent", "docPr", "cNvGraphicFramePr",
-    "wrapNone", "graphic",
+    "wrapNone", "wrapTopAndBottom", "graphic",
   ])
   let graphics = self.children[id].filter(child => {
     self.nodes[child].uri == picture_drawing_uri &&
@@ -153,12 +160,39 @@ fn WordTree::image_anchor(
       "unsupported-layout", "Floating drawing requires ordinary picture data",
     )
   }
-  let wrap = self.anchor_child(id, "wrapNone")
-  guard self.children[wrap].is_empty() && self.nodes[wrap].attributes.is_empty() else {
+  let wrapping = self.children[id].filter(child => {
+    ["wrapNone", "wrapTopAndBottom"].contains(self.nodes[child].name)
+  })
+  guard wrapping is [wrap] else {
+    @failure.reject("unsupported-layout", "Picture requires one wrapping mode")
+  }
+  guard self.nodes[wrap].text.trim().is_empty() &&
+    (if self.nodes[wrap].name == "wrapNone" {
+      self.children[wrap].is_empty() && self.nodes[wrap].attributes.is_empty()
+    } else {
+      self.nodes[wrap].attributes.all(a => {
+        a.uri.is_empty() && ["distT", "distB"].contains(a.name)
+      })
+    }) else {
     @failure.reject("unsupported-layout", "Unknown floating image wrapping")
   }
+  if self.nodes[wrap].name == "wrapTopAndBottom" {
+    self.anchor_children(wrap, ["effectExtent"])
+    for attr in self.nodes[wrap].attributes {
+      let distance = @string.parse_int64(attr.value[:]) catch {
+        _ => @failure.reject("invalid-image", "Invalid wrapping text distance")
+      }
+      guard distance >= 0 && distance <= 182880000L else {
+        @failure.reject(
+          "limit-exceeded", "Wrapping text distance exceeds budget",
+        )
+      }
+      distances[attr.name] = distance.to_double() / 12700
+    }
+  }
   let simple = self.anchor_child(id, "simplePos")
-  guard self.children[simple].is_empty() &&
+  guard self.nodes[simple].text.trim().is_empty() &&
+    self.children[simple].is_empty() &&
     self.nodes[simple].attributes.all(a => {
       a.uri.is_empty() && ["x", "y"].contains(a.name) && a.value == "0"
     }) else {
@@ -166,9 +200,10 @@ fn WordTree::image_anchor(
       "unsupported-layout", "Unsupported floating image simple position",
     )
   }
-  for child in self.children[id] {
+  for child in self.children[id] + self.children[wrap] {
     if self.nodes[child].name == "effectExtent" {
-      guard self.children[child].is_empty() &&
+      guard self.nodes[child].text.trim().is_empty() &&
+        self.children[child].is_empty() &&
         self.nodes[child].attributes.all(a => {
           a.uri.is_empty() &&
           ["l", "t", "r", "b"].contains(a.name) &&
@@ -197,6 +232,17 @@ fn WordTree::image_anchor(
     vertical: self.image_axis(self.anchor_child(id, "positionV")),
     behind: anchor_flag(node, "behindDoc", false),
     order,
+    wrapping: if self.nodes[wrap].name == "wrapNone" {
+      "none"
+    } else {
+      "topBottom"
+    },
+    distance: {
+      top: distances["distT"],
+      right: distances["distR"],
+      bottom: distances["distB"],
+      left: distances["distL"],
+    },
   }
   result.validate()
   result
