@@ -42,6 +42,17 @@ pub fn Session::paste_body_fragment(
     fields=true,
     tables=true,
   )
+  if source.order.any(id => {
+      source.nodes[id].uri == picture_inline_uri &&
+      source.nodes[id].name == "anchor"
+    }) {
+    let parent = original_tree.nodes[original_tree.nodes[range.start.paragraph].parent]
+    guard parent.uri == word_uri && parent.name == "body" else {
+      @failure.reject(
+        "protected-content", "Floating drawings require a body paragraph",
+      )
+    }
+  }
   if blocks.any(id => source.nodes[id].name == "tbl") {
     guard original_tree.nodes[range.start.paragraph].parent ==
       original_tree.child(0, "body").unwrap() else {

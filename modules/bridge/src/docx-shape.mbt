@@ -29,6 +29,20 @@ fn Foundation::shape_operation(
         images=self.images,
       )
     "delete" => session.delete_shape(revision, field_int(shape, "id"))
+    "position" =>
+      session.set_drawing_anchor(
+        revision,
+        field_int(shape, "id"),
+        drawing_anchor(shape),
+        target?=if shape is { "target": target, .. } {
+          Some(field_position(target))
+        } else {
+          None
+        },
+        probe=self.probe,
+        profile=xlsx_profile(request),
+        images=self.images,
+      )
     "properties" =>
       session.edit_shape(
         revision,

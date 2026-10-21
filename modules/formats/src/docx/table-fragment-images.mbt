@@ -9,14 +9,15 @@ fn WordTree::check_fragment_picture(
     root.attributes.is_empty() &&
     self.nodes[root.parent].name == "r" else {
     @failure.reject(
-      "protected-content", "Rich pictures require ordinary inline drawings",
+      "protected-content", "Rich pictures require ordinary drawings",
     )
   }
   let allowed = [
     "inline", "extent", "effectExtent", "docPr", "cNvGraphicFramePr", "graphicFrameLocks",
     "graphic", "graphicData", "pic", "nvPicPr", "cNvPr", "cNvPicPr", "picLocks",
     "blipFill", "blip", "srcRect", "stretch", "fillRect", "spPr", "xfrm", "off",
-    "ext", "prstGeom", "avLst",
+    "ext", "prstGeom", "avLst", "anchor", "simplePos", "positionH", "positionV",
+    "posOffset", "align", "wrapNone", "wrapTopAndBottom", "wrapSquare",
   ]
   for id in self.descendants(drawing) {
     if id == drawing {
@@ -27,9 +28,19 @@ fn WordTree::check_fragment_picture(
       [
         picture_inline_uri, picture_drawing_uri, "http://schemas.openxmlformats.org/drawingml/2006/picture",
       ].contains(node.uri) &&
-      node.text.trim().is_empty() &&
+      (
+        node.text.trim().is_empty() ||
+        ["posOffset", "align"].contains(node.name)
+      ) &&
       node.attributes.all(a => {
         a.uri.is_empty() ||
+        (
+          node.name == "anchor" &&
+          a.uri == drawing_2010_uri &&
+          ["anchorId", "editId"].contains(a.name) &&
+          a.value.length() == 8 &&
+          a.value.iter().all(c => c.is_ascii_hexdigit())
+        ) ||
         (
           node.name == "blip" &&
           (
@@ -136,7 +147,17 @@ fn Session::import_fragment_drawings(
     } else {
       tree.check_fragment_picture(drawing)
     }
-    while identities.contains(next.to_string()) {
+    let anchor_metadata = tree.drawing_data(drawing).0.attributes.any(a => {
+      a.uri == drawing_2010_uri
+    })
+    while next <= 16384 &&
+          (
+            identities.contains(next.to_string()) ||
+            (
+              anchor_metadata &&
+              identities.contains("wp14:" + fragment_anchor_identity(next))
+            )
+          ) {
       next += 1
     }
     guard next <= 16384 else {
@@ -144,8 +165,12 @@ fn Session::import_fragment_drawings(
     }
     let id = next.to_string()
     identities[id] = true
+    let anchor_identity = fragment_anchor_identity(next)
+    if anchor_metadata {
+      identities["wp14:" + anchor_identity] = true
+    }
     next += 1
-    tree.remap_fragment_drawing_identity(drawing, id, changes)
+    tree.remap_fragment_drawing_identity(drawing, id, anchor_identity, changes)
     if shape {
       continue
     }

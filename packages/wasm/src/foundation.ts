@@ -71,8 +71,8 @@ import {
   prepareDocxPictureEdit,
   docxPictures,
   type DocxPictureEdit,
-  checkDocxPictureGesture,
-  type DocxPictureGestureCommand,
+  checkDocxDrawingGesture,
+  type DocxDrawingGestureCommand,
 } from "./docx-picture.js";
 export * from "./docx-list.js";
 export * from "./docx-list-level.js";
@@ -480,14 +480,14 @@ export class FoundationSession extends FoundationClipboardSession {
       this.call({ operation: "editDocxShape", revision, shape, profile }),
     );
   }
-  pictureGesture(
+  drawingGesture(
     revision: number,
-    change: DocxPictureGestureCommand,
+    change: DocxDrawingGestureCommand,
     profile: Record<string, string> = {},
   ) {
-    checkDocxPictureGesture(change);
+    checkDocxDrawingGesture(change);
     return editState(
-      this.call({ operation: "docxPictureGesture", revision, change, profile }),
+      this.call({ operation: "docxDrawingGesture", revision, change, profile }),
     );
   }
   editPicture(

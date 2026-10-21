@@ -302,11 +302,12 @@ fn Layout::image_hit(
 ) -> Hit {
   let leading = (x < image.x + image.width / 2) == (image.level % 2 == 0)
   let clip = line.clip && image.anchor is None
-  let top = if clip { image.y.max(line.y) } else { image.y }
+  let (_, y, _, height) = image.interaction_bounds()
+  let top = if clip { y.max(line.y) } else { y }
   let bottom = if clip {
-    (image.y + image.height).min(line.y + line.height)
+    (y + height).min(line.y + line.height)
   } else {
-    image.y + image.height
+    y + height
   }
   self.clip_cell_hit(
     {
@@ -358,11 +359,12 @@ fn Layout::floating_image_hit(
     })
   })
   for (index, image) in frame.floating_images().rev() {
+    let (left, top, width, height) = image.interaction_bounds()
     if !(image.anchor.unwrap().behind && text) &&
-      x >= image.x &&
-      x <= image.x + image.width &&
-      y >= image.y &&
-      y <= image.y + image.height {
+      x >= left &&
+      x <= left + width &&
+      y >= top &&
+      y <= top + height {
       return Some(self.image_hit(frame.lines[index], image, page, index, x))
     }
   }

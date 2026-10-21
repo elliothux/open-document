@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { DocumentEditor } from "@open-document/web/editor";
 import type {
   DocxShape,
@@ -7,6 +7,7 @@ import type {
 } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { DocxDrawingPosition } from "./docx-drawing-position.js";
 
 export function DocxShapes({
   controller,
@@ -36,6 +37,47 @@ export function DocxShapes({
         value.items[0],
     );
   };
+  const selection = editor.getSnapshot().data.selection;
+  useEffect(() => {
+    if (
+      state.document?.composition ||
+      state.document?.dragging ||
+      state.document?.paused ||
+      state.document?.stopped ||
+      !selection ||
+      selection.anchor.paragraph !== selection.focus.paragraph ||
+      Math.abs(selection.anchor.offset - selection.focus.offset) !== 1
+    )
+      return;
+    let active = true;
+    controller.run(async () => {
+      try {
+        const value = await editor.shapes();
+        const selected = value.items.find((item) => item.selected);
+        if (active && selected) {
+          setCatalog(value);
+          setDraft(selected);
+        }
+      } catch (error) {
+        if (active) throw error;
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, [
+    controller,
+    editor,
+    state.document?.revision,
+    state.document?.composition,
+    state.document?.dragging,
+    state.document?.paused,
+    state.document?.stopped,
+    selection?.anchor.paragraph,
+    selection?.anchor.offset,
+    selection?.focus.paragraph,
+    selection?.focus.offset,
+  ]);
   const shape = catalog?.items.find((item) => item.id === draft?.id);
   const stale = catalog?.revision !== state.document?.revision;
   return (
@@ -143,6 +185,22 @@ export function DocxShapes({
       {shape?.reason && <p>{shape.reason}</p>}
       {draft && shape && (
         <>
+          <DocxDrawingPosition
+            key={`${shape.id}:${catalog?.revision}`}
+            controller={controller}
+            state={state}
+            drawing={shape}
+            disabled={disabled || stale}
+            apply={async (anchor) => {
+              if (!catalog) return;
+              await editor.editShape(catalog.revision, {
+                action: "position",
+                id: shape.id,
+                anchor,
+              });
+              await load();
+            }}
+          />
           <form
             onSubmit={(event) => {
               event.preventDefault();

@@ -125,3 +125,17 @@ pub(all) struct PlacedDrawingFrame {
 
 ///|
 pub extend PlacedDrawingFrame with ToJson::{to_json}
+
+///|
+fn PlacedDrawingFrame::interaction_bounds(
+  self : PlacedDrawingFrame,
+) -> (Double, Double, Double, Double) {
+  let horizontal = if self.width == 0 { 3.0 } else { 0.0 }
+  let vertical = if self.height == 0 { 3.0 } else { 0.0 }
+  (
+    self.x - horizontal,
+    self.y - vertical,
+    self.width + 2 * horizontal,
+    self.height + 2 * vertical,
+  )
+}

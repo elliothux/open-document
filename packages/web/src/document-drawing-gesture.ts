@@ -1,6 +1,7 @@
 import type { FoundationClient } from "./foundation.js";
 import type {
   DocxPictures,
+  DocxShapes,
   DocxSelectionGeometry,
 } from "@open-document/wasm/foundation";
 import type { DocxPointerHost } from "./document-pointer.js";
@@ -12,8 +13,9 @@ import {
 } from "./pointer-selection.js";
 
 /** Selected floating frames move; four aspect-preserving corners resize in the same core gesture. */
-export class DocxPictureGesture {
-  private image: DocxPictures["images"][number] | undefined;
+export class DocxDrawingGesture {
+  private image:
+    DocxPictures["images"][number] | DocxShapes["items"][number] | undefined;
   private revision = -1;
   private readonly buttons: HTMLButtonElement[] = [];
   private readonly pointers: PointerSelection[] = [];
@@ -72,10 +74,10 @@ export class DocxPictureGesture {
             this.scale = host.current().scale;
             this.pageTime = performance.now();
             if (handle === 0) host.input();
-            const picture = this.image?.id;
-            if (picture === undefined)
-              throw new Error("Select a picture before starting a gesture");
-            return host.gesture(() => ({ action: "begin", picture, handle }));
+            const drawing = this.image?.id;
+            if (drawing === undefined)
+              throw new Error("Select a drawing before starting a gesture");
+            return host.gesture(() => ({ action: "begin", drawing, handle }));
           }
           return host.gesture(() => {
             if (handle === 0 && elapsed) {
@@ -148,7 +150,7 @@ export class DocxPictureGesture {
           )
             return;
           event.preventDefault();
-          const picture = this.image.id,
+          const drawing = this.image.id,
             step = event.shiftKey ? 10 : 1;
           const dx =
             event.key === "ArrowLeft"
@@ -164,7 +166,7 @@ export class DocxPictureGesture {
                 : 0;
           this.ending = true;
           void host
-            .gesture(() => ({ action: "begin", picture, handle }))
+            .gesture(() => ({ action: "begin", drawing, handle }))
             .catch(() => {});
           void host
             .gesture(() => ({
@@ -216,8 +218,8 @@ export class DocxPictureGesture {
     this.buttons.forEach((b) => (b.hidden = true));
   }
   private identity(): number {
-    const id = this.host.current().state.pictureGestureId;
-    if (id === null) throw new Error("Picture gesture is no longer active");
+    const id = this.host.current().state.drawingGestureId;
+    if (id === null) throw new Error("Drawing gesture is no longer active");
     return id;
   }
   private local(point: PointerPoint): PointerPoint {
@@ -243,7 +245,7 @@ export class DocxPictureGesture {
   async refresh(geometry: DocxSelectionGeometry | undefined): Promise<void> {
     const current = this.host.current(),
       selection = current.state.selection;
-    if (current.state.pictureGestureId === null && !this.ending) {
+    if (current.state.drawingGestureId === null && !this.ending) {
       this.image = undefined;
       if (
         selection &&
@@ -255,17 +257,33 @@ export class DocxPictureGesture {
         this.host.assertOpen();
         this.revision = catalog.revision;
         this.image = catalog.images.find((image) => image.selected);
+        if (!this.image) {
+          const shapes = await this.client.shapes(current.state.revision);
+          this.host.assertOpen();
+          this.revision = shapes.revision;
+          this.image = shapes.items.find((shape) => shape.selected);
+        }
       }
     }
     const rect =
       this.image && geometry?.rects.find((r) => r.page === current.page);
     for (const [i, button] of this.buttons.entries()) {
+      const kind = this.image && "preset" in this.image ? "shape" : "picture";
+      button.setAttribute(
+        "aria-label",
+        i === 4
+          ? `Move ${kind}`
+          : `Resize ${kind} ${["top left", "top right", "bottom right", "bottom left"][i]}`,
+      );
       button.hidden =
         !rect ||
         !this.host.available() ||
         (i === 4
           ? !this.image?.anchor || !!this.image.positionReason
-          : !!this.image?.reason);
+          : !!this.image?.reason ||
+            (!!this.image &&
+              "sizeReason" in this.image &&
+              !!this.image.sizeReason));
       if (rect) {
         button.style.left = `${(rect.x + (i === 1 || i === 2 ? rect.width : 0)) * current.scale}px`;
         button.style.top = `${(rect.y + (i === 2 || i === 3 ? rect.height : 0)) * current.scale}px`;

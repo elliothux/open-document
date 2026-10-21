@@ -1,8 +1,9 @@
 ///|
-priv struct PictureGesture {
+priv struct DrawingGesture {
   id : Int
-  picture : Int
-  initial : PictureFrame
+  drawing : Int
+  initial : @layout.DrawingFrame
+  preserve_aspect : Bool
   handle : Int
   origin : @layout.DrawingAnchor?
   placement : (@layout.PageSetup, @layout.Layout)?
@@ -13,24 +14,24 @@ priv struct PictureGesture {
 }
 
 ///|
-fn Session::require_picture_gesture(
+fn Session::require_drawing_gesture(
   self : Session,
   revision : Int,
   id : Int,
-) -> PictureGesture raise @failure.Failure {
+) -> DrawingGesture raise @failure.Failure {
   self.check_revision_value(revision)
-  guard self.picture_gesture is Some(gesture) && gesture.id == id else {
-    @failure.reject("stale-gesture", "Picture gesture identity changed")
+  guard self.drawing_gesture is Some(gesture) && gesture.id == id else {
+    @failure.reject("stale-gesture", "Drawing gesture identity changed")
   }
   gesture
 }
 
 ///|
-/// Begins a tentative move (handle 0) or aspect-preserving corner resize (1–4).
-pub fn Session::begin_picture_gesture(
+/// Begins a tentative move (0) or corner resize (1–4), honoring native aspect locks.
+pub fn Session::begin_drawing_gesture(
   self : Session,
   revision : Int,
-  picture : Int,
+  drawing : Int,
   handle : Int,
   probe? : @layout.TextProbe,
   profile~ : Map[String, String] = Map([]),
@@ -39,15 +40,30 @@ pub fn Session::begin_picture_gesture(
   self.check_revision(revision)
   self.check_document_protection()
   guard handle >= 0 && handle <= 4 else {
-    @failure.reject("invalid-operation", "Invalid picture gesture handle")
+    @failure.reject("invalid-operation", "Invalid drawing gesture handle")
   }
   let tree = WordTree::new(self.document())
-  guard self.selected_picture(tree) == Some(picture) else {
+  guard self.selected_drawing(tree) == Some(drawing) else {
     @failure.reject(
-      "invalid-operation", "Select the picture before starting a gesture",
+      "invalid-operation", "Select the drawing before starting a gesture",
     )
   }
-  let initial = self.editable_picture(tree, picture, position=handle == 0).0
+  let initial = if handle == 0 {
+    self.editable_drawing_position(tree, drawing).0
+  } else if tree.drawing_data(drawing).1.attribute("uri") ==
+    Some(word_shape_uri) {
+    guard !tree.shape_locked(drawing, "noResize") else {
+      @failure.reject("protected-content", "Shape resizing is locked")
+    }
+    self.editable_shape(tree, drawing).1
+  } else {
+    ignore(self.editable_picture(tree, drawing))
+    self.drawing_frame(tree, drawing)
+  }
+  guard !(initial.content is @layout.Shape(_)) ||
+    !tree.shape_locked(drawing, "noSelect") else {
+    @failure.reject("protected-content", "Shape selection is locked")
+  }
   let placement = if handle == 0 && probe is Some(probe) {
     let flow = self.flow()
     let layout = @layout.paginate(
@@ -92,14 +108,16 @@ pub fn Session::begin_picture_gesture(
   } else {
     None
   }
-  guard self.picture_gesture_id < 2147483647 else {
-    @failure.reject("limit-exceeded", "Picture gesture identity exhausted")
+  guard self.drawing_gesture_id < 2147483647 else {
+    @failure.reject("limit-exceeded", "Drawing gesture identity exhausted")
   }
-  self.picture_gesture_id += 1
-  self.picture_gesture = Some({
-    id: self.picture_gesture_id,
-    picture,
+  self.drawing_gesture_id += 1
+  self.drawing_gesture = Some({
+    id: self.drawing_gesture_id,
+    drawing,
     initial,
+    preserve_aspect: initial.content is @layout.Picture(_, _) ||
+    tree.shape_locked(drawing, "noChangeAspect"),
     handle,
     origin,
     placement,
@@ -116,9 +134,9 @@ pub fn Session::begin_picture_gesture(
 }
 
 ///|
-fn Session::prepare_picture_gesture(
+fn Session::prepare_drawing_gesture(
   self : Session,
-  gesture : PictureGesture,
+  gesture : DrawingGesture,
   dx : Double,
   dy : Double,
   page : Int?,
@@ -129,7 +147,7 @@ fn Session::prepare_picture_gesture(
     !dy.is_inf() &&
     dx.abs() <= 14400 &&
     dy.abs() <= 14400 else {
-    @failure.reject("invalid-operation", "Invalid picture gesture delta")
+    @failure.reject("invalid-operation", "Invalid drawing gesture delta")
   }
   let image = gesture.initial
   let handle = gesture.handle
@@ -157,8 +175,8 @@ fn Session::prepare_picture_gesture(
     })
     let probe = gesture.probe
     let images = gesture.images
-    return self.prepare_picture_anchor(
-      gesture.picture,
+    return self.prepare_drawing_anchor(
+      gesture.drawing,
       Some(anchor),
       target?,
       probe?,
@@ -182,14 +200,14 @@ fn Session::prepare_picture_gesture(
           @layout.Offset(reference, value + delta)
         _ =>
           @failure.reject(
-            "invalid-operation", "Picture gesture has no resolved offset",
+            "invalid-operation", "Drawing gesture has no resolved offset",
           )
       }
     }
     let probe = gesture.probe
     let images = gesture.images
-    return self.prepare_picture_anchor(
-      gesture.picture,
+    return self.prepare_drawing_anchor(
+      gesture.drawing,
       Some({
         ..anchor,
         horizontal: shift(origin.horizontal, anchor.horizontal, dx),
@@ -202,6 +220,65 @@ fn Session::prepare_picture_gesture(
   }
   let dx = if handle == 1 || handle == 4 { -dx } else { dx }
   let dy = if handle == 1 || handle == 2 { -dy } else { dy }
+  if image.content is @layout.Shape(shape) {
+    let minimum = if shape.preset == "line" { 0.0 } else { 1.0 / 12700 }
+    let (width, height) = if gesture.preserve_aspect {
+      let delta = if image.height == 0 || dy == 0 {
+        if image.width == 0 {
+          0.0
+        } else {
+          dx / image.width
+        }
+      } else if image.width == 0 || dx == 0 {
+        dy / image.height
+      } else {
+        (dx / image.width).max(dy / image.height)
+      }
+      let positive = if image.width == 0 {
+        image.height
+      } else if image.height == 0 {
+        image.width
+      } else {
+        image.width.min(image.height)
+      }
+      let factor = (1.0 + delta)
+        .max(1.0 / 12700 / positive)
+        .min(14400.0 / image.width.max(image.height))
+      (image.width * factor, image.height * factor)
+    } else {
+      let width = (image.width + dx).max(minimum).min(14400)
+      let height = (image.height + dy).max(minimum).min(14400)
+      if width == 0 && height == 0 {
+        if image.width > 0 {
+          (1.0 / 12700, 0.0)
+        } else {
+          (0.0, 1.0 / 12700)
+        }
+      } else {
+        (width, height)
+      }
+    }
+    let prepared = self.prepare_shape_edit(
+      gesture.drawing,
+      width,
+      height,
+      shape.fill,
+      shape.stroke,
+      shape.lineWidth,
+    )
+    if prepared is Some(prepared) {
+      self.check_picture_layout(
+        prepared.document,
+        gesture.probe,
+        gesture.profile,
+        gesture.images,
+      )
+    }
+    return prepared
+  }
+  guard image.content is @layout.Picture(_, crop) else {
+    abort("Expected picture")
+  }
   // An untouched axis does not constrain keyboard resizing.
   let delta = if dy == 0 {
     dx / image.width
@@ -212,14 +289,14 @@ fn Session::prepare_picture_gesture(
   }
   let factor = 1.0 + delta
   let maximum = (14400.0 / image.width.max(image.height))
-    .min(1000000000.0 * (1.0 - image.crop[0] - image.crop[2]) / image.width)
-    .min(1000000000.0 * (1.0 - image.crop[1] - image.crop[3]) / image.height)
+    .min(1000000000.0 * (1.0 - crop[0] - crop[2]) / image.width)
+    .min(1000000000.0 * (1.0 - crop[1] - crop[3]) / image.height)
   let factor = factor.max(0.1 / image.width.min(image.height)).min(maximum)
   let prepared = self.prepare_picture_resize(
-    gesture.picture,
+    gesture.drawing,
     image.width * factor,
     image.height * factor,
-    image.crop,
+    crop,
   )
   if prepared is Some(prepared) {
     self.check_picture_layout(
@@ -234,7 +311,7 @@ fn Session::prepare_picture_gesture(
 
 ///|
 /// Replaces the candidate from the original frame without changing source history.
-pub fn Session::update_picture_gesture(
+pub fn Session::update_drawing_gesture(
   self : Session,
   revision : Int,
   id : Int,
@@ -242,18 +319,18 @@ pub fn Session::update_picture_gesture(
   dy : Double,
   page? : Int,
 ) -> Json raise @failure.Failure {
-  let gesture = self.require_picture_gesture(revision, id)
-  let prepared = self.prepare_picture_gesture(gesture, dx, dy, page)
+  let gesture = self.require_drawing_gesture(revision, id)
+  let prepared = self.prepare_drawing_gesture(gesture, dx, dy, page)
   if prepared is Some(prepared) {
     self.opc.validate_changes(self.replacements(prepared.document, self.parts))
   }
-  self.picture_gesture = Some({ ..gesture, prepared, })
+  self.drawing_gesture = Some({ ..gesture, prepared, })
   self.edit_result(prepared.map(p => p.edit.paragraphs).unwrap_or([]))
 }
 
 ///|
 /// Commits the authoritative final pointer position as at most one edit.
-pub fn Session::finish_picture_gesture(
+pub fn Session::finish_drawing_gesture(
   self : Session,
   revision : Int,
   id : Int,
@@ -261,23 +338,23 @@ pub fn Session::finish_picture_gesture(
   dy : Double,
   page? : Int,
 ) -> Json raise @failure.Failure {
-  let gesture = self.require_picture_gesture(revision, id)
-  let prepared = self.prepare_picture_gesture(gesture, dx, dy, page)
+  let gesture = self.require_drawing_gesture(revision, id)
+  let prepared = self.prepare_drawing_gesture(gesture, dx, dy, page)
   if prepared is Some(prepared) {
     self.commit_edit(prepared.edit, prepared.document)
   }
-  self.picture_gesture = None
+  self.drawing_gesture = None
   self.edit_result(prepared.map(p => p.edit.paragraphs).unwrap_or([]))
 }
 
 ///|
 /// Discards the candidate and preserves committed selection, revision and history.
-pub fn Session::cancel_picture_gesture(
+pub fn Session::cancel_drawing_gesture(
   self : Session,
   revision : Int,
   id : Int,
 ) -> Json raise @failure.Failure {
-  let gesture = self.require_picture_gesture(revision, id)
-  self.picture_gesture = None
+  let gesture = self.require_drawing_gesture(revision, id)
+  self.drawing_gesture = None
   self.edit_result(gesture.prepared.map(p => p.edit.paragraphs).unwrap_or([]))
 }

@@ -35,19 +35,20 @@ pub fn Layout::selection_rects(
             continue
           }
           let clip = line.clip && image.anchor is None
-          let y = if clip { image.y.max(line.y) } else { image.y }
+          let (x, top, width, height) = image.interaction_bounds()
+          let y = if clip { top.max(line.y) } else { top }
           let bottom = if clip {
-            (image.y + image.height).min(line.y + line.height)
+            (top + height).min(line.y + line.height)
           } else {
-            image.y + image.height
+            top + height
           }
           if bottom > y {
             selected.push({
               page,
               line: index,
-              x: image.x,
+              x,
               y,
-              width: image.width,
+              width,
               height: bottom - y,
             })
           }

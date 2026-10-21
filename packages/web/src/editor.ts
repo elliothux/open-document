@@ -11,7 +11,7 @@ import type { FoundationClient } from "./foundation.js";
 import { PageCanvas } from "./page-canvas.js";
 import {
   recoverDocxState,
-  cancelDocxPictureGesture,
+  cancelDocxDrawingGesture,
 } from "./document-recovery.js";
 import { revealInput } from "./pointer-selection.js";
 import { DocumentPointer } from "./document-pointer.js";
@@ -154,7 +154,7 @@ export class DocumentEditor extends DocumentTables {
         gesture: (change) => {
           this.inputEvents.endGroup();
           return this.enqueue(async () => {
-            const state = await this.client.pictureGesture(
+            const state = await this.client.drawingGesture(
               this.state.revision,
               change(),
               this.profile,
@@ -788,7 +788,7 @@ export class DocumentEditor extends DocumentTables {
     this.cleanup = this.tail
       .then(async () => {
         await this.inputEvents.cancel();
-        await cancelDocxPictureGesture(this.client);
+        await cancelDocxDrawingGesture(this.client);
       })
       .finally(() => {
         this.surface.dispose();

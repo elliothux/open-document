@@ -1,5 +1,33 @@
 ///|
-fn picture_axis_markup(axis : @layout.DrawingAxis, name : String) -> String {
+fn Session::editable_drawing_position(
+  self : Session,
+  tree : WordTree,
+  id : Int,
+) -> (@layout.DrawingFrame, Int) raise @failure.Failure {
+  let paragraph = self.drawing_paragraph(tree, id)
+  if tree.drawing_data(id).1.attribute("uri") == Some(word_shape_uri) {
+    let (_, drawing, _) = self.editable_shape(tree, id)
+    guard !tree.shape_locked(id, "noMove") &&
+      !tree.shape_locked(id, "noChangeWrap") else {
+      @failure.reject("protected-content", "Shape placement is locked")
+    }
+    (drawing, paragraph)
+  } else {
+    let (picture, _, _, _) = self.editable_picture(tree, id, position=true)
+    (
+      {
+        width: picture.width,
+        height: picture.height,
+        anchor: picture.anchor,
+        content: @layout.Picture(picture.key, picture.crop),
+      },
+      paragraph,
+    )
+  }
+}
+
+///|
+fn drawing_axis_markup(axis : @layout.DrawingAxis, name : String) -> String {
   let (reference, value) = match axis {
     @layout.Offset(reference, value) =>
       (
@@ -13,7 +41,7 @@ fn picture_axis_markup(axis : @layout.DrawingAxis, name : String) -> String {
 }
 
 ///|
-fn rounded_image_anchor(
+fn rounded_drawing_anchor(
   anchor : @layout.DrawingAnchor,
 ) -> @layout.DrawingAnchor {
   let round = fn(axis : @layout.DrawingAxis) {
@@ -37,10 +65,10 @@ fn rounded_image_anchor(
 }
 
 ///|
-/// Changes ordinary body picture placement and supported wrapping.
-/// An explicit target reanchors a floating picture and selects its new logical range.
-/// Target offsets refer to the current document before removing the picture.
-pub fn Session::set_picture_anchor(
+/// Changes ordinary body drawing placement and supported wrapping.
+/// An explicit target reanchors a floating drawing and selects its new logical range.
+/// Target offsets refer to the current document before removing the drawing.
+pub fn Session::set_drawing_anchor(
   self : Session,
   revision : Int,
   id : Int,
@@ -51,7 +79,7 @@ pub fn Session::set_picture_anchor(
   images? : @layout.Images,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  let prepared = self.prepare_picture_anchor(
+  let prepared = self.prepare_drawing_anchor(
     id,
     anchor,
     target?,
@@ -66,7 +94,7 @@ pub fn Session::set_picture_anchor(
 }
 
 ///|
-fn Session::prepare_picture_placement(
+fn Session::prepare_drawing_placement(
   self : Session,
   id : Int,
   anchor : @layout.DrawingAnchor?,
@@ -77,10 +105,10 @@ fn Session::prepare_picture_placement(
   if anchor is Some(anchor) {
     anchor.validate()
   }
-  let anchor = anchor.map(rounded_image_anchor)
+  let anchor = anchor.map(rounded_drawing_anchor)
   let document = self.document()
   let tree = WordTree::new(document)
-  let (image, paragraph, _, _) = self.editable_picture(tree, id, position=true)
+  let (image, paragraph) = self.editable_drawing_position(tree, id)
   if Json(image.anchor.map(value => value.to_json())) ==
     Json(anchor.map(value => value.to_json())) {
     return None
@@ -91,13 +119,13 @@ fn Session::prepare_picture_placement(
         parent = tree.nodes[parent].parent {
       guard tree.nodes[parent].name != "tc" else {
         @failure.reject(
-          "protected-content", "Floating pictures require a body paragraph",
+          "protected-content", "Floating drawings require a body paragraph",
         )
       }
     }
   }
   guard tree.children[id] is [frame] else {
-    @failure.reject("protected-content", "Picture requires one frame")
+    @failure.reject("protected-content", "Drawing requires one frame")
   }
   let node = tree.nodes[frame]
   guard !node.empty &&
@@ -117,7 +145,7 @@ fn Session::prepare_picture_placement(
       )
     }) else {
     @failure.reject(
-      "protected-content", "Unknown picture frame metadata prevents placement changes",
+      "protected-content", "Unknown drawing frame metadata prevents placement changes",
     )
   }
   tree.anchor_children(frame, [
@@ -148,7 +176,7 @@ fn Session::prepare_picture_placement(
         _ => anchor.distance.right
       }
       let original = @string.parse_int64(attr.value[:]) catch {
-        _ => @failure.reject("invalid-image", "Invalid picture text distance")
+        _ => @failure.reject("invalid-image", "Invalid drawing text distance")
       }
       if original != (value * 12700).round().to_int64() {
         changes.push({
@@ -217,7 +245,7 @@ fn Session::prepare_picture_placement(
       let raw = source[current.start:current.end]
       guard !raw.contains("<!--") && !raw.contains("<?") else {
         @failure.reject(
-          "protected-content", "Picture position contains opaque markup",
+          "protected-content", "Drawing position contains opaque markup",
         )
       }
       changes.push({
@@ -235,8 +263,8 @@ fn Session::prepare_picture_placement(
       offset: extent.start - node.start,
       length: 0,
       xml: "<wp:simplePos xmlns:wp=\"\{picture_inline_uri}\" x=\"0\" y=\"0\"/>" +
-      picture_axis_markup(anchor.horizontal, "positionH") +
-      picture_axis_markup(anchor.vertical, "positionV"),
+      drawing_axis_markup(anchor.horizontal, "positionH") +
+      drawing_axis_markup(anchor.vertical, "positionV"),
     })
     let props = tree.nodes[tree.anchor_child(frame, "docPr")]
     changes.push({
@@ -251,7 +279,7 @@ fn Session::prepare_picture_placement(
     })
   }
   let (candidate, xml) = document.edit_source(changes)
-  ignore(self.image_frame(WordTree::new(candidate), id))
+  ignore(self.drawing_frame(WordTree::new(candidate), id))
   self.check_picture_layout(candidate, probe, profile, images)
   Some({
     edit: {

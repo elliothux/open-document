@@ -45,7 +45,7 @@ export function pointerDocxSelection(
   extend: boolean,
 ): DocxSelection {
   if (!hit.position) throw new Error(hit.reason);
-  if (initial && !extend && hit.picture) return hit.picture;
+  if (initial && !extend && hit.drawing) return hit.drawing;
   return {
     anchor:
       extend && current.selection ? current.selection.anchor : hit.position,
@@ -165,7 +165,7 @@ export async function docxSelectionDescription(
 ): Promise<string> {
   if (stopped) return "Selection unavailable while editing is stopped";
   if (state.compositionId !== null) return "Text composition in progress";
-  if (state.pictureGestureId !== null) return "Picture gesture in progress";
+  if (state.drawingGestureId !== null) return "Drawing gesture in progress";
   const selection = state.selection;
   if (!selection) return "Focus document text input to start editing";
   const cells = state.formatting?.cellSelection.value;

@@ -3,7 +3,7 @@ import type { PageLayout } from "@open-document/wasm/preview";
 import type {
   EditState,
   DocxSelectionGeometry,
-  DocxPictureGestureCommand,
+  DocxDrawingGestureCommand,
 } from "@open-document/wasm/foundation";
 import {
   PointerSelection,
@@ -12,7 +12,7 @@ import {
   type PointerPoint,
 } from "./pointer-selection.js";
 import { pointerDocxSelection } from "./document-selection.js";
-import { DocxPictureGesture } from "./document-picture-gesture.js";
+import { DocxDrawingGesture } from "./document-drawing-gesture.js";
 
 export interface DocxPointerHost {
   assertOpen(): void;
@@ -29,13 +29,13 @@ export interface DocxPointerHost {
   paint(page: number): void;
   settle(): Promise<void>;
   openComment(id: string): Promise<void>;
-  gesture(change: () => DocxPictureGestureCommand): Promise<void>;
+  gesture(change: () => DocxDrawingGestureCommand): Promise<void>;
 }
 
 /** Owns document pointer gestures; all document candidates and geometry stay in the core. */
 export class DocumentPointer {
   private readonly text: PointerSelection;
-  private readonly picture: DocxPictureGesture;
+  private readonly drawing: DocxDrawingGesture;
   private pageTime = 0;
   private pendingComment: string | undefined;
   constructor(
@@ -45,7 +45,7 @@ export class DocumentPointer {
     signal: AbortSignal,
     private readonly host: DocxPointerHost,
   ) {
-    this.picture = new DocxPictureGesture(
+    this.drawing = new DocxDrawingGesture(
       canvas,
       viewport,
       client,
@@ -58,7 +58,7 @@ export class DocumentPointer {
       signal,
       (point, initial, extend, elapsed) =>
         this.select(client, point, initial, extend, elapsed),
-      () => host.available() && !this.picture.active,
+      () => host.available() && !this.drawing.active,
       (cancelled) => {
         const id = cancelled ? undefined : this.pendingComment;
         this.pendingComment = undefined;
@@ -67,15 +67,15 @@ export class DocumentPointer {
     );
   }
   get active() {
-    return this.text.active || this.picture.active;
+    return this.text.active || this.drawing.active;
   }
   flush() {
     this.text.flush();
-    this.picture.flush();
+    this.drawing.flush();
   }
   finish() {
     this.text.finish();
-    this.picture.finish();
+    this.drawing.finish();
   }
   finishText() {
     this.text.finish();
@@ -83,10 +83,10 @@ export class DocumentPointer {
   cancel() {
     this.pendingComment = undefined;
     this.text.cancel();
-    this.picture.reset();
+    this.drawing.reset();
   }
   refresh(geometry: DocxSelectionGeometry | undefined) {
-    return this.picture.refresh(geometry);
+    return this.drawing.refresh(geometry);
   }
 
   private select(

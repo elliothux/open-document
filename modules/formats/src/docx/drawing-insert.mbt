@@ -20,6 +20,14 @@ fn Session::drawing_identities(
           used[picture_identity(value)] = true
         }
       }
+      if node.uri == picture_inline_uri && node.name == "anchor" {
+        for attribute in node.attributes {
+          if attribute.uri == drawing_2010_uri &&
+            ["anchorId", "editId"].contains(attribute.name) {
+            used["wp14:" + attribute.value.to_upper()] = true
+          }
+        }
+      }
     }
   }
   used

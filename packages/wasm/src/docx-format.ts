@@ -695,7 +695,7 @@ export interface EditState {
   revision: number;
   defaultTabStop: number;
   compositionId: number | null;
-  pictureGestureId: number | null;
+  drawingGestureId: number | null;
   selection: DocxSelection | null;
   canUndo: boolean;
   canRedo: boolean;
@@ -736,10 +736,10 @@ export function editState(value: unknown): EditState {
     ].every((key) => integer(object[key])) ||
     (object.compositionId !== null &&
       (!integer(object.compositionId) || Number(object.compositionId) === 0)) ||
-    (object.pictureGestureId !== null &&
-      (!integer(object.pictureGestureId) ||
-        Number(object.pictureGestureId) === 0 ||
-        Number(object.pictureGestureId) > 2147483647 ||
+    (object.drawingGestureId !== null &&
+      (!integer(object.drawingGestureId) ||
+        Number(object.drawingGestureId) === 0 ||
+        Number(object.drawingGestureId) > 2147483647 ||
         object.compositionId !== null)) ||
     typeof object.canUndo !== "boolean" ||
     typeof object.canRedo !== "boolean" ||

@@ -132,7 +132,7 @@ fn Session::edit_result(
   affected : Array[Int],
 ) -> Json raise @failure.Failure {
   ignore(self.document())
-  let current = match (self.composition, self.picture_gesture) {
+  let current = match (self.composition, self.drawing_gesture) {
     (Some({ prepared: Some(prepared), .. }), _)
     | (_, Some({ prepared: Some(prepared), .. })) => prepared.edit.after
     _ => self.selection
@@ -145,7 +145,7 @@ fn Session::edit_result(
     "revision": self.revision,
     "defaultTabStop": self.default_tab(),
     "formatting": if self.composition is None &&
-      self.picture_gesture is None &&
+      self.drawing_gesture is None &&
       self.selection is Some(selection) {
       self.query_formatting(self.revision, selection)
     } else {
@@ -163,7 +163,7 @@ fn Session::edit_result(
     "compositionId": self.composition
     .map(composition => Json(composition.id))
     .unwrap_or(Json::null()),
-    "pictureGestureId": self.picture_gesture
+    "drawingGestureId": self.drawing_gesture
     .map(gesture => Json(gesture.id))
     .unwrap_or(Json::null()),
   }

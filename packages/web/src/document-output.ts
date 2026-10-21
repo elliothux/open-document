@@ -14,7 +14,7 @@ export async function checkDocxRevision(
   assertOpen();
   if (current.revision !== revision)
     throw new Error("Document changed outside this editor");
-  if (current.compositionId !== null || current.pictureGestureId !== null)
+  if (current.compositionId !== null || current.drawingGestureId !== null)
     throw new DocumentError(
       "busy",
       "Complete or cancel pending edits before output",

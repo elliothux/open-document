@@ -49,7 +49,7 @@ fn Foundation::picture_operation(
   if operation == "docxPictures" {
     return session.pictures(revision)
   }
-  if operation == "docxPictureGesture" {
+  if operation == "docxDrawingGesture" {
     guard request is { "change": change, .. } else {
       @failure.reject(
         "invalid-operation", "Picture gesture command is required",
@@ -57,18 +57,18 @@ fn Foundation::picture_operation(
     }
     let result = match field_string(change, "action") {
       "begin" =>
-        session.begin_picture_gesture(
+        session.begin_drawing_gesture(
           revision,
-          field_int(change, "picture"),
+          field_int(change, "drawing"),
           field_int(change, "handle"),
           probe=self.probe,
           profile=xlsx_profile(request),
           images=self.images,
         )
       "cancel" =>
-        session.cancel_picture_gesture(revision, field_int(change, "id"))
+        session.cancel_drawing_gesture(revision, field_int(change, "id"))
       "update" =>
-        session.update_picture_gesture(
+        session.update_drawing_gesture(
           revision,
           field_int(change, "id"),
           xlsx_number(change, "dx"),
@@ -80,7 +80,7 @@ fn Foundation::picture_operation(
           },
         )
       "commit" =>
-        session.finish_picture_gesture(
+        session.finish_drawing_gesture(
           revision,
           field_int(change, "id"),
           xlsx_number(change, "dx"),
@@ -125,10 +125,10 @@ fn Foundation::picture_operation(
         self.images,
       )
     "position" =>
-      session.set_picture_anchor(
+      session.set_drawing_anchor(
         revision,
         field_int(picture, "id"),
-        picture_anchor(picture),
+        drawing_anchor(picture),
         target?=if picture is { "target": target, .. } {
           Some(field_position(target))
         } else {
@@ -148,7 +148,7 @@ fn Foundation::picture_operation(
 }
 
 ///|
-fn picture_anchor(
+fn drawing_anchor(
   picture : Json,
 ) -> @layout.DrawingAnchor? raise @failure.Failure {
   guard picture is { "anchor": value, .. } else {

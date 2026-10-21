@@ -463,8 +463,8 @@ async function dispatch(request: Request): Promise<unknown> {
             request.shape,
             request.profile,
           );
-        case "docxPictureGesture":
-          return foundation.pictureGesture(
+        case "docxDrawingGesture":
+          return foundation.drawingGesture(
             request.revision,
             request.change,
             request.profile,

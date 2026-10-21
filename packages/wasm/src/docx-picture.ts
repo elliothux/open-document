@@ -12,6 +12,13 @@ export interface DocxPicture {
   /** Fractions removed from left, top, right and bottom of the source. */
   crop: [number, number, number, number];
 }
+export interface DocxDrawingPositionEdit {
+  action: "position";
+  id: number;
+  anchor: DrawingAnchor | null;
+  /** Move a floating drawing's logical anchor into an ordinary body paragraph. */
+  target?: DocxPosition;
+}
 export interface DocxPictures {
   revision: number;
   images: (DocxPicture & {
@@ -29,16 +36,10 @@ export type DocxPictureEdit =
   | { action: "insert"; width: number; height: number; bytes: Uint8Array }
   | { action: "replace"; id: number; bytes: Uint8Array }
   | { action: "delete"; id: number }
-  | {
-      action: "position";
-      id: number;
-      anchor: DrawingAnchor | null;
-      /** Move a floating picture's logical anchor into an ordinary body paragraph. */
-      target?: DocxPosition;
-    };
+  | DocxDrawingPositionEdit;
 
-export type DocxPictureGestureCommand =
-  | { action: "begin"; picture: number; handle: 0 | 1 | 2 | 3 | 4 }
+export type DocxDrawingGestureCommand =
+  | { action: "begin"; drawing: number; handle: 0 | 1 | 2 | 3 | 4 }
   | { action: "cancel"; id: number }
   | {
       action: "update" | "commit";
@@ -49,16 +50,16 @@ export type DocxPictureGestureCommand =
       page?: number;
     };
 
-export function checkDocxPictureGesture(value: unknown): void {
+export function checkDocxDrawingGesture(value: unknown): void {
   const change = record(value);
   if (
     change.action === "begin" &&
-    integer(change.picture, 0, 2147483647) &&
+    integer(change.drawing, 0, 2147483647) &&
     integer(change.handle, 0, 4)
   )
     return;
   if (!integer(change.id, 1, 2147483647))
-    throw new Error("Invalid picture gesture identity");
+    throw new Error("Invalid drawing gesture identity");
   if (change.action === "cancel") return;
   if (
     (change.action === "update" || change.action === "commit") &&
@@ -69,23 +70,12 @@ export function checkDocxPictureGesture(value: unknown): void {
     )
   )
     return;
-  throw new Error("Invalid picture gesture command");
+  throw new Error("Invalid drawing gesture command");
 }
 export function checkDocxPictureEdit(value: unknown): void {
   const edit = record(value);
   if (edit.action === "resize") return checkDocxPicture(value);
-  if (edit.action === "position") {
-    if (!integer(edit.id, 0, 2147483647))
-      throw new Error("Invalid DOCX picture identity");
-    checkDrawingAnchor(edit.anchor);
-    if (
-      edit.target !== undefined &&
-      (edit.anchor === null ||
-        !isDocxSelection({ anchor: edit.target, focus: edit.target }))
-    )
-      throw new Error("Invalid DOCX picture anchor target");
-    return;
-  }
+  if (edit.action === "position") return checkDocxDrawingPosition(edit);
   if (edit.action === "insert") {
     checkDocxPicture({
       id: 0,
@@ -104,6 +94,18 @@ export function checkDocxPictureEdit(value: unknown): void {
   )
     throw new Error("Invalid DOCX picture action");
   if (edit.action === "replace") checkImageBytes(edit.bytes);
+}
+export function checkDocxDrawingPosition(value: unknown): void {
+  const edit = record(value);
+  if (edit.action !== "position" || !integer(edit.id, 0, 2147483647))
+    throw new Error("Invalid DOCX drawing identity or action");
+  checkDrawingAnchor(edit.anchor);
+  if (
+    edit.target !== undefined &&
+    (edit.anchor === null ||
+      !isDocxSelection({ anchor: edit.target, focus: edit.target }))
+  )
+    throw new Error("Invalid DOCX drawing anchor target");
 }
 function checkImageBytes(bytes: unknown): void {
   if (!(bytes instanceof Uint8Array) || !bytes.length || bytes.length > 4194304)

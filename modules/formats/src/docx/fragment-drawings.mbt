@@ -9,13 +9,13 @@ fn WordTree::check_fragment_shape(
     root.attributes.is_empty() &&
     self.nodes[root.parent].name == "r" else {
     @failure.reject(
-      "protected-content", "Rich shapes require ordinary inline drawings",
+      "protected-content", "Rich shapes require ordinary drawings",
     )
   }
   let (frame, data) = self.drawing_data(drawing)
-  guard frame.name == "inline" && data.attribute("uri") == Some(word_shape_uri) else {
+  guard data.attribute("uri") == Some(word_shape_uri) else {
     @failure.reject(
-      "protected-content", "Rich shapes require an inline WordprocessingShape",
+      "protected-content", "Rich shapes require a WordprocessingShape",
     )
   }
   ignore(self.read_basic_shape(drawing, data.id)) catch {
@@ -37,6 +37,16 @@ fn WordTree::check_fragment_shape(
       | "noAutofit"
       | "spAutoFit" => []
       "inline" => ["distT", "distB", "distL", "distR"]
+      "anchor" =>
+        [
+          "distT", "distB", "distL", "distR", "simplePos", "relativeHeight", "behindDoc",
+          "locked", "layoutInCell", "allowOverlap",
+        ]
+      "simplePos" => ["x", "y"]
+      "positionH" | "positionV" => ["relativeFrom"]
+      "posOffset" | "align" | "wrapNone" => []
+      "wrapTopAndBottom" => ["distT", "distB"]
+      "wrapSquare" => ["distT", "distB", "distL", "distR", "wrapText"]
       "extent" | "ext" => ["cx", "cy"]
       "effectExtent" => ["l", "t", "r", "b"]
       "docPr" | "cNvPr" => ["id", "name", "descr", "title", "hidden"]
@@ -60,7 +70,17 @@ fn WordTree::check_fragment_shape(
     guard [word_uri, word_shape_uri, picture_inline_uri, picture_drawing_uri].contains(
         node.uri,
       ) &&
-      node.attributes.all(a => a.uri.is_empty() && attributes.contains(a.name)) &&
+      node.attributes.all(a => {
+        (a.uri.is_empty() && attributes.contains(a.name)) ||
+        (
+          node.id == frame.id &&
+          frame.name == "anchor" &&
+          a.uri == drawing_2010_uri &&
+          ["anchorId", "editId"].contains(a.name) &&
+          a.value.length() == 8 &&
+          a.value.iter().all(c => c.is_ascii_hexdigit())
+        )
+      }) &&
       (node.name != "bodyPr" || node.attribute("rot").unwrap_or("0") == "0") else {
       @failure.reject(
         "protected-content", "Shape clipboard metadata requires support",
@@ -112,10 +132,24 @@ fn WordTree::remap_fragment_drawing_identity(
   self : WordTree,
   drawing : Int,
   identity : String,
+  anchor_identity : String,
   changes : Array[@xml.SourceChange],
 ) -> Unit raise @failure.Failure {
   for id in self.descendants(drawing) {
     let node = self.nodes[id]
+    if node.uri == picture_inline_uri && node.name == "anchor" {
+      for attr in node.attributes {
+        if attr.uri == drawing_2010_uri &&
+          ["anchorId", "editId"].contains(attr.name) {
+          changes.push({
+            node: id,
+            offset: attr.start - node.start,
+            length: attr.end - attr.start,
+            xml: anchor_identity,
+          })
+        }
+      }
+    }
     if ["docPr", "cNvPr"].contains(node.name) {
       guard node.attribute("id") is Some(_) else {
         @failure.reject("protected-content", "Missing copied drawing identity")
@@ -132,6 +166,12 @@ fn WordTree::remap_fragment_drawing_identity(
       }
     }
   }
+}
+
+///|
+fn fragment_anchor_identity(identity : Int) -> String {
+  let hex = identity.to_string(radix=16).to_upper()
+  "0".repeat(8 - hex.length()) + hex
 }
 
 ///|

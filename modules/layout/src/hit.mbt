@@ -249,12 +249,13 @@ pub fn Layout::hit_test(
       continue
     }
     for image in line.drawings {
+      let (left, top, width, height) = image.interaction_bounds()
       if !text_only &&
         image.anchor is None &&
-        x >= image.x &&
-        x <= image.x + image.width &&
-        y >= image.y &&
-        y <= image.y + image.height &&
+        x >= left &&
+        x <= left + width &&
+        y >= top &&
+        y <= top + height &&
         (!line.clip || (y >= line.y && y <= line.y + line.height)) {
         return self.image_hit(line, image, page, index, x)
       }

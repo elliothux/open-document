@@ -1,5 +1,5 @@
 ///|
-fn Session::prepare_picture_anchor(
+fn Session::prepare_drawing_anchor(
   self : Session,
   id : Int,
   anchor : @layout.DrawingAnchor?,
@@ -9,14 +9,14 @@ fn Session::prepare_picture_anchor(
   images? : @layout.Images,
 ) -> PreparedEdit? raise @failure.Failure {
   guard target is Some(target) else {
-    return self.prepare_picture_placement(id, anchor, probe?, profile~, images?)
+    return self.prepare_drawing_placement(id, anchor, probe?, profile~, images?)
   }
   let original = self.document()
   let tree = WordTree::new(original)
-  let (image, paragraph, _, _) = self.editable_picture(tree, id, position=true)
+  let (image, paragraph) = self.editable_drawing_position(tree, id)
   guard image.anchor is Some(_) && anchor is Some(_) else {
     @failure.reject(
-      "invalid-operation", "Reanchoring requires a floating picture",
+      "invalid-operation", "Reanchoring requires a floating drawing",
     )
   }
   for paragraph in [paragraph, target.paragraph] {
@@ -25,7 +25,7 @@ fn Session::prepare_picture_anchor(
       parent.uri == word_uri &&
       parent.name == "body" else {
       @failure.reject(
-        "protected-content", "Picture anchors require body paragraphs",
+        "protected-content", "Drawing anchors require body paragraphs",
       )
     }
   }
@@ -44,20 +44,20 @@ fn Session::prepare_picture_anchor(
     }
     continue cursor + inline_text(tree.nodes[item.id]).length()
   } nobreak {
-    @failure.reject("invalid-image", "Picture has no logical anchor")
+    @failure.reject("invalid-image", "Drawing has no logical anchor")
   }
   if paragraph == target.paragraph &&
     (target.offset == offset || target.offset == offset + 1) {
-    return self.prepare_picture_placement(id, anchor, probe?, profile~, images?)
+    return self.prepare_drawing_placement(id, anchor, probe?, profile~, images?)
   }
   tree.check_structure_paragraph(paragraph)
   let frame = tree.nodes[tree.children[id][0]]
   guard paragraph == target.paragraph ||
     !["1", "true"].contains(frame.attribute("locked").unwrap_or("0")) else {
-    @failure.reject("protected-content", "Picture paragraph anchor is locked")
+    @failure.reject("protected-content", "Drawing paragraph anchor is locked")
   }
   // Validate the final placement, since the intermediate paragraph can have different wrapping.
-  let placement = self.prepare_picture_placement(id, anchor)
+  let placement = self.prepare_drawing_placement(id, anchor)
   let document = placement.map(value => value.document).unwrap_or(original)
   let tree = WordTree::new(document)
   let drawing = tree.nodes[id]
@@ -95,7 +95,7 @@ fn Session::prepare_picture_anchor(
     frameStart: None,
   }
   let tree = WordTree::new(removed)
-  let insertion = tree.picture_anchor_insertion(
+  let insertion = tree.drawing_anchor_insertion(
     removed,
     target,
     moved,
@@ -112,9 +112,9 @@ fn Session::prepare_picture_anchor(
     }
     continue cursor + inline_text(candidate.node(item.id)).length()
   } nobreak {
-    @failure.reject("invalid-image", "Moved picture has no logical anchor")
+    @failure.reject("invalid-image", "Moved drawing has no logical anchor")
   }
-  ignore(self.image_frame(WordTree::new(candidate), placed))
+  ignore(self.drawing_frame(WordTree::new(candidate), placed))
   self.check_picture_layout(candidate, probe, profile, images)
   let xml = placement.map(value => value.edit.xml.copy()).unwrap_or([])
   xml.append([removal, addition])
@@ -142,7 +142,7 @@ fn Session::prepare_picture_anchor(
 }
 
 ///|
-fn WordTree::picture_anchor_insertion(
+fn WordTree::drawing_anchor_insertion(
   self : WordTree,
   document : @xml.Document,
   position : Position,
@@ -186,7 +186,7 @@ fn WordTree::picture_anchor_insertion(
   let run = self.nodes[node.parent]
   guard run.uri == word_uri && run.name == "r" && run.parent == paragraph.id else {
     @failure.reject(
-      "protected-content", "Picture anchor inside a field or hyperlink is protected",
+      "protected-content", "Drawing anchor inside a field or hyperlink is protected",
     )
   }
   let source = document.source()
@@ -232,7 +232,7 @@ fn WordTree::picture_anchor_insertion(
     right +
     closing
   guard xml.length() <= limit else {
-    @failure.reject("limit-exceeded", "Picture anchor source exceeds budget")
+    @failure.reject("limit-exceeded", "Drawing anchor source exceeds budget")
   }
   {
     node: paragraph.id,

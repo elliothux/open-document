@@ -121,6 +121,8 @@ pub fn Session::shapes(
     let wp = tree.drawing_data(id).0
     items.push({
       "id": id,
+      "selected": self.selected_drawing(tree) == Some(id) &&
+      !tree.shape_locked(id, "noSelect"),
       "name": tree.nodes[tree.anchor_child(wp.id, "docPr")]
       .attribute("name")
       .unwrap_or("Shape"),
@@ -130,6 +132,15 @@ pub fn Session::shapes(
       "fill": shape.fill,
       "stroke": shape.stroke,
       "lineWidth": shape.lineWidth,
+      "anchor": frame.anchor
+      .map(value => value.to_json())
+      .unwrap_or(Json::null()),
+      "positionReason": try {
+        ignore(self.editable_drawing_position(tree, id))
+        ""
+      } catch {
+        @failure.Failure(message~, ..) => message
+      },
       "reason": reason,
       "sizeReason": if tree.shape_locked(id, "noResize") {
         "Shape resizing is locked"
@@ -233,6 +244,26 @@ pub fn Session::edit_shape(
   images? : @layout.Images,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  let prepared = self.prepare_shape_edit(
+    id, width, height, fill, stroke, line_width,
+  )
+  if prepared is Some(prepared) {
+    self.check_picture_layout(prepared.document, probe, profile, images)
+    self.commit_edit(prepared.edit, prepared.document)
+  }
+  self.edit_result(prepared.map(value => value.edit.paragraphs).unwrap_or([]))
+}
+
+///|
+fn Session::prepare_shape_edit(
+  self : Session,
+  id : Int,
+  width : Double,
+  height : Double,
+  fill : String,
+  stroke : String,
+  line_width : Double,
+) -> PreparedEdit? raise @failure.Failure {
   let document = self.document()
   let tree = WordTree::new(document)
   let (paragraph, frame, properties) = self.editable_shape(tree, id)
@@ -301,12 +332,11 @@ pub fn Session::edit_shape(
     changes.push(tree.shape_property_change(properties, line, None, markup))
   }
   if changes.is_empty() {
-    return self.edit_result([])
+    return None
   }
   let (candidate, xml) = document.edit_source(changes)
-  self.check_picture_layout(candidate, probe, profile, images)
-  self.commit_edit(
-    {
+  Some({
+    edit: {
       xml: [xml],
       parts: Map([]),
       created: Map([]),
@@ -316,9 +346,10 @@ pub fn Session::edit_shape(
       paragraphs: [paragraph],
       bytes: edit_bytes(xml),
     },
-    candidate,
-  )
-  self.edit_result([paragraph])
+    document: candidate,
+    typing_text: None,
+    join_group: false,
+  })
 }
 
 ///|

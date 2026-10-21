@@ -25,7 +25,7 @@ import type {
   DocxPageField,
   DocxPictureEdit,
   DocxShapeEdit,
-  DocxPictureGestureCommand,
+  DocxDrawingGestureCommand,
   DocxTableEdit,
   DocxThemeSlot,
   DocxThemeFontEdit,
@@ -149,9 +149,9 @@ export type Operation =
     }
   | { operation: "docxOverview"; revision: number }
   | {
-      operation: "docxPictureGesture";
+      operation: "docxDrawingGesture";
       revision: number;
-      change: DocxPictureGestureCommand;
+      change: DocxDrawingGestureCommand;
       profile: Record<string, string>;
     }
   | { operation: "docxPictures"; revision: number }

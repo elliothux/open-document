@@ -48,7 +48,8 @@ export type {
   DocxPageBorder,
   DocxPicture,
   DocxPictureEdit,
-  DocxPictureGestureCommand,
+  DocxDrawingPositionEdit,
+  DocxDrawingGestureCommand,
   DocxPictures,
   DocxShape,
   DocxShapePreset,
@@ -117,8 +118,8 @@ import {
   checkDocxPictureEdit,
   docxPictures,
   type DocxPictureEdit,
-  type DocxPictureGestureCommand,
-  checkDocxPictureGesture,
+  type DocxDrawingGestureCommand,
+  checkDocxDrawingGesture,
   checkFormatPatch,
   checkListEdit,
   docxListCatalog,
@@ -345,15 +346,15 @@ export class FoundationClient extends FoundationClipboardClient {
       await this.connection.request({ operation: "docxPictures", revision }),
     );
   }
-  async pictureGesture(
+  async drawingGesture(
     revision: number,
-    change: DocxPictureGestureCommand,
+    change: DocxDrawingGestureCommand,
     profile: Record<string, string> = {},
   ) {
-    checkDocxPictureGesture(change);
+    checkDocxDrawingGesture(change);
     return editState(
       await this.connection.request({
-        operation: "docxPictureGesture",
+        operation: "docxDrawingGesture",
         revision,
         change,
         profile,

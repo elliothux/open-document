@@ -21,6 +21,9 @@ fn Session::drawing_frame(
 let word_shape_uri = "http://schemas.microsoft.com/office/word/2010/wordprocessingShape"
 
 ///|
+let drawing_2010_uri = "http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing"
+
+///|
 fn WordTree::drawing_data(
   self : WordTree,
   id : Int,

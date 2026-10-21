@@ -1,4 +1,9 @@
 import { integer, record } from "./validation.js";
+import { checkDrawingAnchor, type DrawingAnchor } from "./preview.js";
+import {
+  checkDocxDrawingPosition,
+  type DocxDrawingPositionEdit,
+} from "./docx-picture.js";
 
 export type DocxShapePreset = "rect" | "ellipse" | "line";
 
@@ -15,19 +20,24 @@ export interface DocxShapes {
   revision: number;
   items: (DocxShape & {
     name: string;
+    selected: boolean;
     preset: DocxShapePreset;
     reason: string;
     sizeReason: string;
     deleteReason: string;
+    anchor: DrawingAnchor | null;
+    positionReason: string;
   })[];
 }
 export type DocxShapeEdit =
   | (Omit<DocxShape, "id"> & { action: "insert"; preset: DocxShapePreset })
   | (DocxShape & { action: "properties" })
-  | { action: "delete"; id: number };
+  | { action: "delete"; id: number }
+  | DocxDrawingPositionEdit;
 
 export function checkDocxShapeEdit(value: unknown): void {
   const shape = record(value);
+  if (shape.action === "position") return checkDocxDrawingPosition(shape);
   if (shape.action === "insert") {
     if (
       shape.preset !== "rect" &&
@@ -77,9 +87,10 @@ export function docxShapes(value: unknown): DocxShapes {
     checkDocxShapeEdit({ ...shape, action: "properties" });
     if (
       typeof shape.id !== "number" ||
+      typeof shape.selected !== "boolean" ||
       !integer(shape.id, 0, 2147483647) ||
       seen.has(shape.id) ||
-      !["name", "reason", "sizeReason", "deleteReason"].every(
+      !["name", "reason", "sizeReason", "deleteReason", "positionReason"].every(
         (key) => typeof shape[key] === "string",
       ) ||
       (shape.preset !== "rect" &&
@@ -89,6 +100,7 @@ export function docxShapes(value: unknown): DocxShapes {
     )
       throw new Error("Invalid DOCX shape entry");
     seen.add(shape.id);
+    checkDrawingAnchor(shape.anchor);
   }
   return value as DocxShapes;
 }

@@ -1,12 +1,12 @@
 import type { FoundationClient } from "./foundation.js";
 
-export async function cancelDocxPictureGesture(client: FoundationClient) {
+export async function cancelDocxDrawingGesture(client: FoundationClient) {
   const state = await client.editState();
-  return state.pictureGestureId === null
+  return state.drawingGestureId === null
     ? state
-    : client.pictureGesture(state.revision, {
+    : client.drawingGesture(state.revision, {
         action: "cancel",
-        id: state.pictureGestureId,
+        id: state.drawingGestureId,
       });
 }
 
@@ -16,7 +16,7 @@ export async function recoverDocxState(
   undo: boolean,
   assertOpen: () => void,
 ) {
-  const state = await cancelDocxPictureGesture(client);
+  const state = await cancelDocxDrawingGesture(client);
   assertOpen();
   if (undo && state.revision !== revision)
     throw new Error("Document changed outside the editor; resume before undo");

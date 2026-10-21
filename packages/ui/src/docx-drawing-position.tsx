@@ -1,32 +1,23 @@
 import { useState } from "react";
-import type { DocumentEditor } from "@open-document/web/editor";
-import type {
-  DocxPictures,
-  DrawingAnchor,
-  DrawingAxis,
-} from "@open-document/web/foundation";
+import type { DrawingAnchor, DrawingAxis } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 
-export function DocxPicturePosition({
+export function DocxDrawingPosition({
   controller,
   state,
-  editor,
-  image,
-  revision,
+  drawing,
   disabled,
-  applied,
+  apply,
 }: {
   controller: EditorController;
   state: UiSnapshot;
-  editor: DocumentEditor;
-  image: DocxPictures["images"][number];
-  revision: number;
+  drawing: { anchor: DrawingAnchor | null; positionReason: string };
   disabled: boolean;
-  applied: () => Promise<void>;
+  apply: (anchor: DrawingAnchor | null) => Promise<void>;
 }) {
   const t = messages(state.locale);
-  const [anchor, setAnchor] = useState<DrawingAnchor | null>(image.anchor);
+  const [anchor, setAnchor] = useState<DrawingAnchor | null>(drawing.anchor);
   const defaults: DrawingAnchor = {
     horizontal: { relativeTo: "page", offset: 0, align: null },
     vertical: { relativeTo: "paragraph", offset: 0, align: null },
@@ -40,22 +31,15 @@ export function DocxPicturePosition({
     <form
       onSubmit={(event) => {
         event.preventDefault();
-        controller.run(async () => {
-          await editor.editPicture(revision, {
-            action: "position",
-            id: image.id,
-            anchor,
-          });
-          await applied();
-        });
+        controller.run(() => apply(anchor));
       }}
     >
-      <fieldset disabled={disabled || !!image.positionReason}>
-        <legend>{t.picturePosition}</legend>
+      <fieldset disabled={disabled || !!drawing.positionReason}>
+        <legend>{t.drawingPosition}</legend>
         <label>
-          {t.picturePlacement}
+          {t.drawingPlacement}
           <select
-            aria-label={t.picturePlacement}
+            aria-label={t.drawingPlacement}
             value={
               anchor === null
                 ? "inline"
@@ -89,20 +73,20 @@ export function DocxPicturePosition({
               );
             }}
           >
-            <option value="inline">{t.pictureInline}</option>
-            <option value="front">{t.pictureInFront}</option>
-            <option value="behind">{t.pictureBehind}</option>
-            <option value="topBottom">{t.pictureTopBottom}</option>
-            <option value="square">{t.pictureSquare}</option>
+            <option value="inline">{t.drawingInline}</option>
+            <option value="front">{t.drawingInFront}</option>
+            <option value="behind">{t.drawingBehind}</option>
+            <option value="topBottom">{t.drawingTopBottom}</option>
+            <option value="square">{t.drawingSquare}</option>
           </select>
         </label>
         {anchor && (
           <>
             {anchor.wrapping === "square" && (
               <label>
-                {t.pictureWrapSide}
+                {t.drawingWrapSide}
                 <select
-                  aria-label={t.pictureWrapSide}
+                  aria-label={t.drawingWrapSide}
                   value={anchor.wrapSide}
                   onChange={(event) => {
                     const value = event.currentTarget.value;
@@ -115,22 +99,22 @@ export function DocxPicturePosition({
                       setAnchor({ ...anchor, wrapSide: value });
                   }}
                 >
-                  <option value="bothSides">{t.pictureWrapBoth}</option>
-                  <option value="left">{t.pictureWrapLeft}</option>
-                  <option value="right">{t.pictureWrapRight}</option>
-                  <option value="largest">{t.pictureWrapLargest}</option>
+                  <option value="bothSides">{t.drawingWrapBoth}</option>
+                  <option value="left">{t.drawingWrapLeft}</option>
+                  <option value="right">{t.drawingWrapRight}</option>
+                  <option value="largest">{t.drawingWrapLargest}</option>
                 </select>
               </label>
             )}
             {(["top", "right", "bottom", "left"] as const).map((key) => (
               <label key={key}>
                 {key === "top"
-                  ? t.pictureDistanceTop
+                  ? t.drawingDistanceTop
                   : key === "right"
-                    ? t.pictureDistanceRight
+                    ? t.drawingDistanceRight
                     : key === "bottom"
-                      ? t.pictureDistanceBottom
-                      : t.pictureDistanceLeft}
+                      ? t.drawingDistanceBottom
+                      : t.drawingDistanceLeft}
                 <input
                   type="number"
                   min={0}
@@ -160,11 +144,11 @@ export function DocxPicturePosition({
               const update = (value: DrawingAxis) =>
                 setAnchor({ ...anchor, [key]: value });
               const referenceLabel = horizontal
-                ? t.pictureHorizontalReference
-                : t.pictureVerticalReference;
+                ? t.drawingHorizontalReference
+                : t.drawingVerticalReference;
               const placementLabel = horizontal
-                ? t.pictureHorizontalPlacement
-                : t.pictureVerticalPlacement;
+                ? t.drawingHorizontalPlacement
+                : t.drawingVerticalPlacement;
               const alignments = horizontal
                 ? ["left", "center", "right"]
                 : ["top", "center", "bottom"];
@@ -182,12 +166,12 @@ export function DocxPicturePosition({
                         })
                       }
                     >
-                      <option value="page">{t.picturePageReference}</option>
-                      <option value="margin">{t.pictureMarginReference}</option>
+                      <option value="page">{t.drawingPageReference}</option>
+                      <option value="margin">{t.drawingMarginReference}</option>
                       <option value={horizontal ? "column" : "paragraph"}>
                         {horizontal
-                          ? t.pictureColumnReference
-                          : t.pictureParagraphReference}
+                          ? t.drawingColumnReference
+                          : t.drawingParagraphReference}
                       </option>
                     </select>
                   </label>
@@ -213,7 +197,7 @@ export function DocxPicturePosition({
                         );
                       }}
                     >
-                      <option value="offset">{t.pictureOffset}</option>
+                      <option value="offset">{t.drawingOffset}</option>
                       {alignments.map((value) => (
                         <option key={value} value={value}>
                           {value === "center"
@@ -223,8 +207,8 @@ export function DocxPicturePosition({
                               : value === "right"
                                 ? t.alignRight
                                 : value === "top"
-                                  ? t.pictureAlignTop
-                                  : t.pictureAlignBottom}
+                                  ? t.drawingAlignTop
+                                  : t.drawingAlignBottom}
                         </option>
                       ))}
                     </select>
@@ -232,8 +216,8 @@ export function DocxPicturePosition({
                   {axis.offset !== null && (
                     <label>
                       {horizontal
-                        ? t.pictureHorizontalOffset
-                        : t.pictureVerticalOffset}
+                        ? t.drawingHorizontalOffset
+                        : t.drawingVerticalOffset}
                       <input
                         type="number"
                         min={-14400}
@@ -255,7 +239,7 @@ export function DocxPicturePosition({
               );
             })}
             <label>
-              {t.pictureLayerOrder}
+              {t.drawingLayerOrder}
               <input
                 type="number"
                 min={0}
@@ -273,9 +257,9 @@ export function DocxPicturePosition({
             </label>
           </>
         )}
-        <button type="submit">{t.applyPicturePosition}</button>
+        <button type="submit">{t.applyDrawingPosition}</button>
       </fieldset>
-      {image.positionReason && <p>{image.positionReason}</p>}
+      {drawing.positionReason && <p>{drawing.positionReason}</p>}
     </form>
   );
 }

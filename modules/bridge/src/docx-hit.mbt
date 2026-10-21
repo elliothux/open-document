@@ -27,11 +27,7 @@ fn Foundation::hit_result(
   } else {
     Json::null()
   }
-  let picture : Json = if hit.drawingStart is Some(start) &&
-    reason.is_empty() &&
-    self.layout.unwrap().pages[hit.page].lines[hit.line].drawings.any(frame => {
-      frame.start == start && frame.content is @layout.Picture(_, _)
-    }) {
+  let drawing : Json = if hit.drawingStart is Some(start) && reason.is_empty() {
     let selection : @docx.Selection = {
       anchor: {
         ..position,
@@ -58,7 +54,7 @@ fn Foundation::hit_result(
     "page": hit.page,
     "line": hit.line,
     "position": logical,
-    "picture": picture,
+    "drawing": drawing,
     "editable": reason.is_empty(),
     "reason": reason,
     "x": hit.x,

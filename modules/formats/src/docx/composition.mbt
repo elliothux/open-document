@@ -9,9 +9,9 @@ priv struct Composition {
 /// Requires an open session with no pending composition before persistence or editing.
 pub fn Session::check_idle(self : Session) -> Unit raise @failure.Failure {
   ignore(self.document())
-  guard self.composition is None && self.picture_gesture is None else {
+  guard self.composition is None && self.drawing_gesture is None else {
     @failure.reject(
-      "busy", "Complete or cancel composition or picture gesture before this operation",
+      "busy", "Complete or cancel composition or drawing gesture before this operation",
     )
   }
 }
@@ -21,7 +21,7 @@ fn Session::display_document(
   self : Session,
 ) -> @xml.Document raise @failure.Failure {
   let original = self.document()
-  if self.picture_gesture is Some({ prepared: Some(prepared), .. }) {
+  if self.drawing_gesture is Some({ prepared: Some(prepared), .. }) {
     return prepared.document
   }
   match self.composition {

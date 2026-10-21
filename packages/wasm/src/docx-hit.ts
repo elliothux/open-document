@@ -21,8 +21,8 @@ export interface DocxHit {
   page: number;
   line: number;
   position: DocxPosition | null;
-  /** Exact logical image range; the pointer's nearest text edge remains position. */
-  picture: DocxSelection | null;
+  /** Exact logical drawing range; the pointer's nearest text edge remains position. */
+  drawing: DocxSelection | null;
   editable: boolean;
   reason: string;
   x: number;
@@ -40,15 +40,15 @@ export function docxHit(value: unknown): DocxHit {
       ["layoutId", "revision", "page", "line", "x", "y", "height"],
     ) ||
     typeof object.editable !== "boolean" ||
-    (object.picture !== null &&
-      (!isDocxSelection(object.picture) ||
+    (object.drawing !== null &&
+      (!isDocxSelection(object.drawing) ||
         object.editable !== true ||
         position === null ||
-        object.picture.anchor.paragraph !== position.paragraph ||
-        object.picture.focus.paragraph !== position.paragraph ||
-        object.picture.focus.offset !== object.picture.anchor.offset + 1 ||
-        (position.offset !== object.picture.anchor.offset &&
-          position.offset !== object.picture.focus.offset))) ||
+        object.drawing.anchor.paragraph !== position.paragraph ||
+        object.drawing.focus.paragraph !== position.paragraph ||
+        object.drawing.focus.offset !== object.drawing.anchor.offset + 1 ||
+        (position.offset !== object.drawing.anchor.offset &&
+          position.offset !== object.drawing.focus.offset))) ||
     (position !== null &&
       (!hasFields(position, ["affinity"], ["paragraph", "offset"]) ||
         (position.bidiLevel !== undefined &&
