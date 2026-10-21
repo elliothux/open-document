@@ -130,6 +130,18 @@ fn Session::paragraph_range_in(
       }
     }
   }
+  let nested = all
+    .iter()
+    .flat_map(p => p.spans.iter())
+    .flat_map(span => {
+      match span.drawing {
+        Some({ content: @layout.TextBox(_, text), .. }) =>
+          text.paragraphs().iter()
+        _ => [].iter()
+      }
+    })
+    .collect()
+  all.append(nested)
   let reasons = Map::from_array(all.map(p => (p.id, p.readOnlyReason)))
   for id in paragraphs {
     // Validated empty vertical continuations have no visible flow paragraphs.

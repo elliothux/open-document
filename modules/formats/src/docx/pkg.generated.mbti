@@ -178,7 +178,7 @@ pub fn Session::flow(Self) -> @layout.Flow raise @failure.Failure
 pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
 pub fn Session::insert_body_page_field(Self, Int, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_picture(Self, Int, Double, Double, Bytes) -> Json raise @failure.Failure
-pub fn Session::insert_shape(Self, Int, String, Double, Double, String, String, Double, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
+pub fn Session::insert_shape(Self, Int, String, Double, Double, String, String, Double, text? : String, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_table(Self, Int, Selection, Int, Int, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::list_catalog(Self, Int) -> Json raise @failure.Failure
 pub fn Session::markup_images(Self, Int, String, String, mode? : String) -> Json raise @failure.Failure

@@ -47,6 +47,11 @@ fn paragraph_cache_units(key : String, lines : Array[Line]) -> Int {
           Picture(key, _) => key.length()
           Shape(shape) =>
             shape.preset.length() + shape.fill.length() + shape.stroke.length()
+          TextBox(shape, text) =>
+            shape.preset.length() +
+            shape.fill.length() +
+            shape.stroke.length() +
+            paragraph_cache_units("", text.lines)
         })
     }
     for run in line.paint_runs() {
@@ -99,6 +104,13 @@ fn Paragraph::finite_geometry(paragraph : Paragraph) -> Bool {
       match image.content {
         Picture(_, crop) => numbers.append(crop)
         Shape(shape) => numbers.push(shape.lineWidth)
+        TextBox(shape, text) => {
+          numbers.push(shape.lineWidth)
+          numbers.append(text.insets)
+          if !text.paragraphs.all(p => p.finite_geometry()) {
+            return false
+          }
+        }
       }
     }
   }

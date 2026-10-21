@@ -6,7 +6,22 @@ fn Session::drawing_frame(
 ) -> @layout.DrawingFrame raise @failure.Failure {
   let (_, data) = tree.drawing_data(id)
   if data.attribute("uri") == Some(word_shape_uri) {
-    return tree.read_basic_shape(id, data.id)
+    let frame = tree.read_basic_shape(id, data.id)
+    let shape = tree.children[data.id][0]
+    if tree.drawing_child(shape, "txbx", uri=word_shape_uri) is Some(text) {
+      guard frame.content is @layout.Shape(paint) && paint.preset != "line" else {
+        @failure.reject(
+          "unsupported-layout", "Line shape text requires support",
+        )
+      }
+      let result : @layout.DrawingFrame = {
+        ..frame,
+        content: @layout.TextBox(paint, self.shape_text(tree, shape, text)),
+      }
+      result.validate()
+      return result
+    }
+    return frame
   }
   let picture = self.image_frame(tree, id)
   {

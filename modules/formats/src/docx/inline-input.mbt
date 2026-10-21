@@ -128,6 +128,7 @@ fn Session::edit_inline_text(
       continue
     }
     let paragraph = tree.run_paragraph(node.parent)
+    self.check_text_box_paragraph(tree, paragraph)
     tree.check_region_break_input(paragraph, text)
     if node.name == "drawing" {
       let items = self.drawing_text_changes(

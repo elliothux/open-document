@@ -13,6 +13,7 @@ pub extend BasicShape with ToJson::{to_json}
 pub(all) enum DrawingContent {
   Picture(String, Array[Double])
   Shape(BasicShape)
+  TextBox(BasicShape, DrawingTextBox)
 }
 
 ///|
@@ -27,6 +28,7 @@ pub impl ToJson for DrawingContent with fn to_json(self) {
         "stroke": shape.stroke,
         "lineWidth": shape.lineWidth,
       }
+    TextBox(shape, text) => { "kind": "textBox", "shape": shape, "text": text }
   }
 }
 
@@ -38,6 +40,7 @@ fn DrawingContent::copy(self : DrawingContent) -> DrawingContent {
   match self {
     Picture(key, crop) => Picture(key, crop.copy())
     Shape(_) => self
+    TextBox(shape, text) => TextBox(shape, text.copy())
   }
 }
 
@@ -65,7 +68,10 @@ pub impl ToJson for DrawingFrame with fn to_json(self) {
 pub extend DrawingFrame with ToJson::{to_json}
 
 ///|
-fn DrawingFrame::validate(self : DrawingFrame) -> Unit raise @failure.Failure {
+/// Validate dimensions, drawing data and a text box's usable text area.
+pub fn DrawingFrame::validate(
+  self : DrawingFrame,
+) -> Unit raise @failure.Failure {
   guard [self.width, self.height].all(value => {
     !value.is_nan() && !value.is_inf() && value >= 0 && value <= 14400
   }) else {
@@ -87,7 +93,7 @@ fn DrawingFrame::validate(self : DrawingFrame) -> Unit raise @failure.Failure {
         @failure.reject("invalid-image", "Invalid picture frame or crop")
       }
     }
-    Shape(shape) => {
+    Shape(shape) | TextBox(shape, _) => {
       guard ["rect", "ellipse", "line"].contains(shape.preset) &&
         (if shape.preset == "line" {
           self.width > 0 || self.height > 0
@@ -108,6 +114,13 @@ fn DrawingFrame::validate(self : DrawingFrame) -> Unit raise @failure.Failure {
         @failure.reject("invalid-drawing", "Invalid basic shape frame")
       }
     }
+  }
+  if self.content is TextBox(shape, text) {
+    guard shape.preset != "line" else {
+      @failure.reject("invalid-drawing", "Line shapes cannot contain text")
+    }
+    text.validate()
+    ignore(self.text_box_rect(shape, text))
   }
 }
 

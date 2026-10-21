@@ -119,6 +119,22 @@ export interface DrawingFrame {
         fill: string;
         stroke: string;
         lineWidth: number;
+      }
+    | {
+        kind: "textBox";
+        shape: {
+          preset: "rect" | "ellipse";
+          fill: string;
+          stroke: string;
+          lineWidth: number;
+        };
+        text: {
+          paragraphs: DocxFlow["paragraphs"];
+          insets: number[];
+          anchor: "t" | "ctr" | "b";
+          wrap: boolean;
+          clip: boolean;
+        };
       };
 }
 
@@ -304,7 +320,7 @@ export function docxFlow(value: unknown): DocxFlow {
     throw new Error("Invalid paragraph spacing mode");
   fields(flow.page, ["width", "height", "top", "right", "bottom", "left"]);
   diagnostics(flow.diagnostics);
-  function paragraph(value: unknown): void {
+  function checkParagraph(value: unknown, inTextBox = false): void {
     const paragraph = fields(
       value,
       [
@@ -359,6 +375,11 @@ export function docxFlow(value: unknown): DocxFlow {
       typeof paragraph.expandSoftBreak !== "boolean"
     )
       throw new Error("Invalid paragraph flags");
+    if (
+      inTextBox &&
+      (paragraph.pageBreakBefore || paragraph.marker !== undefined)
+    )
+      throw new Error("Text box lists and page breaks require support");
     for (const value of entries(paragraph.spans)) {
       const span = fields(value, ["node"], ["text", "field"]);
       if (
@@ -382,6 +403,8 @@ export function docxFlow(value: unknown): DocxFlow {
       )
         throw new Error("Invalid preview text decoration");
       if (span.drawing !== null) {
+        if (inTextBox)
+          throw new Error("Nested text box drawings require support");
         const image = fields(span.drawing, ["width", "height"], []);
         checkDrawingAnchor(image.anchor);
         const content = fields(image.content, [], ["kind"]);
@@ -393,9 +416,9 @@ export function docxFlow(value: unknown): DocxFlow {
           Number(image.height) > 14400
         )
           throw new Error("Invalid drawing dimensions");
-        if (content.kind === "shape") {
+        if (content.kind === "shape" || content.kind === "textBox") {
           const shape = fields(
-            content,
+            content.kind === "textBox" ? content.shape : content,
             ["lineWidth"],
             ["preset", "fill", "stroke"],
           );
@@ -415,6 +438,40 @@ export function docxFlow(value: unknown): DocxFlow {
             Number(shape.lineWidth) > 1584
           )
             throw new Error("Invalid basic drawing shape");
+          if (content.kind === "textBox") {
+            const text = fields(content.text, [], ["anchor"]);
+            const paragraphs = entries(text.paragraphs);
+            if (
+              shape.preset === "line" ||
+              !["t", "ctr", "b"].includes(String(text.anchor)) ||
+              typeof text.wrap !== "boolean" ||
+              typeof text.clip !== "boolean" ||
+              !Array.isArray(text.insets) ||
+              text.insets.length !== 4 ||
+              text.insets.some(
+                (v: unknown) =>
+                  typeof v !== "number" ||
+                  !Number.isFinite(v) ||
+                  v < 0 ||
+                  v > 14400,
+              ) ||
+              paragraphs.length < 1 ||
+              paragraphs.length > 256
+            )
+              throw new Error("Invalid drawing text box");
+            let units = 0;
+            for (const value of paragraphs) {
+              checkParagraph(value, true);
+              const p = record(value);
+              for (const value of entries(p.spans)) {
+                const span = record(value);
+                if (span.field !== "" || typeof span.text !== "string")
+                  throw new Error("Invalid text box span");
+                units += span.text.length;
+              }
+            }
+            if (units > 32767) throw new Error("Text box exceeds text budget");
+          }
           continue;
         }
         if (
@@ -441,12 +498,12 @@ export function docxFlow(value: unknown): DocxFlow {
     }
   }
   const paragraphs = entries(flow.paragraphs);
-  for (const value of paragraphs) paragraph(value);
+  for (const value of paragraphs) checkParagraph(value);
   for (const stories of [record(flow.headers), record(flow.footers)]) {
     for (const [key, story] of Object.entries(stories)) {
       if (!["default", "first", "even"].includes(key))
         throw new Error("Invalid running variant");
-      for (const value of entries(story)) paragraph(value);
+      for (const value of entries(story)) checkParagraph(value);
     }
   }
   let previousPosition = 0;
@@ -546,7 +603,7 @@ export function docxFlow(value: unknown): DocxFlow {
     }
     for (const row of entries(table.rows))
       for (const cell of entries(row))
-        for (const value of entries(cell)) paragraph(value);
+        for (const value of entries(cell)) checkParagraph(value);
   }
   return value as DocxFlow;
 }

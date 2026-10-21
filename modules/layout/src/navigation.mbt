@@ -70,13 +70,21 @@ pub fn Layout::compare_positions(
   a : (Int, Int),
   b : (Int, Int),
 ) -> Int raise @failure.Failure {
+  if self.text_box_layout(a.0) is Some(story) {
+    return story.compare_positions(a, b)
+  }
   ignore(self.caret(a.0, a.1, "after"))
   ignore(self.caret(b.0, b.1, "after"))
   if a.0 == b.0 {
     return a.1.compare(b.1)
   }
   let order = self.paragraph_order()
-  order[a.0].compare(order[b.0])
+  guard order.get(a.0) is Some(first) && order.get(b.0) is Some(last) else {
+    @failure.reject(
+      "invalid-position", "Positions belong to different text stories",
+    )
+  }
+  first.compare(last)
 }
 
 ///|
@@ -89,6 +97,15 @@ pub fn Layout::move_caret(
   bidi_level? : Int,
   frame_start? : Int,
 ) -> Hit raise @failure.Failure {
+  if self.text_box_layout(position.0) is Some(story) {
+    return story.move_caret(
+      position,
+      direction,
+      goal_x?,
+      bidi_level?,
+      frame_start?,
+    )
+  }
   self.caret_geometry(
     self.navigate(position, direction, goal_x?, bidi_level?, frame_start?),
   )

@@ -40,7 +40,31 @@ fn Session::ruler_context(
     bidi_level?=focus.bidiLevel,
     frame_start?=focus.frameStart,
   )
-  let line = layout.pages[hit.page].lines[hit.line]
+  let tree = WordTree::new(self.display_document())
+  let (area_x, area_width) = if tree.text_box_drawing(focus.paragraph)
+    is Some(_) {
+    let line = layout.semantics()[hit.page].lines
+      .iter()
+      .find_first(line => {
+        line.paragraph == focus.paragraph &&
+        line.start <= focus.offset &&
+        line.end >= focus.offset &&
+        hit.y >= line.y &&
+        hit.y < line.y + line.height
+      })
+      .unwrap_or_error(
+        @failure.Failure(
+          code="invalid-position",
+          part="",
+          offset=focus.paragraph,
+          message="Ruler line is unavailable",
+        ),
+      )
+    (line.areaX, line.areaWidth)
+  } else {
+    let line = layout.pages[hit.page].lines[hit.line]
+    (line.areaX, line.areaWidth)
+  }
   let flow = self.flow()
   let paragraphs = flow.paragraphs.copy()
   for table in flow.tables {
@@ -52,6 +76,18 @@ fn Session::ruler_context(
       }
     }
   }
+  let nested = paragraphs
+    .iter()
+    .flat_map(p => p.spans.iter())
+    .flat_map(span => {
+      match span.drawing {
+        Some({ content: @layout.TextBox(_, text), .. }) =>
+          text.paragraphs().iter()
+        _ => [].iter()
+      }
+    })
+    .collect()
+  paragraphs.append(nested)
   let mut found : @layout.Paragraph? = None
   for paragraph in paragraphs {
     if paragraph.id == focus.paragraph {
@@ -67,8 +103,8 @@ fn Session::ruler_context(
     paragraph,
     page: hit.page,
     width: layout.pages[hit.page].width,
-    origin: line.areaX + (if paragraph.rtl { line.areaWidth } else { 0 }),
-    extent: line.areaWidth,
+    origin: area_x + (if paragraph.rtl { area_width } else { 0 }),
+    extent: area_width,
     direction: if paragraph.rtl {
       -1
     } else {

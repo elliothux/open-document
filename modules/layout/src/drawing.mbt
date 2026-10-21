@@ -144,31 +144,54 @@ pub fn Layout::drawing(
 ///|
 pub fn Layout::semantics(self : Layout) -> Array[SemanticPage] {
   self.pages.mapi((index, page) => {
-    lines: (self.running[index].filter(line => line.container == -1) +
-    page.lines +
-    self.running[index].filter(line => line.container == -2))
-    .filter(line => !line.caretOnly)
-    .map(line => {
-      paragraph: line.paragraph,
-      container: line.container,
-      baseLevel: line.baseLevel,
-      text: line.display_text(),
-      marker: if line.markerText.is_empty() {
-        None
-      } else {
-        Some(line.markerText)
-      },
-      start: line.start,
-      end: line.end,
-      x: line.x,
-      areaX: line.areaX,
-      areaWidth: line.areaWidth,
-      y: line.y,
-      width: line.width,
-      height: line.height,
-      readOnlyReason: line.readOnlyReason,
-    }),
+    let lines : Array[SemanticLine] = []
+    for
+      line in self.running[index].filter(line => line.container == -1) +
+      page.lines +
+      self.running[index].filter(line => line.container == -2) {
+      if !line.caretOnly {
+        lines.push(line.semantic())
+      }
+      for image in line.drawings {
+        if image.content is TextBox(_, text) {
+          for nested in text.lines {
+            let semantic = nested.semantic()
+            lines.push({
+              ..semantic,
+              x: semantic.x + image.x,
+              areaX: semantic.areaX + image.x,
+              y: semantic.y + image.y,
+            })
+          }
+        }
+      }
+    }
+    { lines, }
   })
+}
+
+///|
+fn Line::semantic(line : Line) -> SemanticLine {
+  {
+    paragraph: line.paragraph,
+    container: line.container,
+    baseLevel: line.baseLevel,
+    text: line.display_text(),
+    marker: if line.markerText.is_empty() {
+      None
+    } else {
+      Some(line.markerText)
+    },
+    start: line.start,
+    end: line.end,
+    x: line.x,
+    areaX: line.areaX,
+    areaWidth: line.areaWidth,
+    y: line.y,
+    width: line.width,
+    height: line.height,
+    readOnlyReason: line.readOnlyReason,
+  }
 }
 
 ///|

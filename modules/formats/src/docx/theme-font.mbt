@@ -83,7 +83,18 @@ fn flow_font_keys(flow : @layout.Flow) -> Map[String, Array[String]] {
     }
   }
   for (scope, paragraphs) in groups {
-    for p in paragraphs {
+    let nested = paragraphs
+      .iter()
+      .flat_map(p => p.spans.iter())
+      .flat_map(s => {
+        match s.drawing {
+          Some({ content: @layout.TextBox(_, text), .. }) =>
+            text.paragraphs().iter()
+          _ => [].iter()
+        }
+      })
+      .collect()
+    for p in paragraphs + nested {
       let fonts = p.spans.filter(s => s.drawing is None).map(s => s.style.font)
       if p.marker is Some(marker) {
         fonts.push(marker.style.font)

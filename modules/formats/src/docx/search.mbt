@@ -125,7 +125,13 @@ fn Session::search_groups(
   let mut parent = -1
   let mut previous = -1
   let cursors : Map[Int, Int] = Map([])
-  for id in tree.order {
+  let box_paragraphs = tree.order.filter(id => {
+    tree.text_box_drawing(id) is Some(_)
+  })
+  // Nested text stories must not interrupt adjacent body paragraph groups.
+  for
+    id in tree.order.filter(id => tree.text_box_drawing(id) is None) +
+    box_paragraphs {
     let node = tree.nodes[id]
     if node.uri != word_uri || node.name != "p" {
       continue

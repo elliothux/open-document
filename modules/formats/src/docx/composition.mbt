@@ -111,6 +111,11 @@ pub fn Session::update_composition(
   let prepared = self.prepare_composition(composition, text)
   if prepared is Some(candidate) {
     self.opc.validate_changes(self.replacements(candidate.document, self.parts))
+    if candidate.document
+      .nodes()
+      .any(node => node.uri == word_shape_uri && node.name == "txbx") {
+      ignore(self.flow_from(candidate.document))
+    }
   }
   self.composition = Some({ ..composition, prepared, })
   self.edit_result(prepared.map(edit => edit.edit.paragraphs).unwrap_or([]))

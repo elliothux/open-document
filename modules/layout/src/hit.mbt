@@ -257,7 +257,9 @@ pub fn Layout::hit_test(
         y >= top &&
         y <= top + height &&
         (!line.clip || (y >= line.y && y <= line.y + line.height)) {
-        return self.image_hit(line, image, page, index, x)
+        return self
+          .text_box_hit(image, page, x, y)
+          .unwrap_or_else(() => self.image_hit(line, image, page, index, x))
       }
     }
     if line.carets.is_empty() {
@@ -386,6 +388,9 @@ pub fn Layout::caret(
   bidi_level? : Int,
   frame_start? : Int,
 ) -> Hit raise @failure.Failure {
+  if self.text_box_layout(paragraph) is Some(story) {
+    return story.caret(paragraph, offset, affinity, bidi_level?, frame_start?)
+  }
   guard affinity == "before" || affinity == "after" else {
     @failure.reject("invalid-position", "Invalid caret affinity")
   }

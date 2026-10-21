@@ -158,6 +158,7 @@ pub impl ToJson for DrawingAxis
 pub(all) enum DrawingContent {
   Picture(String, Array[Double])
   Shape(BasicShape)
+  TextBox(BasicShape, DrawingTextBox)
 }
 pub fn DrawingContent::to_json(Self) -> Json
 pub impl ToJson for DrawingContent
@@ -169,6 +170,7 @@ pub(all) struct DrawingFrame {
   content : DrawingContent
 }
 pub fn DrawingFrame::to_json(Self) -> Json
+pub fn DrawingFrame::validate(Self) -> Unit raise @failure.Failure
 pub impl ToJson for DrawingFrame
 
 pub(all) struct DrawingRegion {
@@ -177,6 +179,19 @@ pub(all) struct DrawingRegion {
   commands : Array[DrawCommand]
 } derive(ToJson)
 pub fn DrawingRegion::to_json(Self) -> Json
+
+pub struct DrawingTextBox {
+  paragraphs : Array[Paragraph]
+  insets : Array[Double]
+  anchor : String
+  wrap : Bool
+  clip : Bool
+  lines : Array[Line]
+}
+pub fn DrawingTextBox::new(Array[Paragraph], Array[Double], String, Bool, Bool) -> Self
+pub fn DrawingTextBox::paragraphs(Self) -> Array[Paragraph]
+pub fn DrawingTextBox::to_json(Self) -> Json
+pub impl ToJson for DrawingTextBox
 
 pub(all) struct Fill {
   x : Double

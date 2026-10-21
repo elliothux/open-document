@@ -60,7 +60,7 @@ pub fn Session::begin_drawing_gesture(
     ignore(self.editable_picture(tree, drawing))
     self.drawing_frame(tree, drawing)
   }
-  guard !(initial.content is @layout.Shape(_)) ||
+  guard !(initial.content is (@layout.Shape(_) | @layout.TextBox(_, _))) ||
     !tree.shape_locked(drawing, "noSelect") else {
     @failure.reject("protected-content", "Shape selection is locked")
   }
@@ -220,7 +220,7 @@ fn Session::prepare_drawing_gesture(
   }
   let dx = if handle == 1 || handle == 4 { -dx } else { dx }
   let dy = if handle == 1 || handle == 2 { -dy } else { dy }
-  if image.content is @layout.Shape(shape) {
+  if image.content is (@layout.Shape(shape) | @layout.TextBox(shape, _)) {
     let minimum = if shape.preset == "line" { 0.0 } else { 1.0 / 12700 }
     let (width, height) = if gesture.preserve_aspect {
       let delta = if image.height == 0 || dy == 0 {

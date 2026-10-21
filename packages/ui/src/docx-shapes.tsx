@@ -24,10 +24,11 @@ export function DocxShapes({
   const [catalog, setCatalog] = useState<Shapes>();
   const [draft, setDraft] = useState<DocxShape>();
   const [creation, setCreation] = useState<{
-    preset: DocxShapePreset;
+    preset: DocxShapePreset | "textBox";
     width: number;
     height: number;
-  }>({ preset: "rect", width: 120, height: 80 });
+    text: string;
+  }>({ preset: "rect", width: 120, height: 80, text: "" });
   const load = async (known?: ReadonlySet<number>) => {
     const value = await editor.shapes();
     setCatalog(value);
@@ -88,14 +89,18 @@ export function DocxShapes({
           event.preventDefault();
           controller.run(async () => {
             const before = await editor.shapes();
+            const { preset, text, ...size } = creation;
             await editor.editShape(before.revision, {
               action: "insert",
-              ...creation,
-              fill: "4472C4",
+              ...size,
+              preset: preset === "textBox" ? "rect" : preset,
+              ...(preset === "textBox" ? { text } : {}),
+              fill: preset === "textBox" ? "FFFFFF" : "4472C4",
               stroke: "000000",
               lineWidth: 1,
             });
             await load(new Set(before.items.map((item) => item.id)));
+            if (preset === "textBox") editor.focus();
           });
         }}
       >
@@ -111,7 +116,8 @@ export function DocxShapes({
                 if (
                   preset === "rect" ||
                   preset === "ellipse" ||
-                  preset === "line"
+                  preset === "line" ||
+                  preset === "textBox"
                 )
                   setCreation({
                     ...creation,
@@ -123,6 +129,7 @@ export function DocxShapes({
               <option value="rect">{t.docxShapeRectangle}</option>
               <option value="ellipse">{t.docxShapeEllipse}</option>
               <option value="line">{t.docxShapeLine}</option>
+              <option value="textBox">{t.docxShapeTextBox}</option>
             </select>
           </label>
           {(
@@ -149,7 +156,24 @@ export function DocxShapes({
               />
             </label>
           ))}
-          <button type="submit">{t.insertDocxShape}</button>
+          {creation.preset === "textBox" && (
+            <label>
+              {t.docxTextBoxInitialText}
+              <textarea
+                rows={3}
+                maxLength={32767}
+                value={creation.text}
+                onChange={(event) =>
+                  setCreation({ ...creation, text: event.currentTarget.value })
+                }
+              />
+            </label>
+          )}
+          <button type="submit">
+            {creation.preset === "textBox"
+              ? t.insertDocxTextBox
+              : t.insertDocxShape}
+          </button>
         </fieldset>
       </form>
       <button

@@ -105,7 +105,7 @@ pub fn Layout::positioned(self : Layout) -> PositionedDocument {
       let floating = page.floating_images()
       for (_, image) in floating {
         if image.anchor.unwrap().behind {
-          image.paint(primitives)
+          image.paint(primitives, self.fonts)
         }
       }
       for fill in page.fills {
@@ -125,7 +125,7 @@ pub fn Layout::positioned(self : Layout) -> PositionedDocument {
       }
       for (_, image) in floating {
         if !image.anchor.unwrap().behind {
-          image.paint(primitives)
+          image.paint(primitives, self.fonts)
         }
       }
       for border in page.pageBorders {
@@ -361,7 +361,7 @@ pub fn Line::positioned(
   }
   for image in line.drawings {
     if image.anchor is None {
-      image.paint(primitives)
+      image.paint(primitives, fonts)
     }
   }
   for x in line.bars {

@@ -383,13 +383,20 @@ fn WordTree::check_editable_paragraph(
     self.nodes[table].name == "tbl" &&
     self.nodes[body].uri == word_uri &&
     self.nodes[body].name == "body"
-  guard in_body || supported_cell else {
+  let text_box = self.text_box_drawing(paragraph)
+  guard in_body || supported_cell || text_box is Some(_) else {
     @failure.reject(
       "protected-content",
       "Paragraph is inside a protected container",
       part~,
       offset=paragraph,
     )
+  }
+  if text_box is Some(drawing) {
+    guard !self.shape_locked(drawing, "noTextEdit") &&
+      !self.shape_locked(drawing, "noSelect") else {
+      @failure.reject("protected-content", "Text box text editing is locked")
+    }
   }
   for id in self.descendants(paragraph) {
     let node = self.nodes[id]

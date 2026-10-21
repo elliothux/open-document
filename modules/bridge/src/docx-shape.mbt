@@ -24,6 +24,11 @@ fn Foundation::shape_operation(
         field_string(shape, "fill"),
         field_string(shape, "stroke"),
         xlsx_number(shape, "lineWidth"),
+        text?=if shape is Object(fields) && fields.contains("text") {
+          Some(field_string(shape, "text"))
+        } else {
+          None
+        },
         probe=self.probe,
         profile=xlsx_profile(request),
         images=self.images,

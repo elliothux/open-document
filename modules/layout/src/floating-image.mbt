@@ -253,8 +253,9 @@ fn PageFrame::floating_images(
 fn PlacedDrawingFrame::paint(
   self : PlacedDrawingFrame,
   primitives : Array[PositionedPrimitive],
+  fonts : Array[FontInfo],
 ) -> Unit {
-  if self.content is Shape(shape) {
+  if self.content is (Shape(shape) | TextBox(shape, _)) {
     primitives.push(
       Transform({ a: 1, b: 0, c: 0, d: 1, e: self.x, f: self.y, }),
     )
@@ -267,6 +268,19 @@ fn PlacedDrawingFrame::paint(
         { fillAlpha: 1, strokeAlpha: 1, dash: [], cap: 0, join: 0, miter: 10, },
       ),
     )
+    if self.content is TextBox(_, text) {
+      if text.clip {
+        primitives.push(
+          Clip({ x: 0, y: 0, width: self.width, height: self.height, }),
+        )
+      }
+      for line in text.lines {
+        primitives.append(line.positioned(fonts, self.width))
+      }
+      if text.clip {
+        primitives.push(Restore)
+      }
+    }
     primitives.push(Restore)
     return
   }
@@ -342,7 +356,7 @@ fn Layout::floating_image_hit(
   page : Int,
   x : Double,
   y : Double,
-) -> Hit? {
+) -> Hit? raise @failure.Failure {
   let frame = self.pages[page]
   let text = (frame.lines + self.running.get(page).unwrap_or([])).any(line => {
     !line.text.is_empty() &&
@@ -365,7 +379,13 @@ fn Layout::floating_image_hit(
       x <= left + width &&
       y >= top &&
       y <= top + height {
-      return Some(self.image_hit(frame.lines[index], image, page, index, x))
+      return Some(
+        self
+        .text_box_hit(image, page, x, y)
+        .unwrap_or_else(() => {
+          self.image_hit(frame.lines[index], image, page, index, x)
+        }),
+      )
     }
   }
   None

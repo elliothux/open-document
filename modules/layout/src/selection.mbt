@@ -18,6 +18,9 @@ pub fn Layout::selection_rects(
   anchor : (Int, Int, String),
   focus : (Int, Int, String),
 ) -> Array[SelectionRect] raise @failure.Failure {
+  if self.text_box_layout(anchor.0) is Some(story) {
+    return story.selection_rects(anchor, focus)
+  }
   let anchor_hit = self.caret(anchor.0, anchor.1, anchor.2)
   let focus_hit = self.caret(focus.0, focus.1, focus.2)
   if anchor.0 == focus.0 && anchor.1 == focus.1 {
@@ -60,7 +63,11 @@ pub fn Layout::selection_rects(
     }
   }
   let order = self.paragraph_order()
-  let reverse = order[anchor.0] > order[focus.0] ||
+  guard order.get(anchor.0) is Some(anchor_order) &&
+    order.get(focus.0) is Some(focus_order) else {
+    @failure.reject("invalid-position", "Selection crosses text stories")
+  }
+  let reverse = anchor_order > focus_order ||
     (anchor.0 == focus.0 && anchor.1 > focus.1)
   let start = if reverse { focus } else { anchor }
   let end = if reverse { anchor } else { focus }

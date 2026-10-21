@@ -9,7 +9,7 @@ fn Session::editable_shape(
   guard data.attribute("uri") == Some(word_shape_uri) else {
     @failure.reject("invalid-operation", "Drawing is not a basic shape")
   }
-  let drawing = tree.read_basic_shape(id, data.id) catch {
+  let drawing = self.drawing_frame(tree, id) catch {
     @failure.Failure(code="unsupported-layout", message~, ..) =>
       @failure.reject("protected-content", message)
     error => raise error
@@ -91,9 +91,8 @@ pub fn Session::shapes(
     guard items.length() < 256 else {
       @failure.reject("limit-exceeded", "Shape list exceeds 256 entries")
     }
-    let (_, data) = tree.drawing_data(id)
-    let frame = tree.read_basic_shape(id, data.id)
-    guard frame.content is @layout.Shape(shape) else {
+    let frame = self.drawing_frame(tree, id)
+    guard frame.content is (@layout.Shape(shape) | @layout.TextBox(shape, _)) else {
       abort("Shape payload expected")
     }
     let reason = try {
@@ -267,7 +266,7 @@ fn Session::prepare_shape_edit(
   let document = self.document()
   let tree = WordTree::new(document)
   let (paragraph, frame, properties) = self.editable_shape(tree, id)
-  guard frame.content is @layout.Shape(shape) else {
+  guard frame.content is (@layout.Shape(shape) | @layout.TextBox(shape, _)) else {
     abort("Shape payload expected")
   }
   let (width, height, line_width) = check_shape_properties(

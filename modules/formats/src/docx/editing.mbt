@@ -184,6 +184,11 @@ pub fn Session::select(
   for position in [selection.anchor, selection.focus] {
     self.check_position(position)
   }
+  let tree = WordTree::new(self.display_document())
+  guard tree.text_box_drawing(selection.anchor.paragraph) ==
+    tree.text_box_drawing(selection.focus.paragraph) else {
+    @failure.reject("protected-content", "Selection crosses text box stories")
+  }
   self.selection = Some(selection)
   self.input_group = None
   self.typing_text = None
@@ -653,6 +658,13 @@ fn Session::accept_document(
     @failure.reject("limit-exceeded", "Revision exhausted")
   }
   self.opc.validate_changes(self.replacements(candidate, parts, media~))
+  if candidate
+    .nodes()
+    .any(node => node.uri == word_shape_uri && node.name == "txbx") {
+    ignore(
+      { ..self, document: Some(candidate), parts, media, }.flow_from(candidate),
+    )
+  }
   ignore({ ..self, document: Some(candidate), parts, media, }.default_tab())
   let texts = docx_texts(WordTree::new(candidate))
   self.document = Some(candidate)

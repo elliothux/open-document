@@ -30,7 +30,12 @@ export interface DocxShapes {
   })[];
 }
 export type DocxShapeEdit =
-  | (Omit<DocxShape, "id"> & { action: "insert"; preset: DocxShapePreset })
+  | (Omit<DocxShape, "id"> & {
+      action: "insert";
+      preset: DocxShapePreset;
+      /** Initial plain text; even an empty string creates an editable text box. */
+      text?: string;
+    })
   | (DocxShape & { action: "properties" })
   | { action: "delete"; id: number }
   | DocxDrawingPositionEdit;
@@ -45,6 +50,24 @@ export function checkDocxShapeEdit(value: unknown): void {
       shape.preset !== "line"
     )
       throw new Error("Invalid DOCX shape preset");
+    if (
+      shape.text !== undefined &&
+      (shape.preset === "line" ||
+        typeof shape.text !== "string" ||
+        shape.text.length > 32767 ||
+        shape.text.split("\n").length > 256 ||
+        shape.text.split("\n").some((part) => part.length > 4096) ||
+        [...shape.text].some((character) => {
+          const code = character.codePointAt(0)!;
+          return (
+            (code < 32 && code !== 9 && code !== 10) ||
+            (code >= 0xd800 && code <= 0xdfff) ||
+            code === 0xfffe ||
+            code === 0xffff
+          );
+        }))
+    )
+      throw new Error("Invalid DOCX text box initial text");
   } else {
     if (!integer(shape.id, 0, 2147483647))
       throw new Error("Invalid DOCX shape identity");

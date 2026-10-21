@@ -91,6 +91,10 @@ fn prepare_paragraph(
     if span.drawing is Some(image) {
       image.validate()
     }
+    let span = {
+      ..span,
+      drawing: span.drawing.map(image => image.prepare_text(probe, profile)),
+    }
     guard ["baseline", "subscript", "superscript"].contains(span.style.script) &&
       (
         span.style.highlight.is_empty() ||

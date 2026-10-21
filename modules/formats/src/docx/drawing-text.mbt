@@ -24,6 +24,7 @@ fn Session::check_native_drawings(
   tree : WordTree,
   paragraph : Int,
 ) -> Unit raise @failure.Failure {
+  self.check_text_box_paragraph(tree, paragraph)
   for id in tree.descendants(paragraph) {
     if tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing" {
       self.check_drawing_text(tree, id)

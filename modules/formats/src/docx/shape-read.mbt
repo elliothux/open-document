@@ -86,7 +86,7 @@ fn WordTree::read_basic_shape(
   }
   self.shape_children(
     shape,
-    ["cNvPr", "cNvSpPr", "spPr", "bodyPr"],
+    ["cNvPr", "cNvSpPr", "spPr", "bodyPr", "txbx"],
     uri=word_shape_uri,
   )
   let frame = self.drawing_data(drawing).0

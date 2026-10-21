@@ -355,7 +355,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 ### DOCX 绘图框与基础图形
 
-正文 DrawingML 矩形、椭圆和线已接通读取与矢量 Canvas/PDF。首批支持无文字的 `wps:wsp`、显式 RGB/无填充、实线及匹配框尺寸的未旋转几何。行内框参与行宽和行高；正文浮动框复用既有定位、图层、上下型/方形环绕及缓存。线可有一个零尺寸轴。图形不生成位图资源。
+正文 DrawingML 矩形、椭圆和线已接通读取与矢量 Canvas/PDF。支持无文字的 `wps:wsp`，普通文本内容见下方[文本框](#docx-文本框)。画笔支持显式 RGB/无填充、实线及匹配框尺寸的未旋转几何。行内框参与行宽和行高；正文浮动框复用既有定位、图层、上下型/方形环绕及缓存。线可有一个零尺寸轴。图形不生成位图资源。
 
 Flow 使用 `spans[].drawing: DrawingFrame | null`。框为 `{ width, height, anchor, content }`；图片内容为 `{ kind: "picture", key, crop }`，基础图形内容为 `{ kind: "shape", preset, fill, stroke, lineWidth }`。`preset` 为 `rect/ellipse/line`，颜色为六位 RGB 或空字符串，尺寸和线宽使用 point。空颜色表示不绘制该项。共享锚点类型为 `DrawingAnchor/DrawingAxis`；原生定位结果为 `Line.drawings: PlacedDrawingFrame[]`，命中使用 `Hit.drawingStart`。图片源编辑命令、裁剪值和资源键继续表达图片本身。正文可访问文字把对象单元标为 `[drawing]`。
 
@@ -371,13 +371,31 @@ Flow 使用 `spans[].drawing: DrawingFrame | null`。框为 `{ width, height, an
 
 `noCopy` 阻止图形富文本复制和剪切，`noDelete` 只阻止剪切及删除。未知绘图元数据、引用属性及外部关系继续保护复制；图形只携带已支持的独立属性。正文及整格粘贴在最终候选上检查图片与图形合计不超过 256 项，先扣除被替换对象，满额时仍可等量替换。格式、布局、输出或数量预算失败保留原包、选择和历史。片段校验、身份重映射及源保留归 [fragment-drawings.mbt](../../modules/formats/src/docx/fragment-drawings.mbt)，复制依据 [ONLYOFFICE Shape.copy/fillObject](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L2772-L2833)。
 
-受支持图形段落已接通前后原生/组合输入、字符格式、查找、拆段合段和范围删除。图形占一个逻辑 `U+FFFC`，输入同名字符仍是文字。保留图形源、资源和精确混合历史，删除继续检查独立锁与外部引用。普通文字光标可命中图形边界；绘图命中和句柄同时支持图片与基础图形。图片目录只返回图片。文字框内容及 WordArt 仍待实现；主题样式、渐变、旋转/翻转、箭头、复杂图形和未知扩展继续拒绝输出，保留原始源与历史。HTML/Markdown 的图形转换尚未接通。
+受支持图形段落已接通前后原生/组合输入、字符格式、查找、拆段合段和范围删除。图形占一个逻辑 `U+FFFC`，输入同名字符仍是文字。保留图形源、资源和精确混合历史，删除继续检查独立锁与外部引用。普通文字光标可命中图形边界；绘图命中和句柄同时支持图片与基础图形。图片目录只返回图片。框内文字编辑见下方文本框；WordArt、主题画笔、渐变、旋转/翻转、箭头、复杂图形和未知扩展继续拒绝输出，保留原始源与历史。HTML/Markdown 的图形转换尚未接通。
 
 实现归 [drawing-frame.mbt](../../modules/layout/src/drawing-frame.mbt)、[drawing.mbt](../../modules/formats/src/docx/drawing.mbt)、[shape-read.mbt](../../modules/formats/src/docx/shape-read.mbt)、[shape-editing.mbt](../../modules/formats/src/docx/shape-editing.mbt)、[shape-insert.mbt](../../modules/formats/src/docx/shape-insert.mbt)、[共享插入事务](../../modules/formats/src/docx/drawing-insert.mbt)、[文字事务](../../modules/formats/src/docx/drawing-text.mbt)及[默认面板](../../packages/ui/src/docx-shapes.tsx)。轮廓复用 [basic-shape.mbt](../../modules/layout/src/basic-shape.mbt)。源结构参考 [ONLYOFFICE Shape 读取](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Shape.cpp#L89-L168)与 [DOCX 写出](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Shape.cpp#L238-L332)，独立锁参考 [CNvSpPr](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/CNvSpPr.cpp#L87-L122)。当前范围归 [P10](../p10-docx-core.md)。
 
 `editShape(revision, { action: "position", id, anchor, target? })` 修改图形定位。图形与图片共用 `DocxDrawingPositionEdit`、核心 `set_drawing_anchor` 和默认定位面板。`anchor` 为 `null` 时恢复行内；浮动框支持前置/后置、两轴基准与偏移/对齐、层次、方形/上下型环绕和四边间距，参数归[图片定位](#图片定位)。图形目录返回当前 `anchor` 及 `positionReason`。
 
 `target` 显式把浮动图形重锚到正文段落，可跨页；偏移按移除前文档计算。事务保留原运行格式、命名空间、身份、矢量源和非目标部件，选择新逻辑范围，修改合为一项精确历史。`noMove`、`noChangeWrap` 阻止定位，`noResize`、`noCopy`、`noDelete` 不阻止定位。跨段迁移遵循 `wp:anchor locked`。浮动图形要求正文容器；源不明、位置无效、布局或预算失败保持原文档与历史。默认宿主已接通指针选择、四角及键盘缩放、浮动拖动、跨段/跨页重锚和边缘翻页。图形目录的 `selected` 标记当前单对象范围，默认面板自动跟随；`noSelect` 阻止图形手势。图形允许独立调整宽高，`noChangeAspect` 存在时保持比例，`noResize` 保护缩放；图片继续保持原比例与裁剪。矩形/椭圆的最小尺寸为一个 EMU；线允许零轴，交互命中与选择框将零轴扩展为 6 pt，源尺寸和绘制不变。候选、取消、最终坐标、原生删除、历史与持久化屏障复用[绘图对象手势](#绘图对象移动与缩放手势)。
+
+### DOCX 文本框
+
+普通 `wps:txbx/w:txbxContent` 已接通核心读取、富文本排版与 Canvas/PDF。内容使用原生 Word 段落、样式和字体整形，保留字符装饰、对齐、缩进、段距及行距。矩形与椭圆复用绘图框；椭圆先取内接文字区域，再应用四边边距。文字不转成图片。可访问页面文字包含框内各行。正文逻辑位置仍只计一个对象，框内文字使用自身的段落身份和偏移。
+
+Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含原图形的 `preset/fill/stroke/lineWidth`，`text` 为 `{ paragraphs, insets, anchor, wrap, clip }`。`paragraphs` 使用原段落结构；`insets` 按上、右、下、左排列，单位为 pt，默认分别为 3.6、7.2、3.6、7.2。`anchor` 支持 `t/ctr/b`，`wrap` 对应 `square/none`。默认文字可溢出；两轴都声明 `clip` 时裁剪到框边界。核心缓存包含文字、样式和框尺寸，缩放后重新断行。
+
+`editShape(revision, { action: "insert", preset, text, width, height, fill, stroke, lineWidth })` 创建原生文本框。提供 `text`（包括空字符串）时，`preset` 支持 `rect/ellipse`；省略 `text` 时仍创建上述无文字图形。初始文字以 LF 分段，支持 Tab 和 `U+2028` 软换行，拒绝 CR、无效 XML 字符及分页/分栏控制。正文、空段、普通单元格和受支持范围替换复用同一插入事务，不新增媒体或关系。创建只记一项历史，光标进入末段文字末尾；保存重开后仍可继续输入。
+
+默认图形面板提供文本框类型与初始文字，创建矩形框后聚焦原输入控件。初始填充为白色，线条为黑色、1 pt；SDK 也可创建椭圆文本框。空框保留一个原生空段落。
+
+已有文本框可通过 `shapes()`、`editShape` 和默认图形面板修改尺寸、画笔及定位，也可使用原绘图手势。事务保留 `txbxContent` 原文、样式与非目标部件，复用独立锁、单项历史和保存重开。创建与读取共用预设文字区域及边距校验，无可用区域时直接拒绝。提供字体 probe 时，框创建或修改同时预检内部文字排版；字体、尺寸或布局失败保留源与历史。
+
+单击文本框内侧进入文字选择，边框仍用于选择整个对象。框内命中、光标、扩选、方向键与 Home/End 使用最终行几何；标尺使用框内可用文字区域。现有原生输入、组合候选/取消/最终提交、字符/段落格式及拆段合段复用同一源事务和精确历史。保存重开后仍可继续输入。查询中的文本节点带独立段落身份；正文与文本框、不同文本框之间的文字范围保持保护，不能把框内偏移当成正文偏移。查找按内容区域分组，框内段落不打断相邻正文段落。
+
+当前每框限 256 段、32767 个 UTF-16 单元，单段沿既有 4096 单元上限。普通运行文字、Tab 和软换行可编辑。`noTextEdit` 和 `noSelect` 阻止框内文字编辑，沿既有文档保护检查；帧属性仍遵循各自的锁。候选和提交前校验段落结构及内容上限，失败保留最后有效候选或原文档。表格、列表、字段、嵌套绘图、链接文本框、多栏、竖排、旋转、自动适配及独立两轴溢出设置继续拒绝输出，保留源与历史。整个对象的富文本剪贴板及更多兼容继续实施；已有剪切保护阻止把对象降成占位字符后删除原内容。
+
+实现归 [shape-text.mbt](../../modules/formats/src/docx/shape-text.mbt)、[drawing-text-box.mbt](../../modules/layout/src/drawing-text-box.mbt)、[文字区域交互](../../modules/layout/src/text-box-interaction.mbt)及[框内编辑保护](../../modules/formats/src/docx/text-box-editing.mbt)。原生内容与 `bodyPr` 参考 [ONLYOFFICE Shape 读取](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Shape.cpp#L111-L168)，默认边距与文字区域参考 [Shape.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L1571-L1625)，默认 bodyPr 参考 [Format.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L11945-L11964)，文字命中与选区坐标转换参考 [selectionSetStart/End](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L5372-L5415)。当前范围归 [P10](../p10-docx-core.md)。
 
 ### 行内图片尺寸与裁剪
 
