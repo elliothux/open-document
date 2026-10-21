@@ -249,7 +249,7 @@ pub fn TextProbe::text_block(
   wrap : Bool,
 ) -> TextBlock raise @failure.Failure {
   self.span_block(
-    [{ node: 0, text, style, image: None, field: "", }],
+    [{ node: 0, text, style, drawing: None, field: "", }],
     style.size,
     profile,
     width,
@@ -268,7 +268,7 @@ pub fn TextProbe::span_block(
   wrap : Bool,
 ) -> TextBlock raise @failure.Failure {
   self.check()
-  guard spans.all(span => span.image is None && span.field.is_empty()) else {
+  guard spans.all(span => span.drawing is None && span.field.is_empty()) else {
     @failure.reject(
       "unsupported-text", "Text blocks require ordinary text spans",
     )
@@ -359,7 +359,7 @@ pub fn Line::positioned(
   if line.clip {
     primitives.push(Clip({ x: 0, y: line.y, width, height: line.height, }))
   }
-  for image in line.images {
+  for image in line.drawings {
     if image.anchor is None {
       image.paint(primitives)
     }

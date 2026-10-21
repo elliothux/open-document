@@ -91,7 +91,7 @@ fn rich_layout_spans(
         strike: effects.strike,
         script: effects.script,
       },
-      image: None,
+      drawing: None,
       field: "",
     })
   }

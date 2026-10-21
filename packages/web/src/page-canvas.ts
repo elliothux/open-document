@@ -48,7 +48,11 @@ export class PageCanvas extends CanvasSurface {
     ];
     const keys = new Set(
       paragraphs.flatMap((paragraph) =>
-        paragraph.spans.flatMap((span) => (span.image ? [span.image.key] : [])),
+        paragraph.spans.flatMap((span) =>
+          span.drawing?.content.kind === "picture"
+            ? [span.drawing.content.key]
+            : [],
+        ),
       ),
     );
     for (const key of this.keys.keys())

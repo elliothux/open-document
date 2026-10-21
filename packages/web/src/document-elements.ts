@@ -4,7 +4,7 @@ export function docxPageText(layout: PageLayout, page: number): string {
   return (
     layout.semantics[page]?.lines
       .map((line) =>
-        ((line.marker ?? "") + line.text).replaceAll("\ufffc", "[image]"),
+        ((line.marker ?? "") + line.text).replaceAll("\ufffc", "[drawing]"),
       )
       .join("\n") ?? ""
   );

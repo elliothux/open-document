@@ -17,7 +17,7 @@ fn measure_text(
         spans.push({
           node: run.source.map(item => item.node.id).unwrap_or(0),
           text: text.replace_all(old="\u2028", new="\n"),
-          image: None,
+          drawing: None,
           field: "",
           style: { ..style, size: style.size * scale, },
         })

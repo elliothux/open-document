@@ -7,8 +7,9 @@ fn Foundation::docx_flow(
   let keys : Array[String] = []
   fn retain(paragraph : @layout.Paragraph) {
     for span in paragraph.spans {
-      if span.image is Some(image) && !keys.contains(image.key) {
-        keys.push(image.key)
+      if span.drawing is Some({ content: @layout.Picture(key, _), .. }) &&
+        !keys.contains(key) {
+        keys.push(key)
       }
     }
   }
@@ -72,6 +73,11 @@ fn Foundation::picture_operation(
           field_int(change, "id"),
           xlsx_number(change, "dx"),
           xlsx_number(change, "dy"),
+          page?=if change is { "page": _, .. } {
+            Some(field_int(change, "page"))
+          } else {
+            None
+          },
         )
       "commit" =>
         session.finish_picture_gesture(
@@ -79,6 +85,11 @@ fn Foundation::picture_operation(
           field_int(change, "id"),
           xlsx_number(change, "dx"),
           xlsx_number(change, "dy"),
+          page?=if change is { "page": _, .. } {
+            Some(field_int(change, "page"))
+          } else {
+            None
+          },
         )
       _ =>
         @failure.reject("invalid-operation", "Unknown picture gesture command")
@@ -118,6 +129,11 @@ fn Foundation::picture_operation(
         revision,
         field_int(picture, "id"),
         picture_anchor(picture),
+        target?=if picture is { "target": target, .. } {
+          Some(field_position(target))
+        } else {
+          None
+        },
         probe=self.probe,
         profile=xlsx_profile(request),
         images=self.images,
@@ -134,14 +150,14 @@ fn Foundation::picture_operation(
 ///|
 fn picture_anchor(
   picture : Json,
-) -> @layout.ImageAnchor? raise @failure.Failure {
+) -> @layout.DrawingAnchor? raise @failure.Failure {
   guard picture is { "anchor": value, .. } else {
     @failure.reject("invalid-operation", "Picture anchor is required")
   }
   if value is Null {
     return None
   }
-  fn axis(value : Json) -> @layout.ImageAxis raise @failure.Failure {
+  fn axis(value : Json) -> @layout.DrawingAxis raise @failure.Failure {
     let reference = field_string(value, "relativeTo")
     match value {
       { "offset": Number(offset, ..), "align": Null, .. } =>

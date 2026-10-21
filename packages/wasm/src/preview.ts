@@ -53,7 +53,7 @@ export interface DocxFlow {
       node: number;
       text: string;
       style: TextStyle;
-      image: ImageFrame | null;
+      drawing: DrawingFrame | null;
       field:
         | ""
         | "PAGE"
@@ -107,20 +107,27 @@ export interface DocxFlow {
   }[];
 }
 
-export interface ImageFrame {
-  key: string;
+export interface DrawingFrame {
   width: number;
   height: number;
-  crop: number[];
-  anchor: ImageAnchor | null;
+  anchor: DrawingAnchor | null;
+  content:
+    | { kind: "picture"; key: string; crop: number[] }
+    | {
+        kind: "shape";
+        preset: "rect" | "ellipse" | "line";
+        fill: string;
+        stroke: string;
+        lineWidth: number;
+      };
 }
 
-export type ImageAxis =
+export type DrawingAxis =
   | { relativeTo: string; offset: number; align: null }
   | { relativeTo: string; offset: null; align: string };
-export interface ImageAnchor {
-  horizontal: ImageAxis;
-  vertical: ImageAxis;
+export interface DrawingAnchor {
+  horizontal: DrawingAxis;
+  vertical: DrawingAxis;
   behind: boolean;
   order: number;
   wrapping: "none" | "topBottom" | "square";
@@ -128,7 +135,7 @@ export interface ImageAnchor {
   distance: DocxCellMargins;
 }
 
-export function checkImageAnchor(value: unknown): void {
+export function checkDrawingAnchor(value: unknown): void {
   if (value === null) return;
   const anchor = record(value);
   if (
@@ -359,7 +366,7 @@ export function docxFlow(value: unknown): DocxFlow {
         !/^(?:(?:PAGE|NUMPAGES)(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?)?$/u.test(
           span.field,
         ) ||
-        (span.field !== "" && span.image !== null)
+        (span.field !== "" && span.drawing !== null)
       )
         throw new Error("Invalid running field");
       const style = fields(
@@ -374,18 +381,60 @@ export function docxFlow(value: unknown): DocxFlow {
         !["baseline", "superscript", "subscript"].includes(String(style.script))
       )
         throw new Error("Invalid preview text decoration");
-      if (span.image !== null) {
-        const image = fields(span.image, ["width", "height"], ["key"]);
-        checkImageAnchor(image.anchor);
+      if (span.drawing !== null) {
+        const image = fields(span.drawing, ["width", "height"], []);
+        checkDrawingAnchor(image.anchor);
+        const content = fields(image.content, [], ["kind"]);
+        const positive = Number(image.width) > 0 && Number(image.height) > 0;
         if (
-          !Array.isArray(image.crop) ||
-          image.crop.length !== 4 ||
-          image.crop.some(
+          Number(image.width) < 0 ||
+          Number(image.height) < 0 ||
+          Number(image.width) > 14400 ||
+          Number(image.height) > 14400
+        )
+          throw new Error("Invalid drawing dimensions");
+        if (content.kind === "shape") {
+          const shape = fields(
+            content,
+            ["lineWidth"],
+            ["preset", "fill", "stroke"],
+          );
+          if (
+            !["rect", "ellipse", "line"].includes(String(shape.preset)) ||
+            !(
+              positive ||
+              (shape.preset === "line" &&
+                (Number(image.width) > 0 || Number(image.height) > 0))
+            ) ||
+            ![shape.fill, shape.stroke].every(
+              (value) =>
+                typeof value === "string" &&
+                /^(?:[a-fA-F0-9]{6})?$/.test(value),
+            ) ||
+            Number(shape.lineWidth) < 0 ||
+            Number(shape.lineWidth) > 1584
+          )
+            throw new Error("Invalid basic drawing shape");
+          continue;
+        }
+        if (
+          content.kind !== "picture" ||
+          !positive ||
+          typeof content.key !== "string" ||
+          !content.key.length ||
+          content.key.length > 4096
+        )
+          throw new Error("Invalid picture drawing");
+        const crop = content.crop;
+        if (
+          !Array.isArray(crop) ||
+          crop.length !== 4 ||
+          crop.some(
             (v: unknown) =>
               typeof v !== "number" || !Number.isFinite(v) || v < 0 || v >= 1,
           ) ||
-          image.crop[0] + image.crop[2] >= 1 ||
-          image.crop[1] + image.crop[3] >= 1
+          crop[0] + crop[2] >= 1 ||
+          crop[1] + crop[3] >= 1
         )
           throw new Error("Invalid inline image crop");
       }

@@ -27,7 +27,7 @@ priv struct LineGroup {
   font : Int
   style : TextStyle
   level : Int
-  image : ImageFrame?
+  drawing : DrawingFrame?
   field : (Int, String)?
   tab : Bool
 }
@@ -88,16 +88,8 @@ fn prepare_paragraph(
     } else {
       span
     }
-    if span.image is Some(image) {
-      if image.anchor is Some(anchor) {
-        anchor.validate()
-      }
-      guard image.crop.length() == 4 &&
-        image.crop.all(v => !v.is_nan() && !v.is_inf() && v >= 0 && v < 1) &&
-        image.crop[0] + image.crop[2] < 1 &&
-        image.crop[1] + image.crop[3] < 1 else {
-        @failure.reject("invalid-image", "Invalid inline image crop")
-      }
+    if span.drawing is Some(image) {
+      image.validate()
     }
     guard ["baseline", "subscript", "superscript"].contains(span.style.script) &&
       (
@@ -112,7 +104,7 @@ fn prepare_paragraph(
     guard span.style.size > 0 && span.style.size <= 1024 else {
       @failure.reject("invalid-style", "Invalid font size")
     }
-    let font = if span.image is Some(_) {
+    let font = if span.drawing is Some(_) {
       -1
     } else {
       guard profile.get(span.style.font) is Some(identity) else {
@@ -563,7 +555,7 @@ fn prepare_paragraph(
               },
               baseline: baseline - run.rise,
             }),
-            images: images.map(image => {
+            drawings: images.map(image => {
               ..image,
               y: if image.anchor is Some(_) {
                 0
@@ -643,7 +635,7 @@ fn prepare_paragraph(
             markerText: "",
             bars: bars.filter(position => position >= left && position <= right),
             runs: [],
-            images: [],
+            drawings: [],
             carets: [{ offset: start, before: 0, after: 0, }],
             readOnlyReason: paragraph.readOnlyReason,
           },

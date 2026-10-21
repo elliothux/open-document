@@ -2,9 +2,10 @@
 priv struct PictureGesture {
   id : Int
   picture : Int
-  initial : @layout.ImageFrame
+  initial : PictureFrame
   handle : Int
-  origin : @layout.ImageAnchor?
+  origin : @layout.DrawingAnchor?
+  placement : (@layout.PageSetup, @layout.Layout)?
   prepared : PreparedEdit?
   probe : @layout.TextProbe?
   profile : Map[String, String]
@@ -47,6 +48,23 @@ pub fn Session::begin_picture_gesture(
     )
   }
   let initial = self.editable_picture(tree, picture, position=handle == 0).0
+  let placement = if handle == 0 && probe is Some(probe) {
+    let flow = self.flow()
+    let layout = @layout.paginate(
+      probe,
+      flow,
+      profile,
+      images.unwrap_or(@layout.Images::new()),
+    )
+    guard layout.diagnostics.is_empty() else {
+      @failure.reject(
+        "unsupported-layout", "Picture movement requires supported document layout",
+      )
+    }
+    Some((flow.page, layout))
+  } else {
+    None
+  }
   let origin = if handle == 0 {
     guard initial.anchor is Some(anchor) else {
       @failure.reject(
@@ -57,27 +75,15 @@ pub fn Session::begin_picture_gesture(
       anchor.vertical is @layout.Offset(_, _) {
       Some(anchor)
     } else {
-      guard probe is Some(probe) else {
+      guard placement is Some((setup, layout)) else {
         @failure.reject(
           "invalid-operation", "Moving aligned pictures requires a text probe",
         )
       }
-      let flow = self.flow()
-      let layout = @layout.paginate(
-        probe,
-        flow,
-        profile,
-        images.unwrap_or(@layout.Images::new()),
-      )
-      guard layout.diagnostics.is_empty() else {
-        @failure.reject(
-          "unsupported-layout", "Picture movement requires supported document layout",
-        )
-      }
       let selection = self.selection.unwrap()
       Some(
-        layout.image_anchor_offsets(
-          flow.page,
+        layout.drawing_anchor_offsets(
+          setup,
           selection.anchor.paragraph,
           selection.anchor.offset.min(selection.focus.offset),
         ),
@@ -96,6 +102,7 @@ pub fn Session::begin_picture_gesture(
     initial,
     handle,
     origin,
+    placement,
     prepared: None,
     probe,
     profile: profile.copy(),
@@ -114,6 +121,7 @@ fn Session::prepare_picture_gesture(
   gesture : PictureGesture,
   dx : Double,
   dy : Double,
+  page : Int?,
 ) -> PreparedEdit? raise @failure.Failure {
   guard !dx.is_nan() &&
     !dx.is_inf() &&
@@ -125,14 +133,47 @@ fn Session::prepare_picture_gesture(
   }
   let image = gesture.initial
   let handle = gesture.handle
+  if page is Some(page) {
+    guard handle == 0 && gesture.placement is Some((setup, layout)) else {
+      @failure.reject(
+        "invalid-operation", "Page movement requires a floating move and text probe",
+      )
+    }
+    let selection = self.selection.unwrap()
+    let (anchor, hit) = layout.move_drawing(
+      setup,
+      selection.anchor.paragraph,
+      selection.anchor.offset.min(selection.focus.offset),
+      dx,
+      dy,
+      page,
+    )
+    let target = hit.map(hit => {
+      paragraph: hit.paragraph,
+      offset: hit.offset,
+      affinity: hit.affinity,
+      bidiLevel: None,
+      frameStart: None,
+    })
+    let probe = gesture.probe
+    let images = gesture.images
+    return self.prepare_picture_anchor(
+      gesture.picture,
+      Some(anchor),
+      target?,
+      probe?,
+      profile=gesture.profile,
+      images?,
+    )
+  }
   if handle == 0 {
     let anchor = image.anchor.unwrap()
     let origin = gesture.origin.unwrap()
     fn shift(
-      axis : @layout.ImageAxis,
-      initial : @layout.ImageAxis,
+      axis : @layout.DrawingAxis,
+      initial : @layout.DrawingAxis,
       delta : Double,
-    ) -> @layout.ImageAxis raise @failure.Failure {
+    ) -> @layout.DrawingAxis raise @failure.Failure {
       if delta == 0 {
         return initial
       }
@@ -199,9 +240,10 @@ pub fn Session::update_picture_gesture(
   id : Int,
   dx : Double,
   dy : Double,
+  page? : Int,
 ) -> Json raise @failure.Failure {
   let gesture = self.require_picture_gesture(revision, id)
-  let prepared = self.prepare_picture_gesture(gesture, dx, dy)
+  let prepared = self.prepare_picture_gesture(gesture, dx, dy, page)
   if prepared is Some(prepared) {
     self.opc.validate_changes(self.replacements(prepared.document, self.parts))
   }
@@ -217,9 +259,10 @@ pub fn Session::finish_picture_gesture(
   id : Int,
   dx : Double,
   dy : Double,
+  page? : Int,
 ) -> Json raise @failure.Failure {
   let gesture = self.require_picture_gesture(revision, id)
-  let prepared = self.prepare_picture_gesture(gesture, dx, dy)
+  let prepared = self.prepare_picture_gesture(gesture, dx, dy, page)
   if prepared is Some(prepared) {
     self.commit_edit(prepared.edit, prepared.document)
   }

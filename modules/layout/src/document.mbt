@@ -52,13 +52,13 @@ pub(all) struct Span {
   node : Int
   text : String
   style : TextStyle
-  image : ImageFrame?
+  drawing : DrawingFrame?
   field : String
 }
 
 ///|
 pub impl ToJson for Span with fn to_json(self) {
-  let image : Json = match self.image {
+  let image : Json = match self.drawing {
     None => Json::null()
     Some(image) => image.to_json()
   }
@@ -66,7 +66,7 @@ pub impl ToJson for Span with fn to_json(self) {
     "node": self.node,
     "text": self.text,
     "style": self.style,
-    "image": image,
+    "drawing": image,
     "field": self.field,
   }
 }
@@ -235,7 +235,7 @@ pub(all) struct Line {
   marker : Array[PlacedRun]
   markerText : String
   runs : Array[PlacedRun]
-  images : Array[PlacedImageFrame]
+  drawings : Array[PlacedDrawingFrame]
   carets : Array[Caret]
   readOnlyReason : String
 } derive(ToJson)
@@ -305,47 +305,6 @@ fn PageSetup::validate(self : PageSetup) -> Unit raise @failure.Failure {
     )
   }
 }
-
-///|
-pub(all) struct ImageFrame {
-  key : String
-  width : Double
-  height : Double
-  crop : Array[Double]
-  anchor : ImageAnchor?
-}
-
-///|
-pub impl ToJson for ImageFrame with fn to_json(self) {
-  {
-    "key": self.key,
-    "width": self.width,
-    "height": self.height,
-    "crop": self.crop,
-    "anchor": self.anchor
-    .map(anchor => anchor.to_json())
-    .unwrap_or(Json::null()),
-  }
-}
-
-///|
-pub extend ImageFrame with ToJson::{to_json}
-
-///|
-pub(all) struct PlacedImageFrame {
-  key : String
-  start : Int
-  level : Int
-  x : Double
-  y : Double
-  width : Double
-  height : Double
-  crop : Array[Double]
-  anchor : ImageAnchor?
-} derive(ToJson)
-
-///|
-pub extend PlacedImageFrame with ToJson::{to_json}
 
 ///|
 pub(all) struct PlacedImage {

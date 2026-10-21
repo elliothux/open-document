@@ -46,7 +46,7 @@ fn running_lines(
         let paragraph = {
           ..paragraph,
           spans: paragraph.spans.map(span => {
-            guard span.field.is_empty() || span.image is None else {
+            guard span.field.is_empty() || span.drawing is None else {
               @failure.reject("unsupported-layout", "Unsupported running field")
             }
             {
@@ -96,7 +96,7 @@ fn running_lines(
           ..run.copy_geometry(),
           baseline: run.baseline + offset,
         }),
-        images: line.images.map(image => { ..image, y: image.y + offset, }),
+        drawings: line.drawings.map(image => { ..image, y: image.y + offset, }),
         readOnlyReason: "protected-content:running-area",
       })
       prepared[(if footer { "footer" } else { "header" }) + variant] = (

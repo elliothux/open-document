@@ -11,7 +11,7 @@ pub fn TextProbe::paragraph_lines(
 ) -> Array[Line] raise @failure.Failure {
   self.check()
   guard paragraph.spans.all(span => {
-    span.image.bind(image => image.anchor) is None
+    span.drawing.bind(image => image.anchor) is None
   }) else {
     @failure.reject(
       "unsupported-layout", "Floating images require document pagination",

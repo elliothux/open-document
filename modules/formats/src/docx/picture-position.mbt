@@ -1,5 +1,5 @@
 ///|
-fn picture_axis_markup(axis : @layout.ImageAxis, name : String) -> String {
+fn picture_axis_markup(axis : @layout.DrawingAxis, name : String) -> String {
   let (reference, value) = match axis {
     @layout.Offset(reference, value) =>
       (
@@ -13,8 +13,10 @@ fn picture_axis_markup(axis : @layout.ImageAxis, name : String) -> String {
 }
 
 ///|
-fn rounded_image_anchor(anchor : @layout.ImageAnchor) -> @layout.ImageAnchor {
-  let round = fn(axis : @layout.ImageAxis) {
+fn rounded_image_anchor(
+  anchor : @layout.DrawingAnchor,
+) -> @layout.DrawingAnchor {
+  let round = fn(axis : @layout.DrawingAxis) {
     match axis {
       @layout.Offset(reference, value) =>
         @layout.Offset(reference, (value * 12700).round() / 12700)
@@ -36,11 +38,14 @@ fn rounded_image_anchor(anchor : @layout.ImageAnchor) -> @layout.ImageAnchor {
 
 ///|
 /// Changes ordinary body picture placement and supported wrapping.
+/// An explicit target reanchors a floating picture and selects its new logical range.
+/// Target offsets refer to the current document before removing the picture.
 pub fn Session::set_picture_anchor(
   self : Session,
   revision : Int,
   id : Int,
-  anchor : @layout.ImageAnchor?,
+  anchor : @layout.DrawingAnchor?,
+  target? : Position,
   probe? : @layout.TextProbe,
   profile~ : Map[String, String] = Map([]),
   images? : @layout.Images,
@@ -49,6 +54,7 @@ pub fn Session::set_picture_anchor(
   let prepared = self.prepare_picture_anchor(
     id,
     anchor,
+    target?,
     probe?,
     profile~,
     images?,
@@ -60,10 +66,10 @@ pub fn Session::set_picture_anchor(
 }
 
 ///|
-fn Session::prepare_picture_anchor(
+fn Session::prepare_picture_placement(
   self : Session,
   id : Int,
-  anchor : @layout.ImageAnchor?,
+  anchor : @layout.DrawingAnchor?,
   probe? : @layout.TextProbe,
   profile~ : Map[String, String] = Map([]),
   images? : @layout.Images,

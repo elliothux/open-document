@@ -14,7 +14,7 @@ fn Flow::body_fields(
   for paragraph in paragraphs {
     for span in paragraph.spans {
       if !span.field.is_empty() {
-        guard span.image is None && fields.length() < 4096 else {
+        guard span.drawing is None && fields.length() < 4096 else {
           @failure.reject("limit-exceeded", "Body page fields exceed limits")
         }
         fields[(paragraph.id, span.node)] = span.field

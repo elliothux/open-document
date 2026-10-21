@@ -2,8 +2,8 @@ import { useState } from "react";
 import type { DocumentEditor } from "@open-document/web/editor";
 import type {
   DocxPictures,
-  ImageAnchor,
-  ImageAxis,
+  DrawingAnchor,
+  DrawingAxis,
 } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
@@ -26,8 +26,8 @@ export function DocxPicturePosition({
   applied: () => Promise<void>;
 }) {
   const t = messages(state.locale);
-  const [anchor, setAnchor] = useState<ImageAnchor | null>(image.anchor);
-  const defaults: ImageAnchor = {
+  const [anchor, setAnchor] = useState<DrawingAnchor | null>(image.anchor);
+  const defaults: DrawingAnchor = {
     horizontal: { relativeTo: "page", offset: 0, align: null },
     vertical: { relativeTo: "paragraph", offset: 0, align: null },
     behind: false,
@@ -157,7 +157,7 @@ export function DocxPicturePosition({
             {(["horizontal", "vertical"] as const).map((key) => {
               const axis = anchor[key];
               const horizontal = key === "horizontal";
-              const update = (value: ImageAxis) =>
+              const update = (value: DrawingAxis) =>
                 setAnchor({ ...anchor, [key]: value });
               const referenceLabel = horizontal
                 ? t.pictureHorizontalReference

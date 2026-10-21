@@ -132,8 +132,9 @@ fn Session::edit_result(
   affected : Array[Int],
 ) -> Json raise @failure.Failure {
   ignore(self.document())
-  let current = match self.composition {
-    Some({ prepared: Some(prepared), .. }) => prepared.edit.after
+  let current = match (self.composition, self.picture_gesture) {
+    (Some({ prepared: Some(prepared), .. }), _)
+    | (_, Some({ prepared: Some(prepared), .. })) => prepared.edit.after
     _ => self.selection
   }
   let selection : Json = match current {

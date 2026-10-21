@@ -61,7 +61,7 @@ fn WordTree::anchor_child(
 fn WordTree::image_axis(
   self : WordTree,
   id : Int,
-) -> @layout.ImageAxis raise @failure.Failure {
+) -> @layout.DrawingAxis raise @failure.Failure {
   let node = self.nodes[id]
   guard node.text.trim().is_empty() &&
     node.attributes.all(a => a.uri.is_empty() && a.name == "relativeFrom") else {
@@ -91,7 +91,7 @@ fn WordTree::image_anchor(
   self : WordTree,
   drawing : Int,
   id : Int,
-) -> @layout.ImageAnchor raise @failure.Failure {
+) -> @layout.DrawingAnchor raise @failure.Failure {
   let node = self.nodes[id]
   guard self.children[drawing] is [child] &&
     child == id &&
@@ -150,14 +150,23 @@ fn WordTree::image_anchor(
     self.children[graphic] is [data] &&
     self.nodes[data].uri == picture_drawing_uri &&
     self.nodes[data].name == "graphicData" &&
-    self.nodes[data].attribute("uri") ==
-    Some("http://schemas.openxmlformats.org/drawingml/2006/picture") &&
     self.children[data] is [picture] &&
-    self.nodes[picture].uri ==
-    "http://schemas.openxmlformats.org/drawingml/2006/picture" &&
-    self.nodes[picture].name == "pic" else {
+    (
+      (
+        self.nodes[data].attribute("uri") ==
+        Some("http://schemas.openxmlformats.org/drawingml/2006/picture") &&
+        self.nodes[picture].uri ==
+        "http://schemas.openxmlformats.org/drawingml/2006/picture" &&
+        self.nodes[picture].name == "pic"
+      ) ||
+      (
+        self.nodes[data].attribute("uri") == Some(word_shape_uri) &&
+        self.nodes[picture].uri == word_shape_uri &&
+        self.nodes[picture].name == "wsp"
+      )
+    ) else {
     @failure.reject(
-      "unsupported-layout", "Floating drawing requires ordinary picture data",
+      "unsupported-layout", "Floating drawing requires ordinary picture or shape data",
     )
   }
   let wrapping = self.children[id].filter(child => {
@@ -237,7 +246,7 @@ fn WordTree::image_anchor(
   ) catch {
     _ => @failure.reject("invalid-image", "Invalid floating image order")
   }
-  let result : @layout.ImageAnchor = {
+  let result : @layout.DrawingAnchor = {
     horizontal: self.image_axis(self.anchor_child(id, "positionH")),
     vertical: self.image_axis(self.anchor_child(id, "positionV")),
     behind: anchor_flag(node, "behindDoc", false),

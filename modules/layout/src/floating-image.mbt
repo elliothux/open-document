@@ -1,50 +1,33 @@
 ///|
 /// Resolves both axes to offsets in their existing reference frames.
-pub fn Layout::image_anchor_offsets(
+pub fn Layout::drawing_anchor_offsets(
   self : Layout,
   page : PageSetup,
   paragraph : Int,
   start : Int,
-) -> ImageAnchor raise @failure.Failure {
+) -> DrawingAnchor raise @failure.Failure {
   page.validate()
   for frame in self.pages {
     for line in frame.lines {
       if line.paragraph != paragraph {
         continue
       }
-      for image in line.images {
+      for image in line.drawings {
         if image.start != start || image.anchor is None {
           continue
         }
         let anchor = image.anchor.unwrap()
-        let paragraph_top = frame.lines
-          .iter()
-          .find_first(prior => {
-            prior.paragraph == paragraph && prior.areaX == line.areaX
-          })
-          .map(prior => prior.y)
-          .unwrap_or(line.y)
         fn offset(
-          axis : ImageAxis,
+          axis : DrawingAxis,
           position : Double,
           horizontal : Bool,
-        ) -> ImageAxis {
+        ) -> DrawingAxis {
           match axis {
             Offset(_, _) => axis
             Aligned(reference, _) => {
-              let origin = if reference == "page" {
-                0.0
-              } else if reference == "margin" {
-                if horizontal {
-                  page.left
-                } else {
-                  page.top
-                }
-              } else if horizontal {
-                line.areaX
-              } else {
-                paragraph_top
-              }
+              let origin = image_axis_origin(
+                axis, horizontal, page, frame, line,
+              )
               Offset(reference, position - origin)
             }
           }
@@ -61,13 +44,13 @@ pub fn Layout::image_anchor_offsets(
 }
 
 ///|
-pub(all) enum ImageAxis {
+pub(all) enum DrawingAxis {
   Offset(String, Double)
   Aligned(String, String)
 }
 
 ///|
-pub impl ToJson for ImageAxis with fn to_json(self) {
+pub impl ToJson for DrawingAxis with fn to_json(self) {
   match self {
     Offset(reference, value) =>
       { "relativeTo": reference, "offset": value, "align": Json::null() }
@@ -77,12 +60,12 @@ pub impl ToJson for ImageAxis with fn to_json(self) {
 }
 
 ///|
-pub extend ImageAxis with ToJson::{to_json}
+pub extend DrawingAxis with ToJson::{to_json}
 
 ///|
-pub(all) struct ImageAnchor {
-  horizontal : ImageAxis
-  vertical : ImageAxis
+pub(all) struct DrawingAnchor {
+  horizontal : DrawingAxis
+  vertical : DrawingAxis
   behind : Bool
   order : Int64
   wrapping : String
@@ -91,7 +74,7 @@ pub(all) struct ImageAnchor {
 }
 
 ///|
-pub impl ToJson for ImageAnchor with fn to_json(self) {
+pub impl ToJson for DrawingAnchor with fn to_json(self) {
   {
     "horizontal": self.horizontal,
     "vertical": self.vertical,
@@ -104,11 +87,11 @@ pub impl ToJson for ImageAnchor with fn to_json(self) {
 }
 
 ///|
-pub extend ImageAnchor with ToJson::{to_json}
+pub extend DrawingAnchor with ToJson::{to_json}
 
 ///|
-fn ImageAxis::validate(
-  self : ImageAxis,
+fn DrawingAxis::validate(
+  self : DrawingAxis,
   horizontal : Bool,
 ) -> Unit raise @failure.Failure {
   let reference = match self {
@@ -146,7 +129,9 @@ fn ImageAxis::validate(
 }
 
 ///|
-pub fn ImageAnchor::validate(self : ImageAnchor) -> Unit raise @failure.Failure {
+pub fn DrawingAnchor::validate(
+  self : DrawingAnchor,
+) -> Unit raise @failure.Failure {
   self.horizontal.validate(true)
   self.vertical.validate(false)
   guard self.order >= 0 && self.order <= 4294967295L else {
@@ -170,8 +155,8 @@ pub fn ImageAnchor::validate(self : ImageAnchor) -> Unit raise @failure.Failure 
 }
 
 ///|
-fn ImageAxis::position(
-  self : ImageAxis,
+fn DrawingAxis::position(
+  self : DrawingAxis,
   page : (Double, Double),
   margin : (Double, Double),
   region : (Double, Double),
@@ -199,7 +184,7 @@ fn Flow::validate_floating_images(self : Flow) -> Unit raise @failure.Failure {
   let mut count = 0
   for paragraph in self.paragraphs {
     for span in paragraph.spans {
-      if span.image is Some(image) && image.anchor is Some(anchor) {
+      if span.drawing is Some(image) && image.anchor is Some(anchor) {
         anchor.validate()
         count += 1
       }
@@ -223,7 +208,7 @@ fn Flow::validate_floating_images(self : Flow) -> Unit raise @failure.Failure {
   }
   guard !other.any(paragraph => {
     paragraph.spans.any(span => {
-      span.image.bind(image => image.anchor) is Some(_)
+      span.drawing.bind(image => image.anchor) is Some(_)
     })
   }) else {
     @failure.reject(
@@ -235,10 +220,10 @@ fn Flow::validate_floating_images(self : Flow) -> Unit raise @failure.Failure {
 ///|
 fn PageFrame::floating_images(
   self : PageFrame,
-) -> Array[(Int, PlacedImageFrame)] {
-  let result : Array[(Int, PlacedImageFrame)] = []
+) -> Array[(Int, PlacedDrawingFrame)] {
+  let result : Array[(Int, PlacedDrawingFrame)] = []
   for index, line in self.lines {
-    for image in line.images {
+    for image in line.drawings {
       if image.anchor is Some(_) {
         result.push((index, image))
       }
@@ -265,21 +250,38 @@ fn PageFrame::floating_images(
 }
 
 ///|
-fn PlacedImageFrame::paint(
-  self : PlacedImageFrame,
+fn PlacedDrawingFrame::paint(
+  self : PlacedDrawingFrame,
   primitives : Array[PositionedPrimitive],
 ) -> Unit {
-  let width = self.width / (1 - self.crop[0] - self.crop[2])
-  let height = self.height / (1 - self.crop[1] - self.crop[3])
+  if self.content is Shape(shape) {
+    primitives.push(
+      Transform({ a: 1, b: 0, c: 0, d: 1, e: self.x, f: self.y, }),
+    )
+    primitives.push(
+      Path(
+        basic_shape_path(shape.preset, self.width, self.height),
+        shape.fill,
+        shape.stroke,
+        shape.lineWidth,
+        { fillAlpha: 1, strokeAlpha: 1, dash: [], cap: 0, join: 0, miter: 10, },
+      ),
+    )
+    primitives.push(Restore)
+    return
+  }
+  guard self.content is Picture(key, crop) else { return }
+  let width = self.width / (1 - crop[0] - crop[2])
+  let height = self.height / (1 - crop[1] - crop[3])
   primitives.push(
     Clip({ x: self.x, y: self.y, width: self.width, height: self.height, }),
   )
   primitives.push(
     Image(
       {
-        key: self.key,
-        x: self.x - self.crop[0] * width,
-        y: self.y - self.crop[1] * height,
+        key,
+        x: self.x - crop[0] * width,
+        y: self.y - crop[1] * height,
         width,
         height,
       },
@@ -293,7 +295,7 @@ fn PlacedImageFrame::paint(
 fn Layout::image_hit(
   self : Layout,
   line : Line,
-  image : PlacedImageFrame,
+  image : PlacedDrawingFrame,
   page : Int,
   index : Int,
   x : Double,
@@ -317,7 +319,7 @@ fn Layout::image_hit(
       },
       bidiLevel: Some(image.level),
       frameStart: None,
-      imageStart: Some(image.start),
+      drawingStart: Some(image.start),
       page,
       line: index,
       x: if x < image.x + image.width / 2 {

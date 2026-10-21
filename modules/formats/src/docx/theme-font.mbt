@@ -84,7 +84,7 @@ fn flow_font_keys(flow : @layout.Flow) -> Map[String, Array[String]] {
   }
   for (scope, paragraphs) in groups {
     for p in paragraphs {
-      let fonts = p.spans.filter(s => s.image is None).map(s => s.style.font)
+      let fonts = p.spans.filter(s => s.drawing is None).map(s => s.style.font)
       if p.marker is Some(marker) {
         fonts.push(marker.style.font)
       }

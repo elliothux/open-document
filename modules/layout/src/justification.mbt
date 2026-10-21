@@ -145,7 +145,7 @@ fn justified_line(line : Line, limit : Double) -> Line {
       before: plan.position(caret.before),
       after: plan.position(caret.after),
     }),
-    images: line.images.map(image => { ..image, x: plan.position(image.x), }),
+    drawings: line.drawings.map(image => { ..image, x: plan.position(image.x), }),
     runs: line.runs.map(run => {
       let x = plan.position(run.x)
       {

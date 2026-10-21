@@ -1,7 +1,9 @@
 import { record, integer } from "./validation.js";
 import { encodeBytes } from "./session.js";
-import { checkImageAnchor, type ImageAnchor } from "./preview.js";
-export type { ImageAnchor, ImageAxis } from "./preview.js";
+import { checkDrawingAnchor, type DrawingAnchor } from "./preview.js";
+import type { DocxPosition } from "./docx-hit.js";
+import { isDocxSelection } from "./docx-search.js";
+export type { DrawingAnchor, DrawingAxis } from "./preview.js";
 
 export interface DocxPicture {
   id: number;
@@ -18,7 +20,7 @@ export interface DocxPictures {
     reason: string;
     deleteReason: string;
     replaceReason: string;
-    anchor: ImageAnchor | null;
+    anchor: DrawingAnchor | null;
     positionReason: string;
   })[];
 }
@@ -27,7 +29,13 @@ export type DocxPictureEdit =
   | { action: "insert"; width: number; height: number; bytes: Uint8Array }
   | { action: "replace"; id: number; bytes: Uint8Array }
   | { action: "delete"; id: number }
-  | { action: "position"; id: number; anchor: ImageAnchor | null };
+  | {
+      action: "position";
+      id: number;
+      anchor: DrawingAnchor | null;
+      /** Move a floating picture's logical anchor into an ordinary body paragraph. */
+      target?: DocxPosition;
+    };
 
 export type DocxPictureGestureCommand =
   | { action: "begin"; picture: number; handle: 0 | 1 | 2 | 3 | 4 }
@@ -37,6 +45,8 @@ export type DocxPictureGestureCommand =
       id: number;
       dx: number;
       dy: number;
+      /** Reanchor a pointer move on this page; deltas use page-local points. */
+      page?: number;
     };
 
 export function checkDocxPictureGesture(value: unknown): void {
@@ -52,6 +62,7 @@ export function checkDocxPictureGesture(value: unknown): void {
   if (change.action === "cancel") return;
   if (
     (change.action === "update" || change.action === "commit") &&
+    (change.page === undefined || integer(change.page, 0, 2147483647)) &&
     [change.dx, change.dy].every(
       (v) =>
         typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 14400,
@@ -66,7 +77,13 @@ export function checkDocxPictureEdit(value: unknown): void {
   if (edit.action === "position") {
     if (!integer(edit.id, 0, 2147483647))
       throw new Error("Invalid DOCX picture identity");
-    checkImageAnchor(edit.anchor);
+    checkDrawingAnchor(edit.anchor);
+    if (
+      edit.target !== undefined &&
+      (edit.anchor === null ||
+        !isDocxSelection({ anchor: edit.target, focus: edit.target }))
+    )
+      throw new Error("Invalid DOCX picture anchor target");
     return;
   }
   if (edit.action === "insert") {
@@ -141,7 +158,7 @@ export function docxPictures(value: unknown): DocxPictures {
       Number(image.id) < 0
     )
       throw new Error("Invalid DOCX picture entry");
-    checkImageAnchor(image.anchor);
+    checkDrawingAnchor(image.anchor);
     if (!image.reason) checkDocxPicture(image);
     else if (
       image.width !== 0 ||

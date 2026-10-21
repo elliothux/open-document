@@ -84,7 +84,7 @@ fn Pagination::restore(
   self.placedWrapping.clear()
   for frame in self.pages {
     for line in frame.lines {
-      for image in line.images {
+      for image in line.drawings {
         if image.anchor is Some(anchor) && anchor.wrapping != "none" {
           self.placedWrapping[(line.paragraph, image.start)] = ()
         }

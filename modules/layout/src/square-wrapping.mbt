@@ -117,7 +117,7 @@ fn merged_fragments(
       }),
     )
     images.append(
-      line.images.map(image => {
+      line.drawings.map(image => {
         ..image,
         x: image.x + line.x,
         y: image.y + dy,
@@ -159,7 +159,7 @@ fn merged_fragments(
       justified: fragments.any(item => item.line.justified),
       runs,
       marker,
-      images,
+      drawings: images,
       carets,
       bars,
     },

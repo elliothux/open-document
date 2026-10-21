@@ -45,7 +45,13 @@ export class DocumentPointer {
     signal: AbortSignal,
     private readonly host: DocxPointerHost,
   ) {
-    this.picture = new DocxPictureGesture(viewport, client, signal, host);
+    this.picture = new DocxPictureGesture(
+      canvas,
+      viewport,
+      client,
+      signal,
+      host,
+    );
     this.text = new PointerSelection(
       canvas,
       viewport,

@@ -277,7 +277,7 @@ fn Session::paragraph(
         continue
       }
       let image = if item.name == "drawing" {
-        Some(self.image_frame(tree, content))
+        Some(self.drawing_frame(tree, content))
       } else {
         None
       }
@@ -321,7 +321,7 @@ fn Session::paragraph(
             script: style.vertAlign,
             spacing: style.spacing,
           },
-          image,
+          drawing: image,
           field,
         })
       }
@@ -349,7 +349,7 @@ fn Session::paragraph(
         script: run_style.vertAlign,
         spacing: run_style.spacing,
       },
-      image: None,
+      drawing: None,
       field: "",
     })
   }
@@ -367,7 +367,11 @@ fn Session::paragraph(
       document_diagnostics.push(message)
     }
   }
-  let picture_reason = if spans.any(span => span.image is Some(_)) {
+  let picture_reason = if spans.any(span => {
+      span.drawing is Some({ content: @layout.Shape(_), .. })
+    }) {
+    "Shape editing requires drawing commands"
+  } else if spans.any(span => span.drawing is Some(_)) {
     try {
       self.check_native_pictures(tree, id)
       paragraph.readOnlyReason

@@ -4,7 +4,12 @@ import type {
   DocxSelectionGeometry,
 } from "@open-document/wasm/foundation";
 import type { DocxPointerHost } from "./document-pointer.js";
-import { PointerSelection, type PointerPoint } from "./pointer-selection.js";
+import {
+  PointerSelection,
+  clampPointerPoint,
+  scrollPointerViewport,
+  type PointerPoint,
+} from "./pointer-selection.js";
 
 /** Selected floating frames move; four aspect-preserving corners resize in the same core gesture. */
 export class DocxPictureGesture {
@@ -16,7 +21,9 @@ export class DocxPictureGesture {
   private point = this.origin;
   private scale = 1;
   private ending = false;
+  private pageTime = 0;
   constructor(
+    private readonly canvas: HTMLCanvasElement,
     viewport: HTMLElement,
     private readonly client: FoundationClient,
     signal: AbortSignal,
@@ -58,23 +65,47 @@ export class DocxPictureGesture {
         button,
         viewport,
         signal,
-        async (point, initial) => {
+        async (point, initial, _extend, elapsed) => {
           this.point = point;
           if (initial) {
-            this.origin = point;
+            this.origin = handle === 0 ? this.local(point) : point;
             this.scale = host.current().scale;
+            this.pageTime = performance.now();
             if (handle === 0) host.input();
             const picture = this.image?.id;
             if (picture === undefined)
               throw new Error("Select a picture before starting a gesture");
             return host.gesture(() => ({ action: "begin", picture, handle }));
           }
-          const delta = this.delta(point);
-          return host.gesture(() => ({
-            action: "update",
-            id: this.identity(),
-            ...delta,
-          }));
+          return host.gesture(() => {
+            if (handle === 0 && elapsed) {
+              const current = host.current();
+              const direction = scrollPointerViewport(
+                viewport,
+                point,
+                elapsed,
+                this.pageTime,
+              );
+              const next = current.page + direction;
+              if (
+                direction &&
+                next >= 0 &&
+                next < current.layout.regions.length
+              ) {
+                host.paint(next);
+                viewport.scrollTop =
+                  direction < 0
+                    ? viewport.scrollHeight - viewport.clientHeight
+                    : 0;
+                this.pageTime = performance.now();
+              }
+            }
+            return {
+              action: "update",
+              id: this.identity(),
+              ...this.delta(point, handle),
+            };
+          });
         },
         () =>
           host.available() &&
@@ -83,19 +114,24 @@ export class DocxPictureGesture {
           this.revision === host.current().state.revision,
         (cancelled) => {
           this.ending = true;
-          const delta = this.delta(this.point);
+          // Output and toolbar updates can reflow the canvas before the queued commit runs.
+          const delta = this.delta(this.point, handle);
           return host
             .gesture(() =>
               cancelled
                 ? { action: "cancel", id: this.identity() }
-                : { action: "commit", id: this.identity(), ...delta },
+                : {
+                    action: "commit",
+                    id: this.identity(),
+                    ...delta,
+                  },
             )
             .finally(() => {
               this.ending = false;
               void host.settle().catch(() => {});
             });
         },
-        false,
+        handle === 0,
       );
       this.pointers.push(pointer);
       button.addEventListener(
@@ -184,16 +220,24 @@ export class DocxPictureGesture {
     if (id === null) throw new Error("Picture gesture is no longer active");
     return id;
   }
-  private delta(point: PointerPoint) {
+  private local(point: PointerPoint): PointerPoint {
+    const current = this.host.current();
+    const frame = current.layout.regions[current.page];
+    if (!frame) throw new Error("Unknown picture movement page");
+    return clampPointerPoint(
+      point,
+      this.canvas.getBoundingClientRect(),
+      current.scale,
+      frame,
+    );
+  }
+  private delta(point: PointerPoint, handle: number) {
+    const local = handle === 0 ? this.local(point) : point;
+    const scale = handle === 0 ? 1 : this.scale;
     return {
-      dx: Math.max(
-        -14400,
-        Math.min(14400, (point.x - this.origin.x) / this.scale),
-      ),
-      dy: Math.max(
-        -14400,
-        Math.min(14400, (point.y - this.origin.y) / this.scale),
-      ),
+      ...(handle === 0 ? { page: this.host.current().page } : {}),
+      dx: Math.max(-14400, Math.min(14400, (local.x - this.origin.x) / scale)),
+      dy: Math.max(-14400, Math.min(14400, (local.y - this.origin.y) / scale)),
     };
   }
   async refresh(geometry: DocxSelectionGeometry | undefined): Promise<void> {

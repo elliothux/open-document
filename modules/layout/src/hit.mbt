@@ -5,7 +5,7 @@ pub(all) struct Hit {
   affinity : String
   bidiLevel : Int?
   frameStart : Int?
-  imageStart : Int?
+  drawingStart : Int?
   page : Int
   line : Int
   x : Double
@@ -46,7 +46,7 @@ fn Layout::portion_caret_geometry(self : Layout, hit : Hit) -> Hit {
     line.bidi_level(hit.offset, hit.affinity)
   })
   let hit = { ..hit, x: line.bidi_caret_x(hit.offset, level, hit.x), }
-  let mut multiple = line.runs.length() > 1 || !line.images.is_empty()
+  let mut multiple = line.runs.length() > 1 || !line.drawings.is_empty()
   if !multiple {
     multiple = line.bidi_ranges().iter().any(range => range.2 > line.baseLevel)
   }
@@ -175,7 +175,7 @@ fn line_hit(
     affinity,
     bidiLevel: None,
     frameStart: None,
-    imageStart: None,
+    drawingStart: None,
     page,
     line: index,
     x: if affinity == "before" {
@@ -191,11 +191,13 @@ fn line_hit(
 
 ///|
 /// Queries point coordinates in one completed page; it never changes selection.
+/// Set text_only to choose text carets through picture overlays.
 pub fn Layout::hit_test(
   self : Layout,
   page : Int,
   x : Double,
   y : Double,
+  text_only~ : Bool = false,
 ) -> Hit raise @failure.Failure {
   guard page >= 0 && page < self.pages.length() else {
     @failure.reject("invalid-page", "Unknown hit-test page")
@@ -206,7 +208,7 @@ pub fn Layout::hit_test(
       "invalid-position", "Hit coordinates must be finite and inside the page",
     )
   }
-  if self.floating_image_hit(page, x, y) is Some(hit) {
+  if !text_only && self.floating_image_hit(page, x, y) is Some(hit) {
     return hit
   }
   for index, line in self.running.get(page).unwrap_or([]) {
@@ -246,8 +248,9 @@ pub fn Layout::hit_test(
       ) {
       continue
     }
-    for image in line.images {
-      if image.anchor is None &&
+    for image in line.drawings {
+      if !text_only &&
+        image.anchor is None &&
         x >= image.x &&
         x <= image.x + image.width &&
         y >= image.y &&

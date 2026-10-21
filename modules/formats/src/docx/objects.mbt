@@ -1,44 +1,34 @@
 ///|
+priv struct PictureFrame {
+  key : String
+  width : Double
+  height : Double
+  crop : Array[Double]
+  anchor : @layout.DrawingAnchor?
+}
+
+///|
 fn Session::image_frame(
   self : Session,
   tree : WordTree,
   id : Int,
-) -> @layout.ImageFrame raise @failure.Failure {
-  let wp = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+) -> PictureFrame raise @failure.Failure {
+  let (_, data) = tree.drawing_data(id)
+  guard data.uri == picture_drawing_uri &&
+    data.attribute("uri") ==
+    Some("http://schemas.openxmlformats.org/drawingml/2006/picture") else {
+    @failure.reject("protected-content", "Drawing is not an ordinary picture")
+  }
+  let (width, height, anchor) = tree.drawing_geometry(id)
   let drawing = "http://schemas.openxmlformats.org/drawingml/2006/main"
   let rel_uri = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
-  let mut width = None
-  let mut height = None
   let mut target = None
-  let mut inline = false
-  let mut anchor = None
   let crop : Array[Double] = [0, 0, 0, 0]
   let mut seen_crop = false
   for item in tree.descendants(id) {
     let node = tree.nodes[item]
     if node.start < tree.nodes[id].start || node.end > tree.nodes[id].end {
       continue
-    }
-    if node.uri == wp && node.name == "anchor" {
-      guard anchor is None else {
-        @failure.reject("unsupported-layout", "Duplicate floating image anchor")
-      }
-      anchor = Some(tree.image_anchor(id, item))
-    }
-    if node.uri == wp && node.name == "inline" {
-      inline = true
-    }
-    if node.uri == wp && node.name == "extent" {
-      width = node
-        .attribute("cx")
-        .map(value => @string.parse_int(value[:]).to_double() / 12700) catch {
-          _ => @failure.reject("invalid-image", "Invalid inline image width")
-        }
-      height = node
-        .attribute("cy")
-        .map(value => @string.parse_int(value[:]).to_double() / 12700) catch {
-          _ => @failure.reject("invalid-image", "Invalid inline image height")
-        }
     }
     if node.uri == drawing && node.name == "blip" {
       target = node.attribute("embed", uri=rel_uri)
@@ -78,10 +68,7 @@ fn Session::image_frame(
       )
     }
   }
-  guard inline != (anchor is Some(_)) &&
-    width is Some(width) &&
-    height is Some(height) &&
-    target is Some(target) &&
+  guard target is Some(target) &&
     width > 0 &&
     height > 0 &&
     width <= 14400 &&
@@ -358,7 +345,7 @@ fn Session::table(
       }
       if continued &&
         paragraphs.any(p => {
-          p.spans.any(s => !s.text.is_empty() || s.image is Some(_))
+          p.spans.any(s => !s.text.is_empty() || s.drawing is Some(_))
         }) {
         @failure.reject(
           "unsupported-layout", "Vertical continuation contains visible content",

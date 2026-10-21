@@ -171,7 +171,7 @@ pub fn Session::edit_table(Self, Int, Selection, TableEdit, probe? : @layout.Tex
 pub fn Session::enter(Self, Int) -> Json raise @failure.Failure
 pub fn Session::export_markup(Self, Int, String, Int) -> Bytes raise @failure.Failure
 pub fn Session::find(Self, Int, String, FindOptions) -> Json raise @failure.Failure
-pub fn Session::finish_picture_gesture(Self, Int, Int, Double, Double) -> Json raise @failure.Failure
+pub fn Session::finish_picture_gesture(Self, Int, Int, Double, Double, page? : Int) -> Json raise @failure.Failure
 pub fn Session::flow(Self) -> @layout.Flow raise @failure.Failure
 pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
 pub fn Session::insert_body_page_field(Self, Int, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
@@ -215,7 +215,7 @@ pub fn Session::set_page_columns(Self, Int, @layout.Columns?, probe~ : @layout.T
 pub fn Session::set_page_numbering(Self, Int, @layout.PageNumbering?, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_page_setup(Self, Int, @layout.PageSetup, orientation? : String?) -> Json raise @failure.Failure
 pub fn Session::set_paragraph_format(Self, Int, Selection, ParagraphFormat) -> Json raise @failure.Failure
-pub fn Session::set_picture_anchor(Self, Int, Int, @layout.ImageAnchor?, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
+pub fn Session::set_picture_anchor(Self, Int, Int, @layout.DrawingAnchor?, target? : Position, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_running_area(Self, Int, String, String, Array[RunningContent], Double, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_running_options(Self, Int, Bool, Bool, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_theme_color(Self, Int, String, String) -> Json raise @failure.Failure
@@ -231,7 +231,7 @@ pub fn Session::unlink_running_area(Self, Int, String, String, probe~ : @layout.
 pub fn Session::update_body_page_fields(Self, Int, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::update_composition(Self, Int, Int, String) -> Json raise @failure.Failure
 pub fn Session::update_list_level(Self, Int, Int, Int, ListLevelFormat) -> Json raise @failure.Failure
-pub fn Session::update_picture_gesture(Self, Int, Int, Double, Double) -> Json raise @failure.Failure
+pub fn Session::update_picture_gesture(Self, Int, Int, Double, Double, page? : Int) -> Json raise @failure.Failure
 pub fn Session::update_style(Self, Int, String, CharacterFormat, ParagraphFormat, name? : String?, based_on? : FormatChange[String], reset? : Bool) -> Json raise @failure.Failure
 
 pub(all) enum TableEdit {

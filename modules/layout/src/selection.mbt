@@ -30,7 +30,7 @@ pub fn Layout::selection_rects(
         if line.paragraph != anchor.0 || line.repeated {
           continue
         }
-        for image in line.images {
+        for image in line.drawings {
           if image.start != anchor.1.min(focus.1) {
             continue
           }

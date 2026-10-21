@@ -154,8 +154,10 @@ fn Pagination::place(
   guard self.count <= 32768 else {
     @failure.reject("limit-exceeded", "Line budget exceeded")
   }
-  for image in line.images {
-    ignore(images.get(image.key))
+  for image in line.drawings {
+    if image.content is Picture(key, _) {
+      ignore(images.get(key))
+    }
   }
   let x = left + line.x
   let y = top
@@ -189,7 +191,7 @@ fn Pagination::place(
       x: x + run.x,
       baseline: top + run.baseline,
     }),
-    images: line.images.map(image => {
+    drawings: line.drawings.map(image => {
       if image.anchor is Some(anchor) {
         {
           ..image,
@@ -277,7 +279,7 @@ fn Pagination::paragraph(
     let origin = (self.pages.length() - 1, self.y)
     let plan = if self.wrapping.any(rect => rect.wrapping == "square") ||
       paragraph.spans.any(span => {
-        span.image
+        span.drawing
         .bind(image => image.anchor)
         .map(anchor => anchor.wrapping == "square")
         .unwrap_or(false)
@@ -313,7 +315,7 @@ fn Pagination::paragraph(
           !self.pages.last().unwrap().borders.is_empty() ||
           self.pages.last().unwrap().lines.any(line => {
             line.paragraph == paragraph.id &&
-            line.images.any(image => {
+            line.drawings.any(image => {
               image.anchor is Some(anchor) && anchor.wrapping != "none"
             })
           }) {
@@ -388,7 +390,7 @@ fn Pagination::paragraph(
         }
       }
       let new_anchor = plan is Some(_) &&
-        line.images.any(image => {
+        line.drawings.any(image => {
           image.anchor is Some(anchor) &&
           anchor.wrapping != "none" &&
           !self.placedWrapping.contains((line.paragraph, image.start))

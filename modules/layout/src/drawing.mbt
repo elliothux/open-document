@@ -179,8 +179,10 @@ pub fn Layout::drawing_images(
   let keys : Map[String, Unit] = Map([])
   for page in self.pages {
     for line in page.lines {
-      for image in line.images {
-        keys[images.get(image.key).identity] = ()
+      for image in line.drawings {
+        if image.content is Picture(key, _) {
+          keys[images.get(key).identity] = ()
+        }
       }
     }
   }

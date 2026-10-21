@@ -41,8 +41,13 @@ fn paragraph_cache_units(key : String, lines : Array[Line]) -> Int {
       line.readOnlyReason.length() +
       line.carets.length() * 3 +
       line.bars.length()
-    for image in line.images {
-      units += 8 + image.key.length()
+    for image in line.drawings {
+      units += 8 +
+        (match image.content {
+          Picture(key, _) => key.length()
+          Shape(shape) =>
+            shape.preset.length() + shape.fill.length() + shape.stroke.length()
+        })
     }
     for run in line.paint_runs() {
       units += 5 +
@@ -88,10 +93,13 @@ fn Paragraph::finite_geometry(paragraph : Paragraph) -> Bool {
   }
   for span in paragraph.spans {
     numbers.push(span.style.size)
-    if span.image is Some(image) {
+    if span.drawing is Some(image) {
       numbers.push(image.width)
       numbers.push(image.height)
-      numbers.append(image.crop)
+      match image.content {
+        Picture(_, crop) => numbers.append(crop)
+        Shape(shape) => numbers.push(shape.lineWidth)
+      }
     }
   }
   !numbers.any(value => value.is_nan() || value.is_inf())

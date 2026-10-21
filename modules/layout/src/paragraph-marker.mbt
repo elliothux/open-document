@@ -92,7 +92,7 @@ fn TextProbe::paragraph_marker(
     node: paragraph.id,
     text: marker.text,
     style,
-    image: None,
+    drawing: None,
     field: "",
   }
   Some({

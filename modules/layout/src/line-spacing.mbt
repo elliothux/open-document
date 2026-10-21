@@ -72,7 +72,7 @@ fn MeasuredLine::spaced(
     let ascent = match line.runs.get(0) {
       Some(run) => run.baseline + run.rise
       None =>
-        line.images.get(0).map(image => image.y + image.height).unwrap_or(0)
+        line.drawings.get(0).map(image => image.y + image.height).unwrap_or(0)
     }
     (height * 20 * 4 / 5).floor() / 20 - ascent
   } else {
@@ -83,6 +83,6 @@ fn MeasuredLine::spaced(
     height,
     runs: line.runs.map(run => { ..run, baseline: run.baseline + delta, }),
     marker: line.marker.map(run => { ..run, baseline: run.baseline + delta, }),
-    images: line.images.map(image => { ..image, y: image.y + delta, }),
+    drawings: line.drawings.map(image => { ..image, y: image.y + delta, }),
   }
 }

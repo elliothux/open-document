@@ -176,7 +176,7 @@ export async function docxSelectionDescription(
   )
     return `Insertion point on page ${page + 1}`;
   try {
-    return `Selected text: ${(await client.selectedText(state.revision, selection)).replaceAll("\ufffc", "[image]")}`;
+    return `Selected text: ${(await client.selectedText(state.revision, selection)).replaceAll("\ufffc", "[drawing]")}`;
   } catch (error) {
     if (
       !(error instanceof DocumentError) ||

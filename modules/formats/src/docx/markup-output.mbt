@@ -112,7 +112,7 @@ fn Session::markup_picture(
   output : MarkupOutput,
 ) -> String raise @failure.Failure {
   tree.check_fragment_picture(span.node)
-  let image = span.image.unwrap()
+  let image = self.image_frame(tree, span.node)
   let bytes = self.image_bytes(image.key)
   let (_, mime, _, _) = @image.type_info(bytes)
   guard bytes.length().to_int64() * 4 / 3 + 1024 <=
@@ -220,7 +220,7 @@ fn Session::markup_paragraph(
             node: paragraph.id,
             text: marker.text + suffix,
             style: marker.style,
-            image: None,
+            drawing: None,
             field: "",
           },
           markdown,
@@ -243,7 +243,7 @@ fn Session::markup_paragraph(
         if span.text.is_empty() {
           continue
         }
-        let content = if span.image is Some(_) {
+        let content = if span.drawing is Some(_) {
           self.markup_picture(tree, span, output)
         } else {
           markup_span(span, markdown)

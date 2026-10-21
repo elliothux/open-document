@@ -175,7 +175,7 @@ fn column_body(
   let run = fn(balance : (Int, Double)?) raise @failure.Failure {
     let wraps = flow.paragraphs.any(p => {
       p.spans.any(span => {
-        span.image
+        span.drawing
         .bind(image => image.anchor)
         .map(anchor => anchor.wrapping != "none")
         .unwrap_or(false)

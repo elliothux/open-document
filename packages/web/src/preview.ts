@@ -116,7 +116,7 @@ export class DocumentPreview {
     this.zoom = zoom;
     this.text.textContent =
       this.layout.semantics[index]?.lines
-        .map((line) => line.text.replaceAll("\ufffc", "[image]"))
+        .map((line) => line.text.replaceAll("\ufffc", "[drawing]"))
         .join("\n") ?? "";
     this.status.textContent = `Page ${this.page + 1} of ${this.layout.regions.length}; ${Math.round(this.zoom * 100)}%`;
     this.previous.disabled = this.page === 0;

@@ -19,7 +19,7 @@ fn wrapping_rects(
   let result = []
   for page, frame in pages {
     for line in frame.lines {
-      for image in line.images {
+      for image in line.drawings {
         if image.anchor is Some(anchor) && anchor.wrapping != "none" {
           result.push({
             page: page / columns,
@@ -92,7 +92,7 @@ fn Pagination::detach_wrapping_images(
   line : Line,
   images : Images,
 ) -> Line raise @failure.Failure {
-  let wrapped = line.images.filter(image => {
+  let wrapped = line.drawings.filter(image => {
     image.anchor is Some(anchor) && anchor.wrapping != "none"
   })
   if wrapped.is_empty() {
@@ -116,7 +116,7 @@ fn Pagination::detach_wrapping_images(
         marker: [],
         markerText: "",
         bars: [],
-        images: [image],
+        drawings: [image],
         carets: [
           { offset: image.start, before: image.x, after: image.x, },
           { offset: image.start + 1, before: image.x, after: image.x, },
@@ -127,7 +127,7 @@ fn Pagination::detach_wrapping_images(
       images,
     )
     self.placedWrapping[identity] = ()
-    let placed = self.pages.last().unwrap().lines.last().unwrap().images[0]
+    let placed = self.pages.last().unwrap().lines.last().unwrap().drawings[0]
     let anchor = placed.anchor.unwrap()
     let rect : WrappingRect = {
       page: (self.pages.length() - 1) / self.columns.count,
@@ -155,7 +155,7 @@ fn Pagination::detach_wrapping_images(
   }
   {
     ..line,
-    images: line.images.filter(image => {
+    drawings: line.drawings.filter(image => {
       image.anchor is None || image.anchor.unwrap().wrapping == "none"
     }),
   }

@@ -12,10 +12,10 @@ fn measure_line(
   advances? : Array[(Double, Double)],
   tabs~ : TabLayout? = None,
   rtl~ : Bool = false,
-) -> (Double, Array[PlacedRun], Array[PlacedImageFrame], Array[Caret]) raise @failure.Failure {
+) -> (Double, Array[PlacedRun], Array[PlacedDrawingFrame], Array[Caret]) raise @failure.Failure {
   probe.check()
   let runs : Array[PlacedRun] = []
-  let images : Array[PlacedImageFrame] = []
+  let images : Array[PlacedDrawingFrame] = []
   let before : Map[Int, Double] = Map([])
   let after : Map[Int, Double] = Map([])
   let text = StringBuilder()
@@ -54,9 +54,9 @@ fn measure_line(
     let item = spans[span_index]
     let next = offset + (if ch.to_int() > 0xffff { 2 } else { 1 })
     if groups.last() is Some(group) &&
-      group.image is None &&
+      group.drawing is None &&
       group.field is None &&
-      item.span.image is None &&
+      item.span.drawing is None &&
       item.span.field.is_empty() &&
       !group.tab &&
       ch != '\t' &&
@@ -75,7 +75,7 @@ fn measure_line(
         font: item.font,
         style: item.span.style,
         level: bidi.levels[i],
-        image: item.span.image,
+        drawing: item.span.drawing,
         field: if item.span.field.is_empty() {
           None
         } else {
@@ -200,7 +200,7 @@ fn measure_line(
       width += advance
       continue
     }
-    if group.image is Some(image) {
+    if group.drawing is Some(image) {
       let advance = if image.anchor is Some(_) { 0.0 } else { image.width }
       if advances is Some(values) {
         let index = start + group.start
@@ -213,7 +213,7 @@ fn measure_line(
         before[start + group.end] = width +
           (if (group.level % 2 == 0) != rtl { advance } else { 0.0 })
         images.push({
-          key: image.key,
+          content: image.content.copy(),
           start: start + group.start,
           level: group.level,
           x: if rtl {
@@ -224,7 +224,6 @@ fn measure_line(
           y: 0,
           width: image.width,
           height: image.height,
-          crop: image.crop.copy(),
           anchor: image.anchor,
         })
       }

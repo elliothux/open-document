@@ -12,7 +12,7 @@ fn Session::editable_picture(
   remove~ : Bool = false,
   replace~ : Bool = false,
   position~ : Bool = false,
-) -> (@layout.ImageFrame, Int, Int, Int?) raise @failure.Failure {
+) -> (PictureFrame, Int, Int, Int?) raise @failure.Failure {
   self.check_picture_context(tree)
   guard tree.nodes.get(id) is Some(node) &&
     node.uri == word_uri &&
@@ -169,6 +169,9 @@ pub fn Session::pictures(
   for id in tree.order {
     let node = tree.nodes[id]
     if node.uri != word_uri || node.name != "drawing" {
+      continue
+    }
+    if tree.drawing_data(id).1.attribute("uri") == Some(word_shape_uri) {
       continue
     }
     guard images.length() < 256 else {

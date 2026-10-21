@@ -27,7 +27,7 @@ fn Foundation::hit_result(
   } else {
     Json::null()
   }
-  let picture : Json = if hit.imageStart is Some(start) && reason.is_empty() {
+  let picture : Json = if hit.drawingStart is Some(start) && reason.is_empty() {
     let selection : @docx.Selection = {
       anchor: {
         ..position,
