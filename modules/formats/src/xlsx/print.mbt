@@ -10,6 +10,7 @@ fn Session::print_sheet(
 ) -> PrintedSheet raise @failure.Failure {
   let current = self.sheets[index]
   let sheet = current.id
+  let hyperlinks : Array[(Range, String)] = []
   try {
     let tree = Tree::new(current.document)
     ignore(self.read_sheet_notes(current))
@@ -17,8 +18,13 @@ fn Session::print_sheet(
     if !nodes.is_empty() {
       let links = self.hyperlink_relations(sheet)
       for node in nodes {
-        ignore(Range::parse(node.attribute("ref").unwrap_or("")))
-        ignore(hyperlink_target(tree, node, links))
+        let range = Range::parse(node.attribute("ref").unwrap_or(""))
+        guard !hyperlinks.any(link => link.0.intersects(range)) else {
+          @failure.reject(
+            "protected-content", "Overlapping printed hyperlinks require ownership support",
+          )
+        }
+        hyperlinks.push((range, hyperlink_target(tree, node, links)))
       }
     }
   } catch {
@@ -117,6 +123,8 @@ fn Session::print_sheet(
   })
   let pages : Array[@layout.PositionedPage] = []
   let page_units : Array[Int] = []
+  let printed_cells : Array[PrintedCell] = []
+  let page_offset = work.pages
   for (rows, columns) in bands {
     let row_groups = print_groups(
       dimensions.rows,
@@ -143,6 +151,7 @@ fn Session::print_sheet(
           bars: [],
           strokes: [],
           texts: [],
+          cells: [],
         }
         let row_segments = print_segments(dimensions.rows, rows, title_rows)
         let col_segments = print_segments(
@@ -254,6 +263,31 @@ fn Session::print_sheet(
             }
           }
         }
+        for (range, rect) in page.cells {
+          let x = (rect.x * scale).max(setup.left)
+          let y = (rect.y * scale).max(setup.top)
+          let width = ((rect.x + rect.width) * scale).min(
+              setup.width - setup.right,
+            ) -
+            x
+          let height = ((rect.y + rect.height) * scale).min(
+              setup.height - setup.bottom,
+            ) -
+            y
+          if width > 0 && height > 0 {
+            printed_cells.push({
+              range,
+              rect: {
+                page: page_offset + pages.length(),
+                line: 0,
+                x,
+                y,
+                width,
+                height,
+              },
+            })
+          }
+        }
         let positioned = page.positioned()
         positioned.primitives.append(picture_paint)
         let positioned = if scale == 1 {
@@ -281,5 +315,7 @@ fn Session::print_sheet(
     first_page,
     pages,
     units: page_units,
+    cells: printed_cells,
+    links: hyperlinks,
   }
 }

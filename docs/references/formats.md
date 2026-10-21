@@ -243,7 +243,7 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `DocxFormatting.hyperlink` 返回 `{ target, mixed, reason }`；非共同目标为 null，mixed 为 true 时可统一设置或移除，reason 说明目标保护原因。原字符格式保持，不自动套用 Hyperlink 字符样式；默认面板提供地址、显示文字、应用、移除和显式打开，外链使用新窗口及 `noopener noreferrer`。普通输入和临时组合状态不覆盖未提交地址草稿；非法地址在进入编辑队列前提示，原文档仍可编辑和保存。打开文件、查询、布局及应用链接都不请求外链。
 
-复用字符边界拆分和关系事务。已选链接的提示、history、tgtFrame 与未选两端保留；移除容器时补齐 run 和书签的局部命名空间，保留文字、格式和注释。相同外部目标复用关系，不改写共用关系或清理旧关系。显示文字、链接 XML、新增/修改关系合为一项历史；过期 revision、活动候选、图片、未知源及源/输出预算失败均不提交。内部目标扩展见下节；docLocation、同时具有外链关系和 anchor 的组合目标及未知关系继续保护。链接样式管理与交互 PDF 注释仍待 [P10](../p10-docx-core.md) 后续实现。范围与光标语义参考 [ONLYOFFICE 链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L7811-L8180)，实现归 [`hyperlink-edit.mbt`](../../modules/formats/src/docx/hyperlink-edit.mbt)及 [`hyperlink-query.mbt`](../../modules/formats/src/docx/hyperlink-query.mbt)。
+复用字符边界拆分和关系事务。已选链接的提示、history、tgtFrame 与未选两端保留；移除容器时补齐 run 和书签的局部命名空间，保留文字、格式和注释。相同外部目标复用关系，不改写共用关系或清理旧关系。显示文字、链接 XML、新增/修改关系合为一项历史；过期 revision、活动候选、图片、未知源及源/输出预算失败均不提交。内部目标扩展见下节；docLocation、同时具有外链关系和 anchor 的组合目标及未知关系继续保护。链接样式管理归[当前格式合同](#p10-当前格式编辑)，输出归[PDF 文字链接](#docx-pdf-文字链接)。范围与光标语义参考 [ONLYOFFICE 链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L7811-L8180)，实现归 [`hyperlink-edit.mbt`](../../modules/formats/src/docx/hyperlink-edit.mbt)及 [`hyperlink-query.mbt`](../../modules/formats/src/docx/hyperlink-query.mbt)。
 
 ### 书签与内部导航
 
@@ -253,9 +253,17 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `setHyperlink` 的 target 另接受 `#书签名`，必须对应当前可用书签。内部链接写入 `w:anchor`，不新增 OPC 关系；外部与内部目标可相互修改，保留原提示和直接格式。默认面板的“打开链接”执行核心定位。改名同时更新主文档已知 anchor 引用；删除书签同时移除这些链接容器，保留文字、格式及命名空间。主文档已知简单 `PAGEREF` 随书签改名同步目标，删除目标后显示明确的缺失引用结果，缓存由显式字段刷新更新。其他 XML 部件中的 anchor、复杂或未知引用字段继续保护改名/删除；范围归[书签页码引用](#书签页码引用)。
 
-普通文字、组合输入、格式、查找替换和拆段/合段保留零宽标记。范围替换删除中间段落时，丢失的已知端点收缩到替换后的光标；同一位置的起点先于结束标记。删除含书签的表格行等其他结构操作若会破坏配对，则整项拒绝。未知标记源保持。每次创建、改名、删除及相关引用更改合为一次有界历史；保存重开保留范围和导航，预算失败不提交。当前 PDF 仅保留文字与格式，不含可点击注释。
+普通文字、组合输入、格式、查找替换和拆段/合段保留零宽标记。范围替换删除中间段落时，丢失的已知端点收缩到替换后的光标；同一位置的起点先于结束标记。删除含书签的表格行等其他结构操作若会破坏配对，则整项拒绝。未知标记源保持。每次创建、改名、删除及相关引用更改合为一次有界历史；保存重开保留范围和导航，预算失败不提交。当前 PDF 的可点击文字注释归[PDF 文字链接](#docx-pdf-文字链接)。
 
 名称匹配及书签定位参考固定 [ONLYOFFICE Bookmarks.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Bookmarks.js#L353-L366)，配对插入及移除参考 [Document.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L24423-L24568)。未复制上游代码；实现归 [`bookmark-read.mbt`](../../modules/formats/src/docx/bookmark-read.mbt)和 [`bookmark-edit.mbt`](../../modules/formats/src/docx/bookmark-edit.mbt)。
+
+### DOCX PDF 文字链接
+
+既有 `FoundationSession/Client.exportPdf`、`DocumentEditor.exportPdf` 和默认导出入口自动保留正文及普通单元格中的已知文字链接。外链输出原始 HTTP、HTTPS 或 mailto 地址；内部链接及带 `\h` 的 `PAGEREF` 输出当前书签起点的实际页和坐标。未设置链接开关的字段只输出文字；缺少目标的 `PAGEREF` 保留缺失引用结果，不生成悬空动作。未知关系、组合目标及非法地址拒绝导出，保留原文档。
+
+链接矩形复用已完成布局的逐行光标边界，支持换行、混合格式及单元格裁剪，不扩大到行尾空白。PDF 写入无边框 `Link` 注释；外链使用 `URI` 动作，内部使用 `GoTo` 和真实页对象的 `XYZ` 目标，统一转换为 PDF 左下角坐标。导出不改源、选择、历史及未保存状态，不请求链接目标。
+
+一次导出最多 65536 个矩形，目标定位与矩形查询共用 8388608 项行/光标工作预算。收集注释时预检字节，整体仍受现有 PDF 输出上限约束。页眉页脚、绘图及文本框链接，以及更广导入兼容继续实施。MoonBit 入口归 [`links-layout.mbt`](../../modules/formats/src/docx/links-layout.mbt)，几何归 [`links.mbt`](../../modules/layout/src/links.mbt)，序列化归 [`write-links.mbt`](../../modules/formats/src/pdf/write-links.mbt)。依据 [ONLYOFFICE 外链](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/PdfWriter.cpp#L1198-L1221)及[内部页目标](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/PdfWriter.cpp#L4123-L4138)，未复制上游执行代码。
 
 ### DOCX 本地批注
 
@@ -587,7 +595,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 正文及普通单元格中，核心按书签起点所在的实际纸张计算页号，采用当前单节编号或显式格式。简单域可插入、查询、修改、原生输入及整域替换；已知同段复杂域可显示和刷新，范围编辑保持保护。书签改名只修改已知简单域的目标 token，保留空白、格式开关及 `MERGEFORMAT`。删除或缺少目标时，显示 `Error! Bookmark not defined.`；原缓存仍由 `updateBodyPageFields` 显式刷新。源、选择和缓存共用既有精确历史，计算、保存和输出不隐式改写原缓存。原生格式依据 [ONLYOFFICE PAGEREF](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L1259-L1312)。
 
-`relative: true` 保留原生 `\p` 开关。同页按实际光标位置显示 `above` 或 `below`；跨页显示 `on page N`，其中 N 是从 1 开始的物理页号，不使用节编号格式。`hyperlink: true` 保留原生 `\h` 标记，默认面板通过“跳转到引用目标”显式定位已提交的目标。修改目标后须先应用，再跳转。PDF 交互链接继续实施。
+`relative: true` 保留原生 `\p` 开关。同页按实际光标位置显示 `above` 或 `below`；跨页显示 `on page N`，其中 N 是从 1 开始的物理页号，不使用节编号格式。`hyperlink: true` 保留原生 `\h` 标记，默认面板通过“跳转到引用目标”显式定位已提交的目标。修改目标后须先应用，再跳转。PDF 输出保留此目标，范围归[PDF 文字链接](#docx-pdf-文字链接)。
 
 `Flow.bookmarks` 保存忽略大小写的名称到 `[paragraph, offset]` 的绑定，TypeScript 只验证传输。最多 4096 个目标与字段位置；一次分页轮次最多访问 1048576 个候选行和光标位置，沿用最多八轮重排。普通字段片段保留原生目标名，在目标文档中重新绑定；不会复制范围外的书签，缺失时显示上述错误。重复表头中的相对引用、未知或重复开关保持诊断和编辑保护。页眉页脚、未知/受保护目标、通用 `REF` 和目录继续实施。实现归 [`body-page-reference.mbt`](../../modules/formats/src/docx/body-page-reference.mbt)及[字段布局](../../modules/layout/src/body-fields.mbt)，未复制上游执行代码。
 
@@ -1510,7 +1518,11 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 默认面板提供地址、应用、混合移除及显式打开，原生草稿沿既有队列提交。打开文件、查询、设置链接和打印均不请求外链；外部打开使用新窗口及 `noopener noreferrer`。内部打开调用 `{ action: "openHyperlink", range, sourceRevision }`，核心检查当前选区与修订后定位，不增加历史。无效或隐藏目标返回 navigationReason，保留源并拒绝跳转。
 
-已有改名、复制、删除工作表及行列/单元格结构事务继续更新普通链接范围与内部引用；名称改名同步内部 location，外部文件的 location 保持原值。删除定义名称时移除因此失去矩形目标的已知链接，包括名称别名链；其他已失效引用保留导航原因。保存重开支持继续编辑，链接和关系与原生输入、结构修改可精确混合撤销。静态 PDF 校验普通链接元数据后保留单元格文字与格式，未知链接扩展继续保护输出；可点击 PDF 注释、HYPERLINK 函数及绘图对象链接仍属后续范围。
+已有改名、复制、删除工作表及行列/单元格结构事务继续更新普通链接范围与内部引用；名称改名同步内部 location，外部文件的 location 保持原值。删除定义名称时移除因此失去矩形目标的已知链接，包括名称别名链；其他已失效引用保留导航原因。保存重开支持继续编辑，链接和关系与原生输入、结构修改可精确混合撤销。PDF 已保留普通单元格的外链注释，范围见下段。内部引用的 PDF 跳转、HYPERLINK 函数及绘图对象链接继续实施。
+
+既有 PDF 导出自动将本次实际打印的 HTTP、HTTPS、mailto 文字链接写为无边框注释。矩形来自核心文字块的实际位置，按单元格和纸张裁剪，保留对齐、换行、RTL、缩放、重复标题、多区域及多表页序。隐藏行列和空白文字不生成注释，不扩张打印范围。重叠链接或只覆盖部分合并格的链接保护打印；原有未知元数据和地址校验保持。内部 location 按 [ONLYOFFICE 打印行为](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L6734-L6744)只保留文字。导出不改工作簿、选区、历史或未保存状态，也不请求链接地址。
+
+核心打印结果的 `PositionedDocument.links` 随页面一起缓存，PDF 复用[现有链接注释](#docx-pdf-文字链接)序列化。每次最多 65536 个注释矩形、8388608 次链接与文字片段比较，继续执行既有打印及 PDF 字节预算。实现归 [`print-links.mbt`](../../modules/formats/src/xlsx/print-links.mbt)与 [`print.mbt`](../../modules/formats/src/xlsx/print.mbt)，未复制上游执行代码。
 
 实现归 [`hyperlink-query.mbt`](../../modules/formats/src/xlsx/hyperlink-query.mbt) 和 [`hyperlink-edit.mbt`](../../modules/formats/src/xlsx/hyperlink-edit.mbt)。范围查找、设置/移除及保留直接格式的语义参考固定 [ONLYOFFICE Range hyperlinks](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L20760-L20849)，复用第一方范围拆分、关系与历史事务，未复制上游代码。
 
@@ -2585,9 +2597,17 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 核心写 `cNvPr/a:hlinkClick`：外链使用 External hyperlink 关系，内链使用 slide 关系及 `ppaction://hlinksldjump`。六种导航动作写 `ppaction://hlinkshowjump?jump=…` 和空 `r:id`，不创建关系；导入时按 action 解析，允许省略、空或原有关系身份。与目标相同的关系可复用；修改不覆盖其他对象共用的关系，也不清理旧关系。保留 tooltip、tgtFrame、history、highlightClick、endSnd、相邻悬停链接、注释、文字和几何；未知属性、声音等子内容或无法解析的关系保护修改。新增关系与对象 XML 共用一项有界历史，旧 revision、活动候选、锁和输出预算失败均不提交。相同链接及重复清除不新增历史。
 
-页面重排保持内部目标，页面复制复用既有自身链接重映射，删页移除相应入链并保留对象。对象复制保留链接；带自身点击或悬停链接的组不能直接取消组合，避免丢失组动作。普通点击链接移除后可取消组合，成员自己的链接保留。静态 Canvas/PDF 保留对象外观及文字，不增加交互链接注释。放映点击归[放映链接](#放映链接)；悬停/一般动作编辑及输出链接继续按 [P12](../p12-pptx-core.md) 实施。语义参考固定 [ONLYOFFICE 对象链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L3503-L3683)、[文字链接拆分与光标操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L7811-L8180)、[PPTX 链接下划线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L10545-L10565)、[内部页动作解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L9259-L9290)及[编辑器显式导航](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/api.js#L7243-L7264)，实现归 [`object-hyperlink.mbt`](../../modules/formats/src/pptx/object-hyperlink.mbt)和 [`text-hyperlink.mbt`](../../modules/formats/src/pptx/text-hyperlink.mbt)。
+页面重排保持内部目标，页面复制复用既有自身链接重映射，删页移除相应入链并保留对象。对象复制保留链接；带自身点击或悬停链接的组不能直接取消组合，避免丢失组动作。普通点击链接移除后可取消组合，成员自己的链接保留。静态 Canvas 保留对象外观及文字，PDF 链接归[下段](#pptx-pdf-链接)。放映点击归[放映链接](#放映链接)；悬停及其他一般动作编辑继续按 [P12](../p12-pptx-core.md) 实施。语义参考固定 [ONLYOFFICE 对象链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L3503-L3683)、[文字链接拆分与光标操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L7811-L8180)、[PPTX 链接下划线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L10545-L10565)、[内部页动作解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L9259-L9290)及[编辑器显式导航](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/api.js#L7243-L7264)，实现归 [`object-hyperlink.mbt`](../../modules/formats/src/pptx/object-hyperlink.mbt)和 [`text-hyperlink.mbt`](../../modules/formats/src/pptx/text-hyperlink.mbt)。
 
 表格文字链接在单个主格内使用相同的局部范围及光标规则，包含跨行列合并格和空格；范围先转换为格内位置，不改其他格及延续格。跨主格选择返回保护原因，统一设置和移除均不写入，默认面板同步禁用。新关系与单元格源仍合为一项历史；已有格式、几何及其他部件保持。放映使用表格原有逐格文字几何命中。规则依据 [ONLYOFFICE 表格链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L4601-L4630)。整表对象链接编辑仍受保护。
+
+### PPTX PDF 链接
+
+既有 PDF 导出保留对象和文字的 HTTP、HTTPS、mailto 外链，以及本次输出中可用的内部页目标。首页、末页、上一页、下一页动作按原生页序解析，再映射到实际输出页序；当前页、全部页及隐藏页选项保持原有规则。目标未输出时不生成注释。上次查看页、结束放映和媒体播放动作在静态 PDF 中不执行。
+
+对象链接使用实际几何边界，零宽或零高直线补入线宽。文字和表格文字复用核心布局的可见字形区间，按文本框、单元格及纸张裁剪。旋转、翻转和组变换作用于矩形四角，再取轴对齐包围框；不声明多边形或遮挡命中。导出不改源、选区、历史和未保存状态，也不请求链接地址。未知或非法动作保护输出。
+
+核心通过 `PositionedDocument.links` 复用[共享注释输出](#docx-pdf-文字链接)。每次最多 65536 个矩形、8388608 个文字几何工作单元，并继续执行现有打印和 PDF 字节预算。实现归 [`print-links.mbt`](../../modules/formats/src/pptx/print-links.mbt)，几何及动作语义参考 [ONLYOFFICE PDF 文字链接](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L2886-L2968)，未复制上游执行代码。
 
 ### 嵌入音视频
 

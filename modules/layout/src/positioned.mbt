@@ -67,6 +67,7 @@ pub(all) struct PositionedPage {
 pub(all) struct PositionedDocument {
   pages : Array[PositionedPage]
   fonts : Array[FontInfo]
+  links : Array[PageLink]
 }
 
 ///|
@@ -89,6 +90,7 @@ pub fn PositionedDocument::drawing_images(
 pub fn Layout::positioned(self : Layout) -> PositionedDocument {
   {
     fonts: self.fonts,
+    links: [],
     pages: self.pages.mapi((index, page) => {
       let primitives : Array[PositionedPrimitive] = []
       if self.background.to_lower() != "ffffff" {

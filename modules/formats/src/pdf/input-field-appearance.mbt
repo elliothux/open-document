@@ -301,6 +301,7 @@ fn field_appearance(
   }
   primitives.push(@layout.Restore)
   let positioned : @layout.PositionedDocument = {
+    links: [],
     pages: [{ width, height, primitives, }],
     fonts: probe.font_info(),
   }

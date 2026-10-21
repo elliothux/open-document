@@ -38,7 +38,7 @@ fn place_block(
   rect : @layout.Border,
   horizontal : String,
   vertical : String,
-) -> Unit {
+) -> Array[@layout.Border] raise @failure.Failure {
   let top = rect.y +
     1.5 +
     (if vertical == "top" {
@@ -48,6 +48,13 @@ fn place_block(
     } else {
       rect.height - 3 - block.height
     }).max(0)
+  let offsets = block.lines.map(line => {
+    guard line.get(0) is Some(@layout.Transform(matrix)) else {
+      @failure.reject("invalid-drawing", "Text block requires a line transform")
+    }
+    matrix.f
+  })
+  let bounds : Array[@layout.Border] = []
   for index, line in block.lines {
     let x = rect.x +
       2.25 +
@@ -68,7 +75,20 @@ fn place_block(
         rect,
       ),
     )
+    let rect = grid_intersection(
+      {
+        x,
+        y: top + offsets[index],
+        width: block.widths[index],
+        height: offsets.get(index + 1).unwrap_or(block.height) - offsets[index],
+      },
+      rect,
+    )
+    if rect.width > 0 && rect.height > 0 {
+      bounds.push(rect)
+    }
   }
+  bounds
 }
 
 ///|
@@ -336,7 +356,12 @@ fn Session::paint_cells(
             _ => "left"
           }
         }
-        place_block(page, block, rect, horizontal, style.vertical)
+        let bounds = place_block(page, block, rect, horizontal, style.vertical)
+        if printing {
+          for bound in bounds {
+            page.cells.push((range, bound))
+          }
+        }
         if !printing {
           let start = page.texts.length() - block.lines.length()
           let clip : @layout.Border = {
@@ -501,6 +526,7 @@ pub fn Session::viewport(
     index, dimensions, rows, columns, width, height, probe, profile, notes, objects,
   )
   let document : @layout.PositionedDocument = {
+    links: [],
     pages: [{ width, height, primitives, }],
     fonts: probe.font_info(),
   }

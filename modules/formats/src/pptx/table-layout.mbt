@@ -106,6 +106,7 @@ fn Object::paint_table(
           x: line.x + x,
           y: line.y + y,
           areaX: line.areaX + x,
+          cellClip: Some({ x, y, width, height, }),
           runs: line.runs.map(run => {
             ..run,
             x: run.x + x,

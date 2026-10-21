@@ -376,6 +376,7 @@ pub(all) struct Line {
   carets : Array[Caret]
   readOnlyReason : String
 } derive(ToJson)
+pub fn Line::link_rects(Self, Int, Int) -> Array[Border]
 pub fn Line::positioned(Self, Array[FontInfo], Double) -> Array[PositionedPrimitive]
 pub fn Line::to_json(Self) -> Json
 
@@ -386,6 +387,11 @@ pub(all) enum LineSpacing {
 }
 pub fn LineSpacing::to_json(Self) -> Json
 pub impl ToJson for LineSpacing
+
+pub(all) enum LinkTarget {
+  External(String)
+  Internal(Int, Double, Double)
+}
 
 pub struct LiteralPattern {
   // private fields
@@ -444,6 +450,11 @@ pub(all) struct PageFrame {
   cellAreas : Array[CellArea]
 } derive(ToJson)
 pub fn PageFrame::to_json(Self) -> Json
+
+pub(all) struct PageLink {
+  rect : SelectionRect
+  target : LinkTarget
+}
 
 pub(all) struct PageNumbering {
   start : Int64
@@ -570,6 +581,7 @@ pub fn PlacedRun::to_json(Self) -> Json
 pub(all) struct PositionedDocument {
   pages : Array[PositionedPage]
   fonts : Array[FontInfo]
+  links : Array[PageLink]
 }
 pub fn PositionedDocument::drawing(Self, Images, clear? : Bool) -> Array[DrawingRegion] raise @failure.Failure
 pub fn PositionedDocument::drawing_images(Self, Images) -> Array[String] raise @failure.Failure

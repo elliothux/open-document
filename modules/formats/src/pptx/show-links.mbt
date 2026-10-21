@@ -13,8 +13,8 @@ priv struct ShowLink {
 fn Session::show_links(
   self : Session,
   slide : Slide,
+  links : ReadOnlyArray[@opc.Relationship],
 ) -> Array[ShowLink] raise @failure.Failure {
-  let links = self.relationships()
   let result : Array[ShowLink] = []
   let mut units = 0
   for object in slide.objects {

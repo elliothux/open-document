@@ -21,6 +21,8 @@ priv struct PrintedSheet {
   first_page : Int
   pages : Array[@layout.PositionedPage]
   units : Array[Int]
+  cells : Array[PrintedCell]
+  links : Array[(Range, String)]
 }
 
 ///|
@@ -103,5 +105,5 @@ pub fn Session::print_layout(
     }
   }
   self.font_context = Some((probe, profile.copy()))
-  { pages, fonts: probe.font_info(), }
+  { pages, fonts: probe.font_info(), links: self.print_page_links(planned), }
 }

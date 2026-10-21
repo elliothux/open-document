@@ -278,6 +278,7 @@ pub fn Session::show_layout(
           fragments.map(fragment => {
             let (id, primitives) = fragment
             let document : @layout.PositionedDocument = {
+              links: [],
               pages: [{ ..page, primitives, }],
               fonts: probe.font_info(),
             }
@@ -298,6 +299,7 @@ pub fn Session::show_layout(
       }
     }
     let document : @layout.PositionedDocument = {
+      links: [],
       pages,
       fonts: probe.font_info(),
     }
@@ -317,7 +319,7 @@ pub fn Session::show_layout(
       parts,
       images: resources,
       texts,
-      links: self.show_links(self.slides[show.index]),
+      links: self.show_links(self.slides[show.index], self.relationships()),
     }
     self.show_drawing = Some(drawing)
     drawing

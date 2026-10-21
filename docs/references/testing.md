@@ -1,6 +1,6 @@
 # 测试说明
 
-DOCX 书签页码引用通过 15 项定向核心检查，包含相对位置、链接标记及原有正文字段与书签回归。字段和 Flow 检查共 5 项、244 条断言通过。此前一条 Chromium 流程通过普通页码引用的默认控件、原生分页、缓存刷新、独立 XML、精确历史、重开输入及 PDF；新增开关控件与显式跳转尚未做浏览器验收。根 api/check/build 和私有静态检查通过，记录归 `pageReferenceCheckpoint` 与 `pageReferenceSwitchesCheckpoint`。此前 PPTX 图表占位符检查继续适用。其他 P10/P11/P12 范围继续实施；未跑全量、安装包、外部 Office 或 OS 输入法验收。
+PPTX PDF 链接通过 10 项定向核心检查，其中新增 2 项。两条既有 Chromium 流程最终通过，qpdf 独立检查外链、内部页引用、对象及文字矩形。文字用例首次因漏算保留外链而失败，修正断言后只重跑该条通过，未改产品、重试或超时。根 api/check/build、私有静态检查通过，记录归 `pptxPdfLinksCheckpoint`。前次 DOCX/PDF 18 项、XLSX 7 项及三条 Chromium 的共享模型结果继续复用。P10/P11/P12 仍为部分完成；未跑全量、安装包、外部 Office 或 OS 输入法验收。
 
 DOCX 图片指针重锚通过 25 项定向核心检查。新增三项覆盖跨段/同段跨页、方形环绕、候选选区、参考原点、锚点锁、失败保留及取消/末次坐标的精确历史；复用原定位、尺寸、重锚与布局回归。传输通过两项、59 个断言。Chromium 新跨页拖动和原移动流程通过，检查缩放后的边缘滚动/翻页、取消、松手/保存末次坐标、独立原生 XML/资源、Canvas、精确历史及重开。原移动流程保留 PDF 与原生输入检查，跨页 PDF 复用前序 SDK 结果。根 api/check/build、私有静态检查和源码上限已检查；证据归 `docxPicturePointerCheckpoint`。未跑全量、安装包或外部 Office；更多浮动对象及其余 P10/P11/P12 继续实施。
 

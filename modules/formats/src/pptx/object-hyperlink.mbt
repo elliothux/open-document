@@ -33,11 +33,12 @@ fn check_external_hyperlink(target : String) -> Unit raise @failure.Failure {
 fn hyperlink_properties(object : Object) -> Ref raise @failure.Failure {
   let kind = if object.source.node.name == "cxnSp" {
     "nvCxnSpPr"
+  } else if object.source.node.name == "graphicFrame" {
+    "nvGraphicFramePr"
   } else {
     match object.kind {
       "image" => "nvPicPr"
       "group" => "nvGrpSpPr"
-      "table" => "nvGraphicFramePr"
       _ => "nvSpPr"
     }
   }

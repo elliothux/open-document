@@ -188,6 +188,7 @@ pub fn Session::navigate(Self, Int, @layout.Layout, Int, String, extend_selectio
 pub fn Session::navigate_comment(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
 pub fn Session::overview(Self, Int) -> Json raise @failure.Failure
+pub fn Session::page_links(Self, @layout.Layout) -> Array[@layout.PageLink] raise @failure.Failure
 pub fn Session::page_setup(Self, Int) -> Json raise @failure.Failure
 pub fn Session::paste_body_fragment(Self, Int, Selection, String, @layout.TextProbe, Map[String, String], images? : @layout.Images?) -> Json raise @failure.Failure
 pub fn Session::paste_html(Self, Int, Selection, String, @layout.TextProbe, Map[String, String], images? : @layout.Images?, mode? : String) -> Json raise @failure.Failure

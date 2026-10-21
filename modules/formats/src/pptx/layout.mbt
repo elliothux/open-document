@@ -455,6 +455,7 @@ pub fn Session::layout(
     self.tile_sizes(slide),
   )
   let document : @layout.PositionedDocument = {
+    links: [],
     pages: [page],
     fonts: probe.font_info(),
   }
@@ -500,37 +501,57 @@ pub fn Session::print_layout(
   self.check_revision(revision)
   self.check_candidate_idle()
   let pages : Array[@layout.PositionedPage] = []
+  let links : Array[@layout.PageLink] = []
+  let slides = (if all { self.slides } else { [self.current()] }).filter(slide => {
+    !all || hidden || !slide.hidden
+  })
+  let destinations = Map::from_array(
+    slides.mapi((index, slide) => (slide.tree.part, index)),
+  )
+  let relationships = self.relationships()
+  let mut link_work = 0
   let mut primitives = 0
-  for slide in (if all { self.slides } else { [self.current()] }) {
-    if !all || hidden || !slide.hidden {
-      let (page, _, diagnostics) = paint_slide(
-        slide,
-        self.width,
-        self.height,
-        probe,
-        profile,
-        self.tile_sizes(slide),
+  for slide in slides {
+    let (page, texts, diagnostics) = paint_slide(
+      slide,
+      self.width,
+      self.height,
+      probe,
+      profile,
+      self.tile_sizes(slide),
+    )
+    guard diagnostics.is_empty() else {
+      @failure.reject(
+        "unsupported-pdf",
+        diagnostics.join("; "),
+        part=slide.tree.part,
       )
-      guard diagnostics.is_empty() else {
-        @failure.reject(
-          "unsupported-pdf",
-          diagnostics.join("; "),
-          part=slide.tree.part,
-        )
-      }
-      primitives += page.primitives.length()
-      guard primitives <= 1048576 else {
-        @failure.reject(
-          "limit-exceeded", "Presentation PDF primitives exceed budget",
-        )
-      }
-      pages.push(page)
     }
+    primitives += page.primitives.length()
+    guard primitives <= 1048576 else {
+      @failure.reject(
+        "limit-exceeded", "Presentation PDF primitives exceed budget",
+      )
+    }
+    let (items, work) = self.print_links(
+      slide,
+      texts,
+      pages.length(),
+      destinations,
+      relationships,
+      8388608 - link_work,
+    )
+    link_work += work
+    guard items.length() <= 65536 - links.length() else {
+      @failure.reject("limit-exceeded", "Presentation PDF links exceed budget")
+    }
+    links.append(items)
+    pages.push(page)
   }
   guard !pages.is_empty() else {
     @failure.reject("unsupported-pdf", "No slides selected for PDF")
   }
-  { pages, fonts: probe.font_info(), }
+  { pages, fonts: probe.font_info(), links, }
 }
 
 ///|

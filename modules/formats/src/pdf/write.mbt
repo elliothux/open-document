@@ -449,6 +449,7 @@ pub fn write(
       })
     }
     ignore(document.add_root(document.add_pagetree(pages), []))
+    install_links(document, layout, output_limit)
     // Preflight payload bytes; the final check includes xref and trailer overhead.
     let mut estimate = 0
     document.iter_objects((_, object) => {

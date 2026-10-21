@@ -733,7 +733,7 @@ fn Foundation::dispatch(
           {
             "bytes": @base64.encode(
               @pdf.write(
-                layout.positioned(),
+                { ..layout.positioned(), links: session.page_links(layout), },
                 self.probe,
                 self.images,
                 field_int(request, "outputBytes"),

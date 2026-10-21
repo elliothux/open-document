@@ -179,18 +179,20 @@ fn grid_header(
     color: "f1f3f5",
   })
   page.strokes.push((rect, "d9dce1", 0.5))
-  place_block(
-    page,
-    probe.text_block(
-      text,
-      @layout.TextStyle::new(font, 9, "333333"),
-      profile,
-      (rect.width - 4.5).max(1).min(14400),
-      false,
+  ignore(
+    place_block(
+      page,
+      probe.text_block(
+        text,
+        @layout.TextStyle::new(font, 9, "333333"),
+        profile,
+        (rect.width - 4.5).max(1).min(14400),
+        false,
+      ),
+      rect,
+      "center",
+      "center",
     ),
-    rect,
-    "center",
-    "center",
   )
 }
 
@@ -264,6 +266,7 @@ fn Session::paint_grid(
         width,
         height,
         texts: [],
+        cells: [],
         fills: [],
         bars: [],
         strokes: [],
@@ -364,6 +367,7 @@ fn Session::paint_grid(
         width,
         height,
         texts: [],
+        cells: [],
         fills: [],
         bars: [],
         strokes: [],
@@ -407,6 +411,7 @@ fn Session::paint_grid(
         width,
         height,
         texts: [],
+        cells: [],
         fills: [],
         bars: [],
         strokes: [],
@@ -452,6 +457,7 @@ fn Session::paint_grid(
       width,
       height,
       texts: [],
+      cells: [],
       fills: [],
       bars: [],
       strokes: [],
