@@ -43,6 +43,32 @@ fn fragment_link_opening(
 }
 
 ///|
+fn fragment_link_target(
+  tree : WordTree,
+  node : @xml.Node,
+) -> String raise @failure.Failure {
+  guard !node.empty &&
+    tree.children[node.id].any(child => {
+      tree.nodes[child].uri == word_uri && tree.nodes[child].name == "r"
+    }) &&
+    tree.children[node.id].all(child => {
+      tree.is_bookmark(child) ||
+      (tree.nodes[child].uri == word_uri && tree.nodes[child].name == "r")
+    }) &&
+    node.attributes.all(a => {
+      (a.uri == table_fragment_uri && a.name == "target") ||
+      (a.uri == word_uri && ["history", "tooltip", "tgtFrame"].contains(a.name))
+    }) &&
+    node.attribute("target", uri=table_fragment_uri) is Some(target) else {
+    @failure.reject(
+      "protected-content", "Rich hyperlink requires a portable target without source identities",
+    )
+  }
+  check_hyperlink_target(target)
+  target
+}
+
+///|
 fn Session::import_fragment_links(
   self : Session,
   document : @xml.Document,
@@ -60,28 +86,7 @@ fn Session::import_fragment_links(
     guard targets.length() < 4096 else {
       @failure.reject("limit-exceeded", "Rich table hyperlinks exceed 4096")
     }
-    guard !node.empty &&
-      tree.children[node.id].any(child => {
-        tree.nodes[child].uri == word_uri && tree.nodes[child].name == "r"
-      }) &&
-      !tree.children[node.id].is_empty() &&
-      tree.children[node.id].all(child => {
-        tree.is_bookmark(child) ||
-        (tree.nodes[child].uri == word_uri && tree.nodes[child].name == "r")
-      }) &&
-      node.attributes.all(a => {
-        (a.uri == table_fragment_uri && a.name == "target") ||
-        (
-          a.uri == word_uri &&
-          ["history", "tooltip", "tgtFrame"].contains(a.name)
-        )
-      }) &&
-      node.attribute("target", uri=table_fragment_uri) is Some(target) else {
-      @failure.reject(
-        "protected-content", "Rich hyperlink requires a portable target without source identities",
-      )
-    }
-    check_hyperlink_target(target)
+    let target = fragment_link_target(tree, node)
     if !target.has_prefix("#") {
       external.push(target)
     }
@@ -91,6 +96,7 @@ fn Session::import_fragment_links(
     return document
   }
   let links = self.ensure_hyperlink_relationships(
+    self.main,
     external,
     self.hyperlink_relationships(),
     parts,

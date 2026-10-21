@@ -1,6 +1,7 @@
 ///|
 fn Session::ensure_hyperlink_relationships(
   self : Session,
+  owner : String,
   targets : Array[String],
   links : Map[String, @opc.Relationship],
   parts : Map[String, @xml.Document],
@@ -37,14 +38,14 @@ fn Session::ensure_hyperlink_relationships(
     units += markup.length()
     additions.write_string(markup)
     result[target] = id
-    links[id] = { owner: self.main, id, kind, target, external: true, }
+    links[id] = { owner, id, kind, target, external: true, }
     sequence += 1
   }
   if units == 0 {
     return result
   }
   let markup = additions.to_string()
-  let segments = self.main.split("/").to_array()
+  let segments = owner.split("/").to_array()
   let directory = segments[:segments.length() - 1]
     .map(s => s.to_owned())
     .join("/")
@@ -73,6 +74,17 @@ fn Session::ensure_hyperlink_relationships(
     )
     parts[path] = document
     created[path] = document
+    let kind = "application/vnd.openxmlformats-package.relationships+xml"
+    if self.opc.content_type(path) != Some(kind) {
+      let types = self.opc.names["[content_types].xml"]
+      let original = parts.get(types).unwrap_or_else(() => self.part_xml(types))
+      let (document, edit) = append_part_xml(
+        original,
+        "<Override xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{property_attribute(path)}\" ContentType=\"\{kind}\"/>",
+      )
+      parts[types] = document
+      edits.get_or_init(types, () => []).push(edit)
+    }
   }
   result
 }
@@ -393,6 +405,7 @@ pub fn Session::set_hyperlink(
         target
       } else {
         self.ensure_hyperlink_relationships(
+          self.main,
           [target],
           links,
           parts,

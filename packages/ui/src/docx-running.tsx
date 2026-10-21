@@ -14,7 +14,8 @@ function runningDraft(content: DocxRunningContent[]): DocxRunningContent[] {
   const result: DocxRunningContent[] = [{ text: "" }];
   for (const item of content) {
     const last = result.at(-1)!;
-    if ("text" in item && "text" in last) last.text += item.text;
+    if ("text" in item && "text" in last && item.target === last.target)
+      last.text += item.text;
     else result.push(item, { text: "" });
   }
   return result;
@@ -59,9 +60,11 @@ export function DocxRunning({
     const end = input?.selectionEnd ?? start;
     setContent([
       ...content.slice(0, index),
-      { text: item.text.slice(0, start) },
+      start ? { ...item, text: item.text.slice(0, start) } : { text: "" },
       { field },
-      { text: item.text.slice(end) },
+      end < item.text.length
+        ? { ...item, text: item.text.slice(end) }
+        : { text: "" },
       ...content.slice(index + 1),
     ]);
     active.current = null;
@@ -171,25 +174,50 @@ export function DocxRunning({
             </button>
             {content.map((item, index) =>
               "text" in item ? (
-                <label key={index}>
-                  {kind === "header" ? t.header : t.footer}
-                  <textarea
-                    data-index={index}
-                    maxLength={8192}
-                    value={item.text}
-                    onFocus={(event) => {
-                      active.current = event.currentTarget;
-                    }}
-                    onChange={(event) => {
-                      const text = event.currentTarget.value;
-                      setContent(
-                        content.map((part, i) =>
-                          i === index ? { text } : part,
-                        ),
-                      );
-                    }}
-                  />
-                </label>
+                <div key={index}>
+                  <label>
+                    {kind === "header" ? t.header : t.footer}
+                    <textarea
+                      data-index={index}
+                      maxLength={8192}
+                      value={item.text}
+                      onFocus={(event) => {
+                        active.current = event.currentTarget;
+                      }}
+                      onChange={(event) => {
+                        const text = event.currentTarget.value;
+                        setContent(
+                          content.map((part, i) =>
+                            i === index
+                              ? text
+                                ? { ...item, text }
+                                : { text }
+                              : part,
+                          ),
+                        );
+                      }}
+                    />
+                  </label>
+                  <label>
+                    {t.hyperlinkAddress}
+                    <input
+                      value={item.target ?? ""}
+                      maxLength={2048}
+                      onChange={(event) => {
+                        const target = event.currentTarget.value;
+                        setContent(
+                          content.map((part, i) =>
+                            i === index
+                              ? target
+                                ? { ...item, target }
+                                : { text: item.text }
+                              : part,
+                          ),
+                        );
+                      }}
+                    />
+                  </label>
+                </div>
               ) : (
                 <div key={index}>
                   <label>

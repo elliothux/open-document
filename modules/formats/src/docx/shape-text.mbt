@@ -33,7 +33,7 @@ fn Session::shape_text(
       node.name == "p" &&
       tree.children[paragraph].all(id => {
         let child = tree.nodes[id]
-        child.uri == word_uri && ["pPr", "r"].contains(child.name)
+        child.uri == word_uri && ["pPr", "r", "hyperlink"].contains(child.name)
       }) &&
       tree
       .descendants(paragraph)

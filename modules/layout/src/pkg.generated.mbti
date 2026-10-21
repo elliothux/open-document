@@ -551,6 +551,7 @@ pub(all) struct PlacedDrawingFrame {
   anchor : DrawingAnchor?
   content : DrawingContent
 } derive(ToJson)
+pub fn PlacedDrawingFrame::text_lines(Self) -> Array[Line]
 pub fn PlacedDrawingFrame::to_json(Self) -> Json
 
 pub(all) struct PlacedImage {

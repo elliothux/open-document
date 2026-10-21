@@ -63,8 +63,8 @@ fn Session::running_paragraphs(
       let node = tree.nodes[item]
       guard node.uri == word_uri &&
         ![
-          "drawing", "hyperlink", "bookmarkStart", "bookmarkEnd", "commentReference",
-          "commentRangeStart", "commentRangeEnd", "sectPr",
+          "drawing", "bookmarkStart", "bookmarkEnd", "commentReference", "commentRangeStart",
+          "commentRangeEnd", "sectPr",
         ].contains(node.name) else {
         @failure.reject(
           "unsupported-layout", "Extended header or footer content is protected",

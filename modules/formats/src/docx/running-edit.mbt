@@ -79,7 +79,11 @@ fn Session::editable_running(
       units += count
     }
   }
-  ignore(normalize_running_content(running_content(paragraphs)))
+  ignore(
+    normalize_running_content(
+      running_content(paragraphs, self.running_links(part, paragraphs)),
+    ),
+  )
   guard diagnostics.is_empty() else {
     @failure.reject("protected-content", diagnostics[0])
   }
@@ -87,7 +91,7 @@ fn Session::editable_running(
 }
 
 ///|
-/// Reads ordered text and page fields from one single-section running area.
+/// Reads ordered text, links and page fields from one single-section running area.
 pub fn Session::running_area(
   self : Session,
   revision : Int,
@@ -103,7 +107,7 @@ pub fn Session::running_area(
   }
   let tree = WordTree::new(self.document())
   let mut shared = false
-  let (section, _, _, paragraphs) = try {
+  let (section, _, part, paragraphs) = try {
     let (_, _, part) = self.running_target(tree, kind, variant)
     shared = self.running_shared(tree, part)
     self.editable_running(tree, kind, variant)
@@ -124,7 +128,9 @@ pub fn Session::running_area(
     "differentFirst": first,
     "differentEven": even,
     "revision": revision,
-    "content": Json(running_content(paragraphs)),
+    "content": Json(
+      running_content(paragraphs, self.running_links(part, paragraphs)),
+    ),
     "distance": section
     .bind(id => tree.number(id, "pgMar", kind))
     .map(v => v / 20)
@@ -139,7 +145,7 @@ pub fn Session::running_area(
 }
 
 ///|
-/// Replaces text/page fields and refreshes their caches in one source transaction.
+/// Replaces running text, links and page fields in one source transaction.
 pub fn Session::set_running_area(
   self : Session,
   revision : Int,
@@ -170,7 +176,18 @@ pub fn Session::set_running_area(
       "protected-content", "Shared running area requires an explicit unlink operation",
     )
   }
-  let same_content = running_content(current) == content
+  let current_links = self.running_links(existing, current)
+  let same_content = running_content(current, current_links) == content
+  let bookmarks = tree.bookmark_targets()
+  for item in content {
+    if item is Link(_, target) &&
+      target.has_prefix("#") &&
+      !bookmarks.contains(target[1:].to_owned().to_lower()) {
+      @failure.reject(
+        "invalid-operation", "Running link requires an available bookmark",
+      )
+    }
+  }
   let old_distance = section
     .bind(id => tree.number(id, "pgMar", kind))
     .map(v => v / 20)
@@ -189,11 +206,29 @@ pub fn Session::set_running_area(
   let document = parts.get(part).unwrap_or_else(() => self.part_xml(part))
   parts[part] = document
   let story = WordTree::new(document)
+  let relations = Map::from_array(
+    self.relationships().filter(r => r.owner == part).map(r => (r.id, r)),
+  )
+  let addresses = content
+    .iter()
+    .filter_map(item => {
+      if item is Link(_, target) && !target.has_prefix("#") {
+        Some(target)
+      } else {
+        None
+      }
+    })
+    .to_array()
+  let relations = self.ensure_hyperlink_relationships(
+    part, addresses, relations, parts, part_edits, created,
+  )
   let root = story.nodes[0]
   let has_fields = content.any(item => {
     item is Field(_) || item is FormattedField(_, _)
   })
-  let content = running_content_markup(document, story, current, content)
+  let content = running_content_markup(
+    document, story, current, content, current_links, relations,
+  )
   if existing is Some(_) && same_content {
     ()
   } else if existing is Some(_) {
@@ -214,7 +249,7 @@ pub fn Session::set_running_area(
     }
     let (updated, edit) = document.edit_source([change])
     parts[part] = updated
-    part_edits[part] = [edit]
+    part_edits.get_or_init(part, () => []).push(edit)
   } else {
     let name = if kind == "header" { "hdr" } else { "ftr" }
     let updated = @xml.Document::parse(

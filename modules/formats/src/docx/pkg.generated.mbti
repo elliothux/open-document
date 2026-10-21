@@ -119,6 +119,7 @@ pub(all) enum RulerEdit {
 
 pub(all) enum RunningContent {
   Text(String)
+  Link(String, String)
   Field(String)
   FormattedField(String, String)
 } derive(Eq)

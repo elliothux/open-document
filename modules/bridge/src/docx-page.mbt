@@ -94,6 +94,8 @@ fn running_content(
       @failure.reject("invalid-operation", "Invalid running content item")
     }
     match item {
+      { "text": String(text), "target": String(target), .. } if fields.length() ==
+        2 => @docx.RunningContent::Link(text, target)
       { "field": String(code), "format": String(format), .. } if fields.length() ==
         2 => @docx.RunningContent::FormattedField(code, format)
       { "text": String(text), .. } if fields.length() == 1 =>

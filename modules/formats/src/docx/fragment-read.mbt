@@ -87,7 +87,11 @@ fn check_fragment_content(
       )
     }
     if node.name == "hyperlink" {
-      tree.check_hyperlink(id)
+      if node.attribute("target", uri=table_fragment_uri) is Some(_) {
+        ignore(fragment_link_target(tree, node))
+      } else {
+        tree.check_hyperlink(id)
+      }
     }
     if node.name == "fldSimple" {
       guard fields &&

@@ -1,7 +1,8 @@
 ///|
-/// Ordered text and page fields in a single-section header or footer.
+/// Ordered text, links and page fields in a single-section header or footer.
 pub(all) enum RunningContent {
   Text(String)
+  Link(String, String)
   Field(String)
   FormattedField(String, String)
 } derive(Eq)
@@ -16,6 +17,7 @@ pub extend RunningContent with ToJson::{to_json}
 pub impl ToJson for RunningContent with fn to_json(self) {
   match self {
     Text(text) => { "text": text }
+    Link(text, target) => { "text": text, "target": target }
     Field(code) => { "field": code }
     FormattedField(code, format) => { "field": code, "format": format }
   }
@@ -44,7 +46,7 @@ fn normalize_running_content(
   let mut units = 0
   for item in content {
     match item {
-      Text(text) => {
+      Text(text) | Link(text, _) => {
         guard !text.contains("\r") && !has_region_break(text) else {
           @failure.reject("invalid-operation", "Invalid running text control")
         }
@@ -54,7 +56,17 @@ fn normalize_running_content(
           )
         }
         units += text.length()
-        push_running_text(result, text)
+        if item is Link(_, target) {
+          check_hyperlink_target(target)
+          guard !text.is_empty() else {
+            @failure.reject(
+              "invalid-operation", "Running links require display text",
+            )
+          }
+          push_running_link(result, text, target)
+        } else {
+          push_running_text(result, text)
+        }
       }
       Field(code) | FormattedField(code, _) => {
         guard ["PAGE", "NUMPAGES"].contains(code) else {
@@ -80,6 +92,7 @@ fn normalize_running_content(
 ///|
 fn running_content(
   paragraphs : Array[@layout.Paragraph],
+  links : Map[Int, String],
 ) -> Array[RunningContent] {
   let result : Array[RunningContent] = []
   for index, paragraph in paragraphs {
@@ -88,7 +101,12 @@ fn running_content(
     }
     for span in paragraph.spans {
       if span.field.is_empty() {
-        push_running_text(result, span.text.replace_all(old="\n", new="\u2028"))
+        let text = span.text.replace_all(old="\n", new="\u2028")
+        if links.get(span.node) is Some(target) {
+          push_running_link(result, text, target)
+        } else {
+          push_running_text(result, text)
+        }
       } else {
         let tokens = span.field.split(":").to_array()
         result.push(
@@ -115,12 +133,16 @@ fn running_content_paragraphs(
   for item in content {
     match item {
       Field(_) | FormattedField(_, _) => result.last().unwrap().push(item)
-      Text(text) =>
+      Text(text) | Link(text, _) =>
         for index, line in text.split("\n").to_array() {
           if index > 0 {
             result.push([])
           }
-          push_running_text(result.last().unwrap(), line.to_owned())
+          if item is Link(_, target) {
+            push_running_link(result.last().unwrap(), line.to_owned(), target)
+          } else {
+            push_running_text(result.last().unwrap(), line.to_owned())
+          }
         }
     }
   }
@@ -138,12 +160,14 @@ fn running_content_markup(
   story : WordTree,
   current : Array[@layout.Paragraph],
   content : Array[RunningContent],
+  current_links : Map[Int, String],
+  relations : Map[String, String],
 ) -> String raise @failure.Failure {
   let paragraphs = story.children[0]
   running_content_paragraphs(content)
   .mapi((index, value) => {
     if current.get(index) is Some(paragraph) &&
-      running_content([paragraph]) == value {
+      running_content([paragraph], current_links) == value {
       let node = story.nodes[paragraphs[index]]
       return document.source()[node.start:node.end].to_owned()
     }
@@ -170,6 +194,14 @@ fn running_content_markup(
         match item {
           Text(text) =>
             "<w:r>\{rpr}\{inline_markup(text, history_byte_limit / 2)}</w:r>"
+          Link(text, target) => {
+            let attribute = if target.has_prefix("#") {
+              "w:anchor=\"\{property_attribute(target[1:].to_owned())}\""
+            } else {
+              "xmlns:r=\"\{running_rel_uri}\" r:id=\"\{property_attribute(relations[target])}\""
+            }
+            "<w:hyperlink \{attribute}><w:r>\{rpr}\{inline_markup(text, history_byte_limit / 2)}</w:r></w:hyperlink>"
+          }
           Field(code) | FormattedField(code, _) => {
             let properties = fields
               .get(field)

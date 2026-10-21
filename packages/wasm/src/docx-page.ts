@@ -6,6 +6,7 @@ import {
   type DocxRulerEdit,
 } from "./docx-ruler.js";
 import { record } from "./validation.js";
+import { checkDocxHyperlink } from "./docx-format.js";
 import { docxProtection, checkDocxProtection } from "./docx-protection.js";
 import { protectionSalt } from "./protection-password.js";
 import { isDocxSelection } from "./docx-search.js";
@@ -40,7 +41,8 @@ export type DocxPageField = {
   field: "PAGE" | "NUMPAGES";
   format?: Exclude<DocxPageNumbering["format"], "decimalZero">;
 };
-export type DocxRunningContent = { text: string } | DocxPageField;
+export type DocxRunningContent =
+  { text: string; target?: string } | DocxPageField;
 export type DocxBodyField =
   | DocxPageField
   | {
@@ -130,12 +132,17 @@ export function checkRunningArea(
   for (const value of content) {
     const item = record(value);
     if (
-      Object.keys(item).length === 1 &&
+      Object.keys(item).every((key) => key === "text" || key === "target") &&
       typeof item.text === "string" &&
       !/[\r\f\v]/u.test(item.text)
-    )
+    ) {
+      if ("target" in item) {
+        if (typeof item.target !== "string" || !item.text)
+          throw new Error("Invalid running link");
+        checkDocxHyperlink(item.target);
+      }
       units += item.text.length;
-    else if (
+    } else if (
       (item.field === "PAGE" || item.field === "NUMPAGES") &&
       Object.keys(item).every((key) => ["field", "format"].includes(key))
     ) {

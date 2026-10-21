@@ -180,12 +180,22 @@ fn Session::restore_bookmarks(
 fn Session::bookmark_references(
   self : Session,
   name : String,
-) -> Array[Int] raise @failure.Failure {
+) -> Map[String, Array[Int]] raise @failure.Failure {
   let paths = self.opc.names.copy()
   for path, _ in self.parts {
     paths[path.to_lower()] = path
   }
-  let links : Array[Int] = []
+  let running : Map[String, String] = Map([])
+  for relation in self.relationships() {
+    if relation.owner == self.main && !relation.external {
+      for kind in ["header", "footer"] {
+        if relation.kind == running_rel_uri + "/" + kind {
+          running[relation.target.to_lower()] = kind
+        }
+      }
+    }
+  }
+  let links : Map[String, Array[Int]] = Map([])
   for path in paths.values() {
     if !path.to_lower().has_suffix(".xml") {
       continue
@@ -224,18 +234,37 @@ fn Session::bookmark_references(
       }
       if node.attribute("anchor", uri=word_uri).map(s => s.to_lower()) ==
         Some(name.to_lower()) {
-        guard path == self.main && node.name == "hyperlink" else {
+        guard (path == self.main || running.contains(path.to_lower())) &&
+          node.name == "hyperlink" else {
           @failure.reject(
             "protected-content", "Bookmark references in other document parts require editing support",
           )
         }
-        links.push(node.id)
+        links.get_or_init(path, () => []).push(node.id)
       }
     }
     guard !fields.to_string().to_lower().contains(name.to_lower()) else {
       @failure.reject(
         "protected-content", "Bookmark fields require atomic field editing support",
       )
+    }
+    if path != self.main && links.contains(path) {
+      let diagnostics : Array[String] = []
+      ignore(
+        self.running_paragraphs(
+          path,
+          running[path.to_lower()],
+          self.styles(diagnostics),
+          diagnostics,
+          "ffffff",
+          "default",
+        ),
+      )
+      guard diagnostics.is_empty() else {
+        @failure.reject(
+          "protected-content", "Bookmark links require a supported header or footer",
+        )
+      }
     }
   }
   links
@@ -255,6 +284,8 @@ pub fn Session::edit_bookmark(
   let mut document = original
   let xml : Array[@xml.Edit] = []
   let changes : Array[@xml.SourceChange] = []
+  let parts = self.parts.copy()
+  let part_edits : Map[String, Array[@xml.Edit]] = Map([])
   let affected : Array[Int] = []
   match change {
     GoToBookmark(name) => return self.go_to_bookmark(revision, name)
@@ -330,67 +361,91 @@ pub fn Session::edit_bookmark(
       }
       affected.push(b.selection.unwrap().anchor.paragraph)
       affected.push(b.selection.unwrap().focus.paragraph)
-      for id in links {
-        tree.check_hyperlink(id)
-        let n = tree.nodes[id]
-        tree.check_editable_paragraph(n.parent, part=self.main, pictures=true)
-        guard n.attribute(
-            "id",
-            uri="http://schemas.openxmlformats.org/officeDocument/2006/relationships",
-          )
-          is None &&
-          n.attribute("docLocation", uri=word_uri) is None else {
-          @failure.reject(
-            "protected-content", "Extended bookmark links require editing support",
-          )
-        }
-        affected.push(n.parent)
-        if next is Some(value) {
-          let a = n.attributes
-            .iter()
-            .find_first(a => a.uri == word_uri && a.name == "anchor")
-            .unwrap()
-          changes.push({
-            node: id,
-            offset: a.start - n.start,
-            length: a.end - a.start,
-            xml: property_attribute(value),
-          })
+      for part, ids in links {
+        let tree = if part == self.main {
+          tree
         } else {
-          guard !n.empty else {
+          WordTree::new(self.part_xml(part))
+        }
+        let changes = if part == self.main { changes } else { [] }
+        for id in ids {
+          tree.check_hyperlink(id)
+          let n = tree.nodes[id]
+          if part == self.main {
+            tree.check_editable_paragraph(n.parent, part~, pictures=true)
+          } else {
+            guard tree.nodes[n.parent].parent == 0 else {
+              @failure.reject(
+                "protected-content", "Running bookmark links require an ordinary paragraph",
+              )
+            }
+            tree.check_structure_paragraph(n.parent, running=true)
+          }
+          guard n.attribute(
+              "id",
+              uri="http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+            )
+            is None &&
+            n.attribute("docLocation", uri=word_uri) is None else {
             @failure.reject(
-              "protected-content", "Empty hyperlink source requires editing support",
+              "protected-content", "Extended bookmark links require editing support",
             )
           }
-          for child in tree.children[id] {
-            if child == b.start || child == b.end {
-              continue
-            }
-            let child = tree.nodes[child]
-            let extra = tree.namespace_additions(child.id, n.parent)
-            if !extra.is_empty() {
-              changes.push({
-                node: child.id,
-                offset: child.opening_end -
-                child.start -
-                (if child.empty { 2 } else { 1 }),
-                length: 0,
-                xml: extra,
-              })
-            }
+          if part == self.main {
+            affected.push(n.parent)
           }
-          changes.push({
-            node: n.parent,
-            offset: n.start - tree.nodes[n.parent].start,
-            length: n.opening_end - n.start,
-            xml: "",
-          })
-          changes.push({
-            node: n.parent,
-            offset: n.closing_start - tree.nodes[n.parent].start,
-            length: n.end - n.closing_start,
-            xml: "",
-          })
+          if next is Some(value) {
+            let a = n.attributes
+              .iter()
+              .find_first(a => a.uri == word_uri && a.name == "anchor")
+              .unwrap()
+            changes.push({
+              node: id,
+              offset: a.start - n.start,
+              length: a.end - a.start,
+              xml: property_attribute(value),
+            })
+          } else {
+            guard !n.empty else {
+              @failure.reject(
+                "protected-content", "Empty hyperlink source requires editing support",
+              )
+            }
+            for child in tree.children[id] {
+              if part == self.main && (child == b.start || child == b.end) {
+                continue
+              }
+              let child = tree.nodes[child]
+              let extra = tree.namespace_additions(child.id, n.parent)
+              if !extra.is_empty() {
+                changes.push({
+                  node: child.id,
+                  offset: child.opening_end -
+                  child.start -
+                  (if child.empty { 2 } else { 1 }),
+                  length: 0,
+                  xml: extra,
+                })
+              }
+            }
+            changes.push({
+              node: n.parent,
+              offset: n.start - tree.nodes[n.parent].start,
+              length: n.opening_end - n.start,
+              xml: "",
+            })
+            changes.push({
+              node: n.parent,
+              offset: n.closing_start - tree.nodes[n.parent].start,
+              length: n.end - n.closing_start,
+              xml: "",
+            })
+          }
+        }
+        if part != self.main {
+          let (candidate, edit) = self.part_xml(part).edit_source(changes)
+          parts[part] = candidate
+          part_edits[part] = [edit]
         }
       }
       if next is Some(value) {
@@ -420,14 +475,15 @@ pub fn Session::edit_bookmark(
   }
   let (candidate, step) = document.edit_source(changes)
   xml.push(step)
-  let bytes = xml.iter().fold(init=0, (total, edit) => total + edit_bytes(edit))
+  let bytes = xml.iter().fold(init=0, (total, edit) => total + edit_bytes(edit)) +
+    xml_part_edit_bytes(part_edits, Map([]))
   guard bytes <= history_byte_limit else {
     @failure.reject("limit-exceeded", "Bookmark history exceeds budget")
   }
   self.commit_edit(
     {
       xml,
-      parts: Map([]),
+      parts: part_edits,
       created: Map([]),
       created_media: Map([]),
       before: self.selection,
@@ -436,6 +492,7 @@ pub fn Session::edit_bookmark(
       bytes,
     },
     candidate,
+    parts~,
     bookmark_edit=true,
   )
   self.edit_result(affected)

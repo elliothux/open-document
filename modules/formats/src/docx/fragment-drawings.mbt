@@ -152,6 +152,8 @@ fn Session::fragment_drawing(
       })
       .unwrap()
     let styles = self.styles([])
+    let links = self.hyperlink_relationships()
+    let bookmarks = tree.bookmark_targets()
     let output = StringBuilder()
     let mut units = 0
     for paragraph in text.paragraphs() {
@@ -164,8 +166,8 @@ fn Session::fragment_drawing(
         styles,
         self.document(),
         limit - units,
-        Map([]),
-        Map([]),
+        links,
+        bookmarks,
         Map([]),
         Map([]),
         Map([]),

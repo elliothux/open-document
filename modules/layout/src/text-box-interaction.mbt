@@ -1,37 +1,39 @@
 ///|
+/// Returns laid-out text box lines in page coordinates, with the frame's text clip.
+pub fn PlacedDrawingFrame::text_lines(self : PlacedDrawingFrame) -> Array[Line] {
+  guard self.content is TextBox(_, text) else { return [] }
+  text.lines.map(line => {
+    ..line,
+    x: line.x + self.x,
+    y: line.y + self.y,
+    areaX: line.areaX + self.x,
+    bars: line.bars.map(x => x + self.x),
+    carets: line.carets.map(c => {
+      ..c,
+      before: c.before + self.x,
+      after: c.after + self.x,
+    }),
+    runs: line.runs.map(run => {
+      ..run,
+      x: run.x + self.x,
+      baseline: run.baseline + self.y,
+    }),
+    cellClip: if text.clip {
+      Some({ x: self.x, y: self.y, width: self.width, height: self.height, })
+    } else {
+      None
+    },
+  })
+}
+
+///|
 fn Layout::text_box_layout(self : Layout, paragraph : Int) -> Layout? {
   for page, frame in self.pages {
     for line in frame.lines {
       for drawing in line.drawings {
         if drawing.content is TextBox(_, text) &&
           text.paragraphs.any(p => p.id == paragraph) {
-          let lines = text.lines.map(line => {
-            ..line,
-            x: line.x + drawing.x,
-            y: line.y + drawing.y,
-            areaX: line.areaX + drawing.x,
-            bars: line.bars.map(x => x + drawing.x),
-            carets: line.carets.map(c => {
-              ..c,
-              before: c.before + drawing.x,
-              after: c.after + drawing.x,
-            }),
-            runs: line.runs.map(run => {
-              ..run,
-              x: run.x + drawing.x,
-              baseline: run.baseline + drawing.y,
-            }),
-            cellClip: if text.clip {
-              Some({
-                x: drawing.x,
-                y: drawing.y,
-                width: drawing.width,
-                height: drawing.height,
-              })
-            } else {
-              None
-            },
-          })
+          let lines = drawing.text_lines()
           // Use the existing caret, bidi, range and navigation algorithms on this story.
           return Some({
             ..self,

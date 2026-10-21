@@ -251,7 +251,7 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `editBookmark(revision, change)` 与宿主 `DocumentEditor.editBookmark(change)` 接受四种命令：`{ action: "create", name, selection }`、`{ action: "rename", name, replacement }`、`{ action: "remove", name }`、`{ action: "goTo", name }`。创建/改名使用 1–40 个 ASCII 字母、数字或下划线，首字符不能为数字。名称查找及去重忽略大小写；重复创建拒绝。goTo 将光标移到当前书签起点，不改 revision 或历史。默认概览面板提供创建、改名、删除及跳转，复用原生输入和编辑队列。
 
-`setHyperlink` 的 target 另接受 `#书签名`，必须对应当前可用书签。内部链接写入 `w:anchor`，不新增 OPC 关系；外部与内部目标可相互修改，保留原提示和直接格式。默认面板的“打开链接”执行核心定位。改名同时更新主文档已知 anchor 引用；删除书签同时移除这些链接容器，保留文字、格式及命名空间。主文档已知简单 `PAGEREF` 随书签改名同步目标，删除目标后显示明确的缺失引用结果，缓存由显式字段刷新更新。其他 XML 部件中的 anchor、复杂或未知引用字段继续保护改名/删除；范围归[书签页码引用](#书签页码引用)。
+`setHyperlink` 的 target 另接受 `#书签名`，必须对应当前可用书签。内部链接写入 `w:anchor`，不新增 OPC 关系；外部与内部目标可相互修改，保留原提示和直接格式。默认面板的“打开链接”执行核心定位。改名同时更新主文档及已知页眉页脚部件的 anchor 引用，包含共享和未启用变体；删除书签同时移除这些链接容器，保留文字、格式及命名空间。主文档已知简单 `PAGEREF` 随书签改名同步目标，删除目标后显示明确的缺失引用结果，缓存由显式字段刷新更新。其他 XML 部件、未关联页眉页脚中的 anchor，以及复杂或未知引用字段继续保护改名/删除；范围归[书签页码引用](#书签页码引用)。
 
 普通文字、组合输入、格式、查找替换和拆段/合段保留零宽标记。范围替换删除中间段落时，丢失的已知端点收缩到替换后的光标；同一位置的起点先于结束标记。删除含书签的表格行等其他结构操作若会破坏配对，则整项拒绝。未知标记源保持。每次创建、改名、删除及相关引用更改合为一次有界历史；保存重开保留范围和导航，预算失败不提交。当前 PDF 的可点击文字注释归[PDF 文字链接](#docx-pdf-文字链接)。
 
@@ -259,11 +259,11 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 ### DOCX PDF 文字链接
 
-既有 `FoundationSession/Client.exportPdf`、`DocumentEditor.exportPdf` 和默认导出入口自动保留正文及普通单元格中的已知文字链接。外链输出原始 HTTP、HTTPS 或 mailto 地址；内部链接及带 `\h` 的 `PAGEREF` 输出当前书签起点的实际页和坐标。未设置链接开关的字段只输出文字；缺少目标的 `PAGEREF` 保留缺失引用结果，不生成悬空动作。未知关系、组合目标及非法地址拒绝导出，保留原文档。
+既有 `FoundationSession/Client.exportPdf`、`DocumentEditor.exportPdf` 和默认导出入口自动保留正文、普通单元格、[文本框](#docx-文本框)及[页眉页脚](#页眉页脚)中的已知文字链接。外链输出原始 HTTP、HTTPS 或 mailto 地址；内部链接及带 `\h` 的 `PAGEREF` 输出当前书签起点的实际页和坐标。未设置链接开关的字段只输出文字；缺少目标的 `PAGEREF` 保留缺失引用结果，不生成悬空动作。未知关系、组合目标及非法地址拒绝导出，保留原文档。
 
-链接矩形复用已完成布局的逐行光标边界，支持换行、混合格式及单元格裁剪，不扩大到行尾空白。PDF 写入无边框 `Link` 注释；外链使用 `URI` 动作，内部使用 `GoTo` 和真实页对象的 `XYZ` 目标，统一转换为 PDF 左下角坐标。导出不改源、选择、历史及未保存状态，不请求链接目标。
+链接矩形复用已完成布局的逐行光标边界，支持换行、混合格式及单元格裁剪，不扩大到行尾空白。文本框复用核心最终行坐标，按实际溢出设置、行内父格及纸张裁剪；浮动框沿页面位置输出。PDF 写入无边框 `Link` 注释；外链使用 `URI` 动作，内部使用 `GoTo` 和真实页对象的 `XYZ` 目标，统一转换为 PDF 左下角坐标。导出不改源、选择、历史及未保存状态，不请求链接目标。
 
-一次导出最多 65536 个矩形，目标定位与矩形查询共用 8388608 项行/光标工作预算。收集注释时预检字节，整体仍受现有 PDF 输出上限约束。页眉页脚、绘图及文本框链接，以及更广导入兼容继续实施。MoonBit 入口归 [`links-layout.mbt`](../../modules/formats/src/docx/links-layout.mbt)，几何归 [`links.mbt`](../../modules/layout/src/links.mbt)，序列化归 [`write-links.mbt`](../../modules/formats/src/pdf/write-links.mbt)。依据 [ONLYOFFICE 外链](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/PdfWriter.cpp#L1198-L1221)及[内部页目标](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/PdfWriter.cpp#L4123-L4138)，未复制上游执行代码。
+一次导出最多 65536 个矩形，目标定位与矩形查询共用 8388608 项行/光标工作预算。收集注释时预检字节，整体仍受现有 PDF 输出上限约束。绘图对象整体链接及更广导入兼容继续实施。MoonBit 入口归 [`links-layout.mbt`](../../modules/formats/src/docx/links-layout.mbt)，几何归 [`links.mbt`](../../modules/layout/src/links.mbt)，序列化归 [`write-links.mbt`](../../modules/formats/src/pdf/write-links.mbt)。依据 [ONLYOFFICE 外链](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/PdfWriter.cpp#L1198-L1221)及[内部页目标](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/PdfWriter.cpp#L4123-L4138)，未复制上游执行代码。
 
 ### DOCX 本地批注
 
@@ -409,7 +409,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 默认图形面板提供文本框类型与初始文字，创建矩形框后聚焦原输入控件。初始填充为白色，线条为黑色、1 pt；SDK 也可创建椭圆文本框。空框保留一个原生空段落。
 
-普通文本框已随正文富文本片段复制、剪切及跨文档粘贴；行内文本框还可随完整普通/合并单元格转移。复制保留原生框、画笔、边距、垂直对齐、换行、溢出和锚点。框内段落复用原片段序列化，把源样式和主题转成明确格式；粘贴不依赖源文档的样式身份。文字、空段、Tab 和软换行保留，文字不转成图片。`docPr`、`cNvPr` 及可选 `txbx` 身份使用目标中的未用值，重复粘贴后可独立编辑。纯文本框预检不返回图片，也不创建媒体或关系。
+普通文本框已随正文富文本片段复制、剪切及跨文档粘贴；行内文本框还可随完整普通/合并单元格转移。复制保留原生框、画笔、边距、垂直对齐、换行、溢出和锚点。框内段落复用原片段序列化，把源样式和主题转成明确格式；粘贴不依赖源文档的样式身份。文字、空段、Tab 和软换行保留，文字不转成图片。`docPr`、`cNvPr` 及可选 `txbx` 身份使用目标中的未用值，重复粘贴后可独立编辑。纯文本框预检不返回图片，也不创建媒体。框内外链通过既有片段协议携带目标并在接收文档重建关系；内部链接要求接收文档已有可用书签。
 
 选择边框后，默认复制按钮和原生剪切/粘贴快捷键沿既有协议执行。框内文字范围也可复制为普通富文本片段，再粘贴到已有文字区域。一次剪切或粘贴只记一项精确历史，保存重开后仍可编辑。`noCopy` 阻止复制和剪切，`noDelete` 只阻止剪切；`noTextEdit` 保留在对象上，继续保护框内输入。未知文字元数据、未解析的样式/主题引用、嵌套绘图和不支持的内容继续保护。浮动文本框要求正文目标；最终布局、数量或历史预算失败保留源、选择及历史。行为参考 [ONLYOFFICE 文本框内容与 bodyPr 复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L2772-L2833)，实现归 [fragment-drawings.mbt](../../modules/formats/src/docx/fragment-drawings.mbt)。
 
@@ -420,6 +420,8 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 命令只更新原生 `bodyPr` 对应属性，保留其他声明、子节点、注释、框内文字、绘图身份、框尺寸、锚点和选择。缺失 `bodyPr` 时创建普通无自动适配的声明；有效属性相同时不写源、不增加修订或历史。一次实际修改只记一项精确历史，保存重开后保留属性和框内输入能力。`noTextEdit`、`noSelect` 及文档保护阻止该命令；尺寸、移动和删除锁继续各自作用于框操作。提供字体 probe 时沿原布局预检；无效属性、无可用文字区域、缺字体或布局预算失败保留源、选择与历史。实现归 [text-box-properties.mbt](../../modules/formats/src/docx/text-box-properties.mbt)及[默认控件](../../packages/ui/src/docx-text-box-properties.tsx)，语义参考 [ONLYOFFICE 垂直对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L1942-L1968)与[边距修改](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L2037-L2083)。自动适配、多栏、竖排及独立两轴溢出继续实施。
 
 单击文本框内侧进入文字选择，边框仍用于选择整个对象。框内命中、光标、扩选、方向键与 Home/End 使用最终行几何；标尺使用框内可用文字区域。现有原生输入、组合候选/取消/最终提交、字符/段落格式及拆段合段复用同一源事务和精确历史。保存重开后仍可继续输入。查询中的文本节点带独立段落身份；正文与文本框、不同文本框之间的文字范围保持保护，不能把框内偏移当成正文偏移。查找按内容区域分组，框内段落不打断相邻正文段落。
+
+框内普通文字超链接复用[已有文字链接](#docx-外部超链接)的读取、设置、移除、混合查询及显式打开。支持 HTTP、HTTPS、mailto 和指向可用正文/单元格书签的内部目标。原生输入、拆合段、格式和精确历史保留链接；整框及框内范围的富文本复制使用同一目标转移协议，避免携带失效关系身份。PDF 复用[文字链接输出](#docx-pdf-文字链接)，保留实际文字边界和源文件。行为参考 [ONLYOFFICE 文字链接与父框坐标](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L2886-L3000)。
 
 当前每框限 256 段、32767 个 UTF-16 单元，单段沿既有 4096 单元上限。普通运行文字、Tab 和软换行可编辑。`noTextEdit` 和 `noSelect` 阻止框内文字编辑，沿既有文档保护检查；帧属性仍遵循各自的锁。候选和提交前校验段落结构及内容上限，失败保留最后有效候选或原文档。表格、列表、字段、嵌套绘图、链接文本框、多栏、竖排、旋转、自动适配及独立两轴溢出设置继续拒绝输出，保留源与历史。更多兼容继续实施；不支持的剪切仍受保护，避免把对象降成占位字符后删除原内容。
 
@@ -541,9 +543,13 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 ### 页眉页脚
 
-`FoundationSession/Client.runningArea(revision, kind, variant)` 返回 `DocxRunningArea { revision, content, distance, reason, differentFirst, differentEven, shared }`。`kind` 使用 `DocxRunningKind` 的 `header/footer`；`variant` 使用 `DocxRunningVariant` 的 `default/first/even`。`DocumentEditor.runningArea(kind, variant)` 沿原生输入屏障查询。`content` 是 `DocxRunningContent[]`，每项为 `{ text: string }` 或 `{ field: "PAGE" | "NUMPAGES"; format?: "decimal" | "lowerLetter" | "upperLetter" | "lowerRoman" | "upperRoman" }`，从 Wasm/Web foundation 模块导出。当前支持单节，文字以 LF 分段，以 U+2028 表示软换行，保留 Tab；`distance` 为距纸张上边或下边的 pt，同类区域的三种变体共用该距离。不支持的源返回保护原因。
+`FoundationSession/Client.runningArea(revision, kind, variant)` 返回 `DocxRunningArea { revision, content, distance, reason, differentFirst, differentEven, shared }`。`kind` 使用 `DocxRunningKind` 的 `header/footer`；`variant` 使用 `DocxRunningVariant` 的 `default/first/even`。`DocumentEditor.runningArea(kind, variant)` 沿原生输入屏障查询。`content` 是 `DocxRunningContent[]`，每项为 `{ text: string; target?: string }` 或 `{ field: "PAGE" | "NUMPAGES"; format?: "decimal" | "lowerLetter" | "upperLetter" | "lowerRoman" | "upperRoman" }`，从 Wasm/Web foundation 模块导出。当前支持单节，文字以 LF 分段，以 U+2028 表示软换行，保留 Tab；`distance` 为距纸张上边或下边的 pt，同类区域的三种变体共用该距离。不支持的源返回保护原因。
 
-`FoundationSession/Client.setRunningArea(revision, kind, variant, content, distance, profile)` 与 `DocumentEditor.setRunningArea(kind, variant, content, distance)` 替换指定区域的文字和页码字段。核心使用 `RunningContent.Text(String)/Field(String)`，显式格式使用 `FormattedField(String, String)`。例如 `[{ text: "Page " }, { field: "PAGE" }, { text: " of " }, { field: "NUMPAGES" }]`。旧的字符串参数和查询 `text` 字段已移除。前者显式提供字体映射，编辑器复用当前映射。列表最多 256 项；文字与字段合计最多 8192 单位，文字按 UTF-16、每个字段按一单位计算。相邻文字会合并，空列表用于清空；段内最多 64 个字段。距离为 0–14400 pt 的整数 twip，并须给正文留出可用区域。缺失的 `hdr/ftr` 部件、关系、内容类型、节引用及距离在同一事务创建，候选排版和输出预算通过后提交。清空保留一个空段落和已创建部件，不清理未知资源。
+`FoundationSession/Client.setRunningArea(revision, kind, variant, content, distance, profile)` 与 `DocumentEditor.setRunningArea(kind, variant, content, distance)` 替换指定区域的文字和页码字段。核心使用 `RunningContent.Text(String)/Link(String, String)/Field(String)`，显式格式使用 `FormattedField(String, String)`。例如 `[{ text: "Page " }, { field: "PAGE" }, { text: " of " }, { field: "NUMPAGES" }]`。旧的字符串参数和查询 `text` 字段已移除。前者显式提供字体映射，编辑器复用当前映射。列表最多 256 项；文字与字段合计最多 8192 单位，文字按 UTF-16、每个字段按一单位计算。相邻文字会合并，空列表用于清空；段内最多 64 个字段。距离为 0–14400 pt 的整数 twip，并须给正文留出可用区域。缺失的 `hdr/ftr` 部件、关系、内容类型、节引用及距离在同一事务创建，候选排版和输出预算通过后提交。清空保留一个空段落和已创建部件，不清理未知资源。
+
+文字项带 `target` 时生成普通原生超链接，移除该属性恢复普通文字。目标最多 2048 个 UTF-16 单元，接受 HTTP、HTTPS、mailto 或指向可用正文/单元格书签的 `#name`；空显示文字、非法地址及缺失目标拒绝整项修改。默认面板在每个文字项下提供链接地址，清空后移除链接。带链接的 LF 仍分段，软换行和 Tab 保留；相邻且目标相同的文字合并。查询保留链接目标，未改段落和仅改距离时保留原始 XML。目标书签改名或删除时，已知页眉页脚引用与正文合为一次事务，失败保留整包；共享和未启用变体也同步更新。未知跨部件引用继续保护。
+
+外链关系归所属页眉/页脚部件，允许不同区域使用相同关系身份。首次关系部件及必要内容类型声明与文字共用一项精确历史；解除共享时沿既有路径复制。显示、编辑和输出不请求目标。PDF 按实际活动变体逐页生成[文字链接注释](#docx-pdf-文字链接)，复用实际文字边界与正文书签坐标，重复行计入原有预算。实现归 [running-links.mbt](../../modules/formats/src/docx/running-links.mbt)、[有序内容](../../modules/formats/src/docx/running-content.mbt)及[注释收集](../../modules/formats/src/docx/links-layout.mbt)，PDF 语义参考 [ONLYOFFICE 文字链接](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L2886-L3000)。
 
 `FoundationSession/Client.setRunningOptions(revision, first, even, profile)` 与 `DocumentEditor.setRunningOptions(first, even)` 修改首页和奇偶页开关。核心写回单节 `titlePg` 与文档 `evenAndOddHeaders`，按需创建节或设置部件；关闭保留所有区域和引用，重新开启恢复同一内容。开关不隐式创建文字部件。首页启用时优先选择 first；其余按节起点计算的偶数页在奇偶开关启用时选择 even；其他页选择 default。缺失的活动变体显示空白，不回退到 default。选择依据 [ONLYOFFICE 页边区域解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Layout/Base.js#L85-L116)，未复制上游源码。
 
