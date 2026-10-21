@@ -29,34 +29,36 @@ export type DocxPictureEdit =
   | { action: "delete"; id: number }
   | { action: "position"; id: number; anchor: ImageAnchor | null };
 
-export type DocxPictureResizeCommand =
-  | { action: "begin"; picture: number }
+export type DocxPictureGestureCommand =
+  | { action: "begin"; picture: number; handle: 0 | 1 | 2 | 3 | 4 }
   | { action: "cancel"; id: number }
   | {
       action: "update" | "commit";
       id: number;
       dx: number;
       dy: number;
-      handle: 1 | 2 | 3 | 4;
     };
 
-export function checkDocxPictureResize(value: unknown): void {
+export function checkDocxPictureGesture(value: unknown): void {
   const change = record(value);
-  if (change.action === "begin" && integer(change.picture, 0, 2147483647))
+  if (
+    change.action === "begin" &&
+    integer(change.picture, 0, 2147483647) &&
+    integer(change.handle, 0, 4)
+  )
     return;
   if (!integer(change.id, 1, 2147483647))
-    throw new Error("Invalid picture resize identity");
+    throw new Error("Invalid picture gesture identity");
   if (change.action === "cancel") return;
   if (
     (change.action === "update" || change.action === "commit") &&
-    integer(change.handle, 1, 4) &&
     [change.dx, change.dy].every(
       (v) =>
         typeof v === "number" && Number.isFinite(v) && Math.abs(v) <= 14400,
     )
   )
     return;
-  throw new Error("Invalid picture resize command");
+  throw new Error("Invalid picture gesture command");
 }
 export function checkDocxPictureEdit(value: unknown): void {
   const edit = record(value);

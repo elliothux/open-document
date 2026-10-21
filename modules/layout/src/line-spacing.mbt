@@ -2,6 +2,8 @@
 struct MeasuredLine {
   line : Line
   textHeight : Double
+  textAscent : Double
+  baseline : Double
 }
 
 ///|

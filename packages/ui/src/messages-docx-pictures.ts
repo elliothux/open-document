@@ -1,4 +1,10 @@
 export const docxPicturesEn = {
+  pictureSquare: "Square wrapping",
+  pictureWrapSide: "Wrap text",
+  pictureWrapBoth: "Both sides",
+  pictureWrapLeft: "Left only",
+  pictureWrapRight: "Right only",
+  pictureWrapLargest: "Largest side",
   pictureTopBottom: "Top and bottom wrapping",
   pictureDistanceTop: "Text distance above (pt)",
   pictureDistanceRight: "Text distance right (pt)",
@@ -45,6 +51,12 @@ export const docxPicturesEn = {
   imageInputLimit: "Choose a nonempty picture up to 4 MiB.",
 };
 export const docxPicturesZh = {
+  pictureSquare: "方形环绕",
+  pictureWrapSide: "文字环绕方向",
+  pictureWrapBoth: "两侧",
+  pictureWrapLeft: "仅左侧",
+  pictureWrapRight: "仅右侧",
+  pictureWrapLargest: "较宽一侧",
   pictureTopBottom: "上下型环绕",
   pictureDistanceTop: "文字上方间距（pt）",
   pictureDistanceRight: "文字右侧间距（pt）",

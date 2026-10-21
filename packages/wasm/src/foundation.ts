@@ -65,8 +65,8 @@ import {
   prepareDocxPictureEdit,
   docxPictures,
   type DocxPictureEdit,
-  checkDocxPictureResize,
-  type DocxPictureResizeCommand,
+  checkDocxPictureGesture,
+  type DocxPictureGestureCommand,
 } from "./docx-picture.js";
 export * from "./docx-list.js";
 export * from "./docx-list-level.js";
@@ -461,14 +461,14 @@ export class FoundationSession extends FoundationClipboardSession {
   pictures(revision: number) {
     return docxPictures(this.call({ operation: "docxPictures", revision }));
   }
-  pictureResize(
+  pictureGesture(
     revision: number,
-    change: DocxPictureResizeCommand,
+    change: DocxPictureGestureCommand,
     profile: Record<string, string> = {},
   ) {
-    checkDocxPictureResize(change);
+    checkDocxPictureGesture(change);
     return editState(
-      this.call({ operation: "docxPictureResize", revision, change, profile }),
+      this.call({ operation: "docxPictureGesture", revision, change, profile }),
     );
   }
   editPicture(

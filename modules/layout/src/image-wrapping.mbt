@@ -7,6 +7,8 @@ priv struct WrappingRect {
   top : Double
   right : Double
   bottom : Double
+  wrapping : String
+  side : String
 } derive(ToJson)
 
 ///|
@@ -18,7 +20,7 @@ fn wrapping_rects(
   for page, frame in pages {
     for line in frame.lines {
       for image in line.images {
-        if image.anchor is Some(anchor) && anchor.wrapping == "topBottom" {
+        if image.anchor is Some(anchor) && anchor.wrapping != "none" {
           result.push({
             page: page / columns,
             paragraph: line.paragraph,
@@ -27,6 +29,8 @@ fn wrapping_rects(
             top: image.y - anchor.distance.top,
             right: image.x + image.width + anchor.distance.right,
             bottom: image.y + image.height + anchor.distance.bottom,
+            wrapping: anchor.wrapping,
+            side: anchor.wrapSide,
           })
         }
       }
@@ -50,13 +54,15 @@ fn Pagination::wrapping_floor(
   page : Int,
   y : Double,
   height : Double,
+  square~ : Bool = true,
 ) -> Double {
   let frame = self.page_at(page)
   let mut result = y
   for _ in 0..<=self.wrapping.length() {
     let before = result
     for rect in self.wrapping {
-      if rect.page == page / self.columns.count &&
+      if (square || rect.wrapping != "square") &&
+        rect.page == page / self.columns.count &&
         rect.left <= frame.width - frame.right &&
         rect.right >= frame.left &&
         result + height > rect.top + 0.0000001 &&
@@ -72,8 +78,12 @@ fn Pagination::wrapping_floor(
 }
 
 ///|
-fn Pagination::avoid_wrapping(self : Pagination, height : Double) -> Unit {
-  self.y = self.wrapping_floor(self.pages.length() - 1, self.y, height)
+fn Pagination::avoid_wrapping(
+  self : Pagination,
+  height : Double,
+  square~ : Bool = true,
+) -> Unit {
+  self.y = self.wrapping_floor(self.pages.length() - 1, self.y, height, square~)
 }
 
 ///|
@@ -83,7 +93,7 @@ fn Pagination::detach_wrapping_images(
   images : Images,
 ) -> Line raise @failure.Failure {
   let wrapped = line.images.filter(image => {
-    image.anchor is Some(anchor) && anchor.wrapping == "topBottom"
+    image.anchor is Some(anchor) && anchor.wrapping != "none"
   })
   if wrapped.is_empty() {
     return line
@@ -127,6 +137,8 @@ fn Pagination::detach_wrapping_images(
       top: placed.y - anchor.distance.top,
       right: placed.x + placed.width + anchor.distance.right,
       bottom: placed.y + placed.height + anchor.distance.bottom,
+      wrapping: anchor.wrapping,
+      side: anchor.wrapSide,
     }
     let old = for index, value in self.wrapping {
       if value.paragraph == rect.paragraph && value.start == rect.start {

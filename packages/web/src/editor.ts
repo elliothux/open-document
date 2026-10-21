@@ -11,7 +11,7 @@ import type { FoundationClient } from "./foundation.js";
 import { PageCanvas } from "./page-canvas.js";
 import {
   recoverDocxState,
-  cancelDocxPictureResize,
+  cancelDocxPictureGesture,
 } from "./document-recovery.js";
 import { revealInput } from "./pointer-selection.js";
 import { DocumentPointer } from "./document-pointer.js";
@@ -151,10 +151,10 @@ export class DocumentEditor extends DocumentTables {
         },
         settle: () => this.enqueue(() => this.presentSelection(false), true),
         openComment: (id) => this.editComment({ action: "goTo", id }),
-        resize: (change) => {
+        gesture: (change) => {
           this.inputEvents.endGroup();
           return this.enqueue(async () => {
-            const state = await this.client.pictureResize(
+            const state = await this.client.pictureGesture(
               this.state.revision,
               change(),
               this.profile,
@@ -788,7 +788,7 @@ export class DocumentEditor extends DocumentTables {
     this.cleanup = this.tail
       .then(async () => {
         await this.inputEvents.cancel();
-        await cancelDocxPictureResize(this.client);
+        await cancelDocxPictureGesture(this.client);
       })
       .finally(() => {
         this.surface.dispose();

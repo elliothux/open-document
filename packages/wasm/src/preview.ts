@@ -123,15 +123,27 @@ export interface ImageAnchor {
   vertical: ImageAxis;
   behind: boolean;
   order: number;
-  wrapping: "none" | "topBottom";
+  wrapping: "none" | "topBottom" | "square";
+  wrapSide: "bothSides" | "left" | "right" | "largest";
   distance: DocxCellMargins;
 }
 
 export function checkImageAnchor(value: unknown): void {
   if (value === null) return;
   const anchor = record(value);
-  if (anchor.wrapping !== "none" && anchor.wrapping !== "topBottom")
+  if (
+    anchor.wrapping !== "none" &&
+    anchor.wrapping !== "topBottom" &&
+    anchor.wrapping !== "square"
+  )
     throw new Error("Invalid floating image wrapping");
+  if (
+    typeof anchor.wrapSide !== "string" ||
+    !["bothSides", "left", "right", "largest"].includes(anchor.wrapSide)
+  )
+    throw new Error("Invalid floating image wrap side");
+  if (anchor.wrapping !== "square" && anchor.wrapSide !== "bothSides")
+    throw new Error("Wrap side requires square wrapping");
   const distance = record(anchor.distance);
   if (
     !["top", "right", "bottom", "left"].every(

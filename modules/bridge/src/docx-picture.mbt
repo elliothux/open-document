@@ -48,39 +48,40 @@ fn Foundation::picture_operation(
   if operation == "docxPictures" {
     return session.pictures(revision)
   }
-  if operation == "docxPictureResize" {
+  if operation == "docxPictureGesture" {
     guard request is { "change": change, .. } else {
-      @failure.reject("invalid-operation", "Picture resize command is required")
+      @failure.reject(
+        "invalid-operation", "Picture gesture command is required",
+      )
     }
     let result = match field_string(change, "action") {
       "begin" =>
-        session.begin_picture_resize(
+        session.begin_picture_gesture(
           revision,
           field_int(change, "picture"),
+          field_int(change, "handle"),
           probe=self.probe,
           profile=xlsx_profile(request),
           images=self.images,
         )
       "cancel" =>
-        session.cancel_picture_resize(revision, field_int(change, "id"))
+        session.cancel_picture_gesture(revision, field_int(change, "id"))
       "update" =>
-        session.update_picture_resize(
+        session.update_picture_gesture(
           revision,
           field_int(change, "id"),
           xlsx_number(change, "dx"),
           xlsx_number(change, "dy"),
-          field_int(change, "handle"),
         )
       "commit" =>
-        session.finish_picture_resize(
+        session.finish_picture_gesture(
           revision,
           field_int(change, "id"),
           xlsx_number(change, "dx"),
           xlsx_number(change, "dy"),
-          field_int(change, "handle"),
         )
       _ =>
-        @failure.reject("invalid-operation", "Unknown picture resize command")
+        @failure.reject("invalid-operation", "Unknown picture gesture command")
     }
     self.layout = None
     return result
@@ -170,6 +171,7 @@ fn picture_anchor(
     behind: value is { "behind": True, .. },
     order: order.to_int64(),
     wrapping: field_string(value, "wrapping"),
+    wrapSide: field_string(value, "wrapSide"),
     distance: {
       guard value is { "distance": distance, .. } else {
         @failure.reject(

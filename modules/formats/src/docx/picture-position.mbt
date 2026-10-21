@@ -46,6 +46,28 @@ pub fn Session::set_picture_anchor(
   images? : @layout.Images,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  let prepared = self.prepare_picture_anchor(
+    id,
+    anchor,
+    probe?,
+    profile~,
+    images?,
+  )
+  if prepared is Some(prepared) {
+    self.commit_edit(prepared.edit, prepared.document)
+  }
+  self.edit_result(prepared.map(value => value.edit.paragraphs).unwrap_or([]))
+}
+
+///|
+fn Session::prepare_picture_anchor(
+  self : Session,
+  id : Int,
+  anchor : @layout.ImageAnchor?,
+  probe? : @layout.TextProbe,
+  profile~ : Map[String, String] = Map([]),
+  images? : @layout.Images,
+) -> PreparedEdit? raise @failure.Failure {
   if anchor is Some(anchor) {
     anchor.validate()
   }
@@ -55,7 +77,7 @@ pub fn Session::set_picture_anchor(
   let (image, paragraph, _, _) = self.editable_picture(tree, id, position=true)
   if Json(image.anchor.map(value => value.to_json())) ==
     Json(anchor.map(value => value.to_json())) {
-    return self.edit_result([])
+    return None
   }
   if anchor is Some(_) {
     for parent = tree.nodes[paragraph].parent
@@ -94,7 +116,7 @@ pub fn Session::set_picture_anchor(
   }
   tree.anchor_children(frame, [
     "simplePos", "positionH", "positionV", "extent", "effectExtent", "docPr", "cNvGraphicFramePr",
-    "wrapNone", "wrapTopAndBottom", "graphic",
+    "wrapNone", "wrapTopAndBottom", "wrapSquare", "graphic",
   ])
   let changes : Array[@xml.SourceChange] = []
   let source = document.source()
@@ -183,9 +205,9 @@ pub fn Session::set_picture_anchor(
   })
   for child in tree.children[frame] {
     let current = tree.nodes[child]
-    if ["simplePos", "positionH", "positionV", "wrapNone", "wrapTopAndBottom"].contains(
-        current.name,
-      ) {
+    if [
+        "simplePos", "positionH", "positionV", "wrapNone", "wrapTopAndBottom", "wrapSquare",
+      ].contains(current.name) {
       let raw = source[current.start:current.end]
       guard !raw.contains("<!--") && !raw.contains("<?") else {
         @failure.reject(
@@ -215,14 +237,18 @@ pub fn Session::set_picture_anchor(
       node: frame,
       offset: props.start - node.start,
       length: 0,
-      xml: "<wp:\{if anchor.wrapping == "none" { "wrapNone" } else { "wrapTopAndBottom" }} xmlns:wp=\"\{picture_inline_uri}\"/>",
+      xml: if anchor.wrapping == "square" {
+        "<wp:wrapSquare xmlns:wp=\"\{picture_inline_uri}\" wrapText=\"\{anchor.wrapSide}\"/>"
+      } else {
+        "<wp:\{if anchor.wrapping == "none" { "wrapNone" } else { "wrapTopAndBottom" }} xmlns:wp=\"\{picture_inline_uri}\"/>"
+      },
     })
   }
   let (candidate, xml) = document.edit_source(changes)
   ignore(self.image_frame(WordTree::new(candidate), id))
   self.check_picture_layout(candidate, probe, profile, images)
-  self.commit_edit(
-    {
+  Some({
+    edit: {
       xml: [xml],
       parts: Map([]),
       created: Map([]),
@@ -232,7 +258,8 @@ pub fn Session::set_picture_anchor(
       paragraphs: [paragraph],
       bytes: edit_bytes(xml),
     },
-    candidate,
-  )
-  self.edit_result([paragraph])
+    document: candidate,
+    typing_text: None,
+    join_group: false,
+  })
 }

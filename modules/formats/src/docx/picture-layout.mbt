@@ -11,7 +11,8 @@ fn Session::check_picture_layout(
       source
       .nodes()
       .any(node => {
-        node.uri == picture_inline_uri && node.name == "wrapTopAndBottom"
+        node.uri == picture_inline_uri &&
+        ["wrapTopAndBottom", "wrapSquare"].contains(node.name)
       })
     }) {
     let after = self.flow_from(document)

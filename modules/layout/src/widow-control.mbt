@@ -70,7 +70,7 @@ fn Pagination::widow_breaks(
     let mut bottom = y
     while end < lines.length() {
       let height = lines[end].1.spaced(paragraph.line, end == start).height
-      bottom = self.wrapping_floor(page_index, bottom, height)
+      bottom = self.wrapping_floor(page_index, bottom, height, square=false)
       if bottom + height > limit {
         break
       }
@@ -85,8 +85,20 @@ fn Pagination::widow_breaks(
     let next_width = next.width - next.left - next.right
     if next_width != page.width - page.left - page.right {
       let next_lines = fn(offset : Int) raise @failure.Failure {
-        cache
-        .lines(probe, paragraph, profile, next_width, startOffset=offset)
+        let lines = if self.wrapping.any(rect => rect.wrapping == "square") {
+          self.square_lines(
+            probe,
+            paragraph,
+            profile,
+            offset,
+            true,
+            startPage=page_index + 1,
+            startY=next.top,
+          ).lines
+        } else {
+          cache.lines(probe, paragraph, profile, next_width, startOffset=offset)
+        }
+        lines
         .filter(item => !item.line.caretOnly)
         .mapi((index, item) => (index, item))
       }

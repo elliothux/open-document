@@ -140,7 +140,7 @@ fn WordTree::image_anchor(
   }
   self.anchor_children(id, [
     "simplePos", "positionH", "positionV", "extent", "effectExtent", "docPr", "cNvGraphicFramePr",
-    "wrapNone", "wrapTopAndBottom", "graphic",
+    "wrapNone", "wrapTopAndBottom", "wrapSquare", "graphic",
   ])
   let graphics = self.children[id].filter(child => {
     self.nodes[child].uri == picture_drawing_uri &&
@@ -161,7 +161,9 @@ fn WordTree::image_anchor(
     )
   }
   let wrapping = self.children[id].filter(child => {
-    ["wrapNone", "wrapTopAndBottom"].contains(self.nodes[child].name)
+    ["wrapNone", "wrapTopAndBottom", "wrapSquare"].contains(
+      self.nodes[child].name,
+    )
   })
   guard wrapping is [wrap] else {
     @failure.reject("unsupported-layout", "Picture requires one wrapping mode")
@@ -171,14 +173,22 @@ fn WordTree::image_anchor(
       self.children[wrap].is_empty() && self.nodes[wrap].attributes.is_empty()
     } else {
       self.nodes[wrap].attributes.all(a => {
-        a.uri.is_empty() && ["distT", "distB"].contains(a.name)
+        a.uri.is_empty() &&
+        (if self.nodes[wrap].name == "wrapSquare" {
+          ["distT", "distB", "distL", "distR", "wrapText"].contains(a.name)
+        } else {
+          ["distT", "distB"].contains(a.name)
+        })
       })
     }) else {
     @failure.reject("unsupported-layout", "Unknown floating image wrapping")
   }
-  if self.nodes[wrap].name == "wrapTopAndBottom" {
+  if self.nodes[wrap].name != "wrapNone" {
     self.anchor_children(wrap, ["effectExtent"])
     for attr in self.nodes[wrap].attributes {
+      if attr.name == "wrapText" {
+        continue
+      }
       let distance = @string.parse_int64(attr.value[:]) catch {
         _ => @failure.reject("invalid-image", "Invalid wrapping text distance")
       }
@@ -234,8 +244,15 @@ fn WordTree::image_anchor(
     order,
     wrapping: if self.nodes[wrap].name == "wrapNone" {
       "none"
+    } else if self.nodes[wrap].name == "wrapSquare" {
+      "square"
     } else {
       "topBottom"
+    },
+    wrapSide: if self.nodes[wrap].name == "wrapSquare" {
+      self.nodes[wrap].attribute("wrapText").unwrap_or("")
+    } else {
+      "bothSides"
     },
     distance: {
       top: distances["distT"],

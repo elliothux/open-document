@@ -257,7 +257,7 @@ pub fn Session::selection_rects(
   self.check_revision_value(layout.revision)
   let tree = WordTree::new(self.document())
   let selected = if self.composition is Some(_) ||
-    self.picture_resize is Some(_) {
+    self.picture_gesture is Some(_) {
     None
   } else {
     self.table_cell_range(tree, selection, pictures=true, fields=true) catch {

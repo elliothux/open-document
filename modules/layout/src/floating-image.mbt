@@ -1,4 +1,66 @@
 ///|
+/// Resolves both axes to offsets in their existing reference frames.
+pub fn Layout::image_anchor_offsets(
+  self : Layout,
+  page : PageSetup,
+  paragraph : Int,
+  start : Int,
+) -> ImageAnchor raise @failure.Failure {
+  page.validate()
+  for frame in self.pages {
+    for line in frame.lines {
+      if line.paragraph != paragraph {
+        continue
+      }
+      for image in line.images {
+        if image.start != start || image.anchor is None {
+          continue
+        }
+        let anchor = image.anchor.unwrap()
+        let paragraph_top = frame.lines
+          .iter()
+          .find_first(prior => {
+            prior.paragraph == paragraph && prior.areaX == line.areaX
+          })
+          .map(prior => prior.y)
+          .unwrap_or(line.y)
+        fn offset(
+          axis : ImageAxis,
+          position : Double,
+          horizontal : Bool,
+        ) -> ImageAxis {
+          match axis {
+            Offset(_, _) => axis
+            Aligned(reference, _) => {
+              let origin = if reference == "page" {
+                0.0
+              } else if reference == "margin" {
+                if horizontal {
+                  page.left
+                } else {
+                  page.top
+                }
+              } else if horizontal {
+                line.areaX
+              } else {
+                paragraph_top
+              }
+              Offset(reference, position - origin)
+            }
+          }
+        }
+        return {
+          ..anchor,
+          horizontal: offset(anchor.horizontal, image.x, true),
+          vertical: offset(anchor.vertical, image.y, false),
+        }
+      }
+    }
+  }
+  @failure.reject("invalid-image", "Floating picture has no placed frame")
+}
+
+///|
 pub(all) enum ImageAxis {
   Offset(String, Double)
   Aligned(String, String)
@@ -24,6 +86,7 @@ pub(all) struct ImageAnchor {
   behind : Bool
   order : Int64
   wrapping : String
+  wrapSide : String
   distance : CellMargins
 }
 
@@ -35,6 +98,7 @@ pub impl ToJson for ImageAnchor with fn to_json(self) {
     "behind": self.behind,
     "order": self.order.to_double(),
     "wrapping": self.wrapping,
+    "wrapSide": self.wrapSide,
     "distance": self.distance,
   }
 }
@@ -88,7 +152,9 @@ pub fn ImageAnchor::validate(self : ImageAnchor) -> Unit raise @failure.Failure 
   guard self.order >= 0 && self.order <= 4294967295L else {
     @failure.reject("invalid-image", "Invalid floating image layer order")
   }
-  guard ["none", "topBottom"].contains(self.wrapping) &&
+  guard ["none", "topBottom", "square"].contains(self.wrapping) &&
+    ["bothSides", "left", "right", "largest"].contains(self.wrapSide) &&
+    (self.wrapping == "square" || self.wrapSide == "bothSides") &&
     [
       self.distance.top,
       self.distance.right,
@@ -277,10 +343,17 @@ fn Layout::floating_image_hit(
   let frame = self.pages[page]
   let text = (frame.lines + self.running.get(page).unwrap_or([])).any(line => {
     !line.text.is_empty() &&
-    x >= line.x &&
-    x <= line.x + line.width &&
     y >= line.y &&
-    y <= line.y + line.height
+    y <= line.y + line.height &&
+    (for index in 1..<line.carets.length() {
+      let a = line.carets[index - 1].after
+      let b = line.carets[index].before
+      if x >= a.min(b) && x <= a.max(b) {
+        break true
+      }
+    } nobreak {
+      false
+    })
   })
   for (index, image) in frame.floating_images().rev() {
     if !(image.anchor.unwrap().behind && text) &&

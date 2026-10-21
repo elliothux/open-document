@@ -243,6 +243,7 @@ pub(all) struct ImageAnchor {
   behind : Bool
   order : Int64
   wrapping : String
+  wrapSide : String
   distance : CellMargins
 }
 pub fn ImageAnchor::to_json(Self) -> Json
@@ -302,6 +303,7 @@ pub fn Layout::compare_positions(Self, (Int, Int), (Int, Int)) -> Int raise @fai
 pub fn Layout::drawing(Self, Images) -> Array[DrawingRegion] raise @failure.Failure
 pub fn Layout::drawing_images(Self, Images) -> Array[String] raise @failure.Failure
 pub fn Layout::hit_test(Self, Int, Double, Double) -> Hit raise @failure.Failure
+pub fn Layout::image_anchor_offsets(Self, PageSetup, Int, Int) -> ImageAnchor raise @failure.Failure
 pub fn Layout::move_caret(Self, (Int, Int, String), String, goal_x? : Double, bidi_level? : Int, frame_start? : Int) -> Hit raise @failure.Failure
 pub fn Layout::positioned(Self) -> PositionedDocument
 pub fn Layout::selection_rects(Self, (Int, Int, String), (Int, Int, String)) -> Array[SelectionRect] raise @failure.Failure

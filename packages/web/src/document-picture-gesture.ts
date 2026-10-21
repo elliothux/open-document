@@ -6,8 +6,8 @@ import type {
 import type { DocxPointerHost } from "./document-pointer.js";
 import { PointerSelection, type PointerPoint } from "./pointer-selection.js";
 
-/** Four aspect-preserving corners preview in the core and commit only on release. */
-export class DocxPictureResize {
+/** Selected floating frames move; four aspect-preserving corners resize in the same core gesture. */
+export class DocxPictureGesture {
   private image: DocxPictures["images"][number] | undefined;
   private revision = -1;
   private readonly buttons: HTMLButtonElement[] = [];
@@ -27,11 +27,15 @@ export class DocxPictureResize {
       "top right",
       "bottom right",
       "bottom left",
+      "move",
     ].entries()) {
       const button = document.createElement("button");
       button.type = "button";
       button.hidden = true;
-      button.setAttribute("aria-label", `Resize picture ${corner}`);
+      button.setAttribute(
+        "aria-label",
+        i === 4 ? "Move picture" : `Resize picture ${corner}`,
+      );
       button.setAttribute(
         "aria-keyshortcuts",
         "ArrowLeft ArrowRight ArrowUp ArrowDown Escape",
@@ -41,15 +45,15 @@ export class DocxPictureResize {
         width: "12px",
         height: "12px",
         padding: "0",
-        border: "2px solid white",
-        background: "#174ca0",
-        cursor: i % 2 ? "nesw-resize" : "nwse-resize",
-        transform: "translate(-50%, -50%)",
-        zIndex: "2",
+        border: i === 4 ? "none" : "2px solid white",
+        background: i === 4 ? "transparent" : "#174ca0",
+        cursor: i === 4 ? "move" : i % 2 ? "nesw-resize" : "nwse-resize",
+        transform: i === 4 ? "none" : "translate(-50%, -50%)",
+        zIndex: i === 4 ? "1" : "2",
       });
       viewport.append(button);
       this.buttons.push(button);
-      const handle = (i + 1) as 1 | 2 | 3 | 4;
+      const handle = (i === 4 ? 0 : i + 1) as 0 | 1 | 2 | 3 | 4;
       const pointer = new PointerSelection(
         button,
         viewport,
@@ -59,16 +63,16 @@ export class DocxPictureResize {
           if (initial) {
             this.origin = point;
             this.scale = host.current().scale;
+            if (handle === 0) host.input();
             const picture = this.image?.id;
             if (picture === undefined)
-              throw new Error("Select a picture before resizing");
-            return host.resize(() => ({ action: "begin", picture }));
+              throw new Error("Select a picture before starting a gesture");
+            return host.gesture(() => ({ action: "begin", picture, handle }));
           }
           const delta = this.delta(point);
-          return host.resize(() => ({
+          return host.gesture(() => ({
             action: "update",
             id: this.identity(),
-            handle,
             ...delta,
           }));
         },
@@ -81,10 +85,10 @@ export class DocxPictureResize {
           this.ending = true;
           const delta = this.delta(this.point);
           return host
-            .resize(() =>
+            .gesture(() =>
               cancelled
                 ? { action: "cancel", id: this.identity() }
-                : { action: "commit", id: this.identity(), handle, ...delta },
+                : { action: "commit", id: this.identity(), ...delta },
             )
             .finally(() => {
               this.ending = false;
@@ -124,13 +128,12 @@ export class DocxPictureResize {
                 : 0;
           this.ending = true;
           void host
-            .resize(() => ({ action: "begin", picture }))
+            .gesture(() => ({ action: "begin", picture, handle }))
             .catch(() => {});
           void host
-            .resize(() => ({
+            .gesture(() => ({
               action: "commit",
               id: this.identity(),
-              handle,
               dx,
               dy,
             }))
@@ -177,8 +180,8 @@ export class DocxPictureResize {
     this.buttons.forEach((b) => (b.hidden = true));
   }
   private identity(): number {
-    const id = this.host.current().state.pictureResizeId;
-    if (id === null) throw new Error("Picture resize is no longer active");
+    const id = this.host.current().state.pictureGestureId;
+    if (id === null) throw new Error("Picture gesture is no longer active");
     return id;
   }
   private delta(point: PointerPoint) {
@@ -196,7 +199,7 @@ export class DocxPictureResize {
   async refresh(geometry: DocxSelectionGeometry | undefined): Promise<void> {
     const current = this.host.current(),
       selection = current.state.selection;
-    if (current.state.pictureResizeId === null && !this.ending) {
+    if (current.state.pictureGestureId === null && !this.ending) {
       this.image = undefined;
       if (
         selection &&
@@ -207,18 +210,25 @@ export class DocxPictureResize {
         const catalog = await this.client.pictures(current.state.revision);
         this.host.assertOpen();
         this.revision = catalog.revision;
-        this.image = catalog.images.find(
-          (image) => image.selected && !image.reason,
-        );
+        this.image = catalog.images.find((image) => image.selected);
       }
     }
     const rect =
       this.image && geometry?.rects.find((r) => r.page === current.page);
     for (const [i, button] of this.buttons.entries()) {
-      button.hidden = !rect || !this.host.available();
+      button.hidden =
+        !rect ||
+        !this.host.available() ||
+        (i === 4
+          ? !this.image?.anchor || !!this.image.positionReason
+          : !!this.image?.reason);
       if (rect) {
         button.style.left = `${(rect.x + (i === 1 || i === 2 ? rect.width : 0)) * current.scale}px`;
-        button.style.top = `${(rect.y + (i >= 2 ? rect.height : 0)) * current.scale}px`;
+        button.style.top = `${(rect.y + (i === 2 || i === 3 ? rect.height : 0)) * current.scale}px`;
+        if (i === 4) {
+          button.style.width = `${rect.width * current.scale}px`;
+          button.style.height = `${rect.height * current.scale}px`;
+        }
       }
     }
   }

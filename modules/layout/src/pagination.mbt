@@ -85,6 +85,7 @@ fn Pagination::next_page(self : Pagination) -> Unit raise @failure.Failure {
 fn Pagination::fit(
   self : Pagination,
   height : Double,
+  square~ : Bool = true,
 ) -> Unit raise @failure.Failure {
   guard height > 0 else {
     @failure.reject(
@@ -92,7 +93,7 @@ fn Pagination::fit(
     )
   }
   for _ in 0..<(3 + self.wrapping.length()) {
-    self.avoid_wrapping(height)
+    self.avoid_wrapping(height, square~)
     if self.y + height <= self.page.height - self.page.bottom {
       return
     }
@@ -261,18 +262,31 @@ fn Pagination::paragraph(
   let mut first = true
   while !finished {
     let width = available()
-    let measured_lines = cache.lines(
+    let initial_lines = cache.lines(
       probe,
       paragraph,
       profile,
       width,
       startOffset=start_offset,
     )
-    if measured_lines.get(0) is Some(measured) &&
+    if initial_lines.get(0) is Some(measured) &&
       self.y + measured.spaced(paragraph.line, first).height <=
       self.page.height - self.page.bottom {
       ignore(self.detach_wrapping_images(measured.line, images))
     }
+    let origin = (self.pages.length() - 1, self.y)
+    let plan = if self.wrapping.any(rect => rect.wrapping == "square") ||
+      paragraph.spans.any(span => {
+        span.image
+        .bind(image => image.anchor)
+        .map(anchor => anchor.wrapping == "square")
+        .unwrap_or(false)
+      }) {
+      Some(self.square_lines(probe, paragraph, profile, start_offset, first))
+    } else {
+      None
+    }
+    let measured_lines = plan.map(plan => plan.lines).unwrap_or(initial_lines)
     if start_offset == 0 &&
       paragraph.keepLines &&
       !measured_lines.any(line => line.line.y < 0) {
@@ -287,6 +301,7 @@ fn Pagination::paragraph(
             self.pages.length() - 1,
             self.y + height,
             current,
+            square=plan is None,
           ) -
           self.y +
           current
@@ -308,13 +323,15 @@ fn Pagination::paragraph(
         }
       }
     }
-    if available() != width {
+    if available() != width ||
+      (plan is Some(_) && origin != (self.pages.length() - 1, self.y)) {
       continue
     }
     let breaks = self.widow_breaks(
       paragraph, measured_lines, cache, probe, profile,
     )
-    if available() != width {
+    if available() != width ||
+      (plan is Some(_) && origin != (self.pages.length() - 1, self.y)) {
       continue
     }
     finished = true
@@ -322,6 +339,21 @@ fn Pagination::paragraph(
       if breaks.contains(index) {
         self.next_page()
         first = true
+      }
+      if plan is Some(plan) {
+        let (page, y, planned_first) = plan.positions[index]
+        while self.pages.length() - 1 < page {
+          self.next_page()
+          first = true
+        }
+        if self.pages.length() - 1 != page ||
+          self.y > y + 0.0000001 ||
+          first != planned_first {
+          start_offset = measured.line.start
+          finished = false
+          break
+        }
+        self.y = y
       }
       if available() != width {
         start_offset = measured.line.start
@@ -355,8 +387,19 @@ fn Pagination::paragraph(
           break
         }
       }
+      let new_anchor = plan is Some(_) &&
+        line.images.any(image => {
+          image.anchor is Some(anchor) &&
+          anchor.wrapping != "none" &&
+          !self.placedWrapping.contains((line.paragraph, image.start))
+        })
       line = self.detach_wrapping_images(line, images)
-      self.fit(line.height)
+      if new_anchor {
+        start_offset = line.start
+        finished = false
+        break
+      }
+      self.fit(line.height, square=plan is None)
       if available() != width {
         start_offset = line.start
         finished = false

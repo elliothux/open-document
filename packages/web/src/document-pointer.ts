@@ -3,7 +3,7 @@ import type { PageLayout } from "@open-document/wasm/preview";
 import type {
   EditState,
   DocxSelectionGeometry,
-  DocxPictureResizeCommand,
+  DocxPictureGestureCommand,
 } from "@open-document/wasm/foundation";
 import {
   PointerSelection,
@@ -12,7 +12,7 @@ import {
   type PointerPoint,
 } from "./pointer-selection.js";
 import { pointerDocxSelection } from "./document-selection.js";
-import { DocxPictureResize } from "./document-picture-resize.js";
+import { DocxPictureGesture } from "./document-picture-gesture.js";
 
 export interface DocxPointerHost {
   assertOpen(): void;
@@ -29,13 +29,13 @@ export interface DocxPointerHost {
   paint(page: number): void;
   settle(): Promise<void>;
   openComment(id: string): Promise<void>;
-  resize(change: () => DocxPictureResizeCommand): Promise<void>;
+  gesture(change: () => DocxPictureGestureCommand): Promise<void>;
 }
 
 /** Owns document pointer gestures; all document candidates and geometry stay in the core. */
 export class DocumentPointer {
   private readonly text: PointerSelection;
-  private readonly picture: DocxPictureResize;
+  private readonly picture: DocxPictureGesture;
   private pageTime = 0;
   private pendingComment: string | undefined;
   constructor(
@@ -45,7 +45,7 @@ export class DocumentPointer {
     signal: AbortSignal,
     private readonly host: DocxPointerHost,
   ) {
-    this.picture = new DocxPictureResize(viewport, client, signal, host);
+    this.picture = new DocxPictureGesture(viewport, client, signal, host);
     this.text = new PointerSelection(
       canvas,
       viewport,

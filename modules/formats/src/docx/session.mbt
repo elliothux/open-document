@@ -28,8 +28,8 @@ pub struct Session {
   priv mut revision : Int
   priv mut composition : Composition?
   priv mut composition_id : Int
-  priv mut picture_resize : PictureResize?
-  priv mut picture_resize_id : Int
+  priv mut picture_gesture : PictureGesture?
+  priv mut picture_gesture_id : Int
   priv mut closed : Bool
   priv diagnostics : Array[String]
 }
@@ -128,8 +128,8 @@ fn Session::from_package(opc : @opc.Package) -> Session raise @failure.Failure {
     revision: 0,
     composition: None,
     composition_id: 0,
-    picture_resize: None,
-    picture_resize_id: 0,
+    picture_gesture: None,
+    picture_gesture_id: 0,
     closed: false,
     diagnostics,
   }
@@ -265,7 +265,7 @@ pub fn Session::save(self : Session) -> Bytes raise @failure.Failure {
 pub fn Session::close(self : Session) -> Unit {
   self.closed = true
   self.composition = None
-  self.picture_resize = None
+  self.picture_gesture = None
   self.opc.close()
   self.document = None
   self.parts.clear()

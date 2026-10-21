@@ -85,7 +85,7 @@ fn Pagination::restore(
   for frame in self.pages {
     for line in frame.lines {
       for image in line.images {
-        if image.anchor is Some(anchor) && anchor.wrapping == "topBottom" {
+        if image.anchor is Some(anchor) && anchor.wrapping != "none" {
           self.placedWrapping[(line.paragraph, image.start)] = ()
         }
       }

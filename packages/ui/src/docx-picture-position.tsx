@@ -33,6 +33,7 @@ export function DocxPicturePosition({
     behind: false,
     order: 0,
     wrapping: "none",
+    wrapSide: "bothSides",
     distance: { top: 0, right: 0, bottom: 0, left: 0 },
   };
   return (
@@ -60,9 +61,11 @@ export function DocxPicturePosition({
                 ? "inline"
                 : anchor.wrapping === "topBottom"
                   ? "topBottom"
-                  : anchor.behind
-                    ? "behind"
-                    : "front"
+                  : anchor.wrapping === "square"
+                    ? "square"
+                    : anchor.behind
+                      ? "behind"
+                      : "front"
             }
             onChange={(event) => {
               const value = event.currentTarget.value;
@@ -72,7 +75,16 @@ export function DocxPicturePosition({
                   : {
                       ...(anchor ?? defaults),
                       behind: value === "behind",
-                      wrapping: value === "topBottom" ? "topBottom" : "none",
+                      wrapping:
+                        value === "topBottom"
+                          ? "topBottom"
+                          : value === "square"
+                            ? "square"
+                            : "none",
+                      wrapSide:
+                        value === "square"
+                          ? (anchor?.wrapSide ?? "bothSides")
+                          : "bothSides",
                     },
               );
             }}
@@ -81,10 +93,35 @@ export function DocxPicturePosition({
             <option value="front">{t.pictureInFront}</option>
             <option value="behind">{t.pictureBehind}</option>
             <option value="topBottom">{t.pictureTopBottom}</option>
+            <option value="square">{t.pictureSquare}</option>
           </select>
         </label>
         {anchor && (
           <>
+            {anchor.wrapping === "square" && (
+              <label>
+                {t.pictureWrapSide}
+                <select
+                  aria-label={t.pictureWrapSide}
+                  value={anchor.wrapSide}
+                  onChange={(event) => {
+                    const value = event.currentTarget.value;
+                    if (
+                      value === "bothSides" ||
+                      value === "left" ||
+                      value === "right" ||
+                      value === "largest"
+                    )
+                      setAnchor({ ...anchor, wrapSide: value });
+                  }}
+                >
+                  <option value="bothSides">{t.pictureWrapBoth}</option>
+                  <option value="left">{t.pictureWrapLeft}</option>
+                  <option value="right">{t.pictureWrapRight}</option>
+                  <option value="largest">{t.pictureWrapLargest}</option>
+                </select>
+              </label>
+            )}
             {(["top", "right", "bottom", "left"] as const).map((key) => (
               <label key={key}>
                 {key === "top"

@@ -144,7 +144,7 @@ fn Session::edit_result(
     "revision": self.revision,
     "defaultTabStop": self.default_tab(),
     "formatting": if self.composition is None &&
-      self.picture_resize is None &&
+      self.picture_gesture is None &&
       self.selection is Some(selection) {
       self.query_formatting(self.revision, selection)
     } else {
@@ -162,7 +162,7 @@ fn Session::edit_result(
     "compositionId": self.composition
     .map(composition => Json(composition.id))
     .unwrap_or(Json::null()),
-    "pictureResizeId": self.picture_resize
+    "pictureGestureId": self.picture_gesture
     .map(gesture => Json(gesture.id))
     .unwrap_or(Json::null()),
   }
