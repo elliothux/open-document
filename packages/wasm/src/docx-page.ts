@@ -41,10 +41,19 @@ export type DocxPageField = {
   format?: Exclude<DocxPageNumbering["format"], "decimalZero">;
 };
 export type DocxRunningContent = { text: string } | DocxPageField;
+export type DocxBodyField =
+  | DocxPageField
+  | {
+      field: "PAGEREF";
+      bookmark: string;
+      format?: Exclude<DocxPageField["format"], undefined>;
+      hyperlink?: boolean;
+      relative?: boolean;
+    };
 export interface DocxBodyPageField {
   revision: number;
   selection: DocxSelection;
-  field: DocxPageField | null;
+  field: DocxBodyField | null;
   reason: string;
 }
 export function docxBodyPageField(value: unknown): DocxBodyPageField {
@@ -60,7 +69,7 @@ export function docxBodyPageField(value: unknown): DocxBodyPageField {
     )
   )
     throw new Error("Invalid body page field response");
-  if (result.field !== null) checkPageField(result.field);
+  if (result.field !== null) checkBodyField(result.field);
   if ((result.field === null) !== result.reason.length > 0)
     throw new Error("Invalid body page field availability");
   return value as DocxBodyPageField;
@@ -70,6 +79,26 @@ export function checkPageField(value: unknown): asserts value is DocxPageField {
   if (item.field !== "PAGE" && item.field !== "NUMPAGES")
     throw new Error("Invalid body page field");
   checkRunningArea("header", "default", [value], 0);
+}
+export function checkBodyField(value: unknown): asserts value is DocxBodyField {
+  const item = record(value);
+  if (item.field !== "PAGEREF") return checkPageField(value);
+  if (
+    typeof item.bookmark !== "string" ||
+    !/^[A-Za-z_][A-Za-z0-9_]{0,39}$/u.test(item.bookmark) ||
+    Object.keys(item).some(
+      (key) =>
+        !["field", "bookmark", "format", "hyperlink", "relative"].includes(key),
+    ) ||
+    ("hyperlink" in item && typeof item.hyperlink !== "boolean") ||
+    ("relative" in item && typeof item.relative !== "boolean")
+  )
+    throw new Error("Invalid page reference target");
+  checkPageField(
+    "format" in item
+      ? { field: "PAGE", format: item.format }
+      : { field: "PAGE" },
+  );
 }
 export interface DocxRunningArea {
   revision: number;
@@ -181,10 +210,10 @@ export class FoundationPageSession extends FoundationReviewSession {
   editBodyPageField(
     revision: number,
     selection: DocxSelection,
-    field: DocxPageField,
+    field: DocxBodyField,
     profile: Record<string, string>,
   ) {
-    checkPageField(field);
+    checkBodyField(field);
     return editState(
       this.call({
         operation: "editBodyPageField",
@@ -197,10 +226,10 @@ export class FoundationPageSession extends FoundationReviewSession {
   }
   insertBodyPageField(
     revision: number,
-    field: DocxPageField,
+    field: DocxBodyField,
     profile: Record<string, string>,
   ) {
-    checkPageField(field);
+    checkBodyField(field);
     return editState(
       this.call({ operation: "insertBodyPageField", revision, field, profile }),
     );

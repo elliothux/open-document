@@ -29,6 +29,7 @@ export interface TextStyle {
 export interface DocxFlow {
   columns: DocxColumns;
   pageNumbering: { start: number; format: string };
+  bookmarks: Record<string, [number, number]>;
   pageBorders: DocxPageBorders;
   background: string;
   additiveSpacing: boolean;
@@ -58,6 +59,7 @@ export interface DocxFlow {
         | ""
         | "PAGE"
         | "NUMPAGES"
+        | `PAGEREF:${string}`
         | `${"PAGE" | "NUMPAGES"}:${"decimal" | "decimalZero" | "lowerLetter" | "upperLetter" | "lowerRoman" | "upperRoman"}`;
     }[];
     before: number;
@@ -287,6 +289,18 @@ function preferredWidth(value: unknown): void {
 
 export function docxFlow(value: unknown): DocxFlow {
   const flow = fields(value, ["revision", "headerDistance", "footerDistance"]);
+  const bookmarks = record(flow.bookmarks);
+  if (
+    Object.keys(bookmarks).length > 4096 ||
+    Object.entries(bookmarks).some(
+      ([name, position]) =>
+        !name.length ||
+        !Array.isArray(position) ||
+        position.length !== 2 ||
+        !position.every((value) => Number.isSafeInteger(value) && value >= 0),
+    )
+  )
+    throw new Error("Invalid document field targets");
   checkDocxColumns(fields(flow.columns, ["count", "gap"]));
   const numbering = fields(flow.pageNumbering, ["start"], ["format"]);
   if (
@@ -384,7 +398,7 @@ export function docxFlow(value: unknown): DocxFlow {
       const span = fields(value, ["node"], ["text", "field"]);
       if (
         typeof span.field !== "string" ||
-        !/^(?:(?:PAGE|NUMPAGES)(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?)?$/u.test(
+        !/^(?:(?:PAGE|NUMPAGES)(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?|PAGEREF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::hyperlink)?(?::relative)?)?$/u.test(
           span.field,
         ) ||
         (span.field !== "" && span.drawing !== null)

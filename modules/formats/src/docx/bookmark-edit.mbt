@@ -192,6 +192,11 @@ fn Session::bookmark_references(
     }
     let document = self.part_xml(path)
     let nodes = document.nodes()
+    let field_tree = if path == self.main {
+      Some(WordTree::new(document))
+    } else {
+      None
+    }
     let fields = StringBuilder()
     for node in nodes {
       if node.uri != word_uri {
@@ -201,7 +206,21 @@ fn Session::bookmark_references(
         fields.write_string(node.text)
       }
       if node.name == "fldSimple" {
-        fields.write_string(node.attribute("instr", uri=word_uri).unwrap_or(""))
+        let instruction = node.attribute("instr", uri=word_uri).unwrap_or("")
+        let reference = try {
+          let code = running_field_code(instruction)
+          if path == self.main && code.has_prefix("PAGEREF:") {
+            field_tree.unwrap().simple_page_fields(node.parent)
+            true
+          } else {
+            false
+          }
+        } catch {
+          @failure.Failure(..) => false
+        }
+        if !reference {
+          fields.write_string(instruction)
+        }
       }
       if node.attribute("anchor", uri=word_uri).map(s => s.to_lower()) ==
         Some(name.to_lower()) {
@@ -302,6 +321,13 @@ pub fn Session::edit_bookmark(
         }
       }
       let links = self.bookmark_references(name)
+      if next is Some(value) {
+        let references = tree.page_reference_renames(name, value)
+        for reference in references {
+          affected.push(tree.nodes[reference.node].parent)
+        }
+        changes.append(references)
+      }
       affected.push(b.selection.unwrap().anchor.paragraph)
       affected.push(b.selection.unwrap().focus.paragraph)
       for id in links {

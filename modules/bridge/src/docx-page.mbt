@@ -152,12 +152,58 @@ fn Foundation::docx_page(
       guard request is { "field": item, .. } else {
         @failure.reject("invalid-operation", "Page field is required")
       }
+      let reference = item is { "field": "PAGEREF", .. }
+      let item = if reference {
+        guard item is Object(fields) &&
+          fields.length() >= 2 &&
+          fields.length() <= 5 &&
+          fields
+          .keys()
+          .all(key => {
+            ["field", "bookmark", "format", "hyperlink", "relative"].contains(
+              key,
+            )
+          }) else {
+          @failure.reject("invalid-operation", "Invalid page reference fields")
+        }
+        let value : Map[String, Json] = { "field": "PAGE" }
+        if fields.get("format") is Some(format) {
+          value["format"] = format
+        }
+        Json(value)
+      } else {
+        item
+      }
       let field = running_content({ "content": [item] })[0]
       let code = match field {
         @docx.RunningContent::Field(code) => code
         @docx.RunningContent::FormattedField(code, format) =>
           code + ":" + format
         _ => @failure.reject("invalid-operation", "Expected a page field")
+      }
+      let code = if reference {
+        guard request is { "field": original, .. } else {
+          abort("Missing field")
+        }
+        "PAGEREF:" +
+        field_string(original, "bookmark") +
+        code[4:].to_owned() +
+        (if original is Object(fields) &&
+          fields.contains("hyperlink") &&
+          xlsx_boolean(original, "hyperlink") {
+          ":hyperlink"
+        } else {
+          ""
+        }) +
+        (if original is Object(fields) &&
+          fields.contains("relative") &&
+          xlsx_boolean(original, "relative") {
+          ":relative"
+        } else {
+          ""
+        })
+      } else {
+        code
       }
       if operation == "editBodyPageField" {
         session.edit_body_page_field(

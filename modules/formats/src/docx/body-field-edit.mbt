@@ -67,8 +67,21 @@ pub fn Session::body_page_field(
       )
       let parts = code.split(":").to_array()
       let value : Map[String, Json] = { "field": Json(parts[0].to_owned()) }
-      if parts.length() == 2 {
-        value["format"] = Json(parts[1].to_owned())
+      let reference = parts[0] == "PAGEREF"
+      if reference {
+        let reference = @layout.PageReference::parse(code)
+        value["bookmark"] = Json(reference.bookmark)
+        if !reference.format.is_empty() {
+          value["format"] = Json(reference.format)
+        }
+        if reference.hyperlink {
+          value["hyperlink"] = Json(true)
+        }
+        if reference.relative {
+          value["relative"] = Json(true)
+        }
+      } else if parts.length() == 2 {
+        value["format"] = Json(parts.last().unwrap().to_owned())
       }
       Json(value)
     }
@@ -94,8 +107,10 @@ pub fn Session::edit_body_page_field(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let instruction = running_field_instruction(field)
+  let field = running_field_code(instruction)
   let original = self.document()
   let tree = WordTree::new(original)
+  tree.check_body_field_target(field)
   ignore(self.editable_page_section(tree))
   guard self.selected_body_page_field(tree, selection) is Some(id) else {
     @failure.reject(
@@ -163,7 +178,7 @@ pub fn Session::edit_body_page_field(
 }
 
 ///|
-/// Refreshes body PAGE/NUMPAGES cached results in one exact source transaction.
+/// Refreshes supported body page fields in one exact source transaction.
 pub fn Session::update_body_page_fields(
   self : Session,
   revision : Int,
@@ -199,6 +214,7 @@ pub fn Session::update_body_page_fields(
     }
   }
   let pages : Map[(Int, Int), Int] = Map([])
+  let displayed : Map[(Int, Int), String] = Map([])
   for page, frame in layout.pages {
     for line in frame.lines {
       for run in line.runs {
@@ -206,6 +222,7 @@ pub fn Session::update_body_page_fields(
           let key = (line.paragraph, source.node)
           if fields.contains(key) && !pages.contains(key) {
             pages[key] = page
+            displayed[key] = run.text
           }
         }
       }
@@ -220,7 +237,15 @@ pub fn Session::update_body_page_fields(
       guard count <= 4096 else {
         @failure.reject("limit-exceeded", "Body page fields exceed limits")
       }
-      let value = if code.is_empty() {
+      let value = if code.has_prefix("PAGEREF:") {
+        displayed
+        .get((paragraph.id, id))
+        .unwrap_or_else(() => {
+          @failure.reject(
+            "unsupported-layout", "Page reference result is unavailable",
+          )
+        })
+      } else if code.is_empty() {
         ""
       } else {
         guard pages.get((paragraph.id, id)) is Some(page) else {

@@ -44,7 +44,7 @@ export type PptxObjectEdit =
       width: number;
       height: number;
     } & PptxChart)
-  | ({ action: "chartData" } & PptxChart)
+  | ({ action: "chartData" | "fillChart" } & PptxChart)
   | {
       action: "insertWordArt";
       preset: "blue" | "gold" | "red" | "purple" | "green-italic";

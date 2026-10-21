@@ -29,6 +29,7 @@ export interface PptxObject {
   arrangeReason: string;
   transformReason: string;
   tableFillReason: string;
+  chartFillReason: string;
   placeholder: { value: PptxPlaceholder | null; reason: string };
   hyperlink: { value: PptxHyperlink | null; reason: string };
   shapeAdjustments: {

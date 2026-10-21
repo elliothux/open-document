@@ -574,6 +574,7 @@ export function pptxQuery(value: unknown): PptxQuery {
           "arrangeReason",
           "transformReason",
           "tableFillReason",
+          "chartFillReason",
         ],
         [],
       ) ||

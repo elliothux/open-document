@@ -1,6 +1,21 @@
 ///|
 fn running_field_instruction(field : String) -> String raise @failure.Failure {
   let parts = field.split(":").to_array()
+  if parts[0] == "PAGEREF" {
+    let reference = @layout.PageReference::parse(field) catch {
+      @failure.Failure(..) =>
+        @failure.reject("invalid-operation", "Invalid page reference options")
+    }
+    let page = running_field_instruction(
+      "PAGE" +
+      (if reference.format.is_empty() { "" } else { ":" + reference.format }),
+    )
+    return "PAGEREF " +
+      reference.bookmark +
+      page[4:].to_owned() +
+      (if reference.hyperlink { " \\h" } else { "" }) +
+      (if reference.relative { " \\p" } else { "" })
+  }
   guard parts.length() >= 1 &&
     parts.length() <= 2 &&
     ["PAGE", "NUMPAGES"].contains(parts[0].to_owned()) else {

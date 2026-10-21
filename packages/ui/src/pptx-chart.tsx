@@ -22,6 +22,7 @@ export function PptxCharts({
       ? query.objects.find((object) => object.id === query.selection.object)
       : undefined;
   const chart = selected?.chart;
+  const fill = !chart && selected?.chartFillReason === "";
   const [draft, setDraft] = useState<PptxChart>(
     chart ?? {
       kind: "column",
@@ -37,14 +38,16 @@ export function PptxCharts({
           editor.editObjects(
             chart
               ? { action: "chartData", ...draft }
-              : {
-                  action: "insertChart",
-                  ...draft,
-                  x: 72,
-                  y: 72,
-                  width: 480,
-                  height: 300,
-                },
+              : fill
+                ? { action: "fillChart", ...draft }
+                : {
+                    action: "insertChart",
+                    ...draft,
+                    x: 72,
+                    y: 72,
+                    width: 480,
+                    height: 300,
+                  },
           ),
         );
       }}
@@ -110,7 +113,7 @@ export function PptxCharts({
         {draft.kind === "pie" && <p>{t.chartPieHint}</p>}
         {draft.kind === "scatter" && <p>{t.chartScatterHint}</p>}
         <button type="submit" disabled={!draft.data}>
-          {chart ? t.chartApply : t.chartInsert}
+          {chart ? t.chartApply : fill ? t.chartFill : t.chartInsert}
         </button>
       </fieldset>
     </form>

@@ -290,7 +290,8 @@ fn Session::apply_layout(
     if placeholder(object.source) is Some(ph) {
       guard object.kind == "shape" ||
         object.kind == "image" ||
-        object.table is Some(_) else {
+        object.table is Some(_) ||
+        object.chart is Some(_) else {
         @failure.reject(
           "protected-content", "Unsupported local placeholder object",
         )
@@ -301,7 +302,7 @@ fn Session::apply_layout(
           @failure.reject("protected-content", object.read_only)
         }
         used[target.node.id] = object.id
-        if object.table is Some(_) {
+        if object.table is Some(_) || object.chart is Some(_) {
           if layout is None {
             layout = Some(self.source_slide(choice.tree.part))
           }
@@ -313,11 +314,20 @@ fn Session::apply_layout(
             })
           guard slot is Some(slot) else {
             @failure.reject(
-              "protected-content", "Missing target table placeholder geometry",
+              "protected-content", "Missing target frame placeholder geometry",
             )
           }
-          changes.append(layout_table_changes(object, slot))
-          tables.push(object.id)
+          if object.table is Some(_) {
+            changes.append(layout_table_changes(object, slot))
+            tables.push(object.id)
+          } else {
+            guard slot.geometry is Some(geometry) && slot.diagnostic.is_empty() else {
+              @failure.reject(
+                "protected-content", "Missing target chart placeholder geometry",
+              )
+            }
+            changes.append(native_transform_changes(object, geometry))
+          }
         } else {
           changes.append(layout_transform_reset(object.source))
         }
@@ -441,6 +451,7 @@ fn Session::apply_layout(
         object.diagnostic.is_empty() &&
         (
           object.text_reason.is_empty() ||
+          object.chart is Some(_) ||
           calculated_field_reason(object.text_reason)
         ) else {
         @failure.reject(

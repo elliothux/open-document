@@ -10,7 +10,7 @@ import type {
   DocxRunningKind,
   DocxRunningVariant,
   DocxRunningContent,
-  DocxPageField,
+  DocxBodyField,
   DocxBodyPageField,
   DocxSelection,
   DocxProtection,
@@ -73,7 +73,7 @@ export abstract class DocumentPage extends DocumentReview {
   }
   editBodyPageField(
     source: DocumentBodyPageField,
-    field: DocxPageField,
+    field: DocxBodyField,
   ): Promise<void> {
     return this.review.edit(() => {
       const current = this.review.snapshot();
@@ -91,7 +91,7 @@ export abstract class DocumentPage extends DocumentReview {
       );
     });
   }
-  insertBodyPageField(field: DocxPageField): Promise<void> {
+  insertBodyPageField(field: DocxBodyField): Promise<void> {
     return this.review.edit(() =>
       this.review.client.insertBodyPageField(
         this.review.snapshot().revision,

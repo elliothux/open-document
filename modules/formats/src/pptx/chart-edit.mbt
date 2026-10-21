@@ -91,6 +91,7 @@ fn Session::write_chart(
   placement : (Double, Double, Double, Double)?,
   probe : @layout.TextProbe,
   profile : Map[String, String],
+  fill~ : Bool = false,
 ) -> Json raise @failure.Failure {
   guard source.length() <= 65536 else {
     @failure.reject("limit-exceeded", "Chart data exceeds 65536 characters")
@@ -101,7 +102,20 @@ fn Session::write_chart(
       "protected-content", "Create and edit charts in a slide view",
     )
   }
-  let target = if placement is None {
+  let slot = if fill {
+    guard self.selection.mode == "object" && self.selection.objects is [id] else {
+      @failure.reject("invalid-chart", "Select one chart placeholder")
+    }
+    let object = original.object(id)
+    let reason = self.chart_fill_reason(object)
+    guard reason.is_empty() else {
+      @failure.reject("protected-content", reason)
+    }
+    Some(object)
+  } else {
+    None
+  }
+  let target = if placement is None && !fill {
     guard self.selection.mode == "object" && self.selection.objects is [id] else {
       @failure.reject("invalid-chart", "Select one chart to edit data")
     }
@@ -162,9 +176,13 @@ fn Session::write_chart(
   }
   let id = target
     .map(pair => pair.0.id.split("#").last().unwrap().to_owned())
-    .unwrap_or_else(() => self.next_object_identity())
+    .unwrap_or_else(() => {
+      slot
+      .map(object => object.id.split("#").last().unwrap().to_owned())
+      .unwrap_or_else(() => self.next_object_identity())
+    })
   let (x, y, width, height) = placement.unwrap_or_else(() => {
-    let g = target.unwrap().0.geometry.unwrap()
+    let g = slot.unwrap_or_else(() => target.unwrap().0).geometry.unwrap()
     (g.x, g.y, g.width, g.height)
   })
   validate_object_box(x, y, width, height, false)
@@ -280,10 +298,14 @@ fn Session::write_chart(
   )
   let document = if target is None {
     let (document, edit) = original.tree.document.edit_source([
-      object_insertion(
-        original.tree,
-        chart_frame(id, link, x, y, width, height),
-      ),
+      if slot is Some(object) {
+        placeholder_chart_change(object, link, self.budget)
+      } else {
+        object_insertion(
+          original.tree,
+          chart_frame(id, link, x, y, width, height),
+        )
+      },
     ])
     edits.push((original.tree.part, edit))
     document
@@ -322,7 +344,7 @@ fn Session::write_chart(
     probe~,
     profile~,
   )
-  if target is None {
+  if target is None && slot is None {
     self.object_sequence = number(id, 1, 4294967295).to_int64() + 1
   }
   self.query()

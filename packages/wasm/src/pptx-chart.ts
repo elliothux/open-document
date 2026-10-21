@@ -36,7 +36,11 @@ export function checkPptxChart(value: unknown): void {
 
 export function checkPptxChartEdit(value: unknown): boolean {
   const change = record(value);
-  if (change.action !== "insertChart" && change.action !== "chartData")
+  if (
+    change.action !== "insertChart" &&
+    change.action !== "chartData" &&
+    change.action !== "fillChart"
+  )
     return false;
   checkPptxChart({ kind: change.kind, title: change.title, data: change.data });
   const insert = change.action === "insertChart";

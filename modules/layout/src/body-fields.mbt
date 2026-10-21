@@ -2,6 +2,9 @@
 fn Flow::body_fields(
   self : Flow,
 ) -> Map[(Int, Int), String] raise @failure.Failure {
+  guard self.bookmarks.length() <= 4096 else {
+    @failure.reject("limit-exceeded", "Field targets exceed limits")
+  }
   let fields : Map[(Int, Int), String] = Map([])
   let paragraphs = self.paragraphs.copy()
   for table in self.tables {
@@ -14,6 +17,9 @@ fn Flow::body_fields(
   for paragraph in paragraphs {
     for span in paragraph.spans {
       if !span.field.is_empty() {
+        if span.field.has_prefix("PAGEREF:") {
+          ignore(PageReference::parse(span.field))
+        }
         guard span.drawing is None && fields.length() < 4096 else {
           @failure.reject("limit-exceeded", "Body page fields exceed limits")
         }
@@ -27,7 +33,7 @@ fn Flow::body_fields(
 ///|
 fn Flow::resolve_body_fields(
   self : Flow,
-  pages : Map[(Int, Int), Int],
+  values : Map[(Int, Int), String],
   total : Int,
 ) -> (Flow, Bool) raise @failure.Failure {
   let mut stable = true
@@ -38,11 +44,22 @@ fn Flow::resolve_body_fields(
         if span.field.is_empty() {
           return span
         }
-        let text = self.pageNumbering.field_text(
-          span.field,
-          pages.get((paragraph.id, span.node)).unwrap_or(0),
-          total,
-        )
+        let text = values
+          .get((paragraph.id, span.node))
+          .unwrap_or_else(() => {
+            if span.field.has_prefix("PAGEREF:") {
+              let reference = PageReference::parse(span.field)
+              if !self.bookmarks.contains(reference.bookmark.to_lower()) {
+                "Error! Bookmark not defined."
+              } else if reference.relative {
+                "below"
+              } else {
+                self.pageNumbering.field_text(reference.page_code(), 0, total)
+              }
+            } else {
+              self.pageNumbering.field_text(span.field, 0, total)
+            }
+          })
         if text != span.text {
           stable = false
         }
@@ -56,41 +73,4 @@ fn Flow::resolve_body_fields(
     rows: table.rows.map(row => row.map(cell => cell.map(resolve))),
   })
   ({ ..self, paragraphs, tables, }, stable)
-}
-
-///|
-fn Pagination::body_field_pages(
-  self : Pagination,
-  fields : Map[(Int, Int), String],
-) -> (Map[(Int, Int), Int], Array[String]) {
-  let pages : Map[(Int, Int), Int] = Map([])
-  let diagnostics : Array[String] = []
-  if fields.is_empty() {
-    return (pages, diagnostics)
-  }
-  for page, frame in self.pages {
-    for line in frame.lines {
-      for run in line.runs {
-        for source in run.sources {
-          let key = (line.paragraph, source.node)
-          if fields.get(key) is Some(code) {
-            if !pages.contains(key) {
-              pages[key] = page
-            }
-            if line.repeated &&
-              (code == "PAGE" || code.has_prefix("PAGE:")) &&
-              !diagnostics.contains(
-                "unsupported-layout:repeated-body-page-field",
-              ) {
-              diagnostics.push("unsupported-layout:repeated-body-page-field")
-            }
-          }
-        }
-      }
-    }
-  }
-  if pages.length() != fields.length() {
-    diagnostics.push("unsupported-layout:body-field-position-unavailable")
-  }
-  (pages, diagnostics)
 }

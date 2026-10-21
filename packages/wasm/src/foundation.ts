@@ -14,6 +14,8 @@ export {
   type DocxRunningArea,
   type DocxRunningContent,
   type DocxPageField,
+  type DocxBodyField,
+  checkBodyField,
   checkPageField,
   type DocxBodyPageField,
   docxBodyPageField,

@@ -13,6 +13,7 @@ pub(all) enum ObjectEdit {
   InsertTable(Int, Int, Double, Double, Double, Double)
   InsertChart(String, String, String, Double, Double, Double, Double)
   ChartData(String, String, String)
+  FillChart(String, String, String)
   FillTable(Int, Int)
   TableStructure(String)
   SplitTableCell(Int, Int)
@@ -420,6 +421,9 @@ pub fn Session::edit_objects(
   if change is ChartData(kind, title, data) {
     return self.write_chart(kind, title, data, None, probe, profile)
   }
+  if change is FillChart(kind, title, data) {
+    return self.write_chart(kind, title, data, None, probe, profile, fill=true)
+  }
   if change is Duplicate(dx, dy) {
     return self.duplicate_objects(dx, dy, probe, profile)
   }
@@ -551,6 +555,7 @@ pub fn Session::edit_objects(
     | InsertTable(_, _, _, _, _, _)
     | InsertChart(_, _, _, _, _, _, _)
     | ChartData(_, _, _)
+    | FillChart(_, _, _)
     | Duplicate(_, _)
     | FillTable(_, _)
     | TableStructure(_)

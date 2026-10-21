@@ -32,11 +32,11 @@ fn paginate_running(
       )
     })
     let total = pagination.pages.length()
-    let (pages, diagnostics) = pagination.body_field_pages(fields)
+    let (values, diagnostics) = pagination.body_field_values(fields, flow)
     let (updated, body_stable) = if fields.is_empty() {
       (body, true)
     } else {
-      body.resolve_body_fields(pages, total)
+      body.resolve_body_fields(values, total)
     }
     if !dynamic {
       if body_stable || attempt == 7 {

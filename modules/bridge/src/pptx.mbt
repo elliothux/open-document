@@ -423,7 +423,7 @@ fn Foundation::pptx_operation(
             xlsx_number(change, "width"),
             xlsx_number(change, "height"),
           )
-        "insertChart" | "chartData" =>
+        "insertChart" | "chartData" | "fillChart" =>
           pptx_chart_edit(
             change,
             field_string(change, "action") == "insertChart",

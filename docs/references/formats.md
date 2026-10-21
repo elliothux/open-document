@@ -251,7 +251,7 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 `editBookmark(revision, change)` 与宿主 `DocumentEditor.editBookmark(change)` 接受四种命令：`{ action: "create", name, selection }`、`{ action: "rename", name, replacement }`、`{ action: "remove", name }`、`{ action: "goTo", name }`。创建/改名使用 1–40 个 ASCII 字母、数字或下划线，首字符不能为数字。名称查找及去重忽略大小写；重复创建拒绝。goTo 将光标移到当前书签起点，不改 revision 或历史。默认概览面板提供创建、改名、删除及跳转，复用原生输入和编辑队列。
 
-`setHyperlink` 的 target 另接受 `#书签名`，必须对应当前可用书签。内部链接写入 `w:anchor`，不新增 OPC 关系；外部与内部目标可相互修改，保留原提示和直接格式。默认面板的“打开链接”执行核心定位。改名同时更新主文档已知 anchor 引用；删除书签同时移除这些链接容器，保留文字、格式及命名空间。其他 XML 部件中的 anchor 或包含该名称的字段指令会保护改名/删除，避免悬空引用；交叉引用字段更新仍待实现。
+`setHyperlink` 的 target 另接受 `#书签名`，必须对应当前可用书签。内部链接写入 `w:anchor`，不新增 OPC 关系；外部与内部目标可相互修改，保留原提示和直接格式。默认面板的“打开链接”执行核心定位。改名同时更新主文档已知 anchor 引用；删除书签同时移除这些链接容器，保留文字、格式及命名空间。主文档已知简单 `PAGEREF` 随书签改名同步目标，删除目标后显示明确的缺失引用结果，缓存由显式字段刷新更新。其他 XML 部件中的 anchor、复杂或未知引用字段继续保护改名/删除；范围归[书签页码引用](#书签页码引用)。
 
 普通文字、组合输入、格式、查找替换和拆段/合段保留零宽标记。范围替换删除中间段落时，丢失的已知端点收缩到替换后的光标；同一位置的起点先于结束标记。删除含书签的表格行等其他结构操作若会破坏配对，则整项拒绝。未知标记源保持。每次创建、改名、删除及相关引用更改合为一次有界历史；保存重开保留范围和导航，预算失败不提交。当前 PDF 仅保留文字与格式，不含可点击注释。
 
@@ -565,7 +565,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 `FoundationSession/Client.updateBodyPageFields(revision, profile)` 和 `DocumentEditor.updateBodyPageFields()` 显式刷新正文缓存，默认页面面板提供同名按钮。核心只改结果文字，清空多余缓存 run 的文字，保留域代码、属性、字符样式、其他部件和原选择，一次更新合为一项精确历史。结果相同不改 revision，保留当前显示布局和后续原生导航。缺字体、未知/锁定/嵌套指令、结果内注释或处理指令、保护及原有输出/历史预算失败时整体拒绝。
 
-`FoundationSession/Client.insertBodyPageField(revision, field, profile)` 和 `DocumentEditor.insertBodyPageField(field)` 将当前范围替换为一个原生简单域。`DocxPageField` 使用 `{ field: "PAGE" | "NUMPAGES", format? }`，可选格式沿用上述五种显式格式。默认页面面板提供“插入正文页码”和“插入正文总页数”。核心保留附近字符格式，写入实际布局值，将光标放到域后，插入与范围删除合为一项精确历史。正文、空段落和普通单元格共用事务。未知源、超限、缺字体及不完整布局整体拒绝，不改其他域的旧缓存。依据 [ONLYOFFICE 插入字段及直接格式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L23510-L23565)，实现归[正文域插入](../../modules/formats/src/docx/body-field-insert.mbt)。
+`FoundationSession/Client.insertBodyPageField(revision, field, profile)` 和 `DocumentEditor.insertBodyPageField(field)` 将当前范围替换为一个原生简单域。`DocxBodyField` 接受 `DocxPageField` 的 `{ field: "PAGE" | "NUMPAGES", format? }`，以及下述书签页码引用，可选格式沿用上述五种显式格式。默认页面面板提供“插入正文页码”和“插入正文总页数”。核心保留附近字符格式，写入实际布局值，将光标放到域后，插入与范围删除合为一项精确历史。正文、空段落和普通单元格共用事务。未知源、超限、缺字体及不完整布局整体拒绝，不改其他域的旧缓存。依据 [ONLYOFFICE 插入字段及直接格式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L23510-L23565)，实现归[正文域插入](../../modules/formats/src/docx/body-field-insert.mbt)。
 
 仅含受支持简单域和普通内容的段落，已有原生光标、相邻文字输入、同段范围替换、整域 Delete/Backspace 和组合输入。一个域保持一个源位置，删除整个源元素，不把结果拆成可编辑数字。查找中的后续文字也沿用逻辑位置。域的正文范围及整格剪贴板分别沿用[正文富文本片段](#正文富文本片段)与[单元格富文本片段](#单元格富文本片段)；复杂域范围及其他指令继续保护。其他普通段落可继续输入并触发实时重算。实现归[正文域输入](../../modules/formats/src/docx/body-field-input.mbt)。
 
@@ -573,13 +573,23 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 简单域整体参与已有字符格式查询和修改，也支持所在段落的对齐、间距等段落格式。默认格式面板、格式捕获和光标处的待输入格式共用原有命令。核心查询并修改首个实际结果 run，保留域代码、缓存文字、前置空 run 和其他缓存样式。域与邻接普通文字混合选择时，普通 run 按边界拆分，域保持完整；格式修改与后续输入各自沿精确历史保存重开。复杂域、未知字段或结果属性继续拒绝格式修改。依据 [ONLYOFFICE 字段结果格式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L1774-L1812)，实现归[格式查询](../../modules/formats/src/docx/format-query.mbt)与[字符格式事务](../../modules/formats/src/docx/format-character.mbt)。
 
-`FoundationSession/Client.bodyPageField(revision, selection)` 返回 `DocxBodyPageField`：`{ revision, selection, field, reason }`。完整选择一个简单域，或把光标放在其前后的对应亲和侧时，`field` 为原有 `DocxPageField`；没有可编辑域时返回 `null` 及原因。普通文字、多个域、跨段及复杂域不能作为一个域修改。查询保持原源、选择和历史。
+`FoundationSession/Client.bodyPageField(revision, selection)` 返回 `DocxBodyPageField`：`{ revision, selection, field, reason }`。完整选择一个简单域，或把光标放在其前后的对应亲和侧时，`field` 为 `DocxBodyField`；没有可编辑域时返回 `null` 及原因。普通文字、多个域、跨段及复杂域不能作为一个域修改。查询保持原源、选择和历史。
 
-`editBodyPageField(revision, selection, field, profile)` 修改该域的 `PAGE`／`NUMPAGES` 与显式编号格式，省略 `format` 恢复节格式。核心只改指令属性和当前域的实际结果，保留 `MERGEFORMAT`、其他源属性、结果格式、空 run、选择及其他域缓存；多余结果文字清空。修改合为一项精确历史，相同语义指令不刷新缓存或增加历史。未知指令、锁定、缺字体、布局或预算失败保持原文档。显式结果刷新仍使用 `updateBodyPageFields`。
+`editBodyPageField(revision, selection, field, profile)` 修改该域的类型、书签目标与显式编号格式，省略 `format` 恢复节格式。核心只改指令属性和当前域的实际结果，保留 `MERGEFORMAT`、其他源属性、结果格式、空 run、选择及其他域缓存；多余结果文字清空。修改合为一项精确历史，相同语义指令不刷新缓存或增加历史。未知指令、锁定、缺字体、布局或预算失败保持原文档。显式结果刷新仍使用 `updateBodyPageFields`。
 
 `DocumentEditor.bodyPageField()` 返回附有 `documentId` 的 `DocumentBodyPageField`；`editBodyPageField(source, field)` 核对文档、revision 和选择后提交。默认页面面板提供读取、类型、编号格式和应用控件；切换选择后须重新读取。代码修改依据 [ONLYOFFICE ChangeInstruction](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L2074-L2095)，原生简单域结构沿用已有序列化。实现归[正文域代码事务](../../modules/formats/src/docx/body-field-edit.mbt)，未移植上游执行代码。
 
 每段最多 64 个字段，正文布局最多 4096 个字段位置。重复表头中的 `PAGE`、不可定位的结果及未收敛结果给出布局诊断，阻止不确定的刷新或输出。其他域及完整字段创作继续实施。依据 [ONLYOFFICE 字段行所在页](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L918-L928)与[实际页总数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L1312-L1315)。实现归[正文字段布局](../../modules/layout/src/body-fields.mbt)和[缓存刷新事务](../../modules/formats/src/docx/body-field-edit.mbt)。
+
+### 书签页码引用
+
+`DocxBodyField` 增加 `{ field: "PAGEREF", bookmark: string, format?, hyperlink?: boolean, relative?: boolean }`，从 Wasm/Web foundation 导出，沿现有 `insertBodyPageField`、`bodyPageField` 和 `editBodyPageField` 使用。默认正文域面板提供目标书签输入、插入、读取及修改。名称沿当前书签创建规则，最多 40 个 ASCII 字母、数字或下划线，首字符不是数字；创建和修改目标时必须存在可用书签。
+
+正文及普通单元格中，核心按书签起点所在的实际纸张计算页号，采用当前单节编号或显式格式。简单域可插入、查询、修改、原生输入及整域替换；已知同段复杂域可显示和刷新，范围编辑保持保护。书签改名只修改已知简单域的目标 token，保留空白、格式开关及 `MERGEFORMAT`。删除或缺少目标时，显示 `Error! Bookmark not defined.`；原缓存仍由 `updateBodyPageFields` 显式刷新。源、选择和缓存共用既有精确历史，计算、保存和输出不隐式改写原缓存。原生格式依据 [ONLYOFFICE PAGEREF](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L1259-L1312)。
+
+`relative: true` 保留原生 `\p` 开关。同页按实际光标位置显示 `above` 或 `below`；跨页显示 `on page N`，其中 N 是从 1 开始的物理页号，不使用节编号格式。`hyperlink: true` 保留原生 `\h` 标记，默认面板通过“跳转到引用目标”显式定位已提交的目标。修改目标后须先应用，再跳转。PDF 交互链接继续实施。
+
+`Flow.bookmarks` 保存忽略大小写的名称到 `[paragraph, offset]` 的绑定，TypeScript 只验证传输。最多 4096 个目标与字段位置；一次分页轮次最多访问 1048576 个候选行和光标位置，沿用最多八轮重排。普通字段片段保留原生目标名，在目标文档中重新绑定；不会复制范围外的书签，缺失时显示上述错误。重复表头中的相对引用、未知或重复开关保持诊断和编辑保护。页眉页脚、未知/受保护目标、通用 `REF` 和目录继续实施。实现归 [`body-page-reference.mbt`](../../modules/formats/src/docx/body-page-reference.mbt)及[字段布局](../../modules/layout/src/body-fields.mbt)，未复制上游执行代码。
 
 ### 表格创建
 
@@ -2203,6 +2213,10 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 行数为 1–1000，列数为 1–63，总格数最多 4096；现有列宽、字体、候选、历史和包预算继续执行。文字非空、非目标槽位、组成员、锁定、旋转/翻转、未知外围或扩展内容继续保护；母版/版式视图保留槽位定义入口。表格转换、网格和必要行高共用一次精确历史，失败保留源、选择及身份分配。表格占位符的版式切换与重置沿[幻灯片版式](#幻灯片版式)处理。实现归 [`placeholder-table.mbt`](../../modules/formats/src/pptx/placeholder-table.mbt)，复用 [`table-create.mbt`](../../modules/formats/src/pptx/table-create.mbt)与 [`table-structure.mbt`](../../modules/formats/src/pptx/table-structure.mbt) 的候选及排版；位置/宽度和替换行为参考 [ONLYOFFICE Add_FlowTable](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L4079-L4120)，未复制上游源码。
 
+`editObjects({ action: "fillChart", kind, title, data })` 在普通幻灯片的单选空 `chart/obj` 槽位中填入原生图表。参数复用[基础图表](#pptx-基础图表)的六种类型、标题及 TSV 数据规则。默认图表面板显示“填充图表占位符”；对象查询的 `chartFillReason` 返回保护原因。核心复用图表 XML、嵌入 XLSX、关系及内容类型事务，保留对象身份、名称、占位定义、顺序和选择，版式提示及其他部件保持。填入后沿普通数据修改、移动缩放、历史、保存重开和 Canvas/PDF 路径。
+
+槽位须为本地顶层、无文字、无旋转/翻转且至少 180×150 pt。未知/扩展内容、锁、错误槽位及母版/版式视图继续保护。核心采用槽位的有效位置及完整宽高，参考 [ONLYOFFICE finalizeAddChart](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L3935-L3982)。图表资源和替换共用一项精确历史，失败保留文稿、选择及身份分配；整对象复制沿既有占位身份保护。实现归 [`placeholder-chart.mbt`](../../modules/formats/src/pptx/placeholder-chart.mbt)及 [`chart-edit.mbt`](../../modules/formats/src/pptx/chart-edit.mbt)，未复制上游源码。
+
 单选本地顶层形状或图片后，`editObjects({ action: "placeholder", value: { type, index } })` 修改定义；`value: null` 移除定义并保留对象、内容与资源。`index` 是 0 至 4294967295 的整数；同源相同类型/索引不得重复，比较时居中标题归为标题。每个查询对象的 `placeholder` 返回 `{ value, reason }`，普通页面可读取定义，修改需进入源视图。已知 `sz/orient/hasCustomPrompt` 保留，未知元数据和形状类型锁保护修改。需要时先固化当前源对象的继承几何；会导致引用页面丢失继承几何的修改仍整项拒绝。源、依赖页、选择与历史沿既有事务提交；默认面板提供插入和定义控件。实现归 [`placeholder-edit.mbt`](../../modules/formats/src/pptx/placeholder-edit.mbt)，索引分配参考 [ONLYOFFICE NewShapeTracks](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/NewShapeTracks.js#L869-L894)。
 
 `editSlides({ action: "addMaster" }, source?)` 在所选母版后新增空白母版、一个空白版式和独立默认主题；选择版式时使用其所属母版的位置。空白内容复用核心新建文稿的构造。`copyMaster` 接受母版源，保留名称、源设置及全部声明版式的顺序，并独立复制主题；零版式的母版也可复制。对象、字段、creationId、母版和版式身份重新分配，所属关系重映射到副本；图片字节和普通链接继续共享。图表等尚未接通复制归属的可变资源、未声明的版式关系和未知身份扩展保护复制。两项操作选择新母版并清空对象选择，保留真实页面；主目录、关系、主题及所有新源合为一次历史。目录、每个新源的对象/字体/图片、累计历史和包预算在提交前检查，失败保留源、选择和身份分配。默认源管理面板提供相同操作。实现归 [`master-create.mbt`](../../modules/formats/src/pptx/master-create.mbt)及 [`master-source.mbt`](../../modules/formats/src/pptx/master-source.mbt)。复制归属与插入位置参考 [ONLYOFFICE MasterSlide.createDuplicate](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/SlideMaster.js#L702-L741)和 [DublicateMaster](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L9214-L9253)，未复制上游源码。
@@ -2232,6 +2246,8 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 `PresentationEditor.editSlides({ action: "resetLayout" }, slide?)` 重新应用目标页的当前版式，默认面板提供重置按钮。它清除占位符受支持的本地 `xfrm`，恢复版式/母版几何，并沿相同规则补齐缺失的空占位符。保留已有匹配对象身份、用户文字、字符/段落/框属性及形状外观；普通对象和版式关系原字节保持。行为沿 [ONLYOFFICE 当前版式重置入口](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L9519-L9553)，文字格式清除仍使用既有字符/段落命令。
 
 重置仅在有覆盖或占位符变化时新增一项历史，重复调用不改源或 revision。原生草稿先独立提交，随后可精确混合撤销/重做和保存重开。移动/尺寸锁、实际旋转变化的 `noRot`、未知变换标记、无法继承几何及资源预算失败均原子拒绝；版式切换使用相同候选保护。
+
+匹配的图表占位符支持版式切换与重置，完整采用目标槽位的位置和宽高。现有图表数据、对象身份、占位定义及资源保持；未知/旋转/翻转或小于 180×150 pt 的目标原子拒绝。重复重置不新增历史。
 
 匹配的表格占位符也支持版式切换与重置。核心使用目标槽位的有效位置和宽度，按整数 EMU 比例调整现有列网格；保留行最小高度，并按新宽度重新排版，必要时增高行及原生表格框。槽位高度不压缩已有内容。表格身份、占位定义、格内文字和直接格式保持，源版式及未修改部件保留原字节；关系、列宽、行高和选择共用一次精确历史。重置恢复位置及列宽，重复重置不新增历史。
 

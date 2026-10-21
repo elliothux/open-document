@@ -116,7 +116,7 @@ fn Session::body_field_source(
 }
 
 ///|
-/// Replaces the current range with one PAGE/NUMPAGES field, caching its actual layout value.
+/// Replaces the current range with one page field, caching its actual layout value.
 pub fn Session::insert_body_page_field(
   self : Session,
   revision : Int,
@@ -131,6 +131,7 @@ pub fn Session::insert_body_page_field(
     @failure.reject("invalid-position", "Select a document position first")
   }
   let original = self.document()
+  WordTree::new(original).check_body_field_target(field)
   ignore(self.editable_page_section(WordTree::new(original)))
   let prepared = self.prepare_plain_range(selection, "")
   let document = prepared.map(p => p.document).unwrap_or(original)
@@ -150,12 +151,6 @@ pub fn Session::insert_body_page_field(
       tree.nodes[id].name == "fldSimple" && !before.nodes.contains(id)
     })
     .unwrap()
-  let results = tree.running_fields(position.paragraph)
-  let result = tree
-    .descendants(inserted)
-    .iter()
-    .find_first(id => results.get(id) == Some(field))
-    .unwrap()
   let flow = { ..self, document: Some(candidate), }.flow()
   let layout = @layout.paginate(probe, flow, profile, images)
   guard layout.diagnostics.is_empty() else {
@@ -163,24 +158,8 @@ pub fn Session::insert_body_page_field(
       "unsupported-layout", "Field insertion requires a complete layout",
     )
   }
-  let page = for index, page in layout.pages {
-    if page.lines.any(line => {
-        line.paragraph == position.paragraph &&
-        line.runs.any(run => run.sources.any(source => source.node == result))
-      }) {
-      break Some(index)
-    }
-  } nobreak {
-    None
-  }
-  guard page is Some(page) else {
-    @failure.reject(
-      "unsupported-layout", "Inserted field position is unavailable",
-    )
-  }
-  let value = flow.pageNumbering.field_text(field, page, layout.pages.length())
   let (candidate, edit) = candidate.edit_text(
-    Map::from_array([(result, value)]),
+    self.field_cache_changes(tree, [inserted], layout),
   )
   steps.push(edit)
   let mut bytes = 0

@@ -26,6 +26,8 @@ fn pptx_chart_edit(
       xlsx_number(change, "width"),
       xlsx_number(change, "height"),
     )
+  } else if field_string(change, "action") == "fillChart" {
+    @pptx.FillChart(kind, title, data)
   } else {
     @pptx.ChartData(kind, title, data)
   }

@@ -130,6 +130,7 @@ pub(all) enum ObjectEdit {
   InsertTable(Int, Int, Double, Double, Double, Double)
   InsertChart(String, String, String, Double, Double, Double, Double)
   ChartData(String, String, String)
+  FillChart(String, String, String)
   FillTable(Int, Int)
   TableStructure(String)
   SplitTableCell(Int, Int)

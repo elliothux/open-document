@@ -25,8 +25,8 @@ import {
   type DocxRunningKind,
   type DocxRunningVariant,
   type DocxRunningContent,
-  type DocxPageField,
-  checkPageField,
+  type DocxBodyField,
+  checkBodyField,
   docxBodyPageField,
   docxProtection,
   checkDocxProtection,
@@ -70,10 +70,10 @@ export class FoundationPageClient extends FoundationReviewClient {
   async editBodyPageField(
     revision: number,
     selection: DocxSelection,
-    field: DocxPageField,
+    field: DocxBodyField,
     profile: Record<string, string>,
   ) {
-    checkPageField(field);
+    checkBodyField(field);
     return editState(
       await this.connection.request({
         operation: "editBodyPageField",
@@ -86,10 +86,10 @@ export class FoundationPageClient extends FoundationReviewClient {
   }
   async insertBodyPageField(
     revision: number,
-    field: DocxPageField,
+    field: DocxBodyField,
     profile: Record<string, string>,
   ) {
-    checkPageField(field);
+    checkBodyField(field);
     return editState(
       await this.connection.request({
         operation: "insertBodyPageField",

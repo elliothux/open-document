@@ -1,15 +1,19 @@
 ///|
-fn Session::table_fill_reason(self : Session, object : Object) -> String {
-  let reason = self.empty_placeholder_reason(object, ["tbl", "obj"])
+fn Session::frame_placeholder_reason(
+  self : Session,
+  object : Object,
+  kinds : Array[String],
+) -> String {
+  let reason = self.empty_placeholder_reason(object, kinds)
   if !reason.is_empty() {
     return reason
   }
   if object.source.tree.document.nodes()[0].name != "sld" {
-    return "Fill table placeholders in the slide view"
+    return "Fill frame placeholders in the slide view"
   }
   let geometry = object.geometry.unwrap()
   if geometry.rotation != 0 || geometry.flip_x || geometry.flip_y {
-    return "Native table frames do not support rotation or flipping"
+    return "Native frames do not support rotation or flipping"
   }
   let source = object.source
   let pending = source.tree.children
@@ -25,6 +29,11 @@ fn Session::table_fill_reason(self : Session, object : Object) -> String {
     pending.append(source.tree.children.get(node.id).unwrap_or([]))
   }
   ""
+}
+
+///|
+fn Session::table_fill_reason(self : Session, object : Object) -> String {
+  self.frame_placeholder_reason(object, ["tbl", "obj"])
 }
 
 ///|

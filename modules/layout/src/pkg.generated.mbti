@@ -217,6 +217,7 @@ pub(all) struct Flow {
   pageBorders : PageBorders
   page : PageSetup
   pageNumbering : PageNumbering
+  bookmarks : Map[String, (Int, Int)]
   columns : Columns
   paragraphs : Array[Paragraph]
   diagnostics : Array[String]
@@ -454,6 +455,15 @@ pub fn PageNumbering::to_json(Self) -> Json
 pub fn PageNumbering::validate(Self) -> Unit raise @failure.Failure
 pub fn PageNumbering::variant(Self, Int, Bool, Bool) -> String
 pub impl ToJson for PageNumbering
+
+pub(all) struct PageReference {
+  bookmark : String
+  format : String
+  hyperlink : Bool
+  relative : Bool
+}
+pub fn PageReference::code(Self) -> String
+pub fn PageReference::parse(String) -> Self raise @failure.Failure
 
 pub(all) struct PageSetup {
   width : Double

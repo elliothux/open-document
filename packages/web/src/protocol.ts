@@ -22,7 +22,7 @@ import type {
   DocxRunningKind,
   DocxRunningVariant,
   DocxRunningContent,
-  DocxPageField,
+  DocxBodyField,
   DocxPictureEdit,
   DocxShapeEdit,
   DocxDrawingGestureCommand,
@@ -195,13 +195,13 @@ export type Operation =
       operation: "editBodyPageField";
       revision: number;
       selection: DocxSelection;
-      field: DocxPageField;
+      field: DocxBodyField;
       profile: Record<string, string>;
     }
   | {
       operation: "insertBodyPageField";
       revision: number;
-      field: DocxPageField;
+      field: DocxBodyField;
       profile: Record<string, string>;
     }
   | {

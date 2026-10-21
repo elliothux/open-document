@@ -9,6 +9,42 @@ fn running_field_code(instruction : String) -> String raise @failure.Failure {
     .filter(token => !token.is_empty())
     .map(token => token.to_owned())
     .collect()
+  if tokens.length() >= 2 && tokens[0].to_upper() == "PAGEREF" {
+    check_bookmark_name(tokens[1])
+    let options = ["PAGE"]
+    let mut hyperlink = false
+    let mut relative = false
+    let mut i = 2
+    while i < tokens.length() {
+      if tokens[i].to_lower() == "\\h" && !hyperlink {
+        hyperlink = true
+        i += 1
+      } else if tokens[i].to_lower() == "\\p" && !relative {
+        relative = true
+        i += 1
+      } else {
+        guard tokens[i] == "\\*" && i + 1 < tokens.length() else {
+          @failure.reject(
+            "unsupported-layout", "Unsupported page reference switch",
+          )
+        }
+        options.push(tokens[i])
+        options.push(tokens[i + 1])
+        i += 2
+      }
+    }
+    let format = running_field_code(options.join(" ")).split(":").to_array()
+    return @layout.PageReference::{
+      bookmark: tokens[1],
+      format: if format.length() == 2 {
+        format[1].to_owned()
+      } else {
+        ""
+      },
+      hyperlink,
+      relative,
+    }.code()
+  }
   guard [1, 3, 5].contains(tokens.length()) &&
     ["PAGE", "NUMPAGES"].contains(tokens[0].to_upper()) else {
     @failure.reject(

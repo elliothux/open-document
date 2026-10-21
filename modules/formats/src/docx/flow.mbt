@@ -163,6 +163,15 @@ fn Session::flow_from(
     pageBorders: page_borders,
     page,
     pageNumbering: page_numbering,
+    bookmarks: Map::from_array(
+      tree
+      .bookmarks()
+      .filter(b => b.reason.is_empty())
+      .map(b => {
+        let position = b.selection.unwrap().anchor
+        (b.name.to_lower(), (position.paragraph, position.offset))
+      }),
+    ),
     columns,
     paragraphs: paragraphs.map(p => numbered[p.id]),
     diagnostics,
@@ -210,6 +219,11 @@ fn Session::paragraph(
     }
   } else {
     Map([])
+  }
+  guard !running || !fields.values().any(code => code.has_prefix("PAGEREF:")) else {
+    @failure.reject(
+      "unsupported-layout", "Running page references require target story support",
+    )
   }
   for item in tree.descendants(id) {
     tree.diagnose_properties(item, self.main, diagnostics)
