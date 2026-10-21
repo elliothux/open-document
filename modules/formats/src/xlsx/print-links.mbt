@@ -6,17 +6,37 @@ priv struct PrintedCell {
 
 ///|
 fn Session::print_page_links(
-  _self : Session,
+  self : Session,
   sheets : Array[PrintedSheet],
+  destinations : Map[(String, Int, Int), @layout.LinkTarget],
+  formulas : FormulaWork,
 ) -> Array[@layout.PageLink] raise @failure.Failure {
   let links : Array[@layout.PageLink] = []
   let mut work = 0
   for printed in sheets {
     for (range, address) in printed.links {
-      if address.has_prefix("#") {
-        continue
+      let target = if address.has_prefix("#") {
+        let destination = try {
+          let (sheet, range) = self.hyperlink_destination(
+            self.sheet_index(printed.id),
+            { row: range.top, column: range.left, },
+            address,
+            work=formulas,
+          )
+          let cell = self.sheets[self.sheet_index(sheet)].cell_range({
+            row: range.top,
+            column: range.left,
+          })
+          destinations.get((sheet, cell.top, cell.left))
+        } catch {
+          @failure.Failure(code="limit-exceeded", ..) as error => raise error
+          @failure.Failure(..) => None
+        }
+        guard destination is Some(target) else { continue }
+        target
+      } else {
+        @layout.External(address)
       }
-      let target = @layout.External(address)
       for cell in printed.cells {
         work += 1
         guard work <= 8388608 else {

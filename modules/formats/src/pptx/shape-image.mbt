@@ -120,7 +120,7 @@ fn Session::image_fill_reason(self : Session, object : Object) -> String {
   if !reason.is_empty() {
     return reason
   }
-  if object.preset == "line" ||
+  if line_shape(object.preset) ||
     object.geometry.map(g => g.width <= 0 || g.height <= 0).unwrap_or(true) {
     return "Image fills require a closed shape with positive bounds"
   }

@@ -152,6 +152,7 @@ fn Session::print_sheet(
           strokes: [],
           texts: [],
           cells: [],
+          anchors: [],
         }
         let row_segments = print_segments(dimensions.rows, rows, title_rows)
         let col_segments = print_segments(
@@ -263,6 +264,18 @@ fn Session::print_sheet(
             }
           }
         }
+        for (range, rect) in page.anchors {
+          let key = (sheet, range.top, range.left)
+          if !work.destinations.contains(key) &&
+            rect.width > 0 &&
+            rect.height > 0 {
+            work.destinations[key] = @layout.Internal(
+              page_offset + pages.length(),
+              (rect.x * scale).max(setup.left),
+              (rect.y * scale).max(setup.top),
+            )
+          }
+        }
         for (range, rect) in page.cells {
           let x = (rect.x * scale).max(setup.left)
           let y = (rect.y * scale).max(setup.top)
@@ -308,6 +321,7 @@ fn Session::print_sheet(
     }
   }
   {
+    id: sheet,
     name: current.name,
     setup,
     scale,

@@ -200,12 +200,16 @@ fn read_object(
     }
     error => raise error
   }
-  let polyline = custom.map(read_polyline).unwrap_or([]) catch {
+  let polyline = if preset == "bentConnector3" {
+    [(0.0, 0.0), (adjustments.0, 0.0), (adjustments.0, 1.0), (1.0, 1.0)]
+  } else {
+    custom.map(read_polyline).unwrap_or([]) catch {
       @failure.Failure(message~, ..) => {
         diagnostic = message
         []
       }
     }
+  }
   if kind == "unsupported" ||
     (!supported_shape(preset) && polyline.is_empty()) ||
     (

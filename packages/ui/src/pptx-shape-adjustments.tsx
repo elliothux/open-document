@@ -59,7 +59,9 @@ export function PptxShapeAdjustments({
                         ? t.shapeInnerRadius
                         : t.shapeSlant
             : guide.name === "adj1"
-              ? t.arrowShaft
+              ? first.preset === "bentConnector3"
+                ? t.connectorBend
+                : t.arrowShaft
               : t.arrowHead;
         const mixed = objects.some(
           (o) =>

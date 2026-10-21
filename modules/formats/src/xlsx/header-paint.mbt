@@ -109,6 +109,7 @@ fn Session::paint_header_footer(
     strokes: [],
     texts: [],
     cells: [],
+    anchors: [],
   }
   let mut units = 0
   for (value, footer) in [(header, false), (footer, true)] {

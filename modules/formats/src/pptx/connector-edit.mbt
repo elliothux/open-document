@@ -91,10 +91,14 @@ fn connector_axes_changes(
 ///|
 fn Session::edit_connector(
   self : Session,
+  kind : String,
   start : ConnectorEnd,
   end : ConnectorEnd,
   insert : Bool,
 ) -> Json raise @failure.Failure {
+  guard ["straight", "elbow"].contains(kind) else {
+    @failure.reject("invalid-operation", "Unknown connector kind")
+  }
   let slide = self.current()
   guard slide.read_only.is_empty() else {
     @failure.reject("protected-content", slide.read_only)
@@ -128,7 +132,7 @@ fn Session::edit_connector(
   }
   let id = if insert { self.next_object_identity() } else { "" }
   let (changes, selection) = if insert {
-    let markup = connector_markup(id, start, end)
+    let markup = connector_markup(id, kind, start, end)
     (
       [object_insertion(slide.tree, markup)],
       {
@@ -153,6 +157,63 @@ fn Session::edit_connector(
       @failure.reject("protected-content", reason)
     }
     let changes = object.connector_changes(start, end)
+    let properties = object.source.child("spPr", uri=presentation_uri).unwrap()
+    let geometry = properties.child("prstGeom").unwrap()
+    let preset = if kind == "elbow" {
+      "bentConnector3"
+    } else {
+      "straightConnector1"
+    }
+    if (object.preset == "bentConnector3") != (kind == "elbow") {
+      guard !object.source.tree.document
+        .nodes()
+        .any(node => {
+          node.start >= object.source.node.start &&
+          node.end <= object.source.node.end &&
+          node.name.has_suffix("Locks") &&
+          flag(node, "noChangeShapeType")
+        }) else {
+        @failure.reject("protected-content", "Connector type editing is locked")
+      }
+      let source = source_xml(geometry)
+      guard !source.contains("<!--") &&
+        !source.contains("<?") &&
+        geometry.node.attributes.all(a => a.uri.is_empty() && a.name == "prst") &&
+        geometry.node.text.trim().is_empty() &&
+        geometry.tree.children
+        .get(geometry.node.id)
+        .unwrap_or([])
+        .all(list => {
+          list.uri == drawing_uri &&
+          list.name == "avLst" &&
+          list.attributes.is_empty() &&
+          list.text.trim().is_empty() &&
+          geometry.tree.children
+          .get(list.id)
+          .unwrap_or([])
+          .all(node => {
+            node.uri == drawing_uri &&
+            node.name == "gd" &&
+            node.text.trim().is_empty() &&
+            node.attributes.all(a => {
+              a.uri.is_empty() && ["name", "fmla"].contains(a.name)
+            }) &&
+            geometry.tree.children.get(node.id).unwrap_or([]).is_empty()
+          })
+        }) else {
+        @failure.reject(
+          "protected-content", "Retained connector geometry is protected",
+        )
+      }
+      changes.push(
+        paint_child_change(
+          properties,
+          Some(geometry.node),
+          "<a:prstGeom xmlns:a=\"\{drawing_uri}\" prst=\"\{preset}\"><a:avLst/></a:prstGeom>",
+          [],
+        ),
+      )
+    }
     (changes, self.selection)
   }
   if changes.is_empty() {
@@ -281,10 +342,16 @@ fn Session::normalize_connectors(
 ///|
 fn connector_markup(
   id : String,
+  kind : String,
   start : ConnectorEnd,
   end : ConnectorEnd,
 ) -> String raise @failure.Failure {
   let g = connector_geometry(start, end)
-  let markup = "<p:cxnSp xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\"><p:nvCxnSpPr><p:cNvPr id=\"\{id}\" name=\"Connector \{id}\"/><p:cNvCxnSpPr>\{connector_link(start, "stCxn")}\{connector_link(end, "endCxn")}</p:cNvCxnSpPr><p:nvPr/></p:nvCxnSpPr><p:spPr><a:xfrm flipH=\"\{if g.flip_x { 1 } else { 0 }}\" flipV=\"\{if g.flip_y { 1 } else { 0 }}\"><a:off x=\"\{(g.x * 12700).round().to_int64()}\" y=\"\{(g.y * 12700).round().to_int64()}\"/><a:ext cx=\"\{(g.width * 12700).round().to_int64()}\" cy=\"\{(g.height * 12700).round().to_int64()}\"/></a:xfrm><a:prstGeom prst=\"straightConnector1\"><a:avLst/></a:prstGeom><a:noFill/><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill></a:ln></p:spPr></p:cxnSp>"
+  let preset = if kind == "elbow" {
+    "bentConnector3"
+  } else {
+    "straightConnector1"
+  }
+  let markup = "<p:cxnSp xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\"><p:nvCxnSpPr><p:cNvPr id=\"\{id}\" name=\"Connector \{id}\"/><p:cNvCxnSpPr>\{connector_link(start, "stCxn")}\{connector_link(end, "endCxn")}</p:cNvCxnSpPr><p:nvPr/></p:nvCxnSpPr><p:spPr><a:xfrm flipH=\"\{if g.flip_x { 1 } else { 0 }}\" flipV=\"\{if g.flip_y { 1 } else { 0 }}\"><a:off x=\"\{(g.x * 12700).round().to_int64()}\" y=\"\{(g.y * 12700).round().to_int64()}\"/><a:ext cx=\"\{(g.width * 12700).round().to_int64()}\" cy=\"\{(g.height * 12700).round().to_int64()}\"/></a:xfrm><a:prstGeom prst=\"\{preset}\"><a:avLst/></a:prstGeom><a:noFill/><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill></a:ln></p:spPr></p:cxnSp>"
   markup
 }

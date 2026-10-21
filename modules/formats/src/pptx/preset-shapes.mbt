@@ -4,8 +4,14 @@ fn arrow_shape(preset : String) -> Bool {
 }
 
 ///|
+fn line_shape(preset : String) -> Bool {
+  ["line", "bentConnector3"].contains(preset)
+}
+
+///|
 fn supported_shape(preset : String) -> Bool {
   ["rect", "ellipse", "line", "roundRect"].contains(preset) ||
+  preset == "bentConnector3" ||
   arrow_shape(preset) ||
   polygon_shape(preset)
 }
@@ -27,7 +33,10 @@ fn read_shape_adjustments(
     _ => 0.5
   }
   let mut second = 0.5
-  if !single && !arrow_shape(preset) && preset != "pentagon" {
+  if !single &&
+    !arrow_shape(preset) &&
+    preset != "pentagon" &&
+    preset != "bentConnector3" {
     return (first, second)
   }
   if geometry.bind(source => source.child("avLst")) is Some(list) {
@@ -48,7 +57,8 @@ fn read_shape_adjustments(
           (if single {
             name == "adj"
           } else {
-            arrow_shape(preset) && ["adj1", "adj2"].contains(name)
+            (arrow_shape(preset) && ["adj1", "adj2"].contains(name)) ||
+            (preset == "bentConnector3" && name == "adj1")
           })
         ) &&
         !seen.contains(name) &&
@@ -60,6 +70,14 @@ fn read_shape_adjustments(
       seen[name] = true
       let value = number(formula[4:].trim().to_owned(), -2147483648, 2147483647) /
         100000
+      if preset == "bentConnector3" {
+        // shortcut: Out-of-frame bends need expanded object bounds before editing support.
+        guard value >= 0 && value <= 1 else {
+          @failure.reject(
+            "unsupported-geometry", "Connector bend lies outside its frame",
+          )
+        }
+      }
       if factor is Some(expected) {
         // shortcut: Nondefault normalization guides stay protected until custom preset guides are supported.
         guard value == expected else {

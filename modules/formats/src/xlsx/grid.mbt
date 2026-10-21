@@ -251,6 +251,9 @@ fn Session::paint_cells(
         mirror_width,
         sheet.view.rtl,
       )
+      if printing {
+        page.anchors.push((range, rect))
+      }
       if !style.fill.is_empty() {
         page.fills.push({
           x: rect.x,

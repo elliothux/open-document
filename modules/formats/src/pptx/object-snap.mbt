@@ -395,7 +395,7 @@ pub fn Session::drag(
   let object = slide.object(self.selection.object)
   let center = center &&
     handle > 0 &&
-    !(self.selection.objects.length() == 1 && object.preset == "line")
+    !(self.selection.objects.length() == 1 && line_shape(object.preset))
   let aspect = handle > 0 &&
     (
       shift ||
@@ -451,7 +451,7 @@ pub fn Session::drag(
     self.object_edit_reason(object, "flip").is_empty()
   let flip_x = initial.flip_x != (can_flip && raw_width < 0)
   let flip_y = initial.flip_y != (can_flip && raw_height < 0)
-  let minimum = if object.preset == "line" { 0.0 } else { 0.1 }
+  let minimum = if line_shape(object.preset) { 0.0 } else { 0.1 }
   let mut width = (if can_flip { raw_width.abs() } else { raw_width }).max(
     minimum,
   )

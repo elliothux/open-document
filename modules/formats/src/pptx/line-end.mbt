@@ -76,29 +76,41 @@ fn LineEnd::size(self : LineEnd, pen : Double) -> (Double, Double) {
 }
 
 ///|
-fn line_end_matrix(geometry : Geometry, head : Bool) -> @layout.Matrix? {
-  let length = (geometry.width * geometry.width +
-  geometry.height * geometry.height).sqrt()
-  guard length > 0 else { return None }
-  let sign = if head { 1.0 } else { -1.0 }
-  let dx = sign * geometry.width / length
-  let dy = sign * geometry.height / length
-  Some({
-    a: dx,
-    b: dy,
-    c: dy,
-    d: -dx,
-    e: if head {
-      0
+fn Object::line_end_matrix(
+  self : Object,
+  geometry : Geometry,
+  head : Bool,
+) -> @layout.Matrix? {
+  let points = if self.polyline.is_empty() {
+    [(0.0, 0.0), (1.0, 1.0)]
+  } else {
+    self.polyline
+  }
+  let end = if head { points[0] } else { points.last().unwrap() }
+  for
+    point in (if head {
+      points[1:].to_owned()
     } else {
-      geometry.width
-    },
-    f: if head {
-      0
-    } else {
-      geometry.height
-    },
-  })
+      points[:points.length() - 1].rev()
+    }) {
+    let vx = (point.0 - end.0) * geometry.width
+    let vy = (point.1 - end.1) * geometry.height
+    let length = (vx * vx + vy * vy).sqrt()
+    if length == 0 {
+      continue
+    }
+    let dx = vx / length
+    let dy = vy / length
+    return Some({
+      a: dx,
+      b: dy,
+      c: dy,
+      d: -dx,
+      e: end.0 * geometry.width,
+      f: end.1 * geometry.height,
+    })
+  }
+  None
 }
 
 ///|
@@ -147,11 +159,12 @@ fn Object::draw_line_ends(
   geometry : Geometry,
 ) -> Array[@layout.PositionedPrimitive] raise @failure.Failure {
   let result : Array[@layout.PositionedPrimitive] = []
-  if self.preset != "line" || self.stroke.is_empty() {
+  if !line_shape(self.preset) || self.stroke.is_empty() {
     return result
   }
   for (head, end) in [(true, self.ends.0), (false, self.ends.1)] {
-    if end.kind != "none" && line_end_matrix(geometry, head) is Some(matrix) {
+    if end.kind != "none" &&
+      self.line_end_matrix(geometry, head) is Some(matrix) {
       result.append([
         Transform(matrix),
         Path(
@@ -200,7 +213,7 @@ fn Object::line_end_hit(
     if end.kind == "none" {
       continue
     }
-    guard line_end_matrix(geometry, head) is Some(matrix) else { continue }
+    guard self.line_end_matrix(geometry, head) is Some(matrix) else { continue }
     let (x, y) = matrix.inverse().point(x, y)
     if end.kind == "oval" {
       let (length, width) = end.size(self.line_width)

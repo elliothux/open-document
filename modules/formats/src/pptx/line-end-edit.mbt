@@ -4,8 +4,8 @@ fn Session::line_end_reason(self : Session, object : Object) -> String {
   if !reason.is_empty() {
     return reason
   }
-  if object.preset != "line" {
-    return "Line ends require a straight line"
+  if !line_shape(object.preset) {
+    return "Line ends require a supported line"
   }
   try {
     for node in object.source.tree.document.nodes() {

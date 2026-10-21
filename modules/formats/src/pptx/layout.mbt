@@ -300,6 +300,7 @@ fn paint_slide(
             },
           ),
         )
+        primitives.append(object.draw_line_ends(geometry))
       } else if object.kind == "image" && object.image is Some(_) {
         if object.preset == "rect" {
           primitives.push(

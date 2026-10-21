@@ -1524,11 +1524,11 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 默认面板提供地址、应用、混合移除及显式打开，原生草稿沿既有队列提交。打开文件、查询、设置链接和打印均不请求外链；外部打开使用新窗口及 `noopener noreferrer`。内部打开调用 `{ action: "openHyperlink", range, sourceRevision }`，核心检查当前选区与修订后定位，不增加历史。无效或隐藏目标返回 navigationReason，保留源并拒绝跳转。
 
-已有改名、复制、删除工作表及行列/单元格结构事务继续更新普通链接范围与内部引用；名称改名同步内部 location，外部文件的 location 保持原值。删除定义名称时移除因此失去矩形目标的已知链接，包括名称别名链；其他已失效引用保留导航原因。保存重开支持继续编辑，链接和关系与原生输入、结构修改可精确混合撤销。PDF 已保留普通单元格的外链注释，范围见下段。内部引用的 PDF 跳转、HYPERLINK 函数及绘图对象链接继续实施。
+已有改名、复制、删除工作表及行列/单元格结构事务继续更新普通链接范围与内部引用；名称改名同步内部 location，外部文件的 location 保持原值。删除定义名称时移除因此失去矩形目标的已知链接，包括名称别名链；其他已失效引用保留导航原因。保存重开支持继续编辑，链接和关系与原生输入、结构修改可精确混合撤销。PDF 已保留普通单元格的外链及内部目标注释，范围见下段。HYPERLINK 函数及绘图对象链接继续实施。
 
-既有 PDF 导出自动将本次实际打印的 HTTP、HTTPS、mailto 文字链接写为无边框注释。矩形来自核心文字块的实际位置，按单元格和纸张裁剪，保留对齐、换行、RTL、缩放、重复标题、多区域及多表页序。隐藏行列和空白文字不生成注释，不扩张打印范围。重叠链接或只覆盖部分合并格的链接保护打印；原有未知元数据和地址校验保持。内部 location 按 [ONLYOFFICE 打印行为](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L6734-L6744)只保留文字。导出不改工作簿、选区、历史或未保存状态，也不请求链接地址。
+既有 PDF 导出自动将本次实际打印的 HTTP、HTTPS、mailto 文字链接写为无边框注释。矩形来自核心文字块的实际位置，按单元格和纸张裁剪，保留对齐、换行、RTL、缩放、重复标题、多区域及多表页序。隐藏行列和空白文字不生成注释，不扩张打印范围。重叠链接或只覆盖部分合并格的链接保护打印；原有未知元数据和地址校验保持。内部 location 复用当前表、跨表及作用域名称解析，目标矩形的左上角映射到本次输出的实际格位置；合并格使用所属主格，空白目标也可定位。重复标题和多个区域中的同格使用首次打印位置。未输出、隐藏、缺失或不能解析为单一矩形的目标只保留文字。ONLYOFFICE [表格打印](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L6734-L6744)省略内部链接；本 SDK 扩展沿既有 [PDF 页目标语义](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/PdfWriter.cpp#L1207-L1227)输出 `GoTo/XYZ`。导出不改工作簿、选区、历史或未保存状态，也不请求链接地址。
 
-核心打印结果的 `PositionedDocument.links` 随页面一起缓存，PDF 复用[现有链接注释](#docx-pdf-文字链接)序列化。每次最多 65536 个注释矩形、8388608 次链接与文字片段比较，继续执行既有打印及 PDF 字节预算。实现归 [`print-links.mbt`](../../modules/formats/src/xlsx/print-links.mbt)与 [`print.mbt`](../../modules/formats/src/xlsx/print.mbt)，未复制上游执行代码。
+核心打印结果的 `PositionedDocument.links` 随页面一起缓存，PDF 复用[现有链接注释](#docx-pdf-文字链接)序列化。每次最多 65536 个注释矩形、8388608 次链接与文字片段比较；目标解析共用本次打印的 1048576 项公式工作预算，继续执行既有打印及 PDF 字节预算。实现归 [`print-links.mbt`](../../modules/formats/src/xlsx/print-links.mbt)与 [`print.mbt`](../../modules/formats/src/xlsx/print.mbt)，未复制上游执行代码。
 
 实现归 [`hyperlink-query.mbt`](../../modules/formats/src/xlsx/hyperlink-query.mbt) 和 [`hyperlink-edit.mbt`](../../modules/formats/src/xlsx/hyperlink-edit.mbt)。范围查找、设置/移除及保留直接格式的语义参考固定 [ONLYOFFICE Range hyperlinks](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L20760-L20849)，复用第一方范围拆分、关系与历史事务，未复制上游代码。
 
@@ -2452,11 +2452,11 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 ### 直线端点样式
 
-`editObjects({ action: "lineEnd", side, end })` 修改所选本地顶层直线的端点样式。`side` 为 `head/tail`，分别对应路径起点的 `headEnd` 和终点的 `tailEnd`。`end` 为 `{ kind, width, length }`：`kind` 接受 `none/triangle/stealth/diamond/oval/arrow`，分别为无、实心三角、凹尾、菱形、椭圆和开放箭头；宽度与长度各接受 `sm/med/lg`。`end=null` 移除该端的局部声明并恢复继承，`kind="none"` 显式覆盖继承。MoonBit 类型为 `LineEnd`，Wasm/Web 类型为 `PptxLineEnd`；查询返回 `appearance.headEnd/tailEnd/lineEndReason`，默认面板提供两端独立设置、混合状态和恢复按钮。
+`editObjects({ action: "lineEnd", side, end })` 修改所选本地顶层直线或已知折线连接线的端点样式。`side` 为 `head/tail`，分别对应路径起点的 `headEnd` 和终点的 `tailEnd`。`end` 为 `{ kind, width, length }`：`kind` 接受 `none/triangle/stealth/diamond/oval/arrow`，分别为无、实心三角、凹尾、菱形、椭圆和开放箭头；宽度与长度各接受 `sm/med/lg`。`end=null` 移除该端的局部声明并恢复继承，`kind="none"` 显式覆盖继承。MoonBit 类型为 `LineEnd`，Wasm/Web 类型为 `PptxLineEnd`；查询返回 `appearance.headEnd/tailEnd/lineEndReason`，默认面板提供两端独立设置、混合状态和恢复按钮。
 
-尺寸使用有效线宽的 2/3/5 倍，细线以 1.875 pt 为最低基准。该值将上游的 2.5 px 最小尺寸固定到源坐标，预览缩放与 DPR 不改变 PDF 几何。三角、凹尾和开放箭头朝外，菱形与椭圆以端点为中心；端点沿直线方向、旋转、翻转和既有组矩阵绘制。轮廓参与核心命中，使用边框颜色和不透明度，保持主体虚线而以实线绘制端点。Canvas/PDF 复用相同路径。零长度线不派生端点轮廓，保留原源。
+尺寸使用有效线宽的 2/3/5 倍，细线以 1.875 pt 为最低基准。该值将上游的 2.5 px 最小尺寸固定到源坐标，预览缩放与 DPR 不改变 PDF 几何。三角、凹尾和开放箭头朝外，菱形与椭圆以端点为中心；端点沿实际首末非零线段方向、旋转、翻转和既有组矩阵绘制；支持普通直线及已知折线连接线。轮廓参与核心命中，使用边框颜色和不透明度，保持主体虚线而以实线绘制端点。Canvas/PDF 复用相同路径。零长度线不派生端点轮廓，保留原源。
 
-导入读取局部、版式/母版及主题声明，缺省为无端点和中尺寸。编辑只替换指定节点，保留线宽、颜色、几何、文字、身份及其他部件；多选共享原子事务、精确历史和保存重开。重复直接值不增加历史。`noChangeArrowheads` 锁、只读/继承/组内对象、未知类型/尺寸/属性/子节点、重复声明、端点内注释及预算失败继续保护。连接线端点拖动及目标联动见[直线连接线](#直线连接线)。尺寸参考 [ONLYOFFICE EndArrow](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L7331-L7400)，轮廓参考 [DrawLineEnd](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L51-L500)；未复制上游源码。实现归 [`line-end.mbt`](../../modules/formats/src/pptx/line-end.mbt)、[`line-end-edit.mbt`](../../modules/formats/src/pptx/line-end-edit.mbt)及 [`pptx-line-ends.tsx`](../../packages/ui/src/pptx-line-ends.tsx)。
+导入读取局部、版式/母版及主题声明，缺省为无端点和中尺寸。编辑只替换指定节点，保留线宽、颜色、几何、文字、身份及其他部件；多选共享原子事务、精确历史和保存重开。重复直接值不增加历史。`noChangeArrowheads` 锁、只读/继承/组内对象、未知类型/尺寸/属性/子节点、重复声明、端点内注释及预算失败继续保护。连接线端点拖动及目标联动见[连接线](#连接线)。尺寸参考 [ONLYOFFICE EndArrow](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L7331-L7400)，轮廓参考 [DrawLineEnd](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L51-L500)；未复制上游源码。实现归 [`line-end.mbt`](../../modules/formats/src/pptx/line-end.mbt)、[`line-end-edit.mbt`](../../modules/formats/src/pptx/line-end-edit.mbt)及 [`pptx-line-ends.tsx`](../../packages/ui/src/pptx-line-ends.tsx)。
 
 主题颜色支持 sRGB、带 `lastClr` 的系统色、主题/颜色映射以及 tint、shade、lumMod、lumOff。支持无填充、纯色填充、实线及标准预设虚线、主题填充/边框/背景引用和无效果样式。未知颜色变换、填充或可见效果保留源并诊断，不静默宣称完整。占位符依类型/索引匹配，当前属性按具体声明覆盖继承值；写回不修改共享主题、母版或版式。
 
@@ -2537,17 +2537,19 @@ list 使用 `PptxListFormat`：`{ kind: "none" }`、`{ kind: "bullet", value }` 
 
 P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增量创作能力与剩余范围归 [P12](../p12-pptx-core.md)。Chromium 受控输入事件已验证；没有追加系统输入源、Windows/PowerPoint、VoiceOver、其他浏览器或性能验收。
 
-### 直线连接线
+### 连接线
 
-`PresentationEditor.editObjects({ action: "insertConnector", start, end })` 创建原生 `p:cxnSp` / `straightConnector1`。`connectorEndpoints` 用相同两端参数修改唯一选中的连接线。MoonBit 使用 `ConnectorEnd`，Wasm/Web 导出 `PptxConnectorEnd`：`{ x, y, target, site }`。坐标使用磅；`target=""` 表示自由端点，`site` 必须为 0。创建时连接线及目标位于顶层。编辑时 `target` 须属于同一源部件、同一直接父容器；坐标由目标的原生连接点计算，输入坐标仍须有限且有界。自由端点与查询端点始终使用页面坐标。
+`PresentationEditor.editObjects({ action: "insertConnector", kind, start, end })` 创建原生 `p:cxnSp`。必填 `kind` 为 `straight` 或 `elbow`，分别写 `straightConnector1` 或三段折线 `bentConnector3`。`connectorEndpoints` 用相同的类型和两端参数修改唯一选中的连接线；显式切换类型与端点修改合为一项历史，新类型恢复默认调节点。MoonBit 使用 `InsertConnector(kind, start, end)` / `ConnectorEndpoints(kind, start, end)` 及 `ConnectorEnd`，Wasm/Web 导出 `PptxConnectorEnd`：`{ x, y, target, site }`。坐标使用磅；`target=""` 表示自由端点，`site` 必须为 0。创建时连接线及目标位于顶层。编辑时 `target` 须属于同一源部件、同一直接父容器；坐标由目标的原生连接点计算，输入坐标仍须有限且有界。自由端点与查询端点始终使用页面坐标。
 
 矩形、圆角矩形及矩形图片支持 0 上、1 左、2 下、3 右。椭圆支持 0 上、1 左上、2 左、3 左下、4 下、5 右下、6 右、7 右上。连接点经过目标的旋转和翻转矩阵，再量化为整数 EMU。目标移动、独立宽高缩放、旋转、翻转和框适配时，同一事务更新连接线的 `xfrm`，保留 `stCxn/endCxn` 引用。变换候选使用相同规则，取消不写源。母版和版式沿源视图编辑，普通页继续保护继承对象。
 
-`PptxObject.connector` 对连接线返回 `{ start, end, reason }`，其他对象为 `null`。无法解析端点时返回两个 `null` 及保护原因。默认面板可创建连接线，选择两端的对象和命名连接点，修改自由坐标或断开连接。线宽、颜色、虚线、装饰及 Canvas/PDF 路径复用既有直线实现。端点写入和目标联动各随本次编辑形成一项历史，保存重开后保留原生连接关系。
+`PptxObject.connector` 对连接线返回 `{ kind, start, end, reason }`，其他对象为 `null`。无法解析端点时，类型和两端均为 `null`，并返回保护原因。默认面板可创建或切换连接线类型，选择两端的对象和命名连接点，修改自由坐标或断开连接。线宽、颜色、虚线、装饰及 Canvas/PDF 路径复用既有直线实现。端点写入和目标联动各随本次编辑形成一项历史，保存重开后保留原生连接关系。
+
+三段折线的原生 `adj1` 指定转折横坐标，缺省为框宽的 50%；当前支持框内 0–100%，原生导入、现有形状调节面板及拖动手柄使用同一值，恢复时移除局部声明。主体沿起点、转折上端、转折下端、终点绘制；箭头取实际首末非零段方向，水平或垂直退化仍保持。命中、Canvas 与 PDF 共用该路径。目标联动、端点拖动及组合复制保留类型与调节点；显式切换类型受 `noChangeShapeType` 锁保护。框外调节点、未知或含注释的几何替换继续保护源，不自动规划避障路径。依据 [ONLYOFFICE 折线预设](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L1222-L1232)。
 
 单选受支持连接线时，`selectionPptx.handles` 按起点、终点返回两个实际页面坐标。默认画布可直接拖动这两个手柄；`beginPptx` 使用 `kind="connector"`，`dragPptx` 的 `handle=1/2` 对应起点/终点，`dx/dy` 始终相对手势起始端点，另一端保持。可选 `tolerance` 为 0–64 pt，缺省 0 表示不吸附；默认宿主按当前预览比例换算 6 CSS px，不乘 DPR。核心按上层对象优先、原生连接点索引顺序寻找半径内的同一直接父容器中的本地受支持目标，沿用上述旋转/翻转和 EMU 量化。离开连接点范围后，该端变为自由端点。候选只更新临时页，释放时写回端点及连接关系并提交一项历史，返回起始状态不增加历史；Escape、指针取消及丢失捕获沿原候选取消路径恢复。旧 revision/候选、错误手柄、越界、退化为零长度、锁定和输出预算失败保持最后有效候选与已提交源。
 
-有连接的线通过画布端点或面板修改，直接变换继续保护。连接线与全部引用目标同时选择时可组合或复制；整个组可复制，副本的原生引用映射到副本目标。同一直接父容器中的闭合图形支持组内端点编辑/吸附、成员移动/旋转、组缩放/旋转/翻转、嵌套及取消/再次组合。核心逆变换页面端点并写整数 EMU，复用既有组边界归一化，候选与提交保持一致。重复原生端点及连接关系不增加历史。默认列表选择连接线时进入对象模式。拆散引用的组合/复制、仍被外部引用的目标删除、跨父容器连接、折线/曲线及其他预设连接点继续保护。未知连接元数据、非整数或越界索引、失去目标、锁定和输出预算失败保留源与历史；受保护连接线也阻止其目标发生无法写回的几何变化。沿用对象数量、坐标、XML、历史和输出预算。
+有连接的线通过画布端点或面板修改，直接变换继续保护。连接线与全部引用目标同时选择时可组合或复制；整个组可复制，副本的原生引用映射到副本目标。同一直接父容器中的闭合图形支持组内端点编辑/吸附、成员移动/旋转、组缩放/旋转/翻转、嵌套及取消/再次组合。核心逆变换页面端点并写整数 EMU，复用既有组边界归一化，候选与提交保持一致。重复原生端点及连接关系不增加历史。默认列表选择连接线时进入对象模式。拆散引用的组合/复制、仍被外部引用的目标删除、跨父容器连接、曲线、其他折线预设及其他预设连接点继续保护。未知连接元数据、非整数或越界索引、失去目标、锁定和输出预算失败保留源与历史；受保护连接线也阻止其目标发生无法写回的几何变化。沿用对象数量、坐标、XML、历史和输出预算。
 
 实现归 [`connector.mbt`](../../modules/formats/src/pptx/connector.mbt)、[`connector-edit.mbt`](../../modules/formats/src/pptx/connector-edit.mbt)、[`connector-gesture.mbt`](../../modules/formats/src/pptx/connector-gesture.mbt)及 [`pptx-connectors.tsx`](../../packages/ui/src/pptx-connectors.tsx)。吸附规则参考 [ONLYOFFICE ResizeTrackShapeImage](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L370-L450)及 [Geometry.findConnector](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Geometry.js#L1174-L1187)。组内连接重算及父组逆变换参考 [ONLYOFFICE CnxShape](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CnxShape.js#L624-L684)。原生点顺序参考 ONLYOFFICE `CreateGeometry` 的[矩形](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L6741)、[椭圆](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L3100)、[圆角矩形](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L7195)和[直线连接线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L8272)，未复制上游执行代码。
 
@@ -2591,7 +2593,7 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 默认面板提供三种模板及逐行标签，位置和大小使用现有对象输入，并说明保存为可编辑形状和连接线。一次插入一项历史，成功后选中新组。文字放不进节点、缺字体、身份耗尽、资源或输出预算失败时整项拒绝，保留源和选择，不消耗身份。画布、重开及 PDF 共用已有图元。原生 SmartArt 导入及更广模板兼容归 P14。
 
-实现归 [`diagram.mbt`](../../modules/formats/src/pptx/diagram.mbt)、[`object-markup.mbt`](../../modules/formats/src/pptx/object-markup.mbt)及 [`pptx-diagram.tsx`](../../packages/ui/src/pptx-diagram.tsx)。模板布局是 SDK 的简化规则；底层对象参考 [ONLYOFFICE SmartArt 形状生成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/SmartArts/SmartArtTree.js#L1838-L1864)，未复制其执行代码。连接点规则归[直线连接线](#直线连接线)。
+实现归 [`diagram.mbt`](../../modules/formats/src/pptx/diagram.mbt)、[`object-markup.mbt`](../../modules/formats/src/pptx/object-markup.mbt)及 [`pptx-diagram.tsx`](../../packages/ui/src/pptx-diagram.tsx)。模板布局是 SDK 的简化规则；底层对象参考 [ONLYOFFICE SmartArt 形状生成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/SmartArts/SmartArtTree.js#L1838-L1864)，未复制其执行代码。连接点规则归[连接线](#连接线)。
 
 ### 对象超链接
 

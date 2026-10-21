@@ -194,6 +194,7 @@ fn Session::hyperlink_destination(
   sheet : Int,
   origin : Address,
   target : String,
+  work? : FormulaWork,
 ) -> (String, Range) raise @failure.Failure {
   check_hyperlink_target(target)
   guard target.has_prefix("#") else {
@@ -201,12 +202,14 @@ fn Session::hyperlink_destination(
       "invalid-operation", "External hyperlinks require an explicit platform open",
     )
   }
-  let work : FormulaWork = {
+  let work = work.unwrap_or_else(() => {
     remaining: 1048576,
     date1904: self.date1904,
     origin,
     names: self.formula_names(),
-  }
+  })
+  work.spend(amount=target.length())
+  work.origin = origin
   let expression = parse_formula(target[1:].to_owned()).resolve_names(
     self.sheets,
     sheet,

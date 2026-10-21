@@ -233,7 +233,7 @@ fn Object::promoted_geometry(
     (
       (target.width > 0 && target.height > 0) ||
       (
-        self.preset == "line" &&
+        line_shape(self.preset) &&
         target.width >= 0 &&
         target.height >= 0 &&
         target.width + target.height > 0

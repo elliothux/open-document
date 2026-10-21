@@ -119,8 +119,8 @@ pub fn MediaPlaybackSettings::not_equal(Self, Self) -> Bool
 pub(all) enum ObjectEdit {
   InsertWordArt(String, String)
   InsertDiagram(DiagramSettings)
-  InsertConnector(ConnectorEnd, ConnectorEnd)
-  ConnectorEndpoints(ConnectorEnd, ConnectorEnd)
+  InsertConnector(String, ConnectorEnd, ConnectorEnd)
+  ConnectorEndpoints(String, ConnectorEnd, ConnectorEnd)
   Insert(String, Double, Double, Double, Double, String)
   InsertPlaceholder(String, Double, Double, Double, Double, String)
   Placeholder(String?, Double)

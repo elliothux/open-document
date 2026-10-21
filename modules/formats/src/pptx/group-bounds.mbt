@@ -247,7 +247,7 @@ fn Slide::normalized_group_changes(
       (
         (width > 0 && height > 0) ||
         (
-          object.preset == "line" &&
+          line_shape(object.preset) &&
           width >= 0 &&
           height >= 0 &&
           width + height > 0

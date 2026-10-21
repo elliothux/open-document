@@ -8,6 +8,7 @@ priv struct PagePaint {
   strokes : Array[(@layout.Border, String, Double)]
   texts : Array[(Array[@layout.PositionedPrimitive], @layout.Border)]
   cells : Array[(Range, @layout.Border)]
+  anchors : Array[(Range, @layout.Border)]
 }
 
 ///|

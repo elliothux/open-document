@@ -21,6 +21,9 @@ export function PptxConnectors({
     query = editor.query;
   const selected = query.objects.find((o) => o.id === query.selection.object);
   const connector = selected?.connector;
+  const [kind, setKind] = useState<"straight" | "elbow">(
+    !insert && connector?.kind ? connector.kind : "straight",
+  );
   const [points, setPoints] = useState<PptxConnectorEnd[]>(
     !insert && connector?.start && connector.end
       ? [connector.start, connector.end]
@@ -38,6 +41,7 @@ export function PptxConnectors({
         controller.run(() =>
           editor.editObjects({
             action: insert ? "insertConnector" : "connectorEndpoints",
+            kind,
             start: points[0]!,
             end: points[1]!,
           }),
@@ -54,6 +58,20 @@ export function PptxConnectors({
         }
       >
         <legend>{insert ? t.insertConnector : t.connectorEndpoints}</legend>
+        <label>
+          {t.connectorKind}
+          <select
+            value={kind}
+            onChange={(event) =>
+              setKind(
+                event.currentTarget.value === "elbow" ? "elbow" : "straight",
+              )
+            }
+          >
+            <option value="straight">{t.connectorStraight}</option>
+            <option value="elbow">{t.connectorElbow}</option>
+          </select>
+        </label>
         {points.map((point, index) => {
           const target = query.objects.find((o) => o.id === point.target);
           const set = (patch: Partial<PptxConnectorEnd>) =>

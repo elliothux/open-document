@@ -2,8 +2,8 @@
 pub(all) enum ObjectEdit {
   InsertWordArt(String, String)
   InsertDiagram(DiagramSettings)
-  InsertConnector(ConnectorEnd, ConnectorEnd)
-  ConnectorEndpoints(ConnectorEnd, ConnectorEnd)
+  InsertConnector(String, ConnectorEnd, ConnectorEnd)
+  ConnectorEndpoints(String, ConnectorEnd, ConnectorEnd)
   Insert(String, Double, Double, Double, Double, String)
   InsertPlaceholder(String, Double, Double, Double, Double, String)
   Placeholder(String?, Double)
@@ -398,11 +398,11 @@ pub fn Session::edit_objects(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   self.check_idle()
-  if change is InsertConnector(start, end) {
-    return self.edit_connector(start, end, true)
+  if change is InsertConnector(kind, start, end) {
+    return self.edit_connector(kind, start, end, true)
   }
-  if change is ConnectorEndpoints(start, end) {
-    return self.edit_connector(start, end, false)
+  if change is ConnectorEndpoints(kind, start, end) {
+    return self.edit_connector(kind, start, end, false)
   }
   let original = self.current()
   guard original.read_only.is_empty() else {
@@ -547,8 +547,8 @@ pub fn Session::edit_objects(
   let (changes, after) = match change {
     InsertWordArt(_, _)
     | InsertDiagram(_)
-    | InsertConnector(_, _)
-    | ConnectorEndpoints(_, _)
+    | InsertConnector(_, _, _)
+    | ConnectorEndpoints(_, _, _)
     | InsertImage(_, _, _, _, _)
     | InsertMedia(_, _, _, _, _, _, _, _)
     | MediaPlayback(_)

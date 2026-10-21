@@ -27,10 +27,10 @@ fn object_hit(
   let width = geometry.width
   let height = geometry.height
   let margin = tolerance + object.line_width / 2
-  if object.preset == "line" && object.line_end_hit(geometry, x, y, margin) {
+  if line_shape(object.preset) && object.line_end_hit(geometry, x, y, margin) {
     return true
   }
-  let bounds = if object.preset == "line" && object.cap == "sq" {
+  let bounds = if line_shape(object.preset) && object.cap == "sq" {
     margin * 1.4142135623730951
   } else {
     margin
@@ -51,7 +51,7 @@ fn object_hit(
   if !object.polyline.is_empty() {
     return object.polyline_hit(geometry, x, y, margin)
   }
-  if object.preset == "line" {
+  if line_shape(object.preset) {
     let square = width * width + height * height
     let dot = x * width + y * height
     if square > 0 && object.cap != "rnd" {

@@ -3,7 +3,7 @@ fn size_snap_frame(object : Object) -> Geometry? {
   guard object.parent.is_empty() &&
     object.kind != "image" &&
     object.source.node.name != "cxnSp" &&
-    object.preset != "line" &&
+    !line_shape(object.preset) &&
     object.geometry is Some(g) &&
     g.rotation == 0 &&
     g.matrix.b.abs() < 1.0e-12 &&

@@ -1,5 +1,9 @@
 export const connectorEn = {
   insertConnector: "Insert connector",
+  connectorKind: "Connector type",
+  connectorStraight: "Straight",
+  connectorElbow: "Elbow",
+  connectorBend: "Connector bend (%)",
   connectorEndpoints: "Connector endpoints",
   connectorStart: "Start endpoint",
   connectorEnd: "End endpoint",
@@ -18,6 +22,10 @@ export const connectorEn = {
 };
 export const connectorZh: typeof connectorEn = {
   insertConnector: "插入连接线",
+  connectorKind: "连接线类型",
+  connectorStraight: "直线",
+  connectorElbow: "折线",
+  connectorBend: "折线转折位置（%）",
   connectorEndpoints: "连接线端点",
   connectorStart: "起点",
   connectorEnd: "终点",

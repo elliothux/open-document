@@ -18,15 +18,23 @@ fn pptx_connector_end(
 ///|
 fn pptx_connector_edit(value : Json) -> @pptx.ObjectEdit raise @failure.Failure {
   guard value is Object(fields) &&
-    fields.length() == 3 &&
-    fields.keys().all(k => ["action", "start", "end"].contains(k)) &&
+    fields.length() == 4 &&
+    fields.keys().all(k => ["action", "kind", "start", "end"].contains(k)) &&
     fields.get("start") is Some(start) &&
     fields.get("end") is Some(end) else {
     @failure.reject("invalid-operation", "Connector endpoints are required")
   }
   if field_string(value, "action") == "insertConnector" {
-    @pptx.InsertConnector(pptx_connector_end(start), pptx_connector_end(end))
+    @pptx.InsertConnector(
+      field_string(value, "kind"),
+      pptx_connector_end(start),
+      pptx_connector_end(end),
+    )
   } else {
-    @pptx.ConnectorEndpoints(pptx_connector_end(start), pptx_connector_end(end))
+    @pptx.ConnectorEndpoints(
+      field_string(value, "kind"),
+      pptx_connector_end(start),
+      pptx_connector_end(end),
+    )
   }
 }

@@ -172,7 +172,7 @@ fn Session::transform_collection(
       next.y,
       next.width,
       next.height,
-      object.preset == "line",
+      line_shape(object.preset),
     )
     {
       ..object,
@@ -241,7 +241,7 @@ fn Session::drag_collection(
   for object_id in self.selection.objects {
     let object = original.object(object_id)
     let g = object.geometry.unwrap()
-    let (x, y) = if object.preset == "line" {
+    let (x, y) = if line_shape(object.preset) {
       let scale = 0.1 / (g.width + g.height)
       (scale, scale)
     } else if g.resize_swaps_axes() {

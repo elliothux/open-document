@@ -33,7 +33,7 @@ fn Object::local_geometry(
     (
       (result.width > 0 && result.height > 0) ||
       (
-        self.preset == "line" &&
+        line_shape(self.preset) &&
         result.width >= 0 &&
         result.height >= 0 &&
         result.width + result.height > 0

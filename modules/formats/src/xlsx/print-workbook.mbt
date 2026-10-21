@@ -10,10 +10,12 @@ priv struct PrintWork {
   mut cells : Int64
   mut pages : Int
   formulas : FormulaWork
+  destinations : Map[(String, Int, Int), @layout.LinkTarget]
 }
 
 ///|
 priv struct PrintedSheet {
+  id : String
   name : String
   setup : @layout.PageSetup
   scale : Double
@@ -72,6 +74,7 @@ pub fn Session::print_layout(
   let work : PrintWork = {
     cells: 0L,
     pages: 0,
+    destinations: Map([]),
     formulas: {
       remaining: 1048576,
       date1904: self.date1904,
@@ -105,5 +108,9 @@ pub fn Session::print_layout(
     }
   }
   self.font_context = Some((probe, profile.copy()))
-  { pages, fonts: probe.font_info(), links: self.print_page_links(planned), }
+  {
+    pages,
+    fonts: probe.font_info(),
+    links: self.print_page_links(planned, work.destinations, work.formulas),
+  }
 }

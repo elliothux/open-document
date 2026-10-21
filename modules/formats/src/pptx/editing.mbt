@@ -661,7 +661,7 @@ fn Session::preview_transform(
     }
   }
   let original = self.source_slide(self.selection.slide)
-  let line = original.object(self.selection.object).preset == "line"
+  let line = line_shape(original.object(self.selection.object).preset)
   guard (width >= 0.1 && height >= 0.1) ||
     (line && width >= 0 && height >= 0 && width + height >= 0.1) else {
     @failure.reject("invalid-transform", "Object size must be positive")

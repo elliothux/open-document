@@ -117,7 +117,7 @@ fn Session::position_objects(
       target.y,
       target.width,
       target.height,
-      object.preset == "line",
+      line_shape(object.preset),
     )
     if delta != 0 && (target.x != geometry.x || target.y != geometry.y) {
       changes.append(transform_changes(object, target))

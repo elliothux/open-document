@@ -112,6 +112,7 @@ fn Session::insert_diagram(
     content.write_string(
       connector_markup(
         (count + index + 2).to_string(),
+        "straight",
         endpoint(a, first, start_site),
         endpoint(b, last, end_site),
       ).replace(old="</a:ln>", new="<a:tailEnd type=\"triangle\"/></a:ln>"),

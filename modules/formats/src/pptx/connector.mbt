@@ -25,9 +25,9 @@ fn connector_frame_changed(before : Geometry, after : Geometry) -> Bool {
 
 ///|
 fn Object::connector_properties(self : Object) -> Ref raise @failure.Failure {
-  guard self.source.node.name == "cxnSp" && self.preset == "line" else {
+  guard self.source.node.name == "cxnSp" && line_shape(self.preset) else {
     @failure.reject(
-      "protected-content", "Endpoint editing requires a straight connector",
+      "protected-content", "Endpoint editing requires a supported connector",
     )
   }
   self.source
@@ -247,12 +247,22 @@ fn Session::connector_query(self : Session, object : Object) -> Json {
   try {
     let (start, end) = object.connector_ends()
     {
+      "kind": if object.preset == "bentConnector3" {
+        "elbow"
+      } else {
+        "straight"
+      },
       "start": start,
       "end": end,
       "reason": self.object_edit_reason(object, "endpoints"),
     }
   } catch {
     @failure.Failure(message~, ..) =>
-      { "start": Json::null(), "end": Json::null(), "reason": message }
+      {
+        "kind": Json::null(),
+        "start": Json::null(),
+        "end": Json::null(),
+        "reason": message,
+      }
   }
 }
