@@ -46,6 +46,7 @@ import type {
   XlsxDelimitedOptions,
   XlsxTextColumnSettings,
   XlsxFillTarget,
+  XlsxPictureSettings,
 } from "@open-document/wasm/xlsx";
 import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
@@ -252,6 +253,48 @@ export type Operation =
       delimiter: "," | "\t";
       budget: Budget;
       options: Required<XlsxDelimitedOptions>;
+    }
+  | {
+      operation: "picturesXlsx";
+      revision: number;
+      sheet: string;
+      profile: Record<string, string>;
+    }
+  | { operation: "pictureResourceXlsx"; revision: number; bytes: Uint8Array }
+  | { operation: "imageBytesXlsx"; revision: number; key: string }
+  | {
+      operation: "imageXlsx";
+      revision: number;
+      key: string;
+      width: number;
+      height: number;
+      bytes: Uint8Array;
+    }
+  | {
+      operation: "insertPictureXlsx";
+      revision: number;
+      sheet: string;
+      width: number;
+      height: number;
+      bytes: Uint8Array;
+      profile: Record<string, string>;
+      name: string;
+      description: string;
+    }
+  | {
+      operation: "setPictureXlsx";
+      revision: number;
+      sheet: string;
+      pictureId: string;
+      settings: XlsxPictureSettings;
+      profile: Record<string, string>;
+    }
+  | {
+      operation: "deletePictureXlsx";
+      revision: number;
+      sheet: string;
+      pictureId: string;
+      profile: Record<string, string>;
     }
   | { operation: "exportXlsxCsv"; revision: number; selection: boolean }
   | {

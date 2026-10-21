@@ -11,6 +11,7 @@ import { outlineEn } from "./messages-outline.js";
 import { tableEn } from "./messages-xlsx-tables.js";
 import { pivotEn } from "./messages-xlsx-pivot.js";
 import { clipboardEn } from "./messages-clipboard.js";
+import { xlsxPicturesEn } from "./messages-xlsx-pictures.js";
 import { protectionEn } from "./messages-xlsx-protection.js";
 import { sparklineEn } from "./messages-xlsx-sparkline.js";
 export const en = {
@@ -20,6 +21,7 @@ export const en = {
   ...connectorEn,
   ...viewEn,
   ...clipboardEn,
+  ...xlsxPicturesEn,
   ...tableEn,
   ...pivotEn,
   ...outlineEn,

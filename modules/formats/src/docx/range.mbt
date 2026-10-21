@@ -25,6 +25,7 @@ fn Session::prepare_structural_range_in(
     selection,
     structural=true,
     fields=true,
+    tables=true,
     check_graphemes~,
   )
   self.check_picture_range(tree, range)

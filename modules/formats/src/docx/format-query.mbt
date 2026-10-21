@@ -172,6 +172,7 @@ fn Session::formatting_range(
       selection,
       structural=true,
       fields~,
+      tables=true,
       check_layout=false,
     )
   })

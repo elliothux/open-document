@@ -70,6 +70,22 @@ pub(all) struct PositionedDocument {
 }
 
 ///|
+pub fn PositionedDocument::drawing_images(
+  self : PositionedDocument,
+  images : Images,
+) -> Array[String] raise @failure.Failure {
+  let keys : Map[String, Unit] = Map([])
+  for page in self.pages {
+    for primitive in page.primitives {
+      if primitive is Image(image, _) {
+        keys[images.get(image.key).identity] = ()
+      }
+    }
+  }
+  keys.keys().to_array()
+}
+
+///|
 pub fn Layout::positioned(self : Layout) -> PositionedDocument {
   {
     fonts: self.fonts,

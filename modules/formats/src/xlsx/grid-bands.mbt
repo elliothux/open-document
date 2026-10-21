@@ -221,6 +221,7 @@ fn Session::paint_grid(
   probe : @layout.TextProbe,
   profile : Map[String, String],
   notes : Map[String, CellNote],
+  pictures : Array[Picture],
 ) -> (
   Array[@layout.PositionedPrimitive],
   Array[Json],
@@ -335,6 +336,23 @@ fn Session::paint_grid(
         primitives.push(Clip(clip))
         primitives.append(markers)
         primitives.push(Restore)
+      }
+      for picture in pictures {
+        let rect = grid_rect(
+          {
+            ..picture.rect,
+            x: picture.rect.x + header_width - column.scroll,
+            y: picture.rect.y + header_height - row.scroll,
+          },
+          width,
+          rtl,
+        )
+        let visible = grid_intersection(rect, clip)
+        if visible.width > 0 && visible.height > 0 {
+          primitives.push(Clip(clip))
+          picture.paint(primitives, rect)
+          primitives.push(Restore)
+        }
       }
     }
   }

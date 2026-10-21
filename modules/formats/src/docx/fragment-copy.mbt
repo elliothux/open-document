@@ -11,6 +11,7 @@ fn Session::capture_body_fragment(
     selection,
     structural=true,
     fields=true,
+    tables=true,
   )
   let fields = self.selection_field_values(tree, range, layout)
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
@@ -48,7 +49,40 @@ fn Session::capture_body_fragment(
   output.write_string("<od:body xmlns:od=\"\{word_uri}\">")
   output.write_string(numbering)
   let mut units = numbering.length() + 80
-  for paragraph in range.paragraphs {
+  let siblings = tree.children[tree.nodes[range.start.paragraph].parent]
+  let blocks = siblings[siblings.search(range.start.paragraph).unwrap():siblings
+    .search(range.end.paragraph)
+    .unwrap() +
+    1]
+  for paragraph in blocks {
+    if tree.nodes[paragraph].name == "tbl" {
+      let model = flow.tables
+        .iter()
+        .find_first(table => table.id == paragraph)
+        .unwrap()
+      let grid = self.check_fragment_table(tree, model)
+      let markup = self.capture_table_fragment(
+        tree,
+        grid,
+        0,
+        grid.rows.length(),
+        0,
+        model.widths.length(),
+        grid.cells.flatten(),
+        fields,
+        numbers~,
+        markers~,
+        body=true,
+      )
+      guard markup.length() <= limit - units else {
+        @failure.reject(
+          "limit-exceeded", "Rich document fragment exceeds source budget",
+        )
+      }
+      units += markup.length()
+      output.write_string(markup)
+      continue
+    }
     let texts = self.editable_texts(paragraph)
     let length = texts.fold(init=0, (sum, node) => {
       sum + inline_text(tree.nodes[node.id]).length()
@@ -145,7 +179,13 @@ pub fn Session::clipboard(
       let tree = WordTree::new(self.document())
       self.check_picture_range(
         tree,
-        self.paragraph_range(tree, selection, structural=true, fields=true),
+        self.paragraph_range(
+          tree,
+          selection,
+          structural=true,
+          fields=true,
+          tables=true,
+        ),
       )
     }
   }

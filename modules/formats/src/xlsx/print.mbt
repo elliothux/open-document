@@ -40,6 +40,12 @@ fn Session::print_sheet(
   let header_footer = read_header_footer(current)
   let first_page = print_first_page(current)
   let setup = setup.unwrap_or(settings.page())
+  let dimensions = self.resolved_dimensions(current, probe, profile)
+  let pictures = (self.sheet_pictures(current, dimensions) catch {
+    @failure.Failure(code="limit-exceeded", ..) as error => raise error
+    @failure.Failure(message~, ..) =>
+      @failure.reject("unsupported-print", message, part=sheet)
+  }).filter(picture => picture.printable && picture.visible)
   guard setup.width >= 36 &&
     setup.width <= 14400 &&
     setup.height >= 36 &&
@@ -56,13 +62,14 @@ fn Session::print_sheet(
     .map(print_areas)
     .unwrap_or(
       if print_range.area.is_empty() {
-        [current.used()]
+        [picture_used(current.used(), pictures, dimensions)]
       } else {
         print_areas(print_range.area)
       },
     )
   for diagnostic in self.diagnostics {
-    if conditional.table_styles.renders(diagnostic, sheet) {
+    if conditional.table_styles.renders(diagnostic, sheet) ||
+      picture_diagnostic(current, diagnostic) {
       continue
     }
     if diagnostic.has_prefix("unrendered:" + sheet + ":") {
@@ -74,7 +81,6 @@ fn Session::print_sheet(
   }
   let reason = sparkline_reason(current, self.sheets)
   guard reason.is_empty() else { @failure.reject("unsupported-print", reason) }
-  let dimensions = self.resolved_dimensions(current, probe, profile)
   let title_rows = print_title_indices(print_range.rows, dimensions.rows, true)
   let title_columns = print_title_indices(
     print_range.columns,
@@ -162,10 +168,48 @@ fn Session::print_sheet(
           )
         }
         let mut units = 0
+        let picture_paint : Array[@layout.PositionedPrimitive] = []
         for (rows, y) in row_segments {
           for (cols, x) in col_segments {
             let first_row = rows[0]
             let first_col = cols[0]
+            let offset_x = setup.left / scale +
+              x -
+              dimensions.columns.position(first_col)
+            let offset_y = setup.top / scale +
+              y -
+              dimensions.rows.position(first_row)
+            let clip = grid_rect(
+              {
+                x: setup.left / scale + x,
+                y: setup.top / scale + y,
+                width: cols.fold(init=0.0, (sum, c) => {
+                  sum + dimensions.columns.size(c)
+                }),
+                height: rows.fold(init=0.0, (sum, r) => {
+                  sum + dimensions.rows.size(r)
+                }),
+              },
+              (setup.width + setup.left - setup.right) / scale,
+              current.view.rtl,
+            )
+            for picture in pictures {
+              let rect = grid_rect(
+                {
+                  ..picture.rect,
+                  x: picture.rect.x + offset_x,
+                  y: picture.rect.y + offset_y,
+                },
+                (setup.width + setup.left - setup.right) / scale,
+                current.view.rtl,
+              )
+              let visible = grid_intersection(rect, clip)
+              if visible.width > 0 && visible.height > 0 {
+                picture_paint.push(Clip(clip))
+                picture.paint(picture_paint, rect)
+                picture_paint.push(Restore)
+              }
+            }
             let page_range : Range = {
               top: first_row,
               bottom: rows.last().unwrap(),
@@ -211,6 +255,7 @@ fn Session::print_sheet(
           }
         }
         let positioned = page.positioned()
+        positioned.primitives.append(picture_paint)
         let positioned = if scale == 1 {
           positioned
         } else {

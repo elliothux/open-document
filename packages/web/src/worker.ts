@@ -83,6 +83,50 @@ async function dispatch(request: Request): Promise<unknown> {
         return workbook.exportCsv(request.revision, request.selection);
       case "queryXlsx":
         return workbook.query(request.sheet, request.range);
+      case "picturesXlsx":
+        return workbook.pictures(
+          request.revision,
+          request.sheet,
+          request.profile,
+        );
+      case "pictureResourceXlsx":
+        return workbook.pictureResource(request.revision, request.bytes);
+      case "imageBytesXlsx":
+        return workbook.imageBytes(request.revision, request.key);
+      case "imageXlsx":
+        return workbook.addImage(
+          request.revision,
+          request.key,
+          request.width,
+          request.height,
+          request.bytes,
+        );
+      case "insertPictureXlsx":
+        return workbook.insertPicture(
+          request.revision,
+          request.sheet,
+          request.width,
+          request.height,
+          request.bytes,
+          request.profile,
+          request.name,
+          request.description,
+        );
+      case "setPictureXlsx":
+        return workbook.setPicture(
+          request.revision,
+          request.sheet,
+          request.pictureId,
+          request.settings,
+          request.profile,
+        );
+      case "deletePictureXlsx":
+        return workbook.deletePicture(
+          request.revision,
+          request.sheet,
+          request.pictureId,
+          request.profile,
+        );
       case "pivotsXlsx":
         return workbook.pivots(request.revision, request.sheet);
       case "pivotPreviewXlsx":
@@ -246,6 +290,13 @@ async function dispatch(request: Request): Promise<unknown> {
         case "clearXlsx":
         case "printXlsx":
         case "exportXlsxPdf":
+        case "picturesXlsx":
+        case "pictureResourceXlsx":
+        case "imageBytesXlsx":
+        case "imageXlsx":
+        case "insertPictureXlsx":
+        case "setPictureXlsx":
+        case "deletePictureXlsx":
           throw new Error("Open an XLSX client first");
         case "budget":
           return foundation.defaultBudget();

@@ -334,6 +334,7 @@ fn Session::validate(
   workbook? : @xml.Document,
   parts? : Map[String, @xml.Document],
   removed~ : Array[String] = self.removed,
+  media~ : Map[String, Bytes] = self.media,
 ) -> Unit raise @failure.Failure {
   let mut cells = 0
   let mut units = 0
@@ -342,6 +343,7 @@ fn Session::validate(
     sheets,
     workbook,
     parts.unwrap_or(self.parts),
+    media~,
   )
   for sheet in sheets {
     cells += sheet.cells.length()
@@ -374,6 +376,24 @@ pub fn Session::undo(
   let sheets = self.sheets.copy()
   let mut workbook = self.workbook
   let parts = self.parts.copy()
+  let media = self.media.copy()
+  for name, bytes in entry.added_media {
+    if redo {
+      guard !media.contains(name) else {
+        @failure.reject(
+          "invalid-operation", "Created image part already exists",
+        )
+      }
+      media[name] = bytes
+    } else {
+      guard media.get(name) == Some(bytes) else {
+        @failure.reject(
+          "invalid-operation", "Created image history has changed",
+        )
+      }
+      media.remove(name)
+    }
+  }
   let removed_parts = self.removed.copy()
   let deleted_documents : Map[String, @xml.Document] = Map([])
   let mut deleted_sheet : Sheet? = None
@@ -480,19 +500,20 @@ pub fn Session::undo(
       )
     }
   }
-  let sheets = self.ordered_sheets(
+  let restored = { ..self, media, }
+  let sheets = restored.ordered_sheets(
     workbook,
     sheets,
     parts,
     removed=removed_parts,
   )
-  self.validate(sheets, workbook~, parts~, removed=removed_parts)
+  self.validate(sheets, workbook~, parts~, removed=removed_parts, media~)
   guard sheets.all(sheet => {
     sheet.cells.values().all(cell => cell.style < styles.length())
   }) else {
     @failure.reject("malformed-xlsx", "Cell style is outside restored styles")
   }
-  let calculation = self.calculate(
+  let calculation = restored.calculate(
     sheets,
     None,
     [],
@@ -515,6 +536,7 @@ pub fn Session::undo(
   }
   self.workbook = workbook
   self.parts = parts
+  self.media = media
   self.removed = removed_parts
   self.sheets = sheets
   self.styles = styles

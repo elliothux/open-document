@@ -79,7 +79,7 @@ DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持�
 
 `selectedText(revision, selection, cut = false)` 返回核心只读纯文本，按 XML 顺序提取正/反向普通范围，跨段以 LF 分隔并保留空段，折叠范围返回空串。同表跨格提取所选整格，分隔规则归[跨格纯文本剪贴板](#跨格纯文本剪贴板)。它沿用字素、位置、revision、容器及内容保护检查，未知内容整体拒绝；不改变选区、revision、历史或布局。输出最多 65536 UTF-16 单元（包括 Tab 和 LF），超限报错而不截断。复制与结构写回共用范围顺序/保护检查；只有写回额外检查移动结构及格式。宿主不从页面文字重建选区。
 
-段内边界使用 Unicode 13.0.0 扩展字素，跨文本节点的组合符与 ZWJ 不可拆开；修改后重新合并的字素会将光标推进到合法边界。普通空段支持 offset 0 的输入：优先在第一个已有空 run 创建 text，保留其格式；没有 run 时在段末创建普通 run/text，保留段落属性、现有前缀和非目标源片段。空段身份来自正文 `flow().paragraphs` 或 `flow().tables` 的单元格段落，不能从尚无 text 的 `query().texts` 推断。跨表格及正文/表格混合范围、CR、未支持的域/修订/未知内联标记及受保护容器整体拒绝。受支持的行内图片、普通书签及跨格内容操作分别沿下文合同处理，未修改的源保留。普通正文与顶层表格单元格内的事务可用；不表示带布局诊断的文件已经可视编辑。
+段内边界使用 Unicode 13.0.0 扩展字素，跨文本节点的组合符与 ZWJ 不可拆开；修改后重新合并的字素会将光标推进到合法边界。普通空段支持 offset 0 的输入：优先在第一个已有空 run 创建 text，保留其格式；没有 run 时在段末创建普通 run/text，保留段落属性、现有前缀和非目标源片段。空段身份来自正文 `flow().paragraphs` 或 `flow().tables` 的单元格段落，不能从尚无 text 的 `query().texts` 推断。两端都在正文、完整包住普通表格的范围可沿下文[正文富文本片段](#正文富文本片段)处理。部分跨入单元格、跨不同表格端点、CR、未支持的域/修订/未知内联标记及受保护容器整体拒绝。受支持的行内图片、普通书签及跨格内容操作分别沿下文合同处理，未修改的源保留。普通正文与顶层表格单元格内的事务可用；不表示带布局诊断的文件已经可视编辑。
 
 `replaceRange` 将实际 LF 作为段落分隔，可替换折叠、段内或跨段正反向范围，首尾/连续 LF 产生空段；新段仍在原 body/单元格内，光标到最后插入文字末尾，并对字素拼接推进到合法边界。原段及移到新段的存量节点保留身份；新节点获得单调 ID。新段继承已支持的段落属性和边界 affinity 选中的字符格式，显式关闭直接或继承的段前分页。未知属性、编号、节或不可安全编辑内容整体拒绝。多分隔替换是单条历史，返回原范围与全部新增段的受影响 ID；撤销删除新段并恢复原字节，重做恢复同一组新 ID。连续输入使用核心保留的目标 text ID 继续同一字符格式；显式选择/导航、删除、外部修改、undo/redo 和关闭终止它，保存或失败不终止。字符格式的连续目标与显式输入组分工不同，均不维护第二份文档内容。
 
@@ -611,7 +611,7 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 跨格 `merge` 的 rows/columns 必须等于选区的逻辑矩形尺寸；默认面板自动填入并锁定这两个数量。已有合并格须完整位于矩形内，切开已有跨度时原子拒绝；内容按源顺序进入左上格。六种行列命令及合并均沿现有源补丁一次提交历史，撤销恢复原字节和正/反向选择，保留未删内容及其他部件。删除最后全部行或列时移除表格并进入正文。源、字体、布局及输出预算继续检查，失败不提交。
 
-跨格 `unmerge` 按实际所选主格取消合并，保持原公共网格；相交的合并格整体处理，范围外合并格及普通格保持原源。每个主格的全部文字留在原格，新格为空并继承对应源行格的框与首段格式。所有修改及布局预检合为一项历史，光标定位首个所选主格；没有合并格时保留原源、范围和 revision。未知格源、无可用文字宽度、字体及预算失败整体拒绝。指定行列拆格支持同一范围，规则归上述 `splitCell` 合同。拆表仍须选择单格，默认面板在跨格时禁用。链接、书签及批注创建沿普通文字范围规则；跨格时链接查询给出原因，默认面板禁用对应创建。跨表格、正文/表格混合范围及未知格内容沿既有保护规则；跨格边框/边距的默认面板、嵌套表格和其余结构范围操作继续实施。
+跨格 `unmerge` 按实际所选主格取消合并，保持原公共网格；相交的合并格整体处理，范围外合并格及普通格保持原源。每个主格的全部文字留在原格，新格为空并继承对应源行格的框与首段格式。所有修改及布局预检合为一项历史，光标定位首个所选主格；没有合并格时保留原源、范围和 revision。未知格源、无可用文字宽度、字体及预算失败整体拒绝。指定行列拆格支持同一范围，规则归上述 `splitCell` 合同。拆表仍须选择单格，默认面板在跨格时禁用。链接、书签及批注创建沿普通文字范围规则；跨格时链接查询给出原因，默认面板禁用对应创建。部分跨入单元格、跨不同表格端点及未知格内容沿既有保护规则；两端在正文的完整表格范围归[正文富文本片段](#正文富文本片段)；跨格边框/边距的默认面板、嵌套表格和其余结构范围操作继续实施。
 
 ### HTML/Markdown 内嵌图片
 
@@ -675,6 +675,8 @@ HTML 输入支持 `table`、`thead/tbody/tfoot` 行组、`tr`、`td/th` 及 `col
 
 `FoundationSession.clipboard(revision, selection, cut = false)` 和异步 `FoundationClient.clipboard` 返回 `DocxClipboard`：`{ kind: "body" | "cells", text, fragment, reason, selection }`。普通正文和同一单元格中的文字范围可截取部分字符及跨段落内容；跨格整格范围沿既有矩形片段。查询保持源、选择和历史。不能转移的已知内容返回纯文本及原因，图片和域的剪切须成功生成富文本并通过原生删除保护。
 
+两端都在普通正文段落时，范围可以完整包住中间的普通表格。复制按正文块顺序生成原生片段；正文和格内内容共用编号及书签身份，保留合并网格、原生表宽/对齐/边框/默认边距、行高/重复表头/跨页策略、字符格式、链接、简单域和行内图片。纯文本使用 LF 分隔正文块，表格按带引号 TSV 输出，合并续格留空。剪切、普通替换、输入法候选和范围格式复用同一结构校验与事务，首尾未选文字保留；取消和撤销恢复原字节。默认选择、Copy/Cut、源格式粘贴、格内继续输入、重开及 PDF 已检查。依据 [ONLYOFFICE 所选正文块遍历](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/DocumentContent.js#L4810-L4835)。部分跨入格内、嵌套表格及未知结构继续拒绝。表样式资源尚未随整表转移；带这些引用的富文本捕获给出原因，不丢弃引用后生成片段。
+
 正文片段携带解析后的字符/段落格式、完整普通书签、链接、编号及行内 PNG/JPEG。资源校验和目标身份分配复用[单元格富文本片段](#单元格富文本片段)。`bodyFragmentImages(revision, fragment)` 只读预检图片；同步宿主先解码并注册 RGBA。`pasteBodyFragment(revision, selection, fragment, profile)` 原子替换范围；Web 自动解码，`DocumentEditor.pasteFragment(fragment)` 沿既有编辑队列提交。字体、布局、资源、历史或输出失败保留原文档。
 
 简单 `PAGE`、`NUMPAGES` 域也随正文片段转移，保留指令、显式编号格式及已解析的字符格式。纯文本输出取当前完整布局的实际结果，长度变化不改变用于剪切的逻辑范围；缺少、过时或不完整布局时拒绝读取所选域，不退回旧缓存。同步和 Worker 桥使用当前布局，调用方先完成相同 revision 的排版；MoonBit `selected_text`、`clipboard` 可显式传入 `layout`。粘贴按目标位置重算新域缓存，保留已有域的旧缓存，并与文字及资源合为一项历史。空结果域仍携带富文本片段，不视为空选择。整格/跨格及完整合并格中的简单域复用相同规则，范围归[单元格富文本片段](#单元格富文本片段)。依据 [ONLYOFFICE 原生简单域序列化](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Serialize2.js#L5513-L5528)，实现归[域剪贴板值与格式](../../modules/formats/src/docx/field-clipboard.mbt)。
@@ -683,7 +685,7 @@ HTML 输入支持 `table`、`thead/tbody/tfoot` 行组、`tr`、`td/th` 及 `col
 
 默认 Copy/Cut 与原生快捷键携带 `text/plain` 及 Chromium 自定义类型 `web application/x-open-document-docx-body`。写入成功且文档、revision、选择仍一致时才剪切。默认粘贴面板的“保留源格式粘贴”、Ctrl/Cmd+V 和导出的 `pasteDocxSelection(editor)` 优先读取正文片段，其次读取单元格片段，缺少原生类型时粘贴纯文本。无效原生片段拒绝，读取期间目标变化保留文档。`paste(text)` 及原生普通 paste 事件继续采用纯文本路径。
 
-最多 1024 个正文块、65536 文字单元；表格读取和粘贴另沿用[HTML 表格](#html-表格)的数量与网格预算。片段、图片、链接、书签及编号采用上述共享预算，Web 读取 Blob 前限 4 MiB。域另沿用每段 64 个及正文布局 4096 个位置的上限。跨表及正文/表格混合范围的剪贴板捕获、批注/修订/复杂域及部分书签转移继续实施；HTML/Markdown 输入范围归各自章节。实现归 [`fragment-copy.mbt`](../../modules/formats/src/docx/fragment-copy.mbt)、[`fragment-import.mbt`](../../modules/formats/src/docx/fragment-import.mbt) 和 [`fragment-paste.mbt`](../../modules/formats/src/docx/fragment-paste.mbt)。段落拆分和首尾合并参考 [ONLYOFFICE SelectedContent](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/SelectedContent.js#L1021-L1198)，未复制上游执行代码。
+最多 1024 个正文块、65536 文字单元；表格读取和粘贴另沿用[HTML 表格](#html-表格)的数量与网格预算。片段、图片、链接、书签及编号采用上述共享预算，Web 读取 Blob 前限 4 MiB。域另沿用每段 64 个及正文布局 4096 个位置的上限。跨不同表格端点、部分跨入格内、批注/修订/复杂域及部分书签转移继续实施；HTML/Markdown 输入范围归各自章节。实现归 [`fragment-copy.mbt`](../../modules/formats/src/docx/fragment-copy.mbt)、[`fragment-import.mbt`](../../modules/formats/src/docx/fragment-import.mbt) 和 [`fragment-paste.mbt`](../../modules/formats/src/docx/fragment-paste.mbt)。段落拆分和首尾合并参考 [ONLYOFFICE SelectedContent](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/SelectedContent.js#L1021-L1198)，未复制上游执行代码。
 
 ### 表格尺寸
 
@@ -1794,6 +1796,14 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 `SpreadsheetEditor.copyCells(true)` 和默认“剪切单元格”按钮先写系统剪贴板，源格在粘贴成功前保留。剪切只携带显示值 TSV 和 `web application/x-open-document-cut` 的工作簿身份、源范围与 revision；核心在 `pasteCells("all", false)` 时校验并移动实际源内容，不要求先生成复制片段。网格原生剪切/粘贴复用该入口，草稿文字仍沿原生文字输入。消费后、源文档编辑后或重开工作簿后的旧载荷拒绝；跨工作簿、选择性粘贴及转置剪切也拒绝。普通 TSV 和复制片段沿原合同。
 
 移动最多 4096 格和 1024 个合并范围；工作簿源、公式、链接及迷你图组节点源合计最多 1 Mi UTF-16 单元，搬移与改写的单元格源合计最多 1 Mi 单元。每表最多 4096 个链接，单表生成的链接源最多 2 Mi 单元。规则沿既有 100000 格、4 Mi 字符和 4096 片段工作上限；每表至多 4096 条条件规则和 4096 条验证。全部变动仍受 4 MiB 历史及包输出预算约束。被保护的源、目标或受影响公式/链接/规则/迷你图拒绝。未知资源、原生表、透视及带筛选/排序的工作簿保持保护，未限定工作表的名称引用及需改写的不透明名称源继续保护；跨表打印范围的归属转移继续实施。实现归 [`move-cells.mbt`](../../modules/formats/src/xlsx/move-cells.mbt)、[`move-reference.mbt`](../../modules/formats/src/xlsx/move-reference.mbt)、[`move-hyperlinks.mbt`](../../modules/formats/src/xlsx/move-hyperlinks.mbt)、[`move-rules.mbt`](../../modules/formats/src/xlsx/move-rules.mbt)、[`rule-fragments.mbt`](../../modules/formats/src/xlsx/rule-fragments.mbt)和 [`move-resources.mbt`](../../modules/formats/src/xlsx/move-resources.mbt)。
+
+### 工作表图片
+
+`SpreadsheetEditor.pictures()` 返回当前表的 `{ revision, sheet, reason, items }`。每项包含稳定的原生 `id`、名称、替代文字、锚点、point 几何、源裁剪及图片资源键。`insertPicture(bytes, width, height, name?, description?)` 在选定单元格插入普通 PNG/JPEG；`setPicture(id, settings)` 修改锚点、位置、尺寸及文字，`deletePicture(id)` 删除目标锚点。默认图片面板复用这些入口，调整尺寸保留当前比例。同步 `XlsxSession` 和异步 `XlsxClient` 提供对应显式 revision/sheet/profile 接口；Web 在提交前完成图片预检和像素解码。
+
+`anchor` 接受 `fixed`、`move`、`size`，分别保存 `absoluteAnchor`、`oneCellAnchor` 和普通 `twoCellAnchor`。核心按原生行高/列宽解释几何，尺寸编辑在同一历史中同步图片姿态。网格按冻结窗格裁剪图片，RTL 只移动对象位置；打印沿现有分页、区域和缩放裁剪，保留隐藏和 `fPrintsWithSheet` 策略。已支持的源裁剪参与绘制，当前编辑入口不修改裁剪。资源、关系、源补丁和原生输入共用精确历史，撤销与重做恢复相同字节，失败保留文档。删除保留可能共享的关系和媒体，解码缓存只保留实际引用的图片。
+
+每表最多 256 张图片，压缩源合计最多 16 MiB；新输入最多 2 MiB，尺寸为 0.1–14400 pt。字体、RGBA、历史及包输出继续沿用共享预算。工作表保护、对象锁、未知锚点/图形、旋转/翻转、外链及不支持的绘图样式保持保护并返回原因。`twoCellAnchor` 的其他 `editAs` 变体、指针拖动、层次和复杂图形继续实施；带绘图的工作表复制及结构迁移继续沿现有资源保护。实现归 [`picture-read.mbt`](../../modules/formats/src/xlsx/picture-read.mbt)、[`picture-edit.mbt`](../../modules/formats/src/xlsx/picture-edit.mbt)、[`picture-reflow.mbt`](../../modules/formats/src/xlsx/picture-reflow.mbt)及 [`spreadsheet-canvas.ts`](../../packages/web/src/spreadsheet-canvas.ts)。
 
 ### 单元格迷你图
 

@@ -47,9 +47,11 @@ fn check_fragment_content(
     let children = match node.name {
       "body" => ["p", "tbl"]
       "tbl" => ["tblPr", "tblGrid", "tr"]
-      "tblPr" => ["tblLayout", "tblW"]
+      "tblPr" =>
+        ["tblLayout", "tblW", "jc", "tblBorders", "tblCellMar", "tblInd"]
       "tblGrid" => ["gridCol"]
-      "tr" => ["tc"]
+      "tr" => ["trPr", "tc"]
+      "trPr" => ["trHeight", "tblHeader", "cantSplit"]
       "tc" => ["tcPr", "p"]
       "tcPr" =>
         ["tcW", "gridSpan", "vMerge", "tcBorders", "shd", "tcMar", "vAlign"]
@@ -72,7 +74,8 @@ fn check_fragment_content(
         ]
       "tabs" => ["tab"]
       "numPr" => ["numId", "ilvl"]
-      "tcBorders" | "tcMar" => ["top", "left", "bottom", "right"]
+      "tcBorders" | "tcMar" | "tblCellMar" => ["top", "left", "bottom", "right"]
+      "tblBorders" => ["top", "left", "bottom", "right", "insideH", "insideV"]
       _ => []
     }
     guard tree.children[id].all(child => {
@@ -97,7 +100,8 @@ fn check_fragment_content(
       tree.simple_page_fields(node.parent)
     }
     if [
-        "body", "tbl", "tblPr", "tblGrid", "tr", "tc", "tcPr", "p", "pPr", "r", "rPr",
+        "body", "tbl", "tblPr", "tblGrid", "tr", "trPr", "tc", "tcPr", "p", "pPr",
+        "r", "rPr",
       ].contains(node.name) {
       guard node.attributes.is_empty() && node.text.trim().is_empty() else {
         @failure.reject(

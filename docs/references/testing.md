@@ -1,5 +1,9 @@
 # 测试说明
 
+工作表图片通过 22 项定向核心检查，覆盖三种锚点、行列尺寸、冻结/RTL、分页裁剪、不随表打印、资源事务、精确混合历史、重开及失败原子性，并复用便笺和打印回归。新增 Chromium 流程通过 1/1，覆盖默认面板、PNG/JPEG 原生字节、位置/尺寸/文字、删除、原生输入、精确历史、重开、实际 Canvas/PDF 像素及损坏图片拒绝。根 api/check/build、私有 typecheck/lint 通过；证据归 `xlsxWorksheetPictureCheckpoint`。未跑全量或外部 Office；复杂绘图和更多锚点变体继续实施，P10/P11/P12 保持 planned。
+
+正文完整跨表格范围通过 39 项定向核心检查，覆盖共享编号/书签、合并网格、链接/图片/简单域、复制/剪切/替换、输入法取消、范围格式、精确历史及失败原子性。新流程和既有正文剪贴板回归先通过 2/2 Chromium，补齐整表属性后只复跑新流程，通过 1/1；覆盖实际鼠标选择、默认 Copy、快捷键剪切、跨文档原生粘贴、独立 XML/PNG 字节、格内输入、重开及 PDF 文字/四色像素。根 api/check/build 与私有 typecheck/lint 通过；详细失败定位及证据归 `docxMixedBodyTableClipboardCheckpoint`。未跑全量、外部 Office 或安装包矩阵；部分跨入单元格、跨不同表格端点和嵌套结构继续实施，P10/P11/P12 保持 planned。
+
 HTML 普通表格通过 16 项定向核心检查，覆盖合并网格、列组宽度、格内格式/列表/链接/图片、三种方式、段落边界与段前分页、精确混合历史、重开及失败原子性。新 Chromium 流程与原 HTML 流程先通过 2/2，补齐列组与边界后只复跑新流程，通过 1/1；独立 XML、PNG 字节、原生格内输入、重开、实际 PDF 文字及黄色底色/图片三色像素通过。根 api/check/build 与私有 typecheck/lint 通过，证据归 `docxHtmlTableInputCheckpoint`。未跑全量、外部 Office 或安装包全功能矩阵；嵌套表格、caption、重复表头及更广 CSS 继续实施，P10/P11/P12 保持 planned。
 
 PPTX 调节手柄通过 13 项定向核心检查，覆盖现有 12 种可调预设的局部轴、旋转/翻转、候选只读、上下限、取消、精确混合历史、重开和失败原子性。既有连接线回归发现重复变换写入，修改前代码也能复现；修正源姿态比较后，两项端点流程通过。新增指针流程与原辅助线流程共 2/2 Chromium，通过独立 XML、原生输入、保存重开及 Canvas/PDF 像素；传输 1 项、11 个断言通过。根 api/check/build 与私有 typecheck/lint 通过，证据归 `pptxAdjustmentGestureCheckpoint`。未跑全量、外部 Office 或安装包全功能矩阵；P10/P11/P12 保持 planned。

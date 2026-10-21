@@ -1,4 +1,12 @@
-import type { XlsxQuery } from "./xlsx-query.js";
+import { xlsxQuery, type XlsxQuery } from "./xlsx-query.js";
+import {
+  xlsxPictures,
+  xlsxPictureResource,
+  checkXlsxPictureSettings,
+  type XlsxPictureSettings,
+} from "./xlsx-pictures.js";
+export * from "./xlsx-pictures.js";
+export { xlsxQuery } from "./xlsx-query.js";
 import {
   checkXlsxPivotSettings,
   xlsxPivotPreview,
@@ -7,7 +15,6 @@ import {
 } from "./xlsx-pivot.js";
 export * from "./xlsx-pivot.js";
 export type { XlsxQuery } from "./xlsx-query.js";
-import { xlsxProtection } from "./xlsx-protection.js";
 import { protectionSalt } from "./protection-password.js";
 export type { XlsxProtection } from "./xlsx-protection.js";
 import {
@@ -17,12 +24,7 @@ import {
   type XlsxPasteMode,
 } from "./xlsx-clipboard.js";
 export * from "./xlsx-clipboard.js";
-import {
-  checkXlsxSheetEdit,
-  type XlsxSheetEdit,
-  xlsxHyperlink,
-  xlsxNote,
-} from "./xlsx-sheet.js";
+import { checkXlsxSheetEdit, type XlsxSheetEdit } from "./xlsx-sheet.js";
 export {
   checkXlsxHyperlinkTarget,
   xlsxHyperlink,
@@ -48,12 +50,8 @@ export {
   type XlsxFillTarget,
   type XlsxFillPreview,
 } from "./xlsx-fill.js";
-import { xlsxNames } from "./xlsx-names.js";
 export type { XlsxName, XlsxNames, XlsxNameEdit } from "./xlsx-names.js";
-import { xlsxStatistics } from "./xlsx-statistics.js";
-import { xlsxTables, xlsxTableStyles } from "./xlsx-tables.js";
 export * from "./xlsx-tables.js";
-import { xlsxOutline } from "./xlsx-outline.js";
 export * from "./xlsx-outline.js";
 export { xlsxStatistics, type XlsxStatistics } from "./xlsx-statistics.js";
 export type { XlsxSortSettings, XlsxSortKey } from "./xlsx-sort.js";
@@ -73,7 +71,7 @@ import {
   type XlsxTextColumns,
 } from "./xlsx-delimited.js";
 export * from "./xlsx-delimited.js";
-import { xlsxFilterState, spreadsheetDate } from "./xlsx-filter.js";
+import { spreadsheetDate } from "./xlsx-filter.js";
 export { xlsxRelativeDatePeriods, spreadsheetDate } from "./xlsx-filter.js";
 export type {
   XlsxFilterValues,
@@ -90,7 +88,6 @@ export type {
   XlsxFilterSettings,
   XlsxFilterState,
 } from "./xlsx-filter.js";
-import { xlsxConditionalState } from "./xlsx-conditional.js";
 export {
   checkXlsxConditionalFormat,
   conditionalThresholds,
@@ -103,8 +100,6 @@ export type {
   XlsxConditionalThreshold,
   XlsxDataBar,
 } from "./xlsx-conditional.js";
-import { xlsxValidationState } from "./xlsx-validation.js";
-import { xlsxSparklines } from "./xlsx-sparkline.js";
 export type {
   XlsxSparkline,
   XlsxSparklineKind,
@@ -131,14 +126,8 @@ import {
 } from "./xlsx-search.js";
 export { xlsxFindOptions, xlsxSearchResult } from "./xlsx-search.js";
 export type { XlsxFindOptions, XlsxSearchResult } from "./xlsx-search.js";
-import { record, hasFields, arrayOf, integer } from "./validation.js";
-import {
-  checkPrintOptions,
-  xlsxPrintSetup,
-  type PrintOptions,
-  xlsxPrintRange,
-  xlsxHeaderFooter,
-} from "./xlsx-print.js";
+import { record, arrayOf, integer } from "./validation.js";
+import { checkPrintOptions, type PrintOptions } from "./xlsx-print.js";
 export { checkXlsxPrintSetup, checkPrintOptions } from "./xlsx-print.js";
 export type {
   PrintOptions,
@@ -152,7 +141,6 @@ import { xlsxCell } from "./xlsx-grid.js";
 export type { XlsxViewport } from "./xlsx-grid.js";
 import {
   checkXlsxCellFormat,
-  xlsxFormatting,
   copiedCellFormat,
   type CopiedCellFormat,
   type XlsxCellFormat,
@@ -216,145 +204,6 @@ export interface XlsxCell {
 }
 
 export type XlsxClearMode = "contents" | "formats" | "all";
-
-export function xlsxQuery(value: unknown): XlsxQuery {
-  const query = record(value);
-  xlsxProtection(query.protection);
-  xlsxProtection(query.workbookProtection);
-  xlsxTables(query.tables);
-  xlsxTableStyles(query.tableStyles);
-  xlsxOutline(query.outline);
-  xlsxStatistics(query.statistics);
-  xlsxHyperlink(query.hyperlink);
-  xlsxNote(query.note);
-  xlsxFilterState(query.filter);
-  xlsxConditionalState(query.conditionalFormats);
-  xlsxValidationState(query.dataValidation);
-  xlsxSparklines(query.sparklines);
-  xlsxPrintSetup(query.printSetup);
-  xlsxPrintRange(query.printRange);
-  xlsxHeaderFooter(query.headerFooter);
-  const merging = record(query.merging);
-  if (
-    !hasFields(merging, ["range", "mergeReason", "unmergeReason"], []) ||
-    typeof merging.range !== "string" ||
-    merging.range.length === 0 ||
-    merging.range.length > 64 ||
-    typeof merging.merged !== "boolean" ||
-    !integer(merging.discarded, 0, 100000) ||
-    !integer(merging.discardedNotes, 0, 4095)
-  )
-    throw new Error("Invalid cell merging state");
-  xlsxFormatting(query.formatting);
-  const names = xlsxNames(query.names);
-  const dimensions = record(query.dimensions);
-  const frozen = record(query.frozen);
-  const view = record(query.view);
-  if (
-    typeof view.gridLines !== "boolean" ||
-    typeof view.headings !== "boolean" ||
-    typeof view.rtl !== "boolean" ||
-    typeof view.formulas !== "boolean" ||
-    typeof view.readOnlyReason !== "string"
-  )
-    throw new Error("Invalid worksheet view");
-  if (
-    !integer(frozen.rows, 0, 1048575) ||
-    !integer(frozen.columns, 0, 16383) ||
-    typeof frozen.readOnlyReason !== "string"
-  )
-    throw new Error("Invalid frozen panes");
-  if (
-    typeof dimensions.readOnlyReason !== "string" ||
-    !["rowHeight", "columnWidth"].every((key) => {
-      const size = dimensions[key];
-      return (
-        size === null ||
-        (typeof size === "number" &&
-          Number.isFinite(size) &&
-          size >= 0 &&
-          size <= (key === "rowHeight" ? 409.5 : 255))
-      );
-    })
-  )
-    throw new Error("Invalid worksheet dimensions");
-  if (
-    typeof query.sheetEditReason !== "string" ||
-    typeof query.sheetRenameReason !== "string"
-  )
-    throw new Error("Invalid worksheet edit reason");
-  if (
-    !hasFields(
-      query,
-      ["mainPart", "sheet", "readOnlyReason", "normalFont"],
-      [],
-    ) ||
-    typeof query.normalFont !== "string" ||
-    query.normalFont.length === 0 ||
-    query.normalFont.length > 270 ||
-    !integer(query.revision, 0, 2147483647) ||
-    !integer(query.historyBytes, 0, 4194304) ||
-    typeof query.canUndo !== "boolean" ||
-    typeof query.canRedo !== "boolean" ||
-    typeof query.date1904 !== "boolean" ||
-    !arrayOf(query.diagnostics, (value) => typeof value === "string") ||
-    !Array.isArray(query.fontKeys) ||
-    query.fontKeys.length > 4096 ||
-    !arrayOf(
-      query.fontKeys,
-      (value) =>
-        typeof value === "string" && value.length > 0 && value.length <= 256,
-    ) ||
-    !Array.isArray(query.sheets) ||
-    query.sheets.length === 0 ||
-    query.sheets.length > 256
-  )
-    throw new Error("Invalid XLSX state returned by Wasm");
-  const sheets = new Set<string>();
-  for (const value of query.sheets) {
-    const sheet = record(value);
-    if (
-      !hasFields(sheet, ["id", "name"], []) ||
-      typeof sheet.id !== "string" ||
-      sheets.has(sheet.id) ||
-      !sheet.id ||
-      !["visible", "hidden", "veryHidden"].includes(String(sheet.state)) ||
-      typeof sheet.protected !== "boolean"
-    )
-      throw new Error("Invalid XLSX worksheet");
-    sheets.add(sheet.id);
-  }
-  const selection = record(query.selection);
-  if (
-    names.entries.some((item) => item.scope !== null && !sheets.has(item.scope))
-  )
-    throw new Error("Invalid defined name scope");
-  const range = record(selection.range);
-  if (
-    typeof query.sheet !== "string" ||
-    !sheets.has(query.sheet) ||
-    typeof selection.sheet !== "string" ||
-    !sheets.has(selection.sheet) ||
-    typeof selection.address !== "string" ||
-    !/^[A-Z]{1,3}[1-9][0-9]{0,6}(:[A-Z]{1,3}[1-9][0-9]{0,6})?$/.test(
-      selection.address,
-    ) ||
-    !integer(range.top, 1, 1048576) ||
-    !integer(range.bottom, Number(range.top), 1048576) ||
-    !integer(range.left, 1, 16384) ||
-    !integer(range.right, Number(range.left), 16384) ||
-    !Array.isArray(query.cells) ||
-    query.cells.length > 4096
-  )
-    throw new Error("Invalid XLSX query range");
-  const addresses = new Set<string>();
-  for (const value of query.cells) {
-    const cell = xlsxCell(value);
-    if (addresses.has(cell.address)) throw new Error("Duplicate XLSX cell");
-    addresses.add(cell.address);
-  }
-  return value as XlsxQuery;
-}
 
 export function xlsxPrintLayout(value: unknown): XlsxPrintLayout {
   drawingBatch(value);
@@ -460,6 +309,114 @@ export function xlsxViewport(value: unknown): XlsxViewport {
 
 /** One workbook owner; values, XML transactions and history stay in MoonBit. */
 export class XlsxSession extends WasmSession {
+  pictures(revision: number, sheet: string, profile: Record<string, string>) {
+    return xlsxPictures(
+      this.call({ operation: "picturesXlsx", revision, sheet, profile }),
+    );
+  }
+  pictureResource(revision: number, bytes: Uint8Array) {
+    if (bytes.length > 2097152) throw new Error("Picture input exceeds2MiB");
+    return xlsxPictureResource(
+      this.call({
+        operation: "pictureResourceXlsx",
+        revision,
+        bytes: encodeBytes(bytes),
+      }),
+    );
+  }
+  imageBytes(revision: number, key: string): Uint8Array {
+    return this.bytes({ operation: "imageBytesXlsx", revision, key });
+  }
+  addImage(
+    revision: number,
+    key: string,
+    width: number,
+    height: number,
+    bytes: Uint8Array,
+  ): string {
+    const result = record(
+      this.call({
+        operation: "imageXlsx",
+        revision,
+        key,
+        width,
+        height,
+        bytes: encodeBytes(bytes),
+      }),
+    );
+    if (typeof result.key !== "string" || !result.key)
+      throw new Error("Invalid worksheet image resource");
+    return result.key;
+  }
+  insertPicture(
+    revision: number,
+    sheet: string,
+    width: number,
+    height: number,
+    bytes: Uint8Array,
+    profile: Record<string, string>,
+    name = "Picture",
+    description = "",
+  ): XlsxQuery {
+    checkXlsxPictureSettings({
+      anchor: "move",
+      x: 0,
+      y: 0,
+      width,
+      height,
+      name,
+      description,
+    });
+    if (bytes.length > 2097152) throw new Error("Picture input exceeds2MiB");
+    return xlsxQuery(
+      this.call({
+        operation: "insertPictureXlsx",
+        revision,
+        sheet,
+        width,
+        height,
+        bytes: encodeBytes(bytes),
+        profile,
+        name,
+        description,
+      }),
+    );
+  }
+  setPicture(
+    revision: number,
+    sheet: string,
+    id: string,
+    settings: XlsxPictureSettings,
+    profile: Record<string, string>,
+  ): XlsxQuery {
+    checkXlsxPictureSettings(settings);
+    return xlsxQuery(
+      this.call({
+        operation: "setPictureXlsx",
+        revision,
+        sheet,
+        id,
+        settings,
+        profile,
+      }),
+    );
+  }
+  deletePicture(
+    revision: number,
+    sheet: string,
+    id: string,
+    profile: Record<string, string>,
+  ): XlsxQuery {
+    return xlsxQuery(
+      this.call({
+        operation: "deletePictureXlsx",
+        revision,
+        sheet,
+        id,
+        profile,
+      }),
+    );
+  }
   pivots(revision: number, sheet: string) {
     return xlsxPivots(this.call({ operation: "pivotsXlsx", revision, sheet }));
   }

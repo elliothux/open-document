@@ -1,11 +1,11 @@
-import { CanvasSurface } from "./canvas-surface.js";
+import { SpreadsheetCanvas } from "./spreadsheet-canvas.js";
 import type { XlsxClient } from "./xlsx.js";
 import type { PrintOptions, XlsxPrintLayout } from "@open-document/wasm/xlsx";
 
 /** A bounded page surface for the core's independent print layout. */
 export class SpreadsheetPrint {
   readonly element = document.createElement("div");
-  private readonly surface = new CanvasSurface();
+  private readonly surface = new SpreadsheetCanvas();
   private readonly listeners = new AbortController();
   private layout: XlsxPrintLayout | undefined;
   private prepared: XlsxPrintLayout | undefined;
@@ -49,6 +49,22 @@ export class SpreadsheetPrint {
   ): Promise<XlsxPrintLayout> {
     const key = JSON.stringify([revision, sheet, options, profile]);
     if (this.prepared && this.key === key) return this.prepared;
+    const query = await client.query();
+    const sheets =
+      options?.sheets === "visible"
+        ? query.sheets
+            .filter((sheet) => sheet.state === "visible")
+            .map((sheet) => sheet.id)
+        : Array.isArray(options?.sheets)
+          ? options.sheets
+          : [sheet];
+    await this.surface.prepare(
+      client,
+      revision,
+      sheets,
+      profile,
+      this.listeners.signal,
+    );
     const layout = await client.printLayout(revision, sheet, options, profile);
     this.listeners.signal.throwIfAborted();
     this.prepared = layout;

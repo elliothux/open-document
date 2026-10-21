@@ -61,6 +61,7 @@ fn Session::paste_markup_fragment(
     selection,
     structural=true,
     fields=true,
+    tables=true,
   )
   let caret = { anchor: range.start, focus: range.start, }
   let selected = self.formatting_range(original, caret, fields=true)

@@ -360,24 +360,51 @@ fn Session::capture_table_fragment(
   right : Int,
   owners : Array[Int],
   fields : Map[Int, String],
+  numbers? : Map[Int, (Int, Int)],
+  markers? : Map[Int, String],
+  body~ : Bool = false,
 ) -> String raise @failure.Failure {
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
   let output = StringBuilder()
+  let properties = if body {
+    tree
+    .child(grid.table, "tblPr")
+    .map(id => {
+      check_fragment_content(tree, tree.descendants(id), Map([]))
+      let diagnostics : Array[String] = []
+      tree.diagnose_properties(id, self.main, diagnostics)
+      guard diagnostics.is_empty() else {
+        @failure.reject(
+          "protected-content", "Table style resources require portable table styles",
+        )
+      }
+      tree.standalone_markup(self.document(), id)
+    })
+    .unwrap_or("<od:tblPr/>")
+  } else {
+    "<od:tblPr><od:tblLayout od:type=\"fixed\"/></od:tblPr>"
+  }
   output.write_string(
-    "<od:tbl xmlns:od=\"\{word_uri}\"><od:tblPr><od:tblLayout od:type=\"fixed\"/></od:tblPr><od:tblGrid>",
+    "<od:tbl xmlns:od=\"\{word_uri}\">\{properties}<od:tblGrid>",
   )
   for width in grid.model.widths[left:right] {
     output.write_string("<od:gridCol od:w=\"\{(width*20).round().to_int()}\"/>")
   }
   output.write_string("</od:tblGrid>")
   let styles = self.styles([])
-  let (numbering, numbers) = self.fragment_numbering(
-    tree, grid, top, bottom, left, right, styles, limit,
-  )
+  let (numbering, numbers) = match numbers {
+    Some(numbers) => ("", numbers)
+    None =>
+      self.fragment_numbering(
+        tree, grid, top, bottom, left, right, styles, limit,
+      )
+  }
   output.write_string(numbering)
   let links = self.hyperlink_relationships()
   let bookmarks = tree.bookmark_targets()
-  let markers = fragment_bookmark_markers(tree, grid, top, bottom, left, right)
+  let markers = markers.unwrap_or_else(() => {
+    fragment_bookmark_markers(tree, grid, top, bottom, left, right)
+  })
   let pictures : Map[Int, String] = Map([])
   for row in top..<bottom {
     for column, cell in grid.cells[row] {
@@ -396,6 +423,16 @@ fn Session::capture_table_fragment(
   for row in top..<bottom {
     output.write_string("<od:tr>")
     units += 17
+    if body {
+      let properties = tree.copy_row_properties(self.document(), grid.rows[row])
+      guard properties.length() <= limit - units else {
+        @failure.reject(
+          "limit-exceeded", "Rich table fragment exceeds source budget",
+        )
+      }
+      units += properties.length()
+      output.write_string(properties)
+    }
     for column, cell in grid.cells[row] {
       let start = grid.starts[row][column]
       if start < right && start + grid.model.columnSpans[row][column] > left {

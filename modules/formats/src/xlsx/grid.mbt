@@ -382,6 +382,7 @@ pub fn Session::viewport(
   probe : @layout.TextProbe,
   profile : Map[String, String],
   reveal~ : Bool = false,
+  images~ : @layout.Images = @layout.Images::new(),
 ) -> Json raise @failure.Failure {
   let index = self.sheet_index(sheet)
   guard width >= 90 &&
@@ -400,11 +401,19 @@ pub fn Session::viewport(
     @failure.reject("unsupported-view", current.frozen.layout_reason)
   }
   let dimensions = self.resolved_dimensions(current, probe, profile)
+  let mut picture_reason = ""
+  let pictures = self.sheet_pictures(current, dimensions) catch {
+    @failure.Failure(code="limit-exceeded", ..) as error => raise error
+    @failure.Failure(message~, ..) => {
+      picture_reason = message
+      []
+    }
+  }
   let notes : Map[String, CellNote] = Map([])
   let source_notes = self.read_sheet_notes(current) catch {
     @failure.Failure(..) => None
   }
-  let mut used = current.used()
+  let mut used = picture_used(current.used(), pictures, dimensions)
   if source_notes is Some(source_notes) {
     for note in source_notes.entries {
       notes[note.address.name()] = note
@@ -487,7 +496,7 @@ pub fn Session::viewport(
     visible_notes,
     table_styles,
   ) = self.paint_grid(
-    index, dimensions, rows, columns, width, height, probe, profile, notes,
+    index, dimensions, rows, columns, width, height, probe, profile, notes, pictures,
   )
   let document : @layout.PositionedDocument = {
     pages: [{ width, height, primitives, }],
@@ -498,8 +507,12 @@ pub fn Session::viewport(
   }
   self.grid_id += 1
   let diagnostics = self.diagnostics.filter(diagnostic => {
-    !table_styles.renders(diagnostic, current.id)
+    !table_styles.renders(diagnostic, current.id) &&
+    !(picture_reason.is_empty() && picture_diagnostic(current, diagnostic))
   })
+  if !picture_reason.is_empty() {
+    diagnostics.push("unrendered:" + current.id + ":" + picture_reason)
+  }
   for cell in cells {
     if cell is { "diagnostic": String(reason), .. } && !reason.is_empty() {
       let message = "cell-style:" + sheet + ":" + reason
@@ -519,9 +532,9 @@ pub fn Session::viewport(
     "headerWidth": header_width,
     "headerHeight": header_height,
     "rtl": current.view.rtl,
-    "regions": document.drawing(@layout.Images::new()),
+    "regions": document.drawing(images),
     "outlines": probe.outline_resources(),
-    "images": [],
+    "images": document.drawing_images(images),
     "cells": cells,
     "notes": visible_notes,
     "rows": row_headers,

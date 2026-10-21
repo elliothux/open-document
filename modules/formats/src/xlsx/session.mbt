@@ -5,6 +5,7 @@ priv struct History {
   created_parts : Map[String, @xml.Document]
   mut deleted : Sheet?
   removed : Map[String, @xml.Document]
+  added_media : Map[String, Bytes]
   bytes : Int
   before : (String, Range)
   after : (String, Range)
@@ -16,6 +17,7 @@ pub struct Session {
   priv main : String
   priv mut workbook : @xml.Document
   priv mut parts : Map[String, @xml.Document]
+  priv mut media : Map[String, Bytes]
   priv mut removed : Array[String]
   priv mut next_sheet : Int
   priv budget : @archive.Budget
@@ -233,6 +235,7 @@ fn Session::from_package(
     main,
     workbook,
     parts: Map([]),
+    media: Map([]),
     removed: [],
     next_sheet: 1,
     budget,
@@ -592,6 +595,7 @@ pub fn Session::close(self : Session) -> Unit {
   self.closed = true
   self.sheets.clear()
   self.parts.clear()
+  self.media.clear()
   self.removed.clear()
   self.strings.clear()
   self.history.clear()

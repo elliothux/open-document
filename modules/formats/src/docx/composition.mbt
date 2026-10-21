@@ -79,6 +79,7 @@ pub fn Session::begin_composition(
         selection,
         structural=selection.anchor.paragraph != selection.focus.paragraph,
         fields=true,
+        tables=true,
       ),
     )
   }

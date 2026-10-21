@@ -68,7 +68,7 @@ fn Session::insert_note_fragments(
       created,
       edits,
     )
-    let (next, edit) = insert_note_vml(sheet_document, relation)
+    let (next, edit) = insert_sheet_drawing(sheet_document, relation)
     sheet_document = next
     edits.push((target.id, edit))
     (path, Tree::new(parts[path]))

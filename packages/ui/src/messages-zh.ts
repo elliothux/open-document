@@ -12,6 +12,7 @@ import { outlineZh } from "./messages-outline.js";
 import { tableZh } from "./messages-xlsx-tables.js";
 import { pivotZh } from "./messages-xlsx-pivot.js";
 import { clipboardZh } from "./messages-clipboard.js";
+import { xlsxPicturesZh } from "./messages-xlsx-pictures.js";
 import { protectionZh } from "./messages-xlsx-protection.js";
 import { sparklineZh } from "./messages-xlsx-sparkline.js";
 
@@ -22,6 +23,7 @@ export const zh: Messages = {
   ...connectorZh,
   ...viewZh,
   ...clipboardZh,
+  ...xlsxPicturesZh,
   ...tableZh,
   ...pivotZh,
   ...outlineZh,

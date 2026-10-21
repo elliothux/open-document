@@ -174,7 +174,7 @@ fn Session::set_note(
       created,
       edits,
     )
-    let (document, edit) = insert_note_vml(sheet.document, relation)
+    let (document, edit) = insert_sheet_drawing(sheet.document, relation)
     sheet_document = document
     edits.push((id, edit))
   }

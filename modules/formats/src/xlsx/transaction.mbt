@@ -11,6 +11,8 @@ fn Session::commit(
   created_parts~ : Map[String, @xml.Document] = Map([]),
   deleted~ : Sheet? = None,
   removed~ : Map[String, @xml.Document] = Map([]),
+  media~ : Map[String, Bytes] = self.media,
+  added_media~ : Map[String, Bytes] = Map([]),
   table_edits~ : Array[String] = [],
   pivot_edits~ : Array[String] = [],
   font_context~ : (@layout.TextProbe, Map[String, String])? = self.font_context,
@@ -42,6 +44,7 @@ fn Session::commit(
   self.reflow_dimensions(
     sheets, calculation, styles, edits, font_context, fit_work, parts,
   )
+  self.reflow_pictures(sheets, parts, edits, font_context)
   let payload = edits
     .iter()
     .fold(init=0L, (sum, entry) => sum + entry.1.payload_bytes()) +
@@ -53,6 +56,9 @@ fn Session::commit(
     .fold(init=0L, (sum, document) => {
       sum + document.source().length().to_int64() * 2
     }) +
+    added_media
+    .values()
+    .fold(init=0L, (sum, bytes) => sum + bytes.length().to_int64()) +
     removed
     .values()
     .fold(init=0L, (sum, document) => {
@@ -67,7 +73,7 @@ fn Session::commit(
       removed_parts.push(name)
     }
   }
-  self.validate(sheets, workbook~, parts~, removed=removed_parts)
+  self.validate(sheets, workbook~, parts~, removed=removed_parts, media~)
   for item in self.redo {
     self.history_bytes -= item.bytes
   }
@@ -78,6 +84,7 @@ fn Session::commit(
     created_parts,
     deleted,
     removed,
+    added_media,
     bytes: payload.to_int(),
     before: self.selection,
     after,
@@ -90,6 +97,7 @@ fn Session::commit(
   self.history_bytes += entry.bytes
   self.workbook = workbook
   self.parts = parts
+  self.media = media
   self.removed = removed_parts
   self.sheets = sheets
   self.styles = styles

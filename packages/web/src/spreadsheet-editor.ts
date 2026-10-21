@@ -20,7 +20,8 @@ import {
 } from "./spreadsheet-semantics.js";
 export type { SpreadsheetEditorData } from "./spreadsheet-semantics.js";
 import { SpreadsheetPrint } from "./spreadsheet-print.js";
-import { CanvasSurface } from "./canvas-surface.js";
+import { SpreadsheetCanvas } from "./spreadsheet-canvas.js";
+import { SpreadsheetObjects } from "./spreadsheet-objects.js";
 import { SpreadsheetFormula } from "./spreadsheet-formula.js";
 import { SpreadsheetPointer } from "./spreadsheet-pointer.js";
 import {
@@ -53,7 +54,6 @@ import type {
   XlsxViewport,
   XlsxPrintLayout,
   PrintOptions,
-  XlsxSheetEdit,
   XlsxCellFormat,
   CopiedCellFormat,
   XlsxClearMode,
@@ -65,7 +65,7 @@ import type {
   XlsxFindOptions,
   XlsxPasteMode,
 } from "@open-document/wasm/xlsx";
-export class SpreadsheetEditor {
+export class SpreadsheetEditor extends SpreadsheetObjects {
   acceptValidationWarnings = false;
   private readonly container: HTMLDivElement;
   private readonly viewport: HTMLDivElement;
@@ -73,7 +73,7 @@ export class SpreadsheetEditor {
   private readonly spacer: HTMLDivElement;
   private readonly input: HTMLTextAreaElement;
   private readonly semantics: HTMLDivElement;
-  private readonly surface = new CanvasSurface();
+  protected override readonly surface = new SpreadsheetCanvas();
   private readonly printView = new SpreadsheetPrint(() => this.publish());
   private readonly observable: EditorState<SpreadsheetEditorData>;
   private paused = false;
@@ -101,10 +101,11 @@ export class SpreadsheetEditor {
   private rendering = false;
   private constructor(
     root: HTMLElement,
-    private readonly client: XlsxClient,
-    private readonly profile: Record<string, string>,
+    protected override readonly client: XlsxClient,
+    protected override readonly profile: Record<string, string>,
     state: XlsxQuery,
   ) {
+    super();
     this.state = state;
     this.observable = new EditorState("xlsx", {
       revision: state.revision,
@@ -437,6 +438,13 @@ export class SpreadsheetEditor {
     this.publish();
     try {
       const generation = this.generation;
+      await this.surface.prepare(
+        this.client,
+        this.state.revision,
+        [this.state.sheet],
+        this.profile,
+        this.listeners.signal,
+      );
       const layout = await this.client.viewport({
         ...prepareGridViewport(
           this.viewport,
@@ -572,15 +580,6 @@ export class SpreadsheetEditor {
       this.client.pivotPreview(this.state.revision, settings),
     );
   }
-  editSheet(change: XlsxSheetEdit, sheet?: string): Promise<void> {
-    return this.change(() =>
-      this.client.editSheet(
-        this.state.revision,
-        sheet ?? this.state.sheet,
-        change,
-      ),
-    );
-  }
   duplicates(settings: XlsxDuplicateSettings): Promise<XlsxDuplicates> {
     return this.read(() =>
       this.client.duplicates(this.state.revision, this.state.sheet, settings),
@@ -599,7 +598,7 @@ export class SpreadsheetEditor {
   captureFormat(): Promise<CopiedCellFormat> {
     return this.read(() => this.client.captureFormat(this.state.revision));
   }
-  private read<T>(action: () => Promise<T>): Promise<T> {
+  protected override read<T>(action: () => Promise<T>): Promise<T> {
     return this.enqueue(async () => {
       requireCellCompositionEnd(this.composing);
       await this.commitDraft();
@@ -612,7 +611,7 @@ export class SpreadsheetEditor {
       return this.client.applyFormat(this.state.revision, format);
     });
   }
-  private change(action: () => Promise<XlsxQuery>): Promise<void> {
+  protected override change(action: () => Promise<XlsxQuery>): Promise<void> {
     return this.read(async () => {
       this.state = await action();
       if (this.printView.visible) {

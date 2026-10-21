@@ -608,6 +608,7 @@ fn Foundation::xlsx_operation(
         self.probe,
         xlsx_profile(request),
         reveal=xlsx_boolean(request, "reveal"),
+        images=self.images,
       )
     "hitXlsx" =>
       {
@@ -723,7 +724,7 @@ fn Foundation::xlsx_operation(
         "revision": revision,
         "sheet": field_string(request, "sheet"),
         "regions": regions,
-        "images": [],
+        "images": document.drawing_images(self.images),
         "outlines": outlines,
       }
     }

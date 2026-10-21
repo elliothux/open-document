@@ -12,6 +12,7 @@ fn Session::replacements(
   sheets : Array[Sheet],
   workbook : @xml.Document,
   parts : Map[String, @xml.Document],
+  media~ : Map[String, Bytes] = self.media,
 ) -> Map[String, Bytes] {
   let replacements : Map[String, Bytes] = Map([])
   // Restoring deleted new parts must not change their ZIP entry order.
@@ -31,6 +32,11 @@ fn Session::replacements(
       !self.opc.names.contains(sheet.id.to_lower()) {
       replacements[sheet.id] = sheet.document.bytes()
     }
+  }
+  let names = media.keys().to_array()
+  names.sort()
+  for part in names {
+    replacements[part] = media[part]
   }
   replacements
 }

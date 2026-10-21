@@ -156,6 +156,13 @@ fn Foundation::dispatch(
     | "clearXlsx"
     | "printXlsx"
     | "exportXlsxPdf" => self.xlsx_operation(operation, request)
+    "picturesXlsx"
+    | "pictureResourceXlsx"
+    | "imageBytesXlsx"
+    | "imageXlsx"
+    | "insertPictureXlsx"
+    | "setPictureXlsx"
+    | "deletePictureXlsx" => self.xlsx_picture_operation(operation, request)
     "openPptx"
     | "createPptx"
     | "queryPptx"

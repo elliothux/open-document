@@ -497,6 +497,7 @@ pub(all) struct PositionedDocument {
   fonts : Array[FontInfo]
 }
 pub fn PositionedDocument::drawing(Self, Images, clear? : Bool) -> Array[DrawingRegion] raise @failure.Failure
+pub fn PositionedDocument::drawing_images(Self, Images) -> Array[String] raise @failure.Failure
 
 pub(all) struct PositionedPage {
   width : Double

@@ -29,18 +29,20 @@ fn note_body(
 }
 
 ///|
-fn insert_note_vml(
+fn insert_sheet_drawing(
   document : @xml.Document,
   relation : String,
+  name~ : String = "legacyDrawing",
 ) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
   let tree = Tree::new(document)
   let root = tree.root("worksheet")
-  let markup = "<od:legacyDrawing xmlns:od=\"\{spreadsheet_uri}\" xmlns:odRel=\"\{relationship_uri[:relationship_uri.length()-1]}\" odRel:id=\"\{escaped_attribute(relation)}\"/>"
+  let markup = "<od:\{name} xmlns:od=\"\{spreadsheet_uri}\" xmlns:odRel=\"\{relationship_uri[:relationship_uri.length()-1]}\" odRel:id=\"\{escaped_attribute(relation)}\"/>"
   let next = tree.children
     .get(root.id)
     .unwrap_or([])
     .iter()
     .find_first(node => {
+      (name == "drawing" && node.name == "legacyDrawing") ||
       [
         "legacyDrawingHF", "picture", "oleObjects", "controls", "webPublishItems",
         "tableParts", "extLst",

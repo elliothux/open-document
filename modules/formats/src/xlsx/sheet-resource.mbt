@@ -27,6 +27,8 @@ fn Session::create_sheet_resource(
     "od" + kind
   } else if kind == "table" {
     "odTable"
+  } else if kind == "drawing" {
+    "odDrawing"
   } else {
     "odNotes"
   }
@@ -51,6 +53,34 @@ fn Session::create_sheet_resource(
   )
   parts[part] = document
   created[part] = document
+  let content_type = if kind.has_prefix("pivot") {
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.\{kind}+xml"
+  } else if kind == "table" {
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml"
+  } else if kind == "comments" {
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"
+  } else if kind == "drawing" {
+    "application/vnd.openxmlformats-officedocument.drawing+xml"
+  } else {
+    "application/vnd.openxmlformats-officedocument.vmlDrawing"
+  }
+  let id = self.attach_sheet_resource(
+    owner, part, kind, content_type, parts, created, edits,
+  )
+  (part, id)
+}
+
+///|
+fn Session::attach_sheet_resource(
+  self : Session,
+  owner : String,
+  part : String,
+  kind : String,
+  content_type : String,
+  parts : Map[String, @xml.Document],
+  created : Map[String, @xml.Document],
+  edits : Array[(String, @xml.Edit)],
+) -> String raise @failure.Failure {
   let links = self.relationships()
   let path = workbook_relations(owner)
   let path = self.opc.names.get(path.to_lower()).unwrap_or(path)
@@ -102,15 +132,6 @@ fn Session::create_sheet_resource(
   }
   let path = "[Content_Types].xml"
   let original = parts.get(path).unwrap_or_else(() => self.part_xml(path))
-  let content_type = if kind.has_prefix("pivot") {
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.\{kind}+xml"
-  } else if kind == "table" {
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml"
-  } else if kind == "comments" {
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"
-  } else {
-    "application/vnd.openxmlformats-officedocument.vmlDrawing"
-  }
   let (document, edit) = original.edit_source([
     insertion(
       original.nodes()[0],
@@ -119,5 +140,5 @@ fn Session::create_sheet_resource(
   ])
   parts[path] = document
   edits.push((path, edit))
-  (part, id)
+  id
 }

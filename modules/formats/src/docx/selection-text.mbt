@@ -12,6 +12,7 @@ fn Session::paragraph_range(
   selection : Selection,
   structural~ : Bool,
   fields~ : Bool = false,
+  tables~ : Bool = false,
 ) -> ParagraphRange raise @failure.Failure {
   self.paragraph_range_in(
     self.document(),
@@ -19,6 +20,7 @@ fn Session::paragraph_range(
     selection,
     structural~,
     fields~,
+    tables~,
   )
 }
 
@@ -30,6 +32,7 @@ fn Session::paragraph_range_in(
   selection : Selection,
   structural~ : Bool,
   fields~ : Bool = false,
+  tables~ : Bool = false,
   check_layout~ : Bool = true,
   check_graphemes~ : Bool = true,
 ) -> ParagraphRange raise @failure.Failure {
@@ -51,24 +54,74 @@ fn Session::paragraph_range_in(
     @failure.reject("protected-content", "Range crosses paragraph containers")
   }
   let siblings = tree.children[first.parent]
-  let paragraphs = siblings[siblings.search(first.id).unwrap():siblings
+  let blocks = siblings[siblings.search(first.id).unwrap():siblings
   .search(last.id)
   .unwrap() +
   1].to_owned()
-  for id in paragraphs {
+  let paragraphs : Array[Int] = []
+  let continuations : Map[Int, Unit] = Map([])
+  let mut cells = 0L
+  let mut table_count = 0
+  let table_flow = if tables &&
+    blocks.any(id => {
+      tree.nodes[id].uri == word_uri && tree.nodes[id].name == "tbl"
+    }) {
+    Some(self.flow_from(document))
+  } else {
+    None
+  }
+  for id in blocks {
+    if tables &&
+      tree.nodes[id].uri == word_uri &&
+      tree.nodes[id].name == "tbl" &&
+      tree.nodes[first.parent].name == "body" {
+      let model = table_flow.unwrap().tables
+        .iter()
+        .find_first(table => table.id == id)
+        .unwrap()
+      let grid = self.check_fragment_table(tree, model)
+      for r, row in grid.cells {
+        for c, cell in row {
+          if model.rowSpans[r][c] == 0 {
+            for paragraph in tree.table_children(cell, "p") {
+              continuations[paragraph] = ()
+            }
+          }
+        }
+      }
+      table_count += 1
+      cells += model.rows.length().to_int64() * model.widths.length().to_int64()
+      guard table_count <= 32 && cells <= 4096L else {
+        @failure.reject(
+          "limit-exceeded", "Selected body tables exceed grid budget",
+        )
+      }
+      paragraphs.append(
+        tree
+        .descendants(id)
+        .filter(child => {
+          tree.nodes[child].uri == word_uri && tree.nodes[child].name == "p"
+        }),
+      )
+      continue
+    }
     guard tree.nodes[id].uri == word_uri && tree.nodes[id].name == "p" else {
-      @failure.reject("protected-content", "Range crosses protected content")
+      @failure.reject(
+        "protected-content",
+        "Range crosses unsupported block: " + tree.nodes[id].name,
+      )
     }
     tree.check_editable_paragraph(id, part=self.main, pictures=true, fields~)
     self.check_native_pictures(tree, id)
     if structural {
       tree.check_structure_paragraph(id, running=fields)
     }
+    paragraphs.push(id)
   }
   if !check_layout {
     return { start, end, paragraphs, }
   }
-  let flow = self.flow_from(document)
+  let flow = table_flow.unwrap_or_else(() => self.flow_from(document))
   let all = flow.paragraphs.copy()
   for table in flow.tables {
     for row in table.rows {
@@ -79,8 +132,12 @@ fn Session::paragraph_range_in(
   }
   let reasons = Map::from_array(all.map(p => (p.id, p.readOnlyReason)))
   for id in paragraphs {
-    guard reasons.get(id) == Some("") else {
-      @failure.reject("protected-content", "Range crosses protected content")
+    // Validated empty vertical continuations have no visible flow paragraphs.
+    guard reasons.get(id) == Some("") || continuations.contains(id) else {
+      @failure.reject(
+        "protected-content",
+        reasons.get(id).unwrap_or("Range paragraph is unavailable"),
+      )
     }
   }
   { start, end, paragraphs, }
@@ -104,7 +161,13 @@ pub fn Session::selected_text(
   let cells = self.table_format_range(tree, selection, fields=true)
   let whole_cells = cells is Some(_)
   let range = cells.unwrap_or_else(() => {
-    self.paragraph_range(tree, selection, structural=false, fields=true)
+    self.paragraph_range(
+      tree,
+      selection,
+      structural=false,
+      fields=true,
+      tables=true,
+    )
   })
   if cut {
     let texts = docx_texts(tree)
@@ -132,6 +195,12 @@ pub fn Session::selected_text(
     }
   }
   let fields = self.selection_field_values(tree, range, layout)
+  if range.paragraphs.any(id => {
+      tree.nodes[id].parent != tree.nodes[range.start.paragraph].parent
+    }) &&
+    !whole_cells {
+    return self.mixed_range_text(tree, range, fields)
+  }
   let output = StringBuilder()
   let mut units = if whole_cells { 1 } else { 0 }
   for index, paragraph in range.paragraphs {
@@ -148,42 +217,13 @@ pub fn Session::selected_text(
         "\n"
       }
     }
-    let texts = self.editable_texts(paragraph)
-    let text = texts.map(node => inline_text(tree.nodes[node.id])).join("")
-    let start = if paragraph == range.start.paragraph {
-      range.start.offset
-    } else {
-      0
-    }
-    let end = if paragraph == range.end.paragraph {
-      range.end.offset
-    } else {
-      text.length()
-    }
-    units += separator.length()
+    let text = self.range_paragraph_text(tree, range, paragraph, fields)
+    units += separator.length() + text.length()
     guard units <= command_limit else {
       @failure.reject("limit-exceeded", "Selection text exceeds UTF-16 budget")
     }
     output.write_string(separator)
-    for item in texts; offset = 0 {
-      let value = inline_text(tree.nodes[item.id])
-      let left = (start - offset).clamp(min=0, max=value.length())
-      let right = (end - offset).clamp(min=0, max=value.length())
-      if left < right {
-        let selected = fields
-          .get(item.id)
-          .unwrap_or_else(() => value[left:right].to_owned())
-          .replace_all(old="\u2028", new="\n")
-        guard selected.length() <= command_limit - units else {
-          @failure.reject(
-            "limit-exceeded", "Selection text exceeds UTF-16 budget",
-          )
-        }
-        units += selected.length()
-        output.write_string(selected)
-      }
-      continue offset + value.length()
-    }
+    output.write_string(text)
   }
   if whole_cells {
     output.write_string("\n")

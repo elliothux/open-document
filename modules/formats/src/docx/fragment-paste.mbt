@@ -40,6 +40,7 @@ pub fn Session::paste_body_fragment(
     selection,
     structural=true,
     fields=true,
+    tables=true,
   )
   if blocks.any(id => source.nodes[id].name == "tbl") {
     guard original_tree.nodes[range.start.paragraph].parent ==
