@@ -10,6 +10,7 @@ import {
 } from "@open-document/web/xlsx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { ConditionalStatisticsFields } from "./conditional-statistics.js";
 
 function scaleStops(): XlsxConditionalStop[] {
   return [
@@ -229,6 +230,20 @@ export function XlsxConditional({
     format: { fill: "fff2cc" },
   });
   const [rule, setRule] = useState<XlsxConditionalFormat>(fresh);
+  const kinds: Record<XlsxConditionalFormat["kind"], string> = {
+    cellIs: t.conditionalValue,
+    expression: t.conditionalFormula,
+    colorScale: t.conditionalColorScale,
+    dataBar: t.conditionalDataBar,
+    top10: t.conditionalRank,
+    aboveAverage: t.conditionalAverage,
+    duplicateValues: t.conditionalDuplicates,
+    uniqueValues: t.conditionalUnique,
+    containsBlanks: t.conditionalBlanks,
+    notContainsBlanks: t.conditionalNonblanks,
+    containsErrors: t.conditionalErrors,
+    notContainsErrors: t.conditionalNonerrors,
+  };
   const selected = current.rules.find((r) => r.priority === priority);
   const reason = current.readOnlyReason || selected?.readOnlyReason || "";
   const setFormat = <K extends keyof XlsxCellFormat>(
@@ -287,11 +302,9 @@ export function XlsxConditional({
             {current.rules.map((r) => (
               <option key={r.priority} value={r.priority}>
                 {r.priority}: {r.ranges} —{" "}
-                {r.rule.kind === "dataBar"
-                  ? t.conditionalDataBar
-                  : r.rule.kind === "colorScale"
-                    ? t.conditionalColorScale
-                    : r.rule.formula1}
+                {r.rule.kind === "cellIs" || r.rule.kind === "expression"
+                  ? r.rule.formula1
+                  : kinds[r.rule.kind]}
               </option>
             ))}
           </select>
@@ -316,6 +329,34 @@ export function XlsxConditional({
               value={rule.kind}
               onChange={(e) => {
                 const kind = e.currentTarget.value;
+                if (
+                  kind === "top10" ||
+                  kind === "aboveAverage" ||
+                  kind === "duplicateValues" ||
+                  kind === "uniqueValues" ||
+                  kind === "containsBlanks" ||
+                  kind === "notContainsBlanks" ||
+                  kind === "containsErrors" ||
+                  kind === "notContainsErrors"
+                ) {
+                  setRule({
+                    kind,
+                    operator: "",
+                    formula1: "",
+                    formula2: "",
+                    stopIfTrue: rule.stopIfTrue,
+                    format:
+                      rule.kind === "colorScale" || rule.kind === "dataBar"
+                        ? { fill: "fff2cc" }
+                        : rule.format,
+                    ...(kind === "top10"
+                      ? { rank: { rank: 10, percent: false, bottom: false } }
+                      : kind === "aboveAverage"
+                        ? { average: { above: true, equal: false, stdDev: 0 } }
+                        : {}),
+                  });
+                  return;
+                }
                 setRule(
                   kind === "colorScale" || kind === "dataBar"
                     ? {
@@ -358,10 +399,11 @@ export function XlsxConditional({
                 );
               }}
             >
-              <option value="cellIs">{t.conditionalValue}</option>
-              <option value="expression">{t.conditionalFormula}</option>
-              <option value="colorScale">{t.conditionalColorScale}</option>
-              <option value="dataBar">{t.conditionalDataBar}</option>
+              {Object.entries(kinds).map(([kind, label]) => (
+                <option key={kind} value={kind}>
+                  {label}
+                </option>
+              ))}
             </select>
           </label>
           {rule.kind === "colorScale" || rule.kind === "dataBar" ? (
@@ -372,6 +414,13 @@ export function XlsxConditional({
             />
           ) : (
             <>
+              {(rule.kind === "top10" || rule.kind === "aboveAverage") && (
+                <ConditionalStatisticsFields
+                  rule={rule}
+                  update={setRule}
+                  locale={state.locale}
+                />
+              )}
               {rule.kind === "cellIs" && (
                 <label>
                   {t.validationOperator}
@@ -400,16 +449,18 @@ export function XlsxConditional({
                   </select>
                 </label>
               )}
-              <label>
-                {t.validationFormula1}
-                <input
-                  aria-label={t.validationFormula1}
-                  value={rule.formula1}
-                  onChange={(e) =>
-                    setRule({ ...rule, formula1: e.currentTarget.value })
-                  }
-                />
-              </label>
+              {(rule.kind === "cellIs" || rule.kind === "expression") && (
+                <label>
+                  {t.validationFormula1}
+                  <input
+                    aria-label={t.validationFormula1}
+                    value={rule.formula1}
+                    onChange={(e) =>
+                      setRule({ ...rule, formula1: e.currentTarget.value })
+                    }
+                  />
+                </label>
+              )}
               {pair && (
                 <label>
                   {t.validationFormula2}

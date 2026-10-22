@@ -2,14 +2,11 @@ import { record, integer } from "./validation.js";
 import { FoundationClipboardSession } from "./docx-clipboard.js";
 import { editState, type EditState } from "./docx-format.js";
 
-export interface DocxMathFormat {
-  family: string;
-  size: number;
-  color: string;
-}
+import type { MathFormat } from "./math.js";
+export type { MathFormat } from "./math.js";
 export interface DocxMathValue {
   latex: string;
-  format?: DocxMathFormat;
+  format?: MathFormat;
 }
 export type DocxMathEdit =
   | (DocxMathValue & { action: "insert" })
@@ -21,14 +18,14 @@ export interface DocxMathExpressions {
     id: number;
     latex: string;
     reason: string;
-    format: DocxMathFormat | null;
+    format: MathFormat | null;
   }[];
 }
 export interface DocxFractionValue {
   numerator: string;
   denominator: string;
   /** Omit to inherit on insertion or preserve an existing fraction's appearance. */
-  format?: DocxMathFormat;
+  format?: MathFormat;
 }
 export type DocxFractionEdit =
   | (DocxFractionValue & { action: "insert" })
@@ -41,7 +38,7 @@ export interface DocxMathFractions {
     numerator: string;
     denominator: string;
     reason: string;
-    format: DocxMathFormat | null;
+    format: MathFormat | null;
   }[];
 }
 export interface DocxScriptValue {
@@ -49,7 +46,7 @@ export interface DocxScriptValue {
   subscript: string;
   superscript: string;
   /** Empty indices are absent; omit format to inherit or preserve appearance. */
-  format?: DocxMathFormat;
+  format?: MathFormat;
 }
 export type DocxScriptEdit =
   | (DocxScriptValue & { action: "insert" })
@@ -63,7 +60,7 @@ export interface DocxMathScripts {
     subscript: string;
     superscript: string;
     reason: string;
-    format: DocxMathFormat | null;
+    format: MathFormat | null;
   }[];
 }
 

@@ -1,5 +1,6 @@
 import { docxPicturesEn } from "./messages-docx-pictures.js";
 import { mathEn } from "./messages-docx-math.js";
+import { conditionalStatisticsEn } from "./messages-conditional-statistics.js";
 import { objectEn } from "./messages-pptx-objects.js";
 import { connectorEn } from "./messages-pptx-connectors.js";
 import { viewEn } from "./messages-pptx-view.js";
@@ -18,6 +19,7 @@ import { xlsxShapesEn } from "./messages-xlsx-shapes.js";
 import { protectionEn } from "./messages-xlsx-protection.js";
 import { sparklineEn } from "./messages-xlsx-sparkline.js";
 export const en = {
+  ...conditionalStatisticsEn,
   ...mathEn,
   ...sparklineEn,
   ...protectionEn,

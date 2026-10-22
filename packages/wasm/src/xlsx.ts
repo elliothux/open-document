@@ -90,6 +90,8 @@ export {
 } from "./xlsx-conditional.js";
 export type {
   XlsxConditionalFormat,
+  XlsxConditionalRank,
+  XlsxConditionalAverage,
   XlsxConditionalRule,
   XlsxConditionalState,
   XlsxConditionalStop,

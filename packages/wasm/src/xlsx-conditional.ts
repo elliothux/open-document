@@ -3,7 +3,19 @@ import { checkXlsxCellFormat, type XlsxCellFormat } from "./xlsx-format.js";
 import { validationOperators } from "./xlsx-validation.js";
 
 export interface XlsxConditionalFormat {
-  kind: "cellIs" | "expression" | "colorScale" | "dataBar";
+  kind:
+    | "cellIs"
+    | "expression"
+    | "colorScale"
+    | "dataBar"
+    | "top10"
+    | "aboveAverage"
+    | "duplicateValues"
+    | "uniqueValues"
+    | "containsBlanks"
+    | "notContainsBlanks"
+    | "containsErrors"
+    | "notContainsErrors";
   operator: "" | (typeof validationOperators)[number];
   formula1: string;
   formula2: string;
@@ -11,6 +23,18 @@ export interface XlsxConditionalFormat {
   format: XlsxCellFormat;
   stops?: XlsxConditionalStop[];
   bar?: XlsxDataBar;
+  rank?: XlsxConditionalRank;
+  average?: XlsxConditionalAverage;
+}
+export interface XlsxConditionalRank {
+  rank: number;
+  percent: boolean;
+  bottom: boolean;
+}
+export interface XlsxConditionalAverage {
+  above: boolean;
+  equal: boolean;
+  stdDev: number;
 }
 export interface XlsxConditionalThreshold {
   kind: "min" | "max" | "num" | "percent" | "percentile" | "formula";
@@ -58,10 +82,24 @@ export function checkXlsxConditionalFormat(value: unknown): void {
         "format",
         "stops",
         "bar",
+        "rank",
+        "average",
       ].includes(k),
     ) ||
     !(
-      (["expression", "colorScale", "dataBar"].includes(String(rule.kind)) &&
+      ([
+        "expression",
+        "colorScale",
+        "dataBar",
+        "top10",
+        "aboveAverage",
+        "duplicateValues",
+        "uniqueValues",
+        "containsBlanks",
+        "notContainsBlanks",
+        "containsErrors",
+        "notContainsErrors",
+      ].includes(String(rule.kind)) &&
         rule.operator === "") ||
       (rule.kind === "cellIs" &&
         validationOperators.some((o) => o === rule.operator))
@@ -83,6 +121,60 @@ export function checkXlsxConditionalFormat(value: unknown): void {
       })
     )
       throw new Error("Invalid conditional formula");
+  }
+  if (rule.kind === "top10" || rule.kind === "aboveAverage") {
+    if (
+      rule.formula1 !== "" ||
+      rule.formula2 !== "" ||
+      rule.stops !== undefined ||
+      rule.bar !== undefined
+    )
+      throw new Error("Invalid statistical conditional rule");
+    if (rule.kind === "top10") {
+      const rank = record(rule.rank);
+      if (
+        rule.average !== undefined ||
+        Object.keys(rank).length !== 3 ||
+        typeof rank.percent !== "boolean" ||
+        typeof rank.bottom !== "boolean" ||
+        !integer(rank.rank, 1, rank.percent ? 100 : 1000)
+      )
+        throw new Error("Invalid conditional rank");
+    } else {
+      const average = record(rule.average);
+      if (
+        rule.rank !== undefined ||
+        Object.keys(average).length !== 3 ||
+        typeof average.above !== "boolean" ||
+        typeof average.equal !== "boolean" ||
+        !integer(average.stdDev, 0, 3)
+      )
+        throw new Error("Invalid conditional average");
+    }
+    checkXlsxCellFormat(rule.format);
+    return;
+  }
+  if (rule.rank !== undefined || rule.average !== undefined)
+    throw new Error("Only statistical rules have rank or average settings");
+  if (
+    [
+      "duplicateValues",
+      "uniqueValues",
+      "containsBlanks",
+      "notContainsBlanks",
+      "containsErrors",
+      "notContainsErrors",
+    ].includes(String(rule.kind))
+  ) {
+    if (
+      rule.formula1 !== "" ||
+      rule.formula2 !== "" ||
+      rule.bar !== undefined ||
+      rule.stops !== undefined
+    )
+      throw new Error("Invalid built-in conditional settings");
+    checkXlsxCellFormat(rule.format);
+    return;
   }
   if (rule.kind === "colorScale" || rule.kind === "dataBar") {
     if (

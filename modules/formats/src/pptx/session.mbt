@@ -316,6 +316,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
         .unwrap_or(Json::null()),
         "media": object.media_query(),
         "text": object.accessible_text(),
+        "equations": self.math_items(object),
         "readOnlyReason": object.read_only,
         "textReadOnlyReason": object.text_reason,
         "deleteReason": if self.selection.objects.contains(object.id) &&

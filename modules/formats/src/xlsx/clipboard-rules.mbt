@@ -57,9 +57,14 @@ fn CopiedCells::check_copied_rules(
   }
   for rule in self.conditional {
     let settings = rule.settings
+    ignore(settings.check_nonformula())
     settings.format.validate()
-    guard ["expression", "cellIs", "colorScale", "dataBar"].contains(
-        settings.kind,
+    guard (
+        [
+          "expression", "cellIs", "colorScale", "dataBar", "top10", "aboveAverage",
+          "duplicateValues", "uniqueValues",
+        ].contains(settings.kind) ||
+        conditional_predicate_kind(settings.kind)
       ) &&
       [
         "", "between", "notBetween", "equal", "notEqual", "lessThan", "lessThanOrEqual",

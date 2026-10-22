@@ -1,6 +1,12 @@
 import type { TextStyle } from "./preview.js";
 import { record } from "./validation.js";
 
+export interface MathFormat {
+  family: string;
+  size: number;
+  color: string;
+}
+
 export type MathExpression =
   | {
       kind: "matrix";

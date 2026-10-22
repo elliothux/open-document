@@ -63,6 +63,15 @@ pub fn CellFormat::hash_combine(Self, Hasher) -> Unit
 pub fn CellFormat::new(family? : String?, size? : Double?, bold? : Bool?, italic? : Bool?, underline? : Bool?, strike? : Bool?, script? : String?, color? : String?, fill? : String?, horizontal? : String?, vertical? : String?, wrap? : Bool?, shrinkToFit? : Bool?, indent? : Int?, textRotation? : Int?, locked? : Bool?, formulaHidden? : Bool?, numberFormat? : String?, left? : CellBorder?, right? : CellBorder?, top? : CellBorder?, bottom? : CellBorder?) -> Self
 pub fn CellFormat::not_equal(Self, Self) -> Bool
 
+pub(all) struct ConditionalAverage {
+  above : Bool
+  equal : Bool
+  stdDev : Int
+} derive(Eq, ToJson)
+pub fn ConditionalAverage::equal(Self, Self) -> Bool
+pub fn ConditionalAverage::not_equal(Self, Self) -> Bool
+pub fn ConditionalAverage::to_json(Self) -> Json
+
 pub(all) struct ConditionalFormat {
   kind : String
   operator : String
@@ -72,10 +81,21 @@ pub(all) struct ConditionalFormat {
   format : CellFormat
   stops : Array[ConditionalStop]
   bar : DataBar?
+  rank : ConditionalRank?
+  average : ConditionalAverage?
 } derive(Eq)
 pub fn ConditionalFormat::default() -> Self
 pub fn ConditionalFormat::equal(Self, Self) -> Bool
 pub fn ConditionalFormat::not_equal(Self, Self) -> Bool
+
+pub(all) struct ConditionalRank {
+  rank : Int
+  percent : Bool
+  bottom : Bool
+} derive(Eq, ToJson)
+pub fn ConditionalRank::equal(Self, Self) -> Bool
+pub fn ConditionalRank::not_equal(Self, Self) -> Bool
+pub fn ConditionalRank::to_json(Self) -> Json
 
 pub(all) struct ConditionalStop {
   kind : String

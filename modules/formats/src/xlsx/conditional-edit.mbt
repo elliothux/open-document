@@ -238,10 +238,16 @@ fn Session::set_conditional(
       []
     }
     let rule_markup = if target is Some(target) &&
-      target.settings().json() == settings.json() {
+      target.settings().json() == settings.json() &&
+      (!conditional_predicate_kind(settings.kind) || target.ranges == ranges) {
       style_markup(tree, tree.nodes[target.node])
     } else {
-      settings.markup(priority, plan.indices[0], colors~)
+      settings.markup(
+        priority,
+        plan.indices[0],
+        rule_anchor(ranges, true),
+        colors~,
+      )
     }
     let markup = "<od:conditionalFormatting xmlns:od=\"\{spreadsheet_uri}\" sqref=\"\{ranges.map(Range::name).join(" ")}\">\{rule_markup}</od:conditionalFormatting>"
     changes.push(rule_insertion(tree, markup))

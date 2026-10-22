@@ -11,7 +11,7 @@ export type {
   DocxCharts,
   DocxFractionEdit,
   DocxFractionValue,
-  DocxMathFormat,
+  MathFormat,
   DocxMathValue,
   DocxMathEdit,
   DocxMathExpressions,

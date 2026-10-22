@@ -8,6 +8,8 @@ pub(all) struct ConditionalFormat {
   format : CellFormat
   stops : Array[ConditionalStop]
   bar : DataBar?
+  rank : ConditionalRank?
+  average : ConditionalAverage?
 } derive(Eq)
 
 ///|
@@ -24,6 +26,8 @@ pub fn ConditionalFormat::default() -> ConditionalFormat {
     format: CellFormat::new(fill=Some("fff2cc")),
     stops: [],
     bar: None,
+    rank: None,
+    average: None,
   }
 }
 
@@ -85,6 +89,12 @@ fn ConditionalFormat::json(self : ConditionalFormat) -> Json {
   if self.bar is Some(bar) && value is Object(fields) {
     fields["bar"] = Json({ ..bar, color: bar.color.to_lower(), })
   }
+  if self.rank is Some(rank) && value is Object(fields) {
+    fields["rank"] = Json(rank)
+  }
+  if self.average is Some(average) && value is Object(fields) {
+    fields["average"] = Json(average)
+  }
   value
 }
 
@@ -93,12 +103,18 @@ fn ConditionalRule::settings(self : ConditionalRule) -> ConditionalFormat {
   {
     kind: self.kind,
     operator: self.operator,
-    formula1: self.formulas.get(0).unwrap_or(""),
+    formula1: if conditional_predicate_kind(self.kind) {
+      ""
+    } else {
+      self.formulas.get(0).unwrap_or("")
+    },
     formula2: self.formulas.get(1).unwrap_or(""),
     stopIfTrue: self.stop,
     format: self.style,
     stops: self.stops,
     bar: self.bar,
+    rank: self.rank,
+    average: self.average,
   }
 }
 
@@ -110,6 +126,10 @@ fn ConditionalFormat::check(
   index : Int,
   work : FormulaWork,
 ) -> Unit raise @failure.Failure {
+  if self.check_nonformula() {
+    self.format.validate()
+    return
+  }
   if self.kind == "dataBar" {
     guard self.operator.is_empty() &&
       self.formula1.is_empty() &&
@@ -181,6 +201,7 @@ fn ConditionalFormat::markup(
   self : ConditionalFormat,
   priority : Int,
   style : Int?,
+  anchor : Address,
   colors~ : Array[String?] = [],
 ) -> String raise @failure.Failure {
   if self.kind == "dataBar" && self.bar is Some(bar) {
@@ -230,6 +251,18 @@ fn ConditionalFormat::markup(
     }) +
     (if self.stopIfTrue { " stopIfTrue=\"1\"" } else { "" }) +
     style.map(id => " dxfId=\"\{id}\"").unwrap_or("")
+  if conditional_predicate_formula(self.kind, anchor) is Some(formula) {
+    return "<od:cfRule xmlns:od=\"\{spreadsheet_uri}\" type=\"\{self.kind}\" priority=\"\{priority}\"\{attributes}><od:formula>\{@xml.escape_text(formula)}</od:formula></od:cfRule>"
+  }
+  if self.kind == "duplicateValues" || self.kind == "uniqueValues" {
+    return "<od:cfRule xmlns:od=\"\{spreadsheet_uri}\" type=\"\{self.kind}\" priority=\"\{priority}\"\{attributes}/>"
+  }
+  if self.rank is Some(rank) {
+    return "<od:cfRule xmlns:od=\"\{spreadsheet_uri}\" type=\"top10\" priority=\"\{priority}\"\{attributes} rank=\"\{rank.rank}\" percent=\"\{if rank.percent {1} else {0}}\" bottom=\"\{if rank.bottom {1} else {0}}\"/>"
+  }
+  if self.average is Some(average) {
+    return "<od:cfRule xmlns:od=\"\{spreadsheet_uri}\" type=\"aboveAverage\" priority=\"\{priority}\"\{attributes} aboveAverage=\"\{if average.above {1} else {0}}\" equalAverage=\"\{if average.equal {1} else {0}}\" stdDev=\"\{average.stdDev}\"/>"
+  }
   "<od:cfRule xmlns:od=\"\{spreadsheet_uri}\" type=\"\{self.kind}\" priority=\"\{priority}\"\{attributes}><od:formula>\{@xml.escape_text(self.formula1)}</od:formula>" +
   (if self.formula2.is_empty() {
     ""

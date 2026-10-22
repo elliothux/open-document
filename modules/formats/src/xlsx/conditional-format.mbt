@@ -12,6 +12,8 @@ priv struct ConditionalRule {
   style : CellFormat
   stops : Array[ConditionalStop]
   bar : DataBar?
+  rank : ConditionalRank?
+  average : ConditionalAverage?
 }
 
 ///|
@@ -20,6 +22,7 @@ priv struct ConditionalRules {
   rules : Array[ConditionalRule]
   reason : String
   scales : Map[Int, Array[Double]]
+  duplicates : Map[Int, Map[String, Bool]]
 }
 
 ///|
@@ -65,18 +68,29 @@ fn Session::conditional_rules(
             "limit-exceeded", "Conditional rule count exceeds 4096",
           )
         }
+        let kind = node.attribute("type").unwrap_or("")
         conditional_node(
           tree,
           node,
-          ["type", "operator", "priority", "stopIfTrue", "dxfId"],
+          ["type", "operator", "priority", "stopIfTrue", "dxfId"] +
+          (if kind == "top10" {
+            ["rank", "percent", "bottom"]
+          } else if kind == "aboveAverage" {
+            ["aboveAverage", "equalAverage", "stdDev"]
+          } else {
+            []
+          }),
           ["formula", "colorScale", "dataBar"],
         )
-        let kind = node.attribute("type").unwrap_or("")
         let operator = node.attribute("operator").unwrap_or("")
         guard (
-            ["expression", "colorScale", "dataBar"].contains(kind) &&
+            [
+              "expression", "colorScale", "dataBar", "top10", "aboveAverage", "duplicateValues",
+              "uniqueValues",
+            ].contains(kind) &&
             operator.is_empty()
           ) ||
+          (conditional_predicate_kind(kind) && operator.is_empty()) ||
           (
             kind == "cellIs" &&
             [
@@ -108,19 +122,38 @@ fn Session::conditional_rules(
                 "protected-content", "Invalid conditional formula length",
               )
             }
-            ignore(
-              rule_expression(formula.text, anchor, anchor, sheets, index, work),
-            )
+            if conditional_predicate_kind(kind) {
+              // Built-in predicates own their meaning; the formula is an interoperability cache.
+              work.spend(amount=formula.text.length())
+            } else {
+              ignore(
+                rule_expression(
+                  formula.text,
+                  anchor,
+                  anchor,
+                  sheets,
+                  index,
+                  work,
+                ),
+              )
+            }
             formula.text
           })
-        guard formulas.length() ==
-          (if kind == "colorScale" || kind == "dataBar" {
+        guard (if conditional_predicate_kind(kind) {
+          formulas.length() <= 1
+        } else {
+          formulas.length() ==
+          (if [
+              "colorScale", "dataBar", "top10", "aboveAverage", "duplicateValues",
+              "uniqueValues",
+            ].contains(kind) {
             0
           } else if operator == "between" || operator == "notBetween" {
             2
           } else {
             1
-          }) else {
+          })
+        }) else {
           @failure.reject("malformed-xlsx", "Invalid conditional formula count")
         }
         let mut style = CellFormat::new()
@@ -216,15 +249,43 @@ fn Session::conditional_rules(
           style,
           stops,
           bar,
+          rank: if kind == "top10" {
+            let rank : ConditionalRank = {
+              rank: natural(node.attribute("rank").unwrap_or("10"), 1000),
+              percent: flag(node, "percent"),
+              bottom: flag(node, "bottom"),
+            }
+            rank.check()
+            Some(rank)
+          } else {
+            None
+          },
+          average: if kind == "aboveAverage" {
+            let average : ConditionalAverage = {
+              above: flag(node, "aboveAverage", fallback=true),
+              equal: flag(node, "equalAverage"),
+              stdDev: natural(node.attribute("stdDev").unwrap_or("0"), 3),
+            }
+            average.check()
+            Some(average)
+          } else {
+            None
+          },
           stop: flag(node, "stopIfTrue"),
         })
       }
     }
     rules.sort_by((a, b) => a.priority.compare(b.priority))
-    { rules, table_styles, reason: "", scales: Map([]), }
+    { rules, table_styles, reason: "", scales: Map([]), duplicates: Map([]), }
   } catch {
     @failure.Failure(code~, message~, ..) if code != "limit-exceeded" =>
-      { rules: [], table_styles, reason: message, scales: Map([]), }
+      {
+        rules: [],
+        table_styles,
+        reason: message,
+        scales: Map([]),
+        duplicates: Map([]),
+      }
     error => raise error
   }
 }
@@ -287,6 +348,20 @@ fn ConditionalRules::applied(
         continue
       }
       work.origin = address
+      if conditional_predicate(
+          rule.kind,
+          calculated_cell(sheets, values, index, address),
+          work,
+        )
+        is Some(accepted) {
+        if accepted {
+          matched.push(rule.style)
+          if rule.stop {
+            break
+          }
+        }
+        continue
+      }
       if rule.kind == "dataBar" {
         if bar is None {
           bar = self.data_bar(rule, address, sheets, index, values, work)
@@ -297,6 +372,24 @@ fn ConditionalRules::applied(
         if self.scale_fill(rule, address, sheets, index, values, work)
           is Some(color) {
           matched.push(CellFormat::new(fill=Some(color)))
+        }
+        continue
+      }
+      if rule.kind == "top10" || rule.kind == "aboveAverage" {
+        if self.statistical_match(rule, address, sheets, index, values, work) {
+          matched.push(rule.style)
+          if rule.stop {
+            break
+          }
+        }
+        continue
+      }
+      if rule.kind == "duplicateValues" || rule.kind == "uniqueValues" {
+        if self.duplicate_match(rule, address, sheets, index, values, work) {
+          matched.push(rule.style)
+          if rule.stop {
+            break
+          }
         }
         continue
       }

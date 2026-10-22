@@ -9,6 +9,7 @@ import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { PptxPaint } from "./pptx-paint.js";
 import { PptxCharts } from "./pptx-chart.js";
+import { PptxMath } from "./pptx-math.js";
 import { PlaceholderType, PptxPlaceholder } from "./pptx-placeholder.js";
 import type { PptxPlaceholderType } from "@open-document/web/pptx";
 import { PptxShapeAdjustments } from "./pptx-shape-adjustments.js";
@@ -565,6 +566,13 @@ export function PptxObjects({
       />
       <PptxCharts
         key={`chart:${query.revision}:${query.selection.object}`}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
+      <PptxMath
+        key={`math:${query.revision}:${query.selection.object}`}
         controller={controller}
         state={state}
         editor={editor}

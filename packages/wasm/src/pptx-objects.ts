@@ -2,6 +2,7 @@ import { checkPptxConnectorEdit } from "./pptx-connectors.js";
 import { record } from "./validation.js";
 import { pptxInsertKinds } from "./pptx-object-edit.js";
 import { checkPptxChartEdit } from "./pptx-chart.js";
+import { checkPptxMathEdit } from "./pptx-math.js";
 import { checkPptxMediaInput, checkMediaPlayback } from "./pptx-media.js";
 import { pptxPlaceholder, pptxPlaceholderTypes } from "./pptx-placeholder.js";
 import { drawingMatrix } from "./drawing.js";
@@ -391,7 +392,7 @@ export function number(value: unknown, low = 0, high = 0x7fffffff): number {
 }
 export function checkPptxObjectEdit(value: unknown): void {
   const change = record(value);
-  if (checkPptxChartEdit(value)) return;
+  if (checkPptxChartEdit(value) || checkPptxMathEdit(value)) return;
   if (change.action === "insertWordArt") {
     const text = objectText(change.text);
     if (

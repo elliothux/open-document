@@ -1,5 +1,9 @@
 ///|
 pub(all) enum ObjectEdit {
+  InsertMath(String, @layout.TextStyle, Double, Double, Double, Double)
+  AppendMath(String, @layout.TextStyle, Bool)
+  UpdateMath(MathTarget, String, @layout.TextStyle)
+  DeleteMath(MathTarget)
   InsertWordArt(String, String)
   InsertDiagram(DiagramSettings)
   InsertConnector(String, ConnectorEnd, ConnectorEnd)
@@ -471,6 +475,18 @@ pub fn Session::edit_objects(
   if change is InsertWordArt(preset, text) {
     return self.insert_word_art(preset, text, probe, profile)
   }
+  if change is InsertMath(latex, style, x, y, width, height) {
+    return self.insert_math(latex, style, (x, y, width, height), probe, profile)
+  }
+  if change is AppendMath(latex, style, start) {
+    return self.append_math(latex, style, start, probe, profile)
+  }
+  if change is UpdateMath(target, latex, style) {
+    return self.change_math(target, Some((latex, style)), probe, profile)
+  }
+  if change is DeleteMath(target) {
+    return self.change_math(target, None, probe, profile)
+  }
   if self.selection.objects.length() == 1 &&
     original.object(self.selection.object).table is Some(_) &&
     (
@@ -583,7 +599,11 @@ pub fn Session::edit_objects(
   }
   let mut issued : String? = None
   let (changes, after) = match change {
-    InsertWordArt(_, _)
+    InsertMath(_, _, _, _, _, _)
+    | AppendMath(_, _, _)
+    | UpdateMath(_, _, _)
+    | DeleteMath(_)
+    | InsertWordArt(_, _)
     | InsertDiagram(_)
     | InsertConnector(_, _, _)
     | ConnectorEndpoints(_, _, _)

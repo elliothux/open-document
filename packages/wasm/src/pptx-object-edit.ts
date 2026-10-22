@@ -15,6 +15,7 @@ import type {
 import type { PptxConnectorEnd } from "./pptx-connectors.js";
 import type { PptxMediaPlayback } from "./pptx-media.js";
 import type { PptxChart } from "./pptx-chart.js";
+import type { PptxMathEdit } from "./pptx-math.js";
 export const pptxInsertKinds = [
   "text",
   "rect",
@@ -40,6 +41,7 @@ export const pptxInsertKinds = [
   "quadArrow",
 ] as const;
 export type PptxObjectEdit =
+  | PptxMathEdit
   | ({
       action: "insertChart";
       x: number;

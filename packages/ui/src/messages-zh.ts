@@ -1,5 +1,6 @@
 import { docxPicturesZh } from "./messages-docx-pictures.js";
 import { mathZh } from "./messages-docx-math.js";
+import { conditionalStatisticsZh } from "./messages-conditional-statistics.js";
 import { objectZh } from "./messages-pptx-objects.js";
 import { connectorZh } from "./messages-pptx-connectors.js";
 import { viewZh } from "./messages-pptx-view.js";
@@ -20,6 +21,7 @@ import { protectionZh } from "./messages-xlsx-protection.js";
 import { sparklineZh } from "./messages-xlsx-sparkline.js";
 
 export const zh: Messages = {
+  ...conditionalStatisticsZh,
   ...sparklineZh,
   ...protectionZh,
   ...objectZh,

@@ -8,6 +8,14 @@ import {
 } from "./pptx-show.js";
 import { checkPptxConnectorQuery } from "./pptx-connectors.js";
 import { checkPptxChart } from "./pptx-chart.js";
+import { checkPptxMathItems } from "./pptx-math.js";
+export type {
+  MathFormat,
+  PptxMathTarget,
+  PptxMathValue,
+  PptxMathItem,
+  PptxMathEdit,
+} from "./pptx-math.js";
 export type { PptxChart } from "./pptx-chart.js";
 import {
   checkPptxMedia,
@@ -455,6 +463,7 @@ export function pptxQuery(value: unknown): PptxQuery {
     checkPptxConnectorQuery(object.connector);
     checkPptxMedia(object.media);
     if (object.chart !== null) checkPptxChart(object.chart);
+    checkPptxMathItems(object.equations);
     imageInsets(object.imageInsets);
     if (typeof object.imageInsetsReason !== "string")
       throw new Error("Invalid image destination reason");

@@ -1,6 +1,14 @@
 # 测试说明
 
-P12 原生公式读取与显示通过 17 项定向核心检查及 1 条 Chromium 流程。形状混排、显示公式、普通表格、DrawingML 属性、对象/页面复制、精确历史及重开通过；与 DOCX 共用的读取器保留七类数学结构与原保护。实际 Canvas/PNG 和独立 PDF 检查通过，两方向栅格对照无缺失笔画。公开 api/check/build 与私有 typecheck/lint 通过，证据归 `pptxMathReadCheckpoint`。公式创建和内容编辑仍待实施；未跑全量或安装包矩阵，P10–P12 保持实施中。
+P11 空白/错误条件格式通过 8 项定向核心检查、32 个接口断言和 1 条 Chromium 流程。空格字符、空字符串、未存储格、真实错误及错误文字、原生互操作公式、范围/复制锚点、精确历史及原子拒绝通过。默认四种类型、输入重算、保存重开、独立 XML 与实际 Canvas/PDF 颜色通过，覆盖短视口中首尾格的可见部分。公开 api/check/build、私有 typecheck/lint 通过，证据归 `xlsxConditionalPredicateCheckpoint`；未跑全量或安装包矩阵，P10–P12 保持实施中。
+
+P11 重复/唯一值条件格式通过 8 项定向核心检查、16 个接口断言及 1 条扩展 Chromium 流程。未格式化值、大小写、跨类型逻辑文字、空白、错误、隐藏行、交叠稀疏范围和有界缓存通过；独立复制范围、当前公式重算、精确历史及重开通过。默认面板切换清除旧参数，独立 XML 和实际 Canvas/PDF 颜色检查通过。公开 api/check/build、私有 typecheck/lint 通过，证据归 `xlsxConditionalDuplicatesCheckpoint`；未跑全量或新增浏览器矩阵，P10–P12 保持实施中。
+
+P11 排名及平均值条件格式通过 15 项定向核心检查、19 个接口断言和 1 条 Chromium 流程。稀疏交叠范围、隐藏行、类型区别、并列值、百分比取整、平均值/总体标准差、停止规则、当前公式重算、独立复制范围及精确历史通过。默认面板、原生 XML、重开输入和实际 Canvas/独立 PDF 颜色检查通过。公开 api/check/build、私有 typecheck/lint 通过，证据归 `xlsxConditionalStatisticsCheckpoint`；未跑全量或安装包矩阵，P10–P12 保持实施中。
+
+P12 公式编辑通过 19 项定向核心检查、18 个接口断言和 1 条扩展 Chromium 流程。原生插入、首尾追加、混排/显示/表格公式修改与删除、统一外观、纯文字后备同步、精确历史、锁保护及重开继续编辑通过。实际 PNG 与独立 PDF 栅格双向无缺失笔画，原生 XML 和 PDF 文字检查通过。公开 api/check/build 与私有 typecheck/lint 通过，证据归 `pptxMathEditCheckpoint`。未跑全量或安装包矩阵，复杂数学格式与其他缺口继续实施，P10–P12 保持实施中。
+
+P12 原生公式读取与显示通过 17 项定向核心检查及 1 条 Chromium 流程。形状混排、显示公式、普通表格、DrawingML 属性、对象/页面复制、精确历史及重开通过；与 DOCX 共用的读取器保留七类数学结构与原保护。实际 Canvas/PNG 和独立 PDF 检查通过，两方向栅格对照无缺失笔画。公开 api/check/build 与私有 typecheck/lint 通过，证据归 `pptxMathReadCheckpoint`。本段保留读取阶段证据；未跑全量或安装包矩阵，P10–P12 保持实施中。
 
 P10 HTML 表格题注通过 8 项定向核心检查及 1 条扩展 Chromium 流程。顶端/底端、继承和显式位置、富文本链接、三种粘贴方式、精确混合历史及重开输入通过；独立 XML 核对原生段落和分页保留，PDF 中题注只出现一次。公开 check/build 与私有 typecheck/lint 通过，证据归 `htmlTableCaptionsCheckpoint`；未跑全量或新增浏览器矩阵，P10–P12 保持实施中。
 

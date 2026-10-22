@@ -12,6 +12,32 @@ fn xlsx_conditional_settings(
     formula2: field_string(rule, "formula2"),
     stopIfTrue: xlsx_boolean(rule, "stopIfTrue"),
     format: xlsx_cell_format(format),
+    rank: if rule is { "rank": rank, .. } {
+      guard rank is Object(fields) && fields.length() == 3 else {
+        @failure.reject("invalid-operation", "Invalid conditional rank fields")
+      }
+      Some({
+        rank: field_int(rank, "rank"),
+        percent: xlsx_boolean(rank, "percent"),
+        bottom: xlsx_boolean(rank, "bottom"),
+      })
+    } else {
+      None
+    },
+    average: if rule is { "average": average, .. } {
+      guard average is Object(fields) && fields.length() == 3 else {
+        @failure.reject(
+          "invalid-operation", "Invalid conditional average fields",
+        )
+      }
+      Some({
+        above: xlsx_boolean(average, "above"),
+        equal: xlsx_boolean(average, "equal"),
+        stdDev: field_int(average, "stdDev"),
+      })
+    } else {
+      None
+    },
     bar: if field_string(rule, "kind") == "dataBar" {
       guard rule is { "bar": bar, .. } &&
         bar is { "minimum": minimum, "maximum": maximum, .. } else {

@@ -12,7 +12,9 @@ import type { PptxPlaceholder } from "./pptx-placeholder.js";
 import type { PptxConnector } from "./pptx-connectors.js";
 import type { PptxMedia } from "./pptx-media.js";
 import type { PptxChart } from "./pptx-chart.js";
+import type { PptxMathItem } from "./pptx-math.js";
 export interface PptxObject {
+  equations: PptxMathItem[];
   media: PptxMedia | null;
   connector: PptxConnector | null;
   id: string;

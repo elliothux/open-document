@@ -108,6 +108,12 @@ pub(all) enum ListFormat {
 pub fn ListFormat::equal(Self, Self) -> Bool
 pub fn ListFormat::not_equal(Self, Self) -> Bool
 
+pub(all) struct MathTarget {
+  object : String
+  revision : Int
+  node : Int
+}
+
 pub(all) struct MediaPlaybackSettings {
   cycling : Bool
   volume : Int
@@ -117,6 +123,10 @@ pub fn MediaPlaybackSettings::equal(Self, Self) -> Bool
 pub fn MediaPlaybackSettings::not_equal(Self, Self) -> Bool
 
 pub(all) enum ObjectEdit {
+  InsertMath(String, @layout.TextStyle, Double, Double, Double, Double)
+  AppendMath(String, @layout.TextStyle, Bool)
+  UpdateMath(MathTarget, String, @layout.TextStyle)
+  DeleteMath(MathTarget)
   InsertWordArt(String, String)
   InsertDiagram(DiagramSettings)
   InsertConnector(String, ConnectorEnd, ConnectorEnd)

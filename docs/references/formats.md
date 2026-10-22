@@ -1685,11 +1685,11 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 ### 条件格式
 
-普通 `cellIs`、`expression`、`colorScale` 和 `dataBar` 规则已在核心计算。值规则支持八项比较；数值、文字和布尔保持类型区别，文字比较忽略大小写，空格按零或空文字比较。表达式沿现有公式语法求值，相对引用以全部 `sqref` 的外接左上角为原点，保留绝对/混合及跨表引用；`ROW/COLUMN` 使用当前格。公式错误不命中，未知函数或引用给出诊断。
+普通 `cellIs`、`expression`、`colorScale`、`dataBar`、`top10`、`aboveAverage`、`duplicateValues`、`uniqueValues`、`containsBlanks`、`notContainsBlanks`、`containsErrors` 和 `notContainsErrors` 规则已在核心计算。值规则支持八项比较；数值、文字和布尔保持类型区别，文字比较忽略大小写，空格按零或空文字比较。表达式沿现有公式语法求值，相对引用以全部 `sqref` 的外接左上角为原点，保留绝对/混合及跨表引用；`ROW/COLUMN` 使用当前格。表达式的错误结果不命中，未知函数或引用给出诊断。
 
 `priority` 越小越优先；命中的高优先级属性覆盖低优先级的相同属性，其余属性组合。命中 `stopIfTrue` 后不再使用后续规则，即使该规则没有差异样式。`dxfId` 从工作簿当前样式部件解析，不写回单元格样式。支持字体名、字号、粗斜体、文字色、纯色/无填充、四边 thin/medium/thick/double/none、现有数字格式及基本对齐/换行。颜色复用主题、索引及 tint 解析；差异填充优先采用 `bgColor`，与 [ONLYOFFICE fixForDxf](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/WorkbookElems.js#L3502-L3509)一致。差异字体仍须显式提供 profile 映射。
 
-`XlsxConditionalFormat` 包含 `kind`（`cellIs/expression/colorScale/dataBar`）、`operator`、`formula1`、`formula2`、`stopIfTrue` 和部分属性 `format: XlsxCellFormat`。表达式的 operator 为空；仅 between/notBetween 使用第二个公式。颜色刻度的 stops 和数据条的 bar 见下文。`XlsxQuery.conditionalFormats` 返回当前表按优先级排序的全部普通规则，每项包含 `priority`、空格分隔的 A1 矩形 `ranges`、`rule` 和 `readOnlyReason`，容器也有保护原因。规则原点随完整 ranges 定位，不随当前选区变化。
+`XlsxConditionalFormat` 包含 `kind`（上述十二类）、`operator`、`formula1`、`formula2`、`stopIfTrue` 和部分属性 `format: XlsxCellFormat`。表达式的 operator 为空；仅 between/notBetween 使用第二个公式。颜色刻度的 stops、数据条的 bar、排名的 rank 和平均值的 average 见下文。`XlsxQuery.conditionalFormats` 返回当前表按优先级排序的全部普通规则，每项包含 `priority`、空格分隔的 A1 矩形 `ranges`、`rule` 和 `readOnlyReason`，容器也有保护原因。规则原点随完整 ranges 定位，不随当前选区变化。
 
 `SpreadsheetEditor.editSheet`、`XlsxClient.editSheet` 与同步 Wasm 共用以下操作。核心对应 `SheetEdit::ConditionalRule` 和 `ConditionalPriority`。
 
@@ -1706,6 +1706,16 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 规则、差异样式及派生尺寸共同提交一次事务。只修改条件或范围时保留原 dxfId、主题色及共享差异源。新差异样式复用现有样式池，保留旧的共享 dxf；缺样式部件时关系和内容类型一同创建/撤销。新数字格式沿原样式路径分配身份。当前可见有效字体在提交前检查，未知源、保留的规则注释/处理指令、工作表保护、缺字体或预算失败保留原文档。范围输入最多 4096 个矩形及 262144 UTF-16 单位；规则查询的范围/公式合计最多 1048576 单位，超出时返回管理保护原因。
 
 默认条件格式面板提供新增、选择、修改、删除、上下调整优先级和仅清除选区规则，支持值/公式条件、停止后续规则、文字色/填充、粗斜体、字号、换行和数字格式。API 可使用全部现有 XlsxCellFormat 属性；面板未展示的导入属性保留。实现归 [`conditional-edit.mbt`](../../modules/formats/src/xlsx/conditional-edit.mbt)、[`conditional-style-edit.mbt`](../../modules/formats/src/xlsx/conditional-style-edit.mbt) 和 [`conditional-settings.mbt`](../../modules/formats/src/xlsx/conditional-settings.mbt)。
+
+排名使用 `kind: "top10"` 和 `rank: { rank, percent, bottom }`。`rank` 为 1–1000 的整数；percent 为 true 时限 1–100，取数字数量乘百分比后向下取整，至少保留一个数字。bottom 选择最小值，否则选择最大值；边界并列全部命中。平均值使用 `kind: "aboveAverage"` 和 `average: { above, equal, stdDev }`。above 选择高于或低于平均值，equal 包含等于最终阈值；stdDev 为 0–3 的整数，按总体标准差把阈值向相应方向移动。语义依据 [ONLYOFFICE 排名和均值计算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L7636-L7707)及[阈值比较](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/ConditionalFormatting.js#L917-L931)。
+
+两类统计规则的 operator、formula1、formula2 为空，不带 stops/bar，分别只带 rank 或 average；其他规则省略这两项，MoonBit 使用 None。统计取完整规则范围内的当前数字和公式结果，包含隐藏行，不重复统计交叠范围；空白、文字、布尔和错误不参与且不命中。阈值沿有界稀疏缓存计算，输入后重算，网格、颜色操作、自动尺寸和 PDF 共用有效样式。默认面板提供全部统计参数及既有差异外观，保留停止规则、原生 SpreadsheetML 属性、复制后的独立规则范围、精确历史和重开。实现归 [conditional-statistics.mbt](../../modules/formats/src/xlsx/conditional-statistics.mbt)。
+
+重复值和唯一值分别使用 `kind: "duplicateValues"` 与 `kind: "uniqueValues"`。operator、formula1、formula2 为空，不带 stops、bar、rank 或 average；format 和 stopIfTrue 沿既有差异样式规则。完整范围内按当前未格式化逻辑文字判断重复，包含隐藏行及公式结果，相交范围只统计实际格一次。文字区分大小写；数字与相同逻辑文字可同组，布尔、错误使用其逻辑文字，空白与空字符串不参与也不命中。数值的显示格式不改变重复性。行为依据 [ONLYOFFICE 重复键](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L3165-L3170)、[规则匹配](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L7734-L7746)及[未格式化值](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L16253-L16267)。默认面板可创建和切换这两类规则；缓存按当前规则与计算上下文重建，计数文字消耗公式工作预算。复制保留独立规则范围、外观和精确历史，保存重开仍可编辑。实现归 [conditional-duplicates.mbt](../../modules/formats/src/xlsx/conditional-duplicates.mbt)。
+
+空白/非空白使用 `containsBlanks/notContainsBlanks`，错误/无错误使用 `containsErrors/notContainsErrors`。它们的 operator、formula1、formula2 为空，不带 stops、bar、rank 或 average。空白包含未存储格、空字符串及全部由 ASCII 空格组成的逻辑文字；制表符、不换行空格和全角空格均为非空白。错误按当前逻辑类型判断，错误文字字符串属于无错误；无错误规则也匹配空白。实际输入和公式结果变化后，网格、自动尺寸和打印沿现有差异样式重新计算。语义依据 [ONLYOFFICE 空白与错误判断](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L7804-L7850)。
+
+这四类原生规则可含一份互操作公式；核心按规则类型判断，API 查询保留空的 formula1/formula2。未修改规则保留原源，写回或复制时按当前范围锚点生成 `LEN(TRIM(A1))=0`、`ISERROR(A1)` 等公式；范围修改同步更新锚点，复制使用目标范围。生成形式依据 [ONLYOFFICE 规则公式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/ConditionalFormatting.js#L1381-L1392)。这是规则的写回形式，单元格函数范围仍归[显示与计算](#显示与计算)。默认面板提供四种类型和既有外观，不要求输入这些公式。创建、修改、复制、精确历史和重开归 [conditional-predicate.mbt](../../modules/formats/src/xlsx/conditional-predicate.mbt)及既有规则事务。
 
 `kind: "colorScale"` 使用 `stops` 描述两个或三个颜色节点，operator、formula1、formula2 为空，format 为空对象，stopIfTrue 为 false。每个 `XlsxConditionalStop` 包含 `kind`、字符串 `value` 和六位 RGB `color`。节点类型为 min、max、num、percent、percentile 或 formula；min/max 的 value 为空，百分比和百分位范围为 0–100。普通值/公式规则不带 stops；MoonBit 的 ConditionalFormat 对应空数组。
 
@@ -2796,7 +2806,11 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 公式与 DOCX 共用[有界数学结构](#docx-行内分数)、字体度量和图元。分数、上下标、根式、定界符、求和/积分及矩阵的读取归 [共享 OMML 读取器](../../modules/formats/src/internal/omml/math-read.mbt)。普通正体或数字沿既有规则读取，统一字体/字号/RGB 支持原生 Word 属性和基本 DrawingML `a:rPr`；DrawingML 可使用显式字号、纯 RGB 与相同的文字字体槽。主题字体、主题色、透明度和其他数学字符效果仍受保护。源未声明字体时使用 `Cambria Math`，由宿主提供实际字体及 profile。
 
-公式通过既有段落图形框参与基线、断行、框内边距、垂直锚定与表格单元格位移，不转换为图片。对象查询的 `text` 返回可读线性表达，含公式对象的文字编辑给出 `textReadOnlyReason`。已有对象操作保留原 OMML；已解析公式和空兼容后备可随对象或整页独立复制，复制/删除、精确混合历史与重开沿原事务。非空后备及公式范围外未知扩展继续保护复制。公式创建、修改及默认编辑面板仍按 P12 继续实施。
+`editObjects({ action: "insertMath", latex, format, x, y, width, height })` 创建原生公式文字框。选中单个本地文字框后，`{ action: "appendMath", latex, format, position: "start" | "end" }` 在首尾插入独立公式段落。`latex` 复用 [DOCX 有界语法](#docx-latex-公式编辑)。共用的 `MathFormat` 为 `{ family, size, color }`；字体名最多 255 个单行单元，字号为 0.5–409 pt、精度 0.01 pt，颜色为六位 RGB。默认面板提供相同的插入和外观操作。
+
+对象查询的 `equations` 返回 `{ node, latex, format, reason }[]`，其中 LaTeX 为共享打印器的规范化表达。选中所属对象后，`{ action: "updateMath", target, latex, format }` 修改整式，`{ action: "deleteMath", target }` 删除整式；`target` 为 `{ object, revision, node }`，必须来自当前查询。过期版本或错误对象拒绝执行。形状混排、显示公式和普通表格中的已有公式均可修改，保留周边文字与段落属性。无变化的修改不新增历史。
+
+公式通过既有段落图形框参与基线、断行、框内边距、垂直锚定与表格单元格位移，不转换为图片。对象查询的 `text` 返回可读线性表达，普通文字输入仍通过 `textReadOnlyReason` 保护公式结构。空后备和已验证的单个纯文字后备可随对象或整页复制；修改表达时同步纯文字后备。未知后备、批注式 XML 内容、编辑锁和其他未知扩展保护相应操作。字体、布局和预算失败保留源与历史。创建、修改、删除、精确混合历史及保存重开沿核心事务，实现归[公式编辑](../../modules/formats/src/pptx/math-edit.mbt)。局部数学格式和更多结构继续实施。
 
 单式沿 16 层、256 个结构节点和 4096 个文字单元的上限，PPTX 单式 XML 另限 2048 节点。文字框、页面字形、图元、资源和历史预算沿既有路径；未支持的数学源给出对象诊断并保护源，缺数学字体时输出明确失败。实现归 [PPTX 数学读取](../../modules/formats/src/pptx/math-read.mbt)和[段落绘制](../../modules/formats/src/pptx/layout.mbt)。DrawingML 数学字符属性依据 [ONLYOFFICE 数学内容](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Math/oMathContent.cpp#L2393-L2406)。
 

@@ -170,6 +170,8 @@ export {
 } from "@open-document/wasm/xlsx";
 export type {
   XlsxConditionalFormat,
+  XlsxConditionalRank,
+  XlsxConditionalAverage,
   XlsxConditionalRule,
   XlsxConditionalState,
   XlsxConditionalStop,

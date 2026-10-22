@@ -378,6 +378,7 @@ pub fn Session::query(
         table_styles: TableStyles::empty(),
         reason: message,
         scales: Map([]),
+        duplicates: Map([]),
       }
     error => raise error
   }

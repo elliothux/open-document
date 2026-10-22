@@ -81,7 +81,7 @@ fn Session::prepare_copied_rules(
     priority += 1
     rule.settings.check(rule.ranges, plan.sheets, index, work)
     markup.write_string(
-      "<od:conditionalFormatting xmlns:od=\"\{spreadsheet_uri}\" sqref=\"\{rule.ranges.map(Range::name).join(" ")}\">\{rule.settings.markup(priority,styles[i])}</od:conditionalFormatting>",
+      "<od:conditionalFormatting xmlns:od=\"\{spreadsheet_uri}\" sqref=\"\{rule.ranges.map(Range::name).join(" ")}\">\{rule.settings.markup(priority,styles[i],rule_anchor(rule.ranges,true))}</od:conditionalFormatting>",
     )
   }
   if !markup.is_empty() {

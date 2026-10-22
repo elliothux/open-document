@@ -24,19 +24,7 @@ fn Tree::math_copy_nodes(
     }
     let source : Ref = { tree: self, node, }
     if source.math_source() is Some((root, _)) {
-      let fallback = source.child(
-        "Fallback",
-        uri="http://schemas.openxmlformats.org/markup-compatibility/2006",
-      )
-      if fallback
-        .map(value => {
-          !value.node.attributes.is_empty() ||
-          !value.node.text.trim().is_empty() ||
-          !self.children.get(value.node.id).unwrap_or([]).is_empty()
-        })
-        .unwrap_or(false) {
-        continue
-      }
+      ignore(source.math_fallback_text())
       ignore(
         root.read_math(@layout.TextStyle::new("Cambria Math", 18, "000000")),
       )

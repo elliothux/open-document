@@ -513,6 +513,8 @@ fn Foundation::pptx_operation(
         "insertConnector" | "connectorEndpoints" => pptx_connector_edit(change)
         "insertDiagram" => pptx_diagram_edit(change)
         "insertWordArt" => pptx_word_art_edit(change)
+        "insertMath" | "appendMath" | "updateMath" | "deleteMath" =>
+          pptx_math_edit(change)
         "shapeAdjustment" =>
           @pptx.ShapeAdjustment(
             field_string(change, "name"),
