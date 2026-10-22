@@ -38,7 +38,7 @@ fn chart_marker(
 ) -> Array[@layout.PositionedPrimitive] {
   [
     Transform({ a: 1, b: 0, c: 0, d: 1, e: x - 2.5, f: y - 2.5, }),
-    Path(shape_path("ellipse", 5, 5, (0, 0)), color, "", 0, {
+    Path(shape_path("ellipse", 5, 5, (0, 0, 0)), color, "", 0, {
       fillAlpha: 1,
       strokeAlpha: 1,
       dash: [],
@@ -76,7 +76,9 @@ fn DrawingChart::paint(
     return out
   }
   let (low, high, step) = data.axis()
-  let horizontal = data.kind == "bar"
+  let horizontal = horizontal_bar_chart(data.kind)
+  let stacked = stacked_chart(data.kind)
+  let percent = percent_stacked_chart(data.kind)
   let left = if horizontal { 70.0 } else { 44.0 }
   let top = 30.0
   let w = width - left - 12
@@ -108,7 +110,11 @@ fn DrawingChart::paint(
     )
     out.append(
       chart_label(
-        value.to_string(),
+        if percent {
+          (value * 100).round().to_int().to_string() + "%"
+        } else {
+          value.to_string()
+        },
         if horizontal {
           x - 22
         } else {
@@ -218,7 +224,8 @@ fn DrawingChart::paint(
       out.append(markers)
     }
   }
-  let bar = slot / (data.series.length().to_double() + 1.5)
+  let bar = slot /
+    ((if stacked { 1 } else { data.series.length() }).to_double() + 1.5)
   let zero = (0.0 - low) / (high - low)
   let stride = ((if horizontal { 14.0 } else { 48.0 }) / slot)
     .ceil()
@@ -265,24 +272,52 @@ fn DrawingChart::paint(
       if line || area {
         continue
       }
-      for series_index, series in data.series {
-        if series.values[index] is Some(value) {
-          let ratio = (value - low) / (high - low)
-          let offset = at + bar * (0.75 + series_index.to_double())
+      let mut positive = 0.0
+      let mut negative = 0.0
+      for series_index, value in data.bar_values(index) {
+        if value is Some(value) {
+          let start = if !stacked {
+            0.0
+          } else if value >= 0 {
+            positive
+          } else {
+            negative
+          }
+          let end = if percent {
+            (start + value).clamp(min=-1, max=1)
+          } else {
+            start + value
+          }
+          if stacked {
+            if value >= 0 {
+              positive = end
+            } else {
+              negative = end
+            }
+          }
+          let baseline = if stacked {
+            (start - low) / (high - low)
+          } else {
+            zero
+          }
+          let ratio = (end - low) / (high - low)
+          let offset = at +
+            bar *
+            (0.75 + (if stacked { 0.0 } else { series_index.to_double() }))
           let rect : @layout.Fill = if horizontal {
             {
-              x: left + w * zero.min(ratio),
+              x: left + w * baseline.min(ratio),
               y: top + offset,
-              width: w * (ratio - zero).abs(),
+              width: w * (ratio - baseline).abs(),
               height: bar,
               color: chart_color(series_index),
             }
           } else {
             {
               x: left + offset,
-              y: top + h * (1 - zero.max(ratio)),
+              y: top + h * (1 - baseline.max(ratio)),
               width: bar,
-              height: h * (ratio - zero).abs(),
+              height: h * (ratio - baseline).abs(),
               color: chart_color(series_index),
             }
           }

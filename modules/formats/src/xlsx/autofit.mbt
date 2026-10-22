@@ -98,6 +98,24 @@ fn Session::fit_sizes(
   for axis in axes {
     sizes[axis] = if rows { fallback } else { 0.0 }
   }
+  let centered = if rows {
+    conditional.centered_ranges(
+      current,
+      styles,
+      Map(axes.map(row => (row, true))),
+      sheets,
+      index,
+      calculation.values,
+      work.formulas,
+    )
+  } else {
+    []
+  }
+  let text_ranges : Map[String, Range] = Map([])
+  for range in centered {
+    let address : Address = { row: range.top, column: range.left, }
+    text_ranges[address.name()] = range
+  }
   let rich = self.rich_text_sources(
     current,
     current.cells
@@ -183,18 +201,28 @@ fn Session::fit_sizes(
     guard work.cells <= 4096 && work.units <= 262144 else {
       @failure.reject("limit-exceeded", "Automatic fitting text exceeds budget")
     }
-    let width = dimensions.columns.position(range.right + 1) -
-      dimensions.columns.position(range.left)
-    let indent = style.indent.to_double() * indent_unit
     let horizontal = style.text_alignment(value, current.view.formulas)
+    let text_range = if horizontal == "centerContinuous" {
+      text_ranges.get(cell.address.name()).unwrap_or(range)
+    } else {
+      range
+    }
+    let width = dimensions.columns.position(text_range.right + 1) -
+      dimensions.columns.position(text_range.left)
+    let indent = style.indent.to_double() * indent_unit
     let available = width -
       4.5 -
-      (if (style.wrap && horizontal != "justify") ||
+      (if (style.wrap && !["justify", "centerContinuous"].contains(horizontal)) ||
         ["left", "right"].contains(horizontal) {
         indent
       } else {
         0.0
       })
+    guard horizontal != "centerContinuous" || available <= 14400 else {
+      @failure.reject(
+        "limit-exceeded", "Centered cell text exceeds the layout width budget",
+      )
+    }
     // ONLYOFFICE uses a single line height for a wrapped horizontal merge.
     let content = if text.is_empty() ||
       (rows && range.left != range.right && style.wrap) {

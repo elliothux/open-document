@@ -196,7 +196,7 @@ fn read_object(
   ) catch {
     @failure.Failure(code="unsupported-geometry", message~, ..) => {
       diagnostic = message
-      (0.0, 0.0)
+      (0.0, 0.0, 0.0)
     }
     error => raise error
   }

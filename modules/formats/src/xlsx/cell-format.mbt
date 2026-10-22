@@ -155,12 +155,14 @@ fn CellFormat::validate(self : CellFormat) -> Unit raise @failure.Failure {
     }
   }
   if self.horizontal is Some(value) {
-    guard ["general", "left", "center", "right", "justify"].contains(value) else {
+    guard ["general", "left", "center", "right", "justify", "centerContinuous"].contains(
+      value,
+    ) else {
       @failure.reject("invalid-operation", "Invalid horizontal alignment")
     }
   }
   if self.vertical is Some(value) {
-    guard ["top", "center", "bottom"].contains(value) else {
+    guard ["top", "center", "bottom", "justify", "distributed"].contains(value) else {
       @failure.reject("invalid-operation", "Invalid vertical alignment")
     }
   }

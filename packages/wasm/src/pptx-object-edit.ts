@@ -37,6 +37,7 @@ export const pptxInsertKinds = [
   "downArrow",
   "leftRightArrow",
   "upDownArrow",
+  "quadArrow",
 ] as const;
 export type PptxObjectEdit =
   | ({
@@ -119,7 +120,7 @@ export type PptxObjectEdit =
   | { action: "hyperlink"; link: PptxHyperlink | null }
   | {
       action: "shapeAdjustment";
-      name: "adj" | "adj1" | "adj2";
+      name: "adj" | "adj1" | "adj2" | "adj3";
       value: number | null;
     }
   | { action: "fillOpacity" | "strokeOpacity"; opacity: number }

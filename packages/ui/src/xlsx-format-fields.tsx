@@ -208,7 +208,14 @@ export function XlsxFormatFields({
             )
           }
         >
-          {options(["general", "left", "center", "right", "justify"])}
+          {options([
+            "general",
+            "left",
+            "center",
+            "right",
+            "justify",
+            "centerContinuous",
+          ])}
         </select>
       </label>
       <label>
@@ -225,7 +232,7 @@ export function XlsxFormatFields({
             )
           }
         >
-          {options(["top", "center", "bottom"])}
+          {options(["top", "center", "bottom", "justify", "distributed"])}
         </select>
       </label>
       <label>

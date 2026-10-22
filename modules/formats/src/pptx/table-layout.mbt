@@ -37,7 +37,7 @@ fn Object::paint_table(
           "rect",
           self.geometry.unwrap().width,
           self.geometry.unwrap().height,
-          (0, 0),
+          (0, 0, 0),
         ),
         table.fill,
         "",
@@ -76,7 +76,7 @@ fn Object::paint_table(
       if !cell.fill.is_empty() {
         output.push(Transform({ ..@layout.Matrix::identity(), e: x, f: y, }))
         output.push(
-          Path(shape_path("rect", width, height, (0, 0)), cell.fill, "", 0, {
+          Path(shape_path("rect", width, height, (0, 0, 0)), cell.fill, "", 0, {
             fillAlpha: cell.alpha,
             strokeAlpha: 1,
             dash: [],

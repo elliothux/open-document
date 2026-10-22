@@ -1,7 +1,8 @@
 ///|
 fn arrow_shape(preset : String) -> Bool {
   ["rightArrow", "leftArrow", "upArrow", "downArrow"].contains(preset) ||
-  double_arrow_shape(preset)
+  double_arrow_shape(preset) ||
+  preset == "quadArrow"
 }
 
 ///|
@@ -31,7 +32,7 @@ fn supported_shape(preset : String) -> Bool {
 fn read_shape_adjustments(
   geometry : Ref?,
   preset : String,
-) -> (Double, Double) raise @failure.Failure {
+) -> (Double, Double, Double) raise @failure.Failure {
   let single = [
     "roundRect", "triangle", "parallelogram", "trapezoid", "hexagon", "octagon",
     "plus", "star5",
@@ -41,14 +42,16 @@ fn read_shape_adjustments(
     "parallelogram" | "trapezoid" | "hexagon" | "plus" => 0.25
     "octagon" => 0.29289
     "star5" => 0.19098
+    "quadArrow" => 0.225
     _ => 0.5
   }
-  let mut second = 0.5
+  let mut second = if preset == "quadArrow" { 0.225 } else { 0.5 }
+  let mut third = if preset == "quadArrow" { 0.225 } else { 0.0 }
   if !single &&
     !arrow_shape(preset) &&
     preset != "pentagon" &&
     !["bentConnector3", "curvedConnector3"].contains(preset) {
-    return (first, second)
+    return (first, second, third)
   }
   if geometry.bind(source => source.child("avLst")) is Some(list) {
     let seen : Map[String, Bool] = Map([])
@@ -69,6 +72,7 @@ fn read_shape_adjustments(
             name == "adj"
           } else {
             (arrow_shape(preset) && ["adj1", "adj2"].contains(name)) ||
+            (preset == "quadArrow" && name == "adj3") ||
             (
               ["bentConnector3", "curvedConnector3"].contains(preset) &&
               name == "adj1"
@@ -101,14 +105,28 @@ fn read_shape_adjustments(
         }
         continue
       }
-      if name == "adj2" {
+      if name == "adj3" {
+        third = value
+      } else if name == "adj2" {
         second = value
       } else {
         first = value
       }
     }
   }
-  (first, second)
+  (first, second, third)
+}
+
+///|
+fn quad_arrow_adjustments(
+  values : (Double, Double, Double),
+) -> (Double, Double, Double) {
+  let width = values.1.clamp(min=0, max=0.5)
+  (
+    values.0.clamp(min=0, max=2 * width),
+    width,
+    values.2.clamp(min=0, max=((0.5 - width) * 100000).round() / 100000),
+  )
 }
 
 ///|
@@ -116,8 +134,51 @@ fn arrow_points(
   preset : String,
   width : Double,
   height : Double,
-  adjustments : (Double, Double),
+  adjustments : (Double, Double, Double),
 ) -> Array[(Double, Double)] {
+  if preset == "quadArrow" {
+    let (shaft, head_width, head_length) = quad_arrow_adjustments(adjustments)
+    let side = width.min(height)
+    let x1 = side * head_length
+    let dx2 = side * head_width
+    let dx3 = side * shaft / 2
+    let x2 = width / 2 - dx2
+    let x3 = width / 2 - dx3
+    let x4 = width / 2 + dx3
+    let x5 = width / 2 + dx2
+    let x6 = width - x1
+    let y2 = height / 2 - dx2
+    let y3 = height / 2 - dx3
+    let y4 = height / 2 + dx3
+    let y5 = height / 2 + dx2
+    let y6 = height - x1
+    return [
+      (0.0, height / 2),
+      (x1, y2),
+      (x1, y3),
+      (x3, y3),
+      (x3, x1),
+      (x2, x1),
+      (width / 2, 0.0),
+      (x5, x1),
+      (x4, x1),
+      (x4, y3),
+      (x6, y3),
+      (x6, y2),
+      (width, height / 2),
+      (x6, y5),
+      (x6, y4),
+      (x4, y4),
+      (x4, y6),
+      (x5, y6),
+      (width / 2, height),
+      (x2, y6),
+      (x3, y6),
+      (x3, y4),
+      (x1, y4),
+      (x1, y5),
+    ]
+  }
   let vertical = vertical_arrow_shape(preset)
   let w = if vertical { height } else { width }
   let h = if vertical { width } else { height }
@@ -175,6 +236,18 @@ fn Object::shape_body(self : Object, geometry : Geometry) -> Body {
   let (left, top, right, bottom) = if self.preset == "roundRect" {
     let inset = w.min(h) * self.adjustments.0.max(0).min(0.5) * 0.29289
     (inset, inset, inset, inset)
+  } else if self.preset == "quadArrow" {
+    let (shaft, head_width, head_length) = quad_arrow_adjustments(
+      self.adjustments,
+    )
+    let side = w.min(h)
+    let inset = if head_width > 0 {
+      side * shaft * head_length / (2 * head_width)
+    } else {
+      0.0
+    }
+    let vertical = (h - side * shaft) / 2
+    (inset, vertical, inset, vertical)
   } else if polygon_shape(self.preset) {
     polygon_insets(self.preset, w, h, self.adjustments.0)
   } else if arrow_shape(self.preset) && w > 0 && h > 0 {

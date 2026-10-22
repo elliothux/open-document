@@ -191,7 +191,32 @@ fn read_chart_part(
     guard ["col", "bar"].contains(direction) else {
       @failure.reject("unsupported-chart", "Unsupported bar chart direction")
     }
-    (bars, if direction == "col" { "column" } else { "bar" })
+    let grouping = chart_child(bars, "grouping").node
+      .attribute("val")
+      .unwrap_or("")
+    guard ["clustered", "stacked", "percentStacked"].contains(grouping) else {
+      @failure.reject("unsupported-chart", "Unsupported bar chart grouping")
+    }
+    (
+      bars,
+      if grouping == "percentStacked" {
+        if direction == "col" {
+          "percentStackedColumn"
+        } else {
+          "percentStackedBar"
+        }
+      } else if grouping == "stacked" {
+        if direction == "col" {
+          "stackedColumn"
+        } else {
+          "stackedBar"
+        }
+      } else if direction == "col" {
+        "column"
+      } else {
+        "bar"
+      },
+    )
   }
   let series = tree.all(plot_source.node.id, "ser", uri=chart_uri)
   guard series.length() >= 1 && series.length() <= 8 else {

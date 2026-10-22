@@ -62,15 +62,23 @@ fn place_block(
   vertical : String,
   indent : Double,
 ) -> Array[@layout.Border] raise @failure.Failure {
+  let free = (rect.height - 3 - block.height).max(0)
+  let spread = vertical == "justify" || vertical == "distributed"
+  let gap = if spread && block.lines.length() > 1 {
+    free / (block.lines.length() - 1).to_double()
+  } else {
+    0.0
+  }
   let top = rect.y +
     1.5 +
-    (if vertical == "top" {
-      0.0
-    } else if vertical == "center" {
-      (rect.height - 3 - block.height) / 2
+    (if vertical == "center" ||
+      (vertical == "distributed" && block.lines.length() == 1) {
+      free / 2
+    } else if vertical == "bottom" {
+      free
     } else {
-      rect.height - 3 - block.height
-    }).max(0)
+      0.0
+    })
   let offsets = block.lines.map(line => {
     guard line.get(0) is Some(@layout.Transform(matrix)) else {
       @failure.reject("invalid-drawing", "Text block requires a line transform")
@@ -79,6 +87,7 @@ fn place_block(
   })
   let bounds : Array[@layout.Border] = []
   for index, line in block.lines {
+    let y = top + index.to_double() * gap
     let x = rect.x +
       2.25 +
       (if horizontal == "left" { indent } else { 0.0 }) +
@@ -92,7 +101,7 @@ fn place_block(
     page.texts.push(
       (
         [
-          @layout.Transform({ a: 1, b: 0, c: 0, d: 1, e: x, f: top, }),
+          @layout.Transform({ a: 1, b: 0, c: 0, d: 1, e: x, f: y, }),
           ..line,
           @layout.Restore,
         ],
@@ -102,7 +111,7 @@ fn place_block(
     let rect = grid_intersection(
       {
         x: x + offsets[index].e,
-        y: top + offsets[index].f,
+        y: y + offsets[index].f,
         width: block.widths[index],
         height: offsets
         .get(index + 1)

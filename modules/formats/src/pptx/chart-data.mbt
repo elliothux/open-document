@@ -2,6 +2,21 @@
 let chart_uri = "http://schemas.openxmlformats.org/drawingml/2006/chart"
 
 ///|
+fn stacked_chart(kind : String) -> Bool {
+  ["stackedColumn", "stackedBar"].contains(kind) || percent_stacked_chart(kind)
+}
+
+///|
+fn percent_stacked_chart(kind : String) -> Bool {
+  ["percentStackedColumn", "percentStackedBar"].contains(kind)
+}
+
+///|
+fn horizontal_bar_chart(kind : String) -> Bool {
+  ["bar", "stackedBar", "percentStackedBar"].contains(kind)
+}
+
+///|
 priv struct ChartSeries {
   name : String
   values : Array[Double?]
@@ -38,9 +53,10 @@ fn chart_text(text : String) -> Unit raise @failure.Failure {
 
 ///|
 fn ChartData::validate(self : ChartData) -> Unit raise @failure.Failure {
-  guard ["column", "bar", "line", "pie", "area", "scatter", "doughnut"].contains(
-      self.kind,
-    ) &&
+  guard [
+      "column", "bar", "stackedColumn", "stackedBar", "line", "pie", "area", "scatter",
+      "doughnut", "percentStackedColumn", "percentStackedBar",
+    ].contains(self.kind) &&
     self.categories.length() >= 1 &&
     self.categories.length() <= 256 &&
     self.series.length() >= 1 &&
@@ -212,18 +228,50 @@ fn chart_color(index : Int) -> String {
 }
 
 ///|
+fn ChartData::bar_values(self : ChartData, index : Int) -> Array[Double?] {
+  let values = self.series.map(series => series.values[index])
+  if !percent_stacked_chart(self.kind) {
+    return values
+  }
+  let scale = values.fold(init=0.0, (maximum, value) => {
+    maximum.max(value.unwrap_or(0).abs())
+  })
+  if scale == 0 {
+    return values
+  }
+  // Normalize before summing so finite source values cannot overflow a percentage total.
+  let total = values.fold(init=0.0, (sum, value) => {
+    sum + value.unwrap_or(0).abs() / scale
+  })
+  values.map(value => value.map(value => value / scale / total))
+}
+
+///|
 fn ChartData::axis(
   self : ChartData,
 ) -> (Double, Double, Double) raise @failure.Failure {
   let mut low = 0.0
   let mut high = 0.0
-  for series in self.series {
-    for value in series.values {
+  let stacked = stacked_chart(self.kind)
+  for index in 0..<self.categories.length() {
+    let mut positive = 0.0
+    let mut negative = 0.0
+    for value in self.bar_values(index) {
       if value is Some(value) {
-        low = low.min(value)
-        high = high.max(value)
+        if stacked {
+          positive += value.max(0)
+          negative += value.min(0)
+        } else {
+          low = low.min(value)
+          high = high.max(value)
+        }
       }
     }
+    guard !positive.is_inf() && !negative.is_inf() else {
+      @failure.reject("limit-exceeded", "Chart stack exceeds numeric limits")
+    }
+    low = low.min(negative)
+    high = high.max(positive)
   }
   if low == high {
     return (0, 1, 0.2)
@@ -259,6 +307,10 @@ fn ChartData::axis(
     })
   low = (low / step).floor() * step
   high = (high / step).ceil() * step
+  if percent_stacked_chart(self.kind) {
+    low = low.max(-1)
+    high = high.min(1)
+  }
   guard !low.is_inf() && !high.is_inf() && !(high - low).is_inf() && high > low else {
     @failure.reject("limit-exceeded", "Chart axis exceeds numeric limits")
   }

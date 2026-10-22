@@ -64,7 +64,9 @@ fn ChartData::markup(
     return self.scatter_markup(workbook_link)
   }
   let (low, high, step) = self.axis()
-  let horizontal = self.kind == "bar"
+  let horizontal = horizontal_bar_chart(self.kind)
+  let stacked = stacked_chart(self.kind)
+  let percent = percent_stacked_chart(self.kind)
   let line = self.kind == "line"
   let area = self.kind == "area"
   let last = self.categories.length() + 1
@@ -82,7 +84,7 @@ fn ChartData::markup(
     } else if line {
       "<c:lineChart><c:grouping val=\"standard\"/><c:varyColors val=\"0\"/>"
     } else {
-      "<c:barChart><c:barDir val=\"\{if horizontal {"bar"} else {"col"}}\"/><c:grouping val=\"clustered\"/><c:varyColors val=\"0\"/>"
+      "<c:barChart><c:barDir val=\"\{if horizontal {"bar"} else {"col"}}\"/><c:grouping val=\"\{if percent {"percentStacked"} else if stacked {"stacked"} else {"clustered"}}\"/><c:varyColors val=\"0\"/>"
     },
   )
   for index, series in self.series {
@@ -121,7 +123,7 @@ fn ChartData::markup(
     } else if line {
       "<c:marker val=\"1\"/><c:smooth val=\"0\"/><c:axId val=\"1\"/><c:axId val=\"2\"/></c:lineChart>"
     } else {
-      "<c:gapWidth val=\"150\"/><c:overlap val=\"0\"/><c:axId val=\"1\"/><c:axId val=\"2\"/></c:barChart>"
+      "<c:gapWidth val=\"150\"/><c:overlap val=\"\{if stacked {"100"} else {"0"}}\"/><c:axId val=\"1\"/><c:axId val=\"2\"/></c:barChart>"
     },
   )
   out <+
@@ -135,6 +137,10 @@ fn ChartData::markup(
   .replace(
     old="<c:crossBetween val=\"between\"/>",
     new="<c:crossBetween val=\"\{if area {"midCat"} else {"between"}}\"/><c:majorUnit val=\"\{step}\"/>",
+  )
+  .replace(
+    old="formatCode=\"General\" sourceLinked=\"0\"",
+    new="formatCode=\"\{if percent {"0%"} else {"General"}}\" sourceLinked=\"0\"",
   )
 }
 

@@ -1,7 +1,18 @@
 import { record, integer } from "./validation.js";
 
 export interface PptxChart {
-  kind: "column" | "bar" | "line" | "pie" | "area" | "scatter" | "doughnut";
+  kind:
+    | "column"
+    | "bar"
+    | "stackedColumn"
+    | "stackedBar"
+    | "percentStackedColumn"
+    | "percentStackedBar"
+    | "line"
+    | "pie"
+    | "area"
+    | "scatter"
+    | "doughnut";
   title: string;
   /** TSV: header row, category column (numeric X for scatter), then 1-8 numeric series. Pie displays the first series by absolute value. */
   data: string;
@@ -16,9 +27,19 @@ export function checkPptxChart(value: unknown): void {
     Object.keys(chart).some(
       (key) => !["kind", "title", "data", "holeSize"].includes(key),
     ) ||
-    !["column", "bar", "line", "pie", "area", "scatter", "doughnut"].some(
-      (kind) => kind === chart.kind,
-    ) ||
+    ![
+      "column",
+      "bar",
+      "stackedColumn",
+      "stackedBar",
+      "percentStackedColumn",
+      "percentStackedBar",
+      "line",
+      "pie",
+      "area",
+      "scatter",
+      "doughnut",
+    ].some((kind) => kind === chart.kind) ||
     ("holeSize" in chart &&
       (chart.kind !== "doughnut" || !integer(chart.holeSize, 10, 90))) ||
     typeof chart.title !== "string" ||

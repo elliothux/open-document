@@ -314,8 +314,12 @@ fn read_styles(
     if tree.one(xf.id, "alignment") is Some(alignment) {
       let horizontal = alignment.attribute("horizontal").unwrap_or("general")
       let vertical = alignment.attribute("vertical").unwrap_or("bottom")
-      if !["general", "left", "center", "right", "justify"].contains(horizontal) ||
-        !["top", "center", "bottom"].contains(vertical) ||
+      if !["general", "left", "center", "right", "justify", "centerContinuous"].contains(
+          horizontal,
+        ) ||
+        !["top", "center", "bottom", "justify", "distributed"].contains(
+          vertical,
+        ) ||
         alignment.attribute("textRotation").unwrap_or("0") != "0" ||
         alignment.attribute("relativeIndent").unwrap_or("0") != "0" {
         style = { ..style, diagnostic: "Unsupported text alignment", }

@@ -41,7 +41,7 @@ export interface PptxGeometry {
   outline: PptxPoint[];
   outlines: PptxPoint[][];
   handles: PptxPoint[];
-  adjustmentHandles: (PptxPoint & { name: "adj" | "adj1" | "adj2" })[];
+  adjustmentHandles: (PptxPoint & { name: "adj" | "adj1" | "adj2" | "adj3" })[];
   rects: PptxPoint[][];
   caret: (PptxPoint & { endX: number; endY: number; height: number }) | null;
 }
@@ -232,10 +232,15 @@ export function checkPptxGeometry(value: unknown): void {
   const handles = selection.adjustmentHandles;
   if (!Array.isArray(handles))
     throw new Error("Invalid PPTX adjustment handles");
-  points(handles, 2);
-  for (const handle of handles)
-    if (!["adj", "adj1", "adj2"].includes(String(record(handle).name)))
-      throw new Error("Invalid PPTX adjustment handle");
+  points(handles, 3);
+  const adjustmentNames = handles.map((handle) => String(record(handle).name));
+  if (
+    new Set(adjustmentNames).size !== handles.length ||
+    adjustmentNames.some(
+      (name) => !["adj", "adj1", "adj2", "adj3"].includes(name),
+    )
+  )
+    throw new Error("Invalid PPTX adjustment handle");
   if (!Array.isArray(selection.outlines) || selection.outlines.length > 256)
     throw new Error("Invalid PPTX object outlines");
   for (const outline of selection.outlines) points(outline);
@@ -548,7 +553,7 @@ export function checkPptxObjectEdit(value: unknown): void {
     return;
   }
   if (change.action === "shapeAdjustment") {
-    if (!["adj", "adj1", "adj2"].includes(String(change.name)))
+    if (!["adj", "adj1", "adj2", "adj3"].includes(String(change.name)))
       throw new Error("Invalid PPTX shape adjustment");
     if (change.value !== null) number(change.value, 0, 21474.83647);
     return;

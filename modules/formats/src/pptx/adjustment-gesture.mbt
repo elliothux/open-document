@@ -17,6 +17,7 @@ fn Object::adjustment_handles(self : Object) -> Array[AdjustmentHandle] {
   let w = g.width
   let h = g.height
   let side = w.min(h)
+  let (_, _, quad_head) = quad_arrow_adjustments(self.adjustments)
   let head = (side * self.adjustments.1)
     .max(0)
     .min((if vertical_arrow_shape(self.preset) { h } else { w }) / 2)
@@ -38,6 +39,9 @@ fn Object::adjustment_handles(self : Object) -> Array[AdjustmentHandle] {
       ("downArrow", "adj2") => (0.0, h, 0.0, -side)
       ("leftRightArrow", "adj2") => (0.0, 0.0, side, 0.0)
       ("upDownArrow", "adj2") => (0.0, 0.0, 0.0, side)
+      ("quadArrow", "adj1") => (w / 2, side * quad_head, -side / 2, 0.0)
+      ("quadArrow", "adj2") => (w / 2, 0.0, -side, 0.0)
+      ("quadArrow", "adj3") => (w, 0.0, 0.0, side)
       ("triangle", _) => (0.0, 0.0, w, 0.0)
       ("star5", _) => (w / 2, h / 2 * 1.10557, 0.0, -h * 1.10557)
       _ => (0.0, 0.0, side, 0.0)
@@ -122,13 +126,19 @@ fn Session::finish_adjustment(
   let original = self.source_slide(self.selection.slide)
   let base = { ..self, candidate: None, }
   let changes : Array[@xml.SourceChange] = []
-  let initial = original.object(self.selection.object).adjustment_values()
-  for
-    (name, value, _) in candidate.slide
-    .object(self.selection.object)
-    .adjustment_values() {
-    if initial.iter().find_first(item => item.0 == name).unwrap().1 != value {
-      changes.append(base.adjust_shape(name, Some(value)))
+  let initial = original.object(self.selection.object)
+  let changed = candidate.slide.object(self.selection.object)
+  let raw = fn(object : Object, name : String) {
+    match name {
+      "adj2" => object.adjustments.1
+      "adj3" => object.adjustments.2
+      _ => object.adjustments.0
+    }
+  }
+  for (name, _, _) in changed.adjustment_values() {
+    // Coupled guide limits change effective values without changing their source guides.
+    if raw(initial, name) != raw(changed, name) {
+      changes.append(base.adjust_shape(name, Some(raw(changed, name))))
     }
   }
   if changes.is_empty() {

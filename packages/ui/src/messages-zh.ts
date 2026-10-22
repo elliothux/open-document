@@ -205,6 +205,7 @@ export const zh: Messages = {
   cornerRadius: "圆角半径（%）",
   arrowShaft: "箭身宽度（%）",
   arrowHead: "箭头长度（%）",
+  arrowHeadWidth: "箭头宽度（%）",
   resetShapeAdjustment: "恢复预设值",
   fillOpacity: "填充不透明度（%）",
   strokeOpacity: "边框不透明度（%）",

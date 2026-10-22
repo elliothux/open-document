@@ -70,6 +70,10 @@ export function PptxCharts({
               if (
                 kind === "column" ||
                 kind === "bar" ||
+                kind === "stackedColumn" ||
+                kind === "stackedBar" ||
+                kind === "percentStackedColumn" ||
+                kind === "percentStackedBar" ||
                 kind === "line" ||
                 kind === "area" ||
                 kind === "scatter" ||
@@ -87,6 +91,14 @@ export function PptxCharts({
           >
             <option value="column">{t.chartColumn}</option>
             <option value="bar">{t.chartBar}</option>
+            <option value="stackedColumn">{t.chartStackedColumn}</option>
+            <option value="stackedBar">{t.chartStackedBar}</option>
+            <option value="percentStackedColumn">
+              {t.chartPercentStackedColumn}
+            </option>
+            <option value="percentStackedBar">
+              {t.chartPercentStackedBar}
+            </option>
             <option value="line">{t.chartLine}</option>
             <option value="pie">{t.chartPie}</option>
             <option value="doughnut">{t.chartDoughnut}</option>

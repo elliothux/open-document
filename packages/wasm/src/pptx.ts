@@ -469,7 +469,7 @@ export function pptxQuery(value: unknown): PptxQuery {
     if (
       !hasFields(adjustments, ["preset", "reason"], []) ||
       !Array.isArray(adjustments.values) ||
-      adjustments.values.length > 2
+      adjustments.values.length > 3
     )
       throw new Error("Invalid shape adjustments");
     const names = new Set<string>();
@@ -477,7 +477,7 @@ export function pptxQuery(value: unknown): PptxQuery {
       const guide = record(item);
       if (
         typeof guide.name !== "string" ||
-        !["adj", "adj1", "adj2"].includes(guide.name) ||
+        !["adj", "adj1", "adj2", "adj3"].includes(guide.name) ||
         names.has(guide.name)
       )
         throw new Error("Invalid shape adjustment guide");

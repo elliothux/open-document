@@ -35,7 +35,11 @@ export interface PptxObject {
   shapeAdjustments: {
     preset: string;
     reason: string;
-    values: { name: "adj" | "adj1" | "adj2"; value: number; maximum: number }[];
+    values: {
+      name: "adj" | "adj1" | "adj2" | "adj3";
+      value: number;
+      maximum: number;
+    }[];
   };
   imageInsets: [number, number, number, number];
   imageInsetsReason: string;

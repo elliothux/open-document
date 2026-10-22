@@ -3,6 +3,14 @@ fn Object::adjustment_values(self : Object) -> Array[(String, Double, Double)] {
   if self.kind != "shape" {
     return []
   }
+  if self.preset == "quadArrow" {
+    let (shaft, width, length) = quad_arrow_adjustments(self.adjustments)
+    return [
+      ("adj1", shaft, 2 * width),
+      ("adj2", width, 0.5),
+      ("adj3", length, ((0.5 - width) * 100000).round() / 100000),
+    ]
+  }
   if self.preset == "roundRect" {
     return [("adj", self.adjustments.0.max(0).min(0.5), 0.5)]
   }
@@ -114,7 +122,7 @@ fn Session::adjust_shape(
   name : String,
   value : Double?,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
-  guard ["adj", "adj1", "adj2"].contains(name) else {
+  guard ["adj", "adj1", "adj2", "adj3"].contains(name) else {
     @failure.reject("invalid-operation", "Unknown shape adjustment")
   }
   if value is Some(value) {

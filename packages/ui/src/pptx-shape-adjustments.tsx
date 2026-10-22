@@ -62,7 +62,9 @@ export function PptxShapeAdjustments({
               ? ["bentConnector3", "curvedConnector3"].includes(first.preset)
                 ? t.connectorBend
                 : t.arrowShaft
-              : t.arrowHead;
+              : first.preset === "quadArrow" && guide.name === "adj2"
+                ? t.arrowHeadWidth
+                : t.arrowHead;
         const mixed = objects.some(
           (o) =>
             o.shapeAdjustments.values.find((v) => v.name === guide.name)

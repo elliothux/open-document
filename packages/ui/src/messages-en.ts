@@ -204,6 +204,7 @@ export const en = {
   cornerRadius: "Corner radius (%)",
   arrowShaft: "Arrow shaft width (%)",
   arrowHead: "Arrow head length (%)",
+  arrowHeadWidth: "Arrow head width (%)",
   resetShapeAdjustment: "Restore preset value",
   fillOpacity: "Fill opacity (%)",
   strokeOpacity: "Border opacity (%)",

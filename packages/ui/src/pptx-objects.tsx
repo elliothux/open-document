@@ -103,6 +103,7 @@ export function PptxObjects({
                   kind === "downArrow" ||
                   kind === "leftRightArrow" ||
                   kind === "upDownArrow" ||
+                  kind === "quadArrow" ||
                   kind === "ellipse" ||
                   kind === "triangle" ||
                   kind === "rtTriangle" ||
@@ -140,6 +141,7 @@ export function PptxObjects({
               <option value="downArrow">{t.downArrow}</option>
               <option value="leftRightArrow">{t.leftRightArrow}</option>
               <option value="upDownArrow">{t.upDownArrow}</option>
+              <option value="quadArrow">{t.quadArrow}</option>
             </select>
           </label>
           {(

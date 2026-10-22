@@ -159,7 +159,7 @@ fn shape_path(
   preset : String,
   width : Double,
   height : Double,
-  adjustments : (Double, Double),
+  adjustments : (Double, Double, Double),
 ) -> Array[@layout.PathSegment] {
   if ["rect", "line", "ellipse"].contains(preset) {
     return @layout.basic_shape_path(preset, width, height)

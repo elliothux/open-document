@@ -80,7 +80,7 @@ priv struct Object {
   geometry : Geometry?
   preset : String
   polyline : Array[(Double, Double)]
-  adjustments : (Double, Double)
+  adjustments : (Double, Double, Double)
   fill : String
   gradient : (Array[@layout.GradientStop], Double, Bool)?
   stroke : String
