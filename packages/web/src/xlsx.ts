@@ -7,6 +7,7 @@ export {
 } from "@open-document/wasm/xlsx";
 export type {
   XlsxChartSettings,
+  XlsxDrawingClipboard,
   XlsxChartFrame,
   XlsxChart,
   XlsxCharts,

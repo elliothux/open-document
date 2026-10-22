@@ -2180,6 +2180,34 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 移动最多 4096 格和 1024 个合并范围；工作簿源、公式、链接及迷你图组节点源合计最多 1 Mi UTF-16 单元，搬移与改写的单元格源合计最多 1 Mi 单元。每表最多 4096 个链接，单表生成的链接源最多 2 Mi 单元。规则沿既有 100000 格、4 Mi 字符和 4096 片段工作上限；每表至多 4096 条条件规则和 4096 条验证。全部变动仍受 4 MiB 历史及包输出预算约束。被保护的源、目标或受影响公式/链接/规则/迷你图拒绝。未知资源、原生表、透视及带筛选/排序的工作簿保持保护，未限定工作表的名称引用及需改写的不透明名称源继续保护；跨表打印范围的归属转移继续实施。实现归 [`move-cells.mbt`](../../modules/formats/src/xlsx/move-cells.mbt)、[`move-reference.mbt`](../../modules/formats/src/xlsx/move-reference.mbt)、[`move-hyperlinks.mbt`](../../modules/formats/src/xlsx/move-hyperlinks.mbt)、[`move-rules.mbt`](../../modules/formats/src/xlsx/move-rules.mbt)、[`rule-fragments.mbt`](../../modules/formats/src/xlsx/rule-fragments.mbt)和 [`move-resources.mbt`](../../modules/formats/src/xlsx/move-resources.mbt)。
 
+### 工作表绘图复制
+
+`SpreadsheetEditor.editSheet({ action: "duplicateDrawing", objectId })` 在当前表复制一个普通图片、图形、文本框或图表。同步 `XlsxSession` 和异步 `XlsxClient` 使用显式 revision、sheet 的 `editSheet`。默认属性面板提供“复制对象”，复制后选择副本并加载其属性。副本分配新的本地身份，放在最上层，向右、向下各偏移 12 pt；保留原名称、替代文字、三种锚点、尺寸、零轴直线、裁剪、文字、可见及打印策略。
+
+核心在原生片段中补丁修改身份和坐标，保留未改源、注释及命名空间。图片共享不可变媒体字节，后续更换沿既有资源隔离规则。图表获得独立部件和关系，保留数据引用、缓存及配色；修改副本外观不改原图，两者仍读取同一单元格来源。新增部件、关系、内容类型和选择合为一次精确历史，支持撤销、重做、保存重开及后续输入。Canvas/PDF 继续使用共用绘制管线。
+
+每表最多 256 个对象，全部变更沿既有包、输出及 4 MiB 历史预算。越界、旧 revision、复制/选择锁、工作表保护、未知身份扩展和未支持的关系原子拒绝；需改写的锚点数字内部有注释时也拒绝。图表附加资源仍受保护。此命令完成同表独立复制；同工作簿转移归[绘图剪切](#工作表绘图剪切)，图片和基础图形系统复制归[绘图剪贴板复制](#工作表绘图剪贴板复制)；图表系统复制与跨工作簿剪切继续实施。实现归 [`drawing-copy.mbt`](../../modules/formats/src/xlsx/drawing-copy.mbt)。原生对象、图像填充及图表独立复制参考 [ONLYOFFICE Image.copy](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L162-L187)和 [ChartSpace.copy](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L4959-L4999)；未复制上游执行代码。
+
+### 工作表绘图剪贴板复制
+
+`SpreadsheetEditor.copyDrawing(id)` 复制一个普通 PNG/JPEG 图片、矩形、椭圆、直线或文本框。默认图片和图形面板提供“复制绘图”，对象和已选择绘图的网格支持 Ctrl/Meta+C。`pasteDrawing()` 与“粘贴绘图”支持同表、跨表和跨工作簿；本页面的网格原生粘贴也识别复制片段。新对象放在选区左上格和最上层，分配独立本地身份。保留三种锚点、尺寸、零轴直线、裁剪、名称、替代文字、可见和打印策略。
+
+剪贴板格式为 `web application/x-open-document-drawing`。核心快照只携带选中对象的原生片段、所需图片及字体名/主题色，不复制工作簿数据。源文稿后续修改、关闭或替换不改变快照，允许重复粘贴。图片使用快照内的压缩字节；每次粘贴创建目标媒体、关系及内容类型。字体和主题会改变图形解释时，核心在目标对象中写明源字体与 RGB，保留原外观；宿主仍须提供该字体。未改源、命名空间和图片注释保留，需要重建的样式源若带注释则保护，避免丢失内容。
+
+同步 `XlsxSession` 和异步 `XlsxClient` 提供 `captureDrawing(revision, sheet, id, profile)`，返回 `{ fragment, text }`；`pasteDrawing(revision, sheet, fragment, profile)` 导入片段。`drawingFragmentImage(revision, fragment)` 返回核心校验后的压缩图片或 `null`，供宿主沿现有图片入口预解码。默认编辑宿主自动完成预检、解码和提交。核心验证解码尺寸后，才把绘图、资源、关系和选择合为一次精确历史。失败保留文稿，撤销、重做、重开输入及 Canvas/PDF 继续共用既有管线。
+
+片段最多 4 Mi UTF-16 单元，原生框源最多 1 Mi 单元，单图最多 2 MiB；平台读取 Blob 最多 8 MiB。JSON 使用标准库有界解析，XML 深度、像素、累计图片、256 对象、历史及包输出沿既有预算。字段、资源、复制/选择锁、工作表保护、宏/绑定、外链、不支持的原生结构或越界失败原子拒绝。图表系统剪贴板复制仍需工作簿引用支持；同表图表独立复制和同工作簿剪切沿相邻合同。实现归 [`drawing-fragment.mbt`](../../modules/formats/src/xlsx/drawing-fragment.mbt)、[`drawing-paste.mbt`](../../modules/formats/src/xlsx/drawing-paste.mbt)及 [`spreadsheet-clipboard-host.ts`](../../packages/web/src/spreadsheet-clipboard-host.ts)。图形复制和源外观保留参考 [ONLYOFFICE Shape.copy](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L2829-L2858)及 [saveSourceFormatting](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L7639-L7659)；未复制执行代码。
+
+### 工作表绘图剪切
+
+`SpreadsheetEditor.cutDrawing(id)` 先写系统剪贴板，保留源对象和文稿历史。默认图片、图形和图表属性面板提供“剪切绘图”，对象键盘支持 Ctrl/Meta+X；网格已选择的绘图也沿同一入口。`pasteDrawing()` 和默认“粘贴绘图”把对象搬到当前选区左上格，网格原生粘贴识别同一标记。剪切载荷 `web application/x-open-document-drawing-cut` 只包含工作簿身份、源表、对象 ID 和 revision，最多 4096 字节。写剪贴板失败不删源；编辑、重开或已经成功搬移后的旧标记拒绝。跨工作簿剪切仍拒绝。
+
+核心命令为 `editSheet(revision, targetSheet, { action: "moveDrawing", sourceSheet, objectId })`。普通图片、图形、文本框和图表可在同表或同一工作簿的不同表之间搬移。保留三种锚点、尺寸、零轴直线、裁剪、文字、可见及打印策略；对象放在目标绘图最上层。同表保留 ID，跨表只在本地 ID 冲突时重映射。坐标与身份沿源补丁修改，保留未改注释和命名空间。相同位置的同表搬移不新增历史。
+
+图片沿用原媒体字节，目标绘图复用已有关系或新建独立关系，不重复同一内容类型声明。图表沿用原部件，目标获得关系并移除旧绘图的关系。跨表搬移把无表名引用限定到原来源表，显式外表引用保持；不会改读目标表的同坐标。移动后的来源输入仍同步缓存和绘制，后续整表复制继续使用独立图表规则。源移除、目标插入、新建绘图、关系、引用和选择合为一项精确历史；失败不留下部分资源。
+
+源/目标工作表保护、选择/移动锁、未知身份和关系扩展、越界、256 对象或历史/包预算失败均原子拒绝。需要改写的不透明锚点文字、图表引用或关系源继续保护；复制锁不阻止搬移。图片和基础图形系统复制归[绘图剪贴板复制](#工作表绘图剪贴板复制)；图表系统复制、跨工作簿剪切及更广原生变体继续实施。实现归 [`drawing-move.mbt`](../../modules/formats/src/xlsx/drawing-move.mbt)、[`drawing-transfer-source.mbt`](../../modules/formats/src/xlsx/drawing-transfer-source.mbt)及 [`spreadsheet-clipboard.ts`](../../packages/web/src/spreadsheet-clipboard.ts)。延后删除及同文档剪切归属参考 [ONLYOFFICE Clipboard.copy](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/clipboard.js#L434-L441)和 [_checkCutBefore](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/clipboard.js#L2119-L2153)；未复制执行代码。
+
 ### 工作表图片
 
 `SpreadsheetEditor.pictures()` 返回当前表的 `{ revision, sheet, reason, items }`。每项包含稳定的原生 `id`、名称、替代文字、锚点、point 几何、源裁剪及图片资源键。`insertPicture(bytes, width, height, name?, description?)` 在选定单元格插入普通 PNG/JPEG；`setPicture(id, settings)` 修改锚点、位置、尺寸及文字，`deletePicture(id)` 删除目标锚点。`replacePicture(id, bytes)` 更换目标的 PNG/JPEG 压缩资源，保留身份、名称、替代文字、三种锚点、几何及源裁剪。默认面板提供独立文件选择，不提交其他未应用的属性草稿。默认图片面板复用这些入口，调整尺寸保留当前比例。同步 `XlsxSession` 和异步 `XlsxClient` 提供对应显式 revision/sheet/profile 接口；Web 在提交前完成图片预检和像素解码。

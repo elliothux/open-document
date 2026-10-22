@@ -270,6 +270,8 @@ fn Foundation::xlsx_operation(
             field_int(change, "sourceRevision"),
           )
         "drawingOrder" => xlsx_drawing_order(change)
+        "duplicateDrawing" => xlsx_duplicate_drawing(change)
+        "moveDrawing" => xlsx_move_drawing(change)
         "note" => {
           guard change is Object(fields) &&
             fields

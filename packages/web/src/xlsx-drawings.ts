@@ -1,5 +1,9 @@
 import type { Connection } from "./connection.js";
 import {
+  drawingClipboard,
+  checkDrawingFragment,
+} from "@open-document/wasm/xlsx";
+import {
   xlsxCharts,
   checkXlsxChartSettings,
   checkXlsxChartFrame,
@@ -24,6 +28,56 @@ import {
 
 export class XlsxDrawingClient {
   constructor(protected readonly connection: Connection) {}
+  async captureDrawing(
+    revision: number,
+    sheet: string,
+    objectId: string,
+    profile: Record<string, string>,
+  ) {
+    return drawingClipboard(
+      await this.connection.request({
+        operation: "captureDrawingXlsx",
+        revision,
+        sheet,
+        objectId,
+        profile,
+      }),
+    );
+  }
+  async drawingFragmentImage(
+    revision: number,
+    fragment: string,
+  ): Promise<Uint8Array | null> {
+    checkDrawingFragment(fragment);
+    const image = await this.connection.request({
+      operation: "drawingFragmentImageXlsx",
+      revision,
+      fragment,
+    });
+    if (
+      image !== null &&
+      (!(image instanceof Uint8Array) || image.length > 2097152)
+    )
+      throw new Error("Invalid drawing clipboard image");
+    return image;
+  }
+  async pasteDrawing(
+    revision: number,
+    sheet: string,
+    fragment: string,
+    profile: Record<string, string>,
+  ): Promise<XlsxQuery> {
+    checkDrawingFragment(fragment);
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "pasteDrawingXlsx",
+        revision,
+        sheet,
+        fragment,
+        profile,
+      }),
+    );
+  }
   async charts(
     revision: number,
     sheet: string,

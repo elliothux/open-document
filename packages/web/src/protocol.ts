@@ -399,6 +399,25 @@ export type Operation =
     }
   | { operation: "pictureResourceXlsx"; revision: number; bytes: Uint8Array }
   | {
+      operation: "captureDrawingXlsx";
+      revision: number;
+      sheet: string;
+      objectId: string;
+      profile: Record<string, string>;
+    }
+  | {
+      operation: "drawingFragmentImageXlsx";
+      revision: number;
+      fragment: string;
+    }
+  | {
+      operation: "pasteDrawingXlsx";
+      revision: number;
+      sheet: string;
+      fragment: string;
+      profile: Record<string, string>;
+    }
+  | {
       operation: "selectDrawingXlsx";
       revision: number;
       layout: number;

@@ -21,7 +21,7 @@ import {
 export type { SpreadsheetEditorData } from "./spreadsheet-semantics.js";
 import { SpreadsheetPrint } from "./spreadsheet-print.js";
 import { SpreadsheetCanvas } from "./spreadsheet-canvas.js";
-import { SpreadsheetObjects } from "./spreadsheet-objects.js";
+import { SpreadsheetClipboard } from "./spreadsheet-clipboard-host.js";
 import { SpreadsheetFormula } from "./spreadsheet-formula.js";
 import { SpreadsheetPointer } from "./spreadsheet-pointer.js";
 import {
@@ -37,11 +37,7 @@ import {
   checkCopiedFormatFonts,
   checkFontMapping,
 } from "./spreadsheet-format.js";
-import {
-  bindSpreadsheetClipboard,
-  copyCellData,
-  pasteSpreadsheetCells,
-} from "./spreadsheet-clipboard.js";
+import { bindSpreadsheetClipboard } from "./spreadsheet-clipboard.js";
 import {
   EditorState,
   type EditorOutput,
@@ -63,10 +59,8 @@ import type {
   XlsxTextColumnSettings,
   XlsxTextColumns,
   XlsxFindOptions,
-  XlsxPasteMode,
 } from "@open-document/wasm/xlsx";
-export class SpreadsheetEditor extends SpreadsheetObjects {
-  acceptValidationWarnings = false;
+export class SpreadsheetEditor extends SpreadsheetClipboard {
   private readonly container: HTMLDivElement;
   private readonly viewport: HTMLDivElement;
   private readonly holder: HTMLDivElement;
@@ -93,7 +87,7 @@ export class SpreadsheetEditor extends SpreadsheetObjects {
   private draftIntent: object | undefined;
   private composing = false;
   private committing = false;
-  private closed = false;
+  protected override closed = false;
   private tail: Promise<void> = Promise.resolve();
   private pending = 0;
   private frame = 0;
@@ -613,6 +607,7 @@ export class SpreadsheetEditor extends SpreadsheetObjects {
     this.pointer.cancel();
     return this.read(async () => {
       this.state = await action();
+      this.errorMessage = "";
       if (this.printView.visible) {
         this.printView.hide();
         this.viewport.hidden = false;
@@ -637,33 +632,8 @@ export class SpreadsheetEditor extends SpreadsheetObjects {
       this.input.focus({ preventScroll: true });
     });
   }
-  paste(text: string): Promise<void> {
-    return this.change(() =>
-      this.client.paste(
-        this.state.revision,
-        text,
-        this.acceptValidationWarnings,
-      ),
-    );
-  }
-  copyCells(cut = false): Promise<void> {
-    return this.read(() => copyCellData(this.client, this.state, true, cut));
-  }
-  pasteCells(mode: XlsxPasteMode = "all", transpose = false): Promise<void> {
-    return this.change(() =>
-      pasteSpreadsheetCells(
-        this.client,
-        this.state,
-        this.profile,
-        mode,
-        transpose,
-        this.acceptValidationWarnings,
-        () => this.closed,
-      ),
-    );
-  }
-  copy(): Promise<void> {
-    return this.read(() => copyCellData(this.client, this.state, false));
+  protected override get selectedDrawing(): string | undefined {
+    return this.layout?.objects.find((object) => object.selected)?.id;
   }
   private history(redo: boolean): Promise<void> {
     return this.enqueue(async () => {

@@ -2,6 +2,9 @@ import type { XlsxSession } from "@open-document/wasm/xlsx";
 import type { Request } from "./protocol.js";
 const drawingOperations = [
   "picturesXlsx",
+  "captureDrawingXlsx",
+  "drawingFragmentImageXlsx",
+  "pasteDrawingXlsx",
   "shapesXlsx",
   "insertShapeXlsx",
   "setShapeXlsx",
@@ -37,6 +40,22 @@ export function drawingOperation(
 ): unknown {
   if (!workbook) throw new Error("Open an XLSX client first");
   switch (request.operation) {
+    case "captureDrawingXlsx":
+      return workbook.captureDrawing(
+        request.revision,
+        request.sheet,
+        request.objectId,
+        request.profile,
+      );
+    case "drawingFragmentImageXlsx":
+      return workbook.drawingFragmentImage(request.revision, request.fragment);
+    case "pasteDrawingXlsx":
+      return workbook.pasteDrawing(
+        request.revision,
+        request.sheet,
+        request.fragment,
+        request.profile,
+      );
     case "picturesXlsx":
       return workbook.pictures(
         request.revision,

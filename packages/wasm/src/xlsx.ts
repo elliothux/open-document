@@ -116,6 +116,11 @@ export type {
   XlsxValidationState,
 } from "./xlsx-validation.js";
 export { checkXlsxSheetEdit, type XlsxSheetEdit } from "./xlsx-sheet.js";
+export {
+  checkDrawingFragment,
+  drawingClipboard,
+} from "./xlsx-drawing-clipboard.js";
+export type { XlsxDrawingClipboard } from "./xlsx-drawing-clipboard.js";
 import { encodeBytes } from "./session.js";
 import { DocumentError, type Budget } from "./foundation.js";
 import {

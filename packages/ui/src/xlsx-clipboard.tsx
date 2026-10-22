@@ -22,6 +22,13 @@ export function XlsxClipboard({
       <button
         type="button"
         onMouseDown={(event) => event.preventDefault()}
+        onClick={() => controller.run(() => editor.pasteDrawing())}
+      >
+        {t.pasteDrawing}
+      </button>
+      <button
+        type="button"
+        onMouseDown={(event) => event.preventDefault()}
         onClick={() => controller.run(() => editor.copyCells())}
       >
         {t.copyCells}

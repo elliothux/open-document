@@ -1,5 +1,10 @@
 import { WasmSession, encodeBytes } from "./session.js";
 import {
+  checkDrawingFragment,
+  drawingClipboard,
+  drawingFragmentImage,
+} from "./xlsx-drawing-clipboard.js";
+import {
   xlsxCharts,
   checkXlsxChartSettings,
   checkXlsxChartFrame,
@@ -23,6 +28,45 @@ import {
 } from "./xlsx-pictures.js";
 
 export class XlsxDrawingSession extends WasmSession {
+  captureDrawing(
+    revision: number,
+    sheet: string,
+    objectId: string,
+    profile: Record<string, string>,
+  ) {
+    return drawingClipboard(
+      this.call({
+        operation: "captureDrawingXlsx",
+        revision,
+        sheet,
+        objectId,
+        profile,
+      }),
+    );
+  }
+  drawingFragmentImage(revision: number, fragment: string): Uint8Array | null {
+    checkDrawingFragment(fragment);
+    return drawingFragmentImage(
+      this.call({ operation: "drawingFragmentImageXlsx", revision, fragment }),
+    );
+  }
+  pasteDrawing(
+    revision: number,
+    sheet: string,
+    fragment: string,
+    profile: Record<string, string>,
+  ): XlsxQuery {
+    checkDrawingFragment(fragment);
+    return xlsxQuery(
+      this.call({
+        operation: "pasteDrawingXlsx",
+        revision,
+        sheet,
+        fragment,
+        profile,
+      }),
+    );
+  }
   charts(revision: number, sheet: string, profile: Record<string, string>) {
     return xlsxCharts(
       this.call({ operation: "getXlsxChart", revision, sheet, profile }),

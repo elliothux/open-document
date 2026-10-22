@@ -51,6 +51,8 @@ export type XlsxSheetEdit =
       overwrite: boolean;
     }
   | { action: "note"; cell: string; text: string | null; author?: string }
+  | { action: "duplicateDrawing"; objectId: string }
+  | { action: "moveDrawing"; sourceSheet: string; objectId: string }
   | {
       action: "drawingOrder";
       objectId: string;
@@ -162,6 +164,25 @@ export function checkXlsxSheetEdit(value: unknown): void {
     return;
   }
   const change = record(value);
+  if (change.action === "duplicateDrawing" || change.action === "moveDrawing") {
+    const fields =
+      change.action === "moveDrawing"
+        ? ["action", "sourceSheet", "objectId"]
+        : ["action", "objectId"];
+    if (
+      typeof change.objectId !== "string" ||
+      !/^[1-9][0-9]{0,9}$/.test(change.objectId) ||
+      Number(change.objectId) > 2147483647 ||
+      Object.keys(change).length !== fields.length ||
+      Object.keys(change).some((key) => !fields.includes(key)) ||
+      (change.action === "moveDrawing" &&
+        (typeof change.sourceSheet !== "string" ||
+          !change.sourceSheet ||
+          change.sourceSheet.length > 1024))
+    )
+      throw new Error("Invalid worksheet drawing copy command");
+    return;
+  }
   if (change.action === "drawingOrder") {
     if (
       typeof change.objectId !== "string" ||

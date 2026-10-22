@@ -154,16 +154,8 @@ fn Foundation::dispatch(
     | "exportXlsxPdf" => self.xlsx_operation(operation, request)
     "shapesXlsx" | "insertShapeXlsx" | "setShapeXlsx" | "deleteShapeXlsx" =>
       self.xlsx_shape_operation(operation, request)
-    "picturesXlsx"
-    | "selectDrawingXlsx"
-    | "drawingGestureXlsx"
-    | "pictureResourceXlsx"
-    | "imageBytesXlsx"
-    | "imageXlsx"
-    | "insertPictureXlsx"
-    | "replacePictureXlsx"
-    | "setPictureXlsx"
-    | "deletePictureXlsx" => self.xlsx_drawing_operation(operation, request)
+    name if xlsx_drawing_request(name) =>
+      self.xlsx_drawing_operation(name, request)
     "openPptx"
     | "createPptx"
     | "queryPptx"

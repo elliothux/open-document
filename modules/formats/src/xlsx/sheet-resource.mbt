@@ -138,6 +138,24 @@ fn Session::attach_sheet_resource(
   }
   let path = "[Content_Types].xml"
   let original = parts.get(path).unwrap_or_else(() => self.part_xml(path))
+  if original
+    .nodes()
+    .iter()
+    .find_first(node => {
+      node.name == "Override" &&
+      node
+      .attribute("PartName")
+      .map(name => name.to_lower() == "/" + part.to_lower())
+      .unwrap_or(false)
+    })
+    is Some(node) {
+    guard node.attribute("ContentType") == Some(content_type) else {
+      @failure.reject(
+        "protected-content", "Worksheet resource content type differs",
+      )
+    }
+    return id
+  }
   let (document, edit) = original.edit_source([
     insertion(
       original.nodes()[0],

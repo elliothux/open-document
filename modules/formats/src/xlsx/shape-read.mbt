@@ -64,7 +64,7 @@ fn Session::shape_color(
       .unwrap_or_else(() => {
         @failure.reject("unsupported-drawing", "Unknown shape theme color")
       })
-    self.theme[index]
+    color_hex(self.theme[index])
   } else {
     color_hex(
       color

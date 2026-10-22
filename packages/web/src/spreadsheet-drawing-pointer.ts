@@ -2,6 +2,10 @@ import type { CanvasSurface } from "./canvas-surface.js";
 import type { XlsxClient, XlsxDrawingSelection } from "./xlsx.js";
 import type { PointerHost } from "./spreadsheet-pointer.js";
 import { PointerSelection, type PointerPoint } from "./pointer-selection.js";
+import {
+  copySpreadsheetDrawing,
+  cutSpreadsheetDrawing,
+} from "./spreadsheet-clipboard.js";
 
 interface Gesture {
   object: string;
@@ -94,7 +98,7 @@ export class SpreadsheetDrawingPointer {
     button.setAttribute("aria-label", label);
     button.setAttribute(
       "aria-keyshortcuts",
-      "ArrowLeft ArrowRight ArrowUp ArrowDown Delete Escape",
+      "ArrowLeft ArrowRight ArrowUp ArrowDown Delete Escape Control+X Meta+X Control+C Meta+C",
     );
     Object.assign(button.style, {
       position: "absolute",
@@ -207,6 +211,38 @@ export class SpreadsheetDrawingPointer {
     button.addEventListener(
       "keydown",
       (event) => {
+        if (
+          (event.ctrlKey || event.metaKey) &&
+          !event.altKey &&
+          !event.shiftKey &&
+          ["x", "c"].includes(event.key.toLowerCase())
+        ) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (this.active || this.host.current().disabled) return;
+          const sheet = this.host.current().query.sheet;
+          void this.host
+            .run(async () => {
+              await this.host.prepare();
+              if (this.host.current().query.sheet !== sheet)
+                throw new Error("Worksheet object target changed");
+              if (event.key.toLowerCase() === "x")
+                await cutSpreadsheetDrawing(
+                  this.client,
+                  this.host.current().query,
+                  object,
+                );
+              else
+                await copySpreadsheetDrawing(
+                  this.client,
+                  this.host.current().query,
+                  object,
+                  this.host.current().profile,
+                );
+            })
+            .catch((error) => this.report(error));
+          return;
+        }
         const step = event.shiftKey ? 10 : 1;
         const dx =
           event.key === "ArrowLeft"

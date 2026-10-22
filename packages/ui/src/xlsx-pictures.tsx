@@ -309,6 +309,32 @@ export function XlsxPictures({
             >
               {t.deletePicture}
             </button>
+            <button
+              type="button"
+              onClick={() =>
+                controller.run(async () => {
+                  await editor.editSheet({
+                    action: "duplicateDrawing",
+                    objectId: draft.id,
+                  });
+                  await load(true);
+                })
+              }
+            >
+              {t.duplicateObject}
+            </button>
+            <button
+              type="button"
+              onClick={() => controller.run(() => editor.cutDrawing(draft.id))}
+            >
+              {t.cutDrawing}
+            </button>
+            <button
+              type="button"
+              onClick={() => controller.run(() => editor.copyDrawing(draft.id))}
+            >
+              {t.copyDrawing}
+            </button>
           </fieldset>
         </form>
       )}

@@ -61,6 +61,8 @@ pub(all) enum SheetEdit {
   OpenHyperlink(String, Int)
   Note(String, String?, String)
   DrawingOrder(String, String)
+  DuplicateDrawing(String)
+  MoveDrawing(String, String)
   Protection(Bool, String, Bytes)
   WorkbookProtection(Bool, String, Bytes)
 }
@@ -214,6 +216,8 @@ fn Session::edit_sheet_current(
     Note(cell, text, author) => return self.set_note(sheet, cell, text, author)
     DrawingOrder(id, direction) =>
       return self.order_drawing(sheet, id, direction)
+    DuplicateDrawing(id) => return self.duplicate_drawing(sheet, id)
+    MoveDrawing(source, id) => return self.move_drawing(source, id, sheet)
     Hyperlink(range, target) => return self.set_hyperlink(sheet, range, target)
     OpenHyperlink(range, source_revision) =>
       return self.open_hyperlink(sheet, range, source_revision)
@@ -454,6 +458,8 @@ fn Session::edit_sheet_current(
     | WorkbookProtection(_, _, _)
     | Note(_, _, _)
     | DrawingOrder(_, _)
+    | DuplicateDrawing(_)
+    | MoveDrawing(_, _)
     | ConditionalPriority(_, _, _) => abort("Dimension edit was dispatched")
     Rename(name) => return self.rename_sheet(index, name)
     Delete => {

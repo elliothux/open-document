@@ -1,4 +1,44 @@
 ///|
+fn xlsx_drawing_request(operation : String) -> Bool {
+  [
+    "picturesXlsx", "captureDrawingXlsx", "drawingFragmentImageXlsx", "pasteDrawingXlsx",
+    "selectDrawingXlsx", "drawingGestureXlsx", "pictureResourceXlsx", "imageBytesXlsx",
+    "imageXlsx", "insertPictureXlsx", "replacePictureXlsx", "setPictureXlsx", "deletePictureXlsx",
+  ].contains(operation)
+}
+
+///|
+fn xlsx_move_drawing(change : Json) -> @xlsx.SheetEdit raise @failure.Failure {
+  guard change is Object(fields) &&
+    fields.length() == 3 &&
+    fields
+    .keys()
+    .all(key => ["action", "sourceSheet", "objectId"].contains(key)) else {
+    @failure.reject(
+      "invalid-operation", "Invalid worksheet drawing move fields",
+    )
+  }
+  @xlsx.MoveDrawing(
+    field_string(change, "sourceSheet"),
+    field_string(change, "objectId"),
+  )
+}
+
+///|
+fn xlsx_duplicate_drawing(
+  change : Json,
+) -> @xlsx.SheetEdit raise @failure.Failure {
+  guard change is Object(fields) &&
+    fields.length() == 2 &&
+    fields.keys().all(key => ["action", "objectId"].contains(key)) else {
+    @failure.reject(
+      "invalid-operation", "Invalid worksheet drawing copy fields",
+    )
+  }
+  @xlsx.DuplicateDrawing(field_string(change, "objectId"))
+}
+
+///|
 fn xlsx_drawing_order(change : Json) -> @xlsx.SheetEdit raise @failure.Failure {
   guard change is Object(fields) &&
     fields.length() == 3 &&
@@ -24,6 +64,28 @@ fn Foundation::xlsx_drawing_operation(
   }
   let revision = field_int(request, "revision")
   match operation {
+    "captureDrawingXlsx" =>
+      session.capture_drawing(
+        revision,
+        field_string(request, "sheet"),
+        field_string(request, "objectId"),
+        self.probe,
+        xlsx_profile(request),
+      )
+    "drawingFragmentImageXlsx" =>
+      session.drawing_fragment_image(
+        revision,
+        field_string(request, "fragment"),
+      )
+    "pasteDrawingXlsx" =>
+      session.paste_drawing(
+        revision,
+        field_string(request, "sheet"),
+        field_string(request, "fragment"),
+        self.probe,
+        xlsx_profile(request),
+        images=self.images,
+      )
     "selectDrawingXlsx" => {
       let picture = match request {
         { "objectId": String(id), .. } => Some(id)
