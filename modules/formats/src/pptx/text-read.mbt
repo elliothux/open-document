@@ -7,6 +7,16 @@ fn text_style(
 ) -> @layout.TextStyle raise @failure.Failure {
   let size = number(attribute(sources, "sz").unwrap_or("1800"), 100, 102400) /
     100
+  let spacing = number(
+    attribute(sources, "spc").unwrap_or("0"),
+    -158400,
+    158400,
+  )
+  guard spacing.floor() == spacing else {
+    @failure.reject(
+      "unsupported-text", "Character spacing requires integer hundredths of a point",
+    )
+  }
   let bold = attribute(sources, "b")
     .map(value => value == "1" || value == "true")
     .unwrap_or(false)
@@ -50,7 +60,7 @@ fn text_style(
     paint
   }
   for source in sources {
-    for name in ["cap", "spc", "kumimoji"] {
+    for name in ["cap", "kumimoji"] {
       if source.node.attribute(name) is Some(value) &&
         !["none", "noStrike", "0", "false"].contains(value) {
         @failure.reject(
@@ -87,7 +97,7 @@ fn text_style(
     }),
     strike: strike == "sngStrike",
     highlight: text_highlight(theme, sources),
-    spacing: 0,
+    spacing: spacing / 100,
     script: if baseline > 0 {
       "superscript"
     } else if baseline < 0 {

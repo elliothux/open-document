@@ -236,9 +236,17 @@ export function DocxBodyField({
                       restart: _restart,
                       repeat: _repeat,
                       headingLevel: _heading,
+                      hidden: _hidden,
+                      format: _format,
                       ...field
                     } = draft;
-                    setDraft({ ...field, ...options });
+                    setDraft({
+                      ...field,
+                      ...(!options.hidden && _format
+                        ? { format: _format }
+                        : {}),
+                      ...options,
+                    });
                   }}
                   t={t}
                   selected
@@ -306,6 +314,7 @@ export function DocxBodyField({
                 {t.fieldNumberFormat}
                 <select
                   value={draft.format ?? ""}
+                  disabled={draft.field === "SEQ" && draft.hidden === true}
                   onChange={(event) => {
                     const format = event.currentTarget.value;
                     const { format: _previous, ...field } = draft;
@@ -369,7 +378,7 @@ export function DocxBodyField({
 
 type SequenceOptions = Pick<
   Extract<DocxBodyField, { field: "SEQ" }>,
-  "restart" | "repeat" | "headingLevel"
+  "restart" | "repeat" | "headingLevel" | "hidden"
 >;
 
 function SequenceOptionsForm({
@@ -386,6 +395,25 @@ function SequenceOptionsForm({
   return (
     <>
       <label>
+        <input
+          type="checkbox"
+          checked={value.hidden ?? false}
+          onChange={(event) =>
+            onChange({
+              ...(value.restart === undefined
+                ? {}
+                : { restart: value.restart }),
+              ...(value.repeat === undefined ? {} : { repeat: value.repeat }),
+              ...(value.headingLevel === undefined
+                ? {}
+                : { headingLevel: value.headingLevel }),
+              hidden: event.currentTarget.checked,
+            })
+          }
+        />
+        {selected ? t.selectedSequenceHidden : t.sequenceHidden}
+      </label>
+      <label>
         {selected ? t.selectedSequenceBehavior : t.sequenceBehavior}
         <select
           value={
@@ -397,6 +425,7 @@ function SequenceOptionsForm({
           }
           onChange={(event) =>
             onChange({
+              ...(value.hidden === undefined ? {} : { hidden: value.hidden }),
               ...(value.headingLevel === undefined
                 ? {}
                 : { headingLevel: value.headingLevel }),
@@ -425,6 +454,7 @@ function SequenceOptionsForm({
             value={Number.isNaN(value.restart) ? "" : value.restart}
             onChange={(event) =>
               onChange({
+                ...(value.hidden === undefined ? {} : { hidden: value.hidden }),
                 restart: event.currentTarget.valueAsNumber,
                 ...(value.headingLevel === undefined
                   ? {}
@@ -440,6 +470,7 @@ function SequenceOptionsForm({
           value={value.headingLevel ?? ""}
           onChange={(event) =>
             onChange({
+              ...(value.hidden === undefined ? {} : { hidden: value.hidden }),
               ...(value.restart === undefined
                 ? {}
                 : { restart: value.restart }),

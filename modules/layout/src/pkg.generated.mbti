@@ -739,6 +739,7 @@ pub(all) struct SequenceField {
   restart : Int?
   repeat : Bool
   headingLevel : Int?
+  hidden : Bool
 }
 pub fn SequenceField::code(Self) -> String
 pub fn SequenceField::parse(String) -> Self raise @failure.Failure

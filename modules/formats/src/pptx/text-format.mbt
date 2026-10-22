@@ -142,6 +142,7 @@ fn Session::formatting_query(self : Session) -> Json {
   let result : Map[String, Json] = Map([
     ("font", Json::null()),
     ("size", Json::null()),
+    ("spacing", Json::null()),
     ("bold", Json::null()),
     ("italic", Json::null()),
     ("color", Json::null()),
@@ -185,6 +186,7 @@ fn Session::formatting_query(self : Session) -> Json {
         [
           Json(parts[0].to_owned()),
           Json(style.size),
+          Json(style.spacing),
           Json(parts.contains("bold")),
           Json(parts.contains("italic")),
           Json(style.color.to_lower()),
@@ -197,8 +199,8 @@ fn Session::formatting_query(self : Session) -> Json {
       let initial = values(first)
       for
         i, name in [
-          "font", "size", "bold", "italic", "color", "underline", "strike", "highlight",
-          "script",
+          "font", "size", "spacing", "bold", "italic", "color", "underline", "strike",
+          "highlight", "script",
         ] {
         if styles.all(style => values(style)[i] == initial[i]) {
           result[name] = initial[i]

@@ -71,6 +71,7 @@ export function PptxMasterText({
             [
               ["font", t.fontFamily],
               ["size", t.fontSize],
+              ["spacing", t.characterSpacing],
               ["color", t.textColor],
               ["highlight", t.highlightColor],
             ] as const

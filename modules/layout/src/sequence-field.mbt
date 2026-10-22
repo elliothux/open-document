@@ -5,6 +5,7 @@ pub(all) struct SequenceField {
   restart : Int?
   repeat : Bool
   headingLevel : Int?
+  hidden : Bool
 }
 
 ///|
@@ -13,7 +14,7 @@ pub fn SequenceField::parse(
 ) -> SequenceField raise @failure.Failure {
   let parts = code.split(":").to_array()
   guard parts.length() >= 2 &&
-    parts.length() <= 5 &&
+    parts.length() <= 6 &&
     parts[0] == "SEQ" &&
     !parts[1].is_empty() &&
     parts[1].length() <= 40 &&
@@ -39,8 +40,11 @@ pub fn SequenceField::parse(
   let mut restart : Int? = None
   let mut repeat = false
   let mut headingLevel : Int? = None
+  let mut hidden = false
   for part in parts[2:] {
-    if part.has_prefix("heading=") && headingLevel is None {
+    if part == "hidden" && !hidden {
+      hidden = true
+    } else if part.has_prefix("heading=") && headingLevel is None {
       let value = sequence_option_number(part[8:], 9)
       guard value >= 1 else {
         @failure.reject("unsupported-layout", "Invalid sequence heading level")
@@ -59,7 +63,19 @@ pub fn SequenceField::parse(
       @failure.reject("unsupported-layout", "Invalid sequence field options")
     }
   }
-  { sequence: parts[1].to_owned(), format, restart, repeat, headingLevel, }
+  guard !hidden || format.is_empty() else {
+    @failure.reject(
+      "unsupported-layout", "Hidden sequence results require no explicit format",
+    )
+  }
+  {
+    sequence: parts[1].to_owned(),
+    format,
+    restart,
+    repeat,
+    headingLevel,
+    hidden,
+  }
 }
 
 ///|
@@ -92,7 +108,8 @@ pub fn SequenceField::code(self : SequenceField) -> String {
   } else {
     self.restart.map(n => ":restart=" + n.to_string()).unwrap_or("")
   }) +
-  self.headingLevel.map(n => ":heading=" + n.to_string()).unwrap_or("")
+  self.headingLevel.map(n => ":heading=" + n.to_string()).unwrap_or("") +
+  (if self.hidden { ":hidden" } else { "" })
 }
 
 ///|
@@ -100,6 +117,9 @@ fn SequenceField::text(
   self : SequenceField,
   value : Int64,
 ) -> String raise @failure.Failure {
+  if self.hidden {
+    return ""
+  }
   PageNumbering::new(
     start=value,
     format=if self.format.is_empty() { "decimal" } else { self.format },

@@ -3,6 +3,7 @@ import { record } from "./validation.js";
 export interface PptxTextFormat {
   font?: string;
   size?: number;
+  spacing?: number;
   bold?: boolean;
   italic?: boolean;
   color?: string;
@@ -14,6 +15,7 @@ export interface PptxTextFormat {
 export interface PptxFormatting {
   font: string | null;
   size: number | null;
+  spacing: number | null;
   bold: boolean | null;
   italic: boolean | null;
   color: string | null;
@@ -239,6 +241,12 @@ export function checkPptxParagraphFormatting(value: unknown): void {
 
 function property(key: string, value: unknown): boolean {
   switch (key) {
+    case "spacing":
+      return (
+        typeof value === "number" &&
+        Number.isFinite(value) &&
+        Math.abs(value) <= 1584
+      );
     case "font":
       return (
         typeof value === "string" &&
@@ -300,6 +308,7 @@ export function checkPptxFormatting(value: unknown): void {
     [
       "font",
       "size",
+      "spacing",
       "bold",
       "italic",
       "color",

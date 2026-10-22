@@ -6,6 +6,8 @@ export const xlsxPicturesEn = {
   xlsxPictureName: "Picture name",
   xlsxPictureAlt: "Alternative text",
   xlsxPictureApply: "Apply picture properties",
+  xlsxReplacePicture: "Replace picture",
+  xlsxPictureReload: "Workbook changed; load pictures again.",
   xlsxPictureLimit: "Choose a nonempty PNG or JPEG up to 2 MiB.",
   xlsxPictureHint:
     "Insert at the selected cell. Positions are measured from the sheet origin in points. Resizing here keeps the current proportions.",
@@ -18,6 +20,8 @@ export const xlsxPicturesZh = {
   xlsxPictureName: "图片名称",
   xlsxPictureAlt: "替代文字",
   xlsxPictureApply: "应用图片属性",
+  xlsxReplacePicture: "更换图片",
+  xlsxPictureReload: "工作簿已变化，请重新加载图片。",
   xlsxPictureLimit: "选择不超过 2 MiB 的非空 PNG 或 JPEG。",
   xlsxPictureHint:
     "在所选单元格插入。位置以工作表原点为起点，单位为磅；此面板调整尺寸时保留当前比例。",

@@ -33,7 +33,7 @@ fn pptx_text_format(value : Json) -> @pptx.TextFormat raise @failure.Failure {
     .all(key => {
       [
         "font", "size", "bold", "italic", "color", "underline", "strike", "highlight",
-        "script",
+        "script", "spacing",
       ].contains(key)
     }) else {
     @failure.reject("invalid-operation", "Unknown text format fields")
@@ -46,6 +46,11 @@ fn pptx_text_format(value : Json) -> @pptx.TextFormat raise @failure.Failure {
     },
     size?=if fields.contains("size") {
       Some(xlsx_number(value, "size"))
+    } else {
+      None
+    },
+    spacing?=if fields.contains("spacing") {
+      Some(xlsx_number(value, "spacing"))
     } else {
       None
     },

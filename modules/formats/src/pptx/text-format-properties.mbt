@@ -2,6 +2,7 @@
 pub(all) struct TextFormat {
   font : String?
   size : Double?
+  spacing : Double?
   bold : Bool?
   italic : Bool?
   color : String?
@@ -15,6 +16,7 @@ pub(all) struct TextFormat {
 pub fn TextFormat::new(
   font? : String,
   size? : Double,
+  spacing? : Double,
   bold? : Bool,
   italic? : Bool,
   color? : String,
@@ -23,7 +25,18 @@ pub fn TextFormat::new(
   highlight? : String,
   script? : String,
 ) -> TextFormat {
-  { font, size, bold, italic, color, underline, strike, highlight, script, }
+  {
+    font,
+    size,
+    spacing,
+    bold,
+    italic,
+    color,
+    underline,
+    strike,
+    highlight,
+    script,
+  }
 }
 
 ///|
@@ -32,6 +45,7 @@ fn TextFormat::normalized(
 ) -> TextFormat raise @failure.Failure {
   guard self.font is Some(_) ||
     self.size is Some(_) ||
+    self.spacing is Some(_) ||
     self.bold is Some(_) ||
     self.italic is Some(_) ||
     self.color is Some(_) ||
@@ -55,6 +69,13 @@ fn TextFormat::normalized(
   if self.size is Some(size) {
     guard !size.is_nan() && !size.is_inf() && size >= 1 && size <= 1024 else {
       @failure.reject("invalid-operation", "Text size must be 1..1024 points")
+    }
+  }
+  if self.spacing is Some(spacing) {
+    guard !spacing.is_nan() && !spacing.is_inf() && spacing.abs() <= 1584 else {
+      @failure.reject(
+        "invalid-operation", "Text spacing must be within -1584 and 1584 points",
+      )
     }
   }
   if self.script is Some(script) {
@@ -81,6 +102,7 @@ fn TextFormat::normalized(
   {
     ..self,
     size: self.size.map(v => (v * 100).round() / 100),
+    spacing: self.spacing.map(v => (v * 100).round() / 100),
     color: self.color.map(v => v.to_lower()),
     highlight: self.highlight.map(v => v.to_lower()),
   }
@@ -91,6 +113,7 @@ fn TextFormat::matches(self : TextFormat, style : @layout.TextStyle) -> Bool {
   let font = style.font.split("|").map(v => v.to_owned()).to_array()
   self.font.map(v => v == font[0]).unwrap_or(true) &&
   self.size.map(v => v == style.size).unwrap_or(true) &&
+  self.spacing.map(v => v == style.spacing).unwrap_or(true) &&
   self.bold.map(v => v == font.contains("bold")).unwrap_or(true) &&
   self.italic.map(v => v == font.contains("italic")).unwrap_or(true) &&
   self.color.map(v => v == style.color.to_lower()).unwrap_or(true) &&
@@ -118,6 +141,9 @@ fn formatted_properties(
   let attrs : Map[String, String] = Map([])
   if format.size is Some(value) {
     attrs["sz"] = (value * 100).round().to_int().to_string()
+  }
+  if format.spacing is Some(value) {
+    attrs["spc"] = (value * 100).round().to_int().to_string()
   }
   if format.bold is Some(value) {
     attrs["b"] = if value { "1" } else { "0" }

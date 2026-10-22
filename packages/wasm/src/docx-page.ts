@@ -86,6 +86,7 @@ export type DocxBodyField =
       restart?: number;
       repeat?: boolean;
       headingLevel?: number;
+      hidden?: boolean;
     }
   | { field: "REF"; bookmark: string; hyperlink?: boolean }
   | {
@@ -141,9 +142,12 @@ export function checkBodyField(value: unknown): asserts value is DocxBodyField {
             "restart",
             "repeat",
             "headingLevel",
+            "hidden",
           ].includes(key),
       ) ||
       ("repeat" in item && typeof item.repeat !== "boolean") ||
+      ("hidden" in item && typeof item.hidden !== "boolean") ||
+      (item.hidden === true && "format" in item) ||
       ("headingLevel" in item &&
         (!Number.isInteger(item.headingLevel) ||
           Number(item.headingLevel) < 1 ||

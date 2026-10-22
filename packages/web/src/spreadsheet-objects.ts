@@ -109,6 +109,19 @@ export abstract class SpreadsheetObjects {
       );
     });
   }
+  replacePicture(id: string, bytes: Uint8Array): Promise<void> {
+    return this.change(async () => {
+      const state = this.currentState;
+      await this.surface.addPicture(this.client, state.revision, bytes);
+      return this.client.replacePicture(
+        state.revision,
+        state.sheet,
+        id,
+        bytes,
+        this.profile,
+      );
+    });
+  }
   setPicture(id: string, settings: XlsxPictureSettings): Promise<void> {
     return this.change(() =>
       this.client.setPicture(

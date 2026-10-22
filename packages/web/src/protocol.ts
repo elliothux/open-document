@@ -392,6 +392,14 @@ export type Operation =
       profile: Record<string, string>;
     }
   | {
+      operation: "replacePictureXlsx";
+      revision: number;
+      sheet: string;
+      pictureId: string;
+      bytes: Uint8Array;
+      profile: Record<string, string>;
+    }
+  | {
       operation: "deletePictureXlsx";
       revision: number;
       sheet: string;

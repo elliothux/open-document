@@ -417,13 +417,17 @@ export function docxFlow(value: unknown): DocxFlow {
       const span = fields(value, ["node"], ["text", "field"]);
       if (
         typeof span.field !== "string" ||
-        !/^(?:(?:PAGE|NUMPAGES)(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?|PAGEREF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::hyperlink)?(?::relative)?|REF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::hyperlink)?|SEQ:[_\p{ID_Start}][_\p{ID_Continue}]{0,39}(?::(?:decimal|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::(?:repeat|restart=[0-9]{1,10}))?(?::heading=[1-9])?)?$/u.test(
+        !/^(?:(?:PAGE|NUMPAGES)(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?|PAGEREF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::hyperlink)?(?::relative)?|REF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::hyperlink)?|SEQ:[_\p{ID_Start}][_\p{ID_Continue}]{0,39}(?::(?:decimal|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::(?:repeat|restart=[0-9]{1,10}))?(?::heading=[1-9])?(?::hidden)?)?$/u.test(
           span.field,
         ) ||
         (span.field.startsWith("SEQ:") &&
           (span.field.split(":")[1]!.length > 40 ||
             Number(span.field.split("restart=")[1]?.split(":")[0] ?? 0) >
-              2147483647)) ||
+              2147483647 ||
+            (span.field.endsWith(":hidden") &&
+              /^SEQ:[^:]+:(?:decimal|lowerLetter|upperLetter|lowerRoman|upperRoman):/u.test(
+                span.field,
+              )))) ||
         (span.field !== "" && span.drawing !== null)
       )
         throw new Error("Invalid running field");

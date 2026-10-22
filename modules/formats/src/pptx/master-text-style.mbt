@@ -95,6 +95,7 @@ fn Session::master_text_styles(self : Session, current : Slide) -> Json {
           let format : Json = {
             "font": fonts[0].to_owned(),
             "size": style.size,
+            "spacing": style.spacing,
             "bold": fonts.contains("bold"),
             "italic": fonts.contains("italic"),
             "color": style.color.to_lower(),

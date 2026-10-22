@@ -127,6 +127,31 @@ export function XlsxPictures({
         >
           <fieldset disabled={disabled || stale || !!catalog?.reason}>
             <label>
+              {t.xlsxReplacePicture}
+              <input
+                type="file"
+                accept=".png,.jpg,.jpeg,image/png,image/jpeg"
+                onChange={(event) => {
+                  const file = event.currentTarget.files?.[0];
+                  event.currentTarget.value = "";
+                  if (!file) return;
+                  controller.run(async () => {
+                    const source = editor.currentState;
+                    if (!file.size || file.size > 2097152)
+                      throw new Error(t.xlsxPictureLimit);
+                    const bytes = new Uint8Array(await file.arrayBuffer());
+                    if (
+                      editor.currentState.revision !== source.revision ||
+                      editor.currentState.sheet !== source.sheet
+                    )
+                      throw new Error(t.xlsxPictureReload);
+                    await editor.replacePicture(draft.id, bytes);
+                    await load();
+                  });
+                }}
+              />
+            </label>
+            <label>
               {t.xlsxPictureName}
               <input
                 value={draft.name}

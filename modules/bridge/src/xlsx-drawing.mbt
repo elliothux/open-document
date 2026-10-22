@@ -88,6 +88,16 @@ fn Foundation::xlsx_drawing_operation(
         description=field_string(request, "description"),
         images=self.images,
       )
+    "replacePictureXlsx" =>
+      session.replace_picture(
+        revision,
+        field_string(request, "sheet"),
+        field_string(request, "id"),
+        input_bytes(request, 2097152),
+        self.probe,
+        xlsx_profile(request),
+        images=self.images,
+      )
     "setPictureXlsx" => {
       guard request is { "settings": settings, .. } else {
         @failure.reject("invalid-operation", "Picture settings are required")

@@ -40,8 +40,13 @@ fn running_field_code(instruction : String) -> String raise @failure.Failure {
     let options = ["PAGE"]
     let mut control = ""
     let mut heading = ""
+    let mut hidden = false
     for i = 2; i < tokens.length(); {
       let token = tokens[i].to_lower()
+      if token == "\\h" && !hidden {
+        hidden = true
+        continue i + 1
+      }
       if token == "\\s" && heading.is_empty() {
         guard i + 1 < tokens.length() else {
           @failure.reject(
@@ -73,7 +78,9 @@ fn running_field_code(instruction : String) -> String raise @failure.Failure {
       "SEQ:" +
       tokens[1] +
       (if control == ":next" { "" } else { control }) +
-      heading,
+      heading +
+      // General formatting switches cancel the native hide switch in ONLYOFFICE.
+      (if hidden && options.length() == 1 { ":hidden" } else { "" }),
     )
     let format = running_field_code(options.join(" ")).split(":").to_array()
     return {

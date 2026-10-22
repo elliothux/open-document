@@ -158,6 +158,7 @@ fn Foundation::dispatch(
     | "imageBytesXlsx"
     | "imageXlsx"
     | "insertPictureXlsx"
+    | "replacePictureXlsx"
     | "setPictureXlsx"
     | "deletePictureXlsx" => self.xlsx_drawing_operation(operation, request)
     "openPptx"

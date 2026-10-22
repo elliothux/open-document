@@ -5,14 +5,12 @@ import { isPptxCommand, type PptxSession } from "@open-document/wasm/pptx";
 import { isPdfCommand, type PdfSession } from "@open-document/wasm/pdf";
 import { errorResponse, type Request, type Response } from "./protocol";
 import { mathOperation } from "./worker-math.js";
-
 let text: TextSession | undefined;
 let foundation: FoundationSession | undefined;
 let workbook: XlsxSession | undefined;
 let presentation: PptxSession | undefined;
 let pdf: PdfSession | undefined;
 let busy = false;
-
 async function dispatch(request: Request): Promise<unknown> {
   if (
     request.operation === "open" ||
@@ -156,6 +154,14 @@ async function dispatch(request: Request): Promise<unknown> {
           request.profile,
           request.name,
           request.description,
+        );
+      case "replacePictureXlsx":
+        return workbook.replacePicture(
+          request.revision,
+          request.sheet,
+          request.pictureId,
+          request.bytes,
+          request.profile,
         );
       case "setPictureXlsx":
         return workbook.setPicture(
@@ -345,6 +351,7 @@ async function dispatch(request: Request): Promise<unknown> {
         case "imageXlsx":
         case "insertPictureXlsx":
         case "setPictureXlsx":
+        case "replacePictureXlsx":
         case "deletePictureXlsx":
           throw new Error("Open an XLSX client first");
         case "budget":

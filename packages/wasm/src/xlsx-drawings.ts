@@ -147,6 +147,25 @@ export class XlsxDrawingSession extends WasmSession {
       }),
     );
   }
+  replacePicture(
+    revision: number,
+    sheet: string,
+    id: string,
+    bytes: Uint8Array,
+    profile: Record<string, string>,
+  ): XlsxQuery {
+    if (bytes.length > 2097152) throw new Error("Picture input exceeds2MiB");
+    return xlsxQuery(
+      this.call({
+        operation: "replacePictureXlsx",
+        revision,
+        sheet,
+        id,
+        bytes: encodeBytes(bytes),
+        profile,
+      }),
+    );
+  }
   setPicture(
     revision: number,
     sheet: string,

@@ -178,13 +178,14 @@ fn Foundation::docx_page(
         guard item is Object(fields) &&
           fields.length() >= 2 &&
           fields.length() <=
-          (if text_reference { 3 } else if sequence { 6 } else { 5 }) &&
+          (if text_reference { 3 } else if sequence { 7 } else { 5 }) &&
           fields
           .keys()
           .all(key => {
             (if sequence {
               [
                 "field", "sequence", "format", "restart", "repeat", "headingLevel",
+                "hidden",
               ]
             } else if text_reference {
               ["field", "bookmark", "hyperlink"]
@@ -241,6 +242,13 @@ fn Foundation::docx_page(
             )
           }
           ":heading=" + level.to_int().to_string()
+        } else {
+          ""
+        }) +
+        (if original is Object(fields) &&
+          fields.contains("hidden") &&
+          xlsx_boolean(original, "hidden") {
+          ":hidden"
         } else {
           ""
         })

@@ -176,6 +176,25 @@ export class XlsxDrawingClient {
       }),
     );
   }
+  async replacePicture(
+    revision: number,
+    sheet: string,
+    id: string,
+    bytes: Uint8Array,
+    profile: Record<string, string>,
+  ): Promise<XlsxQuery> {
+    if (bytes.length > 2097152) throw new Error("Picture input exceeds2MiB");
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "replacePictureXlsx",
+        revision,
+        sheet,
+        pictureId: id,
+        bytes,
+        profile,
+      }),
+    );
+  }
   async setPicture(
     revision: number,
     sheet: string,

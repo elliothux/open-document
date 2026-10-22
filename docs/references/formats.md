@@ -790,7 +790,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 ### 序列编号字段
 
-`DocxBodyField` 接受 `{ field: "SEQ", sequence: string, format?, restart?: number, repeat?: boolean, headingLevel?: number }`，沿现有正文域插入、查询和修改 API 使用。默认正文域面板提供序列名称、计数方式、起始值、插入、读取和修改控件。名称区分大小写，最多 40 个 UTF-16 单元；首字符为下划线或 Unicode 标识符起始字符，后续允许标识符续字符。每个名称独立从 1 计数，按正文与普通表格单元格的源顺序递增，不依赖 XML 节点编号或节页码。缺省格式为十进制，显式格式支持 `decimal/lowerLetter/upperLetter/lowerRoman/upperRoman`。
+`DocxBodyField` 接受 `{ field: "SEQ", sequence: string, format?, restart?: number, repeat?: boolean, headingLevel?: number, hidden?: boolean }`，沿现有正文域插入、查询和修改 API 使用。默认正文域面板提供序列名称、计数方式、起始值、隐藏、插入、读取和修改控件。名称区分大小写，最多 40 个 UTF-16 单元；首字符为下划线或 Unicode 标识符起始字符，后续允许标识符续字符。每个名称独立从 1 计数，按正文与普通表格单元格的源顺序递增，不依赖 XML 节点编号或节页码。缺省格式为十进制，显式格式支持 `decimal/lowerLetter/upperLetter/lowerRoman/upperRoman`。
 
 `restart` 为 0–2147483647 的整数，将当前域设为该值，后续同名域继续递增。`repeat: true` 显示最近的同名编号，不推进计数；前面没有同名编号时显示初始值 1。两项不能同时启用，`repeat: false` 等同默认递增。查询返回实际启用的属性；修改为普通递增时省略两项。核心使用 64 位计数，最大起始值之后仍可继续递增。开关读写依据 [ONLYOFFICE SEQ 解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexFieldInstruction.js#L1941-L1993)，重新起算后的递增及最近编号语义依据 [Microsoft SEQ 定义](https://support.microsoft.com/en-us/word/field-codes-seq-sequence-field)。
 
@@ -798,7 +798,9 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 原生指令为 `SEQ name`，接受上述编号格式开关、`MERGEFORMAT`、重新起算 `\r n`、重复 `\c` 、显式递增 `\n` 及标题重启 `\s n`。递增/重复/起点开关互斥，可与格式开关交换顺序；无效起始值、重复及冲突开关保持诊断和源保护。已知简单域和同段复杂域参与计算；简单域复用原生输入、格式修改、完整域剪贴板及一个逻辑位置。复杂域范围仍保护。新增、修改或粘贴只写当前域的实际缓存，其他域实时重算显示；`updateBodyPageFields` 显式刷新全部结果缓存，合为一项精确历史。布局、保存和 PDF 不隐式改写缓存。同名书签的改名不改变已知简单 SEQ 的序列名称。
 
-沿用每段 64 个字段、正文 4096 个字段位置及原有分页、字体、XML、历史和输出预算。当前范围为正文及普通单元格；页眉页脚、隐藏、书签形式引用及完整题注管理继续实施。未知指令和开关保留源、给出诊断并保护编辑。实现归[序列计算](../../modules/layout/src/sequence-field.mbt)、[正文顺序](../../modules/layout/src/body-fields.mbt)、[指令读取](../../modules/formats/src/docx/running-fields.mbt)及[缓存和代码事务](../../modules/formats/src/docx/body-field-edit.mbt)。依据 [ONLYOFFICE SEQ 指令](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexFieldInstruction.js#L707-L756)、[正文计数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexFieldInstruction.js#L789-L875)及[名称比较](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexFieldInstruction.js#L906-L913)，未复制上游执行代码。
+`hidden: true` 写原生 `\h`，保留计数、重启和重复规则，结果显示为空。字段仍占一个逻辑位置，保留格式及完整富文本复制；缓存刷新写空结果，Canvas/PDF 不绘制编号。查询只返回有效的隐藏状态。沿 [ONLYOFFICE 隐藏规则](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexFieldInstruction.js#L791-L816)，导入的 `\h` 遇到通用格式开关（包括 `MERGEFORMAT`）时仍显示，读取和保存保留原指令。API 中有效隐藏不能与显式 `format` 同时设置；默认面板勾选隐藏时清除待提交格式并禁用格式选择，修改已有域时也不保留会抵消隐藏的 `MERGEFORMAT`。取消隐藏后恢复默认十进制，再可选择显式格式。创建、修改、原生相邻输入、空结果复制、精确历史、重开及静态输出沿既有事务。
+
+沿用每段 64 个字段、正文 4096 个字段位置及原有分页、字体、XML、历史和输出预算。当前范围为正文及普通单元格；页眉页脚、书签形式引用及完整题注管理继续实施。未知指令和开关保留源、给出诊断并保护编辑。实现归[序列计算](../../modules/layout/src/sequence-field.mbt)、[正文顺序](../../modules/layout/src/body-fields.mbt)、[指令读取](../../modules/formats/src/docx/running-fields.mbt)及[缓存和代码事务](../../modules/formats/src/docx/body-field-edit.mbt)。依据 [ONLYOFFICE SEQ 指令](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexFieldInstruction.js#L707-L756)、[正文计数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexFieldInstruction.js#L789-L875)及[名称比较](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexFieldInstruction.js#L906-L913)，未复制上游执行代码。
 
 ### 表格创建
 
@@ -2174,9 +2176,11 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 ### 工作表图片
 
-`SpreadsheetEditor.pictures()` 返回当前表的 `{ revision, sheet, reason, items }`。每项包含稳定的原生 `id`、名称、替代文字、锚点、point 几何、源裁剪及图片资源键。`insertPicture(bytes, width, height, name?, description?)` 在选定单元格插入普通 PNG/JPEG；`setPicture(id, settings)` 修改锚点、位置、尺寸及文字，`deletePicture(id)` 删除目标锚点。默认图片面板复用这些入口，调整尺寸保留当前比例。同步 `XlsxSession` 和异步 `XlsxClient` 提供对应显式 revision/sheet/profile 接口；Web 在提交前完成图片预检和像素解码。
+`SpreadsheetEditor.pictures()` 返回当前表的 `{ revision, sheet, reason, items }`。每项包含稳定的原生 `id`、名称、替代文字、锚点、point 几何、源裁剪及图片资源键。`insertPicture(bytes, width, height, name?, description?)` 在选定单元格插入普通 PNG/JPEG；`setPicture(id, settings)` 修改锚点、位置、尺寸及文字，`deletePicture(id)` 删除目标锚点。`replacePicture(id, bytes)` 更换目标的 PNG/JPEG 压缩资源，保留身份、名称、替代文字、三种锚点、几何及源裁剪。默认面板提供独立文件选择，不提交其他未应用的属性草稿。默认图片面板复用这些入口，调整尺寸保留当前比例。同步 `XlsxSession` 和异步 `XlsxClient` 提供对应显式 revision/sheet/profile 接口；Web 在提交前完成图片预检和像素解码。
 
 `anchor` 接受 `fixed`、`move`、`size`，分别保存 `absoluteAnchor`、`oneCellAnchor` 和普通 `twoCellAnchor`。核心按原生行高/列宽解释几何，尺寸编辑在同一历史中同步图片姿态。网格按冻结窗格裁剪图片，RTL 只移动对象位置；打印沿现有分页、区域和缩放裁剪，保留隐藏和 `fPrintsWithSheet` 策略。源裁剪参与同一 Canvas/PDF 绘制。资源、关系、源补丁和原生输入共用精确历史，撤销与重做恢复相同字节，失败保留文档。删除保留可能共享的关系和媒体，解码缓存只保留实际引用的图片。
+
+更换图片时，核心分配新媒体路径及关系，只修改所选图片的 `a:blip/@r:embed`。旧关系与媒体保留，共用原资源的其他对象不改变；新 MIME 与内容类型跟随实际字节，不依赖文件扩展名。同字节替换不新增历史。新资源、关系和源补丁合为一项事务，撤销移除本次新增资源，重做恢复同一字节。单图上限为 2 MiB，解码与累计资源沿现有图片上限；Web 先提交原生单元格草稿，再预检和解码，失败保留源。文件读取期间文稿版本或工作表变化时，默认面板拒绝提交并要求重新加载图片。实现归 [`picture-replace.mbt`](../../modules/formats/src/xlsx/picture-replace.mbt)，图片源修改参考 [ONLYOFFICE 图像属性](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L4191-L4203)，锚点、源裁剪和元数据继续沿本 SDK 的保留规则。
 
 `XlsxPictureSettings.crop` 必填，按左、上、右、下保存四个源裁剪比例；每项为 0–1 之间的有限数，不含 1。核心按原生 1/100000 精度舍入，再检查对边之和小于 1。裁剪保留框的位置与尺寸，不改压缩图片字节；全零移除原生 `srcRect`。拖动、缩放和整表复制保留裁剪。默认图片面板提供四边百分比，步长为 0.001%，沿原属性按钮提交；“重置裁剪”只恢复完整图片，不提交其他未应用草稿。
 

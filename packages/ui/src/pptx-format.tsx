@@ -19,7 +19,7 @@ export function TextField({
   disabled,
   onApply,
 }: {
-  property: "font" | "size" | "color" | "highlight";
+  property: "font" | "size" | "spacing" | "color" | "highlight";
   label: string;
   value: string | number | null;
   mixed: string;
@@ -33,7 +33,9 @@ export function TextField({
       onSubmit={(event) => {
         event.preventDefault();
         onApply(
-          property === "size" ? { size: Number(draft) } : { [property]: draft },
+          property === "size" || property === "spacing"
+            ? { [property]: Number(draft) }
+            : { [property]: draft },
         );
       }}
     >
@@ -43,10 +45,22 @@ export function TextField({
           aria-label={label}
           required
           value={draft}
-          type={property === "size" ? "number" : "text"}
-          min={property === "size" ? 1 : undefined}
-          max={property === "size" ? 1024 : undefined}
-          step={property === "size" ? "0.01" : undefined}
+          type={
+            property === "size" || property === "spacing" ? "number" : "text"
+          }
+          min={
+            property === "size" ? 1 : property === "spacing" ? -1584 : undefined
+          }
+          max={
+            property === "size"
+              ? 1024
+              : property === "spacing"
+                ? 1584
+                : undefined
+          }
+          step={
+            property === "size" || property === "spacing" ? "0.01" : undefined
+          }
           maxLength={
             property === "font"
               ? 200
@@ -648,6 +662,7 @@ export function PptxFormat({
         [
           ["font", t.fontFamily],
           ["size", t.fontSize],
+          ["spacing", t.characterSpacing],
           ["color", t.textColor],
           ["highlight", t.highlightColor],
         ] as const

@@ -28,7 +28,8 @@ fn running_field_instruction(field : String) -> String raise @failure.Failure {
       } else {
         sequence.restart.map(n => " \\r " + n.to_string()).unwrap_or("")
       }) +
-      sequence.headingLevel.map(n => " \\s " + n.to_string()).unwrap_or("")
+      sequence.headingLevel.map(n => " \\s " + n.to_string()).unwrap_or("") +
+      (if sequence.hidden { " \\h" } else { "" })
   }
   if parts[0] == "PAGEREF" {
     let reference = @layout.PageReference::parse(field) catch {

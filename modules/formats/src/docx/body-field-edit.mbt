@@ -89,6 +89,9 @@ pub fn Session::body_page_field(
       } else if parts[0] == "SEQ" {
         let sequence = @layout.SequenceField::parse(code)
         value["sequence"] = Json(sequence.sequence)
+        if sequence.hidden {
+          value["hidden"] = Json(true)
+        }
         if sequence.headingLevel is Some(level) {
           value["headingLevel"] = Json(level)
         }
@@ -147,7 +150,8 @@ pub fn Session::edit_body_page_field(
     return self.edit_state()
   }
   let instruction = instruction +
-    (if !instruction.to_upper().contains("MERGEFORMAT") &&
+    (if !(field.has_prefix("SEQ:") && @layout.SequenceField::parse(field).hidden) &&
+      !instruction.to_upper().contains("MERGEFORMAT") &&
       attribute.value.to_upper().contains("MERGEFORMAT") {
       " \\* MERGEFORMAT"
     } else {

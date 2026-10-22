@@ -10,7 +10,7 @@ fn clear_names(paragraph : Bool) -> (Array[String], Array[String]) {
     )
   } else {
     (
-      ["sz", "b", "i", "u", "strike", "baseline"],
+      ["sz", "spc", "b", "i", "u", "strike", "baseline"],
       ["noFill", "solidFill", "latin", "ea", "cs", "uLnTx", "uFillTx"],
     )
   }
