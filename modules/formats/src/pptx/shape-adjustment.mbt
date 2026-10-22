@@ -25,13 +25,15 @@ fn Object::adjustment_values(self : Object) -> Array[(String, Double, Double)] {
   }
   let shortest = geometry.width.min(geometry.height)
   guard shortest > 0 else { return [] }
-  let length = if ["upArrow", "downArrow"].contains(self.preset) {
+  let length = if vertical_arrow_shape(self.preset) {
     geometry.height
   } else {
     geometry.width
   }
   // ONLYOFFICE CreateGeometry bounds the arrow head by length / shortest side.
-  let maximum = (length / shortest).min(21474.83647)
+  let maximum = (length /
+  shortest /
+  (if double_arrow_shape(self.preset) { 2.0 } else { 1.0 })).min(21474.83647)
   [
     ("adj1", self.adjustments.0.max(0).min(1), 1.0),
     ("adj2", self.adjustments.1.max(0).min(maximum), maximum),

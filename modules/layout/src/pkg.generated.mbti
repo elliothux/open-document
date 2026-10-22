@@ -218,6 +218,7 @@ pub(all) struct Flow {
   page : PageSetup
   pageNumbering : PageNumbering
   bookmarks : Map[String, (Int, Int, Int, Int)]
+  outlineLevels : Map[Int, Int]
   columns : Columns
   paragraphs : Array[Paragraph]
   diagnostics : Array[String]
@@ -662,6 +663,9 @@ pub fn SemanticPage::to_json(Self) -> Json
 pub(all) struct SequenceField {
   sequence : String
   format : String
+  restart : Int?
+  repeat : Bool
+  headingLevel : Int?
 }
 pub fn SequenceField::code(Self) -> String
 pub fn SequenceField::parse(String) -> Self raise @failure.Failure
@@ -783,7 +787,7 @@ pub fn TextProbe::outline_resources(Self) -> Array[Outline] raise @failure.Failu
 pub fn TextProbe::paragraph_lines(Self, Paragraph, Map[String, String], Double, Bool, baseLevel? : Int) -> Array[Line] raise @failure.Failure
 pub fn TextProbe::shape(Self, String, Double, String, primary? : Int, base? : Int) -> ShapeBatch raise @failure.Failure
 pub fn TextProbe::source_glyph(Self, Int, Int, String, Int, Bool) -> (String, Int) raise @failure.Failure
-pub fn TextProbe::span_block(Self, Array[Span], Double, Map[String, String], Double, Bool) -> TextBlock raise @failure.Failure
+pub fn TextProbe::span_block(Self, Array[Span], Double, Map[String, String], Double, Bool, justify? : Bool) -> TextBlock raise @failure.Failure
 pub fn TextProbe::text_block(Self, String, TextStyle, Map[String, String], Double, Bool) -> TextBlock raise @failure.Failure
 
 pub(all) struct TextReference {

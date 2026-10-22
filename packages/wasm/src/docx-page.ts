@@ -79,7 +79,14 @@ export type DocxRunningContent =
   { text: string; target?: string } | DocxPageField;
 export type DocxBodyField =
   | DocxPageField
-  | { field: "SEQ"; sequence: string; format?: DocxPageField["format"] }
+  | {
+      field: "SEQ";
+      sequence: string;
+      format?: DocxPageField["format"];
+      restart?: number;
+      repeat?: boolean;
+      headingLevel?: number;
+    }
   | { field: "REF"; bookmark: string; hyperlink?: boolean }
   | {
       field: "PAGEREF";
@@ -126,8 +133,26 @@ export function checkBodyField(value: unknown): asserts value is DocxBodyField {
       item.sequence.length > 40 ||
       !/^[_\p{ID_Start}][_\p{ID_Continue}]*$/u.test(item.sequence) ||
       Object.keys(item).some(
-        (key) => !["field", "sequence", "format"].includes(key),
-      )
+        (key) =>
+          ![
+            "field",
+            "sequence",
+            "format",
+            "restart",
+            "repeat",
+            "headingLevel",
+          ].includes(key),
+      ) ||
+      ("repeat" in item && typeof item.repeat !== "boolean") ||
+      ("headingLevel" in item &&
+        (!Number.isInteger(item.headingLevel) ||
+          Number(item.headingLevel) < 1 ||
+          Number(item.headingLevel) > 9)) ||
+      ("restart" in item &&
+        (!Number.isInteger(item.restart) ||
+          Number(item.restart) < 0 ||
+          Number(item.restart) > 2147483647 ||
+          item.repeat === true))
     )
       throw new Error("Invalid sequence field identifier");
     checkPageField(

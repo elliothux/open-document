@@ -248,7 +248,8 @@ fn Session::paint_cells(
       let indent = style.indent.to_double() * indent_unit
       let available = rect.width -
         4.5 -
-        (if style.wrap || ["left", "right"].contains(horizontal) {
+        (if (style.wrap && horizontal != "justify") ||
+          ["left", "right"].contains(horizontal) {
           indent
         } else {
           0.0
@@ -260,6 +261,7 @@ fn Session::paint_cells(
           text,
           spans,
           available.min(14400),
+          justify=horizontal == "justify",
         )
         if !sheet.view.formulas &&
           value is Number(_) &&

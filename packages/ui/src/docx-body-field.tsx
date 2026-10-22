@@ -29,6 +29,7 @@ export function DocxBodyField({
   const [hyperlink, setHyperlink] = useState(false);
   const [relative, setRelative] = useState(false);
   const [sequence, setSequence] = useState("Figure");
+  const [sequenceOptions, setSequenceOptions] = useState<SequenceOptions>({});
   const [referenceKind, setReferenceKind] = useState<"PAGEREF" | "REF">(
     "PAGEREF",
   );
@@ -55,7 +56,11 @@ export function DocxBodyField({
         onSubmit={(event) => {
           event.preventDefault();
           controller.run(() =>
-            editor.insertBodyPageField({ field: "SEQ", sequence }),
+            editor.insertBodyPageField({
+              field: "SEQ",
+              sequence,
+              ...sequenceOptions,
+            }),
           );
         }}
       >
@@ -69,6 +74,11 @@ export function DocxBodyField({
               onChange={(event) => setSequence(event.currentTarget.value)}
             />
           </label>
+          <SequenceOptionsForm
+            value={sequenceOptions}
+            onChange={setSequenceOptions}
+            t={t}
+          />
           <button type="submit">{t.insertSequenceField}</button>
         </fieldset>
       </form>
@@ -203,18 +213,37 @@ export function DocxBodyField({
               </select>
             </label>
             {draft.field === "SEQ" && (
-              <label>
-                {t.sequenceIdentifier}
-                <input
-                  aria-label={t.selectedSequenceIdentifier}
-                  required
-                  maxLength={40}
-                  value={draft.sequence}
-                  onChange={(event) =>
-                    setDraft({ ...draft, sequence: event.currentTarget.value })
-                  }
+              <>
+                <label>
+                  {t.sequenceIdentifier}
+                  <input
+                    aria-label={t.selectedSequenceIdentifier}
+                    required
+                    maxLength={40}
+                    value={draft.sequence}
+                    onChange={(event) =>
+                      setDraft({
+                        ...draft,
+                        sequence: event.currentTarget.value,
+                      })
+                    }
+                  />
+                </label>
+                <SequenceOptionsForm
+                  value={draft}
+                  onChange={(options) => {
+                    const {
+                      restart: _restart,
+                      repeat: _repeat,
+                      headingLevel: _heading,
+                      ...field
+                    } = draft;
+                    setDraft({ ...field, ...options });
+                  }}
+                  t={t}
+                  selected
                 />
-              </label>
+              </>
             )}
             {(draft.field === "PAGEREF" || draft.field === "REF") && (
               <>
@@ -335,5 +364,100 @@ export function DocxBodyField({
         </form>
       )}
     </section>
+  );
+}
+
+type SequenceOptions = Pick<
+  Extract<DocxBodyField, { field: "SEQ" }>,
+  "restart" | "repeat" | "headingLevel"
+>;
+
+function SequenceOptionsForm({
+  value,
+  onChange,
+  selected = false,
+  t,
+}: {
+  value: SequenceOptions;
+  onChange: (value: SequenceOptions) => void;
+  selected?: boolean;
+  t: ReturnType<typeof messages>;
+}) {
+  return (
+    <>
+      <label>
+        {selected ? t.selectedSequenceBehavior : t.sequenceBehavior}
+        <select
+          value={
+            value.repeat
+              ? "repeat"
+              : value.restart !== undefined
+                ? "restart"
+                : "next"
+          }
+          onChange={(event) =>
+            onChange({
+              ...(value.headingLevel === undefined
+                ? {}
+                : { headingLevel: value.headingLevel }),
+              ...(event.currentTarget.value === "repeat"
+                ? { repeat: true }
+                : event.currentTarget.value === "restart"
+                  ? { restart: 1 }
+                  : {}),
+            })
+          }
+        >
+          <option value="next">{t.sequenceNext}</option>
+          <option value="repeat">{t.sequenceRepeat}</option>
+          <option value="restart">{t.sequenceRestart}</option>
+        </select>
+      </label>
+      {value.restart !== undefined && (
+        <label>
+          {selected ? t.selectedSequenceStart : t.sequenceStart}
+          <input
+            type="number"
+            required
+            min={0}
+            max={2147483647}
+            step={1}
+            value={Number.isNaN(value.restart) ? "" : value.restart}
+            onChange={(event) =>
+              onChange({
+                restart: event.currentTarget.valueAsNumber,
+                ...(value.headingLevel === undefined
+                  ? {}
+                  : { headingLevel: value.headingLevel }),
+              })
+            }
+          />
+        </label>
+      )}
+      <label>
+        {selected ? t.selectedSequenceHeading : t.sequenceHeading}
+        <select
+          value={value.headingLevel ?? ""}
+          onChange={(event) =>
+            onChange({
+              ...(value.restart === undefined
+                ? {}
+                : { restart: value.restart }),
+              ...(value.repeat === undefined ? {} : { repeat: value.repeat }),
+              ...(event.currentTarget.value === ""
+                ? {}
+                : { headingLevel: Number(event.currentTarget.value) }),
+            })
+          }
+        >
+          <option value="">{t.sequenceHeadingNone}</option>
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((level) => (
+            <option key={level} value={level}>
+              {t.sequenceHeading} {level}
+            </option>
+          ))}
+        </select>
+      </label>
+    </>
   );
 }

@@ -157,12 +157,25 @@ fn Session::flow_from(
   }
   self.apply_numbering(tree, styles, numbered, backgrounds)
   styles.apply_contextual_spacing(tree, numbered)
+  let outline_levels : Map[Int, Int] = Map([])
+  for id, _ in numbered {
+    let level = styles.outline_level(tree, id) catch {
+      @failure.Failure(message~, ..) => {
+        diagnostics.push("unsupported-layout:outline-level:" + message)
+        None
+      }
+    }
+    if level is Some(level) {
+      outline_levels[id] = level
+    }
+  }
   {
     revision: self.revision,
     background,
     pageBorders: page_borders,
     page,
     pageNumbering: page_numbering,
+    outlineLevels: outline_levels,
     bookmarks: Map::from_array(
       tree
       .bookmarks()

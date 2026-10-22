@@ -89,6 +89,15 @@ pub fn Session::body_page_field(
       } else if parts[0] == "SEQ" {
         let sequence = @layout.SequenceField::parse(code)
         value["sequence"] = Json(sequence.sequence)
+        if sequence.headingLevel is Some(level) {
+          value["headingLevel"] = Json(level)
+        }
+        if sequence.repeat {
+          value["repeat"] = Json(true)
+        }
+        if sequence.restart is Some(start) {
+          value["restart"] = Json(start)
+        }
         if !sequence.format.is_empty() {
           value["format"] = Json(sequence.format)
         }

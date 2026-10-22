@@ -55,7 +55,7 @@ fn Flow::resolve_body_fields(
             } else if span.field.has_prefix("REF:") {
               span.text
             } else if span.field.has_prefix("SEQ:") {
-              SequenceField::parse(span.field).text(1)
+              SequenceField::parse(span.field).text(1L)
             } else {
               self.pageNumbering.field_text(span.field, 0, total)
             }

@@ -35,6 +35,8 @@ export const pptxInsertKinds = [
   "rightArrow",
   "upArrow",
   "downArrow",
+  "leftRightArrow",
+  "upDownArrow",
 ] as const;
 export type PptxObjectEdit =
   | ({

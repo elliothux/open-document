@@ -261,6 +261,7 @@ pub fn TextProbe::text_block(
 
 ///|
 /// Shape mixed text styles with the same bounded paragraph layout as plain blocks.
+/// `justify` expands word gaps on nonfinal lines; line breaking and source text stay intact.
 pub fn TextProbe::span_block(
   self : TextProbe,
   spans : Array[Span],
@@ -268,6 +269,7 @@ pub fn TextProbe::span_block(
   profile : Map[String, String],
   width : Double,
   wrap : Bool,
+  justify~ : Bool = false,
 ) -> TextBlock raise @failure.Failure {
   self.check()
   guard spans.all(span => span.drawing is None && span.field.is_empty()) else {
@@ -334,11 +336,20 @@ pub fn TextProbe::span_block(
   let widths : Array[Double] = []
   let mut y = 0.0
   let fonts = self.font_info()
-  for item in measured {
-    let line = item.line
+  for index, item in measured {
+    let line = if justify && index + 1 < measured.length() {
+      justified_line(item.line, width, wordsOnly=true)
+    } else {
+      item.line
+    }
+    let x = if justify && !line.justified && line.baseLevel % 2 == 1 {
+      (width - line.width).max(0)
+    } else {
+      0.0
+    }
     lines.push(
       [
-        Transform({ a: 1, b: 0, c: 0, d: 1, e: 0, f: y, }),
+        Transform({ a: 1, b: 0, c: 0, d: 1, e: x, f: y, }),
         ..line.positioned(fonts, width),
         Restore,
       ],

@@ -34,7 +34,11 @@ fn justify_space(text : String, start : Int, end : Int) -> Bool {
 
 ///|
 // Expand after shaping so GDEF carets and contextual glyphs stay intact.
-fn justified_line(line : Line, limit : Double) -> Line {
+fn justified_line(
+  line : Line,
+  limit : Double,
+  wordsOnly~ : Bool = false,
+) -> Line {
   let text = line.text
   let carets = line.carets
   if carets.length() < 3 {
@@ -93,11 +97,20 @@ fn justified_line(line : Line, limit : Double) -> Line {
     let a = carets[i]
     let b = carets[i + 1]
     if justify_space(text, a.offset - line.start, b.offset - line.start) &&
+      (
+        !wordsOnly ||
+        i + 1 == last ||
+        !justify_space(
+          text,
+          b.offset - line.start,
+          carets[i + 2].offset - line.start,
+        )
+      ) &&
       b.before != a.after {
       plan.stops.push(plan.trim(a.after.max(b.before)))
     }
   }
-  if plan.stops.is_empty() && line.baseLevel % 2 == 0 {
+  if !wordsOnly && plan.stops.is_empty() && line.baseLevel % 2 == 0 {
     let clusters : Map[Int, Bool] = Map([])
     for run in line.runs {
       for glyph in run.glyphs {

@@ -177,12 +177,15 @@ fn Foundation::docx_page(
       let item = if reference || sequence {
         guard item is Object(fields) &&
           fields.length() >= 2 &&
-          fields.length() <= (if sequence || text_reference { 3 } else { 5 }) &&
+          fields.length() <=
+          (if text_reference { 3 } else if sequence { 6 } else { 5 }) &&
           fields
           .keys()
           .all(key => {
             (if sequence {
-              ["field", "sequence", "format"]
+              [
+                "field", "sequence", "format", "restart", "repeat", "headingLevel",
+              ]
             } else if text_reference {
               ["field", "bookmark", "hyperlink"]
             } else {
@@ -210,7 +213,37 @@ fn Foundation::docx_page(
         guard request is { "field": original, .. } else {
           abort("Missing field")
         }
-        "SEQ:" + field_string(original, "sequence") + code[4:].to_owned()
+        let repeat = original is Object(fields) &&
+          fields.contains("repeat") &&
+          xlsx_boolean(original, "repeat")
+        let restart = if original is Object(fields) &&
+          fields.contains("restart") {
+          let value = xlsx_number(original, "restart")
+          guard !repeat &&
+            value >= 0 &&
+            value <= 2147483647 &&
+            value.floor() == value else {
+            @failure.reject("invalid-operation", "Invalid sequence restart")
+          }
+          ":restart=" + value.to_int().to_string()
+        } else {
+          ""
+        }
+        "SEQ:" +
+        field_string(original, "sequence") +
+        code[4:].to_owned() +
+        (if repeat { ":repeat" } else { restart }) +
+        (if original is Object(fields) && fields.contains("headingLevel") {
+          let level = xlsx_number(original, "headingLevel")
+          guard level >= 1 && level <= 9 && level.floor() == level else {
+            @failure.reject(
+              "invalid-operation", "Invalid sequence heading level",
+            )
+          }
+          ":heading=" + level.to_int().to_string()
+        } else {
+          ""
+        })
       } else if reference {
         guard request is { "field": original, .. } else {
           abort("Missing field")

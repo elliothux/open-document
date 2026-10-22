@@ -37,8 +37,44 @@ fn running_field_code(instruction : String) -> String raise @failure.Failure {
     return @layout.TextReference::{ bookmark: tokens[1], hyperlink, }.code()
   }
   if tokens.length() >= 2 && tokens[0].to_upper() == "SEQ" {
-    let sequence = @layout.SequenceField::parse("SEQ:" + tokens[1])
-    let options = ["PAGE", ..tokens[2:].to_owned()]
+    let options = ["PAGE"]
+    let mut control = ""
+    let mut heading = ""
+    for i = 2; i < tokens.length(); {
+      let token = tokens[i].to_lower()
+      if token == "\\s" && heading.is_empty() {
+        guard i + 1 < tokens.length() else {
+          @failure.reject(
+            "unsupported-layout", "Missing sequence heading level",
+          )
+        }
+        heading = ":heading=" + tokens[i + 1]
+        continue i + 2
+      }
+      if ["\\c", "\\n", "\\r"].contains(token) && control.is_empty() {
+        if token == "\\r" {
+          guard i + 1 < tokens.length() else {
+            @failure.reject("unsupported-layout", "Missing sequence restart")
+          }
+          control = ":restart=" + tokens[i + 1]
+          continue i + 2
+        }
+        control = if token == "\\c" { ":repeat" } else { ":next" }
+        continue i + 1
+      }
+      guard tokens[i] == "\\*" && i + 1 < tokens.length() else {
+        @failure.reject("unsupported-layout", "Unsupported sequence switch")
+      }
+      options.push(tokens[i])
+      options.push(tokens[i + 1])
+      continue i + 2
+    }
+    let sequence = @layout.SequenceField::parse(
+      "SEQ:" +
+      tokens[1] +
+      (if control == ":next" { "" } else { control }) +
+      heading,
+    )
     let format = running_field_code(options.join(" ")).split(":").to_array()
     return {
       ..sequence,

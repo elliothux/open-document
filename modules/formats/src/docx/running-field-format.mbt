@@ -20,7 +20,15 @@ fn running_field_instruction(field : String) -> String raise @failure.Failure {
       "PAGE" +
       (if sequence.format.is_empty() { "" } else { ":" + sequence.format }),
     )
-    return "SEQ " + sequence.sequence + page[4:].to_owned()
+    return "SEQ " +
+      sequence.sequence +
+      page[4:].to_owned() +
+      (if sequence.repeat {
+        " \\c"
+      } else {
+        sequence.restart.map(n => " \\r " + n.to_string()).unwrap_or("")
+      }) +
+      sequence.headingLevel.map(n => " \\s " + n.to_string()).unwrap_or("")
   }
   if parts[0] == "PAGEREF" {
     let reference = @layout.PageReference::parse(field) catch {

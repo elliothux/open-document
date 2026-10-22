@@ -30,6 +30,7 @@ export interface DocxFlow {
   columns: DocxColumns;
   pageNumbering: { start: number; format: string };
   bookmarks: Record<string, [number, number, number, number]>;
+  outlineLevels: Record<string, number>;
   pageBorders: DocxPageBorders;
   background: string;
   additiveSpacing: boolean;
@@ -293,6 +294,17 @@ export function docxFlow(value: unknown): DocxFlow {
   const flow = fields(value, ["revision", "headerDistance", "footerDistance"]);
   const bookmarks = record(flow.bookmarks);
   if (
+    Object.entries(record(flow.outlineLevels)).some(
+      ([id, level]) =>
+        !/^(0|[1-9][0-9]*)$/u.test(id) ||
+        !Number.isSafeInteger(Number(id)) ||
+        !Number.isInteger(level) ||
+        Number(level) < 0 ||
+        Number(level) > 8,
+    )
+  )
+    throw new Error("Invalid document outline levels");
+  if (
     Object.keys(bookmarks).length > 4096 ||
     Object.entries(bookmarks).some(
       ([name, position]) =>
@@ -400,11 +412,13 @@ export function docxFlow(value: unknown): DocxFlow {
       const span = fields(value, ["node"], ["text", "field"]);
       if (
         typeof span.field !== "string" ||
-        !/^(?:(?:PAGE|NUMPAGES)(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?|PAGEREF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::hyperlink)?(?::relative)?|REF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::hyperlink)?|SEQ:[_\p{ID_Start}][_\p{ID_Continue}]{0,39}(?::(?:decimal|lowerLetter|upperLetter|lowerRoman|upperRoman))?)?$/u.test(
+        !/^(?:(?:PAGE|NUMPAGES)(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?|PAGEREF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::hyperlink)?(?::relative)?|REF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::hyperlink)?|SEQ:[_\p{ID_Start}][_\p{ID_Continue}]{0,39}(?::(?:decimal|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::(?:repeat|restart=[0-9]{1,10}))?(?::heading=[1-9])?)?$/u.test(
           span.field,
         ) ||
         (span.field.startsWith("SEQ:") &&
-          span.field.split(":")[1]!.length > 40) ||
+          (span.field.split(":")[1]!.length > 40 ||
+            Number(span.field.split("restart=")[1]?.split(":")[0] ?? 0) >
+              2147483647)) ||
         (span.field !== "" && span.drawing !== null)
       )
         throw new Error("Invalid running field");

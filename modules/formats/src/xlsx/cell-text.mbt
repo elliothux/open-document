@@ -8,12 +8,20 @@ fn CellStyle::cell_text_block(
   width : Double,
   wrap~ : Bool = self.wrap,
   shrink~ : Bool = self.shrink,
+  justify~ : Bool = self.horizontal == "justify",
 ) -> @layout.TextBlock raise @failure.Failure {
   let mut spans = spans.unwrap_or([
     { node: 0, text, style: self.text_style(), drawing: None, field: "", },
   ])
   let mut nominal = self.size
-  let mut block = probe.span_block(spans, nominal, profile, width, wrap)
+  let mut block = probe.span_block(
+    spans,
+    nominal,
+    profile,
+    width,
+    wrap,
+    justify~,
+  )
   if !shrink || wrap {
     return block
   }
@@ -38,7 +46,7 @@ fn CellStyle::cell_text_block(
     }
     spans = next
     nominal = reduced(nominal)
-    block = probe.span_block(spans, nominal, profile, width, false)
+    block = probe.span_block(spans, nominal, profile, width, false, justify~)
   }
   @failure.reject(
     "limit-exceeded", "Cell text shrinking exceeds 16 measurements",
@@ -67,7 +75,7 @@ fn place_block(
     guard line.get(0) is Some(@layout.Transform(matrix)) else {
       @failure.reject("invalid-drawing", "Text block requires a line transform")
     }
-    matrix.f
+    matrix
   })
   let bounds : Array[@layout.Border] = []
   for index, line in block.lines {
@@ -93,10 +101,14 @@ fn place_block(
     )
     let rect = grid_intersection(
       {
-        x,
-        y: top + offsets[index],
+        x: x + offsets[index].e,
+        y: top + offsets[index].f,
         width: block.widths[index],
-        height: offsets.get(index + 1).unwrap_or(block.height) - offsets[index],
+        height: offsets
+        .get(index + 1)
+        .map(matrix => matrix.f)
+        .unwrap_or(block.height) -
+        offsets[index].f,
       },
       rect,
     )

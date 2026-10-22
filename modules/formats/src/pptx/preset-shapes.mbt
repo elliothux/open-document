@@ -1,6 +1,17 @@
 ///|
 fn arrow_shape(preset : String) -> Bool {
-  ["rightArrow", "leftArrow", "upArrow", "downArrow"].contains(preset)
+  ["rightArrow", "leftArrow", "upArrow", "downArrow"].contains(preset) ||
+  double_arrow_shape(preset)
+}
+
+///|
+fn double_arrow_shape(preset : String) -> Bool {
+  ["leftRightArrow", "upDownArrow"].contains(preset)
+}
+
+///|
+fn vertical_arrow_shape(preset : String) -> Bool {
+  ["upArrow", "downArrow", "upDownArrow"].contains(preset)
 }
 
 ///|
@@ -107,14 +118,44 @@ fn arrow_points(
   height : Double,
   adjustments : (Double, Double),
 ) -> Array[(Double, Double)] {
-  let vertical = ["upArrow", "downArrow"].contains(preset)
+  let vertical = vertical_arrow_shape(preset)
   let w = if vertical { height } else { width }
   let h = if vertical { width } else { height }
-  let head = (w.min(h) * adjustments.1).max(0).min(w)
+  let head = (w.min(h) * adjustments.1)
+    .max(0)
+    .min(if double_arrow_shape(preset) { w / 2 } else { w })
   let half = h * adjustments.0.max(0).min(1) / 2
   let y1 = h / 2 - half
   let y2 = h / 2 + half
   let x1 = w - head
+  if preset == "leftRightArrow" {
+    return [
+      (0.0, h / 2),
+      (head, 0.0),
+      (head, y1),
+      (x1, y1),
+      (x1, 0.0),
+      (w, h / 2),
+      (x1, h),
+      (x1, y2),
+      (head, y2),
+      (head, h),
+    ]
+  }
+  if preset == "upDownArrow" {
+    return [
+      (0.0, head),
+      (h / 2, 0.0),
+      (h, head),
+      (y2, head),
+      (y2, x1),
+      (h, x1),
+      (h / 2, w),
+      (0.0, x1),
+      (y1, x1),
+      (y1, head),
+    ]
+  }
   [(0.0, y1), (x1, y1), (x1, 0.0), (w, h / 2), (x1, h), (x1, y2), (0.0, y2)].map(p => {
       match preset {
         "leftArrow" => (width - p.0, p.1)
@@ -137,13 +178,17 @@ fn Object::shape_body(self : Object, geometry : Geometry) -> Body {
   } else if polygon_shape(self.preset) {
     polygon_insets(self.preset, w, h, self.adjustments.0)
   } else if arrow_shape(self.preset) && w > 0 && h > 0 {
-    let vertical = ["upArrow", "downArrow"].contains(self.preset)
+    let vertical = vertical_arrow_shape(self.preset)
     let length = if vertical { h } else { w }
     let across = if vertical { w } else { h }
     let side = across * (1 - self.adjustments.0.max(0).min(1)) / 2
-    let head = (w.min(h) * self.adjustments.1).max(0).min(length)
+    let head = (w.min(h) * self.adjustments.1)
+      .max(0)
+      .min(if double_arrow_shape(self.preset) { length / 2 } else { length })
     let tip = head - side * head / (across / 2)
     match self.preset {
+      "leftRightArrow" => (tip, side, tip, side)
+      "upDownArrow" => (side, tip, side, tip)
       "leftArrow" => (tip, side, 0.0, side)
       "upArrow" => (side, tip, side, 0.0)
       "downArrow" => (side, 0.0, side, tip)

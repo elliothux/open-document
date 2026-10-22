@@ -189,7 +189,8 @@ fn Session::fit_sizes(
     let horizontal = style.text_alignment(value, current.view.formulas)
     let available = width -
       4.5 -
-      (if style.wrap || ["left", "right"].contains(horizontal) {
+      (if (style.wrap && horizontal != "justify") ||
+        ["left", "right"].contains(horizontal) {
         indent
       } else {
         0.0
@@ -226,6 +227,7 @@ fn Session::fit_sizes(
       available.max(0.75).min(14400),
       wrap=content == text && style.wrap && !grow,
       shrink=rows && style.shrink,
+      justify=false,
     )
     let measured = if rows {
       ((block.height + 3) / 0.75).ceil() * 0.75

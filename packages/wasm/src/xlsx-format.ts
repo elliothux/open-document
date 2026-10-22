@@ -15,7 +15,7 @@ export interface XlsxCellFormat {
   script?: "baseline" | "superscript" | "subscript";
   color?: string;
   fill?: string;
-  horizontal?: "general" | "left" | "center" | "right";
+  horizontal?: "general" | "left" | "center" | "right" | "justify";
   vertical?: "top" | "center" | "bottom";
   wrap?: boolean;
   shrinkToFit?: boolean;
@@ -186,7 +186,7 @@ export function checkXlsxCellFormat(value: unknown): void {
     if (key === "horizontal")
       valid =
         typeof value === "string" &&
-        ["general", "left", "center", "right"].includes(value);
+        ["general", "left", "center", "right", "justify"].includes(value);
     if (key === "script")
       valid =
         typeof value === "string" &&

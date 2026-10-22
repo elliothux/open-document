@@ -17,6 +17,9 @@ fn Object::adjustment_handles(self : Object) -> Array[AdjustmentHandle] {
   let w = g.width
   let h = g.height
   let side = w.min(h)
+  let head = (side * self.adjustments.1)
+    .max(0)
+    .min((if vertical_arrow_shape(self.preset) { h } else { w }) / 2)
   self
   .adjustment_values()
   .map(item => {
@@ -27,10 +30,14 @@ fn Object::adjustment_handles(self : Object) -> Array[AdjustmentHandle] {
       ("leftArrow", "adj1") => (w, h / 2, 0.0, -h / 2)
       ("upArrow", "adj1") => (w / 2, h, -w / 2, 0.0)
       ("downArrow", "adj1") => (w / 2, 0.0, -w / 2, 0.0)
+      ("leftRightArrow", "adj1") => (w - head, h / 2, 0.0, -h / 2)
+      ("upDownArrow", "adj1") => (w / 2, h - head, -w / 2, 0.0)
       ("rightArrow", "adj2") => (w, 0.0, -side, 0.0)
       ("leftArrow", "adj2") => (0.0, 0.0, side, 0.0)
       ("upArrow", "adj2") => (0.0, 0.0, 0.0, side)
       ("downArrow", "adj2") => (0.0, h, 0.0, -side)
+      ("leftRightArrow", "adj2") => (0.0, 0.0, side, 0.0)
+      ("upDownArrow", "adj2") => (0.0, 0.0, 0.0, side)
       ("triangle", _) => (0.0, 0.0, w, 0.0)
       ("star5", _) => (w / 2, h / 2 * 1.10557, 0.0, -h * 1.10557)
       _ => (0.0, 0.0, side, 0.0)
