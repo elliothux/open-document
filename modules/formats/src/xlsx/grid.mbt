@@ -32,66 +32,6 @@ fn Sheet::cell_range(self : Sheet, address : Address) -> Range {
 }
 
 ///|
-fn place_block(
-  page : PagePaint,
-  block : @layout.TextBlock,
-  rect : @layout.Border,
-  horizontal : String,
-  vertical : String,
-) -> Array[@layout.Border] raise @failure.Failure {
-  let top = rect.y +
-    1.5 +
-    (if vertical == "top" {
-      0.0
-    } else if vertical == "center" {
-      (rect.height - 3 - block.height) / 2
-    } else {
-      rect.height - 3 - block.height
-    }).max(0)
-  let offsets = block.lines.map(line => {
-    guard line.get(0) is Some(@layout.Transform(matrix)) else {
-      @failure.reject("invalid-drawing", "Text block requires a line transform")
-    }
-    matrix.f
-  })
-  let bounds : Array[@layout.Border] = []
-  for index, line in block.lines {
-    let x = rect.x +
-      2.25 +
-      (if horizontal == "right" {
-        rect.width - 4.5 - block.widths[index]
-      } else if horizontal == "center" {
-        (rect.width - 4.5 - block.widths[index]) / 2
-      } else {
-        0.0
-      }).max(0)
-    page.texts.push(
-      (
-        [
-          @layout.Transform({ a: 1, b: 0, c: 0, d: 1, e: x, f: top, }),
-          ..line,
-          @layout.Restore,
-        ],
-        rect,
-      ),
-    )
-    let rect = grid_intersection(
-      {
-        x,
-        y: top + offsets[index],
-        width: block.widths[index],
-        height: offsets.get(index + 1).unwrap_or(block.height) - offsets[index],
-      },
-      rect,
-    )
-    if rect.width > 0 && rect.height > 0 {
-      bounds.push(rect)
-    }
-  }
-  bounds
-}
-
-///|
 fn Session::digit_width(
   self : Session,
   probe : @layout.TextProbe,
@@ -152,6 +92,7 @@ fn Session::paint_cells(
   conditional : ConditionalRules,
   work : FormulaWork,
 ) -> Array[Json] raise @failure.Failure {
+  let indent_unit = self.indent_unit(probe, profile)
   guard rows.length().to_int64() * columns.length().to_int64() <= 4096L else {
     @failure.reject("limit-exceeded", "Visible cells exceed 4096 cells")
   }
@@ -303,13 +244,22 @@ fn Session::paint_cells(
           page.strokes.push((edge_rect, edge.color, edge.width()))
         }
       }
-      if !text.is_empty() && rect.width > 4.5 && rect.height > 3 {
+      let horizontal = style.text_alignment(value, sheet.view.formulas)
+      let indent = style.indent.to_double() * indent_unit
+      let available = rect.width -
+        4.5 -
+        (if style.wrap || ["left", "right"].contains(horizontal) {
+          indent
+        } else {
+          0.0
+        })
+      if !text.is_empty() && available > 0 && rect.height > 3 {
         let mut block = if spans is Some(spans) {
           probe.span_block(
             spans,
             style.size,
             profile,
-            (rect.width - 4.5).min(14400),
+            available.min(14400),
             style.wrap,
           )
         } else {
@@ -317,14 +267,14 @@ fn Session::paint_cells(
             text,
             style.text_style(),
             profile,
-            (rect.width - 4.5).min(14400),
+            available.min(14400),
             style.wrap,
           )
         }
         if !sheet.view.formulas &&
           value is Number(_) &&
           !style.wrap &&
-          block.widths.any(width => width > rect.width - 4.5) {
+          block.widths.any(width => width > available) {
           let hash = probe.text_block(
             "#",
             style.text_style(),
@@ -333,7 +283,7 @@ fn Session::paint_cells(
             false,
           )
           text = "#".repeat(
-            ((rect.width - 4.5) / hash.widths[0].max(0.1))
+            (available / hash.widths[0].max(0.1))
             .floor()
             .to_int()
             .max(1)
@@ -343,23 +293,18 @@ fn Session::paint_cells(
             text,
             style.text_style(),
             profile,
-            (rect.width - 4.5).min(14400),
+            available.min(14400),
             false,
           )
         }
-        let horizontal = if sheet.view.formulas &&
-          (style.horizontal == "general" || value is Number(_)) {
-          "left"
-        } else if style.horizontal != "general" {
-          style.horizontal
-        } else {
-          match value {
-            Number(_) => "right"
-            Boolean(_) | Error(_) => "center"
-            _ => "left"
-          }
-        }
-        let bounds = place_block(page, block, rect, horizontal, style.vertical)
+        let bounds = place_block(
+          page,
+          block,
+          rect,
+          horizontal,
+          style.vertical,
+          indent,
+        )
         if printing {
           for bound in bounds {
             page.cells.push((range, bound))

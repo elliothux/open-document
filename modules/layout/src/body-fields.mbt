@@ -6,19 +6,13 @@ fn Flow::body_fields(
     @failure.reject("limit-exceeded", "Field targets exceed limits")
   }
   let fields : Map[(Int, Int), String] = Map([])
-  let paragraphs = self.paragraphs.copy()
-  for table in self.tables {
-    for row in table.rows {
-      for cell in row {
-        paragraphs.append(cell)
-      }
-    }
-  }
-  for paragraph in paragraphs {
+  for paragraph in self.body_field_paragraphs() {
     for span in paragraph.spans {
       if !span.field.is_empty() {
         if span.field.has_prefix("PAGEREF:") {
           ignore(PageReference::parse(span.field))
+        } else if span.field.has_prefix("SEQ:") {
+          ignore(SequenceField::parse(span.field))
         }
         guard span.drawing is None && fields.length() < 4096 else {
           @failure.reject("limit-exceeded", "Body page fields exceed limits")
@@ -56,6 +50,8 @@ fn Flow::resolve_body_fields(
               } else {
                 self.pageNumbering.field_text(reference.page_code(), 0, total)
               }
+            } else if span.field.has_prefix("SEQ:") {
+              SequenceField::parse(span.field).text(1)
             } else {
               self.pageNumbering.field_text(span.field, 0, total)
             }
@@ -73,4 +69,30 @@ fn Flow::resolve_body_fields(
     rows: table.rows.map(row => row.map(cell => cell.map(resolve))),
   })
   ({ ..self, paragraphs, tables, }, stable)
+}
+
+///|
+fn Flow::body_field_paragraphs(
+  self : Flow,
+) -> Array[Paragraph] raise @failure.Failure {
+  let paragraphs : Array[Paragraph] = []
+  let mut table = 0
+  for index in 0..<=self.paragraphs.length() {
+    while table < self.tables.length() &&
+          self.tables[table].beforeParagraph == index {
+      for row in self.tables[table].rows {
+        for cell in row {
+          paragraphs.append(cell)
+        }
+      }
+      table += 1
+    }
+    if index < self.paragraphs.length() {
+      paragraphs.push(self.paragraphs[index])
+    }
+  }
+  guard table == self.tables.length() else {
+    @failure.reject("unsupported-layout", "Invalid body field table order")
+  }
+  paragraphs
 }

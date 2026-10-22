@@ -79,6 +79,7 @@ export type DocxRunningContent =
   { text: string; target?: string } | DocxPageField;
 export type DocxBodyField =
   | DocxPageField
+  | { field: "SEQ"; sequence: string; format?: DocxPageField["format"] }
   | {
       field: "PAGEREF";
       bookmark: string;
@@ -118,6 +119,23 @@ export function checkPageField(value: unknown): asserts value is DocxPageField {
 }
 export function checkBodyField(value: unknown): asserts value is DocxBodyField {
   const item = record(value);
+  if (item.field === "SEQ") {
+    if (
+      typeof item.sequence !== "string" ||
+      item.sequence.length > 40 ||
+      !/^[_\p{ID_Start}][_\p{ID_Continue}]*$/u.test(item.sequence) ||
+      Object.keys(item).some(
+        (key) => !["field", "sequence", "format"].includes(key),
+      )
+    )
+      throw new Error("Invalid sequence field identifier");
+    checkPageField(
+      "format" in item
+        ? { field: "PAGE", format: item.format }
+        : { field: "PAGE" },
+    );
+    return;
+  }
   if (item.field !== "PAGEREF") return checkPageField(value);
   if (
     typeof item.bookmark !== "string" ||

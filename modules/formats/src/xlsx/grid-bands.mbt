@@ -192,6 +192,7 @@ fn grid_header(
       rect,
       "center",
       "center",
+      0,
     ),
   )
 }

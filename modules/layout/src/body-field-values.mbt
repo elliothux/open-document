@@ -3,6 +3,7 @@ fn Pagination::body_field_values(
   self : Pagination,
   fields : Map[(Int, Int), String],
   flow : Flow,
+  sequences : Map[(Int, Int), String],
 ) -> (Map[(Int, Int), String], Array[String]) raise @failure.Failure {
   let values : Map[(Int, Int), String] = Map([])
   let diagnostics : Array[String] = []
@@ -47,6 +48,8 @@ fn Pagination::body_field_values(
                 "unsupported-layout:repeated-relative-page-reference",
               )
             }
+          } else if sequences.get(key) is Some(text) {
+            values[key] = text
           } else if !values.contains(key) {
             values[key] = flow.pageNumbering.field_text(
               code,

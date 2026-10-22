@@ -334,6 +334,11 @@ fn CustomTableStyle::applied(
       } else {
         patch.wrap
       },
+      indent: if direct.properties.contains("indent") {
+        None
+      } else {
+        patch.indent
+      },
       left: borders[0],
       right: borders[1],
       top: borders[2],

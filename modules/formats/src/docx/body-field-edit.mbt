@@ -80,6 +80,12 @@ pub fn Session::body_page_field(
         if reference.relative {
           value["relative"] = Json(true)
         }
+      } else if parts[0] == "SEQ" {
+        let sequence = @layout.SequenceField::parse(code)
+        value["sequence"] = Json(sequence.sequence)
+        if !sequence.format.is_empty() {
+          value["format"] = Json(sequence.format)
+        }
       } else if parts.length() == 2 {
         value["format"] = Json(parts.last().unwrap().to_owned())
       }
@@ -237,7 +243,7 @@ pub fn Session::update_body_page_fields(
       guard count <= 4096 else {
         @failure.reject("limit-exceeded", "Body page fields exceed limits")
       }
-      let value = if code.has_prefix("PAGEREF:") {
+      let value = if code.has_prefix("PAGEREF:") || code.has_prefix("SEQ:") {
         displayed
         .get((paragraph.id, id))
         .unwrap_or_else(() => {

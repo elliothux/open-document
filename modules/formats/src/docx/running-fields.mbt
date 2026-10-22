@@ -9,6 +9,19 @@ fn running_field_code(instruction : String) -> String raise @failure.Failure {
     .filter(token => !token.is_empty())
     .map(token => token.to_owned())
     .collect()
+  if tokens.length() >= 2 && tokens[0].to_upper() == "SEQ" {
+    let sequence = @layout.SequenceField::parse("SEQ:" + tokens[1])
+    let options = ["PAGE", ..tokens[2:].to_owned()]
+    let format = running_field_code(options.join(" ")).split(":").to_array()
+    return {
+      ..sequence,
+      format: if format.length() == 2 {
+        format[1].to_owned()
+      } else {
+        ""
+      },
+    }.code()
+  }
   if tokens.length() >= 2 && tokens[0].to_upper() == "PAGEREF" {
     check_bookmark_name(tokens[1])
     let options = ["PAGE"]

@@ -220,9 +220,12 @@ fn Session::paragraph(
   } else {
     Map([])
   }
-  guard !running || !fields.values().any(code => code.has_prefix("PAGEREF:")) else {
+  guard !running ||
+    !fields
+    .values()
+    .any(code => code.has_prefix("PAGEREF:") || code.has_prefix("SEQ:")) else {
     @failure.reject(
-      "unsupported-layout", "Running page references require target story support",
+      "unsupported-layout", "This field requires the main document story",
     )
   }
   for item in tree.descendants(id) {

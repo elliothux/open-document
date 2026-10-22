@@ -24,6 +24,7 @@ export function DocxBodyField({
   const [bookmark, setBookmark] = useState("");
   const [hyperlink, setHyperlink] = useState(false);
   const [relative, setRelative] = useState(false);
+  const [sequence, setSequence] = useState("Figure");
   const reference =
     source?.field?.field === "PAGEREF" ? source.field : undefined;
   const snapshot = editor.getSnapshot();
@@ -40,6 +41,27 @@ export function DocxBodyField({
   return (
     <section aria-label={t.bodyPageField}>
       <h4>{t.bodyPageField}</h4>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          controller.run(() =>
+            editor.insertBodyPageField({ field: "SEQ", sequence }),
+          );
+        }}
+      >
+        <fieldset disabled={disabled || !snapshot.data.selection}>
+          <label>
+            {t.sequenceIdentifier}
+            <input
+              required
+              maxLength={40}
+              value={sequence}
+              onChange={(event) => setSequence(event.currentTarget.value)}
+            />
+          </label>
+          <button type="submit">{t.insertSequenceField}</button>
+        </fieldset>
+      </form>
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -111,27 +133,48 @@ export function DocxBodyField({
                 value={draft.field}
                 onChange={(event) =>
                   setDraft(
-                    event.currentTarget.value === "PAGEREF"
+                    event.currentTarget.value === "SEQ"
                       ? {
-                          field: "PAGEREF",
-                          bookmark,
+                          field: "SEQ",
+                          sequence,
                           ...(draft.format ? { format: draft.format } : {}),
                         }
-                      : {
-                          field:
-                            event.currentTarget.value === "PAGE"
-                              ? "PAGE"
-                              : "NUMPAGES",
-                          ...(draft.format ? { format: draft.format } : {}),
-                        },
+                      : event.currentTarget.value === "PAGEREF"
+                        ? {
+                            field: "PAGEREF",
+                            bookmark,
+                            ...(draft.format ? { format: draft.format } : {}),
+                          }
+                        : {
+                            field:
+                              event.currentTarget.value === "PAGE"
+                                ? "PAGE"
+                                : "NUMPAGES",
+                            ...(draft.format ? { format: draft.format } : {}),
+                          },
                   )
                 }
               >
                 <option value="PAGE">{t.currentPageField}</option>
                 <option value="NUMPAGES">{t.totalPagesField}</option>
                 <option value="PAGEREF">{t.pageReference}</option>
+                <option value="SEQ">{t.sequenceField}</option>
               </select>
             </label>
+            {draft.field === "SEQ" && (
+              <label>
+                {t.sequenceIdentifier}
+                <input
+                  aria-label={t.selectedSequenceIdentifier}
+                  required
+                  maxLength={40}
+                  value={draft.sequence}
+                  onChange={(event) =>
+                    setDraft({ ...draft, sequence: event.currentTarget.value })
+                  }
+                />
+              </label>
+            )}
             {draft.field === "PAGEREF" && (
               <>
                 <label>
@@ -197,7 +240,11 @@ export function DocxBodyField({
                   );
                 }}
               >
-                <option value="">{t.inheritedPageNumberFormat}</option>
+                <option value="">
+                  {draft.field === "SEQ"
+                    ? t.defaultSequenceFormat
+                    : t.inheritedPageNumberFormat}
+                </option>
                 {listFormats
                   .filter(
                     (format) => format !== "bullet" && format !== "decimalZero",

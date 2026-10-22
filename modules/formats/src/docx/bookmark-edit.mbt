@@ -219,7 +219,8 @@ fn Session::bookmark_references(
         let instruction = node.attribute("instr", uri=word_uri).unwrap_or("")
         let reference = try {
           let code = running_field_code(instruction)
-          if path == self.main && code.has_prefix("PAGEREF:") {
+          if path == self.main &&
+            (code.has_prefix("PAGEREF:") || code.has_prefix("SEQ:")) {
             field_tree.unwrap().simple_page_fields(node.parent)
             true
           } else {

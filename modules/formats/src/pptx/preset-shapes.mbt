@@ -5,13 +5,13 @@ fn arrow_shape(preset : String) -> Bool {
 
 ///|
 fn line_shape(preset : String) -> Bool {
-  ["line", "bentConnector3"].contains(preset)
+  ["line", "bentConnector3", "curvedConnector3"].contains(preset)
 }
 
 ///|
 fn supported_shape(preset : String) -> Bool {
-  ["rect", "ellipse", "line", "roundRect"].contains(preset) ||
-  preset == "bentConnector3" ||
+  ["rect", "ellipse", "roundRect"].contains(preset) ||
+  line_shape(preset) ||
   arrow_shape(preset) ||
   polygon_shape(preset)
 }
@@ -36,7 +36,7 @@ fn read_shape_adjustments(
   if !single &&
     !arrow_shape(preset) &&
     preset != "pentagon" &&
-    preset != "bentConnector3" {
+    !["bentConnector3", "curvedConnector3"].contains(preset) {
     return (first, second)
   }
   if geometry.bind(source => source.child("avLst")) is Some(list) {
@@ -58,7 +58,10 @@ fn read_shape_adjustments(
             name == "adj"
           } else {
             (arrow_shape(preset) && ["adj1", "adj2"].contains(name)) ||
-            (preset == "bentConnector3" && name == "adj1")
+            (
+              ["bentConnector3", "curvedConnector3"].contains(preset) &&
+              name == "adj1"
+            )
           })
         ) &&
         !seen.contains(name) &&
@@ -70,7 +73,7 @@ fn read_shape_adjustments(
       seen[name] = true
       let value = number(formula[4:].trim().to_owned(), -2147483648, 2147483647) /
         100000
-      if preset == "bentConnector3" {
+      if ["bentConnector3", "curvedConnector3"].contains(preset) {
         // shortcut: Out-of-frame bends need expanded object bounds before editing support.
         guard value >= 0 && value <= 1 else {
           @failure.reject(

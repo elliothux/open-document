@@ -59,6 +59,7 @@ fn CellFormat::dxf_markup(
       ("horizontal", self.horizontal),
       ("vertical", self.vertical),
       ("wrapText", self.wrap.map(v => if v { "1" } else { "0" })),
+      ("indent", self.indent.map(v => v.to_string())),
     ] {
     if value is Some(value) {
       alignment.write_string(" \{key}=\"\{value}\"")

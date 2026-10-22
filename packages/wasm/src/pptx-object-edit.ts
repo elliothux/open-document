@@ -73,7 +73,7 @@ export type PptxObjectEdit =
     }
   | {
       action: "insertConnector" | "connectorEndpoints";
-      kind: "straight" | "elbow";
+      kind: "straight" | "elbow" | "curved";
       start: PptxConnectorEnd;
       end: PptxConnectorEnd;
     }

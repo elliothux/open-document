@@ -587,7 +587,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 `FoundationSession/Client.updateBodyPageFields(revision, profile)` 和 `DocumentEditor.updateBodyPageFields()` 显式刷新正文缓存，默认页面面板提供同名按钮。核心只改结果文字，清空多余缓存 run 的文字，保留域代码、属性、字符样式、其他部件和原选择，一次更新合为一项精确历史。结果相同不改 revision，保留当前显示布局和后续原生导航。缺字体、未知/锁定/嵌套指令、结果内注释或处理指令、保护及原有输出/历史预算失败时整体拒绝。
 
-`FoundationSession/Client.insertBodyPageField(revision, field, profile)` 和 `DocumentEditor.insertBodyPageField(field)` 将当前范围替换为一个原生简单域。`DocxBodyField` 接受 `DocxPageField` 的 `{ field: "PAGE" | "NUMPAGES", format? }`，以及下述书签页码引用，可选格式沿用上述五种显式格式。默认页面面板提供“插入正文页码”和“插入正文总页数”。核心保留附近字符格式，写入实际布局值，将光标放到域后，插入与范围删除合为一项精确历史。正文、空段落和普通单元格共用事务。未知源、超限、缺字体及不完整布局整体拒绝，不改其他域的旧缓存。依据 [ONLYOFFICE 插入字段及直接格式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L23510-L23565)，实现归[正文域插入](../../modules/formats/src/docx/body-field-insert.mbt)。
+`FoundationSession/Client.insertBodyPageField(revision, field, profile)` 和 `DocumentEditor.insertBodyPageField(field)` 将当前范围替换为一个原生简单域。`DocxBodyField` 接受 `DocxPageField` 的 `{ field: "PAGE" | "NUMPAGES", format? }`，以及下述[书签页码引用](#书签页码引用)和[序列编号字段](#序列编号字段)，可选格式沿用上述五种显式格式。默认页面面板提供“插入正文页码”和“插入正文总页数”。核心保留附近字符格式，写入实际布局值，将光标放到域后，插入与范围删除合为一项精确历史。正文、空段落和普通单元格共用事务。未知源、超限、缺字体及不完整布局整体拒绝，不改其他域的旧缓存。依据 [ONLYOFFICE 插入字段及直接格式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L23510-L23565)，实现归[正文域插入](../../modules/formats/src/docx/body-field-insert.mbt)。
 
 仅含受支持简单域和普通内容的段落，已有原生光标、相邻文字输入、同段范围替换、整域 Delete/Backspace 和组合输入。一个域保持一个源位置，删除整个源元素，不把结果拆成可编辑数字。查找中的后续文字也沿用逻辑位置。域的正文范围及整格剪贴板分别沿用[正文富文本片段](#正文富文本片段)与[单元格富文本片段](#单元格富文本片段)；复杂域范围及其他指令继续保护。其他普通段落可继续输入并触发实时重算。实现归[正文域输入](../../modules/formats/src/docx/body-field-input.mbt)。
 
@@ -597,7 +597,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 `FoundationSession/Client.bodyPageField(revision, selection)` 返回 `DocxBodyPageField`：`{ revision, selection, field, reason }`。完整选择一个简单域，或把光标放在其前后的对应亲和侧时，`field` 为 `DocxBodyField`；没有可编辑域时返回 `null` 及原因。普通文字、多个域、跨段及复杂域不能作为一个域修改。查询保持原源、选择和历史。
 
-`editBodyPageField(revision, selection, field, profile)` 修改该域的类型、书签目标与显式编号格式，省略 `format` 恢复节格式。核心只改指令属性和当前域的实际结果，保留 `MERGEFORMAT`、其他源属性、结果格式、空 run、选择及其他域缓存；多余结果文字清空。修改合为一项精确历史，相同语义指令不刷新缓存或增加历史。未知指令、锁定、缺字体、布局或预算失败保持原文档。显式结果刷新仍使用 `updateBodyPageFields`。
+`editBodyPageField(revision, selection, field, profile)` 修改该域的类型、书签目标、序列名称与显式编号格式。省略 `format` 时，PAGE/PAGEREF 沿用节格式，NUMPAGES/SEQ 使用十进制。核心只改指令属性和当前域的实际结果，保留 `MERGEFORMAT`、其他源属性、结果格式、空 run、选择及其他域缓存；多余结果文字清空。修改合为一项精确历史，相同语义指令不刷新缓存或增加历史。未知指令、锁定、缺字体、布局或预算失败保持原文档。显式结果刷新仍使用 `updateBodyPageFields`。
 
 `DocumentEditor.bodyPageField()` 返回附有 `documentId` 的 `DocumentBodyPageField`；`editBodyPageField(source, field)` 核对文档、revision 和选择后提交。默认页面面板提供读取、类型、编号格式和应用控件；切换选择后须重新读取。代码修改依据 [ONLYOFFICE ChangeInstruction](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L2074-L2095)，原生简单域结构沿用已有序列化。实现归[正文域代码事务](../../modules/formats/src/docx/body-field-edit.mbt)，未移植上游执行代码。
 
@@ -612,6 +612,14 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 `relative: true` 保留原生 `\p` 开关。同页按实际光标位置显示 `above` 或 `below`；跨页显示 `on page N`，其中 N 是从 1 开始的物理页号，不使用节编号格式。`hyperlink: true` 保留原生 `\h` 标记，默认面板通过“跳转到引用目标”显式定位已提交的目标。修改目标后须先应用，再跳转。PDF 输出保留此目标，范围归[PDF 文字链接](#docx-pdf-文字链接)。
 
 `Flow.bookmarks` 保存忽略大小写的名称到 `[paragraph, offset]` 的绑定，TypeScript 只验证传输。最多 4096 个目标与字段位置；一次分页轮次最多访问 1048576 个候选行和光标位置，沿用最多八轮重排。普通字段片段保留原生目标名，在目标文档中重新绑定；不会复制范围外的书签，缺失时显示上述错误。重复表头中的相对引用、未知或重复开关保持诊断和编辑保护。页眉页脚、未知/受保护目标、通用 `REF` 和目录继续实施。实现归 [`body-page-reference.mbt`](../../modules/formats/src/docx/body-page-reference.mbt)及[字段布局](../../modules/layout/src/body-fields.mbt)，未复制上游执行代码。
+
+### 序列编号字段
+
+`DocxBodyField` 接受 `{ field: "SEQ", sequence: string, format? }`，沿现有正文域插入、查询和修改 API 使用。默认正文域面板提供序列名称、插入、读取和修改控件。名称区分大小写，最多 40 个 UTF-16 单元；首字符为下划线或 Unicode 标识符起始字符，后续允许标识符续字符。每个名称独立从 1 计数，按正文与普通表格单元格的源顺序递增，不依赖 XML 节点编号或节页码。缺省格式为十进制，显式格式支持 `decimal/lowerLetter/upperLetter/lowerRoman/upperRoman`。
+
+原生指令为 `SEQ name`，接受上述编号格式开关及 `MERGEFORMAT`。已知简单域和同段复杂域参与计算；简单域复用原生输入、格式修改、完整域剪贴板及一个逻辑位置。复杂域范围仍保护。新增、修改或粘贴只写当前域的实际缓存，其他域实时重算显示；`updateBodyPageFields` 显式刷新全部结果缓存，合为一项精确历史。布局、保存和 PDF 不隐式改写缓存。同名书签的改名不改变已知简单 SEQ 的序列名称。
+
+沿用每段 64 个字段、正文 4096 个字段位置及原有分页、字体、XML、历史和输出预算。当前范围为正文及普通单元格；页眉页脚、重启 `\r`、重复 `\c`、其他计数/隐藏/标题重置开关及完整题注管理继续实施。未知指令和开关保留源、给出诊断并保护编辑。实现归[序列计算](../../modules/layout/src/sequence-field.mbt)、[正文顺序](../../modules/layout/src/body-fields.mbt)、[指令读取](../../modules/formats/src/docx/running-fields.mbt)及[缓存和代码事务](../../modules/formats/src/docx/body-field-edit.mbt)。依据 [ONLYOFFICE SEQ 指令](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexFieldInstruction.js#L707-L756)、[正文计数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexFieldInstruction.js#L789-L875)及[名称比较](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexFieldInstruction.js#L906-L913)，未复制上游执行代码。
 
 ### 表格创建
 
@@ -1454,9 +1462,11 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 ### 单元格格式编辑
 
-同步 Wasm 与 Worker 使用 `formatCells(revision, patch)`，宿主使用 `SpreadsheetEditor.formatCells(patch)`。命令作用于队列执行时的选区，宿主先提交单格草稿。`XlsxCellFormat` 从 `wasm/xlsx` 和 `web/xlsx` 导出；省略的属性保持原值。字段为 `family`、`size`、`bold`、`italic`、`underline`、`strike`、`script`、`color`、`fill`、`horizontal`、`vertical`、`wrap`、`numberFormat` 及 `left/right/top/bottom`。`underline` 为单下划线，`strike` 为删除线，均使用布尔值；`script` 为 `baseline | superscript | subscript`。颜色为六位十六进制，空 `fill` 清除填充；四边使用 `{ style: "none" | "thin" | "medium" | "thick" | "double", color }`。字号为 1–409 磅，水平对齐为 general/left/center/right，垂直对齐为 top/center/bottom；数字格式限下节已有集合。宿主先验证新字体键存在于字体 profile。
+同步 Wasm 与 Worker 使用 `formatCells(revision, patch)`，宿主使用 `SpreadsheetEditor.formatCells(patch)`。命令作用于队列执行时的选区，宿主先提交单格草稿。`XlsxCellFormat` 从 `wasm/xlsx` 和 `web/xlsx` 导出；省略的属性保持原值。字段为 `family`、`size`、`bold`、`italic`、`underline`、`strike`、`script`、`color`、`fill`、`horizontal`、`vertical`、`wrap`、`indent`、`numberFormat` 及 `left/right/top/bottom`。`underline` 为单下划线，`strike` 为删除线，均使用布尔值；`script` 为 `baseline | superscript | subscript`。颜色为六位十六进制，空 `fill` 清除填充；四边使用 `{ style: "none" | "thin" | "medium" | "thick" | "double", color }`。字号为 1–409 磅，水平对齐为 general/left/center/right，垂直对齐为 top/center/bottom；数字格式限下节已有集合。宿主先验证新字体键存在于字体 profile。
 
 `XlsxQuery.formatting` 返回这些属性，不同值返回 `null`，并返回 `readOnlyReason` 和所选字体键 `fontKeys`。一次最多 4096 格；依赖无法隔离的公式、受保护表、富文本/未知样式及只覆盖部分合并格的范围继续保护。单格合并锚点的格式查询和编辑扩展到完整合并范围。空白格继承行样式，其次列样式，再使用基础样式；显式单元格样式优先。派生格式保留原共享记录，不改写其他格。样式和目标格共同提交有界历史，缺失样式部件时关系及内容类型一起创建和撤销。仅改格式保留值、公式源、缓存和 calcChain，后续输入保持格样式；重复设置有效状态不新增历史。格式化的空白格参与使用范围和打印。默认 UI 使用可滚动属性栏，保留网格工作区。单下划线、删除线和上下标沿共同字体度量进入网格、自动适配及 PDF；格式刷、单元格片段和三种清除沿相同样式事务保留或移除。条件格式与自定义表格样式支持这些差异属性，直接字体组件的覆盖规则保持。未知、重复、双线及会计下划线继续诊断并保护编辑和输出。共同读取归 [`font-decorations.mbt`](../../modules/formats/src/xlsx/font-decorations.mbt)，原生属性依据 [ONLYOFFICE Font 读取](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L988-L1030)。Chromium 已检查格式设置、草稿顺序、格式刷、装饰绘制、混合历史、缺失字体恢复、保存重开和格式化公式的 PDF 输出；更多装饰和格式代码仍归 [P11](../p11-xlsx-core.md)。
+
+`indent` 为 0–250 的整数，缺省为 0，省略补丁保留原值，显式 0 清除缩进。每级使用 Normal 字体的三个空格；空格宽先按固定 96 dpi 舍入，再换算为磅，不随当前格字号或缩放改变。按有效左/右对齐向格内缩进，General 依类型选择方向，居中不平移。换行按缩进减少可用宽度，数值溢出检查、自动行高、自动列宽及 PDF 复用同一度量。缩进不自动改变水平对齐。原生 `alignment.indent`、混合查询、格式刷、完整格式快照、片段、条件格式与自定义表格样式沿现有事务维护，保留原值、公式和精确历史。相对缩进、旋转、缩小字体适应及其他对齐模式继续诊断并保护。实现归 [`cell-text.mbt`](../../modules/formats/src/xlsx/cell-text.mbt)、[`cell-format.mbt`](../../modules/formats/src/xlsx/cell-format.mbt)和 [`autofit.mbt`](../../modules/formats/src/xlsx/autofit.mbt)。距离依据 [ONLYOFFICE Normal 空格](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L619-L622)、[文字位置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L6709-L6725)及[换行和度量](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L9642-L9668)，未复制上游执行代码。
 
 ### 格式刷
 
@@ -2470,9 +2480,9 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 ### 直线端点样式
 
-`editObjects({ action: "lineEnd", side, end })` 修改所选本地顶层直线或已知折线连接线的端点样式。`side` 为 `head/tail`，分别对应路径起点的 `headEnd` 和终点的 `tailEnd`。`end` 为 `{ kind, width, length }`：`kind` 接受 `none/triangle/stealth/diamond/oval/arrow`，分别为无、实心三角、凹尾、菱形、椭圆和开放箭头；宽度与长度各接受 `sm/med/lg`。`end=null` 移除该端的局部声明并恢复继承，`kind="none"` 显式覆盖继承。MoonBit 类型为 `LineEnd`，Wasm/Web 类型为 `PptxLineEnd`；查询返回 `appearance.headEnd/tailEnd/lineEndReason`，默认面板提供两端独立设置、混合状态和恢复按钮。
+`editObjects({ action: "lineEnd", side, end })` 修改所选本地顶层直线或已知折线/曲线连接线的端点样式。`side` 为 `head/tail`，分别对应路径起点的 `headEnd` 和终点的 `tailEnd`。`end` 为 `{ kind, width, length }`：`kind` 接受 `none/triangle/stealth/diamond/oval/arrow`，分别为无、实心三角、凹尾、菱形、椭圆和开放箭头；宽度与长度各接受 `sm/med/lg`。`end=null` 移除该端的局部声明并恢复继承，`kind="none"` 显式覆盖继承。MoonBit 类型为 `LineEnd`，Wasm/Web 类型为 `PptxLineEnd`；查询返回 `appearance.headEnd/tailEnd/lineEndReason`，默认面板提供两端独立设置、混合状态和恢复按钮。
 
-尺寸使用有效线宽的 2/3/5 倍，细线以 1.875 pt 为最低基准。该值将上游的 2.5 px 最小尺寸固定到源坐标，预览缩放与 DPR 不改变 PDF 几何。三角、凹尾和开放箭头朝外，菱形与椭圆以端点为中心；端点沿实际首末非零线段方向、旋转、翻转和既有组矩阵绘制；支持普通直线及已知折线连接线。轮廓参与核心命中，使用边框颜色和不透明度，保持主体虚线而以实线绘制端点。Canvas/PDF 复用相同路径。零长度线不派生端点轮廓，保留原源。
+尺寸使用有效线宽的 2/3/5 倍，细线以 1.875 pt 为最低基准。该值将上游的 2.5 px 最小尺寸固定到源坐标，预览缩放与 DPR 不改变 PDF 几何。三角、凹尾和开放箭头朝外，菱形与椭圆以端点为中心；端点沿实际首末非零线段或曲线切线方向、旋转、翻转和既有组矩阵绘制；支持普通直线及已知折线/曲线连接线。轮廓参与核心命中，使用边框颜色和不透明度，保持主体虚线而以实线绘制端点。Canvas/PDF 复用相同路径。零长度线不派生端点轮廓，保留原源。
 
 导入读取局部、版式/母版及主题声明，缺省为无端点和中尺寸。编辑只替换指定节点，保留线宽、颜色、几何、文字、身份及其他部件；多选共享原子事务、精确历史和保存重开。重复直接值不增加历史。`noChangeArrowheads` 锁、只读/继承/组内对象、未知类型/尺寸/属性/子节点、重复声明、端点内注释及预算失败继续保护。连接线端点拖动及目标联动见[连接线](#连接线)。尺寸参考 [ONLYOFFICE EndArrow](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L7331-L7400)，轮廓参考 [DrawLineEnd](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/ShapeDrawer.js#L51-L500)；未复制上游源码。实现归 [`line-end.mbt`](../../modules/formats/src/pptx/line-end.mbt)、[`line-end-edit.mbt`](../../modules/formats/src/pptx/line-end-edit.mbt)及 [`pptx-line-ends.tsx`](../../packages/ui/src/pptx-line-ends.tsx)。
 
@@ -2557,7 +2567,7 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 ### 连接线
 
-`PresentationEditor.editObjects({ action: "insertConnector", kind, start, end })` 创建原生 `p:cxnSp`。必填 `kind` 为 `straight` 或 `elbow`，分别写 `straightConnector1` 或三段折线 `bentConnector3`。`connectorEndpoints` 用相同的类型和两端参数修改唯一选中的连接线；显式切换类型与端点修改合为一项历史，新类型恢复默认调节点。MoonBit 使用 `InsertConnector(kind, start, end)` / `ConnectorEndpoints(kind, start, end)` 及 `ConnectorEnd`，Wasm/Web 导出 `PptxConnectorEnd`：`{ x, y, target, site }`。坐标使用磅；`target=""` 表示自由端点，`site` 必须为 0。创建时连接线及目标位于顶层。编辑时 `target` 须属于同一源部件、同一直接父容器；坐标由目标的原生连接点计算，输入坐标仍须有限且有界。自由端点与查询端点始终使用页面坐标。
+`PresentationEditor.editObjects({ action: "insertConnector", kind, start, end })` 创建原生 `p:cxnSp`。必填 `kind` 为 `straight`、`elbow` 或 `curved`，分别写 `straightConnector1`、三段折线 `bentConnector3` 或双段曲线 `curvedConnector3`。`connectorEndpoints` 用相同的类型和两端参数修改唯一选中的连接线；显式切换类型与端点修改合为一项历史，新类型恢复默认调节点。MoonBit 使用 `InsertConnector(kind, start, end)` / `ConnectorEndpoints(kind, start, end)` 及 `ConnectorEnd`，Wasm/Web 导出 `PptxConnectorEnd`：`{ x, y, target, site }`。坐标使用磅；`target=""` 表示自由端点，`site` 必须为 0。创建时连接线及目标位于顶层。编辑时 `target` 须属于同一源部件、同一直接父容器；坐标由目标的原生连接点计算，输入坐标仍须有限且有界。自由端点与查询端点始终使用页面坐标。
 
 矩形、圆角矩形及矩形图片支持 0 上、1 左、2 下、3 右。椭圆支持 0 上、1 左上、2 左、3 左下、4 下、5 右下、6 右、7 右上。连接点经过目标的旋转和翻转矩阵，再量化为整数 EMU。目标移动、独立宽高缩放、旋转、翻转和框适配时，同一事务更新连接线的 `xfrm`，保留 `stCxn/endCxn` 引用。变换候选使用相同规则，取消不写源。母版和版式沿源视图编辑，普通页继续保护继承对象。
 
@@ -2565,9 +2575,11 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 三段折线的原生 `adj1` 指定转折横坐标，缺省为框宽的 50%；当前支持框内 0–100%，原生导入、现有形状调节面板及拖动手柄使用同一值，恢复时移除局部声明。主体沿起点、转折上端、转折下端、终点绘制；箭头取实际首末非零段方向，水平或垂直退化仍保持。命中、Canvas 与 PDF 共用该路径。目标联动、端点拖动及组合复制保留类型与调节点；显式切换类型受 `noChangeShapeType` 锁保护。框外调节点、未知或含注释的几何替换继续保护源，不自动规划避障路径。依据 [ONLYOFFICE 折线预设](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L1222-L1232)。
 
+双段曲线沿相同的 `adj1`、默认值及框内范围编辑。设框宽高为 `w/h`，转折横坐标为 `x=w*adj1`；起点为 `(0,0)`，第一段的控制点为 `(x/2,0)`、`(x,h/4)`，终点为 `(x,h/2)`，第二段的控制点为 `(x,3h/4)`、`((w+x)/2,h)`，终点为 `(w,h)`。Canvas/PDF 保留两段原生三次贝塞尔命令。箭头取首末非零控制方向，包含调节点极值和零尺寸轴。核心命中按相同控制点细分，平直误差阈值为 0.01 pt、最多 12 层；绘制不使用采样折线。类型切换、目标联动、组合复制和历史沿上述连接线事务。几何依据 [ONLYOFFICE 曲线预设](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L2414-L2426)，细分参考 [partition_bezier4](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Path.js#L3779-L3812)；有界命中实现归 [`connector-path.mbt`](../../modules/formats/src/pptx/connector-path.mbt)，未复制上游执行代码。
+
 单选受支持连接线时，`selectionPptx.handles` 按起点、终点返回两个实际页面坐标。默认画布可直接拖动这两个手柄；`beginPptx` 使用 `kind="connector"`，`dragPptx` 的 `handle=1/2` 对应起点/终点，`dx/dy` 始终相对手势起始端点，另一端保持。可选 `tolerance` 为 0–64 pt，缺省 0 表示不吸附；默认宿主按当前预览比例换算 6 CSS px，不乘 DPR。核心按上层对象优先、原生连接点索引顺序寻找半径内的同一直接父容器中的本地受支持目标，沿用上述旋转/翻转和 EMU 量化。离开连接点范围后，该端变为自由端点。候选只更新临时页，释放时写回端点及连接关系并提交一项历史，返回起始状态不增加历史；Escape、指针取消及丢失捕获沿原候选取消路径恢复。旧 revision/候选、错误手柄、越界、退化为零长度、锁定和输出预算失败保持最后有效候选与已提交源。
 
-有连接的线通过画布端点或面板修改，直接变换继续保护。连接线与全部引用目标同时选择时可组合或复制；整个组可复制，副本的原生引用映射到副本目标。同一直接父容器中的闭合图形支持组内端点编辑/吸附、成员移动/旋转、组缩放/旋转/翻转、嵌套及取消/再次组合。核心逆变换页面端点并写整数 EMU，复用既有组边界归一化，候选与提交保持一致。重复原生端点及连接关系不增加历史。默认列表选择连接线时进入对象模式。拆散引用的组合/复制、仍被外部引用的目标删除、跨父容器连接、曲线、其他折线预设及其他预设连接点继续保护。未知连接元数据、非整数或越界索引、失去目标、锁定和输出预算失败保留源与历史；受保护连接线也阻止其目标发生无法写回的几何变化。沿用对象数量、坐标、XML、历史和输出预算。
+有连接的线通过画布端点或面板修改，直接变换继续保护。连接线与全部引用目标同时选择时可组合或复制；整个组可复制，副本的原生引用映射到副本目标。同一直接父容器中的闭合图形支持组内端点编辑/吸附、成员移动/旋转、组缩放/旋转/翻转、嵌套及取消/再次组合。核心逆变换页面端点并写整数 EMU，复用既有组边界归一化，候选与提交保持一致。重复原生端点及连接关系不增加历史。默认列表选择连接线时进入对象模式。拆散引用的组合/复制、仍被外部引用的目标删除、跨父容器连接、其他曲线/折线预设及其他预设连接点继续保护。未知连接元数据、非整数或越界索引、失去目标、锁定和输出预算失败保留源与历史；受保护连接线也阻止其目标发生无法写回的几何变化。沿用对象数量、坐标、XML、历史和输出预算。
 
 实现归 [`connector.mbt`](../../modules/formats/src/pptx/connector.mbt)、[`connector-edit.mbt`](../../modules/formats/src/pptx/connector-edit.mbt)、[`connector-gesture.mbt`](../../modules/formats/src/pptx/connector-gesture.mbt)及 [`pptx-connectors.tsx`](../../packages/ui/src/pptx-connectors.tsx)。吸附规则参考 [ONLYOFFICE ResizeTrackShapeImage](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L370-L450)及 [Geometry.findConnector](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Geometry.js#L1174-L1187)。组内连接重算及父组逆变换参考 [ONLYOFFICE CnxShape](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CnxShape.js#L624-L684)。原生点顺序参考 ONLYOFFICE `CreateGeometry` 的[矩形](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L6741)、[椭圆](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L3100)、[圆角矩形](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L7195)和[直线连接线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L8272)，未复制上游执行代码。
 

@@ -81,11 +81,7 @@ fn Object::line_end_matrix(
   geometry : Geometry,
   head : Bool,
 ) -> @layout.Matrix? {
-  let points = if self.polyline.is_empty() {
-    [(0.0, 0.0), (1.0, 1.0)]
-  } else {
-    self.polyline
-  }
+  let points = self.line_points()
   let end = if head { points[0] } else { points.last().unwrap() }
   for
     point in (if head {

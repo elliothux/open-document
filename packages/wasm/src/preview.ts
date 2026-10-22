@@ -60,6 +60,7 @@ export interface DocxFlow {
         | "PAGE"
         | "NUMPAGES"
         | `PAGEREF:${string}`
+        | `SEQ:${string}`
         | `${"PAGE" | "NUMPAGES"}:${"decimal" | "decimalZero" | "lowerLetter" | "upperLetter" | "lowerRoman" | "upperRoman"}`;
     }[];
     before: number;
@@ -398,9 +399,11 @@ export function docxFlow(value: unknown): DocxFlow {
       const span = fields(value, ["node"], ["text", "field"]);
       if (
         typeof span.field !== "string" ||
-        !/^(?:(?:PAGE|NUMPAGES)(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?|PAGEREF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::hyperlink)?(?::relative)?)?$/u.test(
+        !/^(?:(?:PAGE|NUMPAGES)(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?|PAGEREF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::hyperlink)?(?::relative)?|SEQ:[_\p{ID_Start}][_\p{ID_Continue}]{0,39}(?::(?:decimal|lowerLetter|upperLetter|lowerRoman|upperRoman))?)?$/u.test(
           span.field,
         ) ||
+        (span.field.startsWith("SEQ:") &&
+          span.field.split(":")[1]!.length > 40) ||
         (span.field !== "" && span.drawing !== null)
       )
         throw new Error("Invalid running field");

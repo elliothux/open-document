@@ -176,7 +176,12 @@ fn conditional_style(
     }
   }
   if tree.one(node.id, "alignment") is Some(alignment) {
-    conditional_node(tree, alignment, ["horizontal", "vertical", "wrapText"], [])
+    conditional_node(
+      tree,
+      alignment,
+      ["horizontal", "vertical", "wrapText", "indent"],
+      [],
+    )
     result = {
       ..result,
       horizontal: alignment.attribute("horizontal"),
@@ -184,6 +189,7 @@ fn conditional_style(
       wrap: alignment
       .attribute("wrapText")
       .map(_ => flag(alignment, "wrapText")),
+      indent: alignment.attribute("indent").map(value => natural(value, 250)),
     }
   }
   result.validate()

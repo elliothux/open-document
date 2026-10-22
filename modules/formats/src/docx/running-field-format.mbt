@@ -1,6 +1,17 @@
 ///|
 fn running_field_instruction(field : String) -> String raise @failure.Failure {
   let parts = field.split(":").to_array()
+  if parts[0] == "SEQ" {
+    let sequence = @layout.SequenceField::parse(field) catch {
+      @failure.Failure(..) =>
+        @failure.reject("invalid-operation", "Invalid sequence field options")
+    }
+    let page = running_field_instruction(
+      "PAGE" +
+      (if sequence.format.is_empty() { "" } else { ":" + sequence.format }),
+    )
+    return "SEQ " + sequence.sequence + page[4:].to_owned()
+  }
   if parts[0] == "PAGEREF" {
     let reference = @layout.PageReference::parse(field) catch {
       @failure.Failure(..) =>

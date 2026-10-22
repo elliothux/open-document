@@ -59,7 +59,7 @@ export function PptxShapeAdjustments({
                         ? t.shapeInnerRadius
                         : t.shapeSlant
             : guide.name === "adj1"
-              ? first.preset === "bentConnector3"
+              ? ["bentConnector3", "curvedConnector3"].includes(first.preset)
                 ? t.connectorBend
                 : t.arrowShaft
               : t.arrowHead;

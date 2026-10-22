@@ -247,10 +247,10 @@ fn Session::connector_query(self : Session, object : Object) -> Json {
   try {
     let (start, end) = object.connector_ends()
     {
-      "kind": if object.preset == "bentConnector3" {
-        "elbow"
-      } else {
-        "straight"
+      "kind": match object.preset {
+        "bentConnector3" => "elbow"
+        "curvedConnector3" => "curved"
+        _ => "straight"
       },
       "start": start,
       "end": end,

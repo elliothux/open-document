@@ -6,7 +6,7 @@ fn Object::adjustment_values(self : Object) -> Array[(String, Double, Double)] {
   if self.preset == "roundRect" {
     return [("adj", self.adjustments.0.max(0).min(0.5), 0.5)]
   }
-  if self.preset == "bentConnector3" {
+  if ["bentConnector3", "curvedConnector3"].contains(self.preset) {
     return [("adj1", self.adjustments.0, 1.0)]
   }
   if [

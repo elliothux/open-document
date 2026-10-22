@@ -9,7 +9,7 @@ export interface PptxConnectorEnd {
   site: number;
 }
 export interface PptxConnector {
-  kind: "straight" | "elbow" | null;
+  kind: "straight" | "elbow" | "curved" | null;
   start: PptxConnectorEnd | null;
   end: PptxConnectorEnd | null;
   reason: string;
@@ -39,7 +39,11 @@ export function checkPptxConnectorEdit(value: Record<string, unknown>): void {
     )
   )
     throw new Error("Unknown connector edit field");
-  if (value.kind !== "straight" && value.kind !== "elbow")
+  if (
+    value.kind !== "straight" &&
+    value.kind !== "elbow" &&
+    value.kind !== "curved"
+  )
     throw new Error("Invalid connector kind");
   endpoint(value.start);
   endpoint(value.end);
@@ -58,7 +62,11 @@ export function checkPptxConnectorQuery(value: unknown): void {
     )
       throw new Error("Missing connector endpoints");
   } else {
-    if (connector.kind !== "straight" && connector.kind !== "elbow")
+    if (
+      connector.kind !== "straight" &&
+      connector.kind !== "elbow" &&
+      connector.kind !== "curved"
+    )
       throw new Error("Invalid connector kind");
     endpoint(connector.start);
     endpoint(connector.end);

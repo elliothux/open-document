@@ -12,6 +12,7 @@ priv struct CellStyle {
   horizontal : String
   vertical : String
   wrap : Bool
+  indent : Int
   format : String
   diagnostic : String
   bar : ConditionalBar?
@@ -34,6 +35,7 @@ fn default_style() -> CellStyle {
     horizontal: "general",
     vertical: "bottom",
     wrap: false,
+    indent: 0,
     format: "General",
     diagnostic: "",
     bar: None,
@@ -313,7 +315,7 @@ fn read_styles(
       if !["general", "left", "center", "right"].contains(horizontal) ||
         !["top", "center", "bottom"].contains(vertical) ||
         alignment.attribute("textRotation").unwrap_or("0") != "0" ||
-        alignment.attribute("indent").unwrap_or("0") != "0" ||
+        alignment.attribute("relativeIndent").unwrap_or("0") != "0" ||
         flag(alignment, "shrinkToFit") {
         style = { ..style, diagnostic: "Unsupported text alignment", }
       }
@@ -322,6 +324,7 @@ fn read_styles(
         horizontal,
         vertical,
         wrap: flag(alignment, "wrapText"),
+        indent: natural(alignment.attribute("indent").unwrap_or("0"), 250),
       }
     }
     let format_id = natural(xf.attribute("numFmtId").unwrap_or("0"), 65535)

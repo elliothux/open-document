@@ -659,6 +659,13 @@ pub(all) struct SemanticPage {
 } derive(ToJson)
 pub fn SemanticPage::to_json(Self) -> Json
 
+pub(all) struct SequenceField {
+  sequence : String
+  format : String
+}
+pub fn SequenceField::code(Self) -> String
+pub fn SequenceField::parse(String) -> Self raise @failure.Failure
+
 pub(all) struct ShapeBatch {
   text : String
   carets : Array[Caret]

@@ -222,6 +222,32 @@ export function XlsxFormatFields({
         </select>
       </label>
       <label>
+        {t.cellIndent}
+        <input
+          aria-label={aria(t.cellIndent)}
+          type="number"
+          min={0}
+          max={250}
+          step={1}
+          value={format.indent ?? ""}
+          placeholder={
+            current
+              ? current.indent === null
+                ? t.mixed
+                : String(current.indent)
+              : t.keepStyleProperty
+          }
+          onChange={(event) =>
+            set(
+              "indent",
+              event.currentTarget.value === ""
+                ? undefined
+                : Number(event.currentTarget.value),
+            )
+          }
+        />
+      </label>
+      <label>
         {t.cellNumberFormat}
         <select
           aria-label={aria(t.cellNumberFormat)}

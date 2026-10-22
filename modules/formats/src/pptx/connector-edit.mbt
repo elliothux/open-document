@@ -96,7 +96,7 @@ fn Session::edit_connector(
   end : ConnectorEnd,
   insert : Bool,
 ) -> Json raise @failure.Failure {
-  guard ["straight", "elbow"].contains(kind) else {
+  guard ["straight", "elbow", "curved"].contains(kind) else {
     @failure.reject("invalid-operation", "Unknown connector kind")
   }
   let slide = self.current()
@@ -159,12 +159,9 @@ fn Session::edit_connector(
     let changes = object.connector_changes(start, end)
     let properties = object.source.child("spPr", uri=presentation_uri).unwrap()
     let geometry = properties.child("prstGeom").unwrap()
-    let preset = if kind == "elbow" {
-      "bentConnector3"
-    } else {
-      "straightConnector1"
-    }
-    if (object.preset == "bentConnector3") != (kind == "elbow") {
+    let preset = connector_preset(kind)
+    if object.preset != preset &&
+      !(object.preset == "line" && kind == "straight") {
       guard !object.source.tree.document
         .nodes()
         .any(node => {
@@ -347,11 +344,16 @@ fn connector_markup(
   end : ConnectorEnd,
 ) -> String raise @failure.Failure {
   let g = connector_geometry(start, end)
-  let preset = if kind == "elbow" {
-    "bentConnector3"
-  } else {
-    "straightConnector1"
-  }
+  let preset = connector_preset(kind)
   let markup = "<p:cxnSp xmlns:p=\"\{presentation_uri}\" xmlns:a=\"\{drawing_uri}\"><p:nvCxnSpPr><p:cNvPr id=\"\{id}\" name=\"Connector \{id}\"/><p:cNvCxnSpPr>\{connector_link(start, "stCxn")}\{connector_link(end, "endCxn")}</p:cNvCxnSpPr><p:nvPr/></p:nvCxnSpPr><p:spPr><a:xfrm flipH=\"\{if g.flip_x { 1 } else { 0 }}\" flipV=\"\{if g.flip_y { 1 } else { 0 }}\"><a:off x=\"\{(g.x * 12700).round().to_int64()}\" y=\"\{(g.y * 12700).round().to_int64()}\"/><a:ext cx=\"\{(g.width * 12700).round().to_int64()}\" cy=\"\{(g.height * 12700).round().to_int64()}\"/></a:xfrm><a:prstGeom prst=\"\{preset}\"><a:avLst/></a:prstGeom><a:noFill/><a:ln w=\"12700\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill></a:ln></p:spPr></p:cxnSp>"
   markup
+}
+
+///|
+fn connector_preset(kind : String) -> String {
+  match kind {
+    "elbow" => "bentConnector3"
+    "curved" => "curvedConnector3"
+    _ => "straightConnector1"
+  }
 }

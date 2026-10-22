@@ -277,10 +277,10 @@ fn paint_slide(
         @failure.reject("limit-exceeded", "Slide glyphs exceed budget")
       }
     } else {
-      if !object.polyline.is_empty() {
+      if !object.polyline.is_empty() || object.preset == "curvedConnector3" {
         primitives.push(
           Path(
-            object.polyline_path(geometry),
+            object.line_path(geometry),
             "",
             object.stroke,
             object.line_width,

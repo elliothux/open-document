@@ -93,21 +93,6 @@ fn read_polyline(
 }
 
 ///|
-fn Object::polyline_path(
-  self : Object,
-  geometry : Geometry,
-) -> Array[@layout.PathSegment] {
-  self.polyline.mapi((index, point) => {
-    let (x, y) = (point.0 * geometry.width, point.1 * geometry.height)
-    if index == 0 {
-      Move(x, y)
-    } else {
-      Line(x, y)
-    }
-  })
-}
-
-///|
 fn Object::polyline_hit(
   self : Object,
   geometry : Geometry,

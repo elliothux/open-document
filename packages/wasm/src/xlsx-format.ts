@@ -18,6 +18,7 @@ export interface XlsxCellFormat {
   horizontal?: "general" | "left" | "center" | "right";
   vertical?: "top" | "center" | "bottom";
   wrap?: boolean;
+  indent?: number;
   /** Input protection takes effect when worksheet protection is enabled. */
   locked?: boolean;
   /** Conceals formula source while worksheet protection is enabled. */
@@ -46,6 +47,7 @@ const cellFormatFields = [
   "horizontal",
   "vertical",
   "wrap",
+  "indent",
   "locked",
   "formulaHidden",
   "numberFormat",
@@ -161,6 +163,7 @@ export function checkXlsxCellFormat(value: unknown): void {
         Number.isFinite(value) &&
         value >= 1 &&
         value <= 409;
+    if (key === "indent") valid = integer(value, 0, 250);
     if (
       [
         "bold",

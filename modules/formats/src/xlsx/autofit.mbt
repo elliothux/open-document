@@ -94,6 +94,7 @@ fn Session::fit_sizes(
     current.dimensions.columns.default_size
   }
   let sizes : Map[Int, Double] = Map([])
+  let indent_unit = self.indent_unit(probe, profile)
   for axis in axes {
     sizes[axis] = if rows { fallback } else { 0.0 }
   }
@@ -179,6 +180,9 @@ fn Session::fit_sizes(
     }
     let width = dimensions.columns.position(range.right + 1) -
       dimensions.columns.position(range.left)
+    let indent = style.indent.to_double() * indent_unit
+    let horizontal = style.text_alignment(value, current.view.formulas)
+    let available = width - 4.5 - (if style.wrap { indent } else { 0.0 })
     // ONLYOFFICE uses a single line height for a wrapped horizontal merge.
     let content = if text.is_empty() ||
       (rows && range.left != range.right && style.wrap) {
@@ -203,7 +207,7 @@ fn Session::fit_sizes(
         spans,
         style.size,
         profile,
-        (width - 4.5).max(0.75).min(14400),
+        available.max(0.75).min(14400),
         content == text && style.wrap && !grow,
       )
     } else {
@@ -211,14 +215,15 @@ fn Session::fit_sizes(
         content,
         style.text_style(),
         profile,
-        (width - 4.5).max(0.75).min(14400),
+        available.max(0.75).min(14400),
         style.wrap && !grow,
       )
     }
     let measured = if rows {
       ((block.height + 3) / 0.75).ceil() * 0.75
     } else {
-      block.widths.fold(init=0.0, (a, b) => a.max(b))
+      block.widths.fold(init=0.0, (a, b) => a.max(b)) +
+      (if ["left", "right"].contains(horizontal) { indent } else { 0.0 })
     }
     sizes[axis] = sizes[axis].max(measured)
   }
