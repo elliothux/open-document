@@ -10,6 +10,7 @@ priv struct ChartSeries {
 ///|
 priv struct ChartData {
   kind : String
+  hole_size : Int?
   title : String
   label : String
   categories : Array[String]
@@ -37,13 +38,24 @@ fn chart_text(text : String) -> Unit raise @failure.Failure {
 
 ///|
 fn ChartData::validate(self : ChartData) -> Unit raise @failure.Failure {
-  guard ["column", "bar", "line", "pie", "area", "scatter"].contains(self.kind) &&
+  guard ["column", "bar", "line", "pie", "area", "scatter", "doughnut"].contains(
+      self.kind,
+    ) &&
     self.categories.length() >= 1 &&
     self.categories.length() <= 256 &&
     self.series.length() >= 1 &&
     self.series.length() <= 8 else {
     @failure.reject(
       "limit-exceeded", "Chart requires 1-256 categories and 1-8 series",
+    )
+  }
+  guard (if self.kind == "doughnut" {
+    self.hole_size.map(size => size >= 10 && size <= 90).unwrap_or(false)
+  } else {
+    self.hole_size is None
+  }) else {
+    @failure.reject(
+      "invalid-chart", "Doughnut hole size requires an integer from 10 to 90",
     )
   }
   chart_text(self.title)
@@ -74,6 +86,7 @@ fn chart_data(
   title : String,
   bytes : Bytes,
   budget : @archive.Budget,
+  hole_size~ : Int? = None,
 ) -> ChartData raise @failure.Failure {
   let workbook = @xlsx.Session::open(bytes, budget)
   defer workbook.close()
@@ -122,6 +135,11 @@ fn chart_data(
   }
   let result : ChartData = {
     kind,
+    hole_size: if kind == "doughnut" {
+      Some(hole_size.unwrap_or(75))
+    } else {
+      hole_size
+    },
     title,
     label: text(1, 1),
     categories: Array::makei(rows - 1, index => text(index + 2, 1)),
@@ -175,7 +193,15 @@ fn ChartData::tsv(self : ChartData) -> String {
 
 ///|
 fn ChartData::query(self : ChartData) -> Json {
-  { "kind": self.kind, "title": self.title, "data": self.tsv() }
+  let fields : Map[String, Json] = {
+    "kind": Json(self.kind),
+    "title": Json(self.title),
+    "data": Json(self.tsv()),
+  }
+  if self.hole_size is Some(size) {
+    fields["holeSize"] = Json(size)
+  }
+  Json(fields)
 }
 
 ///|

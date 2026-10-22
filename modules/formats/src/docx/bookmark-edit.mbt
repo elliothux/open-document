@@ -220,7 +220,11 @@ fn Session::bookmark_references(
         let reference = try {
           let code = running_field_code(instruction)
           if path == self.main &&
-            (code.has_prefix("PAGEREF:") || code.has_prefix("SEQ:")) {
+            (
+              code.has_prefix("PAGEREF:") ||
+              code.has_prefix("SEQ:") ||
+              code.has_prefix("REF:")
+            ) {
             field_tree.unwrap().simple_page_fields(node.parent)
             true
           } else {

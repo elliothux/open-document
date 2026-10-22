@@ -29,7 +29,7 @@ export interface TextStyle {
 export interface DocxFlow {
   columns: DocxColumns;
   pageNumbering: { start: number; format: string };
-  bookmarks: Record<string, [number, number]>;
+  bookmarks: Record<string, [number, number, number, number]>;
   pageBorders: DocxPageBorders;
   background: string;
   additiveSpacing: boolean;
@@ -60,6 +60,7 @@ export interface DocxFlow {
         | "PAGE"
         | "NUMPAGES"
         | `PAGEREF:${string}`
+        | `REF:${string}`
         | `SEQ:${string}`
         | `${"PAGE" | "NUMPAGES"}:${"decimal" | "decimalZero" | "lowerLetter" | "upperLetter" | "lowerRoman" | "upperRoman"}`;
     }[];
@@ -297,7 +298,7 @@ export function docxFlow(value: unknown): DocxFlow {
       ([name, position]) =>
         !name.length ||
         !Array.isArray(position) ||
-        position.length !== 2 ||
+        position.length !== 4 ||
         !position.every((value) => Number.isSafeInteger(value) && value >= 0),
     )
   )
@@ -399,7 +400,7 @@ export function docxFlow(value: unknown): DocxFlow {
       const span = fields(value, ["node"], ["text", "field"]);
       if (
         typeof span.field !== "string" ||
-        !/^(?:(?:PAGE|NUMPAGES)(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?|PAGEREF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::hyperlink)?(?::relative)?|SEQ:[_\p{ID_Start}][_\p{ID_Continue}]{0,39}(?::(?:decimal|lowerLetter|upperLetter|lowerRoman|upperRoman))?)?$/u.test(
+        !/^(?:(?:PAGE|NUMPAGES)(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?|PAGEREF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::hyperlink)?(?::relative)?|REF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::hyperlink)?|SEQ:[_\p{ID_Start}][_\p{ID_Continue}]{0,39}(?::(?:decimal|lowerLetter|upperLetter|lowerRoman|upperRoman))?)?$/u.test(
           span.field,
         ) ||
         (span.field.startsWith("SEQ:") &&

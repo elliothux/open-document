@@ -48,6 +48,8 @@ fn Pagination::body_field_values(
                 "unsupported-layout:repeated-relative-page-reference",
               )
             }
+          } else if code.has_prefix("REF:") {
+            values[key] = run.text
           } else if sequences.get(key) is Some(text) {
             values[key] = text
           } else if !values.contains(key) {
@@ -72,7 +74,7 @@ fn Pagination::body_field_values(
   let targets : Map[String, Hit?] = Map([])
   for key, reference in references {
     let name = reference.bookmark.to_lower()
-    if flow.bookmarks.get(name) is Some((paragraph, offset)) &&
+    if flow.bookmarks.get(name) is Some((paragraph, offset, _, _)) &&
       !targets.contains(name) {
       let mut found : Hit? = None
       let mut matched = false
@@ -123,5 +125,10 @@ fn Pagination::body_field_values(
       self.pages.length(),
     )
   }
+  let (text, problems) = flow.text_reference_values(values)
+  for key, value in text {
+    values[key] = value
+  }
+  diagnostics.append(problems)
   (values, diagnostics)
 }

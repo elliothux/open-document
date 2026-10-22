@@ -57,7 +57,7 @@ fn ChartData::markup(
   self : ChartData,
   workbook_link : String,
 ) -> String raise @failure.Failure {
-  if self.kind == "pie" {
+  if ["pie", "doughnut"].contains(self.kind) {
     return self.pie_markup(workbook_link)
   }
   if self.kind == "scatter" {

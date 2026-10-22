@@ -71,7 +71,7 @@ fn DrawingChart::paint(
   out.append(
     chart_label(data.title, 8, 6, width - 16, 20, 12, true, probe, profile),
   )
-  if data.kind == "pie" {
+  if ["pie", "doughnut"].contains(data.kind) {
     out.append(self.paint_pie(width, height, probe, profile))
     return out
   }

@@ -1,4 +1,51 @@
 ///|
+fn CellStyle::cell_text_block(
+  self : CellStyle,
+  probe : @layout.TextProbe,
+  profile : Map[String, String],
+  text : String,
+  spans : Array[@layout.Span]?,
+  width : Double,
+  wrap~ : Bool = self.wrap,
+  shrink~ : Bool = self.shrink,
+) -> @layout.TextBlock raise @failure.Failure {
+  let mut spans = spans.unwrap_or([
+    { node: 0, text, style: self.text_style(), drawing: None, field: "", },
+  ])
+  let mut nominal = self.size
+  let mut block = probe.span_block(spans, nominal, profile, width, wrap)
+  if !shrink || wrap {
+    return block
+  }
+  for _ in 0..<16 {
+    let measured = block.widths.fold(init=0.0, (a, b) => a.max(b))
+    if measured <= width {
+      return block
+    }
+    let ratio = width / measured
+    // ONLYOFFICE reduces each run in half-point steps to a 2.5pt floor; source sizes stay intact.
+    let reduced = fn(size : Double) {
+      ((size * ratio * 2).floor() / 2).max(2.5).min(size)
+    }
+    let mut changed = false
+    let next = spans.map(span => {
+      let size = reduced(span.style.size)
+      changed = changed || size != span.style.size
+      { ..span, style: { ..span.style, size, }, }
+    })
+    if !changed {
+      return block
+    }
+    spans = next
+    nominal = reduced(nominal)
+    block = probe.span_block(spans, nominal, profile, width, false)
+  }
+  @failure.reject(
+    "limit-exceeded", "Cell text shrinking exceeds 16 measurements",
+  )
+}
+
+///|
 fn place_block(
   page : PagePaint,
   block : @layout.TextBlock,

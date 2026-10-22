@@ -86,31 +86,38 @@ export function XlsxFormatFields({
           }
         />
       </label>
-      {(["bold", "italic", "underline", "strike", "wrap"] as const).map(
-        (key) => (
-          <label key={key}>
-            {t[key]}
-            <select
-              aria-label={aria(t[key])}
-              value={format[key] === undefined ? "" : String(format[key])}
-              onChange={(event) =>
-                set(
-                  key,
-                  event.currentTarget.value === ""
-                    ? undefined
-                    : event.currentTarget.value === "true",
-                )
-              }
-            >
-              <option value="">
-                {current?.[key] === null ? t.mixed : t.keepStyleProperty}
-              </option>
-              <option value="true">{t.styleOn}</option>
-              <option value="false">{t.styleOff}</option>
-            </select>
-          </label>
-        ),
-      )}
+      {(
+        [
+          "bold",
+          "italic",
+          "underline",
+          "strike",
+          "wrap",
+          "shrinkToFit",
+        ] as const
+      ).map((key) => (
+        <label key={key}>
+          {t[key]}
+          <select
+            aria-label={aria(t[key])}
+            value={format[key] === undefined ? "" : String(format[key])}
+            onChange={(event) =>
+              set(
+                key,
+                event.currentTarget.value === ""
+                  ? undefined
+                  : event.currentTarget.value === "true",
+              )
+            }
+          >
+            <option value="">
+              {current?.[key] === null ? t.mixed : t.keepStyleProperty}
+            </option>
+            <option value="true">{t.styleOn}</option>
+            <option value="false">{t.styleOff}</option>
+          </select>
+        </label>
+      ))}
       {current &&
         (["locked", "formulaHidden"] as const).map((key) => (
           <label key={key}>

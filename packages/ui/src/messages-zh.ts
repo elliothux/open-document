@@ -331,6 +331,7 @@ export const zh: Messages = {
   insideVerticalBorder: "内部竖边框",
   noTableBorder: "移除边框",
   wrap: "单元格文字换行",
+  shrinkToFit: "缩小字体适应单元格",
   fontSize: "字号（pt）",
   characterSpacing: "字间距（pt）",
   bold: "加粗",

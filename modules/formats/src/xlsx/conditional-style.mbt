@@ -179,7 +179,7 @@ fn conditional_style(
     conditional_node(
       tree,
       alignment,
-      ["horizontal", "vertical", "wrapText", "indent"],
+      ["horizontal", "vertical", "wrapText", "indent", "shrinkToFit"],
       [],
     )
     result = {
@@ -190,6 +190,9 @@ fn conditional_style(
       .attribute("wrapText")
       .map(_ => flag(alignment, "wrapText")),
       indent: alignment.attribute("indent").map(value => natural(value, 250)),
+      shrinkToFit: alignment
+      .attribute("shrinkToFit")
+      .map(_ => flag(alignment, "shrinkToFit")),
     }
   }
   result.validate()

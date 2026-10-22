@@ -130,6 +130,9 @@ fn CellFormat::xf_markup(
   if self.wrap is Some(value) {
     values.push(("wrapText", if value { "1" } else { "0" }))
   }
+  if self.shrinkToFit is Some(value) {
+    values.push(("shrinkToFit", if value { "1" } else { "0" }))
+  }
   if self.indent is Some(value) {
     values.push(("indent", value.to_string()))
   }

@@ -1,6 +1,16 @@
 ///|
 fn running_field_instruction(field : String) -> String raise @failure.Failure {
   let parts = field.split(":").to_array()
+  if parts[0] == "REF" {
+    let reference = @layout.TextReference::parse(field) catch {
+      @failure.Failure(..) =>
+        @failure.reject("invalid-operation", "Invalid text reference options")
+    }
+    return "REF " +
+      reference.bookmark +
+      (if reference.hyperlink { " \\h" } else { "" }) +
+      " \\* MERGEFORMAT"
+  }
   if parts[0] == "SEQ" {
     let sequence = @layout.SequenceField::parse(field) catch {
       @failure.Failure(..) =>

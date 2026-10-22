@@ -92,6 +92,7 @@ fn Session::write_chart(
   probe : @layout.TextProbe,
   profile : Map[String, String],
   fill~ : Bool = false,
+  hole_size~ : Int? = None,
 ) -> Json raise @failure.Failure {
   guard source.length() <= 65536 else {
     @failure.reject("limit-exceeded", "Chart data exceeds 65536 characters")
@@ -164,8 +165,8 @@ fn Session::write_chart(
   )
   defer workbook.close()
   let bytes = workbook.save()
-  let data = chart_data(kind, title, bytes, self.budget)
-  if data.kind != "pie" {
+  let data = chart_data(kind, title, bytes, self.budget, hole_size~)
+  if !["pie", "doughnut"].contains(data.kind) {
     ignore(data.axis())
   }
   if data.kind == "scatter" {

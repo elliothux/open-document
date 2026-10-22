@@ -175,6 +175,8 @@ fn read_chart_part(
   let (plot_source, kind) = if plot.child("pieChart", uri=chart_uri)
     is Some(pie) {
     (pie, "pie")
+  } else if plot.child("doughnutChart", uri=chart_uri) is Some(doughnut) {
+    (doughnut, "doughnut")
   } else if plot.child("lineChart", uri=chart_uri) is Some(line) {
     (line, "line")
   } else if plot.child("areaChart", uri=chart_uri) is Some(area) {
@@ -222,12 +224,25 @@ fn read_chart_part(
   )
   let data : ChartData = {
     kind,
-    title: if kind == "pie" {
+    hole_size: if kind == "doughnut" {
+      Some(
+        number(
+          chart_child(plot_source, "holeSize").node
+          .attribute("val")
+          .unwrap_or(""),
+          10,
+          90,
+        ).to_int(),
+      )
+    } else {
+      None
+    },
+    title: if ["pie", "doughnut"].contains(kind) {
       chart_rich_title(chart, line=0)
     } else {
       chart_rich_title(chart)
     },
-    label: if kind == "pie" {
+    label: if ["pie", "doughnut"].contains(kind) {
       chart_rich_title(chart, line=1)
     } else if kind == "scatter" {
       guard tree.all(plot.node.id, "valAx", uri=chart_uri) is [x_axis, _] else {

@@ -152,8 +152,13 @@ fn Session::fit_sizes(
       )
     }
     if grow &&
-      (value == Blank || value is Text(_)) &&
-      !(current.view.formulas && cell.formula is Some(_)) {
+      (
+        (style.shrink && !style.wrap) ||
+        (
+          (value == Blank || value is Text(_)) &&
+          !(current.view.formulas && cell.formula is Some(_))
+        )
+      ) {
       continue
     }
     let text = current.view.display(
@@ -182,7 +187,13 @@ fn Session::fit_sizes(
       dimensions.columns.position(range.left)
     let indent = style.indent.to_double() * indent_unit
     let horizontal = style.text_alignment(value, current.view.formulas)
-    let available = width - 4.5 - (if style.wrap { indent } else { 0.0 })
+    let available = width -
+      4.5 -
+      (if style.wrap || ["left", "right"].contains(horizontal) {
+        indent
+      } else {
+        0.0
+      })
     // ONLYOFFICE uses a single line height for a wrapped horizontal merge.
     let content = if text.is_empty() ||
       (rows && range.left != range.right && style.wrap) {
@@ -190,7 +201,7 @@ fn Session::fit_sizes(
     } else {
       text
     }
-    let block = if rich.get(cell.address.name()) is Some((tree, root)) {
+    let spans = if rich.get(cell.address.name()) is Some((tree, root)) {
       let spans = rich_layout_spans(
         tree,
         root,
@@ -203,22 +214,19 @@ fn Session::fit_sizes(
       } else {
         spans.map(span => { ..span, text: " ", })
       }
-      probe.span_block(
-        spans,
-        style.size,
-        profile,
-        available.max(0.75).min(14400),
-        content == text && style.wrap && !grow,
-      )
+      Some(spans)
     } else {
-      probe.text_block(
-        content,
-        style.text_style(),
-        profile,
-        available.max(0.75).min(14400),
-        style.wrap && !grow,
-      )
+      None
     }
+    let block = style.cell_text_block(
+      probe,
+      profile,
+      content,
+      spans,
+      available.max(0.75).min(14400),
+      wrap=content == text && style.wrap && !grow,
+      shrink=rows && style.shrink,
+    )
     let measured = if rows {
       ((block.height + 3) / 0.75).ceil() * 0.75
     } else {

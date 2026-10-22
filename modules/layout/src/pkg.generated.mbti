@@ -217,7 +217,7 @@ pub(all) struct Flow {
   pageBorders : PageBorders
   page : PageSetup
   pageNumbering : PageNumbering
-  bookmarks : Map[String, (Int, Int)]
+  bookmarks : Map[String, (Int, Int, Int, Int)]
   columns : Columns
   paragraphs : Array[Paragraph]
   diagnostics : Array[String]
@@ -785,6 +785,13 @@ pub fn TextProbe::shape(Self, String, Double, String, primary? : Int, base? : In
 pub fn TextProbe::source_glyph(Self, Int, Int, String, Int, Bool) -> (String, Int) raise @failure.Failure
 pub fn TextProbe::span_block(Self, Array[Span], Double, Map[String, String], Double, Bool) -> TextBlock raise @failure.Failure
 pub fn TextProbe::text_block(Self, String, TextStyle, Map[String, String], Double, Bool) -> TextBlock raise @failure.Failure
+
+pub(all) struct TextReference {
+  bookmark : String
+  hyperlink : Bool
+}
+pub fn TextReference::code(Self) -> String
+pub fn TextReference::parse(String) -> Self raise @failure.Failure
 
 pub(all) struct TextStyle {
   font : String

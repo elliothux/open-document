@@ -92,6 +92,13 @@ pub fn Session::page_links(
         } else {
           None
         }
+      } else if span.field.has_prefix("REF:") {
+        let reference = @layout.TextReference::parse(span.field)
+        if reference.hyperlink {
+          Some("#" + reference.bookmark)
+        } else {
+          None
+        }
       } else if paragraph.id < 0 {
         running.get(key)
       } else if tree.run_hyperlink(tree.nodes[span.node].parent) is Some(id) {
@@ -112,7 +119,7 @@ pub fn Session::page_links(
         let name = destination[1:].to_owned().to_lower()
         if !positions.contains(name) {
           positions[name] = if flow.bookmarks.get(name)
-            is Some((paragraph, offset)) {
+            is Some((paragraph, offset, _, _)) {
             work += units
             guard work <= 8388608 else {
               @failure.reject(

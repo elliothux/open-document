@@ -80,6 +80,12 @@ pub fn Session::body_page_field(
         if reference.relative {
           value["relative"] = Json(true)
         }
+      } else if parts[0] == "REF" {
+        let reference = @layout.TextReference::parse(code)
+        value["bookmark"] = Json(reference.bookmark)
+        if reference.hyperlink {
+          value["hyperlink"] = Json(true)
+        }
       } else if parts[0] == "SEQ" {
         let sequence = @layout.SequenceField::parse(code)
         value["sequence"] = Json(sequence.sequence)
@@ -132,7 +138,8 @@ pub fn Session::edit_body_page_field(
     return self.edit_state()
   }
   let instruction = instruction +
-    (if attribute.value.to_upper().contains("MERGEFORMAT") {
+    (if !instruction.to_upper().contains("MERGEFORMAT") &&
+      attribute.value.to_upper().contains("MERGEFORMAT") {
       " \\* MERGEFORMAT"
     } else {
       ""
@@ -243,7 +250,9 @@ pub fn Session::update_body_page_fields(
       guard count <= 4096 else {
         @failure.reject("limit-exceeded", "Body page fields exceed limits")
       }
-      let value = if code.has_prefix("PAGEREF:") || code.has_prefix("SEQ:") {
+      let value = if code.has_prefix("PAGEREF:") ||
+        code.has_prefix("SEQ:") ||
+        code.has_prefix("REF:") {
         displayed
         .get((paragraph.id, id))
         .unwrap_or_else(() => {

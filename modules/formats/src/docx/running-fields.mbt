@@ -9,6 +9,33 @@ fn running_field_code(instruction : String) -> String raise @failure.Failure {
     .filter(token => !token.is_empty())
     .map(token => token.to_owned())
     .collect()
+  if tokens.length() >= 2 && tokens[0].to_upper() == "REF" {
+    check_bookmark_name(tokens[1])
+    let mut hyperlink = false
+    let mut merge = false
+    for i = 2; i < tokens.length(); {
+      if tokens[i].to_lower() == "\\h" && !hyperlink {
+        hyperlink = true
+        continue i + 1
+      } else if tokens[i] == "\\*" &&
+        i + 1 < tokens.length() &&
+        tokens[i + 1].to_upper() == "MERGEFORMAT" &&
+        !merge {
+        merge = true
+        continue i + 2
+      } else {
+        @failure.reject(
+          "unsupported-layout", "Unsupported text reference switch",
+        )
+      }
+    }
+    guard merge else {
+      @failure.reject(
+        "unsupported-layout", "Text references require retained result formatting",
+      )
+    }
+    return @layout.TextReference::{ bookmark: tokens[1], hyperlink, }.code()
+  }
   if tokens.length() >= 2 && tokens[0].to_upper() == "SEQ" {
     let sequence = @layout.SequenceField::parse("SEQ:" + tokens[1])
     let options = ["PAGE", ..tokens[2:].to_owned()]

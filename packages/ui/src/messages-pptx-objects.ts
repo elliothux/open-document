@@ -5,6 +5,10 @@ export const objectEn = {
   chartBar: "Clustered bar",
   chartLine: "Line with markers",
   chartPie: "Pie",
+  chartDoughnut: "Doughnut",
+  chartHoleSize: "Doughnut hole (%)",
+  chartDoughnutHint:
+    "Series form rings from inside to outside. Slices use absolute values; zero and empty values draw no slice.",
   chartArea: "Area",
   chartScatter: "Scatter",
   chartScatterHint:
@@ -66,6 +70,10 @@ export const objectZh: typeof objectEn = {
   chartBar: "簇状条形图",
   chartLine: "带数据点的折线图",
   chartPie: "饼图",
+  chartDoughnut: "圆环图",
+  chartHoleSize: "圆环空心比例（%）",
+  chartDoughnutHint:
+    "系列由内向外形成同心环。扇区使用绝对值；零值和空值不绘制。",
   chartArea: "面积图",
   chartScatter: "散点图",
   chartScatterHint: "首列填写数值 X；缺少 X 或 Y 的行不绘制数据点。",

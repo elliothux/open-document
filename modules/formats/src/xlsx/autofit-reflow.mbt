@@ -1,7 +1,7 @@
 ///|
 fn CellStyle::measurement_key(
   self : CellStyle,
-) -> (String, Double, Bool, String, String, Int, String) {
+) -> (String, Double, Bool, String, String, Int, String, Bool) {
   (
     self.font,
     self.size,
@@ -10,6 +10,7 @@ fn CellStyle::measurement_key(
     self.script,
     self.indent,
     self.horizontal,
+    self.shrink,
   )
 }
 

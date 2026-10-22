@@ -168,8 +168,16 @@ fn Session::flow_from(
       .bookmarks()
       .filter(b => b.reason.is_empty())
       .map(b => {
-        let position = b.selection.unwrap().anchor
-        (b.name.to_lower(), (position.paragraph, position.offset))
+        let selection = b.selection.unwrap()
+        (
+          b.name.to_lower(),
+          (
+            selection.anchor.paragraph,
+            selection.anchor.offset,
+            selection.focus.paragraph,
+            selection.focus.offset,
+          ),
+        )
       }),
     ),
     columns,
@@ -223,7 +231,11 @@ fn Session::paragraph(
   guard !running ||
     !fields
     .values()
-    .any(code => code.has_prefix("PAGEREF:") || code.has_prefix("SEQ:")) else {
+    .any(code => {
+      code.has_prefix("PAGEREF:") ||
+      code.has_prefix("SEQ:") ||
+      code.has_prefix("REF:")
+    }) else {
     @failure.reject(
       "unsupported-layout", "This field requires the main document story",
     )

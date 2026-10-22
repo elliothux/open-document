@@ -154,7 +154,7 @@ pub(all) struct Flow {
   pageBorders : PageBorders
   page : PageSetup
   pageNumbering : PageNumbering
-  bookmarks : Map[String, (Int, Int)]
+  bookmarks : Map[String, (Int, Int, Int, Int)]
   columns : Columns
   paragraphs : Array[Paragraph]
   diagnostics : Array[String]

@@ -23,7 +23,13 @@ fn Session::chart_workbook(
   let bytes = self.media
     .get(chart.workbook)
     .unwrap_or_else(() => self.opc.read(chart.workbook))
-  let actual = chart_data(chart.data.kind, chart.data.title, bytes, self.budget)
+  let actual = chart_data(
+    chart.data.kind,
+    chart.data.title,
+    bytes,
+    self.budget,
+    hole_size=chart.data.hole_size,
+  )
   guard actual == chart.data else {
     @failure.reject(
       "protected-content", "Chart cache and embedded workbook disagree",

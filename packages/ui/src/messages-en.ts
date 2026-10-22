@@ -332,6 +332,7 @@ export const en = {
   insideVerticalBorder: "Inside vertical borders",
   noTableBorder: "Remove borders",
   wrap: "Wrap cell text",
+  shrinkToFit: "Shrink to fit cell",
   fontSize: "Font size (pt)",
   characterSpacing: "Character spacing (pt)",
   bold: "Bold",

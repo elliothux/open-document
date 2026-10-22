@@ -80,6 +80,7 @@ export type DocxRunningContent =
 export type DocxBodyField =
   | DocxPageField
   | { field: "SEQ"; sequence: string; format?: DocxPageField["format"] }
+  | { field: "REF"; bookmark: string; hyperlink?: boolean }
   | {
       field: "PAGEREF";
       bookmark: string;
@@ -136,23 +137,30 @@ export function checkBodyField(value: unknown): asserts value is DocxBodyField {
     );
     return;
   }
-  if (item.field !== "PAGEREF") return checkPageField(value);
+  if (item.field !== "PAGEREF" && item.field !== "REF")
+    return checkPageField(value);
+  const textReference = item.field === "REF";
   if (
     typeof item.bookmark !== "string" ||
     !/^[A-Za-z_][A-Za-z0-9_]{0,39}$/u.test(item.bookmark) ||
     Object.keys(item).some(
       (key) =>
-        !["field", "bookmark", "format", "hyperlink", "relative"].includes(key),
+        !(
+          textReference
+            ? ["field", "bookmark", "hyperlink"]
+            : ["field", "bookmark", "format", "hyperlink", "relative"]
+        ).includes(key),
     ) ||
     ("hyperlink" in item && typeof item.hyperlink !== "boolean") ||
     ("relative" in item && typeof item.relative !== "boolean")
   )
     throw new Error("Invalid page reference target");
-  checkPageField(
-    "format" in item
-      ? { field: "PAGE", format: item.format }
-      : { field: "PAGE" },
-  );
+  if (!textReference)
+    checkPageField(
+      "format" in item
+        ? { field: "PAGE", format: item.format }
+        : { field: "PAGE" },
+    );
 }
 export interface DocxRunningArea {
   revision: number;

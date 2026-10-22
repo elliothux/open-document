@@ -171,17 +171,20 @@ fn Foundation::docx_page(
       guard request is { "field": item, .. } else {
         @failure.reject("invalid-operation", "Page field is required")
       }
-      let reference = item is { "field": "PAGEREF", .. }
+      let text_reference = item is { "field": "REF", .. }
+      let reference = text_reference || item is { "field": "PAGEREF", .. }
       let sequence = item is { "field": "SEQ", .. }
       let item = if reference || sequence {
         guard item is Object(fields) &&
           fields.length() >= 2 &&
-          fields.length() <= (if sequence { 3 } else { 5 }) &&
+          fields.length() <= (if sequence || text_reference { 3 } else { 5 }) &&
           fields
           .keys()
           .all(key => {
             (if sequence {
               ["field", "sequence", "format"]
+            } else if text_reference {
+              ["field", "bookmark", "hyperlink"]
             } else {
               ["field", "bookmark", "format", "hyperlink", "relative"]
             }).contains(key)
@@ -212,7 +215,7 @@ fn Foundation::docx_page(
         guard request is { "field": original, .. } else {
           abort("Missing field")
         }
-        "PAGEREF:" +
+        (if text_reference { "REF:" } else { "PAGEREF:" }) +
         field_string(original, "bookmark") +
         code[4:].to_owned() +
         (if original is Object(fields) &&

@@ -18,6 +18,7 @@ export interface XlsxCellFormat {
   horizontal?: "general" | "left" | "center" | "right";
   vertical?: "top" | "center" | "bottom";
   wrap?: boolean;
+  shrinkToFit?: boolean;
   indent?: number;
   /** Input protection takes effect when worksheet protection is enabled. */
   locked?: boolean;
@@ -47,6 +48,7 @@ const cellFormatFields = [
   "horizontal",
   "vertical",
   "wrap",
+  "shrinkToFit",
   "indent",
   "locked",
   "formulaHidden",
@@ -171,6 +173,7 @@ export function checkXlsxCellFormat(value: unknown): void {
         "underline",
         "strike",
         "wrap",
+        "shrinkToFit",
         "locked",
         "formulaHidden",
       ].includes(key)

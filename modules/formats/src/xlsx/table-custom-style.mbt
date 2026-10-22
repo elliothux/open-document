@@ -334,6 +334,11 @@ fn CustomTableStyle::applied(
       } else {
         patch.wrap
       },
+      shrinkToFit: if direct.properties.contains("shrinkToFit") {
+        None
+      } else {
+        patch.shrinkToFit
+      },
       indent: if direct.properties.contains("indent") {
         None
       } else {

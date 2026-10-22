@@ -3,7 +3,7 @@ fn WordTree::check_body_field_target(
   self : WordTree,
   code : String,
 ) -> Unit raise @failure.Failure {
-  if !code.has_prefix("PAGEREF:") {
+  if !(code.has_prefix("PAGEREF:") || code.has_prefix("REF:")) {
     return
   }
   let name = code.split(":").to_array()[1].to_owned().to_lower()
@@ -37,7 +37,7 @@ fn WordTree::page_reference_renames(
     let code = running_field_code(attribute.value) catch {
       @failure.Failure(..) => ""
     }
-    if !code.has_prefix("PAGEREF:") ||
+    if !(code.has_prefix("PAGEREF:") || code.has_prefix("REF:")) ||
       code.split(":").to_array()[1].to_owned().to_lower() != name.to_lower() {
       continue
     }

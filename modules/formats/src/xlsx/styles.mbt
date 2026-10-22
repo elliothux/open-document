@@ -12,6 +12,7 @@ priv struct CellStyle {
   horizontal : String
   vertical : String
   wrap : Bool
+  shrink : Bool
   indent : Int
   format : String
   diagnostic : String
@@ -35,6 +36,7 @@ fn default_style() -> CellStyle {
     horizontal: "general",
     vertical: "bottom",
     wrap: false,
+    shrink: false,
     indent: 0,
     format: "General",
     diagnostic: "",
@@ -315,8 +317,7 @@ fn read_styles(
       if !["general", "left", "center", "right"].contains(horizontal) ||
         !["top", "center", "bottom"].contains(vertical) ||
         alignment.attribute("textRotation").unwrap_or("0") != "0" ||
-        alignment.attribute("relativeIndent").unwrap_or("0") != "0" ||
-        flag(alignment, "shrinkToFit") {
+        alignment.attribute("relativeIndent").unwrap_or("0") != "0" {
         style = { ..style, diagnostic: "Unsupported text alignment", }
       }
       style = {
@@ -324,6 +325,7 @@ fn read_styles(
         horizontal,
         vertical,
         wrap: flag(alignment, "wrapText"),
+        shrink: flag(alignment, "shrinkToFit"),
         indent: natural(alignment.attribute("indent").unwrap_or("0"), 250),
       }
     }

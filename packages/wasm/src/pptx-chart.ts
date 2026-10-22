@@ -1,22 +1,26 @@
-import { record } from "./validation.js";
+import { record, integer } from "./validation.js";
 
 export interface PptxChart {
-  kind: "column" | "bar" | "line" | "pie" | "area" | "scatter";
+  kind: "column" | "bar" | "line" | "pie" | "area" | "scatter" | "doughnut";
   title: string;
   /** TSV: header row, category column (numeric X for scatter), then 1-8 numeric series. Pie displays the first series by absolute value. */
   data: string;
+  /** Doughnut only: integer percentage from 10 to 90, default 75. Each series draws a ring, innermost first. */
+  holeSize?: number;
 }
 
 export function checkPptxChart(value: unknown): void {
   const chart = record(value);
   if (
-    Object.keys(chart).length !== 3 ||
+    (Object.keys(chart).length !== 3 && Object.keys(chart).length !== 4) ||
     Object.keys(chart).some(
-      (key) => !["kind", "title", "data"].includes(key),
+      (key) => !["kind", "title", "data", "holeSize"].includes(key),
     ) ||
-    !["column", "bar", "line", "pie", "area", "scatter"].some(
+    !["column", "bar", "line", "pie", "area", "scatter", "doughnut"].some(
       (kind) => kind === chart.kind,
     ) ||
+    ("holeSize" in chart &&
+      (chart.kind !== "doughnut" || !integer(chart.holeSize, 10, 90))) ||
     typeof chart.title !== "string" ||
     chart.title.length > 256 ||
     /[\r\n]/.test(chart.title) ||
@@ -42,11 +46,17 @@ export function checkPptxChartEdit(value: unknown): boolean {
     change.action !== "fillChart"
   )
     return false;
-  checkPptxChart({ kind: change.kind, title: change.title, data: change.data });
+  checkPptxChart({
+    kind: change.kind,
+    title: change.title,
+    data: change.data,
+    ...("holeSize" in change ? { holeSize: change.holeSize } : {}),
+  });
   const insert = change.action === "insertChart";
   const keys = insert
     ? ["action", "kind", "title", "data", "x", "y", "width", "height"]
     : ["action", "kind", "title", "data"];
+  if ("holeSize" in change) keys.push("holeSize");
   if (
     Object.keys(change).length !== keys.length ||
     Object.keys(change).some((key) => !keys.includes(key))

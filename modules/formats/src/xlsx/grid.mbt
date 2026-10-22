@@ -254,26 +254,17 @@ fn Session::paint_cells(
           0.0
         })
       if !text.is_empty() && available > 0 && rect.height > 3 {
-        let mut block = if spans is Some(spans) {
-          probe.span_block(
-            spans,
-            style.size,
-            profile,
-            available.min(14400),
-            style.wrap,
-          )
-        } else {
-          probe.text_block(
-            text,
-            style.text_style(),
-            profile,
-            available.min(14400),
-            style.wrap,
-          )
-        }
+        let mut block = style.cell_text_block(
+          probe,
+          profile,
+          text,
+          spans,
+          available.min(14400),
+        )
         if !sheet.view.formulas &&
           value is Number(_) &&
           !style.wrap &&
+          !style.shrink &&
           block.widths.any(width => width > available) {
           let hash = probe.text_block(
             "#",

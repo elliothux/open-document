@@ -108,7 +108,7 @@ fn Session::table_styles(
           TableOverride::{
             properties: [
               "family", "size", "italic", "underline", "strike", "script", "numberFormat",
-              "horizontal", "vertical", "wrap", "indent",
+              "horizontal", "vertical", "wrap", "indent", "shrinkToFit",
             ].filter(property => {
               match property {
                 "family"

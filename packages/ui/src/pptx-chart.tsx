@@ -73,19 +73,47 @@ export function PptxCharts({
                 kind === "line" ||
                 kind === "area" ||
                 kind === "scatter" ||
+                kind === "doughnut" ||
                 kind === "pie"
-              )
-                setDraft({ ...draft, kind });
+              ) {
+                const { holeSize: _holeSize, ...settings } = draft;
+                setDraft(
+                  kind === "doughnut"
+                    ? { ...settings, kind, holeSize: draft.holeSize ?? 75 }
+                    : { ...settings, kind },
+                );
+              }
             }}
           >
             <option value="column">{t.chartColumn}</option>
             <option value="bar">{t.chartBar}</option>
             <option value="line">{t.chartLine}</option>
             <option value="pie">{t.chartPie}</option>
+            <option value="doughnut">{t.chartDoughnut}</option>
             <option value="area">{t.chartArea}</option>
             <option value="scatter">{t.chartScatter}</option>
           </select>
         </label>
+        {draft.kind === "doughnut" && (
+          <label>
+            {t.chartHoleSize}
+            <input
+              aria-label={t.chartHoleSize}
+              type="number"
+              min={10}
+              max={90}
+              step={1}
+              required
+              value={draft.holeSize ?? 75}
+              onChange={(event) =>
+                setDraft({
+                  ...draft,
+                  holeSize: event.currentTarget.valueAsNumber,
+                })
+              }
+            />
+          </label>
+        )}
         <label>
           {t.chartTitle}
           <input
@@ -111,6 +139,7 @@ export function PptxCharts({
         </label>
         <p>{t.chartDataHint}</p>
         {draft.kind === "pie" && <p>{t.chartPieHint}</p>}
+        {draft.kind === "doughnut" && <p>{t.chartDoughnutHint}</p>}
         {draft.kind === "scatter" && <p>{t.chartScatterHint}</p>}
         <button type="submit" disabled={!draft.data}>
           {chart ? t.chartApply : fill ? t.chartFill : t.chartInsert}
