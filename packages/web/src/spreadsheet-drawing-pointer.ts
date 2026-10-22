@@ -254,12 +254,19 @@ export class SpreadsheetDrawingPointer {
                       object,
                       now.profile,
                     )
-                  : this.client.deleteShape(
-                      now.query.revision,
-                      now.query.sheet,
-                      object,
-                      now.profile,
-                    )),
+                  : target.kind === "chart"
+                    ? this.client.deleteChart(
+                        now.query.revision,
+                        now.query.sheet,
+                        object,
+                        now.profile,
+                      )
+                    : this.client.deleteShape(
+                        now.query.revision,
+                        now.query.sheet,
+                        object,
+                        now.profile,
+                      )),
               );
             } else {
               const result = await this.client.drawingGesture(

@@ -1,5 +1,12 @@
 import { WasmSession, encodeBytes } from "./session.js";
 import {
+  xlsxCharts,
+  checkXlsxChartSettings,
+  checkXlsxChartFrame,
+  type XlsxChartSettings,
+  type XlsxChartFrame,
+} from "./xlsx-charts.js";
+import {
   xlsxShapes,
   checkXlsxShapeInsert,
   checkXlsxShapeSettings,
@@ -16,6 +23,104 @@ import {
 } from "./xlsx-pictures.js";
 
 export class XlsxDrawingSession extends WasmSession {
+  charts(revision: number, sheet: string, profile: Record<string, string>) {
+    return xlsxCharts(
+      this.call({ operation: "getXlsxChart", revision, sheet, profile }),
+    );
+  }
+  insertChart(
+    revision: number,
+    sheet: string,
+    settings: XlsxChartSettings,
+    width: number,
+    height: number,
+    profile: Record<string, string>,
+  ): XlsxQuery {
+    checkXlsxChartSettings(settings);
+    return xlsxQuery(
+      this.call({
+        operation: "insertXlsxChart",
+        revision,
+        sheet,
+        settings,
+        width,
+        height,
+        profile,
+      }),
+    );
+  }
+  insertChartRange(
+    revision: number,
+    sheet: string,
+    range: string,
+    kind: XlsxChartSettings["kind"],
+    title: string,
+    width: number,
+    height: number,
+    profile: Record<string, string>,
+  ): XlsxQuery {
+    return xlsxQuery(
+      this.call({
+        operation: "insertRangeXlsxChart",
+        revision,
+        sheet,
+        range,
+        kind,
+        title,
+        width,
+        height,
+        profile,
+      }),
+    );
+  }
+  setChart(
+    revision: number,
+    sheet: string,
+    id: string,
+    settings: XlsxChartSettings,
+    profile: Record<string, string>,
+  ): XlsxQuery {
+    checkXlsxChartSettings(settings);
+    return xlsxQuery(
+      this.call({
+        operation: "setXlsxChart",
+        revision,
+        sheet,
+        id,
+        settings,
+        profile,
+      }),
+    );
+  }
+  setChartFrame(
+    revision: number,
+    sheet: string,
+    id: string,
+    settings: XlsxChartFrame,
+    profile: Record<string, string>,
+  ): XlsxQuery {
+    checkXlsxChartFrame(settings);
+    return xlsxQuery(
+      this.call({
+        operation: "frameXlsxChart",
+        revision,
+        sheet,
+        id,
+        settings,
+        profile,
+      }),
+    );
+  }
+  deleteChart(
+    revision: number,
+    sheet: string,
+    id: string,
+    profile: Record<string, string>,
+  ): XlsxQuery {
+    return xlsxQuery(
+      this.call({ operation: "deleteXlsxChart", revision, sheet, id, profile }),
+    );
+  }
   shapes(revision: number, sheet: string, profile: Record<string, string>) {
     return xlsxShapes(
       this.call({ operation: "shapesXlsx", revision, sheet, profile }),

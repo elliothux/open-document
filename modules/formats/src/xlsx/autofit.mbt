@@ -20,6 +20,7 @@ fn Session::fit_sizes(
   work : FitWork,
   rows~ : Bool,
   grow~ : Bool = false,
+  reading~ : Bool = false,
   parts~ : Map[String, @xml.Document] = self.parts,
 ) -> Map[Int, Double] raise @failure.Failure {
   work.axes += axes.length()
@@ -38,24 +39,28 @@ fn Session::fit_sizes(
   guard conditional.reason.is_empty() else {
     @failure.reject("protected-content", conditional.reason)
   }
-  ignore(read_filter(current))
+  if !reading {
+    ignore(read_filter(current))
+  }
   guard conditional.table_styles.reason.is_empty() else {
     @failure.reject("protected-content", conditional.table_styles.reason)
   }
-  for node in tree.children.get(root.id).unwrap_or([]) {
-    // Sparklines follow the cell rectangle and do not contribute text dimensions.
-    if sparkline_reason(current, sheets).is_empty() &&
-      sparkline_extension(tree, node) {
-      continue
-    }
-    if node.uri != spreadsheet_uri ||
-      (
-        ["pivotTableParts", "extLst"].contains(node.name) &&
-        !tree.children.get(node.id).unwrap_or([]).is_empty()
-      ) {
-      @failure.reject(
-        "protected-content", "Worksheet effects require automatic fitting support",
-      )
+  if !reading {
+    for node in tree.children.get(root.id).unwrap_or([]) {
+      // Sparklines follow the cell rectangle and do not contribute text dimensions.
+      if sparkline_reason(current, sheets).is_empty() &&
+        sparkline_extension(tree, node) {
+        continue
+      }
+      if node.uri != spreadsheet_uri ||
+        (
+          ["pivotTableParts", "extLst"].contains(node.name) &&
+          !tree.children.get(node.id).unwrap_or([]).is_empty()
+        ) {
+        @failure.reject(
+          "protected-content", "Worksheet effects require automatic fitting support",
+        )
+      }
     }
   }
   let digit = self.digit_width(probe, profile)

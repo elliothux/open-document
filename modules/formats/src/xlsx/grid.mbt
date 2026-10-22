@@ -69,10 +69,11 @@ fn Session::resolved_dimensions(
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> Dimensions raise @failure.Failure {
-  sheet.dimensions.resolved(
+  let dimensions = sheet.dimensions.resolved(
     self.digit_width(probe, profile),
     sheet.view.formulas,
   )
+  self.initial_row_dimensions(sheet, dimensions, probe, profile)
 }
 
 ///|

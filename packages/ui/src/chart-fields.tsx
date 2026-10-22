@@ -1,4 +1,5 @@
 import type { ChartSettings } from "@open-document/web/foundation";
+import type { ReactNode } from "react";
 import type { messages } from "./messages.js";
 export const initialChart: ChartSettings = {
   kind: "column",
@@ -9,10 +10,12 @@ export function ChartFields({
   draft,
   setDraft,
   t,
+  children,
 }: {
   draft: ChartSettings;
   setDraft(value: ChartSettings): void;
   t: ReturnType<typeof messages>;
+  children?: ReactNode;
 }) {
   return (
     <>
@@ -120,19 +123,23 @@ export function ChartFields({
           }
         />
       </label>
-      <label>
-        {t.chartData}
-        <textarea
-          aria-label={t.chartData}
-          maxLength={65536}
-          rows={6}
-          value={draft.data}
-          onChange={(event) =>
-            setDraft({ ...draft, data: event.currentTarget.value })
-          }
-        />
-      </label>
-      <p>{t.chartDataHint}</p>
+      {children ?? (
+        <>
+          <label>
+            {t.chartData}
+            <textarea
+              aria-label={t.chartData}
+              maxLength={65536}
+              rows={6}
+              value={draft.data}
+              onChange={(event) =>
+                setDraft({ ...draft, data: event.currentTarget.value })
+              }
+            />
+          </label>
+          <p>{t.chartDataHint}</p>
+        </>
+      )}
       {draft.kind === "pie" && <p>{t.chartPieHint}</p>}
       {draft.kind === "doughnut" && <p>{t.chartDoughnutHint}</p>}
       {draft.kind === "scatter" && <p>{t.chartScatterHint}</p>}

@@ -144,12 +144,10 @@ fn chart_structure(actual : Ref, expected : Ref) -> Bool {
 }
 
 ///|
-pub fn read(
-  opc : @opc.Package,
+fn read_chart(
   part : String,
-  parts : Map[String, @xml.Document],
-) -> Resource raise @failure.Failure {
-  let document = parts.get(part).unwrap_or_else(() => opc.xml(part))
+  document : @xml.Document,
+) -> (Ref, @layout.ChartData) raise @failure.Failure {
   let tree = Tree::new(part, document)
   guard document.nodes().length() <= 16384 &&
     document.source().length() <= 1048576 else {
@@ -324,6 +322,17 @@ pub fn read(
     }),
   }
   data.validate()
+  (root, data)
+}
+
+///|
+pub fn read(
+  opc : @opc.Package,
+  part : String,
+  parts : Map[String, @xml.Document],
+) -> Resource raise @failure.Failure {
+  let document = parts.get(part).unwrap_or_else(() => opc.xml(part))
+  let (root, data) = read_chart(part, document)
   let external = chart_child(root, "externalData")
   let workbook_link = external.node
     .attribute("id", uri=relationship_uri)

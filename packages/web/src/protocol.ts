@@ -55,11 +55,62 @@ import type {
   XlsxPictureSettings,
   XlsxShapeKind,
   XlsxShapeSettings,
+  XlsxChartSettings,
+  XlsxChartFrame,
 } from "@open-document/wasm/xlsx";
 import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
+  | {
+      operation: "getXlsxChart";
+      revision: number;
+      sheet: string;
+      profile: Record<string, string>;
+    }
+  | {
+      operation: "insertXlsxChart";
+      revision: number;
+      sheet: string;
+      settings: XlsxChartSettings;
+      width: number;
+      height: number;
+      profile: Record<string, string>;
+    }
+  | {
+      operation: "insertRangeXlsxChart";
+      revision: number;
+      sheet: string;
+      range: string;
+      kind: XlsxChartSettings["kind"];
+      title: string;
+      width: number;
+      height: number;
+      profile: Record<string, string>;
+    }
+  | {
+      operation: "setXlsxChart";
+      revision: number;
+      sheet: string;
+      id: string;
+      settings: XlsxChartSettings;
+      profile: Record<string, string>;
+    }
+  | {
+      operation: "frameXlsxChart";
+      revision: number;
+      sheet: string;
+      id: string;
+      settings: XlsxChartFrame;
+      profile: Record<string, string>;
+    }
+  | {
+      operation: "deleteXlsxChart";
+      revision: number;
+      sheet: string;
+      id: string;
+      profile: Record<string, string>;
+    }
   | {
       operation: "shapesXlsx";
       revision: number;

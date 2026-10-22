@@ -12,6 +12,7 @@ priv struct SheetObject {
   part : String
   media : String?
   shape : SheetShape?
+  chart : (String, @chart.WorksheetChart)?
   tree : Tree
   frame : @xml.Node
   source : @xml.Node
@@ -190,11 +191,30 @@ fn Session::sheet_objects(
       .unwrap_or([])
       .all(node => {
         node.uri == picture_uri &&
-        (coordinates + ["pic", "sp", "clientData"]).contains(node.name)
+        (coordinates + ["pic", "sp", "graphicFrame", "clientData"]).contains(
+          node.name,
+        )
       }) else {
       @failure.reject(
         "unsupported-drawing", "Only ordinary worksheet pictures are supported",
       )
+    }
+    if tree.picture_child(frame.id, "graphicFrame") is Some(source) {
+      guard tree.picture_child(frame.id, "pic") is None &&
+        tree.picture_child(frame.id, "sp") is None else {
+        @failure.reject(
+          "unsupported-drawing", "Drawing anchor has multiple objects",
+        )
+      }
+      let object = self.read_sheet_chart(
+        sheet, part, tree, frame, source, dimensions,
+      )
+      guard !ids.contains(object.id) else {
+        @failure.reject("unsupported-drawing", "Duplicate drawing identity")
+      }
+      ids[object.id] = ()
+      result.push(object)
+      continue
     }
     if tree.picture_child(frame.id, "sp") is Some(source) {
       guard tree.picture_child(frame.id, "pic") is None else {
@@ -370,6 +390,7 @@ fn Session::sheet_objects(
       part,
       media: Some(link.target),
       shape: None,
+      chart: None,
       tree,
       source,
       frame,

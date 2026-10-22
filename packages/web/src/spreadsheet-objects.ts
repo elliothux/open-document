@@ -3,6 +3,8 @@ import type {
   XlsxPictureSettings,
   XlsxShapeKind,
   XlsxShapeSettings,
+  XlsxChartSettings,
+  XlsxChartFrame,
 } from "./xlsx.js";
 import type { XlsxQuery, XlsxSheetEdit } from "@open-document/wasm/xlsx";
 import type { SpreadsheetCanvas } from "./spreadsheet-canvas.js";
@@ -15,6 +17,83 @@ export abstract class SpreadsheetObjects {
   protected abstract read<T>(action: () => Promise<T>): Promise<T>;
   protected abstract change(action: () => Promise<XlsxQuery>): Promise<void>;
   abstract get currentState(): XlsxQuery;
+  charts() {
+    return this.read(() =>
+      this.client.charts(
+        this.currentState.revision,
+        this.currentState.sheet,
+        this.profile,
+      ),
+    );
+  }
+  insertChart(
+    settings: XlsxChartSettings,
+    width: number,
+    height: number,
+  ): Promise<void> {
+    return this.change(() =>
+      this.client.insertChart(
+        this.currentState.revision,
+        this.currentState.sheet,
+        settings,
+        width,
+        height,
+        this.profile,
+      ),
+    );
+  }
+  insertChartRange(
+    range: string,
+    kind: XlsxChartSettings["kind"],
+    title: string,
+    width: number,
+    height: number,
+  ): Promise<void> {
+    return this.change(() =>
+      this.client.insertChartRange(
+        this.currentState.revision,
+        this.currentState.sheet,
+        range,
+        kind,
+        title,
+        width,
+        height,
+        this.profile,
+      ),
+    );
+  }
+  setChart(id: string, settings: XlsxChartSettings): Promise<void> {
+    return this.change(() =>
+      this.client.setChart(
+        this.currentState.revision,
+        this.currentState.sheet,
+        id,
+        settings,
+        this.profile,
+      ),
+    );
+  }
+  setChartFrame(id: string, settings: XlsxChartFrame): Promise<void> {
+    return this.change(() =>
+      this.client.setChartFrame(
+        this.currentState.revision,
+        this.currentState.sheet,
+        id,
+        settings,
+        this.profile,
+      ),
+    );
+  }
+  deleteChart(id: string): Promise<void> {
+    return this.change(() =>
+      this.client.deleteChart(
+        this.currentState.revision,
+        this.currentState.sheet,
+        id,
+        this.profile,
+      ),
+    );
+  }
   shapes() {
     return this.read(() =>
       this.client.shapes(

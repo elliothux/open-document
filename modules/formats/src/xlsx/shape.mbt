@@ -44,6 +44,9 @@ pub(all) struct ShapeSettings {
 
 ///|
 fn SheetObject::kind(self : SheetObject) -> String {
+  if self.chart is Some(_) {
+    return "chart"
+  }
   match self.shape {
     None => "picture"
     Some(shape) => if shape.text_box { "textBox" } else { shape.preset }

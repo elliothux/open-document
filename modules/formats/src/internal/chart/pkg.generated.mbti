@@ -15,6 +15,8 @@ pub fn markup(@layout.ChartData, String) -> String raise @failure.Failure
 
 pub fn read(@opc.Package, String, Map[String, @xml.Document]) -> Resource raise @failure.Failure
 
+pub fn read_worksheet(String, @xml.Document) -> WorksheetChart raise @failure.Failure
+
 // Errors
 
 // Types and methods
@@ -24,6 +26,14 @@ pub(all) struct Resource {
   data : @layout.ChartData
 }
 pub fn Resource::paint(Self, Double, Double, @layout.TextProbe, Map[String, String]) -> Array[@layout.PositionedPrimitive] raise @failure.Failure
+
+pub(all) struct WorksheetChart {
+  data : @layout.ChartData
+  categories : String
+  names : Array[String]
+  values : Array[String]
+}
+pub fn WorksheetChart::markup(Self) -> String raise @failure.Failure
 
 // Type aliases
 

@@ -298,7 +298,7 @@ export function checkPptxMasterTextStyles(value: unknown, kind: unknown): void {
     slots.add(key);
     if (slot.format !== null) {
       checkPptxTextFormat(slot.format);
-      if (Object.keys(record(slot.format)).length !== 9)
+      if (Object.keys(record(slot.format)).length !== 10)
         throw new Error("Incomplete master text style format");
     } else if (!slot.reason)
       throw new Error("Missing master text style format");

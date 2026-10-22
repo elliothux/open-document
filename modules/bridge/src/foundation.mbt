@@ -51,6 +51,9 @@ fn Foundation::dispatch(
     @failure.reject("closed-session", "Foundation session is closed")
   }
   let operation = field_string(request, "operation")
+  if operation.has_suffix("XlsxChart") {
+    return self.xlsx_chart_operation(operation, request)
+  }
   match operation {
     "docxMathFractions"
     | "editDocxMathFraction"

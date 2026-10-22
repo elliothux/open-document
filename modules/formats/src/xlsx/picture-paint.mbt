@@ -6,6 +6,20 @@ fn SheetObject::paint(
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> Unit raise @failure.Failure {
+  if self.chart is Some((_, chart)) {
+    if self.visible && rect.width > 0 && rect.height > 0 {
+      primitives.push(Clip(rect))
+      primitives.push(
+        Transform({ a: 1, b: 0, c: 0, d: 1, e: rect.x, f: rect.y, }),
+      )
+      primitives.append(
+        chart.data.paint(rect.width, rect.height, probe, profile),
+      )
+      primitives.push(Restore)
+      primitives.push(Restore)
+    }
+    return
+  }
   if self.shape is Some(shape) {
     if self.visible {
       shape.paint(primitives, rect, probe, profile)

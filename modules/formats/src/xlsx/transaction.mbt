@@ -31,6 +31,7 @@ fn Session::commit(
 ) -> Unit raise @failure.Failure {
   let parts = parts.copy()
   self.maintain_pivots(sheets, calculation, parts, edits, pivot_edits)
+  self.maintain_charts(sheets, calculation, parts, edits)
   self.protect_table_cells(sheets, calculation.names.tables, edited=table_edits)
   guard self.revision < 2147483647 else {
     @failure.reject("limit-exceeded", "Workbook revision exhausted")

@@ -2,6 +2,7 @@ import {
   "open_document/formats/internal/delimited",
   "open_document/formats/internal/protection",
   "open_document/formats/internal/image",
+  "open_document/formats/internal/chart",
   "open_document/core/archive",
   "open_document/core/opc",
   "open_document/core/xml",

@@ -1,6 +1,7 @@
 import { xlsxQuery, type XlsxQuery } from "./xlsx-query.js";
 import { XlsxDrawingSession } from "./xlsx-drawings.js";
 export * from "./xlsx-shapes.js";
+export * from "./xlsx-charts.js";
 export * from "./xlsx-pictures.js";
 export { xlsxQuery } from "./xlsx-query.js";
 import {

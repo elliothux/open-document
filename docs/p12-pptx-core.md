@@ -141,7 +141,9 @@ PNG/JPEG 图片插入已接通核心、Wasm、Worker、宿主和默认 UI。新�
 
 文本框四边内边距、上/中/下垂直对齐、换行、缩小字体及形状随文字调整大小已接通核心、API 和默认 UI。支持本地顶层形状的混合多选，保留文字及对象选择。缩小模式同时约束宽高并写回比例；形状调整模式保留字号，按换行设置调整高度或宽高，输入、格式及查找替换与几何共用精确历史。实现归 [`text-frame.mbt`](../modules/formats/src/pptx/text-frame.mbt)和 [`text-resize.mbt`](../modules/formats/src/pptx/text-resize.mbt)，边界归[格式合同](references/formats.md#pptx)。
 
-基础文字格式已接通字体、字号、粗体、斜体、RGB 颜色、单下划线、单删除线、纯色高亮及清除高亮、上/下标及恢复基线，以及段落左/中/右/两端对齐。文字范围只修改选中字，对象模式作用于所选框；光标和空段落的格式用于后续原生输入。核心按需拆分 run，保留范围外内容和属性，格式与文字共用精确历史。装饰及两端对齐沿公共行绘制输出到 Canvas 和 PDF，保留形状的框内裁剪。默认面板显示混合值，各字段保留普通命令期间的草稿。两端对齐的五项定向核心和两条 Chromium 流程已检查中间/末行、字形位置、原生草稿、源片段、精确历史、无操作、重开输入及 PDF。实现归 [`text-format.mbt`](../modules/formats/src/pptx/text-format.mbt)和 [`text-format-properties.mbt`](../modules/formats/src/pptx/text-format-properties.mbt)，接口和剩余边界归[格式合同](references/formats.md#pptx)。
+基础文字格式已接通字体、字号、字符间距、粗体、斜体、RGB 颜色、单下划线、单删除线、纯色高亮及清除高亮、上/下标及恢复基线，以及段落左/中/右/两端对齐。文字范围只修改选中字，对象模式作用于所选框；光标和空段落的格式用于后续原生输入。核心按需拆分 run，保留范围外内容和属性，格式与文字共用精确历史。装饰及两端对齐沿公共行绘制输出到 Canvas 和 PDF，保留形状的框内裁剪。默认面板显示混合值，各字段保留普通命令期间的草稿。两端对齐的五项定向核心和两条 Chromium 流程已检查中间/末行、字形位置、原生草稿、源片段、精确历史、无操作、重开输入及 PDF。实现归 [`text-format.mbt`](../modules/formats/src/pptx/text-format.mbt)和 [`text-format-properties.mbt`](../modules/formats/src/pptx/text-format-properties.mbt)，接口和剩余边界归[格式合同](references/formats.md#pptx)。
+
+字符间距已接通原生百分之一点单位、继承、局部格式、光标后续输入、母版分级默认格式及清除覆盖。四项定向核心、30 条接口断言及两条 Chromium 流程检查精确历史、重开输入、原生 XML、母版恢复继承、实际 Canvas 宽度及独立 PDF 坐标。单位与资源上限归[格式合同](references/formats.md#pptx)。
 
 段前/段后间距、行距、左/右/首行缩进和 LTR/RTL 段落方向已接通核心、API 与默认面板。段距支持点值或百分比，行距支持固定点值或百分比；所涉段落和多框共用一次源事务。方向沿继承读取，切换时镜像左右对齐，清除直接格式恢复继承。双向文字、缩进、光标、适配、Canvas 和 PDF 使用同一核心排版，缓存区分显式基础方向。查询区分混合值与保护原因，保留非目标段落及字符内容。实现归 [`paragraph-format.mbt`](../modules/formats/src/pptx/paragraph-format.mbt)和 [`paragraph-properties.mbt`](../modules/formats/src/pptx/paragraph-properties.mbt)，单位与边界归[格式合同](references/formats.md#pptx)。
 

@@ -538,7 +538,13 @@ pub fn Session::query(
     "printRange": self.print_range_query(sheet_index),
     "headerFooter": self.header_footer_query(current),
     "dimensions": {
-      "rowHeight": current.dimensions.rows
+      "rowHeight": (if self.grid is Some(grid) &&
+        grid.revision == self.revision &&
+        grid.sheet == current.id {
+        grid.dimensions.rows
+      } else {
+        current.dimensions.rows
+      })
       .uniform(range.unwrap().top, range.unwrap().bottom)
       .map(value => Json(value))
       .unwrap_or(Json::null()),

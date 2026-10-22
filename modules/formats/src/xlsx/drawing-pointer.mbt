@@ -164,7 +164,11 @@ fn SheetObject::pointer_rect(
         width,
         height,
       }
-      ignore(self.shape_settings(result).checked(grid.dimensions))
+      if self.chart is Some(_) {
+        check_picture_rect(self.anchor, result, grid.dimensions)
+      } else {
+        ignore(self.shape_settings(result).checked(grid.dimensions))
+      }
       self.check_change(false, rect=result)
       return result
     }
@@ -234,7 +238,19 @@ pub fn Session::drawing_gesture(
   } else {
     { ..self, history: [], redo: [], history_bytes: 0, }
   }
-  let query = if object.shape is Some(_) {
+  let query = if object.chart is Some(_) {
+    view.set_chart_frame(
+      self.revision,
+      sheet,
+      id,
+      object.anchor,
+      rect,
+      object.name,
+      object.description,
+      probe,
+      profile,
+    )
+  } else if object.shape is Some(_) {
     view.set_shape(
       self.revision,
       sheet,

@@ -16,6 +16,8 @@ fn Session::create_sheet_resource(
     "pivotTables"
   } else if kind == "pivotCacheDefinition" || kind == "pivotCacheRecords" {
     "pivotCache"
+  } else if kind == "chart" {
+    "charts"
   } else if kind == "table" {
     "tables"
   } else if kind == "comments" {
@@ -25,6 +27,8 @@ fn Session::create_sheet_resource(
   }
   let stem = if kind.has_prefix("pivot") {
     "od" + kind
+  } else if kind == "chart" {
+    "odChart"
   } else if kind == "table" {
     "odTable"
   } else if kind == "drawing" {
@@ -55,6 +59,8 @@ fn Session::create_sheet_resource(
   created[part] = document
   let content_type = if kind.has_prefix("pivot") {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.\{kind}+xml"
+  } else if kind == "chart" {
+    "application/vnd.openxmlformats-officedocument.drawingml.chart+xml"
   } else if kind == "table" {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.table+xml"
   } else if kind == "comments" {

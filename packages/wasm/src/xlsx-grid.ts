@@ -31,7 +31,7 @@ export interface XlsxViewport extends DrawingBatch {
   notes: { address: string; author: string; text: string; rect: DrawRect }[];
   objects: {
     id: string;
-    kind: "picture" | XlsxShapeKind;
+    kind: "picture" | "chart" | XlsxShapeKind;
     name: string;
     selected: boolean;
     regions: XlsxDrawingRegion[];
@@ -53,6 +53,7 @@ export function xlsxGridObjects(value: unknown): void {
       ids.has(picture.id) ||
       !(
         picture.kind === "picture" ||
+        picture.kind === "chart" ||
         xlsxShapeKinds.some((kind) => kind === picture.kind)
       ) ||
       typeof picture.name !== "string" ||

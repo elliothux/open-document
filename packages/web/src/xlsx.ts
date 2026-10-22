@@ -1,5 +1,17 @@
 import { XlsxDrawingClient } from "./xlsx-drawings.js";
 export {
+  xlsxChartKinds,
+  xlsxCharts,
+  checkXlsxChartSettings,
+  checkXlsxChartFrame,
+} from "@open-document/wasm/xlsx";
+export type {
+  XlsxChartSettings,
+  XlsxChartFrame,
+  XlsxChart,
+  XlsxCharts,
+} from "@open-document/wasm/xlsx";
+export {
   xlsxShapeKinds,
   checkXlsxShapeSettings,
 } from "@open-document/wasm/xlsx";

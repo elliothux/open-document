@@ -19,6 +19,15 @@ fn Session::drawing_font_keys(
   }
   let keys : Map[String, Bool] = Map([])
   for document in drawings.values() {
+    if document
+      .nodes()
+      .any(node => {
+        node.uri == picture_drawing_uri &&
+        node.name == "graphicData" &&
+        node.attribute("uri") == Some(chart_uri)
+      }) {
+      keys["Arial"] = true
+    }
     let tree = Tree::new(document)
     for node in document.nodes() {
       if node.uri != picture_drawing_uri ||

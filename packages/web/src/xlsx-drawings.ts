@@ -1,5 +1,12 @@
 import type { Connection } from "./connection.js";
 import {
+  xlsxCharts,
+  checkXlsxChartSettings,
+  checkXlsxChartFrame,
+  type XlsxChartSettings,
+  type XlsxChartFrame,
+} from "@open-document/wasm/xlsx";
+import {
   xlsxShapes,
   checkXlsxShapeInsert,
   checkXlsxShapeSettings,
@@ -17,6 +24,119 @@ import {
 
 export class XlsxDrawingClient {
   constructor(protected readonly connection: Connection) {}
+  async charts(
+    revision: number,
+    sheet: string,
+    profile: Record<string, string>,
+  ) {
+    return xlsxCharts(
+      await this.connection.request({
+        operation: "getXlsxChart",
+        revision,
+        sheet,
+        profile,
+      }),
+    );
+  }
+  async insertChart(
+    revision: number,
+    sheet: string,
+    settings: XlsxChartSettings,
+    width: number,
+    height: number,
+    profile: Record<string, string>,
+  ): Promise<XlsxQuery> {
+    checkXlsxChartSettings(settings);
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "insertXlsxChart",
+        revision,
+        sheet,
+        settings,
+        width,
+        height,
+        profile,
+      }),
+    );
+  }
+  async insertChartRange(
+    revision: number,
+    sheet: string,
+    range: string,
+    kind: XlsxChartSettings["kind"],
+    title: string,
+    width: number,
+    height: number,
+    profile: Record<string, string>,
+  ): Promise<XlsxQuery> {
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "insertRangeXlsxChart",
+        revision,
+        sheet,
+        range,
+        kind,
+        title,
+        width,
+        height,
+        profile,
+      }),
+    );
+  }
+  async setChart(
+    revision: number,
+    sheet: string,
+    id: string,
+    settings: XlsxChartSettings,
+    profile: Record<string, string>,
+  ): Promise<XlsxQuery> {
+    checkXlsxChartSettings(settings);
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "setXlsxChart",
+        revision,
+        sheet,
+        id,
+        settings,
+        profile,
+      }),
+    );
+  }
+  async setChartFrame(
+    revision: number,
+    sheet: string,
+    id: string,
+    settings: XlsxChartFrame,
+    profile: Record<string, string>,
+  ): Promise<XlsxQuery> {
+    checkXlsxChartFrame(settings);
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "frameXlsxChart",
+        revision,
+        sheet,
+        id,
+        settings,
+        profile,
+      }),
+    );
+  }
+  async deleteChart(
+    revision: number,
+    sheet: string,
+    id: string,
+    profile: Record<string, string>,
+  ): Promise<XlsxQuery> {
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "deleteXlsxChart",
+        revision,
+        sheet,
+        id,
+        profile,
+      }),
+    );
+  }
   async shapes(
     revision: number,
     sheet: string,

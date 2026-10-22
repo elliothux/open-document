@@ -1,3 +1,7 @@
+import {
+  isXlsxDrawingRequest,
+  drawingOperation,
+} from "./worker-xlsx-drawings.js";
 import { loadEngine, type TextSession } from "@open-document/wasm/engine";
 import type { FoundationSession } from "@open-document/wasm/foundation";
 import type { XlsxSession } from "@open-document/wasm/xlsx";
@@ -41,6 +45,7 @@ async function dispatch(request: Request): Promise<unknown> {
     foundation = engine.openFoundation();
     return null;
   }
+  if (isXlsxDrawingRequest(request)) return drawingOperation(workbook, request);
   if (pdf) {
     if (request.operation === "font") {
       pdf.addFont(request.bytes, request.identity);
@@ -82,102 +87,6 @@ async function dispatch(request: Request): Promise<unknown> {
         return workbook.exportCsv(request.revision, request.selection);
       case "queryXlsx":
         return workbook.query(request.sheet, request.range);
-      case "picturesXlsx":
-        return workbook.pictures(
-          request.revision,
-          request.sheet,
-          request.profile,
-        );
-      case "shapesXlsx":
-        return workbook.shapes(
-          request.revision,
-          request.sheet,
-          request.profile,
-        );
-      case "insertShapeXlsx":
-        return workbook.insertShape(
-          request.revision,
-          request.sheet,
-          request.kind,
-          request.width,
-          request.height,
-          request.text,
-          request.profile,
-        );
-      case "setShapeXlsx":
-        return workbook.setShape(
-          request.revision,
-          request.sheet,
-          request.objectId,
-          request.settings,
-          request.profile,
-        );
-      case "deleteShapeXlsx":
-        return workbook.deleteShape(
-          request.revision,
-          request.sheet,
-          request.objectId,
-          request.profile,
-        );
-      case "pictureResourceXlsx":
-        return workbook.pictureResource(request.revision, request.bytes);
-      case "selectDrawingXlsx":
-        return workbook.selectDrawing(
-          request.revision,
-          request.layout,
-          request.objectId,
-        );
-      case "drawingGestureXlsx":
-        return workbook.drawingGesture(
-          request.revision,
-          request.layout,
-          request,
-          request.profile,
-        );
-      case "imageBytesXlsx":
-        return workbook.imageBytes(request.revision, request.key);
-      case "imageXlsx":
-        return workbook.addImage(
-          request.revision,
-          request.key,
-          request.width,
-          request.height,
-          request.bytes,
-        );
-      case "insertPictureXlsx":
-        return workbook.insertPicture(
-          request.revision,
-          request.sheet,
-          request.width,
-          request.height,
-          request.bytes,
-          request.profile,
-          request.name,
-          request.description,
-        );
-      case "replacePictureXlsx":
-        return workbook.replacePicture(
-          request.revision,
-          request.sheet,
-          request.pictureId,
-          request.bytes,
-          request.profile,
-        );
-      case "setPictureXlsx":
-        return workbook.setPicture(
-          request.revision,
-          request.sheet,
-          request.pictureId,
-          request.settings,
-          request.profile,
-        );
-      case "deletePictureXlsx":
-        return workbook.deletePicture(
-          request.revision,
-          request.sheet,
-          request.pictureId,
-          request.profile,
-        );
       case "pivotsXlsx":
         return workbook.pivots(request.revision, request.sheet);
       case "pivotPreviewXlsx":
@@ -341,18 +250,6 @@ async function dispatch(request: Request): Promise<unknown> {
         case "clearXlsx":
         case "printXlsx":
         case "exportXlsxPdf":
-        case "picturesXlsx":
-        case "shapesXlsx":
-        case "insertShapeXlsx":
-        case "setShapeXlsx":
-        case "deleteShapeXlsx":
-        case "pictureResourceXlsx":
-        case "imageBytesXlsx":
-        case "imageXlsx":
-        case "insertPictureXlsx":
-        case "setPictureXlsx":
-        case "replacePictureXlsx":
-        case "deletePictureXlsx":
           throw new Error("Open an XLSX client first");
         case "budget":
           return foundation.defaultBudget();

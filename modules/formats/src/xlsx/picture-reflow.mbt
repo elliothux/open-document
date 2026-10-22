@@ -3,10 +3,22 @@ fn SheetObject::transform_change(
   self : SheetObject,
   rect : @layout.Border,
 ) -> @xml.SourceChange raise @failure.Failure {
-  let props = self.tree.picture_node(self.source.id, "spPr")
-  let xml = picture_transform(rect)
-  if self.tree.picture_child(props.id, "xfrm", uri=picture_drawing_uri)
-    is Some(node) {
+  let props = if self.chart is Some(_) {
+    self.source
+  } else {
+    self.tree.picture_node(self.source.id, "spPr")
+  }
+  let uri = if self.chart is Some(_) {
+    picture_uri
+  } else {
+    picture_drawing_uri
+  }
+  let xml = if self.chart is Some(_) {
+    chart_transform(rect)
+  } else {
+    picture_transform(rect)
+  }
+  if self.tree.picture_child(props.id, "xfrm", uri~) is Some(node) {
     {
       node: props.id,
       offset: node.start - props.start,
@@ -23,11 +35,15 @@ fn SheetObject::transform_change(
 ///|
 fn SheetObject::transform_matches(self : SheetObject) -> Bool {
   try {
-    let props = self.tree.picture_node(self.source.id, "spPr")
+    let props = if self.chart is Some(_) {
+      self.source
+    } else {
+      self.tree.picture_node(self.source.id, "spPr")
+    }
     let transform = self.tree.picture_node(
       props.id,
       "xfrm",
-      uri=picture_drawing_uri,
+      uri=if self.chart is Some(_) { picture_uri } else { picture_drawing_uri },
     )
     let position = self.tree.picture_node(
       transform.id,
