@@ -6,6 +6,7 @@ import {
   type XlsxConditionalFormat,
   type XlsxCellFormat,
   conditionalThresholds,
+  conditionalDatePeriods,
   type XlsxConditionalStop,
 } from "@open-document/web/xlsx";
 import type { EditorController, UiSnapshot } from "./controller.js";
@@ -243,6 +244,11 @@ export function XlsxConditional({
     notContainsBlanks: t.conditionalNonblanks,
     containsErrors: t.conditionalErrors,
     notContainsErrors: t.conditionalNonerrors,
+    containsText: t.conditionalContains,
+    notContainsText: t.conditionalNotContains,
+    beginsWith: t.conditionalBegins,
+    endsWith: t.conditionalEnds,
+    timePeriod: t.conditionalDate,
   };
   const selected = current.rules.find((r) => r.priority === priority);
   const reason = current.readOnlyReason || selected?.readOnlyReason || "";
@@ -337,7 +343,12 @@ export function XlsxConditional({
                   kind === "containsBlanks" ||
                   kind === "notContainsBlanks" ||
                   kind === "containsErrors" ||
-                  kind === "notContainsErrors"
+                  kind === "notContainsErrors" ||
+                  kind === "containsText" ||
+                  kind === "notContainsText" ||
+                  kind === "beginsWith" ||
+                  kind === "endsWith" ||
+                  kind === "timePeriod"
                 ) {
                   setRule({
                     kind,
@@ -353,7 +364,14 @@ export function XlsxConditional({
                       ? { rank: { rank: 10, percent: false, bottom: false } }
                       : kind === "aboveAverage"
                         ? { average: { above: true, equal: false, stdDev: 0 } }
-                        : {}),
+                        : kind === "containsText" ||
+                            kind === "notContainsText" ||
+                            kind === "beginsWith" ||
+                            kind === "endsWith"
+                          ? { text: rule.text ?? "" }
+                          : kind === "timePeriod"
+                            ? { timePeriod: "today" }
+                            : {}),
                   });
                   return;
                 }
@@ -414,6 +432,52 @@ export function XlsxConditional({
             />
           ) : (
             <>
+              {rule.kind === "timePeriod" && (
+                <label>
+                  {t.conditionalPeriod}
+                  <select
+                    aria-label={t.conditionalPeriod}
+                    value={rule.timePeriod}
+                    onChange={(e) => {
+                      const period = conditionalDatePeriods.find(
+                        (period) => period === e.currentTarget.value,
+                      );
+                      if (period) setRule({ ...rule, timePeriod: period });
+                    }}
+                  >
+                    {conditionalDatePeriods.map((period, index) => (
+                      <option key={period} value={period}>
+                        {
+                          [
+                            t.filterRelativeYesterday,
+                            t.filterRelativeToday,
+                            t.filterRelativeTomorrow,
+                            t.conditionalLast7Days,
+                            t.filterRelativeLastWeek,
+                            t.filterRelativeThisWeek,
+                            t.filterRelativeNextWeek,
+                            t.filterRelativeLastMonth,
+                            t.filterRelativeThisMonth,
+                            t.filterRelativeNextMonth,
+                          ][index]
+                        }
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              {rule.text !== undefined && (
+                <label>
+                  {t.conditionalText}
+                  <input
+                    aria-label={t.conditionalText}
+                    value={rule.text}
+                    onChange={(e) =>
+                      setRule({ ...rule, text: e.currentTarget.value })
+                    }
+                  />
+                </label>
+              )}
               {(rule.kind === "top10" || rule.kind === "aboveAverage") && (
                 <ConditionalStatisticsFields
                   rule={rule}

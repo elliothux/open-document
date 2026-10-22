@@ -72,7 +72,7 @@ fn Session::prepare_structural_range_in(
     if insertion == Some(node.id) {
       insertion_offset = keep
     }
-    let picture = ["drawing", "fldSimple", "oMath"].contains(
+    let picture = ["drawing", "fldSimple", "oMath", "oMathPara"].contains(
       tree.nodes[node.id].name,
     )
     if picture && keep == remove {
@@ -91,7 +91,9 @@ fn Session::prepare_structural_range_in(
     let before = inline_text(tree.nodes[node.id])
     let remove = (end.offset - offset).clamp(min=0, max=before.length())
     let after = before[remove:].to_owned()
-    if ["drawing", "fldSimple", "oMath"].contains(tree.nodes[node.id].name) &&
+    if ["drawing", "fldSimple", "oMath", "oMathPara"].contains(
+        tree.nodes[node.id].name,
+      ) &&
       remove == 0 {
       object_offsets[node.id] = 0
     }
@@ -229,7 +231,10 @@ fn Session::prepare_structural_range_in(
       let styles = self.styles([])
       for
         id in tree.children[last.id].filter(id => {
-          (tree.nodes[id].uri == math_uri && tree.nodes[id].name == "oMath") ||
+          (
+            tree.nodes[id].uri == math_uri &&
+            ["oMath", "oMathPara"].contains(tree.nodes[id].name)
+          ) ||
           (
             tree.nodes[id].uri == word_uri &&
             [

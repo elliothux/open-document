@@ -9,7 +9,7 @@ export interface DocxMathValue {
   format?: MathFormat;
 }
 export type DocxMathEdit =
-  | (DocxMathValue & { action: "insert" })
+  | (DocxMathValue & { action: "insert"; display?: boolean })
   | (DocxMathValue & { action: "update"; id: number })
   | { action: "delete"; id: number };
 export interface DocxMathExpressions {
@@ -152,6 +152,11 @@ export function checkDocxMathEdit(value: unknown): void {
     insert = edit.action === "insert",
     remove = edit.action === "delete";
   const keys = ["action"];
+  if (insert && Object.hasOwn(edit, "display")) {
+    if (typeof edit.display !== "boolean")
+      throw new Error("Invalid display placement");
+    keys.push("display");
+  }
   if (!insert) keys.push("id");
   if (!remove) keys.push("latex");
   const formatted = !remove && Object.hasOwn(edit, "format");

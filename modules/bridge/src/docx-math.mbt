@@ -38,6 +38,14 @@ fn Foundation::math_operation(
     @failure.reject("invalid-operation", "Unknown math action")
   }
   let keys = ["action"]
+  let display = if expression &&
+    action == "insert" &&
+    fields.contains("display") {
+    keys.push("display")
+    xlsx_boolean(fraction, "display")
+  } else {
+    false
+  }
   if action != "insert" {
     keys.push("id")
   }
@@ -91,6 +99,7 @@ fn Foundation::math_operation(
       profile=xlsx_profile(request),
       images=self.images,
       format?,
+      display~,
     )
   } else if scripts {
     session.edit_math_script(

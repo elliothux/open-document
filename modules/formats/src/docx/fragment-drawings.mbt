@@ -294,12 +294,7 @@ fn fragment_anchor_identity(identity : Int) -> String {
 fn WordTree::check_drawing_budget(
   self : WordTree,
 ) -> Unit raise @failure.Failure {
-  guard self.order
-    .filter(id => {
-      self.nodes[id].uri == math_uri && self.nodes[id].name == "oMath"
-    })
-    .length() <=
-    256 else {
+  guard self.order.filter(id => self.math_root(id)).length() <= 256 else {
     @failure.reject("limit-exceeded", "Document fractions exceed 256")
   }
   guard self.order

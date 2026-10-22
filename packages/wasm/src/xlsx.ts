@@ -87,6 +87,7 @@ export type {
 export {
   checkXlsxConditionalFormat,
   conditionalThresholds,
+  conditionalDatePeriods,
 } from "./xlsx-conditional.js";
 export type {
   XlsxConditionalFormat,

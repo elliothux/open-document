@@ -16,7 +16,10 @@ fn fragment_paragraph(
 ) -> String raise @failure.Failure {
   guard paragraph.readOnlyReason.is_empty() &&
     tree.children[paragraph.id].all(id => {
-      (tree.nodes[id].uri == math_uri && tree.nodes[id].name == "oMath") ||
+      (
+        tree.nodes[id].uri == math_uri &&
+        ["oMath", "oMathPara"].contains(tree.nodes[id].name)
+      ) ||
       (
         tree.nodes[id].uri == word_uri &&
         (
@@ -140,7 +143,9 @@ fn fragment_paragraph(
           .fold(init=0, (sum, child) => {
             sum + inline_text(tree.nodes[child]).length()
           })
-        } else if ["fldSimple", "oMath"].contains(tree.nodes[id].name) {
+        } else if ["fldSimple", "oMath", "oMathPara"].contains(
+            tree.nodes[id].name,
+          ) {
           1
         } else {
           0
@@ -184,6 +189,16 @@ fn fragment_paragraph(
         @failure.reject("protected-content", "Rich math layout is unavailable")
       }
       let xml = math_content_markup(content)
+      let xml = if tree.nodes[id].name == "oMathPara" {
+        let align = if ["left", "center", "right"].contains(paragraph.align) {
+          paragraph.align
+        } else {
+          "center"
+        }
+        "<m:oMathPara xmlns:m=\"\{math_uri}\"><m:oMathParaPr><m:jc m:val=\"\{align}\"/></m:oMathParaPr>\{xml}</m:oMathPara>"
+      } else {
+        xml
+      }
       guard xml.length() <= limit - units else {
         @failure.reject("limit-exceeded", "Rich math exceeds clipboard budget")
       }

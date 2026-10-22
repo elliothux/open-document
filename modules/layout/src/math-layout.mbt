@@ -26,6 +26,7 @@ fn MathExpression::measure(
   probe : TextProbe,
   profile : Map[String, String],
   paths : Ref[Int],
+  display~ : Bool = false,
 ) -> MathBox raise @failure.Failure {
   let box = match self {
     Matrix(base, columns, rows) =>
@@ -34,7 +35,9 @@ fn MathExpression::measure(
         columns,
         rows.map(row => {
           row.map(value => {
-            value.map(value => value.measure(style, probe, profile, paths))
+            value.map(value => {
+              value.measure(style, probe, profile, paths, display~)
+            })
           })
         }),
         style,
@@ -42,24 +45,25 @@ fn MathExpression::measure(
         profile,
         paths,
       )
-    Nary(operator, _, lower, upper, body) => {
-      let sign = probe.math_nary_sign(operator, style, profile, paths)
+    Nary(operator, location, lower, upper, body) => {
+      let sign = probe.math_nary_sign(operator, style, profile, paths, display~)
       let argument = { ..style, size: style.size * 0.76, }
+      let lower = lower.map(value => {
+        value.measure(argument, probe, profile, paths)
+      })
+      let upper = upper.map(value => {
+        value.measure(argument, probe, profile, paths)
+      })
       let operator = if lower is None && upper is None {
         sign
+      } else if display && location == "undOvr" {
+        measure_math_limits(sign, lower, upper, style.size)
       } else {
-        measure_math_scripts(
-          sign,
-          lower.map(value => value.measure(argument, probe, profile, paths)),
-          upper.map(value => value.measure(argument, probe, profile, paths)),
-          style,
-          probe,
-          profile,
-        )
+        measure_math_scripts(sign, lower, upper, style, probe, profile)
       }
       measure_math_nary(
         operator,
-        body.measure(style, probe, profile, paths),
+        body.measure(style, probe, profile, paths, display~),
         style.size,
       )
     }
@@ -68,7 +72,9 @@ fn MathExpression::measure(
         open,
         close,
         separator,
-        arguments.map(value => value.measure(style, probe, profile, paths)),
+        arguments.map(value => {
+          value.measure(style, probe, profile, paths, display~)
+        }),
         style,
         probe,
         profile,
@@ -90,7 +96,7 @@ fn MathExpression::measure(
     }
     Row(children) => {
       let boxes = children.map(child => {
-        child.measure(style, probe, profile, paths)
+        child.measure(style, probe, profile, paths, display~)
       })
       let ascent = boxes.fold(init=0.0, (value, box) => value.max(box.ascent))
       let descent = boxes.fold(init=0.0, (value, box) => {
@@ -123,7 +129,7 @@ fn MathExpression::measure(
     Scripts(base, sub, sup) => {
       let argument = { ..style, size: style.size * 0.76, }
       measure_math_scripts(
-        base.measure(style, probe, profile, paths),
+        base.measure(style, probe, profile, paths, display~),
         sub.map(value => value.measure(argument, probe, profile, paths)),
         sup.map(value => value.measure(argument, probe, profile, paths)),
         style,
@@ -135,7 +141,7 @@ fn MathExpression::measure(
       let index_style = { ..style, size: style.size * 0.6498, }
       measure_math_root(
         degree.map(value => value.measure(index_style, probe, profile, paths)),
-        radicand.measure(style, probe, profile, paths),
+        radicand.measure(style, probe, profile, paths, display~),
         style,
         probe,
         profile,
@@ -162,7 +168,13 @@ fn MathFormula::prepare(
   profile : Map[String, String],
 ) -> DrawingFrame raise @failure.Failure {
   self.validate()
-  let box = self.expression.measure(self.style, probe, profile, Ref(0))
+  let box = self.expression.measure(
+    self.style,
+    probe,
+    profile,
+    Ref(0),
+    display=self.display,
+  )
   {
     width: box.width,
     height: box.height,

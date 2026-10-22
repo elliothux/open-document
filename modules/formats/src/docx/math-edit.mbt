@@ -8,7 +8,7 @@ fn Session::math_target(
   self.check_picture_context(tree)
   guard tree.nodes.get(id) is Some(node) &&
     node.uri == math_uri &&
-    node.name == "oMath" &&
+    ["oMath", "oMathPara"].contains(node.name) &&
     tree.nodes.get(node.parent) is Some(paragraph) &&
     paragraph.uri == word_uri &&
     paragraph.name == "p" else {
@@ -35,6 +35,7 @@ fn Session::math_target(
     !tree.source[node.start:node.end].contains("<?") else {
     @failure.reject("protected-content", "Math contains opaque source")
   }
+  ignore(self.math_display_alignment(tree, id))
   let drawing = self.read_inline_math(
     tree,
     id,
@@ -52,9 +53,7 @@ fn Session::math_catalog(
   let scripts = kind == "script"
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
-  let roots = tree.order.filter(id => {
-    tree.nodes[id].uri == math_uri && tree.nodes[id].name == "oMath"
-  })
+  let roots = tree.order.filter(id => tree.math_root(id))
   guard roots.length() <= 256 else {
     @failure.reject("limit-exceeded", "Math catalog exceeds 256 items")
   }
@@ -175,6 +174,7 @@ fn Session::edit_inline_math(
   profile~ : Map[String, String],
   images~ : @layout.Images,
   format? : CharacterFormat,
+  display~ : Bool = false,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   guard ["insert", "update", "delete"].contains(action) else {
@@ -192,32 +192,46 @@ fn Session::edit_inline_math(
   let steps : Array[@xml.Edit] = []
   let mut after = self.selection
   let (candidate, paragraphs) = if action == "insert" {
-    let markup = math_content_markup(
+    let expression = math_content_markup(
       math_with_style(
         content,
         requested_style.unwrap_or(math_content_style(content)),
       ),
       inherited=requested_style is None,
     )
-    guard tree.order
-      .filter(id => {
-        tree.nodes[id].uri == math_uri && tree.nodes[id].name == "oMath"
-      })
-      .length() <
-      256 else {
+    let markup = if display {
+      "<m:oMathPara xmlns:m=\"\{math_uri}\">\{expression}</m:oMathPara>"
+    } else {
+      expression
+    }
+    guard tree.order.filter(id => tree.math_root(id)).length() < 256 else {
       @failure.reject("limit-exceeded", "Fraction catalog exceeds 256 items")
     }
     guard self.selection is Some(selection) else {
       @failure.reject("invalid-position", "Select a document position first")
     }
     let prepared = self.prepare_plain_range(selection, "")
-    let document = prepared.map(edit => edit.document).unwrap_or(original)
-    let position = prepared
+    let mut document = prepared.map(edit => edit.document).unwrap_or(original)
+    let mut position = prepared
       .bind(edit => edit.edit.after)
       .map(selection => selection.focus)
       .unwrap_or(selection.focus)
     if prepared is Some(edit) {
       steps.append(edit.edit.xml)
+    }
+    if display &&
+      fragment_paragraph_length(WordTree::new(document), position.paragraph) > 0 {
+      let view = { ..self, document: Some(document), }
+      let split = view
+        .prepare_plain_range({ anchor: position, focus: position, }, "\n\n")
+        .unwrap()
+      steps.append(split.edit.xml)
+      document = split.document
+      let caret = split.edit.after.unwrap().focus
+      let tree = WordTree::new(document)
+      let siblings = tree.children[tree.nodes[caret.paragraph].parent]
+      let index = siblings.search(caret.paragraph).unwrap()
+      position = { ..caret, paragraph: siblings[index - 1], offset: 0, }
     }
     let (candidate, edit) = document.edit_source([
       self.paragraph_inline_source(document, position, _ => markup),
@@ -231,10 +245,13 @@ fn Session::edit_inline_math(
       frameStart: None,
     }
     after = Some({ anchor: caret, focus: caret, })
-    (
-      candidate,
-      prepared.map(edit => edit.edit.paragraphs).unwrap_or([position.paragraph]),
-    )
+    let affected = prepared
+      .map(edit => edit.edit.paragraphs.copy())
+      .unwrap_or([])
+    if !affected.contains(position.paragraph) {
+      affected.push(position.paragraph)
+    }
+    (candidate, affected)
   } else {
     let (paragraph, current) = self.math_target(tree, id)
     guard !plain ||
@@ -261,7 +278,12 @@ fn Session::edit_inline_math(
       .descendants(id)
       .any(id => tree.nodes[id].uri == word_uri && tree.nodes[id].name == "rPr")
     if action == "update" &&
-      Json(content) == Json(current) &&
+      (match (content, current) {
+        (Math(a), Math(b)) =>
+          Json(a.expression) == Json(b.expression) &&
+          Json(a.style) == Json(b.style)
+        _ => false
+      }) &&
       (requested_style is None || explicit_style) {
       return self.edit_state()
     }
@@ -269,9 +291,13 @@ fn Session::edit_inline_math(
     let markup = if action == "delete" {
       ""
     } else {
-      math_content_markup(
-        content,
-        inherited=requested_style is None && !explicit_style,
+      tree.math_replacement(
+        original,
+        id,
+        math_content_markup(
+          content,
+          inherited=requested_style is None && !explicit_style,
+        ),
       )
     }
     let (candidate, edit) = original.edit_source([

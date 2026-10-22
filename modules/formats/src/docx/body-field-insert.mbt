@@ -38,7 +38,7 @@ fn Session::paragraph_inline_source(
     let node = tree.nodes[pair.0]
     if node.name == "fldSimple" {
       tree.field_result_run(node.id)
-    } else if node.name == "oMath" {
+    } else if ["oMath", "oMathPara"].contains(node.name) {
       None
     } else {
       Some(node.parent)
@@ -61,7 +61,7 @@ fn Session::paragraph_inline_source(
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
   let change : @xml.SourceChange = if target is Some((id, offset)) {
     let node = tree.nodes[id]
-    if ["fldSimple", "oMath"].contains(node.name) {
+    if ["fldSimple", "oMath", "oMathPara"].contains(node.name) {
       {
         node: paragraph.id,
         offset: (if offset == 0 { node.start } else { node.end }) -

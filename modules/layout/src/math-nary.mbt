@@ -5,9 +5,37 @@ fn TextProbe::math_nary_sign(
   style : TextStyle,
   profile : Map[String, String],
   paths : Ref[Int],
+  display~ : Bool = false,
 ) -> MathBox raise @failure.Failure {
   let index = self.math_font_index(style, profile)
   let font = self.fonts[index]
+  if display {
+    guard font.font.get_face().reference_table(@common.Tag::from_string("MATH"))
+      is Ok(blob) else {
+      @failure.reject(
+        "unsupported-font", "Display operators require a MATH font table",
+      )
+    }
+    let data = blob.as_view()
+    guard math_u16(data, 0) == 1 && math_u16(data, 4) > 0 else {
+      @failure.reject("malformed-font", "Missing mathematical font constants")
+    }
+    let minimum = math_u16(data, math_u16(data, 4) + 6)
+    guard minimum > 0 else {
+      @failure.reject(
+        "malformed-font", "Invalid display operator minimum height",
+      )
+    }
+    let box = self.math_delimiter(
+      index,
+      operator,
+      minimum.to_double() * style.size / font.upem.to_double(),
+      style,
+      paths,
+    )
+    let axis = 0.6 * self.math_glyph_height(index, 0x2217, style.size)
+    return { ..box, ascent: box.height / 2 + axis, textAscent: None, }
+  }
   guard font.font.glyph_for_codepoint(
       operator.iter().next().unwrap().to_int().reinterpret_as_uint(),
     )
@@ -36,6 +64,40 @@ fn TextProbe::math_nary_sign(
     ascent,
     primitives,
     textAscent: Some(ascent),
+  }
+}
+
+///|
+fn measure_math_limits(
+  sign : MathBox,
+  lower : MathBox?,
+  upper : MathBox?,
+  size : Double,
+) -> MathBox {
+  let gap_top = if upper is Some(_) { size * 0.25 * 72 / 96 } else { 0.0 }
+  let gap_bottom = lower
+    .map(box => (size * 0.23 * 72 / 25.4 - box.ascent).max(size * 0.1 * 72 / 96))
+    .unwrap_or(0)
+  let upper_height = upper.map(box => box.height).unwrap_or(0)
+  let sign_y = upper_height + gap_top
+  let lower_y = sign_y + sign.height + gap_bottom
+  let width = sign.width
+    .max(lower.map(box => box.width).unwrap_or(0))
+    .max(upper.map(box => box.width).unwrap_or(0))
+  let primitives : Array[PositionedPrimitive] = []
+  sign.place(primitives, (width - sign.width) / 2, sign_y)
+  if upper is Some(box) {
+    box.place(primitives, (width - box.width) / 2, 0)
+  }
+  if lower is Some(box) {
+    box.place(primitives, (width - box.width) / 2, lower_y)
+  }
+  {
+    width,
+    height: lower_y + lower.map(box => box.height).unwrap_or(0),
+    ascent: sign_y + sign.ascent,
+    primitives,
+    textAscent: None,
   }
 }
 

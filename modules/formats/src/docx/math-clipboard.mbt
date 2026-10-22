@@ -5,9 +5,7 @@ fn Session::fragment_math_nodes(
   objects : Map[Int, Bool],
 ) -> Unit raise @failure.Failure {
   let tree = WordTree::new(document)
-  let roots = tree.order.filter(id => {
-    tree.nodes[id].uri == math_uri && tree.nodes[id].name == "oMath"
-  })
+  let roots = tree.order.filter(id => tree.math_root(id))
   guard roots.length() <= 256 else {
     @failure.reject("limit-exceeded", "Rich math expressions exceed 256")
   }

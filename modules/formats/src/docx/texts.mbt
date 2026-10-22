@@ -6,7 +6,7 @@ fn docx_texts(tree : WordTree) -> Array[TextNode] {
   for id in tree.order {
     let node = tree.nodes[id]
     if node.uri == math_uri &&
-      node.name == "oMath" &&
+      ["oMath", "oMathPara"].contains(node.name) &&
       node.parent >= 0 &&
       tree.nodes[node.parent].uri == word_uri &&
       tree.nodes[node.parent].name == "p" {
@@ -103,7 +103,7 @@ fn inline_text(node : @xml.Node) -> String {
     "tab" => "\t"
     "drawing" => "\ufffc"
     "fldSimple" => "\ufffc"
-    "oMath" => "\ufffc"
+    "oMath" | "oMathPara" => "\ufffc"
     _ => node.text
   }
 }

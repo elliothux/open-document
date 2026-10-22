@@ -64,7 +64,9 @@ fn CopiedCells::check_copied_rules(
           "expression", "cellIs", "colorScale", "dataBar", "top10", "aboveAverage",
           "duplicateValues", "uniqueValues",
         ].contains(settings.kind) ||
-        conditional_predicate_kind(settings.kind)
+        conditional_predicate_kind(settings.kind) ||
+        conditional_text_kind(settings.kind) ||
+        settings.kind == "timePeriod"
       ) &&
       [
         "", "between", "notBetween", "equal", "notEqual", "lessThan", "lessThanOrEqual",

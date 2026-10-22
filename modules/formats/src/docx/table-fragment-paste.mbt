@@ -58,8 +58,7 @@ fn Session::paste_table_fragment(
         for id in tree.descendants(cell) {
           if tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing" {
             self.check_drawing_text(tree, id, remove=true)
-          } else if tree.nodes[id].uri == math_uri &&
-            tree.nodes[id].name == "oMath" {
+          } else if tree.math_root(id) {
             ignore(self.math_target(tree, id))
           }
         }
@@ -93,7 +92,7 @@ fn Session::paste_table_fragment(
                 ) ||
                 (
                   tree.nodes[id].uri == math_uri &&
-                  tree.nodes[id].name == "oMath"
+                  ["oMath", "oMathPara"].contains(tree.nodes[id].name)
                 )
               }
             })

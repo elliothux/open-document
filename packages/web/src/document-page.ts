@@ -96,11 +96,11 @@ export abstract class DocumentPage extends DocumentReview {
       documentId: this.review.snapshot().documentId,
     }));
   }
-  insertMath(value: DocxMathValue): Promise<void> {
+  insertMath(value: DocxMathValue, display = false): Promise<void> {
     return this.review.edit(() =>
       this.review.client.editMath(
         this.review.snapshot().revision,
-        { ...value, action: "insert" },
+        { ...value, action: "insert", display },
         this.profile,
       ),
     );

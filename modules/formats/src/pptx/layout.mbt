@@ -22,10 +22,11 @@ fn measure_text(
             height: 0,
             anchor: None,
             content: @layout.Math(
-              @layout.MathFormula::new(formula.expression, {
-                ..formula.style,
-                size: formula.style.size * scale,
-              }),
+              @layout.MathFormula::new(
+                formula.expression,
+                { ..formula.style, size: formula.style.size * scale, },
+                display=formula.display,
+              ),
             ),
           }),
           field: "",

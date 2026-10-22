@@ -465,10 +465,11 @@ pub impl ToJson for MathExpression
 pub struct MathFormula {
   expression : MathExpression
   style : TextStyle
+  display : Bool
   ascent : Double
   primitives : Array[PositionedPrimitive]
 }
-pub fn MathFormula::new(MathExpression, TextStyle) -> Self
+pub fn MathFormula::new(MathExpression, TextStyle, display? : Bool) -> Self
 pub fn MathFormula::to_json(Self) -> Json
 pub impl ToJson for MathFormula
 

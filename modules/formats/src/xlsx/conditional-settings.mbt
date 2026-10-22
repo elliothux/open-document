@@ -10,6 +10,8 @@ pub(all) struct ConditionalFormat {
   bar : DataBar?
   rank : ConditionalRank?
   average : ConditionalAverage?
+  text : String?
+  timePeriod : String?
 } derive(Eq)
 
 ///|
@@ -28,6 +30,8 @@ pub fn ConditionalFormat::default() -> ConditionalFormat {
     bar: None,
     rank: None,
     average: None,
+    text: None,
+    timePeriod: None,
   }
 }
 
@@ -95,6 +99,12 @@ fn ConditionalFormat::json(self : ConditionalFormat) -> Json {
   if self.average is Some(average) && value is Object(fields) {
     fields["average"] = Json(average)
   }
+  if self.text is Some(text) && value is Object(fields) {
+    fields["text"] = Json(text)
+  }
+  if self.timePeriod is Some(period) && value is Object(fields) {
+    fields["timePeriod"] = Json(period)
+  }
   value
 }
 
@@ -102,8 +112,14 @@ fn ConditionalFormat::json(self : ConditionalFormat) -> Json {
 fn ConditionalRule::settings(self : ConditionalRule) -> ConditionalFormat {
   {
     kind: self.kind,
-    operator: self.operator,
-    formula1: if conditional_predicate_kind(self.kind) {
+    operator: if conditional_text_kind(self.kind) {
+      ""
+    } else {
+      self.operator
+    },
+    formula1: if conditional_predicate_kind(self.kind) ||
+      conditional_text_kind(self.kind) ||
+      self.kind == "timePeriod" {
       ""
     } else {
       self.formulas.get(0).unwrap_or("")
@@ -115,6 +131,8 @@ fn ConditionalRule::settings(self : ConditionalRule) -> ConditionalFormat {
     bar: self.bar,
     rank: self.rank,
     average: self.average,
+    text: self.text,
+    timePeriod: self.timePeriod,
   }
 }
 
@@ -128,6 +146,11 @@ fn ConditionalFormat::check(
 ) -> Unit raise @failure.Failure {
   if self.check_nonformula() {
     self.format.validate()
+    if self.text is Some(text) {
+      ignore(
+        conditional_text_formula(self.kind, text, rule_anchor(ranges, true)),
+      )
+    }
     return
   }
   if self.kind == "dataBar" {
@@ -251,8 +274,21 @@ fn ConditionalFormat::markup(
     }) +
     (if self.stopIfTrue { " stopIfTrue=\"1\"" } else { "" }) +
     style.map(id => " dxfId=\"\{id}\"").unwrap_or("")
+  if self.text is Some(text) {
+    let formula = conditional_text_formula(self.kind, text, anchor)
+    let operator = if self.kind == "notContainsText" {
+      "notContains"
+    } else {
+      self.kind
+    }
+    return "<od:cfRule xmlns:od=\"\{spreadsheet_uri}\" type=\"\{self.kind}\" priority=\"\{priority}\"\{attributes} operator=\"\{operator}\" text=\"\{escaped_attribute(text)}\"><od:formula>\{@xml.escape_text(formula)}</od:formula></od:cfRule>"
+  }
   if conditional_predicate_formula(self.kind, anchor) is Some(formula) {
     return "<od:cfRule xmlns:od=\"\{spreadsheet_uri}\" type=\"\{self.kind}\" priority=\"\{priority}\"\{attributes}><od:formula>\{@xml.escape_text(formula)}</od:formula></od:cfRule>"
+  }
+  if self.timePeriod is Some(period) {
+    let formula = conditional_date_formula(period, anchor)
+    return "<od:cfRule xmlns:od=\"\{spreadsheet_uri}\" type=\"timePeriod\" timePeriod=\"\{period}\" priority=\"\{priority}\"\{attributes}><od:formula>\{@xml.escape_text(formula)}</od:formula></od:cfRule>"
   }
   if self.kind == "duplicateValues" || self.kind == "uniqueValues" {
     return "<od:cfRule xmlns:od=\"\{spreadsheet_uri}\" type=\"\{self.kind}\" priority=\"\{priority}\"\{attributes}/>"

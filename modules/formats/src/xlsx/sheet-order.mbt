@@ -191,21 +191,13 @@ fn visible_sheet(sheets : Array[Sheet], from : Int) -> Int {
 }
 
 ///|
-pub fn Session::edit_sheet(
+fn Session::edit_sheet_current(
   self : Session,
   revision : Int,
   sheet : String,
   change : SheetEdit,
-  date~ : String? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  let previous_date = self.calendar_date
-  if date is Some(date) {
-    self.calendar_date = Some(filter_current_date(date))
-  }
-  defer {
-    self.calendar_date = previous_date
-  }
   match change {
     Sparkline(cell, source, kind) =>
       return self.set_sparkline(sheet, cell, source, kind)

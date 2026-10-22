@@ -1,5 +1,11 @@
 # 测试说明
 
+P10 独立公式段落通过 17 项定向核心检查、9 个接口断言和 1 条 Chromium 流程。原生包装、四种对齐、设置默认值、正文/普通格拆段、公式目录、周边输入、结构修改/删除、原生片段、精确历史和重开通过。实际 Canvas 笔画、独立 XML、PDF 分数上下位置及居中通过。公开 api/check/build 和私有 typecheck/lint 通过，证据归 `docxDisplayMathCheckpoint`；未跑全量或安装包矩阵，逐行块数学和更广模式继续实施，P10–P12 保持实施中。
+
+P11 相对日期条件格式通过 14 项定向核心检查、5 项接口测试共 155 个断言和 1 条 Chromium 流程。十种期间、公历边界、1900/1904、数值前缀、当前公式、互操作缓存、范围与复制锚点、精确历史及失败原子性通过。成功日期上下文保留、同规则跨日重绘、无源修改及原日期筛选回归通过。默认面板、重开输入、独立 XML 和实际 Canvas/PDF 颜色通过，公开 api/check/build、私有 typecheck/lint 通过，证据归 `xlsxConditionalDateCheckpoint`；未跑全量或安装包矩阵，P10–P12 保持实施中。
+
+P11 文字条件格式通过 8 项定向核心检查、4 项接口测试共 131 个断言和 1 条 Chromium 流程。包含、不包含、开头和结尾规则的原生文字、类型区别、大小写、空值/错误、文字转义、范围与复制锚点、精确历史及原子拒绝通过。默认面板、输入后的公式结果、保存重开、独立 XML 和实际 Canvas/PDF 颜色通过。公开 api/check/build、私有 typecheck/lint 通过，证据归 `xlsxConditionalTextCheckpoint`；未跑全量或安装包矩阵，P10–P12 保持实施中。
+
 P11 空白/错误条件格式通过 8 项定向核心检查、32 个接口断言和 1 条 Chromium 流程。空格字符、空字符串、未存储格、真实错误及错误文字、原生互操作公式、范围/复制锚点、精确历史及原子拒绝通过。默认四种类型、输入重算、保存重开、独立 XML 与实际 Canvas/PDF 颜色通过，覆盖短视口中首尾格的可见部分。公开 api/check/build、私有 typecheck/lint 通过，证据归 `xlsxConditionalPredicateCheckpoint`；未跑全量或安装包矩阵，P10–P12 保持实施中。
 
 P11 重复/唯一值条件格式通过 8 项定向核心检查、16 个接口断言及 1 条扩展 Chromium 流程。未格式化值、大小写、跨类型逻辑文字、空白、错误、隐藏行、交叠稀疏范围和有界缓存通过；独立复制范围、当前公式重算、精确历史及重开通过。默认面板切换清除旧参数，独立 XML 和实际 Canvas/PDF 颜色检查通过。公开 api/check/build、私有 typecheck/lint 通过，证据归 `xlsxConditionalDuplicatesCheckpoint`；未跑全量或新增浏览器矩阵，P10–P12 保持实施中。

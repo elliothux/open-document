@@ -15,7 +15,12 @@ export interface XlsxConditionalFormat {
     | "containsBlanks"
     | "notContainsBlanks"
     | "containsErrors"
-    | "notContainsErrors";
+    | "notContainsErrors"
+    | "containsText"
+    | "notContainsText"
+    | "beginsWith"
+    | "endsWith"
+    | "timePeriod";
   operator: "" | (typeof validationOperators)[number];
   formula1: string;
   formula2: string;
@@ -25,7 +30,21 @@ export interface XlsxConditionalFormat {
   bar?: XlsxDataBar;
   rank?: XlsxConditionalRank;
   average?: XlsxConditionalAverage;
+  text?: string;
+  timePeriod?: (typeof conditionalDatePeriods)[number];
 }
+export const conditionalDatePeriods = [
+  "yesterday",
+  "today",
+  "tomorrow",
+  "last7Days",
+  "lastWeek",
+  "thisWeek",
+  "nextWeek",
+  "lastMonth",
+  "thisMonth",
+  "nextMonth",
+] as const;
 export interface XlsxConditionalRank {
   rank: number;
   percent: boolean;
@@ -84,6 +103,8 @@ export function checkXlsxConditionalFormat(value: unknown): void {
         "bar",
         "rank",
         "average",
+        "text",
+        "timePeriod",
       ].includes(k),
     ) ||
     !(
@@ -99,6 +120,11 @@ export function checkXlsxConditionalFormat(value: unknown): void {
         "notContainsBlanks",
         "containsErrors",
         "notContainsErrors",
+        "containsText",
+        "notContainsText",
+        "beginsWith",
+        "endsWith",
+        "timePeriod",
       ].includes(String(rule.kind)) &&
         rule.operator === "") ||
       (rule.kind === "cellIs" &&
@@ -107,7 +133,21 @@ export function checkXlsxConditionalFormat(value: unknown): void {
     typeof rule.stopIfTrue !== "boolean"
   )
     throw new Error("Invalid conditional format kind or operator");
-  for (const key of ["formula1", "formula2"]) {
+  const textRule = [
+    "containsText",
+    "notContainsText",
+    "beginsWith",
+    "endsWith",
+  ].includes(String(rule.kind));
+  if (!textRule && rule.text !== undefined)
+    throw new Error("Only text rules have text settings");
+  if (
+    rule.kind === "timePeriod"
+      ? !conditionalDatePeriods.some((period) => period === rule.timePeriod)
+      : rule.timePeriod !== undefined
+  )
+    throw new Error("Invalid conditional date period");
+  for (const key of ["formula1", "formula2", ...(textRule ? ["text"] : [])]) {
     const text = rule[key];
     if (
       typeof text !== "string" ||
@@ -120,7 +160,7 @@ export function checkXlsxConditionalFormat(value: unknown): void {
         );
       })
     )
-      throw new Error("Invalid conditional formula");
+      throw new Error("Invalid conditional formula or text");
   }
   if (rule.kind === "top10" || rule.kind === "aboveAverage") {
     if (
@@ -164,7 +204,9 @@ export function checkXlsxConditionalFormat(value: unknown): void {
       "notContainsBlanks",
       "containsErrors",
       "notContainsErrors",
-    ].includes(String(rule.kind))
+    ].includes(String(rule.kind)) ||
+    textRule ||
+    rule.kind === "timePeriod"
   ) {
     if (
       rule.formula1 !== "" ||

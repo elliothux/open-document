@@ -246,6 +246,7 @@ pub fn MathExpression::linear_text(self : MathExpression) -> String {
 pub struct MathFormula {
   expression : MathExpression
   style : TextStyle
+  display : Bool
   ascent : Double
   primitives : Array[PositionedPrimitive]
 }
@@ -255,13 +256,18 @@ pub struct MathFormula {
 pub fn MathFormula::new(
   expression : MathExpression,
   style : TextStyle,
+  display~ : Bool = false,
 ) -> MathFormula {
-  { expression, style, ascent: 0, primitives: [], }
+  { expression, style, display, ascent: 0, primitives: [], }
 }
 
 ///|
 pub impl ToJson for MathFormula with fn to_json(self) {
-  { "expression": self.expression, "style": self.style }
+  {
+    "expression": self.expression,
+    "style": self.style,
+    "display": self.display,
+  }
 }
 
 ///|

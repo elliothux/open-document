@@ -21,14 +21,24 @@ fn Session::read_inline_math(
   id : Int,
   style : @layout.TextStyle,
 ) -> @layout.DrawingFrame raise @failure.Failure {
+  let (root, display) = tree.math_source(id)
+  let formula = @omml.read(
+    tree.nodes,
+    tree.children,
+    root,
+    self.math_base_style(style),
+    operator => self.math_nary_limit(operator),
+  )
   {
     width: 0,
     height: 0,
     anchor: None,
     content: Math(
-      @omml.read(tree.nodes, tree.children, id, self.math_base_style(style), operator => {
-        self.math_nary_limit(operator)
-      }),
+      @layout.MathFormula::new(
+        formula.expression,
+        formula.style,
+        display=display is Some(_),
+      ),
     ),
   }
 }

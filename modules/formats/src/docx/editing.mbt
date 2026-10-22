@@ -320,6 +320,9 @@ fn Session::prepare_plain_range(
   }
   let anchor = selection.anchor
   let focus = selection.focus
+  if text.iter().any(ch => ['\u2028', '\u000b', '\u000c'].contains(ch)) {
+    self.check_display_math_input(selection)
+  }
   if has_region_break(text) {
     let tree = WordTree::new(self.document())
     tree.check_region_break_input(anchor.paragraph, text)
@@ -408,7 +411,7 @@ fn Session::prepare_plain_range(
     let after = before[:left].to_owned() +
       (if node.id == insertion { text } else { "" }) +
       before[right:].to_owned()
-    let picture = ["drawing", "fldSimple", "oMath"].contains(
+    let picture = ["drawing", "fldSimple", "oMath", "oMathPara"].contains(
       nodes[node.id].name,
     )
     if picture && left == right {

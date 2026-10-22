@@ -83,6 +83,8 @@ pub(all) struct ConditionalFormat {
   bar : DataBar?
   rank : ConditionalRank?
   average : ConditionalAverage?
+  text : String?
+  timePeriod : String?
 } derive(Eq)
 pub fn ConditionalFormat::default() -> Self
 pub fn ConditionalFormat::equal(Self, Self) -> Bool

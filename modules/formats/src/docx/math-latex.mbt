@@ -10,8 +10,14 @@ pub fn Session::edit_math(
   profile~ : Map[String, String],
   images~ : @layout.Images,
   format? : CharacterFormat,
+  display~ : Bool = false,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  guard !display || action == "insert" else {
+    @failure.reject(
+      "invalid-operation", "Display placement is only valid on insertion",
+    )
+  }
   let expression : @layout.MathExpression = if action == "delete" {
     Text("0")
   } else {
@@ -32,5 +38,6 @@ pub fn Session::edit_math(
     profile~,
     images~,
     format?,
+    display~,
   )
 }

@@ -133,7 +133,10 @@ pub fn Session::table_clipboard(
             tree.nodes[id].uri == word_uri &&
             ["drawing", "fldSimple"].contains(tree.nodes[id].name)
           ) ||
-          (tree.nodes[id].uri == math_uri && tree.nodes[id].name == "oMath") {
+          (
+            tree.nodes[id].uri == math_uri &&
+            ["oMath", "oMathPara"].contains(tree.nodes[id].name)
+          ) {
           guard fragment != Json::null() else {
             @failure.reject(
               "protected-content", "Inline object cut requires a complete rich fragment",

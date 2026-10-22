@@ -10,7 +10,27 @@ fn xlsx_conditional_settings(
     operator: field_string(rule, "operator"),
     formula1: field_string(rule, "formula1"),
     formula2: field_string(rule, "formula2"),
+    text: if rule is { "text": value, .. } {
+      guard value is String(text) else {
+        @failure.reject(
+          "invalid-operation", "Conditional text must be a string",
+        )
+      }
+      Some(text)
+    } else {
+      None
+    },
     stopIfTrue: xlsx_boolean(rule, "stopIfTrue"),
+    timePeriod: if rule is { "timePeriod": value, .. } {
+      guard value is String(period) else {
+        @failure.reject(
+          "invalid-operation", "Conditional period must be a string",
+        )
+      }
+      Some(period)
+    } else {
+      None
+    },
     format: xlsx_cell_format(format),
     rank: if rule is { "rank": rank, .. } {
       guard rank is Object(fields) && fields.length() == 3 else {

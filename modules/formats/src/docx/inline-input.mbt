@@ -109,7 +109,7 @@ fn Session::edit_inline_text(
   let mut units = 0
   for id, text in replacements {
     let node = document.node(id)
-    if ["fldSimple", "oMath"].contains(node.name) {
+    if ["fldSimple", "oMath", "oMathPara"].contains(node.name) {
       let items = paragraph_object_text_changes(
         tree,
         document,

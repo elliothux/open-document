@@ -417,7 +417,9 @@ fn WordTree::check_editable_paragraph(
   }
   for child in self.children[paragraph] {
     let node = self.nodes[child]
-    if math && node.uri == math_uri && node.name == "oMath" {
+    if math &&
+      node.uri == math_uri &&
+      ["oMath", "oMathPara"].contains(node.name) {
       continue
     }
     if fields && node.uri == word_uri && node.name == "fldSimple" {

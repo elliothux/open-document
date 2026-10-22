@@ -58,7 +58,9 @@ fn Session::search_groups(
   let by_paragraph : Map[Int, StringBuilder] = Map([])
   let fields = Map::from_array(
     docx_texts(tree)
-    .filter(item => ["fldSimple", "oMath"].contains(tree.nodes[item.id].name))
+    .filter(item => {
+      ["fldSimple", "oMath", "oMathPara"].contains(tree.nodes[item.id].name)
+    })
     .map(item => (item.id, item.paragraph)),
   )
   for id in tree.order {

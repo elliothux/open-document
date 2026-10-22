@@ -11,7 +11,7 @@ fn WordTree::split_input(
   source_limit~ : Int,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   if insertion is Some(id) &&
-    ["fldSimple", "oMath"].contains(self.nodes[id].name) {
+    ["fldSimple", "oMath", "oMathPara"].contains(self.nodes[id].name) {
     return self.split_paragraph_object_input(
       document, paragraph, id, offset, parts, tail, source_limit,
     )

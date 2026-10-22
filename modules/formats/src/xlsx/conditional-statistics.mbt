@@ -39,10 +39,32 @@ pub extend ConditionalAverage with ToJson::{to_json}
 fn ConditionalFormat::check_nonformula(
   self : ConditionalFormat,
 ) -> Bool raise @failure.Failure {
+  guard (self.timePeriod is Some(_)) == (self.kind == "timePeriod") else {
+    @failure.reject(
+      "invalid-operation", "Only date rules require timePeriod settings",
+    )
+  }
+  if self.timePeriod is Some(period) {
+    guard conditional_date_periods.contains(period) else {
+      @failure.reject("invalid-operation", "Unknown conditional date period")
+    }
+  }
+  guard (self.text is Some(_)) == conditional_text_kind(self.kind) else {
+    @failure.reject(
+      "invalid-operation", "Only text rules require text settings",
+    )
+  }
+  if self.text is Some(text) {
+    guard text.length() <= 8192 && @xml.valid_text(text) else {
+      @failure.reject("invalid-operation", "Invalid conditional text")
+    }
+  }
   if ["top10", "aboveAverage", "duplicateValues", "uniqueValues"].contains(
       self.kind,
     ) ||
-    conditional_predicate_kind(self.kind) {
+    conditional_predicate_kind(self.kind) ||
+    conditional_text_kind(self.kind) ||
+    self.kind == "timePeriod" {
     guard self.operator.is_empty() &&
       self.formula1.is_empty() &&
       self.formula2.is_empty() &&

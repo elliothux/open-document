@@ -268,7 +268,13 @@ fn read_text(
         runs.push({
           source: Some(item),
           date_field: None,
-          math: Some(formula),
+          math: Some(
+            @layout.MathFormula::new(
+              formula.expression,
+              formula.style,
+              display=align is Some(_),
+            ),
+          ),
           text: "\ufffc",
           parts: [(formula.style, "\ufffc")],
         })

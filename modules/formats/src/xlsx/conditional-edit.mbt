@@ -173,6 +173,9 @@ fn Session::set_conditional(
     }
     let ranges = clear_rule_ranges(source)
     settings.check(ranges, self.sheets, index, work)
+    if settings.timePeriod is Some(period) {
+      ignore(self.conditional_date_interval(period))
+    }
     if target is Some(target) &&
       target.ranges == ranges &&
       target.settings().json() == settings.json() {
@@ -239,7 +242,12 @@ fn Session::set_conditional(
     }
     let rule_markup = if target is Some(target) &&
       target.settings().json() == settings.json() &&
-      (!conditional_predicate_kind(settings.kind) || target.ranges == ranges) {
+      (
+        !(conditional_predicate_kind(settings.kind) ||
+        conditional_text_kind(settings.kind) ||
+        settings.kind == "timePeriod") ||
+        target.ranges == ranges
+      ) {
       style_markup(tree, tree.nodes[target.node])
     } else {
       settings.markup(

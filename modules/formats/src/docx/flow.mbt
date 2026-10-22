@@ -266,7 +266,7 @@ fn Session::paragraph(
   let spans : Array[@layout.Span] = []
   for child in tree.children[id] {
     let node = tree.nodes[child]
-    if node.uri == math_uri && node.name == "oMath" {
+    if node.uri == math_uri && ["oMath", "oMathPara"].contains(node.name) {
       ()
     } else if node.uri == word_uri && node.name == "hyperlink" {
       tree.check_hyperlink(child) catch {
@@ -429,6 +429,44 @@ fn Session::paragraph(
       drawing: None,
       field: "",
     })
+  }
+  if spans.any(span => tree.nodes[span.node].name == "oMathPara") &&
+    spans.any(span => {
+      span.text.iter().any(ch => ['\u2028', '\u000b', '\u000c'].contains(ch))
+    }) {
+    diagnostics.push(
+      "unsupported-layout:math:Display math line breaks require block-line layout",
+    )
+  }
+  let display = spans.filter(span => !span.text.is_empty()) is [span] &&
+    tree.nodes[span.node].name == "oMathPara" &&
+    styles.numbering_reference(tree, id) is None
+  for i, span in spans {
+    if span.drawing is Some(frame) && frame.content is Math(formula) {
+      spans[i] = {
+        ..span,
+        drawing: Some({
+          ..frame,
+          content: Math(
+            @layout.MathFormula::new(
+              formula.expression,
+              formula.style,
+              display~,
+            ),
+          ),
+        }),
+      }
+    }
+  }
+  if spans.filter(span => !span.text.is_empty()) is [span] &&
+    tree.nodes[span.node].name == "oMathPara" &&
+    styles.numbering_reference(tree, id) is None {
+    try self.math_display_alignment(tree, span.node) catch {
+      @failure.Failure(message~, ..) =>
+        diagnostics.push("unsupported-layout:math:" + message)
+    } noraise {
+      align => if align is Some(align) { paragraph = { ..paragraph, align, } }
+    }
   }
   if paragraph.align != "left" &&
     paragraph.align != "center" &&

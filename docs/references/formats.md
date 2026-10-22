@@ -254,9 +254,17 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 子参数递归按 0.76 缩放，横向组合按基线对齐；分数及结构化基底的单/双脚标使用实际字体度量。Canvas/PDF 继续消费核心已定位图元。线性文字用括号表达嵌套关系，供语义层、选择、纯文字和 TSV 使用。
 
-公式占一个逻辑位置，支持两侧原生输入、整式删除/替换、富文本复制/剪切、跨文档粘贴、精确历史及重开。周边编辑保留原公式源；富文本写回实际统一外观及递归结构。已有分数/脚标参数 API 和面板只修改平面参数，遇到嵌套内容返回保护原因，避免扁平化覆盖。嵌套参数可通过下述 LaTeX 表单或 SDK 替换；内部光标、独立数学段落、局部格式与更多结构/语法仍待实现。
+公式占一个逻辑位置，支持两侧原生输入、整式删除/替换、富文本复制/剪切、跨文档粘贴、精确历史及重开。周边编辑保留原公式源；富文本写回实际统一外观及递归结构。已有分数/脚标参数 API 和面板只修改平面参数，遇到嵌套内容返回保护原因，避免扁平化覆盖。嵌套参数可通过下述 LaTeX 表单或 SDK 替换；单式独立段落归[独立公式合同](#docx-独立公式段落)；内部光标、逐行块数学、局部格式与更多结构/语法仍待实现。
 
 结构及边界归 [`math-expression.mbt`](../../modules/layout/src/math-expression.mbt)，递归测量归 [`math-layout.mbt`](../../modules/layout/src/math-layout.mbt)，读取归 [`math-read.mbt`](../../modules/formats/src/docx/math-read.mbt)，写回归 [`math-markup.mbt`](../../modules/formats/src/docx/math-markup.mbt)。脚标的文字/结构化基底分支沿上述 ONLYOFFICE 定位规则。
+
+### DOCX 独立公式段落
+
+正文和普通单元格支持 `m:oMathPara` 包装的单个 `m:oMath`，复用上述数学结构、统一外观和预算。包装整体占一个逻辑位置，目录不会把内层表达式重复列出。独立段落按 `m:oMathParaPr/m:jc` 对齐，接受 left、center、centerGroup 和 right；缺省沿设置中的 `m:defJc`，再回退居中。centerGroup 在单式范围内按居中处理。公式旁有普通文字或段落带编号时使用段落对齐；周边原生输入保留原包装。语义依据 [ONLYOFFICE 行内模式判断及数学对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Math.js#L2269-L2332)。
+
+默认数学面板提供“插入独立公式”。`DocumentEditor.insertMath(value, true)` 和 Wasm/Worker 的 `{ action: "insert", latex, display: true, format? }` 走同一事务；MoonBit 为 `edit_math(..., display=true)`。省略或 false 保留行内插入。替换当前范围后，非空段落按插入点拆为前文、公式和后文；空段落直接承载公式。统一外观、结构修改和删除复用已有公式目录与命令，更新保留包装和对齐源，删除移除整个包装。独立插入、段落拆分和范围替换共用一项精确历史。
+
+正文和普通格的原生富文本片段保留包装、有效对齐及统一数学外观，跨文档粘贴后可继续修改。保存重开保留原生内容；Canvas、语义与 PDF 使用同一数学基线和段落位置。未知包装/属性、多表达式、混合外观、源注释及既有未支持结构继续保护。软换行及页/栏控制符与独立包装混排仍需逐行块布局，导入给出诊断，普通输入原子拒绝；Enter 拆成相邻段落仍走既有路径。上下堆叠极限、较大显示运算符及局部格式继续实施。实现归 [math-display.mbt](../../modules/formats/src/docx/math-display.mbt)、[math-read.mbt](../../modules/formats/src/docx/math-read.mbt)、[math-edit.mbt](../../modules/formats/src/docx/math-edit.mbt)和[原生输入](../../modules/formats/src/docx/body-field-input.mbt)。
 
 ### DOCX LaTeX 公式编辑
 
@@ -280,7 +288,7 @@ LaTeX 源最多 131072 个 UTF-16 单元，语法嵌套最多 64 层；解析结
 
 `mathScripts()` 返回绑定 `documentId` 和 `revision` 的目录，项含原生 `id`、三个参数、保护原因及实际 `format`。`editMathScript(source, id, value)` 修改指定公式，`value=null` 删除。分数和脚标目录各返回所属的已知结构，未知源仍报告保护原因；总目录预算沿 256 项数学对象检查。过期目录、其他结构身份、修订、源注释及不支持容器明确拒绝。
 
-`DocxMathFormat` 为分数和脚标共用的完整 `family`、`size` 和 `color`。插入省略格式时沿段落与数学字体设置继承，修改省略时保留原外观；显式格式写为统一 Word run 属性。相同参数及相同已有直接格式不创建历史。候选源先完成字体与完整布局预检，再提交一项精确历史；失败保持源、选择和历史。
+`MathFormat` 为 DOCX 与 PPTX 数学共用的完整 `family`、`size` 和 `color`。插入省略格式时沿段落与数学字体设置继承，修改省略时保留原外观；显式格式写为统一 Word run 属性。相同参数及相同已有直接格式不创建历史。候选源先完成字体与完整布局预检，再提交一项精确历史；失败保持源、选择和历史。
 
 脚标公式在正文及普通格中占一个逻辑位置。插入后光标位于公式之后，并恢复原生输入焦点。可在两侧原生输入、插入 Tab/软换行、Enter 换段及边界合段，并进行组合输入、周边文字格式和整式删除/替换。保留的公式不改内部源。非折叠格式选区包含数学对象时继续保护；基底和脚标通过属性栏或 SDK 显式编辑。
 
@@ -1563,7 +1571,7 @@ Wasm/Web 导出 `XlsxRelativeDateFilter`，条件为 `{ kind: "relativeDate", co
 
 宿主只提供本地公历日期 `YYYY-MM-DD`，核心沿工作簿 1900/1904 系统计算起止序号。周从星期日开始；日、周、月、季度和年使用完整日历边界，年初至今包含今天。起点包含，终点不包含，数值按日期序号匹配，类型规则与[跨年日期](#跨年日期筛选)一致。普通区域与原生表共用多列交集、手动隐藏、SUBTOTAL、重新应用和源历史。
 
-同步 `XlsxSession.create/open/editSheet` 和 Worker `XlsxClient.create/openXlsx/editSheet` 的最后一项可显式传入日期文字，默认由 `spreadsheetDate()` 取得本地今天；无时区转换或计时器。Worker 协议随创建、打开和工作表命令发送 `date`。MoonBit 对应方法接受可省略的 `date=Some("2024-02-29")`，相对条件使用 `Relative(period, cache)`；新条件传 `None`，缓存为可选的序号起止二元组。命令日期只在当前操作内使用，失败和返回后恢复会话上下文。
+同步 `XlsxSession.create/open/editSheet` 和 Worker `XlsxClient.create/openXlsx/editSheet` 的最后一项可显式传入日期文字，默认由 `spreadsheetDate()` 取得本地今天；无时区转换或计时器。Worker 协议随创建、打开和工作表命令发送 `date`。MoonBit 对应方法接受可省略的 `date=Some("2024-02-29")`，相对条件使用 `Relative(period, cache)`；新条件传 `None`，缓存为可选的序号起止二元组。成功的命令日期留在会话中，供后续相对日期条件格式和计算使用；失败恢复原日期，并保留原源和历史。日期变化使网格缓存失效，自身不改变源、revision 或文档历史。核心不自动读取系统日期或启动计时器。范围与原生表的筛选仍按下面的显式重新应用规则更新。实现归 [sheet-date.mbt](../../modules/formats/src/xlsx/sheet-date.mbt)。
 
 保存使用标准 `dynamicFilter type/val/maxVal`。查询和重开保留原窗口、隐藏行和源；跨日、普通输入或撤销重做不自动重新筛选。显式应用或重新应用按当日计算窗口，并与隐藏来源及缓存合为一次精确历史。原生导入按保存的窗口推断未记录的隐藏来源，随后重新应用才采用新日期，避免将昨日筛选隐藏误作手动隐藏。两个缓存都缺省时，计算使用显式会话日期；缺少日期时拒绝需要计算的操作。单边、非有限或倒置缓存及未知期间、属性和子节点继续保护。
 
@@ -1685,11 +1693,11 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 ### 条件格式
 
-普通 `cellIs`、`expression`、`colorScale`、`dataBar`、`top10`、`aboveAverage`、`duplicateValues`、`uniqueValues`、`containsBlanks`、`notContainsBlanks`、`containsErrors` 和 `notContainsErrors` 规则已在核心计算。值规则支持八项比较；数值、文字和布尔保持类型区别，文字比较忽略大小写，空格按零或空文字比较。表达式沿现有公式语法求值，相对引用以全部 `sqref` 的外接左上角为原点，保留绝对/混合及跨表引用；`ROW/COLUMN` 使用当前格。表达式的错误结果不命中，未知函数或引用给出诊断。
+普通 `cellIs`、`expression`、`colorScale`、`dataBar`、`top10`、`aboveAverage`、`duplicateValues`、`uniqueValues`、`containsBlanks`、`notContainsBlanks`、`containsErrors`、`notContainsErrors`、`containsText`、`notContainsText`、`beginsWith`、`endsWith` 和 `timePeriod` 规则已在核心计算。值规则支持八项比较；数值、文字和布尔保持类型区别，文字比较忽略大小写，空格按零或空文字比较。表达式沿现有公式语法求值，相对引用以全部 `sqref` 的外接左上角为原点，保留绝对/混合及跨表引用；`ROW/COLUMN` 使用当前格。表达式的错误结果不命中，未知函数或引用给出诊断。
 
 `priority` 越小越优先；命中的高优先级属性覆盖低优先级的相同属性，其余属性组合。命中 `stopIfTrue` 后不再使用后续规则，即使该规则没有差异样式。`dxfId` 从工作簿当前样式部件解析，不写回单元格样式。支持字体名、字号、粗斜体、文字色、纯色/无填充、四边 thin/medium/thick/double/none、现有数字格式及基本对齐/换行。颜色复用主题、索引及 tint 解析；差异填充优先采用 `bgColor`，与 [ONLYOFFICE fixForDxf](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/WorkbookElems.js#L3502-L3509)一致。差异字体仍须显式提供 profile 映射。
 
-`XlsxConditionalFormat` 包含 `kind`（上述十二类）、`operator`、`formula1`、`formula2`、`stopIfTrue` 和部分属性 `format: XlsxCellFormat`。表达式的 operator 为空；仅 between/notBetween 使用第二个公式。颜色刻度的 stops、数据条的 bar、排名的 rank 和平均值的 average 见下文。`XlsxQuery.conditionalFormats` 返回当前表按优先级排序的全部普通规则，每项包含 `priority`、空格分隔的 A1 矩形 `ranges`、`rule` 和 `readOnlyReason`，容器也有保护原因。规则原点随完整 ranges 定位，不随当前选区变化。
+`XlsxConditionalFormat` 包含 `kind`（上述十七类）、`operator`、`formula1`、`formula2`、`stopIfTrue` 和部分属性 `format: XlsxCellFormat`。表达式的 operator 为空；仅 between/notBetween 使用第二个公式。颜色刻度的 stops、数据条的 bar、排名的 rank、平均值的 average、文字的 text 和相对日期的 timePeriod 见下文。`XlsxQuery.conditionalFormats` 返回当前表按优先级排序的全部普通规则，每项包含 `priority`、空格分隔的 A1 矩形 `ranges`、`rule` 和 `readOnlyReason`，容器也有保护原因。规则原点随完整 ranges 定位，不随当前选区变化。
 
 `SpreadsheetEditor.editSheet`、`XlsxClient.editSheet` 与同步 Wasm 共用以下操作。核心对应 `SheetEdit::ConditionalRule` 和 `ConditionalPriority`。
 
@@ -1734,6 +1742,14 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 网格、查询 `display`、自动适配和打印使用同一有效样式。依赖格输入或公式结果改变时，自动行/数值 bestFit 列按条件样式重算，与原编辑共享一次历史；固定尺寸保持原值。规则 XML、`dxf`、基础格式和范围外部件保留，保存重开继续计算。合并格按锚点求值。
 
 规则及差异样式各限 4096 项，公式限 8192 UTF-16 单位；网格、整项打印或编辑适配共享 1048576 次规则/公式工作预算，不展开整列空格。未知规则、属性、装饰或扩展样式保留源并诊断；相关打印或适配拒绝，避免输出缺失效果。查询中的条件格式预算失败转成诊断，避免成功提交后被返回查询误报为失败；实际绘制和输出仍检查预算。扩展数据条、图标集、其他规则、边框仅改颜色及更广差异格式仍待实现。实现归 [`conditional-format.mbt`](../../modules/formats/src/xlsx/conditional-format.mbt) 和 [`conditional-style.mbt`](../../modules/formats/src/xlsx/conditional-style.mbt)，值比较参考 [ONLYOFFICE cellIs](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/ConditionalFormatting.js#L835-L913)。
+
+四种文字规则使用 `containsText/notContainsText/beginsWith/endsWith` 和 `text: string`，MoonBit 对应 `text: Some(value)`。operator、formula1、formula2 为空，不带 stops、bar、rank 或 average；其他类型不带 text。按当前未格式化逻辑值忽略大小写比较，`*`、`?` 和 `~` 为普通文字。包含支持数字及布尔的逻辑文字，开头/结尾的非空文字只匹配文字值。包含不匹配空值和错误；不包含取反，因此可以匹配错误及空值。空文字的开头/结尾匹配所有非错误值。按 [ONLYOFFICE text operand](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/ConditionalFormatting.js#L758-L830) 的规则，匹配文字恰为 TRUE/FALSE 时直接使用其布尔值，优先于上述文字比较。
+
+原生 text 属性定义文字规则；缺失此属性的公式变体继续诊断和保护源。导入接受省略或与类型对应的 operator，API 统一为空。原生公式作为有界互操作缓存，保存未修改源；创建、复制或改变范围时生成当前锚点的 SEARCH/LEFT/RIGHT 公式，转义文字引号和 SEARCH 通配符。text 最多 8192 UTF-16 单位，生成公式仍须满足既有 8192 单位上限。默认面板可创建和修改四种规则与文字，复用差异样式、停止规则、当前输入重算、精确历史和保存重开。网格、自动适配和 PDF 沿同一有效样式。实现归 [conditional-text.mbt](../../modules/formats/src/xlsx/conditional-text.mbt)，原生公式依据 [ONLYOFFICE 生成入口](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/ConditionalFormatting.js#L1361-L1380)。
+
+相对日期高亮使用 `kind: "timePeriod"` 与 `timePeriod`。`conditionalDatePeriods` 提供 `yesterday/today/tomorrow/last7Days/lastWeek/thisWeek/nextWeek/lastMonth/thisMonth/nextMonth`，MoonBit 为 `timePeriod: Some(period)`。operator、formula1、formula2 为空，不带 text、stops、bar、rank 或 average；其他类型不带 timePeriod。日、周和月使用完整公历区间，周从星期日开始，最近七天包含今天和之前六个公历日。区间含起点、不含终点，时间小数保留；沿工作簿 1900/1904 系统换算。按 [ONLYOFFICE 当前值匹配](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L7854-L7865)，数值及文字开头的十进制数字可参与，包含指数和后续文字；空值、布尔、错误及没有数字前缀的文字不命中。
+
+原生 timePeriod 定义规则，零个或一个公式为互操作缓存。创建、范围修改和复制写回当前锚点的 TODAY/FLOOR/WEEKDAY/MONTH/YEAR 公式，普通单元格中的未知函数仍受保护。默认面板提供十种期间，复用差异样式、停止规则、当前公式结果、精确历史、保存重开和同一 Canvas/PDF 样式。日期沿[宿主日历上下文](#相对日期筛选)提供；缺少日期时保留源并保护需要计算的显示、编辑和输出。区间依据 [ONLYOFFICE getTimePeriod](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/ConditionalFormatting.js#L693-L756)，原生公式依据[同文件生成入口](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/ConditionalFormatting.js#L1301-L1338)。实现归 [conditional-date.mbt](../../modules/formats/src/xlsx/conditional-date.mbt)。
 
 ### 单元格超链接
 

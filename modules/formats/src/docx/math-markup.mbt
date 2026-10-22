@@ -25,7 +25,14 @@ fn math_with_style(
   style : @layout.TextStyle,
 ) -> @layout.DrawingContent raise @failure.Failure {
   match content {
-    Math(formula) => Math(@layout.MathFormula::new(formula.expression, style))
+    Math(formula) =>
+      Math(
+        @layout.MathFormula::new(
+          formula.expression,
+          style,
+          display=formula.display,
+        ),
+      )
     _ => @failure.reject("invalid-operation", "Expected mathematical content")
   }
 }

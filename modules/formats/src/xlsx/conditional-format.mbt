@@ -14,6 +14,9 @@ priv struct ConditionalRule {
   bar : DataBar?
   rank : ConditionalRank?
   average : ConditionalAverage?
+  text : String?
+  timePeriod : String?
+  dateInterval : (Double, Double)?
 }
 
 ///|
@@ -77,6 +80,10 @@ fn Session::conditional_rules(
             ["rank", "percent", "bottom"]
           } else if kind == "aboveAverage" {
             ["aboveAverage", "equalAverage", "stdDev"]
+          } else if conditional_text_kind(kind) {
+            ["text"]
+          } else if kind == "timePeriod" {
+            ["timePeriod"]
           } else {
             []
           }),
@@ -86,11 +93,19 @@ fn Session::conditional_rules(
         guard (
             [
               "expression", "colorScale", "dataBar", "top10", "aboveAverage", "duplicateValues",
-              "uniqueValues",
+              "uniqueValues", "timePeriod",
             ].contains(kind) &&
             operator.is_empty()
           ) ||
           (conditional_predicate_kind(kind) && operator.is_empty()) ||
+          (
+            conditional_text_kind(kind) &&
+            (
+              operator.is_empty() ||
+              operator ==
+              (if kind == "notContainsText" { "notContains" } else { kind })
+            )
+          ) ||
           (
             kind == "cellIs" &&
             [
@@ -122,7 +137,9 @@ fn Session::conditional_rules(
                 "protected-content", "Invalid conditional formula length",
               )
             }
-            if conditional_predicate_kind(kind) {
+            if conditional_predicate_kind(kind) ||
+              conditional_text_kind(kind) ||
+              kind == "timePeriod" {
               // Built-in predicates own their meaning; the formula is an interoperability cache.
               work.spend(amount=formula.text.length())
             } else {
@@ -139,7 +156,9 @@ fn Session::conditional_rules(
             }
             formula.text
           })
-        guard (if conditional_predicate_kind(kind) {
+        guard (if conditional_predicate_kind(kind) ||
+          conditional_text_kind(kind) ||
+          kind == "timePeriod" {
           formulas.length() <= 1
         } else {
           formulas.length() ==
@@ -245,6 +264,31 @@ fn Session::conditional_rules(
           kind,
           operator,
           formulas,
+          timePeriod: if kind == "timePeriod" {
+            node.attribute("timePeriod")
+          } else {
+            None
+          },
+          dateInterval: if kind == "timePeriod" {
+            Some(
+              self.conditional_date_interval(
+                node.attribute("timePeriod").unwrap_or(""),
+              ),
+            )
+          } else {
+            None
+          },
+          text: if conditional_text_kind(kind) {
+            guard node.attribute("text") is Some(text) && text.length() <= 8192 else {
+              @failure.reject(
+                "protected-content", "Conditional text operand is required",
+              )
+            }
+            work.spend(amount=text.length())
+            Some(text)
+          } else {
+            None
+          },
           priority,
           style,
           stops,
@@ -348,6 +392,35 @@ fn ConditionalRules::applied(
         continue
       }
       work.origin = address
+      if rule.dateInterval is Some((start, end)) {
+        if conditional_date_value(
+            calculated_cell(sheets, values, index, address),
+            work,
+          )
+          is Some(value) &&
+          value >= start &&
+          value < end {
+          matched.push(rule.style)
+          if rule.stop {
+            break
+          }
+        }
+        continue
+      }
+      if rule.text is Some(text) {
+        if conditional_text_match(
+            rule.kind,
+            text,
+            calculated_cell(sheets, values, index, address),
+            work,
+          ) {
+          matched.push(rule.style)
+          if rule.stop {
+            break
+          }
+        }
+        continue
+      }
       if conditional_predicate(
           rule.kind,
           calculated_cell(sheets, values, index, address),

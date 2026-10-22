@@ -43,12 +43,14 @@ export type MathExpression =
 export interface MathFormula {
   expression: MathExpression;
   style: TextStyle;
+  display: boolean;
 }
 
 export function checkMathContent(value: unknown): void {
   const math = record(value),
     style = record(math.style);
   if (
+    typeof math.display !== "boolean" ||
     typeof style.size !== "number" ||
     !Number.isFinite(style.size) ||
     style.size < 0.5 ||

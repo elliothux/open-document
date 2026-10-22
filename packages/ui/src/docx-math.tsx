@@ -63,6 +63,7 @@ export function DocxMath({
           };
   const [catalog, setCatalog] = useState<Catalog>();
   const [id, setId] = useState<number>();
+  const [display, setDisplay] = useState(false);
   const [draft, setDraft] = useState<
     DocxFractionValue | DocxScriptValue | DocxMathValue
   >(
@@ -279,12 +280,22 @@ export function DocxMath({
             </label>
           </>
         )}
+        {kind === "expression" && (
+          <label>
+            <input
+              type="checkbox"
+              checked={display}
+              onChange={(event) => setDisplay(event.currentTarget.checked)}
+            />
+            {t.displayExpression}
+          </label>
+        )}
         <button
           type="button"
           disabled={insertDisabled || !!invalid}
           onClick={() =>
             controller.run(async () => {
-              if ("latex" in draft) await editor.insertMath(draft);
+              if ("latex" in draft) await editor.insertMath(draft, display);
               else if ("base" in draft) await editor.insertMathScript(draft);
               else await editor.insertMathFraction(draft);
               setCatalog(undefined);

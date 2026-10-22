@@ -21,7 +21,9 @@ fn WordTree::paragraph_runs(
   let runs : Array[Int] = []
   for child in self.children[paragraph] {
     let node = self.nodes[child]
-    if math && node.uri == math_uri && node.name == "oMath" {
+    if math &&
+      node.uri == math_uri &&
+      ["oMath", "oMathPara"].contains(node.name) {
       runs.push(child)
     } else if node.uri == word_uri && node.name == "r" {
       runs.push(child)

@@ -168,7 +168,7 @@ pub fn Session::edit_bookmark(Self, Int, BookmarkEdit) -> Json raise @failure.Fa
 pub fn Session::edit_chart(Self, Int, String, Int, String, String, String, Double, Double, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images, hole_size? : Int?, legend? : String?) -> Json raise @failure.Failure
 pub fn Session::edit_comment(Self, Int, CommentEdit) -> Json raise @failure.Failure
 pub fn Session::edit_list(Self, Int, Selection, ListEdit) -> Json raise @failure.Failure
-pub fn Session::edit_math(Self, Int, String, Int, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images, format? : CharacterFormat) -> Json raise @failure.Failure
+pub fn Session::edit_math(Self, Int, String, Int, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images, format? : CharacterFormat, display? : Bool) -> Json raise @failure.Failure
 pub fn Session::edit_math_fraction(Self, Int, String, Int, String, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images, format? : CharacterFormat) -> Json raise @failure.Failure
 pub fn Session::edit_math_script(Self, Int, String, Int, String, String, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images, format? : CharacterFormat) -> Json raise @failure.Failure
 pub fn Session::edit_picture(Self, Int, Int, Double, Double, Array[Double], probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
