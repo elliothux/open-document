@@ -1,4 +1,13 @@
 export const mathEn = {
+  mathExpressions: "Math expressions",
+  mathLatex: "LaTeX expression",
+  mathLatexHelp:
+    "Use \\frac{a}{b}, \\sqrt[n]{x}, _{i}, ^{2}, groups and \\text{literal text}. Other commands are not supported yet.",
+  loadExpressions: "Load expressions",
+  chooseExpression: "Choose expression",
+  insertExpression: "Insert expression",
+  applyExpression: "Apply expression",
+  deleteExpression: "Delete expression",
   mathFractions: "Fractions",
   numerator: "Numerator",
   denominator: "Denominator",
@@ -16,6 +25,15 @@ export const mathEn = {
   deleteScript: "Delete script",
 };
 export const mathZh: typeof mathEn = {
+  mathExpressions: "数学公式",
+  mathLatex: "LaTeX 公式",
+  mathLatexHelp:
+    "支持 \\frac{a}{b}、\\sqrt[n]{x}、_{i}、^{2}、分组和 \\text{原文}。其他命令尚未支持。",
+  loadExpressions: "读取公式",
+  chooseExpression: "选择公式",
+  insertExpression: "插入公式",
+  applyExpression: "应用公式",
+  deleteExpression: "删除公式",
   mathFractions: "分数",
   numerator: "分子",
   denominator: "分母",

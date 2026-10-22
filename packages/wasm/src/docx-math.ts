@@ -7,6 +7,23 @@ export interface DocxMathFormat {
   size: number;
   color: string;
 }
+export interface DocxMathValue {
+  latex: string;
+  format?: DocxMathFormat;
+}
+export type DocxMathEdit =
+  | (DocxMathValue & { action: "insert" })
+  | (DocxMathValue & { action: "update"; id: number })
+  | { action: "delete"; id: number };
+export interface DocxMathExpressions {
+  revision: number;
+  items: {
+    id: number;
+    latex: string;
+    reason: string;
+    format: DocxMathFormat | null;
+  }[];
+}
 export interface DocxFractionValue {
   numerator: string;
   denominator: string;
@@ -133,7 +150,40 @@ export function checkDocxScriptEdit(value: unknown): void {
   )
     throw new Error("Invalid script edit");
 }
-function checkMathCatalog(value: unknown, scripts: boolean): void {
+export function checkDocxMathEdit(value: unknown): void {
+  const edit = record(value),
+    insert = edit.action === "insert",
+    remove = edit.action === "delete";
+  const keys = ["action"];
+  if (!insert) keys.push("id");
+  if (!remove) keys.push("latex");
+  const formatted = !remove && Object.hasOwn(edit, "format");
+  if (formatted) keys.push("format");
+  if (
+    typeof edit.action !== "string" ||
+    !["insert", "update", "delete"].includes(edit.action) ||
+    Object.keys(edit).length !== keys.length ||
+    Object.keys(edit).some((key) => !keys.includes(key)) ||
+    (!insert && !integer(edit.id, 0, 2147483647)) ||
+    (formatted && !fractionFormat(edit.format)) ||
+    (!remove &&
+      (typeof edit.latex !== "string" ||
+        !edit.latex.trim().length ||
+        edit.latex.length > 131072 ||
+        !edit.latex.isWellFormed() ||
+        Array.from(edit.latex).some(
+          (c) =>
+            c.codePointAt(0)! < 32 ||
+            ["\u2028", "\u2029", "\ufffe", "\uffff"].includes(c),
+        )))
+  )
+    throw new Error("Invalid math expression edit");
+}
+function checkMathCatalog(
+  value: unknown,
+  kind: "fraction" | "script" | "expression",
+): void {
+  const scripts = kind === "script";
   const catalog = record(value);
   if (
     Object.keys(catalog).length !== 2 ||
@@ -143,9 +193,12 @@ function checkMathCatalog(value: unknown, scripts: boolean): void {
   )
     throw new Error("Invalid fraction catalog");
   const ids = new Set<number>();
-  const names = scripts
-    ? ["base", "subscript", "superscript"]
-    : ["numerator", "denominator"];
+  const names =
+    kind === "expression"
+      ? ["latex"]
+      : scripts
+        ? ["base", "subscript", "superscript"]
+        : ["numerator", "denominator"];
   for (const item of catalog.items) {
     const fraction = record(item);
     const texts = names.map((name) => fraction[name]);
@@ -155,7 +208,8 @@ function checkMathCatalog(value: unknown, scripts: boolean): void {
       !integer(fraction.id, 0, 2147483647) ||
       typeof fraction.reason !== "string" ||
       !texts.every((text): text is string => typeof text === "string") ||
-      texts.reduce((sum, text) => sum + text.length, 0) > 4096 ||
+      texts.reduce((sum, text) => sum + text.length, 0) >
+        (kind === "expression" ? 131072 : 4096) ||
       ![...texts, fraction.reason].every((text) => text.isWellFormed()) ||
       ids.has(fraction.id) ||
       (fraction.reason
@@ -164,7 +218,13 @@ function checkMathCatalog(value: unknown, scripts: boolean): void {
     )
       throw new Error("Invalid fraction catalog item");
     if (!fraction.reason) {
-      if (scripts)
+      if (kind === "expression")
+        checkDocxMathEdit({
+          action: "update",
+          id: fraction.id,
+          latex: fraction.latex,
+        });
+      else if (scripts)
         checkDocxScriptEdit({
           action: "update",
           id: fraction.id,
@@ -184,15 +244,34 @@ function checkMathCatalog(value: unknown, scripts: boolean): void {
   }
 }
 export function docxMathFractions(value: unknown): DocxMathFractions {
-  checkMathCatalog(value, false);
+  checkMathCatalog(value, "fraction");
   return value as DocxMathFractions;
 }
 export function docxMathScripts(value: unknown): DocxMathScripts {
-  checkMathCatalog(value, true);
+  checkMathCatalog(value, "script");
   return value as DocxMathScripts;
+}
+export function docxMathExpressions(value: unknown): DocxMathExpressions {
+  checkMathCatalog(value, "expression");
+  return value as DocxMathExpressions;
 }
 
 export class FoundationMathSession extends FoundationClipboardSession {
+  mathExpressions(revision: number) {
+    return docxMathExpressions(
+      this.call({ operation: "docxMathExpressions", revision }),
+    );
+  }
+  editMath(
+    revision: number,
+    math: DocxMathEdit,
+    profile: Record<string, string> = {},
+  ): EditState {
+    checkDocxMathEdit(math);
+    return editState(
+      this.call({ operation: "editDocxMath", revision, math, profile }),
+    );
+  }
   mathFractions(revision: number) {
     return docxMathFractions(
       this.call({ operation: "docxMathFractions", revision }),

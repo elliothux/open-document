@@ -55,6 +55,8 @@ fn Foundation::dispatch(
     "docxMathFractions"
     | "editDocxMathFraction"
     | "docxMathScripts"
+    | "docxMathExpressions"
+    | "editDocxMath"
     | "editDocxMathScript" => self.math_operation(operation, request)
     "docxShapes" | "editDocxShape" => self.shape_operation(operation, request)
     "docxPictures" | "editDocxPicture" | "docxDrawingGesture" =>

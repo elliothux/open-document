@@ -213,7 +213,7 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 ### DOCX 行内分数
 
-普通正文及普通单元格段落可读取直接嵌入的 `m:oMath/m:f` 横线分数。当前仅支持单层分数，分子和分母为普通 `m:r/m:t`；默认接受数字及简单运算标点，字母须显式声明 `m:sty m:val="p"` 正体。数学 run 可携带完整的 `w:rPr` 字体、字号和颜色；两项参数及各 run 要求同一外观。其他属性、混合数学样式、嵌套结构和其他公式保留源并报告诊断。分子和分母均非空，合计最多 4096 个 UTF-16 单元。
+普通正文及普通单元格段落可读取直接嵌入的 `m:oMath/m:f` 横线分数。平面参数面板处理单层分数，分子和分母为普通 `m:r/m:t`；默认接受数字及简单运算标点，字母须显式声明 `m:sty m:val="p"` 正体。数学 run 可携带完整的 `w:rPr` 字体、字号和颜色；两项参数及各 run 要求同一外观。其他属性、混合数学样式和未知公式保留源并报告诊断。分数与脚标的组合读取归[嵌套行内数学](#docx-嵌套行内数学)。分子和分母均非空，合计最多 4096 个 UTF-16 单元。
 
 宿主在现有字体 profile 中提供数学 run 显式指定的字体；没有完整的 run 外观时，使用设置部件 `m:mathFont`，默认 `Cambria Math`。核心需要实际字体的行度量及 U+2217 字形计算数学轴；缺少字体或字形明确拒绝布局。行内参数采用 0.76 字号系数，分子分母居中，横线宽度取两者较大值。公式参与逐行基线、行高和现有段落缓存预算，使用已有文字、矩形及变换图元输出 Canvas/PDF；语义文字为 `(分子)/(分母)`。
 
@@ -225,7 +225,7 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 原生富文本剪贴板已接通分数复制、剪切、正文范围粘贴及普通矩形单元格粘贴。纯文字和 TSV 使用线性表达式；原生片段保存可编辑 OMML，并写入实际数学字体、字号和颜色，避免单独复制公式时丢失外观。接收文档须供应该字体。粘贴复用现有段落/表格事务、资源和完整布局预检；支持目标公式覆盖、表格扩张、继续原生输入、一项精确历史和重开。分子/分母修改保留显式外观。未知、错位、混合外观及不完整源拒绝，文档分数总数限 256 项。
 
-`queryFormatting()` 分别返回 `inputReason` 和格式命令的 `reason`。宿主按核心输入状态设置原生输入框只读；格式不可用不再阻止已支持的输入。正文及普通格中的公式两侧文字可使用既有字符格式、格式查询及格式复制；光标可设置待输入格式，并修改所在段落的对齐、缩进和间距。组合输入、原生源及精确历史沿原路径处理。非折叠选区包含公式时，通用格式命令及格式捕获仍拒绝；分数面板可显式修改整体数学外观。未知公式、源注释/处理指令、修订、文档保护和未支持容器继续保护，失败保留源与历史。HTML/Markdown 明确拒绝公式输出，避免静默丢失。局部/混合数学格式、嵌套结构、LaTeX 和完整数学排版仍待实现。
+`queryFormatting()` 分别返回 `inputReason` 和格式命令的 `reason`。宿主按核心输入状态设置原生输入框只读；格式不可用不再阻止已支持的输入。正文及普通格中的公式两侧文字可使用既有字符格式、格式查询及格式复制；光标可设置待输入格式，并修改所在段落的对齐、缩进和间距。组合输入、原生源及精确历史沿原路径处理。非折叠选区包含公式时，通用格式命令及格式捕获仍拒绝；分数面板可显式修改平面分数的整体数学外观。未知公式、源注释/处理指令、修订、文档保护和未支持容器继续保护，失败保留源与历史。HTML/Markdown 明确拒绝公式输出，避免静默丢失。局部/混合数学格式、更多 LaTeX 语法和完整数学排版仍待实现。
 
 片段校验归 [`math-clipboard.mbt`](../../modules/formats/src/docx/math-clipboard.mbt)，统一外观读取归 [`math-style.mbt`](../../modules/formats/src/docx/math-style.mbt)。完整公式复制参考 [ONLYOFFICE ParaMath.Copy](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Math.js#L594-L612)；数学 run 中的 Word 属性位置按 [Open XML SDK schema](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/data/schemas/schemas_openxmlformats_org_officeDocument_2006_math.json#L45-L59)核对。
 
@@ -235,11 +235,35 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 编辑归 [`math-edit.mbt`](../../modules/formats/src/docx/math-edit.mbt)，接口校验归 [`docx-math.ts`](../../packages/wasm/src/docx-math.ts)，默认面板归 [`docx-math.tsx`](../../packages/ui/src/docx-math.tsx)。
 
-读取归 [`math-fraction.mbt`](../../modules/formats/src/docx/math-fraction.mbt)，布局归 [`layout/math-fraction.mbt`](../../modules/layout/src/math-fraction.mbt)。数学轴参考 [ONLYOFFICE Math.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Math.js#L2520-L2525)，参数缩放、间距及横线规则参考 [fraction.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/fraction.js#L352-L459)和[分子分母间距](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/fraction.js#L821-L909)。私有测试使用带完整许可的 DejaVu Math 字体，公开构建不依赖私有资源。
+读取归 [`math-read.mbt`](../../modules/formats/src/docx/math-read.mbt)及 [`math-run.mbt`](../../modules/formats/src/docx/math-run.mbt)，布局归 [`layout/math-fraction.mbt`](../../modules/layout/src/math-fraction.mbt)。数学轴参考 [ONLYOFFICE Math.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Math.js#L2520-L2525)，参数缩放、间距及横线规则参考 [fraction.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/fraction.js#L352-L459)和[分子分母间距](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/fraction.js#L821-L909)。私有测试使用带完整许可的 DejaVu Math 字体，公开构建不依赖私有资源。
+
+### DOCX 嵌套行内数学
+
+正文和普通单元格可读取 `m:oMath` 内的横线分数、上下标及横向组合。各参数可递归包含同类结构，保留原生 OMML。所有数学 run 要求统一字体、字号和颜色，文字与正体声明沿上述合同；未知结构、混合外观、修订和扩展继续保护。
+
+核心使用 `MathExpression` 的 `Text`、`Row`、`Fraction`、`Scripts`、`Root`，统一由 `MathFormula` 承载。`Row` 使用不可变子项数组。解析与布局在递归及缓存序列化前检查：根深度为 0，最大深度 16，最多 256 项结构/run 节点（横向组合计一项），文字合计 4096 个 UTF-16 单元。原生数学对象目录仍最多 256 项；超限原子拒绝。Web flow 使用 `kind="math"` 和 `{expression, style}`，沿同一预算校验，替换旧平面绘图模型。
+
+子参数递归按 0.76 缩放，横向组合按基线对齐；分数及结构化基底的单/双脚标使用实际字体度量。Canvas/PDF 继续消费核心已定位图元。线性文字用括号表达嵌套关系，供语义层、选择、纯文字和 TSV 使用。
+
+公式占一个逻辑位置，支持两侧原生输入、整式删除/替换、富文本复制/剪切、跨文档粘贴、精确历史及重开。周边编辑保留原公式源；富文本写回实际统一外观及递归结构。已有分数/脚标参数 API 和面板只修改平面参数，遇到嵌套内容返回保护原因，避免扁平化覆盖。嵌套参数可通过下述 LaTeX 表单或 SDK 替换；内部光标、局部格式、括号结构、求和/积分、矩阵与更多语法仍待实现。
+
+结构及边界归 [`math-expression.mbt`](../../modules/layout/src/math-expression.mbt)，递归测量归 [`math-layout.mbt`](../../modules/layout/src/math-layout.mbt)，读取归 [`math-read.mbt`](../../modules/formats/src/docx/math-read.mbt)，写回归 [`math-markup.mbt`](../../modules/formats/src/docx/math-markup.mbt)。脚标的文字/结构化基底分支沿上述 ONLYOFFICE 定位规则。
+
+### DOCX LaTeX 公式编辑
+
+默认“数学公式”面板和 `DocumentEditor.insertMath({latex, format?})` 可在正文/普通格中创建嵌套公式，替换当前文字范围并恢复原生输入焦点。支持横线 `\frac{分子}{分母}`、`_{下标}`、`^{上标}`、根式 `\sqrt{被开方项}` 与 `\sqrt[次数]{被开方项}`、花括号分组、横向组合及 `\text{原文}`。单字符脚标可省略花括号，两个脚标可交换输入顺序；重复同类脚标和缺失参数拒绝。当前字母与文本均使用正体数学 run。
+
+公式中的普通空格忽略，`\text{...}` 中的空格保留。文字内的 `{ } _ % $ # &` 使用反斜线转义；反斜线、尖号和波浪线可用 `\textbackslash{}`、`\textasciicircum{}`、`\textasciitilde{}` 表示。数学序列也接受 `\backslash` 与支持的单字符转义。宏、外部输入、注释、环境、排版命令和其他未映射语法明确拒绝，不执行 TeX。
+
+`mathExpressions()` 返回绑定文档身份和修订的原生目录，项含 `id`、规范化 `latex`、实际统一 `format` 和保护原因。规范化文字使用 `\text`，脚标按下标、上标顺序输出；无脚标作用的嵌套行分组展开，保留有脚标基底的结构。`editMath(source, id, value)` 替换指定公式的完整结构，`value=null` 删除。支持修改嵌套参数、切换根结构，以及统一字体/字号/颜色；省略格式沿插入继承或保留原外观。未知源、修订、源注释、受保护容器与过期目录继续拒绝。
+
+LaTeX 源最多 131072 个 UTF-16 单元，语法嵌套最多 64 层；解析结果继续遵守上述深度 16、256 节点、4096 个文字单元和实际字体要求。源上限容纳规范化的文字转义。候选原生 OMML 在字体与完整布局预检后提交，沿已有事务保存精确历史；无操作不新增历史。非法输入保留源、选择及历史，默认面板沿既有“恢复编辑”流程继续。保存重开后可加载规范化参数和实际外观再修改。
+
+解析和规范化归 [`math-latex.mbt`](../../modules/formats/src/docx/math-latex.mbt)，复用既有数学源编辑和排版。语法映射参考 ONLYOFFICE 的 [横线分数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/LaTeXParser.js#L286-L323)、[脚标及顺序](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/LaTeXParser.js#L1097-L1168)和[原文参数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/LaTeXParser.js#L821-L853)。输入范围比上游完整语法小，仅接受当前数学结构。
 
 ### DOCX 行内上下标
 
-普通正文及普通单元格可读取直接嵌入的 `m:oMath/m:sSup`、`m:sSub` 和 `m:sSubSup`。基底和脚标为非空普通数学 run，合计最多 4096 个 UTF-16 单元。数字与简单运算符可省略正体声明；字母须声明 `m:sty m:val="p"`。各参数使用统一字体、字号和颜色，完整的 Word run 外观沿分数读取路径处理。当前接受空的结构属性；嵌套基底、脚标对齐选项及其他扩展保留源并报告诊断。
+普通正文及普通单元格可读取直接嵌入的 `m:oMath/m:sSup`、`m:sSub` 和 `m:sSubSup`。平面基底和脚标为非空普通数学 run，合计最多 4096 个 UTF-16 单元。数字与简单运算符可省略正体声明；字母须声明 `m:sty m:val="p"`。各参数使用统一字体、字号和颜色，完整的 Word run 外观沿分数读取路径处理。当前接受空的结构属性；脚标对齐选项及其他扩展保留源并报告诊断。嵌套基底与参数归[嵌套行内数学](#docx-嵌套行内数学)。
 
 核心用实际数学字体塑形基底，并按 0.76 比例塑形脚标。偏移使用 U+2B1A 的度量，下标偏移同时使用 U+2217；缺少字体或度量字形明确拒绝布局。上下标参与行基线、行高、段落缓存及资源预算，沿已有图元输出 Canvas/PDF。线性替代文字使用 `X_(下标)^(上标)`，省略不存在的一项。分数与上下标共用字体、文字边界、缓存计数和基线处理；支持的数学字号下限统一为 0.5 pt。
 
@@ -251,13 +275,23 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 脚标公式在正文及普通格中占一个逻辑位置。插入后光标位于公式之后，并恢复原生输入焦点。可在两侧原生输入、插入 Tab/软换行、Enter 换段及边界合段，并进行组合输入、周边文字格式和整式删除/替换。保留的公式不改内部源。非折叠格式选区包含数学对象时继续保护；基底和脚标通过属性栏或 SDK 显式编辑。
 
-原生富文本复制/剪切、跨文档正文和普通矩形格粘贴已接通。纯文字/TSV 使用线性表达式，片段保存可编辑 OMML 及实际字体、字号和颜色；目标须供应该字体。目标脚标覆盖、表格扩张、整格清空、继续输入、精确历史及重开沿已有事务处理。片段与目标文档沿现有 256 项数学对象预算检查，未知源和字体/布局失败保留源与历史。HTML/Markdown 明确拒绝，避免丢失结构。局部/混合数学格式、嵌套结构、斜体数学字形及更广脚标属性继续实施。
+原生富文本复制/剪切、跨文档正文和普通矩形格粘贴已接通。纯文字/TSV 使用线性表达式，片段保存可编辑 OMML 及实际字体、字号和颜色；目标须供应该字体。目标脚标覆盖、表格扩张、整格清空、继续输入、精确历史及重开沿已有事务处理。片段与目标文档沿现有 256 项数学对象预算检查，未知源和字体/布局失败保留源与历史。HTML/Markdown 明确拒绝，避免丢失结构。局部/混合数学格式、斜体数学字形及更广脚标属性继续实施。
 
-读取归 [`docx/math-scripts.mbt`](../../modules/formats/src/docx/math-scripts.mbt)，布局归 [`layout/math-scripts.mbt`](../../modules/layout/src/math-scripts.mbt)，共用度量与边界归 [`math-common.mbt`](../../modules/layout/src/math-common.mbt)。偏移参考 [ONLYOFFICE 单脚标](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/degree.js#L182-L348)及[双脚标](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/degree.js#L817-L933)，度量字形归 [Math.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Math.js#L2520-L2533)。
+读取归 [`docx/math-read.mbt`](../../modules/formats/src/docx/math-read.mbt)，布局归 [`layout/math-scripts.mbt`](../../modules/layout/src/math-scripts.mbt)，共用度量与边界归 [`math-common.mbt`](../../modules/layout/src/math-common.mbt)。偏移参考 [ONLYOFFICE 单脚标](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/degree.js#L182-L348)及[双脚标](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/degree.js#L817-L933)，度量字形归 [Math.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Math.js#L2520-L2533)。
 
 输入与源保护复用分数的对象路径。原生片段写回归 [`math-markup.mbt`](../../modules/formats/src/docx/math-markup.mbt)，复制仍参考 [ParaMath.Copy](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Math.js#L594-L612)，不在宿主重建数学源。
 
 创建和参数修改复用 [`math-edit.mbt`](../../modules/formats/src/docx/math-edit.mbt) 的候选与历史，分数和脚标共用 [`DocxMath`](../../packages/ui/src/docx-math.tsx) 表单。结构参数及先后顺序按 [Open XML SDK schema](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/data/schemas/schemas_openxmlformats_org_officeDocument_2006_math.json#L1055-L1190)核对。
+
+### DOCX 根式
+
+正文及普通格支持 `m:rad` 平方根和带次数根式，可与分数、上下标及根式递归组合。平方根使用 `degHide=true` 和空 `m:deg`；次数可见时，次数和被开方项均非空。次数可包含受支持的数学结构。接受基本次数显示属性，未知属性、重复/缺失参数、隐藏但非空的次数及混合外观保留源并报告保护原因。
+
+`MathExpression.Root` 保存可空次数和被开方项；flow 使用 `{kind:"root", degree, radicand}`，次数为空时明确传 `null`。参数共用实际统一字体、字号和颜色，次数按 0.6498 比例缩小。核心按字体 `5`、`g` 的实际字形度量选择根号高度，长被开方项使用伸长分支；根号横线覆盖被开方项。根号用既有向量路径输出 Canvas/PDF，字体仍须提供实际资源。小字号的根号末端按比例收敛，保持 0.5 pt 下限；路径节点计入段落缓存预算。
+
+已有“数学公式”面板及 `insertMath` / `editMath` 支持 `\sqrt{...}` 和 `\sqrt[次数]{...}`。读取后的平方根、带次数根式及嵌套结构可修改参数、切换结构、统一外观和删除；目录提供规范化 LaTeX 和实际外观。分数/脚标专用目录跳过根式。公式仍占一个逻辑位置，沿现有原生输入、整式删除/替换、富文本复制、精确历史和重开路径处理。线性替代文字为 `sqrt(被开方项)` 或 `root[次数](被开方项)`。其他数学结构、局部/混合格式和更广根式源变体继续实施。
+
+结构读取归 [`math-read.mbt`](../../modules/formats/src/docx/math-read.mbt)，布局归 [`math-root.mbt`](../../modules/layout/src/math-root.mbt)。尺寸和绘图参考 ONLYOFFICE [根号路径](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/radical.js#L59-L201)、[字体度量与伸展](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/radical.js#L204-L330)及[次数/基底定位](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/radical.js#L564-L681)，字号系数归 [Math.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Math.js#L47-L48)。LaTeX 语法参考 [LaTeXParser.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/LaTeXParser.js#L1267-L1298)，原生参数顺序按 [Open XML SDK](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/data/schemas/schemas_openxmlformats_org_officeDocument_2006_math.json#L961-L1001)核对。
 
 ### 水平标尺
 

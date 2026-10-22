@@ -14,9 +14,22 @@ fn Foundation::math_operation(
   if operation == "docxMathScripts" {
     return session.math_scripts(revision)
   }
+  if operation == "docxMathExpressions" {
+    return session.math_expressions(revision)
+  }
+  let expression = operation == "editDocxMath"
   let scripts = operation == "editDocxMathScript"
   guard request is Object(requests) &&
-    requests.get(if scripts { "script" } else { "fraction" }) is Some(fraction) &&
+    requests.get(
+      if expression {
+        "math"
+      } else if scripts {
+        "script"
+      } else {
+        "fraction"
+      },
+    )
+    is Some(fraction) &&
     fraction is Object(fields) else {
     @failure.reject("invalid-operation", "Math settings are required")
   }
@@ -30,7 +43,9 @@ fn Foundation::math_operation(
   }
   if action != "delete" {
     keys.append(
-      if scripts {
+      if expression {
+        ["latex"]
+      } else if scripts {
         ["base", "subscript", "superscript"]
       } else {
         ["numerator", "denominator"]
@@ -66,7 +81,18 @@ fn Foundation::math_operation(
       field_string(fraction, key)
     }
   }
-  let result = if scripts {
+  let result = if expression {
+    session.edit_math(
+      revision,
+      action,
+      id,
+      argument("latex"),
+      probe=self.probe,
+      profile=xlsx_profile(request),
+      images=self.images,
+      format?,
+    )
+  } else if scripts {
     session.edit_math_script(
       revision,
       action,

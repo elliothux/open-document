@@ -1,25 +1,4 @@
 ///|
-fn math_fraction_markup(
-  numerator : String,
-  denominator : String,
-  style~ : @layout.TextStyle? = None,
-) -> String raise @failure.Failure {
-  guard numerator.length() + denominator.length() <= 4096 else {
-    @failure.reject("limit-exceeded", "Fraction text exceeds budget")
-  }
-  guard [numerator, denominator].all(text => {
-    !text.is_empty() &&
-    @xml.valid_text(text) &&
-    text.iter().all(ch => ch.to_int() >= 32 && ch != '\u2028' && ch != '\u2029')
-  }) else {
-    @failure.reject(
-      "invalid-operation", "Fraction arguments require nonempty single-line text",
-    )
-  }
-  "<m:oMath xmlns:m=\"\{math_uri}\"><m:f><m:fPr><m:type m:val=\"bar\"/></m:fPr><m:num>\{math_run_markup(numerator, style)}</m:num><m:den>\{math_run_markup(denominator, style)}</m:den></m:f></m:oMath>"
-}
-
-///|
 fn Session::math_target(
   self : Session,
   tree : WordTree,
@@ -68,8 +47,9 @@ fn Session::math_target(
 fn Session::math_catalog(
   self : Session,
   revision : Int,
-  scripts : Bool,
+  kind : String,
 ) -> Json raise @failure.Failure {
+  let scripts = kind == "script"
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
   let roots = tree.order.filter(id => {
@@ -86,26 +66,31 @@ fn Session::math_catalog(
   let styles : Map[Int, @layout.TextStyle] = Map([])
   for paragraph in paragraphs {
     for span in paragraph.spans {
-      if span.drawing is Some({ content, .. }) &&
-        content is (Fraction(_) | Scripts(_)) {
+      if span.drawing is Some({ content, .. }) && content is Math(_) {
         styles[span.node] = math_content_style(content)
       }
     }
   }
   let items : Array[Json] = []
   for id in roots {
-    if tree.children[id].get(0) is Some(child) &&
+    if kind != "expression" &&
+      tree.children[id].get(0) is Some(child) &&
       tree.nodes[child].uri == math_uri &&
-      (if scripts {
-        tree.nodes[child].name == "f"
-      } else {
-        ["sSub", "sSup", "sSubSup"].contains(tree.nodes[child].name)
-      }) {
+      (
+        tree.nodes[child].name == "rad" ||
+        (if scripts {
+          tree.nodes[child].name == "f"
+        } else {
+          ["sSub", "sSup", "sSubSup"].contains(tree.nodes[child].name)
+        })
+      ) {
       continue
     }
     let item : Map[String, Json] = { "id": Json(id) }
     for
-      name in (if scripts {
+      name in (if kind == "expression" {
+        ["latex"]
+      } else if scripts {
         ["base", "subscript", "superscript"]
       } else {
         ["numerator", "denominator"]
@@ -115,20 +100,23 @@ fn Session::math_catalog(
     let mut format : Json = Json::null()
     let reason = try {
       let (_, content) = self.math_target(tree, id)
-      match content {
-        Fraction(fraction) if !scripts => {
-          item["numerator"] = Json(fraction.numerator)
-          item["denominator"] = Json(fraction.denominator)
-        }
-        Scripts(value) if scripts => {
-          item["base"] = Json(value.base)
-          item["subscript"] = Json(value.subscript)
-          item["superscript"] = Json(value.superscript)
-        }
-        _ =>
+      if kind == "expression" && content is Math(formula) {
+        item["latex"] = Json(math_latex(formula.expression))
+      } else {
+        let (is_script, arguments) = math_plain_arguments(content)
+        guard scripts == is_script else {
           @failure.reject(
             "unsupported-math", "Mathematical expression kind does not match",
           )
+        }
+        let names = if scripts {
+          ["base", "subscript", "superscript"]
+        } else {
+          ["numerator", "denominator"]
+        }
+        for index, name in names {
+          item[name] = Json(arguments[index])
+        }
       }
       guard styles.get(id) is Some(style) else {
         @failure.reject("protected-content", "Math layout is unavailable")
@@ -155,7 +143,7 @@ pub fn Session::math_fractions(
   self : Session,
   revision : Int,
 ) -> Json raise @failure.Failure {
-  self.math_catalog(revision, false)
+  self.math_catalog(revision, "fraction")
 }
 
 ///|
@@ -163,7 +151,16 @@ pub fn Session::math_scripts(
   self : Session,
   revision : Int,
 ) -> Json raise @failure.Failure {
-  self.math_catalog(revision, true)
+  self.math_catalog(revision, "script")
+}
+
+///|
+/// Native expression identities, canonical supported LaTeX and effective uniform appearances.
+pub fn Session::math_expressions(
+  self : Session,
+  revision : Int,
+) -> Json raise @failure.Failure {
+  self.math_catalog(revision, "expression")
 }
 
 ///|
@@ -173,6 +170,7 @@ fn Session::edit_inline_math(
   action : String,
   id : Int,
   content : @layout.DrawingContent,
+  plain~ : Bool,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],
   images~ : @layout.Images,
@@ -239,11 +237,21 @@ fn Session::edit_inline_math(
     )
   } else {
     let (paragraph, current) = self.math_target(tree, id)
-    guard (content is Fraction(_) && current is Fraction(_)) ||
-      (content is Scripts(_) && current is Scripts(_)) else {
+    guard !plain ||
+      (
+        content is Math({ expression: Fraction(_, _), .. }) &&
+        current is Math({ expression: Fraction(_, _), .. })
+      ) ||
+      (
+        content is Math({ expression: Scripts(_, _, _), .. }) &&
+        current is Math({ expression: Scripts(_, _, _), .. })
+      ) else {
       @failure.reject(
         "unsupported-math", "Mathematical expression kind does not match",
       )
+    }
+    if plain && action == "update" {
+      ignore(math_plain_arguments(current))
     }
     let content = math_with_style(
       content,
@@ -338,14 +346,14 @@ pub fn Session::edit_math_fraction(
     revision,
     action,
     id,
-    Fraction(
-      @layout.MathFraction::new(
-        numerator,
-        denominator,
+    Math(
+      @layout.MathFormula::new(
+        Fraction(Text(numerator), Text(denominator)),
         @layout.TextStyle::new("Cambria Math", 11, "000000"),
       ),
     ),
     probe~,
+    plain=true,
     profile~,
     images~,
     format?,
@@ -371,15 +379,26 @@ pub fn Session::edit_math_script(
     revision,
     action,
     id,
-    Scripts(
-      @layout.MathScripts::new(
-        base,
-        subscript,
-        superscript,
+    Math(
+      @layout.MathFormula::new(
+        Scripts(
+          Text(base),
+          if subscript.is_empty() {
+            None
+          } else {
+            Some(Text(subscript))
+          },
+          if superscript.is_empty() {
+            None
+          } else {
+            Some(Text(superscript))
+          },
+        ),
         @layout.TextStyle::new("Cambria Math", 11, "000000"),
       ),
     ),
     probe~,
+    plain=true,
     profile~,
     images~,
     format?,

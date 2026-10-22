@@ -194,7 +194,7 @@ fn BodyBlock::retain(
   cache : ParagraphCache,
   page : PageSetup,
   tables : Map[Int, Table],
-) -> Unit {
+) -> Unit raise @failure.Failure {
   match self {
     KeptParagraphs(paragraphs, _) =>
       for paragraph in paragraphs {

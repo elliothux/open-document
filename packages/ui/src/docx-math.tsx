@@ -3,17 +3,20 @@ import type {
   DocumentEditor,
   DocumentMathFractions,
   DocumentMathScripts,
+  DocumentMathExpressions,
 } from "@open-document/web/editor";
 import type {
   DocxFractionValue,
   DocxScriptValue,
+  DocxMathValue,
 } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 
 type Catalog =
   | (DocumentMathFractions & { kind: "fraction" })
-  | (DocumentMathScripts & { kind: "script" });
+  | (DocumentMathScripts & { kind: "script" })
+  | (DocumentMathExpressions & { kind: "expression" });
 
 export function DocxMath({
   controller,
@@ -28,69 +31,98 @@ export function DocxMath({
   editor: DocumentEditor;
   disabled: boolean;
   insertDisabled: boolean;
-  kind: "fraction" | "script";
+  kind: "fraction" | "script" | "expression";
 }) {
   const t = messages(state.locale);
   const labels =
-    kind === "fraction"
+    kind === "expression"
       ? {
-          group: t.mathFractions,
-          load: t.loadFractions,
-          choose: t.chooseFraction,
-          insert: t.insertFraction,
-          apply: t.applyFraction,
-          remove: t.deleteFraction,
+          group: t.mathExpressions,
+          load: t.loadExpressions,
+          choose: t.chooseExpression,
+          insert: t.insertExpression,
+          apply: t.applyExpression,
+          remove: t.deleteExpression,
         }
-      : {
-          group: t.mathScripts,
-          load: t.loadScripts,
-          choose: t.chooseScript,
-          insert: t.insertScript,
-          apply: t.applyScript,
-          remove: t.deleteScript,
-        };
+      : kind === "fraction"
+        ? {
+            group: t.mathFractions,
+            load: t.loadFractions,
+            choose: t.chooseFraction,
+            insert: t.insertFraction,
+            apply: t.applyFraction,
+            remove: t.deleteFraction,
+          }
+        : {
+            group: t.mathScripts,
+            load: t.loadScripts,
+            choose: t.chooseScript,
+            insert: t.insertScript,
+            apply: t.applyScript,
+            remove: t.deleteScript,
+          };
   const [catalog, setCatalog] = useState<Catalog>();
   const [id, setId] = useState<number>();
-  const [draft, setDraft] = useState<DocxFractionValue | DocxScriptValue>(
-    kind === "fraction"
-      ? { numerator: "1", denominator: "2" }
-      : { base: "X", subscript: "1", superscript: "2" },
+  const [draft, setDraft] = useState<
+    DocxFractionValue | DocxScriptValue | DocxMathValue
+  >(
+    kind === "expression"
+      ? { latex: "\\frac{x_{1}}{2}" }
+      : kind === "fraction"
+        ? { numerator: "1", denominator: "2" }
+        : { base: "X", subscript: "1", superscript: "2" },
   );
   const current = catalog?.items.find((item) => item.id === id);
   const fields =
-    "base" in draft
+    "latex" in draft
       ? [
-          { key: "base", value: draft.base, label: t.mathBase, required: true },
           {
-            key: "subscript",
-            value: draft.subscript,
-            label: t.subscript,
-            required: false,
-          },
-          {
-            key: "superscript",
-            value: draft.superscript,
-            label: t.superscript,
-            required: false,
+            key: "latex",
+            value: draft.latex,
+            label: t.mathLatex,
+            required: true,
           },
         ]
-      : [
-          {
-            key: "numerator",
-            value: draft.numerator,
-            label: t.numerator,
-            required: true,
-          },
-          {
-            key: "denominator",
-            value: draft.denominator,
-            label: t.denominator,
-            required: true,
-          },
-        ];
+      : "base" in draft
+        ? [
+            {
+              key: "base",
+              value: draft.base,
+              label: t.mathBase,
+              required: true,
+            },
+            {
+              key: "subscript",
+              value: draft.subscript,
+              label: t.subscript,
+              required: false,
+            },
+            {
+              key: "superscript",
+              value: draft.superscript,
+              label: t.superscript,
+              required: false,
+            },
+          ]
+        : [
+            {
+              key: "numerator",
+              value: draft.numerator,
+              label: t.numerator,
+              required: true,
+            },
+            {
+              key: "denominator",
+              value: draft.denominator,
+              label: t.denominator,
+              required: true,
+            },
+          ];
   const invalid =
     fields.some((field) => field.required && !field.value) ||
-    fields.reduce((sum, field) => sum + field.value.length, 0) > 4096 ||
+    fields.reduce((sum, field) => sum + field.value.length, 0) >
+      (kind === "expression" ? 131072 : 4096) ||
+    ("latex" in draft && !draft.latex.trim()) ||
     ("base" in draft && !draft.subscript && !draft.superscript) ||
     (draft.format &&
       (!Number.isFinite(draft.format.size) ||
@@ -110,25 +142,29 @@ export function DocxMath({
     setId(item?.id);
     if (item && !item.reason && item.format)
       setDraft(
-        "base" in item
-          ? {
-              base: item.base,
-              subscript: item.subscript,
-              superscript: item.superscript,
-              format: { ...item.format },
-            }
-          : {
-              numerator: item.numerator,
-              denominator: item.denominator,
-              format: { ...item.format },
-            },
+        "latex" in item
+          ? { latex: item.latex, format: { ...item.format } }
+          : "base" in item
+            ? {
+                base: item.base,
+                subscript: item.subscript,
+                superscript: item.superscript,
+                format: { ...item.format },
+              }
+            : {
+                numerator: item.numerator,
+                denominator: item.denominator,
+                format: { ...item.format },
+              },
       );
   };
   const load = async () => {
     const value =
-      kind === "fraction"
-        ? { ...(await editor.mathFractions()), kind: "fraction" as const }
-        : { ...(await editor.mathScripts()), kind: "script" as const };
+      kind === "expression"
+        ? { ...(await editor.mathExpressions()), kind: "expression" as const }
+        : kind === "fraction"
+          ? { ...(await editor.mathFractions()), kind: "fraction" as const }
+          : { ...(await editor.mathScripts()), kind: "script" as const };
     setCatalog(value);
     selectItem(value.items.find((item) => item.id === id) ?? value.items[0]);
   };
@@ -156,9 +192,11 @@ export function DocxMath({
               {catalog.items.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.reason ||
-                    ("base" in item
-                      ? `${item.base}${item.subscript ? `_(${item.subscript})` : ""}${item.superscript ? `^(${item.superscript})` : ""}`
-                      : `${item.numerator}/${item.denominator}`)}
+                    ("latex" in item
+                      ? item.latex
+                      : "base" in item
+                        ? `${item.base}${item.subscript ? `_(${item.subscript})` : ""}${item.superscript ? `^(${item.superscript})` : ""}`
+                        : `${item.numerator}/${item.denominator}`)}
                 </option>
               ))}
             </select>
@@ -169,7 +207,7 @@ export function DocxMath({
             {field.label}
             <input
               value={field.value}
-              maxLength={4096}
+              maxLength={kind === "expression" ? 131072 : 4096}
               required={field.required}
               onChange={(event) =>
                 setDraft({ ...draft, [field.key]: event.currentTarget.value })
@@ -177,6 +215,7 @@ export function DocxMath({
             />
           </label>
         ))}
+        {kind === "expression" && <p>{t.mathLatexHelp}</p>}
         {draft.format && (
           <>
             <label>
@@ -245,7 +284,8 @@ export function DocxMath({
           disabled={insertDisabled || !!invalid}
           onClick={() =>
             controller.run(async () => {
-              if ("base" in draft) await editor.insertMathScript(draft);
+              if ("latex" in draft) await editor.insertMath(draft);
+              else if ("base" in draft) await editor.insertMathScript(draft);
               else await editor.insertMathFraction(draft);
               setCatalog(undefined);
               setId(undefined);
@@ -261,7 +301,9 @@ export function DocxMath({
           onClick={() =>
             controller.run(async () => {
               if (!catalog || id === undefined) return;
-              if (catalog.kind === "script" && "base" in draft)
+              if (catalog.kind === "expression" && "latex" in draft)
+                await editor.editMath(catalog, id, draft);
+              else if (catalog.kind === "script" && "base" in draft)
                 await editor.editMathScript(catalog, id, draft);
               else if (catalog.kind === "fraction" && "numerator" in draft)
                 await editor.editMathFraction(catalog, id, draft);
@@ -277,7 +319,9 @@ export function DocxMath({
           onClick={() =>
             controller.run(async () => {
               if (!catalog || id === undefined) return;
-              if (catalog.kind === "script")
+              if (catalog.kind === "expression")
+                await editor.editMath(catalog, id, null);
+              else if (catalog.kind === "script")
                 await editor.editMathScript(catalog, id, null);
               else await editor.editMathFraction(catalog, id, null);
               await load();

@@ -460,6 +460,15 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
       />
       <DocxMath
         key={editor.getSnapshot().documentId}
+        kind="expression"
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={stylesDisabled}
+        insertDisabled={inputDisabled}
+      />
+      <DocxMath
+        key={editor.getSnapshot().documentId + "-fractions"}
         kind="fraction"
         controller={controller}
         state={state}

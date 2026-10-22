@@ -4,6 +4,7 @@ import type { XlsxSession } from "@open-document/wasm/xlsx";
 import { isPptxCommand, type PptxSession } from "@open-document/wasm/pptx";
 import { isPdfCommand, type PdfSession } from "@open-document/wasm/pdf";
 import { errorResponse, type Request, type Response } from "./protocol";
+import { mathOperation } from "./worker-math.js";
 
 let text: TextSession | undefined;
 let foundation: FoundationSession | undefined;
@@ -464,21 +465,12 @@ async function dispatch(request: Request): Promise<unknown> {
         case "docxShapes":
           return foundation.shapes(request.revision);
         case "docxMathFractions":
-          return foundation.mathFractions(request.revision);
         case "docxMathScripts":
-          return foundation.mathScripts(request.revision);
+        case "docxMathExpressions":
+        case "editDocxMath":
         case "editDocxMathScript":
-          return foundation.editMathScript(
-            request.revision,
-            request.script,
-            request.profile,
-          );
         case "editDocxMathFraction":
-          return foundation.editMathFraction(
-            request.revision,
-            request.fraction,
-            request.profile,
-          );
+          return mathOperation(foundation, request);
         case "editDocxShape":
           return foundation.editShape(
             request.revision,

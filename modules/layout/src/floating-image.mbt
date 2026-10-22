@@ -256,8 +256,7 @@ fn PlacedDrawingFrame::paint(
   fonts : Array[FontInfo],
 ) -> Unit {
   let math = match self.content {
-    Fraction(fraction) => Some(fraction.primitives)
-    Scripts(scripts) => Some(scripts.primitives)
+    Math(formula) => Some(formula.primitives)
     _ => None
   }
   if math is Some(math) {

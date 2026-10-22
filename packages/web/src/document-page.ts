@@ -1,11 +1,16 @@
 import { DocumentReview } from "./document-review.js";
 import type {
   DocxMathFractions,
+  DocxMathExpressions,
+  DocxMathValue,
   DocxFractionValue,
   DocxMathScripts,
   DocxScriptValue,
 } from "@open-document/wasm/foundation";
 export type DocumentMathFractions = DocxMathFractions & { documentId: string };
+export type DocumentMathExpressions = DocxMathExpressions & {
+  documentId: string;
+};
 export type DocumentMathScripts = DocxMathScripts & { documentId: string };
 import type { DocxRuler, DocxRulerEdit } from "@open-document/wasm/foundation";
 export type DocumentRuler = DocxRuler & { documentId: string };
@@ -30,6 +35,47 @@ export type DocumentProtection = DocxProtection & { documentId: string };
 
 /** Document-wide page commands use the editor's existing read and edit queues. */
 export abstract class DocumentPage extends DocumentReview {
+  mathExpressions(): Promise<DocumentMathExpressions> {
+    return this.review.read(async () => ({
+      ...(await this.review.client.mathExpressions(
+        this.review.snapshot().revision,
+      )),
+      documentId: this.review.snapshot().documentId,
+    }));
+  }
+  insertMath(value: DocxMathValue): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.editMath(
+        this.review.snapshot().revision,
+        { ...value, action: "insert" },
+        this.profile,
+      ),
+    );
+  }
+  editMath(
+    source: DocumentMathExpressions,
+    id: number,
+    value: DocxMathValue | null,
+  ): Promise<void> {
+    return this.review.edit(() => {
+      const current = this.review.snapshot(),
+        item = source.items.find((item) => item.id === id);
+      if (
+        source.documentId !== current.documentId ||
+        source.revision !== current.revision ||
+        !item ||
+        item.reason
+      )
+        throw new Error(item?.reason || "Math catalog is stale");
+      return this.review.client.editMath(
+        source.revision,
+        value === null
+          ? { action: "delete", id }
+          : { ...value, action: "update", id },
+        this.profile,
+      );
+    });
+  }
   mathScripts(): Promise<DocumentMathScripts> {
     return this.review.read(async () => ({
       ...(await this.review.client.mathScripts(

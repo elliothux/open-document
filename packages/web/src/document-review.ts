@@ -8,6 +8,9 @@ import type { PageLayout } from "@open-document/wasm/preview";
 import {
   docxRevisions,
   docxMathFractions,
+  docxMathExpressions,
+  checkDocxMathEdit,
+  type DocxMathEdit,
   checkDocxFractionEdit,
   type DocxFractionEdit,
   docxMathScripts,
@@ -45,6 +48,29 @@ export interface DocumentRevisions extends DocxRevisions {
 /** Review calls retain the same Worker protocol and validation as other document commands. */
 export class FoundationReviewClient {
   constructor(protected readonly connection: Connection) {}
+  async mathExpressions(revision: number) {
+    return docxMathExpressions(
+      await this.connection.request({
+        operation: "docxMathExpressions",
+        revision,
+      }),
+    );
+  }
+  async editMath(
+    revision: number,
+    math: DocxMathEdit,
+    profile: Record<string, string> = {},
+  ): Promise<EditState> {
+    checkDocxMathEdit(math);
+    return editState(
+      await this.connection.request({
+        operation: "editDocxMath",
+        revision,
+        math,
+        profile,
+      }),
+    );
+  }
   async mathFractions(revision: number) {
     return docxMathFractions(
       await this.connection.request({

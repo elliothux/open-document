@@ -45,8 +45,7 @@ fn paragraph_cache_units(key : String, lines : Array[Line]) -> Int {
       units += 8 +
         (match image.content {
           Picture(key, _) => key.length()
-          Fraction(fraction) => fraction.cache_units()
-          Scripts(scripts) => scripts.cache_units()
+          Math(formula) => formula.cache_units()
           Shape(shape) =>
             shape.preset.length() + shape.fill.length() + shape.stroke.length()
           TextBox(shape, text) =>
@@ -104,8 +103,7 @@ fn Paragraph::finite_geometry(paragraph : Paragraph) -> Bool {
       numbers.push(image.width)
       numbers.push(image.height)
       match image.content {
-        Fraction(fraction) => numbers.push(fraction.style.size)
-        Scripts(scripts) => numbers.push(scripts.style.size)
+        Math(formula) => numbers.push(formula.style.size)
         Picture(_, crop) => numbers.append(crop)
         Shape(shape) => numbers.push(shape.lineWidth)
         TextBox(shape, text) => {
@@ -126,7 +124,12 @@ fn ParagraphCache::key(
   self : ParagraphCache,
   paragraph : Paragraph,
   available : Double,
-) -> String {
+) -> String raise @failure.Failure {
+  for span in paragraph.spans {
+    if span.drawing is Some(frame) && frame.content is Math(_) {
+      frame.validate()
+    }
+  }
   Json::array([paragraph.to_json(), Json(available), Json(self.profile)]).stringify()
 }
 
@@ -152,7 +155,7 @@ fn ParagraphCache::retain(
   paragraph : Paragraph,
   available : Double,
   inTable~ : Bool = false,
-) -> Unit {
+) -> Unit raise @failure.Failure {
   self.reused += 1
   let key = self.key(paragraph, available) +
     (if inTable { ";table" } else { "" })

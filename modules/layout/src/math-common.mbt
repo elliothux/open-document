@@ -1,16 +1,6 @@
 ///|
-fn validate_math_text(
-  texts : Array[String],
-  style : TextStyle,
-) -> Unit raise @failure.Failure {
-  guard texts.fold(init=0, (sum, text) => sum + text.length()) <= 4096 &&
-    texts.all(text => {
-      !text.is_empty() &&
-      !text
-      .iter()
-      .any(ch => ch.to_int() < 32 || ch == '\u2028' || ch == '\u2029')
-    }) &&
-    !style.size.is_nan() &&
+fn validate_math_style(style : TextStyle) -> Unit raise @failure.Failure {
+  guard !style.size.is_nan() &&
     !style.size.is_inf() &&
     style.size >= 0.5 &&
     style.size <= 409 &&
@@ -45,6 +35,8 @@ fn math_cache_units(
             sum + 10 + glyph.outline.length()
           })
       }
+    } else if primitive is Path(path, _, _, _, _) {
+      units += path.length() * 7
     }
   }
   units
@@ -66,12 +58,12 @@ fn TextProbe::math_font_index(
 }
 
 ///|
-fn TextProbe::math_glyph_height(
+fn TextProbe::math_glyph_metrics(
   self : TextProbe,
   index : Int,
   codepoint : UInt,
   size : Double,
-) -> Double raise @failure.Failure {
+) -> (Double, Double) raise @failure.Failure {
   let font = self.fonts[index]
   let bounds = match font.font.glyph_for_codepoint(codepoint) {
     Ok(Some(glyph)) => font.font.glyph_bounds(glyph)
@@ -86,14 +78,27 @@ fn TextProbe::math_glyph_height(
       "malformed-font", "Mathematical font has no measurement glyph bounds",
     )
   }
-  (bounds.y_max - bounds.y_min).to_double() * size / font.upem.to_double()
+  let scale = size / font.upem.to_double()
+  (
+    (bounds.y_max - bounds.y_min).to_double() * scale,
+    (-bounds.y_min).max(0).to_double() * scale,
+  )
+}
+
+///|
+fn TextProbe::math_glyph_height(
+  self : TextProbe,
+  index : Int,
+  codepoint : UInt,
+  size : Double,
+) -> Double raise @failure.Failure {
+  self.math_glyph_metrics(index, codepoint, size).0
 }
 
 ///|
 fn PlacedDrawingFrame::baseline(self : PlacedDrawingFrame) -> Double {
   match self.content {
-    Fraction(fraction) => fraction.ascent
-    Scripts(scripts) => scripts.ascent
+    Math(formula) => formula.ascent
     _ => self.height
   }
 }
@@ -102,9 +107,13 @@ fn PlacedDrawingFrame::baseline(self : PlacedDrawingFrame) -> Double {
 /// Linear accessible text for supported mathematical content; other drawings have no math text.
 pub fn DrawingContent::math_text(self : DrawingContent) -> String? {
   match self {
-    Fraction(fraction) =>
-      Some("(" + fraction.numerator + ")/(" + fraction.denominator + ")")
-    Scripts(scripts) => Some(scripts.text())
+    Math(formula) =>
+      try {
+        formula.expression.check()
+        Some(formula.expression.linear_text())
+      } catch {
+        @failure.Failure(..) => None
+      }
     _ => None
   }
 }

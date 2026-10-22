@@ -1,5 +1,6 @@
 import type {
   DocxFractionEdit,
+  DocxMathEdit,
   DocxScriptEdit,
   DocxRevisionEdit,
   DocxPasteMode,
@@ -161,6 +162,13 @@ export type Operation =
   | { operation: "docxShapes"; revision: number }
   | { operation: "docxMathFractions"; revision: number }
   | { operation: "docxMathScripts"; revision: number }
+  | { operation: "docxMathExpressions"; revision: number }
+  | {
+      operation: "editDocxMath";
+      revision: number;
+      math: DocxMathEdit;
+      profile: Record<string, string>;
+    }
   | {
       operation: "editDocxMathScript";
       revision: number;

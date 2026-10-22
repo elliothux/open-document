@@ -7,6 +7,9 @@ export type {
   DocxFractionEdit,
   DocxFractionValue,
   DocxMathFormat,
+  DocxMathValue,
+  DocxMathEdit,
+  DocxMathExpressions,
   DocxScriptValue,
   DocxScriptEdit,
   DocxMathScripts,
@@ -569,7 +572,6 @@ export class FoundationClient extends FoundationClipboardClient {
       }),
     );
   }
-
   async updateComposition(
     revision: number,
     compositionId: number,
@@ -584,7 +586,6 @@ export class FoundationClient extends FoundationClipboardClient {
       }),
     );
   }
-
   async commitComposition(
     revision: number,
     compositionId: number,

@@ -14,8 +14,7 @@ pub(all) enum DrawingContent {
   Picture(String, Array[Double])
   Shape(BasicShape)
   TextBox(BasicShape, DrawingTextBox)
-  Fraction(MathFraction)
-  Scripts(MathScripts)
+  Math(MathFormula)
 }
 
 ///|
@@ -31,8 +30,7 @@ pub impl ToJson for DrawingContent with fn to_json(self) {
         "lineWidth": shape.lineWidth,
       }
     TextBox(shape, text) => { "kind": "textBox", "shape": shape, "text": text }
-    Fraction(fraction) => { "kind": "fraction", "fraction": fraction }
-    Scripts(scripts) => { "kind": "scripts", "scripts": scripts }
+    Math(formula) => { "kind": "math", "math": formula }
   }
 }
 
@@ -45,8 +43,7 @@ fn DrawingContent::copy(self : DrawingContent) -> DrawingContent {
     Picture(key, crop) => Picture(key, crop.copy())
     Shape(_) => self
     TextBox(shape, text) => TextBox(shape, text.copy())
-    Fraction(fraction) => Fraction(fraction.copy())
-    Scripts(scripts) => Scripts(scripts.copy())
+    Math(formula) => Math(formula.copy())
   }
 }
 
@@ -87,19 +84,11 @@ pub fn DrawingFrame::validate(
     anchor.validate()
   }
   match self.content {
-    Scripts(scripts) => {
+    Math(formula) => {
       guard self.anchor is None else {
-        @failure.reject(
-          "unsupported-math", "Mathematical scripts must remain inline",
-        )
+        @failure.reject("unsupported-math", "Math must remain inline")
       }
-      scripts.validate()
-    }
-    Fraction(fraction) => {
-      guard self.anchor is None else {
-        @failure.reject("unsupported-math", "Fraction must remain inline")
-      }
-      fraction.validate()
+      formula.validate()
     }
     Picture(key, crop) => {
       guard !key.is_empty() &&

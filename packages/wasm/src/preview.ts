@@ -1,3 +1,5 @@
+import { checkMathContent, type MathFormula } from "./math.js";
+export type { MathExpression, MathFormula } from "./math.js";
 import type { ShapeBatch } from "./foundation.js";
 import {
   checkTabStops,
@@ -24,45 +26,6 @@ export interface TextStyle {
   highlight: string;
   script: "baseline" | "superscript" | "subscript";
   spacing: number;
-}
-
-function checkMathContent(value: unknown, kind: "fraction" | "scripts"): void {
-  const math = record(value);
-  const style = record(math.style);
-  const texts =
-    kind === "fraction"
-      ? [math.numerator, math.denominator]
-      : [math.base, math.subscript, math.superscript];
-  if (
-    !texts.every((text): text is string => typeof text === "string") ||
-    texts.reduce((sum, text) => sum + text.length, 0) > 4096 ||
-    (kind === "fraction"
-      ? texts.some((text) => !text)
-      : !math.base || (!math.subscript && !math.superscript)) ||
-    texts.some(
-      (text) =>
-        !text.isWellFormed() ||
-        Array.from(text).some(
-          (char) =>
-            char.codePointAt(0)! < 32 || char === "\u2028" || char === "\u2029",
-        ),
-    ) ||
-    typeof style.size !== "number" ||
-    !Number.isFinite(style.size) ||
-    style.size < 0.5 ||
-    style.size > 409 ||
-    typeof style.font !== "string" ||
-    !style.font.length ||
-    style.font.length > 1024 ||
-    typeof style.color !== "string" ||
-    !/^[a-fA-F0-9]{6}$/.test(style.color) ||
-    style.script !== "baseline" ||
-    style.spacing !== 0 ||
-    style.underline !== false ||
-    style.strike !== false ||
-    style.highlight !== ""
-  )
-    throw new Error("Invalid mathematical " + kind);
 }
 
 export interface DocxFlow {
@@ -157,19 +120,7 @@ export interface DrawingFrame {
   anchor: DrawingAnchor | null;
   content:
     | { kind: "picture"; key: string; crop: number[] }
-    | {
-        kind: "fraction";
-        fraction: { numerator: string; denominator: string; style: TextStyle };
-      }
-    | {
-        kind: "scripts";
-        scripts: {
-          base: string;
-          subscript: string;
-          superscript: string;
-          style: TextStyle;
-        };
-      }
+    | { kind: "math"; math: MathFormula }
     | {
         kind: "shape";
         preset: "rect" | "ellipse" | "line";
@@ -500,10 +451,10 @@ export function docxFlow(value: unknown): DocxFlow {
           Number(image.height) > 14400
         )
           throw new Error("Invalid drawing dimensions");
-        if (content.kind === "fraction" || content.kind === "scripts") {
+        if (content.kind === "math") {
           if (image.anchor !== null)
             throw new Error("Mathematical expression must remain inline");
-          checkMathContent(content[content.kind], content.kind);
+          checkMathContent(content.math);
           continue;
         }
         if (content.kind === "shape" || content.kind === "textBox") {

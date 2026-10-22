@@ -487,7 +487,7 @@ fn prepare_paragraph(
         }
         let inline_images = images.filter(image => image.anchor is None)
         for image in inline_images {
-          if image.content is (Fraction(_) | Scripts(_)) {
+          if image.content is Math(_) {
             line_ascent = line_ascent.max(image.baseline())
             line_descent = line_descent.max(image.height - image.baseline())
           }

@@ -5,6 +5,7 @@ export type {
   DocumentBodyPageField,
   DocumentProtection,
   DocumentMathFractions,
+  DocumentMathExpressions,
   DocumentMathScripts,
 } from "./document-page.js";
 export type { DocumentComments, DocumentRevisions } from "./document-review.js";
@@ -405,7 +406,6 @@ export class DocumentEditor extends DocumentTables {
     this.inputEvents.endGroup();
     void this.enqueue(operation).catch(() => {});
   }
-
   private history(redo: boolean): Promise<void> {
     this.inputEvents.endGroup();
     if (this.blocked && !redo) return this.recover(true);

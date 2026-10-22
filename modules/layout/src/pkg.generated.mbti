@@ -159,8 +159,7 @@ pub(all) enum DrawingContent {
   Picture(String, Array[Double])
   Shape(BasicShape)
   TextBox(BasicShape, DrawingTextBox)
-  Fraction(MathFraction)
-  Scripts(MathScripts)
+  Math(MathFormula)
 }
 pub fn DrawingContent::math_text(Self) -> String?
 pub fn DrawingContent::to_json(Self) -> Json
@@ -403,28 +402,25 @@ pub struct LiteralPattern {
 pub fn LiteralPattern::matches(Self, String) -> Array[(Int, Int)]
 pub fn LiteralPattern::new(String, match_case? : Bool, whole_word? : Bool) -> Self raise @failure.Failure
 
-pub struct MathFraction {
-  numerator : String
-  denominator : String
-  style : TextStyle
-  ascent : Double
-  primitives : Array[PositionedPrimitive]
+pub(all) enum MathExpression {
+  Text(String)
+  Row(ReadOnlyArray[MathExpression])
+  Fraction(MathExpression, MathExpression)
+  Scripts(MathExpression, MathExpression?, MathExpression?)
+  Root(MathExpression?, MathExpression)
 }
-pub fn MathFraction::new(String, String, TextStyle) -> Self
-pub fn MathFraction::to_json(Self) -> Json
-pub impl ToJson for MathFraction
+pub fn MathExpression::to_json(Self) -> Json
+pub impl ToJson for MathExpression
 
-pub struct MathScripts {
-  base : String
-  subscript : String
-  superscript : String
+pub struct MathFormula {
+  expression : MathExpression
   style : TextStyle
   ascent : Double
   primitives : Array[PositionedPrimitive]
 }
-pub fn MathScripts::new(String, String, String, TextStyle) -> Self
-pub fn MathScripts::to_json(Self) -> Json
-pub impl ToJson for MathScripts
+pub fn MathFormula::new(MathExpression, TextStyle) -> Self
+pub fn MathFormula::to_json(Self) -> Json
+pub impl ToJson for MathFormula
 
 pub(all) struct Matrix {
   a : Double
