@@ -6,6 +6,10 @@ export { checkDocxComment } from "@open-document/wasm/foundation";
 export type {
   DocxFractionEdit,
   DocxFractionValue,
+  DocxMathFormat,
+  DocxScriptValue,
+  DocxScriptEdit,
+  DocxMathScripts,
   DocxMathFractions,
   DocxRunningArea,
   DocxCoverPage,

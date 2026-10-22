@@ -316,7 +316,7 @@ fn Session::paragraph(
         script: "baseline",
         spacing: 0,
       }
-      try self.read_math_fraction(tree, run, style) catch {
+      try self.read_inline_math(tree, run, style) catch {
         @failure.Failure(code="limit-exceeded", ..) as error => raise error
         @failure.Failure(message~, ..) =>
           diagnostics.push("unsupported-layout:math:" + message)

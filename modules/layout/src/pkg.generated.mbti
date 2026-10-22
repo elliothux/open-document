@@ -160,7 +160,9 @@ pub(all) enum DrawingContent {
   Shape(BasicShape)
   TextBox(BasicShape, DrawingTextBox)
   Fraction(MathFraction)
+  Scripts(MathScripts)
 }
+pub fn DrawingContent::math_text(Self) -> String?
 pub fn DrawingContent::to_json(Self) -> Json
 pub impl ToJson for DrawingContent
 
@@ -411,6 +413,18 @@ pub struct MathFraction {
 pub fn MathFraction::new(String, String, TextStyle) -> Self
 pub fn MathFraction::to_json(Self) -> Json
 pub impl ToJson for MathFraction
+
+pub struct MathScripts {
+  base : String
+  subscript : String
+  superscript : String
+  style : TextStyle
+  ascent : Double
+  primitives : Array[PositionedPrimitive]
+}
+pub fn MathScripts::new(String, String, String, TextStyle) -> Self
+pub fn MathScripts::to_json(Self) -> Json
+pub impl ToJson for MathScripts
 
 pub(all) struct Matrix {
   a : Double

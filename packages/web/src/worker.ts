@@ -3,7 +3,7 @@ import type { FoundationSession } from "@open-document/wasm/foundation";
 import type { XlsxSession } from "@open-document/wasm/xlsx";
 import { isPptxCommand, type PptxSession } from "@open-document/wasm/pptx";
 import { isPdfCommand, type PdfSession } from "@open-document/wasm/pdf";
-import type { Request, Response } from "./protocol";
+import { errorResponse, type Request, type Response } from "./protocol";
 
 let text: TextSession | undefined;
 let foundation: FoundationSession | undefined;
@@ -465,6 +465,14 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.shapes(request.revision);
         case "docxMathFractions":
           return foundation.mathFractions(request.revision);
+        case "docxMathScripts":
+          return foundation.mathScripts(request.revision);
+        case "editDocxMathScript":
+          return foundation.editMathScript(
+            request.revision,
+            request.script,
+            request.profile,
+          );
         case "editDocxMathFraction":
           return foundation.editMathFraction(
             request.revision,
@@ -777,21 +785,7 @@ globalThis.onmessage = async (event: MessageEvent<Request>) => {
   try {
     response = { id: request.id, ok: true, value: await dispatch(request) };
   } catch (error) {
-    response = {
-      id: request.id,
-      ok: false,
-      error: error instanceof Error ? error.message : String(error),
-      ...(error instanceof Error &&
-      error.name === "DocumentError" &&
-      "code" in error &&
-      typeof error.code === "string" &&
-      "part" in error &&
-      typeof error.part === "string" &&
-      "offset" in error &&
-      typeof error.offset === "number"
-        ? { code: error.code, part: error.part, offset: error.offset }
-        : {}),
-    };
+    response = errorResponse(request.id, error);
   } finally {
     busy = false;
   }

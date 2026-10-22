@@ -65,7 +65,7 @@ fn Session::selection_field_values(
   layout : @layout.Layout?,
 ) -> Map[Int, String] raise @failure.Failure {
   let selected : Array[Int] = []
-  let fractions : Map[Int, String] = Map([])
+  let math : Map[Int, String] = Map([])
   let paragraphs = Map::from_array(range.paragraphs.map(p => (p, true)))
   let offsets : Map[Int, Int] = Map([])
   for item in docx_texts(tree) {
@@ -92,13 +92,13 @@ fn Session::selection_field_values(
     if tree.nodes[item.id].uri == math_uri &&
       start < offset + length &&
       end > offset {
-      let (_, fraction) = self.math_fraction_target(tree, item.id)
-      fractions[item.id] = "(\{fraction.numerator})/(\{fraction.denominator})"
+      let (_, content) = self.math_target(tree, item.id)
+      math[item.id] = content.math_text().unwrap()
     }
     offsets[item.paragraph] = offset + length
   }
   let values = self.field_values(tree, selected, layout)
-  for id, text in fractions {
+  for id, text in math {
     values[id] = text
   }
   values

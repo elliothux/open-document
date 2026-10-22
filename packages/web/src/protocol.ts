@@ -1,5 +1,6 @@
 import type {
   DocxFractionEdit,
+  DocxScriptEdit,
   DocxRevisionEdit,
   DocxPasteMode,
   Budget,
@@ -159,6 +160,13 @@ export type Operation =
   | { operation: "docxPictures"; revision: number }
   | { operation: "docxShapes"; revision: number }
   | { operation: "docxMathFractions"; revision: number }
+  | { operation: "docxMathScripts"; revision: number }
+  | {
+      operation: "editDocxMathScript";
+      revision: number;
+      script: DocxScriptEdit;
+      profile: Record<string, string>;
+    }
   | {
       operation: "editDocxMathFraction";
       revision: number;
@@ -656,3 +664,21 @@ export type Response =
       part?: string;
       offset?: number;
     };
+
+export function errorResponse(id: number, error: unknown): Response {
+  return {
+    id,
+    ok: false,
+    error: error instanceof Error ? error.message : String(error),
+    ...(error instanceof Error &&
+    error.name === "DocumentError" &&
+    "code" in error &&
+    typeof error.code === "string" &&
+    "part" in error &&
+    typeof error.part === "string" &&
+    "offset" in error &&
+    typeof error.offset === "number"
+      ? { code: error.code, part: error.part, offset: error.offset }
+      : {}),
+  };
+}

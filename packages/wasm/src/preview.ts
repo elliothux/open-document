@@ -26,16 +26,22 @@ export interface TextStyle {
   spacing: number;
 }
 
-function checkMathFraction(value: unknown): void {
-  const fraction = record(value);
-  const style = record(fraction.style);
+function checkMathContent(value: unknown, kind: "fraction" | "scripts"): void {
+  const math = record(value);
+  const style = record(math.style);
+  const texts =
+    kind === "fraction"
+      ? [math.numerator, math.denominator]
+      : [math.base, math.subscript, math.superscript];
   if (
-    typeof fraction.numerator !== "string" ||
-    typeof fraction.denominator !== "string" ||
-    fraction.numerator.length + fraction.denominator.length > 4096 ||
-    [fraction.numerator, fraction.denominator].some(
+    !texts.every((text): text is string => typeof text === "string") ||
+    texts.reduce((sum, text) => sum + text.length, 0) > 4096 ||
+    (kind === "fraction"
+      ? texts.some((text) => !text)
+      : !math.base || (!math.subscript && !math.superscript)) ||
+    texts.some(
       (text) =>
-        !text.length ||
+        !text.isWellFormed() ||
         Array.from(text).some(
           (char) =>
             char.codePointAt(0)! < 32 || char === "\u2028" || char === "\u2029",
@@ -43,7 +49,7 @@ function checkMathFraction(value: unknown): void {
     ) ||
     typeof style.size !== "number" ||
     !Number.isFinite(style.size) ||
-    style.size < 1 ||
+    style.size < 0.5 ||
     style.size > 409 ||
     typeof style.font !== "string" ||
     !style.font.length ||
@@ -56,7 +62,7 @@ function checkMathFraction(value: unknown): void {
     style.strike !== false ||
     style.highlight !== ""
   )
-    throw new Error("Invalid mathematical fraction");
+    throw new Error("Invalid mathematical " + kind);
 }
 
 export interface DocxFlow {
@@ -154,6 +160,15 @@ export interface DrawingFrame {
     | {
         kind: "fraction";
         fraction: { numerator: string; denominator: string; style: TextStyle };
+      }
+    | {
+        kind: "scripts";
+        scripts: {
+          base: string;
+          subscript: string;
+          superscript: string;
+          style: TextStyle;
+        };
       }
     | {
         kind: "shape";
@@ -485,10 +500,10 @@ export function docxFlow(value: unknown): DocxFlow {
           Number(image.height) > 14400
         )
           throw new Error("Invalid drawing dimensions");
-        if (content.kind === "fraction") {
+        if (content.kind === "fraction" || content.kind === "scripts") {
           if (image.anchor !== null)
-            throw new Error("Mathematical fraction must remain inline");
-          checkMathFraction(content.fraction);
+            throw new Error("Mathematical expression must remain inline");
+          checkMathContent(content[content.kind], content.kind);
           continue;
         }
         if (content.kind === "shape" || content.kind === "textBox") {

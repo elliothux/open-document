@@ -46,6 +46,7 @@ fn paragraph_cache_units(key : String, lines : Array[Line]) -> Int {
         (match image.content {
           Picture(key, _) => key.length()
           Fraction(fraction) => fraction.cache_units()
+          Scripts(scripts) => scripts.cache_units()
           Shape(shape) =>
             shape.preset.length() + shape.fill.length() + shape.stroke.length()
           TextBox(shape, text) =>
@@ -104,6 +105,7 @@ fn Paragraph::finite_geometry(paragraph : Paragraph) -> Bool {
       numbers.push(image.height)
       match image.content {
         Fraction(fraction) => numbers.push(fraction.style.size)
+        Scripts(scripts) => numbers.push(scripts.style.size)
         Picture(_, crop) => numbers.append(crop)
         Shape(shape) => numbers.push(shape.lineWidth)
         TextBox(shape, text) => {

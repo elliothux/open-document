@@ -2,8 +2,11 @@ import { DocumentReview } from "./document-review.js";
 import type {
   DocxMathFractions,
   DocxFractionValue,
+  DocxMathScripts,
+  DocxScriptValue,
 } from "@open-document/wasm/foundation";
 export type DocumentMathFractions = DocxMathFractions & { documentId: string };
+export type DocumentMathScripts = DocxMathScripts & { documentId: string };
 import type { DocxRuler, DocxRulerEdit } from "@open-document/wasm/foundation";
 export type DocumentRuler = DocxRuler & { documentId: string };
 import type { DocxPageSetup } from "@open-document/wasm/foundation";
@@ -27,6 +30,47 @@ export type DocumentProtection = DocxProtection & { documentId: string };
 
 /** Document-wide page commands use the editor's existing read and edit queues. */
 export abstract class DocumentPage extends DocumentReview {
+  mathScripts(): Promise<DocumentMathScripts> {
+    return this.review.read(async () => ({
+      ...(await this.review.client.mathScripts(
+        this.review.snapshot().revision,
+      )),
+      documentId: this.review.snapshot().documentId,
+    }));
+  }
+  insertMathScript(value: DocxScriptValue): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.editMathScript(
+        this.review.snapshot().revision,
+        { ...value, action: "insert" },
+        this.profile,
+      ),
+    );
+  }
+  editMathScript(
+    source: DocumentMathScripts,
+    id: number,
+    value: DocxScriptValue | null,
+  ): Promise<void> {
+    return this.review.edit(() => {
+      const current = this.review.snapshot(),
+        item = source.items.find((item) => item.id === id);
+      if (
+        source.documentId !== current.documentId ||
+        source.revision !== current.revision ||
+        !item ||
+        item.reason
+      )
+        throw new Error(item?.reason || "Script catalog is stale");
+      return this.review.client.editMathScript(
+        source.revision,
+        value === null
+          ? { action: "delete", id }
+          : { ...value, action: "update", id },
+        this.profile,
+      );
+    });
+  }
   mathFractions(): Promise<DocumentMathFractions> {
     return this.review.read(async () => ({
       ...(await this.review.client.mathFractions(

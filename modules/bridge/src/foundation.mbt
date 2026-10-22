@@ -52,8 +52,10 @@ fn Foundation::dispatch(
   }
   let operation = field_string(request, "operation")
   match operation {
-    "docxMathFractions" | "editDocxMathFraction" =>
-      self.math_operation(operation, request)
+    "docxMathFractions"
+    | "editDocxMathFraction"
+    | "docxMathScripts"
+    | "editDocxMathScript" => self.math_operation(operation, request)
     "docxShapes" | "editDocxShape" => self.shape_operation(operation, request)
     "docxPictures" | "editDocxPicture" | "docxDrawingGesture" =>
       self.picture_operation(operation, request)

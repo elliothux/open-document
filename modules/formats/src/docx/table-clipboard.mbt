@@ -63,8 +63,8 @@ pub fn Session::table_clipboard(
     layout,
   )
   fn displayed(span : @layout.Span) -> String {
-    if span.drawing is Some({ content: Fraction(fraction), .. }) {
-      "(\{fraction.numerator})/(\{fraction.denominator})"
+    if span.drawing.bind(drawing => drawing.content.math_text()) is Some(text) {
+      text
     } else if span.field.is_empty() {
       span.text
     } else {

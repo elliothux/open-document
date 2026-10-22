@@ -7,6 +7,13 @@ export const mathEn = {
   chooseFraction: "Choose fraction",
   applyFraction: "Apply fraction",
   deleteFraction: "Delete fraction",
+  mathScripts: "Subscripts and superscripts",
+  mathBase: "Base",
+  loadScripts: "Load scripts",
+  chooseScript: "Choose script",
+  insertScript: "Insert script",
+  applyScript: "Apply script",
+  deleteScript: "Delete script",
 };
 export const mathZh: typeof mathEn = {
   mathFractions: "分数",
@@ -17,4 +24,11 @@ export const mathZh: typeof mathEn = {
   chooseFraction: "选择分数",
   applyFraction: "应用分数",
   deleteFraction: "删除分数",
+  mathScripts: "上下标公式",
+  mathBase: "基底",
+  loadScripts: "读取上下标",
+  chooseScript: "选择上下标",
+  insertScript: "插入上下标",
+  applyScript: "应用上下标",
+  deleteScript: "删除上下标",
 };

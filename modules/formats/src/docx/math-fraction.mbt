@@ -23,7 +23,7 @@ fn WordTree::math_children(
 }
 
 ///|
-fn WordTree::fraction_text(
+fn WordTree::math_run_text(
   self : WordTree,
   id : Int,
   base : @layout.TextStyle,
@@ -122,7 +122,7 @@ fn WordTree::fraction_text(
 }
 
 ///|
-fn Session::fraction_font(self : Session) -> String raise @failure.Failure {
+fn Session::math_font(self : Session) -> String raise @failure.Failure {
   if self.settings_part() is Some(part) {
     let tree = WordTree::new(self.part_xml(part))
     let fonts = tree.order.filter(id => {
@@ -183,17 +183,9 @@ fn Session::read_math_fraction(
       "unsupported-math", "Fraction requires one numerator and denominator",
     )
   }
-  let base = {
-    ..style,
-    font: self.fraction_font(),
-    script: "baseline",
-    spacing: 0,
-    underline: false,
-    strike: false,
-    highlight: "",
-  }
-  let (numerator, num_style) = tree.fraction_text(num, base)
-  let (denominator, den_style) = tree.fraction_text(den, base)
+  let base = self.math_base_style(style)
+  let (numerator, num_style) = tree.math_run_text(num, base)
+  let (denominator, den_style) = tree.math_run_text(den, base)
   guard (num_style.font, num_style.size, num_style.color) ==
     (den_style.font, den_style.size, den_style.color) else {
     @failure.reject(

@@ -29,7 +29,7 @@ fn Session::check_native_drawings(
     if tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing" {
       self.check_drawing_text(tree, id)
     } else if tree.nodes[id].uri == math_uri && tree.nodes[id].name == "oMath" {
-      ignore(self.math_fraction_target(tree, id))
+      ignore(self.math_target(tree, id))
     }
   }
 }

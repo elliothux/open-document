@@ -10,6 +10,9 @@ import {
   docxMathFractions,
   checkDocxFractionEdit,
   type DocxFractionEdit,
+  docxMathScripts,
+  checkDocxScriptEdit,
+  type DocxScriptEdit,
   docxShapes,
   checkDocxShapeEdit,
   type DocxShapeEdit,
@@ -47,6 +50,26 @@ export class FoundationReviewClient {
       await this.connection.request({
         operation: "docxMathFractions",
         revision,
+      }),
+    );
+  }
+  async mathScripts(revision: number) {
+    return docxMathScripts(
+      await this.connection.request({ operation: "docxMathScripts", revision }),
+    );
+  }
+  async editMathScript(
+    revision: number,
+    script: DocxScriptEdit,
+    profile: Record<string, string> = {},
+  ): Promise<EditState> {
+    checkDocxScriptEdit(script);
+    return editState(
+      await this.connection.request({
+        operation: "editDocxMathScript",
+        revision,
+        script,
+        profile,
       }),
     );
   }

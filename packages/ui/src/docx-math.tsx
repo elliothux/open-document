@@ -2,10 +2,18 @@ import { useState } from "react";
 import type {
   DocumentEditor,
   DocumentMathFractions,
+  DocumentMathScripts,
 } from "@open-document/web/editor";
-import type { DocxFractionValue } from "@open-document/web/foundation";
+import type {
+  DocxFractionValue,
+  DocxScriptValue,
+} from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+
+type Catalog =
+  | (DocumentMathFractions & { kind: "fraction" })
+  | (DocumentMathScripts & { kind: "script" });
 
 export function DocxMath({
   controller,
@@ -13,108 +21,255 @@ export function DocxMath({
   editor,
   disabled,
   insertDisabled,
+  kind,
 }: {
   controller: EditorController;
   state: UiSnapshot;
   editor: DocumentEditor;
   disabled: boolean;
   insertDisabled: boolean;
+  kind: "fraction" | "script";
 }) {
   const t = messages(state.locale);
-  const [catalog, setCatalog] = useState<DocumentMathFractions>();
+  const labels =
+    kind === "fraction"
+      ? {
+          group: t.mathFractions,
+          load: t.loadFractions,
+          choose: t.chooseFraction,
+          insert: t.insertFraction,
+          apply: t.applyFraction,
+          remove: t.deleteFraction,
+        }
+      : {
+          group: t.mathScripts,
+          load: t.loadScripts,
+          choose: t.chooseScript,
+          insert: t.insertScript,
+          apply: t.applyScript,
+          remove: t.deleteScript,
+        };
+  const [catalog, setCatalog] = useState<Catalog>();
   const [id, setId] = useState<number>();
-  const [draft, setDraft] = useState<DocxFractionValue>({
-    numerator: "1",
-    denominator: "2",
-  });
+  const [draft, setDraft] = useState<DocxFractionValue | DocxScriptValue>(
+    kind === "fraction"
+      ? { numerator: "1", denominator: "2" }
+      : { base: "X", subscript: "1", superscript: "2" },
+  );
   const current = catalog?.items.find((item) => item.id === id);
+  const fields =
+    "base" in draft
+      ? [
+          { key: "base", value: draft.base, label: t.mathBase, required: true },
+          {
+            key: "subscript",
+            value: draft.subscript,
+            label: t.subscript,
+            required: false,
+          },
+          {
+            key: "superscript",
+            value: draft.superscript,
+            label: t.superscript,
+            required: false,
+          },
+        ]
+      : [
+          {
+            key: "numerator",
+            value: draft.numerator,
+            label: t.numerator,
+            required: true,
+          },
+          {
+            key: "denominator",
+            value: draft.denominator,
+            label: t.denominator,
+            required: true,
+          },
+        ];
+  const invalid =
+    fields.some((field) => field.required && !field.value) ||
+    fields.reduce((sum, field) => sum + field.value.length, 0) > 4096 ||
+    ("base" in draft && !draft.subscript && !draft.superscript) ||
+    (draft.format &&
+      (!Number.isFinite(draft.format.size) ||
+        draft.format.size < 0.5 ||
+        draft.format.size > 409 ||
+        !Number.isInteger(draft.format.size * 2)));
+  const families = [
+    ...new Set([
+      draft.format?.family,
+      ...Object.keys(controller.options.resources.profile).filter(
+        (key) => !key.includes("|"),
+      ),
+    ]),
+  ].filter((family): family is string => !!family);
   const stale = catalog?.revision !== editor.getSnapshot().revision;
-  const load = async () => {
-    const value = await editor.mathFractions();
-    setCatalog(value);
-    const item = value.items.find((item) => item.id === id) ?? value.items[0];
+  const selectItem = (item: Catalog["items"][number] | undefined) => {
     setId(item?.id);
-    if (item && !item.reason)
-      setDraft({ numerator: item.numerator, denominator: item.denominator });
+    if (item && !item.reason && item.format)
+      setDraft(
+        "base" in item
+          ? {
+              base: item.base,
+              subscript: item.subscript,
+              superscript: item.superscript,
+              format: { ...item.format },
+            }
+          : {
+              numerator: item.numerator,
+              denominator: item.denominator,
+              format: { ...item.format },
+            },
+      );
+  };
+  const load = async () => {
+    const value =
+      kind === "fraction"
+        ? { ...(await editor.mathFractions()), kind: "fraction" as const }
+        : { ...(await editor.mathScripts()), kind: "script" as const };
+    setCatalog(value);
+    selectItem(value.items.find((item) => item.id === id) ?? value.items[0]);
   };
   return (
-    <section aria-label={t.mathFractions}>
+    <section aria-label={labels.group}>
       <fieldset disabled={disabled}>
-        <legend>{t.mathFractions}</legend>
+        <legend>{labels.group}</legend>
         <button type="button" onClick={() => controller.run(load)}>
-          {t.loadFractions}
+          {labels.load}
         </button>
         {catalog && catalog.items.length > 0 && (
           <label>
-            {t.chooseFraction}
+            {labels.choose}
             <select
-              aria-label={t.chooseFraction}
+              aria-label={labels.choose}
               value={id ?? ""}
-              onChange={(event) => {
-                const item = catalog.items.find(
-                  (item) => item.id === Number(event.currentTarget.value),
-                );
-                setId(item?.id);
-                if (item && !item.reason)
-                  setDraft({
-                    numerator: item.numerator,
-                    denominator: item.denominator,
-                  });
-              }}
+              onChange={(event) =>
+                selectItem(
+                  catalog.items.find(
+                    (item) => item.id === Number(event.currentTarget.value),
+                  ),
+                )
+              }
             >
               {catalog.items.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.reason || `${item.numerator}/${item.denominator}`}
+                  {item.reason ||
+                    ("base" in item
+                      ? `${item.base}${item.subscript ? `_(${item.subscript})` : ""}${item.superscript ? `^(${item.superscript})` : ""}`
+                      : `${item.numerator}/${item.denominator}`)}
                 </option>
               ))}
             </select>
           </label>
         )}
-        {(["numerator", "denominator"] as const).map((key) => (
-          <label key={key}>
-            {t[key]}
+        {fields.map((field) => (
+          <label key={field.key}>
+            {field.label}
             <input
-              value={draft[key]}
+              value={field.value}
               maxLength={4096}
-              required
+              required={field.required}
               onChange={(event) =>
-                setDraft({ ...draft, [key]: event.currentTarget.value })
+                setDraft({ ...draft, [field.key]: event.currentTarget.value })
               }
             />
           </label>
         ))}
+        {draft.format && (
+          <>
+            <label>
+              {t.fontFamily}
+              <select
+                aria-label={t.fontFamily}
+                value={draft.format.family}
+                onChange={(event) =>
+                  setDraft({
+                    ...draft,
+                    format: {
+                      ...draft.format!,
+                      family: event.currentTarget.value,
+                    },
+                  })
+                }
+              >
+                {families.map((family) => (
+                  <option key={family} value={family}>
+                    {family}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              {t.fontSize}
+              <input
+                type="number"
+                min={0.5}
+                max={409}
+                step={0.5}
+                value={
+                  Number.isFinite(draft.format.size) ? draft.format.size : ""
+                }
+                onChange={(event) =>
+                  setDraft({
+                    ...draft,
+                    format: {
+                      ...draft.format!,
+                      size: event.currentTarget.valueAsNumber,
+                    },
+                  })
+                }
+              />
+            </label>
+            <label>
+              {t.textColor}
+              <input
+                type="color"
+                value={`#${draft.format.color}`}
+                onChange={(event) =>
+                  setDraft({
+                    ...draft,
+                    format: {
+                      ...draft.format!,
+                      color: event.currentTarget.value.slice(1),
+                    },
+                  })
+                }
+              />
+            </label>
+          </>
+        )}
         <button
           type="button"
-          disabled={insertDisabled || !draft.numerator || !draft.denominator}
+          disabled={insertDisabled || !!invalid}
           onClick={() =>
             controller.run(async () => {
-              await editor.insertMathFraction(draft);
+              if ("base" in draft) await editor.insertMathScript(draft);
+              else await editor.insertMathFraction(draft);
               setCatalog(undefined);
               setId(undefined);
               editor.focus();
             })
           }
         >
-          {t.insertFraction}
+          {labels.insert}
         </button>
         <button
           type="button"
-          disabled={
-            stale ||
-            !current ||
-            !!current.reason ||
-            !draft.numerator ||
-            !draft.denominator
-          }
+          disabled={stale || !current || !!current.reason || !!invalid}
           onClick={() =>
             controller.run(async () => {
               if (!catalog || id === undefined) return;
-              await editor.editMathFraction(catalog, id, draft);
+              if (catalog.kind === "script" && "base" in draft)
+                await editor.editMathScript(catalog, id, draft);
+              else if (catalog.kind === "fraction" && "numerator" in draft)
+                await editor.editMathFraction(catalog, id, draft);
               await load();
             })
           }
         >
-          {t.applyFraction}
+          {labels.apply}
         </button>
         <button
           type="button"
@@ -122,12 +277,14 @@ export function DocxMath({
           onClick={() =>
             controller.run(async () => {
               if (!catalog || id === undefined) return;
-              await editor.editMathFraction(catalog, id, null);
+              if (catalog.kind === "script")
+                await editor.editMathScript(catalog, id, null);
+              else await editor.editMathFraction(catalog, id, null);
               await load();
             })
           }
         >
-          {t.deleteFraction}
+          {labels.remove}
         </button>
         {current?.reason && <p>{current.reason}</p>}
       </fieldset>

@@ -98,12 +98,9 @@ fn Line::display_text(self : Line, math~ : Bool = true) -> String {
   }
   let fields : Map[Int, String] = Map([])
   for image in self.drawings {
-    if image.content is Fraction(fraction) {
-      fields[image.start - self.start] = if math {
-        "(" + fraction.numerator + ")/(" + fraction.denominator + ")"
-      } else {
-        ""
-      }
+    let text = image.content.math_text()
+    if text is Some(text) {
+      fields[image.start - self.start] = if math { text } else { "" }
     }
   }
   for run in self.runs {

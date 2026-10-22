@@ -31,30 +31,7 @@ pub extend MathFraction with ToJson::{to_json}
 
 ///|
 fn MathFraction::validate(self : MathFraction) -> Unit raise @failure.Failure {
-  guard self.numerator.length() + self.denominator.length() <= 4096 &&
-    [self.numerator, self.denominator].all(text => {
-      !text.is_empty() &&
-      !text
-      .iter()
-      .any(ch => ch.to_int() < 32 || ch == '\u2028' || ch == '\u2029')
-    }) &&
-    !self.style.size.is_nan() &&
-    !self.style.size.is_inf() &&
-    self.style.size >= 1 &&
-    self.style.size <= 409 &&
-    self.style.script == "baseline" &&
-    self.style.spacing == 0 &&
-    !self.style.underline &&
-    !self.style.strike &&
-    self.style.highlight.is_empty() &&
-    !self.style.font.is_empty() &&
-    self.style.font.length() <= 1024 &&
-    self.style.color.length() == 6 &&
-    self.style.color.iter().all(ch => ch.is_ascii_hexdigit()) else {
-    @failure.reject(
-      "unsupported-math", "Fraction requires bounded plain numerator and denominator text",
-    )
-  }
+  validate_math_text([self.numerator, self.denominator], self.style)
 }
 
 ///|
@@ -64,20 +41,7 @@ fn MathFraction::copy(self : MathFraction) -> MathFraction {
 
 ///|
 fn MathFraction::cache_units(self : MathFraction) -> Int {
-  let mut units = self.numerator.length() + self.denominator.length()
-  for primitive in self.primitives {
-    units += 16
-    if primitive is Text(text) {
-      units += text.text.length()
-      for run in text.runs {
-        units += run.text.length() +
-          run.glyphs.fold(init=0, (sum, glyph) => {
-            sum + 10 + glyph.outline.length()
-          })
-      }
-    }
-  }
-  units
+  math_cache_units([self.numerator, self.denominator], self.primitives)
 }
 
 ///|
@@ -87,13 +51,7 @@ fn MathFraction::prepare(
   profile : Map[String, String],
 ) -> DrawingFrame raise @failure.Failure {
   self.validate()
-  guard profile.get(self.style.font) is Some(identity) else {
-    @failure.reject(
-      "missing-font",
-      "Missing fraction font profile mapping: " + self.style.font,
-    )
-  }
-  let font = probe.fonts[probe.font_index(identity)]
+  let index = probe.math_font_index(self.style, profile)
   let style = { ..self.style, size: self.style.size * 0.76, }
   let numerator = probe.text_block(self.numerator, style, profile, 14400, false)
   let denominator = probe.text_block(
@@ -103,27 +61,9 @@ fn MathFraction::prepare(
     14400,
     false,
   )
-  let (ascent, descent) = probe.line_metrics(
-    probe.font_index(identity),
-    style.size,
-  )
+  let (ascent, descent) = probe.line_metrics(index, style.size)
   let height = ascent + descent
-  let bounds = match font.font.glyph_for_codepoint(0x2217) {
-    Ok(Some(glyph)) => font.font.glyph_bounds(glyph)
-    _ =>
-      @failure.reject(
-        "missing-font", "Fraction font requires a mathematical asterisk",
-      )
-  }
-  guard bounds is Ok(Some(bounds)) else {
-    @failure.reject(
-      "malformed-font", "Fraction font has no mathematical axis metrics",
-    )
-  }
-  let axis = 0.6 *
-    (bounds.y_max - bounds.y_min).to_double() *
-    style.size /
-    font.upem.to_double()
+  let axis = 0.6 * probe.math_glyph_height(index, 0x2217, style.size)
   let num_gap = (height / 3.05 - descent).max(height / 9.77)
   let den_gap = (height / 2.03 - (ascent - style.size * 7 / 18)).max(
     height / 6.1,
@@ -167,13 +107,5 @@ fn MathFraction::prepare(
     height: total,
     anchor: None,
     content: Fraction({ ..self, ascent: num_bottom + axis, primitives, }),
-  }
-}
-
-///|
-fn PlacedDrawingFrame::baseline(self : PlacedDrawingFrame) -> Double {
-  match self.content {
-    Fraction(fraction) => fraction.ascent
-    _ => self.height
   }
 }

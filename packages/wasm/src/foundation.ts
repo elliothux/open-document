@@ -1,4 +1,4 @@
-import { FoundationClipboardSession } from "./docx-clipboard.js";
+import { FoundationMathSession } from "./docx-math.js";
 export * from "./docx-clipboard.js";
 export {
   docxProtection,
@@ -58,11 +58,6 @@ export * from "./docx-ruler.js";
 export * from "./docx-picture.js";
 export * from "./docx-shape.js";
 export * from "./docx-math.js";
-import {
-  docxMathFractions,
-  checkDocxFractionEdit,
-  type DocxFractionEdit,
-} from "./docx-math.js";
 import {
   docxShapes,
   checkDocxShapeEdit,
@@ -295,7 +290,7 @@ export function shapeBatch(value: unknown): ShapeBatch {
   return value as ShapeBatch;
 }
 
-export class FoundationSession extends FoundationClipboardSession {
+export class FoundationSession extends FoundationMathSession {
   shape(text: string, size = 32, language = "und"): ShapeBatch {
     return shapeBatch(this.call({ operation: "shape", text, size, language }));
   }
@@ -479,26 +474,6 @@ export class FoundationSession extends FoundationClipboardSession {
   }
   shapes(revision: number) {
     return docxShapes(this.call({ operation: "docxShapes", revision }));
-  }
-  mathFractions(revision: number) {
-    return docxMathFractions(
-      this.call({ operation: "docxMathFractions", revision }),
-    );
-  }
-  editMathFraction(
-    revision: number,
-    fraction: DocxFractionEdit,
-    profile: Record<string, string> = {},
-  ): EditState {
-    checkDocxFractionEdit(fraction);
-    return editState(
-      this.call({
-        operation: "editDocxMathFraction",
-        revision,
-        fraction,
-        profile,
-      }),
-    );
   }
   editShape(
     revision: number,

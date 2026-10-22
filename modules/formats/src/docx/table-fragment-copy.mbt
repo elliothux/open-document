@@ -180,20 +180,12 @@ fn fragment_paragraph(
     }
     if run is Some(id) && tree.nodes[id].uri == math_uri {
       guard paragraph.spans.iter().find_first(span => span.node == id)
-        is Some({ drawing: Some({ content: Fraction(fraction), .. }), .. }) else {
-        @failure.reject(
-          "protected-content", "Rich fraction layout is unavailable",
-        )
+        is Some({ drawing: Some({ content, .. }), .. }) else {
+        @failure.reject("protected-content", "Rich math layout is unavailable")
       }
-      let xml = math_fraction_markup(
-        fraction.numerator,
-        fraction.denominator,
-        style=Some(fraction.style),
-      )
+      let xml = math_content_markup(content)
       guard xml.length() <= limit - units else {
-        @failure.reject(
-          "limit-exceeded", "Rich fraction exceeds clipboard budget",
-        )
+        @failure.reject("limit-exceeded", "Rich math exceeds clipboard budget")
       }
       units += xml.length()
       output.write_string(xml)

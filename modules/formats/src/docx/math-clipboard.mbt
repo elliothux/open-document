@@ -9,10 +9,10 @@ fn Session::fragment_math_nodes(
     tree.nodes[id].uri == math_uri && tree.nodes[id].name == "oMath"
   })
   guard roots.length() <= 256 else {
-    @failure.reject("limit-exceeded", "Rich fractions exceed 256")
+    @failure.reject("limit-exceeded", "Rich math expressions exceed 256")
   }
   for id in roots {
-    ignore(self.math_fraction_target(tree, id))
+    ignore(self.math_target(tree, id))
     for node in tree.descendants(id) {
       objects[node] = true
     }

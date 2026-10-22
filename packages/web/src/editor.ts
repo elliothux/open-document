@@ -5,6 +5,7 @@ export type {
   DocumentBodyPageField,
   DocumentProtection,
   DocumentMathFractions,
+  DocumentMathScripts,
 } from "./document-page.js";
 export type { DocumentComments, DocumentRevisions } from "./document-review.js";
 import { createDocumentElements, docxPageText } from "./document-elements.js";

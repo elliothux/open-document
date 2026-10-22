@@ -60,7 +60,7 @@ fn Session::paste_table_fragment(
             self.check_drawing_text(tree, id, remove=true)
           } else if tree.nodes[id].uri == math_uri &&
             tree.nodes[id].name == "oMath" {
-            ignore(self.math_fraction_target(tree, id))
+            ignore(self.math_target(tree, id))
           }
         }
         let (r, c) = grid.owners[cell]

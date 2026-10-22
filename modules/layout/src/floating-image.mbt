@@ -255,11 +255,16 @@ fn PlacedDrawingFrame::paint(
   primitives : Array[PositionedPrimitive],
   fonts : Array[FontInfo],
 ) -> Unit {
-  if self.content is Fraction(fraction) {
+  let math = match self.content {
+    Fraction(fraction) => Some(fraction.primitives)
+    Scripts(scripts) => Some(scripts.primitives)
+    _ => None
+  }
+  if math is Some(math) {
     primitives.push(
       Transform({ a: 1, b: 0, c: 0, d: 1, e: self.x, f: self.y, }),
     )
-    primitives.append(fraction.primitives)
+    primitives.append(math)
     primitives.push(Restore)
     return
   }
