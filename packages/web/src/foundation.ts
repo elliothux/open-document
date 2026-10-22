@@ -4,6 +4,11 @@ import { FoundationClipboardClient } from "./foundation-clipboard.js";
 import { prepareDocxFragmentImages } from "./document-fragment-images.js";
 export { checkDocxComment } from "@open-document/wasm/foundation";
 export type {
+  ChartSettings,
+  DocxChartValue,
+  DocxChartUpdate,
+  DocxChartEdit,
+  DocxCharts,
   DocxFractionEdit,
   DocxFractionValue,
   DocxMathFormat,
@@ -160,7 +165,6 @@ import {
   type DocxQuery,
   type ShapeBatch,
 } from "@open-document/wasm/foundation";
-
 /** Text shaping, bounded DOCX operations and preview/PDF, owned by one Worker. */
 export class FoundationClient extends FoundationClipboardClient {
   private constructor(connection: Connection) {
@@ -533,7 +537,6 @@ export class FoundationClient extends FoundationClipboardClient {
       await this.connection.request({ operation: "enterDocx", revision }),
     );
   }
-
   async findDocx(
     revision: number,
     text: string,
@@ -563,7 +566,6 @@ export class FoundationClient extends FoundationClipboardClient {
       }),
     );
   }
-
   async beginComposition(revision: number): Promise<EditState> {
     return editState(
       await this.connection.request({
@@ -600,7 +602,6 @@ export class FoundationClient extends FoundationClipboardClient {
       }),
     );
   }
-
   async cancelComposition(
     revision: number,
     compositionId: number,
@@ -646,7 +647,6 @@ export class FoundationClient extends FoundationClipboardClient {
       await this.connection.request({ operation: "undoDocx", revision }),
     );
   }
-
   async deleteDocx(
     revision: number,
     direction: "backward" | "forward",

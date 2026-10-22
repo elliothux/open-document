@@ -11,13 +11,13 @@ fn radar_point(
 }
 
 ///|
-fn ChartData::paint_radar(
+pub fn ChartData::paint_radar(
   self : ChartData,
   width : Double,
   height : Double,
-  probe : @layout.TextProbe,
+  probe : TextProbe,
   profile : Map[String, String],
-) -> Array[@layout.PositionedPrimitive] raise @failure.Failure {
+) -> Array[PositionedPrimitive] raise @failure.Failure {
   let (low, high, step) = self.axis()
   let ticks = ((high - low) / step).round().to_int()
   guard ticks >= 1 && ticks <= 20 else {
@@ -27,7 +27,7 @@ fn ChartData::paint_radar(
   let x = width / 2
   let y = (height - 20) / 2
   let radius = (width - 120).min(height - 130) / 2
-  let pen : @layout.PathStyle = {
+  let pen : PathStyle = {
     fillAlpha: 1,
     strokeAlpha: 1,
     dash: [],
@@ -35,11 +35,11 @@ fn ChartData::paint_radar(
     join: 0,
     miter: 8,
   }
-  let out : Array[@layout.PositionedPrimitive] = []
+  let out : Array[PositionedPrimitive] = []
   for tick in 0..<=ticks {
     let r = radius * tick.to_double() / ticks.to_double()
     if tick > 0 && count > 1 {
-      let path : Array[@layout.PathSegment] = []
+      let path : Array[PathSegment] = []
       for index in 0..<count {
         let (px, py) = radar_point(index, count, x, y, r)
         path.push(if index == 0 { Move(px, py) } else { Line(px, py) })

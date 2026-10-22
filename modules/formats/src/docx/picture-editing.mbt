@@ -193,7 +193,9 @@ pub fn Session::pictures(
     if node.uri != word_uri || node.name != "drawing" {
       continue
     }
-    if tree.drawing_data(id).1.attribute("uri") == Some(word_shape_uri) {
+    if [Some(word_shape_uri), Some(chart_uri)].contains(
+        tree.drawing_data(id).1.attribute("uri"),
+      ) {
       continue
     }
     guard images.length() < 256 else {

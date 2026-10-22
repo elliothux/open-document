@@ -135,6 +135,9 @@ fn Session::fragment_drawing(
   id : Int,
   limit : Int,
 ) -> String raise @failure.Failure {
+  if tree.drawing_data(id).1.attribute("uri") == Some(chart_uri) {
+    return self.fragment_chart(tree, id, limit)
+  }
   if tree.drawing_data(id).1.attribute("uri") != Some(word_shape_uri) {
     return self.fragment_picture(tree, id, limit)
   }

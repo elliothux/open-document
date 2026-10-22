@@ -18,12 +18,12 @@ fn chart_frame_reference(tree : Tree, node : @xml.Node) -> Bool {
 ///|
 fn Session::chart_workbook(
   self : Session,
-  chart : DrawingChart,
+  chart : @chart.Resource,
 ) -> Bytes raise @failure.Failure {
   let bytes = self.media
     .get(chart.workbook)
     .unwrap_or_else(() => self.opc.read(chart.workbook))
-  let actual = chart_data(
+  let actual = @xlsx.chart_data(
     chart.data.kind,
     chart.data.title,
     bytes,
@@ -42,7 +42,7 @@ fn Session::chart_workbook(
 ///|
 fn Session::copy_chart_parts(
   self : Session,
-  chart : DrawingChart,
+  chart : @chart.Resource,
   identity : String,
   documents : Map[String, @xml.Document],
   workbooks : Map[String, Bytes],

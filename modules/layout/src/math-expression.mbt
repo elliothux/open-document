@@ -280,5 +280,5 @@ fn MathFormula::copy(self : MathFormula) -> MathFormula {
 
 ///|
 fn MathFormula::cache_units(self : MathFormula) -> Int {
-  math_cache_units([self.expression.linear_text()], self.primitives)
+  positioned_cache_units([self.expression.linear_text()], self.primitives)
 }

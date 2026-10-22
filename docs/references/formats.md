@@ -524,6 +524,26 @@ Flow 使用 `spans[].drawing: DrawingFrame | null`。框为 `{ width, height, an
 
 `target` 显式把浮动图形重锚到正文段落，可跨页；偏移按移除前文档计算。事务保留原运行格式、命名空间、身份、矢量源和非目标部件，选择新逻辑范围，修改合为一项精确历史。`noMove`、`noChangeWrap` 阻止定位，`noResize`、`noCopy`、`noDelete` 不阻止定位。跨段迁移遵循 `wp:anchor locked`。浮动图形要求正文容器；源不明、位置无效、布局或预算失败保持原文档与历史。默认宿主已接通指针选择、四角及键盘缩放、浮动拖动、跨段/跨页重锚和边缘翻页。图形目录的 `selected` 标记当前单对象范围，默认面板自动跟随；`noSelect` 阻止图形手势。图形允许独立调整宽高，`noChangeAspect` 存在时保持比例，`noResize` 保护缩放；图片继续保持原比例与裁剪。矩形/椭圆的最小尺寸为一个 EMU；线允许零轴，交互命中与选择框将零轴扩展为 6 pt，源尺寸和绘制不变。候选、取消、最终坐标、原生删除、历史与持久化屏障复用[绘图对象手势](#绘图对象移动与缩放手势)。
 
+### DOCX 普通图表
+
+正文和普通单元格支持原生行内图表的读取、插入、类型/标题/TSV 数据/尺寸/图例修改与整图删除。类型、固定外观和五种图例位置复用 [PPTX 基础图表](#pptx-基础图表)。MoonBit 共用图表模型、排版和原生 XML；XLSX 模块读取矩形数据，生成实际嵌入工作簿。Canvas、PNG 和 PDF 重放同一组图元，语义文字包含标题与数据。
+
+同步 `FoundationSession` 与 Worker `FoundationClient` 提供 `charts(revision)` 和 `editChart(revision, chart, profile)`。查询返回 `{ revision, items: [{ id, width, height, settings, anchor, selected, reason, deleteReason, sizeReason, positionReason }] }`；`settings` 是共用 `ChartSettings`，原生配置不受支持时为 `null`。已知图表即使内容锁定，仍返回数据与几何。`id` 是当前原生绘图节点身份。编辑使用 `{ action: "insert", ...settings, width, height }`、`{ action: "update", id, ...settings, width, height }`、`{ action: "resize", id, width, height }`、`{ action: "position", id, anchor, target? }` 或 `{ action: "delete", id }`。内容、删除、尺寸和位置分别检查对应的原因字段。
+
+Web `DocumentEditor.charts()` 增加 `documentId`，`insertChart(value)` 消费当前选择，`editChart(catalog, id, value | null)` 验证文档、修订与目录身份。默认图表面板调用相同接口，提供读取/选择、类型、标题、TSV、宽高、图例、圆环空心比例及创建/修改/删除。默认框为 360×240 pt。输入和持久化沿既有队列，图表占一个逻辑位置；相邻文字输入与整图范围删除保留原生源。
+
+宽高分别为 180–14400 pt 与 150–14400 pt，插入前必须能完整排版。单次目录最多 256 项，输入及规范化 TSV 均最多 65536 个 UTF-16 单元；类别、系列与标签上限沿共用图表合同。插入、图表部件、XLSX、关系和内容类型合为一项历史；字体、布局、缓存、权限及预算失败保持源和历史。标题、类型、图例或尺寸变化保留未改数据的工作簿路径和字节；数据变化创建独立工作簿。删除保留未引用资源，沿现有包资源策略恢复精确历史。
+
+当前编辑要求单独拥有图表部件、已支持的原生配置，以及一致的系列缓存和嵌入数据。未知配置、不透明图表源、共享图表和未支持的文档区域保持保护。`noTextEdit` 与 `noDelete` 分别限制内容修改和删除，缩放服从 `noResize/noChangeAspect`；定位服从 `noMove/noChangeWrap`，指针选择服从 `noSelect`。数据范围绑定及复杂样式继续实施。
+
+正文图表复用 [绘图定位](#图片定位) 和既有几何手势，支持行内、前方、后方、四周与上下环绕，保留引用轴、偏移、距离及层序。`target` 可移到另一正文段落。默认面板提供独立尺寸与位置操作；Canvas 提供四角缩放、浮动移动、键盘方向键与 Escape 取消。候选不写历史，最终操作只记一项；尺寸和位置保持原图表 XML 与工作簿字节。环绕后的可访问文字保留图表标题和数据。单元格、页眉及页脚中的浮动图表仍受保护。
+
+正文和普通格的范围复制/剪切、跨文档粘贴及完整单元格片段已支持行内图表，复用现有剪贴板 API、MIME 与默认按钮。副本保留原生图表 XML、嵌入 XLSX 字节、名称/描述和尺寸，分配独立绘图身份、部件、工作簿及关系；只更新复制后关系的目标，后续改数据互不影响。纯文本使用图表标题和数据。图表不会进入位图解码，资源预检仍只向平台返回实际图片。
+
+复制检查 `noCopy`，剪切另检查 `noDelete`；`noTextEdit` 保留复制、粘贴和相邻文字输入，仍保护图表内容修改。片段最多 2097152 个 UTF-16 单元，图片与图表合计最多 2 MiB 解码资源。未知命名空间/元数据、不透明源、外部图表关系、缓存不一致、字体及预算失败保持文档和历史。资源与片段合为一项事务，源和副本支持精确混合历史与重开。正文浮动图表传递保留已支持的锚点和环绕；浮动图表粘贴到单元格及未知源继续保护。实现归 [图表片段](../../modules/formats/src/docx/chart-fragment.mbt)，独立数据参考 [ONLYOFFICE 图表复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L4959-L4983)。
+
+实现归 [DOCX 图表事务](../../modules/formats/src/docx/chart-edit.mbt)、[共享原生图表](../../modules/formats/src/internal/chart/read.mbt)、[图表排版](../../modules/layout/src/chart-legend.mbt)、[XLSX 数据读取](../../modules/formats/src/xlsx/chart-data.mbt)及[默认面板](../../packages/ui/src/docx-charts.tsx)。源关系和工作簿编辑参考 [ONLYOFFICE Word 图表编辑](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/GraphicObjects/GraphicObjects.js#L1346-L1375)。阶段范围归 [P10](../p10-docx-core.md)。
+
 ### DOCX 基础艺术字
 
 `editShape(revision, { action: "insertWordArt", preset, text })` 在当前正文文字选择处创建原生艺术字文本框。五种纯色预设为 `blue/gold/red/purple/green-italic`，RGB 分别为 `4472C4/FFC000/C00000/7030A0/70AD47`。文字沿文档默认字体，使用 36 pt、粗体，绿色另带斜体；段落居中、单倍行距且段前后距为零。字符属性同时写入运行和段末属性，后续原生输入保留格式。
@@ -2770,7 +2790,7 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 `editObjects({ action: "insertChart", kind, title, data, x, y, width, height })` 插入簇状柱形图 `column`、条形图 `bar`、堆积柱形图 `stackedColumn`、堆积条形图 `stackedBar`、百分比堆积柱形图 `percentStackedColumn`、百分比堆积条形图 `percentStackedBar`、带圆形数据点的折线图 `line`、饼图 `pie`、面积图 `area`、散点图 `scatter`、雷达图 `radar` 或圆环图 `doughnut`。选中单个本地图表后，`{ action: "chartData", kind, title, data }` 修改类型、标题和数据。对象查询的 `chart` 返回 `{ kind, title, data, legend }`，其他对象为 `null`。默认面板使用相同接口。
 
-`data` 为 TSV，首行给出类别轴标题和系列名，首列为类别，其余为有限数值或空值。支持 1–8 个系列、1–256 个类别、最多 65536 个 UTF-16 单元；标题及各标签最多 256 个单行单元。核心复用 XLSX 分隔文本导入，公式作为文字处理并在数值列拒绝。空值保留间隙，零值没有柱高；数轴包含零并采用 1/2/5/10 刻度间隔。参考 [ONLYOFFICE 数轴计算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L2678-L2736)。
+`data` 为 TSV，首行给出类别轴标题和系列名，首列为类别，其余为有限数值或空值。支持 1–8 个系列、1–256 个类别，输入和规范化 TSV 均最多 65536 个 UTF-16 单元；标题及各标签最多 256 个单行单元。核心复用 XLSX 分隔文本导入，公式作为文字处理并在数值列拒绝。空值保留间隙，零值没有柱高；数轴包含零并采用 1/2/5/10 刻度间隔。参考 [ONLYOFFICE 数轴计算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L2678-L2736)。
 
 MoonBit 生成原生 `graphicFrame`、`barChart`、`lineChart`、`pieChart`、`doughnutChart`、`areaChart`、`scatterChart` 或 `radarChart`、系列公式/缓存、关系和实际嵌入 XLSX，使用固定配色、Arial 及图例。公共图元输出 Canvas 与静态 PDF。框最小为 180×150 点，移动、缩放、对齐、层级、删除复用对象事务。旋转、翻转和组合保持保护。图表文字通过数据面板编辑。
 
@@ -2780,7 +2800,7 @@ MoonBit 生成原生 `graphicFrame`、`barChart`、`lineChart`、`pieChart`、`d
 
 `PptxChart.legend` 接受 `"none" | "top" | "bottom" | "left" | "right"`，插入、占位符填入及 `chartData` 共用此设置。省略时饼图/圆环图默认右侧，其他类型默认底部；查询总是返回实际 `legend`。默认数据面板提供相同选项。隐藏时不写 `c:legend`，四边位置写标准 `legendPos=t/b/l/r` 和 `overlay=0`。类型切换、独立对象/页面复制、精确历史及保存重开保留设置；数据未变时复用原工作簿路径和字节，不因修改图例、标题或类型而增加嵌入工作簿。
 
-核心按真实字体度量安排顶部/底部图例的行列，并为绘图区预留空间；左右图例竖排。饼图/圆环图使用类别名称和扇区颜色，其他类型使用系列名称与相同颜色、线条或标记；堆积图的竖排图例按原生逆系列顺序排列。条目过多时显示剩余数量，单项文字裁剪在自身边界内。Canvas、PNG 和 PDF 共用核心布局。原生自定义字体/外观、覆盖图例、手动布局、条目删改和右上角位置继续保护源。位置与顺序参考 [ONLYOFFICE 图例布局](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L7725-L7855)，实现归 [`chart-legend.mbt`](../../modules/formats/src/pptx/chart-legend.mbt)。
+核心按真实字体度量安排顶部/底部图例的行列，并为绘图区预留空间；左右图例竖排。饼图/圆环图使用类别名称和扇区颜色，其他类型使用系列名称与相同颜色、线条或标记；堆积图的竖排图例按原生逆系列顺序排列。条目过多时显示剩余数量，单项文字裁剪在自身边界内。Canvas、PNG 和 PDF 共用核心布局。原生自定义字体/外观、覆盖图例、手动布局、条目删改和右上角位置继续保护源。位置与顺序参考 [ONLYOFFICE 图例布局](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L7725-L7855)，实现归 [`chart-legend.mbt`](../../modules/layout/src/chart-legend.mbt)。
 
 `editSlides({ action: "copy" })` 和默认“复制页”按钮也支持含图表的页面。每个本地图表部件及嵌入工作簿克隆到新路径，页面关系指向副本，原页和新页可分别改数据。原本不同的图表保持独立；源页内部共用同一图表部件的关系结构在新页中保留，数据编辑仍遵守共享资源保护。已删除图表留下的关系也按相同原生配置和数据一致性规则克隆，未知资源保持保护。图表与工作簿、备注、批注、对象引用、隐藏状态和页面引用沿现有整页事务共同进入精确历史。删除页面继续保留未回收的图表资源。实现复用上述图表资源模块及 [`slide-copy.mbt`](../../modules/formats/src/pptx/slide-copy.mbt)、[`slide-add.mbt`](../../modules/formats/src/pptx/slide-add.mbt)。
 
@@ -2790,17 +2810,17 @@ MoonBit 生成原生 `graphicFrame`、`barChart`、`lineChart`、`pieChart`、`d
 
 折线图按类别中心连接相邻非空数据点，空值断线，孤立点及零值仍显示圆形标记。线宽固定为 1.5 点，标记直径为 5 点；图例采用相同线段与标记。原生配置为 `standard`、`smooth=0`、`dispBlanksAs=gap`，与布局共用数据。曲线、堆积、其他标记及跨空值连接继续保护。行为参考 [ONLYOFFICE 折线与空值处理](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L9042-L9185)和[圆形标记](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L3158-L3205)。
 
-饼图显示首个系列，按绝对值计算扇区。零值和空值不占面积，全零或全空时绘图区留空。全部系列保留在查询、原生缓存及嵌入工作簿中，切回其他类型仍可使用。核心先按最大绝对值缩放再求和，避免有限数值的总和溢出。第一片从十二点方向顺时针开始，类别颜色循环使用八色。TSV 首格作为副标题，和主标题写入原生富文本标题的两个段落。饼图不生成数轴，默认右侧图例按框高显示，放不下时显示剩余项数量；完整数据仍可编辑。当前不提供角度、分离扇区、数据标签或配色设置。语义参考 [ONLYOFFICE 饼图与首个系列](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L12238-L12346)，实现归 [`chart-pie.mbt`](../../modules/formats/src/pptx/chart-pie.mbt)。
+饼图显示首个系列，按绝对值计算扇区。零值和空值不占面积，全零或全空时绘图区留空。全部系列保留在查询、原生缓存及嵌入工作簿中，切回其他类型仍可使用。核心先按最大绝对值缩放再求和，避免有限数值的总和溢出。第一片从十二点方向顺时针开始，类别颜色循环使用八色。TSV 首格作为副标题，和主标题写入原生富文本标题的两个段落。饼图不生成数轴，默认右侧图例按框高显示，放不下时显示剩余项数量；完整数据仍可编辑。当前不提供角度、分离扇区、数据标签或配色设置。语义参考 [ONLYOFFICE 饼图与首个系列](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L12238-L12346)，实现归 [`chart-pie.mbt`](../../modules/layout/src/chart-pie.mbt)。
 
 圆环图使用 `kind: "doughnut"`，插入、数据修改及占位符填入接受可选 `holeSize`。它是 10–90 的整数百分比，省略时使用 75；其他图表类型拒绝此属性。圆环查询始终返回实际 `holeSize`，默认面板提供该数值控件。MoonBit 的 `InsertChart/ChartData/FillChart` 构造器末尾使用 `Int?` 传入同一设置，其他类型显式传 `None`。
 
-每个系列按绝对值独立归一化，由内向外形成同心环，沿用饼图的类别颜色、标题和图例。径向可用宽度按系列数均分；没有任何数值点的空缓存不推进绘制环序号，零点仍保留所属环的位置。外弧与反向内弧构成闭合路径，Canvas、PNG 和 PDF 保留真实空心。原生 `doughnutChart` 保存每个系列的类别颜色及 `holeSize`，不生成数轴。空心比例、类型与数据修改沿一项精确历史；独立复制、缓存/工作簿核对和重开保留设置。范围沿用上述系列、类别、字号及资源预算；角度、分离扇区、数据标签、其他配色和更广原生配置继续保护。算法归 [`chart-pie.mbt`](../../modules/formats/src/pptx/chart-pie.mbt)，依据 [ONLYOFFICE 默认空心比例](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartFormat.js#L6183-L6192)、[系列半径](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L14106-L14215)、[相反方向的内外弧](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L14270-L14316)及 [OpenXML 空心比例范围](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.drawing.charts.holesize?view=openxml-3.0.1)，未复制上游执行代码。
+每个系列按绝对值独立归一化，由内向外形成同心环，沿用饼图的类别颜色、标题和图例。径向可用宽度按系列数均分；没有任何数值点的空缓存不推进绘制环序号，零点仍保留所属环的位置。外弧与反向内弧构成闭合路径，Canvas、PNG 和 PDF 保留真实空心。原生 `doughnutChart` 保存每个系列的类别颜色及 `holeSize`，不生成数轴。空心比例、类型与数据修改沿一项精确历史；独立复制、缓存/工作簿核对和重开保留设置。范围沿用上述系列、类别、字号及资源预算；角度、分离扇区、数据标签、其他配色和更广原生配置继续保护。算法归 [`chart-pie.mbt`](../../modules/layout/src/chart-pie.mbt)，依据 [ONLYOFFICE 默认空心比例](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartFormat.js#L6183-L6192)、[系列半径](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L14106-L14215)、[相反方向的内外弧](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L14270-L14316)及 [OpenXML 空心比例范围](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.drawing.charts.holesize?view=openxml-3.0.1)，未复制上游执行代码。
 
 面积图使用 `kind: "area"`。类别轴按 `crossBetween=midCat` 把首末类别点放在绘图区边缘，单类别居中。每个连续非空数据段沿零轴闭合，空值断开，孤立点和全零段不产生可见面积；正负部分保留原符号。系列按原顺序用固定不透明颜色绘制，后系列可覆盖前系列，不累计数据；图例沿相同系列顺序。当前无外轮廓和数据点标记，配置为 `standard`、`varyColors=0`、`dispBlanksAs=gap`。未知堆积/百分比、透明度、标记及其他轴配置保持诊断和源保护。数据修改、切换类型、独立对象复制及精确历史复用原路径；Canvas、PNG 和 PDF 使用同一封闭图元。位置和空值规则依据 [ONLYOFFICE 面积图默认轴](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartFormat.js#L6582-L6591)、[零轴闭合与断段](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L9735-L9840)及[系列绘制顺序与空值](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L10796-L10884)。
 
-散点图使用 `kind: "scatter"`，TSV 首列为共享的有限数值 X 或空值，后续各列为 Y 系列。首格为 X 轴标题。X/Y 都存在时绘制直径 5 点的圆形标记；零值保留，缺失任一坐标时不画点。数值 X 按实际比例定位，重复、无序 X 和正负坐标保持；点之间不连线。两条数值轴分别沿相同零包含和 1/2/5/10 刻度规则取界，空数据轴使用 0–1；边界包含未成对的有限源数值。原生结构为 `scatterChart`、`scatterStyle=marker`、`varyColors=0`、两条 `valAx` 和各系列 `xVal/yVal` 数值引用/缓存，所有 X 引用同一工作簿首列。切换类型、独立复制、精确历史及重开沿既有事务。每系列独立 X、连线/平滑、气泡、其他标记和自定义轴继续保护。行为依据 [ONLYOFFICE 默认散点类型](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartFormat.js#L6251-L6267)、[双数值轴](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L13462-L13494)及[数值定位与空值](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L14843-L14934)。实现归 [`chart-scatter.mbt`](../../modules/formats/src/pptx/chart-scatter.mbt)。
+散点图使用 `kind: "scatter"`，TSV 首列为共享的有限数值 X 或空值，后续各列为 Y 系列。首格为 X 轴标题。X/Y 都存在时绘制直径 5 点的圆形标记；零值保留，缺失任一坐标时不画点。数值 X 按实际比例定位，重复、无序 X 和正负坐标保持；点之间不连线。两条数值轴分别沿相同零包含和 1/2/5/10 刻度规则取界，空数据轴使用 0–1；边界包含未成对的有限源数值。原生结构为 `scatterChart`、`scatterStyle=marker`、`varyColors=0`、两条 `valAx` 和各系列 `xVal/yVal` 数值引用/缓存，所有 X 引用同一工作簿首列。切换类型、独立复制、精确历史及重开沿既有事务。每系列独立 X、连线/平滑、气泡、其他标记和自定义轴继续保护。行为依据 [ONLYOFFICE 默认散点类型](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartFormat.js#L6251-L6267)、[双数值轴](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L13462-L13494)及[数值定位与空值](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L14843-L14934)。实现归 [`chart-scatter.mbt`](../../modules/layout/src/chart-scatter.mbt)。
 
-读取仅接受当前原生结构，未知图表类型、样式、轴配置或公式保持诊断与源保护。数据编辑前核对缓存与嵌入工作簿，拒绝共享图表资源。修改数据保留对象/图表身份，并新建嵌入工作簿以支持精确撤销。旧工作簿及删除后未引用的图表资源继续保留，受现有包和历史预算限制。更广导入、样式与资源回收继续实施。实现归 [`chart-data.mbt`](../../modules/formats/src/pptx/chart-data.mbt)、[`chart-read.mbt`](../../modules/formats/src/pptx/chart-read.mbt)、[`chart-edit.mbt`](../../modules/formats/src/pptx/chart-edit.mbt)及 [`chart-layout.mbt`](../../modules/formats/src/pptx/chart-layout.mbt)。
+读取仅接受当前原生结构，未知图表类型、样式、轴配置或公式保持诊断与源保护。数据编辑前核对缓存与嵌入工作簿，拒绝共享图表资源。修改数据保留对象/图表身份，并新建嵌入工作簿以支持精确撤销。旧工作簿及删除后未引用的图表资源继续保留，受现有包和历史预算限制。更广导入、样式与资源回收继续实施。实现归 [`chart-data.mbt`](../../modules/layout/src/chart-data.mbt)、[`chart-read.mbt`](../../modules/formats/src/internal/chart/read.mbt)、[`chart-edit.mbt`](../../modules/formats/src/pptx/chart-edit.mbt)及 [`chart-layout.mbt`](../../modules/layout/src/chart-layout.mbt)。
 
 ### 简化 SmartArt 图示
 
@@ -2832,7 +2852,7 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 
 类别从顶部开始顺时针等角排列。数值轴包含零并沿已有 1/2/5/10 刻度规则取界；半径为 `(值 − 下界) / (上界 − 下界)` 的投影。负值保持原数值；下界映射到中心，零按共同刻度定位。全零/全空使用 0–1。相邻非空点连接，首末点也视为相邻；空值在两侧断线，孤立点和零值保留标记。单类别只画标记，两类别只保留一条连接。核心先绘制系列线再绘制标记，类别、刻度和系列图例沿相同字体路径输出。径向比例先归一化再乘显示半径，避免有限大数产生无穷坐标。
 
-当前框使用内接圆和有界标签区域；默认面板可改类型、标题及数据，Canvas、PNG 和静态 PDF 共用位置。只读取当前原生配置；填充雷达、其他标记、轴配置和组合继续诊断并保留源。实现归 [`chart-radar.mbt`](../../modules/formats/src/pptx/chart-radar.mbt)及既有图表读写模块。算法参考 [ONLYOFFICE 类别角度、径向坐标、空值及闭合](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L14406-L14563)、[半径和绘制层次](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L14793-L14812)及[原生样式与数轴](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartFormat.js#L6094-L6116)。未复制上游执行代码。
+当前框使用内接圆和有界标签区域；默认面板可改类型、标题及数据，Canvas、PNG 和静态 PDF 共用位置。只读取当前原生配置；填充雷达、其他标记、轴配置和组合继续诊断并保留源。实现归 [`chart-radar.mbt`](../../modules/layout/src/chart-radar.mbt)及既有图表读写模块。算法参考 [ONLYOFFICE 类别角度、径向坐标、空值及闭合](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L14406-L14563)、[半径和绘制层次](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L14793-L14812)及[原生样式与数轴](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartFormat.js#L6094-L6116)。未复制上游执行代码。
 
 ### PPTX PDF 链接
 

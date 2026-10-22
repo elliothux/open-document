@@ -108,6 +108,9 @@ fn DrawingFrame::prepare_text(
   if self.content is Math(formula) {
     return formula.prepare(probe, profile)
   }
+  if self.content is Chart(chart) {
+    return chart.prepare(self, probe, profile)
+  }
   guard self.content is TextBox(shape, text) else { return self }
   let area = self.text_box_rect(shape, text)
   let left = area.x

@@ -166,7 +166,14 @@ fn Session::write_chart(
   )
   defer workbook.close()
   let bytes = workbook.save()
-  let data = chart_data(kind, title, bytes, self.budget, hole_size~, legend~)
+  let data = @xlsx.chart_data(
+    kind,
+    title,
+    bytes,
+    self.budget,
+    hole_size~,
+    legend~,
+  )
   if !["pie", "doughnut"].contains(data.kind) {
     ignore(data.axis())
   }
@@ -304,7 +311,7 @@ fn Session::write_chart(
   }
   self.store_chart_xml(
     chart_part,
-    data.markup(workbook_link),
+    @chart.markup(data, workbook_link),
     parts,
     created,
     edits,

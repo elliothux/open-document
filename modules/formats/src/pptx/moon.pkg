@@ -1,4 +1,5 @@
 import {
+  "open_document/formats/internal/chart",
   "open_document/formats/internal/image",
   "open_document/formats/xlsx",
   "open_document/core/archive",

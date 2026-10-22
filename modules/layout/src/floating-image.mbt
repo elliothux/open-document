@@ -257,6 +257,7 @@ fn PlacedDrawingFrame::paint(
 ) -> Unit {
   let math = match self.content {
     Math(formula) => Some(formula.primitives)
+    Chart(chart) => Some(chart.primitives)
     _ => None
   }
   if math is Some(math) {

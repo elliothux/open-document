@@ -26,6 +26,7 @@ import { DocxPage } from "./docx-page.js";
 import { DocxTheme, DocxThemeFontsPanel } from "./docx-theme.js";
 import { DocxPictures } from "./docx-pictures.js";
 import { DocxShapes } from "./docx-shapes.js";
+import { DocxCharts } from "./docx-charts.js";
 import { DocxMath } from "./docx-math.js";
 import { DocxTables } from "./docx-tables.js";
 import { DocxSymbols } from "./docx-symbols.js";
@@ -457,6 +458,14 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
         state={state}
         editor={editor}
         disabled={stylesDisabled}
+      />
+      <DocxCharts
+        key={editor.getSnapshot().documentId + "-charts"}
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={stylesDisabled}
+        insertDisabled={inputDisabled}
       />
       <DocxMath
         key={editor.getSnapshot().documentId}

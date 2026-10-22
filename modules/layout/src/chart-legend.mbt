@@ -1,21 +1,7 @@
 ///|
-fn ChartData::legend_markup(self : ChartData) -> String {
-  if self.legend == "none" {
-    return ""
-  }
-  let position = match self.legend {
-    "top" => "t"
-    "left" => "l"
-    "right" => "r"
-    _ => "b"
-  }
-  "<c:legend><c:legendPos val=\"\{position}\"/><c:overlay val=\"0\"/></c:legend>"
-}
-
-///|
 priv struct ChartLegendLayout {
-  plot : @layout.Border
-  entries : Array[(String, Int, @layout.Border)]
+  plot : Border
+  entries : Array[(String, Int, Border)]
 }
 
 ///|
@@ -23,10 +9,10 @@ fn ChartData::legend_layout(
   self : ChartData,
   width : Double,
   height : Double,
-  probe : @layout.TextProbe,
+  probe : TextProbe,
   profile : Map[String, String],
 ) -> ChartLegendLayout raise @failure.Failure {
-  let plot : @layout.Border = { x: 0, y: 0, width, height, }
+  let plot : Border = { x: 0, y: 0, width, height, }
   if self.legend == "none" {
     return { plot, entries: [], }
   }
@@ -57,7 +43,7 @@ fn ChartData::legend_layout(
       }
       let block = probe.text_block(
         item.0,
-        @layout.TextStyle::new("Arial", 10, "222222"),
+        TextStyle::new("Arial", 10, "222222"),
         profile,
         width - 16,
         false,
@@ -114,10 +100,10 @@ fn ChartData::legend_layout(
         row.to_double() * 16,
       )
     }
-    let rect : @layout.Border = { x, y, width: cell_width - 8, height: 16, }
+    let rect : Border = { x, y, width: cell_width - 8, height: 16, }
     (item.0, item.1, rect)
   })
-  let plot : @layout.Border = if side {
+  let plot : Border = if side {
     {
       x: if self.legend == "left" {
         cell_width
@@ -146,11 +132,11 @@ fn ChartData::legend_layout(
 ///|
 fn ChartData::paint_legend(
   self : ChartData,
-  entries : Array[(String, Int, @layout.Border)],
-  probe : @layout.TextProbe,
+  entries : Array[(String, Int, Border)],
+  probe : TextProbe,
   profile : Map[String, String],
-) -> Array[@layout.PositionedPrimitive] raise @failure.Failure {
-  let out : Array[@layout.PositionedPrimitive] = []
+) -> Array[PositionedPrimitive] raise @failure.Failure {
+  let out : Array[PositionedPrimitive] = []
   for (text, index, rect) in entries {
     if index >= 0 {
       let color = chart_color(index)
@@ -199,21 +185,22 @@ fn ChartData::paint_legend(
 }
 
 ///|
-fn DrawingChart::paint(
-  self : DrawingChart,
+pub fn ChartData::paint(
+  self : ChartData,
   width : Double,
   height : Double,
-  probe : @layout.TextProbe,
+  probe : TextProbe,
   profile : Map[String, String],
-) -> Array[@layout.PositionedPrimitive] raise @failure.Failure {
-  guard width >= 180 && height >= 150 else {
+) -> Array[PositionedPrimitive] raise @failure.Failure {
+  self.validate()
+  guard width >= 180 && width <= 14400 && height >= 150 && height <= 14400 else {
     @failure.reject(
       "layout-overflow", "Chart frame requires at least 180 x 150 points",
     )
   }
-  let data = self.data
+  let data = self
   let layout = data.legend_layout(width, height, probe, profile)
-  let out : Array[@layout.PositionedPrimitive] = [
+  let out : Array[PositionedPrimitive] = [
     Rectangle({ x: 0, y: 0, width, height, color: "ffffff", }),
     Stroke({ x: 0, y: 0, width, height, }, "d9d9d9", 0.5),
   ]

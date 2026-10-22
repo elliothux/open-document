@@ -148,6 +148,7 @@ pub fn Session::bookmarks(Self, Int) -> Json raise @failure.Failure
 pub fn Session::cancel_composition(Self, Int, Int) -> Json raise @failure.Failure
 pub fn Session::cancel_drawing_gesture(Self, Int, Int) -> Json raise @failure.Failure
 pub fn Session::capture_format(Self, Int, Selection) -> Json raise @failure.Failure
+pub fn Session::charts(Self, Int) -> Json raise @failure.Failure
 pub fn Session::check_idle(Self) -> Unit raise @failure.Failure
 pub fn Session::check_position(Self, Position) -> Unit raise @failure.Failure
 pub fn Session::clipboard(Self, Int, Selection, cut? : Bool, layout? : @layout.Layout) -> Json raise @failure.Failure
@@ -164,6 +165,7 @@ pub fn Session::delete_style(Self, Int, String, String) -> Json raise @failure.F
 pub fn Session::document_protection(Self, Int) -> Json raise @failure.Failure
 pub fn Session::edit_body_page_field(Self, Int, Selection, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::edit_bookmark(Self, Int, BookmarkEdit) -> Json raise @failure.Failure
+pub fn Session::edit_chart(Self, Int, String, Int, String, String, String, Double, Double, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images, hole_size? : Int?, legend? : String?) -> Json raise @failure.Failure
 pub fn Session::edit_comment(Self, Int, CommentEdit) -> Json raise @failure.Failure
 pub fn Session::edit_list(Self, Int, Selection, ListEdit) -> Json raise @failure.Failure
 pub fn Session::edit_math(Self, Int, String, Int, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images, format? : CharacterFormat) -> Json raise @failure.Failure

@@ -1,6 +1,10 @@
 export const objectEn = {
   chart: "Chart",
   chartKind: "Chart type",
+  chartLoad: "Load charts",
+  chartChoose: "Choose chart",
+  chartDelete: "Delete chart",
+  chartResize: "Apply chart size",
   chartLegend: "Chart legend",
   chartLegendNone: "Hidden",
   chartLegendTop: "Top",
@@ -80,6 +84,10 @@ export const objectEn = {
 export const objectZh: typeof objectEn = {
   chart: "图表",
   chartKind: "图表类型",
+  chartLoad: "读取图表",
+  chartChoose: "选择图表",
+  chartDelete: "删除图表",
+  chartResize: "应用图表尺寸",
   chartLegend: "图例",
   chartLegendNone: "隐藏",
   chartLegendTop: "顶部",

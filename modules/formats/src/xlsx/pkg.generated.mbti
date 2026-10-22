@@ -8,6 +8,7 @@ import {
 }
 
 // Values
+pub fn chart_data(String, String, Bytes, @archive.Budget, hole_size? : Int?, legend? : String?) -> @layout.ChartData raise @failure.Failure
 
 // Errors
 

@@ -2,6 +2,7 @@ import type { FoundationClient } from "./foundation.js";
 import type {
   DocxPictures,
   DocxShapes,
+  DocxCharts,
   DocxSelectionGeometry,
 } from "@open-document/wasm/foundation";
 import type { DocxPointerHost } from "./document-pointer.js";
@@ -12,10 +13,13 @@ import {
   type PointerPoint,
 } from "./pointer-selection.js";
 
-/** Selected floating frames move; four aspect-preserving corners resize in the same core gesture. */
+/** Selected floating frames move; four corners resize in the same core gesture. */
 export class DocxDrawingGesture {
   private image:
-    DocxPictures["images"][number] | DocxShapes["items"][number] | undefined;
+    | DocxPictures["images"][number]
+    | DocxShapes["items"][number]
+    | DocxCharts["items"][number]
+    | undefined;
   private revision = -1;
   private readonly buttons: HTMLButtonElement[] = [];
   private readonly pointers: PointerSelection[] = [];
@@ -263,12 +267,23 @@ export class DocxDrawingGesture {
           this.revision = shapes.revision;
           this.image = shapes.items.find((shape) => shape.selected);
         }
+        if (!this.image) {
+          const charts = await this.client.charts(current.state.revision);
+          this.host.assertOpen();
+          this.revision = charts.revision;
+          this.image = charts.items.find((chart) => chart.selected);
+        }
       }
     }
     const rect =
       this.image && geometry?.rects.find((r) => r.page === current.page);
     for (const [i, button] of this.buttons.entries()) {
-      const kind = this.image && "preset" in this.image ? "shape" : "picture";
+      const kind =
+        this.image && "preset" in this.image
+          ? "shape"
+          : this.image && "settings" in this.image
+            ? "chart"
+            : "picture";
       button.setAttribute(
         "aria-label",
         i === 4
@@ -280,10 +295,10 @@ export class DocxDrawingGesture {
         !this.host.available() ||
         (i === 4
           ? !this.image?.anchor || !!this.image.positionReason
-          : !!this.image?.reason ||
-            (!!this.image &&
-              "sizeReason" in this.image &&
-              !!this.image.sizeReason));
+          : !!this.image &&
+            ("sizeReason" in this.image
+              ? !!this.image.sizeReason
+              : !!this.image.reason));
       if (rect) {
         button.style.left = `${(rect.x + (i === 1 || i === 2 ? rect.width : 0)) * current.scale}px`;
         button.style.top = `${(rect.y + (i === 2 || i === 3 ? rect.height : 0)) * current.scale}px`;

@@ -409,7 +409,7 @@ pub fn Line::positioned(
   }
   primitives.push(
     Text({
-      text: line.markerText + line.display_text(math=false),
+      text: line.markerText + line.display_text(objects=false),
       runs: line
       .paint_runs()
       .map(run => {

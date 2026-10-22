@@ -163,10 +163,15 @@ fn WordTree::image_anchor(
         self.nodes[data].attribute("uri") == Some(word_shape_uri) &&
         self.nodes[picture].uri == word_shape_uri &&
         self.nodes[picture].name == "wsp"
+      ) ||
+      (
+        self.nodes[data].attribute("uri") == Some(chart_uri) &&
+        self.nodes[picture].uri == chart_uri &&
+        self.nodes[picture].name == "chart"
       )
     ) else {
     @failure.reject(
-      "unsupported-layout", "Floating drawing requires ordinary picture or shape data",
+      "unsupported-layout", "Floating drawing requires ordinary picture, shape or chart data",
     )
   }
   let wrapping = self.children[id].filter(child => {

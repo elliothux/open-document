@@ -1,6 +1,7 @@
 import { docxOutputs, downloadDocxOutput } from "./document-output.js";
 import { DocumentTables } from "./document-tables.js";
 export type {
+  DocumentCharts,
   DocumentRuler,
   DocumentBodyPageField,
   DocumentProtection,
@@ -58,7 +59,6 @@ import type {
   DocxThemeFontEdit,
   DocxSelectionGeometry,
 } from "@open-document/wasm/foundation";
-/** Owns browser input order. The caller owns fonts, the opened DOCX and client lifetime. */
 export class DocumentEditor extends DocumentTables {
   private readonly container: HTMLDivElement;
   private readonly viewport: HTMLDivElement;

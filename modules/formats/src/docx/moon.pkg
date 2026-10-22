@@ -1,4 +1,6 @@
 import {
+  "open_document/formats/internal/chart",
+  "open_document/formats/xlsx",
   "moonbit-community/html" @html5,
   "moonbit-community/cmark/cmark",
   "moonbit-community/cmark/cmark_base",

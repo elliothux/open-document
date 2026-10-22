@@ -56,11 +56,15 @@ pub fn Session::begin_drawing_gesture(
       @failure.reject("protected-content", "Shape resizing is locked")
     }
     self.editable_shape(tree, drawing).1
+  } else if tree.drawing_data(drawing).1.attribute("uri") == Some(chart_uri) {
+    ignore(self.editable_chart(tree, drawing, operation=ChartResize))
+    self.drawing_frame(tree, drawing)
   } else {
     ignore(self.editable_picture(tree, drawing))
     self.drawing_frame(tree, drawing)
   }
-  guard !(initial.content is (@layout.Shape(_) | @layout.TextBox(_, _))) ||
+  guard !(initial.content
+    is (@layout.Shape(_) | @layout.TextBox(_, _) | @layout.Chart(_))) ||
     !tree.shape_locked(drawing, "noSelect") else {
     @failure.reject("protected-content", "Shape selection is locked")
   }
@@ -220,8 +224,13 @@ fn Session::prepare_drawing_gesture(
   }
   let dx = if handle == 1 || handle == 4 { -dx } else { dx }
   let dy = if handle == 1 || handle == 2 { -dy } else { dy }
-  if image.content is (@layout.Shape(shape) | @layout.TextBox(shape, _)) {
-    let minimum = if shape.preset == "line" { 0.0 } else { 1.0 / 12700 }
+  if image.content
+    is (@layout.Shape(_) | @layout.TextBox(_, _) | @layout.Chart(_)) {
+    let (minimum_width, minimum_height) = match image.content {
+      @layout.Chart(_) => (180.0, 150.0)
+      @layout.Shape({ preset: "line", .. }) => (0.0, 0.0)
+      _ => (1.0 / 12700, 1.0 / 12700)
+    }
     let (width, height) = if gesture.preserve_aspect {
       let delta = if image.height == 0 || dy == 0 {
         if image.width == 0 {
@@ -243,11 +252,13 @@ fn Session::prepare_drawing_gesture(
       }
       let factor = (1.0 + delta)
         .max(1.0 / 12700 / positive)
+        .max(if image.width == 0 { 0 } else { minimum_width / image.width })
+        .max(if image.height == 0 { 0 } else { minimum_height / image.height })
         .min(14400.0 / image.width.max(image.height))
       (image.width * factor, image.height * factor)
     } else {
-      let width = (image.width + dx).max(minimum).min(14400)
-      let height = (image.height + dy).max(minimum).min(14400)
+      let width = (image.width + dx).max(minimum_width).min(14400)
+      let height = (image.height + dy).max(minimum_height).min(14400)
       if width == 0 && height == 0 {
         if image.width > 0 {
           (1.0 / 12700, 0.0)
@@ -258,14 +269,20 @@ fn Session::prepare_drawing_gesture(
         (width, height)
       }
     }
-    let prepared = self.prepare_shape_edit(
-      gesture.drawing,
-      width,
-      height,
-      shape.fill,
-      shape.stroke,
-      shape.lineWidth,
-    )
+    let prepared = match image.content {
+      @layout.Shape(shape) | @layout.TextBox(shape, _) =>
+        self.prepare_shape_edit(
+          gesture.drawing,
+          width,
+          height,
+          shape.fill,
+          shape.stroke,
+          shape.lineWidth,
+        )
+      @layout.Chart(_) =>
+        self.prepare_chart_resize(gesture.drawing, width, height)
+      _ => abort("Expected shape or chart")
+    }
     if prepared is Some(prepared) {
       self.check_picture_layout(
         prepared.document,

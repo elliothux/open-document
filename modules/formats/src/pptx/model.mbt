@@ -102,7 +102,7 @@ priv struct Object {
   opacity : Double
   paragraphs : Array[TextParagraph]
   table : DrawingTable?
-  chart : DrawingChart?
+  chart : @chart.Resource?
   body : Body
   read_only : String
   text_reason : String

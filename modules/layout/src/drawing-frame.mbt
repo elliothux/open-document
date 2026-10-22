@@ -15,6 +15,7 @@ pub(all) enum DrawingContent {
   Shape(BasicShape)
   TextBox(BasicShape, DrawingTextBox)
   Math(MathFormula)
+  Chart(ChartFrame)
 }
 
 ///|
@@ -31,6 +32,7 @@ pub impl ToJson for DrawingContent with fn to_json(self) {
       }
     TextBox(shape, text) => { "kind": "textBox", "shape": shape, "text": text }
     Math(formula) => { "kind": "math", "math": formula }
+    Chart(chart) => { "kind": "chart", "chart": chart }
   }
 }
 
@@ -44,6 +46,7 @@ fn DrawingContent::copy(self : DrawingContent) -> DrawingContent {
     Shape(_) => self
     TextBox(shape, text) => TextBox(shape, text.copy())
     Math(formula) => Math(formula.copy())
+    Chart(chart) => Chart(chart.copy())
   }
 }
 
@@ -84,6 +87,14 @@ pub fn DrawingFrame::validate(
     anchor.validate()
   }
   match self.content {
+    Chart(chart) => {
+      guard self.width >= 180 && self.height >= 150 else {
+        @failure.reject(
+          "invalid-chart", "Chart frame requires at least 180 x 150 points",
+        )
+      }
+      chart.data.validate()
+    }
     Math(formula) => {
       guard self.anchor is None else {
         @failure.reject("unsupported-math", "Math must remain inline")
@@ -160,4 +171,20 @@ fn PlacedDrawingFrame::interaction_bounds(
     self.width + 2 * horizontal,
     self.height + 2 * vertical,
   )
+}
+
+///|
+/// Accessible text for structured drawing content.
+pub fn DrawingContent::alternative_text(self : DrawingContent) -> String? {
+  match self {
+    Math(formula) =>
+      try {
+        formula.expression.check()
+        Some(formula.expression.linear_text())
+      } catch {
+        @failure.Failure(..) => None
+      }
+    Chart(chart) => Some(chart.data.title + ". " + chart.data.tsv())
+    _ => None
+  }
 }

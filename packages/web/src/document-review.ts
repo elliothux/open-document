@@ -6,6 +6,9 @@ import {
 } from "./document-selection.js";
 import type { PageLayout } from "@open-document/wasm/preview";
 import {
+  docxCharts,
+  checkDocxChartEdit,
+  type DocxChartEdit,
   docxRevisions,
   docxMathFractions,
   docxMathExpressions,
@@ -48,6 +51,26 @@ export interface DocumentRevisions extends DocxRevisions {
 /** Review calls retain the same Worker protocol and validation as other document commands. */
 export class FoundationReviewClient {
   constructor(protected readonly connection: Connection) {}
+  async charts(revision: number) {
+    return docxCharts(
+      await this.connection.request({ operation: "docxCharts", revision }),
+    );
+  }
+  async editChart(
+    revision: number,
+    chart: DocxChartEdit,
+    profile: Record<string, string>,
+  ): Promise<EditState> {
+    checkDocxChartEdit(chart);
+    return editState(
+      await this.connection.request({
+        operation: "editDocxChart",
+        revision,
+        chart,
+        profile,
+      }),
+    );
+  }
   async mathExpressions(revision: number) {
     return docxMathExpressions(
       await this.connection.request({

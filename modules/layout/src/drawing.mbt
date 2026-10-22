@@ -143,6 +143,15 @@ pub fn Layout::drawing(
 
 ///|
 pub fn Layout::semantics(self : Layout) -> Array[SemanticPage] {
+  let detached : Map[Int, Array[PlacedDrawingFrame]] = Map([])
+  for page in self.pages {
+    for line in page.lines {
+      if line.caretOnly && !line.drawings.is_empty() {
+        let drawings = detached.get_or_init(line.paragraph, () => [])
+        drawings.append(line.drawings)
+      }
+    }
+  }
   self.pages.mapi((index, page) => {
     let lines : Array[SemanticLine] = []
     for
@@ -150,7 +159,12 @@ pub fn Layout::semantics(self : Layout) -> Array[SemanticPage] {
       page.lines +
       self.running[index].filter(line => line.container == -2) {
       if !line.caretOnly {
-        lines.push(line.semantic())
+        // Wrapping detaches drawings for painting; keep their text at the source marker.
+        let drawings = detached
+          .get(line.paragraph)
+          .unwrap_or([])
+          .filter(image => image.start >= line.start && image.start < line.end)
+        lines.push({ ..line, drawings: line.drawings + drawings, }.semantic())
       }
       for image in line.drawings {
         if image.content is TextBox(_, text) {

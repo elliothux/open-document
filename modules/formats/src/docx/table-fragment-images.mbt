@@ -140,9 +140,12 @@ fn Session::import_fragment_drawings(
   let mut next = 1
   let mut bytes_count = 0
   for drawing in drawings {
+    let chart = tree.drawing_data(drawing).1.attribute("uri") == Some(chart_uri)
     let shape = tree.drawing_data(drawing).1.attribute("uri") ==
       Some(word_shape_uri)
-    if shape {
+    if chart {
+      ignore(tree.check_fragment_chart(drawing, portable=true))
+    } else if shape {
       tree.check_fragment_shape(drawing)
     } else {
       tree.check_fragment_picture(drawing)
@@ -171,6 +174,26 @@ fn Session::import_fragment_drawings(
     }
     next += 1
     tree.remap_fragment_drawing_identity(drawing, id, anchor_identity, changes)
+    if chart {
+      let reference = tree.check_fragment_chart(drawing, portable=true)
+      let (markup, count) = self.import_fragment_chart(
+        tree, drawing, id, parts, edits, created, media, created_media,
+      )
+      bytes_count += count
+      guard bytes_count <= 2097152 else {
+        @failure.reject(
+          "limit-exceeded", "Rich drawing resources exceed budget",
+        )
+      }
+      let node = tree.nodes[reference]
+      changes.push({
+        node: node.parent,
+        offset: node.start - tree.nodes[node.parent].start,
+        length: node.end - node.start,
+        xml: markup,
+      })
+      continue
+    }
     if shape {
       continue
     }
@@ -240,7 +263,11 @@ fn Session::import_fragment_drawings(
     drawing in tree.order.filter(id => {
       tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing"
     }) {
-    view.check_drawing_text(tree, drawing)
+    if tree.drawing_data(drawing).1.attribute("uri") == Some(chart_uri) {
+      ignore(view.editable_chart(tree, drawing, operation=ChartCopy))
+    } else {
+      view.check_drawing_text(tree, drawing)
+    }
     retained[drawing] = true
     for id in tree.descendants(drawing) {
       retained[id] = true

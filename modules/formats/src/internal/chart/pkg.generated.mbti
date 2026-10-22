@@ -1,0 +1,30 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "open_document/formats/internal/chart"
+
+import {
+  "open_document/core/failure",
+  "open_document/core/opc",
+  "open_document/core/xml",
+  "open_document/layout",
+}
+
+// Values
+pub fn link(@opc.Package, String, String, String, Map[String, @xml.Document]) -> String raise @failure.Failure
+
+pub fn markup(@layout.ChartData, String) -> String raise @failure.Failure
+
+pub fn read(@opc.Package, String, Map[String, @xml.Document]) -> Resource raise @failure.Failure
+
+// Errors
+
+// Types and methods
+pub(all) struct Resource {
+  part : String
+  workbook : String
+  data : @layout.ChartData
+}
+pub fn Resource::paint(Self, Double, Double, @layout.TextProbe, Map[String, String]) -> Array[@layout.PositionedPrimitive] raise @failure.Failure
+
+// Type aliases
+
+// Traits

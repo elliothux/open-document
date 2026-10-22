@@ -1,4 +1,5 @@
 import type {
+  DocxChartEdit,
   DocxFractionEdit,
   DocxMathEdit,
   DocxScriptEdit,
@@ -159,6 +160,13 @@ export type Operation =
       profile: Record<string, string>;
     }
   | { operation: "docxPictures"; revision: number }
+  | { operation: "docxCharts"; revision: number }
+  | {
+      operation: "editDocxChart";
+      revision: number;
+      chart: DocxChartEdit;
+      profile: Record<string, string>;
+    }
   | { operation: "docxShapes"; revision: number }
   | { operation: "docxMathFractions"; revision: number }
   | { operation: "docxMathScripts"; revision: number }

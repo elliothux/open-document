@@ -7,22 +7,22 @@ fn chart_label(
   height : Double,
   size : Double,
   center : Bool,
-  probe : @layout.TextProbe,
+  probe : TextProbe,
   profile : Map[String, String],
-) -> Array[@layout.PositionedPrimitive] raise @failure.Failure {
+) -> Array[PositionedPrimitive] raise @failure.Failure {
   if text.is_empty() || width <= 0 || height <= 0 {
     return []
   }
   let block = probe.text_block(
     text,
-    @layout.TextStyle::new("Arial", size, "222222"),
+    TextStyle::new("Arial", size, "222222"),
     profile,
     width,
     false,
   )
   let left = if center { x + (width - block.widths[0]).max(0) / 2 } else { x }
   [
-    @layout.Clip({ x, y, width, height, }),
+    Clip({ x, y, width, height, }),
     Transform({ a: 1, b: 0, c: 0, d: 1, e: left, f: y, }),
     ..block.lines.flatten(),
     Restore,
@@ -35,10 +35,10 @@ fn chart_marker(
   x : Double,
   y : Double,
   color : String,
-) -> Array[@layout.PositionedPrimitive] {
+) -> Array[PositionedPrimitive] {
   [
     Transform({ a: 1, b: 0, c: 0, d: 1, e: x - 2.5, f: y - 2.5, }),
-    Path(shape_path("ellipse", 5, 5, (0, 0, 0)), color, "", 0, {
+    Path(basic_shape_path("ellipse", 5, 5), color, "", 0, {
       fillAlpha: 1,
       strokeAlpha: 1,
       dash: [],
@@ -51,15 +51,15 @@ fn chart_marker(
 }
 
 ///|
-fn DrawingChart::paint_plot(
-  self : DrawingChart,
+fn ChartData::paint_plot(
+  self : ChartData,
   width : Double,
   height : Double,
-  probe : @layout.TextProbe,
+  probe : TextProbe,
   profile : Map[String, String],
-) -> Array[@layout.PositionedPrimitive] raise @failure.Failure {
-  let data = self.data
-  let out : Array[@layout.PositionedPrimitive] = []
+) -> Array[PositionedPrimitive] raise @failure.Failure {
+  let data = self
+  let out : Array[PositionedPrimitive] = []
   if ["pie", "doughnut"].contains(data.kind) {
     return self.paint_pie(width, height)
   }
@@ -145,7 +145,7 @@ fn DrawingChart::paint_plot(
   if area {
     let baseline = top + h * (1 - (0 - low) / (high - low))
     for series_index, series in data.series {
-      let path : Array[@layout.PathSegment] = []
+      let path : Array[PathSegment] = []
       let points : Array[(Double, Double)] = []
       let finish = fn() {
         if points.length() >= 2 {
@@ -187,8 +187,8 @@ fn DrawingChart::paint_plot(
   }
   if line {
     for series_index, series in data.series {
-      let path : Array[@layout.PathSegment] = []
-      let markers : Array[@layout.PositionedPrimitive] = []
+      let path : Array[PathSegment] = []
+      let markers : Array[PositionedPrimitive] = []
       let mut connected = false
       for index, value in series.values {
         if value is Some(value) {
@@ -296,7 +296,7 @@ fn DrawingChart::paint_plot(
           let offset = at +
             bar *
             (0.75 + (if stacked { 0.0 } else { series_index.to_double() }))
-          let rect : @layout.Fill = if horizontal {
+          let rect : Fill = if horizontal {
             {
               x: left + w * baseline.min(ratio),
               y: top + offset,

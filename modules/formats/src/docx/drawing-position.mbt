@@ -12,6 +12,9 @@ fn Session::editable_drawing_position(
       @failure.reject("protected-content", "Shape placement is locked")
     }
     (drawing, paragraph)
+  } else if tree.drawing_data(id).1.attribute("uri") == Some(chart_uri) {
+    ignore(self.editable_chart(tree, id, operation=ChartPosition))
+    (self.drawing_frame(tree, id), paragraph)
   } else {
     let (picture, _, _, _) = self.editable_picture(tree, id, position=true)
     (

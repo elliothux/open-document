@@ -1,3 +1,10 @@
+import {
+  docxCharts,
+  checkDocxChartEdit,
+  type DocxChartEdit,
+} from "./docx-chart.js";
+export * from "./docx-chart.js";
+export { type ChartSettings } from "./chart.js";
 import { FoundationMathSession } from "./docx-math.js";
 export * from "./docx-clipboard.js";
 export {
@@ -291,6 +298,19 @@ export function shapeBatch(value: unknown): ShapeBatch {
 }
 
 export class FoundationSession extends FoundationMathSession {
+  charts(revision: number) {
+    return docxCharts(this.call({ operation: "docxCharts", revision }));
+  }
+  editChart(
+    revision: number,
+    chart: DocxChartEdit,
+    profile: Record<string, string> = {},
+  ): EditState {
+    checkDocxChartEdit(chart);
+    return editState(
+      this.call({ operation: "editDocxChart", revision, chart, profile }),
+    );
+  }
   shape(text: string, size = 32, language = "und"): ShapeBatch {
     return shapeBatch(this.call({ operation: "shape", text, size, language }));
   }

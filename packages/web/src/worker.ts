@@ -462,6 +462,14 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.setPageBorders(request.revision, request.borders);
         case "docxPictures":
           return foundation.pictures(request.revision);
+        case "docxCharts":
+          return foundation.charts(request.revision);
+        case "editDocxChart":
+          return foundation.editChart(
+            request.revision,
+            request.chart,
+            request.profile,
+          );
         case "docxShapes":
           return foundation.shapes(request.revision);
         case "docxMathFractions":

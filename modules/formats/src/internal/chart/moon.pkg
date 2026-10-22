@@ -1,0 +1,8 @@
+import {
+  "open_document/core/opc",
+  "open_document/core/xml",
+  "open_document/core/failure",
+  "open_document/layout",
+  "moonbitlang/core/string",
+  "moonbitlang/core/encoding/utf8",
+}

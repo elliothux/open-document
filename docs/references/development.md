@@ -13,7 +13,7 @@ PDF 输入和文档操作见 [P7](../implemented/p7-pdf-input.md) 与 [P8](../im
 | 位置 | 所有权 | 允许依赖 |
 | --- | --- | --- |
 | `modules/core` | text、failure、archive、XML 源片段与 OPC 图 | 标准库、固定 flate/xml；不依赖宿主 |
-| `modules/layout` | 字体塑形、几何、分页与绘制结果 | core；不通过 DOM 决定布局 |
+| `modules/layout` | 字体塑形、几何、分页、图表布局与绘制结果 | core；不通过 DOM 决定布局 |
 | `modules/formats` | docx/xlsx/pptx/pdf 的独立语义与读写；`internal/image` 共用 PNG/JPEG 输入预算与文件头校验 | core；需要输出布局时依赖 layout |
 | `modules/bridge` | Wasm 导出、核心到宿主的批量 ABI | core、layout、formats/docx、formats/xlsx、formats/pptx、formats/pdf |
 | `packages/wasm` | 实例化与 ABI 校验 | WasmGC 产物；不拥有第二份文档模型 |
@@ -21,6 +21,8 @@ PDF 输入和文档操作见 [P7](../implemented/p7-pdf-input.md) 与 [P8](../im
 | `packages/ui` | 默认 React UI、ShadowRoot、文件候选、宿主保存回调 | web、React、Base UI；文档操作复用编辑宿主队列 |
 
 根 `moon.work` 明确列举四个 module，各 module 内以 package 划分真实 concern。暂不为每种格式创建独立发布 module，也不创建 CLI 空壳。根 Bun workspace 只包含 `packages/*`，一个公开 `bun.lock`；私有工具是独立仓库和独立依赖域，不加入公开 workspace。
+
+`layout/chart-*` 拥有图表系列模型和排版；`formats/internal/chart` 读写原生图表 XML 与关系，不依赖 XLSX。嵌入工作簿的矩形数据读取归 `formats/xlsx/chart-data.mbt`，DOCX/PPTX 各自维护源对象与资源事务。传输校验和默认面板共用图表字段，TS 不持有第二份图表状态。
 
 文本 POC 使用 UTF-16 范围，不允许切断 surrogate pair；它不是字素导航或富文本编辑器。核心保留最多 100 条文本快照用于 POC 撤销；DOCX 编辑使用独立的局部源补丁历史。当前 ABI 使用 JS string builtins，尚不承诺其他 WasmGC runtime 等价运行。
 

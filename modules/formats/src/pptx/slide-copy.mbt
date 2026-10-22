@@ -354,7 +354,7 @@ fn Session::copy_slide_parts(
     if copied_charts.contains(link.target) {
       continue
     }
-    let chart = read_chart_part(self.opc, link.target, self.parts)
+    let chart = @chart.read(self.opc, link.target, self.parts)
     let (part, overrides) = self.copy_chart_parts(
       chart,
       "Slide\{identity}_\{chart_sequence}",

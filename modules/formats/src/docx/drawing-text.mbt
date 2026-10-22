@@ -13,6 +13,17 @@ fn Session::check_drawing_text(
       }
       tree.check_picture_references(id)
     }
+  } else if tree.drawing_data(id).1.attribute("uri") == Some(chart_uri) {
+    ignore(
+      self.editable_chart(
+        tree,
+        id,
+        operation=if remove { ChartDelete } else { ChartRetain },
+      ),
+    )
+    if remove {
+      tree.check_picture_references(id)
+    }
   } else {
     ignore(self.editable_picture(tree, id, replace=!remove, remove~))
   }

@@ -1,5 +1,8 @@
 import { DocumentReview } from "./document-review.js";
 import type {
+  DocxCharts,
+  DocxChartValue,
+  DocxChartUpdate,
   DocxMathFractions,
   DocxMathExpressions,
   DocxMathValue,
@@ -7,6 +10,7 @@ import type {
   DocxMathScripts,
   DocxScriptValue,
 } from "@open-document/wasm/foundation";
+export type DocumentCharts = DocxCharts & { documentId: string };
 export type DocumentMathFractions = DocxMathFractions & { documentId: string };
 export type DocumentMathExpressions = DocxMathExpressions & {
   documentId: string;
@@ -35,6 +39,55 @@ export type DocumentProtection = DocxProtection & { documentId: string };
 
 /** Document-wide page commands use the editor's existing read and edit queues. */
 export abstract class DocumentPage extends DocumentReview {
+  charts(): Promise<DocumentCharts> {
+    return this.review.read(async () => ({
+      ...(await this.review.client.charts(this.review.snapshot().revision)),
+      documentId: this.review.snapshot().documentId,
+    }));
+  }
+  insertChart(value: DocxChartValue): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.editChart(
+        this.review.snapshot().revision,
+        { ...value, action: "insert" },
+        this.profile,
+      ),
+    );
+  }
+  editChart(
+    source: DocumentCharts,
+    id: number,
+    value: DocxChartUpdate | null,
+  ): Promise<void> {
+    return this.review.edit(() => {
+      const current = this.review.snapshot(),
+        item = source.items.find((item) => item.id === id);
+      const reason =
+        value === null
+          ? item?.deleteReason
+          : "action" in value
+            ? value.action === "position"
+              ? item?.positionReason
+              : item?.sizeReason
+            : item?.reason;
+      if (
+        source.documentId !== current.documentId ||
+        source.revision !== current.revision ||
+        !item ||
+        reason
+      )
+        throw new Error(reason || "Chart catalog is stale");
+      return this.review.client.editChart(
+        source.revision,
+        value === null
+          ? { action: "delete", id }
+          : "action" in value
+            ? { ...value, id }
+            : { ...value, action: "update", id },
+        this.profile,
+      );
+    });
+  }
   mathExpressions(): Promise<DocumentMathExpressions> {
     return this.review.read(async () => ({
       ...(await this.review.client.mathExpressions(

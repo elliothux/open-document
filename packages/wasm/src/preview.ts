@@ -1,3 +1,4 @@
+import { checkChartSettings, type ChartSettings } from "./chart.js";
 import { checkMathContent, type MathFormula } from "./math.js";
 export type { MathExpression, MathFormula } from "./math.js";
 import type { ShapeBatch } from "./foundation.js";
@@ -121,6 +122,7 @@ export interface DrawingFrame {
   content:
     | { kind: "picture"; key: string; crop: number[] }
     | { kind: "math"; math: MathFormula }
+    | { kind: "chart"; chart: ChartSettings }
     | {
         kind: "shape";
         preset: "rect" | "ellipse" | "line";
@@ -451,6 +453,12 @@ export function docxFlow(value: unknown): DocxFlow {
           Number(image.height) > 14400
         )
           throw new Error("Invalid drawing dimensions");
+        if (content.kind === "chart") {
+          if (Number(image.width) < 180 || Number(image.height) < 150)
+            throw new Error("Invalid chart dimensions");
+          checkChartSettings(content.chart);
+          continue;
+        }
         if (content.kind === "math") {
           if (image.anchor !== null)
             throw new Error("Mathematical expression must remain inline");

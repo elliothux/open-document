@@ -92,15 +92,15 @@ fn PlacedRun::logical_cluster(self : PlacedRun, glyph : Glyph) -> Int {
 }
 
 ///|
-fn Line::display_text(self : Line, math~ : Bool = true) -> String {
+fn Line::display_text(self : Line, objects~ : Bool = true) -> String {
   if !self.text.contains("\ufffc") {
     return self.text
   }
   let fields : Map[Int, String] = Map([])
   for image in self.drawings {
-    let text = image.content.math_text()
+    let text = image.content.alternative_text()
     if text is Some(text) {
-      fields[image.start - self.start] = if math { text } else { "" }
+      fields[image.start - self.start] = if objects { text } else { "" }
     }
   }
   for run in self.runs {

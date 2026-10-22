@@ -5,6 +5,18 @@ fn Session::drawing_frame(
   id : Int,
 ) -> @layout.DrawingFrame raise @failure.Failure {
   let (_, data) = tree.drawing_data(id)
+  if data.attribute("uri") == Some(chart_uri) {
+    let resource = self.read_chart(tree, id)
+    let (width, height, anchor) = tree.drawing_geometry(id)
+    let frame : @layout.DrawingFrame = {
+      width,
+      height,
+      anchor,
+      content: @layout.Chart(@layout.ChartFrame::new(resource.data)),
+    }
+    frame.validate()
+    return frame
+  }
   if data.attribute("uri") == Some(word_shape_uri) {
     let frame = tree.read_basic_shape(id, data.id)
     let shape = tree.children[data.id][0]

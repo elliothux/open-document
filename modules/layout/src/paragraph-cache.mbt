@@ -46,6 +46,7 @@ fn paragraph_cache_units(key : String, lines : Array[Line]) -> Int {
         (match image.content {
           Picture(key, _) => key.length()
           Math(formula) => formula.cache_units()
+          Chart(chart) => chart.cache_units()
           Shape(shape) =>
             shape.preset.length() + shape.fill.length() + shape.stroke.length()
           TextBox(shape, text) =>
@@ -104,6 +105,7 @@ fn Paragraph::finite_geometry(paragraph : Paragraph) -> Bool {
       numbers.push(image.height)
       match image.content {
         Math(formula) => numbers.push(formula.style.size)
+        Chart(_) => ()
         Picture(_, crop) => numbers.append(crop)
         Shape(shape) => numbers.push(shape.lineWidth)
         TextBox(shape, text) => {
@@ -126,7 +128,7 @@ fn ParagraphCache::key(
   available : Double,
 ) -> String raise @failure.Failure {
   for span in paragraph.spans {
-    if span.drawing is Some(frame) && frame.content is Math(_) {
+    if span.drawing is Some(frame) && frame.content is (Math(_) | Chart(_)) {
       frame.validate()
     }
   }

@@ -93,7 +93,15 @@ fn Session::selection_field_values(
       start < offset + length &&
       end > offset {
       let (_, content) = self.math_target(tree, item.id)
-      math[item.id] = content.math_text().unwrap()
+      math[item.id] = content.alternative_text().unwrap()
+    } else if tree.nodes[item.id].uri == word_uri &&
+      tree.nodes[item.id].name == "drawing" &&
+      start < offset + length &&
+      end > offset &&
+      tree.drawing_data(item.id).1.attribute("uri") == Some(chart_uri) {
+      math[item.id] = self.drawing_frame(tree, item.id).content
+        .alternative_text()
+        .unwrap()
     }
     offsets[item.paragraph] = offset + length
   }
