@@ -2,7 +2,7 @@ export const mathEn = {
   mathExpressions: "Math expressions",
   mathLatex: "LaTeX expression",
   mathLatexHelp:
-    "Use \\frac{a}{b}, \\sqrt[n]{x}, _{i}, ^{2}, groups and \\text{literal text}. Other commands are not supported yet.",
+    "Use \\frac{a}{b}, \\sqrt[n]{x}, \\left(…\\right), \\sum_{i}^{n}{x}, \\int_{0}^{1}{x}, \\begin{matrix}a&b\\\\c&d\\end{matrix}, _{i}, ^{2} and \\text{literal text}. Other commands are not supported yet.",
   loadExpressions: "Load expressions",
   chooseExpression: "Choose expression",
   insertExpression: "Insert expression",
@@ -28,7 +28,7 @@ export const mathZh: typeof mathEn = {
   mathExpressions: "数学公式",
   mathLatex: "LaTeX 公式",
   mathLatexHelp:
-    "支持 \\frac{a}{b}、\\sqrt[n]{x}、_{i}、^{2}、分组和 \\text{原文}。其他命令尚未支持。",
+    "支持 \\frac{a}{b}、\\sqrt[n]{x}、\\left(…\\right)、\\sum_{i}^{n}{x}、\\int_{0}^{1}{x}、\\begin{matrix}a&b\\\\c&d\\end{matrix}、_{i}、^{2} 和 \\text{原文}。其他命令尚未支持。",
   loadExpressions: "读取公式",
   chooseExpression: "选择公式",
   insertExpression: "插入公式",

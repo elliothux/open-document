@@ -408,6 +408,9 @@ pub(all) enum MathExpression {
   Fraction(MathExpression, MathExpression)
   Scripts(MathExpression, MathExpression?, MathExpression?)
   Root(MathExpression?, MathExpression)
+  Delimited(String, String, String, ReadOnlyArray[MathExpression])
+  Nary(String, String, MathExpression?, MathExpression?, MathExpression)
+  Matrix(String, ReadOnlyArray[String], ReadOnlyArray[ReadOnlyArray[MathExpression?]])
 }
 pub fn MathExpression::to_json(Self) -> Json
 pub impl ToJson for MathExpression

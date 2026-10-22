@@ -241,19 +241,19 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 正文和普通单元格可读取 `m:oMath` 内的横线分数、上下标及横向组合。各参数可递归包含同类结构，保留原生 OMML。所有数学 run 要求统一字体、字号和颜色，文字与正体声明沿上述合同；未知结构、混合外观、修订和扩展继续保护。
 
-核心使用 `MathExpression` 的 `Text`、`Row`、`Fraction`、`Scripts`、`Root`，统一由 `MathFormula` 承载。`Row` 使用不可变子项数组。解析与布局在递归及缓存序列化前检查：根深度为 0，最大深度 16，最多 256 项结构/run 节点（横向组合计一项），文字合计 4096 个 UTF-16 单元。原生数学对象目录仍最多 256 项；超限原子拒绝。Web flow 使用 `kind="math"` 和 `{expression, style}`，沿同一预算校验，替换旧平面绘图模型。
+核心使用 `MathExpression` 的 `Text`、`Row`、`Fraction`、`Scripts`、`Root`、`Delimited`、`Nary`、`Matrix`，统一由 `MathFormula` 承载。`Row` 和 `Delimited` 使用不可变子项数组。解析与布局在递归及缓存序列化前检查：根深度为 0，最大深度 16，最多 256 项结构/run 节点（横向组合计一项），文字合计 4096 个 UTF-16 单元。原生数学对象目录仍最多 256 项；超限原子拒绝。Web flow 使用 `kind="math"` 和 `{expression, style}`，沿同一预算校验。
 
 子参数递归按 0.76 缩放，横向组合按基线对齐；分数及结构化基底的单/双脚标使用实际字体度量。Canvas/PDF 继续消费核心已定位图元。线性文字用括号表达嵌套关系，供语义层、选择、纯文字和 TSV 使用。
 
-公式占一个逻辑位置，支持两侧原生输入、整式删除/替换、富文本复制/剪切、跨文档粘贴、精确历史及重开。周边编辑保留原公式源；富文本写回实际统一外观及递归结构。已有分数/脚标参数 API 和面板只修改平面参数，遇到嵌套内容返回保护原因，避免扁平化覆盖。嵌套参数可通过下述 LaTeX 表单或 SDK 替换；内部光标、局部格式、括号结构、求和/积分、矩阵与更多语法仍待实现。
+公式占一个逻辑位置，支持两侧原生输入、整式删除/替换、富文本复制/剪切、跨文档粘贴、精确历史及重开。周边编辑保留原公式源；富文本写回实际统一外观及递归结构。已有分数/脚标参数 API 和面板只修改平面参数，遇到嵌套内容返回保护原因，避免扁平化覆盖。嵌套参数可通过下述 LaTeX 表单或 SDK 替换；内部光标、独立数学段落、局部格式与更多结构/语法仍待实现。
 
 结构及边界归 [`math-expression.mbt`](../../modules/layout/src/math-expression.mbt)，递归测量归 [`math-layout.mbt`](../../modules/layout/src/math-layout.mbt)，读取归 [`math-read.mbt`](../../modules/formats/src/docx/math-read.mbt)，写回归 [`math-markup.mbt`](../../modules/formats/src/docx/math-markup.mbt)。脚标的文字/结构化基底分支沿上述 ONLYOFFICE 定位规则。
 
 ### DOCX LaTeX 公式编辑
 
-默认“数学公式”面板和 `DocumentEditor.insertMath({latex, format?})` 可在正文/普通格中创建嵌套公式，替换当前文字范围并恢复原生输入焦点。支持横线 `\frac{分子}{分母}`、`_{下标}`、`^{上标}`、根式 `\sqrt{被开方项}` 与 `\sqrt[次数]{被开方项}`、花括号分组、横向组合及 `\text{原文}`。单字符脚标可省略花括号，两个脚标可交换输入顺序；重复同类脚标和缺失参数拒绝。当前字母与文本均使用正体数学 run。
+默认“数学公式”面板和 `DocumentEditor.insertMath({latex, format?})` 可在正文/普通格中创建嵌套公式，替换当前文字范围并恢复原生输入焦点。支持横线 `\frac{分子}{分母}`、`_{下标}`、`^{上标}`、根式 `\sqrt{被开方项}` 与 `\sqrt[次数]{被开方项}`、花括号分组、横向组合、`\text{原文}`、[可伸展括号](#docx-可伸展括号)、[行内求和与积分](#docx-行内求和与积分)和[矩阵](#docx-行内矩阵)。单字符脚标可省略花括号，两个脚标可交换输入顺序；重复同类脚标和缺失参数拒绝。当前字母与文本均使用正体数学 run。
 
-公式中的普通空格忽略，`\text{...}` 中的空格保留。文字内的 `{ } _ % $ # &` 使用反斜线转义；反斜线、尖号和波浪线可用 `\textbackslash{}`、`\textasciicircum{}`、`\textasciitilde{}` 表示。数学序列也接受 `\backslash` 与支持的单字符转义。宏、外部输入、注释、环境、排版命令和其他未映射语法明确拒绝，不执行 TeX。
+公式中的普通空格忽略，`\text{...}` 中的空格保留。文字内的 `{ } _ % $ # &` 使用反斜线转义；反斜线、尖号和波浪线可用 `\textbackslash{}`、`\textasciicircum{}`、`\textasciitilde{}` 表示。数学序列也接受 `\backslash` 与支持的单字符转义。宏、外部输入、注释、未映射的环境/排版命令和其他语法明确拒绝，不执行 TeX。
 
 `mathExpressions()` 返回绑定文档身份和修订的原生目录，项含 `id`、规范化 `latex`、实际统一 `format` 和保护原因。规范化文字使用 `\text`，脚标按下标、上标顺序输出；无脚标作用的嵌套行分组展开，保留有脚标基底的结构。`editMath(source, id, value)` 替换指定公式的完整结构，`value=null` 删除。支持修改嵌套参数、切换根结构，以及统一字体/字号/颜色；省略格式沿插入继承或保留原外观。未知源、修订、源注释、受保护容器与过期目录继续拒绝。
 
@@ -292,6 +292,46 @@ LaTeX 源最多 131072 个 UTF-16 单元，语法嵌套最多 64 层；解析结
 已有“数学公式”面板及 `insertMath` / `editMath` 支持 `\sqrt{...}` 和 `\sqrt[次数]{...}`。读取后的平方根、带次数根式及嵌套结构可修改参数、切换结构、统一外观和删除；目录提供规范化 LaTeX 和实际外观。分数/脚标专用目录跳过根式。公式仍占一个逻辑位置，沿现有原生输入、整式删除/替换、富文本复制、精确历史和重开路径处理。线性替代文字为 `sqrt(被开方项)` 或 `root[次数](被开方项)`。其他数学结构、局部/混合格式和更广根式源变体继续实施。
 
 结构读取归 [`math-read.mbt`](../../modules/formats/src/docx/math-read.mbt)，布局归 [`math-root.mbt`](../../modules/layout/src/math-root.mbt)。尺寸和绘图参考 ONLYOFFICE [根号路径](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/radical.js#L59-L201)、[字体度量与伸展](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/radical.js#L204-L330)及[次数/基底定位](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/radical.js#L564-L681)，字号系数归 [Math.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Math.js#L47-L48)。LaTeX 语法参考 [LaTeXParser.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/LaTeXParser.js#L1267-L1298)，原生参数顺序按 [Open XML SDK](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/data/schemas/schemas_openxmlformats_org_officeDocument_2006_math.json#L961-L1001)核对。
+
+### DOCX 可伸展括号
+
+正文及普通格支持 `m:d` 居中伸展括号，参数可嵌套分数、脚标、根式及括号。支持 `()`、`[]`、`{}`、`|`、`‖`、`⌈⌉`、`⌊⌋`、`⟨⟩`，任一侧可隐藏，左右字符可不同。每组有 1–64 个非空 `m:e` 参数，多个参数使用统一分隔符；默认是圆括号和竖线。接受省略属性、`grow=true` 与 `shp=centered`；固定大小、`match`、控制格式及其他源扩展继续保护。
+
+核心模型为 `Delimited(open, close, separator, arguments)`，flow 使用 `{kind:"delimited", open, close, separator, arguments}`。隐藏字符为空字符串。单参数没有可见分隔符，读取时规范化为默认值，使加载后应用相同 LaTeX 保持原生源且不增加历史。公式语义、选择和纯文字按实际括号及分隔符输出，仍占一个逻辑位置。
+
+“数学公式”面板及 `insertMath` / `editMath` 支持 `\left...\right`，用 `\middle` 分隔参数，用 `.` 隐藏一侧。字符命令包括 `\lbrace` / `\rbrace`、`\langle` / `\rangle`、`\lfloor` / `\rfloor`、`\lceil` / `\rceil`、`\vert` 和 `\Vert`；接受转义花括号及 `\|`。例如 `\left\{\frac{x_1}{2}\middle|\sqrt{q}\right.`。嵌套、统一外观、原生周边输入、整式删除、富文本复制、精确历史及重开沿既有公式路径处理。多个 `\middle` 必须使用同一字符；空参数、未配对命令与未知语法拒绝。
+
+排版围绕数学轴确定括号高度，读取实际字体的 OpenType `MATH` 垂直变体；高度不足时按连接区拼接部件并均匀重复伸展部件。核心把实际字形轮廓转换为既有向量路径，Canvas/PDF 共用。字体须提供对应字形和足够的变体或拼接数据；缺失时原子拒绝。只读取所选字形的数据，不展开完整数学字体表。每字形最多 128 个变体、64 个部件定义，单括号最多拼接 256 个字形且轮廓少于 8192 段，单公式最多 65536 段；路径仍计入段落缓存。当前 PDF 括号以向量绘制，文字提取使用参数文字；完整线性替代文字由语义层提供。
+
+读取与 LaTeX 分隔归 [`docx/math-delimiter.mbt`](../../modules/formats/src/docx/math-delimiter.mbt)，定位归 [`layout/math-delimiter.mbt`](../../modules/layout/src/math-delimiter.mbt)，字体读取及轮廓归 [`math-font-variants.mbt`](../../modules/layout/src/math-font-variants.mbt) 和 [`math-font-outline.mbt`](../../modules/layout/src/math-font-outline.mbt)。数学轴和参数尺寸参考 [ONLYOFFICE operators.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/operators.js#L3546-L3671)，原生结构按 [Open XML SDK](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/data/schemas/schemas_openxmlformats_org_officeDocument_2006_math.json#L551-L587)核对，字体变体及连接区按 [OpenType MATH](https://learn.microsoft.com/en-us/typography/opentype/spec/math#mathvariants-table)处理。固定大小、其他定位方式、局部数学格式及更多运算结构继续实施。
+
+### DOCX 行内求和与积分
+
+正文及普通格支持 `m:nary` 的求和、乘积、余积、单/双/三重积分、三种闭合积分，以及大并集、交集、逻辑或和逻辑与。参数可递归包含已有数学结构。上下限分别可见或隐藏；隐藏参数须为空，可见参数和主体须非空。接受省略 `chr` 的默认积分、`limLoc`、`grow=false` 和基本显隐属性；增长、空白可见占位、控制格式及其他扩展继续保护。
+
+核心模型为 `Nary(operator, limitLocation, lower, upper, body)`，flow 使用 `{kind:"nary", operator, limitLocation, lower, upper, body}`，隐藏的上下限明确传 `null`。`limitLocation` 保留原生 `subSup` / `undOvr`。省略时读取对应文档设置 `intLim` / `naryLim`；默认分别为 `subSup` 和 `undOvr`。显式属性覆盖默认设置，未使用的错误设置不会影响其他数学结构。
+
+当前公式为行内对象，按 ONLYOFFICE 的行内分支使用普通字号运算符和右侧上下限，保留原生位置属性供写回。核心按实际字形的墨迹宽度、上下边界和边距定位运算符；上下限按 0.76 缩小，复用单/双脚标度量，主体按数学基线对齐。符号与主体之间的间距随字号变化。Canvas/PDF 复用已有文字图元，PDF 保留运算符及参数的文字映射；线性语义为 `∑_(下限)^(上限)(主体)` 等形式。
+
+既有“数学公式”面板及 `insertMath` / `editMath` 接受 `\sum`、`\prod`、`\coprod`、`\int`、`\iint`、`\iiint`、`\oint`、`\oiint`、`\oiiint`、`\bigcup`、`\bigcap`、`\bigvee` 和 `\bigwedge`。使用 `_` / `^` 输入上下限，主体可为一个带脚标的原子或花括号分组，例如 `\sum_{i=0}^{n}{x_i}`、`\int_0^1{\frac{x}{2}}`。`\limits` 和 `\nolimits` 保留对应原生位置属性，当前行内显示均使用右侧上下限。目录提供带显式位置修饰的规范化 LaTeX。重复脚标、缺失主体、空参数及未知语法拒绝，沿现有输入与结构预算处理。
+
+运算符沿现有公式路径完成统一外观、周边原生输入、整式删除/替换、富文本复制、精确历史及重开。分数/脚标专用目录跳过独立的 `m:nary`。相同参数与直接外观不增加历史，字体/布局失败保持文档。独立数学段落的较大符号、上下堆叠、增长属性及局部格式继续实施；矩阵归[行内矩阵](#docx-行内矩阵)。
+
+读取、默认设置和 LaTeX 归 [`docx/math-nary.mbt`](../../modules/formats/src/docx/math-nary.mbt)，布局归 [`layout/math-nary.mbt`](../../modules/layout/src/math-nary.mbt)。参考 ONLYOFFICE 的[行内分支](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/nary.js#L305-L356)、[行内符号与测量](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/nary.js#L1220-L1262)、[墨迹宽度](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/mathText.js#L708-L829)及[默认位置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/math-settings.js#L308-L311)。原生结构按 [Open XML SDK](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/data/schemas/schemas_openxmlformats_org_officeDocument_2006_math.json#L875-L935)核对。
+
+### DOCX 行内矩阵
+
+正文及普通格支持 `m:m` 矩阵，可嵌套已有分数、脚标、根式、括号和行内运算符。每列可左对齐、居中或右对齐，整体基线可顶端、居中或底端对齐。读取原生列分组及重复列数；缺少的列描述按居中补足，较短行补为空单元格。空单元格保留为原生 `m:e`，按实际数学字体显示占位字形 `⬚`，不写成普通文字。
+
+模型为 `Matrix(baseAlignment, columnAlignments, rows)`，flow 使用 `{kind:"matrix", baseAlignment, columnAlignments, rows}`。行、列均为不可变数组，单元格为数学表达式或明确的 `null`。最多 64 行、64 列且总格数不超过 256，空单元格也计入共用的 256 项结构预算，因此单独矩阵最多容纳 255 个空单元格。深度和文字仍沿整个公式检查。语义、选择和纯文字使用 `matrix(a,b;c,d)`；空单元格保留分隔位置。
+
+核心按每行最大上升/下降距离和每列最大宽度排版。默认列距为一 em，行距按字号、相邻基线和最小间距计算。各格按所在行基线对齐，居中矩阵围绕数学轴定位；顶端和底端基线分别取首行和末行。Canvas/PDF 共用既有文字和矢量图元。完整的字体、字号和颜色可由矩阵 `ctrlPr` 的 Word run 属性承载，作用范围限于该矩阵参数；这使全空矩阵仍能保存外观、跨文档复制并重开。局部或混合控制格式继续保护。
+
+“数学公式”面板及 `insertMath` / `editMath` 接受 `\begin{matrix}a&b\\c&d\end{matrix}`。`pmatrix`、`bmatrix`、`Bmatrix`、`vmatrix` 和 `Vmatrix` 复用已有可伸展分隔符。`array` 的列描述接受 `l` / `c` / `r`，可用 `[t]`、`[c]`、`[b]` 指定基线，例如 `\begin{array}[t]{lr}a&b\\c&d\end{array}`。矩阵环境中的 `&` 分列，`\\` 换行；空单元格和较短行的缺失项均保留为占位格，末尾换行不额外增加一行。文字中的保留字符沿 `\text{...}` 或转义规则处理。目录统一输出含显式对齐的 `array`，带括号矩阵输出 `\left...\right` 与该数组的组合。
+
+矩阵沿统一公式路径完成结构/尺寸修改、整体外观、周边原生输入、整式删除/替换、富文本复制、精确历史和重开；分数/脚标专用目录跳过独立矩阵。字体、布局、语法、行列或结构预算失败保持文档。接受基本对齐、可见占位、默认间距及完整统一控制外观；隐藏占位、自定义间距、局部格式、未知源属性和其他环境明确保护或拒绝。
+
+原生读取及 LaTeX 归 [`docx/math-matrix.mbt`](../../modules/formats/src/docx/math-matrix.mbt)，布局归 [`layout/math-matrix.mbt`](../../modules/layout/src/math-matrix.mbt)，控制外观和递归写回归 [`math-markup.mbt`](../../modules/formats/src/docx/math-markup.mbt)。定位参考 [ONLYOFFICE matrix.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/matrix.js#L361-L518)及[行列度量](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/matrix.js#L660-L715)，环境参考 [LaTeXParser.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/LaTeXParser.js#L1396-L1510)，原生结构按 [Open XML SDK](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/data/schemas/schemas_openxmlformats_org_officeDocument_2006_math.json#L10012-L10165)核对。
 
 ### 水平标尺
 

@@ -77,7 +77,7 @@ fn Session::math_catalog(
       tree.children[id].get(0) is Some(child) &&
       tree.nodes[child].uri == math_uri &&
       (
-        tree.nodes[child].name == "rad" ||
+        ["rad", "d", "nary", "m"].contains(tree.nodes[child].name) ||
         (if scripts {
           tree.nodes[child].name == "f"
         } else {

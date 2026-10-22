@@ -16,10 +16,11 @@ fn Session::math_base_style(
 
 ///|
 priv struct MathRead {
-  base : @layout.TextStyle
+  mut base : @layout.TextStyle
   mut style : @layout.TextStyle?
   mut nodes : Int
   mut units : Int
+  session : Session
 }
 
 ///|
@@ -31,6 +32,22 @@ fn MathRead::node(self : MathRead, depth : Int) -> Unit raise @failure.Failure {
 }
 
 ///|
+fn MathRead::appearance(
+  self : MathRead,
+  current : @layout.TextStyle,
+) -> Unit raise @failure.Failure {
+  guard self.style
+    .map(style => {
+      (style.font, style.size, style.color) ==
+      (current.font, current.size, current.color)
+    })
+    .unwrap_or(true) else {
+    @failure.reject("unsupported-math", "Math requires uniform run formatting")
+  }
+  self.style = Some(current)
+}
+
+///|
 fn MathRead::sequence(
   self : MathRead,
   tree : WordTree,
@@ -38,7 +55,7 @@ fn MathRead::sequence(
   depth : Int,
 ) -> @layout.MathExpression raise @failure.Failure {
   let children = tree.math_children(id, [
-    "r", "f", "sSub", "sSup", "sSubSup", "rad",
+    "r", "f", "sSub", "sSup", "sSubSup", "rad", "d", "nary", "m",
   ])
   guard !children.is_empty() else {
     @failure.reject("unsupported-math", "Math argument is empty")
@@ -77,6 +94,15 @@ fn MathRead::term(
 ) -> @layout.MathExpression raise @failure.Failure {
   self.node(depth)
   let kind = tree.nodes[id].name
+  if kind == "m" {
+    return self.matrix(tree, id, depth)
+  }
+  if kind == "nary" {
+    return self.nary(tree, id, depth)
+  }
+  if kind == "d" {
+    return self.delimited(tree, id, depth)
+  }
   if kind == "rad" {
     return self.radical(tree, id, depth)
   }
@@ -86,17 +112,7 @@ fn MathRead::term(
     guard self.units <= 4096 else {
       @failure.reject("limit-exceeded", "Math exceeds 4096 UTF-16 units")
     }
-    guard self.style
-      .map(style => {
-        (style.font, style.size, style.color) ==
-        (current.font, current.size, current.color)
-      })
-      .unwrap_or(true) else {
-      @failure.reject(
-        "unsupported-math", "Math requires uniform run formatting",
-      )
-    }
-    self.style = Some(current)
+    self.appearance(current)
     return Text(text)
   }
   let names = match kind {
@@ -209,6 +225,7 @@ fn Session::read_inline_math(
     style: None,
     nodes: 0,
     units: 0,
+    session: self,
   }
   let expression = reader.sequence(tree, id, 0)
   let frame : @layout.DrawingFrame = {

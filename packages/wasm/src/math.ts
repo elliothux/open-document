@@ -2,6 +2,27 @@ import type { TextStyle } from "./preview.js";
 import { record } from "./validation.js";
 
 export type MathExpression =
+  | {
+      kind: "matrix";
+      baseAlignment: "top" | "center" | "bottom";
+      columnAlignments: ("left" | "center" | "right")[];
+      rows: (MathExpression | null)[][];
+    }
+  | {
+      kind: "nary";
+      operator: string;
+      limitLocation: "subSup" | "undOvr";
+      lower: MathExpression | null;
+      upper: MathExpression | null;
+      body: MathExpression;
+    }
+  | {
+      kind: "delimited";
+      open: string;
+      close: string;
+      separator: string;
+      arguments: MathExpression[];
+    }
   | { kind: "root"; degree: MathExpression | null; radicand: MathExpression }
   | { kind: "text"; text: string }
   | { kind: "row"; children: MathExpression[] }
@@ -45,6 +66,66 @@ export function checkMathContent(value: unknown): void {
       throw new Error("Mathematical structure exceeds budget");
     const term = record(value);
     switch (term.kind) {
+      case "matrix": {
+        if (
+          typeof term.baseAlignment !== "string" ||
+          !["top", "center", "bottom"].includes(term.baseAlignment) ||
+          !Array.isArray(term.columnAlignments) ||
+          term.columnAlignments.length < 1 ||
+          term.columnAlignments.length > 64 ||
+          !term.columnAlignments.every(
+            (value) =>
+              value === "left" || value === "center" || value === "right",
+          ) ||
+          !Array.isArray(term.rows) ||
+          term.rows.length < 1 ||
+          term.rows.length > 64 ||
+          term.rows.length * term.columnAlignments.length > 256
+        )
+          throw new Error(
+            "Invalid mathematical matrix dimensions or alignment",
+          );
+        for (const row of term.rows) {
+          if (
+            !Array.isArray(row) ||
+            row.length !== term.columnAlignments.length
+          )
+            throw new Error("Invalid rectangular mathematical matrix");
+          for (const cell of row) {
+            if (cell === null) {
+              if (depth >= 16 || ++nodes > 256)
+                throw new Error("Mathematical structure exceeds budget");
+            } else visit(cell, depth + 1);
+          }
+        }
+        break;
+      }
+      case "nary":
+        if (
+          typeof term.operator !== "string" ||
+          term.operator.length !== 1 ||
+          !"∑∏∐∫∬∭∮∯∰⋃⋂⋁⋀".includes(term.operator) ||
+          (term.limitLocation !== "subSup" && term.limitLocation !== "undOvr")
+        )
+          throw new Error("Invalid n-ary operator or limit location");
+        if (term.lower !== null) visit(term.lower, depth + 1);
+        if (term.upper !== null) visit(term.upper, depth + 1);
+        visit(term.body, depth + 1);
+        break;
+      case "delimited":
+        if (
+          ![term.open, term.close, term.separator].every(
+            (value) =>
+              typeof value === "string" &&
+              ["", ..."()[]{}|‖⌈⌉⌊⌋⟨⟩"].includes(value),
+          ) ||
+          !Array.isArray(term.arguments) ||
+          term.arguments.length < 1 ||
+          term.arguments.length > 64
+        )
+          throw new Error("Invalid mathematical delimiter");
+        for (const argument of term.arguments) visit(argument, depth + 1);
+        break;
       case "root":
         if (term.degree !== null) visit(term.degree, depth + 1);
         visit(term.radicand, depth + 1);

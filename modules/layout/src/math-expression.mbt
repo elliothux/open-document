@@ -5,11 +5,46 @@ pub(all) enum MathExpression {
   Fraction(MathExpression, MathExpression)
   Scripts(MathExpression, MathExpression?, MathExpression?)
   Root(MathExpression?, MathExpression)
+  Delimited(String, String, String, ReadOnlyArray[MathExpression])
+  Nary(String, String, MathExpression?, MathExpression?, MathExpression)
+  Matrix(
+    String,
+    ReadOnlyArray[String],
+    ReadOnlyArray[ReadOnlyArray[MathExpression?]]
+  )
 }
 
 ///|
 pub impl ToJson for MathExpression with fn to_json(self) {
   match self {
+    Matrix(base, columns, rows) =>
+      {
+        "kind": "matrix",
+        "baseAlignment": base,
+        "columnAlignments": columns,
+        "rows": rows.map(row => {
+          row.map(value => {
+            value.map(value => Json(value)).unwrap_or(Json::null())
+          })
+        }),
+      }
+    Nary(operator, limit_location, lower, upper, body) =>
+      {
+        "kind": "nary",
+        "operator": operator,
+        "limitLocation": limit_location,
+        "lower": lower.map(value => Json(value)).unwrap_or(Json::null()),
+        "upper": upper.map(value => Json(value)).unwrap_or(Json::null()),
+        "body": body,
+      }
+    Delimited(open, close, separator, arguments) =>
+      {
+        "kind": "delimited",
+        "open": open,
+        "close": close,
+        "separator": separator,
+        "arguments": arguments,
+      }
     Text(text) => { "kind": "text", "text": text }
     Row(children) => { "kind": "row", "children": children }
     Fraction(numerator, denominator) =>
@@ -45,6 +80,64 @@ fn MathExpression::check(self : MathExpression) -> Unit raise @failure.Failure {
       @failure.reject("limit-exceeded", "Math exceeds depth 16 or 256 nodes")
     }
     match value {
+      Matrix(base, columns, rows) => {
+        guard ["top", "center", "bottom"].contains(base) &&
+          columns.length() >= 1 &&
+          columns.length() <= 64 &&
+          columns
+          .iter()
+          .all(value => ["left", "center", "right"].contains(value)) &&
+          rows.length() >= 1 &&
+          rows.length() <= 64 &&
+          rows.length() * columns.length() <= 256 &&
+          rows.iter().all(row => row.length() == columns.length()) else {
+          @failure.reject(
+            "unsupported-math", "Matrix requires bounded rectangular rows and supported alignments",
+          )
+        }
+        for row in rows {
+          for cell in row {
+            if cell is Some(value) {
+              visit(value, depth + 1)
+            } else {
+              nodes += 1
+              guard depth < 16 && nodes <= 256 else {
+                @failure.reject(
+                  "limit-exceeded", "Math exceeds depth 16 or 256 nodes",
+                )
+              }
+            }
+          }
+        }
+      }
+      Nary(operator, location, lower, upper, body) => {
+        guard operator.length() == 1 &&
+          "∑∏∐∫∬∭∮∯∰⋃⋂⋁⋀".contains(operator) &&
+          ["subSup", "undOvr"].contains(location) else {
+          @failure.reject(
+            "unsupported-math", "Unsupported n-ary operator or limit location",
+          )
+        }
+        if lower is Some(value) {
+          visit(value, depth + 1)
+        }
+        if upper is Some(value) {
+          visit(value, depth + 1)
+        }
+        visit(body, depth + 1)
+      }
+      Delimited(open, close, separator, arguments) => {
+        guard [open, close, separator].all(math_delimiter_character) &&
+          arguments.length() >= 1 &&
+          arguments.length() <= 64 else {
+          @failure.reject(
+            "unsupported-math", "Delimiter requires supported characters and one to 64 arguments",
+          )
+        }
+        for argument in arguments {
+          visit(argument, depth + 1)
+        }
+      }
       Text(text) => {
         units += text.length()
         guard units <= 4096 else {
@@ -109,6 +202,25 @@ fn MathExpression::check(self : MathExpression) -> Unit raise @failure.Failure {
 ///|
 fn MathExpression::linear_text(self : MathExpression) -> String {
   match self {
+    Matrix(_, _, rows) =>
+      "matrix(" +
+      rows
+      .map(row => {
+        row
+        .map(value => value.map(value => value.linear_text()).unwrap_or(""))
+        .join(",")
+      })
+      .join(";") +
+      ")"
+    Nary(operator, _, lower, upper, body) =>
+      operator +
+      lower.map(value => "_(" + value.linear_text() + ")").unwrap_or("") +
+      upper.map(value => "^(" + value.linear_text() + ")").unwrap_or("") +
+      "(" +
+      body.linear_text() +
+      ")"
+    Delimited(open, close, separator, arguments) =>
+      open + arguments.map(value => value.linear_text()).join(separator) + close
     Text(text) => text
     Row(children) => children.map(child => child.linear_text()).join("")
     Fraction(num, den) =>

@@ -53,6 +53,23 @@ fn MathLatex::command(self : MathLatex) -> String raise @failure.Failure {
 }
 
 ///|
+fn MathLatex::peek_command(self : MathLatex) -> String {
+  if self.chars.get(self.offset) != Some('\\') {
+    return ""
+  }
+  let name = StringBuilder()
+  let mut index = self.offset + 1
+  while self.chars
+        .get(index)
+        .map(ch => ch.is_ascii_alphabetic())
+        .unwrap_or(false) {
+    name.write_char(self.chars[index])
+    index += 1
+  }
+  name.to_string()
+}
+
+///|
 fn MathLatex::literal(
   self : MathLatex,
 ) -> @layout.MathExpression raise @failure.Failure {
@@ -114,6 +131,8 @@ fn MathLatex::atom(
   if ch == '\\' {
     let name = self.command()
     return match name {
+      "begin" => self.matrix(depth)
+      "left" => self.delimiter(depth)
       "frac" => Fraction(self.group(depth), self.group(depth))
       "sqrt" => {
         self.space()
@@ -134,7 +153,12 @@ fn MathLatex::atom(
         guard "{}_ %$#&".contains(ch.to_string()) else { self.invalid() }
         self.text(ch.to_string())
       }
-      _ => self.invalid()
+      _ =>
+        if math_nary_commands.get(name) is Some(operator) {
+          self.nary(operator, depth)
+        } else {
+          self.invalid()
+        }
     }
   }
   guard !"}_^%$#&~".contains(ch.to_string()) else { self.invalid() }
@@ -142,35 +166,56 @@ fn MathLatex::atom(
 }
 
 ///|
+fn MathLatex::indices(
+  self : MathLatex,
+  depth : Int,
+) -> (@layout.MathExpression?, @layout.MathExpression?) raise @failure.Failure {
+  let mut lower : @layout.MathExpression? = None
+  let mut upper : @layout.MathExpression? = None
+  self.space()
+  while self.chars.get(self.offset) is Some('^' | '_') {
+    let index = self.take()
+    if index == '_' {
+      guard lower is None else { self.invalid() }
+      lower = Some(self.atom(depth + 1))
+    } else {
+      guard upper is None else { self.invalid() }
+      upper = Some(self.atom(depth + 1))
+    }
+    self.space()
+  }
+  (lower, upper)
+}
+
+///|
+fn MathLatex::scripted(
+  self : MathLatex,
+  depth : Int,
+) -> @layout.MathExpression raise @failure.Failure {
+  let base = self.atom(depth)
+  let (lower, upper) = self.indices(depth)
+  if lower is None && upper is None {
+    base
+  } else {
+    Scripts(base, lower, upper)
+  }
+}
+
+///|
 fn MathLatex::sequence(
   self : MathLatex,
   depth : Int,
   stop~ : Char = '}',
+  delimited~ : Bool = false,
+  matrix~ : Bool = false,
 ) -> @layout.MathExpression raise @failure.Failure {
   let terms : Array[@layout.MathExpression] = []
   self.space()
   while self.offset < self.chars.length() &&
-        self.chars.get(self.offset) != Some(stop) {
-    let base = self.atom(depth)
-    let mut lower : @layout.MathExpression? = None
-    let mut upper : @layout.MathExpression? = None
-    self.space()
-    while self.chars.get(self.offset) is Some('^' | '_') {
-      let index = self.take()
-      if index == '_' {
-        guard lower is None else { self.invalid() }
-        lower = Some(self.atom(depth + 1))
-      } else {
-        guard upper is None else { self.invalid() }
-        upper = Some(self.atom(depth + 1))
-      }
-      self.space()
-    }
-    let term = if lower is None && upper is None {
-      base
-    } else {
-      Scripts(base, lower, upper)
-    }
+        self.chars.get(self.offset) != Some(stop) &&
+        !(delimited && self.delimiter_boundary()) &&
+        !(matrix && self.matrix_boundary()) {
+    let term = self.scripted(depth)
     let children = match term {
       Row(children) => children.iter().collect()
       _ => [term]
@@ -237,6 +282,17 @@ fn math_latex_text(text : String) -> String {
 ///|
 fn math_latex(expression : @layout.MathExpression) -> String {
   match expression {
+    Matrix(base, columns, rows) => math_latex_matrix(base, columns, rows)
+    Nary(operator, location, lower, upper, body) =>
+      math_latex_nary(operator, location, lower, upper, body)
+    Delimited(open, close, separator, arguments) =>
+      "\\left" +
+      math_latex_delimiter(open) +
+      arguments
+      .map(math_latex)
+      .join("\\middle" + math_latex_delimiter(separator)) +
+      "\\right" +
+      math_latex_delimiter(close)
     Root(degree, radicand) =>
       "\\sqrt" +
       degree.map(value => "[" + math_latex(value) + "]").unwrap_or("") +
