@@ -371,6 +371,7 @@ fn Session::read_sheet_shape(
     description: identity.attribute("descr").unwrap_or(""),
     media: None,
     chart: None,
+    chart_visibility: None,
     crop: [0, 0, 0, 0],
     shape: Some({
       preset,

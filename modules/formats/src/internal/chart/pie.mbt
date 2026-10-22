@@ -1,4 +1,9 @@
 ///|
+fn pie_point_markup(index : Int, color : String) -> String {
+  "<c:dPt><c:idx val=\"\{index}\"/><c:spPr><a:solidFill><a:srgbClr val=\"\{color}\"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr></c:dPt>"
+}
+
+///|
 fn pie_markup(
   data : @layout.ChartData,
   workbook_link : String,
@@ -29,8 +34,9 @@ fn pie_markup(
       "<c:ser><c:idx val=\"\{index}\"/><c:order val=\"\{index}\"/><c:tx>\{title}</c:tx><c:spPr><a:solidFill><a:srgbClr val=\"\{@layout.chart_color(0)}\"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr>"
     if index == 0 || data.kind == "doughnut" {
       for category in 0..<data.categories.length() {
-        out <+
-          "<c:dPt><c:idx val=\"\{category}\"/><c:spPr><a:solidFill><a:srgbClr val=\"\{@layout.chart_color(category)}\"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr></c:dPt>"
+        out.write_string(
+          pie_point_markup(category, @layout.chart_color(category)),
+        )
       }
     }
     out <+ "<c:cat>\{categories}</c:cat><c:val>\{values}</c:val></c:ser>"

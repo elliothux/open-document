@@ -135,11 +135,12 @@ fn ChartData::paint_legend(
   entries : Array[(String, Int, Border)],
   probe : TextProbe,
   profile : Map[String, String],
+  colors : Array[String],
 ) -> Array[PositionedPrimitive] raise @failure.Failure {
   let out : Array[PositionedPrimitive] = []
   for (text, index, rect) in entries {
     if index >= 0 {
-      let color = chart_color(index)
+      let color = chart_paint_color(colors, index)
       if self.kind == "scatter" {
         out.append(chart_marker(rect.x + 4, rect.y + 7, color))
       } else if ["line", "radar"].contains(self.kind) {
@@ -191,15 +192,19 @@ pub fn ChartData::paint(
   height : Double,
   probe : TextProbe,
   profile : Map[String, String],
+  visible~ : ChartVisibility? = None,
 ) -> Array[PositionedPrimitive] raise @failure.Failure {
-  self.validate()
+  if visible is Some(_) {
+    self.validate_sources()
+  } else {
+    self.validate()
+  }
   guard width >= 180 && width <= 14400 && height >= 150 && height <= 14400 else {
     @failure.reject(
       "layout-overflow", "Chart frame requires at least 180 x 150 points",
     )
   }
-  let data = self
-  let layout = data.legend_layout(width, height, probe, profile)
+  let (data, colors) = self.visible_data(visible)
   let out : Array[PositionedPrimitive] = [
     Rectangle({ x: 0, y: 0, width, height, color: "ffffff", }),
     Stroke({ x: 0, y: 0, width, height, }, "d9d9d9", 0.5),
@@ -212,15 +217,26 @@ pub fn ChartData::paint(
       chart_label(data.label, 8, 26, width - 16, 18, 12, true, probe, profile),
     )
   }
+  if data.categories.is_empty() || data.series.is_empty() {
+    return out
+  }
+  data.validate()
+  let layout = data.legend_layout(width, height, probe, profile)
   out.push(Clip(layout.plot))
   out.push(
     Transform({ a: 1, b: 0, c: 0, d: 1, e: layout.plot.x, f: layout.plot.y, }),
   )
   out.append(
-    self.paint_plot(layout.plot.width, layout.plot.height, probe, profile),
+    data.paint_plot(
+      layout.plot.width,
+      layout.plot.height,
+      probe,
+      profile,
+      colors,
+    ),
   )
   out.push(Restore)
   out.push(Restore)
-  out.append(data.paint_legend(layout.entries, probe, profile))
+  out.append(data.paint_legend(layout.entries, probe, profile, colors))
   out
 }

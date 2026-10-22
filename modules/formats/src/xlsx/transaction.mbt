@@ -53,7 +53,8 @@ fn Session::commit(
   context.reflow_dimensions(
     sheets, calculation, styles, edits, font_context, fit_work, parts,
   )
-  context.reflow_pictures(sheets, parts, edits, font_context)
+  let drawings = { ..context, workbook, media, calculation: Some(calculation), }
+  drawings.reflow_pictures(sheets, parts, edits, font_context)
   let payload = edits
     .iter()
     .fold(init=0L, (sum, entry) => sum + entry.1.payload_bytes()) +

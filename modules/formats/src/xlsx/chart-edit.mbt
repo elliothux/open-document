@@ -15,7 +15,7 @@ fn Session::chart_from_settings(
   self : Session,
   owner : String,
   settings : SheetChartSettings,
-  cached? : @layout.ChartData,
+  cached? : @chart.WorksheetChart,
 ) -> @chart.WorksheetChart raise @failure.Failure {
   guard settings.names.length() >= 1 &&
     settings.names.length() <= 8 &&
@@ -32,19 +32,28 @@ fn Session::chart_from_settings(
       "invalid-chart", "Broken chart references require existing cached values",
     )
   }
-  let seed = cached.unwrap_or({
-    kind: settings.kind,
-    title: settings.title,
-    label: settings.label,
-    legend: settings.legend,
-    hole_size: settings.hole_size,
-    categories: [""],
-    series: [],
-  })
+  let seed = cached
+    .map(chart => chart.data)
+    .unwrap_or({
+      kind: settings.kind,
+      title: settings.title,
+      label: settings.label,
+      legend: settings.legend,
+      hole_size: settings.hole_size,
+      categories: [""],
+      series: [],
+    })
   let chart : @chart.WorksheetChart = {
     categories: settings.categories,
     names: settings.names,
     values: settings.values,
+    colors: cached
+    .filter(chart => {
+      ["pie", "doughnut"].contains(chart.data.kind) ==
+      ["pie", "doughnut"].contains(settings.kind)
+    })
+    .map(chart => chart.colors)
+    .unwrap_or([]),
     data: {
       kind: settings.kind,
       title: settings.title,
@@ -123,7 +132,15 @@ pub fn Session::insert_chart(
   }
   check_picture_rect("move", rect, dimensions)
   let chart = self.chart_from_settings(sheet, settings)
-  ignore(chart.data.paint(width, height, probe, profile))
+  ignore(
+    chart.data.paint(
+      width,
+      height,
+      probe,
+      profile,
+      visible=Some(self.chart_visibility(sheet, chart)),
+    ),
+  )
   let id = for i in 1..<=16384 {
     if !objects.any(object => object.id == i.to_string()) {
       break i.to_string()
@@ -223,11 +240,19 @@ pub fn Session::set_chart(
     })
   object.check_change(false)
   let (part, old) = object.chart.unwrap()
-  let next = self.chart_from_settings(sheet, settings, cached=old.data)
+  let next = self.chart_from_settings(sheet, settings, cached=old)
   if old.markup() == next.markup() {
     return self.query()
   }
-  ignore(next.data.paint(object.rect.width, object.rect.height, probe, profile))
+  ignore(
+    next.data.paint(
+      object.rect.width,
+      object.rect.height,
+      probe,
+      profile,
+      visible=Some(self.chart_visibility(sheet, next)),
+    ),
+  )
   let original = self.part_xml(part)
   let root = original.nodes()[0]
   guard !original.source().contains("<!--") &&

@@ -98,7 +98,7 @@ pub fn ChartData::axis(Self) -> (Double, Double, Double) raise @failure.Failure
 pub fn ChartData::bar_values(Self, Int) -> Array[Double?]
 pub fn ChartData::equal(Self, Self) -> Bool
 pub fn ChartData::not_equal(Self, Self) -> Bool
-pub fn ChartData::paint(Self, Double, Double, TextProbe, Map[String, String]) -> Array[PositionedPrimitive] raise @failure.Failure
+pub fn ChartData::paint(Self, Double, Double, TextProbe, Map[String, String], visible? : ChartVisibility?) -> Array[PositionedPrimitive] raise @failure.Failure
 pub fn ChartData::paint_radar(Self, Double, Double, TextProbe, Map[String, String]) -> Array[PositionedPrimitive] raise @failure.Failure
 pub fn ChartData::pie_slices(Self, series? : Int) -> Array[(Double, Double)]
 pub fn ChartData::query(Self) -> Json
@@ -106,6 +106,7 @@ pub fn ChartData::scatter_axis(Self) -> (Double, Double, Double) raise @failure.
 pub fn ChartData::scatter_values(Self) -> Array[Double?] raise @failure.Failure
 pub fn ChartData::tsv(Self) -> String
 pub fn ChartData::validate(Self) -> Unit raise @failure.Failure
+pub fn ChartData::validate_sources(Self) -> Unit raise @failure.Failure
 
 pub struct ChartFrame {
   data : ChartData
@@ -121,6 +122,12 @@ pub(all) struct ChartSeries {
 } derive(Eq)
 pub fn ChartSeries::equal(Self, Self) -> Bool
 pub fn ChartSeries::not_equal(Self, Self) -> Bool
+
+pub(all) struct ChartVisibility {
+  categories : Array[Int]
+  values : Array[Array[Int]]
+  colors : Array[String]
+}
 
 pub(all) struct Column {
   width : Double

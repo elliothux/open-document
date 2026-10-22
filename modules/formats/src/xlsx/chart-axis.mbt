@@ -33,6 +33,7 @@ fn Session::axis_chart_references(
       let original = parts.get(part).unwrap_or_else(() => self.part_xml(part))
       let tree = Tree::new(original)
       let changes : Array[@xml.SourceChange] = []
+      let mut broken = false
       for node in original.nodes() {
         if node.uri != chart_uri ||
           node.name != "f" ||
@@ -40,12 +41,16 @@ fn Session::axis_chart_references(
           continue
         }
         let text = axis_formula(node.text, Some(sheet.name), target, change)
+        broken = broken || newly_broken_chart_reference(node.text, text)
         changes.append(axis_text_change(tree, node, text))
       }
       if !changes.is_empty() {
         let (document, edit) = original.edit_source(changes)
         parts[part] = document
         edits.push((part, edit))
+        if broken {
+          object.freeze_chart_cache(part, parts, edits)
+        }
       }
     }
   }

@@ -107,7 +107,7 @@ fn Session::reflow_pictures(
       )
     }
     let after = self.resolved_dimensions(sheet, probe, profile)
-    let view = { ..self, parts, }
+    let view = { ..self, sheets, parts, }
     let next_pictures = view.sheet_objects(sheet, after) catch {
       @failure.Failure(code="unsupported-drawing", ..) => []
       error => raise error

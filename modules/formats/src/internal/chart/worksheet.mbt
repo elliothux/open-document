@@ -4,15 +4,18 @@ pub(all) struct WorksheetChart {
   categories : String
   names : Array[String]
   values : Array[String]
+  colors : Array[String]
 }
 
 ///|
 pub fn WorksheetChart::markup(
   self : WorksheetChart,
 ) -> String raise @failure.Failure {
-  self.data.validate()
+  self.data.validate_sources()
   guard self.names.length() == self.data.series.length() &&
-    self.values.length() == self.data.series.length() else {
+    self.values.length() == self.data.series.length() &&
+    self.colors.length() <= 256 &&
+    self.colors.all(worksheet_color_valid) else {
     @failure.reject("invalid-chart", "Chart references must match every series")
   }
   let formulas = self.names
@@ -24,7 +27,7 @@ pub fn WorksheetChart::markup(
     @failure.reject("invalid-chart", "Chart references exceed source limits")
   }
   let document = @xml.Document::parse(
-    @utf8.encode(markup(self.data, "worksheet")),
+    @utf8.encode(markup(self.layout_data(), "worksheet")),
     "chart.xml",
     64,
     1048576,
@@ -43,6 +46,37 @@ pub fn WorksheetChart::markup(
     length: node.closing_start - node.opening_end,
     xml: @xml.escape_text(formulas[index]),
   })
+  let tree = Tree::new("chart.xml", document)
+  for index, node in sources {
+    let values = match index % 3 {
+      0 => [self.data.series[index / 3].name]
+      1 => self.data.categories
+      _ =>
+        self.data.series[index / 3].values.map(value => {
+          value.map(value => value.to_string()).unwrap_or("")
+        })
+    }
+    let numeric = index % 3 == 2 ||
+      (index % 3 == 1 && self.data.kind == "scatter")
+    let cache = tree
+      .one(
+        node.parent,
+        if numeric {
+          "numCache"
+        } else {
+          "strCache"
+        },
+        uri=chart_uri,
+      )
+      .unwrap()
+    changes.push({
+      node: cache.parent,
+      offset: cache.start - nodes[cache.parent].start,
+      length: cache.end - cache.start,
+      xml: chart_cache(values, numeric),
+    })
+  }
+  changes.append(self.palette_changes(document))
   for node in nodes {
     if node.uri == chart_uri && node.name == "externalData" {
       changes.push({
@@ -61,7 +95,7 @@ pub fn read_worksheet(
   part : String,
   document : @xml.Document,
 ) -> WorksheetChart raise @failure.Failure {
-  let (root, data) = read_chart(part, document)
+  let (root, data) = read_chart(part, document, worksheet=true)
   let formulas = document
     .nodes()
     .filter(node => node.uri == chart_uri && node.name == "f")
@@ -84,6 +118,7 @@ pub fn read_worksheet(
     categories,
     names: data.series.mapi((index, _) => formulas[index * 3]),
     values: data.series.mapi((index, _) => formulas[index * 3 + 2]),
+    colors: worksheet_palette(document, ["pie", "doughnut"].contains(data.kind)),
   }
   let expected = @xml.Document::parse(
     @utf8.encode(result.markup()),

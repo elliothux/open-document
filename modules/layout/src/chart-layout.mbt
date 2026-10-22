@@ -57,15 +57,16 @@ fn ChartData::paint_plot(
   height : Double,
   probe : TextProbe,
   profile : Map[String, String],
+  colors : Array[String],
 ) -> Array[PositionedPrimitive] raise @failure.Failure {
   let data = self
   let out : Array[PositionedPrimitive] = []
   if ["pie", "doughnut"].contains(data.kind) {
-    return self.paint_pie(width, height)
+    return self.paint_pie(width, height, colors)
   }
   if data.kind == "radar" {
     // The radar plot already reserves 22 points below its axis label.
-    return data.paint_radar(width, height + 22, probe, profile)
+    return data.paint_radar_colors(width, height + 22, probe, profile, colors)
   }
   let (low, high, step) = data.axis()
   let horizontal = horizontal_bar_chart(data.kind)
@@ -135,7 +136,7 @@ fn ChartData::paint_plot(
   let area = data.kind == "area"
   let scatter = data.kind == "scatter"
   if scatter {
-    out.append(data.paint_scatter(left, top, w, h, probe, profile))
+    out.append(data.paint_scatter(left, top, w, h, probe, profile, colors))
   }
   let slot = if area && slots > 1 {
     w / (slots - 1).to_double()
@@ -173,7 +174,7 @@ fn ChartData::paint_plot(
       finish()
       if !path.is_empty() {
         out.push(
-          Path(path, chart_color(series_index), "", 0, {
+          Path(path, chart_paint_color(colors, series_index), "", 0, {
             fillAlpha: 1,
             strokeAlpha: 1,
             dash: [],
@@ -195,7 +196,9 @@ fn ChartData::paint_plot(
           let x = left + (index.to_double() + 0.5) * slot
           let y = top + h * (1 - (value - low) / (high - low))
           path.push(if connected { Line(x, y) } else { Move(x, y) })
-          markers.append(chart_marker(x, y, chart_color(series_index)))
+          markers.append(
+            chart_marker(x, y, chart_paint_color(colors, series_index)),
+          )
           connected = true
         } else {
           connected = false
@@ -203,7 +206,7 @@ fn ChartData::paint_plot(
       }
       if path.any(segment => segment is Line(_, _)) {
         out.push(
-          Path(path, "", chart_color(series_index), 1.5, {
+          Path(path, "", chart_paint_color(colors, series_index), 1.5, {
             fillAlpha: 1,
             strokeAlpha: 1,
             dash: [],
@@ -302,7 +305,7 @@ fn ChartData::paint_plot(
               y: top + offset,
               width: w * (ratio - baseline).abs(),
               height: bar,
-              color: chart_color(series_index),
+              color: chart_paint_color(colors, series_index),
             }
           } else {
             {
@@ -310,7 +313,7 @@ fn ChartData::paint_plot(
               y: top + h * (1 - baseline.max(ratio)),
               width: bar,
               height: h * (ratio - baseline).abs(),
-              color: chart_color(series_index),
+              color: chart_paint_color(colors, series_index),
             }
           }
           if rect.width > 0 && rect.height > 0 {

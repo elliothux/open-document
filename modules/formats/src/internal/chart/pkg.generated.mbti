@@ -32,6 +32,7 @@ pub(all) struct WorksheetChart {
   categories : String
   names : Array[String]
   values : Array[String]
+  colors : Array[String]
 }
 pub fn WorksheetChart::markup(Self) -> String raise @failure.Failure
 

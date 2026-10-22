@@ -26,12 +26,12 @@ fn chart_binding_reason(chart : @chart.WorksheetChart) -> String {
 }
 
 ///|
-fn Session::chart_reference_values(
+fn Session::chart_reference_range(
   self : Session,
   formula : String,
   owner : String,
   work : FormulaWork,
-) -> Array[Value] raise @failure.Failure {
+) -> (Int, Range) raise @failure.Failure {
   guard formula.length() <= 1024 &&
     parse_formula(formula) is Reference(target, first, last) else {
     @failure.reject(
@@ -39,7 +39,6 @@ fn Session::chart_reference_values(
     )
   }
   let index = referenced_sheet(self.sheets, self.sheet_index(owner), target)
-  let sheet = self.sheets[index]
   let range = first.range(last.unwrap_or(first))
   guard (range.top == range.bottom || range.left == range.right) &&
     range.bottom - range.top + range.right - range.left < 256 else {
@@ -48,18 +47,24 @@ fn Session::chart_reference_values(
     )
   }
   work.spend(amount=range.bottom - range.top + range.right - range.left + 1)
+  (index, range)
+}
+
+///|
+fn Session::chart_reference_values(
+  self : Session,
+  formula : String,
+  owner : String,
+  work : FormulaWork,
+) -> Array[Value] raise @failure.Failure {
+  let (index, range) = self.chart_reference_range(formula, owner, work)
+  let sheet = self.sheets[index]
   Array::makei(range.bottom - range.top + range.right - range.left + 1, offset => {
     let address : Address = {
       row: range.top + (if range.top == range.bottom { 0 } else { offset }),
       column: range.left + (if range.left == range.right { 0 } else { offset }),
     }
     let name = address.name()
-    guard sheet.dimensions.rows.size(address.row) > 0 &&
-      sheet.dimensions.columns.size(address.column) > 0 else {
-      @failure.reject(
-        "unsupported-chart", "Hidden chart data requires visibility-aware series binding",
-      )
-    }
     let cell = sheet.cells.get(name)
     guard cell.map(cell => cell.calculation_supported).unwrap_or(true) else {
       @failure.reject(
@@ -120,11 +125,6 @@ fn Session::resolved_chart(
     } else {
       self.chart_reference_values(chart.values[index], owner, work)
     }
-    guard values.length() == categories.length() else {
-      @failure.reject(
-        "unsupported-chart", "Chart series references must match category count",
-      )
-    }
     @layout.ChartSeries::{
       name: if name.is_empty() {
         "Series " + (index + 1).to_string()
@@ -140,7 +140,7 @@ fn Session::resolved_chart(
     }
   })
   let data = { ..chart.data, categories, series, }
-  data.validate()
+  data.validate_sources()
   { ..chart, data, }
 }
 

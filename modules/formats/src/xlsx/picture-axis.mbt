@@ -69,7 +69,7 @@ fn SheetObject::axis_marker_changes(
   self : SheetObject,
   change : AxisChange,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
-  if self.anchor == "fixed" {
+  if self.anchor == "fixed" || change.band is Some(_) {
     return []
   }
   let name = if change.rows { "row" } else { "col" }

@@ -40,6 +40,9 @@ fn Session::sheet_chart_references(
         let (document, edit) = original.edit_source(changes)
         parts[part] = document
         edits.push((part, edit))
+        if name is None {
+          object.freeze_chart_cache(part, parts, edits)
+        }
       }
     }
   }

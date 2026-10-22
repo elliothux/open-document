@@ -13,7 +13,13 @@ fn SheetObject::paint(
         Transform({ a: 1, b: 0, c: 0, d: 1, e: rect.x, f: rect.y, }),
       )
       primitives.append(
-        chart.data.paint(rect.width, rect.height, probe, profile),
+        chart.data.paint(
+          rect.width,
+          rect.height,
+          probe,
+          profile,
+          visible=self.chart_visibility,
+        ),
       )
       primitives.push(Restore)
       primitives.push(Restore)

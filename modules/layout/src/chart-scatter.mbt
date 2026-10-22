@@ -41,6 +41,7 @@ fn ChartData::paint_scatter(
   height : Double,
   probe : TextProbe,
   profile : Map[String, String],
+  colors : Array[String],
 ) -> Array[PositionedPrimitive] raise @failure.Failure {
   let (low, high, step) = self.scatter_axis()
   let (y_low, y_high, _) = self.axis()
@@ -84,7 +85,7 @@ fn ChartData::paint_scatter(
           chart_marker(
             left + width * ((x - low) / (high - low)),
             top + height * (1 - (y - y_low) / (y_high - y_low)),
-            chart_color(index),
+            chart_paint_color(colors, index),
           ),
         )
       }

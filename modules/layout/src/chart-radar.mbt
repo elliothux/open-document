@@ -18,6 +18,18 @@ pub fn ChartData::paint_radar(
   probe : TextProbe,
   profile : Map[String, String],
 ) -> Array[PositionedPrimitive] raise @failure.Failure {
+  self.paint_radar_colors(width, height, probe, profile, [])
+}
+
+///|
+fn ChartData::paint_radar_colors(
+  self : ChartData,
+  width : Double,
+  height : Double,
+  probe : TextProbe,
+  profile : Map[String, String],
+  colors : Array[String],
+) -> Array[PositionedPrimitive] raise @failure.Failure {
   let (low, high, step) = self.axis()
   let ticks = ((high - low) / step).round().to_int()
   guard ticks >= 1 && ticks <= 20 else {
@@ -87,7 +99,7 @@ pub fn ChartData::paint_radar(
         radar_point(i, count, x, y, radius * ((value - low) / (high - low)))
       })
     })
-    let color = chart_color(index)
+    let color = chart_paint_color(colors, index)
     for i, point in points {
       if point is Some((px, py)) {
         if count > 1 &&

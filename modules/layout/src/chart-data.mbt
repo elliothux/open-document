@@ -50,6 +50,20 @@ fn chart_text(text : String) -> Unit raise @failure.Failure {
 
 ///|
 pub fn ChartData::validate(self : ChartData) -> Unit raise @failure.Failure {
+  self.validate_sources()
+  guard !self.categories.is_empty() &&
+    self.series.all(series => series.values.length() == self.categories.length()) else {
+    @failure.reject(
+      "invalid-chart", "Chart series must match nonempty categories",
+    )
+  }
+}
+
+///|
+/// Validate independently cached sources before normalizing them for plotting.
+pub fn ChartData::validate_sources(
+  self : ChartData,
+) -> Unit raise @failure.Failure {
   guard ["none", "top", "bottom", "left", "right"].contains(self.legend) else {
     @failure.reject("invalid-chart", "Unsupported chart legend position")
   }
@@ -57,12 +71,11 @@ pub fn ChartData::validate(self : ChartData) -> Unit raise @failure.Failure {
       "column", "bar", "stackedColumn", "stackedBar", "line", "pie", "area", "scatter",
       "doughnut", "percentStackedColumn", "percentStackedBar", "radar",
     ].contains(self.kind) &&
-    self.categories.length() >= 1 &&
     self.categories.length() <= 256 &&
     self.series.length() >= 1 &&
     self.series.length() <= 8 else {
     @failure.reject(
-      "limit-exceeded", "Chart requires 1-256 categories and 1-8 series",
+      "limit-exceeded", "Chart sources require at most 256 points and 1-8 series",
     )
   }
   guard (if self.kind == "doughnut" {
@@ -85,12 +98,12 @@ pub fn ChartData::validate(self : ChartData) -> Unit raise @failure.Failure {
   for series in self.series {
     chart_text(series.name)
     guard !series.name.is_empty() &&
-      series.values.length() == self.categories.length() &&
+      series.values.length() <= 256 &&
       series.values.all(value => {
         value.map(v => !v.is_nan() && !v.is_inf()).unwrap_or(true)
       }) else {
       @failure.reject(
-        "invalid-chart", "Chart series must match categories and contain finite numbers or blanks",
+        "invalid-chart", "Chart series require finite numbers or blanks",
       )
     }
   }
@@ -111,11 +124,27 @@ pub fn ChartData::tsv(self : ChartData) -> String {
     .map(quote)
     .join("\t"),
   ]
-  for index, category in self.categories {
+  let count = self.series.fold(init=self.categories.length(), (count, series) => {
+    count.max(series.values.length())
+  })
+  for index in 0..<count {
+    let category = self.categories
+      .get(index)
+      .unwrap_or(
+        if self.kind == "scatter" {
+          ""
+        } else {
+          (index + 1).to_string()
+        },
+      )
     rows.push(
       ([category] +
       self.series.map(series => {
-        series.values[index].map(value => value.to_string()).unwrap_or("")
+        series.values
+        .get(index)
+        .bind(value => value)
+        .map(value => value.to_string())
+        .unwrap_or("")
       }))
       .map(quote)
       .join("\t"),

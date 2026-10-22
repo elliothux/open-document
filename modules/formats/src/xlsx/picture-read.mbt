@@ -13,6 +13,7 @@ priv struct SheetObject {
   media : String?
   shape : SheetShape?
   chart : (String, @chart.WorksheetChart)?
+  chart_visibility : @layout.ChartVisibility?
   tree : Tree
   frame : @xml.Node
   source : @xml.Node
@@ -391,6 +392,7 @@ fn Session::sheet_objects(
       media: Some(link.target),
       shape: None,
       chart: None,
+      chart_visibility: None,
       tree,
       source,
       frame,

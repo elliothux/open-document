@@ -40,12 +40,6 @@ fn Session::edit_axes(
     }
   }
   let tree = Tree::new(target.document)
-  guard change.band is None ||
-    tree.one(tree.root("worksheet").id, "drawing") is None else {
-    @failure.reject(
-      "protected-content", "Worksheet pictures require whole row or column structural editing",
-    )
-  }
   for node in tree.children.get(tree.root("worksheet").id).unwrap_or([]) {
     guard [
       "sheetPr", "dimension", "sheetViews", "sheetFormatPr", "cols", "sheetData",

@@ -45,7 +45,13 @@ pub fn Session::set_chart_frame(
     )
   }
   ignore(
-    object.chart.unwrap().1.data.paint(rect.width, rect.height, probe, profile),
+    object.chart.unwrap().1.data.paint(
+      rect.width,
+      rect.height,
+      probe,
+      profile,
+      visible=object.chart_visibility,
+    ),
   )
   let nv = object.tree.picture_node(object.source.id, "nvGraphicFramePr")
   let identity = object.tree.picture_node(nv.id, "cNvPr")

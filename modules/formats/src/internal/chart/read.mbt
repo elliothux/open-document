@@ -54,7 +54,7 @@ fn chart_points(
 ) -> Array[String] raise @failure.Failure {
   let count = number(
     chart_child(cache, "ptCount").node.attribute("val").unwrap_or(""),
-    1,
+    0,
     256,
   ).to_int()
   let values = Array::make(count, "")
@@ -147,6 +147,7 @@ fn chart_structure(actual : Ref, expected : Ref) -> Bool {
 fn read_chart(
   part : String,
   document : @xml.Document,
+  worksheet~ : Bool = false,
 ) -> (Ref, @layout.ChartData) raise @failure.Failure {
   let tree = Tree::new(part, document)
   guard document.nodes().length() <= 16384 &&
@@ -321,7 +322,11 @@ fn read_chart(
       }
     }),
   }
-  data.validate()
+  if worksheet {
+    data.validate_sources()
+  } else {
+    data.validate()
+  }
   (root, data)
 }
 

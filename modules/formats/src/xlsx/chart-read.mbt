@@ -112,6 +112,7 @@ fn Session::read_sheet_chart(
     media: None,
     shape: None,
     chart: Some((link.target, chart)),
+    chart_visibility: Some(self.chart_visibility(sheet.id, chart)),
     crop: [0, 0, 0, 0],
     printable: client
     .map(node => flag(node, "fPrintsWithSheet", fallback=true))

@@ -96,6 +96,7 @@ fn ChartData::paint_pie(
   self : ChartData,
   width : Double,
   height : Double,
+  colors : Array[String],
 ) -> Array[PositionedPrimitive] {
   let data = self
   let out : Array[PositionedPrimitive] = []
@@ -120,7 +121,7 @@ fn ChartData::paint_pie(
               hole + thickness * (ring + 1).to_double(),
               inner=hole + thickness * ring.to_double(),
             ),
-            chart_color(index),
+            chart_paint_color(colors, index),
             "",
             0,
             {
