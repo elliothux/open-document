@@ -32,7 +32,24 @@ fn WordTree::simple_page_fields(
 }
 
 ///|
-fn field_text_changes(
+fn WordTree::paragraph_object_properties(
+  self : WordTree,
+  document : @xml.Document,
+  id : Int,
+) -> String raise @failure.Failure {
+  if self.nodes[id].name == "fldSimple" {
+    self
+    .field_result_run(id)
+    .bind(run => self.child(run, "rPr"))
+    .map(id => self.standalone_markup(document, id))
+    .unwrap_or("")
+  } else {
+    self.empty_run_properties(document, self.nodes[id].parent)
+  }
+}
+
+///|
+fn paragraph_object_text_changes(
   tree : WordTree,
   document : @xml.Document,
   id : Int,
@@ -48,12 +65,9 @@ fn field_text_changes(
     part="",
     pictures=true,
     fields=true,
+    math=true,
   )
-  let properties = tree
-    .field_result_run(id)
-    .bind(run => tree.child(run, "rPr"))
-    .map(id => tree.standalone_markup(document, id))
-    .unwrap_or("")
+  let properties = tree.paragraph_object_properties(document, id)
   fn run(value : String) -> String raise @failure.Failure {
     if value.is_empty() {
       return ""
@@ -88,7 +102,7 @@ fn field_text_changes(
 }
 
 ///|
-fn WordTree::split_field_input(
+fn WordTree::split_paragraph_object_input(
   self : WordTree,
   document : @xml.Document,
   paragraph : Int,
@@ -101,11 +115,7 @@ fn WordTree::split_field_input(
   let node = self.nodes[insertion]
   let p = self.nodes[paragraph]
   let parent = self.nodes[p.parent]
-  let properties = self
-    .field_result_run(insertion)
-    .bind(run => self.child(run, "rPr"))
-    .map(id => self.standalone_markup(document, id))
-    .unwrap_or("")
+  let properties = self.paragraph_object_properties(document, insertion)
   let frame = "</\{p.qualified}>" +
     structure_opening(p) +
     self.continuation_properties(document, paragraph)

@@ -34,12 +34,14 @@ fn Session::paragraph_inline_source(
     .last()
     .map(item => (item.id, inline_text(tree.nodes[item.id]).length()))
   }
-  let run = target.map(pair => {
+  let run = target.bind(pair => {
     let node = tree.nodes[pair.0]
     if node.name == "fldSimple" {
-      tree.field_result_run(node.id).unwrap()
+      tree.field_result_run(node.id)
+    } else if node.name == "oMath" {
+      None
     } else {
-      node.parent
+      Some(node.parent)
     }
   })
   let properties = if run is Some(run) {
@@ -59,7 +61,7 @@ fn Session::paragraph_inline_source(
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
   let change : @xml.SourceChange = if target is Some((id, offset)) {
     let node = tree.nodes[id]
-    if node.name == "fldSimple" {
+    if ["fldSimple", "oMath"].contains(node.name) {
       {
         node: paragraph.id,
         offset: (if offset == 0 { node.start } else { node.end }) -

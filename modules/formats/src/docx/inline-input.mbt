@@ -109,8 +109,8 @@ fn Session::edit_inline_text(
   let mut units = 0
   for id, text in replacements {
     let node = document.node(id)
-    if node.name == "fldSimple" {
-      let items = field_text_changes(
+    if ["fldSimple", "oMath"].contains(node.name) {
+      let items = paragraph_object_text_changes(
         tree,
         document,
         id,
@@ -161,6 +161,7 @@ fn Session::edit_inline_text(
       part=self.main,
       pictures=true,
       fields=true,
+      math=true,
     )
     self.check_native_drawings(tree, paragraph)
     guard node.attributes

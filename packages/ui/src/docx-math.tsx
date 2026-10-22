@@ -91,6 +91,7 @@ export function DocxMath({
               await editor.insertMathFraction(draft);
               setCatalog(undefined);
               setId(undefined);
+              editor.focus();
             })
           }
         >

@@ -28,6 +28,8 @@ fn Session::check_native_drawings(
   for id in tree.descendants(paragraph) {
     if tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing" {
       self.check_drawing_text(tree, id)
+    } else if tree.nodes[id].uri == math_uri && tree.nodes[id].name == "oMath" {
+      ignore(self.math_fraction_target(tree, id))
     }
   }
 }
@@ -44,7 +46,7 @@ fn WordTree::has_drawing_range(
     let length = inline_text(self.nodes[item.id]).length()
     if (
         self.nodes[item.id].name == "drawing" ||
-        (fields && self.nodes[item.id].name == "fldSimple")
+        (fields && ["fldSimple", "oMath"].contains(self.nodes[item.id].name))
       ) &&
       start < cursor + length &&
       end > cursor {

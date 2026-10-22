@@ -475,10 +475,6 @@ fn Session::paragraph(
           revision_element(tree.nodes[item].name)
         }) {
         "Tracked revisions require review before editing"
-      } else if spans.any(span => {
-          span.drawing is Some({ content: Fraction(_), .. })
-        }) {
-        "Mathematical formulas require formula editing"
       } else if !running && has_fields {
         try {
           tree.check_editable_paragraph(
@@ -486,6 +482,7 @@ fn Session::paragraph(
             part=self.main,
             pictures=true,
             fields=true,
+            math=true,
           )
           picture_reason
         } catch {

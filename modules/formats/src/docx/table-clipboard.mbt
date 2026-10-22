@@ -15,10 +15,13 @@ pub fn Session::table_clipboard(
     selection,
     pictures=true,
     fields=true,
+    math=true,
   )
   let grid = selected
     .map(range => range.grid)
-    .unwrap_or_else(() => self.table_grid(tree, selection, fields=true))
+    .unwrap_or_else(() => {
+      self.table_grid(tree, selection, fields=true, math=true)
+    })
   let owners = selected
     .map(range => range.owners)
     .unwrap_or_else(() => {
@@ -30,7 +33,13 @@ pub fn Session::table_clipboard(
   let mut left = grid.model.widths.length()
   let mut right = 0
   for cell in owners {
-    tree.check_merge_cell(cell, self.main, pictures=true, fields=true)
+    tree.check_merge_cell(
+      cell,
+      self.main,
+      pictures=true,
+      fields=true,
+      math=true,
+    )
     let (row, column) = grid.owners[cell]
     top = top.min(row)
     bottom = bottom.max(row + grid.model.rowSpans[row][column])
@@ -54,7 +63,9 @@ pub fn Session::table_clipboard(
     layout,
   )
   fn displayed(span : @layout.Span) -> String {
-    if span.field.is_empty() {
+    if span.drawing is Some({ content: Fraction(fraction), .. }) {
+      "(\{fraction.numerator})/(\{fraction.denominator})"
+    } else if span.field.is_empty() {
       span.text
     } else {
       values[tree.nodes[tree.nodes[span.node].parent].parent]
@@ -117,8 +128,11 @@ pub fn Session::table_clipboard(
   if cut {
     for cell in owners {
       for id in tree.descendants(cell) {
-        if tree.nodes[id].uri == word_uri &&
-          ["drawing", "fldSimple"].contains(tree.nodes[id].name) {
+        if (
+            tree.nodes[id].uri == word_uri &&
+            ["drawing", "fldSimple"].contains(tree.nodes[id].name)
+          ) ||
+          (tree.nodes[id].uri == math_uri && tree.nodes[id].name == "oMath") {
           guard fragment != Json::null() else {
             @failure.reject(
               "protected-content", "Inline object cut requires a complete rich fragment",

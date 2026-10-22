@@ -40,6 +40,7 @@ pub fn Session::paste_body_fragment(
     selection,
     structural=true,
     fields=true,
+    math=true,
     tables=true,
   )
   if source.order.any(id => {

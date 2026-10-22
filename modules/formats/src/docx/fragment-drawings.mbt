@@ -293,6 +293,14 @@ fn WordTree::check_drawing_budget(
 ) -> Unit raise @failure.Failure {
   guard self.order
     .filter(id => {
+      self.nodes[id].uri == math_uri && self.nodes[id].name == "oMath"
+    })
+    .length() <=
+    256 else {
+    @failure.reject("limit-exceeded", "Document fractions exceed 256")
+  }
+  guard self.order
+    .filter(id => {
       self.nodes[id].uri == word_uri && self.nodes[id].name == "drawing"
     })
     .length() <=

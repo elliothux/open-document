@@ -12,6 +12,7 @@ fn Session::paragraph_range(
   selection : Selection,
   structural~ : Bool,
   fields~ : Bool = false,
+  math~ : Bool = false,
   tables~ : Bool = false,
 ) -> ParagraphRange raise @failure.Failure {
   self.paragraph_range_in(
@@ -20,6 +21,7 @@ fn Session::paragraph_range(
     selection,
     structural~,
     fields~,
+    math~,
     tables~,
   )
 }
@@ -32,6 +34,7 @@ fn Session::paragraph_range_in(
   selection : Selection,
   structural~ : Bool,
   fields~ : Bool = false,
+  math~ : Bool = false,
   tables~ : Bool = false,
   check_layout~ : Bool = true,
   check_graphemes~ : Bool = true,
@@ -111,7 +114,13 @@ fn Session::paragraph_range_in(
         "Range crosses unsupported block: " + tree.nodes[id].name,
       )
     }
-    tree.check_editable_paragraph(id, part=self.main, pictures=true, fields~)
+    tree.check_editable_paragraph(
+      id,
+      part=self.main,
+      pictures=true,
+      fields~,
+      math~,
+    )
     self.check_native_drawings(tree, id)
     if structural {
       tree.check_structure_paragraph(id, running=fields)
@@ -170,7 +179,7 @@ pub fn Session::selected_text(
 ) -> String raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
-  let cells = self.table_format_range(tree, selection, fields=true)
+  let cells = self.table_format_range(tree, selection, fields=true, math=true)
   let whole_cells = cells is Some(_)
   let range = cells.unwrap_or_else(() => {
     self.paragraph_range(
@@ -178,6 +187,7 @@ pub fn Session::selected_text(
       selection,
       structural=false,
       fields=true,
+      math=true,
       tables=true,
     )
   })

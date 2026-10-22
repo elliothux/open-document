@@ -26,12 +26,51 @@ fn WordTree::math_children(
 fn WordTree::fraction_text(
   self : WordTree,
   id : Int,
-) -> String raise @failure.Failure {
+  base : @layout.TextStyle,
+) -> (String, @layout.TextStyle) raise @failure.Failure {
   let output = StringBuilder()
   let mut units = 0
+  let mut style : @layout.TextStyle? = None
   for run in self.math_children(id, ["r"]) {
-    let children = self.math_children(run, ["rPr", "t"])
-    let properties = children.filter(id => self.nodes[id].name == "rPr")
+    let node = self.nodes[run]
+    let children = self.children[run]
+    guard node.attributes.is_empty() &&
+      node.text.trim().is_empty() &&
+      children.all(id => {
+        (
+          self.nodes[id].uri == math_uri &&
+          ["rPr", "t"].contains(self.nodes[id].name)
+        ) ||
+        (self.nodes[id].uri == word_uri && self.nodes[id].name == "rPr")
+      }) else {
+      @failure.reject(
+        "unsupported-math", "Extended mathematical run requires support",
+      )
+    }
+    let explicit_style = children.filter(id => self.nodes[id].uri == word_uri)
+    guard explicit_style.length() <= 1 else {
+      @failure.reject(
+        "unsupported-math", "Repeated mathematical font properties",
+      )
+    }
+    let current = explicit_style
+      .get(0)
+      .map(id => self.fraction_style(id, base))
+      .unwrap_or(base)
+    guard style
+      .map(style => {
+        (style.font, style.size, style.color) ==
+        (current.font, current.size, current.color)
+      })
+      .unwrap_or(true) else {
+      @failure.reject(
+        "unsupported-math", "Mixed mathematical run styles require support",
+      )
+    }
+    style = Some(current)
+    let properties = children.filter(id => {
+      self.nodes[id].uri == math_uri && self.nodes[id].name == "rPr"
+    })
     guard properties.length() <= 1 else {
       @failure.reject(
         "unsupported-math", "Repeated mathematical run properties",
@@ -79,7 +118,7 @@ fn WordTree::fraction_text(
       }
     }
   }
-  output.to_string()
+  (output.to_string(), style.unwrap_or(base))
 }
 
 ///|
@@ -144,24 +183,29 @@ fn Session::read_math_fraction(
       "unsupported-math", "Fraction requires one numerator and denominator",
     )
   }
+  let base = {
+    ..style,
+    font: self.fraction_font(),
+    script: "baseline",
+    spacing: 0,
+    underline: false,
+    strike: false,
+    highlight: "",
+  }
+  let (numerator, num_style) = tree.fraction_text(num, base)
+  let (denominator, den_style) = tree.fraction_text(den, base)
+  guard (num_style.font, num_style.size, num_style.color) ==
+    (den_style.font, den_style.size, den_style.color) else {
+    @failure.reject(
+      "unsupported-math", "Fraction arguments require one uniform style",
+    )
+  }
   let frame : @layout.DrawingFrame = {
     width: 0,
     height: 0,
     anchor: None,
     content: Fraction(
-      @layout.MathFraction::new(
-        tree.fraction_text(num),
-        tree.fraction_text(den),
-        {
-          ..style,
-          font: self.fraction_font(),
-          script: "baseline",
-          spacing: 0,
-          underline: false,
-          strike: false,
-          highlight: "",
-        },
-      ),
+      @layout.MathFraction::new(numerator, denominator, num_style),
     ),
   }
   frame.validate()

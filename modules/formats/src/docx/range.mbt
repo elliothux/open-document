@@ -25,6 +25,7 @@ fn Session::prepare_structural_range_in(
     selection,
     structural=true,
     fields=true,
+    math=true,
     tables=true,
     check_graphemes~,
   )
@@ -71,7 +72,9 @@ fn Session::prepare_structural_range_in(
     if insertion == Some(node.id) {
       insertion_offset = keep
     }
-    let picture = ["drawing", "fldSimple"].contains(tree.nodes[node.id].name)
+    let picture = ["drawing", "fldSimple", "oMath"].contains(
+      tree.nodes[node.id].name,
+    )
     if picture && keep == remove {
       object_offsets[node.id] = if keep == 0 && insertion == Some(node.id) {
         parts[0].length()
@@ -88,7 +91,7 @@ fn Session::prepare_structural_range_in(
     let before = inline_text(tree.nodes[node.id])
     let remove = (end.offset - offset).clamp(min=0, max=before.length())
     let after = before[remove:].to_owned()
-    if ["drawing", "fldSimple"].contains(tree.nodes[node.id].name) &&
+    if ["drawing", "fldSimple", "oMath"].contains(tree.nodes[node.id].name) &&
       remove == 0 {
       object_offsets[node.id] = 0
     }
@@ -226,11 +229,14 @@ fn Session::prepare_structural_range_in(
       let styles = self.styles([])
       for
         id in tree.children[last.id].filter(id => {
-          tree.nodes[id].uri == word_uri &&
-          [
-            "r", "hyperlink", "fldSimple", "bookmarkStart", "bookmarkEnd", "commentRangeStart",
-            "commentRangeEnd",
-          ].contains(tree.nodes[id].name)
+          (tree.nodes[id].uri == math_uri && tree.nodes[id].name == "oMath") ||
+          (
+            tree.nodes[id].uri == word_uri &&
+            [
+              "r", "hyperlink", "fldSimple", "bookmarkStart", "bookmarkEnd", "commentRangeStart",
+              "commentRangeEnd",
+            ].contains(tree.nodes[id].name)
+          )
         }) {
         let run = tree.nodes[id]
         let attributes = tree.namespace_additions(id, first.id)

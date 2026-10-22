@@ -11,6 +11,7 @@ fn Session::capture_body_fragment(
     selection,
     structural=true,
     fields=true,
+    math=true,
     tables=true,
   )
   let fields = self.selection_field_values(tree, range, layout)
@@ -166,7 +167,13 @@ pub fn Session::clipboard(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
-  if self.table_cell_range(tree, selection, pictures=true, fields=true)
+  if self.table_cell_range(
+      tree,
+      selection,
+      pictures=true,
+      fields=true,
+      math=true,
+    )
     is Some(_) {
     return self.table_clipboard(revision, selection, cut~, layout?)
   }
@@ -191,6 +198,7 @@ pub fn Session::clipboard(
           selection,
           structural=true,
           fields=true,
+          math=true,
           tables=true,
         ),
       )

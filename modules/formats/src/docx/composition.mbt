@@ -72,13 +72,21 @@ pub fn Session::begin_composition(
     @failure.reject("invalid-operation", "Composition requires a selection")
   }
   let tree = WordTree::new(self.document())
-  if self.table_cell_range(tree, selection, pictures=true, fields=true) is None {
+  if self.table_cell_range(
+      tree,
+      selection,
+      pictures=true,
+      fields=true,
+      math=true,
+    )
+    is None {
     ignore(
       self.paragraph_range(
         tree,
         selection,
         structural=selection.anchor.paragraph != selection.focus.paragraph,
         fields=true,
+        math=true,
         tables=true,
       ),
     )

@@ -12,7 +12,13 @@ pub fn Session::enter(
   self.check_position(selection.focus)
   let tree = WordTree::new(self.document())
   let input_selection = match
-    self.table_cell_range(tree, selection, pictures=true, fields=true) {
+    self.table_cell_range(
+      tree,
+      selection,
+      pictures=true,
+      fields=true,
+      math=true,
+    ) {
     Some(cells) =>
       tree.cell_contents_selection(cells.owners[0], docx_texts(tree))
     None => selection

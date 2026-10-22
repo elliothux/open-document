@@ -287,7 +287,7 @@ export class DocumentEditor extends DocumentTables {
       paused ||
       !!this.blocked ||
       this.resuming ||
-      !!this.state.formatting?.reason;
+      !!this.state.formatting?.inputReason;
     this.publish();
     if (paused) await this.tail;
     else await this.enqueue(() => this.presentSelection(false), true);
@@ -458,7 +458,7 @@ export class DocumentEditor extends DocumentTables {
       } finally {
         this.resuming = false;
         this.input.readOnly =
-          this.closed || !!this.blocked || !!this.state.formatting?.reason;
+          this.closed || !!this.blocked || !!this.state.formatting?.inputReason;
         this.publish();
       }
     });
@@ -684,7 +684,7 @@ export class DocumentEditor extends DocumentTables {
       this.paused ||
       !!this.blocked ||
       this.resuming ||
-      !!this.state.formatting?.reason;
+      !!this.state.formatting?.inputReason;
     this.text.textContent = docxPageText(this.currentLayout, this.page);
     this.publish();
   }

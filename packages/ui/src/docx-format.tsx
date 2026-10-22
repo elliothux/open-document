@@ -393,6 +393,7 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
   const t = messages(state.locale),
     formatting = editor.getSnapshot().data.formatting;
   const stylesDisabled = disabled;
+  const inputDisabled = disabled || !formatting || !!formatting.inputReason;
   disabled ||= !formatting || !!formatting.reason;
   return (
     <aside className="od-properties" aria-label={t.paragraph}>
@@ -463,7 +464,7 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
         state={state}
         editor={editor}
         disabled={stylesDisabled}
-        insertDisabled={disabled}
+        insertDisabled={inputDisabled}
       />
       <DocxTables
         controller={controller}

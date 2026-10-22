@@ -173,6 +173,7 @@ pub fn Session::replace_matches(
             part=self.main,
             pictures=true,
             fields=true,
+            math=true,
           )
           self.check_native_drawings(tree, position.paragraph)
           let frame = replacement_paragraph(

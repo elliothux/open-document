@@ -352,6 +352,7 @@ fn WordTree::check_editable_paragraph(
   part~ : String,
   pictures~ : Bool = false,
   fields~ : Bool = false,
+  math~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   guard self.nodes.contains(paragraph) &&
     self.nodes[paragraph].uri == word_uri &&
@@ -416,6 +417,9 @@ fn WordTree::check_editable_paragraph(
   }
   for child in self.children[paragraph] {
     let node = self.nodes[child]
+    if math && node.uri == math_uri && node.name == "oMath" {
+      continue
+    }
     if fields && node.uri == word_uri && node.name == "fldSimple" {
       continue
     }

@@ -213,15 +213,23 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 ### DOCX 行内分数
 
-普通正文及普通单元格段落可读取直接嵌入的 `m:oMath/m:f` 横线分数。当前仅支持单层分数，分子和分母为普通 `m:r/m:t`；默认接受数字及简单运算标点，字母须显式声明 `m:sty m:val="p"` 正体。未知属性、数学样式、嵌套结构和其他公式保留源并报告诊断。分子和分母均非空，合计最多 4096 个 UTF-16 单元。
+普通正文及普通单元格段落可读取直接嵌入的 `m:oMath/m:f` 横线分数。当前仅支持单层分数，分子和分母为普通 `m:r/m:t`；默认接受数字及简单运算标点，字母须显式声明 `m:sty m:val="p"` 正体。数学 run 可携带完整的 `w:rPr` 字体、字号和颜色；两项参数及各 run 要求同一外观。其他属性、混合数学样式、嵌套结构和其他公式保留源并报告诊断。分子和分母均非空，合计最多 4096 个 UTF-16 单元。
 
-宿主在现有字体 profile 中提供设置部件 `m:mathFont` 指定的字体；未指定时使用 `Cambria Math`。核心需要该实际字体的行度量及 U+2217 字形计算数学轴；缺少字体或字形明确拒绝布局。行内参数采用 0.76 字号系数，分子分母居中，横线宽度取两者较大值。公式参与逐行基线、行高和现有段落缓存预算，使用已有文字、矩形及变换图元输出 Canvas/PDF；语义文字为 `(分子)/(分母)`。
+宿主在现有字体 profile 中提供数学 run 显式指定的字体；没有完整的 run 外观时，使用设置部件 `m:mathFont`，默认 `Cambria Math`。核心需要实际字体的行度量及 U+2217 字形计算数学轴；缺少字体或字形明确拒绝布局。行内参数采用 0.76 字号系数，分子分母居中，横线宽度取两者较大值。公式参与逐行基线、行高和现有段落缓存预算，使用已有文字、矩形及变换图元输出 Canvas/PDF；语义文字为 `(分子)/(分母)`。
 
 属性栏可插入、加载、修改和删除当前范围内的分数。`DocumentEditor.insertMathFraction({numerator, denominator})` 在普通文字选区插入，替换所选文字并保留两侧文字和格式。核心复用段内原生对象插入路径，写入正体 `m:oMath/m:f`。两个参数要求非空单行文字，合计最多 4096 个 UTF-16 单元；目录最多 256 项。
 
 `mathFractions()` 返回绑定 `documentId` 和 `revision` 的目录，项含原生 XML 身份 `id`、分子、分母及保护原因。`editMathFraction(source, id, value)` 修改指定分数，`value=null` 删除。过期目录、受保护容器、修订和未知公式源明确拒绝；字体及完整布局预检失败时保留源和历史。修改相同参数不创建历史，每项实际编辑可精确撤销/重做并保存重开。
 
-公式所在段落仍保护普通文字编辑，插入后清除文字选区；分数通过属性栏显式编辑。点击公式沿既有受保护命中行为停止编辑，可显式恢复。其他段落保持可编辑，非目标部件保留原字节。HTML/Markdown 明确拒绝公式输出，避免静默丢失。公式段落内的普通文字编辑、嵌套结构、LaTeX 和完整数学排版仍待实现。
+公式在正文及普通格中占一个逻辑位置。插入后光标位于公式之后，默认面板恢复原生输入焦点；可在公式两侧键入、插入制表符/软换行、Enter 换段及边界合段。Delete/Backspace 和范围替换整体删除公式；保留的公式不改内部源。组合输入沿既有候选、取消及单项提交处理。搜索将公式计为一个对象位置，避免后续文字查找/替换错位；纯文字选择查询使用 `(分子)/(分母)`。点击受支持公式可选择其整体，不停止编辑。
+
+原生富文本剪贴板已接通分数复制、剪切、正文范围粘贴及普通矩形单元格粘贴。纯文字和 TSV 使用线性表达式；原生片段保存可编辑 OMML，并写入实际数学字体、字号和颜色，避免单独复制公式时丢失外观。接收文档须供应该字体。粘贴复用现有段落/表格事务、资源和完整布局预检；支持目标公式覆盖、表格扩张、继续原生输入、一项精确历史和重开。分子/分母修改保留显式外观。未知、错位、混合外观及不完整源拒绝，文档分数总数限 256 项。
+
+`queryFormatting()` 分别返回 `inputReason` 和格式命令的 `reason`。宿主按核心输入状态设置原生输入框只读；格式不可用不再阻止已支持的输入。正文及普通格中的公式两侧文字可使用既有字符格式、格式查询及格式复制；光标可设置待输入格式，并修改所在段落的对齐、缩进和间距。组合输入、原生源及精确历史沿原路径处理。非折叠选区包含公式时，格式命令及格式捕获仍拒绝；可继续原生输入或整体替换。未知公式、源注释/处理指令、修订、文档保护和未支持容器继续保护，失败保留源与历史。HTML/Markdown 明确拒绝公式输出，避免静默丢失。公式自身格式命令、嵌套结构、LaTeX 和完整数学排版仍待实现。
+
+片段校验归 [`math-clipboard.mbt`](../../modules/formats/src/docx/math-clipboard.mbt)，统一外观读取归 [`math-style.mbt`](../../modules/formats/src/docx/math-style.mbt)。完整公式复制参考 [ONLYOFFICE ParaMath.Copy](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Math.js#L594-L612)；数学 run 中的 Word 属性位置按 [Open XML SDK schema](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/data/schemas/schemas_openxmlformats_org_officeDocument_2006_math.json#L45-L59)核对。
+
+段内文字及换段复用 [`body-field-input.mbt`](../../modules/formats/src/docx/body-field-input.mbt)，源结构参照 [ONLYOFFICE Paragraph.Split](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L13838-L13881)及 [ParaMath.Split](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Math.js#L3001-L3034)。当前仅开放公式两侧及整体操作，公式内部通过分数面板编辑。
 
 编辑归 [`math-edit.mbt`](../../modules/formats/src/docx/math-edit.mbt)，接口校验归 [`docx-math.ts`](../../packages/wasm/src/docx-math.ts)，默认面板归 [`docx-math.tsx`](../../packages/ui/src/docx-math.tsx)。
 

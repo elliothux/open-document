@@ -58,7 +58,7 @@ fn Session::search_groups(
   let by_paragraph : Map[Int, StringBuilder] = Map([])
   let fields = Map::from_array(
     docx_texts(tree)
-    .filter(item => tree.nodes[item.id].name == "fldSimple")
+    .filter(item => ["fldSimple", "oMath"].contains(tree.nodes[item.id].name))
     .map(item => (item.id, item.paragraph)),
   )
   for id in tree.order {
@@ -235,6 +235,7 @@ fn Session::find_matches(
                 part=self.main,
                 pictures=true,
                 fields=true,
+                math=true,
               )
               self.check_native_drawings(tree, id)
               tree.check_structure_paragraph(id, running=true)

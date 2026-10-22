@@ -36,6 +36,7 @@ fn Session::table_cell_range(
   selection : Selection,
   pictures~ : Bool = false,
   fields~ : Bool = false,
+  math~ : Bool = false,
 ) -> TableCellRange? raise @failure.Failure {
   if selection.anchor.paragraph == selection.focus.paragraph {
     return None
@@ -57,6 +58,7 @@ fn Session::table_cell_range(
     tree,
     { anchor: selection.anchor, focus: selection.anchor, },
     fields~,
+    math~,
   )
   guard grid.owners.get(last) is Some((end_row, end_column)) else {
     @failure.reject(
@@ -96,7 +98,12 @@ fn Session::table_cell_range(
     .flatten()
     .filter(cell => positions.contains(grid.owners[cell]))
   for cell in cells {
-    tree.check_merge_cell(cell, self.main, pictures~, fields~)
+    tree.check_merge_cell(cell, self.main, pictures~, fields~, math~)
+    if math {
+      for paragraph in tree.table_children(cell, "p") {
+        self.check_native_drawings(tree, paragraph)
+      }
+    }
   }
   let paragraphs = owners.map(cell => tree.table_children(cell, "p")).flatten()
   Some({ grid, top, bottom, left, right, owners, cells, paragraphs, })
@@ -113,6 +120,7 @@ fn Session::table_cell_selection(
     selection,
     pictures=true,
     fields=true,
+    math=true,
   )
   guard selected is Some(selected) else {
     return { "value": Json::null(), "reason": "" }
@@ -199,6 +207,7 @@ fn Session::table_format_range(
   tree : WordTree,
   selection : Selection,
   fields~ : Bool = false,
+  math~ : Bool = false,
 ) -> ParagraphRange? raise @failure.Failure {
   let first_cell = tree.nodes
     .get(selection.anchor.paragraph)
@@ -214,7 +223,7 @@ fn Session::table_format_range(
     last_cell.name == "tc" else {
     return None
   }
-  guard self.table_cell_range(tree, selection, fields~) is Some(cells) else {
+  guard self.table_cell_range(tree, selection, fields~, math~) is Some(cells) else {
     return None
   }
   let first = cells.paragraphs[0]
@@ -260,7 +269,13 @@ pub fn Session::selection_rects(
     self.drawing_gesture is Some(_) {
     None
   } else {
-    self.table_cell_range(tree, selection, pictures=true, fields=true) catch {
+    self.table_cell_range(
+      tree,
+      selection,
+      pictures=true,
+      fields=true,
+      math=true,
+    ) catch {
       @failure.Failure(code="protected-content", ..) => None
       error => raise error
     }

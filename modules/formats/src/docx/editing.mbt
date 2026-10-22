@@ -81,6 +81,7 @@ fn Session::editable_texts(
     part=self.main,
     pictures=true,
     fields=true,
+    math=true,
   )
   self.check_native_drawings(tree, paragraph)
   self.texts.filter(node => node.paragraph == paragraph)
@@ -220,6 +221,7 @@ fn Session::check_position_in(
     part=self.main,
     pictures=true,
     fields=true,
+    math=true,
   )
   self.check_native_drawings(tree, position.paragraph)
   let nodes = tree.nodes
@@ -338,7 +340,13 @@ fn Session::prepare_plain_range(
   if anchor.paragraph != focus.paragraph || text.contains("\n") {
     if anchor.paragraph != focus.paragraph {
       let tree = WordTree::new(self.document())
-      if self.table_cell_range(tree, selection, pictures=true, fields=true)
+      if self.table_cell_range(
+          tree,
+          selection,
+          pictures=true,
+          fields=true,
+          math=true,
+        )
         is Some(cells) {
         return Some(
           self.prepare_table_contents(tree, cells, text, check_graphemes~),
@@ -400,7 +408,9 @@ fn Session::prepare_plain_range(
     let after = before[:left].to_owned() +
       (if node.id == insertion { text } else { "" }) +
       before[right:].to_owned()
-    let picture = ["drawing", "fldSimple"].contains(nodes[node.id].name)
+    let picture = ["drawing", "fldSimple", "oMath"].contains(
+      nodes[node.id].name,
+    )
     if picture && left == right {
       object_offsets[node.id] = if left == 0 && node.id == insertion {
         text.length()

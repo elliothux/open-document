@@ -101,9 +101,10 @@ fn Session::empty_table_cell(
   cell : Int,
   width : Int,
   fields~ : Bool = false,
+  math~ : Bool = false,
 ) -> String raise @failure.Failure {
   let p = tree.child(cell, "p").unwrap()
-  tree.check_editable_paragraph(p, part=self.main, fields~)
+  tree.check_editable_paragraph(p, part=self.main, fields~, math~)
   tree.check_structure_paragraph(p, running=fields)
   let original = self.document()
   let paragraph = formatted_properties(

@@ -172,6 +172,7 @@ fn Session::formatting_range(
       selection,
       structural=true,
       fields~,
+      math=true,
       tables=true,
       check_layout=false,
     )
@@ -179,6 +180,32 @@ fn Session::formatting_range(
   for p in self.formatting_paragraphs(document, range.paragraphs) {
     guard p.readOnlyReason.is_empty() else {
       @failure.reject("protected-content", p.readOnlyReason)
+    }
+  }
+  if range.start.paragraph != range.end.paragraph ||
+    range.start.offset != range.end.offset {
+    let texts = docx_texts(tree)
+    for paragraph in range.paragraphs {
+      let start = if paragraph == range.start.paragraph {
+        range.start.offset
+      } else {
+        0
+      }
+      let end = if paragraph == range.end.paragraph {
+        range.end.offset
+      } else {
+        2147483647
+      }
+      for item in texts.filter(item => item.paragraph == paragraph); offset = 0 {
+        let node = tree.nodes[item.id]
+        let length = inline_text(node).length()
+        guard node.uri != math_uri || start >= offset + length || end <= offset else {
+          @failure.reject(
+            "protected-content", "Select ordinary text or a caret to format around a formula",
+          )
+        }
+        continue offset + length
+      }
     }
   }
   range
@@ -234,6 +261,28 @@ pub fn Session::query_formatting(
   {
     "revision": revision,
     "reason": reason,
+    "inputReason": if reason.is_empty() {
+      ""
+    } else {
+      try {
+        self.check_document_protection()
+        if self.table_format_range(tree, selection, fields=true, math=true)
+          is None {
+          ignore(
+            self.paragraph_range(
+              tree,
+              selection,
+              structural=selection.anchor.paragraph != selection.focus.paragraph,
+              fields=true,
+              math=true,
+            ),
+          )
+        }
+        ""
+      } catch {
+        @failure.Failure(message~, ..) => message
+      }
+    },
     "cellSelection": self.table_cell_selection(tree, selection) catch {
       @failure.Failure(message~, ..) =>
         { "value": Json::null(), "reason": message }

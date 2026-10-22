@@ -163,7 +163,10 @@ fn Session::markup_paragraph(
   html~ : Bool = false,
   listed~ : Bool = false,
 ) -> Unit raise @failure.Failure {
-  guard paragraph.readOnlyReason.is_empty() else {
+  guard paragraph.readOnlyReason.is_empty() &&
+    !paragraph.spans.any(span => {
+      span.drawing is Some({ content: Fraction(_), .. })
+    }) else {
     @failure.reject(
       "unsupported-output", "Markup export requires supported ordinary paragraphs",
     )

@@ -2,13 +2,13 @@
 fn check_fragment_content(
   tree : WordTree,
   nodes : Array[Int],
-  pictures : Map[Int, Bool],
+  objects : Map[Int, Bool],
   fields~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   let mut units = 0
   for id in nodes {
     let node = tree.nodes[id]
-    if pictures.contains(id) {
+    if objects.contains(id) {
       continue
     }
     guard node.uri == word_uri else {
@@ -79,7 +79,7 @@ fn check_fragment_content(
       _ => []
     }
     guard tree.children[id].all(child => {
-        children.contains(tree.nodes[child].name)
+        children.contains(tree.nodes[child].name) || objects.contains(child)
       }) &&
       !["pStyle", "rStyle"].contains(node.name) else {
       @failure.reject(

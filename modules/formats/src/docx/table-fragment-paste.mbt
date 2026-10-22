@@ -24,10 +24,13 @@ fn Session::paste_table_fragment(
     selection,
     pictures=true,
     fields=true,
+    math=true,
   )
   let grid = selected
     .map(r => r.grid)
-    .unwrap_or_else(() => self.table_grid(tree, selection, fields=true))
+    .unwrap_or_else(() => {
+      self.table_grid(tree, selection, fields=true, math=true)
+    })
   let (top, c) = selected
     .map(r => grid.owners[r.owners[0]])
     .unwrap_or_else(() => grid.owners[grid.cells[grid.row][grid.column]])
@@ -45,10 +48,19 @@ fn Session::paste_table_fragment(
     for column, cell in grid.cells[row] {
       let start = grid.starts[row][column]
       if start < right && start + grid.model.columnSpans[row][column] > left {
-        tree.check_merge_cell(cell, self.main, pictures=true, fields=true)
+        tree.check_merge_cell(
+          cell,
+          self.main,
+          pictures=true,
+          fields=true,
+          math=true,
+        )
         for id in tree.descendants(cell) {
           if tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing" {
             self.check_drawing_text(tree, id, remove=true)
+          } else if tree.nodes[id].uri == math_uri &&
+            tree.nodes[id].name == "oMath" {
+            ignore(self.math_fraction_target(tree, id))
           }
         }
         let (r, c) = grid.owners[cell]
@@ -75,7 +87,14 @@ fn Session::paste_table_fragment(
                   tree.nodes[child].name == "r"
                 })
               } else {
-                ["pPr", "r", "fldSimple"].contains(tree.nodes[id].name)
+                (
+                  tree.nodes[id].uri == word_uri &&
+                  ["pPr", "r", "fldSimple"].contains(tree.nodes[id].name)
+                ) ||
+                (
+                  tree.nodes[id].uri == math_uri &&
+                  tree.nodes[id].name == "oMath"
+                )
               }
             })
           }) else {
@@ -90,7 +109,14 @@ fn Session::paste_table_fragment(
     @failure.reject("missing-font", "Rich table pasting requires a text probe")
   })
   let growth = self.paste_grid_changes(
-    tree, grid, rows, columns, probe, profile, images,
+    tree,
+    grid,
+    rows,
+    columns,
+    probe,
+    profile,
+    images,
+    math=true,
   )
   let mut candidate = original
   let steps : Array[@xml.Edit] = []

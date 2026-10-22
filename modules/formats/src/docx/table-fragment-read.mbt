@@ -30,6 +30,7 @@ fn Session::read_table_fragment(
     document, parts, edits, created, media, added_media,
   )
   let tree = WordTree::new(document)
+  self.fragment_math_nodes(document, pictures)
   let body = tree.child(0, "body").unwrap()
   guard tree.children[body].length() == 2 &&
     tree.table_children(body, "tbl").length() == 1 else {
@@ -111,7 +112,13 @@ fn Session::check_fragment_table(
   }
   tree.check_table_structure(grid, columns=true)
   for cell in grid.cells.flatten() {
-    tree.check_merge_cell(cell, self.main, pictures=true, fields=true)
+    tree.check_merge_cell(
+      cell,
+      self.main,
+      pictures=true,
+      fields=true,
+      math=true,
+    )
   }
   for row in model.rows {
     for paragraphs in row {

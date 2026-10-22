@@ -8,6 +8,7 @@ fn Session::paste_grid_changes(
   probe : @layout.TextProbe,
   profile : Map[String, String],
   images : @layout.Images?,
+  math~ : Bool = false,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let old_columns = grid.model.widths.length()
   if rows == grid.rows.length() && columns == old_columns {
@@ -101,6 +102,7 @@ fn Session::paste_grid_changes(
           cells.last().unwrap(),
           widths[column],
           fields=true,
+          math~,
         )
         guard xml.length() <= changes.limit - units else {
           @failure.reject(
@@ -144,6 +146,7 @@ fn Session::paste_grid_changes(
           grid.cells[last][index],
           widths[column],
           fields=true,
+          math~,
         )
         guard xml.length() <= changes.limit - units else {
           @failure.reject("limit-exceeded", "Pasted row source exceeds budget")

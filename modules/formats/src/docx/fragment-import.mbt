@@ -29,6 +29,7 @@ fn Session::read_body_fragment(
     document, parts, edits, created, media, added,
   )
   let tree = WordTree::new(document)
+  self.fragment_math_nodes(document, pictures)
   guard tree.children[0] is [body] &&
     tree.nodes[body].uri == word_uri &&
     tree.nodes[body].name == "body" &&

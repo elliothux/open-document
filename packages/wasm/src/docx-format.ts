@@ -432,6 +432,7 @@ export interface ParagraphFormatPatch {
 export interface DocxFormatting {
   revision: number;
   reason: string;
+  inputReason: string;
   cellSelection: DocxCellSelection;
   hyperlink: { target: string | null; mixed: boolean; reason: string };
   table: {
@@ -599,6 +600,7 @@ export function docxFormatting(value: unknown): DocxFormatting {
     !Number.isSafeInteger(result.revision) ||
     Number(result.revision) < 0 ||
     typeof result.reason !== "string" ||
+    typeof result.inputReason !== "string" ||
     (result.table !== null &&
       (typeof table.autoFit !== "boolean" ||
         typeof table.rowSplit !== "boolean" ||

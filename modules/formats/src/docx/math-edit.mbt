@@ -2,6 +2,7 @@
 fn math_fraction_markup(
   numerator : String,
   denominator : String,
+  style~ : @layout.TextStyle? = None,
 ) -> String raise @failure.Failure {
   guard numerator.length() + denominator.length() <= 4096 else {
     @failure.reject("limit-exceeded", "Fraction text exceeds budget")
@@ -15,7 +16,14 @@ fn math_fraction_markup(
       "invalid-operation", "Fraction arguments require nonempty single-line text",
     )
   }
-  "<m:oMath xmlns:m=\"\{math_uri}\"><m:f><m:fPr><m:type m:val=\"bar\"/></m:fPr><m:num><m:r><m:rPr><m:sty m:val=\"p\"/></m:rPr><m:t xml:space=\"preserve\">\{@xml.escape_text(numerator)}</m:t></m:r></m:num><m:den><m:r><m:rPr><m:sty m:val=\"p\"/></m:rPr><m:t xml:space=\"preserve\">\{@xml.escape_text(denominator)}</m:t></m:r></m:den></m:f></m:oMath>"
+  let properties = match style {
+    None => ""
+    Some(style) => {
+      let family = property_attribute(style.font)
+      "<od:rPr xmlns:od=\"\{word_uri}\"><od:rFonts od:ascii=\"\{family}\" od:hAnsi=\"\{family}\"/><od:color od:val=\"\{style.color}\"/><od:sz od:val=\"\{(style.size*2).round().to_int()}\"/></od:rPr>"
+    }
+  }
+  "<m:oMath xmlns:m=\"\{math_uri}\"><m:f><m:fPr><m:type m:val=\"bar\"/></m:fPr><m:num><m:r><m:rPr><m:sty m:val=\"p\"/></m:rPr>\{properties}<m:t xml:space=\"preserve\">\{@xml.escape_text(numerator)}</m:t></m:r></m:num><m:den><m:r><m:rPr><m:sty m:val=\"p\"/></m:rPr>\{properties}<m:t xml:space=\"preserve\">\{@xml.escape_text(denominator)}</m:t></m:r></m:den></m:f></m:oMath>"
 }
 
 ///|
@@ -153,8 +161,14 @@ pub fn Session::edit_math_fraction(
       self.paragraph_inline_source(document, position, _ => markup),
     ])
     steps.push(edit)
-    // Formula paragraphs retain their existing text-editing protection; the panel edits the fraction explicitly.
-    after = None
+    let caret = {
+      ..position,
+      offset: position.offset + 1,
+      affinity: "after",
+      bidiLevel: None,
+      frameStart: None,
+    }
+    after = Some({ anchor: caret, focus: caret, })
     (
       candidate,
       prepared.map(edit => edit.edit.paragraphs).unwrap_or([position.paragraph]),
@@ -170,7 +184,19 @@ pub fn Session::edit_math_fraction(
     let markup = if action == "delete" {
       ""
     } else {
-      math_fraction_markup(numerator, denominator)
+      math_fraction_markup(
+        numerator,
+        denominator,
+        style=if tree
+          .descendants(id)
+          .any(id => {
+            tree.nodes[id].uri == word_uri && tree.nodes[id].name == "rPr"
+          }) {
+          Some(fraction.style)
+        } else {
+          None
+        },
+      )
     }
     let (candidate, edit) = original.edit_source([
       {

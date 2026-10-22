@@ -16,10 +16,13 @@ fn fragment_paragraph(
 ) -> String raise @failure.Failure {
   guard paragraph.readOnlyReason.is_empty() &&
     tree.children[paragraph.id].all(id => {
-      tree.nodes[id].uri == word_uri &&
+      (tree.nodes[id].uri == math_uri && tree.nodes[id].name == "oMath") ||
       (
-        ["pPr", "r", "hyperlink", "fldSimple"].contains(tree.nodes[id].name) ||
-        tree.is_bookmark(id)
+        tree.nodes[id].uri == word_uri &&
+        (
+          ["pPr", "r", "hyperlink", "fldSimple"].contains(tree.nodes[id].name) ||
+          tree.is_bookmark(id)
+        )
       )
     }) else {
     @failure.reject(
@@ -118,7 +121,7 @@ fn fragment_paragraph(
       runs.push(Some(id))
     }
   }
-  if tree.paragraph_runs(paragraph.id, running=true).is_empty() {
+  if tree.paragraph_runs(paragraph.id, running=true, math=true).is_empty() {
     runs.push(tree.child(paragraph.id, "pPr"))
   }
   let mut active_link : Int? = None
@@ -137,7 +140,7 @@ fn fragment_paragraph(
           .fold(init=0, (sum, child) => {
             sum + inline_text(tree.nodes[child]).length()
           })
-        } else if tree.nodes[id].name == "fldSimple" {
+        } else if ["fldSimple", "oMath"].contains(tree.nodes[id].name) {
           1
         } else {
           0
@@ -173,6 +176,27 @@ fn fragment_paragraph(
       }
       units += markup.length()
       output.write_string(markup)
+      continue
+    }
+    if run is Some(id) && tree.nodes[id].uri == math_uri {
+      guard paragraph.spans.iter().find_first(span => span.node == id)
+        is Some({ drawing: Some({ content: Fraction(fraction), .. }), .. }) else {
+        @failure.reject(
+          "protected-content", "Rich fraction layout is unavailable",
+        )
+      }
+      let xml = math_fraction_markup(
+        fraction.numerator,
+        fraction.denominator,
+        style=Some(fraction.style),
+      )
+      guard xml.length() <= limit - units else {
+        @failure.reject(
+          "limit-exceeded", "Rich fraction exceeds clipboard budget",
+        )
+      }
+      units += xml.length()
+      output.write_string(xml)
       continue
     }
     if run is Some(id) && tree.nodes[id].name == "fldSimple" {
@@ -258,7 +282,7 @@ fn Session::fragment_cell(
   fields : Map[Int, String],
 ) -> String raise @failure.Failure {
   let cell = grid.cells[row][column]
-  tree.check_merge_cell(cell, self.main, pictures=true, fields=true)
+  tree.check_merge_cell(cell, self.main, pictures=true, fields=true, math=true)
   let span = grid.model.columnSpans[row][column]
   let start = grid.starts[row][column]
   let width = grid.model.widths[start:start + span].fold(init=0.0, (sum, w) => {
