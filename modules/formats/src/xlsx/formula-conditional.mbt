@@ -41,9 +41,10 @@ fn conditional_function(
   depth : Int,
 ) -> Value raise @failure.Failure {
   let counting = name == "COUNTIF" || name == "COUNTIFS"
-  let multiple = ["COUNTIFS", "SUMIFS", "AVERAGEIFS"].contains(name)
+  let extremum = name == "MINIFS" || name == "MAXIFS"
+  let multiple = extremum || ["COUNTIFS", "SUMIFS", "AVERAGEIFS"].contains(name)
   let ranges : Array[FormulaRange] = []
-  let criteria : Array[Criterion] = []
+  let criteria : Array[(Criterion, Bool)] = []
   let first = if multiple && !counting { 1 } else { 0 }
   let end = if multiple { args.length() } else { 2 }
   for index = first; index < end; index = index + 2 {
@@ -55,10 +56,22 @@ fn conditional_function(
       return Error("#VALUE!")
     }
     ranges.push(range)
+    let value = arg.evaluate(sheets, sheet, calculated, work, depth + 1)
+    if extremum && value is Error(_) {
+      return Error("#VALUE!")
+    }
+    // ONLYOFFICE MINIFS/MAXIFS stringify criteria and let an empty criterion match zero.
     criteria.push(
-      Criterion::new(
-        arg.evaluate(sheets, sheet, calculated, work, depth + 1),
-        work,
+      (
+        Criterion::new(
+          if extremum {
+            Text(value.display())
+          } else {
+            value
+          },
+          work,
+        ),
+        extremum && (value == Blank || value == Text("")),
       ),
     )
   }
@@ -87,10 +100,10 @@ fn conditional_function(
     }) {
     return Error("#VALUE!")
   }
-  let implicit = counting &&
-    criteria.all(criterion => criterion.matches(Blank, work))
+  let implicit = counting && criteria.all(entry => entry.0.matches(Blank, work))
   let mut count = if implicit { target.area().to_double() } else { 0.0 }
   let mut sum = 0.0
+  let mut extreme : Double? = None
   let offsets = aggregate_offsets(
     if counting {
       ranges
@@ -103,10 +116,10 @@ fn conditional_function(
   for offset in offsets {
     let mut matched = true
     for index, range in ranges {
-      if !criteria[index].matches(
-          range.value(offset, sheets, calculated, work),
-          work,
-        ) {
+      let actual = range.value(offset, sheets, calculated, work)
+      let (criterion, empty_zero) = criteria[index]
+      if !(empty_zero && actual == Number(0)) &&
+        !criterion.matches(actual, work) {
         matched = false
         break
       }
@@ -117,10 +130,24 @@ fn conditional_function(
       }
     } else if matched {
       match target.value(offset, sheets, calculated, work) {
-        Number(value) => {
-          sum += value
-          count += 1
-        }
+        Number(value) =>
+          if extremum {
+            extreme = Some(
+              extreme
+              .map(previous => {
+                if name == "MINIFS" {
+                  previous.min(value)
+                } else {
+                  previous.max(value)
+                }
+              })
+              .unwrap_or(value),
+            )
+          } else {
+            sum += value
+            count += 1
+          }
+        Error(_) if extremum => ()
         Error(error) => return Error(error)
         _ => ()
       }
@@ -128,6 +155,8 @@ fn conditional_function(
   }
   if counting {
     Number(count)
+  } else if extremum {
+    Number(extreme.unwrap_or(0))
   } else if name == "AVERAGEIF" || name == "AVERAGEIFS" {
     if count == 0 {
       Error("#DIV/0!")

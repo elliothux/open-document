@@ -264,7 +264,7 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 默认数学面板提供“插入独立公式”。`DocumentEditor.insertMath(value, true)` 和 Wasm/Worker 的 `{ action: "insert", latex, display: true, format? }` 走同一事务；MoonBit 为 `edit_math(..., display=true)`。省略或 false 保留行内插入。替换当前范围后，非空段落按插入点拆为前文、公式和后文；空段落直接承载公式。统一外观、结构修改和删除复用已有公式目录与命令，更新保留包装和对齐源，删除移除整个包装。独立插入、段落拆分和范围替换共用一项精确历史。
 
-正文和普通格的原生富文本片段保留包装、有效对齐及统一数学外观，跨文档粘贴后可继续修改。保存重开保留原生内容；Canvas、语义与 PDF 使用同一数学基线和段落位置。未知包装/属性、多表达式、混合外观、源注释及既有未支持结构继续保护。软换行及页/栏控制符与独立包装混排仍需逐行块布局，导入给出诊断，普通输入原子拒绝；Enter 拆成相邻段落仍走既有路径。上下堆叠极限、较大显示运算符及局部格式继续实施。实现归 [math-display.mbt](../../modules/formats/src/docx/math-display.mbt)、[math-read.mbt](../../modules/formats/src/docx/math-read.mbt)、[math-edit.mbt](../../modules/formats/src/docx/math-edit.mbt)和[原生输入](../../modules/formats/src/docx/body-field-input.mbt)。
+正文和普通格的原生富文本片段保留包装、有效对齐及统一数学外观，跨文档粘贴后可继续修改。保存重开保留原生内容；Canvas、语义与 PDF 使用同一数学基线和段落位置。未知包装/属性、多表达式、混合外观、源注释及既有未支持结构继续保护。软换行及页/栏控制符与独立包装混排仍需逐行块布局，导入给出诊断，普通输入原子拒绝；Enter 拆成相邻段落仍走既有路径。较大显示运算符和上下堆叠极限归下述[求和与积分](#docx-行内求和与积分)；局部格式继续实施。实现归 [math-display.mbt](../../modules/formats/src/docx/math-display.mbt)、[math-read.mbt](../../modules/formats/src/docx/math-read.mbt)、[math-edit.mbt](../../modules/formats/src/docx/math-edit.mbt)和[原生输入](../../modules/formats/src/docx/body-field-input.mbt)。
 
 ### DOCX LaTeX 公式编辑
 
@@ -328,11 +328,13 @@ LaTeX 源最多 131072 个 UTF-16 单元，语法嵌套最多 64 层；解析结
 
 核心模型为 `Nary(operator, limitLocation, lower, upper, body)`，flow 使用 `{kind:"nary", operator, limitLocation, lower, upper, body}`，隐藏的上下限明确传 `null`。`limitLocation` 保留原生 `subSup` / `undOvr`。省略时读取对应文档设置 `intLim` / `naryLim`；默认分别为 `subSup` 和 `undOvr`。显式属性覆盖默认设置，未使用的错误设置不会影响其他数学结构。
 
-当前公式为行内对象，按 ONLYOFFICE 的行内分支使用普通字号运算符和右侧上下限，保留原生位置属性供写回。核心按实际字形的墨迹宽度、上下边界和边距定位运算符；上下限按 0.76 缩小，复用单/双脚标度量，主体按数学基线对齐。符号与主体之间的间距随字号变化。Canvas/PDF 复用已有文字图元，PDF 保留运算符及参数的文字映射；线性语义为 `∑_(下限)^(上限)(主体)` 等形式。
+行内公式按 ONLYOFFICE 的行内分支使用普通字号运算符和右侧上下限，保留原生位置属性供写回。核心按实际字形的墨迹宽度、上下边界和边距定位运算符；上下限按 0.76 缩小，复用单/双脚标度量，主体按数学基线对齐。符号与主体之间的间距随字号变化。Canvas/PDF 复用已有文字图元，行内 PDF 保留运算符及参数的文字映射；线性语义为 `∑_(下限)^(上限)(主体)` 等形式。
+
+独立公式中的运算符使用字体 MATH 表的 `displayOperatorMinHeight` 及真实变体/拼装轮廓；`undOvr` 将上下限居中堆叠，`subSup` 保留右侧位置。单个或两个可见上下限沿同一布局处理。共享 `MathFormula` 的 `display` 布尔字段由段落上下文生成；DOCX 混排或编号段落、分子/分母及缩小脚标中的运算符仍用普通字号和右侧上下限。PPTX 独立数学段落沿同一实现。较大运算符在 Canvas/PDF 中以字体轮廓绘制，PDF 参数仍可提取文字，运算符本身不提供字形文字映射；完整线性语义保留。缺少 MATH 常量、变体或字体时明确失败，编辑事务保留源和历史。字号缩放继续复用路径及图元预算。
 
 既有“数学公式”面板及 `insertMath` / `editMath` 接受 `\sum`、`\prod`、`\coprod`、`\int`、`\iint`、`\iiint`、`\oint`、`\oiint`、`\oiiint`、`\bigcup`、`\bigcap`、`\bigvee` 和 `\bigwedge`。使用 `_` / `^` 输入上下限，主体可为一个带脚标的原子或花括号分组，例如 `\sum_{i=0}^{n}{x_i}`、`\int_0^1{\frac{x}{2}}`。`\limits` 和 `\nolimits` 保留对应原生位置属性，当前行内显示均使用右侧上下限。目录提供带显式位置修饰的规范化 LaTeX。重复脚标、缺失主体、空参数及未知语法拒绝，沿现有输入与结构预算处理。
 
-运算符沿现有公式路径完成统一外观、周边原生输入、整式删除/替换、富文本复制、精确历史及重开。分数/脚标专用目录跳过独立的 `m:nary`。相同参数与直接外观不增加历史，字体/布局失败保持文档。独立数学段落的较大符号、上下堆叠、增长属性及局部格式继续实施；矩阵归[行内矩阵](#docx-行内矩阵)。
+运算符沿现有公式路径完成统一外观、周边原生输入、整式删除/替换、富文本复制、精确历史及重开。分数/脚标专用目录跳过独立的 `m:nary`。相同参数与直接外观不增加历史，字体/布局失败保持文档。增长属性及局部格式继续实施；矩阵归[行内矩阵](#docx-行内矩阵)。较大运算符沿 [OpenType MATH 常量](https://learn.microsoft.com/en-us/typography/opentype/spec/math#mathconstants-table)和字体变体，上下限间距及居中参考 [ONLYOFFICE 上下堆叠布局](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/nary.js#L1140-L1196)，未复制上游执行代码。
 
 读取、默认设置和 LaTeX 归 [`docx/math-nary.mbt`](../../modules/formats/src/docx/math-nary.mbt)，布局归 [`layout/math-nary.mbt`](../../modules/layout/src/math-nary.mbt)。参考 ONLYOFFICE 的[行内分支](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/nary.js#L305-L356)、[行内符号与测量](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/nary.js#L1220-L1262)、[墨迹宽度](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/mathText.js#L708-L829)及[默认位置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/math-settings.js#L308-L311)。原生结构按 [Open XML SDK](https://github.com/dotnet/Open-XML-SDK/blob/431ab05cf160248cc3885a4a766026d4f8243792/data/schemas/schemas_openxmlformats_org_officeDocument_2006_math.json#L875-L935)核对。
 
@@ -1847,7 +1849,7 @@ General 显示按 [ONLYOFFICE 的 15 位有效数字拆分](https://github.com/O
 
 数字格式覆盖 General、`@`、整数、两位小数、千分位、百分比、`yyyy-mm-dd`、`hh:mm:ss`，以及内置 1–4、9–10、14–22、49。日期保留数值，核心解释 1900/1904 系统，1900 序号 60 显示虚构的 2 月 29 日，序号 0 显示 1900-01-00。不经过宿主时区。其他格式、颜色 tint、渐变/图案、非实线边框及额外字体装饰保留声明并诊断，不承诺显示等价。
 
-公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * / ^`、后缀百分比 `%`、文本连接 `&`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/SQRT/POWER/PRODUCT/MEDIAN/MODE/MODE.SNGL/LARGE/SMALL/SUMSQ/SUMPRODUCT/DEVSQ/VAR/VAR.S/VARP/VAR.P/STDEV/STDEV.S/STDEVP/STDEV.P/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/EXACT/REPT/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL/HYPERLINK`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
+公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * / ^`、后缀百分比 `%`、文本连接 `&`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/SQRT/POWER/PRODUCT/MEDIAN/MODE/MODE.SNGL/LARGE/SMALL/SUMSQ/SUMPRODUCT/DEVSQ/VAR/VAR.S/VARP/VAR.P/STDEV/STDEV.S/STDEVP/STDEV.P/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/EXACT/REPT/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/MINIFS/MAXIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL/HYPERLINK`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
 
 `&` 将两个值按普通公式文字规则连接，布尔使用 TRUE/FALSE，空白使用空文字，公式错误按左侧优先传播。它低于加减、高于比较，同级从左到右；括号保留明确的计算顺序。一行/一列引用按公式位置取唯一值，其余非单值矩形返回 `#VALUE!`。它与 HYPERLINK 复用 [`formula-range.mbt`](../../modules/formats/src/xlsx/formula-range.mbt) 中的标量取值，与文本函数共用 32767 个 UTF-16 单位及 1048576 单位工作预算；超长结果为 `#VALUE!`，工作量超限拒绝整次编辑。共享公式、填充、工作表改名与重开沿普通 token/引用路径，字符串常量内的表名或 `&` 保持文字。规则参考 [ONLYOFFICE cConcatSTROperator](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L4793-L4832)。例如 `HYPERLINK(A1&"#details","查看")` 使用拼接后的地址，保留既有安全导航及 PDF 规则；实现复用 [`formula-parser.mbt`](../../modules/formats/src/xlsx/formula-parser.mbt) 和 [`formula-evaluate.mbt`](../../modules/formats/src/xlsx/formula-evaluate.mbt)，未复制上游执行代码。
 
@@ -1861,7 +1863,7 @@ General 显示按 [ONLYOFFICE 的 15 位有效数字拆分](https://github.com/O
 
 AND/OR 接受数值和布尔，忽略引用内的文本与空白；没有有效值时返回 `#VALUE!`。文字常量返回 `#VALUE!`，不沿用数学函数的数字转换。稀疏范围只访问已有单元格，不展开整张表；即使已有确定的布尔结果，范围和后续参数中的错误仍参与，范围内按行列顺序保留首个错误。NOT 接受布尔、数值、空白及 TRUE/FALSE 文字，其他文字返回 `#VALUE!`。三项类型判断不转换数字文字，区分空白格与空字符串；当前使用标量参数，多格范围返回 `#VALUE!`。公式结果引用空白格时计算为数值 0。
 
-IF、IFERROR、IFNA 只求值选中的结果分支，依赖仍包含全部声明引用。IFERROR 捕获公式错误值，IFNA 只捕获 `#N/A`；两者不吞未知函数、循环、引用解析失败或资源超限。新输入及生成的 IFNA、CONCAT、TEXTJOIN、DAYS、XLOOKUP、VAR.S、VAR.P、STDEV.S、STDEV.P、MODE.SNGL 按 OOXML 写入对应 `_xlfn.` 函数前缀，读取也接受这些前缀；只替换函数 token，保留同名工作表和文字常量。查询继续返回实际公式源。
+IF、IFERROR、IFNA 只求值选中的结果分支，依赖仍包含全部声明引用。IFERROR 捕获公式错误值，IFNA 只捕获 `#N/A`；两者不吞未知函数、循环、引用解析失败或资源超限。新输入及生成的 IFNA、CONCAT、TEXTJOIN、DAYS、XLOOKUP、VAR.S、VAR.P、STDEV.S、STDEV.P、MODE.SNGL、MINIFS、MAXIFS 按 OOXML 写入对应 `_xlfn.` 函数前缀，读取也接受这些前缀；只替换函数 token，保留同名工作表和文字常量。查询继续返回实际公式源。
 
 ABS 返回绝对值，INT 向负无穷取整；MOD 按 `n - d * floor(n / d)` 计算，零除数返回 `#DIV/0!`。三类舍入按有限 Double 的十进制表示处理，ROUND 的半值远离零，ROUNDUP 远离零，ROUNDDOWN 朝零；位数的小数部分朝零截断。正负位数、进位及 `ROUND(1.005,2)=1.01` 使用同一路径，不先乘十进制倍率。精度至少 324 时保持原值；截断后的精度小于 -308 时，非零 ROUNDUP 返回 `#NUM!`，其余返回 0。结果非有限也返回 `#NUM!`，不按任意精度分配字符串。
 
@@ -1914,6 +1916,8 @@ COUNTIF/COUNTIFS、SUMIF/SUMIFS、AVERAGEIF/AVERAGEIFS 共用有类型的条件�
 文字等值条件覆盖整个单元格，不区分大小写；`*`、`?` 与 `~` 转义按有界动态规划匹配，可包含换行。多条件取交集，范围行列数量必须一致，单元格位置及工作表可以不同。范围或条件数组不做隐式求交；非法形状返回 `#VALUE!`。普通条件聚合包含全部隐藏行；[SUBTOTAL](#subtotal-汇总) 区分筛选与手动隐藏。
 
 SUMIF/AVERAGEIF 的可选结果范围从其左上角取与条件范围相同的形状；越过工作表边界返回 `#REF!`。隐含范围也进入依赖图，修改锚点之外的结果单元格会重算。已匹配结果中的数值参与求和/平均，文字和空白不参与；已匹配错误按行列顺序传播，未匹配错误不影响结果。没有数值时 SUMIF/SUMIFS 返回 0，AVERAGEIF/AVERAGEIFS 返回 `#DIV/0!`。非有限结果返回 `#NUM!`。
+
+MINIFS/MAXIFS 在结果范围中返回满足全部条件的最小值/最大值，复用现有条件、稀疏范围及依赖图。结果范围和每个条件范围必须具有相同行列数。两项沿 ONLYOFFICE 先将条件转换为文字；空文字或空白条件也接受数值 0，显式 `"="` 仍只匹配空白及空文字。错误条件参数返回 `#VALUE!`，字面的错误文字仍可匹配相应错误值。只选择结果范围中的数值，忽略其文字、布尔、空白和错误；没有数值时返回 0。包含隐藏行，整列只遍历已有单元格。名称、跨表依赖、填充平移、精确历史和缓存沿同一事务。读取普通及 `_xlfn.` 名称，新输入和生成公式写回标准前缀。实现归 [`formula-conditional.mbt`](../../modules/formats/src/xlsx/formula-conditional.mbt)，依据 [ONLYOFFICE MAXIFS/MINIFS](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js#L8313-L8542)。
 
 条件范围遍历、文字比较和通配符共用现有公式工作预算；超限整体回滚，IFERROR 不吞资源失败。实现参考固定 [ONLYOFFICE 统计函数](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/statisticalFunctions.js)、[条件匹配](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L12325-L12512)与[条件求和](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L5310-L5402)。结果范围投影及错误读取同时对照 [LibreOffice 条件聚合](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sc/source/core/tool/interpr1.cxx#L5871-L6094)。单格空文字计数与结果范围形状沿 [COUNTBLANK 合同](https://support.microsoft.com/en-us/excel/functions/countblank-function)及 [SUMIF 合同](https://support.microsoft.com/en-us/excel/functions/sumif-function)，不沿用旧参考中单格/区域及结果矩阵尺寸的不一致。
 
@@ -2587,6 +2591,14 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 删除参数为 `{ action: "delete" }`，复制为 `{ action: "duplicate", dx, dy }`。两者要求对象模式；空选区不修改文档。删除作用于整个集合，先校验全部成员，再提交一项历史；任一保护失败不删除其他成员。复制作用于整个集合，包括受支持的嵌套组；副本按原源顺序放到所属父容器的最上层。保留非变换源内容、页面几何、命名空间与图片/超链接关系，为副本及其全部成员分配会话内尚未使用的新 `cNvPr.id`，域身份同样更新。副本内部对象引用重映射；引用集合外对象而需联动的结构明确拒绝。副本选择保留原选择顺序及对应活动对象。一次复制合为一项历史，任一成员、字体、几何或预算失败不创建副本、不消耗身份。原对象的页面姿态、非变换内容、其他部件及资源保持；组内原生坐标可随边界重算归一化。一次复制的 XML 片段及继承命名空间合计最多 2 Mi UTF-16 单元，在拼接前检查；最终包和历史继续受原有预算约束。删除清空选择；撤销/重做精确恢复源 XML 与选择。`PptxObject.deleteReason/duplicateReason` 返回操作保护原因，空串表示可用。继承/跨父组选择/未知对象继续保护；复制占位符及未知扩展、删除锁定或带连接/计时引用的对象仍拒绝，含未支持所属关系的页面也保护删除。资源和关系不做清理。默认 UI 提供插入面板、复制/删除按钮；对象输入支持 Delete/Backspace 与 Ctrl/Cmd+D，默认复制偏移各 18 pt。
 
+### 更改形状类型
+
+`editObjects({ action: "shapeType", preset })` 修改对象模式中所选本地闭合形状的原生 `prstGeom`，支持单选、多选及同组成员。目标采用已有插入目录的闭合预设，排除 `text` 和 `line`；两者分别是插入文本框的命令名称和开放路径。文本框的矩形源也可改为闭合形状，保留既有非可视属性。`PptxObject.shapeTypeReason` 返回修改保护原因。默认面板复用“对象类型”选择器，并提供“更改所选形状”按钮；Wasm/Web 的 `pptxInsertKinds` 共用同一目录。
+
+修改保留对象身份、源变换、文字/格式、填充/描边、资源与关系。改变类型时移除旧调节值，采用目标预设默认值；选择当前类型不新增历史，也不重置已有调节值。缺少本地几何时按 XML 顺序添加覆盖。新文字内框沿既有布局与自动适配，在同一事务提交尺寸或缩小值。旋转/翻转、组边界、字体、包和历史预算继续适用；任一目标失败整体回滚。未知几何、保留标记、锁定及继承对象继续保护，组内未知几何同样保护。
+
+已有连接引用随受支持闭合预设之间的类型修改重映射到最近的有效连接点，保留目标身份，并沿既有矩阵和连接线归一化更新源端点。目标预设尚无连接点支持时原子拒绝，保留原连接。连接点范围归[连接线](#连接线)。Canvas、PNG、PDF 和命中复用当前几何路径。类型修改、周边原生文字输入、无操作、精确混合历史及保存重开已检查。实现归 [`shape-type.mbt`](../../modules/formats/src/pptx/shape-type.mbt)及[既有连接线事务](../../modules/formats/src/pptx/connector-edit.mbt)，几何替换和重新适配参考 [ONLYOFFICE changePresetGeom](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L6380-L6405)，未复制上游执行代码。
+
 圆角矩形使用 `roundRect`，实心箭头使用四个单向、左右/上下双向及四向的标准 DrawingML 预设；新对象使用默认调节点。读取圆角 `adj`、单向/双向箭头 `adj1/adj2` 的 `val` 数值公式，按预设上下限和实际宽高计算路径、文字矩形及命中；未知调节点或公式保留源并诊断。文字矩形先于 bodyPr 内边距，新增/复制时继续检查实际容量。Canvas 与 PDF 使用同一路径，旋转和局部翻转使用同一矩阵。
 
 三角形 `triangle`、直角三角形 `rtTriangle`、菱形 `diamond`、平行四边形 `parallelogram` 和梯形 `trapezoid` 已接通导入、插入、文字编辑、轮廓命中及 Canvas/PDF。路径和文字矩形依据 [ONLYOFFICE CreateGeometry](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L8500-L8550)，实现归 [`polygon-shapes.mbt`](../../modules/formats/src/pptx/polygon-shapes.mbt)。三角形的 `adj` 是顶点横向比例，默认 0.5，范围 0–1；平行四边形及梯形的 `adj` 是斜边偏移占短边的倍数，默认 0.25，上限分别为宽/短边及宽/(2×短边)。导入数值按几何上限夹取；编辑值越界则拒绝。直角三角形和菱形没有调节项。文字矩形先计算，再加框内边距。数值修改、恢复预设、多选保护、保存和精确历史复用既有命令；单一 `adj` 的面板批量修改要求相同预设。复杂自定义几何和指针调节手柄继续实施。
@@ -2792,7 +2804,7 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 `PresentationEditor.editObjects({ action: "insertConnector", kind, start, end })` 创建原生 `p:cxnSp`。必填 `kind` 为 `straight`、`elbow` 或 `curved`，分别写 `straightConnector1`、三段折线 `bentConnector3` 或双段曲线 `curvedConnector3`。`connectorEndpoints` 用相同的类型和两端参数修改唯一选中的连接线；显式切换类型与端点修改合为一项历史，新类型恢复默认调节点。MoonBit 使用 `InsertConnector(kind, start, end)` / `ConnectorEndpoints(kind, start, end)` 及 `ConnectorEnd`，Wasm/Web 导出 `PptxConnectorEnd`：`{ x, y, target, site }`。坐标使用磅；`target=""` 表示自由端点，`site` 必须为 0。创建时连接线及目标位于顶层。编辑时 `target` 须属于同一源部件、同一直接父容器；坐标由目标的原生连接点计算，输入坐标仍须有限且有界。自由端点与查询端点始终使用页面坐标。
 
-矩形、圆角矩形及矩形图片支持 0 上、1 左、2 下、3 右。椭圆支持 0 上、1 左上、2 左、3 左下、4 下、5 右下、6 右、7 右上。连接点经过目标的旋转和翻转矩阵，再量化为整数 EMU。目标移动、独立宽高缩放、旋转、翻转和框适配时，同一事务更新连接线的 `xfrm`，保留 `stCxn/endCxn` 引用。变换候选使用相同规则，取消不写源。母版和版式沿源视图编辑，普通页继续保护继承对象。
+矩形、圆角矩形及矩形图片支持 0 上、1 左、2 下、3 右。椭圆支持 0 上、1 左上、2 左、3 左下、4 下、5 右下、6 右、7 右上。其余已支持的闭合预设也使用原生连接点：三角形、直角三角形、平行四边形、五边形、六边形及左右双向箭头各 6 个，八边形及上下双向箭头各 8 个，五角星 5 个，梯形、菱形、十字及其他实心箭头各 4 个。索引遵循 `CreateGeometry.AddCnx` 顺序；除上述命名点外，默认面板按原生序号显示。`PptxObject.connectionSiteCount` 返回实际数量，不能连接的对象为 0。连接点经过目标的旋转和翻转矩阵，再量化为整数 EMU。目标调节值修改、移动、独立宽高缩放、旋转、翻转和框适配时，同一事务更新连接线的 `xfrm`，保留 `stCxn/endCxn` 引用。变换候选使用相同规则，取消不写源。母版和版式沿源视图编辑，普通页继续保护继承对象。
 
 `PptxObject.connector` 对连接线返回 `{ kind, start, end, reason }`，其他对象为 `null`。无法解析端点时，类型和两端均为 `null`，并返回保护原因。默认面板可创建或切换连接线类型，选择两端的对象和命名连接点，修改自由坐标或断开连接。线宽、颜色、虚线、装饰及 Canvas/PDF 路径复用既有直线实现。端点写入和目标联动各随本次编辑形成一项历史，保存重开后保留原生连接关系。
 
@@ -2802,9 +2814,9 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 单选受支持连接线时，`selectionPptx.handles` 按起点、终点返回两个实际页面坐标。默认画布可直接拖动这两个手柄；`beginPptx` 使用 `kind="connector"`，`dragPptx` 的 `handle=1/2` 对应起点/终点，`dx/dy` 始终相对手势起始端点，另一端保持。可选 `tolerance` 为 0–64 pt，缺省 0 表示不吸附；默认宿主按当前预览比例换算 6 CSS px，不乘 DPR。核心按上层对象优先、原生连接点索引顺序寻找半径内的同一直接父容器中的本地受支持目标，沿用上述旋转/翻转和 EMU 量化。离开连接点范围后，该端变为自由端点。候选只更新临时页，释放时写回端点及连接关系并提交一项历史，返回起始状态不增加历史；Escape、指针取消及丢失捕获沿原候选取消路径恢复。旧 revision/候选、错误手柄、越界、退化为零长度、锁定和输出预算失败保持最后有效候选与已提交源。
 
-有连接的线通过画布端点或面板修改，直接变换继续保护。连接线与全部引用目标同时选择时可组合或复制；整个组可复制，副本的原生引用映射到副本目标。同一直接父容器中的闭合图形支持组内端点编辑/吸附、成员移动/旋转、组缩放/旋转/翻转、嵌套及取消/再次组合。核心逆变换页面端点并写整数 EMU，复用既有组边界归一化，候选与提交保持一致。重复原生端点及连接关系不增加历史。默认列表选择连接线时进入对象模式。拆散引用的组合/复制、仍被外部引用的目标删除、跨父容器连接、其他曲线/折线预设及其他预设连接点继续保护。未知连接元数据、非整数或越界索引、失去目标、锁定和输出预算失败保留源与历史；受保护连接线也阻止其目标发生无法写回的几何变化。沿用对象数量、坐标、XML、历史和输出预算。
+有连接的线通过画布端点或面板修改，直接变换继续保护。连接线与全部引用目标同时选择时可组合或复制；整个组可复制，副本的原生引用映射到副本目标。同一直接父容器中的闭合图形支持组内端点编辑/吸附、成员移动/旋转、组缩放/旋转/翻转、嵌套及取消/再次组合。核心逆变换页面端点并写整数 EMU，复用既有组边界归一化，候选与提交保持一致。重复原生端点及连接关系不增加历史。默认列表选择连接线时进入对象模式。拆散引用的组合/复制、仍被外部引用的目标删除、跨父容器连接、其他曲线/折线预设、自定义或未知预设连接点继续保护。未知连接元数据、非整数或越界索引、失去目标、锁定和输出预算失败保留源与历史；受保护连接线也阻止其目标发生无法写回的几何变化。沿用对象数量、坐标、XML、历史和输出预算。
 
-实现归 [`connector.mbt`](../../modules/formats/src/pptx/connector.mbt)、[`connector-edit.mbt`](../../modules/formats/src/pptx/connector-edit.mbt)、[`connector-gesture.mbt`](../../modules/formats/src/pptx/connector-gesture.mbt)及 [`pptx-connectors.tsx`](../../packages/ui/src/pptx-connectors.tsx)。吸附规则参考 [ONLYOFFICE ResizeTrackShapeImage](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L370-L450)及 [Geometry.findConnector](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Geometry.js#L1174-L1187)。组内连接重算及父组逆变换参考 [ONLYOFFICE CnxShape](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CnxShape.js#L624-L684)。原生点顺序参考 ONLYOFFICE `CreateGeometry` 的[矩形](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L6741)、[椭圆](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L3100)、[圆角矩形](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L7195)和[直线连接线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L8272)，未复制上游执行代码。
+连接点计算归 [`connection-sites.mbt`](../../modules/formats/src/pptx/connection-sites.mbt)。三角形及箭头等点坐标依据 [ONLYOFFICE CreateGeometry](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L8525-L8620) 的原生导引。实现归 [`connector.mbt`](../../modules/formats/src/pptx/connector.mbt)、[`connector-edit.mbt`](../../modules/formats/src/pptx/connector-edit.mbt)、[`connector-gesture.mbt`](../../modules/formats/src/pptx/connector-gesture.mbt)及 [`pptx-connectors.tsx`](../../packages/ui/src/pptx-connectors.tsx)。吸附规则参考 [ONLYOFFICE ResizeTrackShapeImage](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TrackObjects/ResizeTracks.js#L370-L450)及 [Geometry.findConnector](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Geometry.js#L1174-L1187)。组内连接重算及父组逆变换参考 [ONLYOFFICE CnxShape](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CnxShape.js#L624-L684)。原生点顺序参考 ONLYOFFICE `CreateGeometry` 的[矩形](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L6741)、[椭圆](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L3100)、[圆角矩形](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L7195)和[直线连接线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L8272)，未复制上游执行代码。
 
 ### 基础艺术字
 
@@ -2821,6 +2833,8 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 形状文字和普通表格中的 `a14:m/m:oMath` 已接通原生读取、数学排版及 Canvas、PNG 和 PDF。单个 `m:oMathPara` 支持左/中/右对齐，`centerGroup` 按居中处理；显示公式独占段落，行内公式可与普通文字混排。已知 `mc:AlternateContent/Choice` 选择 DrawingML 2010 数学内容，保留原兼容后备源。包装形式依据 [ONLYOFFICE MathParaWrapper](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Runs/MathParaWrapper.cpp#L111-L130)。
 
 公式与 DOCX 共用[有界数学结构](#docx-行内分数)、字体度量和图元。分数、上下标、根式、定界符、求和/积分及矩阵的读取归 [共享 OMML 读取器](../../modules/formats/src/internal/omml/math-read.mbt)。普通正体或数字沿既有规则读取，统一字体/字号/RGB 支持原生 Word 属性和基本 DrawingML `a:rPr`；DrawingML 可使用显式字号、纯 RGB 与相同的文字字体槽。主题字体、主题色、透明度和其他数学字符效果仍受保护。源未声明字体时使用 `Cambria Math`，由宿主提供实际字体及 profile。
+
+独立公式使用较大的真实字体运算符，原生 `undOvr` / `subSup` 分别显示上下堆叠 / 右侧上下限，缩小参数仍用普通符号和右侧位置。模型、字体要求及 PDF 文字映射边界归[共享求和与积分布局](#docx-行内求和与积分)。文字框字号适配保留显示上下文，更新、无操作、精确历史及重开沿既有公式事务。
 
 `editObjects({ action: "insertMath", latex, format, x, y, width, height })` 创建原生公式文字框。选中单个本地文字框后，`{ action: "appendMath", latex, format, position: "start" | "end" }` 在首尾插入独立公式段落。`latex` 复用 [DOCX 有界语法](#docx-latex-公式编辑)。共用的 `MathFormat` 为 `{ family, size, color }`；字体名最多 255 个单行单元，字号为 0.5–409 pt、精度 0.01 pt，颜色为六位 RGB。默认面板提供相同的插入和外观操作。
 

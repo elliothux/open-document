@@ -1,6 +1,6 @@
 import { checkPptxConnectorEdit } from "./pptx-connectors.js";
 import { record } from "./validation.js";
-import { pptxInsertKinds } from "./pptx-object-edit.js";
+import { pptxInsertKinds, checkPptxShapeEdit } from "./pptx-object-edit.js";
 import { checkPptxChartEdit } from "./pptx-chart.js";
 import { checkPptxMathEdit } from "./pptx-math.js";
 import { checkPptxMediaInput, checkMediaPlayback } from "./pptx-media.js";
@@ -553,10 +553,8 @@ export function checkPptxObjectEdit(value: unknown): void {
     pptxHyperlink(change.link);
     return;
   }
-  if (change.action === "shapeAdjustment") {
-    if (!["adj", "adj1", "adj2", "adj3"].includes(String(change.name)))
-      throw new Error("Invalid PPTX shape adjustment");
-    if (change.value !== null) number(change.value, 0, 21474.83647);
+  if (change.action === "shapeAdjustment" || change.action === "shapeType") {
+    checkPptxShapeEdit(change);
     return;
   }
   if (change.action === "strokeCap") {

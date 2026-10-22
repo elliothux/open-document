@@ -5,6 +5,7 @@ import { PptxMedia } from "./pptx-media.js";
 import { useState } from "react";
 import type { PresentationEditor } from "@open-document/web/presentation-editor";
 import type { PptxObjectEdit, PptxHyperlink } from "@open-document/web/pptx";
+import { pptxInsertKinds } from "@open-document/web/pptx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { PptxPaint } from "./pptx-paint.js";
@@ -73,6 +74,10 @@ export function PptxObjects({
     (object) =>
       query.selection.objects.includes(object.id) && object.deleteReason,
   )?.deleteReason;
+  const shapeTypeReason = query.objects.find(
+    (object) =>
+      query.selection.objects.includes(object.id) && object.shapeTypeReason,
+  )?.shapeTypeReason;
   return (
     <section aria-label={t.insertObject}>
       <form
@@ -93,32 +98,10 @@ export function PptxObjects({
             <select
               value={draft.kind}
               onChange={(event) => {
-                const kind = event.currentTarget.value;
-                if (
-                  kind === "text" ||
-                  kind === "rect" ||
-                  kind === "roundRect" ||
-                  kind === "leftArrow" ||
-                  kind === "rightArrow" ||
-                  kind === "upArrow" ||
-                  kind === "downArrow" ||
-                  kind === "leftRightArrow" ||
-                  kind === "upDownArrow" ||
-                  kind === "quadArrow" ||
-                  kind === "ellipse" ||
-                  kind === "triangle" ||
-                  kind === "rtTriangle" ||
-                  kind === "diamond" ||
-                  kind === "parallelogram" ||
-                  kind === "trapezoid" ||
-                  kind === "pentagon" ||
-                  kind === "hexagon" ||
-                  kind === "octagon" ||
-                  kind === "plus" ||
-                  kind === "star5" ||
-                  kind === "line"
-                )
-                  setDraft({ ...draft, kind });
+                const kind = pptxInsertKinds.find(
+                  (kind) => kind === event.currentTarget.value,
+                );
+                if (kind) setDraft({ ...draft, kind });
               }}
             >
               <option value="text">{t.textBox}</option>
@@ -189,6 +172,29 @@ export function PptxObjects({
             />
           </label>
           <button type="submit">{t.insertObject}</button>
+          <button
+            type="button"
+            disabled={
+              !objectMode ||
+              !query.selection.objects.length ||
+              !!shapeTypeReason ||
+              draft.kind === "text" ||
+              draft.kind === "line"
+            }
+            title={shapeTypeReason}
+            onClick={() =>
+              controller.run(() =>
+                draft.kind === "text" || draft.kind === "line"
+                  ? Promise.resolve()
+                  : editor.editObjects({
+                      action: "shapeType",
+                      preset: draft.kind,
+                    }),
+              )
+            }
+          >
+            {t.changeShape}
+          </button>
           {query.editView.kind !== "slide" && (
             <>
               <PlaceholderType

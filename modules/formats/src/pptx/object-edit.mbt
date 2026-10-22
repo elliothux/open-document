@@ -61,6 +61,7 @@ pub(all) enum ObjectEdit {
   StrokeJoin(String?, Double)
   StrokeEnd(Bool, LineEnd?)
   ShapeAdjustment(String, Double?)
+  ShapeType(String)
   TextInsets(Double, Double, Double, Double)
   TextAnchor(String)
   TextWrap(Bool)
@@ -582,8 +583,12 @@ pub fn Session::edit_objects(
       self.set_object_hyperlink(kind, target)
     }
   }
-  if change is ShapeAdjustment(name, value) {
-    let changes = self.adjust_shape(name, value)
+  if change is ShapeAdjustment(_, _) || change is ShapeType(_) {
+    let changes = match change {
+      ShapeAdjustment(name, value) => self.adjust_shape(name, value)
+      ShapeType(preset) => self.shape_type_changes(preset)
+      _ => abort("Expected shape geometry edit")
+    }
     if changes.is_empty() {
       return self.query()
     }
@@ -630,6 +635,7 @@ pub fn Session::edit_objects(
     | ImageOpacity(_)
     | Hyperlink(_, _)
     | ShapeAdjustment(_, _)
+    | ShapeType(_)
     | TextFormat(_)
     | TextAlign(_)
     | TextParagraph(_)

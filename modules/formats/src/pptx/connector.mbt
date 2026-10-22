@@ -148,16 +148,7 @@ fn ConnectorEnd::resolved(
 
 ///|
 fn Object::connection_site_count(self : Object) -> Int {
-  if self.geometry is None ||
-    !["rect", "roundRect", "ellipse"].contains(self.preset) ||
-    !["sp", "pic"].contains(self.source.node.name) ||
-    !self.diagnostic.is_empty() {
-    0
-  } else if self.preset == "ellipse" {
-    8
-  } else {
-    4
-  }
+  self.local_connection_sites().length()
 }
 
 ///|
@@ -165,27 +156,13 @@ fn Object::connection_point(
   self : Object,
   site : Int,
 ) -> (Double, Double) raise @failure.Failure {
-  guard site >= 0 && site < self.connection_site_count() else {
+  let positions = self.local_connection_sites()
+  guard site >= 0 && site < positions.length() else {
     @failure.reject("protected-content", "Unsupported shape connection site")
-  }
-  let positions = if self.preset == "ellipse" {
-    let diagonal = 0.3535533905932738
-    [
-      (0.5, 0.0),
-      (0.5 - diagonal, 0.5 - diagonal),
-      (0.0, 0.5),
-      (0.5 - diagonal, 0.5 + diagonal),
-      (0.5, 1.0),
-      (0.5 + diagonal, 0.5 + diagonal),
-      (1.0, 0.5),
-      (0.5 + diagonal, 0.5 - diagonal),
-    ]
-  } else {
-    [(0.5, 0.0), (0.0, 0.5), (0.5, 1.0), (1.0, 0.5)]
   }
   let (x, y) = positions[site]
   let g = self.geometry.unwrap()
-  let (x, y) = g.matrix.point(x * g.width, y * g.height)
+  let (x, y) = g.matrix.point(x, y)
   ((x * 12700).round() / 12700, (y * 12700).round() / 12700)
 }
 

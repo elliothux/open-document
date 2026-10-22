@@ -100,9 +100,7 @@ export function PptxConnectors({
                       (o) =>
                         o.parent === (insert ? "" : (selected?.parent ?? "")) &&
                         o.id.startsWith(query.selection.slide + "#") &&
-                        ["rect", "roundRect", "ellipse"].includes(
-                          o.shapeAdjustments.preset,
-                        ) &&
+                        o.connectionSiteCount > 0 &&
                         !o.connector &&
                         o.kind !== "group" &&
                         o.kind !== "table" &&
@@ -137,12 +135,17 @@ export function PptxConnectors({
                         t.connectorRight,
                         t.connectorTopRight,
                       ]
-                    : [
-                        t.connectorTop,
-                        t.connectorLeft,
-                        t.connectorBottom,
-                        t.connectorRight,
-                      ]
+                    : target?.connectionSiteCount === 4
+                      ? [
+                          t.connectorTop,
+                          t.connectorLeft,
+                          t.connectorBottom,
+                          t.connectorRight,
+                        ]
+                      : Array.from(
+                          { length: target?.connectionSiteCount ?? 0 },
+                          (_, site) => `${t.connectorSite} ${site + 1}`,
+                        )
                   ).map((label, site) => (
                     <option key={site} value={site}>
                       {label}

@@ -243,7 +243,11 @@ fn Slide::connector_bounds(
         next is Some(next) &&
         old.geometry is Some(a) &&
         next.geometry is Some(b) &&
-        connector_frame_changed(a, b)
+        (
+          old.preset != next.preset ||
+          old.adjustments != next.adjustments ||
+          connector_frame_changed(a, b)
+        )
       })
     if !moved {
       return object

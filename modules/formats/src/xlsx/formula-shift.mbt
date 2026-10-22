@@ -8,7 +8,7 @@ fn stored_formula_names(formula : String) -> String raise @failure.Failure {
     if tokens[index] is Word(name) &&
       [
         "IFNA", "CONCAT", "TEXTJOIN", "DAYS", "XLOOKUP", "VAR.S", "VAR.P", "STDEV.S",
-        "STDEV.P", "MODE.SNGL",
+        "STDEV.P", "MODE.SNGL", "MINIFS", "MAXIFS",
       ].contains(name.to_upper()) &&
       tokens[index + 1] is Operator("(") {
       let (start, end) = spans[index]
@@ -125,7 +125,7 @@ fn Expression::source(
     Function(name, args) =>
       (if [
           "IFNA", "CONCAT", "TEXTJOIN", "DAYS", "XLOOKUP", "VAR.S", "VAR.P", "STDEV.S",
-          "STDEV.P", "MODE.SNGL",
+          "STDEV.P", "MODE.SNGL", "MINIFS", "MAXIFS",
         ].contains(name) {
         "_xlfn." + name
       } else {

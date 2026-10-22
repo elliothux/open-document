@@ -523,6 +523,14 @@ fn Foundation::pptx_operation(
               _ => Some(xlsx_number(change, "value"))
             },
           )
+        "shapeType" => {
+          guard change is Object(fields) &&
+            fields.length() == 2 &&
+            fields.keys().all(key => ["action", "preset"].contains(key)) else {
+            @failure.reject("invalid-operation", "Invalid shape type fields")
+          }
+          @pptx.ShapeType(field_string(change, "preset"))
+        }
         "hyperlink" =>
           match change {
             { "link": Null, .. } => @pptx.Hyperlink("none", "")

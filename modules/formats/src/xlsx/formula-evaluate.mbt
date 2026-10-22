@@ -292,7 +292,8 @@ fn Expression::evaluate(
     Function(name, args) if name == "COUNTA" || name == "COUNTBLANK" =>
       counting_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if [
-        "COUNTIF", "COUNTIFS", "SUMIF", "SUMIFS", "AVERAGEIF", "AVERAGEIFS",
+        "COUNTIF", "COUNTIFS", "SUMIF", "SUMIFS", "AVERAGEIF", "AVERAGEIFS", "MINIFS",
+        "MAXIFS",
       ].contains(name) =>
       conditional_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) => {

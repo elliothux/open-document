@@ -1,4 +1,4 @@
-import { record } from "./validation.js";
+import { record, integer } from "./validation.js";
 
 export interface PptxConnectorEnd {
   x: number;
@@ -48,7 +48,12 @@ export function checkPptxConnectorEdit(value: Record<string, unknown>): void {
   endpoint(value.start);
   endpoint(value.end);
 }
-export function checkPptxConnectorQuery(value: unknown): void {
+export function checkPptxConnectorQuery(
+  value: unknown,
+  siteCount: unknown,
+): void {
+  if (!integer(siteCount, 0, 8))
+    throw new Error("Invalid connection site count");
   if (value === null) return;
   const connector = record(value);
   if (typeof connector.reason !== "string")

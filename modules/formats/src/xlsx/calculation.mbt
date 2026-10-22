@@ -97,11 +97,11 @@ fn Expression::dependencies(
           "LOWER", "CONCAT", "CONCATENATE", "TEXTJOIN", "FIND", "SEARCH", "SUBSTITUTE",
           "EXACT", "REPT", "DATE", "YEAR", "MONTH", "DAY", "TIME", "HOUR", "MINUTE",
           "SECOND", "DAYS", "COUNTA", "COUNTBLANK", "COUNTIF", "COUNTIFS", "SUMIF",
-          "SUMIFS", "AVERAGEIF", "AVERAGEIFS", "INDEX", "MATCH", "VLOOKUP", "HLOOKUP",
-          "XLOOKUP", "ROW", "COLUMN", "ROWS", "COLUMNS", "SUBTOTAL", "SQRT", "POWER",
-          "PRODUCT", "MEDIAN", "SUMSQ", "DEVSQ", "VAR", "VAR.S", "VARP", "VAR.P",
-          "STDEV", "STDEV.S", "STDEVP", "STDEV.P", "MODE", "MODE.SNGL", "LARGE",
-          "SMALL", "SUMPRODUCT", "HYPERLINK",
+          "SUMIFS", "AVERAGEIF", "AVERAGEIFS", "MINIFS", "MAXIFS", "INDEX", "MATCH",
+          "VLOOKUP", "HLOOKUP", "XLOOKUP", "ROW", "COLUMN", "ROWS", "COLUMNS", "SUBTOTAL",
+          "SQRT", "POWER", "PRODUCT", "MEDIAN", "SUMSQ", "DEVSQ", "VAR", "VAR.S",
+          "VARP", "VAR.P", "STDEV", "STDEV.S", "STDEVP", "STDEV.P", "MODE", "MODE.SNGL",
+          "LARGE", "SMALL", "SUMPRODUCT", "HYPERLINK",
         ].contains(name) {
         @failure.reject("unsupported-formula", "Unsupported function: " + name)
       }

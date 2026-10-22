@@ -81,6 +81,7 @@ export type {
 export {
   checkPptxSlideEdit,
   pptxPlaceholderTypes,
+  pptxInsertKinds,
 } from "@open-document/wasm/pptx";
 
 /** A Worker owns presentation state, layout, history and source bytes. */

@@ -17,6 +17,7 @@ export interface PptxObject {
   equations: PptxMathItem[];
   media: PptxMedia | null;
   connector: PptxConnector | null;
+  connectionSiteCount: number;
   id: string;
   parent: string;
   name: string;
@@ -32,6 +33,7 @@ export interface PptxObject {
   transformReason: string;
   tableFillReason: string;
   chartFillReason: string;
+  shapeTypeReason: string;
   placeholder: { value: PptxPlaceholder | null; reason: string };
   hyperlink: { value: PptxHyperlink | null; reason: string };
   shapeAdjustments: {

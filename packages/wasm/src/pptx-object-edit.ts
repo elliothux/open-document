@@ -40,6 +40,30 @@ export const pptxInsertKinds = [
   "upDownArrow",
   "quadArrow",
 ] as const;
+
+export function checkPptxShapeEdit(change: Record<string, unknown>): void {
+  if (change.action === "shapeType") {
+    if (
+      Object.keys(change).length !== 2 ||
+      Object.keys(change).some((key) => !["action", "preset"].includes(key)) ||
+      !pptxInsertKinds.some(
+        (kind) => kind !== "text" && kind !== "line" && kind === change.preset,
+      )
+    )
+      throw new Error("Invalid PPTX shape type");
+  } else {
+    if (
+      !["adj", "adj1", "adj2", "adj3"].some((name) => name === change.name) ||
+      (change.value !== null &&
+        (typeof change.value !== "number" ||
+          !Number.isFinite(change.value) ||
+          change.value < 0 ||
+          change.value > 21474.83647))
+    )
+      throw new Error("Invalid PPTX shape adjustment");
+  }
+}
+
 export type PptxObjectEdit =
   | PptxMathEdit
   | ({
@@ -120,6 +144,10 @@ export type PptxObjectEdit =
   | { action: "imageInsets"; insets: [number, number, number, number] }
   | { action: "lineEnd"; side: "head" | "tail"; end: PptxLineEnd | null }
   | { action: "hyperlink"; link: PptxHyperlink | null }
+  | {
+      action: "shapeType";
+      preset: Exclude<(typeof pptxInsertKinds)[number], "text" | "line">;
+    }
   | {
       action: "shapeAdjustment";
       name: "adj" | "adj1" | "adj2" | "adj3";

@@ -368,6 +368,8 @@ fn FormulaParser::atom(
         "_XLFN.STDEV.S" => "STDEV.S"
         "_XLFN.STDEV.P" => "STDEV.P"
         "_XLFN.MODE.SNGL" => "MODE.SNGL"
+        "_XLFN.MINIFS" => "MINIFS"
+        "_XLFN.MAXIFS" => "MAXIFS"
         name => name
       }
       if self.accept("(") {
@@ -429,7 +431,7 @@ fn FormulaParser::atom(
           "COUNTIFS" =>
             args.length() >= 2 && args.length() <= 254 && args.length() % 2 == 0
           "SUMIF" | "AVERAGEIF" => args.length() == 2 || args.length() == 3
-          "SUMIFS" | "AVERAGEIFS" =>
+          "SUMIFS" | "AVERAGEIFS" | "MINIFS" | "MAXIFS" =>
             args.length() >= 3 && args.length() % 2 == 1
           "LEFT" | "RIGHT" => args.length() == 1 || args.length() == 2
           "MID" => args.length() == 3

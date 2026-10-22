@@ -17,6 +17,7 @@ export type {
   PptxMathEdit,
 } from "./pptx-math.js";
 export type { PptxChart } from "./pptx-chart.js";
+export { pptxInsertKinds } from "./pptx-object-edit.js";
 import {
   checkPptxMedia,
   checkMediaPlaybackQuery,
@@ -460,7 +461,7 @@ export function pptxQuery(value: unknown): PptxQuery {
   for (const item of query.objects) {
     const object = record(item);
     checkPptxPlaceholderQuery(object.placeholder);
-    checkPptxConnectorQuery(object.connector);
+    checkPptxConnectorQuery(object.connector, object.connectionSiteCount);
     checkPptxMedia(object.media);
     if (object.chart !== null) checkPptxChart(object.chart);
     checkPptxMathItems(object.equations);
@@ -570,11 +571,9 @@ export function pptxQuery(value: unknown): PptxQuery {
       !hasFields(
         object,
         [
-          "id",
           "parent",
           "name",
           "kind",
-          "text",
           "readOnlyReason",
           "textReadOnlyReason",
           "deleteReason",
@@ -584,6 +583,7 @@ export function pptxQuery(value: unknown): PptxQuery {
           "transformReason",
           "tableFillReason",
           "chartFillReason",
+          "shapeTypeReason",
         ],
         [],
       ) ||

@@ -107,7 +107,7 @@ fn measure_math_nary(
   body : MathBox,
   size : Double,
 ) -> MathBox {
-  // ONLYOFFICE nary.js uses ordinary glyphs with side scripts in inline formulae.
+  // ONLYOFFICE nary.js uses a font-size-proportional gap between sign and body.
   let gap = size / 36 * 2.45 * 72 / 25.4
   let ascent = operator.ascent.max(body.ascent)
   let descent = (operator.height - operator.ascent).max(
