@@ -24,6 +24,8 @@ PDF 输入和文档操作见 [P7](../implemented/p7-pdf-input.md) 与 [P8](../im
 
 `layout/chart-*` 拥有图表系列模型和排版；`formats/internal/chart` 读写原生图表 XML 与关系，不依赖 XLSX。嵌入工作簿的矩形数据读取归 `formats/xlsx/chart-data.mbt`，DOCX/PPTX 各自维护源对象与资源事务。传输校验和默认面板共用图表字段，TS 不持有第二份图表状态。
 
+`layout/math-*` 拥有数学结构、字体度量和图元；`formats/internal/omml` 共用有界原生读取、LaTeX 和 OMML 写回，DOCX 提供文档数学设置，PPTX 处理 DrawingML 与兼容包装。编辑事务归各格式模块，PPTX 创作继续在相同结构上实现。TS 继续只处理平台输入和绘制。
+
 文本 POC 使用 UTF-16 范围，不允许切断 surrogate pair；它不是字素导航或富文本编辑器。核心保留最多 100 条文本快照用于 POC 撤销；DOCX 编辑使用独立的局部源补丁历史。当前 ABI 使用 JS string builtins，尚不承诺其他 WasmGC runtime 等价运行。
 
 ## 当前 Foundation API

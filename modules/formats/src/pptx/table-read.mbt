@@ -189,7 +189,9 @@ fn read_drawing_table(
         run_styles=layers.filter_map(layer => layer.text),
       )
       table_profile(
-        reason.is_empty() && !paragraphs.is_empty() && body.fit == "none",
+        (reason.is_empty() || reason == math_text_reason) &&
+        !paragraphs.is_empty() &&
+        body.fit == "none",
         if reason.is_empty() {
           "Empty table cell text body"
         } else {
@@ -198,7 +200,13 @@ fn read_drawing_table(
       )
       if !h_merge && !v_merge {
         units += paragraphs.fold(init=0, (sum, p) => {
-          sum + p.runs.fold(init=1, (sum, run) => sum + run.text.length())
+          sum +
+          p.runs.fold(init=1, (sum, run) => {
+            sum +
+            run.math
+            .map(formula => formula.expression.linear_text().length())
+            .unwrap_or(run.text.length())
+          })
         })
       }
       guard units <= 32767 else {

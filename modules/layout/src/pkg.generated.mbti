@@ -458,6 +458,7 @@ pub(all) enum MathExpression {
   Nary(String, String, MathExpression?, MathExpression?, MathExpression)
   Matrix(String, ReadOnlyArray[String], ReadOnlyArray[ReadOnlyArray[MathExpression?]])
 }
+pub fn MathExpression::linear_text(Self) -> String
 pub fn MathExpression::to_json(Self) -> Json
 pub impl ToJson for MathExpression
 

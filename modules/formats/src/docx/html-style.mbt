@@ -10,6 +10,7 @@ priv struct HtmlContext {
   list : (Int, Int)?
   first : Ref[Bool]
   heading : Int
+  keepNext : Bool
   link : (String, String)?
 }
 
@@ -82,6 +83,7 @@ fn html_style(
   let mut context = original
   let mut format = original.format
   match tag {
+    "caption" => context = { ..context, align: "center", }
     "th" => {
       format = { ..format, bold: Set(true), }
       context = { ..context, align: "center", }

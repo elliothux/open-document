@@ -952,9 +952,13 @@ script/style/head 元数据和 iframe/object/embed/template/noscript 子树全�
 
 ### HTML 表格
 
-HTML 输入支持 `table`、`thead/tbody/tfoot` 行组、`tr`、`td/th` 及 `colgroup/col`。核心将网格写为原生 Word 表格，`rowspan/colspan` 生成纵向延续与列跨度；`rowspan=0` 延续到当前行组末尾，超过行组的跨度截到该边界。缺少的普通格补为空格。`th` 默认粗体和居中，显式字符/段落样式继续覆盖。格内段落、列表、链接及内嵌 PNG/JPEG 沿现有转换与资源事务，禁止嵌套表格。
+HTML 输入支持 `table`、`caption`、`thead/tbody/tfoot` 行组、`tr`、`td/th` 及 `colgroup/col`。核心将网格写为原生 Word 表格，`rowspan/colspan` 生成纵向延续与列跨度；`rowspan=0` 延续到当前行组末尾，超过行组的跨度截到该边界。缺少的普通格补为空格。`th` 默认粗体和居中，显式字符/段落样式继续覆盖。格内段落、列表、链接及内嵌 PNG/JPEG 沿现有转换与资源事务，禁止嵌套表格。
 
-表格 `width` 属性或 CSS 支持数字/px、pt 和大于 0、不超过 100% 的宽度，默认 100% 的可用栏宽。`colgroup/col` 的 `span` 和数字/px/pt 宽度生成原生列宽与合并格宽度，缺省列为 72 pt；列组宽度按子列继承，未声明的余列等宽。表格百分比在实际接收栏位解析，绝对列宽保留比例。单格 `bgcolor/background-color`、`valign/vertical-align` 与 table 的 0–16 px `border` 已接通原生底色、垂直对齐及黑色实线边框。其他 CSS 沿上述白名单处理；caption、百分比列宽、按内容自动估算列宽、重复表头及更广边框/尺寸继续实施。
+可见 `thead` 行写为连续的原生 `tblHeader`，复用[重复表头](#重复表头)的跨页布局、合并格、原生编辑及输出。表头排在正文行组之前，`tfoot` 排在正文行组之后，各类行组内部保留源顺序。隐藏行不占表头行数，普通 `th` 不会自动成为重复表头。纯文本按相同可见顺序生成 TSV，不重复输出表头。标志写回参考 [ONLYOFFICE HTML 表头转换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L10581-L10607)，多行和跨页沿本项目的原生表格合同。
+
+题注转换为表格前后的普通 Word 段落，保留受支持的富文本、链接、多段内容及原生输入。默认置顶并沿普通段落宽度居中，CSS `text-align` 可覆盖。`caption-side: top/bottom` 支持题注自身设置及表格继承，旧 `align="bottom"` 作为无 CSS 时的底端位置。隐藏题注不输出。源格式的顶端题注通过 `keepNext` 与表格保留分页关系；匹配格式沿目标段落属性，纯文本按可见位置输出一次。默认位置、居中及段落转换参考 [LibreOffice HTML 题注](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/filter/html/htmltab.cxx#L4552-L4592)。自动编号与交叉引用仍按[序列编号字段](#序列编号字段)和 P10 引用功能继续实施。
+
+表格 `width` 属性或 CSS 支持数字/px、pt 和大于 0、不超过 100% 的宽度，默认 100% 的可用栏宽。`colgroup/col` 的 `span` 和数字/px/pt 宽度生成原生列宽与合并格宽度，缺省列为 72 pt；列组宽度按子列继承，未声明的余列等宽。表格百分比在实际接收栏位解析，绝对列宽保留比例。单格 `bgcolor/background-color`、`valign/vertical-align` 与 table 的 0–16 px `border` 已接通原生底色、垂直对齐及黑色实线边框。其他 CSS 沿上述白名单处理；百分比列宽、按内容自动估算列宽及更广边框/尺寸继续实施。
 
 源格式和匹配格式保留表格结构，匹配格式将插入点的字符/段落格式应用到各格，保留源强调、编号、链接和表格属性。纯文本按表格位置插入带引号的 TSV，跨列和纵向延续格留空，主格文字仅出现一次。正文可一次粘贴段落与表格；首尾段落与目标文字合并，表格两侧文字各自保留。段首插表不新增前置空段，段前分页随第一格转移。目标在单元格内时，含表格的源/匹配方式拒绝嵌套；纯文本方式仍沿普通输入。
 
@@ -2785,6 +2789,16 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 `text` 必须含非空白内容，沿现有对象文字规则接受有效 XML 字符、LF 段落、软换行和 Tab；最多 32767 个 UTF-16 单元、256 段，每段最多 4096 单元。旧 revision、活动候选、放映、保护、字体及尺寸/输出/历史预算失败原子拒绝。框尺寸沿既有 14400 pt 上限。文字描边、渐变、阴影、弯曲及三维艺术字继续实施，已有变形节点继续诊断并保护源。
 
 不换行只关闭自动断行；对齐、RTL、制表位和命中继续使用实际框宽。核心不再用极大虚拟宽度对齐，并在段落缓存中区分是否换行。实现归 [`word-art.mbt`](../../modules/formats/src/pptx/word-art.mbt)、[`text-frame.mbt`](../../modules/layout/src/text-frame.mbt)和默认 [`word-art.tsx`](../../packages/ui/src/word-art.tsx)。文字框、无底色/边框、54 pt、居中与自动适配参考 [ONLYOFFICE createTextArt](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L8794-L8912)，插入历史和整段选择参考 [AddTextArt](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L11071-L11103)。五种纯色配方按 GenOffice 功能清单选择；未复制上游执行代码。
+
+### PPTX 数学公式
+
+形状文字和普通表格中的 `a14:m/m:oMath` 已接通原生读取、数学排版及 Canvas、PNG 和 PDF。单个 `m:oMathPara` 支持左/中/右对齐，`centerGroup` 按居中处理；显示公式独占段落，行内公式可与普通文字混排。已知 `mc:AlternateContent/Choice` 选择 DrawingML 2010 数学内容，保留原兼容后备源。包装形式依据 [ONLYOFFICE MathParaWrapper](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Runs/MathParaWrapper.cpp#L111-L130)。
+
+公式与 DOCX 共用[有界数学结构](#docx-行内分数)、字体度量和图元。分数、上下标、根式、定界符、求和/积分及矩阵的读取归 [共享 OMML 读取器](../../modules/formats/src/internal/omml/math-read.mbt)。普通正体或数字沿既有规则读取，统一字体/字号/RGB 支持原生 Word 属性和基本 DrawingML `a:rPr`；DrawingML 可使用显式字号、纯 RGB 与相同的文字字体槽。主题字体、主题色、透明度和其他数学字符效果仍受保护。源未声明字体时使用 `Cambria Math`，由宿主提供实际字体及 profile。
+
+公式通过既有段落图形框参与基线、断行、框内边距、垂直锚定与表格单元格位移，不转换为图片。对象查询的 `text` 返回可读线性表达，含公式对象的文字编辑给出 `textReadOnlyReason`。已有对象操作保留原 OMML；已解析公式和空兼容后备可随对象或整页独立复制，复制/删除、精确混合历史与重开沿原事务。非空后备及公式范围外未知扩展继续保护复制。公式创建、修改及默认编辑面板仍按 P12 继续实施。
+
+单式沿 16 层、256 个结构节点和 4096 个文字单元的上限，PPTX 单式 XML 另限 2048 节点。文字框、页面字形、图元、资源和历史预算沿既有路径；未支持的数学源给出对象诊断并保护源，缺数学字体时输出明确失败。实现归 [PPTX 数学读取](../../modules/formats/src/pptx/math-read.mbt)和[段落绘制](../../modules/formats/src/pptx/layout.mbt)。DrawingML 数学字符属性依据 [ONLYOFFICE 数学内容](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/DocxFormat/Math/oMathContent.cpp#L2393-L2406)。
 
 ### PPTX 基础图表
 

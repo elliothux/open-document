@@ -367,7 +367,8 @@ fn read_object(
     theme, chain, master, defaults, page_number, date_time,
   ) catch {
     @failure.Failure(code~, message~, ..) if code == "unsupported-text" ||
-      code == "unsupported-style" => {
+      code == "unsupported-style" ||
+      code == "unsupported-math" => {
       diagnostic = message
       (
         [],
@@ -390,7 +391,7 @@ fn read_object(
       source, theme, master, defaults, geometry, page_number, date_time,
     ) catch {
       @failure.Failure(code~, message~, ..) if [
-          "unsupported-table", "unsupported-text", "unsupported-style",
+          "unsupported-table", "unsupported-text", "unsupported-style", "unsupported-math",
         ].contains(code) => {
         diagnostic = message
         None
@@ -426,6 +427,9 @@ fn read_object(
     "Edit chart text through chart data"
   } else if source.node.name == "cxnSp" {
     "Connectors do not have editable text"
+  } else if limitation.is_empty() &&
+    paragraphs.any(paragraph => paragraph.runs.any(run => run.math is Some(_))) {
+    math_text_reason
   } else {
     limitation
   }

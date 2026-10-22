@@ -117,20 +117,29 @@ fn Object::paint_table(
             x: run.x + x,
             baseline: run.baseline + y,
           }),
+          drawings: line.drawings.map(drawing => {
+            ..drawing,
+            start: drawing.start + offset,
+            x: drawing.x + x,
+            y: drawing.y + y,
+          }),
           carets: line.carets.map(caret => {
             ..caret,
             offset: caret.offset + offset,
           }),
         }
-        output.append(
-          { ..placed, clip: false, }.positioned(
-            fonts,
-            self.geometry.unwrap().width,
-          ),
+        let commands = { ..placed, clip: false, }.positioned(
+          fonts,
+          self.geometry.unwrap().width,
         )
-        units += [..line.marker, ..line.runs].fold(init=0, (sum, run) => {
-          sum + run.glyphs.length()
-        })
+        for command in commands {
+          if command is @layout.Text(text) {
+            units += text.runs.fold(init=0, (sum, run) => {
+              sum + run.glyphs.length()
+            })
+          }
+        }
+        output.append(commands)
         guard units <= 262144 else {
           @failure.reject("limit-exceeded", "Table glyphs exceed budget")
         }

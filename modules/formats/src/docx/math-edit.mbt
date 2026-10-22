@@ -101,7 +101,7 @@ fn Session::math_catalog(
     let reason = try {
       let (_, content) = self.math_target(tree, id)
       if kind == "expression" && content is Math(formula) {
-        item["latex"] = Json(math_latex(formula.expression))
+        item["latex"] = Json(@omml.latex(formula.expression))
       } else {
         let (is_script, arguments) = math_plain_arguments(content)
         guard scripts == is_script else {

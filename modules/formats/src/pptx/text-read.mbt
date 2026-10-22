@@ -258,7 +258,29 @@ fn read_text(
     run_defaults.append(run_styles)
     run_defaults.append(children(styles[local_count:].to_owned(), "defRPr"))
     let runs : Array[TextRun] = []
+    let mut math_align : String? = None
     for node in current.tree.children.get(paragraph.id).unwrap_or([]) {
+      let item : Ref = { tree: current.tree, node, }
+      if item.math_source() is Some((source, align)) {
+        let formula = source.read_math(
+          text_style(theme, run_defaults, "0", default_font),
+        )
+        runs.push({
+          source: Some(item),
+          date_field: None,
+          math: Some(formula),
+          text: "\ufffc",
+          parts: [(formula.style, "\ufffc")],
+        })
+        units += formula.expression.linear_text().length()
+        if align is Some(_) {
+          math_align = align
+        }
+        if reason.is_empty() {
+          reason = math_text_reason
+        }
+        continue
+      }
       if node.uri != drawing_uri {
         reason = "Unknown text frame content"
         continue
@@ -300,6 +322,7 @@ fn read_text(
       }
       runs.push({
         source: Some(item),
+        math: None,
         date_field: date_text.bind(_ => {
           presentation_date_format(item, style_sources)
         }),
@@ -317,6 +340,7 @@ fn read_text(
       style_sources.append(font_ref)
       runs.push({
         source: None,
+        math: None,
         date_field: None,
         text: "",
         parts: styled_text(theme, style_sources, "", default_font),
@@ -334,7 +358,16 @@ fn read_text(
     if !diagnostic.is_empty() {
       reason = diagnostic
     }
-    paragraphs.push(resolved)
+    if math_align is Some(align) {
+      guard runs.length() == 1 else {
+        @failure.reject(
+          "unsupported-math", "Display math requires its own paragraph",
+        )
+      }
+      paragraphs.push({ ..resolved, align, })
+    } else {
+      paragraphs.push(resolved)
+    }
   }
   (paragraphs, body, reason)
 }

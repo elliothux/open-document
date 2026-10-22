@@ -200,7 +200,7 @@ fn MathExpression::check(self : MathExpression) -> Unit raise @failure.Failure {
 }
 
 ///|
-fn MathExpression::linear_text(self : MathExpression) -> String {
+pub fn MathExpression::linear_text(self : MathExpression) -> String {
   match self {
     Matrix(_, _, rows) =>
       "matrix(" +

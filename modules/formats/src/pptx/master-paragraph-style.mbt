@@ -61,7 +61,13 @@ fn master_paragraph(
   let styles = master_style_sources(tree, main, kind, level)
   let style = text_style(theme, children(styles, "defRPr"), "A", "+mn-lt")
   let runs : Array[TextRun] = [
-    { source: None, date_field: None, text: "", parts: [(style, "")], },
+    {
+      source: None,
+      date_field: None,
+      math: None,
+      text: "",
+      parts: [(style, "")],
+    },
   ]
   let source = own.unwrap_or({ tree, node: tree.document.nodes()[0], })
   let (resolved, reason) = read_paragraph_style(

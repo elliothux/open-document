@@ -245,6 +245,11 @@ fn Session::object_edit_reason(
       return "Duplicating inherited placeholders is not supported yet"
     }
     let target = object.source.node
+    let math_nodes = if duplicate {
+      object.source.tree.math_copy_nodes(target.start, target.end)
+    } else {
+      Set([])
+    }
     let tree = object.source.tree
     let identities : Map[String, Bool] = Map([])
     let pending = [target]
@@ -288,7 +293,8 @@ fn Session::object_edit_reason(
           object.chart is Some(_) &&
           object.parent.is_empty() &&
           chart_frame_reference(tree, node)
-        )) {
+        ) ||
+        math_nodes.contains(node.id)) {
         return "Unknown object extensions prevent duplication"
       }
     }

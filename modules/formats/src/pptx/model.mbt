@@ -14,6 +14,7 @@ priv struct Geometry {
 priv struct TextRun {
   source : Ref?
   date_field : (Int, String)?
+  math : @layout.MathFormula?
   text : String
   parts : Array[(@layout.TextStyle, String)]
 }
@@ -113,6 +114,21 @@ priv struct Object {
 fn Object::text(self : Object) -> String {
   self.paragraphs
   .map(paragraph => paragraph.runs.map(run => run.text).join(""))
+  .join("\n")
+}
+
+///|
+fn Object::accessible_text(self : Object) -> String {
+  self.paragraphs
+  .map(paragraph => {
+    paragraph.runs
+    .map(run => {
+      run.math
+      .map(formula => formula.expression.linear_text())
+      .unwrap_or(run.text)
+    })
+    .join("")
+  })
   .join("\n")
 }
 

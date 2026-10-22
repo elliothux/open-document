@@ -1,5 +1,11 @@
 # 测试说明
 
+P12 原生公式读取与显示通过 17 项定向核心检查及 1 条 Chromium 流程。形状混排、显示公式、普通表格、DrawingML 属性、对象/页面复制、精确历史及重开通过；与 DOCX 共用的读取器保留七类数学结构与原保护。实际 Canvas/PNG 和独立 PDF 检查通过，两方向栅格对照无缺失笔画。公开 api/check/build 与私有 typecheck/lint 通过，证据归 `pptxMathReadCheckpoint`。公式创建和内容编辑仍待实施；未跑全量或安装包矩阵，P10–P12 保持实施中。
+
+P10 HTML 表格题注通过 8 项定向核心检查及 1 条扩展 Chromium 流程。顶端/底端、继承和显式位置、富文本链接、三种粘贴方式、精确混合历史及重开输入通过；独立 XML 核对原生段落和分页保留，PDF 中题注只出现一次。公开 check/build 与私有 typecheck/lint 通过，证据归 `htmlTableCaptionsCheckpoint`；未跑全量或新增浏览器矩阵，P10–P12 保持实施中。
+
+P10 HTML 表格重复表头通过 7 项定向核心检查及 1 条扩展 Chromium 流程。原生 XML 保留两行表头，重开后输入同步到七页 PDF，正文唯一值各出现一次；隐藏行、行组顺序、合并跨度、三种粘贴方式及精确混合历史通过。公开 check/build 与私有 typecheck/lint 通过，证据归 `htmlTableHeadersCheckpoint`；未跑全量或新增浏览器矩阵，P10–P12 保持实施中。
+
 P10 图表定位与几何通过 12 项定向核心检查及 174 个接口断言。既有 Chromium 图表流程扩展尺寸、环绕、Canvas 选择、取消、键盘变换及四步精确历史后通过。核心另覆盖五种定位、跨页锚定、浮动复制、独立锁和重开；环绕的可访问文字遗漏已修复。证据归 `docxChartPositionCheckpoint`；未跑全量或附加浏览器矩阵，P10–P12 保持实施中。
 
 P10 图表富文本复制/剪切及跨文档粘贴通过 14 项定向核心检查，包含两项新图表传递用例及图表、图片、形状和数学片段回归。1 条新增 Chromium 流程通过实际系统剪贴板、独立工作簿数值、Canvas/PNG/PDF、四步精确混合历史和重开编辑检查。公开 api/check/build 与私有 typecheck/lint 通过，证据归 `docxChartClipboardCheckpoint`。复用既有传输检查，未跑全量或重复浏览器矩阵；复杂样式仍待实施，P10–P12 保持实施中。

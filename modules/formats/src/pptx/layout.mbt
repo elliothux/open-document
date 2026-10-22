@@ -17,7 +17,17 @@ fn measure_text(
         spans.push({
           node: run.source.map(item => item.node.id).unwrap_or(0),
           text: text.replace_all(old="\u2028", new="\n"),
-          drawing: None,
+          drawing: run.math.map(formula => {
+            width: 0,
+            height: 0,
+            anchor: None,
+            content: @layout.Math(
+              @layout.MathFormula::new(formula.expression, {
+                ..formula.style,
+                size: formula.style.size * scale,
+              }),
+            ),
+          }),
           field: "",
           style: { ..style, size: style.size * scale, },
         })
@@ -108,6 +118,12 @@ fn measure_text(
           x: run.x + line.x + object.body.left,
           baseline: run.baseline + top,
         }),
+        drawings: line.drawings.map(drawing => {
+          ..drawing,
+          start: drawing.start + offset,
+          x: drawing.x + line.x + object.body.left,
+          y: drawing.y + top,
+        }),
         carets: line.carets.map(caret => {
           ..caret,
           offset: caret.offset + offset,
@@ -194,6 +210,7 @@ fn fit_text(
       y: line.y + dy,
       runs: line.runs.map(run => { ..run, baseline: run.baseline + dy, }),
       marker: line.marker.map(run => { ..run, baseline: run.baseline + dy, }),
+      drawings: line.drawings.map(drawing => { ..drawing, y: drawing.y + dy, }),
     }),
     scale,
     diagnostic,
@@ -409,12 +426,18 @@ fn paint_slide(
         )
         for line in lines {
           // Keep the presentation's frame-level clipping for exact-spaced lines.
-          primitives.append(
-            { ..line, clip: false, }.positioned(fonts, geometry.width),
+          let commands = { ..line, clip: false, }.positioned(
+            fonts,
+            geometry.width,
           )
-          units += [..line.marker, ..line.runs]
-            .iter()
-            .fold(init=0, (sum, run) => sum + run.glyphs.length())
+          for command in commands {
+            if command is @layout.Text(text) {
+              units += text.runs.fold(init=0, (sum, run) => {
+                sum + run.glyphs.length()
+              })
+            }
+          }
+          primitives.append(commands)
           guard units <= 262144 else {
             @failure.reject("limit-exceeded", "Slide glyphs exceed budget")
           }

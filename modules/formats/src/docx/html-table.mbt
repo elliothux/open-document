@@ -47,14 +47,24 @@ fn HtmlInput::table_rows(
   id : Int,
   context : HtmlContext,
   depth : Int,
-) -> Array[(Int, HtmlContext, Int)] raise @failure.Failure {
+) -> Array[(Int, HtmlContext, Int, Bool)] raise @failure.Failure {
   guard self.document.get_node(id) is Some(ElementNode(table)) else {
     @failure.reject("unsupported-input", "Missing HTML table")
   }
-  let rows : Array[(Int, HtmlContext, Int)] = []
-  for child in table.children {
+  let rows : Array[(Int, HtmlContext, Int, Bool)] = []
+  // HTML lays out header and footer groups before and after body groups.
+  let groups = table.children.filter(id => {
+      self.document.get_tag_name(id) == Some("thead")
+    }) +
+    table.children.filter(id => {
+      ![Some("thead"), Some("tfoot")].contains(self.document.get_tag_name(id))
+    }) +
+    table.children.filter(id => self.document.get_tag_name(id) == Some("tfoot"))
+  for child in groups {
     let tag = self.document.get_tag_name(child).unwrap_or("")
-    if tag.is_empty() || html_ignored_element(tag) || tag == "colgroup" {
+    if tag.is_empty() ||
+      html_ignored_element(tag) ||
+      ["colgroup", "caption"].contains(tag) {
       continue
     }
     guard ["thead", "tbody", "tfoot"].contains(tag) else {
@@ -90,7 +100,7 @@ fn HtmlInput::table_rows(
       @failure.reject("limit-exceeded", "HTML table exceeds row budget")
     }
     for (row, context) in visible {
-      rows.push((row, context, end))
+      rows.push((row, context, end, tag == "thead"))
     }
   }
   guard !rows.is_empty() else {
@@ -117,12 +127,14 @@ fn HtmlInput::table(
     list: None,
     first: Ref(false),
     heading: 0,
+    keepNext: false,
   }
+  self.table_caption(id, context, depth, false)
   let rows = self.table_rows(id, context, depth)
   let slots = Array::makei(rows.length(), _ => Array::make(63, -1))
   let cells : Array[HtmlCell] = []
   let mut columns = 0
-  for r, (node, context, end) in rows {
+  for r, (node, context, end, _) in rows {
     guard self.document.get_node(node) is Some(ElementNode(row)) else {
       @failure.reject("unsupported-input", "Missing HTML row")
     }
@@ -184,6 +196,9 @@ fn HtmlInput::table(
   self.inTable = true
   for r in 0..<rows.length() {
     self.output.add("<od:tr>")
+    if rows[r].3 {
+      self.output.add("<od:trPr><od:tblHeader/></od:trPr>")
+    }
     for column = 0; column < columns; {
       let cell = slots[r][column]
       let owner = cells.get(cell)
@@ -227,6 +242,55 @@ fn HtmlInput::table(
   }
   self.inTable = false
   self.output.add("</od:tbl>")
+  self.table_caption(id, context, depth, true)
+}
+
+///|
+fn HtmlInput::table_caption(
+  self : HtmlInput,
+  table : Int,
+  context : HtmlContext,
+  depth : Int,
+  bottom : Bool,
+) -> Unit raise @failure.Failure {
+  guard self.document.get_node(table) is Some(ElementNode(element)) else {
+    @failure.reject("unsupported-input", "Missing HTML table")
+  }
+  for id in element.children {
+    if self.document.get_tag_name(id) != Some("caption") {
+      continue
+    }
+    let caption = html_style(self.document, id, context)
+    if caption.hidden || self.document.has_attribute(id, "hidden") {
+      continue
+    }
+    let side = html_table_style(self.document, id, "caption-side")
+      .unwrap_or_else(() => {
+        html_table_style(self.document, table, "caption-side").unwrap_or(
+          if self.document
+            .get_attribute(id, "align")
+            .map(value => value.to_lower()) ==
+            Some("bottom") {
+            "bottom"
+          } else {
+            "top"
+          },
+        )
+      })
+      .trim()
+      .to_owned()
+      .to_lower()
+    guard ["top", "bottom"].contains(side) else {
+      @failure.reject(
+        "unsupported-input", "HTML caption requires top or bottom placement",
+      )
+    }
+    if (side == "bottom") == bottom {
+      self.inTable = true
+      self.walk(id, { ..context, keepNext: !bottom, }, depth + 1)
+      self.inTable = false
+    }
+  }
 }
 
 ///|

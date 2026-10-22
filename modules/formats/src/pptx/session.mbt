@@ -315,7 +315,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
         .map(chart => chart.data.query())
         .unwrap_or(Json::null()),
         "media": object.media_query(),
-        "text": object.text(),
+        "text": object.accessible_text(),
         "readOnlyReason": object.read_only,
         "textReadOnlyReason": object.text_reason,
         "deleteReason": if self.selection.objects.contains(object.id) &&

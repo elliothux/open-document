@@ -1,0 +1,25 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "open_document/formats/internal/omml"
+
+import {
+  "open_document/core/failure",
+  "open_document/core/xml",
+  "open_document/layout",
+}
+
+// Values
+pub fn latex(@layout.MathExpression) -> String
+
+pub fn markup(@layout.MathFormula, inherited? : Bool, drawing? : Bool) -> String raise @failure.Failure
+
+pub fn parse_latex(String) -> @layout.MathExpression raise @failure.Failure
+
+pub fn read(Map[Int, @xml.Node], Map[Int, Array[Int]], Int, @layout.TextStyle, (String) -> String raise @failure.Failure) -> @layout.MathFormula raise @failure.Failure
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits

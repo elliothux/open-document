@@ -49,7 +49,7 @@ fn HtmlInput::paragraph(
     @failure.reject("limit-exceeded", "HTML exceeds paragraph budget")
   }
   self.output.add("<od:p><od:pPr>")
-  if context.heading > 0 {
+  if context.heading > 0 || context.keepNext {
     self.output.add("<od:keepNext/>")
   }
   let number = if context.first.val { context.list } else { None }
@@ -156,7 +156,7 @@ fn HtmlInput::walk(
         [
           "html", "body", "div", "p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote",
           "ul", "ol", "li", "pre", "span", "b", "strong", "i", "em", "u", "s", "strike",
-          "del", "sup", "sub", "code", "a", "br", "img", "table",
+          "del", "sup", "sub", "code", "a", "br", "img", "table", "caption",
         ].contains(tag) else {
         @failure.reject(
           "unsupported-input",
@@ -223,7 +223,7 @@ fn HtmlInput::walk(
       }
       let block = [
         "div", "p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "ul", "ol",
-        "li", "pre",
+        "li", "pre", "caption",
       ].contains(tag)
       if block {
         self.close_paragraph()
@@ -275,7 +275,9 @@ fn HtmlInput::walk(
       }
       if block {
         if self.output.paragraphs == before &&
-          ["p", "h1", "h2", "h3", "h4", "h5", "h6", "pre", "li"].contains(tag) {
+          ["p", "h1", "h2", "h3", "h4", "h5", "h6", "pre", "li", "caption"].contains(
+            tag,
+          ) {
           self.paragraph(context)
         }
         self.close_paragraph()
@@ -345,6 +347,7 @@ fn Session::html_fragment(
     list: None,
     first: Ref(false),
     heading: 0,
+    keepNext: false,
     link: None,
   }
   input.walk(document.document_element, context, 0)

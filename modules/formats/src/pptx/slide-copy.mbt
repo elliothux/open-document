@@ -22,6 +22,7 @@ fn copied_creation_extension(tree : Tree, node : @xml.Node) -> Bool {
 
 ///|
 fn check_slide_copy_markup(tree : Tree) -> Unit raise @failure.Failure {
+  let math_nodes = tree.math_copy_nodes(0, tree.document.source().length())
   for node in tree.document.nodes() {
     let creation = node.uri == creation_uri &&
       node.name == "creationId" &&
@@ -35,13 +36,20 @@ fn check_slide_copy_markup(tree : Tree) -> Unit raise @failure.Failure {
         [presentation_uri, drawing_uri].contains(node.uri) ||
         creation ||
         media ||
-        chart_frame_reference(tree, node)
+        chart_frame_reference(tree, node) ||
+        math_nodes.contains(node.id)
       ) &&
       node.attributes
       .iter()
       .all(a => {
         a.uri.is_empty() ||
         a.uri == relationship_uri ||
+        (
+          math_nodes.contains(node.id) &&
+          [
+            math_uri, "http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+          ].contains(a.uri)
+        ) ||
         a.uri == "http://www.w3.org/XML/1998/namespace"
       }) &&
       (

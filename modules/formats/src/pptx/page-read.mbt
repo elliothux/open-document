@@ -240,6 +240,7 @@ fn read_slide(
       object.source.node.name != "cxnSp" &&
       !object.text_reason.is_empty() &&
       !calculated_field_reason(object.text_reason) &&
+      object.text_reason != math_text_reason &&
       object.read_only.is_empty() {
       diagnostics.push(object.id + ":" + object.text_reason)
     }
