@@ -68,6 +68,7 @@ fn Session::sheet_rename_reason(
   pivots~ : Bool = false,
   sparklines~ : Bool = false,
   pictures~ : Bool = false,
+  charts~ : Bool = false,
 ) -> String {
   try {
     let reason = self.sheet_edit_reason(structure~)
@@ -100,7 +101,7 @@ fn Session::sheet_rename_reason(
         guard self.font_context is Some((probe, profile)) else {
           return "Measure worksheet picture anchors with an explicit font profile before structural editing"
         }
-        self.check_sheet_pictures(sheet, probe, profile)
+        self.check_sheet_pictures(sheet, probe, profile, charts~)
       }
       ignore(read_filter(sheet))
       self.check_sort_metadata(tree)
@@ -168,6 +169,7 @@ fn sheet_reference_changes(
   name : String?,
   deleted_scope~ : Int? = None,
   sparklines~ : Bool = false,
+  charts~ : Bool = false,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let changes : Array[@xml.SourceChange] = []
   let mut payload = 0L
@@ -175,7 +177,8 @@ fn sheet_reference_changes(
     let sparkline = sparklines &&
       node.uri == sparkline_formula_uri &&
       node.name == "f"
-    if node.uri != spreadsheet_uri && !sparkline {
+    let chart = charts && node.uri == chart_uri && node.name == "f"
+    if node.uri != spreadsheet_uri && !sparkline && !chart {
       continue
     }
     if (
@@ -183,7 +186,8 @@ fn sheet_reference_changes(
           "f", "formula", "formula1", "formula2", "definedName", "calculatedColumnFormula",
           "totalsRowFormula",
         ].contains(node.name) ||
-        sparkline
+        sparkline ||
+        chart
       ) &&
       !node.text.is_empty() {
       if node.name == "definedName" &&
@@ -195,6 +199,14 @@ fn sheet_reference_changes(
       }
       let text = sheet_reference_formula(node.text, old, name)
       if text != node.text {
+        if chart {
+          let source = document.source()[node.opening_end:node.closing_start]
+          guard !source.contains("<!--") && !source.contains("<?") else {
+            @failure.reject(
+              "protected-content", "Chart formula annotations require source-preserving renaming",
+            )
+          }
+        }
         let xml = @xml.escape_text(text)
         let length = node.closing_start - node.opening_end
         payload += (length.to_int64() + xml.length().to_int64()) * 2
@@ -261,6 +273,7 @@ fn Session::rename_sheet(
     tables=true,
     sparklines=true,
     pictures=true,
+    charts=true,
   )
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let tables = self.sheet_tables()
@@ -326,6 +339,7 @@ fn Session::rename_sheet(
   }
   let parts = self.parts.copy()
   self.sheet_table_references(tables, old, Some(name), parts, edits)
+  self.sheet_chart_references(old, Some(name), parts, edits)
   let sheets = self.ordered_sheets(workbook, sheets, parts)
   let calculation = self.calculate(sheets, None, [], workbook, parts~)
   self.commit(

@@ -15,6 +15,7 @@ fn Session::chart_from_settings(
   self : Session,
   owner : String,
   settings : SheetChartSettings,
+  cached? : @layout.ChartData,
 ) -> @chart.WorksheetChart raise @failure.Failure {
   guard settings.names.length() >= 1 &&
     settings.names.length() <= 8 &&
@@ -23,6 +24,23 @@ fn Session::chart_from_settings(
       "invalid-chart", "Chart references require 1-8 matching series",
     )
   }
+  guard cached is Some(_) ||
+    !([settings.categories] + settings.names + settings.values).any(
+      broken_chart_reference,
+    ) else {
+    @failure.reject(
+      "invalid-chart", "Broken chart references require existing cached values",
+    )
+  }
+  let seed = cached.unwrap_or({
+    kind: settings.kind,
+    title: settings.title,
+    label: settings.label,
+    legend: settings.legend,
+    hole_size: settings.hole_size,
+    categories: [""],
+    series: [],
+  })
   let chart : @chart.WorksheetChart = {
     categories: settings.categories,
     names: settings.names,
@@ -33,8 +51,15 @@ fn Session::chart_from_settings(
       label: settings.label,
       legend: settings.legend,
       hole_size: settings.hole_size,
-      categories: [""],
-      series: settings.names.map(_ => { name: "Series", values: [None], }),
+      categories: seed.categories,
+      series: settings.names.mapi((index, _) => {
+        seed.series
+        .get(index)
+        .unwrap_or({
+          name: "Series " + (index + 1).to_string(),
+          values: Array::make(seed.categories.length(), None),
+        })
+      }),
     },
   }
   self.resolved_chart(owner, chart, {
@@ -198,15 +223,17 @@ pub fn Session::set_chart(
     })
   object.check_change(false)
   let (part, old) = object.chart.unwrap()
-  let next = self.chart_from_settings(sheet, settings)
+  let next = self.chart_from_settings(sheet, settings, cached=old.data)
   if old.markup() == next.markup() {
     return self.query()
   }
   ignore(next.data.paint(object.rect.width, object.rect.height, probe, profile))
   let original = self.part_xml(part)
-  guard !original.source().contains("<!--") else {
+  let root = original.nodes()[0]
+  guard !original.source().contains("<!--") &&
+    !original.source()[root.start:root.end].contains("<?") else {
     @failure.reject(
-      "protected-content", "Chart comments require source-preserving editing",
+      "protected-content", "Chart annotations require source-preserving editing",
     )
   }
   let (document, edit) = pivot_root_edit(

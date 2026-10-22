@@ -458,6 +458,13 @@ fn Session::edit_sheet_current(
     Rename(name) => return self.rename_sheet(index, name)
     Delete => {
       removed = self.prepare_sheet_delete(index, parts, edits)
+      self.sheet_chart_references(
+        self.sheets[index].name,
+        None,
+        parts,
+        edits,
+        deleted=Some(sheet),
+      )
       deleted = Some(sheets.remove(index))
       changes.push(sheet_node_removal(tree, node))
       changes.append(
@@ -495,6 +502,7 @@ fn Session::edit_sheet_current(
           tables=true,
           sparklines=true,
           pictures=true,
+          charts=true,
         )
         guard reason.is_empty() else {
           @failure.reject("protected-content", reason)

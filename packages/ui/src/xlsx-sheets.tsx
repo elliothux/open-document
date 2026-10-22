@@ -75,7 +75,7 @@ export function XlsxSheets({
         </button>
         <button
           type="button"
-          disabled={query.sheets.length >= 256 || !!query.sheetRenameReason}
+          disabled={query.sheets.length >= 256 || !!query.sheetCopyReason}
           onClick={() =>
             controller.run(() => editor.editSheet({ action: "copy" }))
           }
@@ -84,7 +84,7 @@ export function XlsxSheets({
         </button>
         <button
           type="button"
-          disabled={visible.length <= 1 || !!query.sheetRenameReason}
+          disabled={visible.length <= 1 || !!query.sheetDeleteReason}
           onClick={() =>
             controller.run(() => editor.editSheet({ action: "delete" }))
           }

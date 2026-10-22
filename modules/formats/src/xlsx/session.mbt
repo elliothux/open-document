@@ -453,6 +453,21 @@ pub fn Session::query(
       ),
     )
   }
+  let migration_reason = self.sheet_rename_reason(
+    tables=true,
+    sparklines=true,
+    pictures=true,
+  )
+  let reference_reason = if migration_reason.is_empty() {
+    ""
+  } else {
+    self.sheet_rename_reason(
+      tables=true,
+      sparklines=true,
+      pictures=true,
+      charts=true,
+    )
+  }
   {
     "revision": self.revision,
     "sheets": self.sheets.map(sheet => {
@@ -522,11 +537,9 @@ pub fn Session::query(
     "sheetEditReason": self.sheet_edit_reason(),
     "protection": self.protection_query(current),
     "workbookProtection": self.workbook_protection_query(),
-    "sheetRenameReason": self.sheet_rename_reason(
-      tables=true,
-      sparklines=true,
-      pictures=true,
-    ),
+    "sheetRenameReason": reference_reason,
+    "sheetCopyReason": reference_reason,
+    "sheetDeleteReason": reference_reason,
     "frozen": {
       "rows": current.frozen.rows,
       "columns": current.frozen.columns,

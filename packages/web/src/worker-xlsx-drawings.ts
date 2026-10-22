@@ -155,7 +155,7 @@ export function drawingOperation(
       return workbook.setChart(
         request.revision,
         request.sheet,
-        request.id,
+        request.chartId,
         request.settings,
         request.profile,
       );
@@ -163,7 +163,7 @@ export function drawingOperation(
       return workbook.setChartFrame(
         request.revision,
         request.sheet,
-        request.id,
+        request.chartId,
         request.settings,
         request.profile,
       );
@@ -171,7 +171,7 @@ export function drawingOperation(
       return workbook.deleteChart(
         request.revision,
         request.sheet,
-        request.id,
+        request.chartId,
         request.profile,
       );
   }

@@ -19,6 +19,7 @@ fn Session::edit_axes(
     tables=true,
     sparklines=true,
     pictures=true,
+    charts=true,
   )
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let target = self.sheets[index]
@@ -235,7 +236,7 @@ fn Session::edit_axes(
     edits,
   )
   sheets[index] = table_sheet
-  self.axis_pictures(target, sheets[index], change, parts, edits)
+  self.axis_chart_references(target.name, change, parts, edits)
   let after = if change.band is Some((first, last)) {
     (
       id,
@@ -320,6 +321,21 @@ fn Session::edit_axes(
       false,
     )
   }
+  self.axis_pictures(
+    target,
+    sheets[index],
+    change,
+    {
+      ..self,
+      sheets,
+      workbook,
+      parts,
+      calculation: Some(calculation),
+      removed: removed_parts,
+    },
+    parts,
+    edits,
+  )
   edits.append(self.cache_edits(sheets, calculation))
   self.commit(
     sheets,

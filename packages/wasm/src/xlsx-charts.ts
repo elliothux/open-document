@@ -34,6 +34,7 @@ export type XlsxChartFrame = Omit<XlsxPictureSettings, "crop">;
 export interface XlsxChart extends XlsxChartSettings, XlsxChartFrame {
   id: string;
   data: string;
+  bindingReason: string;
 }
 export interface XlsxCharts {
   revision: number;
@@ -103,7 +104,8 @@ export function xlsxCharts(value: unknown): XlsxCharts {
   for (const value of catalog.items) {
     const c = record(value);
     const id = c.id,
-      data = c.data;
+      data = c.data,
+      bindingReason = c.bindingReason;
     checkXlsxChartSettings({
       kind: c.kind,
       title: c.title,
@@ -119,7 +121,8 @@ export function xlsxCharts(value: unknown): XlsxCharts {
       typeof id !== "string" ||
       !/^[1-9][0-9]*$/.test(id) ||
       ids.has(id) ||
-      !noteText(data, 65536)
+      !noteText(data, 65536) ||
+      !noteText(bindingReason, 1024)
     )
       throw new Error("Invalid worksheet chart identity or data");
     ids.add(id);

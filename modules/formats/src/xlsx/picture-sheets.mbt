@@ -4,17 +4,25 @@ fn Session::check_sheet_pictures(
   sheet : Sheet,
   probe : @layout.TextProbe,
   profile : Map[String, String],
+  charts~ : Bool = false,
 ) -> Unit raise @failure.Failure {
-  let pictures = self.sheet_pictures(
-    sheet,
-    self.resolved_dimensions(sheet, probe, profile),
-  )
+  let pictures = self
+    .sheet_objects(sheet, self.resolved_dimensions(sheet, probe, profile))
+    .filter(object => {
+      object.media is Some(_) || (charts && object.chart is Some(_))
+    })
   guard self.picture_drawing(sheet) is Some((part, tree)) else { return }
   guard self
     .relationships()
     .all(link => {
       link.owner != part ||
-      (!link.external && link.kind == relationship_uri + "image")
+      (
+        !link.external &&
+        (
+          link.kind == relationship_uri + "image" ||
+          (charts && link.kind == relationship_uri + "chart")
+        )
+      )
     }) &&
     tree.document
     .nodes()
@@ -26,6 +34,12 @@ fn Session::check_sheet_pictures(
           node.uri == picture_drawing_uri &&
           node.name == "blip" &&
           attribute.name == "embed"
+        ) ||
+        (
+          charts &&
+          node.uri == chart_uri &&
+          node.name == "chart" &&
+          attribute.name == "id"
         )
       })
     }) else {
@@ -34,14 +48,19 @@ fn Session::check_sheet_pictures(
     )
   }
   for picture in pictures {
-    let nv = tree.picture_node(picture.source.id, "nvPicPr")
+    let (nv_name, props_name, locks_name) = if picture.chart is Some(_) {
+      ("nvGraphicFramePr", "cNvGraphicFramePr", "graphicFrameLocks")
+    } else {
+      ("nvPicPr", "cNvPicPr", "picLocks")
+    }
+    let nv = tree.picture_node(picture.source.id, nv_name)
     let identity = tree.picture_node(nv.id, "cNvPr")
-    let props = tree.picture_node(nv.id, "cNvPicPr")
+    let props = tree.picture_node(nv.id, props_name)
     guard tree.children
       .get(nv.id)
       .unwrap_or([])
       .all(node => {
-        node.uri == picture_uri && ["cNvPr", "cNvPicPr"].contains(node.name)
+        node.uri == picture_uri && ["cNvPr", props_name].contains(node.name)
       }) &&
       tree.children.get(identity.id).unwrap_or([]).is_empty() &&
       tree.children
@@ -49,12 +68,22 @@ fn Session::check_sheet_pictures(
       .unwrap_or([])
       .all(node => {
         node.uri == picture_drawing_uri &&
-        node.name == "picLocks" &&
+        node.name == locks_name &&
         tree.children.get(node.id).unwrap_or([]).is_empty()
       }) else {
       @failure.reject(
         "protected-content", "Worksheet picture metadata requires sheet migration support",
       )
+    }
+    if picture.chart is Some(_) {
+      guard identity.attributes.all(a => {
+        a.uri.is_empty() &&
+        ["id", "name", "descr", "title", "hidden"].contains(a.name)
+      }) else {
+        @failure.reject(
+          "protected-content", "Chart identity extensions require copying support",
+        )
+      }
     }
   }
 }

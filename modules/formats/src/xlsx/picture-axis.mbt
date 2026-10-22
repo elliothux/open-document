@@ -138,6 +138,7 @@ fn Session::axis_pictures(
   before : Sheet,
   after : Sheet,
   change : AxisChange,
+  context : Session,
   parts : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
 ) -> Unit raise @failure.Failure {
@@ -148,7 +149,7 @@ fn Session::axis_pictures(
     )
   }
   let before_dimensions = self.resolved_dimensions(before, probe, profile)
-  let after_dimensions = self.resolved_dimensions(after, probe, profile)
+  let after_dimensions = context.resolved_dimensions(after, probe, profile)
   let pictures = self.sheet_objects(before, before_dimensions)
   if pictures.is_empty() {
     return
@@ -163,7 +164,7 @@ fn Session::axis_pictures(
     parts[part] = document
     edits.push((part, edit))
   }
-  let candidate = { ..self, parts, }
+  let candidate = { ..context, parts, }
   let next = candidate.sheet_objects(after, after_dimensions)
   let transforms : Array[@xml.SourceChange] = []
   for index, picture in next {

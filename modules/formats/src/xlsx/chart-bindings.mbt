@@ -2,6 +2,30 @@
 let chart_uri = "http://schemas.openxmlformats.org/drawingml/2006/chart"
 
 ///|
+fn broken_chart_reference(text : String) -> Bool {
+  if text == "#REF!" {
+    return true
+  }
+  if !text.has_prefix("#REF!") {
+    return false
+  }
+  try (parse_formula(text[5:].to_owned()) is Reference(None, _, _)) catch {
+    @failure.Failure(..) => false
+  }
+}
+
+///|
+fn chart_binding_reason(chart : @chart.WorksheetChart) -> String {
+  if ([chart.categories] + chart.names + chart.values).any(
+      broken_chart_reference,
+    ) {
+    "A chart source was deleted; cached values are shown until its references are rebound"
+  } else {
+    ""
+  }
+}
+
+///|
 fn Session::chart_reference_values(
   self : Session,
   formula : String,
@@ -73,17 +97,29 @@ fn Session::resolved_chart(
   chart : @chart.WorksheetChart,
   work : FormulaWork,
 ) -> @chart.WorksheetChart raise @failure.Failure {
-  let categories = self
-    .chart_reference_values(chart.categories, owner, work)
-    .map(chart_label)
+  let categories = if broken_chart_reference(chart.categories) {
+    chart.data.categories
+  } else {
+    self.chart_reference_values(chart.categories, owner, work).map(chart_label)
+  }
   let series = chart.names.mapi((index, formula) => {
-    guard self.chart_reference_values(formula, owner, work) is [title] else {
-      @failure.reject(
-        "unsupported-chart", "Chart series title requires one cell",
-      )
+    let name = if broken_chart_reference(formula) {
+      chart.data.series[index].name
+    } else {
+      guard self.chart_reference_values(formula, owner, work) is [title] else {
+        @failure.reject(
+          "unsupported-chart", "Chart series title requires one cell",
+        )
+      }
+      chart_label(title)
     }
-    let name = chart_label(title)
-    let values = self.chart_reference_values(chart.values[index], owner, work)
+    let values = if broken_chart_reference(chart.values[index]) {
+      chart.data.series[index].values.map(value => {
+        value.map(value => Value::Number(value)).unwrap_or(Blank)
+      })
+    } else {
+      self.chart_reference_values(chart.values[index], owner, work)
+    }
     guard values.length() == categories.length() else {
       @failure.reject(
         "unsupported-chart", "Chart series references must match category count",
@@ -112,11 +148,20 @@ fn Session::resolved_chart(
 fn Session::maintain_charts(
   self : Session,
   sheets : Array[Sheet],
+  workbook : @xml.Document,
   calculation : Calculation,
   parts : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
+  media : Map[String, Bytes],
 ) -> Unit raise @failure.Failure {
-  let view = { ..self, sheets, parts, calculation: Some(calculation), }
+  let view = {
+    ..self,
+    sheets,
+    workbook,
+    parts,
+    media,
+    calculation: Some(calculation),
+  }
   let links = view.relationships()
   let drawings = links.filter(link => {
     !link.external &&
@@ -164,9 +209,11 @@ fn Session::maintain_charts(
     if next.data == chart.data {
       continue
     }
-    guard !original.source().contains("<!--") else {
+    let root = original.nodes()[0]
+    guard !original.source().contains("<!--") &&
+      !original.source()[root.start:root.end].contains("<?") else {
       @failure.reject(
-        "protected-content", "Chart comments require source-preserving cache editing",
+        "protected-content", "Chart annotations require source-preserving cache editing",
       )
     }
     let (document, edit) = pivot_root_edit(

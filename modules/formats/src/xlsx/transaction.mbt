@@ -30,8 +30,15 @@ fn Session::commit(
   },
 ) -> Unit raise @failure.Failure {
   let parts = parts.copy()
+  let removed_parts = self.removed.copy()
+  for name in removed.keys() {
+    if self.opc.names.contains(name.to_lower()) {
+      removed_parts.push(name)
+    }
+  }
+  let context = { ..self, removed: removed_parts, }
   self.maintain_pivots(sheets, calculation, parts, edits, pivot_edits)
-  self.maintain_charts(sheets, calculation, parts, edits)
+  context.maintain_charts(sheets, workbook, calculation, parts, edits, media)
   self.protect_table_cells(sheets, calculation.names.tables, edited=table_edits)
   guard self.revision < 2147483647 else {
     @failure.reject("limit-exceeded", "Workbook revision exhausted")
@@ -43,10 +50,10 @@ fn Session::commit(
   }) else {
     @failure.reject("malformed-xlsx", "Cell style is outside candidate styles")
   }
-  self.reflow_dimensions(
+  context.reflow_dimensions(
     sheets, calculation, styles, edits, font_context, fit_work, parts,
   )
-  self.reflow_pictures(sheets, parts, edits, font_context)
+  context.reflow_pictures(sheets, parts, edits, font_context)
   let payload = edits
     .iter()
     .fold(init=0L, (sum, entry) => sum + entry.1.payload_bytes()) +
@@ -68,12 +75,6 @@ fn Session::commit(
     })
   guard payload <= 4194304 else {
     @failure.reject("limit-exceeded", "Edit exceeds history payload budget")
-  }
-  let removed_parts = self.removed.copy()
-  for name in removed.keys() {
-    if self.opc.names.contains(name.to_lower()) {
-      removed_parts.push(name)
-    }
   }
   self.validate(sheets, workbook~, parts~, removed=removed_parts, media~)
   for item in self.redo {

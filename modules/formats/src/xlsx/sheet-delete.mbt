@@ -19,6 +19,7 @@ fn Session::prepare_sheet_delete(
     tables=true,
     sparklines=true,
     pictures=true,
+    charts=true,
   )
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let deleted = self.sheets[index]
@@ -43,6 +44,23 @@ fn Session::prepare_sheet_delete(
   let links = self.relationships()
   if self.picture_drawing(deleted) is Some((part, _)) {
     names.push(part)
+    for link in links {
+      if link.owner == part &&
+        !link.external &&
+        link.kind == relationship_uri + "chart" {
+        if !names.contains(link.target) {
+          names.push(link.target)
+        }
+        let path = workbook_relations(link.target)
+        if (
+            self.parts.contains(path) ||
+            self.opc.names.contains(path.to_lower())
+          ) &&
+          !names.contains(path) {
+          names.push(path)
+        }
+      }
+    }
     let path = workbook_relations(part)
     if self.parts.contains(path) || self.opc.names.contains(path.to_lower()) {
       names.push(path)

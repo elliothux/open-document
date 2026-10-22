@@ -151,7 +151,7 @@ export function XlsxCharts({
               {label}
               <input
                 type="number"
-                min={180}
+                min={key === "width" ? 180 : 150}
                 max={14400}
                 required
                 value={size[key]}
@@ -196,6 +196,7 @@ export function XlsxCharts({
       )}
       {draft && appearance && (
         <>
+          {draft.bindingReason && <p>{t.chartDeletedSource}</p>}
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -253,6 +254,7 @@ export function XlsxCharts({
                   <label key={key}>
                     {label}
                     <textarea
+                      aria-label={label}
                       required
                       rows={3}
                       maxLength={8199}
@@ -268,7 +270,12 @@ export function XlsxCharts({
                 ))}
                 <label>
                   {t.chartData}
-                  <textarea rows={4} readOnly value={draft.data} />
+                  <textarea
+                    aria-label={t.chartData}
+                    rows={4}
+                    readOnly
+                    value={draft.data}
+                  />
                 </label>
               </ChartFields>
               <button type="submit">{t.chartApply}</button>
@@ -312,6 +319,7 @@ export function XlsxCharts({
               <label>
                 {t.xlsxShapeAnchor}
                 <select
+                  aria-label={t.xlsxShapeAnchor}
                   value={draft.anchor}
                   onChange={(event) => {
                     const anchor = event.currentTarget.value;
@@ -342,7 +350,13 @@ export function XlsxCharts({
                     required
                     type="number"
                     step="any"
-                    min={key === "x" || key === "y" ? 0 : 180}
+                    min={
+                      key === "x" || key === "y"
+                        ? 0
+                        : key === "width"
+                          ? 180
+                          : 150
+                    }
                     max={key === "x" || key === "y" ? 1e9 : 14400}
                     value={draft[key]}
                     onChange={(event) =>

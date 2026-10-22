@@ -78,6 +78,8 @@ export interface XlsxQuery {
   readOnlyReason: string;
   sheetEditReason: string;
   sheetRenameReason: string;
+  sheetCopyReason: string;
+  sheetDeleteReason: string;
   dimensions: {
     rowHeight: number | null;
     columnWidth: number | null;
@@ -159,7 +161,9 @@ export function xlsxQuery(value: unknown): XlsxQuery {
     throw new Error("Invalid worksheet dimensions");
   if (
     typeof query.sheetEditReason !== "string" ||
-    typeof query.sheetRenameReason !== "string"
+    typeof query.sheetRenameReason !== "string" ||
+    typeof query.sheetCopyReason !== "string" ||
+    typeof query.sheetDeleteReason !== "string"
   )
     throw new Error("Invalid worksheet edit reason");
   if (

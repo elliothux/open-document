@@ -1357,6 +1357,8 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 `XlsxQuery.sheetEditReason` 是工作表级管理操作的保护原因，空串表示可用。当前继续保护未知单元格公式、锁定结构的 workbookProtection、三维名称引用、无法解释的名称语法、非空工作簿扩展/自定义工作簿视图及未知根内容。源内容保留；不通过放开按钮改变引用语义。默认 UI 提供前移/后移、隐藏与显示普通 hidden 表；veryHidden 仅由显式 API 修改。
 
+`sheetRenameReason`、`sheetCopyReason` 和 `sheetDeleteReason` 分别说明改名、复制和删除的资源保护原因。默认按钮使用对应字段；最后一张可见表、名称合法性和容量等条件仍由各命令检查。普通图表已有工作表改名、复制和删除时的引用维护。
+
 `{ action: "rename", name }` 修改表名，保持 OPC 路径、sheetId、关系、顺序、可见性及选区。名称为 1–31 个 UTF-16 单元，须是有效 XML 文本，不能含控制字符或 `[]:*?/\`，不能以单引号开头或结尾，不能与其他表名大小写不敏感地重复。相同名称不新增历史；无效名称、旧 revision 或预算失败不修改文档。
 
 核心复用公式词法分析，仅替换 `!` 前匹配旧名称的标记。新引用使用单引号包围名称，并转义名称内的单引号。更新范围包括单元格公式、定义名称、既有条件格式/数据验证公式和内部超链接 `location`；带关系 ID 的外部链接保留其目标内位置。字符串常量、共享公式组与源格式保持不变；事务重建计算并沿既有计算元数据规则保存，撤销恢复原部件字节。规则呈现与编辑范围分别归[条件格式](#条件格式)和[数据验证](#数据验证)。
@@ -1367,7 +1369,7 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 删除移除工作表 XML、其关系、失效 calcChain 及其关系，以及独占的普通便笺 XML/VML、结构化表和普通图片绘图 XML/关系，更新工作簿关系和内容类型。其余源资源及可能共享的图片字节保留，不回收共享字符串条目或重排字符串索引；保存更新使用计数并沿现有规则标记重算。删除部件快照、引用、缓存和选择共同提交一项有界历史，可与新增、输入和改名精确混合撤销/重做；损坏回放或预算失败保留已提交文档。选择与错误引用规则参考 [ONLYOFFICE 删除工作表](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L4122-L4188)和[引用转换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L10419-L10455)。
 
-`XlsxQuery.sheetRenameReason` 包含结构保护原因，并保护尚未接入引用更新的工作簿/工作表资源关系、未知工作表内容、非空扩展及非普通/共享公式组。复制和删除沿用该引用保护；复制另保护未知身份属性，删除另拒绝未知的部件入站引用。默认 UI 显示原因，提供名称输入、复制、改名与删除入口，并禁用最后可见表的删除。更广资源及引用处理仍归 [P11](../p11-xlsx-core.md)。
+`XlsxQuery.sheetRenameReason` 包含结构保护原因，并保护尚未接入引用更新的工作簿/工作表资源关系、未知工作表内容、非空扩展及非普通/共享公式组。复制和删除通过各自查询字段返回引用保护；复制另保护未知身份属性，删除另拒绝未知的部件入站引用。默认 UI 显示原因，提供名称输入、复制、改名与删除入口，并禁用最后可见表的删除。更广资源及引用处理仍归 [P11](../p11-xlsx-core.md)。
 
 `{ action: "rowHeight" | "columnWidth", first, last, size }` 设置包含两端的行或列范围，索引从 1 开始。行高为 0–409.5 磅，一次最多 4096 行；列宽为 0–255 个 OOXML 字符宽度单位，列索引上限为 16384。零值隐藏并保留已有尺寸；正值设置固定尺寸并显示目标行列，列宽同时取消 bestFit。列宽由核心按 Normal 字体和字号的最大数字宽度换算为实际几何。设置行高可创建空行记录，不展开空单元格；拆分列区间保留各段的样式与轮廓属性。目标列包含未知属性或子元素时拒绝修改，保留源内容。
 
@@ -2210,11 +2212,35 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 属性包含锚点、point 位置/尺寸、名称和替代文字、六位 RGB 填充/描边、线宽及普通文字。`fill`、`stroke` 为 null 时不绘制。文字支持统一字体、字号、粗体、斜体、颜色、换行、水平/垂直对齐，以及 `insets: { left, top, right, bottom }`。字号为 1–400 pt，线宽为 0–1000 pt，每项内边距为 0–14400 pt；文字最多 32767 个 UTF-16 单位。矩形、椭圆及文本框的宽高至少 0.1 pt；直线允许一个轴为零，另一个轴至少 0.1 pt。对象每轴尺寸不超过 14400 pt，位置沿工作表边界校验。
 
-基础图形与图片共用原生绘图顺序、身份、三种锚点、行列重排及工作表资源事务，每表合计最多 256 项。图形保存 `xdr:sp`、预设几何及 DrawingML 文字，不另建 TS 文档模型。轮廓复用 PPTX 的基础路径，文字复用共享塑形与换行；椭圆先采用原生内接文字矩形，再加文字内边距。字体键随绘图加入 `fontKeys`。网格、Canvas 和 PDF 使用同一 R0 图元。 `XlsxViewport.objects` 按原生顺序返回 `{ id, kind, name, selected, regions }`；kind 为 picture 或四种基础图形。可见区域与手柄归核心计算，零轴直线的命中矩形每轴至少 6 pt，再按窗格裁剪。
+基础图形与图片共用原生绘图顺序、身份、三种锚点、行列重排及工作表资源事务，每表合计最多 256 项。图形保存 `xdr:sp`、预设几何及 DrawingML 文字，不另建 TS 文档模型。轮廓复用 PPTX 的基础路径，文字复用共享塑形与换行；椭圆先采用原生内接文字矩形，再加文字内边距。字体键随绘图加入 `fontKeys`。网格、Canvas 和 PDF 使用同一 R0 图元。 `XlsxViewport.objects` 按原生顺序返回 `{ id, kind, name, selected, regions }`；kind 为 picture、chart 或四种基础图形。可见区域与手柄归核心计算，零轴直线的命中矩形每轴至少 6 pt，再按窗格裁剪。
 
 相同属性不新增历史；修改、层次、行列插入、复制、删除与普通输入共用精确历史，保存后可继续编辑。核心手势区分图形自由缩放与图片等比缩放，候选保留源及历史；默认画布控件支持选择、拖动、四角缩放、方向键、Shift 大步移动及 Delete 删除；图片和图形按各自原生事务处理。选择、移动、尺寸、比例、文字和形状类型锁分别保护对应修改。未知属性、扩展、注释、处理指令、复杂文字、旋转/翻转及复杂几何受保护，候选资源或输出超限整体拒绝。这里只覆盖普通统一文字图形，尚不代表完整 DrawingML 支持。
 
 实现归 [`shape-read.mbt`](../../modules/formats/src/xlsx/shape-read.mbt)、[`shape-edit.mbt`](../../modules/formats/src/xlsx/shape-edit.mbt)、[`shape-preserve.mbt`](../../modules/formats/src/xlsx/shape-preserve.mbt)、[`shape-paint.mbt`](../../modules/formats/src/xlsx/shape-paint.mbt)及 [`xlsx-shapes.ts`](../../packages/wasm/src/xlsx-shapes.ts)。椭圆文字矩形参考 [ONLYOFFICE CreateGeometry](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/CreateGeometry.js#L3100-L3117)，锁定分类参考 [GraphicObjectBase](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicObjectBase.js#L166-L183)。
+
+### 工作表图表
+
+`SpreadsheetEditor.charts()` 返回当前表的 `{ revision, sheet, reason, items }`。每项包含原生 `id`、名称、替代文字、三种锚点、point 位置/尺寸、图表外观、数据源引用和当前值 TSV。同步 `XlsxSession` 与异步 `XlsxClient` 提供对应显式 revision/sheet/profile 接口。`XlsxViewport.objects.kind` 增加 `chart`；选择、移动、自由缩放和删除沿既有画布入口。
+
+`insertChartRange(range, kind, title, width, height)` 使用当前表的普通矩形：第一行为系列标题，第一列为类别，其余为数值系列。核心生成带表名的绝对引用，在当前选择处插入 `oneCellAnchor`。`insertChart(settings, width, height)` 使用显式 `XlsxChartSettings`：`kind/title/label/legend/holeSize/categories/names/values`。`categories` 为一行或一列的本工作簿来源，`names` 的每项引用一个标题格，`values` 的对应项引用等长数据区域。允许本表或跨表普通引用；不接受表达式、外部或三维来源。空标题显示默认系列名，非数值点留空，公式读取当前计算值。
+
+支持簇状、堆积、百分比堆积柱形图/条形图、折线、饼、圆环、面积、散点和雷达图。类型、图例、空心比例及实际绘制沿[PPTX 基础图表](#pptx-基础图表)的共用模型。`setChart(id, settings)` 修改外观和引用；`setChartFrame(id, frame)` 修改锚点、位置、尺寸及文字；`deleteChart(id)` 删除锚点并保留旧资源。默认面板提供区域插入、引用修改、当前值预览和独立尺寸编辑。宿主先提交原生输入草稿，再执行图表命令。
+
+MoonBit 维护原生 `graphicFrame`、图表 XML、关系、内容类型及系列缓存。普通编辑后，依赖公式、图表缓存、源补丁和布局共用一次候选事务与精确历史，不生成嵌入工作簿。打开时按当前单元格值派生图表，首次查看保留源。修改、保存重开、Canvas 和静态 PDF 使用同一数据及图元。相同设置不新增历史；失败保留文档与历史。
+
+工作表改名同步本表及其他表中普通图表的分类、系列标题和数值引用。核心沿已有词法标记只替换匹配旧表名的片段，保留地址、绝对标记、固定标题、缓存、绘图身份和其他源。名称匹配不区分大小写，中文及名称内单引号使用原生转义；注释和处理指令保留。需要替换的引用文字内部若带这些内容，整项改名保持保护。工作簿名称、普通单元格公式、图表引用和计算共用一次精确历史，重开后可继续改名与输入。实现归 [`chart-rename.mbt`](../../modules/formats/src/xlsx/chart-rename.mbt)，依据 [ONLYOFFICE 跨表绘图引用改名](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L5550-L5582)。
+
+复制工作表时，已引用的普通图表和所属绘图分别获得独立部件与关系。图表对原表的显式引用改指副本，未限定表名的引用继续按新所属表解释；其他工作表的来源保持。对象在新绘图中保留本地 ID、名称、替代文字、三种锚点和几何，图片沿既有规则共享不可变媒体。源图表、固定标题和非目标字节保留，副本后续改值、改类型或标题不影响原图表。
+
+新表、绘图、图表、关系、内容类型和引用进入既有复制事务，支持混合输入/图表编辑的精确撤销、重做与保存重开。部件路径避让当前包、会话和未引用的同名资源；全部新增源仍受 4 MiB 历史和输出预算约束。源注释保留；需要重写的引用内部若带注释或处理指令，整项复制拒绝。共享图表部件、图表的附加资源及未知绘图身份扩展保持保护。实现归 [`chart-copy.mbt`](../../modules/formats/src/xlsx/chart-copy.mbt)，依据 [ONLYOFFICE 复制绘图与重绑定本表来源](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L7391-L7440)。
+
+删除工作表时，所属绘图、图表、关系和内容类型沿既有部件快照一起移除。共享图片等媒体保留，未知的部件入站引用拒绝整项删除。其他表的图表将被删来源的完整引用写为 `#REF!`，对象及最后有效缓存保留；尚有效的系列继续读取当前单元格值。支持原生带地址尾部的失效引用，例如 `#REF!$A$2:$A$4`。工作表删除、引用、计算及资源共用一次精确历史；打开已保存的失效图表不改源。
+
+`XlsxChart.bindingReason` 在来源失效时返回原因，正常时为空串。默认图表属性面板显示缓存提示，保留标题、类型和引用编辑入口。修改已有失效图表的外观时保留其缓存；重新绑定后恢复实时更新并清除提示。新建图表不能使用缺少缓存的失效来源。缓存只是最后有效值，不表示已删除来源仍在更新。原生输入、撤销、重开和 Canvas/PDF 共用这一状态。实现复用 [`chart-rename.mbt`](../../modules/formats/src/xlsx/chart-rename.mbt)、[`chart-bindings.mbt`](../../modules/formats/src/xlsx/chart-bindings.mbt)及 [`sheet-delete.mbt`](../../modules/formats/src/xlsx/sheet-delete.mbt)。依据 [ONLYOFFICE 删除表时处理图表来源](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L5498-L5541)、[失效引用写回](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartFormat.js#L12116-L12128)和[无法解析来源时的缓存保留](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartFormat.js#L12551-L12568)。
+
+每个数据区域最多 256 格，每图 1–8 个系列，每表绘图合计最多 256 项；框至少 180×150 pt，每轴不超过 14400 pt，位置沿工作表边界校验。引用最多 1024 个字符；文字、字体、计算工作和历史沿共用预算。当前只编辑共用模型能完整识别的普通图表。隐藏来源、共享图表部件、复杂样式、旋转/翻转和未知原生变体保持保护。带源注释或处理指令的图表不进行整图及缓存改写，带这些内容的姿态或锚点不重写；源仍保留。行列结构调整的图表引用维护及跨工作簿绘图剪贴板继续实施。
+
+实现归 [`chart-bindings.mbt`](../../modules/formats/src/xlsx/chart-bindings.mbt)、[`chart-edit.mbt`](../../modules/formats/src/xlsx/chart-edit.mbt)、[`chart-range.mbt`](../../modules/formats/src/xlsx/chart-range.mbt)、[`worksheet.mbt`](../../modules/formats/src/internal/chart/worksheet.mbt)及 [`xlsx-charts.ts`](../../packages/wasm/src/xlsx-charts.ts)。引用和缓存检查参考 [ONLYOFFICE 系列来源](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L2390-L2435)及[工作表与缓存比较](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L2495-L2540)。未复制上游执行代码。
 
 ### 单元格迷你图
 
@@ -2248,7 +2274,7 @@ Canvas 和静态 PDF 复用单元格绘制。核心从当前计算结果取数�
 
 同表沿一行/列的数据轴移动部分端点时，范围按新端点扩缩；端点越过另一端时规范为升序范围。移动中间格、跨轴搬动端点及跨表移动部分来源时，原数据区域保持，继续读取原位置中的剩余值。单区域模型不生成多区域或跨表联合来源。变换后的来源和目标各受 256 格/项上限约束，受影响图形在受保护表中时整项拒绝。图形、便笺、超链接、原生部件和计算缓存共用一项精确历史与原有输出预算，创建资源后继续添加关系的组合也可完整撤销。默认剪切/原生粘贴、后续输入、重开及 Canvas/PDF 沿同一模型；跨工作簿、转置和选择性剪切继续按剪切合同拒绝。实现归 [`move-sparklines.mbt`](../../modules/formats/src/xlsx/move-sparklines.mbt)，范围移动与端点规则依据 [ONLYOFFICE moveSparklineGroup](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L10420-L10558)。
 
-当前支持固定颜色、独立数轴、同一工作簿内的本表或跨表单区域及普通未合并目标。日期轴、组合轴、自定义颜色/标记、外部/三维来源和其他原生配置继续实施；未知配置保留并给出只读原因，静态 PDF 拒绝遗漏内容。其他表编辑沿各操作的资源保护。XLSX 普通图表对象和绘图锚点仍待实现。实现归 [`sparkline.mbt`](../../modules/formats/src/xlsx/sparkline.mbt)、[`sparkline-edit.mbt`](../../modules/formats/src/xlsx/sparkline-edit.mbt)、[`sparkline-axis.mbt`](../../modules/formats/src/xlsx/sparkline-axis.mbt)及 [`sparkline-paint.mbt`](../../modules/formats/src/xlsx/sparkline-paint.mbt)。工作表操作复用 [`sheet-rename.mbt`](../../modules/formats/src/xlsx/sheet-rename.mbt)、[`sheet-copy.mbt`](../../modules/formats/src/xlsx/sheet-copy.mbt)和 [`sheet-order.mbt`](../../modules/formats/src/xlsx/sheet-order.mbt)。
+当前支持固定颜色、独立数轴、同一工作簿内的本表或跨表单区域及普通未合并目标。日期轴、组合轴、自定义颜色/标记、外部/三维来源和其他原生配置继续实施；未知配置保留并给出只读原因，静态 PDF 拒绝遗漏内容。其他表编辑沿各操作的资源保护。普通绘图锚点及图表当前范围归[工作表图表](#工作表图表)。实现归 [`sparkline.mbt`](../../modules/formats/src/xlsx/sparkline.mbt)、[`sparkline-edit.mbt`](../../modules/formats/src/xlsx/sparkline-edit.mbt)、[`sparkline-axis.mbt`](../../modules/formats/src/xlsx/sparkline-axis.mbt)及 [`sparkline-paint.mbt`](../../modules/formats/src/xlsx/sparkline-paint.mbt)。工作表操作复用 [`sheet-rename.mbt`](../../modules/formats/src/xlsx/sheet-rename.mbt)、[`sheet-copy.mbt`](../../modules/formats/src/xlsx/sheet-copy.mbt)和 [`sheet-order.mbt`](../../modules/formats/src/xlsx/sheet-order.mbt)。
 
 ### 透视表核心
 

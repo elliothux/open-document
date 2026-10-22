@@ -38,6 +38,12 @@ pub fn Session::set_chart_frame(
     (anchor, rect.x, rect.y, rect.width, rect.height, name, description) {
     return self.query()
   }
+  let source = object.tree.picture_markup(object.frame.id)
+  guard !source.contains("<!--") && !source.contains("<?") else {
+    @failure.reject(
+      "protected-content", "Chart anchor annotations require source-preserving editing",
+    )
+  }
   ignore(
     object.chart.unwrap().1.data.paint(rect.width, rect.height, probe, profile),
   )

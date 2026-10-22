@@ -19,6 +19,14 @@ fn SheetObject::transform_change(
     picture_transform(rect)
   }
   if self.tree.picture_child(props.id, "xfrm", uri~) is Some(node) {
+    if self.chart is Some(_) {
+      let source = self.tree.picture_markup(node.id)
+      guard !source.contains("<!--") && !source.contains("<?") else {
+        @failure.reject(
+          "protected-content", "Chart transform annotations require source-preserving editing",
+        )
+      }
+    }
     {
       node: props.id,
       offset: node.start - props.start,

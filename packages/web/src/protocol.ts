@@ -92,7 +92,7 @@ export type Operation =
       operation: "setXlsxChart";
       revision: number;
       sheet: string;
-      id: string;
+      chartId: string;
       settings: XlsxChartSettings;
       profile: Record<string, string>;
     }
@@ -100,7 +100,7 @@ export type Operation =
       operation: "frameXlsxChart";
       revision: number;
       sheet: string;
-      id: string;
+      chartId: string;
       settings: XlsxChartFrame;
       profile: Record<string, string>;
     }
@@ -108,7 +108,7 @@ export type Operation =
       operation: "deleteXlsxChart";
       revision: number;
       sheet: string;
-      id: string;
+      chartId: string;
       profile: Record<string, string>;
     }
   | {
