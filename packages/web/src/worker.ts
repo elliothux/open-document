@@ -463,6 +463,14 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.pictures(request.revision);
         case "docxShapes":
           return foundation.shapes(request.revision);
+        case "docxMathFractions":
+          return foundation.mathFractions(request.revision);
+        case "editDocxMathFraction":
+          return foundation.editMathFraction(
+            request.revision,
+            request.fraction,
+            request.profile,
+          );
         case "editDocxShape":
           return foundation.editShape(
             request.revision,

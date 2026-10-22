@@ -55,7 +55,7 @@ fn chart_text(text : String) -> Unit raise @failure.Failure {
 fn ChartData::validate(self : ChartData) -> Unit raise @failure.Failure {
   guard [
       "column", "bar", "stackedColumn", "stackedBar", "line", "pie", "area", "scatter",
-      "doughnut", "percentStackedColumn", "percentStackedBar",
+      "doughnut", "percentStackedColumn", "percentStackedBar", "radar",
     ].contains(self.kind) &&
     self.categories.length() >= 1 &&
     self.categories.length() <= 256 &&

@@ -77,6 +77,7 @@ export function PptxCharts({
                 kind === "line" ||
                 kind === "area" ||
                 kind === "scatter" ||
+                kind === "radar" ||
                 kind === "doughnut" ||
                 kind === "pie"
               ) {
@@ -104,6 +105,7 @@ export function PptxCharts({
             <option value="doughnut">{t.chartDoughnut}</option>
             <option value="area">{t.chartArea}</option>
             <option value="scatter">{t.chartScatter}</option>
+            <option value="radar">{t.chartRadar}</option>
           </select>
         </label>
         {draft.kind === "doughnut" && (

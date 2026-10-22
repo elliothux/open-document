@@ -14,6 +14,7 @@ priv struct CellStyle {
   wrap : Bool
   shrink : Bool
   indent : Int
+  rotation : Int
   format : String
   diagnostic : String
   bar : ConditionalBar?
@@ -38,6 +39,7 @@ fn default_style() -> CellStyle {
     wrap: false,
     shrink: false,
     indent: 0,
+    rotation: 0,
     format: "General",
     diagnostic: "",
     bar: None,
@@ -314,6 +316,10 @@ fn read_styles(
     if tree.one(xf.id, "alignment") is Some(alignment) {
       let horizontal = alignment.attribute("horizontal").unwrap_or("general")
       let vertical = alignment.attribute("vertical").unwrap_or("bottom")
+      let rotation = natural(
+        alignment.attribute("textRotation").unwrap_or("0"),
+        255,
+      )
       if ![
           "general", "left", "center", "right", "justify", "centerContinuous", "distributed",
           "fill",
@@ -321,7 +327,7 @@ fn read_styles(
         !["top", "center", "bottom", "justify", "distributed"].contains(
           vertical,
         ) ||
-        alignment.attribute("textRotation").unwrap_or("0") != "0" ||
+        (rotation > 180 && rotation != 255) ||
         alignment.attribute("relativeIndent").unwrap_or("0") != "0" {
         style = { ..style, diagnostic: "Unsupported text alignment", }
       }
@@ -329,6 +335,7 @@ fn read_styles(
         ..style,
         horizontal,
         vertical,
+        rotation,
         wrap: flag(alignment, "wrapText"),
         shrink: flag(alignment, "shrinkToFit"),
         indent: natural(alignment.attribute("indent").unwrap_or("0"), 250),

@@ -29,6 +29,7 @@ pub struct CellFormat {
   wrap : Bool?
   shrinkToFit : Bool?
   indent : Int?
+  textRotation : Int?
   locked : Bool?
   formulaHidden : Bool?
   numberFormat : String?
@@ -61,6 +62,7 @@ fn CellFormat::complete(self : CellFormat) -> Unit raise @failure.Failure {
     self.wrap is Some(_) &&
     self.shrinkToFit is Some(_) &&
     self.indent is Some(_) &&
+    self.textRotation is Some(_) &&
     self.locked is Some(_) &&
     self.formulaHidden is Some(_) &&
     self.numberFormat is Some(_) &&
@@ -90,6 +92,7 @@ pub fn CellFormat::new(
   wrap~ : Bool? = None,
   shrinkToFit~ : Bool? = None,
   indent~ : Int? = None,
+  textRotation~ : Int? = None,
   locked~ : Bool? = None,
   formulaHidden~ : Bool? = None,
   numberFormat~ : String? = None,
@@ -113,6 +116,7 @@ pub fn CellFormat::new(
     wrap,
     shrinkToFit,
     indent,
+    textRotation,
     locked,
     formulaHidden,
     numberFormat,
@@ -171,6 +175,13 @@ fn CellFormat::validate(self : CellFormat) -> Unit raise @failure.Failure {
     guard value >= 0 && value <= 250 else {
       @failure.reject(
         "invalid-operation", "Cell indent must be between 0 and 250",
+      )
+    }
+  }
+  if self.textRotation is Some(value) {
+    guard (value >= 0 && value <= 180) || value == 255 else {
+      @failure.reject(
+        "invalid-operation", "Cell rotation must be 0 to 180 or 255",
       )
     }
   }
@@ -261,6 +272,7 @@ fn CellFormat::applied(self : CellFormat, source : CellStyle) -> CellStyle {
     wrap: self.wrap.unwrap_or(source.wrap),
     shrink: self.shrinkToFit.unwrap_or(source.shrink),
     indent: self.indent.unwrap_or(source.indent),
+    rotation: self.textRotation.unwrap_or(source.rotation),
     locked: self.locked.unwrap_or(source.locked),
     formula_hidden: self.formulaHidden.unwrap_or(source.formula_hidden),
     format: self.numberFormat.unwrap_or(source.format),

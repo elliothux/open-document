@@ -12,6 +12,7 @@ export interface PptxChart {
     | "pie"
     | "area"
     | "scatter"
+    | "radar"
     | "doughnut";
   title: string;
   /** TSV: header row, category column (numeric X for scatter), then 1-8 numeric series. Pie displays the first series by absolute value. */
@@ -38,6 +39,7 @@ export function checkPptxChart(value: unknown): void {
       "pie",
       "area",
       "scatter",
+      "radar",
       "doughnut",
     ].some((kind) => kind === chart.kind) ||
     ("holeSize" in chart &&

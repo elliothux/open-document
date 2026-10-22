@@ -16,6 +16,9 @@ fn CellStyle::cell_text_block(
   let mut spans = spans.unwrap_or([
     { node: 0, text, style: self.text_style(), drawing: None, field: "", },
   ])
+  if self.rotation == 255 {
+    spans = stacked_spans(spans)
+  }
   let mut nominal = self.size
   let mut block = probe.span_block(
     spans,
@@ -33,7 +36,7 @@ fn CellStyle::cell_text_block(
     return block
   }
   for _ in 0..<16 {
-    let measured = block.widths.fold(init=0.0, (a, b) => a.max(b))
+    let measured = rotated_size(block, self.rotation).0
     if measured <= width {
       return block
     }
@@ -76,7 +79,13 @@ fn place_block(
   horizontal : String,
   vertical : String,
   indent : Double,
+  rotation~ : Int = 0,
 ) -> Array[@layout.Border] raise @failure.Failure {
+  if rotation != 0 && rotation != 255 {
+    return place_rotated_block(
+      page, block, rect, horizontal, vertical, indent, rotation,
+    )
+  }
   let free = (rect.height - 3 - block.height).max(0)
   let spread = vertical == "justify" || vertical == "distributed"
   let gap = if spread && block.lines.length() > 1 {
@@ -154,6 +163,8 @@ fn CellStyle::text_alignment(
   } else if self.horizontal != "general" &&
     !(self.horizontal == "fill" && self.wrap) {
     self.horizontal
+  } else if self.rotation == 255 {
+    "center"
   } else {
     match value {
       Number(_) => "right"

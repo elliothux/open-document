@@ -60,6 +60,7 @@ fn CellFormat::dxf_markup(
       ("vertical", self.vertical),
       ("wrapText", self.wrap.map(v => if v { "1" } else { "0" })),
       ("indent", self.indent.map(v => v.to_string())),
+      ("textRotation", self.textRotation.map(v => v.to_string())),
       ("shrinkToFit", self.shrinkToFit.map(v => if v { "1" } else { "0" })),
     ] {
     if value is Some(value) {

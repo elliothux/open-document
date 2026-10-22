@@ -44,6 +44,7 @@ fn CellFormat::patch_json(self : CellFormat) -> Json {
     ("wrap", self.wrap.map(v => Json(v))),
     ("shrinkToFit", self.shrinkToFit.map(v => Json(v))),
     ("indent", self.indent.map(v => Json(v))),
+    ("textRotation", self.textRotation.map(v => Json(v))),
     ("numberFormat", self.numberFormat.map(v => Json(v))),
   ]
   for

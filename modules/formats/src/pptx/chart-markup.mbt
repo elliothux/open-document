@@ -68,6 +68,7 @@ fn ChartData::markup(
   let stacked = stacked_chart(self.kind)
   let percent = percent_stacked_chart(self.kind)
   let line = self.kind == "line"
+  let radar = self.kind == "radar"
   let area = self.kind == "area"
   let last = self.categories.length() + 1
   let categories = chart_reference(
@@ -79,7 +80,9 @@ fn ChartData::markup(
   out <+
     "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><c:chartSpace xmlns:c=\"\{chart_uri}\" xmlns:a=\"\{drawing_uri}\" xmlns:r=\"\{relationship_uri}\"><c:chart>\{chart_title(self.title)}<c:autoTitleDeleted val=\"0\"/><c:plotArea><c:layout/>"
   out.write_string(
-    if area {
+    if radar {
+      "<c:radarChart><c:radarStyle val=\"marker\"/><c:varyColors val=\"0\"/>"
+    } else if area {
       "<c:areaChart><c:grouping val=\"standard\"/><c:varyColors val=\"0\"/>"
     } else if line {
       "<c:lineChart><c:grouping val=\"standard\"/><c:varyColors val=\"0\"/>"
@@ -105,7 +108,7 @@ fn ChartData::markup(
     out.write_string(
       if area {
         "<c:spPr><a:solidFill><a:srgbClr val=\"\{color}\"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr>"
-      } else if line {
+      } else if line || radar {
         "<c:spPr><a:noFill/><a:ln w=\"19050\"><a:solidFill><a:srgbClr val=\"\{color}\"/></a:solidFill></a:ln></c:spPr><c:marker><c:symbol val=\"circle\"/><c:size val=\"5\"/><c:spPr><a:solidFill><a:srgbClr val=\"\{color}\"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr></c:marker>"
       } else {
         "<c:spPr><a:solidFill><a:srgbClr val=\"\{color}\"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr><c:invertIfNegative val=\"0\"/>"
@@ -118,7 +121,9 @@ fn ChartData::markup(
     out <+ "</c:ser>"
   }
   out.write_string(
-    if area {
+    if radar {
+      "<c:axId val=\"1\"/><c:axId val=\"2\"/></c:radarChart>"
+    } else if area {
       "<c:axId val=\"1\"/><c:axId val=\"2\"/></c:areaChart>"
     } else if line {
       "<c:marker val=\"1\"/><c:smooth val=\"0\"/><c:axId val=\"1\"/><c:axId val=\"2\"/></c:lineChart>"

@@ -16,6 +16,7 @@ fn CellStyle::format_values(self : CellStyle) -> Map[String, Json] {
     "wrap": Json(self.wrap),
     "shrinkToFit": Json(self.shrink),
     "indent": Json(self.indent),
+    "textRotation": Json(self.rotation),
     "locked": Json(self.locked),
     "formulaHidden": Json(self.formula_hidden),
     "numberFormat": Json(self.format),

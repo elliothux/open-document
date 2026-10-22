@@ -75,6 +75,11 @@ fn DrawingChart::paint(
     out.append(self.paint_pie(width, height, probe, profile))
     return out
   }
+  if data.kind == "radar" {
+    out.append(data.paint_radar(width, height, probe, profile))
+    out.append(data.paint_legend(width, height, probe, profile))
+    return out
+  }
   let (low, high, step) = data.axis()
   let horizontal = horizontal_bar_chart(data.kind)
   let stacked = stacked_chart(data.kind)
@@ -331,12 +336,25 @@ fn DrawingChart::paint(
   out.append(
     chart_label(data.label, left, top + h + 21, w, 16, 10, true, probe, profile),
   )
-  let legend_width = (width - 16) / data.series.length().to_double()
-  for i, series in data.series {
+  out.append(data.paint_legend(width, height, probe, profile))
+  out
+}
+
+///|
+fn ChartData::paint_legend(
+  self : ChartData,
+  width : Double,
+  height : Double,
+  probe : @layout.TextProbe,
+  profile : Map[String, String],
+) -> Array[@layout.PositionedPrimitive] raise @failure.Failure {
+  let out : Array[@layout.PositionedPrimitive] = []
+  let legend_width = (width - 16) / self.series.length().to_double()
+  for i, series in self.series {
     let x = 8.0 + legend_width * i.to_double()
-    if scatter {
+    if self.kind == "scatter" {
       out.append(chart_marker(x + 4, height - 14, chart_color(i)))
-    } else if line {
+    } else if ["line", "radar"].contains(self.kind) {
       out.push(
         Path(
           [Move(x, height - 14), Line(x + 8, height - 14)],

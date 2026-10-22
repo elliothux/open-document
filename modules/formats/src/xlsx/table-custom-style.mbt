@@ -329,6 +329,11 @@ fn CustomTableStyle::applied(
       },
       locked: None,
       formulaHidden: None,
+      textRotation: if direct.properties.contains("textRotation") {
+        None
+      } else {
+        patch.textRotation
+      },
       wrap: if direct.properties.contains("wrap") {
         None
       } else {

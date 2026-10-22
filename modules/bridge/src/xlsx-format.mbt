@@ -7,7 +7,7 @@ fn xlsx_cell_format(value : Json) -> @xlsx.CellFormat raise @failure.Failure {
       [
         "family", "size", "bold", "italic", "underline", "strike", "script", "color",
         "fill", "horizontal", "vertical", "wrap", "numberFormat", "left", "right",
-        "top", "bottom", "locked", "formulaHidden", "indent", "shrinkToFit",
+        "top", "bottom", "locked", "formulaHidden", "indent", "shrinkToFit", "textRotation",
       ].contains(key)
     }) else {
     @failure.reject("invalid-operation", "Unknown cell format fields")
@@ -60,6 +60,11 @@ fn xlsx_cell_format(value : Json) -> @xlsx.CellFormat raise @failure.Failure {
     vertical=string("vertical"),
     wrap=boolean("wrap"),
     shrinkToFit=boolean("shrinkToFit"),
+    textRotation=if fields.contains("textRotation") {
+      Some(field_int(value, "textRotation"))
+    } else {
+      None
+    },
     indent=if fields.contains("indent") {
       Some(field_int(value, "indent"))
     } else {

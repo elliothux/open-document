@@ -136,6 +136,9 @@ fn CellFormat::xf_markup(
   if self.indent is Some(value) {
     values.push(("indent", value.to_string()))
   }
+  if self.textRotation is Some(value) {
+    values.push(("textRotation", value.to_string()))
+  }
   if !values.is_empty() {
     let tree = Tree::new(document)
     let root = document.nodes()[0]

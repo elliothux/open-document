@@ -1,4 +1,9 @@
 import { DocumentReview } from "./document-review.js";
+import type {
+  DocxMathFractions,
+  DocxFractionValue,
+} from "@open-document/wasm/foundation";
+export type DocumentMathFractions = DocxMathFractions & { documentId: string };
 import type { DocxRuler, DocxRulerEdit } from "@open-document/wasm/foundation";
 export type DocumentRuler = DocxRuler & { documentId: string };
 import type { DocxPageSetup } from "@open-document/wasm/foundation";
@@ -22,6 +27,47 @@ export type DocumentProtection = DocxProtection & { documentId: string };
 
 /** Document-wide page commands use the editor's existing read and edit queues. */
 export abstract class DocumentPage extends DocumentReview {
+  mathFractions(): Promise<DocumentMathFractions> {
+    return this.review.read(async () => ({
+      ...(await this.review.client.mathFractions(
+        this.review.snapshot().revision,
+      )),
+      documentId: this.review.snapshot().documentId,
+    }));
+  }
+  insertMathFraction(value: DocxFractionValue): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.editMathFraction(
+        this.review.snapshot().revision,
+        { ...value, action: "insert" },
+        this.profile,
+      ),
+    );
+  }
+  editMathFraction(
+    source: DocumentMathFractions,
+    id: number,
+    value: DocxFractionValue | null,
+  ): Promise<void> {
+    return this.review.edit(() => {
+      const current = this.review.snapshot(),
+        item = source.items.find((item) => item.id === id);
+      if (
+        source.documentId !== current.documentId ||
+        source.revision !== current.revision ||
+        !item ||
+        item.reason
+      )
+        throw new Error(item?.reason || "Fraction catalog is stale");
+      return this.review.client.editMathFraction(
+        source.revision,
+        value === null
+          ? { action: "delete", id }
+          : { ...value, action: "update", id },
+        this.profile,
+      );
+    });
+  }
   shapes() {
     return this.review.read(() =>
       this.review.client.shapes(this.review.snapshot().revision),

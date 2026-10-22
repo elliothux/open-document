@@ -15,6 +15,7 @@ export const objectEn = {
     "Series form rings from inside to outside. Slices use absolute values; zero and empty values draw no slice.",
   chartArea: "Area",
   chartScatter: "Scatter",
+  chartRadar: "Radar",
   chartScatterHint:
     "Use numeric X values in the first column. Rows without X or Y do not draw a point.",
   chartPieHint:
@@ -87,6 +88,7 @@ export const objectZh: typeof objectEn = {
     "系列由内向外形成同心环。扇区使用绝对值；零值和空值不绘制。",
   chartArea: "面积图",
   chartScatter: "散点图",
+  chartRadar: "雷达图",
   chartScatterHint: "首列填写数值 X；缺少 X 或 Y 的行不绘制数据点。",
   chartPieHint:
     "饼图按绝对值显示首个系列，零值和空值不占扇区。所有源系列仍可编辑。",

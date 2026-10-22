@@ -217,7 +217,13 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 宿主在现有字体 profile 中提供设置部件 `m:mathFont` 指定的字体；未指定时使用 `Cambria Math`。核心需要该实际字体的行度量及 U+2217 字形计算数学轴；缺少字体或字形明确拒绝布局。行内参数采用 0.76 字号系数，分子分母居中，横线宽度取两者较大值。公式参与逐行基线、行高和现有段落缓存预算，使用已有文字、矩形及变换图元输出 Canvas/PDF；语义文字为 `(分子)/(分母)`。
 
-公式所在段落保持编辑保护。点击沿既有受保护命中行为停止编辑，可显式恢复；保存保持原字节，其他段落仍可编辑、精确撤销/重做并重开。HTML/Markdown 明确拒绝公式输出，避免静默丢失。公式创建、编辑及完整数学排版仍待实现。
+属性栏可插入、加载、修改和删除当前范围内的分数。`DocumentEditor.insertMathFraction({numerator, denominator})` 在普通文字选区插入，替换所选文字并保留两侧文字和格式。核心复用段内原生对象插入路径，写入正体 `m:oMath/m:f`。两个参数要求非空单行文字，合计最多 4096 个 UTF-16 单元；目录最多 256 项。
+
+`mathFractions()` 返回绑定 `documentId` 和 `revision` 的目录，项含原生 XML 身份 `id`、分子、分母及保护原因。`editMathFraction(source, id, value)` 修改指定分数，`value=null` 删除。过期目录、受保护容器、修订和未知公式源明确拒绝；字体及完整布局预检失败时保留源和历史。修改相同参数不创建历史，每项实际编辑可精确撤销/重做并保存重开。
+
+公式所在段落仍保护普通文字编辑，插入后清除文字选区；分数通过属性栏显式编辑。点击公式沿既有受保护命中行为停止编辑，可显式恢复。其他段落保持可编辑，非目标部件保留原字节。HTML/Markdown 明确拒绝公式输出，避免静默丢失。公式段落内的普通文字编辑、嵌套结构、LaTeX 和完整数学排版仍待实现。
+
+编辑归 [`math-edit.mbt`](../../modules/formats/src/docx/math-edit.mbt)，接口校验归 [`docx-math.ts`](../../packages/wasm/src/docx-math.ts)，默认面板归 [`docx-math.tsx`](../../packages/ui/src/docx-math.tsx)。
 
 读取归 [`math-fraction.mbt`](../../modules/formats/src/docx/math-fraction.mbt)，布局归 [`layout/math-fraction.mbt`](../../modules/layout/src/math-fraction.mbt)。数学轴参考 [ONLYOFFICE Math.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Math.js#L2520-L2525)，参数缩放、间距及横线规则参考 [fraction.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/fraction.js#L352-L459)和[分子分母间距](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/fraction.js#L821-L909)。私有测试使用带完整许可的 DejaVu Math 字体，公开构建不依赖私有资源。
 
@@ -1490,7 +1496,7 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 ### 单元格格式编辑
 
-同步 Wasm 与 Worker 使用 `formatCells(revision, patch)`，宿主使用 `SpreadsheetEditor.formatCells(patch)`。命令作用于队列执行时的选区，宿主先提交单格草稿。`XlsxCellFormat` 从 `wasm/xlsx` 和 `web/xlsx` 导出；省略的属性保持原值。字段为 `family`、`size`、`bold`、`italic`、`underline`、`strike`、`script`、`color`、`fill`、`horizontal`、`vertical`、`wrap`、`shrinkToFit`、`indent`、`numberFormat` 及 `left/right/top/bottom`。`underline` 为单下划线，`strike` 为删除线，均使用布尔值；`script` 为 `baseline | superscript | subscript`。颜色为六位十六进制，空 `fill` 清除填充；四边使用 `{ style: "none" | "thin" | "medium" | "thick" | "double", color }`。字号为 1–409 磅，水平对齐为 general/left/center/right/justify/centerContinuous/distributed/fill，垂直对齐为 top/center/bottom/justify/distributed；数字格式限下节已有集合。宿主先验证新字体键存在于字体 profile。
+同步 Wasm 与 Worker 使用 `formatCells(revision, patch)`，宿主使用 `SpreadsheetEditor.formatCells(patch)`。命令作用于队列执行时的选区，宿主先提交单格草稿。`XlsxCellFormat` 从 `wasm/xlsx` 和 `web/xlsx` 导出；省略的属性保持原值。字段为 `family`、`size`、`bold`、`italic`、`underline`、`strike`、`script`、`color`、`fill`、`horizontal`、`vertical`、`wrap`、`shrinkToFit`、`indent`、`textRotation`、`numberFormat` 及 `left/right/top/bottom`。`underline` 为单下划线，`strike` 为删除线，均使用布尔值；`script` 为 `baseline | superscript | subscript`。颜色为六位十六进制，空 `fill` 清除填充；四边使用 `{ style: "none" | "thin" | "medium" | "thick" | "double", color }`。字号为 1–409 磅，水平对齐为 general/left/center/right/justify/centerContinuous/distributed/fill，垂直对齐为 top/center/bottom/justify/distributed；数字格式限下节已有集合。宿主先验证新字体键存在于字体 profile。
 
 `XlsxQuery.formatting` 返回这些属性，不同值返回 `null`，并返回 `readOnlyReason` 和所选字体键 `fontKeys`。一次最多 4096 格；依赖无法隔离的公式、受保护表、富文本/未知样式及只覆盖部分合并格的范围继续保护。单格合并锚点的格式查询和编辑扩展到完整合并范围。空白格继承行样式，其次列样式，再使用基础样式；显式单元格样式优先。派生格式保留原共享记录，不改写其他格。样式和目标格共同提交有界历史，缺失样式部件时关系及内容类型一起创建和撤销。仅改格式保留值、公式源、缓存和 calcChain，后续输入保持格样式；重复设置有效状态不新增历史。格式化的空白格参与使用范围和打印。默认 UI 使用可滚动属性栏，保留网格工作区。单下划线、删除线和上下标沿共同字体度量进入网格、自动适配及 PDF；格式刷、单元格片段和三种清除沿相同样式事务保留或移除。条件格式与自定义表格样式支持这些差异属性，直接字体组件的覆盖规则保持。未知、重复、双线及会计下划线继续诊断并保护编辑和输出。共同读取归 [`font-decorations.mbt`](../../modules/formats/src/xlsx/font-decorations.mbt)，原生属性依据 [ONLYOFFICE Font 读取](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L988-L1030)。Chromium 已检查格式设置、草稿顺序、格式刷、装饰绘制、混合历史、缺失字体恢复、保存重开和格式化公式的 PDF 输出；更多装饰和格式代码仍归 [P11](../p11-xlsx-core.md)。
 
@@ -1504,9 +1510,17 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 `horizontal: "justify"` 按词间空白扩展非末行，连续空格合为一个间隙；不拉开没有空白的字母。末行保持自然宽度，LTR 靠左，RTL 靠右。普通文字、混合字号、装饰、显式换行与自动换行共用核心图元，换行开关仍独立保存；两端对齐忽略缩进。计算不改变源文字、字号、公式或缓存。自动行高保留文字高度，自动列宽使用未扩展词间距的度量。原生 XF/DXF、混合查询、格式刷及单元格片段复用既有事务，Canvas/PDF 使用同一位置，RTL 的打印与链接边界计入行偏移。旋转等仍待实现。实现归 [`cell-text.mbt`](../../modules/formats/src/xlsx/cell-text.mbt)、[`positioned.mbt`](../../modules/layout/src/positioned.mbt)和 [`justification.mbt`](../../modules/layout/src/justification.mbt)，词间距及末行规则依据 [ONLYOFFICE 词间扩展](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/StringRender.js#L1209-L1242)和[末行方向](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/StringRender.js#L1318-L1325)，未复制上游执行代码。
 
-`indent` 为 0–250 的整数，缺省为 0，省略补丁保留原值，显式 0 清除缩进。每级使用 Normal 字体的三个空格；空格宽先按固定 96 dpi 舍入，再换算为磅，不随当前格字号或缩放改变。按有效左/右对齐向格内缩进，General 依类型选择方向，居中不平移。换行按缩进减少可用宽度，数值溢出检查、自动行高、自动列宽及 PDF 复用同一度量。缩进不自动改变水平对齐。原生 `alignment.indent`、混合查询、格式刷、完整格式快照、片段、条件格式与自定义表格样式沿现有事务维护，保留原值、公式和精确历史。相对缩进、旋转及其他对齐模式继续诊断并保护。实现归 [`cell-text.mbt`](../../modules/formats/src/xlsx/cell-text.mbt)、[`cell-format.mbt`](../../modules/formats/src/xlsx/cell-format.mbt)和 [`autofit.mbt`](../../modules/formats/src/xlsx/autofit.mbt)。距离依据 [ONLYOFFICE Normal 空格](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L619-L622)、[文字位置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L6709-L6725)及[换行和度量](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L9642-L9668)，未复制上游执行代码。
+`indent` 为 0–250 的整数，缺省为 0，省略补丁保留原值，显式 0 清除缩进。每级使用 Normal 字体的三个空格；空格宽先按固定 96 dpi 舍入，再换算为磅，不随当前格字号或缩放改变。按有效左/右对齐向格内缩进，General 依类型选择方向，居中不平移。换行按缩进减少可用宽度，数值溢出检查、自动行高、自动列宽及 PDF 复用同一度量。缩进不自动改变水平对齐。原生 `alignment.indent`、混合查询、格式刷、完整格式快照、片段、条件格式与自定义表格样式沿现有事务维护，保留原值、公式和精确历史。相对缩进继续诊断并保护。实现归 [`cell-text.mbt`](../../modules/formats/src/xlsx/cell-text.mbt)、[`cell-format.mbt`](../../modules/formats/src/xlsx/cell-format.mbt)和 [`autofit.mbt`](../../modules/formats/src/xlsx/autofit.mbt)。距离依据 [ONLYOFFICE Normal 空格](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L619-L622)、[文字位置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L6709-L6725)及[换行和度量](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L9642-L9668)，未复制上游执行代码。
 
-`shrinkToFit` 为布尔值，缺省 false；省略保留，显式 false 关闭。换行优先于缩小。核心按实际格宽与缩进测量普通或混合字号文字，以半磅步长缩小各 run，最低 2.5 pt；源字号低于该值时保持，不放大。达到下限仍超宽时沿格边裁剪，数值保留格式化文字，不替换为井号。网格、自动行高及 PDF 复用同一结果；显式自动列宽测量未缩小文字，后续缩小格不自动撑宽 bestFit 列。显示计算不写回字号、值或源，格式补丁、混合查询、格式刷、完整快照、片段及条件/自定义表格样式沿既有精确历史维护。每次缩小最多 16 轮，沿用字体与文字预算；其余对齐和旋转保持保护。实现归 [`cell-text.mbt`](../../modules/formats/src/xlsx/cell-text.mbt)及 [`autofit.mbt`](../../modules/formats/src/xlsx/autofit.mbt)。行为依据 [ONLYOFFICE 字体缩小](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/StringRender.js#L1162-L1185)、[换行优先](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L10161)及[列宽和文字度量](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L9568-L9674)，未复制上游执行代码。
+`shrinkToFit` 为布尔值，缺省 false；省略保留，显式 false 关闭。换行优先于缩小。核心按实际格宽与缩进测量普通或混合字号文字，以半磅步长缩小各 run，最低 2.5 pt；源字号低于该值时保持，不放大。达到下限仍超宽时沿格边裁剪，数值保留格式化文字，不替换为井号。网格、自动行高及 PDF 复用同一结果；显式自动列宽测量未缩小文字，后续缩小格不自动撑宽 bestFit 列。显示计算不写回字号、值或源，格式补丁、混合查询、格式刷、完整快照、片段及条件/自定义表格样式沿既有精确历史维护。每次缩小最多 16 轮，沿用字体与文字预算；文字旋转见下节。实现归 [`cell-text.mbt`](../../modules/formats/src/xlsx/cell-text.mbt)及 [`autofit.mbt`](../../modules/formats/src/xlsx/autofit.mbt)。行为依据 [ONLYOFFICE 字体缩小](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/StringRender.js#L1162-L1185)、[换行优先](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L10161)及[列宽和文字度量](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L9568-L9674)，未复制上游执行代码。
+
+### 单元格文字旋转
+
+`XlsxCellFormat.textRotation` 直接使用 OOXML 整数：0 为水平，1–90 为逆时针角度，91–180 按 `90 − value` 转成顺时针角度，255 为逐字素竖排。省略保留，显式 0 恢复水平。查询返回共同值或 `null`；格式刷、完整格式快照、单元格片段、条件格式和自定义表格样式沿既有源事务保留。默认控件提供水平、正负 45/90 度及竖排预设，API 可写全部有效角度。
+
+核心先用原字体、装饰、混合字号及换行规则测量，再变换整个文字块并按旋转外框对齐。数值沿原格式显示，旋转不改写源字号、内容或公式。缩小字体按投影宽度测量，自动行高/列宽采用旋转后的尺寸；竖排按已有扩展字素边界分行，保留跨 run 的组合字符，General 水平对齐居中。实际文字、裁剪和 PDF 链接使用共同图元与边界，格选择和命中保留原矩形。选中行列超过可用视口时，定位起始边缘，避免顶部文字藏在标题后方。竖排派生文字仍受每块 32767 个 UTF-16 单元预算限制，失败保持源和历史。
+
+实现归 [`text-rotation.mbt`](../../modules/formats/src/xlsx/text-rotation.mbt)、[`cell-text.mbt`](../../modules/formats/src/xlsx/cell-text.mbt)及 [`autofit.mbt`](../../modules/formats/src/xlsx/autofit.mbt)。编码参考 [ONLYOFFICE Align.getAngle](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/WorkbookElems.js#L5277-L5286)，旋转投影与竖排参考 [WorksheetView](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/WorksheetView.js#L9556-L9640)及 [StringRender](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/view/StringRender.js#L974-L1030)。未复制上游执行代码；竖排不等同于东亚竖向字形替换。
 
 ### 格式刷
 
@@ -2639,11 +2653,11 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 ### PPTX 基础图表
 
-`editObjects({ action: "insertChart", kind, title, data, x, y, width, height })` 插入簇状柱形图 `column`、条形图 `bar`、堆积柱形图 `stackedColumn`、堆积条形图 `stackedBar`、百分比堆积柱形图 `percentStackedColumn`、百分比堆积条形图 `percentStackedBar`、带圆形数据点的折线图 `line`、饼图 `pie`、面积图 `area`、散点图 `scatter` 或圆环图 `doughnut`。选中单个本地图表后，`{ action: "chartData", kind, title, data }` 修改类型、标题和数据。对象查询的 `chart` 返回 `{ kind, title, data }`，其他对象为 `null`。默认面板使用相同接口。
+`editObjects({ action: "insertChart", kind, title, data, x, y, width, height })` 插入簇状柱形图 `column`、条形图 `bar`、堆积柱形图 `stackedColumn`、堆积条形图 `stackedBar`、百分比堆积柱形图 `percentStackedColumn`、百分比堆积条形图 `percentStackedBar`、带圆形数据点的折线图 `line`、饼图 `pie`、面积图 `area`、散点图 `scatter`、雷达图 `radar` 或圆环图 `doughnut`。选中单个本地图表后，`{ action: "chartData", kind, title, data }` 修改类型、标题和数据。对象查询的 `chart` 返回 `{ kind, title, data }`，其他对象为 `null`。默认面板使用相同接口。
 
 `data` 为 TSV，首行给出类别轴标题和系列名，首列为类别，其余为有限数值或空值。支持 1–8 个系列、1–256 个类别、最多 65536 个 UTF-16 单元；标题及各标签最多 256 个单行单元。核心复用 XLSX 分隔文本导入，公式作为文字处理并在数值列拒绝。空值保留间隙，零值没有柱高；数轴包含零并采用 1/2/5/10 刻度间隔。参考 [ONLYOFFICE 数轴计算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L2678-L2736)。
 
-MoonBit 生成原生 `graphicFrame`、`barChart`、`lineChart`、`pieChart`、`doughnutChart`、`areaChart` 或 `scatterChart`、系列公式/缓存、关系和实际嵌入 XLSX，使用固定配色、Arial 及图例。公共图元输出 Canvas 与静态 PDF。框最小为 180×150 点，移动、缩放、对齐、层级、删除复用对象事务。旋转、翻转和组合保持保护。图表文字通过数据面板编辑。
+MoonBit 生成原生 `graphicFrame`、`barChart`、`lineChart`、`pieChart`、`doughnutChart`、`areaChart`、`scatterChart` 或 `radarChart`、系列公式/缓存、关系和实际嵌入 XLSX，使用固定配色、Arial 及图例。公共图元输出 Canvas 与静态 PDF。框最小为 180×150 点，移动、缩放、对齐、层级、删除复用对象事务。旋转、翻转和组合保持保护。图表文字通过数据面板编辑。
 
 普通视图中的本地顶层图表支持 `editObjects({ action: "duplicate", dx, dy })` 和默认“复制对象”按钮。可与同父的普通对象一起多选复制，保留选择顺序、活动对象、内容、名称及非目标源。副本分配新对象身份、独立图表 XML、嵌入工作簿及关系；初始工作簿保留原始字节，后续改数据互不影响。复制、资源及内容类型合为一项精确历史。缓存与工作簿不一致、未知图表资源关系、复制锁、字体、布局或预算失败时整项拒绝。组内图表及母版/版式图表复制继续保护。规则参考 [ONLYOFFICE 图表复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L4959-L5028)，实现归 [`chart-copy.mbt`](../../modules/formats/src/pptx/chart-copy.mbt)和 [`object-copy.mbt`](../../modules/formats/src/pptx/object-copy.mbt)。
 
@@ -2690,6 +2704,14 @@ MoonBit 使用 `InsertDiagram(DiagramSettings)` 计算布局，生成矩形、�
 页面重排保持内部目标，页面复制复用既有自身链接重映射，删页移除相应入链并保留对象。对象复制保留链接；带自身点击或悬停链接的组不能直接取消组合，避免丢失组动作。普通点击链接移除后可取消组合，成员自己的链接保留。静态 Canvas 保留对象外观及文字，PDF 链接归[下段](#pptx-pdf-链接)。放映点击归[放映链接](#放映链接)；悬停及其他一般动作编辑继续按 [P12](../p12-pptx-core.md) 实施。语义参考固定 [ONLYOFFICE 对象链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/CommonController.js#L3503-L3683)、[文字链接拆分与光标操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L7811-L8180)、[PPTX 链接下划线](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L10545-L10565)、[内部页动作解析](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Shapes/Serialize.js#L9259-L9290)及[编辑器显式导航](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/api.js#L7243-L7264)，实现归 [`object-hyperlink.mbt`](../../modules/formats/src/pptx/object-hyperlink.mbt)和 [`text-hyperlink.mbt`](../../modules/formats/src/pptx/text-hyperlink.mbt)。
 
 表格文字链接在单个主格内使用相同的局部范围及光标规则，包含跨行列合并格和空格；范围先转换为格内位置，不改其他格及延续格。跨主格选择返回保护原因，统一设置和移除均不写入，默认面板同步禁用。新关系与单元格源仍合为一项历史；已有格式、几何及其他部件保持。放映使用表格原有逐格文字几何命中。规则依据 [ONLYOFFICE 表格链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L4601-L4630)。整表对象链接编辑仍受保护。
+
+### PPTX 雷达图
+
+`PptxChart.kind: "radar"` 使用现有插入、修改数据、占位符填入和查询入口。首列仍为类别，各数据列为系列；1–256 个类别、1–8 个系列及文字预算沿基础图表合同。原生配置为 `radarChart`、`radarStyle=marker`、`varyColors=0`、类别轴与数值轴、5 点圆形标记及 1.5 点系列线。原生缓存、引用、实际嵌入 XLSX、对象身份、独立复制和精确历史复用原图表路径。
+
+类别从顶部开始顺时针等角排列。数值轴包含零并沿已有 1/2/5/10 刻度规则取界；半径为 `(值 − 下界) / (上界 − 下界)` 的投影。负值保持原数值；下界映射到中心，零按共同刻度定位。全零/全空使用 0–1。相邻非空点连接，首末点也视为相邻；空值在两侧断线，孤立点和零值保留标记。单类别只画标记，两类别只保留一条连接。核心先绘制系列线再绘制标记，类别、刻度和系列图例沿相同字体路径输出。径向比例先归一化再乘显示半径，避免有限大数产生无穷坐标。
+
+当前框使用内接圆和有界标签区域；默认面板可改类型、标题及数据，Canvas、PNG 和静态 PDF 共用位置。只读取当前原生配置；填充雷达、其他标记、轴配置和组合继续诊断并保留源。实现归 [`chart-radar.mbt`](../../modules/formats/src/pptx/chart-radar.mbt)及既有图表读写模块。算法参考 [ONLYOFFICE 类别角度、径向坐标、空值及闭合](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L14406-L14563)、[半径和绘制层次](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L14793-L14812)及[原生样式与数轴](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartFormat.js#L6094-L6116)。未复制上游执行代码。
 
 ### PPTX PDF 链接
 

@@ -183,6 +183,8 @@ fn read_chart_part(
     (area, "area")
   } else if plot.child("scatterChart", uri=chart_uri) is Some(scatter) {
     (scatter, "scatter")
+  } else if plot.child("radarChart", uri=chart_uri) is Some(radar) {
+    (radar, "radar")
   } else {
     let bars = chart_child(plot, "barChart")
     let direction = chart_child(bars, "barDir").node

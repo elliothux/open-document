@@ -57,6 +57,12 @@ export * from "./docx-format.js";
 export * from "./docx-ruler.js";
 export * from "./docx-picture.js";
 export * from "./docx-shape.js";
+export * from "./docx-math.js";
+import {
+  docxMathFractions,
+  checkDocxFractionEdit,
+  type DocxFractionEdit,
+} from "./docx-math.js";
 import {
   docxShapes,
   checkDocxShapeEdit,
@@ -473,6 +479,26 @@ export class FoundationSession extends FoundationClipboardSession {
   }
   shapes(revision: number) {
     return docxShapes(this.call({ operation: "docxShapes", revision }));
+  }
+  mathFractions(revision: number) {
+    return docxMathFractions(
+      this.call({ operation: "docxMathFractions", revision }),
+    );
+  }
+  editMathFraction(
+    revision: number,
+    fraction: DocxFractionEdit,
+    profile: Record<string, string> = {},
+  ): EditState {
+    checkDocxFractionEdit(fraction);
+    return editState(
+      this.call({
+        operation: "editDocxMathFraction",
+        revision,
+        fraction,
+        profile,
+      }),
+    );
   }
   editShape(
     revision: number,

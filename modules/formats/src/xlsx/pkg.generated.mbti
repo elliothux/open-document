@@ -47,6 +47,7 @@ pub struct CellFormat {
   wrap : Bool?
   shrinkToFit : Bool?
   indent : Int?
+  textRotation : Int?
   locked : Bool?
   formulaHidden : Bool?
   numberFormat : String?
@@ -58,7 +59,7 @@ pub struct CellFormat {
 pub fn CellFormat::equal(Self, Self) -> Bool
 pub fn CellFormat::hash(Self) -> Int
 pub fn CellFormat::hash_combine(Self, Hasher) -> Unit
-pub fn CellFormat::new(family? : String?, size? : Double?, bold? : Bool?, italic? : Bool?, underline? : Bool?, strike? : Bool?, script? : String?, color? : String?, fill? : String?, horizontal? : String?, vertical? : String?, wrap? : Bool?, shrinkToFit? : Bool?, indent? : Int?, locked? : Bool?, formulaHidden? : Bool?, numberFormat? : String?, left? : CellBorder?, right? : CellBorder?, top? : CellBorder?, bottom? : CellBorder?) -> Self
+pub fn CellFormat::new(family? : String?, size? : Double?, bold? : Bool?, italic? : Bool?, underline? : Bool?, strike? : Bool?, script? : String?, color? : String?, fill? : String?, horizontal? : String?, vertical? : String?, wrap? : Bool?, shrinkToFit? : Bool?, indent? : Int?, textRotation? : Int?, locked? : Bool?, formulaHidden? : Bool?, numberFormat? : String?, left? : CellBorder?, right? : CellBorder?, top? : CellBorder?, bottom? : CellBorder?) -> Self
 pub fn CellFormat::not_equal(Self, Self) -> Bool
 
 pub(all) struct ConditionalFormat {

@@ -5,6 +5,19 @@ fn Session::body_field_source(
   position : Position,
   instruction : String,
 ) -> @xml.SourceChange raise @failure.Failure {
+  let instruction = property_attribute(instruction)
+  self.paragraph_inline_source(document, position, properties => {
+    "<od:fldSimple xmlns:od=\"\{word_uri}\" od:instr=\"\{instruction}\" od:dirty=\"true\"><od:r>\{properties}<od:t>1</od:t></od:r></od:fldSimple>"
+  })
+}
+
+///|
+fn Session::paragraph_inline_source(
+  self : Session,
+  document : @xml.Document,
+  position : Position,
+  markup : (String) -> String,
+) -> @xml.SourceChange raise @failure.Failure {
   let tree = WordTree::new(document)
   let texts = docx_texts(tree).filter(item => {
     item.paragraph == position.paragraph
@@ -41,7 +54,7 @@ fn Session::body_field_source(
   } else {
     tree.empty_run_properties(document, position.paragraph)
   }
-  let field = "<od:fldSimple xmlns:od=\"\{word_uri}\" od:instr=\"\{property_attribute(instruction)}\" od:dirty=\"true\"><od:r>\{properties}<od:t>1</od:t></od:r></od:fldSimple>"
+  let field = markup(properties)
   let paragraph = tree.nodes[position.paragraph]
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
   let change : @xml.SourceChange = if target is Some((id, offset)) {

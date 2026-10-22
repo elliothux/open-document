@@ -150,14 +150,16 @@ pub fn Session::viewport(
     let bottom = top + dimensions.rows.size(focus.row)
     if focus.column > current.frozen.columns &&
       frozen_width < width - header_width {
-      if left < x + frozen_width {
+      if left < x + frozen_width ||
+        right - left > width - header_width - frozen_width {
         x = (left - frozen_width).max(0)
       } else if right > x + width - header_width {
         x = (right - width + header_width).max(0)
       }
     }
     if focus.row > current.frozen.rows && frozen_height < height - header_height {
-      if top < y + frozen_height {
+      if top < y + frozen_height ||
+        bottom - top > height - header_height - frozen_height {
         y = (top - frozen_height).max(0)
       } else if bottom > y + height - header_height {
         y = (bottom - height + header_height).max(0)

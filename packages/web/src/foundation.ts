@@ -4,6 +4,9 @@ import { FoundationClipboardClient } from "./foundation-clipboard.js";
 import { prepareDocxFragmentImages } from "./document-fragment-images.js";
 export { checkDocxComment } from "@open-document/wasm/foundation";
 export type {
+  DocxFractionEdit,
+  DocxFractionValue,
+  DocxMathFractions,
   DocxRunningArea,
   DocxCoverPage,
   DocxRunningKind,

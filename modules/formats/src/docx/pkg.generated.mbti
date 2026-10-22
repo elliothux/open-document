@@ -166,6 +166,7 @@ pub fn Session::edit_body_page_field(Self, Int, Selection, String, probe~ : @lay
 pub fn Session::edit_bookmark(Self, Int, BookmarkEdit) -> Json raise @failure.Failure
 pub fn Session::edit_comment(Self, Int, CommentEdit) -> Json raise @failure.Failure
 pub fn Session::edit_list(Self, Int, Selection, ListEdit) -> Json raise @failure.Failure
+pub fn Session::edit_math_fraction(Self, Int, String, Int, String, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::edit_picture(Self, Int, Int, Double, Double, Array[Double], probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::edit_ruler(Self, Int, @layout.Layout, Selection, RulerEdit) -> Json raise @failure.Failure
 pub fn Session::edit_shape(Self, Int, Int, Double, Double, String, String, Double, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
@@ -185,6 +186,7 @@ pub fn Session::insert_table(Self, Int, Selection, Int, Int, probe? : @layout.Te
 pub fn Session::insert_word_art(Self, Int, String, String, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::list_catalog(Self, Int) -> Json raise @failure.Failure
 pub fn Session::markup_images(Self, Int, String, String, mode? : String) -> Json raise @failure.Failure
+pub fn Session::math_fractions(Self, Int) -> Json raise @failure.Failure
 pub fn Session::navigate(Self, Int, @layout.Layout, Int, String, extend_selection~ : Bool) -> @layout.Hit raise @failure.Failure
 pub fn Session::navigate_comment(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::open(Bytes, @archive.Budget) -> Self raise @failure.Failure

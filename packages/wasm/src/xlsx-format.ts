@@ -28,6 +28,8 @@ export interface XlsxCellFormat {
   wrap?: boolean;
   shrinkToFit?: boolean;
   indent?: number;
+  /** OOXML: 0–90 counterclockwise, 91–180 clockwise, 255 stacked. */
+  textRotation?: number;
   /** Input protection takes effect when worksheet protection is enabled. */
   locked?: boolean;
   /** Conceals formula source while worksheet protection is enabled. */
@@ -58,6 +60,7 @@ const cellFormatFields = [
   "wrap",
   "shrinkToFit",
   "indent",
+  "textRotation",
   "locked",
   "formulaHidden",
   "numberFormat",
@@ -174,6 +177,7 @@ export function checkXlsxCellFormat(value: unknown): void {
         value >= 1 &&
         value <= 409;
     if (key === "indent") valid = integer(value, 0, 250);
+    if (key === "textRotation") valid = integer(value, 0, 180) || value === 255;
     if (
       [
         "bold",

@@ -1,4 +1,5 @@
 import { docxPicturesZh } from "./messages-docx-pictures.js";
+import { mathZh } from "./messages-docx-math.js";
 import { objectZh } from "./messages-pptx-objects.js";
 import { connectorZh } from "./messages-pptx-connectors.js";
 import { viewZh } from "./messages-pptx-view.js";
@@ -22,6 +23,7 @@ export const zh: Messages = {
   ...sparklineZh,
   ...protectionZh,
   ...objectZh,
+  ...mathZh,
   ...connectorZh,
   ...viewZh,
   ...clipboardZh,
@@ -494,6 +496,8 @@ export const zh: Messages = {
   pageBreak: "插入分页符",
   insertTab: "插入制表符",
   symbols: "符号",
+  cellTextRotation: "文字旋转",
+  stackedText: "竖排文字",
   symbol: "所选符号",
   insertSymbol: "插入符号",
   alignLeft: "左对齐",

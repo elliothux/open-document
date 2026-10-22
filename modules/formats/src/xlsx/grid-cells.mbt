@@ -277,6 +277,7 @@ fn Session::paint_cells(
           horizontal != "distributed" &&
           horizontal != "fill" &&
           !style.shrink &&
+          style.rotation == 0 &&
           block.widths.any(width => width > available) {
           let hash = probe.text_block(
             "#",
@@ -311,6 +312,7 @@ fn Session::paint_cells(
           },
           style.vertical,
           indent,
+          rotation=style.rotation,
         )
         if printing {
           for bound in bounds {

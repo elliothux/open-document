@@ -238,6 +238,40 @@ export function XlsxFormatFields({
         </select>
       </label>
       <label>
+        {t.cellTextRotation}
+        <select
+          aria-label={aria(t.cellTextRotation)}
+          value={format.textRotation ?? ""}
+          onChange={(event) =>
+            set(
+              "textRotation",
+              event.currentTarget.value === ""
+                ? undefined
+                : Number(event.currentTarget.value),
+            )
+          }
+        >
+          <option value="">
+            {current?.textRotation === null ? t.mixed : t.keepStyleProperty}
+          </option>
+          {format.textRotation !== undefined &&
+            ![0, 45, 90, 135, 180, 255].includes(format.textRotation) && (
+              <option value={format.textRotation}>
+                {format.textRotation <= 90
+                  ? format.textRotation
+                  : 90 - format.textRotation}
+                °
+              </option>
+            )}
+          {[0, 45, 90, 135, 180].map((value) => (
+            <option key={value} value={value}>
+              {value <= 90 ? value : 90 - value}°
+            </option>
+          ))}
+          <option value={255}>{t.stackedText}</option>
+        </select>
+      </label>
+      <label>
         {t.cellIndent}
         <input
           aria-label={aria(t.cellIndent)}

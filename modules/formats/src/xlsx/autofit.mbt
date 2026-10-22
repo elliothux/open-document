@@ -279,10 +279,11 @@ fn Session::fit_sizes(
         )
       }
     }
+    let (text_width, text_height) = rotated_size(block, style.rotation)
     let measured = if rows {
-      ((block.height + 3) / 0.75).ceil() * 0.75
+      ((text_height + 3) / 0.75).ceil() * 0.75
     } else {
-      block.widths.fold(init=0.0, (a, b) => a.max(b)) +
+      text_width +
       (if horizontal == "distributed" {
         2 * indent
       } else if ["left", "right"].contains(horizontal) {

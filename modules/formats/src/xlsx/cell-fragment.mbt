@@ -37,6 +37,7 @@ fn CellStyle::copied_format(self : CellStyle) -> CellFormat {
     wrap=Some(self.wrap),
     shrinkToFit=Some(self.shrink),
     indent=Some(self.indent),
+    textRotation=Some(self.rotation),
     locked=Some(self.locked),
     formulaHidden=Some(self.formula_hidden),
     numberFormat=Some(self.format),
