@@ -61,6 +61,33 @@ export function PptxCharts({
       >
         <legend>{t.chart}</legend>
         <label>
+          {t.chartLegend}
+          <select
+            aria-label={t.chartLegend}
+            value={
+              draft.legend ??
+              (["pie", "doughnut"].includes(draft.kind) ? "right" : "bottom")
+            }
+            onChange={(event) => {
+              const legend = event.currentTarget.value;
+              if (
+                legend === "none" ||
+                legend === "top" ||
+                legend === "bottom" ||
+                legend === "left" ||
+                legend === "right"
+              )
+                setDraft({ ...draft, legend });
+            }}
+          >
+            <option value="none">{t.chartLegendNone}</option>
+            <option value="top">{t.chartLegendTop}</option>
+            <option value="bottom">{t.chartLegendBottom}</option>
+            <option value="left">{t.chartLegendLeft}</option>
+            <option value="right">{t.chartLegendRight}</option>
+          </select>
+        </label>
+        <label>
           {t.chartKind}
           <select
             aria-label={t.chartKind}

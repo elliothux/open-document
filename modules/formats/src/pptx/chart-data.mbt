@@ -26,6 +26,7 @@ priv struct ChartSeries {
 priv struct ChartData {
   kind : String
   hole_size : Int?
+  legend : String
   title : String
   label : String
   categories : Array[String]
@@ -53,6 +54,9 @@ fn chart_text(text : String) -> Unit raise @failure.Failure {
 
 ///|
 fn ChartData::validate(self : ChartData) -> Unit raise @failure.Failure {
+  guard ["none", "top", "bottom", "left", "right"].contains(self.legend) else {
+    @failure.reject("invalid-chart", "Unsupported chart legend position")
+  }
   guard [
       "column", "bar", "stackedColumn", "stackedBar", "line", "pie", "area", "scatter",
       "doughnut", "percentStackedColumn", "percentStackedBar", "radar",
@@ -103,6 +107,7 @@ fn chart_data(
   bytes : Bytes,
   budget : @archive.Budget,
   hole_size~ : Int? = None,
+  legend~ : String? = None,
 ) -> ChartData raise @failure.Failure {
   let workbook = @xlsx.Session::open(bytes, budget)
   defer workbook.close()
@@ -151,6 +156,13 @@ fn chart_data(
   }
   let result : ChartData = {
     kind,
+    legend: legend.unwrap_or(
+      if ["pie", "doughnut"].contains(kind) {
+        "right"
+      } else {
+        "bottom"
+      },
+    ),
     hole_size: if kind == "doughnut" {
       Some(hole_size.unwrap_or(75))
     } else {
@@ -213,6 +225,7 @@ fn ChartData::query(self : ChartData) -> Json {
     "kind": Json(self.kind),
     "title": Json(self.title),
     "data": Json(self.tsv()),
+    "legend": Json(self.legend),
   }
   if self.hole_size is Some(size) {
     fields["holeSize"] = Json(size)

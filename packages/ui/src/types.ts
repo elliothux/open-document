@@ -78,6 +78,8 @@ export interface MountedMethods {
   open(document: EditorDocument): Promise<boolean>;
   save(): Promise<SavedDocument>;
   saveAs(name: string): Promise<SavedDocument>;
+  /** Request Chrome's print dialog for the current core PDF; does not confirm saving or printing. */
+  print(): Promise<void>;
   close(): Promise<boolean>;
   dispose(): Promise<void>;
   setTheme(theme: Theme): void;

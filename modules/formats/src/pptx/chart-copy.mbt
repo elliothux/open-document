@@ -29,6 +29,7 @@ fn Session::chart_workbook(
     bytes,
     self.budget,
     hole_size=chart.data.hole_size,
+    legend=Some(chart.data.legend),
   )
   guard actual == chart.data else {
     @failure.reject(

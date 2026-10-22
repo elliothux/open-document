@@ -70,7 +70,7 @@ fn ChartData::scatter_markup(
       "<c:valAx><c:axId val=\"\{id}\"/><c:scaling><c:orientation val=\"minMax\"/><c:max val=\"\{high}\"/><c:min val=\"\{low}\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"\{position}\"/><c:majorGridlines/>\{title}<c:numFmt formatCode=\"General\" sourceLinked=\"0\"/><c:tickLblPos val=\"nextTo\"/><c:crossAx val=\"\{3-id}\"/><c:crosses val=\"autoZero\"/><c:crossBetween val=\"between\"/><c:majorUnit val=\"\{step}\"/></c:valAx>"
   }
   out <+
-    "</c:plotArea><c:legend><c:legendPos val=\"b\"/><c:overlay val=\"0\"/></c:legend><c:plotVisOnly val=\"1\"/><c:dispBlanksAs val=\"gap\"/><c:showDLblsOverMax val=\"0\"/></c:chart><c:externalData r:id=\"\{workbook_link}\"><c:autoUpdate val=\"0\"/></c:externalData></c:chartSpace>"
+    "</c:plotArea>\{self.legend_markup()}<c:plotVisOnly val=\"1\"/><c:dispBlanksAs val=\"gap\"/><c:showDLblsOverMax val=\"0\"/></c:chart><c:externalData r:id=\"\{workbook_link}\"><c:autoUpdate val=\"0\"/></c:externalData></c:chartSpace>"
   out.to_string()
 }
 

@@ -40,7 +40,7 @@ fn ChartData::pie_markup(
     out <+ "<c:holeSize val=\"\{size}\"/>"
   }
   out <+
-    "</c:\{kind}></c:plotArea><c:legend><c:legendPos val=\"r\"/><c:overlay val=\"0\"/></c:legend><c:plotVisOnly val=\"1\"/><c:dispBlanksAs val=\"gap\"/><c:showDLblsOverMax val=\"0\"/></c:chart><c:externalData r:id=\"\{workbook_link}\"><c:autoUpdate val=\"0\"/></c:externalData></c:chartSpace>"
+    "</c:\{kind}></c:plotArea>\{self.legend_markup()}<c:plotVisOnly val=\"1\"/><c:dispBlanksAs val=\"gap\"/><c:showDLblsOverMax val=\"0\"/></c:chart><c:externalData r:id=\"\{workbook_link}\"><c:autoUpdate val=\"0\"/></c:externalData></c:chartSpace>"
   out.to_string()
 }
 
@@ -142,22 +142,10 @@ fn DrawingChart::paint_pie(
   self : DrawingChart,
   width : Double,
   height : Double,
-  probe : @layout.TextProbe,
-  profile : Map[String, String],
-) -> Array[@layout.PositionedPrimitive] raise @failure.Failure {
+) -> Array[@layout.PositionedPrimitive] {
   let data = self.data
-  let out = chart_label(
-    data.label,
-    8,
-    26,
-    width - 16,
-    18,
-    12,
-    true,
-    probe,
-    profile,
-  )
-  let area = width * 0.65
+  let out : Array[@layout.PositionedPrimitive] = []
+  let area = width
   let radius = (area - 20).min(height - 62) / 2
   let x = area / 2
   let y = 48.0 + (height - 62) / 2
@@ -196,52 +184,6 @@ fn DrawingChart::paint_pie(
     if data.series[series].values.any(value => value is Some(_)) {
       ring += 1
     }
-  }
-  let rows = ((height - 58) / 16).floor().to_int().max(1)
-  let visible = if data.categories.length() > rows {
-    rows - 1
-  } else {
-    data.categories.length()
-  }
-  for i in 0..<visible {
-    let y = 48.0 + i.to_double() * 16
-    out.push(
-      Rectangle({
-        x: area + 4,
-        y: y + 3,
-        width: 8,
-        height: 8,
-        color: chart_color(i),
-      }),
-    )
-    out.append(
-      chart_label(
-        data.categories[i],
-        area + 16,
-        y,
-        width - area - 20,
-        16,
-        10,
-        false,
-        probe,
-        profile,
-      ),
-    )
-  }
-  if visible < data.categories.length() {
-    out.append(
-      chart_label(
-        "... (+\{data.categories.length() - visible})",
-        area + 4,
-        48.0 + visible.to_double() * 16,
-        width - area - 8,
-        16,
-        10,
-        false,
-        probe,
-        profile,
-      ),
-    )
   }
   out
 }

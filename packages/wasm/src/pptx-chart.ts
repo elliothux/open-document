@@ -19,14 +19,17 @@ export interface PptxChart {
   data: string;
   /** Doughnut only: integer percentage from 10 to 90, default 75. Each series draws a ring, innermost first. */
   holeSize?: number;
+  /** Native non-overlapping legend. Default: right for pie/doughnut, bottom otherwise. */
+  legend?: "none" | "top" | "bottom" | "left" | "right";
 }
 
 export function checkPptxChart(value: unknown): void {
   const chart = record(value);
   if (
-    (Object.keys(chart).length !== 3 && Object.keys(chart).length !== 4) ||
+    Object.keys(chart).length < 3 ||
+    Object.keys(chart).length > 5 ||
     Object.keys(chart).some(
-      (key) => !["kind", "title", "data", "holeSize"].includes(key),
+      (key) => !["kind", "title", "data", "holeSize", "legend"].includes(key),
     ) ||
     ![
       "column",
@@ -44,6 +47,10 @@ export function checkPptxChart(value: unknown): void {
     ].some((kind) => kind === chart.kind) ||
     ("holeSize" in chart &&
       (chart.kind !== "doughnut" || !integer(chart.holeSize, 10, 90))) ||
+    ("legend" in chart &&
+      !["none", "top", "bottom", "left", "right"].some(
+        (position) => position === chart.legend,
+      )) ||
     typeof chart.title !== "string" ||
     chart.title.length > 256 ||
     /[\r\n]/.test(chart.title) ||
@@ -74,12 +81,14 @@ export function checkPptxChartEdit(value: unknown): boolean {
     title: change.title,
     data: change.data,
     ...("holeSize" in change ? { holeSize: change.holeSize } : {}),
+    ...("legend" in change ? { legend: change.legend } : {}),
   });
   const insert = change.action === "insertChart";
   const keys = insert
     ? ["action", "kind", "title", "data", "x", "y", "width", "height"]
     : ["action", "kind", "title", "data"];
   if ("holeSize" in change) keys.push("holeSize");
+  if ("legend" in change) keys.push("legend");
   if (
     Object.keys(change).length !== keys.length ||
     Object.keys(change).some((key) => !keys.includes(key))

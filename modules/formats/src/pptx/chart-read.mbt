@@ -251,6 +251,24 @@ fn read_chart_part(
   )
   let data : ChartData = {
     kind,
+    legend: chart
+    .child("legend", uri=chart_uri)
+    .map(legend => {
+      let position = chart_child(legend, "legendPos").node
+        .attribute("val")
+        .unwrap_or("")
+      match position {
+        "t" => "top"
+        "b" => "bottom"
+        "l" => "left"
+        "r" => "right"
+        _ =>
+          @failure.reject(
+            "unsupported-chart", "Unsupported chart legend position",
+          )
+      }
+    })
+    .unwrap_or("none"),
     hole_size: if kind == "doughnut" {
       Some(
         number(

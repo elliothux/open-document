@@ -11,9 +11,19 @@ pub(all) enum ObjectEdit {
   InsertMedia(String, String, Bytes, Bytes, Double, Double, Double, Double)
   MediaPlayback(MediaPlaybackSettings)
   InsertTable(Int, Int, Double, Double, Double, Double)
-  InsertChart(String, String, String, Double, Double, Double, Double, Int?)
-  ChartData(String, String, String, Int?)
-  FillChart(String, String, String, Int?)
+  InsertChart(
+    String,
+    String,
+    String,
+    Double,
+    Double,
+    Double,
+    Double,
+    Int?,
+    String?
+  )
+  ChartData(String, String, String, Int?, String?)
+  FillChart(String, String, String, Int?, String?)
   FillTable(Int, Int)
   TableStructure(String)
   SplitTableCell(Int, Int)
@@ -408,7 +418,8 @@ pub fn Session::edit_objects(
   guard original.read_only.is_empty() else {
     @failure.reject("protected-content", original.read_only)
   }
-  if change is InsertChart(kind, title, data, x, y, width, height, hole_size) {
+  if change
+    is InsertChart(kind, title, data, x, y, width, height, hole_size, legend) {
     return self.write_chart(
       kind,
       title,
@@ -417,12 +428,22 @@ pub fn Session::edit_objects(
       probe,
       profile,
       hole_size~,
+      legend~,
     )
   }
-  if change is ChartData(kind, title, data, hole_size) {
-    return self.write_chart(kind, title, data, None, probe, profile, hole_size~)
+  if change is ChartData(kind, title, data, hole_size, legend) {
+    return self.write_chart(
+      kind,
+      title,
+      data,
+      None,
+      probe,
+      profile,
+      hole_size~,
+      legend~,
+    )
   }
-  if change is FillChart(kind, title, data, hole_size) {
+  if change is FillChart(kind, title, data, hole_size, legend) {
     return self.write_chart(
       kind,
       title,
@@ -432,6 +453,7 @@ pub fn Session::edit_objects(
       profile,
       fill=true,
       hole_size~,
+      legend~,
     )
   }
   if change is Duplicate(dx, dy) {
@@ -563,9 +585,9 @@ pub fn Session::edit_objects(
     | InsertMedia(_, _, _, _, _, _, _, _)
     | MediaPlayback(_)
     | InsertTable(_, _, _, _, _, _)
-    | InsertChart(_, _, _, _, _, _, _, _)
-    | ChartData(_, _, _, _)
-    | FillChart(_, _, _, _)
+    | InsertChart(_, _, _, _, _, _, _, _, _)
+    | ChartData(_, _, _, _, _)
+    | FillChart(_, _, _, _, _)
     | Duplicate(_, _)
     | FillTable(_, _)
     | TableStructure(_)

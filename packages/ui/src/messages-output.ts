@@ -1,4 +1,5 @@
 export const outputEn = {
+  printDocument: "Print…",
   exportWorkbook: "Visible sheets PDF",
   exportCurrentSheet: "Current sheet PDF",
   customShows: "Custom slide shows",
@@ -110,6 +111,7 @@ export const outputEn = {
 };
 
 export const outputZh = {
+  printDocument: "打印…",
   exportWorkbook: "全部可见工作表 PDF",
   exportCurrentSheet: "当前工作表 PDF",
   customShows: "自定义放映",

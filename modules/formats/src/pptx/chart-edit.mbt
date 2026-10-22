@@ -93,6 +93,7 @@ fn Session::write_chart(
   profile : Map[String, String],
   fill~ : Bool = false,
   hole_size~ : Int? = None,
+  legend~ : String? = None,
 ) -> Json raise @failure.Failure {
   guard source.length() <= 65536 else {
     @failure.reject("limit-exceeded", "Chart data exceeds 65536 characters")
@@ -165,7 +166,7 @@ fn Session::write_chart(
   )
   defer workbook.close()
   let bytes = workbook.save()
-  let data = chart_data(kind, title, bytes, self.budget, hole_size~)
+  let data = chart_data(kind, title, bytes, self.budget, hole_size~, legend~)
   if !["pie", "doughnut"].contains(data.kind) {
     ignore(data.axis())
   }
@@ -190,6 +191,16 @@ fn Session::write_chart(
   let segments = self.main.part.split("/").map(v => v.to_owned()).collect()
   ignore(segments.pop())
   let directory = segments.join("/")
+  let reused = target.bind(pair => {
+    let before = pair.1.data
+    if before.label == data.label &&
+      before.categories == data.categories &&
+      before.series == data.series {
+      Some(pair.1.workbook)
+    } else {
+      None
+    }
+  })
   let mut sequence = 1
   let links = self.relationships()
   let mut chart_part = ""
@@ -201,15 +212,22 @@ fn Session::write_chart(
       .unwrap_or(
         directory + "/charts/chart" + id + "_" + sequence.to_string() + ".xml",
       )
-    workbook_part = directory +
+    workbook_part = reused.unwrap_or(
+      directory +
       "/embeddings/chart" +
       id +
       "_" +
       sequence.to_string() +
-      ".xlsx"
+      ".xlsx",
+    )
     link = "odChart" + id + "_" + sequence.to_string()
-    if !self.opc.names.contains(workbook_part.to_lower()) &&
-      !self.media.contains(workbook_part) &&
+    if (
+        reused is Some(_) ||
+        (
+          !self.opc.names.contains(workbook_part.to_lower()) &&
+          !self.media.contains(workbook_part)
+        )
+      ) &&
       (
         target is Some(_) ||
         (
@@ -217,7 +235,10 @@ fn Session::write_chart(
           !self.parts.contains(chart_part)
         )
       ) &&
-      !links.any(rel => rel.owner == original.tree.part && rel.id == link) {
+      (
+        target is Some(_) ||
+        !links.any(rel => rel.owner == original.tree.part && rel.id == link)
+      ) {
       break
     }
     sequence += 1
@@ -229,7 +250,9 @@ fn Session::write_chart(
   let media = self.media.copy()
   let created : Map[String, @xml.Document] = Map([])
   let edits : Array[(String, @xml.Edit)] = []
-  media[workbook_part] = bytes
+  if reused is None {
+    media[workbook_part] = bytes
+  }
   let chart_rels = relationship_part(chart_part)
   let workbook_link = if target is Some(_) {
     let chart = parts
@@ -246,21 +269,23 @@ fn Session::write_chart(
     "workbook"
   }
   if target is Some(_) {
-    let relations = self.chart_part_document(chart_rels, parts).unwrap()
-    let node = relations
-      .nodes()
-      .iter()
-      .find_first(n => n.attribute("Id") == Some(workbook_link))
-      .unwrap()
-    let (relations, edit) = relations.edit_source([
-      attribute_change(
-        { tree: Tree::new(chart_rels, relations), node, },
-        "Target",
-        "/" + workbook_part,
-      ),
-    ])
-    parts[chart_rels] = relations
-    edits.push((chart_rels, edit))
+    if reused is None {
+      let relations = self.chart_part_document(chart_rels, parts).unwrap()
+      let node = relations
+        .nodes()
+        .iter()
+        .find_first(n => n.attribute("Id") == Some(workbook_link))
+        .unwrap()
+      let (relations, edit) = relations.edit_source([
+        attribute_change(
+          { tree: Tree::new(chart_rels, relations), node, },
+          "Target",
+          "/" + workbook_part,
+        ),
+      ])
+      parts[chart_rels] = relations
+      edits.push((chart_rels, edit))
+    }
   } else {
     self.append_chart_xml(
       chart_rels,
@@ -289,14 +314,16 @@ fn Session::write_chart(
   } else {
     ""
   }
-  self.append_chart_xml(
-    "[Content_Types].xml",
-    chart_type +
-    "<Override xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{workbook_part}\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\"/>",
-    parts,
-    created,
-    edits,
-  )
+  if reused is None {
+    self.append_chart_xml(
+      "[Content_Types].xml",
+      chart_type +
+      "<Override xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{workbook_part}\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\"/>",
+      parts,
+      created,
+      edits,
+    )
+  }
   let document = if target is None {
     let (document, edit) = original.tree.document.edit_source([
       if slot is Some(object) {
@@ -341,7 +368,11 @@ fn Session::write_chart(
     parts~,
     media~,
     created_parts=created,
-    created_media=Map([(workbook_part, bytes)]),
+    created_media=if reused is None {
+      Map([(workbook_part, bytes)])
+    } else {
+      Map([])
+    },
     probe~,
     profile~,
   )

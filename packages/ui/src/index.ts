@@ -65,6 +65,7 @@ export async function mountEditor(
     subscribe: controller.subscribe,
     open: controller.open,
     save: controller.save,
+    print: controller.print,
     saveAs: (name: string) => controller.saveAs(name),
     close: controller.close,
     dispose: controller.dispose,

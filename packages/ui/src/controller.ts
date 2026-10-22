@@ -3,6 +3,7 @@ import type { XlsxDelimitedOptions } from "@open-document/web/xlsx";
 import type { EditorOutput } from "@open-document/web/editor-state";
 import { prepareFile, readFile } from "./file.js";
 import { messages } from "./messages.js";
+import { PdfPrinter } from "./print.js";
 import { mime } from "./types.js";
 import type {
   OfficeDocument,
@@ -47,6 +48,7 @@ export class EditorController {
   private cleanup: Promise<void> | undefined;
   private disposed = false;
   private newDocumentId: string | undefined;
+  private readonly printer: PdfPrinter;
 
   constructor(
     readonly options: EditorOptions,
@@ -54,6 +56,7 @@ export class EditorController {
     readonly surfaces: HTMLElement,
     private readonly releaseUi: () => void,
   ) {
+    this.printer = new PdfPrinter(host.ownerDocument);
     this.value = {
       file: undefined,
       document: undefined,
@@ -174,6 +177,7 @@ export class EditorController {
   }
 
   private install(file: OwnedFile, name: string, isNew = false): void {
+    this.printer.cancel();
     if (file.format === "xlsx" && /\.(csv|tsv)$/i.test(name)) {
       name = name.replace(/\.(csv|tsv)$/i, ".xlsx");
       isNew = true;
@@ -216,6 +220,7 @@ export class EditorController {
   exportPdf(all = true): Promise<SavedDocument> {
     return this.output(all ? "pdf" : "pdf-current");
   }
+  readonly print = (): Promise<void> => this.output("print").then(() => {});
   exportCsv(selection = false): Promise<SavedDocument> {
     return this.output(selection ? "csv-selection" : "csv");
   }
@@ -328,9 +333,11 @@ export class EditorController {
         if (file.format !== "xlsx")
           throw new Error("CSV export requires a workbook");
         output = await file.editor.exportCsv(kind === "csv-selection");
-      } else if (file.format === "pdf")
-        throw new Error("PDF is already the original format");
-      else
+      } else if (file.format === "pdf") {
+        if (kind !== "print")
+          throw new Error("PDF is already the original format");
+        output = await file.editor.save();
+      } else
         output = await (file.format === "pptx"
           ? file.editor.exportPdf(kind !== "pdf-current")
           : file.format === "xlsx"
@@ -338,6 +345,11 @@ export class EditorController {
                 kind === "pdf-current" ? null : { sheets: "visible" },
               )
             : file.editor.exportPdf());
+      if (kind === "print") {
+        this.assertOpen();
+        await this.printer.print(output.bytes, name);
+        return Object.freeze({ ...output, name });
+      }
       return this.deliverOutput(output, name, kind, file);
     };
     // Start after publishing the in-flight promise so observers cannot start a second callback.
@@ -581,6 +593,7 @@ export class EditorController {
   readonly dispose = (): Promise<void> => {
     if (this.cleanup) return this.cleanup;
     this.disposed = true;
+    this.printer.cancel();
     this.candidateAbort?.abort();
     this.choose("cancel");
     this.unsubscribe?.();

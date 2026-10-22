@@ -30,6 +30,7 @@ DOCX、XLSX、PPTX 也接受 `document: { name, blank: true }`，`OfficeDocument
 | `save()` | 产生原格式输出，等待 `onSave`；重复调用复用同一在途结果，回调期间可以继续编辑 |
 | Office `create({ name })` / `open({ name, blank: true })` | DOCX、XLSX、PPTX 复用替换确认与独立候选，成功后成为新文件；PDF 没有新建入口 |
 | `saveAs(name)` | 使用新名称产生原格式输出；目标由宿主决定。失败保留旧名称和修改状态；成功后更新名称。不同名称不复用同一个在途输出 |
+| `print()` | 使用当前核心 PDF 请求 Chrome 打印对话框，返回 `Promise<void>`；范围与平台条件见[浏览器打印](#浏览器打印) |
 | `getSnapshot()` / `subscribe(listener)` | 转发当前宿主的稳定快照；外部订阅跨文件替换保持，监听器异常不改变事务 |
 | `close()` | 询问草稿和未保存修改；取消 `false`，完成关闭 `true`；等待在途保存回调后重新检查 |
 | `dispose()` | 明确放弃内存会话，不弹确认；取消候选、等待已接受核心操作、释放 Worker/Canvas/React/自建 DOM；重复调用等待同一个 Promise，清理失败仍继续其他清理 |
@@ -48,6 +49,14 @@ DOCX、XLSX、PPTX 也接受 `document: { name, blank: true }`，`OfficeDocument
 保存回调期间若又有编辑，关闭/替换保留会话并返回 `false`。候选已经切换后，旧宿主清理失败只发布清理提示；新会话保持可用，`open` 返回 `true`。
 
 DOCX/PPTX 的组合或拖动需要结束/取消。XLSX 保存先提交已支持的单格草稿；PDF 属性草稿须显式应用/取消。替换最多准备一个独立候选，加载界面的“取消”释放候选并恢复旧会话。核心保留原有文档校验、只读规则和预算。
+
+### 浏览器打印
+
+`MountedEditor.print()` 与文件菜单“打印…”共用既有输出队列。DOCX 打印全部页面，XLSX 按工作簿顺序打印全部可见表，PPTX 打印全部可见幻灯片；沿各自核心 PDF 路径保留页面设置、分页、字体、图形、诊断和输出预算。PDF 编辑器使用当前原格式输出。原生输入先经过现有屏障：XLSX 提交支持的单格草稿，其他格式的组合、拖动或属性草稿仍须结束或取消。重复打印请求复用在途输出，不再生成第二个预览。
+
+平台将本地 PDF Blob 放入一个临时 iframe，加载后调用该窗口的 `print()`；Chrome 负责原生预览、页范围和打印机选择。实现参考 [MDN 打印示例](https://developer.mozilla.org/en-US/docs/Web/CSS/Guides/Media_queries/Printing#print_an_external_page_without_opening_it)，不使用 HTML 重新分页或截图代替矢量 PDF。宿主需允许 `blob:` iframe、内置 PDF 查看器及浏览器打印；受限容器仍遵循 Chrome 权限。Promise 完成只表示已发出打印请求，不表示用户已打印或保存。取消预览不作为文档错误，也不触发 `onSave`、下载或清除未保存状态。
+
+每个实例最多保留一个打印 frame 与 Blob。`afterprint`、下一次打印、文件替换及释放实例会清理资源；部分 PDF 查看器不发送 `afterprint` 时保留到后三种操作。加载失败、30 秒未加载或原生调用抛错时拒绝并清理，文档与历史保持可用；释放实例会取消仍在等待加载的请求。当前验收只包含 Chromium 原生预览与生成的 PDF，不包含实体打印机或其他浏览器。
 
 ## 会话与宿主
 
@@ -2759,13 +2768,19 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 
 ### PPTX 基础图表
 
-`editObjects({ action: "insertChart", kind, title, data, x, y, width, height })` 插入簇状柱形图 `column`、条形图 `bar`、堆积柱形图 `stackedColumn`、堆积条形图 `stackedBar`、百分比堆积柱形图 `percentStackedColumn`、百分比堆积条形图 `percentStackedBar`、带圆形数据点的折线图 `line`、饼图 `pie`、面积图 `area`、散点图 `scatter`、雷达图 `radar` 或圆环图 `doughnut`。选中单个本地图表后，`{ action: "chartData", kind, title, data }` 修改类型、标题和数据。对象查询的 `chart` 返回 `{ kind, title, data }`，其他对象为 `null`。默认面板使用相同接口。
+`editObjects({ action: "insertChart", kind, title, data, x, y, width, height })` 插入簇状柱形图 `column`、条形图 `bar`、堆积柱形图 `stackedColumn`、堆积条形图 `stackedBar`、百分比堆积柱形图 `percentStackedColumn`、百分比堆积条形图 `percentStackedBar`、带圆形数据点的折线图 `line`、饼图 `pie`、面积图 `area`、散点图 `scatter`、雷达图 `radar` 或圆环图 `doughnut`。选中单个本地图表后，`{ action: "chartData", kind, title, data }` 修改类型、标题和数据。对象查询的 `chart` 返回 `{ kind, title, data, legend }`，其他对象为 `null`。默认面板使用相同接口。
 
 `data` 为 TSV，首行给出类别轴标题和系列名，首列为类别，其余为有限数值或空值。支持 1–8 个系列、1–256 个类别、最多 65536 个 UTF-16 单元；标题及各标签最多 256 个单行单元。核心复用 XLSX 分隔文本导入，公式作为文字处理并在数值列拒绝。空值保留间隙，零值没有柱高；数轴包含零并采用 1/2/5/10 刻度间隔。参考 [ONLYOFFICE 数轴计算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L2678-L2736)。
 
 MoonBit 生成原生 `graphicFrame`、`barChart`、`lineChart`、`pieChart`、`doughnutChart`、`areaChart`、`scatterChart` 或 `radarChart`、系列公式/缓存、关系和实际嵌入 XLSX，使用固定配色、Arial 及图例。公共图元输出 Canvas 与静态 PDF。框最小为 180×150 点，移动、缩放、对齐、层级、删除复用对象事务。旋转、翻转和组合保持保护。图表文字通过数据面板编辑。
 
 普通视图中的本地顶层图表支持 `editObjects({ action: "duplicate", dx, dy })` 和默认“复制对象”按钮。可与同父的普通对象一起多选复制，保留选择顺序、活动对象、内容、名称及非目标源。副本分配新对象身份、独立图表 XML、嵌入工作簿及关系；初始工作簿保留原始字节，后续改数据互不影响。复制、资源及内容类型合为一项精确历史。缓存与工作簿不一致、未知图表资源关系、复制锁、字体、布局或预算失败时整项拒绝。组内图表及母版/版式图表复制继续保护。规则参考 [ONLYOFFICE 图表复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L4959-L5028)，实现归 [`chart-copy.mbt`](../../modules/formats/src/pptx/chart-copy.mbt)和 [`object-copy.mbt`](../../modules/formats/src/pptx/object-copy.mbt)。
+
+#### 图例显示与位置
+
+`PptxChart.legend` 接受 `"none" | "top" | "bottom" | "left" | "right"`，插入、占位符填入及 `chartData` 共用此设置。省略时饼图/圆环图默认右侧，其他类型默认底部；查询总是返回实际 `legend`。默认数据面板提供相同选项。隐藏时不写 `c:legend`，四边位置写标准 `legendPos=t/b/l/r` 和 `overlay=0`。类型切换、独立对象/页面复制、精确历史及保存重开保留设置；数据未变时复用原工作簿路径和字节，不因修改图例、标题或类型而增加嵌入工作簿。
+
+核心按真实字体度量安排顶部/底部图例的行列，并为绘图区预留空间；左右图例竖排。饼图/圆环图使用类别名称和扇区颜色，其他类型使用系列名称与相同颜色、线条或标记；堆积图的竖排图例按原生逆系列顺序排列。条目过多时显示剩余数量，单项文字裁剪在自身边界内。Canvas、PNG 和 PDF 共用核心布局。原生自定义字体/外观、覆盖图例、手动布局、条目删改和右上角位置继续保护源。位置与顺序参考 [ONLYOFFICE 图例布局](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L7725-L7855)，实现归 [`chart-legend.mbt`](../../modules/formats/src/pptx/chart-legend.mbt)。
 
 `editSlides({ action: "copy" })` 和默认“复制页”按钮也支持含图表的页面。每个本地图表部件及嵌入工作簿克隆到新路径，页面关系指向副本，原页和新页可分别改数据。原本不同的图表保持独立；源页内部共用同一图表部件的关系结构在新页中保留，数据编辑仍遵守共享资源保护。已删除图表留下的关系也按相同原生配置和数据一致性规则克隆，未知资源保持保护。图表与工作簿、备注、批注、对象引用、隐藏状态和页面引用沿现有整页事务共同进入精确历史。删除页面继续保留未回收的图表资源。实现复用上述图表资源模块及 [`slide-copy.mbt`](../../modules/formats/src/pptx/slide-copy.mbt)、[`slide-add.mbt`](../../modules/formats/src/pptx/slide-add.mbt)。
 
@@ -2775,7 +2790,7 @@ MoonBit 生成原生 `graphicFrame`、`barChart`、`lineChart`、`pieChart`、`d
 
 折线图按类别中心连接相邻非空数据点，空值断线，孤立点及零值仍显示圆形标记。线宽固定为 1.5 点，标记直径为 5 点；图例采用相同线段与标记。原生配置为 `standard`、`smooth=0`、`dispBlanksAs=gap`，与布局共用数据。曲线、堆积、其他标记及跨空值连接继续保护。行为参考 [ONLYOFFICE 折线与空值处理](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L9042-L9185)和[圆形标记](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L3158-L3205)。
 
-饼图显示首个系列，按绝对值计算扇区。零值和空值不占面积，全零或全空时绘图区留空。全部系列保留在查询、原生缓存及嵌入工作簿中，切回其他类型仍可使用。核心先按最大绝对值缩放再求和，避免有限数值的总和溢出。第一片从十二点方向顺时针开始，类别颜色循环使用八色。TSV 首格作为副标题，和主标题写入原生富文本标题的两个段落。饼图不生成数轴，右侧图例按框高显示，放不下时显示剩余项数量；完整数据仍可编辑。当前不提供角度、分离扇区、数据标签或配色设置。语义参考 [ONLYOFFICE 饼图与首个系列](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L12238-L12346)，实现归 [`chart-pie.mbt`](../../modules/formats/src/pptx/chart-pie.mbt)。
+饼图显示首个系列，按绝对值计算扇区。零值和空值不占面积，全零或全空时绘图区留空。全部系列保留在查询、原生缓存及嵌入工作簿中，切回其他类型仍可使用。核心先按最大绝对值缩放再求和，避免有限数值的总和溢出。第一片从十二点方向顺时针开始，类别颜色循环使用八色。TSV 首格作为副标题，和主标题写入原生富文本标题的两个段落。饼图不生成数轴，默认右侧图例按框高显示，放不下时显示剩余项数量；完整数据仍可编辑。当前不提供角度、分离扇区、数据标签或配色设置。语义参考 [ONLYOFFICE 饼图与首个系列](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Charts/ChartsDrawer.js#L12238-L12346)，实现归 [`chart-pie.mbt`](../../modules/formats/src/pptx/chart-pie.mbt)。
 
 圆环图使用 `kind: "doughnut"`，插入、数据修改及占位符填入接受可选 `holeSize`。它是 10–90 的整数百分比，省略时使用 75；其他图表类型拒绝此属性。圆环查询始终返回实际 `holeSize`，默认面板提供该数值控件。MoonBit 的 `InsertChart/ChartData/FillChart` 构造器末尾使用 `Int?` 传入同一设置，其他类型显式传 `None`。
 
@@ -2983,7 +2998,7 @@ click 开始一组；with 与当前组共享起点，各自保留延迟；after 
 
 默认文件菜单的“全部幻灯片 PNG”导出全部可见页，复用既有逐页保存/下载流程。名称按 `<原文件基名>-01.png`、`-02.png` 顺序补零，序号只计算导出的页面。所有图片生成后才依次调用 `onSave`；中途失败保留已完成的外部保存及进度，停止后续回调，重试按当前修订重新生成。回调期间继续编辑不会改变已生成图片的 revision。没有 `onSave` 时逐页下载并报告生成进度；多个下载仍受 Chrome 站点权限约束。派生输出不清除 PPTX 修改状态。
 
-上述入口依赖浏览器 Canvas 绘制和编码，当前只检查 Chrome/Chromium；不作为无浏览器图片转换能力。普通 Wasm/Worker 文档状态、布局和 PDF 接口保持原职责。打印界面仍待实现。
+上述入口依赖浏览器 Canvas 绘制和编码，当前只检查 Chrome/Chromium；不作为无浏览器图片转换能力。普通 Wasm/Worker 文档状态、布局和 PDF 接口保持原职责。打印入口归[浏览器打印](#浏览器打印)。
 
 #### JPEG 输出
 

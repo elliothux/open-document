@@ -51,34 +51,21 @@ fn chart_marker(
 }
 
 ///|
-fn DrawingChart::paint(
+fn DrawingChart::paint_plot(
   self : DrawingChart,
   width : Double,
   height : Double,
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> Array[@layout.PositionedPrimitive] raise @failure.Failure {
-  guard width >= 180 && height >= 150 else {
-    @failure.reject(
-      "layout-overflow", "Chart frame requires at least 180 x 150 points",
-    )
-  }
   let data = self.data
-  let out : Array[@layout.PositionedPrimitive] = [
-    Rectangle({ x: 0, y: 0, width, height, color: "ffffff", }),
-    Stroke({ x: 0, y: 0, width, height, }, "d9d9d9", 0.5),
-  ]
-  out.append(
-    chart_label(data.title, 8, 6, width - 16, 20, 12, true, probe, profile),
-  )
+  let out : Array[@layout.PositionedPrimitive] = []
   if ["pie", "doughnut"].contains(data.kind) {
-    out.append(self.paint_pie(width, height, probe, profile))
-    return out
+    return self.paint_pie(width, height)
   }
   if data.kind == "radar" {
-    out.append(data.paint_radar(width, height, probe, profile))
-    out.append(data.paint_legend(width, height, probe, profile))
-    return out
+    // The radar plot already reserves 22 points below its axis label.
+    return data.paint_radar(width, height + 22, probe, profile)
   }
   let (low, high, step) = data.axis()
   let horizontal = horizontal_bar_chart(data.kind)
@@ -87,7 +74,7 @@ fn DrawingChart::paint(
   let left = if horizontal { 70.0 } else { 44.0 }
   let top = 30.0
   let w = width - left - 12
-  let h = height - top - 70
+  let h = height - top - 48
   let ticks = ((high - low) / step).round().to_int()
   guard ticks >= 1 && ticks <= 20 else {
     @failure.reject("limit-exceeded", "Chart tick count exceeds limits")
@@ -336,59 +323,5 @@ fn DrawingChart::paint(
   out.append(
     chart_label(data.label, left, top + h + 21, w, 16, 10, true, probe, profile),
   )
-  out.append(data.paint_legend(width, height, probe, profile))
-  out
-}
-
-///|
-fn ChartData::paint_legend(
-  self : ChartData,
-  width : Double,
-  height : Double,
-  probe : @layout.TextProbe,
-  profile : Map[String, String],
-) -> Array[@layout.PositionedPrimitive] raise @failure.Failure {
-  let out : Array[@layout.PositionedPrimitive] = []
-  let legend_width = (width - 16) / self.series.length().to_double()
-  for i, series in self.series {
-    let x = 8.0 + legend_width * i.to_double()
-    if self.kind == "scatter" {
-      out.append(chart_marker(x + 4, height - 14, chart_color(i)))
-    } else if ["line", "radar"].contains(self.kind) {
-      out.push(
-        Path(
-          [Move(x, height - 14), Line(x + 8, height - 14)],
-          "",
-          chart_color(i),
-          1.5,
-          { fillAlpha: 1, strokeAlpha: 1, dash: [], cap: 0, join: 0, miter: 8, },
-        ),
-      )
-      out.append(chart_marker(x + 4, height - 14, chart_color(i)))
-    } else {
-      out.push(
-        Rectangle({
-          x,
-          y: height - 18,
-          width: 8,
-          height: 8,
-          color: chart_color(i),
-        }),
-      )
-    }
-    out.append(
-      chart_label(
-        series.name,
-        x + 12,
-        height - 21,
-        legend_width - 16,
-        18,
-        10,
-        false,
-        probe,
-        profile,
-      ),
-    )
-  }
   out
 }

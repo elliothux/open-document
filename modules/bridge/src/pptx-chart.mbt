@@ -14,6 +14,12 @@ fn pptx_chart_edit(
   } else {
     None
   }
+  let legend = if change is Object(fields) && fields.contains("legend") {
+    keys.push("legend")
+    Some(field_string(change, "legend"))
+  } else {
+    None
+  }
   guard change is Object(fields) &&
     fields.length() == keys.length() &&
     fields.keys().all(key => keys.contains(key)) else {
@@ -32,10 +38,11 @@ fn pptx_chart_edit(
       xlsx_number(change, "width"),
       xlsx_number(change, "height"),
       hole_size,
+      legend,
     )
   } else if field_string(change, "action") == "fillChart" {
-    @pptx.FillChart(kind, title, data, hole_size)
+    @pptx.FillChart(kind, title, data, hole_size, legend)
   } else {
-    @pptx.ChartData(kind, title, data, hole_size)
+    @pptx.ChartData(kind, title, data, hole_size, legend)
   }
 }

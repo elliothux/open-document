@@ -123,6 +123,13 @@ export function FileMenu({
               >
                 {t.save}
               </Menu.Item>
+              <Menu.Item
+                className="od-menu-item"
+                disabled={unavailable}
+                onClick={() => controller.run(controller.print)}
+              >
+                {t.printDocument}
+              </Menu.Item>
               {state.file?.format !== "pdf" && (
                 <>
                   <Menu.Item
