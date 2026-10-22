@@ -262,6 +262,7 @@ pub fn TextProbe::text_block(
 ///|
 /// Shape mixed text styles with the same bounded paragraph layout as plain blocks.
 /// `justify` expands word gaps on nonfinal lines; line breaking and source text stay intact.
+/// `distributed` also expands final lines and centers lines containing a single word.
 pub fn TextProbe::span_block(
   self : TextProbe,
   spans : Array[Span],
@@ -270,6 +271,7 @@ pub fn TextProbe::span_block(
   width : Double,
   wrap : Bool,
   justify~ : Bool = false,
+  distributed~ : Bool = false,
 ) -> TextBlock raise @failure.Failure {
   self.check()
   guard spans.all(span => span.drawing is None && span.field.is_empty()) else {
@@ -337,12 +339,14 @@ pub fn TextProbe::span_block(
   let mut y = 0.0
   let fonts = self.font_info()
   for index, item in measured {
-    let line = if justify && index + 1 < measured.length() {
+    let line = if distributed || (justify && index + 1 < measured.length()) {
       justified_line(item.line, width, wordsOnly=true)
     } else {
       item.line
     }
-    let x = if justify && !line.justified && line.baseLevel % 2 == 1 {
+    let x = if distributed && !line.justified {
+      (width - line.width).max(0) / 2
+    } else if justify && !line.justified && line.baseLevel % 2 == 1 {
       (width - line.width).max(0)
     } else {
       0.0
@@ -405,7 +409,7 @@ pub fn Line::positioned(
   }
   primitives.push(
     Text({
-      text: line.markerText + line.display_text(),
+      text: line.markerText + line.display_text(math=false),
       runs: line
       .paint_runs()
       .map(run => {

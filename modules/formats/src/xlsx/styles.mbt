@@ -314,9 +314,10 @@ fn read_styles(
     if tree.one(xf.id, "alignment") is Some(alignment) {
       let horizontal = alignment.attribute("horizontal").unwrap_or("general")
       let vertical = alignment.attribute("vertical").unwrap_or("bottom")
-      if !["general", "left", "center", "right", "justify", "centerContinuous"].contains(
-          horizontal,
-        ) ||
+      if ![
+          "general", "left", "center", "right", "justify", "centerContinuous", "distributed",
+          "fill",
+        ].contains(horizontal) ||
         !["top", "center", "bottom", "justify", "distributed"].contains(
           vertical,
         ) ||

@@ -92,11 +92,20 @@ fn PlacedRun::logical_cluster(self : PlacedRun, glyph : Glyph) -> Int {
 }
 
 ///|
-fn Line::display_text(self : Line) -> String {
+fn Line::display_text(self : Line, math~ : Bool = true) -> String {
   if !self.text.contains("\ufffc") {
     return self.text
   }
   let fields : Map[Int, String] = Map([])
+  for image in self.drawings {
+    if image.content is Fraction(fraction) {
+      fields[image.start - self.start] = if math {
+        "(" + fraction.numerator + ")/(" + fraction.denominator + ")"
+      } else {
+        ""
+      }
+    }
+  }
   for run in self.runs {
     let offset = run.start - self.start
     // A field covers one object marker; its run retains the complete displayed result.

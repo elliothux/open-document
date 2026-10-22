@@ -27,6 +27,7 @@ import { DocxTheme, DocxThemeFontsPanel } from "./docx-theme.js";
 import { DocxPictures } from "./docx-pictures.js";
 import { DocxShapes } from "./docx-shapes.js";
 import { DocxTables } from "./docx-tables.js";
+import { DocxSymbols } from "./docx-symbols.js";
 
 interface Props {
   controller: EditorController;
@@ -291,6 +292,12 @@ export function DocxFormatCommands({
           </button>
         ))}
       </Group>
+      <DocxSymbols
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
       <Group label={t.paragraph}>
         <Command
           label={t.softBreak}

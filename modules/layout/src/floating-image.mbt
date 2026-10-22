@@ -255,6 +255,14 @@ fn PlacedDrawingFrame::paint(
   primitives : Array[PositionedPrimitive],
   fonts : Array[FontInfo],
 ) -> Unit {
+  if self.content is Fraction(fraction) {
+    primitives.push(
+      Transform({ a: 1, b: 0, c: 0, d: 1, e: self.x, f: self.y, }),
+    )
+    primitives.append(fraction.primitives)
+    primitives.push(Restore)
+    return
+  }
   if self.content is (Shape(shape) | TextBox(shape, _)) {
     primitives.push(
       Transform({ a: 1, b: 0, c: 0, d: 1, e: self.x, f: self.y, }),

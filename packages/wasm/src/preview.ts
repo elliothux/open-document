@@ -26,6 +26,39 @@ export interface TextStyle {
   spacing: number;
 }
 
+function checkMathFraction(value: unknown): void {
+  const fraction = record(value);
+  const style = record(fraction.style);
+  if (
+    typeof fraction.numerator !== "string" ||
+    typeof fraction.denominator !== "string" ||
+    fraction.numerator.length + fraction.denominator.length > 4096 ||
+    [fraction.numerator, fraction.denominator].some(
+      (text) =>
+        !text.length ||
+        Array.from(text).some(
+          (char) =>
+            char.codePointAt(0)! < 32 || char === "\u2028" || char === "\u2029",
+        ),
+    ) ||
+    typeof style.size !== "number" ||
+    !Number.isFinite(style.size) ||
+    style.size < 1 ||
+    style.size > 409 ||
+    typeof style.font !== "string" ||
+    !style.font.length ||
+    style.font.length > 1024 ||
+    typeof style.color !== "string" ||
+    !/^[a-fA-F0-9]{6}$/.test(style.color) ||
+    style.script !== "baseline" ||
+    style.spacing !== 0 ||
+    style.underline !== false ||
+    style.strike !== false ||
+    style.highlight !== ""
+  )
+    throw new Error("Invalid mathematical fraction");
+}
+
 export interface DocxFlow {
   columns: DocxColumns;
   pageNumbering: { start: number; format: string };
@@ -118,6 +151,10 @@ export interface DrawingFrame {
   anchor: DrawingAnchor | null;
   content:
     | { kind: "picture"; key: string; crop: number[] }
+    | {
+        kind: "fraction";
+        fraction: { numerator: string; denominator: string; style: TextStyle };
+      }
     | {
         kind: "shape";
         preset: "rect" | "ellipse" | "line";
@@ -448,6 +485,12 @@ export function docxFlow(value: unknown): DocxFlow {
           Number(image.height) > 14400
         )
           throw new Error("Invalid drawing dimensions");
+        if (content.kind === "fraction") {
+          if (image.anchor !== null)
+            throw new Error("Mathematical fraction must remain inline");
+          checkMathFraction(content.fraction);
+          continue;
+        }
         if (content.kind === "shape" || content.kind === "textBox") {
           const shape = fields(
             content.kind === "textBox" ? content.shape : content,

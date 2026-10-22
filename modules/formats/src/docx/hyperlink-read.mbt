@@ -16,11 +16,14 @@ fn WordTree::paragraph_runs(
   paragraph : Int,
   running~ : Bool = false,
   review~ : Bool = false,
+  math~ : Bool = false,
 ) -> Array[Int] {
   let runs : Array[Int] = []
   for child in self.children[paragraph] {
     let node = self.nodes[child]
-    if node.uri == word_uri && node.name == "r" {
+    if math && node.uri == math_uri && node.name == "oMath" {
+      runs.push(child)
+    } else if node.uri == word_uri && node.name == "r" {
       runs.push(child)
     } else if review &&
       node.uri == word_uri &&

@@ -5,6 +5,25 @@ fn docx_texts(tree : WordTree) -> Array[TextNode] {
   let fields : Map[Int, Bool] = Map([])
   for id in tree.order {
     let node = tree.nodes[id]
+    if node.uri == math_uri &&
+      node.name == "oMath" &&
+      node.parent >= 0 &&
+      tree.nodes[node.parent].uri == word_uri &&
+      tree.nodes[node.parent].name == "p" {
+      let in_body = for ancestor = node.parent
+                        ancestor >= 0
+                        ancestor = tree.nodes[ancestor].parent {
+        if ancestor == body {
+          break true
+        }
+      } nobreak {
+        false
+      }
+      if in_body {
+        texts.push({ id, paragraph: node.parent, run: id, })
+      }
+      continue
+    }
     if node.uri == word_uri &&
       node.name == "fldSimple" &&
       node.parent >= 0 &&
@@ -84,6 +103,7 @@ fn inline_text(node : @xml.Node) -> String {
     "tab" => "\t"
     "drawing" => "\ufffc"
     "fldSimple" => "\ufffc"
+    "oMath" => "\ufffc"
     _ => node.text
   }
 }

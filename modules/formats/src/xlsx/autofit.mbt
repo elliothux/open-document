@@ -99,7 +99,7 @@ fn Session::fit_sizes(
     sizes[axis] = if rows { fallback } else { 0.0 }
   }
   let centered = if rows {
-    conditional.centered_ranges(
+    conditional.alignment_ranges(
       current,
       styles,
       Map(axes.map(row => (row, true))),
@@ -202,7 +202,8 @@ fn Session::fit_sizes(
       @failure.reject("limit-exceeded", "Automatic fitting text exceeds budget")
     }
     let horizontal = style.text_alignment(value, current.view.formulas)
-    let text_range = if horizontal == "centerContinuous" {
+    let text_range = if ["centerContinuous", "fill"].contains(horizontal) &&
+      rows {
       text_ranges.get(cell.address.name()).unwrap_or(range)
     } else {
       range
@@ -212,20 +213,29 @@ fn Session::fit_sizes(
     let indent = style.indent.to_double() * indent_unit
     let available = width -
       4.5 -
-      (if (style.wrap && !["justify", "centerContinuous"].contains(horizontal)) ||
+      (if horizontal == "distributed" {
+        2 * indent
+      } else if (
+          style.wrap && !["justify", "centerContinuous"].contains(horizontal)
+        ) ||
         ["left", "right"].contains(horizontal) {
         indent
       } else {
         0.0
       })
-    guard horizontal != "centerContinuous" || available <= 14400 else {
+    guard !["centerContinuous", "fill"].contains(horizontal) ||
+      available <= 14400 else {
       @failure.reject(
-        "limit-exceeded", "Centered cell text exceeds the layout width budget",
+        "limit-exceeded", "Aligned cell text exceeds the layout width budget",
       )
     }
     // ONLYOFFICE uses a single line height for a wrapped horizontal merge.
     let content = if text.is_empty() ||
-      (rows && range.left != range.right && style.wrap) {
+      (
+        rows &&
+        range.left != range.right &&
+        (style.wrap || horizontal == "distributed")
+      ) {
       " "
     } else {
       text
@@ -253,15 +263,33 @@ fn Session::fit_sizes(
       content,
       spans,
       available.max(0.75).min(14400),
-      wrap=content == text && style.wrap && !grow,
-      shrink=rows && style.shrink,
+      wrap=content == text &&
+        (style.wrap || (rows && horizontal == "distributed")) &&
+        !grow,
+      shrink=rows && style.shrink && horizontal != "fill",
       justify=false,
+      distributed=false,
+      fill=rows && horizontal == "fill",
     )
+    if rows && horizontal == "fill" {
+      work.units += (filled_text_units(block) - text.length()).max(0)
+      guard work.units <= 262144 else {
+        @failure.reject(
+          "limit-exceeded", "Automatic fitting filled text exceeds budget",
+        )
+      }
+    }
     let measured = if rows {
       ((block.height + 3) / 0.75).ceil() * 0.75
     } else {
       block.widths.fold(init=0.0, (a, b) => a.max(b)) +
-      (if ["left", "right"].contains(horizontal) { indent } else { 0.0 })
+      (if horizontal == "distributed" {
+        2 * indent
+      } else if ["left", "right"].contains(horizontal) {
+        indent
+      } else {
+        0.0
+      })
     }
     sizes[axis] = sizes[axis].max(measured)
   }

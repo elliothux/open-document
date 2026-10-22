@@ -486,6 +486,12 @@ fn prepare_paragraph(
           }
         }
         let inline_images = images.filter(image => image.anchor is None)
+        for image in inline_images {
+          if image.content is Fraction(_) {
+            line_ascent = line_ascent.max(image.baseline())
+            line_descent = line_descent.max(image.height - image.baseline())
+          }
+        }
         if line_ascent + line_descent == 0 && inline_images.is_empty() {
           line_ascent = if ascent > 0 { ascent } else { size * 0.8 }
           line_descent = if descent > 0 { descent } else { size * 0.2 }
@@ -499,7 +505,7 @@ fn prepare_paragraph(
           inline_images
           .iter()
           .fold(init=line_height, (height, image) => {
-            height.max(image.height + line_descent)
+            height.max(image.baseline() + line_descent)
           })
         }
         let baseline = if clip || inline_images.is_empty() {
@@ -564,7 +570,7 @@ fn prepare_paragraph(
               y: if image.anchor is Some(_) {
                 0
               } else {
-                baseline - image.height
+                baseline - image.baseline()
               },
             }),
             carets,

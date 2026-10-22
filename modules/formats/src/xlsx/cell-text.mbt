@@ -9,7 +9,10 @@ fn CellStyle::cell_text_block(
   wrap~ : Bool = self.wrap,
   shrink~ : Bool = self.shrink,
   justify~ : Bool = self.horizontal == "justify",
+  distributed~ : Bool = self.horizontal == "distributed",
+  fill~ : Bool = self.horizontal == "fill",
 ) -> @layout.TextBlock raise @failure.Failure {
+  let wrap = wrap || distributed
   let mut spans = spans.unwrap_or([
     { node: 0, text, style: self.text_style(), drawing: None, field: "", },
   ])
@@ -21,7 +24,11 @@ fn CellStyle::cell_text_block(
     width,
     wrap,
     justify~,
+    distributed~,
   )
+  if fill && !wrap {
+    return filled_block(probe, spans, nominal, profile, width, block)
+  }
   if !shrink || wrap {
     return block
   }
@@ -46,7 +53,15 @@ fn CellStyle::cell_text_block(
     }
     spans = next
     nominal = reduced(nominal)
-    block = probe.span_block(spans, nominal, profile, width, false, justify~)
+    block = probe.span_block(
+      spans,
+      nominal,
+      profile,
+      width,
+      false,
+      justify~,
+      distributed~,
+    )
   }
   @failure.reject(
     "limit-exceeded", "Cell text shrinking exceeds 16 measurements",
@@ -90,7 +105,7 @@ fn place_block(
     let y = top + index.to_double() * gap
     let x = rect.x +
       2.25 +
-      (if horizontal == "left" { indent } else { 0.0 }) +
+      (if ["left", "distributed"].contains(horizontal) { indent } else { 0.0 }) +
       (if horizontal == "right" {
         rect.width - 4.5 - indent - block.widths[index]
       } else if horizontal == "center" {
@@ -136,7 +151,8 @@ fn CellStyle::text_alignment(
 ) -> String {
   if formulas && (self.horizontal == "general" || value is Number(_)) {
     "left"
-  } else if self.horizontal != "general" {
+  } else if self.horizontal != "general" &&
+    !(self.horizontal == "fill" && self.wrap) {
     self.horizontal
   } else {
     match value {

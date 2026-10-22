@@ -16,7 +16,14 @@ export interface XlsxCellFormat {
   color?: string;
   fill?: string;
   horizontal?:
-    "general" | "left" | "center" | "right" | "justify" | "centerContinuous";
+    | "general"
+    | "left"
+    | "center"
+    | "right"
+    | "justify"
+    | "centerContinuous"
+    | "distributed"
+    | "fill";
   vertical?: "top" | "center" | "bottom" | "justify" | "distributed";
   wrap?: boolean;
   shrinkToFit?: boolean;
@@ -194,6 +201,8 @@ export function checkXlsxCellFormat(value: unknown): void {
           "right",
           "justify",
           "centerContinuous",
+          "distributed",
+          "fill",
         ].includes(value);
     if (key === "script")
       valid =

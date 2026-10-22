@@ -20,7 +20,7 @@ fn Session::paint_cells(
     @failure.reject("limit-exceeded", "Visible cells exceed 4096 cells")
   }
   let sheet = self.sheets[index]
-  let centered = conditional.centered_ranges(
+  let aligned = conditional.alignment_ranges(
     sheet,
     self.styles,
     Map(rows.map(row => (row, true))),
@@ -33,7 +33,7 @@ fn Session::paint_cells(
   let paint_columns = Map(rows.map(row => (row, columns.copy())))
   let requested = Map(columns.map(column => (column, true)))
   let mut count = rows.length() * columns.length()
-  for range in centered {
+  for range in aligned {
     let address : Address = { row: range.top, column: range.left, }
     text_ranges[address.name()] = range
     if columns is [first, ..] &&
@@ -44,7 +44,7 @@ fn Session::paint_cells(
       count += 1
       guard count <= 4096 else {
         @failure.reject(
-          "limit-exceeded", "Visible cells including centered text exceed 4096 cells",
+          "limit-exceeded", "Visible cells including aligned text exceed 4096 cells",
         )
       }
       paint_columns[range.top].push(range.left)
@@ -216,7 +216,7 @@ fn Session::paint_cells(
         }
       }
       let horizontal = style.text_alignment(value, sheet.view.formulas)
-      let text_rect = if horizontal == "centerContinuous" &&
+      let text_rect = if ["centerContinuous", "fill"].contains(horizontal) &&
         text_ranges.get(key) is Some(span) {
         grid_rect(
           {
@@ -235,8 +235,11 @@ fn Session::paint_cells(
       let indent = style.indent.to_double() * indent_unit
       let available = text_rect.width -
         4.5 -
-        (if (
-            style.wrap && !["justify", "centerContinuous"].contains(horizontal)
+        (if horizontal == "distributed" {
+          2 * indent
+        } else if (
+            style.wrap &&
+            !["justify", "centerContinuous", "fill"].contains(horizontal)
           ) ||
           ["left", "right"].contains(horizontal) {
           indent
@@ -244,9 +247,10 @@ fn Session::paint_cells(
           0.0
         })
       if !text.is_empty() && available > 0 && rect.height > 3 {
-        guard horizontal != "centerContinuous" || available <= 14400 else {
+        guard !["centerContinuous", "fill"].contains(horizontal) ||
+          available <= 14400 else {
           @failure.reject(
-            "limit-exceeded", "Centered cell text exceeds the layout width budget",
+            "limit-exceeded", "Aligned cell text exceeds the layout width budget",
           )
         }
         let mut block = style.cell_text_block(
@@ -256,10 +260,22 @@ fn Session::paint_cells(
           spans,
           available.min(14400),
           justify=horizontal == "justify",
+          distributed=horizontal == "distributed",
+          fill=horizontal == "fill",
         )
+        if horizontal == "fill" {
+          units += (filled_text_units(block) - text.length()).max(0)
+          guard units <= 262144 else {
+            @failure.reject(
+              "limit-exceeded", "Visible filled text exceeds budget",
+            )
+          }
+        }
         if !sheet.view.formulas &&
           value is Number(_) &&
           !style.wrap &&
+          horizontal != "distributed" &&
+          horizontal != "fill" &&
           !style.shrink &&
           block.widths.any(width => width > available) {
           let hash = probe.text_block(
@@ -298,7 +314,7 @@ fn Session::paint_cells(
         )
         if printing {
           for bound in bounds {
-            let bound = if horizontal == "centerContinuous" {
+            let bound = if ["centerContinuous", "fill"].contains(horizontal) {
               grid_intersection(bound, segment)
             } else {
               bound
@@ -308,7 +324,7 @@ fn Session::paint_cells(
             }
           }
         }
-        if horizontal == "centerContinuous" {
+        if ["centerContinuous", "fill"].contains(horizontal) {
           let start = page.texts.length() - block.lines.length()
           let clip = grid_intersection(text_rect, segment)
           for i in start..<page.texts.length() {

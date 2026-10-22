@@ -1,5 +1,5 @@
 ///|
-fn ConditionalRules::centered_ranges(
+fn ConditionalRules::alignment_ranges(
   self : ConditionalRules,
   current : Sheet,
   styles : Array[CellStyle],
@@ -9,8 +9,12 @@ fn ConditionalRules::centered_ranges(
   values : Map[(Int, String), Value],
   work : FormulaWork,
 ) -> Array[Range] raise @failure.Failure {
-  if !styles.any(style => style.horizontal == "centerContinuous") &&
-    !self.rules.any(rule => rule.style.horizontal == Some("centerContinuous")) &&
+  if !styles.any(style => {
+      ["centerContinuous", "fill"].contains(style.horizontal)
+    }) &&
+    !self.rules.any(rule => {
+      rule.style.horizontal is Some("centerContinuous" | "fill")
+    }) &&
     self.table_styles.custom.is_empty() {
     return []
   }
@@ -28,9 +32,9 @@ fn ConditionalRules::centered_ranges(
     }
   })
   let result : Array[Range] = []
-  let mut active : (Int, Range)? = None
-  let finish = fn(run : (Int, Range)?) {
-    if run is Some((_, range)) && range.left < range.right {
+  let mut active : (Int, String, Range)? = None
+  let finish = fn(run : (Int, String, Range)?) {
+    if run is Some((_, _, range)) && range.left < range.right {
       result.push(range)
     }
   }
@@ -43,7 +47,8 @@ fn ConditionalRules::centered_ranges(
       values,
       work,
     )
-    let eligible = if style.horizontal == "centerContinuous" &&
+    let eligible = if ["centerContinuous", "fill"].contains(style.horizontal) &&
+      !(style.horizontal == "fill" && style.wrap) &&
       style.diagnostic.is_empty() {
       work.spend(amount=current.merges.length())
       !current.merges.any(range => range.contains(cell.address))
@@ -54,17 +59,21 @@ fn ConditionalRules::centered_ranges(
       (cell.value == Blank || cell.value == Text(""))
     if eligible &&
       empty &&
-      active is Some((style_id, range)) &&
+      active is Some((style_id, alignment, range)) &&
       style_id == cell.style &&
+      alignment == style.horizontal &&
       range.top == cell.address.row &&
       range.right + 1 == cell.address.column {
-      active = Some((style_id, { ..range, right: cell.address.column, }))
+      active = Some(
+        (style_id, alignment, { ..range, right: cell.address.column, }),
+      )
     } else {
       finish(active)
       active = if eligible && !empty {
         Some(
           (
             cell.style,
+            style.horizontal,
             {
               top: cell.address.row,
               bottom: cell.address.row,

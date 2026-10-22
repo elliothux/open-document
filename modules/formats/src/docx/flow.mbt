@@ -266,7 +266,9 @@ fn Session::paragraph(
   let spans : Array[@layout.Span] = []
   for child in tree.children[id] {
     let node = tree.nodes[child]
-    if node.uri == word_uri && node.name == "hyperlink" {
+    if node.uri == math_uri && node.name == "oMath" {
+      ()
+    } else if node.uri == word_uri && node.name == "hyperlink" {
       tree.check_hyperlink(child) catch {
         @failure.Failure(message~, ..) =>
           diagnostics.push("unsupported-layout:" + message)
@@ -296,7 +298,40 @@ fn Session::paragraph(
       diagnostics.push("unsupported-layout:" + node.qualified)
     }
   }
-  for run in tree.paragraph_runs(id, running=has_fields, review=!running) {
+  for
+    run in tree.paragraph_runs(
+      id,
+      running=has_fields,
+      review=!running,
+      math=true,
+    ) {
+    if tree.nodes[run].uri == math_uri {
+      let style : @layout.TextStyle = {
+        font: run_style.key(),
+        size: run_style.size,
+        color: run_style.text_color(background),
+        underline: false,
+        strike: false,
+        highlight: "",
+        script: "baseline",
+        spacing: 0,
+      }
+      try self.read_math_fraction(tree, run, style) catch {
+        @failure.Failure(code="limit-exceeded", ..) as error => raise error
+        @failure.Failure(message~, ..) =>
+          diagnostics.push("unsupported-layout:math:" + message)
+      } noraise {
+        frame =>
+          spans.push({
+            node: run,
+            text: "\ufffc",
+            style,
+            drawing: Some(frame),
+            field: "",
+          })
+      }
+      continue
+    }
     let base = styles.run_character_style(tree, run, run_style, diagnostics)
     let review = tree.nodes[tree.nodes[run].parent]
     let style = if review.uri == word_uri && review.name == "ins" {
@@ -440,6 +475,10 @@ fn Session::paragraph(
           revision_element(tree.nodes[item].name)
         }) {
         "Tracked revisions require review before editing"
+      } else if spans.any(span => {
+          span.drawing is Some({ content: Fraction(_), .. })
+        }) {
+        "Mathematical formulas require formula editing"
       } else if !running && has_fields {
         try {
           tree.check_editable_paragraph(

@@ -215,6 +215,8 @@ export function XlsxFormatFields({
             "right",
             "justify",
             "centerContinuous",
+            "distributed",
+            "fill",
           ])}
         </select>
       </label>

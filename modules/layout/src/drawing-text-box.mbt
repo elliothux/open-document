@@ -105,6 +105,9 @@ fn DrawingFrame::prepare_text(
   probe : TextProbe,
   profile : Map[String, String],
 ) -> DrawingFrame raise @failure.Failure {
+  if self.content is Fraction(fraction) {
+    return fraction.prepare(probe, profile)
+  }
   guard self.content is TextBox(shape, text) else { return self }
   let area = self.text_box_rect(shape, text)
   let left = area.x

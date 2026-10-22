@@ -5,6 +5,9 @@ fn WordTree::diagnose_properties(
   part : String,
   diagnostics : Array[String],
 ) -> Unit {
+  if self.nodes[id].uri != word_uri {
+    return
+  }
   let supported = match self.nodes[id].name {
     "pPr" =>
       [

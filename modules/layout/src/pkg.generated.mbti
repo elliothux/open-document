@@ -159,6 +159,7 @@ pub(all) enum DrawingContent {
   Picture(String, Array[Double])
   Shape(BasicShape)
   TextBox(BasicShape, DrawingTextBox)
+  Fraction(MathFraction)
 }
 pub fn DrawingContent::to_json(Self) -> Json
 pub impl ToJson for DrawingContent
@@ -399,6 +400,17 @@ pub struct LiteralPattern {
 }
 pub fn LiteralPattern::matches(Self, String) -> Array[(Int, Int)]
 pub fn LiteralPattern::new(String, match_case? : Bool, whole_word? : Bool) -> Self raise @failure.Failure
+
+pub struct MathFraction {
+  numerator : String
+  denominator : String
+  style : TextStyle
+  ascent : Double
+  primitives : Array[PositionedPrimitive]
+}
+pub fn MathFraction::new(String, String, TextStyle) -> Self
+pub fn MathFraction::to_json(Self) -> Json
+pub impl ToJson for MathFraction
 
 pub(all) struct Matrix {
   a : Double
@@ -787,7 +799,7 @@ pub fn TextProbe::outline_resources(Self) -> Array[Outline] raise @failure.Failu
 pub fn TextProbe::paragraph_lines(Self, Paragraph, Map[String, String], Double, Bool, baseLevel? : Int) -> Array[Line] raise @failure.Failure
 pub fn TextProbe::shape(Self, String, Double, String, primary? : Int, base? : Int) -> ShapeBatch raise @failure.Failure
 pub fn TextProbe::source_glyph(Self, Int, Int, String, Int, Bool) -> (String, Int) raise @failure.Failure
-pub fn TextProbe::span_block(Self, Array[Span], Double, Map[String, String], Double, Bool, justify? : Bool) -> TextBlock raise @failure.Failure
+pub fn TextProbe::span_block(Self, Array[Span], Double, Map[String, String], Double, Bool, justify? : Bool, distributed? : Bool) -> TextBlock raise @failure.Failure
 pub fn TextProbe::text_block(Self, String, TextStyle, Map[String, String], Double, Bool) -> TextBlock raise @failure.Failure
 
 pub(all) struct TextReference {
