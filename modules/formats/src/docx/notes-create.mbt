@@ -259,7 +259,18 @@ pub fn Session::insert_note(
   } else {
     "<od:sz od:val='20'/>"
   }
-  let markup = "<od:p>\{ppr}<od:r><od:rPr>\{size}<od:vertAlign od:val='superscript'/></od:rPr><od:\{kind}Ref/></od:r><od:r><od:rPr>\{size}</od:rPr><od:t xml:space='preserve'>\{@xml.escape_text(text)}</od:t></od:r></od:p>"
+  let markup = text
+    .split("\n")
+    .to_array()
+    .mapi((index, line) => {
+      let marker = if index == 0 {
+        "<od:r><od:rPr>\{size}<od:vertAlign od:val='superscript'/></od:rPr><od:\{kind}Ref/></od:r>"
+      } else {
+        ""
+      }
+      "<od:p>\{ppr}\{marker}<od:r><od:rPr>\{size}</od:rPr><od:t xml:space='preserve'>\{@xml.escape_text(line.to_owned())}</od:t></od:r></od:p>"
+    })
+    .join("")
   self.append_note_source(kind, key, markup, parts, edits, created)
   let change = self.paragraph_inline_source(document, position, properties => {
     "<od:r xmlns:od='\{word_uri}'>\{note_reference_properties(properties, self.opc.budget)}<od:\{kind}Reference od:id='\{key}'/></od:r>"

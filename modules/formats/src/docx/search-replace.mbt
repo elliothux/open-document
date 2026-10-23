@@ -84,14 +84,20 @@ fn Session::plain_replacements(
     }
     out.write_string(before[cursor:].to_owned())
     let after = out.to_string()
-    if before != after || tree.nodes[id].name == "drawing" {
+    if before != after ||
+      tree.nodes[id].name == "drawing" ||
+      note_reference(tree.nodes[id]) {
       changes[id] = after
     }
   }
   if changes.is_empty() {
     return None
   }
-  let (document, xml) = self.edit_inline_text(self.document(), changes)
+  let (document, xml) = self.edit_inline_text(
+    self.document(),
+    changes,
+    notes=true,
+  )
   let tree = WordTree::new(document)
   let first = targets[0].anchor
   let updated = docx_texts(tree)
@@ -174,6 +180,7 @@ pub fn Session::replace_matches(
             pictures=true,
             fields=true,
             math=true,
+            notes=true,
           )
           self.check_native_drawings(tree, position.paragraph)
           let frame = replacement_paragraph(
@@ -236,7 +243,13 @@ pub fn Session::replace_matches(
     let mut selection = self.selection
     for index = targets.length() - 1; index >= 0; index = index - 1 {
       ignore(
-        self.paragraph_range(tree, targets[index], structural=true, fields=true),
+        self.paragraph_range(
+          tree,
+          targets[index],
+          structural=true,
+          fields=true,
+          notes=true,
+        ),
       )
       let working = {
         ..self,

@@ -72,7 +72,17 @@ fn Session::formatting_styles(
         first < end && last > cursor
       }
       if hit {
-        let patch = if collapsed { pending } else { None }
+        let patch = if collapsed && note_reference(tree.nodes[item.id]) {
+          Some(
+            CharacterFormat::new(style=Clear, vertAlign=Set("baseline")).merge(
+              pending.unwrap_or(CharacterFormat::new()),
+            ),
+          )
+        } else if collapsed {
+          pending
+        } else {
+          None
+        }
         let (value, key) = styles.queried_character(
           tree,
           paragraph,

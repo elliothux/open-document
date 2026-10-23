@@ -59,7 +59,8 @@ fn Session::search_groups(
   let fields = Map::from_array(
     docx_texts(tree)
     .filter(item => {
-      ["fldSimple", "oMath", "oMathPara"].contains(tree.nodes[item.id].name)
+      ["fldSimple", "oMath", "oMathPara"].contains(tree.nodes[item.id].name) ||
+      note_reference(tree.nodes[item.id])
     })
     .map(item => (item.id, item.paragraph)),
   )
@@ -214,6 +215,16 @@ fn Session::find_matches(
   } noraise {
     value => Ok(value)
   }
+  let note_refs = try {
+    match styles {
+      Ok(styles) => self.layout_notes(tree, styles, "ffffff").0
+      Err(error) => raise error
+    }
+  } catch {
+    error => Err(error)
+  } noraise {
+    value => Ok(value)
+  }
   let reasons : Map[Int, String] = Map([])
   let matches : Array[(Selection, String, String)] = []
   for group in self.search_groups(tree) {
@@ -238,6 +249,7 @@ fn Session::find_matches(
                 pictures=true,
                 fields=true,
                 math=true,
+                notes=true,
               )
               self.check_native_drawings(tree, id)
               tree.check_structure_paragraph(id, running=true)
@@ -245,7 +257,17 @@ fn Session::find_matches(
                 Ok(styles) => styles
                 Err(error) => raise error
               }
-              self.paragraph(tree, styles, id, []).readOnlyReason
+              let note_refs = if tree
+                .descendants(id)
+                .any(child => note_reference(tree.nodes[child])) {
+                match note_refs {
+                  Ok(value) => value
+                  Err(error) => raise error
+                }
+              } else {
+                Map([])
+              }
+              self.paragraph(tree, styles, id, [], note_refs~).readOnlyReason
             } catch {
               @failure.Failure(message~, ..) => message
             }

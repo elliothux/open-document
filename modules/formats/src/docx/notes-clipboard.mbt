@@ -14,47 +14,52 @@ fn Session::fragment_note(
   let key = note_key(node.attribute("id", uri=word_uri).unwrap_or(""))
   guard self.note_source(kind) is Some(source) &&
     source.entries.iter().find_first(note => note.key == key) is Some(note) &&
-    note.reason.is_empty() &&
-    note.paragraph is Some(p) else {
+    note.reason.is_empty() else {
     @failure.reject(
       "protected-content", "Rich note copy requires ordinary note content",
     )
   }
   let styles = self.styles([])
-  guard styles.numbering_reference(source.tree, p) is None else {
+  guard note.paragraphs.all(p => {
+    styles.numbering_reference(source.tree, p) is None
+  }) else {
     @failure.reject(
       "protected-content", "Note lists require copied note numbering",
     )
   }
   let markers : Map[Int, (String, String)] = Map([])
   let objects : Map[Int, String] = Map([])
-  for id in source.tree.descendants(p) {
+  for id in source.tree.descendants(note.node) {
     if source.tree.nodes[id].uri == word_uri &&
       source.tree.nodes[id].name == kind + "Ref" {
       markers[id] = ("", "")
       objects[id] = "<od:\{kind}Ref/>"
     }
   }
-  let paragraph = self.paragraph(
-    source.tree,
-    styles,
-    p,
-    [],
-    running=true,
-    note_refs=markers,
-  )
-  let content = fragment_paragraph(
-    source.tree,
-    paragraph,
-    styles,
-    source.document,
-    limit,
-    Map([]),
-    Map([]),
-    Map([]),
-    Map([]),
-    objects,
-  )
+  let content = note.paragraphs
+    .map(p => {
+      let paragraph = self.paragraph(
+        source.tree,
+        styles,
+        p,
+        [],
+        running=true,
+        note_refs=markers,
+      )
+      fragment_paragraph(
+        source.tree,
+        paragraph,
+        styles,
+        source.document,
+        limit,
+        Map([]),
+        Map([]),
+        Map([]),
+        Map([]),
+        objects,
+      )
+    })
+    .join("")
   let markup = "<odClip:note xmlns:odClip='\{table_fragment_uri}' kind='\{kind}'>\{content}</odClip:note>"
   guard markup.length() <= limit else {
     @failure.reject("limit-exceeded", "Copied note exceeds clipboard budget")
@@ -89,14 +94,15 @@ fn Session::import_fragment_notes(
       tree.nodes[node.parent].name == "r" &&
       tree.nodes[tree.nodes[node.parent].parent].uri == word_uri &&
       tree.nodes[tree.nodes[node.parent].parent].name == "p" &&
-      tree.children[id] is [p] &&
-      tree.nodes[p].uri == word_uri &&
-      tree.nodes[p].name == "p" else {
+      !tree.children[id].is_empty() &&
+      tree.children[id].all(p => {
+        tree.nodes[p].uri == word_uri && tree.nodes[p].name == "p"
+      }) else {
       @failure.reject(
         "protected-content", "Invalid copied note owner or content",
       )
     }
-    let children = tree.descendants(p)
+    let children = tree.children[id].map(p => tree.descendants(p)).flatten()
     guard !children.any(child => note_reference(tree.nodes[child])) &&
       children
       .filter(child => {
@@ -112,7 +118,9 @@ fn Session::import_fragment_notes(
     check_fragment_content(tree, children, Map([]), notes=true)
     let view = { ..self, parts, }
     let key = view.next_note_key(kind)
-    let body = tree.standalone_markup(document, p)
+    let body = tree.children[id]
+      .map(p => tree.standalone_markup(document, p))
+      .join("")
     // The same ordinary-note validator protects capture, import and later content edits.
     let check = @xml.Document::parse(
       @utf8.encode(

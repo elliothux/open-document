@@ -2,7 +2,7 @@
 priv struct DocNote {
   key : String
   node : Int
-  paragraph : Int?
+  paragraphs : Array[Int]
   texts : Array[Int]
   text : String
   reason : String
@@ -45,8 +45,8 @@ fn read_doc_note(
       a.uri == word_uri && ["id", "type"].contains(a.name)
     }) ||
     !["", "normal"].contains(node.attribute("type", uri=word_uri).unwrap_or("")) ||
-    paragraphs.length() != 1 ||
-    tree.children[id].length() != 1 {
+    paragraphs.is_empty() ||
+    tree.children[id].length() != paragraphs.length() {
     reason = "protected-content:note-content-requires-structured-editing"
   }
   let mut markers = 0
@@ -94,6 +94,9 @@ fn read_doc_note(
           item.attributes.is_empty() &&
           tree.children[element].is_empty() {
           markers += 1
+          if paragraph != paragraphs[0] {
+            reason = "protected-content:note-reference-marker"
+          }
         } else if item.uri != word_uri ||
           item.name != "t" ||
           !tree.children[element].is_empty() {
@@ -110,18 +113,7 @@ fn read_doc_note(
   guard text.length() <= 32767 else {
     @failure.reject("limit-exceeded", "Note text exceeds32767 units")
   }
-  {
-    key,
-    node: id,
-    paragraph: if paragraphs.length() == 1 {
-      Some(paragraphs[0])
-    } else {
-      None
-    },
-    texts,
-    text,
-    reason,
-  }
+  { key, node: id, paragraphs, texts, text, reason, }
 }
 
 ///|

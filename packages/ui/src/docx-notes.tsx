@@ -66,7 +66,7 @@ export function DocxNotes({
         </label>
         <label>
           {t.newDocxNoteText}
-          <input
+          <textarea
             value={newText}
             maxLength={32767}
             disabled={disabled}
@@ -135,7 +135,7 @@ export function DocxNotes({
               ) : (
                 <label>
                   {t.docxNoteText}
-                  <input
+                  <textarea
                     value={text}
                     maxLength={32767}
                     disabled={disabled || stale}

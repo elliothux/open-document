@@ -42,7 +42,7 @@ function text(value: unknown): value is string {
     !Array.from(value).some((c) => {
       const n = c.codePointAt(0)!;
       return (
-        n < 32 ||
+        (n < 32 && n !== 10) ||
         n === 127 ||
         n === 8232 ||
         n === 8233 ||

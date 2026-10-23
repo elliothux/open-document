@@ -397,6 +397,14 @@ export function XlsxCharts({
               <button
                 type="button"
                 onClick={() =>
+                  controller.run(() => editor.copyDrawing(draft.id))
+                }
+              >
+                {t.copyDrawing}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
                   controller.run(() => editor.cutDrawing(draft.id))
                 }
               >

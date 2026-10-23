@@ -2,6 +2,7 @@
 priv struct DrawingFragment {
   object : SheetObject
   image : Bytes?
+  data : @xml.Document?
 }
 
 ///|
@@ -9,7 +10,7 @@ fn SheetObject::check_fragment_identity(
   self : SheetObject,
 ) -> @xml.Node raise @failure.Failure {
   check_picture_text(self.name, self.description)
-  guard self.chart is None && self.source.attributes.is_empty() else {
+  guard self.chart is Some(_) || self.source.attributes.is_empty() else {
     @failure.reject(
       "protected-content", "Drawing clipboard bindings or macros require support",
     )
@@ -50,11 +51,6 @@ pub fn Session::capture_drawing(
     .unwrap_or_else(() => {
       @failure.reject("invalid-operation", "Worksheet drawing no longer exists")
     })
-  guard object.chart is None else {
-    @failure.reject(
-      "unsupported-chart", "Chart clipboard copying requires workbook binding support",
-    )
-  }
   let identity = object.check_fragment_identity()
   let changes = object.transfer_changes(
     identity,
@@ -71,6 +67,23 @@ pub fn Session::capture_drawing(
   guard frame.length() <= 1048576 else {
     @failure.reject("limit-exceeded", "Copied drawing source exceeds budget")
   }
+  let chart : Json = if object.chart is Some((part, chart)) {
+    let original = self.part_xml(part)
+    guard !self.relationships().any(link => link.owner == part) &&
+      !original.source().contains("<!--") &&
+      !original.source()[original.nodes()[0].start:].contains("<?") else {
+      @failure.reject(
+        "protected-content", "Chart resources or annotations require clipboard support",
+      )
+    }
+    let visible = object.chart_visibility.unwrap()
+    {
+      "source": chart.markup(),
+      "visible": ToJson::to_json([visible.categories] + visible.values),
+    }
+  } else {
+    Json::null()
+  }
   let payload : Json = {
     "frame": frame,
     "theme": self.theme,
@@ -78,6 +91,7 @@ pub fn Session::capture_drawing(
     "image": image
     .map(bytes => Json(@base64.encode(bytes)))
     .unwrap_or(Json::null()),
+    "chart": chart,
   }
   let fragment = payload.stringify()
   guard fragment.length() <= 4194304 else {
@@ -104,13 +118,14 @@ fn read_drawing_fragment(
     _ => @failure.reject("invalid-operation", "Invalid drawing clipboard JSON")
   }
   guard json is Object(fields) &&
-    fields.length() == 4 &&
+    fields.length() == 5 &&
     json
     is {
       "frame": String(frame),
       "font": String(font),
       "theme": Array(colors),
       "image": image,
+      "chart": chart,
       ..
     } &&
     frame.length() <= 1048576 &&
@@ -158,7 +173,7 @@ fn read_drawing_fragment(
   let media = seed.media.copy()
   let created : Map[String, @xml.Document] = Map([])
   let edits : Array[(String, @xml.Edit)] = []
-  let (part, relation) = seed.create_sheet_resource(
+  let (part, drawing_relation) = seed.create_sheet_resource(
     seed.sheets[0].id,
     "drawing",
     "<xdr:wsDr xmlns:xdr=\"\{picture_uri}\">\{frame}</xdr:wsDr>",
@@ -168,36 +183,46 @@ fn read_drawing_fragment(
   )
   let (document, _) = insert_sheet_drawing(
     seed.sheets[0].document,
-    relation,
+    drawing_relation,
     name="drawing",
   )
+  let mut document = document
+  let data = read_chart_fragment(chart, budget)
+  guard bytes is None || data is None else {
+    @failure.reject(
+      "invalid-operation", "Drawing clipboard cannot mix image and chart resources",
+    )
+  }
+  if data is Some((chart, data)) {
+    let (_, relation) = seed.create_sheet_resource(
+      part,
+      "chart",
+      chart.markup(),
+      parts,
+      created,
+      edits,
+    )
+    parts[part] = drawing_fragment_reference(
+      parts[part],
+      chart_uri,
+      "chart",
+      "id",
+      relation,
+    )
+    document = insert_sheet_drawing(data, drawing_relation, name="drawing").0
+  }
   if bytes is Some(bytes) {
     let (image_part, mime) = seed.new_picture_part(bytes)
     let relation = seed.attach_sheet_resource(
       part, image_part, "image", mime, parts, created, edits,
     )
-    let document = parts[part]
-    let blips = document
-      .nodes()
-      .iter()
-      .filter(node => node.uri == picture_drawing_uri && node.name == "blip")
-      .to_array()
-    guard blips is [blip] &&
-      blip.attributes is [attr] &&
-      attr.uri == relationship_uri[:relationship_uri.length() - 1].to_owned() &&
-      attr.name == "embed" else {
-      @failure.reject(
-        "invalid-operation", "Drawing clipboard image requires one native reference",
-      )
-    }
-    parts[part] = document.edit_source([
-        {
-          node: blip.id,
-          offset: attr.start - blip.start,
-          length: attr.end - attr.start,
-          xml: escaped_attribute(relation),
-        },
-      ]).0
+    parts[part] = drawing_fragment_reference(
+      parts[part],
+      picture_drawing_uri,
+      "blip",
+      "embed",
+      relation,
+    )
     media[image_part] = bytes
   }
   let sheet = { ..seed.sheets[0], document, }
@@ -211,14 +236,14 @@ fn read_drawing_fragment(
   }
   let objects = view.sheet_objects(sheet, drawing_fragment_dimensions())
   guard objects is [object] &&
-    object.chart is None &&
+    (object.chart is Some(_)) == (data is Some(_)) &&
     (object.media is Some(_)) == (bytes is Some(_)) else {
     @failure.reject(
       "invalid-operation", "Drawing clipboard requires one picture or shape",
     )
   }
   ignore(object.check_fragment_identity())
-  DrawingFragment::{ object, image: bytes, }
+  DrawingFragment::{ object, image: bytes, data: data.map(entry => entry.1), }
 }
 
 ///|

@@ -68,7 +68,7 @@ pub fn Session::insert_table(
   }
   let original = self.document()
   let tree = WordTree::new(original)
-  let range = self.paragraph_range(tree, selection, structural=true)
+  let range = self.paragraph_range(tree, selection, structural=true, notes=true)
   let body = tree.child(0, "body").unwrap()
   guard tree.nodes[range.start.paragraph].parent == body else {
     @failure.reject(
@@ -145,9 +145,9 @@ pub fn Session::insert_table(
     @failure.reject("limit-exceeded", "Table source exceeds history budget")
   }
   let prepared = if range.start.offset == 0 {
-    self.prepare_plain_range(selection, "")
+    self.prepare_plain_range(selection, "", notes=true)
   } else {
-    Some(self.prepare_structural_range(selection, "\n"))
+    Some(self.prepare_structural_range(selection, "\n", notes=true))
   }
   let mut candidate = prepared.map(p => p.document).unwrap_or(original)
   let edits = prepared.map(p => p.edit.xml.copy()).unwrap_or([])
@@ -208,7 +208,8 @@ pub fn Session::insert_table(
     .iter()
     .find_first(t => t.id == table)
     .unwrap()
-  if !candidate_flow.columns.custom.is_empty() {
+  if !candidate_flow.columns.custom.is_empty() ||
+    !candidate_flow.notes.is_empty() {
     self.check_table_layout(candidate_flow, new_table, probe, profile, images)
   }
   guard new_table.rows
