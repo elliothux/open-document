@@ -14,6 +14,7 @@ fn Session::paragraph_range(
   fields~ : Bool = false,
   math~ : Bool = false,
   tables~ : Bool = false,
+  notes~ : Bool = false,
 ) -> ParagraphRange raise @failure.Failure {
   self.paragraph_range_in(
     self.document(),
@@ -23,6 +24,7 @@ fn Session::paragraph_range(
     fields~,
     math~,
     tables~,
+    notes~,
   )
 }
 
@@ -36,6 +38,7 @@ fn Session::paragraph_range_in(
   fields~ : Bool = false,
   math~ : Bool = false,
   tables~ : Bool = false,
+  notes~ : Bool = false,
   check_layout~ : Bool = true,
   check_graphemes~ : Bool = true,
 ) -> ParagraphRange raise @failure.Failure {
@@ -120,6 +123,7 @@ fn Session::paragraph_range_in(
       pictures=true,
       fields~,
       math~,
+      notes~,
     )
     self.check_native_drawings(tree, id)
     if structural {

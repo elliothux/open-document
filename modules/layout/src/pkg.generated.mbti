@@ -282,6 +282,7 @@ pub(all) struct Flow {
   headerDistance : Double
   footers : Map[String, Array[Paragraph]]
   footerDistance : Double
+  notes : Array[Note]
   differentFirst : Bool
   differentEven : Bool
   additiveSpacing : Bool
@@ -495,6 +496,15 @@ pub fn Matrix::then(Self, Self) -> Self
 pub fn Matrix::to_json(Self) -> Json
 
 type MeasuredLine
+
+pub(all) struct Note {
+  kind : String
+  key : String
+  paragraph : Int
+  node : Int
+  content : Array[Paragraph]
+} derive(ToJson)
+pub fn Note::to_json(Self) -> Json
 
 pub(all) struct Outline {
   key : String

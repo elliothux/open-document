@@ -391,6 +391,7 @@ pub fn Session::export_markup(
   guard flow.diagnostics.is_empty() &&
     flow.headers.is_empty() &&
     flow.footers.is_empty() &&
+    flow.notes.is_empty() &&
     !tree.order.any(id => {
       tree.is_comment_marker(id) || revision_element(tree.nodes[id].name)
     }) else {

@@ -56,6 +56,7 @@ fn paragraph_object_text_changes(
   text : String,
   retained : Int?,
   limit : Int,
+  notes~ : Bool = false,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let node = tree.nodes[id]
   let paragraph = tree.nodes[node.parent]
@@ -66,6 +67,7 @@ fn paragraph_object_text_changes(
     pictures=true,
     fields=true,
     math=true,
+    notes~,
   )
   let properties = tree.paragraph_object_properties(document, id)
   fn run(value : String) -> String raise @failure.Failure {

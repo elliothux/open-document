@@ -1,6 +1,7 @@
 ///|
 priv struct DocNote {
   key : String
+  node : Int
   paragraph : Int?
   texts : Array[Int]
   text : String
@@ -111,6 +112,7 @@ fn read_doc_note(
   }
   {
     key,
+    node: id,
     paragraph: if paragraphs.length() == 1 {
       Some(paragraphs[0])
     } else {

@@ -66,6 +66,7 @@ export interface DocxFlow {
         | `PAGEREF:${string}`
         | `REF:${string}`
         | `SEQ:${string}`
+        | `NOTE:${"footnote" | "endnote"}:${string}`
         | `${"PAGE" | "NUMPAGES"}:${"decimal" | "decimalZero" | "lowerLetter" | "upperLetter" | "lowerRoman" | "upperRoman"}`;
     }[];
     before: number;
@@ -93,6 +94,13 @@ export interface DocxFlow {
   headerDistance: number;
   footers: Record<string, DocxFlow["paragraphs"]>;
   footerDistance: number;
+  notes: {
+    kind: "footnote" | "endnote";
+    key: string;
+    paragraph: number;
+    node: number;
+    content: DocxFlow["paragraphs"];
+  }[];
   differentFirst: boolean;
   differentEven: boolean;
   tables: {
@@ -415,10 +423,15 @@ export function docxFlow(value: unknown): DocxFlow {
       throw new Error("Text box lists and page breaks require support");
     for (const value of entries(paragraph.spans)) {
       const span = fields(value, ["node"], ["text", "field"]);
+      const noteField =
+        typeof span.field === "string" &&
+        /^NOTE:(?:footnote|endnote):[0-9]+$/u.test(span.field) &&
+        span.field.split(":")[2] === String(Number(span.field.split(":")[2])) &&
+        Number(span.field.split(":")[2]) <= 2147483647;
       if (
         typeof span.field !== "string" ||
         !/^(?:(?:PAGE|NUMPAGES)(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?|PAGEREF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::hyperlink)?(?::relative)?|REF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::hyperlink)?|SEQ:[_\p{ID_Start}][_\p{ID_Continue}]{0,39}(?::(?:decimal|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::(?:repeat|restart=[0-9]{1,10}))?(?::heading=[1-9])?(?::hidden)?)?$/u.test(
-          span.field,
+          noteField ? "" : span.field,
         ) ||
         (span.field.startsWith("SEQ:") &&
           (span.field.split(":")[1]!.length > 40 ||
@@ -551,6 +564,34 @@ export function docxFlow(value: unknown): DocxFlow {
     }
   }
   const paragraphs = entries(flow.paragraphs);
+  const notes = entries(flow.notes);
+  if (notes.length > 8192) throw new Error("Note count exceeds limits");
+  const identities = new Set<string>();
+  const anchors = new Set<string>();
+  for (const value of notes) {
+    const note = fields(value, ["paragraph", "node"], ["kind", "key"]);
+    const key = String(note.key);
+    const identity = `${String(note.kind)}:${key}`;
+    const anchor = `${String(note.paragraph)}:${String(note.node)}`;
+    if (
+      !["footnote", "endnote"].includes(String(note.kind)) ||
+      key !== String(Number(key)) ||
+      !/^[0-9]+$/u.test(key) ||
+      Number(key) > 2147483647 ||
+      !Number.isSafeInteger(note.paragraph) ||
+      Number(note.paragraph) < 0 ||
+      !Number.isSafeInteger(note.node) ||
+      Number(note.node) < 0 ||
+      identities.has(identity) ||
+      anchors.has(anchor)
+    )
+      throw new Error("Invalid note identity");
+    identities.add(identity);
+    anchors.add(anchor);
+    const content = entries(note.content);
+    if (!content.length) throw new Error("Missing note story");
+    for (const paragraph of content) checkParagraph(paragraph);
+  }
   for (const value of paragraphs) checkParagraph(value);
   for (const stories of [record(flow.headers), record(flow.footers)]) {
     for (const [key, story] of Object.entries(stories)) {

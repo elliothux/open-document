@@ -51,6 +51,9 @@ fn Foundation::dispatch(
     @failure.reject("closed-session", "Foundation session is closed")
   }
   let operation = field_string(request, "operation")
+  if is_docx_note_operation(operation) {
+    return self.docx_note_operation(operation, request)
+  }
   if operation.has_suffix("XlsxChart") {
     return self.xlsx_chart_operation(operation, request)
   }
@@ -240,8 +243,6 @@ fn Foundation::dispatch(
     | "insertBodyPageField"
     | "insertDocxCaption"
     | "bodyPageField"
-    | "docxNotes"
-    | "editDocxNote"
     | "editBodyPageField"
     | "setPageBackground"
     | "setPageBorders"
@@ -450,8 +451,6 @@ fn Foundation::dispatch(
         | "insertBodyPageField"
         | "insertDocxCaption"
         | "bodyPageField"
-        | "docxNotes"
-        | "editDocxNote"
         | "editBodyPageField"
         | "setPageSetup" => self.docx_page(session, operation, request)
         "insertDocxTable" | "editDocxTable" =>

@@ -33,6 +33,10 @@ import {
   checkDocxNoteEdit,
   type DocxNotes,
   type DocxNoteEdit,
+  checkDocxNoteCreate,
+  checkDocxNoteIdentity,
+  type DocxNoteCreate,
+  type DocxNoteIdentity,
   docxCommentNavigation,
   editState,
   docxRevisionGeometry,
@@ -57,18 +61,53 @@ export interface DocumentRevisions extends DocxRevisions {
 
 /** Review calls retain the same Worker protocol and validation as other document commands. */
 export class FoundationReviewClient {
+  async insertNote(
+    revision: number,
+    note: DocxNoteCreate,
+    profile: Record<string, string>,
+  ) {
+    checkDocxNoteCreate(note);
+    return editState(
+      await this.connection.request({
+        operation: "insertDocxNote",
+        revision,
+        note,
+        profile,
+      }),
+    );
+  }
+  async removeNote(
+    revision: number,
+    note: DocxNoteIdentity,
+    profile: Record<string, string>,
+  ) {
+    checkDocxNoteIdentity(note);
+    return editState(
+      await this.connection.request({
+        operation: "removeDocxNote",
+        revision,
+        note,
+        profile,
+      }),
+    );
+  }
   async notes(revision: number) {
     return docxNotes(
       await this.connection.request({ operation: "docxNotes", revision }),
     );
   }
-  async editNote(revision: number, note: DocxNoteEdit) {
+  async editNote(
+    revision: number,
+    note: DocxNoteEdit,
+    profile: Record<string, string>,
+  ) {
     checkDocxNoteEdit(note);
     return editState(
       await this.connection.request({
         operation: "editDocxNote",
         revision,
         note,
+        profile,
       }),
     );
   }
@@ -294,18 +333,58 @@ export abstract class DocumentReview {
   editNote(source: DocumentNotes, note: DocxNoteEdit): Promise<void> {
     const check = () => {
       checkDocxNoteEdit(note);
-      const current = this.review.snapshot();
-      if (
-        source.documentId !== current.documentId ||
-        source.revision !== current.revision
-      )
-        throw new Error("Note catalog belongs to an older document state");
-      const entry = source.entries.find(
-        (entry) => entry.kind === note.kind && entry.id === note.id,
-      );
-      if (!entry || entry.reason)
-        throw new Error("This note requires structured editing");
+      this.checkNoteSource(source, note);
     };
+    return this.noteCommand(check, () =>
+      this.review.client.editNote(
+        source.revision,
+        note,
+        this.review.layout().profile,
+      ),
+    );
+  }
+  insertNote(note: DocxNoteCreate): Promise<void> {
+    return this.noteCommand(
+      () => checkDocxNoteCreate(note),
+      () =>
+        this.review.client.insertNote(
+          this.review.snapshot().revision,
+          note,
+          this.review.layout().profile,
+        ),
+    );
+  }
+  removeNote(source: DocumentNotes, note: DocxNoteIdentity): Promise<void> {
+    return this.noteCommand(
+      () => {
+        checkDocxNoteIdentity(note);
+        this.checkNoteSource(source, note);
+      },
+      () =>
+        this.review.client.removeNote(
+          source.revision,
+          note,
+          this.review.layout().profile,
+        ),
+    );
+  }
+  private checkNoteSource(source: DocumentNotes, note: DocxNoteIdentity): void {
+    const current = this.review.snapshot();
+    if (
+      source.documentId !== current.documentId ||
+      source.revision !== current.revision
+    )
+      throw new Error("Note catalog belongs to an older document state");
+    const entry = source.entries.find(
+      (entry) => entry.kind === note.kind && entry.id === note.id,
+    );
+    if (!entry || entry.reason)
+      throw new Error("This note requires structured editing");
+  }
+  private noteCommand(
+    check: () => void,
+    command: () => Promise<EditState>,
+  ): Promise<void> {
     try {
       check();
     } catch (error) {
@@ -316,7 +395,7 @@ export abstract class DocumentReview {
       .edit(async () => {
         try {
           check();
-          return await this.review.client.editNote(source.revision, note);
+          return await command();
         } catch (error) {
           // Refresh authoritative state before reporting a rejected note transaction.
           failure = { error };

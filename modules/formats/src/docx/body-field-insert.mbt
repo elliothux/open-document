@@ -16,7 +16,7 @@ fn Session::paragraph_inline_source(
   self : Session,
   document : @xml.Document,
   position : Position,
-  markup : (String) -> String,
+  markup : (String) -> String raise @failure.Failure,
 ) -> @xml.SourceChange raise @failure.Failure {
   let tree = WordTree::new(document)
   let texts = docx_texts(tree).filter(item => {

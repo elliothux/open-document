@@ -303,8 +303,24 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.bodyPageField(request.revision, request.selection);
         case "docxNotes":
           return foundation.notes(request.revision);
+        case "insertDocxNote":
+          return foundation.insertNote(
+            request.revision,
+            request.note,
+            request.profile,
+          );
+        case "removeDocxNote":
+          return foundation.removeNote(
+            request.revision,
+            request.note,
+            request.profile,
+          );
         case "editDocxNote":
-          return foundation.editNote(request.revision, request.note);
+          return foundation.editNote(
+            request.revision,
+            request.note,
+            request.profile,
+          );
         case "editBodyPageField":
           return foundation.editBodyPageField(
             request.revision,

@@ -1,6 +1,8 @@
 ///|
 pub fn Session::flow(self : Session) -> @layout.Flow raise @failure.Failure {
-  self.flow_from(self.display_document())
+  let document = self.display_document()
+  let (parts, _, _) = self.note_transition(document, self.parts)
+  { ..self, parts, }.flow_from(document)
 }
 
 ///|
@@ -19,6 +21,13 @@ fn Session::flow_from(
       }
     }
   let mut styles = self.styles(diagnostics)
+  let (note_refs, notes) = self.layout_notes(tree, styles, background) catch {
+    @failure.Failure(code="limit-exceeded", ..) as error => raise error
+    @failure.Failure(message~, ..) => {
+      diagnostics.push("unsupported-layout:notes:" + message)
+      (Map([]), [])
+    }
+  }
   let page_borders = tree.page_borders() catch {
     @failure.Failure(message~, ..) => {
       diagnostics.push("unsupported-layout:page-borders:" + message)
@@ -110,7 +119,7 @@ fn Session::flow_from(
     match node.name {
       "p" =>
         paragraphs.push(
-          self.paragraph(tree, styles, id, diagnostics, background~),
+          self.paragraph(tree, styles, id, diagnostics, background~, note_refs~),
         )
       "tbl" =>
         tables.push(
@@ -121,6 +130,7 @@ fn Session::flow_from(
             paragraphs.length(),
             diagnostics,
             background~,
+            note_refs~,
           ),
         )
       "sectPr" => ()
@@ -204,6 +214,7 @@ fn Session::flow_from(
     headerDistance: header_distance,
     footers,
     footerDistance: footer_distance,
+    notes,
     differentFirst: different_first,
     differentEven: different_even,
     additiveSpacing: self.additive_spacing(),
@@ -219,6 +230,7 @@ fn Session::paragraph(
   document_diagnostics : Array[String],
   background~ : String = "ffffff",
   running~ : Bool = false,
+  note_refs~ : Map[Int, (String, String)] = Map([]),
 ) -> @layout.Paragraph raise @failure.Failure {
   let diagnostics : Array[String] = []
   let has_fields = running ||
@@ -365,6 +377,10 @@ fn Session::paragraph(
         "cr" => "\n"
         "tab" => "\t"
         "drawing" => "\ufffc"
+        "footnoteReference"
+        | "endnoteReference"
+        | "footnoteRef"
+        | "endnoteRef" if note_refs.contains(content) => note_refs[content].0
         "rPr" | "lastRenderedPageBreak" => continue
         "commentReference" => {
           tree.check_comment_marker(content) catch {
@@ -378,7 +394,10 @@ fn Session::paragraph(
           continue
         }
       }
-      let field = fields.get(content).unwrap_or("")
+      let field = note_refs
+        .get(content)
+        .map(pair => pair.1)
+        .unwrap_or_else(() => fields.get(content).unwrap_or(""))
       let runs = if field.is_empty() {
         style.font_runs(text, styles.themes)
       } else {
@@ -521,6 +540,7 @@ fn Session::paragraph(
             pictures=true,
             fields=true,
             math=true,
+            notes=true,
           )
           picture_reason
         } catch {

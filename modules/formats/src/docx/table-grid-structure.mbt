@@ -208,6 +208,7 @@ fn Session::check_table_layout(
           headerDistance: 0,
           footers: Map([]),
           footerDistance: 0,
+          notes: [],
           differentFirst: false,
           differentEven: false,
         },

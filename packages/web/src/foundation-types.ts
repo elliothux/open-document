@@ -19,6 +19,8 @@ export type {
   DocxCaption,
   DocxNotes,
   DocxNoteEdit,
+  DocxNoteCreate,
+  DocxNoteIdentity,
   DocxNoteKind,
   DocxRunningKind,
   DocxRunningVariant,

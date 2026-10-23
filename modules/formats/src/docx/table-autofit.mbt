@@ -261,6 +261,7 @@ fn Session::fit_table(
       headerDistance: 0,
       footers: Map([]),
       footerDistance: 0,
+      notes: [],
       differentFirst: false,
       differentEven: false,
     }

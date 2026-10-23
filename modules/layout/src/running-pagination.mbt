@@ -29,12 +29,19 @@ fn paginate_running(
     let (pagination, reflowed, reused, next) = column_body(
       probe, body, cache, profile, images, setups, page_setups,
     )
+    let notes = pagination.finish_notes(flow, cache, probe, profile, images)
+    let reflowed = if flow.notes.is_empty() {
+      reflowed
+    } else {
+      pagination.pages.length() - reused
+    }
     let previous = pagination.pages.mapi((index, _) => {
       prepared
       .get(index)
       .unwrap_or(
         patterns[if index == 0 { 0 } else if index % 2 == 1 { 1 } else { 2 }],
-      )
+      ) +
+      notes[index]
     })
     let total = pagination.pages.length()
     let (values, diagnostics) = pagination.body_field_values(
@@ -84,7 +91,14 @@ fn paginate_running(
       }
     }
     if stable {
-      return (pagination, running, reflowed, reused, next, diagnostics)
+      return (
+        pagination,
+        running.mapi((index, lines) => lines + notes[index]),
+        reflowed,
+        reused,
+        next,
+        diagnostics,
+      )
     }
     if attempt == 7 {
       // Preserve the last complete layout; diagnostics keep uncertain output explicit.

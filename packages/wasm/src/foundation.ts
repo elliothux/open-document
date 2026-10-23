@@ -774,7 +774,11 @@ export class FoundationSession extends FoundationMathSession {
 export {
   docxNotes,
   checkDocxNoteEdit,
+  checkDocxNoteCreate,
+  checkDocxNoteIdentity,
   type DocxNotes,
   type DocxNoteKind,
   type DocxNoteEdit,
+  type DocxNoteCreate,
+  type DocxNoteIdentity,
 } from "./docx-notes.js";

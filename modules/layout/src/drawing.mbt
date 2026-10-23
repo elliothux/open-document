@@ -157,6 +157,7 @@ pub fn Layout::semantics(self : Layout) -> Array[SemanticPage] {
     for
       line in self.running[index].filter(line => line.container == -1) +
       page.lines +
+      self.running[index].filter(line => line.container == -3) +
       self.running[index].filter(line => line.container == -2) {
       if !line.caretOnly {
         // Wrapping detaches drawings for painting; keep their text at the source marker.

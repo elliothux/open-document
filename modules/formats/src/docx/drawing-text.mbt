@@ -59,7 +59,12 @@ fn WordTree::has_drawing_range(
         self.nodes[item.id].name == "drawing" ||
         (
           fields &&
-          ["fldSimple", "oMath", "oMathPara"].contains(self.nodes[item.id].name)
+          (
+            ["fldSimple", "oMath", "oMathPara"].contains(
+              self.nodes[item.id].name,
+            ) ||
+            note_reference(self.nodes[item.id])
+          )
         )
       ) &&
       start < cursor + length &&

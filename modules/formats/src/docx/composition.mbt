@@ -88,6 +88,7 @@ pub fn Session::begin_composition(
         fields=true,
         math=true,
         tables=true,
+        notes=true,
       ),
     )
   }
@@ -118,7 +119,13 @@ pub fn Session::update_composition(
   let composition = self.check_composition(revision, id)
   let prepared = self.prepare_composition(composition, text)
   if prepared is Some(candidate) {
-    self.opc.validate_changes(self.replacements(candidate.document, self.parts))
+    let (parts, _, bytes) = self.note_transition(candidate.document, self.parts)
+    guard bytes <= history_byte_limit - candidate.edit.bytes else {
+      @failure.reject(
+        "limit-exceeded", "Note composition exceeds history budget",
+      )
+    }
+    self.opc.validate_changes(self.replacements(candidate.document, parts))
     if candidate.document
       .nodes()
       .any(node => node.uri == word_shape_uri && node.name == "txbx") {

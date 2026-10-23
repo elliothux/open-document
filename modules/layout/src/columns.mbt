@@ -168,6 +168,7 @@ fn column_body(
   page_setups : Array[PageSetup],
 ) -> (Pagination, Int, Int, PaginationCache?) raise @failure.Failure {
   let columns = flow.columns
+  let note_references = note_references(probe, flow, cache, profile, images)
   ignore(columns.width(flow.page))
   for setup in setups + page_setups {
     ignore(columns.width(setup))
@@ -197,6 +198,7 @@ fn column_body(
         balance~,
         anchorPage=Some(flow.page),
         wrapping=wrapping.copy(),
+        noteReferences=note_references,
       )
       let (reflowed, reused, next) = pagination.body(
         probe,

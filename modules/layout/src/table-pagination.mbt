@@ -152,6 +152,11 @@ fn Pagination::table_rows(
   )
   let total = heights.iter().fold(init=0.0, (sum, value) => sum + value)
   let bottom = table.border_width(last_row + 1)
+  // shortcut: Reserve note-bearing groups together until table fragments carry reservations.
+  self.fit_note_references(
+    cells.map(cell => cell.2.map(line => line.0)).flatten(),
+    total + bottom,
+  )
   self.avoid_wrapping(total + bottom)
   if first_row == last_row &&
     !table.exactHeights[first_row] &&

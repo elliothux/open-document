@@ -275,6 +275,7 @@ pub fn Session::query_formatting(
               structural=selection.anchor.paragraph != selection.focus.paragraph,
               fields=true,
               math=true,
+              notes=true,
             ),
           )
         }

@@ -10,6 +10,11 @@ fn WordTree::split_input(
   merge~ : Bool,
   source_limit~ : Int,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
+  if insertion is Some(id) && note_reference(self.nodes[id]) {
+    return self.split_note_input(
+      document, paragraph, id, offset, parts, tail, source_limit,
+    )
+  }
   if insertion is Some(id) &&
     ["fldSimple", "oMath", "oMathPara"].contains(self.nodes[id].name) {
     return self.split_paragraph_object_input(

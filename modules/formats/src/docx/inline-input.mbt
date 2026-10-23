@@ -100,6 +100,7 @@ fn Session::edit_inline_text(
   replacements : Map[Int, String],
   source~ : Array[@xml.SourceChange] = [],
   object_offsets~ : Map[Int, Int] = Map([]),
+  notes~ : Bool = false,
 ) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
   let plain : Map[Int, String] = Map([])
   let changes = source.copy()
@@ -109,6 +110,28 @@ fn Session::edit_inline_text(
   let mut units = 0
   for id, text in replacements {
     let node = document.node(id)
+    if note_reference(node) {
+      guard notes else {
+        @failure.reject(
+          "protected-content", "Note reference input requires source ownership",
+        )
+      }
+      for
+        item in tree.note_text_changes(
+          document,
+          id,
+          text,
+          object_offsets.get(id),
+          limit - units,
+        ) {
+        units += item.xml.length()
+        guard units <= limit else {
+          @failure.reject("limit-exceeded", "Note input source exceeds budget")
+        }
+        changes.push(item)
+      }
+      continue
+    }
     if ["fldSimple", "oMath", "oMathPara"].contains(node.name) {
       let items = paragraph_object_text_changes(
         tree,
@@ -117,6 +140,7 @@ fn Session::edit_inline_text(
         text,
         object_offsets.get(id),
         limit - units,
+        notes~,
       )
       for item in items {
         units += item.xml.length()
@@ -162,6 +186,7 @@ fn Session::edit_inline_text(
       pictures=true,
       fields=true,
       math=true,
+      notes~,
     )
     self.check_native_drawings(tree, paragraph)
     guard node.attributes

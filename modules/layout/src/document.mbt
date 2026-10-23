@@ -135,6 +135,18 @@ pub(all) struct Paragraph {
 pub extend Paragraph with ToJson::{to_json}
 
 ///|
+pub(all) struct Note {
+  kind : String
+  key : String
+  paragraph : Int
+  node : Int
+  content : Array[Paragraph]
+} derive(ToJson)
+
+///|
+pub extend Note with ToJson::{to_json}
+
+///|
 pub(all) struct PageSetup {
   width : Double
   height : Double
@@ -164,6 +176,7 @@ pub(all) struct Flow {
   headerDistance : Double
   footers : Map[String, Array[Paragraph]]
   footerDistance : Double
+  notes : Array[Note]
   differentFirst : Bool
   differentEven : Bool
   additiveSpacing : Bool

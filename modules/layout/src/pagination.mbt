@@ -15,6 +15,13 @@ priv struct Pagination {
   mut gap : Double
   wrapping : Array[WrappingRect]
   placedWrapping : Map[(Int, Int), Unit]
+  noteReferences : Map[(Int, Int), Array[(Line, Double)]]
+  noteUsed : Set[(Int, Int)]
+  notePending : Array[(Line, Double)]
+  mut noteCursor : Int
+  notePages : Map[Int, Array[Line]]
+  noteHeights : Map[Int, Double]
+  noteContinuations : Set[Int]
 }
 
 ///|
@@ -26,6 +33,7 @@ fn Pagination::new(
   balance~ : (Int, Double)? = None,
   anchorPage~ : PageSetup? = None,
   wrapping~ : Array[WrappingRect] = [],
+  noteReferences~ : Map[(Int, Int), Array[(Line, Double)]] = Map([]),
 ) -> Pagination {
   let anchor_page = anchorPage.unwrap_or(page)
   let page = pageSetups.get(0).unwrap_or(page)
@@ -55,6 +63,13 @@ fn Pagination::new(
     gap: 0,
     wrapping,
     placedWrapping: Map([]),
+    noteReferences,
+    noteUsed: Set([]),
+    notePending: [],
+    noteCursor: 0,
+    notePages: Map([]),
+    noteHeights: Map([]),
+    noteContinuations: Set([]),
   }
   result.page = result.page_at(0)
   result.y = result.page.top
@@ -79,6 +94,10 @@ fn Pagination::next_page(self : Pagination) -> Unit raise @failure.Failure {
   self.y = self.page.top
   self.after = 0
   self.gap = 0
+  if self.noteCursor < self.notePending.length() {
+    self.noteContinuations.add(self.pages.length() - 1)
+  }
+  self.reserve_pending_notes(0)
 }
 
 ///|
@@ -92,7 +111,11 @@ fn Pagination::fit(
       "layout-overflow", "Object is taller than the page content area",
     )
   }
-  for _ in 0..<(3 + self.wrapping.length()) {
+  for
+    _ in 0..<(3 +
+    self.wrapping.length() +
+    self.notePending.length() -
+    self.noteCursor) {
     self.avoid_wrapping(height, square~)
     if self.y + height <= self.page.height - self.page.bottom {
       return
@@ -400,6 +423,16 @@ fn Pagination::paragraph(
         start_offset = line.start
         finished = false
         break
+      }
+      let previous_page = self.pages.length()
+      self.fit_note_references(
+        [line],
+        line.height.max(measured.spaced(paragraph.line, true).height),
+        square=plan is None,
+      )
+      if self.pages.length() != previous_page {
+        line = measured.spaced(paragraph.line, true)
+        first = true
       }
       self.fit(line.height, square=plan is None)
       if available() != width {

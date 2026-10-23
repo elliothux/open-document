@@ -167,20 +167,6 @@ fn Foundation::docx_page(
         salt,
       )
     }
-    "docxNotes" => session.notes(revision)
-    "editDocxNote" => {
-      guard request is { "note": Object(fields) as note, .. } &&
-        fields.length() == 3 &&
-        fields.keys().all(key => ["kind", "id", "text"].contains(key)) else {
-        @failure.reject("invalid-operation", "Invalid native note fields")
-      }
-      session.edit_note(
-        revision,
-        field_string(note, "kind"),
-        field_string(note, "id"),
-        field_string(note, "text"),
-      )
-    }
     "insertDocxCaption" => {
       guard request is { "caption": Object(fields) as caption, .. } &&
         fields.length() >= 3 &&

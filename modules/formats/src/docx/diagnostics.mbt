@@ -23,7 +23,7 @@ fn WordTree::diagnose_properties(
     "sectPr" =>
       [
         "pgSz", "pgMar", "pgBorders", "headerReference", "footerReference", "titlePg",
-        "cols", "docGrid", "pgNumType",
+        "cols", "docGrid", "pgNumType", "footnotePr", "endnotePr",
       ]
     "tcPr" =>
       ["tcW", "shd", "gridSpan", "vMerge", "vAlign", "tcMar", "tcBorders"]

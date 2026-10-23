@@ -74,6 +74,7 @@ priv struct PreparedEdit {
 fn Session::editable_texts(
   self : Session,
   paragraph : Int,
+  notes~ : Bool = false,
 ) -> Array[TextNode] raise @failure.Failure {
   let tree = WordTree::new(self.document())
   tree.check_editable_paragraph(
@@ -82,6 +83,7 @@ fn Session::editable_texts(
     pictures=true,
     fields=true,
     math=true,
+    notes~,
   )
   self.check_native_drawings(tree, paragraph)
   self.texts.filter(node => node.paragraph == paragraph)
@@ -216,13 +218,22 @@ fn Session::check_position_in(
   check_graphemes~ : Bool = true,
 ) -> Unit raise @failure.Failure {
   let tree = WordTree::new(document)
-  tree.check_editable_paragraph(
-    position.paragraph,
-    part=self.main,
-    pictures=true,
-    fields=true,
-    math=true,
-  )
+  if tree.nodes.contains(position.paragraph) &&
+    tree.nodes[position.paragraph].name == "p" &&
+    tree
+    .descendants(position.paragraph)
+    .any(id => note_reference(tree.nodes[id])) {
+    // A retained caret does not grant range mutation access to note references.
+    self.check_note_paragraph(document, position.paragraph)
+  } else {
+    tree.check_editable_paragraph(
+      position.paragraph,
+      part=self.main,
+      pictures=true,
+      fields=true,
+      math=true,
+    )
+  }
   self.check_native_drawings(tree, position.paragraph)
   let nodes = tree.nodes
   let texts = docx_texts(tree).filter(node => {
@@ -290,6 +301,7 @@ fn Session::prepare_range(
     text,
     input_group~,
     check_graphemes~,
+    notes=true,
   )
   if self.typing_format is Some(patch) &&
     self.selection == Some(selection) &&
@@ -309,6 +321,7 @@ fn Session::prepare_plain_range(
   text : String,
   input_group~ : Int? = None,
   check_graphemes~ : Bool = true,
+  notes~ : Bool = false,
 ) -> PreparedEdit? raise @failure.Failure {
   guard text.length() <= command_limit else {
     @failure.reject("limit-exceeded", "Command input exceeds UTF-16 budget")
@@ -357,12 +370,24 @@ fn Session::prepare_plain_range(
       }
     }
     return Some(
-      self.prepare_structural_range(selection, text, check_graphemes~),
+      self.prepare_structural_range(selection, text, check_graphemes~, notes~),
     )
   }
   let tree = WordTree::new(self.document())
   let nodes = tree.nodes
-  let texts = self.editable_texts(anchor.paragraph)
+  let texts = self.editable_texts(anchor.paragraph, notes~)
+  if notes && texts.any(item => note_reference(nodes[item.id])) {
+    ignore(
+      self.paragraph_range(
+        tree,
+        selection,
+        structural=false,
+        fields=true,
+        math=true,
+        notes=true,
+      ),
+    )
+  }
   let content = texts.map(node => inline_text(nodes[node.id])).join("")
   let boundaries = editing_boundaries(content, check_graphemes)
   validate_position(anchor, boundaries)
@@ -411,9 +436,10 @@ fn Session::prepare_plain_range(
     let after = before[:left].to_owned() +
       (if node.id == insertion { text } else { "" }) +
       before[right:].to_owned()
-    let picture = ["drawing", "fldSimple", "oMath", "oMathPara"].contains(
-      nodes[node.id].name,
-    )
+    let picture = note_reference(nodes[node.id]) ||
+      ["drawing", "fldSimple", "oMath", "oMathPara"].contains(
+        nodes[node.id].name,
+      )
     if picture && left == right {
       object_offsets[node.id] = if left == 0 && node.id == insertion {
         text.length()
@@ -445,6 +471,7 @@ fn Session::prepare_plain_range(
     Some(after),
     anchor.paragraph,
     object_offsets~,
+    notes~,
   )
   Some({
     ..prepared,
@@ -486,11 +513,13 @@ fn Session::prepare_text(
   after : Selection?,
   paragraph : Int,
   object_offsets~ : Map[Int, Int] = Map([]),
+  notes~ : Bool = false,
 ) -> PreparedEdit raise @failure.Failure {
   let (candidate, xml) = self.edit_inline_text(
     self.document(),
     changes,
     object_offsets~,
+    notes~,
   )
   {
     edit: {
@@ -525,6 +554,15 @@ fn Session::commit_edit(
   if !protection_edit {
     self.check_document_protection()
   }
+  let (parts, note_edits, note_bytes) = self.note_transition(candidate, parts)
+  guard note_bytes <= history_byte_limit - edit.bytes else {
+    @failure.reject("limit-exceeded", "Note input exceeds history budget")
+  }
+  let combined = edit.parts.copy()
+  for part, steps in note_edits {
+    combined.get_or_init(part, () => []).append(steps)
+  }
+  let edit = { ..edit, parts: combined, bytes: edit.bytes + note_bytes, }
   if !bookmark_edit {
     check_bookmark_integrity(self.document(), candidate)
   }

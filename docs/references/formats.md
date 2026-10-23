@@ -806,11 +806,21 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 `DocumentEditor.notes()` 返回 `DocumentNotes = { documentId, revision, entries }`。每项包含 `{ kind: "footnote" | "endnote", id, text, reason, references }`；id 是所属种类内的原生十进制身份，返回为 0–2147483647 的规范字符串。references 是正文中同类、同身份引用的数量，保留原 XML 中的身份写法。分隔符不进入普通目录；孤立内容仍可读取，缺失内容的引用返回受保护占位项。默认页面面板提供目录读取、内容选择与文字修改，复杂内容显示保护说明。
 
-`DocumentEditor.editNote(source, { kind, id, text })` 绑定目录的文档身份和 revision，替换已有单段注释的单行文字，允许空文字，最多 32767 个 UTF-16 单元。同步 `FoundationSession` 和 Worker `FoundationClient` 提供 `notes(revision)`、`editNote(revision, note)`；`DocxNotes`、`DocxNoteKind`、`DocxNoteEdit` 从 Wasm/Web foundation 导出，结果解码和编辑校验从 Wasm foundation 导出。过期目录、队列内的同源竞争及受保护目录查询保持当前会话可继续使用。
+`DocumentEditor.editNote(source, { kind, id, text })` 绑定目录的文档身份和 revision，替换已有单段注释的单行文字，允许空文字，最多 32767 个 UTF-16 单元。同步 `FoundationSession` 和 Worker `FoundationClient` 提供 `notes(revision)`、`editNote(revision, note, profile)`；宿主沿用当前布局的字体映射。`DocxNotes`、`DocxNoteKind`、`DocxNoteEdit` 从 Wasm/Web foundation 导出，结果解码和编辑校验从 Wasm foundation 导出。可排版注释在提交前检查候选布局，缺字体、布局或资源预算失败保留原源和历史。过期目录、队列内的同源竞争及受保护目录查询保持当前会话可继续使用。
+
+`DocumentEditor.insertNote({ kind, text })` 在当前选区按文档顺序的末尾插入引用，保留所选文字。`text` 采用上述单行文字限制，可为空。正文和普通表格使用同一源插入入口，引用保留附近 run 属性并设为上标。已有 FootnoteText/EndnoteText 样式继续使用；没有时新增内容采用 10 pt 文字与普通段落。缺少内容部件时创建原生关系、内容类型、正文标记及默认分隔符，已有部件只追加新内容。身份避开已有内容、特殊注释及正文引用。资源和正文共用一项精确历史，光标留在正文引用之后，面板自动选中新内容。
+
+`DocumentEditor.removeNote(source, { kind, id })` 删除目录中的普通内容及其至多一个正文引用，保留其他内容、源格式、分隔符和部件关系。重复引用、其他 Word 内容区域中的引用、结构化或不透明内容继续保护。命令后选区回到原引用位置；撤销恢复内容、资源和原选区。最后一个引用删除后，该段落可继续普通输入。空部件继续保留，避免清理其他源数据。孤立普通内容允许从目录删除。
+
+同步和 Worker 客户端分别提供 `insertNote(revision, note, profile)`、`removeNote(revision, note, profile)`，返回现有编辑状态。`DocxNoteCreate`、`DocxNoteIdentity` 从 Wasm/Web foundation 导出；`checkDocxNoteCreate`、`checkDocxNoteIdentity` 从 Wasm foundation 导出。创建/删除执行完整候选布局、文档保护、资源及历史预算检查，拒绝后会话可继续使用。正文中的普通引用占一个逻辑位置。原生文字输入、同一容器内的范围替换、拆段/合并和删除键保留引用源；新文字使用基线格式。删除唯一引用时，普通注释内容沿同一事务和精确历史删除。组合输入预览同步隐藏已删除引用的内容，取消恢复原源，提交只记录最终文字。复杂内容、重复引用及其他 Word 区域共享的引用保持删除保护。格式命令、富文本剪贴板、跨单元格删除和注释区域光标继续实施。
 
 核心按原生关系查找内容部件，修改目标文字节点，保留正文引用、注释标记、段落/run 属性、源注释、分隔符和其他部件；新文字首尾空白显式保存。空正文在原段落中新增普通文字 run。一次实际修改只记一项精确历史，无变化保持源和 revision；撤销/重做恢复原部件与选择。多段、字段、其他结构、正文内未知标记、文字节点内不透明源及跟踪属性继续保护；外部/共享部件、重复身份及无效 XML 身份拒绝操作。每类最多 4096 项内容和 1048576 个文字单元，合并目录最多 8192 项，沿用 XML、历史及输出预算。
 
-当前交付为已有注释内容的读取、修改与原格式保存。原生创建/删除、引用输入、编号设置、脚注页底排版和尾注分页继续实施；这些引用沿用现有保护诊断，尚不声明其 Canvas/PDF 输出。内容面板以种类和身份定位部件，画布内容区域与分页接入继续按 P10 推进。实现归 [`notes-read.mbt`](../../modules/formats/src/docx/notes-read.mbt)、[`notes-edit.mbt`](../../modules/formats/src/docx/notes-edit.mbt)和 [`docx-notes.tsx`](../../packages/ui/src/docx-notes.tsx)，原生内容区域与引用模型参考 [ONLYOFFICE FootEndnote](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/FootEndnote.js#L49-L69)。
+已有普通文字注释已接入单节、单栏核心布局。正文和普通表格中的引用占一个逻辑位置，按原生连续编号的格式和起始号显示；编号设置的修改命令仍待接入。脚注按引用行预留页底空间，空间不足时移动引用，长文字续排后页；尾注文字进入文末并参与分页。正文与页眉页脚的 PAGE、NUMPAGES 使用包含注释页的最终页数。注释复用字体、段落测量及输出管线，保留原文字和外观，进入实际 Canvas、语义内容及 PDF。编号和分页为派生结果，保存不改写原 XML。
+
+`DocxFlow.notes` 是必需数组，每项为 `{ kind, key, paragraph, node, content }`。paragraph、node 定位正文引用，content 使用独立的负段落身份和只读区域，避免与正文和页眉页脚源节点混淆。内容面板继续按种类和身份修改文字，画布中的注释区域暂不提供原生光标输入。含注释的页面重排暂不复用整页缓存，段落测量继续复用。最多 8192 项注释，沿用 1024 页、32768 行与字体/XML/输出预算。
+
+当前支持普通文字段落及可整体放置的含脚注表格行组。多栏共享脚注、超高含脚注行组的分片预留、注释内部的表格/对象/域、链接/审阅锚点、自定义引用标记和分隔符、非连续编号均待接入，不能解释时保留诊断或拒绝布局。复杂段落保持规则和完整分隔符保真仍待实现。注释区域光标和富文本编辑继续按 P10 实施，不标记脚注功能或阶段完成。实现归 [`notes-read.mbt`](../../modules/formats/src/docx/notes-read.mbt)、[`notes-edit.mbt`](../../modules/formats/src/docx/notes-edit.mbt)、[`notes-create.mbt`](../../modules/formats/src/docx/notes-create.mbt)、[`notes-remove.mbt`](../../modules/formats/src/docx/notes-remove.mbt)、[`notes-layout.mbt`](../../modules/formats/src/docx/notes-layout.mbt)、[`布局预留与续排`](../../modules/layout/src/notes.mbt)和 [`docx-notes.tsx`](../../packages/ui/src/docx-notes.tsx)。原生内容区域参考 [ONLYOFFICE FootEndnote](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/FootEndnote.js#L49-L69)，跨页续排参考 [ONLYOFFICE Footnotes](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Footnotes.js#L272-L351)，保留所选文字的插入行为参考 [ONLYOFFICE AddFootnote](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L18859-L18904)。
 
 ### DOCX 题注
 

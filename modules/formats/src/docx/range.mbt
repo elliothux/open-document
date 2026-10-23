@@ -4,9 +4,16 @@ fn Session::prepare_structural_range(
   selection : Selection,
   text : String,
   check_graphemes~ : Bool = true,
+  notes~ : Bool = false,
 ) -> PreparedEdit raise @failure.Failure {
   let document = self.document()
-  self.prepare_structural_range_in(document, selection, text, check_graphemes~)
+  self.prepare_structural_range_in(
+    document,
+    selection,
+    text,
+    check_graphemes~,
+    notes~,
+  )
 }
 
 ///|
@@ -16,6 +23,7 @@ fn Session::prepare_structural_range_in(
   selection : Selection,
   text : String,
   check_graphemes~ : Bool = true,
+  notes~ : Bool = false,
 ) -> PreparedEdit raise @failure.Failure {
   let source = document.source()
   let tree = WordTree::new(document)
@@ -28,6 +36,7 @@ fn Session::prepare_structural_range_in(
     math=true,
     tables=true,
     check_graphemes~,
+    notes~,
   )
   self.check_drawing_range(tree, range)
   let start = range.start
@@ -72,9 +81,10 @@ fn Session::prepare_structural_range_in(
     if insertion == Some(node.id) {
       insertion_offset = keep
     }
-    let picture = ["drawing", "fldSimple", "oMath", "oMathPara"].contains(
-      tree.nodes[node.id].name,
-    )
+    let picture = note_reference(tree.nodes[node.id]) ||
+      ["drawing", "fldSimple", "oMath", "oMathPara"].contains(
+        tree.nodes[node.id].name,
+      )
     if picture && keep == remove {
       object_offsets[node.id] = if keep == 0 && insertion == Some(node.id) {
         parts[0].length()
@@ -91,8 +101,11 @@ fn Session::prepare_structural_range_in(
     let before = inline_text(tree.nodes[node.id])
     let remove = (end.offset - offset).clamp(min=0, max=before.length())
     let after = before[remove:].to_owned()
-    if ["drawing", "fldSimple", "oMath", "oMathPara"].contains(
-        tree.nodes[node.id].name,
+    if (
+        note_reference(tree.nodes[node.id]) ||
+        ["drawing", "fldSimple", "oMath", "oMathPara"].contains(
+          tree.nodes[node.id].name,
+        )
       ) &&
       remove == 0 {
       object_offsets[node.id] = 0
@@ -283,6 +296,7 @@ fn Session::prepare_structural_range_in(
     replacements,
     source=changes,
     object_offsets~,
+    notes~,
   )
   let updated_tree = WordTree::new(candidate)
   let paragraph = updated_tree.children[parent.id][first_index +

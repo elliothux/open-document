@@ -353,6 +353,7 @@ fn WordTree::check_editable_paragraph(
   pictures~ : Bool = false,
   fields~ : Bool = false,
   math~ : Bool = false,
+  notes~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   guard self.nodes.contains(paragraph) &&
     self.nodes[paragraph].uri == word_uri &&
@@ -458,6 +459,19 @@ fn WordTree::check_editable_paragraph(
   for child in runs {
     for content in self.children[child] {
       let node = self.nodes[content]
+      if note_reference(node) {
+        guard notes &&
+          self.nodes[node.parent].parent == paragraph &&
+          self.children[content].is_empty() &&
+          node.text.trim().is_empty() &&
+          node.attributes.all(a => a.uri == word_uri && a.name == "id") else {
+          @failure.reject(
+            "protected-content", "This command does not support these note references",
+          )
+        }
+        ignore(note_key(node.attribute("id", uri=word_uri).unwrap_or("")))
+        continue
+      }
       guard node.uri == word_uri &&
         (
           node.name == "rPr" ||

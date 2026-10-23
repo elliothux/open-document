@@ -20,7 +20,7 @@ pub fn Session::delete(
   self.check_position(focus)
   let document = self.document()
   let text = self
-    .editable_texts(focus.paragraph)
+    .editable_texts(focus.paragraph, notes=true)
     .map(node => inline_text(document.node(node.id)))
     .join("")
   if direction == "backward" &&
@@ -59,7 +59,7 @@ pub fn Session::delete(
     }
     let offset = if direction == "backward" {
       self
-      .editable_texts(node.id)
+      .editable_texts(node.id, notes=true)
       .map(node => inline_text(document.node(node.id)))
       .join("")
       .length()

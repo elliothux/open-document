@@ -1,6 +1,9 @@
 import { useState } from "react";
 import type { DocumentEditor, DocumentNotes } from "@open-document/web/editor";
-import type { DocxNotes as Notes } from "@open-document/web/foundation";
+import type {
+  DocxNotes as Notes,
+  DocxNoteKind,
+} from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 
@@ -19,11 +22,16 @@ export function DocxNotes({
   const [source, setSource] = useState<DocumentNotes>();
   const [selected, setSelected] = useState<Notes["entries"][number]>();
   const [text, setText] = useState("");
-  const load = async () => {
+  const [kind, setKind] = useState<DocxNoteKind>("footnote");
+  const [newText, setNewText] = useState("");
+  const load = async (created?: DocxNoteKind) => {
     const value = await editor.notes();
+    const selected = created
+      ? value.entries.filter((entry) => entry.kind === created).at(-1)
+      : undefined;
     setSource(value);
-    setSelected(undefined);
-    setText("");
+    setSelected(selected);
+    setText(selected?.text ?? "");
   };
   const snapshot = editor.getSnapshot();
   const stale =
@@ -32,10 +40,47 @@ export function DocxNotes({
   return (
     <section aria-label={t.docxNotes}>
       <h4>{t.docxNotes}</h4>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          controller.run(async () => {
+            await editor.insertNote({ kind, text: newText });
+            await load(kind);
+            setNewText("");
+          });
+        }}
+      >
+        <label>
+          {t.docxNoteKind}
+          <select
+            value={kind}
+            disabled={disabled}
+            onChange={(event) => {
+              const value = event.currentTarget.value;
+              if (value === "footnote" || value === "endnote") setKind(value);
+            }}
+          >
+            <option value="footnote">{t.docxFootnote}</option>
+            <option value="endnote">{t.docxEndnote}</option>
+          </select>
+        </label>
+        <label>
+          {t.newDocxNoteText}
+          <input
+            value={newText}
+            maxLength={32767}
+            disabled={disabled}
+            onChange={(event) => setNewText(event.currentTarget.value)}
+          />
+        </label>
+        <button type="submit" disabled={disabled}>
+          {t.insertDocxNote}
+        </button>
+      </form>
       <button
         type="button"
         disabled={disabled}
-        onClick={() => controller.run(load)}
+        onClick={() => controller.run(() => load())}
       >
         {t.readDocxNotes}
       </button>
@@ -103,6 +148,21 @@ export function DocxNotes({
                 disabled={disabled || stale || !!selected.reason}
               >
                 {t.applyDocxNote}
+              </button>
+              <button
+                type="button"
+                disabled={disabled || stale || !!selected.reason}
+                onClick={() =>
+                  controller.run(async () => {
+                    await editor.removeNote(source, {
+                      kind: selected.kind,
+                      id: selected.id,
+                    });
+                    await load();
+                  })
+                }
+              >
+                {t.removeDocxNote}
               </button>
             </form>
           )}

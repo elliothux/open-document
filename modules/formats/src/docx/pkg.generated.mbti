@@ -171,7 +171,7 @@ pub fn Session::edit_list(Self, Int, Selection, ListEdit) -> Json raise @failure
 pub fn Session::edit_math(Self, Int, String, Int, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images, format? : CharacterFormat, display? : Bool) -> Json raise @failure.Failure
 pub fn Session::edit_math_fraction(Self, Int, String, Int, String, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images, format? : CharacterFormat) -> Json raise @failure.Failure
 pub fn Session::edit_math_script(Self, Int, String, Int, String, String, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images, format? : CharacterFormat) -> Json raise @failure.Failure
-pub fn Session::edit_note(Self, Int, String, String, String) -> Json raise @failure.Failure
+pub fn Session::edit_note(Self, Int, String, String, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::edit_picture(Self, Int, Int, Double, Double, Array[Double], probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::edit_ruler(Self, Int, @layout.Layout, Selection, RulerEdit) -> Json raise @failure.Failure
 pub fn Session::edit_shape(Self, Int, Int, Double, Double, String, String, Double, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
@@ -186,6 +186,7 @@ pub fn Session::flow(Self) -> @layout.Flow raise @failure.Failure
 pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
 pub fn Session::insert_body_page_field(Self, Int, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_caption(Self, Int, String, String, Bool, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
+pub fn Session::insert_note(Self, Int, String, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_picture(Self, Int, Double, Double, Bytes) -> Json raise @failure.Failure
 pub fn Session::insert_shape(Self, Int, String, Double, Double, String, String, Double, text? : String, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_table(Self, Int, Selection, Int, Int, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
@@ -209,6 +210,7 @@ pub fn Session::pictures(Self, Int) -> Json raise @failure.Failure
 pub fn Session::query(Self) -> Json raise @failure.Failure
 pub fn Session::query_formatting(Self, Int, Selection, layout? : @layout.Layout) -> Json raise @failure.Failure
 pub fn Session::redo_edit(Self, Int) -> Json raise @failure.Failure
+pub fn Session::remove_note(Self, Int, String, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::replace(Self, Int, Int, String) -> Int raise @failure.Failure
 pub fn Session::replace_all(Self, Int, String, FindOptions, String) -> Json raise @failure.Failure
 pub fn Session::replace_matches(Self, Int, Array[Selection], String) -> Json raise @failure.Failure

@@ -56,7 +56,9 @@ fn docx_texts(tree : WordTree) -> Array[TextNode] {
       continue
     }
     if node.uri != word_uri ||
-      !["t", "br", "cr", "tab", "drawing"].contains(node.name) {
+      ![
+        "t", "br", "cr", "tab", "drawing", "footnoteReference", "endnoteReference",
+      ].contains(node.name) {
       continue
     }
     let run = node.parent
@@ -103,6 +105,7 @@ fn inline_text(node : @xml.Node) -> String {
     "tab" => "\t"
     "drawing" => "\ufffc"
     "fldSimple" => "\ufffc"
+    "footnoteReference" | "endnoteReference" => "\ufffc"
     "oMath" | "oMathPara" => "\ufffc"
     _ => node.text
   }

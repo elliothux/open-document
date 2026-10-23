@@ -8,7 +8,7 @@ fn Flow::body_fields(
   let fields : Map[(Int, Int), String] = Map([])
   for paragraph in self.body_field_paragraphs() {
     for span in paragraph.spans {
-      if !span.field.is_empty() {
+      if !span.field.is_empty() && !span.field.has_prefix("NOTE:") {
         if span.field.has_prefix("PAGEREF:") {
           ignore(PageReference::parse(span.field))
         } else if span.field.has_prefix("REF:") {
@@ -37,7 +37,7 @@ fn Flow::resolve_body_fields(
     {
       ..paragraph,
       spans: paragraph.spans.map(span => {
-        if span.field.is_empty() {
+        if span.field.is_empty() || span.field.has_prefix("NOTE:") {
           return span
         }
         let text = values

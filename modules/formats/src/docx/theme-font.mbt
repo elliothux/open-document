@@ -77,6 +77,9 @@ fn flow_font_keys(flow : @layout.Flow) -> Map[String, Array[String]] {
     paragraphs.append(table.rows.flatten().flatten())
   }
   let groups = [("body", paragraphs)]
+  for note in flow.notes {
+    groups.push((note.kind + note.key, note.content))
+  }
   for (kind, stories) in [("header", flow.headers), ("footer", flow.footers)] {
     for variant, paragraphs in stories {
       groups.push((kind + variant, paragraphs))

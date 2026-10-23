@@ -8,7 +8,8 @@ fn Pagination::body(
   images : Images,
 ) -> (Int, Int, PaginationCache?) raise @failure.Failure {
   let blocks = flow.body_blocks()
-  let keys = pagination_keys(blocks)
+  // Note reservations must be replayed with their reference lines.
+  let keys = if flow.notes.is_empty() { pagination_keys(blocks) } else { None }
   let context = Json::array([
     self.page.to_json(),
     self.anchorPage.to_json(),

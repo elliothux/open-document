@@ -1,13 +1,5 @@
 ///|
-/// Updates a plain note body while retaining its marker, run properties and body references.
-pub fn Session::edit_note(
-  self : Session,
-  revision : Int,
-  kind : String,
-  key : String,
-  text : String,
-) -> Json raise @failure.Failure {
-  self.check_revision(revision)
+fn check_note_text(text : String) -> Unit raise @failure.Failure {
   guard text.length() <= 32767 &&
     @xml.valid_text(text) &&
     text
@@ -19,6 +11,22 @@ pub fn Session::edit_note(
       "invalid-operation", "Note text must be a valid single line of at most32767 units",
     )
   }
+}
+
+///|
+/// Updates a plain note body while retaining its marker, run properties and body references.
+pub fn Session::edit_note(
+  self : Session,
+  revision : Int,
+  kind : String,
+  key : String,
+  text : String,
+  probe~ : @layout.TextProbe,
+  profile~ : Map[String, String],
+  images~ : @layout.Images,
+) -> Json raise @failure.Failure {
+  self.check_revision(revision)
+  check_note_text(text)
   let key = note_key(key)
   guard self.note_source(kind) is Some(source) &&
     source.entries.iter().find_first(entry => entry.key == key) is Some(note) else {
@@ -90,6 +98,10 @@ pub fn Session::edit_note(
   }
   let parts = self.parts.copy()
   parts[source.part] = candidate
+  let flow = { ..self, parts, }.flow()
+  if !flow.notes.is_empty() {
+    ignore(@layout.paginate(probe, flow, profile, images))
+  }
   let edits = Map([(source.part, steps)])
   let bytes = xml_part_edit_bytes(edits, Map([]))
   self.commit_edit(

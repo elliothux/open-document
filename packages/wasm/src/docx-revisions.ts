@@ -17,6 +17,10 @@ import {
   docxNotes,
   checkDocxNoteEdit,
   type DocxNoteEdit,
+  checkDocxNoteCreate,
+  checkDocxNoteIdentity,
+  type DocxNoteCreate,
+  type DocxNoteIdentity,
 } from "./docx-notes.js";
 import { integer, record } from "./validation.js";
 import { editState, type EditState } from "./docx-format.js";
@@ -136,12 +140,38 @@ export function docxRevisionGeometry(value: unknown): DocxSelectionGeometry {
 }
 
 export class FoundationReviewSession extends WasmSession {
+  insertNote(
+    revision: number,
+    note: DocxNoteCreate,
+    profile: Record<string, string>,
+  ) {
+    checkDocxNoteCreate(note);
+    return editState(
+      this.call({ operation: "insertDocxNote", revision, note, profile }),
+    );
+  }
+  removeNote(
+    revision: number,
+    note: DocxNoteIdentity,
+    profile: Record<string, string>,
+  ) {
+    checkDocxNoteIdentity(note);
+    return editState(
+      this.call({ operation: "removeDocxNote", revision, note, profile }),
+    );
+  }
   notes(revision: number) {
     return docxNotes(this.call({ operation: "docxNotes", revision }));
   }
-  editNote(revision: number, note: DocxNoteEdit) {
+  editNote(
+    revision: number,
+    note: DocxNoteEdit,
+    profile: Record<string, string>,
+  ) {
     checkDocxNoteEdit(note);
-    return editState(this.call({ operation: "editDocxNote", revision, note }));
+    return editState(
+      this.call({ operation: "editDocxNote", revision, note, profile }),
+    );
   }
   revisionGeometry(
     revision: number,

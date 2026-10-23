@@ -11,9 +11,15 @@ export interface DocxNotes {
     references: number;
   }[];
 }
-export interface DocxNoteEdit {
+export interface DocxNoteIdentity {
   kind: DocxNoteKind;
   id: string;
+}
+export interface DocxNoteCreate {
+  kind: DocxNoteKind;
+  text: string;
+}
+export interface DocxNoteEdit extends DocxNoteIdentity {
   text: string;
 }
 
@@ -28,19 +34,12 @@ function identity(value: unknown): value is string {
 function kind(value: unknown): value is DocxNoteKind {
   return value === "footnote" || value === "endnote";
 }
-export function checkDocxNoteEdit(
-  value: unknown,
-): asserts value is DocxNoteEdit {
-  const note = record(value);
-  if (
-    Object.keys(note).length !== 3 ||
-    Object.keys(note).some((key) => !["kind", "id", "text"].includes(key)) ||
-    !kind(note.kind) ||
-    !identity(note.id) ||
-    typeof note.text !== "string" ||
-    note.text.length > 32767 ||
-    !note.text.isWellFormed() ||
-    Array.from(note.text).some((c) => {
+function text(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length <= 32767 &&
+    value.isWellFormed() &&
+    !Array.from(value).some((c) => {
       const n = c.codePointAt(0)!;
       return (
         n < 32 ||
@@ -51,6 +50,42 @@ export function checkDocxNoteEdit(
         n === 65535
       );
     })
+  );
+}
+export function checkDocxNoteCreate(
+  value: unknown,
+): asserts value is DocxNoteCreate {
+  const note = record(value);
+  if (
+    Object.keys(note).length !== 2 ||
+    Object.keys(note).some((key) => !["kind", "text"].includes(key)) ||
+    !kind(note.kind) ||
+    !text(note.text)
+  )
+    throw new Error("Invalid native note creation");
+}
+export function checkDocxNoteIdentity(
+  value: unknown,
+): asserts value is DocxNoteIdentity {
+  const note = record(value);
+  if (
+    Object.keys(note).length !== 2 ||
+    Object.keys(note).some((key) => !["kind", "id"].includes(key)) ||
+    !kind(note.kind) ||
+    !identity(note.id)
+  )
+    throw new Error("Invalid native note identity");
+}
+export function checkDocxNoteEdit(
+  value: unknown,
+): asserts value is DocxNoteEdit {
+  const note = record(value);
+  if (
+    Object.keys(note).length !== 3 ||
+    Object.keys(note).some((key) => !["kind", "id", "text"].includes(key)) ||
+    !kind(note.kind) ||
+    !identity(note.id) ||
+    !text(note.text)
   )
     throw new Error("Invalid native note text or identity");
 }
