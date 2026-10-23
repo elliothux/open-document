@@ -70,6 +70,13 @@ fn Session::pivot_settings(
           field: natural(field.attribute("fld").unwrap_or(""), 63),
           aggregate: field.attribute("subtotal").unwrap_or("sum"),
           showDataAs: mode,
+          baseField: field
+          .attribute("baseField")
+          .map(value => natural(value, 63)),
+          baseItem: pivot_read_base_item(
+            field,
+            Tree::new(self.part_xml(pivot.cache)),
+          ),
           name: decode_text(field.attribute("name").unwrap_or("")),
         }
       })

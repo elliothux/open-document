@@ -4,6 +4,8 @@ import {
   checkXlsxPivotSettings,
   xlsxPivotAggregates,
   xlsxPivotValueModes,
+  xlsxPivotBaseModes,
+  xlsxPivotCompareModes,
   type XlsxPivotSettings,
   type XlsxPivotValue,
   type XlsxPivotPreview,
@@ -17,6 +19,7 @@ import { messages } from "./messages.js";
 import { PivotFilters } from "./xlsx-pivot-filters.js";
 import { PivotNumberGroups } from "./xlsx-pivot-number-groups.js";
 import { PivotDateGroups } from "./xlsx-pivot-date-groups.js";
+import { PivotBaseItemSelect } from "./xlsx-pivot-base-item.js";
 
 export function XlsxPivotsPanel({
   editor,
@@ -44,6 +47,8 @@ export function XlsxPivotsPanel({
       {
         field: 1,
         aggregate: "sum",
+        baseItem: null,
+        baseField: null,
         showDataAs: "normal",
         name: t.pivotDefaultCaption,
       },
@@ -90,6 +95,15 @@ export function XlsxPivotsPanel({
     setValues(
       values.map((value, i) => (i === index ? { ...value, ...patch } : value)),
     );
+  const basePreview =
+    preview?.revision === query.revision &&
+    preview.settings.source === source &&
+    preview.settings.sourceSheet === sourceSheet &&
+    JSON.stringify(preview.settings.numberGroups) ===
+      JSON.stringify(numberGroups) &&
+    JSON.stringify(preview.settings.dateGroups) === JSON.stringify(dateGroups)
+      ? preview
+      : undefined;
   const filterChoices =
     preview?.revision === query.revision &&
     preview.settings.source === source &&
@@ -236,7 +250,16 @@ export function XlsxPivotsPanel({
                 const showDataAs = xlsxPivotValueModes.find(
                   (mode) => mode === event.currentTarget.value,
                 );
-                if (showDataAs) updateValue(index, { showDataAs });
+                if (showDataAs)
+                  updateValue(index, {
+                    showDataAs,
+                    baseItem: xlsxPivotCompareModes.includes(showDataAs)
+                      ? (value.baseItem ?? "previous")
+                      : null,
+                    baseField: xlsxPivotBaseModes.includes(showDataAs)
+                      ? (value.baseField ?? settings.rows[0] ?? 0)
+                      : null,
+                  });
               }}
             >
               {xlsxPivotValueModes.map((mode) => (
@@ -246,6 +269,28 @@ export function XlsxPivotsPanel({
               ))}
             </select>
           </label>
+          {xlsxPivotBaseModes.includes(value.showDataAs) && (
+            <label>
+              {t.pivotBaseField}
+              <input
+                aria-label={t.pivotBaseField}
+                type="number"
+                min={1}
+                max={64}
+                step={1}
+                required
+                value={(value.baseField ?? 0) + 1}
+                onChange={(event) =>
+                  updateValue(index, {
+                    baseField: event.currentTarget.valueAsNumber - 1,
+                    baseItem: xlsxPivotCompareModes.includes(value.showDataAs)
+                      ? "previous"
+                      : null,
+                  })
+                }
+              />
+            </label>
+          )}
           <label>
             {t.pivotCaption}
             <input
@@ -256,6 +301,19 @@ export function XlsxPivotsPanel({
               }
             />
           </label>
+          {xlsxPivotCompareModes.includes(value.showDataAs) && (
+            <PivotBaseItemSelect
+              value={value.baseItem}
+              items={
+                basePreview?.settings.values[index]?.baseField ===
+                value.baseField
+                  ? basePreview.baseItems[index]
+                  : undefined
+              }
+              update={(baseItem) => updateValue(index, { baseItem })}
+              state={state}
+            />
+          )}
           <button
             type="button"
             disabled={values.length === 1}
@@ -274,6 +332,8 @@ export function XlsxPivotsPanel({
             {
               field: 1,
               aggregate: "sum",
+              baseItem: null,
+              baseField: null,
               showDataAs: "normal",
               name: `${t.pivotDefaultCaption} ${values.length + 1}`,
             },

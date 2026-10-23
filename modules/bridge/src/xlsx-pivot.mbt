@@ -121,16 +121,34 @@ fn xlsx_pivot_settings(
     }),
     values: values.map(value => {
       guard value is Object(fields) &&
-        fields.length() == 4 &&
+        fields.length() == 6 &&
         fields
         .keys()
-        .all(k => ["field", "aggregate", "name", "showDataAs"].contains(k)) else {
+        .all(k => {
+          ["field", "aggregate", "name", "showDataAs", "baseField", "baseItem"].contains(
+            k,
+          )
+        }) else {
         @failure.reject("invalid-operation", "Invalid pivot value field")
       }
       @xlsx.PivotValue::{
         field: field_int(value, "field"),
         aggregate: field_string(value, "aggregate"),
         showDataAs: field_string(value, "showDataAs"),
+        baseField: match value {
+          { "baseField": Null, .. } => None
+          _ => Some(field_int(value, "baseField"))
+        },
+        baseItem: match value {
+          { "baseItem": Null, .. } => None
+          { "baseItem": String("previous"), .. } =>
+            Some(@xlsx.PivotBaseItem::Previous)
+          { "baseItem": String("next"), .. } => Some(@xlsx.PivotBaseItem::Next)
+          { "baseItem": item, .. } =>
+            Some(@xlsx.PivotBaseItem::Member(xlsx_value(item)))
+          _ =>
+            @failure.reject("invalid-operation", "Pivot base item is required")
+        },
         name: field_string(value, "name"),
       }
     }),

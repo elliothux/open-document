@@ -1,14 +1,23 @@
 ///|
-// shortcut: Relative and ranking modes need base-item metadata when those modes are added.
 let pivot_value_modes : ReadOnlyArray[String] = [
   "normal", "percentOfTotal", "percentOfRow", "percentOfCol", "index", "percentOfParentRow",
-  "percentOfParentCol",
+  "percentOfParentCol", "runTotal", "percentOfRunningTotal", "rankAscending", "rankDescending",
+  "difference", "percent", "percentDiff", "percentOfParent",
 ]
+
+///|
+fn pivot_base_mode(mode : String) -> Bool {
+  [
+    "runTotal", "percentOfRunningTotal", "rankAscending", "rankDescending", "difference",
+    "percent", "percentDiff", "percentOfParent",
+  ].contains(mode)
+}
 
 ///|
 fn pivot_percent(mode : String) -> Bool {
   [
     "percentOfTotal", "percentOfRow", "percentOfCol", "percentOfParentRow", "percentOfParentCol",
+    "percentOfRunningTotal", "percent", "percentDiff", "percentOfParent",
   ].contains(mode)
 }
 
@@ -44,7 +53,42 @@ fn PivotLayout::value_modes(self : PivotLayout) -> PivotLayout {
     column_members : Array[Int],
   ) {
     match self.settings.values[index].showDataAs {
-      "normal" => value
+      "normal"
+      | "runTotal"
+      | "percentOfRunningTotal"
+      | "rankAscending"
+      | "rankDescending"
+      | "difference"
+      | "percent"
+      | "percentDiff" => value
+      "percentOfParent" => {
+        let field = self.settings.values[index].baseField.unwrap()
+        let row_axis = self.settings.rows.contains(field)
+        let axis = if row_axis { row_members } else { column_members }
+        let fields = if row_axis {
+          self.settings.rows
+        } else {
+          self.settings.columns
+        }
+        let at = fields.search_by(value => value == field).unwrap()
+        if axis.length() <= at {
+          Blank
+        } else {
+          let prefix = axis[:at + 1].to_owned()
+          let key = if row_axis {
+            Json((prefix, column_members))
+          } else {
+            Json((row_members, prefix))
+          }
+          pivot_ratio(
+            value,
+            self.parents
+            .get(key.stringify())
+            .map(values => values[index])
+            .unwrap_or(Blank),
+          )
+        }
+      }
       "percentOfTotal" =>
         if value == Blank {
           Number(0)
@@ -119,7 +163,7 @@ fn PivotLayout::value_modes(self : PivotLayout) -> PivotLayout {
     total: self.total.mapi((index, value) => {
       display(value, value, value, index, [], [])
     }),
-  }
+  }.base_values()
 }
 
 ///|

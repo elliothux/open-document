@@ -311,6 +311,16 @@ pub(all) struct NameSettings {
   formula : String
 }
 
+pub(all) enum PivotBaseItem {
+  Previous
+  Next
+  Member(Value)
+} derive(Eq)
+pub fn PivotBaseItem::equal(Self, Self) -> Bool
+pub fn PivotBaseItem::not_equal(Self, Self) -> Bool
+pub fn PivotBaseItem::to_json(Self) -> Json
+pub impl ToJson for PivotBaseItem
+
 pub(all) struct PivotDateGroup {
   field : Int
   units : Array[String]
@@ -349,10 +359,13 @@ pub fn PivotSettings::to_json(Self) -> Json
 pub(all) struct PivotValue {
   field : Int
   aggregate : String
+  baseItem : PivotBaseItem?
+  baseField : Int?
   showDataAs : String
   name : String
-} derive(ToJson)
+}
 pub fn PivotValue::to_json(Self) -> Json
+pub impl ToJson for PivotValue
 
 pub(all) struct PrintRange {
   area : String

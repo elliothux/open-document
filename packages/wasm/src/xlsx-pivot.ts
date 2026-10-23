@@ -24,12 +24,40 @@ export const xlsxPivotValueModes = [
   "index",
   "percentOfParentRow",
   "percentOfParentCol",
+  "runTotal",
+  "percentOfRunningTotal",
+  "rankAscending",
+  "rankDescending",
+  "difference",
+  "percent",
+  "percentDiff",
+  "percentOfParent",
 ] as const;
+export const xlsxPivotCompareModes: readonly string[] = [
+  "difference",
+  "percent",
+  "percentDiff",
+];
+export const xlsxPivotBaseModes: readonly string[] = [
+  "runTotal",
+  "percentOfRunningTotal",
+  "rankAscending",
+  "rankDescending",
+  "difference",
+  "percent",
+  "percentDiff",
+  "percentOfParent",
+];
+export type XlsxPivotBaseItem = "previous" | "next" | CellValue;
 export interface XlsxPivotValue {
   /** Zero-based source column. */
   field: number;
   aggregate: (typeof xlsxPivotAggregates)[number];
   showDataAs: (typeof xlsxPivotValueModes)[number];
+  /** Source axis column for cumulative/rank modes; null for other modes. */
+  baseField: number | null;
+  /** Required only for comparison modes. Typed members survive cache index changes. */
+  baseItem: XlsxPivotBaseItem | null;
   name: string;
 }
 export interface XlsxPivotSettings {
@@ -95,6 +123,7 @@ export interface XlsxPivotPreview {
   recordCount: number;
   filteredCount: number;
   filterItems: { value: CellValue; label: string }[][];
+  baseItems: { value: CellValue; label: string }[][];
   groups: number;
   truncated: boolean;
   columnMembers: {
@@ -308,15 +337,31 @@ export function checkXlsxPivotSettings(value: unknown): void {
   for (const item of settings.values) {
     const value = record(item);
     if (
-      !fields(value, ["field", "aggregate", "name", "showDataAs"]) ||
+      !fields(value, [
+        "field",
+        "aggregate",
+        "name",
+        "showDataAs",
+        "baseField",
+        "baseItem",
+      ]) ||
       !integer(value.field, 0, width - 1) ||
       !xlsxPivotAggregates.some((kind) => kind === value.aggregate) ||
       !xlsxPivotValueModes.some((mode) => mode === value.showDataAs) ||
+      (xlsxPivotBaseModes.some((mode) => mode === value.showDataAs)
+        ? !integer(value.baseField, 0, width - 1) ||
+          ![...settings.rows, ...settings.columns].includes(value.baseField)
+        : value.baseField !== null) ||
       !text(value.name, 255) ||
       !value.name.trim() ||
       names.has(value.name.toLowerCase())
     )
       throw new Error("Invalid pivot value field");
+    if (xlsxPivotCompareModes.some((mode) => mode === value.showDataAs)) {
+      if (value.baseItem !== "previous" && value.baseItem !== "next")
+        filterValue(value.baseItem);
+    } else if (value.baseItem !== null)
+      throw new Error("Unexpected pivot base item");
     names.add(value.name.toLowerCase());
   }
 }
@@ -437,6 +482,8 @@ export function xlsxPivotPreview(value: unknown): XlsxPivotPreview {
       (columns.length ? result.columnMembers.length : 1) ||
     !Array.isArray(result.filterItems) ||
     result.filterItems.length !== filters.length ||
+    !Array.isArray(result.baseItems) ||
+    result.baseItems.length !== values.length ||
     result.columnTotals.some(
       (total) =>
         !Array.isArray(total) ||
@@ -454,6 +501,28 @@ export function xlsxPivotPreview(value: unknown): XlsxPivotPreview {
         key = filterValue(item.value);
       if (seen.has(key) || !(item.label === "" || text(item.label, 32767)))
         throw new Error("Invalid pivot report item");
+      seen.add(key);
+    }
+  }
+  for (const [at, items] of result.baseItems.entries()) {
+    if (
+      !Array.isArray(items) ||
+      items.length > 4096 ||
+      (xlsxPivotCompareModes.includes(values[at]!.showDataAs)
+        ? !items.length
+        : items.length !== 0)
+    )
+      throw new Error("Invalid pivot base items");
+    const seen = new Set<string>();
+    for (const value of items) {
+      const item = record(value),
+        key = filterValue(item.value);
+      if (
+        !fields(item, ["value", "label"]) ||
+        seen.has(key) ||
+        !(item.label === "" || text(item.label, 32767))
+      )
+        throw new Error("Invalid pivot base item");
       seen.add(key);
     }
   }

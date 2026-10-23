@@ -28,6 +28,24 @@ fn PivotCache::add_parent_values(
     }
   }
   let mut work = work
+  for value in settings.values {
+    if value.showDataAs != "percentOfParent" {
+      continue
+    }
+    let base = value.baseField.unwrap()
+    if settings.rows.search_by(field => field == base) is Some(at) {
+      let prefix = rows[0][:at + 1].to_owned()
+      for column in columns + [[]] {
+        keys[Json((prefix, column)).stringify()] = true
+      }
+    } else {
+      let at = settings.columns.search_by(field => field == base).unwrap()
+      let prefix = columns[0][:at + 1].to_owned()
+      for row in rows + [[]] {
+        keys[Json((row, prefix)).stringify()] = true
+      }
+    }
+  }
   for key in keys.keys() {
     work += settings.values.length()
     guard work <= 1048576 else {

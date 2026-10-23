@@ -46,6 +46,8 @@ import {
 export {
   xlsxPivotAggregates,
   xlsxPivotValueModes,
+  xlsxPivotBaseModes,
+  xlsxPivotCompareModes,
   xlsxPivotDateUnits,
   checkXlsxPivotSettings,
 } from "@open-document/wasm/xlsx";
@@ -55,6 +57,7 @@ export type {
   XlsxPivotNumberGroup,
   XlsxPivotDateGroup,
   XlsxPivotValue,
+  XlsxPivotBaseItem,
   XlsxPivotPreview,
   XlsxPivots,
   XlsxPivotEdit,

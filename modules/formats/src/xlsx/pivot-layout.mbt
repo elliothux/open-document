@@ -76,10 +76,29 @@ fn PivotCache::layout(
   let cells : Map[String, Array[PivotStatistic]] = Map([])
   let parents : Map[String, Array[PivotStatistic]] = Map([])
   let directions = (
-    settings.values.any(value => value.showDataAs == "percentOfParentRow"),
-    settings.values.any(value => value.showDataAs == "percentOfParentCol"),
+    settings.values.any(value => {
+      value.showDataAs == "percentOfParentRow" ||
+      (
+        value.showDataAs == "percentOfRunningTotal" &&
+        value.baseField
+        .map(field => settings.rows.contains(field))
+        .unwrap_or(false)
+      )
+    }),
+    settings.values.any(value => {
+      value.showDataAs == "percentOfParentCol" ||
+      (
+        value.showDataAs == "percentOfRunningTotal" &&
+        value.baseField
+        .map(field => settings.columns.contains(field))
+        .unwrap_or(false)
+      )
+    }),
   )
   let total = settings.values.map(_ => PivotStatistic::new())
+  let selected_parent = settings.values.any(value => {
+    value.showDataAs == "percentOfParent"
+  })
   let filters = settings.filters.map(filter => {
     (
       filter.field,
@@ -120,7 +139,7 @@ fn PivotCache::layout(
     guard work <= 1048576 else {
       @failure.reject("limit-exceeded", "Pivot aggregation work exceeds budget")
     }
-    if directions.0 || directions.1 {
+    if directions.0 || directions.1 || selected_parent {
       work = self.add_parent_values(
         settings, record, row_members, column_members, parents, directions, work,
       )

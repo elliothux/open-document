@@ -2,9 +2,27 @@
 pub(all) struct PivotValue {
   field : Int
   aggregate : String
+  baseItem : PivotBaseItem?
+  baseField : Int?
   showDataAs : String
   name : String
-} derive(ToJson)
+}
+
+///|
+pub impl ToJson for PivotValue with fn to_json(self) {
+  {
+    "field": self.field,
+    "aggregate": self.aggregate,
+    "baseItem": self.baseItem
+    .map(value => value.to_json())
+    .unwrap_or(Json::null()),
+    "baseField": self.baseField
+    .map(field => Json(field))
+    .unwrap_or(Json::null()),
+    "showDataAs": self.showDataAs,
+    "name": self.name,
+  }
+}
 
 ///|
 pub extend PivotValue with ToJson::{to_json}
@@ -146,10 +164,21 @@ fn PivotSettings::validate(
     }
   }
   for value in self.values {
+    if value.baseItem is Some(Member(item)) {
+      pivot_filter_value(item)
+    }
     guard value.field >= 0 &&
       value.field < width &&
       pivot_aggregates.contains(value.aggregate) &&
       pivot_value_modes.contains(value.showDataAs) &&
+      (if pivot_base_mode(value.showDataAs) {
+        value.baseField
+        .map(field => (self.rows + self.columns).contains(field))
+        .unwrap_or(false)
+      } else {
+        value.baseField is None
+      }) &&
+      pivot_compare_mode(value.showDataAs) == (value.baseItem is Some(_)) &&
       !value.name.trim().is_empty() &&
       value.name.length() <= 255 &&
       @xml.valid_text(value.name) &&
@@ -289,7 +318,20 @@ fn Session::pivot_cache(
       "invalid-operation", "Pivot value captions must differ from source field names",
     )
   }
-  for filter in settings.filters {
+  let retained = settings.filters +
+    settings.values
+    .filter(value => {
+      value.baseItem is Some(Member(_)) &&
+      !settings.numberGroups.any(group => Some(group.field) == value.baseField) &&
+      !settings.dateGroups.any(group => Some(group.field) == value.baseField)
+    })
+    .map(value => {
+      guard value.baseItem is Some(Member(item)) else {
+        abort("Validated base member")
+      }
+      PivotFilter::{ field: value.baseField.unwrap(), values: Some([item]), }
+    })
+  for filter in retained {
     if filter.values is Some(values) {
       for value in values {
         let key = pivot_item_key(value)
@@ -364,7 +406,7 @@ fn Session::pivot_cache(
     }
     axes[group.field] = fields
   }
-  {
+  let cache = PivotCache::{
     headers,
     items,
     styles,
@@ -374,6 +416,12 @@ fn Session::pivot_cache(
     source_width,
     axes,
   }
+  for value in settings.values {
+    if value.baseItem is Some(Member(item)) {
+      ignore(cache.base_item_index(value.baseField.unwrap(), item))
+    }
+  }
+  cache
 }
 
 ///|
@@ -509,6 +557,31 @@ pub fn Session::pivot_preview(
           },
         }
         item
+      })
+    }),
+    "baseItems": settings.values.map(value => {
+      if !pivot_compare_mode(value.showDataAs) {
+        return []
+      }
+      let field = value.baseField.unwrap()
+      let items = layout.cache.axis_items(field)
+      guard items.length() <= 4096 else {
+        @failure.reject("limit-exceeded", "Pivot base items exceed budget")
+      }
+      items.mapi((at, item) => {
+        let choice : Json = {
+          "value": item,
+          "label": if item == Blank {
+            "(blank)"
+          } else {
+            formatted(
+              item,
+              self.styles[layout.cache.axis_style(field, at)].format,
+              self.date1904,
+            )
+          },
+        }
+        choice
       })
     }),
     "groups": layout.members.length(),

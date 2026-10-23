@@ -10,6 +10,14 @@ fn pivot_parent_mode(mode : String) -> Bool {
 }
 
 ///|
+fn pivot_extended_mode(mode : String) -> Bool {
+  pivot_parent_mode(mode) ||
+  [
+    "percentOfRunningTotal", "rankAscending", "rankDescending", "percentOfParent",
+  ].contains(mode)
+}
+
+///|
 fn pivot_read_value_mode(
   tree : Tree,
   field : @xml.Node,
@@ -17,13 +25,15 @@ fn pivot_read_value_mode(
   conditional_node(
     tree,
     field,
-    ["name", "fld", "subtotal", "showDataAs", "numFmtId"],
+    [
+      "name", "fld", "subtotal", "showDataAs", "numFmtId", "baseField", "baseItem",
+    ],
     ["extLst"],
   )
   let base = field.attribute("showDataAs").unwrap_or("normal")
   guard field.text.trim().is_empty() &&
     pivot_value_modes.contains(base) &&
-    !pivot_parent_mode(base) else {
+    !pivot_extended_mode(base) else {
     @failure.reject("protected-content", "Unsupported base pivot value mode")
   }
   let mode = if tree.one(field.id, "extLst") is Some(list) {
@@ -43,13 +53,23 @@ fn pivot_read_value_mode(
       value.attributes.length() == 1 &&
       value.text.trim().is_empty() &&
       value.attribute("pivotShowAs") is Some(mode) &&
-      pivot_parent_mode(mode) &&
+      pivot_extended_mode(mode) &&
       tree.children.get(value.id).unwrap_or([]).is_empty() else {
       @failure.reject("protected-content", "Unsupported pivot value extension")
     }
     mode
   } else {
     base
+  }
+  guard pivot_base_mode(mode) == (field.attribute("baseField") is Some(_)) else {
+    @failure.reject(
+      "protected-content", "Pivot base field disagrees with value mode",
+    )
+  }
+  guard pivot_compare_mode(mode) == (field.attribute("baseItem") is Some(_)) else {
+    @failure.reject(
+      "protected-content", "Pivot base item disagrees with value mode",
+    )
   }
   guard field
     .attribute("numFmtId")
@@ -63,10 +83,16 @@ fn pivot_read_value_mode(
 }
 
 ///|
-fn pivot_value_markup(value : PivotValue) -> String raise @failure.Failure {
-  let attributes = "name=\"\{escaped_attribute(encoded_text(value.name))}\" fld=\"\{value.field}\" subtotal=\"\{value.aggregate}\""
-  if pivot_parent_mode(value.showDataAs) {
-    "<dataField \{attributes} numFmtId=\"10\"><extLst><ext uri=\"\{pivot_value_extension}\"><x14:dataField xmlns:x14=\"\{pivot_value_x14_uri}\" pivotShowAs=\"\{value.showDataAs}\"/></ext></extLst></dataField>"
+fn PivotCache::value_markup(
+  self : PivotCache,
+  value : PivotValue,
+) -> String raise @failure.Failure {
+  let base = value.baseField
+    .map(field => " baseField=\"\{field}\"")
+    .unwrap_or("")
+  let attributes = "name=\"\{escaped_attribute(encoded_text(value.name))}\" fld=\"\{value.field}\" subtotal=\"\{value.aggregate}\"\{base}\{self.base_item_markup(value)}"
+  if pivot_extended_mode(value.showDataAs) {
+    "<dataField \{attributes} numFmtId=\"\{if pivot_percent(value.showDataAs) {10} else {0}}\"><extLst><ext uri=\"\{pivot_value_extension}\"><x14:dataField xmlns:x14=\"\{pivot_value_x14_uri}\" pivotShowAs=\"\{value.showDataAs}\"/></ext></extLst></dataField>"
   } else {
     let mode = if value.showDataAs == "normal" {
       ""

@@ -228,7 +228,7 @@ fn PivotLayout::definition(
   }
   out <+ "<dataFields count=\"\{settings.values.length()}\">"
   for value in settings.values {
-    out.write_string(pivot_value_markup(value))
+    out.write_string(self.cache.value_markup(value))
   }
   out <+ "</dataFields></pivotTableDefinition>"
   out.to_string()
