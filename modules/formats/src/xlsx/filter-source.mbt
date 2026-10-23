@@ -22,6 +22,10 @@ fn filter_markup(state : AutoFilterState) -> String raise @failure.Failure {
     if state.settings.columns.iter().find_first(c => c.column == index)
       is Some(column) {
       match column.rule {
+        Icon(set, id) => {
+          let index = id.map(id => " iconId=\"\{id}\"").unwrap_or("")
+          out <+ "<od:iconFilter iconSet=\"\{set}\"\{index}/>"
+        }
         Relative(period, cache) => {
           let attributes = cache
             .map(bounds => " val=\"\{bounds.0}\" maxVal=\"\{bounds.1}\"")

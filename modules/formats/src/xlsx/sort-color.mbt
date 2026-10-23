@@ -1,5 +1,25 @@
 ///|
 fn SortKey::sort_format(self : SortKey) -> CellFormat raise @failure.Failure {
+  if self.sort_by == "icon" {
+    guard self.custom_list.is_empty() &&
+      self.color.is_empty() &&
+      (if self.icon_set.is_empty() {
+        self.icon_id == 0
+      } else {
+        self.icon_id >= 0 &&
+        self.icon_id < conditional_icon_count(self.icon_set)
+      }) else {
+      @failure.reject(
+        "invalid-operation", "Invalid or conflicting icon sort settings",
+      )
+    }
+    return CellFormat::new()
+  }
+  guard self.icon_set.is_empty() && self.icon_id == 0 else {
+    @failure.reject(
+      "invalid-operation", "Only icon sort keys can specify an icon",
+    )
+  }
   if self.sort_by == "value" {
     guard self.color.is_empty() else {
       @failure.reject(
@@ -88,7 +108,9 @@ fn Session::check_sort_metadata(
     ignore(read_sort_state(tree, parent))
     if tree.one(parent, "sortState") is Some(state) {
       for key in tree.all(state.id, "sortCondition") {
-        if key.attribute("sortBy").unwrap_or("value") != "value" {
+        if ["cellColor", "fontColor"].contains(
+            key.attribute("sortBy").unwrap_or("value"),
+          ) {
           references.push(natural(key.attribute("dxfId").unwrap(), 4095))
         }
       }

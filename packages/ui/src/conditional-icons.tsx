@@ -21,6 +21,30 @@ export function initialConditionalIcons(): XlsxIconSet {
   };
 }
 
+export function conditionalIconLabels(
+  t: ReturnType<typeof messages>,
+): string[] {
+  return [
+    t.conditionalArrows,
+    t.conditionalTrafficLights,
+    t.conditionalFlags,
+    t.conditionalArrowsGray,
+    t.conditionalFourArrows,
+    t.conditionalFourArrowsGray,
+    t.conditionalFiveArrows,
+    t.conditionalFiveArrowsGray,
+    t.conditionalSigns,
+    t.conditionalSymbols,
+    t.conditionalSymbolsPlain,
+    t.conditionalTrafficLightsFramed,
+    t.conditionalFourRating,
+    t.conditionalRedToBlack,
+    t.conditionalFourTrafficLights,
+    t.conditionalFiveRating,
+    t.conditionalQuarters,
+  ];
+}
+
 export function ConditionalIconFields({
   rule,
   update,
@@ -40,25 +64,7 @@ export function ConditionalIconFields({
     t.conditionalPercentile,
     t.conditionalFormula,
   ];
-  const kinds = [
-    t.conditionalArrows,
-    t.conditionalTrafficLights,
-    t.conditionalFlags,
-    t.conditionalArrowsGray,
-    t.conditionalFourArrows,
-    t.conditionalFourArrowsGray,
-    t.conditionalFiveArrows,
-    t.conditionalFiveArrowsGray,
-    t.conditionalSigns,
-    t.conditionalSymbols,
-    t.conditionalSymbolsPlain,
-    t.conditionalTrafficLightsFramed,
-    t.conditionalFourRating,
-    t.conditionalRedToBlack,
-    t.conditionalFourTrafficLights,
-    t.conditionalFiveRating,
-    t.conditionalQuarters,
-  ];
+  const kinds = conditionalIconLabels(t);
   const set = (icons: XlsxIconSet) => update({ ...rule, icons });
   return (
     <fieldset>

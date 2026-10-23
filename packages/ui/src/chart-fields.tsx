@@ -62,6 +62,8 @@ export function ChartFields({
               kind === "percentStackedBar" ||
               kind === "line" ||
               kind === "area" ||
+              kind === "stackedArea" ||
+              kind === "percentStackedArea" ||
               kind === "scatter" ||
               kind === "radar" ||
               kind === "doughnut" ||
@@ -88,6 +90,10 @@ export function ChartFields({
           <option value="pie">{t.chartPie}</option>
           <option value="doughnut">{t.chartDoughnut}</option>
           <option value="area">{t.chartArea}</option>
+          <option value="stackedArea">{t.chartStackedArea}</option>
+          <option value="percentStackedArea">
+            {t.chartPercentStackedArea}
+          </option>
           <option value="scatter">{t.chartScatter}</option>
           <option value="radar">{t.chartRadar}</option>
         </select>

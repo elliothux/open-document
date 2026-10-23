@@ -1,4 +1,5 @@
 import { record, integer } from "./validation.js";
+import { conditionalIconSets, type XlsxIconSet } from "./xlsx-conditional.js";
 
 export const xlsxRelativeDatePeriods = [
   "yesterday",
@@ -115,6 +116,13 @@ export interface XlsxColorFilter {
   /** Six-digit RGB. Null means no fill or the automatic black font. */
   color: string | null;
 }
+export interface XlsxIconFilter {
+  kind: "icon";
+  column: number;
+  iconSet: XlsxIconSet["kind"];
+  /** Zero-based displayed icon identity; null matches cells without an icon. */
+  iconId: number | null;
+}
 export type XlsxFilterColumn =
   | XlsxFilterValues
   | XlsxCustomFilter
@@ -123,7 +131,8 @@ export type XlsxFilterColumn =
   | XlsxDateFilter
   | XlsxCalendarFilter
   | XlsxRelativeDateFilter
-  | XlsxColorFilter;
+  | XlsxColorFilter
+  | XlsxIconFilter;
 export interface XlsxFilterSettings {
   /** Explicit rectangle with a header in its first row. */
   range: string;
@@ -158,7 +167,18 @@ export function checkXlsxFilter(value: unknown): void {
       throw new Error("Invalid filter column");
     seen.add(Number(column.column));
     let values: unknown[];
-    if (column.kind === "relativeDate") {
+    if (column.kind === "icon") {
+      if (
+        !conditionalIconSets.some((set) => set === column.iconSet) ||
+        (column.iconId !== null &&
+          !integer(column.iconId, 0, Number(String(column.iconSet)[0]) - 1)) ||
+        Object.keys(column).some(
+          (key) => !["kind", "column", "iconSet", "iconId"].includes(key),
+        )
+      )
+        throw new Error("Invalid icon filter");
+      values = [];
+    } else if (column.kind === "relativeDate") {
       if (
         typeof column.period !== "string" ||
         !xlsxRelativeDatePeriods.some((period) => period === column.period) ||

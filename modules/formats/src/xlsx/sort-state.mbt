@@ -43,12 +43,30 @@ fn read_sort_state(
       )
     }
     filter_attributes(key, [
-      "ref", "descending", "sortBy", "customList", "dxfId",
+      "ref", "descending", "sortBy", "customList", "dxfId", "iconSet", "iconId",
     ])
     let kind = key.attribute("sortBy").unwrap_or("value")
-    guard ["value", "cellColor", "fontColor"].contains(kind) &&
+    let icon_set = key.attribute("iconSet")
+    let icon_id = key.attribute("iconId")
+    guard (if kind == "icon" {
+        key.attribute("dxfId") is None &&
+        key.attribute("customList").unwrap_or("").is_empty() &&
+        (match (icon_set, icon_id) {
+          (None, None) => true
+          (Some(set), Some(id)) => {
+            let count = conditional_icon_count(set)
+            count > 0 && natural(id, 4) < count
+          }
+          _ => false
+        })
+      } else {
+        icon_set is None && icon_id is None
+      }) &&
+      ["value", "cellColor", "fontColor", "icon"].contains(kind) &&
       (if kind == "value" {
         key.attribute("dxfId") is None
+      } else if kind == "icon" {
+        true
       } else {
         key.attribute("dxfId") is Some(_) &&
         key.attribute("customList").unwrap_or("").is_empty()
@@ -57,7 +75,11 @@ fn read_sort_state(
         "protected-content", "Unknown or conflicting sort properties",
       )
     }
-    let dxf = if kind != "value" {
+    let dxf = if kind == "icon" {
+      icon_set.unwrap_or("") +
+      ":" +
+      natural(icon_id.unwrap_or("0"), 4).to_string()
+    } else if kind != "value" {
       natural(key.attribute("dxfId").unwrap(), 4095).to_string()
     } else {
       ""
@@ -121,7 +143,13 @@ fn stored_sort(
       { ..bounds, top: key.index, bottom: key.index, }
     }
     let list = sort_list_attribute(key.custom_list)
-    let style = if key.sort_by == "value" {
+    let style = if key.sort_by == "icon" {
+      if key.icon_set.is_empty() {
+        ""
+      } else {
+        " iconSet=\"\{key.icon_set}\" iconId=\"\{key.icon_id}\""
+      }
+    } else if key.sort_by == "value" {
       ""
     } else {
       let index = indices

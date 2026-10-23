@@ -1,4 +1,5 @@
 import { record, integer } from "./validation.js";
+import { conditionalIconSets, type XlsxIconSet } from "./xlsx-conditional.js";
 
 export interface XlsxSortKey {
   /** One-based worksheet column for rows, or row for columns. */
@@ -6,9 +7,12 @@ export interface XlsxSortKey {
   descending: boolean;
   /** Text labels in ascending priority order. Empty or omitted uses normal sorting. */
   customList?: string[];
-  sortBy?: "value" | "cellColor" | "fontColor";
+  sortBy?: "value" | "cellColor" | "fontColor" | "icon";
   /** Six RGB hexadecimal digits; empty selects no fill for cellColor. */
   color?: string;
+  /** Native icon set and zero-based visible icon index. Omit both to select cells without an icon. */
+  iconSet?: XlsxIconSet["kind"];
+  iconId?: number;
 }
 export interface XlsxSortSettings {
   rows: boolean;
@@ -38,19 +42,38 @@ export function checkXlsxSort(value: unknown): void {
       typeof key.descending !== "boolean" ||
       Object.keys(key).some(
         (name) =>
-          !["index", "descending", "customList", "sortBy", "color"].includes(
-            name,
-          ),
+          ![
+            "index",
+            "descending",
+            "customList",
+            "sortBy",
+            "color",
+            "iconSet",
+            "iconId",
+          ].includes(name),
       )
     )
       throw new Error("Invalid sort key");
     const kind = key.sortBy === undefined ? "value" : key.sortBy;
     if (
       typeof kind !== "string" ||
-      !["value", "cellColor", "fontColor"].includes(kind)
+      !["value", "cellColor", "fontColor", "icon"].includes(kind)
     )
       throw new Error("Invalid sort kind");
-    if (kind === "value") {
+    if (kind !== "icon" && ("iconSet" in key || "iconId" in key))
+      throw new Error("Unexpected sort icon");
+    if (kind === "icon") {
+      const noIcon = !("iconSet" in key) && !("iconId" in key);
+      if (
+        (!noIcon &&
+          (!conditionalIconSets.some((set) => set === key.iconSet) ||
+            !integer(key.iconId, 0, Number(String(key.iconSet)[0]) - 1))) ||
+        (key.color !== undefined && key.color !== "") ||
+        (key.customList !== undefined &&
+          (!Array.isArray(key.customList) || key.customList.length !== 0))
+      )
+        throw new Error("Invalid icon sort key");
+    } else if (kind === "value") {
       if (key.color !== undefined && key.color !== "")
         throw new Error("Unexpected sort color");
     } else if (
@@ -63,7 +86,7 @@ export function checkXlsxSort(value: unknown): void {
         (!Array.isArray(key.customList) || key.customList.length !== 0))
     )
       throw new Error("Invalid color sort key");
-    const identity = `${key.index}:${kind}:${kind === "value" ? "" : String(key.color).toUpperCase()}`;
+    const identity = `${key.index}:${kind}:${kind === "icon" ? `${key.iconSet ?? ""}:${key.iconId ?? 0}` : kind === "value" ? "" : String(key.color).toUpperCase()}`;
     if (seen.has(identity)) throw new Error("Duplicate sort condition");
     seen.add(identity);
     if (key.customList !== undefined) {

@@ -165,7 +165,14 @@ fn read_chart(
   } else if plot.child("lineChart", uri=chart_uri) is Some(line) {
     (line, "line")
   } else if plot.child("areaChart", uri=chart_uri) is Some(area) {
-    (area, "area")
+    let kind = match chart_child(area, "grouping").node.attribute("val") {
+      Some("standard") => "area"
+      Some("stacked") => "stackedArea"
+      Some("percentStacked") => "percentStackedArea"
+      _ =>
+        @failure.reject("unsupported-chart", "Unsupported area chart grouping")
+    }
+    (area, kind)
   } else if plot.child("scatterChart", uri=chart_uri) is Some(scatter) {
     (scatter, "scatter")
   } else if plot.child("radarChart", uri=chart_uri) is Some(radar) {

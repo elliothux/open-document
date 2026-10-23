@@ -14,9 +14,9 @@ fn xlsx_sort(change : Json) -> @xlsx.SheetEdit raise @failure.Failure {
         fields
         .keys()
         .all(name => {
-          ["index", "descending", "customList", "sortBy", "color"].contains(
-            name,
-          )
+          [
+            "index", "descending", "customList", "sortBy", "color", "iconSet", "iconId",
+          ].contains(name)
         }) else {
         @failure.reject("invalid-operation", "Unknown sort key fields")
       }
@@ -33,6 +33,16 @@ fn xlsx_sort(change : Json) -> @xlsx.SheetEdit raise @failure.Failure {
           })
         _ => @failure.reject("invalid-operation", "Invalid custom sort list")
       }
+      if fields.contains("iconSet") || fields.contains("iconId") {
+        guard fields.get("sortBy") == Some(Json("icon")) &&
+          fields.get("iconSet") is Some(String(set)) &&
+          !set.is_empty() &&
+          fields.contains("iconId") else {
+          @failure.reject(
+            "invalid-operation", "Conflicting or incomplete sort icon",
+          )
+        }
+      }
       {
         index: field_int(key, "index"),
         descending: xlsx_boolean(key, "descending"),
@@ -46,6 +56,16 @@ fn xlsx_sort(change : Json) -> @xlsx.SheetEdit raise @failure.Failure {
           None => ""
           Some(String(color)) => color
           _ => @failure.reject("invalid-operation", "Invalid sort color")
+        },
+        icon_set: match fields.get("iconSet") {
+          None => ""
+          Some(String(set)) => set
+          _ => @failure.reject("invalid-operation", "Invalid sort icon set")
+        },
+        icon_id: if fields.contains("iconId") {
+          field_int(key, "iconId")
+        } else {
+          0
         },
       }
     }),

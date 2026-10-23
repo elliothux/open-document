@@ -1,9 +1,10 @@
 import { useState } from "react";
 import type { SpreadsheetEditor } from "@open-document/web/spreadsheet-editor";
-import type { XlsxSortKey } from "@open-document/web/xlsx";
+import { conditionalIconSets, type XlsxSortKey } from "@open-document/web/xlsx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { selectedXlsxTable } from "./xlsx-tables.js";
+import { conditionalIconLabels } from "./conditional-icons.js";
 
 export function XlsxSort({
   editor,
@@ -110,7 +111,8 @@ export function XlsxSort({
                   if (
                     sortBy === "value" ||
                     sortBy === "cellColor" ||
-                    sortBy === "fontColor"
+                    sortBy === "fontColor" ||
+                    sortBy === "icon"
                   )
                     setKeys((keys) =>
                       keys.map((current, at) =>
@@ -123,12 +125,20 @@ export function XlsxSort({
                                 sortBy,
                                 customList: [],
                               }
-                            : {
-                                index: current.index,
-                                descending: current.descending,
-                                sortBy,
-                                color: "ff0000",
-                              },
+                            : sortBy === "icon"
+                              ? {
+                                  index: current.index,
+                                  descending: current.descending,
+                                  sortBy,
+                                  iconSet: "3Arrows",
+                                  iconId: 2,
+                                }
+                              : {
+                                  index: current.index,
+                                  descending: current.descending,
+                                  sortBy,
+                                  color: "ff0000",
+                                },
                       ),
                     );
                 }}
@@ -136,6 +146,7 @@ export function XlsxSort({
                 <option value="value">{t.sortValues}</option>
                 <option value="cellColor">{t.sortFillColor}</option>
                 <option value="fontColor">{t.sortFontColor}</option>
+                <option value="icon">{t.sortIcons}</option>
               </select>
             </label>
             <label>
@@ -166,12 +177,16 @@ export function XlsxSort({
                 <option value="ascending">
                   {(key.sortBy ?? "value") === "value"
                     ? t.sortAscending
-                    : t.sortColorFirst}
+                    : key.sortBy === "icon"
+                      ? t.sortIconFirst
+                      : t.sortColorFirst}
                 </option>
                 <option value="descending">
                   {(key.sortBy ?? "value") === "value"
                     ? t.sortDescending
-                    : t.sortColorLast}
+                    : key.sortBy === "icon"
+                      ? t.sortIconLast
+                      : t.sortColorLast}
                 </option>
               </select>
             </label>
@@ -196,6 +211,70 @@ export function XlsxSort({
                 />
                 <span>{t.sortCustomListHelp}</span>
               </label>
+            ) : key.sortBy === "icon" ? (
+              <>
+                <label>
+                  {`${t.sortIconSet} ${i + 1}`}
+                  <select
+                    aria-label={`${t.sortIconSet} ${i + 1}`}
+                    value={key.iconSet ?? ""}
+                    onChange={(event) => {
+                      const set = conditionalIconSets.find(
+                        (set) => set === event.currentTarget.value,
+                      );
+                      setKeys((keys) =>
+                        keys.map((current, at) =>
+                          at !== i
+                            ? current
+                            : {
+                                index: current.index,
+                                descending: current.descending,
+                                sortBy: "icon",
+                                ...(set
+                                  ? {
+                                      iconSet: set,
+                                      iconId: Math.min(
+                                        current.iconId ?? 2,
+                                        Number(set[0]) - 1,
+                                      ),
+                                    }
+                                  : {}),
+                              },
+                        ),
+                      );
+                    }}
+                  >
+                    <option value="">{t.sortNoIcon}</option>
+                    {conditionalIconSets.map((set, index) => (
+                      <option key={set} value={set}>
+                        {conditionalIconLabels(t)[index]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                {key.iconSet && (
+                  <label>
+                    {`${t.sortIconIndex} ${i + 1}`}
+                    <select
+                      aria-label={`${t.sortIconIndex} ${i + 1}`}
+                      value={key.iconId ?? 0}
+                      onChange={(event) =>
+                        update(i, { iconId: Number(event.currentTarget.value) })
+                      }
+                    >
+                      {Array.from(
+                        { length: Number(key.iconSet[0]) },
+                        (_, index) => (
+                          <option key={index} value={index}>
+                            {index + 1}
+                          </option>
+                        ),
+                      )}
+                    </select>
+                  </label>
+                )}
+                <p>{t.sortIconHelp}</p>
+              </>
             ) : (
               <>
                 <label>

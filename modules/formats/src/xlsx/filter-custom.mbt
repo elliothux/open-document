@@ -21,6 +21,7 @@ priv enum PreparedFilter {
   CalendarMonths(Int, Int)
   DateInterval(Double, Double)
   Color(String, cell_color~ : Bool)
+  Icon(String, Int?)
 }
 
 ///|
@@ -29,6 +30,7 @@ fn FilterRule::prepare(
   work : FormulaWork,
 ) -> PreparedFilter raise @failure.Failure {
   match self {
+    Icon(set, id) => Icon(set, id)
     Relative(_, _) =>
       @failure.reject(
         "invalid-operation", "Relative dates require a session calendar context",
@@ -101,9 +103,9 @@ fn PreparedFilter::matches(
         Number(value) => filter_calendar_matches(first, last, value, work)
         _ => false
       }
-    Color(_, ..) =>
+    Color(_, ..) | Icon(_, _) =>
       @failure.reject(
-        "invalid-operation", "Color filtering requires an effective style",
+        "invalid-operation", "Appearance filtering requires an effective style",
       )
     DateLabels(intervals, values, blank~) =>
       if label.is_empty() {
@@ -166,6 +168,13 @@ fn PreparedFilter::matches(
 ///|
 fn FilterColumn::json(self : FilterColumn) -> Json raise @failure.Failure {
   match self.rule {
+    Icon(set, id) =>
+      {
+        "kind": "icon",
+        "column": self.column,
+        "iconSet": set,
+        "iconId": id.map(id => Json(id)).unwrap_or(Json::null()),
+      }
     Relative(period, _) =>
       { "kind": "relativeDate", "column": self.column, "period": period }
     Calendar(unit, value) =>

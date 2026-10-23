@@ -15,6 +15,7 @@ pub(all) enum FilterRule {
   Dates(Array[String], values~ : Array[String], blank~ : Bool)
   Color(String?, cell_color~ : Bool)
   ColorStyle(Int, cell_color~ : Bool)
+  Icon(String, Int?)
 } derive(Eq)
 
 ///|
@@ -102,6 +103,17 @@ fn filter_settings(settings : FilterSettings) -> Range raise @failure.Failure {
     }
     seen[column.column] = true
     let labels = match column.rule {
+      Icon(set, id) => {
+        guard conditional_icon_count(set) > 0 &&
+          id
+          .map(id => id >= 0 && id < conditional_icon_count(set))
+          .unwrap_or(true) else {
+          @failure.reject(
+            "invalid-operation", "Invalid filter icon set or index",
+          )
+        }
+        []
+      }
       Color(value, ..) => {
         CellFormat::new(color=value).validate()
         []
@@ -274,6 +286,22 @@ fn read_filter_node(
         @failure.reject(
           "protected-content", "This filter kind requires evaluation support",
         )
+      }
+      if filters.name == "iconFilter" {
+        filter_attributes(filters, ["iconSet", "iconId"])
+        guard tree.children.get(filters.id).unwrap_or([]).is_empty() else {
+          @failure.reject(
+            "protected-content", "Extended icon filter is protected",
+          )
+        }
+        columns.push({
+          column,
+          rule: Icon(
+            filters.attribute("iconSet").unwrap_or(""),
+            filters.attribute("iconId").map(value => natural(value, 4)),
+          ),
+        })
+        continue
       }
       if filters.name == "colorFilter" {
         filter_attributes(filters, ["dxfId", "cellColor"])

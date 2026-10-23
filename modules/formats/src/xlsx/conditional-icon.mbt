@@ -34,6 +34,35 @@ priv struct ConditionalIcon {
 } derive(Eq)
 
 ///|
+fn Session::cell_icon_matches(
+  self : Session,
+  index : Int,
+  address : Address,
+  set : String,
+  id : Int?,
+  rules : ConditionalRules,
+  work : FormulaWork,
+) -> Bool raise @failure.Failure {
+  let current = self.sheets[index]
+  let style = rules.applied(
+    self.styles[current.style_at(address)],
+    address,
+    self.sheets,
+    index,
+    self.calculation.map(c => c.values).unwrap_or(Map([])),
+    work,
+  )
+  guard style.diagnostic.is_empty() else {
+    @failure.reject("protected-content", style.diagnostic)
+  }
+  match (style.icon, id) {
+    (Some(icon), Some(id)) => icon.kind == set && icon.index == id
+    (None, None) => true
+    _ => false
+  }
+}
+
+///|
 fn conditional_icon_count(kind : String) -> Int {
   match kind {
     "3Arrows"

@@ -141,6 +141,15 @@ fn Session::filtered_rows(
           rich,
           work,
         )
+      } else if normalized[i] is Icon(set, id) {
+        self.cell_icon_matches(
+          sheet,
+          { row, column: column.column, },
+          set,
+          id,
+          rules,
+          work,
+        )
       } else {
         normalized[i].matches(
           self.filter_raw(sheet, row, column.column),
@@ -270,6 +279,7 @@ fn Session::filter_query(
             | Calendar(_, _)
             | Relative(_, _)
             | Color(_, ..)
+            | Icon(_, _)
             | ColorStyle(_, ..) => true
           }
         })

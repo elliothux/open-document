@@ -254,6 +254,7 @@ pub(all) enum FilterRule {
   Dates(Array[String], values~ : Array[String], blank~ : Bool)
   Color(String?, cell_color~ : Bool)
   ColorStyle(Int, cell_color~ : Bool)
+  Icon(String, Int?)
 } derive(Eq)
 pub fn FilterRule::equal(Self, Self) -> Bool
 pub fn FilterRule::not_equal(Self, Self) -> Bool
@@ -574,6 +575,8 @@ pub(all) struct SortKey {
   custom_list : Array[String]
   sort_by : String
   color : String
+  icon_set : String
+  icon_id : Int
 }
 
 pub(all) struct SortSettings {

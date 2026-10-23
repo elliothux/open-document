@@ -174,6 +174,7 @@ export type {
   XlsxCalendarFilter,
   XlsxRelativeDateFilter,
   XlsxColorFilter,
+  XlsxIconFilter,
   XlsxFilterSettings,
   XlsxFilterState,
 } from "@open-document/wasm/xlsx";

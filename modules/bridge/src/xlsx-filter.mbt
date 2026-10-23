@@ -15,6 +15,23 @@ fn xlsx_filter_columns(
   }
   columns.map(column => {
     let rule = match field_string(column, "kind") {
+      "icon" => {
+        guard column is Object(fields) &&
+          fields
+          .keys()
+          .all(key => ["kind", "column", "iconSet", "iconId"].contains(key)) else {
+          @failure.reject("invalid-operation", "Unknown icon filter field")
+        }
+        let id = match column {
+          { "iconId": Null, .. } => None
+          { "iconId": Number(_), .. } => Some(field_int(column, "iconId"))
+          _ =>
+            @failure.reject(
+              "invalid-operation", "Icon filter requires an index or null",
+            )
+        }
+        @xlsx.Icon(field_string(column, "iconSet"), id)
+      }
       "relativeDate" => {
         guard column is Object(fields) &&
           fields.keys().all(k => ["kind", "column", "period"].contains(k)) else {

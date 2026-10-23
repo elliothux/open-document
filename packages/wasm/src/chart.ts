@@ -11,6 +11,8 @@ export interface ChartSettings {
     | "line"
     | "pie"
     | "area"
+    | "stackedArea"
+    | "percentStackedArea"
     | "scatter"
     | "radar"
     | "doughnut";
@@ -41,6 +43,8 @@ export function checkChartSettings(value: unknown): void {
       "line",
       "pie",
       "area",
+      "stackedArea",
+      "percentStackedArea",
       "scatter",
       "radar",
       "doughnut",

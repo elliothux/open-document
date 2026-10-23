@@ -82,6 +82,7 @@ export type {
   XlsxCalendarFilter,
   XlsxRelativeDateFilter,
   XlsxColorFilter,
+  XlsxIconFilter,
   XlsxFilterSettings,
   XlsxFilterState,
 } from "./xlsx-filter.js";

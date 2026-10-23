@@ -133,7 +133,7 @@ fn ChartData::paint_plot(
   }
   let slots = data.categories.length()
   let line = data.kind == "line"
-  let area = data.kind == "area"
+  let area = area_chart(data.kind)
   let scatter = data.kind == "scatter"
   if scatter {
     out.append(data.paint_scatter(left, top, w, h, probe, profile, colors))
@@ -145,26 +145,52 @@ fn ChartData::paint_plot(
   }
   if area {
     let baseline = top + h * (1 - (0 - low) / (high - low))
+    let cumulative = Array::make(slots, 0.0)
     for series_index, series in data.series {
       let path : Array[PathSegment] = []
-      let points : Array[(Double, Double)] = []
+      let points : Array[(Double, Double, Double)] = []
       let finish = fn() {
         if points.length() >= 2 {
-          path.push(Move(points[0].0, baseline))
-          for (x, y) in points {
+          path.push(Move(points[0].0, points[0].2))
+          for (x, y, _) in points {
             path.push(Line(x, y))
           }
-          path.push(Line(points[points.length() - 1].0, baseline))
+          if stacked {
+            for index = points.length() - 1; index >= 0; index = index - 1 {
+              path.push(Line(points[index].0, points[index].2))
+            }
+          } else {
+            path.push(Line(points[points.length() - 1].0, baseline))
+          }
           path.push(Close)
         }
         points.clear()
       }
       for index, value in series.values {
+        let value = if stacked {
+          Some(data.bar_values(index)[series_index].unwrap_or(0))
+        } else {
+          value
+        }
         if value is Some(value) {
+          let start = cumulative[index]
+          let end = if percent {
+            (start + value).clamp(min=-1, max=1)
+          } else {
+            start + value
+          }
+          if stacked {
+            cumulative[index] = end
+          }
           points.push(
             (
               left + (if slots == 1 { w / 2 } else { index.to_double() * slot }),
-              top + h * (1 - (value - low) / (high - low)),
+              top + h * (1 - (end - low) / (high - low)),
+              if stacked {
+                top + h * (1 - (start - low) / (high - low))
+              } else {
+                baseline
+              },
             ),
           )
         } else {

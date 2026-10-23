@@ -7,6 +7,8 @@ import {
 }
 
 // Values
+pub fn area_chart(String) -> Bool
+
 pub fn basic_shape_path(String, Double, Double) -> Array[PathSegment]
 
 pub fn chart_color(Int) -> String

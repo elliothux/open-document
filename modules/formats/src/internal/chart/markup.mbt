@@ -69,7 +69,7 @@ pub fn markup(
   let percent = @layout.percent_stacked_chart(data.kind)
   let line = data.kind == "line"
   let radar = data.kind == "radar"
-  let area = data.kind == "area"
+  let area = @layout.area_chart(data.kind)
   let last = data.categories.length() + 1
   let categories = chart_reference(
     "Sheet1!$A$2:$A$" + last.to_string(),
@@ -83,7 +83,7 @@ pub fn markup(
     if radar {
       "<c:radarChart><c:radarStyle val=\"marker\"/><c:varyColors val=\"0\"/>"
     } else if area {
-      "<c:areaChart><c:grouping val=\"standard\"/><c:varyColors val=\"0\"/>"
+      "<c:areaChart><c:grouping val=\"\{if percent {"percentStacked"} else if stacked {"stacked"} else {"standard"}}\"/><c:varyColors val=\"0\"/>"
     } else if line {
       "<c:lineChart><c:grouping val=\"standard\"/><c:varyColors val=\"0\"/>"
     } else {

@@ -1,11 +1,20 @@
 ///|
 pub fn stacked_chart(kind : String) -> Bool {
-  ["stackedColumn", "stackedBar"].contains(kind) || percent_stacked_chart(kind)
+  ["stackedColumn", "stackedBar", "stackedArea"].contains(kind) ||
+  percent_stacked_chart(kind)
 }
 
 ///|
 pub fn percent_stacked_chart(kind : String) -> Bool {
-  ["percentStackedColumn", "percentStackedBar"].contains(kind)
+  ["percentStackedColumn", "percentStackedBar", "percentStackedArea"].contains(
+    kind,
+  )
+}
+
+///|
+/// Identify area chart profiles that share category placement and band painting.
+pub fn area_chart(kind : String) -> Bool {
+  ["area", "stackedArea", "percentStackedArea"].contains(kind)
 }
 
 ///|
@@ -69,7 +78,8 @@ pub fn ChartData::validate_sources(
   }
   guard [
       "column", "bar", "stackedColumn", "stackedBar", "line", "pie", "area", "scatter",
-      "doughnut", "percentStackedColumn", "percentStackedBar", "radar",
+      "doughnut", "percentStackedColumn", "percentStackedBar", "radar", "stackedArea",
+      "percentStackedArea",
     ].contains(self.kind) &&
     self.categories.length() <= 256 &&
     self.series.length() >= 1 &&
@@ -200,12 +210,24 @@ pub fn ChartData::axis(
   let mut low = 0.0
   let mut high = 0.0
   let stacked = stacked_chart(self.kind)
+  let area = area_chart(self.kind)
   for index in 0..<self.categories.length() {
     let mut positive = 0.0
     let mut negative = 0.0
+    let mut cumulative = 0.0
     for value in self.bar_values(index) {
       if value is Some(value) {
-        if stacked {
+        if stacked && area {
+          // Area bands follow algebraic series order, unlike signed bar stacks.
+          cumulative += value
+          guard !cumulative.is_inf() else {
+            @failure.reject(
+              "limit-exceeded", "Chart stack exceeds numeric limits",
+            )
+          }
+          low = low.min(cumulative)
+          high = high.max(cumulative)
+        } else if stacked {
           positive += value.max(0)
           negative += value.min(0)
         } else {

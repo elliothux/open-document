@@ -64,6 +64,8 @@ export function XlsxCharts({
     line: t.chartLine,
     pie: t.chartPie,
     area: t.chartArea,
+    stackedArea: t.chartStackedArea,
+    percentStackedArea: t.chartPercentStackedArea,
     scatter: t.chartScatter,
     radar: t.chartRadar,
     doughnut: t.chartDoughnut,

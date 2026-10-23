@@ -5,6 +5,8 @@ pub(all) struct SortKey {
   custom_list : Array[String]
   sort_by : String
   color : String
+  icon_set : String
+  icon_id : Int
 }
 
 ///|
@@ -113,7 +115,12 @@ fn Session::sort_cells(
   let seen : Map[String, Bool] = Map([])
   for key in settings.keys {
     ignore(key.sort_format())
-    let identity = "\{key.index}:\{key.sort_by}:\{key.color.to_upper()}"
+    let identity = "\{key.index}:\{key.sort_by}:" +
+      (if key.sort_by == "icon" {
+        "\{key.icon_set}:\{key.icon_id}"
+      } else {
+        key.color.to_upper()
+      })
     guard key.index >= low && key.index <= high && !seen.contains(identity) else {
       @failure.reject(
         "invalid-operation", "Sort conditions must be distinct and stay within the selected range",
@@ -199,6 +206,9 @@ fn Session::sort_cells(
       }
       let name = address.name()
       let cell = current.cells.get(name)
+      if key.sort_by == "icon" {
+        return self.icon_sort_key(index, address, key, rules.unwrap(), work)
+      }
       if key.sort_by != "value" {
         return self.color_sort_key(
           index,
