@@ -2,6 +2,7 @@
 priv struct CopiedObjects {
   changes : Array[@xml.SourceChange]
   selection : Selection
+  identities : Array[String]
   next : Int64
   documents : Map[String, @xml.Document]
   workbooks : Map[String, Bytes]
@@ -107,8 +108,8 @@ fn Session::copy_objects(
       reserved[link.id] = true
     }
   }
-  for object in objects {
-    if object.chart is Some(chart) {
+  for object in slide.objects {
+    if identities.contains(object.id) && object.chart is Some(chart) {
       let id = identities[object.id].split("#").last().unwrap().to_owned()
       let (part, overrides) = self.copy_chart_parts(
         chart, id, documents, workbooks,
@@ -182,6 +183,7 @@ fn Session::copy_objects(
       anchor: 0,
       focus: 0,
     },
+    identities: identities.values().to_array(),
     next,
     documents,
     workbooks,
@@ -239,7 +241,7 @@ fn Session::duplicate_objects(
   let candidate = candidate
     .group_bounds(candidate.changed_group_members(original))
     .connector_bounds(original)
-  for id in copied.selection.objects {
+  for id in copied.identities {
     let object = candidate.object(id)
     if object.chart is Some(chart) {
       let geometry = object.geometry.unwrap()

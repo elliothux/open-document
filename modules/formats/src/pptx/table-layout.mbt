@@ -167,6 +167,8 @@ fn Object::table_fit_changes(
   let table = self.table.unwrap()
   let changes : Array[@xml.SourceChange] = []
   let heights = table.rows.map(row => row.height)
+  let parent = self.source.parent_matrix()
+  let sy = (parent.c * parent.c + parent.d * parent.d).sqrt()
   for r, row in table.rows {
     for column, cell in row.cells {
       if !cell.owner() {
@@ -204,20 +206,26 @@ fn Object::table_fit_changes(
     }
   }
   let mut total = 0.0
+  // Sum the rounded native rows so group scaling cannot separate the grid and frame.
+  let mut native_total = 0L
   for r, row in table.rows {
     let height = heights[r]
     total += height
     guard total <= 14400 else {
       @failure.reject("limit-exceeded", "Table height exceeds budget")
     }
-    if height > row.height + 0.00001 {
-      changes.push(
-        attribute_change(
-          row.source,
-          "h",
-          (height * 12700).round().to_int64().to_string(),
-        ),
-      )
+    let grew = height > row.height + 0.00001
+    let native_height = if grew {
+      (height / sy * 12700).ceil().to_int64()
+    } else {
+      number(row.source.node.attribute("h").unwrap(), 1, 182880000).to_int64()
+    }
+    native_total += native_height
+    guard native_total <= 182880000L else {
+      @failure.reject("limit-exceeded", "Native table height exceeds budget")
+    }
+    if grew {
+      changes.push(attribute_change(row.source, "h", native_height.to_string()))
     }
   }
   if !changes.is_empty() {
@@ -226,7 +234,7 @@ fn Object::table_fit_changes(
       attribute_change(
         transform.child("ext").unwrap(),
         "cy",
-        (total * 12700).round().to_int64().to_string(),
+        native_total.to_string(),
       ),
     )
   }

@@ -49,11 +49,6 @@ fn Session::group_members(
         )
       }
     } else {
-      guard object.table is None else {
-        @failure.reject(
-          "protected-content", "Grouped tables require table scaling support",
-        )
-      }
       guard placeholder(object.source) is None else {
         @failure.reject(
           "protected-content", "Inherited placeholders cannot be grouped",
@@ -64,7 +59,10 @@ fn Session::group_members(
       let inside = node.start >= object.source.node.start &&
         node.end <= object.source.node.end
       if inside {
-        guard [presentation_uri, drawing_uri].contains(node.uri) &&
+        guard (
+            [presentation_uri, drawing_uri].contains(node.uri) ||
+            chart_frame_reference(slide.tree, node)
+          ) &&
           node.name != "extLst" else {
           @failure.reject(
             "protected-content", "Unknown object extensions prevent grouping",

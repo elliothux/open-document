@@ -64,16 +64,19 @@ fn read_drawing_table(
   date_time : DateTime?,
 ) -> DrawingTable? raise @failure.Failure {
   table_profile(
-    source.parent_group().is_empty(),
-    "Grouped tables require table scaling support",
-  )
-  table_profile(
     source
     .child("xfrm", uri=presentation_uri)
-    .map(item => item.node.attributes.is_empty())
+    .map(item => {
+      item.node.attributes.all(a => {
+        a.uri.is_empty() && ["rot", "flipH", "flipV"].contains(a.name)
+      })
+    })
     .unwrap_or(false),
     "Unsupported table frame transform",
   )
+  let parent = source.parent_matrix()
+  let sx = (parent.a * parent.a + parent.b * parent.b).sqrt()
+  let sy = (parent.c * parent.c + parent.d * parent.d).sqrt()
   let data = source.child("graphic").unwrap().child("graphicData").unwrap()
   table_profile(
     data.node.attribute("uri") ==
@@ -126,7 +129,7 @@ fn read_drawing_table(
     @failure.reject("limit-exceeded", "Table dimensions exceed budget")
   }
   table_profile(
-    (widths.fold(init=0.0, (sum, width) => sum + width) - geometry.width).abs() <
+    (widths.fold(init=0.0, (sum, width) => sum + width) - geometry.width / sx).abs() <
     0.01,
     "Table grid and frame widths differ",
   )
@@ -255,7 +258,8 @@ fn read_drawing_table(
         body.left + body.right <
         widths[column:column + column_span].fold(init=0.0, (sum, width) => {
           sum + width
-        }),
+        }) *
+        sx,
         "Table cell margins leave no text width",
       )
       let direct_fill = properties.filter(p => {
@@ -314,11 +318,11 @@ fn read_drawing_table(
     rows.push({ source: row, height, cells, })
   }
   table_profile(
-    (rows.fold(init=0.0, (sum, row) => sum + row.height) - geometry.height).abs() <
+    (rows.fold(init=0.0, (sum, row) => sum + row.height) - geometry.height / sy).abs() <
     0.01,
     "Table row heights and frame differ",
   )
-  Some({
+  let table : DrawingTable = {
     widths,
     rows,
     owners: table_owners(rows, widths.length()),
@@ -326,5 +330,16 @@ fn read_drawing_table(
     styles: book,
     fill: background,
     alpha: background_alpha,
-  })
+  }
+  Some(
+    if sx == 1 && sy == 1 {
+      table
+    } else {
+      table.resized(geometry.width, geometry.height) catch {
+        @failure.Failure(code="invalid-transform", message~, ..) =>
+          @failure.reject("unsupported-table", message)
+        error => raise error
+      }
+    },
+  )
 }

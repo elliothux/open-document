@@ -19,7 +19,7 @@ fn DrawingTable::format_range(
 
 ///|
 fn table_format_reason(object : Object) -> String {
-  if !object.read_only.is_empty() {
+  if !["", "Group members are read-only"].contains(object.read_only) {
     object.read_only
   } else {
     object.text_reason

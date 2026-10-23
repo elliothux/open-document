@@ -38,6 +38,12 @@ fn Slide::changed_group_members(
       }
       let properties = if object.kind == "group" { "grpSpPr" } else { "spPr" }
       let transform = fn(object : Object) raise @failure.Failure {
+        if object.source.node.name == "graphicFrame" {
+          return object.source
+            .child("xfrm", uri=presentation_uri)
+            .map(source_xml)
+            .unwrap_or("")
+        }
         object.source
         .child(properties, uri=presentation_uri)
         .bind(properties => properties.child("xfrm"))
@@ -218,7 +224,7 @@ fn Slide::normalized_group_changes(
     }
     guard object.geometry is Some(_) &&
       object.diagnostic.is_empty() &&
-      ["shape", "image", "group"].contains(object.kind) else {
+      ["shape", "image", "group", "chart", "table"].contains(object.kind) else {
       @failure.reject(
         "protected-content", "Unknown group members prevent bounds normalization",
       )

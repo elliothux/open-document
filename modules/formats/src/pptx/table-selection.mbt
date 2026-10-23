@@ -123,6 +123,7 @@ fn Session::table_position(
   self : Session,
   object : Object,
   selection : Selection,
+  allow_grouped~ : Bool = false,
 ) -> (Int, Int, String) raise @failure.Failure {
   let table = object.table.unwrap()
   let (row, column) = if selection.mode == "text" {
@@ -132,8 +133,13 @@ fn Session::table_position(
   }
   let reason = if !self.current().read_only.is_empty() {
     self.current().read_only
-  } else if !object.read_only.is_empty() {
-    object.read_only
+  } else if !object.read_only.is_empty() &&
+    !(allow_grouped && object.read_only == "Group members are read-only") {
+    if object.read_only == "Group members are read-only" {
+      "Ungroup the table before changing its structure"
+    } else {
+      object.read_only
+    }
   } else if !object.text_reason.is_empty() {
     object.text_reason
   } else if object.source.tree.document
@@ -205,6 +211,7 @@ fn Session::table_query(self : Session) -> Json raise @failure.Failure {
       Json::null()
     },
     "reason": reason,
+    "sizeReason": self.table_position(object, selection, allow_grouped=true).2,
     "splitReason": if !reason.is_empty() {
       reason
     } else if range.owners != 1 {
@@ -214,6 +221,9 @@ fn Session::table_query(self : Session) -> Json raise @failure.Failure {
     },
     "operations": Json(operations),
     "format": table_format_query(object, selection),
-    "style": table_style_query(table, reason),
+    "style": table_style_query(
+      table,
+      self.table_position(object, selection, allow_grouped=true).2,
+    ),
   }
 }

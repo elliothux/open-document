@@ -205,17 +205,14 @@ fn native_transform_changes(
     return table_transform_changes(object, geometry)
   }
   if object.chart is Some(_) {
-    guard geometry.rotation == 0 &&
-      !geometry.flip_x &&
-      !geometry.flip_y &&
-      geometry.width >= 180 &&
-      geometry.height >= 150 else {
+    guard geometry.width >= 180 && geometry.height >= 150 else {
       @failure.reject(
-        "invalid-transform", "Chart requires an unrotated frame of at least 180 x 150 points",
+        "invalid-transform", "Chart requires a frame of at least 180 x 150 points",
       )
     }
     let transform = object.source.child("xfrm", uri=presentation_uri).unwrap()
-    let changes : Array[@xml.SourceChange] = []
+    // Ungrouping retains the inherited group orientation on the native frame.
+    let changes = transform.pose_changes(object.geometry.unwrap(), geometry)
     for
       (node, values) in [
         (

@@ -132,8 +132,10 @@ fn Session::object_edit_reason(
   try {
     let table = object.table is Some(_)
     if object.chart is Some(_) &&
-      !["delete", "duplicate", "transform", "arrange"].contains(action) {
-      return "Chart grouping, rotation and flipping require support"
+      !["delete", "duplicate", "transform", "arrange", "group", "ungroup"].contains(
+        action,
+      ) {
+      return "Direct chart rotation and flipping require support"
     }
     if duplicate && object.media is Some(media) && !media.reason.is_empty() {
       return media.reason
@@ -294,11 +296,7 @@ fn Session::object_edit_reason(
           node.parent >= 0 &&
           media_extension(tree, tree.nodes[node.parent])
         ) ||
-        (
-          object.chart is Some(_) &&
-          object.parent.is_empty() &&
-          chart_frame_reference(tree, node)
-        ) ||
+        chart_frame_reference(tree, node) ||
         math_nodes.contains(node.id)) {
         return "Unknown object extensions prevent duplication"
       }

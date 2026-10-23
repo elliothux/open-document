@@ -57,7 +57,7 @@ fn table_transform_changes(
   let before = object.table.unwrap()
   let table = before.resized(geometry.width, geometry.height)
   let transform = object.source.child("xfrm", uri=presentation_uri).unwrap()
-  let changes : Array[@xml.SourceChange] = []
+  let changes = transform.pose_changes(object.geometry.unwrap(), geometry)
   for
     (node, values) in [
       (transform.child("off").unwrap(), [("x", geometry.x), ("y", geometry.y)]),
@@ -83,25 +83,21 @@ fn table_transform_changes(
   let grid = source.child("tblGrid").unwrap()
   let columns = grid.tree.all(grid.node.id, "gridCol")
   for column, width in table.widths {
-    if width != before.widths[column] {
+    let value = (width * 12700).round().to_int64().to_string()
+    if columns[column].attribute("w") != Some(value) {
       changes.push(
         attribute_change(
           { tree: grid.tree, node: columns[column], },
           "w",
-          (width * 12700).round().to_int64().to_string(),
+          value,
         ),
       )
     }
   }
-  for r, row in table.rows {
-    if row.height != before.rows[r].height {
-      changes.push(
-        attribute_change(
-          row.source,
-          "h",
-          (row.height * 12700).round().to_int64().to_string(),
-        ),
-      )
+  for row in table.rows {
+    let value = (row.height * 12700).round().to_int64().to_string()
+    if row.source.node.attribute("h") != Some(value) {
+      changes.push(attribute_change(row.source, "h", value))
     }
   }
   changes

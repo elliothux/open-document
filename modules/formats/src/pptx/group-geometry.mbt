@@ -20,7 +20,7 @@ fn Ref::group_problem(self : Ref) -> String raise @failure.Failure {
   }
   for node in self.tree.children.get(self.node.id).unwrap_or([]) {
     if node.uri != presentation_uri ||
-      !["nvGrpSpPr", "grpSpPr", "sp", "pic", "grpSp", "cxnSp"].contains(
+      !["nvGrpSpPr", "grpSpPr", "sp", "pic", "grpSp", "cxnSp", "graphicFrame"].contains(
         node.name,
       ) {
       return "Unsupported group member or metadata"
@@ -118,20 +118,20 @@ fn Slide::group_preview(
     let sy = (old_parent.c * old_parent.c + old_parent.d * old_parent.d).sqrt()
     for member_index, child in self.objects {
       if child.parent == group.id && child.geometry is Some(geometry) {
+        let next = geometry_in_parent(
+          geometry.x / sx,
+          geometry.y / sy,
+          geometry.width / sx,
+          geometry.height / sy,
+          geometry.rotation,
+          geometry.flip_x,
+          geometry.flip_y,
+          parent,
+        )
         objects[member_index] = {
           ..objects[member_index],
-          geometry: Some(
-            geometry_in_parent(
-              geometry.x / sx,
-              geometry.y / sy,
-              geometry.width / sx,
-              geometry.height / sy,
-              geometry.rotation,
-              geometry.flip_x,
-              geometry.flip_y,
-              parent,
-            ),
-          ),
+          geometry: Some(next),
+          table: child.table.map(table => table.resized(next.width, next.height)),
         }
         changed[child.id] = true
       }

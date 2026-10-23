@@ -67,6 +67,7 @@ export interface PptxTable {
   columnWidth: number | null;
   reason: string;
   splitReason: string;
+  sizeReason: string;
   operations: Record<(typeof tableOperations)[number], string>;
   format: {
     fill: string | null;
@@ -159,6 +160,7 @@ export function checkPptxTable(
     selected.length !== 1 ||
     selected[0] !== table.object ||
     typeof table.reason !== "string" ||
+    typeof table.sizeReason !== "string" ||
     typeof table.splitReason !== "string"
   )
     throw new Error("Invalid PPTX table query");

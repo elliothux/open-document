@@ -155,7 +155,17 @@ fn read_object(
           182880000,
         ) /
         12700
-      geometry_in_parent(x, y, width, height, 0, false, false, parent)
+      geometry_in_parent(
+        x,
+        y,
+        width,
+        height,
+        number(item.node.attribute("rot").unwrap_or("0"), -21600000, 21600000) /
+        60000,
+        flag(item.node, "flipH"),
+        flag(item.node, "flipV"),
+        parent,
+      )
     })
   } else {
     geometry(chain, parent, source.node.name == "grpSp")

@@ -119,6 +119,7 @@ export function PptxTableSize({
               max={14400}
               step="any"
               required
+              disabled={!!table.sizeReason}
               value={values[key]}
               placeholder={table[key] === null ? t.mixed : undefined}
               onChange={(event) =>
@@ -129,6 +130,7 @@ export function PptxTableSize({
           <button
             type="submit"
             disabled={
+              !!table.sizeReason ||
               !Number.isFinite(Number(values[key])) ||
               Number(values[key]) < 0.1 ||
               Number(values[key]) > 14400

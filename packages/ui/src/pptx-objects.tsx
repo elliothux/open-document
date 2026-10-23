@@ -334,9 +334,7 @@ export function PptxObjects({
         </fieldset>
       </form>
       {query.table && (
-        <fieldset
-          disabled={disabled || !!query.table.reason || !!query.readOnlyReason}
-        >
+        <fieldset disabled={disabled || !!query.readOnlyReason}>
           <legend>{t.tableProperties}</legend>
           <p>
             {t.address}: {query.table.row + 1}, {query.table.column + 1} (
@@ -372,13 +370,6 @@ export function PptxObjects({
             </button>
           ))}
           {query.table.reason && <p>{query.table.reason}</p>}
-          <PptxTableStyle
-            key={`${state.document?.documentId}:${query.table.object}:${JSON.stringify(query.table.style)}`}
-            controller={controller}
-            state={state}
-            editor={editor}
-            disabled={disabled}
-          />
           <PptxTableSize
             key={`${state.document?.documentId}:${JSON.stringify([query.selection, query.table.rowHeight, query.table.columnWidth])}`}
             controller={controller}
@@ -393,6 +384,15 @@ export function PptxObjects({
             disabled={disabled}
           />
         </fieldset>
+      )}
+      {query.table && (
+        <PptxTableStyle
+          key={`${state.document?.documentId}:${query.table.object}:${JSON.stringify(query.table.style)}`}
+          controller={controller}
+          state={state}
+          editor={editor}
+          disabled={disabled || !!query.readOnlyReason}
+        />
       )}
       {query.table && (
         <PptxCells
