@@ -507,6 +507,9 @@ pub fn Session::refresh_pivot(
   sheet : String,
   part : String,
 ) -> Json raise @failure.Failure {
+  if self.refresh_shared_pivot(revision, sheet, part) {
+    return self.pivots(self.revision, sheet)
+  }
   self.write_pivot(revision, sheet, part, None)
 }
 
@@ -519,6 +522,14 @@ pub fn Session::update_pivot(
   part : String,
   settings : PivotSettings,
 ) -> Json raise @failure.Failure {
+  if self.refresh_shared_pivot(
+      revision,
+      sheet,
+      part,
+      replacement=Some(settings),
+    ) {
+    return self.pivots(self.revision, sheet)
+  }
   self.write_pivot(revision, sheet, part, Some(settings))
 }
 

@@ -12,6 +12,7 @@ export const pivotEn = {
   slicerWidth: "Slicer width (pt)",
   slicerHeight: "Slicer height (pt)",
   slicerInsert: "Insert slicer",
+  slicerDelete: "Delete slicer",
   slicerList: "Load slicers",
   slicerEmpty: "This worksheet has no slicers.",
   slicerMembers: "Slicer members",
@@ -19,7 +20,7 @@ export const pivotEn = {
   slicerApply: "Apply slicer filter",
   slicerNoData: "No data",
   pivotHelp:
-    "Choose a range with headers. Field numbers start at 1 within the range. Leave column fields empty for a row pivot. Preview before applying; refresh after source changes.",
+    "Choose a range with headers. Field numbers start at 1 within the range. Leave column fields empty for a row pivot. Preview before applying; refresh after source changes. Changing a linked source range refreshes all linked pivot tables. Keep the same column headers and order.",
   pivotSourceSheet: "Pivot source sheet",
   pivotSource: "Pivot source range",
   pivotUseSelection: "Use selected source",
@@ -140,6 +141,7 @@ export const pivotZh = {
   slicerWidth: "切片器宽度（磅）",
   slicerHeight: "切片器高度（磅）",
   slicerInsert: "插入切片器",
+  slicerDelete: "删除切片器",
   slicerList: "读取切片器",
   slicerEmpty: "此工作表没有切片器。",
   slicerMembers: "切片器成员",
@@ -147,7 +149,7 @@ export const pivotZh = {
   slicerApply: "应用切片器筛选",
   slicerNoData: "无数据",
   pivotHelp:
-    "源范围须含标题，字段从范围内第 1 列编号。列字段留空则只按行分组。应用前先预览，源数据改变后刷新。",
+    "源范围须含标题，字段从范围内第 1 列编号。列字段留空则只按行分组。应用前先预览，源数据改变后刷新。修改关联源范围会刷新全部关联透视表，列标题和次序须保持。",
   pivotSourceSheet: "透视源工作表",
   pivotSource: "透视源范围",
   pivotUseSelection: "使用所选源范围",

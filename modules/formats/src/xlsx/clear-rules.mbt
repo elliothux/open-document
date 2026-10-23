@@ -50,6 +50,7 @@ fn clear_rules(
   all : Bool,
   table_parts~ : Bool = false,
   sparklines~ : Bool = false,
+  slicer_metadata~ : Bool = false,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let tree = Tree::new(document)
   let root = tree.root("worksheet")
@@ -61,6 +62,9 @@ fn clear_rules(
       )
     }
     if sparklines && sparkline_extension(tree, node) {
+      continue
+    }
+    if slicer_metadata && node.name == "extLst" {
       continue
     }
     if (

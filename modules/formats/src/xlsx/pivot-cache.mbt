@@ -216,6 +216,7 @@ fn pivot_item_key(value : Value) -> String {
 fn Session::pivot_cache(
   self : Session,
   settings : PivotSettings,
+  peers~ : Array[PivotSettings] = [],
 ) -> PivotCache raise @failure.Failure {
   let range = settings.validate()
   let index = self.sheet_index(settings.sourceSheet)
@@ -331,23 +332,30 @@ fn Session::pivot_cache(
     settings.numberGroups.any(group => group.field == field) ||
     settings.dateGroups.any(group => group.field == field)
   }
-  let retained = settings.filters.filter(filter => !grouped_filter(filter.field)) +
-    settings.values
-    .filter(value => {
-      value.baseItem is Some(Member(_)) &&
-      !settings.numberGroups.any(group => Some(group.field) == value.baseField) &&
-      !settings.dateGroups.any(group => Some(group.field) == value.baseField)
-    })
-    .map(value => {
-      guard value.baseItem is Some(Member(item)) else {
-        abort("Validated base member")
-      }
-      PivotFilter::{
-        field: value.baseField.unwrap(),
-        report: false,
-        values: Some([item]),
-      }
-    })
+  let retained : Array[PivotFilter] = []
+  for context in [settings] + peers {
+    retained.append(
+      context.filters.filter(filter => !grouped_filter(filter.field)),
+    )
+    retained.append(
+      context.values
+      .filter(value => {
+        value.baseItem is Some(Member(_)) &&
+        !settings.numberGroups.any(group => Some(group.field) == value.baseField) &&
+        !settings.dateGroups.any(group => Some(group.field) == value.baseField)
+      })
+      .map(value => {
+        guard value.baseItem is Some(Member(item)) else {
+          abort("Validated base member")
+        }
+        PivotFilter::{
+          field: value.baseField.unwrap(),
+          report: false,
+          values: Some([item]),
+        }
+      }),
+    )
+  }
   for filter in retained {
     if filter.values is Some(values) {
       for value in values {
@@ -433,22 +441,24 @@ fn Session::pivot_cache(
     source_width,
     axes,
   }
-  for value in settings.values {
-    if value.baseItem is Some(Member(item)) {
-      ignore(cache.base_item_index(value.baseField.unwrap(), item))
+  for context in [settings] + peers {
+    for value in context.values {
+      if value.baseItem is Some(Member(item)) {
+        ignore(cache.base_item_index(value.baseField.unwrap(), item))
+      }
     }
-  }
-  for filter in settings.filters {
-    if grouped_filter(filter.field) && filter.values is Some(values) {
-      let items = Map::from_array(
-        cache
-        .axis_items(filter.field)
-        .map(value => (pivot_item_key(value), true)),
-      )
-      guard values.all(value => items.contains(pivot_item_key(value))) else {
-        @failure.reject(
-          "protected-content", "Selected pivot filter member is unavailable in the current grouping",
+    for filter in context.filters {
+      if grouped_filter(filter.field) && filter.values is Some(values) {
+        let items = Map::from_array(
+          cache
+          .axis_items(filter.field)
+          .map(value => (pivot_item_key(value), true)),
         )
+        guard values.all(value => items.contains(pivot_item_key(value))) else {
+          @failure.reject(
+            "protected-content", "Selected pivot filter member is unavailable in the current grouping",
+          )
+        }
       }
     }
   }

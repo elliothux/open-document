@@ -1,5 +1,5 @@
 ///|
-/// Removes a supported independent pivot, its owned resources and result values in one history entry.
+/// Removes a native pivot, disconnects its slicers and clears its owned output in one history entry.
 pub fn Session::delete_pivot(
   self : Session,
   revision : Int,
@@ -7,7 +7,6 @@ pub fn Session::delete_pivot(
   part : String,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  self.protect_slicer_cache(sheet, part)
   let index = self.sheet_index(sheet)
   let current = self.sheets[index]
   guard self.read_only.is_empty() &&
@@ -31,7 +30,11 @@ pub fn Session::delete_pivot(
     32768 else {
     @failure.reject("limit-exceeded", "Pivot deletion exceeds output budget")
   }
-  let (_, records) = self.pivot_settings(pivot)
+  let (_, records) = self.pivot_settings(pivot, shared=true)
+  let related = self.deletion_slicer_caches(pivot)
+  let shared = self
+    .pivot_locations()
+    .any(other => other.part != part && other.cache == pivot.cache)
   guard !current.merges.any(range => range.intersects(pivot.range)) &&
     !self
     .table_definitions(self.sheets, self.workbook, self.parts)
@@ -41,7 +44,7 @@ pub fn Session::delete_pivot(
     )
   }
   let links = self.relationships()
-  let owned = [part, pivot.cache, records]
+  let owned = if shared { [part] } else { [part, pivot.cache, records] }
   let paths = owned.copy()
   for owner in owned {
     let path = workbook_relations(owner)
@@ -86,61 +89,6 @@ pub fn Session::delete_pivot(
       }
     }
   }
-  let tree = Tree::new(self.workbook)
-  let parent = tree.one(tree.root("workbook").id, "pivotCaches").unwrap()
-  let root = self.part_xml(part).nodes()[0]
-  let cache_id = natural(root.attribute("cacheId").unwrap_or(""), 2147483647)
-  let caches = tree.all(parent.id, "pivotCache")
-  guard caches.filter(node => {
-      natural(node.attribute("cacheId").unwrap_or(""), 2147483647) == cache_id
-    })
-    is [entry] else {
-    @failure.reject(
-      "malformed-xlsx", "Missing unique workbook pivot cache entry",
-    )
-  }
-  guard links.filter(link => {
-      link.owner == self.main && link.target == pivot.cache && !link.external
-    })
-    is [cache_link] &&
-    caches
-    .filter(node => {
-      node.attribute(
-        "id",
-        uri=relationship_uri[:relationship_uri.length() - 1].to_owned(),
-      ) ==
-      Some(cache_link.id)
-    })
-    .length() ==
-    1 else {
-    @failure.reject(
-      "protected-content", "Shared workbook cache entries require coordinated deletion",
-    )
-  }
-  conditional_node(tree, parent, [], ["pivotCache"])
-  guard entry.attributes.all(attribute => {
-      (attribute.uri.is_empty() && attribute.name == "cacheId") ||
-      (
-        attribute.uri ==
-        relationship_uri[:relationship_uri.length() - 1].to_owned() &&
-        attribute.name == "id"
-      )
-    }) &&
-    tree.children.get(entry.id).unwrap_or([]).is_empty() else {
-    @failure.reject(
-      "protected-content", "Extended workbook cache entry requires deletion support",
-    )
-  }
-  let node = if caches.length() == 1 { parent } else { entry }
-  guard !self.workbook.source()[node.start:node.end].contains("<!--") &&
-    !self.workbook.source()[node.start:node.end].contains("<?") else {
-    @failure.reject(
-      "protected-content", "Pivot cache comments require preservation support",
-    )
-  }
-  let (workbook, workbook_edit) = self.workbook.edit_source([
-    sheet_node_removal(tree, node),
-  ])
   let updates : Map[String, CellContent] = Map([])
   let indices : Map[String, Int] = Map([])
   let (normal, styles, style_edits) = self.normal_style()
@@ -173,11 +121,27 @@ pub fn Session::delete_pivot(
   )
   let parts = plan.parts
   let edits = plan.edits
+  let rule_tree = Tree::new(plan.sheets[index].document)
+  let slicer_metadata = rule_tree
+    .one(rule_tree.root("worksheet").id, "extLst")
+    .map(node => {
+      self.slicer_extension(plan.sheets[index], rule_tree, node) &&
+      rule_tree
+      .all(node.id, "ext")
+      .all(entry => {
+        entry
+        .attribute("uri")
+        .map(uri => uri.to_upper() == slicer_list_extension)
+        .unwrap_or(false)
+      })
+    })
+    .unwrap_or(false)
   let changes = clear_rules(
     plan.sheets[index].document,
     pivot.range,
     true,
     table_parts=true,
+    slicer_metadata~,
   )
   if !changes.is_empty() {
     let (document, edit) = plan.sheets[index].document.edit_source(changes)
@@ -200,8 +164,21 @@ pub fn Session::delete_pivot(
     }
     update_note_addresses(notes, addresses, parts, edits)
   }
-  edits.push((self.main, workbook_edit))
   let removed : Map[String, @xml.Document] = Map([])
+  let candidate = {
+    ..self,
+    removed: self.removed.copy(),
+    sheets: plan.sheets,
+    parts,
+    styles: plan.styles,
+    calculation: Some(plan.calculation),
+  }
+  candidate.remove_pivot_slicers(pivot, related, edits, removed)
+  if !shared {
+    let (workbook, edit) = candidate.remove_pivot_cache_reference(pivot)
+    candidate.workbook = workbook
+    edits.push((self.main, edit))
+  }
   for path in paths {
     removed[path] = self.part_xml(path)
     parts.remove(path)
@@ -250,8 +227,8 @@ pub fn Session::delete_pivot(
     }
   }
   self.commit(
-    plan.sheets,
-    workbook,
+    candidate.sheets,
+    candidate.workbook,
     plan.calculation,
     edits,
     (sheet, pivot.range),

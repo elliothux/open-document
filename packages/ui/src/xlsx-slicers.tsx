@@ -50,6 +50,15 @@ export function XlsxSlicersPanel({
           item={item}
           state={state}
           disabled={disabled || !current}
+          remove={() =>
+            controller.run(async () => {
+              await editor.editSheet({
+                action: "deleteSlicer",
+                name: item.name,
+              });
+              await load();
+            })
+          }
           apply={(indices) =>
             controller.run(async () => {
               await editor.editSheet({
@@ -202,11 +211,13 @@ function SlicerMembers({
   state,
   disabled,
   apply,
+  remove,
 }: {
   item: XlsxSlicer;
   state: UiSnapshot;
   disabled: boolean;
   apply: (indices: number[]) => void;
+  remove: () => void;
 }) {
   const t = messages(state.locale);
   const [indices, setIndices] = useState(
@@ -253,6 +264,9 @@ function SlicerMembers({
         {t.slicerApply}
       </button>
       {!indices.length && <p>{t.pivotFilterEmpty}</p>}
+      <button type="button" onClick={remove}>
+        {t.slicerDelete}
+      </button>
     </fieldset>
   );
 }

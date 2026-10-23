@@ -183,6 +183,14 @@ fn xlsx_pivot_edit(
   change : Json,
 ) -> Json raise @failure.Failure {
   let action = field_string(change, "action")
+  if action == "deleteSlicer" {
+    guard change is Object(fields) &&
+      fields.length() == 2 &&
+      fields.keys().all(key => ["action", "name"].contains(key)) else {
+      @failure.reject("invalid-operation", "Invalid slicer deletion command")
+    }
+    return session.delete_slicer(revision, sheet, field_string(change, "name"))
+  }
   if action == "selectSlicer" || action == "scrollSlicer" {
     let keys = if action == "selectSlicer" {
       ["action", "layout", "id", "index", "additive"]

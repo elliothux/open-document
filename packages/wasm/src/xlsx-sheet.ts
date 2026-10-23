@@ -148,7 +148,7 @@ export type XlsxSheetEdit =
 
 export function checkXlsxSheetEdit(value: unknown): void {
   if (
-    ["filterSlicer", "selectSlicer", "scrollSlicer"].includes(
+    ["filterSlicer", "selectSlicer", "scrollSlicer", "deleteSlicer"].includes(
       String(record(value).action),
     )
   ) {

@@ -95,11 +95,16 @@ fn Session::read_slicer_drawing(
       "unsupported-drawing", "Worksheet slicer control is unavailable",
     )
   }
+  let start = self.slicer_scrolls
+    .get((sheet.id, control.name))
+    .unwrap_or(control.start)
   let control = {
     ..control,
-    start: self.slicer_scrolls
-    .get((sheet.id, control.name))
-    .unwrap_or(control.start),
+    start: if start < control.cache.members.length() {
+      start
+    } else {
+      0
+    },
   }
   let client = tree.picture_child(frame.id, "clientData")
   if client is Some(node) {

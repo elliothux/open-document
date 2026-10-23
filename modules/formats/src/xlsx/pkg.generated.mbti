@@ -438,6 +438,7 @@ pub fn Session::delete_chart(Self, Int, String, String, @layout.TextProbe, Map[S
 pub fn Session::delete_picture(Self, Int, String, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::delete_pivot(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::delete_shape(Self, Int, String, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn Session::delete_slicer(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::drawing_fragment_image(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::drawing_gesture(Self, Int, Int, Int, Double, Double, Bool, @layout.TextProbe, Map[String, String], images~ : @layout.Images, viewport? : DrawingViewport?) -> Json raise @failure.Failure
 pub fn Session::duplicates(Self, Int, String, DuplicateSettings) -> Json raise @failure.Failure

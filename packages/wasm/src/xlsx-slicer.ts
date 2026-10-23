@@ -75,6 +75,7 @@ export function checkXlsxSlicerSettings(value: unknown): void {
     throw new Error("Invalid native slicer settings");
 }
 export type XlsxSlicerEdit =
+  | { action: "deleteSlicer"; name: string }
   | {
       action: "filterSlicer";
       name: string;
@@ -90,6 +91,15 @@ export type XlsxSlicerEdit =
   | { action: "scrollSlicer"; layout: number; id: string; rows: number };
 export function checkXlsxSlicerEdit(value: unknown): void {
   const edit = record(value);
+  if (edit.action === "deleteSlicer") {
+    if (
+      !fields(edit, ["action", "name"]) ||
+      !text(edit.name, 255) ||
+      !edit.name.trim()
+    )
+      throw new Error("Invalid slicer deletion command");
+    return;
+  }
   if (edit.action === "selectSlicer" || edit.action === "scrollSlicer") {
     const selecting = edit.action === "selectSlicer";
     if (

@@ -131,7 +131,7 @@ pub fn Session::pivots(
     .filter(pivot => pivot.sheet == sheet)
     .map(pivot => {
       let (settings, reason) = try {
-        let (settings, _) = self.pivot_settings(pivot)
+        let (settings, _) = self.pivot_settings(pivot, shared=true)
         (Some(settings), "")
       } catch {
         @failure.Failure(message~, ..) => (None, message)
