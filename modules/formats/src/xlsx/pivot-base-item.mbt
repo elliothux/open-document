@@ -29,6 +29,7 @@ fn pivot_compare_mode(mode : String) -> Bool {
 fn pivot_read_base_item(
   field : @xml.Node,
   cache : Tree,
+  date1904~ : Bool = false,
 ) -> PivotBaseItem? raise @failure.Failure {
   guard field.attribute("baseItem") is Some(item) else { return None }
   match item {
@@ -36,7 +37,7 @@ fn pivot_read_base_item(
     "1048829" => Some(Next)
     _ => {
       let base = natural(field.attribute("baseField").unwrap_or(""), 63)
-      let items = pivot_field_items(cache, base)
+      let items = pivot_field_items(cache, base, date1904~)
       let at = natural(item, items.length() - 1)
       Some(Member(items[at]))
     }

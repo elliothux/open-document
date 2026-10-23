@@ -151,14 +151,17 @@ fn Session::timeline_parts(
 }
 
 ///|
-fn timeline_range(tree : Tree, node : @xml.Node) -> Json raise @failure.Failure {
+fn timeline_range(
+  tree : Tree,
+  node : @xml.Node,
+) -> TimelineRange raise @failure.Failure {
   timeline_profile(tree, node, ["startDate", "endDate"], [])
   let start = node.attribute("startDate").unwrap_or("")
   let end = node.attribute("endDate").unwrap_or("")
   guard pivot_date_parse(start, false) <= pivot_date_parse(end, false) else {
     @failure.reject("protected-content", "Timeline dates are reversed")
   }
-  { "start": start, "end": end }
+  { start, end, }
 }
 
 ///|

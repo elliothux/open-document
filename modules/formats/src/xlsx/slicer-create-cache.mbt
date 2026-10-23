@@ -97,7 +97,7 @@ fn Session::slicer_creation_cache(
     created,
     edits,
   )
-  let (workbook, edit) = slicer_reference(
+  let (workbook, edit) = analysis_reference(
     self.workbook,
     slicer_cache_extension,
     "slicerCaches",

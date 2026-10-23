@@ -7,6 +7,7 @@ import type {
   XlsxChartFrame,
   XlsxSlicerSettings,
   XlsxSlicerFrame,
+  XlsxTimelineSettings,
 } from "./xlsx.js";
 import type { XlsxQuery, XlsxSheetEdit } from "@open-document/wasm/xlsx";
 import type { SpreadsheetCanvas } from "./spreadsheet-canvas.js";
@@ -24,6 +25,16 @@ export abstract class SpreadsheetObjects {
       this.client.timelines(
         this.currentState.revision,
         this.currentState.sheet,
+      ),
+    );
+  }
+  insertTimeline(settings: XlsxTimelineSettings): Promise<void> {
+    return this.change(() =>
+      this.client.insertTimeline(
+        this.currentState.revision,
+        this.currentState.sheet,
+        settings,
+        this.profile,
       ),
     );
   }

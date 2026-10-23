@@ -2,6 +2,7 @@ import type {
   XlsxPivotSettings,
   XlsxSlicerSettings,
   XlsxSlicerFrame,
+  XlsxTimelineSettings,
 } from "@open-document/wasm/xlsx";
 
 export type XlsxAnalysisRequest =
@@ -22,6 +23,13 @@ export type XlsxAnalysisRequest =
       operation: "pivotPreviewXlsx";
       revision: number;
       settings: XlsxPivotSettings;
+    }
+  | {
+      operation: "insertXlsxTimeline";
+      revision: number;
+      sheet: string;
+      settings: XlsxTimelineSettings;
+      profile: Record<string, string>;
     }
   | {
       operation: "insertXlsxSlicer";

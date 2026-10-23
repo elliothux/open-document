@@ -1,6 +1,6 @@
 ///|
 // A flat fallback with matching coordinates can move with the native choice without losing its source.
-fn SheetObject::slicer_transform_change(
+fn SheetObject::compatible_transform_change(
   self : SheetObject,
   rect : @layout.Border,
 ) -> @xml.SourceChange raise @failure.Failure {

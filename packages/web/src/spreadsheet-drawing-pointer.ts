@@ -460,6 +460,7 @@ export class SpreadsheetDrawingPointer {
     let selected = false;
     if (now.layout && !this.viewport.hidden && !now.disabled)
       for (const [layer, object] of now.layout.objects.entries()) {
+        if (object.timeline) continue;
         for (const [index, region] of (
           object.slicer?.move ?? object.regions
         ).entries()) {

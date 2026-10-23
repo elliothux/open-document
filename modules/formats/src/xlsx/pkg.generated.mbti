@@ -446,6 +446,7 @@ pub fn Session::edit_sheet(Self, Int, String, SheetEdit, date? : String?) -> Jso
 pub fn Session::export_csv(Self, Int, selection? : Bool) -> Bytes raise @failure.Failure
 pub fn Session::fill_preview(Self, Int, FillTarget, ctrl? : Bool) -> Json raise @failure.Failure
 pub fn Session::filter_slicer(Self, Int, String, String, Array[Int]) -> Json raise @failure.Failure
+pub fn Session::filter_timeline(Self, Int, String, String, (String, String)?) -> Json raise @failure.Failure
 pub fn Session::find(Self, Int, String, String, FindOptions) -> Json raise @failure.Failure
 pub fn Session::format_cells(Self, Int, CellFormat) -> Json raise @failure.Failure
 pub fn Session::hit(Self, Int, Double, Double) -> String raise @failure.Failure
@@ -455,6 +456,7 @@ pub fn Session::insert_chart_range(Self, Int, String, String, String, String, Do
 pub fn Session::insert_picture(Self, Int, String, Double, Double, Bytes, @layout.TextProbe, Map[String, String], name? : String, description? : String, images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_shape(Self, Int, String, String, Double, Double, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::insert_slicer(Self, Int, String, SlicerSettings, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn Session::insert_timeline(Self, Int, String, TimelineSettings, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::invalidate_geometry(Self) -> Unit
 pub fn Session::navigate(Self, Int, String, Bool) -> Json raise @failure.Failure
 pub fn Session::open(Bytes, @archive.Budget, date? : String?) -> Self raise @failure.Failure
@@ -653,6 +655,15 @@ pub(all) struct TextColumnSettings {
 pub(all) enum TextColumnSplit {
   Delimited(String)
   Fixed(Array[Int])
+}
+
+pub(all) struct TimelineSettings {
+  pivot : String
+  field : Int
+  name : String
+  caption : String
+  width : Double
+  height : Double
 }
 
 pub(all) enum Value {

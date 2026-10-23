@@ -1,8 +1,13 @@
 import { useState } from "react";
 import type { SpreadsheetEditor } from "@open-document/web/spreadsheet-editor";
-import type { XlsxTimelines } from "@open-document/web/xlsx";
+import type {
+  XlsxTimelines,
+  XlsxTimeline,
+  XlsxTimelineRange,
+} from "@open-document/web/xlsx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { CreateTimeline } from "./xlsx-timeline-create.js";
 
 export function XlsxTimelinesPanel({
   editor,
@@ -17,18 +22,21 @@ export function XlsxTimelinesPanel({
 }) {
   const t = messages(state.locale);
   const [catalog, setCatalog] = useState<XlsxTimelines>();
+  const load = async () => setCatalog(await editor.timelines());
   const current =
     catalog?.revision === editor.currentState.revision &&
     catalog.sheet === editor.currentState.sheet;
   return (
     <fieldset disabled={disabled}>
       <legend>{t.timelines}</legend>
-      <button
-        type="button"
-        onClick={() =>
-          controller.run(async () => setCatalog(await editor.timelines()))
-        }
-      >
+      <CreateTimeline
+        editor={editor}
+        controller={controller}
+        state={state}
+        disabled={disabled}
+        created={load}
+      />
+      <button type="button" onClick={() => controller.run(load)}>
         {t.timelineList}
       </button>
       {catalog && !current && <p>{t.pivotReload}</p>}
@@ -57,8 +65,99 @@ export function XlsxTimelinesPanel({
               <dt>{t.timelineConnections}</dt>
               <dd>{item.connections.map((pivot) => pivot.name).join(", ")}</dd>
             </dl>
+            <TimelineRangeForm
+              key={`${catalog.revision}:${item.name}`}
+              item={item}
+              state={state}
+              disabled={
+                disabled ||
+                !current ||
+                !item.connections.length ||
+                editor.currentState.protection.protected
+              }
+              apply={(range) =>
+                controller.run(async () => {
+                  await editor.editSheet({
+                    action: "filterTimeline",
+                    name: item.name,
+                    range,
+                  });
+                  await load();
+                })
+              }
+            />
           </fieldset>
         ))}
+    </fieldset>
+  );
+}
+
+function TimelineRangeForm({
+  item,
+  state,
+  disabled,
+  apply,
+}: {
+  item: XlsxTimeline;
+  state: UiSnapshot;
+  disabled: boolean;
+  apply: (range: XlsxTimelineRange | null) => void;
+}) {
+  const t = messages(state.locale),
+    bounds = item.state.bounds;
+  const [start, setStart] = useState(
+    (item.state.selection ?? bounds).start.slice(0, 10),
+  );
+  const [end, setEnd] = useState(
+    (item.state.selection ?? bounds).end.slice(0, 10),
+  );
+  return (
+    <fieldset disabled={disabled}>
+      <legend>{t.timelineRange}</legend>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          apply({
+            start:
+              start === bounds.start.slice(0, 10)
+                ? bounds.start
+                : `${start}T00:00:00`,
+            end:
+              end === bounds.end.slice(0, 10)
+                ? bounds.end
+                : `${end}T23:59:59.999`,
+          });
+        }}
+      >
+        <label>
+          {t.timelineStart}
+          <input
+            aria-label={t.timelineStart}
+            type="date"
+            required
+            min={bounds.start.slice(0, 10)}
+            max={bounds.end.slice(0, 10)}
+            value={start}
+            onChange={(event) => setStart(event.currentTarget.value)}
+          />
+        </label>
+        <label>
+          {t.timelineEnd}
+          <input
+            aria-label={t.timelineEnd}
+            type="date"
+            required
+            min={start || bounds.start.slice(0, 10)}
+            max={bounds.end.slice(0, 10)}
+            value={end}
+            onChange={(event) => setEnd(event.currentTarget.value)}
+          />
+        </label>
+        <button type="submit">{t.timelineApply}</button>
+        <button type="button" onClick={() => apply(null)}>
+          {t.timelineClear}
+        </button>
+      </form>
     </fieldset>
   );
 }

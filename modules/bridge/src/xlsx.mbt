@@ -150,7 +150,7 @@ fn Foundation::xlsx_operation(
       }
       if [
           "createPivot", "refreshPivot", "updatePivot", "deletePivot", "filterSlicer",
-          "selectSlicer", "scrollSlicer", "deleteSlicer",
+          "selectSlicer", "scrollSlicer", "deleteSlicer", "filterTimeline",
         ].contains(field_string(change, "action")) {
         return xlsx_pivot_edit(
           session,

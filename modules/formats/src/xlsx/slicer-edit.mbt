@@ -83,6 +83,18 @@ pub fn Session::filter_slicer(
     )
   }
   let cache = control.cache
+  guard !self
+    .affected_timeline_caches(cache.pivots)
+    .any(timeline => {
+      timeline.connections.any(pair => {
+        pair.1 == cache.field &&
+        cache.pivots.any(pivot => pivot.part == pair.0.part)
+      })
+    }) else {
+    @failure.reject(
+      "protected-content", "Use the linked timeline to filter this date field",
+    )
+  }
   let selected : Map[Int, Bool] = Map([])
   let members = Map::from_array(cache.members.map(item => (item.index, true)))
   for index in indices {

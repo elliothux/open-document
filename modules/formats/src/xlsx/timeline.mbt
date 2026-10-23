@@ -6,7 +6,7 @@ priv struct TimelineCache {
   pivot_cache : String
   field : Int
   connections : Array[(PivotLocation, Int)]
-  state : Json
+  state : TimelineState
 }
 
 ///|
@@ -135,19 +135,16 @@ fn Session::read_timeline_cache(
   guard selection.length() <= 1 else {
     @failure.reject("protected-content", "Duplicate timeline selection")
   }
-  let state : Json = {
-    "bounds": timeline_range(tree, tree.timeline_node(node.id, "bounds")),
-    "selection": selection
-    .get(0)
-    .map(item => timeline_range(tree, item))
-    .unwrap_or(Json::null()),
-    "singleRange": flag(node, "singleRangeFilterState", fallback=true),
-    "filterType": slicer_text(node, "filterType"),
-    "minimumRefreshVersion": natural(
+  let state : TimelineState = {
+    bounds: timeline_range(tree, tree.timeline_node(node.id, "bounds")),
+    selection: selection.get(0).map(item => timeline_range(tree, item)),
+    singleRange: flag(node, "singleRangeFilterState", fallback=true),
+    filterType: slicer_text(node, "filterType"),
+    minimumRefreshVersion: natural(
       node.attribute("minimalRefreshVersion").unwrap_or(""),
       2147483647,
     ),
-    "lastRefreshVersion": natural(
+    lastRefreshVersion: natural(
       node.attribute("lastRefreshVersion").unwrap_or(""),
       2147483647,
     ),
@@ -199,7 +196,7 @@ fn Session::read_timeline_cache(
 fn Session::read_timelines(
   self : Session,
   sheet : String,
-) -> Array[Json] raise @failure.Failure {
+) -> Array[SheetTimeline] raise @failure.Failure {
   let current = self.sheets[self.sheet_index(sheet)]
   let views = self.timeline_parts(
     sheet,
@@ -236,7 +233,7 @@ fn Session::read_timelines(
     }
     caches[cache.name.to_lower()] = cache
   }
-  let result : Array[Json] = []
+  let result : Array[SheetTimeline] = []
   let names : Map[String, Bool] = Map([])
   for part in views {
     let document = self.part_xml(part)
@@ -283,42 +280,22 @@ fn Session::read_timelines(
       if scroll is Some(value) {
         ignore(pivot_date_parse(value, false))
       }
-      let value : Json = {
-        "part": part,
-        "name": name,
-        "caption": slicer_text(node, "caption", fallback=name),
-        "cache": cache.part,
-        "cacheName": cache.name,
-        "sourceName": cache.source,
-        "pivotCache": cache.pivot_cache,
-        "field": cache.field,
-        "state": cache.state,
-        "connections": cache.connections.map(pair => {
-          let connection : Json = {
-            "sheet": pair.0.sheet,
-            "part": pair.0.part,
-            "name": pair.0.name,
-            "field": pair.1,
-          }
-          connection
-        }),
-        "level": natural(node.attribute("level").unwrap_or(""), 3),
-        "selectionLevel": natural(
+      let value : SheetTimeline = {
+        part,
+        name,
+        caption: slicer_text(node, "caption", fallback=name),
+        cache,
+        level: natural(node.attribute("level").unwrap_or(""), 3),
+        selection_level: natural(
           node.attribute("selectionLevel").unwrap_or(""),
           3,
         ),
-        "scrollPosition": scroll
-        .map(value => Json(value))
-        .unwrap_or(Json::null()),
-        "showHeader": flag(node, "showHeader", fallback=true),
-        "showSelectionLabel": flag(node, "showSelectionLabel", fallback=true),
-        "showTimeLevel": flag(node, "showTimeLevel", fallback=true),
-        "showHorizontalScrollbar": flag(
-          node,
-          "showHorizontalScrollbar",
-          fallback=true,
-        ),
-        "style": style,
+        scroll,
+        header: flag(node, "showHeader", fallback=true),
+        selection_label: flag(node, "showSelectionLabel", fallback=true),
+        time_level: flag(node, "showTimeLevel", fallback=true),
+        scrollbar: flag(node, "showHorizontalScrollbar", fallback=true),
+        style,
       }
       result.push(value)
     }
@@ -347,7 +324,7 @@ pub fn Session::timelines(
     "revision": revision,
     "sheet": sheet,
     "reason": reason,
-    "items": items,
+    "items": items.map(item => item.json()),
   }
   guard result.stringify().length() <= 1048576 else {
     @failure.reject("limit-exceeded", "Timeline catalog exceeds budget")

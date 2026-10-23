@@ -1,15 +1,4 @@
 ///|
-fn pivot_plain_source(document : @xml.Document) -> Unit raise @failure.Failure {
-  let root = document.nodes()[0]
-  let source = document.source()[root.start:root.end]
-  guard !source.contains("<!--") && !source.contains("<?") else {
-    @failure.reject(
-      "protected-content", "Pivot source comments or processing instructions require preservation support",
-    )
-  }
-}
-
-///|
 fn Session::pivot_settings(
   self : Session,
   pivot : PivotLocation,
@@ -77,6 +66,7 @@ fn Session::pivot_settings(
           baseItem: pivot_read_base_item(
             field,
             Tree::new(self.part_xml(pivot.cache)),
+            date1904=self.date1904,
           ),
           name: decode_text(field.attribute("name").unwrap_or("")),
         }
@@ -91,11 +81,16 @@ fn Session::pivot_settings(
     .filter(node => node.attribute("x") != Some("-2"))
     .map(node => natural(node.attribute("x").unwrap_or(""), 79))
   let width = source.right - source.left + 1
-  let filters = pivot_read_filters(tree, Tree::new(self.part_xml(pivot.cache))) +
+  let filters = pivot_read_filters(
+      tree,
+      Tree::new(self.part_xml(pivot.cache)),
+      date1904=self.date1904,
+    ) +
     pivot_read_member_filters(
       tree,
       Tree::new(self.part_xml(pivot.cache)),
       width,
+      date1904=self.date1904,
     )
   let (number_groups, date_groups, axes) = pivot_read_groups(
     Tree::new(self.part_xml(pivot.cache)),
@@ -144,13 +139,21 @@ fn Session::pivot_settings(
     values,
   }
   ignore(settings.validate())
+  let timelines = self.affected_timeline_caches(
+    self.pivot_locations().filter(peer => peer.cache == pivot.cache),
+  )
   let hidden = filters.filter(filter => {
     !filter.report && !(rows + columns).contains(filter.field)
   })
   if !hidden.is_empty() {
     let connected = self.affected_slicer_caches([pivot])
     guard hidden.all(filter => {
-      connected.any(cache => cache.field == filter.field)
+      connected.any(cache => cache.field == filter.field) ||
+      timelines.any(cache => {
+        cache.connections.any(pair => {
+          pair.0.part == pivot.part && pair.1 == filter.field
+        })
+      })
     }) else {
       @failure.reject(
         "protected-content", "Unused pivot member filters require a linked slicer",
@@ -439,7 +442,12 @@ fn Session::pivot_settings(
     if cache_tree.one(field.id, "sharedItems") is Some(items) {
       for node in cache_tree.children.get(items.id).unwrap_or([]) {
         if node.name == "d" {
-          guard date_groups.any(group => group.field == index) else {
+          guard date_groups.any(group => group.field == index) ||
+            timelines.any(cache => {
+              cache.connections.any(pair => {
+                pair.0.cache == pivot.cache && pair.1 == index
+              })
+            }) else {
             @failure.reject(
               "protected-content", "Ungrouped native date cache requires support",
             )

@@ -51,6 +51,9 @@ fn Foundation::dispatch(
     @failure.reject("closed-session", "Foundation session is closed")
   }
   let operation = field_string(request, "operation")
+  if operation == "insertXlsxTimeline" {
+    return self.insert_xlsx_timeline(request)
+  }
   if operation == "insertXlsxSlicer" {
     return self.insert_xlsx_slicer(request)
   }

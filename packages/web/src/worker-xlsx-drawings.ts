@@ -1,6 +1,7 @@
 import type { XlsxSession } from "@open-document/wasm/xlsx";
 import type { Request } from "./protocol.js";
 const drawingOperations = [
+  "insertXlsxTimeline",
   "insertXlsxSlicer",
   "frameXlsxSlicer",
   "picturesXlsx",
@@ -42,6 +43,13 @@ export function drawingOperation(
 ): unknown {
   if (!workbook) throw new Error("Open an XLSX client first");
   switch (request.operation) {
+    case "insertXlsxTimeline":
+      return workbook.insertTimeline(
+        request.revision,
+        request.sheet,
+        request.settings,
+        request.profile,
+      );
     case "frameXlsxSlicer":
       return workbook.setSlicerFrame(
         request.revision,

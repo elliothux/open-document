@@ -19,7 +19,11 @@ import {
   type XlsxSlicerSettings,
 } from "./xlsx-slicer.js";
 export * from "./xlsx-slicer.js";
-import { xlsxTimelines } from "./xlsx-timeline.js";
+import {
+  xlsxTimelines,
+  checkXlsxTimelineSettings,
+  type XlsxTimelineSettings,
+} from "./xlsx-timeline.js";
 export * from "./xlsx-timeline.js";
 export type { XlsxSlicerView } from "./xlsx-slicer-view.js";
 export type { XlsxQuery } from "./xlsx-query.js";
@@ -426,6 +430,23 @@ export class XlsxSession extends XlsxDrawingSession {
   timelines(revision: number, sheet: string) {
     return xlsxTimelines(
       this.call({ operation: "timelinesXlsx", revision, sheet }),
+    );
+  }
+  insertTimeline(
+    revision: number,
+    sheet: string,
+    settings: XlsxTimelineSettings,
+    profile: Record<string, string>,
+  ) {
+    checkXlsxTimelineSettings(settings);
+    return xlsxQuery(
+      this.call({
+        operation: "insertXlsxTimeline",
+        revision,
+        sheet,
+        settings,
+        profile,
+      }),
     );
   }
   pivotPreview(revision: number, settings: XlsxPivotSettings) {

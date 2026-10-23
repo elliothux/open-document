@@ -153,7 +153,7 @@ fn PivotSettings::validate(
     }
     filter_fields[filter.field] = true
     if filter.values is Some(values) {
-      guard !values.is_empty() && values.length() <= 4096 else {
+      guard values.length() <= 4096 else {
         @failure.reject(
           "limit-exceeded", "Pivot member selection exceeds budget",
         )

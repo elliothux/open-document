@@ -52,7 +52,8 @@ fn Session::fit_sizes(
         sparkline_extension(tree, node) {
         continue
       }
-      if self.slicer_extension(current, tree, node, sheets~) {
+      if self.slicer_extension(current, tree, node, sheets~) ||
+        self.timeline_extension(current, tree, node) {
         continue
       }
       if node.uri != spreadsheet_uri ||

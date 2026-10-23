@@ -6,6 +6,12 @@ fn SheetObject::paint(
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> Unit raise @failure.Failure {
+  if self.timeline is Some(timeline) {
+    if self.visible && rect.width > 0 && rect.height > 0 {
+      timeline.paint(primitives, rect, probe, profile)
+    }
+    return
+  }
   if self.slicer is Some(slicer) {
     if self.visible && rect.width > 0 && rect.height > 0 {
       slicer.paint(primitives, rect, probe, profile)

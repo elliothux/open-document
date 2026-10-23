@@ -18,6 +18,7 @@ fn Session::refresh_shared_pivot(
     )
   }
   let pivots = known.filter(pivot => pivot.cache == target.cache)
+  self.protect_timeline_pivots(pivots)
   let slicers = self.affected_slicer_caches(pivots)
   if pivots.length() == 1 && slicers.is_empty() {
     return false

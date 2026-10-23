@@ -2390,7 +2390,7 @@ Canvas 和静态 PDF 复用单元格绘制。核心从当前计算结果取数�
 
 普通区域行列轴透视表已接通 MoonBit、Wasm、Worker、编辑宿主和默认面板。`Session::pivot_preview(revision, settings)` 返回字段、记录数、类型化分组结果及总计，查询不写源或历史。预览最多返回前 20 个行分组，groups 和 truncated 说明完整输出行数（含小计、不含总计）及截断状态；总计与实际创建仍处理全部筛选后记录，JSON 继续受 1 Mi UTF-16 上限约束。`PivotSettings` 为 `{ sourceSheet, source, rows, columns, filters, subtotals, numberGroups, dateGroups, values }`；sourceSheet 是稳定工作表部件身份，source 包含标题行。rows 和 columns 使用相对源区域、从 0 开始的列索引；两轴不能重复字段，columns 空数组表示只有行轴；每项 values 为 `{ field, aggregate, baseItem, baseField, showDataAs, name }`，name 是显示标题。标题按当前格式读取且不能为空，重复标题在缓存中分配唯一名称，不改源格；值标题不能与源字段名称重复。
 
-filters 为 0–8 项 `{ field, report, values }`，三项均必需。field 使用源列索引，筛选字段不能重复。report 为 true 时放入报表区，不能同时属于行列轴；false 表示原位成员筛选，不增加报表行。行列字段保留轴位置；布局外的有效成员条件必须连接原生切片器。values 为 null 时选择全部成员，自动包含后续新增成员；非空类型化 Value 数组选择指定成员，单字段内取并集，字段之间取交集。文字匹配合并大小写，数字、文字数字、布尔、错误与空白保持类型；每字段最多 4096 个成员。普通字段保留完整缓存记录与已选但暂时缺失的成员，刷新不静默改指其他成员。成员筛选选中全部当前缓存项时，按原生隐藏项规则清除该筛选，目录不再返回这项条件；报表字段仍保留其固定列表。预览 recordCount 是源记录数，filteredCount 是筛选后记录数，filterItems 是各字段的 `{ value, label }` 候选项，label 由核心按有效格式生成。零匹配允许，返回空分组及空白总计。
+filters 为 0–8 项 `{ field, report, values }`，三项均必需。field 使用源列索引，筛选字段不能重复。report 为 true 时放入报表区，不能同时属于行列轴；false 表示原位成员筛选，不增加报表行。行列字段保留轴位置；布局外的有效成员条件必须连接原生切片器或时间线。values 为 null 时选择全部成员，自动包含后续新增成员；类型化 Value 数组选择指定成员，空数组明确不选择任何成员，单字段内取并集，字段之间取交集。文字匹配合并大小写，数字、文字数字、布尔、错误与空白保持类型；每字段最多 4096 个成员。普通字段保留完整缓存记录与已选但暂时缺失的成员，刷新不静默改指其他成员。成员筛选选中全部当前缓存项时，按原生隐藏项规则清除该筛选，目录不再返回这项条件；报表字段仍保留其固定列表。预览 recordCount 是源记录数，filteredCount 是筛选后记录数，filterItems 是各字段的 `{ value, label }` 候选项，label 由核心按有效格式生成。零匹配允许，返回空分组及空白总计。
 
 报表筛选格按字段顺序纵向排列，其后留一空行。目录 range、覆盖保护、更新原点和删除范围包含筛选格；原生 location.ref 仅含表头及聚合结果。选择保存为原生 pageFields、axisPage、item 与隐藏成员标记。默认面板提供全部/类型化多选，改动后预览再应用。横向、换行或未知原生分页布局保持保护。布局和成员筛选依据 [ONLYOFFICE 报表位置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L4323-L4342)、[成员筛选](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L5103-L5139)与[报表值](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L5237-L5267)。
 
@@ -2492,7 +2492,25 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 核心校验工作表/工作簿扩展、原生关系与内容类型、缓存角色、源字段和同源透视连接。日期缓存可从工作簿的 `timelineCachePivotCaches` 扩展目录解析，与结果表缓存分开；原生 `timelineData` 标志不能互换。缓存和视图名称按大小写无关身份连接。重复或失联引用、外部/OLAP 源、未知元数据、角色/来源冲突或非法日期返回原因与空目录；资源超限继续抛错。每表最多 64 个视图，每类部件引用最多 64 项，每缓存最多 16 个连接、最多 80 个缓存字段，视图及时间线缓存 XML 合计限 1 Mi UTF-16 单元，目录输出同限。名称、标题及样式最多 255 单元。日期沿既有日历解析，接受可选 Z 和小数秒；时区偏移和日历下界之前的日期继续保护。
 
-读取依据 [ONLYOFFICE Timeline.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/XlsxFormat/Timelines/Timeline.cpp)、[工作簿扩展](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/e29966e2-5baa-4fcf-84c9-082025e1be13)、[缓存角色](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/d49705e6-4e25-4573-9b14-6b666a6e0bb1)和 [CT_Timeline](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/0d578770-103b-4d74-8920-6636997b6424)。实现归 [`timeline-source.mbt`](../../modules/formats/src/xlsx/timeline-source.mbt)、[`timeline.mbt`](../../modules/formats/src/xlsx/timeline.mbt)及 [`xlsx-timelines.tsx`](../../packages/ui/src/xlsx-timelines.tsx)。未复制上游源码。原生时间线绘图可保留并读取目录，画布/PDF 绘制、创建、范围编辑和协调刷新/删除继续实施；原未知资源的编辑与打印保护保持。
+读取依据 [ONLYOFFICE Timeline.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/XlsxFormat/Timelines/Timeline.cpp)、[工作簿扩展](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/e29966e2-5baa-4fcf-84c9-082025e1be13)、[缓存角色](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/d49705e6-4e25-4573-9b14-6b666a6e0bb1)和 [CT_Timeline](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/0d578770-103b-4d74-8920-6636997b6424)。实现归 [`timeline-source.mbt`](../../modules/formats/src/xlsx/timeline-source.mbt)、[`timeline.mbt`](../../modules/formats/src/xlsx/timeline.mbt)及 [`xlsx-timelines.tsx`](../../packages/ui/src/xlsx-timelines.tsx)。未复制上游源码。
+
+原生 `timeslicer` 绘图已接入 R0 Canvas 和打印/PDF。核心读取固定、随单元格移动及随单元格缩放三类锚点，也读取 a15 兼容分支，保留原生后备。按 `level` 绘制年、季度、月或日刻度，使用原生日期范围、滚动位置及连续选区；月份按真实日历划分，保留小数秒。标题、选区文字、粒度和滚动条分别遵循原显示开关。沿工作簿普通/粗体字体测量，每个控件最多绘制 512 个可见日期段，不遍历整个日期跨度。绘制、目录查询及保存重开不增加文档历史。
+
+视口对象以 `kind: "timeline"` 返回 `timeline: { name, label }`。默认宿主提供只读图像语义和原生选区说明，遮挡底层单元格命中，不显示移动或缩放手柄。打印仅识别已校验的时间线、切片器及迷你图扩展；混合未知内容继续保护。行高、列宽变化时，原生框与已校验的平面兼容后备随单元格同步移动或缩放。手动对象编辑、复制和删除继续拒绝，等待时间线资源协调事务。
+
+首批支持默认样式及 `TimelineStyleLight1`，使用工作簿文字色与强调色。精确的原生预设差异格式及几何尚未匹配，不能视为原生样式保真；其他预设、自定义覆盖及非连续选区继续保护。实现归 [`timeline-drawing.mbt`](../../modules/formats/src/xlsx/timeline-drawing.mbt)和 [`timeline-paint.mbt`](../../modules/formats/src/xlsx/timeline-paint.mbt)，日期含义依据 [CT_TimelineState](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/aa9bf132-1afa-4ce9-b3d2-e6dc00e48fde)。精确样式和协调刷新/删除继续实施。
+
+`editSheet({ action: "filterTimeline", name, range })` 筛选当前工作表的原生时间线。range 为 `{ start, end }` 原生 ISO 时间串或 null；MoonBit 入口为 `Session::filter_timeline(revision, sheet, name, range)`，range 使用可选日期串对。区间两端包含在内，必须有序且落在原生 bounds 内；保留小数秒。null 清除条件，写入 `filterType=unknown` 并移除 selection；明确范围写入 `dateBetween`。同缓存视图立即共享选区，清除后画布显示全部可用日期。默认面板提供开始/结束日期、应用和清除，使用既有编辑队列与输入提交屏障；日期表单按所选整日生成区间，边界日取原生 bounds。画布仍提供只读说明。
+
+范围按工作簿的 1900/1904 日期系统转换为各关联透视缓存的日期成员，在一个事务中更新原生隐藏项、结果格和时间线 state。读取原生日期/空白成员，保留其他字段条件、各表字段布局，以及关联切片器成员状态。结果缓存和独立日期缓存不重建，不刷新待处理源；输入值及原有过期标记保留。没有成员的区间写入空选择，返回空结果和空白总计；清除恢复全部缓存成员。各表输出变化累计最多 65536 格，任一表扩张冲突或保护失败都保留原包、选择、历史和重做；重复操作不添加历史。默认输入和结果区打印允许已校验的时间线连接元数据，未知扩展及手动锚点写回继续保护。
+
+当前范围筛选支持工作表来源及未分组日期字段。非连续状态、额外原生过滤器、分组映射或同一透视字段连接多个时间线缓存继续保护。普通刷新、字段更新、删除及同字段切片器写入不能绕过时间线协调。实现归 [`timeline-edit.mbt`](../../modules/formats/src/xlsx/timeline-edit.mbt)，原生日期到成员的含义依据[时间线与透视视图连接](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/576e7fb8-2352-4f8a-a541-08c2d4ba8887)。
+
+`SpreadsheetEditor.insertTimeline(settings)` 在当前选择处创建原生时间线。同步 `XlsxSession` 与 Worker `XlsxClient` 使用 `insertTimeline(revision, sheet, settings)`；MoonBit 入口为 `Session::insert_timeline`。`XlsxTimelineSettings` 包含透视表部件 `pivot`、零基源字段 `field`、`name`、`caption` 及 point 单位的 `width`/`height`。默认面板提供透视表、字段与尺寸输入，使用既有编辑队列和输入提交屏障。
+
+创建读取原缓存，不刷新待处理源。支持未分组、索引记录的日期字段：原生日期成员，或源列采用受支持日期格式的数字成员；保留空白及成员索引。独立日期缓存复制记录并设置原生日期角色，结果缓存只将所选日期字段转换为原生日期；同结果缓存的其他透视表保持可读。相同字段连接复用时间线缓存。现有连续日期条件继承为原生选区，非连续或空成员条件继续保护。新控件采用月粒度、Light1、随单元格移动锚点和兼容后备，全部部件与连接合为一项精确历史。
+
+名称、日期字段、字体或资源预算失败保留原包和重做。数字日期沿工作簿的 1900/1904 系统转换；1900 系统三月之前的数字日期继续保护，待实现虚构闰日映射。支持范围及精确样式边界同上，分组、手动框编辑与协调资源删除继续实施。创建实现归 [`timeline-create.mbt`](../../modules/formats/src/xlsx/timeline-create.mbt)。
 
 ### 打印与资源边界
 

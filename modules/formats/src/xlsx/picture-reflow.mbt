@@ -2,31 +2,37 @@
 fn SheetObject::transform_change(
   self : SheetObject,
   rect : @layout.Border,
+  reflow~ : Bool = false,
 ) -> @xml.SourceChange raise @failure.Failure {
-  if self.slicer is Some(_) && self.source.parent != self.frame.id {
-    return self.slicer_transform_change(rect) catch {
+  guard self.timeline is None || reflow else {
+    @failure.reject(
+      "protected-content", "Timeline anchor changes require coordinated editing",
+    )
+  }
+  if (self.slicer is Some(_) || self.timeline is Some(_)) &&
+    self.source.parent != self.frame.id {
+    return self.compatible_transform_change(rect) catch {
       @failure.Failure(code="limit-exceeded", ..) as error => raise error
       @failure.Failure(message~, ..) =>
         @failure.reject("protected-content", message)
     }
   }
-  let props = if self.chart is Some(_) || self.slicer is Some(_) {
+  let graphic = self.chart is Some(_) ||
+    self.slicer is Some(_) ||
+    self.timeline is Some(_)
+  let props = if graphic {
     self.source
   } else {
     self.tree.picture_node(self.source.id, "spPr")
   }
-  let uri = if self.chart is Some(_) || self.slicer is Some(_) {
-    picture_uri
-  } else {
-    picture_drawing_uri
-  }
-  let xml = if self.chart is Some(_) || self.slicer is Some(_) {
+  let uri = if graphic { picture_uri } else { picture_drawing_uri }
+  let xml = if graphic {
     chart_transform(rect)
   } else {
     picture_transform(rect)
   }
   if self.tree.picture_child(props.id, "xfrm", uri~) is Some(node) {
-    if self.chart is Some(_) || self.slicer is Some(_) {
+    if graphic {
       let source = self.tree.picture_markup(node.id)
       guard !source.contains("<!--") && !source.contains("<?") else {
         @failure.reject(
@@ -50,7 +56,10 @@ fn SheetObject::transform_change(
 ///|
 fn SheetObject::transform_matches(self : SheetObject) -> Bool {
   try {
-    let props = if self.chart is Some(_) || self.slicer is Some(_) {
+    let graphic = self.chart is Some(_) ||
+      self.slicer is Some(_) ||
+      self.timeline is Some(_)
+    let props = if graphic {
       self.source
     } else {
       self.tree.picture_node(self.source.id, "spPr")
@@ -58,11 +67,7 @@ fn SheetObject::transform_matches(self : SheetObject) -> Bool {
     let transform = self.tree.picture_node(
       props.id,
       "xfrm",
-      uri=if self.chart is Some(_) || self.slicer is Some(_) {
-        picture_uri
-      } else {
-        picture_drawing_uri
-      },
+      uri=if graphic { picture_uri } else { picture_drawing_uri },
     )
     let position = self.tree.picture_node(
       transform.id,
@@ -126,7 +131,7 @@ fn Session::reflow_pictures(
     let changes : Array[@xml.SourceChange] = []
     for picture in next_pictures {
       if picture.anchor != "fixed" && !picture.transform_matches() {
-        changes.push(picture.transform_change(picture.rect))
+        changes.push(picture.transform_change(picture.rect, reflow=true))
       }
     }
     if !changes.is_empty() {

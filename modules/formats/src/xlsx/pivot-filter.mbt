@@ -2,6 +2,7 @@
 pub(all) struct PivotFilter {
   field : Int
   report : Bool
+  /// None selects all members; Some([]) selects none.
   values : Array[Value]?
 }
 
@@ -79,6 +80,7 @@ fn PivotCache::record_visible(
 fn pivot_field_items(
   cache : Tree,
   index : Int,
+  date1904~ : Bool = false,
 ) -> Array[Value] raise @failure.Failure {
   let fields = cache.all(cache.one(0, "cacheFields").unwrap().id, "cacheField")
   guard fields.get(index) is Some(field) else {
@@ -98,7 +100,13 @@ fn pivot_field_items(
   guard items.length() <= 4096 else {
     @failure.reject("limit-exceeded", "Pivot field items exceed budget")
   }
-  items.map(pivot_cache_value)
+  items.map(node => {
+    if node.name == "d" {
+      pivot_date_cache_value(node, date1904)
+    } else {
+      pivot_cache_value(node)
+    }
+  })
 }
 
 ///|
@@ -106,6 +114,7 @@ fn pivot_read_member_filters(
   tree : Tree,
   cache : Tree,
   width : Int,
+  date1904~ : Bool = false,
 ) -> Array[PivotFilter] raise @failure.Failure {
   let result : Array[PivotFilter] = []
   let fields = tree.all(tree.one(0, "pivotFields").unwrap().id, "pivotField")
@@ -129,7 +138,7 @@ fn pivot_read_member_filters(
         "protected-content", "Filtering a derived calendar level requires support",
       )
     }
-    let values = pivot_field_items(cache, index)
+    let values = pivot_field_items(cache, index, date1904~)
     guard values.length() <= 4096 && items.length() == values.length() else {
       @failure.reject(
         "protected-content", "Pivot axis items disagree with the cache",
@@ -207,6 +216,7 @@ fn PivotCache::filter_caption(self : PivotCache, filter : PivotFilter) -> Value 
 fn pivot_read_filters(
   tree : Tree,
   cache : Tree,
+  date1904~ : Bool = false,
 ) -> Array[PivotFilter] raise @failure.Failure {
   let pages = tree
     .one(0, "pageFields")
@@ -238,7 +248,13 @@ fn pivot_read_filters(
     let values = cache.children
       .get(shared.id)
       .unwrap_or([])
-      .map(pivot_cache_value)
+      .map(node => {
+        if node.name == "d" {
+          pivot_date_cache_value(node, date1904)
+        } else {
+          pivot_cache_value(node)
+        }
+      })
     let items = tree
       .one(field.id, "items")
       .map(node => tree.all(node.id, "item"))

@@ -1,4 +1,15 @@
 ///|
+fn pivot_plain_source(document : @xml.Document) -> Unit raise @failure.Failure {
+  let root = document.nodes()[0]
+  let source = document.source()[root.start:root.end]
+  guard !source.contains("<!--") && !source.contains("<?") else {
+    @failure.reject(
+      "protected-content", "Pivot source comments or processing instructions require preservation support",
+    )
+  }
+}
+
+///|
 fn pivot_root_edit(
   document : @xml.Document,
   markup : String,

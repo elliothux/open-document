@@ -5,6 +5,10 @@ import {
 } from "./xlsx-sparkline.js";
 import { checkXlsxPivotEdit, type XlsxPivotEdit } from "./xlsx-pivot.js";
 import { checkXlsxSlicerEdit, type XlsxSlicerEdit } from "./xlsx-slicer.js";
+import {
+  checkXlsxTimelineEdit,
+  type XlsxTimelineEdit,
+} from "./xlsx-timeline.js";
 import { checkXlsxOutlineEdit, type XlsxOutlineEdit } from "./xlsx-outline.js";
 import { checkXlsxTableEdit, type XlsxTableEdit } from "./xlsx-tables.js";
 import { checkXlsxNameEdit, type XlsxNameEdit } from "./xlsx-names.js";
@@ -39,6 +43,7 @@ export type XlsxSheetEdit =
   | XlsxSparklineEdit
   | XlsxPivotEdit
   | XlsxSlicerEdit
+  | XlsxTimelineEdit
   | {
       action: "protection" | "workbookProtection";
       enabled: boolean;
@@ -147,6 +152,10 @@ export type XlsxSheetEdit =
   | { action: "visibility"; state: "visible" | "hidden" | "veryHidden" };
 
 export function checkXlsxSheetEdit(value: unknown): void {
+  if (record(value).action === "filterTimeline") {
+    checkXlsxTimelineEdit(value);
+    return;
+  }
   if (
     ["filterSlicer", "selectSlicer", "scrollSlicer", "deleteSlicer"].includes(
       String(record(value).action),

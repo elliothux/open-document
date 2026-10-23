@@ -125,6 +125,11 @@ fn SheetObject::check_change(
   crop? : Array[Double],
   slicer_frame~ : Bool = false,
 ) -> Unit raise @failure.Failure {
+  guard self.timeline is None else {
+    @failure.reject(
+      "protected-content", "Timeline frames require coordinated editing",
+    )
+  }
   guard self.slicer is None || slicer_frame else {
     @failure.reject(
       "protected-content", "Slicer frame changes require coordinated resource editing",

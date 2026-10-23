@@ -62,7 +62,7 @@ pub fn Session::set_slicer_frame(
   let frame = tree.nodes[object.frame.id]
   let content = tree
     .picture_child(frame.id, "AlternateContent", uri=drawing_compatibility_uri)
-    .unwrap_or_else(() => tree.slicer_graphic(frame).unwrap())
+    .unwrap_or_else(() => tree.compatible_graphic(frame).unwrap())
   let client_data = tree
     .picture_child(frame.id, "clientData")
     .map(node => tree.picture_markup(node.id))

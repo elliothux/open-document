@@ -1,10 +1,11 @@
 ///|
-fn slicer_reference(
+fn analysis_reference(
   document : @xml.Document,
   uri : String,
   container : String,
   child : String,
   id : String,
+  payload_uri~ : String = slicer_uri,
 ) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
   let tree = Tree::new(document)
   let root = document.nodes()[0]
@@ -20,15 +21,24 @@ fn slicer_reference(
       .unwrap_or(false)
     })
   })
-  let entry = "<odS:\{child} xmlns:odS=\"\{slicer_uri}\" xmlns:r=\"\{relationship_uri[:relationship_uri.length()-1]}\" r:id=\"\{escaped_attribute(id)}\"/>"
+  let entry = "<odS:\{child} xmlns:odS=\"\{payload_uri}\" xmlns:r=\"\{relationship_uri[:relationship_uri.length()-1]}\" r:id=\"\{escaped_attribute(id)}\"/>"
   if extension is Some(ext) {
-    let parent = tree.slicer_node(ext.id, container)
-    guard tree.slicer_children(parent.id, child).length() < 64 else {
+    let parent = if payload_uri == timeline_uri {
+      tree.timeline_node(ext.id, container)
+    } else {
+      tree.slicer_node(ext.id, container)
+    }
+    guard tree.children
+      .get(parent.id)
+      .unwrap_or([])
+      .filter(node => node.uri == payload_uri && node.name == child)
+      .length() <
+      64 else {
       @failure.reject("limit-exceeded", "Slicer references exceed budget")
     }
     return document.edit_source([insertion(parent, entry)])
   }
-  let markup = "<odX:ext xmlns:odX=\"\{spreadsheet_uri}\" uri=\"\{uri}\"><odS:\{container} xmlns:odS=\"\{slicer_uri}\">\{entry}</odS:\{container}></odX:ext>"
+  let markup = "<odX:ext xmlns:odX=\"\{spreadsheet_uri}\" uri=\"\{uri}\"><odS:\{container} xmlns:odS=\"\{payload_uri}\">\{entry}</odS:\{container}></odX:ext>"
   match list {
     Some(list) => document.edit_source([insertion(list, markup)])
     None =>

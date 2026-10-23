@@ -183,12 +183,17 @@ export class SpreadsheetSlicers {
       groups = new Set<string>();
     if (now.layout && !this.viewport.hidden && !now.disabled) {
       for (const [layer, object] of now.layout.objects.entries()) {
-        const view = object.slicer;
-        if (!view) continue;
+        const view = object.slicer,
+          timeline = object.timeline;
+        if (!view && !timeline) continue;
         groups.add(object.id);
         const group = this.group(object.id),
           mode = () => `${this.host.current().query.sheet}:${object.id}`;
-        group.setAttribute("aria-label", `Slicer ${view.caption || view.name}`);
+        group.setAttribute("role", timeline ? "img" : "group");
+        group.setAttribute(
+          "aria-label",
+          timeline ? timeline.label : `Slicer ${view?.caption || view?.name}`,
+        );
         const place = (
           key: string,
           regions: XlsxSlicerView["clear"],
@@ -226,6 +231,7 @@ export class SpreadsheetSlicers {
           }
         };
         place("frame", object.regions, "");
+        if (!view) continue;
         for (const button of view.buttons)
           place(
             `member:${button.index}`,

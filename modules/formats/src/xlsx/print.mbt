@@ -86,7 +86,10 @@ fn Session::print_sheet(
     }
     if tree.one(tree.root("worksheet").id, "extLst") is Some(list) &&
       diagnostic == "unrendered:" + sheet + ":" + list.qualified &&
-      self.slicer_extension(current, tree, list) {
+      (
+        self.slicer_extension(current, tree, list) ||
+        self.timeline_extension(current, tree, list)
+      ) {
       continue
     }
     if diagnostic.has_prefix("unrendered:" + sheet + ":") {

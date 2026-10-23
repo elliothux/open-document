@@ -30,6 +30,7 @@ pub fn Session::delete_pivot(
     32768 else {
     @failure.reject("limit-exceeded", "Pivot deletion exceeds output budget")
   }
+  self.protect_timeline_pivots([pivot])
   let (_, records) = self.pivot_settings(pivot, shared=true)
   let related = self.deletion_slicer_caches(pivot)
   let shared = self

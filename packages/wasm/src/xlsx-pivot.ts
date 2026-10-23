@@ -98,7 +98,7 @@ export interface XlsxPivotFilter {
   field: number;
   /** True places this field in the report area; false filters members in place. */
   report: boolean;
-  /** Null includes future source members; a nonempty array keeps an explicit selection. */
+  /** Null includes all source members; an empty array selects none. */
   values: CellValue[] | null;
 }
 export type XlsxPivotEdit =
@@ -322,9 +322,7 @@ export function checkXlsxPivotSettings(value: unknown): void {
       (filter.report && axes.has(filter.field)) ||
       !(
         filter.values === null ||
-        (Array.isArray(filter.values) &&
-          filter.values.length > 0 &&
-          filter.values.length <= 4096)
+        (Array.isArray(filter.values) && filter.values.length <= 4096)
       )
     )
       throw new Error("Invalid pivot member filter");

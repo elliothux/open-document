@@ -3,7 +3,11 @@ import { xlsxTimelines } from "@open-document/wasm/xlsx";
 export {
   xlsxTimelines,
   type XlsxTimeline,
+  checkXlsxTimelineSettings,
+  type XlsxTimelineSettings,
   type XlsxTimelineRange,
+  type XlsxTimelineEdit,
+  type XlsxTimelineView,
   type XlsxTimelines,
 } from "@open-document/wasm/xlsx";
 import {

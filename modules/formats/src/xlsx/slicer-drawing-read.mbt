@@ -13,7 +13,7 @@ priv struct SlicerDrawing {
 }
 
 ///|
-fn Tree::slicer_graphic(
+fn Tree::compatible_graphic(
   self : Tree,
   frame : @xml.Node,
 ) -> @xml.Node? raise @failure.Failure {
@@ -49,7 +49,9 @@ fn Tree::slicer_graphic(
     .iter()
     .any(binding => {
       binding.0 == prefix &&
-      binding.1 == "http://schemas.microsoft.com/office/drawing/2010/main"
+      [
+        "http://schemas.microsoft.com/office/drawing/2010/main", "http://schemas.microsoft.com/office/drawing/2012/main",
+      ].contains(binding.1)
     }) else {
     @failure.reject(
       "unsupported-drawing", "Unsupported worksheet compatibility choice",
@@ -61,7 +63,18 @@ fn Tree::slicer_graphic(
   ignore(self.shape_children(choice, ["graphicFrame"], uri=picture_uri))
   let source = self.picture_node(choice.id, "graphicFrame")
   let (_, data) = self.sheet_graphic(source)
-  guard data.attribute("uri") == Some(slicer_drawing_uri) else {
+  guard (
+      data.attribute("uri") == Some(slicer_drawing_uri) &&
+      choice.namespaces.contains(
+        (prefix, "http://schemas.microsoft.com/office/drawing/2010/main"),
+      )
+    ) ||
+    (
+      data.attribute("uri") == Some(timeline_drawing_uri) &&
+      choice.namespaces.contains(
+        (prefix, "http://schemas.microsoft.com/office/drawing/2012/main"),
+      )
+    ) else {
     @failure.reject(
       "unsupported-drawing", "Unsupported worksheet compatibility graphic",
     )
@@ -139,6 +152,7 @@ fn Session::read_slicer_drawing(
       size: self.normal_size,
     }),
     crop: [0, 0, 0, 0],
+    timeline: None,
     printable: client
     .map(node => flag(node, "fPrintsWithSheet", fallback=true))
     .unwrap_or(true),

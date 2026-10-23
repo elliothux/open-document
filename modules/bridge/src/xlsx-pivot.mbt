@@ -131,8 +131,7 @@ fn xlsx_pivot_settings(
       }
       let values = match values {
         Null => None
-        Array(values) if !values.is_empty() && values.length() <= 4096 =>
-          Some(values.map(xlsx_value))
+        Array(values) if values.length() <= 4096 => Some(values.map(xlsx_value))
         _ => @failure.reject("invalid-operation", "Invalid pivot report values")
       }
       @xlsx.PivotFilter::{
@@ -185,6 +184,29 @@ fn xlsx_pivot_edit(
   change : Json,
 ) -> Json raise @failure.Failure {
   let action = field_string(change, "action")
+  if action == "filterTimeline" {
+    guard change is Object(fields) &&
+      fields.length() == 3 &&
+      fields.keys().all(key => ["action", "name", "range"].contains(key)) else {
+      @failure.reject("invalid-operation", "Invalid timeline filter command")
+    }
+    let range = match fields.get("range") {
+      Some(Null) => None
+      Some(Object(range) as value) if range.length() == 2 &&
+        range.keys().all(key => ["start", "end"].contains(key)) =>
+        Some((field_string(value, "start"), field_string(value, "end")))
+      _ =>
+        @failure.reject(
+          "invalid-operation", "Timeline range or null is required",
+        )
+    }
+    return session.filter_timeline(
+      revision,
+      sheet,
+      field_string(change, "name"),
+      range,
+    )
+  }
   if action == "deleteSlicer" {
     guard change is Object(fields) &&
       fields.length() == 2 &&

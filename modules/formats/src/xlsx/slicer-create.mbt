@@ -95,7 +95,7 @@ pub fn Session::insert_slicer(
     created,
     edits,
   )
-  let (sheet_document, edit) = slicer_reference(
+  let (sheet_document, edit) = analysis_reference(
     current.document,
     slicer_list_extension,
     "slicerList",

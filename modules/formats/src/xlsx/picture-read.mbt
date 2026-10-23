@@ -15,6 +15,7 @@ priv struct SheetObject {
   chart : (String, @chart.WorksheetChart)?
   chart_visibility : @layout.ChartVisibility?
   slicer : SlicerDrawing?
+  timeline : TimelineDrawing?
   tree : Tree
   frame : @xml.Node
   source : @xml.Node
@@ -221,7 +222,7 @@ fn Session::sheet_objects(
         "unsupported-drawing", "Only ordinary worksheet pictures are supported",
       )
     }
-    if tree.slicer_graphic(frame) is Some(source) {
+    if tree.compatible_graphic(frame) is Some(source) {
       guard tree.picture_child(frame.id, "pic") is None &&
         tree.picture_child(frame.id, "sp") is None else {
         @failure.reject(
@@ -231,6 +232,8 @@ fn Session::sheet_objects(
       let (_, data) = tree.sheet_graphic(source)
       let object = if data.attribute("uri") == Some(slicer_drawing_uri) {
         self.read_slicer_drawing(sheet, part, tree, frame, source, dimensions)
+      } else if data.attribute("uri") == Some(timeline_drawing_uri) {
+        self.read_timeline_drawing(sheet, part, tree, frame, source, dimensions)
       } else {
         self.read_sheet_chart(sheet, part, tree, frame, source, dimensions)
       }
@@ -246,6 +249,18 @@ fn Session::sheet_objects(
         }) {
         @failure.reject(
           "unsupported-drawing", "Duplicate worksheet slicer view",
+        )
+      }
+      if object.timeline is Some(timeline) &&
+        result.any(item => {
+          item.timeline
+          .map(other => {
+            other.control.name.to_lower() == timeline.control.name.to_lower()
+          })
+          .unwrap_or(false)
+        }) {
+        @failure.reject(
+          "unsupported-drawing", "Duplicate worksheet timeline view",
         )
       }
       result.push(object)
@@ -428,6 +443,7 @@ fn Session::sheet_objects(
       chart: None,
       chart_visibility: None,
       slicer: None,
+      timeline: None,
       tree,
       source,
       frame,

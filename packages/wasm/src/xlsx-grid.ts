@@ -5,6 +5,7 @@ import { xlsxRect } from "./xlsx-geometry.js";
 import { noteCell, noteText } from "./xlsx-sheet.js";
 import { record, integer, hasFields } from "./validation.js";
 import { checkSlicerView, type XlsxSlicerView } from "./xlsx-slicer-view.js";
+import { checkTimelineView, type XlsxTimelineView } from "./xlsx-timeline.js";
 import {
   drawingRegions,
   type XlsxDrawingRegion,
@@ -33,11 +34,12 @@ export interface XlsxViewport extends DrawingBatch {
   notes: { address: string; author: string; text: string; rect: DrawRect }[];
   objects: {
     id: string;
-    kind: "picture" | "chart" | "slicer" | XlsxShapeKind;
+    kind: "picture" | "chart" | "slicer" | "timeline" | XlsxShapeKind;
     name: string;
     selected: boolean;
     regions: XlsxDrawingRegion[];
     slicer?: XlsxSlicerView;
+    timeline?: XlsxTimelineView;
   }[];
   rows: { index: number; position: number; size: number }[];
   columns: XlsxViewport["rows"];
@@ -58,6 +60,7 @@ export function xlsxGridObjects(value: unknown): void {
         picture.kind === "picture" ||
         picture.kind === "chart" ||
         picture.kind === "slicer" ||
+        picture.kind === "timeline" ||
         xlsxShapeKinds.some((kind) => kind === picture.kind)
       ) ||
       typeof picture.name !== "string" ||
@@ -69,6 +72,9 @@ export function xlsxGridObjects(value: unknown): void {
     if (picture.kind === "slicer") checkSlicerView(picture.slicer);
     else if (picture.slicer !== undefined)
       throw new Error("Unexpected slicer view");
+    if (picture.kind === "timeline") checkTimelineView(picture.timeline);
+    else if (picture.timeline !== undefined)
+      throw new Error("Unexpected timeline view");
     ids.add(picture.id);
   }
 }

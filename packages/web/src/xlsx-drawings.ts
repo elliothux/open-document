@@ -1,5 +1,9 @@
 import type { Connection } from "./connection.js";
 import {
+  checkXlsxTimelineSettings,
+  type XlsxTimelineSettings,
+} from "@open-document/wasm/xlsx";
+import {
   drawingClipboard,
   checkDrawingFragment,
 } from "@open-document/wasm/xlsx";
@@ -28,6 +32,23 @@ import {
 
 export class XlsxDrawingClient {
   constructor(protected readonly connection: Connection) {}
+  async insertTimeline(
+    revision: number,
+    sheet: string,
+    settings: XlsxTimelineSettings,
+    profile: Record<string, string>,
+  ) {
+    checkXlsxTimelineSettings(settings);
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "insertXlsxTimeline",
+        revision,
+        sheet,
+        settings,
+        profile,
+      }),
+    );
+  }
   async captureDrawing(
     revision: number,
     sheet: string,

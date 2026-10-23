@@ -3,6 +3,63 @@ export interface XlsxTimelineRange {
   start: string;
   end: string;
 }
+export interface XlsxTimelineSettings {
+  pivot: string;
+  field: number;
+  name: string;
+  caption: string;
+  width: number;
+  height: number;
+}
+export function checkXlsxTimelineSettings(value: unknown): void {
+  const item = record(value),
+    keys = ["pivot", "field", "name", "caption", "width", "height"];
+  if (
+    Object.keys(item).length !== keys.length ||
+    !Object.keys(item).every((key) => keys.includes(key)) ||
+    !text(item.pivot, false, 1024) ||
+    !integer(item.field, 0, 63) ||
+    !text(item.name) ||
+    !text(item.caption) ||
+    ![item.width, item.height].every(
+      (value) =>
+        typeof value === "number" &&
+        Number.isFinite(value) &&
+        value >= 0.1 &&
+        value <= 14400,
+    )
+  )
+    throw new Error("Invalid native timeline settings");
+}
+export interface XlsxTimelineEdit {
+  action: "filterTimeline";
+  name: string;
+  range: XlsxTimelineRange | null;
+}
+export function checkXlsxTimelineEdit(value: unknown): void {
+  const edit = record(value);
+  if (
+    Object.keys(edit).length !== 3 ||
+    edit.action !== "filterTimeline" ||
+    !text(edit.name) ||
+    !("range" in edit)
+  )
+    throw new Error("Invalid timeline filter command");
+  if (edit.range !== null) range(edit.range);
+}
+export interface XlsxTimelineView {
+  name: string;
+  label: string;
+}
+export function checkTimelineView(value: unknown): void {
+  const view = record(value);
+  if (
+    Object.keys(view).length !== 2 ||
+    !text(view.name) ||
+    !text(view.label, false, 1024)
+  )
+    throw new Error("Invalid native timeline view");
+}
 export interface XlsxTimeline {
   part: string;
   name: string;
@@ -67,8 +124,10 @@ function range(value: unknown): void {
     Object.keys(item).length !== 2 ||
     !date(item.start) ||
     !date(item.end) ||
-    Date.parse(item.start.slice(0, 19) + "Z") >
-      Date.parse(item.end.slice(0, 19) + "Z")
+    item.start.slice(0, 19) > item.end.slice(0, 19) ||
+    (item.start.slice(0, 19) === item.end.slice(0, 19) &&
+      item.start.slice(20).replace(/Z$/u, "").padEnd(350, "0") >
+        item.end.slice(20).replace(/Z$/u, "").padEnd(350, "0"))
   )
     throw new Error("Invalid native timeline date range");
 }

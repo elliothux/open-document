@@ -44,6 +44,12 @@ fn SheetObject::grid_object(
     "selected": Json(selected),
     "regions": Json(grid.drawing_regions(self)),
   }
+  if self.timeline is Some(timeline) {
+    fields["timeline"] = {
+      "name": timeline.control.name,
+      "label": timeline.control.label(),
+    }
+  }
   if self.slicer is Some(slicer) {
     let geometry = slicer.geometry(
       self.rect.width,

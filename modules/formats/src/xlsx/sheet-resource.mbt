@@ -26,10 +26,16 @@ fn Session::create_sheet_resource(
     "slicers"
   } else if kind == "slicerCache" {
     "slicerCaches"
+  } else if kind == "Timeline" {
+    "timelines"
+  } else if kind == "TimelineCache" {
+    "timelineCaches"
   } else {
     "drawings"
   }
-  let stem = if kind.has_prefix("pivot") || kind.has_prefix("slicer") {
+  let stem = if kind.has_prefix("pivot") ||
+    kind.has_prefix("slicer") ||
+    kind.has_prefix("Timeline") {
     "od" + kind
   } else if kind == "chart" {
     "odChart"
@@ -61,7 +67,7 @@ fn Session::create_sheet_resource(
   )
   parts[part] = document
   created[part] = document
-  let content_type = if kind.has_prefix("slicer") {
+  let content_type = if kind.has_prefix("slicer") || kind.has_prefix("Timeline") {
     "application/vnd.ms-excel.\{kind}+xml"
   } else if kind.has_prefix("pivot") {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.\{kind}+xml"
@@ -104,7 +110,9 @@ fn Session::attach_sheet_resource(
     None
   }
   let id = for i in 1..<=16384 {
-    let id = (if kind.has_prefix("pivot") || kind.has_prefix("slicer") {
+    let id = (if kind.has_prefix("pivot") ||
+        kind.has_prefix("slicer") ||
+        kind.has_prefix("Timeline") {
         "od" + kind
       } else if kind == "table" {
         "odTable"
@@ -123,7 +131,9 @@ fn Session::attach_sheet_resource(
       "limit-exceeded", "Worksheet resource relationship identities exhausted",
     )
   }
-  let uri = if kind.has_prefix("slicer") {
+  let uri = if kind.has_prefix("Timeline") {
+    timeline_relationship_uri
+  } else if kind.has_prefix("slicer") {
     slicer_relationship_uri
   } else {
     relationship_uri

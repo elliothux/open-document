@@ -21,7 +21,10 @@ fn Session::drawing_font_keys(
   for document in drawings.values() {
     if document
       .nodes()
-      .any(node => node.uri == slicer_drawing_uri && node.name == "slicer") {
+      .any(node => {
+        (node.uri == slicer_drawing_uri && node.name == "slicer") ||
+        (node.uri == timeline_drawing_uri && node.name == "timeslicer")
+      }) {
       keys[self.normal_font] = true
       keys[self.normal_font + "|bold"] = true
     }

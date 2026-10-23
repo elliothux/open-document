@@ -44,6 +44,9 @@ pub(all) struct ShapeSettings {
 
 ///|
 fn SheetObject::kind(self : SheetObject) -> String {
+  if self.timeline is Some(_) {
+    return "timeline"
+  }
   if self.slicer is Some(_) {
     return "slicer"
   }

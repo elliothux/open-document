@@ -165,7 +165,7 @@ fn Session::read_slicer_cache(
       "limit-exceeded", "Slicer field members or text exceed budget",
     )
   }
-  let values = pivot_field_items(cache, field)
+  let values = pivot_field_items(cache, field, date1904=self.date1904)
   guard !values.is_empty() && values.length() <= 4096 else {
     @failure.reject("limit-exceeded", "Slicer members exceed budget")
   }
