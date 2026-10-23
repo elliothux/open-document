@@ -1,8 +1,17 @@
+import type { PptxCommand } from "./pptx-command.js";
+import {
+  checkPptxTextFragment,
+  checkPptxObjectFragment,
+} from "./pptx-command.js";
+export {
+  checkPptxTextFragment,
+  checkPptxObjectFragment,
+} from "./pptx-command.js";
+export type { PptxCommand } from "./pptx-command.js";
 import {
   checkPptxShow,
   pptxShowState,
   pptxShowLayout,
-  type PptxShowCommand,
   type PptxShowState,
   type PptxShowLayout,
 } from "./pptx-show.js";
@@ -49,9 +58,7 @@ import {
   checkPptxGeometry,
   checkPptxImageFill,
   imageInsets,
-  type PptxObjectEdit,
   type PptxSelection,
-  type PptxPoint,
   type PptxHit,
   type PptxGeometry,
   type PptxTable,
@@ -88,7 +95,6 @@ import {
   pptxSlideLayouts,
   pptxComments,
   type PptxComments,
-  type PptxSlideEdit,
   type PptxBackground,
   type PptxSections,
   type PptxSlideLayouts,
@@ -114,7 +120,6 @@ import { WasmSession, encodeBytes } from "./session.js";
 import {
   preparePptxSearch,
   pptxSearchResult,
-  type PptxSearchCommand,
   type PptxSearchResult,
 } from "./pptx-search.js";
 export type { PptxFindOptions, PptxSearchResult } from "./pptx-search.js";
@@ -134,8 +139,7 @@ export type {
   PptxThemeSlot,
   PptxThemeFont,
 } from "./pptx-theme.js";
-import { drawingBatch, type DrawRect } from "./drawing.js";
-import type { Budget } from "./foundation.js";
+import { drawingBatch } from "./drawing.js";
 import {
   checkPptxFormatting,
   checkPptxParagraphFormatting,
@@ -153,7 +157,6 @@ export type {
 } from "./pptx-format.js";
 import {
   pptxPrintLayout,
-  type PptxOutputCommand,
   type PptxPrintLayout,
   type PptxLayout,
 } from "./pptx-output.js";
@@ -232,116 +235,6 @@ export interface PptxQuery extends PptxPlaybackState {
   slideLayout: PptxSlideLayouts;
   diagnostics: string[];
 }
-export type PptxCommand =
-  | PptxShowCommand
-  | PptxSearchCommand
-  | PptxOutputCommand
-  | { operation: "createPptx"; budget: Budget; dateTime?: string }
-  | {
-      operation: "openPptx";
-      bytes: Uint8Array;
-      budget: Budget;
-      dateTime?: string;
-    }
-  | {
-      operation: "dateTimePptx";
-      revision: number;
-      dateTime?: string;
-      profile: Record<string, string>;
-    }
-  | { operation: "queryPptx" }
-  | { operation: "followPptxHyperlink"; revision: number }
-  | {
-      operation: "editPptxSlides";
-      revision: number;
-      slide: string;
-      change: PptxSlideEdit;
-      profile: Record<string, string>;
-    }
-  | {
-      operation: "editPptxObjects";
-      revision: number;
-      change: PptxObjectEdit;
-      profile: Record<string, string>;
-    }
-  | ({ operation: "selectPptx"; revision: number } & PptxSelection)
-  | {
-      operation: "replacePptx";
-      revision: number;
-      text: string;
-      profile: Record<string, string>;
-      candidateId?: number;
-    }
-  | {
-      operation: "deletePptx";
-      revision: number;
-      backward: boolean;
-      profile: Record<string, string>;
-    }
-  | {
-      operation: "undoPptx" | "redoPptx" | "savePptx" | "copyPptx";
-      revision: number;
-    }
-  | { operation: "layoutPptx"; profile: Record<string, string> }
-  | {
-      operation: "hitPptx";
-      layoutId: number;
-      x: number;
-      y: number;
-      tolerance: number;
-      /** Return editable group text members at this point. */
-      text?: boolean;
-    }
-  | { operation: "selectionPptx"; layoutId: number; gridScale?: number }
-  | {
-      operation: "navigatePptx";
-      revision: number;
-      layoutId: number;
-      direction:
-        "next" | "previous" | "left" | "right" | "up" | "down" | "home" | "end";
-      extend: boolean;
-    }
-  | {
-      operation: "beginPptx";
-      revision: number;
-      kind: "text" | "transform" | "connector" | "adjustment";
-    }
-  | ({
-      operation: "beginGuidePptx";
-      revision: number;
-      tolerance: number;
-    } & PptxPoint)
-  | ({
-      operation: "transformPptx";
-      revision: number;
-      candidateId: number;
-    } & DrawRect)
-  | {
-      operation: "dragPptx";
-      revision: number;
-      candidateId: number;
-      dx: number;
-      dy: number;
-      handle: number;
-      tolerance?: number;
-      shift?: boolean;
-      center?: boolean;
-    }
-  | {
-      operation: "finishPptx";
-      revision: number;
-      candidateId: number;
-      profile: Record<string, string>;
-    }
-  | { operation: "cancelPptx"; revision: number; candidateId: number }
-  | {
-      operation: "imagePptx";
-      key: string;
-      width: number;
-      height: number;
-      bytes: Uint8Array;
-    };
-
 type Result<C extends PptxCommand> = C["operation"] extends
   "controlShowPptx" | "inkShowPptx" | "mediaShowPptx"
   ? PptxShowState
@@ -366,10 +259,12 @@ type Result<C extends PptxCommand> = C["operation"] extends
                 : C["operation"] extends "imageKeysPptx" | "imageKeysShowPptx"
                   ? string[]
                   : C["operation"] extends "copyPptx"
-                    ? { text: string }
+                    ? { text: string; fragment: string | null; reason: string }
                     : C["operation"] extends "imagePptx"
                       ? { key: string }
-                      : PptxQuery;
+                      : C["operation"] extends "objectFragmentImagesPptx"
+                        ? string[]
+                        : PptxQuery;
 export type PptxResult<C extends PptxCommand> = Result<C>;
 
 export { isPptxCommand } from "./pptx-command.js";
@@ -672,11 +567,43 @@ export function pptxResult<C extends PptxCommand>(
     case "imageKeysShowPptx":
       strings(value, 256, 256);
       break;
-    case "copyPptx":
+    case "objectFragmentImagesPptx": {
+      strings(value, 256, 2796204);
+      if (
+        !Array.isArray(value) ||
+        value.some(
+          (item) =>
+            typeof item !== "string" || !/^[A-Za-z0-9+/]*={0,2}$/.test(item),
+        ) ||
+        value.reduce(
+          (sum: number, item: unknown) =>
+            sum + (typeof item === "string" ? item.length : 0),
+          0,
+        ) > 2796204
+      )
+        throw new Error("Invalid PPTX clipboard image resources");
+      break;
+    }
+    case "copyPptx": {
+      const object = record(value);
+      if (
+        Object.keys(object).length !== 3 ||
+        typeof object.text !== "string" ||
+        !object.text.isWellFormed() ||
+        object.text.length > 32767 ||
+        typeof object.reason !== "string" ||
+        object.reason.length > 4096 ||
+        (object.fragment !== null &&
+          (typeof object.fragment !== "string" ||
+            !object.fragment.isWellFormed() ||
+            object.fragment.length > 4194304))
+      )
+        throw new Error("Invalid PPTX clipboard response");
+      break;
+    }
     case "imagePptx": {
       const object = record(value);
-      const field = command.operation === "copyPptx" ? "text" : "key";
-      if (typeof object[field] !== "string" || object[field].length > 32767)
+      if (typeof object.key !== "string" || object.key.length > 32767)
         throw new Error("Invalid PPTX text response");
       break;
     }
@@ -730,6 +657,13 @@ export class PptxSession extends WasmSession {
       checkPptxObjectEdit(command.change);
     if (command.operation === "editPptxSlides")
       checkPptxSlideEdit(command.change);
+    if (command.operation === "pastePptxFragment")
+      checkPptxTextFragment(command.fragment);
+    if (
+      command.operation === "pastePptxObjects" ||
+      command.operation === "objectFragmentImagesPptx"
+    )
+      checkPptxObjectFragment(command.fragment);
     let value: unknown;
     if (
       command.operation === "editPptxObjects" &&

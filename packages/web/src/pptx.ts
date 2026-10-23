@@ -8,6 +8,8 @@ import {
   checkPptxSlideEdit,
   preparePptxSearch,
   checkPptxShow,
+  checkPptxTextFragment,
+  checkPptxObjectFragment,
   type PptxCommand,
   type PptxResult,
 } from "@open-document/wasm/pptx";
@@ -143,6 +145,27 @@ export class PptxClient {
     }
     if (command.operation === "editPptxSlides")
       checkPptxSlideEdit(command.change);
+    if (command.operation === "pastePptxFragment")
+      checkPptxTextFragment(command.fragment);
+    if (
+      command.operation === "pastePptxObjects" ||
+      command.operation === "objectFragmentImagesPptx"
+    )
+      checkPptxObjectFragment(command.fragment);
+    if (command.operation === "pastePptxObjects") {
+      const images = await this.execute({
+        operation: "objectFragmentImagesPptx",
+        revision: command.revision,
+        fragment: command.fragment,
+      });
+      for (const encoded of images) {
+        const bytes = Uint8Array.from(atob(encoded), (character) =>
+          character.charCodeAt(0),
+        );
+        const { bitmap } = await decodeImage(bytes, this.events.signal);
+        bitmap.close();
+      }
+    }
     if (
       (command.operation === "editPptxObjects" &&
         (command.change.action === "insertImage" ||

@@ -443,11 +443,37 @@ export function ClipboardGroup({
   const t = messages(state.locale);
   const textMode =
     file.format !== "pptx" || file.editor.query.selection.mode === "text";
+  const copiedObjects =
+    file.format === "pptx"
+      ? file.editor.query.objects.filter((object) =>
+          file.editor.query.selection.objects.includes(object.id),
+        )
+      : [];
+  const canCopy =
+    textMode ||
+    (copiedObjects.length > 0 &&
+      copiedObjects.every(
+        (object) =>
+          !object.parent &&
+          ["shape", "image", "group"].includes(object.kind) &&
+          !object.duplicateReason &&
+          object.equations.length === 0 &&
+          !object.media,
+      ));
+  const pasteDisabled =
+    disabled ||
+    !!state.document?.readOnlyReason ||
+    (textMode &&
+      file.format === "pptx" &&
+      !!file.editor.query.objects.find(
+        (object) => object.id === file.editor.query.selection.object,
+      )?.textReadOnlyReason);
   const writeDisabled =
     disabled ||
-    !textMode ||
+    !canCopy ||
     !!state.document?.readOnlyReason ||
-    (file.format === "pptx" &&
+    (textMode &&
+      file.format === "pptx" &&
       !!file.editor.query.objects.find(
         (object) => object.id === file.editor.query.selection.object,
       )?.textReadOnlyReason);
@@ -471,7 +497,7 @@ export function ClipboardGroup({
     <Group label={t.clipboard}>
       <Command
         label={t.copy}
-        disabled={disabled || !textMode}
+        disabled={disabled || !canCopy}
         action={() => controller.run(() => file.editor.copy())}
       >
         <Icon name="copy" />
@@ -487,7 +513,7 @@ export function ClipboardGroup({
       )}
       {file.format !== "pdf" && (
         <Dialog.Root open={open} onOpenChange={setOpen}>
-          <Dialog.Trigger className="od-command" disabled={writeDisabled}>
+          <Dialog.Trigger className="od-command" disabled={pasteDisabled}>
             <Icon name="paste" />
             <span>{t.paste}</span>
           </Dialog.Trigger>
@@ -502,13 +528,15 @@ export function ClipboardGroup({
                   : t.rangePaste}
               </Dialog.Title>
               <Dialog.Description>{t.pasteHint}</Dialog.Description>
-              {file.format === "docx" && (
+              {(file.format === "docx" || file.format === "pptx") && (
                 <button
                   type="button"
-                  disabled={writeDisabled}
+                  disabled={pasteDisabled}
                   onClick={() =>
                     controller.run(async () => {
-                      await pasteDocxSelection(file.editor);
+                      if (file.format === "docx")
+                        await pasteDocxSelection(file.editor);
+                      else await file.editor.pasteClipboard();
                       setOpen(false);
                       file.editor.focus();
                     })
@@ -525,6 +553,7 @@ export function ClipboardGroup({
                   : t.pasteText}
                 <textarea
                   ref={field}
+                  disabled={!textMode}
                   value={text}
                   onChange={(event) => setText(event.currentTarget.value)}
                 />
@@ -570,6 +599,7 @@ export function ClipboardGroup({
                 <button
                   type="button"
                   className="od-primary"
+                  disabled={!textMode}
                   onClick={() => controller.run(paste)}
                 >
                   {t.apply}

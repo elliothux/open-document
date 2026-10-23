@@ -139,6 +139,10 @@ PNG/JPEG 图片插入已接通核心、Wasm、Worker、宿主和默认 UI。新�
 
 ### 4.2 文本和表格
 
+本地顶层形状、PNG/JPEG 图片及完整组合已有原生系统复制、剪切和跨文稿独立重复粘贴。源外观、图片字节和点击链接随快照转移，默认面板和原生粘贴共用一次资源历史。坏图片先解码拒绝，未选对象不进入快照；精确历史、独立 XML/ZIP、重开 Canvas 和 PDF 已检查。表格、图表、媒体及更广对象源继续实施，合同归[对象剪贴板](references/formats.md#pptx-对象剪贴板)。
+
+文字模式的普通形状和单主格范围已支持原生富文本系统复制、剪切及跨文稿重复粘贴。快照冻结继承字体/主题色、字符和段落/列表格式，源修改或关闭后仍可使用。默认源格式入口和 Ctrl/Meta+V 共用核心事务，范围外原生源、精确历史、重开及 Canvas/PDF 已定向检查。外链和导航动作已有独立目标、提示及资源历史，原生粘贴、独立修改与 PDF 链接已检查；跨格富文本、字段/公式、具体幻灯片目标和悬停链接转移继续实施，合同归[文字富文本片段](references/formats.md#pptx-文字富文本片段)。
+
 文本框四边内边距、上/中/下垂直对齐、换行、缩小字体及形状随文字调整大小已接通核心、API 和默认 UI。支持本地顶层形状的混合多选，保留文字及对象选择。缩小模式同时约束宽高并写回比例；形状调整模式保留字号，按换行设置调整高度或宽高，输入、格式及查找替换与几何共用精确历史。实现归 [`text-frame.mbt`](../modules/formats/src/pptx/text-frame.mbt)和 [`text-resize.mbt`](../modules/formats/src/pptx/text-resize.mbt)，边界归[格式合同](references/formats.md#pptx)。
 
 基础文字格式已接通字体、字号、字符间距、粗体、斜体、RGB 颜色、单下划线、单删除线、纯色高亮及清除高亮、上/下标及恢复基线，以及段落左/中/右/两端对齐。文字范围只修改选中字，对象模式作用于所选框；光标和空段落的格式用于后续原生输入。核心按需拆分 run，保留范围外内容和属性，格式与文字共用精确历史。装饰及两端对齐沿公共行绘制输出到 Canvas 和 PDF，保留形状的框内裁剪。默认面板显示混合值，各字段保留普通命令期间的草稿。两端对齐的五项定向核心和两条 Chromium 流程已检查中间/末行、字形位置、原生草稿、源片段、精确历史、无操作、重开输入及 PDF。实现归 [`text-format.mbt`](../modules/formats/src/pptx/text-format.mbt)和 [`text-format-properties.mbt`](../modules/formats/src/pptx/text-format-properties.mbt)，接口和剩余边界归[格式合同](references/formats.md#pptx)。

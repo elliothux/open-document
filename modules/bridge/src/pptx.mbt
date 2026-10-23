@@ -731,7 +731,11 @@ fn Foundation::pptx_operation(
         field_int(request, "revision"),
         field_int(request, "candidateId"),
       )
-    "copyPptx" => { "text": session.copy(field_int(request, "revision")) }
+    "copyPptx"
+    | "pastePptxFragment"
+    | "pastePptxObjects"
+    | "objectFragmentImagesPptx" =>
+      self.pptx_clipboard(session, operation, request)
     "imageBytesPptx" =>
       {
         "bytes": @base64.encode(

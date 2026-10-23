@@ -261,6 +261,24 @@ fn Session::hyperlink_relationship(
   let external = kind == "external"
   let relation_kind = relationship_uri +
     (if external { "/hyperlink" } else { "/slide" })
+  let path = relationship_part(owner)
+  let present = self.parts.contains(path) ||
+    self.opc.names.contains(path.to_lower())
+  let source = parts
+    .get(path)
+    .unwrap_or_else(() => {
+      if present {
+        self.part_document(path)
+      } else {
+        @xml.Document::parse(
+          b"<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"/>",
+          path,
+          self.budget.xml_depth,
+          self.budget.entry_bytes,
+        )
+      }
+    })
+  let destination = if external { target } else { "/" + target }
   let existing = links
     .iter()
     .find_first(link => {
@@ -271,32 +289,30 @@ fn Session::hyperlink_relationship(
     })
   let relation = if existing is Some(link) {
     link.id
+  } else if source
+    .nodes()
+    .iter()
+    .find_first(node => {
+      node.name == "Relationship" &&
+      node.attribute("Type") == Some(relation_kind) &&
+      node.attribute("Target") == Some(destination) &&
+      (node.attribute("TargetMode") == Some("External")) == external
+    })
+    is Some(node) {
+    node.attribute("Id").unwrap()
   } else {
     let mut sequence = 1
-    while links
-          .iter()
-          .any(link => link.owner == owner && link.id == "odLink\{sequence}") {
+    let ids : Set[String] = Set(
+      source.nodes().filter_map(node => node.attribute("Id")),
+    )
+    while ids.contains("odLink\{sequence}") {
       sequence += 1
       guard sequence <= 16384 else {
         @failure.reject("limit-exceeded", "Hyperlink identities exhausted")
       }
     }
     let id = "odLink\{sequence}"
-    let path = relationship_part(owner)
-    let present = self.parts.contains(path) ||
-      self.opc.names.contains(path.to_lower())
-    let source = if present {
-      self.part_document(path)
-    } else {
-      @xml.Document::parse(
-        b"<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"/>",
-        path,
-        self.budget.xml_depth,
-        self.budget.entry_bytes,
-      )
-    }
     let mode = if external { " TargetMode=\"External\"" } else { "" }
-    let destination = if external { target } else { "/" + target }
     let (document, edit) = source.edit_source([
       insertion(
         source.nodes()[0],

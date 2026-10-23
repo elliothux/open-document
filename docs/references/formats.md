@@ -2644,7 +2644,9 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 | `selectPptx` / `navigatePptx` | 页/有序对象集合/文字选择、对象顺序及字素/行导航；文字使用对象内 UTF-16 offset |
 | `editPptxSlides` | revision、稳定 slide 身份、`PptxSlideEdit` 和字体 `profile`；新增、复制、删除、重排、隐藏/显示、章节、背景、主题颜色/字体、备注或全稿尺寸，返回 `PptxQuery` |
 | `editPptxObjects` | revision、字体 profile 和 `PptxObjectEdit`；插入、删除、复制、旋转、翻转、层次、对齐/分布或组合/取消组合，返回 `PptxQuery` |
-| `replacePptx` / `deletePptx` / `copyPptx` | 普通文字范围编辑、方向删除及纯文本复制；编辑需要字体 profile |
+| `replacePptx` / `deletePptx` | 普通文字范围编辑及方向删除；编辑需要字体 profile |
+| `copyPptx` / `pastePptxFragment` | 读取文字及原生富文本快照，或以字体 profile 粘贴快照；范围归[文字富文本片段](#pptx-文字富文本片段) |
+| `pastePptxObjects` / `objectFragmentImagesPptx` | 以字体 profile 粘贴独立对象快照，或只读校验并提取待解码图片；范围归[对象剪贴板](#pptx-对象剪贴板) |
 | `beginPptx` / `finishPptx` / `cancelPptx` | 开始、提交、取消 `text` 或 `transform` 候选；匹配 revision 与 candidateId |
 | `transformPptx` / `dragPptx` | 绝对位置/尺寸，或基于手势开始几何的 point 增量与核心手柄编号 |
 | `undoPptx` / `redoPptx` / `savePptx` | 原子历史及绑定 revision 的源保存 |
@@ -2700,6 +2702,28 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 定位后的图片图元携带不透明度，DOCX 行内图片显式使用 1。Canvas 沿公共 `DrawStyle.fillAlpha` 执行，图片结束后恢复默认样式；PDF 在单张图片的作用域应用 ExtGState `ca`，与原像素的软蒙版相乘，不把共享原图改成带透明度的新像素。两个输出共用核心值和相同源像素，完全透明的对象仍保留选择及资源。
 
 删除参数为 `{ action: "delete" }`，复制为 `{ action: "duplicate", dx, dy }`。两者要求对象模式；空选区不修改文档。删除作用于整个集合，先校验全部成员，再提交一项历史；任一保护失败不删除其他成员。复制作用于整个集合，包括受支持的嵌套组；副本按原源顺序放到所属父容器的最上层。保留非变换源内容、页面几何、命名空间与图片/超链接关系，为副本及其全部成员分配会话内尚未使用的新 `cNvPr.id`，域身份同样更新。副本内部对象引用重映射；引用集合外对象而需联动的结构明确拒绝。副本选择保留原选择顺序及对应活动对象。一次复制合为一项历史，任一成员、字体、几何或预算失败不创建副本、不消耗身份。原对象的页面姿态、非变换内容、其他部件及资源保持；组内原生坐标可随边界重算归一化。一次复制的 XML 片段及继承命名空间合计最多 2 Mi UTF-16 单元，在拼接前检查；最终包和历史继续受原有预算约束。删除清空选择；撤销/重做精确恢复源 XML 与选择。`PptxObject.deleteReason/duplicateReason` 返回操作保护原因，空串表示可用。继承/跨父组选择/未知对象继续保护；复制占位符及未知扩展、删除锁定或带连接/计时引用的对象仍拒绝，含未支持所属关系的页面也保护删除。资源和关系不做清理。默认 UI 提供插入面板、复制/删除按钮；对象输入支持 Delete/Backspace 与 Ctrl/Cmd+D，默认复制偏移各 18 pt。
+
+### PPTX 对象剪贴板
+
+对象模式的 `copyPptx` 返回 `{ text, fragment, reason }`。本地顶层形状、PNG/JPEG 图片及完整组合可生成独立原生快照。复制保留源位置、层次、几何、旋转/翻转、图片裁剪、填充、描边、文字及点击外链/导航动作；主题字体、颜色和线性渐变写为明确源外观。继承占位符沿用既有复制保护；未选对象和其他源资源不进入快照。源文稿修改或关闭后仍可重复粘贴。
+
+`pastePptxObjects` 接受 `revision`、`fragment` 和字体 `profile`，向当前可写页插入快照并返回 `PptxQuery`。每次粘贴分配新对象身份和独立图片部件，重映射组内引用及目标关系。源位置保留，对象放到当前页顶层。对象、图片、关系、内容类型和选择合为一项精确历史。缺字体、损坏资源、引用不完整、冲突继承制表位、活动候选或预算失败均不提交。Web 宿主先通过 `objectFragmentImagesPptx` 只读提取图片，再用浏览器解码；坏图片在修改文稿前拒绝。
+
+默认 Copy/Cut 写入 `text/plain` 和 Chromium 自定义类型 `web application/x-open-document-pptx-objects`。默认源格式粘贴、`PresentationEditor.pasteClipboard()` 和对象输入的 Ctrl/Meta+V 走同一路径；剪切在系统写入成功并复核会话、revision 和选择后删除源。对象快照最多含 256 个顶层对象和 256 项资源，原生 XML 最多 1 Mi UTF-16，完整 JSON 最多 4 Mi UTF-16。图片压缩字节合计最多 2 MiB，资源值合计最多 2796204 UTF-16，输入及目标页解码图片各最多 16 MiB；包和历史继续受既有预算约束。
+
+组内局部选择、表格、图表、媒体、字段/公式、具体幻灯片目标、悬停链接及未知对象源继续保护；对象复制失败不丢弃对象后降为纯文本。实现归 [`object-clipboard.mbt`](../../modules/formats/src/pptx/object-clipboard.mbt)、[`object-clipboard-style.mbt`](../../modules/formats/src/pptx/object-clipboard-style.mbt)、[`object-clipboard-read.mbt`](../../modules/formats/src/pptx/object-clipboard-read.mbt)和 [`object-clipboard-paste.mbt`](../../modules/formats/src/pptx/object-clipboard-paste.mbt)。复用既有原生对象复制、源格式解析、图片资源及多部件历史。
+
+### PPTX 文字富文本片段
+
+`copyPptx` 返回 `{ text, fragment, reason }`。普通形状或一个表格主格的文字范围可生成独立原生片段，保留混合字体、字号、字符间距、粗斜体、颜色、下划线、删除线、高亮和上下标，以及段落对齐、方向、缩进、行段距、列表级别/起点/标记样式和制表位。核心把继承的字体和主题色写为明确字体名与 RGB。源文稿后续编辑、关闭或主题变化不改变快照。范围按 UTF-16 字素边界处理，保留软换行及空段落。
+
+文字点击外链和导航动作也随片段转移，保留 HTTP/HTTPS/mailto 地址、提示、目标窗口和已知点击标记。目标文稿创建或复用自己的关系，不沿用源关系 ID；一批多个地址与重复粘贴保留独立目标，同地址可以共用关系，修改一个副本时不改变其他副本。链接和文字合为一项精确源/资源历史，缺字体、无效地址或预算失败均不留下关系。复制、粘贴及排版不请求外链。原格式保存和 PDF 链接复用既有合同。实现归 [`text-clipboard-links.mbt`](../../modules/formats/src/pptx/text-clipboard-links.mbt)，链接值和提示随原生段落复制参考 [ONLYOFFICE ParaHyperlink.Copy](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Hyperlink.js#L80-L88)。
+
+`pastePptxFragment` 接受 `revision`、`fragment` 和字体 `profile`，在当前文字选区内提交一次历史，返回 `PptxQuery`。目标限于一个形状或一个主格；跨格富文本粘贴仍受保护。范围外 run 保留原生源，保留前缀或尾部的边界段落沿用目标段落属性，完整替换的段落采用源属性。目标继承制表位若会额外混入来源段落，核心原子拒绝。缺字体、损坏 XML、关系/未知节点、无效范围、旧 revision、活动候选或预算失败不改变源、选择和历史。
+
+默认 Copy/Cut 同时写 `text/plain` 和 Chromium 自定义类型 `web application/x-open-document-pptx-text`。`PresentationEditor.pasteClipboard()`、文字输入的 Ctrl/Meta+V 和默认“按源格式粘贴”读取原生片段；外部普通文字沿既有范围输入。异步读写后核对会话、revision 和选择。剪切仅在系统写入成功后删除源。显式 `paste(text)` 和原生纯文本粘贴事件继续接受普通文字。
+
+片段最多 1 Mi UTF-16、256 段及 256 个不同链接目标；链接地址和单项元数据各不超过 2048 UTF-16。粘贴后的整个对象文字最多 32767 UTF-16。跨格复制保留既有 TSV；字段、公式、具体幻灯片目标、悬停链接、文字透明度和不支持的文字源返回 `fragment: null` 及原因，保留普通文字复制。具体幻灯片链接须先具备目标页转移，避免误指向另一文稿的同名路径。跨格富文本和更广文字格式继续实施。实现归 [`text-clipboard.mbt`](../../modules/formats/src/pptx/text-clipboard.mbt)、[`text-fragment-paste.mbt`](../../modules/formats/src/pptx/text-fragment-paste.mbt)及 [`clipboard-input.ts`](../../packages/web/src/clipboard-input.ts)。解析后冻结源字体/主题色参考 [ONLYOFFICE 源格式捕获](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L7837-L7846)；未复制上游执行代码。
 
 ### 更改形状类型
 

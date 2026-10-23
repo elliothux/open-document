@@ -195,7 +195,10 @@ fn Foundation::dispatch(
     | "imageKeysPptx"
     | "imageKeysShowPptx"
     | "copyPptx"
-    | "exportPptxPdf" => self.pptx_operation(operation, request)
+    | "exportPptxPdf"
+    | "pastePptxFragment"
+    | "objectFragmentImagesPptx"
+    | "pastePptxObjects" => self.pptx_operation(operation, request)
     "defaultPdfBudget"
     | "openPdf"
     | "queryPdf"

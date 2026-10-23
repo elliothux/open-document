@@ -25,7 +25,11 @@ import {
 } from "./presentation-pointer.js";
 import { PresentationShow } from "./presentation-show.js";
 export type { PresentationShowLabels } from "./presentation-show.js";
-import { bindClipboard, copyPptxSelection } from "./clipboard-input.js";
+import {
+  bindClipboard,
+  copyPptxSelection,
+  pastePptxSelection,
+} from "./clipboard-input.js";
 import {
   EditorState,
   type EditorOutput,
@@ -144,6 +148,18 @@ export class PresentationEditor extends PresentationOutput {
       (text) => this.handle(() => this.paste(text)),
       (error) => this.fail(error),
       () => this.inputEvents.active,
+      () => false,
+      () => this.handle(() => this.pasteClipboard()),
+    );
+    bindClipboard(
+      this.objectList,
+      this.listeners.signal,
+      (cut) => this.handle(() => this.copy(cut)),
+      () => this.handle(() => this.pasteClipboard()),
+      (error) => this.fail(error),
+      () => false,
+      () => false,
+      () => this.handle(() => this.pasteClipboard()),
     );
     this.gestures = new PresentationGestures(client, profile, {
       state: () => this.state,
@@ -241,11 +257,11 @@ export class PresentationEditor extends PresentationOutput {
     this.observable.markDownloaded(output);
   }
   focus(): void {
-    if (this.closed || this.closing) throw new Error("Editor is disposed");
+    this.assertOpen();
     this.input.focus({ preventScroll: true });
   }
   async setPaused(paused: boolean): Promise<void> {
-    if (this.closed || this.closing) throw new Error("Editor is disposed");
+    this.assertOpen();
     if (paused) await this.tail;
     if (paused) await this.slideshow.end();
     this.paused = paused;
@@ -277,6 +293,9 @@ export class PresentationEditor extends PresentationOutput {
       diagnostics: this.drawing?.diagnostics ?? this.state.diagnostics,
       data: this.state,
     });
+  }
+  private assertOpen(): void {
+    if (this.closed || this.closing) throw new Error("Editor is disposed");
   }
   private handle(operation: () => Promise<unknown>): void {
     void operation().catch((error) =>
@@ -586,6 +605,7 @@ export class PresentationEditor extends PresentationOutput {
         this.state,
         cut,
         this.profile,
+        () => this.assertOpen(),
       );
       if (state) await this.changed(state);
     });
@@ -670,6 +690,16 @@ export class PresentationEditor extends PresentationOutput {
           text: text.replace(/\r\n?/g, "\n"),
           profile: this.profile,
         }),
+      ),
+    );
+  }
+  /** Pastes native presentation formatting from the system clipboard. */
+  pasteClipboard(): Promise<void> {
+    return this.enqueue(async () =>
+      this.changed(
+        await pastePptxSelection(this.client, this.state, this.profile, () =>
+          this.assertOpen(),
+        ),
       ),
     );
   }

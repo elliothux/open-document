@@ -295,7 +295,7 @@ pub fn Session::delete(
 }
 
 ///|
-pub fn Session::copy(
+fn Session::copy_text(
   self : Session,
   revision : Int,
 ) -> String raise @failure.Failure {
