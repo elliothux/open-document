@@ -199,6 +199,13 @@ pub fn DataValidation::equal(Self, Self) -> Bool
 pub fn DataValidation::not_equal(Self, Self) -> Bool
 pub fn DataValidation::to_json(Self) -> Json
 
+pub(all) struct DrawingViewport {
+  origin_x : Double
+  origin_y : Double
+  scroll_x : Double
+  scroll_y : Double
+}
+
 pub(all) struct DuplicateSettings {
   range : String
   header : Bool
@@ -393,7 +400,7 @@ pub fn Session::delete_picture(Self, Int, String, String, @layout.TextProbe, Map
 pub fn Session::delete_pivot(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::delete_shape(Self, Int, String, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::drawing_fragment_image(Self, Int, String) -> Json raise @failure.Failure
-pub fn Session::drawing_gesture(Self, Int, Int, Int, Double, Double, Bool, @layout.TextProbe, Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
+pub fn Session::drawing_gesture(Self, Int, Int, Int, Double, Double, Bool, @layout.TextProbe, Map[String, String], images~ : @layout.Images, viewport? : DrawingViewport?) -> Json raise @failure.Failure
 pub fn Session::duplicates(Self, Int, String, DuplicateSettings) -> Json raise @failure.Failure
 pub fn Session::edit_sheet(Self, Int, String, SheetEdit, date? : String?) -> Json raise @failure.Failure
 pub fn Session::export_csv(Self, Int, selection? : Bool) -> Bytes raise @failure.Failure

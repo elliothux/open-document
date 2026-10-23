@@ -1,15 +1,6 @@
 import { docxOutputs, downloadDocxOutput } from "./document-output.js";
 import { DocumentTables } from "./document-tables.js";
-export type {
-  DocumentCharts,
-  DocumentRuler,
-  DocumentBodyPageField,
-  DocumentProtection,
-  DocumentMathFractions,
-  DocumentMathExpressions,
-  DocumentMathScripts,
-} from "./document-page.js";
-export type { DocumentComments, DocumentRevisions } from "./document-review.js";
+export type * from "./document-types.js";
 import { createDocumentElements, docxPageText } from "./document-elements.js";
 import type { FoundationClient } from "./foundation.js";
 import { PageCanvas } from "./page-canvas.js";
@@ -38,10 +29,6 @@ import {
   searchSelections,
   selectFirstDocxPosition,
   type DocumentSearchResult,
-} from "./document-selection.js";
-export type {
-  DocumentSearchResult,
-  DocumentOverview,
 } from "./document-selection.js";
 import type {
   DocxSelection,

@@ -19,6 +19,12 @@ export interface XlsxDrawingGesture {
   dx: number;
   dy: number;
   commit: boolean;
+  viewport?: {
+    originX: number;
+    originY: number;
+    scrollX: number;
+    scrollY: number;
+  };
 }
 export interface XlsxDrawingPreview {
   query: XlsxQuery | null;
@@ -72,6 +78,21 @@ export function checkDrawingGesture(value: XlsxDrawingGesture): void {
     typeof value.commit !== "boolean"
   )
     throw new Error("Invalid worksheet object pointer delta");
+  if (value.viewport !== undefined) {
+    const view = record(value.viewport);
+    if (
+      Object.keys(view).length !== 4 ||
+      ![view.originX, view.originY].every(
+        (n) =>
+          typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 14400,
+      ) ||
+      ![view.scrollX, view.scrollY].every(
+        (n) =>
+          typeof n === "number" && Number.isFinite(n) && n >= 0 && n <= 1e9,
+      )
+    )
+      throw new Error("Invalid worksheet object pointer viewport");
+  }
 }
 export function xlsxDrawingPreview(value: unknown): XlsxDrawingPreview {
   const result = record(value);

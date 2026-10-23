@@ -21,6 +21,7 @@ import type {
   DocxListLevelUpdate,
   DocxPageSetup,
   DocxCoverPage,
+  DocxCaption,
   DocxPageNumbering,
   DocxColumns,
   DocxPageBorders,
@@ -62,6 +63,7 @@ import type { PptxCommand } from "@open-document/wasm/pptx";
 import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
+  | DocxNoteRequest
   | {
       operation: "getXlsxChart";
       revision: number;
@@ -289,6 +291,12 @@ export type Operation =
       profile: Record<string, string>;
     }
   | {
+      operation: "insertDocxCaption";
+      revision: number;
+      caption: DocxCaption;
+      profile: Record<string, string>;
+    }
+  | {
       operation: "updateBodyPageFields";
       revision: number;
       profile: Record<string, string>;
@@ -431,6 +439,12 @@ export type Operation =
       dx: number;
       dy: number;
       commit: boolean;
+      viewport?: {
+        originX: number;
+        originY: number;
+        scrollX: number;
+        scrollY: number;
+      };
       profile: Record<string, string>;
     }
   | { operation: "imageBytesXlsx"; revision: number; key: string }
@@ -776,3 +790,4 @@ export function errorResponse(id: number, error: unknown): Response {
       : {}),
   };
 }
+import type { DocxNoteRequest } from "./protocol-docx-notes.js";

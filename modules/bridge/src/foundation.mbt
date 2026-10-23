@@ -238,7 +238,10 @@ fn Foundation::dispatch(
     | "setPageNumbering"
     | "updateBodyPageFields"
     | "insertBodyPageField"
+    | "insertDocxCaption"
     | "bodyPageField"
+    | "docxNotes"
+    | "editDocxNote"
     | "editBodyPageField"
     | "setPageBackground"
     | "setPageBorders"
@@ -445,7 +448,10 @@ fn Foundation::dispatch(
         | "setPageNumbering"
         | "updateBodyPageFields"
         | "insertBodyPageField"
+        | "insertDocxCaption"
         | "bodyPageField"
+        | "docxNotes"
+        | "editDocxNote"
         | "editBodyPageField"
         | "setPageSetup" => self.docx_page(session, operation, request)
         "insertDocxTable" | "editDocxTable" =>

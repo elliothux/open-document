@@ -1,4 +1,51 @@
 ///|
+pub(all) struct DrawingViewport {
+  origin_x : Double
+  origin_y : Double
+  scroll_x : Double
+  scroll_y : Double
+}
+
+///|
+fn Grid::drawing_delta(
+  self : Grid,
+  viewport : DrawingViewport,
+  dx : Double,
+  dy : Double,
+) -> (Double, Double) raise @failure.Failure {
+  guard [dx, dy].all(v => !v.is_nan() && !v.is_inf() && v.abs() <= 14400) &&
+    viewport.origin_x >= 0 &&
+    viewport.origin_x <= self.width &&
+    viewport.origin_y >= 0 &&
+    viewport.origin_y <= self.height &&
+    viewport.scroll_x >= 0 &&
+    viewport.scroll_x <= 1000000000 &&
+    viewport.scroll_y >= 0 &&
+    viewport.scroll_y <= 1000000000 else {
+    @failure.reject(
+      "invalid-viewport", "Invalid worksheet object pointer viewport",
+    )
+  }
+  let boundary_x = self.header_width +
+    self.columns.iter().find_first(b => b.frozen).map(b => b.size).unwrap_or(0)
+  let boundary_y = self.header_height +
+    self.rows.iter().find_first(b => b.frozen).map(b => b.size).unwrap_or(0)
+  let x = if self.rtl {
+    self.width - viewport.origin_x
+  } else {
+    viewport.origin_x
+  }
+  let logical_dx = if self.rtl { -dx } else { dx }
+  let logical_dx = logical_dx +
+    (if x + logical_dx >= boundary_x { viewport.scroll_x } else { 0 }) -
+    (if x >= boundary_x { self.scroll_x } else { 0 })
+  let dy = dy +
+    (if viewport.origin_y + dy >= boundary_y { viewport.scroll_y } else { 0 }) -
+    (if viewport.origin_y >= boundary_y { self.scroll_y } else { 0 })
+  (if self.rtl { -logical_dx } else { logical_dx }, dy)
+}
+
+///|
 fn Grid::drawing_regions(self : Grid, object : SheetObject) -> Array[Json] {
   let regions : Array[Json] = []
   if !object.visible {
@@ -220,6 +267,7 @@ pub fn Session::drawing_gesture(
   probe : @layout.TextProbe,
   profile : Map[String, String],
   images~ : @layout.Images,
+  viewport~ : DrawingViewport? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let grid = self.drawing_grid(layout)
@@ -232,7 +280,13 @@ pub fn Session::drawing_gesture(
     .unwrap_or_else(() => {
       @failure.reject("invalid-operation", "Worksheet object no longer exists")
     })
+  let (dx, dy) = match viewport {
+    Some(viewport) => grid.drawing_delta(viewport, dx, dy)
+    None => (dx, dy)
+  }
   let rect = object.pointer_rect(grid, handle, dx, dy)
+  let scroll_x = viewport.map(v => v.scroll_x).unwrap_or(grid.scroll_x)
+  let scroll_y = viewport.map(v => v.scroll_y).unwrap_or(grid.scroll_y)
   let view = if commit {
     self
   } else {
@@ -273,14 +327,13 @@ pub fn Session::drawing_gesture(
       crop=object.crop,
     )
   }
-  let selection = self.drawing_pointer_state(grid, Some({ ..object, rect, }))
   let drawing = if commit {
     Json::null()
   } else {
     view.viewport(
       sheet,
-      grid.scroll_x,
-      grid.scroll_y,
+      scroll_x,
+      scroll_y,
       grid.width,
       grid.height,
       probe,
@@ -291,6 +344,33 @@ pub fn Session::drawing_gesture(
   if !commit {
     self.grid_id = view.grid_id
   }
+  let selection_grid = if commit {
+    {
+      ..grid,
+      rows: grid.rows.map(b => {
+        ..b,
+        scroll: if b.frozen {
+          0
+        } else {
+          scroll_y
+        },
+      }),
+      columns: grid.columns.map(b => {
+        ..b,
+        scroll: if b.frozen {
+          0
+        } else {
+          scroll_x
+        },
+      }),
+    }
+  } else {
+    view.grid.unwrap()
+  }
+  let selection = self.drawing_pointer_state(
+    selection_grid,
+    Some({ ..object, rect, }),
+  )
   {
     "query": if commit {
       query

@@ -18,6 +18,8 @@ export {
   checkRunningVariant,
   checkRunningOptions,
   checkDocxCoverPage,
+  checkDocxCaption,
+  type DocxCaption,
   type DocxCoverPage,
   docxRunningArea,
   type DocxRunningArea,
@@ -769,3 +771,10 @@ export class FoundationSession extends FoundationMathSession {
     return result.key;
   }
 }
+export {
+  docxNotes,
+  checkDocxNoteEdit,
+  type DocxNotes,
+  type DocxNoteKind,
+  type DocxNoteEdit,
+} from "./docx-notes.js";

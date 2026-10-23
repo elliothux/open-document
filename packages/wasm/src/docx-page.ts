@@ -11,32 +11,32 @@ export interface DocxCoverPage {
   title: string;
   subtitle: string;
 }
+const singleLineText = (value: unknown, max: number): value is string =>
+  typeof value === "string" &&
+  value.length <= max &&
+  value.isWellFormed() &&
+  Array.from(value).every((c) => {
+    const n = c.codePointAt(0)!;
+    return (
+      n >= 32 &&
+      n !== 127 &&
+      n !== 8232 &&
+      n !== 8233 &&
+      n !== 65534 &&
+      n !== 65535
+    );
+  });
 export function checkDocxCoverPage(
   value: unknown,
 ): asserts value is DocxCoverPage | null {
   if (value === null) return;
   const cover = record(value);
-  const text = (value: unknown, max: number): value is string =>
-    typeof value === "string" &&
-    value.length <= max &&
-    value.isWellFormed() &&
-    Array.from(value).every((c) => {
-      const n = c.codePointAt(0)!;
-      return (
-        n >= 32 &&
-        n !== 127 &&
-        n !== 8232 &&
-        n !== 8233 &&
-        n !== 65534 &&
-        n !== 65535
-      );
-    });
   if (
     Object.keys(cover).length !== 2 ||
     Object.keys(cover).some((key) => key !== "title" && key !== "subtitle") ||
-    !text(cover.title, 256) ||
+    !singleLineText(cover.title, 256) ||
     !cover.title.trim() ||
-    !text(cover.subtitle, 512)
+    !singleLineText(cover.subtitle, 512)
   )
     throw new Error("Invalid cover page title or subtitle");
 }
@@ -75,6 +75,28 @@ export type DocxPageField = {
   field: "PAGE" | "NUMPAGES";
   format?: Exclude<DocxPageNumbering["format"], "decimalZero">;
 };
+export interface DocxCaption {
+  label: string;
+  text: string;
+  position: "before" | "after";
+  format?: DocxPageField["format"];
+}
+export function checkDocxCaption(value: unknown): asserts value is DocxCaption {
+  const caption = record(value);
+  if (
+    Object.keys(caption).some(
+      (key) => !["label", "text", "position", "format"].includes(key),
+    ) ||
+    !singleLineText(caption.text, 1024) ||
+    (caption.position !== "before" && caption.position !== "after")
+  )
+    throw new Error("Invalid caption text or position");
+  checkBodyField({
+    field: "SEQ",
+    sequence: caption.label,
+    ...("format" in caption ? { format: caption.format } : {}),
+  });
+}
 export type DocxRunningContent =
   { text: string; target?: string } | DocxPageField;
 export type DocxBodyField =
@@ -328,6 +350,16 @@ export class FoundationPageSession extends FoundationReviewSession {
     checkBodyField(field);
     return editState(
       this.call({ operation: "insertBodyPageField", revision, field, profile }),
+    );
+  }
+  insertCaption(
+    revision: number,
+    caption: DocxCaption,
+    profile: Record<string, string>,
+  ) {
+    checkDocxCaption(caption);
+    return editState(
+      this.call({ operation: "insertDocxCaption", revision, caption, profile }),
     );
   }
   ruler(revision: number): DocxRuler {

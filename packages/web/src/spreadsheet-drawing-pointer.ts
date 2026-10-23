@@ -1,7 +1,16 @@
 import type { CanvasSurface } from "./canvas-surface.js";
-import type { XlsxClient, XlsxDrawingSelection } from "./xlsx.js";
+import type {
+  XlsxClient,
+  XlsxDrawingGesture,
+  XlsxDrawingSelection,
+} from "./xlsx.js";
 import type { PointerHost } from "./spreadsheet-pointer.js";
-import { PointerSelection, type PointerPoint } from "./pointer-selection.js";
+import {
+  PointerSelection,
+  scrollPointerViewport,
+  type PointerPoint,
+} from "./pointer-selection.js";
+import { updateGridScroll } from "./spreadsheet-elements.js";
 import {
   copySpreadsheetDrawing,
   cutSpreadsheetDrawing,
@@ -17,6 +26,7 @@ interface Gesture {
   scale: number;
   cancelled: boolean;
   ready: boolean;
+  viewport: NonNullable<XlsxDrawingGesture["viewport"]>;
 }
 
 /** Core selection and candidate drawing; only pointer samples live in this host. */
@@ -32,6 +42,7 @@ export class SpreadsheetDrawingPointer {
     private readonly surface: CanvasSurface,
     holder: HTMLElement,
     private readonly viewport: HTMLElement,
+    private readonly spacer: HTMLElement,
     private readonly client: XlsxClient,
     private readonly signal: AbortSignal,
     private readonly host: PointerHost,
@@ -48,7 +59,17 @@ export class SpreadsheetDrawingPointer {
       },
       { signal, capture: true },
     );
-    viewport.addEventListener("scroll", () => this.cancel(), { signal });
+    viewport.addEventListener(
+      "scroll",
+      () => {
+        if (!this.ownsScroll()) this.cancel();
+      },
+      { signal },
+    );
+    viewport.addEventListener("wheel", () => this.cancel(), {
+      signal,
+      passive: true,
+    });
     signal.addEventListener(
       "abort",
       () => {
@@ -61,11 +82,25 @@ export class SpreadsheetDrawingPointer {
   get active(): boolean {
     return this.ending || this.gesture !== undefined;
   }
+  ownsScroll(): boolean {
+    const gesture = this.gesture;
+    return (
+      gesture !== undefined &&
+      Math.abs(
+        Math.abs(this.viewport.scrollLeft) / gesture.scale -
+          gesture.viewport.scrollX,
+      ) < 0.1 &&
+      Math.abs(
+        this.viewport.scrollTop / gesture.scale - gesture.viewport.scrollY,
+      ) < 0.1
+    );
+  }
   private report(error: unknown): void {
     if (!this.signal.aborted) this.host.report(error);
   }
   private delta(gesture: Gesture) {
     return {
+      viewport: { ...gesture.viewport },
       dx: Math.max(
         -14400,
         Math.min(14400, (gesture.point.x - gesture.origin.x) / gesture.scale),
@@ -115,11 +150,12 @@ export class SpreadsheetDrawingPointer {
       button,
       this.viewport,
       scope.signal,
-      async (point, initial) => {
+      async (point, initial, _extend, elapsed) => {
         if (initial) {
           const now = this.host.current();
           if (!now.layout) return;
           const sheet = now.query.sheet;
+          const rect = this.surface.canvas.getBoundingClientRect();
           const gesture: Gesture = {
             object,
             handle,
@@ -130,6 +166,12 @@ export class SpreadsheetDrawingPointer {
             scale: now.scale,
             cancelled: false,
             ready: false,
+            viewport: {
+              originX: (point.x - rect.left) / now.scale,
+              originY: (point.y - rect.top) / now.scale,
+              scrollX: Math.abs(this.viewport.scrollLeft) / now.scale,
+              scrollY: this.viewport.scrollTop / now.scale,
+            },
           };
           this.gesture = gesture;
           this.host.changed();
@@ -161,6 +203,16 @@ export class SpreadsheetDrawingPointer {
         return this.host
           .run(async () => {
             if (gesture.cancelled || this.gesture !== gesture) return;
+            if (!this.ending)
+              scrollPointerViewport(
+                this.viewport,
+                point,
+                elapsed,
+                performance.now(),
+              );
+            gesture.viewport.scrollX =
+              Math.abs(this.viewport.scrollLeft) / gesture.scale;
+            gesture.viewport.scrollY = this.viewport.scrollTop / gesture.scale;
             const preview = await this.client.drawingGesture(
               gesture.revision,
               gesture.layout,
@@ -168,8 +220,19 @@ export class SpreadsheetDrawingPointer {
               this.host.current().profile,
             );
             if (gesture.cancelled || this.signal.aborted) return;
-            if (preview.drawing)
+            if (preview.drawing) {
               this.surface.draw(preview.drawing, 0, (gesture.scale * 72) / 96);
+              updateGridScroll(
+                this.viewport,
+                this.spacer,
+                preview.drawing,
+                gesture.scale,
+              );
+              gesture.viewport.scrollX =
+                Math.abs(this.viewport.scrollLeft) / gesture.scale;
+              gesture.viewport.scrollY =
+                this.viewport.scrollTop / gesture.scale;
+            }
             this.paint(preview.selection);
           })
           .catch((error) => {
@@ -206,7 +269,6 @@ export class SpreadsheetDrawingPointer {
           this.host.changed();
         }
       },
-      false,
     );
     button.addEventListener(
       "keydown",

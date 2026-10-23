@@ -8,6 +8,8 @@ import {
 import {
   checkPageSetup,
   checkDocxCoverPage,
+  checkDocxCaption,
+  type DocxCaption,
   type DocxCoverPage,
   checkPageBackground,
   checkPageBorders,
@@ -97,6 +99,21 @@ export class FoundationPageClient extends FoundationReviewClient {
         operation: "insertBodyPageField",
         revision,
         field,
+        profile,
+      }),
+    );
+  }
+  async insertCaption(
+    revision: number,
+    caption: DocxCaption,
+    profile: Record<string, string>,
+  ) {
+    checkDocxCaption(caption);
+    return editState(
+      await this.connection.request({
+        operation: "insertDocxCaption",
+        revision,
+        caption,
         profile,
       }),
     );

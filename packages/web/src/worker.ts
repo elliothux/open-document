@@ -301,6 +301,10 @@ async function dispatch(request: Request): Promise<unknown> {
           );
         case "bodyPageField":
           return foundation.bodyPageField(request.revision, request.selection);
+        case "docxNotes":
+          return foundation.notes(request.revision);
+        case "editDocxNote":
+          return foundation.editNote(request.revision, request.note);
         case "editBodyPageField":
           return foundation.editBodyPageField(
             request.revision,
@@ -317,6 +321,12 @@ async function dispatch(request: Request): Promise<unknown> {
           return foundation.insertBodyPageField(
             request.revision,
             request.field,
+            request.profile,
+          );
+        case "insertDocxCaption":
+          return foundation.insertCaption(
+            request.revision,
+            request.caption,
             request.profile,
           );
         case "setPageColumns":

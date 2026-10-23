@@ -13,6 +13,11 @@ import {
   type DocxBookmarkEdit,
 } from "./docx-overview.js";
 import { WasmSession } from "./session.js";
+import {
+  docxNotes,
+  checkDocxNoteEdit,
+  type DocxNoteEdit,
+} from "./docx-notes.js";
 import { integer, record } from "./validation.js";
 import { editState, type EditState } from "./docx-format.js";
 import {
@@ -131,6 +136,13 @@ export function docxRevisionGeometry(value: unknown): DocxSelectionGeometry {
 }
 
 export class FoundationReviewSession extends WasmSession {
+  notes(revision: number) {
+    return docxNotes(this.call({ operation: "docxNotes", revision }));
+  }
+  editNote(revision: number, note: DocxNoteEdit) {
+    checkDocxNoteEdit(note);
+    return editState(this.call({ operation: "editDocxNote", revision, note }));
+  }
   revisionGeometry(
     revision: number,
     layoutId: number,

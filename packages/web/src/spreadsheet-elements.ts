@@ -6,7 +6,11 @@ export function observeGridViewport(
   viewport: HTMLElement,
   input: HTMLElement,
   signal: AbortSignal,
-  current: () => { layout: XlsxViewport | undefined; scale: number },
+  current: () => {
+    layout: XlsxViewport | undefined;
+    scale: number;
+    drawingScroll: boolean;
+  },
   render: () => void,
 ): ResizeObserver {
   const options = { signal };
@@ -18,8 +22,9 @@ export function observeGridViewport(
   viewport.addEventListener(
     "scroll",
     () => {
-      const { layout, scale } = current();
-      if (gridScrollChanged(viewport, layout, scale)) render();
+      const { layout, scale, drawingScroll } = current();
+      if (!drawingScroll && gridScrollChanged(viewport, layout, scale))
+        render();
     },
     options,
   );

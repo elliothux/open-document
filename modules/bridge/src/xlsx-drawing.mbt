@@ -1,4 +1,26 @@
 ///|
+fn xlsx_drawing_viewport(
+  request : Json,
+) -> @xlsx.DrawingViewport? raise @failure.Failure {
+  guard request is { "viewport": value, .. } else { return None }
+  guard value is Object(fields) &&
+    fields.length() == 4 &&
+    fields
+    .keys()
+    .all(key => ["originX", "originY", "scrollX", "scrollY"].contains(key)) else {
+    @failure.reject(
+      "invalid-viewport", "Invalid worksheet object pointer viewport fields",
+    )
+  }
+  Some({
+    origin_x: xlsx_number(value, "originX"),
+    origin_y: xlsx_number(value, "originY"),
+    scroll_x: xlsx_number(value, "scrollX"),
+    scroll_y: xlsx_number(value, "scrollY"),
+  })
+}
+
+///|
 fn xlsx_drawing_request(operation : String) -> Bool {
   [
     "picturesXlsx", "captureDrawingXlsx", "drawingFragmentImageXlsx", "pasteDrawingXlsx",
@@ -108,6 +130,7 @@ fn Foundation::xlsx_drawing_operation(
         self.probe,
         xlsx_profile(request),
         images=self.images,
+        viewport=xlsx_drawing_viewport(request),
       )
     "picturesXlsx" =>
       session.pictures(

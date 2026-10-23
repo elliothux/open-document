@@ -26,6 +26,7 @@ import type { EditorOutput } from "./editor-state.js";
 import type {
   DocxRunningKind,
   DocxCoverPage,
+  DocxCaption,
   DocxRunningVariant,
   DocxRunningContent,
   DocxBodyField,
@@ -286,6 +287,15 @@ export abstract class DocumentPage extends DocumentReview {
       this.review.client.insertBodyPageField(
         this.review.snapshot().revision,
         field,
+        this.profile,
+      ),
+    );
+  }
+  insertCaption(caption: DocxCaption): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.insertCaption(
+        this.review.snapshot().revision,
+        caption,
         this.profile,
       ),
     );

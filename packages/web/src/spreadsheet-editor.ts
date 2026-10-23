@@ -143,6 +143,7 @@ export class SpreadsheetEditor extends SpreadsheetClipboard {
       this.surface,
       this.holder,
       this.viewport,
+      this.spacer,
       this.input,
       client,
       this.listeners.signal,
@@ -206,7 +207,11 @@ export class SpreadsheetEditor extends SpreadsheetClipboard {
       this.viewport,
       this.input,
       this.listeners.signal,
-      () => ({ layout: this.layout, scale: this.scale }),
+      () => ({
+        layout: this.layout,
+        scale: this.scale,
+        drawingScroll: this.pointer.ownsDrawingScroll(),
+      }),
       () => this.requestRender(),
     );
     this.publish();

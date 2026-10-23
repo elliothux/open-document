@@ -29,6 +29,10 @@ import {
   checkDocxComment,
   docxOverview,
   docxComments,
+  docxNotes,
+  checkDocxNoteEdit,
+  type DocxNotes,
+  type DocxNoteEdit,
   docxCommentNavigation,
   editState,
   docxRevisionGeometry,
@@ -44,12 +48,30 @@ import {
 export interface DocumentComments extends DocxComments {
   documentId: string;
 }
+export interface DocumentNotes extends DocxNotes {
+  documentId: string;
+}
 export interface DocumentRevisions extends DocxRevisions {
   documentId: string;
 }
 
 /** Review calls retain the same Worker protocol and validation as other document commands. */
 export class FoundationReviewClient {
+  async notes(revision: number) {
+    return docxNotes(
+      await this.connection.request({ operation: "docxNotes", revision }),
+    );
+  }
+  async editNote(revision: number, note: DocxNoteEdit) {
+    checkDocxNoteEdit(note);
+    return editState(
+      await this.connection.request({
+        operation: "editDocxNote",
+        revision,
+        note,
+      }),
+    );
+  }
   constructor(protected readonly connection: Connection) {}
   async charts(revision: number) {
     return docxCharts(
@@ -249,6 +271,62 @@ export class FoundationReviewClient {
 
 /** Review catalogs and commands use the editor's existing input and output queue. */
 export abstract class DocumentReview {
+  notes(): Promise<DocumentNotes> {
+    return this.review
+      .read(async () => {
+        try {
+          const value = {
+            ...(await this.review.client.notes(
+              this.review.snapshot().revision,
+            )),
+            documentId: this.review.snapshot().documentId,
+          };
+          return { ok: true as const, value };
+        } catch (error) {
+          return { ok: false as const, error };
+        }
+      })
+      .then((result) => {
+        if (!result.ok) throw result.error;
+        return result.value;
+      });
+  }
+  editNote(source: DocumentNotes, note: DocxNoteEdit): Promise<void> {
+    const check = () => {
+      checkDocxNoteEdit(note);
+      const current = this.review.snapshot();
+      if (
+        source.documentId !== current.documentId ||
+        source.revision !== current.revision
+      )
+        throw new Error("Note catalog belongs to an older document state");
+      const entry = source.entries.find(
+        (entry) => entry.kind === note.kind && entry.id === note.id,
+      );
+      if (!entry || entry.reason)
+        throw new Error("This note requires structured editing");
+    };
+    try {
+      check();
+    } catch (error) {
+      return Promise.reject(error);
+    }
+    let failure: { error: unknown } | undefined;
+    return this.review
+      .edit(async () => {
+        try {
+          check();
+          return await this.review.client.editNote(source.revision, note);
+        } catch (error) {
+          // Refresh authoritative state before reporting a rejected note transaction.
+          failure = { error };
+          return this.review.client.editState();
+        }
+      })
+      .then(() => {
+        if (failure) throw failure.error;
+      });
+  }
   private commentFocus: Readonly<{ id: string }> | undefined;
   getCommentFocus(): Readonly<{ id: string }> | undefined {
     return this.commentFocus;

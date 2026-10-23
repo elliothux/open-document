@@ -167,6 +167,48 @@ fn Foundation::docx_page(
         salt,
       )
     }
+    "docxNotes" => session.notes(revision)
+    "editDocxNote" => {
+      guard request is { "note": Object(fields) as note, .. } &&
+        fields.length() == 3 &&
+        fields.keys().all(key => ["kind", "id", "text"].contains(key)) else {
+        @failure.reject("invalid-operation", "Invalid native note fields")
+      }
+      session.edit_note(
+        revision,
+        field_string(note, "kind"),
+        field_string(note, "id"),
+        field_string(note, "text"),
+      )
+    }
+    "insertDocxCaption" => {
+      guard request is { "caption": Object(fields) as caption, .. } &&
+        fields.length() >= 3 &&
+        fields.length() <= 4 &&
+        fields
+        .keys()
+        .all(key => ["label", "text", "position", "format"].contains(key)) else {
+        @failure.reject("invalid-operation", "Invalid caption fields")
+      }
+      let position = field_string(caption, "position")
+      guard ["before", "after"].contains(position) else {
+        @failure.reject("invalid-operation", "Invalid caption position")
+      }
+      session.insert_caption(
+        revision,
+        field_string(caption, "label"),
+        field_string(caption, "text"),
+        position == "before",
+        if fields.contains("format") {
+          field_string(caption, "format")
+        } else {
+          ""
+        },
+        probe=self.probe,
+        profile=xlsx_profile(request),
+        images=self.images,
+      )
+    }
     "insertBodyPageField" | "editBodyPageField" => {
       guard request is { "field": item, .. } else {
         @failure.reject("invalid-operation", "Page field is required")

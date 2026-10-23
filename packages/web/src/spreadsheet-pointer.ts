@@ -48,6 +48,9 @@ export class SpreadsheetPointer {
   get dragging(): boolean {
     return this.drag !== undefined || this.drawings.active;
   }
+  ownsDrawingScroll(): boolean {
+    return this.drawings.ownsScroll();
+  }
   private readonly handle = document.createElement("button");
   private geometry: XlsxSelectionGeometry | undefined;
   private drag: Drag | undefined;
@@ -59,6 +62,7 @@ export class SpreadsheetPointer {
     private readonly surface: CanvasSurface,
     holder: HTMLElement,
     private readonly viewport: HTMLElement,
+    spacer: HTMLElement,
     input: HTMLTextAreaElement,
     private readonly client: XlsxClient,
     private readonly signal: AbortSignal,
@@ -68,6 +72,7 @@ export class SpreadsheetPointer {
       surface,
       holder,
       viewport,
+      spacer,
       client,
       signal,
       host,
