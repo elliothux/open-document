@@ -1,13 +1,8 @@
 ///|
-fn Session::read_sheet_chart(
-  self : Session,
-  sheet : Sheet,
-  part : String,
+fn Tree::sheet_graphic(
   tree : Tree,
-  frame : @xml.Node,
   source : @xml.Node,
-  dimensions : Dimensions,
-) -> SheetObject raise @failure.Failure {
+) -> (@xml.Node, @xml.Node) raise @failure.Failure {
   guard source.attributes.all(a => {
     a.uri.is_empty() &&
     (
@@ -56,10 +51,25 @@ fn Session::read_sheet_chart(
     "graphicData",
     uri=picture_drawing_uri,
   )
+  ignore(tree.shape_children(graphic, ["graphicData"]))
+  (identity, data)
+}
+
+///|
+fn Session::read_sheet_chart(
+  self : Session,
+  sheet : Sheet,
+  part : String,
+  tree : Tree,
+  frame : @xml.Node,
+  source : @xml.Node,
+  dimensions : Dimensions,
+) -> SheetObject raise @failure.Failure {
+  let (identity, data) = tree.sheet_graphic(source)
+  let id = identity.attribute("id").unwrap()
   guard data.attribute("uri") == Some(chart_uri) else {
     @failure.reject("unsupported-chart", "Unknown worksheet graphic type")
   }
-  ignore(tree.shape_children(graphic, ["graphicData"]))
   ignore(tree.shape_children(data, ["chart"], uri=chart_uri))
   let node = tree.picture_node(data.id, "chart", uri=chart_uri)
   let relation = node
@@ -111,6 +121,7 @@ fn Session::read_sheet_chart(
     description: identity.attribute("descr").unwrap_or(""),
     media: None,
     shape: None,
+    slicer: None,
     chart: Some((link.target, chart)),
     chart_visibility: Some(self.chart_visibility(sheet.id, chart)),
     crop: [0, 0, 0, 0],

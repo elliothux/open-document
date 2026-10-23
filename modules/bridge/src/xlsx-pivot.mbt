@@ -183,6 +183,48 @@ fn xlsx_pivot_edit(
   change : Json,
 ) -> Json raise @failure.Failure {
   let action = field_string(change, "action")
+  if action == "selectSlicer" || action == "scrollSlicer" {
+    let keys = if action == "selectSlicer" {
+      ["action", "layout", "id", "index", "additive"]
+    } else {
+      ["action", "layout", "id", "rows"]
+    }
+    guard change is Object(fields) &&
+      fields.length() == keys.length() &&
+      fields.keys().all(key => keys.contains(key)) else {
+      @failure.reject("invalid-operation", "Invalid slicer pointer command")
+    }
+    let layout = field_int(change, "layout")
+    let id = field_string(change, "id")
+    if action == "scrollSlicer" {
+      guard fields.get("rows") is Some(Number(rows, ..)) &&
+        rows >= -4096 &&
+        rows <= 4096 &&
+        rows != 0 &&
+        rows == rows.trunc() else {
+        @failure.reject("invalid-operation", "Invalid slicer scroll delta")
+      }
+      return session.scroll_slicer(revision, sheet, layout, id, rows.to_int())
+    }
+    guard fields.get("additive") is Some(True | False) else {
+      @failure.reject("invalid-operation", "Invalid slicer selection mode")
+    }
+    let index = match fields.get("index") {
+      Some(Null) => None
+      Some(Number(value, ..)) if value >= 0 &&
+        value <= 4095 &&
+        value == value.trunc() => Some(value.to_int())
+      _ => @failure.reject("invalid-operation", "Invalid slicer member index")
+    }
+    return session.select_slicer(
+      revision,
+      sheet,
+      layout,
+      id,
+      index,
+      fields.get("additive") == Some(Json(true)),
+    )
+  }
   if action == "filterSlicer" {
     guard change is Object(fields) &&
       fields.length() == 3 &&

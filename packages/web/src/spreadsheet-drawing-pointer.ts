@@ -445,6 +445,7 @@ export class SpreadsheetDrawingPointer {
     let selected = false;
     if (now.layout && !this.viewport.hidden && !now.disabled)
       for (const [layer, object] of now.layout.objects.entries()) {
+        if (object.kind === "slicer") continue;
         for (const [index, region] of object.regions.entries()) {
           const key = `${object.id}:${index}:move`,
             button = this.target(

@@ -46,8 +46,11 @@ fn Grid::drawing_delta(
 }
 
 ///|
-fn Grid::drawing_regions(self : Grid, object : SheetObject) -> Array[Json] {
-  let regions : Array[Json] = []
+fn Grid::drawing_boxes(
+  self : Grid,
+  object : SheetObject,
+) -> Array[(@layout.Border, @layout.Border)] {
+  let regions : Array[(@layout.Border, @layout.Border)] = []
   if !object.visible {
     return regions
   }
@@ -85,11 +88,16 @@ fn Grid::drawing_regions(self : Grid, object : SheetObject) -> Array[Json] {
       }
       let visible = grid_intersection(rect, clip)
       if visible.width > 0 && visible.height > 0 {
-        regions.push({ "rect": rect, "clip": visible })
+        regions.push((rect, visible))
       }
     }
   }
   regions
+}
+
+///|
+fn Grid::drawing_regions(self : Grid, object : SheetObject) -> Array[Json] {
+  self.drawing_boxes(object).map(pair => { "rect": pair.0, "clip": pair.1 })
 }
 
 ///|

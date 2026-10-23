@@ -4,6 +4,7 @@ import type { DrawingBatch, DrawRect } from "./drawing.js";
 import { xlsxRect } from "./xlsx-geometry.js";
 import { noteCell, noteText } from "./xlsx-sheet.js";
 import { record, integer, hasFields } from "./validation.js";
+import { checkSlicerView, type XlsxSlicerView } from "./xlsx-slicer-view.js";
 import {
   drawingRegions,
   type XlsxDrawingRegion,
@@ -32,10 +33,11 @@ export interface XlsxViewport extends DrawingBatch {
   notes: { address: string; author: string; text: string; rect: DrawRect }[];
   objects: {
     id: string;
-    kind: "picture" | "chart" | XlsxShapeKind;
+    kind: "picture" | "chart" | "slicer" | XlsxShapeKind;
     name: string;
     selected: boolean;
     regions: XlsxDrawingRegion[];
+    slicer?: XlsxSlicerView;
   }[];
   rows: { index: number; position: number; size: number }[];
   columns: XlsxViewport["rows"];
@@ -55,6 +57,7 @@ export function xlsxGridObjects(value: unknown): void {
       !(
         picture.kind === "picture" ||
         picture.kind === "chart" ||
+        picture.kind === "slicer" ||
         xlsxShapeKinds.some((kind) => kind === picture.kind)
       ) ||
       typeof picture.name !== "string" ||
@@ -63,6 +66,9 @@ export function xlsxGridObjects(value: unknown): void {
     )
       throw new Error("Invalid grid picture identity");
     drawingRegions(picture.regions);
+    if (picture.kind === "slicer") checkSlicerView(picture.slicer);
+    else if (picture.slicer !== undefined)
+      throw new Error("Unexpected slicer view");
     ids.add(picture.id);
   }
 }

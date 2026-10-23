@@ -21,6 +21,12 @@ fn Session::drawing_font_keys(
   for document in drawings.values() {
     if document
       .nodes()
+      .any(node => node.uri == slicer_drawing_uri && node.name == "slicer") {
+      keys[self.normal_font] = true
+      keys[self.normal_font + "|bold"] = true
+    }
+    if document
+      .nodes()
       .any(node => {
         node.uri == picture_drawing_uri &&
         node.name == "graphicData" &&

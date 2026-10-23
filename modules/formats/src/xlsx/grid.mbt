@@ -264,14 +264,13 @@ pub fn Session::viewport(
     "images": document.drawing_images(images),
     "cells": cells,
     "notes": visible_notes,
-    "objects": objects.map(fn(picture : SheetObject) -> Json {
-      {
-        "id": picture.id,
-        "kind": picture.kind(),
-        "name": picture.name,
-        "selected": self.drawing_selection == Some((sheet, picture.id)),
-        "regions": grid.drawing_regions(picture),
-      }
+    "objects": objects.map(picture => {
+      picture.grid_object(
+        grid,
+        self.drawing_selection == Some((sheet, picture.id)),
+        probe,
+        profile,
+      )
     }),
     "rows": row_headers,
     "columns": column_headers,

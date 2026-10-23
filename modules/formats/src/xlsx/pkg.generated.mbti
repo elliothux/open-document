@@ -453,6 +453,7 @@ pub fn Session::insert_chart(Self, Int, String, SheetChartSettings, Double, Doub
 pub fn Session::insert_chart_range(Self, Int, String, String, String, String, Double, Double, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::insert_picture(Self, Int, String, Double, Double, Bytes, @layout.TextProbe, Map[String, String], name? : String, description? : String, images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_shape(Self, Int, String, String, Double, Double, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn Session::insert_slicer(Self, Int, String, SlicerSettings, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::invalidate_geometry(Self) -> Unit
 pub fn Session::navigate(Self, Int, String, Bool) -> Json raise @failure.Failure
 pub fn Session::open(Bytes, @archive.Budget, date? : String?) -> Self raise @failure.Failure
@@ -472,8 +473,10 @@ pub fn Session::replace(Self, Int, String, String, Array[Array[String]], literal
 pub fn Session::replace_matches(Self, Int, String, String, FindOptions, String, Int?) -> Json raise @failure.Failure
 pub fn Session::replace_picture(Self, Int, String, String, Bytes, @layout.TextProbe, Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::save(Self) -> Bytes raise @failure.Failure
+pub fn Session::scroll_slicer(Self, Int, String, Int, String, Int) -> Json raise @failure.Failure
 pub fn Session::select(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::select_drawing(Self, Int, Int, String?) -> Json raise @failure.Failure
+pub fn Session::select_slicer(Self, Int, String, Int, String, Int?, Bool) -> Json raise @failure.Failure
 pub fn Session::selection_geometry(Self, Int) -> Json raise @failure.Failure
 pub fn Session::set_chart(Self, Int, String, String, SheetChartSettings, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::set_chart_frame(Self, Int, String, String, String, @layout.Border, String, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
@@ -584,6 +587,15 @@ pub(all) enum SheetEdit {
   MoveDrawing(String, String)
   Protection(Bool, String, Bytes)
   WorkbookProtection(Bool, String, Bytes)
+}
+
+pub(all) struct SlicerSettings {
+  pivot : String
+  field : Int
+  name : String
+  caption : String
+  width : Double
+  height : Double
 }
 
 pub(all) struct SortKey {

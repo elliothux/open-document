@@ -8,6 +8,7 @@ import type { CanvasSurface } from "./canvas-surface.js";
 import { paintGridSelection } from "./spreadsheet-input.js";
 import { SpreadsheetNotes } from "./spreadsheet-notes.js";
 import { SpreadsheetDrawingPointer } from "./spreadsheet-drawing-pointer.js";
+import { SpreadsheetSlicers } from "./spreadsheet-slicers.js";
 
 export interface PointerHost {
   current(): {
@@ -58,6 +59,7 @@ export class SpreadsheetPointer {
   private preparing = false;
   private readonly notes: SpreadsheetNotes;
   private readonly drawings: SpreadsheetDrawingPointer;
+  private readonly slicers: SpreadsheetSlicers;
   constructor(
     private readonly surface: CanvasSurface,
     holder: HTMLElement,
@@ -68,6 +70,13 @@ export class SpreadsheetPointer {
     private readonly signal: AbortSignal,
     private readonly host: PointerHost,
   ) {
+    this.slicers = new SpreadsheetSlicers(
+      holder,
+      viewport,
+      client,
+      signal,
+      host,
+    );
     this.drawings = new SpreadsheetDrawingPointer(
       surface,
       holder,
@@ -324,6 +333,7 @@ export class SpreadsheetPointer {
       );
   }
   update(geometry: XlsxSelectionGeometry): void {
+    this.slicers.update();
     this.notes.update();
     this.geometry = geometry;
     if (this.drawings.update()) {

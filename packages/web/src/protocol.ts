@@ -1,4 +1,5 @@
 import type { DocxWatermarkRequest } from "./protocol-watermark.js";
+import type { XlsxAnalysisRequest } from "./protocol-xlsx-analysis.js";
 import type {
   DocxChartEdit,
   DocxFractionEdit,
@@ -42,7 +43,6 @@ import type {
 import type {
   GridViewport,
   XlsxDuplicateSettings,
-  XlsxPivotSettings,
   PrintOptions,
   XlsxSheetEdit,
   XlsxCellFormat,
@@ -65,6 +65,7 @@ import type { PdfCommand } from "@open-document/wasm/pdf";
 
 export type Operation =
   | DocxNoteRequest
+  | XlsxAnalysisRequest
   | {
       operation: "getXlsxChart";
       revision: number;
@@ -144,12 +145,6 @@ export type Operation =
       sheet: string;
       objectId: string;
       profile: Record<string, string>;
-    }
-  | { operation: "pivotsXlsx" | "slicersXlsx"; revision: number; sheet: string }
-  | {
-      operation: "pivotPreviewXlsx";
-      revision: number;
-      settings: XlsxPivotSettings;
     }
   | { operation: "docxRuler"; revision: number }
   | { operation: "editDocxRuler"; source: DocxRuler; change: DocxRulerEdit }

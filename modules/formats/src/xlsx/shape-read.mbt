@@ -372,6 +372,7 @@ fn Session::read_sheet_shape(
     media: None,
     chart: None,
     chart_visibility: None,
+    slicer: None,
     crop: [0, 0, 0, 0],
     shape: Some({
       preset,

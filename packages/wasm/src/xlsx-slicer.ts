@@ -38,13 +38,81 @@ export interface XlsxSlicers {
   reason: string;
   items: XlsxSlicer[];
 }
-export interface XlsxSlicerEdit {
-  action: "filterSlicer";
+export interface XlsxSlicerSettings {
+  pivot: string;
+  field: number;
   name: string;
-  indices: number[];
+  caption: string;
+  width: number;
+  height: number;
 }
+export function checkXlsxSlicerSettings(value: unknown): void {
+  const settings = record(value);
+  if (
+    !fields(settings, [
+      "pivot",
+      "field",
+      "name",
+      "caption",
+      "width",
+      "height",
+    ]) ||
+    !text(settings.pivot, 1024) ||
+    !settings.pivot.trim() ||
+    !integer(settings.field, 0, 63) ||
+    !text(settings.name, 255) ||
+    !settings.name.trim() ||
+    !text(settings.caption, 255) ||
+    !settings.caption.trim() ||
+    ![settings.width, settings.height].every(
+      (value) =>
+        typeof value === "number" &&
+        Number.isFinite(value) &&
+        value >= 0.1 &&
+        value <= 14400,
+    )
+  )
+    throw new Error("Invalid native slicer settings");
+}
+export type XlsxSlicerEdit =
+  | {
+      action: "filterSlicer";
+      name: string;
+      indices: number[];
+    }
+  | {
+      action: "selectSlicer";
+      layout: number;
+      id: string;
+      index: number | null;
+      additive: boolean;
+    }
+  | { action: "scrollSlicer"; layout: number; id: string; rows: number };
 export function checkXlsxSlicerEdit(value: unknown): void {
   const edit = record(value);
+  if (edit.action === "selectSlicer" || edit.action === "scrollSlicer") {
+    const selecting = edit.action === "selectSlicer";
+    if (
+      !fields(
+        edit,
+        selecting
+          ? ["action", "layout", "id", "index", "additive"]
+          : ["action", "layout", "id", "rows"],
+      ) ||
+      !integer(edit.layout, 1, 2147483647) ||
+      typeof edit.id !== "string" ||
+      !/^[1-9][0-9]{0,9}$/.test(edit.id) ||
+      (selecting
+        ? !(
+            (edit.index === null || integer(edit.index, 0, 4095)) &&
+            typeof edit.additive === "boolean" &&
+            (edit.index !== null || !edit.additive)
+          )
+        : !(integer(edit.rows, -4096, 4096) && edit.rows !== 0))
+    )
+      throw new Error("Invalid slicer pointer command");
+    return;
+  }
   if (
     !fields(edit, ["action", "name", "indices"]) ||
     edit.action !== "filterSlicer" ||

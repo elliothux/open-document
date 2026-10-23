@@ -5,6 +5,7 @@ import type {
   XlsxShapeSettings,
   XlsxChartSettings,
   XlsxChartFrame,
+  XlsxSlicerSettings,
 } from "./xlsx.js";
 import type { XlsxQuery, XlsxSheetEdit } from "@open-document/wasm/xlsx";
 import type { SpreadsheetCanvas } from "./spreadsheet-canvas.js";
@@ -17,6 +18,16 @@ export abstract class SpreadsheetObjects {
   protected abstract read<T>(action: () => Promise<T>): Promise<T>;
   protected abstract change(action: () => Promise<XlsxQuery>): Promise<void>;
   abstract get currentState(): XlsxQuery;
+  insertSlicer(settings: XlsxSlicerSettings): Promise<void> {
+    return this.change(() =>
+      this.client.insertSlicer(
+        this.currentState.revision,
+        this.currentState.sheet,
+        settings,
+        this.profile,
+      ),
+    );
+  }
   charts() {
     return this.read(() =>
       this.client.charts(

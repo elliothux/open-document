@@ -35,6 +35,7 @@ pub struct Session {
   priv mut sheets : Array[Sheet]
   priv mut selection : (String, Range)
   priv mut drawing_selection : (String, String)?
+  priv slicer_scrolls : Map[(String, String), Int]
   priv mut anchor : Address
   priv mut focus : Address
   priv mut grid : Grid?
@@ -260,6 +261,7 @@ fn Session::from_package(
     focus: { row: 1, column: 1, },
     grid: None,
     drawing_selection: None,
+    slicer_scrolls: Map([]),
     grid_id: 0,
     revision: 0,
     history: [],
@@ -636,4 +638,5 @@ pub fn Session::close(self : Session) -> Unit {
   self.grid = None
   self.drawing_selection = None
   self.opc.close()
+  self.slicer_scrolls.clear()
 }

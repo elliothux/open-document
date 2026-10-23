@@ -14,6 +14,7 @@ priv struct SheetObject {
   shape : SheetShape?
   chart : (String, @chart.WorksheetChart)?
   chart_visibility : @layout.ChartVisibility?
+  slicer : SlicerDrawing?
   tree : Tree
   frame : @xml.Node
   source : @xml.Node
@@ -161,7 +162,21 @@ fn Session::sheet_objects(
   let root = tree.document.nodes()[0]
   guard root.uri == picture_uri &&
     root.name == "wsDr" &&
-    root.attributes.is_empty() else {
+    root.attributes.all(a => {
+      a.uri == drawing_compatibility_uri &&
+      a.name == "Ignorable" &&
+      a.value
+      .split(" ")
+      .all(prefix => {
+        !prefix.is_empty() &&
+        root.namespaces
+        .iter()
+        .any(binding => {
+          binding.0 == prefix.to_owned() &&
+          binding.1 == "http://schemas.microsoft.com/office/drawing/2010/main"
+        })
+      })
+    }) else {
     @failure.reject("unsupported-drawing", "Expected a worksheet drawing")
   }
   let anchors = tree.children.get(root.id).unwrap_or([])
@@ -191,29 +206,48 @@ fn Session::sheet_objects(
       .get(frame.id)
       .unwrap_or([])
       .all(node => {
-        node.uri == picture_uri &&
-        (coordinates + ["pic", "sp", "graphicFrame", "clientData"]).contains(
-          node.name,
+        (
+          node.uri == drawing_compatibility_uri &&
+          node.name == "AlternateContent"
+        ) ||
+        (
+          node.uri == picture_uri &&
+          (coordinates + ["pic", "sp", "graphicFrame", "clientData"]).contains(
+            node.name,
+          )
         )
       }) else {
       @failure.reject(
         "unsupported-drawing", "Only ordinary worksheet pictures are supported",
       )
     }
-    if tree.picture_child(frame.id, "graphicFrame") is Some(source) {
+    if tree.slicer_graphic(frame) is Some(source) {
       guard tree.picture_child(frame.id, "pic") is None &&
         tree.picture_child(frame.id, "sp") is None else {
         @failure.reject(
           "unsupported-drawing", "Drawing anchor has multiple objects",
         )
       }
-      let object = self.read_sheet_chart(
-        sheet, part, tree, frame, source, dimensions,
-      )
+      let (_, data) = tree.sheet_graphic(source)
+      let object = if data.attribute("uri") == Some(slicer_drawing_uri) {
+        self.read_slicer_drawing(sheet, part, tree, frame, source, dimensions)
+      } else {
+        self.read_sheet_chart(sheet, part, tree, frame, source, dimensions)
+      }
       guard !ids.contains(object.id) else {
         @failure.reject("unsupported-drawing", "Duplicate drawing identity")
       }
       ids[object.id] = ()
+      if object.slicer is Some(slicer) &&
+        result.any(item => {
+          item.slicer
+          .map(other => other.control.name == slicer.control.name)
+          .unwrap_or(false)
+        }) {
+        @failure.reject(
+          "unsupported-drawing", "Duplicate worksheet slicer view",
+        )
+      }
       result.push(object)
       continue
     }
@@ -393,6 +427,7 @@ fn Session::sheet_objects(
       shape: None,
       chart: None,
       chart_visibility: None,
+      slicer: None,
       tree,
       source,
       frame,

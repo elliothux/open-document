@@ -1,11 +1,17 @@
 import { XlsxDrawingClient } from "./xlsx-drawings.js";
-import { xlsxSlicers } from "@open-document/wasm/xlsx";
-export { xlsxSlicers } from "@open-document/wasm/xlsx";
+import {
+  xlsxSlicers,
+  checkXlsxSlicerSettings,
+  type XlsxSlicerSettings,
+} from "@open-document/wasm/xlsx";
+export { xlsxSlicers, checkXlsxSlicerSettings } from "@open-document/wasm/xlsx";
 export type {
   XlsxSlicer,
   XlsxSlicerMember,
   XlsxSlicers,
   XlsxSlicerEdit,
+  XlsxSlicerView,
+  XlsxSlicerSettings,
 } from "@open-document/wasm/xlsx";
 export {
   xlsxChartKinds,
@@ -281,6 +287,23 @@ export class XlsxClient extends XlsxDrawingClient {
         operation: "slicersXlsx",
         revision,
         sheet,
+      }),
+    );
+  }
+  async insertSlicer(
+    revision: number,
+    sheet: string,
+    settings: XlsxSlicerSettings,
+    profile: Record<string, string>,
+  ) {
+    checkXlsxSlicerSettings(settings);
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "insertXlsxSlicer",
+        revision,
+        sheet,
+        settings,
+        profile,
       }),
     );
   }

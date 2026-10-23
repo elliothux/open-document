@@ -51,6 +51,9 @@ fn Foundation::dispatch(
     @failure.reject("closed-session", "Foundation session is closed")
   }
   let operation = field_string(request, "operation")
+  if operation == "insertXlsxSlicer" {
+    return self.insert_xlsx_slicer(request)
+  }
   if is_docx_note_operation(operation) {
     return self.docx_note_operation(operation, request)
   }

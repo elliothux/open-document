@@ -124,6 +124,11 @@ fn SheetObject::check_change(
   rect? : @layout.Border,
   crop? : Array[Double],
 ) -> Unit raise @failure.Failure {
+  guard self.slicer is None else {
+    @failure.reject(
+      "protected-content", "Slicer frame changes require coordinated resource editing",
+    )
+  }
   for node in self.tree.document.nodes() {
     if node.start < self.source.start ||
       node.end > self.source.end ||

@@ -3,23 +3,30 @@ fn SheetObject::transform_change(
   self : SheetObject,
   rect : @layout.Border,
 ) -> @xml.SourceChange raise @failure.Failure {
-  let props = if self.chart is Some(_) {
+  if self.slicer is Some(_) && self.source.parent != self.frame.id {
+    return self.slicer_transform_change(rect) catch {
+      @failure.Failure(code="limit-exceeded", ..) as error => raise error
+      @failure.Failure(message~, ..) =>
+        @failure.reject("protected-content", message)
+    }
+  }
+  let props = if self.chart is Some(_) || self.slicer is Some(_) {
     self.source
   } else {
     self.tree.picture_node(self.source.id, "spPr")
   }
-  let uri = if self.chart is Some(_) {
+  let uri = if self.chart is Some(_) || self.slicer is Some(_) {
     picture_uri
   } else {
     picture_drawing_uri
   }
-  let xml = if self.chart is Some(_) {
+  let xml = if self.chart is Some(_) || self.slicer is Some(_) {
     chart_transform(rect)
   } else {
     picture_transform(rect)
   }
   if self.tree.picture_child(props.id, "xfrm", uri~) is Some(node) {
-    if self.chart is Some(_) {
+    if self.chart is Some(_) || self.slicer is Some(_) {
       let source = self.tree.picture_markup(node.id)
       guard !source.contains("<!--") && !source.contains("<?") else {
         @failure.reject(
@@ -43,7 +50,7 @@ fn SheetObject::transform_change(
 ///|
 fn SheetObject::transform_matches(self : SheetObject) -> Bool {
   try {
-    let props = if self.chart is Some(_) {
+    let props = if self.chart is Some(_) || self.slicer is Some(_) {
       self.source
     } else {
       self.tree.picture_node(self.source.id, "spPr")
@@ -51,7 +58,11 @@ fn SheetObject::transform_matches(self : SheetObject) -> Bool {
     let transform = self.tree.picture_node(
       props.id,
       "xfrm",
-      uri=if self.chart is Some(_) { picture_uri } else { picture_drawing_uri },
+      uri=if self.chart is Some(_) || self.slicer is Some(_) {
+        picture_uri
+      } else {
+        picture_drawing_uri
+      },
     )
     let position = self.tree.picture_node(
       transform.id,

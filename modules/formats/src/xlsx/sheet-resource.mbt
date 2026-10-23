@@ -22,10 +22,14 @@ fn Session::create_sheet_resource(
     "tables"
   } else if kind == "comments" {
     "comments"
+  } else if kind == "slicer" {
+    "slicers"
+  } else if kind == "slicerCache" {
+    "slicerCaches"
   } else {
     "drawings"
   }
-  let stem = if kind.has_prefix("pivot") {
+  let stem = if kind.has_prefix("pivot") || kind.has_prefix("slicer") {
     "od" + kind
   } else if kind == "chart" {
     "odChart"
@@ -57,7 +61,9 @@ fn Session::create_sheet_resource(
   )
   parts[part] = document
   created[part] = document
-  let content_type = if kind.has_prefix("pivot") {
+  let content_type = if kind.has_prefix("slicer") {
+    "application/vnd.ms-excel.\{kind}+xml"
+  } else if kind.has_prefix("pivot") {
     "application/vnd.openxmlformats-officedocument.spreadsheetml.\{kind}+xml"
   } else if kind == "chart" {
     "application/vnd.openxmlformats-officedocument.drawingml.chart+xml"
@@ -98,7 +104,7 @@ fn Session::attach_sheet_resource(
     None
   }
   let id = for i in 1..<=16384 {
-    let id = (if kind.has_prefix("pivot") {
+    let id = (if kind.has_prefix("pivot") || kind.has_prefix("slicer") {
         "od" + kind
       } else if kind == "table" {
         "odTable"
@@ -117,7 +123,12 @@ fn Session::attach_sheet_resource(
       "limit-exceeded", "Worksheet resource relationship identities exhausted",
     )
   }
-  let markup = "<od:Relationship xmlns:od=\"http://schemas.openxmlformats.org/package/2006/relationships\" Id=\"\{id}\" Type=\"\{relationship_uri}\{kind}\" Target=\"/\{escaped_attribute(part)}\"/>"
+  let uri = if kind.has_prefix("slicer") {
+    slicer_relationship_uri
+  } else {
+    relationship_uri
+  }
+  let markup = "<od:Relationship xmlns:od=\"http://schemas.openxmlformats.org/package/2006/relationships\" Id=\"\{id}\" Type=\"\{uri}\{kind}\" Target=\"/\{escaped_attribute(part)}\"/>"
   if existing is Some(original) {
     let (document, edit) = original.edit_source([
       insertion(original.nodes()[0], markup),
