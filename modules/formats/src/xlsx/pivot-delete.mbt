@@ -7,6 +7,7 @@ pub fn Session::delete_pivot(
   part : String,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  self.protect_slicer_cache(sheet, part)
   let index = self.sheet_index(sheet)
   let current = self.sheets[index]
   guard self.read_only.is_empty() &&

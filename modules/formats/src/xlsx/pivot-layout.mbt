@@ -99,39 +99,12 @@ fn PivotCache::layout(
   let selected_parent = settings.values.any(value => {
     value.showDataAs == "percentOfParent"
   })
-  let filters = settings.filters.map(filter => {
-    (
-      filter.field,
-      filter.values.map(values => {
-        let keys : Map[String, Bool] = Map([])
-        for value in values {
-          keys[pivot_item_key(value)] = true
-        }
-        let selected : Map[Int, Bool] = Map([])
-        for at, value in self.axis_items(filter.field) {
-          if keys.contains(pivot_item_key(value)) {
-            selected[at] = true
-          }
-        }
-        selected
-      }),
-    )
-  })
+  let filters = self.filter_indices(settings.filters)
   let mut filtered_count = 0
   let mut units = 0
   let mut work = 0
   for record in self.records {
-    if filters.any(filter => {
-        filter.1
-        .map(keys => {
-          let item = match self.groups.get(filter.0) {
-            Some(group) => group.indices[record[group.base()]]
-            None => record[filter.0]
-          }
-          !keys.contains(item)
-        })
-        .unwrap_or(false)
-      }) {
+    if !self.record_visible(record, filters) {
       continue
     }
     filtered_count += 1

@@ -1,5 +1,12 @@
 export const pivotEn = {
   pivots: "Pivot tables",
+  slicers: "Slicers",
+  slicerList: "Load slicers",
+  slicerEmpty: "This worksheet has no slicers.",
+  slicerMembers: "Slicer members",
+  slicerAll: "Select all slicer members",
+  slicerApply: "Apply slicer filter",
+  slicerNoData: "No data",
   pivotHelp:
     "Choose a range with headers. Field numbers start at 1 within the range. Leave column fields empty for a row pivot. Preview before applying; refresh after source changes.",
   pivotSourceSheet: "Pivot source sheet",
@@ -8,6 +15,10 @@ export const pivotEn = {
   pivotRows: "Pivot row columns",
   pivotColumns: "Pivot column fields",
   pivotReportField: "Report filter",
+  pivotMemberFilter: "Member filter",
+  pivotMemberMembers: "Member filter members",
+  pivotRemoveMemberFilter: "Remove member filter",
+  pivotFilterPlacement: "Filter placement",
   pivotAxisFilter: "Axis filter",
   pivotAxisMembers: "Axis filter members",
   pivotAddAxisFilter: "Add axis filter",
@@ -106,6 +117,13 @@ export const pivotEn = {
 };
 export const pivotZh = {
   pivots: "透视表",
+  slicers: "切片器",
+  slicerList: "读取切片器",
+  slicerEmpty: "此工作表没有切片器。",
+  slicerMembers: "切片器成员",
+  slicerAll: "选择全部切片器成员",
+  slicerApply: "应用切片器筛选",
+  slicerNoData: "无数据",
   pivotHelp:
     "源范围须含标题，字段从范围内第 1 列编号。列字段留空则只按行分组。应用前先预览，源数据改变后刷新。",
   pivotSourceSheet: "透视源工作表",
@@ -114,6 +132,10 @@ export const pivotZh = {
   pivotRows: "透视行列号",
   pivotColumns: "透视列字段",
   pivotReportField: "报表筛选",
+  pivotMemberFilter: "成员筛选",
+  pivotMemberMembers: "成员筛选项",
+  pivotRemoveMemberFilter: "移除成员筛选",
+  pivotFilterPlacement: "筛选位置",
   pivotAxisFilter: "行列成员筛选",
   pivotAxisMembers: "行列筛选成员",
   pivotAddAxisFilter: "添加行列成员筛选",

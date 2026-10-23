@@ -145,7 +145,8 @@ fn PivotSettings::validate(
   for filter in self.filters {
     guard filter.field >= 0 &&
       filter.field < width &&
-      !filter_fields.contains(filter.field) else {
+      !filter_fields.contains(filter.field) &&
+      (!filter.report || !(self.rows + self.columns).contains(filter.field)) else {
       @failure.reject(
         "invalid-operation", "Invalid or duplicate pivot filter field",
       )
@@ -341,7 +342,11 @@ fn Session::pivot_cache(
       guard value.baseItem is Some(Member(item)) else {
         abort("Validated base member")
       }
-      PivotFilter::{ field: value.baseField.unwrap(), values: Some([item]), }
+      PivotFilter::{
+        field: value.baseField.unwrap(),
+        report: false,
+        values: Some([item]),
+      }
     })
   for filter in retained {
     if filter.values is Some(values) {

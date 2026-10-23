@@ -13,6 +13,7 @@ fn pivot_plain_source(document : @xml.Document) -> Unit raise @failure.Failure {
 fn Session::pivot_settings(
   self : Session,
   pivot : PivotLocation,
+  shared~ : Bool = false,
 ) -> (PivotSettings, String) raise @failure.Failure {
   let document = self.part_xml(pivot.part)
   pivot_plain_source(document)
@@ -91,7 +92,11 @@ fn Session::pivot_settings(
     .map(node => natural(node.attribute("x").unwrap_or(""), 79))
   let width = source.right - source.left + 1
   let filters = pivot_read_filters(tree, Tree::new(self.part_xml(pivot.cache))) +
-    pivot_read_axis_filters(tree, Tree::new(self.part_xml(pivot.cache)), width)
+    pivot_read_member_filters(
+      tree,
+      Tree::new(self.part_xml(pivot.cache)),
+      width,
+    )
   let (number_groups, date_groups, axes) = pivot_read_groups(
     Tree::new(self.part_xml(pivot.cache)),
     self.date1904,
@@ -139,6 +144,19 @@ fn Session::pivot_settings(
     values,
   }
   ignore(settings.validate())
+  let hidden = filters.filter(filter => {
+    !filter.report && !(rows + columns).contains(filter.field)
+  })
+  if !hidden.is_empty() {
+    let connected = self.affected_slicer_caches([pivot])
+    guard hidden.all(filter => {
+      connected.any(cache => cache.field == filter.field)
+    }) else {
+      @failure.reject(
+        "protected-content", "Unused pivot member filters require a linked slicer",
+      )
+    }
+  }
   let expanded = pivot_expand_settings(settings, axes)
   guard expanded.subtotals.length() == native_subtotals.length() &&
     expanded.subtotals.all(field => native_subtotals.contains(field)) else {
@@ -211,7 +229,6 @@ fn Session::pivot_settings(
         "protected-content", "Pivot field grouping, visibility or subtotal requires support",
       )
     }
-    let page = filters.any(filter => filter.field == index)
     if tree.one(field.id, "items") is Some(items) {
       conditional_node(tree, items, ["count"], ["item"])
       let entries = tree.all(items.id, "item")
@@ -222,7 +239,7 @@ fn Session::pivot_settings(
           conditional_node(tree, item, ["t"], [])
           continue
         }
-        conditional_node(tree, item, if page { ["x", "h"] } else { ["x"] }, [])
+        conditional_node(tree, item, ["x", "h"], [])
         guard item.attribute("x") == Some(at.to_string()) else {
           @failure.reject(
             "protected-content", "Manual pivot item order requires refresh support",
@@ -297,13 +314,18 @@ fn Session::pivot_settings(
     conditional_node(tree, field, ["x"], [])
   }
   let links = self.relationships()
-  guard links.filter(link => {
-      link.kind == relationship_uri + "pivotCacheDefinition" &&
-      link.owner != self.main &&
-      link.target == pivot.cache
-    })
-    is [owner] &&
-    owner.owner == pivot.part &&
+  let owners = links.filter(link => {
+    link.kind == relationship_uri + "pivotCacheDefinition" &&
+    link.owner != self.main &&
+    link.target == pivot.cache
+  })
+  let known = self.pivot_locations()
+  guard !owners.is_empty() &&
+    (shared || owners.length() == 1) &&
+    owners.all(owner => {
+      !owner.external &&
+      known.any(other => other.part == owner.owner && other.cache == pivot.cache)
+    }) &&
     links.filter(link => {
       link.owner == pivot.cache &&
       link.kind == relationship_uri + "pivotCacheRecords"
@@ -509,6 +531,44 @@ fn Session::write_pivot(
   replacement : PivotSettings?,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  self.protect_slicer_cache(sheet, part)
+  if replacement is Some(settings) {
+    guard !settings.filters.any(filter => {
+      !filter.report &&
+      filter.values is Some(_) &&
+      !(settings.rows + settings.columns).contains(filter.field)
+    }) else {
+      @failure.reject(
+        "protected-content", "Unused pivot member filters require a linked slicer",
+      )
+    }
+  }
+  if self.prepare_pivot(revision, sheet, part, replacement)
+    is Some((plan, range)) {
+    self.commit(
+      plan.sheets,
+      self.workbook,
+      plan.calculation,
+      plan.edits,
+      (sheet, range),
+      parts=plan.parts,
+      created_parts=plan.created_parts,
+      pivot_edits=[part],
+    )
+  }
+  self.pivots(self.revision, sheet)
+}
+
+///|
+fn Session::prepare_pivot(
+  self : Session,
+  revision : Int,
+  sheet : String,
+  part : String,
+  replacement : PivotSettings?,
+  cached~ : PivotCache? = None,
+) -> (CellEditPlan, Range)? raise @failure.Failure {
+  self.check_revision(revision)
   let index = self.sheet_index(sheet)
   let current = self.sheets[index]
   guard !current.locked && current.state == "visible" else {
@@ -532,9 +592,15 @@ fn Session::write_pivot(
       "limit-exceeded", "Pivot refresh location exceeds output budget",
     )
   }
-  let (original_settings, records) = self.pivot_settings(pivot)
+  let (original_settings, records) = self.pivot_settings(
+    pivot,
+    shared=cached is Some(_),
+  )
   let settings = replacement.unwrap_or(original_settings)
-  let cache = self.pivot_cache(settings)
+  let cache = match cached {
+    Some(cache) => cache
+    None => self.pivot_cache(settings)
+  }
   let layout = cache.layout(settings)
   let range = layout.bounds({ row: pivot.range.top, column: pivot.range.left, })
   guard !(settings.sourceSheet == sheet &&
@@ -624,16 +690,20 @@ fn Session::write_pivot(
         data_caption=pivot_root.attribute("dataCaption").unwrap_or("Values"),
       ),
     ),
-    (
-      pivot.cache,
-      cache.definition(
-        self.sheets[self.sheet_index(settings.sourceSheet)].name,
-        settings.validate().name(),
-        record_link,
-      ),
-    ),
-    (records, cache.record_markup()),
   ]
+  if cached is None {
+    sources.append([
+      (
+        pivot.cache,
+        cache.definition(
+          self.sheets[self.sheet_index(settings.sourceSheet)].name,
+          settings.validate().name(),
+          record_link,
+        ),
+      ),
+      (records, cache.record_markup()),
+    ])
+  }
   let (updates, styles) = layout.cells(
     range,
     self.styles,
@@ -667,7 +737,7 @@ fn Session::write_pivot(
       .unwrap_or(pair.1.value == Blank)
     })
   if unchanged {
-    return self.pivots(revision, sheet)
+    return None
   }
   let old_tree = Tree::new(self.part_xml(part))
   let location = old_tree.one(0, "location").unwrap()
@@ -702,15 +772,5 @@ fn Session::write_pivot(
       edits.push((path, edit))
     }
   }
-  self.commit(
-    plan.sheets,
-    self.workbook,
-    plan.calculation,
-    edits,
-    (sheet, range),
-    parts~,
-    created_parts=plan.created_parts,
-    pivot_edits=[part],
-  )
-  self.pivots(self.revision, sheet)
+  Some((plan, range))
 }

@@ -20,6 +20,12 @@ export function PivotFilters({
   state: UiSnapshot;
 }) {
   const t = messages(state.locale);
+  const membersLabel = (filter: XlsxPivotFilter) =>
+    filter.report
+      ? t.pivotFilterMembers
+      : axes.includes(filter.field)
+        ? t.pivotAxisMembers
+        : t.pivotMemberMembers;
   const update = (at: number, patch: Partial<XlsxPivotFilter>) =>
     setFilters(
       filters.map((filter, i) => (i === at ? { ...filter, ...patch } : filter)),
@@ -29,9 +35,11 @@ export function PivotFilters({
       {filters.map((filter, index) => (
         <fieldset key={index}>
           <legend>
-            {axes.includes(filter.field)
-              ? t.pivotAxisFilter
-              : t.pivotReportField}{" "}
+            {filter.report
+              ? t.pivotReportField
+              : axes.includes(filter.field)
+                ? t.pivotAxisFilter
+                : t.pivotMemberFilter}{" "}
             {index + 1}
           </legend>
           <label>
@@ -51,6 +59,21 @@ export function PivotFilters({
             />
           </label>
           <label>
+            {t.pivotFilterPlacement}
+            <select
+              aria-label={t.pivotFilterPlacement}
+              value={String(filter.report)}
+              onChange={(event) =>
+                update(index, { report: event.currentTarget.value === "true" })
+              }
+            >
+              <option value="true" disabled={axes.includes(filter.field)}>
+                {t.pivotReportField}
+              </option>
+              <option value="false">{t.pivotMemberFilter}</option>
+            </select>
+          </label>
+          <label>
             <input
               type="checkbox"
               checked={filter.values === null}
@@ -64,15 +87,11 @@ export function PivotFilters({
           </label>
           {!choices && <p>{t.pivotFilterLoad}</p>}
           <label>
-            {t.pivotFilterMembers}
+            {membersLabel(filter)}
             <select
               multiple
               size={8}
-              aria-label={
-                axes.includes(filter.field)
-                  ? t.pivotAxisMembers
-                  : t.pivotFilterMembers
-              }
+              aria-label={membersLabel(filter)}
               disabled={!choices || filter.values === null}
               value={
                 choices?.[index]?.flatMap((item, i) =>
@@ -112,9 +131,11 @@ export function PivotFilters({
             type="button"
             onClick={() => setFilters(filters.filter((_, i) => i !== index))}
           >
-            {axes.includes(filter.field)
-              ? t.pivotRemoveAxisFilter
-              : t.pivotRemoveFilter}
+            {filter.report
+              ? t.pivotRemoveFilter
+              : axes.includes(filter.field)
+                ? t.pivotRemoveAxisFilter
+                : t.pivotRemoveMemberFilter}
           </button>
         </fieldset>
       ))}
@@ -128,7 +149,7 @@ export function PivotFilters({
               !filters.some((filter) => filter.field === i),
           );
           if (field !== undefined)
-            setFilters([...filters, { field, values: null }]);
+            setFilters([...filters, { field, report: true, values: null }]);
         }}
       >
         {t.pivotAddFilter}
@@ -146,7 +167,7 @@ export function PivotFilters({
             (field) => !filters.some((filter) => filter.field === field),
           );
           if (field !== undefined)
-            setFilters([...filters, { field, values: null }]);
+            setFilters([...filters, { field, report: false, values: null }]);
         }}
       >
         {t.pivotAddAxisFilter}

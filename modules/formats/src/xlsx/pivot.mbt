@@ -166,6 +166,15 @@ pub fn Session::create_pivot(
   settings : PivotSettings,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  guard !settings.filters.any(filter => {
+    !filter.report &&
+    filter.values is Some(_) &&
+    !(settings.rows + settings.columns).contains(filter.field)
+  }) else {
+    @failure.reject(
+      "protected-content", "Unused pivot member filters require a linked slicer",
+    )
+  }
   let reason = self.sheet_rename_reason(
     structure=false,
     tables=true,

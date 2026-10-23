@@ -5,6 +5,7 @@ export type {
   XlsxSlicer,
   XlsxSlicerMember,
   XlsxSlicers,
+  XlsxSlicerEdit,
 } from "@open-document/wasm/xlsx";
 export {
   xlsxChartKinds,

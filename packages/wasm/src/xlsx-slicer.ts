@@ -38,6 +38,26 @@ export interface XlsxSlicers {
   reason: string;
   items: XlsxSlicer[];
 }
+export interface XlsxSlicerEdit {
+  action: "filterSlicer";
+  name: string;
+  indices: number[];
+}
+export function checkXlsxSlicerEdit(value: unknown): void {
+  const edit = record(value);
+  if (
+    !fields(edit, ["action", "name", "indices"]) ||
+    edit.action !== "filterSlicer" ||
+    !text(edit.name, 255) ||
+    !edit.name.trim() ||
+    !Array.isArray(edit.indices) ||
+    !edit.indices.length ||
+    edit.indices.length > 4096 ||
+    edit.indices.some((index) => !integer(index, 0, 4095)) ||
+    new Set(edit.indices).size !== edit.indices.length
+  )
+    throw new Error("Invalid slicer command");
+}
 function text(value: unknown, maximum: number): value is string {
   return (
     typeof value === "string" &&

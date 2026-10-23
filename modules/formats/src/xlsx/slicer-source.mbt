@@ -11,6 +11,54 @@ let slicer_cache_extension = "{BBE1A952-AA13-448E-AADC-164F8A28A991}"
 let slicer_list_extension = "{A8765BA9-456A-4DAB-B4F3-ACF838C121DE}"
 
 ///|
+// Cache connection metadata has no cell dimensions; positioned content belongs to drawings.
+fn Session::slicer_extension(
+  self : Session,
+  current : Sheet,
+  tree : Tree,
+  node : @xml.Node,
+  sheets~ : Array[Sheet] = self.sheets,
+) -> Bool raise @failure.Failure {
+  if node.uri != spreadsheet_uri || node.name != "extLst" {
+    return false
+  }
+  let entries = tree.children.get(node.id).unwrap_or([])
+  if !entries.any(ext => {
+      ext
+      .attribute("uri")
+      .map(uri => uri.to_upper() == slicer_list_extension)
+      .unwrap_or(false)
+    }) ||
+    !entries.all(ext => {
+      ext.uri == spreadsheet_uri &&
+      ext.name == "ext" &&
+      ext
+      .attribute("uri")
+      .map(uri => {
+        uri.to_upper() == slicer_list_extension ||
+        (
+          uri == sparkline_extension_uri &&
+          sparkline_reason(current, sheets).is_empty()
+        )
+      })
+      .unwrap_or(false)
+    }) {
+    return false
+  }
+  ignore(
+    self.slicer_parts(
+      current.id,
+      current.document,
+      slicer_list_extension,
+      "slicerList",
+      "slicer",
+      "slicer",
+    ),
+  )
+  true
+}
+
+///|
 fn Tree::slicer_children(
   self : Tree,
   parent : Int,

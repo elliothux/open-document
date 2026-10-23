@@ -95,9 +95,9 @@ export interface XlsxPivotNumberGroup {
   interval: number;
 }
 export interface XlsxPivotFilter {
-  /** An axis field keeps its position; other fields become report filters. */
   field: number;
-  /** Null selects all. Selecting every axis member clears its native filter. */
+  /** True places this field in the report area; false filters members in place. */
+  report: boolean;
   /** Null includes future source members; a nonempty array keeps an explicit selection. */
   values: CellValue[] | null;
 }
@@ -314,10 +314,12 @@ export function checkXlsxPivotSettings(value: unknown): void {
   for (const value of settings.filters) {
     const filter = record(value);
     if (
-      !fields(filter, ["field", "values"]) ||
+      !fields(filter, ["field", "values", "report"]) ||
       typeof filter.field !== "number" ||
       !integer(filter.field, 0, width - 1) ||
       filterFields.has(filter.field) ||
+      typeof filter.report !== "boolean" ||
+      (filter.report && axes.has(filter.field)) ||
       !(
         filter.values === null ||
         (Array.isArray(filter.values) &&

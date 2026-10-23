@@ -148,9 +148,9 @@ fn Foundation::xlsx_operation(
       guard request is { "change": change, .. } else {
         @failure.reject("invalid-operation", "Worksheet edit is required")
       }
-      if ["createPivot", "refreshPivot", "updatePivot", "deletePivot"].contains(
-          field_string(change, "action"),
-        ) {
+      if [
+          "createPivot", "refreshPivot", "updatePivot", "deletePivot", "filterSlicer",
+        ].contains(field_string(change, "action")) {
         return xlsx_pivot_edit(
           session,
           field_int(request, "revision"),

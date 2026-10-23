@@ -20,6 +20,7 @@ import { PivotFilters } from "./xlsx-pivot-filters.js";
 import { PivotNumberGroups } from "./xlsx-pivot-number-groups.js";
 import { PivotDateGroups } from "./xlsx-pivot-date-groups.js";
 import { PivotBaseItemSelect } from "./xlsx-pivot-base-item.js";
+import { XlsxSlicersPanel } from "./xlsx-slicers.js";
 
 export function XlsxPivotsPanel({
   editor,
@@ -108,7 +109,9 @@ export function XlsxPivotsPanel({
     basePreview &&
     basePreview.settings.filters.length === filters.length &&
     basePreview.settings.filters.every(
-      (filter, i) => filter.field === filters[i]?.field,
+      (filter, i) =>
+        filter.field === filters[i]?.field &&
+        filter.report === filters[i]?.report,
     )
       ? basePreview.filterItems
       : undefined;
@@ -118,6 +121,12 @@ export function XlsxPivotsPanel({
   return (
     <fieldset disabled={blocked}>
       <legend>{t.pivots}</legend>
+      <XlsxSlicersPanel
+        editor={editor}
+        controller={controller}
+        state={state}
+        disabled={blocked}
+      />
       <p>{t.pivotHelp}</p>
       <label>
         {t.pivotSourceSheet}

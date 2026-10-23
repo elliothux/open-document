@@ -1,6 +1,7 @@
 ///|
 pub(all) struct PivotFilter {
   field : Int
+  report : Bool
   values : Array[Value]?
 }
 
@@ -8,6 +9,7 @@ pub(all) struct PivotFilter {
 pub impl ToJson for PivotFilter with fn to_json(self) {
   {
     "field": self.field,
+    "report": self.report,
     "values": self.values.map(value => Json(value)).unwrap_or(Json::null()),
   }
 }
@@ -27,8 +29,49 @@ fn PivotSettings::page_rows(self : PivotSettings) -> Int {
 
 ///|
 fn PivotSettings::page_filters(self : PivotSettings) -> Array[PivotFilter] {
-  self.filters.filter(filter => {
-    !self.rows.contains(filter.field) && !self.columns.contains(filter.field)
+  self.filters.filter(filter => filter.report)
+}
+
+///|
+fn PivotCache::filter_indices(
+  self : PivotCache,
+  filters : Array[PivotFilter],
+) -> Array[(Int, Map[Int, Bool]?)] {
+  filters.map(filter => {
+    (
+      filter.field,
+      filter.values.map(values => {
+        let keys = Map::from_array(
+          values.map(value => (pivot_item_key(value), true)),
+        )
+        let selected : Map[Int, Bool] = Map([])
+        for at, value in self.axis_items(filter.field) {
+          if keys.contains(pivot_item_key(value)) {
+            selected[at] = true
+          }
+        }
+        selected
+      }),
+    )
+  })
+}
+
+///|
+fn PivotCache::record_visible(
+  self : PivotCache,
+  record : Array[Int],
+  filters : Array[(Int, Map[Int, Bool]?)],
+) -> Bool {
+  !filters.any(filter => {
+    filter.1
+    .map(keys => {
+      let item = match self.groups.get(filter.0) {
+        Some(group) => group.indices[record[group.base()]]
+        None => record[filter.0]
+      }
+      !keys.contains(item)
+    })
+    .unwrap_or(false)
   })
 }
 
@@ -59,7 +102,7 @@ fn pivot_field_items(
 }
 
 ///|
-fn pivot_read_axis_filters(
+fn pivot_read_member_filters(
   tree : Tree,
   cache : Tree,
   width : Int,
@@ -67,7 +110,7 @@ fn pivot_read_axis_filters(
   let result : Array[PivotFilter] = []
   let fields = tree.all(tree.one(0, "pivotFields").unwrap().id, "pivotField")
   for index, field in fields {
-    if !["axisRow", "axisCol"].contains(field.attribute("axis").unwrap_or("")) {
+    if field.attribute("axis") == Some("axisPage") {
       continue
     }
     let items = tree
@@ -97,7 +140,7 @@ fn pivot_read_axis_filters(
       .map(item => {
         values[natural(item.attribute("x").unwrap_or(""), values.length() - 1)]
       })
-    result.push({ field: index, values: Some(selected), })
+    result.push({ field: index, report: false, values: Some(selected), })
   }
   result
 }
@@ -242,6 +285,6 @@ fn pivot_read_filters(
     } else {
       None
     }
-    PivotFilter::{ field: index, values: selected, }
+    PivotFilter::{ field: index, report: true, values: selected, }
   })
 }

@@ -121,8 +121,9 @@ fn xlsx_pivot_settings(
     }),
     filters: filters.map(filter => {
       guard filter is Object(fields) &&
-        fields.length() == 2 &&
-        fields.keys().all(key => ["field", "values"].contains(key)) &&
+        fields.length() == 3 &&
+        fields.keys().all(key => ["field", "values", "report"].contains(key)) &&
+        fields.get("report") is Some(False | True) &&
         fields.get("values") is Some(values) else {
         @failure.reject("invalid-operation", "Invalid pivot report filter")
       }
@@ -132,7 +133,11 @@ fn xlsx_pivot_settings(
           Some(values.map(xlsx_value))
         _ => @failure.reject("invalid-operation", "Invalid pivot report values")
       }
-      @xlsx.PivotFilter::{ field: field_int(filter, "field"), values, }
+      @xlsx.PivotFilter::{
+        field: field_int(filter, "field"),
+        report: fields["report"] == Json(true),
+        values,
+      }
     }),
     values: values.map(value => {
       guard value is Object(fields) &&
@@ -178,6 +183,30 @@ fn xlsx_pivot_edit(
   change : Json,
 ) -> Json raise @failure.Failure {
   let action = field_string(change, "action")
+  if action == "filterSlicer" {
+    guard change is Object(fields) &&
+      fields.length() == 3 &&
+      fields.keys().all(key => ["action", "name", "indices"].contains(key)) &&
+      fields.get("indices") is Some(Array(indices)) &&
+      !indices.is_empty() &&
+      indices.length() <= 4096 else {
+      @failure.reject("invalid-operation", "Invalid slicer command")
+    }
+    return session.filter_slicer(
+      revision,
+      sheet,
+      field_string(change, "name"),
+      indices.map(value => {
+        guard value is Number(number, ..) &&
+          number >= 0 &&
+          number <= 4095 &&
+          number == number.trunc() else {
+          @failure.reject("invalid-operation", "Invalid slicer member index")
+        }
+        number.to_int()
+      }),
+    )
+  }
   let keys = if action == "createPivot" {
     ["action", "name", "destination", "settings", "sourceRevision"]
   } else if action == "updatePivot" {

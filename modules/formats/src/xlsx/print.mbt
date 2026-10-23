@@ -78,9 +78,15 @@ fn Session::print_sheet(
         print_areas(print_range.area)
       },
     )
+  let tree = Tree::new(current.document)
   for diagnostic in self.diagnostics {
     if conditional.table_styles.renders(diagnostic, sheet) ||
       drawing_diagnostic(current, diagnostic) {
+      continue
+    }
+    if tree.one(tree.root("worksheet").id, "extLst") is Some(list) &&
+      diagnostic == "unrendered:" + sheet + ":" + list.qualified &&
+      self.slicer_extension(current, tree, list) {
       continue
     }
     if diagnostic.has_prefix("unrendered:" + sheet + ":") {

@@ -125,7 +125,7 @@ fn PivotLayout::definition(
       " axis=\"axisRow\""
     } else if column {
       " axis=\"axisCol\""
-    } else if filter is Some(_) {
+    } else if filter.map(filter => filter.report).unwrap_or(false) {
       " axis=\"axisPage\""
     } else {
       ""
@@ -134,8 +134,7 @@ fn PivotLayout::definition(
       .bind(filter => filter.values)
       .map(values => values.length() > 1)
       .unwrap_or(false) &&
-      !row &&
-      !column
+      filter.map(filter => filter.report).unwrap_or(false)
     let subtotal = settings.subtotals.contains(field)
     out <+
       "<pivotField\{axis} dataField=\"\{if value { 1 } else { 0 }}\" defaultSubtotal=\"\{if subtotal {1} else {0}}\" subtotalTop=\"0\" showAll=\"0\" compact=\"0\" outline=\"0\"\{if multiple {" multipleItemSelectionAllowed=\"1\""} else {""}}>"

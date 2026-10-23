@@ -329,6 +329,7 @@ pub fn PivotDateGroup::to_json(Self) -> Json
 
 pub(all) struct PivotFilter {
   field : Int
+  report : Bool
   values : Array[Value]?
 }
 pub fn PivotFilter::to_json(Self) -> Json
@@ -443,6 +444,7 @@ pub fn Session::duplicates(Self, Int, String, DuplicateSettings) -> Json raise @
 pub fn Session::edit_sheet(Self, Int, String, SheetEdit, date? : String?) -> Json raise @failure.Failure
 pub fn Session::export_csv(Self, Int, selection? : Bool) -> Bytes raise @failure.Failure
 pub fn Session::fill_preview(Self, Int, FillTarget, ctrl? : Bool) -> Json raise @failure.Failure
+pub fn Session::filter_slicer(Self, Int, String, String, Array[Int]) -> Json raise @failure.Failure
 pub fn Session::find(Self, Int, String, String, FindOptions) -> Json raise @failure.Failure
 pub fn Session::format_cells(Self, Int, CellFormat) -> Json raise @failure.Failure
 pub fn Session::hit(Self, Int, Double, Double) -> String raise @failure.Failure

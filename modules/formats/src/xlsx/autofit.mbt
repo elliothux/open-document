@@ -52,6 +52,9 @@ fn Session::fit_sizes(
         sparkline_extension(tree, node) {
         continue
       }
+      if self.slicer_extension(current, tree, node, sheets~) {
+        continue
+      }
       if node.uri != spreadsheet_uri ||
         (
           ["pivotTableParts", "extLst"].contains(node.name) &&
