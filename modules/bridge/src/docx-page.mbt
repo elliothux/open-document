@@ -441,6 +441,15 @@ fn Foundation::docx_page(
       )
     "setPageBackground" =>
       session.set_page_background(revision, page_background_color(request))
+    "textWatermark" => session.text_watermark(revision)
+    "setTextWatermark" =>
+      session.set_text_watermark(
+        revision,
+        text_watermark_value(request),
+        probe=self.probe,
+        profile=xlsx_profile(request),
+        images=self.images,
+      )
     "setPageBorders" =>
       session.set_page_borders(revision, page_border_format(request))
     _ => @failure.reject("invalid-operation", "Unknown document page command")

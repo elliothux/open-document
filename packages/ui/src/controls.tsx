@@ -458,7 +458,7 @@ export function ClipboardGroup({
           ["shape", "image", "group", "table", "chart"].includes(object.kind) &&
           !object.duplicateReason &&
           object.equations.length === 0 &&
-          !object.media,
+          (!object.media || (!object.media.reason && !!object.media.poster)),
       ));
   const pasteDisabled =
     disabled ||

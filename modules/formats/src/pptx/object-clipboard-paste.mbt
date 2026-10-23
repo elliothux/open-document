@@ -48,6 +48,12 @@ pub fn Session::paste_object_fragment(
     links.filter(r => r.owner == original.tree.part).map(r => r.id),
   )
   for resource in fragment.resources {
+    if resource.media is Some(value) {
+      remap[resource.id] = self.attach_clipboard_media(
+        value, id, parts, media, created, created_media, edits, reserved,
+      )
+      continue
+    }
     if resource.chart is Some(data) {
       remap[resource.id] = self.attach_clipboard_chart(
         data, id, parts, media, created, created_media, edits, reserved,
@@ -155,7 +161,13 @@ pub fn Session::paste_object_fragment(
           node: node.id,
           offset: attr.start - node.start,
           length: attr.end - attr.start,
-          xml: remap[attr.value],
+          xml: remap[attr.value] +
+          (if clipboard_media_reference(copied_tree, node, attr) &&
+            attr.name == "link" {
+            "File"
+          } else {
+            ""
+          }),
         })
       }
     }
@@ -171,9 +183,50 @@ pub fn Session::paste_object_fragment(
     .unwrap_or([])
     .map(node => tree.standalone_markup(bound, node.id))
     .join("")
-  let (document, edit) = original.tree.document.edit_source([
-    object_insertion(original.tree, markup),
-  ])
+  let insertion_changes = [object_insertion(original.tree, markup)]
+  if fragment.resources.any(resource => resource.media is Some(_)) {
+    let playback = read_media_nodes(original.tree)
+    for node in document.nodes() {
+      if node.uri != presentation_uri || node.name != "pic" {
+        continue
+      }
+      let source = { tree: copied_tree, node, }
+      let resource = document
+        .nodes()
+        .iter()
+        .find_first(child => {
+          child.start > node.start &&
+          child.end < node.end &&
+          child.attributes.any(attr => {
+            clipboard_media_reference(copied_tree, child, attr)
+          })
+        })
+        .bind(child => {
+          child.attributes
+          .iter()
+          .find_first(attr => {
+            clipboard_media_reference(copied_tree, child, attr)
+          })
+        })
+        .bind(attr => {
+          fragment.resources
+          .iter()
+          .find_first(resource => resource.id == attr.value)
+        })
+      if resource is Some({ media: Some(value), .. }) {
+        playback[original.tree.part +
+        "#" +
+        clipboard_object_identity(source.tree, node)] = (
+          value.kind,
+          value.playback,
+        )
+      }
+    }
+    insertion_changes.push(
+      self.animation_change(original, self.read_animations(original), playback),
+    )
+  }
+  let (document, edit) = original.tree.document.edit_source(insertion_changes)
   let candidate = read_slide(
     self.opc,
     self.main,

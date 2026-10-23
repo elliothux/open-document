@@ -52,7 +52,8 @@ fn Session::running_paragraphs(
   }
   let paragraphs : Map[Int, @layout.Paragraph] = Map([])
   let backgrounds : Map[Int, String] = Map([])
-  for id in tree.children[0] {
+  let ids = tree.running_nodes()
+  for id in ids {
     guard tree.nodes[id].uri == word_uri && tree.nodes[id].name == "p" else {
       @failure.reject(
         "unsupported-layout", "Header or footer objects are unsupported",
@@ -90,7 +91,7 @@ fn Session::running_paragraphs(
   }
   self.apply_numbering(tree, styles, paragraphs, backgrounds)
   styles.apply_contextual_spacing(tree, paragraphs)
-  tree.children[0].map(id => {
+  ids.map(id => {
     ..paragraphs[id],
     id: -1 -
     id * 6 -
@@ -169,9 +170,12 @@ fn Session::running_content(
     if (variant == "first" && !first) || (variant == "even" && !even) {
       continue
     }
-    (if kind == "header" { headers } else { footers })[variant] = self.running_paragraphs(
+    let paragraphs = self.running_paragraphs(
       part, kind, styles, diagnostics, background, variant,
     )
+    if !paragraphs.is_empty() {
+      (if kind == "header" { headers } else { footers })[variant] = paragraphs
+    }
   }
   (headers, footers)
 }

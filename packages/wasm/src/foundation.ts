@@ -33,6 +33,7 @@ export {
   type DocxRunningKind,
   type DocxRunningVariant,
 } from "./docx-page.js";
+export * from "./docx-watermark.js";
 import {
   checkFormatPatch,
   checkDocxHyperlink,

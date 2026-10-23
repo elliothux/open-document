@@ -8,6 +8,9 @@ import {
 import {
   checkPageSetup,
   checkDocxCoverPage,
+  checkDocxTextWatermark,
+  docxTextWatermarkState,
+  type DocxTextWatermark,
   checkDocxCaption,
   type DocxCaption,
   type DocxCoverPage,
@@ -233,6 +236,26 @@ export class FoundationPageClient extends FoundationReviewClient {
         operation: "setPageBackground",
         revision,
         color,
+      }),
+    );
+  }
+  async textWatermark(revision: number) {
+    return docxTextWatermarkState(
+      await this.connection.request({ operation: "textWatermark", revision }),
+    );
+  }
+  async setTextWatermark(
+    revision: number,
+    value: DocxTextWatermark | null,
+    profile: Record<string, string>,
+  ) {
+    checkDocxTextWatermark(value);
+    return editState(
+      await this.connection.request({
+        operation: "setTextWatermark",
+        revision,
+        value,
+        profile,
       }),
     );
   }

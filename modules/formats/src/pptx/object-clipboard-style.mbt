@@ -16,9 +16,11 @@ fn check_clipboard_object(object : Object) -> Unit raise @failure.Failure {
     ["", "Group members are read-only"].contains(object.read_only) &&
     object.diagnostic.is_empty() &&
     (object.paragraphs.is_empty() || object.text_reason.is_empty()) &&
-    object.media is None else {
+    object.media
+    .map(media => media.reason.is_empty() && object.image is Some(_))
+    .unwrap_or(true) else {
     @failure.reject(
-      "protected-content", "Object clipboard requires supported local shapes pictures tables charts or groups",
+      "protected-content", "Object clipboard requires supported local shapes pictures tables charts media or groups",
     )
   }
   let paragraphs = object.table

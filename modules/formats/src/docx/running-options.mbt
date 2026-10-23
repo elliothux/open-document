@@ -135,9 +135,10 @@ fn Session::commit_running(
   images~ : @layout.Images,
   refresh~ : (String, String)? = None,
 ) -> Json raise @failure.Failure {
-  let view = { ..self, parts, }
+  let view = { ..self, parts, document: Some(candidate), }
   let flow = view.flow_from(candidate)
   let layout = @layout.paginate(probe, flow, profile, images)
+  ignore(view.page_positioned(layout, probe))
   if refresh is Some((part, variant)) {
     refresh_running_fields(
       part, variant, flow, layout, parts, part_edits, created,

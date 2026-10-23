@@ -163,7 +163,14 @@ fn running_content_markup(
   current_links : Map[Int, String],
   relations : Map[String, String],
 ) -> String raise @failure.Failure {
-  let paragraphs = story.children[0]
+  let paragraphs = story.running_nodes()
+  let watermarks = story.children[0]
+    .filter(id => story.watermark_block(id))
+    .map(id => {
+      document.source()[story.nodes[id].start:story.nodes[id].end].to_owned()
+    })
+    .join("")
+  watermarks +
   running_content_paragraphs(content)
   .mapi((index, value) => {
     if current.get(index) is Some(paragraph) &&

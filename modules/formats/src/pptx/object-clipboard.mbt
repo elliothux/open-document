@@ -30,7 +30,12 @@ fn Session::clipboard_object_resource(
     .fold(init=0, (sum, r) => {
       sum +
       (match r {
-        { "value": String(value), .. } => value.length()
+        { "value": String(value), "kind": String(kind), .. } =>
+          if ["audio", "video"].contains(kind) {
+            0
+          } else {
+            value.length()
+          }
         _ => 0
       })
     }) <=
@@ -65,7 +70,9 @@ fn Session::clipboard_object_links(
         "protected-content", "Hover object links require clipboard support",
       )
     }
-    if node.uri == drawing_uri && node.name == "hlinkClick" {
+    if node.uri == drawing_uri &&
+      node.name == "hlinkClick" &&
+      !clipboard_media_click(tree, node) {
       check_clipboard_link_metadata(node)
       let value = self
         .read_hyperlink_at(
@@ -120,6 +127,16 @@ fn Session::clipboard_object_links(
             resource is { "id": String(id), "kind": String("chart"), .. } &&
             id == attr.value
           })
+        ) ||
+        (
+          clipboard_media_reference(tree, node, attr) &&
+          resources
+          .values()
+          .any(resource => {
+            resource is { "id": String(id), "kind": String(kind), .. } &&
+            ["audio", "video"].contains(kind) &&
+            id == attr.value
+          })
         ) else {
         @failure.reject(
           "protected-content", "Unsupported object clipboard relationship",
@@ -161,6 +178,9 @@ fn Session::copy_object_fragment(
   for object in objects {
     check_clipboard_object(object)
   }
+  if objects.any(object => object.media is Some(_)) {
+    self.check_media_budget(self.main, self.slides, self.parts, self.media)
+  }
   let positioned = original.tree.document.edit_source(
       selected.map(o => transform_changes(o, o.geometry.unwrap())).flatten(),
     ).0
@@ -189,6 +209,9 @@ fn Session::copy_object_fragment(
       self.clipboard_object_resource("image", key, resources)
     })
     changes.append(clipboard_object_style(object, image))
+    if object.media is Some(_) {
+      changes.append(self.clipboard_media(object, resources))
+    }
   }
   let document = if changes.is_empty() {
     positioned.tree.document
@@ -244,8 +267,8 @@ fn Session::copy_object_fragment(
     "active": self.selection.object.split("#").last().unwrap().to_owned(),
   }
   let fragment = fragment.stringify()
-  guard fragment.length() <= 4194304 else {
-    @failure.reject("limit-exceeded", "Object clipboard exceeds 4Mi units")
+  guard fragment.length() <= 100663296 else {
+    @failure.reject("limit-exceeded", "Object clipboard exceeds 96Mi units")
   }
   ignore(read_object_fragment(fragment, self.budget))
   { "text": text, "fragment": fragment, "reason": "" }

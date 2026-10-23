@@ -15,6 +15,10 @@ fn Foundation::pptx_clipboard(
         field_string(request, "fragment"),
       ),
     )
+  } else if operation == "objectFragmentMediaPptx" {
+    Json(
+      session.object_fragment_media(revision, field_string(request, "fragment")),
+    )
   } else if operation == "pastePptxObjects" {
     session.paste_object_fragment(
       revision,

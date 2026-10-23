@@ -13,11 +13,21 @@ fn pptx_insert_media(change : Json) -> @pptx.ObjectEdit raise @failure.Failure {
 }
 
 ///|
-fn pptx_media_bytes(
+fn pptx_resource_bytes(
   session : @pptx.Session,
   request : Json,
+  media : Bool,
 ) -> Json raise @failure.Failure {
-  { "bytes": @base64.encode(session.media_bytes(field_string(request, "key"))) }
+  let key = field_string(request, "key")
+  {
+    "bytes": @base64.encode(
+      if media {
+        session.media_bytes(key)
+      } else {
+        session.image_bytes(key)
+      },
+    ),
+  }
 }
 
 ///|

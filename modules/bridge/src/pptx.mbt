@@ -55,7 +55,8 @@ fn Foundation::pptx_operation(
   }
   match operation {
     "mediaShowPptx" => pptx_show_media(session, request)
-    "mediaBytesPptx" => pptx_media_bytes(session, request)
+    "mediaBytesPptx" | "imageBytesPptx" =>
+      pptx_resource_bytes(session, request, operation == "mediaBytesPptx")
     "inkShowPptx" => pptx_show_ink(session, request)
     "controlShowPptx" =>
       session.control_show(
@@ -734,14 +735,9 @@ fn Foundation::pptx_operation(
     "copyPptx"
     | "pastePptxFragment"
     | "pastePptxObjects"
-    | "objectFragmentImagesPptx" =>
+    | "objectFragmentImagesPptx"
+    | "objectFragmentMediaPptx" =>
       self.pptx_clipboard(session, operation, request)
-    "imageBytesPptx" =>
-      {
-        "bytes": @base64.encode(
-          session.image_bytes(field_string(request, "key")),
-        ),
-      }
     "imagePptx" => {
       let key = field_string(request, "key")
       ignore(session.image_bytes(key))

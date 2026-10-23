@@ -1,5 +1,9 @@
 import type { PptxCommand } from "./pptx-command.js";
 import {
+  checkPptxFragmentMedia,
+  type PptxFragmentMedia,
+} from "./pptx-media.js";
+import {
   checkPptxTextFragment,
   checkPptxObjectFragment,
 } from "./pptx-command.js";
@@ -32,7 +36,11 @@ import {
   checkMediaPlaybackQuery,
   type PptxMediaPlayback,
 } from "./pptx-media.js";
-export type { PptxMedia, PptxMediaPlayback } from "./pptx-media.js";
+export type {
+  PptxMedia,
+  PptxMediaPlayback,
+  PptxFragmentMedia,
+} from "./pptx-media.js";
 export { mediaImageCommand } from "./pptx-show-media.js";
 export type { PptxConnectorEnd, PptxConnector } from "./pptx-connectors.js";
 import { checkPptxPlaceholderQuery } from "./pptx-placeholder.js";
@@ -264,7 +272,9 @@ type Result<C extends PptxCommand> = C["operation"] extends
                       ? { key: string }
                       : C["operation"] extends "objectFragmentImagesPptx"
                         ? string[]
-                        : PptxQuery;
+                        : C["operation"] extends "objectFragmentMediaPptx"
+                          ? PptxFragmentMedia[]
+                          : PptxQuery;
 export type PptxResult<C extends PptxCommand> = Result<C>;
 
 export { isPptxCommand } from "./pptx-command.js";
@@ -568,6 +578,9 @@ export function pptxResult<C extends PptxCommand>(
     case "imageKeysShowPptx":
       strings(value, 256, 256);
       break;
+    case "objectFragmentMediaPptx":
+      checkPptxFragmentMedia(value);
+      break;
     case "objectFragmentImagesPptx": {
       strings(value, 256, 2796204);
       if (
@@ -597,7 +610,7 @@ export function pptxResult<C extends PptxCommand>(
         (object.fragment !== null &&
           (typeof object.fragment !== "string" ||
             !object.fragment.isWellFormed() ||
-            object.fragment.length > 4194304))
+            object.fragment.length > 100663296))
       )
         throw new Error("Invalid PPTX clipboard response");
       break;
@@ -662,7 +675,8 @@ export class PptxSession extends WasmSession {
       checkPptxTextFragment(command.fragment);
     if (
       command.operation === "pastePptxObjects" ||
-      command.operation === "objectFragmentImagesPptx"
+      command.operation === "objectFragmentImagesPptx" ||
+      command.operation === "objectFragmentMediaPptx"
     )
       checkPptxObjectFragment(command.fragment);
     let value: unknown;

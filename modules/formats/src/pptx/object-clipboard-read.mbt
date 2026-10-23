@@ -13,6 +13,7 @@ priv struct ObjectClipboardResource {
   image : Bytes?
   style : Ref?
   chart : @layout.ChartData?
+  media : ClipboardMedia?
 }
 
 ///|
@@ -43,8 +44,8 @@ fn read_object_fragment(
   value : String,
   budget : @archive.Budget,
 ) -> ObjectFragment raise @failure.Failure {
-  guard value.length() <= 4194304 else {
-    @failure.reject("limit-exceeded", "Object clipboard exceeds 4Mi units")
+  guard value.length() <= 100663296 else {
+    @failure.reject("limit-exceeded", "Object clipboard exceeds 96Mi units")
   }
   let data = @json.parse(value) catch {
     _ => @failure.reject("invalid-operation", "Invalid object clipboard JSON")
@@ -102,6 +103,8 @@ fn read_object_fragment(
   let mut units = 0
   let mut image_bytes = 0
   let mut pixels = 0L
+  let mut media_bytes = 0L
+  let mut media_count = 0
   for asset in assets {
     guard asset is Object(fields) &&
       fields.length() == 3 &&
@@ -119,11 +122,28 @@ fn read_object_fragment(
         c == '-'
       }) &&
       !ids.contains(id) &&
-      ["image", "external", "tableStyle", "chart"].contains(kind) else {
+      ["image", "external", "tableStyle", "chart", "audio", "video"].contains(
+        kind,
+      ) else {
       @failure.reject("invalid-operation", "Invalid portable object resource")
     }
     ids.add(id)
-    units += value.length()
+    let clip = if ["audio", "video"].contains(kind) {
+      let clip = read_clipboard_media(kind, value)
+      media_bytes += clip.bytes.length().to_int64()
+      media_count += 1
+      guard media_bytes <= 67108864L && media_count <= 64 else {
+        @failure.reject(
+          "limit-exceeded", "Clipboard media exceeds 64 resources or 64MiB",
+        )
+      }
+      Some(clip)
+    } else {
+      None
+    }
+    if clip is None {
+      units += value.length()
+    }
     guard units <= 2796204 else {
       @failure.reject(
         "limit-exceeded", "Object clipboard resources exceed budget",
@@ -226,6 +246,7 @@ fn read_object_fragment(
       image,
       style,
       chart,
+      media: clip,
     })
   }
   let used : Set[String] = Set([])
@@ -257,7 +278,8 @@ fn read_object_fragment(
       check_clipboard_link_metadata(node)
       let id = node.attribute("id", uri=relationship_uri).unwrap_or("")
       let action = node.attribute("action").unwrap_or("")
-      guard (
+      guard clipboard_media_click(tree, node) ||
+        (
           id.is_empty() &&
           action.has_prefix("ppaction://hlinkshowjump?jump=") &&
           navigation_action(
@@ -287,6 +309,8 @@ fn read_object_fragment(
         "external"
       } else if chart_frame_reference(tree, node) && attr.name == "id" {
         "chart"
+      } else if clipboard_media_reference(tree, node, attr) {
+        "media"
       } else {
         ""
       }
@@ -295,6 +319,8 @@ fn read_object_fragment(
         resource.style is None &&
         (if resource.image is Some(_) {
           "image"
+        } else if resource.media is Some(_) {
+          "media"
         } else if resource.chart is Some(_) {
           "chart"
         } else {

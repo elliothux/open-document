@@ -700,7 +700,17 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 核心 `Flow` 与 `DocxFlow` 的必需 `background` 字段为有效六位 RGB；无背景为 `ffffff`。正文、透明单元格和列表标记按有效页面背景计算自动文字对比，有底色的单元格仍按自身底色计算，显式文字色保持原样。分页结束后在页面图元最前加入整页颜色，保留分页缓存中的原内容；换色、恢复白色及缓存复用不积累旧底色。Canvas 与静态 PDF 消费同一背景矩形，包含页边距区域。规则参考 [ONLYOFFICE DocumentBackground.draw](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/document/document-background.js#L54-L87)和 [setBackgroundColor 的历史](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L5638-L5645)；实现归 [`page-background.mbt`](../../modules/formats/src/docx/page-background.mbt)。
 
-非法颜色、旧 revision、活动候选、文档/设计保护及输出预算失败保持当前包与历史。重复背景、未知属性、主题色、图片/渐变/VML 及不透明目标源继续保护，布局保留诊断，不能用纯色替换来删除未知源。全稿主题背景和水印继续实施，页边框见下节。
+非法颜色、旧 revision、活动候选、文档/设计保护及输出预算失败保持当前包与历史。重复背景、未知属性、主题色、图片/渐变/VML 及不透明目标源继续保护，布局保留诊断，不能用纯色替换来删除未知源。全稿主题背景继续实施，文字水印与页边框见下文。
+
+### DOCX 文字水印
+
+`FoundationSession/Client.textWatermark(revision)` 查询 `{ revision, value, mixed, reason }`；`DocumentEditor.textWatermark()` 还返回 `documentId`。`value` 为默认页眉的 `DocxTextWatermark` 或 null，`mixed` 表示三个已存页眉变体不同，`reason` 表示目标源的保护原因。`setTextWatermark(revision, value)` 和 `DocumentEditor.setTextWatermark(value)` 设置文字水印，null 移除。设置同时更新默认、首页和偶数页页眉，创建缺失的部件及关系，保留已有文字、字段和开关。以后切换首页或奇偶页设置仍保留水印。
+
+`DocxTextWatermark` 包含八个必需字段：`text`、`font`、`size`、`color`、`opacity`、`diagonal`、`bold`、`italic`。文字和字体名各为最多 256 个 UTF-16 单元的非空单行文本，字体须在当前 profile 可用。字号为 0.5–1638 pt 的半磅倍数，颜色为不带 `#` 的六位 RGB，不透明度为 0–1 并舍入到 1/100000；后三项为布尔值。斜向使用原生 315° 旋转，水平为 0°。默认页面面板先读取当前值，再编辑各项或移除；文档身份或 revision 变化后须重新读取，混合变体明确提示。
+
+核心保存为页眉 `Watermarks` 图库内容控件中的 DrawingML 文字形状。它按真实字体测量，在页边距内居中并置于正文后方，不占正文分页空间，不加入正文语义或字数。普通页眉文字和 PAGE/NUMPAGES 编辑保留原水印 XML。Canvas、页面图片与 PDF 使用同一文字定位；绘制颜色按页面纯色背景合成，后续正文和对象照常覆盖。受保护文档仍可显示既有水印。设置和移除复用单节页面保护、原子资源事务、精确历史、输出预算和保存重开；同值为无操作，缺字体、扩展源或预算失败保留源与重做历史。
+
+当前可读写本合同的原生文字形状。图片水印、导入 VML 水印及带额外属性、效果或其他结构的水印继续保护，不能用本操作覆盖未知源。实现归 [`watermark-source.mbt`](../../modules/formats/src/docx/watermark-source.mbt)、[`watermark-edit.mbt`](../../modules/formats/src/docx/watermark-edit.mbt)及 [`watermark-layout.mbt`](../../modules/formats/src/docx/watermark-layout.mbt)。页眉内容控件依据 [ONLYOFFICE SetWatermarkProps](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L12823-L12909)，文字形状、字体测量和居中依据 [createWatermark](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/GraphicObjects/GraphicObjects.js#L590-L734)，未复制上游源码。
 
 ### 页面边框
 
@@ -2725,17 +2735,19 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 ### PPTX 对象剪贴板
 
-对象模式的 `copyPptx` 返回 `{ text, fragment, reason }`。本地顶层形状、PNG/JPEG 图片、普通表格、普通图表及完整组合可生成独立原生快照。复制保留源位置、层次、几何、旋转/翻转、图片裁剪、填充、描边、文字及点击外链/导航动作；主题字体、颜色和线性渐变写为明确源外观。继承占位符沿用既有复制保护；未选对象和其他源资源不进入快照。源文稿修改或关闭后仍可重复粘贴。
+对象模式的 `copyPptx` 返回 `{ text, fragment, reason }`。本地顶层形状、PNG/JPEG 图片、普通表格、普通图表、嵌入音视频及完整组合可生成独立原生快照。复制保留源位置、层次、几何、旋转/翻转、图片裁剪、填充、描边、文字及点击外链/导航动作；主题字体、颜色和线性渐变写为明确源外观。继承占位符沿用既有复制保护；未选对象和其他源资源不进入快照。源文稿修改或关闭后仍可重复粘贴。
 
 整表快照保留网格宽度、行高、合并归属、格内文字/段落、边距、锚定、底色和边框。源表样式的区域、字体和颜色冻结后随片段转移，目标分配独立样式身份；同名源样式不覆盖目标，未选样式不进入快照。直接边框与区域边框分别保存，保留原生共享边的优先级。样式目录不存在时原子创建中性默认目录，已有无样式表格不被附加新外观。一批多个表样式、图片和链接沿同一资源历史提交；重复粘贴保持独立，保存重开后仍可输入及修改表结构。源格式解析参考 [ONLYOFFICE 表格源格式复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicFrame.js#L1040-L1095)，实现归 [`object-clipboard-table.mbt`](../../modules/formats/src/pptx/object-clipboard-table.mbt)及[既有表样式资源事务](../../modules/formats/src/pptx/table-style-resource.mbt)；未复制上游执行代码。
 
 普通图表快照保留当前支持类型的标题、标签、系列数值/空值、图例、圆环孔径和原生外观。复制先核对图表缓存与嵌入数据，片段只携带所用数据；粘贴时创建独立图表、关系及一个仅含普通值的 XLSX。文字标签保留前导零和字面等号，不转为公式；源工作簿的其他工作表和未选对象不进入快照。嵌入数据固定读取首个数据表，不受保存时的活动表影响。源数据不一致、公式、附加图表资源和未知外观继续保护。重复粘贴后可分别通过原图表数据面板修改，源修改/关闭不改变已有快照。实现归 [`object-clipboard-chart.mbt`](../../modules/formats/src/pptx/object-clipboard-chart.mbt)、[严格原生缓存读取](../../modules/formats/src/internal/chart/read.mbt)及 [XLSX 数据写入](../../modules/formats/src/xlsx/chart-data.mbt)；源格式复制参考 [ONLYOFFICE 图表源格式复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L8855-L8870)，未复制上游执行代码。
 
-`pastePptxObjects` 接受 `revision`、`fragment` 和字体 `profile`，向当前可写页插入快照并返回 `PptxQuery`。每次粘贴分配新对象身份和独立资源，重映射组内引用及目标关系。源位置保留，对象放到当前页顶层。对象、图片、图表及嵌入数据、关系、内容类型和选择合为一项精确历史。缺字体、损坏资源、引用不完整、冲突继承制表位、活动候选或预算失败均不提交。Web 宿主先通过 `objectFragmentImagesPptx` 只读提取图片，再用浏览器解码；坏图片在修改文稿前拒绝。
+`pastePptxObjects` 接受 `revision`、`fragment` 和字体 `profile`，向当前可写页插入快照并返回 `PptxQuery`。每次粘贴分配新对象身份和独立资源，重映射组内引用及目标关系。源位置保留，对象放到当前页顶层。对象、图片、图表及嵌入数据、关系、内容类型和选择合为一项精确历史。缺字体、损坏资源、引用不完整、冲突继承制表位、活动候选或预算失败均不提交。Web 宿主通过 `objectFragmentImagesPptx` 及 `objectFragmentMediaPptx` 只读提取资源，先解码图片和媒体，再复核 revision 与选择；失败在修改文稿前拒绝。
 
-默认 Copy/Cut 写入 `text/plain` 和 Chromium 自定义类型 `web application/x-open-document-pptx-objects`。默认源格式粘贴、`PresentationEditor.pasteClipboard()` 和对象输入的 Ctrl/Meta+V 走同一路径；剪切在系统写入成功并复核会话、revision 和选择后删除源。对象快照最多含 256 个顶层对象和 256 项资源，原生 XML 及每项图表 XML 最多 1 Mi UTF-16，完整 JSON 最多 4 Mi UTF-16。图片压缩字节合计最多 2 MiB，图片编码、表样式、图表 XML 和链接的资源值合计最多 2796204 UTF-16，输入及目标页解码图片各最多 16 MiB；表格、图表数据、样式目录、包和历史继续受既有预算约束。
+本地嵌入音视频快照携带原字节、封面、位置和循环/音量/静音。每次粘贴创建目标文稿自己的媒体部件和标准 audio/video、Microsoft media 双关系；播放属性使用新的对象与时间身份，保留目标已有动画及设置。静态输出沿用原封面，重开后可继续播放和修改属性。源媒体动作和其他动画时序不进入对象快照；外链、冲突关系和未知媒体元数据继续保护。`objectFragmentMediaPptx` 接受 revision/fragment，返回 Wasm/Web 导出的 `PptxFragmentMedia[]`，每项为 `{ kind, contentType, bytes }`，bytes 使用 Base64。核心检查容器与独立媒体预算，Web 使用现有本地解码器核实实际数据和类型；同步宿主承担解码。实现归 [`object-clipboard-media.mbt`](../../modules/formats/src/pptx/object-clipboard-media.mbt)，原生媒体身份复制参考 [ONLYOFFICE UniMedia/NvPr](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L8230-L8307)和[图片对象复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Image.js#L162-L197)，未复制上游执行代码。
 
-组内局部选择、跨格富文本片段、媒体、字段/公式、具体幻灯片目标、悬停链接及未知对象源继续保护；带注释/处理指令的待重写表属性、样式和图表同样保护。对象复制失败不丢弃对象后降为纯文本。实现归 [`object-clipboard.mbt`](../../modules/formats/src/pptx/object-clipboard.mbt)、[`object-clipboard-style.mbt`](../../modules/formats/src/pptx/object-clipboard-style.mbt)、[`object-clipboard-read.mbt`](../../modules/formats/src/pptx/object-clipboard-read.mbt)和 [`object-clipboard-paste.mbt`](../../modules/formats/src/pptx/object-clipboard-paste.mbt)。复用既有原生对象复制、源格式解析、图片资源及多部件历史。
+默认 Copy/Cut 写入 `text/plain` 和 Chromium 自定义类型 `web application/x-open-document-pptx-objects`。默认源格式粘贴、`PresentationEditor.pasteClipboard()` 和对象输入的 Ctrl/Meta+V 走同一路径；剪切在系统写入成功并复核会话、revision 和选择后删除源。对象快照最多含 256 个顶层对象和 256 项资源，原生 XML 及每项图表 XML 最多 1 Mi UTF-16，完整 JSON 最多 96 Mi UTF-16。图片压缩字节合计最多 2 MiB，图片编码、表样式、图表 XML 和链接的资源值合计最多 2796204 UTF-16，输入及目标页解码图片各最多 16 MiB。媒体另限每项 16 MiB、合计 64 MiB 和 64 项，仍沿[媒体历史预算](#嵌入音视频)。表格、图表数据、样式目录、ABI、包和显式宿主预算继续生效，可能先达到其上限。
+
+组内局部选择、跨格富文本片段、字段/公式、具体幻灯片目标、悬停链接及未知对象源继续保护；带注释/处理指令的待重写表属性、样式和图表同样保护。对象复制失败不丢弃对象后降为纯文本。实现归 [`object-clipboard.mbt`](../../modules/formats/src/pptx/object-clipboard.mbt)、[`object-clipboard-style.mbt`](../../modules/formats/src/pptx/object-clipboard-style.mbt)、[`object-clipboard-read.mbt`](../../modules/formats/src/pptx/object-clipboard-read.mbt)和 [`object-clipboard-paste.mbt`](../../modules/formats/src/pptx/object-clipboard-paste.mbt)。复用既有原生对象复制、源格式解析、图片资源及多部件历史。
 
 ### PPTX 文字富文本片段
 

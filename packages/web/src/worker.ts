@@ -382,6 +382,14 @@ async function dispatch(request: Request): Promise<unknown> {
           );
         case "setPageBackground":
           return foundation.setPageBackground(request.revision, request.color);
+        case "textWatermark":
+          return foundation.textWatermark(request.revision);
+        case "setTextWatermark":
+          return foundation.setTextWatermark(
+            request.revision,
+            request.value,
+            request.profile,
+          );
         case "setCoverPage":
           return foundation.setCoverPage(
             request.revision,

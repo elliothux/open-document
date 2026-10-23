@@ -1,6 +1,7 @@
 import { DocumentReview } from "./document-review.js";
 import type {
   DocxCharts,
+  DocxTextWatermark,
   DocxChartValue,
   DocxChartUpdate,
   DocxMathFractions,
@@ -454,6 +455,24 @@ export abstract class DocumentPage extends DocumentReview {
       this.review.client.setPageBackground(
         this.review.snapshot().revision,
         color,
+      ),
+    );
+  }
+  textWatermark() {
+    return this.review.read(async () => {
+      const current = this.review.snapshot();
+      return {
+        ...(await this.review.client.textWatermark(current.revision)),
+        documentId: current.documentId,
+      };
+    });
+  }
+  setTextWatermark(value: DocxTextWatermark | null): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.setTextWatermark(
+        this.review.snapshot().revision,
+        value,
+        this.profile,
       ),
     );
   }

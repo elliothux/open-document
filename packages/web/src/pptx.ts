@@ -30,6 +30,7 @@ export type {
   PptxSnapping,
   PptxMedia,
   PptxMediaPlayback,
+  PptxFragmentMedia,
   PptxPlaceholder,
   PptxPlaceholderType,
   PptxEditView,
@@ -149,10 +150,12 @@ export class PptxClient {
       checkPptxTextFragment(command.fragment);
     if (
       command.operation === "pastePptxObjects" ||
-      command.operation === "objectFragmentImagesPptx"
+      command.operation === "objectFragmentImagesPptx" ||
+      command.operation === "objectFragmentMediaPptx"
     )
       checkPptxObjectFragment(command.fragment);
     if (command.operation === "pastePptxObjects") {
+      const before = await this.execute({ operation: "queryPptx" });
       const images = await this.execute({
         operation: "objectFragmentImagesPptx",
         revision: command.revision,
@@ -165,6 +168,26 @@ export class PptxClient {
         const { bitmap } = await decodeImage(bytes, this.events.signal);
         bitmap.close();
       }
+      const media = await this.execute({
+        operation: "objectFragmentMediaPptx",
+        revision: command.revision,
+        fragment: command.fragment,
+      });
+      for (const clip of media)
+        await verifyPresentationMedia(
+          Uint8Array.from(atob(clip.bytes), (character) =>
+            character.charCodeAt(0),
+          ),
+          clip.kind,
+          clip.contentType,
+          this.events.signal,
+        );
+      const after = await this.execute({ operation: "queryPptx" });
+      if (
+        after.revision !== command.revision ||
+        JSON.stringify(after.selection) !== JSON.stringify(before.selection)
+      )
+        throw new Error("Selection changed during object paste preparation");
     }
     if (
       (command.operation === "editPptxObjects" &&

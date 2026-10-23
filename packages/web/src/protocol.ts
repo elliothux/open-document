@@ -1,3 +1,4 @@
+import type { DocxWatermarkRequest } from "./protocol-watermark.js";
 import type {
   DocxChartEdit,
   DocxFractionEdit,
@@ -330,6 +331,7 @@ export type Operation =
       profile: Record<string, string>;
     }
   | { operation: "setPageBackground"; revision: number; color: string | null }
+  | DocxWatermarkRequest
   | {
       operation: "setCoverPage";
       revision: number;

@@ -1,5 +1,39 @@
 import { integer, record } from "./validation.js";
 
+export interface PptxFragmentMedia {
+  kind: "audio" | "video";
+  contentType: string;
+  /** Base64-encoded local media, with the same byte limits as insertion. */
+  bytes: string;
+}
+
+export function checkPptxFragmentMedia(value: unknown): void {
+  if (!Array.isArray(value) || value.length > 64)
+    throw new Error("Invalid PPTX clipboard media resources");
+  let total = 0;
+  for (const item of value) {
+    const media = record(item);
+    if (
+      Object.keys(media).length !== 3 ||
+      (media.kind !== "audio" && media.kind !== "video") ||
+      typeof media.contentType !== "string" ||
+      !mediaTypes(media.kind).includes(media.contentType) ||
+      typeof media.bytes !== "string" ||
+      !media.bytes.length ||
+      media.bytes.length > 22369624 ||
+      media.bytes.length % 4 !== 0 ||
+      !/^[A-Za-z0-9+/]*={0,2}$/.test(media.bytes)
+    )
+      throw new Error("Invalid PPTX clipboard media resource");
+    const size =
+      (media.bytes.length / 4) * 3 -
+      (media.bytes.endsWith("==") ? 2 : media.bytes.endsWith("=") ? 1 : 0);
+    if (size > 16777216) throw new Error("PPTX clipboard media exceeds 16MiB");
+    total += size;
+    if (total > 67108864) throw new Error("PPTX clipboard media exceeds 64MiB");
+  }
+}
+
 export interface PptxMediaPlayback {
   loop: boolean;
   /** Native OOXML volume units, from 0 to 100000. */

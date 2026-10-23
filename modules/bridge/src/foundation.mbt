@@ -198,6 +198,7 @@ fn Foundation::dispatch(
     | "exportPptxPdf"
     | "pastePptxFragment"
     | "objectFragmentImagesPptx"
+    | "objectFragmentMediaPptx"
     | "pastePptxObjects" => self.pptx_operation(operation, request)
     "defaultPdfBudget"
     | "openPdf"
@@ -248,6 +249,8 @@ fn Foundation::dispatch(
     | "bodyPageField"
     | "editBodyPageField"
     | "setPageBackground"
+    | "textWatermark"
+    | "setTextWatermark"
     | "setPageBorders"
     | "insertDocxTable"
     | "editDocxTable"
@@ -448,6 +451,8 @@ fn Foundation::dispatch(
         | "setPageColumns"
         | "setCoverPage"
         | "setPageBackground"
+        | "textWatermark"
+        | "setTextWatermark"
         | "setPageBorders"
         | "setPageNumbering"
         | "updateBodyPageFields"
@@ -668,6 +673,7 @@ fn Foundation::dispatch(
             profile,
             self.images,
           )
+          let positioned = session.page_positioned(result, self.probe)
           self.layout = Some(result)
           self.layout_id += 1
           {
@@ -678,13 +684,13 @@ fn Foundation::dispatch(
             "reflowedPages": result.reflowedPages,
             "reusedPages": result.reusedPages,
             "profile": result.profile,
-            "regions": result.drawing(self.images),
+            "regions": positioned.drawing(self.images),
             "images": result.drawing_images(self.images),
             "semantics": result.semantics(),
             "comments": session.comment_overlays(result),
             "diagnostics": result.diagnostics,
-            "outlines": result.outlines,
-            "fonts": result.fonts,
+            "outlines": self.probe.outline_resources(),
+            "fonts": positioned.fonts,
           }
         }
         "exportPdf" => {
@@ -704,7 +710,10 @@ fn Foundation::dispatch(
           {
             "bytes": @base64.encode(
               @pdf.write(
-                { ..layout.positioned(), links: session.page_links(layout), },
+                {
+                  ..session.page_positioned(layout, self.probe),
+                  links: session.page_links(layout),
+                },
                 self.probe,
                 self.images,
                 field_int(request, "outputBytes"),

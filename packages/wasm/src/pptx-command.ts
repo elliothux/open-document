@@ -44,7 +44,7 @@ export type PptxCommand =
     }
   | ({ operation: "selectPptx"; revision: number } & PptxSelection)
   | {
-      operation: "objectFragmentImagesPptx";
+      operation: "objectFragmentImagesPptx" | "objectFragmentMediaPptx";
       revision: number;
       fragment: string;
     }
@@ -151,6 +151,7 @@ const names: ReadonlySet<string> = new Set([
   "pastePptxFragment",
   "pastePptxObjects",
   "objectFragmentImagesPptx",
+  "objectFragmentMediaPptx",
   "layoutPptx",
   "printLayoutPptx",
   "hitPptx",
@@ -194,7 +195,7 @@ export function checkPptxObjectFragment(
   if (
     typeof value !== "string" ||
     !value.isWellFormed() ||
-    value.length > 4194304
+    value.length > 100663296
   )
     throw new Error("Invalid PPTX object fragment");
 }

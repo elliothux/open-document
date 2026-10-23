@@ -4,6 +4,7 @@ import { DocxCaption } from "./docx-caption.js";
 import { DocxNotes } from "./docx-notes.js";
 import { DocxProtection } from "./docx-protection.js";
 import { DocxCover } from "./docx-cover.js";
+import { DocxWatermark } from "./docx-watermark.js";
 import { useState } from "react";
 import type { DocumentEditor } from "@open-document/web/editor";
 import type {
@@ -138,6 +139,12 @@ export function DocxPage({
         disabled={disabled}
       />
       <DocxCover
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+      />
+      <DocxWatermark
         controller={controller}
         state={state}
         editor={editor}
