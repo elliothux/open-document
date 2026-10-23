@@ -400,7 +400,7 @@ fn Foundation::pptx_operation(
             xlsx_number(change, "right"),
             xlsx_number(change, "bottom"),
           )
-        "insertMedia" => pptx_insert_media(change)
+        "insertMedia" | "fillMedia" => pptx_insert_media(change)
         "mediaPlayback" => pptx_media_playback(change)
         "insertImage" =>
           @pptx.InsertImage(

@@ -349,6 +349,7 @@ pub fn PivotSettings::to_json(Self) -> Json
 pub(all) struct PivotValue {
   field : Int
   aggregate : String
+  showDataAs : String
   name : String
 } derive(ToJson)
 pub fn PivotValue::to_json(Self) -> Json

@@ -2,6 +2,7 @@
 pub(all) struct PivotValue {
   field : Int
   aggregate : String
+  showDataAs : String
   name : String
 } derive(ToJson)
 
@@ -148,6 +149,7 @@ fn PivotSettings::validate(
     guard value.field >= 0 &&
       value.field < width &&
       pivot_aggregates.contains(value.aggregate) &&
+      pivot_value_modes.contains(value.showDataAs) &&
       !value.name.trim().is_empty() &&
       value.name.length() <= 255 &&
       @xml.valid_text(value.name) &&

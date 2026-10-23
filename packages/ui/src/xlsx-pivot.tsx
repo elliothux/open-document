@@ -3,6 +3,7 @@ import type { SpreadsheetEditor } from "@open-document/web/spreadsheet-editor";
 import {
   checkXlsxPivotSettings,
   xlsxPivotAggregates,
+  xlsxPivotValueModes,
   type XlsxPivotSettings,
   type XlsxPivotValue,
   type XlsxPivotPreview,
@@ -40,7 +41,12 @@ export function XlsxPivotsPanel({
     [numberGroups, setNumberGroups] = useState<XlsxPivotNumberGroup[]>([]),
     [dateGroups, setDateGroups] = useState<XlsxPivotDateGroup[]>([]),
     [values, setValues] = useState<XlsxPivotValue[]>([
-      { field: 1, aggregate: "sum", name: t.pivotDefaultCaption },
+      {
+        field: 1,
+        aggregate: "sum",
+        showDataAs: "normal",
+        name: t.pivotDefaultCaption,
+      },
     ]),
     [name, setName] = useState("Pivot1"),
     [destination, setDestination] = useState("E1"),
@@ -222,6 +228,25 @@ export function XlsxPivotsPanel({
             </select>
           </label>
           <label>
+            {t.pivotShowDataAs}
+            <select
+              aria-label={t.pivotShowDataAs}
+              value={value.showDataAs}
+              onChange={(event) => {
+                const showDataAs = xlsxPivotValueModes.find(
+                  (mode) => mode === event.currentTarget.value,
+                );
+                if (showDataAs) updateValue(index, { showDataAs });
+              }}
+            >
+              {xlsxPivotValueModes.map((mode) => (
+                <option key={mode} value={mode}>
+                  {t[`pivotMode_${mode}`]}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
             {t.pivotCaption}
             <input
               value={value.name}
@@ -249,6 +274,7 @@ export function XlsxPivotsPanel({
             {
               field: 1,
               aggregate: "sum",
+              showDataAs: "normal",
               name: `${t.pivotDefaultCaption} ${values.length + 1}`,
             },
           ])

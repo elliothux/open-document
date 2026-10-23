@@ -16,10 +16,20 @@ export const xlsxPivotAggregates = [
   "var",
   "varp",
 ] as const;
+export const xlsxPivotValueModes = [
+  "normal",
+  "percentOfTotal",
+  "percentOfRow",
+  "percentOfCol",
+  "index",
+  "percentOfParentRow",
+  "percentOfParentCol",
+] as const;
 export interface XlsxPivotValue {
   /** Zero-based source column. */
   field: number;
   aggregate: (typeof xlsxPivotAggregates)[number];
+  showDataAs: (typeof xlsxPivotValueModes)[number];
   name: string;
 }
 export interface XlsxPivotSettings {
@@ -298,9 +308,10 @@ export function checkXlsxPivotSettings(value: unknown): void {
   for (const item of settings.values) {
     const value = record(item);
     if (
-      !fields(value, ["field", "aggregate", "name"]) ||
+      !fields(value, ["field", "aggregate", "name", "showDataAs"]) ||
       !integer(value.field, 0, width - 1) ||
       !xlsxPivotAggregates.some((kind) => kind === value.aggregate) ||
+      !xlsxPivotValueModes.some((mode) => mode === value.showDataAs) ||
       !text(value.name, 255) ||
       !value.name.trim() ||
       names.has(value.name.toLowerCase())

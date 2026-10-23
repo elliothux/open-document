@@ -33,6 +33,7 @@ export interface PptxObject {
   transformReason: string;
   tableFillReason: string;
   chartFillReason: string;
+  mediaFillReason: string;
   chartDataReason: string;
   shapeTypeReason: string;
   placeholder: { value: PptxPlaceholder | null; reason: string };

@@ -8,6 +8,7 @@ priv struct PivotLayout {
   row_totals : Array[Array[Value]]
   column_totals : Array[Array[Value]]
   total : Array[Value]
+  parents : Map[String, Array[Value]]
   filtered_count : Int
 }
 
@@ -73,6 +74,11 @@ fn PivotCache::layout(
   let rows : Map[String, (Array[Int], Array[PivotStatistic])] = Map([])
   let columns : Map[String, (Array[Int], Array[PivotStatistic])] = Map([])
   let cells : Map[String, Array[PivotStatistic]] = Map([])
+  let parents : Map[String, Array[PivotStatistic]] = Map([])
+  let directions = (
+    settings.values.any(value => value.showDataAs == "percentOfParentRow"),
+    settings.values.any(value => value.showDataAs == "percentOfParentCol"),
+  )
   let total = settings.values.map(_ => PivotStatistic::new())
   let filters = settings.filters.map(filter => {
     (
@@ -113,6 +119,11 @@ fn PivotCache::layout(
       settings.values.length()
     guard work <= 1048576 else {
       @failure.reject("limit-exceeded", "Pivot aggregation work exceeds budget")
+    }
+    if directions.0 || directions.1 {
+      work = self.add_parent_values(
+        settings, record, row_members, column_members, parents, directions, work,
+      )
     }
     for
       (groups, combinations, fields) in [
@@ -181,7 +192,7 @@ fn PivotCache::layout(
   let values = fn(statistics : Array[PivotStatistic]) {
     statistics.mapi((at, value) => value.value(settings.values[at].aggregate))
   }
-  {
+  PivotLayout::{
     cache: self,
     settings,
     members: row_groups.map(group => group.0),
@@ -199,8 +210,9 @@ fn PivotCache::layout(
     row_totals: row_groups.map(group => values(group.1)),
     column_totals: column_groups.map(group => values(group.1)),
     total: values(total),
+    parents: parents.map((_, statistics) => values(statistics)),
     filtered_count,
-  }
+  }.value_modes()
 }
 
 ///|

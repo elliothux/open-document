@@ -102,7 +102,17 @@ function mediaTypes(kind: "audio" | "video"): readonly string[] {
 
 export function checkPptxMediaInput(value: unknown): void {
   const change = record(value);
+  const placement = change.action === "insertMedia";
+  const keys = [
+    "action",
+    "kind",
+    "contentType",
+    "bytes",
+    "poster",
+    ...(placement ? ["x", "y", "width", "height"] : []),
+  ];
   if (
+    (!placement && change.action !== "fillMedia") ||
     (change.kind !== "audio" && change.kind !== "video") ||
     typeof change.contentType !== "string" ||
     !mediaTypes(change.kind).includes(change.contentType) ||
@@ -112,24 +122,11 @@ export function checkPptxMediaInput(value: unknown): void {
     !(change.poster instanceof Uint8Array) ||
     !change.poster.length ||
     change.poster.length > 4194304 ||
-    Object.keys(change).length !== 9 ||
-    Object.keys(change).some(
-      (key) =>
-        ![
-          "action",
-          "kind",
-          "contentType",
-          "bytes",
-          "poster",
-          "x",
-          "y",
-          "width",
-          "height",
-        ].includes(key),
-    )
+    Object.keys(change).length !== keys.length ||
+    Object.keys(change).some((key) => !keys.includes(key))
   )
     throw new Error("Invalid PPTX media input");
-  for (const key of ["x", "y", "width", "height"])
+  for (const key of placement ? ["x", "y", "width", "height"] : [])
     if (
       typeof change[key] !== "number" ||
       !Number.isFinite(change[key]) ||

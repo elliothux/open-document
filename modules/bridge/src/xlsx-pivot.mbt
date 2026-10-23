@@ -121,13 +121,16 @@ fn xlsx_pivot_settings(
     }),
     values: values.map(value => {
       guard value is Object(fields) &&
-        fields.length() == 3 &&
-        fields.keys().all(k => ["field", "aggregate", "name"].contains(k)) else {
+        fields.length() == 4 &&
+        fields
+        .keys()
+        .all(k => ["field", "aggregate", "name", "showDataAs"].contains(k)) else {
         @failure.reject("invalid-operation", "Invalid pivot value field")
       }
       @xlsx.PivotValue::{
         field: field_int(value, "field"),
         aggregate: field_string(value, "aggregate"),
+        showDataAs: field_string(value, "showDataAs"),
         name: field_string(value, "name"),
       }
     }),

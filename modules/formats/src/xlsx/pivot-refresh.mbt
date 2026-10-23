@@ -65,10 +65,11 @@ fn Session::pivot_settings(
       tree
       .all(node.id, "dataField")
       .map(field => {
-        conditional_node(tree, field, ["name", "fld", "subtotal"], [])
+        let mode = pivot_read_value_mode(tree, field)
         PivotValue::{
           field: natural(field.attribute("fld").unwrap_or(""), 63),
           aggregate: field.attribute("subtotal").unwrap_or("sum"),
+          showDataAs: mode,
           name: decode_text(field.attribute("name").unwrap_or("")),
         }
       })
@@ -660,9 +661,28 @@ fn Session::write_pivot(
   if unchanged {
     return self.pivots(revision, sheet)
   }
+  let old_tree = Tree::new(self.part_xml(part))
+  let location = old_tree.one(0, "location").unwrap()
+  let old_body = Range::parse(location.attribute("ref").unwrap())
+  let formatting = self.pivot_formats(
+    layout,
+    range,
+    current,
+    styles,
+    previous=Some(
+      (
+        pivot.range,
+        old_body.top +
+        natural(location.attribute("firstDataRow").unwrap(), 32768),
+        old_body.left + natural(location.attribute("firstDataCol").unwrap(), 64),
+        original_settings.values,
+      ),
+    ),
+  )
   let plan = self.prepare_cells(
     Map([(index, updates)]),
     styles=Map([(index, styles)]),
+    formatting~,
   )
   let parts = plan.parts
   let edits = plan.edits

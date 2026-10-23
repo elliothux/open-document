@@ -1,5 +1,13 @@
 ///|
 fn pptx_insert_media(change : Json) -> @pptx.ObjectEdit raise @failure.Failure {
+  if field_string(change, "action") == "fillMedia" {
+    return @pptx.FillMedia(
+      field_string(change, "kind"),
+      field_string(change, "contentType"),
+      input_bytes(change, 16777216),
+      input_bytes({ "bytes": field_string(change, "poster") }, 4194304),
+    )
+  }
   @pptx.InsertMedia(
     field_string(change, "kind"),
     field_string(change, "contentType"),

@@ -220,9 +220,11 @@ pub fn Session::create_pivot(
     }
   }
   let (updates, styles) = layout.cells(range, self.styles, self.date1904)
+  let formatting = self.pivot_formats(layout, range, current, styles)
   let plan = self.prepare_cells(
     Map([(index, updates)]),
     styles=Map([(index, styles)]),
+    formatting~,
   )
   let parts = plan.parts
   let created = plan.created_parts

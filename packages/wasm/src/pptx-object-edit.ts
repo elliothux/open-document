@@ -81,6 +81,13 @@ export type PptxObjectEdit =
     }
   | { action: "mediaPlayback"; value: PptxMediaPlayback }
   | {
+      action: "fillMedia";
+      kind: "audio" | "video";
+      contentType: string;
+      bytes: Uint8Array;
+      poster: Uint8Array;
+    }
+  | {
       action: "insertMedia";
       kind: "audio" | "video";
       contentType: string;

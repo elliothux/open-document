@@ -416,7 +416,7 @@ export function checkPptxObjectEdit(value: unknown): void {
     checkMediaPlayback(change.value);
     return;
   }
-  if (change.action === "insertMedia") {
+  if (change.action === "insertMedia" || change.action === "fillMedia") {
     checkPptxMediaInput(value);
     return;
   }

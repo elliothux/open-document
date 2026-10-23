@@ -45,6 +45,7 @@ import {
 } from "@open-document/wasm/xlsx";
 export {
   xlsxPivotAggregates,
+  xlsxPivotValueModes,
   xlsxPivotDateUnits,
   checkXlsxPivotSettings,
 } from "@open-document/wasm/xlsx";

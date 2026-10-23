@@ -130,8 +130,13 @@ export class PptxClient {
       checkPptxObjectEdit(command.change);
     if (
       command.operation === "editPptxObjects" &&
-      command.change.action === "insertMedia"
+      (command.change.action === "insertMedia" ||
+        command.change.action === "fillMedia")
     ) {
+      const before =
+        command.change.action === "fillMedia"
+          ? await this.execute({ operation: "queryPptx" })
+          : null;
       await verifyPresentationMedia(
         command.change.bytes,
         command.change.kind,
@@ -143,6 +148,14 @@ export class PptxClient {
         this.events.signal,
       );
       bitmap.close();
+      if (before) {
+        const after = await this.execute({ operation: "queryPptx" });
+        if (
+          after.revision !== command.revision ||
+          JSON.stringify(after.selection) !== JSON.stringify(before.selection)
+        )
+          throw new Error("Selection changed during media preparation");
+      }
     }
     if (command.operation === "editPptxSlides")
       checkPptxSlideEdit(command.change);

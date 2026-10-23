@@ -488,6 +488,7 @@ export function pptxQuery(value: unknown): PptxQuery {
           "transformReason",
           "tableFillReason",
           "chartFillReason",
+          "mediaFillReason",
           "chartDataReason",
           "shapeTypeReason",
         ],
@@ -682,7 +683,8 @@ export class PptxSession extends WasmSession {
     let value: unknown;
     if (
       command.operation === "editPptxObjects" &&
-      command.change.action === "insertMedia"
+      (command.change.action === "insertMedia" ||
+        command.change.action === "fillMedia")
     ) {
       value = this.call({
         ...command,

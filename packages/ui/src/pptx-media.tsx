@@ -19,7 +19,15 @@ export function PptxMedia({
   box: { x: number; y: number; width: number; height: number };
 }) {
   const t = messages(state.locale),
-    query = editor.query;
+    query = editor.query,
+    selected = query.objects.find(
+      (object) => object.id === query.selection.object,
+    );
+  const [fill, setFill] = useState(false);
+  const fillReason =
+    query.selection.mode !== "object" || query.selection.objects.length !== 1
+      ? t.selectMediaPlaceholder
+      : (selected?.mediaFillReason ?? t.selectMediaPlaceholder);
   const events = useRef<AbortController | null>(null);
   useEffect(() => {
     const active = new AbortController();
@@ -34,9 +42,19 @@ export function PptxMedia({
     >
       <legend>{t.insertMedia}</legend>
       <label>
+        <input
+          type="checkbox"
+          checked={fill}
+          onChange={(event) => setFill(event.currentTarget.checked)}
+        />
+        {t.fillMediaPlaceholder}
+      </label>
+      {fill && fillReason && <p>{fillReason}</p>}
+      <label>
         {t.mediaFile}
         <input
           type="file"
+          disabled={fill && !!fillReason}
           accept=".mp3,.wav,.mp4,.m4a,.webm,audio/mpeg,audio/wav,audio/mp4,audio/webm,video/mp4,video/webm"
           onChange={(event) => {
             const file = event.currentTarget.files?.[0];
@@ -44,6 +62,7 @@ export function PptxMedia({
             if (!file) return;
             const revision = editor.query.revision,
               slide = editor.query.slide,
+              selection = JSON.stringify(editor.query.selection),
               signal = events.current?.signal;
             controller.run(async () => {
               if (!file.size || file.size > 16777216)
@@ -52,15 +71,15 @@ export function PptxMedia({
               const prepared = await preparePresentationMedia(bytes, signal);
               if (
                 editor.query.revision !== revision ||
-                editor.query.slide !== slide
+                editor.query.slide !== slide ||
+                (fill && JSON.stringify(editor.query.selection) !== selection)
               )
                 throw new Error(t.mediaTargetChanged);
-              await editor.editObjects({
-                action: "insertMedia",
-                bytes,
-                ...prepared,
-                ...box,
-              });
+              await editor.editObjects(
+                fill
+                  ? { action: "fillMedia", bytes, ...prepared }
+                  : { action: "insertMedia", bytes, ...prepared, ...box },
+              );
             });
           }}
         />

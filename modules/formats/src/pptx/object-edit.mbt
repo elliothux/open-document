@@ -13,6 +13,7 @@ pub(all) enum ObjectEdit {
   Placeholder(String?, Double)
   InsertImage(Bytes, Double, Double, Double, Double)
   InsertMedia(String, String, Bytes, Bytes, Double, Double, Double, Double)
+  FillMedia(String, String, Bytes, Bytes)
   MediaPlayback(MediaPlaybackSettings)
   InsertTable(Int, Int, Double, Double, Double, Double)
   InsertChart(
@@ -509,6 +510,14 @@ pub fn Session::edit_objects(
   if change is InsertImage(bytes, x, y, width, height) {
     return self.write_image(bytes, Some((x, y, width, height)))
   }
+  if change is FillMedia(kind, content_type, bytes, poster) {
+    ignore(check_media_input(kind, content_type, bytes))
+    return self.write_image(
+      poster,
+      None,
+      clip=Some((kind, content_type, bytes)),
+    )
+  }
   if change
     is InsertMedia(kind, content_type, bytes, poster, x, y, width, height) {
     ignore(check_media_input(kind, content_type, bytes))
@@ -612,6 +621,7 @@ pub fn Session::edit_objects(
     | ConnectorEndpoints(_, _, _)
     | InsertImage(_, _, _, _, _)
     | InsertMedia(_, _, _, _, _, _, _, _)
+    | FillMedia(_, _, _, _)
     | MediaPlayback(_)
     | InsertTable(_, _, _, _, _, _)
     | InsertChart(_, _, _, _, _, _, _, _, _)

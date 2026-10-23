@@ -228,8 +228,7 @@ fn PivotLayout::definition(
   }
   out <+ "<dataFields count=\"\{settings.values.length()}\">"
   for value in settings.values {
-    out <+
-      "<dataField name=\"\{escaped_attribute(encoded_text(value.name))}\" fld=\"\{value.field}\" subtotal=\"\{value.aggregate}\"/>"
+    out.write_string(pivot_value_markup(value))
   }
   out <+ "</dataFields></pivotTableDefinition>"
   out.to_string()

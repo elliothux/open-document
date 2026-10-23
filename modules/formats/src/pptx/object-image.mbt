@@ -30,7 +30,13 @@ fn Session::write_image(
   }
   let targets = if fill { self.image_fill_targets() } else { [] }
   let target = if placement is None && !fill && background is None {
-    Some(self.selected_image_replacement())
+    Some(
+      if clip is Some(_) {
+        self.selected_media_placeholder()
+      } else {
+        self.selected_image_replacement()
+      },
+    )
   } else {
     None
   }
@@ -323,8 +329,18 @@ fn Session::write_image(
     }
   } else if target is Some(object) {
     if object.kind == "shape" {
+      let change = placeholder_image_change(
+        object, link, pixel_width, pixel_height,
+      )
       changes.push(
-        placeholder_image_change(object, link, pixel_width, pixel_height),
+        if clip is Some((kind, _, _)) {
+          {
+            ..change,
+            xml: media_picture_markup(change.xml, kind, link, self.budget),
+          }
+        } else {
+          change
+        },
       )
     } else {
       let blip = object.source
