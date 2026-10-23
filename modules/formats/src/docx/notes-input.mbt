@@ -25,6 +25,7 @@ fn WordTree::note_text_changes(
   let node = self.nodes[id]
   let run = self.nodes[node.parent]
   let paragraph = self.nodes[run.parent]
+  let container = self.nodes[paragraph.parent]
   let properties = self.note_input_properties(document, id)
   let original = self
     .child(run.id, "rPr")
@@ -43,16 +44,16 @@ fn WordTree::note_text_changes(
     ]
     .filter(pair => !pair.1.is_empty())
     .map(pair => {
-      node: paragraph.id,
-      offset: pair.0 - paragraph.start,
+      node: container.id,
+      offset: pair.0 - container.start,
       length: 0,
       xml: frame(pair.1),
     })
   } else {
     [
       {
-        node: paragraph.id,
-        offset: node.start - paragraph.start,
+        node: container.id,
+        offset: node.start - container.start,
         length: node.end - node.start,
         xml: frame(text),
       },

@@ -42,6 +42,7 @@ pub fn Session::paste_body_fragment(
     fields=true,
     math=true,
     tables=true,
+    notes=true,
   )
   if source.order.any(id => {
       source.nodes[id].uri == picture_inline_uri &&
@@ -70,9 +71,11 @@ pub fn Session::paste_body_fragment(
     .find_first(p => p.id == range.start.paragraph)
     .unwrap().pageBreakBefore
   let prepared = if table_at_start {
-    self.prepare_plain_range(selection, "")
+    self.prepare_plain_range(selection, "", notes=true)
   } else {
-    Some(self.prepare_structural_range_in(original, selection, "\n"))
+    Some(
+      self.prepare_structural_range_in(original, selection, "\n", notes=true),
+    )
   }
   let steps = prepared.map(p => p.edit.xml.copy()).unwrap_or([])
   let mut candidate = prepared.map(p => p.document).unwrap_or(original)
@@ -160,6 +163,7 @@ pub fn Session::paste_body_fragment(
       candidate,
       { anchor: position, focus: other, },
       "",
+      notes=true,
     )
     candidate = merged.document
     steps.append(merged.edit.xml)
@@ -183,6 +187,7 @@ pub fn Session::paste_body_fragment(
       candidate,
       { anchor: position, focus: other, },
       "",
+      notes=true,
     )
     candidate = merged.document
     steps.append(merged.edit.xml)

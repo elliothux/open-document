@@ -7,7 +7,7 @@ fn Session::split_table(
   self.check_revision(revision)
   let document = self.document()
   let tree = WordTree::new(document)
-  let grid = self.table_grid(tree, selection)
+  let grid = self.table_grid(tree, selection, notes=true)
   guard grid.row > 0 else {
     @failure.reject(
       "invalid-operation", "Select a row after the first table row",
@@ -43,7 +43,7 @@ fn Session::split_table(
     }
   }
   for cell in grid.cells.flatten() {
-    tree.check_merge_cell(cell, self.main)
+    tree.check_merge_cell(cell, self.main, notes=true)
   }
   for name in ["tblPr", "tblGrid"] {
     if tree.child(grid.table, name) is Some(id) {
@@ -111,7 +111,7 @@ fn Session::split_table(
       document, owner, width, span, "restart",
     )
     let empty = self
-      .empty_table_cell(tree, owner, width)
+      .empty_table_cell(tree, owner, width, notes=true)
       .replace(old=properties[:], new=merged[:])
     // A crossing merge keeps its content above the cut and starts an empty cell below.
     changes.push({ ..table_remove(tree, cell), xml: empty, })

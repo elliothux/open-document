@@ -59,6 +59,7 @@ pub fn Session::apply_format(
     selection,
     whole_cells=true,
     fields=true,
+    notes=true,
   )
   let collapsed = range.start.paragraph == range.end.paragraph &&
     range.start.offset == range.end.offset

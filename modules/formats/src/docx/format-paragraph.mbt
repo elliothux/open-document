@@ -199,6 +199,7 @@ fn Session::format_paragraph_document(
     selection,
     whole_cells=true,
     fields~,
+    notes=true,
   )
   let changes : Array[@xml.SourceChange] = []
   for paragraph in range.paragraphs {

@@ -65,6 +65,7 @@ fn Session::selection_field_values(
   layout : @layout.Layout?,
 ) -> Map[Int, String] raise @failure.Failure {
   let selected : Array[Int] = []
+  let notes : Array[Int] = []
   let math : Map[Int, String] = Map([])
   let paragraphs = Map::from_array(range.paragraphs.map(p => (p, true)))
   let offsets : Map[Int, Int] = Map([])
@@ -89,6 +90,11 @@ fn Session::selection_field_values(
       end > offset {
       selected.push(item.id)
     }
+    if note_reference(tree.nodes[item.id]) &&
+      start < offset + length &&
+      end > offset {
+      notes.push(item.id)
+    }
     if tree.nodes[item.id].uri == math_uri &&
       start < offset + length &&
       end > offset {
@@ -106,6 +112,12 @@ fn Session::selection_field_values(
     offsets[item.paragraph] = offset + length
   }
   let values = self.field_values(tree, selected, layout)
+  if !notes.is_empty() {
+    let references = self.layout_notes(tree, self.styles([]), "ffffff").0
+    for id in notes {
+      values[id] = references[id].0
+    }
+  }
   for id, text in math {
     values[id] = text
   }

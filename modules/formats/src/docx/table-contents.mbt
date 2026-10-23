@@ -5,12 +5,13 @@ fn Session::prepare_table_contents(
   cells : TableCellRange,
   text : String,
   check_graphemes~ : Bool,
+  notes~ : Bool = false,
 ) -> PreparedEdit raise @failure.Failure {
   // ONLYOFFICE replaces the first selected cell on input and clears all selected cells on deletion.
   let texts = docx_texts(tree)
   if !text.is_empty() {
     let selection = tree.cell_contents_selection(cells.owners[0], texts)
-    if self.prepare_plain_range(selection, text, check_graphemes~)
+    if self.prepare_plain_range(selection, text, check_graphemes~, notes~)
       is Some(prepared) {
       return prepared
     }
@@ -49,6 +50,7 @@ fn Session::prepare_table_contents(
       selection,
       text,
       check_graphemes~,
+      notes~,
     )
     guard prepared.edit.bytes <= history_byte_limit - bytes else {
       @failure.reject("limit-exceeded", "Table content history exceeds budget")

@@ -158,10 +158,11 @@ fn Session::formatting_range(
   selection : Selection,
   whole_cells~ : Bool = false,
   fields~ : Bool = false,
+  notes~ : Bool = false,
 ) -> ParagraphRange raise @failure.Failure {
   let tree = WordTree::new(document)
   let cells = if whole_cells {
-    self.table_format_range(tree, selection, fields~)
+    self.table_format_range(tree, selection, fields~, notes~)
   } else {
     None
   }
@@ -174,6 +175,7 @@ fn Session::formatting_range(
       fields~,
       math=true,
       tables=true,
+      notes~,
       check_layout=false,
     )
   })
@@ -228,6 +230,7 @@ pub fn Session::query_formatting(
       selection,
       whole_cells=true,
       fields=true,
+      notes=true,
     )
     self.check_document_protection()
     range
@@ -266,7 +269,13 @@ pub fn Session::query_formatting(
     } else {
       try {
         self.check_document_protection()
-        if self.table_format_range(tree, selection, fields=true, math=true)
+        if self.table_format_range(
+            tree,
+            selection,
+            fields=true,
+            math=true,
+            notes=true,
+          )
           is None {
           ignore(
             self.paragraph_range(

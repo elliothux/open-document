@@ -25,11 +25,12 @@ fn Session::paste_table_fragment(
     pictures=true,
     fields=true,
     math=true,
+    notes=true,
   )
   let grid = selected
     .map(r => r.grid)
     .unwrap_or_else(() => {
-      self.table_grid(tree, selection, fields=true, math=true)
+      self.table_grid(tree, selection, fields=true, math=true, notes=true)
     })
   let (top, c) = selected
     .map(r => grid.owners[r.owners[0]])
@@ -54,6 +55,7 @@ fn Session::paste_table_fragment(
           pictures=true,
           fields=true,
           math=true,
+          notes=true,
         )
         for id in tree.descendants(cell) {
           if tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing" {
@@ -116,6 +118,7 @@ fn Session::paste_table_fragment(
     profile,
     images,
     math=true,
+    notes=true,
   )
   let mut candidate = original
   let steps : Array[@xml.Edit] = []

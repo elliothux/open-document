@@ -9,6 +9,7 @@ fn Session::paste_grid_changes(
   profile : Map[String, String],
   images : @layout.Images?,
   math~ : Bool = false,
+  notes~ : Bool = false,
 ) -> Array[@xml.SourceChange] raise @failure.Failure {
   let old_columns = grid.model.widths.length()
   if rows == grid.rows.length() && columns == old_columns {
@@ -103,6 +104,7 @@ fn Session::paste_grid_changes(
           widths[column],
           fields=true,
           math~,
+          notes~,
         )
         guard xml.length() <= changes.limit - units else {
           @failure.reject(
@@ -147,6 +149,7 @@ fn Session::paste_grid_changes(
           widths[column],
           fields=true,
           math~,
+          notes~,
         )
         guard xml.length() <= changes.limit - units else {
           @failure.reject("limit-exceeded", "Pasted row source exceeds budget")
@@ -185,10 +188,10 @@ fn Session::paste_table_cells(
   let values = @delimited.parse_tsv(text)
   let original = self.document()
   let tree = WordTree::new(original)
-  let selected = self.table_cell_range(tree, selection)
+  let selected = self.table_cell_range(tree, selection, notes=true)
   let grid = selected
     .map(range => range.grid)
-    .unwrap_or_else(() => self.table_grid(tree, selection))
+    .unwrap_or_else(() => self.table_grid(tree, selection, notes=true))
   let (top, column) = selected
     .map(range => grid.owners[range.owners[0]])
     .unwrap_or_else(() => grid.owners[grid.cells[grid.row][grid.column]])
@@ -209,7 +212,7 @@ fn Session::paste_table_cells(
       let start = grid.starts[r][c]
       let end = start + grid.model.columnSpans[r][c]
       if start < right && end > left {
-        tree.check_merge_cell(cell, self.main)
+        tree.check_merge_cell(cell, self.main, notes=true)
         guard grid.model.rowSpans[r][c] == 1 &&
           grid.model.columnSpans[r][c] == 1 else {
           @failure.reject(
@@ -223,7 +226,14 @@ fn Session::paste_table_cells(
     @failure.reject("missing-font", "Table pasting requires a text probe")
   })
   let changes = self.paste_grid_changes(
-    tree, grid, rows, columns, probe, profile, images,
+    tree,
+    grid,
+    rows,
+    columns,
+    probe,
+    profile,
+    images,
+    notes=true,
   )
   let mut candidate = original
   let steps : Array[@xml.Edit] = []
@@ -260,7 +270,10 @@ fn Session::paste_table_cells(
         let before = expanded.rows[r][c]
           .map(p => p.spans.map(span => span.text).join(""))
           .join("\n")
-        if before != value {
+        if before != value ||
+          expanded_tree
+          .descendants(cell)
+          .any(id => note_reference(expanded_tree.nodes[id])) {
           targets.push((cell, value))
         }
         count += 1
@@ -291,7 +304,12 @@ fn Session::paste_table_cells(
     }
     let current = WordTree::new(candidate)
     let selection = current.cell_contents_selection(cell, docx_texts(current))
-    let prepared = self.prepare_structural_range_in(candidate, selection, value)
+    let prepared = self.prepare_structural_range_in(
+      candidate,
+      selection,
+      value,
+      notes=true,
+    )
     guard prepared.edit.bytes <= history_byte_limit - bytes else {
       @failure.reject("limit-exceeded", "Table paste history exceeds budget")
     }

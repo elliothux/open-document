@@ -102,9 +102,10 @@ fn Session::empty_table_cell(
   width : Int,
   fields~ : Bool = false,
   math~ : Bool = false,
+  notes~ : Bool = false,
 ) -> String raise @failure.Failure {
   let p = tree.child(cell, "p").unwrap()
-  tree.check_editable_paragraph(p, part=self.main, fields~, math~)
+  tree.check_editable_paragraph(p, part=self.main, fields~, math~, notes~)
   tree.check_structure_paragraph(p, running=fields)
   let original = self.document()
   let paragraph = formatted_properties(
@@ -114,11 +115,27 @@ fn Session::empty_table_cell(
     "pPr",
     ParagraphFormat::new(pageBreakBefore=Set(false)).properties(),
   )
-  let run = tree
+  let reference = tree
+    .child(p, "r")
+    .bind(run => {
+      let content = tree.children[run].filter(id => tree.nodes[id].name != "rPr")
+      if notes &&
+        content.length() == 1 &&
+        note_reference(tree.nodes[content[0]]) {
+        Some(content[0])
+      } else {
+        None
+      }
+    })
+  let run = if reference is Some(id) {
+    tree.note_input_properties(original, id)
+  } else {
+    tree
     .child(p, "r")
     .bind(id => tree.child(id, "rPr"))
     .map(id => tree.standalone_markup(original, id))
     .unwrap_or(tree.empty_run_properties(original, p))
+  }
   let bindings = tree.namespace_bindings(p)
   bindings["od"] = word_uri
   let out = StringBuilder()

@@ -63,7 +63,7 @@ fn Session::split_empty_cell(
   props : String,
 ) -> String raise @failure.Failure {
   self
-  .empty_table_cell(tree, cell, width)
+  .empty_table_cell(tree, cell, width, notes=true)
   .replace(
     old=tree.table_cell_properties(self.document(), cell, width)[:],
     new=props[:],
@@ -91,10 +91,10 @@ fn Session::split_table_cell(
   }
   let document = self.document()
   let tree = WordTree::new(document)
-  let selected = self.table_cell_range(tree, selection)
+  let selected = self.table_cell_range(tree, selection, notes=true)
   let original = selected
     .map(range => range.grid)
-    .unwrap_or_else(() => self.table_grid(tree, selection))
+    .unwrap_or_else(() => self.table_grid(tree, selection, notes=true))
   let owners = selected
     .map(range => range.owners)
     .unwrap_or([original.cells[original.row][original.column]])
@@ -206,7 +206,7 @@ fn Session::split_table_cell(
       if !splitting && !extend_row && span == grid.model.columnSpans[r][col] {
         continue
       }
-      tree.check_merge_cell(cell, self.main)
+      tree.check_merge_cell(cell, self.main, notes=true)
       let merge = if splitting {
         let height = grid.model.rowSpans[owner.0][owner.1]
         let group = if height == 1 { 1 } else { height / rows }
@@ -310,7 +310,7 @@ fn Session::split_table_cell(
       units += opening.length()
       added.write_string(opening)
       for col, cell in grid.cells[first] {
-        tree.check_merge_cell(cell, self.main)
+        tree.check_merge_cell(cell, self.main, notes=true)
         let start = grid.starts[first][col]
         let end = start + grid.model.columnSpans[first][col]
         let span = refined.search(positions[end]).unwrap() -

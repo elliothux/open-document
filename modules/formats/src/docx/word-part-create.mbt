@@ -46,7 +46,11 @@ fn Session::new_word_part(
   if self.opc.names.contains(rels.to_lower()) || parts.contains(rels) {
     let (candidate, edit) = append_part_xml(self.part_xml(rels), markup)
     parts[rels] = candidate
-    edits[rels] = [edit]
+    if created.contains(rels) {
+      created[rels] = candidate
+    } else {
+      edits.get_or_init(rels, () => []).push(edit)
+    }
   } else {
     let document = @xml.Document::parse(
       @utf8.encode(
@@ -68,7 +72,7 @@ fn Session::new_word_part(
     "+xml\"/>",
   )
   parts[types] = candidate
-  edits[types] = [edit]
+  edits.get_or_init(types, () => []).push(edit)
   let document = @xml.Document::parse(
     @utf8.encode(
       if kind == "theme" {

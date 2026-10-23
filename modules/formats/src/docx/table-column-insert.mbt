@@ -29,10 +29,10 @@ fn Session::insert_table_column(
 ) -> Json raise @failure.Failure {
   let document = self.document()
   let tree = WordTree::new(document)
-  let selected = self.table_cell_range(tree, selection)
+  let selected = self.table_cell_range(tree, selection, notes=true)
   let grid = selected
     .map(range => range.grid)
-    .unwrap_or_else(() => self.table_grid(tree, selection))
+    .unwrap_or_else(() => self.table_grid(tree, selection, notes=true))
   tree.check_table_structure(grid, columns=true)
   let flow = self.flow()
   let available = table_column_width(flow, grid.model, probe, profile, images)
@@ -173,7 +173,7 @@ fn Session::insert_table_column(
       changes.push(change)
     }
     for c, cell in cells {
-      tree.check_merge_cell(cell, self.main)
+      tree.check_merge_cell(cell, self.main, notes=true)
       let position = c + (if c >= index { repeat } else { 0 })
       let span = cuts.search(edges[position + 1]).unwrap() -
         cuts.search(edges[position]).unwrap()

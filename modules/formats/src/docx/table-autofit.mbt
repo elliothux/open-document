@@ -133,7 +133,7 @@ fn Session::fit_table(
   })
   let document = self.document()
   let tree = WordTree::new(document)
-  let grid = self.table_grid(tree, selection)
+  let grid = self.table_grid(tree, selection, notes=true)
   guard tree.nodes[tree.nodes[grid.table].parent].name == "body" else {
     @failure.reject("protected-content", "Table fitting requires a body table")
   }
@@ -192,7 +192,7 @@ fn Session::fit_table(
   }
   for r, row in grid.cells {
     for c, cell in row {
-      tree.check_merge_cell(cell, self.main)
+      tree.check_merge_cell(cell, self.main, notes=true)
       let start = grid.starts[r][c]
       let width = current.widths[start:start + current.columnSpans[r][c]].fold(
         init=0.0,
@@ -240,7 +240,8 @@ fn Session::fit_table(
     )
   }
   self.check_margin_layout({ ..next, autoFit: false, })
-  let target_flow = if !next_flow.columns.custom.is_empty() {
+  let target_flow = if !next_flow.columns.custom.is_empty() ||
+    !next_flow.notes.is_empty() {
     {
       ..next_flow,
       tables: next_flow.tables.map(table => {

@@ -31,6 +31,7 @@ fn Session::format_character_document(
     selection,
     whole_cells=true,
     fields~,
+    notes=true,
   )
   let include_empty = include_empty ||
     tree.nodes[range.start.paragraph].parent !=

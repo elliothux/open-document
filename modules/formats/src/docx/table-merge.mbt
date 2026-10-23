@@ -17,6 +17,7 @@ fn Session::table_grid(
   selection : Selection,
   fields~ : Bool = false,
   math~ : Bool = false,
+  notes~ : Bool = false,
 ) -> TableGrid raise @failure.Failure {
   let range = self.paragraph_range(
     tree,
@@ -24,6 +25,7 @@ fn Session::table_grid(
     structural=true,
     fields~,
     math~,
+    notes~,
   )
   let cell = tree.nodes[range.start.paragraph].parent
   guard tree.nodes[cell].uri == word_uri && tree.nodes[cell].name == "tc" else {
@@ -105,6 +107,7 @@ fn WordTree::check_merge_cell(
   pictures~ : Bool = false,
   fields~ : Bool = false,
   math~ : Bool = false,
+  notes~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   guard self.child(cell, "p") is Some(_) else {
     @failure.reject(
@@ -126,7 +129,7 @@ fn WordTree::check_merge_cell(
     )
   }
   for p in self.table_children(cell, "p") {
-    self.check_editable_paragraph(p, part~, pictures~, fields~, math~)
+    self.check_editable_paragraph(p, part~, pictures~, fields~, math~, notes~)
     self.check_structure_paragraph(p, running=fields)
   }
   guard self.table_children(cell, "tcPr").length() <= 1 else {
@@ -250,10 +253,10 @@ fn Session::merge_table_cells(
   }
   let document = self.document()
   let tree = WordTree::new(document)
-  let selected = self.table_cell_range(tree, selection)
+  let selected = self.table_cell_range(tree, selection, notes=true)
   let original = selected
     .map(range => range.grid)
-    .unwrap_or_else(() => self.table_grid(tree, selection))
+    .unwrap_or_else(() => self.table_grid(tree, selection, notes=true))
   let first = selected.map(range => range.top).unwrap_or(original.row)
   let left = selected
     .map(range => range.left)
@@ -301,7 +304,7 @@ fn Session::merge_table_cells(
           "invalid-operation", "Merge rectangle cuts an existing merged cell",
         )
       }
-      tree.check_merge_cell(cell, self.main)
+      tree.check_merge_cell(cell, self.main, notes=true)
       indices.push(c)
     }
     guard !indices.is_empty() else {
@@ -398,10 +401,10 @@ fn Session::unmerge_table_cells(
   self.check_revision(revision)
   let document = self.document()
   let tree = WordTree::new(document)
-  let selected = self.table_cell_range(tree, selection)
+  let selected = self.table_cell_range(tree, selection, notes=true)
   let original = selected
     .map(range => range.grid)
-    .unwrap_or_else(() => self.table_grid(tree, selection))
+    .unwrap_or_else(() => self.table_grid(tree, selection, notes=true))
   let owners = selected
     .map(range => range.owners)
     .unwrap_or([original.cells[original.row][original.column]])
@@ -423,7 +426,7 @@ fn Session::unmerge_table_cells(
     for row in r..<(r + rows) {
       let col = grid.starts[row].search(left).unwrap()
       let cell = grid.cells[row][col]
-      tree.check_merge_cell(cell, self.main)
+      tree.check_merge_cell(cell, self.main, notes=true)
       let properties = tree.merged_cell_properties(
         document,
         cell,
@@ -442,6 +445,7 @@ fn Session::unmerge_table_cells(
           tree,
           cell,
           (grid.model.widths[left + column] * 20).round().to_int(),
+          notes=true,
         )
         guard markup.length() <= changes.limit - units else {
           @failure.reject(

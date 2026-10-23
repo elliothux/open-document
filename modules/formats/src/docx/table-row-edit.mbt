@@ -15,10 +15,10 @@ fn Session::edit_table_rows(
   }
   let document = self.document()
   let tree = WordTree::new(document)
-  let selected = self.table_cell_range(tree, selection)
+  let selected = self.table_cell_range(tree, selection, notes=true)
   let grid = selected
     .map(range => range.grid)
-    .unwrap_or_else(() => self.table_grid(tree, selection))
+    .unwrap_or_else(() => self.table_grid(tree, selection, notes=true))
   tree.check_table_structure(grid)
   let before = change is RowBefore
   let removing = change is DeleteRow
@@ -44,7 +44,7 @@ fn Session::edit_table_rows(
   if removing {
     for row in rows {
       for cell in grid.cells[grid.rows.search(row).unwrap()] {
-        tree.check_merge_cell(cell, self.main)
+        tree.check_merge_cell(cell, self.main, notes=true)
       }
     }
     if whole {
@@ -67,7 +67,7 @@ fn Session::edit_table_rows(
           if survivors[0] != grid.rows[next] {
             continue
           }
-          tree.check_merge_cell(cell, self.main)
+          tree.check_merge_cell(cell, self.main, notes=true)
           let props = tree.split_cell_properties(
             document,
             cell,
@@ -94,7 +94,7 @@ fn Session::edit_table_rows(
     markup.write_string("<od:tr xmlns:od=\"\{word_uri}\">\{properties}")
     let mut length = markup.to_string().length() + "</od:tr>".length()
     for c, cell in grid.cells[r] {
-      tree.check_merge_cell(cell, self.main)
+      tree.check_merge_cell(cell, self.main, notes=true)
       let (owner, column) = grid.owners[cell]
       let continued = owner < position &&
         owner + grid.model.rowSpans[owner][column] > position

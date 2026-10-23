@@ -5,6 +5,79 @@ fn note_reference(node : @xml.Node) -> Bool {
 }
 
 ///|
+fn Session::next_note_key(
+  self : Session,
+  kind : String,
+) -> String raise @failure.Failure {
+  let used : Set[String] = Set([])
+  if self.note_source(kind) is Some(source) {
+    for id in source.tree.children[0] {
+      used.add(
+        @string.parse_int(
+          source.tree.nodes[id]
+          .attribute("id", uri=word_uri)
+          .unwrap_or("")
+          .trim(),
+        ).to_string() catch {
+          _ => @failure.reject("protected-content", "Invalid note identity")
+        },
+      )
+    }
+  }
+  for part in self.style_part_names() {
+    for node in self.part_xml(part).nodes() {
+      if node.uri == word_uri && node.name == kind + "Reference" {
+        used.add(note_key(node.attribute("id", uri=word_uri).unwrap_or("")))
+      }
+    }
+  }
+  for value in 1..<=8192 {
+    if !used.contains(value.to_string()) {
+      return value.to_string()
+    }
+  }
+  @failure.reject("limit-exceeded", "Note identities exhausted")
+}
+
+///|
+fn Session::append_note_source(
+  self : Session,
+  kind : String,
+  key : String,
+  body : String,
+  parts : Map[String, @xml.Document],
+  edits : Map[String, Array[@xml.Edit]],
+  created : Map[String, @xml.Document],
+) -> Unit raise @failure.Failure {
+  let view = { ..self, parts, }
+  let source = view.note_source(kind)
+  let part = source
+    .map(source => source.part)
+    .unwrap_or_else(() => view.new_word_part(kind + "s", parts, edits, created))
+  let initial = parts.get(part).unwrap_or_else(() => view.part_xml(part))
+  let separators = if source is None {
+    [(-1, "separator"), (0, "continuationSeparator")]
+    .map(pair => {
+      "<od:\{kind} xmlns:od='\{word_uri}' od:id='\{pair.0}' od:type='\{pair.1}'><od:p><od:r><od:\{pair.1}/></od:r></od:p></od:\{kind}>"
+    })
+    .join("")
+  } else {
+    ""
+  }
+  let (story, step) = append_part_xml(
+    initial,
+    separators +
+    "<od:\{kind} xmlns:od='\{word_uri}' od:id='\{key}'>\{body}</od:\{kind}>",
+  )
+  parts[part] = story
+  if created.contains(part) {
+    created[part] = story
+  } else {
+    edits.get_or_init(part, () => []).push(step)
+  }
+}
+
+///|
 fn Session::check_note_paragraph(
   self : Session,
   document : @xml.Document,
@@ -170,41 +243,10 @@ pub fn Session::insert_note(
     selection.focus
   }
   self.check_note_paragraph(document, position.paragraph)
-  let source = self.note_source(kind)
-  let used : Set[String] = Set([])
-  if source is Some(source) {
-    for id in source.tree.children[0] {
-      used.add(
-        @string.parse_int(
-          source.tree.nodes[id]
-          .attribute("id", uri=word_uri)
-          .unwrap_or("")
-          .trim(),
-        ).to_string() catch {
-          _ => @failure.reject("protected-content", "Invalid note identity")
-        },
-      )
-    }
-  }
-  for node in tree.nodes.values() {
-    if node.uri == word_uri && node.name == kind + "Reference" {
-      used.add(note_key(node.attribute("id", uri=word_uri).unwrap_or("")))
-    }
-  }
-  let key = for value in 1..<=8192 {
-    if !used.contains(value.to_string()) {
-      break value.to_string()
-    }
-  } nobreak {
-    @failure.reject("limit-exceeded", "Note identities exhausted")
-  }
+  let key = self.next_note_key(kind)
   let parts = self.parts.copy()
   let edits : Map[String, Array[@xml.Edit]] = Map([])
   let created : Map[String, @xml.Document] = Map([])
-  let part = source
-    .map(source => source.part)
-    .unwrap_or_else(() => self.new_word_part(kind + "s", parts, edits, created))
-  let initial = parts.get(part).unwrap_or_else(() => self.part_xml(part))
   let styles = self.styles([])
   let style = if kind == "footnote" { "FootnoteText" } else { "EndnoteText" }
   let ppr = if styles.ids.contains(style) {
@@ -217,23 +259,8 @@ pub fn Session::insert_note(
   } else {
     "<od:sz od:val='20'/>"
   }
-  let separators = if source is None {
-    [(-1, "separator"), (0, "continuationSeparator")]
-    .map(pair => {
-      "<od:\{kind} xmlns:od='\{word_uri}' od:id='\{pair.0}' od:type='\{pair.1}'><od:p><od:r><od:\{pair.1}/></od:r></od:p></od:\{kind}>"
-    })
-    .join("")
-  } else {
-    ""
-  }
-  let markup = "<od:\{kind} xmlns:od='\{word_uri}' od:id='\{key}'><od:p>\{ppr}<od:r><od:rPr>\{size}<od:vertAlign od:val='superscript'/></od:rPr><od:\{kind}Ref/></od:r><od:r><od:rPr>\{size}</od:rPr><od:t xml:space='preserve'>\{@xml.escape_text(text)}</od:t></od:r></od:p></od:\{kind}>"
-  let (story, step) = append_part_xml(initial, separators + markup)
-  parts[part] = story
-  if created.contains(part) {
-    created[part] = story
-  } else {
-    edits[part] = [step]
-  }
+  let markup = "<od:p>\{ppr}<od:r><od:rPr>\{size}<od:vertAlign od:val='superscript'/></od:rPr><od:\{kind}Ref/></od:r><od:r><od:rPr>\{size}</od:rPr><od:t xml:space='preserve'>\{@xml.escape_text(text)}</od:t></od:r></od:p>"
+  self.append_note_source(kind, key, markup, parts, edits, created)
   let change = self.paragraph_inline_source(document, position, properties => {
     "<od:r xmlns:od='\{word_uri}'>\{note_reference_properties(properties, self.opc.budget)}<od:\{kind}Reference od:id='\{key}'/></od:r>"
   })

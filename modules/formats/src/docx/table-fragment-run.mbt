@@ -16,7 +16,7 @@ fn fragment_run_markup(
   if run is Some(run) {
     for child in tree.children[run] {
       let node = tree.nodes[child]
-      if node.name == "drawing" {
+      if node.name == "drawing" || pictures.contains(child) {
         chunks.push((pending.to_string(), None))
         pending = StringBuilder()
         chunks.push(("", Some(child)))

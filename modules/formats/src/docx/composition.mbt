@@ -78,6 +78,7 @@ pub fn Session::begin_composition(
       pictures=true,
       fields=true,
       math=true,
+      notes=true,
     )
     is None {
     ignore(

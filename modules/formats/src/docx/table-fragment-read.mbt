@@ -23,6 +23,7 @@ fn Session::read_table_fragment(
     self.opc.budget.xml_depth,
     self.opc.budget.entry_bytes,
   )
+  let document = self.import_fragment_notes(document, parts, edits, created)
   let document = self.import_fragment_numbering(document, parts, edits, created)
   let document = self.import_fragment_links(document, parts, edits, created)
   let document = self.import_fragment_bookmarks(document)
@@ -40,7 +41,7 @@ fn Session::read_table_fragment(
   }
   let table = tree.table_children(body, "tbl")[0]
   let nodes = tree.descendants(table)
-  check_fragment_content(tree, nodes, pictures, fields=true)
+  check_fragment_content(tree, nodes, pictures, fields=true, notes=true)
   guard tree.child(table, "tblGrid") is Some(_) else {
     @failure.reject("invalid-table", "Rich table requires a complete grid")
   }
@@ -50,7 +51,7 @@ fn Session::read_table_fragment(
     .unwrap_or_else(() => {
       @failure.reject("invalid-table", "Rich table has no supported grid")
     })
-  let grid = view.check_fragment_table(tree, model)
+  let grid = view.check_fragment_table(tree, model, notes=true)
   let changes = []
   for row in model.rows {
     for paragraphs in row {
@@ -90,6 +91,7 @@ fn Session::check_fragment_table(
   self : Session,
   tree : WordTree,
   model : @layout.Table,
+  notes~ : Bool = false,
 ) -> TableGrid raise @failure.Failure {
   guard tree.child(model.id, "tblGrid") is Some(_) else {
     @failure.reject("invalid-table", "Rich table requires a complete grid")
@@ -118,6 +120,7 @@ fn Session::check_fragment_table(
       pictures=true,
       fields=true,
       math=true,
+      notes~,
     )
   }
   for row in model.rows {

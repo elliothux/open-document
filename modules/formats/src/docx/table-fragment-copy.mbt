@@ -138,10 +138,16 @@ fn fragment_paragraph(
         if tree.nodes[id].name == "r" {
           tree.children[id]
           .filter(child => {
-            ["t", "tab", "br", "cr", "drawing"].contains(tree.nodes[child].name)
+            ["t", "tab", "br", "cr", "drawing"].contains(tree.nodes[child].name) ||
+            pictures.contains(child)
           })
           .fold(init=0, (sum, child) => {
-            sum + inline_text(tree.nodes[child]).length()
+            sum +
+            (if pictures.contains(child) {
+              1
+            } else {
+              inline_text(tree.nodes[child]).length()
+            })
           })
         } else if ["fldSimple", "oMath", "oMathPara"].contains(
             tree.nodes[id].name,
@@ -231,7 +237,8 @@ fn fragment_paragraph(
         node.uri == word_uri &&
         (
           ["rPr", "t", "tab", "br", "cr"].contains(node.name) ||
-          node.name == "drawing"
+          node.name == "drawing" ||
+          pictures.contains(id)
         ) &&
         (
           node.name != "br" ||
@@ -289,7 +296,14 @@ fn Session::fragment_cell(
   fields : Map[Int, String],
 ) -> String raise @failure.Failure {
   let cell = grid.cells[row][column]
-  tree.check_merge_cell(cell, self.main, pictures=true, fields=true, math=true)
+  tree.check_merge_cell(
+    cell,
+    self.main,
+    pictures=true,
+    fields=true,
+    math=true,
+    notes=true,
+  )
   let span = grid.model.columnSpans[row][column]
   let start = grid.starts[row][column]
   let width = grid.model.widths[start:start + span].fold(init=0.0, (sum, w) => {
@@ -444,6 +458,8 @@ fn Session::capture_table_fragment(
         for id in tree.descendants(cell) {
           if tree.nodes[id].uri == word_uri && tree.nodes[id].name == "drawing" {
             pictures[id] = self.fragment_drawing(tree, id, limit)
+          } else if note_reference(tree.nodes[id]) {
+            pictures[id] = self.fragment_note(tree, id, limit)
           }
         }
       }

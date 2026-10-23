@@ -4,6 +4,7 @@ fn check_fragment_content(
   nodes : Array[Int],
   objects : Map[Int, Bool],
   fields~ : Bool = false,
+  notes~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   let mut units = 0
   for id in nodes {
@@ -60,7 +61,13 @@ fn check_fragment_content(
         (if fields { ["fldSimple"] } else { [] })
       "fldSimple" if fields => ["r"]
       "hyperlink" => ["r", "bookmarkStart", "bookmarkEnd"]
-      "r" => ["rPr", "t", "tab", "br", "cr", "drawing"]
+      "r" =>
+        ["rPr", "t", "tab", "br", "cr", "drawing"] +
+        (if notes {
+          ["footnoteReference", "endnoteReference", "footnoteRef", "endnoteRef"]
+        } else {
+          []
+        })
       "pPr" =>
         [
           "rPr", "spacing", "ind", "jc", "pageBreakBefore", "autoSpaceDE", "autoSpaceDN",
@@ -91,6 +98,20 @@ fn check_fragment_content(
         ignore(fragment_link_target(tree, node))
       } else {
         tree.check_hyperlink(id)
+      }
+    }
+    if note_reference(node) || ["footnoteRef", "endnoteRef"].contains(node.name) {
+      guard notes &&
+        tree.nodes[node.parent].name == "r" &&
+        tree.nodes[tree.nodes[node.parent].parent].name == "p" &&
+        tree.children[id].is_empty() &&
+        node.attributes.all(a => {
+          note_reference(node) && a.uri == word_uri && a.name == "id"
+        }) else {
+        @failure.reject("protected-content", "Invalid rich note marker")
+      }
+      if note_reference(node) {
+        ignore(note_key(node.attribute("id", uri=word_uri).unwrap_or("")))
       }
     }
     if node.name == "fldSimple" {

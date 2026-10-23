@@ -284,11 +284,11 @@ fn Session::size_table(
   let selected = if width {
     None
   } else {
-    self.table_cell_range(tree, selection)
+    self.table_cell_range(tree, selection, notes=true)
   }
   let grid = selected
     .map(range => range.grid)
-    .unwrap_or_else(() => self.table_grid(tree, selection))
+    .unwrap_or_else(() => self.table_grid(tree, selection, notes=true))
   let body = tree.nodes[grid.table].parent
   guard tree.nodes[body].name == "body" && tree.nodes[body].uri == word_uri else {
     @failure.reject("protected-content", "Table sizes require a body table")
@@ -413,7 +413,7 @@ fn Session::size_table(
     }
     for r, row in grid.cells {
       for c, cell in row {
-        tree.check_merge_cell(cell, self.main)
+        tree.check_merge_cell(cell, self.main, notes=true)
         let start = grid.starts[r][c]
         let width = widths[start:start + model.columnSpans[r][c]]
           .iter()
@@ -450,7 +450,7 @@ fn Session::size_table(
     }
     for row in first..<end {
       for cell in grid.cells[row] {
-        tree.check_merge_cell(cell, self.main)
+        tree.check_merge_cell(cell, self.main, notes=true)
       }
       if value != model.heights[row] ||
         (rule == "exact") != model.exactHeights[row] {

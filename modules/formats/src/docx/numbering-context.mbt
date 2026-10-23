@@ -118,9 +118,16 @@ fn Session::formatting_paragraphs(
 ) -> Array[@layout.Paragraph] raise @failure.Failure {
   let tree = WordTree::new(document)
   let styles = self.styles([])
+  let note_refs = if paragraphs.any(p => {
+      tree.descendants(p).any(id => note_reference(tree.nodes[id]))
+    }) {
+    self.layout_notes(tree, styles, "ffffff").0
+  } else {
+    Map([])
+  }
   let mut context : NumberingContext? = None
   paragraphs.map(id => {
-    let paragraph = self.paragraph(tree, styles, id, [])
+    let paragraph = self.paragraph(tree, styles, id, [], note_refs~)
     match styles.numbering_reference(tree, id) {
       None => paragraph
       Some((instance, level)) => {

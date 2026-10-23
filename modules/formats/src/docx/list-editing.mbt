@@ -42,7 +42,12 @@ fn Session::edit_list_with_indent(
     .map(p => p.document)
     .unwrap_or_else(() => self.document())
   let tree = WordTree::new(document)
-  let range = self.formatting_range(document, selection, whole_cells=true)
+  let range = self.formatting_range(
+    document,
+    selection,
+    whole_cells=true,
+    notes=true,
+  )
   let styles = self.styles([])
   let parts = self.parts.copy()
   let edits : Map[String, Array[@xml.Edit]] = Map([])
@@ -196,10 +201,14 @@ fn Session::edit_list_with_indent(
           }
         }
         ignore(
-          self.formatting_range(document, {
-            anchor: { ..range.start, paragraph: p, offset: 0, },
-            focus: { ..range.start, paragraph: p, offset: 0, },
-          }),
+          self.formatting_range(
+            document,
+            {
+              anchor: { ..range.start, paragraph: p, offset: 0, },
+              focus: { ..range.start, paragraph: p, offset: 0, },
+            },
+            notes=true,
+          ),
         )
         references[p] = (instance, index)
       }

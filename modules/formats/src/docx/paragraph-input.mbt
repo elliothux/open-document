@@ -18,6 +18,7 @@ pub fn Session::enter(
       pictures=true,
       fields=true,
       math=true,
+      notes=true,
     ) {
     Some(cells) =>
       tree.cell_contents_selection(cells.owners[0], docx_texts(tree))

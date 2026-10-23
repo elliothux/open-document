@@ -85,7 +85,7 @@ fn Session::paragraph_range_in(
         .iter()
         .find_first(table => table.id == id)
         .unwrap()
-      let grid = self.check_fragment_table(tree, model)
+      let grid = self.check_fragment_table(tree, model, notes~)
       for r, row in grid.cells {
         for c, cell in row {
           if model.rowSpans[r][c] == 0 {
@@ -183,7 +183,13 @@ pub fn Session::selected_text(
 ) -> String raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
-  let cells = self.table_format_range(tree, selection, fields=true, math=true)
+  let cells = self.table_format_range(
+    tree,
+    selection,
+    fields=true,
+    math=true,
+    notes=true,
+  )
   let whole_cells = cells is Some(_)
   let range = cells.unwrap_or_else(() => {
     self.paragraph_range(
@@ -193,6 +199,7 @@ pub fn Session::selected_text(
       fields=true,
       math=true,
       tables=true,
+      notes=true,
     )
   })
   if cut {

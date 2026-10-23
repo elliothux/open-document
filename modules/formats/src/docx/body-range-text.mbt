@@ -6,7 +6,7 @@ fn Session::range_paragraph_text(
   paragraph : Int,
   fields : Map[Int, String],
 ) -> String raise @failure.Failure {
-  let texts = self.editable_texts(paragraph)
+  let texts = self.editable_texts(paragraph, notes=true)
   let start = if paragraph == range.start.paragraph {
     range.start.offset
   } else {

@@ -362,10 +362,17 @@ fn Session::prepare_plain_range(
           pictures=true,
           fields=true,
           math=true,
+          notes~,
         )
         is Some(cells) {
         return Some(
-          self.prepare_table_contents(tree, cells, text, check_graphemes~),
+          self.prepare_table_contents(
+            tree,
+            cells,
+            text,
+            check_graphemes~,
+            notes~,
+          ),
         )
       }
     }

@@ -169,7 +169,7 @@ fn Session::check_table_layout(
     )
   }
   if probe is Some(probe) {
-    if !flow.columns.custom.is_empty() {
+    if !flow.columns.custom.is_empty() || !flow.notes.is_empty() {
       let flow = {
         ..flow,
         tables: flow.tables.map(table => {

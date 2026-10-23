@@ -9,7 +9,7 @@ fn Session::list_tab(
   let tree = WordTree::new(document)
   let styles = self.styles([])
   if selection.anchor.paragraph != selection.focus.paragraph {
-    let range = self.formatting_range(document, selection)
+    let range = self.formatting_range(document, selection, notes=true)
     if range.paragraphs.any(p => styles.numbering_reference(tree, p) is Some(_)) {
       return Some(self.edit_list(revision, selection, Level(!backward)))
     }
@@ -54,7 +54,7 @@ fn Session::shift_list_indent(
   }
   let document = self.document()
   let tree = WordTree::new(document)
-  ignore(self.formatting_range(document, selection))
+  ignore(self.formatting_range(document, selection, notes=true))
   let paragraph = self.formatting_paragraphs(document, [
       selection.focus.paragraph,
     ])[0]

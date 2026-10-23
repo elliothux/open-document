@@ -16,11 +16,12 @@ pub fn Session::table_clipboard(
     pictures=true,
     fields=true,
     math=true,
+    notes=true,
   )
   let grid = selected
     .map(range => range.grid)
     .unwrap_or_else(() => {
-      self.table_grid(tree, selection, fields=true, math=true)
+      self.table_grid(tree, selection, fields=true, math=true, notes=true)
     })
   let owners = selected
     .map(range => range.owners)
@@ -39,6 +40,7 @@ pub fn Session::table_clipboard(
       pictures=true,
       fields=true,
       math=true,
+      notes=true,
     )
     let (row, column) = grid.owners[cell]
     top = top.min(row)
@@ -66,7 +68,7 @@ pub fn Session::table_clipboard(
     if span.drawing.bind(drawing => drawing.content.alternative_text())
       is Some(text) {
       text
-    } else if span.field.is_empty() {
+    } else if span.field.is_empty() || span.field.has_prefix("NOTE:") {
       span.text
     } else {
       values[tree.nodes[tree.nodes[span.node].parent].parent]
@@ -133,6 +135,7 @@ pub fn Session::table_clipboard(
             tree.nodes[id].uri == word_uri &&
             ["drawing", "fldSimple"].contains(tree.nodes[id].name)
           ) ||
+          note_reference(tree.nodes[id]) ||
           (
             tree.nodes[id].uri == math_uri &&
             ["oMath", "oMathPara"].contains(tree.nodes[id].name)
@@ -147,6 +150,16 @@ pub fn Session::table_clipboard(
           }
         }
       }
+    }
+  }
+  if cut {
+    let selected = selected
+      .map(_ => selection)
+      .unwrap_or_else(() => {
+        tree.cell_contents_selection(owners[0], docx_texts(tree))
+      })
+    if self.prepare_plain_range(selected, "", notes=true) is Some(prepared) {
+      ignore(self.note_transition(prepared.document, self.parts))
     }
   }
   {

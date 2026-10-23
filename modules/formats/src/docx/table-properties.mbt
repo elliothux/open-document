@@ -44,10 +44,10 @@ fn Session::change_table_property(
   self.check_revision(revision)
   let document = self.document()
   let tree = WordTree::new(document)
-  let selected = self.table_cell_range(tree, selection)
+  let selected = self.table_cell_range(tree, selection, notes=true)
   let grid = selected
     .map(range => range.grid)
-    .unwrap_or_else(() => self.table_grid(tree, selection))
+    .unwrap_or_else(() => self.table_grid(tree, selection, notes=true))
   if whole_row &&
     name == "cantSplit" &&
     attributes is Some(values) &&
@@ -99,7 +99,7 @@ fn Session::change_table_property(
   }
   for index, target in targets {
     if !whole_table && !whole_row && header_rows is None {
-      tree.check_merge_cell(target, self.main)
+      tree.check_merge_cell(target, self.main, notes=true)
     }
     if tree.table_property_change(
         document,

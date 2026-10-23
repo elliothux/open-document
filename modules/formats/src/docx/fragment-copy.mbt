@@ -13,6 +13,7 @@ fn Session::capture_body_fragment(
     fields=true,
     math=true,
     tables=true,
+    notes=true,
   )
   let fields = self.selection_field_values(tree, range, layout)
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
@@ -68,7 +69,7 @@ fn Session::capture_body_fragment(
         .iter()
         .find_first(table => table.id == paragraph)
         .unwrap()
-      let grid = self.check_fragment_table(tree, model)
+      let grid = self.check_fragment_table(tree, model, notes=true)
       let markup = self.capture_table_fragment(
         tree,
         grid,
@@ -91,7 +92,7 @@ fn Session::capture_body_fragment(
       output.write_string(markup)
       continue
     }
-    let texts = self.editable_texts(paragraph)
+    let texts = self.editable_texts(paragraph, notes=true)
     let length = texts.fold(init=0, (sum, node) => {
       sum + inline_text(tree.nodes[node.id]).length()
     })
@@ -112,6 +113,10 @@ fn Session::capture_body_fragment(
         offset >= start &&
         offset < end {
         pictures[text.id] = self.fragment_drawing(tree, text.id, limit)
+      } else if note_reference(tree.nodes[text.id]) &&
+        offset >= start &&
+        offset < end {
+        pictures[text.id] = self.fragment_note(tree, text.id, limit)
       }
       continue offset + count
     }
@@ -173,6 +178,7 @@ pub fn Session::clipboard(
       pictures=true,
       fields=true,
       math=true,
+      notes=true,
     )
     is Some(_) {
     return self.table_clipboard(revision, selection, cut~, layout?)
@@ -191,17 +197,23 @@ pub fn Session::clipboard(
       ignore(self.selected_text(revision, selection, cut=true, layout?))
     } else {
       let tree = WordTree::new(self.document())
-      self.check_drawing_range(
+      let range = self.paragraph_range(
         tree,
-        self.paragraph_range(
-          tree,
-          selection,
-          structural=true,
-          fields=true,
-          math=true,
-          tables=true,
-        ),
+        selection,
+        structural=true,
+        fields=true,
+        math=true,
+        tables=true,
+        notes=true,
       )
+      self.check_drawing_range(tree, range)
+      if range.paragraphs.any(p => {
+          tree.descendants(p).any(id => note_reference(tree.nodes[id]))
+        }) {
+        if self.prepare_plain_range(selection, "", notes=true) is Some(prepared) {
+          ignore(self.note_transition(prepared.document, self.parts))
+        }
+      }
     }
   }
   {

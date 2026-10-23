@@ -22,6 +22,7 @@ fn Session::read_body_fragment(
     self.opc.budget.xml_depth,
     self.opc.budget.entry_bytes,
   )
+  let document = self.import_fragment_notes(document, parts, edits, created)
   let document = self.import_fragment_numbering(document, parts, edits, created)
   let document = self.import_fragment_links(document, parts, edits, created)
   let document = self.import_fragment_bookmarks(document)
@@ -43,7 +44,13 @@ fn Session::read_body_fragment(
       "invalid-operation", "Rich text requires one body containing supported paragraphs or tables",
     )
   }
-  check_fragment_content(tree, tree.descendants(body), pictures, fields=true)
+  check_fragment_content(
+    tree,
+    tree.descendants(body),
+    pictures,
+    fields=true,
+    notes=true,
+  )
   let view = { ..self, parts, media, }
   let flow = view.flow_from(document)
   guard flow.paragraphs.length() + flow.tables.length() ==
@@ -56,7 +63,7 @@ fn Session::read_body_fragment(
   }
   let mut cells = 0L
   for table in flow.tables {
-    ignore(view.check_fragment_table(tree, table))
+    ignore(view.check_fragment_table(tree, table, notes=true))
     cells += table.rows.length().to_int64() * table.widths.length().to_int64()
     guard cells <= 4096L else {
       @failure.reject("limit-exceeded", "Rich body tables exceed 4096 cells")
