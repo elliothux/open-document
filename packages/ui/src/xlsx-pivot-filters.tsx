@@ -29,7 +29,10 @@ export function PivotFilters({
       {filters.map((filter, index) => (
         <fieldset key={index}>
           <legend>
-            {t.pivotReportField} {index + 1}
+            {axes.includes(filter.field)
+              ? t.pivotAxisFilter
+              : t.pivotReportField}{" "}
+            {index + 1}
           </legend>
           <label>
             {t.pivotColumn}
@@ -65,7 +68,11 @@ export function PivotFilters({
             <select
               multiple
               size={8}
-              aria-label={t.pivotFilterMembers}
+              aria-label={
+                axes.includes(filter.field)
+                  ? t.pivotAxisMembers
+                  : t.pivotFilterMembers
+              }
               disabled={!choices || filter.values === null}
               value={
                 choices?.[index]?.flatMap((item, i) =>
@@ -105,7 +112,9 @@ export function PivotFilters({
             type="button"
             onClick={() => setFilters(filters.filter((_, i) => i !== index))}
           >
-            {t.pivotRemoveFilter}
+            {axes.includes(filter.field)
+              ? t.pivotRemoveAxisFilter
+              : t.pivotRemoveFilter}
           </button>
         </fieldset>
       ))}
@@ -123,6 +132,24 @@ export function PivotFilters({
         }}
       >
         {t.pivotAddFilter}
+      </button>
+      <button
+        type="button"
+        disabled={
+          filters.length === 8 ||
+          axes.every((field) =>
+            filters.some((filter) => filter.field === field),
+          )
+        }
+        onClick={() => {
+          const field = axes.find(
+            (field) => !filters.some((filter) => filter.field === field),
+          );
+          if (field !== undefined)
+            setFilters([...filters, { field, values: null }]);
+        }}
+      >
+        {t.pivotAddAxisFilter}
       </button>
     </>
   );

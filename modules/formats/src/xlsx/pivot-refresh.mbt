@@ -89,8 +89,9 @@ fn Session::pivot_settings(
   let native_columns = column_nodes
     .filter(node => node.attribute("x") != Some("-2"))
     .map(node => natural(node.attribute("x").unwrap_or(""), 79))
-  let filters = pivot_read_filters(tree, Tree::new(self.part_xml(pivot.cache)))
   let width = source.right - source.left + 1
+  let filters = pivot_read_filters(tree, Tree::new(self.part_xml(pivot.cache))) +
+    pivot_read_axis_filters(tree, Tree::new(self.part_xml(pivot.cache)), width)
   let (number_groups, date_groups, axes) = pivot_read_groups(
     Tree::new(self.part_xml(pivot.cache)),
     self.date1904,
@@ -189,7 +190,7 @@ fn Session::pivot_settings(
         Some("axisRow")
       } else if native_columns.contains(index) {
         Some("axisCol")
-      } else if filters.any(filter => filter.field == index) {
+      } else if settings.page_filters().any(filter => filter.field == index) {
         Some("axisPage")
       } else {
         None
@@ -203,7 +204,7 @@ fn Session::pivot_settings(
       !flag(field, "compact", fallback=true) &&
       !flag(field, "outline", fallback=true) &&
       (
-        filters.any(filter => filter.field == index) ||
+        settings.page_filters().any(filter => filter.field == index) ||
         !flag(field, "multipleItemSelectionAllowed")
       ) else {
       @failure.reject(

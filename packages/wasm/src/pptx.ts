@@ -422,15 +422,19 @@ export function pptxQuery(value: unknown): PptxQuery {
     if (
       !hasFields(
         frame,
-        ["anchor", "reason", "fit"],
+        ["anchor", "reason", "fit", "direction"],
         ["left", "top", "right", "bottom"],
       ) ||
       typeof frame.wrap !== "boolean" ||
+      typeof frame.rtlColumns !== "boolean" ||
       !["none", "shrink", "resize"].includes(String(frame.fit))
     )
       throw new Error("Invalid text frame");
     for (const key of ["left", "top", "right", "bottom"])
       number(frame[key], 0, 14400);
+    integer(frame.columns, 16);
+    number(frame.columns, 1, 16);
+    number(frame.columnGap, 0, 14400);
     const appearance = record(object.appearance);
     checkPptxImageFill(appearance, object.kind);
     if (appearance.gradient !== null) {

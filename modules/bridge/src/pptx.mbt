@@ -431,6 +431,30 @@ fn Foundation::pptx_operation(
         "textAnchor" => @pptx.TextAnchor(field_string(change, "anchor"))
         "textWrap" => @pptx.TextWrap(xlsx_boolean(change, "wrap"))
         "textFit" => @pptx.TextFit(field_string(change, "fit"))
+        "textDirection" => {
+          guard change is Object(fields) &&
+            fields.length() == 2 &&
+            fields.keys().all(key => ["action", "direction"].contains(key)) else {
+            @failure.reject(
+              "invalid-operation", "Invalid text direction fields",
+            )
+          }
+          @pptx.TextDirection(field_string(change, "direction"))
+        }
+        "textColumns" => {
+          guard change is Object(fields) &&
+            fields.length() == 4 &&
+            fields
+            .keys()
+            .all(key => ["action", "columns", "gap", "rtl"].contains(key)) else {
+            @failure.reject("invalid-operation", "Invalid text column fields")
+          }
+          @pptx.TextColumns(
+            field_int(change, "columns"),
+            xlsx_number(change, "gap"),
+            xlsx_boolean(change, "rtl"),
+          )
+        }
         "lineEnd" => {
           let side = field_string(change, "side")
           guard ["head", "tail"].contains(side) &&

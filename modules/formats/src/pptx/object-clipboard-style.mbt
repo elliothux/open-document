@@ -192,6 +192,14 @@ fn clipboard_body_style(
       "tIns": (settings.top * 12700).round().to_int64().to_string(),
       "bIns": (settings.bottom * 12700).round().to_int64().to_string(),
       "anchor": settings.anchor,
+      "vert": settings.direction,
+      "numCol": settings.columns.to_string(),
+      "spcCol": (settings.columnGap * 12700).round().to_int64().to_string(),
+      "rtlCol": if settings.rtlColumns {
+        "1"
+      } else {
+        "0"
+      },
       "wrap": if settings.wrap {
         "square"
       } else {

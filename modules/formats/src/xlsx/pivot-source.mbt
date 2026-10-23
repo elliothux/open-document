@@ -116,6 +116,11 @@ fn PivotLayout::definition(
     let filter = settings.filters
       .iter()
       .find_first(filter => filter.field == field)
+    let selected = filter
+      .bind(filter => filter.values)
+      .map(values => {
+        Map::from_array(values.map(value => (pivot_item_key(value), true)))
+      })
     let axis = if row {
       " axis=\"axisRow\""
     } else if column {
@@ -128,7 +133,9 @@ fn PivotLayout::definition(
     let multiple = filter
       .bind(filter => filter.values)
       .map(values => values.length() > 1)
-      .unwrap_or(false)
+      .unwrap_or(false) &&
+      !row &&
+      !column
     let subtotal = settings.subtotals.contains(field)
     out <+
       "<pivotField\{axis} dataField=\"\{if value { 1 } else { 0 }}\" defaultSubtotal=\"\{if subtotal {1} else {0}}\" subtotalTop=\"0\" showAll=\"0\" compact=\"0\" outline=\"0\"\{if multiple {" multipleItemSelectionAllowed=\"1\""} else {""}}>"
@@ -136,13 +143,9 @@ fn PivotLayout::definition(
       out <+
         "<items count=\"\{self.cache.axis_items(field).length() + (if subtotal {1} else {0})}\">"
       for item in 0..<self.cache.axis_items(field).length() {
-        let hidden = filter
-          .bind(filter => filter.values)
+        let hidden = selected
           .map(values => {
-            !values.any(value => {
-              pivot_item_key(value) ==
-              pivot_item_key(self.cache.items[field][item])
-            })
+            !values.contains(pivot_item_key(self.cache.axis_items(field)[item]))
           })
           .unwrap_or(false)
         out <+ "<item x=\"\{item}\"\{if hidden {" h=\"1\""} else {""}}/>"
@@ -210,9 +213,10 @@ fn PivotLayout::definition(
   } else {
     out <+ "<colItems count=\"1\"><i/></colItems>"
   }
-  if !settings.filters.is_empty() {
-    out <+ "<pageFields count=\"\{settings.filters.length()}\">"
-    for filter in settings.filters {
+  let page_filters = settings.page_filters()
+  if !page_filters.is_empty() {
+    out <+ "<pageFields count=\"\{page_filters.length()}\">"
+    for filter in page_filters {
       let item = match filter.values {
         Some([value]) => {
           let index = self.cache.items[filter.field]

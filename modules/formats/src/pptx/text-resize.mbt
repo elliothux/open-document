@@ -6,12 +6,8 @@ fn frame_extent(
   horizontal~ : Bool,
 ) -> Double raise @failure.Failure {
   let usable = fn(value : Double) {
-    let trial = if horizontal {
-      { ..geometry, width: value, }
-    } else {
-      { ..geometry, height: value, }
-    }
-    let body = object.shape_body(trial)
+    let trial = object.text_extent(geometry, value, horizontal~)
+    let (body, _, _) = object.text_plane(trial)
     if horizontal {
       value - body.left - body.right
     } else {
@@ -64,19 +60,23 @@ fn resize_text_frame(
     }
   }
   let original = object.geometry.unwrap()
-  let mut geometry = { ..original, height: 14400, }
+  let mut geometry = if object.body.columns > 1 {
+    original
+  } else {
+    object.text_extent(original, 14400, horizontal=false)
+  }
   let unwrapped = if object.body.wrap {
     None
   } else {
-    let trial = { ..geometry, width: 14400, }
-    let body = object.shape_body(trial)
+    let trial = object.text_extent(geometry, 14400, horizontal=true)
+    let (body, frame, _) = object.text_plane(trial)
     let measured = measure_text(
       {
         ..object,
         body,
         paragraphs: object.paragraphs.map(p => { ..p, align: "left", }),
       },
-      trial,
+      frame,
       probe,
       profile,
       1,
@@ -84,69 +84,67 @@ fn resize_text_frame(
     let width = measured.0.fold(init=1.0 / 12700, (width, line) => {
       width.max(
         line.x -
-        body.left +
+        line.areaX +
         line.width +
         object.paragraphs[line.paragraph].right,
       )
     })
-    Some((width, measured.1 - body.top - body.bottom))
+    Some(
+      (
+        width * body.columns.to_double() +
+        (body.columns - 1).to_double() * body.columnGap,
+        measured.1 - body.top - body.bottom,
+      ),
+    )
   }
   for _ in 0..<16 {
-    let body = object.shape_body(geometry)
+    let (body, frame, _) = object.text_plane(geometry)
     let (width, height) = if unwrapped is Some(size) {
       size
     } else {
-      let measured = measure_text(
-        { ..object, body, },
-        geometry,
-        probe,
-        profile,
-        1,
-      )
+      let measured = measure_text({ ..object, body, }, frame, probe, profile, 1)
       (
-        geometry.width - body.left - body.right,
+        frame.width - body.left - body.right,
         measured.1 - body.top - body.bottom,
       )
     }
     let next = if unwrapped is Some(_) {
-      {
-        ..geometry,
-        width: frame_extent(object, geometry, width, horizontal=true),
-      }
+      object.text_extent(
+        geometry,
+        frame_extent(object, geometry, width, horizontal=true),
+        horizontal=true,
+      )
     } else {
       geometry
     }
-    let next = {
-      ..next,
-      height: frame_extent(
-        object,
-        next,
-        height.max(1.0 / 12700),
-        horizontal=false,
-      ),
-    }
+    let next = object.text_extent(
+      next,
+      frame_extent(object, next, height.max(1.0 / 12700), horizontal=false),
+      horizontal=false,
+    )
     if (next.width - geometry.width).abs() < 0.5 / 12700 &&
       (next.height - geometry.height).abs() < 0.5 / 12700 {
       // ONLYOFFICE keeps a rotated frame's center; otherwise text alignment anchors it.
       let rotated = original.rotation != 0
       let dx = original.width - next.width
       let dy = original.height - next.height
-      let x = original.x +
-        (if rotated || object.paragraphs[0].align == "center" {
-          dx / 2
-        } else if object.paragraphs[0].align == "right" {
-          dx
-        } else {
-          0
-        })
-      let y = original.y +
-        (if rotated || object.body.anchor == "ctr" {
-          dy / 2
-        } else if object.body.anchor == "b" {
-          dy
-        } else {
-          0
-        })
+      let align = match object.paragraphs[0].align {
+        "center" => 0.5
+        "right" => 1.0
+        _ => 0.0
+      }
+      let anchor = match object.body.anchor {
+        "ctr" => 0.5
+        "b" => 1.0
+        _ => 0.0
+      }
+      let (horizontal, vertical) = match object.body.direction {
+        "vert" => (1.0 - anchor, align)
+        "vert270" => (anchor, 1.0 - align)
+        _ => (align, anchor)
+      }
+      let x = original.x + dx * (if rotated { 0.5 } else { horizontal })
+      let y = original.y + dy * (if rotated { 0.5 } else { vertical })
       validate_object_box(x, y, next.width, next.height, false)
       let (_, _, diagnostic) = fit_text(object, next, probe, profile)
       guard diagnostic.is_empty() else {

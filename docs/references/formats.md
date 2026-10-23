@@ -2390,9 +2390,13 @@ Canvas 和静态 PDF 复用单元格绘制。核心从当前计算结果取数�
 
 普通区域行列轴透视表已接通 MoonBit、Wasm、Worker、编辑宿主和默认面板。`Session::pivot_preview(revision, settings)` 返回字段、记录数、类型化分组结果及总计，查询不写源或历史。预览最多返回前 20 个行分组，groups 和 truncated 说明完整输出行数（含小计、不含总计）及截断状态；总计与实际创建仍处理全部筛选后记录，JSON 继续受 1 Mi UTF-16 上限约束。`PivotSettings` 为 `{ sourceSheet, source, rows, columns, filters, subtotals, numberGroups, dateGroups, values }`；sourceSheet 是稳定工作表部件身份，source 包含标题行。rows 和 columns 使用相对源区域、从 0 开始的列索引；两轴不能重复字段，columns 空数组表示只有行轴；每项 values 为 `{ field, aggregate, baseItem, baseField, showDataAs, name }`，name 是显示标题。标题按当前格式读取且不能为空，重复标题在缓存中分配唯一名称，不改源格；值标题不能与源字段名称重复。
 
-filters 为 0–8 项 `{ field, values }`，field 使用源列索引且与行列轴及其他筛选字段互斥。values 为 null 时选择全部成员，自动包含后续新增成员；非空类型化 Value 数组表示固定选择，单字段内取并集，字段之间取交集。文字匹配合并大小写，数字、文字数字、布尔、错误与空白保持类型；每字段最多 4096 个成员。核心保留完整缓存记录与已选但暂时缺失的成员，刷新不静默重置选择。预览 recordCount 是源记录数，filteredCount 是筛选后记录数，filterItems 是各字段的 `{ value, label }` 候选项，label 由核心按源格式生成。零匹配允许，返回空分组及空白总计。
+filters 为 0–8 项 `{ field, values }`，field 使用源列索引，筛选字段不能重复。行列字段可同时参与筛选，保留轴位置；其他字段显示在报表筛选区。values 为 null 时选择全部成员，自动包含后续新增成员；非空类型化 Value 数组选择指定成员，单字段内取并集，字段之间取交集。文字匹配合并大小写，数字、文字数字、布尔、错误与空白保持类型；每字段最多 4096 个成员。普通字段保留完整缓存记录与已选但暂时缺失的成员，刷新不静默改指其他成员。行列轴选中全部当前缓存成员时，按原生隐藏项规则清除该筛选，目录不再返回这项条件；报表字段仍保留其固定列表。预览 recordCount 是源记录数，filteredCount 是筛选后记录数，filterItems 是各字段的 `{ value, label }` 候选项，label 由核心按有效格式生成。零匹配允许，返回空分组及空白总计。
 
 报表筛选格按字段顺序纵向排列，其后留一空行。目录 range、覆盖保护、更新原点和删除范围包含筛选格；原生 location.ref 仅含表头及聚合结果。选择保存为原生 pageFields、axisPage、item 与隐藏成员标记。默认面板提供全部/类型化多选，改动后预览再应用。横向、换行或未知原生分页布局保持保护。布局和成员筛选依据 [ONLYOFFICE 报表位置](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L4323-L4342)、[成员筛选](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L5103-L5139)与[报表值](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L5237-L5267)。
+
+行列成员筛选不增加报表行，保存 `axisRow/axisCol` 与 `pivotField/items/item@h`，刷新时按成员身份重建索引。目录先返回报表字段，再按源列顺序返回有效行列条件；报表字段内部顺序保持。数值和日期分组使用原生分组项作为候选，按原始记录聚合；多级日期源字段筛选最细层。分组项消失时原子拒绝刷新，保留待刷新的源，先修改条件再继续。派生日期层级的独立筛选仍保护。默认面板分别添加报表和行列筛选，共用成员选择、预览、应用和精确历史。成员集合及原生隐藏项生成使用有界索引，避免按每个缓存项重复扫描选择列表。依据 [ONLYOFFICE 隐藏项应用](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L17359-L17376)及[清除筛选判断](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L7495-L7517)，实现归 [`pivot-filter.mbt`](../../modules/formats/src/xlsx/pivot-filter.mbt)。
+
+原生切片器已有只读目录。`XlsxClient.slicers(revision, sheet)` 与 `SpreadsheetEditor.slicers()` 返回控件、缓存、字段、关联透视表及类型化成员；成员包含 `selected` 和 `hasData`。按工作簿原生缓存 ID、工作表 ID 和透视表名称解析连接，不刷新结果，不改变源或历史。仅支持普通表格缓存；未知、歧义、外部或不一致连接返回空目录和 `reason`，预算越界则报错。未引用的其他缓存保持原样。每表最多 64 个控件，每缓存 4096 个成员，每次目录共 16384 个成员，JSON 限 1 MiB；标签使用缓存值，不推断源单元格格式。实现归 [`slicer.mbt`](../../modules/formats/src/xlsx/slicer.mbt)，原生结构参考 ONLYOFFICE core 的 Slicer 实现及 `xl14.xsd`。创建、筛选联动、绘制和时间线继续实施。
 
 预览的 columnMembers 按列组合返回 `{ members, formats, subtotal }`，columnTotals 为每个列组合的值字段总计。每项 rows.values 按“列组合、值字段”展平，rows.total 是该行全部记录的总计；根 total 是筛选后源记录的总计。没有列轴时 columnMembers 为空、columnTotals 只含根总计，rows.values 仍按值字段排列。缺少记录的交叉格为空。行列边际直接累积源记录，平均值和样本统计不会对显示聚合值二次聚合。预览只截断行，全部有界列组仍受结果格数及 JSON 文字预算约束。
 
@@ -2919,11 +2923,19 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 字体键为有效 family，按需附加 `|bold` / `|italic`。主/次字体、显式 Latin/EA/CS 字体及当前常见脚本映射参与解析；自动推断覆盖 Latin、简中 Han 缺省、Kana、Hangul、Arabic、Hebrew、Devanagari 和 Thai。语言敏感的 Han 区域字体推断尚未扩展；不声明全语言主题字体一致性。调用者提供授权字体及实际样式映射，缺失时明确失败。
 
-文本框读取基本字号、粗体/斜体、文字色、段落对齐、内边距、缩进、点值/百分比段距及行距、软换行和字符项目符号的字体/大小/颜色。固定框越界诊断并裁剪；无法建立文字几何时保留边界占位和对象文本查询。`normAutofit` 以 10 次有界搜索求解 10%–100% 字号缩放，同时检查可用宽高，保存必要 `fontScale` 并保留基准字号。字段所在框保持文字编辑保护；简单编号字段的显示见下节。其他字段、图片项目符号、多栏、纵排及文字变形继续诊断或保护。
+文本框读取基本字号、粗体/斜体、文字色、段落对齐、内边距、缩进、点值/百分比段距及行距、软换行和字符项目符号的字体/大小/颜色。固定框越界诊断并裁剪；无法建立文字几何时保留边界占位和对象文本查询。`normAutofit` 以 10 次有界搜索求解 10%–100% 字号缩放，同时检查可用宽高，保存必要 `fontScale` 并保留基准字号。字段所在框保持文字编辑保护；简单编号字段的显示见下节。其他字段、图片项目符号、东亚字符直排及文字变形继续诊断或保护。
 
 `editPptxObjects` / `PresentationEditor.editObjects` 已支持 `{ action: "textInsets", left, top, right, bottom }`、`{ action: "textAnchor", anchor }`、`{ action: "textWrap", wrap }` 和 `{ action: "textFit", fit }`。四边距离为 0–14400 pt，舍入为整数 EMU，须保留有效文字区域；anchor 为 `t`、`ctr` 或 `b`。布尔 wrap 控制框内换行。fit 为 `none`（固定框）、`shrink`（缩小字体）或 `resize`（形状随文字调整大小），分别保存 `noAutofit`、`normAutofit` 或 `spAutoFit`。它们作用于所选本地顶层文本形状，文字模式和对象模式均可调用，多选合为一次源事务。默认 UI 提供四边输入、垂直对齐、换行开关和适配模式，保留待提交的原生文字输入。
 
-每个 `PptxObject.textFrame` 返回有效 `left/top/right/bottom/anchor/wrap/fit` 及保护原因 `reason`。修改保留文字、字符格式、身份、选择和其他部件；缺失 `bodyPr` 与适配节点按 DrawingML 顺序创建，其他属性和非目标注释原样保留。`shrink` 重新测量并保存比例，10% 字号仍无法容纳时原子拒绝。`none` 保留当前尺寸及固定框越界诊断。
+每个 `PptxObject.textFrame` 返回有效 `left/top/right/bottom/anchor/wrap/fit/columns/columnGap/rtlColumns/direction` 及保护原因 `reason`。修改保留文字、字符格式、身份、选择和其他部件；缺失 `bodyPr` 与适配节点按 DrawingML 顺序创建，其他属性和非目标注释原样保留。`shrink` 重新测量并保存比例，10% 字号仍无法容纳时原子拒绝。`none` 保留当前尺寸及固定框越界诊断。
+
+`PresentationEditor.editObjects({ action: "textDirection", direction })` 修改所选本地文本框的原生 `bodyPr@vert`。direction 接受 `horz`（横排）、`vert`（全部文字顺时针旋转 90°）和 `vert270`（全部文字逆时针旋转 90°），缺省为 `horz`。两种旋转方向交换排版宽高，并按旋转方向交换有效内边距；段落、字形、标记和公式作为完整文字平面旋转，再叠加形状的旋转、翻转和组变换。原生输入、选择、命中、显示链接、PDF 链接和裁剪共用该平面，复制写入有效方向。方向键按文字平面映射；例如 `vert` 中向下前进一个字符，`vert270` 中向上前进一个字符。默认面板提供三种方向。
+
+缩小字体和形状自动尺寸在交换后的文字平面求解。开启换行时，旋转文字保持物理高度并调整物理宽度；关闭换行时两轴都可调整。锚定和段落对齐映射到对应物理边，形状自身已旋转时继续保持中心。方向及自动几何合为一次精确历史，无效值、无可用区域、未知源和预算失败原子拒绝。`eaVert/wordArtVert` 的字符直排、`upright`、独立非零 `bodyPr@rot`、旋转表格文字和文字变形继续保护。实现归 [`text-direction.mbt`](../../modules/formats/src/pptx/text-direction.mbt)，依据 [ONLYOFFICE 旋转方向和边界](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L2485-L2552)与[交换后的文字尺寸](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L3995-L4143)。
+
+`PresentationEditor.editObjects({ action: "textColumns", columns, gap, rtl })` 设置文本框等宽分栏。columns 为 1–16 的整数，gap 为 0–14400 pt，rtl 为布尔值；距离舍入为整数 EMU，栏间距和内边距须留下正栏宽。核心读取继承的 `numCol/spcCol/rtlCol`，缺省为单栏、零间距和从左到右。设置多栏同时启用原生 `wrap="square"`；之后可独立修改换行。`rtlCol` 只控制栏顺序，不改变段落方向。默认面板提供栏数、栏间距及从右到左排列选项。
+
+文字按当前栏高逐栏流动，不强制平均分配短文字；溢出时用 32 次有界搜索求所需栏高，固定框继续诊断和裁剪。缩小字体及自动形状尺寸沿同一分栏测量，关闭换行时按最长栏内行调整总宽度。光标命中先选最近栏，上下导航跨栏时保持栏内横向位置；字形、列表标记、公式、选择和 Canvas/PDF 使用同一几何。对象剪贴板写入有效分栏属性，跨文稿保留继承结果。实现归 [`text-columns.mbt`](../../modules/formats/src/pptx/text-columns.mbt)；栏数依据 [ONLYOFFICE 原生范围](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Common/SimpleTypes_Drawing.cpp#L3713-L3738)，换行规则依据 [Shape.checkWrap](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L7040-L7087)，栏高依据 [DrawingContent.RecalculateContent](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/DrawingContent.js#L267-L302)。东亚字符直排和文字变形继续保护。
 
 `resize` 保留名义字号。开启换行时保持宽度、调整高度；关闭换行时按显式段落和软换行调整宽高，内容减少时也收缩。复用当前预设形状文字内框及段落测量，计入边距、列表和行段距。未旋转对象按首段水平对齐与框垂直锚定保持对应位置；旋转对象保持中心及方向。原生输入、字符/段落格式、框属性、查找替换和变换完成时，几何与文字合为同一项精确历史。保存重开沿用已写入几何，后续编辑继续重算。行为依据 [ONLYOFFICE 文字内框及位置更新](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L3646-L3870)，实现归 [`text-resize.mbt`](../../modules/formats/src/pptx/text-resize.mbt)。
 

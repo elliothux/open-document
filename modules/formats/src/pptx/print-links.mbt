@@ -106,6 +106,7 @@ fn Session::print_links(
         height: object.height + pad * 2,
       })
     } else if geometry.get(link.object.id) is Some(text) {
+      let plane = object.matrix.inverse().then(text.matrix)
       for line in text.lines {
         work += line.carets.length() + 1
         guard work <= remaining else {
@@ -122,12 +123,31 @@ fn Session::print_links(
           }),
         }
         for rect in line.link_rects(link.start, link.end) {
-          let x = rect.x.max(0)
-          let y = rect.y.max(0)
-          let width = (rect.x + rect.width).min(object.width) - x
-          let height = (rect.y + rect.height).min(object.height) - y
-          if width > 0 && height > 0 {
-            bounds.push({ x, y, width, height, })
+          let left = if link.object.body.columns > 1 {
+            rect.x.max(line.areaX)
+          } else {
+            rect.x
+          }
+          let right = if link.object.body.columns > 1 {
+            (rect.x + rect.width).min(line.areaX + line.areaWidth)
+          } else {
+            rect.x + rect.width
+          }
+          if right > left &&
+            print_link_rect(
+              { ..rect, x: left, width: right - left, },
+              plane,
+              0,
+              object.width,
+              object.height,
+            )
+            is Some(clipped) {
+            bounds.push({
+              x: clipped.x,
+              y: clipped.y,
+              width: clipped.width,
+              height: clipped.height,
+            })
           }
         }
       }

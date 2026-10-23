@@ -1,4 +1,19 @@
 ///|
+fn xlsx_analysis_catalog(
+  session : @xlsx.Session,
+  operation : String,
+  request : Json,
+) -> Json raise @failure.Failure {
+  let revision = field_int(request, "revision")
+  let sheet = field_string(request, "sheet")
+  if operation == "slicersXlsx" {
+    session.slicers(revision, sheet)
+  } else {
+    session.pivots(revision, sheet)
+  }
+}
+
+///|
 fn xlsx_pivot_settings(
   value : Json,
 ) -> @xlsx.PivotSettings raise @failure.Failure {

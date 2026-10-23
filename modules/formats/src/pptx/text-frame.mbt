@@ -155,6 +155,30 @@ fn Session::frame_objects(
       values["anchor"] = anchor
     }
     TextWrap(wrap) => values["wrap"] = if wrap { "square" } else { "none" }
+    TextDirection(direction) => {
+      guard ["horz", "vert", "vert270"].contains(direction) else {
+        @failure.reject("invalid-operation", "Unsupported text direction")
+      }
+      values["vert"] = direction
+    }
+    TextColumns(count, gap, rtl) => {
+      guard count >= 1 &&
+        count <= 16 &&
+        !gap.is_nan() &&
+        !gap.is_inf() &&
+        gap >= 0 &&
+        gap <= 14400 else {
+        @failure.reject(
+          "invalid-operation", "Text columns require 1 to 16 columns and a finite gap within 0 and 14400 points",
+        )
+      }
+      values["numCol"] = count.to_string()
+      values["spcCol"] = (gap * 12700).round().to_int64().to_string()
+      values["rtlCol"] = if rtl { "1" } else { "0" }
+      if count > 1 {
+        values["wrap"] = "square"
+      }
+    }
     TextFit(fit) => {
       guard ["none", "shrink", "resize"].contains(fit) else {
         @failure.reject("invalid-operation", "Unknown text fit mode")
@@ -189,6 +213,8 @@ fn Session::frame_objects(
       anchor: values.get("anchor").unwrap_or(object.body.anchor),
       wrap: if change is TextWrap(wrap) {
         wrap
+      } else if change is TextColumns(count, _, _) && count > 1 {
+        true
       } else {
         object.body.wrap
       },
@@ -197,6 +223,21 @@ fn Session::frame_objects(
       } else {
         object.body.fit
       },
+      columns: if change is TextColumns(count, _, _) {
+        count
+      } else {
+        object.body.columns
+      },
+      direction: values.get("vert").unwrap_or(object.body.direction),
+      columnGap: values
+      .get("spcCol")
+      .map(v => number(v, 0, 182880000) / 12700)
+      .unwrap_or(object.body.columnGap),
+      rtlColumns: if change is TextColumns(_, _, rtl) {
+        rtl
+      } else {
+        object.body.rtlColumns
+      },
     }
     let target = { ..object, body, }
     let geometry = if body.fit == "resize" {
@@ -204,9 +245,12 @@ fn Session::frame_objects(
     } else {
       object.geometry.unwrap()
     }
-    let effective = target.shape_body(geometry)
-    guard effective.left + effective.right < geometry.width &&
-      effective.top + effective.bottom < geometry.height else {
+    let (effective, frame, _) = target.text_plane(geometry)
+    guard effective.left +
+      effective.right +
+      (body.columns - 1).to_double() * body.columnGap <
+      frame.width &&
+      effective.top + effective.bottom < frame.height else {
       @failure.reject("invalid-operation", "Text margins leave no usable frame")
     }
     let (_, scale, diagnostic) = fit_text(target, geometry, probe, profile)

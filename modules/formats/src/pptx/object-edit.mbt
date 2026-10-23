@@ -67,6 +67,8 @@ pub(all) enum ObjectEdit {
   TextAnchor(String)
   TextWrap(Bool)
   TextFit(String)
+  TextColumns(Int, Double, Bool)
+  TextDirection(String)
   TextFormat(TextFormat)
   TextAlign(String)
   TextParagraph(ParagraphFormat)
@@ -649,7 +651,12 @@ pub fn Session::edit_objects(
     | TextParagraph(_)
     | ClearTextFormat
     | ClearParagraphFormat => abort("Text formatting was dispatched")
-    TextInsets(_, _, _, _) | TextAnchor(_) | TextWrap(_) | TextFit(_) =>
+    TextInsets(_, _, _, _)
+    | TextAnchor(_)
+    | TextWrap(_)
+    | TextFit(_)
+    | TextColumns(_, _, _)
+    | TextDirection(_) =>
       (self.frame_objects(change, probe, profile), self.selection)
     Fill(_) | Stroke(_, _) => (self.paint_objects(change), self.selection)
     GradientFill(stops, angle, scaled) =>

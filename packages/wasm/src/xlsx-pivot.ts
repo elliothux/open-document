@@ -95,7 +95,9 @@ export interface XlsxPivotNumberGroup {
   interval: number;
 }
 export interface XlsxPivotFilter {
+  /** An axis field keeps its position; other fields become report filters. */
   field: number;
+  /** Null selects all. Selecting every axis member clears its native filter. */
   /** Null includes future source members; a nonempty array keeps an explicit selection. */
   values: CellValue[] | null;
 }
@@ -308,12 +310,14 @@ export function checkXlsxPivotSettings(value: unknown): void {
   )
     throw new Error("Invalid expanded pivot axes or subtotals");
   let units = 0;
+  const filterFields = new Set<number>();
   for (const value of settings.filters) {
     const filter = record(value);
     if (
       !fields(filter, ["field", "values"]) ||
+      typeof filter.field !== "number" ||
       !integer(filter.field, 0, width - 1) ||
-      axes.has(filter.field) ||
+      filterFields.has(filter.field) ||
       !(
         filter.values === null ||
         (Array.isArray(filter.values) &&
@@ -321,15 +325,15 @@ export function checkXlsxPivotSettings(value: unknown): void {
           filter.values.length <= 4096)
       )
     )
-      throw new Error("Invalid pivot report filter");
-    axes.add(filter.field);
+      throw new Error("Invalid pivot member filter");
+    filterFields.add(filter.field);
     if (Array.isArray(filter.values)) {
       const seen = new Set<string>();
       for (const value of filter.values) {
         const key = filterValue(value);
         units += key.length;
         if (seen.has(key) || units > 1048576)
-          throw new Error("Duplicate or excessive pivot report values");
+          throw new Error("Duplicate or excessive pivot filter values");
         seen.add(key);
       }
     }

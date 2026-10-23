@@ -390,6 +390,10 @@ fn read_object(
           anchor: "t",
           wrap: true,
           fit: "none",
+          columns: 1,
+          columnGap: 0,
+          rtlColumns: false,
+          direction: "horz",
         },
         message,
       )

@@ -183,6 +183,19 @@ fn read_text(
     anchor: attribute(properties, "anchor").unwrap_or("t"),
     wrap: attribute(properties, "wrap").unwrap_or("square") != "none",
     fit,
+    direction: attribute(properties, "vert").unwrap_or("horz"),
+    columns: number(attribute(properties, "numCol").unwrap_or("1"), 1, 16).to_int(),
+    columnGap: number(
+      attribute(properties, "spcCol").unwrap_or("0"),
+      0,
+      182880000,
+    ) /
+    12700,
+    rtlColumns: match attribute(properties, "rtlCol").unwrap_or("0") {
+      "1" | "true" => true
+      "0" | "false" => false
+      _ => @failure.reject("malformed-pptx", "Invalid text column direction")
+    },
   }
   let mut reason = ""
   for item in properties {
@@ -193,13 +206,15 @@ fn read_text(
     }
   }
   if !["t", "ctr", "b"].contains(body.anchor) ||
-    !["horz"].contains(attribute(properties, "vert").unwrap_or("horz")) ||
-    attribute(properties, "numCol").unwrap_or("1") != "1" ||
+    !["horz", "vert", "vert270"].contains(body.direction) ||
     !children(properties, "prstTxWarp").is_empty() {
-    reason = "Unsupported text frame direction or columns"
+    reason = "Unsupported text frame direction"
   }
   if ["1", "true"].contains(attribute(properties, "upright").unwrap_or("0")) {
     reason = "Upright text requires independent frame resize geometry"
+  }
+  if attribute(properties, "rot").unwrap_or("0") != "0" {
+    reason = "Independent text rotation is unsupported"
   }
   let paragraphs : Array[TextParagraph] = []
   guard bodies.get(0) is Some(current) &&

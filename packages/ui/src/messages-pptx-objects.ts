@@ -1,4 +1,12 @@
 export const objectEn = {
+  textColumns: "Text columns",
+  textColumnCount: "Number of text columns",
+  textColumnGap: "Text column gap (pt)",
+  textColumnRtl: "Columns from right to left",
+  textDirection: "Text direction",
+  textHorizontal: "Horizontal text",
+  textClockwise: "Rotate all text 90°",
+  textCounterclockwise: "Rotate all text 270°",
   chart: "Chart",
   chartKind: "Chart type",
   chartLoad: "Load charts",
@@ -85,6 +93,14 @@ export const objectEn = {
   diagramShapes: "Saved as editable shapes and connectors.",
 };
 export const objectZh: typeof objectEn = {
+  textColumns: "文字分栏",
+  textColumnCount: "文字栏数",
+  textColumnGap: "栏间距（磅）",
+  textColumnRtl: "从右到左排列栏",
+  textDirection: "文字方向",
+  textHorizontal: "横排文字",
+  textClockwise: "全部文字旋转 90°",
+  textCounterclockwise: "全部文字旋转 270°",
   chart: "图表",
   chartKind: "图表类型",
   chartLoad: "读取图表",

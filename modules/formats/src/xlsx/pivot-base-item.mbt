@@ -36,28 +36,9 @@ fn pivot_read_base_item(
     "1048829" => Some(Next)
     _ => {
       let base = natural(field.attribute("baseField").unwrap_or(""), 63)
-      let fields = cache.all(
-        cache.one(0, "cacheFields").unwrap().id,
-        "cacheField",
-      )
-      guard fields.get(base) is Some(cached) else {
-        @failure.reject(
-          "protected-content", "Pivot base field cache is unavailable",
-        )
-      }
-      let grouped = cache
-        .one(cached.id, "fieldGroup")
-        .bind(group => cache.one(group.id, "groupItems"))
-      let node = match grouped {
-        Some(_) => grouped
-        None => cache.one(cached.id, "sharedItems")
-      }
-      guard node is Some(node) else {
-        @failure.reject("protected-content", "Pivot base items are unavailable")
-      }
-      let items = cache.children.get(node.id).unwrap_or([])
+      let items = pivot_field_items(cache, base)
       let at = natural(item, items.length() - 1)
-      Some(Member(pivot_cache_value(items[at])))
+      Some(Member(items[at]))
     }
   }
 }

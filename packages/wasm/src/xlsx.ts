@@ -11,6 +11,8 @@ import {
   type XlsxPivotSettings,
 } from "./xlsx-pivot.js";
 export * from "./xlsx-pivot.js";
+import { xlsxSlicers } from "./xlsx-slicer.js";
+export * from "./xlsx-slicer.js";
 export type { XlsxQuery } from "./xlsx-query.js";
 import { protectionSalt } from "./protection-password.js";
 export type { XlsxProtection } from "./xlsx-protection.js";
@@ -370,6 +372,11 @@ export class XlsxSession extends XlsxDrawingSession {
   }
   pivots(revision: number, sheet: string) {
     return xlsxPivots(this.call({ operation: "pivotsXlsx", revision, sheet }));
+  }
+  slicers(revision: number, sheet: string) {
+    return xlsxSlicers(
+      this.call({ operation: "slicersXlsx", revision, sheet }),
+    );
   }
   pivotPreview(revision: number, settings: XlsxPivotSettings) {
     checkXlsxPivotSettings(settings);

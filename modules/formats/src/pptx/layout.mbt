@@ -9,7 +9,7 @@ fn measure_text(
   let lines : Array[@layout.Line] = []
   let mut top = object.body.top
   let mut offset = 0
-  let width = geometry.width - object.body.left - object.body.right
+  let width = text_column_width(object.body, geometry.width)
   for index, paragraph in object.paragraphs {
     let spans : Array[@layout.Span] = []
     for run in paragraph.runs {
@@ -138,7 +138,7 @@ fn measure_text(
       .fold(init=0, (sum, run) => sum + run.text.length()) +
       1
   }
-  (lines, top + object.body.bottom)
+  text_columns(lines, object, geometry, top + object.body.bottom)
 }
 
 ///|
@@ -151,7 +151,8 @@ fn fit_text(
   if object.paragraphs.is_empty() {
     return ([], 1, "")
   }
-  let object = { ..object, body: object.shape_body(geometry), }
+  let (body, geometry, _) = object.text_plane(geometry)
+  let object = { ..object, body, }
   let mut scale = 1.0
   let mut measured = measure_text(object, geometry, probe, profile, scale) catch {
     @failure.Failure(code="layout-overflow", ..) if object.body.fit == "shrink" =>
@@ -168,9 +169,7 @@ fn fit_text(
   }
   let fits = fn(result : (Array[@layout.Line], Double)) {
     result.1 <= geometry.height &&
-    result.0.all(line => {
-      line.width <= geometry.width - object.body.left - object.body.right + 0.01
-    })
+    result.0.all(line => line.width <= line.areaWidth + 0.01)
   }
   if object.body.fit == "shrink" && !fits(measured) {
     let mut low = 0.1
@@ -192,9 +191,7 @@ fn fit_text(
     measured = measure_text(object, geometry, probe, profile, scale)
   }
   let diagnostic = if measured.1 > geometry.height + 0.01 ||
-    measured.0.any(line => {
-      line.width > geometry.width - object.body.left - object.body.right + 0.01
-    }) {
+    measured.0.any(line => line.width > line.areaWidth + 0.01) {
     "Text exceeds the fixed frame"
   } else {
     ""
@@ -420,17 +417,30 @@ fn paint_slide(
           )
         }
       }
-      texts.push({ object: object.id, matrix: geometry.matrix, lines, })
+      let (_, frame, rotation) = object.text_plane(geometry)
+      texts.push({
+        object: object.id,
+        matrix: geometry.matrix.then(rotation),
+        lines,
+      })
       if !lines.is_empty() {
         primitives.push(
           Clip({ x: 0, y: 0, width: geometry.width, height: geometry.height, }),
         )
+        primitives.push(Transform(rotation))
         for line in lines {
+          if object.body.columns > 1 {
+            primitives.push(
+              Clip({
+                x: line.areaX,
+                y: 0,
+                width: line.areaWidth,
+                height: frame.height,
+              }),
+            )
+          }
           // Keep the presentation's frame-level clipping for exact-spaced lines.
-          let commands = { ..line, clip: false, }.positioned(
-            fonts,
-            geometry.width,
-          )
+          let commands = { ..line, clip: false, }.positioned(fonts, frame.width)
           for command in commands {
             if command is @layout.Text(text) {
               units += text.runs.fold(init=0, (sum, run) => {
@@ -439,10 +449,14 @@ fn paint_slide(
             }
           }
           primitives.append(commands)
+          if object.body.columns > 1 {
+            primitives.push(Restore)
+          }
           guard units <= 262144 else {
             @failure.reject("limit-exceeded", "Slide glyphs exceed budget")
           }
         }
+        primitives.push(Restore)
         primitives.push(Restore)
       }
     }

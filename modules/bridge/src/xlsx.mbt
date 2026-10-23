@@ -58,11 +58,8 @@ fn Foundation::xlsx_operation(
     @failure.reject("session-required", "Open an XLSX workbook first")
   }
   match operation {
-    "pivotsXlsx" =>
-      session.pivots(
-        field_int(request, "revision"),
-        field_string(request, "sheet"),
-      )
+    "pivotsXlsx" | "slicersXlsx" =>
+      xlsx_analysis_catalog(session, operation, request)
     "pivotPreviewXlsx" => {
       guard request is { "settings": settings, .. } else {
         @failure.reject("invalid-operation", "Pivot settings are required")

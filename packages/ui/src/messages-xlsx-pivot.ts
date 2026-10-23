@@ -8,6 +8,10 @@ export const pivotEn = {
   pivotRows: "Pivot row columns",
   pivotColumns: "Pivot column fields",
   pivotReportField: "Report filter",
+  pivotAxisFilter: "Axis filter",
+  pivotAxisMembers: "Axis filter members",
+  pivotAddAxisFilter: "Add axis filter",
+  pivotRemoveAxisFilter: "Remove axis filter",
   pivotSubtotals: "Pivot subtotal fields",
   pivotSubtotalsHelp:
     "Source column numbers, separated by commas. Choose outer row or column fields; subtotals follow each group.",
@@ -110,6 +114,10 @@ export const pivotZh = {
   pivotRows: "透视行列号",
   pivotColumns: "透视列字段",
   pivotReportField: "报表筛选",
+  pivotAxisFilter: "行列成员筛选",
+  pivotAxisMembers: "行列筛选成员",
+  pivotAddAxisFilter: "添加行列成员筛选",
+  pivotRemoveAxisFilter: "移除行列成员筛选",
   pivotSubtotals: "透视小计字段",
   pivotSubtotalsHelp:
     "输入源列号，以逗号分隔。选择外层行或列字段，小计显示在分组后。",

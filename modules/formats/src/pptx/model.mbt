@@ -69,6 +69,10 @@ priv struct Body {
   anchor : String
   wrap : Bool
   fit : String
+  columns : Int
+  columnGap : Double
+  rtlColumns : Bool
+  direction : String
 }
 
 ///|

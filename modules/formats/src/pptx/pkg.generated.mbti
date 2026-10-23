@@ -180,6 +180,8 @@ pub(all) enum ObjectEdit {
   TextAnchor(String)
   TextWrap(Bool)
   TextFit(String)
+  TextColumns(Int, Double, Bool)
+  TextDirection(String)
   TextFormat(TextFormat)
   TextAlign(String)
   TextParagraph(ParagraphFormat)

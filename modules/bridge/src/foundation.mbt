@@ -133,6 +133,7 @@ fn Foundation::dispatch(
     | "applyXlsxFormat"
     | "queryXlsx"
     | "pivotsXlsx"
+    | "slicersXlsx"
     | "pivotPreviewXlsx"
     | "duplicatesXlsx"
     | "textColumnsXlsx"

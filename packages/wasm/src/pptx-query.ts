@@ -92,6 +92,10 @@ export interface PptxObject {
     anchor: string;
     wrap: boolean;
     fit: "none" | "shrink" | "resize";
+    columns: number;
+    columnGap: number;
+    rtlColumns: boolean;
+    direction: string;
     reason: string;
   };
   geometry:

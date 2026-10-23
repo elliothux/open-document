@@ -117,7 +117,9 @@ fn closest_caret(
   let (x, y) = text.matrix.inverse().point(x, y)
   let mut offset = 0
   let mut distance = 1.0e30
+  let mut column_distance = 1.0e30
   for line in text.lines {
+    let dx = (line.areaX - x).max(0).max(x - line.areaX - line.areaWidth)
     let dy = if y < line.y {
       line.y - y
     } else if y > line.y + line.height {
@@ -128,7 +130,8 @@ fn closest_caret(
     for caret in line.carets {
       for edge in [caret.before, caret.after] {
         let score = dy * dy * 10000 + (x - line.x - edge) * (x - line.x - edge)
-        if score < distance {
+        if dx < column_distance || (dx == column_distance && score < distance) {
+          column_distance = dx
           distance = score
           offset = caret.offset
         }
@@ -403,6 +406,13 @@ pub fn Session::navigate(
     )
   }
   let object = current.object(self.selection.object)
+  let direction = match (object.body.direction, direction) {
+    ("vert", "left") | ("vert270", "right") => "down"
+    ("vert", "right") | ("vert270", "left") => "up"
+    ("vert", "up") | ("vert270", "down") => "left"
+    ("vert", "down") | ("vert270", "up") => "right"
+    _ => direction
+  }
   if !extend_selection &&
     self.selection.anchor != self.selection.focus &&
     ["left", "right"].contains(direction) {
@@ -441,7 +451,12 @@ pub fn Session::navigate(
             let next = geometry.lines[target]
             let mut distance = 1.0e30
             for position in next.carets {
-              let gap = (position.after + next.x - caret.after - line.x).abs()
+              let column = if object.table is None && object.body.columns > 1 {
+                line.areaX - next.areaX
+              } else {
+                0.0
+              }
+              let gap = (position.after + next.x - caret.after - line.x + column).abs()
               if gap < distance {
                 focus = position.offset
                 distance = gap

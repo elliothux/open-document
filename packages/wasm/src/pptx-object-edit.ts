@@ -51,6 +51,59 @@ export function checkPptxShapeEdit(change: Record<string, unknown>): void {
       )
     )
       throw new Error("Invalid PPTX shape type");
+  } else if (change.action === "textInsets") {
+    for (const key of ["left", "top", "right", "bottom"]) {
+      const value = change[key];
+      if (
+        typeof value !== "number" ||
+        !Number.isFinite(value) ||
+        value < 0 ||
+        value > 14400
+      )
+        throw new Error("Invalid PPTX text inset");
+    }
+  } else if (change.action === "textAnchor") {
+    if (
+      typeof change.anchor !== "string" ||
+      !["t", "ctr", "b"].includes(change.anchor)
+    )
+      throw new Error("Invalid PPTX text anchor");
+  } else if (change.action === "textWrap") {
+    if (typeof change.wrap !== "boolean")
+      throw new Error("Invalid PPTX text wrapping");
+  } else if (change.action === "textFit") {
+    if (
+      typeof change.fit !== "string" ||
+      !["none", "shrink", "resize"].includes(change.fit)
+    )
+      throw new Error("Invalid PPTX text fitting");
+  } else if (change.action === "textColumns") {
+    if (
+      Object.keys(change).length !== 4 ||
+      Object.keys(change).some(
+        (key) => !["action", "columns", "gap", "rtl"].includes(key),
+      ) ||
+      typeof change.columns !== "number" ||
+      !Number.isInteger(change.columns) ||
+      change.columns < 1 ||
+      change.columns > 16 ||
+      typeof change.gap !== "number" ||
+      !Number.isFinite(change.gap) ||
+      change.gap < 0 ||
+      change.gap > 14400 ||
+      typeof change.rtl !== "boolean"
+    )
+      throw new Error("Invalid PPTX text columns");
+  } else if (change.action === "textDirection") {
+    if (
+      Object.keys(change).length !== 2 ||
+      Object.keys(change).some(
+        (key) => !["action", "direction"].includes(key),
+      ) ||
+      typeof change.direction !== "string" ||
+      !["horz", "vert", "vert270"].includes(change.direction)
+    )
+      throw new Error("Invalid PPTX text direction");
   } else {
     if (
       !["adj", "adj1", "adj2", "adj3"].some((name) => name === change.name) ||
@@ -214,6 +267,8 @@ export type PptxObjectEdit =
   | { action: "textAnchor"; anchor: "t" | "ctr" | "b" }
   | { action: "textWrap"; wrap: boolean }
   | { action: "textFit"; fit: "none" | "shrink" | "resize" }
+  | { action: "textColumns"; columns: number; gap: number; rtl: boolean }
+  | { action: "textDirection"; direction: "horz" | "vert" | "vert270" }
   | { action: "group" | "ungroup" }
   | { action: "duplicate"; dx: number; dy: number }
   | { action: "rotate"; angle: number }

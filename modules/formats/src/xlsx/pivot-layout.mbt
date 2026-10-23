@@ -108,7 +108,7 @@ fn PivotCache::layout(
           keys[pivot_item_key(value)] = true
         }
         let selected : Map[Int, Bool] = Map([])
-        for at, value in self.items[filter.field] {
+        for at, value in self.axis_items(filter.field) {
           if keys.contains(pivot_item_key(value)) {
             selected[at] = true
           }
@@ -122,7 +122,15 @@ fn PivotCache::layout(
   let mut work = 0
   for record in self.records {
     if filters.any(filter => {
-        filter.1.map(keys => !keys.contains(record[filter.0])).unwrap_or(false)
+        filter.1
+        .map(keys => {
+          let item = match self.groups.get(filter.0) {
+            Some(group) => group.indices[record[group.base()]]
+            None => record[filter.0]
+          }
+          !keys.contains(item)
+        })
+        .unwrap_or(false)
       }) {
       continue
     }
@@ -284,6 +292,7 @@ fn PivotLayout::cells(
   let styles : Map[String, Int] = Map([])
   let header = settings.header_rows()
   let body = settings.body(range)
+  let page_filters = settings.page_filters()
   let values = settings.values.length()
   let width = self.columns.length() * values
   let has_columns = !settings.columns.is_empty()
@@ -298,8 +307,8 @@ fn PivotLayout::cells(
       let mut style : Int? = None
       let value = if row < body.top {
         let at = row - range.top
-        if at < settings.filters.length() {
-          let filter = settings.filters[at]
+        if at < page_filters.length() {
+          let filter = page_filters[at]
           if offset == 0 {
             Text(self.cache.headers[filter.field])
           } else if offset == 1 {

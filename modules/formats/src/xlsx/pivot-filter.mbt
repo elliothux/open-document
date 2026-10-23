@@ -17,11 +17,89 @@ pub extend PivotFilter with ToJson::{to_json}
 
 ///|
 fn PivotSettings::page_rows(self : PivotSettings) -> Int {
-  if self.filters.is_empty() {
+  let filters = self.page_filters()
+  if filters.is_empty() {
     0
   } else {
-    self.filters.length() + 1
+    filters.length() + 1
   }
+}
+
+///|
+fn PivotSettings::page_filters(self : PivotSettings) -> Array[PivotFilter] {
+  self.filters.filter(filter => {
+    !self.rows.contains(filter.field) && !self.columns.contains(filter.field)
+  })
+}
+
+///|
+fn pivot_field_items(
+  cache : Tree,
+  index : Int,
+) -> Array[Value] raise @failure.Failure {
+  let fields = cache.all(cache.one(0, "cacheFields").unwrap().id, "cacheField")
+  guard fields.get(index) is Some(field) else {
+    @failure.reject("protected-content", "Pivot field cache is unavailable")
+  }
+  let grouped = cache
+    .one(field.id, "fieldGroup")
+    .bind(group => cache.one(group.id, "groupItems"))
+  let node = match grouped {
+    Some(_) => grouped
+    None => cache.one(field.id, "sharedItems")
+  }
+  guard node is Some(node) else {
+    @failure.reject("protected-content", "Pivot field items are unavailable")
+  }
+  let items = cache.children.get(node.id).unwrap_or([])
+  guard items.length() <= 4096 else {
+    @failure.reject("limit-exceeded", "Pivot field items exceed budget")
+  }
+  items.map(pivot_cache_value)
+}
+
+///|
+fn pivot_read_axis_filters(
+  tree : Tree,
+  cache : Tree,
+  width : Int,
+) -> Array[PivotFilter] raise @failure.Failure {
+  let result : Array[PivotFilter] = []
+  let fields = tree.all(tree.one(0, "pivotFields").unwrap().id, "pivotField")
+  for index, field in fields {
+    if !["axisRow", "axisCol"].contains(field.attribute("axis").unwrap_or("")) {
+      continue
+    }
+    let items = tree
+      .one(field.id, "items")
+      .map(node => {
+        tree
+        .all(node.id, "item")
+        .filter(item => item.attribute("t") != Some("default"))
+      })
+      .unwrap_or([])
+    if !items.any(item => flag(item, "h")) {
+      continue
+    }
+    guard index < width else {
+      @failure.reject(
+        "protected-content", "Filtering a derived calendar level requires support",
+      )
+    }
+    let values = pivot_field_items(cache, index)
+    guard values.length() <= 4096 && items.length() == values.length() else {
+      @failure.reject(
+        "protected-content", "Pivot axis items disagree with the cache",
+      )
+    }
+    let selected = items
+      .filter(item => !flag(item, "h"))
+      .map(item => {
+        values[natural(item.attribute("x").unwrap_or(""), values.length() - 1)]
+      })
+    result.push({ field: index, values: Some(selected), })
+  }
+  result
 }
 
 ///|

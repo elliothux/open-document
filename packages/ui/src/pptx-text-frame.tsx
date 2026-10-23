@@ -23,6 +23,10 @@ export function PptxTextFrame({
   const [anchor, setAnchor] = useState(first?.anchor ?? "t");
   const [wrap, setWrap] = useState(first?.wrap ?? true);
   const [fit, setFit] = useState(first?.fit ?? "none");
+  const [columns, setColumns] = useState(String(first?.columns ?? 1));
+  const [gap, setGap] = useState(String(first?.columnGap ?? 0));
+  const [rtl, setRtl] = useState(first?.rtlColumns ?? false);
+  const [direction, setDirection] = useState(first?.direction ?? "horz");
   const [margins, setMargins] = useState({
     left: String(first?.left ?? 7.2),
     top: String(first?.top ?? 3.6),
@@ -32,13 +36,57 @@ export function PptxTextFrame({
   const reason = objects.find((object) => object.textFrame.reason)?.textFrame
     .reason;
   const mixed = objects.some((object) =>
-    (["left", "top", "right", "bottom", "anchor", "wrap", "fit"] as const).some(
-      (key) => object.textFrame[key] !== first?.[key],
-    ),
+    (
+      [
+        "left",
+        "top",
+        "right",
+        "bottom",
+        "anchor",
+        "wrap",
+        "fit",
+        "columns",
+        "columnGap",
+        "rtlColumns",
+        "direction",
+      ] as const
+    ).some((key) => object.textFrame[key] !== first?.[key]),
   );
   return (
     <fieldset disabled={disabled || objects.length === 0 || !!reason}>
       <legend>{t.textFrame}</legend>
+      <label>
+        {t.textDirection}
+        <select
+          aria-label={t.textDirection}
+          value={direction}
+          onChange={(event) => {
+            const direction = event.currentTarget.value;
+            if (
+              direction !== "horz" &&
+              direction !== "vert" &&
+              direction !== "vert270"
+            )
+              return;
+            setDirection(direction);
+            controller.run(async () => {
+              try {
+                await editor.editObjects({
+                  action: "textDirection",
+                  direction,
+                });
+              } catch (error) {
+                setDirection(first?.direction ?? "horz");
+                throw error;
+              }
+            });
+          }}
+        >
+          <option value="horz">{t.textHorizontal}</option>
+          <option value="vert">{t.textClockwise}</option>
+          <option value="vert270">{t.textCounterclockwise}</option>
+        </select>
+      </label>
       {mixed && <p>{t.mixed}</p>}
       <form
         onSubmit={(event) => {
@@ -79,6 +127,55 @@ export function PptxTextFrame({
         ))}
         <button type="submit">
           {t.apply} {t.textFrameMargins}
+        </button>
+      </form>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          controller.run(() =>
+            editor.editObjects({
+              action: "textColumns",
+              columns: Number(columns),
+              gap: Number(gap),
+              rtl,
+            }),
+          );
+        }}
+      >
+        <label>
+          {t.textColumnCount}
+          <input
+            type="number"
+            min={1}
+            max={16}
+            step={1}
+            required
+            value={columns}
+            onChange={(event) => setColumns(event.currentTarget.value)}
+          />
+        </label>
+        <label>
+          {t.textColumnGap}
+          <input
+            type="number"
+            min={0}
+            max={14400}
+            step="any"
+            required
+            value={gap}
+            onChange={(event) => setGap(event.currentTarget.value)}
+          />
+        </label>
+        <label>
+          <input
+            type="checkbox"
+            checked={rtl}
+            onChange={(event) => setRtl(event.currentTarget.checked)}
+          />
+          {t.textColumnRtl}
+        </label>
+        <button type="submit">
+          {t.apply} {t.textColumns}
         </button>
       </form>
       <label>

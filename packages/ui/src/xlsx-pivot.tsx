@@ -105,14 +105,12 @@ export function XlsxPivotsPanel({
       ? preview
       : undefined;
   const filterChoices =
-    preview?.revision === query.revision &&
-    preview.settings.source === source &&
-    preview.settings.sourceSheet === sourceSheet &&
-    preview.settings.filters.length === filters.length &&
-    preview.settings.filters.every(
+    basePreview &&
+    basePreview.settings.filters.length === filters.length &&
+    basePreview.settings.filters.every(
       (filter, i) => filter.field === filters[i]?.field,
     )
-      ? preview.filterItems
+      ? basePreview.filterItems
       : undefined;
   // shortcut: Preview uses raw values; add formatted labels in MoonBit when needed.
   const display = (cell: XlsxPivotPreview["total"][number]) =>

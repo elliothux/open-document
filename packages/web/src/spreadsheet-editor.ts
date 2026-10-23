@@ -572,6 +572,11 @@ export class SpreadsheetEditor extends SpreadsheetClipboard {
       this.client.pivots(this.state.revision, this.state.sheet),
     );
   }
+  slicers() {
+    return this.read(() =>
+      this.client.slicers(this.state.revision, this.state.sheet),
+    );
+  }
   pivotPreview(settings: XlsxPivotSettings) {
     return this.read(() =>
       this.client.pivotPreview(this.state.revision, settings),

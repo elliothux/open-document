@@ -555,7 +555,18 @@ export function checkPptxObjectEdit(value: unknown): void {
     pptxHyperlink(change.link);
     return;
   }
-  if (change.action === "shapeAdjustment" || change.action === "shapeType") {
+  if (
+    [
+      "shapeAdjustment",
+      "shapeType",
+      "textInsets",
+      "textAnchor",
+      "textWrap",
+      "textFit",
+      "textColumns",
+      "textDirection",
+    ].includes(String(change.action))
+  ) {
     checkPptxShapeEdit(change);
     return;
   }
@@ -669,23 +680,6 @@ export function checkPptxObjectEdit(value: unknown): void {
     change.action === "textAlign" &&
     typeof change.alignment === "string" &&
     ["left", "center", "right", "justify"].includes(change.alignment)
-  )
-    return;
-  if (change.action === "textInsets") {
-    for (const key of ["left", "top", "right", "bottom"])
-      number(change[key], 0, 14400);
-    return;
-  }
-  if (
-    change.action === "textAnchor" &&
-    ["t", "ctr", "b"].includes(String(change.anchor))
-  )
-    return;
-  if (change.action === "textWrap" && typeof change.wrap === "boolean") return;
-  if (
-    change.action === "textFit" &&
-    typeof change.fit === "string" &&
-    ["none", "shrink", "resize"].includes(String(change.fit))
   )
     return;
   if (change.action === "gradientFill") {

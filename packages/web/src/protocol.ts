@@ -145,7 +145,7 @@ export type Operation =
       objectId: string;
       profile: Record<string, string>;
     }
-  | { operation: "pivotsXlsx"; revision: number; sheet: string }
+  | { operation: "pivotsXlsx" | "slicersXlsx"; revision: number; sheet: string }
   | {
       operation: "pivotPreviewXlsx";
       revision: number;

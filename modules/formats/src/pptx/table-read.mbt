@@ -253,6 +253,10 @@ fn read_drawing_table(
         "Unsupported table cell anchor",
       )
       table_profile(
+        body.direction == "horz",
+        "Rotated table text is unsupported",
+      )
+      table_profile(
         h_merge ||
         v_merge ||
         body.left + body.right <

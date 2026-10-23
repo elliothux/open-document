@@ -147,6 +147,10 @@ PNG/JPEG 图片插入已接通核心、Wasm、Worker、宿主和默认 UI。新�
 
 文本框四边内边距、上/中/下垂直对齐、换行、缩小字体及形状随文字调整大小已接通核心、API 和默认 UI。支持本地顶层形状的混合多选，保留文字及对象选择。缩小模式同时约束宽高并写回比例；形状调整模式保留字号，按换行设置调整高度或宽高，输入、格式及查找替换与几何共用精确历史。实现归 [`text-frame.mbt`](../modules/formats/src/pptx/text-frame.mbt)和 [`text-resize.mbt`](../modules/formats/src/pptx/text-resize.mbt)，边界归[格式合同](references/formats.md#pptx)。
 
+水平文本框已接通 1–16 栏、栏间距及左右栏顺序的读取、编辑和默认面板。文字按当前高度逐栏流动，共用自动适配、光标命中、跨栏导航、源格式复制及 Canvas/PDF 几何。原生属性、精确历史、保存重开输入及独立 PDF 栏坐标已检查；合同归[文本排版](references/formats.md#pptx)。东亚字符直排和文字变形继续实施。
+
+原生 `horz/vert/vert270` 已接通读取、修改和默认方向面板。文字整体旋转 90°/270°，复用输入、选择、命中、方向键、链接和 Canvas/PDF 变换；缩小字体及自动形状尺寸按交换后的文字平面求解。精确历史、重开输入、独立 PDF 字形坐标和链接矩形已检查。字符直排、保持直立、独立文字角度和文字变形继续实施，合同归[文本排版](references/formats.md#pptx)。
+
 基础文字格式已接通字体、字号、字符间距、粗体、斜体、RGB 颜色、单下划线、单删除线、纯色高亮及清除高亮、上/下标及恢复基线，以及段落左/中/右/两端对齐。文字范围只修改选中字，对象模式作用于所选框；光标和空段落的格式用于后续原生输入。核心按需拆分 run，保留范围外内容和属性，格式与文字共用精确历史。装饰及两端对齐沿公共行绘制输出到 Canvas 和 PDF，保留形状的框内裁剪。默认面板显示混合值，各字段保留普通命令期间的草稿。两端对齐的五项定向核心和两条 Chromium 流程已检查中间/末行、字形位置、原生草稿、源片段、精确历史、无操作、重开输入及 PDF。实现归 [`text-format.mbt`](../modules/formats/src/pptx/text-format.mbt)和 [`text-format-properties.mbt`](../modules/formats/src/pptx/text-format-properties.mbt)，接口和剩余边界归[格式合同](references/formats.md#pptx)。
 
 字符间距已接通原生百分之一点单位、继承、局部格式、光标后续输入、母版分级默认格式及清除覆盖。四项定向核心、30 条接口断言及两条 Chromium 流程检查精确历史、重开输入、原生 XML、母版恢复继承、实际 Canvas 宽度及独立 PDF 坐标。单位与资源上限归[格式合同](references/formats.md#pptx)。
@@ -159,7 +163,7 @@ PNG/JPEG 图片插入已接通核心、Wasm、Worker、宿主和默认 UI。新�
 
 原生段落制表位及默认间隔已接通读取、公共排版、现有段落命令、共同/混合查询和默认面板。左/中/右/小数点对齐与光标、Tab 文本粘贴、字符源保留、精确混合历史、保存重开及 PDF 已检查；无显式间隔时沿上游使用 72 点。样式级制表位改写和更细精度继续实施，合同归[格式合同](references/formats.md#pptx)。
 
-内边距、垂直锚定、溢出和自动适配是框属性。现有三种适配模式共用核心排版、源几何和保存属性；更广方向和多栏继续扩展。字面查找替换已接通跨页/框的有界结果、当前页/全部页及大小写/全词选项，支持隐藏页定位、单个/全部替换、格式保留及一项跨页精确历史。默认面板与宿主绑定文档和 revision；核心重查目标，保护或失败保留全部页面。实现归 [`search.mbt`](../modules/formats/src/pptx/search.mbt)和 [`search-replace.mbt`](../modules/formats/src/pptx/search-replace.mbt)，范围和预算归[格式合同](references/formats.md#pptx)。
+内边距、垂直锚定、溢出和自动适配是框属性。现有三种适配模式共用核心排版、源几何和保存属性；东亚字符直排和文字变形继续扩展。字面查找替换已接通跨页/框的有界结果、当前页/全部页及大小写/全词选项，支持隐藏页定位、单个/全部替换、格式保留及一项跨页精确历史。默认面板与宿主绑定文档和 revision；核心重查目标，保护或失败保留全部页面。实现归 [`search.mbt`](../modules/formats/src/pptx/search.mbt)和 [`search-replace.mbt`](../modules/formats/src/pptx/search-replace.mbt)，范围和预算归[格式合同](references/formats.md#pptx)。
 
 表格保留行列网格、跨度、单元格文本和样式；行列增删/合并/拆分使用自身的 DrawingML 序列化。可以复用文字/边框布局计算，但不照搬 DOCX 分页表格模型。表格在一页内布局，溢出给出明确结果，不自动创建新页。表格选区及文本光标继续由核心返回。
 

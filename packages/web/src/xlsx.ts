@@ -1,4 +1,11 @@
 import { XlsxDrawingClient } from "./xlsx-drawings.js";
+import { xlsxSlicers } from "@open-document/wasm/xlsx";
+export { xlsxSlicers } from "@open-document/wasm/xlsx";
+export type {
+  XlsxSlicer,
+  XlsxSlicerMember,
+  XlsxSlicers,
+} from "@open-document/wasm/xlsx";
 export {
   xlsxChartKinds,
   xlsxCharts,
@@ -262,6 +269,15 @@ export class XlsxClient extends XlsxDrawingClient {
     return xlsxPivots(
       await this.connection.request({
         operation: "pivotsXlsx",
+        revision,
+        sheet,
+      }),
+    );
+  }
+  async slicers(revision: number, sheet: string) {
+    return xlsxSlicers(
+      await this.connection.request({
+        operation: "slicersXlsx",
         revision,
         sheet,
       }),

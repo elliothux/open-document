@@ -84,8 +84,7 @@ fn PivotSettings::validate(
     )
   }
   let seen : Map[Int, Bool] = Map([])
-  for
-    field in self.rows + self.columns + self.filters.map(filter => filter.field) {
+  for field in self.rows + self.columns {
     guard field >= 0 && field < width && !seen.contains(field) else {
       @failure.reject(
         "invalid-operation", "Invalid or duplicate pivot axis field",
@@ -109,6 +108,7 @@ fn PivotSettings::validate(
     selected[field] = true
   }
   let mut units = 0
+  let filter_fields : Map[Int, Bool] = Map([])
   let grouped : Map[Int, Bool] = Map([])
   for group in self.numberGroups {
     guard (self.rows + self.columns).contains(group.field) &&
@@ -143,10 +143,18 @@ fn PivotSettings::validate(
     }
   }
   for filter in self.filters {
+    guard filter.field >= 0 &&
+      filter.field < width &&
+      !filter_fields.contains(filter.field) else {
+      @failure.reject(
+        "invalid-operation", "Invalid or duplicate pivot filter field",
+      )
+    }
+    filter_fields[filter.field] = true
     if filter.values is Some(values) {
       guard !values.is_empty() && values.length() <= 4096 else {
         @failure.reject(
-          "limit-exceeded", "Pivot report selection exceeds budget",
+          "limit-exceeded", "Pivot member selection exceeds budget",
         )
       }
       let seen : Map[String, Bool] = Map([])
@@ -156,7 +164,7 @@ fn PivotSettings::validate(
         units += key.length()
         guard units <= 1048576 && !seen.contains(key) else {
           @failure.reject(
-            "invalid-operation", "Duplicate or excessive pivot report values",
+            "invalid-operation", "Duplicate or excessive pivot filter values",
           )
         }
         seen[key] = true
@@ -318,7 +326,11 @@ fn Session::pivot_cache(
       "invalid-operation", "Pivot value captions must differ from source field names",
     )
   }
-  let retained = settings.filters +
+  let grouped_filter = (field : Int) => {
+    settings.numberGroups.any(group => group.field == field) ||
+    settings.dateGroups.any(group => group.field == field)
+  }
+  let retained = settings.filters.filter(filter => !grouped_filter(filter.field)) +
     settings.values
     .filter(value => {
       value.baseItem is Some(Member(_)) &&
@@ -419,6 +431,20 @@ fn Session::pivot_cache(
   for value in settings.values {
     if value.baseItem is Some(Member(item)) {
       ignore(cache.base_item_index(value.baseField.unwrap(), item))
+    }
+  }
+  for filter in settings.filters {
+    if grouped_filter(filter.field) && filter.values is Some(values) {
+      let items = Map::from_array(
+        cache
+        .axis_items(filter.field)
+        .map(value => (pivot_item_key(value), true)),
+      )
+      guard values.all(value => items.contains(pivot_item_key(value))) else {
+        @failure.reject(
+          "protected-content", "Selected pivot filter member is unavailable in the current grouping",
+        )
+      }
     }
   }
   cache
@@ -543,7 +569,9 @@ pub fn Session::pivot_preview(
     "recordCount": layout.cache.records.length(),
     "filteredCount": layout.filtered_count,
     "filterItems": settings.filters.map(filter => {
-      layout.cache.items[filter.field].mapi((at, value) => {
+      layout.cache
+      .axis_items(filter.field)
+      .mapi((at, value) => {
         let item : Json = {
           "value": value,
           "label": if value == Blank {
@@ -551,7 +579,7 @@ pub fn Session::pivot_preview(
           } else {
             formatted(
               value,
-              self.styles[layout.cache.styles[filter.field][at]].format,
+              self.styles[layout.cache.axis_style(filter.field, at)].format,
               self.date1904,
             )
           },
