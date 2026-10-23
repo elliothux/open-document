@@ -1,4 +1,11 @@
 export const conditionalStatisticsEn = {
+  conditionalIconSet: "Icon set",
+  conditionalIconKind: "Conditional icon set",
+  conditionalArrows: "Three colored arrows",
+  conditionalTrafficLights: "Three traffic lights",
+  conditionalFlags: "Three flags",
+  conditionalReverseIcons: "Reverse icon order",
+  conditionalInclusive: "Include threshold value",
   conditionalRank: "Top/bottom rank",
   conditionalDuplicates: "Duplicate values",
   conditionalUnique: "Unique values",
@@ -23,6 +30,13 @@ export const conditionalStatisticsEn = {
   conditionalStdDev: "Standard deviations",
 };
 export const conditionalStatisticsZh: typeof conditionalStatisticsEn = {
+  conditionalIconSet: "图标集",
+  conditionalIconKind: "条件格式图标集",
+  conditionalArrows: "三色箭头",
+  conditionalTrafficLights: "三个交通灯",
+  conditionalFlags: "三色旗帜",
+  conditionalReverseIcons: "反转图标顺序",
+  conditionalInclusive: "包含阈值",
   conditionalRank: "前后排名",
   conditionalDuplicates: "重复值",
   conditionalUnique: "唯一值",

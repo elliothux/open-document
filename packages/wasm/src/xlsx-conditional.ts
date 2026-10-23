@@ -8,6 +8,7 @@ export interface XlsxConditionalFormat {
     | "expression"
     | "colorScale"
     | "dataBar"
+    | "iconSet"
     | "top10"
     | "aboveAverage"
     | "duplicateValues"
@@ -28,6 +29,7 @@ export interface XlsxConditionalFormat {
   format: XlsxCellFormat;
   stops?: XlsxConditionalStop[];
   bar?: XlsxDataBar;
+  icons?: XlsxIconSet;
   rank?: XlsxConditionalRank;
   average?: XlsxConditionalAverage;
   text?: string;
@@ -70,6 +72,21 @@ export interface XlsxDataBar {
   minLength: number;
   maxLength: number;
 }
+export const conditionalIconSets = [
+  "3Arrows",
+  "3TrafficLights1",
+  "3Flags",
+] as const;
+export interface XlsxIconThreshold extends XlsxConditionalThreshold {
+  greaterOrEqual: boolean;
+}
+export interface XlsxIconSet {
+  kind: (typeof conditionalIconSets)[number];
+  reverse: boolean;
+  showValue: boolean;
+  percent: boolean;
+  thresholds: XlsxIconThreshold[];
+}
 export const conditionalThresholds = [
   "min",
   "max",
@@ -101,6 +118,7 @@ export function checkXlsxConditionalFormat(value: unknown): void {
         "format",
         "stops",
         "bar",
+        "icons",
         "rank",
         "average",
         "text",
@@ -112,6 +130,7 @@ export function checkXlsxConditionalFormat(value: unknown): void {
         "expression",
         "colorScale",
         "dataBar",
+        "iconSet",
         "top10",
         "aboveAverage",
         "duplicateValues",
@@ -133,6 +152,8 @@ export function checkXlsxConditionalFormat(value: unknown): void {
     typeof rule.stopIfTrue !== "boolean"
   )
     throw new Error("Invalid conditional format kind or operator");
+  if (rule.kind !== "iconSet" && rule.icons !== undefined)
+    throw new Error("Only icon set rules have icon settings");
   const textRule = [
     "containsText",
     "notContainsText",
@@ -161,6 +182,42 @@ export function checkXlsxConditionalFormat(value: unknown): void {
       })
     )
       throw new Error("Invalid conditional formula or text");
+  }
+  if (rule.kind === "iconSet") {
+    const icons = record(rule.icons);
+    if (
+      rule.operator !== "" ||
+      rule.formula1 !== "" ||
+      rule.formula2 !== "" ||
+      rule.stopIfTrue ||
+      Object.keys(record(rule.format)).length ||
+      rule.stops !== undefined ||
+      rule.bar !== undefined ||
+      rule.rank !== undefined ||
+      rule.average !== undefined ||
+      Object.keys(icons).length !== 5 ||
+      !conditionalIconSets.some((kind) => kind === icons.kind) ||
+      typeof icons.reverse !== "boolean" ||
+      typeof icons.showValue !== "boolean" ||
+      typeof icons.percent !== "boolean" ||
+      !Array.isArray(icons.thresholds) ||
+      icons.thresholds.length !== 3
+    )
+      throw new Error("Invalid conditional icon set");
+    for (const value of icons.thresholds) {
+      const threshold = record(value);
+      if (
+        Object.keys(threshold).length !== 3 ||
+        typeof threshold.greaterOrEqual !== "boolean"
+      )
+        throw new Error("Invalid conditional icon threshold");
+      checkConditionalStop({
+        kind: threshold.kind,
+        value: threshold.value,
+        color: "000000",
+      });
+    }
+    return;
   }
   if (rule.kind === "top10" || rule.kind === "aboveAverage") {
     if (
@@ -262,39 +319,7 @@ export function checkXlsxConditionalFormat(value: unknown): void {
         return { ...threshold, color: bar.color };
       });
     }
-    for (const value of stops) {
-      const stop = record(value);
-      if (
-        !Object.keys(stop).every((k) =>
-          ["kind", "value", "color"].includes(k),
-        ) ||
-        !conditionalThresholds.some((k) => k === stop.kind) ||
-        typeof stop.value !== "string" ||
-        stop.value.length > 8192 ||
-        !stop.value.isWellFormed() ||
-        Array.from(stop.value).some((c) => {
-          const n = c.codePointAt(0)!;
-          return (
-            (n < 32 && ![9, 10, 13].includes(n)) || n === 65534 || n === 65535
-          );
-        }) ||
-        typeof stop.color !== "string" ||
-        !/^[0-9a-fA-F]{6}$/u.test(stop.color)
-      )
-        throw new Error("Invalid color scale stop");
-      if (stop.kind === "min" || stop.kind === "max") {
-        if (stop.value !== "")
-          throw new Error("Automatic color stops have no value");
-      } else if (stop.kind === "formula") {
-        if (!stop.value) throw new Error("Missing color scale formula");
-      } else if (
-        !stop.value.trim() ||
-        !Number.isFinite(Number(stop.value)) ||
-        (stop.kind !== "num" &&
-          (Number(stop.value) < 0 || Number(stop.value) > 100))
-      )
-        throw new Error("Invalid color scale threshold");
-    }
+    for (const value of stops) checkConditionalStop(value);
     return;
   }
   if (rule.stops !== undefined || rule.bar !== undefined)
@@ -307,6 +332,35 @@ export function checkXlsxConditionalFormat(value: unknown): void {
   )
     throw new Error("Missing conditional formula");
   checkXlsxCellFormat(rule.format);
+}
+function checkConditionalStop(value: unknown): void {
+  const stop = record(value);
+  if (
+    !Object.keys(stop).every((k) => ["kind", "value", "color"].includes(k)) ||
+    !conditionalThresholds.some((k) => k === stop.kind) ||
+    typeof stop.value !== "string" ||
+    stop.value.length > 8192 ||
+    !stop.value.isWellFormed() ||
+    Array.from(stop.value).some((c) => {
+      const n = c.codePointAt(0)!;
+      return (n < 32 && ![9, 10, 13].includes(n)) || n === 65534 || n === 65535;
+    }) ||
+    typeof stop.color !== "string" ||
+    !/^[0-9a-fA-F]{6}$/u.test(stop.color)
+  )
+    throw new Error("Invalid color scale stop");
+  if (stop.kind === "min" || stop.kind === "max") {
+    if (stop.value !== "")
+      throw new Error("Automatic color stops have no value");
+  } else if (stop.kind === "formula") {
+    if (!stop.value) throw new Error("Missing color scale formula");
+  } else if (
+    !stop.value.trim() ||
+    !Number.isFinite(Number(stop.value)) ||
+    (stop.kind !== "num" &&
+      (Number(stop.value) < 0 || Number(stop.value) > 100))
+  )
+    throw new Error("Invalid color scale threshold");
 }
 export function xlsxConditionalState(value: unknown): XlsxConditionalState {
   const state = record(value);
@@ -345,6 +399,12 @@ export function xlsxConditionalState(value: unknown): XlsxConditionalState {
       units +=
         String(record(bar.minimum).value).length +
         String(record(bar.maximum).value).length;
+    }
+    if (settings.icons !== undefined) {
+      const icons = record(settings.icons);
+      if (Array.isArray(icons.thresholds))
+        for (const threshold of icons.thresholds)
+          units += String(record(threshold).value).length;
     }
   }
   if (units > 1048576) throw new Error("Conditional query exceeds text budget");

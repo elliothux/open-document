@@ -61,7 +61,7 @@ fn CopiedCells::check_copied_rules(
     settings.format.validate()
     guard (
         [
-          "expression", "cellIs", "colorScale", "dataBar", "top10", "aboveAverage",
+          "expression", "cellIs", "colorScale", "dataBar", "iconSet", "top10", "aboveAverage",
           "duplicateValues", "uniqueValues",
         ].contains(settings.kind) ||
         conditional_predicate_kind(settings.kind) ||
@@ -85,6 +85,14 @@ fn CopiedCells::check_copied_rules(
       texts.append([bar.minimum.value, bar.maximum.value])
       kinds.append([bar.minimum.kind, bar.maximum.kind])
       colors.push(bar.color)
+    }
+    if settings.icons is Some(icons) {
+      guard ["3Arrows", "3TrafficLights1", "3Flags"].contains(icons.kind) &&
+        icons.thresholds.length() == 3 else {
+        @failure.reject("invalid-operation", "Invalid copied icon set")
+      }
+      texts.append(icons.thresholds.map(t => t.value))
+      kinds.append(icons.thresholds.map(t => t.kind))
     }
     guard kinds.all(kind => {
         ["min", "max", "num", "percent", "percentile", "formula"].contains(kind)
@@ -288,6 +296,16 @@ fn CopiedCells::rules_at(
         } else {
           bar.maximum
         },
+      }),
+      icons: settings.icons.map(icons => {
+        ..icons,
+        thresholds: icons.thresholds.map(stop => {
+          if stop.kind == "formula" {
+            { ..stop, value: threshold(stop.value), }
+          } else {
+            stop
+          }
+        }),
       }),
       format: if transpose {
         settings.format.transposed()

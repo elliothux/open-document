@@ -120,7 +120,12 @@ fn ConditionalRules::scale_bounds(
   }
   let low = numbers.fold(init=numbers[0], (a, b) => a.min(b))
   let high = numbers.fold(init=numbers[0], (a, b) => a.max(b))
-  let thresholds = if rule.bar is Some(bar) {
+  let thresholds = if rule.icons is Some(icons) {
+    icons.thresholds.map(stop => ConditionalThreshold::{
+      kind: stop.kind,
+      value: stop.value,
+    })
+  } else if rule.bar is Some(bar) {
     [bar.minimum, bar.maximum]
   } else {
     rule.stops.map(stop => ConditionalThreshold::{
@@ -181,7 +186,9 @@ fn ConditionalRules::scale_bounds(
     }
     bounds.push(value)
   }
-  bounds.sort()
+  if rule.icons is None {
+    bounds.sort()
+  }
   self.scales[rule.priority] = bounds
   bounds
 }

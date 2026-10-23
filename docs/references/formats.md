@@ -1781,7 +1781,11 @@ Wasm/Web 导出 `XlsxDateFilter`，使用 `{ kind: "dates", column, groups, valu
 
 网格、查询 `display`、自动适配和打印使用同一有效样式。依赖格输入或公式结果改变时，自动行/数值 bestFit 列按条件样式重算，与原编辑共享一次历史；固定尺寸保持原值。规则 XML、`dxf`、基础格式和范围外部件保留，保存重开继续计算。合并格按锚点求值。
 
-规则及差异样式各限 4096 项，公式限 8192 UTF-16 单位；网格、整项打印或编辑适配共享 1048576 次规则/公式工作预算，不展开整列空格。未知规则、属性、装饰或扩展样式保留源并诊断；相关打印或适配拒绝，避免输出缺失效果。查询中的条件格式预算失败转成诊断，避免成功提交后被返回查询误报为失败；实际绘制和输出仍检查预算。扩展数据条、图标集、其他规则、边框仅改颜色及更广差异格式仍待实现。实现归 [`conditional-format.mbt`](../../modules/formats/src/xlsx/conditional-format.mbt) 和 [`conditional-style.mbt`](../../modules/formats/src/xlsx/conditional-style.mbt)，值比较参考 [ONLYOFFICE cellIs](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/ConditionalFormatting.js#L835-L913)。
+图标集使用 `kind: "iconSet"` 与 `icons: XlsxIconSet`。支持 `3Arrows`、`3TrafficLights1`、`3Flags`，包含 reverse、showValue、percent 和三个 thresholds；每个阈值使用 `{ kind, value, greaterOrEqual }`，类型和值沿既有六种阈值。operator、formula1、formula2 为空，format 为空对象，stopIfTrue 为 false，不带其他规则元数据。MoonBit 对应 IconSet 与 ConditionalIconThreshold。完整稀疏范围只统计当前数字和公式数字结果，按原生节点逆序比较，等值由 greaterOrEqual 控制；reverse 反转命中的图标，均未命中时使用索引零。percent 保留原生属性，各节点的 kind 决定计算方式。比较依据 [ONLYOFFICE getIndexRule](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/ConditionalFormatting.js#L999-L1011)。
+
+默认面板提供图标类型、阈值、等值、反向及显示值开关。Canvas/PDF 复用有界矢量路径，文字为图标预留空间，自动尺寸包含图标。仅显示图标时，逻辑值和输入保留；可见格的 accessibleText 保留格式化值供无障碍网格使用。原生保存、精确历史和重开沿既有条件规则事务。其他图标集及扩展属性保持诊断与保护。实现归 [conditional-icon.mbt](../../modules/formats/src/xlsx/conditional-icon.mbt) 和 [conditional-icon-paint.mbt](../../modules/formats/src/xlsx/conditional-icon-paint.mbt)。
+
+规则及差异样式各限 4096 项，公式限 8192 UTF-16 单位；网格、整项打印或编辑适配共享 1048576 次规则/公式工作预算，不展开整列空格。未知规则、属性、装饰或扩展样式保留源并诊断；相关打印或适配拒绝，避免输出缺失效果。查询中的条件格式预算失败转成诊断，避免成功提交后被返回查询误报为失败；实际绘制和输出仍检查预算。扩展数据条、其他图标集与规则、边框仅改颜色及更广差异格式仍待实现。实现归 [`conditional-format.mbt`](../../modules/formats/src/xlsx/conditional-format.mbt) 和 [`conditional-style.mbt`](../../modules/formats/src/xlsx/conditional-style.mbt)，值比较参考 [ONLYOFFICE cellIs](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/cell/model/ConditionalFormatting.js#L835-L913)。
 
 四种文字规则使用 `containsText/notContainsText/beginsWith/endsWith` 和 `text: string`，MoonBit 对应 `text: Some(value)`。operator、formula1、formula2 为空，不带 stops、bar、rank 或 average；其他类型不带 text。按当前未格式化逻辑值忽略大小写比较，`*`、`?` 和 `~` 为普通文字。包含支持数字及布尔的逻辑文字，开头/结尾的非空文字只匹配文字值。包含不匹配空值和错误；不包含取反，因此可以匹配错误及空值。空文字的开头/结尾匹配所有非错误值。按 [ONLYOFFICE text operand](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/ConditionalFormatting.js#L758-L830) 的规则，匹配文字恰为 TRUE/FALSE 时直接使用其布尔值，优先于上述文字比较。
 
@@ -2705,13 +2709,17 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 ### PPTX 对象剪贴板
 
-对象模式的 `copyPptx` 返回 `{ text, fragment, reason }`。本地顶层形状、PNG/JPEG 图片及完整组合可生成独立原生快照。复制保留源位置、层次、几何、旋转/翻转、图片裁剪、填充、描边、文字及点击外链/导航动作；主题字体、颜色和线性渐变写为明确源外观。继承占位符沿用既有复制保护；未选对象和其他源资源不进入快照。源文稿修改或关闭后仍可重复粘贴。
+对象模式的 `copyPptx` 返回 `{ text, fragment, reason }`。本地顶层形状、PNG/JPEG 图片、普通表格、普通图表及完整组合可生成独立原生快照。复制保留源位置、层次、几何、旋转/翻转、图片裁剪、填充、描边、文字及点击外链/导航动作；主题字体、颜色和线性渐变写为明确源外观。继承占位符沿用既有复制保护；未选对象和其他源资源不进入快照。源文稿修改或关闭后仍可重复粘贴。
 
-`pastePptxObjects` 接受 `revision`、`fragment` 和字体 `profile`，向当前可写页插入快照并返回 `PptxQuery`。每次粘贴分配新对象身份和独立图片部件，重映射组内引用及目标关系。源位置保留，对象放到当前页顶层。对象、图片、关系、内容类型和选择合为一项精确历史。缺字体、损坏资源、引用不完整、冲突继承制表位、活动候选或预算失败均不提交。Web 宿主先通过 `objectFragmentImagesPptx` 只读提取图片，再用浏览器解码；坏图片在修改文稿前拒绝。
+整表快照保留网格宽度、行高、合并归属、格内文字/段落、边距、锚定、底色和边框。源表样式的区域、字体和颜色冻结后随片段转移，目标分配独立样式身份；同名源样式不覆盖目标，未选样式不进入快照。直接边框与区域边框分别保存，保留原生共享边的优先级。样式目录不存在时原子创建中性默认目录，已有无样式表格不被附加新外观。一批多个表样式、图片和链接沿同一资源历史提交；重复粘贴保持独立，保存重开后仍可输入及修改表结构。源格式解析参考 [ONLYOFFICE 表格源格式复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicFrame.js#L1040-L1095)，实现归 [`object-clipboard-table.mbt`](../../modules/formats/src/pptx/object-clipboard-table.mbt)及[既有表样式资源事务](../../modules/formats/src/pptx/table-style-resource.mbt)；未复制上游执行代码。
 
-默认 Copy/Cut 写入 `text/plain` 和 Chromium 自定义类型 `web application/x-open-document-pptx-objects`。默认源格式粘贴、`PresentationEditor.pasteClipboard()` 和对象输入的 Ctrl/Meta+V 走同一路径；剪切在系统写入成功并复核会话、revision 和选择后删除源。对象快照最多含 256 个顶层对象和 256 项资源，原生 XML 最多 1 Mi UTF-16，完整 JSON 最多 4 Mi UTF-16。图片压缩字节合计最多 2 MiB，资源值合计最多 2796204 UTF-16，输入及目标页解码图片各最多 16 MiB；包和历史继续受既有预算约束。
+普通图表快照保留当前支持类型的标题、标签、系列数值/空值、图例、圆环孔径和原生外观。复制先核对图表缓存与嵌入数据，片段只携带所用数据；粘贴时创建独立图表、关系及一个仅含普通值的 XLSX。文字标签保留前导零和字面等号，不转为公式；源工作簿的其他工作表和未选对象不进入快照。嵌入数据固定读取首个数据表，不受保存时的活动表影响。源数据不一致、公式、附加图表资源和未知外观继续保护。重复粘贴后可分别通过原图表数据面板修改，源修改/关闭不改变已有快照。实现归 [`object-clipboard-chart.mbt`](../../modules/formats/src/pptx/object-clipboard-chart.mbt)、[严格原生缓存读取](../../modules/formats/src/internal/chart/read.mbt)及 [XLSX 数据写入](../../modules/formats/src/xlsx/chart-data.mbt)；源格式复制参考 [ONLYOFFICE 图表源格式复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L8855-L8870)，未复制上游执行代码。
 
-组内局部选择、表格、图表、媒体、字段/公式、具体幻灯片目标、悬停链接及未知对象源继续保护；对象复制失败不丢弃对象后降为纯文本。实现归 [`object-clipboard.mbt`](../../modules/formats/src/pptx/object-clipboard.mbt)、[`object-clipboard-style.mbt`](../../modules/formats/src/pptx/object-clipboard-style.mbt)、[`object-clipboard-read.mbt`](../../modules/formats/src/pptx/object-clipboard-read.mbt)和 [`object-clipboard-paste.mbt`](../../modules/formats/src/pptx/object-clipboard-paste.mbt)。复用既有原生对象复制、源格式解析、图片资源及多部件历史。
+`pastePptxObjects` 接受 `revision`、`fragment` 和字体 `profile`，向当前可写页插入快照并返回 `PptxQuery`。每次粘贴分配新对象身份和独立资源，重映射组内引用及目标关系。源位置保留，对象放到当前页顶层。对象、图片、图表及嵌入数据、关系、内容类型和选择合为一项精确历史。缺字体、损坏资源、引用不完整、冲突继承制表位、活动候选或预算失败均不提交。Web 宿主先通过 `objectFragmentImagesPptx` 只读提取图片，再用浏览器解码；坏图片在修改文稿前拒绝。
+
+默认 Copy/Cut 写入 `text/plain` 和 Chromium 自定义类型 `web application/x-open-document-pptx-objects`。默认源格式粘贴、`PresentationEditor.pasteClipboard()` 和对象输入的 Ctrl/Meta+V 走同一路径；剪切在系统写入成功并复核会话、revision 和选择后删除源。对象快照最多含 256 个顶层对象和 256 项资源，原生 XML 及每项图表 XML 最多 1 Mi UTF-16，完整 JSON 最多 4 Mi UTF-16。图片压缩字节合计最多 2 MiB，图片编码、表样式、图表 XML 和链接的资源值合计最多 2796204 UTF-16，输入及目标页解码图片各最多 16 MiB；表格、图表数据、样式目录、包和历史继续受既有预算约束。
+
+组内局部选择、组内表格/图表、跨格富文本片段、媒体、字段/公式、具体幻灯片目标、悬停链接及未知对象源继续保护；带注释/处理指令的待重写表属性、样式和图表同样保护。对象复制失败不丢弃对象后降为纯文本。实现归 [`object-clipboard.mbt`](../../modules/formats/src/pptx/object-clipboard.mbt)、[`object-clipboard-style.mbt`](../../modules/formats/src/pptx/object-clipboard-style.mbt)、[`object-clipboard-read.mbt`](../../modules/formats/src/pptx/object-clipboard-read.mbt)和 [`object-clipboard-paste.mbt`](../../modules/formats/src/pptx/object-clipboard-paste.mbt)。复用既有原生对象复制、源格式解析、图片资源及多部件历史。
 
 ### PPTX 文字富文本片段
 
@@ -2989,6 +2997,8 @@ P6 基础与检查边界归 [P6 结果](../implemented/p6-pptx-editing.md)，增
 MoonBit 生成原生 `graphicFrame`、`barChart`、`lineChart`、`pieChart`、`doughnutChart`、`areaChart`、`scatterChart` 或 `radarChart`、系列公式/缓存、关系和实际嵌入 XLSX，使用固定配色、Arial 及图例。公共图元输出 Canvas 与静态 PDF。框最小为 180×150 点，移动、缩放、对齐、层级、删除复用对象事务。旋转、翻转和组合保持保护。图表文字通过数据面板编辑。
 
 普通视图中的本地顶层图表支持 `editObjects({ action: "duplicate", dx, dy })` 和默认“复制对象”按钮。可与同父的普通对象一起多选复制，保留选择顺序、活动对象、内容、名称及非目标源。副本分配新对象身份、独立图表 XML、嵌入工作簿及关系；初始工作簿保留原始字节，后续改数据互不影响。复制、资源及内容类型合为一项精确历史。缓存与工作簿不一致、未知图表资源关系、复制锁、字体、布局或预算失败时整项拒绝。组内图表及母版/版式图表复制继续保护。规则参考 [ONLYOFFICE 图表复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartSpace.js#L4959-L5028)，实现归 [`chart-copy.mbt`](../../modules/formats/src/pptx/chart-copy.mbt)和 [`object-copy.mbt`](../../modules/formats/src/pptx/object-copy.mbt)。
+
+系统复制、剪切及跨文稿重复粘贴归[对象剪贴板](#pptx-对象剪贴板)。该路径按已核对的缓存重建独立普通值工作簿，排除原嵌入文件中的其他工作表；同稿“复制对象”继续保留原工作簿字节。
 
 #### 图例显示与位置
 

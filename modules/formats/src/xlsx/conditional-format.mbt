@@ -12,6 +12,7 @@ priv struct ConditionalRule {
   style : CellFormat
   stops : Array[ConditionalStop]
   bar : DataBar?
+  icons : IconSet?
   rank : ConditionalRank?
   average : ConditionalAverage?
   text : String?
@@ -87,13 +88,13 @@ fn Session::conditional_rules(
           } else {
             []
           }),
-          ["formula", "colorScale", "dataBar"],
+          ["formula", "colorScale", "dataBar", "iconSet"],
         )
         let operator = node.attribute("operator").unwrap_or("")
         guard (
             [
-              "expression", "colorScale", "dataBar", "top10", "aboveAverage", "duplicateValues",
-              "uniqueValues", "timePeriod",
+              "expression", "colorScale", "dataBar", "iconSet", "top10", "aboveAverage",
+              "duplicateValues", "uniqueValues", "timePeriod",
             ].contains(kind) &&
             operator.is_empty()
           ) ||
@@ -163,7 +164,7 @@ fn Session::conditional_rules(
         } else {
           formulas.length() ==
           (if [
-              "colorScale", "dataBar", "top10", "aboveAverage", "duplicateValues",
+              "colorScale", "dataBar", "iconSet", "top10", "aboveAverage", "duplicateValues",
               "uniqueValues",
             ].contains(kind) {
             0
@@ -178,6 +179,18 @@ fn Session::conditional_rules(
         let mut style = CellFormat::new()
         let scale = tree.one(node.id, "colorScale")
         let bar = tree.one(node.id, "dataBar")
+        let icons = tree.one(node.id, "iconSet")
+        guard (kind == "iconSet") == (icons is Some(_)) else {
+          @failure.reject("malformed-xlsx", "Mismatched conditional icon set")
+        }
+        let icons = icons.map(icons => {
+          guard node.attribute("dxfId") is None && !flag(node, "stopIfTrue") else {
+            @failure.reject(
+              "protected-content", "Icon set differential or stop flags are unsupported",
+            )
+          }
+          read_conditional_icons(tree, icons, anchor, sheets, index, work)
+        })
         guard (kind == "dataBar") == (bar is Some(_)) else {
           @failure.reject("malformed-xlsx", "Mismatched conditional data bar")
         }
@@ -293,6 +306,7 @@ fn Session::conditional_rules(
           style,
           stops,
           bar,
+          icons,
           rank: if kind == "top10" {
             let rank : ConditionalRank = {
               rank: natural(node.attribute("rank").unwrap_or("10"), 1000),
@@ -383,6 +397,7 @@ fn ConditionalRules::applied(
     }
     let matched : Array[CellFormat] = []
     let mut bar : ConditionalBar? = None
+    let mut icon : ConditionalIcon? = None
     for rule in self.rules {
       work.spend()
       if !rule.ranges.any(range => {
@@ -438,6 +453,12 @@ fn ConditionalRules::applied(
       if rule.kind == "dataBar" {
         if bar is None {
           bar = self.data_bar(rule, address, sheets, index, values, work)
+        }
+        continue
+      }
+      if rule.kind == "iconSet" {
+        if icon is None {
+          icon = self.icon(rule, address, sheets, index, values, work)
         }
         continue
       }
@@ -526,7 +547,7 @@ fn ConditionalRules::applied(
       }
       result = { ..result, border_priority: priorities, }
     }
-    { ..result, bar, }
+    { ..result, bar, icon, }
   } catch {
     @failure.Failure(code~, message~, ..) if code != "limit-exceeded" =>
       { ..source, diagnostic: message, }

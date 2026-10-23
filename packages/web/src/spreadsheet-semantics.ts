@@ -79,9 +79,9 @@ export function updateGridSemantics(
     cell.setAttribute("aria-readonly", String(!!item.cell.readOnlyReason));
     cell.setAttribute(
       "aria-label",
-      `${item.cell.address}: ${item.display}${item.cell.readOnlyReason ? "; " + item.cell.readOnlyReason : ""}`,
+      `${item.cell.address}: ${item.accessibleText ?? item.display}${item.cell.readOnlyReason ? "; " + item.cell.readOnlyReason : ""}`,
     );
-    cell.textContent = item.display;
+    cell.textContent = item.accessibleText ?? item.display;
     const sparkline = sparklines.items.find(
       (line) => line.cell === item.cell.address,
     );

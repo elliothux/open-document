@@ -1,0 +1,140 @@
+///|
+pub(all) struct ConditionalIconThreshold {
+  kind : String
+  value : String
+  greaterOrEqual : Bool
+} derive(Eq, ToJson)
+
+///|
+pub extend ConditionalIconThreshold with Eq::{equal, not_equal}
+
+///|
+pub extend ConditionalIconThreshold with ToJson::{to_json}
+
+///|
+pub(all) struct IconSet {
+  kind : String
+  reverse : Bool
+  showValue : Bool
+  percent : Bool
+  thresholds : Array[ConditionalIconThreshold]
+} derive(Eq, ToJson)
+
+///|
+pub extend IconSet with Eq::{equal, not_equal}
+
+///|
+pub extend IconSet with ToJson::{to_json}
+
+///|
+priv struct ConditionalIcon {
+  kind : String
+  index : Int
+  showValue : Bool
+} derive(Eq)
+
+///|
+fn IconSet::check(
+  self : IconSet,
+  anchor : Address,
+  sheets : Array[Sheet],
+  index : Int,
+  work : FormulaWork,
+) -> Unit raise @failure.Failure {
+  guard ["3Arrows", "3TrafficLights1", "3Flags"].contains(self.kind) &&
+    self.thresholds.length() == 3 else {
+    @failure.reject(
+      "invalid-operation", "Unsupported conditional icon set or threshold count",
+    )
+  }
+  for threshold in self.thresholds {
+    ConditionalStop::{
+      kind: threshold.kind,
+      value: threshold.value,
+      color: "000000",
+    }.check(anchor, sheets, index, work)
+  }
+}
+
+///|
+fn read_conditional_icons(
+  tree : Tree,
+  node : @xml.Node,
+  anchor : Address,
+  sheets : Array[Sheet],
+  index : Int,
+  work : FormulaWork,
+) -> IconSet raise @failure.Failure {
+  conditional_node(tree, node, ["iconSet", "showValue", "percent", "reverse"], [
+    "cfvo",
+  ])
+  let icons : IconSet = {
+    kind: node.attribute("iconSet").unwrap_or("3TrafficLights1"),
+    reverse: flag(node, "reverse"),
+    showValue: flag(node, "showValue", fallback=true),
+    percent: flag(node, "percent", fallback=true),
+    thresholds: tree
+    .all(node.id, "cfvo")
+    .map(node => {
+      conditional_node(tree, node, ["type", "val", "gte"], [])
+      let kind = node.attribute("type").unwrap_or("")
+      {
+        kind,
+        value: if kind == "min" || kind == "max" {
+          ""
+        } else {
+          node.attribute("val").unwrap_or("")
+        },
+        greaterOrEqual: flag(node, "gte", fallback=true),
+      }
+    }),
+  }
+  icons.check(anchor, sheets, index, work)
+  icons
+}
+
+///|
+fn ConditionalRules::icon(
+  self : ConditionalRules,
+  rule : ConditionalRule,
+  address : Address,
+  sheets : Array[Sheet],
+  index : Int,
+  values : Map[(Int, String), Value],
+  work : FormulaWork,
+) -> ConditionalIcon? raise @failure.Failure {
+  guard rule.icons is Some(icons) &&
+    calculated_cell(sheets, values, index, address) is Number(value) else {
+    return None
+  }
+  let bounds = self.scale_bounds(rule, sheets, index, values, work)
+  guard bounds.length() == 3 else { return None }
+  let selected = for i = 2; i >= 0; i = i - 1 {
+    if value > bounds[i] ||
+      (value == bounds[i] && icons.thresholds[i].greaterOrEqual) {
+      break if icons.reverse { 2 - i } else { i }
+    }
+  } nobreak {
+    0
+  }
+  Some({ kind: icons.kind, index: selected, showValue: icons.showValue, })
+}
+
+///|
+fn IconSet::markup(
+  self : IconSet,
+  priority : Int,
+) -> String raise @failure.Failure {
+  let thresholds = self.thresholds
+    .map(stop => {
+      "<od:cfvo type=\"\{stop.kind}\" gte=\"\{if stop.greaterOrEqual {1} else {0}}\"" +
+      (if stop.value.is_empty() {
+        ""
+      } else {
+        " val=\"\{escaped_attribute(stop.value)}\""
+      }) +
+      "/>"
+    })
+    .join("")
+  "<od:cfRule xmlns:od='\{spreadsheet_uri}' type='iconSet' priority='\{priority}'><od:iconSet iconSet='\{self.kind}' reverse='\{if self.reverse {1} else {0}}' showValue='\{if self.showValue {1} else {0}}' percent='\{if self.percent {1} else {0}}'>\{thresholds}</od:iconSet></od:cfRule>"
+}

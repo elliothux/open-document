@@ -190,10 +190,13 @@ export type {
   XlsxConditionalStop,
   XlsxConditionalThreshold,
   XlsxDataBar,
+  XlsxIconSet,
+  XlsxIconThreshold,
 } from "@open-document/wasm/xlsx";
 export {
   conditionalThresholds,
   conditionalDatePeriods,
+  conditionalIconSets,
 } from "@open-document/wasm/xlsx";
 export { validationKinds, validationOperators } from "@open-document/wasm/xlsx";
 export type {

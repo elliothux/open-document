@@ -455,7 +455,7 @@ export function ClipboardGroup({
       copiedObjects.every(
         (object) =>
           !object.parent &&
-          ["shape", "image", "group"].includes(object.kind) &&
+          ["shape", "image", "group", "table", "chart"].includes(object.kind) &&
           !object.duplicateReason &&
           object.equations.length === 0 &&
           !object.media,

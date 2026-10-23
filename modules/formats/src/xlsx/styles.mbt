@@ -18,6 +18,7 @@ priv struct CellStyle {
   format : String
   diagnostic : String
   bar : ConditionalBar?
+  icon : ConditionalIcon?
   formula_hidden : Bool
   locked : Bool
 } derive(Eq)
@@ -43,6 +44,7 @@ fn default_style() -> CellStyle {
     format: "General",
     diagnostic: "",
     bar: None,
+    icon: None,
     formula_hidden: false,
     locked: true,
   }

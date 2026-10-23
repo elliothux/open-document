@@ -10,7 +10,9 @@ fn Session::table_style_resource(
   let style = book.styles[id]
   let markup = style.tree.standalone_markup(style.tree.document, style.node.id)
   if book.part is Some(part) {
-    let document = self.part_document(part)
+    let document = parts
+      .get(part)
+      .unwrap_or_else(() => self.part_document(part))
     if document
       .nodes()
       .any(node => {
@@ -24,7 +26,11 @@ fn Session::table_style_resource(
       insertion(document.nodes()[0], markup),
     ])
     parts[part] = next
-    edits.push((part, edit))
+    if created.contains(part) {
+      created[part] = next
+    } else {
+      edits.push((part, edit))
+    }
     return
   }
   let segments = self.main.part.split("/").map(s => s.to_owned()).to_array()
@@ -76,7 +82,9 @@ fn Session::table_style_resource(
         "<od:Override xmlns:od=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{xml_attribute(part)}\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.tableStyles+xml\"/>",
       ),
     ] {
-    let original = self.part_document(path)
+    let original = parts
+      .get(path)
+      .unwrap_or_else(() => self.part_document(path))
     let (next, edit) = original.edit_source([
       insertion(original.nodes()[0], xml),
     ])

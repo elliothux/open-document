@@ -8,6 +8,7 @@ pub(all) struct ConditionalFormat {
   format : CellFormat
   stops : Array[ConditionalStop]
   bar : DataBar?
+  icons : IconSet?
   rank : ConditionalRank?
   average : ConditionalAverage?
   text : String?
@@ -28,6 +29,7 @@ pub fn ConditionalFormat::default() -> ConditionalFormat {
     format: CellFormat::new(fill=Some("fff2cc")),
     stops: [],
     bar: None,
+    icons: None,
     rank: None,
     average: None,
     text: None,
@@ -93,6 +95,9 @@ fn ConditionalFormat::json(self : ConditionalFormat) -> Json {
   if self.bar is Some(bar) && value is Object(fields) {
     fields["bar"] = Json({ ..bar, color: bar.color.to_lower(), })
   }
+  if self.icons is Some(icons) && value is Object(fields) {
+    fields["icons"] = Json(icons)
+  }
   if self.rank is Some(rank) && value is Object(fields) {
     fields["rank"] = Json(rank)
   }
@@ -129,6 +134,7 @@ fn ConditionalRule::settings(self : ConditionalRule) -> ConditionalFormat {
     format: self.style,
     stops: self.stops,
     bar: self.bar,
+    icons: self.icons,
     rank: self.rank,
     average: self.average,
     text: self.text,
@@ -151,6 +157,22 @@ fn ConditionalFormat::check(
         conditional_text_formula(self.kind, text, rule_anchor(ranges, true)),
       )
     }
+    return
+  }
+  if self.kind == "iconSet" {
+    guard self.operator.is_empty() &&
+      self.formula1.is_empty() &&
+      self.formula2.is_empty() &&
+      !self.stopIfTrue &&
+      self.format == CellFormat::new() &&
+      self.stops.is_empty() &&
+      self.bar is None &&
+      self.icons is Some(icons) else {
+      @failure.reject(
+        "invalid-operation", "Invalid conditional icon set settings",
+      )
+    }
+    icons.check(rule_anchor(ranges, true), sheets, index, work)
     return
   }
   if self.kind == "dataBar" {
@@ -227,6 +249,9 @@ fn ConditionalFormat::markup(
   anchor : Address,
   colors~ : Array[String?] = [],
 ) -> String raise @failure.Failure {
+  if self.icons is Some(icons) {
+    return icons.markup(priority)
+  }
   if self.kind == "dataBar" && self.bar is Some(bar) {
     let thresholds = [bar.minimum, bar.maximum]
       .map(stop => {

@@ -11,6 +11,8 @@ priv struct ObjectClipboardResource {
   id : String
   target : String
   image : Bytes?
+  style : Ref?
+  chart : @layout.ChartData?
 }
 
 ///|
@@ -23,6 +25,7 @@ fn clipboard_object_identity(
     "cxnSp" => "nvCxnSpPr"
     "pic" => "nvPicPr"
     "grpSp" => "nvGrpSpPr"
+    "graphicFrame" => "nvGraphicFramePr"
     _ =>
       @failure.reject("protected-content", "Unsupported portable object kind")
   }
@@ -116,7 +119,7 @@ fn read_object_fragment(
         c == '-'
       }) &&
       !ids.contains(id) &&
-      ["image", "external"].contains(kind) else {
+      ["image", "external", "tableStyle", "chart"].contains(kind) else {
       @failure.reject("invalid-operation", "Invalid portable object resource")
     }
     ids.add(id)
@@ -145,18 +148,105 @@ fn read_object_fragment(
     } else {
       None
     }
+    let style = if kind == "tableStyle" {
+      let document = @xml.Document::parse(
+        @utf8.encode(value),
+        "clipboard-style",
+        budget.xml_depth,
+        budget.entry_bytes.min(4194304),
+      )
+      let tree = Tree::new("clipboard-style", document)
+      let root = tree.root("tblStyle", uri=drawing_uri)
+      guard root.attribute("styleId") == Some(id) &&
+        !value.contains("<!--") &&
+        !value.contains("<?") &&
+        document
+        .nodes()
+        .all(node => {
+          node.uri == drawing_uri &&
+          !["schemeClr", "sysClr", "fontRef", "fillRef", "lnRef"].contains(
+            node.name,
+          ) &&
+          node.attributes.all(a => {
+            a.uri.is_empty() &&
+            !(a.name == "typeface" && a.value.has_prefix("+"))
+          })
+        }) else {
+        @failure.reject(
+          "protected-content", "Table clipboard styles must be independent",
+        )
+      }
+      let style = { tree, node: root, }
+      ignore(
+        table_style_parts(
+          {
+            part: None,
+            default_id: id,
+            styles: Map([(id, style)]),
+            reason: "",
+          },
+          id,
+        ),
+      )
+      Some(style)
+    } else {
+      None
+    }
+    let chart = if kind == "chart" {
+      guard value.length() <= 1048576 else {
+        @failure.reject("limit-exceeded", "Portable chart exceeds 1Mi units")
+      }
+      let document = @xml.Document::parse(
+        @utf8.encode(value),
+        "clipboard-chart",
+        budget.xml_depth,
+        budget.entry_bytes.min(4194304),
+      )
+      guard !value.contains("<!--") &&
+        !value[document.nodes()[0].start:].contains("<?") else {
+        @failure.reject("protected-content", "Invalid portable chart source")
+      }
+      let (data, link) = @chart.read_data("clipboard-chart", document)
+      guard link == "workbook" else {
+        @failure.reject(
+          "protected-content", "Unresolved portable chart workbook",
+        )
+      }
+      Some(data)
+    } else {
+      None
+    }
     resources.push({
       id,
-      target: if image is None {
+      target: if kind == "external" {
         value
       } else {
         ""
       },
       image,
+      style,
+      chart,
     })
   }
   let used : Set[String] = Set([])
   for node in tree.document.nodes() {
+    if node.uri == drawing_uri && node.name == "tbl" {
+      guard tree.one(node.id, "tblPr").bind(p => tree.one(p.id, "tableStyleId"))
+        is Some(_) else {
+        @failure.reject(
+          "protected-content", "Portable tables require an independent style",
+        )
+      }
+    }
+    if node.uri == drawing_uri && node.name == "tableStyleId" {
+      let id = node.text.trim().to_owned()
+      guard resources.any(resource => {
+        resource.id == id && resource.style is Some(_)
+      }) else {
+        @failure.reject("protected-content", "Unresolved portable table style")
+      }
+      used.add(id)
+    }
     guard node.uri != presentation_uri || !["ph", "style"].contains(node.name) else {
       @failure.reject(
         "protected-content", "Portable objects must detach placeholder roles",
@@ -195,12 +285,22 @@ fn read_object_fragment(
         node.name == "hlinkClick" &&
         attr.name == "id" {
         "external"
+      } else if chart_frame_reference(tree, node) && attr.name == "id" {
+        "chart"
       } else {
         ""
       }
       guard resources.any(resource => {
         resource.id == attr.value &&
-        (if resource.image is Some(_) { "image" } else { "external" }) == kind
+        resource.style is None &&
+        (if resource.image is Some(_) {
+          "image"
+        } else if resource.chart is Some(_) {
+          "chart"
+        } else {
+          "external"
+        }) ==
+        kind
       }) else {
         @failure.reject(
           "protected-content", "Unresolved portable object resource",

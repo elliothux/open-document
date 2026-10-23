@@ -191,6 +191,15 @@ fn Session::fit_sizes(
       self.date1904,
       hidden=current.locked && style.formula_hidden,
     )
+    let icon_width = if style.icon is Some(_) { 16.5 } else { 0.0 }
+    let text = if style.icon.map(icon => !icon.showValue).unwrap_or(false) {
+      ""
+    } else {
+      text
+    }
+    if icon_width > 0 {
+      sizes[axis] = sizes[axis].max(if rows { 15.0 } else { icon_width })
+    }
     if rows &&
       text.is_empty() &&
       !rich.contains(cell.address.name()) &&
@@ -218,6 +227,7 @@ fn Session::fit_sizes(
     let indent = style.indent.to_double() * indent_unit
     let available = width -
       4.5 -
+      icon_width -
       (if horizontal == "distributed" {
         2 * indent
       } else if (
@@ -289,6 +299,7 @@ fn Session::fit_sizes(
       ((text_height + 3) / 0.75).ceil() * 0.75
     } else {
       text_width +
+      icon_width +
       (if horizontal == "distributed" {
         2 * indent
       } else if ["left", "right"].contains(horizontal) {

@@ -27,6 +27,9 @@ fn Session::conditional_query(
     if rule.bar is Some(bar) {
       units += bar.minimum.value.length() + bar.maximum.value.length()
     }
+    if rule.icons is Some(icons) {
+      units += icons.thresholds.fold(init=0, (n, t) => n + t.value.length())
+    }
     if units > 1048576 {
       return {
         "rules": [],

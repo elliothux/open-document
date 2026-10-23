@@ -11,17 +11,24 @@ fn clipboard_source_change(source : Ref, markup : String) -> @xml.SourceChange {
 
 ///|
 fn check_clipboard_object(object : Object) -> Unit raise @failure.Failure {
-  guard ["shape", "image", "group"].contains(object.kind) &&
+  guard ["shape", "image", "group", "table", "chart"].contains(object.kind) &&
     object.geometry is Some(_) &&
     ["", "Group members are read-only"].contains(object.read_only) &&
     object.diagnostic.is_empty() &&
     (object.paragraphs.is_empty() || object.text_reason.is_empty()) &&
     object.media is None else {
     @failure.reject(
-      "protected-content", "Object clipboard requires supported local shapes pictures or groups",
+      "protected-content", "Object clipboard requires supported local shapes pictures tables charts or groups",
     )
   }
-  for paragraph in object.paragraphs {
+  let paragraphs = object.table
+    .map(table => {
+      table.rows
+      .map(row => row.cells.map(cell => cell.paragraphs).flatten())
+      .flatten()
+    })
+    .unwrap_or(object.paragraphs)
+  for paragraph in paragraphs {
     guard paragraph.runs.all(run => {
       run.math is None &&
       run.date_field is None &&
@@ -157,14 +164,33 @@ fn clipboard_object_style(
   if placeholder_node(source) is Some(ph) {
     changes.push(clipboard_source_change(ph, ""))
   }
-  if source.child("txBody", uri=presentation_uri) is Some(body) {
+  changes.append(
+    clipboard_body_style(
+      source,
+      object.body,
+      object.paragraphs,
+      presentation_uri,
+    ),
+  )
+  changes
+}
+
+///|
+fn clipboard_body_style(
+  source : Ref,
+  settings : Body,
+  paragraphs : Array[TextParagraph],
+  uri : String,
+) -> Array[@xml.SourceChange] raise @failure.Failure {
+  let changes = []
+  if source.child("txBody", uri~) is Some(body) {
     let attrs : Map[String, String] = {
-      "lIns": (object.body.left * 12700).round().to_int64().to_string(),
-      "rIns": (object.body.right * 12700).round().to_int64().to_string(),
-      "tIns": (object.body.top * 12700).round().to_int64().to_string(),
-      "bIns": (object.body.bottom * 12700).round().to_int64().to_string(),
-      "anchor": object.body.anchor,
-      "wrap": if object.body.wrap {
+      "lIns": (settings.left * 12700).round().to_int64().to_string(),
+      "rIns": (settings.right * 12700).round().to_int64().to_string(),
+      "tIns": (settings.top * 12700).round().to_int64().to_string(),
+      "bIns": (settings.bottom * 12700).round().to_int64().to_string(),
+      "anchor": settings.anchor,
+      "wrap": if settings.wrap {
         "square"
       } else {
         "none"
@@ -189,7 +215,7 @@ fn clipboard_object_style(
         "lstStyle", "p",
       ]),
     )
-    for paragraph in object.paragraphs {
+    for paragraph in paragraphs {
       let props = paragraph.source.child("pPr")
       changes.push(
         paint_child_change(

@@ -9,7 +9,10 @@ pub fn chart_data(
 ) -> @layout.ChartData raise @failure.Failure {
   let workbook = Session::open(bytes, budget)
   defer workbook.close()
-  guard workbook.query(range=Some("A1:XFD1048576"))
+  guard workbook.query(
+      sheet=Some(workbook.sheets[0].id),
+      range=Some("A1:XFD1048576"),
+    )
     is { "cells": Array(cells), .. } else {
     @failure.reject("invalid-chart", "Chart workbook is unavailable")
   }
@@ -92,4 +95,61 @@ pub fn chart_data(
   }
   result.validate()
   result
+}
+
+///|
+/// Creates an independent plain-value chart workbook with literal labels and typed numbers.
+pub fn chart_workbook(
+  data : @layout.ChartData,
+  budget : @archive.Budget,
+) -> Bytes raise @failure.Failure {
+  data.validate()
+  let blank = Session::create(budget)
+  defer blank.close()
+  let rows = StringBuilder()
+  for row in 0..<=data.categories.length() {
+    rows <+ "<row r='\{row+1}'>"
+    for column in 0..<=data.series.length() {
+      let address : Address = { row: row + 1, column: column + 1, }
+      let value : Value = if row == 0 {
+        Text(
+          if column == 0 {
+            data.label
+          } else {
+            data.series[column - 1].name
+          },
+        )
+      } else if column == 0 {
+        Text(data.categories[row - 1])
+      } else {
+        data.series[column - 1].values[row - 1]
+        .map(value => Value::Number(value))
+        .unwrap_or(Blank)
+      }
+      let (kind, content) = content_xml("", {
+        value,
+        formula: None,
+        keep_shared: false,
+      })
+      rows <+ "<c r='\{address.name()}'\{kind}>\{content}</c>"
+    }
+    rows <+ "</row>"
+  }
+  let range : Range = {
+    top: 1,
+    left: 1,
+    bottom: data.categories.length() + 1,
+    right: data.series.length() + 1,
+  }
+  let worksheet = blank.sheets[0].document
+    .source()
+    .replace(old="ref=\"A1\"", new="ref=\"\{range.name()}\"")
+    .replace(old="<sheetData/>", new="<sheetData>\{rows}</sheetData>")
+  let bytes = @utf8.encode(worksheet)
+  guard bytes.length() <= budget.entry_bytes else {
+    @failure.reject(
+      "limit-exceeded", "Chart snapshot worksheet exceeds entry budget",
+    )
+  }
+  blank.opc.save(Map([(blank.sheets[0].id, bytes)]))
 }

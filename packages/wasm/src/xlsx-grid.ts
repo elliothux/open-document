@@ -23,6 +23,7 @@ export interface XlsxViewport extends DrawingBatch {
   cells: {
     cell: XlsxCell;
     display: string;
+    accessibleText?: string;
     rect: DrawRect;
     clip: DrawRect;
     range: CellRange;

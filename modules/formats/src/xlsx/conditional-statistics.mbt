@@ -39,6 +39,11 @@ pub extend ConditionalAverage with ToJson::{to_json}
 fn ConditionalFormat::check_nonformula(
   self : ConditionalFormat,
 ) -> Bool raise @failure.Failure {
+  guard (self.icons is Some(_)) == (self.kind == "iconSet") else {
+    @failure.reject(
+      "invalid-operation", "Only icon set rules have icon settings",
+    )
+  }
   guard (self.timePeriod is Some(_)) == (self.kind == "timePeriod") else {
     @failure.reject(
       "invalid-operation", "Only date rules require timePeriod settings",

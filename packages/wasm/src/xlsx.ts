@@ -89,6 +89,7 @@ export {
   checkXlsxConditionalFormat,
   conditionalThresholds,
   conditionalDatePeriods,
+  conditionalIconSets,
 } from "./xlsx-conditional.js";
 export type {
   XlsxConditionalFormat,
@@ -99,6 +100,8 @@ export type {
   XlsxConditionalStop,
   XlsxConditionalThreshold,
   XlsxDataBar,
+  XlsxIconSet,
+  XlsxIconThreshold,
 } from "./xlsx-conditional.js";
 export type {
   XlsxSparkline,
@@ -282,6 +285,8 @@ export function xlsxViewport(value: unknown): XlsxViewport {
     if (
       addresses.has(cell.address) ||
       typeof item.display !== "string" ||
+      (item.accessibleText !== undefined &&
+        typeof item.accessibleText !== "string") ||
       typeof item.diagnostic !== "string" ||
       !integer(range.top, 1, 1048576) ||
       !integer(range.bottom, Number(range.top), 1048576) ||

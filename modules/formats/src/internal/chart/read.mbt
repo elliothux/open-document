@@ -337,12 +337,22 @@ pub fn read(
   parts : Map[String, @xml.Document],
 ) -> Resource raise @failure.Failure {
   let document = parts.get(part).unwrap_or_else(() => opc.xml(part))
+  let (data, workbook_link) = read_data(part, document)
+  let workbook = link(opc, part, workbook_link, "package", parts)
+  { part, workbook, data, }
+}
+
+///|
+/// Reads a supported native chart cache without resolving its workbook relationship.
+pub fn read_data(
+  part : String,
+  document : @xml.Document,
+) -> (@layout.ChartData, String) raise @failure.Failure {
   let (root, data) = read_chart(part, document)
   let external = chart_child(root, "externalData")
   let workbook_link = external.node
     .attribute("id", uri=relationship_uri)
     .unwrap_or("")
-  let workbook = link(opc, part, workbook_link, "package", parts)
   let expected = @xml.Document::parse(
     @utf8.encode(markup(data, workbook_link)),
     part,
@@ -358,5 +368,5 @@ pub fn read(
       "unsupported-chart", "Chart styles, axes or source formulas require support",
     )
   }
-  { part, workbook, data, }
+  (data, workbook_link)
 }

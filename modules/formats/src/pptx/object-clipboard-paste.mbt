@@ -48,6 +48,38 @@ pub fn Session::paste_object_fragment(
     links.filter(r => r.owner == original.tree.part).map(r => r.id),
   )
   for resource in fragment.resources {
+    if resource.chart is Some(data) {
+      remap[resource.id] = self.attach_clipboard_chart(
+        data, id, parts, media, created, created_media, edits, reserved,
+      )
+      continue
+    }
+    if resource.style is Some(style) {
+      let book = read_table_styles(self.opc, self.main, self.cache, parts)
+      let identity = for sequence in 0..<=self.budget.entries {
+        let value = document_guid(next + sequence.to_int64())
+        if !book.styles.contains(value) {
+          break value
+        }
+      } nobreak {
+        @failure.reject("limit-exceeded", "Table style identities exhausted")
+      }
+      let (document, _) = style.tree.document.edit_source([
+        attribute_change(style, "styleId", identity),
+      ])
+      let tree = Tree::new(style.tree.part, document)
+      let styles = book.styles.copy()
+      styles[identity] = { tree, node: document.nodes()[0], }
+      self.table_style_resource(
+        { ..book, styles, },
+        identity,
+        parts,
+        created,
+        edits,
+      )
+      remap[resource.id] = identity
+      continue
+    }
     if resource.image is None {
       remap[resource.id] = self.hyperlink_relationship(
         original.tree.part,
@@ -107,7 +139,16 @@ pub fn Session::paste_object_fragment(
     )
   }
   let changes : Array[@xml.SourceChange] = []
+  let copied_tree = Tree::new("clipboard", document)
   for node in document.nodes() {
+    if node.uri == drawing_uri && node.name == "tableStyleId" {
+      changes.push(
+        clipboard_source_change(
+          { tree: copied_tree, node, },
+          "<a:tableStyleId xmlns:a='\{drawing_uri}'>\{remap[node.text.trim().to_owned()]}</a:tableStyleId>",
+        ),
+      )
+    }
     for attr in node.attributes {
       if attr.uri == relationship_uri && !attr.value.is_empty() {
         changes.push({
@@ -173,7 +214,12 @@ pub fn Session::paste_object_fragment(
         )
       }
     }
-    if object.kind != "group" {
+    if object.table is Some(_) {
+      ignore(object.paint_table(probe, profile))
+    } else if object.chart is Some(chart) {
+      let geometry = object.geometry.unwrap()
+      ignore(chart.paint(geometry.width, geometry.height, probe, profile))
+    } else if object.kind != "group" {
       let (_, _, problem) = fit_text(
         object,
         object.geometry.unwrap(),

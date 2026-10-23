@@ -110,6 +110,16 @@ fn Session::clipboard_object_links(
           node.uri == drawing_uri &&
           node.name == "hlinkClick" &&
           attr.name == "id"
+        ) ||
+        (
+          chart_frame_reference(tree, node) &&
+          attr.name == "id" &&
+          resources
+          .values()
+          .any(resource => {
+            resource is { "id": String(id), "kind": String("chart"), .. } &&
+            id == attr.value
+          })
         ) else {
         @failure.reject(
           "protected-content", "Unsupported object clipboard relationship",
@@ -167,6 +177,14 @@ fn Session::copy_object_fragment(
   let changes = []
   for old in objects {
     let object = positioned.object(old.id)
+    if object.table is Some(_) {
+      changes.append(self.clipboard_table_style(object, resources))
+      continue
+    }
+    if object.chart is Some(_) {
+      changes.push(self.clipboard_chart(object, resources))
+      continue
+    }
     let image = object.image.map(key => {
       self.clipboard_object_resource("image", key, resources)
     })

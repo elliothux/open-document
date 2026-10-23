@@ -12,6 +12,10 @@ import {
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { ConditionalStatisticsFields } from "./conditional-statistics.js";
+import {
+  ConditionalIconFields,
+  initialConditionalIcons,
+} from "./conditional-icons.js";
 
 function scaleStops(): XlsxConditionalStop[] {
   return [
@@ -236,6 +240,7 @@ export function XlsxConditional({
     expression: t.conditionalFormula,
     colorScale: t.conditionalColorScale,
     dataBar: t.conditionalDataBar,
+    iconSet: t.conditionalIconSet,
     top10: t.conditionalRank,
     aboveAverage: t.conditionalAverage,
     duplicateValues: t.conditionalDuplicates,
@@ -335,6 +340,18 @@ export function XlsxConditional({
               value={rule.kind}
               onChange={(e) => {
                 const kind = e.currentTarget.value;
+                if (kind === "iconSet") {
+                  setRule({
+                    kind,
+                    operator: "",
+                    formula1: "",
+                    formula2: "",
+                    stopIfTrue: false,
+                    format: {},
+                    icons: initialConditionalIcons(),
+                  });
+                  return;
+                }
                 if (
                   kind === "top10" ||
                   kind === "aboveAverage" ||
@@ -357,7 +374,9 @@ export function XlsxConditional({
                     formula2: "",
                     stopIfTrue: rule.stopIfTrue,
                     format:
-                      rule.kind === "colorScale" || rule.kind === "dataBar"
+                      rule.kind === "colorScale" ||
+                      rule.kind === "dataBar" ||
+                      rule.kind === "iconSet"
                         ? { fill: "fff2cc" }
                         : rule.format,
                     ...(kind === "top10"
@@ -410,7 +429,9 @@ export function XlsxConditional({
                         formula2: "",
                         stopIfTrue: rule.stopIfTrue,
                         format:
-                          rule.kind === "colorScale" || rule.kind === "dataBar"
+                          rule.kind === "colorScale" ||
+                          rule.kind === "dataBar" ||
+                          rule.kind === "iconSet"
                             ? { fill: "fff2cc" }
                             : rule.format,
                       },
@@ -424,7 +445,13 @@ export function XlsxConditional({
               ))}
             </select>
           </label>
-          {rule.kind === "colorScale" || rule.kind === "dataBar" ? (
+          {rule.kind === "iconSet" ? (
+            <ConditionalIconFields
+              rule={rule}
+              update={setRule}
+              locale={state.locale}
+            />
+          ) : rule.kind === "colorScale" || rule.kind === "dataBar" ? (
             <VisualRuleFields
               rule={rule}
               update={setRule}

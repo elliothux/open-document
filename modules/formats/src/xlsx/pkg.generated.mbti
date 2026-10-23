@@ -10,6 +10,8 @@ import {
 // Values
 pub fn chart_data(String, String, Bytes, @archive.Budget, hole_size? : Int?, legend? : String?) -> @layout.ChartData raise @failure.Failure
 
+pub fn chart_workbook(@layout.ChartData, @archive.Budget) -> Bytes raise @failure.Failure
+
 // Errors
 
 // Types and methods
@@ -81,6 +83,7 @@ pub(all) struct ConditionalFormat {
   format : CellFormat
   stops : Array[ConditionalStop]
   bar : DataBar?
+  icons : IconSet?
   rank : ConditionalRank?
   average : ConditionalAverage?
   text : String?
@@ -89,6 +92,15 @@ pub(all) struct ConditionalFormat {
 pub fn ConditionalFormat::default() -> Self
 pub fn ConditionalFormat::equal(Self, Self) -> Bool
 pub fn ConditionalFormat::not_equal(Self, Self) -> Bool
+
+pub(all) struct ConditionalIconThreshold {
+  kind : String
+  value : String
+  greaterOrEqual : Bool
+} derive(Eq, ToJson)
+pub fn ConditionalIconThreshold::equal(Self, Self) -> Bool
+pub fn ConditionalIconThreshold::not_equal(Self, Self) -> Bool
+pub fn ConditionalIconThreshold::to_json(Self) -> Json
 
 pub(all) struct ConditionalRank {
   rank : Int
@@ -279,6 +291,17 @@ pub fn HeaderFooter::default() -> Self
 pub fn HeaderFooter::equal(Self, Self) -> Bool
 pub fn HeaderFooter::not_equal(Self, Self) -> Bool
 pub fn HeaderFooter::to_json(Self) -> Json
+
+pub(all) struct IconSet {
+  kind : String
+  reverse : Bool
+  showValue : Bool
+  percent : Bool
+  thresholds : Array[ConditionalIconThreshold]
+} derive(Eq, ToJson)
+pub fn IconSet::equal(Self, Self) -> Bool
+pub fn IconSet::not_equal(Self, Self) -> Bool
+pub fn IconSet::to_json(Self) -> Json
 
 pub(all) struct NameSettings {
   original : String?

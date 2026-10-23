@@ -136,6 +136,7 @@ fn Session::paint_cells(
       }
       let uncalculated = cell.bind(cell => cell.formula) is Some(_) &&
         calculated is None
+      let accessible = text
       if printing && (uncalculated || missing || !style.diagnostic.is_empty()) {
         @failure.reject(
           "unsupported-print",
@@ -177,6 +178,12 @@ fn Session::paint_cells(
       if !foreign && style.bar is Some(bar) {
         bar.paint(page, rect)
         if !bar.showValue {
+          text = ""
+        }
+      }
+      if !foreign && style.icon is Some(icon) {
+        icon.paint(page, rect, sheet.view.rtl)
+        if !icon.showValue {
           text = ""
         }
       }
@@ -231,6 +238,15 @@ fn Session::paint_cells(
         )
       } else {
         rect
+      }
+      let text_rect = if style.icon is Some(_) {
+        {
+          ..text_rect,
+          x: text_rect.x + (if sheet.view.rtl { 0 } else { 16.5 }),
+          width: (text_rect.width - 16.5).max(0),
+        }
+      } else {
+        text_rect
       }
       let indent = style.indent.to_double() * indent_unit
       let available = text_rect.width -
@@ -352,7 +368,7 @@ fn Session::paint_cells(
           }
         }
       }
-      cells.push({
+      let item : Json = {
         "cell": sheet.cell_json(
           address,
           self.cell_edit_reason(sheet, address),
@@ -364,7 +380,11 @@ fn Session::paint_cells(
         "rect": rect,
         "range": range,
         "diagnostic": style.diagnostic,
-      })
+      }
+      if style.icon is Some(_) && item is Object(fields) {
+        fields["accessibleText"] = Json(accessible)
+      }
+      cells.push(item)
     }
   }
   cells

@@ -32,6 +32,27 @@ fn xlsx_conditional_settings(
       None
     },
     format: xlsx_cell_format(format),
+    icons: if rule is { "icons": icons, .. } {
+      guard icons is { "thresholds": Array(thresholds), .. } &&
+        thresholds.length() == 3 else {
+        @failure.reject(
+          "invalid-operation", "Three icon thresholds are required",
+        )
+      }
+      Some({
+        kind: field_string(icons, "kind"),
+        reverse: xlsx_boolean(icons, "reverse"),
+        showValue: xlsx_boolean(icons, "showValue"),
+        percent: xlsx_boolean(icons, "percent"),
+        thresholds: thresholds.map(t => {
+          kind: field_string(t, "kind"),
+          value: field_string(t, "value"),
+          greaterOrEqual: xlsx_boolean(t, "greaterOrEqual"),
+        }),
+      })
+    } else {
+      None
+    },
     rank: if rule is { "rank": rank, .. } {
       guard rank is Object(fields) && fields.length() == 3 else {
         @failure.reject("invalid-operation", "Invalid conditional rank fields")
