@@ -129,5 +129,22 @@ fn Session::cached_pivot(
     axes,
     source_width: width,
     date1904: self.date1904,
+    native_dates: fields
+    .mapi((field, node) => {
+      if tree
+        .one(node.id, "sharedItems")
+        .map(items => {
+          tree.children
+          .get(items.id)
+          .unwrap_or([])
+          .any(node => node.name == "d")
+        })
+        .unwrap_or(false) {
+        Some(field)
+      } else {
+        None
+      }
+    })
+    .filter_map(value => value),
   }
 }

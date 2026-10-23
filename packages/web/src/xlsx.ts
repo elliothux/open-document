@@ -13,14 +13,14 @@ export {
 import {
   xlsxSlicers,
   checkXlsxSlicerSettings,
-  checkXlsxSlicerFrame,
-  type XlsxSlicerFrame,
+  checkXlsxDrawingFrame,
+  type XlsxDrawingFrame,
   type XlsxSlicerSettings,
 } from "@open-document/wasm/xlsx";
 export {
   xlsxSlicers,
   checkXlsxSlicerSettings,
-  checkXlsxSlicerFrame,
+  checkXlsxDrawingFrame,
 } from "@open-document/wasm/xlsx";
 export type {
   XlsxSlicer,
@@ -29,7 +29,7 @@ export type {
   XlsxSlicerEdit,
   XlsxSlicerView,
   XlsxSlicerSettings,
-  XlsxSlicerFrame,
+  XlsxDrawingFrame,
 } from "@open-document/wasm/xlsx";
 export {
   xlsxChartKinds,
@@ -325,13 +325,18 @@ export class XlsxClient extends XlsxDrawingClient {
       }),
     );
   }
-  async pivotPreview(revision: number, settings: XlsxPivotSettings) {
+  async pivotPreview(
+    revision: number,
+    settings: XlsxPivotSettings,
+    part?: string,
+  ) {
     checkXlsxPivotSettings(settings);
     return xlsxPivotPreview(
       await this.connection.request({
         operation: "pivotPreviewXlsx",
         revision,
         settings,
+        ...(part === undefined ? {} : { part }),
       }),
     );
   }
@@ -339,16 +344,16 @@ export class XlsxClient extends XlsxDrawingClient {
     revision: number,
     sheet: string,
     id: string,
-    frame: XlsxSlicerFrame,
+    frame: XlsxDrawingFrame,
     profile: Record<string, string>,
   ) {
-    checkXlsxSlicerFrame(frame);
+    checkXlsxDrawingFrame(frame);
     return xlsxQuery(
       await this.connection.request({
         operation: "frameXlsxSlicer",
         revision,
         sheet,
-        slicerId: id,
+        objectId: id,
         frame,
         profile,
       }),

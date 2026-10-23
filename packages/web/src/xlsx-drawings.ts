@@ -2,6 +2,8 @@ import type { Connection } from "./connection.js";
 import {
   checkXlsxTimelineSettings,
   type XlsxTimelineSettings,
+  checkXlsxDrawingFrame,
+  type XlsxDrawingFrame,
 } from "@open-document/wasm/xlsx";
 import {
   drawingClipboard,
@@ -32,6 +34,25 @@ import {
 
 export class XlsxDrawingClient {
   constructor(protected readonly connection: Connection) {}
+  async setTimelineFrame(
+    revision: number,
+    sheet: string,
+    id: string,
+    frame: XlsxDrawingFrame,
+    profile: Record<string, string>,
+  ): Promise<XlsxQuery> {
+    checkXlsxDrawingFrame(frame);
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "frameXlsxTimeline",
+        revision,
+        sheet,
+        objectId: id,
+        frame,
+        profile,
+      }),
+    );
+  }
   async insertTimeline(
     revision: number,
     sheet: string,

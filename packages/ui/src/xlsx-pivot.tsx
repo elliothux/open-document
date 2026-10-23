@@ -368,7 +368,7 @@ export function XlsxPivotsPanel({
         disabled={!valid}
         onClick={() =>
           controller.run(async () =>
-            setPreview(await editor.pivotPreview(settings)),
+            setPreview(await editor.pivotPreview(settings, editing)),
           )
         }
       >

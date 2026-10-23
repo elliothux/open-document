@@ -2,14 +2,13 @@ import { useState, type ReactNode } from "react";
 import type { SpreadsheetEditor } from "@open-document/web/spreadsheet-editor";
 import {
   checkXlsxSlicerSettings,
-  checkXlsxSlicerFrame,
-  type XlsxSlicerFrame,
   type XlsxSlicer,
   type XlsxSlicers,
   type XlsxPivots,
 } from "@open-document/web/xlsx";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { AnalysisFrameEditor } from "./xlsx-analysis-frame.js";
 
 export function XlsxSlicersPanel({
   editor,
@@ -77,7 +76,8 @@ export function XlsxSlicersPanel({
             }
           >
             {drawing?.slicer && (
-              <SlicerFrameEditor
+              <AnalysisFrameEditor
+                kind="slicer"
                 frame={drawing.slicer.frame}
                 state={state}
                 disabled={item.lockedPosition}
@@ -291,73 +291,6 @@ function SlicerMembers({
         {t.slicerDelete}
       </button>
       {children}
-    </fieldset>
-  );
-}
-
-function SlicerFrameEditor({
-  frame,
-  state,
-  disabled,
-  apply,
-}: {
-  frame: XlsxSlicerFrame;
-  state: UiSnapshot;
-  disabled: boolean;
-  apply: (frame: XlsxSlicerFrame) => void;
-}) {
-  const t = messages(state.locale);
-  const [draft, setDraft] = useState(frame);
-  let valid = true;
-  try {
-    checkXlsxSlicerFrame(draft);
-  } catch {
-    valid = false;
-  }
-  return (
-    <fieldset disabled={disabled}>
-      <legend>{t.slicerFrame}</legend>
-      <label>
-        {t.slicerAnchor}
-        <select
-          aria-label={t.slicerAnchor}
-          value={draft.anchor}
-          onChange={(event) => {
-            const anchor = event.currentTarget.value;
-            if (anchor === "fixed" || anchor === "move" || anchor === "size")
-              setDraft({ ...draft, anchor });
-          }}
-        >
-          <option value="fixed">{t.xlsxPictureFixed}</option>
-          <option value="move">{t.xlsxPictureMove}</option>
-          <option value="size">{t.xlsxPictureSize}</option>
-        </select>
-      </label>
-      {(
-        [
-          ["x", t.objectX],
-          ["y", t.objectY],
-          ["width", t.objectWidth],
-          ["height", t.objectHeight],
-        ] as const
-      ).map(([key, label]) => (
-        <label key={key}>
-          {label}
-          <input
-            type="number"
-            min={key === "x" || key === "y" ? 0 : 0.1}
-            max={key === "x" || key === "y" ? 1e9 : 14400}
-            step="any"
-            value={Number.isFinite(draft[key]) ? draft[key] : ""}
-            onChange={(event) =>
-              setDraft({ ...draft, [key]: event.currentTarget.valueAsNumber })
-            }
-          />
-        </label>
-      ))}
-      <button type="button" disabled={!valid} onClick={() => apply(draft)}>
-        {t.slicerFrameApply}
-      </button>
     </fieldset>
   );
 }

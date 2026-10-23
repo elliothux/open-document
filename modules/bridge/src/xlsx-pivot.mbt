@@ -1,10 +1,25 @@
 ///|
-fn xlsx_analysis_catalog(
+fn xlsx_analysis_query(
   session : @xlsx.Session,
   operation : String,
   request : Json,
 ) -> Json raise @failure.Failure {
   let revision = field_int(request, "revision")
+  if operation == "pivotPreviewXlsx" {
+    guard request is { "settings": settings, .. } else {
+      @failure.reject("invalid-operation", "Pivot settings are required")
+    }
+    return session.pivot_preview(
+      revision,
+      xlsx_pivot_settings(settings),
+      part=match request {
+        Object(fields) if !fields.contains("part") => None
+        { "part": String(part), .. } => Some(part)
+        _ =>
+          @failure.reject("invalid-operation", "Invalid pivot preview target")
+      },
+    )
+  }
   let sheet = field_string(request, "sheet")
   if operation == "timelinesXlsx" {
     session.timelines(revision, sheet)
@@ -207,11 +222,18 @@ fn xlsx_pivot_edit(
       range,
     )
   }
-  if action == "deleteSlicer" {
+  if action == "deleteSlicer" || action == "deleteTimeline" {
     guard change is Object(fields) &&
       fields.length() == 2 &&
       fields.keys().all(key => ["action", "name"].contains(key)) else {
-      @failure.reject("invalid-operation", "Invalid slicer deletion command")
+      @failure.reject("invalid-operation", "Invalid analysis deletion command")
+    }
+    if action == "deleteTimeline" {
+      return session.delete_timeline(
+        revision,
+        sheet,
+        field_string(change, "name"),
+      )
     }
     return session.delete_slicer(revision, sheet, field_string(change, "name"))
   }

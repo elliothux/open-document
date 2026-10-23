@@ -6,7 +6,7 @@ import type {
   XlsxChartSettings,
   XlsxChartFrame,
   XlsxSlicerSettings,
-  XlsxSlicerFrame,
+  XlsxDrawingFrame,
   XlsxTimelineSettings,
 } from "./xlsx.js";
 import type { XlsxQuery, XlsxSheetEdit } from "@open-document/wasm/xlsx";
@@ -48,9 +48,20 @@ export abstract class SpreadsheetObjects {
       ),
     );
   }
-  setSlicerFrame(id: string, frame: XlsxSlicerFrame): Promise<void> {
+  setSlicerFrame(id: string, frame: XlsxDrawingFrame): Promise<void> {
     return this.change(() =>
       this.client.setSlicerFrame(
+        this.currentState.revision,
+        this.currentState.sheet,
+        id,
+        frame,
+        this.profile,
+      ),
+    );
+  }
+  setTimelineFrame(id: string, frame: XlsxDrawingFrame): Promise<void> {
+    return this.change(() =>
+      this.client.setTimelineFrame(
         this.currentState.revision,
         this.currentState.sheet,
         id,

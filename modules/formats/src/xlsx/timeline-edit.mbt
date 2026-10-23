@@ -2,6 +2,7 @@
 fn Session::affected_timeline_caches(
   self : Session,
   pivots : Array[PivotLocation],
+  date_caches~ : Array[String] = [],
 ) -> Array[TimelineCache] raise @failure.Failure {
   let result : Array[TimelineCache] = []
   let known = self.pivot_locations()
@@ -17,7 +18,18 @@ fn Session::affected_timeline_caches(
     ) {
     let document = self.part_xml(part)
     let tree = Tree::new(document)
-    if !tree
+    let shared = !date_caches.is_empty() &&
+      tree
+      .timeline_children(0, "state")
+      .any(node => {
+        date_caches.contains(
+          self.timeline_pivot_cache(
+            node.attribute("pivotCacheId").unwrap_or(""),
+          ),
+        )
+      })
+    if !shared &&
+      !tree
       .timeline_children(0, "pivotTables")
       .any(list => {
         tree
@@ -41,18 +53,6 @@ fn Session::affected_timeline_caches(
     result.push(self.read_timeline_cache(part, known))
   }
   result
-}
-
-///|
-fn Session::protect_timeline_pivots(
-  self : Session,
-  pivots : Array[PivotLocation],
-) -> Unit raise @failure.Failure {
-  guard self.affected_timeline_caches(pivots).is_empty() else {
-    @failure.reject(
-      "protected-content", "Linked timelines require coordinated pivot refresh or deletion",
-    )
-  }
 }
 
 ///|

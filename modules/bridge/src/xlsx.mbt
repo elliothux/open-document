@@ -58,17 +58,8 @@ fn Foundation::xlsx_operation(
     @failure.reject("session-required", "Open an XLSX workbook first")
   }
   match operation {
-    "pivotsXlsx" | "slicersXlsx" | "timelinesXlsx" =>
-      xlsx_analysis_catalog(session, operation, request)
-    "pivotPreviewXlsx" => {
-      guard request is { "settings": settings, .. } else {
-        @failure.reject("invalid-operation", "Pivot settings are required")
-      }
-      session.pivot_preview(
-        field_int(request, "revision"),
-        xlsx_pivot_settings(settings),
-      )
-    }
+    "pivotsXlsx" | "slicersXlsx" | "timelinesXlsx" | "pivotPreviewXlsx" =>
+      xlsx_analysis_query(session, operation, request)
     "duplicatesXlsx" | "textColumnsXlsx" =>
       xlsx_data(session, operation, request)
     "exportXlsxCsv" =>
@@ -150,7 +141,7 @@ fn Foundation::xlsx_operation(
       }
       if [
           "createPivot", "refreshPivot", "updatePivot", "deletePivot", "filterSlicer",
-          "selectSlicer", "scrollSlicer", "deleteSlicer", "filterTimeline",
+          "selectSlicer", "scrollSlicer", "deleteSlicer", "filterTimeline", "deleteTimeline",
         ].contains(field_string(change, "action")) {
         return xlsx_pivot_edit(
           session,

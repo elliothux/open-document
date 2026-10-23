@@ -152,7 +152,9 @@ export type XlsxSheetEdit =
   | { action: "visibility"; state: "visible" | "hidden" | "veryHidden" };
 
 export function checkXlsxSheetEdit(value: unknown): void {
-  if (record(value).action === "filterTimeline") {
+  if (
+    ["filterTimeline", "deleteTimeline"].includes(String(record(value).action))
+  ) {
     checkXlsxTimelineEdit(value);
     return;
   }

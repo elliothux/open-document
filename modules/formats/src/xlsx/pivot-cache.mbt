@@ -53,6 +53,7 @@ priv struct PivotCache {
   date1904 : Bool
   source_width : Int
   axes : Map[Int, Array[Int]]
+  native_dates : Array[Int]
 }
 
 ///|
@@ -439,6 +440,7 @@ fn Session::pivot_cache(
     groups,
     date1904: self.date1904,
     source_width,
+    native_dates: [],
     axes,
   }
   for context in [settings] + peers {
@@ -571,9 +573,34 @@ pub fn Session::pivot_preview(
   self : Session,
   revision : Int,
   settings : PivotSettings,
+  part~ : String? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
-  let layout = self.pivot_cache(settings).layout(settings)
+  guard self.read_only.is_empty() else {
+    @failure.reject("protected-content", self.read_only)
+  }
+  let layout = if part is Some(part) {
+    let known = self.pivot_locations()
+    guard known.iter().find_first(pivot => pivot.part == part) is Some(pivot) else {
+      @failure.reject(
+        "invalid-operation", "Pivot preview target is unavailable",
+      )
+    }
+    let peers = known.filter(peer => peer.cache == pivot.cache)
+    let timelines = self.affected_timeline_caches(peers)
+    if timelines.is_empty() {
+      self.pivot_cache(settings).layout(settings)
+    } else {
+      let (data, next, _) = self.timeline_refresh_group(
+        peers,
+        timelines,
+        replacement=Some((part, settings)),
+      )
+      data.layout(next[peers.search_by(peer => peer.part == part).unwrap()])
+    }
+  } else {
+    self.pivot_cache(settings).layout(settings)
+  }
   let axes = layout.settings
   let preview : Json = {
     "revision": revision,

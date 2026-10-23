@@ -123,19 +123,19 @@ fn SheetObject::check_change(
   remove : Bool,
   rect? : @layout.Border,
   crop? : Array[Double],
-  slicer_frame~ : Bool = false,
+  analysis_frame~ : Bool = false,
 ) -> Unit raise @failure.Failure {
-  guard self.timeline is None else {
+  guard self.timeline is None || analysis_frame else {
     @failure.reject(
       "protected-content", "Timeline frames require coordinated editing",
     )
   }
-  guard self.slicer is None || slicer_frame else {
+  guard self.slicer is None || analysis_frame else {
     @failure.reject(
       "protected-content", "Slicer frame changes require coordinated resource editing",
     )
   }
-  if self.slicer is Some(slicer) && slicer_frame && slicer.control.locked {
+  if self.slicer is Some(slicer) && analysis_frame && slicer.control.locked {
     @failure.reject("protected-content", "Slicer frame is locked")
   }
   for node in self.tree.document.nodes() {

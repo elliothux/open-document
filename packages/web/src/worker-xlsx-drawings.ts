@@ -4,6 +4,7 @@ const drawingOperations = [
   "insertXlsxTimeline",
   "insertXlsxSlicer",
   "frameXlsxSlicer",
+  "frameXlsxTimeline",
   "picturesXlsx",
   "captureDrawingXlsx",
   "drawingFragmentImageXlsx",
@@ -54,7 +55,15 @@ export function drawingOperation(
       return workbook.setSlicerFrame(
         request.revision,
         request.sheet,
-        request.slicerId,
+        request.objectId,
+        request.frame,
+        request.profile,
+      );
+    case "frameXlsxTimeline":
+      return workbook.setTimelineFrame(
+        request.revision,
+        request.sheet,
+        request.objectId,
         request.frame,
         request.profile,
       );

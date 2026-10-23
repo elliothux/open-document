@@ -340,81 +340,9 @@ fn Session::pivot_settings(
     )
   }
   let cache = self.part_xml(pivot.cache)
-  pivot_plain_source(cache)
+  pivot_cache_profile(cache, records.id)
   let cache_tree = Tree::new(cache)
   let cache_root = cache_tree.root("pivotCacheDefinition")
-  guard cache_root.attribute(
-      "id",
-      uri=relationship_uri[:relationship_uri.length() - 1].to_owned(),
-    ) ==
-    Some(records.id) else {
-    @failure.reject(
-      "malformed-xlsx", "Pivot record relationship disagrees with cache",
-    )
-  }
-  for node in cache.nodes() {
-    let children = match node.name {
-      "pivotCacheDefinition" => ["cacheSource", "cacheFields"]
-      "cacheSource" => ["worksheetSource"]
-      "cacheFields" => ["cacheField"]
-      "cacheField" => ["sharedItems", "fieldGroup"]
-      "fieldGroup" => ["rangePr", "groupItems"]
-      "groupItems" => ["s"]
-      "sharedItems" => ["n", "s", "b", "e", "m", "d"]
-      _ => []
-    }
-    if node.id != 0 {
-      let attributes = match node.name {
-        "cacheSource" => ["type"]
-        "worksheetSource" => ["ref", "sheet"]
-        "cacheFields" => ["count"]
-        "cacheField" => ["name", "databaseField"]
-        "fieldGroup" => ["base", "par"]
-        "rangePr" =>
-          [
-            "autoStart", "autoEnd", "groupBy", "startNum", "endNum", "groupInterval",
-            "startDate", "endDate",
-          ]
-        "groupItems" => ["count"]
-        "sharedItems" =>
-          [
-            "count", "containsNumber", "containsString", "containsBlank", "containsNonDate",
-            "containsDate", "containsSemiMixedTypes", "containsMixedTypes", "containsInteger",
-            "longText",
-          ]
-        "n" | "s" | "b" | "e" | "d" => ["v"]
-        _ => []
-      }
-      conditional_node(cache_tree, node, attributes, children)
-    }
-  }
-  guard cache_root.attributes.all(attribute => {
-      (
-        attribute.uri ==
-        relationship_uri[:relationship_uri.length() - 1].to_owned() &&
-        attribute.name == "id"
-      ) ||
-      (
-        attribute.uri.is_empty() &&
-        [
-          "recordCount", "saveData", "refreshOnLoad", "enableRefresh", "invalid",
-          "createdVersion", "refreshedVersion", "minRefreshableVersion",
-        ].contains(attribute.name)
-      )
-    }) &&
-    cache_tree.children
-    .get(cache_root.id)
-    .unwrap_or([])
-    .all(node => {
-      node.uri == spreadsheet_uri &&
-      ["cacheSource", "cacheFields"].contains(node.name)
-    }) &&
-    flag(cache_root, "enableRefresh", fallback=true) &&
-    flag(cache_root, "saveData", fallback=true) else {
-    @failure.reject(
-      "protected-content", "Extended pivot cache metadata requires support",
-    )
-  }
   let data = self.part_xml(records.target)
   pivot_plain_source(data)
   let data_tree = Tree::new(data)
@@ -438,20 +366,10 @@ fn Session::pivot_settings(
     .map(node => cache_tree.children.get(node.id).unwrap_or([]).length())
     .unwrap_or(0)
   })
-  for index, field in cache_fields {
+  for field in cache_fields {
     if cache_tree.one(field.id, "sharedItems") is Some(items) {
       for node in cache_tree.children.get(items.id).unwrap_or([]) {
         if node.name == "d" {
-          guard date_groups.any(group => group.field == index) ||
-            timelines.any(cache => {
-              cache.connections.any(pair => {
-                pair.0.cache == pivot.cache && pair.1 == index
-              })
-            }) else {
-            @failure.reject(
-              "protected-content", "Ungrouped native date cache requires support",
-            )
-          }
           ignore(pivot_date_cache_value(node, self.date1904))
         }
       }

@@ -54,7 +54,8 @@ fn PivotCache::definition(
       continue
     }
     let items = self.items[index]
-    let date = self.groups
+    let date = self.native_dates.contains(index) ||
+      self.groups
       .get(index)
       .map(group => group.settings is DateBuckets(_, ..))
       .unwrap_or(false)

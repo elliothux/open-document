@@ -94,7 +94,7 @@ fn Session::remove_pivot_slicers(
     }
   }
   for (sheet, name) in views {
-    self.remove_slicer_view(sheet, name, edits, removed)
+    self.remove_analysis_view(sheet, name, edits, removed)
   }
   for cache in caches {
     let remaining = cache.pivots.filter(other => other.part != pivot.part)
@@ -112,7 +112,7 @@ fn Session::remove_pivot_slicers(
           "protected-content", "Shared or extended slicer cache resources require deletion support",
         )
       }
-      let (workbook, edit) = remove_slicer_reference(
+      let (workbook, edit) = remove_analysis_reference(
         self.workbook,
         slicer_cache_extension,
         "slicerCaches",
@@ -121,7 +121,7 @@ fn Session::remove_pivot_slicers(
       )
       self.workbook = workbook
       edits.push((self.main, edit))
-      self.detach_slicer_resource(
+      self.detach_analysis_resource(
         self.main,
         cache.part,
         link.id,

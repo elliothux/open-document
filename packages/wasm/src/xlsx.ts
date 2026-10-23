@@ -14,11 +14,17 @@ export * from "./xlsx-pivot.js";
 import {
   xlsxSlicers,
   checkXlsxSlicerSettings,
-  checkXlsxSlicerFrame,
-  type XlsxSlicerFrame,
   type XlsxSlicerSettings,
 } from "./xlsx-slicer.js";
 export * from "./xlsx-slicer.js";
+import {
+  checkXlsxDrawingFrame,
+  type XlsxDrawingFrame,
+} from "./xlsx-drawing-frame.js";
+export {
+  checkXlsxDrawingFrame,
+  type XlsxDrawingFrame,
+} from "./xlsx-drawing-frame.js";
 import {
   xlsxTimelines,
   checkXlsxTimelineSettings,
@@ -412,16 +418,16 @@ export class XlsxSession extends XlsxDrawingSession {
     revision: number,
     sheet: string,
     id: string,
-    frame: XlsxSlicerFrame,
+    frame: XlsxDrawingFrame,
     profile: Record<string, string>,
   ) {
-    checkXlsxSlicerFrame(frame);
+    checkXlsxDrawingFrame(frame);
     return xlsxQuery(
       this.call({
         operation: "frameXlsxSlicer",
         revision,
         sheet,
-        id,
+        objectId: id,
         frame,
         profile,
       }),
@@ -449,10 +455,10 @@ export class XlsxSession extends XlsxDrawingSession {
       }),
     );
   }
-  pivotPreview(revision: number, settings: XlsxPivotSettings) {
+  pivotPreview(revision: number, settings: XlsxPivotSettings, part?: string) {
     checkXlsxPivotSettings(settings);
     return xlsxPivotPreview(
-      this.call({ operation: "pivotPreviewXlsx", revision, settings }),
+      this.call({ operation: "pivotPreviewXlsx", revision, settings, part }),
     );
   }
   find(

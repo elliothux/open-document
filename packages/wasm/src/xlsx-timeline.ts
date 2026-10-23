@@ -1,4 +1,8 @@
 import { integer, record } from "./validation.js";
+import {
+  checkDrawingFrameView,
+  type XlsxDrawingFrame,
+} from "./xlsx-drawing-frame.js";
 export interface XlsxTimelineRange {
   start: string;
   end: string;
@@ -31,13 +35,16 @@ export function checkXlsxTimelineSettings(value: unknown): void {
   )
     throw new Error("Invalid native timeline settings");
 }
-export interface XlsxTimelineEdit {
-  action: "filterTimeline";
-  name: string;
-  range: XlsxTimelineRange | null;
-}
+export type XlsxTimelineEdit =
+  | { action: "deleteTimeline"; name: string }
+  | { action: "filterTimeline"; name: string; range: XlsxTimelineRange | null };
 export function checkXlsxTimelineEdit(value: unknown): void {
   const edit = record(value);
+  if (edit.action === "deleteTimeline") {
+    if (Object.keys(edit).length !== 2 || !text(edit.name))
+      throw new Error("Invalid timeline deletion command");
+    return;
+  }
   if (
     Object.keys(edit).length !== 3 ||
     edit.action !== "filterTimeline" ||
@@ -50,15 +57,17 @@ export function checkXlsxTimelineEdit(value: unknown): void {
 export interface XlsxTimelineView {
   name: string;
   label: string;
+  frame: XlsxDrawingFrame;
 }
 export function checkTimelineView(value: unknown): void {
   const view = record(value);
   if (
-    Object.keys(view).length !== 2 ||
+    Object.keys(view).length !== 3 ||
     !text(view.name) ||
     !text(view.label, false, 1024)
   )
     throw new Error("Invalid native timeline view");
+  checkDrawingFrameView(view.frame);
 }
 export interface XlsxTimeline {
   part: string;

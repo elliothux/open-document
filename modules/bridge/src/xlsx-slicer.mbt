@@ -30,9 +30,10 @@ fn Foundation::insert_xlsx_slicer(
 }
 
 ///|
-fn Foundation::set_xlsx_slicer_frame(
+fn Foundation::set_xlsx_analysis_frame(
   self : Foundation,
   request : Json,
+  timeline~ : Bool = false,
 ) -> Json raise @failure.Failure {
   guard self.xlsx is Some(session) &&
     request is { "frame": Object(fields) as frame, .. } &&
@@ -40,12 +41,28 @@ fn Foundation::set_xlsx_slicer_frame(
     fields
     .keys()
     .all(key => ["anchor", "x", "y", "width", "height"].contains(key)) else {
-    @failure.reject("invalid-operation", "Native slicer frame is required")
+    @failure.reject("invalid-operation", "Native analysis frame is required")
+  }
+  if timeline {
+    return session.set_timeline_frame(
+      field_int(request, "revision"),
+      field_string(request, "sheet"),
+      field_string(request, "objectId"),
+      field_string(frame, "anchor"),
+      {
+        x: xlsx_number(frame, "x"),
+        y: xlsx_number(frame, "y"),
+        width: xlsx_number(frame, "width"),
+        height: xlsx_number(frame, "height"),
+      },
+      self.probe,
+      xlsx_profile(request),
+    )
   }
   session.set_slicer_frame(
     field_int(request, "revision"),
     field_string(request, "sheet"),
-    field_string(request, "id"),
+    field_string(request, "objectId"),
     field_string(frame, "anchor"),
     {
       x: xlsx_number(frame, "x"),

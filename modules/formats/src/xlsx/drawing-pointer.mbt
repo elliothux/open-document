@@ -150,7 +150,7 @@ pub fn Session::select_drawing(
     guard !grid.drawing_regions(object).is_empty() else {
       @failure.reject("invalid-operation", "Worksheet object is not visible")
     }
-    object.check_change(false, slicer_frame=object.slicer is Some(_))
+    object.check_change(false, analysis_frame=object.slicer is Some(_))
     object
   })
   self.drawing_selection = object.map(p => (grid.sheet, p.id))
@@ -224,7 +224,11 @@ fn SheetObject::pointer_rect(
       } else {
         ignore(self.shape_settings(result).checked(grid.dimensions))
       }
-      self.check_change(false, rect=result, slicer_frame=self.slicer is Some(_))
+      self.check_change(
+        false,
+        rect=result,
+        analysis_frame=self.slicer is Some(_),
+      )
       return result
     }
     guard rect.width > 0 && rect.height > 0 else {
@@ -259,7 +263,7 @@ fn SheetObject::pointer_rect(
   } else {
     check_picture_rect(self.anchor, rect, grid.dimensions)
   }
-  self.check_change(false, rect~, slicer_frame=self.slicer is Some(_))
+  self.check_change(false, rect~, analysis_frame=self.slicer is Some(_))
   rect
 }
 

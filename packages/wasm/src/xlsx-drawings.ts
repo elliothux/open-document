@@ -19,6 +19,10 @@ import {
   type XlsxShapeSettings,
 } from "./xlsx-shapes.js";
 import { record } from "./validation.js";
+import {
+  checkXlsxDrawingFrame,
+  type XlsxDrawingFrame,
+} from "./xlsx-drawing-frame.js";
 import { xlsxQuery, type XlsxQuery } from "./xlsx-query.js";
 import {
   xlsxPictures,
@@ -28,6 +32,25 @@ import {
 } from "./xlsx-pictures.js";
 
 export class XlsxDrawingSession extends WasmSession {
+  setTimelineFrame(
+    revision: number,
+    sheet: string,
+    id: string,
+    frame: XlsxDrawingFrame,
+    profile: Record<string, string>,
+  ): XlsxQuery {
+    checkXlsxDrawingFrame(frame);
+    return xlsxQuery(
+      this.call({
+        operation: "frameXlsxTimeline",
+        revision,
+        sheet,
+        objectId: id,
+        frame,
+        profile,
+      }),
+    );
+  }
   captureDrawing(
     revision: number,
     sheet: string,

@@ -94,7 +94,11 @@ async function dispatch(request: Request): Promise<unknown> {
       case "timelinesXlsx":
         return workbook.timelines(request.revision, request.sheet);
       case "pivotPreviewXlsx":
-        return workbook.pivotPreview(request.revision, request.settings);
+        return workbook.pivotPreview(
+          request.revision,
+          request.settings,
+          request.part,
+        );
       case "duplicatesXlsx":
         return workbook.duplicates(
           request.revision,

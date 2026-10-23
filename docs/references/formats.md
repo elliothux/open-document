@@ -2416,7 +2416,7 @@ filters 为 0–8 项 `{ field, report, values }`，三项均必需。field 使�
 
 `SpreadsheetEditor.setSlicerFrame(id, frame)` 修改当前表的原生切片器框。`XlsxSession` 与 Worker `XlsxClient` 使用 `setSlicerFrame(revision, sheet, id, frame, profile)`；MoonBit 入口为 `Session::set_slicer_frame`。frame 仅含 `anchor/x/y/width/height`，anchor 为 `fixed/move/size`，对应固定、随单元格移动和随单元格缩放。坐标与尺寸使用磅，位置非负且受工作表边界限制，宽高为 0.1–14400。当前框从已测量视口的 `object.slicer.frame` 读取，不向无字体的成员目录加入绘图布局。导入的折叠框可读取零尺寸；提交仍要求有效正尺寸。默认成员面板提供锚定、位置、宽高及应用按钮，沿原生草稿屏障和串行队列提交。
 
-编辑保留绘图身份、控件、缓存、记录、筛选、透视结果和待刷新源。原生框与坐标一致的已知平面兼容后备同步变换，保留其余内容；直接 graphicFrame 也可编辑。完整兼容分支及 clientData 随新锚点保存，全部变化合为一项精确历史；相同属性不新增历史，单元格选择保持。`lockedPosition`、绘图选择/移动/尺寸/比例锁、保护或隐藏的工作表、未知后备、旋转与变换注释、绘图内容之外的锚点注释和缺失字体继续保护源及重做。核心先验证候选绘图和排版，再提交。锁定属性依据 [Microsoft CT_Slicer](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/03ec9cc4-ffa9-4646-b4a8-8343bbe076d0)，实现归 [`slicer-frame.mbt`](../../modules/formats/src/xlsx/slicer-frame.mbt)，复用既有锚点序列化和兼容变换。
+编辑保留绘图身份、控件、缓存、记录、筛选、透视结果和待刷新源。原生框与坐标一致的已知平面兼容后备同步变换，保留其余内容；直接 graphicFrame 也可编辑。完整兼容分支及 clientData 随新锚点保存，全部变化合为一项精确历史；相同属性不新增历史，单元格选择保持。`lockedPosition`、绘图选择/移动/尺寸/比例锁、保护或隐藏的工作表、未知后备、旋转与变换注释、绘图内容之外的锚点注释和缺失字体继续保护源及重做。核心先验证候选绘图和排版，再提交。锁定属性依据 [Microsoft CT_Slicer](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/03ec9cc4-ffa9-4646-b4a8-8343bbe076d0)，实现归 [`analysis-frame.mbt`](../../modules/formats/src/xlsx/analysis-frame.mbt)，复用既有锚点序列化和兼容变换。
 
 画布切片器复用 `selectDrawing` 与 `drawingGesture` 的选择、移动和四角缩放。核心 `slicer.move` 返回至多四个窗格的标题命中区域，避开多选、清除和成员按钮；隐藏标题时提供 3.6 磅顶边。控件位置锁、选择锁或未知兼容变换会隐藏拖动区域，其他绘图锁在具体手势中校验。选中后的四角使用完整原生框，缩放默认分别改变宽高，比例锁沿原生 `graphicFrameLocks` 或形状锁处理。成员和标题按钮的独立分派参考 [ONLYOFFICE SlicerView.onMouseDown](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/SlicerView.js#L958-L984)。
 
@@ -2458,7 +2458,7 @@ dateGroups 使用 `{ field, units }`。units 从 years、quarters、months、day
 
 核心以工作簿的 1900/1904 日期系统处理数值时间，不依赖浏览器时区。原始值用于聚合，源单元格及时间小数保留；缓存保存原生 d 日期共享项、自动边界 rangePr、单位、groupItems 与原始记录索引。ISO 日期时间包含时间小数，UTC 日期纪元及 1900 历史边界沿主参考规则。刷新、单位切换、小计、移除、删除和精确历史复用同一事务；日期缓存重开后可空操作刷新。坏日期、非法类型、过宽年份、未知单位、固定日期边界、非单位日间隔和手动标题保持保护。每字段最多 4094 年或 366 日，日期文本及分组成员共同遵守共享项文字预算。实现归 [`pivot-date-group.mbt`](../../modules/formats/src/xlsx/pivot-date-group.mbt)与 [`pivot-group.mbt`](../../modules/formats/src/xlsx/pivot-group.mbt)。依据 [ONLYOFFICE 日期缓存](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L12951-L13001)、[日历索引](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L20543-L20577)、[日历成员](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L20625-L20688)及[日期纪元与历史取值](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/utils/utils.js#L3950-L4123)。
 
-同步 `XlsxSession` 和 Worker `XlsxClient` 提供 `pivotPreview(revision, settings)` 与 `pivots(revision, sheet)`，返回 `XlsxPivotPreview` 和 `XlsxPivots`。目录的 sourceSheet、source、settings 使用对象/字符串或 null；不使用单元素数组表示可选字段。创建复用 `editSheet(revision, sheet, { action: "createPivot", settings, sourceRevision, name, destination })`；sourceRevision 必须等于当前 revision，拒绝沿用过期预览。刷新复用 `{ action: "refreshPivot", part }`。两种编辑返回普通 `XlsxQuery`，仍沿同一布局、恢复与保存路径。
+同步 `XlsxSession` 和 Worker `XlsxClient` 提供 `pivotPreview(revision, settings, part?)` 与 `pivots(revision, sheet)`，返回 `XlsxPivotPreview` 和 `XlsxPivots`。目录的 sourceSheet、source、settings 使用对象/字符串或 null；不使用单元素数组表示可选字段。创建复用 `editSheet(revision, sheet, { action: "createPivot", settings, sourceRevision, name, destination })`；sourceRevision 必须等于当前 revision，拒绝沿用过期预览。刷新复用 `{ action: "refreshPivot", part }`。两种编辑返回普通 `XlsxQuery`，仍沿同一布局、恢复与保存路径。
 
 已有独占缓存且未连接切片器的行列轴透视表支持 `{ action: "updatePivot", part, settings, sourceRevision }`，对应 `Session::update_pivot(revision, sheet, part, settings)`。修改源表/范围、有序行列字段、值字段顺序、聚合与标题，保持透视表、缓存和记录部件身份及左上位置。源标题改变时，普通刷新仍拒绝推断映射；用户可按新源列号明确设置并预览后应用。至少保留一个行字段和一个值字段。更新复用刷新事务、扩张保护、缩小清理、格式保留和精确历史；相同定义与数据不新增历史。Values 轴标题与新字段冲突时分配唯一名称。字段行为依据 [ONLYOFFICE 行字段](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L6142-L6177)、[字段移除](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L6285-L6315)和[值聚合](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L18305-L18308)。
 
@@ -2496,21 +2496,43 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 原生 `timeslicer` 绘图已接入 R0 Canvas 和打印/PDF。核心读取固定、随单元格移动及随单元格缩放三类锚点，也读取 a15 兼容分支，保留原生后备。按 `level` 绘制年、季度、月或日刻度，使用原生日期范围、滚动位置及连续选区；月份按真实日历划分，保留小数秒。标题、选区文字、粒度和滚动条分别遵循原显示开关。沿工作簿普通/粗体字体测量，每个控件最多绘制 512 个可见日期段，不遍历整个日期跨度。绘制、目录查询及保存重开不增加文档历史。
 
-视口对象以 `kind: "timeline"` 返回 `timeline: { name, label }`。默认宿主提供只读图像语义和原生选区说明，遮挡底层单元格命中，不显示移动或缩放手柄。打印仅识别已校验的时间线、切片器及迷你图扩展；混合未知内容继续保护。行高、列宽变化时，原生框与已校验的平面兼容后备随单元格同步移动或缩放。手动对象编辑、复制和删除继续拒绝，等待时间线资源协调事务。
+视口对象以 `kind: "timeline"` 返回 `timeline: { name, label, frame }`。默认宿主提供只读图像语义和原生选区说明，遮挡底层单元格命中，不显示移动或缩放手柄。打印仅识别已校验的时间线、切片器及迷你图扩展；混合未知内容继续保护。行高、列宽变化时，原生框与已校验的平面兼容后备随单元格同步移动或缩放。普通绘图入口的手动编辑、复制和删除继续拒绝；原生时间线使用下述专用框编辑与删除事务。
 
-首批支持默认样式及 `TimelineStyleLight1`，使用工作簿文字色与强调色。精确的原生预设差异格式及几何尚未匹配，不能视为原生样式保真；其他预设、自定义覆盖及非连续选区继续保护。实现归 [`timeline-drawing.mbt`](../../modules/formats/src/xlsx/timeline-drawing.mbt)和 [`timeline-paint.mbt`](../../modules/formats/src/xlsx/timeline-paint.mbt)，日期含义依据 [CT_TimelineState](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/aa9bf132-1afa-4ce9-b3d2-e6dc00e48fde)。精确样式和协调刷新/删除继续实施。
+首批支持默认样式及 `TimelineStyleLight1`，使用工作簿文字色与强调色。精确的原生预设差异格式及几何尚未匹配，不能视为原生样式保真；其他预设、自定义覆盖及非连续选区继续保护。实现归 [`timeline-drawing.mbt`](../../modules/formats/src/xlsx/timeline-drawing.mbt)和 [`timeline-paint.mbt`](../../modules/formats/src/xlsx/timeline-paint.mbt)，日期含义依据 [CT_TimelineState](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/aa9bf132-1afa-4ce9-b3d2-e6dc00e48fde)。精确样式与分组映射继续实施。
 
 `editSheet({ action: "filterTimeline", name, range })` 筛选当前工作表的原生时间线。range 为 `{ start, end }` 原生 ISO 时间串或 null；MoonBit 入口为 `Session::filter_timeline(revision, sheet, name, range)`，range 使用可选日期串对。区间两端包含在内，必须有序且落在原生 bounds 内；保留小数秒。null 清除条件，写入 `filterType=unknown` 并移除 selection；明确范围写入 `dateBetween`。同缓存视图立即共享选区，清除后画布显示全部可用日期。默认面板提供开始/结束日期、应用和清除，使用既有编辑队列与输入提交屏障；日期表单按所选整日生成区间，边界日取原生 bounds。画布仍提供只读说明。
 
-范围按工作簿的 1900/1904 日期系统转换为各关联透视缓存的日期成员，在一个事务中更新原生隐藏项、结果格和时间线 state。读取原生日期/空白成员，保留其他字段条件、各表字段布局，以及关联切片器成员状态。结果缓存和独立日期缓存不重建，不刷新待处理源；输入值及原有过期标记保留。没有成员的区间写入空选择，返回空结果和空白总计；清除恢复全部缓存成员。各表输出变化累计最多 65536 格，任一表扩张冲突或保护失败都保留原包、选择、历史和重做；重复操作不添加历史。默认输入和结果区打印允许已校验的时间线连接元数据，未知扩展及手动锚点写回继续保护。
+范围按工作簿的 1900/1904 日期系统转换为各关联透视缓存的日期成员，在一个事务中更新原生隐藏项、结果格和时间线 state。读取原生日期/空白成员，保留其他字段条件、各表字段布局，以及关联切片器成员状态。结果缓存和独立日期缓存不重建，不刷新待处理源；输入值及原有过期标记保留。没有成员的区间写入空选择，返回空结果和空白总计；清除恢复全部缓存成员。各表输出变化累计最多 65536 格，任一表扩张冲突或保护失败都保留原包、选择、历史和重做；重复操作不添加历史。默认输入和结果区打印允许已校验的时间线连接元数据，未知扩展继续保护，手动锚点写回使用专用框编辑入口。
 
-当前范围筛选支持工作表来源及未分组日期字段。非连续状态、额外原生过滤器、分组映射或同一透视字段连接多个时间线缓存继续保护。普通刷新、字段更新、删除及同字段切片器写入不能绕过时间线协调。实现归 [`timeline-edit.mbt`](../../modules/formats/src/xlsx/timeline-edit.mbt)，原生日期到成员的含义依据[时间线与透视视图连接](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/576e7fb8-2352-4f8a-a541-08c2d4ba8887)。
+当前范围筛选支持工作表来源及未分组日期字段。非连续状态、额外原生过滤器、分组映射或同一透视字段连接多个时间线缓存继续保护。同字段切片器写入仍需时间线协调；透视表删除使用下述连接与资源事务。实现归 [`timeline-edit.mbt`](../../modules/formats/src/xlsx/timeline-edit.mbt)，原生日期到成员的含义依据[时间线与透视视图连接](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/576e7fb8-2352-4f8a-a541-08c2d4ba8887)。
 
 `SpreadsheetEditor.insertTimeline(settings)` 在当前选择处创建原生时间线。同步 `XlsxSession` 与 Worker `XlsxClient` 使用 `insertTimeline(revision, sheet, settings)`；MoonBit 入口为 `Session::insert_timeline`。`XlsxTimelineSettings` 包含透视表部件 `pivot`、零基源字段 `field`、`name`、`caption` 及 point 单位的 `width`/`height`。默认面板提供透视表、字段与尺寸输入，使用既有编辑队列和输入提交屏障。
 
 创建读取原缓存，不刷新待处理源。支持未分组、索引记录的日期字段：原生日期成员，或源列采用受支持日期格式的数字成员；保留空白及成员索引。独立日期缓存复制记录并设置原生日期角色，结果缓存只将所选日期字段转换为原生日期；同结果缓存的其他透视表保持可读。相同字段连接复用时间线缓存。现有连续日期条件继承为原生选区，非连续或空成员条件继续保护。新控件采用月粒度、Light1、随单元格移动锚点和兼容后备，全部部件与连接合为一项精确历史。
 
-名称、日期字段、字体或资源预算失败保留原包和重做。数字日期沿工作簿的 1900/1904 系统转换；1900 系统三月之前的数字日期继续保护，待实现虚构闰日映射。支持范围及精确样式边界同上，分组、手动框编辑与协调资源删除继续实施。创建实现归 [`timeline-create.mbt`](../../modules/formats/src/xlsx/timeline-create.mbt)。
+名称、日期字段、字体或资源预算失败保留原包和重做。数字日期沿工作簿的 1900/1904 系统转换；1900 系统三月之前的数字日期继续保护，待实现虚构闰日映射。支持范围及精确样式边界同上，分组和画布拖动继续实施。创建实现归 [`timeline-create.mbt`](../../modules/formats/src/xlsx/timeline-create.mbt)。
+
+`editSheet({ action: "deleteTimeline", name })` 删除当前表的原生时间线；MoonBit 入口为 `Session::delete_timeline(revision, sheet, name)`。同步 Wasm、Worker 和默认删除按钮共用既有编辑队列与事务。删除整个原生或兼容绘图框；同视图部件中的其他控件保留。最后一项删除时，清理独占视图部件、工作表引用、关系及内容类型项，保留独立绘图容器及其他绘图。
+
+删除保留当前透视结果、筛选、待刷新源和选择；一项历史精确恢复全部资源。最后一个可见控件删除后，原生时间线缓存、独立日期缓存及连接继续承载原有日期条件。保存重开后透视表保持可读，重新创建同字段时间线复用该缓存和选区。锁定、受保护工作表、共享或扩展资源、引用注释及旧 revision 原子拒绝。实现归 [`timeline-delete.mbt`](../../modules/formats/src/xlsx/timeline-delete.mbt)及共用 [`slicer-delete.mbt`](../../modules/formats/src/xlsx/slicer-delete.mbt)。
+
+关联时间线的透视表沿用 `editSheet({ action: "deletePivot", part })` 和默认“删除透视表及结果”入口。还有连接时，只移除目标透视连接，保留全部视图、日期状态、独立日期缓存及其他表的原结果与条件；剩余时间线可继续筛选。最后一个连接删除时，清理各工作表中的所属视图与绘图、时间线缓存，以及不再被其他时间线引用的独立日期定义和记录。支持普通 `pivotCaches` 和原生扩展日期目录，保留共享日期定义、共享记录流及无关资源。
+
+缓存中的原生日期成员继续按工作簿日期系统校验和读取，不要求仍有时间线连接。未连接的共享结果表在时间线清理后保持可读、可重开及刷新。输出、连接和跨表资源合为一项精确历史，保留待刷新源；任一远端工作表保护、引用注释、共享资源身份或预算失败都保留原包、选择和重做。最多清理 256 个关联视图，扫描的视图及保留缓存元数据合计最多 1 Mi UTF-16 单元。实现归 [`timeline-pivot-delete.mbt`](../../modules/formats/src/xlsx/timeline-pivot-delete.mbt)和 [`timeline-delete-cache.mbt`](../../modules/formats/src/xlsx/timeline-delete-cache.mbt)，参考 [ONLYOFFICE deleteTimelinesByPivotTable](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L5430-L5438)。
+
+关联时间线的透视表沿用 `editSheet({ action: "refreshPivot", part })` 和默认“刷新透视表”入口。核心沿结果缓存、透视连接及共享独立日期缓存收集整条连接链，按当前源重建全部关联结果、原生日期定义和记录，清除过期标记。更新原生 bounds，保留绝对 selection、粒度、滚动位置及视图源；新日期按原选区自动选中。清除状态继续选择全部当前日期。其他字段条件和切片器选中成员保持，缺失成员保留身份并同步无数据状态。
+
+结果缓存继续写原生日期共享项，独立日期缓存保留原生角色及部件身份。选区完全离开新的可用日期时，保留选区并产生空结果；用户仍可清除条件。一次刷新最多覆盖 16 张连接表、65536 个变化结果格，全部缓存与结果合为一项精确历史；相同源与设置不增加历史。后一张表扩张冲突、非日期或全空日期源、未知日期缓存元数据、只读计算状态及资源预算失败保留原包、源值、选择与重做。共享独立日期定义进入协调范围，记录流存在额外共享别名时继续保护。1900 系统早期数字日期与分组映射仍待实现。实现归 [`timeline-refresh.mbt`](../../modules/formats/src/xlsx/timeline-refresh.mbt)和 [`timeline-refresh-source.mbt`](../../modules/formats/src/xlsx/timeline-refresh-source.mbt)，共用 [`pivot-cache-profile.mbt`](../../modules/formats/src/xlsx/pivot-cache-profile.mbt) 保留原有元数据校验。
+
+关联时间线的字段与源修改沿用 `editSheet({ action: "updatePivot", part, settings, sourceRevision })` 和默认字段面板。目标表可调整行列字段、值字段顺序/聚合/标题及小计，其他表保留自己的设置。源范围可扩大、缩小或迁移至其他工作表；列标题、次序及各表分组保持不变。新来源同步整条时间线连接链的结果及独立日期缓存，保留部件身份、绝对日期选区和原源格。结果与资源共用一项精确历史，相同定义与数据不增加历史。
+
+时间线继续管理日期条件，源中的新日期按其绝对选区选择。对该字段提交相同成员集合允许调整顺序；实际改变或移除日期条件须使用时间线范围入口，不能由字段修改静默覆盖。布局外的其他成员条件须连接该表的原生切片器或时间线。标题/列身份变化、未连接条件、分组改写、过期预览和任一表扩张失败保持原包、选择与重做。
+
+编辑预览使用 `SpreadsheetEditor.pivotPreview(settings, part?)`；同步与 Worker 客户端的第三个参数同为可选透视表部件身份，核心为 `Session::pivot_preview(revision, settings, part=...)`。默认编辑面板自动传入身份，按时间线实际选区预览新源日期；省略身份用于创建预览。返回的 settings 保留用户草稿，分组结果和包含记录数使用有效日期条件。预览不改源、revision 或历史，只读计算状态和失联身份在核心拒绝。字段/源应用继续复用 [`timeline-refresh.mbt`](../../modules/formats/src/xlsx/timeline-refresh.mbt)。
+
+`SpreadsheetEditor.setTimelineFrame(id, frame)` 修改原生时间线框；同步 `XlsxSession` 与 Worker `XlsxClient` 使用 `setTimelineFrame(revision, sheet, id, frame, profile)`，核心为 `Session::set_timeline_frame`。与切片器共用 `XlsxDrawingFrame`：仅含 `anchor/x/y/width/height`，三种锚定和坐标、尺寸边界同切片器。当前框从已测量视口的 `object.timeline.frame` 读取，折叠框可读零尺寸；提交要求有效正尺寸。默认时间线面板提供数值编辑，沿输入屏障和串行队列应用。
+
+框编辑只修改绘图，保留时间线身份、日期状态、缓存、记录、透视结果和待刷新源。原生框与已校验的平面兼容后备同步变换，保留 clientData；直接原生框也可编辑。一项历史精确恢复资源，相同框不增加历史。绘图锁、受保护或隐藏工作表、未知后备、变换/锚点注释和缺失字体保护原包与重做。实现复用 [`analysis-frame.mbt`](../../modules/formats/src/xlsx/analysis-frame.mbt) 和 [`xlsx-analysis-frame.tsx`](../../packages/ui/src/xlsx-analysis-frame.tsx)。画布拖动、缩放及日期拖选继续实施。
 
 ### 打印与资源边界
 

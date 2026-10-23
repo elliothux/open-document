@@ -8,6 +8,7 @@ import type {
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { CreateTimeline } from "./xlsx-timeline-create.js";
+import { AnalysisFrameEditor } from "./xlsx-analysis-frame.js";
 
 export function XlsxTimelinesPanel({
   editor,
@@ -45,49 +46,94 @@ export function XlsxTimelinesPanel({
         <p>{t.timelineEmpty}</p>
       )}
       {current &&
-        catalog.items.map((item) => (
-          <fieldset key={item.name}>
-            <legend>{item.caption}</legend>
-            <p>{t.timelineReadOnly}</p>
-            <dl>
-              <dt>{t.timelineSource}</dt>
-              <dd>{item.sourceName}</dd>
-              <dt>{t.timelineBounds}</dt>
-              <dd>
-                {item.state.bounds.start} – {item.state.bounds.end}
-              </dd>
-              <dt>{t.timelineSelection}</dt>
-              <dd>
-                {item.state.selection
-                  ? `${item.state.selection.start} – ${item.state.selection.end}`
-                  : t.timelineUnselected}
-              </dd>
-              <dt>{t.timelineConnections}</dt>
-              <dd>{item.connections.map((pivot) => pivot.name).join(", ")}</dd>
-            </dl>
-            <TimelineRangeForm
-              key={`${catalog.revision}:${item.name}`}
-              item={item}
-              state={state}
-              disabled={
-                disabled ||
-                !current ||
-                !item.connections.length ||
-                editor.currentState.protection.protected
-              }
-              apply={(range) =>
-                controller.run(async () => {
-                  await editor.editSheet({
-                    action: "filterTimeline",
-                    name: item.name,
-                    range,
-                  });
-                  await load();
-                })
-              }
-            />
-          </fieldset>
-        ))}
+        catalog.items.map((item) => {
+          const drawing = editor.currentLayout?.objects.find(
+            (object) => object.timeline?.name === item.name,
+          );
+          return (
+            <fieldset key={item.name}>
+              <legend>{item.caption}</legend>
+              <p>{t.timelineReadOnly}</p>
+              <dl>
+                <dt>{t.timelineSource}</dt>
+                <dd>{item.sourceName}</dd>
+                <dt>{t.timelineBounds}</dt>
+                <dd>
+                  {item.state.bounds.start} – {item.state.bounds.end}
+                </dd>
+                <dt>{t.timelineSelection}</dt>
+                <dd>
+                  {item.state.selection
+                    ? `${item.state.selection.start} – ${item.state.selection.end}`
+                    : t.timelineUnselected}
+                </dd>
+                <dt>{t.timelineConnections}</dt>
+                <dd>
+                  {item.connections.map((pivot) => pivot.name).join(", ")}
+                </dd>
+              </dl>
+              <button
+                type="button"
+                disabled={
+                  disabled ||
+                  !current ||
+                  editor.currentState.protection.protected
+                }
+                onClick={() =>
+                  controller.run(async () => {
+                    await editor.editSheet({
+                      action: "deleteTimeline",
+                      name: item.name,
+                    });
+                    await load();
+                  })
+                }
+              >
+                {t.timelineDelete}
+              </button>
+              <TimelineRangeForm
+                key={`${catalog.revision}:${item.name}`}
+                item={item}
+                state={state}
+                disabled={
+                  disabled ||
+                  !current ||
+                  !item.connections.length ||
+                  editor.currentState.protection.protected
+                }
+                apply={(range) =>
+                  controller.run(async () => {
+                    await editor.editSheet({
+                      action: "filterTimeline",
+                      name: item.name,
+                      range,
+                    });
+                    await load();
+                  })
+                }
+              />
+              {drawing?.timeline && (
+                <AnalysisFrameEditor
+                  key={`frame:${catalog.revision}:${item.name}`}
+                  kind="timeline"
+                  frame={drawing.timeline.frame}
+                  state={state}
+                  disabled={
+                    disabled ||
+                    !current ||
+                    editor.currentState.protection.protected
+                  }
+                  apply={(frame) =>
+                    controller.run(async () => {
+                      await editor.setTimelineFrame(drawing.id, frame);
+                      await load();
+                    })
+                  }
+                />
+              )}
+            </fieldset>
+          );
+        })}
     </fieldset>
   );
 }

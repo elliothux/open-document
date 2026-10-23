@@ -1,17 +1,17 @@
 import type {
   XlsxPivotSettings,
   XlsxSlicerSettings,
-  XlsxSlicerFrame,
+  XlsxDrawingFrame,
   XlsxTimelineSettings,
 } from "@open-document/wasm/xlsx";
 
 export type XlsxAnalysisRequest =
   | {
-      operation: "frameXlsxSlicer";
+      operation: "frameXlsxSlicer" | "frameXlsxTimeline";
       revision: number;
       sheet: string;
-      slicerId: string;
-      frame: XlsxSlicerFrame;
+      objectId: string;
+      frame: XlsxDrawingFrame;
       profile: Record<string, string>;
     }
   | {
@@ -23,6 +23,7 @@ export type XlsxAnalysisRequest =
       operation: "pivotPreviewXlsx";
       revision: number;
       settings: XlsxPivotSettings;
+      part?: string;
     }
   | {
       operation: "insertXlsxTimeline";

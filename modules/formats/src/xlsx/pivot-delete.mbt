@@ -1,5 +1,5 @@
 ///|
-/// Removes a native pivot, disconnects its slicers and clears its owned output in one history entry.
+/// Removes a native pivot, disconnects analysis controls and clears its owned output in one history entry.
 pub fn Session::delete_pivot(
   self : Session,
   revision : Int,
@@ -30,7 +30,7 @@ pub fn Session::delete_pivot(
     32768 else {
     @failure.reject("limit-exceeded", "Pivot deletion exceeds output budget")
   }
-  self.protect_timeline_pivots([pivot])
+  let timelines = self.affected_timeline_caches([pivot])
   let (_, records) = self.pivot_settings(pivot, shared=true)
   let related = self.deletion_slicer_caches(pivot)
   let shared = self
@@ -126,15 +126,18 @@ pub fn Session::delete_pivot(
   let slicer_metadata = rule_tree
     .one(rule_tree.root("worksheet").id, "extLst")
     .map(node => {
-      self.slicer_extension(plan.sheets[index], rule_tree, node) &&
-      rule_tree
-      .all(node.id, "ext")
-      .all(entry => {
-        entry
-        .attribute("uri")
-        .map(uri => uri.to_upper() == slicer_list_extension)
-        .unwrap_or(false)
-      })
+      self.timeline_extension(plan.sheets[index], rule_tree, node) ||
+      (
+        self.slicer_extension(plan.sheets[index], rule_tree, node) &&
+        rule_tree
+        .all(node.id, "ext")
+        .all(entry => {
+          entry
+          .attribute("uri")
+          .map(uri => uri.to_upper() == slicer_list_extension)
+          .unwrap_or(false)
+        })
+      )
     })
     .unwrap_or(false)
   let changes = clear_rules(
@@ -175,6 +178,7 @@ pub fn Session::delete_pivot(
     calculation: Some(plan.calculation),
   }
   candidate.remove_pivot_slicers(pivot, related, edits, removed)
+  candidate.remove_pivot_timelines(pivot, timelines, edits, removed)
   if !shared {
     let (workbook, edit) = candidate.remove_pivot_cache_reference(pivot)
     candidate.workbook = workbook

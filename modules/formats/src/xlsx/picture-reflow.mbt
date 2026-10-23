@@ -2,9 +2,9 @@
 fn SheetObject::transform_change(
   self : SheetObject,
   rect : @layout.Border,
-  reflow~ : Bool = false,
+  analysis_frame~ : Bool = false,
 ) -> @xml.SourceChange raise @failure.Failure {
-  guard self.timeline is None || reflow else {
+  guard self.timeline is None || analysis_frame else {
     @failure.reject(
       "protected-content", "Timeline anchor changes require coordinated editing",
     )
@@ -131,7 +131,9 @@ fn Session::reflow_pictures(
     let changes : Array[@xml.SourceChange] = []
     for picture in next_pictures {
       if picture.anchor != "fixed" && !picture.transform_matches() {
-        changes.push(picture.transform_change(picture.rect, reflow=true))
+        changes.push(
+          picture.transform_change(picture.rect, analysis_frame=true),
+        )
       }
     }
     if !changes.is_empty() {

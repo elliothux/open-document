@@ -6,6 +6,17 @@ pub fn Session::delete_slicer(
   sheet : String,
   name : String,
 ) -> Json raise @failure.Failure {
+  self.delete_analysis_view(revision, sheet, name)
+}
+
+///|
+fn Session::delete_analysis_view(
+  self : Session,
+  revision : Int,
+  sheet : String,
+  name : String,
+  timeline~ : Bool = false,
+) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let candidate = {
     ..self,
@@ -15,7 +26,7 @@ pub fn Session::delete_slicer(
   }
   let edits : Array[(String, @xml.Edit)] = []
   let removed : Map[String, @xml.Document] = Map([])
-  candidate.remove_slicer_view(sheet, name, edits, removed)
+  candidate.remove_analysis_view(sheet, name, edits, removed, timeline~)
   // The cache still owns native hidden-field filters after its last visible control is removed.
   self.commit(
     candidate.sheets,
@@ -31,46 +42,71 @@ pub fn Session::delete_slicer(
 }
 
 ///|
-fn Session::remove_slicer_view(
+fn Session::remove_analysis_view(
   self : Session,
   sheet : String,
   name : String,
   edits : Array[(String, @xml.Edit)],
   removed : Map[String, @xml.Document],
+  timeline~ : Bool = false,
 ) -> Unit raise @failure.Failure {
+  let kind = if timeline { "Timeline" } else { "Slicer" }
   let index = self.sheet_index(sheet)
   let current = self.sheets[index]
   let reason = self.dimension_reason(current)
   guard reason.is_empty() && current.state == "visible" else {
     @failure.reject(
-      "protected-content", "Slicer worksheet is protected or hidden",
+      "protected-content",
+      kind + " worksheet is protected or hidden",
     )
   }
-  guard self
+  let part = if timeline {
+    self
+    .read_timelines(sheet)
+    .iter()
+    .find_first(control => control.name == name)
+    .map(control => control.part)
+  } else {
+    self
     .read_slicers(sheet)
     .iter()
     .find_first(control => control.name == name)
-    is Some(control) else {
+    .map(control => control.part)
+  }
+  guard part is Some(part) else {
     @failure.reject(
-      "invalid-operation", "Slicer is outside the selected worksheet",
+      "invalid-operation",
+      kind + " is outside the selected worksheet",
     )
   }
   let parts = self.parts
   let links = self.relationships()
-  guard links.filter(link => !link.external && link.target == control.part)
-    is [link] &&
+  guard links.filter(link => !link.external && link.target == part) is [link] &&
     link.owner == sheet &&
-    link.kind == slicer_relationship_uri + "slicer" &&
-    !links.any(link => link.owner == control.part) else {
+    link.kind ==
+    (if timeline {
+      timeline_relationship_uri + "Timeline"
+    } else {
+      slicer_relationship_uri + "slicer"
+    }) &&
+    !links.any(link => link.owner == part) else {
     @failure.reject(
-      "protected-content", "Shared or extended slicer resources require deletion support",
+      "protected-content", "Shared or extended analysis resources require deletion support",
     )
   }
   let objects = self.sheet_objects(current, current.dimensions)
   let object = objects
     .iter()
     .find_first(object => {
-      object.slicer.map(slicer => slicer.control.name == name).unwrap_or(false)
+      if timeline {
+        object.timeline
+        .map(timeline => timeline.control.name == name)
+        .unwrap_or(false)
+      } else {
+        object.slicer
+        .map(slicer => slicer.control.name == name)
+        .unwrap_or(false)
+      }
     })
   if object is Some(object) {
     for node in object.tree.document.nodes() {
@@ -78,7 +114,7 @@ fn Session::remove_slicer_view(
         node.end <= object.source.end &&
         node.name.has_suffix("Locks") &&
         flag(node, "noSelect") {
-        @failure.reject("protected-content", "Slicer drawing is locked")
+        @failure.reject("protected-content", kind + " drawing is locked")
       }
     }
     let (document, edit) = object.tree.document.edit_source([
@@ -87,26 +123,45 @@ fn Session::remove_slicer_view(
     parts[object.part] = document
     edits.push((object.part, edit))
   }
-  let document = self.part_xml(control.part)
+  let document = self.part_xml(part)
   let tree = Tree::new(document)
-  let entries = tree.slicer_children(document.nodes()[0].id, "slicer")
+  let entries = if timeline {
+    tree.timeline_children(document.nodes()[0].id, "timeline")
+  } else {
+    tree.slicer_children(document.nodes()[0].id, "slicer")
+  }
   let node = entries
     .iter()
     .find_first(node => slicer_text(node, "name") == name)
     .unwrap()
   let sheet_document = if entries.length() == 1 {
-    self.detach_slicer_view(
-      current,
-      control.part,
+    let (document, edit) = remove_analysis_reference(
+      current.document,
+      if timeline {
+        timeline_view_extension
+      } else {
+        slicer_list_extension
+      },
+      if timeline {
+        "timelineRefs"
+      } else {
+        "slicerList"
+      },
+      if timeline {
+        "timelineRef"
+      } else {
+        "slicer"
+      },
       link.id,
-      parts,
-      removed,
-      edits,
+      payload_uri=if timeline { timeline_uri } else { slicer_uri },
     )
+    edits.push((sheet, edit))
+    self.detach_analysis_resource(sheet, part, link.id, parts, removed, edits)
+    document
   } else {
     let (document, edit) = document.edit_source([sheet_node_removal(tree, node)])
-    parts[control.part] = document
-    edits.push((control.part, edit))
+    parts[part] = document
+    edits.push((part, edit))
     current.document
   }
   let sheets = self.sheets.copy()
@@ -119,40 +174,23 @@ fn Session::remove_slicer_view(
     self.styles.length(),
   )
   let candidate = { ..self, sheets, parts, }
-  ignore(candidate.read_slicers(sheet))
+  if timeline {
+    ignore(candidate.read_timelines(sheet))
+  } else {
+    ignore(candidate.read_slicers(sheet))
+  }
   ignore(candidate.sheet_objects(sheets[index], current.dimensions))
   self.sheets = sheets
 }
 
 ///|
-fn Session::detach_slicer_view(
-  self : Session,
-  sheet : Sheet,
-  part : String,
-  id : String,
-  parts : Map[String, @xml.Document],
-  removed : Map[String, @xml.Document],
-  edits : Array[(String, @xml.Edit)],
-) -> @xml.Document raise @failure.Failure {
-  let (document, edit) = remove_slicer_reference(
-    sheet.document,
-    slicer_list_extension,
-    "slicerList",
-    "slicer",
-    id,
-  )
-  edits.push((sheet.id, edit))
-  self.detach_slicer_resource(sheet.id, part, id, parts, removed, edits)
-  document
-}
-
-///|
-fn remove_slicer_reference(
+fn remove_analysis_reference(
   document : @xml.Document,
   extension : String,
   container : String,
   child : String,
   id : String,
+  payload_uri~ : String = slicer_uri,
 ) -> (@xml.Document, @xml.Edit) raise @failure.Failure {
   let tree = Tree::new(document)
   let list = tree.one(document.nodes()[0].id, "extLst").unwrap()
@@ -166,8 +204,11 @@ fn remove_slicer_reference(
       .unwrap_or(false)
     })
     .unwrap()
-  let container = tree.slicer_node(extension.id, container)
-  let entries = tree.slicer_children(container.id, child)
+  let container = tree.picture_node(extension.id, container, uri=payload_uri)
+  let entries = tree.children
+    .get(container.id)
+    .unwrap_or([])
+    .filter(node => node.uri == payload_uri && node.name == child)
   let entry = entries
     .iter()
     .find_first(node => {
@@ -189,14 +230,14 @@ fn remove_slicer_reference(
   guard !source[node.start:node.end].contains("<!--") &&
     !source[node.start:node.end].contains("<?") else {
     @failure.reject(
-      "protected-content", "Slicer reference annotations require preservation support",
+      "protected-content", "Analysis reference annotations require preservation support",
     )
   }
   document.edit_source([sheet_node_removal(tree, node)])
 }
 
 ///|
-fn Session::detach_slicer_resource(
+fn Session::detach_analysis_resource(
   self : Session,
   owner : String,
   part : String,
@@ -222,7 +263,9 @@ fn Session::detach_slicer_resource(
         })
       })
     guard matches is [entry] else {
-      @failure.reject("protected-content", "Slicer resource entry is ambiguous")
+      @failure.reject(
+        "protected-content", "Analysis resource entry is ambiguous",
+      )
     }
     let (document, edit) = original.edit_source([
       sheet_node_removal(tree, entry),

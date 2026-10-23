@@ -577,9 +577,9 @@ export class SpreadsheetEditor extends SpreadsheetClipboard {
       this.client.slicers(this.state.revision, this.state.sheet),
     );
   }
-  pivotPreview(settings: XlsxPivotSettings) {
+  pivotPreview(settings: XlsxPivotSettings, part?: string) {
     return this.read(() =>
-      this.client.pivotPreview(this.state.revision, settings),
+      this.client.pivotPreview(this.state.revision, settings, part),
     );
   }
   duplicates(settings: XlsxDuplicateSettings): Promise<XlsxDuplicates> {

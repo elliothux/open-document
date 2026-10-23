@@ -57,8 +57,11 @@ fn Foundation::dispatch(
   if operation == "insertXlsxSlicer" {
     return self.insert_xlsx_slicer(request)
   }
-  if operation == "frameXlsxSlicer" {
-    return self.set_xlsx_slicer_frame(request)
+  if operation == "frameXlsxSlicer" || operation == "frameXlsxTimeline" {
+    return self.set_xlsx_analysis_frame(
+      request,
+      timeline=operation == "frameXlsxTimeline",
+    )
   }
   if is_docx_note_operation(operation) {
     return self.docx_note_operation(operation, request)

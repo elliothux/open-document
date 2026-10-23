@@ -1,26 +1,6 @@
 import type { CellValue } from "./xlsx.js";
 import { cellValue } from "./xlsx-grid.js";
 import { integer, record } from "./validation.js";
-import {
-  checkXlsxPictureSettings,
-  type XlsxPictureSettings,
-} from "./xlsx-pictures.js";
-
-export type XlsxSlicerFrame = Pick<
-  XlsxPictureSettings,
-  "anchor" | "x" | "y" | "width" | "height"
->;
-export function checkXlsxSlicerFrame(value: unknown): void {
-  const frame = record(value);
-  if (!fields(frame, ["anchor", "x", "y", "width", "height"]))
-    throw new Error("Invalid slicer frame");
-  checkXlsxPictureSettings({
-    ...frame,
-    name: "Slicer",
-    description: "",
-    crop: [0, 0, 0, 0],
-  });
-}
 
 export interface XlsxSlicerMember {
   index: number;

@@ -48,6 +48,13 @@ fn SheetObject::grid_object(
     fields["timeline"] = {
       "name": timeline.control.name,
       "label": timeline.control.label(),
+      "frame": {
+        "anchor": self.anchor,
+        "x": self.rect.x,
+        "y": self.rect.y,
+        "width": self.rect.width,
+        "height": self.rect.height,
+      },
     }
   }
   if self.slicer is Some(slicer) {
@@ -58,7 +65,7 @@ fn SheetObject::grid_object(
       profile,
     )
     let movable = try {
-      self.check_change(false, slicer_frame=true)
+      self.check_change(false, analysis_frame=true)
       ignore(self.transform_change(self.rect))
       true
     } catch {
