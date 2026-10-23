@@ -433,6 +433,8 @@ export interface DocxFormatting {
   revision: number;
   reason: string;
   inputReason: string;
+  fontReason: string;
+  paragraphReason: string;
   cellSelection: DocxCellSelection;
   hyperlink: { target: string | null; mixed: boolean; reason: string };
   table: {
@@ -601,6 +603,8 @@ export function docxFormatting(value: unknown): DocxFormatting {
     Number(result.revision) < 0 ||
     typeof result.reason !== "string" ||
     typeof result.inputReason !== "string" ||
+    typeof result.fontReason !== "string" ||
+    typeof result.paragraphReason !== "string" ||
     (result.table !== null &&
       (typeof table.autoFit !== "boolean" ||
         typeof table.rowSplit !== "boolean" ||

@@ -46,13 +46,17 @@ pub fn Session::apply_format(
   selection : Selection,
   character : CharacterFormat,
   paragraph : ParagraphFormat,
+  probe? : @layout.TextProbe,
+  profile~ : Map[String, String] = Map([]),
+  images? : @layout.Images,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   character.validate()
   if character.style is Set(key) {
     self.styles([]).validate_style(key, "character")
   }
-  ignore(paragraph.properties())
+  let paragraph_empty = paragraph.properties().is_empty() &&
+    paragraph.tabs is Keep
   let document = self.document()
   let range = self.formatting_range(
     document,
@@ -60,6 +64,7 @@ pub fn Session::apply_format(
     whole_cells=true,
     fields=true,
     notes=true,
+    math=character.math_font_patch(),
   )
   let collapsed = range.start.paragraph == range.end.paragraph &&
     range.start.offset == range.end.offset
@@ -76,12 +81,8 @@ pub fn Session::apply_format(
     candidate = updated
     edits.push(edit)
   }
-  if self.format_paragraph_document(
-      candidate,
-      selection,
-      paragraph,
-      fields=true,
-    )
+  if !paragraph_empty &&
+    self.format_paragraph_document(candidate, selection, paragraph, fields=true)
     is Some((updated, edit)) {
     candidate = updated
     edits.push(edit)
@@ -100,6 +101,33 @@ pub fn Session::apply_format(
     selection.without_visual_hints()
   }
   if !edits.is_empty() {
+    let tree = WordTree::new(document)
+    let math_affected = !range.math_roots(tree).is_empty() ||
+      (
+        !paragraph_empty &&
+        docx_texts(tree).any(item => {
+          tree.nodes[item.id].uri == math_uri &&
+          range.paragraphs.contains(item.paragraph)
+        })
+      )
+    if math_affected {
+      guard probe is Some(probe) else {
+        @failure.reject(
+          "protected-content", "Formula formatting requires a text probe and font profile",
+        )
+      }
+      let layout = @layout.paginate(
+        probe,
+        self.flow_from(candidate),
+        profile,
+        images.unwrap_or_else(() => @layout.Images::new()),
+      )
+      guard layout.diagnostics.is_empty() else {
+        @failure.reject(
+          "unsupported-layout", "Formula formatting requires a complete layout",
+        )
+      }
+    }
     self.commit_edit(
       {
         xml: edits,

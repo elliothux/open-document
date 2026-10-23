@@ -111,6 +111,34 @@ fn Session::prepare_table(
 }
 
 ///|
+fn Session::table_structure_source(
+  self : Session,
+  object : Object,
+) -> (Slide, Array[(String, @xml.Edit)]) raise @failure.Failure {
+  let original = self.current()
+  if object.parent.is_empty() {
+    return (original, [])
+  }
+  let (document, edit) = original.tree.document.edit_source(
+    original.normalized_group_changes([object.id]),
+  )
+  if document.bytes() == original.tree.document.bytes() {
+    return (original, [])
+  }
+  let part = original.tree.part
+  let normalized = read_slide(
+    self.opc,
+    self.main,
+    self.cache,
+    Tree::new(part, document),
+    index=self.source_index(part),
+    parts=self.parts,
+    date_time=self.date_time,
+  )
+  (normalized, [(part, edit)])
+}
+
+///|
 fn Session::edit_table_structure(
   self : Session,
   operation : String,
@@ -133,7 +161,7 @@ fn Session::edit_table_structure(
   guard object.table is Some(table) else {
     @failure.reject("protected-content", "Select an editable table")
   }
-  let (_, _, reason) = self.table_position(object, self.selection)
+  let reason = self.table_geometry_reason(object, self.selection)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let range = table.range(self.selection)
   self.check_table_operation(object, range, operation)
@@ -146,6 +174,9 @@ fn Session::edit_table_structure(
       profile,
     )
   }
+  let (original, edits) = self.table_structure_source(object)
+  let object = original.object(object.id)
+  let table = object.table.unwrap()
   let rows = operation.contains("Row")
   let insert = operation.has_prefix("insert")
   let before = operation.has_suffix("Before")
@@ -158,16 +189,13 @@ fn Session::edit_table_structure(
     table.widths.length()
   }
   if !insert && current_count == amount {
-    let reason = self.object_edit_reason(object, "delete")
-    guard reason.is_empty() else {
-      @failure.reject("protected-content", reason)
-    }
     let (candidate, edit) = self.prepare(original, [
       table_source_change(object.source, ""),
     ])
-    self.commit(
+    edits.push((original.tree.part, edit))
+    self.commit_page(
       candidate,
-      edit,
+      edits,
       {
         ..self.selection,
         object: "",
@@ -327,9 +355,10 @@ fn Session::edit_table_structure(
   } else {
     offset
   }
-  self.commit(
+  edits.push((original.tree.part, edit))
+  self.commit_page(
     candidate,
-    edit,
+    edits,
     { ..self.selection, anchor: offset, focus, },
     probe~,
     profile~,

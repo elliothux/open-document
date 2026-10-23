@@ -200,6 +200,7 @@ fn Session::format_paragraph_document(
     whole_cells=true,
     fields~,
     notes=true,
+    math=true,
   )
   let changes : Array[@xml.SourceChange] = []
   for paragraph in range.paragraphs {
@@ -250,6 +251,17 @@ pub fn Session::set_paragraph_format(
   revision : Int,
   selection : Selection,
   patch : ParagraphFormat,
+  probe? : @layout.TextProbe,
+  profile~ : Map[String, String] = Map([]),
+  images? : @layout.Images,
 ) -> Json raise @failure.Failure {
-  self.apply_format(revision, selection, CharacterFormat::new(), patch)
+  self.apply_format(
+    revision,
+    selection,
+    CharacterFormat::new(),
+    patch,
+    probe?,
+    profile~,
+    images?,
+  )
 }

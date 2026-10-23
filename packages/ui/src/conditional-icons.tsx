@@ -44,6 +44,20 @@ export function ConditionalIconFields({
     t.conditionalArrows,
     t.conditionalTrafficLights,
     t.conditionalFlags,
+    t.conditionalArrowsGray,
+    t.conditionalFourArrows,
+    t.conditionalFourArrowsGray,
+    t.conditionalFiveArrows,
+    t.conditionalFiveArrowsGray,
+    t.conditionalSigns,
+    t.conditionalSymbols,
+    t.conditionalSymbolsPlain,
+    t.conditionalTrafficLightsFramed,
+    t.conditionalFourRating,
+    t.conditionalRedToBlack,
+    t.conditionalFourTrafficLights,
+    t.conditionalFiveRating,
+    t.conditionalQuarters,
   ];
   const set = (icons: XlsxIconSet) => update({ ...rule, icons });
   return (
@@ -58,7 +72,21 @@ export function ConditionalIconFields({
             const kind = conditionalIconSets.find(
               (kind) => kind === event.currentTarget.value,
             );
-            if (kind) set({ ...icons, kind });
+            if (kind) {
+              const count = Number(kind[0]);
+              set({
+                ...icons,
+                kind,
+                thresholds:
+                  icons.thresholds.length === count
+                    ? icons.thresholds
+                    : Array.from({ length: count }, (_, index) => ({
+                        kind: "percent",
+                        value: String(Math.round((index * 100) / count)),
+                        greaterOrEqual: true,
+                      })),
+              });
+            }
           }}
         >
           {conditionalIconSets.map((kind, index) => (

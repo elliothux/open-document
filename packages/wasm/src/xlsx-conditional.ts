@@ -76,6 +76,20 @@ export const conditionalIconSets = [
   "3Arrows",
   "3TrafficLights1",
   "3Flags",
+  "3ArrowsGray",
+  "4Arrows",
+  "4ArrowsGray",
+  "5Arrows",
+  "5ArrowsGray",
+  "3Signs",
+  "3Symbols",
+  "3Symbols2",
+  "3TrafficLights2",
+  "4Rating",
+  "4RedToBlack",
+  "4TrafficLights",
+  "5Rating",
+  "5Quarters",
 ] as const;
 export interface XlsxIconThreshold extends XlsxConditionalThreshold {
   greaterOrEqual: boolean;
@@ -201,7 +215,7 @@ export function checkXlsxConditionalFormat(value: unknown): void {
       typeof icons.showValue !== "boolean" ||
       typeof icons.percent !== "boolean" ||
       !Array.isArray(icons.thresholds) ||
-      icons.thresholds.length !== 3
+      icons.thresholds.length !== Number(String(icons.kind)[0])
     )
       throw new Error("Invalid conditional icon set");
     for (const value of icons.thresholds) {

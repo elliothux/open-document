@@ -123,7 +123,6 @@ fn Session::table_position(
   self : Session,
   object : Object,
   selection : Selection,
-  allow_grouped~ : Bool = false,
 ) -> (Int, Int, String) raise @failure.Failure {
   let table = object.table.unwrap()
   let (row, column) = if selection.mode == "text" {
@@ -134,12 +133,8 @@ fn Session::table_position(
   let reason = if !self.current().read_only.is_empty() {
     self.current().read_only
   } else if !object.read_only.is_empty() &&
-    !(allow_grouped && object.read_only == "Group members are read-only") {
-    if object.read_only == "Group members are read-only" {
-      "Ungroup the table before changing its structure"
-    } else {
-      object.read_only
-    }
+    object.read_only != "Group members are read-only" {
+    object.read_only
   } else if !object.text_reason.is_empty() {
     object.text_reason
   } else if object.source.tree.document
@@ -163,6 +158,20 @@ fn Session::table_position(
 }
 
 ///|
+fn Session::table_geometry_reason(
+  self : Session,
+  object : Object,
+  selection : Selection,
+) -> String raise @failure.Failure {
+  let (_, _, reason) = self.table_position(object, selection)
+  if !reason.is_empty() || object.parent.is_empty() {
+    reason
+  } else {
+    self.object_edit_reason(object, "transform")
+  }
+}
+
+///|
 fn Session::table_query(self : Session) -> Json raise @failure.Failure {
   let selection = self.candidate
     .map(candidate => candidate.selection)
@@ -170,7 +179,8 @@ fn Session::table_query(self : Session) -> Json raise @failure.Failure {
   guard selection.objects.length() == 1 else { return Json::null() }
   let object = self.current().object(selection.object)
   guard object.table is Some(table) else { return Json::null() }
-  let (row, column, reason) = self.table_position(object, selection)
+  let (row, column, style_reason) = self.table_position(object, selection)
+  let reason = self.table_geometry_reason(object, selection)
   let range = table.range(selection)
   let operations : Map[String, Json] = Map([])
   for
@@ -211,7 +221,7 @@ fn Session::table_query(self : Session) -> Json raise @failure.Failure {
       Json::null()
     },
     "reason": reason,
-    "sizeReason": self.table_position(object, selection, allow_grouped=true).2,
+    "sizeReason": reason,
     "splitReason": if !reason.is_empty() {
       reason
     } else if range.owners != 1 {
@@ -221,9 +231,6 @@ fn Session::table_query(self : Session) -> Json raise @failure.Failure {
     },
     "operations": Json(operations),
     "format": table_format_query(object, selection),
-    "style": table_style_query(
-      table,
-      self.table_position(object, selection, allow_grouped=true).2,
-    ),
+    "style": table_style_query(table, style_reason),
   }
 }

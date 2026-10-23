@@ -227,7 +227,7 @@ fn Session::split_table_cell(
   guard object.table is Some(table) else {
     @failure.reject("protected-content", "Select an editable table")
   }
-  let (_, _, reason) = self.table_position(object, self.selection)
+  let reason = self.table_geometry_reason(object, self.selection)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let range = table.range(self.selection)
   guard range.owners == 1 else {
@@ -236,6 +236,9 @@ fn Session::split_table_cell(
   if rows == 1 && columns == 1 {
     return self.query()
   }
+  let (original, edits) = self.table_structure_source(object)
+  let object = original.object(object.id)
+  let table = object.table.unwrap()
   let owner = table.rows[range.top].cells[range.left]
   guard owner.row_span == 1 ||
     (rows <= owner.row_span && owner.row_span % rows == 0) else {
@@ -377,9 +380,10 @@ fn Session::split_table_cell(
   let offset = candidate.object(object.id).table
     .unwrap()
     .cell_offset(y.search(cuts_y[0]).unwrap(), x.search(cuts_x[0]).unwrap())
-  self.commit(
+  edits.push((original.tree.part, edit))
+  self.commit_page(
     candidate,
-    edit,
+    edits,
     { ..self.selection, mode: "text", anchor: offset, focus: offset, },
     probe~,
     profile~,

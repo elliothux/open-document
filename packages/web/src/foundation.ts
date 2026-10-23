@@ -374,6 +374,7 @@ export class FoundationClient extends FoundationClipboardClient {
     revision: number,
     selection: DocxSelection,
     format: CopiedFormat,
+    profile: Record<string, string> = {},
   ): Promise<EditState> {
     copiedFormat(format);
     return editState(
@@ -382,6 +383,7 @@ export class FoundationClient extends FoundationClipboardClient {
         revision,
         selection,
         format,
+        profile,
       }),
     );
   }
@@ -389,6 +391,7 @@ export class FoundationClient extends FoundationClipboardClient {
     revision: number,
     selection: DocxSelection,
     format: CharacterFormatPatch,
+    profile: Record<string, string> = {},
   ): Promise<EditState> {
     checkFormatPatch(format);
     return editState(
@@ -397,6 +400,7 @@ export class FoundationClient extends FoundationClipboardClient {
         revision,
         selection,
         format,
+        profile,
       }),
     );
   }
@@ -421,6 +425,7 @@ export class FoundationClient extends FoundationClipboardClient {
     revision: number,
     selection: DocxSelection,
     format: ParagraphFormatPatch,
+    profile: Record<string, string> = {},
   ): Promise<EditState> {
     checkFormatPatch(format, true);
     return editState(
@@ -429,6 +434,7 @@ export class FoundationClient extends FoundationClipboardClient {
         revision,
         selection,
         format,
+        profile,
       }),
     );
   }

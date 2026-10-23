@@ -34,6 +34,24 @@ priv struct ConditionalIcon {
 } derive(Eq)
 
 ///|
+fn conditional_icon_count(kind : String) -> Int {
+  match kind {
+    "3Arrows"
+    | "3ArrowsGray"
+    | "3TrafficLights1"
+    | "3Flags"
+    | "3Signs"
+    | "3Symbols"
+    | "3Symbols2"
+    | "3TrafficLights2" => 3
+    "4Arrows" | "4ArrowsGray" | "4Rating" | "4RedToBlack" | "4TrafficLights" =>
+      4
+    "5Arrows" | "5ArrowsGray" | "5Rating" | "5Quarters" => 5
+    _ => 0
+  }
+}
+
+///|
 fn IconSet::check(
   self : IconSet,
   anchor : Address,
@@ -41,8 +59,8 @@ fn IconSet::check(
   index : Int,
   work : FormulaWork,
 ) -> Unit raise @failure.Failure {
-  guard ["3Arrows", "3TrafficLights1", "3Flags"].contains(self.kind) &&
-    self.thresholds.length() == 3 else {
+  guard conditional_icon_count(self.kind) > 0 &&
+    self.thresholds.length() == conditional_icon_count(self.kind) else {
     @failure.reject(
       "invalid-operation", "Unsupported conditional icon set or threshold count",
     )
@@ -108,11 +126,12 @@ fn ConditionalRules::icon(
     return None
   }
   let bounds = self.scale_bounds(rule, sheets, index, values, work)
-  guard bounds.length() == 3 else { return None }
-  let selected = for i = 2; i >= 0; i = i - 1 {
+  let last = icons.thresholds.length() - 1
+  guard bounds.length() == last + 1 else { return None }
+  let selected = for i = last; i >= 0; i = i - 1 {
     if value > bounds[i] ||
       (value == bounds[i] && icons.thresholds[i].greaterOrEqual) {
-      break if icons.reverse { 2 - i } else { i }
+      break if icons.reverse { last - i } else { i }
     }
   } nobreak {
     0

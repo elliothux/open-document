@@ -21,11 +21,7 @@ fn Session::resize_table_axis(
   guard object.table is Some(table) else {
     @failure.reject("protected-content", "Select an editable table")
   }
-  let (_, _, reason) = self.table_position(
-    object,
-    self.selection,
-    allow_grouped=true,
-  )
+  let reason = self.table_geometry_reason(object, self.selection)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let range = table.range(self.selection)
   let first = if rows { range.top } else { range.left }

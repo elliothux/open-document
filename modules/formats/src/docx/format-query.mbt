@@ -72,6 +72,25 @@ fn Session::formatting_styles(
         first < end && last > cursor
       }
       if hit {
+        if !collapsed && tree.nodes[item.id].uri == math_uri {
+          let style = self.selected_math_style(tree, item.id)
+          let (value, key) = styles.queried_character(
+            tree,
+            paragraph,
+            None,
+            None,
+          )
+          result.push({
+            ..value,
+            family: style.font,
+            size: style.size,
+            color: style.color,
+          })
+          identifiers.push(key)
+          selected = true
+          cursor = end
+          continue
+        }
         let patch = if collapsed && note_reference(tree.nodes[item.id]) {
           Some(
             CharacterFormat::new(style=Clear, vertAlign=Set("baseline")).merge(
@@ -169,10 +188,11 @@ fn Session::formatting_range(
   whole_cells~ : Bool = false,
   fields~ : Bool = false,
   notes~ : Bool = false,
+  math~ : Bool = false,
 ) -> ParagraphRange raise @failure.Failure {
   let tree = WordTree::new(document)
   let cells = if whole_cells {
-    self.table_format_range(tree, selection, fields~, notes~)
+    self.table_format_range(tree, selection, fields~, notes~, math~)
   } else {
     None
   }
@@ -194,31 +214,10 @@ fn Session::formatting_range(
       @failure.reject("protected-content", p.readOnlyReason)
     }
   }
-  if range.start.paragraph != range.end.paragraph ||
-    range.start.offset != range.end.offset {
-    let texts = docx_texts(tree)
-    for paragraph in range.paragraphs {
-      let start = if paragraph == range.start.paragraph {
-        range.start.offset
-      } else {
-        0
-      }
-      let end = if paragraph == range.end.paragraph {
-        range.end.offset
-      } else {
-        2147483647
-      }
-      for item in texts.filter(item => item.paragraph == paragraph); offset = 0 {
-        let node = tree.nodes[item.id]
-        let length = inline_text(node).length()
-        guard node.uri != math_uri || start >= offset + length || end <= offset else {
-          @failure.reject(
-            "protected-content", "Select ordinary text or a caret to format around a formula",
-          )
-        }
-        continue offset + length
-      }
-    }
+  if !math && !range.math_roots(tree).is_empty() {
+    @failure.reject(
+      "protected-content", "Formula selections support font family, size, text color and paragraph properties",
+    )
   }
   range
 }
@@ -259,11 +258,29 @@ pub fn Session::query_formatting(
   } noraise {
     value => Some(value)
   }
-  let (characters, character_styles) = match range {
+  let font_range = if range is Some(_) {
+    range
+  } else {
+    try {
+      let range = self.formatting_range(
+        self.document(),
+        selection,
+        whole_cells=true,
+        fields=true,
+        notes=true,
+        math=true,
+      )
+      self.check_document_protection()
+      Some(range)
+    } catch {
+      @failure.Failure(..) => None
+    }
+  }
+  let (characters, character_styles) = match font_range {
     Some(range) => self.formatting_styles(tree, range)
     None => ([], [])
   }
-  let paragraphs = match range {
+  let paragraphs = match font_range {
     Some(range) => self.formatting_paragraphs(self.document(), range.paragraphs)
     None => []
   }
@@ -274,6 +291,16 @@ pub fn Session::query_formatting(
   {
     "revision": revision,
     "reason": reason,
+    "fontReason": if font_range is Some(_) {
+      ""
+    } else {
+      reason
+    },
+    "paragraphReason": if font_range is Some(_) {
+      ""
+    } else {
+      reason
+    },
     "inputReason": if reason.is_empty() {
       ""
     } else {

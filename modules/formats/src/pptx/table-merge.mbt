@@ -38,6 +38,8 @@ fn Session::merge_table_cells(
   probe : @layout.TextProbe,
   profile : Map[String, String],
 ) -> Json raise @failure.Failure {
+  let (original, edits) = self.table_structure_source(object)
+  let object = original.object(object.id)
   let table = object.table.unwrap()
   let owner = table.rows[range.top].cells[range.left]
   let changes : Array[@xml.SourceChange] = []
@@ -107,7 +109,6 @@ fn Session::merge_table_cells(
       )
     }
   }
-  let original = self.current()
   let (candidate, edit) = self.prepare_table(
     original,
     changes,
@@ -125,9 +126,10 @@ fn Session::merge_table_cells(
       (sum, p) => sum + paragraph_length(p) + 1,
     )
   }
-  self.commit(
+  edits.push((original.tree.part, edit))
+  self.commit_page(
     candidate,
-    edit,
+    edits,
     { ..self.selection, mode: "text", anchor: offset, focus: offset + length, },
     probe~,
     profile~,

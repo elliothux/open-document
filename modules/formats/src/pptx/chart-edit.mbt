@@ -83,6 +83,53 @@ fn Session::append_chart_xml(
 }
 
 ///|
+fn Session::chart_data_reason(self : Session, object : Object) -> String {
+  try {
+    let slide = self.current()
+    if slide.tree.document.nodes()[0].name != "sld" {
+      return "Create and edit charts in a slide view"
+    }
+    if !slide.read_only.is_empty() {
+      return slide.read_only
+    }
+    guard object.chart is Some(chart) else { return "Select an editable chart" }
+    if !object.read_only.is_empty() &&
+      object.read_only != "Group members are read-only" {
+      return object.read_only
+    }
+    if !object.text_reason.is_empty() &&
+      object.text_reason != "Edit chart text through chart data" {
+      return object.text_reason
+    }
+    if self.slides.fold(init=0, (sum, slide) => {
+        sum +
+        slide.objects
+        .filter(o => o.chart.map(c => c.part == chart.part).unwrap_or(false))
+        .length()
+      }) !=
+      1 ||
+      self
+      .relationships()
+      .filter(link => !link.external && link.target == chart.part)
+      .length() !=
+      1 {
+      return "Shared chart resources require independent copying before editing"
+    }
+    for node in object.source.tree.document.nodes() {
+      if node.start >= object.source.node.start &&
+        node.end <= object.source.node.end &&
+        node.name.has_suffix("Locks") &&
+        ["noDrilldown", "noSelect", "noTextEdit"].any(key => flag(node, key)) {
+        return "Chart data editing is locked"
+      }
+    }
+    ""
+  } catch {
+    @failure.Failure(message~, ..) => message
+  }
+}
+
+///|
 fn Session::write_chart(
   self : Session,
   kind : String,
@@ -122,37 +169,11 @@ fn Session::write_chart(
       @failure.reject("invalid-chart", "Select one chart to edit data")
     }
     let object = original.object(id)
-    guard object.chart is Some(chart) &&
-      object.read_only.is_empty() &&
-      object.parent.is_empty() else {
-      @failure.reject(
-        "protected-content", "Chart data requires an editable local chart",
-      )
+    let reason = self.chart_data_reason(object)
+    guard reason.is_empty() else {
+      @failure.reject("protected-content", reason)
     }
-    guard self.slides.fold(init=0, (sum, slide) => {
-        sum +
-        slide.objects
-        .filter(o => o.chart.map(c => c.part == chart.part).unwrap_or(false))
-        .length()
-      }) ==
-      1 &&
-      self
-      .relationships()
-      .filter(link => !link.external && link.target == chart.part)
-      .length() ==
-      1 else {
-      @failure.reject(
-        "protected-content", "Shared chart resources require independent copying before editing",
-      )
-    }
-    for node in object.source.tree.document.nodes() {
-      if node.start >= object.source.node.start &&
-        node.end <= object.source.node.end &&
-        node.name.has_suffix("Locks") &&
-        (flag(node, "noDrilldown") || flag(node, "noSelect")) {
-        @failure.reject("protected-content", "Chart data editing is locked")
-      }
-    }
+    let chart = object.chart.unwrap()
     ignore(self.chart_workbook(chart))
     Some((object, chart))
   } else {

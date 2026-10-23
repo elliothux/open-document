@@ -583,7 +583,12 @@ export class DocumentEditor extends DocumentTables {
   }
   applyFormat(format: CopiedFormat): Promise<void> {
     return this.format(() =>
-      this.client.applyFormat(this.state.revision, this.selection(), format),
+      this.client.applyFormat(
+        this.state.revision,
+        this.selection(),
+        format,
+        this.profile,
+      ),
     );
   }
   private format(operation: () => Promise<EditState>): Promise<void> {

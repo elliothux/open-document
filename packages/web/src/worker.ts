@@ -491,12 +491,14 @@ async function dispatch(request: Request): Promise<unknown> {
             request.revision,
             request.selection,
             request.format,
+            request.profile,
           );
         case "setCharacterFormat":
           return foundation.setCharacterFormat(
             request.revision,
             request.selection,
             request.format,
+            request.profile,
           );
         case "setHyperlink":
           return foundation.setHyperlink(
@@ -510,6 +512,7 @@ async function dispatch(request: Request): Promise<unknown> {
             request.revision,
             request.selection,
             request.format,
+            request.profile,
           );
         case "query":
           return foundation.query();

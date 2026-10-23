@@ -65,11 +65,7 @@ fn Session::set_table_style(
   guard object.table is Some(table) else {
     @failure.reject("protected-content", "Select an editable table")
   }
-  let (_, _, reason) = self.table_position(
-    object,
-    self.selection,
-    allow_grouped=true,
-  )
+  let (_, _, reason) = self.table_position(object, self.selection)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let settings = { ..settings, id: settings.id.to_upper(), }
   guard !settings.id.is_empty() &&

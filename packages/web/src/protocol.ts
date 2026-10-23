@@ -614,6 +614,7 @@ export type Operation =
       revision: number;
       selection: DocxSelection;
       format: CopiedFormat;
+      profile: Record<string, string>;
     }
   | {
       operation: "updateStyle";
@@ -637,12 +638,14 @@ export type Operation =
       revision: number;
       selection: DocxSelection;
       format: CharacterFormatPatch;
+      profile: Record<string, string>;
     }
   | {
       operation: "setParagraphFormat";
       revision: number;
       selection: DocxSelection;
       format: ParagraphFormatPatch;
+      profile: Record<string, string>;
     }
   | { operation: "budget" | "query" | "saveDocx" | "flow" | "editState" }
   | {

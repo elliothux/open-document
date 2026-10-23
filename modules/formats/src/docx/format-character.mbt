@@ -32,6 +32,7 @@ fn Session::format_character_document(
     whole_cells=true,
     fields~,
     notes=true,
+    math=patch.math_font_patch(),
   )
   let include_empty = include_empty ||
     tree.nodes[range.start.paragraph].parent !=
@@ -113,6 +114,10 @@ fn Session::format_character_document(
       let right = (end - cursor).clamp(min=0, max=count)
       cursor += count
       if left == right {
+        continue
+      }
+      if tree.nodes[id].uri == math_uri {
+        changes.append(self.math_font_changes(tree, document, id, patch))
         continue
       }
       let markup = formatted_properties(tree, document, id, "rPr", properties)
@@ -231,8 +236,19 @@ pub fn Session::set_character_format(
   revision : Int,
   selection : Selection,
   patch : CharacterFormat,
+  probe? : @layout.TextProbe,
+  profile~ : Map[String, String] = Map([]),
+  images? : @layout.Images,
 ) -> Json raise @failure.Failure {
-  self.apply_format(revision, selection, patch, ParagraphFormat::new())
+  self.apply_format(
+    revision,
+    selection,
+    patch,
+    ParagraphFormat::new(),
+    probe?,
+    profile~,
+    images?,
+  )
 }
 
 ///|

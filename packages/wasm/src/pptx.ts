@@ -478,6 +478,7 @@ export function pptxQuery(value: unknown): PptxQuery {
           "transformReason",
           "tableFillReason",
           "chartFillReason",
+          "chartDataReason",
           "shapeTypeReason",
         ],
         [],

@@ -522,64 +522,22 @@ fn Foundation::dispatch(
             field_int(request, "revision"),
             field_selection(request),
           )
-        "applyFormat" | "updateStyle" => {
-          guard request is { "format": Object(fields) as format, .. } &&
-            fields
-            .keys()
-            .all(key => {
-              (if operation == "updateStyle" {
-                ["character", "paragraph", "name", "basedOn", "reset"]
-              } else {
-                ["character", "paragraph"]
-              }).contains(key)
-            }) &&
-            format is { "character": character, "paragraph": paragraph, .. } else {
-            @failure.reject("invalid-operation", "Invalid copied format")
-          }
-          let revision = field_int(request, "revision")
-          let result = if operation == "updateStyle" {
-            let name = match fields.get("name") {
-              Some(String(name)) => Some(name)
-              None => None
-              _ => @failure.reject("invalid-operation", "Invalid style name")
-            }
-            session.update_style(
-              revision,
-              field_string(request, "key"),
-              character_format({ "format": character }),
-              paragraph_format({ "format": paragraph }),
-              name~,
-              based_on=format_string(fields, "basedOn"),
-              reset=match fields.get("reset") {
-                None => false
-                Some(True) => true
-                _ =>
-                  @failure.reject(
-                    "invalid-operation", "Invalid style reset flag",
-                  )
-              },
-            )
-          } else {
-            session.apply_format(
-              revision,
-              field_selection(request),
-              character_format({ "format": character }),
-              paragraph_format({ "format": paragraph }),
-            )
-          }
-          if result is { "revision": Number(current, ..), .. } &&
-            current != revision.to_double() {
-            self.layout = None
-          }
-          result
-        }
+        "applyFormat" | "updateStyle" =>
+          self.edit_docx_style(session, request, operation)
         "setCharacterFormat"
         | "setParagraphFormat"
         | "setHyperlink"
         | "editBookmark"
         | "editDocxComment" => {
           let revision = field_int(request, "revision")
-          let result = edit_docx_format(session, request, operation, revision)
+          let result = edit_docx_format(
+            session,
+            request,
+            operation,
+            revision,
+            self.probe,
+            self.images,
+          )
           if result is { "revision": Number(current, ..), .. } &&
             current != revision.to_double() {
             self.layout = None

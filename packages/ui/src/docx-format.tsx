@@ -102,6 +102,9 @@ export function DocxFormatCommands({
   const t = messages(state.locale),
     formatting = editor.getSnapshot().data.formatting;
   const character = formatting?.character;
+  const fontDisabled = disabled || !formatting || !!formatting.fontReason;
+  const paragraphDisabled =
+    disabled || !formatting || !!formatting.paragraphReason;
   disabled ||= !formatting || !!formatting.reason;
   const set = (format: CharacterFormatPatch) =>
     controller.run(() => editor.setCharacterFormat(format));
@@ -150,7 +153,7 @@ export function DocxFormatCommands({
           <select
             aria-label={t.fontFamily}
             value={family}
-            disabled={disabled}
+            disabled={fontDisabled}
             onChange={(event) => set({ family: event.currentTarget.value })}
           >
             <option value="" disabled>
@@ -165,9 +168,9 @@ export function DocxFormatCommands({
           label={t.fontSize}
           value={character?.size}
           min={0.5}
-          max={1024}
+          max={formatting?.reason ? 409 : 1024}
           step={0.5}
-          disabled={disabled}
+          disabled={fontDisabled}
           apply={t.apply}
           mixed={t.mixed}
           onApply={(size) => set({ size })}
@@ -213,13 +216,13 @@ export function DocxFormatCommands({
               character?.color.kind === "mixed" ? t.mixed : undefined
             }
             value={`#${color}`}
-            disabled={disabled}
+            disabled={fontDisabled}
             onChange={(event) => setColor(event.currentTarget.value.slice(1))}
           />
         </label>
         <Command
           label={t.applyColor}
-          disabled={disabled}
+          disabled={fontDisabled}
           action={() => set({ color })}
         />
         <Command
@@ -325,7 +328,7 @@ export function DocxFormatCommands({
           <button
             key={value}
             type="button"
-            disabled={disabled}
+            disabled={paragraphDisabled}
             aria-pressed={
               align?.kind === "mixed"
                 ? "mixed"
@@ -349,7 +352,7 @@ export function DocxFormatCommands({
         <label>
           <input
             type="checkbox"
-            disabled={disabled}
+            disabled={paragraphDisabled}
             checked={
               formatting?.paragraph.rtl.kind === "value" &&
               formatting.paragraph.rtl.value
@@ -366,7 +369,7 @@ export function DocxFormatCommands({
         </label>
         <Command
           label={t.clearParagraph}
-          disabled={disabled}
+          disabled={paragraphDisabled}
           action={() =>
             paragraph({
               align: null,
@@ -395,6 +398,8 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
     formatting = editor.getSnapshot().data.formatting;
   const stylesDisabled = disabled;
   const inputDisabled = disabled || !formatting || !!formatting.inputReason;
+  const paragraphDisabled =
+    disabled || !formatting || !!formatting.paragraphReason;
   disabled ||= !formatting || !!formatting.reason;
   return (
     <aside className="od-properties" aria-label={t.paragraph}>
@@ -505,13 +510,13 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
         controller={controller}
         state={state}
         editor={editor}
-        disabled={disabled}
+        disabled={paragraphDisabled}
       />
       <DocxTabs
         controller={controller}
         state={state}
         editor={editor}
-        disabled={disabled}
+        disabled={paragraphDisabled}
       />
       <DocxDefaultTab
         controller={controller}
@@ -559,7 +564,7 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
           min={key === "first" ? -1584 : 0}
           max={1584}
           step={0.05}
-          disabled={disabled}
+          disabled={paragraphDisabled}
           apply={t.apply}
           mixed={t.mixed}
           onApply={(value) =>
@@ -578,7 +583,7 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
                 node.indeterminate =
                   formatting?.paragraph[key].kind === "mixed";
             }}
-            disabled={disabled}
+            disabled={paragraphDisabled}
             checked={
               formatting?.paragraph[key].kind === "value" &&
               formatting.paragraph[key].value

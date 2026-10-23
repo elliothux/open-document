@@ -29,6 +29,8 @@ fn edit_docx_format(
   request : Json,
   operation : String,
   revision : Int,
+  probe : @layout.TextProbe,
+  images : @layout.Images,
 ) -> Json raise @failure.Failure {
   match operation {
     "editBookmark" => session.edit_bookmark(revision, bookmark_edit(request))
@@ -46,12 +48,18 @@ fn edit_docx_format(
         revision,
         field_selection(request),
         character_format(request),
+        probe~,
+        profile=xlsx_profile(request),
+        images~,
       )
     _ =>
       session.set_paragraph_format(
         revision,
         field_selection(request),
         paragraph_format(request),
+        probe~,
+        profile=xlsx_profile(request),
+        images~,
       )
   }
 }
@@ -307,4 +315,62 @@ fn paragraph_format(
     keepNext=format_boolean(fields, "keepNext"),
     widowControl=format_boolean(fields, "widowControl"),
   )
+}
+
+///|
+fn Foundation::edit_docx_style(
+  self : Foundation,
+  session : @docx.Session,
+  request : Json,
+  operation : String,
+) -> Json raise @failure.Failure {
+  guard request is { "format": Object(fields) as format, .. } &&
+    fields
+    .keys()
+    .all(key => {
+      (if operation == "updateStyle" {
+        ["character", "paragraph", "name", "basedOn", "reset"]
+      } else {
+        ["character", "paragraph"]
+      }).contains(key)
+    }) &&
+    format is { "character": character, "paragraph": paragraph, .. } else {
+    @failure.reject("invalid-operation", "Invalid copied format")
+  }
+  let revision = field_int(request, "revision")
+  let result = if operation == "updateStyle" {
+    let name = match fields.get("name") {
+      Some(String(name)) => Some(name)
+      None => None
+      _ => @failure.reject("invalid-operation", "Invalid style name")
+    }
+    session.update_style(
+      revision,
+      field_string(request, "key"),
+      character_format({ "format": character }),
+      paragraph_format({ "format": paragraph }),
+      name~,
+      based_on=format_string(fields, "basedOn"),
+      reset=match fields.get("reset") {
+        None => false
+        Some(True) => true
+        _ => @failure.reject("invalid-operation", "Invalid style reset flag")
+      },
+    )
+  } else {
+    session.apply_format(
+      revision,
+      field_selection(request),
+      character_format({ "format": character }),
+      paragraph_format({ "format": paragraph }),
+      probe=self.probe,
+      profile=xlsx_profile(request),
+      images=self.images,
+    )
+  }
+  if result is { "revision": Number(current, ..), .. } &&
+    current != revision.to_double() {
+    self.layout = None
+  }
+  result
 }

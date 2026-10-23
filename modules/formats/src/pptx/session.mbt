@@ -331,6 +331,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
         "transformReason": self.object_edit_reason(object, "transform"),
         "tableFillReason": self.table_fill_reason(object),
         "chartFillReason": self.chart_fill_reason(object),
+        "chartDataReason": self.chart_data_reason(object),
         "hyperlink": self.hyperlink_query(object, links),
         "shapeAdjustments": self.shape_adjustments(object),
         "shapeTypeReason": self.shape_type_reason(object),

@@ -1,5 +1,6 @@
 ///|
-fn math_properties_markup(
+/// Serializes the uniform font properties shared by math authoring and range edits.
+pub fn math_properties_markup(
   style : @layout.TextStyle,
   drawing~ : Bool = false,
 ) -> String raise @failure.Failure {

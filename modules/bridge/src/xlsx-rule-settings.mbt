@@ -34,9 +34,10 @@ fn xlsx_conditional_settings(
     format: xlsx_cell_format(format),
     icons: if rule is { "icons": icons, .. } {
       guard icons is { "thresholds": Array(thresholds), .. } &&
-        thresholds.length() == 3 else {
+        thresholds.length() >= 3 &&
+        thresholds.length() <= 5 else {
         @failure.reject(
-          "invalid-operation", "Three icon thresholds are required",
+          "invalid-operation", "Three to five icon thresholds are required",
         )
       }
       Some({

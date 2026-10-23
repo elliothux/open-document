@@ -434,16 +434,24 @@ export class FoundationSession extends FoundationMathSession {
     revision: number,
     selection: DocxSelection,
     format: CopiedFormat,
+    profile: Record<string, string> = {},
   ): EditState {
     copiedFormat(format);
     return editState(
-      this.call({ operation: "applyFormat", revision, selection, format }),
+      this.call({
+        operation: "applyFormat",
+        revision,
+        selection,
+        format,
+        profile,
+      }),
     );
   }
   setCharacterFormat(
     revision: number,
     selection: DocxSelection,
     format: CharacterFormatPatch,
+    profile: Record<string, string> = {},
   ): EditState {
     checkFormatPatch(format);
     return editState(
@@ -452,6 +460,7 @@ export class FoundationSession extends FoundationMathSession {
         revision,
         selection,
         format,
+        profile,
       }),
     );
   }
@@ -476,6 +485,7 @@ export class FoundationSession extends FoundationMathSession {
     revision: number,
     selection: DocxSelection,
     format: ParagraphFormatPatch,
+    profile: Record<string, string> = {},
   ): EditState {
     checkFormatPatch(format, true);
     return editState(
@@ -484,6 +494,7 @@ export class FoundationSession extends FoundationMathSession {
         revision,
         selection,
         format,
+        profile,
       }),
     );
   }

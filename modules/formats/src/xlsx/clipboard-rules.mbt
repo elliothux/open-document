@@ -87,8 +87,8 @@ fn CopiedCells::check_copied_rules(
       colors.push(bar.color)
     }
     if settings.icons is Some(icons) {
-      guard ["3Arrows", "3TrafficLights1", "3Flags"].contains(icons.kind) &&
-        icons.thresholds.length() == 3 else {
+      guard conditional_icon_count(icons.kind) > 0 &&
+        icons.thresholds.length() == conditional_icon_count(icons.kind) else {
         @failure.reject("invalid-operation", "Invalid copied icon set")
       }
       texts.append(icons.thresholds.map(t => t.value))

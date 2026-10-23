@@ -51,7 +51,7 @@ export function PptxCharts({
         disabled={
           disabled ||
           !!query.readOnlyReason ||
-          (!!chart && !!selected?.readOnlyReason)
+          (!!chart && !!selected?.chartDataReason)
         }
       >
         <legend>{t.chart}</legend>
@@ -59,6 +59,9 @@ export function PptxCharts({
         <button type="submit" disabled={!draft.data}>
           {chart ? t.chartApply : fill ? t.chartFill : t.chartInsert}
         </button>
+        {chart && selected?.chartDataReason && (
+          <p>{selected.chartDataReason}</p>
+        )}
       </fieldset>
     </form>
   );
