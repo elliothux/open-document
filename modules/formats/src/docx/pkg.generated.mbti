@@ -240,15 +240,14 @@ pub fn Session::set_page_setup(Self, Int, @layout.PageSetup, orientation? : Stri
 pub fn Session::set_paragraph_format(Self, Int, Selection, ParagraphFormat, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_running_area(Self, Int, String, String, Array[RunningContent], Double, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_running_options(Self, Int, Bool, Bool, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
-pub fn Session::set_text_watermark(Self, Int, TextWatermark?, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_theme_color(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::set_theme_fonts(Self, Int, Array[ThemeFontEdit], @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn Session::set_watermark(Self, Int, Watermark?, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::shapes(Self, Int) -> Json raise @failure.Failure
 pub fn Session::style_catalog(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::tab(Self, Int, Bool) -> Json raise @failure.Failure
 pub fn Session::table_clipboard(Self, Int, Selection, cut? : Bool, layout? : @layout.Layout) -> Json raise @failure.Failure
 pub fn Session::table_fragment_images(Self, Int, String) -> Json raise @failure.Failure
-pub fn Session::text_watermark(Self, Int) -> Json raise @failure.Failure
 pub fn Session::theme_colors(Self, Int) -> Json raise @failure.Failure
 pub fn Session::theme_fonts(Self, Int) -> Json raise @failure.Failure
 pub fn Session::undo_edit(Self, Int) -> Json raise @failure.Failure
@@ -258,6 +257,7 @@ pub fn Session::update_composition(Self, Int, Int, String) -> Json raise @failur
 pub fn Session::update_drawing_gesture(Self, Int, Int, Double, Double, page? : Int) -> Json raise @failure.Failure
 pub fn Session::update_list_level(Self, Int, Int, Int, ListLevelFormat) -> Json raise @failure.Failure
 pub fn Session::update_style(Self, Int, String, CharacterFormat, ParagraphFormat, name? : String?, based_on? : FormatChange[String], reset? : Bool) -> Json raise @failure.Failure
+pub fn Session::watermark(Self, Int) -> Json raise @failure.Failure
 
 pub(all) enum TableEdit {
   RowBefore
@@ -306,6 +306,20 @@ pub(all) struct ThemeFontEdit {
   script : String
   font : String
 }
+
+pub(all) enum Watermark {
+  Text(TextWatermark)
+  Picture(WatermarkImage, Double, Double, Double)
+} derive(Eq)
+pub fn Watermark::equal(Self, Self) -> Bool
+pub fn Watermark::not_equal(Self, Self) -> Bool
+
+pub(all) enum WatermarkImage {
+  Data(Bytes)
+  Resource(String)
+} derive(Eq)
+pub fn WatermarkImage::equal(Self, Self) -> Bool
+pub fn WatermarkImage::not_equal(Self, Self) -> Bool
 
 // Type aliases
 

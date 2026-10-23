@@ -32,6 +32,13 @@ fn Foundation::docx_flow(
       }
     }
   }
+  if session.watermark(flow.revision) is { "images": Array(images), .. } {
+    for image in images {
+      if image is String(key) && !keys.contains(key) {
+        keys.push(key)
+      }
+    }
+  }
   self.images.retain(keys)
   flow.to_json()
 }

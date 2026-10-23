@@ -56,7 +56,11 @@ pub fn Session::page_positioned(
         @failure.reject("protected-content", "Duplicate header watermarks")
       }
       if blocks is [id] {
-        marks[variant] = story.watermark_source(id)
+        let mark = story.watermark_source(id)
+        marks[variant] = {
+          ..mark,
+          value: self.watermark_value(part, mark.value),
+        }
       }
     }
   }
@@ -79,7 +83,24 @@ pub fn Session::page_positioned(
   let numbering = tree.page_numbering(section)
   let paints : Map[String, Array[@layout.PositionedPrimitive]] = Map([])
   for variant, mark in marks {
-    let value = mark.value
+    if mark.value is Picture(Resource(key), width, height, opacity) {
+      paints[variant] = [
+        @layout.Image(
+          {
+            key,
+            x: page.left + (page.width - page.left - page.right - width) / 2,
+            y: page.top + (page.height - page.top - page.bottom - height) / 2,
+            width,
+            height,
+          },
+          opacity,
+        ),
+      ]
+      continue
+    }
+    guard mark.value is Text(value) else {
+      @failure.reject("invalid-operation", "Unresolved watermark image")
+    }
     let block = probe.text_block(
       value.text,
       value.style(

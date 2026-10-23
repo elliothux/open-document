@@ -1,7 +1,8 @@
 import { DocumentReview } from "./document-review.js";
+import { decodeImage } from "./image.js";
 import type {
   DocxCharts,
-  DocxTextWatermark,
+  DocxWatermark,
   DocxChartValue,
   DocxChartUpdate,
   DocxMathFractions,
@@ -458,23 +459,40 @@ export abstract class DocumentPage extends DocumentReview {
       ),
     );
   }
-  textWatermark() {
+  watermark() {
     return this.review.read(async () => {
       const current = this.review.snapshot();
       return {
-        ...(await this.review.client.textWatermark(current.revision)),
+        ...(await this.review.client.watermark(current.revision)),
         documentId: current.documentId,
       };
     });
   }
-  setTextWatermark(value: DocxTextWatermark | null): Promise<void> {
-    return this.review.edit(() =>
-      this.review.client.setTextWatermark(
-        this.review.snapshot().revision,
-        value,
+  setWatermark(value: DocxWatermark | null): Promise<void> {
+    return this.review.edit(async () => {
+      const current = this.review.snapshot();
+      const prepared =
+        value?.kind === "picture" && value.image instanceof Uint8Array
+          ? { ...value, image: value.image.slice() }
+          : value;
+      if (
+        prepared?.kind === "picture" &&
+        prepared.image instanceof Uint8Array
+      ) {
+        const { bitmap } = await decodeImage(prepared.image);
+        bitmap.close();
+        if (
+          this.review.snapshot().documentId !== current.documentId ||
+          this.review.snapshot().revision !== current.revision
+        )
+          throw new Error("Watermark source changed during image preparation");
+      }
+      return this.review.client.setWatermark(
+        current.revision,
+        prepared,
         this.profile,
-      ),
-    );
+      );
+    });
   }
   setCoverPage(cover: DocxCoverPage | null): Promise<void> {
     return this.review.edit(() =>

@@ -238,34 +238,8 @@ fn Foundation::pptx_operation(
             xlsx_boolean(change, "allSlides"),
           )
         }
-        "commentAdd" => {
-          guard change is { "author": author, "parent": parent, .. } else {
-            @failure.reject(
-              "invalid-operation", "Comment author and reply parent are required",
-            )
-          }
-          let parent = match parent {
-            Null => None
-            String(id) => Some(id)
-            _ =>
-              @failure.reject(
-                "invalid-operation", "Invalid comment reply parent",
-              )
-          }
-          @pptx.AddComment(
-            field_string(change, "text"),
-            field_string(author, "name"),
-            field_string(author, "initials"),
-            field_string(change, "date"),
-            parent,
-          )
-        }
-        "commentUpdate" =>
-          @pptx.UpdateComment(
-            field_string(change, "id"),
-            field_string(change, "text"),
-          )
-        "commentRemove" => @pptx.RemoveComment(field_string(change, "id"))
+        "commentAdd" | "commentUpdate" | "commentRemove" | "commentStatus" =>
+          pptx_comment_change(change)
         "themeColor" =>
           @pptx.ThemeColor(
             field_string(change, "slot"),

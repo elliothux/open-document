@@ -13,8 +13,8 @@ fn WordTree::header_watermark(
 }
 
 ///|
-/// Reads the single-section text watermark; mixed header variants are reported explicitly.
-pub fn Session::text_watermark(
+/// Reads the single-section watermark; mixed header variants are reported explicitly.
+pub fn Session::watermark(
   self : Session,
   revision : Int,
 ) -> Json raise @failure.Failure {
@@ -23,15 +23,24 @@ pub fn Session::text_watermark(
     let tree = WordTree::new(self.document())
     let values = ["default", "first", "even"].map(variant => {
       let (_, _, part) = self.running_target(tree, "header", variant)
-      part
-      .bind(part => WordTree::new(self.part_xml(part)).header_watermark())
-      .map(mark => mark.value)
+      part.bind(part => {
+        WordTree::new(self.part_xml(part))
+        .header_watermark()
+        .map(mark => self.watermark_value(part, mark.value))
+      })
     })
+    let images : Array[String] = []
+    for value in values {
+      if value is Some(Picture(Resource(key), _, _, _)) && !images.contains(key) {
+        images.push(key)
+      }
+    }
     {
-      "value": values[0].map(value => Json(value)).unwrap_or(Json::null()),
+      "value": values[0].map(value => value.json()).unwrap_or(Json::null()),
       "revision": revision,
       "mixed": values.any(value => value != values[0]),
       "reason": "",
+      "images": images,
     }
   } catch {
     @failure.Failure(message~, ..) =>
@@ -40,16 +49,17 @@ pub fn Session::text_watermark(
         "value": Json::null(),
         "mixed": false,
         "reason": message,
+        "images": [],
       }
   }
 }
 
 ///|
-/// Sets or removes a native text watermark across all three stored header variants.
-pub fn Session::set_text_watermark(
+/// Sets or removes a native text or picture watermark across all three stored header variants.
+pub fn Session::set_watermark(
   self : Session,
   revision : Int,
-  value : TextWatermark?,
+  value : Watermark?,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],
   images~ : @layout.Images,
@@ -67,10 +77,56 @@ pub fn Session::set_text_watermark(
     })
     (variant, part, old)
   })
-  if targets.all(target => target.2.map(mark => mark.value) == value) {
+  let mut value = match value {
+    Some(Picture(Resource(key), width, height, opacity)) => {
+      let link = self.image_relationship(key)
+      guard !link.external else {
+        @failure.reject(
+          "protected-content", "Watermark images must be internal",
+        )
+      }
+      ignore(@image.type_info(self.image_bytes(key)))
+      Some(
+        Picture(Resource("watermark:" + link.target), width, height, opacity),
+      )
+    }
+    Some(Picture(Data(bytes), width, height, opacity)) => {
+      guard bytes.length() <= history_byte_limit else {
+        @failure.reject(
+          "limit-exceeded", "Watermark image exceeds history budget",
+        )
+      }
+      ignore(@image.type_info(bytes))
+      let mut matching : String? = None
+      for target in targets {
+        if target.2 is Some(mark) &&
+          self.watermark_value(target.1.unwrap(), mark.value)
+          is Picture(Resource(key), _, _, _) &&
+          self.image_bytes(key) == bytes {
+          matching = Some(key)
+          break
+        }
+      }
+      Some(
+        Picture(
+          matching
+          .map(key => WatermarkImage::Resource(key))
+          .unwrap_or(Data(bytes)),
+          width,
+          height,
+          opacity,
+        ),
+      )
+    }
+    _ => value
+  }
+  if targets.all(target => {
+      target.2.map(mark => self.watermark_value(target.1.unwrap(), mark.value)) ==
+      value
+    }) {
     return self.edit_state()
   }
-  let (width, height) = if value is Some(value) {
+  let (width, height) = if value is Some(Text(value)) {
     let block = probe.text_block(
       value.text,
       value.style(),
@@ -86,34 +142,84 @@ pub fn Session::set_text_watermark(
       @failure.reject("limit-exceeded", "Watermark text exceeds drawing bounds")
     }
     ((width * 12700).ceil() / 12700, (block.height * 12700).ceil() / 12700)
+  } else if value is Some(Picture(_, width, height, _)) {
+    (width, height)
   } else {
     (0.0, 0.0)
   }
   let parts = self.parts.copy()
   let part_edits : Map[String, Array[@xml.Edit]] = Map([])
   let created : Map[String, @xml.Document] = Map([])
+  let media = self.media.copy()
+  let created_media : Map[String, Bytes] = Map([])
   let changed : Set[String] = Set([])
   let references = StringBuilder()
   for (variant, existing, old) in targets {
     if existing is None && value is None {
       continue
     }
-    let view = { ..self, parts, }
+    let view = { ..self, parts, media, }
     let part = existing.unwrap_or_else(() => {
       view.new_word_part("header", parts, part_edits, created)
     })
     if !changed.contains(part) {
       changed.add(part)
-      let markup = value
-        .map(value => {
-          watermark_markup(
-            value,
-            old
-            .map(mark => mark.identity)
-            .unwrap_or_else(() => view.next_drawing_identity().to_string()),
+      if value is Some(Picture(Data(bytes), width, height, opacity)) {
+        let kind = @image.type_info(bytes)
+        let resource = view.prepare_picture_resource(
+          view.next_drawing_identity(),
+          bytes,
+          (kind.0, kind.1),
+          owner=part,
+        )
+        for name, document in resource.parts {
+          parts[name] = document
+        }
+        for name, data in resource.media {
+          media[name] = data
+        }
+        for name, edits in resource.edits {
+          part_edits.get_or_init(name, () => []).append(edits)
+        }
+        for name, document in resource.created {
+          created[name] = document
+        }
+        created_media[resource.path] = resource.data
+        value = Some(
+          Picture(
+            Resource("watermark:" + resource.path),
             width,
             height,
-          )
+            opacity,
+          ),
+        )
+      }
+      let markup = value
+        .map(value => {
+          let identity = old
+            .map(mark => mark.identity)
+            .unwrap_or_else(() => view.next_drawing_identity().to_string())
+          match value {
+            Text(text) => watermark_markup(text, identity, width, height)
+            Picture(Resource(key), width, height, opacity) =>
+              picture_watermark_markup(
+                identity,
+                view.watermark_image_link(
+                  part,
+                  view.image_relationship(key).target,
+                  parts,
+                  part_edits,
+                  created,
+                ),
+                width,
+                height,
+                opacity,
+              )
+            _ =>
+              @failure.reject(
+                "invalid-operation", "Watermark image was not prepared",
+              )
+          }
         })
         .unwrap_or("")
       if existing is None {
@@ -147,7 +253,7 @@ pub fn Session::set_text_watermark(
       }
     }
     if existing is None {
-      let view = { ..self, parts, }
+      let view = { ..self, parts, media, }
       let relation = view
         .relationships()
         .iter()
@@ -202,5 +308,7 @@ pub fn Session::set_text_watermark(
     probe~,
     profile~,
     images~,
+    media~,
+    created_media~,
   )
 }

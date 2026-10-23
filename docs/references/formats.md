@@ -702,15 +702,17 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 非法颜色、旧 revision、活动候选、文档/设计保护及输出预算失败保持当前包与历史。重复背景、未知属性、主题色、图片/渐变/VML 及不透明目标源继续保护，布局保留诊断，不能用纯色替换来删除未知源。全稿主题背景继续实施，文字水印与页边框见下文。
 
-### DOCX 文字水印
+### DOCX 水印
 
-`FoundationSession/Client.textWatermark(revision)` 查询 `{ revision, value, mixed, reason }`；`DocumentEditor.textWatermark()` 还返回 `documentId`。`value` 为默认页眉的 `DocxTextWatermark` 或 null，`mixed` 表示三个已存页眉变体不同，`reason` 表示目标源的保护原因。`setTextWatermark(revision, value)` 和 `DocumentEditor.setTextWatermark(value)` 设置文字水印，null 移除。设置同时更新默认、首页和偶数页页眉，创建缺失的部件及关系，保留已有文字、字段和开关。以后切换首页或奇偶页设置仍保留水印。
+`FoundationSession/Client.watermark(revision)` 查询 `{ revision, value, mixed, reason, images }`；`DocumentEditor.watermark()` 还返回 `documentId`。`value` 为默认页眉的水印或 null，`mixed` 表示三个已存页眉变体不同，`reason` 表示目标源的保护原因，`images` 提供各变体的不重复图片资源键。`setWatermark(revision, value)` 和 `DocumentEditor.setWatermark(value)` 设置文字或图片水印，null 移除。设置同时更新默认、首页和偶数页页眉，创建缺失的部件及关系，保留已有文字、字段和开关。以后切换首页或奇偶页设置仍保留水印。
 
-`DocxTextWatermark` 包含八个必需字段：`text`、`font`、`size`、`color`、`opacity`、`diagonal`、`bold`、`italic`。文字和字体名各为最多 256 个 UTF-16 单元的非空单行文本，字体须在当前 profile 可用。字号为 0.5–1638 pt 的半磅倍数，颜色为不带 `#` 的六位 RGB，不透明度为 0–1 并舍入到 1/100000；后三项为布尔值。斜向使用原生 315° 旋转，水平为 0°。默认页面面板先读取当前值，再编辑各项或移除；文档身份或 revision 变化后须重新读取，混合变体明确提示。
+文字值为 `{ kind: "text", value: DocxTextWatermark }`。`DocxTextWatermark` 包含八个必需字段：`text`、`font`、`size`、`color`、`opacity`、`diagonal`、`bold`、`italic`。文字和字体名各为最多 256 个 UTF-16 单元的非空单行文本，字体须在当前 profile 可用。字号为 0.5–1638 pt 的半磅倍数，颜色为不带 `#` 的六位 RGB，不透明度为 0–1 并舍入到 1/100000；后三项为布尔值。斜向使用原生 315° 旋转，水平为 0°。
 
-核心保存为页眉 `Watermarks` 图库内容控件中的 DrawingML 文字形状。它按真实字体测量，在页边距内居中并置于正文后方，不占正文分页空间，不加入正文语义或字数。普通页眉文字和 PAGE/NUMPAGES 编辑保留原水印 XML。Canvas、页面图片与 PDF 使用同一文字定位；绘制颜色按页面纯色背景合成，后续正文和对象照常覆盖。受保护文档仍可显示既有水印。设置和移除复用单节页面保护、原子资源事务、精确历史、输出预算和保存重开；同值为无操作，缺字体、扩展源或预算失败保留源与重做历史。
+图片值为 `{ kind: "picture", image, width, height, opacity }`。新图片的 `image` 是 PNG/JPEG 原字节；查询返回不透明资源键，调整已有图片时传回该键。宽高为 0.1–14400 pt，保存按 EMU 精度舍入；不透明度为 0–1 并舍入到 1/100000。原始图片不转码，页眉各自保存图片关系，三个变体可复用同一资源。尺寸或透明度修改不重复添加图片；同字节、同设置为无操作。新图片沿用 4 MiB 压缩输入、4096 像素单边、4 Mi 像素解码和整项 4 MiB 历史预算，实际还须容纳源 XML。Web 宿主在提交前验证解码，再通过现有资源加载器提供 RGBA。默认面板按 96 dpi 读取自然尺寸，在页边距内等比缩小，允许显式修改宽高和透明度。面板先读取当前值，再编辑或移除；文档身份或 revision 变化后须重新读取，混合变体明确提示。
 
-当前可读写本合同的原生文字形状。图片水印、导入 VML 水印及带额外属性、效果或其他结构的水印继续保护，不能用本操作覆盖未知源。实现归 [`watermark-source.mbt`](../../modules/formats/src/docx/watermark-source.mbt)、[`watermark-edit.mbt`](../../modules/formats/src/docx/watermark-edit.mbt)及 [`watermark-layout.mbt`](../../modules/formats/src/docx/watermark-layout.mbt)。页眉内容控件依据 [ONLYOFFICE SetWatermarkProps](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L12823-L12909)，文字形状、字体测量和居中依据 [createWatermark](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/GraphicObjects/GraphicObjects.js#L590-L734)，未复制上游源码。
+核心保存为页眉 `Watermarks` 图库内容控件中的 DrawingML 文字形状或图片。文字按真实字体测量；图片保存原生尺寸和 `a:alphaModFix`。两者在页边距内居中并置于正文后方，不占正文分页空间，不加入正文语义或字数。普通页眉文字和 PAGE/NUMPAGES 编辑保留原水印 XML。Canvas、页面图片与 PDF 使用相同位置与透明度；文字颜色按页面纯色背景合成，图片保留源 alpha，后续正文和对象照常覆盖。受保护文档仍可显示既有水印。文字/图片互换、设置和移除共用单节页面保护、原子资源事务、精确历史、输出预算和保存重开；缺字体、损坏图片、扩展源或预算失败保留源与重做历史。
+
+当前可读写本合同的原生文字和图片配置。导入 VML、多节水印、图片裁剪/旋转及带额外属性、效果或其他结构的水印继续保护，不能用本操作覆盖未知源。实现归 [`watermark-source.mbt`](../../modules/formats/src/docx/watermark-source.mbt)、[`watermark-picture.mbt`](../../modules/formats/src/docx/watermark-picture.mbt)、[`watermark-edit.mbt`](../../modules/formats/src/docx/watermark-edit.mbt)及 [`watermark-layout.mbt`](../../modules/formats/src/docx/watermark-layout.mbt)。页眉内容控件依据 [ONLYOFFICE SetWatermarkProps](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L12823-L12909)，文字形状、字体测量和居中依据 [createWatermark](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/GraphicObjects/GraphicObjects.js#L590-L734)，图片适配和透明度依据[同一函数的图片分支](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/GraphicObjects/GraphicObjects.js#L533-L590)，未复制上游源码。
 
 ### 页面边框
 
@@ -3376,7 +3378,9 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 
 ### 本地批注与回复
 
-`PptxQuery.comments` 返回当前页的 `{ items, reason }`。条目包含稳定的 `id`（规范化的 `authorId:idx`）、作者 `author`、`initials`、源 `date`、纯文字 `text` 和根批注 `parent`；根的 `parent` 为 `null`。支持传统 `p:cmLst` 和 PowerPoint 2012 的单层回复，按源顺序返回。缺失作者、重复身份、悬空/嵌套回复、现代云批注及未知扩展返回保护原因，不把未知源当作可编辑文本。
+`PptxQuery.comments` 返回当前页的 `{ items, reason }`。条目包含稳定的 `id`、作者 `author`、`initials`、源 `date`、纯文字 `text`、根批注 `parent` 和 `status`；根的 `parent` 为 `null`。现代 `status` 为 `active/resolved/closed`，缺省按 `active` 读取；传统格式为 `null`。传统格式的身份为规范化 `authorId:idx`，2018 现代格式为大写、带花括号的 GUID；调用方把身份视为不透明字符串。支持传统 `p:cmLst`、PowerPoint 2012 单层回复，以及现代格式的 `cmLst/authorLst`、`replyLst/reply` 和 DrawingML 文字，按各格式的源顺序返回。缺失作者、重复身份、悬空/嵌套回复及未知扩展返回保护原因，不把未知源当作可编辑文本。
+
+没有批注格式时，新建使用现代格式；已有传统批注或作者声明时沿用传统格式，不静默转换。现代关系使用 `http://schemas.microsoft.com/office/2018/10/relationships/comments` 与 `/authors`，内容类型分别为 `application/vnd.ms-powerpoint.comments+xml` 与 `application/vnd.ms-powerpoint.authors+xml`，XML 使用 `http://schemas.microsoft.com/office/powerpoint/2018/8/main`。现代文字当前支持空 `bodyPr/lstStyle`、最多 256 段、每段至多一个文字 run，以及 `lang/sz/b/i/dirty` 字符属性；更新按段保留这些字符属性。作者的 `userId/providerId`、位置和创建日期原样保留；新作者以本地 GUID 作为 `userId`，显式写入空 `providerId`，不合成外部账号。更新文字保留状态，状态命令只修改原生 `status` 属性。未知状态继续保护。对象/文字锚点、任务、提及、混合 run 和未知元数据继续保护。
 
 同步 Wasm、Worker 的 `editPptxSlides` 和 `PresentationEditor.editSlides(change, slide?)` 共用以下命令：
 
@@ -3385,14 +3389,17 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 | `commentAdd` | `text`、`author: { name, initials }`、`date`、`parent: string \| null`；创建根或回复指定根 |
 | `commentUpdate` | `id`、`text`；只修改文字，保留作者、日期、位置及已知扩展 |
 | `commentRemove` | `id`；删除回复本身，或删除根及全部回复 |
+| `commentStatus` | `id`、`status: active \| resolved \| closed`；修改现代根或回复状态，传统格式拒绝 |
 
 作者必须由宿主显式提供。默认 UI 从 `EditorOptions.commentAuthor` 读取新批注/回复作者；未提供时仍可读取、修改和删除已有批注。界面提供当前页的批注列表、文字编辑及回复输入，草稿保留至提交；创建时间由平台以 UTC ISO 字符串传入，核心校验日历与时间。核心不读取系统账号或时钟。修改文字保留原日期，导入的缺失日期和原日期文本原样保留。
 
-新文字必须非空，最多 32767 UTF-16 单元，CRLF/CR 归一为 LF。作者名非空且最多 255 单元，缩写最多 32；新作者字段不接受控制字符。每页最多 4096 项、合计 1 Mi 文字单元，全稿作者最多 4096 项；新建/复制索引分配扫描最多 16384 个保留批注，并同时预留作者 `lastIdx`，避免导入索引滞后造成重复。回复只指向同页根批注，新根位置为 `(0, 0)`，新回复沿用根位置。位置和批注文字不进入幻灯片 Canvas 或静态 PDF；当前面板以页面归属展示。
+新文字必须非空，最多 32767 UTF-16 单元，CRLF/CR 归一为 LF。作者名非空且最多 255 单元，缩写最多 32；新作者字段不接受控制字符。每页最多 4096 项、合计 1 Mi 文字单元，全稿作者最多 4096 项。传统索引分配扫描最多 16384 个保留批注，并同时预留作者 `lastIdx`，避免导入索引滞后造成重复。现代身份分配扫描已有批注和作者部件，最多 65536 个节点，大小写归一后预留 GUID；文字生成受 1 Mi 源文本上限保护。回复只指向同页根批注。传统新根位置为 `(0, 0)`，新回复沿用根位置；现代新根使用 `pc:sldMkLst/docMk/sldMk` 页面锚点，复制时重绑定到新页身份。位置和批注文字不进入幻灯片 Canvas 或静态 PDF；当前面板以页面归属展示。
 
-首次创建把 comments、commentAuthors、两处关系和内容类型合为一项有界历史。删除最后一项保留空批注部件和作者。已有 XML 的外围注释、局部命名空间、日期、位置，以及已知 `threadingInfo`/`presenceInfo` 保持。页面复制分配新索引、同步作者 `lastIdx` 并重映射每个回复的父索引；删除页仅回收独占批注，保留全稿作者。共享/外部部件、未知文字节点/属性、未知扩展、旧 revision、活动候选和包/输出/历史预算失败原子拒绝。所有操作复用现有页面编辑队列、部件事务及精确撤销重做。
+首次创建把批注、作者、两处关系、幻灯片原生批注入口扩展和内容类型合为一项有界历史。删除最后一项保留空批注部件和作者。已有 XML 的外围注释、局部命名空间、日期、位置，以及已知 `threadingInfo`/`presenceInfo` 保持。页面复制为传统批注分配新索引、同步作者 `lastIdx` 并重映射父索引；现代批注和回复分配新 GUID，保留嵌套关系并复用作者。删除页仅回收独占批注，保留全稿作者。共享/外部部件、混合或不一致的格式声明、未知文字节点/属性、未知扩展、旧 revision、活动候选和包/输出/历史预算失败原子拒绝。所有操作复用现有页面编辑队列、部件事务及精确撤销重做。
 
-回复格式依据 [ONLYOFFICE core Comments.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Comments.cpp#L659-L722) 的 `p15:threadingInfo/p15:parentCm`，作者及根/回复索引依据 [Presentation.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L11145-L11230)。未复制上游源码。现代批注、提及/解决状态、协作服务和画布批注标记继续实施。实现归 [`comments-read.mbt`](../../modules/formats/src/pptx/comments-read.mbt)、[`comments-create.mbt`](../../modules/formats/src/pptx/comments-create.mbt)、[`comments-edit.mbt`](../../modules/formats/src/pptx/comments-edit.mbt)及 [`pptx-comments.tsx`](../../packages/ui/src/pptx-comments.tsx)。
+传统回复格式依据 [ONLYOFFICE core Comments.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Comments.cpp#L659-L722) 的 `p15:threadingInfo/p15:parentCm`，作者及根/回复索引依据 [Presentation.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L11145-L11230)。现代格式依据 [Comments.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Comments.cpp#L763-L819)、[CommentAuthors.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/CommentAuthors.cpp#L42-L96) 和 [FileTypes.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/FileTypes.cpp#L63-L75)。未复制上游源码。更广现代文字、提及、协作服务和画布批注标记继续实施。实现归 [`comments-read.mbt`](../../modules/formats/src/pptx/comments-read.mbt)、[`comments-create.mbt`](../../modules/formats/src/pptx/comments-create.mbt)、[`comments-edit.mbt`](../../modules/formats/src/pptx/comments-edit.mbt)、[`comments-modern-read.mbt`](../../modules/formats/src/pptx/comments-modern-read.mbt)、[`comments-modern-edit.mbt`](../../modules/formats/src/pptx/comments-modern-edit.mbt)及 [`pptx-comments.tsx`](../../packages/ui/src/pptx-comments.tsx)。
+
+默认面板为现代根提供解决/重新打开，并显示已解决或已关闭状态；传统根不显示状态命令。同值不新增历史。页面入口使用 `{6950BFC3-D8DA-4A85-94F7-54DA5524770B}` 扩展中的 `commentRel`，必须与当前页关系一致；缺失、孤立或不一致入口拒绝批注编辑。页面锚点必须指向当前页，未知锚点和锚点内的注释继续保护。依据 [ONLYOFFICE Slide.cpp](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Slide.cpp#L224-L230)、[Microsoft 原生批注示例](https://learn.microsoft.com/en-us/office/open-xml/presentation/how-to-add-a-comment-to-a-slide-in-a-presentation)、[状态定义](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-pptx/bd806e3a-96cf-43aa-9618-81b317c34c61)和[作者字段定义](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-pptx/aaddcddb-47d6-434f-ab9c-9feca81ff776)。实现归 [`comments-modern-source.mbt`](../../modules/formats/src/pptx/comments-modern-source.mbt)；既有批注事务、队列和恢复规则保持。
 
 ## PDF 输入与文档操作
 

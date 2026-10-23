@@ -8,9 +8,9 @@ import {
 import {
   checkPageSetup,
   checkDocxCoverPage,
-  checkDocxTextWatermark,
-  docxTextWatermarkState,
-  type DocxTextWatermark,
+  checkDocxWatermark,
+  docxWatermarkState,
+  type DocxWatermark,
   checkDocxCaption,
   type DocxCaption,
   type DocxCoverPage,
@@ -239,20 +239,20 @@ export class FoundationPageClient extends FoundationReviewClient {
       }),
     );
   }
-  async textWatermark(revision: number) {
-    return docxTextWatermarkState(
-      await this.connection.request({ operation: "textWatermark", revision }),
+  async watermark(revision: number) {
+    return docxWatermarkState(
+      await this.connection.request({ operation: "watermark", revision }),
     );
   }
-  async setTextWatermark(
+  async setWatermark(
     revision: number,
-    value: DocxTextWatermark | null,
+    value: DocxWatermark | null,
     profile: Record<string, string>,
   ) {
-    checkDocxTextWatermark(value);
+    checkDocxWatermark(value);
     return editState(
       await this.connection.request({
-        operation: "setTextWatermark",
+        operation: "setWatermark",
         revision,
         value,
         profile,

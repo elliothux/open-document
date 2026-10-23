@@ -57,6 +57,7 @@ fn Session::create_comment_part(
   parts : Map[String, @xml.Document],
   created : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
+  modern~ : Bool = false,
 ) -> Tree raise @failure.Failure {
   let directory = self.main.part.split("/").map(s => s.to_owned()).to_array()
   ignore(directory.pop())
@@ -76,8 +77,9 @@ fn Session::create_comment_part(
       @failure.reject("limit-exceeded", "Comment part identity budget exceeded")
     }
   }
+  let uri = if modern { modern_comment_uri } else { presentation_uri }
   let document = @xml.Document::parse(
-    @utf8.encode("<p:\{root} xmlns:p=\"\{presentation_uri}\"/>"),
+    @utf8.encode("<p:\{root} xmlns:p=\"\{uri}\"/>"),
     part,
     self.budget.xml_depth,
     self.budget.entry_bytes,
@@ -94,15 +96,28 @@ fn Session::create_comment_part(
       )
     }
   }
+  let relation = if modern {
+    modern_comment_relationship +
+    "/" +
+    (if kind == "commentAuthors" { "authors" } else { kind })
+  } else {
+    relationship_uri + "/" + kind
+  }
+  let content_type = if modern {
+    "application/vnd.ms-powerpoint." +
+    (if kind == "commentAuthors" { "authors+xml" } else { "comments+xml" })
+  } else {
+    "application/vnd.openxmlformats-officedocument.presentationml.\{kind}+xml"
+  }
   for
     (path, markup) in [
       (
         relationship_part(owner),
-        "<od:Relationship xmlns:od=\"http://schemas.openxmlformats.org/package/2006/relationships\" Id=\"odComments\{id}\" Type=\"\{relationship_uri}/\{kind}\" Target=\"/\{xml_attribute(part)}\"/>",
+        "<od:Relationship xmlns:od=\"http://schemas.openxmlformats.org/package/2006/relationships\" Id=\"odComments\{id}\" Type=\"\{relation}\" Target=\"/\{xml_attribute(part)}\"/>",
       ),
       (
         "[Content_Types].xml",
-        "<od:Override xmlns:od=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{xml_attribute(part)}\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.\{kind}+xml\"/>",
+        "<od:Override xmlns:od=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{xml_attribute(part)}\" ContentType=\"\{content_type}\"/>",
       ),
     ] {
     let original = parts
@@ -114,7 +129,27 @@ fn Session::create_comment_part(
     parts[path] = document
     edits.push((path, edit))
   }
+  if modern && kind == "comments" {
+    self.add_comment_reference(owner, "odComments\{id}", parts, edits)
+  }
   Tree::new(part, document)
+}
+
+///|
+fn check_comment_author(
+  name : String,
+  initials : String,
+) -> Unit raise @failure.Failure {
+  guard !name.trim().is_empty() &&
+    name.length() <= 255 &&
+    initials.length() <= 32 &&
+    @xml.valid_text(name) &&
+    @xml.valid_text(initials) &&
+    (name + initials).iter().all(c => c >= ' ') else {
+    @failure.reject(
+      "invalid-operation", "Comments require an explicit bounded author",
+    )
+  }
 }
 
 ///|
@@ -133,16 +168,7 @@ fn Session::append_comment(
   created : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
 ) -> Unit raise @failure.Failure {
-  guard !name.trim().is_empty() &&
-    name.length() <= 255 &&
-    initials.length() <= 32 &&
-    @xml.valid_text(name) &&
-    @xml.valid_text(initials) &&
-    (name + initials).iter().all(c => c >= ' ') else {
-    @failure.reject(
-      "invalid-operation", "Comments require an explicit bounded author",
-    )
-  }
+  check_comment_author(name, initials)
   check_comment_date(date)
   let matching = authors.filter(a => a.name == name && a.initials == initials)
   guard matching.length() <= 1 else {

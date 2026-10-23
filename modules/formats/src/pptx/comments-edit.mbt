@@ -12,6 +12,9 @@ fn comment_text(text : String) -> String raise @failure.Failure {
 
 ///|
 fn check_comment_id(id : String) -> Unit raise @failure.Failure {
+  if modern_comment_id(id) {
+    return
+  }
   guard id.length() <= 21 &&
     id.split(":").to_array() is [author, index] &&
     comment_uint(author.to_owned()) == author.to_owned() &&
@@ -30,6 +33,15 @@ fn Session::edit_comments(
   let links = self.relationships()
   let tree = self.comment_part(slide, "comments", links)
   let author_tree = self.comment_part(self.main.part, "commentAuthors", links)
+  if (tree is None && author_tree is None) ||
+    tree
+    .map(t => t.document.nodes()[0].uri == modern_comment_uri)
+    .unwrap_or(false) ||
+    author_tree
+    .map(t => t.document.nodes()[0].uri == modern_comment_uri)
+    .unwrap_or(false) {
+    return self.edit_modern_comments(tree, author_tree, slide, change)
+  }
   let authors = author_tree.map(read_comment_authors).unwrap_or([])
   let entries = tree.map(read_comment_entries).unwrap_or([])
   guard entries.all(e => authors.any(a => a.id == e.author)) else {

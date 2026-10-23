@@ -249,8 +249,8 @@ fn Foundation::dispatch(
     | "bodyPageField"
     | "editBodyPageField"
     | "setPageBackground"
-    | "textWatermark"
-    | "setTextWatermark"
+    | "watermark"
+    | "setWatermark"
     | "setPageBorders"
     | "insertDocxTable"
     | "editDocxTable"
@@ -451,8 +451,8 @@ fn Foundation::dispatch(
         | "setPageColumns"
         | "setCoverPage"
         | "setPageBackground"
-        | "textWatermark"
-        | "setTextWatermark"
+        | "watermark"
+        | "setWatermark"
         | "setPageBorders"
         | "setPageNumbering"
         | "updateBodyPageFields"
@@ -685,7 +685,7 @@ fn Foundation::dispatch(
             "reusedPages": result.reusedPages,
             "profile": result.profile,
             "regions": positioned.drawing(self.images),
-            "images": result.drawing_images(self.images),
+            "images": positioned.drawing_images(self.images),
             "semantics": result.semantics(),
             "comments": session.comment_overlays(result),
             "diagnostics": result.diagnostics,

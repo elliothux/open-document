@@ -7,6 +7,8 @@ priv struct CommentEntry {
   id : String
   author : String
   text : @xml.Node
+  value : String
+  status : String?
   date : String
   parent : String?
   parent_node : @xml.Node?
@@ -50,6 +52,9 @@ fn comment_markup(
 fn read_comment_entries(
   tree : Tree,
 ) -> Array[CommentEntry] raise @failure.Failure {
+  if tree.document.nodes()[0].uri == modern_comment_uri {
+    return read_modern_comments(tree)
+  }
   let root = tree.root("cmLst")
   comment_markup(tree, root, [], [(presentation_uri, "cm")])
   let nodes = tree.all(root.id, "cm", uri=presentation_uri)
@@ -148,7 +153,17 @@ fn read_comment_entries(
       }
     }
     ids[id] = parent
-    entries.push({ node, id, author, text, date, parent, parent_node, })
+    entries.push({
+      node,
+      id,
+      author,
+      text,
+      value: text.text,
+      status: None,
+      date,
+      parent,
+      parent_node,
+    })
   }
   for entry in entries {
     if entry.parent is Some(parent) {
@@ -166,6 +181,9 @@ fn read_comment_entries(
 fn read_comment_authors(
   tree : Tree,
 ) -> Array[CommentAuthor] raise @failure.Failure {
+  if tree.document.nodes()[0].uri == modern_comment_uri {
+    return read_modern_authors(tree)
+  }
   let root = tree.root("cmAuthorLst")
   comment_markup(tree, root, [], [(presentation_uri, "cmAuthor")])
   let nodes = tree.all(root.id, "cmAuthor", uri=presentation_uri)
@@ -218,28 +236,55 @@ fn Session::comment_part(
     l.owner == owner &&
     l.kind.to_lower().contains("comment") &&
     l.kind != relationship_uri + "/comments" &&
-    l.kind != relationship_uri + "/commentAuthors"
+    l.kind != relationship_uri + "/commentAuthors" &&
+    l.kind != modern_comment_relationship + "/comments"
   }) else {
     @failure.reject(
-      "protected-content", "Modern or unknown comments require editing support",
+      "protected-content", "Unknown comments require editing support",
     )
   }
   let owned = links.filter(l => {
-    l.owner == owner && l.kind == relationship_uri + "/" + kind
+    l.owner == owner &&
+    (
+      l.kind == relationship_uri + "/" + kind ||
+      l.kind ==
+      modern_comment_relationship +
+      "/" +
+      (if kind == "commentAuthors" { "authors" } else { kind })
+    )
   })
   guard owned.length() <= 1 else {
     @failure.reject(
       "protected-content", "Multiple comment owners are protected",
     )
   }
-  guard owned.get(0) is Some(link) else { return None }
+  guard owned.get(0) is Some(link) else {
+    if kind == "comments" {
+      self.check_comment_reference(owner, None)
+    }
+    return None
+  }
+  if kind == "comments" {
+    self.check_comment_reference(owner, Some(link))
+  }
   guard !link.external &&
     links.filter(l => !l.external && l.target == link.target).length() == 1 else {
     @failure.reject(
       "protected-content", "Shared or external comment parts are protected",
     )
   }
-  Some(Tree::new(link.target, self.part_document(link.target)))
+  let tree = Tree::new(link.target, self.part_document(link.target))
+  guard tree.document.nodes()[0].uri ==
+    (if link.kind.has_prefix(modern_comment_relationship + "/") {
+      modern_comment_uri
+    } else {
+      presentation_uri
+    }) else {
+    @failure.reject(
+      "protected-content", "Comment relationship and source format disagree",
+    )
+  }
+  Some(tree)
 }
 
 ///|
@@ -261,6 +306,9 @@ fn Session::comments_query(
       names[author.id] = author
     }
     let entries = tree.map(read_comment_entries).unwrap_or([])
+    if tree is Some(tree) && tree.document.nodes()[0].uri == modern_comment_uri {
+      self.check_comment_anchors(tree, slide)
+    }
     let items = entries.map(fn(entry) -> Json raise @failure.Failure {
       guard names.get(entry.author) is Some(author) else {
         @failure.reject("protected-content", "Comment author is missing")
@@ -270,7 +318,8 @@ fn Session::comments_query(
         "author": author.name,
         "initials": author.initials,
         "date": entry.date,
-        "text": entry.text.text,
+        "text": entry.value,
+        "status": entry.status.map(value => Json(value)).unwrap_or(Json::null()),
         "parent": entry.parent.map(value => Json(value)).unwrap_or(Json::null()),
       }
     })

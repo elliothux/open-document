@@ -15,6 +15,7 @@ fn Session::prepare_picture_resource(
   id : Int,
   bytes : Bytes,
   kind : (String, String),
+  owner~ : String = self.main,
 ) -> PictureResource raise @failure.Failure {
   let (extension, content_type) = kind
   let rel_uri = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
@@ -32,7 +33,7 @@ fn Session::prepare_picture_resource(
     if !self.opc.names.contains(path.to_lower()) &&
       !self.media.contains(path) &&
       !self.parts.contains(path) &&
-      !links.iter().any(rel => rel.owner == self.main && rel.id == link) {
+      !links.iter().any(rel => rel.owner == owner && rel.id == link) {
       break (path, link)
     }
   } nobreak {
@@ -43,9 +44,17 @@ fn Session::prepare_picture_resource(
   media[path] = bytes
   let edits : Map[String, Array[@xml.Edit]] = Map([])
   let created : Map[String, @xml.Document] = Map([])
-  let rels_path = prefix +
+  let owner_segments = owner.split("/").to_array()
+  let owner_directory = owner_segments[:owner_segments.length() - 1]
+    .map(s => s.to_owned())
+    .join("/")
+  let rels_path = (if owner_directory.is_empty() {
+      ""
+    } else {
+      owner_directory + "/"
+    }) +
     "_rels/" +
-    segments.last().unwrap().to_owned() +
+    owner_segments.last().unwrap().to_owned() +
     ".rels"
   let rels_path = self.opc.names.get(rels_path.to_lower()).unwrap_or(rels_path)
   let markup = "<Relationship xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\" Id=\"\{link}\" Type=\"\{rel_uri}/image\" Target=\"/" +

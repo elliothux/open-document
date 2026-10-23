@@ -67,13 +67,18 @@ fn Session::delete_slides(
   for slide in deleted {
     let target = slide.tree.part
     names.append([target, relationship_part(target)])
-    for kind in ["notesSlide", "comments"] {
+    for kind in ["notesSlide", "comments", "modernComments"] {
       let owned = links
         .iter()
         .filter(link => {
           link.owner == target &&
           !link.external &&
-          link.kind == relationship_uri + "/" + kind
+          link.kind ==
+          (if kind == "modernComments" {
+            modern_comment_relationship + "/comments"
+          } else {
+            relationship_uri + "/" + kind
+          })
         })
         .collect()
       guard owned.length() <= 1 else {

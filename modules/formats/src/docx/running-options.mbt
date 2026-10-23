@@ -134,8 +134,10 @@ fn Session::commit_running(
   profile~ : Map[String, String],
   images~ : @layout.Images,
   refresh~ : (String, String)? = None,
+  media~ : Map[String, Bytes] = self.media,
+  created_media~ : Map[String, Bytes] = Map([]),
 ) -> Json raise @failure.Failure {
-  let view = { ..self, parts, document: Some(candidate), }
+  let view = { ..self, parts, media, document: Some(candidate), }
   let flow = view.flow_from(candidate)
   let layout = @layout.paginate(probe, flow, profile, images)
   ignore(view.page_positioned(layout, probe))
@@ -152,6 +154,14 @@ fn Session::commit_running(
     updated.nodes[id].uri == word_uri && updated.nodes[id].name == "p"
   })
   let mut bytes = xml_part_edit_bytes(part_edits, created)
+  for data in created_media.values() {
+    guard data.length() <= history_byte_limit - bytes else {
+      @failure.reject(
+        "limit-exceeded", "Running image resources exceed history budget",
+      )
+    }
+    bytes += data.length()
+  }
   for edit in edits {
     let count = edit_bytes(edit)
     guard count <= history_byte_limit - bytes else {
@@ -165,7 +175,7 @@ fn Session::commit_running(
       xml: edits,
       parts: part_edits,
       created,
-      created_media: Map([]),
+      created_media,
       before: self.selection,
       after: self.selection.map(s => s.without_visual_hints()),
       paragraphs,
@@ -173,6 +183,7 @@ fn Session::commit_running(
     },
     candidate,
     parts~,
+    media~,
   )
   self.typing_format = pending
   self.edit_result(paragraphs)

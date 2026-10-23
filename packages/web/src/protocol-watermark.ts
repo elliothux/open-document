@@ -1,9 +1,9 @@
-import type { DocxTextWatermark } from "@open-document/wasm/foundation";
+import type { DocxWatermark } from "@open-document/wasm/foundation";
 export type DocxWatermarkRequest =
-  | { operation: "textWatermark"; revision: number }
+  | { operation: "watermark"; revision: number }
   | {
-      operation: "setTextWatermark";
+      operation: "setWatermark";
       revision: number;
-      value: DocxTextWatermark | null;
+      value: DocxWatermark | null;
       profile: Record<string, string>;
     };

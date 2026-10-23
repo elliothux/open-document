@@ -1,8 +1,8 @@
 import { FoundationReviewSession } from "./docx-revisions.js";
 import {
-  checkDocxTextWatermark,
-  docxTextWatermarkState,
-  type DocxTextWatermark,
+  encodeDocxWatermark,
+  docxWatermarkState,
+  type DocxWatermark,
 } from "./docx-watermark.js";
 import {
   docxRuler,
@@ -461,19 +461,21 @@ export class FoundationPageSession extends FoundationReviewSession {
       this.call({ operation: "setPageBackground", revision, color }),
     );
   }
-  textWatermark(revision: number) {
-    return docxTextWatermarkState(
-      this.call({ operation: "textWatermark", revision }),
-    );
+  watermark(revision: number) {
+    return docxWatermarkState(this.call({ operation: "watermark", revision }));
   }
-  setTextWatermark(
+  setWatermark(
     revision: number,
-    value: DocxTextWatermark | null,
+    value: DocxWatermark | null,
     profile: Record<string, string>,
   ) {
-    checkDocxTextWatermark(value);
     return editState(
-      this.call({ operation: "setTextWatermark", revision, value, profile }),
+      this.call({
+        operation: "setWatermark",
+        revision,
+        value: encodeDocxWatermark(value),
+        profile,
+      }),
     );
   }
   setCoverPage(

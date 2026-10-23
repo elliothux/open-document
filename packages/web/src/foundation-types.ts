@@ -1,6 +1,9 @@
 export type {
   DocxTextWatermark,
-  DocxTextWatermarkState,
+  DocxPictureWatermark,
+  DocxWatermark,
+  DocxWatermarkValue,
+  DocxWatermarkState,
   ChartSettings,
   DocxChartValue,
   DocxChartUpdate,

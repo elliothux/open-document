@@ -99,8 +99,10 @@ fn Session::image_relationship(
 ) -> @opc.Relationship raise @failure.Failure {
   ignore(self.document())
   for rel in self.relationships() {
-    if rel.owner == self.main &&
-      rel.id == key &&
+    if (
+        (rel.owner == self.main && rel.id == key) ||
+        key == "watermark:" + rel.target
+      ) &&
       rel.kind ==
       "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" {
       return rel

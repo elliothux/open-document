@@ -32,10 +32,15 @@ fn check_slide_copy_markup(tree : Tree) -> Unit raise @failure.Failure {
       node.name == "media" &&
       node.parent >= 0 &&
       media_extension(tree, tree.nodes[node.parent])
+    let comment = node.uri == modern_comment_uri &&
+      node.name == "commentRel" &&
+      node.parent >= 0 &&
+      modern_comment_extension(tree, tree.nodes[node.parent])
     guard (
         [presentation_uri, drawing_uri].contains(node.uri) ||
         creation ||
         media ||
+        comment ||
         chart_frame_reference(tree, node) ||
         math_nodes.contains(node.id)
       ) &&
@@ -58,7 +63,9 @@ fn check_slide_copy_markup(tree : Tree) -> Unit raise @failure.Failure {
         .get(node.id)
         .unwrap_or([])
         .all(child => {
-          copied_creation_extension(tree, child) || media_extension(tree, child)
+          copied_creation_extension(tree, child) ||
+          media_extension(tree, child) ||
+          modern_comment_extension(tree, child)
         })
       ) else {
       @failure.reject(
@@ -193,7 +200,11 @@ fn Session::copy_slide_relationships(
       .unwrap()
     guard (
         allowed.any(kind => link.kind == relationship_uri + "/" + kind) ||
-        (allowed.contains("media") && link.kind == media_relationship_uri)
+        (allowed.contains("media") && link.kind == media_relationship_uri) ||
+        (
+          allowed.contains("comments") &&
+          link.kind == modern_comment_relationship + "/comments"
+        )
       ) &&
       (!link.external || link.kind == relationship_uri + "/hyperlink") else {
       @failure.reject(
@@ -246,6 +257,7 @@ fn Session::copy_slide_parts(
   }
   let reserved = self.reserved_object_identities()
   let links = self.relationships()
+  ignore(self.comment_part(source.tree.part, "comments", links))
   for link in links {
     if !link.external && link.kind == relationship_uri + "/notesSlide" {
       reserve_drawing_identities(self.part_document(link.target), reserved)
@@ -269,12 +281,18 @@ fn Session::copy_slide_parts(
     (kind, directory) in [
       ("notesSlide", "notesSlides"),
       ("comments", "comments"),
+      ("modernComments", "comments"),
     ] {
     let owned = links
       .iter()
       .filter(link => {
         link.owner == source.tree.part &&
-        link.kind == relationship_uri + "/" + kind
+        link.kind ==
+        (if kind == "modernComments" {
+          modern_comment_relationship + "/comments"
+        } else {
+          relationship_uri + "/" + kind
+        })
       })
       .collect()
     guard owned.length() <= 1 else {
@@ -294,10 +312,23 @@ fn Session::copy_slide_parts(
         )
       }
       let tree = Tree::new(link.target, original)
-      if kind != "comments" {
+      if kind == "notesSlide" {
         check_slide_copy_markup(tree)
       }
-      ignore(tree.root(if kind == "comments" { "cmLst" } else { "notes" }))
+      ignore(
+        tree.root(
+          if kind == "notesSlide" {
+            "notes"
+          } else {
+            "cmLst"
+          },
+          uri=if kind == "modernComments" {
+            modern_comment_uri
+          } else {
+            presentation_uri
+          },
+        ),
+      )
       let segments = self.main.part.split("/").map(p => p.to_owned()).to_array()
       ignore(segments.pop())
       let prefix = if segments.is_empty() {
@@ -322,8 +353,15 @@ fn Session::copy_slide_parts(
           )
         }
       }
-      let copied = if kind == "comments" {
-        let (comments, edit) = self.copy_slide_comments(tree, part)
+      let copied = if kind != "notesSlide" {
+        if kind == "modernComments" {
+          self.check_comment_anchors(tree, source.tree.part)
+        }
+        let (comments, edit) = self.copy_slide_comments(
+          tree,
+          part,
+          identity.to_string(),
+        )
         if edit is Some(value) {
           metadata.push(value)
         }
@@ -341,8 +379,13 @@ fn Session::copy_slide_parts(
       }
       documents[part] = copied
       remapped[link.target] = part
+      let content_type = if kind == "modernComments" {
+        "application/vnd.ms-powerpoint.comments+xml"
+      } else {
+        "application/vnd.openxmlformats-officedocument.presentationml.\{kind}+xml"
+      }
       types.write_string(
-        "<od:Override xmlns:od=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{xml_attribute(part)}\" ContentType=\"application/vnd.openxmlformats-officedocument.presentationml.\{kind}+xml\"/>",
+        "<od:Override xmlns:od=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{xml_attribute(part)}\" ContentType=\"\{content_type}\"/>",
       )
     }
   }

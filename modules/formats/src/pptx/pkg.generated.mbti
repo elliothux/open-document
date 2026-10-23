@@ -348,6 +348,7 @@ pub(all) enum SlideEdit {
   AddComment(String, String, String, String, String?)
   UpdateComment(String, String)
   RemoveComment(String)
+  CommentStatus(String, String)
   Size(Double, Double)
   AddSection(String)
   RenameSection(String, String)

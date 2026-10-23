@@ -166,6 +166,7 @@ export const reviewEn = {
   commentResolve: "Resolve thread",
   commentReopen: "Reopen thread",
   commentResolved: "Resolved thread",
+  commentClosed: "Closed thread",
   localCommentAuthorRequired:
     "Provide commentAuthor in the host options to create comments.",
   discardMergedNotes:
@@ -358,6 +359,7 @@ export const reviewZh: Record<keyof typeof reviewEn, string> = {
   commentResolve: "解决批注线程",
   commentReopen: "重新打开批注线程",
   commentResolved: "已解决的批注线程",
+  commentClosed: "已关闭的批注线程",
   localCommentAuthorRequired: "宿主需提供批注作者，才能创建批注。",
   discardMergedNotes: "保留左上角单元格和一条便笺，丢弃其余值、公式及便笺",
   cellNote: "单元格便笺",

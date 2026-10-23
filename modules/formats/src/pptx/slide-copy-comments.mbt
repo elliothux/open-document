@@ -3,8 +3,42 @@ fn Session::copy_slide_comments(
   self : Session,
   tree : Tree,
   target : String,
+  slide_identity : String,
 ) -> (@xml.Document, (String, @xml.Document, @xml.Edit)?) raise @failure.Failure {
   let comments = read_comment_entries(tree)
+  if tree.document.nodes()[0].uri == modern_comment_uri {
+    let authors = self
+      .comment_part(self.main.part, "commentAuthors", self.relationships())
+      .map(read_modern_authors)
+      .unwrap_or([])
+    guard comments.all(c => authors.any(a => a.id == c.author)) else {
+      @failure.reject("protected-content", "Comment author is missing")
+    }
+    let ids = self.modern_comment_ids(comments.length())
+    let changes = comments.mapi((i, entry) => {
+      attribute_change({ tree, node: entry.node, }, "id", ids[i])
+    })
+    for entry in comments {
+      if entry.parent is None &&
+        modern_comment_anchor(tree, entry.node) is Some(anchor) {
+        changes.push({
+          node: entry.node.id,
+          offset: anchor.start - entry.node.start,
+          length: anchor.end - anchor.start,
+          xml: comment_anchor_markup(slide_identity),
+        })
+      }
+    }
+    return (
+      @xml.Document::parse(
+        tree.document.edit_source(changes).0.bytes(),
+        target,
+        self.budget.xml_depth,
+        self.budget.entry_bytes,
+      ),
+      None,
+    )
+  }
   if comments.is_empty() {
     return (
       @xml.Document::parse(

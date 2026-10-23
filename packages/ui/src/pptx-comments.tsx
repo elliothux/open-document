@@ -32,6 +32,26 @@ export function PptxComments(props: PanelProps) {
         {roots.map((root) => (
           <li key={root.id}>
             <CommentEntry key={root.id + root.text} {...props} entry={root} />
+            {root.status !== null && (
+              <button
+                type="button"
+                onClick={() =>
+                  controller.run(() =>
+                    editor.editSlides(
+                      {
+                        action: "commentStatus",
+                        id: root.id,
+                        status:
+                          root.status === "active" ? "resolved" : "active",
+                      },
+                      slide,
+                    ),
+                  )
+                }
+              >
+                {root.status === "active" ? t.commentResolve : t.commentReopen}
+              </button>
+            )}
             <button
               type="button"
               disabled={!author}
@@ -131,6 +151,8 @@ function CommentEntry({
           </>
         )}
       </p>
+      {entry.status === "resolved" && <p>{t.commentResolved}</p>}
+      {entry.status === "closed" && <p>{t.commentClosed}</p>}
       <form
         onSubmit={(event) => {
           event.preventDefault();

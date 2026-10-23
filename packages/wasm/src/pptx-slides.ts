@@ -287,6 +287,11 @@ export type PptxSlideEdit =
     }
   | { action: "commentUpdate"; id: string; text: string }
   | { action: "commentRemove"; id: string }
+  | {
+      action: "commentStatus";
+      id: string;
+      status: "active" | "resolved" | "closed";
+    }
   | { action: "themeColor"; slot: PptxThemeSlot; color: string }
   | {
       action: "themeFont";
@@ -441,7 +446,9 @@ export function checkPptxSlideEdit(value: unknown): void {
   }
   if (
     typeof change.action === "string" &&
-    ["commentAdd", "commentUpdate", "commentRemove"].includes(change.action)
+    ["commentAdd", "commentUpdate", "commentRemove", "commentStatus"].includes(
+      change.action,
+    )
   ) {
     checkCommentEdit(change);
     return;
@@ -575,12 +582,14 @@ export interface PptxCommentAuthor {
   initials: string;
 }
 export interface PptxComment {
+  /** Opaque identity: canonical author:index for legacy comments or an uppercase braced GUID. */
   id: string;
   author: string;
   initials: string;
   date: string;
   text: string;
   parent: string | null;
+  status: "active" | "resolved" | "closed" | null;
 }
 export interface PptxComments {
   items: PptxComment[];
@@ -590,8 +599,9 @@ const commentId = /^(0|[1-9]\d{0,9}):(0|[1-9]\d{0,9})$/u;
 function validCommentId(value: unknown): value is string {
   return (
     typeof value === "string" &&
-    commentId.test(value) &&
-    value.split(":").every((n) => Number(n) <= 4294967295)
+    ((commentId.test(value) &&
+      value.split(":").every((n) => Number(n) <= 4294967295)) ||
+      /^\{[0-9A-F]{8}-(?:[0-9A-F]{4}-){3}[0-9A-F]{12}\}$/u.test(value))
   );
 }
 function commentText(
@@ -612,16 +622,24 @@ function commentText(
 }
 function checkCommentEdit(change: Record<string, unknown>): void {
   const add = change.action === "commentAdd",
-    update = change.action === "commentUpdate";
+    update = change.action === "commentUpdate",
+    status = change.action === "commentStatus";
   const fields = add
     ? ["action", "text", "author", "date", "parent"]
     : update
       ? ["action", "id", "text"]
-      : ["action", "id"];
+      : status
+        ? ["action", "id", "status"]
+        : ["action", "id"];
   if (
     Object.keys(change).some((key) => !fields.includes(key)) ||
     (!add && !validCommentId(change.id)) ||
-    ((add || update) && !commentText(change.text, 32767, true))
+    ((add || update) && !commentText(change.text, 32767, true)) ||
+    (status &&
+      (typeof change.status !== "string" ||
+        !["active", "resolved", "closed"].includes(change.status) ||
+        typeof change.id !== "string" ||
+        !change.id.startsWith("{")))
   )
     throw new Error("Invalid comment edit");
   if (!add) return;
@@ -664,6 +682,10 @@ export function pptxComments(value: unknown): PptxComments {
       !commentText(entry.initials, 32) ||
       !commentText(entry.date, 64) ||
       !commentText(entry.text, 32767) ||
+      (entry.id.startsWith("{")
+        ? typeof entry.status !== "string" ||
+          !["active", "resolved", "closed"].includes(entry.status)
+        : entry.status !== null) ||
       (entry.parent !== null && !validCommentId(entry.parent))
     )
       throw new Error("Invalid comment entry");

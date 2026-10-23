@@ -20,7 +20,65 @@ pub extend TextWatermark with ToJson::{to_json}
 priv struct WatermarkSource {
   node : Int
   identity : String
-  value : TextWatermark
+  value : Watermark
+}
+
+///|
+pub(all) enum WatermarkImage {
+  Data(Bytes)
+  Resource(String)
+} derive(Eq)
+
+///|
+pub extend WatermarkImage with Eq::{equal, not_equal}
+
+///|
+pub(all) enum Watermark {
+  Text(TextWatermark)
+  Picture(WatermarkImage, Double, Double, Double)
+} derive(Eq)
+
+///|
+pub extend Watermark with Eq::{equal, not_equal}
+
+///|
+fn Watermark::normalized(self : Watermark) -> Watermark raise @failure.Failure {
+  match self {
+    Text(value) => Text(value.normalized())
+    Picture(image, width, height, opacity) => {
+      guard [width, height].all(v => {
+          !v.is_nan() && !v.is_inf() && v >= 0.1 && v <= 14400
+        }) &&
+        opacity >= 0 &&
+        opacity <= 1 else {
+        @failure.reject(
+          "invalid-operation", "Invalid picture watermark settings",
+        )
+      }
+      Picture(
+        image,
+        (width * 12700).round() / 12700,
+        (height * 12700).round() / 12700,
+        (opacity * 100000).round() / 100000,
+      )
+    }
+  }
+}
+
+///|
+fn Watermark::json(self : Watermark) -> Json {
+  match self {
+    Text(value) => { "kind": "text", "value": Json(value) }
+    Picture(Resource(key), width, height, opacity) =>
+      {
+        "kind": "picture",
+        "image": key,
+        "width": width,
+        "height": height,
+        "opacity": opacity,
+      }
+    Picture(Data(_), _, _, _) => Json::null()
+  }
 }
 
 ///|
@@ -137,7 +195,7 @@ fn WordTree::watermark_node(
       self.nodes[child].uri == uri && self.nodes[child].name == name
     })
     is [node] else {
-    @failure.reject("protected-content", "Unsupported text watermark source")
+    @failure.reject("protected-content", "Unsupported watermark source")
   }
   self.nodes[node]
 }
@@ -162,6 +220,14 @@ fn WordTree::watermark_source(
   self : WordTree,
   id : Int,
 ) -> WatermarkSource raise @failure.Failure {
+  if self
+    .descendants(id)
+    .any(child => {
+      self.nodes[child].uri == picture_drawing_uri &&
+      self.nodes[child].name == "blip"
+    }) {
+    return self.picture_watermark_source(id)
+  }
   let extent = self.watermark_node(id, "extent", uri=picture_inline_uri)
   let width = watermark_number(extent, "cx") / 12700
   let height = watermark_number(extent, "cy") / 12700
@@ -215,7 +281,7 @@ fn WordTree::watermark_source(
     watermark_equal(self, id, expected, 0) else {
     @failure.reject("protected-content", "Extended text watermark is protected")
   }
-  { node: id, identity, value, }
+  { node: id, identity, value: Watermark::Text(value), }
 }
 
 ///|

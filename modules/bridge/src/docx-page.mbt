@@ -441,9 +441,9 @@ fn Foundation::docx_page(
       )
     "setPageBackground" =>
       session.set_page_background(revision, page_background_color(request))
-    "textWatermark" => session.text_watermark(revision)
-    "setTextWatermark" =>
-      session.set_text_watermark(
+    "watermark" => session.watermark(revision)
+    "setWatermark" =>
+      session.set_watermark(
         revision,
         text_watermark_value(request),
         probe=self.probe,

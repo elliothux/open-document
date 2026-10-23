@@ -2,6 +2,7 @@ import { Connection } from "./connection.js";
 export { pasteDocxCells, pasteDocxSelection } from "./clipboard-input.js";
 import { FoundationClipboardClient } from "./foundation-clipboard.js";
 import { prepareDocxFragmentImages } from "./document-fragment-images.js";
+export { imageDimensions } from "./image.js";
 export { checkDocxComment } from "@open-document/wasm/foundation";
 export type * from "./foundation-types.js";
 export {
