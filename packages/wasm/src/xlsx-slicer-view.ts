@@ -1,4 +1,5 @@
 import { integer, record } from "./validation.js";
+import type { XlsxSlicerFrame } from "./xlsx-slicer.js";
 import {
   drawingRegions,
   type XlsxDrawingRegion,
@@ -7,6 +8,8 @@ import {
 export interface XlsxSlicerView {
   name: string;
   caption: string;
+  frame: XlsxSlicerFrame;
+  move: XlsxDrawingRegion[];
   start: number;
   maximum: number;
   page: number;
@@ -25,6 +28,20 @@ export interface XlsxSlicerView {
 
 export function checkSlicerView(value: unknown): void {
   const view = record(value);
+  const frame = record(view.frame);
+  if (
+    Object.keys(frame).length !== 5 ||
+    typeof frame.anchor !== "string" ||
+    !["fixed", "move", "size"].includes(frame.anchor) ||
+    !["x", "y", "width", "height"].every(
+      (key) =>
+        typeof frame[key] === "number" &&
+        Number.isFinite(frame[key]) &&
+        frame[key] >= 0 &&
+        frame[key] <= (key === "x" || key === "y" ? 1e9 : 14400),
+    )
+  )
+    throw new Error("Invalid slicer frame view");
   if (
     typeof view.name !== "string" ||
     !view.name.trim() ||
@@ -38,7 +55,7 @@ export function checkSlicerView(value: unknown): void {
     view.buttons.length > 4096
   )
     throw new Error("Invalid slicer view");
-  for (const key of ["clear", "multi", "previous", "next"])
+  for (const key of ["move", "clear", "multi", "previous", "next"])
     drawingRegions(view[key]);
   const indices = new Set<number>();
   let units = 0;

@@ -58,7 +58,7 @@ fn Foundation::xlsx_operation(
     @failure.reject("session-required", "Open an XLSX workbook first")
   }
   match operation {
-    "pivotsXlsx" | "slicersXlsx" =>
+    "pivotsXlsx" | "slicersXlsx" | "timelinesXlsx" =>
       xlsx_analysis_catalog(session, operation, request)
     "pivotPreviewXlsx" => {
       guard request is { "settings": settings, .. } else {

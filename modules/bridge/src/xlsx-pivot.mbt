@@ -6,7 +6,9 @@ fn xlsx_analysis_catalog(
 ) -> Json raise @failure.Failure {
   let revision = field_int(request, "revision")
   let sheet = field_string(request, "sheet")
-  if operation == "slicersXlsx" {
+  if operation == "timelinesXlsx" {
+    session.timelines(revision, sheet)
+  } else if operation == "slicersXlsx" {
     session.slicers(revision, sheet)
   } else {
     session.pivots(revision, sheet)

@@ -150,7 +150,7 @@ pub fn Session::select_drawing(
     guard !grid.drawing_regions(object).is_empty() else {
       @failure.reject("invalid-operation", "Worksheet object is not visible")
     }
-    object.check_change(false)
+    object.check_change(false, slicer_frame=object.slicer is Some(_))
     object
   })
   self.drawing_selection = object.map(p => (grid.sheet, p.id))
@@ -194,7 +194,7 @@ fn SheetObject::pointer_rect(
       .any(node => {
         node.start >= self.source.start &&
         node.end <= self.source.end &&
-        node.name == "spLocks" &&
+        node.name.has_suffix("Locks") &&
         flag(node, "noChangeAspect")
       })
     if !aspect {
@@ -219,12 +219,12 @@ fn SheetObject::pointer_rect(
         width,
         height,
       }
-      if self.chart is Some(_) {
+      if self.chart is Some(_) || self.slicer is Some(_) {
         check_picture_rect(self.anchor, result, grid.dimensions)
       } else {
         ignore(self.shape_settings(result).checked(grid.dimensions))
       }
-      self.check_change(false, rect=result)
+      self.check_change(false, rect=result, slicer_frame=self.slicer is Some(_))
       return result
     }
     guard rect.width > 0 && rect.height > 0 else {
@@ -259,7 +259,7 @@ fn SheetObject::pointer_rect(
   } else {
     check_picture_rect(self.anchor, rect, grid.dimensions)
   }
-  self.check_change(false, rect~)
+  self.check_change(false, rect~, slicer_frame=self.slicer is Some(_))
   rect
 }
 
@@ -300,7 +300,17 @@ pub fn Session::drawing_gesture(
   } else {
     { ..self, history: [], redo: [], history_bytes: 0, }
   }
-  let query = if object.chart is Some(_) {
+  let query = if object.slicer is Some(_) {
+    view.set_slicer_frame(
+      self.revision,
+      sheet,
+      id,
+      object.anchor,
+      rect,
+      probe,
+      profile,
+    )
+  } else if object.chart is Some(_) {
     view.set_chart_frame(
       self.revision,
       sheet,

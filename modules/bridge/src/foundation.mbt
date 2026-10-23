@@ -54,6 +54,9 @@ fn Foundation::dispatch(
   if operation == "insertXlsxSlicer" {
     return self.insert_xlsx_slicer(request)
   }
+  if operation == "frameXlsxSlicer" {
+    return self.set_xlsx_slicer_frame(request)
+  }
   if is_docx_note_operation(operation) {
     return self.docx_note_operation(operation, request)
   }
@@ -137,6 +140,7 @@ fn Foundation::dispatch(
     | "queryXlsx"
     | "pivotsXlsx"
     | "slicersXlsx"
+    | "timelinesXlsx"
     | "pivotPreviewXlsx"
     | "duplicatesXlsx"
     | "textColumnsXlsx"

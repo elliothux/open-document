@@ -133,7 +133,11 @@ export class SpreadsheetDrawingPointer {
     button.setAttribute("aria-label", label);
     button.setAttribute(
       "aria-keyshortcuts",
-      "ArrowLeft ArrowRight ArrowUp ArrowDown Delete Escape Control+X Meta+X Control+C Meta+C",
+      this.host
+        .current()
+        .layout?.objects.some((item) => item.id === object && item.slicer)
+        ? "ArrowLeft ArrowRight ArrowUp ArrowDown Delete Escape"
+        : "ArrowLeft ArrowRight ArrowUp ArrowDown Delete Escape Control+X Meta+X Control+C Meta+C",
     );
     Object.assign(button.style, {
       position: "absolute",
@@ -282,6 +286,12 @@ export class SpreadsheetDrawingPointer {
           event.preventDefault();
           event.stopPropagation();
           if (this.active || this.host.current().disabled) return;
+          if (
+            this.host
+              .current()
+              .layout?.objects.some((item) => item.id === object && item.slicer)
+          )
+            return;
           const sheet = this.host.current().query.sheet;
           void this.host
             .run(async () => {
@@ -345,26 +355,31 @@ export class SpreadsheetDrawingPointer {
               );
               if (!target) throw new Error("Worksheet object no longer exists");
               this.host.assign(
-                await (target.kind === "picture"
-                  ? this.client.deletePicture(
-                      now.query.revision,
-                      now.query.sheet,
-                      object,
-                      now.profile,
-                    )
-                  : target.kind === "chart"
-                    ? this.client.deleteChart(
+                await (target.slicer
+                  ? this.client.editSheet(now.query.revision, now.query.sheet, {
+                      action: "deleteSlicer",
+                      name: target.slicer.name,
+                    })
+                  : target.kind === "picture"
+                    ? this.client.deletePicture(
                         now.query.revision,
                         now.query.sheet,
                         object,
                         now.profile,
                       )
-                    : this.client.deleteShape(
-                        now.query.revision,
-                        now.query.sheet,
-                        object,
-                        now.profile,
-                      )),
+                    : target.kind === "chart"
+                      ? this.client.deleteChart(
+                          now.query.revision,
+                          now.query.sheet,
+                          object,
+                          now.profile,
+                        )
+                      : this.client.deleteShape(
+                          now.query.revision,
+                          now.query.sheet,
+                          object,
+                          now.profile,
+                        )),
               );
             } else {
               const result = await this.client.drawingGesture(
@@ -445,8 +460,9 @@ export class SpreadsheetDrawingPointer {
     let selected = false;
     if (now.layout && !this.viewport.hidden && !now.disabled)
       for (const [layer, object] of now.layout.objects.entries()) {
-        if (object.kind === "slicer") continue;
-        for (const [index, region] of object.regions.entries()) {
+        for (const [index, region] of (
+          object.slicer?.move ?? object.regions
+        ).entries()) {
           const key = `${object.id}:${index}:move`,
             button = this.target(
               key,
@@ -463,8 +479,17 @@ export class SpreadsheetDrawingPointer {
             zIndex: String(layer + 4),
             outline: object.selected ? "1px solid #2563eb" : "none",
           });
-          if (!object.selected) continue;
-          selected = true;
+        }
+        if (!object.selected) continue;
+        selected = true;
+        if (object.slicer)
+          this.paint({
+            revision: now.query.revision,
+            sheet: now.query.sheet,
+            id: object.id,
+            regions: object.regions,
+          });
+        for (const [index, region] of object.regions.entries()) {
           for (const [corner, name] of [
             "top left",
             "top right",

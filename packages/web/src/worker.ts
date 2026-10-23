@@ -91,6 +91,8 @@ async function dispatch(request: Request): Promise<unknown> {
         return workbook.pivots(request.revision, request.sheet);
       case "slicersXlsx":
         return workbook.slicers(request.revision, request.sheet);
+      case "timelinesXlsx":
+        return workbook.timelines(request.revision, request.sheet);
       case "pivotPreviewXlsx":
         return workbook.pivotPreview(request.revision, request.settings);
       case "duplicatesXlsx":
@@ -231,6 +233,7 @@ async function dispatch(request: Request): Promise<unknown> {
         case "queryXlsx":
         case "pivotsXlsx":
         case "slicersXlsx":
+        case "timelinesXlsx":
         case "pivotPreviewXlsx":
         case "duplicatesXlsx":
         case "textColumnsXlsx":

@@ -21,6 +21,7 @@ import { PivotNumberGroups } from "./xlsx-pivot-number-groups.js";
 import { PivotDateGroups } from "./xlsx-pivot-date-groups.js";
 import { PivotBaseItemSelect } from "./xlsx-pivot-base-item.js";
 import { XlsxSlicersPanel } from "./xlsx-slicers.js";
+import { XlsxTimelinesPanel } from "./xlsx-timelines.js";
 
 export function XlsxPivotsPanel({
   editor,
@@ -118,8 +119,21 @@ export function XlsxPivotsPanel({
   // shortcut: Preview uses raw values; add formatted labels in MoonBit when needed.
   const display = (cell: XlsxPivotPreview["total"][number]) =>
     cell.kind === "blank" ? t.pivotBlank : String(cell.value);
-  return (
-    <fieldset disabled={blocked}>
+  return [
+    <XlsxTimelinesPanel
+      key="timelines"
+      editor={editor}
+      controller={controller}
+      state={state}
+      disabled={
+        disabled ||
+        snapshot.composition ||
+        snapshot.dragging ||
+        snapshot.paused ||
+        snapshot.stopped
+      }
+    />,
+    <fieldset key="pivots" disabled={blocked}>
       <legend>{t.pivots}</legend>
       <XlsxSlicersPanel
         editor={editor}
@@ -632,6 +646,6 @@ export function XlsxPivotsPanel({
           ))}
         </>
       )}
-    </fieldset>
-  );
+    </fieldset>,
+  ];
 }

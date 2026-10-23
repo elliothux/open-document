@@ -2,6 +2,7 @@ import type { XlsxSession } from "@open-document/wasm/xlsx";
 import type { Request } from "./protocol.js";
 const drawingOperations = [
   "insertXlsxSlicer",
+  "frameXlsxSlicer",
   "picturesXlsx",
   "captureDrawingXlsx",
   "drawingFragmentImageXlsx",
@@ -41,6 +42,14 @@ export function drawingOperation(
 ): unknown {
   if (!workbook) throw new Error("Open an XLSX client first");
   switch (request.operation) {
+    case "frameXlsxSlicer":
+      return workbook.setSlicerFrame(
+        request.revision,
+        request.sheet,
+        request.slicerId,
+        request.frame,
+        request.profile,
+      );
     case "insertXlsxSlicer":
       return workbook.insertSlicer(
         request.revision,

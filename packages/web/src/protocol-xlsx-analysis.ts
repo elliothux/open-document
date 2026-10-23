@@ -1,10 +1,23 @@
 import type {
   XlsxPivotSettings,
   XlsxSlicerSettings,
+  XlsxSlicerFrame,
 } from "@open-document/wasm/xlsx";
 
 export type XlsxAnalysisRequest =
-  | { operation: "pivotsXlsx" | "slicersXlsx"; revision: number; sheet: string }
+  | {
+      operation: "frameXlsxSlicer";
+      revision: number;
+      sheet: string;
+      slicerId: string;
+      frame: XlsxSlicerFrame;
+      profile: Record<string, string>;
+    }
+  | {
+      operation: "pivotsXlsx" | "slicersXlsx" | "timelinesXlsx";
+      revision: number;
+      sheet: string;
+    }
   | {
       operation: "pivotPreviewXlsx";
       revision: number;

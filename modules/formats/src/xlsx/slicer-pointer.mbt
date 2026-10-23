@@ -51,9 +51,39 @@ fn SheetObject::grid_object(
       probe,
       profile,
     )
+    let movable = try {
+      self.check_change(false, slicer_frame=true)
+      ignore(self.transform_change(self.rect))
+      true
+    } catch {
+      @failure.Failure(code="limit-exceeded", ..) as error => raise error
+      @failure.Failure(..) => false
+    }
     fields["slicer"] = {
       "name": slicer.control.name,
       "caption": slicer.control.caption,
+      "frame": {
+        "anchor": self.anchor,
+        "x": self.rect.x,
+        "y": self.rect.y,
+        "width": self.rect.width,
+        "height": self.rect.height,
+      },
+      "move": if movable {
+        grid.slicer_regions(self, {
+          x: 0,
+          y: 0,
+          width: geometry.multi
+          .map(rect => rect.x)
+          .unwrap_or(self.rect.width)
+          .max(0),
+          height: (if geometry.header > 0 { geometry.header } else { 3.6 }).min(
+            self.rect.height,
+          ),
+        })
+      } else {
+        []
+      },
       "start": slicer.control.start,
       "maximum": geometry.maximum,
       "page": geometry.page,

@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { SpreadsheetEditor } from "@open-document/web/spreadsheet-editor";
 import {
   checkXlsxSlicerSettings,
+  checkXlsxSlicerFrame,
+  type XlsxSlicerFrame,
   type XlsxSlicer,
   type XlsxSlicers,
   type XlsxPivots,
@@ -44,33 +46,52 @@ export function XlsxSlicersPanel({
       {catalog && current && !catalog.reason && !catalog.items.length && (
         <p>{t.slicerEmpty}</p>
       )}
-      {catalog?.items.map((item) => (
-        <SlicerMembers
-          key={`${catalog.revision}:${item.name}`}
-          item={item}
-          state={state}
-          disabled={disabled || !current}
-          remove={() =>
-            controller.run(async () => {
-              await editor.editSheet({
-                action: "deleteSlicer",
-                name: item.name,
-              });
-              await load();
-            })
-          }
-          apply={(indices) =>
-            controller.run(async () => {
-              await editor.editSheet({
-                action: "filterSlicer",
-                name: item.name,
-                indices,
-              });
-              await load();
-            })
-          }
-        />
-      ))}
+      {catalog?.items.map((item) => {
+        const drawing = editor.currentLayout?.objects.find(
+          (object) => object.slicer?.name === item.name,
+        );
+        return (
+          <SlicerMembers
+            key={`${catalog.revision}:${item.name}`}
+            item={item}
+            state={state}
+            disabled={disabled || !current}
+            remove={() =>
+              controller.run(async () => {
+                await editor.editSheet({
+                  action: "deleteSlicer",
+                  name: item.name,
+                });
+                await load();
+              })
+            }
+            apply={(indices) =>
+              controller.run(async () => {
+                await editor.editSheet({
+                  action: "filterSlicer",
+                  name: item.name,
+                  indices,
+                });
+                await load();
+              })
+            }
+          >
+            {drawing?.slicer && (
+              <SlicerFrameEditor
+                frame={drawing.slicer.frame}
+                state={state}
+                disabled={item.lockedPosition}
+                apply={(frame) =>
+                  controller.run(async () => {
+                    await editor.setSlicerFrame(drawing.id, frame);
+                    await load();
+                  })
+                }
+              />
+            )}
+          </SlicerMembers>
+        );
+      })}
     </fieldset>
   );
 }
@@ -212,12 +233,14 @@ function SlicerMembers({
   disabled,
   apply,
   remove,
+  children,
 }: {
   item: XlsxSlicer;
   state: UiSnapshot;
   disabled: boolean;
   apply: (indices: number[]) => void;
   remove: () => void;
+  children?: ReactNode;
 }) {
   const t = messages(state.locale);
   const [indices, setIndices] = useState(
@@ -266,6 +289,74 @@ function SlicerMembers({
       {!indices.length && <p>{t.pivotFilterEmpty}</p>}
       <button type="button" onClick={remove}>
         {t.slicerDelete}
+      </button>
+      {children}
+    </fieldset>
+  );
+}
+
+function SlicerFrameEditor({
+  frame,
+  state,
+  disabled,
+  apply,
+}: {
+  frame: XlsxSlicerFrame;
+  state: UiSnapshot;
+  disabled: boolean;
+  apply: (frame: XlsxSlicerFrame) => void;
+}) {
+  const t = messages(state.locale);
+  const [draft, setDraft] = useState(frame);
+  let valid = true;
+  try {
+    checkXlsxSlicerFrame(draft);
+  } catch {
+    valid = false;
+  }
+  return (
+    <fieldset disabled={disabled}>
+      <legend>{t.slicerFrame}</legend>
+      <label>
+        {t.slicerAnchor}
+        <select
+          aria-label={t.slicerAnchor}
+          value={draft.anchor}
+          onChange={(event) => {
+            const anchor = event.currentTarget.value;
+            if (anchor === "fixed" || anchor === "move" || anchor === "size")
+              setDraft({ ...draft, anchor });
+          }}
+        >
+          <option value="fixed">{t.xlsxPictureFixed}</option>
+          <option value="move">{t.xlsxPictureMove}</option>
+          <option value="size">{t.xlsxPictureSize}</option>
+        </select>
+      </label>
+      {(
+        [
+          ["x", t.objectX],
+          ["y", t.objectY],
+          ["width", t.objectWidth],
+          ["height", t.objectHeight],
+        ] as const
+      ).map(([key, label]) => (
+        <label key={key}>
+          {label}
+          <input
+            type="number"
+            min={key === "x" || key === "y" ? 0 : 0.1}
+            max={key === "x" || key === "y" ? 1e9 : 14400}
+            step="any"
+            value={Number.isFinite(draft[key]) ? draft[key] : ""}
+            onChange={(event) =>
+              setDraft({ ...draft, [key]: event.currentTarget.valueAsNumber })
+            }
+          />
+        </label>
+      ))}
+      <button type="button" disabled={!valid} onClick={() => apply(draft)}>
+        {t.slicerFrameApply}
       </button>
     </fieldset>
   );

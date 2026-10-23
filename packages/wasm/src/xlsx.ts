@@ -14,9 +14,13 @@ export * from "./xlsx-pivot.js";
 import {
   xlsxSlicers,
   checkXlsxSlicerSettings,
+  checkXlsxSlicerFrame,
+  type XlsxSlicerFrame,
   type XlsxSlicerSettings,
 } from "./xlsx-slicer.js";
 export * from "./xlsx-slicer.js";
+import { xlsxTimelines } from "./xlsx-timeline.js";
+export * from "./xlsx-timeline.js";
 export type { XlsxSlicerView } from "./xlsx-slicer-view.js";
 export type { XlsxQuery } from "./xlsx-query.js";
 import { protectionSalt } from "./protection-password.js";
@@ -398,6 +402,30 @@ export class XlsxSession extends XlsxDrawingSession {
         settings,
         profile,
       }),
+    );
+  }
+  setSlicerFrame(
+    revision: number,
+    sheet: string,
+    id: string,
+    frame: XlsxSlicerFrame,
+    profile: Record<string, string>,
+  ) {
+    checkXlsxSlicerFrame(frame);
+    return xlsxQuery(
+      this.call({
+        operation: "frameXlsxSlicer",
+        revision,
+        sheet,
+        id,
+        frame,
+        profile,
+      }),
+    );
+  }
+  timelines(revision: number, sheet: string) {
+    return xlsxTimelines(
+      this.call({ operation: "timelinesXlsx", revision, sheet }),
     );
   }
   pivotPreview(revision: number, settings: XlsxPivotSettings) {

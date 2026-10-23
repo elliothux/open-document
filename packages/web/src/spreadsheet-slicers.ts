@@ -176,7 +176,8 @@ export class SpreadsheetSlicers {
     this.targets.set(key, target);
     return target;
   }
-  update(): void {
+  update(dragging = false): void {
+    this.controls.hidden = dragging;
     const now = this.host.current(),
       seen = new Set<string>(),
       groups = new Set<string>();

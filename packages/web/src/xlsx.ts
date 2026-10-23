@@ -1,10 +1,23 @@
 import { XlsxDrawingClient } from "./xlsx-drawings.js";
+import { xlsxTimelines } from "@open-document/wasm/xlsx";
+export {
+  xlsxTimelines,
+  type XlsxTimeline,
+  type XlsxTimelineRange,
+  type XlsxTimelines,
+} from "@open-document/wasm/xlsx";
 import {
   xlsxSlicers,
   checkXlsxSlicerSettings,
+  checkXlsxSlicerFrame,
+  type XlsxSlicerFrame,
   type XlsxSlicerSettings,
 } from "@open-document/wasm/xlsx";
-export { xlsxSlicers, checkXlsxSlicerSettings } from "@open-document/wasm/xlsx";
+export {
+  xlsxSlicers,
+  checkXlsxSlicerSettings,
+  checkXlsxSlicerFrame,
+} from "@open-document/wasm/xlsx";
 export type {
   XlsxSlicer,
   XlsxSlicerMember,
@@ -12,6 +25,7 @@ export type {
   XlsxSlicerEdit,
   XlsxSlicerView,
   XlsxSlicerSettings,
+  XlsxSlicerFrame,
 } from "@open-document/wasm/xlsx";
 export {
   xlsxChartKinds,
@@ -314,6 +328,34 @@ export class XlsxClient extends XlsxDrawingClient {
         operation: "pivotPreviewXlsx",
         revision,
         settings,
+      }),
+    );
+  }
+  async setSlicerFrame(
+    revision: number,
+    sheet: string,
+    id: string,
+    frame: XlsxSlicerFrame,
+    profile: Record<string, string>,
+  ) {
+    checkXlsxSlicerFrame(frame);
+    return xlsxQuery(
+      await this.connection.request({
+        operation: "frameXlsxSlicer",
+        revision,
+        sheet,
+        slicerId: id,
+        frame,
+        profile,
+      }),
+    );
+  }
+  async timelines(revision: number, sheet: string) {
+    return xlsxTimelines(
+      await this.connection.request({
+        operation: "timelinesXlsx",
+        revision,
+        sheet,
       }),
     );
   }

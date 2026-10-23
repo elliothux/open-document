@@ -333,7 +333,7 @@ export class SpreadsheetPointer {
       );
   }
   update(geometry: XlsxSelectionGeometry): void {
-    this.slicers.update();
+    this.slicers.update(this.drawings.active);
     this.notes.update();
     this.geometry = geometry;
     if (this.drawings.update()) {
