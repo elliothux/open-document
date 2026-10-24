@@ -9,8 +9,10 @@ import type {
   PptxPoint,
 } from "./pptx-objects.js";
 import type { DrawRect } from "./drawing.js";
+import type { PptxImportCommand } from "./pptx-import.js";
 
 export type PptxCommand =
+  | PptxImportCommand
   | PptxShowCommand
   | PptxSearchCommand
   | PptxOutputCommand
@@ -135,6 +137,8 @@ const names: ReadonlySet<string> = new Set([
   "openPptx",
   "createPptx",
   "queryPptx",
+  "inspectPptxSlides",
+  "importPptxSlides",
   "dateTimePptx",
   "followPptxHyperlink",
   "findPptx",

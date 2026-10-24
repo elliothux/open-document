@@ -10,6 +10,7 @@ import {
   checkPptxShow,
   checkPptxTextFragment,
   checkPptxObjectFragment,
+  checkPptxImportInput,
   type PptxCommand,
   type PptxResult,
 } from "@open-document/wasm/pptx";
@@ -31,6 +32,7 @@ export type {
   PptxMedia,
   PptxMediaPlayback,
   PptxFragmentMedia,
+  PptxImportInfo,
   PptxPlaceholder,
   PptxPlaceholderType,
   PptxEditView,
@@ -119,6 +121,50 @@ export class PptxClient {
     await this.connection.request({ operation: "font", bytes, identity });
   }
   async execute<C extends PptxCommand>(command: C): Promise<PptxResult<C>> {
+    if (
+      command.operation === "inspectPptxSlides" ||
+      command.operation === "importPptxSlides"
+    ) {
+      checkPptxImportInput(
+        command.bytes,
+        command.indices,
+        command.operation === "importPptxSlides",
+      );
+      command = {
+        ...command,
+        bytes: new Uint8Array(command.bytes),
+        indices: [...command.indices],
+      };
+    }
+    if (command.operation === "importPptxSlides") {
+      const before = await this.execute({ operation: "queryPptx" });
+      const info = await this.execute({
+        operation: "inspectPptxSlides",
+        revision: command.revision,
+        bytes: command.bytes,
+        indices: command.indices,
+      });
+      for (const image of info.images) {
+        const { bitmap } = await decodeImage(
+          Uint8Array.from(atob(image), (c) => c.charCodeAt(0)),
+          this.events.signal,
+        );
+        bitmap.close();
+      }
+      for (const media of info.media)
+        await verifyPresentationMedia(
+          Uint8Array.from(atob(media.bytes), (c) => c.charCodeAt(0)),
+          media.kind,
+          media.contentType,
+          this.events.signal,
+        );
+      const after = await this.execute({ operation: "queryPptx" });
+      if (
+        after.revision !== command.revision ||
+        JSON.stringify(after.selection) !== JSON.stringify(before.selection)
+      )
+        throw new Error("Selection changed during slide import preparation");
+    }
     if (
       command.operation === "controlShowPptx" ||
       command.operation === "inkShowPptx" ||

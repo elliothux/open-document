@@ -162,7 +162,7 @@ fn Session::add_slide(
       focus: 0,
     },
     parts~,
-    created=Some((added, relations)),
+    created=[(added, relations)],
     created_parts~,
     media~,
     created_media~,

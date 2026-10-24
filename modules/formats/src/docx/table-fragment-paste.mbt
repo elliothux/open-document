@@ -249,7 +249,7 @@ fn Session::paste_table_fragment(
   WordTree::new(candidate).check_drawing_budget()
   let flow = view.flow_from(candidate)
   let table = flow.tables.iter().find_first(t => t.id == grid.table).unwrap()
-  self.check_table_layout(flow, table, Some(probe), profile, images)
+  check_table_layout(flow, table, Some(probe), profile, images)
   let current = WordTree::new(candidate)
   let fields = current.order.filter(id => {
     current.nodes[id].uri == word_uri &&

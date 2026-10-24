@@ -91,6 +91,8 @@ fn Foundation::pptx_operation(
         self.images,
       )
     "queryPptx" => session.query()
+    "inspectPptxSlides" | "importPptxSlides" =>
+      self.pptx_import(session, request, operation == "importPptxSlides")
     "dateTimePptx" =>
       session.set_date_time(
         field_int(request, "revision"),

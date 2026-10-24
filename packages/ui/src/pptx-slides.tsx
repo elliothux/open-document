@@ -3,6 +3,7 @@ import type { PresentationEditor } from "@open-document/web/presentation-editor"
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { PptxShow } from "./pptx-show.js";
+import { PptxImport } from "./pptx-import.js";
 
 export function PptxSlideList({
   editor,
@@ -83,6 +84,12 @@ export function PptxSlideList({
         ))}
       </select>
       {query.editView.reason && <p>{query.editView.reason}</p>}
+      <PptxImport
+        editor={editor}
+        controller={controller}
+        state={state}
+        disabled={disabled}
+      />
       {query.editView.kind === "slide" && (
         <PptxShow
           editor={editor}

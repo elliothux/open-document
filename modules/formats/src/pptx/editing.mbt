@@ -121,7 +121,7 @@ fn Session::commit_slides(
   edits : Array[(String, @xml.Edit)],
   after : Selection,
   parts~ : Map[String, @xml.Document] = self.parts,
-  created~ : (Slide, @xml.Document)? = None,
+  created~ : Array[(Slide, @xml.Document)] = [],
   created_parts~ : Map[String, @xml.Document] = Map([]),
   media~ : Map[String, Bytes] = self.media,
   created_media~ : Map[String, Bytes] = Map([]),
@@ -180,15 +180,14 @@ fn Session::commit_slides(
   let payload = edits
     .iter()
     .fold(init=0L, (sum, entry) => sum + entry.1.payload_bytes()) +
-    created
-    .map(pair => {
+    created.fold(init=0L, (sum, pair) => {
+      sum +
       (
         pair.0.tree.document.source().length().to_int64() +
         pair.1.source().length().to_int64()
       ) *
       2
-    })
-    .unwrap_or(0L) +
+    }) +
     created_parts
     .values()
     .fold(init=0L, (sum, document) => {
@@ -276,11 +275,13 @@ pub fn Session::undo(
     let removed_parts = self.removed.copy()
     let deleted_documents : Map[String, @xml.Document] = Map([])
     let deleted_slides : Array[Slide] = []
-    let mut removed : (Slide, @xml.Document)? = None
+    let removed : Array[(Slide, @xml.Document)] = []
     let removed_created_parts : Map[String, @xml.Document] = Map([])
-    if redo && entry.created is Some((slide, relations)) {
-      slides.push(slide)
-      parts[relationship_part(slide.tree.part)] = relations
+    if redo {
+      for (slide, relations) in entry.created {
+        slides.push(slide)
+        parts[relationship_part(slide.tree.part)] = relations
+      }
     }
     if redo {
       for name, document in entry.created_parts {
@@ -331,19 +332,23 @@ pub fn Session::undo(
         )
       }
     }
-    if !redo && entry.created is Some((created, _)) {
-      let slide = slides.remove(
-        slides.search_by(slide => slide.tree.part == created.tree.part).unwrap(),
-      )
-      guard slide.tree.document.source() == created.tree.document.source() else {
-        @failure.reject(
-          "invalid-operation", "Created slide history has changed",
+    if !redo {
+      for (created, _) in entry.created {
+        let slide = slides.remove(
+          slides
+          .search_by(slide => slide.tree.part == created.tree.part)
+          .unwrap(),
         )
+        guard slide.tree.document.source() == created.tree.document.source() else {
+          @failure.reject(
+            "invalid-operation", "Created slide history has changed",
+          )
+        }
+        let relation_path = relationship_part(slide.tree.part)
+        let relations = parts[relation_path]
+        parts.remove(relation_path)
+        removed.push((slide, relations))
       }
-      let relation_path = relationship_part(slide.tree.part)
-      let relations = parts[relation_path]
-      parts.remove(relation_path)
-      removed = Some((slide, relations))
     }
     if !redo {
       for name, snapshot in entry.created_parts {
@@ -418,7 +423,7 @@ pub fn Session::undo(
     }
     self.validate_slides(main, slides, parts~, media~, removed=removed_parts)
     // Preserve identity allocation after later edits were undone, for their next redo.
-    if removed is Some(_) {
+    if !removed.is_empty() {
       entry.created = removed
     }
     for name, document in removed_created_parts {

@@ -22,17 +22,19 @@ fn Session::table_cell_markup(
     vertAlign=Set(character.vertAlign),
   )
   patch.validate()
+  let properties = ParagraphFormat::new(
+    left=Set(0),
+    right=Set(0),
+    first=Set(0),
+    pageBreakBefore=Set(false),
+  ).properties()
+  properties["sectPr"] = None
   let paragraph = formatted_properties(
     tree,
     self.document(),
     position.paragraph,
     "pPr",
-    ParagraphFormat::new(
-      left=Set(0),
-      right=Set(0),
-      first=Set(0),
-      pageBreakBefore=Set(false),
-    ).properties(),
+    properties,
   )
   let run = formatted_properties(
     tree,
@@ -68,18 +70,49 @@ pub fn Session::insert_table(
   }
   let original = self.document()
   let tree = WordTree::new(original)
-  let range = self.paragraph_range(tree, selection, structural=true, notes=true)
+  let range = self.paragraph_range_in(
+    original,
+    tree,
+    selection,
+    structural=true,
+    notes=true,
+    sectionBoundary=true,
+  )
   let body = tree.child(0, "body").unwrap()
   guard tree.nodes[range.start.paragraph].parent == body else {
     @failure.reject(
       "protected-content", "Table insertion requires a body paragraph",
     )
   }
-  ignore(self.editable_page_section(tree))
+  ignore(
+    self.editable_page_section(
+      tree,
+      target=Some(tree.position_section(range.start)),
+    ),
+  )
   let flow = self.flow_from(original)
+  let prepared = if range.start.offset == 0 {
+    self.prepare_plain_range(selection, "", notes=true)
+  } else {
+    Some(self.prepare_structural_range(selection, "\n", notes=true))
+  }
+  let mut candidate = prepared.map(p => p.document).unwrap_or(original)
+  let edits = prepared.map(p => p.edit.xml.copy()).unwrap_or([])
+  let right = prepared
+    .bind(p => p.edit.after)
+    .map(s => s.focus.paragraph)
+    .unwrap_or(range.start.paragraph)
+  let position = table_position(right)
+  let candidate_tree = WordTree::new(candidate)
+  ignore(
+    self.editable_page_section(
+      candidate_tree,
+      target=Some(candidate_tree.position_section(position)),
+    ),
+  )
   let width = (column_width_for_position(
-      flow,
-      range.start,
+      self.flow_from(candidate),
+      position,
       probe,
       profile,
       images,
@@ -144,17 +177,6 @@ pub fn Session::insert_table(
   guard markup.to_string().length() <= limit else {
     @failure.reject("limit-exceeded", "Table source exceeds history budget")
   }
-  let prepared = if range.start.offset == 0 {
-    self.prepare_plain_range(selection, "", notes=true)
-  } else {
-    Some(self.prepare_structural_range(selection, "\n", notes=true))
-  }
-  let mut candidate = prepared.map(p => p.document).unwrap_or(original)
-  let edits = prepared.map(p => p.edit.xml.copy()).unwrap_or([])
-  let right = prepared
-    .bind(p => p.edit.after)
-    .map(s => s.focus.paragraph)
-    .unwrap_or(range.start.paragraph)
   let right_node = candidate.node(right)
   let (updated, edit) = candidate.edit_source([
     {
@@ -208,9 +230,10 @@ pub fn Session::insert_table(
     .iter()
     .find_first(t => t.id == table)
     .unwrap()
-  if !candidate_flow.columns.custom.is_empty() ||
+  if !candidate_flow.sectionBreaks.is_empty() ||
+    !candidate_flow.columns.custom.is_empty() ||
     !candidate_flow.notes.is_empty() {
-    self.check_table_layout(candidate_flow, new_table, probe, profile, images)
+    check_table_layout(candidate_flow, new_table, probe, profile, images)
   }
   guard new_table.rows
     .iter()

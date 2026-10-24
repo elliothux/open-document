@@ -84,6 +84,10 @@ fn Session::table_dimensions(
     span,
   ) => sum + span)
   let fill = table.fills[index][column]
+  let (page, columns) = page_area_for_position(
+    flow,
+    table_start_position(table),
+  )
   let border_defaults = border_defaults(tree, self.styles([]), id, [])
   {
     "id": id,
@@ -121,9 +125,9 @@ fn Session::table_dimensions(
     },
     "maxWidth": layout
     .map(layout => column_width_in(flow, layout, table_start_position(table)))
-    .unwrap_or_else(() => flow.columns.width(flow.page))
+    .unwrap_or_else(() => columns.width(page))
     .min(14400),
-    "maxRowHeight": table_row_height_limit(table, index, flow.page),
+    "maxRowHeight": table_row_height_limit(table, index, page),
   }
 }
 
@@ -294,10 +298,14 @@ fn Session::size_table(
     @failure.reject("protected-content", "Table sizes require a body table")
   }
   let flow = self.flow()
+  let (page, columns) = page_area_for_position(
+    flow,
+    table_start_position(grid.model),
+  )
   let available = if width {
     table_column_width(flow, grid.model, probe, profile, images)
   } else {
-    flow.columns.width(flow.page)
+    columns.width(page)
   }
   let model = if width && grid.model.autoFit {
     grid.model.fit_widths(
@@ -440,7 +448,7 @@ fn Session::size_table(
     let first = selected.map(range => range.top).unwrap_or(grid.row)
     let end = selected.map(range => range.bottom).unwrap_or(grid.row + 1)
     guard rule == "exact" ||
-      value <= table_row_height_limit(model, first, flow.page, end~) else {
+      value <= table_row_height_limit(model, first, page, end~) else {
       @failure.reject(
         "invalid-operation", "Minimum row heights exceed one page",
       )
@@ -480,8 +488,8 @@ fn Session::size_table(
     .iter()
     .find_first(t => t.id == grid.table)
     .unwrap()
-  if !flow.columns.custom.is_empty() {
-    self.check_table_layout(
+  if !flow.sectionBreaks.is_empty() || !columns.custom.is_empty() {
+    check_table_layout(
       self.flow_from(candidate),
       updated,
       probe,
@@ -489,7 +497,7 @@ fn Session::size_table(
       images,
     )
   }
-  self.check_margin_layout(updated)
+  check_margin_layout(updated, page)
   guard updated.rows.flatten().flatten().all(p => p.readOnlyReason.is_empty()) else {
     @failure.reject(
       "protected-content", "Table size requires unsupported layout",

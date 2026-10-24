@@ -18,7 +18,6 @@ fn Session::table_grid(
   fields~ : Bool = false,
   math~ : Bool = false,
   notes~ : Bool = false,
-  section~ : Int? = None,
 ) -> TableGrid raise @failure.Failure {
   let range = self.paragraph_range(
     tree,
@@ -32,7 +31,12 @@ fn Session::table_grid(
   guard tree.nodes[cell].uri == word_uri && tree.nodes[cell].name == "tc" else {
     @failure.reject("invalid-operation", "Select a table cell first")
   }
-  ignore(self.editable_page_section(tree, target=section))
+  ignore(
+    self.editable_page_section(
+      tree,
+      target=Some(tree.position_section(range.start)),
+    ),
+  )
   let row = tree.nodes[cell].parent
   let table = tree.nodes[row].parent
   let model = self.flow_from(self.document()).tables
@@ -209,7 +213,7 @@ fn Session::commit_table_merge(
   let paragraph = updated.child(cell, "p").unwrap()
   let result = self.flow_from(candidate)
   let model = result.tables.iter().find_first(t => t.id == grid.table).unwrap()
-  self.check_table_layout(result, model, probe, profile, images)
+  check_table_layout(result, model, probe, profile, images)
   let before = grid.cells
     .flatten()
     .map(cell => tree.table_children(cell, "p"))

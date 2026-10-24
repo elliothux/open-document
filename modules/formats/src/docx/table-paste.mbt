@@ -323,7 +323,7 @@ fn Session::paste_table_cells(
     .iter()
     .find_first(table => table.id == grid.table)
     .unwrap()
-  self.check_table_layout(flow, table, Some(probe), profile, images)
+  check_table_layout(flow, table, Some(probe), profile, images)
   affected.append(table.rows.flatten().flatten().map(p => p.id))
   let current = WordTree::new(candidate)
   let focus = {

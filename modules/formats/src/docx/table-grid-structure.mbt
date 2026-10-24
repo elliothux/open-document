@@ -155,8 +155,7 @@ fn WordTree::row_grid_change(
 }
 
 ///|
-fn Session::check_table_layout(
-  self : Session,
+fn check_table_layout(
   flow : @layout.Flow,
   model : @layout.Table,
   probe : @layout.TextProbe?,
@@ -169,7 +168,13 @@ fn Session::check_table_layout(
     )
   }
   if probe is Some(probe) {
-    if !flow.columns.custom.is_empty() || !flow.notes.is_empty() {
+    let (page, columns) = page_area_for_position(
+      flow,
+      table_start_position(model),
+    )
+    if !flow.sectionBreaks.is_empty() ||
+      !columns.custom.is_empty() ||
+      !flow.notes.is_empty() {
       let flow = {
         ..flow,
         tables: flow.tables.map(table => {
@@ -191,11 +196,11 @@ fn Session::check_table_layout(
         profile,
         column_width_in(flow, layout, table_start_position(model)),
       )
-      self.check_margin_layout({ ..fitted, autoFit: false, })
+      check_margin_layout({ ..fitted, autoFit: false, }, page)
       return
     }
-    let fitted = model.fit_widths(probe, profile, flow.columns.width(flow.page))
-    self.check_margin_layout({ ..fitted, autoFit: false, })
+    let fitted = model.fit_widths(probe, profile, columns.width(page))
+    check_margin_layout({ ..fitted, autoFit: false, }, page)
     ignore(
       @layout.paginate(
         probe,
@@ -320,7 +325,7 @@ fn Session::commit_table_structure(
   let affected = grid.model.rows.flatten().flatten().map(p => p.id)
   if !whole {
     let model = result.tables.iter().find_first(t => t.id == table).unwrap()
-    self.check_table_layout(result, model, probe, profile, images)
+    check_table_layout(result, model, probe, profile, images)
     affected.append(model.rows.flatten().flatten().map(p => p.id))
   }
   let position = table_position(target)

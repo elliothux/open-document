@@ -43,6 +43,7 @@ import type {
   PptxSelection,
   PptxObjectEdit,
   PptxSlideEdit,
+  PptxImportInfo,
 } from "@open-document/wasm/pptx";
 export class PresentationEditor extends PresentationOutput {
   readonly slideshow: PresentationShow;
@@ -676,6 +677,35 @@ export class PresentationEditor extends PresentationOutput {
           revision: this.state.revision,
           slide: slide ?? this.state.slide,
           change,
+          profile: this.profile,
+        }),
+      ),
+    );
+  }
+  inspectSlides(bytes: Uint8Array): Promise<PptxImportInfo> {
+    const input = new Uint8Array(bytes);
+    return this.enqueue(() =>
+      this.client.execute({
+        operation: "inspectPptxSlides",
+        revision: this.state.revision,
+        bytes: input,
+        indices: [],
+      }),
+    );
+  }
+  importSlides(bytes: Uint8Array, indices: number[]): Promise<void> {
+    const input = new Uint8Array(bytes),
+      selected = [...indices],
+      revision = this.state.revision,
+      after = this.state.slide;
+    return this.enqueue(async () =>
+      this.changed(
+        await this.client.execute({
+          operation: "importPptxSlides",
+          revision,
+          bytes: input,
+          indices: selected,
+          after,
           profile: this.profile,
         }),
       ),

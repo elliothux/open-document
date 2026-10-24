@@ -239,8 +239,12 @@ fn Session::fit_table(
       "protected-content", "Table fitting requires supported layout",
     )
   }
-  self.check_margin_layout({ ..next, autoFit: false, })
-  let target_flow = if !next_flow.columns.custom.is_empty() ||
+  check_margin_layout(
+    { ..next, autoFit: false, },
+    page_area_for_position(next_flow, table_start_position(next)).0,
+  )
+  let target_flow = if !next_flow.sectionBreaks.is_empty() ||
+    !next_flow.columns.custom.is_empty() ||
     !next_flow.notes.is_empty() {
     {
       ..next_flow,

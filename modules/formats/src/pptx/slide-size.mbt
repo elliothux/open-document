@@ -89,7 +89,7 @@ fn size_changes(
         parent.name == "grpSp"
       ) {
       guard node.uri == presentation_uri &&
-        ["nvGrpSpPr", "grpSpPr", "sp", "pic", "cxnSp", "grpSp"].contains(
+        ["nvGrpSpPr", "grpSpPr", "sp", "pic", "cxnSp", "grpSp", "graphicFrame"].contains(
           node.name,
         ) else {
         @failure.reject(
@@ -99,12 +99,31 @@ fn size_changes(
         )
       }
     }
-    if node.uri != drawing_uri || node.name != "xfrm" {
+    if node.uri == drawing_uri && ["gridCol", "tr"].contains(node.name) {
+      let key = if node.name == "gridCol" { "w" } else { "h" }
+      let scale = if key == "w" { sx } else { sy }
+      let original = number(node.attribute(key).unwrap_or("0"), 0, 182880000)
+      let value = (original * scale).round()
+      guard value >= 0 && value <= 182880000 else {
+        @failure.reject(
+          "invalid-size",
+          "Resized table grid exceeds bounds",
+          part=tree.part,
+        )
+      }
+      if value != original {
+        changes.push(
+          attribute_change({ tree, node, }, key, value.to_int64().to_string()),
+        )
+      }
+    }
+    if ![drawing_uri, presentation_uri].contains(node.uri) ||
+      node.name != "xfrm" {
       continue
     }
     let parent = tree.nodes[node.parent]
     if parent.uri != presentation_uri ||
-      !["spPr", "grpSpPr"].contains(parent.name) {
+      !["spPr", "grpSpPr", "graphicFrame"].contains(parent.name) {
       continue
     }
     for child in tree.children.get(node.id).unwrap_or([]) {

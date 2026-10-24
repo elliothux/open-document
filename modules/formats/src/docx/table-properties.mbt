@@ -135,17 +135,18 @@ fn Session::change_table_property(
     return self.edit_state()
   }
   let (candidate, edit) = document.edit_source(changes.items)
-  let updated = self.flow_from(candidate).tables
-    .iter()
-    .find_first(t => t.id == grid.table)
-    .unwrap()
+  let flow = self.flow_from(candidate)
+  let updated = flow.tables.iter().find_first(t => t.id == grid.table).unwrap()
   if header_rows is Some(count) && updated.headerRows != count {
     @failure.reject(
       "invalid-operation", "Header boundary crosses a vertical merge",
     )
   }
   if ["tcMar", "tblCellMar", "tcBorders", "tblBorders"].contains(name) {
-    self.check_margin_layout(updated)
+    check_margin_layout(
+      updated,
+      page_area_for_position(flow, table_start_position(updated)).0,
+    )
   }
   guard updated.rows.flatten().flatten().all(p => p.readOnlyReason.is_empty()) else {
     @failure.reject(

@@ -162,7 +162,7 @@ priv struct Selection {
 ///|
 priv struct History {
   edits : Array[(String, @xml.Edit)]
-  mut created : (Slide, @xml.Document)?
+  mut created : Array[(Slide, @xml.Document)]
   created_parts : Map[String, @xml.Document]
   created_media : Map[String, Bytes]
   mut deleted : Array[Slide]

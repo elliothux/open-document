@@ -18,7 +18,6 @@ fn Session::prepare_section_position(
   document : @xml.Document,
   tree : WordTree,
   position : Position,
-  section : Int,
 ) -> (PreparedEdit, Int) raise @failure.Failure {
   let paragraph = tree.nodes[position.paragraph]
   let parent = tree.nodes[paragraph.parent]
@@ -32,7 +31,7 @@ fn Session::prepare_section_position(
       "protected-content", "Section breaks require body text or a body table",
     )
   }
-  let grid = self.table_grid(tree, selection, notes=true, section=Some(section))
+  let grid = self.table_grid(tree, selection, notes=true)
   if grid.row > 0 {
     return self.prepare_table_split(document, tree, grid)
   }
@@ -111,7 +110,7 @@ pub fn Session::insert_section_break(
     .map(id => tree.standalone_markup(document, id))
     .unwrap_or("<od:sectPr xmlns:od='\{word_uri}'/>")
   let (prepared, boundary) = self.prepare_section_position(
-    document, tree, position, index,
+    document, tree, position,
   )
   let tree = WordTree::new(prepared.document)
   let (candidate, added, section) = page_section(

@@ -191,7 +191,10 @@ fn Session::table_cell_selection(
       "maxRowHeight": table_row_height_limit(
         selected.grid.model,
         selected.top,
-        self.flow().page,
+        page_area_for_position(
+          self.flow(),
+          table_start_position(selected.grid.model),
+        ).0,
         end=selected.bottom,
       ),
       "margins": {

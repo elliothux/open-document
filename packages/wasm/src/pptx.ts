@@ -1,5 +1,12 @@
 import type { PptxCommand } from "./pptx-command.js";
 import {
+  checkPptxImportInfo,
+  checkPptxImportInput,
+  type PptxImportInfo,
+} from "./pptx-import.js";
+export { checkPptxImportInput } from "./pptx-import.js";
+export type { PptxImportInfo } from "./pptx-import.js";
+import {
   checkPptxFragmentMedia,
   type PptxFragmentMedia,
 } from "./pptx-media.js";
@@ -243,38 +250,43 @@ export interface PptxQuery extends PptxPlaybackState {
   slideLayout: PptxSlideLayouts;
   diagnostics: string[];
 }
-type Result<C extends PptxCommand> = C["operation"] extends
-  "controlShowPptx" | "inkShowPptx" | "mediaShowPptx"
-  ? PptxShowState
-  : C["operation"] extends "layoutShowPptx"
-    ? PptxShowLayout
-    : C["operation"] extends "findPptx"
-      ? PptxSearchResult
-      : C["operation"] extends "printLayoutPptx"
-        ? PptxPrintLayout
-        : C["operation"] extends "layoutPptx"
-          ? PptxLayout
-          : C["operation"] extends "hitPptx"
-            ? PptxHit
-            : C["operation"] extends "selectionPptx"
-              ? PptxGeometry
-              : C["operation"] extends
-                    | "savePptx"
-                    | "imageBytesPptx"
-                    | "mediaBytesPptx"
-                    | "exportPptxPdf"
-                ? Uint8Array
-                : C["operation"] extends "imageKeysPptx" | "imageKeysShowPptx"
-                  ? string[]
-                  : C["operation"] extends "copyPptx"
-                    ? { text: string; fragment: string | null; reason: string }
-                    : C["operation"] extends "imagePptx"
-                      ? { key: string }
-                      : C["operation"] extends "objectFragmentImagesPptx"
-                        ? string[]
-                        : C["operation"] extends "objectFragmentMediaPptx"
-                          ? PptxFragmentMedia[]
-                          : PptxQuery;
+type Result<C extends PptxCommand> = C["operation"] extends "inspectPptxSlides"
+  ? PptxImportInfo
+  : C["operation"] extends "controlShowPptx" | "inkShowPptx" | "mediaShowPptx"
+    ? PptxShowState
+    : C["operation"] extends "layoutShowPptx"
+      ? PptxShowLayout
+      : C["operation"] extends "findPptx"
+        ? PptxSearchResult
+        : C["operation"] extends "printLayoutPptx"
+          ? PptxPrintLayout
+          : C["operation"] extends "layoutPptx"
+            ? PptxLayout
+            : C["operation"] extends "hitPptx"
+              ? PptxHit
+              : C["operation"] extends "selectionPptx"
+                ? PptxGeometry
+                : C["operation"] extends
+                      | "savePptx"
+                      | "imageBytesPptx"
+                      | "mediaBytesPptx"
+                      | "exportPptxPdf"
+                  ? Uint8Array
+                  : C["operation"] extends "imageKeysPptx" | "imageKeysShowPptx"
+                    ? string[]
+                    : C["operation"] extends "copyPptx"
+                      ? {
+                          text: string;
+                          fragment: string | null;
+                          reason: string;
+                        }
+                      : C["operation"] extends "imagePptx"
+                        ? { key: string }
+                        : C["operation"] extends "objectFragmentImagesPptx"
+                          ? string[]
+                          : C["operation"] extends "objectFragmentMediaPptx"
+                            ? PptxFragmentMedia[]
+                            : PptxQuery;
 export type PptxResult<C extends PptxCommand> = Result<C>;
 
 export { isPptxCommand } from "./pptx-command.js";
@@ -558,6 +570,9 @@ export function pptxResult<C extends PptxCommand>(
   value: unknown,
 ): PptxResult<C> {
   switch (command.operation) {
+    case "inspectPptxSlides":
+      checkPptxImportInfo(value);
+      break;
     case "inkShowPptx":
     case "mediaShowPptx":
     case "controlShowPptx":
@@ -670,6 +685,15 @@ export function pptxResult<C extends PptxCommand>(
 export class PptxSession extends WasmSession {
   execute<C extends PptxCommand>(command: C): PptxResult<C> {
     if (
+      command.operation === "inspectPptxSlides" ||
+      command.operation === "importPptxSlides"
+    )
+      checkPptxImportInput(
+        command.bytes,
+        command.indices,
+        command.operation === "importPptxSlides",
+      );
+    if (
       command.operation === "controlShowPptx" ||
       command.operation === "inkShowPptx" ||
       command.operation === "mediaShowPptx" ||
@@ -728,13 +752,17 @@ export class PptxSession extends WasmSession {
       value = this.bytes(command);
     else if (
       command.operation === "openPptx" ||
-      command.operation === "imagePptx"
+      command.operation === "imagePptx" ||
+      command.operation === "inspectPptxSlides" ||
+      command.operation === "importPptxSlides"
     ) {
       if (
         command.bytes.length >
         (command.operation === "openPptx"
           ? Math.min(command.budget.fileBytes, command.budget.retainedBytes)
-          : 16777216)
+          : command.operation === "imagePptx"
+            ? 16777216
+            : 33554432)
       )
         throw new Error("PPTX input exceeds budget");
       value = this.call({

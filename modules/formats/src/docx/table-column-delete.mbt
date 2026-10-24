@@ -13,7 +13,7 @@ fn Session::delete_table_column(
     .map(range => range.grid)
     .unwrap_or_else(() => self.table_grid(tree, selection, notes=true))
   tree.check_table_structure(grid, columns=true)
-  self.check_table_layout(self.flow(), grid.model, None, profile, None)
+  check_table_layout(self.flow(), grid.model, None, profile, None)
   let flow = self.flow()
   let available = table_column_width(flow, grid.model, probe, profile, images)
   let model = if probe is Some(probe) {

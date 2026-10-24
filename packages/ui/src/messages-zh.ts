@@ -1,4 +1,5 @@
 import { docxPicturesZh } from "./messages-docx-pictures.js";
+import { importZh } from "./messages-pptx-import.js";
 import { mathZh } from "./messages-docx-math.js";
 import { conditionalStatisticsZh } from "./messages-conditional-statistics.js";
 import { objectZh } from "./messages-pptx-objects.js";
@@ -29,6 +30,7 @@ export const zh: Messages = {
   ...mathZh,
   ...connectorZh,
   ...viewZh,
+  ...importZh,
   ...clipboardZh,
   ...xlsxPicturesZh,
   ...xlsxShapesZh,
@@ -729,8 +731,6 @@ export const zh: Messages = {
   discardMergedValues: "保留左上角单元格，丢弃其余值和公式",
   unmerge: "取消单元格合并",
   tableColumns: "表格列数",
-  slideEarlier: "幻灯片前移",
-  slideLater: "幻灯片后移",
   hideSlide: "隐藏幻灯片",
   showSlide: "显示幻灯片",
   objects: "对象",

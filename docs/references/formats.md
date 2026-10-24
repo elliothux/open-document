@@ -698,7 +698,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 当前读取 `nextPage/oddPage/evenPage`。奇偶分节按续接或重启的页号补空白页；首节起号按原生类型修正奇偶。页号继续或按 `pgNumType@start` 重启，格式由本节决定。缺少页眉页脚引用时按变体继承，显式空部件清除继承内容；不同部件的段落身份独立。首页与奇偶变体按当前节选择，`NUMPAGES`、`SEQ` 和跨节 `PAGEREF/REF` 按全文求值，最多八轮重排。
 
-多节正文和普通单元格已接通原有原生输入、命中、方向键、范围替换、字符/段落格式及组合输入。Enter 或粘贴 LF 拆段时，原节属性移到最后的新段落，其余新段落保留原段落格式。Backspace/Delete 合段和跨段范围替换时，合并结果保留末段的节属性，删除范围内其他节边界；被合并内容采用下一节纸型、栏和编号。连续分节及其余表格结构编辑继续实施。
+多节正文和普通单元格已接通原有原生输入、命中、方向键、范围替换、字符/段落格式及组合输入。Enter 或粘贴 LF 拆段时，原节属性移到最后的新段落，其余新段落保留原段落格式。Backspace/Delete 合段和跨段范围替换时，合并结果保留末段的节属性，删除范围内其他节边界；被合并内容采用下一节纸型、栏和编号。普通表格创建、网格与属性编辑复用[表格事务](#表格创建)，按所属节及实际起始栏计算宽高限制。连续分节及其余节功能继续实施。
 
 删除节边界后，若紧随的保留节没有任何显式页眉/页脚引用，则继承被删节的显式引用；若该节已有引用，则保留其原生配置。连续删除多个边界沿相同规则传递，缺少末节属性时按需创建。页边部件和资源保留，格式修改保留 `sectPr` 及其原始子内容。组合预览使用候选节目录和布局，取消保留原包与历史；提交、节迁移、引用传递及原有书签/批注恢复共用一项有界历史。现有保护、未知源、过期命令和预算失败保持原子拒绝。实现归[节输入事务](../../modules/formats/src/docx/section-input.mbt)与[结构范围编辑](../../modules/formats/src/docx/range.mbt)；语义依据 [ONLYOFFICE 拆段](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L13861-L13868)、[合段](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L14075-L14083)及[删除节时保留页边引用](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/sections/document-sections.js#L293-L326)。
 
@@ -936,7 +936,9 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 ### 表格创建
 
-`FoundationSession/Client.insertTable(revision, selection, rows, columns, profile)` 与 `DocumentEditor.insertTable(rows, columns)` 在正文范围插入固定网格，默认 UI 提供行列输入。rows 为 1–1000，columns 为 1–63，总格数最多 4096，并受 XML、历史和输出预算限制。列宽按当前单节布局的可用栏宽分配整数 twip，余量逐列分配，每列至少 12 pt。沿用当前纸型解释，不改源页面设置。未知或受保护的正文、嵌套表格、多节及无法解释的页面设置拒绝操作。
+`FoundationSession/Client.insertTable(revision, selection, rows, columns, profile)` 与 `DocumentEditor.insertTable(rows, columns)` 在正文范围插入固定网格，默认 UI 提供行列输入。rows 为 1–1000，columns 为 1–63，总格数最多 4096，并受 XML、历史和输出预算限制。列宽按插入后目标节的实际起始栏分配整数 twip，余量逐列分配，每列至少 12 pt。沿用当前纸型解释，不改源页面设置。未知或受保护的正文、嵌套表格及无法解释的页面设置拒绝操作。
+
+单节和多节共用创建、行列增删、合并/取消合并、拆格/拆表、属性、矩形粘贴和单元格片段事务。尺寸查询、跨格行高上限、边距校验和自动适配使用目标节的纸型及栏配置；不等宽分栏根据表格起始位置取宽度。原生节属性保留在正文，复制到单元格的段落格式不含 `sectPr`；跨节删除后，创建宽度按保留节重新计算。其他节与部件保留原源，精确历史及既有保护继续生效。定位与校验归[栏宽读取](../../modules/formats/src/docx/table-column-width.mbt)、[网格事务](../../modules/formats/src/docx/table-grid-structure.mbt)及[创建事务](../../modules/formats/src/docx/table-editing.mbt)。按所属节和页面栏计算表宽的依据见 [ONLYOFFICE 表格创建](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L19763-L19855)，未复制上游执行代码。
 
 核心先删除所选文字；在段中插入时拆分段落，在段首插入时保留原段落作为后续内容。新增表格使用 0.5 pt 黑色完整网格、5.4 pt 水平单元格边距与固定列宽。单元格复制插入起点的有效字符格式及支持的段落属性，并将缩进与段前分页显式归零。若段首已有段前分页，则转移到首格首段，保留表格在该页开始的位置；页首不生成额外空页。其他单元格的段前分页仍受原有布局保护。
 
@@ -2703,7 +2705,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 `PresentationEditor.editSlides({ action: "size", width, height })` 修改全稿尺寸，单位为 pt，每边 1–14400，核心取整到 EMU。默认 UI 提供 16:9、4:3 和自定义宽高。`query.width/height` 返回实际尺寸，`slideSizeReason` 返回保护原因。各轴按新旧尺寸比例缩放全部页面及关联版式、母版的本地位置与尺寸；组的子坐标原点、范围及成员同时缩放。字号、描边宽度、旋转/翻转、对象身份、选择与其他资源保持。该规则依据 [ONLYOFFICE Presentation.changeSlideSizeFunction](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L805-L850)、[Shape.changeSize](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L3235-L3266)和 [GroupShape.changeSize](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GroupShape.js#L789-L805)。
 
-尺寸、页面和设计部件合为一次有界历史。相同实际尺寸不新增历史；旧 revision、活动候选、保护、坐标越界和输出/历史预算失败原子拒绝。图表/表格等未知页面对象、未知变换坐标和未支持的扩展辅助线保护尺寸调整。原生视图辅助线同步按轴缩放，组不再次重算边界，保留缩放后的子坐标原点。未知部件与原有源片段保留。保存重开及 Canvas/PDF 使用相同的新尺寸和几何；反复改变比例可能产生 EMU 或辅助线坐标取整，撤销恢复原始源字节。
+尺寸、页面和设计部件合为一次有界历史。相同实际尺寸不新增历史；旧 revision、活动候选、保护、坐标越界和输出/历史预算失败原子拒绝。已知表格和图表框随页面缩放，表格列宽与行高按轴缩放；未知页面对象、变换坐标和未支持的扩展辅助线保护尺寸调整。原生视图辅助线同步按轴缩放，组不再次重算边界，保留缩放后的子坐标原点。未知部件与原有源片段保留。保存重开及 Canvas/PDF 使用相同的新尺寸和几何；反复改变比例可能产生 EMU 或辅助线坐标取整，撤销恢复原始源字节。
 
 ### 幻灯片辅助线
 
@@ -2894,6 +2896,14 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 匹配的表格占位符也支持版式切换与重置。核心使用目标槽位的有效位置和宽度，按整数 EMU 比例调整现有列网格；保留行最小高度，并按新宽度重新排版，必要时增高行及原生表格框。槽位高度不压缩已有内容。表格身份、占位定义、格内文字和直接格式保持，源版式及未修改部件保留原字节；关系、列宽、行高和选择共用一次精确历史。重置恢复位置及列宽，重复重置不新增历史。
 
 底层 `Session::edit_slides` 在表格重排时需要已有字体 `probe/profile`；Wasm、Worker 和默认面板沿现有命令传递。目标缺少匹配槽位、含旋转/翻转或未知几何，原表格锁定，列宽无法容纳边距，字体缺失，目标母版引入不支持的表格格式，或预算失败时整项拒绝。已有表格即使文字为空，也不作为可丢弃的空提示框删除。实现归 [`layout-table.mbt`](../../modules/formats/src/pptx/layout-table.mbt)，列宽及行高复用 [`table-transform.mbt`](../../modules/formats/src/pptx/table-transform.mbt)和 [`table-layout.mbt`](../../modules/formats/src/pptx/table-layout.mbt)。框重置与按宽度重排参考 [ONLYOFFICE changeLayout](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Slide.js#L728-L753)及 [GraphicFrame 表格重排](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicFrame.js#L413-L477)，未复制上游源码。
+
+### 跨文稿页面导入
+
+`PresentationEditor.inspectSlides(bytes)` 只读返回源页的 `index/title/hidden` 目录。`importSlides(bytes, indices)` 在调用时绑定当前 revision 和页面，按给定的零基索引顺序插入到该页之后，选择首个导入页。默认页栏可读取本地 PPTX、勾选页面并一次插入。底层命令为 `inspectPptxSlides { revision, bytes, indices }` 与 `importPptxSlides { revision, bytes, indices, after, profile }`；前者在索引为空时只读目录，指定索引时还返回字体、图片和媒体预检资源。宿主预解码图片和验证媒体后再次检查目标选择，核心维护全部原生部件与历史。
+
+导入复制所选页、版式、母版、主题、普通备注、图片、内嵌音视频、表格样式、图表及其嵌入数据。部件路径、页/对象和已知创建身份独立分配，关系、连接与计时目标一起重映射。页间链接必须指向同次选择的源页，遗漏目标则整次拒绝。页面按目标文稿宽高分别缩放几何、表格列宽和行高，保留字号、方向、隐藏状态及源设计；目标章节按插入位置归属。全部导入只有一项精确撤销/重做历史，可保存重开、继续编辑和输出 Canvas/PDF。设计继承与尺寸处理参考 [ONLYOFFICE InsertContent2](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L8190-L8310)，未复制上游执行代码。
+
+源输入最多 32 MiB，沿用目标输入/输出、256 页和对象/文字预算。历史非音视频资源最多 4 MiB、音视频最多 64 MiB；导入图片单个压缩源最多 2 MiB，累计解码最多 16 MiB。缺字体、损坏或未知所有权、传统/线程批注、外部媒体和其他未支持关系整次拒绝，保留目标源、选择及重做。默认 UI 沿用“恢复编辑”后继续操作。源全局放映设置和章节不合并，复杂跨文稿兼容仍属 P12。
 
 ### 文稿与对象
 

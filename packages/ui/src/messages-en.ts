@@ -1,4 +1,5 @@
 import { docxPicturesEn } from "./messages-docx-pictures.js";
+import { importEn } from "./messages-pptx-import.js";
 import { mathEn } from "./messages-docx-math.js";
 import { conditionalStatisticsEn } from "./messages-conditional-statistics.js";
 import { objectEn } from "./messages-pptx-objects.js";
@@ -27,6 +28,7 @@ export const en = {
   ...objectEn,
   ...connectorEn,
   ...viewEn,
+  ...importEn,
   ...clipboardEn,
   ...xlsxPicturesEn,
   ...xlsxShapesEn,
@@ -737,8 +739,6 @@ export const en = {
     "Keep the upper-left cell and discard all other values and formulas",
   unmerge: "Unmerge cell",
   tableColumns: "Table columns",
-  slideEarlier: "Move slide earlier",
-  slideLater: "Move slide later",
   hideSlide: "Hide slide",
   showSlide: "Show slide",
   objects: "Objects",

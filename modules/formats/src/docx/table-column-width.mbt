@@ -1,4 +1,42 @@
 ///|
+fn page_area_for_position(
+  flow : @layout.Flow,
+  position : Position,
+) -> (@layout.PageSetup, @layout.Columns) raise @failure.Failure {
+  if flow.sectionBreaks.is_empty() {
+    return (flow.page, flow.columns)
+  }
+  let location = for index, paragraph in flow.paragraphs {
+    if paragraph.id == position.paragraph {
+      break (index, false)
+    }
+  } nobreak {
+    for index, table in flow.tables {
+      if table.rows.any(row => {
+          row.any(cell => cell.any(p => p.id == position.paragraph))
+        }) {
+        break (index, true)
+      }
+    } nobreak {
+      @failure.reject("invalid-position", "Position has no page section")
+    }
+  }
+  for section in flow.sectionBreaks; area = (flow.page, flow.columns) {
+    let start = if location.1 {
+      section.beforeTable
+    } else {
+      section.beforeParagraph
+    }
+    if location.0 < start {
+      break area
+    }
+    continue (section.page, section.columns)
+  } nobreak {
+    area
+  }
+}
+
+///|
 fn column_width_in(
   flow : @layout.Flow,
   layout : @layout.Layout,
@@ -7,6 +45,7 @@ fn column_width_in(
   guard layout.revision == flow.revision else {
     @failure.reject("stale-layout", "Column geometry is stale")
   }
+  let (area, columns) = page_area_for_position(flow, position)
   if position.frameStart is Some(start) {
     for page in layout.pages {
       for line in page.lines {
@@ -15,7 +54,7 @@ fn column_width_in(
           line.start == start &&
           line.start <= position.offset &&
           position.offset <= line.end {
-          return flow.columns.width_at(flow.page, line.areaX)
+          return columns.width_at(area, line.areaX)
         }
       }
     }
@@ -30,14 +69,14 @@ fn column_width_in(
         if position.offset < line.end ||
           position.affinity == "before" ||
           line.start == line.end {
-          return flow.columns.width_at(flow.page, line.areaX)
+          return columns.width_at(area, line.areaX)
         }
         previous = Some(line.areaX)
       }
     }
   }
   if previous is Some(x) {
-    return flow.columns.width_at(flow.page, x)
+    return columns.width_at(area, x)
   }
   @failure.reject("invalid-position", "Column position has no layout")
 }
@@ -67,8 +106,9 @@ fn column_width_for_position(
   profile : Map[String, String],
   images : @layout.Images?,
 ) -> Double raise @failure.Failure {
-  if flow.columns.custom.is_empty() {
-    return flow.columns.width(flow.page)
+  let (page, columns) = page_area_for_position(flow, position)
+  if columns.custom.is_empty() {
+    return columns.width(page)
   }
   guard probe is Some(probe) else {
     @failure.reject("missing-font", "Column placement requires a text probe")

@@ -209,6 +209,8 @@ fn Foundation::dispatch(
     | "imageKeysPptx"
     | "imageKeysShowPptx"
     | "copyPptx"
+    | "inspectPptxSlides"
+    | "importPptxSlides"
     | "exportPptxPdf"
     | "pastePptxFragment"
     | "objectFragmentImagesPptx"

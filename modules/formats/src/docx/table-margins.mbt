@@ -119,11 +119,10 @@ fn table_margin_defaults(
 }
 
 ///|
-fn Session::check_margin_layout(
-  self : Session,
+fn check_margin_layout(
   table : @layout.Table,
+  page : @layout.PageSetup,
 ) -> Unit raise @failure.Failure {
-  let page = self.flow().page
   for r, row in table.rows {
     let mut start = 0
     for c, _ in row {
