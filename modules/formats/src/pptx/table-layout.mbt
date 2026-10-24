@@ -87,7 +87,7 @@ fn Object::paint_table(
         )
         output.push(Restore)
       }
-      let (measured, _, diagnostic) = fit_text(
+      let (measured, _, diagnostic, _) = fit_text(
         self.table_cell(cell),
         geometry,
         probe,

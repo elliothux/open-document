@@ -128,6 +128,7 @@ export function PptxObjects({
               <option value="leftRightArrow">{t.leftRightArrow}</option>
               <option value="upDownArrow">{t.upDownArrow}</option>
               <option value="quadArrow">{t.quadArrow}</option>
+              <option value="leftRightUpArrow">{t.leftRightUpArrow}</option>
             </select>
           </label>
           {(

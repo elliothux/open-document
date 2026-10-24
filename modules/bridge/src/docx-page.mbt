@@ -231,7 +231,10 @@ fn Foundation::docx_page(
         @failure.reject("invalid-operation", "Page field is required")
       }
       let text_reference = item is { "field": "REF", .. }
-      let reference = text_reference || item is { "field": "PAGEREF", .. }
+      let note_reference = item is { "field": "NOTEREF", .. }
+      let reference = text_reference ||
+        note_reference ||
+        item is { "field": "PAGEREF", .. }
       let sequence = item is { "field": "SEQ", .. }
       let item = if reference || sequence {
         guard item is Object(fields) &&
@@ -250,6 +253,8 @@ fn Foundation::docx_page(
               [
                 "field", "bookmark", "hyperlink", "numbering", "relative", "separator",
               ]
+            } else if note_reference {
+              ["field", "bookmark", "hyperlink", "relative", "superscript"]
             } else {
               ["field", "bookmark", "format", "hyperlink", "relative"]
             }).contains(key)
@@ -317,9 +322,23 @@ fn Foundation::docx_page(
         guard request is { "field": original, .. } else {
           abort("Missing field")
         }
-        (if text_reference { "REF:" } else { "PAGEREF:" }) +
+        (if text_reference {
+          "REF:"
+        } else if note_reference {
+          "NOTEREF:"
+        } else {
+          "PAGEREF:"
+        }) +
         field_string(original, "bookmark") +
         code[4:].to_owned() +
+        (if note_reference &&
+          original is Object(fields) &&
+          fields.contains("superscript") &&
+          xlsx_boolean(original, "superscript") {
+          ":superscript"
+        } else {
+          ""
+        }) +
         (if text_reference &&
           original is Object(fields) &&
           fields.contains("numbering") {

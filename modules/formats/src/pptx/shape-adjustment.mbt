@@ -3,8 +3,8 @@ fn Object::adjustment_values(self : Object) -> Array[(String, Double, Double)] {
   if self.kind != "shape" {
     return []
   }
-  if self.preset == "quadArrow" {
-    let (shaft, width, length) = quad_arrow_adjustments(self.adjustments)
+  if branched_arrow_shape(self.preset) {
+    let (shaft, width, length) = branched_arrow_adjustments(self.adjustments)
     return [
       ("adj1", shaft, 2 * width),
       ("adj2", width, 0.5),

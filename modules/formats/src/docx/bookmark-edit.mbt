@@ -60,7 +60,7 @@ fn Session::split_bookmark_boundary(
   selection : Selection,
   fields~ : Bool = false,
 ) -> (@xml.Document, Array[@xml.Edit]) raise @failure.Failure {
-  let range = self.formatting_range(document, selection, fields~)
+  let range = self.formatting_range(document, selection, fields~, notes=true)
   let selection = if range.start.paragraph == range.end.paragraph &&
     range.start.offset == range.end.offset {
     { anchor: { ..range.start, offset: 0, }, focus: range.end, }
@@ -223,7 +223,8 @@ fn Session::bookmark_references(
             (
               code.has_prefix("PAGEREF:") ||
               code.has_prefix("SEQ:") ||
-              code.has_prefix("REF:")
+              code.has_prefix("REF:") ||
+              code.has_prefix("NOTEREF:")
             ) {
             field_tree.unwrap().simple_page_fields(node.parent)
             true
@@ -312,7 +313,7 @@ pub fn Session::edit_bookmark(
           "invalid-operation", "Bookmark name already exists or catalog is full",
         )
       }
-      let range = self.formatting_range(original, selection)
+      let range = self.formatting_range(original, selection, notes=true)
       affected.append(range.paragraphs)
       let (candidate, steps) = self.split_bookmark_boundary(original, selection)
       document = candidate

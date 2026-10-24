@@ -146,7 +146,7 @@ fn resize_text_frame(
       let x = original.x + dx * (if rotated { 0.5 } else { horizontal })
       let y = original.y + dy * (if rotated { 0.5 } else { vertical })
       validate_object_box(x, y, next.width, next.height, false)
-      let (_, _, diagnostic) = fit_text(object, next, probe, profile)
+      let (_, _, diagnostic, _) = fit_text(object, next, probe, profile)
       guard diagnostic.is_empty() else {
         @failure.reject("layout-overflow", diagnostic)
       }

@@ -172,6 +172,7 @@ fn WordTree::bookmarks(self : WordTree) -> Array[Bookmark] {
               part="",
               pictures=true,
               fields=true,
+              notes=true,
             )
             ""
           } catch {

@@ -85,6 +85,17 @@ fn Object::local_connection_sites(self : Object) -> Array[(Double, Double)] {
         [p[3], p[4], p[5], p[6], p[7], p[0], p[1], p[2]]
       }
     }
+    "leftRightUpArrow" => {
+      let (shaft, head, _) = branched_arrow_adjustments(self.adjustments)
+      let side = w.min(h)
+      let center = h - side * head
+      [
+        (w / 2, 0.0),
+        (0.0, center),
+        (w / 2, center + side * shaft / 2),
+        (w, center),
+      ]
+    }
     "leftArrow" | "rightArrow" => {
       let inset = (w.min(h) * self.adjustments.1).clamp(min=0, max=w)
       let x = if self.preset == "leftArrow" { inset } else { w - inset }

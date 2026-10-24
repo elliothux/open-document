@@ -96,6 +96,7 @@ export interface PptxObject {
     columnGap: number;
     rtlColumns: boolean;
     direction: string;
+    rotation: number;
     reason: string;
   };
   geometry:

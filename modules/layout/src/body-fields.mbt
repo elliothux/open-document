@@ -13,6 +13,8 @@ fn Flow::body_fields(
           ignore(PageReference::parse(span.field))
         } else if span.field.has_prefix("REF:") {
           ignore(TextReference::parse(span.field))
+        } else if span.field.has_prefix("NOTEREF:") {
+          ignore(NoteReference::parse(span.field))
         } else if span.field.has_prefix("SEQ:") {
           ignore(SequenceField::parse(span.field))
         }
@@ -52,7 +54,8 @@ fn Flow::resolve_body_fields(
               } else {
                 self.pageNumbering.field_text(reference.page_code(), 0, total)
               }
-            } else if span.field.has_prefix("REF:") {
+            } else if span.field.has_prefix("REF:") ||
+              span.field.has_prefix("NOTEREF:") {
               span.text
             } else if span.field.has_prefix("SEQ:") {
               SequenceField::parse(span.field).text(1L)
@@ -63,7 +66,19 @@ fn Flow::resolve_body_fields(
         if text != span.text {
           stable = false
         }
-        { ..span, text, }
+        let style = if span.field.has_prefix("NOTEREF:") {
+          let reference = NoteReference::parse(span.field)
+          if reference.superscript &&
+            !reference.relative &&
+            text != "Error! Bookmark not defined." {
+            { ..span.style, script: "superscript", }
+          } else {
+            span.style
+          }
+        } else {
+          span.style
+        }
+        { ..span, text, style, }
       }),
     }
   }

@@ -9,6 +9,9 @@ fn running_field_code(instruction : String) -> String raise @failure.Failure {
     .filter(token => !token.is_empty())
     .map(token => token.to_owned())
     .collect()
+  if tokens.length() >= 2 && tokens[0].to_upper() == "NOTEREF" {
+    return note_reference_code(instruction)
+  }
   if tokens.length() >= 2 && tokens[0].to_upper() == "REF" {
     return text_reference_code(instruction)
   }

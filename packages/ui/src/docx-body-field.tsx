@@ -30,14 +30,19 @@ export function DocxBodyField({
   const [numbering, setNumbering] = useState<ReferenceNumbering>();
   const [separator, setSeparator] = useState("");
   const [relative, setRelative] = useState(false);
+  const [superscript, setSuperscript] = useState(false);
   const [sequence, setSequence] = useState("Figure");
   const [sequenceOptions, setSequenceOptions] = useState<SequenceOptions>({});
-  const [referenceKind, setReferenceKind] = useState<"PAGEREF" | "REF">(
-    "PAGEREF",
-  );
-  const draftFormat = draft?.field === "REF" ? undefined : draft?.format;
+  const [referenceKind, setReferenceKind] = useState<
+    "PAGEREF" | "REF" | "NOTEREF"
+  >("PAGEREF");
+  const draftFormat = draft && "format" in draft ? draft.format : undefined;
+  const labels = referenceLabels(referenceKind, t);
+  const selectedLabels = referenceLabels(draft?.field ?? "PAGEREF", t, true);
   const reference =
-    source?.field?.field === "PAGEREF" || source?.field?.field === "REF"
+    source?.field?.field === "PAGEREF" ||
+    source?.field?.field === "REF" ||
+    source?.field?.field === "NOTEREF"
       ? source.field
       : undefined;
   const snapshot = editor.getSnapshot();
@@ -95,6 +100,9 @@ export function DocxBodyField({
               ...(referenceKind === "REF" && numbering ? { numbering } : {}),
               ...(relative ? { relative: true } : {}),
               ...(referenceKind === "REF" && separator ? { separator } : {}),
+              ...(referenceKind === "NOTEREF" && superscript
+                ? { superscript: true }
+                : {}),
             }),
           );
         }}
@@ -106,24 +114,23 @@ export function DocxBodyField({
               value={referenceKind}
               onChange={(event) =>
                 setReferenceKind(
-                  event.currentTarget.value === "REF" ? "REF" : "PAGEREF",
+                  event.currentTarget.value === "REF"
+                    ? "REF"
+                    : event.currentTarget.value === "NOTEREF"
+                      ? "NOTEREF"
+                      : "PAGEREF",
                 )
               }
             >
               <option value="PAGEREF">{t.pageReference}</option>
               <option value="REF">{t.textReference}</option>
+              <option value="NOTEREF">{t.noteReference}</option>
             </select>
           </label>
           <label>
-            {referenceKind === "REF"
-              ? t.textReferenceTarget
-              : t.pageReferenceTarget}
+            {labels.target}
             <input
-              aria-label={
-                referenceKind === "REF"
-                  ? t.textReferenceTarget
-                  : t.pageReferenceTarget
-              }
+              aria-label={labels.target}
               required
               pattern="[A-Za-z_][A-Za-z0-9_]{0,39}"
               maxLength={40}
@@ -137,9 +144,7 @@ export function DocxBodyField({
               checked={hyperlink}
               onChange={(event) => setHyperlink(event.currentTarget.checked)}
             />
-            {referenceKind === "REF"
-              ? t.textReferenceLink
-              : t.pageReferenceLink}
+            {labels.link}
           </label>
           {referenceKind === "REF" && (
             <ReferenceNumberingForm
@@ -150,20 +155,28 @@ export function DocxBodyField({
               t={t}
             />
           )}
+          {referenceKind === "NOTEREF" && (
+            <label>
+              <input
+                type="checkbox"
+                checked={superscript}
+                onChange={(event) =>
+                  setSuperscript(event.currentTarget.checked)
+                }
+              />
+              {t.noteReferenceSuperscript}
+            </label>
+          )}
           <label>
             <input
               type="checkbox"
               checked={relative}
               onChange={(event) => setRelative(event.currentTarget.checked)}
             />
-            {referenceKind === "REF"
-              ? t.textReferenceRelative
-              : t.pageReferenceRelative}
+            {labels.relative}
           </label>
           <button type="submit" disabled={!bookmark}>
-            {referenceKind === "REF"
-              ? t.insertTextReference
-              : t.insertPageReference}
+            {labels.insert}
           </button>
         </fieldset>
       </form>
@@ -194,25 +207,27 @@ export function DocxBodyField({
                   setDraft(
                     event.currentTarget.value === "REF"
                       ? { field: "REF", bookmark }
-                      : event.currentTarget.value === "SEQ"
-                        ? {
-                            field: "SEQ",
-                            sequence,
-                            ...(draftFormat ? { format: draftFormat } : {}),
-                          }
-                        : event.currentTarget.value === "PAGEREF"
+                      : event.currentTarget.value === "NOTEREF"
+                        ? { field: "NOTEREF", bookmark }
+                        : event.currentTarget.value === "SEQ"
                           ? {
-                              field: "PAGEREF",
-                              bookmark,
+                              field: "SEQ",
+                              sequence,
                               ...(draftFormat ? { format: draftFormat } : {}),
                             }
-                          : {
-                              field:
-                                event.currentTarget.value === "PAGE"
-                                  ? "PAGE"
-                                  : "NUMPAGES",
-                              ...(draftFormat ? { format: draftFormat } : {}),
-                            },
+                          : event.currentTarget.value === "PAGEREF"
+                            ? {
+                                field: "PAGEREF",
+                                bookmark,
+                                ...(draftFormat ? { format: draftFormat } : {}),
+                              }
+                            : {
+                                field:
+                                  event.currentTarget.value === "PAGE"
+                                    ? "PAGE"
+                                    : "NUMPAGES",
+                                ...(draftFormat ? { format: draftFormat } : {}),
+                              },
                   )
                 }
               >
@@ -220,6 +235,7 @@ export function DocxBodyField({
                 <option value="NUMPAGES">{t.totalPagesField}</option>
                 <option value="PAGEREF">{t.pageReference}</option>
                 <option value="REF">{t.textReference}</option>
+                <option value="NOTEREF">{t.noteReference}</option>
                 <option value="SEQ">{t.sequenceField}</option>
               </select>
             </label>
@@ -264,18 +280,14 @@ export function DocxBodyField({
                 />
               </>
             )}
-            {(draft.field === "PAGEREF" || draft.field === "REF") && (
+            {(draft.field === "PAGEREF" ||
+              draft.field === "REF" ||
+              draft.field === "NOTEREF") && (
               <>
                 <label>
-                  {draft.field === "REF"
-                    ? t.textReferenceTarget
-                    : t.pageReferenceTarget}
+                  {selectedLabels.target}
                   <input
-                    aria-label={
-                      draft.field === "REF"
-                        ? t.selectedTextReferenceTarget
-                        : t.selectedPageReferenceTarget
-                    }
+                    aria-label={selectedLabels.target}
                     required
                     pattern="[A-Za-z_][A-Za-z0-9_]{0,39}"
                     maxLength={40}
@@ -299,9 +311,7 @@ export function DocxBodyField({
                       })
                     }
                   />
-                  {draft.field === "REF"
-                    ? t.selectedTextReferenceLink
-                    : t.selectedPageReferenceLink}
+                  {selectedLabels.link}
                 </label>
                 {draft.field === "REF" && (
                   <ReferenceNumberingForm
@@ -323,6 +333,21 @@ export function DocxBodyField({
                     t={t}
                   />
                 )}
+                {draft.field === "NOTEREF" && (
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={draft.superscript ?? false}
+                      onChange={(event) =>
+                        setDraft({
+                          ...draft,
+                          superscript: event.currentTarget.checked,
+                        })
+                      }
+                    />
+                    {t.selectedNoteReferenceSuperscript}
+                  </label>
+                )}
                 <label>
                   <input
                     type="checkbox"
@@ -334,13 +359,11 @@ export function DocxBodyField({
                       })
                     }
                   />
-                  {draft.field === "REF"
-                    ? t.selectedTextReferenceRelative
-                    : t.selectedPageReferenceRelative}
+                  {selectedLabels.relative}
                 </label>
               </>
             )}
-            {draft.field !== "REF" && (
+            {draft.field !== "REF" && draft.field !== "NOTEREF" && (
               <label>
                 {t.fieldNumberFormat}
                 <select
@@ -395,9 +418,7 @@ export function DocxBodyField({
                   )
                 }
               >
-                {reference.field === "REF"
-                  ? t.followTextReference
-                  : t.followPageReference}
+                {referenceLabels(reference.field, t).follow}
               </button>
             )}
           </fieldset>
@@ -405,6 +426,46 @@ export function DocxBodyField({
       )}
     </section>
   );
+}
+
+function referenceLabels(
+  kind: DocxBodyField["field"],
+  t: ReturnType<typeof messages>,
+  selected = false,
+) {
+  if (kind === "NOTEREF")
+    return {
+      target: selected ? t.selectedNoteReferenceTarget : t.noteReferenceTarget,
+      link: selected ? t.selectedNoteReferenceLink : t.noteReferenceLink,
+      relative: selected
+        ? t.selectedTextReferenceRelative
+        : t.textReferenceRelative,
+      insert: t.insertNoteReference,
+      follow: t.followNoteReference,
+    };
+  return kind === "REF"
+    ? {
+        target: selected
+          ? t.selectedTextReferenceTarget
+          : t.textReferenceTarget,
+        link: selected ? t.selectedTextReferenceLink : t.textReferenceLink,
+        relative: selected
+          ? t.selectedTextReferenceRelative
+          : t.textReferenceRelative,
+        insert: t.insertTextReference,
+        follow: t.followTextReference,
+      }
+    : {
+        target: selected
+          ? t.selectedPageReferenceTarget
+          : t.pageReferenceTarget,
+        link: selected ? t.selectedPageReferenceLink : t.pageReferenceLink,
+        relative: selected
+          ? t.selectedPageReferenceRelative
+          : t.pageReferenceRelative,
+        insert: t.insertPageReference,
+        follow: t.followPageReference,
+      };
 }
 
 type ReferenceNumbering = Extract<DocxBodyField, { field: "REF" }>["numbering"];

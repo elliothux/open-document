@@ -8,15 +8,20 @@ fn paginate_running(
 ) -> (Pagination, Array[Array[Line]], Int, Int, PaginationCache?, Array[String]) raise @failure.Failure {
   let (patterns, setups) = running_lines(probe, flow, cache, profile, images)
   let fields = flow.body_fields()
-  let sequences = if fields.is_empty() {
+  let fixed_values = if fields.is_empty() {
     Map([])
   } else {
     flow.sequence_values()
   }
+  if fields.values().any(code => code.has_prefix("NOTEREF:")) {
+    for key, value in flow.note_reference_values() {
+      fixed_values[key] = value
+    }
+  }
   let mut body = if fields.is_empty() {
     flow
   } else {
-    flow.resolve_body_fields(sequences, 1).0
+    flow.resolve_body_fields(fixed_values, 1).0
   }
   let dynamic = [flow.headers, flow.footers].any(stories => {
     stories
@@ -45,7 +50,7 @@ fn paginate_running(
     })
     let total = pagination.pages.length()
     let (values, diagnostics) = pagination.body_field_values(
-      fields, flow, sequences,
+      fields, flow, fixed_values,
     )
     let (updated, body_stable) = if fields.is_empty() {
       (body, true)

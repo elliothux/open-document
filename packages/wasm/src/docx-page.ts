@@ -129,6 +129,13 @@ export type DocxBodyField =
       relative?: boolean;
     }
   | {
+      field: "NOTEREF";
+      bookmark: string;
+      hyperlink?: boolean;
+      relative?: boolean;
+      superscript?: boolean;
+    }
+  | {
       field: "PAGEREF";
       bookmark: string;
       format?: Exclude<DocxPageField["format"], undefined>;
@@ -205,9 +212,14 @@ export function checkBodyField(value: unknown): asserts value is DocxBodyField {
     );
     return;
   }
-  if (item.field !== "PAGEREF" && item.field !== "REF")
+  if (
+    item.field !== "PAGEREF" &&
+    item.field !== "REF" &&
+    item.field !== "NOTEREF"
+  )
     return checkPageField(value);
   const textReference = item.field === "REF";
+  const noteReference = item.field === "NOTEREF";
   if (
     typeof item.bookmark !== "string" ||
     !/^[A-Za-z_][A-Za-z0-9_]{0,39}$/u.test(item.bookmark) ||
@@ -223,7 +235,9 @@ export function checkBodyField(value: unknown): asserts value is DocxBodyField {
                 "relative",
                 "separator",
               ]
-            : ["field", "bookmark", "format", "hyperlink", "relative"]
+            : noteReference
+              ? ["field", "bookmark", "hyperlink", "relative", "superscript"]
+              : ["field", "bookmark", "format", "hyperlink", "relative"]
         ).includes(key),
     ) ||
     ("hyperlink" in item && typeof item.hyperlink !== "boolean") ||
@@ -231,6 +245,7 @@ export function checkBodyField(value: unknown): asserts value is DocxBodyField {
       (typeof item.numbering !== "string" ||
         !["noContext", "relative", "fullContext"].includes(item.numbering))) ||
     ("relative" in item && typeof item.relative !== "boolean") ||
+    ("superscript" in item && typeof item.superscript !== "boolean") ||
     ("separator" in item &&
       (typeof item.separator !== "string" ||
         item.separator.length > 32 ||
@@ -239,7 +254,7 @@ export function checkBodyField(value: unknown): asserts value is DocxBodyField {
         /[\p{Cc}\p{Zl}\p{Zp}]/u.test(item.separator)))
   )
     throw new Error("Invalid page reference target");
-  if (!textReference)
+  if (!textReference && !noteReference)
     checkPageField(
       "format" in item
         ? { field: "PAGE", format: item.format }

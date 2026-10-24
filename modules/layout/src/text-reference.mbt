@@ -185,6 +185,9 @@ fn Flow::text_reference_values(
         guard span.drawing is None else {
           @failure.reject("unsupported-layout", "text-reference-target-drawing")
         }
+        guard !span.field.has_prefix("NOTE:") else {
+          @failure.reject("unsupported-layout", "text-reference-target-note")
+        }
         let text = if span.field.has_prefix("REF:") {
           evaluate((paragraph.id, span.node), depth + 1)
         } else if !span.field.is_empty() {

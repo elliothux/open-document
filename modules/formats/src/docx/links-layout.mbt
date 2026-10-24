@@ -113,6 +113,13 @@ pub fn Session::page_links(
         } else {
           None
         }
+      } else if span.field.has_prefix("NOTEREF:") {
+        let reference = @layout.NoteReference::parse(span.field)
+        if reference.hyperlink {
+          Some("#" + reference.bookmark)
+        } else {
+          None
+        }
       } else if span.field.has_prefix("REF:") {
         let reference = @layout.TextReference::parse(span.field)
         if reference.hyperlink {

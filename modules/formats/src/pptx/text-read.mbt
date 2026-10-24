@@ -184,6 +184,12 @@ fn read_text(
     wrap: attribute(properties, "wrap").unwrap_or("square") != "none",
     fit,
     direction: attribute(properties, "vert").unwrap_or("horz"),
+    rotation: number(
+      attribute(properties, "rot").unwrap_or("0"),
+      -2147483648,
+      2147483647,
+    ) /
+    60000,
     columns: number(attribute(properties, "numCol").unwrap_or("1"), 1, 16).to_int(),
     columnGap: number(
       attribute(properties, "spcCol").unwrap_or("0"),
@@ -213,8 +219,8 @@ fn read_text(
   if ["1", "true"].contains(attribute(properties, "upright").unwrap_or("0")) {
     reason = "Upright text requires independent frame resize geometry"
   }
-  if attribute(properties, "rot").unwrap_or("0") != "0" {
-    reason = "Independent text rotation is unsupported"
+  if chain[0].node.name == "tc" && body.rotation != 0 {
+    reason = "Independent table cell text rotation requires cell text matrices"
   }
   let paragraphs : Array[TextParagraph] = []
   guard bodies.get(0) is Some(current) &&

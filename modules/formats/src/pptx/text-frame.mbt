@@ -161,6 +161,14 @@ fn Session::frame_objects(
       }
       values["vert"] = direction
     }
+    TextRotation(angle) => {
+      guard !angle.is_nan() && !angle.is_inf() && angle >= -360 && angle <= 360 else {
+        @failure.reject(
+          "invalid-operation", "Text rotation must be within -360 and 360 degrees",
+        )
+      }
+      values["rot"] = (angle * 60000).round().to_int64().to_string()
+    }
     TextColumns(count, gap, rtl) => {
       guard count >= 1 &&
         count <= 16 &&
@@ -229,6 +237,10 @@ fn Session::frame_objects(
         object.body.columns
       },
       direction: values.get("vert").unwrap_or(object.body.direction),
+      rotation: values
+      .get("rot")
+      .map(v => number(v, -21600000, 21600000) / 60000)
+      .unwrap_or(object.body.rotation),
       columnGap: values
       .get("spcCol")
       .map(v => number(v, 0, 182880000) / 12700)
@@ -253,7 +265,7 @@ fn Session::frame_objects(
       effective.top + effective.bottom < frame.height else {
       @failure.reject("invalid-operation", "Text margins leave no usable frame")
     }
-    let (_, scale, diagnostic) = fit_text(target, geometry, probe, profile)
+    let (_, scale, diagnostic, _) = fit_text(target, geometry, probe, profile)
     guard body.fit == "none" || diagnostic.is_empty() else {
       @failure.reject("layout-overflow", diagnostic)
     }

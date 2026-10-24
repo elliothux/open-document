@@ -70,6 +70,7 @@ pub(all) enum ObjectEdit {
   TextFit(String)
   TextColumns(Int, Double, Bool)
   TextDirection(String)
+  TextRotation(Double)
   TextFormat(TextFormat)
   TextAlign(String)
   TextParagraph(ParagraphFormat)
@@ -657,7 +658,8 @@ pub fn Session::edit_objects(
     | TextWrap(_)
     | TextFit(_)
     | TextColumns(_, _, _)
-    | TextDirection(_) =>
+    | TextDirection(_)
+    | TextRotation(_) =>
       (self.frame_objects(change, probe, profile), self.selection)
     Fill(_) | Stroke(_, _) => (self.paint_objects(change), self.selection)
     GradientFill(stops, angle, scaled) =>
@@ -772,7 +774,7 @@ pub fn Session::edit_objects(
         }
         continue
       }
-      let (_, _, diagnostic) = fit_text(
+      let (_, _, diagnostic, _) = fit_text(
         object,
         object.geometry.unwrap(),
         probe,

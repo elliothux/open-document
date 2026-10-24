@@ -17,7 +17,7 @@ fn Object::adjustment_handles(self : Object) -> Array[AdjustmentHandle] {
   let w = g.width
   let h = g.height
   let side = w.min(h)
-  let (_, _, quad_head) = quad_arrow_adjustments(self.adjustments)
+  let (_, _, branch_head) = branched_arrow_adjustments(self.adjustments)
   let head = (side * self.adjustments.1)
     .max(0)
     .min((if vertical_arrow_shape(self.preset) { h } else { w }) / 2)
@@ -39,9 +39,10 @@ fn Object::adjustment_handles(self : Object) -> Array[AdjustmentHandle] {
       ("downArrow", "adj2") => (0.0, h, 0.0, -side)
       ("leftRightArrow", "adj2") => (0.0, 0.0, side, 0.0)
       ("upDownArrow", "adj2") => (0.0, 0.0, 0.0, side)
-      ("quadArrow", "adj1") => (w / 2, side * quad_head, -side / 2, 0.0)
-      ("quadArrow", "adj2") => (w / 2, 0.0, -side, 0.0)
-      ("quadArrow", "adj3") => (w, 0.0, 0.0, side)
+      ("quadArrow" | "leftRightUpArrow", "adj1") =>
+        (w / 2, side * branch_head, -side / 2, 0.0)
+      ("quadArrow" | "leftRightUpArrow", "adj2") => (w / 2, 0.0, -side, 0.0)
+      ("quadArrow" | "leftRightUpArrow", "adj3") => (w, 0.0, 0.0, side)
       ("triangle", _) => (0.0, 0.0, w, 0.0)
       ("chevron" | "homePlate", _) => (w, 0.0, -side, 0.0)
       ("star5", _) => (w / 2, h / 2 * 1.10557, 0.0, -h * 1.10557)

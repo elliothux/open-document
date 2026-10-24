@@ -510,6 +510,15 @@ pub(all) struct Note {
 } derive(ToJson)
 pub fn Note::to_json(Self) -> Json
 
+pub(all) struct NoteReference {
+  bookmark : String
+  hyperlink : Bool
+  relative : Bool
+  superscript : Bool
+}
+pub fn NoteReference::code(Self) -> String
+pub fn NoteReference::parse(String) -> Self raise @failure.Failure
+
 pub(all) struct Outline {
   key : String
   path : String

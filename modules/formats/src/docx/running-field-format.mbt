@@ -1,6 +1,18 @@
 ///|
 fn running_field_instruction(field : String) -> String raise @failure.Failure {
   let parts = field.split(":").to_array()
+  if parts[0] == "NOTEREF" {
+    let reference = @layout.NoteReference::parse(field) catch {
+      @failure.Failure(..) =>
+        @failure.reject("invalid-operation", "Invalid note reference options")
+    }
+    return "NOTEREF " +
+      reference.bookmark +
+      (if reference.superscript { " \\f" } else { "" }) +
+      (if reference.hyperlink { " \\h" } else { "" }) +
+      (if reference.relative { " \\p" } else { "" }) +
+      " \\* MERGEFORMAT"
+  }
   if parts[0] == "REF" {
     let reference = @layout.TextReference::parse(field) catch {
       @failure.Failure(..) =>

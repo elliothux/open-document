@@ -193,6 +193,7 @@ fn clipboard_body_style(
       "bIns": (settings.bottom * 12700).round().to_int64().to_string(),
       "anchor": settings.anchor,
       "vert": settings.direction,
+      "rot": (settings.rotation * 60000).round().to_int64().to_string(),
       "numCol": settings.columns.to_string(),
       "spcCol": (settings.columnGap * 12700).round().to_int64().to_string(),
       "rtlCol": if settings.rtlColumns {

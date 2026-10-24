@@ -565,6 +565,7 @@ export function checkPptxObjectEdit(value: unknown): void {
       "textFit",
       "textColumns",
       "textDirection",
+      "textRotation",
     ].includes(String(change.action))
   ) {
     checkPptxShapeEdit(change);

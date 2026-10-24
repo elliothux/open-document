@@ -23,20 +23,21 @@ fn Session::maintain_pivots(
     }
     if !edited.contains(pivot.part) {
       let destination = moved.get(pivot.part).unwrap_or(pivot.range)
-      guard destination.left == pivot.range.left &&
-        destination.right == pivot.range.right &&
+      guard destination.right - destination.left ==
+        pivot.range.right - pivot.range.left &&
         destination.bottom - destination.top ==
         pivot.range.bottom - pivot.range.top else {
         @failure.reject(
-          "protected-content", "Pivot result moves must preserve their complete rows",
+          "protected-content", "Pivot result moves must preserve their complete rectangle",
         )
       }
-      let offset = destination.top - pivot.range.top
+      let rows = destination.top - pivot.range.top
+      let columns = destination.left - pivot.range.left
       let keys : Map[String, Bool] = Map([])
       for
-        (sheet, range, delta) in [
-          (before, pivot.range, 0),
-          (after, destination, offset),
+        (sheet, range, row_delta, column_delta) in [
+          (before, pivot.range, 0, 0),
+          (after, destination, rows, columns),
         ] {
         for _, cell in sheet.cells {
           work += 1
@@ -46,7 +47,10 @@ fn Session::maintain_pivots(
             )
           }
           if range.contains(cell.address) {
-            keys[Address::{ ..cell.address, row: cell.address.row - delta, }.name()] = true
+            keys[Address::{
+              row: cell.address.row - row_delta,
+              column: cell.address.column - column_delta,
+            }.name()] = true
           }
         }
       }
@@ -54,7 +58,10 @@ fn Session::maintain_pivots(
         let old = before.cells.get(key)
         let address = Address::parse(key)
         let next = after.cells.get(
-          Address::{ ..address, row: address.row + offset, }.name(),
+          Address::{
+            row: address.row + rows,
+            column: address.column + columns,
+          }.name(),
         )
         guard old.map(c => c.value).unwrap_or(Blank) ==
           next.map(c => c.value).unwrap_or(Blank) &&

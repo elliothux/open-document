@@ -408,6 +408,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
           "columnGap": object.body.columnGap,
           "rtlColumns": object.body.rtlColumns,
           "direction": object.body.direction,
+          "rotation": object.body.rotation,
           "reason": self.text_frame_reason(object),
         },
         "geometry": object.geometry

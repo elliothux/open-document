@@ -80,6 +80,18 @@ pub fn Session::body_page_field(
         if reference.relative {
           value["relative"] = Json(true)
         }
+      } else if parts[0] == "NOTEREF" {
+        let reference = @layout.NoteReference::parse(code)
+        value["bookmark"] = Json(reference.bookmark)
+        if reference.hyperlink {
+          value["hyperlink"] = Json(true)
+        }
+        if reference.relative {
+          value["relative"] = Json(true)
+        }
+        if reference.superscript {
+          value["superscript"] = Json(true)
+        }
       } else if parts[0] == "REF" {
         let reference = @layout.TextReference::parse(code)
         value["bookmark"] = Json(reference.bookmark)
@@ -280,7 +292,8 @@ pub fn Session::update_body_page_fields(
       }
       let value = if code.has_prefix("PAGEREF:") ||
         code.has_prefix("SEQ:") ||
-        code.has_prefix("REF:") {
+        code.has_prefix("REF:") ||
+        code.has_prefix("NOTEREF:") {
         displayed
         .get((paragraph.id, id))
         .unwrap_or_else(() => {

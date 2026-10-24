@@ -148,11 +148,11 @@ fn fit_text(
   geometry : Geometry,
   probe : @layout.TextProbe,
   profile : Map[String, String],
-) -> (Array[@layout.Line], Double, String) raise @failure.Failure {
+) -> (Array[@layout.Line], Double, String, @layout.Matrix) raise @failure.Failure {
   if object.paragraphs.is_empty() {
-    return ([], 1, "")
+    return ([], 1, "", @layout.Matrix::identity())
   }
-  let (body, geometry, _) = object.text_plane(geometry)
+  let (body, geometry, direction) = object.text_plane(geometry)
   let object = { ..object, body, }
   let mut scale = 1.0
   let mut measured = measure_text(object, geometry, probe, profile, scale) catch {
@@ -213,6 +213,7 @@ fn fit_text(
     }),
     scale,
     diagnostic,
+    direction.then(body.text_rotation(geometry.width, measured.1, dy)),
   )
 }
 
@@ -399,9 +400,11 @@ fn paint_slide(
         )
         primitives.append(object.draw_line_ends(geometry))
       }
-      let (lines, _, diagnostic) = fit_text(object, geometry, probe, profile) catch {
+      let (lines, _, diagnostic, rotation) = fit_text(
+        object, geometry, probe, profile,
+      ) catch {
         @failure.Failure(code="layout-overflow", message~, ..) =>
-          ([], 1.0, message)
+          ([], 1.0, message, @layout.Matrix::identity())
         error => raise error
       }
       if !diagnostic.is_empty() {
@@ -416,7 +419,7 @@ fn paint_slide(
           )
         }
       }
-      let (_, frame, rotation) = object.text_plane(geometry)
+      let (_, frame, _) = object.text_plane(geometry)
       texts.push({
         object: object.id,
         matrix: geometry.matrix.then(rotation),

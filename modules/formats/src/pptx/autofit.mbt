@@ -80,7 +80,7 @@ fn Session::prepare_fitted(
       }
       continue
     }
-    let (_, scale, diagnostic) = fit_text(
+    let (_, scale, diagnostic, _) = fit_text(
       target,
       target.geometry.unwrap(),
       probe,
@@ -156,7 +156,7 @@ fn derived_frame_changes(
     )
     return resized_frame_changes(object, next)
   }
-  let (_, scale, diagnostic) = fit_text(
+  let (_, scale, diagnostic, _) = fit_text(
     object,
     object.geometry.unwrap(),
     probe,

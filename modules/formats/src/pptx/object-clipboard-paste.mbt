@@ -273,7 +273,7 @@ pub fn Session::paste_object_fragment(
       let geometry = object.geometry.unwrap()
       ignore(chart.paint(geometry.width, geometry.height, probe, profile))
     } else if object.kind != "group" {
-      let (_, _, problem) = fit_text(
+      let (_, _, problem, _) = fit_text(
         object,
         object.geometry.unwrap(),
         probe,

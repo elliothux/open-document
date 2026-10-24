@@ -73,6 +73,7 @@ priv struct Body {
   columnGap : Double
   rtlColumns : Bool
   direction : String
+  rotation : Double
 }
 
 ///|

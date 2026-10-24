@@ -41,6 +41,7 @@ export const pptxInsertKinds = [
   "leftRightArrow",
   "upDownArrow",
   "quadArrow",
+  "leftRightUpArrow",
 ] as const;
 
 export function checkPptxShapeEdit(change: Record<string, unknown>): void {
@@ -96,6 +97,15 @@ export function checkPptxShapeEdit(change: Record<string, unknown>): void {
       typeof change.rtl !== "boolean"
     )
       throw new Error("Invalid PPTX text columns");
+  } else if (change.action === "textRotation") {
+    if (
+      Object.keys(change).length !== 2 ||
+      Object.keys(change).some((key) => !["action", "angle"].includes(key)) ||
+      typeof change.angle !== "number" ||
+      !Number.isFinite(change.angle) ||
+      Math.abs(change.angle) > 360
+    )
+      throw new Error("Invalid PPTX text rotation");
   } else if (change.action === "textDirection") {
     if (
       Object.keys(change).length !== 2 ||
@@ -275,6 +285,7 @@ export type PptxObjectEdit =
   | { action: "textFit"; fit: "none" | "shrink" | "resize" }
   | { action: "textColumns"; columns: number; gap: number; rtl: boolean }
   | { action: "textDirection"; direction: "horz" | "vert" | "vert270" }
+  | { action: "textRotation"; angle: number }
   | { action: "group" | "ungroup" }
   | { action: "duplicate"; dx: number; dy: number }
   | { action: "rotate"; angle: number }

@@ -27,6 +27,7 @@ export function PptxTextFrame({
   const [gap, setGap] = useState(String(first?.columnGap ?? 0));
   const [rtl, setRtl] = useState(first?.rtlColumns ?? false);
   const [direction, setDirection] = useState(first?.direction ?? "horz");
+  const [rotation, setRotation] = useState(String(first?.rotation ?? 0));
   const [margins, setMargins] = useState({
     left: String(first?.left ?? 7.2),
     top: String(first?.top ?? 3.6),
@@ -49,6 +50,7 @@ export function PptxTextFrame({
         "columnGap",
         "rtlColumns",
         "direction",
+        "rotation",
       ] as const
     ).some((key) => object.textFrame[key] !== first?.[key]),
   );
@@ -88,6 +90,33 @@ export function PptxTextFrame({
         </select>
       </label>
       {mixed && <p>{t.mixed}</p>}
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          controller.run(() =>
+            editor.editObjects({
+              action: "textRotation",
+              angle: Number(rotation),
+            }),
+          );
+        }}
+      >
+        <label>
+          {t.textRotation}
+          <input
+            type="number"
+            min={-360}
+            max={360}
+            step="any"
+            required
+            value={rotation}
+            onChange={(event) => setRotation(event.currentTarget.value)}
+          />
+        </label>
+        <button type="submit">
+          {t.apply} {t.textRotation}
+        </button>
+      </form>
       <form
         onSubmit={(event) => {
           event.preventDefault();

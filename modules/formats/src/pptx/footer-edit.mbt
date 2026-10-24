@@ -180,7 +180,7 @@ fn Session::set_footer(
           ),
         )
       } else {
-        let (_, scale, diagnostic) = fit_text(
+        let (_, scale, diagnostic, _) = fit_text(
           object,
           object.geometry.unwrap(),
           probe,

@@ -433,6 +433,14 @@ fn Foundation::pptx_operation(
         "textAnchor" => @pptx.TextAnchor(field_string(change, "anchor"))
         "textWrap" => @pptx.TextWrap(xlsx_boolean(change, "wrap"))
         "textFit" => @pptx.TextFit(field_string(change, "fit"))
+        "textRotation" => {
+          guard change is Object(fields) &&
+            fields.length() == 2 &&
+            fields.keys().all(key => ["action", "angle"].contains(key)) else {
+            @failure.reject("invalid-operation", "Invalid text rotation fields")
+          }
+          @pptx.TextRotation(xlsx_number(change, "angle"))
+        }
         "textDirection" => {
           guard change is Object(fields) &&
             fields.length() == 2 &&

@@ -284,7 +284,8 @@ fn Session::paragraph(
     .any(code => {
       code.has_prefix("PAGEREF:") ||
       code.has_prefix("SEQ:") ||
-      code.has_prefix("REF:")
+      code.has_prefix("REF:") ||
+      code.has_prefix("NOTEREF:")
     }) else {
     @failure.reject(
       "unsupported-layout", "This field requires the main document story",

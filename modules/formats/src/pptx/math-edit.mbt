@@ -193,7 +193,7 @@ fn Session::insert_math(
   ])
   let identity = original.tree.part + "#" + id
   let target = candidate.object(identity)
-  let (_, _, diagnostic) = fit_text(
+  let (_, _, diagnostic, _) = fit_text(
     target,
     target.geometry.unwrap(),
     probe,
@@ -264,7 +264,7 @@ fn Session::append_math(
     profile,
   )
   let target = candidate.object(id)
-  let (_, _, diagnostic) = fit_text(
+  let (_, _, diagnostic, _) = fit_text(
     target,
     target.geometry.unwrap(),
     probe,
@@ -358,7 +358,7 @@ fn Session::change_math(
       @failure.reject("layout-overflow", warnings.join("; "))
     }
   } else {
-    let (_, _, diagnostic) = fit_text(
+    let (_, _, diagnostic, _) = fit_text(
       updated,
       updated.geometry.unwrap(),
       probe,

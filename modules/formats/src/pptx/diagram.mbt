@@ -178,7 +178,7 @@ fn Session::insert_diagram(
     if object.parent == slide.tree.part + "#" + identity &&
       object.kind == "shape" &&
       object.source.node.name == "sp" {
-      let (_, _, diagnostic) = fit_text(
+      let (_, _, diagnostic, _) = fit_text(
         object,
         object.geometry.unwrap(),
         probe,

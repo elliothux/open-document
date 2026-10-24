@@ -61,7 +61,7 @@ fn Session::set_first_slide_number(
         guard object.geometry is Some(geometry) else {
           @failure.reject("layout-overflow", "Missing slide number geometry")
         }
-        let (_, _, reason) = fit_text(object, geometry, probe, profile)
+        let (_, _, reason, _) = fit_text(object, geometry, probe, profile)
         guard reason.is_empty() else {
           @failure.reject("layout-overflow", reason)
         }

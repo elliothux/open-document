@@ -64,7 +64,8 @@ export function PptxShapeAdjustments({
               ? ["bentConnector3", "curvedConnector3"].includes(first.preset)
                 ? t.connectorBend
                 : t.arrowShaft
-              : first.preset === "quadArrow" && guide.name === "adj2"
+              : ["quadArrow", "leftRightUpArrow"].includes(first.preset) &&
+                  guide.name === "adj2"
                 ? t.arrowHeadWidth
                 : t.arrowHead;
         const mixed = objects.some(

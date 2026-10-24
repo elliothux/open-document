@@ -3,7 +3,7 @@ fn Pagination::body_field_values(
   self : Pagination,
   fields : Map[(Int, Int), String],
   flow : Flow,
-  sequences : Map[(Int, Int), String],
+  fixed_values : Map[(Int, Int), String],
 ) -> (Map[(Int, Int), String], Array[String]) raise @failure.Failure {
   let values : Map[(Int, Int), String] = Map([])
   let diagnostics : Array[String] = []
@@ -50,7 +50,7 @@ fn Pagination::body_field_values(
             }
           } else if code.has_prefix("REF:") {
             values[key] = run.text
-          } else if sequences.get(key) is Some(text) {
+          } else if fixed_values.get(key) is Some(text) {
             values[key] = text
           } else if !values.contains(key) {
             values[key] = flow.pageNumbering.field_text(

@@ -13,9 +13,10 @@ fn Session::axis_analysis(
       continue
     }
     guard change.range(pivot.range) is Some(next) &&
-      next.bottom - next.top == pivot.range.bottom - pivot.range.top else {
+      next.bottom - next.top == pivot.range.bottom - pivot.range.top &&
+      next.right - next.left == pivot.range.right - pivot.range.left else {
       @failure.reject(
-        "protected-content", "Row editing cannot split or remove a pivot report",
+        "protected-content", "Axis editing cannot split or remove a pivot report",
       )
     }
     if next == pivot.range {
@@ -25,12 +26,18 @@ fn Session::axis_analysis(
     let tree = Tree::new(document)
     let location = tree.one(0, "location").unwrap()
     let body = Range::parse(location.attribute("ref").unwrap())
-    let delta = next.top - pivot.range.top
+    let rows = next.top - pivot.range.top
+    let columns = next.left - pivot.range.left
     let (document, edit) = document.edit_source(
       metadata_changes(location, [
         (
           "ref",
-          Range::{ ..body, top: body.top + delta, bottom: body.bottom + delta, }.name(),
+          Range::{
+            top: body.top + rows,
+            bottom: body.bottom + rows,
+            left: body.left + columns,
+            right: body.right + columns,
+          }.name(),
         ),
       ]),
     )
@@ -57,7 +64,12 @@ fn Session::axis_analysis(
     let original = Range::parse(source.attribute("ref").unwrap_or(""))
     guard change.range(original) is Some(next) && next.bottom > next.top else {
       @failure.reject(
-        "protected-content", "Row editing must retain a pivot source header and data range",
+        "protected-content", "Axis editing must retain a pivot source header and data range",
+      )
+    }
+    guard next.right - next.left == original.right - original.left else {
+      @failure.reject(
+        "protected-content", "Pivot source field changes require cache-field maintenance",
       )
     }
     if original == next {

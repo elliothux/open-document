@@ -252,7 +252,7 @@ fn Session::duplicate_objects(
         @failure.reject("layout-overflow", warnings.join("; "))
       }
     } else {
-      let (_, _, diagnostic) = fit_text(
+      let (_, _, diagnostic, _) = fit_text(
         object,
         object.geometry.unwrap(),
         probe,

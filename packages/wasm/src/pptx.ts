@@ -432,6 +432,7 @@ export function pptxQuery(value: unknown): PptxQuery {
       throw new Error("Invalid text frame");
     for (const key of ["left", "top", "right", "bottom"])
       number(frame[key], 0, 14400);
+    number(frame.rotation, -2147483648 / 60000, 2147483647 / 60000);
     integer(frame.columns, 16);
     number(frame.columns, 1, 16);
     number(frame.columnGap, 0, 14400);
