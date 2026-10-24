@@ -57,6 +57,7 @@ import { isDocxSelection } from "./docx-search.js";
 import type { DocxSelection } from "./docx-hit.js";
 import {
   checkPageSetup,
+  checkPageSection,
   checkPageBackground,
   checkPageBorders,
   checkPageNumbering,
@@ -501,8 +502,11 @@ export class FoundationPageSession extends FoundationReviewSession {
       }),
     );
   }
-  pageSetup(revision: number) {
-    return docxPageSettings(this.call({ operation: "pageSetup", revision }));
+  pageSetup(revision: number, section = 0) {
+    checkPageSection(section);
+    return docxPageSettings(
+      this.call({ operation: "pageSetup", revision, section }),
+    );
   }
   setPageColumns(
     revision: number,

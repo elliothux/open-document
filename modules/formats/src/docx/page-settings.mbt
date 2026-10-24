@@ -63,16 +63,27 @@ fn validate_page_setup(page : @layout.PageSetup) -> Unit raise @failure.Failure 
 fn Session::editable_page_section(
   self : Session,
   tree : WordTree,
+  target~ : Int? = None,
 ) -> Int? raise @failure.Failure {
   let body = tree.child(0, "body").unwrap()
-  let sections = tree.order.filter(id => {
-    tree.nodes[id].uri == word_uri && tree.nodes[id].name == "sectPr"
-  })
-  guard sections.length() <= 1 &&
-    sections.all(id => tree.nodes[id].parent == body) else {
+  let sections = tree.page_sections()
+  guard target is Some(_) ||
+    (
+      sections.length() == 1 &&
+      sections[0].map(id => tree.nodes[id].parent == body).unwrap_or(true)
+    ) else {
     @failure.reject(
       "protected-content", "Page setup for multiple sections is not supported yet",
     )
+  }
+  let selected = match target {
+    None => sections[0]
+    Some(index) => {
+      guard sections.get(index) is Some(section) else {
+        @failure.reject("invalid-operation", "Unknown page section")
+      }
+      section
+    }
   }
   if self.settings_part() is Some(part) {
     let settings = WordTree::new(self.part_xml(part))
@@ -102,9 +113,9 @@ fn Session::editable_page_section(
       }
     }
   }
-  if sections.get(0) is Some(id) {
+  if selected is Some(id) {
     let node = tree.nodes[id]
-    guard tree.children[body].last() == Some(id) else {
+    guard node.parent != body || tree.children[body].last() == Some(id) else {
       @failure.reject(
         "protected-content", "Section properties must end the document body",
       )
@@ -161,18 +172,25 @@ fn Session::editable_page_section(
       }
     }
   }
-  sections.get(0)
+  selected
 }
 
 ///|
 pub fn Session::page_setup(
   self : Session,
   revision : Int,
+  section~ : Int = 0,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
+  guard section >= 0 && section < 1024 else {
+    @failure.reject("invalid-operation", "Invalid page section")
+  }
+  let mut section_count = 0
   try {
-    let section = self.editable_page_section(tree)
+    section_count = tree.page_sections().length()
+    let index = section
+    let section = self.editable_page_section(tree, target=Some(index))
     let page = match section {
       Some(id) => tree.page_values(id, default_page_setup())
       None => default_page_setup()
@@ -180,7 +198,16 @@ pub fn Session::page_setup(
     validate_page_setup(page)
     {
       "revision": revision,
-      "page": page,
+      "sectionCount": section_count,
+      "page": {
+        "section": index,
+        "width": page.width,
+        "height": page.height,
+        "top": page.top,
+        "right": page.right,
+        "bottom": page.bottom,
+        "left": page.left,
+      },
       "reason": "",
       "background": self.page_background_query(tree),
       "borders": self.page_borders_query(tree),
@@ -188,9 +215,11 @@ pub fn Session::page_setup(
       "columns": self.page_columns_query(tree),
     }
   } catch {
+    @failure.Failure(code="invalid-operation", ..) as error => raise error
     @failure.Failure(message~, ..) =>
       {
         "revision": revision,
+        "sectionCount": section_count,
         "page": Json::null(),
         "reason": message,
         "background": self.page_background_query(tree),
@@ -202,10 +231,11 @@ pub fn Session::page_setup(
 }
 
 ///|
-/// Changes the current single-section page geometry, in points, as one source transaction.
+/// Changes one section's page geometry, in points, as one source transaction.
 pub fn Session::set_page_setup(
   self : Session,
   revision : Int,
+  sectionIndex : Int,
   page : @layout.PageSetup,
   orientation~ : String? = None,
 ) -> Json raise @failure.Failure {
@@ -243,7 +273,7 @@ pub fn Session::set_page_setup(
   validate_page_setup(page)
   let original = self.document()
   let tree = WordTree::new(original)
-  let section = self.editable_page_section(tree)
+  let section = self.editable_page_section(tree, target=Some(sectionIndex))
   let current = match section {
     Some(id) => tree.page_values(id, default_page_setup())
     None => default_page_setup()

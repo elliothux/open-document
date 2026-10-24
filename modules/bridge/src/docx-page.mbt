@@ -3,13 +3,13 @@ fn page_setup_format(
   request : Json,
 ) -> @layout.PageSetup raise @failure.Failure {
   guard request is { "page": Object(fields), .. } &&
-    (fields.length() == 6 || fields.length() == 7) &&
+    (fields.length() == 7 || fields.length() == 8) &&
     fields
     .keys()
     .all(key => {
-      ["width", "height", "top", "right", "bottom", "left", "orientation"].contains(
-        key,
-      )
+      [
+        "section", "width", "height", "top", "right", "bottom", "left", "orientation",
+      ].contains(key)
     }) else {
     @failure.reject("invalid-operation", "Invalid page setup fields")
   }
@@ -132,7 +132,7 @@ fn Foundation::docx_page(
     )
   }
   if operation == "pageSetup" {
-    return session.page_setup(revision)
+    return session.page_setup(revision, section=field_int(request, "section"))
   }
   let result = match operation {
     "setCoverPage" => {
@@ -510,6 +510,10 @@ fn Foundation::docx_page(
     "setPageSetup" =>
       session.set_page_setup(
         revision,
+        match request {
+          { "page": page, .. } => field_int(page, "section")
+          _ => @failure.reject("invalid-operation", "Missing page setup")
+        },
         page_setup_format(request),
         orientation=page_orientation(request),
       )

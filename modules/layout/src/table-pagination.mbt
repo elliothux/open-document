@@ -152,6 +152,13 @@ fn Pagination::table_rows(
   )
   let total = heights.iter().fold(init=0.0, (sum, value) => sum + value)
   let bottom = table.border_width(last_row + 1)
+  self.noteBodyHeight = cells
+    .iter()
+    .fold(init=1.0, (height, cell) => {
+      height.max(cell.2.get(0).map(l => l.0.height).unwrap_or(0))
+    }) +
+    table.row_top_margin(first_row)
+  self.reserve_pending_notes(self.noteBodyHeight)
   // shortcut: Reserve note-bearing groups together until table fragments carry reservations.
   self.fit_note_references(
     cells.map(cell => cell.2.map(line => line.0)).flatten(),

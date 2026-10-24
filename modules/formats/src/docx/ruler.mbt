@@ -148,8 +148,13 @@ pub fn Session::ruler(
       "leader": stop.leader,
     })
   }
-  let page = self.page_setup(revision)
-  if page is { "reason": String(""), .. } {
+  let page_editable = try {
+    ignore(self.editable_page_section(WordTree::new(self.document())))
+    true
+  } catch {
+    @failure.Failure(..) => false
+  }
+  if page_editable {
     for
       (kind, position) in [
         ("marginLeft", context.pageLeft),
@@ -243,7 +248,7 @@ pub fn Session::edit_ruler(
           }
         _ => @failure.reject("invalid-operation", "Unknown ruler margin")
       }
-      self.set_page_setup(revision, page)
+      self.set_page_setup(revision, 0, page)
     }
     RulerIndent(kind, _, _) => {
       let low = if p.rtl {

@@ -163,6 +163,8 @@ pub extend PageSetup with ToJson::{to_json}
 ///|
 pub(all) struct Flow {
   revision : Int
+  sectionBreaks : Array[SectionBreak]
+  endnotesAt : String
   background : String
   pageBorders : PageBorders
   page : PageSetup

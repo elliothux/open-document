@@ -1,10 +1,15 @@
 ///|
 fn WordTree::page_borders(
   self : WordTree,
+  section~ : Int? = None,
 ) -> @layout.PageBorders raise @failure.Failure {
-  let sections = self.order.filter(id => {
-    self.nodes[id].uri == word_uri && self.nodes[id].name == "sectPr"
-  })
+  let sections = if section is Some(id) {
+    [id]
+  } else {
+    self.order.filter(id => {
+      self.nodes[id].uri == word_uri && self.nodes[id].name == "sectPr"
+    })
+  }
   guard sections.length() <= 1 else {
     @failure.reject(
       "protected-content", "Page borders for multiple sections are unsupported",
@@ -208,11 +213,27 @@ fn Session::validate_page_border_geometry(
   self : Session,
   document : @xml.Document,
 ) -> Unit raise @failure.Failure {
-  let borders = WordTree::new(document).page_borders()
-  if borders.sides.is_empty() {
+  let tree = WordTree::new(document)
+  let borders = tree
+    .page_sections()
+    .map(section => {
+      section
+      .map(id => tree.page_borders(section=Some(id)))
+      .unwrap_or(@layout.PageBorders::new())
+    })
+  if borders.all(border => border.sides.is_empty()) {
     return
   }
-  let page = self.flow_from(document).page
-  ignore(borders.fills(page, 0))
-  ignore(borders.fills(page, 1))
+  let flow = self.flow_from(document)
+  for index, borders in borders {
+    if !borders.sides.is_empty() {
+      let page = if index == 0 {
+        flow.page
+      } else {
+        flow.sectionBreaks[index - 1].page
+      }
+      ignore(borders.fills(page, 0))
+      ignore(borders.fills(page, 1))
+    }
+  }
 }

@@ -24,6 +24,9 @@ fn running_lines(
       )
     }
     for variant, story in stories {
+      if story.is_empty() {
+        continue
+      }
       if (variant == "first" && !flow.differentFirst) ||
         (variant == "even" && !flow.differentEven) {
         continue

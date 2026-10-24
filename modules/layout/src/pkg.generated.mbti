@@ -272,6 +272,8 @@ pub fn Fill::to_json(Self) -> Json
 
 pub(all) struct Flow {
   revision : Int
+  sectionBreaks : Array[SectionBreak]
+  endnotesAt : String
   background : String
   pageBorders : PageBorders
   page : PageSetup
@@ -740,6 +742,24 @@ pub(all) struct PreferredWidth {
 } derive(ToJson)
 pub fn PreferredWidth::new(value? : Double, percent? : Bool) -> Self
 pub fn PreferredWidth::to_json(Self) -> Json
+
+pub(all) struct SectionBreak {
+  beforeParagraph : Int
+  beforeTable : Int
+  kind : String
+  restartNumbering : Bool
+  page : PageSetup
+  pageBorders : PageBorders
+  pageNumbering : PageNumbering
+  columns : Columns
+  headers : Map[String, Array[Paragraph]]
+  headerDistance : Double
+  footers : Map[String, Array[Paragraph]]
+  footerDistance : Double
+  differentFirst : Bool
+  differentEven : Bool
+} derive(ToJson)
+pub fn SectionBreak::to_json(Self) -> Json
 
 pub(all) struct SelectionRect {
   page : Int

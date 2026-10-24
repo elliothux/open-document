@@ -441,6 +441,7 @@ pub fn Session::export_markup(
   let tree = WordTree::new(self.document())
   let flow = self.flow()
   guard flow.diagnostics.is_empty() &&
+    flow.sectionBreaks.is_empty() &&
     flow.headers.is_empty() &&
     flow.footers.is_empty() &&
     flow.notes.is_empty() &&

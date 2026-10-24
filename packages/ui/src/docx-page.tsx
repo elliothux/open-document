@@ -31,6 +31,7 @@ export function DocxPage({
 }) {
   const t = messages(state.locale);
   const [settings, setSettings] = useState<DocxPageSettings>();
+  const [section, setSection] = useState(0);
   const [draft, setDraft] = useState<DocxPageSetup>();
   const [numbering, setNumbering] = useState<DocxPageNumbering>({
     start: 1,
@@ -46,8 +47,8 @@ export function DocxPage({
   const [orientation, setOrientation] = useState<"portrait" | "landscape">(
     "portrait",
   );
-  const load = async () => {
-    const value = await editor.pageSetup();
+  const load = async (index = section) => {
+    const value = await editor.pageSetup(index);
     setSettings(value);
     setDraft(value.page ?? undefined);
     setNumbering(value.numbering.value ?? { start: 1, format: "decimal" });
@@ -87,6 +88,27 @@ export function DocxPage({
   return (
     <section aria-label={t.pageSetup}>
       <h3>{t.pageSetup}</h3>
+      {settings && settings.sectionCount > 1 && (
+        <label>
+          {t.pageSection}
+          <select
+            aria-label={t.pageSection}
+            value={section}
+            disabled={disabled}
+            onChange={(event) => {
+              const index = Number(event.currentTarget.value);
+              setSection(index);
+              controller.run(() => load(index));
+            }}
+          >
+            {Array.from({ length: settings.sectionCount }, (_, index) => (
+              <option key={index} value={index}>
+                {t.pageSectionLabel} {index + 1}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       <button
         type="button"
         disabled={disabled || !editor.getSnapshot().data.selection}
@@ -466,7 +488,7 @@ export function DocxPage({
             });
           }}
         >
-          <fieldset disabled={disabled || stale}>
+          <fieldset disabled={disabled || stale || draft.section !== section}>
             <label>
               {t.pageOrientation}
               <select

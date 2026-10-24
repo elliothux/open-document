@@ -166,8 +166,14 @@ fn column_body(
   images : Images,
   setups : Array[PageSetup],
   page_setups : Array[PageSetup],
+  pendingNotes~ : Array[(Line, Double)] = [],
 ) -> (Pagination, Int, Int, PaginationCache?) raise @failure.Failure {
   let columns = flow.columns
+  guard pendingNotes.is_empty() || columns.count == 1 else {
+    @failure.reject(
+      "unsupported-layout", "Footnote continuation in columns requires shared reservations",
+    )
+  }
   let note_references = note_references(probe, flow, cache, profile, images)
   ignore(columns.width(flow.page))
   for setup in setups + page_setups {
@@ -199,6 +205,7 @@ fn column_body(
         anchorPage=Some(flow.page),
         wrapping=wrapping.copy(),
         noteReferences=note_references,
+        pendingNotes~,
       )
       let (reflowed, reused, next) = pagination.body(
         probe,

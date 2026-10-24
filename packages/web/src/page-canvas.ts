@@ -44,6 +44,10 @@ export class PageCanvas extends CanvasSurface {
       ...flow.paragraphs,
       ...Object.values(flow.headers).flat(),
       ...Object.values(flow.footers).flat(),
+      ...flow.sectionBreaks.flatMap((section) => [
+        ...Object.values(section.headers).flat(),
+        ...Object.values(section.footers).flat(),
+      ]),
       ...flow.notes.flatMap((note) => note.content),
       ...flow.tables.flatMap((table) => table.rows.flat(2)),
     ];

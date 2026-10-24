@@ -144,6 +144,7 @@ fn Session::running_content(
   styles : Styles,
   diagnostics : Array[String],
   background : String,
+  allVariants~ : Bool = false,
 ) -> (
   Map[String, Array[@layout.Paragraph]],
   Map[String, Array[@layout.Paragraph]],
@@ -167,13 +168,14 @@ fn Session::running_content(
     }
     seen[kind + variant] = true
     let part = self.running_part(tree, id, kind)
-    if (variant == "first" && !first) || (variant == "even" && !even) {
+    if !allVariants &&
+      ((variant == "first" && !first) || (variant == "even" && !even)) {
       continue
     }
     let paragraphs = self.running_paragraphs(
       part, kind, styles, diagnostics, background, variant,
     )
-    if !paragraphs.is_empty() {
+    if allVariants || !paragraphs.is_empty() {
       (if kind == "header" { headers } else { footers })[variant] = paragraphs
     }
   }

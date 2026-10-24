@@ -430,6 +430,7 @@ export function DocxProperties({ controller, state, editor, disabled }: Props) {
         disabled={disabled}
       />
       <DocxPage
+        key={editor.getSnapshot().documentId}
         controller={controller}
         state={state}
         editor={editor}

@@ -4,6 +4,7 @@ fn Pagination::body_field_values(
   fields : Map[(Int, Int), String],
   flow : Flow,
   fixed_values : Map[(Int, Int), String],
+  contexts~ : Array[(PageNumbering, Int)] = [],
 ) -> (Map[(Int, Int), String], Array[String]) raise @failure.Failure {
   let values : Map[(Int, Int), String] = Map([])
   let diagnostics : Array[String] = []
@@ -53,9 +54,12 @@ fn Pagination::body_field_values(
           } else if fixed_values.get(key) is Some(text) {
             values[key] = text
           } else if !values.contains(key) {
-            values[key] = flow.pageNumbering.field_text(
+            let (numbering, position) = contexts
+              .get(page)
+              .unwrap_or((flow.pageNumbering, page))
+            values[key] = numbering.field_text(
               code,
-              page,
+              position,
               self.pages.length(),
             )
           }
@@ -118,12 +122,19 @@ fn Pagination::body_field_values(
         diagnostics.push("unsupported-layout:page-reference-target-unavailable")
       }
     }
-    values[key] = reference.text(
-      flow.pageNumbering,
-      origins.get(key),
-      targets.get(name).bind(value => value),
-      self.pages.length(),
-    )
+    let target = targets.get(name).bind(value => value)
+    values[key] = if !reference.relative &&
+      target is Some(target) &&
+      contexts.get(target.page) is Some((numbering, position)) {
+      numbering.field_text(reference.page_code(), position, self.pages.length())
+    } else {
+      reference.text(
+        flow.pageNumbering,
+        origins.get(key),
+        target,
+        self.pages.length(),
+      )
+    }
   }
   let (text, problems) = flow.text_reference_values(values)
   for key, value in text {

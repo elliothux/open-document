@@ -354,6 +354,7 @@ fn WordTree::check_editable_paragraph(
   fields~ : Bool = false,
   math~ : Bool = false,
   notes~ : Bool = false,
+  sectionBoundary~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   guard self.nodes.contains(paragraph) &&
     self.nodes[paragraph].uri == word_uri &&
@@ -366,6 +367,15 @@ fn WordTree::check_editable_paragraph(
     )
   }
   let parent = self.nodes[paragraph].parent
+  guard sectionBoundary ||
+    self.child(paragraph, "pPr").bind(id => self.child(id, "sectPr")) is None else {
+    @failure.reject(
+      "protected-content",
+      "Section-ending paragraphs require section-aware editing",
+      part~,
+      offset=paragraph,
+    )
+  }
   guard !self.contents.contains(paragraph) else {
     @failure.reject(
       "protected-content",

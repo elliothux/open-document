@@ -637,6 +637,8 @@ export const zh: Messages = {
   applyPageSetup: "应用页面设置",
   reloadPageSetup: "文档已改变，请重新读取页面设置。",
   pageWidth: "页面宽度（pt）",
+  pageSection: "页面所属节",
+  pageSectionLabel: "节",
   pageHeight: "页面高度（pt）",
   pageTop: "上边距（pt）",
   pageRight: "右边距（pt）",

@@ -5,9 +5,21 @@ fn paginate_running(
   cache : ParagraphCache,
   profile : Map[String, String],
   images : Images,
+  documentTotal~ : Int? = None,
+  pendingNotes~ : Array[(Line, Double)] = [],
+  endnotes~ : Array[Note]? = None,
+  flushFootnotes~ : Bool = true,
+  resolveBodyFields~ : Bool = true,
 ) -> (Pagination, Array[Array[Line]], Int, Int, PaginationCache?, Array[String]) raise @failure.Failure {
-  let (patterns, setups) = running_lines(probe, flow, cache, profile, images)
-  let fields = flow.body_fields()
+  let (patterns, setups) = running_lines(
+    probe,
+    flow,
+    cache,
+    profile,
+    images,
+    total=documentTotal.unwrap_or(1),
+  )
+  let fields = if resolveBodyFields { flow.body_fields() } else { Map([]) }
   let fixed_values = if fields.is_empty() {
     Map([])
   } else {
@@ -32,9 +44,24 @@ fn paginate_running(
   let mut prepared : Array[Array[Line]] = []
   for attempt in 0..<8 {
     let (pagination, reflowed, reused, next) = column_body(
-      probe, body, cache, profile, images, setups, page_setups,
+      probe,
+      body,
+      cache,
+      profile,
+      images,
+      setups,
+      page_setups,
+      pendingNotes~,
     )
-    let notes = pagination.finish_notes(flow, cache, probe, profile, images)
+    let notes = pagination.finish_notes(
+      flow,
+      cache,
+      probe,
+      profile,
+      images,
+      endnotes~,
+      flushFootnotes~,
+    )
     let reflowed = if flow.notes.is_empty() {
       reflowed
     } else {
@@ -81,7 +108,7 @@ fn paginate_running(
         profile,
         images,
         page~,
-        total~,
+        total=documentTotal.unwrap_or(total),
       )
       lines += pattern[0].length()
       guard lines <= 32768 else {

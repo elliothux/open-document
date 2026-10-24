@@ -1,80 +1,15 @@
 ///|
-fn Session::note_numbering(
-  self : Session,
-  tree : WordTree,
-  kind : String,
-) -> @layout.PageNumbering raise @failure.Failure {
-  let mut format = if kind == "endnote" { "lowerRoman" } else { "decimal" }
-  let mut start = 1L
-  let sources = [tree]
-  if self.settings_part() is Some(part) {
-    sources.insert(0, WordTree::new(self.part_xml(part)))
-  }
-  for source in sources {
-    let properties = source.order.filter(id => {
-      source.nodes[id].uri == word_uri && source.nodes[id].name == kind + "Pr"
-    })
-    guard properties.length() <= 1 else {
-      @failure.reject(
-        "unsupported-layout", "Multiple note numbering sections are unsupported",
-      )
-    }
-    for id in properties {
-      let seen : Set[String] = Set([])
-      for child in source.children[id] {
-        let node = source.nodes[child]
-        guard node.uri == word_uri else {
-          @failure.reject("unsupported-layout", "Unknown note property")
-        }
-        let value = node.attribute("val", uri=word_uri).unwrap_or("")
-        if node.name == kind &&
-          node.attributes.length() == 1 &&
-          node.attribute("id", uri=word_uri) is Some(mark) &&
-          ["-1", "0"].contains(mark) &&
-          source.children[child].is_empty() {
-          continue
-        }
-        guard !seen.contains(node.name) &&
-          source.children[child].is_empty() &&
-          node.text.trim().is_empty() &&
-          node.attributes.all(a => a.uri == word_uri && a.name == "val") else {
-          @failure.reject(
-            "unsupported-layout", "Invalid note numbering property",
-          )
-        }
-        seen.add(node.name)
-        match node.name {
-          "numFmt" => format = value
-          "numStart" =>
-            start = @string.parse_int(value).to_int64() catch {
-              _ => @failure.reject("unsupported-layout", "Invalid note start")
-            }
-          "numRestart" if value == "continuous" => ()
-          "pos" if (kind == "footnote" && value == "pageBottom") ||
-            (kind == "endnote" && ["sectEnd", "docEnd"].contains(value)) => ()
-          _ =>
-            @failure.reject(
-              "unsupported-layout", "Unsupported note numbering or placement",
-            )
-        }
-      }
-    }
-  }
-  let numbering = @layout.PageNumbering::new(start~, format~)
-  numbering.validate()
-  numbering
-}
-
-///|
 fn Session::layout_notes(
   self : Session,
   tree : WordTree,
   styles : Styles,
   background : String,
-) -> (Map[Int, (String, String)], Array[@layout.Note]) raise @failure.Failure {
+) -> (Map[Int, (String, String)], Array[@layout.Note], String) raise @failure.Failure {
   let references : Map[Int, (String, String)] = Map([])
   let notes : Array[@layout.Note] = []
   let mut story_id = -1000000000
+  let sections = tree.note_sections()
+  let mut endnotes_at = "docEnd"
   for kind in ["footnote", "endnote"] {
     let ids = tree.order.filter(id => {
       tree.nodes[id].uri == word_uri &&
@@ -88,7 +23,14 @@ fn Session::layout_notes(
         "unsupported-layout", "Note references have no content part",
       )
     }
-    let numbering = self.note_numbering(tree, kind)
+    guard ids.length() <= 8192 - notes.length() else {
+      @failure.reject("limit-exceeded", "Note count exceeds limits")
+    }
+    let defaults = self.note_settings(kind)
+    if kind == "endnote" {
+      endnotes_at = defaults.position
+    }
+    let settings : Map[Int, NoteSettings] = Map([])
     for special in source.tree.children[0] {
       let role = source.tree.nodes[special]
         .attribute("type", uri=word_uri)
@@ -120,8 +62,34 @@ fn Session::layout_notes(
       }
     }
     let used : Set[String] = Set([])
+    let mut previous_section = -2
+    let mut section_count = 0
     for index, id in ids {
       let node = tree.nodes[id]
+      let paragraph = tree.run_paragraph(node.parent)
+      guard sections.get(paragraph) is Some(section) &&
+        tree.nodes[paragraph].parent >= 0 &&
+        ["body", "tc"].contains(tree.nodes[tree.nodes[paragraph].parent].name) else {
+        @failure.reject(
+          "unsupported-layout", "Note reference is outside a body paragraph",
+        )
+      }
+      if section != previous_section {
+        section_count = 0
+        previous_section = section
+      }
+      let setting = match settings.get(section) {
+        Some(setting) => setting
+        None => {
+          let setting = if section < 0 {
+            defaults
+          } else {
+            defaults.read(tree, section, kind, document=false)
+          }
+          settings[section] = setting
+          setting
+        }
+      }
       guard node.attributes.all(a => a.uri == word_uri && a.name == "id") &&
         tree.children[id].is_empty() &&
         node.text.trim().is_empty() else {
@@ -137,9 +105,14 @@ fn Session::layout_notes(
       }
       used.add(key)
       let label = @layout.PageNumbering::new(
-        start=numbering.start + index.to_int64(),
-        format=numbering.format,
+        start=if setting.restart == "eachSect" {
+          section_count.to_int64() + 1L
+        } else {
+          setting.numbering.start + index.to_int64()
+        },
+        format=setting.numbering.format,
       ).field_text("PAGE", 0, 1)
+      section_count += 1
       let markers : Map[Int, (String, String)] = Map([])
       for child in source.tree.descendants(entry.node) {
         if source.tree.nodes[child].uri == word_uri &&
@@ -201,17 +174,9 @@ fn Session::layout_notes(
           "unsupported-layout", "Unsupported note paragraph properties",
         )
       }
-      let paragraph = tree.run_paragraph(node.parent)
-      guard paragraph >= 0 &&
-        tree.nodes[paragraph].parent >= 0 &&
-        ["body", "tc"].contains(tree.nodes[tree.nodes[paragraph].parent].name) else {
-        @failure.reject(
-          "unsupported-layout", "Note reference is outside a body paragraph",
-        )
-      }
       references[id] = (label, "NOTE:" + kind + ":" + key)
       notes.push({ kind, key, paragraph, node: id, content, })
     }
   }
-  (references, notes)
+  (references, notes, endnotes_at)
 }

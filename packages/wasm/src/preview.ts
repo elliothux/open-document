@@ -9,6 +9,8 @@ import {
   type DocxPageBorders,
 } from "./docx-format.js";
 import { record } from "./validation.js";
+import { checkDocxSections, type DocxSectionBreak } from "./docx-sections.js";
+export type { DocxSectionBreak } from "./docx-sections.js";
 import {
   checkParagraphNumbering,
   type ParagraphNumbering,
@@ -34,6 +36,8 @@ export interface TextStyle {
 }
 
 export interface DocxFlow {
+  sectionBreaks: DocxSectionBreak[];
+  endnotesAt: "sectEnd" | "docEnd";
   columns: DocxColumns;
   pageNumbering: { start: number; format: string };
   bookmarks: Record<string, [number, number, number, number]>;
@@ -601,6 +605,7 @@ export function docxFlow(value: unknown): DocxFlow {
     for (const paragraph of content) checkParagraph(paragraph);
   }
   for (const value of paragraphs) checkParagraph(value);
+  checkDocxSections(flow, paragraphs.length, docxFlow);
   for (const stories of [record(flow.headers), record(flow.footers)]) {
     for (const [key, story] of Object.entries(stories)) {
       if (!["default", "first", "even"].includes(key))

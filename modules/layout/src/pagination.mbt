@@ -19,6 +19,7 @@ priv struct Pagination {
   noteUsed : Set[(Int, Int)]
   notePending : Array[(Line, Double)]
   mut noteCursor : Int
+  mut noteBodyHeight : Double
   notePages : Map[Int, Array[Line]]
   noteHeights : Map[Int, Double]
   noteContinuations : Set[Int]
@@ -34,6 +35,7 @@ fn Pagination::new(
   anchorPage~ : PageSetup? = None,
   wrapping~ : Array[WrappingRect] = [],
   noteReferences~ : Map[(Int, Int), Array[(Line, Double)]] = Map([]),
+  pendingNotes~ : Array[(Line, Double)] = [],
 ) -> Pagination {
   let anchor_page = anchorPage.unwrap_or(page)
   let page = pageSetups.get(0).unwrap_or(page)
@@ -65,14 +67,18 @@ fn Pagination::new(
     placedWrapping: Map([]),
     noteReferences,
     noteUsed: Set([]),
-    notePending: [],
+    notePending: pendingNotes.copy(),
     noteCursor: 0,
+    noteBodyHeight: 0,
     notePages: Map([]),
     noteHeights: Map([]),
     noteContinuations: Set([]),
   }
   result.page = result.page_at(0)
   result.y = result.page.top
+  if !pendingNotes.is_empty() {
+    result.noteContinuations.add(0)
+  }
   result
 }
 
@@ -97,7 +103,7 @@ fn Pagination::next_page(self : Pagination) -> Unit raise @failure.Failure {
   if self.noteCursor < self.notePending.length() {
     self.noteContinuations.add(self.pages.length() - 1)
   }
-  self.reserve_pending_notes(0)
+  self.reserve_pending_notes(self.noteBodyHeight)
 }
 
 ///|
@@ -262,8 +268,10 @@ fn Pagination::paragraph(
   profile : Map[String, String],
   images : Images,
   additive : Bool,
+  startOffset~ : Int = 0,
 ) -> Unit raise @failure.Failure {
-  if paragraph.pageBreakBefore &&
+  if startOffset == 0 &&
+    paragraph.pageBreakBefore &&
     (
       self.pages.last().unwrap().lines.iter().any(line => !line.caretOnly) ||
       !self.pages.last().unwrap().borders.is_empty()
@@ -280,7 +288,7 @@ fn Pagination::paragraph(
   self.after = 0
   self.gap = 0
   let available = fn() { self.page.width - self.page.left - self.page.right }
-  let mut start_offset = 0
+  let mut start_offset = startOffset
   let mut finished = false
   let mut ended_with_break = false
   let mut ended_with_page_break = false
@@ -294,6 +302,10 @@ fn Pagination::paragraph(
       width,
       startOffset=start_offset,
     )
+    if initial_lines.get(0) is Some(measured) {
+      self.noteBodyHeight = measured.spaced(paragraph.line, true).height
+      self.reserve_pending_notes(self.noteBodyHeight)
+    }
     if initial_lines.get(0) is Some(measured) &&
       self.y + measured.spaced(paragraph.line, first).height <=
       self.page.height - self.page.bottom {
@@ -492,6 +504,7 @@ pub fn paginate(
   probe.check()
   flow.page.validate()
   flow.pageBorders.validate()
+  flow.validate_sections()
   flow.validate_floating_images()
   guard flow.background.length() == 6 &&
     flow.background.iter().all(c => c.is_ascii_hexdigit()) else {
@@ -507,7 +520,34 @@ pub fn paginate(
       @failure.reject("invalid-table", "Table body position is invalid")
     }
   }
+  flow.validate_notes()
   let cache = ParagraphCache::new(probe, profile)
+  if !flow.sectionBreaks.is_empty() {
+    let old = probe.pagination
+    // shortcut: Retain paragraph shaping until page-cache positions include section boundaries.
+    probe.pagination = None
+    errdefer {
+      probe.pagination = old
+    }
+    let (pages, running, diagnostics) = paginate_sections(
+      probe, flow, cache, profile, images,
+    )
+    probe.paragraphs = cache.current
+    return {
+      background: flow.background,
+      revision: flow.revision,
+      shapedParagraphs: cache.shaped,
+      reusedParagraphs: cache.reused,
+      reflowedPages: pages.length(),
+      reusedPages: 0,
+      profile: profile.copy(),
+      pages,
+      running,
+      diagnostics: flow.diagnostics + diagnostics,
+      outlines: probe.outline_resources(),
+      fonts: probe.font_info(),
+    }
+  }
   let (pagination, running, reflowed, reused, next, diagnostics) = paginate_running(
     probe, flow, cache, profile, images,
   )

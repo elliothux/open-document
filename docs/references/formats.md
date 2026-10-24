@@ -380,7 +380,7 @@ LaTeX 源最多 131072 个 UTF-16 单元，语法嵌套最多 64 层；解析结
 
 默认标尺支持鼠标拖动、松开提交，Escape/指针取消保持原文档。方向键按上述步长移动，Shift 使用 36 pt，Home/End 移向纸张两端；Alt 关闭吸附。制表位可选择五类对齐后点击空白处新增，Delete/Backspace 或拖离标尺删除。制表位排序后键盘焦点跟随被移动项。UI 只保存指针导线，正文重排和源值由核心提交决定。
 
-实现归 [`ruler.mbt`](../../modules/formats/src/docx/ruler.mbt)，入口归 [`document-page.ts`](../../packages/web/src/document-page.ts)和[默认标尺](../../packages/ui/src/docx-ruler.tsx)。参数与事务参考固定 [ONLYOFFICE Rulers.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/Rulers.js#L2245-L2310)；缩进、制表位及页边距仍使用各自已实现的 OOXML 序列化。当前为水平标尺和磅单位；多节页面设置、纵向标尺及通过标尺调整表格列边界未实现。
+实现归 [`ruler.mbt`](../../modules/formats/src/docx/ruler.mbt)，入口归 [`document-page.ts`](../../packages/web/src/document-page.ts)和[默认标尺](../../packages/ui/src/docx-ruler.tsx)。参数与事务参考固定 [ONLYOFFICE Rulers.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Drawing/Rulers.js#L2245-L2310)；缩进、制表位及页边距仍使用各自已实现的 OOXML 序列化。当前为水平标尺和磅单位；多节标尺页边距、纵向标尺及通过标尺调整表格列边界未实现。
 
 ### 导入超链接文字
 
@@ -680,13 +680,23 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 ### 页面设置
 
-`FoundationSession/Client.pageSetup(revision)` 与 `DocumentEditor.pageSetup()` 返回 `{ revision, page, reason, background, borders, numbering, columns }`。各属性的合同见下文。`page` 是主文档单节的源尺寸，字段为 `width/height/top/right/bottom/left`，单位为 pt；缺少节属性时使用 612×792 pt、四边 72 pt。不支持的多节、未知分栏元数据、镜像页边距、装订线或保护返回 `page: null` 与原因，不返回伪造的可编辑参数。查询不要求正文选区。
+`FoundationSession/Client.pageSetup(revision, section = 0)` 与 `DocumentEditor.pageSetup(section = 0)` 返回 `{ revision, sectionCount, page, reason, background, borders, numbering, columns }`。`section` 是源顺序从零开始的节序号，最多 1024 节；越界目标明确失败。`page` 包含 `section` 和源尺寸 `width/height/top/right/bottom/left`，尺寸单位为 pt；缺少末节属性时使用 612×792 pt、四边 72 pt。未知分栏元数据、镜像页边距、装订线或保护返回 `page: null` 与原因；无法解释节目录时 `sectionCount` 为 0。查询不要求正文选区。其他属性仍遵守下文的单节编辑边界。
 
-`setPageSetup(revision, page)` 同时修改尺寸与四边距，Web 编辑宿主省略 revision。`DocxPageSetup` 要求上述六个值，可选 `orientation: "portrait" | "landscape"`。省略方向时使用指定宽高；给出方向且与宽高不一致时，核心交换宽高并旋转四边距。横向时新左/上/右/下依次为原下/左/上/右，纵向反向旋转；正方形不旋转。规则依据 [ONLYOFFICE 的方向修改](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/sections/sect-pr.js#L1148-L1180)。
+`setPageSetup(revision, page)` 同时修改指定节的尺寸与四边距，Web 编辑宿主省略 revision。`DocxPageSetup` 必须包含 `section` 和上述六个尺寸，可选 `orientation: "portrait" | "landscape"`。节序号与 revision 共同绑定目标，切换选区或可见页不会改变目标。省略方向时使用指定宽高；给出方向且与宽高不一致时，核心交换宽高并旋转四边距。横向时新左/上/右/下依次为原下/左/上/右，纵向反向旋转；正方形不旋转。规则依据 [ONLYOFFICE 的方向修改](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/sections/sect-pr.js#L1148-L1180)。
 
 尺寸为 36–14400 pt，边距非负；所有数值须能表示为整数 twip，并为正文留下至少 12×12 pt。源尺寸原样写回 `pgSz/pgMar`；`Flow.page`、预览和 PDF 继续采用下文既有纸型解释规则，可能与源尺寸不同，例如 500 pt 的显示尺寸为 498.9 pt。再次应用相同源参数不产生历史，不能把显示尺寸自动写回源文档。
 
-缺少节属性时在正文末尾创建，缺少页面属性时按 OOXML 顺序插入。修改保留段落、稳定节点身份、节元数据、其他部件、页眉/页脚距离和零装订线；清除与新尺寸不一致的旧打印机纸型代码。尺寸与边距合为一项有界历史，保留待输入格式，撤销/重做及保存重开恢复相同源参数。非法值、过期 revision、未知目标属性/注释、多节或预算失败保留已提交包。默认 UI 提供相同的读取、修改和方向选项；文档改变后要求重新读取，防止旧参数覆盖新状态。已有分栏时，修改尺寸也须为每栏保留至少 12 pt 宽度。多节及页眉页脚节间继承继续实施。
+缺少末节属性时在正文末尾创建，缺少页面属性时按 OOXML 顺序插入。修改保留其他节、段落、稳定节点身份、节元数据、其他部件、页眉/页脚距离和零装订线；清除与新尺寸不一致的旧打印机纸型代码。尺寸与边距合为一项有界历史，保留待输入格式，撤销/重做及保存重开恢复相同源参数。非法值、过期 revision、未知目标属性/注释或预算失败保留已提交包。默认 UI 提供节选择、读取、修改和方向选项；草稿保留目标节，文档改变后要求重新读取。已有分栏时，修改尺寸也须为每栏保留至少 12 pt 宽度，并校验各节页边框。其余多节编辑继续实施，分节导入和继承读取见[多节分页](#多节分页)。
+
+### 多节分页
+
+导入读取正文段落 `pPr/sectPr` 与正文末尾 `sectPr`，分别保留各节纸型、边距、页边框、分栏和页眉页脚距离。`Flow` 的页面字段描述首节；必需的 `sectionBreaks` 按正文段落及表格计数保存后续节配置。节边界会终止段落保留链；每节复用现有分栏、表格和页眉页脚分页，Canvas、PNG 和 PDF 使用逐页尺寸。
+
+当前读取 `nextPage/oddPage/evenPage`。奇偶分节按续接或重启的页号补空白页；首节起号按原生类型修正奇偶。页号继续或按 `pgNumType@start` 重启，格式由本节决定。缺少页眉页脚引用时按变体继承，显式空部件清除继承内容；不同部件的段落身份独立。首页与奇偶变体按当前节选择，`NUMPAGES`、`SEQ` 和跨节 `PAGEREF/REF` 按全文求值，最多八轮重排。
+
+默认界面保持正文编辑保护；[页面设置](#页面设置)支持指定节的尺寸、方向和四边距。节末段落及其他节属性编辑继续保护，不能据此标记分节编辑完成。跨节单栏注释归[脚注与尾注](#docx-脚注与尾注内容)；`continuous` 分节及多节水印仍待实现。总量继续限制为 1024 页、32768 行和最多 1024 节；多节暂不复用整页分页缓存，保留段落塑形缓存。HTML/Markdown 导出继续保护节边界。
+
+实现归[节读取](../../modules/formats/src/docx/flow-sections.mbt)与[公共节分页](../../modules/layout/src/sections.mbt)。原生起号、奇偶和首页选择依据 [ONLYOFFICE 节页码计算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L14679-L14795)，未复制上游执行代码。
 
 ### 分栏
 
@@ -774,7 +784,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 已导入的页眉页脚支持 `PAGE` 和 `NUMPAGES` 的格式化计算，包括 `fldSimple` 和同段内的 begin/instrText/separate/result/end 成对域。接受缺省格式、十进制、大小写字母及罗马数字的显式格式开关，以及可组合的 `MERGEFORMAT`；保留首个结果 run 的有效字符样式。派生 `Span.field` 使用空串、字段名或带冒号格式后缀的字段名，格式归[页码格式与起点](#页码格式与起点)。`Span.text` 保留导入缓存，实际页边行按节编号、显式格式和物理总页数重新塑形。正文分页、历史和重开会重新计算，Canvas、语义文本和 PDF 使用相同结果。参考 [ONLYOFFICE PAGE 与 NUMPAGES](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L918-L928)。
 
-字段结果改变换行时，核心按每页实际页边高度有界重排正文，最多八轮；不收敛时保留最后完整布局并给出诊断，输出沿既有诊断保护。正文空间和分页缓存包含逐页几何，跨页表格也使用该页空间。现有 1024 页和 32768 行预算继续生效，每段最多 64 个字段。未知指令/开关、锁定、嵌套、不完整或跨段域继续保护且不执行；多节继承及更广编号格式继续实施，正文范围归[正文页码字段](#正文页码字段)。实现归[字段读取](../../modules/formats/src/docx/running-fields.mbt)与[有界重排](../../modules/layout/src/running-pagination.mbt)。
+字段结果改变换行时，核心按每页实际页边高度有界重排正文，最多八轮；不收敛时保留最后完整布局并给出诊断，输出沿既有诊断保护。正文空间和分页缓存包含逐页几何，跨页表格也使用该页空间。现有 1024 页和 32768 行预算继续生效，每段最多 64 个字段。未知指令/开关、锁定、嵌套、不完整或跨段域继续保护且不执行；多节继承读取见[多节分页](#多节分页)；节间编辑及更广编号格式继续实施，正文范围归[正文页码字段](#正文页码字段)。实现归[字段读取](../../modules/formats/src/docx/running-fields.mbt)与[有界重排](../../modules/layout/src/running-pagination.mbt)。
 
 计算、保存和输出不改写域代码或缓存，不增加历史，也不改变原格式未保存状态。显式应用字段内容会把当前结果与内容修改放在同一项历史；内容和距离相同时，应用用于刷新已有缓存，结果相同则不新增历史。只改距离或开关仍保留区域 XML。刷新简单域和成对域时只替换结果文字，保留域代码、属性和字符样式；未知或带注释的源继续保护。缓存的 `PAGE` 使用该变体的首次出现页，加上节起点并应用节格式或字段显式格式。首页取物理首页；偶数变体取编号后首次为偶数且未被首页占用的页面；默认变体取未被活动首页/偶数区域占用的首个页面。起点为 1 时仍分别遵循原有的 1、2 及默认区域 1/2/3 规则。非活动变体采用同一规则；`NUMPAGES` 使用当前文档总页数。屏幕/PDF 仍逐页计算。更新要求完整布局及原有历史/输出预算通过，失败保留原文档、选择和历史。行为参考 [ONLYOFFICE 字段创建与更新](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L23510-L23568)，当前写回归[有序内容及字段缓存](../../modules/formats/src/docx/running-content.mbt)。
 
@@ -896,11 +906,15 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 核心按原生关系查找内容部件，修改目标文字节点，保留正文引用、注释标记、段落/run 属性、源注释、分隔符和其他部件；新文字首尾空白显式保存。空段落在原位置新增普通文字 run。按 LF 保留或增删段落；新增段落继承最后文字 run 和段落属性，不复制段落源身份。仅有编号标记时，新文字清除标记专属样式与上标。原生标记必须唯一并位于首段。一次实际修改只记一项精确历史，无变化保持源和 revision；撤销/重做恢复原部件与选择。字段、其他结构、正文内未知标记、文字节点内不透明源及跟踪属性继续保护；外部/共享部件、重复身份及无效 XML 身份拒绝操作。每类最多 4096 项内容和 1048576 个文字单元，合并目录最多 8192 项，沿用 XML、历史及输出预算。
 
-已有普通文字注释已接入单节、单栏核心布局。正文和普通表格中的引用占一个逻辑位置，按原生连续编号的格式和起始号显示；编号设置的修改命令仍待接入。脚注按引用行预留页底空间，空间不足时移动引用，长文字续排后页；尾注文字进入文末并参与分页。正文与页眉页脚的 PAGE、NUMPAGES 使用包含注释页的最终页数。注释复用字体、段落测量及输出管线，保留原文字和外观，进入实际 Canvas、语义内容及 PDF。编号和分页为派生结果，保存不改写原 XML。
+已有普通文字注释已接入单栏及多节核心布局。正文和普通表格中的引用占一个逻辑位置，按所属节的原生格式和起始号显示；连续编号按同种注释的全文计数加当前起号，每节重启 `eachSect` 从 1 起算。编号设置的修改命令仍待接入。脚注按引用行预留页底空间，空间不足时移动引用，长文字可继续到后续节；纸型或边距改变时，剩余文字按新宽度从原逻辑偏移重排，保留编号、格式和独立身份。正文与续排脚注共用预留空间，空末节也可承接未完文字。
+
+尾注按文档设置 `endnotePr/pos` 进入 `docEnd` 文末或 `sectEnd` 节末；默认文末，节内 `pos` 元数据不覆盖文档设置。`DocxFlow.endnotesAt` 是必需字段，取这两个原生值。正文与页眉页脚的 PAGE、NUMPAGES 使用包含注释页的最终页数，跨节 NOTEREF 使用所属注释的当前标签。节末段落中的有效书签可读取和定位，段落文字编辑仍受结构保护。各类字段保持一个逻辑位置，不能把展开的显示文字当成多个正文位置。注释复用字体、段落测量及输出管线，进入实际 Canvas、语义内容及 PDF。编号和分页为派生结果，保存不改写原 XML。
+
+实现归[原生注释设置](../../modules/formats/src/docx/notes-settings.mbt)和[跨宽度续排](../../modules/layout/src/notes-continuation.mbt)。连续与每节重启依据 [ONLYOFFICE 脚注编号](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Footnotes.js#L549-L674)及[尾注编号](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Endnotes.js#L315-L374)；默认文末位置依据[原生默认值](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/sections/footnote-pr.js#L50-L63)，未复制上游执行代码。
 
 `DocxFlow.notes` 是必需数组，每项为 `{ kind, key, paragraph, node, content }`。paragraph、node 定位正文引用，content 使用独立的负段落身份和只读区域，避免与正文和页眉页脚源节点混淆。内容面板继续按种类和身份修改文字，画布中的注释区域暂不提供原生光标输入。含注释的页面重排暂不复用整页缓存，段落测量继续复用。最多 8192 项注释，沿用 1024 页、32768 行与字体/XML/输出预算。
 
-当前支持普通文字段落及可整体放置的含脚注表格行组。多栏共享脚注、超高含脚注行组的分片预留、注释内部的表格/对象/域、链接/审阅锚点、自定义引用标记和分隔符、非连续编号均待接入，不能解释时保留诊断或拒绝布局。复杂段落保持规则和完整分隔符保真仍待实现。注释区域光标及内容的富文本编辑继续按 P10 实施，不标记脚注功能或阶段完成。实现归 [`notes-read.mbt`](../../modules/formats/src/docx/notes-read.mbt)、[`notes-edit.mbt`](../../modules/formats/src/docx/notes-edit.mbt)、[`notes-create.mbt`](../../modules/formats/src/docx/notes-create.mbt)、[`notes-remove.mbt`](../../modules/formats/src/docx/notes-remove.mbt)、[`notes-layout.mbt`](../../modules/formats/src/docx/notes-layout.mbt)、[`布局预留与续排`](../../modules/layout/src/notes.mbt)和 [`docx-notes.tsx`](../../packages/ui/src/docx-notes.tsx)。原生内容区域参考 [ONLYOFFICE FootEndnote](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/FootEndnote.js#L49-L69)，跨页续排参考 [ONLYOFFICE Footnotes](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Footnotes.js#L272-L351)，保留所选文字的插入行为参考 [ONLYOFFICE AddFootnote](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L18859-L18904)。
+当前支持普通文字段落及可整体放置的含脚注表格行组。多栏共享脚注、超高含脚注行组的分片预留、注释内部的表格/对象/域、链接/审阅锚点、自定义引用标记和分隔符、每页重启编号均待接入，不能解释时保留诊断或拒绝布局。复杂段落保持规则和完整分隔符保真仍待实现。注释区域光标及内容的富文本编辑继续按 P10 实施，不标记脚注功能或阶段完成。实现归 [`notes-read.mbt`](../../modules/formats/src/docx/notes-read.mbt)、[`notes-edit.mbt`](../../modules/formats/src/docx/notes-edit.mbt)、[`notes-create.mbt`](../../modules/formats/src/docx/notes-create.mbt)、[`notes-remove.mbt`](../../modules/formats/src/docx/notes-remove.mbt)、[`notes-layout.mbt`](../../modules/formats/src/docx/notes-layout.mbt)、[`布局预留与续排`](../../modules/layout/src/notes.mbt)和 [`docx-notes.tsx`](../../packages/ui/src/docx-notes.tsx)。原生内容区域参考 [ONLYOFFICE FootEndnote](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/FootEndnote.js#L49-L69)，跨页续排参考 [ONLYOFFICE Footnotes](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Footnotes.js#L272-L351)，保留所选文字的插入行为参考 [ONLYOFFICE AddFootnote](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L18859-L18904)。
 
 ### DOCX 题注
 
@@ -1351,7 +1365,7 @@ DOCX 的显式页面宽、高按固定 LibreOffice 25.8.2.2 的[导入规则](ht
 
 `flow()` 返回派生的段落、样式、页面设置、表格、内联图片引用和诊断；不能修改它来编辑文档。段落与表格数组各自保持源顺序；顶层表格的必需 `beforeParagraph` 是当前源 XML 中先于该表格的正文段落数，同位置连续表格按表格数组顺序插入。稳定 `id` 不表示文档位置，拆段后也不按 ID 排序。`layout(profile)` 在核心中生成 `PageLayout`，profile 将 DOCX 字体键（含 `|bold` / `|italic`）映射到已供应字体 identity。缺字体或字形明确失败，宿主不提供 DOM 测量。布局长度单位为 point；字体内部度量仍用 font units，源范围使用节点局部 UTF-16 offset。
 
-支持 docDefaults、段落/字符样式 basedOn、主题 Latin 字体、直接格式、字号/颜色/粗斜体、段前段后、缩进、左/中/右对齐、auto/exact/atLeast 行距、空段落及显式分页。正文、表格和页眉页脚共用段落间距校验，负间距/最小行距/单元格 padding 明确失败。页面使用单一设置，多节文档给不支持诊断，不承诺各节独立分页。分页的断行使用固定 Unicode 数据与基本 BiDi；同样式跨文本节点一起塑形并保留源映射。`unicode_linebreak` 的 Unicode 15 测试向量按上游规则排除 30.22/999.0 做依赖回归，其字符表源自 Unicode 13；不宣称完整 UAX #14 符合性。当前 fallback 仍按码点选择，复杂 script、彩色字形和任意字体质量不在承诺范围。
+支持 docDefaults、段落/字符样式 basedOn、主题 Latin 字体、直接格式、字号/颜色/粗斜体、段前段后、缩进、左/中/右对齐、auto/exact/atLeast 行距、空段落及显式分页。正文、表格和页眉页脚共用段落间距校验，负间距/最小行距/单元格 padding 明确失败。页面按[多节分页](#多节分页)读取独立节配置，指定节页面几何可编辑，其余分节编辑继续保护。分页的断行使用固定 Unicode 数据与基本 BiDi；同样式跨文本节点一起塑形并保留源映射。`unicode_linebreak` 的 Unicode 15 测试向量按上游规则排除 30.22/999.0 做依赖回归，其字符表源自 Unicode 13；不宣称完整 UAX #14 符合性。当前 fallback 仍按码点选择，复杂 script、彩色字形和任意字体质量不在承诺范围。
 
 基础表格使用固定列宽、当前支持的实线/无边框、RGB 单色填充、四边 cell margin 和最小/精确行高；普通行[逐格跨页](#表格行跨页)，纵向合并行组整体换页。边框编辑与冲突规则归[表格边框](#表格边框)。相邻行共享边框只占一次高度，表尾另留底边，分页判断包含当前页底边空间。自然字高使用上述共享参考设备取整；固定 Noto 原表格的自然行高与垂直步距已匹配固定 LibreOffice，不扩大为所有应用或水平几何一致。嵌套单元格仍明确拒绝；精确行高沿[裁剪规则](#表格尺寸)。不绘制浮动、旋转或翻转图片；页眉页脚已接通[文字、实际避让与逐页输出](#页眉页脚)。已识别但未实现的正文属性给诊断，原包仍由 P2 保存；不是完整属性/schema 检查器，主题颜色、条件表格样式与复杂页眉页脚不在支持面。图片仅支持包内内联 extent；宿主解码已授权资源为 RGBA，外链图片明确拒绝、不自动下载。
 

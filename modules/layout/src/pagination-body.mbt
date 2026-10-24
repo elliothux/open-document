@@ -9,7 +9,11 @@ fn Pagination::body(
 ) -> (Int, Int, PaginationCache?) raise @failure.Failure {
   let blocks = flow.body_blocks()
   // Note reservations must be replayed with their reference lines.
-  let keys = if flow.notes.is_empty() { pagination_keys(blocks) } else { None }
+  let keys = if flow.notes.is_empty() && self.notePending.is_empty() {
+    pagination_keys(blocks)
+  } else {
+    None
+  }
   let context = Json::array([
     self.page.to_json(),
     self.anchorPage.to_json(),

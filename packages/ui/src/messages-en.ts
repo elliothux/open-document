@@ -644,6 +644,8 @@ export const en = {
   applyPageSetup: "Apply page setup",
   reloadPageSetup: "Document changed. Load page setup again.",
   pageWidth: "Page width (pt)",
+  pageSection: "Page section",
+  pageSectionLabel: "Section",
   pageHeight: "Page height (pt)",
   pageTop: "Top margin (pt)",
   pageRight: "Right margin (pt)",

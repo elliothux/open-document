@@ -204,7 +204,7 @@ pub fn Session::open(Bytes, @archive.Budget) -> Self raise @failure.Failure
 pub fn Session::overview(Self, Int) -> Json raise @failure.Failure
 pub fn Session::page_links(Self, @layout.Layout) -> Array[@layout.PageLink] raise @failure.Failure
 pub fn Session::page_positioned(Self, @layout.Layout, @layout.TextProbe) -> @layout.PositionedDocument raise @failure.Failure
-pub fn Session::page_setup(Self, Int) -> Json raise @failure.Failure
+pub fn Session::page_setup(Self, Int, section? : Int) -> Json raise @failure.Failure
 pub fn Session::paste_body_fragment(Self, Int, Selection, String, @layout.TextProbe, Map[String, String], images? : @layout.Images?) -> Json raise @failure.Failure
 pub fn Session::paste_html(Self, Int, Selection, String, @layout.TextProbe, Map[String, String], images? : @layout.Images?, mode? : String) -> Json raise @failure.Failure
 pub fn Session::paste_markdown(Self, Int, Selection, String, @layout.TextProbe, Map[String, String], images? : @layout.Images?, mode? : String) -> Json raise @failure.Failure
@@ -238,7 +238,7 @@ pub fn Session::set_page_background(Self, Int, String?) -> Json raise @failure.F
 pub fn Session::set_page_borders(Self, Int, @layout.PageBorders?) -> Json raise @failure.Failure
 pub fn Session::set_page_columns(Self, Int, @layout.Columns?, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_page_numbering(Self, Int, @layout.PageNumbering?, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
-pub fn Session::set_page_setup(Self, Int, @layout.PageSetup, orientation? : String?) -> Json raise @failure.Failure
+pub fn Session::set_page_setup(Self, Int, Int, @layout.PageSetup, orientation? : String?) -> Json raise @failure.Failure
 pub fn Session::set_paragraph_format(Self, Int, Selection, ParagraphFormat, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_running_area(Self, Int, String, String, Array[RunningContent], Double, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_running_options(Self, Int, Bool, Bool, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure

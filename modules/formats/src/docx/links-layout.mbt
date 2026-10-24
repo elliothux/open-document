@@ -26,6 +26,9 @@ pub fn Session::page_links(
     }
   }
   let running : Map[(Int, Int), String] = Map([])
+  let sections = tree.order.filter(id => {
+    tree.nodes[id].uri == word_uri && tree.nodes[id].name == "sectPr"
+  })
   for id in tree.order {
     let node = tree.nodes[id]
     if node.uri != word_uri ||
@@ -33,7 +36,13 @@ pub fn Session::page_links(
       continue
     }
     let kind = if node.name == "headerReference" { "header" } else { "footer" }
-    let stories = if kind == "header" { flow.headers } else { flow.footers }
+    let section = sections.search(node.parent).unwrap_or(0)
+    let properties = flow.sectionBreaks.get(section - 1)
+    let stories = if kind == "header" {
+      properties.map(s => s.headers).unwrap_or(flow.headers)
+    } else {
+      properties.map(s => s.footers).unwrap_or(flow.footers)
+    }
     guard stories.get(node.attribute("type", uri=word_uri).unwrap_or(""))
       is Some(story) else {
       continue

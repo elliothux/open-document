@@ -13,7 +13,7 @@ fn WordTree::diagnose_properties(
       [
         "pStyle", "rPr", "spacing", "ind", "jc", "pageBreakBefore", "autoSpaceDE",
         "autoSpaceDN", "tabs", "bidi", "numPr", "outlineLvl", "keepLines", "keepNext",
-        "widowControl", "contextualSpacing",
+        "widowControl", "contextualSpacing", "sectPr",
       ]
     "rPr" =>
       [
@@ -23,7 +23,7 @@ fn WordTree::diagnose_properties(
     "sectPr" =>
       [
         "pgSz", "pgMar", "pgBorders", "headerReference", "footerReference", "titlePg",
-        "cols", "docGrid", "pgNumType", "footnotePr", "endnotePr",
+        "cols", "docGrid", "pgNumType", "footnotePr", "endnotePr", "type",
       ]
     "tcPr" =>
       ["tcW", "shd", "gridSpan", "vMerge", "vAlign", "tcMar", "tcBorders"]
@@ -60,6 +60,19 @@ fn WordTree::diagnose_properties(
       }
     }
     let inactive = match feature.name {
+      "type" =>
+        self.children[child].is_empty() &&
+        feature.text.trim().is_empty() &&
+        feature.attributes.all(a => a.uri == word_uri && a.name == "val") &&
+        ["nextPage", "oddPage", "evenPage", "continuous"].contains(
+          feature.attribute("val", uri=word_uri).unwrap_or("nextPage"),
+        ) &&
+        self.children[id]
+        .filter(s => {
+          self.nodes[s].uri == word_uri && self.nodes[s].name == "type"
+        })
+        .length() ==
+        1
       "tblLayout" =>
         self.children[child].is_empty() &&
         feature.text.trim().is_empty() &&

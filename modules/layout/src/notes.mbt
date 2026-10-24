@@ -24,41 +24,15 @@ fn note_references(
   profile : Map[String, String],
   images : Images,
 ) -> Map[(Int, Int), Array[(Line, Double)]] raise @failure.Failure {
-  guard flow.notes.length() <= 8192 else {
-    @failure.reject("limit-exceeded", "Note count exceeds limits")
-  }
   // shortcut: Share physical-page reservations before enabling notes in columns.
-  guard flow.notes.is_empty() || flow.columns.count == 1 else {
+  guard flow.notes.all(n => n.kind != "footnote") || flow.columns.count == 1 else {
     @failure.reject(
       "unsupported-layout", "Notes in multiple columns require shared physical-page reservations",
     )
   }
   let result : Map[(Int, Int), Array[(Line, Double)]] = Map([])
-  let anchors : Map[(Int, Int), String] = Map([])
-  let identities : Set[String] = Set([])
   let mut count = 0
-  for paragraph in flow.body_field_paragraphs() {
-    for span in paragraph.spans {
-      if span.field.has_prefix("NOTE:") {
-        anchors[(paragraph.id, span.node)] = span.field
-      }
-    }
-  }
   for note in flow.notes {
-    let identity = note.kind + ":" + note.key
-    guard ["footnote", "endnote"].contains(note.kind) &&
-      !note.content.is_empty() &&
-      !identities.contains(identity) &&
-      anchors.get((note.paragraph, note.node)) == Some("NOTE:" + identity) &&
-      note.content.all(p => {
-        p.id < 0 &&
-        p.container == -3 &&
-        !p.readOnlyReason.is_empty() &&
-        p.spans.all(s => s.drawing is None && s.field.is_empty())
-      }) else {
-      @failure.reject("invalid-style", "Invalid note story")
-    }
-    identities.add(identity)
     if note.kind != "footnote" {
       continue
     }
@@ -83,46 +57,68 @@ fn note_references(
         flow.additiveSpacing,
       )
     }
-    let lines : Array[(Line, Double)] = []
-    for page_index, page in area.pages {
-      for index, line in page.lines {
-        count += 1
-        guard count <= 32768 else {
-          @failure.reject("limit-exceeded", "Note line budget exceeded")
-        }
-        guard line.drawings.is_empty() && !line.caretOnly else {
-          @failure.reject(
-            "unsupported-layout", "Note objects require note-story layout",
-          )
-        }
-        let leading = if lines.is_empty() { line.y } else { 0.0 }
-        let advance = page.lines
-          .get(index + 1)
-          .map(next => next.y - line.y)
-          .unwrap_or(
-            if page_index == area.pages.length() - 1 {
-              area.y + area.after - line.y
-            } else {
-              line.height
-            },
-          )
-        lines.push(
-          (
-            note_shift(line, -line.y + leading),
-            advance.max(line.height) + leading,
-          ),
-        )
-      }
+    let lines = area.note_lines()
+    count += lines.length()
+    guard count <= 32768 else {
+      @failure.reject("limit-exceeded", "Note line budget exceeded")
     }
     guard !lines.is_empty() && !result.contains((note.paragraph, note.node)) else {
       @failure.reject("invalid-style", "Missing or repeated note reference")
     }
     result[(note.paragraph, note.node)] = lines
   }
+  result
+}
+
+///|
+fn Flow::validate_notes(self : Flow) -> Unit raise @failure.Failure {
+  guard ["sectEnd", "docEnd"].contains(self.endnotesAt) else {
+    @failure.reject("invalid-style", "Invalid endnote placement")
+  }
+  guard self.notes.length() <= 8192 else {
+    @failure.reject("limit-exceeded", "Note count exceeds limits")
+  }
+  let anchors : Map[(Int, Int), String] = Map([])
+  for p in self.body_field_paragraphs() {
+    for s in p.spans {
+      if s.field.has_prefix("NOTE:") {
+        guard !anchors.contains((p.id, s.node)) else {
+          @failure.reject("invalid-style", "Repeated note anchor")
+        }
+        anchors[(p.id, s.node)] = s.field
+      }
+    }
+  }
+  let identities : Set[String] = Set([])
+  let content_ids : Set[Int] = Set([])
+  for note in self.notes {
+    let identity = note.kind + ":" + note.key
+    guard ["footnote", "endnote"].contains(note.kind) &&
+      !note.content.is_empty() &&
+      !identities.contains(identity) &&
+      anchors.get((note.paragraph, note.node)) == Some("NOTE:" + identity) &&
+      note.content.all(p => {
+        p.id < 0 &&
+        p.container == -3 &&
+        !p.readOnlyReason.is_empty() &&
+        p.spans.all(s => s.drawing is None && s.field.is_empty())
+      }) else {
+      @failure.reject("invalid-style", "Invalid note story")
+    }
+    identities.add(identity)
+    for p in note.content {
+      guard !content_ids.contains(p.id) else {
+        @failure.reject("invalid-style", "Repeated note paragraph identity")
+      }
+      guard content_ids.length() < 32768 else {
+        @failure.reject("limit-exceeded", "Note paragraphs exceed line budget")
+      }
+      content_ids.add(p.id)
+    }
+  }
   guard anchors.length() == identities.length() else {
     @failure.reject("invalid-style", "Note anchors differ from note stories")
   }
-  result
 }
 
 ///|
@@ -211,22 +207,18 @@ fn Pagination::finish_notes(
   probe : TextProbe,
   profile : Map[String, String],
   images : Images,
+  endnotes~ : Array[Note]? = None,
+  flushFootnotes~ : Bool = true,
 ) -> Array[Array[Line]] raise @failure.Failure {
-  while self.noteCursor < self.notePending.length() {
-    let before = self.noteCursor
-    self.next_page()
-    guard self.noteCursor > before else {
-      @failure.reject(
-        "layout-overflow", "A footnote line exceeds the page content area",
-      )
-    }
+  let stories = endnotes.unwrap_or(flow.notes).filter(n => n.kind == "endnote")
+  guard stories.is_empty() || self.columns.count == 1 else {
+    @failure.reject(
+      "unsupported-layout", "Endnote columns require shared physical-page placement",
+    )
   }
   let endnotes : Map[Int, Array[Line]] = Map([])
   let mut count = self.notePending.length()
-  for note in flow.notes {
-    if note.kind != "endnote" {
-      continue
-    }
+  for note in stories {
     for paragraph in note.content {
       let counts = self.pages.map(page => page.lines.length())
       self.paragraph(
@@ -250,6 +242,19 @@ fn Pagination::finish_notes(
         while page.lines.length() > start {
           ignore(page.lines.pop())
         }
+      }
+    }
+  }
+  self.noteBodyHeight = 0
+  self.reserve_pending_notes(0)
+  if flushFootnotes {
+    while self.noteCursor < self.notePending.length() {
+      let before = self.noteCursor
+      self.next_page()
+      guard self.noteCursor > before else {
+        @failure.reject(
+          "layout-overflow", "A footnote line exceeds the page content area",
+        )
       }
     }
   }

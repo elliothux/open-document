@@ -264,7 +264,7 @@ export type Operation =
       even: boolean;
       profile: Record<string, string>;
     }
-  | { operation: "pageSetup"; revision: number }
+  | { operation: "pageSetup"; revision: number; section: number }
   | { operation: "documentProtection"; revision: number }
   | {
       operation: "setDocumentProtection";

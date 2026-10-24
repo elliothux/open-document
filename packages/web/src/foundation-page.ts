@@ -7,6 +7,7 @@ import {
 } from "@open-document/wasm/foundation";
 import {
   checkPageSetup,
+  checkPageSection,
   checkDocxCoverPage,
   checkDocxWatermark,
   docxWatermarkState,
@@ -242,9 +243,14 @@ export class FoundationPageClient extends FoundationReviewClient {
       }),
     );
   }
-  async pageSetup(revision: number) {
+  async pageSetup(revision: number, section = 0) {
+    checkPageSection(section);
     return docxPageSettings(
-      await this.connection.request({ operation: "pageSetup", revision }),
+      await this.connection.request({
+        operation: "pageSetup",
+        revision,
+        section,
+      }),
     );
   }
   async setPageSetup(revision: number, page: DocxPageSetup) {

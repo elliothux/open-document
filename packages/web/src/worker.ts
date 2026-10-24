@@ -300,7 +300,7 @@ async function dispatch(request: Request): Promise<unknown> {
         case "styleCatalog":
           return foundation.styles(request.revision, request.kind);
         case "pageSetup":
-          return foundation.pageSetup(request.revision);
+          return foundation.pageSetup(request.revision, request.section);
         case "documentProtection":
           return foundation.documentProtection(request.revision);
         case "setDocumentProtection":

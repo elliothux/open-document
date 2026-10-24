@@ -21,95 +21,33 @@ fn Session::flow_from(
       }
     }
   let mut styles = self.styles(diagnostics)
-  let (note_refs, notes) = self.layout_notes(tree, styles, background) catch {
+  let (note_refs, notes, endnotes_at) = self.layout_notes(
+    tree, styles, background,
+  ) catch {
     @failure.Failure(code="limit-exceeded", ..) as error => raise error
     @failure.Failure(message~, ..) => {
       diagnostics.push("unsupported-layout:notes:" + message)
-      (Map([]), [])
+      (Map([]), [], "docEnd")
     }
   }
-  let page_borders = tree.page_borders() catch {
-    @failure.Failure(message~, ..) => {
-      diagnostics.push("unsupported-layout:page-borders:" + message)
-      @layout.PageBorders::new()
+  let sections = self.flow_sections(tree, styles, diagnostics, background)
+  let first = sections[0]
+  if sections.length() > 1 {
+    // shortcut: Keep edits protected until all page and table transactions resolve their section.
+    styles = {
+      ..styles,
+      paragraph: {
+        ..styles.paragraph,
+        readOnlyReason: "Multiple-section editing requires section-aware transactions",
+      },
+    }
+  } else if diagnostics.get(0) is Some(reason) {
+    styles = {
+      ..styles,
+      paragraph: { ..styles.paragraph, readOnlyReason: reason, },
     }
   }
-  let headers : Map[String, Array[@layout.Paragraph]] = Map([])
-  let footers : Map[String, Array[@layout.Paragraph]] = Map([])
-  let mut different_first = false
-  let mut different_even = false
-  let mut footer_distance = 0.0
-  let mut header_distance = 0.0
-  let mut page = default_page_setup()
-  let mut page_numbering = @layout.PageNumbering::new()
-  let mut columns = @layout.Columns::new()
   let body = tree.child(0, "body").unwrap()
-  for id in tree.order {
-    let node = tree.nodes[id]
-    if node.uri != word_uri {
-      continue
-    }
-    if node.name == "sectPr" {
-      columns = tree.page_columns(Some(id)) catch {
-        @failure.Failure(message~, ..) => {
-          diagnostics.push("unsupported-layout:columns:" + message)
-          @layout.Columns::new()
-        }
-      }
-      page_numbering = tree.page_numbering(Some(id)) catch {
-        @failure.Failure(message~, ..) => {
-          diagnostics.push("unsupported-layout:page-numbering:" + message)
-          @layout.PageNumbering::new()
-        }
-      }
-      let section_diagnostics : Array[String] = []
-      tree.diagnose_properties(id, self.main, section_diagnostics)
-      if node.parent != body {
-        section_diagnostics.push("unsupported-layout:multiple-sections")
-      }
-      if section_diagnostics.get(0) is Some(reason) {
-        styles = {
-          ..styles,
-          paragraph: { ..styles.paragraph, readOnlyReason: reason, },
-        }
-      }
-      header_distance = tree
-        .number(id, "pgMar", "header")
-        .map(v => v / 20)
-        .unwrap_or(0)
-      footer_distance = tree
-        .number(id, "pgMar", "footer")
-        .map(v => v / 20)
-        .unwrap_or(0)
-      let (section_headers, section_footers) = self.running_content(
-        tree, id, styles, diagnostics, background,
-      )
-      for key, paragraphs in section_headers {
-        headers[key] = paragraphs
-      }
-      for key, paragraphs in section_footers {
-        footers[key] = paragraphs
-      }
-      let (first, even) = self.running_options(tree, Some(id))
-      different_first = first
-      different_even = even
-      if node.parent != body {
-        diagnostics.push("unsupported-layout:multiple-sections")
-      }
-      let source_page = tree.page_values(id, page)
-      page = {
-        ..source_page,
-        width: tree
-        .number(id, "pgSz", "w")
-        .map(page_dimension)
-        .unwrap_or(page.width),
-        height: tree
-        .number(id, "pgSz", "h")
-        .map(page_dimension)
-        .unwrap_or(page.height),
-      }
-    }
-  }
   for id in tree.children[body] {
     let node = tree.nodes[id]
     if node.uri != word_uri {
@@ -207,9 +145,11 @@ fn Session::flow_from(
   {
     revision: self.revision,
     background,
-    pageBorders: page_borders,
-    page,
-    pageNumbering: page_numbering,
+    pageBorders: first.pageBorders,
+    sectionBreaks: sections[1:].to_owned(),
+    endnotesAt: endnotes_at,
+    page: first.page,
+    pageNumbering: first.pageNumbering,
     outlineLevels: outline_levels,
     bookmarks: Map::from_array(
       tree
@@ -228,20 +168,20 @@ fn Session::flow_from(
         )
       }),
     ),
-    columns,
+    columns: first.columns,
     paragraphs: paragraphs.map(p => numbered[p.id]),
     diagnostics,
     tables: tables.map(table => {
       ..table,
       rows: table.rows.map(row => row.map(cell => cell.map(p => numbered[p.id]))),
     }),
-    headers,
-    headerDistance: header_distance,
-    footers,
-    footerDistance: footer_distance,
+    headers: first.headers,
+    headerDistance: first.headerDistance,
+    footers: first.footers,
+    footerDistance: first.footerDistance,
     notes,
-    differentFirst: different_first,
-    differentEven: different_even,
+    differentFirst: first.differentFirst,
+    differentEven: first.differentEven,
     additiveSpacing: self.additive_spacing(),
   }
 }

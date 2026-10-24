@@ -494,9 +494,9 @@ export abstract class DocumentPage extends DocumentReview {
       ),
     );
   }
-  pageSetup() {
+  pageSetup(section = 0) {
     return this.review.read(() =>
-      this.review.client.pageSetup(this.review.snapshot().revision),
+      this.review.client.pageSetup(this.review.snapshot().revision, section),
     );
   }
   setPageSetup(page: DocxPageSetup): Promise<void> {
