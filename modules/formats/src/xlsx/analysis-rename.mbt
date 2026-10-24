@@ -73,7 +73,7 @@ fn Session::analysis_parts(
   let parts : Set[String] = Set([])
   let pivots = self.pivot_locations()
   for pivot in pivots {
-    ignore(self.pivot_settings(pivot, shared=true))
+    ignore(self.cached_pivot_settings(pivot))
     parts.add(pivot.part)
     parts.add(pivot.cache)
   }

@@ -153,6 +153,7 @@ export interface XlsxPivots {
     source: string | null;
     stale: boolean;
     settings: XlsxPivotSettings | null;
+    recovery?: Omit<XlsxPivotSettings, "sourceSheet">;
     reason: string;
   }[];
 }
@@ -606,6 +607,17 @@ export function xlsxPivots(value: unknown): XlsxPivots {
         settings.source !== pivot.source
       )
         throw new Error("Pivot source disagrees with settings");
+    }
+    if (pivot.recovery !== undefined) {
+      const recovery = record(pivot.recovery);
+      if (
+        pivot.settings !== null ||
+        pivot.sourceSheet !== null ||
+        "sourceSheet" in recovery ||
+        recovery.source !== pivot.source
+      )
+        throw new Error("Invalid missing-source pivot recovery");
+      checkXlsxPivotSettings({ ...recovery, sourceSheet: "recovery" });
     }
     parts.add(pivot.part);
   }

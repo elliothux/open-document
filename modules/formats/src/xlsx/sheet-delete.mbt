@@ -14,14 +14,11 @@ fn Session::prepare_sheet_delete(
   index : Int,
   parts : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
+  workbook_changes : Array[@xml.SourceChange],
+  pivot_edits : Array[String],
+  analysis_parts~ : Array[String] = [],
+  profiles~ : Session? = None,
 ) -> Map[String, @xml.Document] raise @failure.Failure {
-  let reason = self.sheet_rename_reason(
-    tables=true,
-    sparklines=true,
-    pictures=true,
-    charts=true,
-  )
-  guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let deleted = self.sheets[index]
   guard self.sheets
     .iter()
@@ -30,7 +27,17 @@ fn Session::prepare_sheet_delete(
       "invalid-sheet", "At least one visible worksheet is required",
     )
   }
-  let names = [deleted.id]
+  let names = [deleted.id, ..analysis_parts]
+  names.append(
+    self.prepare_pivot_sheet_delete(
+      deleted.id,
+      parts,
+      edits,
+      workbook_changes,
+      pivot_edits,
+      profiles~,
+    ),
+  )
   for table in self.sheet_tables() {
     if table.sheet == deleted.id {
       names.push(table.part)
@@ -119,9 +126,11 @@ fn Session::prepare_sheet_delete(
       continue
     }
     guard link.owner == self.main &&
-      [relationship_uri + "worksheet", relationship_uri + "calcChain"].contains(
-        link.kind,
-      ) else {
+      [
+        relationship_uri + "worksheet",
+        relationship_uri + "calcChain",
+        relationship_uri + "pivotCacheDefinition",
+      ].contains(link.kind) else {
       @failure.reject(
         "protected-content", "Unknown incoming worksheet resource reference",
       )

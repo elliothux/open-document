@@ -114,7 +114,7 @@ pub fn Session::filter_slicer(
   let related = self.affected_slicer_caches(cache.pivots)
   let mut work = 0
   for pivot in cache.pivots {
-    let (settings, records) = candidate.pivot_settings(pivot, shared=true)
+    let (settings, records) = candidate.cached_pivot_settings(pivot)
     guard cache.field < settings.validate().right - settings.validate().left + 1 else {
       @failure.reject(
         "protected-content", "Slicer source field is outside the source range",

@@ -36,7 +36,13 @@ fn Session::refresh_shared_pivot(
       "limit-exceeded", "Shared pivot refresh exceeds connection budget",
     )
   }
-  let contexts = pivots.map(pivot => self.pivot_settings(pivot, shared=true))
+  let contexts = pivots.map(pivot => {
+    self.pivot_settings(
+      pivot,
+      shared=true,
+      source_sheet=replacement.map(settings => settings.sourceSheet),
+    )
+  })
   let old = Tree::new(self.part_xml(target.cache))
   let fields = old
     .all(old.one(0, "cacheFields").unwrap().id, "cacheField")

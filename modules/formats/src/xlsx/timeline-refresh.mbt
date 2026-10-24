@@ -210,7 +210,13 @@ fn Session::timeline_refresh_group(
   timelines : Array[TimelineCache],
   replacement~ : (String, PivotSettings)? = None,
 ) -> (PivotCache, Array[PivotSettings], String) raise @failure.Failure {
-  let contexts = pivots.map(pivot => self.pivot_settings(pivot, shared=true))
+  let contexts = pivots.map(pivot => {
+    self.pivot_settings(
+      pivot,
+      shared=true,
+      source_sheet=replacement.map(pair => pair.1.sourceSheet),
+    )
+  })
   let original_range = contexts[0].0.validate()
   let source_width = original_range.right - original_range.left + 1
   let tree = Tree::new(self.part_xml(pivots[0].cache))

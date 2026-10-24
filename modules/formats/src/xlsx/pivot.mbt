@@ -150,6 +150,19 @@ pub fn Session::pivots(
         "settings": settings.map(value => Json(value)).unwrap_or(Json::null()),
         "reason": reason,
       }
+      if settings is None &&
+        pivot.sourceSheet is None &&
+        pivot.source is Some(_) {
+        let recovery = Json(
+          self.pivot_settings(pivot, shared=true, source_sheet=Some(sheet)).0,
+        ) catch {
+          @failure.Failure(..) => Json::null()
+        }
+        if (item, recovery) is (Object(fields), Object(recovery)) {
+          recovery.remove("sourceSheet") |> ignore
+          fields["recovery"] = Json(recovery)
+        }
+      }
       item
     })
   { "revision": revision, "items": items }

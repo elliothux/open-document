@@ -1,73 +1,4 @@
 ///|
-pub(all) enum SheetEdit {
-  Add
-  Copy
-  Delete
-  Move(Int)
-  Visibility(String)
-  Rename(String)
-  RowHeight(Int, Int, Double)
-  ColumnWidth(Int, Int, Double)
-  GroupOutline(String, Int, Int, Bool)
-  CollapseOutline(String, Int, Int, Int, Bool)
-  ClearOutline(String)
-  OutlineSummary(String, Bool)
-  RenameTable(Int, String)
-  CreateTable(String, String)
-  ResizeTable(Int, String)
-  TableColumnFormula(Int, Int, String?)
-  TableTotals(Int, Bool)
-  TableStyle(Int, TableStyleSettings)
-  TableStyleDefinition(String?, String, Array[TableStyleElement])
-  DeleteTableStyle(String, String?)
-  TableColumnTotal(Int, Int, TableTotal)
-  TableFilter(Int, Array[FilterColumn])
-  TableFilterClear(Int)
-  TableFilterRemove(Int)
-  TableFilterReapply(Int)
-  RenameTableColumn(Int, Int, String)
-  InsertRows(Int, Int)
-  DeleteRows(Int, Int)
-  InsertColumns(Int, Int)
-  DeleteColumns(Int, Int)
-  InsertCells(String, String)
-  DeleteCells(String, String)
-  MoveCells(String, String, String)
-  Fill(String, String)
-  Series(SeriesMode, String, String, String)
-  Sort(String, SortSettings)
-  RemoveDuplicates(DuplicateSettings, Int)
-  TextToColumns(TextColumnSettings, Int, Bool)
-  SetFilter(FilterSettings)
-  ClearFilter
-  RemoveFilter
-  ReapplyFilter
-  Merge(String, Bool)
-  Unmerge(String)
-  Freeze(Int, Int)
-  View(ViewSettings)
-  SetName(NameSettings)
-  DeleteName(String, String?)
-  SelectName(String, String?)
-  PageSetup(PrintSetup)
-  PrintRange(PrintRange)
-  HeaderFooter(HeaderFooter)
-  Validation(String, DataValidation?)
-  ValidationValue(Int, Int)
-  ConditionalRule(String, Int?, ConditionalFormat?, Int)
-  ConditionalPriority(Int, Int, Int)
-  Sparkline(String, String?, String)
-  Hyperlink(String, String?)
-  OpenHyperlink(String, Int)
-  Note(String, String?, String)
-  DrawingOrder(String, String)
-  DuplicateDrawing(String)
-  MoveDrawing(String, String)
-  Protection(Bool, String, Bytes)
-  WorkbookProtection(Bool, String, Bytes)
-}
-
-///|
 fn Session::ordered_sheets(
   self : Session,
   workbook : @xml.Document,
@@ -336,22 +267,45 @@ fn Session::edit_sheet_current(
     Rename(name) => return self.rename_sheet(self.sheet_index(sheet), name)
     _ => ()
   }
-  let reason = self.sheet_edit_reason()
+  let reason = self.sheet_edit_reason(analysis=change is Delete)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let index = self.sheet_index(sheet)
-  let tree = Tree::new(self.workbook)
+  let context = {
+    ..self,
+    parts: self.parts.copy(),
+    sheets: self.sheets.copy(),
+    removed: self.removed.copy(),
+  }
+  let edits : Array[(String, @xml.Edit)] = []
+  let removed : Map[String, @xml.Document] = Map([])
+  let analysis_parts = if change is Delete {
+    let reason = self.sheet_rename_reason(
+      tables=true,
+      pivots=true,
+      sparklines=true,
+      pictures=true,
+      charts=true,
+      analysis=true,
+    )
+    guard reason.is_empty() else {
+      @failure.reject("protected-content", reason)
+    }
+    context.prepare_analysis_sheet_delete(sheet, edits, removed)
+  } else {
+    []
+  }
+  let tree = Tree::new(context.workbook)
   let root = tree.root("workbook")
   let parent = tree.one(root.id, "sheets").unwrap()
   let nodes = tree.all(parent.id, "sheet")
   let node = nodes[index]
   let changes : Array[@xml.SourceChange] = []
-  let sheets = self.sheets.copy()
-  let parts = self.parts.copy()
-  let edits : Array[(String, @xml.Edit)] = []
+  let sheets = context.sheets.copy()
+  let parts = context.parts
+  let pivot_edits : Array[String] = []
   let mut created : Sheet? = None
   let created_parts : Map[String, @xml.Document] = Map([])
   let mut deleted : Sheet? = None
-  let mut removed : Map[String, @xml.Document] = Map([])
   let mut next_sheet = self.next_sheet
   match change {
     RowHeight(_, _, _)
@@ -415,19 +369,30 @@ fn Session::edit_sheet_current(
     | ConditionalPriority(_, _, _)
     | Rename(_) => abort("Dimension edit was dispatched")
     Delete => {
-      removed = self.prepare_sheet_delete(index, parts, edits)
-      self.sheet_chart_references(
+      context.sheet_chart_references(
         self.sheets[index].name,
         None,
         parts,
         edits,
         deleted=Some(sheet),
       )
+      let deleted_parts = context.prepare_sheet_delete(
+        index,
+        parts,
+        edits,
+        changes,
+        pivot_edits,
+        analysis_parts~,
+        profiles=Some(self),
+      )
+      for path, document in deleted_parts {
+        removed[path] = document
+      }
       deleted = Some(sheets.remove(index))
       changes.push(sheet_node_removal(tree, node))
       changes.append(
         sheet_reference_changes(
-          self.workbook,
+          context.workbook,
           self.sheets[index].name,
           None,
           deleted_scope=Some(index),
@@ -458,6 +423,7 @@ fn Session::edit_sheet_current(
       let copy = if change is Copy {
         let reason = self.sheet_rename_reason(
           tables=true,
+          pivots=true,
           sparklines=true,
           pictures=true,
           charts=true,
@@ -545,7 +511,7 @@ fn Session::edit_sheet_current(
         node: parent.id,
         offset: offset - parent.start,
         length: 0,
-        xml: self.workbook.source()[node.start:node.end].to_owned(),
+        xml: context.workbook.source()[node.start:node.end].to_owned(),
       })
       let moved = sheets.remove(index)
       sheets.insert(target, moved)
@@ -648,7 +614,7 @@ fn Session::edit_sheet_current(
       },
     )
   }
-  let (workbook, edit) = self.workbook.edit_source(changes)
+  let (workbook, edit) = context.workbook.edit_source(changes)
   let mut workbook = workbook
   edits.push((self.main, edit))
   let table_edits = if change is Delete {
@@ -744,6 +710,7 @@ fn Session::edit_sheet_current(
     deleted~,
     removed~,
     table_edits~,
+    pivot_edits~,
   )
   self.next_sheet = next_sheet
   self.query()

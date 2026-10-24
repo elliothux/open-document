@@ -14,6 +14,9 @@ fn Session::maintain_pivots(
   }
   let mut work = 0
   for pivot in pivots {
+    if edited.contains(pivot.part) {
+      continue
+    }
     let before = self.sheets[self.sheet_index(pivot.sheet)]
     guard sheets.iter().find_first(sheet => sheet.id == pivot.sheet)
       is Some(after) else {
@@ -72,9 +75,6 @@ fn Session::maintain_pivots(
         }
       }
     }
-    if edited.contains(pivot.part) {
-      continue
-    }
     let mut changed = false
     if pivot.sourceSheet is Some(source) && pivot.source is Some(range) {
       let old_index = self.sheet_index(source)
@@ -119,6 +119,16 @@ fn Session::maintain_pivots(
       }
     }
     if pivot.sourceSheet is None || pivot.source is None {
+      if pivot.sourceSheet is None && pivot.source is Some(_) {
+        ignore(
+          self.pivot_settings(
+            pivot,
+            shared=true,
+            source_sheet=Some(pivot.sheet),
+          ),
+        )
+        continue
+      }
       for original in self.sheets {
         guard sheets.iter().find_first(sheet => sheet.id == original.id)
           is Some(candidate) else {

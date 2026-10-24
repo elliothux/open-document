@@ -88,11 +88,7 @@ export function XlsxSheets({
         </button>
         <button
           type="button"
-          disabled={
-            visible.length <= 1 ||
-            !!query.sheetDeleteReason ||
-            !!query.sheetEditReason
-          }
+          disabled={visible.length <= 1 || !!query.sheetDeleteReason}
           onClick={() =>
             controller.run(() => editor.editSheet({ action: "delete" }))
           }

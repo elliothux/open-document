@@ -1577,11 +1577,25 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 核心复用公式词法分析，仅替换 `!` 前匹配旧名称的标记。新引用使用单引号包围名称，并转义名称内的单引号。更新范围包括单元格公式、定义名称、既有条件格式/数据验证公式和内部超链接 `location`；带关系 ID 的外部链接保留其目标内位置。字符串常量、共享公式组与源格式保持不变；事务重建计算并沿既有计算元数据规则保存，撤销恢复原部件字节。规则呈现与编辑范围分别归[条件格式](#条件格式)和[数据验证](#数据验证)。
 
-受支持原生透视表、切片器和时间线的源表及报表也可改名，支持共享结果缓存、独立日期缓存及仍在目录中声明的未使用普通缓存。核心先核对缓存、视图和连接，再更新普通及独立日期缓存的 `worksheetSource@sheet`；缓存记录、成员状态、日期选区、无效标志及待刷新源值保持。改名不刷新报表，保存重开后仍可筛选并显式协调刷新。OPC 路径、sheetId/tabId、对象与缓存身份、单元格及绘图选择沿一次精确历史保留。未知扩展、不支持的透视源、冲突引用、结构保护和超限继续原子拒绝。实现归 [`analysis-rename.mbt`](../../modules/formats/src/xlsx/analysis-rename.mbt)与[原改名事务](../../modules/formats/src/xlsx/sheet-rename.mbt)，来源绑定依据 [ONLYOFFICE WorksheetSource](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L14895-L14920)。含分析资源的整行插删及完整数据源/报表的整列平移归[行列插入与删除](#行列插入与删除)；改变源字段数量的列操作、局部单元格结构、工作表复制与删除继续实施。
+受支持原生透视表、切片器和时间线的源表及报表也可改名，支持共享结果缓存、独立日期缓存及仍在目录中声明的未使用普通缓存。核心先核对缓存、视图和连接，再更新普通及独立日期缓存的 `worksheetSource@sheet`；缓存记录、成员状态、日期选区、无效标志及待刷新源值保持。改名不刷新报表，保存重开后仍可筛选并显式协调刷新。OPC 路径、sheetId/tabId、对象与缓存身份、单元格及绘图选择沿一次精确历史保留。未知扩展、不支持的透视源、冲突引用、结构保护和超限继续原子拒绝。实现归 [`analysis-rename.mbt`](../../modules/formats/src/xlsx/analysis-rename.mbt)与[原改名事务](../../modules/formats/src/xlsx/sheet-rename.mbt)，来源绑定依据 [ONLYOFFICE WorksheetSource](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L14895-L14920)。含分析资源的整行插删及完整数据源/报表的整列平移归[行列插入与删除](#行列插入与删除)；改变源字段数量的列操作、局部单元格结构及带控件的工作表复制继续实施。
 
 `{ action: "delete" }` 删除指定表，至少保留一张可见表。删除活动表时优先选择右侧可见表，再向左查找，定位 A1；删除其他表保留活动表与范围。同步剩余名称的 `localSheetId`、工作簿窗口及工作表视图；移除被删表的局部名称。将指向该表的已支持单元格/区域引用整体替换为 `#REF!`，覆盖单元格公式、保留的定义名称和既有条件格式/数据验证公式；移除指向它的内部超链接，保留外部链接及字符串常量。共享公式组继续保存为共享组，失去目标的错误参与依赖计算和缓存写回。核心现可解析七种标准公式错误常量，保留错误传播和 IF 的按需求值规则。引用错误在网格和 PDF 中使用同一结果。
 
 `{ action: "copy" }` 在目标表后复制，分配新的 sheetId、部件及关系身份。名称从 `原名 (1)` 起避让重名，长度不超过 31 个 UTF-16 单元且不切断代理对。副本保留内容、格式、尺寸和可见性，更新自身显式引用与复制的局部名称；其他表的引用及字符串常量不变。已有普通便笺及对应 VML 复制为独立部件，清除副本的可选 guid/shapeId，源便笺不变；外部链接只保留地址。可见副本激活 A1，隐藏副本保留当前选择。副本部件和元数据使用同一有界历史，失败不修改文档。[结构化表](#结构化表与引用)和[普通图片](#工作表图片)同时建立各自独立部件；复杂绘图、非便笺 VML、线程批注及未知身份扩展仍受保护。便笺范围归[单元格便笺](#单元格便笺)。
+
+普通透视表已随 `copy` 复制为独立定义和关系部件，名称用 `原名_1` 起避让重名。原生 cacheId、缓存定义/记录和数据源继续共享，即使源数据与报表位于同一张被复制的工作表，也保留原表数据来源。复制不刷新旧缓存或待刷新源值；副本的数据格可独立修改，只有原数据源变化才使共享报表待刷新。显式刷新沿既有协调事务更新各报表，保留其独立字段设置。多报表复制分别保留各自的缓存图，删除单个报表继续保留其他拥有者的缓存。
+
+定义、关系、内容类型、选择及工作表内容合为一项精确历史，保存重开后可继续输入和刷新。复制后全文最多 16 个透视报表，沿用每个源部件 2 MiB、历史 4 MiB 和包预算；扩展定义、异常关系、切片器/时间线连接图仍保持复制保护。实现归 [pivot-sheet-copy.mbt](../../modules/formats/src/xlsx/pivot-sheet-copy.mbt)，共享语义依据 [ONLYOFFICE 工作表透视复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L7246-L7252)及 [cloneShallow](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L3553-L3559)。未复制上游执行代码。
+
+普通透视报表已随 `delete` 删除。独立定义和关系同步移除；仍被其他报表使用的缓存保留，最后一个拥有者删除时回收缓存定义、记录、关系、内容类型及工作簿目录。多报表与多缓存一次校验和提交，复用单个透视表删除的资源归属检查。删除源数据表时保留其他报表的已有结果、缓存记录及原来源名称/范围，标记待刷新；不把缓存数据改写成新工作表。
+
+缺失来源的报表仍可保存、输出缓存 PDF，以及继续范围外输入和复制。目录返回 `sourceSheet:null/settings:null` 和原因；通过原生字段与缓存校验时，另附 `recovery`，类型为 `Omit<XlsxPivotSettings,"sourceSheet">`。该对象只包含已验证的旧字段设置和范围，不提供推测的来源身份。默认字段面板要求显式选择现有工作表后预览和应用；既有 `updatePivot` 校验列身份、重建缓存，并协调更新同缓存的全部报表，保留各自字段布局。直接刷新保持禁用，失败保留文档与重做。单个缺失来源报表也可显式删除。
+
+删除、资源回收和来源失效共用工作表事务的选择、公式引用及精确历史；显式改源沿既有透视事务，保存重开后继续使用。外部来源、未知缓存及异常归属仍保持整表删除保护。资源归 [pivot-delete-parts.mbt](../../modules/formats/src/xlsx/pivot-delete-parts.mbt)，批量缓存目录归 [pivot-delete-cache.mbt](../../modules/formats/src/xlsx/pivot-delete-cache.mbt)，整表计划归 [pivot-sheet-delete.mbt](../../modules/formats/src/xlsx/pivot-sheet-delete.mbt)，恢复读取归 [pivot.mbt](../../modules/formats/src/xlsx/pivot.mbt)和[pivot-refresh.mbt](../../modules/formats/src/xlsx/pivot-refresh.mbt)。原生来源属性与未解析位置依据 [ONLYOFFICE 来源序列化](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L14809-L14849)及[来源属性更新](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L14895-L14931)。未复制上游执行代码。
+
+带受支持切片器和时间线的工作表也可删除。核心在候选事务中断开该表报表连接，移除本表控件视图；其他报表继续使用的共享缓存保留。最后报表拥有者删除时，沿已有单表删除路径清理远端控件及独占切片、时间线和日期缓存资源。后续远端资源校验失败时，整次删除保留文档、选择、revision 和重做；不提前提交已通过的清理。
+
+删除源表后，现有切片器和时间线仍按原生缓存记录筛选，可清除成员及日期条件，保留已有报表布局、原来源名称/范围和缓存记录。普通结果缓存、独立日期缓存及目录中的未使用来源缓存同步标记失效。默认字段面板可显式选新来源，沿已有协调刷新重新绑定各报表；缓存筛选不将剩余报表当作实时来源。缺失来源期间，带连接图的复制继续保护。实现归 [analysis-sheet-delete.mbt](../../modules/formats/src/xlsx/analysis-sheet-delete.mbt)和[cached pivot](../../modules/formats/src/xlsx/pivot-cached.mbt)，复用既有切片器/时间线删除与刷新。
 
 删除移除工作表 XML、其关系、失效 calcChain 及其关系，以及独占的普通便笺 XML/VML、结构化表和普通图片绘图 XML/关系，更新工作簿关系和内容类型。其余源资源及可能共享的图片字节保留，不回收共享字符串条目或重排字符串索引；保存更新使用计数并沿现有规则标记重算。删除部件快照、引用、缓存和选择共同提交一项有界历史，可与新增、输入和改名精确混合撤销/重做；损坏回放或预算失败保留已提交文档。选择与错误引用规则参考 [ONLYOFFICE 删除工作表](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L4122-L4188)和[引用转换](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L10419-L10455)。
 

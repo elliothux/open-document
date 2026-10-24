@@ -189,7 +189,7 @@ fn Session::apply_timeline_filter(
   let contexts : Map[String, (PivotSettings, PivotCache)] = Map([])
   let mut work = 0
   for (pivot, field) in cache.connections {
-    let (settings, records) = candidate.pivot_settings(pivot, shared=true)
+    let (settings, records) = candidate.cached_pivot_settings(pivot)
     guard !settings.numberGroups.any(group => group.field == field) else {
       @failure.reject(
         "protected-content", "Timeline fields cannot use numeric grouping",

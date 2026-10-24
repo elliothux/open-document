@@ -3,6 +3,7 @@ fn Session::pivot_settings(
   self : Session,
   pivot : PivotLocation,
   shared~ : Bool = false,
+  source_sheet~ : String? = None,
 ) -> (PivotSettings, String) raise @failure.Failure {
   let document = self.part_xml(pivot.part)
   pivot_plain_source(document)
@@ -32,12 +33,21 @@ fn Session::pivot_settings(
   guard flag(root, "rowGrandTotals", fallback=true) &&
     !flag(root, "compact", fallback=true) &&
     !flag(root, "outline") &&
-    pivot.sourceSheet is Some(source_sheet) &&
     pivot.source is Some(source) else {
     @failure.reject(
       "protected-content", "Pivot layout or source requires additional editing support",
     )
   }
+  let resolved_source = match pivot.sourceSheet {
+    Some(sheet) => Some(sheet)
+    None => source_sheet
+  }
+  guard resolved_source is Some(source_sheet) else {
+    @failure.reject(
+      "protected-content", "Pivot source worksheet is missing; select a new source",
+    )
+  }
+  ignore(self.sheet_index(source_sheet))
   let native_rows = tree
     .one(root.id, "rowFields")
     .map(node => {
@@ -532,6 +542,11 @@ fn Session::prepare_pivot(
   let (original_settings, records) = self.pivot_settings(
     pivot,
     shared=cached is Some(_),
+    source_sheet=if cached is Some(_) {
+      Some(pivot.sheet)
+    } else {
+      replacement.map(settings => settings.sourceSheet)
+    },
   )
   let settings = replacement.unwrap_or(original_settings)
   let cache = match cached {

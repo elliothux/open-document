@@ -347,6 +347,7 @@ fn Session::copied_sheet_parts(
     )
   }
   self.copy_sheet_charts(source, target, number, created, remapped, types)
+  self.copy_sheet_pivots(source, number, created, remapped, types)
   self.copy_sheet_pictures(source, number, created, remapped, types)
   let tables = self.copy_sheet_tables(
     source, target, number, created, remapped, types,

@@ -61,6 +61,7 @@ fn Session::remove_pivot_slicers(
   caches : Array[SlicerCache],
   edits : Array[(String, @xml.Edit)],
   removed : Map[String, @xml.Document],
+  deleted_sheet~ : String? = None,
 ) -> Unit raise @failure.Failure {
   let dead = caches.filter(cache => {
     cache.pivots.length() == 1 && cache.pivots[0].part == pivot.part
@@ -70,6 +71,9 @@ fn Session::remove_pivot_slicers(
   if !dead.is_empty() {
     // Inspect only native view identities here; unrelated unsupported caches remain opaque.
     for sheet in self.sheets {
+      if deleted_sheet == Some(sheet.id) {
+        continue
+      }
       for
         path in self.slicer_parts(
           sheet.id,
@@ -151,7 +155,7 @@ fn Session::remove_pivot_slicers(
       self.parts[cache.part] = document
       edits.push((cache.part, edit))
       let last = remaining.last().unwrap()
-      let (settings, records) = self.pivot_settings(last, shared=true)
+      let (settings, records) = self.cached_pivot_settings(last)
       self.sync_slicer_state(
         { ..cache, pivots: remaining, },
         settings,

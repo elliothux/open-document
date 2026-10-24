@@ -550,8 +550,29 @@ pub fn Session::query(
         analysis=true,
       )
     },
-    "sheetCopyReason": reference_reason,
-    "sheetDeleteReason": reference_reason,
+    "sheetCopyReason": if reference_reason.is_empty() {
+      ""
+    } else {
+      self.sheet_rename_reason(
+        tables=true,
+        pivots=true,
+        sparklines=true,
+        pictures=true,
+        charts=true,
+      )
+    },
+    "sheetDeleteReason": if reference_reason.is_empty() {
+      ""
+    } else {
+      self.sheet_rename_reason(
+        tables=true,
+        pivots=true,
+        sparklines=true,
+        pictures=true,
+        charts=true,
+        analysis=true,
+      )
+    },
     "frozen": {
       "rows": current.frozen.rows,
       "columns": current.frozen.columns,

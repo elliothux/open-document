@@ -5,6 +5,7 @@ fn Session::remove_pivot_timelines(
   caches : Array[TimelineCache],
   edits : Array[(String, @xml.Edit)],
   removed : Map[String, @xml.Document],
+  deleted_sheet~ : String? = None,
 ) -> Unit raise @failure.Failure {
   if caches.is_empty() {
     return
@@ -17,6 +18,9 @@ fn Session::remove_pivot_timelines(
   let mut units = 0
   if !dead.is_empty() {
     for sheet in self.sheets {
+      if deleted_sheet == Some(sheet.id) {
+        continue
+      }
       for
         part in self.timeline_parts(
           sheet.id,

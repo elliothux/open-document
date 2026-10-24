@@ -152,6 +152,7 @@ export function XlsxPivotsPanel({
           value={sourceSheet}
           onChange={(event) => setSourceSheet(event.currentTarget.value)}
         >
+          <option value="">{t.choose}</option>
           {query.sheets.map((sheet) => (
             <option key={sheet.id} value={sheet.id}>
               {sheet.name}
@@ -588,29 +589,33 @@ export function XlsxPivotsPanel({
               {pivot.reason && <p>{pivot.reason}</p>}
               <button
                 type="button"
-                disabled={!current || !pivot.settings}
+                disabled={!current || (!pivot.settings && !pivot.recovery)}
                 onClick={() => {
-                  if (!pivot.settings) return;
+                  const settings =
+                    pivot.settings ??
+                    (pivot.recovery
+                      ? {
+                          ...pivot.recovery,
+                          sourceSheet: "",
+                        }
+                      : undefined);
+                  if (!settings) return;
                   setEditing(pivot.part);
                   setName(pivot.name);
                   setDestination(pivot.range.split(":")[0]!);
-                  setSourceSheet(pivot.settings.sourceSheet);
-                  setSource(pivot.settings.source);
-                  setRows(
-                    pivot.settings.rows.map((field) => field + 1).join(","),
-                  );
+                  setSourceSheet(settings.sourceSheet);
+                  setSource(settings.source);
+                  setRows(settings.rows.map((field) => field + 1).join(","));
                   setColumns(
-                    pivot.settings.columns.map((field) => field + 1).join(","),
+                    settings.columns.map((field) => field + 1).join(","),
                   );
-                  setFilters(pivot.settings.filters);
-                  setNumberGroups(pivot.settings.numberGroups);
-                  setDateGroups(pivot.settings.dateGroups);
+                  setFilters(settings.filters);
+                  setNumberGroups(settings.numberGroups);
+                  setDateGroups(settings.dateGroups);
                   setSubtotals(
-                    pivot.settings.subtotals
-                      .map((field) => field + 1)
-                      .join(","),
+                    settings.subtotals.map((field) => field + 1).join(","),
                   );
-                  setValues(pivot.settings.values);
+                  setValues(settings.values);
                   setPreview(undefined);
                 }}
               >
@@ -633,7 +638,7 @@ export function XlsxPivotsPanel({
               </button>
               <button
                 type="button"
-                disabled={!current || !!pivot.reason}
+                disabled={!current || (!pivot.settings && !pivot.recovery)}
                 onClick={() =>
                   controller.run(async () => {
                     await editor.editSheet({

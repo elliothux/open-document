@@ -1,5 +1,26 @@
 ///|
 // Filtering keeps native cache indices and pending source edits until explicit refresh.
+fn Session::cached_pivot_settings(
+  self : Session,
+  pivot : PivotLocation,
+) -> (PivotSettings, String) raise @failure.Failure {
+  let (settings, records) = self.pivot_settings(
+    pivot,
+    shared=true,
+    source_sheet=Some(pivot.sheet),
+  )
+  // Empty source identity is internal to cached operations and is never a live input source.
+  (
+    if pivot.sourceSheet is None {
+      { ..settings, sourceSheet: "", }
+    } else {
+      settings
+    },
+    records,
+  )
+}
+
+///|
 fn Session::cached_pivot(
   self : Session,
   pivot : PivotLocation,
@@ -16,7 +37,11 @@ fn Session::cached_pivot(
   let items : Array[Array[Value]] = []
   let styles : Array[Array[Int]] = []
   let maps : Array[Map[String, Int]] = []
-  let source = self.sheets[self.sheet_index(settings.sourceSheet)]
+  let source = if settings.sourceSheet.is_empty() {
+    None
+  } else {
+    Some(self.sheets[self.sheet_index(settings.sourceSheet)])
+  }
   let mut units = 0
   for index, field in fields {
     let entries = tree
@@ -51,7 +76,7 @@ fn Session::cached_pivot(
     }
     let formats = values.map(_ => 0)
     let formatted : Map[Int, Bool] = Map([])
-    if index < width {
+    if index < width && source is Some(source) {
       for row in (range.top + 1)..<=range.bottom {
         let address : Address = { row, column: range.left + index, }
         if source.cells.get(address.name()) is Some(cell) &&

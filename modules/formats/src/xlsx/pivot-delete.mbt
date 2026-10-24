@@ -31,7 +31,6 @@ pub fn Session::delete_pivot(
     @failure.reject("limit-exceeded", "Pivot deletion exceeds output budget")
   }
   let timelines = self.affected_timeline_caches([pivot])
-  let (_, records) = self.pivot_settings(pivot, shared=true)
   let related = self.deletion_slicer_caches(pivot)
   let shared = self
     .pivot_locations()
@@ -45,51 +44,7 @@ pub fn Session::delete_pivot(
     )
   }
   let links = self.relationships()
-  let owned = if shared { [part] } else { [part, pivot.cache, records] }
-  let paths = owned.copy()
-  for owner in owned {
-    let path = workbook_relations(owner)
-    if self.parts.contains(path) || self.opc.names.contains(path.to_lower()) {
-      paths.push(self.opc.names.get(path.to_lower()).unwrap_or(path))
-    }
-  }
-  // Incoming links outside this ownership graph can include slicers or timelines.
-  for link in links {
-    if owned.contains(link.owner) {
-      guard !link.external &&
-        (
-          (
-            link.owner == part &&
-            link.kind == relationship_uri + "pivotCacheDefinition" &&
-            link.target == pivot.cache
-          ) ||
-          (
-            link.owner == pivot.cache &&
-            link.kind == relationship_uri + "pivotCacheRecords" &&
-            link.target == records
-          )
-        ) else {
-        @failure.reject(
-          "protected-content", "Unknown outgoing pivot resource requires deletion support",
-        )
-      }
-    } else if !link.external && paths.contains(link.target) {
-      guard (
-          link.owner == sheet &&
-          link.target == part &&
-          link.kind == relationship_uri + "pivotTable"
-        ) ||
-        (
-          link.owner == self.main &&
-          link.target == pivot.cache &&
-          link.kind == relationship_uri + "pivotCacheDefinition"
-        ) else {
-        @failure.reject(
-          "protected-content", "Shared or linked pivot resources require coordinated deletion",
-        )
-      }
-    }
-  }
+  let (owned, paths) = self.pivot_deletion_parts([pivot])
   let updates : Map[String, CellContent] = Map([])
   let indices : Map[String, Int] = Map([])
   let (normal, styles, style_edits) = self.normal_style()
