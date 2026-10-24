@@ -49,7 +49,7 @@ fn Pagination::body_field_values(
                 "unsupported-layout:repeated-relative-page-reference",
               )
             }
-          } else if code.has_prefix("REF:") {
+          } else if code.has_prefix("REF:") || code.has_prefix("CITATION:") {
             values[key] = run.text
           } else if fixed_values.get(key) is Some(text) {
             values[key] = text

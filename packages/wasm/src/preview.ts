@@ -9,6 +9,7 @@ import {
   type DocxPageBorders,
 } from "./docx-format.js";
 import { record } from "./validation.js";
+import { checkDocxSpanField } from "./preview-fields.js";
 import { checkDocxSections, type DocxSectionBreak } from "./docx-sections.js";
 export type { DocxSectionBreak } from "./docx-sections.js";
 import {
@@ -75,6 +76,7 @@ export interface DocxFlow {
         | `REF:${string}`
         | `NOTEREF:${string}`
         | `SEQ:${string}`
+        | `CITATION:${string}`
         | `NOTE:${"footnote" | "endnote"}:${string}`
         | `${"PAGE" | "NUMPAGES"}:${"decimal" | "decimalZero" | "lowerLetter" | "upperLetter" | "lowerRoman" | "upperRoman"}`;
     }[];
@@ -435,27 +437,7 @@ export function docxFlow(value: unknown): DocxFlow {
       throw new Error("Text box lists and page breaks require support");
     for (const value of entries(paragraph.spans)) {
       const span = fields(value, ["node"], ["text", "field"]);
-      const noteField =
-        typeof span.field === "string" &&
-        /^NOTE:(?:footnote|endnote):[0-9]+$/u.test(span.field) &&
-        span.field.split(":")[2] === String(Number(span.field.split(":")[2])) &&
-        Number(span.field.split(":")[2]) <= 2147483647;
-      if (
-        typeof span.field !== "string" ||
-        !/^(?:(?:PAGE|NUMPAGES)(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?|PAGEREF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::hyperlink)?(?::relative)?|NOTEREF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::superscript)?(?::hyperlink)?(?::relative)?|REF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::(?:number|numberRelative|numberFull))?(?::hyperlink)?(?::relative)?(?::separator=[^\p{Cc}\p{Zl}\p{Zp}]{1,32})?|STYLEREF:[1-9]|SEQ:[_\p{ID_Start}][_\p{ID_Continue}]{0,39}(?::(?:decimal|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::(?:repeat|restart=[0-9]{1,10}))?(?::heading=[1-9])?(?::hidden)?)?$/u.test(
-          noteField ? "" : span.field,
-        ) ||
-        (span.field.startsWith("SEQ:") &&
-          (span.field.split(":")[1]!.length > 40 ||
-            Number(span.field.split("restart=")[1]?.split(":")[0] ?? 0) >
-              2147483647 ||
-            (span.field.endsWith(":hidden") &&
-              /^SEQ:[^:]+:(?:decimal|lowerLetter|upperLetter|lowerRoman|upperRoman):/u.test(
-                span.field,
-              )))) ||
-        (span.field !== "" && span.drawing !== null)
-      )
-        throw new Error("Invalid running field");
+      checkDocxSpanField(span);
       const style = fields(
         span.style,
         ["size", "spacing"],

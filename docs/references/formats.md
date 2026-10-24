@@ -863,6 +863,44 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 已知 `INDEX` 指令接受单栏 `\c 1` 和最多五字符的 `\e` 分隔符；无显式分隔符时使用逗号及空格，新建索引显式使用制表符。其他开关、自动更新、富文本条目、跨段 XE、语言专用排序、索引内部光标和完整导入变体仍待实现。读取归 [`index-read.mbt`](../../modules/formats/src/docx/index-read.mbt)，条目与范围事务归 [`index-edit.mbt`](../../modules/formats/src/docx/index-edit.mbt)，排序/页码归 [`index-source.mbt`](../../modules/formats/src/docx/index-source.mbt)，索引结果复用 [`toc-edit.mbt`](../../modules/formats/src/docx/toc-edit.mbt)，传输归 [`docx-index.ts`](../../packages/wasm/src/docx-index.ts)，界面归 [`docx-index.tsx`](../../packages/ui/src/docx-index.tsx)。原生导出参考 [LibreOffice INDEX](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/filter/ww8/ww8atr.cxx#L2385-L2427)，术语层级和重复页规则参考 [Microsoft 创建索引](https://support.microsoft.com/en-us/word/create-and-update-an-index)，分隔符参考 [INDEX 指令](https://support.microsoft.com/en-us/word/field-codes-index-field)。未复制上游执行代码。
 
+### DOCX 资料来源
+
+默认“资料来源”面板支持新增、修改和删除文档来源。`DocumentEditor.sources()` 返回附带 `documentId` 的 `DocxSources`；`createSource(source)` 和 `editSource(catalog, change)` 沿同一编辑队列操作。同步/Worker 使用 `sources(revision)`、`editSource(revision, change)`；原生入口为 `Session::bibliography_sources` 与 `edit_bibliography_source`。命令接受 `create/update` 加 `source`，或 `delete` 加 `tag`。来源含必填七个字符串字段 `tag/kind/author/title/year/publisher/url`；标题非空，其余展示字段可为空。
+
+`kind` 支持 `Book/JournalArticle/InternetSite/Report/Misc`。标签区分大小写，长度为 1–64 个 UTF-16 单元，首尾无空白，排除引号及反斜线；作者、标题、年份、出版商和网址分别上限 1024、1024、32、512、2048。所有字段校验 XML 文字、控制字符和完整 Unicode。作者按“姓, 名”写入一个原生 Person；已有 Corporate 保持机构作者。期刊名称对应 `JournalName`，网站名称对应 `InternetSiteTitle`，其他类型对应 `Publisher`；网址仅保存文字，不发起网络请求。
+
+核心使用主文档内部 customXml 关系指向的原生 `b:Sources`，读取 2006 标准和 2004 旧命名空间。首次创建同时分配数据、itemProps、关系及内容类型，避开已有部件和 datastore 身份；这些资源与来源记录共用一项精确历史。修改只替换已改变的已知字段，保留根样式、GUID/LCID、其他记录、编辑者、卷期和页码等未改源。多作者、扩展姓名、注释及未知作者数据单独保护作者字段，仍可修改标题等其他字段；未知来源类型保持只读。标签作为稳定身份，修改时保持。
+
+删除前扫描全部 Word 内容类型部件中的简单、分段复杂 `CITATION` 及 `\m` 合并标签；已引用或无法确认引用归属时拒绝删除。目录逐项返回 `reason/authorReason/deleteReason`。共享或多份来源表、重复标签及未知拥有关系保持保护；最多 512 条来源、64 条 customXml 关系和 32768 个来源 XML 节点，引用扫描最多 1048576 节点、32 层域和 1024 单元指令，另受既有包和历史预算约束。查询及无变化修改不新增历史。来源编辑保留正文、选择和待输入格式，保存不刷新引文缓存。Web 拒绝旧目录和重复标签后可继续编辑。
+
+引文归[DOCX 引文](#docx-引文)，书目归[DOCX 书目](#docx-书目)；完整书目样式、完整多作者编辑及全局来源库继续实施。读取归 [bibliography-source-read.mbt](../../modules/formats/src/docx/bibliography-source-read.mbt)，资源归 [bibliography-source-parts.mbt](../../modules/formats/src/docx/bibliography-source-parts.mbt)，事务归 [bibliography-source-edit.mbt](../../modules/formats/src/docx/bibliography-source-edit.mbt)，接口归 [docx-sources.ts](../../packages/wasm/src/docx-sources.ts)，面板归 [docx-sources.tsx](../../packages/ui/src/docx-sources.tsx)。原生结构依据 [Microsoft 来源 XML](https://learn.microsoft.com/en-us/office/vba/word/concepts/working-with-word/working-with-bibliographies)、[标准 Source](https://learn.microsoft.com/en-us/dotnet/api/documentformat.openxml.bibliography.source?view=openxml-3.0.1)及 [LibreOffice customXml 保存](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/filter/ww8/docxexport.cxx#L1860-L1940)。未复制上游执行代码。
+
+### DOCX 引文
+
+资料来源面板提供“插入引文”和“更新引文”。`DocumentEditor.insertCitation(sourceCatalog, tag)` 校验来源所属文档、revision 和可用作者后，在当前正文或普通单元格范围插入原生简单域；`updateCitations()` 显式刷新已支持的正文引文。同步/Worker 使用 `editCitation(revision, change, profile)`，严格命令为 `{action:"insert", tag}` 或 `{action:"update"}`。原生入口为 `Session::insert_citation` 和 `update_citations`。标签规则归[资料来源](#docx-资料来源)。
+
+新建指令为 `CITATION "tag" \* MERGEFORMAT`，内部字段代码为 `CITATION:tag`，保留大小写、空格、冒号和中文标签。核心生成基础“(作者, 年份)”缓存；作者采用来源目录中的“姓, 名”或机构文字，作者为空时取标题，年份为空时省略分隔符。该显示不声明完整 APA/MLA 排版。未知来源类型、扩展或多作者数据继续保护引文格式操作，保留其原源。
+
+读取支持一个带引号或不带引号的标签，以及可选 `\* MERGEFORMAT`。简单域与同段复杂域的多个结果 run 合并为一个显示结果，沿用首个结果格式；原包装、属性及所有缓存保持到显式更新。来源修改、普通字段刷新、预览、保存和重开不改写引文缓存。显式更新使用上述基础显示，包括导入引文；已有书目样式元数据保留。`\l/\m` 等其他开关和完整引用样式继续实施。
+
+插入复用一项范围替换和原生字段历史，光标落在域后；简单域占一个逻辑位置，原生输入、整域删除和字符格式沿既有规则。更新合为一项事务，保留选择和待输入格式，无变化不新增历史；提交前检查布局与字体，失败保留包和重做。已引用来源沿来源管理的删除保护。复杂域范围及页边/注释区域插入仍受保护。普通字段面板只说明引文由来源管理，不把它解释成页码。正文范围及整格矩形的富文本复制/剪切携带简单引文的完整原生来源记录，保留缓存、字符格式、多作者、编辑者和卷期等元数据。目标复用内容相同的记录；标签相同而内容不同时分配新的 `odCitationN` 标签，并更新所粘贴的域。相同 Guid 对应不同内容时拒绝粘贴。源记录不随剪切删除。缺少来源或携带未知资源扩展时保留纯文本复制，并返回保护原因。目标缺少来源表时创建原生 customXml、属性及关系部件；来源和正文合为一项可精确撤销的事务。预检和失败保留目标、选择与重做。
+
+片段沿用既有命名空间，以 `citationSource` 属性携带一个原生 Sources XML 的 Base64，导入后移除片段元数据。核心校验所属简单域、标签、来源数量、原生命名空间及资源预算。标准 2006 与旧版 2004 来源可分别转移；混合命名空间、外部资源扩展及复杂域片段保持保护。最多 512 条目标来源和 4096 个所选引文，并沿用片段、包、布局及历史预算。实现归 [bibliography-clipboard.mbt](../../modules/formats/src/docx/bibliography-clipboard.mbt)。
+
+创建与刷新沿单节可编辑正文域边界，结果受既有 4096 个正文域、256 单元指令、包、布局和历史预算限制；合并引文、多作者格式、完整引用样式继续实施，书目归[DOCX 书目](#docx-书目)。原生指令与事务归 [bibliography-citation.mbt](../../modules/formats/src/docx/bibliography-citation.mbt)，缓存读取归 [running-fields.mbt](../../modules/formats/src/docx/running-fields.mbt) 和 [flow.mbt](../../modules/formats/src/docx/flow.mbt)，预览校验归 [preview-fields.ts](../../packages/wasm/src/preview-fields.ts)，严格接口归 [docx-sources.ts](../../packages/wasm/src/docx-sources.ts)，默认控件归 [docx-sources.tsx](../../packages/ui/src/docx-sources.tsx)。原生标签与缓存依据 [Microsoft 来源与引文](https://learn.microsoft.com/en-us/office/vba/word/concepts/working-with-word/working-with-bibliographies)、[LibreOffice CITATION 指令](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/filter/ww8/ww8atr.cxx#L3221-L3229)及[导出缓存](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/filter/ww8/docxattributeoutput.cxx#L3390-L3394)。未复制上游执行代码。
+
+### DOCX 书目
+
+资料来源面板支持书目标题、生成、显式更新和删除。`DocumentEditor.insertBibliography(sourceCatalog, title)` 在当前普通正文段落前插入书目；`editBibliography(sourceCatalog, {action:"update"|"delete", paragraph})` 操作完整生成结果。来源目录 `DocxSources` 现在同时包含必需的 `bibliographies` 数组，各项为 `paragraph/endParagraph/instruction/reason`。旧文档或 revision 的目录被拒绝后仍可编辑。同步/Worker 使用 `editBibliography(revision, change, profile)`，插入命令为 `{action:"insert", title}`；原生入口为 `Session::edit_bibliography` 和 `BibliographyFieldEdit`。
+
+核心按存储顺序列出全部支持来源，包含尚未插入引文的条目。基础文字依次为“作者. (年份). 标题. 出版商或刊物. 网址”，空字段省略；不声明完整 APA/MLA 排版。每条记录生成一个原生段落，保留已有 `Bibliography` 样式或创建继承正文的同名样式。新建书目使用 `BIBLIOGRAPHY` 域和 `Bibliographies` 内容控件，并在域前放置用户指定标题。标题沿用标题样式及基础加粗字号，不进入自动编号或标题目录。
+
+读取支持普通正文跨段字段，以及一层标准 `Bibliographies` 控件和可选普通标题。接受无开关或仅 `\* MERGEFORMAT`；其他开关、绑定、锁定及未知结构保持保护。显式更新只替换字段结果段落，保留原控件包装、标题、样式和源记录。删除有控件时移除整个控件及标题，无控件时移除字段结果。来源记录、原生引文及其他部件保留；来源修改、保存和输出不会自动更新书目或引文缓存。空来源表保留可继续更新的占位结果。
+
+生成、更新和删除复用目录的资源、布局、选择及精确历史事务。生成结果保持直接输入保护，TOC、INDEX 和书目操作按字段类型校验；无变化更新不新增历史。失败保留包、选择及重做。标题为 1–255 个 UTF-16 单元，来源最多 512 条，书目目录最多 256 项，生成文字总量最多 1048576 单元，并受既有包、历史和布局预算限制。未知来源类型或扩展作者数据拒绝整项生成，避免静默遗漏。当前创建/更新沿单节普通正文边界。
+
+原生入口与基础文字归 [bibliography-field.mbt](../../modules/formats/src/docx/bibliography-field.mbt)，共用生成事务归 [toc-edit.mbt](../../modules/formats/src/docx/toc-edit.mbt)，控件验证归 [toc-control.mbt](../../modules/formats/src/docx/toc-control.mbt)，宿主命令归 [document-sources.ts](../../packages/web/src/document-sources.ts)，默认控件归 [docx-bibliography.tsx](../../packages/ui/src/docx-bibliography.tsx)。原生结构依据 [LibreOffice 书目导出](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/filter/ww8/ww8atr.cxx#L2480-L2483)及 [Bibliographies 控件检查](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/qa/extras/ooxmlexport/ooxmlfieldexport.cxx#L352-L361)。完整引用样式、只列引用来源及更广导入继续实施。未复制上游执行代码。
+
 ### DOCX 题注目录
 
 `DocumentEditor.insertTableOfFigures(sequence)` 在当前普通正文段落前生成题注目录。同步/Worker 沿 `editTableOfContents(revision, {action:"insertCaptions", sequence}, profile)`，原生入口为 `InsertCaptionToc(sequence)`。序列标签采用既有 SEQ 标识符规则，最多 40 个 UTF-16 单元，接受中文。默认目录面板可选择标题级别或题注来源，并输入序列标签；已有条目沿原目录的更新和删除入口操作。查询中的题注目录附有可选 `sequence`，级别固定为 1–1。

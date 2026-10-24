@@ -193,9 +193,11 @@ fn Session::paragraph(
       tree.nodes[item].uri == word_uri &&
       ["fldSimple", "fldChar", "instrText"].contains(tree.nodes[item].name)
     })
+  let cache : Map[Int, String] = Map([])
   let fields = if has_fields {
-    tree.running_fields(id) catch {
+    tree.running_fields(id, cache~) catch {
       @failure.Failure(message~, ..) => {
+        cache.clear()
         if running {
           @failure.reject("unsupported-layout", message)
         }
@@ -213,6 +215,7 @@ fn Session::paragraph(
       code.has_prefix("PAGEREF:") ||
       code.has_prefix("SEQ:") ||
       code.has_prefix("REF:") ||
+      code.has_prefix("CITATION:") ||
       code.has_prefix("NOTEREF:")
     }) else {
     @failure.reject(
@@ -328,7 +331,7 @@ fn Session::paragraph(
         None
       }
       let text = match item.name {
-        "t" => item.text
+        "t" => cache.get(content).unwrap_or(item.text)
         "delText" if review.uri == word_uri && review.name == "del" => item.text
         "br" => inline_text(item).replace_all(old="\u2028", new="\n")
         "cr" => "\n"

@@ -1,3 +1,12 @@
+import {
+  checkDocxBibliographyEdit,
+  type DocxBibliographyEdit,
+  checkDocxCitationEdit,
+  type DocxCitationEdit,
+  checkDocxSourceEdit,
+  docxSources,
+  type DocxSourceEdit,
+} from "@open-document/wasm/foundation";
 import { FoundationReviewClient } from "./document-review.js";
 import {
   checkDocxIndexEdit,
@@ -75,6 +84,51 @@ export class FoundationPageClient extends FoundationReviewClient {
       await this.connection.request({
         operation: "docxTableOfContents",
         revision,
+      }),
+    );
+  }
+  async sources(revision: number) {
+    return docxSources(
+      await this.connection.request({ operation: "docxSources", revision }),
+    );
+  }
+  async editBibliography(
+    revision: number,
+    change: DocxBibliographyEdit,
+    profile: Record<string, string>,
+  ) {
+    checkDocxBibliographyEdit(change);
+    return editState(
+      await this.connection.request({
+        operation: "editDocxBibliography",
+        revision,
+        change,
+        profile,
+      }),
+    );
+  }
+  async editCitation(
+    revision: number,
+    change: DocxCitationEdit,
+    profile: Record<string, string>,
+  ) {
+    checkDocxCitationEdit(change);
+    return editState(
+      await this.connection.request({
+        operation: "editDocxCitation",
+        revision,
+        change,
+        profile,
+      }),
+    );
+  }
+  async editSource(revision: number, change: DocxSourceEdit) {
+    checkDocxSourceEdit(change);
+    return editState(
+      await this.connection.request({
+        operation: "editDocxSource",
+        revision,
+        change,
       }),
     );
   }

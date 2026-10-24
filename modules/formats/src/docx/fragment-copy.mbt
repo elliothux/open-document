@@ -157,7 +157,7 @@ fn Session::capture_body_fragment(
     output.write_string(markup)
   }
   output.write_string("</od:body>")
-  output.to_string()
+  self.fragment_citation_sources(output.to_string(), limit)
 }
 
 ///|

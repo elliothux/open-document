@@ -1,3 +1,4 @@
+export type { DocumentSources } from "./document-sources.js";
 export type {
   DocumentTableOfContents,
   DocumentIndexes,

@@ -8,6 +8,7 @@ import { messages } from "./messages.js";
 import { DocxBookmarks } from "./docx-bookmarks.js";
 import { DocxToc } from "./docx-toc.js";
 import { DocxIndex } from "./docx-index.js";
+import { DocxSources } from "./docx-sources.js";
 
 export function DocxOverview({
   controller,
@@ -52,6 +53,13 @@ export function DocxOverview({
   return (
     <section aria-label={t.documentOverview}>
       <h2>{t.documentOverview}</h2>
+      <DocxSources
+        controller={controller}
+        state={state}
+        editor={editor}
+        disabled={disabled}
+        blocked={blocked}
+      />
       <DocxIndex
         controller={controller}
         state={state}

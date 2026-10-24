@@ -10,8 +10,16 @@ pub(all) enum TocEdit {
 priv enum GeneratedIndexEdit {
   Insert(Int)
   InsertCaptions(String)
+  InsertBibliography(String)
   Update(Int)
   Delete(Int)
+}
+
+///|
+priv enum GeneratedIndexKind {
+  Contents
+  Index
+  Bibliography
 }
 
 ///|
@@ -47,8 +55,10 @@ fn Session::edit_generated_index(
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],
   images~ : @layout.Images,
-  index~ : Bool = false,
+  kind~ : GeneratedIndexKind = Contents,
 ) -> Json raise @failure.Failure {
+  let index = kind is Index
+  let bibliography = kind is Bibliography
   self.check_revision(revision)
   self.check_document_protection()
   let original = self.document()
@@ -56,9 +66,10 @@ fn Session::edit_generated_index(
   ignore(self.editable_page_section(tree))
   let body = tree.child(0, "body").unwrap()
   let (old, first, last, instruction, hyperlink) = match change {
-    Insert(_) | InsertCaptions(_) => {
+    Insert(_) | InsertCaptions(_) | InsertBibliography(_) => {
       let levels = match change {
         Insert(levels) => levels
+        InsertBibliography(_) => 1
         InsertCaptions(sequence) => {
           let field = @layout.SequenceField::parse("SEQ:" + sequence) catch {
             @failure.Failure(..) =>
@@ -99,21 +110,25 @@ fn Session::edit_generated_index(
         None,
         1,
         levels,
-        if index {
+        if bibliography {
+          " BIBLIOGRAPHY "
+        } else if index {
           " INDEX \\c \"1\" \\e \"\t\" "
         } else if change is InsertCaptions(sequence) {
           " TOC \\c \"" + sequence + "\" \\h \\z "
         } else {
           " TOC \\o \"1-\{levels}\" \\h \\z \\u "
         },
-        !index,
+        !(index || bibliography),
       )
     }
     Update(id) | Delete(id) => {
       guard tree.contents.get(id) is Some(toc) &&
         toc.paragraphs[0] == id &&
         toc.reason.is_empty() &&
-        toc.instruction.trim().to_upper().has_prefix("INDEX") == index else {
+        toc.instruction.trim().to_upper().has_prefix("INDEX") == index &&
+        toc.instruction.trim().to_upper().has_prefix("BIBLIOGRAPHY") ==
+        bibliography else {
         @failure.reject(
           "protected-content", "Select one complete supported table of contents",
         )
@@ -134,7 +149,11 @@ fn Session::edit_generated_index(
       (Some(toc), toc.first, toc.last, toc.instruction, toc.hyperlink)
     }
   }
-  let sequence = if index { "" } else { toc_instruction(instruction).4 }
+  let sequence = if index || bibliography {
+    ""
+  } else {
+    toc_instruction(instruction).4
+  }
   let flow = self.flow()
   guard !index || flow.columns.count == 1 else {
     @failure.reject(
@@ -155,6 +174,8 @@ fn Session::edit_generated_index(
     ([], [])
   } else if index {
     self.index_rows(tree, layout)
+  } else if bibliography {
+    self.bibliography_rows()
   } else {
     self.toc_entries(tree, flow, layout, first, last, sequence~)
   }
@@ -162,12 +183,16 @@ fn Session::edit_generated_index(
   for entry in entries {
     if !styles.contains(entry.level) {
       styles[entry.level] = self.builtin_paragraph_style(
-        if !sequence.is_empty() {
+        if bibliography {
+          "Bibliography"
+        } else if !sequence.is_empty() {
           "TableofFigures"
         } else {
           (if index { "Index" } else { "TOC" }) + entry.level.to_string()
         },
-        if !sequence.is_empty() {
+        if bibliography {
+          "bibliography"
+        } else if !sequence.is_empty() {
           "table of figures"
         } else {
           (if index { "index " } else { "toc " }) + entry.level.to_string()
@@ -189,8 +214,21 @@ fn Session::edit_generated_index(
       hyperlink,
       width,
       index~,
+      bibliography~,
       sequence~,
     )
+  }
+  if change is InsertBibliography(title) {
+    let style = property_attribute(
+      self.builtin_paragraph_style(
+        "TOCHeading", "toc heading", parts, edits, created,
+      ),
+    )
+    let heading = "<od:p><od:pPr><od:pStyle od:val=\"\{style}\"/><od:numPr><od:numId od:val=\"0\"/></od:numPr><od:outlineLvl od:val=\"9\"/></od:pPr><od:r><od:rPr><od:b/><od:sz od:val=\"32\"/></od:rPr><od:t xml:space=\"preserve\">\{@xml.escape_text(title)}</od:t></od:r></od:p>"
+    markup = "<od:sdt xmlns:od=\"\{word_uri}\"><od:sdtPr><od:docPartObj><od:docPartGallery od:val=\"Bibliographies\"/><od:docPartUnique/></od:docPartObj></od:sdtPr><od:sdtContent>" +
+      heading +
+      markup +
+      "</od:sdtContent></od:sdt>"
   }
   let start = old
     .map(toc => {
@@ -256,6 +294,8 @@ fn Session::edit_generated_index(
     if !deleting {
       let (next, changes) = if index {
         view.index_rows(updated, layout)
+      } else if bibliography {
+        view.bibliography_rows()
       } else {
         view.toc_entries(
           updated,
@@ -275,12 +315,16 @@ fn Session::edit_generated_index(
         for entry in next {
           if !styles.contains(entry.level) {
             styles[entry.level] = self.builtin_paragraph_style(
-              if !sequence.is_empty() {
+              if bibliography {
+                "Bibliography"
+              } else if !sequence.is_empty() {
                 "TableofFigures"
               } else {
                 (if index { "Index" } else { "TOC" }) + entry.level.to_string()
               },
-              if !sequence.is_empty() {
+              if bibliography {
+                "bibliography"
+              } else if !sequence.is_empty() {
                 "table of figures"
               } else {
                 (if index { "index " } else { "toc " }) +
@@ -312,6 +356,7 @@ fn Session::edit_generated_index(
           hyperlink,
           width,
           index~,
+          bibliography~,
           sequence~,
         )
         guard markup.length() <=

@@ -9,6 +9,9 @@ fn running_field_code(instruction : String) -> String raise @failure.Failure {
     .filter(token => !token.is_empty())
     .map(token => token.to_owned())
     .collect()
+  if tokens.length() >= 1 && tokens[0].to_upper() == "CITATION" {
+    return citation_code(instruction)
+  }
   if tokens.length() >= 2 && tokens[0].to_upper() == "STYLEREF" {
     return chapter_reference_code(instruction)
   }
@@ -191,12 +194,21 @@ fn keep_running_field(
   fields : Map[Int, String],
   results : Array[Int],
   code : String,
+  nodes : Map[Int, @xml.Node],
+  cache : Map[Int, String],
 ) -> Unit raise @failure.Failure {
   guard !results.is_empty() else {
     @failure.reject("protected-content", "Running field has no result text")
   }
   for index, id in results {
     fields[id] = if index == 0 { code } else { "" }
+    if code.has_prefix("CITATION:") {
+      cache[id] = if index == 0 {
+        results.map(id => nodes[id].text).join("")
+      } else {
+        ""
+      }
+    }
   }
 }
 
@@ -204,6 +216,7 @@ fn keep_running_field(
 fn WordTree::running_fields(
   self : WordTree,
   paragraph : Int,
+  cache~ : Map[Int, String] = Map([]),
 ) -> Map[Int, String] raise @failure.Failure {
   let contents = self.contents
     .get(paragraph)
@@ -294,7 +307,7 @@ fn WordTree::running_fields(
           }
         }
       }
-      keep_running_field(fields, texts, code)
+      keep_running_field(fields, texts, code, self.nodes, cache)
       count += 1
     } else if node.name == "r" && node.uri == word_uri {
       for content in self.children[child] {
@@ -327,7 +340,7 @@ fn WordTree::running_fields(
                 state = 2
               }
               (2, Some("end")) => {
-                keep_running_field(fields, results, code)
+                keep_running_field(fields, results, code, self.nodes, cache)
                 count += 1
                 state = 0
               }

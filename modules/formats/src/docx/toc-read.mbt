@@ -16,6 +16,8 @@ priv struct TableOfContents {
 fn TableOfContents::edit_reason(self : TableOfContents) -> String {
   if self.instruction.trim().to_upper().has_prefix("INDEX") {
     "Index results require an index update"
+  } else if self.instruction.trim().to_upper().has_prefix("BIBLIOGRAPHY") {
+    "Bibliography results require a bibliography update"
   } else {
     "Table of contents results require a table of contents update"
   }
@@ -31,6 +33,23 @@ fn toc_instruction(
     )
   }
   let tokens = text_reference_tokens(instruction)
+  if tokens.get(0).map(token => token.0.to_upper()) == Some("BIBLIOGRAPHY") {
+    guard tokens.get(0).map(token => !token.1).unwrap_or(false) &&
+      (
+        tokens.length() == 1 ||
+        (
+          tokens.length() == 3 &&
+          tokens[1] == ("\\*", false) &&
+          tokens[2].0.to_upper() == "MERGEFORMAT" &&
+          !tokens[2].1
+        )
+      ) else {
+      @failure.reject(
+        "protected-content", "Bibliography switches require formatting support",
+      )
+    }
+    return (1, 1, false, false, "")
+  }
   if tokens.get(0).map(command => command.0.to_upper()) == Some("INDEX") {
     ignore(index_separator(instruction))
     return (1, 3, false, false, "")
@@ -130,7 +149,20 @@ fn WordTree::contents_profile(
     let finish = self.nodes[markers.last().unwrap()]
     let body = self.nodes[paragraphs[0]].parent
     if self.nodes[body].uri != word_uri || self.nodes[body].name != "body" {
-      control = Some(self.toc_control(body, paragraphs))
+      control = Some(
+        self.toc_control(
+          body,
+          paragraphs,
+          galleryName=if instruction
+            .trim()
+            .to_upper()
+            .has_prefix("BIBLIOGRAPHY") {
+            "Bibliographies"
+          } else {
+            "Table of Contents"
+          },
+        ),
+      )
     }
     guard self.children[body].filter(id => {
         self.nodes[id].start >= self.nodes[paragraphs[0]].start &&
@@ -291,7 +323,9 @@ fn WordTree::read_contents(
             if code.has_prefix("TOC ") ||
               code == "TOC" ||
               code.has_prefix("INDEX ") ||
-              code == "INDEX" {
+              code == "INDEX" ||
+              code.has_prefix("BIBLIOGRAPHY ") ||
+              code == "BIBLIOGRAPHY" {
               let value = self.contents_profile(
                 paragraphs,
                 markers,
@@ -334,7 +368,9 @@ fn WordTree::read_contents(
       code.has_prefix("TOC ") ||
       code == "TOC" ||
       code.has_prefix("INDEX ") ||
-      code == "INDEX"
+      code == "INDEX" ||
+      code.has_prefix("BIBLIOGRAPHY ") ||
+      code == "BIBLIOGRAPHY"
     ) {
     let value = self.contents_profile(paragraphs, markers, instruction, false)
     for paragraph in paragraphs {
@@ -356,7 +392,7 @@ pub fn Session::table_of_contents(
   for id in tree.order {
     if tree.contents.get(id) is Some(toc) &&
       toc.paragraphs[0] == id &&
-      !toc.instruction.trim().to_upper().has_prefix("INDEX") {
+      toc.instruction.trim().to_upper().has_prefix("TOC") {
       let item : Map[String, Json] = {
         "paragraph": Json(id),
         "endParagraph": Json(toc.paragraphs.last().unwrap()),

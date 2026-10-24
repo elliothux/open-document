@@ -12,6 +12,15 @@ import {
 } from "./docx-ruler.js";
 import { integer, record } from "./validation.js";
 import {
+  checkDocxBibliographyEdit,
+  type DocxBibliographyEdit,
+  checkDocxCitationEdit,
+  type DocxCitationEdit,
+  checkDocxSourceEdit,
+  docxSources,
+  type DocxSourceEdit,
+} from "./docx-sources.js";
+import {
   checkDocxIndexEdit,
   docxIndexes,
   type DocxIndexEdit,
@@ -464,6 +473,40 @@ export class FoundationPageSession extends FoundationReviewSession {
   tableOfContents(revision: number) {
     return docxTableOfContents(
       this.call({ operation: "docxTableOfContents", revision }),
+    );
+  }
+  sources(revision: number) {
+    return docxSources(this.call({ operation: "docxSources", revision }));
+  }
+  editBibliography(
+    revision: number,
+    change: DocxBibliographyEdit,
+    profile: Record<string, string>,
+  ) {
+    checkDocxBibliographyEdit(change);
+    return editState(
+      this.call({
+        operation: "editDocxBibliography",
+        revision,
+        change,
+        profile,
+      }),
+    );
+  }
+  editCitation(
+    revision: number,
+    change: DocxCitationEdit,
+    profile: Record<string, string>,
+  ) {
+    checkDocxCitationEdit(change);
+    return editState(
+      this.call({ operation: "editDocxCitation", revision, change, profile }),
+    );
+  }
+  editSource(revision: number, change: DocxSourceEdit) {
+    checkDocxSourceEdit(change);
+    return editState(
+      this.call({ operation: "editDocxSource", revision, change }),
     );
   }
   indexes(revision: number) {

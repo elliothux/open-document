@@ -1,5 +1,10 @@
 ///|
 fn running_field_instruction(field : String) -> String raise @failure.Failure {
+  if field.has_prefix("CITATION:") {
+    let tag = field[9:].to_owned()
+    check_source_tag(tag)
+    return "CITATION \"" + tag + "\" \\* MERGEFORMAT"
+  }
   let parts = field.split(":").to_array()
   if parts[0] == "STYLEREF" {
     guard parts.length() == 2 &&

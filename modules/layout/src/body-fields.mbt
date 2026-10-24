@@ -58,7 +58,8 @@ fn Flow::resolve_body_fields(
               }
             } else if span.field.has_prefix("REF:") ||
               span.field.has_prefix("NOTEREF:") ||
-              span.field.has_prefix("STYLEREF:") {
+              span.field.has_prefix("STYLEREF:") ||
+              span.field.has_prefix("CITATION:") {
               span.text
             } else if span.field.has_prefix("SEQ:") {
               SequenceField::parse(span.field).text(1L)

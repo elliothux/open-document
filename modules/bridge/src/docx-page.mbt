@@ -115,6 +115,9 @@ fn Foundation::docx_page(
   request : Json,
 ) -> Json raise @failure.Failure {
   let revision = field_int(request, "revision")
+  if operation == "docxSources" {
+    return session.bibliography_sources(revision)
+  }
   if operation == "docxIndexes" {
     return session.indexes(revision)
   }
@@ -203,6 +206,95 @@ fn Foundation::docx_page(
         profile=xlsx_profile(request),
         images=self.images,
       )
+    }
+    "editDocxBibliography" => {
+      guard request is { "change": Object(fields) as change, .. } &&
+        fields.length() == 2 else {
+        @failure.reject("invalid-operation", "Invalid bibliography command")
+      }
+      let edit = match field_string(change, "action") {
+        "insert" if fields.contains("title") =>
+          @docx.BibliographyFieldEdit::InsertBibliography(
+            field_string(change, "title"),
+          )
+        "update" if fields.contains("paragraph") =>
+          @docx.BibliographyFieldEdit::UpdateBibliography(
+            field_int(change, "paragraph"),
+          )
+        "delete" if fields.contains("paragraph") =>
+          @docx.BibliographyFieldEdit::DeleteBibliography(
+            field_int(change, "paragraph"),
+          )
+        _ => @failure.reject("invalid-operation", "Invalid bibliography fields")
+      }
+      session.edit_bibliography(
+        revision,
+        edit,
+        probe=self.probe,
+        profile=xlsx_profile(request),
+        images=self.images,
+      )
+    }
+    "editDocxCitation" => {
+      guard request is { "change": Object(fields) as change, .. } else {
+        @failure.reject("invalid-operation", "Invalid citation command")
+      }
+      match field_string(change, "action") {
+        "insert" if fields.length() == 2 && fields.contains("tag") =>
+          session.insert_citation(
+            revision,
+            field_string(change, "tag"),
+            probe=self.probe,
+            profile=xlsx_profile(request),
+            images=self.images,
+          )
+        "update" if fields.length() == 1 =>
+          session.update_citations(
+            revision,
+            probe=self.probe,
+            profile=xlsx_profile(request),
+            images=self.images,
+          )
+        _ => @failure.reject("invalid-operation", "Invalid citation fields")
+      }
+    }
+    "editDocxSource" => {
+      guard request is { "change": Object(fields) as change, .. } &&
+        fields.length() == 2 else {
+        @failure.reject("invalid-operation", "Invalid source command")
+      }
+      let action = field_string(change, "action")
+      let edit = if action == "delete" && fields.contains("tag") {
+        @docx.BibliographyEdit::DeleteSource(field_string(change, "tag"))
+      } else {
+        guard ["create", "update"].contains(action) &&
+          fields.get("source") is Some(Object(data) as value) &&
+          data.length() == 7 &&
+          data
+          .keys()
+          .all(key => {
+            ["tag", "kind", "author", "title", "year", "publisher", "url"].contains(
+              key,
+            )
+          }) else {
+          @failure.reject("invalid-operation", "Invalid source fields")
+        }
+        let source : @docx.BibliographySource = {
+          tag: field_string(value, "tag"),
+          kind: field_string(value, "kind"),
+          author: field_string(value, "author"),
+          title: field_string(value, "title"),
+          year: field_string(value, "year"),
+          publisher: field_string(value, "publisher"),
+          url: field_string(value, "url"),
+        }
+        if action == "create" {
+          @docx.BibliographyEdit::CreateSource(source)
+        } else {
+          @docx.BibliographyEdit::UpdateSource(source)
+        }
+      }
+      session.edit_bibliography_source(revision, edit)
     }
     "editDocxIndex" => {
       guard request is { "change": Object(fields) as change, .. } else {

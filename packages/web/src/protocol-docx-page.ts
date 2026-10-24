@@ -1,4 +1,7 @@
 import type {
+  DocxBibliographyEdit,
+  DocxCitationEdit,
+  DocxSourceEdit,
   DocxCaption,
   DocxIndexEdit,
   DocxTocEdit,
@@ -6,6 +9,20 @@ import type {
 } from "@open-document/wasm/foundation";
 
 export type DocxPageCommand =
+  | {
+      operation: "editDocxBibliography";
+      revision: number;
+      change: DocxBibliographyEdit;
+      profile: Record<string, string>;
+    }
+  | {
+      operation: "editDocxCitation";
+      revision: number;
+      change: DocxCitationEdit;
+      profile: Record<string, string>;
+    }
+  | { operation: "docxSources"; revision: number }
+  | { operation: "editDocxSource"; revision: number; change: DocxSourceEdit }
   | { operation: "docxIndexes"; revision: number }
   | {
       operation: "editDocxIndex";

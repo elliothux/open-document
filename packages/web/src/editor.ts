@@ -373,6 +373,7 @@ export class DocumentEditor extends DocumentTables {
             "stale-overview",
             "stale-toc",
             "stale-index",
+            "stale-sources",
           ].includes(error.code)
         ) {
           this.observable.update({ error: error.message });

@@ -74,6 +74,14 @@ pub fn Session::body_page_field(
           "reason": "Chapter references use the caption heading level",
         }
       }
+      if parts[0] == "CITATION" {
+        return {
+          "revision": revision,
+          "selection": Json(selection),
+          "field": Json::null(),
+          "reason": "Citations use the document sources and explicit citation update",
+        }
+      }
       let value : Map[String, Json] = { "field": Json(parts[0].to_owned()) }
       let reference = parts[0] == "PAGEREF"
       if reference {
@@ -293,7 +301,11 @@ pub fn Session::update_body_page_fields(
   let changes : Array[@xml.SourceChange] = []
   let mut count = 0
   for paragraph in paragraphs {
-    for id, code in tree.running_fields(paragraph.id) {
+    let cache : Map[Int, String] = Map([])
+    for id, code in tree.running_fields(paragraph.id, cache~) {
+      if cache.contains(id) {
+        continue
+      }
       count += 1
       guard count <= 4096 else {
         @failure.reject("limit-exceeded", "Body page fields exceed limits")

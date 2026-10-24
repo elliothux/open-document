@@ -129,7 +129,7 @@ pub fn Session::edit_index(
         probe~,
         profile~,
         images~,
-        index=true,
+        kind=Index,
       )
     UpdateIndex(id) =>
       return self.edit_generated_index(
@@ -138,7 +138,7 @@ pub fn Session::edit_index(
         probe~,
         profile~,
         images~,
-        index=true,
+        kind=Index,
       )
     DeleteIndex(id) =>
       return self.edit_generated_index(
@@ -147,7 +147,7 @@ pub fn Session::edit_index(
         probe~,
         profile~,
         images~,
-        index=true,
+        kind=Index,
       )
     _ => ()
   }

@@ -118,8 +118,11 @@ pub fn Session::table_clipboard(
   }
   let mut reason = ""
   let fragment = Json(
-    self.capture_table_fragment(
-      tree, grid, top, bottom, left, right, owners, values,
+    self.fragment_citation_sources(
+      self.capture_table_fragment(
+        tree, grid, top, bottom, left, right, owners, values,
+      ),
+      self.opc.budget.entry_bytes.min(history_byte_limit / 2),
     ),
   ) catch {
     @failure.Failure(code="protected-content", message~, ..) => {

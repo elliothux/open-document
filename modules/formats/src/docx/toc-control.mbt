@@ -3,6 +3,7 @@ fn WordTree::toc_control(
   self : WordTree,
   content : Int,
   paragraphs : Array[Int],
+  galleryName~ : String = "Table of Contents",
 ) -> Int raise @failure.Failure {
   let node = self.nodes[content]
   let control = self.nodes.get(node.parent)
@@ -64,7 +65,7 @@ fn WordTree::toc_control(
           })
           is [gallery] &&
           self.nodes[gallery].attribute("val", uri=word_uri) ==
-          Some("Table of Contents") else {
+          Some(galleryName) else {
           @failure.reject(
             "protected-content", "Expected the native table of contents gallery",
           )
@@ -129,8 +130,11 @@ fn WordTree::toc_control(
       children[1:] == paragraphs[:] &&
       self.nodes[children[0]].uri == word_uri &&
       self.nodes[children[0]].name == "p" &&
-      self.child(children[0], "pPr").bind(id => self.value(id, "pStyle")) ==
-      Some("TOCHeading") else {
+      (
+        galleryName == "Bibliographies" ||
+        self.child(children[0], "pPr").bind(id => self.value(id, "pStyle")) ==
+        Some("TOCHeading")
+      ) else {
       @failure.reject(
         "protected-content", "Table of contents control contains other content",
       )

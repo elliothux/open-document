@@ -16,6 +16,9 @@ fn builtin_style_properties(
 ) -> (String, String)? {
   let name = name.to_lower()
   if kind == "paragraph" {
+    if key == "Bibliography" || name == "bibliography" {
+      return Some(("", ""))
+    }
     if key == "TableofFigures" || name == "table of figures" {
       return Some(
         (

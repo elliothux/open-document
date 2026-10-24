@@ -1,6 +1,8 @@
 import { indexEn, indexZh } from "./messages-docx-index.js";
+import { sourcesEn, sourcesZh } from "./messages-docx-sources.js";
 export const pageEn = {
   ...indexEn,
+  ...sourcesEn,
   sectionBreakType: "Section break type",
   sectionBreakNext: "Next page",
   sectionBreakOdd: "Odd page",
@@ -152,6 +154,7 @@ export const pageEn = {
 };
 export const pageZh = {
   ...indexZh,
+  ...sourcesZh,
   sectionBreakType: "分节符类型",
   sectionBreakNext: "下一页",
   sectionBreakOdd: "奇数页",

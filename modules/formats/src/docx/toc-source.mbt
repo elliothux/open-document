@@ -190,12 +190,15 @@ fn toc_markup(
   hyperlink : Bool,
   width : Double,
   index~ : Bool = false,
+  bibliography~ : Bool = false,
   sequence~ : String = "",
 ) -> String raise @failure.Failure {
   let begin = "<od:r><od:fldChar od:fldCharType=\"begin\" od:dirty=\"true\"/></od:r><od:r><od:instrText xml:space=\"preserve\">\{property_attribute(instruction)}</od:instrText></od:r><od:r><od:fldChar od:fldCharType=\"separate\"/></od:r>"
   let end = "<od:r><od:fldChar od:fldCharType=\"end\"/></od:r>"
   if entries.is_empty() {
-    let text = if index {
+    let text = if bibliography {
+      "No bibliography sources found."
+    } else if index {
       "No index entries found."
     } else if !sequence.is_empty() {
       "No table of figures entries found."
@@ -203,6 +206,18 @@ fn toc_markup(
       "No table of contents entries found."
     }
     return "<od:p xmlns:od=\"\{word_uri}\">\{begin}<od:r><od:t>\{text}</od:t></od:r>\{end}</od:p>"
+  }
+  if bibliography {
+    return entries
+      .mapi((index, entry) => {
+        let style = property_attribute(styles[entry.level])
+        "<od:p xmlns:od=\"\{word_uri}\"><od:pPr><od:pStyle od:val=\"\{style}\"/><od:numPr><od:numId od:val=\"0\"/></od:numPr><od:outlineLvl od:val=\"9\"/></od:pPr>" +
+        (if index == 0 { begin } else { "" }) +
+        "<od:r><od:t xml:space=\"preserve\">\{@xml.escape_text(entry.text)}</od:t></od:r>" +
+        (if index == entries.length() - 1 { end } else { "" }) +
+        "</od:p>"
+      })
+      .join("")
   }
   let output = StringBuilder()
   let separator = if !index || index_separator(instruction) == "\t" {

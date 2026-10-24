@@ -12,6 +12,31 @@ import {
 // Errors
 
 // Types and methods
+pub(all) enum BibliographyEdit {
+  CreateSource(BibliographySource)
+  UpdateSource(BibliographySource)
+  DeleteSource(String)
+}
+
+pub(all) enum BibliographyFieldEdit {
+  InsertBibliography(String)
+  UpdateBibliography(Int)
+  DeleteBibliography(Int)
+}
+
+pub(all) struct BibliographySource {
+  tag : String
+  kind : String
+  author : String
+  title : String
+  year : String
+  publisher : String
+  url : String
+} derive(Eq, ToJson)
+pub fn BibliographySource::equal(Self, Self) -> Bool
+pub fn BibliographySource::not_equal(Self, Self) -> Bool
+pub fn BibliographySource::to_json(Self) -> Json
+
 pub(all) enum BookmarkEdit {
   CreateBookmark(String, Selection)
   RenameBookmark(String, String)
@@ -158,6 +183,7 @@ pub struct Session {
 pub fn Session::apply_format(Self, Int, Selection, CharacterFormat, ParagraphFormat, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::begin_composition(Self, Int) -> Json raise @failure.Failure
 pub fn Session::begin_drawing_gesture(Self, Int, Int, Int, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
+pub fn Session::bibliography_sources(Self, Int) -> Json raise @failure.Failure
 pub fn Session::body_fragment_images(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::body_page_field(Self, Int, Selection) -> Json raise @failure.Failure
 pub fn Session::bookmarks(Self, Int) -> Json raise @failure.Failure
@@ -179,6 +205,8 @@ pub fn Session::delete_picture(Self, Int, Int) -> Json raise @failure.Failure
 pub fn Session::delete_shape(Self, Int, Int) -> Json raise @failure.Failure
 pub fn Session::delete_style(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::document_protection(Self, Int) -> Json raise @failure.Failure
+pub fn Session::edit_bibliography(Self, Int, BibliographyFieldEdit, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
+pub fn Session::edit_bibliography_source(Self, Int, BibliographyEdit) -> Json raise @failure.Failure
 pub fn Session::edit_body_page_field(Self, Int, Selection, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::edit_bookmark(Self, Int, BookmarkEdit) -> Json raise @failure.Failure
 pub fn Session::edit_chart(Self, Int, String, Int, String, String, String, Double, Double, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images, hole_size? : Int?, legend? : String?) -> Json raise @failure.Failure
@@ -205,6 +233,7 @@ pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
 pub fn Session::indexes(Self, Int) -> Json raise @failure.Failure
 pub fn Session::insert_body_page_field(Self, Int, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_caption(Self, Int, String, String, Bool, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images, chapterLevel? : Int, separator? : String) -> Json raise @failure.Failure
+pub fn Session::insert_citation(Self, Int, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_note(Self, Int, String, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_picture(Self, Int, Double, Double, Bytes) -> Json raise @failure.Failure
 pub fn Session::insert_section_break(Self, Int, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
@@ -275,6 +304,7 @@ pub fn Session::theme_colors(Self, Int) -> Json raise @failure.Failure
 pub fn Session::theme_fonts(Self, Int) -> Json raise @failure.Failure
 pub fn Session::undo_edit(Self, Int) -> Json raise @failure.Failure
 pub fn Session::update_body_page_fields(Self, Int, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
+pub fn Session::update_citations(Self, Int, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::update_composition(Self, Int, Int, String) -> Json raise @failure.Failure
 pub fn Session::update_drawing_gesture(Self, Int, Int, Double, Double, page? : Int) -> Json raise @failure.Failure
 pub fn Session::update_list_level(Self, Int, Int, Int, ListLevelFormat) -> Json raise @failure.Failure

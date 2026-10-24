@@ -4,10 +4,12 @@ fn Session::body_field_source(
   document : @xml.Document,
   position : Position,
   instruction : String,
+  result : String,
 ) -> @xml.SourceChange raise @failure.Failure {
   let instruction = property_attribute(instruction)
+  let result = @xml.escape_text(result)
   self.paragraph_inline_source(document, position, properties => {
-    "<od:fldSimple xmlns:od=\"\{word_uri}\" od:instr=\"\{instruction}\" od:dirty=\"true\"><od:r>\{properties}<od:t>1</od:t></od:r></od:fldSimple>"
+    "<od:fldSimple xmlns:od=\"\{word_uri}\" od:instr=\"\{instruction}\" od:dirty=\"true\"><od:r>\{properties}<od:t>\{result}</od:t></od:r></od:fldSimple>"
   })
 }
 
@@ -142,6 +144,11 @@ pub fn Session::insert_body_page_field(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let instruction = running_field_instruction(field)
+  let result = if field.has_prefix("CITATION:") {
+    self.citation_text(field[9:].to_owned())
+  } else {
+    "1"
+  }
   guard self.selection is Some(selection) else {
     @failure.reject("invalid-position", "Select a document position first")
   }
@@ -155,7 +162,7 @@ pub fn Session::insert_body_page_field(
     .map(s => s.focus)
     .unwrap_or(selection.focus)
   let steps = prepared.map(p => p.edit.xml.copy()).unwrap_or([])
-  let change = self.body_field_source(document, position, instruction)
+  let change = self.body_field_source(document, position, instruction, result)
   let (candidate, edit) = document.edit_source([change])
   steps.push(edit)
   let before = WordTree::new(document)

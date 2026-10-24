@@ -1,4 +1,4 @@
-import { DocumentReview } from "./document-review.js";
+import { DocumentSourcesEditor } from "./document-sources.js";
 import type {
   DocxTocEdit,
   DocxTableOfContents,
@@ -55,7 +55,7 @@ export type DocumentBodyPageField = DocxBodyPageField & { documentId: string };
 export type DocumentProtection = DocxProtection & { documentId: string };
 
 /** Document-wide page commands use the editor's existing read and edit queues. */
-export abstract class DocumentPage extends DocumentReview {
+export abstract class DocumentPage extends DocumentSourcesEditor {
   indexes(): Promise<DocumentIndexes> {
     return this.review.read(async () => ({
       ...(await this.review.client.indexes(this.review.snapshot().revision)),
@@ -487,7 +487,6 @@ export abstract class DocumentPage extends DocumentReview {
       ),
     );
   }
-  protected abstract readonly profile: Record<string, string>;
   setRunningLink(
     section: number,
     kind: DocxRunningKind,

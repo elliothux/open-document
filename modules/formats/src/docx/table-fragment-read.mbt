@@ -23,6 +23,7 @@ fn Session::read_table_fragment(
     self.opc.budget.xml_depth,
     self.opc.budget.entry_bytes,
   )
+  let document = self.import_fragment_citations(document, parts, edits, created)
   let document = self.import_fragment_notes(document, parts, edits, created)
   let document = self.import_fragment_numbering(document, parts, edits, created)
   let document = self.import_fragment_links(document, parts, edits, created)
