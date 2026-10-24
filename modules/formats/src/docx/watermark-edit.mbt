@@ -21,8 +21,9 @@ pub fn Session::watermark(
   self.check_revision(revision)
   try {
     let tree = WordTree::new(self.document())
+    ignore(self.editable_page_section(tree))
     let values = ["default", "first", "even"].map(variant => {
-      let (_, _, part) = self.running_target(tree, "header", variant)
+      let (_, _, part) = self.running_target(tree, 0, "header", variant)
       part.bind(part => {
         WordTree::new(self.part_xml(part))
         .header_watermark()
@@ -71,7 +72,7 @@ pub fn Session::set_watermark(
   let tree = WordTree::new(original)
   let section = self.editable_page_section(tree)
   let targets = ["default", "first", "even"].map(variant => {
-    let (_, _, part) = self.running_target(tree, "header", variant)
+    let (_, _, part) = self.running_target(tree, 0, "header", variant)
     let old = part.bind(part => {
       WordTree::new(self.part_xml(part)).header_watermark()
     })

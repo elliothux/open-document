@@ -81,15 +81,43 @@ fn WordTree::page_columns(
 }
 
 ///|
-fn Session::page_columns_query(self : Session, tree : WordTree) -> Json {
+fn Session::section_page_setup(
+  self : Session,
+  index : Int,
+) -> @layout.PageSetup raise @failure.Failure {
+  let flow = self.flow()
+  if index == 0 {
+    return flow.page
+  }
+  guard flow.sectionBreaks.get(index - 1) is Some(section) else {
+    @failure.reject("invalid-operation", "Unknown page section")
+  }
+  section.page
+}
+
+///|
+fn Session::page_columns_query(
+  self : Session,
+  tree : WordTree,
+  index : Int,
+) -> Json {
   try {
-    let section = self.editable_page_section(tree)
+    let section = self.editable_page_section(tree, target=Some(index))
     let columns = tree.page_columns(section)
-    ignore(columns.width(self.flow().page))
-    { "value": columns, "reason": "" }
+    let page = self.section_page_setup(index)
+    ignore(columns.width(page))
+    {
+      "value": columns,
+      "reason": "",
+      "availableWidth": page.width - page.left - page.right,
+    }
   } catch {
     @failure.Failure(message~, ..) =>
-      { "value": Json::null(), "reason": message }
+      {
+        "value": Json::null(),
+        "reason": message,
+        "availableWidth": Json::null(),
+      }
   }
 }
 
@@ -97,6 +125,7 @@ fn Session::page_columns_query(self : Session, tree : WordTree) -> Json {
 pub fn Session::set_page_columns(
   self : Session,
   revision : Int,
+  sectionIndex : Int,
   value : @layout.Columns?,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],
@@ -105,9 +134,9 @@ pub fn Session::set_page_columns(
   self.check_revision(revision)
   let original = self.document()
   let tree = WordTree::new(original)
-  let section = self.editable_page_section(tree)
+  let section = self.editable_page_section(tree, target=Some(sectionIndex))
   let columns = value.unwrap_or(@layout.Columns::new())
-  ignore(columns.width(self.flow().page))
+  ignore(columns.width(self.section_page_setup(sectionIndex)))
   guard columns.gap * 20 == (columns.gap * 20).round() else {
     @failure.reject(
       "invalid-operation", "Column spacing requires integer twips",

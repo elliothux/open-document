@@ -248,7 +248,7 @@ fn Foundation::dispatch(
     | "setDocxThemeColor"
     | "runningArea"
     | "setRunningOptions"
-    | "unlinkRunningArea"
+    | "setRunningLink"
     | "setRunningArea"
     | "pageSetup"
     | "documentProtection"
@@ -458,7 +458,7 @@ fn Foundation::dispatch(
           result
         }
         "setRunningOptions"
-        | "unlinkRunningArea"
+        | "setRunningLink"
         | "runningArea"
         | "setRunningArea"
         | "pageSetup"

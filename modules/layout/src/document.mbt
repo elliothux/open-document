@@ -298,6 +298,7 @@ pub(all) struct Layout {
   profile : Map[String, String]
   pages : Array[PageFrame]
   running : Array[Array[Line]]
+  sectionNumbering : Array[PageNumbering]
   diagnostics : Array[String]
   outlines : Array[Outline]
   fonts : Array[FontInfo]

@@ -389,48 +389,63 @@ export abstract class DocumentPage extends DocumentReview {
       return this.review.client.editRuler(source, change);
     });
   }
-  setPageColumns(columns: DocxColumns | null): Promise<void> {
+  setPageColumns(section: number, columns: DocxColumns | null): Promise<void> {
     return this.review.edit(() =>
       this.review.client.setPageColumns(
         this.review.snapshot().revision,
+        section,
         columns,
         this.profile,
       ),
     );
   }
-  setPageNumbering(numbering: DocxPageNumbering | null): Promise<void> {
+  setPageNumbering(
+    section: number,
+    numbering: DocxPageNumbering | null,
+  ): Promise<void> {
     return this.review.edit(() =>
       this.review.client.setPageNumbering(
         this.review.snapshot().revision,
+        section,
         numbering,
         this.profile,
       ),
     );
   }
   protected abstract readonly profile: Record<string, string>;
-  unlinkRunningArea(
+  setRunningLink(
+    section: number,
     kind: DocxRunningKind,
     variant: DocxRunningVariant,
+    linked: boolean,
   ): Promise<void> {
     return this.review.edit(() =>
-      this.review.client.unlinkRunningArea(
+      this.review.client.setRunningLink(
         this.review.snapshot().revision,
+        section,
         kind,
         variant,
+        linked,
         this.profile,
       ),
     );
   }
-  runningArea(kind: DocxRunningKind, variant: DocxRunningVariant) {
+  runningArea(
+    section: number,
+    kind: DocxRunningKind,
+    variant: DocxRunningVariant,
+  ) {
     return this.review.read(() =>
       this.review.client.runningArea(
         this.review.snapshot().revision,
+        section,
         kind,
         variant,
       ),
     );
   }
   setRunningArea(
+    section: number,
     kind: DocxRunningKind,
     variant: DocxRunningVariant,
     content: DocxRunningContent[],
@@ -439,6 +454,7 @@ export abstract class DocumentPage extends DocumentReview {
     return this.review.edit(() =>
       this.review.client.setRunningArea(
         this.review.snapshot().revision,
+        section,
         kind,
         variant,
         content,
@@ -476,18 +492,27 @@ export abstract class DocumentPage extends DocumentReview {
   ): Promise<readonly EditorOutput[]> {
     return this.outputs("images", outputBytes, scale);
   }
-  setPageBorders(borders: DocxPageBorders | null): Promise<void> {
+  setPageBorders(
+    section: number,
+    borders: DocxPageBorders | null,
+  ): Promise<void> {
     return this.review.edit(() =>
       this.review.client.setPageBorders(
         this.review.snapshot().revision,
+        section,
         borders,
       ),
     );
   }
-  setRunningOptions(first: boolean, even: boolean): Promise<void> {
+  setRunningOptions(
+    section: number,
+    first: boolean,
+    even: boolean,
+  ): Promise<void> {
     return this.review.edit(() =>
       this.review.client.setRunningOptions(
         this.review.snapshot().revision,
+        section,
         first,
         even,
         this.profile,

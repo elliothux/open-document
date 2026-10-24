@@ -3,6 +3,7 @@
 pub fn Session::set_running_options(
   self : Session,
   revision : Int,
+  sectionIndex : Int,
   first : Bool,
   even : Bool,
   probe~ : @layout.TextProbe,
@@ -12,7 +13,7 @@ pub fn Session::set_running_options(
   self.check_revision(revision)
   let original = self.document()
   let tree = WordTree::new(original)
-  let section = self.editable_page_section(tree)
+  let section = self.editable_page_section(tree, target=Some(sectionIndex))
   let (old_first, old_even) = self.running_options(tree, section)
   if old_first == first && old_even == even {
     return self.edit_state()
@@ -133,7 +134,7 @@ fn Session::commit_running(
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],
   images~ : @layout.Images,
-  refresh~ : (String, String)? = None,
+  refresh~ : (String, String, Int)? = None,
   media~ : Map[String, Bytes] = self.media,
   created_media~ : Map[String, Bytes] = Map([]),
 ) -> Json raise @failure.Failure {
@@ -141,9 +142,9 @@ fn Session::commit_running(
   let flow = view.flow_from(candidate)
   let layout = @layout.paginate(probe, flow, profile, images)
   ignore(view.page_positioned(layout, probe))
-  if refresh is Some((part, variant)) {
+  if refresh is Some((part, variant, section)) {
     refresh_running_fields(
-      part, variant, flow, layout, parts, part_edits, created,
+      part, variant, section, flow, layout, parts, part_edits, created,
     )
   }
   if edits.is_empty() && part_edits.is_empty() && created.is_empty() {

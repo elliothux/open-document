@@ -1,23 +1,9 @@
 ///|
 fn WordTree::page_borders(
   self : WordTree,
-  section~ : Int? = None,
+  section : Int?,
 ) -> @layout.PageBorders raise @failure.Failure {
-  let sections = if section is Some(id) {
-    [id]
-  } else {
-    self.order.filter(id => {
-      self.nodes[id].uri == word_uri && self.nodes[id].name == "sectPr"
-    })
-  }
-  guard sections.length() <= 1 else {
-    @failure.reject(
-      "protected-content", "Page borders for multiple sections are unsupported",
-    )
-  }
-  guard sections.get(0) is Some(section) else {
-    return @layout.PageBorders::new()
-  }
+  guard section is Some(section) else { return @layout.PageBorders::new() }
   let roots = self.children[section].filter(id => {
     self.nodes[id].uri == word_uri && self.nodes[id].name == "pgBorders"
   })
@@ -92,14 +78,18 @@ fn WordTree::page_borders(
 }
 
 ///|
-fn Session::page_borders_query(self : Session, tree : WordTree) -> Json {
+fn Session::page_borders_query(
+  self : Session,
+  tree : WordTree,
+  index : Int,
+) -> Json {
   try {
-    ignore(self.editable_page_section(tree))
+    let section = self.editable_page_section(tree, target=Some(index))
     let reason = self.theme_edit_reason()
     guard reason.is_empty() else {
       @failure.reject("protected-content", reason)
     }
-    { "value": tree.page_borders(), "reason": "" }
+    { "value": tree.page_borders(section), "reason": "" }
   } catch {
     @failure.Failure(message~, ..) =>
       { "value": @layout.PageBorders::new(), "reason": message }
@@ -110,6 +100,7 @@ fn Session::page_borders_query(self : Session, tree : WordTree) -> Json {
 pub fn Session::set_page_borders(
   self : Session,
   revision : Int,
+  sectionIndex : Int,
   borders : @layout.PageBorders?,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
@@ -131,8 +122,8 @@ pub fn Session::set_page_borders(
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let original = self.document()
   let tree = WordTree::new(original)
-  let old = tree.page_borders()
-  let section = self.editable_page_section(tree)
+  let section = self.editable_page_section(tree, target=Some(sectionIndex))
+  let old = tree.page_borders(section)
   if section is None && borders is None {
     return self.edit_state()
   }
@@ -185,7 +176,7 @@ pub fn Session::set_page_borders(
   guard change is Some(change) else { return self.edit_state() }
   let (candidate, edit) = candidate.edit_source([change])
   edits.push(edit)
-  ignore(WordTree::new(candidate).page_borders())
+  ignore(WordTree::new(candidate).page_borders(Some(section)))
   let paragraphs = tree.order.filter(id => {
     tree.nodes[id].uri == word_uri && tree.nodes[id].name == "p"
   })
@@ -214,13 +205,7 @@ fn Session::validate_page_border_geometry(
   document : @xml.Document,
 ) -> Unit raise @failure.Failure {
   let tree = WordTree::new(document)
-  let borders = tree
-    .page_sections()
-    .map(section => {
-      section
-      .map(id => tree.page_borders(section=Some(id)))
-      .unwrap_or(@layout.PageBorders::new())
-    })
+  let borders = tree.page_sections().map(section => tree.page_borders(section))
   if borders.all(border => border.sides.is_empty()) {
     return
   }

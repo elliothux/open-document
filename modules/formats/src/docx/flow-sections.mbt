@@ -93,7 +93,7 @@ fn Session::flow_sections(
           @layout.PageNumbering::new()
         }
       }
-      borders = tree.page_borders(section=Some(id)) catch {
+      borders = tree.page_borders(Some(id)) catch {
         @failure.Failure(message~, ..) => {
           diagnostics.push("unsupported-layout:page-borders:" + message)
           @layout.PageBorders::new()

@@ -210,9 +210,9 @@ pub fn Session::page_setup(
       },
       "reason": "",
       "background": self.page_background_query(tree),
-      "borders": self.page_borders_query(tree),
-      "numbering": self.page_numbering_query(tree),
-      "columns": self.page_columns_query(tree),
+      "borders": self.page_borders_query(tree, index),
+      "numbering": self.page_numbering_query(tree, index),
+      "columns": self.page_columns_query(tree, index),
     }
   } catch {
     @failure.Failure(code="invalid-operation", ..) as error => raise error
@@ -223,9 +223,9 @@ pub fn Session::page_setup(
         "page": Json::null(),
         "reason": message,
         "background": self.page_background_query(tree),
-        "borders": self.page_borders_query(tree),
-        "numbering": self.page_numbering_query(tree),
-        "columns": self.page_columns_query(tree),
+        "borders": self.page_borders_query(tree, section),
+        "numbering": self.page_numbering_query(tree, section),
+        "columns": self.page_columns_query(tree, section),
       }
   }
 }

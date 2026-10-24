@@ -237,6 +237,7 @@ fn running_content_markup(
 fn refresh_running_fields(
   part : String,
   variant : String,
+  section : Int,
   flow : @layout.Flow,
   layout : @layout.Layout,
   parts : Map[String, @xml.Document],
@@ -248,13 +249,22 @@ fn refresh_running_fields(
       "unsupported-layout", "Running field update requires a complete layout",
     )
   }
+  guard layout.sectionNumbering.get(section) is Some(numbering) else {
+    @failure.reject("invalid-operation", "Missing running section numbering")
+  }
+  let (first, even) = if section == 0 {
+    (flow.differentFirst, flow.differentEven)
+  } else {
+    let profile = flow.sectionBreaks[section - 1]
+    (profile.differentFirst, profile.differentEven)
+  }
   let page = [0, 1, 2]
     .iter()
     .find_first(page => {
-      flow.pageNumbering.variant(
+      numbering.variant(
         page,
-        flow.differentFirst || variant == "first",
-        flow.differentEven || variant == "even",
+        first || variant == "first",
+        even || variant == "even",
       ) ==
       variant
     })
@@ -267,7 +277,7 @@ fn refresh_running_fields(
       let value = if code.is_empty() {
         ""
       } else {
-        flow.pageNumbering.field_text(code, page, layout.pages.length())
+        numbering.field_text(code, page, layout.pages.length())
       }
       let node = tree.nodes[id]
       if node.text != value {

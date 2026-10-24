@@ -26,11 +26,13 @@ export function DocxRunning({
   state,
   editor,
   disabled,
+  section,
 }: {
   controller: EditorController;
   state: UiSnapshot;
   editor: DocumentEditor;
   disabled: boolean;
+  section: number;
 }) {
   const t = messages(state.locale);
   const [kind, setKind] = useState<DocxRunningKind>("header");
@@ -41,9 +43,10 @@ export function DocxRunning({
   const [content, setContent] = useState<DocxRunningContent[]>([{ text: "" }]);
   const active = useRef<HTMLTextAreaElement | null>(null);
   const [distance, setDistance] = useState(36);
-  const stale = area?.revision !== state.document?.revision;
+  const stale =
+    area?.revision !== state.document?.revision || area?.section !== section;
   const load = async () => {
-    const value = await editor.runningArea(kind, variant);
+    const value = await editor.runningArea(section, kind, variant);
     setArea(value);
     setContent(runningDraft(value.content));
     active.current = null;
@@ -120,10 +123,10 @@ export function DocxRunning({
       {area && (
         <button
           type="button"
-          disabled={disabled || stale || !area.shared}
+          disabled={disabled || stale || (!area.shared && !area.linked)}
           onClick={() =>
             controller.run(async () => {
-              await editor.unlinkRunningArea(kind, variant);
+              await editor.setRunningLink(section, kind, variant, false);
               await load();
             })
           }
@@ -131,17 +134,43 @@ export function DocxRunning({
           {t.unlinkRunningArea}
         </button>
       )}
+      {area && section > 0 && (
+        <button
+          type="button"
+          disabled={disabled || stale || area.linked}
+          onClick={() =>
+            controller.run(async () => {
+              await editor.setRunningLink(section, kind, variant, true);
+              await load();
+            })
+          }
+        >
+          {t.linkRunningArea}
+        </button>
+      )}
       {area && (
         <form
           onSubmit={(event) => {
             event.preventDefault();
             controller.run(async () => {
-              await editor.setRunningArea(kind, variant, content, distance);
+              await editor.setRunningArea(
+                section,
+                kind,
+                variant,
+                content,
+                distance,
+              );
               await load();
             });
           }}
         >
-          <fieldset disabled={disabled || stale || !!area.reason}>
+          <fieldset
+            disabled={
+              disabled ||
+              stale ||
+              (!!area.reason && !area.linked && !area.shared)
+            }
+          >
             <label>
               <input
                 type="checkbox"
@@ -156,14 +185,18 @@ export function DocxRunning({
                 checked={even}
                 onChange={(event) => setEven(event.currentTarget.checked)}
               />
-              {t.headerDifferentOddEven}
+              {t.runningDocumentOddEven}
             </label>
             <button
               type="button"
               onClick={() =>
                 controller.run(async () => {
-                  await editor.setRunningOptions(first, even);
-                  const value = await editor.runningArea(kind, variant);
+                  await editor.setRunningOptions(section, first, even);
+                  const value = await editor.runningArea(
+                    section,
+                    kind,
+                    variant,
+                  );
                   setArea(value);
                   setFirst(value.differentFirst);
                   setEven(value.differentEven);
@@ -172,6 +205,8 @@ export function DocxRunning({
             >
               {t.applyRunningOptions}
             </button>
+          </fieldset>
+          <fieldset disabled={disabled || stale || !!area.reason}>
             {content.map((item, index) =>
               "text" in item ? (
                 <div key={index}>

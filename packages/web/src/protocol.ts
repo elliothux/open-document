@@ -260,6 +260,7 @@ export type Operation =
   | {
       operation: "setRunningOptions";
       revision: number;
+      section: number;
       first: boolean;
       even: boolean;
       profile: Record<string, string>;
@@ -295,18 +296,22 @@ export type Operation =
   | {
       operation: "setPageColumns";
       revision: number;
+      section: number;
       columns: DocxColumns | null;
       profile: Record<string, string>;
     }
   | {
       operation: "runningArea";
       revision: number;
+      section: number;
       kind: DocxRunningKind;
       variant: DocxRunningVariant;
     }
   | {
-      operation: "unlinkRunningArea";
+      operation: "setRunningLink";
       revision: number;
+      section: number;
+      linked: boolean;
       kind: DocxRunningKind;
       variant: DocxRunningVariant;
       profile: Record<string, string>;
@@ -314,6 +319,7 @@ export type Operation =
   | {
       operation: "setRunningArea";
       revision: number;
+      section: number;
       kind: DocxRunningKind;
       variant: DocxRunningVariant;
       content: DocxRunningContent[];
@@ -331,12 +337,14 @@ export type Operation =
   | {
       operation: "setPageBorders";
       revision: number;
+      section: number;
       borders: DocxPageBorders | null;
     }
   | { operation: "setPageSetup"; revision: number; page: DocxPageSetup }
   | {
       operation: "setPageNumbering";
       revision: number;
+      section: number;
       numbering: DocxPageNumbering | null;
       profile: Record<string, string>;
     }

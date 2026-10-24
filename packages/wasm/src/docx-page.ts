@@ -264,6 +264,8 @@ export function checkBodyField(value: unknown): asserts value is DocxBodyField {
 }
 export interface DocxRunningArea {
   revision: number;
+  section: number;
+  linked: boolean;
   /** LF separates paragraphs; U+2028 is an inline soft break. */
   content: DocxRunningContent[];
   distance: number;
@@ -326,6 +328,7 @@ export function checkRunningArea(
 }
 export function docxRunningArea(value: unknown): DocxRunningArea {
   const area = record(value);
+  checkPageSection(area.section);
   checkRunningArea("header", "default", area.content, area.distance);
   checkRunningOptions(area.differentFirst, area.differentEven);
   if (
@@ -333,10 +336,14 @@ export function docxRunningArea(value: unknown): DocxRunningArea {
     Number(area.revision) < 0 ||
     typeof area.reason !== "string" ||
     typeof area.shared !== "boolean" ||
+    typeof area.linked !== "boolean" ||
+    (area.linked && area.section === 0) ||
     Object.keys(area).some(
       (key) =>
         ![
           "revision",
+          "section",
+          "linked",
           "content",
           "distance",
           "reason",
@@ -449,14 +456,17 @@ export class FoundationPageSession extends FoundationReviewSession {
   }
   setPageNumbering(
     revision: number,
+    section: number,
     numbering: DocxPageNumbering | null,
     profile: Record<string, string>,
   ) {
+    checkPageSection(section);
     checkPageNumbering(numbering);
     return editState(
       this.call({
         operation: "setPageNumbering",
         revision,
+        section,
         numbering,
         profile,
       }),
@@ -467,35 +477,45 @@ export class FoundationPageSession extends FoundationReviewSession {
       this.call({ operation: "updateBodyPageFields", revision, profile }),
     );
   }
-  unlinkRunningArea(
+  setRunningLink(
     revision: number,
+    section: number,
     kind: DocxRunningKind,
     variant: DocxRunningVariant,
+    linked: boolean,
     profile: Record<string, string>,
   ) {
+    checkPageSection(section);
+    if (typeof linked !== "boolean")
+      throw new Error("Invalid running link state");
     checkRunningKind(kind);
     checkRunningVariant(variant);
     return editState(
       this.call({
-        operation: "unlinkRunningArea",
+        operation: "setRunningLink",
         revision,
+        section,
         kind,
         variant,
+        linked,
         profile,
       }),
     );
   }
   setRunningOptions(
     revision: number,
+    section: number,
     first: boolean,
     even: boolean,
     profile: Record<string, string>,
   ) {
+    checkPageSection(section);
     checkRunningOptions(first, even);
     return editState(
       this.call({
         operation: "setRunningOptions",
         revision,
+        section,
         first,
         even,
         profile,
@@ -510,12 +530,20 @@ export class FoundationPageSession extends FoundationReviewSession {
   }
   setPageColumns(
     revision: number,
+    section: number,
     columns: DocxColumns | null,
     profile: Record<string, string>,
   ) {
+    checkPageSection(section);
     checkDocxColumns(columns);
     return editState(
-      this.call({ operation: "setPageColumns", revision, columns, profile }),
+      this.call({
+        operation: "setPageColumns",
+        revision,
+        section,
+        columns,
+        profile,
+      }),
     );
   }
   setPageSetup(revision: number, page: DocxPageSetup) {
@@ -555,36 +583,46 @@ export class FoundationPageSession extends FoundationReviewSession {
       this.call({ operation: "setCoverPage", revision, cover, profile }),
     );
   }
-  setPageBorders(revision: number, borders: DocxPageBorders | null) {
+  setPageBorders(
+    revision: number,
+    section: number,
+    borders: DocxPageBorders | null,
+  ) {
+    checkPageSection(section);
     checkPageBorders(borders);
     return editState(
-      this.call({ operation: "setPageBorders", revision, borders }),
+      this.call({ operation: "setPageBorders", revision, section, borders }),
     );
   }
   runningArea(
     revision: number,
+    section: number,
     kind: DocxRunningKind,
     variant: DocxRunningVariant,
   ): DocxRunningArea {
+    checkPageSection(section);
     checkRunningKind(kind);
     checkRunningVariant(variant);
     return docxRunningArea(
-      this.call({ operation: "runningArea", revision, kind, variant }),
+      this.call({ operation: "runningArea", revision, section, kind, variant }),
     );
   }
   setRunningArea(
     revision: number,
+    section: number,
     kind: DocxRunningKind,
     variant: DocxRunningVariant,
     content: DocxRunningContent[],
     distance: number,
     profile: Record<string, string>,
   ) {
+    checkPageSection(section);
     checkRunningArea(kind, variant, content, distance);
     return editState(
       this.call({
         operation: "setRunningArea",
         revision,
+        section,
         kind,
         variant,
         content,

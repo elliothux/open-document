@@ -34,7 +34,7 @@ export function DocxPage({
   const [section, setSection] = useState(0);
   const [draft, setDraft] = useState<DocxPageSetup>();
   const [numbering, setNumbering] = useState<DocxPageNumbering>({
-    start: 1,
+    start: null,
     format: "decimal",
   });
   const [color, setColor] = useState("#ffffff");
@@ -51,7 +51,7 @@ export function DocxPage({
     const value = await editor.pageSetup(index);
     setSettings(value);
     setDraft(value.page ?? undefined);
-    setNumbering(value.numbering.value ?? { start: 1, format: "decimal" });
+    setNumbering(value.numbering.value ?? { start: null, format: "decimal" });
     setColumns(
       value.columns.value ?? {
         count: 1,
@@ -68,10 +68,7 @@ export function DocxPage({
     );
   };
   const stale = settings?.revision !== state.document?.revision;
-  const fullWidth =
-    (editor.layout.regions[0]?.width ?? settings?.page?.width ?? 612) -
-    (settings?.page?.left ?? 72) -
-    (settings?.page?.right ?? 72);
+  const fullWidth = settings?.columns.availableWidth ?? 468;
   const customColumns = (count: number) =>
     Array.from(
       { length: count },
@@ -137,6 +134,8 @@ export function DocxPage({
         {t.updateBodyPageFields}
       </button>
       <DocxRunning
+        key={section}
+        section={section}
         controller={controller}
         state={state}
         editor={editor}
@@ -191,12 +190,19 @@ export function DocxPage({
           onSubmit={(event) => {
             event.preventDefault();
             controller.run(async () => {
-              await editor.setPageColumns(columns);
+              await editor.setPageColumns(section, columns);
               await load();
             });
           }}
         >
-          <fieldset disabled={disabled || stale || !!settings.columns.reason}>
+          <fieldset
+            disabled={
+              disabled ||
+              stale ||
+              !!settings.columns.reason ||
+              settings.page?.section !== section
+            }
+          >
             <legend>{t.pageColumns}</legend>
             <label>
               {t.columnCount}
@@ -265,10 +271,16 @@ export function DocxPage({
             {columns.custom.map((column, index) => {
               const last = index === columns.custom.length - 1;
               const width = last
-                ? fullWidth -
-                  columns.custom
-                    .slice(0, index)
-                    .reduce((sum, column) => sum + column.width + column.gap, 0)
+                ? Math.round(
+                    (fullWidth -
+                      columns.custom
+                        .slice(0, index)
+                        .reduce(
+                          (sum, column) => sum + column.width + column.gap,
+                          0,
+                        )) *
+                      20,
+                  ) / 20
                 : column.width;
               return (
                 <fieldset key={index}>
@@ -348,7 +360,7 @@ export function DocxPage({
               type="button"
               onClick={() =>
                 controller.run(async () => {
-                  await editor.setPageColumns(null);
+                  await editor.setPageColumns(section, null);
                   await load();
                 })
               }
@@ -364,13 +376,33 @@ export function DocxPage({
           onSubmit={(event) => {
             event.preventDefault();
             controller.run(async () => {
-              await editor.setPageNumbering(numbering);
+              await editor.setPageNumbering(section, numbering);
               await load();
             });
           }}
         >
-          <fieldset disabled={disabled || stale || !!settings.numbering.reason}>
+          <fieldset
+            disabled={
+              disabled ||
+              stale ||
+              !!settings.numbering.reason ||
+              settings.page?.section !== section
+            }
+          >
             <legend>{t.pageNumbering}</legend>
+            <label>
+              <input
+                type="checkbox"
+                checked={numbering.start !== null}
+                onChange={(event) =>
+                  setNumbering({
+                    ...numbering,
+                    start: event.currentTarget.checked ? 1 : null,
+                  })
+                }
+              />
+              {t.restartPageNumbering}
+            </label>
             <label>
               {t.pageNumberStart}
               <input
@@ -379,7 +411,14 @@ export function DocxPage({
                 max={4294967295}
                 step={1}
                 required
-                value={Number.isFinite(numbering.start) ? numbering.start : ""}
+                disabled={numbering.start === null}
+                value={
+                  numbering.start === null
+                    ? 1
+                    : Number.isFinite(numbering.start)
+                      ? numbering.start
+                      : ""
+                }
                 onChange={(event) =>
                   setNumbering({
                     ...numbering,
@@ -414,7 +453,7 @@ export function DocxPage({
               type="button"
               onClick={() =>
                 controller.run(async () => {
-                  await editor.setPageNumbering(null);
+                  await editor.setPageNumbering(section, null);
                   await load();
                 })
               }
@@ -427,14 +466,14 @@ export function DocxPage({
       )}
       {settings && (
         <DocxPageBordersForm
-          key={settings.revision}
+          key={`${settings.revision}:${settings.page?.section ?? -1}`}
           value={settings.borders.value}
           reason={settings.borders.reason}
-          disabled={disabled || stale}
+          disabled={disabled || stale || settings.page?.section !== section}
           state={state}
           apply={(borders) =>
             controller.run(async () => {
-              await editor.setPageBorders(borders);
+              await editor.setPageBorders(section, borders);
               await load();
             })
           }

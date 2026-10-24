@@ -529,7 +529,7 @@ pub fn paginate(
     errdefer {
       probe.pagination = old
     }
-    let (pages, running, diagnostics) = paginate_sections(
+    let (pages, running, diagnostics, section_numbering) = paginate_sections(
       probe, flow, cache, profile, images,
     )
     probe.paragraphs = cache.current
@@ -543,6 +543,7 @@ pub fn paginate(
       profile: profile.copy(),
       pages,
       running,
+      sectionNumbering: section_numbering,
       diagnostics: flow.diagnostics + diagnostics,
       outlines: probe.outline_resources(),
       fonts: probe.font_info(),
@@ -558,6 +559,7 @@ pub fn paginate(
     )
   }
   let result : Layout = {
+    sectionNumbering: [flow.pageNumbering],
     background: flow.background,
     revision: flow.revision,
     shapedParagraphs: cache.shaped,

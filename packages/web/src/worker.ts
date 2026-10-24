@@ -366,12 +366,14 @@ async function dispatch(request: Request): Promise<unknown> {
         case "setPageColumns":
           return foundation.setPageColumns(
             request.revision,
+            request.section,
             request.columns,
             request.profile,
           );
         case "setRunningOptions":
           return foundation.setRunningOptions(
             request.revision,
+            request.section,
             request.first,
             request.even,
             request.profile,
@@ -379,19 +381,23 @@ async function dispatch(request: Request): Promise<unknown> {
         case "runningArea":
           return foundation.runningArea(
             request.revision,
+            request.section,
             request.kind,
             request.variant,
           );
-        case "unlinkRunningArea":
-          return foundation.unlinkRunningArea(
+        case "setRunningLink":
+          return foundation.setRunningLink(
             request.revision,
+            request.section,
             request.kind,
             request.variant,
+            request.linked,
             request.profile,
           );
         case "setRunningArea":
           return foundation.setRunningArea(
             request.revision,
+            request.section,
             request.kind,
             request.variant,
             request.content,
@@ -415,7 +421,11 @@ async function dispatch(request: Request): Promise<unknown> {
             request.profile,
           );
         case "setPageBorders":
-          return foundation.setPageBorders(request.revision, request.borders);
+          return foundation.setPageBorders(
+            request.revision,
+            request.section,
+            request.borders,
+          );
         case "docxPictures":
           return foundation.pictures(request.revision);
         case "docxCharts":
@@ -458,6 +468,7 @@ async function dispatch(request: Request): Promise<unknown> {
         case "setPageNumbering":
           return foundation.setPageNumbering(
             request.revision,
+            request.section,
             request.numbering,
             request.profile,
           );

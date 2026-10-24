@@ -51,11 +51,16 @@ export interface DocxPageSettings {
   background: { color: string | null; reason: string };
   borders: { value: DocxPageBorders; reason: string };
   numbering: { value: DocxPageNumbering | null; reason: string };
-  columns: { value: DocxColumns | null; reason: string };
+  columns: {
+    value: DocxColumns | null;
+    reason: string;
+    availableWidth: number | null;
+  };
 }
 
 export interface DocxPageNumbering {
-  start: number;
+  /** Null continues the preceding section, or starts at 1 in the first section. */
+  start: number | null;
   format: Exclude<ListFormat, "bullet">;
 }
 export function checkPageNumbering(value: unknown): void {
@@ -64,10 +69,11 @@ export function checkPageNumbering(value: unknown): void {
   if (
     Object.keys(numbering).length !== 2 ||
     Object.keys(numbering).some((key) => !["start", "format"].includes(key)) ||
-    typeof numbering.start !== "number" ||
-    !Number.isInteger(numbering.start) ||
-    numbering.start < 0 ||
-    numbering.start > 4294967295 ||
+    (numbering.start !== null &&
+      (typeof numbering.start !== "number" ||
+        !Number.isInteger(numbering.start) ||
+        numbering.start < 0 ||
+        numbering.start > 4294967295)) ||
     typeof numbering.format !== "string" ||
     numbering.format === "bullet" ||
     !listFormats.some((format) => format === numbering.format)
@@ -143,12 +149,20 @@ export function docxPageSettings(value: unknown): DocxPageSettings {
   checkDocxColumns(column.value);
   if (
     typeof column.reason !== "string" ||
-    (column.value === null) !== !!column.reason
+    (column.value === null) !== !!column.reason ||
+    (column.value === null
+      ? column.availableWidth !== null
+      : typeof column.availableWidth !== "number" ||
+        !Number.isFinite(column.availableWidth) ||
+        column.availableWidth < 12 ||
+        column.availableWidth > 14400)
   )
     throw new Error("Invalid DOCX column settings");
   const columns = {
     value: column.value as DocxColumns | null,
     reason: column.reason,
+    availableWidth:
+      column.availableWidth === null ? null : Number(column.availableWidth),
   };
   const numbering = record(result.numbering);
   checkPageNumbering(numbering.value);

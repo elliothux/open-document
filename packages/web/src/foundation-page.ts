@@ -180,14 +180,17 @@ export class FoundationPageClient extends FoundationReviewClient {
   }
   async setPageColumns(
     revision: number,
+    section: number,
     columns: DocxColumns | null,
     profile: Record<string, string>,
   ) {
+    checkPageSection(section);
     checkDocxColumns(columns);
     return editState(
       await this.connection.request({
         operation: "setPageColumns",
         revision,
+        section,
         columns,
         profile,
       }),
@@ -195,48 +198,61 @@ export class FoundationPageClient extends FoundationReviewClient {
   }
   async setPageNumbering(
     revision: number,
+    section: number,
     numbering: DocxPageNumbering | null,
     profile: Record<string, string>,
   ) {
+    checkPageSection(section);
     checkPageNumbering(numbering);
     return editState(
       await this.connection.request({
         operation: "setPageNumbering",
         revision,
+        section,
         numbering,
         profile,
       }),
     );
   }
-  async unlinkRunningArea(
+  async setRunningLink(
     revision: number,
+    section: number,
     kind: DocxRunningKind,
     variant: DocxRunningVariant,
+    linked: boolean,
     profile: Record<string, string>,
   ) {
+    checkPageSection(section);
+    if (typeof linked !== "boolean")
+      throw new Error("Invalid running link state");
     checkRunningKind(kind);
     checkRunningVariant(variant);
     return editState(
       await this.connection.request({
-        operation: "unlinkRunningArea",
+        operation: "setRunningLink",
         revision,
+        section,
         kind,
         variant,
+        linked,
         profile,
       }),
     );
   }
   async setRunningOptions(
     revision: number,
+    section: number,
     first: boolean,
     even: boolean,
     profile: Record<string, string>,
   ) {
+    checkPageSection(section);
     checkRunningOptions(first, even);
     return editState(
       await this.connection.request({
         operation: "setRunningOptions",
         revision,
+        section,
         first,
         even,
         profile,
@@ -308,27 +324,36 @@ export class FoundationPageClient extends FoundationReviewClient {
       }),
     );
   }
-  async setPageBorders(revision: number, borders: DocxPageBorders | null) {
+  async setPageBorders(
+    revision: number,
+    section: number,
+    borders: DocxPageBorders | null,
+  ) {
+    checkPageSection(section);
     checkPageBorders(borders);
     return editState(
       await this.connection.request({
         operation: "setPageBorders",
         revision,
+        section,
         borders,
       }),
     );
   }
   async runningArea(
     revision: number,
+    section: number,
     kind: DocxRunningKind,
     variant: DocxRunningVariant,
   ) {
+    checkPageSection(section);
     checkRunningKind(kind);
     checkRunningVariant(variant);
     return docxRunningArea(
       await this.connection.request({
         operation: "runningArea",
         revision,
+        section,
         kind,
         variant,
       }),
@@ -336,17 +361,20 @@ export class FoundationPageClient extends FoundationReviewClient {
   }
   async setRunningArea(
     revision: number,
+    section: number,
     kind: DocxRunningKind,
     variant: DocxRunningVariant,
     content: DocxRunningContent[],
     distance: number,
     profile: Record<string, string>,
   ) {
+    checkPageSection(section);
     checkRunningArea(kind, variant, content, distance);
     return editState(
       await this.connection.request({
         operation: "setRunningArea",
         revision,
+        section,
         kind,
         variant,
         content,

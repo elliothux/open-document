@@ -2,36 +2,47 @@
 fn Session::running_target(
   self : Session,
   tree : WordTree,
+  index : Int,
   kind : String,
   variant : String,
 ) -> (Int?, Int?, String?) raise @failure.Failure {
   guard ["header", "footer"].contains(kind) else {
     @failure.reject("invalid-operation", "Invalid header or footer kind")
   }
-  let section = self.editable_page_section(tree)
+  let section = self.editable_page_section(tree, target=Some(index))
   guard ["default", "first", "even"].contains(variant) else {
     @failure.reject("invalid-operation", "Invalid running area variant")
   }
-  let all = section
-    .map(id => {
-      tree.children[id].filter(id => tree.nodes[id].name == kind + "Reference")
-    })
-    .unwrap_or([])
-  for value in ["default", "first", "even"] {
-    guard all
-      .filter(id => {
-        tree.nodes[id].attribute("type", uri=word_uri) == Some(value)
+  let mut reference : Int? = None
+  let mut part : String? = None
+  let sections = tree.page_sections()
+  for current in 0..<=index {
+    let all = sections[current]
+      .map(id => {
+        tree.children[id].filter(id => tree.nodes[id].name == kind + "Reference")
       })
-      .length() <=
-      1 else {
-      @failure.reject("protected-content", "Duplicate running area variant")
+      .unwrap_or([])
+    for value in ["default", "first", "even"] {
+      guard all
+        .filter(id => {
+          tree.nodes[id].attribute("type", uri=word_uri) == Some(value)
+        })
+        .length() <=
+        1 else {
+        @failure.reject("protected-content", "Duplicate running area variant")
+      }
+    }
+    let references = all.filter(id => {
+      tree.nodes[id].attribute("type", uri=word_uri) == Some(variant)
+    })
+    let found = references.get(0)
+    if current == index {
+      reference = found
+    }
+    if found is Some(id) {
+      part = Some(self.running_part(tree, id, kind))
     }
   }
-  let references = all.filter(id => {
-    tree.nodes[id].attribute("type", uri=word_uri) == Some(variant)
-  })
-  let reference = references.get(0)
-  let part = reference.map(id => self.running_part(tree, id, kind))
   (section, reference, part)
 }
 
@@ -39,10 +50,13 @@ fn Session::running_target(
 fn Session::editable_running(
   self : Session,
   tree : WordTree,
+  index : Int,
   kind : String,
   variant : String,
 ) -> (Int?, Int?, String?, Array[@layout.Paragraph]) raise @failure.Failure {
-  let (section, reference, part) = self.running_target(tree, kind, variant)
+  let (section, reference, part) = self.running_target(
+    tree, index, kind, variant,
+  )
   if part is Some(part) {
     let source = self.part_xml(part).source()
     let root = WordTree::new(self.part_xml(part)).nodes[0]
@@ -91,14 +105,18 @@ fn Session::editable_running(
 }
 
 ///|
-/// Reads ordered text, links and page fields from one single-section running area.
+/// Reads one section's effective story and its native link to the preceding section.
 pub fn Session::running_area(
   self : Session,
   revision : Int,
+  sectionIndex : Int,
   kind : String,
   variant : String,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  guard sectionIndex >= 0 && sectionIndex < 1024 else {
+    @failure.reject("invalid-operation", "Invalid page section")
+  }
   guard ["header", "footer"].contains(kind) else {
     @failure.reject("invalid-operation", "Invalid header or footer kind")
   }
@@ -107,24 +125,37 @@ pub fn Session::running_area(
   }
   let tree = WordTree::new(self.document())
   let mut shared = false
+  let mut linked = false
+  let mut first = false
+  let mut even = false
   let (section, _, part, paragraphs) = try {
-    let (_, _, part) = self.running_target(tree, kind, variant)
+    let (section, reference, part) = self.running_target(
+      tree, sectionIndex, kind, variant,
+    )
+    linked = sectionIndex > 0 && reference is None
     shared = self.running_shared(tree, part)
-    self.editable_running(tree, kind, variant)
+    let options = self.running_options(tree, section)
+    first = options.0
+    even = options.1
+    self.editable_running(tree, sectionIndex, kind, variant)
   } catch {
+    @failure.Failure(code="invalid-operation", ..) as error => raise error
     @failure.Failure(message~, ..) =>
       return {
         "revision": revision,
+        "section": sectionIndex,
+        "linked": linked,
         "content": [{ "text": "" }],
         "distance": 0,
-        "differentFirst": false,
-        "differentEven": false,
+        "differentFirst": first,
+        "differentEven": even,
         "shared": shared,
         "reason": message,
       }
   }
-  let (first, even) = self.running_options(tree, section)
   {
+    "section": sectionIndex,
+    "linked": linked,
     "differentFirst": first,
     "differentEven": even,
     "revision": revision,
@@ -136,7 +167,9 @@ pub fn Session::running_area(
     .map(v => v / 20)
     .unwrap_or(0),
     "shared": shared,
-    "reason": if shared {
+    "reason": if linked {
+      "Linked running area requires an explicit independent copy"
+    } else if shared {
       "Shared running area requires an explicit unlink operation"
     } else {
       ""
@@ -149,6 +182,7 @@ pub fn Session::running_area(
 pub fn Session::set_running_area(
   self : Session,
   revision : Int,
+  sectionIndex : Int,
   kind : String,
   variant : String,
   content : Array[RunningContent],
@@ -169,8 +203,13 @@ pub fn Session::set_running_area(
   let original = self.document()
   let tree = WordTree::new(original)
   let (section, reference, existing, current) = self.editable_running(
-    tree, kind, variant,
+    tree, sectionIndex, kind, variant,
   )
+  guard sectionIndex == 0 || reference is Some(_) else {
+    @failure.reject(
+      "protected-content", "Linked running area requires an explicit independent copy",
+    )
+  }
   guard !self.running_shared(tree, existing) else {
     @failure.reject(
       "protected-content", "Shared running area requires an explicit unlink operation",
@@ -275,32 +314,12 @@ pub fn Session::set_running_area(
       })
       .unwrap()
     let tree = WordTree::new(candidate)
-    let node = tree.nodes[section]
-    let markup = "<w:\{kind}Reference xmlns:w=\"\{word_uri}\" xmlns:r=\"\{running_rel_uri}\" w:type=\"\{variant}\" r:id=\"\{property_attribute(relation.id)}\"/>"
-    let previous = tree.children[section]
-      .filter(id => {
-        tree.nodes[id].name == "headerReference" ||
-        (kind == "footer" && tree.nodes[id].name == "footerReference")
-      })
-      .last()
-    let change : @xml.SourceChange = if node.empty {
-      {
-        node: section,
-        offset: node.opening_end - node.start - 2,
-        length: 2,
-        xml: ">\{markup}</\{node.qualified}>",
-      }
-    } else {
-      {
-        node: section,
-        offset: previous
-        .map(id => tree.nodes[id].end)
-        .unwrap_or(node.opening_end) -
-        node.start,
-        length: 0,
-        xml: markup,
-      }
-    }
+    let change = tree.running_reference_change(
+      section,
+      kind,
+      variant,
+      relation.id,
+    )
     let (updated, edit) = candidate.edit_source([change])
     candidate = updated
     edits.push(edit)
@@ -344,7 +363,7 @@ pub fn Session::set_running_area(
     profile~,
     images~,
     refresh=if has_fields && (!same_content || old_distance == distance) {
-      Some((part, variant))
+      Some((part, variant, sectionIndex))
     } else {
       None
     },

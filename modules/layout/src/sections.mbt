@@ -117,7 +117,7 @@ fn paginate_sections(
   cache : ParagraphCache,
   profile : Map[String, String],
   images : Images,
-) -> (Array[PageFrame], Array[Array[Line]], Array[String]) raise @failure.Failure {
+) -> (Array[PageFrame], Array[Array[Line]], Array[String], Array[PageNumbering]) raise @failure.Failure {
   let fields = flow.body_fields()
   let fixed = flow.sequence_values()
   if fields.values().any(code => code.has_prefix("NOTEREF:")) {
@@ -133,6 +133,7 @@ fn paginate_sections(
     let running : Array[Array[Line]] = []
     let contexts : Array[(PageNumbering, Int)] = []
     let diagnostics : Array[String] = []
+    let section_numbering : Array[PageNumbering] = []
     let mut numbering = flow.pageNumbering
     let mut lines = 0
     let mut pending : Array[(Line, Double)] = []
@@ -172,6 +173,7 @@ fn paginate_sections(
         }
       }
       numbering.validate()
+      section_numbering.push(numbering)
       let part = body.section_body(index, numbering)
       let endnotes = if flow.endnotesAt == "docEnd" {
         if index == flow.sectionBreaks.length() {
@@ -246,13 +248,13 @@ fn paginate_sections(
       combined.pages.length(),
     )
     if stable && total == combined.pages.length() {
-      return (combined.pages, running, diagnostics)
+      return (combined.pages, running, diagnostics, section_numbering)
     }
     if attempt == 7 {
       diagnostics.push(
         "unsupported-layout:section-field-reflow-did-not-converge",
       )
-      return (combined.pages, running, diagnostics)
+      return (combined.pages, running, diagnostics, section_numbering)
     }
     body = updated
     total = combined.pages.length()

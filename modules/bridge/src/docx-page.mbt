@@ -127,6 +127,7 @@ fn Foundation::docx_page(
   if operation == "runningArea" {
     return session.running_area(
       revision,
+      field_int(request, "section"),
       field_string(request, "kind"),
       field_string(request, "variant"),
     )
@@ -445,6 +446,7 @@ fn Foundation::docx_page(
       }
       session.set_page_columns(
         revision,
+        field_int(request, "section"),
         value,
         probe=self.probe,
         profile=xlsx_profile(request),
@@ -459,12 +461,19 @@ fn Foundation::docx_page(
         Null => None
         Object(fields) if fields.length() == 2 &&
           fields.keys().all(k => ["start", "format"].contains(k)) => {
-          let start = xlsx_number(numbering, "start")
-          guard start >= 0 && start <= 4294967295 && start.floor() == start else {
-            @failure.reject("invalid-operation", "Invalid page numbering start")
+          let start = if fields.get("start") is Some(Null) {
+            None
+          } else {
+            let start = xlsx_number(numbering, "start")
+            guard start >= 0 && start <= 4294967295 && start.floor() == start else {
+              @failure.reject(
+                "invalid-operation", "Invalid page numbering start",
+              )
+            }
+            Some(start.to_int64())
           }
-          Some(@layout.PageNumbering::{
-            start: start.to_int64(),
+          Some(@docx.SectionNumbering::{
+            start,
             format: field_string(numbering, "format"),
           })
         }
@@ -472,17 +481,20 @@ fn Foundation::docx_page(
       }
       session.set_page_numbering(
         revision,
+        field_int(request, "section"),
         value,
         probe=self.probe,
         profile=xlsx_profile(request),
         images=self.images,
       )
     }
-    "unlinkRunningArea" =>
-      session.unlink_running_area(
+    "setRunningLink" =>
+      session.set_running_link(
         revision,
+        field_int(request, "section"),
         field_string(request, "kind"),
         field_string(request, "variant"),
+        xlsx_boolean(request, "linked"),
         probe=self.probe,
         profile=xlsx_profile(request),
         images=self.images,
@@ -490,6 +502,7 @@ fn Foundation::docx_page(
     "setRunningOptions" =>
       session.set_running_options(
         revision,
+        field_int(request, "section"),
         xlsx_boolean(request, "first"),
         xlsx_boolean(request, "even"),
         probe=self.probe,
@@ -499,6 +512,7 @@ fn Foundation::docx_page(
     "setRunningArea" =>
       session.set_running_area(
         revision,
+        field_int(request, "section"),
         field_string(request, "kind"),
         field_string(request, "variant"),
         running_content(request),
@@ -529,7 +543,11 @@ fn Foundation::docx_page(
         images=self.images,
       )
     "setPageBorders" =>
-      session.set_page_borders(revision, page_border_format(request))
+      session.set_page_borders(
+        revision,
+        field_int(request, "section"),
+        page_border_format(request),
+      )
     _ => @failure.reject("invalid-operation", "Unknown document page command")
   }
   if result is { "revision": Number(current, ..), .. } &&
