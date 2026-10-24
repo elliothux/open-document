@@ -37,6 +37,20 @@ pub fn Session::set_timeline_endpoint(
   level : Int,
   position : Int,
 ) -> Json raise @failure.Failure {
+  self.apply_timeline_endpoint(revision, sheet, name, handle, level, position)
+}
+
+///|
+fn Session::apply_timeline_endpoint(
+  self : Session,
+  revision : Int,
+  sheet : String,
+  name : String,
+  handle : Int,
+  level : Int,
+  position : Int,
+  scroll~ : String? = None,
+) -> Json raise @failure.Failure {
   let view = self.timeline_view_target(revision, sheet, name)
   guard (handle == 1 || handle == 2) && level == view.level else {
     @failure.reject(
@@ -73,7 +87,10 @@ pub fn Session::set_timeline_endpoint(
     position.max(fixed)
   }
   if position == original {
-    return self.query()
+    return match scroll {
+      Some(value) => self.commit_timeline_view(view, "scrollPosition", value)
+      None => self.query()
+    }
   }
   let period = timeline_period(position, level)
   let start = if handle == 2 {
@@ -89,7 +106,9 @@ pub fn Session::set_timeline_endpoint(
     timeline_period_end(period, bounds, self.date1904)
   }
   let changes = [("selectionLevel", level.to_string())]
-  if self.grid is Some(grid) &&
+  if scroll is Some(value) {
+    changes.push(("scrollPosition", value))
+  } else if self.grid is Some(grid) &&
     grid.revision == revision &&
     grid.sheet == sheet &&
     grid.objects

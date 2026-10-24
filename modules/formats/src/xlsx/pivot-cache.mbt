@@ -45,6 +45,7 @@ pub extend PivotSettings with ToJson::{to_json}
 
 ///|
 priv struct PivotCache {
+  source_filters : Array[(Int, Map[Int, Bool])]
   headers : Array[String]
   items : Array[Array[Value]]
   styles : Array[Array[Int]]
@@ -433,6 +434,7 @@ fn Session::pivot_cache(
     axes[group.field] = fields
   }
   let cache = PivotCache::{
+    source_filters: [],
     headers,
     items,
     styles,
@@ -596,7 +598,9 @@ pub fn Session::pivot_preview(
         timelines,
         replacement=Some((part, settings)),
       )
-      data.layout(next[peers.search_by(peer => peer.part == part).unwrap()])
+      self
+      .timeline_filtered_cache(pivot, data)
+      .layout(next[peers.search_by(peer => peer.part == part).unwrap()])
     }
   } else {
     self.pivot_cache(settings).layout(settings)

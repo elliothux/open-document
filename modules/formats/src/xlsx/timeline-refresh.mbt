@@ -72,6 +72,12 @@ fn Session::refresh_timeline_pivots(
       }
     }
   }
+  // Resolve date conditions while result and independent cache sources still agree.
+  let filtered = Map::from_array(
+    pivots.map(pivot => {
+      (pivot.part, self.timeline_filtered_cache(pivot, models[pivot.cache]))
+    }),
+  )
   let candidate = { ..self, parts: self.parts.copy(), }
   let edits : Array[(String, @xml.Edit)] = []
   let created : Map[String, @xml.Document] = Map([])
@@ -83,7 +89,7 @@ fn Session::refresh_timeline_pivots(
         pivot.sheet,
         pivot.part,
         Some(contexts[pivot.part]),
-        cached=Some(models[pivot.cache]),
+        cached=Some(filtered[pivot.part]),
       )
       is Some((plan, range)) {
       work += (range.bottom - range.top + 1) * (range.right - range.left + 1)
@@ -128,7 +134,7 @@ fn Session::refresh_timeline_pivots(
     candidate.rebuild_slicer_state(
       cache,
       contexts[last.part],
-      models[last.cache],
+      filtered[last.part],
       edits,
     )
   }
@@ -202,14 +208,26 @@ fn Session::timeline_refresh_group(
   replacement~ : (String, PivotSettings)? = None,
 ) -> (PivotCache, Array[PivotSettings], String) raise @failure.Failure {
   let contexts = pivots.map(pivot => self.pivot_settings(pivot, shared=true))
+  let original_range = contexts[0].0.validate()
+  let source_width = original_range.right - original_range.left + 1
   if replacement is Some((part, next)) {
     ignore(next.validate())
+    let owns = pivots.any(pivot => pivot.part == part)
     if pivots.search_by(pivot => pivot.part == part) is Some(index) {
       let previous = contexts[index].0
+      let linked : Map[Int, Bool] = Map([])
+      for cache in timelines {
+        for (pivot, field) in cache.connections {
+          if pivots.any(peer => peer.part == pivot.part) {
+            linked[field] = true
+          }
+        }
+      }
       guard Json(next.numberGroups) == Json(previous.numberGroups) &&
-        Json(next.dateGroups) == Json(previous.dateGroups) else {
+        Json(next.dateGroups.filter(group => !linked.contains(group.field))) ==
+        Json(previous.dateGroups.filter(group => !linked.contains(group.field))) else {
         @failure.reject(
-          "protected-content", "Linked grouping changes require field mapping",
+          "protected-content", "Only timeline date fields can change linked calendar groups",
         )
       }
       let slicers = self.affected_slicer_caches([pivots[index]])
@@ -258,7 +276,16 @@ fn Session::timeline_refresh_group(
     }
     for index, context in contexts {
       contexts[index] = (
-        { ..context.0, sourceSheet: next.sourceSheet, source: next.source, },
+        {
+          ..context.0,
+          sourceSheet: next.sourceSheet,
+          source: next.source,
+          dateGroups: if owns {
+            next.dateGroups
+          } else {
+            context.0.dateGroups
+          },
+        },
         context.1,
       )
     }
@@ -287,10 +314,9 @@ fn Session::timeline_refresh_group(
       )
     }
     for field in connected {
-      guard !settings.numberGroups.any(group => group.field == field) &&
-        !settings.dateGroups.any(group => group.field == field) else {
+      guard !settings.numberGroups.any(group => group.field == field) else {
         @failure.reject(
-          "protected-content", "Grouped timeline fields require source-to-group mapping",
+          "protected-content", "Timeline fields cannot use numeric grouping",
         )
       }
       dates[field] = true
@@ -314,7 +340,9 @@ fn Session::timeline_refresh_group(
   let headers = tree
     .all(tree.one(0, "cacheFields").unwrap().id, "cacheField")
     .map(node => slicer_text(node, "name"))
-  guard headers == data.headers else {
+  guard data.source_width == source_width &&
+    headers.length() >= source_width &&
+    headers[:source_width] == data.headers[:source_width] else {
     @failure.reject(
       "protected-content", "Pivot source headers changed; field remapping is required",
     )
@@ -333,13 +361,7 @@ fn Session::timeline_refresh_group(
           filter.field == field && filter.report
         })
         filters.retain(filter => filter.field != field)
-        let values = cache.state.selection.map(range => {
-          let first = pivot_date_parse(range.start, self.date1904)
-          let last = pivot_date_parse(range.end, self.date1904)
-          data.items[field].filter(value => {
-            value is Number(date) && date >= first && date <= last
-          })
-        })
+        let values = data.timeline_members(field, cache.state.selection)
         if report || values is Some(_) {
           filters.push({ field, report, values, })
         }

@@ -190,13 +190,16 @@ fn Session::apply_timeline_filter(
   let mut work = 0
   for (pivot, field) in cache.connections {
     let (settings, records) = candidate.pivot_settings(pivot, shared=true)
-    guard !settings.numberGroups.any(group => group.field == field) &&
-      !settings.dateGroups.any(group => group.field == field) else {
+    guard !settings.numberGroups.any(group => group.field == field) else {
       @failure.reject(
-        "protected-content", "Grouped timeline fields require source-to-group selection mapping",
+        "protected-content", "Timeline fields cannot use numeric grouping",
       )
     }
-    let data = candidate.cached_pivot(pivot, settings, records)
+    let data = candidate.timeline_filtered_cache(
+      pivot,
+      candidate.cached_pivot(pivot, settings, records),
+      replacement=(cache.part, selection),
+    )
     let native = Tree::new(candidate.part_xml(pivot.cache))
     let definition = native.all(
         native.one(0, "cacheFields").unwrap().id,
@@ -211,13 +214,7 @@ fn Session::apply_timeline_filter(
         "protected-content", "Timeline field requires native date or blank cache members",
       )
     }
-    let selected = selection.map(range => {
-      let start = pivot_date_parse(range.start, self.date1904)
-      let end = pivot_date_parse(range.end, self.date1904)
-      data.items[field].filter(value => {
-        value is Number(date) && date >= start && date <= end
-      })
-    })
+    let selected = data.timeline_members(field, selection)
     let filters = settings.filters.filter(filter => filter.field != field)
     let report = settings.filters.any(filter => {
       filter.field == field && filter.report

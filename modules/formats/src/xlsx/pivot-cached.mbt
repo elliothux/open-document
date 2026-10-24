@@ -120,7 +120,8 @@ fn Session::cached_pivot(
       )
     }
   }
-  {
+  let cache : PivotCache = {
+    source_filters: [],
     headers,
     items,
     styles,
@@ -147,4 +148,5 @@ fn Session::cached_pivot(
     })
     .filter_map(value => value),
   }
+  self.timeline_filtered_cache(pivot, cache)
 }

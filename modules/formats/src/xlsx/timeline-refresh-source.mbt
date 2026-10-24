@@ -40,10 +40,29 @@ fn Session::refresh_timeline_data(
   let (plain, _) = original.edit_source([sheet_node_removal(tree, list)])
   pivot_cache_profile(plain, records.id)
   let fields = tree.all(tree.one(0, "cacheFields").unwrap().id, "cacheField")
-  guard fields.map(node => slicer_text(node, "name")) == data.headers else {
+  ignore(
+    pivot_read_groups(
+      Tree::new(plain),
+      self.date1904,
+      data.source_width,
+      settings.values.map(value => value.name),
+    ),
+  )
+  guard fields.length() >= data.source_width &&
+    fields[:data.source_width].map(node => slicer_text(node, "name")) ==
+    data.headers[:data.source_width].to_owned() else {
     @failure.reject(
-      "protected-content", "Timeline date cache fields require remapping",
+      "protected-content", "Timeline date source fields require remapping",
     )
+  }
+  // Independent date caches store original source records, regardless of report grouping.
+  let data = {
+    ..data,
+    headers: data.headers[:data.source_width].to_owned(),
+    items: data.items[:data.source_width].to_owned(),
+    styles: data.styles[:data.source_width].to_owned(),
+    groups: Map([]),
+    axes: Map([]),
   }
   let counts = fields.map(field => {
     tree

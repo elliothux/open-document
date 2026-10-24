@@ -63,6 +63,7 @@ fn PivotCache::record_visible(
   record : Array[Int],
   filters : Array[(Int, Map[Int, Bool]?)],
 ) -> Bool {
+  !self.source_filters.any(filter => !filter.1.contains(record[filter.0])) &&
   !filters.any(filter => {
     filter.1
     .map(keys => {

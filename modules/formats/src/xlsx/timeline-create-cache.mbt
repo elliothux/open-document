@@ -98,6 +98,24 @@ fn Session::timeline_creation_cache(
     .find_first(filter => filter.field == field)
     .bind(filter => filter.values)
     .map(values => {
+      let values = if data.groups.get(field) is Some(group) {
+        guard !values.contains(group.items[0]) else {
+          @failure.reject(
+            "protected-content", "Clear blank calendar selections before inserting a timeline",
+          )
+        }
+        data.items[field]
+        .mapi((index, value) => {
+          if values.contains(group.items[group.indices[index]]) {
+            Some(value)
+          } else {
+            None
+          }
+        })
+        .filter_map(value => value)
+      } else {
+        values
+      }
       guard !values.is_empty() && values.all(value => value is Number(_)) else {
         @failure.reject(
           "protected-content", "Clear empty or blank date member selections before inserting a timeline",

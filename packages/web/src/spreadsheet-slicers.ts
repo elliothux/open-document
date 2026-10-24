@@ -2,30 +2,12 @@ import type { XlsxClient } from "./xlsx.js";
 import type { XlsxSlicerView } from "@open-document/wasm/xlsx";
 import type { PointerHost } from "./spreadsheet-pointer.js";
 import type { CanvasSurface } from "./canvas-surface.js";
-import { PointerSelection, type PointerPoint } from "./pointer-selection.js";
-import {
-  stepTimelineEndpoint,
-  paintTimelineEndpoints,
-} from "./spreadsheet-timeline-endpoints.js";
-
-interface DateGesture {
-  object: string;
-  handle: number;
-  first: number;
-  sheet: string;
-  revision: number;
-  layout: number;
-  point: PointerPoint;
-  left: number;
-  top: number;
-  scale: number;
-  ready: boolean;
-  cancelled: boolean;
-}
+import { SpreadsheetTimelinePointer } from "./spreadsheet-timeline-pointer.js";
+import { stepTimelineEndpoint } from "./spreadsheet-timeline-endpoints.js";
 
 type Intent =
   | { kind: "select"; index: number | null; additive: boolean }
-  | { kind: "scroll"; rows: number };
+  | { kind: "scroll"; offset: number };
 
 /** Native controls use core geometry and the existing worksheet command queue. */
 export class SpreadsheetSlicers {
@@ -33,12 +15,7 @@ export class SpreadsheetSlicers {
   private readonly groups = new Map<string, HTMLDivElement>();
   private readonly targets = new Map<string, HTMLElement>();
   private readonly multi = new Set<string>();
-  private readonly dateTargets = new Map<
-    string,
-    { pointer: PointerSelection; abort(): void }
-  >();
-  private dateGesture: DateGesture | undefined;
-  private dateEnding = false;
+  private readonly dates: SpreadsheetTimelinePointer;
   constructor(
     private readonly surface: CanvasSurface,
     holder: HTMLElement,
@@ -47,6 +24,13 @@ export class SpreadsheetSlicers {
     private readonly signal: AbortSignal,
     private readonly host: PointerHost,
   ) {
+    this.dates = new SpreadsheetTimelinePointer(
+      surface,
+      viewport,
+      client,
+      signal,
+      host,
+    );
     holder.append(this.controls);
     signal.addEventListener(
       "abort",
@@ -76,181 +60,10 @@ export class SpreadsheetSlicers {
     });
   }
   get active(): boolean {
-    return this.dateGesture !== undefined || this.dateEnding;
+    return this.dates.active;
   }
   cancel(): void {
-    if (!this.dateGesture) return;
-    this.dateGesture.cancelled = true;
-    for (const target of this.dateTargets.values()) target.pointer.finish(true);
-  }
-  private async dateSample(
-    gesture: DateGesture,
-    commit: boolean,
-  ): Promise<void> {
-    if (gesture.cancelled || this.dateGesture !== gesture) return;
-    const result = await this.client.timelineGesture(
-      gesture.revision,
-      gesture.layout,
-      gesture.object,
-      {
-        handle: gesture.handle,
-        first: gesture.first,
-        x: Math.max(
-          -14400,
-          Math.min(14400, (gesture.point.x - gesture.left) / gesture.scale),
-        ),
-        y: Math.max(
-          -14400,
-          Math.min(14400, (gesture.point.y - gesture.top) / gesture.scale),
-        ),
-        commit,
-      },
-      this.host.current().profile,
-    );
-    if (gesture.cancelled || this.signal.aborted) return;
-    if (result.query) this.host.assign(result.query);
-    if (result.drawing) {
-      this.surface.draw(result.drawing, 0, (gesture.scale * 72) / 96);
-      paintTimelineEndpoints(
-        this.surface,
-        result.drawing,
-        gesture.object,
-        gesture.scale,
-      );
-      for (const [key, target] of this.targets)
-        if (key.startsWith(`${gesture.object}:endpoint:`))
-          target.style.background = "transparent";
-    }
-  }
-  private dateTarget(
-    key: string,
-    button: HTMLButtonElement,
-    object: string,
-    first: number,
-    handle: number,
-  ): void {
-    if (this.dateTargets.has(key)) return;
-    const scope = new AbortController();
-    const abort = () => {
-      this.signal.removeEventListener("abort", abort);
-      scope.abort();
-    };
-    this.signal.addEventListener("abort", abort, { once: true });
-    const pointer = new PointerSelection(
-      button,
-      this.viewport,
-      scope.signal,
-      async (point, initial) => {
-        if (initial) {
-          const now = this.host.current();
-          const gesture: DateGesture = {
-            object,
-            handle,
-            first,
-            sheet: now.query.sheet,
-            revision: now.query.revision,
-            layout: now.layout?.id ?? -1,
-            point,
-            left: 0,
-            top: 0,
-            scale: now.scale,
-            ready: false,
-            cancelled: false,
-          };
-          this.dateGesture = gesture;
-          this.host.changed();
-          return this.host
-            .run(async () => {
-              await this.host.prepare();
-              const current = this.host.current(),
-                rect = this.surface.canvas.getBoundingClientRect();
-              if (gesture.cancelled) return;
-              if (!current.layout || current.query.sheet !== gesture.sheet)
-                throw new Error("Timeline target changed");
-              gesture.revision = current.query.revision;
-              gesture.layout = current.layout.id;
-              gesture.left = rect.left;
-              gesture.top = rect.top;
-              gesture.scale = current.scale;
-              gesture.ready = true;
-              await this.dateSample(gesture, false);
-            })
-            .catch((error: unknown) => {
-              this.cancel();
-              this.host.report(error);
-            });
-        }
-        const gesture = this.dateGesture;
-        if (!gesture) return;
-        gesture.point = point;
-        return this.host
-          .run(() => this.dateSample(gesture, false))
-          .catch((error: unknown) => {
-            this.cancel();
-            this.host.report(error);
-          });
-      },
-      () => !this.host.current().disabled && !this.active,
-      async (cancelled) => {
-        const gesture = this.dateGesture;
-        if (!gesture) return;
-        if (cancelled) gesture.cancelled = true;
-        this.dateEnding = true;
-        try {
-          await this.host.run(async () => {
-            try {
-              await this.dateSample(gesture, true);
-            } finally {
-              this.dateGesture = undefined;
-              this.dateEnding = false;
-              if (!this.signal.aborted) await this.host.render();
-            }
-          });
-        } catch (error) {
-          if (!this.signal.aborted) this.host.report(error);
-        } finally {
-          this.dateGesture = undefined;
-          this.dateEnding = false;
-          this.host.changed();
-        }
-      },
-      false,
-    );
-    this.dateTargets.set(key, { pointer, abort });
-  }
-  private selectDate(object: string, first: number): void {
-    const sheet = this.host.current().query.sheet;
-    void this.host
-      .run(async () => {
-        await this.host.prepare();
-        const now = this.host.current(),
-          layout = now.layout;
-        if (!layout || now.query.sheet !== sheet)
-          throw new Error("Timeline target changed");
-        const region = layout.objects
-          .find((item) => item.id === object)
-          ?.timeline?.periods.find((period) => period.index === first)
-          ?.regions[0];
-        if (!region) throw new Error("Timeline period is no longer visible");
-        const result = await this.client.timelineGesture(
-          now.query.revision,
-          layout.id,
-          object,
-          {
-            handle: 0,
-            first,
-            x: region.clip.x + region.clip.width / 2,
-            y: region.clip.y + region.clip.height / 2,
-            commit: true,
-          },
-          now.profile,
-        );
-        if (result.query) this.host.assign(result.query);
-        await this.host.render();
-      })
-      .catch((error: unknown) => {
-        if (!this.signal.aborted) this.host.report(error);
-      });
+    this.dates.cancel();
   }
   private navigateTimeline(
     object: string,
@@ -371,28 +184,40 @@ export class SpreadsheetSlicers {
           now = this.host.current();
         }
         const layout = now.layout;
-        if (
-          !layout?.objects.some((object) => object.id === id && object.slicer)
-        )
-          return;
+        const object = layout?.objects.find((item) => item.id === id);
+        if (!layout || (!object?.slicer && !object?.timeline)) return;
+        if (object.timeline && intent.kind !== "scroll") return;
         this.host.assign(
           await this.client.editSheet(
             now.query.revision,
             sheet,
-            intent.kind === "scroll"
+            object.timeline && intent.kind === "scroll"
               ? {
-                  action: "scrollSlicer",
-                  layout: layout.id,
-                  id,
-                  rows: intent.rows,
+                  action: "scrollTimeline",
+                  name: object.timeline.name,
+                  level: object.timeline.navigation.level,
+                  position: Math.max(
+                    object.timeline.navigation.minimum,
+                    Math.min(
+                      object.timeline.navigation.maximum,
+                      object.timeline.navigation.position + intent.offset,
+                    ),
+                  ),
                 }
-              : {
-                  action: "selectSlicer",
-                  layout: layout.id,
-                  id,
-                  index: intent.index,
-                  additive: intent.additive,
-                },
+              : intent.kind === "scroll"
+                ? {
+                    action: "scrollSlicer",
+                    layout: layout.id,
+                    id,
+                    rows: intent.offset,
+                  }
+                : {
+                    action: "selectSlicer",
+                    layout: layout.id,
+                    id,
+                    index: intent.index,
+                    additive: intent.additive,
+                  },
           ),
         );
         await this.host.render();
@@ -451,19 +276,31 @@ export class SpreadsheetSlicers {
               ? 4096
               : (event.key.endsWith("Up") ? -1 : 1) *
                 (event.key.startsWith("Page") ? view.page : 1);
-        this.command(id, { kind: "scroll", rows });
+        this.command(id, { kind: "scroll", offset: rows });
       }
     });
     group.addEventListener(
       "wheel",
       (event) => {
-        const view = this.host
+        const object = this.host
           .current()
-          .layout?.objects.find((object) => object.id === id)?.slicer;
-        if (!view || view.maximum === 0 || !event.deltaY) return;
+          .layout?.objects.find((object) => object.id === id);
+        const delta = object?.timeline
+          ? Math.abs(event.deltaX) > Math.abs(event.deltaY)
+            ? event.deltaX
+            : event.deltaY
+          : event.deltaY;
+        if (
+          !delta ||
+          (object?.timeline
+            ? event.ctrlKey || !object.timeline.navigation.scrollRegions.length
+            : !object?.slicer || object.slicer.maximum === 0)
+        )
+          return;
         event.preventDefault();
         event.stopPropagation();
-        this.command(id, { kind: "scroll", rows: event.deltaY > 0 ? 1 : -1 });
+        this.cancel();
+        this.command(id, { kind: "scroll", offset: delta > 0 ? 1 : -1 });
       },
       { passive: false },
     );
@@ -509,11 +346,7 @@ export class SpreadsheetSlicers {
   update(dragging = false): void {
     this.controls.hidden = dragging;
     if (this.active) {
-      if (
-        this.dateGesture?.ready &&
-        this.host.current().layout?.id !== this.dateGesture.layout
-      )
-        this.cancel();
+      this.dates.checkLayout();
       return;
     }
     const now = this.host.current(),
@@ -551,7 +384,7 @@ export class SpreadsheetSlicers {
               const endpoint = timeline.handles.find(
                 (item) => key === `endpoint:${item.handle}:${item.index}`,
               );
-              this.dateTarget(
+              this.dates.bind(
                 full,
                 target,
                 object.id,
@@ -668,7 +501,7 @@ export class SpreadsheetSlicers {
               `Select timeline period ${period.label}`,
               (event) => {
                 if (event.detail === 0)
-                  this.selectDate(object.id, period.index);
+                  this.dates.select(object.id, period.index);
               },
               period.selected,
             );
@@ -719,7 +552,7 @@ export class SpreadsheetSlicers {
           "previous",
           view.previous,
           "Scroll slicer up",
-          () => this.command(object.id, { kind: "scroll", rows: -1 }),
+          () => this.command(object.id, { kind: "scroll", offset: -1 }),
           undefined,
           view.start === 0,
         );
@@ -727,7 +560,7 @@ export class SpreadsheetSlicers {
           "next",
           view.next,
           "Scroll slicer down",
-          () => this.command(object.id, { kind: "scroll", rows: 1 }),
+          () => this.command(object.id, { kind: "scroll", offset: 1 }),
           undefined,
           view.start >= view.maximum,
         );
@@ -735,10 +568,7 @@ export class SpreadsheetSlicers {
     }
     for (const [key, target] of this.targets)
       if (!seen.has(key)) {
-        const date = this.dateTargets.get(key);
-        date?.pointer.cancel();
-        date?.abort();
-        this.dateTargets.delete(key);
+        this.dates.remove(key);
         target.remove();
         this.targets.delete(key);
       }

@@ -127,6 +127,7 @@ fn Foundation::xlsx_drawing_operation(
         field_string(request, "objectId"),
         field_int(request, "handle"),
         field_int(request, "first"),
+        field_int(request, "position"),
         xlsx_number(request, "x"),
         xlsx_number(request, "y"),
         xlsx_boolean(request, "commit"),

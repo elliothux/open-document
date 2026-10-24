@@ -53,10 +53,9 @@ pub fn Session::insert_timeline(
       "invalid-operation", "Timeline field is outside its pivot source",
     )
   }
-  guard !definition.dateGroups.any(group => group.field == settings.field) &&
-    !definition.numberGroups.any(group => group.field == settings.field) else {
+  guard !definition.numberGroups.any(group => group.field == settings.field) else {
     @failure.reject(
-      "protected-content", "Grouped timeline fields require source-to-group selection mapping",
+      "protected-content", "Timeline fields cannot use numeric grouping",
     )
   }
   let data = self.cached_pivot(pivot, definition, records)

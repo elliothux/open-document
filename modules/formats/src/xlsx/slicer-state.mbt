@@ -103,8 +103,12 @@ fn Session::sync_slicer_state(
     settings.filters.filter(filter => filter.field != cache.field),
   )
   let available : Map[Int, Bool] = Map([])
+  let available_data = {
+    ..data,
+    source_filters: data.source_filters.filter(filter => filter.0 != cache.field),
+  }
   for record in data.records {
-    if data.record_visible(record, filters) {
+    if available_data.record_visible(record, filters) {
       let index = match data.groups.get(cache.field) {
         Some(group) => group.indices[record[group.base()]]
         None => record[cache.field]

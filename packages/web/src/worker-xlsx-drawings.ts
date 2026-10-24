@@ -53,6 +53,7 @@ export function drawingOperation(
         {
           handle: request.handle,
           first: request.first,
+          position: request.position,
           x: request.x,
           y: request.y,
           commit: request.commit,

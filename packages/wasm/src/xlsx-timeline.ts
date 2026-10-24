@@ -13,6 +13,7 @@ import { xlsxQuery, type XlsxQuery } from "./xlsx-query.js";
 export interface XlsxTimelineGesture {
   handle: number;
   first: number;
+  position: number;
   x: number;
   y: number;
   commit: boolean;
@@ -24,9 +25,10 @@ export interface XlsxTimelinePreview {
 export function checkXlsxTimelineGesture(input: unknown): void {
   const value = record(input);
   if (
-    Object.keys(value).length !== 5 ||
+    Object.keys(value).length !== 6 ||
     !integer(value.handle, 0, 2) ||
     !integer(value.first, 0, 3000000) ||
+    !integer(value.position, 0, 3000000) ||
     ![value.x, value.y].every(
       (number) =>
         typeof number === "number" &&
