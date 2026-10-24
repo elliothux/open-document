@@ -141,6 +141,7 @@ fn Session::axis_pictures(
   context : Session,
   parts : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
+  analysis~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   guard self.picture_drawing(before) is Some(_) else { return }
   guard self.font_context is Some((probe, profile)) else {
@@ -173,7 +174,9 @@ fn Session::axis_pictures(
       picture.rect.y != previous.rect.y ||
       picture.rect.width != previous.rect.width ||
       picture.rect.height != previous.rect.height {
-      transforms.push(picture.transform_change(picture.rect))
+      transforms.push(
+        picture.transform_change(picture.rect, analysis_frame=analysis),
+      )
     }
   }
   if !transforms.is_empty() {

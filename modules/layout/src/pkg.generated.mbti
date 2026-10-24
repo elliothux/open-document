@@ -611,12 +611,21 @@ pub fn Paragraph::to_json(Self) -> Json
 
 pub(all) struct ParagraphMarker {
   text : String
-  referenceText : String?
+  numbering : ParagraphNumbering?
   style : TextStyle
   align : String
   suffix : String
 } derive(ToJson)
 pub fn ParagraphMarker::to_json(Self) -> Json
+
+pub(all) struct ParagraphNumbering {
+  instance : Int
+  numeric : Bool
+  values : Array[Int]
+  labels : Array[String?]
+}
+pub fn ParagraphNumbering::to_json(Self) -> Json
+pub impl ToJson for ParagraphNumbering
 
 pub(all) enum PathSegment {
   Move(Double, Double)
@@ -890,7 +899,9 @@ pub fn TextProbe::text_block(Self, String, TextStyle, Map[String, String], Doubl
 pub(all) struct TextReference {
   bookmark : String
   hyperlink : Bool
-  numbered : Bool
+  numbering : String
+  relative : Bool
+  separator : String
 }
 pub fn TextReference::code(Self) -> String
 pub fn TextReference::parse(String) -> Self raise @failure.Failure

@@ -237,7 +237,7 @@ fn Foundation::docx_page(
         guard item is Object(fields) &&
           fields.length() >= 2 &&
           fields.length() <=
-          (if text_reference { 4 } else if sequence { 7 } else { 5 }) &&
+          (if sequence { 7 } else if text_reference { 6 } else { 5 }) &&
           fields
           .keys()
           .all(key => {
@@ -247,7 +247,9 @@ fn Foundation::docx_page(
                 "hidden",
               ]
             } else if text_reference {
-              ["field", "bookmark", "hyperlink", "numbered"]
+              [
+                "field", "bookmark", "hyperlink", "numbering", "relative", "separator",
+              ]
             } else {
               ["field", "bookmark", "format", "hyperlink", "relative"]
             }).contains(key)
@@ -320,9 +322,16 @@ fn Foundation::docx_page(
         code[4:].to_owned() +
         (if text_reference &&
           original is Object(fields) &&
-          fields.contains("numbered") &&
-          xlsx_boolean(original, "numbered") {
-          ":number"
+          fields.contains("numbering") {
+          match field_string(original, "numbering") {
+            "noContext" => ":number"
+            "relative" => ":numberRelative"
+            "fullContext" => ":numberFull"
+            _ =>
+              @failure.reject(
+                "invalid-operation", "Invalid reference numbering mode",
+              )
+          }
         } else {
           ""
         }) +
@@ -337,6 +346,13 @@ fn Foundation::docx_page(
           fields.contains("relative") &&
           xlsx_boolean(original, "relative") {
           ":relative"
+        } else {
+          ""
+        }) +
+        (if text_reference &&
+          original is Object(fields) &&
+          fields.contains("separator") {
+          ":separator=" + field_string(original, "separator")
         } else {
           ""
         })

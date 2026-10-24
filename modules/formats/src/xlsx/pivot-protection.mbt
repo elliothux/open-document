@@ -6,6 +6,7 @@ fn Session::maintain_pivots(
   parts : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
   edited : Array[String],
+  moved : Map[String, Range],
 ) -> Unit raise @failure.Failure {
   let pivots = self.pivot_locations()
   if pivots.is_empty() {
@@ -21,23 +22,40 @@ fn Session::maintain_pivots(
       )
     }
     if !edited.contains(pivot.part) {
+      let destination = moved.get(pivot.part).unwrap_or(pivot.range)
+      guard destination.left == pivot.range.left &&
+        destination.right == pivot.range.right &&
+        destination.bottom - destination.top ==
+        pivot.range.bottom - pivot.range.top else {
+        @failure.reject(
+          "protected-content", "Pivot result moves must preserve their complete rows",
+        )
+      }
+      let offset = destination.top - pivot.range.top
       let keys : Map[String, Bool] = Map([])
-      for sheet in [before, after] {
-        for key, cell in sheet.cells {
+      for
+        (sheet, range, delta) in [
+          (before, pivot.range, 0),
+          (after, destination, offset),
+        ] {
+        for _, cell in sheet.cells {
           work += 1
           guard work <= 1048576 else {
             @failure.reject(
               "limit-exceeded", "Pivot edit inspection exceeds budget",
             )
           }
-          if pivot.range.contains(cell.address) {
-            keys[key] = true
+          if range.contains(cell.address) {
+            keys[Address::{ ..cell.address, row: cell.address.row - delta, }.name()] = true
           }
         }
       }
       for key in keys.keys() {
         let old = before.cells.get(key)
-        let next = after.cells.get(key)
+        let address = Address::parse(key)
+        let next = after.cells.get(
+          Address::{ ..address, row: address.row + offset, }.name(),
+        )
         guard old.map(c => c.value).unwrap_or(Blank) ==
           next.map(c => c.value).unwrap_or(Blank) &&
           old.bind(c => c.formula) == next.bind(c => c.formula) else {

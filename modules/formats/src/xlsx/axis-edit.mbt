@@ -20,6 +20,7 @@ fn Session::edit_axes(
     sparklines=true,
     pictures=true,
     charts=true,
+    analysis=change.rows && change.band is None,
   )
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let target = self.sheets[index]
@@ -33,7 +34,14 @@ fn Session::edit_axes(
     if relation.owner == id &&
       !["hyperlink", "comments", "vmlDrawing", "table", "drawing"].any(kind => {
         relation.kind == relationship_uri + kind
-      }) {
+      }) &&
+      !(change.rows &&
+      change.band is None &&
+      [
+        relationship_uri + "pivotTable",
+        slicer_relationship_uri + "slicer",
+        timeline_relationship_uri + "Timeline",
+      ].contains(relation.kind)) {
       @failure.reject(
         "protected-content", "Worksheet resources require reference-aware structural editing",
       )
@@ -56,6 +64,11 @@ fn Session::edit_axes(
   let edits : Array[(String, @xml.Edit)] = []
   let parts = self.parts.copy()
   let removed : Map[String, @xml.Document] = Map([])
+  let pivot_moves = if change.rows && change.band is None {
+    self.axis_analysis(target, change, parts, edits)
+  } else {
+    Map([])
+  }
   let tables = self.axis_tables(target, change, parts, edits)
   let filter = self.axis_filter_plan(index, change, tables)
   if notes is Some(notes) {
@@ -329,7 +342,11 @@ fn Session::edit_axes(
     },
     parts,
     edits,
+    analysis=change.rows && change.band is None,
   )
+  if change.rows && change.band is None {
+    ignore({ ..self, sheets, workbook, parts, }.analysis_parts())
+  }
   edits.append(self.cache_edits(sheets, calculation))
   self.commit(
     sheets,
@@ -341,6 +358,7 @@ fn Session::edit_axes(
     removed~,
     table_edits=tables.map(plan => plan.before.part),
     drawing_selection=self.drawing_selection,
+    pivot_moves~,
   )
   self.query()
 }

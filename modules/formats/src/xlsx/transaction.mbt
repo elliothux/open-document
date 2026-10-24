@@ -16,6 +16,7 @@ fn Session::commit(
   drawing_selection~ : (String, String)? = None,
   table_edits~ : Array[String] = [],
   pivot_edits~ : Array[String] = [],
+  pivot_moves~ : Map[String, Range] = Map([]),
   font_context~ : (@layout.TextProbe, Map[String, String])? = self.font_context,
   fit_work~ : FitWork = {
     axes: 0,
@@ -37,7 +38,9 @@ fn Session::commit(
     }
   }
   let context = { ..self, removed: removed_parts, }
-  self.maintain_pivots(sheets, calculation, parts, edits, pivot_edits)
+  self.maintain_pivots(
+    sheets, calculation, parts, edits, pivot_edits, pivot_moves,
+  )
   context.maintain_charts(sheets, workbook, calculation, parts, edits, media)
   self.protect_table_cells(sheets, calculation.names.tables, edited=table_edits)
   guard self.revision < 2147483647 else {

@@ -97,7 +97,7 @@ pub extend LineSpacing with ToJson::{to_json}
 ///|
 pub(all) struct ParagraphMarker {
   text : String
-  referenceText : String?
+  numbering : ParagraphNumbering?
   style : TextStyle
   align : String
   suffix : String

@@ -27,7 +27,8 @@ export function DocxBodyField({
   const [draft, setDraft] = useState<DocxBodyField>();
   const [bookmark, setBookmark] = useState("");
   const [hyperlink, setHyperlink] = useState(false);
-  const [numbered, setNumbered] = useState(false);
+  const [numbering, setNumbering] = useState<ReferenceNumbering>();
+  const [separator, setSeparator] = useState("");
   const [relative, setRelative] = useState(false);
   const [sequence, setSequence] = useState("Figure");
   const [sequenceOptions, setSequenceOptions] = useState<SequenceOptions>({});
@@ -91,12 +92,9 @@ export function DocxBodyField({
               field: referenceKind,
               bookmark,
               ...(hyperlink ? { hyperlink: true } : {}),
-              ...(referenceKind === "REF" && numbered
-                ? { numbered: true }
-                : {}),
-              ...(referenceKind === "PAGEREF" && relative
-                ? { relative: true }
-                : {}),
+              ...(referenceKind === "REF" && numbering ? { numbering } : {}),
+              ...(relative ? { relative: true } : {}),
+              ...(referenceKind === "REF" && separator ? { separator } : {}),
             }),
           );
         }}
@@ -144,25 +142,24 @@ export function DocxBodyField({
               : t.pageReferenceLink}
           </label>
           {referenceKind === "REF" && (
-            <label>
-              <input
-                type="checkbox"
-                checked={numbered}
-                onChange={(event) => setNumbered(event.currentTarget.checked)}
-              />
-              {t.textReferenceNumber}
-            </label>
+            <ReferenceNumberingForm
+              value={numbering}
+              onChange={setNumbering}
+              separator={separator}
+              onSeparatorChange={setSeparator}
+              t={t}
+            />
           )}
-          {referenceKind === "PAGEREF" && (
-            <label>
-              <input
-                type="checkbox"
-                checked={relative}
-                onChange={(event) => setRelative(event.currentTarget.checked)}
-              />
-              {t.pageReferenceRelative}
-            </label>
-          )}
+          <label>
+            <input
+              type="checkbox"
+              checked={relative}
+              onChange={(event) => setRelative(event.currentTarget.checked)}
+            />
+            {referenceKind === "REF"
+              ? t.textReferenceRelative
+              : t.pageReferenceRelative}
+          </label>
           <button type="submit" disabled={!bookmark}>
             {referenceKind === "REF"
               ? t.insertTextReference
@@ -307,35 +304,40 @@ export function DocxBodyField({
                     : t.selectedPageReferenceLink}
                 </label>
                 {draft.field === "REF" && (
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={draft.numbered ?? false}
-                      onChange={(event) =>
-                        setDraft({
-                          ...draft,
-                          numbered: event.currentTarget.checked,
-                        })
-                      }
-                    />
-                    {t.selectedTextReferenceNumber}
-                  </label>
+                  <ReferenceNumberingForm
+                    value={draft.numbering}
+                    separator={draft.separator ?? ""}
+                    onSeparatorChange={(value) => {
+                      const field = { ...draft };
+                      if (value) field.separator = value;
+                      else delete field.separator;
+                      setDraft(field);
+                    }}
+                    onChange={(value) => {
+                      const field = { ...draft };
+                      if (value) field.numbering = value;
+                      else delete field.numbering;
+                      setDraft(field);
+                    }}
+                    selected
+                    t={t}
+                  />
                 )}
-                {draft.field === "PAGEREF" && (
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={draft.relative ?? false}
-                      onChange={(event) =>
-                        setDraft({
-                          ...draft,
-                          relative: event.currentTarget.checked,
-                        })
-                      }
-                    />
-                    {t.selectedPageReferenceRelative}
-                  </label>
-                )}
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={draft.relative ?? false}
+                    onChange={(event) =>
+                      setDraft({
+                        ...draft,
+                        relative: event.currentTarget.checked,
+                      })
+                    }
+                  />
+                  {draft.field === "REF"
+                    ? t.selectedTextReferenceRelative
+                    : t.selectedPageReferenceRelative}
+                </label>
               </>
             )}
             {draft.field !== "REF" && (
@@ -402,6 +404,62 @@ export function DocxBodyField({
         </form>
       )}
     </section>
+  );
+}
+
+type ReferenceNumbering = Extract<DocxBodyField, { field: "REF" }>["numbering"];
+
+function ReferenceNumberingForm({
+  value,
+  onChange,
+  separator,
+  onSeparatorChange,
+  selected = false,
+  t,
+}: {
+  value: ReferenceNumbering;
+  onChange: (value: ReferenceNumbering) => void;
+  separator: string;
+  onSeparatorChange: (value: string) => void;
+  selected?: boolean;
+  t: ReturnType<typeof messages>;
+}) {
+  return (
+    <>
+      <label>
+        {selected ? t.selectedTextReferenceNumbering : t.textReferenceNumbering}
+        <select
+          value={value ?? ""}
+          onChange={(event) => {
+            const mode = event.currentTarget.value;
+            onChange(
+              mode === "noContext" ||
+                mode === "relative" ||
+                mode === "fullContext"
+                ? mode
+                : undefined,
+            );
+          }}
+        >
+          <option value="">{t.textReferenceText}</option>
+          <option value="noContext">{t.textReferenceNoContext}</option>
+          <option value="relative">{t.textReferenceRelativeNumber}</option>
+          <option value="fullContext">{t.textReferenceFullContext}</option>
+        </select>
+      </label>
+      {value === "fullContext" && (
+        <label>
+          {selected
+            ? t.selectedTextReferenceSeparator
+            : t.textReferenceSeparator}
+          <input
+            maxLength={32}
+            value={separator}
+            onChange={(event) => onSeparatorChange(event.currentTarget.value)}
+          />
+        </label>
+      )}
+    </>
   );
 }
 

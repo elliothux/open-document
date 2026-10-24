@@ -321,18 +321,34 @@ fn Session::apply_numbering(
       ..paragraph,
       marker: Some({
         text,
-        referenceText: if ["bullet", "none"].contains(level.format) {
-          None
-        } else {
-          Some(
-            numbering_label(
-              definition.levels,
-              counter.values,
-              index,
-              reference=true,
-            ),
-          )
-        },
+        numbering: Some({
+          instance,
+          numeric: !["bullet", "none"].contains(level.format),
+          values: counter.values[:index + 1].to_owned(),
+          labels: Array::makei(index + 1, current => {
+            definition.levels
+            .get(current)
+            .bind(_ => {
+              // Unused parent templates must not block the current list text.
+              Some(
+                numbering_label(
+                  definition.levels,
+                  counter.values,
+                  current,
+                  reference=current == index,
+                ),
+              ) catch {
+                @failure.Failure(code="unsupported-numbering", ..) as error => {
+                  if current == index {
+                    raise error
+                  }
+                  None
+                }
+                error => raise error
+              }
+            })
+          }),
+        }),
         align: level.align,
         suffix: level.suffix,
         style: {

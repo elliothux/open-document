@@ -2,7 +2,9 @@
 pub(all) struct TextReference {
   bookmark : String
   hyperlink : Bool
-  numbered : Bool
+  numbering : String
+  relative : Bool
+  separator : String
 }
 
 ///|
@@ -12,29 +14,58 @@ pub fn TextReference::parse(
   guard code.has_prefix("REF:") else {
     @failure.reject("unsupported-layout", "Invalid text reference")
   }
-  let parts = code[4:].split(":").to_array()
-  let mut numbered = false
+  // The terminal separator payload can contain literal colons without escaping.
+  let (source, separator) = match code.find(":separator=") {
+    Some(index) => (code[:index].to_owned(), code[index + 11:].to_owned())
+    None => (code, "")
+  }
+  guard separator.length() <= 32 &&
+    !separator.has_prefix("\\") &&
+    !separator.has_suffix("\\") &&
+    separator
+    .iter()
+    .all(c => {
+      c >= ' ' &&
+      !(c >= '\u007f' && c <= '\u009f') &&
+      c != '\u2028' &&
+      c != '\u2029'
+    }) else {
+    @failure.reject(
+      "unsupported-layout", "Invalid reference numbering separator",
+    )
+  }
+  let parts = source[4:].split(":").to_array()
+  let mut numbering = ""
   let options = [parts[0].to_owned()]
   for option in parts[1:] {
-    if option == "number" && !numbered {
-      numbered = true
+    if ["number", "numberRelative", "numberFull"].contains(option.to_owned()) &&
+      numbering.is_empty() {
+      numbering = option.to_owned()
     } else {
       options.push(option.to_owned())
     }
   }
   let reference = PageReference::parse("PAGEREF:" + options.join(":"))
-  guard reference.format.is_empty() && !reference.relative else {
+  guard reference.format.is_empty() else {
     @failure.reject("unsupported-layout", "Invalid text reference option")
   }
-  { bookmark: reference.bookmark, hyperlink: reference.hyperlink, numbered, }
+  {
+    bookmark: reference.bookmark,
+    hyperlink: reference.hyperlink,
+    numbering,
+    relative: reference.relative,
+    separator,
+  }
 }
 
 ///|
 pub fn TextReference::code(self : TextReference) -> String {
   "REF:" +
   self.bookmark +
-  (if self.numbered { ":number" } else { "" }) +
-  (if self.hyperlink { ":hyperlink" } else { "" })
+  (if self.numbering.is_empty() { "" } else { ":" + self.numbering }) +
+  (if self.hyperlink { ":hyperlink" } else { "" }) +
+  (if self.relative { ":relative" } else { "" }) +
+  (if self.separator.is_empty() { "" } else { ":separator=" + self.separator })
 }
 
 ///|
@@ -45,11 +76,17 @@ fn Flow::text_reference_values(
   let paragraphs = self.body_field_paragraphs()
   let by_id = Map::from_array(paragraphs.map(p => (p.id, p)))
   let references : Map[(Int, Int), Span] = Map([])
-  for p in paragraphs {
+  let order : Map[Int, Int] = Map([])
+  let offsets : Map[(Int, Int), Int] = Map([])
+  for index, p in paragraphs {
+    order[p.id] = index
+    let mut offset = 0
     for span in p.spans {
       if span.field.has_prefix("REF:") {
         references[(p.id, span.node)] = span
+        offsets[(p.id, span.node)] = offset
       }
+      offset += span.logical_text().length()
     }
   }
   let resolved : Map[(Int, Int), String] = Map([])
@@ -80,7 +117,7 @@ fn Flow::text_reference_values(
       (start_p != end_p || end >= start) else {
       @failure.reject("unsupported-layout", "text-reference-target-structure")
     }
-    if reference.numbered {
+    if !reference.numbering.is_empty() || reference.relative {
       work += paragraph.spans.length()
       guard work <= 1048576 else {
         @failure.reject(
@@ -93,17 +130,40 @@ fn Flow::text_reference_values(
         }) else {
         @failure.reject("unsupported-layout", "text-reference-target-boundary")
       }
-      let text = paragraph.marker
-        .bind(marker => marker.referenceText)
-        .unwrap_or("0")
-      guard text.length() <= 256 &&
-        text
-        .iter()
-        .all(c => c >= ' ' && c != '\u007f' && c != '\u2028' && c != '\u2029') else {
-        @failure.reject("unsupported-layout", "number-reference-target-control")
+      // ONLYOFFICE REF \p compares document positions, including across pages and RTL.
+      let position = if order[start_p] < order[key.0] ||
+        (start_p == key.0 && start <= offsets[key]) {
+        "above"
+      } else {
+        "below"
       }
-      resolved[key] = text
-      return text
+      if reference.numbering.is_empty() {
+        resolved[key] = position
+        return position
+      }
+      guard paragraph.marker.bind(marker => marker.numbering) is Some(numbering) else {
+        resolved[key] = "0"
+        return "0"
+      }
+      let text = numbering.reference_text(
+        reference.numbering,
+        by_id[key.0].marker.bind(marker => marker.numbering),
+        reference.separator,
+      )
+      work += text.length()
+      guard work <= 1048576 else {
+        @failure.reject(
+          "limit-exceeded", "Number reference lookup exceeds budget",
+        )
+      }
+      let result = text +
+        (if reference.relative && numbering.numeric {
+          " " + position
+        } else {
+          ""
+        })
+      resolved[key] = result
+      return result
     }
     guard start_p == end_p else {
       @failure.reject("unsupported-layout", "text-reference-target-structure")

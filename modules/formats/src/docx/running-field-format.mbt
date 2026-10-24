@@ -8,8 +8,19 @@ fn running_field_instruction(field : String) -> String raise @failure.Failure {
     }
     return "REF " +
       reference.bookmark +
-      (if reference.numbered { " \\n" } else { "" }) +
+      (match reference.numbering {
+        "number" => " \\n"
+        "numberRelative" => " \\r"
+        "numberFull" => " \\w"
+        _ => ""
+      }) +
       (if reference.hyperlink { " \\h" } else { "" }) +
+      (if reference.relative { " \\p" } else { "" }) +
+      (if reference.separator.is_empty() {
+        ""
+      } else {
+        " \\d \"" + reference.separator.replace_all(old="\"", new="\\\"") + "\""
+      }) +
       " \\* MERGEFORMAT"
   }
   if parts[0] == "SEQ" {

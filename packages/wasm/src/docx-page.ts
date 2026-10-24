@@ -120,7 +120,14 @@ export type DocxBodyField =
       headingLevel?: number;
       hidden?: boolean;
     }
-  | { field: "REF"; bookmark: string; hyperlink?: boolean; numbered?: boolean }
+  | {
+      field: "REF";
+      bookmark: string;
+      hyperlink?: boolean;
+      numbering?: "noContext" | "relative" | "fullContext";
+      separator?: string;
+      relative?: boolean;
+    }
   | {
       field: "PAGEREF";
       bookmark: string;
@@ -208,13 +215,28 @@ export function checkBodyField(value: unknown): asserts value is DocxBodyField {
       (key) =>
         !(
           textReference
-            ? ["field", "bookmark", "hyperlink", "numbered"]
+            ? [
+                "field",
+                "bookmark",
+                "hyperlink",
+                "numbering",
+                "relative",
+                "separator",
+              ]
             : ["field", "bookmark", "format", "hyperlink", "relative"]
         ).includes(key),
     ) ||
     ("hyperlink" in item && typeof item.hyperlink !== "boolean") ||
-    ("numbered" in item && typeof item.numbered !== "boolean") ||
-    ("relative" in item && typeof item.relative !== "boolean")
+    ("numbering" in item &&
+      (typeof item.numbering !== "string" ||
+        !["noContext", "relative", "fullContext"].includes(item.numbering))) ||
+    ("relative" in item && typeof item.relative !== "boolean") ||
+    ("separator" in item &&
+      (typeof item.separator !== "string" ||
+        item.separator.length > 32 ||
+        item.separator.startsWith("\\") ||
+        item.separator.endsWith("\\") ||
+        /[\p{Cc}\p{Zl}\p{Zp}]/u.test(item.separator)))
   )
     throw new Error("Invalid page reference target");
   if (!textReference)

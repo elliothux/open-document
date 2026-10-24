@@ -67,8 +67,7 @@ fn Session::analysis_workbook_extension(
 }
 
 ///|
-// Renaming keeps cache records and stable tabId connections, including pending source edits.
-fn Session::analysis_rename_parts(
+fn Session::analysis_parts(
   self : Session,
 ) -> Array[String] raise @failure.Failure {
   let parts : Set[String] = Set([])
@@ -119,7 +118,7 @@ fn Session::analysis_rename_parts(
         !records.external &&
         records.kind == relationship_uri + "pivotCacheRecords" else {
         @failure.reject(
-          "protected-content", "Unknown unused pivot cache resources prevent renaming",
+          "protected-content", "Unknown unused pivot cache resources prevent editing",
         )
       }
       pivot_cache_profile(self.part_xml(path), records.id)
@@ -163,7 +162,7 @@ fn Session::rename_analysis_sources(
   parts : Map[String, @xml.Document],
   edits : Array[(String, @xml.Edit)],
 ) -> Unit raise @failure.Failure {
-  for path in self.analysis_rename_parts() {
+  for path in self.analysis_parts() {
     let document = self.part_xml(path)
     if document.nodes()[0].name != "pivotCacheDefinition" {
       continue

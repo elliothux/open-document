@@ -83,8 +83,20 @@ pub fn Session::body_page_field(
       } else if parts[0] == "REF" {
         let reference = @layout.TextReference::parse(code)
         value["bookmark"] = Json(reference.bookmark)
-        if reference.numbered {
-          value["numbered"] = Json(true)
+        if !reference.numbering.is_empty() {
+          value["numbering"] = Json(
+            match reference.numbering {
+              "number" => "noContext"
+              "numberRelative" => "relative"
+              _ => "fullContext"
+            },
+          )
+        }
+        if !reference.separator.is_empty() {
+          value["separator"] = Json(reference.separator)
+        }
+        if reference.relative {
+          value["relative"] = Json(true)
         }
         if reference.hyperlink {
           value["hyperlink"] = Json(true)

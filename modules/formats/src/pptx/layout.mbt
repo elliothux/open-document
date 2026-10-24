@@ -77,7 +77,7 @@ fn measure_text(
       } else {
         Some({
           text: paragraph.bullet,
-          referenceText: None,
+          numbering: None,
           style: {
             ..paragraph.bullet_style,
             size: paragraph.bullet_style.size * scale,

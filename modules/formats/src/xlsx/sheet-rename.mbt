@@ -132,11 +132,7 @@ fn Session::sheet_rename_reason(
     if !reason.is_empty() {
       return reason
     }
-    let analysis_parts = if analysis {
-      self.analysis_rename_parts()
-    } else {
-      []
-    }
+    let analysis_parts = if analysis { self.analysis_parts() } else { [] }
     for rel in self.relationships() {
       if analysis &&
         !rel.external &&
@@ -445,7 +441,7 @@ fn Session::rename_sheet(
   self.sheet_chart_references(old, Some(name), parts, edits)
   self.rename_analysis_sources(old, name, parts, edits)
   let sheets = self.ordered_sheets(workbook, sheets, parts)
-  ignore({ ..self, workbook, sheets, parts, }.analysis_rename_parts())
+  ignore({ ..self, workbook, sheets, parts, }.analysis_parts())
   let calculation = self.calculate(sheets, None, [], workbook, parts~)
   self.commit(
     sheets,
