@@ -31,6 +31,33 @@ fn math_expression_markup(
   drawing~ : Bool = false,
 ) -> String raise @failure.Failure {
   match expression {
+    EquationArray(base, rows) => {
+      let control = style
+        .map(value => {
+          "<m:ctrlPr>" + math_properties_markup(value, drawing~) + "</m:ctrlPr>"
+        })
+        .unwrap_or("")
+      let rows = rows
+        .map(row => {
+          "<m:e>" +
+          row
+          .map(value => {
+            value
+            .map(value => equation_cell_markup(value, style, drawing~))
+            .unwrap_or("")
+          })
+          .join(math_run_markup("&", style, drawing~)) +
+          "</m:e>"
+        })
+        .join("")
+      "<m:eqArr><m:eqArrPr><m:baseJc m:val=\"" +
+      base +
+      "\"/>" +
+      control +
+      "</m:eqArrPr>" +
+      rows +
+      "</m:eqArr>"
+    }
     Matrix(base, columns, rows) => {
       let control = style
         .map(value => {

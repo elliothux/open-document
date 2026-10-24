@@ -131,6 +131,7 @@ fn Session::field_cache_changes(
   fields : Array[Int],
   layout : @layout.Layout,
 ) -> Map[Int, String] raise @failure.Failure {
+  let fields = fields.filter(id => !tree.index_markers.contains(id))
   let values = self.field_values(tree, fields, Some(layout))
   let changes : Map[Int, String] = Map([])
   for id in fields {

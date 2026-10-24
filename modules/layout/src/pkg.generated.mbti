@@ -472,6 +472,7 @@ pub(all) enum MathExpression {
   Root(MathExpression?, MathExpression)
   Delimited(String, String, String, ReadOnlyArray[MathExpression])
   Nary(String, String, MathExpression?, MathExpression?, MathExpression)
+  EquationArray(String, ReadOnlyArray[ReadOnlyArray[MathExpression?]])
   Matrix(String, ReadOnlyArray[String], ReadOnlyArray[ReadOnlyArray[MathExpression?]])
 }
 pub fn MathExpression::linear_text(Self) -> String

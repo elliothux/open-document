@@ -103,5 +103,7 @@ export type {
 } from "@open-document/wasm/foundation";
 export type {
   DocxTocEdit,
+  DocxIndexEdit,
+  DocxIndexes,
   DocxTableOfContents,
 } from "@open-document/wasm/foundation";

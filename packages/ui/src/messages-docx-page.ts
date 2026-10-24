@@ -1,4 +1,6 @@
+import { indexEn, indexZh } from "./messages-docx-index.js";
 export const pageEn = {
+  ...indexEn,
   sectionBreakType: "Section break type",
   sectionBreakNext: "Next page",
   sectionBreakOdd: "Odd page",
@@ -141,6 +143,7 @@ export const pageEn = {
   inheritedPageNumberFormat: "Use section format",
 };
 export const pageZh = {
+  ...indexZh,
   sectionBreakType: "分节符类型",
   sectionBreakNext: "下一页",
   sectionBreakOdd: "奇数页",

@@ -79,10 +79,7 @@ fn Session::flow_from(
               background~,
               note_refs~,
             )
-            paragraphs.push({
-              ..p,
-              readOnlyReason: "Table of contents results require a table of contents update",
-            })
+            paragraphs.push({ ..p, readOnlyReason: toc.edit_reason(), })
           }
         } else {
           diagnostics.push("unsupported-layout:" + node.qualified)
@@ -274,6 +271,9 @@ fn Session::paragraph(
       review=!running,
       math=true,
     ) {
+    if tree.index_markers.contains(run) {
+      continue
+    }
     if tree.nodes[run].uri == math_uri {
       let style : @layout.TextStyle = {
         font: run_style.key(),
@@ -489,8 +489,8 @@ fn Session::paragraph(
           revision_element(tree.nodes[item].name)
         }) {
         "Tracked revisions require review before editing"
-      } else if tree.contents.contains(id) {
-        "Table of contents results require a table of contents update"
+      } else if tree.contents.get(id) is Some(contents) {
+        contents.edit_reason()
       } else if tree.field_spans.contains(id) {
         "Cross-paragraph field results require field editing"
       } else if !running && has_fields {

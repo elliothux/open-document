@@ -5,6 +5,9 @@ fn docx_texts(tree : WordTree) -> Array[TextNode] {
   let fields : Map[Int, Bool] = Map([])
   for id in tree.order {
     let node = tree.nodes[id]
+    if tree.index_markers.contains(id) {
+      continue
+    }
     if node.uri == math_uri &&
       ["oMath", "oMathPara"].contains(node.name) &&
       node.parent >= 0 &&

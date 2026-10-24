@@ -7,6 +7,7 @@ pub(all) enum MathExpression {
   Root(MathExpression?, MathExpression)
   Delimited(String, String, String, ReadOnlyArray[MathExpression])
   Nary(String, String, MathExpression?, MathExpression?, MathExpression)
+  EquationArray(String, ReadOnlyArray[ReadOnlyArray[MathExpression?]])
   Matrix(
     String,
     ReadOnlyArray[String],
@@ -17,6 +18,16 @@ pub(all) enum MathExpression {
 ///|
 pub impl ToJson for MathExpression with fn to_json(self) {
   match self {
+    EquationArray(base, rows) =>
+      {
+        "kind": "equationArray",
+        "baseAlignment": base,
+        "rows": rows.map(row => {
+          row.map(value => {
+            value.map(value => Json(value)).unwrap_or(Json::null())
+          })
+        }),
+      }
     Matrix(base, columns, rows) =>
       {
         "kind": "matrix",
@@ -80,6 +91,32 @@ fn MathExpression::check(self : MathExpression) -> Unit raise @failure.Failure {
       @failure.reject("limit-exceeded", "Math exceeds depth 16 or 256 nodes")
     }
     match value {
+      EquationArray(base, rows) => {
+        guard ["top", "center", "bottom"].contains(base) &&
+          rows.length() >= 1 &&
+          rows.length() <= 64 &&
+          rows.iter().all(row => row.length() >= 1 && row.length() <= 64) &&
+          rows.fold(init=0, (sum, row) => sum + row.length()) <= 256 else {
+          @failure.reject(
+            "limit-exceeded", "Equation array exceeds bounded rows or alignment groups",
+          )
+        }
+        for row in rows {
+          for cell in row {
+            match cell {
+              Some(value) => visit(value, depth + 1)
+              None => {
+                nodes += 1
+                guard depth < 16 && nodes <= 256 else {
+                  @failure.reject(
+                    "limit-exceeded", "Math exceeds depth 16 or 256 nodes",
+                  )
+                }
+              }
+            }
+          }
+        }
+      }
       Matrix(base, columns, rows) => {
         guard ["top", "center", "bottom"].contains(base) &&
           columns.length() >= 1 &&
@@ -202,6 +239,14 @@ fn MathExpression::check(self : MathExpression) -> Unit raise @failure.Failure {
 ///|
 pub fn MathExpression::linear_text(self : MathExpression) -> String {
   match self {
+    EquationArray(_, rows) =>
+      rows
+      .map(row => {
+        row
+        .map(value => value.map(value => value.linear_text()).unwrap_or(""))
+        .join("")
+      })
+      .join(";")
     Matrix(_, _, rows) =>
       "matrix(" +
       rows

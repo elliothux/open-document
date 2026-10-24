@@ -282,6 +282,29 @@ fn latex_text(text : String) -> String {
 ///|
 pub fn latex(expression : @layout.MathExpression) -> String {
   match expression {
+    EquationArray(base, rows) => {
+      let name = if rows.iter().all(row => row.length() == 1) {
+        "gathered"
+      } else {
+        "aligned"
+      }
+      let position = match base {
+        "top" => "t"
+        "bottom" => "b"
+        _ => "c"
+      }
+      "\\begin{" +
+      name +
+      "}[" +
+      position +
+      "]" +
+      rows
+      .map(row => row.map(value => value.map(latex).unwrap_or("")).join("&"))
+      .join("\\\\") +
+      "\\end{" +
+      name +
+      "}"
+    }
     Matrix(base, columns, rows) => latex_matrix(base, columns, rows)
     Nary(operator, location, lower, upper, body) =>
       latex_nary(operator, location, lower, upper, body)

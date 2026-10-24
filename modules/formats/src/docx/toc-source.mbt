@@ -2,7 +2,7 @@
 priv struct TocEntry {
   level : Int
   text : String
-  bookmark : String
+  bookmarks : Array[String]
 } derive(Eq)
 
 ///|
@@ -158,7 +158,7 @@ fn Session::toc_entries(
       })
       name
     }
-    result.push({ level: level + 1, text, bookmark, })
+    result.push({ level: level + 1, text, bookmarks: [bookmark], })
   }
   (result, changes)
 }
@@ -170,30 +170,48 @@ fn toc_markup(
   instruction : String,
   hyperlink : Bool,
   width : Double,
+  index~ : Bool = false,
 ) -> String raise @failure.Failure {
   let begin = "<od:r><od:fldChar od:fldCharType=\"begin\" od:dirty=\"true\"/></od:r><od:r><od:instrText xml:space=\"preserve\">\{property_attribute(instruction)}</od:instrText></od:r><od:r><od:fldChar od:fldCharType=\"separate\"/></od:r>"
   let end = "<od:r><od:fldChar od:fldCharType=\"end\"/></od:r>"
   if entries.is_empty() {
-    return "<od:p xmlns:od=\"\{word_uri}\">\{begin}<od:r><od:t>No table of contents entries found.</od:t></od:r>\{end}</od:p>"
+    let text = if index {
+      "No index entries found."
+    } else {
+      "No table of contents entries found."
+    }
+    return "<od:p xmlns:od=\"\{word_uri}\">\{begin}<od:r><od:t>\{text}</od:t></od:r>\{end}</od:p>"
   }
   let output = StringBuilder()
+  let separator = if !index || index_separator(instruction) == "\t" {
+    "<od:r><od:tab/></od:r>"
+  } else {
+    "<od:r><od:t xml:space=\"preserve\">" +
+    @xml.escape_text(index_separator(instruction)) +
+    "</od:t></od:r>"
+  }
   for index, entry in entries {
     let style = property_attribute(styles[entry.level])
-    let name = property_attribute(entry.bookmark)
+    let name = property_attribute(entry.bookmarks.get(0).unwrap_or(""))
     let text = "<od:r><od:t xml:space=\"preserve\">\{@xml.escape_text(entry.text)}</od:t></od:r>"
     let label = if hyperlink {
       "<od:hyperlink od:anchor=\"\{name}\">\{text}</od:hyperlink>"
     } else {
       text
     }
-    let reference = property_attribute(
-      " PAGEREF " + entry.bookmark + (if hyperlink { " \\h" } else { "" }) + " ",
-    )
+    let references = entry.bookmarks
+      .map(bookmark => {
+        let reference = property_attribute(
+          " PAGEREF " + bookmark + (if hyperlink { " \\h" } else { "" }) + " ",
+        )
+        "<od:fldSimple od:instr=\"\{reference}\" od:dirty=\"true\"><od:r><od:t>1</od:t></od:r></od:fldSimple>"
+      })
+      .join("<od:r><od:t xml:space=\"preserve\">, </od:t></od:r>")
     output.write_string(
       "<od:p xmlns:od=\"\{word_uri}\"><od:pPr><od:pStyle od:val=\"\{style}\"/><od:numPr><od:numId od:val=\"0\"/></od:numPr><od:tabs><od:tab od:val=\"right\" od:leader=\"dot\" od:pos=\"\{(width*20).round().to_int()}\"/></od:tabs><od:outlineLvl od:val=\"9\"/></od:pPr>" +
       (if index == 0 { begin } else { "" }) +
       label +
-      "<od:r><od:tab/></od:r><od:fldSimple od:instr=\"\{reference}\" od:dirty=\"true\"><od:r><od:t>1</od:t></od:r></od:fldSimple>" +
+      (if references.is_empty() { "" } else { separator + references }) +
       (if index == entries.length() - 1 { end } else { "" }) +
       "</od:p>",
     )

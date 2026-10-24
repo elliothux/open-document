@@ -9,6 +9,9 @@ fn check_fragment_content(
   let mut units = 0
   for id in nodes {
     let node = tree.nodes[id]
+    if fields && tree.index_markers.contains(id) {
+      continue
+    }
     if objects.contains(id) {
       continue
     }

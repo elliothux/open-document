@@ -1,10 +1,18 @@
 import type {
   DocxCaption,
+  DocxIndexEdit,
   DocxTocEdit,
   DocxSectionBreak,
 } from "@open-document/wasm/foundation";
 
 export type DocxPageCommand =
+  | { operation: "docxIndexes"; revision: number }
+  | {
+      operation: "editDocxIndex";
+      revision: number;
+      change: DocxIndexEdit;
+      profile: Record<string, string>;
+    }
   | {
       operation: "insertSectionBreak";
       revision: number;

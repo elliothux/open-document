@@ -1,5 +1,10 @@
 import { FoundationReviewClient } from "./document-review.js";
 import {
+  checkDocxIndexEdit,
+  docxIndexes,
+  type DocxIndexEdit,
+} from "@open-document/wasm/foundation";
+import {
   docxRuler,
   checkDocxRulerEdit,
   type DocxRuler,
@@ -70,6 +75,26 @@ export class FoundationPageClient extends FoundationReviewClient {
       await this.connection.request({
         operation: "docxTableOfContents",
         revision,
+      }),
+    );
+  }
+  async indexes(revision: number) {
+    return docxIndexes(
+      await this.connection.request({ operation: "docxIndexes", revision }),
+    );
+  }
+  async editIndex(
+    revision: number,
+    change: DocxIndexEdit,
+    profile: Record<string, string>,
+  ) {
+    checkDocxIndexEdit(change);
+    return editState(
+      await this.connection.request({
+        operation: "editDocxIndex",
+        revision,
+        change,
+        profile,
       }),
     );
   }

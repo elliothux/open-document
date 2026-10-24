@@ -363,6 +363,14 @@ async function dispatch(request: Request): Promise<unknown> {
           );
         case "docxTableOfContents":
           return foundation.tableOfContents(request.revision);
+        case "docxIndexes":
+          return foundation.indexes(request.revision);
+        case "editDocxIndex":
+          return foundation.editIndex(
+            request.revision,
+            request.change,
+            request.profile,
+          );
         case "editDocxTableOfContents":
           return foundation.editTableOfContents(
             request.revision,

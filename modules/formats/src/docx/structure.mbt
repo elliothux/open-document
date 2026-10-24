@@ -205,6 +205,9 @@ fn WordTree::check_structure_properties(
   id : Int,
   sectionBoundary~ : Bool = false,
 ) -> Unit raise @failure.Failure {
+  if self.index_markers.contains(id) {
+    return
+  }
   let excluded = if sectionBoundary {
     self
     .child(id, "sectPr")
@@ -397,10 +400,10 @@ fn WordTree::check_editable_paragraph(
     )
   }
   let parent = self.nodes[paragraph].parent
-  guard !self.contents.contains(paragraph) else {
+  if self.contents.get(paragraph) is Some(contents) {
     @failure.reject(
       "protected-content",
-      "Table of contents results require a table of contents update",
+      contents.edit_reason(),
       part~,
       offset=paragraph,
     )
@@ -464,6 +467,9 @@ fn WordTree::check_editable_paragraph(
     ignore(self.simple_page_fields(paragraph))
   }
   for child in self.children[paragraph] {
+    if self.index_markers.contains(child) {
+      continue
+    }
     let node = self.nodes[child]
     if math &&
       node.uri == math_uri &&

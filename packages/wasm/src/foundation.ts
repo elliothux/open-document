@@ -8,6 +8,7 @@ export { type ChartSettings } from "./chart.js";
 import { FoundationMathSession } from "./docx-math.js";
 export * from "./docx-clipboard.js";
 export * from "./docx-toc.js";
+export * from "./docx-index.js";
 export {
   docxProtection,
   checkDocxProtection,

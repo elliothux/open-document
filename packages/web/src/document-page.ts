@@ -2,10 +2,13 @@ import { DocumentReview } from "./document-review.js";
 import type {
   DocxTocEdit,
   DocxTableOfContents,
+  DocxIndexes,
+  DocxIndexEdit,
 } from "@open-document/wasm/foundation";
 export type DocumentTableOfContents = DocxTableOfContents & {
   documentId: string;
 };
+export type DocumentIndexes = DocxIndexes & { documentId: string };
 import { decodeImage } from "./image.js";
 import type {
   DocxCharts,
@@ -53,6 +56,59 @@ export type DocumentProtection = DocxProtection & { documentId: string };
 
 /** Document-wide page commands use the editor's existing read and edit queues. */
 export abstract class DocumentPage extends DocumentReview {
+  indexes(): Promise<DocumentIndexes> {
+    return this.review.read(async () => ({
+      ...(await this.review.client.indexes(this.review.snapshot().revision)),
+      documentId: this.review.snapshot().documentId,
+    }));
+  }
+  markIndexEntry(label: string): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.editIndex(
+        this.review.snapshot().revision,
+        { action: "mark", label },
+        this.profile,
+      ),
+    );
+  }
+  insertIndex(): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.editIndex(
+        this.review.snapshot().revision,
+        { action: "insert" },
+        this.profile,
+      ),
+    );
+  }
+  editIndex(
+    source: DocumentIndexes,
+    change: Exclude<DocxIndexEdit, { action: "mark" | "insert" }>,
+  ): Promise<void> {
+    return this.review.edit(() => {
+      const current = this.review.snapshot();
+      const item =
+        "id" in change
+          ? source.entries.find((item) => item.id === change.id)
+          : source.indexes.find((item) => item.paragraph === change.paragraph);
+      if (
+        source.documentId !== current.documentId ||
+        source.revision !== current.revision ||
+        !item ||
+        item.reason
+      )
+        throw new DocumentError(
+          "stale-index",
+          item?.reason || "Index catalog is stale",
+          "",
+          -1,
+        );
+      return this.review.client.editIndex(
+        source.revision,
+        change,
+        this.profile,
+      );
+    });
+  }
   insertSectionBreak(kind: DocxSectionBreak): Promise<void> {
     return this.review.edit(() =>
       this.review.client.insertSectionBreak(

@@ -12,6 +12,15 @@ priv struct TableOfContents {
 }
 
 ///|
+fn TableOfContents::edit_reason(self : TableOfContents) -> String {
+  if self.instruction.trim().to_upper().has_prefix("INDEX") {
+    "Index results require an index update"
+  } else {
+    "Table of contents results require a table of contents update"
+  }
+}
+
+///|
 fn toc_instruction(
   instruction : String,
 ) -> (Int, Int, Bool, Bool) raise @failure.Failure {
@@ -26,6 +35,10 @@ fn toc_instruction(
     .filter(token => !token.is_empty())
     .map(token => token.to_owned())
     .to_array()
+  if tokens.get(0).map(command => command.to_upper()) == Some("INDEX") {
+    ignore(index_separator(instruction))
+    return (1, 3, false, false)
+  }
   guard tokens.get(0).map(token => token.to_upper()) == Some("TOC") else {
     @failure.reject("protected-content", "Expected a table of contents field")
   }
@@ -260,7 +273,10 @@ fn WordTree::read_contents(
               .replace_all(old="\t", new=" ")
               .trim()
               .to_upper()
-            if code.has_prefix("TOC ") || code == "TOC" {
+            if code.has_prefix("TOC ") ||
+              code == "TOC" ||
+              code.has_prefix("INDEX ") ||
+              code == "INDEX" {
               let value = self.contents_profile(
                 paragraphs,
                 markers,
@@ -298,7 +314,13 @@ fn WordTree::read_contents(
     }
   }
   let code = instruction.replace_all(old="\t", new=" ").trim().to_upper()
-  if depth > 0 && (code.has_prefix("TOC ") || code == "TOC") {
+  if depth > 0 &&
+    (
+      code.has_prefix("TOC ") ||
+      code == "TOC" ||
+      code.has_prefix("INDEX ") ||
+      code == "INDEX"
+    ) {
     let value = self.contents_profile(paragraphs, markers, instruction, false)
     for paragraph in paragraphs {
       contents[paragraph] = value
@@ -317,7 +339,9 @@ pub fn Session::table_of_contents(
   let tree = WordTree::new(self.document())
   let items : Array[Json] = []
   for id in tree.order {
-    if tree.contents.get(id) is Some(toc) && toc.paragraphs[0] == id {
+    if tree.contents.get(id) is Some(toc) &&
+      toc.paragraphs[0] == id &&
+      !toc.instruction.trim().to_upper().has_prefix("INDEX") {
       items.push({
         "paragraph": id,
         "endParagraph": toc.paragraphs.last().unwrap(),

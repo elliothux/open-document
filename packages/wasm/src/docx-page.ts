@@ -12,6 +12,11 @@ import {
 } from "./docx-ruler.js";
 import { record } from "./validation.js";
 import {
+  checkDocxIndexEdit,
+  docxIndexes,
+  type DocxIndexEdit,
+} from "./docx-index.js";
+import {
   checkDocxTocEdit,
   docxTableOfContents,
   type DocxTocEdit,
@@ -438,6 +443,19 @@ export class FoundationPageSession extends FoundationReviewSession {
   tableOfContents(revision: number) {
     return docxTableOfContents(
       this.call({ operation: "docxTableOfContents", revision }),
+    );
+  }
+  indexes(revision: number) {
+    return docxIndexes(this.call({ operation: "docxIndexes", revision }));
+  }
+  editIndex(
+    revision: number,
+    change: DocxIndexEdit,
+    profile: Record<string, string>,
+  ) {
+    checkDocxIndexEdit(change);
+    return editState(
+      this.call({ operation: "editDocxIndex", revision, change, profile }),
     );
   }
   editTableOfContents(

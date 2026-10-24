@@ -39,7 +39,7 @@ fn MathRead::sequence(
   depth : Int,
 ) -> @layout.MathExpression raise @failure.Failure {
   let children = tree.math_children(id, [
-    "r", "f", "sSub", "sSup", "sSubSup", "rad", "d", "nary", "m",
+    "r", "f", "sSub", "sSup", "sSubSup", "rad", "d", "nary", "m", "eqArr",
   ])
   guard !children.is_empty() else {
     @failure.reject("unsupported-math", "Math argument is empty")
@@ -78,6 +78,9 @@ fn MathRead::term(
 ) -> @layout.MathExpression raise @failure.Failure {
   self.node(depth)
   let kind = tree.nodes[id].name
+  if kind == "eqArr" {
+    return self.equation_array(tree, id, depth)
+  }
   if kind == "m" {
     return self.matrix(tree, id, depth)
   }

@@ -477,6 +477,10 @@ fn Session::prepare_plain_range(
     changes,
     Some(after),
     anchor.paragraph,
+    source=tree.index_range_changes({ ..anchor, offset: start, }, {
+      ..focus,
+      offset: end,
+    }),
     object_offsets~,
     notes~,
   )
@@ -519,12 +523,14 @@ fn Session::prepare_text(
   changes : Map[Int, String],
   after : Selection?,
   paragraph : Int,
+  source~ : Array[@xml.SourceChange] = [],
   object_offsets~ : Map[Int, Int] = Map([]),
   notes~ : Bool = false,
 ) -> PreparedEdit raise @failure.Failure {
   let (candidate, xml) = self.edit_inline_text(
     self.document(),
     changes,
+    source~,
     object_offsets~,
     notes~,
   )

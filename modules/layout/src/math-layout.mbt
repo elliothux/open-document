@@ -29,6 +29,16 @@ fn MathExpression::measure(
   display~ : Bool = false,
 ) -> MathBox raise @failure.Failure {
   let box = match self {
+    EquationArray(base, rows) =>
+      measure_math_equation_array(
+        base,
+        rows,
+        style,
+        probe,
+        profile,
+        paths,
+        display~,
+      )
     Matrix(base, columns, rows) =>
       measure_math_matrix(
         base,

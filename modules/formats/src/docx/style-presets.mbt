@@ -16,6 +16,16 @@ fn builtin_style_properties(
 ) -> (String, String)? {
   let name = name.to_lower()
   if kind == "paragraph" {
+    for level in 1..<=3 {
+      if key == "Index\{level}" || name == "index \{level}" {
+        return Some(
+          (
+            "<od:pPr xmlns:od=\"\{word_uri}\"><od:spacing od:after=\"0\"/><od:ind od:left=\"\{(level-1)*283}\" od:right=\"0\" od:firstLine=\"0\"/></od:pPr>",
+            "",
+          ),
+        )
+      }
+    }
     for level in 1..<=9 {
       if key == "TOC\{level}" || name == "toc \{level}" {
         let indent = [0, 283, 567, 850, 1134, 1417, 1701, 1984, 2268][level - 1]

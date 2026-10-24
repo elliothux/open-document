@@ -116,7 +116,7 @@ fn Session::prepare_structural_range_in(
     }
     continue offset + before.length()
   }
-  let changes : Array[@xml.SourceChange] = []
+  let changes = tree.index_range_changes(start, end)
   if parts.length() > 1 {
     let tail = match insertion {
       Some(id) if first.id == last.id => {
@@ -258,6 +258,15 @@ fn Session::prepare_structural_range_in(
           )
         }) {
         let run = tree.nodes[id]
+        if tree.index_markers.contains(id) &&
+          changes.any(change => {
+            change.node == parent.id &&
+            change.xml.is_empty() &&
+            change.offset == run.start - parent.start &&
+            change.length == run.end - run.start
+          }) {
+          continue
+        }
         let attributes = tree.namespace_additions(id, first.id)
         if !attributes.is_empty() {
           changes.push({
@@ -271,6 +280,9 @@ fn Session::prepare_structural_range_in(
         }
       }
       for id in tree.paragraph_runs(last.id, running=true) {
+        if tree.index_markers.contains(id) {
+          continue
+        }
         if self.preserve_run_style(tree, styles, id, first.id) is Some(change) {
           changes.push(change)
         }

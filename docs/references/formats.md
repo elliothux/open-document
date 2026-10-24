@@ -264,7 +264,7 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 
 子参数递归按 0.76 缩放，横向组合按基线对齐；分数及结构化基底的单/双脚标使用实际字体度量。Canvas/PDF 继续消费核心已定位图元。线性文字用括号表达嵌套关系，供语义层、选择、纯文字和 TSV 使用。
 
-公式占一个逻辑位置，支持两侧原生输入、整式删除/替换、富文本复制/剪切、跨文档粘贴、精确历史及重开。周边编辑保留原公式源；富文本写回实际统一外观及递归结构。已有分数/脚标参数 API 和面板只修改平面参数，遇到嵌套内容返回保护原因，避免扁平化覆盖。嵌套参数可通过下述 LaTeX 表单或 SDK 替换；单式独立段落归[独立公式合同](#docx-独立公式段落)；内部光标、逐行块数学、局部格式与更多结构/语法仍待实现。
+公式占一个逻辑位置，支持两侧原生输入、整式删除/替换、富文本复制/剪切、跨文档粘贴、精确历史及重开。周边编辑保留原公式源；富文本写回实际统一外观及递归结构。已有分数/脚标参数 API 和面板只修改平面参数，遇到嵌套内容返回保护原因，避免扁平化覆盖。嵌套参数可通过下述 LaTeX 表单或 SDK 替换；单式独立段落归[独立公式合同](#docx-独立公式段落)；多行公式归[多行公式合同](#docx-多行公式)；内部光标、局部格式与更多结构/语法仍待实现。
 
 结构及边界归 [`math-expression.mbt`](../../modules/layout/src/math-expression.mbt)，递归测量归 [`math-layout.mbt`](../../modules/layout/src/math-layout.mbt)，读取归 [`math-read.mbt`](../../modules/formats/src/docx/math-read.mbt)，写回归 [`math-markup.mbt`](../../modules/formats/src/docx/math-markup.mbt)。脚标的文字/结构化基底分支沿上述 ONLYOFFICE 定位规则。
 
@@ -275,6 +275,16 @@ Tab 输入与粘贴保存为 `w:tab`，不转成空格。`FoundationSession/Clie
 默认数学面板提供“插入独立公式”。`DocumentEditor.insertMath(value, true)` 和 Wasm/Worker 的 `{ action: "insert", latex, display: true, format? }` 走同一事务；MoonBit 为 `edit_math(..., display=true)`。省略或 false 保留行内插入。替换当前范围后，非空段落按插入点拆为前文、公式和后文；空段落直接承载公式。统一外观、结构修改和删除复用已有公式目录与命令，更新保留包装和对齐源，删除移除整个包装。独立插入、段落拆分和范围替换共用一项精确历史。
 
 正文和普通格的原生富文本片段保留包装、有效对齐及统一数学外观，跨文档粘贴后可继续修改。保存重开保留原生内容；Canvas、语义与 PDF 使用同一数学基线和段落位置。未知包装/属性、多表达式、混合外观、源注释及既有未支持结构继续保护。软换行及页/栏控制符与独立包装混排仍需逐行块布局，导入给出诊断，普通输入原子拒绝；Enter 拆成相邻段落仍走既有路径。较大显示运算符和上下堆叠极限归下述[求和与积分](#docx-行内求和与积分)；局部格式继续实施。实现归 [math-display.mbt](../../modules/formats/src/docx/math-display.mbt)、[math-read.mbt](../../modules/formats/src/docx/math-read.mbt)、[math-edit.mbt](../../modules/formats/src/docx/math-edit.mbt)和[原生输入](../../modules/formats/src/docx/body-field-input.mbt)。
+
+### DOCX 多行公式
+
+正文和普通格支持原生 `m:eqArr`，可置于行内或独立公式包装。各行可嵌套已有分数、脚标、根式、括号、运算符和矩阵；整体仍占一个逻辑位置。顶层数学文字中的 `&` 按两段一组对齐，第一段右对齐、第二段左对齐，各组紧接；没有配对的末段按上游最大维度宽度居中。各行沿最大上升/下降距离、字号及默认最小间距排版，整体基线接受 top、center、bottom。空对齐段保持零宽，整行为空时使用数学字体的 `⬚` 占位。Canvas/PDF 共用核心定位结果。
+
+默认公式面板及既有 `insertMath` / `editMath` 接受 `\begin{aligned}x&=1\\long&=2\end{aligned}` 和 `\begin{gathered}x\\y\end{gathered}`。可用 `[t]`、`[c]`、`[b]` 指定基线，末尾换行不额外增加一行。`aligned` 接受多组及不同段数；`gathered` 每行只有一个表达式。目录输出显式基线的规范化环境；没有对齐点时输出 `gathered`。独立插入沿原有范围替换和段落拆分事务，整体外观、结构替换、周边原生输入、富文本复制、精确历史及保存重开共用原入口。
+
+模型为 `EquationArray(baseAlignment, rows)`，flow 为 `{kind:"equationArray", baseAlignment, rows}`；各行是表达式或 `null` 的数组。最多 64 行、每行 64 段，并沿整个公式的深度 16、256 节点和 4096 个文字单元预算检查，空段计入节点预算。语义及纯文字以分号分隔各行，不输出对齐标记。统一控制外观保存在原生 `ctrlPr`，全空公式也保留字体、字号和颜色。接受默认行距及 maxDist/objDist 的关闭值；自定义间距、局部/混合外观、对齐文字中的字面量 `&` 和未知元数据继续保护。单个包装内的多个 `oMath`、强制软换行及内部字符光标仍待实现。
+
+读取及保护归 [`omml/math-equation-array.mbt`](../../modules/formats/src/internal/omml/math-equation-array.mbt)，LaTeX 复用 [`latex-matrix.mbt`](../../modules/formats/src/internal/omml/latex-matrix.mbt)，原生写回归 [`markup.mbt`](../../modules/formats/src/internal/omml/markup.mbt)，布局归 [`layout/math-equation-array.mbt`](../../modules/layout/src/math-equation-array.mbt)，类型和传输校验归 [`math.ts`](../../packages/wasm/src/math.ts)。定位依据 [ONLYOFFICE EqArray 度量](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/matrix.js#L1429-L1508)及[对齐偏移](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Math/mathContent.js#L438-L479)。
 
 ### DOCX LaTeX 公式编辑
 
@@ -839,6 +849,16 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 核心按有效大纲级别和正文顺序提取标题，包含普通表格标题，排除已有目录结果。标题取当前编号、文字和字段结果，Tab/软换行转为空格。复用可用的段首书签，缺失时创建独立原生锚点；保留已有 TOC 样式，缺失时复用内置样式预设。写回复杂 TOC、文字链接、点引导符及简单 PAGEREF，右制表位沿首栏宽度。整体更新保留原目录指令、级别和链接开关，重建全部条目；删除保留标题锚点与样式。没有标题时保留可更新的空目录。
 
 生成后按实际分页重新提取标题字段结果，最多八轮收敛，再缓存实际页码。每次操作的正文、样式资源和选择共用一项精确历史，无变化不增加历史；布局、字体、保护或预算失败原子拒绝。最多 4096 条标题，每条标签最多 4096 个 UTF-16 单元，标签合计最多 1 Mi 单元，并沿用历史、包及布局预算。带绘图/数学的标题、含注释/修订/脚注等不可丢失内容的目录结果继续保护。自动更新、复杂控件及表格内目录编辑、富文本条目和其他 TOC 指令继续实施。实现归 [`toc-source.mbt`](../../modules/formats/src/docx/toc-source.mbt)、[`toc-edit.mbt`](../../modules/formats/src/docx/toc-edit.mbt)及[默认控件](../../packages/ui/src/docx-toc.tsx)。标题与制表位依据上述 ONLYOFFICE 目录计算入口，未复制上游执行代码。
+
+### DOCX 索引
+
+正文及普通单元格支持原生简单域和同段复杂 `XE "term"`。已知条目隐藏显示，文字位置不计入域代码；条目修改只改指令，保留原生包装、隐藏属性和其他元数据。普通输入保留条目，富文本复制和粘贴保留术语；剪切、范围替换和跨段删除同步移除所选条目，沿同一精确历史恢复原源。术语接受冒号分隔的一至三级，每级非空，整体最多 255 个 UTF-16 单元。未知开关、混合可见内容、注释和未知属性继续保护。
+
+默认索引面板提供标记、修改/删除条目及插入、更新/删除索引。标记放在选择终点，保留所选文字；插入在当前段落前生成原生跨段 `INDEX`。核心按各级不区分大小写的词典序排序，合并同名条目，去重同一物理页，按实际节页码输出 `PAGEREF`。父级可没有页码，空索引保留可更新的占位结果。生成结果保持只读；显式更新沿既有目录样式、书签、有界重排、缓存和精确历史，保存不会自动改写缓存。当前生成范围为单节、单栏普通正文；多节、多栏及复杂导入继续保护。
+
+原生 `Session::indexes(revision)` 返回 `{revision, entries, indexes}`。条目含 `id/paragraph/label/reason`，生成索引含 `paragraph/endParagraph/instruction/reason`。`edit_index` 接受 `IndexEdit` 的六项操作。同步/Worker 的 `indexes`、`editIndex` 使用 `DocxIndexes` / `DocxIndexEdit`；命令为 `mark`、`updateEntry`、`deleteEntry`、`insert`、`update`、`delete`。Web 的 `DocumentEditor.indexes()` 附加 `documentId`，`markIndexEntry(label)`、`insertIndex()` 和 `editIndex(source, change)` 校验当前文档与 revision；过期目录报错后可继续输入。查询上限为 4096 个条目、256 个索引；结果最多 4096 段，仍受原有布局和历史预算限制。
+
+已知 `INDEX` 指令接受单栏 `\c 1` 和最多五字符的 `\e` 分隔符；无显式分隔符时使用逗号及空格，新建索引显式使用制表符。其他开关、自动更新、富文本条目、跨段 XE、语言专用排序、索引内部光标和完整导入变体仍待实现。读取归 [`index-read.mbt`](../../modules/formats/src/docx/index-read.mbt)，条目与范围事务归 [`index-edit.mbt`](../../modules/formats/src/docx/index-edit.mbt)，排序/页码归 [`index-source.mbt`](../../modules/formats/src/docx/index-source.mbt)，索引结果复用 [`toc-edit.mbt`](../../modules/formats/src/docx/toc-edit.mbt)，传输归 [`docx-index.ts`](../../packages/wasm/src/docx-index.ts)，界面归 [`docx-index.tsx`](../../packages/ui/src/docx-index.tsx)。原生导出参考 [LibreOffice INDEX](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/filter/ww8/ww8atr.cxx#L2385-L2427)，术语层级和重复页规则参考 [Microsoft 创建索引](https://support.microsoft.com/en-us/word/create-and-update-an-index)，分隔符参考 [INDEX 指令](https://support.microsoft.com/en-us/word/field-codes-index-field)。未复制上游执行代码。
 
 ### 原生目录内容控件
 

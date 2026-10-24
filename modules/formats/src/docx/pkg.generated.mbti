@@ -60,6 +60,15 @@ pub(all) enum FormatChange[T] {
 pub fn[T : Eq] FormatChange::equal(Self[T], Self[T]) -> Bool
 pub fn[T : Eq] FormatChange::not_equal(Self[T], Self[T]) -> Bool
 
+pub(all) enum IndexEdit {
+  MarkIndexEntry(String)
+  UpdateIndexEntry(Int, String)
+  DeleteIndexEntry(Int)
+  InsertIndex
+  UpdateIndex(Int)
+  DeleteIndex(Int)
+}
+
 pub(all) enum ListEdit {
   Create(String)
   Apply(Int, Int)
@@ -174,6 +183,7 @@ pub fn Session::edit_body_page_field(Self, Int, Selection, String, probe~ : @lay
 pub fn Session::edit_bookmark(Self, Int, BookmarkEdit) -> Json raise @failure.Failure
 pub fn Session::edit_chart(Self, Int, String, Int, String, String, String, Double, Double, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images, hole_size? : Int?, legend? : String?) -> Json raise @failure.Failure
 pub fn Session::edit_comment(Self, Int, CommentEdit) -> Json raise @failure.Failure
+pub fn Session::edit_index(Self, Int, IndexEdit, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::edit_list(Self, Int, Selection, ListEdit) -> Json raise @failure.Failure
 pub fn Session::edit_math(Self, Int, String, Int, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images, format? : CharacterFormat, display? : Bool) -> Json raise @failure.Failure
 pub fn Session::edit_math_fraction(Self, Int, String, Int, String, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images, format? : CharacterFormat) -> Json raise @failure.Failure
@@ -192,6 +202,7 @@ pub fn Session::find(Self, Int, String, FindOptions) -> Json raise @failure.Fail
 pub fn Session::finish_drawing_gesture(Self, Int, Int, Double, Double, page? : Int) -> Json raise @failure.Failure
 pub fn Session::flow(Self) -> @layout.Flow raise @failure.Failure
 pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
+pub fn Session::indexes(Self, Int) -> Json raise @failure.Failure
 pub fn Session::insert_body_page_field(Self, Int, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_caption(Self, Int, String, String, Bool, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_note(Self, Int, String, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure

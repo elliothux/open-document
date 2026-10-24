@@ -115,6 +115,9 @@ fn Foundation::docx_page(
   request : Json,
 ) -> Json raise @failure.Failure {
   let revision = field_int(request, "revision")
+  if operation == "docxIndexes" {
+    return session.indexes(revision)
+  }
   if operation == "docxTableOfContents" {
     return session.table_of_contents(revision)
   }
@@ -192,6 +195,39 @@ fn Foundation::docx_page(
           )
       }
       session.edit_table_of_contents(
+        revision,
+        edit,
+        probe=self.probe,
+        profile=xlsx_profile(request),
+        images=self.images,
+      )
+    }
+    "editDocxIndex" => {
+      guard request is { "change": Object(fields) as change, .. } else {
+        @failure.reject("invalid-operation", "Invalid index command")
+      }
+      let action = field_string(change, "action")
+      let edit = match action {
+        "mark" if fields.length() == 2 && fields.contains("label") =>
+          @docx.IndexEdit::MarkIndexEntry(field_string(change, "label"))
+        "updateEntry" if fields.length() == 3 &&
+          fields.contains("id") &&
+          fields.contains("label") =>
+          @docx.IndexEdit::UpdateIndexEntry(
+            field_int(change, "id"),
+            field_string(change, "label"),
+          )
+        "deleteEntry" if fields.length() == 2 && fields.contains("id") =>
+          @docx.IndexEdit::DeleteIndexEntry(field_int(change, "id"))
+        "insert" if fields.length() == 1 => @docx.IndexEdit::InsertIndex
+        "update" if fields.length() == 2 && fields.contains("paragraph") =>
+          @docx.IndexEdit::UpdateIndex(field_int(change, "paragraph"))
+        "delete" if fields.length() == 2 && fields.contains("paragraph") =>
+          @docx.IndexEdit::DeleteIndex(field_int(change, "paragraph"))
+        _ =>
+          @failure.reject("invalid-operation", "Invalid index command fields")
+      }
+      session.edit_index(
         revision,
         edit,
         probe=self.probe,

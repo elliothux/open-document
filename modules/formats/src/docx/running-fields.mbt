@@ -209,7 +209,7 @@ fn WordTree::running_fields(
     .map(toc => Set::from_array(toc.markers))
     .unwrap_or(Set([]))
   for id in self.descendants(paragraph) {
-    if ignored.contains(id) {
+    if ignored.contains(id) || self.index_markers.contains(id) {
       continue
     }
     let node = self.nodes[id]
@@ -238,6 +238,11 @@ fn WordTree::running_fields(
     }
   }
   let fields : Map[Int, String] = Map([])
+  for id in self.descendants(paragraph) {
+    if self.index_markers.contains(id) && self.nodes[id].name == "t" {
+      fields[id] = ""
+    }
+  }
   let mut state = 0
   let mut instruction = ""
   let mut code = ""
@@ -254,6 +259,9 @@ fn WordTree::running_fields(
     }
   }
   for child in children {
+    if self.index_markers.contains(child) {
+      continue
+    }
     let node = self.nodes[child]
     if node.name == "fldSimple" && node.uri == word_uri {
       guard state == 0 && node.text.trim().is_empty() else {
@@ -287,7 +295,7 @@ fn WordTree::running_fields(
       count += 1
     } else if node.name == "r" && node.uri == word_uri {
       for content in self.children[child] {
-        if ignored.contains(content) {
+        if ignored.contains(content) || self.index_markers.contains(content) {
           continue
         }
         let item = self.nodes[content]

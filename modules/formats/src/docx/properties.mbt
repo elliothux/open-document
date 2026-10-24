@@ -6,6 +6,8 @@ priv struct WordTree {
   children : Map[Int, Array[Int]]
   contents : Map[Int, TableOfContents]
   field_spans : Set[Int]
+  index_entries : Map[Int, IndexEntry]
+  index_markers : Set[Int]
 }
 
 ///|
@@ -31,9 +33,12 @@ fn WordTree::new(document : @xml.Document) -> WordTree {
     children,
     contents: Map([]),
     field_spans: Set([]),
+    index_entries: Map([]),
+    index_markers: Set([]),
   }
   let (contents, field_spans) = tree.read_contents()
-  { ..tree, contents, field_spans, }
+  let (index_entries, index_markers) = tree.read_index_entries()
+  { ..tree, contents, field_spans, index_entries, index_markers, }
 }
 
 ///|

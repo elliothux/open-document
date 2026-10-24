@@ -31,13 +31,14 @@ fn MathLatex::matrix(
 ) -> @layout.MathExpression raise @failure.Failure {
   let name = self.matrix_name()
   guard [
-    "matrix", "array", "pmatrix", "bmatrix", "Bmatrix", "vmatrix", "Vmatrix",
+    "matrix", "array", "pmatrix", "bmatrix", "Bmatrix", "vmatrix", "Vmatrix", "aligned",
+    "gathered",
   ].contains(name) else {
     self.invalid()
   }
   let mut base = "center"
   let columns : Array[String] = []
-  if name == "array" {
+  if ["array", "aligned", "gathered"].contains(name) {
     self.space()
     if self.chars.get(self.offset) == Some('[') {
       ignore(self.take())
@@ -51,6 +52,8 @@ fn MathLatex::matrix(
       self.space()
       guard self.take() == ']' else { self.invalid() }
     }
+  }
+  if name == "array" {
     self.space()
     guard self.take() == '{' else { self.invalid() }
     while self.chars.get(self.offset) != Some('}') {
@@ -116,6 +119,17 @@ fn MathLatex::matrix(
   }
   if name == "array" && rows.iter().any(row => row.length() > columns.length()) {
     self.invalid()
+  }
+  if ["aligned", "gathered"].contains(name) {
+    guard !rows.is_empty() &&
+      rows.length() <= 64 &&
+      (name != "gathered" || rows.iter().all(row => row.length() == 1)) else {
+      self.invalid()
+    }
+    return EquationArray(
+      base,
+      ReadOnlyArray::from_array(rows.map(row => ReadOnlyArray::from_array(row))),
+    )
   }
   let (columns, rows) = matrix_grid(columns, rows)
   let value : @layout.MathExpression = Matrix(base, columns, rows)

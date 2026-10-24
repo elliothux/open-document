@@ -130,6 +130,31 @@ fn fragment_paragraph(
   let mut active_link : Int? = None
   let mut cursor = 0
   for run in runs {
+    if run is Some(id) && tree.index_markers.contains(id) {
+      let entry = match tree.index_entries.get(id) {
+        Some(entry) => Some(entry)
+        None =>
+          tree.children[id]
+          .iter()
+          .find_first(child => tree.index_entries.contains(child))
+          .map(child => tree.index_entries[child])
+      }
+      if entry is Some(entry) && start <= cursor && cursor <= end {
+        if active_link is Some(_) {
+          output.write_string("</od:hyperlink>")
+          active_link = None
+        }
+        let markup = index_entry_markup(entry.label)
+        guard markup.length() <= limit - units else {
+          @failure.reject(
+            "limit-exceeded", "Rich index entry exceeds source budget",
+          )
+        }
+        output.write_string(markup)
+        units += markup.length()
+      }
+      continue
+    }
     if run is Some(id) && tree.is_bookmark(id) && !markers.contains(id) {
       continue
     }

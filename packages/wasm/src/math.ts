@@ -9,6 +9,11 @@ export interface MathFormat {
 
 export type MathExpression =
   | {
+      kind: "equationArray";
+      baseAlignment: "top" | "center" | "bottom";
+      rows: (MathExpression | null)[][];
+    }
+  | {
       kind: "matrix";
       baseAlignment: "top" | "center" | "bottom";
       columnAlignments: ("left" | "center" | "right")[];
@@ -74,31 +79,35 @@ export function checkMathContent(value: unknown): void {
       throw new Error("Mathematical structure exceeds budget");
     const term = record(value);
     switch (term.kind) {
+      case "equationArray":
       case "matrix": {
         if (
           typeof term.baseAlignment !== "string" ||
           !["top", "center", "bottom"].includes(term.baseAlignment) ||
-          !Array.isArray(term.columnAlignments) ||
-          term.columnAlignments.length < 1 ||
-          term.columnAlignments.length > 64 ||
-          !term.columnAlignments.every(
-            (value) =>
-              value === "left" || value === "center" || value === "right",
-          ) ||
           !Array.isArray(term.rows) ||
           term.rows.length < 1 ||
           term.rows.length > 64 ||
-          term.rows.length * term.columnAlignments.length > 256
+          (term.kind === "matrix" &&
+            (!Array.isArray(term.columnAlignments) ||
+              term.columnAlignments.length < 1 ||
+              term.columnAlignments.length > 64 ||
+              !term.columnAlignments.every(
+                (value) =>
+                  value === "left" || value === "center" || value === "right",
+              ) ||
+              term.rows.length * term.columnAlignments.length > 256))
         )
-          throw new Error(
-            "Invalid mathematical matrix dimensions or alignment",
-          );
+          throw new Error("Invalid mathematical rows or alignment");
         for (const row of term.rows) {
           if (
             !Array.isArray(row) ||
-            row.length !== term.columnAlignments.length
+            row.length < 1 ||
+            row.length > 64 ||
+            (term.kind === "matrix" &&
+              Array.isArray(term.columnAlignments) &&
+              row.length !== term.columnAlignments.length)
           )
-            throw new Error("Invalid rectangular mathematical matrix");
+            throw new Error("Invalid mathematical row dimensions");
           for (const cell of row) {
             if (cell === null) {
               if (depth >= 16 || ++nodes > 256)

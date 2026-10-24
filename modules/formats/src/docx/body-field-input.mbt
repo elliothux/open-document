@@ -23,6 +23,7 @@ fn WordTree::simple_page_fields(
     .descendants(paragraph)
     .any(id => {
       self.nodes[id].uri == word_uri &&
+      !self.index_markers.contains(id) &&
       ["fldChar", "instrText"].contains(self.nodes[id].name)
     }) else {
     @failure.reject(

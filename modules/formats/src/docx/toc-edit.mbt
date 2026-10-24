@@ -6,7 +6,14 @@ pub(all) enum TocEdit {
 }
 
 ///|
-/// Inserts a native TOC before the selected body paragraph, or replaces/removes one complete supported field.
+priv enum GeneratedIndexEdit {
+  Insert(Int)
+  Update(Int)
+  Delete(Int)
+}
+
+///|
+/// Inserts, updates or removes one native table of contents.
 pub fn Session::edit_table_of_contents(
   self : Session,
   revision : Int,
@@ -15,6 +22,30 @@ pub fn Session::edit_table_of_contents(
   profile~ : Map[String, String],
   images~ : @layout.Images,
 ) -> Json raise @failure.Failure {
+  self.edit_generated_index(
+    revision,
+    match change {
+      InsertToc(levels) => Insert(levels)
+      UpdateToc(id) => Update(id)
+      DeleteToc(id) => Delete(id)
+    },
+    probe~,
+    profile~,
+    images~,
+  )
+}
+
+///|
+/// Inserts a native TOC before the selected body paragraph, or replaces/removes one complete supported field.
+fn Session::edit_generated_index(
+  self : Session,
+  revision : Int,
+  change : GeneratedIndexEdit,
+  probe~ : @layout.TextProbe,
+  profile~ : Map[String, String],
+  images~ : @layout.Images,
+  index~ : Bool = false,
+) -> Json raise @failure.Failure {
   self.check_revision(revision)
   self.check_document_protection()
   let original = self.document()
@@ -22,7 +53,7 @@ pub fn Session::edit_table_of_contents(
   ignore(self.editable_page_section(tree))
   let body = tree.child(0, "body").unwrap()
   let (old, first, last, instruction, hyperlink) = match change {
-    InsertToc(levels) => {
+    Insert(levels) => {
       guard levels >= 1 && levels <= 9 else {
         @failure.reject(
           "invalid-operation", "Table of contents depth must be between one and nine",
@@ -43,12 +74,23 @@ pub fn Session::edit_table_of_contents(
         math=true,
         notes=true,
       )
-      (None, 1, levels, " TOC \\o \"1-\{levels}\" \\h \\z \\u ", true)
+      (
+        None,
+        1,
+        levels,
+        if index {
+          " INDEX \\c \"1\" \\e \"\t\" "
+        } else {
+          " TOC \\o \"1-\{levels}\" \\h \\z \\u "
+        },
+        !index,
+      )
     }
-    UpdateToc(id) | DeleteToc(id) => {
+    Update(id) | Delete(id) => {
       guard tree.contents.get(id) is Some(toc) &&
         toc.paragraphs[0] == id &&
-        toc.reason.is_empty() else {
+        toc.reason.is_empty() &&
+        toc.instruction.trim().to_upper().has_prefix("INDEX") == index else {
         @failure.reject(
           "protected-content", "Select one complete supported table of contents",
         )
@@ -70,6 +112,11 @@ pub fn Session::edit_table_of_contents(
     }
   }
   let flow = self.flow()
+  guard !index || flow.columns.count == 1 else {
+    @failure.reject(
+      "protected-content", "Index generation requires a single-column section",
+    )
+  }
   let layout = @layout.paginate(probe, flow, profile, images)
   guard layout.diagnostics.is_empty() else {
     @failure.reject(
@@ -79,9 +126,11 @@ pub fn Session::edit_table_of_contents(
   let parts = self.parts.copy()
   let edits : Map[String, Array[@xml.Edit]] = Map([])
   let created : Map[String, @xml.Document] = Map([])
-  let deleting = change is DeleteToc(_)
+  let deleting = change is Delete(_)
   let (entries, source_changes) = if deleting {
     ([], [])
+  } else if index {
+    self.index_rows(tree, layout)
   } else {
     self.toc_entries(tree, flow, layout, first, last)
   }
@@ -89,8 +138,8 @@ pub fn Session::edit_table_of_contents(
   for entry in entries {
     if !styles.contains(entry.level) {
       styles[entry.level] = self.builtin_paragraph_style(
-        "TOC\{entry.level}",
-        "toc \{entry.level}",
+        (if index { "Index" } else { "TOC" }) + entry.level.to_string(),
+        (if index { "index " } else { "toc " }) + entry.level.to_string(),
         parts,
         edits,
         created,
@@ -101,7 +150,7 @@ pub fn Session::edit_table_of_contents(
   let mut markup = if deleting {
     ""
   } else {
-    toc_markup(entries, styles, instruction, hyperlink, width)
+    toc_markup(entries, styles, instruction, hyperlink, width, index~)
   }
   let start = old
     .map(toc => {
@@ -165,9 +214,11 @@ pub fn Session::edit_table_of_contents(
       )
     }
     if !deleting {
-      let (next, changes) = view.toc_entries(
-        updated, candidate_flow, layout, first, last,
-      )
+      let (next, changes) = if index {
+        view.index_rows(updated, layout)
+      } else {
+        view.toc_entries(updated, candidate_flow, layout, first, last)
+      }
       if next != expected {
         guard round < 7 else {
           @failure.reject(
@@ -177,8 +228,8 @@ pub fn Session::edit_table_of_contents(
         for entry in next {
           if !styles.contains(entry.level) {
             styles[entry.level] = self.builtin_paragraph_style(
-              "TOC\{entry.level}",
-              "toc \{entry.level}",
+              (if index { "Index" } else { "TOC" }) + entry.level.to_string(),
+              (if index { "index " } else { "toc " }) + entry.level.to_string(),
               parts,
               edits,
               created,
@@ -198,7 +249,14 @@ pub fn Session::edit_table_of_contents(
         let toc = updated.contents[id]
         let start = updated.nodes[id].start
         let finish = updated.nodes[toc.paragraphs.last().unwrap()].end
-        let markup = toc_markup(next, styles, instruction, hyperlink, width)
+        let markup = toc_markup(
+          next,
+          styles,
+          instruction,
+          hyperlink,
+          width,
+          index~,
+        )
         guard markup.length() <=
           self.opc.budget.entry_bytes.min(history_byte_limit / 2) else {
           @failure.reject(
