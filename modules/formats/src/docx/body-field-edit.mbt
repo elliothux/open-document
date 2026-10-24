@@ -66,6 +66,14 @@ pub fn Session::body_page_field(
         tree.nodes[id].attribute("instr", uri=word_uri).unwrap(),
       )
       let parts = code.split(":").to_array()
+      if parts[0] == "STYLEREF" {
+        return {
+          "revision": revision,
+          "selection": Json(selection),
+          "field": Json::null(),
+          "reason": "Chapter references use the caption heading level",
+        }
+      }
       let value : Map[String, Json] = { "field": Json(parts[0].to_owned()) }
       let reference = parts[0] == "PAGEREF"
       if reference {
@@ -293,7 +301,8 @@ pub fn Session::update_body_page_fields(
       let value = if code.has_prefix("PAGEREF:") ||
         code.has_prefix("SEQ:") ||
         code.has_prefix("REF:") ||
-        code.has_prefix("NOTEREF:") {
+        code.has_prefix("NOTEREF:") ||
+        code.has_prefix("STYLEREF:") {
         displayed
         .get((paragraph.id, id))
         .unwrap_or_else(() => {

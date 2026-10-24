@@ -125,12 +125,7 @@ fn paginate_sections(
   Array[(Int, Int)?],
 ) raise @failure.Failure {
   let fields = flow.body_fields()
-  let fixed = flow.sequence_values()
-  if fields.values().any(code => code.has_prefix("NOTEREF:")) {
-    for key, value in flow.note_reference_values() {
-      fixed[key] = value
-    }
-  }
+  let fixed = flow.fixed_body_field_values(fields)
   let mut body = flow.resolve_body_fields(fixed, 1).0
   let mut total = 1
   for attempt in 0..<8 {

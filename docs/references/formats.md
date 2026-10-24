@@ -434,6 +434,9 @@ PDF 使用最终对象框及原有 `URI`/`GoTo` 注释，按纸张和行内父�
 
 普通文字、组合输入、格式、查找替换和拆段/合段保留零宽标记。范围替换删除中间段落时，丢失的已知端点收缩到替换后的光标；同一位置的起点先于结束标记。删除含书签的表格行等其他结构操作若会破坏配对，则整项拒绝。未知标记源保持。每次创建、改名、删除及相关引用更改合为一次有界历史；保存重开保留范围和导航，预算失败不提交。当前 PDF 的可点击文字注释归[PDF 文字链接](#docx-pdf-文字链接)。
 
+
+已验证字段内容之前的段首点书签可作为复杂域题注的定位目标，位置固定为零。读取检查原生字段代码和配对身份；同段的完整范围仍按原保护规则处理，普通复杂域输入权限保持。此边界由[题注目录](#docx-题注目录)使用，校验归 [bookmark-read.mbt](../../modules/formats/src/docx/bookmark-read.mbt)。
+
 名称匹配及书签定位参考固定 [ONLYOFFICE Bookmarks.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Bookmarks.js#L353-L366)，配对插入及移除参考 [Document.js](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L24423-L24568)。未复制上游代码；实现归 [`bookmark-read.mbt`](../../modules/formats/src/docx/bookmark-read.mbt)和 [`bookmark-edit.mbt`](../../modules/formats/src/docx/bookmark-edit.mbt)。
 
 ### DOCX PDF 文字链接
@@ -860,6 +863,16 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 已知 `INDEX` 指令接受单栏 `\c 1` 和最多五字符的 `\e` 分隔符；无显式分隔符时使用逗号及空格，新建索引显式使用制表符。其他开关、自动更新、富文本条目、跨段 XE、语言专用排序、索引内部光标和完整导入变体仍待实现。读取归 [`index-read.mbt`](../../modules/formats/src/docx/index-read.mbt)，条目与范围事务归 [`index-edit.mbt`](../../modules/formats/src/docx/index-edit.mbt)，排序/页码归 [`index-source.mbt`](../../modules/formats/src/docx/index-source.mbt)，索引结果复用 [`toc-edit.mbt`](../../modules/formats/src/docx/toc-edit.mbt)，传输归 [`docx-index.ts`](../../packages/wasm/src/docx-index.ts)，界面归 [`docx-index.tsx`](../../packages/ui/src/docx-index.tsx)。原生导出参考 [LibreOffice INDEX](https://github.com/LibreOffice/core/blob/1746b16a564f59fcaf8c5670bb292748408da54e/sw/source/filter/ww8/ww8atr.cxx#L2385-L2427)，术语层级和重复页规则参考 [Microsoft 创建索引](https://support.microsoft.com/en-us/word/create-and-update-an-index)，分隔符参考 [INDEX 指令](https://support.microsoft.com/en-us/word/field-codes-index-field)。未复制上游执行代码。
 
+### DOCX 题注目录
+
+`DocumentEditor.insertTableOfFigures(sequence)` 在当前普通正文段落前生成题注目录。同步/Worker 沿 `editTableOfContents(revision, {action:"insertCaptions", sequence}, profile)`，原生入口为 `InsertCaptionToc(sequence)`。序列标签采用既有 SEQ 标识符规则，最多 40 个 UTF-16 单元，接受中文。默认目录面板可选择标题级别或题注来源，并输入序列标签；已有条目沿原目录的更新和删除入口操作。查询中的题注目录附有可选 `sequence`，级别固定为 1–1。
+
+原生代码为 `TOC \c "Figure" \h \z`。核心按文档顺序收集具有相同 SEQ 标识符的正文和普通格段落，每段一项，排除已有生成结果。条目取当前显示的完整题注，包括章节前缀、编号和说明；普通标题和其他序列不进入该目录。受支持的简单域和同段复杂 SEQ 均可读取，原指令及旧缓存保持原样。复用可用的段首书签，缺失时创建点书签；当前真实页号和内部链接共用既有 PAGEREF 与 PDF 输出。复杂域正文仍保持原有编辑保护。
+
+已有 `TableofFigures` 或英文名 `table of figures` 的样式保持原源；没有时创建继承默认正文、段后间距为零的原生样式。生成、显式整体更新、删除、无变化处理、八轮重排、字体/资源预算、选择及精确历史复用目录事务。删除保留原题注与锚点；无匹配项时保留可更新的空题注目录。保存与输出不自动刷新源题注缓存。
+
+读取接受 `\c` 及已有 `\h/\z/\u`，拒绝与 `\o` 混用或重复开关。`\a` 仅说明文字、浮动题注框、混合来源、自定义分隔符和更广内容控件继续实施；生成位置仍沿单节普通正文范围。读取归 [toc-read.mbt](../../modules/formats/src/docx/toc-read.mbt)，条目与原生源归 [toc-source.mbt](../../modules/formats/src/docx/toc-source.mbt)，事务归 [toc-edit.mbt](../../modules/formats/src/docx/toc-edit.mbt)，严格接口归 [docx-toc.ts](../../packages/wasm/src/docx-toc.ts)，默认面板归 [docx-toc.tsx](../../packages/ui/src/docx-toc.tsx)。依据 [ONLYOFFICE 题注收集与目录生成](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L950-L1058)、[原生指令](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexFieldInstruction.js#L485-L491)及[默认样式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Styles.js#L7024-L7061)。未复制上游执行代码。
+
 ### 原生目录内容控件
 
 正文顶层的标准 `w:sdt` 目录已有显示、整体更新与删除。核心验证 `sdtPr/docPartObj/docPartGallery` 为原生 `Table of Contents`，内容仅含受支持 TOC 和可选的单个普通 `TOCHeading` 标题段落。目录标题与缓存段落进入同一布局、页码和 PDF 路径，保持普通输入保护。现有目录查询、同步/Worker API 和默认面板直接操作其字段身份，无新增接口。
@@ -948,11 +961,15 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 ### DOCX 题注
 
-`DocumentEditor.insertCaption(caption)` 与同步 `FoundationSession`、Worker `FoundationClient.insertCaption(revision, caption, profile)` 接受 `DocxCaption = { label, text, position: "before" | "after", format? }`。`DocxCaption` 从 Wasm/Web foundation 导出，`checkDocxCaption` 从 Wasm foundation 导出。标签采用现有 SEQ 的标识符规则，最多 40 个 UTF-16 单元；说明是最多 1024 单元的有效单行文字，可为空。编号支持十进制、大小写字母及大小写罗马数字，缺省十进制。默认页面面板提供标签、说明、位置与格式控件。
+`DocumentEditor.insertCaption(caption)` 与同步 `FoundationSession`、Worker `FoundationClient.insertCaption(revision, caption, profile)` 接受 `DocxCaption = { label, text, position: "before" | "after", format?, chapter?: { level: number, separator: string } }`。`DocxCaption` 从 Wasm/Web foundation 导出，`checkDocxCaption` 从 Wasm foundation 导出。标签采用现有 SEQ 的标识符规则，最多 40 个 UTF-16 单元；说明是最多 1024 单元的有效单行文字，可为空。编号支持十进制、大小写字母及大小写罗马数字，缺省十进制。默认页面面板提供标签、说明、位置与格式控件。
 
 核心在焦点所在正文段落或其所属普通表格前后插入一个题注段落，保留所选正文及表格内容。段落由标签、原生 SEQ 简单域和说明组成；同名编号按正文顺序重算显示，其他名称独立计数。只缓存新域，其他域的源缓存由现有显式刷新命令维护。既有 Caption 身份或英文名称对应的段落样式保持原源；没有时使用现有题注预设创建样式，缺少样式部件时一同创建关系和内容类型。上方题注带保持下段属性。新段落、缓存及样式资源合为一项精确历史，撤销恢复原选区；光标进入题注末尾，可继续原生输入和现有字段编辑。
 
-文档保护、单节、字体、完整布局、XML、字段数量、资源及历史预算沿现有核心规则。斜体题注预设要求宿主提供对应字体映射；失败保留原包及历史。章节前缀、自动定位的浮动题注框及题注目录继续实施。实现归 [`caption.mbt`](../../modules/formats/src/docx/caption.mbt)和 [`docx-caption.tsx`](../../packages/ui/src/docx-caption.tsx)。段落/表格旁插入及 Caption 样式依据 [ONLYOFFICE AddCaption](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L25688-L25828)，交互范围参考 GenOffice 的标签、SEQ 与说明入口。
+可选 `chapter: { level, separator }` 创建带章节号的题注。`level` 为 1–9 级有效大纲标题，`separator` 是 1–5 个 UTF-16 单元的有效单行文字；默认面板提供级别和五种常用分隔符。例如 `{level:1, separator:"-"}` 生成 `Figure 3-1`，原生源由 `STYLEREF 1 \s`、分隔符和 `SEQ Figure \s 1` 组成。核心按继承后的大纲级别读取最近的同级前置标题；前面没有时使用第一个后置标题。编号沿现有列表定义及实际计数，未编号标题显示 `0`，没有目标标题时显示原生错误文字。插入同时缓存两个新域；标题及列表变化会重算显示，显式正文域刷新才写回其他缓存。
+
+简单域和同段复杂数字级别 `STYLEREF` 可读取并保留原代码，支持可选 `MERGEFORMAT`。题注的周边输入、拆合段、完整域替换、富文本复制/剪切和目标位置重新计算沿既有路径；源、缓存、选择和样式一起精确撤销并保存重开。章节号通过题注参数创建，正文域查询对它返回专属保护原因，不把章节号解释成页码格式。按名称查找样式、其他 STYLEREF 开关、页眉页脚引用及浮动题注框继续实施。原生指令归 [`chapter-reference.mbt`](../../modules/formats/src/docx/chapter-reference.mbt)，结果计算归 [`style-reference.mbt`](../../modules/layout/src/style-reference.mbt)，严格接口归 [`docx-page.ts`](../../packages/wasm/src/docx-page.ts)。语义参考 [ONLYOFFICE 章节题注](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L25786-L25851)及 [STYLEREF 查找](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexFieldInstruction.js#L981-L1170)。
+
+文档保护、单节、字体、完整布局、XML、字段数量、资源及历史预算沿现有核心规则。斜体题注预设要求宿主提供对应字体映射；失败保留原包及历史。原生题注目录归[DOCX 题注目录](#docx-题注目录)；自动定位的浮动题注框继续实施。实现归 [`caption.mbt`](../../modules/formats/src/docx/caption.mbt)和 [`docx-caption.tsx`](../../packages/ui/src/docx-caption.tsx)。段落/表格旁插入及 Caption 样式依据 [ONLYOFFICE AddCaption](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L25688-L25828)，交互范围参考 GenOffice 的标签、SEQ 与说明入口。
 
 ### 表格创建
 

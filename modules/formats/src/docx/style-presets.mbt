@@ -16,6 +16,14 @@ fn builtin_style_properties(
 ) -> (String, String)? {
   let name = name.to_lower()
   if kind == "paragraph" {
+    if key == "TableofFigures" || name == "table of figures" {
+      return Some(
+        (
+          "<od:pPr xmlns:od=\"\{word_uri}\"><od:spacing od:after=\"0\"/></od:pPr>",
+          "",
+        ),
+      )
+    }
     for level in 1..<=3 {
       if key == "Index\{level}" || name == "index \{level}" {
         return Some(

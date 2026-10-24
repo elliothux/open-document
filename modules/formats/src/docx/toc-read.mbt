@@ -6,6 +6,7 @@ priv struct TableOfContents {
   last : Int
   hyperlink : Bool
   outline : Bool
+  sequence : String
   instruction : String
   reason : String
   control : Int?
@@ -23,47 +24,54 @@ fn TableOfContents::edit_reason(self : TableOfContents) -> String {
 ///|
 fn toc_instruction(
   instruction : String,
-) -> (Int, Int, Bool, Bool) raise @failure.Failure {
+) -> (Int, Int, Bool, Bool, String) raise @failure.Failure {
   guard instruction.length() <= 256 else {
     @failure.reject(
       "limit-exceeded", "Table of contents instruction exceeds budget",
     )
   }
-  let tokens = instruction
-    .replace_all(old="\t", new=" ")
-    .split(" ")
-    .filter(token => !token.is_empty())
-    .map(token => token.to_owned())
-    .to_array()
-  if tokens.get(0).map(command => command.to_upper()) == Some("INDEX") {
+  let tokens = text_reference_tokens(instruction)
+  if tokens.get(0).map(command => command.0.to_upper()) == Some("INDEX") {
     ignore(index_separator(instruction))
-    return (1, 3, false, false)
+    return (1, 3, false, false, "")
   }
-  guard tokens.get(0).map(token => token.to_upper()) == Some("TOC") else {
+  guard tokens.get(0) is Some((command, false)) && command.to_upper() == "TOC" else {
     @failure.reject("protected-content", "Expected a table of contents field")
   }
   let mut first = 1
   let mut last = 3
+  let mut sequence = ""
   let seen : Set[String] = Set([])
   for index = 1; index < tokens.length(); {
-    let switch = tokens[index].to_lower()
-    guard ["\\o", "\\h", "\\z", "\\u"].contains(switch) &&
+    let switch = tokens[index].0.to_lower()
+    guard !tokens[index].1 &&
+      ["\\o", "\\c", "\\h", "\\z", "\\u"].contains(switch) &&
       !seen.contains(switch) else {
       @failure.reject(
         "protected-content", "Unsupported table of contents switch",
       )
     }
     seen.add(switch)
+    if switch == "\\c" {
+      guard tokens.get(index + 1) is Some((label, _)) else {
+        @failure.reject(
+          "protected-content", "Table of figures requires a sequence label",
+        )
+      }
+      let field = @layout.SequenceField::parse("SEQ:" + label)
+      guard field.sequence == label else {
+        @failure.reject("protected-content", "Invalid caption sequence label")
+      }
+      sequence = label
+      continue index + 2
+    }
     if switch == "\\o" {
-      guard tokens.get(index + 1) is Some(range) &&
-        range.length() >= 2 &&
-        range.has_prefix("\"") &&
-        range.has_suffix("\"") else {
+      guard tokens.get(index + 1) is Some((range, true)) else {
         @failure.reject(
           "protected-content", "Table of contents requires a quoted heading range",
         )
       }
-      let range = range[1:range.length() - 1].split("-").to_array()
+      let range = range.split("-").to_array()
       guard range is [start, end] else {
         @failure.reject(
           "protected-content", "Invalid table of contents heading range",
@@ -80,12 +88,16 @@ fn toc_instruction(
     }
     continue index + 1
   }
-  guard seen.contains("\\o") else {
+  guard seen.contains("\\o") != seen.contains("\\c") else {
     @failure.reject(
-      "protected-content", "Table of contents requires a heading range",
+      "protected-content", "Table of contents requires either a heading range or a caption sequence",
     )
   }
-  (first, last, seen.contains("\\h"), seen.contains("\\u"))
+  if sequence.is_empty() {
+    (first, last, seen.contains("\\h"), seen.contains("\\u"), "")
+  } else {
+    (1, 1, seen.contains("\\h"), seen.contains("\\u"), sequence)
+  }
 }
 
 ///|
@@ -100,6 +112,7 @@ fn WordTree::contents_profile(
   let mut last = 3
   let mut hyperlink = false
   let mut outline = false
+  let mut sequence = ""
   let mut control = None
   let reason = try {
     guard complete && paragraphs.length() <= 4096 else {
@@ -107,11 +120,12 @@ fn WordTree::contents_profile(
         "protected-content", "Incomplete or oversized table of contents field",
       )
     }
-    let (start, end, links, levels) = toc_instruction(instruction)
+    let (start, end, links, levels, label) = toc_instruction(instruction)
     first = start
     last = end
     hyperlink = links
     outline = levels
+    sequence = label
     let begin = self.nodes[markers[0]]
     let finish = self.nodes[markers.last().unwrap()]
     let body = self.nodes[paragraphs[0]].parent
@@ -205,6 +219,7 @@ fn WordTree::contents_profile(
     last,
     hyperlink,
     outline,
+    sequence,
     instruction,
     reason,
     control,
@@ -342,16 +357,20 @@ pub fn Session::table_of_contents(
     if tree.contents.get(id) is Some(toc) &&
       toc.paragraphs[0] == id &&
       !toc.instruction.trim().to_upper().has_prefix("INDEX") {
-      items.push({
-        "paragraph": id,
-        "endParagraph": toc.paragraphs.last().unwrap(),
-        "firstLevel": toc.first,
-        "lastLevel": toc.last,
-        "hyperlink": toc.hyperlink,
-        "outline": toc.outline,
-        "instruction": toc.instruction,
-        "reason": toc.reason,
-      })
+      let item : Map[String, Json] = {
+        "paragraph": Json(id),
+        "endParagraph": Json(toc.paragraphs.last().unwrap()),
+        "firstLevel": Json(toc.first),
+        "lastLevel": Json(toc.last),
+        "hyperlink": Json(toc.hyperlink),
+        "outline": Json(toc.outline),
+        "instruction": Json(toc.instruction),
+        "reason": Json(toc.reason),
+      }
+      if !toc.sequence.is_empty() {
+        item["sequence"] = Json(toc.sequence)
+      }
+      items.push(Json(item))
       guard items.length() <= 256 else {
         @failure.reject("limit-exceeded", "Too many table of contents fields")
       }

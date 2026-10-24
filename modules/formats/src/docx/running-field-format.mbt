@@ -1,6 +1,15 @@
 ///|
 fn running_field_instruction(field : String) -> String raise @failure.Failure {
   let parts = field.split(":").to_array()
+  if parts[0] == "STYLEREF" {
+    guard parts.length() == 2 &&
+      parts[1].length() == 1 &&
+      parts[1][0] >= '1' &&
+      parts[1][0] <= '9' else {
+      @failure.reject("invalid-operation", "Invalid chapter reference level")
+    }
+    return "STYLEREF " + parts[1].to_owned() + " \\s"
+  }
   if parts[0] == "NOTEREF" {
     let reference = @layout.NoteReference::parse(field) catch {
       @failure.Failure(..) =>

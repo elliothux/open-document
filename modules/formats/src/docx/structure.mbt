@@ -386,6 +386,7 @@ fn WordTree::check_editable_paragraph(
   part~ : String,
   pictures~ : Bool = false,
   fields~ : Bool = false,
+  complexFields~ : Bool = false,
   math~ : Bool = false,
   notes~ : Bool = false,
 ) -> Unit raise @failure.Failure {
@@ -464,7 +465,11 @@ fn WordTree::check_editable_paragraph(
   }
   let runs : Array[Int] = []
   if fields {
-    ignore(self.simple_page_fields(paragraph))
+    if complexFields {
+      ignore(self.running_fields(paragraph))
+    } else {
+      ignore(self.simple_page_fields(paragraph))
+    }
   }
   for child in self.children[paragraph] {
     if self.index_markers.contains(child) {
@@ -512,6 +517,12 @@ fn WordTree::check_editable_paragraph(
   for child in runs {
     for content in self.children[child] {
       let node = self.nodes[content]
+      if fields &&
+        complexFields &&
+        node.uri == word_uri &&
+        ["fldChar", "instrText"].contains(node.name) {
+        continue
+      }
       if note_reference(node) {
         guard notes &&
           self.nodes[node.parent].parent == paragraph &&

@@ -86,8 +86,28 @@ pub fn Session::insert_caption(
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],
   images~ : @layout.Images,
+  chapterLevel~ : Int = 0,
+  separator~ : String = "-",
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
+  guard chapterLevel >= 0 &&
+    chapterLevel <= 9 &&
+    (chapterLevel > 0 || separator == "-") &&
+    separator.length() >= 1 &&
+    separator.length() <= 5 &&
+    @xml.valid_text(separator) &&
+    separator
+    .iter()
+    .all(c => {
+      c >= ' ' &&
+      !(c >= '\u007f' && c <= '\u009f') &&
+      c != '\u2028' &&
+      c != '\u2029'
+    }) else {
+    @failure.reject(
+      "invalid-operation", "Invalid caption chapter level or separator",
+    )
+  }
   guard label.length() <= 40 &&
     !label.contains(":") &&
     ["", "decimal", "lowerLetter", "upperLetter", "lowerRoman", "upperRoman"].contains(
@@ -107,7 +127,14 @@ pub fn Session::insert_caption(
     )
   }
   let instruction = running_field_instruction(
-    "SEQ:" + label + (if format.is_empty() { "" } else { ":" + format }),
+    "SEQ:" +
+    label +
+    (if format.is_empty() { "" } else { ":" + format }) +
+    (if chapterLevel == 0 {
+      ""
+    } else {
+      ":heading=" + chapterLevel.to_string()
+    }),
   )
   guard self.selection is Some(selection) else {
     @failure.reject("invalid-position", "Select a caption position first")
@@ -151,7 +178,13 @@ pub fn Session::insert_caption(
     "<od:r><od:t xml:space=\"preserve\"> \{@xml.escape_text(text)}</od:t></od:r>"
   }
   let keep = if before { "<od:keepNext/>" } else { "" }
-  let markup = "<od:p xmlns:od=\"\{word_uri}\"><od:pPr><od:pStyle od:val=\"\{style}\"/>\{keep}</od:pPr><od:r><od:t xml:space=\"preserve\">\{@xml.escape_text(label)} </od:t></od:r><od:fldSimple od:instr=\"\{property_attribute(instruction)}\" od:dirty=\"true\"><od:r><od:t>1</od:t></od:r></od:fldSimple>\{description}</od:p>"
+  let chapter = if chapterLevel == 0 {
+    ""
+  } else {
+    let code = running_field_instruction("STYLEREF:" + chapterLevel.to_string())
+    "<od:fldSimple od:instr=\"\{property_attribute(code)}\" od:dirty=\"true\"><od:r><od:t>0</od:t></od:r></od:fldSimple><od:r><od:t xml:space=\"preserve\">\{@xml.escape_text(separator)}</od:t></od:r>"
+  }
+  let markup = "<od:p xmlns:od=\"\{word_uri}\"><od:pPr><od:pStyle od:val=\"\{style}\"/>\{keep}</od:pPr><od:r><od:t xml:space=\"preserve\">\{@xml.escape_text(label)} </od:t></od:r>\{chapter}<od:fldSimple od:instr=\"\{property_attribute(instruction)}\" od:dirty=\"true\"><od:r><od:t>1</od:t></od:r></od:fldSimple>\{description}</od:p>"
   let (candidate, edit) = original.edit_source([
     {
       node: body,
@@ -171,7 +204,9 @@ pub fn Session::insert_caption(
     .iter()
     .find_first(id => updated.nodes[id].name == "p" && !tree.nodes.contains(id))
     .unwrap()
-  let field = updated.child(paragraph, "fldSimple").unwrap()
+  let fields = updated.children[paragraph].filter(id => {
+    updated.nodes[id].name == "fldSimple"
+  })
   let layout = @layout.paginate(
     probe,
     { ..self, document: Some(candidate), parts, }.flow(),
@@ -184,7 +219,7 @@ pub fn Session::insert_caption(
     )
   }
   let (candidate, edit) = candidate.edit_text(
-    self.field_cache_changes(updated, [field], layout),
+    self.field_cache_changes(updated, fields, layout),
   )
   steps.push(edit)
   let mut bytes = xml_part_edit_bytes(edits, created)
@@ -201,6 +236,7 @@ pub fn Session::insert_caption(
     paragraph,
     offset: label.length() +
     2 +
+    (if chapterLevel == 0 { 0 } else { 1 + separator.length() }) +
     (if text.is_empty() { 0 } else { text.length() + 1 }),
     affinity: "after",
     bidiLevel: None,

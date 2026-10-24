@@ -135,6 +135,15 @@ export abstract class DocumentPage extends DocumentReview {
       ),
     );
   }
+  insertTableOfFigures(sequence: string): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.editTableOfContents(
+        this.review.snapshot().revision,
+        { action: "insertCaptions", sequence },
+        this.profile,
+      ),
+    );
+  }
   editTableOfContents(
     source: DocumentTableOfContents,
     change: Extract<DocxTocEdit, { action: "update" | "delete" }>,

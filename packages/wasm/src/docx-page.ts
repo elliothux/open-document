@@ -10,7 +10,7 @@ import {
   type DocxRuler,
   type DocxRulerEdit,
 } from "./docx-ruler.js";
-import { record } from "./validation.js";
+import { integer, record } from "./validation.js";
 import {
   checkDocxIndexEdit,
   docxIndexes,
@@ -103,17 +103,38 @@ export interface DocxCaption {
   text: string;
   position: "before" | "after";
   format?: DocxPageField["format"];
+  chapter?: { level: number; separator: string };
 }
 export function checkDocxCaption(value: unknown): asserts value is DocxCaption {
   const caption = record(value);
   if (
     Object.keys(caption).some(
-      (key) => !["label", "text", "position", "format"].includes(key),
+      (key) =>
+        !["label", "text", "position", "format", "chapter"].includes(key),
     ) ||
     !singleLineText(caption.text, 1024) ||
     (caption.position !== "before" && caption.position !== "after")
   )
     throw new Error("Invalid caption text or position");
+  if ("chapter" in caption) {
+    const chapter = record(caption.chapter);
+    if (
+      Object.keys(chapter).length !== 2 ||
+      Object.keys(chapter).some(
+        (key) => !["level", "separator"].includes(key),
+      ) ||
+      !integer(chapter.level, 1, 9) ||
+      !singleLineText(chapter.separator, 5) ||
+      chapter.separator === "" ||
+      Array.from(
+        typeof chapter.separator === "string" ? chapter.separator : "",
+      ).some((c) => {
+        const code = c.codePointAt(0)!;
+        return code >= 127 && code <= 159;
+      })
+    )
+      throw new Error("Invalid caption chapter");
+  }
   checkBodyField({
     field: "SEQ",
     sequence: caption.label,

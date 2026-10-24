@@ -22,6 +22,10 @@ export function DocxToc({
   const t = messages(state.locale),
     snapshot = editor.getSnapshot();
   const [levels, setLevels] = useState(3),
+    [kind, setKind] = useState("headings"),
+    [sequence, setSequence] = useState(
+      state.locale === "zh-CN" ? "图" : "Figure",
+    ),
     [source, setSource] = useState<DocumentTableOfContents>();
   useEffect(() => {
     if (blocked) return;
@@ -46,22 +50,52 @@ export function DocxToc({
       <form
         onSubmit={(event) => {
           event.preventDefault();
-          controller.run(() => editor.insertTableOfContents(levels));
+          controller.run(() =>
+            kind === "headings"
+              ? editor.insertTableOfContents(levels)
+              : editor.insertTableOfFigures(sequence),
+          );
         }}
       >
         <fieldset disabled={disabled || blocked}>
           <label>
-            {t.tocLevels}
-            <input
-              type="number"
-              required
-              min={1}
-              max={9}
-              value={levels}
-              onChange={(event) => setLevels(event.currentTarget.valueAsNumber)}
-            />
+            {t.tocSource}
+            <select
+              value={kind}
+              onChange={(event) => setKind(event.currentTarget.value)}
+            >
+              <option value="headings">{t.tocHeadings}</option>
+              <option value="captions">{t.tableOfFigures}</option>
+            </select>
           </label>
-          <button type="submit">{t.insertToc}</button>
+          {kind === "headings" ? (
+            <label>
+              {t.tocLevels}
+              <input
+                type="number"
+                required
+                min={1}
+                max={9}
+                value={levels}
+                onChange={(event) =>
+                  setLevels(event.currentTarget.valueAsNumber)
+                }
+              />
+            </label>
+          ) : (
+            <label>
+              {t.tocSequence}
+              <input
+                required
+                maxLength={40}
+                value={sequence}
+                onChange={(event) => setSequence(event.currentTarget.value)}
+              />
+            </label>
+          )}
+          <button type="submit">
+            {kind === "headings" ? t.insertToc : t.insertTableOfFigures}
+          </button>
         </fieldset>
       </form>
       {source?.items.map((item, index) => (
@@ -69,7 +103,11 @@ export function DocxToc({
           key={item.paragraph}
           disabled={disabled || blocked || stale || !!item.reason}
         >
-          <legend>{`${t.tableOfContents} ${index + 1} (${item.firstLevel}–${item.lastLevel})`}</legend>
+          <legend>
+            {item.sequence
+              ? `${t.tableOfFigures} ${index + 1} (${item.sequence})`
+              : `${t.tableOfContents} ${index + 1} (${item.firstLevel}–${item.lastLevel})`}
+          </legend>
           <button
             type="button"
             onClick={() =>

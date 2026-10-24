@@ -22,6 +22,8 @@ export function DocxCaption({
   const [text, setText] = useState("");
   const [position, setPosition] = useState<DocxCaption["position"]>("after");
   const [format, setFormat] = useState<DocxCaption["format"]>("decimal");
+  const [chapterLevel, setChapterLevel] = useState(0);
+  const [separator, setSeparator] = useState("-");
   return (
     <section aria-label={t.caption}>
       <h4>{t.caption}</h4>
@@ -29,7 +31,15 @@ export function DocxCaption({
         onSubmit={(event) => {
           event.preventDefault();
           controller.run(() =>
-            editor.insertCaption({ label, text, position, format }),
+            editor.insertCaption({
+              label,
+              text,
+              position,
+              format,
+              ...(chapterLevel
+                ? { chapter: { level: chapterLevel, separator } }
+                : {}),
+            }),
           );
         }}
       >
@@ -94,6 +104,37 @@ export function DocxCaption({
                 ))}
             </select>
           </label>
+          <label>
+            {t.captionChapterLevel}
+            <select
+              value={chapterLevel}
+              onChange={(event) =>
+                setChapterLevel(Number(event.currentTarget.value))
+              }
+            >
+              <option value={0}>{t.captionChapterNone}</option>
+              {Array.from({ length: 9 }, (_, i) => (
+                <option key={i + 1} value={i + 1}>
+                  {i + 1}
+                </option>
+              ))}
+            </select>
+          </label>
+          {chapterLevel > 0 && (
+            <label>
+              {t.captionChapterSeparator}
+              <select
+                value={separator}
+                onChange={(event) => setSeparator(event.currentTarget.value)}
+              >
+                {["-", ".", ":", "–", "—"].map((value) => (
+                  <option key={value} value={value}>
+                    {value}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <button type="submit">{t.insertCaption}</button>
         </fieldset>
       </form>

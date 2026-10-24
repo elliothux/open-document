@@ -2,6 +2,7 @@ import { integer, record } from "./validation.js";
 
 export type DocxTocEdit =
   | { action: "insert"; levels: number }
+  | { action: "insertCaptions"; sequence: string }
   | { action: "update" | "delete"; paragraph: number };
 
 export interface DocxTableOfContents {
@@ -13,6 +14,7 @@ export interface DocxTableOfContents {
     lastLevel: number;
     hyperlink: boolean;
     outline: boolean;
+    sequence?: string;
     instruction: string;
     reason: string;
   }[];
@@ -20,17 +22,24 @@ export interface DocxTableOfContents {
 
 export function checkDocxTocEdit(value: unknown): asserts value is DocxTocEdit {
   const change = record(value);
-  const field = change.action === "insert" ? "levels" : "paragraph";
+  const field =
+    change.action === "insert"
+      ? "levels"
+      : change.action === "insertCaptions"
+        ? "sequence"
+        : "paragraph";
   if (
     Object.keys(change).length !== 2 ||
     !Object.keys(change).every((key) => key === "action" || key === field) ||
     typeof change.action !== "string" ||
-    !["insert", "update", "delete"].includes(change.action) ||
-    !integer(
-      change[field],
-      field === "levels" ? 1 : 0,
-      field === "levels" ? 9 : 2147483647,
-    )
+    !["insert", "insertCaptions", "update", "delete"].includes(change.action) ||
+    (field === "sequence"
+      ? !captionSequence(change[field])
+      : !integer(
+          change[field],
+          field === "levels" ? 1 : 0,
+          field === "levels" ? 9 : 2147483647,
+        ))
   )
     throw new Error("Invalid DOCX table of contents command");
 }
@@ -54,6 +63,10 @@ export function docxTableOfContents(value: unknown): DocxTableOfContents {
       !integer(item.lastLevel, Number(item.firstLevel), 9) ||
       typeof item.hyperlink !== "boolean" ||
       typeof item.outline !== "boolean" ||
+      ("sequence" in item &&
+        (!captionSequence(item.sequence) ||
+          item.firstLevel !== 1 ||
+          item.lastLevel !== 1)) ||
       typeof item.instruction !== "string" ||
       item.instruction.length > 257 ||
       !item.instruction.isWellFormed() ||
@@ -64,4 +77,13 @@ export function docxTableOfContents(value: unknown): DocxTableOfContents {
     seen.add(Number(item.paragraph));
   }
   return value as DocxTableOfContents;
+}
+
+function captionSequence(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    value.length <= 40 &&
+    value.isWellFormed() &&
+    /^[_\p{ID_Start}][_\p{ID_Continue}]*$/u.test(value)
+  );
 }

@@ -442,7 +442,7 @@ export function docxFlow(value: unknown): DocxFlow {
         Number(span.field.split(":")[2]) <= 2147483647;
       if (
         typeof span.field !== "string" ||
-        !/^(?:(?:PAGE|NUMPAGES)(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?|PAGEREF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::hyperlink)?(?::relative)?|NOTEREF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::superscript)?(?::hyperlink)?(?::relative)?|REF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::(?:number|numberRelative|numberFull))?(?::hyperlink)?(?::relative)?(?::separator=[^\p{Cc}\p{Zl}\p{Zp}]{1,32})?|SEQ:[_\p{ID_Start}][_\p{ID_Continue}]{0,39}(?::(?:decimal|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::(?:repeat|restart=[0-9]{1,10}))?(?::heading=[1-9])?(?::hidden)?)?$/u.test(
+        !/^(?:(?:PAGE|NUMPAGES)(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?|PAGEREF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::hyperlink)?(?::relative)?|NOTEREF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::superscript)?(?::hyperlink)?(?::relative)?|REF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::(?:number|numberRelative|numberFull))?(?::hyperlink)?(?::relative)?(?::separator=[^\p{Cc}\p{Zl}\p{Zp}]{1,32})?|STYLEREF:[1-9]|SEQ:[_\p{ID_Start}][_\p{ID_Continue}]{0,39}(?::(?:decimal|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::(?:repeat|restart=[0-9]{1,10}))?(?::heading=[1-9])?(?::hidden)?)?$/u.test(
           noteField ? "" : span.field,
         ) ||
         (span.field.startsWith("SEQ:") &&

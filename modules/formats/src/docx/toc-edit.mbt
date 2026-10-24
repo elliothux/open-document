@@ -1,6 +1,7 @@
 ///|
 pub(all) enum TocEdit {
   InsertToc(Int)
+  InsertCaptionToc(String)
   UpdateToc(Int)
   DeleteToc(Int)
 }
@@ -8,6 +9,7 @@ pub(all) enum TocEdit {
 ///|
 priv enum GeneratedIndexEdit {
   Insert(Int)
+  InsertCaptions(String)
   Update(Int)
   Delete(Int)
 }
@@ -26,6 +28,7 @@ pub fn Session::edit_table_of_contents(
     revision,
     match change {
       InsertToc(levels) => Insert(levels)
+      InsertCaptionToc(sequence) => InsertCaptions(sequence)
       UpdateToc(id) => Update(id)
       DeleteToc(id) => Delete(id)
     },
@@ -53,7 +56,25 @@ fn Session::edit_generated_index(
   ignore(self.editable_page_section(tree))
   let body = tree.child(0, "body").unwrap()
   let (old, first, last, instruction, hyperlink) = match change {
-    Insert(levels) => {
+    Insert(_) | InsertCaptions(_) => {
+      let levels = match change {
+        Insert(levels) => levels
+        InsertCaptions(sequence) => {
+          let field = @layout.SequenceField::parse("SEQ:" + sequence) catch {
+            @failure.Failure(..) =>
+              @failure.reject(
+                "invalid-operation", "Invalid caption sequence label",
+              )
+          }
+          guard !index && field.sequence == sequence else {
+            @failure.reject(
+              "invalid-operation", "Invalid caption sequence label",
+            )
+          }
+          1
+        }
+        _ => abort("Expected an insertion")
+      }
       guard levels >= 1 && levels <= 9 else {
         @failure.reject(
           "invalid-operation", "Table of contents depth must be between one and nine",
@@ -80,6 +101,8 @@ fn Session::edit_generated_index(
         levels,
         if index {
           " INDEX \\c \"1\" \\e \"\t\" "
+        } else if change is InsertCaptions(sequence) {
+          " TOC \\c \"" + sequence + "\" \\h \\z "
         } else {
           " TOC \\o \"1-\{levels}\" \\h \\z \\u "
         },
@@ -111,6 +134,7 @@ fn Session::edit_generated_index(
       (Some(toc), toc.first, toc.last, toc.instruction, toc.hyperlink)
     }
   }
+  let sequence = if index { "" } else { toc_instruction(instruction).4 }
   let flow = self.flow()
   guard !index || flow.columns.count == 1 else {
     @failure.reject(
@@ -132,14 +156,22 @@ fn Session::edit_generated_index(
   } else if index {
     self.index_rows(tree, layout)
   } else {
-    self.toc_entries(tree, flow, layout, first, last)
+    self.toc_entries(tree, flow, layout, first, last, sequence~)
   }
   let styles : Map[Int, String] = Map([])
   for entry in entries {
     if !styles.contains(entry.level) {
       styles[entry.level] = self.builtin_paragraph_style(
-        (if index { "Index" } else { "TOC" }) + entry.level.to_string(),
-        (if index { "index " } else { "toc " }) + entry.level.to_string(),
+        if !sequence.is_empty() {
+          "TableofFigures"
+        } else {
+          (if index { "Index" } else { "TOC" }) + entry.level.to_string()
+        },
+        if !sequence.is_empty() {
+          "table of figures"
+        } else {
+          (if index { "index " } else { "toc " }) + entry.level.to_string()
+        },
         parts,
         edits,
         created,
@@ -150,7 +182,15 @@ fn Session::edit_generated_index(
   let mut markup = if deleting {
     ""
   } else {
-    toc_markup(entries, styles, instruction, hyperlink, width, index~)
+    toc_markup(
+      entries,
+      styles,
+      instruction,
+      hyperlink,
+      width,
+      index~,
+      sequence~,
+    )
   }
   let start = old
     .map(toc => {
@@ -217,7 +257,14 @@ fn Session::edit_generated_index(
       let (next, changes) = if index {
         view.index_rows(updated, layout)
       } else {
-        view.toc_entries(updated, candidate_flow, layout, first, last)
+        view.toc_entries(
+          updated,
+          candidate_flow,
+          layout,
+          first,
+          last,
+          sequence~,
+        )
       }
       if next != expected {
         guard round < 7 else {
@@ -228,8 +275,17 @@ fn Session::edit_generated_index(
         for entry in next {
           if !styles.contains(entry.level) {
             styles[entry.level] = self.builtin_paragraph_style(
-              (if index { "Index" } else { "TOC" }) + entry.level.to_string(),
-              (if index { "index " } else { "toc " }) + entry.level.to_string(),
+              if !sequence.is_empty() {
+                "TableofFigures"
+              } else {
+                (if index { "Index" } else { "TOC" }) + entry.level.to_string()
+              },
+              if !sequence.is_empty() {
+                "table of figures"
+              } else {
+                (if index { "index " } else { "toc " }) +
+                entry.level.to_string()
+              },
               parts,
               edits,
               created,
@@ -256,6 +312,7 @@ fn Session::edit_generated_index(
           hyperlink,
           width,
           index~,
+          sequence~,
         )
         guard markup.length() <=
           self.opc.budget.entry_bytes.min(history_byte_limit / 2) else {

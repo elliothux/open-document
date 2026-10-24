@@ -17,6 +17,8 @@ fn Flow::body_fields(
           ignore(NoteReference::parse(span.field))
         } else if span.field.has_prefix("SEQ:") {
           ignore(SequenceField::parse(span.field))
+        } else if span.field.has_prefix("STYLEREF:") {
+          ignore(style_reference_level(span.field))
         }
         guard span.drawing is None && fields.length() < 4096 else {
           @failure.reject("limit-exceeded", "Body page fields exceed limits")
@@ -55,7 +57,8 @@ fn Flow::resolve_body_fields(
                 self.pageNumbering.field_text(reference.page_code(), 0, total)
               }
             } else if span.field.has_prefix("REF:") ||
-              span.field.has_prefix("NOTEREF:") {
+              span.field.has_prefix("NOTEREF:") ||
+              span.field.has_prefix("STYLEREF:") {
               span.text
             } else if span.field.has_prefix("SEQ:") {
               SequenceField::parse(span.field).text(1L)

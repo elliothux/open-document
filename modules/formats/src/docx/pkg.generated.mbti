@@ -204,7 +204,7 @@ pub fn Session::flow(Self) -> @layout.Flow raise @failure.Failure
 pub fn Session::image_bytes(Self, String) -> Bytes raise @failure.Failure
 pub fn Session::indexes(Self, Int) -> Json raise @failure.Failure
 pub fn Session::insert_body_page_field(Self, Int, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
-pub fn Session::insert_caption(Self, Int, String, String, Bool, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
+pub fn Session::insert_caption(Self, Int, String, String, Bool, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images, chapterLevel? : Int, separator? : String) -> Json raise @failure.Failure
 pub fn Session::insert_note(Self, Int, String, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_picture(Self, Int, Double, Double, Bytes) -> Json raise @failure.Failure
 pub fn Session::insert_section_break(Self, Int, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
@@ -331,6 +331,7 @@ pub(all) struct ThemeFontEdit {
 
 pub(all) enum TocEdit {
   InsertToc(Int)
+  InsertCaptionToc(String)
   UpdateToc(Int)
   DeleteToc(Int)
 }

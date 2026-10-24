@@ -13,6 +13,7 @@ fn Session::toc_entries(
   layout : @layout.Layout,
   first : Int,
   last : Int,
+  sequence~ : String = "",
 ) -> (Array[TocEntry], Array[@xml.SourceChange]) raise @failure.Failure {
   let paragraphs : Map[Int, @layout.Paragraph] = Map::from_array(
     flow.paragraphs.map(p => (p.id, p)),
@@ -62,18 +63,29 @@ fn Session::toc_entries(
   let mut next = 0
   let mut units = 0
   for id in tree.order {
-    guard !tree.contents.contains(id) &&
-      flow.outlineLevels.get(id) is Some(level) &&
-      level + 1 >= first &&
-      level + 1 <= last &&
-      paragraphs.get(id) is Some(p) else {
+    guard !tree.contents.contains(id) && paragraphs.get(id) is Some(p) else {
       continue
     }
+    let level = if sequence.is_empty() {
+      flow.outlineLevels
+      .get(id)
+      .filter(level => level + 1 >= first && level + 1 <= last)
+      .map(level => level + 1)
+    } else if p.spans.any(span => {
+        span.field.has_prefix("SEQ:") &&
+        @layout.SequenceField::parse(span.field).sequence == sequence
+      }) {
+      Some(1)
+    } else {
+      None
+    }
+    guard level is Some(level) else { continue }
     tree.check_editable_paragraph(
       id,
       part=self.main,
       pictures=true,
       fields=true,
+      complexFields=!sequence.is_empty(),
       math=true,
       notes=true,
     )
@@ -148,17 +160,24 @@ fn Session::toc_entries(
         node: id,
         offset: start - p.start,
         length: 0,
-        xml: "<od:bookmarkStart xmlns:od=\"\{word_uri}\" od:id=\"\{key}\" od:name=\"\{name}\"/>",
+        xml: "<od:bookmarkStart xmlns:od=\"\{word_uri}\" od:id=\"\{key}\" od:name=\"\{name}\"/>" +
+        (if sequence.is_empty() {
+          ""
+        } else {
+          "<od:bookmarkEnd xmlns:od=\"\{word_uri}\" od:id=\"\{key}\"/>"
+        }),
       })
-      changes.push({
-        node: id,
-        offset: p.closing_start - p.start,
-        length: 0,
-        xml: "<od:bookmarkEnd xmlns:od=\"\{word_uri}\" od:id=\"\{key}\"/>",
-      })
+      if sequence.is_empty() {
+        changes.push({
+          node: id,
+          offset: p.closing_start - p.start,
+          length: 0,
+          xml: "<od:bookmarkEnd xmlns:od=\"\{word_uri}\" od:id=\"\{key}\"/>",
+        })
+      }
       name
     }
-    result.push({ level: level + 1, text, bookmarks: [bookmark], })
+    result.push({ level, text, bookmarks: [bookmark], })
   }
   (result, changes)
 }
@@ -171,12 +190,15 @@ fn toc_markup(
   hyperlink : Bool,
   width : Double,
   index~ : Bool = false,
+  sequence~ : String = "",
 ) -> String raise @failure.Failure {
   let begin = "<od:r><od:fldChar od:fldCharType=\"begin\" od:dirty=\"true\"/></od:r><od:r><od:instrText xml:space=\"preserve\">\{property_attribute(instruction)}</od:instrText></od:r><od:r><od:fldChar od:fldCharType=\"separate\"/></od:r>"
   let end = "<od:r><od:fldChar od:fldCharType=\"end\"/></od:r>"
   if entries.is_empty() {
     let text = if index {
       "No index entries found."
+    } else if !sequence.is_empty() {
+      "No table of figures entries found."
     } else {
       "No table of contents entries found."
     }

@@ -138,7 +138,7 @@ fn WordTree::bookmarks(self : WordTree) -> Array[Bookmark] {
     }
   }
   let result : Array[Bookmark] = []
-  let checked : Map[Int, String] = Map([])
+  let checked : Map[(Int, Bool), String] = Map([])
   for id in self.order {
     let node = self.nodes[id]
     if node.uri != word_uri || node.name != "bookmarkStart" {
@@ -164,14 +164,27 @@ fn WordTree::bookmarks(self : WordTree) -> Array[Bookmark] {
           "protected-content", "Bookmark is inside a protected container",
         )
       }
+      // A leading point anchor stays outside field codes and has unambiguous logical positions.
+      let prefix = positions[id].paragraph == positions[end].paragraph &&
+        positions[id].offset == 0 &&
+        positions[end].offset == 0 &&
+        node.parent == positions[id].paragraph &&
+        self.nodes[end].parent == node.parent &&
+        self.children[node.parent].all(child => {
+          self.is_bookmark(child) ||
+          self.nodes[child].name == "pPr" ||
+          self.nodes[child].start >= self.nodes[end].end
+        })
       for p in [positions[id].paragraph, positions[end].paragraph] {
-        if !checked.contains(p) {
-          checked[p] = try {
+        let check = (p, prefix)
+        if !checked.contains(check) {
+          checked[check] = try {
             self.check_editable_paragraph(
               p,
               part="",
               pictures=true,
               fields=true,
+              complexFields=prefix,
               notes=true,
             )
             ""
@@ -179,8 +192,8 @@ fn WordTree::bookmarks(self : WordTree) -> Array[Bookmark] {
             @failure.Failure(message~, ..) => message
           }
         }
-        if !checked[p].is_empty() {
-          @failure.reject("protected-content", checked[p])
+        if !checked[check].is_empty() {
+          @failure.reject("protected-content", checked[check])
         }
       }
       ""

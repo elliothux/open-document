@@ -185,6 +185,8 @@ fn Foundation::docx_page(
       let edit = match action {
         "insert" if fields.contains("levels") =>
           @docx.TocEdit::InsertToc(field_int(change, "levels"))
+        "insertCaptions" if fields.contains("sequence") =>
+          @docx.TocEdit::InsertCaptionToc(field_string(change, "sequence"))
         "update" if fields.contains("paragraph") =>
           @docx.TocEdit::UpdateToc(field_int(change, "paragraph"))
         "delete" if fields.contains("paragraph") =>
@@ -238,15 +240,31 @@ fn Foundation::docx_page(
     "insertDocxCaption" => {
       guard request is { "caption": Object(fields) as caption, .. } &&
         fields.length() >= 3 &&
-        fields.length() <= 4 &&
+        fields.length() <= 5 &&
         fields
         .keys()
-        .all(key => ["label", "text", "position", "format"].contains(key)) else {
+        .all(key => {
+          ["label", "text", "position", "format", "chapter"].contains(key)
+        }) else {
         @failure.reject("invalid-operation", "Invalid caption fields")
       }
       let position = field_string(caption, "position")
       guard ["before", "after"].contains(position) else {
         @failure.reject("invalid-operation", "Invalid caption position")
+      }
+      let (chapterLevel, separator) = if fields.contains("chapter") {
+        guard fields["chapter"] is Object(chapter) &&
+          chapter.length() == 2 &&
+          chapter.keys().all(key => ["level", "separator"].contains(key)) else {
+          @failure.reject("invalid-operation", "Invalid caption chapter fields")
+        }
+        let level = field_int(fields["chapter"], "level")
+        guard level >= 1 && level <= 9 else {
+          @failure.reject("invalid-operation", "Invalid caption chapter level")
+        }
+        (level, field_string(fields["chapter"], "separator"))
+      } else {
+        (0, "-")
       }
       session.insert_caption(
         revision,
@@ -261,6 +279,8 @@ fn Foundation::docx_page(
         probe=self.probe,
         profile=xlsx_profile(request),
         images=self.images,
+        chapterLevel~,
+        separator~,
       )
     }
     "insertSectionBreak" =>

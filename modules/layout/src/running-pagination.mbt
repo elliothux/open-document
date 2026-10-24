@@ -23,12 +23,7 @@ fn paginate_running(
   let fixed_values = if fields.is_empty() {
     Map([])
   } else {
-    flow.sequence_values()
-  }
-  if fields.values().any(code => code.has_prefix("NOTEREF:")) {
-    for key, value in flow.note_reference_values() {
-      fixed_values[key] = value
-    }
+    flow.fixed_body_field_values(fields)
   }
   let mut body = if fields.is_empty() {
     flow
