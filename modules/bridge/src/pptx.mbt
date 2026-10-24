@@ -310,6 +310,8 @@ fn Foundation::pptx_operation(
                   xlsx_boolean(value, "scaled"),
                 ),
               )
+            { "value": { "kind": String("radial"), .. } as value, .. } =>
+              Some(@pptx.Radial(pptx_gradient_stops(value)))
             _ =>
               @failure.reject(
                 "invalid-operation", "Slide background requires a color or null",
@@ -564,12 +566,7 @@ fn Foundation::pptx_operation(
           }
         }
         "fillOpacity" => @pptx.FillOpacity(xlsx_number(change, "opacity"))
-        "gradientFill" =>
-          @pptx.GradientFill(
-            pptx_gradient_stops(change),
-            xlsx_number(change, "angle"),
-            xlsx_boolean(change, "scaled"),
-          )
+        "gradientFill" | "radialGradientFill" => pptx_gradient_edit(change)
         "strokeOpacity" => @pptx.StrokeOpacity(xlsx_number(change, "opacity"))
         "group" => @pptx.Group
         "ungroup" => @pptx.Ungroup

@@ -65,7 +65,7 @@ export interface PptxObject {
     imageFill: string | null;
     imageFillMode: "stretch" | "tile" | null;
     imageFillReason: string;
-    gradient: Extract<PptxBackgroundFill, { kind: "linear" }> | null;
+    gradient: Extract<PptxBackgroundFill, { kind: "linear" | "radial" }> | null;
     fillOpacity: number;
     strokeOpacity: number;
     fillOpacityReason: string;

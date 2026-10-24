@@ -258,6 +258,10 @@ export type PptxObjectEdit =
     }
   | { action: "stroke"; color: string | null; width: number }
   | {
+      action: "radialGradientFill";
+      stops: Extract<PptxBackgroundFill, { kind: "radial" }>["stops"];
+    }
+  | {
       action: "textInsets";
       left: number;
       top: number;

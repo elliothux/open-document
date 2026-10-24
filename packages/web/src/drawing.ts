@@ -97,15 +97,26 @@ export class CanvasRenderer {
             context.strokeRect(rect.x, rect.y, rect.width, rect.height);
             break;
           }
-          case "gradientRect": {
+          case "gradientRect":
+          case "radialGradientRect": {
             const rect = command.rect;
             if (rect.width === 0 || rect.height === 0) break;
-            const gradient = context.createLinearGradient(
-              rect.x,
-              rect.y,
-              rect.x + rect.width,
-              rect.y,
-            );
+            const gradient =
+              command.op === "radialGradientRect"
+                ? context.createRadialGradient(
+                    rect.x + rect.width / 2,
+                    rect.y + rect.height / 2,
+                    0,
+                    rect.x + rect.width / 2,
+                    rect.y + rect.height / 2,
+                    Math.max(rect.width, rect.height) / 2,
+                  )
+                : context.createLinearGradient(
+                    rect.x,
+                    rect.y,
+                    rect.x + rect.width,
+                    rect.y,
+                  );
             for (const stop of command.stops)
               gradient.addColorStop(
                 stop.position,

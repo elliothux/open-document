@@ -75,6 +75,9 @@ export function XlsxPivotsPanel({
     dateGroups,
     values,
   };
+  const editingSource = catalog?.items.find(
+    (pivot) => pivot.part === editing,
+  )?.settings;
   let valid = true;
   try {
     checkXlsxPivotSettings(settings);
@@ -195,6 +198,11 @@ export function XlsxPivotsPanel({
         filters={filters}
         setFilters={setFilters}
         choices={filterChoices}
+        sourceChanged={
+          !!editingSource &&
+          (editingSource.source !== source ||
+            editingSource.sourceSheet !== sourceSheet)
+        }
         axes={[...settings.rows, ...settings.columns]}
         state={state}
       />

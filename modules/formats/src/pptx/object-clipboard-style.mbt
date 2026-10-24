@@ -93,8 +93,8 @@ fn clipboard_object_style(
         insets=object.insets,
       ),
     )
-  } else if object.gradient is Some((stops, angle, scaled)) {
-    Some(BackgroundFill::Linear(stops, angle, scaled).markup())
+  } else if object.gradient is Some(gradient) {
+    Some(gradient.markup())
   } else {
     Some(
       paint_markup(

@@ -373,13 +373,11 @@ fn paint_slide(
             primitives.append(object.image_primitives(geometry))
           }
           primitives.push(Restore)
-        } else if object.gradient is Some((stops, angle, scaled)) &&
+        } else if object.gradient is Some(gradient) &&
           geometry.width > 0 &&
           geometry.height > 0 {
           primitives.push(ClipPath(path, false))
-          primitives.append(
-            Linear(stops, angle, scaled).paint(geometry.width, geometry.height),
-          )
+          primitives.append(gradient.paint(geometry.width, geometry.height))
           primitives.push(Restore)
         }
         primitives.push(

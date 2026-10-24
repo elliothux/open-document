@@ -2,6 +2,7 @@
 fn gradient_shading(
   stops : Array[@layout.GradientStop],
   alpha~ : Bool = false,
+  radial~ : Bool = false,
 ) -> @syntax.PdfObject {
   let points : Array[@layout.GradientStop] = [
     { ..stops[0], position: 0, },
@@ -23,9 +24,18 @@ fn gradient_shading(
     functions.push(gradient_interpolation(start, end, alpha~))
   }
   dict([
-    ("ShadingType", @syntax.PdfInteger(2)),
+    ("ShadingType", @syntax.PdfInteger(if radial { 3 } else { 2 })),
     ("ColorSpace", tag(if alpha { "DeviceGray" } else { "DeviceRGB" })),
-    ("Coords", @syntax.PdfArray([0, 0, 1, 0].map(v => @syntax.PdfInteger(v)))),
+    (
+      "Coords",
+      @syntax.PdfArray(
+        (if radial {
+          [0.5, 0.5, 0.0, 0.5, 0.5, 0.5]
+        } else {
+          [0.0, 0.0, 1.0, 0.0]
+        }).map(v => @syntax.PdfReal(v)),
+      ),
+    ),
     (
       "Extend",
       @syntax.PdfArray([@syntax.PdfBoolean(true), @syntax.PdfBoolean(true)]),
@@ -90,9 +100,10 @@ fn gradient_interpolation(
 fn gradient_mask(
   document : @pdflite.PdfDocument,
   stops : Array[@layout.GradientStop],
+  radial~ : Bool = false,
 ) -> @syntax.PdfObject {
   let shading = @syntax.PdfIndirect(
-    document.add_object(gradient_shading(stops, alpha=true)),
+    document.add_object(gradient_shading(stops, alpha=true, radial~)),
   )
   let group = document.add_object(
     stream(@utf8.encode("/M sh\n"), [

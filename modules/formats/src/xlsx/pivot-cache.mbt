@@ -229,13 +229,13 @@ fn Session::pivot_cache(
     )
   }
   let calculation = self.calculation.unwrap()
-  let headers : Array[String] = []
-  let items : Array[Array[Value]] = []
-  let styles : Array[Array[Int]] = []
-  let maps : Array[Map[String, Int]] = []
+  let headers = self.pivot_source_headers(settings)
+  let items : Array[Array[Value]] = headers.map(_ => [])
+  let styles : Array[Array[Int]] = headers.map(_ => [])
+  let maps : Array[Map[String, Int]] = headers.map(_ => Map([]))
   let records : Array[Array[Int]] = []
   let mut units = 0
-  for row in range.top..<=range.bottom {
+  for row in (range.top + 1)..<=range.bottom {
     let record : Array[Int] = []
     for column in range.left..<=range.right {
       let offset = column - range.left
@@ -261,35 +261,6 @@ fn Session::pivot_cache(
         Text("") => Blank
         value => value
       }
-      if row == range.top {
-        let label = formatted(
-          value,
-          self.styles[sheet.style_at({ row, column, })].format,
-          self.date1904,
-        )
-        guard !label.trim().is_empty() &&
-          label.length() <= 255 &&
-          @xml.valid_text(label) &&
-          !(value is Error(_)) else {
-          @failure.reject(
-            "invalid-operation", "Pivot fields require nonempty source headers",
-          )
-        }
-        let mut name = label
-        let mut suffix = 2
-        while headers.contains(name) {
-          name = label + suffix.to_string()
-          suffix += 1
-        }
-        guard name.length() <= 255 else {
-          @failure.reject("limit-exceeded", "Pivot field name exceeds budget")
-        }
-        headers.push(name)
-        items.push([])
-        styles.push([])
-        maps.push(Map([]))
-        continue
-      }
       let identity = pivot_item_key(value)
       let item = match maps[offset].get(identity) {
         Some(item) => item
@@ -309,9 +280,7 @@ fn Session::pivot_cache(
       }
       record.push(item)
     }
-    if row != range.top {
-      records.push(record)
-    }
+    records.push(record)
   }
   let empty = fn(record : Array[Int]) {
     record
@@ -432,6 +401,15 @@ fn Session::pivot_cache(
       }
     }
     axes[group.field] = fields
+  }
+  guard ([settings] + peers).all(context => {
+    context.values.all(value => {
+      !headers.any(field => field.to_lower() == value.name.to_lower())
+    })
+  }) else {
+    @failure.reject(
+      "invalid-operation", "Pivot value captions must differ from native source field names",
+    )
   }
   let cache = PivotCache::{
     source_filters: [],

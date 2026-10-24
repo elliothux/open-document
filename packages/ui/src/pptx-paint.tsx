@@ -150,9 +150,9 @@ export function PptxPaint({
   const [fill, setFill] = useState(
     `#${first?.gradient?.stops[0]?.color ?? first?.fill ?? "336699"}`,
   );
-  const [fillType, setFillType] = useState<"solid" | "linear" | "image">(
-    first?.imageFill ? "image" : first?.gradient ? "linear" : "solid",
-  );
+  const [fillType, setFillType] = useState<
+    "solid" | "linear" | "radial" | "image"
+  >(first?.imageFill ? "image" : (first?.gradient?.kind ?? "solid"));
   const [imageMode, setImageMode] = useState<"stretch" | "tile">(
     first?.imageFillMode ?? "stretch",
   );
@@ -162,8 +162,12 @@ export function PptxPaint({
       { opacity: 1, position: 1, color: "ffffff" },
     ],
   );
-  const [angle, setAngle] = useState(String(first?.gradient?.angle ?? 0));
-  const [scaled, setScaled] = useState(first?.gradient?.scaled ?? true);
+  const [angle, setAngle] = useState(
+    String(first?.gradient?.kind === "linear" ? first.gradient.angle : 0),
+  );
+  const [scaled, setScaled] = useState(
+    first?.gradient?.kind === "linear" ? first.gradient.scaled : true,
+  );
   const [stroke, setStroke] = useState(`#${first?.stroke ?? "000000"}`);
   const [noFill, setNoFill] = useState(
     first?.fill === null && !first?.gradient && !first?.imageFill,
@@ -292,17 +296,19 @@ export function PptxPaint({
           if (fillType === "image" && !noFill) return;
           controller.run(() =>
             editor.editObjects(
-              fillType === "linear" && !noFill
-                ? {
-                    action: "gradientFill",
-                    stops,
-                    angle: Number(angle),
-                    scaled,
-                  }
-                : {
-                    action: "fill",
-                    color: noFill ? null : fill.slice(1),
-                  },
+              fillType === "radial" && !noFill
+                ? { action: "radialGradientFill", stops }
+                : fillType === "linear" && !noFill
+                  ? {
+                      action: "gradientFill",
+                      stops,
+                      angle: Number(angle),
+                      scaled,
+                    }
+                  : {
+                      action: "fill",
+                      color: noFill ? null : fill.slice(1),
+                    },
             ),
           );
         }}
@@ -315,7 +321,7 @@ export function PptxPaint({
             onChange={(event) => {
               if (event.currentTarget.value === "image") setNoFill(false);
               if (
-                event.currentTarget.value === "linear" &&
+                ["linear", "radial"].includes(event.currentTarget.value) &&
                 fillType === "solid"
               )
                 setStops(
@@ -328,12 +334,15 @@ export function PptxPaint({
                   ? "image"
                   : event.currentTarget.value === "linear"
                     ? "linear"
-                    : "solid",
+                    : event.currentTarget.value === "radial"
+                      ? "radial"
+                      : "solid",
               );
             }}
           >
             <option value="solid">{t.solidColor}</option>
             <option value="linear">{t.linearGradient}</option>
+            <option value="radial">{t.radialGradient}</option>
             <option value="image" disabled={!!imageReason}>
               {t.imageFill}
             </option>
@@ -402,7 +411,7 @@ export function PptxPaint({
             </label>
           </>
         )}
-        {fillType !== "linear" && (
+        {(fillType === "solid" || fillType === "image") && (
           <label>
             {t.shapeFill}
             <input
@@ -413,15 +422,17 @@ export function PptxPaint({
             />
           </label>
         )}
+        {(fillType === "linear" || fillType === "radial") && (
+          <GradientStops
+            stops={stops}
+            onChange={setStops}
+            state={state}
+            disabled={noFill}
+            firstLabel={t.shapeFill}
+          />
+        )}
         {fillType === "linear" && (
           <>
-            <GradientStops
-              stops={stops}
-              onChange={setStops}
-              state={state}
-              disabled={noFill}
-              firstLabel={t.shapeFill}
-            />
             <label>
               {t.gradientAngle}
               <input

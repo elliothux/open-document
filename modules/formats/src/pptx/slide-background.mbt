@@ -46,7 +46,7 @@ fn Session::background_reason(self : Session, slide : Slide) -> String {
     }
     if properties.name == "bgPr" &&
       tree.one(properties.id, "gradFill") is Some(gradient) {
-      ignore(linear_background_source({ tree, node: gradient, }))
+      ignore(gradient_source({ tree, node: gradient, }))
       guard tree.children
         .get(properties.id)
         .unwrap_or([])

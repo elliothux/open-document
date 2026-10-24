@@ -132,7 +132,10 @@ fn Session::refresh_timeline_pivots(
   for cache in self.affected_slicer_caches(pivots) {
     let last = cache.pivots.last().unwrap()
     candidate.rebuild_slicer_state(
-      cache,
+      {
+        ..cache,
+        field: pivot_source_field(models[last.cache].headers, cache.source),
+      },
       contexts[last.part],
       filtered[last.part],
       edits,
@@ -158,7 +161,7 @@ fn Session::refresh_timeline_pivots(
       let selected = data.native_dates +
         timelines
         .filter(other => other.pivot_cache == cache.pivot_cache)
-        .map(other => other.field)
+        .map(other => pivot_source_field(data.headers, other.source))
       candidate.refresh_timeline_data(
         cache,
         { ..data, native_dates: selected, },
@@ -210,16 +213,50 @@ fn Session::timeline_refresh_group(
   let contexts = pivots.map(pivot => self.pivot_settings(pivot, shared=true))
   let original_range = contexts[0].0.validate()
   let source_width = original_range.right - original_range.left + 1
+  let tree = Tree::new(self.part_xml(pivots[0].cache))
+  let previous_headers = tree
+  .all(tree.one(0, "cacheFields").unwrap().id, "cacheField")
+  .map(node => slicer_text(node, "name"))[:source_width].to_owned()
+  let headers = self.pivot_source_headers(
+    replacement.map(pair => pair.1).unwrap_or(contexts[0].0),
+    unique=true,
+  )
+  if replacement is None && headers != previous_headers {
+    @failure.reject(
+      "protected-content", "Pivot source headers changed; use the source editing controls",
+    )
+  }
   if replacement is Some((part, next)) {
     ignore(next.validate())
+    for index, context in contexts {
+      // The edited table supplies new ordinals; peers retain their named field identities.
+      let previous = if pivots[index].part == part {
+        {
+          ..context.0,
+          rows: [],
+          columns: [],
+          subtotals: [],
+          values: [],
+          filters: context.0.filters.filter(filter => {
+            headers.contains(previous_headers[filter.field])
+          }),
+        }
+      } else {
+        context.0
+      }
+      contexts[index] = (
+        previous.remap_source_fields(previous_headers, headers),
+        context.1,
+      )
+    }
     let owns = pivots.any(pivot => pivot.part == part)
     if pivots.search_by(pivot => pivot.part == part) is Some(index) {
       let previous = contexts[index].0
       let linked : Map[Int, Bool] = Map([])
       for cache in timelines {
-        for (pivot, field) in cache.connections {
+        for (pivot, _) in cache.connections {
           if pivots.any(peer => peer.part == pivot.part) {
-            linked[field] = true
+            linked[pivot_source_field(headers, cache.source)] = true
           }
         }
       }
@@ -235,10 +272,13 @@ fn Session::timeline_refresh_group(
         filter.report ||
         filter.values is None ||
         (next.rows + next.columns).contains(filter.field) ||
-        slicers.any(cache => cache.field == filter.field) ||
+        slicers.any(cache => {
+          pivot_source_field(headers, cache.source) == filter.field
+        }) ||
         timelines.any(cache => {
           cache.connections.any(pair => {
-            pair.0.part == part && pair.1 == filter.field
+            pair.0.part == part &&
+            pivot_source_field(headers, cache.source) == filter.field
           })
         })
       }) else {
@@ -247,8 +287,9 @@ fn Session::timeline_refresh_group(
         )
       }
       for cache in timelines {
-        for (pivot, field) in cache.connections {
+        for (pivot, _) in cache.connections {
           if pivot.part == part {
+            let field = pivot_source_field(headers, cache.source)
             let before = previous.filters
               .iter()
               .find_first(filter => filter.field == field)
@@ -310,7 +351,7 @@ fn Session::timeline_refresh_group(
       connected.append(
         cache.connections
         .filter(pair => pair.0.part == pivots[index].part)
-        .map(pair => pair.1),
+        .map(_ => pivot_source_field(headers, cache.source)),
       )
     }
     for field in connected {
@@ -336,27 +377,17 @@ fn Session::timeline_refresh_group(
     ..self.pivot_cache(inputs[0], peers=inputs[1:].to_owned()),
     native_dates: dates.keys().to_array(),
   }
-  let tree = Tree::new(self.part_xml(pivots[0].cache))
-  let headers = tree
-    .all(tree.one(0, "cacheFields").unwrap().id, "cacheField")
-    .map(node => slicer_text(node, "name"))
-  guard data.source_width == source_width &&
-    headers.length() >= source_width &&
-    headers[:source_width] == data.headers[:source_width] else {
-    @failure.reject(
-      "protected-content", "Pivot source headers changed; field remapping is required",
-    )
-  }
   for field in dates.keys() {
     ignore(data.timeline_bounds(field))
   }
   let result = contexts.mapi((index, context) => {
     let filters = context.0.filters.copy()
     for cache in timelines {
-      for (pivot, field) in cache.connections {
+      for (pivot, _) in cache.connections {
         if pivot.part != pivots[index].part {
           continue
         }
+        let field = pivot_source_field(headers, cache.source)
         let report = filters.any(filter => {
           filter.field == field && filter.report
         })

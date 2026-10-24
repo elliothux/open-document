@@ -12,10 +12,11 @@ fn Session::timeline_filtered_cache(
   let filters : Array[(Int, Map[Int, Bool])] = []
   let seen : Map[Int, Bool] = Map([])
   for cache in self.affected_timeline_caches([pivot]) {
-    for (target, field) in cache.connections {
+    for (target, _) in cache.connections {
       if target.part != pivot.part {
         continue
       }
+      let field = pivot_source_field(data.headers, cache.source)
       guard field < data.source_width else {
         @failure.reject(
           "protected-content", "Timeline must target an original date column",

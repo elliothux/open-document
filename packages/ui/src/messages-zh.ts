@@ -658,6 +658,7 @@ export const zh: Messages = {
   backgroundType: "背景类型",
   solidColor: "纯色",
   linearGradient: "线性渐变",
+  radialGradient: "径向渐变",
   gradientStart: "起始颜色",
   gradientEnd: "结束颜色",
   gradientAngle: "渐变角度（度）",

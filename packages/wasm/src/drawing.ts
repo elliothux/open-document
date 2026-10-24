@@ -78,6 +78,7 @@ export type DrawCommand =
   | { op: "clipPath"; path: PathSegment[]; evenOdd: boolean }
   | { op: "fillRect"; rect: DrawRect & { color: string } }
   | { op: "gradientRect"; rect: DrawRect; stops: GradientStop[] }
+  | { op: "radialGradientRect"; rect: DrawRect; stops: GradientStop[] }
   | { op: "strokeRect"; rect: DrawRect; color: string; lineWidth: number }
   | { op: "glyphs"; x: number; y: number; color: string; glyphs: DrawGlyph[] }
   | { op: "image"; image: DrawRect & { key: string } }
@@ -210,6 +211,7 @@ export function drawingBatch(value: unknown): DrawingBatch {
           color(record(command.rect).color);
           break;
         case "gradientRect":
+        case "radialGradientRect":
           rect(command.rect);
           checkGradientStops(command.stops);
           payload += command.stops.length;

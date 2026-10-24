@@ -271,7 +271,7 @@ export function checkPptxGeometry(value: unknown): void {
     }
   }
 }
-import { checkPptxBackgroundFill } from "./pptx-slides.js";
+import { checkPptxShapeGradient } from "./pptx-background.js";
 import {
   checkPptxTextFormat,
   checkPptxParagraphFormat,
@@ -682,19 +682,11 @@ export function checkPptxObjectEdit(value: unknown): void {
     ["left", "center", "right", "justify"].includes(change.alignment)
   )
     return;
-  if (change.action === "gradientFill") {
-    if (
-      Object.keys(change).some(
-        (key) => !["action", "stops", "angle", "scaled"].includes(key),
-      )
-    )
-      throw new Error("Invalid shape gradient fields");
-    checkPptxBackgroundFill({
-      kind: "linear",
-      stops: change.stops,
-      angle: change.angle,
-      scaled: change.scaled,
-    });
+  if (
+    change.action === "gradientFill" ||
+    change.action === "radialGradientFill"
+  ) {
+    checkPptxShapeGradient(change);
     return;
   }
   if (change.action === "fill" || change.action === "stroke") {

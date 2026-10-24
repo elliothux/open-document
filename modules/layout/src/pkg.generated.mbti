@@ -151,6 +151,7 @@ pub fn Columns::width_at(Self, PageSetup, Double) -> Double raise @failure.Failu
 pub(all) enum DrawCommand {
   FillRect(Fill)
   GradientRect(Border, Array[GradientStop])
+  RadialGradientRect(Border, Array[GradientStop])
   StrokeRect(Border, String, Double)
   Glyphs(Double, Double, String, Array[DrawGlyph])
   Image(PlacedImage)
@@ -689,6 +690,7 @@ pub(all) struct PositionedPage {
 pub(all) enum PositionedPrimitive {
   Rectangle(Fill)
   GradientRectangle(Border, Array[GradientStop])
+  RadialGradientRectangle(Border, Array[GradientStop])
   Stroke(Border, String, Double)
   Text(PositionedText)
   Image(PlacedImage, Double)

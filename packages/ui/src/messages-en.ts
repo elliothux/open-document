@@ -665,6 +665,7 @@ export const en = {
   backgroundType: "Background type",
   solidColor: "Solid color",
   linearGradient: "Linear gradient",
+  radialGradient: "Radial gradient",
   gradientStart: "Start color",
   gradientEnd: "End color",
   gradientAngle: "Gradient angle (degrees)",

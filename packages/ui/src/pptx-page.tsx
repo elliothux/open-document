@@ -116,7 +116,7 @@ export function PptxBackground({
   const background =
     file.format === "pptx" ? file.editor.query.background : undefined;
   const fill = background?.value;
-  const [kind, setKind] = useState<"solid" | "linear" | "image">(
+  const [kind, setKind] = useState<"solid" | "linear" | "radial" | "image">(
     fill?.kind ?? "solid",
   );
   const [mode, setMode] = useState<"stretch" | "tile">(
@@ -132,12 +132,12 @@ export function PptxBackground({
     bottom: (fill?.kind === "image" ? fill.crop[3] : 0) * 100,
   });
   const [color, setColor] = useState(
-    `#${fill?.kind === "solid" ? fill.color : fill?.kind === "linear" ? fill.stops[0]?.color : "ffffff"}`,
+    `#${fill?.kind === "solid" ? fill.color : fill?.kind === "linear" || fill?.kind === "radial" ? fill.stops[0]?.color : "ffffff"}`,
   );
   const [stops, setStops] = useState<
     Extract<PptxBackgroundFill, { kind: "linear" }>["stops"]
   >(
-    fill?.kind === "linear"
+    fill?.kind === "linear" || fill?.kind === "radial"
       ? fill.stops
       : [
           { opacity: 1, position: 0, color: color.slice(1) },
@@ -179,12 +179,14 @@ export function PptxBackground({
               value:
                 kind === "solid"
                   ? { kind, color: color.slice(1) }
-                  : {
-                      kind,
-                      stops,
-                      angle: Number(angle),
-                      scaled,
-                    },
+                  : kind === "radial"
+                    ? { kind, stops }
+                    : {
+                        kind,
+                        stops,
+                        angle: Number(angle),
+                        scaled,
+                      },
             }),
           );
         }}
@@ -197,7 +199,7 @@ export function PptxBackground({
               value={kind}
               onChange={(event) => {
                 const value = event.currentTarget.value;
-                if (value === "linear" && kind === "solid")
+                if (["linear", "radial"].includes(value) && kind === "solid")
                   setStops(
                     stops.map((stop, index) =>
                       index === 0 ? { ...stop, color: color.slice(1) } : stop,
@@ -206,6 +208,7 @@ export function PptxBackground({
                 if (
                   value === "solid" ||
                   value === "linear" ||
+                  value === "radial" ||
                   value === "image"
                 )
                   setKind(value);
@@ -213,6 +216,7 @@ export function PptxBackground({
             >
               <option value="solid">{t.solidColor}</option>
               <option value="linear">{t.linearGradient}</option>
+              <option value="radial">{t.radialGradient}</option>
               <option value="image">{t.imageFill}</option>
             </select>
           </label>
@@ -321,14 +325,16 @@ export function PptxBackground({
               />
             </label>
           )}
+          {(kind === "linear" || kind === "radial") && (
+            <GradientStops
+              stops={stops}
+              onChange={setStops}
+              state={state}
+              firstLabel={t.gradientStart}
+            />
+          )}
           {kind === "linear" && (
             <>
-              <GradientStops
-                stops={stops}
-                onChange={setStops}
-                state={state}
-                firstLabel={t.gradientStart}
-              />
               <label>
                 {t.gradientAngle}
                 <input

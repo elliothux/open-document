@@ -369,9 +369,7 @@ pub fn Session::query(self : Session) -> Json raise @failure.Failure {
           } else {
             Json::null()
           },
-          "gradient": object.gradient
-          .map(g => Json(Linear(g.0, g.1, g.2)))
-          .unwrap_or(Json::null()),
+          "gradient": object.gradient.map(g => Json(g)).unwrap_or(Json::null()),
           "fillOpacity": object.fill_alpha,
           "strokeOpacity": object.stroke_alpha,
           "fillOpacityReason": self.paint_opacity_reason(object, false),

@@ -41,19 +41,33 @@ fn Session::refresh_shared_pivot(
   let fields = old
     .all(old.one(0, "cacheFields").unwrap().id, "cacheField")
     .map(node => decode_text(node.attribute("name").unwrap_or("")))
+  let source = contexts[0].0.validate()
+  let previous_fields = fields[:source.right - source.left + 1].to_owned()
+  let headers = self.pivot_source_headers(
+    replacement.unwrap_or(contexts[0].0),
+    unique=true,
+  )
+  for cache in slicers {
+    ignore(pivot_source_field(headers, cache.source))
+  }
   if replacement is Some(next) {
     ignore(next.validate())
-    guard next.values.all(value => {
-      !fields.any(field => field.to_lower() == value.name.to_lower())
-    }) else {
-      @failure.reject(
-        "invalid-operation", "Pivot value captions must differ from native source field names",
-      )
-    }
     let index = pivots.search_by(pivot => pivot.part == part).unwrap()
     let previous = contexts[index].0
-    guard Json(next.numberGroups) == Json(previous.numberGroups) &&
-      Json(next.dateGroups) == Json(previous.dateGroups) else {
+    guard Json(next.numberGroups) ==
+      Json(
+        previous.numberGroups.map(group => {
+          ..group,
+          field: pivot_source_field(headers, previous_fields[group.field]),
+        }),
+      ) &&
+      Json(next.dateGroups) ==
+      Json(
+        previous.dateGroups.map(group => {
+          ..group,
+          field: pivot_source_field(headers, previous_fields[group.field]),
+        }),
+      ) else {
       @failure.reject(
         "protected-content", "Linked grouping changes require field mapping",
       )
@@ -63,7 +77,7 @@ fn Session::refresh_shared_pivot(
       filter.values is None ||
       (next.rows + next.columns).contains(filter.field) ||
       slicers.any(cache => {
-        cache.field == filter.field &&
+        pivot_source_field(headers, cache.source) == filter.field &&
         cache.pivots.any(pivot => pivot.part == part)
       })
     }) else {
@@ -72,8 +86,15 @@ fn Session::refresh_shared_pivot(
       )
     }
     for peer, context in contexts {
+      if peer == index {
+        continue
+      }
       contexts[peer] = (
-        { ..context.0, sourceSheet: next.sourceSheet, source: next.source, },
+        {
+          ..context.0.remap_source_fields(previous_fields, headers),
+          sourceSheet: next.sourceSheet,
+          source: next.source,
+        },
         context.1,
       )
     }
@@ -96,7 +117,7 @@ fn Session::refresh_shared_pivot(
     settings,
     peers=contexts[1:].map(context => context.0),
   )
-  guard fields == data.headers else {
+  guard replacement is Some(_) || fields == data.headers else {
     @failure.reject(
       "protected-content", "Pivot source headers changed; field remapping is required",
     )
@@ -158,7 +179,12 @@ fn Session::refresh_shared_pivot(
   for cache in slicers {
     let last = cache.pivots.last().unwrap()
     let index = pivots.search_by(pivot => pivot.part == last.part).unwrap()
-    candidate.rebuild_slicer_state(cache, contexts[index].0, data, edits)
+    candidate.rebuild_slicer_state(
+      { ..cache, field: pivot_source_field(headers, cache.source), },
+      contexts[index].0,
+      data,
+      edits,
+    )
   }
   ignore(
     candidate.affected_slicer_caches(

@@ -252,3 +252,16 @@ fn pptx_gradient_stops(
     }
   })
 }
+
+///|
+fn pptx_gradient_edit(value : Json) -> @pptx.ObjectEdit raise @failure.Failure {
+  if field_string(value, "action") == "radialGradientFill" {
+    @pptx.RadialGradientFill(pptx_gradient_stops(value))
+  } else {
+    @pptx.GradientFill(
+      pptx_gradient_stops(value),
+      xlsx_number(value, "angle"),
+      xlsx_boolean(value, "scaled"),
+    )
+  }
+}

@@ -87,7 +87,7 @@ priv struct Object {
   polyline : Array[(Double, Double)]
   adjustments : (Double, Double, Double)
   fill : String
-  gradient : (Array[@layout.GradientStop], Double, Bool)?
+  gradient : BackgroundFill?
   stroke : String
   fill_alpha : Double
   stroke_alpha : Double

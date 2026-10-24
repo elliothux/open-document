@@ -4,6 +4,7 @@ import { imageInsets } from "./pptx-objects.js";
 
 export type PptxBackgroundFill =
   | { kind: "solid"; color: string }
+  | { kind: "radial"; stops: GradientStop[] }
   | {
       kind: "linear";
       stops: GradientStop[];
@@ -65,7 +66,8 @@ export function checkBackgroundImageFormat(
 
 export function checkPptxBackgroundFill(value: unknown): void {
   const fill = record(value);
-  if (fill.kind === "linear") checkGradientStops(fill.stops);
+  if (fill.kind === "linear" || fill.kind === "radial")
+    checkGradientStops(fill.stops);
   if (
     !(
       (fill.kind === "solid" &&
@@ -76,16 +78,38 @@ export function checkPptxBackgroundFill(value: unknown): void {
         Number.isFinite(fill.angle) &&
         fill.angle >= 0 &&
         fill.angle <= 360 &&
-        typeof fill.scaled === "boolean")
+        typeof fill.scaled === "boolean") ||
+      fill.kind === "radial"
     ) ||
     Object.keys(fill).some(
       (key) =>
         !(
           fill.kind === "solid"
             ? ["kind", "color"]
-            : ["kind", "stops", "angle", "scaled"]
+            : fill.kind === "radial"
+              ? ["kind", "stops"]
+              : ["kind", "stops", "angle", "scaled"]
         ).includes(key),
     )
   )
     throw new Error("Invalid slide background fill");
+}
+
+export function checkPptxShapeGradient(change: Record<string, unknown>): void {
+  const linear = change.action === "gradientFill";
+  const fields = linear
+    ? ["action", "stops", "angle", "scaled"]
+    : ["action", "stops"];
+  if (Object.keys(change).some((key) => !fields.includes(key)))
+    throw new Error("Invalid shape gradient fields");
+  checkPptxBackgroundFill(
+    linear
+      ? {
+          kind: "linear",
+          stops: change.stops,
+          angle: change.angle,
+          scaled: change.scaled,
+        }
+      : { kind: "radial", stops: change.stops },
+  );
 }

@@ -2,6 +2,7 @@
 pub(all) enum BackgroundFill {
   Solid(String)
   Linear(Array[@layout.GradientStop], Double, Bool)
+  Radial(Array[@layout.GradientStop])
   Picture(String, Array[Double], Double, ImageTile?, Array[Double])
 } derive(Eq, Debug)
 
@@ -38,6 +39,7 @@ pub impl ToJson for BackgroundFill with fn to_json(self) {
         "angle": Json(angle),
         "scaled": Json(scaled),
       }
+    Radial(stops) => { "kind": "radial", "stops": stops }
   }
 }
 
@@ -49,7 +51,7 @@ fn BackgroundFill::normalized(
     Picture(_, _, _, _, _) =>
       @failure.reject("invalid-operation", "Use the background image operation")
     Solid(color) => [color]
-    Linear(stops, _, _) => stops.map(stop => stop.color)
+    Linear(stops, _, _) | Radial(stops) => stops.map(stop => stop.color)
   }
   guard colors.all(c => {
     c.length() == 6 && c.iter().all(c => c.is_ascii_hexdigit())
@@ -61,6 +63,19 @@ fn BackgroundFill::normalized(
   match self {
     Picture(_, _, _, _, _) => abort("Image background already rejected")
     Solid(color) => Solid(color.to_lower())
+    Radial(stops) => {
+      @layout.validate_gradient_stops(stops) catch {
+        @failure.Failure(message~, ..) =>
+          @failure.reject("invalid-operation", message)
+      }
+      Radial(
+        stops.map(stop => {
+          position: (stop.position * 100000).round() / 100000,
+          color: stop.color.to_lower(),
+          opacity: (stop.opacity * 100000).round() / 100000,
+        }),
+      )
+    }
     Linear(stops, angle, scaled) => {
       @layout.validate_gradient_stops(stops) catch {
         @failure.Failure(message~, ..) =>
@@ -116,9 +131,9 @@ fn background_color_markup(reference : Ref) -> Unit raise @failure.Failure {
 }
 
 ///|
-fn linear_background_source(
+fn gradient_source(
   fill : Ref,
-) -> (Array[(Ref, Double)], Double, Bool) raise @failure.Failure {
+) -> (Array[(Ref, Double)], Double, Bool, Bool) raise @failure.Failure {
   guard fill.node.text.trim().is_empty() &&
     fill.node.attributes.all(a => {
       a.uri.is_empty() &&
@@ -133,10 +148,10 @@ fn linear_background_source(
   guard children.length() >= 2 &&
     children.length() <= 3 &&
     children[0].name == "gsLst" &&
-    children[1].name == "lin" &&
+    ["lin", "path"].contains(children[1].name) &&
     children.all(n => n.uri == drawing_uri && n.text.trim().is_empty()) else {
     @failure.reject(
-      "unsupported-style", "Background requires linear gradient stops",
+      "unsupported-style", "Background requires supported gradient stops",
     )
   }
   let stops = children[0]
@@ -171,14 +186,43 @@ fn linear_background_source(
     positions.push((reference, position / 100000))
   }
   let line = children[1]
-  guard fill.tree.children.get(line.id).unwrap_or([]).is_empty() &&
-    line.attributes.all(a => {
-      a.uri.is_empty() && ["ang", "scaled"].contains(a.name)
-    }) &&
-    [None, Some("0"), Some("1"), Some("true"), Some("false")].contains(
-      line.attribute("scaled"),
-    ) else {
-    @failure.reject("unsupported-style", "Unsupported gradient angle markup")
+  let radial = line.name == "path"
+  if radial {
+    guard line.attributes.length() == 1 &&
+      line.attribute("path") == Some("circle") else {
+      @failure.reject(
+        "unsupported-style", "Only circular radial gradients are supported",
+      )
+    }
+    let targets = fill.tree.children.get(line.id).unwrap_or([])
+    guard targets.is_empty() ||
+      (
+        targets is [target] &&
+        target.uri == drawing_uri &&
+        target.name == "fillToRect" &&
+        target.text.trim().is_empty() &&
+        target.attributes.length() == 4 &&
+        target.attributes.all(a => {
+          a.uri.is_empty() &&
+          ["l", "t", "r", "b"].contains(a.name) &&
+          a.value == "50000"
+        }) &&
+        fill.tree.children.get(target.id).unwrap_or([]).is_empty()
+      ) else {
+      @failure.reject(
+        "unsupported-style", "Radial gradients require a centered point",
+      )
+    }
+  } else {
+    guard fill.tree.children.get(line.id).unwrap_or([]).is_empty() &&
+      line.attributes.all(a => {
+        a.uri.is_empty() && ["ang", "scaled"].contains(a.name)
+      }) &&
+      [None, Some("0"), Some("1"), Some("true"), Some("false")].contains(
+        line.attribute("scaled"),
+      ) else {
+      @failure.reject("unsupported-style", "Unsupported gradient angle markup")
+    }
   }
   if children.get(2) is Some(tile) {
     guard tile.name == "tileRect" &&
@@ -197,6 +241,7 @@ fn linear_background_source(
     positions,
     number(line.attribute("ang").unwrap_or("0"), 0, 21599999) / 60000,
     flag(line, "scaled", default=true),
+    radial,
   )
 }
 
@@ -226,15 +271,12 @@ fn read_background_fill(
     return Picture(key, crop, opacity, tile, insets)
   }
   if properties.node.name == "gradFill" {
-    let (points, angle, scaled) = linear_background_source(properties)
-    return Linear(
-      points.map(point => {
-        let (color, opacity) = color_rgba(theme, point.0, placeholder~)
-        { position: point.1, color, opacity, }
-      }),
-      angle,
-      scaled,
-    )
+    let (points, angle, scaled, radial) = gradient_source(properties)
+    let stops : Array[@layout.GradientStop] = points.map(point => {
+      let (color, opacity) = color_rgba(theme, point.0, placeholder~)
+      { position: point.1, color, opacity, }
+    })
+    return if radial { Radial(stops) } else { Linear(stops, angle, scaled) }
   }
   if properties.child("gradFill") is Some(fill) {
     guard properties.tree.children
@@ -267,20 +309,34 @@ fn BackgroundFill::markup(self : BackgroundFill) -> String {
   match self {
     Picture(_, _, _, _, _) => abort("Image backgrounds require a relationship")
     Solid(color) => paint_markup(Some(color))
-    Linear(stops, angle, scaled) => {
-      let markup = stops
-        .map(stop => {
-          let color = if stop.opacity == 1 {
-            "<a:srgbClr val=\"\{stop.color}\"/>"
-          } else {
-            "<a:srgbClr val=\"\{stop.color}\"><a:alpha val=\"\{(stop.opacity*100000).round().to_int()}\"/></a:srgbClr>"
-          }
-          "<a:gs pos=\"\{(stop.position*100000).round().to_int()}\">\{color}</a:gs>"
-        })
-        .join("")
-      "<a:gradFill xmlns:a=\"\{drawing_uri}\"><a:gsLst>\{markup}</a:gsLst><a:lin ang=\"\{(angle*60000).round().to_int()}\" scaled=\"\{if scaled {"1"} else {"0"}}\"/></a:gradFill>"
-    }
+    Radial(stops) =>
+      gradient_markup(
+        stops, "<a:path path=\"circle\"><a:fillToRect l=\"50000\" t=\"50000\" r=\"50000\" b=\"50000\"/></a:path>",
+      )
+    Linear(stops, angle, scaled) =>
+      gradient_markup(
+        stops,
+        "<a:lin ang=\"\{(angle*60000).round().to_int()}\" scaled=\"\{if scaled {"1"} else {"0"}}\"/>",
+      )
   }
+}
+
+///|
+fn gradient_markup(
+  stops : Array[@layout.GradientStop],
+  geometry : String,
+) -> String {
+  let markup = stops
+    .map(stop => {
+      let color = if stop.opacity == 1 {
+        "<a:srgbClr val=\"\{stop.color}\"/>"
+      } else {
+        "<a:srgbClr val=\"\{stop.color}\"><a:alpha val=\"\{(stop.opacity*100000).round().to_int()}\"/></a:srgbClr>"
+      }
+      "<a:gs pos=\"\{(stop.position*100000).round().to_int()}\">\{color}</a:gs>"
+    })
+    .join("")
+  "<a:gradFill xmlns:a=\"\{drawing_uri}\"><a:gsLst>\{markup}</a:gsLst>\{geometry}</a:gradFill>"
 }
 
 ///|
@@ -290,6 +346,9 @@ fn BackgroundFill::paint(
   height : Double,
   tile_sizes~ : Map[String, (Int, Int)] = Map([]),
 ) -> Array[@layout.PositionedPrimitive] raise @failure.Failure {
+  if self is Radial(stops) {
+    return [RadialGradientRectangle({ x: 0, y: 0, width, height, }, stops)]
+  }
   if self is Picture(key, crop, opacity, tile, insets) {
     let result : Array[@layout.PositionedPrimitive] = [
       Rectangle({ x: 0, y: 0, width, height, color: "ffffff", }),

@@ -440,7 +440,9 @@ export function pptxQuery(value: unknown): PptxQuery {
     if (appearance.gradient !== null) {
       checkPptxBackgroundFill(appearance.gradient);
       if (
-        record(appearance.gradient).kind !== "linear" ||
+        !["linear", "radial"].includes(
+          String(record(appearance.gradient).kind),
+        ) ||
         appearance.fill !== null ||
         appearance.fillOpacity !== 1
       )

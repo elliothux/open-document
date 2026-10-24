@@ -29,10 +29,60 @@ fn builtin_style_properties(
       ("TitleChar", "title char", "character"),
       ("Subtitle", "subtitle", "paragraph"),
       ("SubtitleChar", "subtitle char", "character"),
+      ("ListParagraph", "list paragraph", "paragraph"),
+      ("Header", "header", "paragraph"),
+      ("Footer", "footer", "paragraph"),
+      ("HeaderChar", "header char", "character"),
+      ("FooterChar", "footer char", "character"),
+      ("FootnoteText", "footnote text", "paragraph"),
+      ("EndnoteText", "endnote text", "paragraph"),
+      ("FootnoteTextChar", "footnote text char", "character"),
+      ("EndnoteTextChar", "endnote text char", "character"),
+      ("FootnoteReference", "footnote reference", "character"),
+      ("EndnoteReference", "endnote reference", "character"),
     ]
     .iter()
     .find_first(p => kind == p.2 && (key == p.0 || name == p.1))
   guard preset is Some((key, _, _)) else { return None }
+  match key {
+    "ListParagraph" =>
+      return Some(
+        (
+          "<od:pPr xmlns:od=\"\{word_uri}\"><od:ind od:left=\"720\"/><od:contextualSpacing/></od:pPr>",
+          "",
+        ),
+      )
+    "Header" | "Footer" =>
+      return Some(
+        (
+          "<od:pPr xmlns:od=\"\{word_uri}\"><od:tabs><od:tab od:val=\"center\" od:pos=\"4844\"/><od:tab od:val=\"right\" od:pos=\"9689\"/></od:tabs><od:spacing od:after=\"0\" od:line=\"240\" od:lineRule=\"auto\"/></od:pPr>",
+          "",
+        ),
+      )
+    "HeaderChar" | "FooterChar" => return Some(("", ""))
+    "FootnoteText" | "EndnoteText" =>
+      return Some(
+        (
+          "<od:pPr xmlns:od=\"\{word_uri}\"><od:spacing od:after=\"0\" od:line=\"240\" od:lineRule=\"auto\"/></od:pPr>",
+          "<od:rPr xmlns:od=\"\{word_uri}\"><od:sz od:val=\"20\"/><od:szCs od:val=\"20\"/></od:rPr>",
+        ),
+      )
+    "FootnoteTextChar" | "EndnoteTextChar" =>
+      return Some(
+        (
+          "",
+          "<od:rPr xmlns:od=\"\{word_uri}\"><od:sz od:val=\"20\"/><od:szCs od:val=\"20\"/></od:rPr>",
+        ),
+      )
+    "FootnoteReference" | "EndnoteReference" =>
+      return Some(
+        (
+          "",
+          "<od:rPr xmlns:od=\"\{word_uri}\"><od:vertAlign od:val=\"superscript\"/></od:rPr>",
+        ),
+      )
+    _ => ()
+  }
   let paragraph = match key {
     "Title" =>
       "<od:pPr xmlns:od=\"\{word_uri}\"><od:spacing od:after=\"80\" od:line=\"240\" od:lineRule=\"auto\"/><od:contextualSpacing/></od:pPr>"

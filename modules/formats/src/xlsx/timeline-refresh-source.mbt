@@ -40,17 +40,18 @@ fn Session::refresh_timeline_data(
   let (plain, _) = original.edit_source([sheet_node_removal(tree, list)])
   pivot_cache_profile(plain, records.id)
   let fields = tree.all(tree.one(0, "cacheFields").unwrap().id, "cacheField")
+  let old_range = Range::parse(timeline_origin(original)[1])
+  let old_width = old_range.right - old_range.left + 1
   ignore(
     pivot_read_groups(
       Tree::new(plain),
       self.date1904,
-      data.source_width,
+      old_width,
       settings.values.map(value => value.name),
     ),
   )
-  guard fields.length() >= data.source_width &&
-    fields[:data.source_width].map(node => slicer_text(node, "name")) ==
-    data.headers[:data.source_width].to_owned() else {
+  guard fields.length() >= old_width &&
+    pivot_source_field(data.headers, cache.source) < data.source_width else {
     @failure.reject(
       "protected-content", "Timeline date source fields require remapping",
     )
@@ -74,7 +75,7 @@ fn Session::refresh_timeline_data(
   pivot_plain_source(old_records)
   let rows = Tree::new(old_records)
   let entries = rows.all(0, "r")
-  guard entries.length().to_int64() * data.source_width.to_int64() <= 65536 &&
+  guard entries.length().to_int64() * old_width.to_int64() <= 65536 &&
     natural(old_records.nodes()[0].attribute("count").unwrap_or(""), 65536) ==
     entries.length() &&
     natural(original.nodes()[0].attribute("recordCount").unwrap_or(""), 65536) ==
@@ -105,7 +106,7 @@ fn Session::refresh_timeline_data(
   }
   for row in entries {
     let values = rows.children.get(row.id).unwrap_or([])
-    guard values.length() == data.source_width else {
+    guard values.length() == old_width else {
       @failure.reject(
         "protected-content", "Timeline date record width is inconsistent",
       )

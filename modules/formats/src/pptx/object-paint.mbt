@@ -19,7 +19,7 @@ fn paint_fill(properties : Ref) -> @xml.Node? raise @failure.Failure {
     return Some(fill)
   }
   if fill.name == "gradFill" && properties.node.name == "spPr" {
-    ignore(linear_background_source({ tree, node: fill, }))
+    ignore(gradient_source({ tree, node: fill, }))
     guard [None, Some("1"), Some("true")].contains(
       fill.attribute("rotWithShape"),
     ) else {

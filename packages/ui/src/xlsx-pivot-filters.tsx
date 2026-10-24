@@ -11,12 +11,14 @@ export function PivotFilters({
   setFilters,
   axes,
   choices,
+  sourceChanged,
   state,
 }: {
   filters: XlsxPivotFilter[];
   setFilters: Dispatch<SetStateAction<XlsxPivotFilter[]>>;
   axes: number[];
   choices: XlsxPivotPreview["filterItems"] | undefined;
+  sourceChanged: boolean;
   state: UiSnapshot;
 }) {
   const t = messages(state.locale);
@@ -53,7 +55,7 @@ export function PivotFilters({
               onChange={(event) =>
                 update(index, {
                   field: event.currentTarget.valueAsNumber - 1,
-                  values: null,
+                  values: sourceChanged ? filter.values : null,
                 })
               }
             />

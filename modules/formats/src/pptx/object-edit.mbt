@@ -54,6 +54,7 @@ pub(all) enum ObjectEdit {
   Ungroup
   Fill(String?)
   GradientFill(Array[@layout.GradientStop], Double, Bool)
+  RadialGradientFill(Array[@layout.GradientStop])
   FillOpacity(Double)
   StrokeOpacity(Double)
   Stroke(String?, Double)
@@ -661,6 +662,8 @@ pub fn Session::edit_objects(
     Fill(_) | Stroke(_, _) => (self.paint_objects(change), self.selection)
     GradientFill(stops, angle, scaled) =>
       (self.gradient_objects(Linear(stops, angle, scaled)), self.selection)
+    RadialGradientFill(stops) =>
+      (self.gradient_objects(Radial(stops)), self.selection)
     FillOpacity(value) | StrokeOpacity(value) =>
       (self.opacity_objects(value, change is StrokeOpacity(_)), self.selection)
     StrokeDash(value) => (self.dash_objects(value), self.selection)

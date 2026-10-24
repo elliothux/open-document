@@ -92,12 +92,25 @@ pub fn write(
       let mut scopes = 0
       for primitive in frame.primitives {
         match primitive {
-          GradientRectangle(rect, stops) => {
+          GradientRectangle(rect, stops)
+          | RadialGradientRectangle(rect, stops) => {
             @layout.validate_gradient(rect, stops)
             if rect.width == 0 || rect.height == 0 {
               continue
             }
-            let key = Json(stops).stringify()
+            let radial = primitive is RadialGradientRectangle(_, _)
+            let side = rect.width.max(rect.height)
+            let area : @layout.Border = if radial {
+              {
+                x: rect.x + (rect.width - side) / 2,
+                y: rect.y + (rect.height - side) / 2,
+                width: side,
+                height: side,
+              }
+            } else {
+              rect
+            }
+            let key = radial.to_string() + Json(stops).stringify()
             let entry = gradients
               .get(key)
               .unwrap_or_else(() => {
@@ -107,7 +120,7 @@ pub fn write(
                 let entry = (
                   "G\{gradients.length()}",
                   @syntax.PdfIndirect(
-                    document.add_object(gradient_shading(stops)),
+                    document.add_object(gradient_shading(stops, radial~)),
                   ),
                 )
                 gradients[key] = entry
@@ -117,22 +130,29 @@ pub fn write(
             ops.push(@content.Op_q)
             ops.push(
               @content.Op_cm({
-                a: rect.width,
+                a: area.width,
                 b: 0,
                 c: 0,
-                d: rect.height,
-                e: rect.x,
-                f: frame.height - rect.y - rect.height,
+                d: area.height,
+                e: area.x,
+                f: frame.height - area.y - area.height,
               }),
             )
-            ops.push(@content.Op_re(0, 0, 1, 1))
+            ops.push(
+              @content.Op_re(
+                (rect.x - area.x) / area.width,
+                (area.height - rect.y + area.y - rect.height) / area.height,
+                rect.width / area.width,
+                rect.height / area.height,
+              ),
+            )
             ops.push(@content.Op_W)
             ops.push(@content.Op_n)
             if stops.any(stop => stop.opacity != 1) {
               let mask = gradient_masks
                 .get(key)
                 .unwrap_or_else(() => {
-                  let mask = gradient_mask(document, stops)
+                  let mask = gradient_mask(document, stops, radial~)
                   gradient_masks[key] = mask
                   mask
                 })
