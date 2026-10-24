@@ -21,6 +21,13 @@ export interface DocxCoverPage {
   title: string;
   subtitle: string;
 }
+export type DocxSectionBreak = "nextPage" | "oddPage" | "evenPage";
+export function checkSectionBreak(
+  value: unknown,
+): asserts value is DocxSectionBreak {
+  if (value !== "nextPage" && value !== "oddPage" && value !== "evenPage")
+    throw new Error("Invalid section break type");
+}
 const singleLineText = (value: unknown, max: number): value is string =>
   typeof value === "string" &&
   value.length <= max &&
@@ -408,6 +415,16 @@ export class FoundationPageSession extends FoundationReviewSession {
       this.call({ operation: "insertBodyPageField", revision, field, profile }),
     );
   }
+  insertSectionBreak(
+    revision: number,
+    kind: DocxSectionBreak,
+    profile: Record<string, string>,
+  ) {
+    checkSectionBreak(kind);
+    return editState(
+      this.call({ operation: "insertSectionBreak", revision, kind, profile }),
+    );
+  }
   insertCaption(
     revision: number,
     caption: DocxCaption,
@@ -556,18 +573,24 @@ export class FoundationPageSession extends FoundationReviewSession {
       this.call({ operation: "setPageBackground", revision, color }),
     );
   }
-  watermark(revision: number) {
-    return docxWatermarkState(this.call({ operation: "watermark", revision }));
+  watermark(revision: number, section: number) {
+    checkPageSection(section);
+    return docxWatermarkState(
+      this.call({ operation: "watermark", revision, section }),
+    );
   }
   setWatermark(
     revision: number,
+    section: number,
     value: DocxWatermark | null,
     profile: Record<string, string>,
   ) {
+    checkPageSection(section);
     return editState(
       this.call({
         operation: "setWatermark",
         revision,
+        section,
         value: encodeDocxWatermark(value),
         profile,
       }),

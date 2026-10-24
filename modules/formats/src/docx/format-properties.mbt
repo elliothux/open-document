@@ -141,7 +141,7 @@ fn format_property_order(kind : String) -> Array[String] {
     [
       "pStyle", "keepNext", "keepLines", "pageBreakBefore", "widowControl", "numPr",
       "tabs", "bidi", "spacing", "ind", "contextualSpacing", "jc", "autoSpaceDE",
-      "autoSpaceDN", "outlineLvl", "rPr",
+      "autoSpaceDN", "outlineLvl", "rPr", "sectPr",
     ]
   }
 }

@@ -41,6 +41,7 @@ fn Session::paragraph_range_in(
   notes~ : Bool = false,
   check_layout~ : Bool = true,
   check_graphemes~ : Bool = true,
+  sectionBoundary~ : Bool = false,
 ) -> ParagraphRange raise @failure.Failure {
   self.check_position_in(document, selection.anchor, check_graphemes~)
   self.check_position_in(document, selection.focus, check_graphemes~)
@@ -127,7 +128,7 @@ fn Session::paragraph_range_in(
     )
     self.check_native_drawings(tree, id)
     if structural {
-      tree.check_structure_paragraph(id, running=fields)
+      tree.check_structure_paragraph(id, running=fields, sectionBoundary~)
     }
     paragraphs.push(id)
   }

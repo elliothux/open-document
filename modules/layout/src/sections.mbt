@@ -117,7 +117,13 @@ fn paginate_sections(
   cache : ParagraphCache,
   profile : Map[String, String],
   images : Images,
-) -> (Array[PageFrame], Array[Array[Line]], Array[String], Array[PageNumbering]) raise @failure.Failure {
+) -> (
+  Array[PageFrame],
+  Array[Array[Line]],
+  Array[String],
+  Array[PageNumbering],
+  Array[(Int, Int)?],
+) raise @failure.Failure {
   let fields = flow.body_fields()
   let fixed = flow.sequence_values()
   if fields.values().any(code => code.has_prefix("NOTEREF:")) {
@@ -134,6 +140,7 @@ fn paginate_sections(
     let contexts : Array[(PageNumbering, Int)] = []
     let diagnostics : Array[String] = []
     let section_numbering : Array[PageNumbering] = []
+    let page_sections : Array[(Int, Int)?] = []
     let mut numbering = flow.pageNumbering
     let mut lines = 0
     let mut pending : Array[(Line, Double)] = []
@@ -160,6 +167,7 @@ fn paginate_sections(
             cellAreas: [],
           })
           running.push([])
+          page_sections.push(None)
           contexts.push((numbering, 0))
           numbering = { ..numbering, start: numbering.start + 1L, }
         }
@@ -228,6 +236,7 @@ fn paginate_sections(
           },
         })
         contexts.push((numbering, page))
+        page_sections.push(Some((index, page)))
       }
       running.append(stories)
       diagnostics.append(problems)
@@ -248,13 +257,25 @@ fn paginate_sections(
       combined.pages.length(),
     )
     if stable && total == combined.pages.length() {
-      return (combined.pages, running, diagnostics, section_numbering)
+      return (
+        combined.pages,
+        running,
+        diagnostics,
+        section_numbering,
+        page_sections,
+      )
     }
     if attempt == 7 {
       diagnostics.push(
         "unsupported-layout:section-field-reflow-did-not-converge",
       )
-      return (combined.pages, running, diagnostics, section_numbering)
+      return (
+        combined.pages,
+        running,
+        diagnostics,
+        section_numbering,
+        page_sections,
+      )
     }
     body = updated
     total = combined.pages.length()

@@ -397,6 +397,7 @@ pub(all) struct Layout {
   pages : Array[PageFrame]
   running : Array[Array[Line]]
   sectionNumbering : Array[PageNumbering]
+  pageSections : Array[(Int, Int)?]
   diagnostics : Array[String]
   outlines : Array[Outline]
   fonts : Array[FontInfo]

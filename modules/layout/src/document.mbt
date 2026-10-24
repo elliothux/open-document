@@ -299,6 +299,8 @@ pub(all) struct Layout {
   pages : Array[PageFrame]
   running : Array[Array[Line]]
   sectionNumbering : Array[PageNumbering]
+  /// Section ordinal and local page, or None for a parity spacer.
+  pageSections : Array[(Int, Int)?]
   diagnostics : Array[String]
   outlines : Array[Outline]
   fonts : Array[FontInfo]

@@ -82,10 +82,12 @@ pub fn Session::begin_composition(
     )
     is None {
     ignore(
-      self.paragraph_range(
+      self.paragraph_range_in(
+        self.document(),
         tree,
         selection,
         structural=selection.anchor.paragraph != selection.focus.paragraph,
+        sectionBoundary=true,
         fields=true,
         math=true,
         tables=true,

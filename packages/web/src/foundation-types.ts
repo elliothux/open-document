@@ -21,6 +21,7 @@ export type {
   DocxMathFractions,
   DocxRunningArea,
   DocxCoverPage,
+  DocxSectionBreak,
   DocxCaption,
   DocxNotes,
   DocxNoteEdit,

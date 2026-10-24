@@ -35,6 +35,7 @@ fn Session::prepare_structural_range_in(
     fields=true,
     math=true,
     tables=true,
+    sectionBoundary=true,
     check_graphemes~,
     notes~,
   )
@@ -302,6 +303,17 @@ fn Session::prepare_structural_range_in(
   let paragraph = updated_tree.children[parent.id][first_index +
     parts.length() -
     1]
+  let (candidate, section_edits) = section_range_transition(
+    document, candidate, range, paragraph,
+  )
+  let edits = [xml, ..section_edits]
+  let bytes = edits.fold(init=0, (total, edit) => {
+    let size = edit_bytes(edit)
+    guard size <= history_byte_limit - total else {
+      @failure.reject("limit-exceeded", "Section input exceeds history budget")
+    }
+    total + size
+  })
   if parts.length() > 1 {
     affected.append(
       updated_tree.children[parent.id][first_index + 1:first_index +
@@ -317,14 +329,14 @@ fn Session::prepare_structural_range_in(
   }
   let prepared = self.restore_bookmarks({
     edit: {
-      xml: [xml],
+      xml: edits,
       parts: Map([]),
       created: Map([]),
       created_media: Map([]),
       before: self.selection,
       after: Some({ anchor: focus, focus, }),
       paragraphs: affected,
-      bytes: edit_bytes(xml),
+      bytes,
     },
     document: candidate,
     typing_text: if text.is_empty() {

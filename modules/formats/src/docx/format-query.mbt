@@ -202,6 +202,7 @@ fn Session::formatting_range(
       tree,
       selection,
       structural=true,
+      sectionBoundary=true,
       fields~,
       math=true,
       tables=true,

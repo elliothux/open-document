@@ -22,6 +22,8 @@ export {
   checkDocxCaption,
   type DocxCaption,
   type DocxCoverPage,
+  type DocxSectionBreak,
+  checkSectionBreak,
   docxRunningArea,
   type DocxRunningArea,
   type DocxRunningContent,

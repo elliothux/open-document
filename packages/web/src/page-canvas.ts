@@ -60,7 +60,7 @@ export class PageCanvas extends CanvasSurface {
         ),
       ),
     );
-    for (const key of (await this.client.watermark(flow.revision)).images)
+    for (const key of (await this.client.watermark(flow.revision, 0)).images)
       keys.add(key);
     for (const key of this.keys.keys())
       if (!keys.has(key)) this.keys.delete(key);

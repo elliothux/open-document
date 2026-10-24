@@ -20,11 +20,13 @@ export function DocxWatermark({
   state,
   editor,
   disabled,
+  section,
 }: {
   controller: EditorController;
   state: UiSnapshot;
   editor: DocumentEditor;
   disabled: boolean;
+  section: number;
 }) {
   const t = messages(state.locale);
   const [source, setSource] =
@@ -40,9 +42,10 @@ export function DocxWatermark({
   const snapshot = editor.getSnapshot();
   const stale =
     source?.documentId !== snapshot.documentId ||
-    source.revision !== snapshot.revision;
+    source.revision !== snapshot.revision ||
+    source.section !== section;
   const load = async () => {
-    const value = await editor.watermark();
+    const value = await editor.watermark(section);
     setSource(value);
     setDraft(value.value?.kind === "text" ? value.value.value : initial);
     setKind(value.value?.kind ?? "text");
@@ -72,6 +75,7 @@ export function DocxWatermark({
             controller.run(async () => {
               if (kind === "picture" && !image) return;
               await editor.setWatermark(
+                section,
                 kind === "picture" && image
                   ? { kind, image, ...picture }
                   : { kind: "text", value: draft },
@@ -308,7 +312,7 @@ export function DocxWatermark({
               disabled={!source.value && !source.mixed}
               onClick={() =>
                 controller.run(async () => {
-                  await editor.setWatermark(null);
+                  await editor.setWatermark(section, null);
                   await load();
                 })
               }

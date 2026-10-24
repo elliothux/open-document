@@ -18,6 +18,7 @@ fn Session::table_grid(
   fields~ : Bool = false,
   math~ : Bool = false,
   notes~ : Bool = false,
+  section~ : Int? = None,
 ) -> TableGrid raise @failure.Failure {
   let range = self.paragraph_range(
     tree,
@@ -31,7 +32,7 @@ fn Session::table_grid(
   guard tree.nodes[cell].uri == word_uri && tree.nodes[cell].name == "tc" else {
     @failure.reject("invalid-operation", "Select a table cell first")
   }
-  ignore(self.editable_page_section(tree))
+  ignore(self.editable_page_section(tree, target=section))
   let row = tree.nodes[cell].parent
   let table = tree.nodes[row].parent
   let model = self.flow_from(self.document()).tables

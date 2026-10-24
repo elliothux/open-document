@@ -1,4 +1,9 @@
 export const pageEn = {
+  sectionBreakType: "Section break type",
+  sectionBreakNext: "Next page",
+  sectionBreakOdd: "Odd page",
+  sectionBreakEven: "Even page",
+  insertSectionBreak: "Insert section break",
   tableOfContents: "Table of contents",
   tocLevels: "Include heading levels",
   insertToc: "Insert table of contents",
@@ -136,6 +141,11 @@ export const pageEn = {
   inheritedPageNumberFormat: "Use section format",
 };
 export const pageZh = {
+  sectionBreakType: "分节符类型",
+  sectionBreakNext: "下一页",
+  sectionBreakOdd: "奇数页",
+  sectionBreakEven: "偶数页",
+  insertSectionBreak: "插入分节符",
   tableOfContents: "目录",
   tocLevels: "包含标题级别",
   insertToc: "插入目录",

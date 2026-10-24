@@ -349,6 +349,12 @@ async function dispatch(request: Request): Promise<unknown> {
             request.field,
             request.profile,
           );
+        case "insertSectionBreak":
+          return foundation.insertSectionBreak(
+            request.revision,
+            request.kind,
+            request.profile,
+          );
         case "insertDocxCaption":
           return foundation.insertCaption(
             request.revision,
@@ -407,10 +413,11 @@ async function dispatch(request: Request): Promise<unknown> {
         case "setPageBackground":
           return foundation.setPageBackground(request.revision, request.color);
         case "watermark":
-          return foundation.watermark(request.revision);
+          return foundation.watermark(request.revision, request.section);
         case "setWatermark":
           return foundation.setWatermark(
             request.revision,
+            request.section,
             request.value,
             request.profile,
           );

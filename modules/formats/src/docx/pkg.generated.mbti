@@ -196,6 +196,7 @@ pub fn Session::insert_body_page_field(Self, Int, String, probe~ : @layout.TextP
 pub fn Session::insert_caption(Self, Int, String, String, Bool, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_note(Self, Int, String, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_picture(Self, Int, Double, Double, Bytes) -> Json raise @failure.Failure
+pub fn Session::insert_section_break(Self, Int, String, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_shape(Self, Int, String, Double, Double, String, String, Double, text? : String, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_table(Self, Int, Selection, Int, Int, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::insert_word_art(Self, Int, String, String, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
@@ -252,7 +253,7 @@ pub fn Session::set_running_link(Self, Int, Int, String, String, Bool, probe~ : 
 pub fn Session::set_running_options(Self, Int, Int, Bool, Bool, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::set_theme_color(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::set_theme_fonts(Self, Int, Array[ThemeFontEdit], @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
-pub fn Session::set_watermark(Self, Int, Watermark?, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
+pub fn Session::set_watermark(Self, Int, Int, Watermark?, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::shapes(Self, Int) -> Json raise @failure.Failure
 pub fn Session::style_catalog(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::tab(Self, Int, Bool) -> Json raise @failure.Failure
@@ -267,7 +268,7 @@ pub fn Session::update_composition(Self, Int, Int, String) -> Json raise @failur
 pub fn Session::update_drawing_gesture(Self, Int, Int, Double, Double, page? : Int) -> Json raise @failure.Failure
 pub fn Session::update_list_level(Self, Int, Int, Int, ListLevelFormat) -> Json raise @failure.Failure
 pub fn Session::update_style(Self, Int, String, CharacterFormat, ParagraphFormat, name? : String?, based_on? : FormatChange[String], reset? : Bool) -> Json raise @failure.Failure
-pub fn Session::watermark(Self, Int) -> Json raise @failure.Failure
+pub fn Session::watermark(Self, Int, Int) -> Json raise @failure.Failure
 
 pub(all) enum TableEdit {
   RowBefore

@@ -74,17 +74,7 @@ fn Session::ensure_hyperlink_relationships(
     )
     parts[path] = document
     created[path] = document
-    let kind = "application/vnd.openxmlformats-package.relationships+xml"
-    if self.opc.content_type(path) != Some(kind) {
-      let types = self.opc.names["[content_types].xml"]
-      let original = parts.get(types).unwrap_or_else(() => self.part_xml(types))
-      let (document, edit) = append_part_xml(
-        original,
-        "<Override xmlns=\"http://schemas.openxmlformats.org/package/2006/content-types\" PartName=\"/\{property_attribute(path)}\" ContentType=\"\{kind}\"/>",
-      )
-      parts[types] = document
-      edits.get_or_init(types, () => []).push(edit)
-    }
+    self.ensure_relationship_type(path, parts, edits)
   }
   result
 }

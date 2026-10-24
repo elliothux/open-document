@@ -690,11 +690,19 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 ### 多节分页
 
+`FoundationSession/Client.insertSectionBreak(revision, kind, profile)` 与 `DocumentEditor.insertSectionBreak(kind)` 支持 `nextPage/oddPage/evenPage`。默认页面面板提供相同操作。命令把选择折叠到源起点，保留原选择文字；正文在该处拆段，表格在当前行前拆开，首行则在表格前插入边界段落。跨行合并沿原拆表规则保留上表内容与下表空续接单元格。光标位于新段落或下表首单元格，可继续原生输入。
+
+前节保留完整原生节配置，后节采用指定起始类型、继续编号并继承前节页眉页脚。源修改先通过完整布局和输出检查，再提交一项有界历史；缺字体、保护、旧 revision、节数及输出预算失败保持原文档与历史。实现归[分节创建](../../modules/formats/src/docx/section-create.mbt)，依据 [ONLYOFFICE AddSectionBreak](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L14569-L14661)，未复制上游执行代码。
+
 导入读取正文段落 `pPr/sectPr` 与正文末尾 `sectPr`，分别保留各节纸型、边距、页边框、分栏和页眉页脚距离。`Flow` 的页面字段描述首节；必需的 `sectionBreaks` 按正文段落及表格计数保存后续节配置。节边界会终止段落保留链；每节复用现有分栏、表格和页眉页脚分页，Canvas、PNG 和 PDF 使用逐页尺寸。
 
 当前读取 `nextPage/oddPage/evenPage`。奇偶分节按续接或重启的页号补空白页；首节起号按原生类型修正奇偶。页号继续或按 `pgNumType@start` 重启，格式由本节决定。缺少页眉页脚引用时按变体继承，显式空部件清除继承内容；不同部件的段落身份独立。首页与奇偶变体按当前节选择，`NUMPAGES`、`SEQ` 和跨节 `PAGEREF/REF` 按全文求值，最多八轮重排。
 
-默认界面保持正文编辑保护；[页面设置](#页面设置)支持指定节的尺寸、方向和四边距，[页码设置](#页码格式与起点)支持起号、续号与格式，[分栏](#分栏)支持等宽、不等宽与分隔线，[页边框](#页面边框)支持独立设置、节内首页规则与移除。节末段落及其他节属性编辑继续保护，不能据此标记分节编辑完成。跨节单栏注释归[脚注与尾注](#docx-脚注与尾注内容)；`continuous` 分节及多节水印仍待实现。总量继续限制为 1024 页、32768 行和最多 1024 节；多节暂不复用整页分页缓存，保留段落塑形缓存。HTML/Markdown 导出继续保护节边界。
+多节正文和普通单元格已接通原有原生输入、命中、方向键、范围替换、字符/段落格式及组合输入。Enter 或粘贴 LF 拆段时，原节属性移到最后的新段落，其余新段落保留原段落格式。Backspace/Delete 合段和跨段范围替换时，合并结果保留末段的节属性，删除范围内其他节边界；被合并内容采用下一节纸型、栏和编号。连续分节及其余表格结构编辑继续实施。
+
+删除节边界后，若紧随的保留节没有任何显式页眉/页脚引用，则继承被删节的显式引用；若该节已有引用，则保留其原生配置。连续删除多个边界沿相同规则传递，缺少末节属性时按需创建。页边部件和资源保留，格式修改保留 `sectPr` 及其原始子内容。组合预览使用候选节目录和布局，取消保留原包与历史；提交、节迁移、引用传递及原有书签/批注恢复共用一项有界历史。现有保护、未知源、过期命令和预算失败保持原子拒绝。实现归[节输入事务](../../modules/formats/src/docx/section-input.mbt)与[结构范围编辑](../../modules/formats/src/docx/range.mbt)；语义依据 [ONLYOFFICE 拆段](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L13861-L13868)、[合段](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L14075-L14083)及[删除节时保留页边引用](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/sections/document-sections.js#L293-L326)。
+
+[页面设置](#页面设置)支持指定节的尺寸、方向和四边距，[页码设置](#页码格式与起点)支持起号、续号与格式，[分栏](#分栏)支持等宽、不等宽与分隔线，[页边框](#页面边框)支持独立设置、节内首页规则与移除。其他节属性编辑继续实施，不能据此标记分节编辑完成。跨节单栏注释归[脚注与尾注](#docx-脚注与尾注内容)，多节水印归[DOCX 水印](#docx-水印)。总量继续限制为 1024 页、32768 行和最多 1024 节；多节暂不复用整页分页缓存，保留段落塑形缓存。含节边界的富文本片段及 HTML/Markdown 导出继续保护。
 
 实现归[节读取](../../modules/formats/src/docx/flow-sections.mbt)与[公共节分页](../../modules/layout/src/sections.mbt)。原生起号、奇偶和首页选择依据 [ONLYOFFICE 节页码计算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L14679-L14795)，未复制上游执行代码。
 
@@ -708,7 +716,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 不等宽栏中的表格改为按实际起始栏解析百分比与适配宽度，续栏保持同一列网格。创建、尺寸命令及布局后的属性查询已接入实际位置；未提供布局的原生查询仍返回最窄栏上限。默认编辑器在布局后刷新表格查询，使尺寸面板使用实际栏的上限。分页缓存记录表格起始栏拟合后的列宽，复用时保持同一网格；自动表格的内容变化会使相关宽度失效。创建、调宽、适配、插删列、拆格、历史、保存重开及 PDF 已做定向检查。普通行、合并格与重复表头按目标栏重新取横坐标，文字、边框、底色、命中、光标和选区共用几何。固定网格超出目的栏时拒绝候选，不自动改写网格。更广跨宽度表格兼容继续实施。
 
-修改保留其他节、正文、选择、待输入格式、页码/页边属性及其他 OPC 部件，使用一项有界源历史。同值不新增历史，撤销/重做和保存重开恢复源与绘制结果。候选使用目标节的物理宽度校验，并预检全文分页、表格及字段；重置仍按原生分栏符重新分页。非法参数、旧 revision、保护、未知属性/子节点、不透明目标源、布局或输出预算失败原子拒绝，并保留待重做项。分栏符沿上文范围编辑；多节正文输入、连续分节及其余节属性编辑继续实施。
+修改保留其他节、正文、选择、待输入格式、页码/页边属性及其他 OPC 部件，使用一项有界源历史。同值不新增历史，撤销/重做和保存重开恢复源与绘制结果。候选使用目标节的物理宽度校验，并预检全文分页、表格及字段；重置仍按原生分栏符重新分页。非法参数、旧 revision、保护、未知属性/子节点、不透明目标源、布局或输出预算失败原子拒绝，并保留待重做项。分栏符沿上文范围编辑；连续分节及其余节属性编辑继续实施。
 
 实现归 [`page-columns.mbt`](../../modules/formats/src/docx/page-columns.mbt) 和 [`columns.mbt`](../../modules/layout/src/columns.mbt)。等宽计算参考 [ONLYOFFICE SectionColumns](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/sections/section-columns.js#L200-L216)，栏位置和平衡参考 [DocumentPageSection](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/document/document-page-section.js#L78-L100)，分隔线参考 [Document.draw](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L5384-L5390)。未复制上游执行代码。
 
@@ -730,15 +738,17 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 ### DOCX 水印
 
-`FoundationSession/Client.watermark(revision)` 查询 `{ revision, value, mixed, reason, images }`；`DocumentEditor.watermark()` 还返回 `documentId`。`value` 为默认页眉的水印或 null，`mixed` 表示三个已存页眉变体不同，`reason` 表示目标源的保护原因，`images` 提供各变体的不重复图片资源键。`setWatermark(revision, value)` 和 `DocumentEditor.setWatermark(value)` 设置文字或图片水印，null 移除。设置同时更新默认、首页和偶数页页眉，创建缺失的部件及关系，保留已有文字、字段和开关。以后切换首页或奇偶页设置仍保留水印。
+`FoundationSession/Client.watermark(revision, section)` 查询 `{ revision, section, value, mixed, reason, images }`；`DocumentEditor.watermark(section)` 还返回 `documentId`。`section` 使用零起始源序号。`value` 为目标节有效默认页眉的水印或 null，`mixed` 表示该节三种有效页眉变体不同，`reason` 表示目标源的保护原因。`images` 提供全文已存变体的不重复图片资源键，供预览统一准备资源，最多 3072 项；受保护节仍可提供显示所需资源。只读查询允许组合和绘图候选，按候选节目录读取；写操作继续要求结束候选。`FoundationSession/Client.setWatermark(revision, section, value, profile)` 和 `DocumentEditor.setWatermark(section, value)` 设置文字或图片水印，null 移除。设置同时更新目标节默认、首页和偶数页页眉，创建缺失的部件及关系，保留已有文字、字段和开关。以后切换首页或奇偶页设置仍保留水印。
+
+目标节继承前节区域，或与其他节显式引用同一部件时，核心先复制完整区域及关系，再修改水印；其他显式区域保留原源。当前节独立部件的变化继续作用于仍继承它的后续节。已匹配的变体保留原引用，相同设置不新增历史；移除继承水印创建无水印的独立区域，保留文字和资源。复制、引用、图片、关系及内容类型合为一次事务，支持仅含关系 Override 的包。默认面板共用节选择，切节清除草稿，跨页导航保持目标。
 
 文字值为 `{ kind: "text", value: DocxTextWatermark }`。`DocxTextWatermark` 包含八个必需字段：`text`、`font`、`size`、`color`、`opacity`、`diagonal`、`bold`、`italic`。文字和字体名各为最多 256 个 UTF-16 单元的非空单行文本，字体须在当前 profile 可用。字号为 0.5–1638 pt 的半磅倍数，颜色为不带 `#` 的六位 RGB，不透明度为 0–1 并舍入到 1/100000；后三项为布尔值。斜向使用原生 315° 旋转，水平为 0°。
 
 图片值为 `{ kind: "picture", image, width, height, opacity }`。新图片的 `image` 是 PNG/JPEG 原字节；查询返回不透明资源键，调整已有图片时传回该键。宽高为 0.1–14400 pt，保存按 EMU 精度舍入；不透明度为 0–1 并舍入到 1/100000。原始图片不转码，页眉各自保存图片关系，三个变体可复用同一资源。尺寸或透明度修改不重复添加图片；同字节、同设置为无操作。新图片沿用 4 MiB 压缩输入、4096 像素单边、4 Mi 像素解码和整项 4 MiB 历史预算，实际还须容纳源 XML。Web 宿主在提交前验证解码，再通过现有资源加载器提供 RGBA。默认面板按 96 dpi 读取自然尺寸，在页边距内等比缩小，允许显式修改宽高和透明度。面板先读取当前值，再编辑或移除；文档身份或 revision 变化后须重新读取，混合变体明确提示。
 
-核心保存为页眉 `Watermarks` 图库内容控件中的 DrawingML 文字形状或图片。文字按真实字体测量；图片保存原生尺寸和 `a:alphaModFix`。两者在页边距内居中并置于正文后方，不占正文分页空间，不加入正文语义或字数。普通页眉文字和 PAGE/NUMPAGES 编辑保留原水印 XML。Canvas、页面图片与 PDF 使用相同位置与透明度；文字颜色按页面纯色背景合成，图片保留源 alpha，后续正文和对象照常覆盖。受保护文档仍可显示既有水印。文字/图片互换、设置和移除共用单节页面保护、原子资源事务、精确历史、输出预算和保存重开；缺字体、损坏图片、扩展源或预算失败保留源与重做历史。
+核心保存为页眉 `Watermarks` 图库内容控件中的 DrawingML 文字形状或图片。文字按真实字体测量；图片保存原生尺寸和 `a:alphaModFix`。两者在目标页的实际纸型及页边距内居中并置于正文后方，不占正文分页空间，不加入正文语义或字数。核心 `Layout.pageSections` 保存逐页的节序号与节内页序，奇偶分节补白页使用 `None`；水印按该节首页设置、实际编号奇偶和继承区域选择变体，补白页不绘制。普通页眉文字和 PAGE/NUMPAGES 编辑保留原水印 XML。Canvas、页面图片与 PDF 使用相同位置与透明度；文字颜色按页面纯色背景合成，图片保留源 alpha，后续正文和对象照常覆盖。受保护文档仍可显示既有水印。文字/图片互换、设置和移除共用目标节页面保护、原子资源事务、精确历史、输出预算和保存重开；缺字体、损坏图片、扩展源或预算失败保留源与重做历史。
 
-当前可读写本合同的原生文字和图片配置。导入 VML、多节水印、图片裁剪/旋转及带额外属性、效果或其他结构的水印继续保护，不能用本操作覆盖未知源。实现归 [`watermark-source.mbt`](../../modules/formats/src/docx/watermark-source.mbt)、[`watermark-picture.mbt`](../../modules/formats/src/docx/watermark-picture.mbt)、[`watermark-edit.mbt`](../../modules/formats/src/docx/watermark-edit.mbt)及 [`watermark-layout.mbt`](../../modules/formats/src/docx/watermark-layout.mbt)。页眉内容控件依据 [ONLYOFFICE SetWatermarkProps](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L12823-L12909)，文字形状、字体测量和居中依据 [createWatermark](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/GraphicObjects/GraphicObjects.js#L590-L734)，图片适配和透明度依据[同一函数的图片分支](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/GraphicObjects/GraphicObjects.js#L533-L590)，未复制上游源码。
+当前可读写本合同的单节及多节原生文字和图片配置。导入 VML、图片裁剪/旋转及带额外属性、效果或其他结构的水印继续保护，不能用本操作覆盖未知源。实现归 [`watermark-source.mbt`](../../modules/formats/src/docx/watermark-source.mbt)、[`watermark-picture.mbt`](../../modules/formats/src/docx/watermark-picture.mbt)、[`watermark-edit.mbt`](../../modules/formats/src/docx/watermark-edit.mbt)及 [`watermark-layout.mbt`](../../modules/formats/src/docx/watermark-layout.mbt)。页眉内容控件依据 [ONLYOFFICE SetWatermarkProps](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Document.js#L12823-L12909)，文字形状、字体测量和居中依据 [createWatermark](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/GraphicObjects/GraphicObjects.js#L590-L734)，图片适配和透明度依据[同一函数的图片分支](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/GraphicObjects/GraphicObjects.js#L533-L590)，未复制上游源码。
 
 ### 页面边框
 
@@ -1365,7 +1375,7 @@ DOCX 的显式页面宽、高按固定 LibreOffice 25.8.2.2 的[导入规则](ht
 
 `flow()` 返回派生的段落、样式、页面设置、表格、内联图片引用和诊断；不能修改它来编辑文档。段落与表格数组各自保持源顺序；顶层表格的必需 `beforeParagraph` 是当前源 XML 中先于该表格的正文段落数，同位置连续表格按表格数组顺序插入。稳定 `id` 不表示文档位置，拆段后也不按 ID 排序。`layout(profile)` 在核心中生成 `PageLayout`，profile 将 DOCX 字体键（含 `|bold` / `|italic`）映射到已供应字体 identity。缺字体或字形明确失败，宿主不提供 DOM 测量。布局长度单位为 point；字体内部度量仍用 font units，源范围使用节点局部 UTF-16 offset。
 
-支持 docDefaults、段落/字符样式 basedOn、主题 Latin 字体、直接格式、字号/颜色/粗斜体、段前段后、缩进、左/中/右对齐、auto/exact/atLeast 行距、空段落及显式分页。正文、表格和页眉页脚共用段落间距校验，负间距/最小行距/单元格 padding 明确失败。页面按[多节分页](#多节分页)读取独立节配置，指定节页面几何可编辑，其余分节编辑继续保护。分页的断行使用固定 Unicode 数据与基本 BiDi；同样式跨文本节点一起塑形并保留源映射。`unicode_linebreak` 的 Unicode 15 测试向量按上游规则排除 30.22/999.0 做依赖回归，其字符表源自 Unicode 13；不宣称完整 UAX #14 符合性。当前 fallback 仍按码点选择，复杂 script、彩色字形和任意字体质量不在承诺范围。
+支持 docDefaults、段落/字符样式 basedOn、主题 Latin 字体、直接格式、字号/颜色/粗斜体、段前段后、缩进、左/中/右对齐、auto/exact/atLeast 行距、空段落及显式分页。正文、表格和页眉页脚共用段落间距校验，负间距/最小行距/单元格 padding 明确失败。页面按[多节分页](#多节分页)读取独立节配置，指定节页面几何与多节原生输入已接通，其余分节编辑继续实施。分页的断行使用固定 Unicode 数据与基本 BiDi；同样式跨文本节点一起塑形并保留源映射。`unicode_linebreak` 的 Unicode 15 测试向量按上游规则排除 30.22/999.0 做依赖回归，其字符表源自 Unicode 13；不宣称完整 UAX #14 符合性。当前 fallback 仍按码点选择，复杂 script、彩色字形和任意字体质量不在承诺范围。
 
 基础表格使用固定列宽、当前支持的实线/无边框、RGB 单色填充、四边 cell margin 和最小/精确行高；普通行[逐格跨页](#表格行跨页)，纵向合并行组整体换页。边框编辑与冲突规则归[表格边框](#表格边框)。相邻行共享边框只占一次高度，表尾另留底边，分页判断包含当前页底边空间。自然字高使用上述共享参考设备取整；固定 Noto 原表格的自然行高与垂直步距已匹配固定 LibreOffice，不扩大为所有应用或水平几何一致。嵌套单元格仍明确拒绝；精确行高沿[裁剪规则](#表格尺寸)。不绘制浮动、旋转或翻转图片；页眉页脚已接通[文字、实际避让与逐页输出](#页眉页脚)。已识别但未实现的正文属性给诊断，原包仍由 P2 保存；不是完整属性/schema 检查器，主题颜色、条件表格样式与复杂页眉页脚不在支持面。图片仅支持包内内联 extent；宿主解码已授权资源为 RGBA，外链图片明确拒绝、不自动下载。
 

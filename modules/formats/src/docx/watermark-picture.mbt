@@ -150,6 +150,7 @@ fn Session::watermark_image_link(
     )
     parts[name] = document
     created[name] = document
+    self.ensure_relationship_type(name, parts, edits)
   }
   id
 }

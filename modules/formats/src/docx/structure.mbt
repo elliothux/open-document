@@ -163,6 +163,7 @@ fn WordTree::check_structure_paragraph(
   self : WordTree,
   paragraph : Int,
   running~ : Bool = false,
+  sectionBoundary~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   for id in [paragraph] + self.paragraph_runs(paragraph, running~) {
     let node = self.nodes[id]
@@ -193,7 +194,7 @@ fn WordTree::check_structure_paragraph(
           "protected-content", "Duplicate paragraph or run properties",
         )
       }
-      self.check_structure_properties(properties)
+      self.check_structure_properties(properties, sectionBoundary~)
     }
   }
 }
@@ -202,15 +203,45 @@ fn WordTree::check_structure_paragraph(
 fn WordTree::check_structure_properties(
   self : WordTree,
   id : Int,
+  sectionBoundary~ : Bool = false,
 ) -> Unit raise @failure.Failure {
+  let excluded = if sectionBoundary {
+    self
+    .child(id, "sectPr")
+    .map(id => [id, ..self.descendants(id)])
+    .unwrap_or([])
+  } else {
+    []
+  }
   for id in self.descendants(id) {
+    if excluded.contains(id) {
+      continue
+    }
     let node = self.nodes[id]
     let children = match node.name {
       "pPr" =>
         [
-          "pStyle", "rPr", "spacing", "ind", "jc", "pageBreakBefore", "autoSpaceDE",
-          "autoSpaceDN", "tabs", "bidi", "numPr", "outlineLvl", "keepLines", "keepNext",
-          "widowControl", "contextualSpacing",
+          "pStyle",
+          "rPr",
+          "spacing",
+          "ind",
+          "jc",
+          "pageBreakBefore",
+          "autoSpaceDE",
+          "autoSpaceDN",
+          "tabs",
+          "bidi",
+          "numPr",
+          "outlineLvl",
+          "keepLines",
+          "keepNext",
+          "widowControl",
+          "contextualSpacing",
+          ..if sectionBoundary {
+            ["sectPr"]
+          } else {
+            []
+          },
         ]
       "tabs" => ["tab"]
       "numPr" => ["ilvl", "numId"]
@@ -322,10 +353,10 @@ fn WordTree::continuation_properties(
   let properties = self.child(paragraph, "pPr")
   let page_break = "<od:pageBreakBefore xmlns:od=\"\{word_uri}\" od:val=\"0\"/>"
   if properties is Some(id) {
-    self.check_structure_properties(id)
+    self.check_structure_properties(id, sectionBoundary=true)
     let node = self.nodes[id]
     let fields = self.children[id].filter(child => {
-      self.nodes[child].name != "pageBreakBefore"
+      !["pageBreakBefore", "sectPr"].contains(self.nodes[child].name)
     })
     let markup = fields.map(child => {
       let field = self.nodes[child]
@@ -354,7 +385,6 @@ fn WordTree::check_editable_paragraph(
   fields~ : Bool = false,
   math~ : Bool = false,
   notes~ : Bool = false,
-  sectionBoundary~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   guard self.nodes.contains(paragraph) &&
     self.nodes[paragraph].uri == word_uri &&
@@ -367,15 +397,6 @@ fn WordTree::check_editable_paragraph(
     )
   }
   let parent = self.nodes[paragraph].parent
-  guard sectionBoundary ||
-    self.child(paragraph, "pPr").bind(id => self.child(id, "sectPr")) is None else {
-    @failure.reject(
-      "protected-content",
-      "Section-ending paragraphs require section-aware editing",
-      part~,
-      offset=paragraph,
-    )
-  }
   guard !self.contents.contains(paragraph) else {
     @failure.reject(
       "protected-content",

@@ -13,6 +13,8 @@ import {
   docxWatermarkState,
   type DocxWatermark,
   checkDocxCaption,
+  checkSectionBreak,
+  type DocxSectionBreak,
   type DocxCaption,
   type DocxCoverPage,
   checkPageBackground,
@@ -48,6 +50,21 @@ import {
 
 /** Page commands retain the existing Worker and validation boundary. */
 export class FoundationPageClient extends FoundationReviewClient {
+  async insertSectionBreak(
+    revision: number,
+    kind: DocxSectionBreak,
+    profile: Record<string, string>,
+  ) {
+    checkSectionBreak(kind);
+    return editState(
+      await this.connection.request({
+        operation: "insertSectionBreak",
+        revision,
+        kind,
+        profile,
+      }),
+    );
+  }
   async tableOfContents(revision: number) {
     return docxTableOfContents(
       await this.connection.request({
@@ -289,21 +306,29 @@ export class FoundationPageClient extends FoundationReviewClient {
       }),
     );
   }
-  async watermark(revision: number) {
+  async watermark(revision: number, section: number) {
+    checkPageSection(section);
     return docxWatermarkState(
-      await this.connection.request({ operation: "watermark", revision }),
+      await this.connection.request({
+        operation: "watermark",
+        revision,
+        section,
+      }),
     );
   }
   async setWatermark(
     revision: number,
+    section: number,
     value: DocxWatermark | null,
     profile: Record<string, string>,
   ) {
+    checkPageSection(section);
     checkDocxWatermark(value);
     return editState(
       await this.connection.request({
         operation: "setWatermark",
         revision,
+        section,
         value,
         profile,
       }),

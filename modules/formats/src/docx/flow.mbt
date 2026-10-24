@@ -32,16 +32,7 @@ fn Session::flow_from(
   }
   let sections = self.flow_sections(tree, styles, diagnostics, background)
   let first = sections[0]
-  if sections.length() > 1 {
-    // shortcut: Keep edits protected until all page and table transactions resolve their section.
-    styles = {
-      ..styles,
-      paragraph: {
-        ..styles.paragraph,
-        readOnlyReason: "Multiple-section editing requires section-aware transactions",
-      },
-    }
-  } else if diagnostics.get(0) is Some(reason) {
+  if diagnostics.get(0) is Some(reason) {
     styles = {
       ..styles,
       paragraph: { ..styles.paragraph, readOnlyReason: reason, },

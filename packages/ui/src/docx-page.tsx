@@ -12,6 +12,7 @@ import type {
   DocxPageSetup,
   DocxPageNumbering,
   DocxColumns,
+  DocxSectionBreak,
 } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
@@ -32,6 +33,8 @@ export function DocxPage({
   const t = messages(state.locale);
   const [settings, setSettings] = useState<DocxPageSettings>();
   const [section, setSection] = useState(0);
+  const [sectionBreak, setSectionBreak] =
+    useState<DocxSectionBreak>("nextPage");
   const [draft, setDraft] = useState<DocxPageSetup>();
   const [numbering, setNumbering] = useState<DocxPageNumbering>({
     start: null,
@@ -85,6 +88,36 @@ export function DocxPage({
   return (
     <section aria-label={t.pageSetup}>
       <h3>{t.pageSetup}</h3>
+      <label>
+        {t.sectionBreakType}
+        <select
+          aria-label={t.sectionBreakType}
+          disabled={disabled}
+          value={sectionBreak}
+          onChange={(event) => {
+            const value = event.currentTarget.value;
+            setSectionBreak(
+              value === "oddPage" || value === "evenPage" ? value : "nextPage",
+            );
+          }}
+        >
+          <option value="nextPage">{t.sectionBreakNext}</option>
+          <option value="oddPage">{t.sectionBreakOdd}</option>
+          <option value="evenPage">{t.sectionBreakEven}</option>
+        </select>
+      </label>
+      <button
+        type="button"
+        disabled={disabled || !editor.getSnapshot().data.selection}
+        onClick={() =>
+          controller.run(async () => {
+            await editor.insertSectionBreak(sectionBreak);
+            await load();
+          })
+        }
+      >
+        {t.insertSectionBreak}
+      </button>
       {settings && settings.sectionCount > 1 && (
         <label>
           {t.pageSection}
@@ -166,6 +199,8 @@ export function DocxPage({
         disabled={disabled}
       />
       <DocxWatermark
+        key={section}
+        section={section}
         controller={controller}
         state={state}
         editor={editor}

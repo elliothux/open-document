@@ -13,40 +13,61 @@ fn WordTree::header_watermark(
 }
 
 ///|
-/// Reads the single-section watermark; mixed header variants are reported explicitly.
+/// Reads a section's effective watermarks and document-wide picture resources.
 pub fn Session::watermark(
   self : Session,
   revision : Int,
+  sectionIndex : Int,
 ) -> Json raise @failure.Failure {
-  self.check_revision(revision)
+  self.check_revision_value(revision)
+  guard sectionIndex >= 0 && sectionIndex < 1024 else {
+    @failure.reject("invalid-operation", "Invalid page section")
+  }
   try {
-    let tree = WordTree::new(self.document())
-    ignore(self.editable_page_section(tree))
+    let tree = WordTree::new(self.display_document())
+    guard tree.page_sections().get(sectionIndex) is Some(_) else {
+      @failure.reject("invalid-operation", "Unknown page section")
+    }
+    let headers = self.watermark_headers(tree)
+    let sources = self.watermark_sources(headers)
     let values = ["default", "first", "even"].map(variant => {
-      let (_, _, part) = self.running_target(tree, 0, "header", variant)
-      part.bind(part => {
-        WordTree::new(self.part_xml(part))
-        .header_watermark()
-        .map(mark => self.watermark_value(part, mark.value))
-      })
+      headers[sectionIndex]
+      .get(variant)
+      .bind(part => sources[part])
+      .map(mark => mark.value)
     })
     let images : Array[String] = []
-    for value in values {
-      if value is Some(Picture(Resource(key), _, _, _)) && !images.contains(key) {
+    for source in sources.values() {
+      if source is Some({ value: Picture(Resource(key), _, _, _), .. }) &&
+        !images.contains(key) {
         images.push(key)
       }
     }
+    images.sort()
+    let reason = try {
+      ignore(self.editable_page_section(tree, target=Some(sectionIndex)))
+      ""
+    } catch {
+      @failure.Failure(message~, ..) => message
+    }
     {
-      "value": values[0].map(value => value.json()).unwrap_or(Json::null()),
+      "section": sectionIndex,
+      "value": if reason.is_empty() {
+        values[0].map(value => value.json()).unwrap_or(Json::null())
+      } else {
+        Json::null()
+      },
       "revision": revision,
-      "mixed": values.any(value => value != values[0]),
-      "reason": "",
+      "mixed": reason.is_empty() && values.any(value => value != values[0]),
+      "reason": reason,
       "images": images,
     }
   } catch {
+    @failure.Failure(code="invalid-operation", ..) as error => raise error
     @failure.Failure(message~, ..) =>
       {
         "revision": revision,
+        "section": sectionIndex,
         "value": Json::null(),
         "mixed": false,
         "reason": message,
@@ -60,6 +81,7 @@ pub fn Session::watermark(
 pub fn Session::set_watermark(
   self : Session,
   revision : Int,
+  sectionIndex : Int,
   value : Watermark?,
   probe~ : @layout.TextProbe,
   profile~ : Map[String, String],
@@ -70,13 +92,15 @@ pub fn Session::set_watermark(
   let value = value.map(value => value.normalized())
   let original = self.document()
   let tree = WordTree::new(original)
-  let section = self.editable_page_section(tree)
+  let section = self.editable_page_section(tree, target=Some(sectionIndex))
   let targets = ["default", "first", "even"].map(variant => {
-    let (_, _, part) = self.running_target(tree, 0, "header", variant)
+    let (_, reference, part) = self.running_target(
+      tree, sectionIndex, "header", variant,
+    )
     let old = part.bind(part => {
       WordTree::new(self.part_xml(part)).header_watermark()
     })
-    (variant, part, old)
+    (variant, part, old, reference)
   })
   let mut value = match value {
     Some(Picture(Resource(key), width, height, opacity)) => {
@@ -154,15 +178,45 @@ pub fn Session::set_watermark(
   let media = self.media.copy()
   let created_media : Map[String, Bytes] = Map([])
   let changed : Set[String] = Set([])
-  let references = StringBuilder()
-  for (variant, existing, old) in targets {
-    if existing is None && value is None {
+  let copies : Map[String, String] = Map([])
+  let (initial, edits, section) = page_section(original, tree, section)
+  let mut candidate = initial
+  for (variant, existing, old, reference) in targets {
+    if old.map(mark => self.watermark_value(existing.unwrap(), mark.value)) ==
+      value {
       continue
     }
     let view = { ..self, parts, media, }
-    let part = existing.unwrap_or_else(() => {
-      view.new_word_part("header", parts, part_edits, created)
-    })
+    let part = existing
+      .map(existing => {
+        let shared_elsewhere = tree.order.any(id => {
+          let node = tree.nodes[id]
+          node.uri == word_uri &&
+          node.name == "headerReference" &&
+          node.parent != section &&
+          self.running_part(tree, id, "header") == existing
+        })
+        if reference is None || shared_elsewhere {
+          if copies.get(existing) is Some(copy) {
+            copy
+          } else {
+            let copy = view.copy_running_part(
+              "header",
+              Some(existing),
+              parts,
+              part_edits,
+              created,
+            )
+            copies[existing] = copy
+            copy
+          }
+        } else {
+          existing
+        }
+      })
+      .unwrap_or_else(() => {
+        view.new_word_part("header", parts, part_edits, created)
+      })
     if !changed.contains(part) {
       changed.add(part)
       if value is Some(Picture(Data(bytes), width, height, opacity)) {
@@ -198,6 +252,7 @@ pub fn Session::set_watermark(
       let markup = value
         .map(value => {
           let identity = old
+            .filter(_ => existing == Some(part))
             .map(mark => mark.identity)
             .unwrap_or_else(() => view.next_drawing_identity().to_string())
           match value {
@@ -233,7 +288,7 @@ pub fn Session::set_watermark(
         parts[part] = document
         created[part] = document
       } else {
-        let document = self.part_xml(part)
+        let document = parts.get(part).unwrap_or_else(() => self.part_xml(part))
         let story = WordTree::new(document)
         let (document, edit) = if old is Some(old) {
           let root = story.nodes[0]
@@ -250,10 +305,14 @@ pub fn Session::set_watermark(
           append_part_xml(document, markup)
         }
         parts[part] = document
-        part_edits.get_or_init(part, () => []).push(edit)
+        if created.contains(part) {
+          created[part] = document
+        } else {
+          part_edits.get_or_init(part, () => []).push(edit)
+        }
       }
     }
-    if existing is None {
+    if existing != Some(part) || reference is None {
       let view = { ..self, parts, media, }
       let relation = view
         .relationships()
@@ -264,41 +323,31 @@ pub fn Session::set_watermark(
           rel.kind == running_rel_uri + "/header"
         })
         .unwrap()
-      references.write_string(
-        "<w:headerReference xmlns:w='\{word_uri}' xmlns:r='\{running_rel_uri}' w:type='\{variant}' r:id='\{property_attribute(relation.id)}'/>",
-      )
-    }
-  }
-  let (initial, edits, section) = page_section(original, tree, section)
-  let candidate = if references.to_string().is_empty() {
-    initial
-  } else {
-    let tree = WordTree::new(initial)
-    let node = tree.nodes[section]
-    let previous = tree.children[section]
-      .filter(id => tree.nodes[id].name == "headerReference")
-      .last()
-    let change : @xml.SourceChange = if node.empty {
-      {
-        node: section,
-        offset: node.opening_end - node.start - 2,
-        length: 2,
-        xml: ">\{references}</\{node.qualified}>",
+      let current = WordTree::new(candidate)
+      let change = if reference is Some(id) {
+        let node = current.nodes[id]
+        let attribute = node.attributes
+          .iter()
+          .find_first(a => a.uri == running_rel_uri && a.name == "id")
+          .unwrap()
+        @xml.SourceChange::{
+          node: id,
+          offset: attribute.start - node.start,
+          length: attribute.end - attribute.start,
+          xml: property_attribute(relation.id),
+        }
+      } else {
+        current.running_reference_change(
+          section,
+          "header",
+          variant,
+          relation.id,
+        )
       }
-    } else {
-      {
-        node: section,
-        offset: previous
-        .map(id => tree.nodes[id].end)
-        .unwrap_or(node.opening_end) -
-        node.start,
-        length: 0,
-        xml: references.to_string(),
-      }
+      let (updated, edit) = candidate.edit_source([change])
+      candidate = updated
+      edits.push(edit)
     }
-    let (document, edit) = initial.edit_source([change])
-    edits.push(edit)
-    document
   }
   self.commit_running(
     candidate,

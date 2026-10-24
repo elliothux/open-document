@@ -8,6 +8,18 @@ fn Session::split_table(
   let document = self.document()
   let tree = WordTree::new(document)
   let grid = self.table_grid(tree, selection, notes=true)
+  let (prepared, _) = self.prepare_table_split(document, tree, grid)
+  self.commit_edit(prepared.edit, prepared.document)
+  self.edit_result(prepared.edit.paragraphs)
+}
+
+///|
+fn Session::prepare_table_split(
+  self : Session,
+  document : @xml.Document,
+  tree : WordTree,
+  grid : TableGrid,
+) -> (PreparedEdit, Int) raise @failure.Failure {
   guard grid.row > 0 else {
     @failure.reject(
       "invalid-operation", "Select a row after the first table row",
@@ -139,25 +151,30 @@ fn Session::split_table(
     affected.append(paragraphs.map(p => p.id))
   }
   let siblings = updated.children[body]
-  affected.push(siblings[siblings.search(lower).unwrap() - 1])
+  let boundary = siblings[siblings.search(lower).unwrap() - 1]
+  affected.push(boundary)
   let bytes = edit.payload_bytes()
   guard bytes <= history_byte_limit.to_int64() else {
     @failure.reject("limit-exceeded", "Split table history exceeds budget")
   }
   let position = table_position(target)
   self.check_position_in(candidate, position)
-  self.commit_edit(
+  (
     {
-      xml: [edit],
-      parts: Map([]),
-      created: Map([]),
-      created_media: Map([]),
-      before: self.selection,
-      after: Some({ anchor: position, focus: position, }),
-      paragraphs: affected,
-      bytes: bytes.to_int(),
+      edit: {
+        xml: [edit],
+        parts: Map([]),
+        created: Map([]),
+        created_media: Map([]),
+        before: self.selection,
+        after: Some({ anchor: position, focus: position, }),
+        paragraphs: affected,
+        bytes: bytes.to_int(),
+      },
+      document: candidate,
+      typing_text: None,
+      join_group: false,
     },
-    candidate,
+    boundary,
   )
-  self.edit_result(affected)
 }

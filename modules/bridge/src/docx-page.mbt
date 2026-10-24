@@ -227,6 +227,14 @@ fn Foundation::docx_page(
         images=self.images,
       )
     }
+    "insertSectionBreak" =>
+      session.insert_section_break(
+        revision,
+        field_string(request, "kind"),
+        probe=self.probe,
+        profile=xlsx_profile(request),
+        images=self.images,
+      )
     "insertBodyPageField" | "editBodyPageField" => {
       guard request is { "field": item, .. } else {
         @failure.reject("invalid-operation", "Page field is required")
@@ -533,10 +541,11 @@ fn Foundation::docx_page(
       )
     "setPageBackground" =>
       session.set_page_background(revision, page_background_color(request))
-    "watermark" => session.watermark(revision)
+    "watermark" => session.watermark(revision, field_int(request, "section"))
     "setWatermark" =>
       session.set_watermark(
         revision,
+        field_int(request, "section"),
         text_watermark_value(request),
         probe=self.probe,
         profile=xlsx_profile(request),

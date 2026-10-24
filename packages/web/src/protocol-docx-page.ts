@@ -1,6 +1,16 @@
-import type { DocxCaption, DocxTocEdit } from "@open-document/wasm/foundation";
+import type {
+  DocxCaption,
+  DocxTocEdit,
+  DocxSectionBreak,
+} from "@open-document/wasm/foundation";
 
 export type DocxPageCommand =
+  | {
+      operation: "insertSectionBreak";
+      revision: number;
+      kind: DocxSectionBreak;
+      profile: Record<string, string>;
+    }
   | { operation: "docxTableOfContents"; revision: number }
   | {
       operation: "editDocxTableOfContents";

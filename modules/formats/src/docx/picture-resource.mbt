@@ -85,6 +85,9 @@ fn Session::prepare_picture_resource(
   )
   parts[types] = candidate_types
   edits[types] = [types_edit]
+  if created.contains(rels_path) {
+    self.ensure_relationship_type(rels_path, parts, edits)
+  }
   { path, link, data: bytes, parts, media, edits, created, }
 }
 

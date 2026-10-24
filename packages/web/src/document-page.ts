@@ -10,6 +10,7 @@ import { decodeImage } from "./image.js";
 import type {
   DocxCharts,
   DocxWatermark,
+  DocxSectionBreak,
   DocxChartValue,
   DocxChartUpdate,
   DocxMathFractions,
@@ -52,6 +53,15 @@ export type DocumentProtection = DocxProtection & { documentId: string };
 
 /** Document-wide page commands use the editor's existing read and edit queues. */
 export abstract class DocumentPage extends DocumentReview {
+  insertSectionBreak(kind: DocxSectionBreak): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.insertSectionBreak(
+        this.review.snapshot().revision,
+        kind,
+        this.profile,
+      ),
+    );
+  }
   tableOfContents(): Promise<DocumentTableOfContents> {
     return this.review.read(async () => ({
       ...(await this.review.client.tableOfContents(
@@ -537,16 +547,16 @@ export abstract class DocumentPage extends DocumentReview {
       ),
     );
   }
-  watermark() {
+  watermark(section: number) {
     return this.review.read(async () => {
       const current = this.review.snapshot();
       return {
-        ...(await this.review.client.watermark(current.revision)),
+        ...(await this.review.client.watermark(current.revision, section)),
         documentId: current.documentId,
       };
     });
   }
-  setWatermark(value: DocxWatermark | null): Promise<void> {
+  setWatermark(section: number, value: DocxWatermark | null): Promise<void> {
     return this.review.edit(async () => {
       const current = this.review.snapshot();
       const prepared =
@@ -567,6 +577,7 @@ export abstract class DocumentPage extends DocumentReview {
       }
       return this.review.client.setWatermark(
         current.revision,
+        section,
         prepared,
         this.profile,
       );

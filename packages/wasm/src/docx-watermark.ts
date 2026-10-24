@@ -1,5 +1,6 @@
 import { record, integer } from "./validation.js";
 import { encodeBytes } from "./session.js";
+import { checkPageSection } from "./docx-format.js";
 
 export interface DocxTextWatermark {
   text: string;
@@ -13,6 +14,7 @@ export interface DocxTextWatermark {
 }
 export interface DocxWatermarkState {
   revision: number;
+  section: number;
   value: DocxWatermarkValue | null;
   mixed: boolean;
   reason: string;
@@ -143,6 +145,7 @@ export function checkDocxTextWatermark(
 
 export function docxWatermarkState(input: unknown): DocxWatermarkState {
   const state = record(input);
+  checkPageSection(state.section);
   if (
     typeof state.revision !== "number" ||
     !integer(state.revision, 0, 0x7fffffff) ||
@@ -150,12 +153,11 @@ export function docxWatermarkState(input: unknown): DocxWatermarkState {
     typeof state.reason !== "string" ||
     state.reason.length > 8192 ||
     (!!state.reason && (state.value !== null || state.mixed)) ||
-    Object.keys(state).length !== 5 ||
+    Object.keys(state).length !== 6 ||
     !Array.isArray(state.images) ||
-    state.images.length > 3 ||
+    state.images.length > 3072 ||
     !state.images.every(imageKey) ||
-    new Set(state.images).size !== state.images.length ||
-    (!!state.reason && state.images.length !== 0)
+    new Set(state.images).size !== state.images.length
   )
     throw new Error("Invalid text watermark state");
   checkDocxWatermark(state.value);
@@ -168,6 +170,7 @@ export function docxWatermarkState(input: unknown): DocxWatermarkState {
   } else value = state.value;
   return {
     revision: state.revision,
+    section: state.section,
     value,
     mixed: state.mixed,
     reason: state.reason,
