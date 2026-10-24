@@ -1,4 +1,77 @@
 ///|
+let cell_border_styles : Array[String] = [
+  "none", "thin", "medium", "thick", "double", "hair", "dotted", "dashed", "dashDot",
+  "dashDotDot", "mediumDashed", "mediumDashDot", "mediumDashDotDot", "slantDashDot",
+]
+
+///|
+fn CellBorder::width(self : CellBorder) -> Double {
+  match self.style {
+    "thin" | "hair" | "dotted" | "dashed" | "dashDot" | "dashDotDot" => 0.75
+    "medium"
+    | "mediumDashed"
+    | "mediumDashDot"
+    | "mediumDashDotDot"
+    | "slantDashDot" => 1.5
+    "thick" | "double" => 2.25
+    _ => 0.0
+  }
+}
+
+///|
+fn CellBorder::dash(self : CellBorder) -> Array[Double] {
+  let pixels = match self.style {
+    "hair" => [1.0, 1.0]
+    "dotted" => [2.0, 2.0]
+    "dashed" => [3.0, 1.0]
+    "mediumDashed" => [9.0, 3.0]
+    "dashDot" | "mediumDashDot" | "slantDashDot" => [3.0, 3.0, 9.0, 3.0]
+    "dashDotDot" | "mediumDashDotDot" => [3.0, 3.0, 3.0, 3.0, 9.0, 3.0]
+    _ => []
+  }
+  pixels.map(value => value * 0.75)
+}
+
+///|
+fn CellBorder::paint(
+  self : CellBorder,
+  rect : @layout.Border,
+  strokes : Array[@layout.PositionedPrimitive],
+) -> Unit {
+  if self.width() == 0 {
+    return
+  }
+  if self.style == "double" {
+    for offset in [-0.75, 0.75] {
+      let line = if rect.width == 0 {
+        { ..rect, x: rect.x + offset, }
+      } else {
+        { ..rect, y: rect.y + offset, }
+      }
+      strokes.push(Stroke(line, self.color, 0.75))
+    }
+  } else {
+    let dash = self.dash()
+    if dash.is_empty() {
+      strokes.push(Stroke(rect, self.color, self.width()))
+    } else {
+      strokes.push(
+        Path(
+          [
+            @layout.PathSegment::Move(rect.x, rect.y),
+            Line(rect.x + rect.width, rect.y + rect.height),
+          ],
+          "",
+          self.color,
+          self.width(),
+          { fillAlpha: 1, strokeAlpha: 1, dash, cap: 0, join: 0, miter: 10, },
+        ),
+      )
+    }
+  }
+}
+
+///|
 fn visible_neighbor(indices : Array[Int], value : Int, after : Bool) -> Int? {
   for low = 0, high = indices.length(); low < high; {
     let middle = low + (high - low) / 2
@@ -15,11 +88,8 @@ fn visible_neighbor(indices : Array[Int], value : Int, after : Bool) -> Int? {
 ///|
 fn CellBorder::strength(self : CellBorder) -> Int {
   match self.style {
-    "thin" => 1
-    "medium" => 2
-    "thick" => 3
     "double" => 4
-    _ => 0
+    _ => (self.width() / 0.75).to_int()
   }
 }
 

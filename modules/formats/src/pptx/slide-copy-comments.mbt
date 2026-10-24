@@ -8,7 +8,7 @@ fn Session::copy_slide_comments(
   let comments = read_comment_entries(tree)
   if tree.document.nodes()[0].uri == modern_comment_uri {
     let authors = self
-      .comment_part(self.main.part, "commentAuthors", self.relationships())
+      .comment_authors(Some(tree), self.relationships())
       .map(read_modern_authors)
       .unwrap_or([])
     guard comments.all(c => authors.any(a => a.id == c.author)) else {

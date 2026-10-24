@@ -194,7 +194,7 @@ fn CellFormat::validate(self : CellFormat) -> Unit raise @failure.Failure {
     border in [self.left, self.right, self.top, self.bottom]
     .iter()
     .filter_map(v => v) {
-    guard ["none", "thin", "medium", "thick", "double"].contains(border.style) &&
+    guard cell_border_styles.contains(border.style) &&
       border.color.length() == 6 &&
       border.color.iter().all(c => c.is_ascii_hexdigit()) else {
       @failure.reject("invalid-operation", "Invalid cell border")

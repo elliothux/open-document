@@ -5,7 +5,7 @@ priv struct PagePaint {
   height : Double
   fills : Array[@layout.Fill]
   bars : Array[@layout.PositionedPrimitive]
-  strokes : Array[(@layout.Border, String, Double)]
+  strokes : Array[@layout.PositionedPrimitive]
   texts : Array[(Array[@layout.PositionedPrimitive], @layout.Border)]
   cells : Array[(Range, @layout.Border)]
   anchors : Array[(Range, @layout.Border)]
@@ -18,9 +18,7 @@ fn PagePaint::positioned(self : PagePaint) -> @layout.PositionedPage {
     primitives.push(Rectangle(fill))
   }
   primitives.append(self.bars)
-  for (rect, color, width) in self.strokes {
-    primitives.push(Stroke(rect, color, width))
-  }
+  primitives.append(self.strokes)
   for (items, clip) in self.texts {
     primitives.push(Clip(clip))
     primitives.append(items)

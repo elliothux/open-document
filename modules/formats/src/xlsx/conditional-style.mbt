@@ -138,7 +138,7 @@ fn conditional_style(
               "protected-content", "Conditional border color without a style is unsupported",
             )
           }
-          guard ["none", "thin", "medium", "thick", "double"].contains(style) else {
+          guard cell_border_styles.contains(style) else {
             @failure.reject(
               "protected-content", "Unsupported conditional border style",
             )

@@ -251,7 +251,7 @@ export type {
   XlsxFindOptions,
   XlsxSearchResult,
 } from "@open-document/wasm/xlsx";
-export { xlsxNumberFormats } from "@open-document/wasm/xlsx";
+export { xlsxNumberFormats, xlsxBorderStyles } from "@open-document/wasm/xlsx";
 export type {
   XlsxCellFormat,
   XlsxFormatting,

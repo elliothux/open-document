@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   xlsxTableStyleRegions,
+  xlsxBorderStyles,
   type XlsxTableStyleElement,
   type XlsxCellBorder,
 } from "@open-document/web/xlsx";
@@ -216,13 +217,11 @@ export function XlsxTableStyleDefinitions(props: PanelProps) {
                       }
                     >
                       <option value="">{t.keepStyleProperty}</option>
-                      {["none", "thin", "medium", "thick", "double"].map(
-                        (style) => (
-                          <option key={style} value={style}>
-                            {style}
-                          </option>
-                        ),
-                      )}
+                      {xlsxBorderStyles.map((style) => (
+                        <option key={style} value={style}>
+                          {style}
+                        </option>
+                      ))}
                     </select>
                   </label>
                   <label>

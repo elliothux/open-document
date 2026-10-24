@@ -2,8 +2,8 @@
 fn Session::modern_comment_ids(
   self : Session,
   count : Int,
+  reserved~ : Map[String, Bool] = Map([]),
 ) -> Array[String] raise @failure.Failure {
-  let reserved : Map[String, Bool] = Map([])
   let mut work = 0
   for link in self.relationships() {
     if link.external ||
@@ -20,8 +20,10 @@ fn Session::modern_comment_ids(
           "limit-exceeded", "Modern comment identity scan exceeds budget",
         )
       }
-      if node.attribute("id") is Some(id) {
-        reserved[id.to_upper()] = true
+      for key in ["id", "authorId"] {
+        if node.attribute(key) is Some(id) {
+          reserved[id.to_upper()] = true
+        }
       }
     }
   }

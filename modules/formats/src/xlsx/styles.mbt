@@ -295,7 +295,7 @@ fn read_styles(
         },
       )
       let kind = edge.bind(node => node.attribute("style")).unwrap_or("none")
-      let kind = if ["none", "thin", "medium", "thick", "double"].contains(kind) {
+      let kind = if cell_border_styles.contains(kind) {
         kind
       } else {
         style = { ..style, diagnostic: "Unsupported border style", }

@@ -178,7 +178,7 @@ fn grid_header(
     height: rect.height,
     color: "f1f3f5",
   })
-  page.strokes.push((rect, "d9dce1", 0.5))
+  page.bars.push(Stroke(rect, "d9dce1", 0.5))
   ignore(
     place_block(
       page,

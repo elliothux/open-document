@@ -177,7 +177,7 @@ pub fn Session::import_slides(
       continue
     }
     let tree = Tree::new(name, resources.documents[name])
-    let (document, issued) = if kind == "chart" {
+    let (document, issued) = if ["chart", "comments"].contains(kind) {
       (tree.document, next)
     } else {
       copy_slide_objects(tree, target, object_ids, next, self.budget)
@@ -311,6 +311,7 @@ pub fn Session::import_slides(
     edits.push((main.part, edit))
   }
   let added : Array[(Slide, @xml.Document)] = []
+  let slide_ids : Map[String, String] = Map([])
   for offset, name in paths {
     while used.contains(slide_sequence.to_string()) ||
           target_links.any(link => {
@@ -348,6 +349,7 @@ pub fn Session::import_slides(
       "<Relationship xmlns='http://schemas.openxmlformats.org/package/2006/relationships' Id='odSlide\{slide_sequence}' Type='\{relationship_uri}/slide' Target='/\{xml_attribute(remap[name])}'/>",
     )
     used.add(slide_sequence.to_string())
+    slide_ids[name] = slide_sequence.to_string()
     slide_sequence += 1L
   }
   let overrides = StringBuilder()
@@ -380,6 +382,9 @@ pub fn Session::import_slides(
     edits.push((path, edit))
   }
   let slides = self.slides.copy()
+  self.import_comments(
+    source, paths, remap, slide_ids, parts, media, created, edits,
+  )
   for offset, name in paths {
     let target = remap[name]
     let slide = read_slide(

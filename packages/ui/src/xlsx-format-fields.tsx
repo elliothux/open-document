@@ -3,7 +3,7 @@ import type {
   XlsxCellBorder,
   XlsxFormatting,
 } from "@open-document/web/xlsx";
-import { xlsxNumberFormats } from "@open-document/web/xlsx";
+import { xlsxNumberFormats, xlsxBorderStyles } from "@open-document/web/xlsx";
 import type { UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 
@@ -335,7 +335,7 @@ export function XlsxFormatFields({
                 )
               }
             >
-              {options(["none", "thin", "medium", "thick", "double"])}
+              {options(xlsxBorderStyles)}
             </select>
           </label>
           <label>

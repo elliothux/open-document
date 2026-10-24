@@ -193,7 +193,8 @@ fn Session::paint_cells(
         }
       }
       if !foreign && !printing && sheet.view.grid_lines {
-        page.strokes.push((rect, "d9dce1", 0.5))
+        // Every gridline must precede explicit edges, including those of neighboring cells.
+        page.bars.push(Stroke(rect, "d9dce1", 0.5))
       }
       for side, edge in style.borders {
         if foreign ||
@@ -209,18 +210,7 @@ fn Session::paint_cells(
           2 => { ..rect, height: 0, }
           _ => { ..rect, y: rect.y + rect.height, height: 0, }
         }
-        if edge.style == "double" {
-          for offset in [-0.75, 0.75] {
-            let line = if side < 2 {
-              { ..edge_rect, x: edge_rect.x + offset, }
-            } else {
-              { ..edge_rect, y: edge_rect.y + offset, }
-            }
-            page.strokes.push((line, edge.color, 0.75))
-          }
-        } else {
-          page.strokes.push((edge_rect, edge.color, edge.width()))
-        }
+        edge.paint(edge_rect, page.strokes)
       }
       let horizontal = style.text_alignment(value, sheet.view.formulas)
       let text_rect = if ["centerContinuous", "fill"].contains(horizontal) &&

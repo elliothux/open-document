@@ -200,6 +200,7 @@ import {
 export {
   checkXlsxCellFormat,
   xlsxNumberFormats,
+  xlsxBorderStyles,
   copiedCellFormat,
 } from "./xlsx-format.js";
 export type {

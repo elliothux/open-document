@@ -231,6 +231,7 @@ fn Session::comment_part(
   owner : String,
   kind : String,
   links : ReadOnlyArray[@opc.Relationship],
+  modern? : Bool,
 ) -> Tree? raise @failure.Failure {
   guard !links.any(l => {
     l.owner == owner &&
@@ -251,7 +252,10 @@ fn Session::comment_part(
       modern_comment_relationship +
       "/" +
       (if kind == "commentAuthors" { "authors" } else { kind })
-    )
+    ) &&
+    modern
+    .map(value => value == l.kind.has_prefix(modern_comment_relationship + "/"))
+    .unwrap_or(true)
   })
   guard owned.length() <= 1 else {
     @failure.reject(
@@ -288,6 +292,27 @@ fn Session::comment_part(
 }
 
 ///|
+fn Session::comment_authors(
+  self : Session,
+  comments : Tree?,
+  links : ReadOnlyArray[@opc.Relationship],
+) -> Tree? raise @failure.Failure {
+  let modern = comments
+    .map(tree => tree.document.nodes()[0].uri == modern_comment_uri)
+    .unwrap_or_else(() => {
+      links.any(l => {
+        l.owner == self.main.part &&
+        l.kind == modern_comment_relationship + "/authors"
+      }) ||
+      !links.any(l => {
+        l.owner == self.main.part &&
+        l.kind == relationship_uri + "/commentAuthors"
+      })
+    })
+  self.comment_part(self.main.part, "commentAuthors", links, modern~)
+}
+
+///|
 fn Session::comments_query(
   self : Session,
   slide : String,
@@ -295,11 +320,7 @@ fn Session::comments_query(
 ) -> Json {
   try {
     let tree = self.comment_part(slide, "comments", links)
-    let authors_tree = self.comment_part(
-      self.main.part,
-      "commentAuthors",
-      links,
-    )
+    let authors_tree = self.comment_authors(tree, links)
     let authors = authors_tree.map(read_comment_authors).unwrap_or([])
     let names : Map[String, CommentAuthor] = Map([])
     for author in authors {

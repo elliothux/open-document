@@ -1,8 +1,24 @@
 import { record, integer } from "./validation.js";
 import type { CellRange } from "./xlsx.js";
 
+export const xlsxBorderStyles = [
+  "none",
+  "thin",
+  "medium",
+  "thick",
+  "double",
+  "hair",
+  "dotted",
+  "dashed",
+  "dashDot",
+  "dashDotDot",
+  "mediumDashed",
+  "mediumDashDot",
+  "mediumDashDotDot",
+  "slantDashDot",
+] as const;
 export interface XlsxCellBorder {
-  style: "none" | "thin" | "medium" | "thick" | "double";
+  style: (typeof xlsxBorderStyles)[number];
   color: string;
 }
 export interface XlsxCellFormat {
@@ -227,7 +243,7 @@ export function checkXlsxCellFormat(value: unknown): void {
           ["style", "color"].includes(field),
         ) &&
         typeof border.style === "string" &&
-        ["none", "thin", "medium", "thick", "double"].includes(border.style) &&
+        xlsxBorderStyles.some((style) => style === border.style) &&
         typeof border.color === "string" &&
         /^[0-9a-fA-F]{6}$/u.test(border.color);
     }

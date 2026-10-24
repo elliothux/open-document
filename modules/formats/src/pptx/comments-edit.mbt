@@ -32,7 +32,7 @@ fn Session::edit_comments(
   let slide = self.slides[index].tree.part
   let links = self.relationships()
   let tree = self.comment_part(slide, "comments", links)
-  let author_tree = self.comment_part(self.main.part, "commentAuthors", links)
+  let author_tree = self.comment_authors(tree, links)
   if (tree is None && author_tree is None) ||
     tree
     .map(t => t.document.nodes()[0].uri == modern_comment_uri)

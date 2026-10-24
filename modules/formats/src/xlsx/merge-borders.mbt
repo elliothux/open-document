@@ -1,14 +1,4 @@
 ///|
-fn CellBorder::width(self : CellBorder) -> Double {
-  match self.style {
-    "thin" => 0.75
-    "medium" => 1.5
-    "thick" | "double" => 2.25
-    _ => 0.0
-  }
-}
-
-///|
 fn CellFormat::for_merged_cell(
   self : CellFormat,
   address : Address,

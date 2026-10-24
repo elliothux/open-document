@@ -11,7 +11,7 @@ fn import_relationship_kinds(kind : String) -> Array[String] {
     "slide" =>
       [
         "slideLayout", "image", "hyperlink", "slide", "notesSlide", "audio", "video",
-        "media", "chart",
+        "media", "chart", "comments",
       ]
     "slideLayout" => ["slideMaster", "image", "hyperlink", "slide"]
     "slideMaster" => ["slideLayout", "theme", "image", "hyperlink", "slide"]
@@ -19,6 +19,7 @@ fn import_relationship_kinds(kind : String) -> Array[String] {
     "notesMaster" => ["theme", "image", "hyperlink"]
     "theme" => ["image", "hyperlink"]
     "chart" => ["package"]
+    "comments" => ["hyperlink"]
     _ => []
   }
 }
@@ -29,6 +30,35 @@ fn Session::slide_import_parts(
   selected : Array[String],
 ) -> ImportedParts raise @failure.Failure {
   let links = self.relationships()
+  let mut comments = 0
+  for slide in selected {
+    if self.comment_part(slide, "comments", links) is Some(tree) {
+      let entries = read_comment_entries(tree)
+      let author_tree = self.comment_authors(Some(tree), links)
+      if author_tree is Some(owner) {
+        guard !links.any(link => link.owner == owner.part) else {
+          @failure.reject(
+            "protected-content", "Imported author resources require ownership support",
+          )
+        }
+      }
+      let authors = author_tree.map(read_comment_authors).unwrap_or([])
+      guard entries.all(e => authors.any(a => a.id == e.author)) else {
+        @failure.reject(
+          "protected-content", "Imported comment author is missing",
+        )
+      }
+      if tree.document.nodes()[0].uri == modern_comment_uri {
+        self.check_comment_anchors(tree, slide)
+      }
+      comments += entries.length()
+      guard comments <= 16384 else {
+        @failure.reject(
+          "limit-exceeded", "Imported comments exceed allocation budget",
+        )
+      }
+    }
+  }
   let kinds = Map::from_array(selected.map(part => (part, "slide")))
   let pending = selected.copy()
   let documents : Map[String, @xml.Document] = Map([])
@@ -73,6 +103,8 @@ fn Session::slide_import_parts(
       let tree = Tree::new(part, document)
       if kind == "chart" {
         ignore(@chart.read(self.opc, part, self.parts))
+      } else if kind == "comments" {
+        ignore(read_comment_entries(tree))
       } else {
         check_slide_copy_markup(tree)
       }
@@ -99,6 +131,8 @@ fn Session::slide_import_parts(
       }
       let child_kind = if link.kind == media_relationship_uri {
         "media"
+      } else if link.kind == modern_comment_relationship + "/comments" {
+        "comments"
       } else if link.kind.has_prefix(relationship_uri + "/") {
         link.kind[relationship_uri.length() + 1:].to_owned()
       } else {
