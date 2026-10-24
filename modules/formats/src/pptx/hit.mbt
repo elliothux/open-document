@@ -23,6 +23,16 @@ fn object_hit(
   tolerance : Double,
 ) -> Bool raise @failure.Failure {
   guard object.geometry is Some(geometry) else { return true }
+  if object.body.upright && !object.paragraphs.is_empty() {
+    let (matrix, clip) = object.text_clip(geometry)
+    let (tx, ty) = geometry.matrix.then(matrix).inverse().point(x, y)
+    if tx >= clip.x &&
+      tx <= clip.x + clip.width &&
+      ty >= clip.y &&
+      ty <= clip.y + clip.height {
+      return true
+    }
+  }
   let (x, y) = geometry.matrix.inverse().point(x, y)
   let width = geometry.width
   let height = geometry.height
@@ -114,11 +124,11 @@ fn closest_caret(
   x : Double,
   y : Double,
 ) -> Int raise @failure.Failure {
-  let (x, y) = text.matrix.inverse().point(x, y)
   let mut offset = 0
   let mut distance = 1.0e30
   let mut column_distance = 1.0e30
   for line in text.lines {
+    let (x, y) = text.line_matrix(line).inverse().point(x, y)
     let dx = (line.areaX - x).max(0).max(x - line.areaX - line.areaWidth)
     let dy = if y < line.y {
       line.y - y
@@ -276,12 +286,13 @@ pub fn Session::selection_geometry(
       let a = selection.anchor.min(selection.focus)
       let b = selection.anchor.max(selection.focus)
       for line in text.lines {
+        let matrix = text.line_matrix(line)
         if line.carets
           .iter()
           .find_first(caret => caret.offset == selection.focus)
           is Some(position) {
-          let (x, y) = text.matrix.point(line.x + position.after, line.y)
-          let (end_x, end_y) = text.matrix.point(
+          let (x, y) = matrix.point(line.x + position.after, line.y)
+          let (end_x, end_y) = matrix.point(
             line.x + position.after,
             line.y + line.height,
           )
@@ -299,15 +310,16 @@ pub fn Session::selection_geometry(
           if first.offset >= a && last.offset <= b && first.offset < last.offset {
             let left = first.after.min(last.before)
             let right = first.after.max(last.before)
-            if right > left {
+            if right > left &&
+              text.line_rect(line, {
+                x: line.x + left,
+                y: line.y,
+                width: right - left,
+                height: line.height,
+              })
+              is Some(rect) {
               rects.push(
-                polygon(
-                  text.matrix,
-                  line.x + left,
-                  line.y,
-                  right - left,
-                  line.height,
-                ),
+                polygon(text.matrix, rect.x, rect.y, rect.width, rect.height),
               )
             }
           }
@@ -406,7 +418,13 @@ pub fn Session::navigate(
     )
   }
   let object = current.object(self.selection.object)
-  let direction = match (object.body.direction, direction) {
+  let orientation = if object.table is Some(table) {
+    let (r, c) = table.cell_at(self.selection.focus)
+    table.rows[r].cells[c].body.direction
+  } else {
+    object.body.direction
+  }
+  let direction = match (orientation, direction) {
     ("vert", "left") | ("vert270", "right") => "down"
     ("vert", "right") | ("vert270", "left") => "up"
     ("vert", "up") | ("vert270", "down") => "left"

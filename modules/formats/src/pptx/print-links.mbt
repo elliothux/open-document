@@ -92,6 +92,13 @@ fn Session::print_links(
       continue
     }
     let object = link.object.geometry.unwrap()
+    let (clip_matrix, clip) = link.object.text_clip(object)
+    let clipping = if link.start < 0 {
+      @layout.Matrix::identity()
+    } else {
+      clip_matrix
+    }
+    let frame = object.matrix.then(clipping)
     let bounds : Array[@layout.Border] = []
     if link.start < 0 {
       let pad = if object.width == 0 || object.height == 0 {
@@ -106,7 +113,7 @@ fn Session::print_links(
         height: object.height + pad * 2,
       })
     } else if geometry.get(link.object.id) is Some(text) {
-      let plane = object.matrix.inverse().then(text.matrix)
+      let plane = frame.inverse().then(text.matrix)
       for line in text.lines {
         work += line.carets.length() + 1
         guard work <= remaining else {
@@ -114,8 +121,10 @@ fn Session::print_links(
             "limit-exceeded", "Presentation PDF link geometry exceeds budget",
           )
         }
+        let original_line = line
         let line = {
           ..line,
+          cellClip: None,
           carets: line.carets.map(caret => {
             ..caret,
             before: caret.before + line.x,
@@ -123,6 +132,9 @@ fn Session::print_links(
           }),
         }
         for rect in line.link_rects(link.start, link.end) {
+          guard text.line_rect(original_line, rect) is Some(rect) else {
+            continue
+          }
           let left = if link.object.body.columns > 1 {
             rect.x.max(line.areaX)
           } else {
@@ -138,8 +150,8 @@ fn Session::print_links(
               { ..rect, x: left, width: right - left, },
               plane,
               0,
-              object.width,
-              object.height,
+              clip.width,
+              clip.height,
             )
             is Some(clipped) {
             bounds.push({
@@ -153,7 +165,7 @@ fn Session::print_links(
       }
     }
     for rect in bounds {
-      if print_link_rect(rect, object.matrix, page, self.width, self.height)
+      if print_link_rect(rect, frame, page, self.width, self.height)
         is Some(rect) {
         guard links.length() < 65536 else {
           @failure.reject(

@@ -395,6 +395,7 @@ fn read_object(
           rtlColumns: false,
           direction: "horz",
           rotation: 0,
+          upright: false,
         },
         message,
       )

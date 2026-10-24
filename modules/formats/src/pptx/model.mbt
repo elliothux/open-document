@@ -74,6 +74,7 @@ priv struct Body {
   rtlColumns : Bool
   direction : String
   rotation : Double
+  upright : Bool
 }
 
 ///|
@@ -191,6 +192,7 @@ priv struct TextGeometry {
   object : String
   matrix : @layout.Matrix
   lines : Array[@layout.Line]
+  transforms : Map[Int, @layout.Matrix]
 }
 
 ///|

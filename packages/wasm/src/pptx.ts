@@ -426,6 +426,7 @@ export function pptxQuery(value: unknown): PptxQuery {
         ["left", "top", "right", "bottom"],
       ) ||
       typeof frame.wrap !== "boolean" ||
+      typeof frame.upright !== "boolean" ||
       typeof frame.rtlColumns !== "boolean" ||
       !["none", "shrink", "resize"].includes(String(frame.fit))
     )

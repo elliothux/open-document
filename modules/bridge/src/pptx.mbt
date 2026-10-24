@@ -423,48 +423,14 @@ fn Foundation::pptx_operation(
           }
           @pptx.TextParagraph(pptx_paragraph_format(format))
         }
-        "textInsets" =>
-          @pptx.TextInsets(
-            xlsx_number(change, "left"),
-            xlsx_number(change, "top"),
-            xlsx_number(change, "right"),
-            xlsx_number(change, "bottom"),
-          )
-        "textAnchor" => @pptx.TextAnchor(field_string(change, "anchor"))
-        "textWrap" => @pptx.TextWrap(xlsx_boolean(change, "wrap"))
-        "textFit" => @pptx.TextFit(field_string(change, "fit"))
-        "textRotation" => {
-          guard change is Object(fields) &&
-            fields.length() == 2 &&
-            fields.keys().all(key => ["action", "angle"].contains(key)) else {
-            @failure.reject("invalid-operation", "Invalid text rotation fields")
-          }
-          @pptx.TextRotation(xlsx_number(change, "angle"))
-        }
-        "textDirection" => {
-          guard change is Object(fields) &&
-            fields.length() == 2 &&
-            fields.keys().all(key => ["action", "direction"].contains(key)) else {
-            @failure.reject(
-              "invalid-operation", "Invalid text direction fields",
-            )
-          }
-          @pptx.TextDirection(field_string(change, "direction"))
-        }
-        "textColumns" => {
-          guard change is Object(fields) &&
-            fields.length() == 4 &&
-            fields
-            .keys()
-            .all(key => ["action", "columns", "gap", "rtl"].contains(key)) else {
-            @failure.reject("invalid-operation", "Invalid text column fields")
-          }
-          @pptx.TextColumns(
-            field_int(change, "columns"),
-            xlsx_number(change, "gap"),
-            xlsx_boolean(change, "rtl"),
-          )
-        }
+        "textInsets"
+        | "textAnchor"
+        | "textWrap"
+        | "textFit"
+        | "textUpright"
+        | "textRotation"
+        | "textDirection"
+        | "textColumns" => pptx_text_frame(change)
         "lineEnd" => {
           let side = field_string(change, "side")
           guard ["head", "tail"].contains(side) &&

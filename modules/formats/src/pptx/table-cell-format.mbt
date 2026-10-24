@@ -52,6 +52,7 @@ fn table_cell_values(
     Json(cell.body.right),
     Json(cell.body.bottom),
     Json(cell.body.anchor),
+    Json(cell.body.direction),
   ]
 }
 
@@ -78,6 +79,7 @@ fn table_format_query(
   for
     i, name in [
       "fill", "borderColor", "borderWidth", "left", "top", "right", "bottom", "anchor",
+      "direction",
     ] {
     result[name] = if values.all(row => row[i] == values[0][i]) {
       values[0][i]
@@ -139,6 +141,13 @@ fn Session::format_table_cells(
       attributes["anchor"] = anchor
       (None, None)
     }
+    TextDirection(direction) => {
+      guard ["horz", "vert", "vert270"].contains(direction) else {
+        @failure.reject("invalid-operation", "Unsupported table cell direction")
+      }
+      attributes["vert"] = direction
+      (None, None)
+    }
     _ => @failure.reject("invalid-operation", "Unknown table cell format")
   }
   if color is Some(color) {
@@ -150,6 +159,7 @@ fn Session::format_table_cells(
   }
   let targets = if width is Some(_) { table.border_targets(range) } else { [] }
   let changes : Array[@xml.SourceChange] = []
+  let grow_rows : Map[Int, Bool] = Map([])
   for r, row in table.rows {
     for c, cell in row.cells {
       if !cell.owner() {
@@ -200,9 +210,15 @@ fn Session::format_table_cells(
         "marR": (cell.body.right * 12700).round().to_int64().to_string(),
         "marB": (cell.body.bottom * 12700).round().to_int64().to_string(),
         "anchor": cell.body.anchor,
+        "vert": cell.body.direction,
       }
       if attributes.iter().all(pair => current[pair.0] == pair.1) {
         continue
+      }
+      if change is TextDirection(direction) &&
+        direction != "horz" &&
+        row.height < 720000.0 / 12700 {
+        grow_rows[r] = true
       }
       if properties is Some(properties) {
         changes.push({
@@ -230,6 +246,38 @@ fn Session::format_table_cells(
         )
       }
     }
+  }
+  if !grow_rows.is_empty() {
+    let reason = self.table_geometry_reason(object, self.selection)
+    guard reason.is_empty() else {
+      @failure.reject("protected-content", reason)
+    }
+    let parent = object.source.parent_matrix()
+    let sy = (parent.c * parent.c + parent.d * parent.d).sqrt()
+    let mut extent = 0L
+    // ONLYOFFICE's direction command raises each affected native row minimum to 20 mm.
+    for r, row in table.rows {
+      let native = if grow_rows.contains(r) {
+        (720000.0 / sy).ceil().to_int64()
+      } else {
+        number(row.source.node.attribute("h").unwrap(), 1, 182880000).to_int64()
+      }
+      extent += native
+      if grow_rows.contains(r) {
+        changes.push(attribute_change(row.source, "h", native.to_string()))
+      }
+    }
+    guard extent <= 182880000L && extent.to_double() * sy <= 182880000.5 else {
+      @failure.reject("limit-exceeded", "Table extent exceeds 14400 points")
+    }
+    let transform = object.source.child("xfrm", uri=presentation_uri).unwrap()
+    changes.push(
+      attribute_change(
+        transform.child("ext").unwrap(),
+        "cy",
+        extent.to_string(),
+      ),
+    )
   }
   if changes.is_empty() {
     return self.query()

@@ -283,11 +283,19 @@ fn paint_slide(
       }
       primitives.append(commands)
     } else if object.table is Some(_) {
+      let transforms = Map([])
       let (commands, lines, warnings, glyphs) = object.paint_table(
-        probe, profile,
+        probe,
+        profile,
+        transforms~,
       )
       primitives.append(commands)
-      texts.push({ object: object.id, matrix: geometry.matrix, lines, })
+      texts.push({
+        object: object.id,
+        matrix: geometry.matrix,
+        lines,
+        transforms,
+      })
       diagnostics.append(warnings)
       units += glyphs
       guard units <= 262144 else {
@@ -424,12 +432,13 @@ fn paint_slide(
         object: object.id,
         matrix: geometry.matrix.then(rotation),
         lines,
+        transforms: Map([]),
       })
       if !lines.is_empty() {
-        primitives.push(
-          Clip({ x: 0, y: 0, width: geometry.width, height: geometry.height, }),
-        )
-        primitives.push(Transform(rotation))
+        let (clip_matrix, clip) = object.text_clip(geometry)
+        primitives.push(Transform(clip_matrix))
+        primitives.push(Clip(clip))
+        primitives.push(Transform(clip_matrix.inverse().then(rotation)))
         for line in lines {
           if object.body.columns > 1 {
             primitives.push(
@@ -458,6 +467,7 @@ fn paint_slide(
             @failure.reject("limit-exceeded", "Slide glyphs exceed budget")
           }
         }
+        primitives.push(Restore)
         primitives.push(Restore)
         primitives.push(Restore)
       }

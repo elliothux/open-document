@@ -185,6 +185,7 @@ pub(all) enum ObjectEdit {
   TextColumns(Int, Double, Bool)
   TextDirection(String)
   TextRotation(Double)
+  TextUpright(Bool)
   TextFormat(TextFormat)
   TextAlign(String)
   TextParagraph(ParagraphFormat)

@@ -398,6 +398,31 @@ export function PptxCells({
         </select>
       </label>
       {format.reason && <p>{format.reason}</p>}
+      <label>
+        {t.textDirection}
+        <select
+          aria-label={t.textDirection}
+          value={format.direction ?? ""}
+          onChange={(event) => {
+            const direction = event.currentTarget.value;
+            if (
+              direction === "horz" ||
+              direction === "vert" ||
+              direction === "vert270"
+            )
+              controller.run(() =>
+                editor.editObjects({ action: "textDirection", direction }),
+              );
+          }}
+        >
+          <option value="" disabled>
+            {t.mixed}
+          </option>
+          <option value="horz">{t.textHorizontal}</option>
+          <option value="vert">{t.textClockwise}</option>
+          <option value="vert270">{t.textCounterclockwise}</option>
+        </select>
+      </label>
     </fieldset>
   );
 }

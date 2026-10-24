@@ -78,6 +78,7 @@ export interface PptxTable {
     right: number | null;
     bottom: number | null;
     anchor: "t" | "ctr" | "b" | null;
+    direction: "horz" | "vert" | "vert270" | null;
     reason: string;
     borderReason: string;
   };
@@ -121,6 +122,9 @@ export function checkPptxTable(
       number(format[key], 0, key === "borderWidth" ? 1000 : 14400);
   if (
     ![null, "t", "ctr", "b"].some((value) => value === format.anchor) ||
+    ![null, "horz", "vert", "vert270"].some(
+      (value) => value === format.direction,
+    ) ||
     typeof format.reason !== "string" ||
     typeof format.borderReason !== "string"
   )
@@ -566,6 +570,7 @@ export function checkPptxObjectEdit(value: unknown): void {
       "textColumns",
       "textDirection",
       "textRotation",
+      "textUpright",
     ].includes(String(change.action))
   ) {
     checkPptxShapeEdit(change);

@@ -71,6 +71,7 @@ pub(all) enum ObjectEdit {
   TextColumns(Int, Double, Bool)
   TextDirection(String)
   TextRotation(Double)
+  TextUpright(Bool)
   TextFormat(TextFormat)
   TextAlign(String)
   TextParagraph(ParagraphFormat)
@@ -497,7 +498,8 @@ pub fn Session::edit_objects(
       change is Fill(_) ||
       change is Stroke(_, _) ||
       change is TextInsets(_, _, _, _) ||
-      change is TextAnchor(_)
+      change is TextAnchor(_) ||
+      change is TextDirection(_)
     ) {
     return self.format_table_cells(change, probe, profile)
   }
@@ -659,7 +661,8 @@ pub fn Session::edit_objects(
     | TextFit(_)
     | TextColumns(_, _, _)
     | TextDirection(_)
-    | TextRotation(_) =>
+    | TextRotation(_)
+    | TextUpright(_) =>
       (self.frame_objects(change, probe, profile), self.selection)
     Fill(_) | Stroke(_, _) => (self.paint_objects(change), self.selection)
     GradientFill(stops, angle, scaled) =>

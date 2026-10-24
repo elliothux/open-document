@@ -155,6 +155,7 @@ fn Session::frame_objects(
       values["anchor"] = anchor
     }
     TextWrap(wrap) => values["wrap"] = if wrap { "square" } else { "none" }
+    TextUpright(upright) => values["upright"] = if upright { "1" } else { "0" }
     TextDirection(direction) => {
       guard ["horz", "vert", "vert270"].contains(direction) else {
         @failure.reject("invalid-operation", "Unsupported text direction")
@@ -237,6 +238,10 @@ fn Session::frame_objects(
         object.body.columns
       },
       direction: values.get("vert").unwrap_or(object.body.direction),
+      upright: values
+      .get("upright")
+      .map(value => value == "1")
+      .unwrap_or(object.body.upright),
       rotation: values
       .get("rot")
       .map(v => number(v, -21600000, 21600000) / 60000)

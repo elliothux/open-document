@@ -51,6 +51,7 @@ export function PptxTextFrame({
         "rtlColumns",
         "direction",
         "rotation",
+        "upright",
       ] as const
     ).some((key) => object.textFrame[key] !== first?.[key]),
   );
@@ -90,6 +91,19 @@ export function PptxTextFrame({
         </select>
       </label>
       {mixed && <p>{t.mixed}</p>}
+      <label>
+        <input
+          type="checkbox"
+          checked={first?.upright ?? false}
+          onChange={(event) => {
+            const upright = event.currentTarget.checked;
+            controller.run(() =>
+              editor.editObjects({ action: "textUpright", upright }),
+            );
+          }}
+        />
+        {t.textUpright}
+      </label>
       <form
         onSubmit={(event) => {
           event.preventDefault();

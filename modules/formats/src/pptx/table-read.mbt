@@ -223,7 +223,7 @@ fn read_drawing_table(
         table_profile(
           properties.node.attributes.all(a => {
             a.uri.is_empty() &&
-            ["marL", "marT", "marR", "marB", "anchor"].contains(a.name)
+            ["marL", "marT", "marR", "marB", "anchor", "vert"].contains(a.name)
           }),
           "Unknown table cell properties",
         )
@@ -246,6 +246,7 @@ fn read_drawing_table(
         .map(v => number(v, 0, 182880000) / 12700)
         .unwrap_or(body.bottom),
         anchor: attribute("anchor").unwrap_or(body.anchor),
+        direction: attribute("vert").unwrap_or("horz"),
         fit: "none",
       }
       table_profile(
@@ -253,8 +254,8 @@ fn read_drawing_table(
         "Unsupported table cell anchor",
       )
       table_profile(
-        body.direction == "horz",
-        "Rotated table text is unsupported",
+        ["horz", "vert", "vert270"].contains(body.direction),
+        "Unsupported table cell text direction",
       )
       table_profile(
         h_merge ||
@@ -335,15 +336,24 @@ fn read_drawing_table(
     fill: background,
     alpha: background_alpha,
   }
-  Some(
-    if sx == 1 && sy == 1 {
-      table
-    } else {
-      table.resized(geometry.width, geometry.height) catch {
-        @failure.Failure(code="invalid-transform", message~, ..) =>
-          @failure.reject("unsupported-table", message)
-        error => raise error
-      }
-    },
-  )
+  let table = if sx == 1 && sy == 1 {
+    table
+  } else {
+    table.resized(geometry.width, geometry.height) catch {
+      @failure.Failure(code="invalid-transform", message~, ..) =>
+        @failure.reject("unsupported-table", message)
+      error => raise error
+    }
+  }
+  for r, row in table.rows {
+    for cell in row.cells {
+      table_profile(
+        !cell.owner() ||
+        cell.body.direction == "horz" ||
+        cell.body.top + cell.body.bottom < table.height(r, cell),
+        "Cell margins leave no vertical text width",
+      )
+    }
+  }
+  Some(table)
 }

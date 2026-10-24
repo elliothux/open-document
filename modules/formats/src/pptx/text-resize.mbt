@@ -5,7 +5,7 @@ fn frame_extent(
   required : Double,
   horizontal~ : Bool,
 ) -> Double raise @failure.Failure {
-  let usable = fn(value : Double) {
+  let usable = fn(value : Double) raise @failure.Failure {
     let trial = object.text_extent(geometry, value, horizontal~)
     let (body, _, _) = object.text_plane(trial)
     if horizontal {
@@ -125,7 +125,8 @@ fn resize_text_frame(
     if (next.width - geometry.width).abs() < 0.5 / 12700 &&
       (next.height - geometry.height).abs() < 0.5 / 12700 {
       // ONLYOFFICE keeps a rotated frame's center; otherwise text alignment anchors it.
-      let rotated = original.rotation != 0
+      let rotated = original.rotation != 0 ||
+        (object.body.upright && object.text_full_angle(original) != 0)
       let dx = original.width - next.width
       let dy = original.height - next.height
       let align = match object.paragraphs[0].align {

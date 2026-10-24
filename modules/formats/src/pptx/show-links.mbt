@@ -184,8 +184,17 @@ fn show_text_link_hit(
   x : Double,
   y : Double,
 ) -> Bool raise @failure.Failure {
-  let (x, y) = text.matrix.inverse().point(x, y)
   for line in text.lines {
+    if line.cellClip is Some(clip) {
+      let (px, py) = text.matrix.inverse().point(x, y)
+      if px < clip.x ||
+        px > clip.x + clip.width ||
+        py < clip.y ||
+        py > clip.y + clip.height {
+        continue
+      }
+    }
+    let (x, y) = text.line_matrix(line).inverse().point(x, y)
     if y < line.y || y > line.y + line.height {
       continue
     }

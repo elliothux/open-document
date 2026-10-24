@@ -184,6 +184,11 @@ fn read_text(
     wrap: attribute(properties, "wrap").unwrap_or("square") != "none",
     fit,
     direction: attribute(properties, "vert").unwrap_or("horz"),
+    upright: match attribute(properties, "upright").unwrap_or("0") {
+      "1" | "true" => true
+      "0" | "false" => false
+      _ => @failure.reject("malformed-pptx", "Invalid upright text flag")
+    },
     rotation: number(
       attribute(properties, "rot").unwrap_or("0"),
       -2147483648,
@@ -216,11 +221,8 @@ fn read_text(
     !children(properties, "prstTxWarp").is_empty() {
     reason = "Unsupported text frame direction"
   }
-  if ["1", "true"].contains(attribute(properties, "upright").unwrap_or("0")) {
-    reason = "Upright text requires independent frame resize geometry"
-  }
-  if chain[0].node.name == "tc" && body.rotation != 0 {
-    reason = "Independent table cell text rotation requires cell text matrices"
+  if chain[0].node.name == "tc" && (body.rotation != 0 || body.upright) {
+    reason = "Independent table cell text orientation requires cell text matrices"
   }
   let paragraphs : Array[TextParagraph] = []
   guard bodies.get(0) is Some(current) &&

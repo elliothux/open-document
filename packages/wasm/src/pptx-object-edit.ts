@@ -97,6 +97,13 @@ export function checkPptxShapeEdit(change: Record<string, unknown>): void {
       typeof change.rtl !== "boolean"
     )
       throw new Error("Invalid PPTX text columns");
+  } else if (change.action === "textUpright") {
+    if (
+      Object.keys(change).length !== 2 ||
+      Object.keys(change).some((key) => !["action", "upright"].includes(key)) ||
+      typeof change.upright !== "boolean"
+    )
+      throw new Error("Invalid PPTX upright text");
   } else if (change.action === "textRotation") {
     if (
       Object.keys(change).length !== 2 ||
@@ -286,6 +293,7 @@ export type PptxObjectEdit =
   | { action: "textColumns"; columns: number; gap: number; rtl: boolean }
   | { action: "textDirection"; direction: "horz" | "vert" | "vert270" }
   | { action: "textRotation"; angle: number }
+  | { action: "textUpright"; upright: boolean }
   | { action: "group" | "ungroup" }
   | { action: "duplicate"; dx: number; dy: number }
   | { action: "rotate"; angle: number }

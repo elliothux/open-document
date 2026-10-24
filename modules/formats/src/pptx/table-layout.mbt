@@ -15,6 +15,7 @@ fn Object::paint_table(
   self : Object,
   probe : @layout.TextProbe,
   profile : Map[String, String],
+  transforms~ : Map[Int, @layout.Matrix] = Map([]),
 ) -> (
   Array[@layout.PositionedPrimitive],
   Array[@layout.Line],
@@ -87,7 +88,7 @@ fn Object::paint_table(
         )
         output.push(Restore)
       }
-      let (measured, _, diagnostic, _) = fit_text(
+      let (measured, _, diagnostic, rotation) = fit_text(
         self.table_cell(cell),
         geometry,
         probe,
@@ -97,7 +98,14 @@ fn Object::paint_table(
         diagnostics.push(self.id + ":" + diagnostic)
       }
       output.push(Clip({ x, y, width, height, }))
+      let matrix = { ..@layout.Matrix::identity(), e: x, f: y, }
+        .then(rotation)
+        .then({ ..@layout.Matrix::identity(), e: -x, f: -y, })
+      output.push(Transform(matrix))
       for line in measured {
+        if cell.body.direction != "horz" {
+          transforms[line.paragraph + paragraph] = matrix
+        }
         let placed = {
           ..line,
           paragraph: line.paragraph + paragraph,
@@ -128,7 +136,7 @@ fn Object::paint_table(
             offset: caret.offset + offset,
           }),
         }
-        let commands = { ..placed, clip: false, }.positioned(
+        let commands = { ..placed, clip: false, cellClip: None, }.positioned(
           fonts,
           self.geometry.unwrap().width,
         )
@@ -145,6 +153,7 @@ fn Object::paint_table(
         }
         lines.push(placed)
       }
+      output.push(Restore)
       output.push(Restore)
       offset += cell.paragraphs.fold(init=0, (sum, p) => {
         sum + p.runs.fold(init=1, (sum, run) => sum + run.text.length())
@@ -172,6 +181,10 @@ fn Object::table_fit_changes(
   for r, row in table.rows {
     for column, cell in row.cells {
       if !cell.owner() {
+        continue
+      }
+      // ONLYOFFICE lays vertical cells into the already established row bounds.
+      if cell.body.direction != "horz" {
         continue
       }
       let height = heights[r:r + cell.row_span].fold(init=0.0, (sum, h) => {

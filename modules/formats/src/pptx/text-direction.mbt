@@ -2,8 +2,13 @@
 fn Object::text_plane(
   self : Object,
   geometry : Geometry,
-) -> (Body, Geometry, @layout.Matrix) {
+) -> (Body, Geometry, @layout.Matrix) raise @failure.Failure {
   let body = self.shape_body(geometry)
+  let (body, geometry, upright) = if body.upright {
+    self.upright_plane(body, geometry)
+  } else {
+    (body, geometry, @layout.Matrix::identity())
+  }
   match body.direction {
     "vert" =>
       (
@@ -15,7 +20,7 @@ fn Object::text_plane(
           bottom: body.left,
         },
         { ..geometry, width: geometry.height, height: geometry.width, },
-        { a: 0, b: 1, c: -1, d: 0, e: geometry.width, f: 0, },
+        upright.then({ a: 0, b: 1, c: -1, d: 0, e: geometry.width, f: 0, }),
       )
     "vert270" =>
       (
@@ -27,9 +32,9 @@ fn Object::text_plane(
           bottom: body.right,
         },
         { ..geometry, width: geometry.height, height: geometry.width, },
-        { a: 0, b: -1, c: 1, d: 0, e: 0, f: geometry.height, },
+        upright.then({ a: 0, b: -1, c: 1, d: 0, e: 0, f: geometry.height, }),
       )
-    _ => (body, geometry, @layout.Matrix::identity())
+    _ => (body, geometry, upright)
   }
 }
 
@@ -63,8 +68,10 @@ fn Object::text_extent(
   geometry : Geometry,
   value : Double,
   horizontal~ : Bool,
-) -> Geometry {
-  if horizontal != self.body.rotated_text() {
+) -> Geometry raise @failure.Failure {
+  let rotated = self.body.rotated_text() !=
+    (self.body.upright && self.upright_swaps_axes(geometry))
+  if horizontal != rotated {
     { ..geometry, width: value, }
   } else {
     { ..geometry, height: value, }
