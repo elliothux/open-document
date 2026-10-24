@@ -188,6 +188,8 @@ pub fn Session::pictures(
   let tree = WordTree::new(self.document())
   let images : Array[Json] = []
   let selected = self.selected_drawing(tree)
+  let links = self.hyperlink_relationships()
+  let bookmarks = tree.bookmark_targets()
   for id in tree.order {
     let node = tree.nodes[id]
     if node.uri != word_uri || node.name != "drawing" {
@@ -246,6 +248,7 @@ pub fn Session::pictures(
       .map(anchor => anchor.to_json())
       .unwrap_or(Json::null()),
       "positionReason": position_reason,
+      "hyperlink": self.drawing_link_summary(tree, id, links~, bookmarks~),
     })
   }
   { "revision": revision, "images": images }

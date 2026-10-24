@@ -112,6 +112,11 @@ fn Session::markup_picture(
   output : MarkupOutput,
 ) -> String raise @failure.Failure {
   tree.check_fragment_picture(span.node)
+  guard tree.drawing_link_node(span.node).1 is None else {
+    @failure.reject(
+      "unsupported-output", "Linked picture markup output requires support",
+    )
+  }
   let image = self.image_frame(tree, span.node)
   let bytes = self.image_bytes(image.key)
   let (_, mime, _, _) = @image.type_info(bytes)

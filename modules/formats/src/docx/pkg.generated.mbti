@@ -232,6 +232,7 @@ pub fn Session::set_cover_page(Self, Int, String?, String, probe~ : @layout.Text
 pub fn Session::set_default_tab_stop(Self, Int, Double?) -> Json raise @failure.Failure
 pub fn Session::set_document_protection(Self, Int, Bool, String, Bytes) -> Json raise @failure.Failure
 pub fn Session::set_drawing_anchor(Self, Int, Int, @layout.DrawingAnchor?, target? : Position, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
+pub fn Session::set_drawing_hyperlink(Self, Int, Int, String?) -> Json raise @failure.Failure
 pub fn Session::set_hyperlink(Self, Int, Selection, String?, text? : String?) -> Json raise @failure.Failure
 pub fn Session::set_page_background(Self, Int, String?) -> Json raise @failure.Failure
 pub fn Session::set_page_borders(Self, Int, @layout.PageBorders?) -> Json raise @failure.Failure

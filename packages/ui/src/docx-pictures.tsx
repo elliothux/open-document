@@ -7,6 +7,7 @@ import type {
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { DocxDrawingPosition } from "./docx-drawing-position.js";
+import { DocxDrawingLink } from "./docx-drawing-link.js";
 
 export function DocxPictures({
   controller,
@@ -181,6 +182,24 @@ export function DocxPictures({
       {image?.reason && <p>{image.reason}</p>}
       {image && (
         <>
+          <DocxDrawingLink
+            key={`link:${image.id}:${catalog?.revision}`}
+            controller={controller}
+            state={state}
+            hyperlink={image.hyperlink}
+            goTo={async (name) => {
+              await editor.editBookmark({ action: "goTo", name });
+            }}
+            disabled={disabled || stale}
+            apply={async (target) => {
+              await editor.editPicture(catalog!.revision, {
+                action: "hyperlink",
+                id: image.id,
+                target,
+              });
+              await load();
+            }}
+          />
           <DocxDrawingPosition
             key={`${image.id}:${catalog?.revision}`}
             controller={controller}

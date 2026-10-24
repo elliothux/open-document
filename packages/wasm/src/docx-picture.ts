@@ -3,6 +3,7 @@ import { encodeBytes } from "./session.js";
 import { checkDrawingAnchor, type DrawingAnchor } from "./preview.js";
 import type { DocxPosition } from "./docx-hit.js";
 import { isDocxSelection } from "./docx-search.js";
+import { checkDocxHyperlink } from "./docx-format.js";
 export type { DrawingAnchor, DrawingAxis } from "./preview.js";
 
 export interface DocxPicture {
@@ -19,6 +20,15 @@ export interface DocxDrawingPositionEdit {
   /** Move a floating drawing's logical anchor into an ordinary body paragraph. */
   target?: DocxPosition;
 }
+export interface DocxDrawingHyperlinkEdit {
+  action: "hyperlink";
+  id: number;
+  target: string | null;
+}
+export interface DocxDrawingHyperlink {
+  target: string | null;
+  reason: string;
+}
 export interface DocxPictures {
   revision: number;
   images: (DocxPicture & {
@@ -29,6 +39,7 @@ export interface DocxPictures {
     replaceReason: string;
     anchor: DrawingAnchor | null;
     positionReason: string;
+    hyperlink: DocxDrawingHyperlink;
   })[];
 }
 export type DocxPictureEdit =
@@ -36,6 +47,7 @@ export type DocxPictureEdit =
   | { action: "insert"; width: number; height: number; bytes: Uint8Array }
   | { action: "replace"; id: number; bytes: Uint8Array }
   | { action: "delete"; id: number }
+  | DocxDrawingHyperlinkEdit
   | DocxDrawingPositionEdit;
 
 export type DocxDrawingGestureCommand =
@@ -74,6 +86,7 @@ export function checkDocxDrawingGesture(value: unknown): void {
 }
 export function checkDocxPictureEdit(value: unknown): void {
   const edit = record(value);
+  if (edit.action === "hyperlink") return checkDocxDrawingHyperlinkEdit(edit);
   if (edit.action === "resize") return checkDocxPicture(value);
   if (edit.action === "position") return checkDocxDrawingPosition(edit);
   if (edit.action === "insert") {
@@ -94,6 +107,18 @@ export function checkDocxPictureEdit(value: unknown): void {
   )
     throw new Error("Invalid DOCX picture action");
   if (edit.action === "replace") checkImageBytes(edit.bytes);
+}
+export function checkDocxDrawingHyperlinkEdit(value: unknown): void {
+  const edit = record(value);
+  if (edit.action !== "hyperlink" || !integer(edit.id, 0, 2147483647))
+    throw new Error("Invalid DOCX drawing hyperlink identity");
+  checkDocxHyperlink(edit.target);
+}
+export function checkDocxDrawingHyperlink(value: unknown): void {
+  const link = record(value);
+  if (typeof link.reason !== "string" || (link.reason && link.target !== null))
+    throw new Error("Invalid DOCX drawing hyperlink state");
+  checkDocxHyperlink(link.target);
 }
 export function checkDocxDrawingPosition(value: unknown): void {
   const edit = record(value);
@@ -161,6 +186,7 @@ export function docxPictures(value: unknown): DocxPictures {
     )
       throw new Error("Invalid DOCX picture entry");
     checkDrawingAnchor(image.anchor);
+    checkDocxDrawingHyperlink(image.hyperlink);
     if (!image.reason) checkDocxPicture(image);
     else if (
       image.width !== 0 ||

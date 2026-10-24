@@ -15,6 +15,7 @@ fn Foundation::shape_operation(
     @failure.reject("invalid-operation", "Shape settings are required")
   }
   let result = match field_string(shape, "action") {
+    "hyperlink" => drawing_hyperlink(session, revision, shape)
     "insertWordArt" =>
       session.insert_word_art(
         revision,

@@ -350,6 +350,9 @@ pub fn Session::edit_bookmark(
         }
       }
       let links = self.bookmark_references(name)
+      self.edit_drawing_bookmark_links(
+        tree, name, next, changes, parts, part_edits, affected,
+      )
       if next is Some(value) {
         let references = tree.page_reference_renames(name, value)
         for reference in references {

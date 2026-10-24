@@ -402,6 +402,18 @@ LaTeX 源最多 131072 个 UTF-16 单元，语法嵌套最多 64 层；解析结
 
 复用字符边界拆分和关系事务。已选链接的提示、history、tgtFrame 与未选两端保留；移除容器时补齐 run 和书签的局部命名空间，保留文字、格式和注释。相同外部目标复用关系，不改写共用关系或清理旧关系。显示文字、链接 XML、新增/修改关系合为一项历史；过期 revision、活动候选、图片、未知源及源/输出预算失败均不提交。内部目标扩展见下节；docLocation、同时具有外链关系和 anchor 的组合目标及未知关系继续保护。链接样式管理归[当前格式合同](#p10-当前格式编辑)，输出归[PDF 文字链接](#docx-pdf-文字链接)。范围与光标语义参考 [ONLYOFFICE 链接操作](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph.js#L7811-L8180)，实现归 [`hyperlink-edit.mbt`](../../modules/formats/src/docx/hyperlink-edit.mbt)及 [`hyperlink-query.mbt`](../../modules/formats/src/docx/hyperlink-query.mbt)。
 
+### DOCX 绘图对象链接
+
+正文和普通单元格的图片、基础图形目录中，`hyperlink` 返回 `{ target, reason }`。已有 `editPicture`、`editShape` 接受 `{ action: "hyperlink", id, target }`，target 为 HTTP、HTTPS、mailto 地址、`#书签名` 或 null。内部目标须对应当前可用书签，名称查找忽略大小写。默认属性面板提供应用、移除和显式打开；内部目标执行已有书签定位，外链使用新窗口及 `noopener noreferrer`。查询与应用不访问外链。
+
+核心编辑原生 `wp:docPr/a:hlinkClick`，复用正文链接的地址检查、关系分配及有界事务。相同目标复用关系，无变化不增加历史；修改保留原提示、history、tgtFrame、身份、几何、资源和当前选择。旧关系保留。锁定、过期状态、未知动作、悬停/声音、重复或其他非可视所有者上的链接均保护原源。链接对象的 HTML/Markdown 输出继续实施。
+
+原生富文本复制、剪切及跨文档正文、普通/合并单元格粘贴保留对象链接。片段以 `odClip:target` 携带地址；接收侧分配或复用关系，不接受对象链接的源 `r:id`。提示及点击元数据、对象身份分配和媒体沿既有片段事务处理；与普通文字的相同外链共用关系。内部目标须已存在或随完整书签一同复制，重名沿既有规则使用接收文档中的可用目标，缺失则原子拒绝。文本框整体链接与框内文字链接可同时转移。复制保留源；剪切和每次粘贴各为一项精确历史。默认按钮与原生剪切/粘贴快捷键共用入口，未解析的引用及悬停链接返回可恢复的保护原因。实现归 [`drawing-link-fragment.mbt`](../../modules/formats/src/docx/drawing-link-fragment.mbt)，元数据独立复制依据 [ONLYOFFICE CNvPr.createDuplicate](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L8149-L8165)。
+
+内部目标写入 `TargetMode="External"` 的 `#名称` 关系。书签改名同步所有已知对象共用的关系；删除书签仅移除点击节点，保留对象及旧关系。两者与文字 anchor 维护合为一项精确历史。扫描检查关系的全部 `r:*` 引用；以关系引用书签的文字链接、其他部件引用及未知所有者仍保护改名/删除。未使用的 XML 部件关系不参与修改。扫描最多 8388608 项节点/属性和 65536 个引用，源及历史继续受原预算约束。实现归 [`drawing-bookmark.mbt`](../../modules/formats/src/docx/drawing-bookmark.mbt)。原生关系写法依据 [ONLYOFFICE WriteHyperlink](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Presentation/BinaryFileReaderWriter.cpp#L1898-L1928)。
+
+PDF 使用最终对象框及原有 `URI`/`GoTo` 注释，按纸张和行内父格裁剪；浮动框使用页面坐标。内部链接指向书签的实际页和光标位置，零轴线形复用三点命中容差。文本框文字链接仍沿文字路径输出。实现归 [`drawing-link.mbt`](../../modules/formats/src/docx/drawing-link.mbt)和 [`links-layout.mbt`](../../modules/formats/src/docx/links-layout.mbt)。原生位置依据 [ONLYOFFICE docPr writer](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/Binary/Document/BinWriter/BinaryWriterD.cpp#L7308-L7319)，属性依据其 [Hyperlink](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Hyperlink.cpp#L73-L89)；未复制上游执行代码。
+
 ### 书签与内部导航
 
 `FoundationSession/Client.overview(revision)` 的 `bookmarks` 返回 `{ name, selection, reason }[]`，最多 4096 项。支持正文、普通单元格及单层链接内的成对书签；空光标、文字范围、跨段和交叠范围均不占逻辑文字宽度。重复名称/身份、缺失或倒置标记、列书签和未知容器保留源，以 reason 说明保护原因，selection 为 null。
@@ -420,7 +432,7 @@ LaTeX 源最多 131072 个 UTF-16 单元，语法嵌套最多 64 层；解析结
 
 链接矩形复用已完成布局的逐行光标边界，支持换行、混合格式及单元格裁剪，不扩大到行尾空白。文本框复用核心最终行坐标，按实际溢出设置、行内父格及纸张裁剪；浮动框沿页面位置输出。PDF 写入无边框 `Link` 注释；外链使用 `URI` 动作，内部使用 `GoTo` 和真实页对象的 `XYZ` 目标，统一转换为 PDF 左下角坐标。导出不改源、选择、历史及未保存状态，不请求链接目标。
 
-一次导出最多 65536 个矩形，目标定位与矩形查询共用 8388608 项行/光标工作预算。收集注释时预检字节，整体仍受现有 PDF 输出上限约束。绘图对象整体链接及更广导入兼容继续实施。MoonBit 入口归 [`links-layout.mbt`](../../modules/formats/src/docx/links-layout.mbt)，几何归 [`links.mbt`](../../modules/layout/src/links.mbt)，序列化归 [`write-links.mbt`](../../modules/formats/src/pdf/write-links.mbt)。依据 [ONLYOFFICE 外链](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/PdfWriter.cpp#L1198-L1221)及[内部页目标](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/PdfWriter.cpp#L4123-L4138)，未复制上游执行代码。
+一次导出最多 65536 个矩形，目标定位与矩形查询共用 8388608 项行/光标工作预算。收集注释时预检字节，整体仍受现有 PDF 输出上限约束。图片和基础图形整体链接已接通，边界归[绘图对象链接](#docx-绘图对象链接)；更广导入兼容继续实施。MoonBit 入口归 [`links-layout.mbt`](../../modules/formats/src/docx/links-layout.mbt)，几何归 [`links.mbt`](../../modules/layout/src/links.mbt)，序列化归 [`write-links.mbt`](../../modules/formats/src/pdf/write-links.mbt)。依据 [ONLYOFFICE 外链](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/PdfWriter.cpp#L1198-L1221)及[内部页目标](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/PdfFile/PdfWriter.cpp#L4123-L4138)，未复制上游执行代码。
 
 ### DOCX 本地批注
 
@@ -532,7 +544,7 @@ Flow 使用 `spans[].drawing: DrawingFrame | null`。框为 `{ width, height, an
 
 属性事务保留对象身份、锚点、环绕、周围运行格式和非目标部件；删除只移除目标 `w:drawing`，保留共享资源和关系。每次实际修改记一项精确历史，无变化保持修订。`noResize` 只阻止尺寸变化，`noChangeAspect` 要求保持原比例，`noDelete` 和外部对象引用阻止删除；移动锁不阻止画笔修改。文档保护、修订容器、未知锁及将被覆盖的注释/处理指令保持保护。环绕重排沿原布局预检，失败保留源、选择和历史。
 
-普通无文字图形已随正文富文本片段复制、剪切及跨文档粘贴，支持行内与已支持的浮动锚点。行内图形还可随完整普通/合并单元格转移。默认按钮和原生快捷键沿既有片段协议执行。复制保留原生几何、画笔、名称、描述、标题及图形内的源间隙；粘贴为 `wp:docPr` 和可选 `wps:cNvPr` 分配目标中的未用身份。重复粘贴生成独立对象，源图形和目标已有身份保持。`bodyFragmentImages`、`tableFragmentImages` 的纯图形预检返回空 `images`；混合片段只解码图片，图形不创建媒体或关系。一次实际粘贴或剪切合为一项精确历史。
+普通无文字图形已随正文富文本片段复制、剪切及跨文档粘贴，支持行内与已支持的浮动锚点。行内图形还可随完整普通/合并单元格转移。默认按钮和原生快捷键沿既有片段协议执行。复制保留原生几何、画笔、名称、描述、标题及图形内的源间隙；粘贴为 `wp:docPr` 和可选 `wps:cNvPr` 分配目标中的未用身份。重复粘贴生成独立对象，源图形和目标已有身份保持。`bodyFragmentImages`、`tableFragmentImages` 的纯图形预检返回空 `images`；混合片段只解码图片，无链接图形不创建媒体或关系；整体链接沿[绘图对象链接](#docx-绘图对象链接)转移。一次实际粘贴或剪切合为一项精确历史。
 
 `noCopy` 阻止图形富文本复制和剪切，`noDelete` 只阻止剪切及删除。未知绘图元数据、引用属性及外部关系继续保护复制；图形只携带已支持的独立属性。正文及整格粘贴在最终候选上检查图片与图形合计不超过 256 项，先扣除被替换对象，满额时仍可等量替换。格式、布局、输出或数量预算失败保留原包、选择和历史。片段校验、身份重映射及源保留归 [fragment-drawings.mbt](../../modules/formats/src/docx/fragment-drawings.mbt)，复制依据 [ONLYOFFICE Shape.copy/fillObject](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Shape.js#L2772-L2833)。
 

@@ -108,6 +108,7 @@ fn Foundation::picture_operation(
     @failure.reject("invalid-operation", "Picture settings are required")
   }
   let result = match field_string(picture, "action") {
+    "hyperlink" => drawing_hyperlink(session, revision, picture)
     "insert" =>
       session.insert_picture(
         revision,
@@ -152,6 +153,24 @@ fn Foundation::picture_operation(
     self.layout = None
   }
   result
+}
+
+///|
+fn drawing_hyperlink(
+  session : @docx.Session,
+  revision : Int,
+  change : Json,
+) -> Json raise @failure.Failure {
+  guard change is { "target": target, .. } else {
+    @failure.reject("invalid-operation", "Drawing hyperlink target is required")
+  }
+  let target = match target {
+    Null => None
+    String(value) => Some(value)
+    _ =>
+      @failure.reject("invalid-operation", "Invalid drawing hyperlink target")
+  }
+  session.set_drawing_hyperlink(revision, field_int(change, "id"), target)
 }
 
 ///|

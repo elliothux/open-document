@@ -18,11 +18,7 @@ fn Session::editable_shape(
     let node = tree.nodes[child]
     if node.name == "docPr" || node.name == "graphic" {
       if node.name == "docPr" {
-        guard tree.children[child].is_empty() else {
-          @failure.reject(
-            "protected-content", "Shape identity extensions require support",
-          )
-        }
+        ignore(tree.drawing_link_node(id))
       } else {
         guard node.attributes.is_empty() else {
           @failure.reject(
@@ -81,6 +77,8 @@ pub fn Session::shapes(
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
   let items : Array[Json] = []
+  let links = self.hyperlink_relationships()
+  let bookmarks = tree.bookmark_targets()
   for id in tree.order {
     let node = tree.nodes[id]
     if node.uri != word_uri ||
@@ -157,6 +155,7 @@ pub fn Session::shapes(
         reason
       },
       "deleteReason": delete_reason,
+      "hyperlink": self.drawing_link_summary(tree, id, links~, bookmarks~),
     })
   }
   { "revision": revision, "items": items }

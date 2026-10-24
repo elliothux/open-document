@@ -52,6 +52,8 @@ pub fn Session::page_links(
     paragraphs.append(story)
   }
   let targets : Map[(Int, Int), @layout.LinkTarget] = Map([])
+  let drawing_nodes : Map[(Int, Int), Int] = Map([])
+  let drawing_sources : Set[(Int, Int)] = Set([])
   let positions : Map[String, @layout.LinkTarget?] = Map([])
   let addresses : Map[Int, String] = Map([])
   let relationships = self.hyperlink_relationships()
@@ -80,10 +82,29 @@ pub fn Session::page_links(
     .fold(init=0, (sum, line) => sum + line.carets.length() + 1)
   let mut work = 0
   for paragraph in paragraphs {
+    for span in paragraph.spans; offset = 0 {
+      if span.drawing is Some(_) &&
+        paragraph.id >= 0 &&
+        tree.nodes[span.node].name == "drawing" {
+        drawing_nodes[(paragraph.id, offset)] = span.node
+        drawing_sources.add((paragraph.id, span.node))
+      }
+      continue offset + span.text.length()
+    }
     for span in paragraph.spans {
       let key = (paragraph.id, span.node)
       if targets.contains(key) {
         continue
+      }
+      let drawing_target = if drawing_sources.contains(key) {
+        self.drawing_link_target(
+          tree,
+          span.node,
+          links=relationships,
+          bookmarks~,
+        )
+      } else {
+        None
       }
       let destination = if span.field.has_prefix("PAGEREF:") {
         let reference = @layout.PageReference::parse(span.field)
@@ -101,6 +122,8 @@ pub fn Session::page_links(
         }
       } else if paragraph.id < 0 {
         running.get(key)
+      } else if drawing_target is Some(_) {
+        drawing_target
       } else if tree.run_hyperlink(tree.nodes[span.node].parent) is Some(id) {
         if !addresses.contains(id) {
           addresses[id] = hyperlink_target(
@@ -152,9 +175,60 @@ pub fn Session::page_links(
     clip : @layout.Border?,
   ) -> Unit raise @failure.Failure {
     let frame = layout.pages[page]
+    fn add(
+      rect : @layout.Border,
+      target : @layout.LinkTarget,
+      clip : @layout.Border?,
+    ) -> Unit raise @failure.Failure {
+      let x = rect.x.max(clip.map(c => c.x).unwrap_or(0)).max(0)
+      let y = rect.y.max(clip.map(c => c.y).unwrap_or(0)).max(0)
+      let width = (rect.x + rect.width)
+        .min(clip.map(c => c.x + c.width).unwrap_or(frame.width))
+        .min(frame.width) -
+        x
+      let height = (rect.y + rect.height)
+        .min(clip.map(c => c.y + c.height).unwrap_or(frame.height))
+        .min(frame.height) -
+        y
+      if width <= 0 || height <= 0 {
+        return
+      }
+      guard links.length() < 65536 else {
+        @failure.reject(
+          "limit-exceeded", "Link rectangles exceed the output budget",
+        )
+      }
+      links.push({ rect: { page, line: index, x, y, width, height, }, target, })
+    }
+    for drawing in line.drawings {
+      if drawing_nodes
+        .get((line.paragraph, drawing.start))
+        .bind(node => targets.get((line.paragraph, node)))
+        is Some(target) {
+        let horizontal = if drawing.width == 0 { 3.0 } else { 0.0 }
+        let vertical = if drawing.height == 0 { 3.0 } else { 0.0 }
+        add(
+          {
+            x: drawing.x - horizontal,
+            y: drawing.y - vertical,
+            width: drawing.width + 2 * horizontal,
+            height: drawing.height + 2 * vertical,
+          },
+          target,
+          if drawing.anchor is None {
+            line.cellClip
+          } else {
+            None
+          },
+        )
+      }
+    }
     for run in line.runs {
       for source in run.sources {
         guard targets.get((line.paragraph, source.node)) is Some(target) else {
+          continue
+        }
+        if drawing_sources.contains((line.paragraph, source.node)) {
           continue
         }
         work += line.carets.length()
@@ -165,28 +239,7 @@ pub fn Session::page_links(
         }
         let start = run.start + source.offset
         for rect in line.link_rects(start, start + source.end - source.start) {
-          let x = rect.x.max(clip.map(c => c.x).unwrap_or(0)).max(0)
-          let y = rect.y.max(clip.map(c => c.y).unwrap_or(0)).max(0)
-          let width = (rect.x + rect.width)
-            .min(clip.map(c => c.x + c.width).unwrap_or(frame.width))
-            .min(frame.width) -
-            x
-          let height = (rect.y + rect.height)
-            .min(clip.map(c => c.y + c.height).unwrap_or(frame.height))
-            .min(frame.height) -
-            y
-          if width <= 0 || height <= 0 {
-            continue
-          }
-          guard links.length() < 65536 else {
-            @failure.reject(
-              "limit-exceeded", "Link rectangles exceed the output budget",
-            )
-          }
-          links.push({
-            rect: { page, line: index, x, y, width, height, },
-            target,
-          })
+          add(rect, target, clip)
         }
       }
     }

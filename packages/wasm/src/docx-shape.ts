@@ -3,6 +3,10 @@ import { checkDrawingAnchor, type DrawingAnchor } from "./preview.js";
 import {
   checkDocxDrawingPosition,
   type DocxDrawingPositionEdit,
+  checkDocxDrawingHyperlinkEdit,
+  checkDocxDrawingHyperlink,
+  type DocxDrawingHyperlinkEdit,
+  type DocxDrawingHyperlink,
 } from "./docx-picture.js";
 
 export type DocxShapePreset = "rect" | "ellipse" | "line";
@@ -38,6 +42,7 @@ export interface DocxShapes {
     positionReason: string;
     textBox: DocxTextBoxProperties | null;
     textReason: string;
+    hyperlink: DocxDrawingHyperlink;
   })[];
 }
 export type DocxShapeEdit =
@@ -55,10 +60,12 @@ export type DocxShapeEdit =
   | (DocxShape & { action: "properties" })
   | { action: "textBox"; id: number; properties: DocxTextBoxProperties }
   | { action: "delete"; id: number }
+  | DocxDrawingHyperlinkEdit
   | DocxDrawingPositionEdit;
 
 export function checkDocxShapeEdit(value: unknown): void {
   const shape = record(value);
+  if (shape.action === "hyperlink") return checkDocxDrawingHyperlinkEdit(shape);
   if (shape.action === "position") return checkDocxDrawingPosition(shape);
   if (shape.action === "insertWordArt") {
     if (
@@ -185,6 +192,7 @@ export function docxShapes(value: unknown): DocxShapes {
       throw new Error("Invalid DOCX shape entry");
     seen.add(shape.id);
     checkDrawingAnchor(shape.anchor);
+    checkDocxDrawingHyperlink(shape.hyperlink);
     if (shape.textBox !== null) {
       if (shape.preset === "line")
         throw new Error("Line shapes cannot contain text");

@@ -163,9 +163,19 @@ fn Session::import_fragment_bookmarks(
   }
   for id in tree.order {
     let node = tree.nodes[id]
-    if node.uri == word_uri &&
+    let name = if node.uri == word_uri &&
       node.name == "hyperlink" &&
       node.attribute("anchor", uri=word_uri) is Some(name) {
+      Some(name)
+    } else if node.uri == picture_drawing_uri &&
+      node.name == "hlinkClick" &&
+      node.attribute("target", uri=table_fragment_uri) is Some(target) &&
+      target.has_prefix("#") {
+      Some(target[1:].to_owned())
+    } else {
+      None
+    }
+    if name is Some(name) {
       guard targets.contains(name.to_lower()) else {
         @failure.reject(
           "protected-content", "Copied hyperlink bookmark is missing in the receiving document",

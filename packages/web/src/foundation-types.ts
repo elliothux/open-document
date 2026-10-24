@@ -72,6 +72,8 @@ export type {
   DocxPicture,
   DocxPictureEdit,
   DocxDrawingPositionEdit,
+  DocxDrawingHyperlinkEdit,
+  DocxDrawingHyperlink,
   DocxDrawingGestureCommand,
   DocxPictures,
   DocxShape,

@@ -26,6 +26,9 @@ fn Session::read_body_fragment(
   let document = self.import_fragment_numbering(document, parts, edits, created)
   let document = self.import_fragment_links(document, parts, edits, created)
   let document = self.import_fragment_bookmarks(document)
+  let document = self.import_fragment_drawing_links(
+    document, parts, edits, created,
+  )
   let (document, pictures) = self.import_fragment_drawings(
     document, parts, edits, created, media, added,
   )

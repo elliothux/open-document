@@ -8,6 +8,7 @@ import type {
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
 import { DocxDrawingPosition } from "./docx-drawing-position.js";
+import { DocxDrawingLink } from "./docx-drawing-link.js";
 import { DocxTextBoxProperties } from "./docx-text-box-properties.js";
 import { WordArt } from "./word-art.js";
 
@@ -226,6 +227,25 @@ export function DocxShapes({
       {shape?.reason && <p>{shape.reason}</p>}
       {draft && shape && (
         <>
+          <DocxDrawingLink
+            key={`link:${shape.id}:${catalog?.revision}`}
+            controller={controller}
+            state={state}
+            hyperlink={shape.hyperlink}
+            goTo={async (name) => {
+              await editor.editBookmark({ action: "goTo", name });
+            }}
+            disabled={disabled || stale}
+            apply={async (target) => {
+              if (!catalog) return;
+              await editor.editShape(catalog.revision, {
+                action: "hyperlink",
+                id: shape.id,
+                target,
+              });
+              await load();
+            }}
+          />
           {shape.textBox && (
             <DocxTextBoxProperties
               key={`text:${shape.id}:${catalog?.revision}`}

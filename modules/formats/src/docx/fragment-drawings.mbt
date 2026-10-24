@@ -24,6 +24,7 @@ fn WordTree::check_fragment_shape(
     error => raise error
   }
   let text_nodes : Map[Int, Bool] = Map([])
+  let (_, click) = self.drawing_link_node(drawing)
   for
     content in self
     .descendants(drawing)
@@ -38,6 +39,9 @@ fn WordTree::check_fragment_shape(
     }
   }
   for id in self.descendants(drawing) {
+    if click == Some(id) {
+      continue
+    }
     if text_nodes.contains(id) {
       continue
     }
@@ -203,6 +207,8 @@ fn Session::fragment_drawing(
   }
   let tree = WordTree::new(document)
   tree.check_fragment_shape(id)
+  let document = self.export_fragment_drawing_link(document, id)
+  let tree = WordTree::new(document)
   let markup = tree.standalone_markup(document, id)
   guard markup.length() <= limit else {
     @failure.reject(

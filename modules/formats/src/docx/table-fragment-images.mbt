@@ -19,8 +19,9 @@ fn WordTree::check_fragment_picture(
     "ext", "prstGeom", "avLst", "anchor", "simplePos", "positionH", "positionV",
     "posOffset", "align", "wrapNone", "wrapTopAndBottom", "wrapSquare",
   ]
+  let (_, click) = self.drawing_link_node(drawing)
   for id in self.descendants(drawing) {
-    if id == drawing {
+    if id == drawing || click == Some(id) {
       continue
     }
     let node = self.nodes[id]
@@ -111,6 +112,7 @@ fn Session::fragment_picture(
         xml: " xmlns:odClip=\"\{table_fragment_uri}\" odClip:bytes=\"\{@base64.encode(bytes)}\"",
       },
     ])
+  let document = self.export_fragment_drawing_link(document, id)
   WordTree::new(document).standalone_markup(document, id)
 }
 
