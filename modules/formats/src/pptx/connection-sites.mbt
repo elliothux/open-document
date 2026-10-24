@@ -55,6 +55,20 @@ fn Object::local_connection_sites(self : Object) -> Array[(Double, Double)] {
         ]
       }
     }
+    "chevron" | "homePlate" => {
+      let inset = w.min(h) *
+        self.adjustments.0.clamp(
+          min=0,
+          max=polygon_adjustment_max(self.preset, w, h),
+        )
+      let back = w - inset
+      [
+        (back / 2, 0.0),
+        (if self.preset == "chevron" { inset } else { 0.0 }, h / 2),
+        (if self.preset == "chevron" { back / 2 } else { back }, h),
+        (w, h / 2),
+      ]
+    }
     "pentagon" | "star5" => {
       let p = pentagon_points(w, h)
       if self.preset == "pentagon" {

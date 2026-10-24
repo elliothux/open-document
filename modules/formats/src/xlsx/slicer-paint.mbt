@@ -180,13 +180,13 @@ fn SlicerDrawing::paint_text(
 
 ///|
 // Native header padding and row/column spacing follow ONLYOFFICE SlicerView.js.
-// shortcut: Paint normal member states; extend the palette when native hover painting is connected.
 fn SlicerDrawing::paint(
   self : SlicerDrawing,
   primitives : Array[@layout.PositionedPrimitive],
   rect : @layout.Border,
   probe : @layout.TextProbe,
   profile : Map[String, String],
+  hover~ : Int? = None,
 ) -> Unit raise @failure.Failure {
   let geometry = self.geometry(rect.width, rect.height, probe, profile)
   primitives.push(Clip(rect))
@@ -234,7 +234,8 @@ fn SlicerDrawing::paint(
   for (index, button) in geometry.buttons {
     let item = self.control.cache.members[index]
     let style = self.palette.buttons[(if item.selected { 1 } else { 0 }) +
-      (if item.hasData { 0 } else { 2 })]
+      (if item.hasData { 0 } else { 2 }) +
+      (if hover == Some(item.index) { 4 } else { 0 })]
     if style.gradient.is_empty() {
       primitives.push(
         Rectangle({
@@ -246,7 +247,16 @@ fn SlicerDrawing::paint(
         }),
       )
     } else {
-      primitives.push(GradientRectangle(button, style.gradient))
+      primitives.push(
+        Transform({ a: 0, b: 1, c: 1, d: 0, e: button.x, f: button.y, }),
+      )
+      primitives.push(
+        GradientRectangle(
+          { x: 0, y: 0, width: button.height, height: button.width, },
+          style.gradient,
+        ),
+      )
+      primitives.push(Restore)
     }
     primitives.push(Stroke(button, style.border, 0.75))
     self.paint_text(

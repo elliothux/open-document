@@ -218,6 +218,8 @@ export interface GridViewport {
   height: number;
   profile: Record<string, string>;
   reveal?: boolean;
+  /** Ephemeral native member hover; does not edit the workbook or print output. */
+  slicerHover?: { object: string; index: number };
 }
 
 export interface XlsxPrintLayout extends DrawingBatch {

@@ -35,7 +35,7 @@ fn read_shape_adjustments(
 ) -> (Double, Double, Double) raise @failure.Failure {
   let single = [
     "roundRect", "triangle", "parallelogram", "trapezoid", "hexagon", "octagon",
-    "plus", "star5",
+    "plus", "star5", "chevron", "homePlate",
   ].contains(preset)
   let mut first = match preset {
     "roundRect" => 0.16667

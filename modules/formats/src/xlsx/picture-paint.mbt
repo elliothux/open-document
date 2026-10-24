@@ -5,6 +5,7 @@ fn SheetObject::paint(
   rect : @layout.Border,
   probe : @layout.TextProbe,
   profile : Map[String, String],
+  slicer_hover~ : Int? = None,
 ) -> Unit raise @failure.Failure {
   if self.timeline is Some(timeline) {
     if self.visible && rect.width > 0 && rect.height > 0 {
@@ -14,7 +15,7 @@ fn SheetObject::paint(
   }
   if self.slicer is Some(slicer) {
     if self.visible && rect.width > 0 && rect.height > 0 {
-      slicer.paint(primitives, rect, probe, profile)
+      slicer.paint(primitives, rect, probe, profile, hover=slicer_hover)
     }
     return
   }

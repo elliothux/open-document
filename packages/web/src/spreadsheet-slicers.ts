@@ -19,6 +19,8 @@ export class SpreadsheetSlicers {
   private readonly multi = new Set<string>();
   private readonly dates: SpreadsheetTimelinePointer;
   private readonly members: SpreadsheetSlicerPointer;
+  private hovered: { target: HTMLButtonElement; sheet: string } | undefined;
+  private hoverQueued = false;
   constructor(
     private readonly surface: CanvasSurface,
     holder: HTMLElement,
@@ -42,6 +44,22 @@ export class SpreadsheetSlicers {
       host,
     );
     holder.append(this.controls);
+    const hover = (event: PointerEvent) => {
+      const target = event.target;
+      this.setHover(
+        event.buttons === 0 &&
+          event.pointerType !== "touch" &&
+          target instanceof HTMLButtonElement &&
+          target.dataset.slicerIndex !== undefined
+          ? target
+          : undefined,
+      );
+    };
+    this.controls.addEventListener("pointerover", hover);
+    this.controls.addEventListener("pointermove", hover);
+    this.controls.addEventListener("pointerout", (event) => {
+      if (event.target === this.hovered?.target) this.setHover(undefined);
+    });
     signal.addEventListener(
       "abort",
       () => {
@@ -72,7 +90,49 @@ export class SpreadsheetSlicers {
   get active(): boolean {
     return this.dates.active || this.members.active;
   }
+  get hover(): { object: string; index: number } | undefined {
+    const now = this.host.current(),
+      hovered = this.hovered;
+    if (
+      !hovered ||
+      this.active ||
+      now.disabled ||
+      this.controls.hidden ||
+      hovered.sheet !== now.query.sheet ||
+      !hovered.target.isConnected
+    )
+      return undefined;
+    const object = hovered.target.dataset.slicerObject;
+    return object === undefined
+      ? undefined
+      : {
+          object,
+          index: Number(hovered.target.dataset.slicerIndex),
+        };
+  }
+  private setHover(target: HTMLButtonElement | undefined): void {
+    if (target === this.hovered?.target) return;
+    const now = this.host.current();
+    this.hovered = target ? { target, sheet: now.query.sheet } : undefined;
+    if (this.hoverQueued || this.signal.aborted || this.active || now.disabled)
+      return;
+    this.hoverQueued = true;
+    void this.host
+      .run(async () => {
+        this.hoverQueued = false;
+        if (
+          !this.signal.aborted &&
+          !this.active &&
+          !this.host.current().disabled
+        )
+          await this.host.render(true);
+      }, true)
+      .catch((error: unknown) => {
+        if (!this.signal.aborted) this.host.report(error);
+      });
+  }
   cancel(): void {
+    this.setHover(undefined);
     this.dates.cancel();
     this.members.cancel();
   }
@@ -435,7 +495,9 @@ export class SpreadsheetSlicers {
               view &&
               key.startsWith("member:") &&
               target instanceof HTMLButtonElement
-            )
+            ) {
+              target.dataset.slicerObject = object.id;
+              target.dataset.slicerIndex = key.slice(7);
               this.members.bind(
                 full,
                 target,
@@ -443,6 +505,7 @@ export class SpreadsheetSlicers {
                 Number(key.slice(7)),
                 () => this.multi.has(mode()),
               );
+            }
             if (
               timeline &&
               (key.startsWith("period:") || key.startsWith("endpoint:")) &&

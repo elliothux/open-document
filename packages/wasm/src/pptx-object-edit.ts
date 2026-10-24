@@ -31,6 +31,8 @@ export const pptxInsertKinds = [
   "octagon",
   "plus",
   "star5",
+  "chevron",
+  "homePlate",
   "line",
   "leftArrow",
   "rightArrow",

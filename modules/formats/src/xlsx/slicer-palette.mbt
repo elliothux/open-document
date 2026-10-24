@@ -101,6 +101,32 @@ fn slicer_builtin_palette(
       color: colors[at],
     })
   }
+  for _ in 0..<4 {
+    buttons.push({
+      fill: "",
+      gradient: [
+        -466590,
+        if name == "SlicerStyleOther2" {
+          -198668
+        } else {
+          -198688
+        },
+      ].mapi((at, color) => {
+        let hex = (color & 0xffffff).to_string(radix=16)
+        @layout.GradientStop::{
+          position: at.to_double(),
+          color: "000000"[:6 - hex.length()].to_owned() + hex,
+          opacity: 1,
+        }
+      }),
+      border: "999999",
+      color: if name == "SlicerStyleOther2" {
+        theme[1]
+      } else {
+        "000000"
+      },
+    })
+  }
   { frame, header, text: theme[1], buttons, }
 }
 

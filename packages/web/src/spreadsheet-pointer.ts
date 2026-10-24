@@ -18,10 +18,10 @@ export interface PointerHost {
     disabled: boolean;
     profile: Record<string, string>;
   };
-  run<T>(action: () => Promise<T>): Promise<T>;
+  run<T>(action: () => Promise<T>, quiet?: boolean): Promise<T>;
   prepare(): Promise<void>;
   assign(query: XlsxQuery): void;
-  render(): Promise<void>;
+  render(paintOnly?: boolean): Promise<void>;
   focus(): void;
   edit(): void;
   changed(): void;
@@ -46,6 +46,9 @@ interface Drag {
 
 /** Pointer intents and overlays; core geometry and the normal command queue own the result. */
 export class SpreadsheetPointer {
+  get slicerHover(): { object: string; index: number } | undefined {
+    return this.dragging ? undefined : this.slicers.hover;
+  }
   get dragging(): boolean {
     return (
       this.drag !== undefined || this.drawings.active || this.slicers.active

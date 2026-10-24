@@ -499,7 +499,7 @@ pub fn Session::timeline_gesture(Self, Int, Int, String, Int, Int, Int, Double, 
 pub fn Session::timelines(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::undo(Self, Int, redo? : Bool) -> Json raise @failure.Failure
 pub fn Session::update_pivot(Self, Int, String, String, PivotSettings) -> Json raise @failure.Failure
-pub fn Session::viewport(Self, String, Double, Double, Double, Double, @layout.TextProbe, Map[String, String], reveal? : Bool, images? : @layout.Images) -> Json raise @failure.Failure
+pub fn Session::viewport(Self, String, Double, Double, Double, Double, @layout.TextProbe, Map[String, String], reveal? : Bool, images? : @layout.Images, slicer_hover? : (String, Int)?) -> Json raise @failure.Failure
 
 pub(all) struct ShapeSettings {
   kind : String

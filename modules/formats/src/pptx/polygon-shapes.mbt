@@ -2,7 +2,7 @@
 fn polygon_shape(preset : String) -> Bool {
   [
     "triangle", "rtTriangle", "diamond", "parallelogram", "trapezoid", "pentagon",
-    "hexagon", "octagon", "plus", "star5",
+    "hexagon", "octagon", "plus", "star5", "chevron", "homePlate",
   ].contains(preset)
 }
 
@@ -54,6 +54,17 @@ fn polygon_points(
     "diamond" => [(0.0, h / 2), (w / 2, 0.0), (w, h / 2), (w / 2, h)]
     "parallelogram" => [(0.0, h), (inset, 0.0), (w, 0.0), (w - inset, h)]
     "trapezoid" => [(0.0, h), (inset, 0.0), (w - inset, 0.0), (w, h)]
+    "chevron" =>
+      [
+        (0.0, 0.0),
+        (w - inset, 0.0),
+        (w, h / 2),
+        (w - inset, h),
+        (0.0, h),
+        (inset, h / 2),
+      ]
+    "homePlate" =>
+      [(0.0, 0.0), (w - inset, 0.0), (w, h / 2), (w - inset, h), (0.0, h)]
     "pentagon" => pentagon_points(w, h)
     "hexagon" => {
       let y = h / 2 * (1 - 1.1547 * @math.sin(@math.PI / 3))
@@ -139,6 +150,15 @@ fn polygon_insets(
       let q = (if maximum > 0 { a / maximum } else { 0.0 }) / 3
       (q * w, q * h, q * w, 0.0)
     }
+    "chevron" => {
+      let inset = w.min(h) * a
+      if inset * 2 < w {
+        (inset, 0.0, inset, 0.0)
+      } else {
+        (0.0, 0.0, 0.0, 0.0)
+      }
+    }
+    "homePlate" => (0.0, 0.0, w.min(h) * a / 2, 0.0)
     "pentagon" => {
       let points = pentagon_points(w, h)
       let top = if w > 0 {

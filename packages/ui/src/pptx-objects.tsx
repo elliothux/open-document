@@ -118,6 +118,8 @@ export function PptxObjects({
               <option value="octagon">{t.octagon}</option>
               <option value="plus">{t.plusShape}</option>
               <option value="star5">{t.star5}</option>
+              <option value="chevron">{t.chevron}</option>
+              <option value="homePlate">{t.homePlate}</option>
               <option value="line">{t.lineShape}</option>
               <option value="leftArrow">{t.leftArrow}</option>
               <option value="rightArrow">{t.rightArrow}</option>

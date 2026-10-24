@@ -156,15 +156,16 @@ export class SpreadsheetEditor extends SpreadsheetClipboard {
           disabled:
             this.closed || this.paused || this.blocked || this.composing,
         }),
-        run: (action) => this.enqueue(action),
+        run: (action, quiet = false) =>
+          this.enqueue(action, false, false, quiet),
         prepare: async () => {
           await this.commitDraft();
           await this.present(false, true);
         },
         assign: (query) => (this.state = query),
-        render: async () => {
+        render: async (paintOnly = false) => {
           this.generation++;
-          await this.present(false, true);
+          await this.present(false, true, paintOnly);
         },
         focus: () => this.handle(async () => this.focus()),
         edit: () =>
@@ -278,6 +279,7 @@ export class SpreadsheetEditor extends SpreadsheetClipboard {
     action: () => Promise<T>,
     recovery = false,
     output = false,
+    quiet = false,
   ): Promise<T> {
     if (this.closed)
       return Promise.reject(new Error("Spreadsheet editor is disposed"));
@@ -294,7 +296,8 @@ export class SpreadsheetEditor extends SpreadsheetClipboard {
         new Error("Spreadsheet command queue exceeds budget"),
       );
     this.pending++;
-    this.publish();
+    // Hover repaint shares the queue without disabling controls under the pointer.
+    if (!quiet) this.publish();
     const task = this.tail.then(async () => {
       try {
         return await action();
@@ -310,7 +313,7 @@ export class SpreadsheetEditor extends SpreadsheetClipboard {
       )
       .finally(() => {
         this.pending--;
-        this.publish();
+        if (!quiet) this.publish();
       });
     return task;
   }
@@ -435,9 +438,13 @@ export class SpreadsheetEditor extends SpreadsheetClipboard {
       );
     });
   }
-  private async present(reveal = false, force = reveal): Promise<void> {
+  private async present(
+    reveal = false,
+    force = reveal,
+    paintOnly = false,
+  ): Promise<void> {
     if (this.viewport.hidden) return;
-    this.publish();
+    if (!paintOnly) this.publish();
     try {
       const generation = this.generation;
       await this.surface.prepare(
@@ -447,6 +454,7 @@ export class SpreadsheetEditor extends SpreadsheetClipboard {
         this.profile,
         this.listeners.signal,
       );
+      const slicerHover = this.pointer.slicerHover;
       const layout = await this.client.viewport({
         ...prepareGridViewport(
           this.viewport,
@@ -457,11 +465,13 @@ export class SpreadsheetEditor extends SpreadsheetClipboard {
         sheet: this.state.sheet,
         profile: this.profile,
         reveal,
+        ...(slicerHover ? { slicerHover } : {}),
       });
       // Queued commands must reveal their selection despite intervening scroll events.
       if (this.closed || (!force && generation !== this.generation)) return;
       this.layout = layout;
       this.scale = this.surface.draw(layout, 0, this.zoomValue);
+      if (paintOnly) return;
       updateGridScroll(this.viewport, this.spacer, layout, this.scale);
       updateGridSemantics(this.semantics, layout, this.state);
       this.publish();

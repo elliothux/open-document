@@ -43,6 +43,7 @@ fn Object::adjustment_handles(self : Object) -> Array[AdjustmentHandle] {
       ("quadArrow", "adj2") => (w / 2, 0.0, -side, 0.0)
       ("quadArrow", "adj3") => (w, 0.0, 0.0, side)
       ("triangle", _) => (0.0, 0.0, w, 0.0)
+      ("chevron" | "homePlate", _) => (w, 0.0, -side, 0.0)
       ("star5", _) => (w / 2, h / 2 * 1.10557, 0.0, -h * 1.10557)
       _ => (0.0, 0.0, side, 0.0)
     }

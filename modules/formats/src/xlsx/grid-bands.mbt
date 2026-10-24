@@ -225,6 +225,7 @@ fn Session::paint_grid(
   profile : Map[String, String],
   notes : Map[String, CellNote],
   objects : Array[SheetObject],
+  slicer_hover : (String, Int)?,
 ) -> (
   Array[@layout.PositionedPrimitive],
   Array[Json],
@@ -355,7 +356,15 @@ fn Session::paint_grid(
         let visible = grid_intersection(picture.paint_bounds(rect), clip)
         if visible.width > 0 && visible.height > 0 {
           primitives.push(Clip(clip))
-          picture.paint(primitives, rect, probe, profile)
+          picture.paint(
+            primitives,
+            rect,
+            probe,
+            profile,
+            slicer_hover=slicer_hover
+              .filter(item => item.0 == picture.id)
+              .map(item => item.1),
+          )
           primitives.push(Restore)
         }
       }

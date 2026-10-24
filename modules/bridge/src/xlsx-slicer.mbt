@@ -1,4 +1,16 @@
 ///|
+fn xlsx_slicer_hover(request : Json) -> (String, Int)? raise @failure.Failure {
+  guard request is { "slicerHover": value, .. } else { return None }
+  guard value is Object(fields) &&
+    fields.length() == 2 &&
+    fields.contains("object") &&
+    fields.contains("index") else {
+    @failure.reject("invalid-viewport", "Invalid slicer hover fields")
+  }
+  Some((field_string(value, "object"), field_int(value, "index")))
+}
+
+///|
 fn Foundation::insert_xlsx_slicer(
   self : Foundation,
   request : Json,

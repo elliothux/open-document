@@ -88,8 +88,17 @@ pub fn Session::viewport(
   profile : Map[String, String],
   reveal~ : Bool = false,
   images~ : @layout.Images = @layout.Images::new(),
+  slicer_hover~ : (String, Int)? = None,
 ) -> Json raise @failure.Failure {
   let index = self.sheet_index(sheet)
+  if slicer_hover is Some((object, member_index)) {
+    guard !object.is_empty() &&
+      object.length() <= 10 &&
+      member_index >= 0 &&
+      member_index < 4096 else {
+      @failure.reject("invalid-viewport", "Invalid slicer hover target")
+    }
+  }
   guard width >= 90 &&
     height >= 45 &&
     width <= 14400 &&
@@ -170,6 +179,7 @@ pub fn Session::viewport(
   let key = Json::array([
     Json(self.revision),
     Json(self.drawing_selection),
+    Json(slicer_hover),
     Json(sheet),
     Json(x),
     Json(y),
@@ -205,6 +215,7 @@ pub fn Session::viewport(
     table_styles,
   ) = self.paint_grid(
     index, dimensions, rows, columns, width, height, probe, profile, notes, objects,
+    slicer_hover,
   )
   let document : @layout.PositionedDocument = {
     links: [],

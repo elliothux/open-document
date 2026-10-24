@@ -602,6 +602,7 @@ fn Foundation::xlsx_operation(
         xlsx_profile(request),
         reveal=xlsx_boolean(request, "reveal"),
         images=self.images,
+        slicer_hover=xlsx_slicer_hover(request),
       )
     "hitXlsx" =>
       {
