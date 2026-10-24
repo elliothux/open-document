@@ -4,6 +4,9 @@ import {
   type XlsxTimelineSettings,
   checkXlsxDrawingFrame,
   type XlsxDrawingFrame,
+  checkXlsxTimelineGesture,
+  xlsxTimelinePreview,
+  type XlsxTimelineGesture,
 } from "@open-document/wasm/xlsx";
 import {
   drawingClipboard,
@@ -34,6 +37,25 @@ import {
 
 export class XlsxDrawingClient {
   constructor(protected readonly connection: Connection) {}
+  async timelineGesture(
+    revision: number,
+    layout: number,
+    id: string,
+    gesture: XlsxTimelineGesture,
+    profile: Record<string, string>,
+  ) {
+    checkXlsxTimelineGesture(gesture);
+    return xlsxTimelinePreview(
+      await this.connection.request({
+        operation: "timelineGestureXlsx",
+        revision,
+        layout,
+        objectId: id,
+        ...gesture,
+        profile,
+      }),
+    );
+  }
   async setTimelineFrame(
     revision: number,
     sheet: string,

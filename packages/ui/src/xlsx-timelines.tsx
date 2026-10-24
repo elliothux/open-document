@@ -72,6 +72,40 @@ export function XlsxTimelinesPanel({
                   {item.connections.map((pivot) => pivot.name).join(", ")}
                 </dd>
               </dl>
+              <label>
+                {t.timelineLevel}
+                <select
+                  aria-label={t.timelineLevel}
+                  value={item.level}
+                  disabled={
+                    disabled ||
+                    !current ||
+                    editor.currentState.protection.protected
+                  }
+                  onChange={(event) => {
+                    const level = Number(event.currentTarget.value);
+                    controller.run(async () => {
+                      await editor.editSheet({
+                        action: "setTimelineLevel",
+                        name: item.name,
+                        level,
+                      });
+                      await load();
+                    });
+                  }}
+                >
+                  {[
+                    t.timelineYears,
+                    t.timelineQuarters,
+                    t.timelineMonths,
+                    t.timelineDays,
+                  ].map((label, level) => (
+                    <option key={level} value={level}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </label>
               <button
                 type="button"
                 disabled={

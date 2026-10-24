@@ -1,6 +1,27 @@
 import type { XlsxClient } from "./xlsx.js";
 import type { XlsxSlicerView } from "@open-document/wasm/xlsx";
 import type { PointerHost } from "./spreadsheet-pointer.js";
+import type { CanvasSurface } from "./canvas-surface.js";
+import { PointerSelection, type PointerPoint } from "./pointer-selection.js";
+import {
+  stepTimelineEndpoint,
+  paintTimelineEndpoints,
+} from "./spreadsheet-timeline-endpoints.js";
+
+interface DateGesture {
+  object: string;
+  handle: number;
+  first: number;
+  sheet: string;
+  revision: number;
+  layout: number;
+  point: PointerPoint;
+  left: number;
+  top: number;
+  scale: number;
+  ready: boolean;
+  cancelled: boolean;
+}
 
 type Intent =
   | { kind: "select"; index: number | null; additive: boolean }
@@ -12,7 +33,14 @@ export class SpreadsheetSlicers {
   private readonly groups = new Map<string, HTMLDivElement>();
   private readonly targets = new Map<string, HTMLElement>();
   private readonly multi = new Set<string>();
+  private readonly dateTargets = new Map<
+    string,
+    { pointer: PointerSelection; abort(): void }
+  >();
+  private dateGesture: DateGesture | undefined;
+  private dateEnding = false;
   constructor(
+    private readonly surface: CanvasSurface,
     holder: HTMLElement,
     private readonly viewport: HTMLElement,
     private readonly client: XlsxClient,
@@ -20,9 +48,311 @@ export class SpreadsheetSlicers {
     private readonly host: PointerHost,
   ) {
     holder.append(this.controls);
-    signal.addEventListener("abort", () => this.controls.remove(), {
-      once: true,
+    signal.addEventListener(
+      "abort",
+      () => {
+        this.cancel();
+        this.controls.remove();
+      },
+      {
+        once: true,
+      },
+    );
+    window.addEventListener(
+      "keydown",
+      (event) => {
+        if (event.key === "Escape" && this.active) {
+          event.preventDefault();
+          event.stopPropagation();
+          this.cancel();
+        }
+      },
+      { signal, capture: true },
+    );
+    viewport.addEventListener("scroll", () => this.cancel(), { signal });
+    viewport.addEventListener("wheel", () => this.cancel(), {
+      signal,
+      passive: true,
     });
+  }
+  get active(): boolean {
+    return this.dateGesture !== undefined || this.dateEnding;
+  }
+  cancel(): void {
+    if (!this.dateGesture) return;
+    this.dateGesture.cancelled = true;
+    for (const target of this.dateTargets.values()) target.pointer.finish(true);
+  }
+  private async dateSample(
+    gesture: DateGesture,
+    commit: boolean,
+  ): Promise<void> {
+    if (gesture.cancelled || this.dateGesture !== gesture) return;
+    const result = await this.client.timelineGesture(
+      gesture.revision,
+      gesture.layout,
+      gesture.object,
+      {
+        handle: gesture.handle,
+        first: gesture.first,
+        x: Math.max(
+          -14400,
+          Math.min(14400, (gesture.point.x - gesture.left) / gesture.scale),
+        ),
+        y: Math.max(
+          -14400,
+          Math.min(14400, (gesture.point.y - gesture.top) / gesture.scale),
+        ),
+        commit,
+      },
+      this.host.current().profile,
+    );
+    if (gesture.cancelled || this.signal.aborted) return;
+    if (result.query) this.host.assign(result.query);
+    if (result.drawing) {
+      this.surface.draw(result.drawing, 0, (gesture.scale * 72) / 96);
+      paintTimelineEndpoints(
+        this.surface,
+        result.drawing,
+        gesture.object,
+        gesture.scale,
+      );
+      for (const [key, target] of this.targets)
+        if (key.startsWith(`${gesture.object}:endpoint:`))
+          target.style.background = "transparent";
+    }
+  }
+  private dateTarget(
+    key: string,
+    button: HTMLButtonElement,
+    object: string,
+    first: number,
+    handle: number,
+  ): void {
+    if (this.dateTargets.has(key)) return;
+    const scope = new AbortController();
+    const abort = () => {
+      this.signal.removeEventListener("abort", abort);
+      scope.abort();
+    };
+    this.signal.addEventListener("abort", abort, { once: true });
+    const pointer = new PointerSelection(
+      button,
+      this.viewport,
+      scope.signal,
+      async (point, initial) => {
+        if (initial) {
+          const now = this.host.current();
+          const gesture: DateGesture = {
+            object,
+            handle,
+            first,
+            sheet: now.query.sheet,
+            revision: now.query.revision,
+            layout: now.layout?.id ?? -1,
+            point,
+            left: 0,
+            top: 0,
+            scale: now.scale,
+            ready: false,
+            cancelled: false,
+          };
+          this.dateGesture = gesture;
+          this.host.changed();
+          return this.host
+            .run(async () => {
+              await this.host.prepare();
+              const current = this.host.current(),
+                rect = this.surface.canvas.getBoundingClientRect();
+              if (gesture.cancelled) return;
+              if (!current.layout || current.query.sheet !== gesture.sheet)
+                throw new Error("Timeline target changed");
+              gesture.revision = current.query.revision;
+              gesture.layout = current.layout.id;
+              gesture.left = rect.left;
+              gesture.top = rect.top;
+              gesture.scale = current.scale;
+              gesture.ready = true;
+              await this.dateSample(gesture, false);
+            })
+            .catch((error: unknown) => {
+              this.cancel();
+              this.host.report(error);
+            });
+        }
+        const gesture = this.dateGesture;
+        if (!gesture) return;
+        gesture.point = point;
+        return this.host
+          .run(() => this.dateSample(gesture, false))
+          .catch((error: unknown) => {
+            this.cancel();
+            this.host.report(error);
+          });
+      },
+      () => !this.host.current().disabled && !this.active,
+      async (cancelled) => {
+        const gesture = this.dateGesture;
+        if (!gesture) return;
+        if (cancelled) gesture.cancelled = true;
+        this.dateEnding = true;
+        try {
+          await this.host.run(async () => {
+            try {
+              await this.dateSample(gesture, true);
+            } finally {
+              this.dateGesture = undefined;
+              this.dateEnding = false;
+              if (!this.signal.aborted) await this.host.render();
+            }
+          });
+        } catch (error) {
+          if (!this.signal.aborted) this.host.report(error);
+        } finally {
+          this.dateGesture = undefined;
+          this.dateEnding = false;
+          this.host.changed();
+        }
+      },
+      false,
+    );
+    this.dateTargets.set(key, { pointer, abort });
+  }
+  private selectDate(object: string, first: number): void {
+    const sheet = this.host.current().query.sheet;
+    void this.host
+      .run(async () => {
+        await this.host.prepare();
+        const now = this.host.current(),
+          layout = now.layout;
+        if (!layout || now.query.sheet !== sheet)
+          throw new Error("Timeline target changed");
+        const region = layout.objects
+          .find((item) => item.id === object)
+          ?.timeline?.periods.find((period) => period.index === first)
+          ?.regions[0];
+        if (!region) throw new Error("Timeline period is no longer visible");
+        const result = await this.client.timelineGesture(
+          now.query.revision,
+          layout.id,
+          object,
+          {
+            handle: 0,
+            first,
+            x: region.clip.x + region.clip.width / 2,
+            y: region.clip.y + region.clip.height / 2,
+            commit: true,
+          },
+          now.profile,
+        );
+        if (result.query) this.host.assign(result.query);
+        await this.host.render();
+      })
+      .catch((error: unknown) => {
+        if (!this.signal.aborted) this.host.report(error);
+      });
+  }
+  private navigateTimeline(
+    object: string,
+    value: number,
+    level?: number,
+  ): void {
+    const sheet = this.host.current().query.sheet;
+    void this.host
+      .run(async () => {
+        await this.host.prepare();
+        const now = this.host.current(),
+          timeline = now.layout?.objects.find(
+            (item) => item.id === object,
+          )?.timeline;
+        if (now.query.sheet !== sheet || !timeline)
+          throw new Error("Timeline view target changed");
+        this.host.assign(
+          await this.client.editSheet(
+            now.query.revision,
+            sheet,
+            level === undefined
+              ? {
+                  action: "setTimelineLevel",
+                  name: timeline.name,
+                  level: value,
+                }
+              : {
+                  action: "scrollTimeline",
+                  name: timeline.name,
+                  level,
+                  position: value,
+                },
+          ),
+        );
+        await this.host.render();
+      })
+      .catch((error: unknown) => {
+        if (!this.signal.aborted) this.host.report(error);
+      });
+  }
+  private stepEndpoint(object: string, handle: number, key: string): void {
+    void stepTimelineEndpoint(this.client, this.host, object, handle, key)
+      .then(() => {
+        const target = this.groups
+          .get(object)
+          ?.querySelector<HTMLButtonElement>(
+            `button[data-timeline-endpoint="${handle}"]`,
+          );
+        if (target) target.focus({ preventScroll: true });
+        else this.host.focus();
+      })
+      .catch((error: unknown) => {
+        if (!this.signal.aborted) this.host.report(error);
+      });
+  }
+  private navigationTarget(
+    key: string,
+    group: HTMLElement,
+    object: string,
+    level?: number,
+  ): HTMLSelectElement | HTMLInputElement {
+    const known = this.targets.get(key);
+    if (known instanceof HTMLSelectElement || known instanceof HTMLInputElement)
+      return known;
+    const target =
+      level === undefined
+        ? document.createElement("select")
+        : document.createElement("input");
+    if (target instanceof HTMLSelectElement)
+      for (const [value, label] of [
+        "Years",
+        "Quarters",
+        "Months",
+        "Days",
+      ].entries()) {
+        const option = document.createElement("option");
+        option.value = String(value);
+        option.textContent = label;
+        target.append(option);
+      }
+    else {
+      target.type = "range";
+      target.step = "1";
+    }
+    target.setAttribute(
+      "aria-label",
+      level === undefined ? "Timeline display level" : "Timeline start period",
+    );
+    Object.assign(target.style, {
+      position: "absolute",
+      padding: "0",
+      margin: "0",
+      border: "0",
+      background: level === undefined ? "white" : "transparent",
+      touchAction: "none",
+    });
+    target.addEventListener("change", () =>
+      this.navigateTimeline(object, Number(target.value), level),
+    );
+    group.append(target);
+    this.targets.set(key, target);
+    return target;
   }
   private command(id: string, intent: Intent): void {
     const sheet = this.host.current().query.sheet;
@@ -96,11 +426,11 @@ export class SpreadsheetSlicers {
       const view = this.host
         .current()
         .layout?.objects.find((object) => object.id === id)?.slicer;
-      if (!view) return;
       if (event.key === "Escape") {
         event.preventDefault();
         this.host.focus();
-      } else if (
+      } else if (!view) return;
+      else if (
         (event.ctrlKey || event.metaKey) &&
         event.key.toLowerCase() === "a" &&
         view.clear.length
@@ -178,6 +508,14 @@ export class SpreadsheetSlicers {
   }
   update(dragging = false): void {
     this.controls.hidden = dragging;
+    if (this.active) {
+      if (
+        this.dateGesture?.ready &&
+        this.host.current().layout?.id !== this.dateGesture.layout
+      )
+        this.cancel();
+      return;
+    }
     const now = this.host.current(),
       seen = new Set<string>(),
       groups = new Set<string>();
@@ -189,7 +527,7 @@ export class SpreadsheetSlicers {
         groups.add(object.id);
         const group = this.group(object.id),
           mode = () => `${this.host.current().query.sheet}:${object.id}`;
-        group.setAttribute("role", timeline ? "img" : "group");
+        group.setAttribute("role", "group");
         group.setAttribute(
           "aria-label",
           timeline ? timeline.label : `Slicer ${view?.caption || view?.name}`,
@@ -205,6 +543,56 @@ export class SpreadsheetSlicers {
           for (const [band, region] of regions.entries()) {
             const full = `${object.id}:${key}:${band}`,
               target = this.target(full, group, !!click, click);
+            if (
+              timeline &&
+              (key.startsWith("period:") || key.startsWith("endpoint:")) &&
+              target instanceof HTMLButtonElement
+            ) {
+              const endpoint = timeline.handles.find(
+                (item) => key === `endpoint:${item.handle}:${item.index}`,
+              );
+              this.dateTarget(
+                full,
+                target,
+                object.id,
+                endpoint?.index ?? Number(key.slice(7)),
+                endpoint?.handle ?? 0,
+              );
+              if (endpoint) {
+                if (!target.dataset.timelineEndpoint)
+                  target.addEventListener("keydown", (event) => {
+                    if (
+                      ![
+                        "ArrowLeft",
+                        "ArrowRight",
+                        "ArrowUp",
+                        "ArrowDown",
+                        "PageUp",
+                        "PageDown",
+                        "Home",
+                        "End",
+                      ].includes(event.key)
+                    )
+                      return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    if (!this.active && !this.host.current().disabled)
+                      this.stepEndpoint(object.id, endpoint.handle, event.key);
+                  });
+                target.dataset.timelineEndpoint = String(endpoint.handle);
+                target.setAttribute("role", "slider");
+                target.setAttribute(
+                  "aria-valuemin",
+                  String(timeline.navigation.minimum),
+                );
+                target.setAttribute(
+                  "aria-valuemax",
+                  String(timeline.navigation.maximum),
+                );
+                target.setAttribute("aria-valuenow", String(endpoint.index));
+                target.setAttribute("aria-valuetext", endpoint.value);
+              }
+            }
             seen.add(full);
             Object.assign(target.style, {
               left: `${region.clip.x * now.scale}px`,
@@ -212,7 +600,11 @@ export class SpreadsheetSlicers {
               width: `${region.clip.width * now.scale}px`,
               height: `${region.clip.height * now.scale}px`,
               zIndex: String(layer + 4),
-              cursor: click ? "pointer" : "default",
+              cursor: key.startsWith("endpoint:")
+                ? "ew-resize"
+                : click
+                  ? "pointer"
+                  : "default",
             });
             if (target instanceof HTMLButtonElement) {
               target.setAttribute("aria-label", label);
@@ -223,14 +615,73 @@ export class SpreadsheetSlicers {
               if (pressed !== undefined)
                 target.setAttribute("aria-pressed", String(pressed));
               target.disabled = disabled;
-              target.style.background =
-                key === "multi" && pressed
+              target.style.background = key.startsWith("endpoint:")
+                ? "#2563eb"
+                : key === "multi" && pressed
                   ? "rgba(37, 99, 235, 0.15)"
                   : "transparent";
             }
           }
         };
         place("frame", object.regions, "");
+        if (timeline) {
+          const navigation = timeline.navigation;
+          for (const [kind, regions] of [
+            ["level", navigation.levelRegions],
+            ["scroll", navigation.scrollRegions],
+          ] as const)
+            for (const [band, region] of regions.entries()) {
+              const key = `${object.id}:view:${kind}:${band}${kind === "scroll" ? `:${navigation.level}` : ""}`;
+              const target = this.navigationTarget(
+                key,
+                group,
+                object.id,
+                kind === "scroll" ? navigation.level : undefined,
+              );
+              seen.add(key);
+              const { rect, clip } = region;
+              Object.assign(target.style, {
+                left: `${rect.x * now.scale}px`,
+                top: `${rect.y * now.scale}px`,
+                width: `${rect.width * now.scale}px`,
+                height: `${rect.height * now.scale}px`,
+                clipPath: `inset(${(clip.y - rect.y) * now.scale}px ${(rect.x + rect.width - clip.x - clip.width) * now.scale}px ${(rect.y + rect.height - clip.y - clip.height) * now.scale}px ${(clip.x - rect.x) * now.scale}px)`,
+                zIndex: String(layer + 4),
+                fontSize: `${11 * now.scale}px`,
+              });
+              target.tabIndex = band === 0 ? 0 : -1;
+              target.setAttribute("aria-hidden", String(band > 0));
+              if (target instanceof HTMLInputElement) {
+                target.min = String(navigation.minimum);
+                target.max = String(navigation.maximum);
+                target.value = String(navigation.position);
+                target.setAttribute("aria-valuetext", navigation.label);
+                target.disabled = navigation.minimum === navigation.maximum;
+              } else target.value = String(navigation.level);
+            }
+        }
+        if (timeline) {
+          for (const period of timeline.periods)
+            place(
+              `period:${period.index}`,
+              period.regions,
+              `Select timeline period ${period.label}`,
+              (event) => {
+                if (event.detail === 0)
+                  this.selectDate(object.id, period.index);
+              },
+              period.selected,
+            );
+          for (const endpoint of timeline.handles)
+            place(
+              `endpoint:${endpoint.handle}:${endpoint.index}`,
+              endpoint.regions,
+              endpoint.handle === 1
+                ? "Timeline start date"
+                : "Timeline end date",
+              () => {},
+            );
+        }
         if (!view) continue;
         for (const button of view.buttons)
           place(
@@ -284,6 +735,10 @@ export class SpreadsheetSlicers {
     }
     for (const [key, target] of this.targets)
       if (!seen.has(key)) {
+        const date = this.dateTargets.get(key);
+        date?.pointer.cancel();
+        date?.abort();
+        this.dateTargets.delete(key);
         target.remove();
         this.targets.delete(key);
       }

@@ -110,6 +110,19 @@ pub fn Session::filter_timeline(
   name : String,
   range : (String, String)?,
 ) -> Json raise @failure.Failure {
+  self.apply_timeline_filter(revision, sheet, name, range)
+}
+
+///|
+fn Session::apply_timeline_filter(
+  self : Session,
+  revision : Int,
+  sheet : String,
+  name : String,
+  range : (String, String)?,
+  view_changes~ : Array[(String, String)] = [],
+  retained~ : TimelineRange? = None,
+) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let current = self.sheets[self.sheet_index(sheet)]
   guard self.read_only.is_empty() &&
@@ -140,8 +153,14 @@ pub fn Session::filter_timeline(
     let start = pivot_date_parse(pair.0, false)
     let end = pivot_date_parse(pair.1, false)
     guard start <= end &&
-      start >= pivot_date_parse(bounds.start, false) &&
-      end <= pivot_date_parse(bounds.end, false) else {
+      (
+        start >= pivot_date_parse(bounds.start, false) ||
+        retained.map(old => old.start == pair.0).unwrap_or(false)
+      ) &&
+      (
+        end <= pivot_date_parse(bounds.end, false) ||
+        retained.map(old => old.end == pair.1).unwrap_or(false)
+      ) else {
       @failure.reject(
         "invalid-operation", "Timeline range is outside available dates or reversed",
       )
@@ -242,6 +261,21 @@ pub fn Session::filter_timeline(
     candidate.sync_slicer_state(slicer, settings, data, edits)
   }
   candidate.set_timeline_selection(cache, selection, edits)
+  if !view_changes.is_empty() {
+    let document = candidate.part_xml(control.part)
+    let tree = Tree::new(document)
+    let node = tree
+      .timeline_children(0, "timeline")
+      .iter()
+      .find_first(node => slicer_text(node, "name") == control.name)
+      .unwrap()
+    let changes = metadata_changes(node, view_changes)
+    if !changes.is_empty() {
+      let (document, edit) = document.edit_source(changes)
+      candidate.parts[control.part] = document
+      edits.push((control.part, edit))
+    }
+  }
   if !edits.is_empty() {
     self.commit(
       candidate.sheets,

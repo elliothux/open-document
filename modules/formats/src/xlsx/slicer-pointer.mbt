@@ -45,6 +45,22 @@ fn SheetObject::grid_object(
     "regions": Json(grid.drawing_regions(self)),
   }
   if self.timeline is Some(timeline) {
+    let selectable = try {
+      self.check_change(false, analysis_frame=true)
+      true
+    } catch {
+      @failure.Failure(code="limit-exceeded", ..) as error => raise error
+      @failure.Failure(..) => false
+    }
+    let movable = selectable &&
+      (try {
+        ignore(self.transform_change(self.rect, analysis_frame=true))
+        true
+      } catch {
+        @failure.Failure(code="limit-exceeded", ..) as error => raise error
+        @failure.Failure(..) => false
+      })
+    let geometry = timeline.geometry(self.rect.width, self.rect.height)
     fields["timeline"] = {
       "name": timeline.control.name,
       "label": timeline.control.label(),
@@ -54,6 +70,88 @@ fn SheetObject::grid_object(
         "y": self.rect.y,
         "width": self.rect.width,
         "height": self.rect.height,
+      },
+      "move": if movable {
+        grid.slicer_regions(self, {
+          x: 0,
+          y: 0,
+          width: (self.rect.width -
+          (if timeline.control.time_level { 67.2 } else { 0.0 })).max(0),
+          height: (if timeline.control.header {
+            7.2 + timeline.header_height()
+          } else {
+            3.6
+          }).min(self.rect.height),
+        })
+      } else {
+        []
+      },
+      "periods": if selectable && !timeline.control.cache.connections.is_empty() {
+        geometry.cells.filter_map(cell => {
+          let (index, period, rect) = cell
+          let regions = grid.slicer_regions(self, rect)
+          if regions.is_empty() {
+            None
+          } else {
+            let button : Json = {
+              "index": index,
+              "label": period.label,
+              "selected": geometry.selection
+              .map(range => range.0 < period.next && range.1 >= period.first)
+              .unwrap_or(false),
+              "regions": regions,
+            }
+            Some(button)
+          }
+        })
+      } else {
+        []
+      },
+      "navigation": {
+        "level": timeline.control.level,
+        "minimum": geometry.lower,
+        "maximum": geometry.upper,
+        "position": geometry.first,
+        "label": timeline_period(geometry.first, timeline.control.level).label,
+        "levelRegions": if selectable && timeline.control.time_level {
+          grid.slicer_regions(self, {
+            x: (self.rect.width - 67.2).max(7.2),
+            y: 7.2,
+            width: geometry.width.min(60),
+            height: geometry.header,
+          })
+        } else {
+          []
+        },
+        "scrollRegions": if selectable && timeline.control.scrollbar {
+          grid.slicer_regions(self, {
+            x: 7.2,
+            y: (self.rect.height - 18).max(0),
+            width: geometry.width,
+            height: self.rect.height.min(18),
+          })
+        } else {
+          []
+        },
+      },
+      "handles": if selectable {
+        geometry.handles.filter_map(item => {
+          let (handle, index, value, rect) = item
+          let regions = grid.slicer_regions(self, rect)
+          if regions.is_empty() {
+            None
+          } else {
+            let result : Json = {
+              "handle": handle,
+              "index": index,
+              "value": value,
+              "regions": regions,
+            }
+            Some(result)
+          }
+        })
+      } else {
+        []
       },
     }
   }

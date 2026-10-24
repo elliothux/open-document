@@ -96,14 +96,34 @@ fn TimelineDrawing::paint_text(
 }
 
 ///|
-// shortcut: Light1 uses workbook text/accent colors; match native differentials before claiming preset fidelity.
-fn TimelineDrawing::paint(
+fn TimelineDrawing::header_height(self : TimelineDrawing) -> Double {
+  if self.control.header || self.control.time_level {
+    (self.size * 1.8).max(18)
+  } else {
+    0
+  }
+}
+
+///|
+priv struct TimelineGeometry {
+  lower : Int
+  upper : Int
+  first : Int
+  header : Double
+  line : Double
+  width : Double
+  column : Double
+  selection : (Double, Double)?
+  cells : Array[(Int, TimelinePeriod, @layout.Border)]
+  handles : Array[(Int, Int, String, @layout.Border)]
+}
+
+///|
+fn TimelineDrawing::geometry(
   self : TimelineDrawing,
-  primitives : Array[@layout.PositionedPrimitive],
-  rect : @layout.Border,
-  probe : @layout.TextProbe,
-  profile : Map[String, String],
-) -> Unit raise @failure.Failure {
+  width : Double,
+  height : Double,
+) -> TimelineGeometry raise @failure.Failure {
   let view = self.control
   let bounds = view.cache.state.bounds
   let minimum = pivot_date_parse(bounds.start, false)
@@ -133,13 +153,9 @@ fn TimelineDrawing::paint(
       )
     None => None
   }
-  let header = if view.header || view.time_level {
-    (self.size * 1.8).max(18)
-  } else {
-    0.0
-  }
+  let header = self.header_height()
   let line = if view.selection_label { (self.size * 1.6).max(16) } else { 0.0 }
-  let width = (rect.width - 14.4).max(0)
+  let width = (width - 14.4).max(0)
   let column = (self.size * (if view.level == 3 { 7.0 } else { 5.0 })).max(36)
   let count = (width / column)
     .ceil()
@@ -149,11 +165,83 @@ fn TimelineDrawing::paint(
     .max(0)
   let label_y = 7.2 + header + line
   let bar_y = label_y + self.size * 1.5 + 3.6
-  let bar_height = (rect.height -
-    bar_y -
-    (if view.scrollbar { 18.0 } else { 7.2 }))
+  let bar_height = (height - bar_y - (if view.scrollbar { 18.0 } else { 7.2 }))
     .max(0)
     .min(20)
+  let cells : Array[(Int, TimelinePeriod, @layout.Border)] = []
+  for offset in 0..<count {
+    let key = first + offset
+    let x = 7.2 + offset.to_double() * column
+    cells.push(
+      (
+        key,
+        timeline_period(key, view.level),
+        {
+          x,
+          y: bar_y,
+          width: (width + 7.2 - x).min(column).max(0),
+          height: bar_height,
+        },
+      ),
+    )
+  }
+  let handles : Array[(Int, Int, String, @layout.Border)] = []
+  if view.selected_range() is Some(range) {
+    for (handle, value) in [(1, range.start), (2, range.end)] {
+      let date = pivot_date_parse(value, false)
+      let index = timeline_period_key(date, view.level)
+      if cells.iter().find_first(cell => cell.0 == index)
+        is Some((_, period, rect)) &&
+        rect.height > 0 {
+        let x = rect.x +
+          column * (date - period.first) / (period.next - period.first)
+        if x >= rect.x && x <= rect.x + rect.width {
+          handles.push(
+            (
+              handle,
+              index,
+              value,
+              {
+                x: x - 3.6,
+                y: rect.y - 3.6,
+                width: 7.2,
+                height: rect.height + 7.2,
+              },
+            ),
+          )
+        }
+      }
+    }
+  }
+  {
+    lower,
+    upper,
+    first,
+    header,
+    line,
+    width,
+    column,
+    selection,
+    cells,
+    handles,
+  }
+}
+
+///|
+// shortcut: Light1 uses workbook text/accent colors; match native differentials before claiming preset fidelity.
+fn TimelineDrawing::paint(
+  self : TimelineDrawing,
+  primitives : Array[@layout.PositionedPrimitive],
+  rect : @layout.Border,
+  probe : @layout.TextProbe,
+  profile : Map[String, String],
+) -> Unit raise @failure.Failure {
+  let view = self.control
+  let bounds = view.cache.state.bounds
+  let geometry = self.geometry(rect.width, rect.height)
+  let { lower, upper, first, header, line, width, column, selection, cells, .. } = geometry
+  let label_y = 7.2 + header + line
+  let count = cells.length()
   primitives.push(Clip(rect))
   primitives.push(Transform({ a: 1, b: 0, c: 0, d: 1, e: rect.x, f: rect.y, }))
   primitives.push(
@@ -218,10 +306,11 @@ fn TimelineDrawing::paint(
       profile,
     )
   }
-  for offset in 0..<count {
-    let period = timeline_period(first + offset, view.level)
-    let x = 7.2 + offset.to_double() * column
-    let cell_width = (rect.width - 7.2 - x).min(column).max(0)
+  for (_, period, cell) in cells {
+    let x = cell.x
+    let bar_y = cell.y
+    let cell_width = cell.width
+    let bar_height = cell.height
     self.paint_text(
       primitives,
       period.label,
@@ -232,12 +321,6 @@ fn TimelineDrawing::paint(
     )
     if bar_height <= 0 || cell_width <= 0 {
       continue
-    }
-    let cell : @layout.Border = {
-      x,
-      y: bar_y,
-      width: cell_width,
-      height: bar_height,
     }
     primitives.push(
       Rectangle({

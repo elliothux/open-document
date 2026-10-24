@@ -135,7 +135,9 @@ export class SpreadsheetDrawingPointer {
       "aria-keyshortcuts",
       this.host
         .current()
-        .layout?.objects.some((item) => item.id === object && item.slicer)
+        .layout?.objects.some(
+          (item) => item.id === object && (item.slicer || item.timeline),
+        )
         ? "ArrowLeft ArrowRight ArrowUp ArrowDown Delete Escape"
         : "ArrowLeft ArrowRight ArrowUp ArrowDown Delete Escape Control+X Meta+X Control+C Meta+C",
     );
@@ -289,7 +291,9 @@ export class SpreadsheetDrawingPointer {
           if (
             this.host
               .current()
-              .layout?.objects.some((item) => item.id === object && item.slicer)
+              .layout?.objects.some(
+                (item) => item.id === object && (item.slicer || item.timeline),
+              )
           )
             return;
           const sheet = this.host.current().query.sheet;
@@ -355,31 +359,40 @@ export class SpreadsheetDrawingPointer {
               );
               if (!target) throw new Error("Worksheet object no longer exists");
               this.host.assign(
-                await (target.slicer
+                await (target.timeline
                   ? this.client.editSheet(now.query.revision, now.query.sheet, {
-                      action: "deleteSlicer",
-                      name: target.slicer.name,
+                      action: "deleteTimeline",
+                      name: target.timeline.name,
                     })
-                  : target.kind === "picture"
-                    ? this.client.deletePicture(
+                  : target.slicer
+                    ? this.client.editSheet(
                         now.query.revision,
                         now.query.sheet,
-                        object,
-                        now.profile,
+                        {
+                          action: "deleteSlicer",
+                          name: target.slicer.name,
+                        },
                       )
-                    : target.kind === "chart"
-                      ? this.client.deleteChart(
+                    : target.kind === "picture"
+                      ? this.client.deletePicture(
                           now.query.revision,
                           now.query.sheet,
                           object,
                           now.profile,
                         )
-                      : this.client.deleteShape(
-                          now.query.revision,
-                          now.query.sheet,
-                          object,
-                          now.profile,
-                        )),
+                      : target.kind === "chart"
+                        ? this.client.deleteChart(
+                            now.query.revision,
+                            now.query.sheet,
+                            object,
+                            now.profile,
+                          )
+                        : this.client.deleteShape(
+                            now.query.revision,
+                            now.query.sheet,
+                            object,
+                            now.profile,
+                          )),
               );
             } else {
               const result = await this.client.drawingGesture(
@@ -446,7 +459,9 @@ export class SpreadsheetDrawingPointer {
       context.restore();
     }
   }
-  update(): boolean {
+  update(blocked = false): boolean {
+    this.controls.hidden = blocked;
+    if (blocked) return true;
     if (this.active) {
       if (
         this.gesture?.ready &&
@@ -460,9 +475,10 @@ export class SpreadsheetDrawingPointer {
     let selected = false;
     if (now.layout && !this.viewport.hidden && !now.disabled)
       for (const [layer, object] of now.layout.objects.entries()) {
-        if (object.timeline) continue;
         for (const [index, region] of (
-          object.slicer?.move ?? object.regions
+          object.timeline?.move ??
+          object.slicer?.move ??
+          object.regions
         ).entries()) {
           const key = `${object.id}:${index}:move`,
             button = this.target(
@@ -483,7 +499,7 @@ export class SpreadsheetDrawingPointer {
         }
         if (!object.selected) continue;
         selected = true;
-        if (object.slicer)
+        if (object.slicer || object.timeline)
           this.paint({
             revision: now.query.revision,
             sheet: now.query.sheet,

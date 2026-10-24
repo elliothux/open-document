@@ -25,6 +25,11 @@ import {
 } from "./xlsx-drawing-frame.js";
 import { xlsxQuery, type XlsxQuery } from "./xlsx-query.js";
 import {
+  checkXlsxTimelineGesture,
+  xlsxTimelinePreview,
+  type XlsxTimelineGesture,
+} from "./xlsx-timeline.js";
+import {
   xlsxPictures,
   xlsxPictureResource,
   checkXlsxPictureSettings,
@@ -32,6 +37,25 @@ import {
 } from "./xlsx-pictures.js";
 
 export class XlsxDrawingSession extends WasmSession {
+  timelineGesture(
+    revision: number,
+    layout: number,
+    id: string,
+    gesture: XlsxTimelineGesture,
+    profile: Record<string, string>,
+  ) {
+    checkXlsxTimelineGesture(gesture);
+    return xlsxTimelinePreview(
+      this.call({
+        operation: "timelineGestureXlsx",
+        revision,
+        layout,
+        objectId: id,
+        ...gesture,
+        profile,
+      }),
+    );
+  }
   setTimelineFrame(
     revision: number,
     sheet: string,

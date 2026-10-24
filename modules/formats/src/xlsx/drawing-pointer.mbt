@@ -150,7 +150,10 @@ pub fn Session::select_drawing(
     guard !grid.drawing_regions(object).is_empty() else {
       @failure.reject("invalid-operation", "Worksheet object is not visible")
     }
-    object.check_change(false, analysis_frame=object.slicer is Some(_))
+    object.check_change(
+      false,
+      analysis_frame=object.slicer is Some(_) || object.timeline is Some(_),
+    )
     object
   })
   self.drawing_selection = object.map(p => (grid.sheet, p.id))
@@ -219,7 +222,9 @@ fn SheetObject::pointer_rect(
         width,
         height,
       }
-      if self.chart is Some(_) || self.slicer is Some(_) {
+      if self.chart is Some(_) ||
+        self.slicer is Some(_) ||
+        self.timeline is Some(_) {
         check_picture_rect(self.anchor, result, grid.dimensions)
       } else {
         ignore(self.shape_settings(result).checked(grid.dimensions))
@@ -227,7 +232,7 @@ fn SheetObject::pointer_rect(
       self.check_change(
         false,
         rect=result,
-        analysis_frame=self.slicer is Some(_),
+        analysis_frame=self.slicer is Some(_) || self.timeline is Some(_),
       )
       return result
     }
@@ -263,7 +268,11 @@ fn SheetObject::pointer_rect(
   } else {
     check_picture_rect(self.anchor, rect, grid.dimensions)
   }
-  self.check_change(false, rect~, analysis_frame=self.slicer is Some(_))
+  self.check_change(
+    false,
+    rect~,
+    analysis_frame=self.slicer is Some(_) || self.timeline is Some(_),
+  )
   rect
 }
 
@@ -306,6 +315,16 @@ pub fn Session::drawing_gesture(
   }
   let query = if object.slicer is Some(_) {
     view.set_slicer_frame(
+      self.revision,
+      sheet,
+      id,
+      object.anchor,
+      rect,
+      probe,
+      profile,
+    )
+  } else if object.timeline is Some(_) {
+    view.set_timeline_frame(
       self.revision,
       sheet,
       id,

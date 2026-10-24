@@ -199,6 +199,52 @@ fn xlsx_pivot_edit(
   change : Json,
 ) -> Json raise @failure.Failure {
   let action = field_string(change, "action")
+  if action == "setTimelineEndpoint" {
+    guard change is Object(fields) &&
+      fields.length() == 5 &&
+      fields
+      .keys()
+      .all(key => {
+        ["action", "name", "handle", "level", "position"].contains(key)
+      }) else {
+      @failure.reject("invalid-operation", "Invalid timeline endpoint command")
+    }
+    return session.set_timeline_endpoint(
+      revision,
+      sheet,
+      field_string(change, "name"),
+      field_int(change, "handle"),
+      field_int(change, "level"),
+      field_int(change, "position"),
+    )
+  }
+  if action == "setTimelineLevel" || action == "scrollTimeline" {
+    let keys = if action == "setTimelineLevel" {
+      ["action", "name", "level"]
+    } else {
+      ["action", "name", "level", "position"]
+    }
+    guard change is Object(fields) &&
+      fields.length() == keys.length() &&
+      fields.keys().all(key => keys.contains(key)) else {
+      @failure.reject("invalid-operation", "Invalid timeline view command")
+    }
+    if action == "setTimelineLevel" {
+      return session.set_timeline_level(
+        revision,
+        sheet,
+        field_string(change, "name"),
+        field_int(change, "level"),
+      )
+    }
+    return session.scroll_timeline(
+      revision,
+      sheet,
+      field_string(change, "name"),
+      field_int(change, "level"),
+      field_int(change, "position"),
+    )
+  }
   if action == "filterTimeline" {
     guard change is Object(fields) &&
       fields.length() == 3 &&

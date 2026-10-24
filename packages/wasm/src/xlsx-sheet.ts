@@ -153,7 +153,13 @@ export type XlsxSheetEdit =
 
 export function checkXlsxSheetEdit(value: unknown): void {
   if (
-    ["filterTimeline", "deleteTimeline"].includes(String(record(value).action))
+    [
+      "filterTimeline",
+      "deleteTimeline",
+      "setTimelineLevel",
+      "scrollTimeline",
+      "setTimelineEndpoint",
+    ].includes(String(record(value).action))
   ) {
     checkXlsxTimelineEdit(value);
     return;

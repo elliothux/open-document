@@ -8,6 +8,8 @@ export {
   type XlsxTimelineRange,
   type XlsxTimelineEdit,
   type XlsxTimelineView,
+  type XlsxTimelineGesture,
+  type XlsxTimelinePreview,
   type XlsxTimelines,
 } from "@open-document/wasm/xlsx";
 import {

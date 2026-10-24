@@ -2496,11 +2496,11 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 原生 `timeslicer` 绘图已接入 R0 Canvas 和打印/PDF。核心读取固定、随单元格移动及随单元格缩放三类锚点，也读取 a15 兼容分支，保留原生后备。按 `level` 绘制年、季度、月或日刻度，使用原生日期范围、滚动位置及连续选区；月份按真实日历划分，保留小数秒。标题、选区文字、粒度和滚动条分别遵循原显示开关。沿工作簿普通/粗体字体测量，每个控件最多绘制 512 个可见日期段，不遍历整个日期跨度。绘制、目录查询及保存重开不增加文档历史。
 
-视口对象以 `kind: "timeline"` 返回 `timeline: { name, label, frame }`。默认宿主提供只读图像语义和原生选区说明，遮挡底层单元格命中，不显示移动或缩放手柄。打印仅识别已校验的时间线、切片器及迷你图扩展；混合未知内容继续保护。行高、列宽变化时，原生框与已校验的平面兼容后备随单元格同步移动或缩放。普通绘图入口的手动编辑、复制和删除继续拒绝；原生时间线使用下述专用框编辑与删除事务。
+视口对象以 `kind: "timeline"` 返回 `timeline: { name, label, frame, move, periods, navigation, handles }`。默认宿主提供日期范围分组、原生选区说明及具名日期按钮，遮挡底层单元格命中，并提供独立的标题移动与角点缩放控件。打印仅识别已校验的时间线、切片器及迷你图扩展；混合未知内容继续保护。行高、列宽变化时，原生框与已校验的平面兼容后备随单元格同步移动或缩放。普通图片/形状的属性、复制及删除入口继续拒绝时间线；原生时间线使用下述协调框编辑与删除事务。
 
 首批支持默认样式及 `TimelineStyleLight1`，使用工作簿文字色与强调色。精确的原生预设差异格式及几何尚未匹配，不能视为原生样式保真；其他预设、自定义覆盖及非连续选区继续保护。实现归 [`timeline-drawing.mbt`](../../modules/formats/src/xlsx/timeline-drawing.mbt)和 [`timeline-paint.mbt`](../../modules/formats/src/xlsx/timeline-paint.mbt)，日期含义依据 [CT_TimelineState](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/aa9bf132-1afa-4ce9-b3d2-e6dc00e48fde)。精确样式与分组映射继续实施。
 
-`editSheet({ action: "filterTimeline", name, range })` 筛选当前工作表的原生时间线。range 为 `{ start, end }` 原生 ISO 时间串或 null；MoonBit 入口为 `Session::filter_timeline(revision, sheet, name, range)`，range 使用可选日期串对。区间两端包含在内，必须有序且落在原生 bounds 内；保留小数秒。null 清除条件，写入 `filterType=unknown` 并移除 selection；明确范围写入 `dateBetween`。同缓存视图立即共享选区，清除后画布显示全部可用日期。默认面板提供开始/结束日期、应用和清除，使用既有编辑队列与输入提交屏障；日期表单按所选整日生成区间，边界日取原生 bounds。画布仍提供只读说明。
+`editSheet({ action: "filterTimeline", name, range })` 筛选当前工作表的原生时间线。range 为 `{ start, end }` 原生 ISO 时间串或 null；MoonBit 入口为 `Session::filter_timeline(revision, sheet, name, range)`，range 使用可选日期串对。区间两端包含在内，必须有序且落在原生 bounds 内；保留小数秒。null 清除条件，写入 `filterType=unknown` 并移除 selection；明确范围写入 `dateBetween`。同缓存视图立即共享选区，清除后画布显示全部可用日期。默认面板提供开始/结束日期、应用和清除，使用既有编辑队列与输入提交屏障；日期表单按所选整日生成区间，边界日取原生 bounds。画布日期条使用下述点击及连续拖选入口。
 
 范围按工作簿的 1900/1904 日期系统转换为各关联透视缓存的日期成员，在一个事务中更新原生隐藏项、结果格和时间线 state。读取原生日期/空白成员，保留其他字段条件、各表字段布局，以及关联切片器成员状态。结果缓存和独立日期缓存不重建，不刷新待处理源；输入值及原有过期标记保留。没有成员的区间写入空选择，返回空结果和空白总计；清除恢复全部缓存成员。各表输出变化累计最多 65536 格，任一表扩张冲突或保护失败都保留原包、选择、历史和重做；重复操作不添加历史。默认输入和结果区打印允许已校验的时间线连接元数据，未知扩展继续保护，手动锚点写回使用专用框编辑入口。
 
@@ -2510,7 +2510,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 创建读取原缓存，不刷新待处理源。支持未分组、索引记录的日期字段：原生日期成员，或源列采用受支持日期格式的数字成员；保留空白及成员索引。独立日期缓存复制记录并设置原生日期角色，结果缓存只将所选日期字段转换为原生日期；同结果缓存的其他透视表保持可读。相同字段连接复用时间线缓存。现有连续日期条件继承为原生选区，非连续或空成员条件继续保护。新控件采用月粒度、Light1、随单元格移动锚点和兼容后备，全部部件与连接合为一项精确历史。
 
-名称、日期字段、字体或资源预算失败保留原包和重做。数字日期沿工作簿的 1900/1904 系统转换；1900 系统三月之前的数字日期继续保护，待实现虚构闰日映射。支持范围及精确样式边界同上，分组和画布拖动继续实施。创建实现归 [`timeline-create.mbt`](../../modules/formats/src/xlsx/timeline-create.mbt)。
+名称、日期字段、字体或资源预算失败保留原包和重做。数字日期沿工作簿的 1900/1904 系统转换；1900 系统三月之前的数字日期继续保护，待实现虚构闰日映射。支持范围及精确样式边界同上，分组映射与日期拖选的自动滚动继续实施。创建实现归 [`timeline-create.mbt`](../../modules/formats/src/xlsx/timeline-create.mbt)。
 
 `editSheet({ action: "deleteTimeline", name })` 删除当前表的原生时间线；MoonBit 入口为 `Session::delete_timeline(revision, sheet, name)`。同步 Wasm、Worker 和默认删除按钮共用既有编辑队列与事务。删除整个原生或兼容绘图框；同视图部件中的其他控件保留。最后一项删除时，清理独占视图部件、工作表引用、关系及内容类型项，保留独立绘图容器及其他绘图。
 
@@ -2532,7 +2532,23 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 `SpreadsheetEditor.setTimelineFrame(id, frame)` 修改原生时间线框；同步 `XlsxSession` 与 Worker `XlsxClient` 使用 `setTimelineFrame(revision, sheet, id, frame, profile)`，核心为 `Session::set_timeline_frame`。与切片器共用 `XlsxDrawingFrame`：仅含 `anchor/x/y/width/height`，三种锚定和坐标、尺寸边界同切片器。当前框从已测量视口的 `object.timeline.frame` 读取，折叠框可读零尺寸；提交要求有效正尺寸。默认时间线面板提供数值编辑，沿输入屏障和串行队列应用。
 
-框编辑只修改绘图，保留时间线身份、日期状态、缓存、记录、透视结果和待刷新源。原生框与已校验的平面兼容后备同步变换，保留 clientData；直接原生框也可编辑。一项历史精确恢复资源，相同框不增加历史。绘图锁、受保护或隐藏工作表、未知后备、变换/锚点注释和缺失字体保护原包与重做。实现复用 [`analysis-frame.mbt`](../../modules/formats/src/xlsx/analysis-frame.mbt) 和 [`xlsx-analysis-frame.tsx`](../../packages/ui/src/xlsx-analysis-frame.tsx)。画布拖动、缩放及日期拖选继续实施。
+框编辑只修改绘图，保留时间线身份、日期状态、缓存、记录、透视结果和待刷新源。原生框与已校验的平面兼容后备同步变换，保留 clientData；直接原生框也可编辑。一项历史精确恢复资源，相同框不增加历史。绘图锁、受保护或隐藏工作表、未知后备、变换/锚点注释和缺失字体保护原包与重做。实现复用 [`analysis-frame.mbt`](../../modules/formats/src/xlsx/analysis-frame.mbt) 和 [`xlsx-analysis-frame.tsx`](../../packages/ui/src/xlsx-analysis-frame.tsx)。画布标题拖动与四角缩放复用 `selectDrawing`、`drawingGesture` 及上述框事务。核心返回最多四个窗格的 `move` 区域，排除右侧日期粒度及下方日期条；隐藏标题时使用 3.6 磅顶边。选择锁、未知后备或变换注释隐藏拖动区；具体移动、缩放和比例锁继续在核心校验。
+
+指针候选不改文档、revision、单元格选择或历史，抬笔提交一项变化，Escape 取消并恢复原画布。冻结、RTL 和边缘滚动共用既有坐标换算；方向键移动 1 磅，Shift 方向键移动 10 磅，角点聚焦时调整该角尺寸。Delete 使用协调的 `deleteTimeline`，保留缓存和筛选，撤销恢复完整视图资源。复制、剪切和层次调整继续保护。宿主复用 [`spreadsheet-drawing-pointer.ts`](../../packages/web/src/spreadsheet-drawing-pointer.ts)，日期条交互见下文。
+
+画布日期条支持单周期点击、连续拖选，以及 Enter/Space 键盘选择。`periods` 包含核心生成的 `{ index, label, selected, regions }`，最多 512 个可见日期段，每段最多四个窗格区域。年、季度、月、日沿同一绘制与命中几何；标识由调用方原样回传，不自行推算日期。选择锁隐藏日期按钮，受保护的缓存状态继续在筛选事务中拒绝。
+
+同步 `XlsxSession` 与 Worker `XlsxClient` 使用 `timelineGesture(revision, layout, id, gesture, profile)`；gesture 为 `{ handle, first, x, y, commit }`；handle 为 0 时选择范围，1/2 时调整开始/结束端点，first 是可见起始段或端点的周期标识，点使用当前视口坐标。核心验证 revision、布局和目标，终点取该控件最近的可见段，支持反向拖选。范围按整周期与原生 bounds 相交，排除下一周期的零点并保留可表示的小数秒。候选返回 `{ query: null, drawing }`，不改原包、选择、revision、历史或重做；释放返回 `{ query, drawing: null }`，筛选、结果和目标视图的 `selectionLevel` 合为一项历史。其他视图保留自己的显示及选取粒度。
+
+核心入口为 `Session::timeline_gesture`，与 `Session::filter_timeline` 共用内部筛选事务。共享视图与所有原生连接使用已有缓存，保留待刷新源；空周期产生空结果，相同范围及粒度不增加历史。Escape、失焦或视口滚动取消候选，返回当前画布；日期交互期间隐藏框手柄。宿主提供提交后的 `aria-pressed` 状态和返回网格的 Escape。实现归 [`timeline-pointer.mbt`](../../modules/formats/src/xlsx/timeline-pointer.mbt) 及 [`spreadsheet-slicers.ts`](../../packages/web/src/spreadsheet-slicers.ts)。`selectionLevel` 含义沿上述 CT_Timeline 合同；日期拖选当前裁剪在可见段内，日期拖选的时间轴自动滚动继续实施；端点实现及验证边界、粒度和滚动设置见下文。
+
+`editSheet({ action: "setTimelineLevel", name, level })` 修改目标视图的显示粒度，0–3 对应年、季度、月、日。默认时间线面板与画布下拉框沿现有输入屏障和队列提交。保留绝对 `scrollPosition`、日期筛选及 `selectionLevel`；共享视图继续使用自己的显示设置。
+
+`editSheet({ action: "scrollTimeline", name, level, position })` 修改该视图的首个可见周期。position 使用核心导航元数据的周期标识，须落在 minimum–maximum 内；level 须仍等于目标当前粒度，拒绝旧滑块事件。新位置写该周期起点，起始周期保留原生 bounds 的实际起点；当前周期不变时保留原时间串，不新增历史。滚动只改视图，不筛选或刷新数据。核心入口为 `Session::set_timeline_level` 与 `Session::scroll_timeline`，实现归 [`timeline-view.mbt`](../../modules/formats/src/xlsx/timeline-view.mbt)。
+
+`navigation` 包含 `{ level, minimum, maximum, position, label, levelRegions, scrollRegions }`。核心按原生开关及选择锁返回最多四个窗格区域；宿主用完整框和裁剪区放置原生下拉框及滑块，滑块以 label 提供可读日期说明。拖动释放或键盘改变位置后提交一项历史；日期选择、缓存、待刷新源、其他视图及工作表内容保持。保护/隐藏工作表、只读计算状态、旧 revision、非法粒度与位置原子拒绝。保存、撤销和重开保留视图设置，随后日期选择继续使用当前布局；滑块拖动中不创建文档候选，滚轮导航及日期拖选自动滚动继续实施。
+
+端点调整已接入核心和默认宿主，尚未完成专项验证。`handles` 返回可见端点的 `{ handle, index, value, regions }`。指针按当前粒度调整端点并保留另一端的精确时间；键盘沿 `editSheet({ action: "setTimelineEndpoint", name, handle, level, position })` 调整，核心入口为 `Session::set_timeline_endpoint`。越过当前窗口时，同一事务调整滚动位置；同周期操作保留原时间串及历史。相关实现归 [`timeline-endpoint.mbt`](../../modules/formats/src/xlsx/timeline-endpoint.mbt) 和 [`spreadsheet-timeline-endpoints.ts`](../../packages/web/src/spreadsheet-timeline-endpoints.ts)。
 
 ### 打印与资源边界
 

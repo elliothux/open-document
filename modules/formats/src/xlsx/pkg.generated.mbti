@@ -478,6 +478,7 @@ pub fn Session::replace_matches(Self, Int, String, String, FindOptions, String, 
 pub fn Session::replace_picture(Self, Int, String, String, Bytes, @layout.TextProbe, Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::save(Self) -> Bytes raise @failure.Failure
 pub fn Session::scroll_slicer(Self, Int, String, Int, String, Int) -> Json raise @failure.Failure
+pub fn Session::scroll_timeline(Self, Int, String, String, Int, Int) -> Json raise @failure.Failure
 pub fn Session::select(Self, Int, String, String) -> Json raise @failure.Failure
 pub fn Session::select_drawing(Self, Int, Int, String?) -> Json raise @failure.Failure
 pub fn Session::select_slicer(Self, Int, String, Int, String, Int?, Bool) -> Json raise @failure.Failure
@@ -487,10 +488,13 @@ pub fn Session::set_chart_frame(Self, Int, String, String, String, @layout.Borde
 pub fn Session::set_picture(Self, Int, String, String, String, @layout.Border, String, String, @layout.TextProbe, Map[String, String], crop~ : Array[Double]) -> Json raise @failure.Failure
 pub fn Session::set_shape(Self, Int, String, String, ShapeSettings, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::set_slicer_frame(Self, Int, String, String, String, @layout.Border, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn Session::set_timeline_endpoint(Self, Int, String, String, Int, Int, Int) -> Json raise @failure.Failure
 pub fn Session::set_timeline_frame(Self, Int, String, String, String, @layout.Border, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn Session::set_timeline_level(Self, Int, String, String, Int) -> Json raise @failure.Failure
 pub fn Session::shapes(Self, Int, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::slicers(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::text_columns(Self, Int, String, TextColumnSettings) -> Json raise @failure.Failure
+pub fn Session::timeline_gesture(Self, Int, Int, String, Int, Int, Double, Double, Bool, @layout.TextProbe, Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::timelines(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::undo(Self, Int, redo? : Bool) -> Json raise @failure.Failure
 pub fn Session::update_pivot(Self, Int, String, String, PivotSettings) -> Json raise @failure.Failure

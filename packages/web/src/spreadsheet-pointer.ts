@@ -47,7 +47,9 @@ interface Drag {
 /** Pointer intents and overlays; core geometry and the normal command queue own the result. */
 export class SpreadsheetPointer {
   get dragging(): boolean {
-    return this.drag !== undefined || this.drawings.active;
+    return (
+      this.drag !== undefined || this.drawings.active || this.slicers.active
+    );
   }
   ownsDrawingScroll(): boolean {
     return this.drawings.ownsScroll();
@@ -71,6 +73,7 @@ export class SpreadsheetPointer {
     private readonly host: PointerHost,
   ) {
     this.slicers = new SpreadsheetSlicers(
+      surface,
       holder,
       viewport,
       client,
@@ -336,7 +339,7 @@ export class SpreadsheetPointer {
     this.slicers.update(this.drawings.active);
     this.notes.update();
     this.geometry = geometry;
-    if (this.drawings.update()) {
+    if (this.drawings.update(this.slicers.active)) {
       this.handle.hidden = true;
       return;
     }
@@ -594,6 +597,7 @@ export class SpreadsheetPointer {
   }
   cancel(paint = true): void {
     this.drawings.cancel();
+    this.slicers.cancel();
     const drag = this.drag;
     if (paint && drag?.released) return;
     this.drag = undefined;
