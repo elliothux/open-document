@@ -262,7 +262,26 @@ fn Session::markup_paragraphs(
   let mut index = 0
   while index < paragraphs.length() {
     if !output.lists.contains(paragraphs[index].id) {
-      self.markup_paragraph(tree, styles, paragraphs[index], output, html~)
+      let block = output.markdown &&
+        !html &&
+        paragraphs[index].spans.any(span => {
+          span.drawing is Some({ content: @layout.TextBox(_, _), .. })
+        })
+      if block {
+        output.add(
+          "<div style=\"background-color:#" + output.background + "\">\n",
+        )
+      }
+      self.markup_paragraph(
+        tree,
+        styles,
+        paragraphs[index],
+        output,
+        html=html || block,
+      )
+      if block {
+        output.add("</div>\n\n")
+      }
       index += 1
       continue
     }
@@ -280,7 +299,12 @@ fn Session::markup_paragraphs(
         let list = output.lists[p.id]
         let nested = list.level <= previous + 1
         previous = list.level
-        nested && list.markdown && list.instance == first.instance
+        nested &&
+        list.markdown &&
+        list.instance == first.instance &&
+        !p.spans.any(span => {
+          span.drawing is Some({ content: @layout.TextBox(_, _), .. })
+        })
       })
     if markdown {
       self.markup_list_markdown(tree, styles, group, output)

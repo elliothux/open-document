@@ -4,8 +4,12 @@ priv struct MarkupOutput {
   limit : Int
   mut units : Int
   markdown : Bool
+  text_box : Bool
+  wrap : Bool
+  drawing_link : String?
   links : Map[String, @opc.Relationship]
   bookmarks : Map[String, Bool]
+  bookmark_names : Map[String, String]
   lists : Map[Int, MarkupList]
   background : String
 }
@@ -20,6 +24,20 @@ fn MarkupOutput::add(
   }
   self.units += text.length()
   self.builder.write_string(text)
+}
+
+///|
+fn MarkupOutput::link_target(
+  self : MarkupOutput,
+  target : String,
+) -> String raise @failure.Failure {
+  if !target.has_prefix("#") {
+    return target
+  }
+  guard self.bookmark_names.get(target[1:].to_owned().to_lower()) is Some(name) else {
+    @failure.reject("protected-content", "Unresolved markup bookmark target")
+  }
+  "#" + name
 }
 
 ///|
@@ -111,12 +129,13 @@ fn Session::markup_picture(
   span : @layout.Span,
   output : MarkupOutput,
 ) -> String raise @failure.Failure {
-  tree.check_fragment_picture(span.node)
-  guard tree.drawing_link_node(span.node).1 is None else {
+  guard tree.drawing_data(span.node).1.attribute("uri") ==
+    Some("http://schemas.openxmlformats.org/drawingml/2006/picture") else {
     @failure.reject(
-      "unsupported-output", "Linked picture markup output requires support",
+      "unsupported-output", "Shape markup output requires support",
     )
   }
+  tree.check_fragment_picture(span.node)
   let image = self.image_frame(tree, span.node)
   let bytes = self.image_bytes(image.key)
   let (_, mime, _, _) = @image.type_info(bytes)
@@ -177,7 +196,11 @@ fn Session::markup_paragraph(
   let markdown = output.markdown && !html
   let outline = styles.outline_level(tree, paragraph.id)
   let heading = outline.filter(level => level < 6).map(level => level + 1)
-  let tag = heading.map(level => "h" + level.to_string()).unwrap_or("p")
+  let tag = if output.text_box {
+    "span"
+  } else {
+    heading.map(level => "h" + level.to_string()).unwrap_or("p")
+  }
   if markdown {
     if heading is Some(level) {
       output.add("#".repeat(level) + " ")
@@ -188,7 +211,10 @@ fn Session::markup_paragraph(
     } else {
       paragraph.align
     }
-    let css = "white-space:pre-wrap;font-weight:normal;font-style:normal;font-size:" +
+    let css = (if output.text_box { "display:block;" } else { "" }) +
+      "white-space:" +
+      (if output.wrap { "pre-wrap" } else { "pre" }) +
+      ";font-weight:normal;font-style:normal;font-size:" +
       paragraph.nominalSize.to_string() +
       "pt;text-align:" +
       align +
@@ -206,6 +232,13 @@ fn Session::markup_paragraph(
     output.add(
       "<" +
       tag +
+      (if output.text_box {
+        heading
+        .map(level => " role=\"heading\" aria-level=\"\{level}\"")
+        .unwrap_or(" role=\"paragraph\"")
+      } else {
+        ""
+      }) +
       " dir=\"" +
       (if paragraph.rtl { "rtl" } else { "ltr" }) +
       "\" style=\"" +
@@ -250,7 +283,7 @@ fn Session::markup_paragraph(
           continue
         }
         let content = if span.drawing is Some(_) {
-          self.markup_picture(tree, span, output)
+          self.markup_drawing(tree, styles, span, output)
         } else {
           markup_span(span, markdown)
         }
@@ -269,10 +302,24 @@ fn Session::markup_paragraph(
             .unwrap_or("")
           output.add(
             "<a href=\"" +
-            property_attribute(target) +
+            property_attribute(output.link_target(target)) +
             "\" title=\"" +
             property_attribute(title) +
-            "\">" +
+            "\"" +
+            (if output.drawing_link is Some(_) {
+              " style=\"pointer-events:auto\""
+            } else {
+              ""
+            }) +
+            ">" +
+            content +
+            "</a>",
+          )
+        } else if output.drawing_link is Some(attributes) {
+          output.add(
+            "<a" +
+            attributes +
+            " style=\"pointer-events:auto;color:inherit;text-decoration:none\">" +
             content +
             "</a>",
           )
@@ -405,13 +452,24 @@ pub fn Session::export_markup(
     )
   }
   let styles = self.styles([])
+  let bookmarks = tree
+    .bookmarks()
+    .filter(bookmark => bookmark.reason.is_empty())
   let output : MarkupOutput = {
     builder: StringBuilder(),
     limit: output_bytes.min(self.opc.budget.output_bytes),
     units: 0,
     markdown: format == "markdown",
+    text_box: false,
+    wrap: true,
+    drawing_link: None,
     links: self.hyperlink_relationships(),
-    bookmarks: tree.bookmark_targets(),
+    bookmarks: Map::from_array(
+      bookmarks.map(bookmark => (bookmark.name.to_lower(), true)),
+    ),
+    bookmark_names: Map::from_array(
+      bookmarks.map(bookmark => (bookmark.name.to_lower(), bookmark.name)),
+    ),
     lists: self.markup_lists(tree, styles, flow),
     background: flow.background,
   }

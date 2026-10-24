@@ -63,8 +63,12 @@ fn Pagination::wrapping_floor(
     for rect in self.wrapping {
       if (square || rect.wrapping != "square") &&
         rect.page == page / self.columns.count &&
-        rect.left <= frame.width - frame.right &&
-        rect.right >= frame.left &&
+        (if rect.wrapping == "square" {
+          // Match text wrapping: a boundary contact leaves no width to exclude.
+          rect.left.max(frame.left) < rect.right.min(frame.width - frame.right)
+        } else {
+          rect.left <= frame.width - frame.right && rect.right >= frame.left
+        }) &&
         result + height > rect.top + 0.0000001 &&
         result < rect.bottom - 0.0000001 {
         result = rect.bottom

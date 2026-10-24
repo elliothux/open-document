@@ -3,6 +3,29 @@ fn WordTree::check_fragment_shape(
   self : WordTree,
   drawing : Int,
 ) -> Unit raise @failure.Failure {
+  let text_nodes : Map[Int, Bool] = Map([])
+  for
+    content in self
+    .descendants(drawing)
+    .filter(id => {
+      self.nodes[id].uri == word_uri && self.nodes[id].name == "txbxContent"
+    }) {
+    let nodes = self.descendants(content).filter(id => id != content)
+    check_fragment_content(self, nodes, Map([]))
+    for id in nodes {
+      self.check_text_box_clipboard_metadata(id)
+      text_nodes[id] = true
+    }
+  }
+  self.check_shape_metadata(drawing, text_nodes)
+}
+
+///|
+fn WordTree::check_shape_metadata(
+  self : WordTree,
+  drawing : Int,
+  text_nodes : Map[Int, Bool],
+) -> Unit raise @failure.Failure {
   let root = self.nodes[drawing]
   guard root.uri == word_uri &&
     root.name == "drawing" &&
@@ -23,21 +46,7 @@ fn WordTree::check_fragment_shape(
       @failure.reject("protected-content", message)
     error => raise error
   }
-  let text_nodes : Map[Int, Bool] = Map([])
   let (_, click) = self.drawing_link_node(drawing)
-  for
-    content in self
-    .descendants(drawing)
-    .filter(id => {
-      self.nodes[id].uri == word_uri && self.nodes[id].name == "txbxContent"
-    }) {
-    let nodes = self.descendants(content).filter(id => id != content)
-    check_fragment_content(self, nodes, Map([]))
-    for id in nodes {
-      self.check_text_box_clipboard_metadata(id)
-      text_nodes[id] = true
-    }
-  }
   for id in self.descendants(drawing) {
     if click == Some(id) {
       continue

@@ -176,7 +176,8 @@ fn DrawingFrame::prepare_text(
 }
 
 ///|
-fn DrawingFrame::text_box_rect(
+/// Returns the preset-adjusted text area in local frame points.
+pub fn DrawingFrame::text_box_rect(
   self : DrawingFrame,
   shape : BasicShape,
   text : DrawingTextBox,

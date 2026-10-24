@@ -406,7 +406,7 @@ LaTeX 源最多 131072 个 UTF-16 单元，语法嵌套最多 64 层；解析结
 
 正文和普通单元格的图片、基础图形目录中，`hyperlink` 返回 `{ target, reason }`。已有 `editPicture`、`editShape` 接受 `{ action: "hyperlink", id, target }`，target 为 HTTP、HTTPS、mailto 地址、`#书签名` 或 null。内部目标须对应当前可用书签，名称查找忽略大小写。默认属性面板提供应用、移除和显式打开；内部目标执行已有书签定位，外链使用新窗口及 `noopener noreferrer`。查询与应用不访问外链。
 
-核心编辑原生 `wp:docPr/a:hlinkClick`，复用正文链接的地址检查、关系分配及有界事务。相同目标复用关系，无变化不增加历史；修改保留原提示、history、tgtFrame、身份、几何、资源和当前选择。旧关系保留。锁定、过期状态、未知动作、悬停/声音、重复或其他非可视所有者上的链接均保护原源。链接对象的 HTML/Markdown 输出继续实施。
+核心编辑原生 `wp:docPr/a:hlinkClick`，复用正文链接的地址检查、关系分配及有界事务。相同目标复用关系，无变化不增加历史；修改保留原提示、history、tgtFrame、身份、几何、资源和当前选择。旧关系保留。锁定、过期状态、未知动作、悬停/声音、重复或其他非可视所有者上的链接均保护原源。链接图片的 HTML/Markdown 输出沿[交换输出](#docx-html-与-markdown)保留地址、提示和目标窗口；基础图形共用相同链接路径输出 SVG；普通文本框保留装饰背景、可选择文字及独立的整体/文字链接。
 
 原生富文本复制、剪切及跨文档正文、普通/合并单元格粘贴保留对象链接。片段以 `odClip:target` 携带地址；接收侧分配或复用关系，不接受对象链接的源 `r:id`。提示及点击元数据、对象身份分配和媒体沿既有片段事务处理；与普通文字的相同外链共用关系。内部目标须已存在或随完整书签一同复制，重名沿既有规则使用接收文档中的可用目标，缺失则原子拒绝。文本框整体链接与框内文字链接可同时转移。复制保留源；剪切和每次粘贴各为一项精确历史。默认按钮与原生剪切/粘贴快捷键共用入口，未解析的引用及悬停链接返回可恢复的保护原因。实现归 [`drawing-link-fragment.mbt`](../../modules/formats/src/docx/drawing-link-fragment.mbt)，元数据独立复制依据 [ONLYOFFICE CNvPr.createDuplicate](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L8149-L8165)。
 
@@ -670,7 +670,7 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 `wrapping` 为 `none`、`topBottom` 或 `square`。`wrapSide` 为 `bothSides/left/right/largest`，非方形模式使用 `bothSides`。方形环绕按图片及间距切出可用文字区域，两侧文字按段落方向连续排入同一行，共用基线、行距、光标、选区和分页。段落测量结果在各片段间复用，保留 Unicode 连接上下文和原制表位基准；段落保留、孤行及与下段/表格同页使用实际环绕行。小于 18 pt 的页边空隙沿 ONLYOFFICE 并入排除区。当前表格整体或续页片段在相交图片下方排放。
 
-`distance` 为 `{ top, right, bottom, left }`，各值为 0–14400 pt，按整数 EMU 舍入。上下型环绕在水平相交的栏中排除图片及间距覆盖的纵向区域；文字行、表格和续页避让同一区域。源锚点与文字行分离，整页图片留在原页，后续文字进入下一页。排除区域变化会使相关分页失效，稳定输入可复用缓存。核心锚点布局及方形行高度各最多迭代八次；循环依赖或超限明确失败。
+`distance` 为 `{ top, right, bottom, left }`，各值为 0–14400 pt，按整数 EMU 舍入。上下型环绕在水平相交的栏中排除图片及间距覆盖的纵向区域；文字行、表格和续页避让同一区域。源锚点与文字行分离，整页图片留在原页，后续文字进入下一页。排除区域变化会使相关分页失效，稳定输入可复用缓存。核心锚点布局及方形行高度各最多迭代八次；循环依赖或超限明确失败。方形环绕仅排除与正文宽度实际相交的区域；仅接触边界不推移表格，四边间距仍参与交集。上下型环绕保留原边界规则。表格后锚点的边界振荡已修复，原始输入和缓存检查归 `wrappingEdgeCheckpoint`。
 
 读取时支持 `wp:wrapTopAndBottom` 的 `distT/distB` 及 `wp:wrapSquare` 的四边间距覆盖锚点间距，方形侧向写为 `wrapText`；零效果范围保留支持。未设置的左右间距沿 ONLYOFFICE 使用 3.2 mm，显式零值保持。环绕属性写回原生 XML，保留图片字节、关系及未改源。依据为 [ONLYOFFICE 方形侧向与上下型排除区](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/GraphicObjects/WrapManager.js#L228-L305)、[页边空隙](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/GraphicObjects/WrapManager.js#L408-L421)及[图片间距默认值](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ParaDrawing.js#L1712-L1716)。
 
@@ -1259,11 +1259,15 @@ Web 宿主 `DocumentEditor.exportPng(scale = 1, outputBytes = 67108864)` 返回�
 
 正文与普通表格按源顺序输出，保留逻辑文字、空段落、Tab/换行、前六级标题、粗斜体、下划线、删除线、上下标、内外链接、提示及书签锚点。HTML 使用解析后的字体、字号、颜色、高亮、背景、段距、缩进、方向与对齐；表格携带网格列宽、合并跨度、表头、底色、边距和共同边线。列表使用原生 `ol/ul/li`、`start/value` 和 `aria-level`，保留多级嵌套、实际起点、续号与重启。计数复用核心编号规则；正文和各单元格分别关闭列表容器，跨区域的计数仍连续。空项保留行高，标记与正文各自使用有效格式；RTL 列表使用逻辑起始边缩进。简单标签使用原生 HTML 计数器；复杂标签、装饰、超过 z 的 Word 字母序列及超出浏览器罗马计数范围的标签，使用已计算样式文字保留外观，同时保留列表结构与实际数值。
 
-行内 PNG/JPEG 内嵌原始压缩字节，保留替代文字、显示尺寸及裁剪；复制锁、外链或未知图片沿原保护。Markdown 使用原生标题、转义文字、硬换行及普通十进制/圆点列表。子项和续行按父项标记宽度缩进，保留非 1 起点、空项和中断后的续号。编号实例切换、特殊标签、超过九位的序号、跳级或 RTL 无法直接表达时，使用嵌套 HTML 列表；字符装饰、链接、图片及表格也使用内嵌 HTML，读取器须允许这些 HTML。HTML 列表片段及表格保留源背景，避免自动白色文字落在默认白底。普通 Markdown 段落不携带字体、颜色和页面几何；导出后的自动换行由读取器决定。分页/分栏断点转为换行；页面边框、分页约束及制表对齐不转移。
+行内 PNG/JPEG 内嵌原始压缩字节，保留替代文字、显示尺寸及裁剪；原生 `wp:docPr/a:hlinkClick` 的图片链接输出为包住图片框的 `a`，保留安全地址、提示和目标窗口；指定窗口时加入 `noopener noreferrer`。内部目标忽略大小写查找，并输出书签实际名称，文字链接采用相同规则。图片源仍仅内嵌本地资源；复制锁、未知动作、悬停或声音、嵌套链接和未知图片沿原保护；基础图形与普通文本框沿下文输出。Markdown 使用原生标题、转义文字、硬换行及普通十进制/圆点列表。子项和续行按父项标记宽度缩进，保留非 1 起点、空项和中断后的续号。编号实例切换、特殊标签、超过九位的序号、跳级或 RTL 无法直接表达时，使用嵌套 HTML 列表；字符装饰、链接、图片及表格也使用内嵌 HTML，读取器须允许这些 HTML。HTML 列表片段及表格保留源背景，避免自动白色文字落在默认白底。普通 Markdown 段落不携带字体、颜色和页面几何；导出后的自动换行由读取器决定。分页/分栏断点转为换行；页面边框、分页约束及制表对齐不转移。
+
+正文和普通/合并格中的无文字矩形、椭圆及线形输出内嵌 SVG，保留核心共用轮廓、填充、描边和无障碍名称。画布使用原框局部坐标，并在四周增加半个描边宽度，避免裁掉边线；零轴线形保留可见描边。无描边的零轴视口最小为 0.1 pt。整体链接与图片共用地址、提示和目标窗口规则。浮动对象按源顺序内联输出，保留形状与尺寸；页面位置、层次及文字环绕不转移。Markdown 读取器还须允许 SVG。未知图形继续拒绝，原包与历史保持。轮廓复用 [`basic-shape.mbt`](../../modules/layout/src/basic-shape.mbt)，与 Canvas/PDF 使用同一几何。
+
+普通文本框输出具名分组、可选择的 HTML 文字及装饰 SVG。段落和标题保留语义、解析后的格式、空段落及链接。文本区域复用核心 `DrawingFrame.text_box_rect`，包含预置图形文本区与四边距；CSS 表达顶部/居中/底部、换行及溢出裁剪。整体链接覆盖背景及未另设链接的文字片段；显式文字链接保留自己的目标，不生成嵌套链接。文字可选择，背景 SVG 不占用文字的无障碍语义。Markdown 中含文本框的段落或列表整体输出 HTML 块，保留框内字面符号；读取器须允许这些 HTML、CSS 和 SVG。浮动文本框同样按源顺序内联，字体与断行由读取器决定。复制锁、未知文本/图形元数据及不支持的容器沿原保护，导出保留源、选择和历史。几何归 [`drawing-text-box.mbt`](../../modules/layout/src/drawing-text-box.mbt)，框内文字复用现有段落序列化。
 
 含页眉页脚、批注、待处理修订、字段或布局不支持内容时明确拒绝。合并格边线不统一时也拒绝。未知资源、非法链接、活动候选、旧 revision 及超限保留原包。文字、属性和 CSS 字符串分别转义；链接沿既有 HTTP/HTTPS/mailto/书签白名单，不输出脚本、事件、外链图片或外部样式。默认上限 64 MiB，并取原会话输出预算的较小值；UTF-16 中间结果和最终 UTF-8 字节分别检查，图片编码前预检剩余预算。Web 输出失败后可继续原生编辑。
 
-实现归 [`markup-output.mbt`](../../modules/formats/src/docx/markup-output.mbt)及 [`markup-lists.mbt`](../../modules/formats/src/docx/markup-lists.mbt)。列表嵌套与续号参考 [ONLYOFFICE 列表栈](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L858-L951)，实际数值沿本项目共享的 `NumberCounter.advance`。标题和普通段落转换参考 [ONLYOFFICE CopyParagraph](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L728-L858)，合并格参考 [CopyCell](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L1035-L1066)。未复制上游执行代码。更广区域和 HTML/Markdown 导入继续实施。
+实现归 [`markup-output.mbt`](../../modules/formats/src/docx/markup-output.mbt)、[`markup-drawings.mbt`](../../modules/formats/src/docx/markup-drawings.mbt)、[`markup-text-box.mbt`](../../modules/formats/src/docx/markup-text-box.mbt)及 [`markup-lists.mbt`](../../modules/formats/src/docx/markup-lists.mbt)。列表嵌套与续号参考 [ONLYOFFICE 列表栈](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L858-L951)，实际数值沿本项目共享的 `NumberCounter.advance`。链接属性与避免嵌套规则参考 [ONLYOFFICE CopyRunContent](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L661-L677)。标题和普通段落转换参考 [ONLYOFFICE CopyParagraph](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L728-L858)，合并格参考 [CopyCell](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/wordcopypaste.js#L1035-L1066)。未复制上游执行代码。更广区域和 HTML/Markdown 导入继续实施。
 
 ## 预算
 

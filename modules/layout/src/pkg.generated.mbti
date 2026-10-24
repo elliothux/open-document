@@ -227,6 +227,7 @@ pub(all) struct DrawingFrame {
   anchor : DrawingAnchor?
   content : DrawingContent
 }
+pub fn DrawingFrame::text_box_rect(Self, BasicShape, DrawingTextBox) -> Border raise @failure.Failure
 pub fn DrawingFrame::to_json(Self) -> Json
 pub fn DrawingFrame::validate(Self) -> Unit raise @failure.Failure
 pub impl ToJson for DrawingFrame
