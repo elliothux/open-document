@@ -5,7 +5,9 @@ import {
   checkXlsxDrawingFrame,
   type XlsxDrawingFrame,
   checkXlsxTimelineGesture,
-  xlsxTimelinePreview,
+  xlsxAnalysisPreview,
+  checkXlsxSlicerGesture,
+  type XlsxSlicerGesture,
   type XlsxTimelineGesture,
 } from "@open-document/wasm/xlsx";
 import {
@@ -37,6 +39,25 @@ import {
 
 export class XlsxDrawingClient {
   constructor(protected readonly connection: Connection) {}
+  async slicerGesture(
+    revision: number,
+    layout: number,
+    id: string,
+    gesture: XlsxSlicerGesture,
+    profile: Record<string, string>,
+  ) {
+    checkXlsxSlicerGesture(gesture);
+    return xlsxAnalysisPreview(
+      await this.connection.request({
+        operation: "slicerGestureXlsx",
+        revision,
+        layout,
+        objectId: id,
+        ...gesture,
+        profile,
+      }),
+    );
+  }
   async timelineGesture(
     revision: number,
     layout: number,
@@ -45,7 +66,7 @@ export class XlsxDrawingClient {
     profile: Record<string, string>,
   ) {
     checkXlsxTimelineGesture(gesture);
-    return xlsxTimelinePreview(
+    return xlsxAnalysisPreview(
       await this.connection.request({
         operation: "timelineGestureXlsx",
         revision,

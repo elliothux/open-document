@@ -492,6 +492,7 @@ pub fn Session::set_timeline_endpoint(Self, Int, String, String, Int, Int, Int) 
 pub fn Session::set_timeline_frame(Self, Int, String, String, String, @layout.Border, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
 pub fn Session::set_timeline_level(Self, Int, String, String, Int) -> Json raise @failure.Failure
 pub fn Session::shapes(Self, Int, String, @layout.TextProbe, Map[String, String]) -> Json raise @failure.Failure
+pub fn Session::slicer_gesture(Self, Int, Int, String, Int, Int, Double, Double, Bool, Bool, @layout.TextProbe, Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::slicers(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::text_columns(Self, Int, String, TextColumnSettings) -> Json raise @failure.Failure
 pub fn Session::timeline_gesture(Self, Int, Int, String, Int, Int, Int, Double, Double, Bool, @layout.TextProbe, Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure

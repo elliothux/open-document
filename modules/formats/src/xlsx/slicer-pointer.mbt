@@ -195,8 +195,10 @@ fn SheetObject::grid_object(
       } else {
         []
       },
-      "start": slicer.control.start,
-      "maximum": geometry.maximum,
+      "start": (slicer.control.start / slicer.control.columns).min(
+        geometry.maximum / slicer.control.columns,
+      ),
+      "maximum": geometry.maximum / slicer.control.columns,
       "page": geometry.page,
       "buttons": geometry.buttons.map(pair => {
         let (position, rect) = pair
@@ -225,6 +227,16 @@ fn SheetObject::grid_object(
       .unwrap_or([]),
       "next": geometry.next
       .map(rect => grid.slicer_regions(self, rect))
+      .unwrap_or([]),
+      "scroll": geometry.scroll
+      .map(track => {
+        let arrow = 11.25.min(track.height / 2)
+        grid.slicer_regions(self, {
+          ..track,
+          y: track.y + arrow,
+          height: (track.height - 2 * arrow).max(0),
+        })
+      })
       .unwrap_or([]),
     }
   }
@@ -317,22 +329,21 @@ pub fn Session::select_slicer(
 }
 
 ///|
-/// Scrolls native slicer rows in session view state without adding document history.
+/// Sets the absolute native slicer row in session view state without adding document history.
 pub fn Session::scroll_slicer(
   self : Session,
   revision : Int,
   sheet : String,
   layout : Int,
   id : String,
-  rows : Int,
+  position : Int,
 ) -> Json raise @failure.Failure {
   let (_, _, slicer, geometry) = self.slicer_target(revision, sheet, layout, id)
-  guard rows >= -4096 && rows <= 4096 && rows != 0 && geometry.scroll is Some(_) else {
+  guard position >= 0 && position <= 4095 && geometry.scroll is Some(_) else {
     @failure.reject("invalid-operation", "Slicer has no scrollable view")
   }
-  let start = (slicer.control.start + rows * slicer.control.columns)
-    .max(0)
-    .min(geometry.maximum)
+  let start = position.min(geometry.maximum / slicer.control.columns) *
+    slicer.control.columns
   if start != slicer.control.start {
     let key = (sheet, slicer.control.name)
     guard self.slicer_scrolls.contains(key) ||

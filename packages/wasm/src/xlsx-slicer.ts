@@ -46,6 +46,31 @@ export interface XlsxSlicerSettings {
   width: number;
   height: number;
 }
+export interface XlsxSlicerGesture {
+  first: number;
+  position: number;
+  x: number;
+  y: number;
+  additive: boolean;
+  commit: boolean;
+}
+export function checkXlsxSlicerGesture(input: unknown): void {
+  const value = record(input);
+  if (
+    !fields(value, ["first", "position", "x", "y", "additive", "commit"]) ||
+    !integer(value.first, 0, 4095) ||
+    !integer(value.position, 0, 4095) ||
+    ![value.x, value.y].every(
+      (number) =>
+        typeof number === "number" &&
+        Number.isFinite(number) &&
+        Math.abs(number) <= 14400,
+    ) ||
+    typeof value.additive !== "boolean" ||
+    typeof value.commit !== "boolean"
+  )
+    throw new Error("Invalid slicer gesture");
+}
 export function checkXlsxSlicerSettings(value: unknown): void {
   const settings = record(value);
   if (
@@ -88,7 +113,7 @@ export type XlsxSlicerEdit =
       index: number | null;
       additive: boolean;
     }
-  | { action: "scrollSlicer"; layout: number; id: string; rows: number };
+  | { action: "scrollSlicer"; layout: number; id: string; position: number };
 export function checkXlsxSlicerEdit(value: unknown): void {
   const edit = record(value);
   if (edit.action === "deleteSlicer") {
@@ -107,7 +132,7 @@ export function checkXlsxSlicerEdit(value: unknown): void {
         edit,
         selecting
           ? ["action", "layout", "id", "index", "additive"]
-          : ["action", "layout", "id", "rows"],
+          : ["action", "layout", "id", "position"],
       ) ||
       !integer(edit.layout, 1, 2147483647) ||
       typeof edit.id !== "string" ||
@@ -118,7 +143,7 @@ export function checkXlsxSlicerEdit(value: unknown): void {
             typeof edit.additive === "boolean" &&
             (edit.index !== null || !edit.additive)
           )
-        : !(integer(edit.rows, -4096, 4096) && edit.rows !== 0))
+        : !integer(edit.position, 0, 4095))
     )
       throw new Error("Invalid slicer pointer command");
     return;

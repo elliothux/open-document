@@ -104,16 +104,30 @@ pub fn Session::edit_table_of_contents(
     toc_markup(entries, styles, instruction, hyperlink, width)
   }
   let start = old
-    .map(toc => tree.nodes[toc.paragraphs[0]].start)
+    .map(toc => {
+      tree.nodes[if deleting {
+        toc.control.unwrap_or(toc.paragraphs[0])
+      } else {
+        toc.paragraphs[0]
+      }].start
+    })
     .unwrap_or_else(() => {
       tree.nodes[self.selection.unwrap().focus.paragraph].start
     })
   let finish = old
-    .map(toc => tree.nodes[toc.paragraphs.last().unwrap()].end)
+    .map(toc => {
+      tree.nodes[if deleting {
+        toc.control.unwrap_or(toc.paragraphs.last().unwrap())
+      } else {
+        toc.paragraphs.last().unwrap()
+      }].end
+    })
     .unwrap_or(start)
   if deleting &&
     tree.children[body].all(id => {
-      tree.nodes[id].name == "sectPr" || old.unwrap().paragraphs.contains(id)
+      tree.nodes[id].name == "sectPr" ||
+      old.unwrap().paragraphs.contains(id) ||
+      old.unwrap().control == Some(id)
     }) {
     markup = "<od:p xmlns:od=\"\{word_uri}\"/>"
   }

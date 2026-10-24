@@ -31,6 +31,21 @@ export interface XlsxDrawingPreview {
   drawing: XlsxViewport | null;
   selection: XlsxDrawingSelection;
 }
+export interface XlsxAnalysisPreview {
+  query: XlsxQuery | null;
+  drawing: XlsxViewport | null;
+}
+export function xlsxAnalysisPreview(value: unknown): XlsxAnalysisPreview {
+  const result = record(value);
+  if (
+    Object.keys(result).length !== 2 ||
+    (result.query === null) === (result.drawing === null)
+  )
+    throw new Error("Invalid analysis preview state");
+  if (result.query !== null) xlsxQuery(result.query);
+  if (result.drawing !== null) xlsxViewport(result.drawing);
+  return value as XlsxAnalysisPreview;
+}
 export function drawingRegions(
   value: unknown,
 ): asserts value is XlsxDrawingRegion[] {

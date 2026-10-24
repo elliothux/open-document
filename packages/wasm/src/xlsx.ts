@@ -181,11 +181,13 @@ export {
   xlsxDrawingSelection,
   xlsxDrawingPreview,
   checkDrawingGesture,
+  xlsxAnalysisPreview,
 } from "./xlsx-drawing-pointer.js";
 export type {
   XlsxDrawingSelection,
   XlsxDrawingGesture,
   XlsxDrawingPreview,
+  XlsxAnalysisPreview,
 } from "./xlsx-drawing-pointer.js";
 import { xlsxCell } from "./xlsx-grid.js";
 export type { XlsxViewport } from "./xlsx-grid.js";

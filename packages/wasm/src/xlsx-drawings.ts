@@ -26,9 +26,13 @@ import {
 import { xlsxQuery, type XlsxQuery } from "./xlsx-query.js";
 import {
   checkXlsxTimelineGesture,
-  xlsxTimelinePreview,
   type XlsxTimelineGesture,
 } from "./xlsx-timeline.js";
+import { xlsxAnalysisPreview } from "./xlsx-drawing-pointer.js";
+import {
+  checkXlsxSlicerGesture,
+  type XlsxSlicerGesture,
+} from "./xlsx-slicer.js";
 import {
   xlsxPictures,
   xlsxPictureResource,
@@ -37,6 +41,25 @@ import {
 } from "./xlsx-pictures.js";
 
 export class XlsxDrawingSession extends WasmSession {
+  slicerGesture(
+    revision: number,
+    layout: number,
+    id: string,
+    gesture: XlsxSlicerGesture,
+    profile: Record<string, string>,
+  ) {
+    checkXlsxSlicerGesture(gesture);
+    return xlsxAnalysisPreview(
+      this.call({
+        operation: "slicerGestureXlsx",
+        revision,
+        layout,
+        objectId: id,
+        ...gesture,
+        profile,
+      }),
+    );
+  }
   timelineGesture(
     revision: number,
     layout: number,
@@ -45,7 +68,7 @@ export class XlsxDrawingSession extends WasmSession {
     profile: Record<string, string>,
   ) {
     checkXlsxTimelineGesture(gesture);
-    return xlsxTimelinePreview(
+    return xlsxAnalysisPreview(
       this.call({
         operation: "timelineGestureXlsx",
         revision,

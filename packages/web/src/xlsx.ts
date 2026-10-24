@@ -9,7 +9,7 @@ export {
   type XlsxTimelineEdit,
   type XlsxTimelineView,
   type XlsxTimelineGesture,
-  type XlsxTimelinePreview,
+  type XlsxAnalysisPreview,
   type XlsxTimelines,
 } from "@open-document/wasm/xlsx";
 import {
@@ -30,6 +30,7 @@ export type {
   XlsxSlicers,
   XlsxSlicerEdit,
   XlsxSlicerView,
+  XlsxSlicerGesture,
   XlsxSlicerSettings,
   XlsxDrawingFrame,
 } from "@open-document/wasm/xlsx";

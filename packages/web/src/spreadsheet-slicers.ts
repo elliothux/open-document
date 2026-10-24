@@ -3,11 +3,13 @@ import type { XlsxSlicerView } from "@open-document/wasm/xlsx";
 import type { PointerHost } from "./spreadsheet-pointer.js";
 import type { CanvasSurface } from "./canvas-surface.js";
 import { SpreadsheetTimelinePointer } from "./spreadsheet-timeline-pointer.js";
+import { SpreadsheetSlicerPointer } from "./spreadsheet-slicer-pointer.js";
 import { stepTimelineEndpoint } from "./spreadsheet-timeline-endpoints.js";
 
 type Intent =
   | { kind: "select"; index: number | null; additive: boolean }
-  | { kind: "scroll"; offset: number };
+  | { kind: "scroll"; offset: number }
+  | { kind: "position"; position: number };
 
 /** Native controls use core geometry and the existing worksheet command queue. */
 export class SpreadsheetSlicers {
@@ -16,6 +18,7 @@ export class SpreadsheetSlicers {
   private readonly targets = new Map<string, HTMLElement>();
   private readonly multi = new Set<string>();
   private readonly dates: SpreadsheetTimelinePointer;
+  private readonly members: SpreadsheetSlicerPointer;
   constructor(
     private readonly surface: CanvasSurface,
     holder: HTMLElement,
@@ -24,6 +27,13 @@ export class SpreadsheetSlicers {
     private readonly signal: AbortSignal,
     private readonly host: PointerHost,
   ) {
+    this.members = new SpreadsheetSlicerPointer(
+      surface,
+      viewport,
+      client,
+      signal,
+      host,
+    );
     this.dates = new SpreadsheetTimelinePointer(
       surface,
       viewport,
@@ -60,10 +70,11 @@ export class SpreadsheetSlicers {
     });
   }
   get active(): boolean {
-    return this.dates.active;
+    return this.dates.active || this.members.active;
   }
   cancel(): void {
     this.dates.cancel();
+    this.members.cancel();
   }
   private navigateTimeline(
     object: string,
@@ -187,6 +198,8 @@ export class SpreadsheetSlicers {
         const object = layout?.objects.find((item) => item.id === id);
         if (!layout || (!object?.slicer && !object?.timeline)) return;
         if (object.timeline && intent.kind !== "scroll") return;
+        const view = object.slicer;
+        if (intent.kind === "position" && !view) return;
         this.host.assign(
           await this.client.editSheet(
             now.query.revision,
@@ -204,12 +217,20 @@ export class SpreadsheetSlicers {
                     ),
                   ),
                 }
-              : intent.kind === "scroll"
+              : intent.kind === "scroll" || intent.kind === "position"
                 ? {
                     action: "scrollSlicer",
                     layout: layout.id,
                     id,
-                    rows: intent.offset,
+                    position: Math.max(
+                      0,
+                      Math.min(
+                        view?.maximum ?? 0,
+                        intent.kind === "position"
+                          ? intent.position
+                          : (view?.start ?? 0) + intent.offset,
+                      ),
+                    ),
                   }
                 : {
                     action: "selectSlicer",
@@ -224,7 +245,8 @@ export class SpreadsheetSlicers {
         if (restoreFocus) {
           const group = this.groups.get(id);
           (
-            (focused instanceof HTMLButtonElement &&
+            ((focused instanceof HTMLButtonElement ||
+              focused instanceof HTMLInputElement) &&
             focused.isConnected &&
             !focused.disabled
               ? focused
@@ -240,6 +262,38 @@ export class SpreadsheetSlicers {
         if (!this.signal.aborted) this.host.report(error);
       });
   }
+  private slicerScrollTarget(
+    key: string,
+    group: HTMLElement,
+    object: string,
+  ): HTMLInputElement {
+    const known = this.targets.get(key);
+    if (known instanceof HTMLInputElement) return known;
+    const target = document.createElement("input");
+    target.type = "range";
+    target.step = "1";
+    target.min = "0";
+    target.setAttribute("aria-label", "Slicer scroll position");
+    target.setAttribute("aria-orientation", "vertical");
+    Object.assign(target.style, {
+      position: "absolute",
+      padding: "0",
+      margin: "0",
+      border: "0",
+      writingMode: "vertical-lr",
+      direction: "ltr",
+      touchAction: "none",
+    });
+    target.addEventListener("input", () =>
+      this.command(object, {
+        kind: "position",
+        position: Number(target.value),
+      }),
+    );
+    group.append(target);
+    this.targets.set(key, target);
+    return target;
+  }
   private group(id: string): HTMLDivElement {
     const existing = this.groups.get(id);
     if (existing) return existing;
@@ -254,7 +308,7 @@ export class SpreadsheetSlicers {
       if (event.key === "Escape") {
         event.preventDefault();
         this.host.focus();
-      } else if (!view) return;
+      } else if (!view || event.target instanceof HTMLInputElement) return;
       else if (
         (event.ctrlKey || event.metaKey) &&
         event.key.toLowerCase() === "a" &&
@@ -347,6 +401,7 @@ export class SpreadsheetSlicers {
     this.controls.hidden = dragging;
     if (this.active) {
       this.dates.checkLayout();
+      this.members.checkLayout();
       return;
     }
     const now = this.host.current(),
@@ -376,6 +431,18 @@ export class SpreadsheetSlicers {
           for (const [band, region] of regions.entries()) {
             const full = `${object.id}:${key}:${band}`,
               target = this.target(full, group, !!click, click);
+            if (
+              view &&
+              key.startsWith("member:") &&
+              target instanceof HTMLButtonElement
+            )
+              this.members.bind(
+                full,
+                target,
+                object.id,
+                Number(key.slice(7)),
+                () => this.multi.has(mode()),
+              );
             if (
               timeline &&
               (key.startsWith("period:") || key.startsWith("endpoint:")) &&
@@ -516,18 +583,43 @@ export class SpreadsheetSlicers {
             );
         }
         if (!view) continue;
+        for (const [band, region] of view.scroll.entries()) {
+          const key = `${object.id}:scroll:${band}`,
+            target = this.slicerScrollTarget(key, group, object.id),
+            { rect, clip } = region;
+          seen.add(key);
+          Object.assign(target.style, {
+            left: `${rect.x * now.scale}px`,
+            top: `${rect.y * now.scale}px`,
+            width: `${rect.width * now.scale}px`,
+            height: `${rect.height * now.scale}px`,
+            clipPath: `inset(${(clip.y - rect.y) * now.scale}px ${(rect.x + rect.width - clip.x - clip.width) * now.scale}px ${(rect.y + rect.height - clip.y - clip.height) * now.scale}px ${(clip.x - rect.x) * now.scale}px)`,
+            zIndex: String(layer + 4),
+          });
+          target.max = String(view.maximum);
+          target.value = String(view.start);
+          target.disabled = view.maximum === 0;
+          target.tabIndex = band === 0 ? 0 : -1;
+          target.setAttribute("aria-hidden", String(band > 0));
+          target.setAttribute(
+            "aria-valuetext",
+            `Row ${view.start + 1} of ${view.maximum + view.page}`,
+          );
+        }
         for (const button of view.buttons)
           place(
             `member:${button.index}`,
             button.regions,
             `${button.label}${button.hasData ? "" : " (No data)"}`,
-            (event) =>
-              this.command(object.id, {
-                kind: "select",
-                index: button.index,
-                additive:
-                  event.ctrlKey || event.metaKey || this.multi.has(mode()),
-              }),
+            (event) => {
+              if (event.detail === 0)
+                this.command(object.id, {
+                  kind: "select",
+                  index: button.index,
+                  additive:
+                    event.ctrlKey || event.metaKey || this.multi.has(mode()),
+                });
+            },
             button.selected,
           );
         place("clear", view.clear, "Clear slicer filter", () =>
@@ -569,6 +661,7 @@ export class SpreadsheetSlicers {
     for (const [key, target] of this.targets)
       if (!seen.has(key)) {
         this.dates.remove(key);
+        this.members.remove(key);
         target.remove();
         this.targets.delete(key);
       }

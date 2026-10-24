@@ -134,6 +134,31 @@ fn Session::flow_from(
           ),
         )
       "sectPr" => ()
+      "sdt" => {
+        let toc = tree.contents
+          .values()
+          .iter()
+          .find_first(toc => toc.control == Some(id) && toc.reason.is_empty())
+        if toc is Some(toc) {
+          let content = tree.nodes[toc.paragraphs[0]].parent
+          for paragraph in tree.children[content] {
+            let p = self.paragraph(
+              tree,
+              styles,
+              paragraph,
+              diagnostics,
+              background~,
+              note_refs~,
+            )
+            paragraphs.push({
+              ..p,
+              readOnlyReason: "Table of contents results require a table of contents update",
+            })
+          }
+        } else {
+          diagnostics.push("unsupported-layout:" + node.qualified)
+        }
+      }
       _ => diagnostics.push("unsupported-layout:" + node.qualified)
     }
   }

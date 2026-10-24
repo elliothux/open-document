@@ -4,9 +4,17 @@ import type {
   XlsxDrawingFrame,
   XlsxTimelineSettings,
   XlsxTimelineGesture,
+  XlsxSlicerGesture,
 } from "@open-document/wasm/xlsx";
 
 export type XlsxAnalysisRequest =
+  | ({
+      operation: "slicerGestureXlsx";
+      revision: number;
+      layout: number;
+      objectId: string;
+      profile: Record<string, string>;
+    } & XlsxSlicerGesture)
   | ({
       operation: "timelineGestureXlsx";
       revision: number;

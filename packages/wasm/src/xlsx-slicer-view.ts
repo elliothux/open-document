@@ -13,6 +13,7 @@ export interface XlsxSlicerView {
   caption: string;
   frame: XlsxDrawingFrame;
   move: XlsxDrawingRegion[];
+  /** Zero-based visible row and final scrollable row. */
   start: number;
   maximum: number;
   page: number;
@@ -27,6 +28,7 @@ export interface XlsxSlicerView {
   multi: XlsxDrawingRegion[];
   previous: XlsxDrawingRegion[];
   next: XlsxDrawingRegion[];
+  scroll: XlsxDrawingRegion[];
 }
 
 export function checkSlicerView(value: unknown): void {
@@ -39,13 +41,13 @@ export function checkSlicerView(value: unknown): void {
     typeof view.caption !== "string" ||
     view.caption.length > 255 ||
     !integer(view.start, 0, 4095) ||
-    !integer(view.maximum, 0, 4095) ||
+    !integer(view.maximum, Number(view.start), 4095) ||
     !integer(view.page, 1, 4096) ||
     !Array.isArray(view.buttons) ||
     view.buttons.length > 4096
   )
     throw new Error("Invalid slicer view");
-  for (const key of ["move", "clear", "multi", "previous", "next"])
+  for (const key of ["move", "clear", "multi", "previous", "next", "scroll"])
     drawingRegions(view[key]);
   const indices = new Set<number>();
   let units = 0;

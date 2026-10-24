@@ -7,8 +7,6 @@ import {
   drawingRegions,
   type XlsxDrawingRegion,
 } from "./xlsx-drawing-pointer.js";
-import { xlsxViewport, type XlsxViewport } from "./xlsx.js";
-import { xlsxQuery, type XlsxQuery } from "./xlsx-query.js";
 
 export interface XlsxTimelineGesture {
   handle: number;
@@ -17,10 +15,6 @@ export interface XlsxTimelineGesture {
   x: number;
   y: number;
   commit: boolean;
-}
-export interface XlsxTimelinePreview {
-  query: XlsxQuery | null;
-  drawing: XlsxViewport | null;
 }
 export function checkXlsxTimelineGesture(input: unknown): void {
   const value = record(input);
@@ -38,17 +32,6 @@ export function checkXlsxTimelineGesture(input: unknown): void {
     typeof value.commit !== "boolean"
   )
     throw new Error("Invalid timeline gesture");
-}
-export function xlsxTimelinePreview(value: unknown): XlsxTimelinePreview {
-  const result = record(value);
-  if (
-    Object.keys(result).length !== 2 ||
-    (result.query === null) === (result.drawing === null)
-  )
-    throw new Error("Invalid timeline preview state");
-  if (result.query !== null) xlsxQuery(result.query);
-  if (result.drawing !== null) xlsxViewport(result.drawing);
-  return value as XlsxTimelinePreview;
 }
 export interface XlsxTimelineRange {
   start: string;

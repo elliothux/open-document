@@ -287,7 +287,7 @@ fn xlsx_pivot_edit(
     let keys = if action == "selectSlicer" {
       ["action", "layout", "id", "index", "additive"]
     } else {
-      ["action", "layout", "id", "rows"]
+      ["action", "layout", "id", "position"]
     }
     guard change is Object(fields) &&
       fields.length() == keys.length() &&
@@ -297,14 +297,19 @@ fn xlsx_pivot_edit(
     let layout = field_int(change, "layout")
     let id = field_string(change, "id")
     if action == "scrollSlicer" {
-      guard fields.get("rows") is Some(Number(rows, ..)) &&
-        rows >= -4096 &&
-        rows <= 4096 &&
-        rows != 0 &&
-        rows == rows.trunc() else {
-        @failure.reject("invalid-operation", "Invalid slicer scroll delta")
+      guard fields.get("position") is Some(Number(position, ..)) &&
+        position >= 0 &&
+        position <= 4095 &&
+        position == position.trunc() else {
+        @failure.reject("invalid-operation", "Invalid slicer scroll position")
       }
-      return session.scroll_slicer(revision, sheet, layout, id, rows.to_int())
+      return session.scroll_slicer(
+        revision,
+        sheet,
+        layout,
+        id,
+        position.to_int(),
+      )
     }
     guard fields.get("additive") is Some(True | False) else {
       @failure.reject("invalid-operation", "Invalid slicer selection mode")

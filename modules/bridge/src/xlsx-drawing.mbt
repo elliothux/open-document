@@ -24,9 +24,9 @@ fn xlsx_drawing_viewport(
 fn xlsx_drawing_request(operation : String) -> Bool {
   [
     "picturesXlsx", "captureDrawingXlsx", "drawingFragmentImageXlsx", "pasteDrawingXlsx",
-    "selectDrawingXlsx", "drawingGestureXlsx", "timelineGestureXlsx", "pictureResourceXlsx",
-    "imageBytesXlsx", "imageXlsx", "insertPictureXlsx", "replacePictureXlsx", "setPictureXlsx",
-    "deletePictureXlsx",
+    "selectDrawingXlsx", "drawingGestureXlsx", "timelineGestureXlsx", "slicerGestureXlsx",
+    "pictureResourceXlsx", "imageBytesXlsx", "imageXlsx", "insertPictureXlsx", "replacePictureXlsx",
+    "setPictureXlsx", "deletePictureXlsx",
   ].contains(operation)
 }
 
@@ -120,6 +120,21 @@ fn Foundation::xlsx_drawing_operation(
       }
       session.select_drawing(revision, field_int(request, "layout"), picture)
     }
+    "slicerGestureXlsx" =>
+      session.slicer_gesture(
+        revision,
+        field_int(request, "layout"),
+        field_string(request, "objectId"),
+        field_int(request, "first"),
+        field_int(request, "position"),
+        xlsx_number(request, "x"),
+        xlsx_number(request, "y"),
+        xlsx_boolean(request, "additive"),
+        xlsx_boolean(request, "commit"),
+        self.probe,
+        xlsx_profile(request),
+        images=self.images,
+      )
     "timelineGestureXlsx" =>
       session.timeline_gesture(
         revision,

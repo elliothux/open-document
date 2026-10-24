@@ -8,6 +8,7 @@ priv struct TableOfContents {
   outline : Bool
   instruction : String
   reason : String
+  control : Int?
 }
 
 ///|
@@ -86,6 +87,7 @@ fn WordTree::contents_profile(
   let mut last = 3
   let mut hyperlink = false
   let mut outline = false
+  let mut control = None
   let reason = try {
     guard complete && paragraphs.length() <= 4096 else {
       @failure.reject(
@@ -100,10 +102,8 @@ fn WordTree::contents_profile(
     let begin = self.nodes[markers[0]]
     let finish = self.nodes[markers.last().unwrap()]
     let body = self.nodes[paragraphs[0]].parent
-    guard self.nodes[body].uri == word_uri && self.nodes[body].name == "body" else {
-      @failure.reject(
-        "protected-content", "Table of contents requires the main body container",
-      )
+    if self.nodes[body].uri != word_uri || self.nodes[body].name != "body" {
+      control = Some(self.toc_control(body, paragraphs))
     }
     guard self.children[body].filter(id => {
         self.nodes[id].start >= self.nodes[paragraphs[0]].start &&
@@ -185,7 +185,17 @@ fn WordTree::contents_profile(
   } catch {
     @failure.Failure(message~, ..) => message
   }
-  { paragraphs, markers, first, last, hyperlink, outline, instruction, reason, }
+  {
+    paragraphs,
+    markers,
+    first,
+    last,
+    hyperlink,
+    outline,
+    instruction,
+    reason,
+    control,
+  }
 }
 
 ///|
