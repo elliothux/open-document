@@ -1,4 +1,11 @@
 import { DocumentReview } from "./document-review.js";
+import type {
+  DocxTocEdit,
+  DocxTableOfContents,
+} from "@open-document/wasm/foundation";
+export type DocumentTableOfContents = DocxTableOfContents & {
+  documentId: string;
+};
 import { decodeImage } from "./image.js";
 import type {
   DocxCharts,
@@ -20,7 +27,10 @@ export type DocumentMathExpressions = DocxMathExpressions & {
 export type DocumentMathScripts = DocxMathScripts & { documentId: string };
 import type { DocxRuler, DocxRulerEdit } from "@open-document/wasm/foundation";
 export type DocumentRuler = DocxRuler & { documentId: string };
-import type { DocxPageSetup } from "@open-document/wasm/foundation";
+import {
+  DocumentError,
+  type DocxPageSetup,
+} from "@open-document/wasm/foundation";
 import type { DocxPageBorders } from "@open-document/wasm/foundation";
 import type { DocxPageNumbering } from "@open-document/wasm/foundation";
 import type { DocxColumns } from "@open-document/wasm/foundation";
@@ -42,6 +52,49 @@ export type DocumentProtection = DocxProtection & { documentId: string };
 
 /** Document-wide page commands use the editor's existing read and edit queues. */
 export abstract class DocumentPage extends DocumentReview {
+  tableOfContents(): Promise<DocumentTableOfContents> {
+    return this.review.read(async () => ({
+      ...(await this.review.client.tableOfContents(
+        this.review.snapshot().revision,
+      )),
+      documentId: this.review.snapshot().documentId,
+    }));
+  }
+  insertTableOfContents(levels = 3): Promise<void> {
+    return this.review.edit(() =>
+      this.review.client.editTableOfContents(
+        this.review.snapshot().revision,
+        { action: "insert", levels },
+        this.profile,
+      ),
+    );
+  }
+  editTableOfContents(
+    source: DocumentTableOfContents,
+    change: Extract<DocxTocEdit, { action: "update" | "delete" }>,
+  ): Promise<void> {
+    return this.review.edit(() => {
+      const current = this.review.snapshot(),
+        item = source.items.find((item) => item.paragraph === change.paragraph);
+      if (
+        source.documentId !== current.documentId ||
+        source.revision !== current.revision ||
+        !item ||
+        item.reason
+      )
+        throw new DocumentError(
+          "stale-toc",
+          item?.reason || "Table of contents catalog is stale",
+          "",
+          -1,
+        );
+      return this.review.client.editTableOfContents(
+        source.revision,
+        change,
+        this.profile,
+      );
+    });
+  }
   charts(): Promise<DocumentCharts> {
     return this.review.read(async () => ({
       ...(await this.review.client.charts(this.review.snapshot().revision)),

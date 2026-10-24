@@ -1,18 +1,20 @@
 ///|
-fn Session::caption_style(
+fn Session::builtin_paragraph_style(
   self : Session,
+  preset : String,
+  name : String,
   parts : Map[String, @xml.Document],
   edits : Map[String, Array[@xml.Edit]],
   created : Map[String, @xml.Document],
 ) -> String raise @failure.Failure {
-  let styles = self.styles([])
+  let styles = { ..self, parts, }.styles([])
   if styles.tree is Some(tree) {
     for key, id in styles.ids {
       if tree.nodes[id].attribute("type", uri=word_uri).unwrap_or("paragraph") ==
         "paragraph" &&
         (
-          key == "Caption" ||
-          tree.value(id, "name").unwrap_or("").to_lower() == "caption"
+          key == preset ||
+          tree.value(id, "name").unwrap_or("").to_lower() == name
         ) {
         styles.validate_style(key, "paragraph")
         return key
@@ -20,7 +22,7 @@ fn Session::caption_style(
     }
   }
   guard styles.ids.length() < 4096 else {
-    @failure.reject("limit-exceeded", "Too many styles for a caption")
+    @failure.reject("limit-exceeded", "Too many paragraph styles")
   }
   let reserved : Set[String] = Set([])
   for part in self.style_part_names() {
@@ -33,12 +35,12 @@ fn Session::caption_style(
     }
   }
   let key = for i in 0..<=65536 {
-    let key = if i == 0 { "Caption" } else { "odCaption\{i}" }
+    let key = if i == 0 { preset } else { "od\{preset}\{i}" }
     if !styles.ids.contains(key) && !reserved.contains(key) {
       break key
     }
   } nobreak {
-    @failure.reject("limit-exceeded", "No free caption style identity")
+    @failure.reject("limit-exceeded", "No free paragraph style identity")
   }
   let base = styles.default_paragraph
     .map(key => {
@@ -47,12 +49,12 @@ fn Session::caption_style(
     })
     .unwrap_or("")
   let (paragraph, character) = builtin_style_properties(
-    "Caption",
-    "caption",
+    preset,
+    name,
     "paragraph",
     styles.themes,
   ).unwrap()
-  let markup = "<od:style xmlns:od=\"\{word_uri}\" od:type=\"paragraph\" od:styleId=\"\{key}\"><od:name od:val=\"caption\"/>\{base}\{paragraph}\{character}</od:style>"
+  let markup = "<od:style xmlns:od=\"\{word_uri}\" od:type=\"paragraph\" od:styleId=\"\{key}\"><od:name od:val=\"\{name}\"/>\{base}\{paragraph}\{character}</od:style>"
   let part = if styles.tree is Some(_) {
     styles.part
   } else {
@@ -64,7 +66,9 @@ fn Session::caption_style(
   if created.contains(part) {
     created[part] = candidate
   } else {
-    edits[part] = [edit]
+    let changes = edits.get(part).unwrap_or([])
+    changes.push(edit)
+    edits[part] = changes
   }
   { ..self, parts, }.styles([]).validate_style(key, "paragraph")
   key
@@ -138,7 +142,9 @@ pub fn Session::insert_caption(
   let parts = self.parts.copy()
   let edits : Map[String, Array[@xml.Edit]] = Map([])
   let created : Map[String, @xml.Document] = Map([])
-  let style = property_attribute(self.caption_style(parts, edits, created))
+  let style = property_attribute(
+    self.builtin_paragraph_style("Caption", "caption", parts, edits, created),
+  )
   let description = if text.is_empty() {
     ""
   } else {

@@ -355,6 +355,14 @@ async function dispatch(request: Request): Promise<unknown> {
             request.caption,
             request.profile,
           );
+        case "docxTableOfContents":
+          return foundation.tableOfContents(request.revision);
+        case "editDocxTableOfContents":
+          return foundation.editTableOfContents(
+            request.revision,
+            request.change,
+            request.profile,
+          );
         case "setPageColumns":
           return foundation.setPageColumns(
             request.revision,

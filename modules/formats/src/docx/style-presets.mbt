@@ -15,6 +15,22 @@ fn builtin_style_properties(
   themes : Map[String, String],
 ) -> (String, String)? {
   let name = name.to_lower()
+  if kind == "paragraph" {
+    for level in 1..<=9 {
+      if key == "TOC\{level}" || name == "toc \{level}" {
+        let indent = [0, 283, 567, 850, 1134, 1417, 1701, 1984, 2268][level - 1]
+        return Some(
+          (
+            "<od:pPr xmlns:od=\"\{word_uri}\"><od:spacing od:after=\"57\"/><od:ind od:left=\"\{indent}\" od:right=\"0\" od:firstLine=\"0\"/></od:pPr>",
+            "",
+          ),
+        )
+      }
+    }
+    if key == "TOCHeading" || name == "toc heading" {
+      return Some(("", ""))
+    }
+  }
   let preset = [
       ("NoSpacing", "no spacing", "paragraph"),
       ("Quote", "quote", "paragraph"),

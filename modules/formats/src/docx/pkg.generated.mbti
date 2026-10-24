@@ -177,6 +177,7 @@ pub fn Session::edit_ruler(Self, Int, @layout.Layout, Selection, RulerEdit) -> J
 pub fn Session::edit_shape(Self, Int, Int, Double, Double, String, String, Double, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::edit_state(Self) -> Json raise @failure.Failure
 pub fn Session::edit_table(Self, Int, Selection, TableEdit, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
+pub fn Session::edit_table_of_contents(Self, Int, TocEdit, probe~ : @layout.TextProbe, profile~ : Map[String, String], images~ : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::edit_text_box(Self, Int, Int, @layout.DrawingTextBoxProperties, probe? : @layout.TextProbe, profile? : Map[String, String], images? : @layout.Images) -> Json raise @failure.Failure
 pub fn Session::enter(Self, Int) -> Json raise @failure.Failure
 pub fn Session::export_markup(Self, Int, String, Int) -> Bytes raise @failure.Failure
@@ -248,6 +249,7 @@ pub fn Session::style_catalog(Self, Int, String) -> Json raise @failure.Failure
 pub fn Session::tab(Self, Int, Bool) -> Json raise @failure.Failure
 pub fn Session::table_clipboard(Self, Int, Selection, cut? : Bool, layout? : @layout.Layout) -> Json raise @failure.Failure
 pub fn Session::table_fragment_images(Self, Int, String) -> Json raise @failure.Failure
+pub fn Session::table_of_contents(Self, Int) -> Json raise @failure.Failure
 pub fn Session::theme_colors(Self, Int) -> Json raise @failure.Failure
 pub fn Session::theme_fonts(Self, Int) -> Json raise @failure.Failure
 pub fn Session::undo_edit(Self, Int) -> Json raise @failure.Failure
@@ -305,6 +307,12 @@ pub(all) struct ThemeFontEdit {
   kind : String
   script : String
   font : String
+}
+
+pub(all) enum TocEdit {
+  InsertToc(Int)
+  UpdateToc(Int)
+  DeleteToc(Int)
 }
 
 pub(all) enum Watermark {

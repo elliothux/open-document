@@ -260,6 +260,8 @@ fn Foundation::dispatch(
     | "updateBodyPageFields"
     | "insertBodyPageField"
     | "insertDocxCaption"
+    | "docxTableOfContents"
+    | "editDocxTableOfContents"
     | "bodyPageField"
     | "editBodyPageField"
     | "setPageBackground"
@@ -472,6 +474,8 @@ fn Foundation::dispatch(
         | "updateBodyPageFields"
         | "insertBodyPageField"
         | "insertDocxCaption"
+        | "docxTableOfContents"
+        | "editDocxTableOfContents"
         | "bodyPageField"
         | "editBodyPageField"
         | "setPageSetup" => self.docx_page(session, operation, request)

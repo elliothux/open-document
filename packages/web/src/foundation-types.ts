@@ -98,3 +98,7 @@ export type {
   DocxThemeFontEdit,
   ListFormat,
 } from "@open-document/wasm/foundation";
+export type {
+  DocxTocEdit,
+  DocxTableOfContents,
+} from "@open-document/wasm/foundation";

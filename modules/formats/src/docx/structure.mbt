@@ -366,6 +366,22 @@ fn WordTree::check_editable_paragraph(
     )
   }
   let parent = self.nodes[paragraph].parent
+  guard !self.contents.contains(paragraph) else {
+    @failure.reject(
+      "protected-content",
+      "Table of contents results require a table of contents update",
+      part~,
+      offset=paragraph,
+    )
+  }
+  guard !self.field_spans.contains(paragraph) else {
+    @failure.reject(
+      "protected-content",
+      "Cross-paragraph field results require field editing",
+      part~,
+      offset=paragraph,
+    )
+  }
   let in_body = parent >= 0 &&
     self.nodes[parent].uri == word_uri &&
     self.nodes[parent].name == "body"

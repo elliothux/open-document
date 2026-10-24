@@ -367,7 +367,9 @@ export class DocumentEditor extends DocumentTables {
         }
         if (
           error instanceof DocumentError &&
-          ["busy", "stale-search", "stale-overview"].includes(error.code)
+          ["busy", "stale-search", "stale-overview", "stale-toc"].includes(
+            error.code,
+          )
         ) {
           this.observable.update({ error: error.message });
         } else if (generation === this.generation)

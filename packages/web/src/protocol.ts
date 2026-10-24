@@ -1,4 +1,5 @@
 import type { DocxWatermarkRequest } from "./protocol-watermark.js";
+import type { DocxPageCommand } from "./protocol-docx-page.js";
 import type { XlsxAnalysisRequest } from "./protocol-xlsx-analysis.js";
 import type {
   DocxChartEdit,
@@ -23,7 +24,6 @@ import type {
   DocxListLevelUpdate,
   DocxPageSetup,
   DocxCoverPage,
-  DocxCaption,
   DocxPageNumbering,
   DocxColumns,
   DocxPageBorders,
@@ -286,12 +286,7 @@ export type Operation =
       field: DocxBodyField;
       profile: Record<string, string>;
     }
-  | {
-      operation: "insertDocxCaption";
-      revision: number;
-      caption: DocxCaption;
-      profile: Record<string, string>;
-    }
+  | DocxPageCommand
   | {
       operation: "updateBodyPageFields";
       revision: number;

@@ -532,6 +532,10 @@ fn Session::paragraph(
           revision_element(tree.nodes[item].name)
         }) {
         "Tracked revisions require review before editing"
+      } else if tree.contents.contains(id) {
+        "Table of contents results require a table of contents update"
+      } else if tree.field_spans.contains(id) {
+        "Cross-paragraph field results require field editing"
       } else if !running && has_fields {
         try {
           tree.check_editable_paragraph(

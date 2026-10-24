@@ -1,4 +1,9 @@
 export const pageEn = {
+  tableOfContents: "Table of contents",
+  tocLevels: "Include heading levels",
+  insertToc: "Insert table of contents",
+  updateToc: "Update table of contents",
+  deleteToc: "Delete table of contents",
   watermark: "Watermark",
   textWatermark: "Text watermark",
   pictureWatermark: "Picture watermark",
@@ -109,6 +114,11 @@ export const pageEn = {
   inheritedPageNumberFormat: "Use section format",
 };
 export const pageZh = {
+  tableOfContents: "目录",
+  tocLevels: "包含标题级别",
+  insertToc: "插入目录",
+  updateToc: "更新整个目录",
+  deleteToc: "删除目录",
   watermark: "水印",
   textWatermark: "文字水印",
   pictureWatermark: "图片水印",

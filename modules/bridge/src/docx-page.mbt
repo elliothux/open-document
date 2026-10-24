@@ -115,6 +115,9 @@ fn Foundation::docx_page(
   request : Json,
 ) -> Json raise @failure.Failure {
   let revision = field_int(request, "revision")
+  if operation == "docxTableOfContents" {
+    return session.table_of_contents(revision)
+  }
   if operation == "documentProtection" {
     return session.document_protection(revision)
   }
@@ -165,6 +168,34 @@ fn Foundation::docx_page(
         xlsx_boolean(request, "enabled"),
         field_string(request, "password"),
         salt,
+      )
+    }
+    "editDocxTableOfContents" => {
+      guard request is { "change": Object(fields) as change, .. } &&
+        fields.length() == 2 else {
+        @failure.reject(
+          "invalid-operation", "Invalid table of contents command",
+        )
+      }
+      let action = field_string(change, "action")
+      let edit = match action {
+        "insert" if fields.contains("levels") =>
+          @docx.TocEdit::InsertToc(field_int(change, "levels"))
+        "update" if fields.contains("paragraph") =>
+          @docx.TocEdit::UpdateToc(field_int(change, "paragraph"))
+        "delete" if fields.contains("paragraph") =>
+          @docx.TocEdit::DeleteToc(field_int(change, "paragraph"))
+        _ =>
+          @failure.reject(
+            "invalid-operation", "Invalid table of contents fields",
+          )
+      }
+      session.edit_table_of_contents(
+        revision,
+        edit,
+        probe=self.probe,
+        profile=xlsx_profile(request),
+        images=self.images,
       )
     }
     "insertDocxCaption" => {

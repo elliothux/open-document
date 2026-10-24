@@ -11,6 +11,11 @@ import {
   type DocxRulerEdit,
 } from "./docx-ruler.js";
 import { record } from "./validation.js";
+import {
+  checkDocxTocEdit,
+  docxTableOfContents,
+  type DocxTocEdit,
+} from "./docx-toc.js";
 
 export interface DocxCoverPage {
   title: string;
@@ -365,6 +370,26 @@ export class FoundationPageSession extends FoundationReviewSession {
     checkDocxCaption(caption);
     return editState(
       this.call({ operation: "insertDocxCaption", revision, caption, profile }),
+    );
+  }
+  tableOfContents(revision: number) {
+    return docxTableOfContents(
+      this.call({ operation: "docxTableOfContents", revision }),
+    );
+  }
+  editTableOfContents(
+    revision: number,
+    change: DocxTocEdit,
+    profile: Record<string, string>,
+  ) {
+    checkDocxTocEdit(change);
+    return editState(
+      this.call({
+        operation: "editDocxTableOfContents",
+        revision,
+        change,
+        profile,
+      }),
     );
   }
   ruler(revision: number): DocxRuler {

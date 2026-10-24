@@ -39,9 +39,37 @@ import {
   checkDocxProtection,
 } from "@open-document/wasm/foundation";
 import type { DocxSelection } from "@open-document/wasm/foundation";
+import {
+  checkDocxTocEdit,
+  docxTableOfContents,
+  type DocxTocEdit,
+} from "@open-document/wasm/foundation";
 
 /** Page commands retain the existing Worker and validation boundary. */
 export class FoundationPageClient extends FoundationReviewClient {
+  async tableOfContents(revision: number) {
+    return docxTableOfContents(
+      await this.connection.request({
+        operation: "docxTableOfContents",
+        revision,
+      }),
+    );
+  }
+  async editTableOfContents(
+    revision: number,
+    change: DocxTocEdit,
+    profile: Record<string, string>,
+  ) {
+    checkDocxTocEdit(change);
+    return editState(
+      await this.connection.request({
+        operation: "editDocxTableOfContents",
+        revision,
+        change,
+        profile,
+      }),
+    );
+  }
   async documentProtection(revision: number) {
     return docxProtection(
       await this.connection.request({

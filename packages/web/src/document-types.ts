@@ -1,4 +1,5 @@
 export type {
+  DocumentTableOfContents,
   DocumentCharts,
   DocumentRuler,
   DocumentBodyPageField,

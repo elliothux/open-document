@@ -223,7 +223,16 @@ fn WordTree::running_fields(
   self : WordTree,
   paragraph : Int,
 ) -> Map[Int, String] raise @failure.Failure {
+  let contents = self.contents
+    .get(paragraph)
+    .filter(toc => toc.reason.is_empty())
+  let ignored = contents
+    .map(toc => Set::from_array(toc.markers))
+    .unwrap_or(Set([]))
   for id in self.descendants(paragraph) {
+    if ignored.contains(id) {
+      continue
+    }
     let node = self.nodes[id]
     if node.uri == word_uri &&
       ["fldSimple", "fldChar", "instrText"].contains(node.name) {
@@ -233,7 +242,15 @@ fn WordTree::running_fields(
           node.name != "fldSimple" &&
           parent.name == "r" &&
           parent.uri == word_uri &&
-          parent.parent == paragraph
+          (
+            parent.parent == paragraph ||
+            (
+              contents is Some(_) &&
+              self.nodes[parent.parent].name == "hyperlink" &&
+              self.nodes[parent.parent].uri == word_uri &&
+              self.nodes[parent.parent].parent == paragraph
+            )
+          )
         ) else {
         @failure.reject(
           "protected-content", "Nested field containers require support",
@@ -247,7 +264,17 @@ fn WordTree::running_fields(
   let mut code = ""
   let mut results : Array[Int] = []
   let mut count = 0
+  let children : Array[Int] = []
   for child in self.children[paragraph] {
+    let node = self.nodes[child]
+    if contents is Some(_) && node.uri == word_uri && node.name == "hyperlink" {
+      self.check_hyperlink(child)
+      children.append(self.children[child])
+    } else {
+      children.push(child)
+    }
+  }
+  for child in children {
     let node = self.nodes[child]
     if node.name == "fldSimple" && node.uri == word_uri {
       guard state == 0 && node.text.trim().is_empty() else {
@@ -281,6 +308,9 @@ fn WordTree::running_fields(
       count += 1
     } else if node.name == "r" && node.uri == word_uri {
       for content in self.children[child] {
+        if ignored.contains(content) {
+          continue
+        }
         let item = self.nodes[content]
         if item.uri != word_uri {
           continue
