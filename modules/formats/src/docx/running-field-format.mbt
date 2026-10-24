@@ -8,6 +8,7 @@ fn running_field_instruction(field : String) -> String raise @failure.Failure {
     }
     return "REF " +
       reference.bookmark +
+      (if reference.numbered { " \\n" } else { "" }) +
       (if reference.hyperlink { " \\h" } else { "" }) +
       " \\* MERGEFORMAT"
   }

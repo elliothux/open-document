@@ -1,4 +1,60 @@
 ///|
+fn Session::sheet_edit_reason(
+  self : Session,
+  structure~ : Bool = true,
+  analysis~ : Bool = false,
+) -> String {
+  try {
+    if !self.read_only.is_empty() {
+      return self.read_only
+    }
+    let tree = Tree::new(self.workbook)
+    let root = tree.root("workbook")
+    if structure &&
+      tree
+      .one(root.id, "workbookProtection")
+      .map(node => flag(node, "lockStructure"))
+      .unwrap_or(false) {
+      return "Workbook structure is protected"
+    }
+    for node in tree.children.get(root.id).unwrap_or([]) {
+      if analysis &&
+        node.name == "extLst" &&
+        node.uri == spreadsheet_uri &&
+        self.analysis_workbook_extension(tree, node) {
+        continue
+      }
+      if node.uri != spreadsheet_uri ||
+        (
+          ["extLst", "customWorkbookViews"].contains(node.name) &&
+          !tree.children.get(node.id).unwrap_or([]).is_empty()
+        ) {
+        return "Workbook extensions or custom views require sheet structure support"
+      }
+    }
+    if tree.one(root.id, "definedNames") is Some(names) {
+      for name in tree.all(names.id, "definedName") {
+        if name.attribute("localSheetId") is Some(scope) {
+          ignore(natural(scope, self.sheets.length() - 1))
+        }
+        let tokens = formula_tokens(name.text)
+        for index, token in tokens {
+          if token is Operator("!") && index > 0 {
+            if (tokens[index - 1] is Quoted(value, true) && value.contains(":")) ||
+              (index > 1 && tokens[index - 2] is Operator(":")) {
+              return "Three-dimensional name references require sheet structure support"
+            }
+          }
+        }
+      }
+    }
+    ""
+  } catch {
+    @failure.Failure(message~, ..) => message
+  }
+}
+
+///|
 fn sheet_reference_formula(
   text : String,
   old : String,
@@ -69,13 +125,42 @@ fn Session::sheet_rename_reason(
   sparklines~ : Bool = false,
   pictures~ : Bool = false,
   charts~ : Bool = false,
+  analysis~ : Bool = false,
 ) -> String {
   try {
-    let reason = self.sheet_edit_reason(structure~)
+    let reason = self.sheet_edit_reason(structure~, analysis~)
     if !reason.is_empty() {
       return reason
     }
+    let analysis_parts = if analysis {
+      self.analysis_rename_parts()
+    } else {
+      []
+    }
     for rel in self.relationships() {
+      if analysis &&
+        !rel.external &&
+        analysis_parts.contains(rel.target) &&
+        (
+          (
+            rel.owner == self.main &&
+            [
+              relationship_uri + "pivotCacheDefinition",
+              slicer_relationship_uri + "slicerCache",
+              timeline_relationship_uri + "TimelineCache",
+            ].contains(rel.kind)
+          ) ||
+          (
+            self.sheets.any(sheet => sheet.id == rel.owner) &&
+            [
+              relationship_uri + "pivotTable",
+              slicer_relationship_uri + "slicer",
+              timeline_relationship_uri + "Timeline",
+            ].contains(rel.kind)
+          )
+        ) {
+        continue
+      }
       if rel.owner == self.main &&
         !(pivots && rel.kind == relationship_uri + "pivotCacheDefinition") &&
         !["worksheet", "styles", "sharedStrings", "theme", "calcChain"].any(kind => {
@@ -114,6 +199,18 @@ fn Session::sheet_rename_reason(
       } else {
         None
       }
+      let controls = if analysis &&
+        tree.one(root.id, "extLst") is Some(extension) &&
+        extension.attributes.is_empty() &&
+        extension.text.trim().is_empty() &&
+        (
+          self.timeline_extension(sheet, tree, extension) ||
+          self.slicer_extension(sheet, tree, extension)
+        ) {
+        Some(extension)
+      } else {
+        None
+      }
       for node in tree.children.get(root.id).unwrap_or([]) {
         if node.uri != spreadsheet_uri ||
           (
@@ -130,6 +227,11 @@ fn Session::sheet_rename_reason(
         }
       }
       for node in tree.document.nodes() {
+        if controls is Some(extension) &&
+          node.start >= extension.start &&
+          node.end <= extension.end {
+          continue
+        }
         if sparkline is Some(extension) &&
           node.start >= extension.start &&
           node.end <= extension.end {
@@ -274,6 +376,7 @@ fn Session::rename_sheet(
     sparklines=true,
     pictures=true,
     charts=true,
+    analysis=true,
   )
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let tables = self.sheet_tables()
@@ -340,7 +443,9 @@ fn Session::rename_sheet(
   let parts = self.parts.copy()
   self.sheet_table_references(tables, old, Some(name), parts, edits)
   self.sheet_chart_references(old, Some(name), parts, edits)
+  self.rename_analysis_sources(old, name, parts, edits)
   let sheets = self.ordered_sheets(workbook, sheets, parts)
+  ignore({ ..self, workbook, sheets, parts, }.analysis_rename_parts())
   let calculation = self.calculate(sheets, None, [], workbook, parts~)
   self.commit(
     sheets,
@@ -350,6 +455,7 @@ fn Session::rename_sheet(
     self.selection,
     parts~,
     table_edits=tables.map(table => table.part),
+    drawing_selection=self.drawing_selection,
   )
   self.query()
 }

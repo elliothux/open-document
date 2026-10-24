@@ -539,7 +539,17 @@ pub fn Session::query(
     "sheetEditReason": self.sheet_edit_reason(),
     "protection": self.protection_query(current),
     "workbookProtection": self.workbook_protection_query(),
-    "sheetRenameReason": reference_reason,
+    "sheetRenameReason": if reference_reason.is_empty() {
+      ""
+    } else {
+      self.sheet_rename_reason(
+        tables=true,
+        sparklines=true,
+        pictures=true,
+        charts=true,
+        analysis=true,
+      )
+    },
     "sheetCopyReason": reference_reason,
     "sheetDeleteReason": reference_reason,
     "frozen": {

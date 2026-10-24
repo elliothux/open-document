@@ -237,7 +237,7 @@ fn Foundation::docx_page(
         guard item is Object(fields) &&
           fields.length() >= 2 &&
           fields.length() <=
-          (if text_reference { 3 } else if sequence { 7 } else { 5 }) &&
+          (if text_reference { 4 } else if sequence { 7 } else { 5 }) &&
           fields
           .keys()
           .all(key => {
@@ -247,7 +247,7 @@ fn Foundation::docx_page(
                 "hidden",
               ]
             } else if text_reference {
-              ["field", "bookmark", "hyperlink"]
+              ["field", "bookmark", "hyperlink", "numbered"]
             } else {
               ["field", "bookmark", "format", "hyperlink", "relative"]
             }).contains(key)
@@ -318,6 +318,14 @@ fn Foundation::docx_page(
         (if text_reference { "REF:" } else { "PAGEREF:" }) +
         field_string(original, "bookmark") +
         code[4:].to_owned() +
+        (if text_reference &&
+          original is Object(fields) &&
+          fields.contains("numbered") &&
+          xlsx_boolean(original, "numbered") {
+          ":number"
+        } else {
+          ""
+        }) +
         (if original is Object(fields) &&
           fields.contains("hyperlink") &&
           xlsx_boolean(original, "hyperlink") {

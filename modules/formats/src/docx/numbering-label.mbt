@@ -3,12 +3,28 @@ fn numbering_label(
   levels : Map[Int, NumberLevel],
   values : Array[Int],
   level : Int,
+  reference~ : Bool = false,
 ) -> String raise @failure.Failure {
   let definition = levels[level]
+  let mut end = definition.pattern.length()
+  // ONLYOFFICE CNum.GetText omits only the final literal token for REF \n.
+  if reference &&
+    end > 0 &&
+    !(end >= 2 &&
+    definition.pattern[end - 2] == '%' &&
+    definition.pattern[end - 1] >= '1' &&
+    definition.pattern[end - 1] <= '9') {
+    end -= if definition.pattern[end - 1] >= 0xdc00 &&
+      definition.pattern[end - 1] <= 0xdfff {
+      2
+    } else {
+      1
+    }
+  }
   let output = StringBuilder()
   let mut i = 0
   let mut units = 0
-  while i < definition.pattern.length() {
+  while i < end {
     if definition.pattern[i] == '%' &&
       i + 1 < definition.pattern.length() &&
       definition.pattern[i + 1] >= '1' &&

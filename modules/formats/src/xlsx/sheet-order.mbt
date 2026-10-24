@@ -128,55 +128,6 @@ fn Session::ordered_sheets(
 }
 
 ///|
-fn Session::sheet_edit_reason(
-  self : Session,
-  structure~ : Bool = true,
-) -> String {
-  try {
-    if !self.read_only.is_empty() {
-      return self.read_only
-    }
-    let tree = Tree::new(self.workbook)
-    let root = tree.root("workbook")
-    if structure &&
-      tree
-      .one(root.id, "workbookProtection")
-      .map(node => flag(node, "lockStructure"))
-      .unwrap_or(false) {
-      return "Workbook structure is protected"
-    }
-    for node in tree.children.get(root.id).unwrap_or([]) {
-      if node.uri != spreadsheet_uri ||
-        (
-          ["extLst", "customWorkbookViews"].contains(node.name) &&
-          !tree.children.get(node.id).unwrap_or([]).is_empty()
-        ) {
-        return "Workbook extensions or custom views require sheet structure support"
-      }
-    }
-    if tree.one(root.id, "definedNames") is Some(names) {
-      for name in tree.all(names.id, "definedName") {
-        if name.attribute("localSheetId") is Some(scope) {
-          ignore(natural(scope, self.sheets.length() - 1))
-        }
-        let tokens = formula_tokens(name.text)
-        for index, token in tokens {
-          if token is Operator("!") && index > 0 {
-            if (tokens[index - 1] is Quoted(value, true) && value.contains(":")) ||
-              (index > 1 && tokens[index - 2] is Operator(":")) {
-              return "Three-dimensional name references require sheet structure support"
-            }
-          }
-        }
-      }
-    }
-    ""
-  } catch {
-    @failure.Failure(message~, ..) => message
-  }
-}
-
-///|
 fn visible_sheet(sheets : Array[Sheet], from : Int) -> Int {
   for index in from..<sheets.length() {
     if sheets[index].state == "visible" {
@@ -382,6 +333,7 @@ fn Session::edit_sheet_current(
       return self.resize_dimensions(sheet, first, last, size, rows=true)
     ColumnWidth(first, last, size) =>
       return self.resize_dimensions(sheet, first, last, size, rows=false)
+    Rename(name) => return self.rename_sheet(self.sheet_index(sheet), name)
     _ => ()
   }
   let reason = self.sheet_edit_reason()
@@ -460,8 +412,8 @@ fn Session::edit_sheet_current(
     | DrawingOrder(_, _)
     | DuplicateDrawing(_)
     | MoveDrawing(_, _)
-    | ConditionalPriority(_, _, _) => abort("Dimension edit was dispatched")
-    Rename(name) => return self.rename_sheet(index, name)
+    | ConditionalPriority(_, _, _)
+    | Rename(_) => abort("Dimension edit was dispatched")
     Delete => {
       removed = self.prepare_sheet_delete(index, parts, edits)
       self.sheet_chart_references(

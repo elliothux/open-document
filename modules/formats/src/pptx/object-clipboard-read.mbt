@@ -273,8 +273,14 @@ fn read_object_fragment(
         "protected-content", "Portable objects must detach placeholder roles",
       )
     }
-    if node.uri == drawing_uri && node.name == "hlinkClick" {
-      ignore(hyperlink_node({ tree, node: tree.nodes[node.parent], }))
+    if node.uri == drawing_uri &&
+      ["hlinkClick", "hlinkMouseOver"].contains(node.name) {
+      ignore(
+        hyperlink_node(
+          { tree, node: tree.nodes[node.parent], },
+          hover=node.name == "hlinkMouseOver",
+        ),
+      )
       check_clipboard_link_metadata(node)
       let id = node.attribute("id", uri=relationship_uri).unwrap_or("")
       let action = node.attribute("action").unwrap_or("")
@@ -296,7 +302,9 @@ fn read_object_fragment(
       if attr.uri != relationship_uri {
         continue
       }
-      if node.name == "hlinkClick" && attr.name == "id" && attr.value.is_empty() {
+      if ["hlinkClick", "hlinkMouseOver"].contains(node.name) &&
+        attr.name == "id" &&
+        attr.value.is_empty() {
         continue
       }
       let kind = if node.uri == drawing_uri &&
@@ -304,7 +312,7 @@ fn read_object_fragment(
         attr.name == "embed" {
         "image"
       } else if node.uri == drawing_uri &&
-        node.name == "hlinkClick" &&
+        ["hlinkClick", "hlinkMouseOver"].contains(node.name) &&
         attr.name == "id" {
         "external"
       } else if chart_frame_reference(tree, node) && attr.name == "id" {
@@ -333,11 +341,6 @@ fn read_object_fragment(
         )
       }
       used.add(attr.value)
-    }
-    if node.uri == drawing_uri && node.name == "hlinkMouseOver" {
-      @failure.reject(
-        "protected-content", "Hover clipboard links require support",
-      )
     }
   }
   guard used.length() == resources.length() else {

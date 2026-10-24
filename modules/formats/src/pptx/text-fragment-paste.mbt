@@ -66,6 +66,9 @@ fn read_text_fragment(
     "link": [
       "kind", "target", "tooltip", "tgtFrame", "history", "highlightClick", "endSnd",
     ],
+    "hoverLink": [
+      "kind", "target", "tooltip", "tgtFrame", "history", "highlightClick", "endSnd",
+    ],
   }
   let children : Map[String, Array[String]] = {
     "fragment": ["p"],
@@ -75,8 +78,10 @@ fn read_text_fragment(
       "buSzPts", "buSzPct", "tabLst",
     ],
     "r": ["rPr", "t"],
-    "rPr": ["solidFill", "highlight", "latin", "ea", "cs", "link"],
-    "endParaRPr": ["solidFill", "highlight", "latin", "ea", "cs", "link"],
+    "rPr": ["solidFill", "highlight", "latin", "ea", "cs", "link", "hoverLink"],
+    "endParaRPr": [
+      "solidFill", "highlight", "latin", "ea", "cs", "link", "hoverLink",
+    ],
     "solidFill": ["srgbClr"],
     "highlight": ["srgbClr"],
     "buClr": ["srgbClr"],
@@ -89,8 +94,11 @@ fn read_text_fragment(
   let mut length = paragraphs.length() - 1
   for node in document.nodes()[1:] {
     guard (
-        (node.uri == drawing_uri && node.name != "link") ||
-        (node.uri == text_fragment_uri && node.name == "link")
+        (node.uri == drawing_uri && !["link", "hoverLink"].contains(node.name)) ||
+        (
+          node.uri == text_fragment_uri &&
+          ["link", "hoverLink"].contains(node.name)
+        )
       ) &&
       attributes.get(node.name) is Some(allowed) &&
       node.attributes.all(a => {

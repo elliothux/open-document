@@ -611,6 +611,7 @@ pub fn Paragraph::to_json(Self) -> Json
 
 pub(all) struct ParagraphMarker {
   text : String
+  referenceText : String?
   style : TextStyle
   align : String
   suffix : String
@@ -889,6 +890,7 @@ pub fn TextProbe::text_block(Self, String, TextStyle, Map[String, String], Doubl
 pub(all) struct TextReference {
   bookmark : String
   hyperlink : Bool
+  numbered : Bool
 }
 pub fn TextReference::code(Self) -> String
 pub fn TextReference::parse(String) -> Self raise @failure.Failure

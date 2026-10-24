@@ -120,7 +120,7 @@ export type DocxBodyField =
       headingLevel?: number;
       hidden?: boolean;
     }
-  | { field: "REF"; bookmark: string; hyperlink?: boolean }
+  | { field: "REF"; bookmark: string; hyperlink?: boolean; numbered?: boolean }
   | {
       field: "PAGEREF";
       bookmark: string;
@@ -208,11 +208,12 @@ export function checkBodyField(value: unknown): asserts value is DocxBodyField {
       (key) =>
         !(
           textReference
-            ? ["field", "bookmark", "hyperlink"]
+            ? ["field", "bookmark", "hyperlink", "numbered"]
             : ["field", "bookmark", "format", "hyperlink", "relative"]
         ).includes(key),
     ) ||
     ("hyperlink" in item && typeof item.hyperlink !== "boolean") ||
+    ("numbered" in item && typeof item.numbered !== "boolean") ||
     ("relative" in item && typeof item.relative !== "boolean")
   )
     throw new Error("Invalid page reference target");

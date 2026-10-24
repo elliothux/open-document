@@ -65,13 +65,8 @@ fn Session::clipboard_object_links(
     })
     .to_array()
   for node in tree.document.nodes() {
-    if node.uri == drawing_uri && node.name == "hlinkMouseOver" {
-      @failure.reject(
-        "protected-content", "Hover object links require clipboard support",
-      )
-    }
     if node.uri == drawing_uri &&
-      node.name == "hlinkClick" &&
+      ["hlinkClick", "hlinkMouseOver"].contains(node.name) &&
       !clipboard_media_click(tree, node) {
       check_clipboard_link_metadata(node)
       let value = self
@@ -79,6 +74,7 @@ fn Session::clipboard_object_links(
           Some({ tree, node: tree.nodes[node.parent], }),
           tree.part,
           links,
+          hover=node.name == "hlinkMouseOver",
         )
         .unwrap()
       guard value.0 == "external" || value.0 == "action" else {
@@ -115,7 +111,7 @@ fn Session::clipboard_object_links(
         ) ||
         (
           node.uri == drawing_uri &&
-          node.name == "hlinkClick" &&
+          ["hlinkClick", "hlinkMouseOver"].contains(node.name) &&
           attr.name == "id"
         ) ||
         (

@@ -12,10 +12,14 @@ fn running_field_code(instruction : String) -> String raise @failure.Failure {
   if tokens.length() >= 2 && tokens[0].to_upper() == "REF" {
     check_bookmark_name(tokens[1])
     let mut hyperlink = false
+    let mut numbered = false
     let mut merge = false
     for i = 2; i < tokens.length(); {
       if tokens[i].to_lower() == "\\h" && !hyperlink {
         hyperlink = true
+        continue i + 1
+      } else if tokens[i].to_lower() == "\\n" && !numbered {
+        numbered = true
         continue i + 1
       } else if tokens[i] == "\\*" &&
         i + 1 < tokens.length() &&
@@ -29,12 +33,12 @@ fn running_field_code(instruction : String) -> String raise @failure.Failure {
         )
       }
     }
-    guard merge else {
+    guard merge || numbered else {
       @failure.reject(
         "unsupported-layout", "Text references require retained result formatting",
       )
     }
-    return @layout.TextReference::{ bookmark: tokens[1], hyperlink, }.code()
+    return @layout.TextReference::{ bookmark: tokens[1], hyperlink, numbered, }.code()
   }
   if tokens.length() >= 2 && tokens[0].to_upper() == "SEQ" {
     let options = ["PAGE"]

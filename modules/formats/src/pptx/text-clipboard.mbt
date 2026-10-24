@@ -41,7 +41,7 @@ fn Session::clipboard_paragraph_piece(
         )
       }
       let properties = run.source.bind(source => source.child("rPr"))
-      let hyperlink = self.clipboard_text_link(properties, links, destinations) catch {
+      let hyperlink = self.clipboard_text_links(properties, links, destinations) catch {
         @failure.Failure(code="limit-exceeded", ..) as error => raise error
         @failure.Failure(message~, ..) =>
           @failure.reject("protected-content", message)
@@ -50,11 +50,11 @@ fn Session::clipboard_paragraph_piece(
         let pending = [properties.node]
         for index = 0; index < pending.length(); index = index + 1 {
           let node = pending[index]
-          if node.uri == drawing_uri && node.name == "hlinkClick" {
+          if node.uri == drawing_uri &&
+            ["hlinkClick", "hlinkMouseOver"].contains(node.name) {
             continue
           }
           guard !node.attributes.any(a => a.uri == relationship_uri) &&
-            node.name != "hlinkMouseOver" &&
             (
               node.name != "alpha" ||
               (
@@ -64,7 +64,7 @@ fn Session::clipboard_paragraph_piece(
               )
             ) else {
             @failure.reject(
-              "protected-content", "Rich text hover links and transparency require clipboard support",
+              "protected-content", "Rich text transparency requires clipboard support",
             )
           }
           pending.append(properties.tree.children.get(node.id).unwrap_or([]))

@@ -79,6 +79,7 @@ export interface DocxFlow {
     rtl: boolean;
     marker?: {
       text: string;
+      referenceText?: string | null;
       style: TextStyle;
       align: "left" | "right" | "center";
       suffix: "tab" | "space" | "nothing";
@@ -381,6 +382,13 @@ export function docxFlow(value: unknown): DocxFlow {
     if (paragraph.marker !== undefined) {
       const marker = fields(paragraph.marker, [], ["text", "align", "suffix"]);
       if (
+        marker.referenceText !== undefined &&
+        marker.referenceText !== null &&
+        (typeof marker.referenceText !== "string" ||
+          marker.referenceText.length > 256)
+      )
+        throw new Error("Invalid paragraph reference number");
+      if (
         !["left", "right", "center"].includes(String(marker.align)) ||
         !["tab", "space", "nothing"].includes(String(marker.suffix))
       )
@@ -430,7 +438,7 @@ export function docxFlow(value: unknown): DocxFlow {
         Number(span.field.split(":")[2]) <= 2147483647;
       if (
         typeof span.field !== "string" ||
-        !/^(?:(?:PAGE|NUMPAGES)(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?|PAGEREF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::hyperlink)?(?::relative)?|REF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::hyperlink)?|SEQ:[_\p{ID_Start}][_\p{ID_Continue}]{0,39}(?::(?:decimal|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::(?:repeat|restart=[0-9]{1,10}))?(?::heading=[1-9])?(?::hidden)?)?$/u.test(
+        !/^(?:(?:PAGE|NUMPAGES)(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?|PAGEREF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::(?:decimal|decimalZero|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::hyperlink)?(?::relative)?|REF:[A-Za-z_][A-Za-z0-9_]{0,39}(?::number)?(?::hyperlink)?|SEQ:[_\p{ID_Start}][_\p{ID_Continue}]{0,39}(?::(?:decimal|lowerLetter|upperLetter|lowerRoman|upperRoman))?(?::(?:repeat|restart=[0-9]{1,10}))?(?::heading=[1-9])?(?::hidden)?)?$/u.test(
           noteField ? "" : span.field,
         ) ||
         (span.field.startsWith("SEQ:") &&

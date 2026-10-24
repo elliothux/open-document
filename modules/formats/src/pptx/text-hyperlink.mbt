@@ -225,7 +225,10 @@ fn Session::set_text_hyperlink(
     if values[i] == next {
       continue
     }
-    let node = span.properties().map(hyperlink_node).unwrap_or(None)
+    let node = span
+      .properties()
+      .map(properties => hyperlink_node(properties))
+      .unwrap_or(None)
     let hyperlink = Some(hyperlink_markup(node, kind, relation, target~))
     let change : @xml.SourceChange = if span.run is Some(run) &&
       run.source is Some(source) {

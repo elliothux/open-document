@@ -321,6 +321,18 @@ fn Session::apply_numbering(
       ..paragraph,
       marker: Some({
         text,
+        referenceText: if ["bullet", "none"].contains(level.format) {
+          None
+        } else {
+          Some(
+            numbering_label(
+              definition.levels,
+              counter.values,
+              index,
+              reference=true,
+            ),
+          )
+        },
         align: level.align,
         suffix: level.suffix,
         style: {

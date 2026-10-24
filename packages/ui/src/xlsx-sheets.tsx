@@ -62,11 +62,11 @@ export function XlsxSheets({
           {sheet.name}
         </button>
       ))}
-      <fieldset disabled={disabled || !!query.sheetEditReason}>
+      <fieldset disabled={disabled}>
         <legend>{t.manageSheets}</legend>
         <button
           type="button"
-          disabled={query.sheets.length >= 256}
+          disabled={query.sheets.length >= 256 || !!query.sheetEditReason}
           onClick={() =>
             controller.run(() => editor.editSheet({ action: "add" }))
           }
@@ -75,7 +75,11 @@ export function XlsxSheets({
         </button>
         <button
           type="button"
-          disabled={query.sheets.length >= 256 || !!query.sheetCopyReason}
+          disabled={
+            query.sheets.length >= 256 ||
+            !!query.sheetCopyReason ||
+            !!query.sheetEditReason
+          }
           onClick={() =>
             controller.run(() => editor.editSheet({ action: "copy" }))
           }
@@ -84,7 +88,11 @@ export function XlsxSheets({
         </button>
         <button
           type="button"
-          disabled={visible.length <= 1 || !!query.sheetDeleteReason}
+          disabled={
+            visible.length <= 1 ||
+            !!query.sheetDeleteReason ||
+            !!query.sheetEditReason
+          }
           onClick={() =>
             controller.run(() => editor.editSheet({ action: "delete" }))
           }
@@ -120,7 +128,7 @@ export function XlsxSheets({
           )}
         <button
           type="button"
-          disabled={position <= 0}
+          disabled={position <= 0 || !!query.sheetEditReason}
           onClick={() =>
             controller.run(() =>
               editor.editSheet({ action: "move", index: position - 1 }),
@@ -131,7 +139,9 @@ export function XlsxSheets({
         </button>
         <button
           type="button"
-          disabled={position >= query.sheets.length - 1}
+          disabled={
+            position >= query.sheets.length - 1 || !!query.sheetEditReason
+          }
           onClick={() =>
             controller.run(() =>
               editor.editSheet({ action: "move", index: position + 1 }),
@@ -142,7 +152,7 @@ export function XlsxSheets({
         </button>
         <button
           type="button"
-          disabled={visible.length <= 1}
+          disabled={visible.length <= 1 || !!query.sheetEditReason}
           onClick={() =>
             controller.run(() =>
               editor.editSheet({ action: "visibility", state: "hidden" }),
@@ -155,7 +165,7 @@ export function XlsxSheets({
           {t.hiddenSheet}
           <select
             value={target}
-            disabled={!hidden.length}
+            disabled={!hidden.length || !!query.sheetEditReason}
             onChange={(event) => setChosen(event.currentTarget.value)}
           >
             {!hidden.length && <option value="">{t.choose}</option>}
@@ -168,7 +178,7 @@ export function XlsxSheets({
         </label>
         <button
           type="button"
-          disabled={!target}
+          disabled={!target || !!query.sheetEditReason}
           onClick={() =>
             controller.run(() =>
               editor.editSheet(

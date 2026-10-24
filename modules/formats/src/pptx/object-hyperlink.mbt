@@ -56,8 +56,17 @@ fn hyperlink_properties(object : Object) -> Ref raise @failure.Failure {
 }
 
 ///|
-fn hyperlink_node(properties : Ref) -> @xml.Node? raise @failure.Failure {
-  let node = properties.child("hlinkClick")
+fn hyperlink_node(
+  properties : Ref,
+  hover~ : Bool = false,
+) -> @xml.Node? raise @failure.Failure {
+  let node = properties.child(
+    if hover {
+      "hlinkMouseOver"
+    } else {
+      "hlinkClick"
+    },
+  )
   guard node is Some(source) else { return None }
   let raw = source.tree.document.source()[source.node.start:source.node.end]
   guard source.node.attributes.all(a => {
@@ -102,9 +111,10 @@ fn Session::read_hyperlink_at(
   properties : Ref?,
   owner : String,
   links : ReadOnlyArray[@opc.Relationship],
+  hover~ : Bool = false,
 ) -> (String, String)? raise @failure.Failure {
   guard properties is Some(properties) &&
-    hyperlink_node(properties) is Some(node) else {
+    hyperlink_node(properties, hover~) is Some(node) else {
     return None
   }
   let id = node.attribute("id", uri=relationship_uri).unwrap_or("")
@@ -336,6 +346,7 @@ fn hyperlink_markup(
   kind : String,
   relation : String,
   target~ : String,
+  hover~ : Bool = false,
 ) -> String raise @failure.Failure {
   if kind == "none" {
     return ""
@@ -357,7 +368,8 @@ fn hyperlink_markup(
   } else {
     " action=\"ppaction://hlinksldjump\""
   }
-  "<a:hlinkClick xmlns:a=\"\{drawing_uri}\" xmlns:r=\"\{relationship_uri}\" r:id=\"\{relation}\"\{action}\{metadata.to_string()}/>"
+  let name = if hover { "hlinkMouseOver" } else { "hlinkClick" }
+  "<a:\{name} xmlns:a=\"\{drawing_uri}\" xmlns:r=\"\{relationship_uri}\" r:id=\"\{relation}\"\{action}\{metadata.to_string()}/>"
 }
 
 ///|

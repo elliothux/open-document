@@ -2,6 +2,7 @@
 pub(all) struct TextReference {
   bookmark : String
   hyperlink : Bool
+  numbered : Bool
 }
 
 ///|
@@ -11,16 +12,29 @@ pub fn TextReference::parse(
   guard code.has_prefix("REF:") else {
     @failure.reject("unsupported-layout", "Invalid text reference")
   }
-  let reference = PageReference::parse("PAGEREF:" + code[4:].to_owned())
+  let parts = code[4:].split(":").to_array()
+  let mut numbered = false
+  let options = [parts[0].to_owned()]
+  for option in parts[1:] {
+    if option == "number" && !numbered {
+      numbered = true
+    } else {
+      options.push(option.to_owned())
+    }
+  }
+  let reference = PageReference::parse("PAGEREF:" + options.join(":"))
   guard reference.format.is_empty() && !reference.relative else {
     @failure.reject("unsupported-layout", "Invalid text reference option")
   }
-  { bookmark: reference.bookmark, hyperlink: reference.hyperlink, }
+  { bookmark: reference.bookmark, hyperlink: reference.hyperlink, numbered, }
 }
 
 ///|
 pub fn TextReference::code(self : TextReference) -> String {
-  "REF:" + self.bookmark + (if self.hyperlink { ":hyperlink" } else { "" })
+  "REF:" +
+  self.bookmark +
+  (if self.numbered { ":number" } else { "" }) +
+  (if self.hyperlink { ":hyperlink" } else { "" })
 }
 
 ///|
@@ -61,10 +75,37 @@ fn Flow::text_reference_values(
       is Some((start_p, start, end_p, end)) else {
       return "Error! Reference source not found."
     }
-    guard start_p == end_p &&
-      by_id.get(start_p) is Some(paragraph) &&
+    guard by_id.get(start_p) is Some(paragraph) &&
       start >= 0 &&
-      end >= start else {
+      (start_p != end_p || end >= start) else {
+      @failure.reject("unsupported-layout", "text-reference-target-structure")
+    }
+    if reference.numbered {
+      work += paragraph.spans.length()
+      guard work <= 1048576 else {
+        @failure.reject(
+          "limit-exceeded", "Number reference lookup exceeds budget",
+        )
+      }
+      guard start <=
+        paragraph.spans.fold(init=0, (sum, span) => {
+          sum + span.logical_text().length()
+        }) else {
+        @failure.reject("unsupported-layout", "text-reference-target-boundary")
+      }
+      let text = paragraph.marker
+        .bind(marker => marker.referenceText)
+        .unwrap_or("0")
+      guard text.length() <= 256 &&
+        text
+        .iter()
+        .all(c => c >= ' ' && c != '\u007f' && c != '\u2028' && c != '\u2029') else {
+        @failure.reject("unsupported-layout", "number-reference-target-control")
+      }
+      resolved[key] = text
+      return text
+    }
+    guard start_p == end_p else {
       @failure.reject("unsupported-layout", "text-reference-target-structure")
     }
     let out = StringBuilder()

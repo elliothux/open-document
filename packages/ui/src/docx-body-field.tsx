@@ -27,6 +27,7 @@ export function DocxBodyField({
   const [draft, setDraft] = useState<DocxBodyField>();
   const [bookmark, setBookmark] = useState("");
   const [hyperlink, setHyperlink] = useState(false);
+  const [numbered, setNumbered] = useState(false);
   const [relative, setRelative] = useState(false);
   const [sequence, setSequence] = useState("Figure");
   const [sequenceOptions, setSequenceOptions] = useState<SequenceOptions>({});
@@ -90,6 +91,9 @@ export function DocxBodyField({
               field: referenceKind,
               bookmark,
               ...(hyperlink ? { hyperlink: true } : {}),
+              ...(referenceKind === "REF" && numbered
+                ? { numbered: true }
+                : {}),
               ...(referenceKind === "PAGEREF" && relative
                 ? { relative: true }
                 : {}),
@@ -139,6 +143,16 @@ export function DocxBodyField({
               ? t.textReferenceLink
               : t.pageReferenceLink}
           </label>
+          {referenceKind === "REF" && (
+            <label>
+              <input
+                type="checkbox"
+                checked={numbered}
+                onChange={(event) => setNumbered(event.currentTarget.checked)}
+              />
+              {t.textReferenceNumber}
+            </label>
+          )}
           {referenceKind === "PAGEREF" && (
             <label>
               <input
@@ -292,6 +306,21 @@ export function DocxBodyField({
                     ? t.selectedTextReferenceLink
                     : t.selectedPageReferenceLink}
                 </label>
+                {draft.field === "REF" && (
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={draft.numbered ?? false}
+                      onChange={(event) =>
+                        setDraft({
+                          ...draft,
+                          numbered: event.currentTarget.checked,
+                        })
+                      }
+                    />
+                    {t.selectedTextReferenceNumber}
+                  </label>
+                )}
                 {draft.field === "PAGEREF" && (
                   <label>
                     <input

@@ -840,11 +840,13 @@ Flow 的文本框内容为 `{ kind: "textBox", shape, text }`。`shape` 包含�
 
 ### 书签文字引用
 
-`DocxBodyField` 接受 `{ field: "REF", bookmark: string, hyperlink?: boolean }`，沿现有正文域插入、查询与修改 API 使用。名称沿书签规则，创建和修改时须存在可用目标。默认正文域面板提供文字/页码引用选择、目标、插入、读取、修改及显式跳转。REF 不接受页码格式或相对位置属性。
+`DocxBodyField` 接受 `{ field: "REF", bookmark: string, hyperlink?: boolean, numbered?: boolean }`，沿现有正文域插入、查询与修改 API 使用。名称沿书签规则，创建和修改时须存在可用目标。默认正文域面板提供文字/页码引用选择、目标、编号开关、插入、读取、修改及显式跳转。REF 不接受页码格式或相对位置属性。
 
 当前支持正文或普通单元格内、同一段落中的书签文字范围。原生指令为 `REF name [\h] \* MERGEFORMAT`，保留结果 run 的字符格式。普通文字按逻辑边界截取，目标内的 PAGE、NUMPAGES、PAGEREF、SEQ 使用当前计算值，嵌套 REF 按依赖计算；一个域仍占一个逻辑位置。缺少目标时显示 `Error! Reference source not found.`。已知简单域随书签改名更新目标 token；原生输入、格式和富文本片段沿既有事务维护。布局、保存及 PDF 不改写缓存，显式刷新合为一项精确历史。`hyperlink: true` 保留原生 `\h`，默认控件显式跳转，PDF 输出内部目标。
 
-每项结果最多 4096 个 UTF-16 单元，依赖深度最多 64，单轮查询工作量最多 1048576。循环、无效依赖、跨段目标、绘图或换行/控制字符保留各域原缓存并给出布局诊断，阻止不确定的刷新和输出。仍沿用正文域数量、八轮分页、字体、历史及输出预算。跨段及多行内容、未带 MERGEFORMAT 的目标格式复制、编号/相对位置等开关和完整 REF 创作继续实施；未知指令保留源并保护。实现归 [`text-reference.mbt`](../../modules/layout/src/text-reference.mbt)、[书签源事务](../../modules/formats/src/docx/body-page-reference.mbt)与[字段指令](../../modules/formats/src/docx/running-fields.mbt)。行为依据 [ONLYOFFICE REF 与结果格式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L1417-L1495)及[目标内容和错误](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L1496-L1595)，未复制上游执行代码。
+`numbered: true` 引用书签起始段落的当前编号，原生写为 `REF name \n [\h] \* MERGEFORMAT`，导入时也接受未带 MERGEFORMAT 的编号引用。目标可跨段，结果只读取起始段落的列表计数，不复制书签内容。编号保留前缀、中间分隔符及所有编号占位符，只省略末尾一个文字字符；例如 `(%1)` 得到 `(1`，`%1.%2)!` 得到 `1.a)`。普通段落及项目符号列表返回 `0`。列表格式和起始值修改后重算，显式缓存、书签改名、剪贴板和内部链接沿同一事务。每项编号结果最多 256 个 UTF-16 单元。依据为 [ONLYOFFICE 编号引用](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L1529-L1594)、[末尾文字规则](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Numbering/Num.js#L725-L754)及[文字字符拆分](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Numbering/NumberingLvl.js#L1093-L1127)。
+
+文字结果最多 4096 个 UTF-16 单元，依赖深度最多 64，单轮查询工作量最多 1048576。循环、无效依赖、跨段文字目标、绘图或换行/控制字符保留各域原缓存并给出布局诊断，阻止不确定的刷新和输出。仍沿用正文域数量、八轮分页、字体、历史及输出预算。跨段及多行内容、未带 MERGEFORMAT 的目标格式复制、相对或完整上下文编号、相对位置等开关和完整 REF 创作继续实施；未知指令保留源并保护。实现归 [`text-reference.mbt`](../../modules/layout/src/text-reference.mbt)、[书签源事务](../../modules/formats/src/docx/body-page-reference.mbt)与[字段指令](../../modules/formats/src/docx/running-fields.mbt)。行为依据 [ONLYOFFICE REF 与结果格式](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L1417-L1495)及[目标内容和错误](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Paragraph/ComplexField.js#L1496-L1595)，未复制上游执行代码。
 
 ### 序列编号字段
 
@@ -1450,11 +1452,13 @@ Office PDF 输出使用同一字形坐标、TrueType 子集、字体宽度、CID
 
 `XlsxQuery.sheetEditReason` 是工作表级管理操作的保护原因，空串表示可用。当前继续保护未知单元格公式、锁定结构的 workbookProtection、三维名称引用、无法解释的名称语法、非空工作簿扩展/自定义工作簿视图及未知根内容。源内容保留；不通过放开按钮改变引用语义。默认 UI 提供前移/后移、隐藏与显示普通 hidden 表；veryHidden 仅由显式 API 修改。
 
-`sheetRenameReason`、`sheetCopyReason` 和 `sheetDeleteReason` 分别说明改名、复制和删除的资源保护原因。默认按钮使用对应字段；最后一张可见表、名称合法性和容量等条件仍由各命令检查。普通图表已有工作表改名、复制和删除时的引用维护。
+`sheetRenameReason`、`sheetCopyReason` 和 `sheetDeleteReason` 分别说明改名、复制和删除的资源保护原因。默认面板按命令分别禁用控件；其他管理操作的保护不阻止可用的改名。最后一张可见表、名称合法性和容量等条件仍由各命令检查。普通图表已有工作表改名、复制和删除时的引用维护。
 
 `{ action: "rename", name }` 修改表名，保持 OPC 路径、sheetId、关系、顺序、可见性及选区。名称为 1–31 个 UTF-16 单元，须是有效 XML 文本，不能含控制字符或 `[]:*?/\`，不能以单引号开头或结尾，不能与其他表名大小写不敏感地重复。相同名称不新增历史；无效名称、旧 revision 或预算失败不修改文档。
 
 核心复用公式词法分析，仅替换 `!` 前匹配旧名称的标记。新引用使用单引号包围名称，并转义名称内的单引号。更新范围包括单元格公式、定义名称、既有条件格式/数据验证公式和内部超链接 `location`；带关系 ID 的外部链接保留其目标内位置。字符串常量、共享公式组与源格式保持不变；事务重建计算并沿既有计算元数据规则保存，撤销恢复原部件字节。规则呈现与编辑范围分别归[条件格式](#条件格式)和[数据验证](#数据验证)。
+
+受支持原生透视表、切片器和时间线的源表及报表也可改名，支持共享结果缓存、独立日期缓存及仍在目录中声明的未使用普通缓存。核心先核对缓存、视图和连接，再更新普通及独立日期缓存的 `worksheetSource@sheet`；缓存记录、成员状态、日期选区、无效标志及待刷新源值保持。改名不刷新报表，保存重开后仍可筛选并显式协调刷新。OPC 路径、sheetId/tabId、对象与缓存身份、单元格及绘图选择沿一次精确历史保留。未知扩展、不支持的透视源、冲突引用、结构保护和超限继续原子拒绝。实现归 [`analysis-rename.mbt`](../../modules/formats/src/xlsx/analysis-rename.mbt)与[原改名事务](../../modules/formats/src/xlsx/sheet-rename.mbt)，来源绑定依据 [ONLYOFFICE WorksheetSource](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/PivotTables.js#L14895-L14920)。含分析资源的行列结构操作、工作表复制与删除继续实施。
 
 `{ action: "delete" }` 删除指定表，至少保留一张可见表。删除活动表时优先选择右侧可见表，再向左查找，定位 A1；删除其他表保留活动表与范围。同步剩余名称的 `localSheetId`、工作簿窗口及工作表视图；移除被删表的局部名称。将指向该表的已支持单元格/区域引用整体替换为 `#REF!`，覆盖单元格公式、保留的定义名称和既有条件格式/数据验证公式；移除指向它的内部超链接，保留外部链接及字符串常量。共享公式组继续保存为共享组，失去目标的错误参与依赖计算和缓存写回。核心现可解析七种标准公式错误常量，保留错误传播和 IF 的按需求值规则。引用错误在网格和 PDF 中使用同一结果。
 
@@ -2920,7 +2924,7 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 ### PPTX 对象剪贴板
 
-对象模式的 `copyPptx` 返回 `{ text, fragment, reason }`。本地顶层形状、PNG/JPEG 图片、普通表格、普通图表、嵌入音视频及完整组合可生成独立原生快照。复制保留源位置、层次、几何、旋转/翻转、图片裁剪、填充、描边、文字及点击外链/导航动作；主题字体、颜色和线性渐变写为明确源外观。继承占位符沿用既有复制保护；未选对象和其他源资源不进入快照。源文稿修改或关闭后仍可重复粘贴。
+对象模式的 `copyPptx` 返回 `{ text, fragment, reason }`。本地顶层形状、PNG/JPEG 图片、普通表格、普通图表、嵌入音视频及完整组合可生成独立原生快照。复制保留源位置、层次、几何、旋转/翻转、图片裁剪、填充、描边、文字及点击/悬停外链和导航动作；主题字体、颜色和线性渐变写为明确源外观。继承占位符沿用既有复制保护；未选对象和其他源资源不进入快照。源文稿修改或关闭后仍可重复粘贴。
 
 整表快照保留网格宽度、行高、合并归属、格内文字/段落、边距、锚定、底色和边框。源表样式的区域、字体和颜色冻结后随片段转移，目标分配独立样式身份；同名源样式不覆盖目标，未选样式不进入快照。直接边框与区域边框分别保存，保留原生共享边的优先级。样式目录不存在时原子创建中性默认目录，已有无样式表格不被附加新外观。一批多个表样式、图片和链接沿同一资源历史提交；重复粘贴保持独立，保存重开后仍可输入及修改表结构。源格式解析参考 [ONLYOFFICE 表格源格式复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/GraphicFrame.js#L1040-L1095)，实现归 [`object-clipboard-table.mbt`](../../modules/formats/src/pptx/object-clipboard-table.mbt)及[既有表样式资源事务](../../modules/formats/src/pptx/table-style-resource.mbt)；未复制上游执行代码。
 
@@ -2932,19 +2936,19 @@ aggregate 接受 `sum`、`count`、`countNums`、`average`、`min`、`max`、`pr
 
 默认 Copy/Cut 写入 `text/plain` 和 Chromium 自定义类型 `web application/x-open-document-pptx-objects`。默认源格式粘贴、`PresentationEditor.pasteClipboard()` 和对象输入的 Ctrl/Meta+V 走同一路径；剪切在系统写入成功并复核会话、revision 和选择后删除源。对象快照最多含 256 个顶层对象和 256 项资源，原生 XML 及每项图表 XML 最多 1 Mi UTF-16，完整 JSON 最多 96 Mi UTF-16。图片压缩字节合计最多 2 MiB，图片编码、表样式、图表 XML 和链接的资源值合计最多 2796204 UTF-16，输入及目标页解码图片各最多 16 MiB。媒体另限每项 16 MiB、合计 64 MiB 和 64 项，仍沿[媒体历史预算](#嵌入音视频)。表格、图表数据、样式目录、ABI、包和显式宿主预算继续生效，可能先达到其上限。
 
-组内局部选择、跨格富文本片段、字段/公式、具体幻灯片目标、悬停链接及未知对象源继续保护；带注释/处理指令的待重写表属性、样式和图表同样保护。对象复制失败不丢弃对象后降为纯文本。实现归 [`object-clipboard.mbt`](../../modules/formats/src/pptx/object-clipboard.mbt)、[`object-clipboard-style.mbt`](../../modules/formats/src/pptx/object-clipboard-style.mbt)、[`object-clipboard-read.mbt`](../../modules/formats/src/pptx/object-clipboard-read.mbt)和 [`object-clipboard-paste.mbt`](../../modules/formats/src/pptx/object-clipboard-paste.mbt)。复用既有原生对象复制、源格式解析、图片资源及多部件历史。
+组内局部选择、跨格富文本片段、字段/公式、具体幻灯片目标及未知对象源继续保护；带注释/处理指令的待重写表属性、样式和图表同样保护。对象复制失败不丢弃对象后降为纯文本。实现归 [`object-clipboard.mbt`](../../modules/formats/src/pptx/object-clipboard.mbt)、[`object-clipboard-style.mbt`](../../modules/formats/src/pptx/object-clipboard-style.mbt)、[`object-clipboard-read.mbt`](../../modules/formats/src/pptx/object-clipboard-read.mbt)和 [`object-clipboard-paste.mbt`](../../modules/formats/src/pptx/object-clipboard-paste.mbt)。复用既有原生对象复制、源格式解析、图片资源及多部件历史。
 
 ### PPTX 文字富文本片段
 
 `copyPptx` 返回 `{ text, fragment, reason }`。普通形状或一个表格主格的文字范围可生成独立原生片段，保留混合字体、字号、字符间距、粗斜体、颜色、下划线、删除线、高亮和上下标，以及段落对齐、方向、缩进、行段距、列表级别/起点/标记样式和制表位。核心把继承的字体和主题色写为明确字体名与 RGB。源文稿后续编辑、关闭或主题变化不改变快照。范围按 UTF-16 字素边界处理，保留软换行及空段落。
 
-文字点击外链和导航动作也随片段转移，保留 HTTP/HTTPS/mailto 地址、提示、目标窗口和已知点击标记。目标文稿创建或复用自己的关系，不沿用源关系 ID；一批多个地址与重复粘贴保留独立目标，同地址可以共用关系，修改一个副本时不改变其他副本。链接和文字合为一项精确源/资源历史，缺字体、无效地址或预算失败均不留下关系。复制、粘贴及排版不请求外链。原格式保存和 PDF 链接复用既有合同。实现归 [`text-clipboard-links.mbt`](../../modules/formats/src/pptx/text-clipboard-links.mbt)，链接值和提示随原生段落复制参考 [ONLYOFFICE ParaHyperlink.Copy](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Hyperlink.js#L80-L88)。
+文字点击与悬停外链和导航动作分别随片段转移，保留 HTTP/HTTPS/mailto 地址、提示、目标窗口和已知点击标记。目标文稿创建或复用自己的关系，不沿用源关系 ID；一批多个地址与重复粘贴保留独立目标，同地址可以共用关系，修改一个副本时不改变其他副本。链接和文字合为一项精确源/资源历史，缺字体、无效地址或预算失败均不留下关系。点击和悬停可以指向不同地址，也可共享同一关系；只有悬停链接的文字范围同样支持。普通对象及完整组合使用相同的目标校验和资源重映射。两类链接分别保留原生 `hlinkClick` 与 `hlinkMouseOver`，修改点击链接保留悬停源。复制、粘贴及排版不请求外链。悬停源随原格式保存，PDF 仍只导出点击链接；自动悬停动作不属于此剪贴板增量。原生字段依据 [ONLYOFFICE RunProperties 读写](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/RunProperties.cpp#L288-L291)、[两类链接输出](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/RunProperties.cpp#L458-L459)及[对象链接独立复制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/Format.js#L8149-L8165)。实现归 [`text-clipboard-links.mbt`](../../modules/formats/src/pptx/text-clipboard-links.mbt)，链接值和提示随原生段落复制参考 [ONLYOFFICE ParaHyperlink.Copy](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Hyperlink.js#L80-L88)。
 
 `pastePptxFragment` 接受 `revision`、`fragment` 和字体 `profile`，在当前文字选区内提交一次历史，返回 `PptxQuery`。目标限于一个形状或一个主格；跨格富文本粘贴仍受保护。范围外 run 保留原生源，保留前缀或尾部的边界段落沿用目标段落属性，完整替换的段落采用源属性。目标继承制表位若会额外混入来源段落，核心原子拒绝。缺字体、损坏 XML、关系/未知节点、无效范围、旧 revision、活动候选或预算失败不改变源、选择和历史。
 
 默认 Copy/Cut 同时写 `text/plain` 和 Chromium 自定义类型 `web application/x-open-document-pptx-text`。`PresentationEditor.pasteClipboard()`、文字输入的 Ctrl/Meta+V 和默认“按源格式粘贴”读取原生片段；外部普通文字沿既有范围输入。异步读写后核对会话、revision 和选择。剪切仅在系统写入成功后删除源。显式 `paste(text)` 和原生纯文本粘贴事件继续接受普通文字。
 
-片段最多 1 Mi UTF-16、256 段及 256 个不同链接目标；链接地址和单项元数据各不超过 2048 UTF-16。粘贴后的整个对象文字最多 32767 UTF-16。跨格复制保留既有 TSV；字段、公式、具体幻灯片目标、悬停链接、文字透明度和不支持的文字源返回 `fragment: null` 及原因，保留普通文字复制。具体幻灯片链接须先具备目标页转移，避免误指向另一文稿的同名路径。跨格富文本和更广文字格式继续实施。实现归 [`text-clipboard.mbt`](../../modules/formats/src/pptx/text-clipboard.mbt)、[`text-fragment-paste.mbt`](../../modules/formats/src/pptx/text-fragment-paste.mbt)及 [`clipboard-input.ts`](../../packages/web/src/clipboard-input.ts)。解析后冻结源字体/主题色参考 [ONLYOFFICE 源格式捕获](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L7837-L7846)；未复制上游执行代码。
+片段最多 1 Mi UTF-16、256 段及 256 个不同链接目标；链接地址和单项元数据各不超过 2048 UTF-16。粘贴后的整个对象文字最多 32767 UTF-16。跨格复制保留既有 TSV；字段、公式、具体幻灯片目标、文字透明度和不支持的文字源返回 `fragment: null` 及原因，保留普通文字复制。具体幻灯片链接须先具备目标页转移，避免误指向另一文稿的同名路径。跨格富文本和更广文字格式继续实施。实现归 [`text-clipboard.mbt`](../../modules/formats/src/pptx/text-clipboard.mbt)、[`text-fragment-paste.mbt`](../../modules/formats/src/pptx/text-fragment-paste.mbt)及 [`clipboard-input.ts`](../../packages/web/src/clipboard-input.ts)。解析后冻结源字体/主题色参考 [ONLYOFFICE 源格式捕获](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L7837-L7846)；未复制上游执行代码。
 
 ### 更改形状类型
 
