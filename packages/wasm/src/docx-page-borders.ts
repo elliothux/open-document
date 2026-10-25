@@ -2,7 +2,7 @@ import { record } from "./validation.js";
 
 export interface DocxPageBorder {
   side: "top" | "left" | "bottom" | "right";
-  style: "single" | "double";
+  style: "single" | "double" | "dashed" | "dotted";
   /** Effective RGB in queries; a fixed color when themeColor is null. */
   color: string;
   /** Native theme slot, or null for a fixed RGB color. */
@@ -56,7 +56,10 @@ export function checkPageBorders(value: unknown): void {
     if (
       typeof side.side !== "string" ||
       !["top", "left", "bottom", "right"].includes(side.side) ||
-      (side.style !== "single" && side.style !== "double") ||
+      (side.style !== "single" &&
+        side.style !== "double" &&
+        side.style !== "dashed" &&
+        side.style !== "dotted") ||
       seen.has(side.side) ||
       typeof side.color !== "string" ||
       !/^[0-9a-f]{6}$/iu.test(side.color) ||

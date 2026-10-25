@@ -75,6 +75,10 @@ export function PptxShapeAdjustments({
                                 "star8",
                                 "star10",
                                 "star12",
+                                "star7",
+                                "star16",
+                                "star24",
+                                "star32",
                               ].includes(first.preset)
                             ? t.shapeInnerRadius
                             : t.shapeSlant

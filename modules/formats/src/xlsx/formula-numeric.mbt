@@ -116,6 +116,39 @@ fn numeric_function(
     "ABS" => Number(numbers[0].abs())
     "SIGN" =>
       Number(if numbers[0] < 0 { -1 } else if numbers[0] > 0 { 1 } else { 0 })
+    "CEILING" | "FLOOR" => {
+      let value = numbers[0]
+      let step = numbers[1]
+      if step == 0 {
+        return Number(0)
+      }
+      if (value > 0 && step < 0) || (name == "FLOOR" && value < 0 && step > 0) {
+        return Error("#NUM!")
+      }
+      let quotient = value / step
+      if quotient.is_inf() || quotient.is_nan() {
+        return Error("#NUM!")
+      }
+      if quotient == 0 {
+        return Number(0)
+      }
+      // ONLYOFFICE legacy functions use a signed fifteen-digit tolerance.
+      let tolerance = (if quotient < 0 { -5.0 } else { 5.0 }) *
+        @math.pow(10, @math.log10(quotient.abs()).floor() - 15)
+      let mut multiple = quotient.floor()
+      if name == "FLOOR" {
+        multiple = (quotient + tolerance).floor()
+      } else if (quotient - multiple).abs() > tolerance {
+        multiple += 1
+      }
+      finite_result(multiple * step)
+    }
+    "TRUNC" => {
+      let places = numbers.get(1).unwrap_or(0).min(20)
+      let digits = if places < 0 { -(-places).round() } else { places.round() }
+      let scale = @math.pow(10, digits)
+      finite_result((numbers[0] * scale).trunc() / scale)
+    }
     "CEILING.MATH" | "CEILING.PRECISE" | "FLOOR.MATH" | "FLOOR.PRECISE" => {
       let value = numbers[0]
       let step = numbers.get(1).unwrap_or(1).abs()

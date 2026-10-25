@@ -60,8 +60,18 @@ fn Object::adjustment_handles(self : Object) -> Array[AdjustmentHandle] {
       ("triangle", _) => (0.0, 0.0, w, 0.0)
       ("chevron" | "homePlate", _) => (w, 0.0, -side, 0.0)
       ("star5", _) => (w / 2, h / 2 * 1.10557, 0.0, -h * 1.10557)
-      ("star4" | "star6" | "star8" | "star10" | "star12", _) =>
-        (w / 2, h / 2, 0.0, -h)
+      ("star7", _) => (w / 2, h / 2 * 1.05210, 0.0, -h * 1.05210)
+      (
+        "star4"
+        | "star6"
+        | "star8"
+        | "star10"
+        | "star12"
+        | "star16"
+        | "star24"
+        | "star32",
+        _,
+      ) => (w / 2, h / 2, 0.0, -h)
       _ => (0.0, 0.0, side, 0.0)
     }
     {

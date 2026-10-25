@@ -179,18 +179,17 @@ export function DocxPageBordersForm({
                 <select
                   disabled={!active}
                   value={border.style}
-                  onChange={(event) =>
-                    update({
-                      ...border,
-                      style:
-                        event.currentTarget.value === "double"
-                          ? "double"
-                          : "single",
-                    })
-                  }
+                  onChange={(event) => {
+                    const style = (
+                      ["single", "double", "dashed", "dotted"] as const
+                    ).find((style) => style === event.currentTarget.value);
+                    if (style) update({ ...border, style });
+                  }}
                 >
                   <option value="single">{t.pageBorderSingle}</option>
                   <option value="double">{t.pageBorderDouble}</option>
+                  <option value="dashed">{t.dashRegular}</option>
+                  <option value="dotted">{t.dashDotted}</option>
                 </select>
               </label>
               <label>

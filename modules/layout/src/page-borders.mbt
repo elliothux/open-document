@@ -50,7 +50,7 @@ pub fn PageBorders::validate(self : PageBorders) -> Unit raise @failure.Failure 
   let seen : Map[String, Bool] = Map([])
   for border in self.sides {
     guard ["top", "left", "bottom", "right"].contains(border.side) &&
-      ["single", "double"].contains(border.style) &&
+      ["single", "double", "dashed", "dotted"].contains(border.style) &&
       !seen.contains(border.side) &&
       border.color.length() == 6 &&
       border.color.iter().all(c => c.is_ascii_hexdigit()) &&
@@ -175,7 +175,46 @@ pub fn PageBorders::fills(
         guard rect.width > 0 && rect.height > 0 else {
           @failure.reject("layout-overflow", "Page borders cross each other")
         }
-        result.push(rect)
+        if border.style == "dashed" || border.style == "dotted" {
+          // LibreOffice border patterns use line/gap ratios16:5 and1:2.
+          let dash = border.width *
+            (if border.style == "dashed" { 16.0 } else { 1.0 })
+          let period = dash +
+            border.width * (if border.style == "dashed" { 5.0 } else { 2.0 })
+          let length = if vertical { rect.height } else { rect.width }
+          let count = (length / period).ceil().to_int()
+          guard count <= 8192 - result.length() else {
+            @failure.reject(
+              "limit-exceeded", "Page border pattern exceeds8192 segments",
+            )
+          }
+          for index in 0..<count {
+            let offset = index.to_double() * period
+            let size = dash.min(length - offset)
+            result.push({
+              ..rect,
+              x: rect.x + (if vertical { 0.0 } else { offset }),
+              y: rect.y + (if vertical { offset } else { 0.0 }),
+              width: if vertical {
+                rect.width
+              } else {
+                size
+              },
+              height: if vertical {
+                size
+              } else {
+                rect.height
+              },
+            })
+          }
+        } else {
+          guard result.length() < 8192 else {
+            @failure.reject(
+              "limit-exceeded", "Page border pattern exceeds8192 segments",
+            )
+          }
+          result.push(rect)
+        }
       }
     }
   }

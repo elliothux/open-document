@@ -3,7 +3,8 @@ fn polygon_shape(preset : String) -> Bool {
   [
     "triangle", "rtTriangle", "diamond", "parallelogram", "trapezoid", "pentagon",
     "hexagon", "octagon", "plus", "star4", "star5", "star6", "star8", "chevron",
-    "homePlate", "star10", "star12",
+    "homePlate", "star10", "star12", "star7", "star16", "star24", "star32", "heptagon",
+    "decagon", "dodecagon",
   ].contains(preset)
 }
 
@@ -12,9 +13,10 @@ fn polygon_adjustment_max(preset : String, w : Double, h : Double) -> Double {
   if preset == "triangle" {
     return 1
   }
-  if ["octagon", "plus", "star4", "star5", "star6", "star8", "star10", "star12"].contains(
-      preset,
-    ) {
+  if [
+      "octagon", "plus", "star4", "star5", "star6", "star7", "star8", "star10", "star12",
+      "star16", "star24", "star32",
+    ].contains(preset) {
     return 0.5
   }
   if w <= 0 || h <= 0 {
@@ -39,6 +41,37 @@ fn pentagon_points(w : Double, h : Double) -> Array[(Double, Double)] {
     (w / 2 + dx2, y2),
     (w / 2 - dx2, y2),
   ]
+}
+
+///|
+fn quarter_star_points(
+  w : Double,
+  h : Double,
+  a : Double,
+  outer : Array[Double],
+  inner : Array[Double],
+) -> Array[(Double, Double)] {
+  let points = []
+  let quarter = inner.length()
+  // Native presets mix rounded coefficients and trigonometric guides.
+  for quadrant in 0..<4 {
+    for i in 0..<quarter {
+      for
+        (x, y, radius) in [
+          (outer[i], outer[quarter - i], 0.5),
+          (inner[i], inner[quarter - 1 - i], a),
+        ] {
+        let (x, y) = match quadrant {
+          0 => (-x, -y)
+          1 => (y, -x)
+          2 => (x, y)
+          _ => (-y, x)
+        }
+        points.push((w / 2 + w * radius * x, h / 2 + h * radius * y))
+      }
+    }
+  }
+  points
 }
 
 ///|
@@ -69,6 +102,51 @@ fn polygon_points(
     "homePlate" =>
       [(0.0, 0.0), (w - inset, 0.0), (w, h / 2), (w - inset, h), (0.0, h)]
     "pentagon" => pentagon_points(w, h)
+    "heptagon" => {
+      // The native heptagon and star7 share their outer guides.
+      let points = polygon_points("star7", w, h, 0)
+      [
+        for i in 0..<7 => points[2 * i]
+      ]
+    }
+    "decagon" => {
+      let dx1 = w / 2 * @math.cos(@math.PI / 5)
+      let dx2 = w / 2 * @math.cos(@math.PI * 2 / 5)
+      let dy1 = h / 2 * 1.05146 * @math.sin(@math.PI * 2 / 5)
+      let dy2 = h / 2 * 1.05146 * @math.sin(@math.PI / 5)
+      [
+        (0.0, h / 2),
+        (w / 2 - dx1, h / 2 - dy2),
+        (w / 2 - dx2, h / 2 - dy1),
+        (w / 2 + dx2, h / 2 - dy1),
+        (w / 2 + dx1, h / 2 - dy2),
+        (w, h / 2),
+        (w / 2 + dx1, h / 2 + dy2),
+        (w / 2 + dx2, h / 2 + dy1),
+        (w / 2 - dx2, h / 2 + dy1),
+        (w / 2 - dx1, h / 2 + dy2),
+      ]
+    }
+    "dodecagon" => {
+      let x1 = w * 2894 / 21600
+      let x2 = w * 7906 / 21600
+      let y1 = h * 2894 / 21600
+      let y2 = h * 7906 / 21600
+      [
+        (0.0, y2),
+        (x1, y1),
+        (x2, 0.0),
+        (w - x2, 0.0),
+        (w - x1, y1),
+        (w, y2),
+        (w, h - y2),
+        (w - x1, h - y1),
+        (w - x2, h),
+        (x2, h),
+        (x1, h - y1),
+        (0.0, h - y2),
+      ]
+    }
     "hexagon" => {
       let y = h / 2 * (1 - 1.1547 * @math.sin(@math.PI / 3))
       [
@@ -216,6 +294,66 @@ fn polygon_points(
         (w / 2 - x1, h / 2 + y3),
       ]
     }
+    "star16" =>
+      quarter_star_points(w, h, a, [1, 0.92388, 0.70711, 0.38268, 0], [
+        0.98079, 0.83147, 0.55557, 0.19509,
+      ])
+    "star24" =>
+      quarter_star_points(
+        w,
+        h,
+        a,
+        [
+          1,
+          @math.cos(@math.PI / 12),
+          @math.cos(@math.PI / 6),
+          @math.cos(@math.PI / 4),
+          0.5,
+          @math.cos(@math.PI * 5 / 12),
+          0,
+        ],
+        [0.99144, 0.92388, 0.79335, 0.60876, 0.38268, 0.13053],
+      )
+    "star32" =>
+      quarter_star_points(
+        w,
+        h,
+        a,
+        [
+          1,
+          0.98079,
+          0.92388,
+          0.83147,
+          @math.cos(@math.PI / 4),
+          0.55557,
+          0.38268,
+          0.19509,
+          0,
+        ],
+        [0.99518, 0.95694, 0.88192, 0.77301, 0.63439, 0.47140, 0.29028, 0.09802],
+      )
+    "star7" => {
+      let rx = w / 2 * 1.02572
+      let ry = h / 2 * 1.05210
+      let ix = w * 1.02572 * a
+      let iy = h * 1.05210 * a
+      [
+        (w / 2 - rx * 0.97493, ry * (1 + 0.22252)),
+        (w / 2 - ix * 0.97493, ry - iy * 0.22252),
+        (w / 2 - rx * 0.78183, ry * (1 - 0.62349)),
+        (w / 2 - ix * 0.43388, ry - iy * 0.90097),
+        (w / 2, 0.0),
+        (w / 2 + ix * 0.43388, ry - iy * 0.90097),
+        (w / 2 + rx * 0.78183, ry * (1 - 0.62349)),
+        (w / 2 + ix * 0.97493, ry - iy * 0.22252),
+        (w / 2 + rx * 0.97493, ry * (1 + 0.22252)),
+        (w / 2 + ix * 0.78183, ry + iy * 0.62349),
+        (w / 2 + rx * 0.43388, ry * (1 + 0.90097)),
+        (w / 2, ry + iy),
+        (w / 2 - rx * 0.43388, ry * (1 + 0.90097)),
+        (w / 2 - ix * 0.78183, ry + iy * 0.62349),
+      ]
+    }
     "star6" => {
       let dx = w / 2 * 1.1547 * @math.cos(@math.PI / 6)
       let inner_x = w * 1.1547 * a
@@ -291,6 +429,10 @@ fn polygon_insets(
       }
     }
     "homePlate" => (0.0, 0.0, w.min(h) * a / 2, 0.0)
+    "heptagon" | "decagon" | "dodecagon" => {
+      let (x, y) = polygon_points(preset, w, h, a)[1]
+      (x, y, x, y)
+    }
     "pentagon" => {
       let points = pentagon_points(w, h)
       let top = if w > 0 {
@@ -318,11 +460,11 @@ fn polygon_insets(
         (cut, 0.0, cut, 0.0)
       }
     }
-    "star4" | "star8" | "star12" => {
-      let factor = if preset == "star4" || preset == "star12" {
-        @math.cos(@math.PI / 4)
-      } else {
+    "star4" | "star8" | "star12" | "star16" | "star24" | "star32" => {
+      let factor = if preset == "star8" {
         0.92388
+      } else {
+        @math.cos(@math.PI / 4)
       }
       let x = w / 2 - w * a * factor
       let y = h / 2 - h * a * factor
@@ -341,6 +483,10 @@ fn polygon_insets(
     "star5" => {
       let points = polygon_points(preset, w, h, a)
       (points[9].0, points[1].1, w - points[5].0, h - points[7].1)
+    }
+    "star7" => {
+      let points = polygon_points(preset, w, h, a)
+      (points[13].0, points[3].1, w - points[9].0, h - points[9].1)
     }
     _ => (0.0, 0.0, 0.0, 0.0)
   }

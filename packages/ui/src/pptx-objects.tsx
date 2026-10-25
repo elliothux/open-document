@@ -115,7 +115,10 @@ export function PptxObjects({
               <option value="trapezoid">{t.trapezoid}</option>
               <option value="pentagon">{t.pentagon}</option>
               <option value="hexagon">{t.hexagon}</option>
+              <option value="heptagon">{t.heptagon}</option>
               <option value="octagon">{t.octagon}</option>
+              <option value="decagon">{t.decagon}</option>
+              <option value="dodecagon">{t.dodecagon}</option>
               <option value="plus">{t.plusShape}</option>
               <option value="star4">{t.star4}</option>
               <option value="star5">{t.star5}</option>
@@ -123,6 +126,10 @@ export function PptxObjects({
               <option value="star8">{t.star8}</option>
               <option value="star10">{t.star10}</option>
               <option value="star12">{t.star12}</option>
+              <option value="star7">{t.star7}</option>
+              <option value="star16">{t.star16}</option>
+              <option value="star24">{t.star24}</option>
+              <option value="star32">{t.star32}</option>
               <option value="chevron">{t.chevron}</option>
               <option value="homePlate">{t.homePlate}</option>
               <option value="line">{t.lineShape}</option>

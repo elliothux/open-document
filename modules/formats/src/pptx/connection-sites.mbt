@@ -69,6 +69,32 @@ fn Object::local_connection_sites(self : Object) -> Array[(Double, Double)] {
         (w, h / 2),
       ]
     }
+    "heptagon" => {
+      let p = polygon_points(self.preset, w, h, self.adjustments.0)
+      [p[3], p[4], p[5], p[6], p[0], p[1], p[2]]
+    }
+    "decagon" => {
+      let p = polygon_points(self.preset, w, h, self.adjustments.0)
+      [
+        for i in 0..<10 => p[(i + 4) % 10]
+      ]
+    }
+    "dodecagon" => {
+      let p = polygon_points(self.preset, w, h, self.adjustments.0)
+      [
+        for i in 0..<12 => p[(i + 4) % 12]
+      ]
+    }
+    "star7" => {
+      let p = polygon_points(self.preset, w, h, self.adjustments.0)
+      [p[6], p[8], p[10], p[12], p[0], p[2], p[4]]
+    }
+    "star16" => {
+      let p = polygon_points(self.preset, w, h, self.adjustments.0)
+      [
+        for i in 0..<16 => p[(12 + 2 * i) % 32]
+      ]
+    }
     "star6" => {
       let p = polygon_points(self.preset, w, h, self.adjustments.0)
       [p[4], p[6], p[8], p[10], p[0], p[2]]

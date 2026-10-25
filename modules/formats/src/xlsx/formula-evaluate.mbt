@@ -253,6 +253,7 @@ fn Expression::evaluate(
         "SIN", "COS", "TAN", "ACOS", "ASIN", "ATAN", "ATAN2", "EXP", "LN", "LOG",
         "LOG10", "RADIANS", "DEGREES", "SINH", "COSH", "TANH", "ACOSH", "ASINH",
         "SIGN", "CEILING.MATH", "FLOOR.MATH", "CEILING.PRECISE", "FLOOR.PRECISE",
+        "CEILING", "FLOOR", "TRUNC",
       ].contains(name) =>
       numeric_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if [

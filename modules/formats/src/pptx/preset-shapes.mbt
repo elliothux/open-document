@@ -45,7 +45,8 @@ fn read_shape_adjustments(
 ) -> (Double, Double, Double) raise @failure.Failure {
   let single = [
     "roundRect", "triangle", "parallelogram", "trapezoid", "hexagon", "octagon",
-    "plus", "star4", "star5", "star6", "star8", "star10", "star12", "chevron", "homePlate",
+    "plus", "star4", "star5", "star6", "star7", "star8", "star10", "star12", "star16",
+    "star24", "star32", "chevron", "homePlate",
   ].contains(preset)
   let mut first = match preset {
     "roundRect" => 0.16667
@@ -54,7 +55,8 @@ fn read_shape_adjustments(
     "star5" => 0.19098
     "star4" => 0.125
     "star6" => 0.28868
-    "star8" | "star12" => 0.375
+    "star7" => 0.34601
+    "star8" | "star12" | "star16" | "star24" | "star32" => 0.375
     "star10" => 0.42533
     "quadArrow" => 0.225
     "leftRightUpArrow" => 0.25
@@ -80,7 +82,7 @@ fn read_shape_adjustments(
   }
   if !single &&
     !arrow_shape(preset) &&
-    preset != "pentagon" &&
+    !["pentagon", "heptagon", "decagon", "dodecagon"].contains(preset) &&
     ![
       "bentConnector3", "bentConnector4", "bentConnector5", "curvedConnector3", "curvedConnector4",
       "curvedConnector5",
@@ -95,6 +97,9 @@ fn read_shape_adjustments(
       let factor = match (preset, name) {
         ("pentagon" | "star5" | "star10", "hf") => Some(1.05146)
         ("star6", "hf") => Some(1.1547)
+        ("star7" | "heptagon", "hf") => Some(1.02572)
+        ("star7" | "heptagon", "vf") => Some(1.05210)
+        ("decagon", "vf") => Some(1.05146)
         ("pentagon" | "star5", "vf") => Some(1.10557)
         ("hexagon", "vf") => Some(1.1547)
         _ => None

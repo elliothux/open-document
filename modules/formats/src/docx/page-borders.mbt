@@ -48,7 +48,7 @@ fn WordTree::page_borders(
     }
     seen[side.name] = true
     let kind = side.attribute("val", uri=word_uri).unwrap_or("none")
-    guard ["single", "double", "none", "nil"].contains(kind) else {
+    guard ["single", "double", "dashed", "dotted", "none", "nil"].contains(kind) else {
       @failure.reject(
         "protected-content", "This page border style requires rendering support",
       )

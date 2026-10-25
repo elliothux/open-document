@@ -405,7 +405,7 @@ fn FormulaParser::atom(
         }
         guard (match name {
           "IF" => args.length() == 2 || args.length() == 3
-          "HYPERLINK" | "LOG" | "WEEKDAY" | "WEEKNUM" =>
+          "HYPERLINK" | "LOG" | "WEEKDAY" | "WEEKNUM" | "TRUNC" =>
             args.length() == 1 || args.length() == 2
           "CEILING.MATH" | "FLOOR.MATH" =>
             args.length() >= 1 && args.length() <= 3
@@ -415,6 +415,8 @@ fn FormulaParser::atom(
           | "IFNA"
           | "MOD"
           | "ROUND"
+          | "CEILING"
+          | "FLOOR"
           | "ROUNDUP"
           | "ROUNDDOWN"
           | "EXACT"
