@@ -114,15 +114,32 @@ fn table_style_borders(
   columns : Int,
   row_span : Int,
   column_span : Int,
+  rtl : Bool,
 ) -> (Array[(String, Double, String, Double)], Array[Int], Array[(Ref, Ref?)?]) raise @failure.Failure {
   let borders : Array[(String, Double, String, Double)] = []
   let priorities : Array[Int] = []
   let sources : Array[(Ref, Ref?)?] = []
   for
     (side, inside, boundary) in [
-      ("left", "insideV", column == 0),
+      (
+        "left",
+        "insideV",
+        if rtl {
+          column + column_span == columns
+        } else {
+          column == 0
+        },
+      ),
       ("top", "insideH", row == 0),
-      ("right", "insideV", column + column_span == columns),
+      (
+        "right",
+        "insideV",
+        if rtl {
+          column == 0
+        } else {
+          column + column_span == columns
+        },
+      ),
       ("bottom", "insideH", row + row_span == rows),
     ] {
     let found = for layer in layers {

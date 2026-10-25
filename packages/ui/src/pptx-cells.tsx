@@ -97,6 +97,20 @@ export function PptxTableSize({
   });
   return (
     <>
+      <label>
+        <input
+          type="checkbox"
+          checked={table.rtl}
+          disabled={!!table.sizeReason}
+          onChange={(event) => {
+            const rtl = event.currentTarget.checked;
+            controller.run(() =>
+              editor.editObjects({ action: "tableDirection", rtl }),
+            );
+          }}
+        />
+        {t.tableRtl}
+      </label>
       {(
         [
           ["tableRowHeight", "rowHeight", t.tableRowHeight],

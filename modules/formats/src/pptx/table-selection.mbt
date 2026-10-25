@@ -198,6 +198,7 @@ fn Session::table_query(self : Session) -> Json raise @failure.Failure {
   }
   {
     "object": object.id,
+    "rtl": table.rtl,
     "rows": table.rows.length(),
     "columns": table.widths.length(),
     "row": row,

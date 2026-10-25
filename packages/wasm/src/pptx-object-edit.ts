@@ -200,6 +200,7 @@ export type PptxObjectEdit =
       text: string;
     }
   | { action: "tableStyle"; style: PptxTableStyle }
+  | { action: "tableDirection"; rtl: boolean }
   | { action: "tableRowHeight" | "tableColumnWidth"; value: number }
   | { action: "splitTableCell"; rows: number; columns: number }
   | { action: "fillTable"; rows: number; columns: number }
@@ -310,3 +311,23 @@ export type PptxObjectEdit =
       axis: "horizontal" | "vertical";
       relativeTo: "slide" | "selection";
     };
+
+export function objectText(text: unknown): string {
+  if (
+    typeof text !== "string" ||
+    !text.isWellFormed() ||
+    text.length > 32767 ||
+    Array.from(text).some((character) => {
+      const code = character.charCodeAt(0);
+      return (
+        (code < 32 && code !== 9 && code !== 10) ||
+        code === 65534 ||
+        code === 65535
+      );
+    }) ||
+    text.split("\n").length > 256 ||
+    text.split("\n").some((p) => p.length > 4096)
+  )
+    throw new Error("Invalid PPTX object text");
+  return text;
+}

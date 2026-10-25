@@ -351,6 +351,7 @@ fn Foundation::pptx_operation(
         "tableColumnWidth" =>
           @pptx.TableColumnWidth(xlsx_number(change, "value"))
         "tableStyle" => @pptx.TableStyle(pptx_table_style(change))
+        "tableDirection" => @pptx.TableDirection(xlsx_boolean(change, "rtl"))
         "splitTableCell" =>
           @pptx.SplitTableCell(
             field_int(change, "rows"),

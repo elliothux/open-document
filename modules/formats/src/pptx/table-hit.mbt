@@ -7,6 +7,7 @@ fn Object::table_hit_offset(
 ) -> Int raise @failure.Failure {
   let table = self.table.unwrap()
   let (px, py) = text.matrix.inverse().point(x, y)
+  let px = if table.rtl { table.column_edge(0) - px } else { px }
   let mut row = table.rows.length() - 1
   let mut column = table.widths.length() - 1
   let mut edge = 0.0
@@ -44,7 +45,7 @@ fn Object::table_range_polygon(
   range : TableRange,
 ) -> Array[Json] {
   let table = self.table.unwrap()
-  let x = table.widths[:range.left].fold(init=0.0, (sum, width) => sum + width)
+  let x = table.column_left(range.left, range.right - range.left + 1)
   let y = table.rows[:range.top].fold(init=0.0, (sum, row) => sum + row.height)
   let width = table.widths[range.left:range.right + 1].fold(init=0.0, (
     sum,

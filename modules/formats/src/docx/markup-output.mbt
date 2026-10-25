@@ -188,7 +188,7 @@ fn Session::markup_paragraph(
   listed~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   guard paragraph.readOnlyReason.is_empty() &&
-    !paragraph.spans.any(span => span.drawing is Some({ content: Math(_), .. })) else {
+    paragraph.spans.all(span => span.field.is_empty()) else {
     @failure.reject(
       "unsupported-output", "Markup export requires supported ordinary paragraphs",
     )

@@ -55,6 +55,9 @@ fn Session::markup_drawing(
   span : @layout.Span,
   output : MarkupOutput,
 ) -> String raise @failure.Failure {
+  if span.drawing is Some({ content: Math(formula), .. }) {
+    return mathml_markup(formula)
+  }
   let link = self.markup_drawing_link(tree, span.node, output)
   let content = if tree.drawing_data(span.node).1.attribute("uri") ==
     Some(word_shape_uri) {

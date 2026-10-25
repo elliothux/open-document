@@ -351,8 +351,14 @@ export function PptxObjects({
               ["insertRowBefore", t.rowBefore],
               ["insertRowAfter", t.rowAfter],
               ["deleteRow", t.deleteRow],
-              ["insertColumnBefore", t.columnBefore],
-              ["insertColumnAfter", t.columnAfter],
+              [
+                "insertColumnBefore",
+                query.table.rtl ? t.columnAfter : t.columnBefore,
+              ],
+              [
+                "insertColumnAfter",
+                query.table.rtl ? t.columnBefore : t.columnAfter,
+              ],
               ["deleteColumn", t.deleteColumn],
               ["merge", t.mergeCells],
               ["unmerge", t.unmerge],

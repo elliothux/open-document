@@ -50,7 +50,7 @@ fn DrawingTable::table_opacity_changes(
         for r in row..<(row + cell.row_span) => {
           self.edge_paint(
             r,
-            if side == 0 {
+            if (side == 0) != self.rtl {
               column
             } else {
               column + cell.column_span

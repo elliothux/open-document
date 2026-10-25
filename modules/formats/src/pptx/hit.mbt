@@ -452,40 +452,60 @@ pub fn Session::navigate(
   let boundaries = @layout.grapheme_boundaries(text)
   let index = boundaries.search(self.selection.focus).unwrap()
   let mut focus = self.selection.focus
-  match direction {
-    "left" => focus = boundaries[(index - 1).max(0)]
-    "right" => focus = boundaries[(index + 1).min(boundaries.length() - 1)]
-    "home" => focus = 0
-    "end" => focus = text.length()
-    "up" | "down" =>
-      if view.texts.iter().find_first(text => text.object == object.id)
-        is Some(geometry) {
-        for i, line in geometry.lines {
-          if line.carets.iter().find_first(caret => caret.offset == focus)
-            is Some(caret) {
-            let target = (i + (if direction == "up" { -1 } else { 1 }))
-              .max(0)
-              .min(geometry.lines.length() - 1)
-            let next = geometry.lines[target]
-            let mut distance = 1.0e30
-            for position in next.carets {
-              let column = if object.table is None && object.body.columns > 1 {
-                line.areaX - next.areaX
-              } else {
-                0.0
+  let table_focus = if object.table is Some(table) &&
+    table.rtl &&
+    orientation == "horz" {
+    view.texts
+    .iter()
+    .find_first(text => text.object == object.id)
+    .bind(text => table.rtl_navigation(text, focus, direction))
+  } else {
+    None
+  }
+  if table_focus is Some(position) {
+    focus = position
+  } else {
+    match direction {
+      "left" => focus = boundaries[(index - 1).max(0)]
+      "right" => focus = boundaries[(index + 1).min(boundaries.length() - 1)]
+      "home" => focus = 0
+      "end" => focus = text.length()
+      "up" | "down" =>
+        if view.texts.iter().find_first(text => text.object == object.id)
+          is Some(geometry) {
+          for i, line in geometry.lines {
+            if line.carets.iter().find_first(caret => caret.offset == focus)
+              is Some(caret) {
+              let target = (i + (if direction == "up" { -1 } else { 1 }))
+                .max(0)
+                .min(geometry.lines.length() - 1)
+              let next = geometry.lines[target]
+              let mut distance = 1.0e30
+              for position in next.carets {
+                let column = if object.table is None && object.body.columns > 1 {
+                  line.areaX - next.areaX
+                } else {
+                  0.0
+                }
+                let gap = (position.after +
+                next.x -
+                caret.after -
+                line.x +
+                column).abs()
+                if gap < distance {
+                  focus = position.offset
+                  distance = gap
+                }
               }
-              let gap = (position.after + next.x - caret.after - line.x + column).abs()
-              if gap < distance {
-                focus = position.offset
-                distance = gap
-              }
+              break
             }
-            break
           }
         }
-      }
-    _ =>
-      @failure.reject("invalid-operation", "Unknown text navigation direction")
+      _ =>
+        @failure.reject(
+          "invalid-operation", "Unknown text navigation direction",
+        )
+    }
   }
   self.select(
     revision,

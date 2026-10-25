@@ -1,4 +1,5 @@
 export const objectEn = {
+  tableRtl: "Right-to-left table",
   textColumns: "Text columns",
   textColumnCount: "Number of text columns",
   textColumnGap: "Text column gap (pt)",
@@ -99,6 +100,7 @@ export const objectEn = {
   diagramShapes: "Saved as editable shapes and connectors.",
 };
 export const objectZh: typeof objectEn = {
+  tableRtl: "从右到左表格",
   textColumns: "文字分栏",
   textColumnCount: "文字栏数",
   textColumnGap: "栏间距（磅）",

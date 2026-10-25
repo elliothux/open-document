@@ -149,6 +149,7 @@ pub(all) enum ObjectEdit {
   TableRowHeight(Double)
   TableColumnWidth(Double)
   TableStyle(TableStyleSettings)
+  TableDirection(Bool)
   ReplaceImage(String, Bytes)
   ImageFill(Array[String], Bytes, String)
   ImageFillMode(String)

@@ -1,6 +1,10 @@
 import { checkPptxConnectorEdit } from "./pptx-connectors.js";
 import { record } from "./validation.js";
-import { pptxInsertKinds, checkPptxShapeEdit } from "./pptx-object-edit.js";
+import {
+  pptxInsertKinds,
+  checkPptxShapeEdit,
+  objectText,
+} from "./pptx-object-edit.js";
 import { checkPptxChartEdit } from "./pptx-chart.js";
 import { checkPptxMathEdit } from "./pptx-math.js";
 import { checkPptxMediaInput, checkMediaPlayback } from "./pptx-media.js";
@@ -52,6 +56,7 @@ export interface PptxHit {
   textReadOnlyReason: string;
 }
 export interface PptxTable {
+  rtl: boolean;
   style: PptxTableStyleQuery;
   object: string;
   rows: number;
@@ -173,6 +178,7 @@ export function checkPptxTable(
     selected[0] !== table.object ||
     typeof table.reason !== "string" ||
     typeof table.sizeReason !== "string" ||
+    typeof table.rtl !== "boolean" ||
     typeof table.splitReason !== "string"
   )
     throw new Error("Invalid PPTX table query");
@@ -487,6 +493,14 @@ export function checkPptxObjectEdit(value: unknown): void {
       throw new Error("Invalid PPTX table style command");
     return;
   }
+  if (change.action === "tableDirection") {
+    if (
+      typeof change.rtl !== "boolean" ||
+      Object.keys(change).some((key) => key !== "action" && key !== "rtl")
+    )
+      throw new Error("Invalid PPTX table direction");
+    return;
+  }
   if (
     change.action === "tableRowHeight" ||
     change.action === "tableColumnWidth"
@@ -777,24 +791,4 @@ export function checkPptxObjectEdit(value: unknown): void {
   const text = objectText(change.text);
   if (change.kind === "line" && text !== "")
     throw new Error("Invalid PPTX object text");
-}
-
-function objectText(text: unknown): string {
-  if (
-    typeof text !== "string" ||
-    !text.isWellFormed() ||
-    text.length > 32767 ||
-    Array.from(text).some((character) => {
-      const code = character.charCodeAt(0);
-      return (
-        (code < 32 && code !== 9 && code !== 10) ||
-        code === 65534 ||
-        code === 65535
-      );
-    }) ||
-    text.split("\n").length > 256 ||
-    text.split("\n").some((p) => p.length > 4096)
-  )
-    throw new Error("Invalid PPTX object text");
-  return text;
 }

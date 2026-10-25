@@ -33,10 +33,11 @@ fn DrawingTable::edge_paint(
   let mut result = ("", 0.0, "solid", 1.0)
   let mut priority = -1
   let mut source : (Ref, Ref?)? = None
+  let reverse = vertical && self.rtl
   for
     (owner, side) in [
-      (before, if vertical { 2 } else { 3 }),
-      (after, if vertical { 0 } else { 1 }),
+      (if reverse { after } else { before }, if vertical { 2 } else { 3 }),
+      (if reverse { before } else { after }, if vertical { 0 } else { 1 }),
     ] {
     if owner is Some((r, c)) {
       let cell = self.rows[r].cells[c]
@@ -93,8 +94,8 @@ fn DrawingTable::paint_edges(
   let output : Array[@layout.PositionedPrimitive] = []
   let mut y = 0.0
   for row in 0..<=self.rows.length() {
-    let mut x = 0.0
     for column in 0..<=self.widths.length() {
+      let x = self.column_edge(column)
       for vertical in [false, true] {
         if (vertical && row == self.rows.length()) ||
           (!vertical && column == self.widths.length()) {
@@ -107,7 +108,7 @@ fn DrawingTable::paint_edges(
         let (end_x, end_y) = if vertical {
           (x, y + self.rows[row].height)
         } else {
-          (x + self.widths[column], y)
+          (self.column_edge(column + 1), y)
         }
         output.push(
           Path([Move(x, y), Line(end_x, end_y)], "", color, width, {
@@ -119,9 +120,6 @@ fn DrawingTable::paint_edges(
             miter: 8,
           }),
         )
-      }
-      if column < self.widths.length() {
-        x += self.widths[column]
       }
     }
     if row < self.rows.length() {

@@ -1,5 +1,6 @@
 ///|
 priv struct DrawingTable {
+  rtl : Bool
   widths : Array[Double]
   rows : Array[DrawingRow]
   owners : Array[Array[(Int, Int)]]
@@ -93,15 +94,16 @@ fn read_drawing_table(
     table_profile(
       properties.node.attributes.all(a => {
         a.uri.is_empty() &&
-        ["firstRow", "lastRow", "firstCol", "lastCol", "bandRow", "bandCol"].contains(
-          a.name,
-        ) &&
+        [
+          "firstRow", "lastRow", "firstCol", "lastCol", "bandRow", "bandCol", "rtl",
+        ].contains(a.name) &&
         ["0", "false", "1", "true"].contains(a.value)
       }),
       "Unknown table style flags",
     )
   }
   let book = theme.tables.unwrap()
+  let rtl = table.child("tblPr").map(p => flag(p.node, "rtl")).unwrap_or(false)
   let settings = table_style_settings(table.child("tblPr"), book)
   let style_parts = table_style_parts(book, settings.id)
   let (background, background_alpha) = fill_rgba(
@@ -287,6 +289,7 @@ fn read_drawing_table(
         widths.length(),
         row_span,
         column_span,
+        rtl,
       )
       for side, name in ["lnL", "lnT", "lnR", "lnB"] {
         guard properties.bind(p => p.child(name)) is Some(edge) else {
@@ -353,6 +356,7 @@ fn read_drawing_table(
     "Table row heights and frame differ",
   )
   let table : DrawingTable = {
+    rtl,
     widths,
     rows,
     owners: table_owners(rows, widths.length()),

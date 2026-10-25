@@ -71,3 +71,22 @@ fn DrawingTable::height(
     sum + row.height
   })
 }
+
+///|
+fn DrawingTable::column_edge(self : DrawingTable, column : Int) -> Double {
+  let before = self.widths[:column].fold(init=0.0, (sum, width) => sum + width)
+  if self.rtl {
+    self.widths.fold(init=0.0, (sum, width) => sum + width) - before
+  } else {
+    before
+  }
+}
+
+///|
+fn DrawingTable::column_left(
+  self : DrawingTable,
+  column : Int,
+  span : Int,
+) -> Double {
+  self.column_edge(if self.rtl { column + span } else { column })
+}

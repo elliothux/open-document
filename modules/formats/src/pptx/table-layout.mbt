@@ -55,13 +55,11 @@ fn Object::paint_table(
     )
   }
   for r, row in table.rows {
-    let mut x = 0.0
     for column, cell in row.cells {
-      let advance = table.widths[column]
       if !cell.owner() {
-        x += advance
         continue
       }
+      let x = table.column_left(column, cell.column_span)
       let width = table.width(column, cell)
       let height = table.height(r, cell)
       let geometry = geometry_in_parent(
@@ -159,7 +157,6 @@ fn Object::paint_table(
         sum + p.runs.fold(init=1, (sum, run) => sum + run.text.length())
       })
       paragraph += cell.paragraphs.length()
-      x += advance
     }
     y += row.height
   }

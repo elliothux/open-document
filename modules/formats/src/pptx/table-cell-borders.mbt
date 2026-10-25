@@ -17,8 +17,8 @@ fn DrawingTable::border_targets(
     (side, edge, first, last) in [
       (3, range.top - 1, range.left, range.right),
       (1, range.bottom + 1, range.left, range.right),
-      (2, range.left - 1, range.top, range.bottom),
-      (0, range.right + 1, range.top, range.bottom),
+      (if self.rtl { 0 } else { 2 }, range.left - 1, range.top, range.bottom),
+      (if self.rtl { 2 } else { 0 }, range.right + 1, range.top, range.bottom),
     ] {
     let horizontal = side == 1 || side == 3
     if edge < 0 ||
