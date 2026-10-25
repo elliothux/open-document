@@ -370,6 +370,10 @@ fn FormulaParser::atom(
         "_XLFN.MODE.SNGL" => "MODE.SNGL"
         "_XLFN.MINIFS" => "MINIFS"
         "_XLFN.MAXIFS" => "MAXIFS"
+        "_XLFN.CEILING.MATH" => "CEILING.MATH"
+        "_XLFN.FLOOR.MATH" => "FLOOR.MATH"
+        "_XLFN.CEILING.PRECISE" => "CEILING.PRECISE"
+        "_XLFN.FLOOR.PRECISE" => "FLOOR.PRECISE"
         name => name
       }
       if self.accept("(") {
@@ -401,6 +405,10 @@ fn FormulaParser::atom(
         guard (match name {
           "IF" => args.length() == 2 || args.length() == 3
           "HYPERLINK" | "LOG" => args.length() == 1 || args.length() == 2
+          "CEILING.MATH" | "FLOOR.MATH" =>
+            args.length() >= 1 && args.length() <= 3
+          "CEILING.PRECISE" | "FLOOR.PRECISE" =>
+            args.length() == 1 || args.length() == 2
           "IFERROR"
           | "IFNA"
           | "MOD"
@@ -414,8 +422,14 @@ fn FormulaParser::atom(
           | "TEXT"
           | "LARGE"
           | "SMALL" => args.length() == 2
-          "NOT" | "ISBLANK" | "ISNUMBER" | "ISTEXT" | "ABS" | "INT" | "SQRT" =>
-            args.length() == 1
+          "NOT"
+          | "ISBLANK"
+          | "ISNUMBER"
+          | "ISTEXT"
+          | "ABS"
+          | "INT"
+          | "SQRT"
+          | "SIGN" => args.length() == 1
           "SIN"
           | "COS"
           | "TAN"

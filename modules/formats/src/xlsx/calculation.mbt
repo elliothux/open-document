@@ -139,7 +139,8 @@ fn Expression::dependencies(
           "VAR.S", "PI", "SIN", "COS", "TAN", "RADIANS", "DEGREES", "VARP", "VAR.P",
           "STDEV", "STDEV.S", "STDEVP", "STDEV.P", "MODE", "MODE.SNGL", "LARGE",
           "SMALL", "SUMPRODUCT", "HYPERLINK", "ACOS", "ASIN", "ATAN", "ATAN2", "EXP",
-          "LN", "LOG", "LOG10", "SINH", "COSH", "TANH", "ACOSH", "ASINH",
+          "LN", "LOG", "LOG10", "SINH", "COSH", "TANH", "ACOSH", "ASINH", "SIGN",
+          "CEILING.MATH", "FLOOR.MATH", "CEILING.PRECISE", "FLOOR.PRECISE",
         ].contains(name) {
         guard uncomputed is Some(reason) && isolated_math_function(name) else {
           @failure.reject(

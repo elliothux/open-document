@@ -96,7 +96,10 @@ fn Session::edit_connector(
   end : ConnectorEnd,
   insert : Bool,
 ) -> Json raise @failure.Failure {
-  guard ["straight", "rightAngle", "elbow", "curved"].contains(kind) else {
+  guard [
+    "straight", "rightAngle", "elbow", "elbow4", "elbow5", "curved", "curved2", "curved4",
+    "curved5",
+  ].contains(kind) else {
     @failure.reject("invalid-operation", "Unknown connector kind")
   }
   let slide = self.current()
@@ -358,7 +361,12 @@ fn connector_preset(kind : String) -> String {
   match kind {
     "rightAngle" => "bentConnector2"
     "elbow" => "bentConnector3"
+    "elbow4" => "bentConnector4"
+    "elbow5" => "bentConnector5"
     "curved" => "curvedConnector3"
+    "curved2" => "curvedConnector2"
+    "curved4" => "curvedConnector4"
+    "curved5" => "curvedConnector5"
     _ => "straightConnector1"
   }
 }

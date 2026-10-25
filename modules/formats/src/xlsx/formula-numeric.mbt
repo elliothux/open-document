@@ -114,6 +114,30 @@ fn numeric_function(
     "RADIANS" => finite_result(numbers[0] * @math.PI / 180)
     "DEGREES" => finite_result(numbers[0] * 180 / @math.PI)
     "ABS" => Number(numbers[0].abs())
+    "SIGN" =>
+      Number(if numbers[0] < 0 { -1 } else if numbers[0] > 0 { 1 } else { 0 })
+    "CEILING.MATH" | "CEILING.PRECISE" | "FLOOR.MATH" | "FLOOR.PRECISE" => {
+      let value = numbers[0]
+      let step = numbers.get(1).unwrap_or(1).abs()
+      if step == 0 || value == 0 {
+        return Number(0)
+      }
+      let quotient = value / step
+      if quotient.is_inf() || quotient.is_nan() {
+        return Error("#NUM!")
+      }
+      let up = name.has_prefix("CEILING")
+      let up = if name.has_suffix(".MATH") &&
+        value < 0 &&
+        numbers.get(2).unwrap_or(0) != 0 {
+        !up
+      } else {
+        up
+      }
+      finite_result(
+        (if up { quotient.ceil() } else { quotient.floor() }) * step,
+      )
+    }
     "INT" => Number(numbers[0].floor())
     "SQRT" => finite_result(numbers[0].sqrt())
     "POWER" => {

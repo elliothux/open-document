@@ -227,7 +227,12 @@ fn Session::connector_query(self : Session, object : Object) -> Json {
       "kind": match object.preset {
         "bentConnector2" => "rightAngle"
         "bentConnector3" => "elbow"
+        "bentConnector4" => "elbow4"
+        "bentConnector5" => "elbow5"
         "curvedConnector3" => "curved"
+        "curvedConnector2" => "curved2"
+        "curvedConnector4" => "curved4"
+        "curvedConnector5" => "curved5"
         _ => "straight"
       },
       "start": start,

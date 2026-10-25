@@ -44,12 +44,12 @@ fn WordTree::page_borders(
     }
     seen[side.name] = true
     let kind = side.attribute("val", uri=word_uri).unwrap_or("none")
-    guard ["single", "none", "nil"].contains(kind) else {
+    guard ["single", "double", "none", "nil"].contains(kind) else {
       @failure.reject(
         "protected-content", "This page border style requires rendering support",
       )
     }
-    if kind != "single" {
+    if kind == "none" || kind == "nil" {
       continue
     }
     let color = side
@@ -58,6 +58,7 @@ fn WordTree::page_borders(
       .to_lower()
     sides.push({
       side: side.name,
+      style: kind,
       color: if color == "auto" {
         "000000"
       } else {
@@ -145,7 +146,7 @@ pub fn Session::set_page_borders(
     for name in ["top", "left", "bottom", "right"] {
       if value.sides.iter().find_first(b => b.side == name) is Some(side) {
         markup <+
-          "<w:\{name} w:val=\"single\" w:color=\"\{side.color.to_lower()}\" w:sz=\"\{(side.width * 8).to_int()}\" w:space=\"\{side.space.to_int()}\"/>"
+          "<w:\{name} w:val=\"\{side.style}\" w:color=\"\{side.color.to_lower()}\" w:sz=\"\{(side.width * 8).to_int()}\" w:space=\"\{side.space.to_int()}\"/>"
       }
     }
     markup <+ "</w:pgBorders>"

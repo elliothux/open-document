@@ -1,6 +1,15 @@
 ///|
+fn curved_connector(preset : String) -> Bool {
+  [
+    "curvedConnector2", "curvedConnector3", "curvedConnector4", "curvedConnector5",
+  ].contains(preset)
+}
+
+///|
 fn Object::line_points(self : Object) -> Array[(Double, Double)] {
-  if self.preset == "curvedConnector3" {
+  if self.preset == "curvedConnector2" {
+    [(0, 0), (0.5, 0), (1, 0.5), (1, 1)]
+  } else if self.preset == "curvedConnector3" {
     let bend = self.adjustments.0
     [
       (0, 0),
@@ -9,6 +18,37 @@ fn Object::line_points(self : Object) -> Array[(Double, Double)] {
       (bend, 0.5),
       (bend, 0.75),
       ((1 + bend) / 2, 1),
+      (1, 1),
+    ]
+  } else if self.preset == "curvedConnector4" {
+    let (x, y) = (self.adjustments.0, self.adjustments.1)
+    [
+      (0, 0),
+      (x / 2, 0),
+      (x, y / 4),
+      (x, y / 2),
+      (x, 3 * y / 4),
+      ((3 * x + 1) / 4, y),
+      ((1 + x) / 2, y),
+      ((3 + x) / 4, y),
+      (1, (1 + y) / 2),
+      (1, 1),
+    ]
+  } else if self.preset == "curvedConnector5" {
+    let (x, y, end) = self.adjustments
+    [
+      (0, 0),
+      (x / 2, 0),
+      (x, y / 4),
+      (x, y / 2),
+      (x, 3 * y / 4),
+      ((3 * x + end) / 4, y),
+      ((x + end) / 2, y),
+      ((x + 3 * end) / 4, y),
+      (end, (1 + 3 * y) / 4),
+      (end, (1 + y) / 2),
+      (end, (3 + y) / 4),
+      ((1 + end) / 2, 1),
       (1, 1),
     ]
   } else if self.polyline.is_empty() {
@@ -26,21 +66,13 @@ fn Object::line_path(
   let points = self
     .line_points()
     .map(p => (p.0 * geometry.width, p.1 * geometry.height))
-  if self.preset == "curvedConnector3" {
-    let (a, b, c, d, e, f, g) = (
-      points[0],
-      points[1],
-      points[2],
-      points[3],
-      points[4],
-      points[5],
-      points[6],
-    )
-    [
-      Move(a.0, a.1),
-      Cubic(b.0, b.1, c.0, c.1, d.0, d.1),
-      Cubic(e.0, e.1, f.0, f.1, g.0, g.1),
-    ]
+  if curved_connector(self.preset) {
+    let path : Array[@layout.PathSegment] = [Move(points[0].0, points[0].1)]
+    for index = 1; index + 2 < points.length(); index = index + 3 {
+      let (a, b, c) = (points[index], points[index + 1], points[index + 2])
+      path.push(Cubic(a.0, a.1, b.0, b.1, c.0, c.1))
+    }
+    path
   } else {
     points.mapi((index, p) => {
       if index == 0 {
@@ -66,8 +98,21 @@ fn Object::curve_hit(
   let points = self
     .line_points()
     .map(p => (p.0 * geometry.width, p.1 * geometry.height))
-  cubic_hit(points[0], points[1], points[2], points[3], x, y, margin, 0) ||
-  cubic_hit(points[3], points[4], points[5], points[6], x, y, margin, 0)
+  for index = 0; index + 3 < points.length(); index = index + 3 {
+    if cubic_hit(
+        points[index],
+        points[index + 1],
+        points[index + 2],
+        points[index + 3],
+        x,
+        y,
+        margin,
+        0,
+      ) {
+      return true
+    }
+  }
+  false
 }
 
 ///|

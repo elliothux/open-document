@@ -90,6 +90,7 @@ export function DocxPageBordersForm({
           const active = draft.sides.find((border) => border.side === side);
           const border = active ?? {
             side,
+            style: "single" as const,
             color: "000000",
             width: 1,
             space: 24,
@@ -128,6 +129,25 @@ export function DocxPageBordersForm({
                     })
                   }
                 />
+              </label>
+              <label>
+                {t.pageBorderStyle}
+                <select
+                  disabled={!active}
+                  value={border.style}
+                  onChange={(event) =>
+                    update({
+                      ...border,
+                      style:
+                        event.currentTarget.value === "double"
+                          ? "double"
+                          : "single",
+                    })
+                  }
+                >
+                  <option value="single">{t.pageBorderSingle}</option>
+                  <option value="double">{t.pageBorderDouble}</option>
+                </select>
               </label>
               <label>
                 {t.pageBorderWidth}

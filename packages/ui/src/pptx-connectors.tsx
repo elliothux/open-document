@@ -22,7 +22,15 @@ export function PptxConnectors({
   const selected = query.objects.find((o) => o.id === query.selection.object);
   const connector = selected?.connector;
   const [kind, setKind] = useState<
-    "straight" | "rightAngle" | "elbow" | "curved"
+    | "straight"
+    | "rightAngle"
+    | "elbow"
+    | "elbow4"
+    | "elbow5"
+    | "curved"
+    | "curved2"
+    | "curved4"
+    | "curved5"
   >(!insert && connector?.kind ? connector.kind : "straight");
   const [points, setPoints] = useState<PptxConnectorEnd[]>(
     !insert && connector?.start && connector.end
@@ -66,18 +74,33 @@ export function PptxConnectors({
               setKind(
                 event.currentTarget.value === "curved"
                   ? "curved"
-                  : event.currentTarget.value === "rightAngle"
-                    ? "rightAngle"
-                    : event.currentTarget.value === "elbow"
-                      ? "elbow"
-                      : "straight",
+                  : event.currentTarget.value === "curved2"
+                    ? "curved2"
+                    : event.currentTarget.value === "curved4"
+                      ? "curved4"
+                      : event.currentTarget.value === "curved5"
+                        ? "curved5"
+                        : event.currentTarget.value === "elbow5"
+                          ? "elbow5"
+                          : event.currentTarget.value === "elbow4"
+                            ? "elbow4"
+                            : event.currentTarget.value === "rightAngle"
+                              ? "rightAngle"
+                              : event.currentTarget.value === "elbow"
+                                ? "elbow"
+                                : "straight",
               )
             }
           >
             <option value="straight">{t.connectorStraight}</option>
             <option value="rightAngle">{t.connectorRightAngle}</option>
             <option value="elbow">{t.connectorElbow}</option>
+            <option value="elbow4">{t.connectorElbow4}</option>
+            <option value="elbow5">{t.connectorElbow5}</option>
             <option value="curved">{t.connectorCurved}</option>
+            <option value="curved2">{t.connectorCurved2}</option>
+            <option value="curved4">{t.connectorCurved4}</option>
+            <option value="curved5">{t.connectorCurved5}</option>
           </select>
         </label>
         {points.map((point, index) => {

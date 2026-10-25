@@ -59,7 +59,7 @@ fn object_hit(
     ) {
     return x >= 0 && y >= 0 && x <= width && y <= height
   }
-  if object.preset == "curvedConnector3" {
+  if curved_connector(object.preset) {
     return object.curve_hit(geometry, x, y, margin)
   }
   if !object.polyline.is_empty() {

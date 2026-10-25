@@ -214,6 +214,23 @@ fn read_object(
     [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0)]
   } else if preset == "bentConnector3" {
     [(0.0, 0.0), (adjustments.0, 0.0), (adjustments.0, 1.0), (1.0, 1.0)]
+  } else if preset == "bentConnector4" {
+    [
+      (0.0, 0.0),
+      (adjustments.0, 0.0),
+      (adjustments.0, adjustments.1),
+      (1.0, adjustments.1),
+      (1.0, 1.0),
+    ]
+  } else if preset == "bentConnector5" {
+    [
+      (0.0, 0.0),
+      (adjustments.0, 0.0),
+      (adjustments.0, adjustments.1),
+      (adjustments.2, adjustments.1),
+      (adjustments.2, 1.0),
+      (1.0, 1.0),
+    ]
   } else {
     custom.map(read_polyline).unwrap_or([]) catch {
       @failure.Failure(message~, ..) => {

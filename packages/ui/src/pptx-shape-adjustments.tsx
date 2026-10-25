@@ -43,38 +43,49 @@ export function PptxShapeAdjustments({
     >
       <legend>{t.shapeAdjustments}</legend>
       {first.values.map((guide) => {
-        const label =
-          guide.name === "adj"
-            ? first.preset === "roundRect"
-              ? t.cornerRadius
-              : first.preset === "triangle"
-                ? t.triangleApex
-                : ["chevron", "homePlate"].includes(first.preset)
-                  ? t.arrowHead
-                  : first.preset === "hexagon"
-                    ? t.shapeSideInset
-                    : first.preset === "octagon"
-                      ? t.shapeCornerCut
-                      : first.preset === "plus"
-                        ? t.shapeArmInset
-                        : [
-                              "star4",
-                              "star5",
-                              "star6",
-                              "star8",
-                              "star10",
-                              "star12",
-                            ].includes(first.preset)
-                          ? t.shapeInnerRadius
-                          : t.shapeSlant
-            : guide.name === "adj1"
-              ? ["bentConnector3", "curvedConnector3"].includes(first.preset)
-                ? t.connectorBend
-                : t.arrowShaft
-              : ["quadArrow", "leftRightUpArrow"].includes(first.preset) &&
-                  guide.name === "adj2"
-                ? t.arrowHeadWidth
-                : t.arrowHead;
+        const label = ["bentConnector5", "curvedConnector5"].includes(
+          first.preset,
+        )
+          ? guide.name === "adj1"
+            ? t.connectorFirstHorizontalBend
+            : guide.name === "adj2"
+              ? t.connectorVerticalBend
+              : t.connectorSecondHorizontalBend
+          : ["bentConnector4", "curvedConnector4"].includes(first.preset)
+            ? guide.name === "adj1"
+              ? t.connectorHorizontalBend
+              : t.connectorVerticalBend
+            : guide.name === "adj"
+              ? first.preset === "roundRect"
+                ? t.cornerRadius
+                : first.preset === "triangle"
+                  ? t.triangleApex
+                  : ["chevron", "homePlate"].includes(first.preset)
+                    ? t.arrowHead
+                    : first.preset === "hexagon"
+                      ? t.shapeSideInset
+                      : first.preset === "octagon"
+                        ? t.shapeCornerCut
+                        : first.preset === "plus"
+                          ? t.shapeArmInset
+                          : [
+                                "star4",
+                                "star5",
+                                "star6",
+                                "star8",
+                                "star10",
+                                "star12",
+                              ].includes(first.preset)
+                            ? t.shapeInnerRadius
+                            : t.shapeSlant
+              : guide.name === "adj1"
+                ? ["bentConnector3", "curvedConnector3"].includes(first.preset)
+                  ? t.connectorBend
+                  : t.arrowShaft
+                : ["quadArrow", "leftRightUpArrow"].includes(first.preset) &&
+                    guide.name === "adj2"
+                  ? t.arrowHeadWidth
+                  : t.arrowHead;
         const mixed = objects.some(
           (o) =>
             o.shapeAdjustments.values.find((v) => v.name === guide.name)

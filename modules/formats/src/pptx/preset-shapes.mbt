@@ -24,9 +24,10 @@ fn vertical_arrow_shape(preset : String) -> Bool {
 
 ///|
 fn line_shape(preset : String) -> Bool {
-  ["line", "bentConnector2", "bentConnector3", "curvedConnector3"].contains(
-    preset,
-  )
+  [
+    "line", "bentConnector2", "bentConnector3", "bentConnector4", "bentConnector5",
+  ].contains(preset) ||
+  curved_connector(preset)
 }
 
 ///|
@@ -60,21 +61,30 @@ fn read_shape_adjustments(
     _ => 0.5
   }
   let mut second = if branched_arrow_shape(preset) { first } else { 0.5 }
-  let mut third = if branched_arrow_shape(preset) { first } else { 0.0 }
-  if preset == "bentConnector2" &&
+  let mut third = if ["bentConnector5", "curvedConnector5"].contains(preset) {
+    0.5
+  } else if branched_arrow_shape(preset) {
+    first
+  } else {
+    0.0
+  }
+  if ["bentConnector2", "curvedConnector2"].contains(preset) &&
     geometry.bind(source => source.child("avLst")) is Some(list) {
     guard list.node.attributes.is_empty() &&
       list.node.text.trim().is_empty() &&
       list.tree.children.get(list.node.id).unwrap_or([]).is_empty() else {
       @failure.reject(
-        "unsupported-geometry", "Right-angle connectors do not have adjustment guides",
+        "unsupported-geometry", "This connector preset does not have adjustment guides",
       )
     }
   }
   if !single &&
     !arrow_shape(preset) &&
     preset != "pentagon" &&
-    !["bentConnector3", "curvedConnector3"].contains(preset) {
+    ![
+      "bentConnector3", "bentConnector4", "bentConnector5", "curvedConnector3", "curvedConnector4",
+      "curvedConnector5",
+    ].contains(preset) {
     return (first, second, third)
   }
   if geometry.bind(source => source.child("avLst")) is Some(list) {
@@ -99,8 +109,21 @@ fn read_shape_adjustments(
             (arrow_shape(preset) && ["adj1", "adj2"].contains(name)) ||
             (branched_arrow_shape(preset) && name == "adj3") ||
             (
-              ["bentConnector3", "curvedConnector3"].contains(preset) &&
+              [
+                "bentConnector3", "bentConnector4", "bentConnector5", "curvedConnector3",
+                "curvedConnector4", "curvedConnector5",
+              ].contains(preset) &&
               name == "adj1"
+            ) ||
+            (
+              [
+                "bentConnector4", "bentConnector5", "curvedConnector4", "curvedConnector5",
+              ].contains(preset) &&
+              name == "adj2"
+            ) ||
+            (
+              ["bentConnector5", "curvedConnector5"].contains(preset) &&
+              name == "adj3"
             )
           })
         ) &&
@@ -113,7 +136,10 @@ fn read_shape_adjustments(
       seen[name] = true
       let value = number(formula[4:].trim().to_owned(), -2147483648, 2147483647) /
         100000
-      if ["bentConnector3", "curvedConnector3"].contains(preset) {
+      if [
+          "bentConnector3", "bentConnector4", "bentConnector5", "curvedConnector3",
+          "curvedConnector4", "curvedConnector5",
+        ].contains(preset) {
         // shortcut: Out-of-frame bends need expanded object bounds before editing support.
         guard value >= 0 && value <= 1 else {
           @failure.reject(

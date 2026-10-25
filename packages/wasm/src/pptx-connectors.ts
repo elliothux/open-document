@@ -9,7 +9,17 @@ export interface PptxConnectorEnd {
   site: number;
 }
 export interface PptxConnector {
-  kind: "straight" | "rightAngle" | "elbow" | "curved" | null;
+  kind:
+    | "straight"
+    | "rightAngle"
+    | "elbow"
+    | "elbow4"
+    | "elbow5"
+    | "curved"
+    | "curved2"
+    | "curved4"
+    | "curved5"
+    | null;
   start: PptxConnectorEnd | null;
   end: PptxConnectorEnd | null;
   reason: string;
@@ -43,7 +53,12 @@ export function checkPptxConnectorEdit(value: Record<string, unknown>): void {
     value.kind !== "straight" &&
     value.kind !== "rightAngle" &&
     value.kind !== "elbow" &&
-    value.kind !== "curved"
+    value.kind !== "elbow4" &&
+    value.kind !== "elbow5" &&
+    value.kind !== "curved" &&
+    value.kind !== "curved2" &&
+    value.kind !== "curved4" &&
+    value.kind !== "curved5"
   )
     throw new Error("Invalid connector kind");
   endpoint(value.start);
@@ -72,7 +87,12 @@ export function checkPptxConnectorQuery(
       connector.kind !== "straight" &&
       connector.kind !== "rightAngle" &&
       connector.kind !== "elbow" &&
-      connector.kind !== "curved"
+      connector.kind !== "elbow4" &&
+      connector.kind !== "elbow5" &&
+      connector.kind !== "curved" &&
+      connector.kind !== "curved2" &&
+      connector.kind !== "curved4" &&
+      connector.kind !== "curved5"
     )
       throw new Error("Invalid connector kind");
     endpoint(connector.start);

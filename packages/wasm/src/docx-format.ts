@@ -83,6 +83,7 @@ export function checkPageNumbering(value: unknown): void {
 
 export interface DocxPageBorder {
   side: "top" | "left" | "bottom" | "right";
+  style: "single" | "double";
   color: string;
   width: number;
   space: number;
@@ -116,6 +117,7 @@ export function checkPageBorders(value: unknown): void {
     if (
       typeof side.side !== "string" ||
       !["top", "left", "bottom", "right"].includes(side.side) ||
+      (side.style !== "single" && side.style !== "double") ||
       seen.has(side.side) ||
       typeof side.color !== "string" ||
       !/^[0-9a-f]{6}$/iu.test(side.color) ||
@@ -127,7 +129,7 @@ export function checkPageBorders(value: unknown): void {
       side.space < 0 ||
       side.space > 31 ||
       Object.keys(side).some(
-        (key) => !["side", "color", "width", "space"].includes(key),
+        (key) => !["side", "style", "color", "width", "space"].includes(key),
       )
     )
       throw new Error("Invalid DOCX page border side");

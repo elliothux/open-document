@@ -17,6 +17,19 @@ fn Object::adjustment_values(self : Object) -> Array[(String, Double, Double)] {
   if ["bentConnector3", "curvedConnector3"].contains(self.preset) {
     return [("adj1", self.adjustments.0, 1.0)]
   }
+  if ["bentConnector4", "curvedConnector4"].contains(self.preset) {
+    return [
+      ("adj1", self.adjustments.0, 1.0),
+      ("adj2", self.adjustments.1, 1.0),
+    ]
+  }
+  if ["bentConnector5", "curvedConnector5"].contains(self.preset) {
+    return [
+      ("adj1", self.adjustments.0, 1.0),
+      ("adj2", self.adjustments.1, 1.0),
+      ("adj3", self.adjustments.2, 1.0),
+    ]
+  }
   if [
       "triangle", "parallelogram", "trapezoid", "hexagon", "octagon", "plus", "star5",
       "star4", "star6", "star8", "star10", "star12", "chevron", "homePlate",

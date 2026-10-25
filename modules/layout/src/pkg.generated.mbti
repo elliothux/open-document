@@ -535,6 +535,7 @@ pub fn Outline::to_json(Self) -> Json
 
 pub(all) struct PageBorder {
   side : String
+  style : String
   color : String
   width : Double
   space : Double

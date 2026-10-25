@@ -66,11 +66,14 @@ fn page_border_format(
     zOrder: field_string(raw, "zOrder"),
     sides: sides.map(side => {
       guard side is Object(fields) &&
-        fields.keys().all(k => ["side", "color", "width", "space"].contains(k)) else {
+        fields
+        .keys()
+        .all(k => ["side", "style", "color", "width", "space"].contains(k)) else {
         @failure.reject("invalid-operation", "Unknown page border side field")
       }
       {
         side: field_string(side, "side"),
+        style: field_string(side, "style"),
         color: field_string(side, "color"),
         width: xlsx_number(side, "width"),
         space: xlsx_number(side, "space"),
