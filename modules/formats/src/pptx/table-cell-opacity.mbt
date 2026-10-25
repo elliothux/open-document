@@ -1,4 +1,33 @@
 ///|
+fn DrawingCell::table_fill_opacity_changes(
+  self : DrawingCell,
+  value : Double,
+) -> Array[@xml.SourceChange] raise @failure.Failure {
+  guard self.fill_source is Some((source, placeholder)) else { return [] }
+  let amount = (value * 100000).round().to_int()
+  if (self.alpha * 100000).round().to_int() == amount {
+    return []
+  }
+  guard !source_xml(source).contains("<!--") &&
+    !source_xml(source).contains("<?") else {
+    @failure.reject(
+      "protected-content", "Retained table fill markup is protected",
+    )
+  }
+  let markup = opacity_color_markup(source, placeholder, amount)
+  [
+    if self.source.child("tcPr") is Some(properties) {
+      paint_child_change(properties, paint_fill(properties), markup, [])
+    } else {
+      insertion(
+        self.source.node,
+        "<a:tcPr xmlns:a=\"\{drawing_uri}\">\{markup}</a:tcPr>",
+      )
+    },
+  ]
+}
+
+///|
 fn DrawingTable::table_opacity_changes(
   self : DrawingTable,
   row : Int,

@@ -95,6 +95,7 @@ fn Session::read_timeline_drawing(
     shape: None,
     chart: None,
     chart_visibility: None,
+    chart_pending: false,
     slicer: None,
     timeline: Some({
       control,

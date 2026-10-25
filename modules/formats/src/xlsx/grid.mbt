@@ -259,6 +259,11 @@ pub fn Session::viewport(
   if !picture_reason.is_empty() {
     diagnostics.push("unrendered:" + current.id + ":" + picture_reason)
   }
+  for object in objects {
+    if object.chart_pending {
+      diagnostics.push("uncalculated-chart:" + current.id + ":" + object.id)
+    }
+  }
   for cell in cells {
     if cell is { "diagnostic": String(reason), .. } && !reason.is_empty() {
       let message = "cell-style:" + sheet + ":" + reason

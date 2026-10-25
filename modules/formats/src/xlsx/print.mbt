@@ -232,6 +232,13 @@ fn Session::print_sheet(
               )
               let visible = grid_intersection(picture.paint_bounds(rect), clip)
               if visible.width > 0 && visible.height > 0 {
+                guard !picture.chart_pending else {
+                  @failure.reject(
+                    "unsupported-print",
+                    uncalculated_chart_reason,
+                    part=sheet,
+                  )
+                }
                 picture_paint.push(Clip(clip))
                 picture.paint(picture_paint, rect, probe, profile)
                 picture_paint.push(Restore)

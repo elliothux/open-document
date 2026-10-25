@@ -65,6 +65,7 @@ fn table_cell_values(
     } else {
       Json::null()
     },
+    Json(cell.alpha),
   ]
 }
 
@@ -91,7 +92,7 @@ fn table_format_query(
   for
     i, name in [
       "fill", "borderColor", "borderWidth", "left", "top", "right", "bottom", "anchor",
-      "direction", "borderDash", "borderOpacity",
+      "direction", "borderDash", "borderOpacity", "fillOpacity",
     ] {
     result[name] = if values.all(row => row[i] == values[0][i]) {
       values[0][i]
@@ -138,10 +139,10 @@ fn Session::format_table_cells(
       }
       (None, None)
     }
-    StrokeOpacity(value) => {
+    FillOpacity(value) | StrokeOpacity(value) => {
       guard value >= 0 && value <= 1 && !value.is_nan() && !value.is_inf() else {
         @failure.reject(
-          "invalid-operation", "Border opacity must be between zero and one",
+          "invalid-operation", "Opacity must be between zero and one",
         )
       }
       (None, None)
@@ -194,6 +195,26 @@ fn Session::format_table_cells(
     []
   }
   let changes : Array[@xml.SourceChange] = []
+  if change is FillOpacity(_) {
+    guard table.rows
+      .mapi((r, row) => {
+        row.cells
+        .mapi((c, cell) => {
+          cell.owner() &&
+          r >= range.top &&
+          r <= range.bottom &&
+          c >= range.left &&
+          c <= range.right &&
+          cell.fill_source is Some(_)
+        })
+        .any(value => value)
+      })
+      .any(value => value) else {
+      @failure.reject(
+        "protected-content", "Opacity editing requires a solid table cell fill",
+      )
+    }
+  }
   if change is StrokeOpacity(_) {
     guard table.rows
       .mapi((r, row) => {
@@ -234,6 +255,10 @@ fn Session::format_table_cells(
         continue
       }
       let properties = cell.source.child("tcPr")
+      if change is FillOpacity(value) {
+        changes.append(cell.table_fill_opacity_changes(value))
+        continue
+      }
       if change is Fill(_) {
         if properties is Some(properties) {
           if !same_paint(properties, color, opacity=cell.alpha) {

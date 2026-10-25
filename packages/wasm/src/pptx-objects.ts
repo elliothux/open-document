@@ -19,7 +19,6 @@ import {
   type PptxTableStyleQuery,
 } from "./pptx-table-style.js";
 export type { PptxTableStyle } from "./pptx-table-style.js";
-
 export interface PptxSelection {
   slide: string;
   object: string;
@@ -75,6 +74,7 @@ export interface PptxTable {
     borderWidth: number | null;
     borderDash: PptxDash | null;
     borderOpacity: number | null;
+    fillOpacity: number | null;
     left: number | null;
     top: number | null;
     right: number | null;
@@ -123,6 +123,7 @@ export function checkPptxTable(
     if (format[key] !== null)
       number(format[key], 0, key === "borderWidth" ? 1000 : 14400);
   if (format.borderOpacity !== null) number(format.borderOpacity, 0, 1);
+  if (format.fillOpacity !== null) number(format.fillOpacity, 0, 1);
   if (
     ![null, "t", "ctr", "b"].some((value) => value === format.anchor) ||
     ![null, "horz", "vert", "vert270"].some(

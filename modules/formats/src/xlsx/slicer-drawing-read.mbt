@@ -145,6 +145,7 @@ fn Session::read_slicer_drawing(
     shape: None,
     chart: None,
     chart_visibility: None,
+    chart_pending: false,
     slicer: Some({
       control,
       palette: self.slicer_palette(control),

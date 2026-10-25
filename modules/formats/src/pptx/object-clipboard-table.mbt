@@ -86,7 +86,7 @@ fn Session::clipboard_table_style(
         }
         content <+ "</a:tcBdr>"
       }
-      if table_style_fill(theme, [region]) is Some((color, alpha)) {
+      if table_style_fill(theme, [region]) is Some((color, alpha, _)) {
         content <+
           "<a:fill>\{paint_markup(if color.is_empty() {None} else {Some(color)},opacity=alpha)}</a:fill>"
       }

@@ -22,6 +22,8 @@ export const reviewEn = {
     "Inserted text is underlined; deleted text is struck through. These marks also appear in exported pages until the changes are resolved.",
   revisionAccept: "Accept change",
   revisionReject: "Reject change",
+  revisionAcceptShown: "Accept shown changes",
+  revisionRejectShown: "Reject shown changes",
   selectedCells: "Selected table cells",
   cellSelectionText:
     "Typing replaces the first selected cell. Delete clears every selected cell. Row and column commands use the selected cells. Select one cell to split it or the table.",
@@ -222,6 +224,8 @@ export const reviewZh: Record<keyof typeof reviewEn, string> = {
     "插入文字显示下划线，删除文字显示删除线。修订处理前，导出页面也保留这些标记。",
   revisionAccept: "接受修改",
   revisionReject: "拒绝修改",
+  revisionAcceptShown: "接受所示修订",
+  revisionRejectShown: "拒绝所示修订",
   selectedCells: "所选表格单元格",
   cellSelectionText:
     "输入会替换首个所选格的内容。删除键会清空全部所选格。行列命令使用所选格。请选择单格拆格或拆表。",

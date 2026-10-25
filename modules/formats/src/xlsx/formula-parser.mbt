@@ -414,6 +414,8 @@ fn FormulaParser::atom(
           | "SMALL" => args.length() == 2
           "NOT" | "ISBLANK" | "ISNUMBER" | "ISTEXT" | "ABS" | "INT" | "SQRT" =>
             args.length() == 1
+          "SIN" | "COS" | "TAN" | "RADIANS" | "DEGREES" => args.length() == 1
+          "PI" => args.is_empty()
           "LEN" | "LOWER" | "UPPER" | "TRIM" => args.length() == 1
           "YEAR" | "MONTH" | "DAY" | "HOUR" | "MINUTE" | "SECOND" =>
             args.length() == 1

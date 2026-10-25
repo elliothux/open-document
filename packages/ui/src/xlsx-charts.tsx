@@ -198,7 +198,7 @@ export function XlsxCharts({
       )}
       {draft && appearance && (
         <>
-          {draft.bindingReason && <p>{t.chartDeletedSource}</p>}
+          {draft.bindingReason && <p>{t.chartCachedSource}</p>}
           <form
             onSubmit={(event) => {
               event.preventDefault();

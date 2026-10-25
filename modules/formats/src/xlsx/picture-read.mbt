@@ -14,6 +14,7 @@ priv struct SheetObject {
   shape : SheetShape?
   chart : (String, @chart.WorksheetChart)?
   chart_visibility : @layout.ChartVisibility?
+  chart_pending : Bool
   slicer : SlicerDrawing?
   timeline : TimelineDrawing?
   tree : Tree
@@ -442,6 +443,7 @@ fn Session::sheet_objects(
       shape: None,
       chart: None,
       chart_visibility: None,
+      chart_pending: false,
       slicer: None,
       timeline: None,
       tree,

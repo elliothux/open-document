@@ -27,6 +27,7 @@ priv struct DrawingCell {
   body : Body
   fill : String
   alpha : Double
+  fill_source : (Ref, Ref?)?
   borders : Array[(String, Double, String, Double)]
   border_priorities : Array[Int]
   border_sources : Array[(Ref, Ref?)?]
@@ -271,10 +272,11 @@ fn read_drawing_table(
       let direct_fill = properties.filter(p => {
         p.child("noFill") is Some(_) || p.child("solidFill") is Some(_)
       })
-      let (fill, alpha) = if direct_fill is Some(p) {
-        fill_rgba(theme, [p])
+      let (fill, alpha, fill_source) = if direct_fill is Some(p) {
+        let (color, alpha) = fill_rgba(theme, [p])
+        (color, alpha, solid_fill_source([p]).map(source => (source, None)))
       } else {
-        table_style_fill(theme, layers).unwrap_or(("", 1))
+        table_style_fill(theme, layers).unwrap_or(("", 1, None))
       }
       let (borders, border_priorities, border_sources) = table_style_borders(
         theme,
@@ -333,6 +335,7 @@ fn read_drawing_table(
         body,
         fill,
         alpha,
+        fill_source,
         borders,
         border_priorities,
         border_sources,

@@ -49,7 +49,11 @@ pub fn Session::charts(
         "names": settings.names,
         "values": settings.values,
         "data": chart.data.tsv(),
-        "bindingReason": chart_binding_reason(chart),
+        "bindingReason": if object.chart_pending {
+          uncalculated_chart_reason
+        } else {
+          chart_binding_reason(chart)
+        },
       }
       value
     })

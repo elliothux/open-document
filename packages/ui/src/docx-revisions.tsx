@@ -63,6 +63,12 @@ export function DocxRevisions({
     !result ||
     result.documentId !== snapshot.documentId ||
     result.revision !== snapshot.revision;
+  const shown =
+    result?.items.filter(
+      (item) =>
+        (author === null || item.author === author) &&
+        (kind === "all" || item.kind === kind),
+    ) ?? [];
   const kinds = {
     insert: t.revisionInsertion,
     delete: t.revisionDeletion,
@@ -123,14 +129,34 @@ export function DocxRevisions({
       {!stale && result.items.length === 0 && (
         <p role="status">{t.revisionNone}</p>
       )}
+      {(["accept", "reject"] as const).map((action) => (
+        <button
+          key={action}
+          type="button"
+          disabled={
+            disabled ||
+            blocked ||
+            stale ||
+            !!result?.reason ||
+            shown.length === 0 ||
+            shown.some((item) => !!item.reason)
+          }
+          onClick={() => {
+            if (!result) return;
+            controller.run(() =>
+              editor.resolveRevisions(result, {
+                action,
+                ids: shown.map((item) => item.id),
+              }),
+            );
+          }}
+        >
+          {action === "accept" ? t.revisionAcceptShown : t.revisionRejectShown}
+        </button>
+      ))}
       <ol>
-        {result?.items
-          .filter(
-            (item) =>
-              (author === null || item.author === author) &&
-              (kind === "all" || item.kind === kind),
-          )
-          .map((item) => (
+        {result &&
+          shown.map((item) => (
             <li key={item.id}>
               <p>
                 {kinds[item.kind]}: {item.author || t.revisionAnonymous}{" "}

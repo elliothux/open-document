@@ -89,12 +89,18 @@ fn Session::read_sheet_chart(
     )
   }
   let chart = @chart.read_worksheet(link.target, self.part_xml(link.target))
-  let chart = self.resolved_chart(sheet.id, chart, {
+  let work : FormulaWork = {
     remaining: 1048576,
     date1904: self.date1904,
     origin: { row: 1, column: 1, },
     names: self.formula_names(),
-  })
+  }
+  let (pending, _) = self.chart_input_state(sheet.id, chart, work)
+  let chart = if pending {
+    chart
+  } else {
+    self.resolved_chart(sheet.id, chart, work)
+  }
   let (anchor, rect) = tree.drawing_rect(frame, dimensions)
   let client = tree.picture_child(frame.id, "clientData")
   if client is Some(client) {
@@ -124,7 +130,10 @@ fn Session::read_sheet_chart(
     slicer: None,
     timeline: None,
     chart: Some((link.target, chart)),
-    chart_visibility: Some(self.chart_visibility(sheet.id, chart)),
+    chart_visibility: Some(
+      self.chart_visibility(sheet.id, chart, cached_only=pending),
+    ),
+    chart_pending: pending,
     crop: [0, 0, 0, 0],
     printable: client
     .map(node => flag(node, "fPrintsWithSheet", fallback=true))

@@ -205,6 +205,16 @@ fn Session::maintain_charts(
     seen.add(link.target)
     let original = view.part_xml(link.target)
     let chart = @chart.read_worksheet(link.target, original)
+    let (pending, inputs) = view.chart_input_state(drawing.owner, chart, work)
+    if pending {
+      guard self.part_xml(link.target).source() == original.source() &&
+        self.chart_input_state(drawing.owner, chart, work) == (true, inputs) else {
+        @failure.reject(
+          "protected-content", "Change affects an uncalculated chart source",
+        )
+      }
+      continue
+    }
     let next = view.resolved_chart(drawing.owner, chart, work)
     if next.data == chart.data {
       continue

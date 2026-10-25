@@ -479,7 +479,9 @@ Web 编辑宿主按相同坐标绘制独立覆盖层。点击高亮沿既有指�
 
 ### DOCX 修订审阅
 
-`DocumentEditor.revisions()` 返回绑定 `documentId/revision` 的 `DocumentRevisions`。目录按正文源顺序列出 `id/sourceId/kind/element/author/date/text/paragraph/reason`；`kind` 为 `insert`、`delete`、`characterFormat`、`paragraphFormat` 或 `unsupported`。`id` 是当前 XML 节点身份，`sourceId` 保留原生修订编号，不能互换。查询不改变源、选择或历史。默认面板显示文字预览、作者和日期，提供作者与类型组合筛选及逐项接受/拒绝。
+`DocumentEditor.revisions()` 返回绑定 `documentId/revision` 的 `DocumentRevisions`。目录按正文源顺序列出 `id/sourceId/kind/element/author/date/text/paragraph/reason`；`kind` 为 `insert`、`delete`、`characterFormat`、`paragraphFormat` 或 `unsupported`。`id` 是当前 XML 节点身份，`sourceId` 保留原生修订编号，不能互换。查询不改变源、选择或历史。默认面板显示文字预览、作者和日期，提供作者与类型组合筛选、逐项接受/拒绝及所示条目的批量接受/拒绝。
+
+批量按钮与列表共用当前作者和类型筛选结果。默认显示全部条目时处理全部修订；筛选后只提交所示身份，沿同一 `resolveRevisions` 核心事务形成一步精确历史。列表为空、目录过期、文档受保护、输入处于组合/拖动等未完成状态，或所示条目包含不支持内容时禁用整批操作；不跳过受保护条目部分提交。筛选到可处理条目后可继续，其他作者、类型及不透明源保持。
 
 `DocumentEditor.resolveRevisions(catalog, { action: "accept" | "reject", ids })` 显式处理目录内的一项或一批修订。Wasm/Worker 使用 `docxRevisions` 和 `resolveDocxRevisions`，携带 revision；同步会话提供对应方法。旧目录或其他文档的目录被拒绝。核心预检整批后提交一次源历史：接受插入或拒绝删除保留普通 run，接受删除或拒绝插入移除包装及内容。拒绝删除把 `delText` 恢复为 `t`，保留样式、命名空间、空白、Tab 和软换行；其他源内容及部件保持。撤销/重做恢复精确源，处理后的普通段落可继续输入。
 
@@ -2177,6 +2179,10 @@ Web 复用核心矩形显示悬停或选中便笺的作者与纯文字提示，�
 
 ### 显示与计算
 
+`SIN/COS/TAN`、`RADIANS/DEGREES` 和 `PI` 已实际求值，复用普通数值转换、依赖重算、原生缓存和精确历史。三角函数读取弧度，角度换算显式执行；`PI()` 不接受参数，其余五项接受一个参数。数值文字、布尔、空白格及错误传播沿普通标量规则；参数数量错误拒绝整次编辑，非有限算术结果为 `#NUM!`。保留浮点微小结果，不把接近零的三角值截成零，也不把接近正切极点的有限结果改成除零错误。角度换算沿先乘后除的顺序，大数的中间乘积溢出同样返回 `#NUM!`。
+
+这些函数支持现有名称、共享及跨表引用，首次查看计算但保留源缓存，后续有效事务同步实际值；普通输入、引用变换、保存重开及 PDF 沿同一结果。`SIN/COS/TAN` 不再属于未计算链。数组及动态引用仍按既有范围保护。实现归 [formula-numeric.mbt](../../modules/formats/src/xlsx/formula-numeric.mbt)，规则参考 [ONLYOFFICE SIN](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L4907-L4940)、[角度换算](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/mathematicFunctions.js#L3740-L3773)及[独立标量用例](https://github.com/ONLYOFFICE/sdkjs/blob/b2f0aa1d5ca8c82e827ff3af6577d8edf913a2e7/tests/cell/spreadsheet-calculation/formula-tests/mathematicTests.js#L18936-L18960)。复用 MoonBit 标准数学函数，未复制上游执行代码。
+
 读取共享/内联字符串、数值、布尔值、错误、公式及缓存。富文本读出文字，保留原 XML并保护编辑。受保护工作表及含未知编辑语义的单元格只读。图表、未支持的条件格式、绘图等未呈现内容给出诊断，继续保留源部件。
 
 网格读取行高、列宽、隐藏行列与合并区域。核心使用 Normal 字体和字号的最大数字宽度换算列宽；不依赖 DOM 度量。字体键沿用 `family|bold|italic`，宿主明确映射到已添加的字体身份。支持字体大小、粗斜体、基本文字色、纯色填充、实线边框、左中右/上中下对齐与换行。行列尺寸使用声明值，显式自动适配命令更新这些值；自动模式的内容和列宽变化在文档事务内同步尺寸。数字宽度不足时显示 `#`；文字按单元格裁剪。
@@ -2185,7 +2191,7 @@ General 显示按 [ONLYOFFICE 的 15 位有效数字拆分](https://github.com/O
 
 数字格式覆盖 General、`@`、整数、两位小数、千分位、百分比、`yyyy-mm-dd`、`hh:mm:ss`，以及内置 1–4、9–10、14–22、49。日期保留数值，核心解释 1900/1904 系统，1900 序号 60 显示虚构的 2 月 29 日，序号 0 显示 1900-01-00。不经过宿主时区。其他格式、颜色 tint、渐变/图案、非实线边框及额外字体装饰保留声明并诊断，不承诺显示等价。
 
-公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * / ^`、后缀百分比 `%`、文本连接 `&`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/SQRT/POWER/PRODUCT/MEDIAN/MODE/MODE.SNGL/LARGE/SMALL/SUMSQ/SUMPRODUCT/DEVSQ/VAR/VAR.S/VARP/VAR.P/STDEV/STDEV.S/STDEVP/STDEV.P/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/EXACT/REPT/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/MINIFS/MAXIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL/HYPERLINK`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
+公式支持数值、字符串和布尔常量，括号、一元正负、`+ - * / ^`、后缀百分比 `%`、文本连接 `&`、比较、A1 单格/矩形、整行/整列范围、绝对/混合引用、带引号的跨表引用，以及 `SUM/AVERAGE/MIN/MAX/COUNT/IF/AND/OR/NOT/IFERROR/IFNA/ISBLANK/ISNUMBER/ISTEXT/ABS/INT/MOD/ROUND/ROUNDUP/ROUNDDOWN/SQRT/POWER/SIN/COS/TAN/PI/RADIANS/DEGREES/PRODUCT/MEDIAN/MODE/MODE.SNGL/LARGE/SMALL/SUMSQ/SUMPRODUCT/DEVSQ/VAR/VAR.S/VARP/VAR.P/STDEV/STDEV.S/STDEVP/STDEV.P/LEN/LEFT/RIGHT/MID/TRIM/UPPER/LOWER/CONCAT/CONCATENATE/TEXTJOIN/FIND/SEARCH/SUBSTITUTE/EXACT/REPT/DATE/YEAR/MONTH/DAY/TIME/HOUR/MINUTE/SECOND/DAYS/COUNTA/COUNTBLANK/COUNTIF/COUNTIFS/SUMIF/SUMIFS/AVERAGEIF/AVERAGEIFS/MINIFS/MAXIFS/INDEX/MATCH/VLOOKUP/HLOOKUP/XLOOKUP/ROW/COLUMN/ROWS/COLUMNS/SUBTOTAL/HYPERLINK`。范围端点可以反向，核心按矩形解释。显式省略的函数参数作为空白处理，仍检查各函数参数数量。
 
 `&` 将两个值按普通公式文字规则连接，布尔使用 TRUE/FALSE，空白使用空文字，公式错误按左侧优先传播。它低于加减、高于比较，同级从左到右；括号保留明确的计算顺序。一行/一列引用按公式位置取唯一值，其余非单值矩形返回 `#VALUE!`。它与 HYPERLINK 复用 [`formula-range.mbt`](../../modules/formats/src/xlsx/formula-range.mbt) 中的标量取值，与文本函数共用 32767 个 UTF-16 单位及 1048576 单位工作预算；超长结果为 `#VALUE!`，工作量超限拒绝整次编辑。共享公式、填充、工作表改名与重开沿普通 token/引用路径，字符串常量内的表名或 `&` 保持文字。规则参考 [ONLYOFFICE cConcatSTROperator](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/FormulaObjects/parserFormula.js#L4793-L4832)。例如 `HYPERLINK(A1&"#details","查看")` 使用拼接后的地址，保留既有安全导航及 PDF 规则；实现复用 [`formula-parser.mbt`](../../modules/formats/src/xlsx/formula-parser.mbt) 和 [`formula-evaluate.mbt`](../../modules/formats/src/xlsx/formula-evaluate.mbt)，未复制上游执行代码。
 
@@ -2275,7 +2281,7 @@ XLOOKUP 当前使用同形的一维查找和返回引用，默认精确查找，
 
 DEVSQ 已真实求值，接入名称、共享公式、跨表、稀疏引用及普通重算、缓存和历史事务。原 DEVSQ 专用未计算链及其隔离检查已移除。核心只把实际求值结果放入 `calculated`，缓存不参与新的公式、条件格式、验证或筛选计算。每格 `calculationReason` 在已计算/普通值时为空，未计算格返回自身或依赖原因，整本保护时返回工作簿原因。默认公式栏显示原因；有缓存时显示缓存，缺缓存显示未计算。选区含未计算公式时，计数仍可读，四项汇总均为 null 并给出原因。
 
-导入的 `ACOS/ACOSH/ASIN/ASINH/ATAN/ATANH/COS/COSH/SIN/SINH/TAN/TANH/EXP/LN/LOG/LOG10` 尚未求值，但其静态显式参数可沿既有依赖图解析。核心标记这些公式及下游为未计算，保护完整上下游公式及其声明输入范围；不把导入缓存放入 `calculated`。无关联的普通输入及受支持公式可继续编辑和重算；纯格式及不影响结果的行显隐可提交。链中包含 SUBTOTAL 时，影响结果的隐藏来源变化原子拒绝。名称、共享公式及跨表引用沿现有解析，源公式和导入缓存保留，撤销重做恢复完整字节。隔离最多 4096 个范围，并沿用公式工作预算；结构、身份或引用变化及关联图表等资源仍遵守既有保护。实现归 [`calculation-protection.mbt`](../../modules/formats/src/xlsx/calculation-protection.mbt)。
+导入的 `ACOS/ACOSH/ASIN/ASINH/ATAN/ATANH/COSH/SINH/TANH/EXP/LN/LOG/LOG10` 尚未求值，但其静态显式参数可沿既有依赖图解析。核心标记这些公式及下游为未计算，保护完整上下游公式及其声明输入范围；不把导入缓存放入 `calculated`。无关联的普通输入及受支持公式可继续编辑和重算；纯格式及不影响结果的行显隐可提交。链中包含 SUBTOTAL 时，影响结果的隐藏来源变化原子拒绝。名称、共享公式及跨表引用沿现有解析，源公式和导入缓存保留，撤销重做恢复完整字节。隔离最多 4096 个范围，并沿用公式工作预算；结构、身份或引用变化及关联图表等资源仍遵守既有保护。实现归 [`calculation-protection.mbt`](../../modules/formats/src/xlsx/calculation-protection.mbt)。
 
 新增未支持公式及 CSV/TSV 中的未支持公式转换在提交前拒绝。导入含其他未核实函数、INDIRECT/OFFSET、CELL 等环境/格式查询、自定义函数及其嵌套时继续整本只读，保留原始源码和缓存。
 
@@ -2584,6 +2590,10 @@ CSV 采用 CRLF 行尾，含逗号、引号、CR/LF 的字段加引号，内部�
 
 ### 工作表图表
 
+来源包含已隔离的未计算公式时，已有普通图表可显示导入缓存。`bindingReason` 返回未计算原因，默认面板显示缓存提示，网格诊断包含 `uncalculated-chart`。核心保留图表源及全部缓存，不将其作为单元格计算结果。缓存长度须匹配有效来源范围；无法解释的缓存继续保护。无关联输入、格式和图框布局可沿原事务提交；分类、标题和数值来源的值、公式或行列显隐变化原子拒绝，保留草稿、历史与重做。纯格式不改变来源值时可编辑。
+
+未计算图表不能转换成剪贴板数值来源，打印区域实际覆盖该图表时拒绝输出。未覆盖图表且单元格已计算的独立区域可打印。显式将全部未计算来源改绑到已计算格后，图表恢复实时缓存与 PDF；只改外观仍须先处理未计算来源。动态或未核实函数继续沿工作簿保护。实现归 [`chart-calculation.mbt`](../../modules/formats/src/xlsx/chart-calculation.mbt)及既有图表读取、候选事务与打印路径。缓存保留复用现有原生路径，参考 [ONLYOFFICE 未解析来源保留缓存](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartFormat.js#L12551-L12568)；未计算来源的编辑与输出沿本项目已计算值合同保护，未复制上游代码。
+
 `SpreadsheetEditor.charts()` 返回当前表的 `{ revision, sheet, reason, items }`。每项包含原生 `id`、名称、替代文字、三种锚点、point 位置/尺寸、图表外观、数据源引用和当前值 TSV。同步 `XlsxSession` 与异步 `XlsxClient` 提供对应显式 revision/sheet/profile 接口。`XlsxViewport.objects.kind` 增加 `chart`；选择、移动、自由缩放和删除沿既有画布入口。
 
 `insertChartRange(range, kind, title, width, height)` 使用当前表的普通矩形：第一行为系列标题，第一列为类别，其余为数值系列。核心生成带表名的绝对引用，在当前选择处插入 `oneCellAnchor`。`insertChart(settings, width, height)` 使用显式 `XlsxChartSettings`：`kind/title/label/legend/holeSize/categories/names/values`。`categories` 为一行或一列的本工作簿来源，`names` 的每项引用一个标题格，`values` 的对应项引用各自的一行或一列，分类与系列允许独立长度。允许本表或跨表普通引用；不接受表达式、外部或三维来源。空标题显示默认系列名，非数值点留空，公式读取当前计算值。
@@ -2600,7 +2610,7 @@ MoonBit 维护原生 `graphicFrame`、图表 XML、关系、内容类型及系�
 
 删除工作表时，所属绘图、图表、关系和内容类型沿既有部件快照一起移除。共享图片等媒体保留，未知的部件入站引用拒绝整项删除。其他表的图表将被删来源的完整引用写为 `#REF!`，对象及最后有效缓存保留；尚有效的系列继续读取当前单元格值。支持原生带地址尾部的失效引用，例如 `#REF!$A$2:$A$4`。工作表删除、引用、计算及资源共用一次精确历史；打开已保存的失效图表不改源。
 
-`XlsxChart.bindingReason` 在来源失效时返回原因，正常时为空串。默认图表属性面板显示缓存提示，保留标题、类型和引用编辑入口。修改已有失效图表的外观时保留其缓存；重新绑定后恢复实时更新并清除提示。新建图表不能使用缺少缓存的失效来源。缓存只是最后有效值，不表示已删除来源仍在更新。原生输入、撤销、重开和 Canvas/PDF 共用这一状态。实现复用 [`chart-rename.mbt`](../../modules/formats/src/xlsx/chart-rename.mbt)、[`chart-bindings.mbt`](../../modules/formats/src/xlsx/chart-bindings.mbt)及 [`sheet-delete.mbt`](../../modules/formats/src/xlsx/sheet-delete.mbt)。依据 [ONLYOFFICE 删除表时处理图表来源](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L5498-L5541)、[失效引用写回](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartFormat.js#L12116-L12128)和[无法解析来源时的缓存保留](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartFormat.js#L12551-L12568)。
+`XlsxChart.bindingReason` 在来源失效或未计算时返回原因，正常时为空串。默认图表属性面板显示缓存提示，保留标题、类型和引用编辑入口。修改已有失效图表的外观时保留其缓存；重新绑定后恢复实时更新并清除提示。新建图表不能使用缺少缓存的失效来源。缓存只是最后有效值，不表示已删除来源仍在更新。原生输入、撤销、重开和 Canvas/PDF 共用这一状态。实现复用 [`chart-rename.mbt`](../../modules/formats/src/xlsx/chart-rename.mbt)、[`chart-bindings.mbt`](../../modules/formats/src/xlsx/chart-bindings.mbt)及 [`sheet-delete.mbt`](../../modules/formats/src/xlsx/sheet-delete.mbt)。依据 [ONLYOFFICE 删除表时处理图表来源](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/cell/model/Workbook.js#L5498-L5541)、[失效引用写回](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartFormat.js#L12116-L12128)和[无法解析来源时的缓存保留](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Format/ChartFormat.js#L12551-L12568)。
 
 整行、整列插删已同步本表及跨表的分类、系列标题和数值引用。来源内部插入扩大范围，删除缩小范围；完整删除来源后写为 `#REF!` 并保留最后有效缓存与提示。绝对地址也随结构变化，已失效引用保持。固定、随单元格移动和随区域缩放三种锚点复用已有图片规则；引用、原生缓存、公式计算和几何共用一次精确历史。几何预检与提交重排读取插删后的候选数据，散点图不会误读旧位置。
 
@@ -3746,6 +3756,8 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 
 ### PPTX 普通表格
 
+`fillOpacity` 沿现有对象命令修改表格所选单元格的纯色底色不透明度，接受 0–1，并按 1/100000 步长写入原生 `alpha`。对象模式作用于整表，文字模式作用于当前格或矩形范围；无填充格保持，范围内没有纯色底色时拒绝。零不透明度保留颜色身份，后续可恢复；改底色保留透明度。局部覆盖保留原生主题色和 tint 等颜色变换，其他格、边框、文字及原始表样式保持。`table.format.fillOpacity` 返回共同值或混合值 `null`，无填充格为 1；默认面板复用百分比控件。原生与样式底色沿现有 Canvas/PDF 透明图元输出，跨文稿复制保留底色及独立修改。实现复用 [table-cell-opacity.mbt](../../modules/formats/src/pptx/table-cell-opacity.mbt) 的颜色片段及既有单元格格式事务，参考 [ONLYOFFICE 单元格原生填充绘制](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table/TableDraw.js#L437-L453)。
+
 `PresentationEditor.editObjects({ action: "insertTable", rows, columns, x, y, width, height })` 和同步 Wasm/Worker 的 `editPptxObjects` 创建普通空表格。位置与尺寸单位为点，沿用对象的有限值及 14400 点上限；行列数必须为整数。网格按整数 EMU 等分，总宽与外框精确一致；每列须保留默认左右内边距外的正文字宽度。初始文字为 Arial 18 点、黑色，单元格为白底及 1 点黑色实线边框。行高不足时按现有字体排版增长，所有生成内容合为一项历史。默认 UI 共用对象的位置和尺寸输入，单独提供行列数。身份分配避开原对象及会话已使用身份，失败不占用身份。
 
 对象模式的现有 `delete` 命令可删除整张普通表格，清除选择，并支持精确撤销重做。锁定、引用和输出预算继续由原对象事务校验；有动画或连接引用时受保护。结构依据 [ONLYOFFICE 表格创建](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/slide/Editor/Format/Presentation.js#L4122-L4176)，单元格属性顺序沿 [TableCellProperties 序列化](https://github.com/ONLYOFFICE/core/blob/3250a848ee4ef20c2fb8c38dc86350ec579124b8/OOXML/PPTXFormat/Logic/Table/TableCellProperties.cpp#L145-L171)。实现归 [`table-create.mbt`](../../modules/formats/src/pptx/table-create.mbt)。
@@ -3768,11 +3780,11 @@ Wasm/Worker 的 `openPptx`、`createPptx` 接受可选 `dateTime`。平台缺省
 
 单选可编辑表格时，既有 `fill`、`stroke`、`strokeDash`、`strokeOpacity`、`textInsets`、`textAnchor` 和 `textDirection` 命令修改单元格属性。对象模式作用于整表的主格，文字模式作用于当前主格或闭合后的矩形范围；延续格保留原属性。填充接受六位 RGB 或 `null` 无填充，保留已有不透明度。边框接受同样的颜色和 0.1–1000 点宽度，设置所选主格的四条边并保留各边不透明度与有效预设线型；`null` 移除。相邻格的对应共享边同步修改，避免另一侧覆盖显示。若共享边只覆盖相邻合并格的一部分，核心原子拒绝，不改到范围外。内边距以点为单位，四边接受 0–14400，左右合计须留下正文字宽度；垂直锚定接受 `t/ctr/b`。字号、段落、非目标属性和部件保持，变化与行高增长合为一项精确历史；重复应用相同直接格式不新增历史。目标填充或边框中的未知注释及处理指令保持受保护。
 
-`strokeDash` 复用形状的 11 种 `PptxDash` 预设和 `null` 恢复继承，范围与 `stroke` 相同。只改各目标边的 `prstDash`，保留源颜色和线宽；空的局部边继续继承原生样式和来源优先级。`borderDash` 返回有效共同值，混合时为 `null`。默认表格面板复用形状线型控件；共享边与部分相邻合并格保护不变。实线、虚线及点线共用原区域优先级，选中的整条边携带自己的线型，按有效线宽换算为点值数组。跨文稿复制冻结直接边和原生样式中的线型，重复粘贴后的表格可分别修改。规则沿 [ONLYOFFICE DashPatternPresets](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Metafile.js#L1767-L1820)，实现复用 [`line-dash.mbt`](../../modules/formats/src/pptx/line-dash.mbt)及原生表格边框事务。自定义虚线、复合线及透明边框继续保护。
+`strokeDash` 复用形状的 11 种 `PptxDash` 预设和 `null` 恢复继承，范围与 `stroke` 相同。只改各目标边的 `prstDash`，保留源颜色和线宽；空的局部边继续继承原生样式和来源优先级。`borderDash` 返回有效共同值，混合时为 `null`。默认表格面板复用形状线型控件；共享边与部分相邻合并格保护不变。实线、虚线及点线共用原区域优先级，选中的整条边携带自己的线型，按有效线宽换算为点值数组。跨文稿复制冻结直接边和原生样式中的线型，重复粘贴后的表格可分别修改。规则沿 [ONLYOFFICE DashPatternPresets](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/Metafile.js#L1767-L1820)，实现复用 [`line-dash.mbt`](../../modules/formats/src/pptx/line-dash.mbt)及原生表格边框事务。自定义虚线和复合线继续保护。
 
 `strokeOpacity` 修改同一目标的纯色边框不透明度，接受 0–1，按 1/100000 步长写入原生 `alpha`。零不透明度保留颜色身份，之后仍可恢复；无填充的边保持无填充，整组没有纯色边框时拒绝此操作。覆盖采用修改前的实际胜出边，保留有效颜色、线宽、线型，以及原生主题色和 tint 等颜色变换，颜色/线宽和虚线操作也保留既有不透明度。`borderOpacity` 返回有效共同值或混合值 `null`；无边框时为 1，默认百分比控件禁用。区域与直接边框按原优先级、线宽及右/下侧规则选出完整胜出边，透明度不参与重新排名。单条原生合并边若含不同颜色、线宽或线型的胜出分段，透明度修改保持保护，避免把分段外观压成一条边；每段共享边只绘制一次，避免重复混色。直接格式和样式随跨文稿复制保留透明度。实现归 [table-cell-opacity.mbt](../../modules/formats/src/pptx/table-cell-opacity.mbt)，复用 [shape-opacity.mbt](../../modules/formats/src/pptx/shape-opacity.mbt) 的颜色片段；原生描边来源参考 [ONLYOFFICE SetBorder](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/common/Drawings/TextDrawer.js#L1751-L1758)。
 
-`table.format` 返回 `{ fill, borderColor, borderWidth, borderDash, borderOpacity, left, top, right, bottom, anchor, direction, reason, borderReason }`。混合值为 `null`，无颜色为 `""`，无边框宽度为 0；其他长度单位为点。`reason` 和 `borderReason` 为空表示相应编辑可用，后者单独说明共享边保护。默认面板显示整表或范围、混合值及保护原因，使用同一命令和既有原生输入。读取及写回归 [`table-cell-format.mbt`](../../modules/formats/src/pptx/table-cell-format.mbt)，共享边归 [`table-cell-borders.mbt`](../../modules/formats/src/pptx/table-cell-borders.mbt)。行为参考 [ONLYOFFICE 单元格共享边](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L1641-L1868)、[底色与垂直对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L2028-L2115)。
+`table.format` 返回 `{ fill, fillOpacity, borderColor, borderWidth, borderDash, borderOpacity, left, top, right, bottom, anchor, direction, reason, borderReason }`。混合值为 `null`，无颜色为 `""`，无边框宽度为 0；其他长度单位为点。`reason` 和 `borderReason` 为空表示相应编辑可用，后者单独说明共享边保护。默认面板显示整表或范围、混合值及保护原因，使用同一命令和既有原生输入。读取及写回归 [`table-cell-format.mbt`](../../modules/formats/src/pptx/table-cell-format.mbt)，共享边归 [`table-cell-borders.mbt`](../../modules/formats/src/pptx/table-cell-borders.mbt)。行为参考 [ONLYOFFICE 单元格共享边](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L1641-L1868)、[底色与垂直对齐](https://github.com/ONLYOFFICE/sdkjs/blob/72b0421c0bbf9d01eed9cf14834ae47eb2df1b50/word/Editor/Table.js#L2028-L2115)。
 
 `editObjects({ action: "textDirection", direction })` 对单格、矩形范围或整表写入原生 `tcPr@vert`。direction 接受 `horz/vert/vert270`；默认单元格面板显示三种方向，`table.format.direction` 返回共同值或混合值 `null`。文字整体旋转，四边物理边距及垂直锚定沿交换后的文字平面求值。切换为旋转方向时，将不足 20 mm 的目标主格所在行提高到该值，并同步原生外框；重新应用相同方向不改源。行高、框高和方向共用一项精确历史。
 

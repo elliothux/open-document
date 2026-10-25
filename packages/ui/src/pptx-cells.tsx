@@ -233,6 +233,9 @@ export function PptxCells({
   const [fill, setFill] = useState(format.fill || "ffffff");
   const [border, setBorder] = useState(format.borderColor || "000000");
   const [width, setWidth] = useState(String(format.borderWidth || 1));
+  const [fillOpacity, setFillOpacity] = useState(
+    String((format.fillOpacity ?? 1) * 100),
+  );
   const [opacity, setOpacity] = useState(
     String((format.borderOpacity ?? 1) * 100),
   );
@@ -283,6 +286,35 @@ export function PptxCells({
       >
         {t.noCellFill}
       </button>
+      <form
+        onSubmit={(event) => {
+          event.preventDefault();
+          controller.run(() =>
+            editor.editObjects({
+              action: "fillOpacity",
+              opacity: Number(fillOpacity) / 100,
+            }),
+          );
+        }}
+      >
+        <label>
+          {t.fillOpacity}
+          <input
+            type="number"
+            min={0}
+            max={100}
+            step="any"
+            required
+            disabled={format.fill === ""}
+            value={fillOpacity}
+            placeholder={format.fillOpacity === null ? t.mixed : undefined}
+            onChange={(event) => setFillOpacity(event.currentTarget.value)}
+          />
+        </label>
+        <button type="submit" disabled={format.fill === ""}>
+          {t.apply} {t.fillOpacity}
+        </button>
+      </form>
       <fieldset disabled={!!format.borderReason}>
         <legend>{t.cellBorders}</legend>
         <form

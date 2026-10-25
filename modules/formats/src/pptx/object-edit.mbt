@@ -496,6 +496,7 @@ pub fn Session::edit_objects(
     original.object(self.selection.object).table is Some(_) &&
     (
       change is Fill(_) ||
+      change is FillOpacity(_) ||
       change is Stroke(_, _) ||
       change is StrokeDash(_) ||
       change is StrokeOpacity(_) ||

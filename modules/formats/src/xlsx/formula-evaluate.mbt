@@ -248,7 +248,8 @@ fn Expression::evaluate(
       ].contains(name) =>
       date_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if [
-        "ABS", "INT", "MOD", "ROUND", "ROUNDUP", "ROUNDDOWN", "SQRT", "POWER",
+        "ABS", "INT", "MOD", "ROUND", "ROUNDUP", "ROUNDDOWN", "SQRT", "POWER", "PI",
+        "SIN", "COS", "TAN", "RADIANS", "DEGREES",
       ].contains(name) =>
       numeric_function(name, args, sheets, sheet, values, work, depth)
     Function(name, args) if [

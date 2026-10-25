@@ -80,6 +80,12 @@ fn numeric_function(
     }
   }
   match name {
+    "PI" => Number(@math.PI)
+    "SIN" => finite_result(@math.sin(numbers[0]))
+    "COS" => finite_result(@math.cos(numbers[0]))
+    "TAN" => finite_result(@math.tan(numbers[0]))
+    "RADIANS" => finite_result(numbers[0] * @math.PI / 180)
+    "DEGREES" => finite_result(numbers[0] * 180 / @math.PI)
     "ABS" => Number(numbers[0].abs())
     "INT" => Number(numbers[0].floor())
     "SQRT" => finite_result(numbers[0].sqrt())

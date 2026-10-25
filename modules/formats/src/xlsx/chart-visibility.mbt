@@ -5,6 +5,7 @@ fn Session::chart_visible_indices(
   formula : String,
   cached : Int,
   work : FormulaWork,
+  cached_only~ : Bool = false,
 ) -> Array[Int] raise @failure.Failure {
   if broken_chart_reference(formula) {
     return Array::makei(cached, index => index)
@@ -12,6 +13,11 @@ fn Session::chart_visible_indices(
   let (index, range) = self.chart_reference_range(formula, owner, work)
   let sheet = self.sheets[index]
   let count = range.bottom - range.top + range.right - range.left + 1
+  guard !cached_only || count == cached else {
+    @failure.reject(
+      "unsupported-chart", "Uncalculated chart cache does not match its source range",
+    )
+  }
   Array::makei(count, index => index).filter(index => {
     sheet.dimensions.rows.size(
       range.top + (if range.top == range.bottom { 0 } else { index }),
@@ -29,6 +35,7 @@ fn Session::chart_visibility(
   self : Session,
   owner : String,
   chart : @chart.WorksheetChart,
+  cached_only~ : Bool = false,
 ) -> @layout.ChartVisibility raise @failure.Failure {
   let work : FormulaWork = {
     remaining: 1048576,
@@ -42,6 +49,7 @@ fn Session::chart_visibility(
       chart.categories,
       chart.data.categories.length(),
       work,
+      cached_only~,
     ),
     values: chart.values.mapi((index, formula) => {
       self.chart_visible_indices(
@@ -49,6 +57,7 @@ fn Session::chart_visibility(
         formula,
         chart.data.series[index].values.length(),
         work,
+        cached_only~,
       )
     }),
     colors: chart.colors,

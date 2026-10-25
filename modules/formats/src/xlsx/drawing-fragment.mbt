@@ -10,6 +10,11 @@ fn SheetObject::check_fragment_identity(
   self : SheetObject,
 ) -> @xml.Node raise @failure.Failure {
   check_picture_text(self.name, self.description)
+  guard !self.chart_pending else {
+    @failure.reject(
+      "protected-content", "Uncalculated chart caches cannot become clipboard source values",
+    )
+  }
   guard self.chart is Some(_) || self.source.attributes.is_empty() else {
     @failure.reject(
       "protected-content", "Drawing clipboard bindings or macros require support",

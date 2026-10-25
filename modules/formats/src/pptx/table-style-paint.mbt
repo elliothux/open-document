@@ -2,7 +2,7 @@
 fn table_style_fill(
   theme : Theme,
   layers : Array[TableStylePart],
-) -> (String, Double)? raise @failure.Failure {
+) -> (String, Double, (Ref, Ref?)?)? raise @failure.Failure {
   for layer in layers {
     guard layer.source.child("tcStyle") is Some(style) else { continue }
     if style.child("fill") is Some(fill) {
@@ -12,12 +12,15 @@ fn table_style_fill(
         fill.tree.children.get(fill.node.id).unwrap_or([]).length() == 1,
         "Invalid table style fill",
       )
-      return Some(fill_rgba(theme, [fill]))
+      let (color, alpha) = fill_rgba(theme, [fill])
+      return Some(
+        (color, alpha, solid_fill_source([fill]).map(source => (source, None))),
+      )
     }
     if style.child("fillRef") is Some(reference) {
       guard theme_reference(theme, reference, "fill")
         is Some((fill, placeholder)) else {
-        return Some(("", 1))
+        return Some(("", 1, None))
       }
       table_profile(
         ["solidFill", "noFill"].contains(fill.node.name),
@@ -25,9 +28,14 @@ fn table_style_fill(
       )
       return Some(
         if fill.node.name == "noFill" {
-          ("", 1)
+          ("", 1, None)
         } else {
-          color_rgba(theme, fill, placeholder=Some(placeholder))
+          let (color, alpha) = color_rgba(
+            theme,
+            fill,
+            placeholder=Some(placeholder),
+          )
+          (color, alpha, Some((fill, Some(placeholder))))
         },
       )
     }

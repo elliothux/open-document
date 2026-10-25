@@ -136,8 +136,9 @@ fn Expression::dependencies(
           "SUMIFS", "AVERAGEIF", "AVERAGEIFS", "MINIFS", "MAXIFS", "INDEX", "MATCH",
           "VLOOKUP", "HLOOKUP", "XLOOKUP", "ROW", "COLUMN", "ROWS", "COLUMNS", "SUBTOTAL",
           "SQRT", "POWER", "PRODUCT", "MEDIAN", "SUMSQ", "DEVSQ", "VAR", "VAR.S",
-          "VARP", "VAR.P", "STDEV", "STDEV.S", "STDEVP", "STDEV.P", "MODE", "MODE.SNGL",
-          "LARGE", "SMALL", "SUMPRODUCT", "HYPERLINK",
+          "PI", "SIN", "COS", "TAN", "RADIANS", "DEGREES", "VARP", "VAR.P", "STDEV",
+          "STDEV.S", "STDEVP", "STDEV.P", "MODE", "MODE.SNGL", "LARGE", "SMALL",
+          "SUMPRODUCT", "HYPERLINK",
         ].contains(name) {
         guard uncomputed is Some(reason) && isolated_math_function(name) else {
           @failure.reject(
