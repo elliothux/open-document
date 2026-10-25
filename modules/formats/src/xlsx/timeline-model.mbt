@@ -15,6 +15,22 @@ priv struct TimelineState {
 }
 
 ///|
+fn TimelineState::same_filter(
+  self : TimelineState,
+  other : TimelineState,
+) -> Bool raise @failure.Failure {
+  match (self.selection, other.selection) {
+    (Some(left), Some(right)) =>
+      pivot_date_parse(left.start, false) ==
+      pivot_date_parse(right.start, false) &&
+      pivot_date_parse(left.end, false) == pivot_date_parse(right.end, false)
+    (None, None) =>
+      (self.filterType == "unknown") == (other.filterType == "unknown")
+    _ => false
+  }
+}
+
+///|
 priv struct SheetTimeline {
   part : String
   name : String

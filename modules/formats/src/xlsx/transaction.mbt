@@ -54,7 +54,7 @@ fn Session::commit(
     @failure.reject("malformed-xlsx", "Cell style is outside candidate styles")
   }
   context.reflow_dimensions(
-    sheets, calculation, styles, edits, font_context, fit_work, parts,
+    sheets, calculation, styles, edits, font_context, fit_work, parts, workbook,
   )
   let drawings = { ..context, workbook, media, calculation: Some(calculation), }
   drawings.reflow_pictures(sheets, parts, edits, font_context)

@@ -30,9 +30,15 @@ fn check_sheet_copy_markup(
   document : @xml.Document,
   filter~ : @xml.Node? = None,
   sparkline~ : @xml.Node? = None,
+  controls~ : @xml.Node? = None,
 ) -> Unit raise @failure.Failure {
   let tree = Tree::new(document)
   for node in document.nodes() {
+    if controls is Some(extension) &&
+      node.start >= extension.start &&
+      node.end <= extension.end {
+      continue
+    }
     if sparkline is Some(extension) &&
       sparkline_extension(tree, extension) &&
       node.start >= extension.start &&
@@ -205,7 +211,12 @@ fn Session::copied_sheet_parts(
   source : Sheet,
   target : Sheet,
   number : Int,
-) -> (Map[String, @xml.Document], String, Array[(StructuredTable, String)]) raise @failure.Failure {
+) -> (
+  Map[String, @xml.Document],
+  String,
+  Array[(StructuredTable, String)],
+  Map[String, String],
+) raise @failure.Failure {
   let created : Map[String, @xml.Document] = Map([])
   let remapped = Map::from_array([(source.id, target.id)])
   let types = StringBuilder()
@@ -365,5 +376,5 @@ fn Session::copied_sheet_parts(
       "limit-exceeded", "Copied worksheet parts exceed history budget",
     )
   }
-  (created, types.to_string(), tables)
+  (created, types.to_string(), tables, remapped)
 }

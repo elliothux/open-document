@@ -167,39 +167,38 @@ fn Session::apply_timeline_filter(
     }
     TimelineRange::{ start: pair.0, end: pair.1, }
   })
-  let pivots = cache.connections.map(pair => pair.0)
-  let linked = self.affected_timeline_caches(pivots)
-  guard !linked.any(other => {
-    other.part != cache.part &&
-    other.connections.any(pair => {
-      cache.connections.any(target => {
-        target.0.part == pair.0.part && target.1 == pair.1
-      })
-    })
-  }) else {
-    @failure.reject(
-      "protected-content", "Multiple timeline caches target the same pivot date field",
-    )
+  let linked = self.timeline_filter_group(cache)
+  let connections : Array[(PivotLocation, Int)] = []
+  let seen : Set[(String, Int)] = Set([])
+  for other in linked {
+    for pair in other.connections {
+      let key = (pair.0.part, pair.1)
+      if !seen.contains(key) {
+        seen.add(key)
+        connections.push(pair)
+      }
+    }
   }
+  let pivots = connections.map(pair => pair.0)
   let slicers = self.affected_slicer_caches(pivots)
   let candidate = { ..self, parts: self.parts.copy(), }
   let edits : Array[(String, @xml.Edit)] = []
   let created : Map[String, @xml.Document] = Map([])
   let changed : Array[String] = []
   let contexts : Map[String, (PivotSettings, PivotCache)] = Map([])
+  // Update candidate ranges together before grouped calendars read their record filters.
+  for other in linked {
+    candidate.set_timeline_selection(other, selection, edits)
+  }
   let mut work = 0
-  for (pivot, field) in cache.connections {
+  for (pivot, field) in connections {
     let (settings, records) = candidate.cached_pivot_settings(pivot)
     guard !settings.numberGroups.any(group => group.field == field) else {
       @failure.reject(
         "protected-content", "Timeline fields cannot use numeric grouping",
       )
     }
-    let data = candidate.timeline_filtered_cache(
-      pivot,
-      candidate.cached_pivot(pivot, settings, records),
-      replacement=(cache.part, selection),
-    )
+    let data = candidate.cached_pivot(pivot, settings, records)
     let native = Tree::new(candidate.part_xml(pivot.cache))
     let definition = native.all(
         native.one(0, "cacheFields").unwrap().id,
@@ -257,7 +256,6 @@ fn Session::apply_timeline_filter(
     let (settings, data) = contexts[last.part]
     candidate.sync_slicer_state(slicer, settings, data, edits)
   }
-  candidate.set_timeline_selection(cache, selection, edits)
   if !view_changes.is_empty() {
     let document = candidate.part_xml(control.part)
     let tree = Tree::new(document)

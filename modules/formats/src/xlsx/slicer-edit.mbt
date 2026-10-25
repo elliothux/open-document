@@ -83,12 +83,35 @@ pub fn Session::filter_slicer(
     )
   }
   let cache = control.cache
+  let pivots = cache.pivots.copy()
+  let seen = Set::from_array(pivots.map(pivot => pivot.part))
+  for ;; {
+    guard pivots.length() <= 16 else {
+      @failure.reject(
+        "limit-exceeded", "Connected slicer filtering exceeds 16 pivots",
+      )
+    }
+    let previous = pivots.length()
+    for linked in self.affected_slicer_caches(pivots) {
+      if linked.pivot_cache != cache.pivot_cache || linked.field != cache.field {
+        continue
+      }
+      for pivot in linked.pivots {
+        if !seen.contains(pivot.part) {
+          seen.add(pivot.part)
+          pivots.push(pivot)
+        }
+      }
+    }
+    if previous == pivots.length() {
+      break
+    }
+  }
   guard !self
-    .affected_timeline_caches(cache.pivots)
+    .affected_timeline_caches(pivots)
     .any(timeline => {
       timeline.connections.any(pair => {
-        pair.1 == cache.field &&
-        cache.pivots.any(pivot => pivot.part == pair.0.part)
+        pair.1 == cache.field && pivots.any(pivot => pivot.part == pair.0.part)
       })
     }) else {
     @failure.reject(
@@ -111,9 +134,9 @@ pub fn Session::filter_slicer(
   let created : Map[String, @xml.Document] = Map([])
   let changed : Array[String] = []
   let contexts : Map[String, (PivotSettings, PivotCache)] = Map([])
-  let related = self.affected_slicer_caches(cache.pivots)
+  let related = self.affected_slicer_caches(pivots)
   let mut work = 0
-  for pivot in cache.pivots {
+  for pivot in pivots {
     let (settings, records) = candidate.cached_pivot_settings(pivot)
     guard cache.field < settings.validate().right - settings.validate().left + 1 else {
       @failure.reject(
@@ -169,7 +192,7 @@ pub fn Session::filter_slicer(
     }
   }
   for linked in related {
-    let last = cache.pivots
+    let last = pivots
       .filter(pivot => linked.pivots.any(other => other.part == pivot.part))
       .last()
       .unwrap()

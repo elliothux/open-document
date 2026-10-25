@@ -4,13 +4,12 @@ fn Session::timeline_filtered_cache(
   self : Session,
   pivot : PivotLocation,
   data : PivotCache,
-  replacement? : (String, TimelineRange?),
 ) -> PivotCache raise @failure.Failure {
   if !data.groups.values().any(group => group.settings is DateBuckets(_, ..)) {
     return data
   }
   let filters : Array[(Int, Map[Int, Bool])] = []
-  let seen : Map[Int, Bool] = Map([])
+  let seen : Map[Int, TimelineState] = Map([])
   for cache in self.affected_timeline_caches([pivot]) {
     for (target, _) in cache.connections {
       if target.part != pivot.part {
@@ -30,17 +29,21 @@ fn Session::timeline_filtered_cache(
         ["unknown", "dateBetween", "dateEqual"].contains(cache.state.filterType) &&
         Tree::new(self.part_xml(cache.part))
         .timeline_children(0, "timelinePivotFilter")
-        .is_empty() &&
-        !seen.contains(field) else {
+        .is_empty() else {
         @failure.reject(
           "protected-content", "Timeline calendar source filter requires a unique continuous range",
         )
       }
-      seen[field] = true
-      let range = match replacement {
-        Some((part, range)) if part == cache.part => range
-        _ => cache.state.selection
+      if seen.get(field) is Some(previous) {
+        guard previous.same_filter(cache.state) else {
+          @failure.reject(
+            "protected-content", "Overlapping timeline selections disagree",
+          )
+        }
+        continue
       }
+      seen[field] = cache.state
+      let range = cache.state.selection
       if range is Some(range) {
         let start = pivot_date_parse(range.start, self.date1904)
         let end = pivot_date_parse(range.end, self.date1904)
@@ -51,8 +54,7 @@ fn Session::timeline_filtered_cache(
           }
         }
         filters.push((field, selected))
-      } else if cache.state.filterType != "unknown" &&
-        !replacement.map(value => value.0 == cache.part).unwrap_or(false) {
+      } else if cache.state.filterType != "unknown" {
         filters.push((field, Map([])))
       }
     }

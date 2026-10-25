@@ -102,6 +102,19 @@ fn slicer_creation_uid(
   count : Int,
   kind : String,
 ) -> String raise @failure.Failure {
+  let value = slicer_creation_uid_value(uids, count, kind)
+  if value.is_empty() {
+    return ""
+  }
+  " xmlns:xr10=\"http://schemas.microsoft.com/office/spreadsheetml/2016/revision10\" xr10:uid=\"\{value}\""
+}
+
+///|
+fn slicer_creation_uid_value(
+  uids : Map[String, Bool],
+  count : Int,
+  kind : String,
+) -> String raise @failure.Failure {
   if uids.is_empty() {
     return ""
   }
@@ -110,7 +123,7 @@ fn slicer_creation_uid(
       "protected-content", "Mixed slicer UID profile requires support",
     )
   }
-  let value = for index in 1..<=16384 {
+  for index in 1..<=16384 {
     let hex = index.to_string(radix=16).to_upper()
     let value = "{" +
       kind +
@@ -124,7 +137,6 @@ fn slicer_creation_uid(
   } nobreak {
     @failure.reject("limit-exceeded", "Slicer UIDs exhausted")
   }
-  " xmlns:xr10=\"http://schemas.microsoft.com/office/spreadsheetml/2016/revision10\" xr10:uid=\"\{value}\""
 }
 
 ///|

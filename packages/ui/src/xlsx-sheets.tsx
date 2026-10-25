@@ -75,11 +75,7 @@ export function XlsxSheets({
         </button>
         <button
           type="button"
-          disabled={
-            query.sheets.length >= 256 ||
-            !!query.sheetCopyReason ||
-            !!query.sheetEditReason
-          }
+          disabled={query.sheets.length >= 256 || !!query.sheetCopyReason}
           onClick={() =>
             controller.run(() => editor.editSheet({ action: "copy" }))
           }

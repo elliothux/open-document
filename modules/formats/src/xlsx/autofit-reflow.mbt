@@ -119,7 +119,15 @@ fn Session::reflow_dimensions(
   context : (@layout.TextProbe, Map[String, String])?,
   work : FitWork,
   parts : Map[String, @xml.Document],
+  workbook : @xml.Document,
 ) -> Unit raise @failure.Failure {
+  let view = {
+    ..self,
+    sheets,
+    workbook,
+    parts,
+    calculation: Some(calculation),
+  }
   let old : Map[String, (Int, Sheet)] = Map([])
   for index, sheet in self.sheets {
     old[sheet.id] = (index, sheet)
@@ -241,7 +249,7 @@ fn Session::reflow_dimensions(
     }
     let mut current = candidate
     if !columns.is_empty() {
-      let sizes = self.fit_sizes(
+      let sizes = view.fit_sizes(
         current,
         sheets,
         index,
@@ -279,7 +287,7 @@ fn Session::reflow_dimensions(
       }
     }
     if !rows.is_empty() {
-      let sizes = self.fit_sizes(
+      let sizes = view.fit_sizes(
         current,
         sheets,
         index,

@@ -35,7 +35,7 @@ fn Session::refresh_timeline_pivots(
     timelines = linked
     continue
   }
-  let fields : Map[(String, Int), String] = Map([])
+  let fields : Map[(String, Int), TimelineState] = Map([])
   for cache in timelines {
     let tree = Tree::new(self.part_xml(cache.part))
     guard cache.state.singleRange &&
@@ -46,12 +46,15 @@ fn Session::refresh_timeline_pivots(
       )
     }
     for (pivot, field) in cache.connections {
-      guard !fields.contains((pivot.part, field)) else {
+      guard fields
+        .get((pivot.part, field))
+        .map(previous => previous.same_filter(cache.state))
+        .unwrap_or(true) else {
         @failure.reject(
-          "protected-content", "Multiple timeline caches target the same pivot date field",
+          "protected-content", "Overlapping timeline selections disagree",
         )
       }
-      fields[(pivot.part, field)] = cache.part
+      fields[(pivot.part, field)] = cache.state
     }
   }
   let models : Map[String, PivotCache] = Map([])

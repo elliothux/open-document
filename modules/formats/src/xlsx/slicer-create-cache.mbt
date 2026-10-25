@@ -51,12 +51,20 @@ fn Session::slicer_creation_cache(
       matches.push(self.read_slicer_cache(path, self.pivot_locations()))
     }
   }
-  guard matches.length() <= 1 else {
-    @failure.reject(
-      "protected-content", "Ambiguous slicer cache for pivot field",
+  if matches.get(0) is Some(cache) {
+    let selected = Map::from_array(
+      cache.members.map(item => (item.index, item.selected)),
     )
-  }
-  if matches is [cache] {
+    guard matches.all(peer => {
+      peer.pivot_cache == cache.pivot_cache &&
+      peer.field == cache.field &&
+      peer.members.length() == cache.members.length() &&
+      peer.members.all(item => selected.get(item.index) == Some(item.selected))
+    }) else {
+      @failure.reject(
+        "protected-content", "Ambiguous slicer cache for pivot field",
+      )
+    }
     return (cache, self.workbook)
   }
   guard paths.length() < 64 &&

@@ -455,19 +455,23 @@ pub fn Session::query(
       ),
     )
   }
-  let migration_reason = self.sheet_rename_reason(
+  let reference_reason = self.sheet_rename_reason(
     tables=true,
     sparklines=true,
     pictures=true,
+    charts=true,
+    analysis=true,
   )
-  let reference_reason = if migration_reason.is_empty() {
+  let copy_reason = if reference_reason.is_empty() {
     ""
   } else {
     self.sheet_rename_reason(
       tables=true,
+      pivots=true,
       sparklines=true,
       pictures=true,
       charts=true,
+      analysis=true,
     )
   }
   {
@@ -539,40 +543,9 @@ pub fn Session::query(
     "sheetEditReason": self.sheet_edit_reason(),
     "protection": self.protection_query(current),
     "workbookProtection": self.workbook_protection_query(),
-    "sheetRenameReason": if reference_reason.is_empty() {
-      ""
-    } else {
-      self.sheet_rename_reason(
-        tables=true,
-        sparklines=true,
-        pictures=true,
-        charts=true,
-        analysis=true,
-      )
-    },
-    "sheetCopyReason": if reference_reason.is_empty() {
-      ""
-    } else {
-      self.sheet_rename_reason(
-        tables=true,
-        pivots=true,
-        sparklines=true,
-        pictures=true,
-        charts=true,
-      )
-    },
-    "sheetDeleteReason": if reference_reason.is_empty() {
-      ""
-    } else {
-      self.sheet_rename_reason(
-        tables=true,
-        pivots=true,
-        sparklines=true,
-        pictures=true,
-        charts=true,
-        analysis=true,
-      )
-    },
+    "sheetRenameReason": reference_reason,
+    "sheetCopyReason": copy_reason,
+    "sheetDeleteReason": copy_reason,
     "frozen": {
       "rows": current.frozen.rows,
       "columns": current.frozen.columns,

@@ -267,7 +267,9 @@ fn Session::edit_sheet_current(
     Rename(name) => return self.rename_sheet(self.sheet_index(sheet), name)
     _ => ()
   }
-  let reason = self.sheet_edit_reason(analysis=change is Delete)
+  let reason = self.sheet_edit_reason(
+    analysis=change is Delete || change is Copy,
+  )
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let index = self.sheet_index(sheet)
   let context = {
@@ -305,6 +307,7 @@ fn Session::edit_sheet_current(
   let pivot_edits : Array[String] = []
   let mut created : Sheet? = None
   let created_parts : Map[String, @xml.Document] = Map([])
+  let copied_resources : Map[String, String] = Map([])
   let mut deleted : Sheet? = None
   let mut next_sheet = self.next_sheet
   match change {
@@ -427,6 +430,7 @@ fn Session::edit_sheet_current(
           sparklines=true,
           pictures=true,
           charts=true,
+          analysis=true,
         )
         guard reason.is_empty() else {
           @failure.reject("protected-content", reason)
@@ -437,6 +441,12 @@ fn Session::edit_sheet_current(
           sheets[index].document,
           filter=tree.one(tree.root("worksheet").id, "autoFilter"),
           sparkline=tree.one(tree.root("worksheet").id, "extLst"),
+          controls=tree
+            .one(tree.root("worksheet").id, "extLst")
+            .filter(extension => {
+              self.timeline_extension(sheets[index], tree, extension) ||
+              self.slicer_extension(sheets[index], tree, extension)
+            }),
         )
         Some(sheets[index])
       } else {
@@ -457,7 +467,7 @@ fn Session::edit_sheet_current(
         edits.push((part, edit))
       }
       if copy is Some(source) {
-        let (documents, types, tables) = self.copied_sheet_parts(
+        let (documents, types, tables, remapped) = self.copied_sheet_parts(
           source, added, number,
         )
         let document = self.copied_table_references(added.document, tables)
@@ -474,6 +484,9 @@ fn Session::edit_sheet_current(
         for part, document in documents {
           parts[part] = document
           created_parts[part] = document
+        }
+        for original, copied in remapped {
+          copied_resources[original] = copied
         }
         if !types.is_empty() {
           let path = "[Content_Types].xml"
@@ -617,6 +630,27 @@ fn Session::edit_sheet_current(
   let (workbook, edit) = context.workbook.edit_source(changes)
   let mut workbook = workbook
   edits.push((self.main, edit))
+  if change is Copy && created is Some(target) {
+    let (updated, document) = self.copy_sheet_analysis(
+      self.sheets[index],
+      target,
+      (next_sheet - 1).to_string(),
+      copied_resources,
+      parts,
+      created_parts,
+      edits,
+      workbook,
+    )
+    workbook = updated
+    sheets[index + 1] = Sheet::read(
+      target.id,
+      target.name,
+      target.state,
+      document,
+      self.strings,
+      self.styles.length(),
+    )
+  }
   let table_edits = if change is Delete {
     let tables = self.sheet_tables()
     self.sheet_table_references(

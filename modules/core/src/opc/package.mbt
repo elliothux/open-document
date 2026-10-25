@@ -71,9 +71,9 @@ pub fn Package::relationships(
       name == "[Content_Types].xml" ||
       !self.names.contains(name.to_lower())
     }) {
-    self.validate_changes(replacements, removed~)
-    let (_, relationships, _) = self.replacement_metadata(replacements, removed)
-    return ReadOnlyArray::from_array(relationships)
+    return ReadOnlyArray::from_array(
+      self.checked_relationships(replacements, removed),
+    )
   }
   ReadOnlyArray::from_array(self.relationships)
 }
@@ -136,6 +136,15 @@ pub fn Package::validate_changes(
   replacements : Map[String, Bytes],
   removed~ : Array[String] = [],
 ) -> Unit raise @failure.Failure {
+  ignore(self.checked_relationships(replacements, removed))
+}
+
+///|
+fn Package::checked_relationships(
+  self : Package,
+  replacements : Map[String, Bytes],
+  removed : Array[String],
+) -> Array[Relationship] raise @failure.Failure {
   self.check()
   guard !self.signed else {
     @failure.reject(
@@ -171,10 +180,15 @@ pub fn Package::validate_changes(
       name == "[Content_Types].xml" ||
       !self.names.contains(name.to_lower())
     }) {
-    let (_, _, signed) = self.replacement_metadata(replacements, removed)
+    let (_, relationships, signed) = self.replacement_metadata(
+      replacements, removed,
+    )
     guard !signed else {
       @failure.reject("unsupported-package", "Cannot introduce signature parts")
     }
+    relationships
+  } else {
+    self.relationships
   }
 }
 

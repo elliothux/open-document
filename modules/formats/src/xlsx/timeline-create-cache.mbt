@@ -22,12 +22,12 @@ fn Session::timeline_creation_cache(
     .filter(cache => {
       cache.connections.any(pair => pair.0.part == pivot.part && pair.1 == field)
     })
-  guard matches.length() <= 1 else {
-    @failure.reject(
-      "protected-content", "Ambiguous timeline cache for pivot date field",
-    )
-  }
-  if matches is [cache] {
+  if matches.get(0) is Some(cache) {
+    guard matches.all(peer => peer.state.same_filter(cache.state)) else {
+      @failure.reject(
+        "protected-content", "Ambiguous timeline cache for pivot date field",
+      )
+    }
     return (cache, self.workbook)
   }
   guard paths.length() < 64 else {
