@@ -96,6 +96,7 @@ fn Session::check_fragment_table(
   tree : WordTree,
   model : @layout.Table,
   notes~ : Bool = false,
+  review~ : Bool = false,
 ) -> TableGrid raise @failure.Failure {
   guard tree.child(model.id, "tblGrid") is Some(_) else {
     @failure.reject("invalid-table", "Rich table requires a complete grid")
@@ -125,6 +126,7 @@ fn Session::check_fragment_table(
       fields=true,
       math=true,
       notes~,
+      review~,
     )
   }
   for row in model.rows {

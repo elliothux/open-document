@@ -35,10 +35,12 @@ fn Session::format_character_document(
     math=patch.math_font_patch(),
   )
   let include_empty = include_empty ||
-    tree.nodes[range.start.paragraph].parent !=
-    tree.nodes[range.end.paragraph].parent
+    range.paragraphs.any(paragraph => {
+      tree.nodes[paragraph].parent != tree.nodes[range.start.paragraph].parent
+    })
   let source = document.source()
   let changes : Array[@xml.SourceChange] = []
+  let ids = tree.review_format_ids()
   let properties = patch.properties()
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
   let mut units = 0
@@ -62,8 +64,8 @@ fn Session::format_character_document(
     if start == end {
       if include_empty && length == 0 {
         if tree.paragraph_runs(paragraph).get(0) is Some(run) {
-          let markup = formatted_properties(
-            tree, document, run, "rPr", properties,
+          let markup = self.review_format_properties(
+            tree, document, run, "rPr", properties, ids,
           )
           if properties_change(tree, document, run, "rPr", markup)
             is Some(change) {
@@ -74,9 +76,13 @@ fn Session::format_character_document(
         let parent = tree.child(paragraph, "pPr")
         let markup = match parent {
           Some(parent) =>
-            formatted_properties(tree, document, parent, "rPr", properties)
+            self.review_format_properties(
+              tree, document, parent, "rPr", properties, ids,
+            )
           None =>
-            formatted_properties(tree, document, paragraph, "rPr", properties)
+            self.review_format_properties(
+              tree, document, paragraph, "rPr", properties, ids,
+            )
         }
         let change = match parent {
           Some(parent) =>
@@ -116,11 +122,17 @@ fn Session::format_character_document(
       if left == right {
         continue
       }
+      let parent = tree.nodes[tree.nodes[id].parent]
+      if parent.uri == word_uri && parent.name == "del" {
+        continue
+      }
       if tree.nodes[id].uri == math_uri {
         changes.append(self.math_font_changes(tree, document, id, patch))
         continue
       }
-      let markup = formatted_properties(tree, document, id, "rPr", properties)
+      let markup = self.review_format_properties(
+        tree, document, id, "rPr", properties, ids,
+      )
       let original = tree
         .child(id, "rPr")
         .map(child => {

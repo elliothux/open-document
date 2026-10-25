@@ -77,7 +77,7 @@ fn Session::editable_texts(
   notes~ : Bool = false,
 ) -> Array[TextNode] raise @failure.Failure {
   let tree = WordTree::new(self.document())
-  if tree.has_text_revisions(paragraph) {
+  if tree.has_review_markup(paragraph) {
     ignore(tree.review_text_parts(paragraph))
   } else {
     tree.check_editable_paragraph(
@@ -222,7 +222,7 @@ fn Session::check_position_in(
   check_graphemes~ : Bool = true,
 ) -> Unit raise @failure.Failure {
   let tree = WordTree::new(document)
-  if tree.has_text_revisions(position.paragraph) {
+  if tree.has_review_markup(position.paragraph) {
     ignore(tree.review_text_parts(position.paragraph))
   } else if tree.nodes.contains(position.paragraph) &&
     tree.nodes[position.paragraph].name == "p" &&
@@ -305,8 +305,8 @@ fn Session::prepare_range(
 ) -> PreparedEdit? raise @failure.Failure {
   let tree = WordTree::new(self.document())
   if self.tracking_context is Some(_) ||
-    tree.has_text_revisions(selection.anchor.paragraph) ||
-    tree.has_text_revisions(selection.focus.paragraph) {
+    tree.has_review_markup(selection.anchor.paragraph) ||
+    tree.has_review_markup(selection.focus.paragraph) {
     let context = self.tracking_context.unwrap_or(("", ""))
     if input_group is Some(group) {
       guard group > 0 &&

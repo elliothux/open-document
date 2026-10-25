@@ -101,6 +101,9 @@ pub fn Session::apply_format(
     selection.without_visual_hints()
   }
   if !edits.is_empty() {
+    if self.tracking_context is Some(_) {
+      ignore(WordTree::new(candidate).revision_entries())
+    }
     let tree = WordTree::new(document)
     let math_affected = !range.math_roots(tree).is_empty() ||
       (
@@ -140,6 +143,7 @@ pub fn Session::apply_format(
         bytes,
       },
       candidate,
+      tracking_edit=true,
     )
   }
   if collapsed && !character.properties().is_empty() {

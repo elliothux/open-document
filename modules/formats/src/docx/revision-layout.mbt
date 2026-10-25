@@ -57,7 +57,11 @@ pub fn Session::revision_rects(
     }
     offset += span.text.length()
   }
-  let start = start.unwrap_or(insertion)
+  let start = if entry.kind == "characterFormat" && target.name == "pPr" {
+    offset
+  } else {
+    start.unwrap_or(insertion)
+  }
   let end = end.max(start)
   let mut low = -1
   let mut high : Int? = None

@@ -73,7 +73,7 @@ pub fn Session::begin_composition(
   }
   let tree = WordTree::new(self.document())
   if selection.anchor.paragraph == selection.focus.paragraph &&
-    tree.has_text_revisions(selection.anchor.paragraph) {
+    tree.has_review_markup(selection.anchor.paragraph) {
     self.check_position(selection.anchor)
     self.check_position(selection.focus)
   } else if self.table_cell_range(

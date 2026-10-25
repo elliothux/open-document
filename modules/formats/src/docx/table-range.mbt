@@ -38,6 +38,7 @@ fn Session::table_cell_range(
   fields~ : Bool = false,
   math~ : Bool = false,
   notes~ : Bool = false,
+  review~ : Bool = false,
 ) -> TableCellRange? raise @failure.Failure {
   if selection.anchor.paragraph == selection.focus.paragraph {
     return None
@@ -61,6 +62,7 @@ fn Session::table_cell_range(
     fields~,
     math~,
     notes~,
+    review~,
   )
   guard grid.owners.get(last) is Some((end_row, end_column)) else {
     @failure.reject(
@@ -100,7 +102,15 @@ fn Session::table_cell_range(
     .flatten()
     .filter(cell => positions.contains(grid.owners[cell]))
   for cell in cells {
-    tree.check_merge_cell(cell, self.main, pictures~, fields~, math~, notes~)
+    tree.check_merge_cell(
+      cell,
+      self.main,
+      pictures~,
+      fields~,
+      math~,
+      notes~,
+      review~,
+    )
     if math {
       for paragraph in tree.table_children(cell, "p") {
         self.check_native_drawings(tree, paragraph)
@@ -124,6 +134,7 @@ fn Session::table_cell_selection(
     fields=true,
     math=true,
     notes=true,
+    review=true,
   )
   guard selected is Some(selected) else {
     return { "value": Json::null(), "reason": "" }
@@ -215,6 +226,7 @@ fn Session::table_format_range(
   fields~ : Bool = false,
   math~ : Bool = false,
   notes~ : Bool = false,
+  review~ : Bool = false,
 ) -> ParagraphRange? raise @failure.Failure {
   let first_cell = tree.nodes
     .get(selection.anchor.paragraph)
@@ -230,7 +242,7 @@ fn Session::table_format_range(
     last_cell.name == "tc" else {
     return None
   }
-  guard self.table_cell_range(tree, selection, fields~, math~, notes~)
+  guard self.table_cell_range(tree, selection, fields~, math~, notes~, review~)
     is Some(cells) else {
     return None
   }
@@ -284,6 +296,7 @@ pub fn Session::selection_rects(
       fields=true,
       math=true,
       notes=true,
+      review=true,
     ) catch {
       @failure.Failure(code="protected-content", ..) => None
       error => raise error

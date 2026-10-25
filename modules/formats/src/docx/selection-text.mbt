@@ -42,6 +42,7 @@ fn Session::paragraph_range_in(
   check_layout~ : Bool = true,
   check_graphemes~ : Bool = true,
   sectionBoundary~ : Bool = false,
+  review~ : Bool = false,
 ) -> ParagraphRange raise @failure.Failure {
   self.check_position_in(document, selection.anchor, check_graphemes~)
   self.check_position_in(document, selection.focus, check_graphemes~)
@@ -86,7 +87,7 @@ fn Session::paragraph_range_in(
         .iter()
         .find_first(table => table.id == id)
         .unwrap()
-      let grid = self.check_fragment_table(tree, model, notes~)
+      let grid = self.check_fragment_table(tree, model, notes~, review~)
       for r, row in grid.cells {
         for c, cell in row {
           if model.rowSpans[r][c] == 0 {
@@ -107,7 +108,9 @@ fn Session::paragraph_range_in(
         tree
         .descendants(id)
         .filter(child => {
-          tree.nodes[child].uri == word_uri && tree.nodes[child].name == "p"
+          tree.nodes[child].uri == word_uri &&
+          tree.nodes[child].name == "p" &&
+          (!review || !continuations.contains(child))
         }),
       )
       continue
@@ -118,17 +121,21 @@ fn Session::paragraph_range_in(
         "Range crosses unsupported block: " + tree.nodes[id].name,
       )
     }
-    tree.check_editable_paragraph(
-      id,
-      part=self.main,
-      pictures=true,
-      fields~,
-      math~,
-      notes~,
-    )
-    self.check_native_drawings(tree, id)
-    if structural {
-      tree.check_structure_paragraph(id, running=fields, sectionBoundary~)
+    if review {
+      ignore(tree.review_text_parts(id))
+    } else {
+      tree.check_editable_paragraph(
+        id,
+        part=self.main,
+        pictures=true,
+        fields~,
+        math~,
+        notes~,
+      )
+      self.check_native_drawings(tree, id)
+      if structural {
+        tree.check_structure_paragraph(id, running=fields, sectionBoundary~)
+      }
     }
     paragraphs.push(id)
   }

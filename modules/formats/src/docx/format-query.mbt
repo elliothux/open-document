@@ -191,6 +191,11 @@ fn Session::formatting_range(
   math~ : Bool = false,
 ) -> ParagraphRange raise @failure.Failure {
   let tree = WordTree::new(document)
+  if self.tracking_context is Some(_) ||
+    tree.has_review_markup(selection.anchor.paragraph) ||
+    tree.has_review_markup(selection.focus.paragraph) {
+    return self.review_format_range(document, selection)
+  }
   let cells = if whole_cells {
     self.table_format_range(tree, selection, fields~, notes~, math~)
   } else {
@@ -233,11 +238,7 @@ pub fn Session::query_formatting(
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let tree = WordTree::new(self.document())
-  let mut reason = if self.tracking_context is Some(_) {
-    "Recording format revisions requires support; turn recording off to format"
-  } else {
-    ""
-  }
+  let mut reason = ""
   let range = try {
     let range = self.formatting_range(
       self.document(),
@@ -296,12 +297,12 @@ pub fn Session::query_formatting(
   {
     "revision": revision,
     "reason": reason,
-    "fontReason": if font_range is Some(_) && self.tracking_context is None {
+    "fontReason": if font_range is Some(_) {
       ""
     } else {
       reason
     },
-    "paragraphReason": if font_range is Some(_) && self.tracking_context is None {
+    "paragraphReason": if font_range is Some(_) {
       ""
     } else {
       reason
@@ -309,7 +310,7 @@ pub fn Session::query_formatting(
     "inputReason": if reason.is_empty() {
       ""
     } else if selection.anchor.paragraph == selection.focus.paragraph &&
-      tree.has_text_revisions(selection.anchor.paragraph) {
+      tree.has_review_markup(selection.anchor.paragraph) {
       try {
         self.check_document_protection()
         self.check_position(selection.anchor)

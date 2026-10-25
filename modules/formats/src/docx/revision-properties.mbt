@@ -57,9 +57,18 @@ fn WordTree::check_property_revision(
     owner.uri == word_uri {
     owner.id
   } else if properties.name == "rPr" &&
-    owner.name == "r" &&
+    owner.name == "pPr" &&
     owner.uri == word_uri {
     owner.parent
+  } else if properties.name == "rPr" &&
+    owner.name == "r" &&
+    owner.uri == word_uri {
+    let parent = self.nodes[owner.parent]
+    if parent.uri == word_uri && ["ins", "del"].contains(parent.name) {
+      parent.parent
+    } else {
+      owner.parent
+    }
   } else {
     -1
   }
@@ -92,26 +101,55 @@ fn WordTree::check_property_revision(
       "protected-content", "Previous paragraph properties cannot contain paragraph-mark formatting",
     )
   }
-  // Validate the current property set without its revision metadata.
+  let excluded = [id]
+  if properties.name == "pPr" &&
+    self.child(properties.id, "rPr").bind(id => self.child(id, "rPrChange"))
+    is Some(mark) {
+    ignore(self.check_property_revision(mark))
+    excluded.push(mark)
+  }
+  self.check_current_review_properties(properties.id, excluded)
+  paragraph
+}
+
+///|
+fn WordTree::check_current_review_properties(
+  self : WordTree,
+  id : Int,
+  excluded : Array[Int],
+) -> Unit raise @failure.Failure {
+  let properties = self.nodes[id]
+  let fragment = self.source[properties.start:properties.end]
+  guard properties.attributes.is_empty() &&
+    !fragment.contains("<!--") &&
+    !fragment.contains("<?") else {
+    @failure.reject(
+      "protected-content", "Opaque current property source is protected",
+    )
+  }
+  // Validate current properties with independently checked revision metadata removed.
   let opening = StringBuilder()
   opening.write_string("<" + properties.qualified)
   for prefix, uri in self.namespace_bindings(properties.id) {
     let name = if prefix.is_empty() { "xmlns" } else { "xmlns:" + prefix }
     opening.write_string(" \{name}=\"" + property_attribute(uri) + "\"")
   }
-  let source = opening.to_string() +
-    ">" +
-    self.source[properties.opening_end:change.start].to_owned() +
-    self.source[change.end:properties.closing_start].to_owned() +
-    "</" +
-    properties.qualified +
-    ">"
-  let bytes = @utf8.encode(source)
+  opening.write_string(">")
+  let mut cursor = properties.opening_end
+  for id in self.order {
+    if excluded.contains(id) {
+      let change = self.nodes[id]
+      opening.write_string(self.source[cursor:change.start].to_owned())
+      cursor = change.end
+    }
+  }
+  opening.write_string(self.source[cursor:properties.closing_start].to_owned())
+  opening.write_string("</" + properties.qualified + ">")
+  let bytes = @utf8.encode(opening.to_string())
   let current = WordTree::new(
     @xml.Document::parse(bytes, "revision-properties", 128, bytes.length()),
   )
   current.check_structure_properties(0)
-  paragraph
 }
 
 ///|

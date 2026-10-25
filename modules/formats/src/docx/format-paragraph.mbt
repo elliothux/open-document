@@ -203,6 +203,7 @@ fn Session::format_paragraph_document(
     math=true,
   )
   let changes : Array[@xml.SourceChange] = []
+  let ids = tree.review_format_ids()
   for paragraph in range.paragraphs {
     let nested : Map[String, String] = Map([])
     match patch.tabs {
@@ -216,12 +217,13 @@ fn Session::format_paragraph_document(
           style=patch.style,
         )
     }
-    let markup = formatted_properties(
+    let markup = self.review_format_properties(
       tree,
       document,
       paragraph,
       "pPr",
       properties,
+      ids,
       nested~,
     )
     if properties_change(tree, document, paragraph, "pPr", markup)

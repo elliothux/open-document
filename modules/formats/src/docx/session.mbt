@@ -217,7 +217,7 @@ pub fn Session::replace(
     offset += inline_text(nodes[item.id]).length()
   }
   if self.tracking_context is Some(_) ||
-    WordTree::new(document).has_text_revisions(node.paragraph) {
+    WordTree::new(document).has_review_markup(node.paragraph) {
     let start : Position = {
       paragraph: node.paragraph,
       offset,

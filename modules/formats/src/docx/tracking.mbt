@@ -1,11 +1,13 @@
 ///|
-fn WordTree::has_text_revisions(self : WordTree, paragraph : Int) -> Bool {
-  self.children
-  .get(paragraph)
-  .unwrap_or([])
+fn WordTree::has_review_markup(self : WordTree, paragraph : Int) -> Bool {
+  if !self.nodes.contains(paragraph) {
+    return false
+  }
+  self
+  .descendants(paragraph)
   .any(id => {
     self.nodes[id].uri == word_uri &&
-    ["ins", "del"].contains(self.nodes[id].name)
+    ["ins", "del", "rPrChange", "pPrChange"].contains(self.nodes[id].name)
   })
 }
 

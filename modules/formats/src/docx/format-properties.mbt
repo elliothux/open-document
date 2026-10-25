@@ -135,13 +135,13 @@ fn format_property_order(kind : String) -> Array[String] {
   if kind == "rPr" {
     [
       "rStyle", "rFonts", "b", "bCs", "i", "iCs", "strike", "color", "spacing", "sz",
-      "szCs", "highlight", "u", "vertAlign", "rtl", "cs", "lang",
+      "szCs", "highlight", "u", "vertAlign", "rtl", "cs", "lang", "rPrChange",
     ]
   } else {
     [
       "pStyle", "keepNext", "keepLines", "pageBreakBefore", "widowControl", "numPr",
       "tabs", "bidi", "spacing", "ind", "contextualSpacing", "jc", "autoSpaceDE",
-      "autoSpaceDN", "outlineLvl", "rPr", "sectPr",
+      "autoSpaceDN", "outlineLvl", "rPr", "sectPr", "pPrChange",
     ]
   }
 }

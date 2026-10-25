@@ -18,6 +18,18 @@ fn WordTree::review_text_parts(
     @failure.reject("invalid-position", "Unknown revision paragraph")
   }
   self.check_revision_paragraph(paragraph)
+  guard node.attributes.all(a => {
+      a.uri == word_uri &&
+      ["rsidR", "rsidRDefault", "rsidP", "rsidRPr", "rsidDel"].contains(a.name)
+    }) &&
+    self.children[paragraph]
+    .filter(id => self.nodes[id].uri == word_uri && self.nodes[id].name == "pPr")
+    .length() <=
+    1 else {
+    @failure.reject(
+      "protected-content", "Extended or duplicate paragraph properties prevent tracked editing",
+    )
+  }
   let source = self.source[node.start:node.end]
   guard node.text.trim().is_empty() &&
     !source.contains("<!--") &&
@@ -35,7 +47,7 @@ fn WordTree::review_text_parts(
       )
     }
     if node.name == "pPr" {
-      self.check_structure_properties(root)
+      self.check_review_properties(root)
       continue
     }
     let kind = node.name
@@ -76,7 +88,7 @@ fn WordTree::review_text_parts(
           )
         }
         if content.name == "rPr" {
-          self.check_structure_properties(child)
+          self.check_review_properties(child)
         } else if content.name == (if kind == "del" { "delText" } else { "t" }) {
           self.check_field_text(child)
           text.write_string(content.text)
@@ -158,6 +170,7 @@ fn WordTree::review_run_markup(
   text : String,
   deleted : Bool,
   patch? : CharacterFormat,
+  paragraph? : Int,
 ) -> String raise @failure.Failure {
   if text.is_empty() {
     return ""
@@ -170,8 +183,20 @@ fn WordTree::review_run_markup(
       )
     }
   }
-  let properties = if patch is Some(patch) && run is Some(run) {
-    formatted_properties(self, document, run, "rPr", patch.properties())
+  let property_parent = match run {
+    Some(_) => run
+    None => paragraph.bind(id => self.child(id, "pPr"))
+  }
+  let properties = if property_parent is Some(parent) &&
+    (patch is Some(_) || run is None) {
+    formatted_properties(
+      self,
+      document,
+      parent,
+      "rPr",
+      patch.unwrap_or(CharacterFormat::new()).properties(),
+      nested=if run is None { { "rPrChange": "" } } else { Map([]) },
+    )
   } else if patch is Some(patch) {
     "<od:rPr xmlns:od=\"\{word_uri}\">" +
     character_properties_markup(patch) +
@@ -493,6 +518,7 @@ fn Session::prepare_review_text(
     text,
     false,
     patch?=pending,
+    paragraph~,
   )
   let markup = properties +
     prefix.to_string() +
@@ -549,7 +575,9 @@ fn Session::prepare_review_text(
   Some({
     document: candidate,
     typing_text: None,
-    join_group: false,
+    join_group: start == end &&
+    self.selection == Some(selection) &&
+    !text.is_empty(),
     edit: {
       xml: [step],
       parts: Map([]),

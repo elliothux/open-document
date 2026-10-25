@@ -18,14 +18,17 @@ fn Session::table_grid(
   fields~ : Bool = false,
   math~ : Bool = false,
   notes~ : Bool = false,
+  review~ : Bool = false,
 ) -> TableGrid raise @failure.Failure {
-  let range = self.paragraph_range(
+  let range = self.paragraph_range_in(
+    self.document(),
     tree,
     selection,
     structural=true,
     fields~,
     math~,
     notes~,
+    review=review && tree.has_review_markup(selection.anchor.paragraph),
   )
   let cell = tree.nodes[range.start.paragraph].parent
   guard tree.nodes[cell].uri == word_uri && tree.nodes[cell].name == "tc" else {
@@ -113,6 +116,7 @@ fn WordTree::check_merge_cell(
   fields~ : Bool = false,
   math~ : Bool = false,
   notes~ : Bool = false,
+  review~ : Bool = false,
 ) -> Unit raise @failure.Failure {
   guard self.child(cell, "p") is Some(_) else {
     @failure.reject(
@@ -134,8 +138,12 @@ fn WordTree::check_merge_cell(
     )
   }
   for p in self.table_children(cell, "p") {
-    self.check_editable_paragraph(p, part~, pictures~, fields~, math~, notes~)
-    self.check_structure_paragraph(p, running=fields)
+    if review && self.has_review_markup(p) {
+      ignore(self.review_text_parts(p))
+    } else {
+      self.check_editable_paragraph(p, part~, pictures~, fields~, math~, notes~)
+      self.check_structure_paragraph(p, running=fields)
+    }
   }
   guard self.table_children(cell, "tcPr").length() <= 1 else {
     @failure.reject("protected-content", "Duplicate cell properties")

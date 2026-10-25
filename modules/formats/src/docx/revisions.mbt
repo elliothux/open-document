@@ -68,7 +68,7 @@ fn WordTree::check_text_revision(
         )
       }
       if content.name == "rPr" {
-        self.check_structure_properties(child)
+        self.check_review_properties(child)
       } else if content.name ==
         (if node.name == "del" { "delText" } else { "t" }) {
         self.check_field_text(child)
@@ -314,7 +314,6 @@ pub fn Session::resolve_revisions(
   guard entries.length() == ids.length() else {
     @failure.reject("invalid-operation", "Revision entry no longer exists")
   }
-  let changes : Array[@xml.SourceChange] = []
   let affected : Array[Int] = []
   let limit = self.opc.budget.entry_bytes.min(history_byte_limit / 2)
   let mut units = 0
@@ -325,33 +324,55 @@ pub fn Session::resolve_revisions(
     if !affected.contains(paragraph) {
       affected.push(paragraph)
     }
-    let change = if ["characterFormat", "paragraphFormat"].contains(entry.kind) {
-      property_revision_change(document, tree, entry.node, accept)
-    } else {
-      let retain = (entry.kind == "insert") == accept
-      let markup = if retain {
-        revision_retained_text(document, tree, entry.node, limit)
-      } else {
-        ""
-      }
-      let node = tree.nodes[entry.node]
-      {
-        node: node.parent,
-        offset: node.start - tree.nodes[node.parent].start,
-        length: node.end - node.start,
-        xml: markup,
-      }
-    }
-    guard change.xml.length() <= limit - units else {
-      @failure.reject("limit-exceeded", "Revision result exceeds source budget")
-    }
-    units += change.xml.length()
-    changes.push(change)
   }
-  let (candidate, step) = document.edit_source(changes)
-  let bytes = edit_bytes(step)
-  guard bytes <= history_byte_limit else {
-    @failure.reject("limit-exceeded", "Revision history exceeds budget")
+  let mut candidate = document
+  let steps : Array[@xml.Edit] = []
+  let mut bytes = 0
+  // Resolve inner property changes before unwrapping or removing text revisions.
+  for kind in ["characterFormat", "paragraphFormat", "text"] {
+    let tree = WordTree::new(candidate)
+    let changes : Array[@xml.SourceChange] = []
+    for entry in entries {
+      let properties = ["characterFormat", "paragraphFormat"].contains(
+        entry.kind,
+      )
+      if (if properties { entry.kind } else { "text" }) != kind {
+        continue
+      }
+      let change = if properties {
+        property_revision_change(candidate, tree, entry.node, accept)
+      } else {
+        let retain = (entry.kind == "insert") == accept
+        let markup = if retain {
+          revision_retained_text(candidate, tree, entry.node, limit)
+        } else {
+          ""
+        }
+        let node = tree.nodes[entry.node]
+        {
+          node: node.parent,
+          offset: node.start - tree.nodes[node.parent].start,
+          length: node.end - node.start,
+          xml: markup,
+        }
+      }
+      guard change.xml.length() <= limit - units else {
+        @failure.reject(
+          "limit-exceeded", "Revision result exceeds source budget",
+        )
+      }
+      units += change.xml.length()
+      changes.push(change)
+    }
+    if !changes.is_empty() {
+      let (updated, step) = candidate.edit_source(changes)
+      bytes += edit_bytes(step)
+      guard bytes <= history_byte_limit else {
+        @failure.reject("limit-exceeded", "Revision history exceeds budget")
+      }
+      candidate = updated
+      steps.push(step)
+    }
   }
   let next = WordTree::new(candidate)
   let after = if self.selection is Some(selection) &&
@@ -362,7 +383,13 @@ pub fn Session::resolve_revisions(
     affected
     .iter()
     .find_first(id => {
-      next.check_editable_paragraph(id, part=self.main, pictures=true) catch {
+      try {
+        if next.has_review_markup(id) {
+          ignore(next.review_text_parts(id))
+        } else {
+          next.check_editable_paragraph(id, part=self.main, pictures=true)
+        }
+      } catch {
         @failure.Failure(..) => return false
       }
       true
@@ -380,7 +407,7 @@ pub fn Session::resolve_revisions(
   }
   self.commit_edit(
     {
-      xml: [step],
+      xml: steps,
       parts: Map([]),
       created: Map([]),
       created_media: Map([]),
