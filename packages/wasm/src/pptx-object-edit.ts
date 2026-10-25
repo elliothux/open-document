@@ -62,6 +62,8 @@ export const pptxInsertKinds = [
   "upDownArrow",
   "quadArrow",
   "leftRightUpArrow",
+  "leftUpArrow",
+  "bentUpArrow",
 ] as const;
 
 export function checkPptxShapeEdit(change: Record<string, unknown>): void {

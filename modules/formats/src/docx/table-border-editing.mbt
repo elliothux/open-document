@@ -1,9 +1,18 @@
 ///|
+/// Border source properties; a theme slot overrides the input RGB when present.
+pub(all) struct TableBorderStyle {
+  style : String
+  width : Double
+  color : String
+  themeColor : String?
+}
+
+///|
 fn Session::set_table_borders(
   self : Session,
   revision : Int,
   selection : Selection,
-  value : Map[String, @layout.BorderStyle?],
+  value : Map[String, TableBorderStyle?],
   whole_table~ : Bool,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
@@ -28,6 +37,18 @@ fn Session::set_table_borders(
           "invalid-operation", "Borders require RGB and 0 or 0.25..12pt eighth-point widths",
         )
       }
+      if border.themeColor is Some(slot) {
+        guard border.width > 0 &&
+          [
+            "dark1", "light1", "dark2", "light2", "accent1", "accent2", "accent3",
+            "accent4", "accent5", "accent6", "hyperlink", "followedHyperlink", "text1",
+            "text2", "background1", "background2",
+          ].contains(slot) else {
+          @failure.reject(
+            "invalid-operation", "Invalid table border theme slot",
+          )
+        }
+      }
     }
   }
   self.change_table_property(
@@ -50,7 +71,8 @@ fn WordTree::border_markup(
   document : @xml.Document,
   owner : Int,
   name : String,
-  patch : Map[String, @layout.BorderStyle?],
+  patch : Map[String, TableBorderStyle?],
+  themes : Map[String, String],
 ) -> String raise @failure.Failure {
   let properties = self.child(
     owner,
@@ -62,8 +84,19 @@ fn WordTree::border_markup(
   )
   let stored : Map[String, Int] = Map([])
   let current = properties
-    .map(props => self.read_borders(props, name))
+    .map(props => self.read_borders(props, name, Some(themes)))
     .unwrap_or(Map([]))
+  if properties is Some(properties) {
+    if self.child(properties, name) is Some(borders) {
+      for id in self.children[borders] {
+        stored[match self.nodes[id].name {
+          "start" => "left"
+          "end" => "right"
+          side => side
+        }] = id
+      }
+    }
+  }
   if patch
     .iter()
     .all(entry => {
@@ -71,10 +104,19 @@ fn WordTree::border_markup(
       match (current.get(side), value) {
         (None, None) => true
         (Some(a), Some(b)) =>
+          stored
+          .get(side)
+          .bind(id => self.nodes[id].attribute("themeColor", uri=word_uri))
+          .filter(slot => slot != "none")
+          .map(word_theme_color_name) ==
+          b.themeColor &&
           a.width == b.width &&
           (
             a.width == 0 ||
-            (a.style == b.style && a.color == b.color.to_lower())
+            (
+              a.style == b.style &&
+              (b.themeColor is Some(_) || a.color == b.color.to_lower())
+            )
           )
         _ => false
       }
@@ -87,18 +129,6 @@ fn WordTree::border_markup(
       })
       .unwrap_or("")
   }
-  if properties is Some(properties) {
-    ignore(self.read_borders(properties, name))
-    if self.child(properties, name) is Some(borders) {
-      for id in self.children[borders] {
-        stored[match self.nodes[id].name {
-          "start" => "left"
-          "end" => "right"
-          side => side
-        }] = id
-      }
-    }
-  }
   let out = StringBuilder()
   for side in ["top", "left", "bottom", "right", "insideH", "insideV"] {
     if patch.get(side) is Some(value) {
@@ -107,7 +137,44 @@ fn WordTree::border_markup(
           if value.width == 0 {
             "<od:\{side} od:val=\"nil\"/>"
           } else {
-            "<od:\{side} od:val=\"\{value.style}\" od:sz=\"\{(value.width * 8).to_int()}\" od:color=\"\{value.color.to_lower()}\"/>"
+            let attributes = StringBuilder()
+            let original = stored.get(side)
+            let previous = original
+              .bind(id => self.nodes[id].attribute("themeColor", uri=word_uri))
+              .filter(slot => slot != "none")
+              .map(word_theme_color_name)
+            if value.themeColor is Some(slot) && previous == Some(slot) {
+              // Keep imported tint, shade and cache when the binding is unchanged.
+              for field in ["color", "themeColor", "themeTint", "themeShade"] {
+                if original.bind(id => {
+                    self.nodes[id].attribute(field, uri=word_uri)
+                  })
+                  is Some(text) {
+                  attributes.write_string(
+                    " od:\{field}=\"\{property_attribute(text)}\"",
+                  )
+                }
+              }
+            } else {
+              let color = value.themeColor
+                .map(slot => {
+                  themes
+                  .get(theme_color_name(slot))
+                  .unwrap_or_else(() => {
+                    @failure.reject(
+                      "protected-content",
+                      "Missing or unsupported theme color: " + slot,
+                    )
+                  })
+                })
+                .unwrap_or(value.color)
+                .to_lower()
+              attributes.write_string(" od:color=\"\{color}\"")
+              if value.themeColor is Some(slot) {
+                attributes.write_string(" od:themeColor=\"\{slot}\"")
+              }
+            }
+            "<od:\{side} od:val=\"\{value.style}\" od:sz=\"\{(value.width * 8).to_int()}\"\{attributes.to_string()}/>"
           },
         )
       }

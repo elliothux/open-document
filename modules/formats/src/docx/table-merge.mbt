@@ -152,7 +152,7 @@ fn WordTree::check_merge_cell(
     for child in self.children[props] {
       let node = self.nodes[child]
       if node.uri == word_uri && node.name == "tcBorders" {
-        ignore(self.read_borders(props, "tcBorders"))
+        ignore(self.read_borders(props, "tcBorders", None))
         continue
       }
       if node.uri == word_uri && node.name == "tcMar" {

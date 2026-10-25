@@ -415,6 +415,8 @@ fn FormulaParser::atom(
           "IFERROR"
           | "IFNA"
           | "MOD"
+          | "COMBIN"
+          | "COMBINA"
           | "ROUND"
           | "CEILING"
           | "FLOOR"

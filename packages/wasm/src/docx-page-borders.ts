@@ -1,29 +1,31 @@
 import { record } from "./validation.js";
 
+export const wordBorderThemeSlots = [
+  "dark1",
+  "light1",
+  "dark2",
+  "light2",
+  "accent1",
+  "accent2",
+  "accent3",
+  "accent4",
+  "accent5",
+  "accent6",
+  "hyperlink",
+  "followedHyperlink",
+  "text1",
+  "text2",
+  "background1",
+  "background2",
+] as const;
+
 export interface DocxPageBorder {
   side: "top" | "left" | "bottom" | "right";
   style: "single" | "double" | "dashed" | "dotted";
   /** Effective RGB in queries; a fixed color when themeColor is null. */
   color: string;
   /** Native theme slot, or null for a fixed RGB color. */
-  themeColor:
-    | "dark1"
-    | "light1"
-    | "dark2"
-    | "light2"
-    | "accent1"
-    | "accent2"
-    | "accent3"
-    | "accent4"
-    | "accent5"
-    | "accent6"
-    | "hyperlink"
-    | "followedHyperlink"
-    | "text1"
-    | "text2"
-    | "background1"
-    | "background2"
-    | null;
+  themeColor: (typeof wordBorderThemeSlots)[number] | null;
   width: number;
   space: number;
 }
@@ -65,24 +67,7 @@ export function checkPageBorders(value: unknown): void {
       !/^[0-9a-f]{6}$/iu.test(side.color) ||
       (side.themeColor !== null &&
         (typeof side.themeColor !== "string" ||
-          ![
-            "dark1",
-            "light1",
-            "dark2",
-            "light2",
-            "accent1",
-            "accent2",
-            "accent3",
-            "accent4",
-            "accent5",
-            "accent6",
-            "hyperlink",
-            "followedHyperlink",
-            "text1",
-            "text2",
-            "background1",
-            "background2",
-          ].includes(side.themeColor))) ||
+          !wordBorderThemeSlots.some((slot) => slot === side.themeColor))) ||
       typeof side.width !== "number" ||
       !(side.width >= 0.25 && side.width <= 12) ||
       !Number.isInteger(side.width * 8) ||

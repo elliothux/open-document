@@ -1,6 +1,10 @@
 import { record } from "./validation.js";
 import { isDocxSelection } from "./docx-search.js";
 import type { DocxSelection } from "./docx-hit.js";
+import {
+  wordBorderThemeSlots,
+  type DocxPageBorder,
+} from "./docx-page-borders.js";
 
 export interface DocxFragmentImages {
   revision: number;
@@ -92,10 +96,14 @@ export interface DocxBorderStyle {
   width: number;
   color: string;
 }
+export interface DocxBorderEdit extends DocxBorderStyle {
+  /** Native binding for edits; queries return effective RGB values. */
+  themeColor?: DocxPageBorder["themeColor"];
+}
 export type DocxBorderSide =
   "top" | "right" | "bottom" | "left" | "insideH" | "insideV";
 export type DocxBorderPatch = Partial<
-  Record<DocxBorderSide, DocxBorderStyle | null>
+  Record<DocxBorderSide, DocxBorderEdit | null>
 >;
 export type DocxCellBorders = Record<
   "top" | "right" | "bottom" | "left",
@@ -123,7 +131,9 @@ export function checkDocxBorders(value: unknown, wholeTable: boolean): void {
     const edge = record(patch[key]),
       width = edge.width;
     if (
-      Object.keys(edge).length !== 3 ||
+      Object.keys(edge).some(
+        (key) => !["style", "width", "color", "themeColor"].includes(key),
+      ) ||
       ![
         "single",
         "double",
@@ -139,7 +149,11 @@ export function checkDocxBorders(value: unknown, wholeTable: boolean): void {
       width > 12 ||
       !Number.isInteger(width * 8) ||
       typeof edge.color !== "string" ||
-      !/^[0-9a-f]{6}$/i.test(edge.color)
+      !/^[0-9a-f]{6}$/i.test(edge.color) ||
+      (edge.themeColor !== undefined &&
+        edge.themeColor !== null &&
+        (width === 0 ||
+          !wordBorderThemeSlots.some((slot) => slot === edge.themeColor)))
     )
       throw new Error("Invalid border width or color");
   }

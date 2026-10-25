@@ -223,17 +223,32 @@ fn theme_text_color(
 }
 
 ///|
+fn theme_color_reference(node : @xml.Node) -> String? raise @failure.Failure {
+  let name = node.attribute("themeColor", uri=word_uri)
+  if name is Some(name) && name != "none" {
+    guard theme_slots.contains(theme_color_name(name)) ||
+      ["text1", "text2", "background1", "background2"].contains(name) else {
+      @failure.reject("invalid-style", "Invalid theme color")
+    }
+  }
+  for field in ["themeShade", "themeTint"] {
+    if node.attribute(field, uri=word_uri) is Some(value) {
+      guard value.length() == 2 && value.iter().all(c => c.is_ascii_hexdigit()) else {
+        @failure.reject("invalid-style", "Invalid theme color transform")
+      }
+    }
+  }
+  name
+}
+
+///|
 fn theme_node_color(
   node : @xml.Node,
   fallback : String,
   values : Map[String, String],
 ) -> String raise @failure.Failure {
-  let name = node.attribute("themeColor", uri=word_uri)
+  let name = theme_color_reference(node)
   let mut color = if name is Some(name) && name != "none" {
-    guard theme_slots.contains(theme_color_name(name)) ||
-      ["text1", "text2", "background1", "background2"].contains(name) else {
-      @failure.reject("invalid-style", "Invalid theme color")
-    }
     values
     .get(theme_color_name(name))
     .unwrap_or_else(() => {
@@ -252,9 +267,6 @@ fn theme_node_color(
   // ONLYOFFICE RtfColor applies shade then tint to HSL luminance.
   for field in ["themeShade", "themeTint"] {
     if node.attribute(field, uri=word_uri) is Some(value) {
-      guard value.length() == 2 && value.iter().all(c => c.is_ascii_hexdigit()) else {
-        @failure.reject("invalid-style", "Invalid theme color transform")
-      }
       if name is None || name == Some("none") {
         continue
       }

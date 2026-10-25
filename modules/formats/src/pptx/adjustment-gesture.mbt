@@ -18,6 +18,11 @@ fn Object::adjustment_handles(self : Object) -> Array[AdjustmentHandle] {
   let h = g.height
   let side = w.min(h)
   let (_, _, branch_head) = branched_arrow_adjustments(self.adjustments)
+  let (elbow_shaft, elbow_head, _) = elbow_arrow_adjustments(
+    self.preset,
+    self.adjustments,
+  )
+  let elbow_left = w - side * (elbow_head + elbow_shaft / 2)
   let head = (side * self.adjustments.1)
     .max(0)
     .min((if vertical_arrow_shape(self.preset) { h } else { w }) / 2)
@@ -57,6 +62,11 @@ fn Object::adjustment_handles(self : Object) -> Array[AdjustmentHandle] {
         (w / 2, side * branch_head, -side / 2, 0.0)
       ("quadArrow" | "leftRightUpArrow", "adj2") => (w / 2, 0.0, -side, 0.0)
       ("quadArrow" | "leftRightUpArrow", "adj3") => (w, 0.0, 0.0, side)
+      ("leftUpArrow", "adj1") =>
+        (elbow_left, h - side * elbow_head, 0.0, -side / 2)
+      ("leftUpArrow" | "bentUpArrow", "adj2") => (w, 0.0, -2 * side, 0.0)
+      ("leftUpArrow" | "bentUpArrow", "adj3") => (elbow_left, 0.0, 0.0, side)
+      ("bentUpArrow", "adj1") => (0.0, h, 0.0, -side)
       (
         "snip1Rect"
         | "snip2SameRect"

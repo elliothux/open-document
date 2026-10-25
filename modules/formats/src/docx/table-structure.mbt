@@ -23,8 +23,8 @@ pub(all) enum TableEdit {
   TableAlign(String)
   HeaderRows(Int)
   RowSplit(Bool)
-  TableBorders(Map[String, @layout.BorderStyle?])
-  CellBorders(Map[String, @layout.BorderStyle?])
+  TableBorders(Map[String, TableBorderStyle?])
+  CellBorders(Map[String, TableBorderStyle?])
 }
 
 ///|

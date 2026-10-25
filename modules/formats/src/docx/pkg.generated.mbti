@@ -325,6 +325,13 @@ pub fn Session::update_list_level(Self, Int, Int, Int, ListLevelFormat) -> Json 
 pub fn Session::update_style(Self, Int, String, CharacterFormat, ParagraphFormat, name? : String?, based_on? : FormatChange[String], reset? : Bool) -> Json raise @failure.Failure
 pub fn Session::watermark(Self, Int, Int) -> Json raise @failure.Failure
 
+pub(all) struct TableBorderStyle {
+  style : String
+  width : Double
+  color : String
+  themeColor : String?
+}
+
 pub(all) enum TableEdit {
   RowBefore
   RowAfter
@@ -349,8 +356,8 @@ pub(all) enum TableEdit {
   TableAlign(String)
   HeaderRows(Int)
   RowSplit(Bool)
-  TableBorders(Map[String, @layout.BorderStyle?])
-  CellBorders(Map[String, @layout.BorderStyle?])
+  TableBorders(Map[String, TableBorderStyle?])
+  CellBorders(Map[String, TableBorderStyle?])
 }
 
 pub(all) struct TextWatermark {

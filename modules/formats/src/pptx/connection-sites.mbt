@@ -10,6 +10,9 @@ fn Object::local_connection_sites(self : Object) -> Array[(Double, Double)] {
   let w = g.width
   let h = g.height
   let sides = [(w / 2, 0.0), (0.0, h / 2), (w / 2, h), (w, h / 2)]
+  if elbow_arrow_shape(self.preset) {
+    return self.elbow_connection_sites()
+  }
   match self.preset {
     "snip1Rect"
     | "snip2SameRect"

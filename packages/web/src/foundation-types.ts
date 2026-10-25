@@ -94,6 +94,7 @@ export type {
   DocxFragmentImages,
   DocxCellMargins,
   DocxBorderStyle,
+  DocxBorderEdit,
   DocxBorderSide,
   DocxBorderPatch,
   DocxCellBorders,

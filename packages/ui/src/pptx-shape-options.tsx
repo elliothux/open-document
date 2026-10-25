@@ -48,6 +48,8 @@ export function PptxShapeOptions({ t }: { t: Messages }) {
       <option value="upDownArrow">{t.upDownArrow}</option>
       <option value="quadArrow">{t.quadArrow}</option>
       <option value="leftRightUpArrow">{t.leftRightUpArrow}</option>
+      <option value="leftUpArrow">{t.leftUpArrow}</option>
+      <option value="bentUpArrow">{t.bentUpArrow}</option>
     </>
   );
 }

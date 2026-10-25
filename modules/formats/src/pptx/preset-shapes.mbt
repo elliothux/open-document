@@ -4,6 +4,7 @@ fn arrow_shape(preset : String) -> Bool {
     preset,
   ) ||
   double_arrow_shape(preset) ||
+  elbow_arrow_shape(preset) ||
   branched_arrow_shape(preset)
 }
 
@@ -74,17 +75,22 @@ fn read_shape_adjustments(
     "star8" | "star12" | "star16" | "star24" | "star32" => 0.375
     "star10" => 0.42533
     "quadArrow" => 0.225
-    "leftRightUpArrow" => 0.25
+    "leftRightUpArrow" | "leftUpArrow" | "bentUpArrow" => 0.25
     _ => 0.5
   }
   let mut second = match preset {
     "snip2SameRect" | "round2SameRect" | "round2DiagRect" => 0.0
     "snip2DiagRect" | "snipRoundRect" => 0.16667
-    _ => if branched_arrow_shape(preset) { first } else { 0.5 }
+    _ =>
+      if branched_arrow_shape(preset) || elbow_arrow_shape(preset) {
+        first
+      } else {
+        0.5
+      }
   }
   let mut third = if ["bentConnector5", "curvedConnector5"].contains(preset) {
     0.5
-  } else if branched_arrow_shape(preset) {
+  } else if branched_arrow_shape(preset) || elbow_arrow_shape(preset) {
     first
   } else {
     0.0
@@ -135,7 +141,10 @@ fn read_shape_adjustments(
               (arrow_shape(preset) || paired_corner_shape(preset)) &&
               ["adj1", "adj2"].contains(name)
             ) ||
-            (branched_arrow_shape(preset) && name == "adj3") ||
+            (
+              (branched_arrow_shape(preset) || elbow_arrow_shape(preset)) &&
+              name == "adj3"
+            ) ||
             (
               [
                 "bentConnector3", "bentConnector4", "bentConnector5", "curvedConnector3",
@@ -215,6 +224,9 @@ fn arrow_points(
   height : Double,
   adjustments : (Double, Double, Double),
 ) -> Array[(Double, Double)] {
+  if elbow_arrow_shape(preset) {
+    return elbow_arrow_points(preset, width, height, adjustments)
+  }
   if branched_arrow_shape(preset) {
     let (shaft, head_width, head_length) = branched_arrow_adjustments(
       adjustments,
@@ -339,6 +351,8 @@ fn Object::shape_body(self : Object, geometry : Geometry) -> Body {
   // ONLYOFFICE CreateGeometry text rectangles precede DrawingML body insets.
   let (left, top, right, bottom) = if rounded_shape(self.preset) {
     rounded_insets(self.preset, w, h, self.adjustments)
+  } else if elbow_arrow_shape(self.preset) {
+    elbow_arrow_insets(self.preset, w, h, self.adjustments)
   } else if branched_arrow_shape(self.preset) {
     let (shaft, head_width, head_length) = branched_arrow_adjustments(
       self.adjustments,

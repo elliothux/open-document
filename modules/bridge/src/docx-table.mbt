@@ -27,7 +27,7 @@ fn Foundation::docx_table(
         guard fields is { "value": Object(values), .. } else {
           @failure.reject("invalid-operation", "Border patch is required")
         }
-        let patch : Map[String, @layout.BorderStyle?] = Map([])
+        let patch : Map[String, @docx.TableBorderStyle?] = Map([])
         for side, value in values {
           patch[side] = match value {
             Null => None
@@ -36,7 +36,25 @@ fn Foundation::docx_table(
               "width": Number(width, ..),
               "color": String(color),
               ..
-            } => Some({ style, width, color, })
+            } => {
+              guard value is Object(properties) &&
+                properties
+                .keys()
+                .all(key => {
+                  ["style", "width", "color", "themeColor"].contains(key)
+                }) else {
+                @failure.reject("invalid-operation", "Unknown border property")
+              }
+              let themeColor = match properties.get("themeColor") {
+                None | Some(Null) => None
+                Some(String(slot)) => Some(slot)
+                _ =>
+                  @failure.reject(
+                    "invalid-operation", "Invalid border theme slot",
+                  )
+              }
+              Some({ style, width, color, themeColor, })
+            }
             _ => @failure.reject("invalid-operation", "Invalid border patch")
           }
         }

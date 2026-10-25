@@ -54,6 +54,36 @@ fn rounded_decimal(value : Double, places : Double, mode : String) -> Value {
 }
 
 ///|
+fn factorial_product(
+  number : Double,
+  step : Int,
+  work : FormulaWork,
+) -> Double raise @failure.Failure {
+  let mut result = 1.0
+  for factor = number.floor().to_int(); factor > 0; factor = factor - step {
+    work.spend()
+    result *= factor.to_double()
+  }
+  result
+}
+
+///|
+fn combination_integer(number : Double) -> Double raise @failure.Failure {
+  // JavaScript parseInt reads the mantissa when the number uses exponential notation.
+  if number >= 1.0e21 || (number > 0 && number < 1.0e-6) {
+    try
+      @string.parse_double(number.to_string().split("e").head().unwrap())
+    catch {
+      _ => @failure.reject("invalid-number", "Invalid combination argument")
+    } noraise {
+      value => value.trunc()
+    }
+  } else {
+    number.trunc()
+  }
+}
+
+///|
 fn numeric_function(
   name : String,
   args : Array[Expression],
@@ -65,7 +95,7 @@ fn numeric_function(
 ) -> Value raise @failure.Failure {
   let numbers : Array[Double] = []
   for arg in args {
-    let value = if name == "FACT" || name == "FACTDOUBLE" {
+    let value = if ["FACT", "FACTDOUBLE", "COMBIN", "COMBINA"].contains(name) {
       arg.scalar_argument(sheets, sheet, values, work, depth + 1)
     } else {
       arg.evaluate(sheets, sheet, values, work, depth + 1)
@@ -91,12 +121,38 @@ fn numeric_function(
         return Error("#NUM!")
       }
       let step = if name == "FACT" { 1 } else { 2 }
-      let mut result = 1.0
-      for factor = number.floor().to_int(); factor > 0; factor = factor - step {
-        work.spend()
-        result *= factor.to_double()
+      finite_result(factorial_product(number, step, work))
+    }
+    "COMBIN" | "COMBINA" => {
+      let first = numbers[0]
+      let second = numbers[1]
+      if first < 0 || second < 0 || first < second {
+        return Error("#NUM!")
       }
-      finite_result(result)
+      let (total, chosen) = if name == "COMBINA" {
+        let chosen = combination_integer(second)
+        (combination_integer(first) + chosen - 1, chosen)
+      } else {
+        (first, second)
+      }
+      if total < 0 || chosen > total {
+        return Error("#NUM!")
+      }
+      if total.floor() > 170 {
+        return if name == "COMBIN" && first == second {
+          Number(1)
+        } else {
+          Error("#NUM!")
+        }
+      }
+      // Keep native factorial division, including independently flooring total - chosen.
+      finite_result(
+        factorial_product(total, 1, work) /
+        (
+          factorial_product(chosen, 1, work) *
+          factorial_product(total - chosen, 1, work)
+        ),
+      )
     }
     "PI" => Number(@math.PI)
     "SIN" => finite_result(@math.sin(numbers[0]))

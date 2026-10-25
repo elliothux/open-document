@@ -3,12 +3,14 @@ import type { DocumentEditor } from "@open-document/web/editor";
 import type {
   DocxBorderSide,
   DocxBorderStyle,
+  DocxBorderEdit,
   DocxBorderPatch,
   DocxCellBorders,
   DocxTableBorders,
 } from "@open-document/web/foundation";
 import type { EditorController, UiSnapshot } from "./controller.js";
 import { messages } from "./messages.js";
+import { borderThemeOptions } from "./docx-border-themes.js";
 
 export function DocxBorders({
   controller,
@@ -26,6 +28,7 @@ export function DocxBorders({
   disabled: boolean;
 }) {
   const t = messages(state.locale);
+  const themes = borderThemeOptions(t);
   const styles = [
     ["single", t.pageBorderSingle],
     ["double", t.pageBorderDouble],
@@ -41,7 +44,8 @@ export function DocxBorders({
     [side, setSide] = useState<DocxBorderSide | "all">("all"),
     [style, setStyle] = useState<DocxBorderStyle["style"]>("single"),
     [width, setWidth] = useState("0.5"),
-    [color, setColor] = useState("#000000");
+    [color, setColor] = useState("#000000"),
+    [themeColor, setThemeColor] = useState<DocxBorderEdit["themeColor"]>(null);
   const values: DocxBorderPatch =
     scope === "tableBorders" && table ? table : cell;
   const sides: DocxBorderSide[] = [
@@ -63,6 +67,7 @@ export function DocxBorders({
               style: kind === "clear" ? "single" : style,
               width: kind === "clear" ? 0 : Number(width),
               color: color.slice(1),
+              ...(kind === "set" && themeColor ? { themeColor } : {}),
             };
     controller.run(() => editor.editTable({ action: scope, value }));
   };
@@ -164,11 +169,33 @@ export function DocxBorders({
           />
         </label>
         <label>
+          {t.themeColorSlot}
+          <select
+            value={themeColor ?? ""}
+            onChange={(event) =>
+              setThemeColor(
+                themes.find(
+                  ([slot]) => (slot ?? "") === event.currentTarget.value,
+                )?.[0] ?? null,
+              )
+            }
+          >
+            {themes.map(([slot, label]) => (
+              <option key={slot ?? ""} value={slot ?? ""}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
           {t.textColor}
           <input
             type="color"
             value={color}
-            onChange={(event) => setColor(event.currentTarget.value)}
+            onChange={(event) => {
+              setColor(event.currentTarget.value);
+              setThemeColor(null);
+            }}
           />
         </label>
         <button

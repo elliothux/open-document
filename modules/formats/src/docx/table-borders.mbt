@@ -8,6 +8,7 @@ fn WordTree::read_borders(
   self : WordTree,
   properties : Int,
   name : String,
+  themes : Map[String, String]?,
 ) -> Map[String, @layout.BorderStyle] raise @failure.Failure {
   let result : Map[String, @layout.BorderStyle] = Map([])
   let sources = self.table_children(properties, name)
@@ -33,7 +34,10 @@ fn WordTree::read_borders(
         node.text.trim().is_empty() &&
         node.attributes.all(a => {
           a.uri == word_uri &&
-          ["val", "sz", "color", "space", "shadow", "frame"].contains(a.name)
+          [
+            "val", "sz", "color", "themeColor", "themeShade", "themeTint", "space",
+            "shadow", "frame",
+          ].contains(a.name)
         }) &&
         node.attribute("space", uri=word_uri).unwrap_or("0") == "0" &&
         ["0", "false", "off"].contains(
@@ -58,10 +62,16 @@ fn WordTree::read_borders(
       } else {
         0.0
       }
-      let color = node
-        .attribute("color", uri=word_uri)
-        .unwrap_or("auto")
-        .to_lower()
+      let fallback = node.attribute("color", uri=word_uri).unwrap_or("auto")
+      // Structural guards validate the source without needing a document theme.
+      let color = match themes {
+        Some(values) => theme_node_color(node, fallback, values)
+        None => {
+          ignore(theme_color_reference(node))
+          fallback
+        }
+      }
+      let color = color.to_lower()
       let color = if color == "auto" { "000000" } else { color }
       guard width >= (if !["nil", "none"].contains(kind) { 0.25 } else { 0.0 }) &&
         width <= 12 &&
@@ -107,6 +117,7 @@ fn border_defaults(
             } else {
               "tblBorders"
             },
+            Some(styles.themes),
           ) {
           result[key] = value
         }
@@ -114,7 +125,8 @@ fn border_defaults(
     }
   }
   if !cells && tree.child(table, "tblPr") is Some(props) {
-    for key, value in tree.read_borders(props, "tblBorders") {
+    for
+      key, value in tree.read_borders(props, "tblBorders", Some(styles.themes)) {
       result[key] = value
     }
   }
@@ -200,7 +212,12 @@ fn table_border_grid(
       }
       let values = cell_defaults.copy()
       if tree.child(cell, "tcPr") is Some(props) {
-        for key, value in tree.read_borders(props, "tcBorders") {
+        for
+          key, value in tree.read_borders(
+            props,
+            "tcBorders",
+            Some(styles.themes),
+          ) {
           values[key] = value
         }
       }

@@ -46,6 +46,7 @@ fn object_hit(
     margin
   }
   if !polygon_shape(object.preset) &&
+    !elbow_arrow_shape(object.preset) &&
     (x < -bounds || y < -bounds || x > width + bounds || y > height + bounds) {
     return false
   }

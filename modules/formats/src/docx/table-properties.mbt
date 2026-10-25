@@ -39,7 +39,7 @@ fn Session::change_table_property(
   whole_table~ : Bool = false,
   whole_row~ : Bool = false,
   header_rows~ : Int? = None,
-  border_patch~ : Map[String, @layout.BorderStyle?]? = None,
+  border_patch~ : Map[String, TableBorderStyle?]? = None,
 ) -> Json raise @failure.Failure {
   self.check_revision(revision)
   let document = self.document()
@@ -97,6 +97,25 @@ fn Session::change_table_property(
       grid.cells.flatten().filter(cell => grid.owners[cell] == owner)
     })
   }
+  let parts = self.parts.copy()
+  let part_edits : Map[String, Array[@xml.Edit]] = Map([])
+  let created : Map[String, @xml.Document] = Map([])
+  if border_patch is Some(patch) &&
+    patch.values().any(edge => edge is Some({ themeColor: Some(_), .. })) {
+    let reason = self.theme_edit_reason()
+    guard reason.is_empty() else {
+      @failure.reject("protected-content", reason)
+    }
+    if self.theme_part() is None {
+      ignore(self.new_word_part("theme", parts, part_edits, created))
+    }
+  }
+  let view = { ..self, parts, }
+  let border_themes = if border_patch is Some(_) {
+    view.theme_values()
+  } else {
+    Map([])
+  }
   for index, target in targets {
     if !whole_table && !whole_row && header_rows is None {
       tree.check_merge_cell(target, self.main, notes=true)
@@ -122,7 +141,7 @@ fn Session::change_table_property(
           attributes
         },
         markup=if border_patch is Some(value) {
-          Some(tree.border_markup(document, target, name, value))
+          Some(tree.border_markup(document, target, name, value, border_themes))
         } else {
           markup
         },
@@ -135,7 +154,7 @@ fn Session::change_table_property(
     return self.edit_state()
   }
   let (candidate, edit) = document.edit_source(changes.items)
-  let flow = self.flow_from(candidate)
+  let flow = view.flow_from(candidate)
   let updated = flow.tables.iter().find_first(t => t.id == grid.table).unwrap()
   if header_rows is Some(count) && updated.headerRows != count {
     @failure.reject(
@@ -154,7 +173,8 @@ fn Session::change_table_property(
     )
   }
   let affected = grid.model.rows.flatten().flatten().map(p => p.id)
-  let bytes = edit.payload_bytes()
+  let bytes = edit.payload_bytes() +
+    xml_part_edit_bytes(part_edits, created).to_int64()
   guard bytes <= history_byte_limit.to_int64() else {
     @failure.reject("limit-exceeded", "Table property history exceeds budget")
   }
@@ -166,8 +186,8 @@ fn Session::change_table_property(
   self.commit_edit(
     {
       xml: [edit],
-      parts: Map([]),
-      created: Map([]),
+      parts: part_edits,
+      created,
       created_media: Map([]),
       before: self.selection,
       after: Some(selection.without_visual_hints()),
@@ -175,6 +195,7 @@ fn Session::change_table_property(
       bytes: bytes.to_int(),
     },
     candidate,
+    parts~,
   )
   self.typing_format = pending
   self.edit_result(affected)

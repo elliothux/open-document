@@ -3,6 +3,26 @@ fn Object::adjustment_values(self : Object) -> Array[(String, Double, Double)] {
   if self.kind != "shape" {
     return []
   }
+  if elbow_arrow_shape(self.preset) {
+    let (shaft, width, length) = elbow_arrow_adjustments(
+      self.preset,
+      self.adjustments,
+    )
+    let bent = self.preset == "bentUpArrow"
+    return [
+      ("adj1", shaft, if bent { 0.5 } else { 2 * width }),
+      ("adj2", width, 0.5),
+      (
+        "adj3",
+        length,
+        if bent {
+          0.5
+        } else {
+          ((1.0 - 2 * width) * 100000).round() / 100000
+        },
+      ),
+    ]
+  }
   if branched_arrow_shape(self.preset) {
     let (shaft, width, length) = branched_arrow_adjustments(self.adjustments)
     return [
