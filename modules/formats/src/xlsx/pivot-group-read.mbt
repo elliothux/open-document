@@ -6,6 +6,11 @@ fn pivot_date_field_name(unit : String, names : Array[String]) -> String {
     "months" => "Months"
     _ => "Days"
   }
+  pivot_field_name(base, names)
+}
+
+///|
+fn pivot_field_name(base : String, names : Array[String]) -> String {
   let mut name = base
   let mut suffix = 2
   while names.any(item => item.to_lower() == name.to_lower()) {

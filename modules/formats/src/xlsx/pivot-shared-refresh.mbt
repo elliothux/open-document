@@ -123,7 +123,14 @@ fn Session::refresh_shared_pivot(
     settings,
     peers=contexts[1:].map(context => context.0),
   )
-  guard replacement is Some(_) || fields == data.headers else {
+  guard replacement is Some(_) ||
+    fields == data.headers ||
+    self.pivot_headers_match(
+      pivots,
+      contexts.map(context => context.0),
+      fields,
+      data.headers,
+    ) else {
     @failure.reject(
       "protected-content", "Pivot source headers changed; field remapping is required",
     )
@@ -158,6 +165,7 @@ fn Session::refresh_shared_pivot(
     }
   }
   let records = contexts[0].1
+  self.check_pivot_record_owner(target.cache, records)
   let relation = self
     .relationships()
     .iter()

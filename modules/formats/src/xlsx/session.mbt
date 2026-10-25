@@ -540,7 +540,7 @@ pub fn Session::query(
     "historyBytes": self.history_bytes,
     "readOnlyReason": self.read_only,
     "note": self.note_query(current, range.unwrap()),
-    "sheetEditReason": self.sheet_edit_reason(),
+    "sheetEditReason": self.sheet_edit_reason(analysis=true),
     "protection": self.protection_query(current),
     "workbookProtection": self.workbook_protection_query(),
     "sheetRenameReason": reference_reason,

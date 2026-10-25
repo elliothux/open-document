@@ -497,7 +497,11 @@ fn Session::write_pivot(
       self.workbook,
       plan.calculation,
       plan.edits,
-      (sheet, range),
+      if self.sheets[self.sheet_index(sheet)].state == "visible" {
+        (sheet, range)
+      } else {
+        self.selection
+      },
       parts=plan.parts,
       created_parts=plan.created_parts,
       pivot_edits=[part],
@@ -518,10 +522,8 @@ fn Session::prepare_pivot(
   self.check_revision(revision)
   let index = self.sheet_index(sheet)
   let current = self.sheets[index]
-  guard !current.locked && current.state == "visible" else {
-    @failure.reject(
-      "protected-content", "Pivot destination is protected or hidden",
-    )
+  guard !current.locked else {
+    @failure.reject("protected-content", "Pivot destination is protected")
   }
   let pivots = self.pivot_locations()
   guard pivots
@@ -582,7 +584,14 @@ fn Session::prepare_pivot(
       .map(node => decode_text(node.attribute("name").unwrap_or("")))
     })
     .unwrap_or([])
-  guard replacement is Some(_) || original_fields == cache.headers else {
+  guard replacement is Some(_) ||
+    original_fields == cache.headers ||
+    self.pivot_headers_match(
+      [pivot],
+      [settings],
+      original_fields,
+      cache.headers,
+    ) else {
     @failure.reject(
       "protected-content", "Pivot source headers changed; field remapping is required",
     )
@@ -644,6 +653,7 @@ fn Session::prepare_pivot(
     ),
   ]
   if cached is None {
+    self.check_pivot_record_owner(pivot.cache, records)
     sources.append([
       (
         pivot.cache,
@@ -725,4 +735,22 @@ fn Session::prepare_pivot(
     }
   }
   Some((plan, range))
+}
+
+///|
+fn Session::check_pivot_record_owner(
+  self : Session,
+  cache : String,
+  records : String,
+) -> Unit raise @failure.Failure {
+  let links = self.relationships()
+  guard links.filter(link => !link.external && link.target == records)
+    is [owner] &&
+    owner.owner == cache &&
+    owner.kind == relationship_uri + "pivotCacheRecords" &&
+    !links.any(link => link.owner == records) else {
+    @failure.reject(
+      "protected-content", "Refreshing records shared by independent cache definitions requires coordinated cache support",
+    )
+  }
 }

@@ -8,6 +8,7 @@ fn Session::axis_analysis(
 ) -> Map[String, Range] raise @failure.Failure {
   let resources = self.analysis_parts()
   let moved : Map[String, Range] = Map([])
+  let projected_records : Map[String, Array[Int]] = Map([])
   for pivot in self.pivot_locations() {
     if pivot.sheet != sheet.id {
       continue
@@ -67,10 +68,11 @@ fn Session::axis_analysis(
         "protected-content", "Axis editing must retain a pivot source header and data range",
       )
     }
-    guard next.right - next.left == original.right - original.left else {
-      @failure.reject(
-        "protected-content", "Pivot source field changes require cache-field maintenance",
+    if next.right - next.left != original.right - original.left {
+      self.project_analysis_columns(
+        path, original, next, change, parts, edits, projected_records, resources,
       )
+      continue
     }
     if original == next {
       continue

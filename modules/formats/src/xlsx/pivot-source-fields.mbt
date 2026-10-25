@@ -108,3 +108,43 @@ fn PivotSettings::remap_source_fields(
     }),
   }
 }
+
+///|
+fn PivotSettings::used_source_fields(self : PivotSettings) -> Array[Int] {
+  self.rows +
+  self.columns +
+  self.subtotals +
+  self.filters.map(filter => filter.field) +
+  self.numberGroups.map(group => group.field) +
+  self.dateGroups.map(group => group.field) +
+  self.values.map(value => value.field) +
+  self.values.filter_map(value => value.baseField)
+}
+
+///|
+fn Session::pivot_headers_match(
+  self : Session,
+  pivots : Array[PivotLocation],
+  settings : Array[PivotSettings],
+  previous : Array[String],
+  headers : Array[String],
+) -> Bool raise @failure.Failure {
+  let range = settings[0].validate()
+  let width = range.right - range.left + 1
+  if previous.length() < width || headers.length() < width {
+    return false
+  }
+  let fields : Set[Int] = Set([])
+  for item in settings {
+    for field in item.used_source_fields() {
+      fields.add(field)
+    }
+  }
+  for cache in self.affected_slicer_caches(pivots) {
+    fields.add(pivot_source_field(previous, cache.source))
+  }
+  for cache in self.affected_timeline_caches(pivots) {
+    fields.add(pivot_source_field(previous, cache.source))
+  }
+  fields.iter().all(field => field < width && previous[field] == headers[field])
+}

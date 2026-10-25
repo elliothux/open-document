@@ -267,9 +267,7 @@ fn Session::edit_sheet_current(
     Rename(name) => return self.rename_sheet(self.sheet_index(sheet), name)
     _ => ()
   }
-  let reason = self.sheet_edit_reason(
-    analysis=change is Delete || change is Copy,
-  )
+  let reason = self.sheet_edit_reason(analysis=true)
   guard reason.is_empty() else { @failure.reject("protected-content", reason) }
   let index = self.sheet_index(sheet)
   let context = {

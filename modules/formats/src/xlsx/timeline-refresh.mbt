@@ -116,6 +116,7 @@ fn Session::refresh_timeline_pivots(
     let pivot = pivots.iter().find_first(pivot => pivot.cache == part).unwrap()
     let settings = contexts[pivot.part]
     let record = records[part]
+    self.check_pivot_record_owner(part, record)
     let relation = self
       .relationships()
       .iter()
@@ -230,7 +231,14 @@ fn Session::timeline_refresh_group(
     replacement.map(pair => pair.1).unwrap_or(contexts[0].0),
     unique=true,
   )
-  if replacement is None && headers != previous_headers {
+  if replacement is None &&
+    headers != previous_headers &&
+    !self.pivot_headers_match(
+      pivots,
+      contexts.map(context => context.0),
+      previous_headers,
+      headers,
+    ) {
     @failure.reject(
       "protected-content", "Pivot source headers changed; use the source editing controls",
     )
