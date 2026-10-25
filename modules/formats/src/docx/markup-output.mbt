@@ -302,7 +302,18 @@ fn Session::markup_paragraph(
         let field_link = body_field_link(span.field).filter(target => {
           output.bookmarks.contains(target[1:].to_owned().to_lower())
         })
-        if field_link is Some(target) {
+        if span.field.has_prefix("NOTE:") {
+          let target = "od-" +
+            span.field[5:].to_owned().replace_all(old=":", new="-")
+          let name = if span.field.has_prefix("NOTE:footnote:") {
+            "Footnote"
+          } else {
+            "Endnote"
+          }
+          output.add(
+            "<a id=\"\{target}-ref\" href=\"#\{target}\" aria-label=\"\{property_attribute(name + " " + span.text)}\">\{content}</a>",
+          )
+        } else if field_link is Some(target) {
           output.add(
             "<a href=\"\{property_attribute(output.link_target(target))}\">\{content}</a>",
           )
@@ -464,10 +475,11 @@ pub fn Session::export_markup(
   let tree = WordTree::new(self.document())
   let flow = self.flow()
   guard flow.diagnostics.is_empty() &&
-    flow.sectionBreaks.is_empty() &&
+    flow.sectionBreaks.all(section => {
+      section.headers.is_empty() && section.footers.is_empty()
+    }) &&
     flow.headers.is_empty() &&
     flow.footers.is_empty() &&
-    flow.notes.is_empty() &&
     !tree.order.any(id => {
       tree.is_comment_marker(id) || revision_element(tree.nodes[id].name)
     }) else {
@@ -480,6 +492,10 @@ pub fn Session::export_markup(
     .bookmarks()
     .filter(bookmark => bookmark.reason.is_empty())
   let (charts, outlines) = self.markup_charts(tree, flow, layout)
+  let fields = self.markup_fields(tree, layout)
+  for node, label in self.markup_note_labels(flow, layout) {
+    fields[node] = label
+  }
   let output : MarkupOutput = {
     builder: StringBuilder(),
     limit: output_bytes.min(self.opc.budget.output_bytes),
@@ -495,7 +511,7 @@ pub fn Session::export_markup(
     bookmark_names: Map::from_array(
       bookmarks.map(bookmark => (bookmark.name.to_lower(), bookmark.name)),
     ),
-    fields: self.markup_fields(tree, layout),
+    fields,
     charts,
     outlines,
     chart_index: 0,
@@ -534,6 +550,7 @@ pub fn Session::export_markup(
     flow.paragraphs[start:].to_owned(),
     output,
   )
+  self.markup_notes(flow, styles, output)
   if !output.markdown {
     output.add("</body></html>\n")
   }

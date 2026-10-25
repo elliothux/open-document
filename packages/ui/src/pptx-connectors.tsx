@@ -21,9 +21,9 @@ export function PptxConnectors({
     query = editor.query;
   const selected = query.objects.find((o) => o.id === query.selection.object);
   const connector = selected?.connector;
-  const [kind, setKind] = useState<"straight" | "elbow" | "curved">(
-    !insert && connector?.kind ? connector.kind : "straight",
-  );
+  const [kind, setKind] = useState<
+    "straight" | "rightAngle" | "elbow" | "curved"
+  >(!insert && connector?.kind ? connector.kind : "straight");
   const [points, setPoints] = useState<PptxConnectorEnd[]>(
     !insert && connector?.start && connector.end
       ? [connector.start, connector.end]
@@ -66,13 +66,16 @@ export function PptxConnectors({
               setKind(
                 event.currentTarget.value === "curved"
                   ? "curved"
-                  : event.currentTarget.value === "elbow"
-                    ? "elbow"
-                    : "straight",
+                  : event.currentTarget.value === "rightAngle"
+                    ? "rightAngle"
+                    : event.currentTarget.value === "elbow"
+                      ? "elbow"
+                      : "straight",
               )
             }
           >
             <option value="straight">{t.connectorStraight}</option>
+            <option value="rightAngle">{t.connectorRightAngle}</option>
             <option value="elbow">{t.connectorElbow}</option>
             <option value="curved">{t.connectorCurved}</option>
           </select>

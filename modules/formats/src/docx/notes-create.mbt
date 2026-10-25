@@ -134,6 +134,7 @@ fn Session::check_note_paragraph(
       structural=true,
       fields=true,
       math=true,
+      sectionBoundary=true,
     ),
   )
 }

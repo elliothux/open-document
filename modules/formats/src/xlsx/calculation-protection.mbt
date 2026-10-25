@@ -2,8 +2,7 @@
 fn isolated_math_function(name : String) -> Bool {
   // These built-ins read only explicit arguments; dynamic and user functions stay global.
   [
-    "ACOS", "ACOSH", "ASIN", "ASINH", "ATAN", "ATANH", "COSH", "SINH", "TANH", "EXP",
-    "LN", "LOG", "LOG10",
+    "ACOSH", "ASINH", "ATANH", "COSH", "SINH", "TANH", "EXP", "LN", "LOG", "LOG10",
   ].contains(name)
 }
 

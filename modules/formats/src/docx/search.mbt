@@ -252,7 +252,11 @@ fn Session::find_matches(
                 notes=true,
               )
               self.check_native_drawings(tree, id)
-              tree.check_structure_paragraph(id, running=true)
+              tree.check_structure_paragraph(
+                id,
+                running=true,
+                sectionBoundary=true,
+              )
               let styles = match styles {
                 Ok(styles) => styles
                 Err(error) => raise error

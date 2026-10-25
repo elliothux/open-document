@@ -24,7 +24,9 @@ fn vertical_arrow_shape(preset : String) -> Bool {
 
 ///|
 fn line_shape(preset : String) -> Bool {
-  ["line", "bentConnector3", "curvedConnector3"].contains(preset)
+  ["line", "bentConnector2", "bentConnector3", "curvedConnector3"].contains(
+    preset,
+  )
 }
 
 ///|
@@ -55,6 +57,16 @@ fn read_shape_adjustments(
   }
   let mut second = if branched_arrow_shape(preset) { first } else { 0.5 }
   let mut third = if branched_arrow_shape(preset) { first } else { 0.0 }
+  if preset == "bentConnector2" &&
+    geometry.bind(source => source.child("avLst")) is Some(list) {
+    guard list.node.attributes.is_empty() &&
+      list.node.text.trim().is_empty() &&
+      list.tree.children.get(list.node.id).unwrap_or([]).is_empty() else {
+      @failure.reject(
+        "unsupported-geometry", "Right-angle connectors do not have adjustment guides",
+      )
+    }
+  }
   if !single &&
     !arrow_shape(preset) &&
     preset != "pentagon" &&

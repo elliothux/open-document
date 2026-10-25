@@ -409,12 +409,20 @@ fn FormulaParser::atom(
           | "ROUNDDOWN"
           | "EXACT"
           | "POWER"
+          | "ATAN2"
           | "REPT"
           | "LARGE"
           | "SMALL" => args.length() == 2
           "NOT" | "ISBLANK" | "ISNUMBER" | "ISTEXT" | "ABS" | "INT" | "SQRT" =>
             args.length() == 1
-          "SIN" | "COS" | "TAN" | "RADIANS" | "DEGREES" => args.length() == 1
+          "SIN"
+          | "COS"
+          | "TAN"
+          | "ACOS"
+          | "ASIN"
+          | "ATAN"
+          | "RADIANS"
+          | "DEGREES" => args.length() == 1
           "PI" => args.is_empty()
           "LEN" | "LOWER" | "UPPER" | "TRIM" => args.length() == 1
           "YEAR" | "MONTH" | "DAY" | "HOUR" | "MINUTE" | "SECOND" =>

@@ -210,7 +210,9 @@ fn read_object(
     }
     error => raise error
   }
-  let polyline = if preset == "bentConnector3" {
+  let polyline = if preset == "bentConnector2" {
+    [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0)]
+  } else if preset == "bentConnector3" {
     [(0.0, 0.0), (adjustments.0, 0.0), (adjustments.0, 1.0), (1.0, 1.0)]
   } else {
     custom.map(read_polyline).unwrap_or([]) catch {

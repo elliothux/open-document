@@ -243,12 +243,14 @@ pub fn Session::replace_matches(
     let mut selection = self.selection
     for index = targets.length() - 1; index >= 0; index = index - 1 {
       ignore(
-        self.paragraph_range(
+        self.paragraph_range_in(
+          document,
           tree,
           targets[index],
           structural=true,
           fields=true,
           notes=true,
+          sectionBoundary=true,
         ),
       )
       let working = {

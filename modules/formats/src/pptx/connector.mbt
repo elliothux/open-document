@@ -225,6 +225,7 @@ fn Session::connector_query(self : Session, object : Object) -> Json {
     let (start, end) = object.connector_ends()
     {
       "kind": match object.preset {
+        "bentConnector2" => "rightAngle"
         "bentConnector3" => "elbow"
         "curvedConnector3" => "curved"
         _ => "straight"

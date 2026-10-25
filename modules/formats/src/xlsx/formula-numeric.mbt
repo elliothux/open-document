@@ -84,6 +84,15 @@ fn numeric_function(
     "SIN" => finite_result(@math.sin(numbers[0]))
     "COS" => finite_result(@math.cos(numbers[0]))
     "TAN" => finite_result(@math.tan(numbers[0]))
+    "ACOS" => finite_result(@math.acos(numbers[0]))
+    "ASIN" => finite_result(@math.asin(numbers[0]))
+    "ATAN" => finite_result(@math.atan(numbers[0]))
+    "ATAN2" =>
+      if numbers[0] == 0 && numbers[1] == 0 {
+        Error("#DIV/0!")
+      } else {
+        finite_result(@math.atan2(numbers[1], numbers[0]))
+      }
     "RADIANS" => finite_result(numbers[0] * @math.PI / 180)
     "DEGREES" => finite_result(numbers[0] * 180 / @math.PI)
     "ABS" => Number(numbers[0].abs())
